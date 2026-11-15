@@ -1,42 +1,123 @@
 import { describe, expect, test } from "bun:test"
-import { addPage, createBook, pagesOf } from "../../web/src/core/book"
+import {
+  addPage,
+  checkBooks,
+  findPage,
+  holds,
+  keepsPageTypes,
+  lineupOf,
+  moveEntry,
+  newPage,
+  pagesOf,
+} from "../../web/src/core/book"
 import { resolvePaper } from "../../web/src/core/paper"
 import { PAPER_IDS } from "../../web/src/plugins/base"
 import { choosablePapers, defaultPaper, paperChoices } from "../../web/src/plugins/base/page-tabs/pages"
+import { DRAWING, drawingPage, MARKDOWN, SLIDE, testBook, testFolder, testPage } from "../lineup"
 import { CORE_CATALOG } from "../support"
 
-const book = {
-  type: "@matomezu/drawing:drawing" as const,
-  id: "b1",
-  title: "ブック",
-  pages: [
-    { id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" as const },
-    { id: "p3", title: "ページ 3", paper: "@matomezu/base:a3", orientation: "portrait" as const },
-  ],
-}
+const book = testBook("b1", "ブック", [
+  drawingPage("p1"),
+  drawingPage("p3", { title: "ページ 3", paper: "@matomezu/base:a3", orientation: "portrait" }),
+])
 
-test("ページを足すと、newId の値そのままの id（uuid）で、決めた名前と紙のページになる。ほかのページと重なる id は振り直す", () => {
+test("新しいページは、newId の値そのままの id（uuid）で、決めたタイプ・名前・紙のページになる。ほかのページと重なる id は振り直す", () => {
   const ids = ["p3", "p-2a"]
-  const { book: next, page } = addPage(
+  const page = newPage(
     book,
-    { title: "表紙", paper: "@matomezu/base:a5", orientation: "portrait" },
+    { type: DRAWING, title: "表紙", paper: "@matomezu/base:a5", orientation: "portrait" },
     () => ids.shift()!,
   )
-  expect(page).toEqual({ id: "p-2a", title: "表紙", paper: "@matomezu/base:a5", orientation: "portrait" })
+  expect(page).toEqual({
+    kind: "page",
+    id: "p-2a",
+    type: DRAWING,
+    title: "表紙",
+    paper: "@matomezu/base:a5",
+    orientation: "portrait",
+  })
+  const next = addPage(book, page)
   expect(pagesOf(next).map(p => p.id)).toEqual(["p1", "p3", "p-2a"])
   expect(pagesOf(book)).toHaveLength(2)
 })
 
-test("作ったブックは、そのタイプの形の空のブック", () => {
-  const made = createBook(CORE_CATALOG, "@matomezu/drawing:drawing", { id: "x", title: "新しい図" })
-  expect(made).toEqual({ type: "@matomezu/drawing:drawing", id: "x", title: "新しい図", pages: [] })
-  expect(CORE_CATALOG.bookSchema.safeParse(made).success).toBe(true)
+describe("並び", () => {
+  const slides = testFolder("f1", "スライド", SLIDE, testPage(SLIDE, "s1"), testPage(SLIDE, "s2", { title: "2" }))
+  const mixed = testBook("b2", "混ざる", [drawingPage("p1"), slides, testPage(MARKDOWN, "t1", { title: "文書" })])
+
+  test("フォルダの中のページも並びの順に読め、どのフォルダに入っているかも引ける", () => {
+    expect(pagesOf(mixed).map(p => p.id)).toEqual(["p1", "s1", "s2", "t1"])
+    expect(findPage(mixed, "s2")?.folder?.id).toBe("f1")
+    expect(findPage(mixed, "p1")?.folder).toBeNull()
+    expect(findPage(mixed, "nope")).toBeUndefined()
+  })
+
+  test("並べ替えは同じ入れ物の中だけ（ブックの並びならブックの並び、フォルダの中ならそのフォルダの中）", () => {
+    expect(lineupOf(moveEntry(mixed, "t1", 0)).map(e => e.id)).toEqual(["t1", "p1", "f1"])
+    expect(lineupOf(moveEntry(mixed, "f1", 9)).map(e => e.id)).toEqual(["p1", "t1", "f1"])
+    expect(pagesOf(moveEntry(mixed, "s2", 0)).map(p => p.id)).toEqual(["p1", "s2", "s1", "t1"])
+    expect(moveEntry(mixed, "nope", 0)).toEqual(mixed)
+  })
+
+  test("フォルダに足すページは、そのフォルダの中に入る", () => {
+    const next = addPage(mixed, testPage(SLIDE, "s3", { title: "3" }), { folder: "f1", index: 0 })
+    expect(pagesOf(next).map(p => p.id)).toEqual(["p1", "s3", "s1", "s2", "t1"])
+  })
+
+  test("並びの決まりを破るブックは読めない", () => {
+    const cases: [string, ReturnType<typeof testBook>, boolean][] = [
+      ["守っている", mixed, true],
+      ["ページの id が重なる", testBook("b", "b", [drawingPage("p1"), drawingPage("p1", { title: "2" })]), false],
+      ["ページとフォルダの id が重なる", testBook("b", "b", [drawingPage("f1"), slides]), false],
+      ["まとまるタイプのページがフォルダの外", testBook("b", "b", [testPage(SLIDE, "s1")]), false],
+      [
+        "まとまらないタイプのページがフォルダの中",
+        testBook("b", "b", [testFolder("f1", "f", SLIDE, drawingPage("p1") as never)]),
+        false,
+      ],
+      ["フォルダの入れるタイプがまとまらないタイプ", testBook("b", "b", [testFolder("f1", "f", DRAWING)]), false],
+      ["同じ入れ物で名前が重なる", testBook("b", "b", [drawingPage("p1"), drawingPage("p2")]), false],
+      [
+        "フォルダの中で名前が重なる",
+        testBook("b", "b", [testFolder("f1", "f", SLIDE, testPage(SLIDE, "s1"), testPage(SLIDE, "s2"))]),
+        false,
+      ],
+      [
+        "入れ物が違えば同じ名前でよい",
+        testBook("b", "b", [drawingPage("p1"), testFolder("f1", "f", SLIDE, testPage(SLIDE, "s1"))]),
+        true,
+      ],
+    ]
+    for (const [name, b, ok] of cases) expect([name, holds(CORE_CATALOG, b)]).toEqual([name, ok])
+  })
+
+  test("機能台帳に無いタイプのページ・空のフォルダのあるブックは W004", () => {
+    const unknownPage = testBook("b", "b", [
+      drawingPage("p1"),
+      { ...drawingPage("p2", { title: "2" }), type: "@x/y:z" } as never,
+    ])
+    const unknownFolder = testBook("c", "c", [testFolder("f1", "f", "@x/y:z" as never)])
+    const { books, warnings } = checkBooks(CORE_CATALOG, [unknownPage, unknownFolder, mixed])
+    expect(books.map(b => b.id)).toEqual(["b2"])
+    expect(warnings.map(w => w.code)).toEqual(["W004", "W004"])
+  })
+
+  test("ページのタイプとフォルダの入れるタイプは、変えた後も同じでなければならない", () => {
+    expect(keepsPageTypes(mixed, moveEntry(mixed, "t1", 0))).toBe(true)
+    const retyped = testBook("b2", "混ざる", [{ ...drawingPage("p1"), type: MARKDOWN } as never])
+    expect(keepsPageTypes(mixed, retyped)).toBe(false)
+    const refolded = testBook("b2", "混ざる", [{ ...slides, pageType: DRAWING }])
+    expect(keepsPageTypes(mixed, refolded)).toBe(false)
+  })
 })
 
 describe("紙の規定（図面はページごとに選べる）", () => {
   test("どのページでも、規定の紙を全部選べ、既定は A4 横", () => {
-    expect(paperChoices(CORE_CATALOG, book)).toEqual({ papers: PAPER_IDS, orientations: ["portrait", "landscape"] })
-    expect(defaultPaper(CORE_CATALOG, { ...book, pages: [] })).toEqual({
+    expect(paperChoices(CORE_CATALOG, book, DRAWING)).toEqual({
+      papers: PAPER_IDS,
+      orientations: ["portrait", "landscape"],
+    })
+    expect(defaultPaper(CORE_CATALOG, testBook("b0", "空", []), DRAWING)).toEqual({
       paper: "@matomezu/base:a4",
       orientation: "landscape",
     })
@@ -54,7 +135,7 @@ describe("紙の規定（図面はページごとに選べる）", () => {
       orientations: ["portrait", "landscape"],
     })
     expect(
-      choosablePapers(rule, [{ id: "p1", title: "1", paper: "@matomezu/base:a3", orientation: "portrait" }]),
+      choosablePapers(rule, [drawingPage("p1", { title: "1", paper: "@matomezu/base:a3", orientation: "portrait" })]),
     ).toEqual({
       papers: ["@matomezu/base:a3"],
       orientations: ["portrait"],
@@ -62,23 +143,22 @@ describe("紙の規定（図面はページごとに選べる）", () => {
   })
 })
 
-test("ブックの形に無い項目があれば形に合わない。形はタイプで決まる", () => {
-  const ok = {
-    type: "@matomezu/drawing:drawing",
-    id: "b1",
-    title: "ブック",
-    pages: [{ id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" }],
-  }
+test("ブックの形に無い項目があれば形に合わない。ページの形はページのタイプで決まる", () => {
+  const ok = testBook("b1", "ブック")
+  const page = drawingPage()
+  const withPage = (p: object) => ({ ...ok, lineup: [p] })
   expect(CORE_CATALOG.bookSchema.safeParse(ok).success).toBe(true)
   expect(CORE_CATALOG.bookSchema.safeParse({ ...ok, extra: 1 }).success).toBe(false)
-  expect(CORE_CATALOG.bookSchema.safeParse({ ...ok, pages: [] }).success).toBe(true)
-  expect(CORE_CATALOG.bookSchema.safeParse({ ...ok, pages: [{ id: "p1", title: "ページ 1" }] }).success).toBe(false)
+  expect(CORE_CATALOG.bookSchema.safeParse({ ...ok, lineup: [] }).success).toBe(true)
+  expect(
+    CORE_CATALOG.bookSchema.safeParse(withPage({ kind: "page", id: "p1", type: DRAWING, title: "ページ 1" })).success,
+  ).toBe(false)
   // 表に無い紙の id も受け取る（描き方は resolvePaper）。向きは決まった値だけ
-  expect(CORE_CATALOG.bookSchema.safeParse({ ...ok, pages: [{ ...ok.pages[0], paper: "b5" }] }).success).toBe(true)
-  expect(CORE_CATALOG.bookSchema.safeParse({ ...ok, pages: [{ ...ok.pages[0], orientation: "up" }] }).success).toBe(
-    false,
-  )
-  expect(CORE_CATALOG.bookSchema.safeParse({ id: "b1", title: "ブック", pages: ok.pages }).success).toBe(false)
+  expect(CORE_CATALOG.bookSchema.safeParse(withPage({ ...page, paper: "b5" })).success).toBe(true)
+  expect(CORE_CATALOG.bookSchema.safeParse(withPage({ ...page, orientation: "up" })).success).toBe(false)
+  // 題は 1 字以上、並びは必須
+  expect(CORE_CATALOG.bookSchema.safeParse({ ...ok, title: "" }).success).toBe(false)
+  expect(CORE_CATALOG.bookSchema.safeParse({ id: "b1", title: "ブック" }).success).toBe(false)
 })
 
 describe("ページの紙を描く大きさ", () => {

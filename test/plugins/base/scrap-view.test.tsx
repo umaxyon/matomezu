@@ -1,10 +1,12 @@
 // スクラップのビュー（base/scrap/ScrapView）: 指したページを、そのブックの物で、範囲 × 倍率の枠に描く。指す先が無ければ枠だけを描く
+
 import { afterEach, describe, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
 import { ScrapView } from "../../../web/src/plugins/base/scrap/ScrapView"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../../web/src/plugins/ui"
 import { createMatomezu } from "../../../web/src/store/create"
 import { MatomezuProvider } from "../../../web/src/ui/store-context"
+import { pagesBook } from "../../lineup"
 
 afterEach(cleanup)
 
@@ -18,25 +20,26 @@ const box = (id: string, x: number) => ({
   props: { caption: id },
 })
 
-const drawing = (id: string, settings: object) => ({
-  type: "@matomezu/drawing:drawing",
-  id,
-  title: id,
-  settings,
-  pages: [
-    {
-      id: `p${id}`,
-      title: "P",
-      paper: "@matomezu/base:a4",
-      orientation: "landscape",
-      items: [
-        box("a", 40),
-        box("b", 400),
-        { id: "l1", item: "@matomezu/line:connector-line", from: "a", to: "b", props: {} },
-      ],
-    },
-  ],
-})
+const drawing = (id: string, settings: object) =>
+  pagesBook({
+    type: "@matomezu/drawing:drawing",
+    id,
+    title: id,
+    settings,
+    pages: [
+      {
+        id: `p${id}`,
+        title: "P",
+        paper: "@matomezu/base:a4",
+        orientation: "landscape",
+        items: [
+          box("a", 40),
+          box("b", 400),
+          { id: "l1", item: "@matomezu/line:connector-line", from: "a", to: "b", props: {} },
+        ],
+      },
+    ],
+  })
 
 // x はテーマと線の引き方を選んだブック、y は何も選んでいないブック（ページ px・py に、同じ id の箱と線がある）
 const X = drawing("x", { "@matomezu/base:page-theme": "sticky", "@matomezu/line:line-route": "straight" })

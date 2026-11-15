@@ -18,10 +18,11 @@ import {
   split,
   unsplit,
 } from "../../web/src/core/workspace"
+import { pagesBook } from "../lineup"
 import { CORE_CATALOG } from "../support"
 
 describe("workspace", () => {
-  const book = {
+  const book = pagesBook({
     type: "@matomezu/drawing:drawing" as const,
     id: "b1",
     title: "見本",
@@ -29,7 +30,7 @@ describe("workspace", () => {
       { id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" as const },
       { id: "p2", title: "ページ 2", paper: "@matomezu/base:a4", orientation: "landscape" as const },
     ],
-  }
+  })
   const ws = newWorkspace(CORE_CATALOG, book)
 
   test("分けると、カレントの右に何も開いていないステージが増え、カレントは変わらない", () => {

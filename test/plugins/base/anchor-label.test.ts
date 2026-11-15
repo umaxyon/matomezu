@@ -1,11 +1,13 @@
 // 物の名前（base/label/labels.ts の anchorLabel と、定義の labelOf）: id を持つ物（いちばん内側の形 → つなぐもの → ページ）の定義から引き、空なら種類の名前。装飾は外す
+
 import { expect, test } from "bun:test"
 import type { Book } from "../../../web/src/core/schema/book"
 import { anchorLabel } from "../../../web/src/plugins/base/label/labels"
+import { pagesBook } from "../../lineup"
 import { CORE_CATALOG } from "../../support"
 
 const drawing = (items: readonly unknown[]): Book =>
-  ({
+  pagesBook({
     type: "@matomezu/drawing:drawing",
     id: "b1",
     title: "見本",
@@ -68,7 +70,7 @@ test("リストはキャプション、行は行のキャプションか本文�
 })
 
 test("ツリーの節と、ディレクトリの行は、ブックのタイプの labelOf で引く", () => {
-  const tree = {
+  const tree = pagesBook({
     type: "@matomezu/tree:tree",
     id: "t",
     title: "木",
@@ -81,10 +83,10 @@ test("ツリーの節と、ディレクトリの行は、ブックのタイプ�
         root: { id: "root", caption: "根", children: [{ id: "k", caption: "{red:子}" }] },
       },
     ],
-  } as unknown as Book
+  }) as unknown as Book
   expect(label(tree, "root")).toEqual({ text: "根" })
   expect(label(tree, "k")).toEqual({ text: "子" })
-  const dir = {
+  const dir = pagesBook({
     type: "@matomezu/dir:dir",
     id: "d",
     title: "構成",
@@ -97,7 +99,7 @@ test("ツリーの節と、ディレクトリの行は、ブックのタイプ�
         root: { id: "root", kind: "folder", name: "src", children: [{ id: "f", kind: "file", name: "main.ts" }] },
       },
     ],
-  } as unknown as Book
+  }) as unknown as Book
   expect(label(dir, "root")).toEqual({ text: "src" })
   expect(label(dir, "f")).toEqual({ text: "main.ts" })
 })

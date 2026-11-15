@@ -2,10 +2,11 @@ import { expect, test } from "bun:test"
 import { pagesOf } from "../../../web/src/core/book"
 import type { ItemPage } from "../../../web/src/core/placed"
 import { rectsOf } from "../../../web/src/plugins/base"
+import { pagesBook } from "../../lineup"
 import { newStore } from "../../support"
 
 // 外したプラグインの星（大きさ無し）と、外したプラグインの線（星から箱へ）が残る図面
-const book = {
+const book = pagesBook({
   type: "@matomezu/drawing:drawing",
   id: "u1",
   title: "星の残る図",
@@ -22,7 +23,7 @@ const book = {
       ],
     },
   ],
-}
+})
 
 const page = (store: ReturnType<typeof newStore>) =>
   (store.state.getState().books.u1 as unknown as { pages: ItemPage[] }).pages[0]!

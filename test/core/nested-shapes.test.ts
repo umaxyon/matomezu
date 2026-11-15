@@ -1,9 +1,11 @@
 // 子の形（ケイパビリティ nests の形が持つ shapes）: ブックの形が受け付ける子と、子までたどる・探す・置き換える関数（core/placed.ts）・子を持つ形の大きさ（base の place/placed.ts）
+
 import { describe, expect, test } from "bun:test"
 import { pagedOf, restoreBooks } from "../../web/src/core/book"
 import { findShape, type ItemPage, type PlacedShape, replaceShape, walkShapes } from "../../web/src/core/placed"
 import { shownRects } from "../../web/src/plugins/base/place/items"
 import { NEST_PADDING, placedSize } from "../../web/src/plugins/base/place/placed"
+import { pagesBook } from "../lineup"
 import { CORE_CATALOG } from "../support"
 
 const BOX = "@matomezu/box:shape-nest-box"
@@ -13,12 +15,13 @@ const LINE = "@matomezu/line:connector-line"
 // 図面のブックは内包ボックス（ケイパビリティ nests）・リスト・線を使う
 const nesting = CORE_CATALOG
 
-const book = (items: unknown[]) => ({
-  type: "@matomezu/drawing:drawing",
-  id: "b1",
-  title: "T",
-  pages: [{ id: "p1", title: "P", paper: "@matomezu/base:a4", orientation: "landscape", items }],
-})
+const book = (items: unknown[]) =>
+  pagesBook({
+    type: "@matomezu/drawing:drawing",
+    id: "b1",
+    title: "T",
+    pages: [{ id: "p1", title: "P", paper: "@matomezu/base:a4", orientation: "landscape", items }],
+  })
 const box = (id: string, x: number, y: number, shapes?: unknown[]) => ({
   id,
   x,

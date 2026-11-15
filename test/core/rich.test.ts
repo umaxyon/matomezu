@@ -1,4 +1,5 @@
 // 本文の装飾（base の text/rich.ts・edit.ts・text-colors.ts）
+
 import { expect, test } from "bun:test"
 import type { Book } from "../../web/src/core/schema/book"
 import { restoreSettings, userSetting } from "../../web/src/core/settings"
@@ -18,6 +19,7 @@ import {
   textColorsOf,
   withTextColor,
 } from "../../web/src/plugins/base/text/text-colors"
+import { pagesBook } from "../lineup"
 import { CORE_CATALOG, newStore } from "../support"
 
 const W = "@matomezu/base:warn"
@@ -106,13 +108,13 @@ test("記号の字の前の \\ でただの文字になり、戻すときは記�
 })
 
 test("文字の色は定義の色を、テーマ、ブックの設定、利用者の上書きの順に上書きする", () => {
-  const book = {
+  const book = pagesBook({
     type: "@matomezu/drawing:drawing",
     id: "b",
     title: "",
     pages: [],
     settings: { "@matomezu/base:page-text-colors": { [W]: "#111111" } },
-  } as unknown as Book
+  }) as unknown as Book
   const plain = { ...book, settings: undefined } as unknown as Book
   expect(textColorsOf(CORE_CATALOG, plain).get(W)).toBe("#d97706")
   expect(textColorsOf(CORE_CATALOG, book).get(W)).toBe("#111111")

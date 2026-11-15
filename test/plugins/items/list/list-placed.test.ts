@@ -10,6 +10,7 @@ import { BOX_TOKENS } from "../../../../web/src/plugins/items/box/box"
 import { LIST } from "../../../../web/src/plugins/items/list/list"
 import { LIST_MIN, LIST_SIZE, listCaptionWidth, placedListWidth } from "../../../../web/src/plugins/items/list/size"
 import { PLACE_OFFSET } from "../../../../web/src/plugins/paper/placing/items"
+import { pagesBook } from "../../../lineup"
 import { CORE_CATALOG, sizedStore } from "../../../support"
 
 // 置いたリストの大きさ・押されたときの縮め方・コマンド・データの形（箱と同じ置き場の決まりを、リストも持つこと）
@@ -88,20 +89,21 @@ test("リストを置こうとして紙の上で押すとリストの追加の�
 })
 
 test("図面のデータの形: 行（children）を持てるのはリストだけ。行の項目は行の形で確かめる", () => {
-  const book = (item: Record<string, unknown>) => ({
-    type: "@matomezu/drawing:drawing",
-    id: "x",
-    title: "x",
-    pages: [
-      {
-        id: "p",
-        title: "p",
-        paper: "@matomezu/base:a4",
-        orientation: "landscape",
-        items: [{ id: "i", x: 0, y: 0, ...item }],
-      },
-    ],
-  })
+  const book = (item: Record<string, unknown>) =>
+    pagesBook({
+      type: "@matomezu/drawing:drawing",
+      id: "x",
+      title: "x",
+      pages: [
+        {
+          id: "p",
+          title: "p",
+          paper: "@matomezu/base:a4",
+          orientation: "landscape",
+          items: [{ id: "i", x: 0, y: 0, ...item }],
+        },
+      ],
+    })
   const row = { id: "r", item: "list.row", props: { caption: "行" } }
   const ok = (item: Record<string, unknown>) => CORE_CATALOG.bookSchema.safeParse(book(item)).success
   expect(ok({ item: "@matomezu/list:shape-list", props: {}, children: [row] })).toBe(true)

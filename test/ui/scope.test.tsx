@@ -1,5 +1,6 @@
 // 描いている場所（ui/scope.tsx）: ステージの外で見るだけに描くページ（PageScope）の中は、置いたページのブックの物で描き、外がステージでも、その選択は写らず、中からは何も行えない。
 // ダイアログの中は開いたステージが、無くなったステージを置いた所は何も行えない所が、描いている場所になる
+
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
 import { pagedOf, pagesOf } from "../../web/src/core/book"
@@ -29,6 +30,7 @@ import {
   useStageArea,
   useStagePan,
 } from "../../web/src/ui/view-hooks"
+import { pagesBook } from "../lineup"
 
 afterEach(cleanup)
 
@@ -42,25 +44,26 @@ const box = (id: string, x: number) => ({
   props: { caption: id },
 })
 
-const drawing = (id: string, settings: object) => ({
-  type: "@matomezu/drawing:drawing",
-  id,
-  title: id,
-  settings,
-  pages: [
-    {
-      id: `p${id}`,
-      title: "P",
-      paper: "@matomezu/base:a4",
-      orientation: "landscape",
-      items: [
-        box("a", 40),
-        box("b", 400),
-        { id: "l1", item: "@matomezu/line:connector-line", from: "a", to: "b", props: {} },
-      ],
-    },
-  ],
-})
+const drawing = (id: string, settings: object) =>
+  pagesBook({
+    type: "@matomezu/drawing:drawing",
+    id,
+    title: id,
+    settings,
+    pages: [
+      {
+        id: `p${id}`,
+        title: "P",
+        paper: "@matomezu/base:a4",
+        orientation: "landscape",
+        items: [
+          box("a", 40),
+          box("b", 400),
+          { id: "l1", item: "@matomezu/line:connector-line", from: "a", to: "b", props: {} },
+        ],
+      },
+    ],
+  })
 
 // x はテーマと線の引き方を選んだブック、y は何も選んでいないブック（ページ px・py に、同じ id の箱と線がある）
 const X = drawing("x", { "@matomezu/base:page-theme": "sticky", "@matomezu/line:line-route": "straight" })

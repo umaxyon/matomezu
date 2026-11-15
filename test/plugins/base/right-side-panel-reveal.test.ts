@@ -1,4 +1,5 @@
 // 右サイドパネルで開いた物を見せる見え方（倍率の選び方と、真ん中に来ること。ずらす量の細かな決まりは stand-place.test.ts）、閉じたときに見え方を戻すかの覚え（state.ts・reveal.ts）。全体を収めるのと同じ移し方（moveView）
+
 import { expect, test } from "bun:test"
 import type { Rect } from "../../../web/src/core/geom"
 import { newStage, openBook, panBy, placement, resize, type Stage, zoomTo } from "../../../web/src/core/stage"
@@ -6,18 +7,19 @@ import { paperRectOf, revealView } from "../../../web/src/plugins/base/right-sid
 import { movedFrom, openedRestore, restoreTo, withRestore } from "../../../web/src/plugins/base/right-side-panel/state"
 import { EDGE_STAND_ROOM } from "../../../web/src/plugins/base/utils/stand-place"
 import { fitView, moveView, ZOOM_MIN } from "../../../web/src/plugins/base/zoom"
+import { pagesBook } from "../../lineup"
 import { CORE_CATALOG } from "../../support"
 
 const OPEN = { widget: "p:panel", subject: "c1", anchors: ["a1"], current: "a1", book: "b1", page: "p1" }
 const HOME = { zoom: 1, pan: { x: 0, y: 0 } }
 const PANNED = { zoom: 0.8, pan: { x: -40, y: -10 } }
 
-const book = {
+const book = pagesBook({
   type: "@matomezu/drawing:drawing" as const,
   id: "b1",
   title: "見本",
   pages: [{ id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" as const }],
-}
+})
 const stage = resize(openBook(CORE_CATALOG, newStage("s1"), book), { w: 400, h: 300 })
 
 test("開くと、開く前の見え方を覚え、物はまだ見せていない。閉じて戻す前に同じページで開き直しても、最初に開く前の見え方と、変えたかはそのまま", () => {

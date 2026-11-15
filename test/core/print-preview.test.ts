@@ -26,9 +26,10 @@ import {
 } from "../../web/src/plugins/base/print-preview/scrollbar"
 import { arrangeSheets } from "../../web/src/plugins/base/print-preview/sheets"
 import { fitSideView, ZOOM_MAX } from "../../web/src/plugins/base/zoom"
+import { pagesBook } from "../lineup"
 import { CORE_CATALOG } from "../support"
 
-const book = {
+const book = pagesBook({
   type: "@matomezu/drawing:drawing" as const,
   id: "b1",
   title: "見本",
@@ -36,7 +37,7 @@ const book = {
     { id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" as const },
     { id: "p2", title: "ページ 2", paper: "@matomezu/base:a5", orientation: "portrait" as const },
   ],
-}
+})
 
 describe("ステージの印刷プレビュー", () => {
   const editing = zoomTo(resize(openBook(CORE_CATALOG, newStage("s1"), book), { w: 400, h: 300 }), 1.25)

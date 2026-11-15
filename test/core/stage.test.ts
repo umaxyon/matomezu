@@ -22,10 +22,11 @@ import {
   zoomTo,
 } from "../../web/src/core/stage"
 import { contentSize, MARGIN } from "../../web/src/core/viewport"
+import { pagesBook } from "../lineup"
 import { CORE_CATALOG } from "../support"
 
 describe("stage", () => {
-  const paged = {
+  const paged = pagesBook({
     type: "@matomezu/drawing:drawing" as const,
     id: "b1",
     title: "見本",
@@ -33,7 +34,7 @@ describe("stage", () => {
       { id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" as const },
       { id: "p2", title: "ページ 2", paper: "@matomezu/base:a5", orientation: "portrait" as const },
     ],
-  }
+  })
   const stage = openBook(CORE_CATALOG, newStage("s1"), paged)
   const content = contentSize(paperOf(stage)!, 1)
   const small = { w: 400, h: 300 } // 中身が収まらない表示領域
@@ -106,7 +107,7 @@ describe("stage", () => {
   })
 
   test("ブックを開くと、最初のページを開き、ずらす量は範囲に収めた最初の位置", () => {
-    const book = {
+    const book = pagesBook({
       type: "@matomezu/drawing:drawing" as const,
       id: "b9",
       title: "見本",
@@ -114,7 +115,7 @@ describe("stage", () => {
         { id: "p4", title: "ページ 4", paper: "@matomezu/base:a4", orientation: "landscape" as const },
         { id: "p5", title: "ページ 5", paper: "@matomezu/base:a4", orientation: "landscape" as const },
       ],
-    }
+    })
     const opened = openBook(CORE_CATALOG, resize(newStage("s2"), small), book)
     expect(opened.opened).toEqual({
       type: "@matomezu/drawing:drawing",
@@ -145,12 +146,12 @@ test("その場で編集中（editing）は、選んでいる物があるとき�
 })
 
 test("見せ方が知らせた広さ（可変ページ）は、紙の枠とずらす量の範囲に効き、紙 1 枚の大きさ（paperOf）は変えない。紙が変われば捨てる", () => {
-  const book = {
+  const book = pagesBook({
     type: "@matomezu/drawing:drawing" as const,
     id: "b1",
     title: "見本",
     pages: [{ id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "portrait" as const }],
-  }
+  })
   const opened = resize(openBook(CORE_CATALOG, newStage("s1"), book), { w: 400, h: 300 })
   const sheet = paperOf(opened)!
   expect(areaOf(opened)).toEqual(sheet)
@@ -173,12 +174,12 @@ test("見せ方が知らせた広さ（可変ページ）は、紙の枠とず�
 
 test("開いているページの中身をずらした（ページの shift が変わった）なら、中身が同じ所に見えるようパンを合わせ、知らせた広さも先に広げる", () => {
   const page = { id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "portrait" as const }
-  const book = {
+  const book = pagesBook({
     type: "@matomezu/drawing:drawing" as const,
     id: "b1",
     title: "見本",
     pages: [page],
-  }
+  })
   const sheet = paperOf(openBook(CORE_CATALOG, newStage("s1"), book))!
   const view = { w: 400, h: 300 }
   const start = setArea(resize(openBook(CORE_CATALOG, newStage("s1"), book), view), { w: sheet.w * 3, h: sheet.h * 3 })
@@ -196,12 +197,12 @@ test("開いているページの中身をずらした（ページの shift が�
 
 test("位置をデータに持たない見せ方が、描く中身をずらした量（origin）を広さと一緒に知らせて変われば、中身が同じ所に見えるようパンを合わせる", () => {
   const page = { id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "portrait" as const }
-  const book = {
+  const book = pagesBook({
     type: "@matomezu/drawing:drawing" as const,
     id: "b1",
     title: "見本",
     pages: [page],
-  }
+  })
   const sheet = paperOf(openBook(CORE_CATALOG, newStage("s1"), book))!
   const view = { w: 400, h: 300 }
   const area = { w: sheet.w * 3, h: sheet.h * 2 }
@@ -218,12 +219,12 @@ test("位置をデータに持たない見せ方が、描く中身をずらし�
 
 test("開いたばかりのページは、知らせた初めの位置（start）を表示領域の左上に置く。紙の左上でなければ広さが届くまで待ち、動かしたあとや開き直すまでは合わせない", () => {
   const page = { id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "portrait" as const }
-  const book = {
+  const book = pagesBook({
     type: "@matomezu/drawing:drawing" as const,
     id: "b1",
     title: "見本",
     pages: [page],
-  }
+  })
   const view = { w: 400, h: 300 }
   const opened = resize(openBook(CORE_CATALOG, newStage("s1"), book), view)
   const sheet = paperOf(opened)!
@@ -253,12 +254,12 @@ test("開いたばかりのページは、知らせた初めの位置（start）
 test("開いていたページが無くなって隣のページを開いたときも初めの位置に合わせる。印刷プレビューを開けば合わせず、印刷プレビューの間に戻すと並べた広さの左上", () => {
   const p1 = { id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "portrait" as const }
   const p2 = { ...p1, id: "p2", title: "ページ 2" }
-  const book = {
+  const book = pagesBook({
     type: "@matomezu/drawing:drawing" as const,
     id: "b1",
     title: "見本",
     pages: [p1, p2],
-  }
+  })
   const view = { w: 400, h: 300 }
   const opened = resize(openBook(CORE_CATALOG, newStage("s1"), book), view)
   const sheet = paperOf(opened)!

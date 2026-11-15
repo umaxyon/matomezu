@@ -3,6 +3,7 @@ import { shownPageId } from "../../../web/src/core/stage"
 import { screenOf } from "../../../web/src/core/window"
 import { currentStage } from "../../../web/src/core/workspace"
 import { addPageIn, createBookIn } from "../../../web/src/plugins/base"
+import { pagesBook } from "../../lineup"
 import { newStore } from "../../support"
 
 test("ページを足すと、そのステージのブックに入り、そのステージで開いてカレントになる", () => {
@@ -75,12 +76,14 @@ test("ブックを作ると、振った id で一覧に入り、そのステー�
   expect(createBookIn({ state, actions }, "s2", { title: " ", type: "@matomezu/drawing:drawing" })).toBe(false)
   expect(createBookIn({ state, actions }, "s2", { title: "新しい図", type: "@matomezu/drawing:drawing" })).toBe(true)
   const s = state.getState()
-  expect(s.books.made).toEqual({
-    type: "@matomezu/drawing:drawing",
-    id: "made",
-    title: "新しい図",
-    pages: [],
-  })
+  expect(s.books.made).toEqual(
+    pagesBook({
+      type: "@matomezu/drawing:drawing",
+      id: "made",
+      title: "新しい図",
+      pages: [],
+    }),
+  )
   expect(screenOf(s.window).stages[1]!.opened).toEqual({
     type: "@matomezu/drawing:drawing",
     book: "made",

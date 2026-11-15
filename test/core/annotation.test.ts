@@ -13,9 +13,10 @@ import {
 import { performIn } from "../../web/src/core/perform"
 import type { Book } from "../../web/src/core/schema/book"
 import { warningText } from "../../web/src/core/warnings"
+import { pagesBook } from "../lineup"
 import { CORE_CATALOG } from "../support"
 
-const book = {
+const book = pagesBook({
   type: "@matomezu/drawing:drawing",
   id: "d",
   title: "D",
@@ -28,7 +29,7 @@ const book = {
       items: [{ id: "a", item: "@matomezu/box:shape-nest-box", x: 0, y: 0, w: 64, h: 64, props: { caption: "A" } }],
     },
   ],
-} as unknown as Book
+}) as unknown as Book
 
 const note = (id: string, props: unknown): Annotation => ({
   id,

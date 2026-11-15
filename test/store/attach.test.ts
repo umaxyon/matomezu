@@ -9,9 +9,10 @@ import { isShown } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { definePlugin, warningsOf } from "../../web/src/store/plugin"
+import { pagesBook } from "../lineup"
 import { CORE_CATALOG, newStore } from "../support"
 
-const drawing = { type: "@matomezu/drawing:drawing" as const, id: "d", title: "D", pages: [] }
+const drawing = pagesBook({ type: "@matomezu/drawing:drawing" as const, id: "d", title: "D", pages: [] })
 
 test("アクションは、タイプが選んだアイテム・見せ方・ページに付いて来る。アノテーションのアクションは、その種類を使えるタイプに付いて来る。ブックが対象でないアクションは、どのタイプにも付かない", () => {
   const ids = actionsOf(CORE_CATALOG, drawing)

@@ -1,8 +1,10 @@
 // スライドのブック: ページの slide にアイテムを置く・動かす・大きさを変える・項目を変える・重ねを変える・消す（plugins/items/slide）
+
 import { expect, test } from "bun:test"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { createMatomezu } from "../../web/src/store/create"
+import { pagesBook } from "../lineup"
 import { newStore, sequence } from "../support"
 
 const TEXT = "@matomezu/slide:slide-text"
@@ -121,12 +123,12 @@ test("項目: 角度を書き、null で消せる。形に合わない項目は�
 test("文字枠を置いて続けて打った文字は、置いた画面の履歴の段にまとまり、元に戻すは 1 回で文字枠ごと消える", async () => {
   const store = newStore({
     books: [
-      {
+      pagesBook({
         type: "@matomezu/slide-book:slide",
         id: "b1",
         title: "スライド",
         pages: [{ id: "p1", title: "1", paper: "@matomezu/base:ratio-16x9", orientation: "landscape", slide: [] }],
-      },
+      }),
     ] as never,
   })
   const state = () =>
@@ -151,12 +153,12 @@ test("文字枠を置いて続けて打った文字は、置いた画面の履�
 test("続けている画面の履歴の段には、コマンド（slide-set）が行うアクションも足され、元に戻すは 1 回で最初の値に戻る", async () => {
   const store = newStore({
     books: [
-      {
+      pagesBook({
         type: "@matomezu/slide-book:slide",
         id: "b1",
         title: "スライド",
         pages: [{ id: "p1", title: "1", paper: "@matomezu/base:ratio-16x9", orientation: "landscape", slide: [] }],
-      },
+      }),
     ] as never,
   })
   const slide = () =>

@@ -1,7 +1,9 @@
 // スライドを印刷に出すか（設定 slide-print）: ページ → ブック → 既定の順に引き、見せ方の printSheets が載っている印刷区画を決める
+
 import { expect, test } from "bun:test"
 import { settingsAt } from "../../../../web/src/plugins/base/book-settings"
 import { slidePrintSheets } from "../../../../web/src/plugins/books/slide-book/print"
+import { pagesBook } from "../../../lineup"
 import { CORE_CATALOG } from "../../../support"
 
 const TEXT = "@matomezu/slide:slide-text"
@@ -17,7 +19,7 @@ const sheetsOf = (slide: object[], book: object, page: object) => {
     slide,
     ...page,
   }
-  const b = { type: "@matomezu/slide-book:slide", id: "s1", title: "S", pages: [p], ...book }
+  const b = pagesBook({ type: "@matomezu/slide-book:slide", id: "s1", title: "S", pages: [p], ...book })
   return slidePrintSheets(CORE_CATALOG, p as never, { setting: settingsAt(CORE_CATALOG, b as never, p as never) })
 }
 
