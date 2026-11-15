@@ -14,7 +14,6 @@ import {
   RichBar,
   RichInput,
   type RichInputHandle,
-  rowClass,
 } from "../../base/ui"
 import { ENTRY_UPDATE } from "./actions"
 import styles from "./EntrySettingsDialog.module.css"
@@ -79,27 +78,28 @@ export function EntrySettingsDialog({ stage, args, onClose }: DialogProps<{ page
             />
           )}
         </Field>
-        <div className={rowClass}>
-          <span>{t("Icon")}</span>
-          <div className={styles.icons} role="radiogroup" aria-label={t("Icon")}>
-            {iconsFor(catalog, entry.kind)
-              .sort((x, y) => Number(y.id === DEFAULT_ICON[entry.kind]) - Number(x.id === DEFAULT_ICON[entry.kind]))
-              .map(value => (
-                <button
-                  key={value.id}
-                  type="button"
-                  role="radio"
-                  className={styles.icon}
-                  aria-checked={(icon ?? DEFAULT_ICON[entry.kind]) === value.id}
-                  aria-label={tr(value.title)}
-                  title={tr(value.title)}
-                  onClick={() => setIcon(value.id === DEFAULT_ICON[entry.kind] ? undefined : value.id)}
-                >
-                  <NodeIcon kind={entry.kind} icon={value.id} open={false} size={18} />
-                </button>
-              ))}
-          </div>
-        </div>
+        <Field label={t("Icon")}>
+          {() => (
+            <div className={styles.icons} role="radiogroup" aria-label={t("Icon")}>
+              {iconsFor(catalog, entry.kind)
+                .sort((x, y) => Number(y.id === DEFAULT_ICON[entry.kind]) - Number(x.id === DEFAULT_ICON[entry.kind]))
+                .map(value => (
+                  <button
+                    key={value.id}
+                    type="button"
+                    role="radio"
+                    className={styles.icon}
+                    aria-checked={(icon ?? DEFAULT_ICON[entry.kind]) === value.id}
+                    aria-label={tr(value.title)}
+                    title={tr(value.title)}
+                    onClick={() => setIcon(value.id === DEFAULT_ICON[entry.kind] ? undefined : value.id)}
+                  >
+                    <NodeIcon kind={entry.kind} icon={value.id} open={false} size={18} />
+                  </button>
+                ))}
+            </div>
+          )}
+        </Field>
         {refused && <Problem>{t(refused)}</Problem>}
       </Form>
     </Dialog>
