@@ -2,6 +2,7 @@
 
 import { afterEach, describe, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
+import { pagesOf } from "../../../web/src/core/book"
 import { ScrapView } from "../../../web/src/plugins/base/scrap/ScrapView"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../../web/src/plugins/ui"
 import { createMatomezu } from "../../../web/src/store/create"
@@ -78,7 +79,7 @@ describe("スクラップの中（ScrapView）", () => {
   })
 
   test("指したページが無いか、同じ id のページが 2 つのブックにあれば、枠だけを描く（無い）", () => {
-    const twin = (id: string) => withPages({ ...Y, id }, [{ ...Y.pages[0]!, id: "twin" }])
+    const twin = (id: string) => withPages({ ...Y, id }, [{ ...pagesOf(Y)[0]!, id: "twin" }])
     const { wrap } = setup([twin("t1"), twin("t2")])
     const { container } = render(
       wrap(
@@ -93,7 +94,7 @@ describe("スクラップの中（ScrapView）", () => {
 
   test("可変ページの中身を右・下へずらしたら、ずらした印刷区画の分だけ先を描く", () => {
     const shiftedBook = withPages({ ...X, id: "g" }, [
-      { ...X.pages[0]!, id: "pg", grows: "all", shift: { x: 1, y: 2 } },
+      { ...pagesOf(X)[0]!, id: "pg", grows: "all", shift: { x: 1, y: 2 } },
     ])
     const { wrap } = setup([shiftedBook])
     const { container } = render(

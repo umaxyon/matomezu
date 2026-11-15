@@ -1,33 +1,28 @@
-// ブックの変化（core/changes.ts）: 前と後のブックを比べ、変わったフィールド・ページ・アイテムを返す
+// ブックの変化（core/changes.ts）: 前と後のブックを比べ、変わったフィールド・並び・ページ・アイテムを返す
 import { expect, test } from "bun:test"
 import { changesOf } from "../../web/src/core/changes"
 import type { Book } from "../../web/src/core/schema/book"
 
+const p = (id: string, rest: object = {}) => ({ kind: "page", id, type: "t", title: id, ...rest })
 const book = (fields: object) =>
   ({
-    type: "t",
     id: "b1",
     title: "",
-    pages: [
-      { id: "p1", title: "1", items: [{ id: "a" }, { id: "b" }] },
-      { id: "p2", title: "2" },
-    ],
+    lineup: [p("p1", { items: [{ id: "a" }, { id: "b" }] }), p("p2")],
     ...fields,
   }) as unknown as Book
 
-test("変わったブックのフィールドと、ページごとに変わったフィールドとアイテムを返す", () => {
+test("変わったブックのフィールドと、並びが変わったか、ページごとに変わったフィールドとアイテムを返す", () => {
   const before = book({})
   const after = book({
     title: "x",
-    pages: [
-      { id: "p1", title: "1", locked: true, items: [{ id: "a", w: 1 }, { id: "c" }] },
-      { id: "p3", title: "3", items: [{ id: "d" }] },
-    ],
+    lineup: [p("p1", { locked: true, items: [{ id: "a", w: 1 }, { id: "c" }] }), p("p3", { items: [{ id: "d" }] })],
   })
   expect(changesOf(before, after)).toEqual({
     gone: false,
     added: false,
     fields: ["title"],
+    lineup: true,
     pages: [
       { id: "p1", change: "changed", fields: ["locked"], items: ["a", "b", "c"] },
       { id: "p2", change: "removed", fields: [], items: [] },
@@ -36,23 +31,38 @@ test("変わったブックのフィールドと、ページごとに変わっ�
   })
 })
 
+test("ページの中だけを変えたなら並びは変わらない。順・フォルダの名前・フォルダの中の順が変われば並びが変わった", () => {
+  const folder = (title: string, ids: string[]) => ({
+    kind: "folder",
+    id: "f1",
+    title,
+    pageType: "s",
+    lineup: ids.map(id => p(id)),
+  })
+  const before = book({ lineup: [p("p1"), folder("f", ["s1", "s2"])] })
+  expect(changesOf(before, book({ lineup: [p("p1", { title: "y" }), folder("f", ["s1", "s2"])] })).lineup).toBe(false)
+  expect(changesOf(before, book({ lineup: [folder("f", ["s1", "s2"]), p("p1")] })).lineup).toBe(true)
+  expect(changesOf(before, book({ lineup: [p("p1"), folder("g", ["s1", "s2"])] })).lineup).toBe(true)
+  expect(changesOf(before, book({ lineup: [p("p1"), folder("f", ["s2", "s1"])] })).lineup).toBe(true)
+})
+
 test("同じなら何も変わらず、後が無ければ一覧から無くなった", () => {
-  expect(changesOf(book({}), book({}))).toEqual({ gone: false, added: false, fields: [], pages: [] })
-  expect(changesOf(book({}), undefined)).toEqual({ gone: true, added: false, fields: [], pages: [] })
+  expect(changesOf(book({}), book({}))).toEqual({ gone: false, added: false, fields: [], lineup: false, pages: [] })
+  expect(changesOf(book({}), undefined)).toEqual({ gone: true, added: false, fields: [], lineup: false, pages: [] })
 })
 
 test("前が無ければ一覧に新しく増えた: フィールドはどれも変わり、どのページも足した", () => {
-  expect(changesOf(undefined, book({ title: "x", pages: [{ id: "p1", title: "1", items: [{ id: "a" }] }] }))).toEqual({
+  expect(changesOf(undefined, book({ title: "x", lineup: [p("p1", { items: [{ id: "a" }] })] }))).toEqual({
     gone: false,
     added: true,
     fields: expect.arrayContaining(["title"]),
+    lineup: true,
     pages: [{ id: "p1", change: "added", fields: [], items: ["a"] }],
   })
 })
 
 test("ページの slide に置いたアイテムの id も items に入り、slide はページのフィールドに出ない", () => {
-  const withSlide = (slide: object[]) =>
-    ({ type: "t", id: "b1", title: "", pages: [{ id: "p1", title: "1", slide }] }) as unknown as Book
+  const withSlide = (slide: object[]) => book({ lineup: [p("p1", { slide })] })
   expect(changesOf(withSlide([{ id: "a" }, { id: "b" }]), withSlide([{ id: "a", x: 1 }, { id: "c" }])).pages).toEqual([
     { id: "p1", change: "changed", fields: [], items: ["a", "b", "c"] },
   ])

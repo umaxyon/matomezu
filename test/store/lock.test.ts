@@ -2,6 +2,7 @@
 
 import { expect, test } from "bun:test"
 import { type Actor, AI, USER } from "../../web/src/core/actor"
+import { pagesOf } from "../../web/src/core/book"
 import type { MessageKey } from "../../web/src/core/catalog"
 import { changesOf } from "../../web/src/core/changes"
 import { type PerformedIn, performIn } from "../../web/src/core/perform"
@@ -38,9 +39,9 @@ test("ロック中のページは変えられず消せない。ほかのペー�
   const { state, actions } = store
   const book = () => state.getState().books.b1 as Drawing
   addPageIn(store, "s1", { title: "ページ 2" })
-  const [first, second] = book().pages.map(p => p.id) as [string, string]
+  const [first, second] = pagesOf(book()).map(p => p.id) as [string, string]
   expect(actions.perform("@matomezu/base:page-lock", { page: first }, { book: "b1" }).ok).toBe(true)
-  expect(book().pages[0]?.locked).toBe(true)
+  expect(pagesOf(book())[0]?.locked).toBe(true)
   for (const [id, args] of [
     ["@matomezu/base:page-update", { page: first, title: "x" }],
     ["@matomezu/base:page-remove", { page: first }],

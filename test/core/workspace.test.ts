@@ -106,7 +106,7 @@ describe("workspace", () => {
     const without = (id: string) =>
       withPages(
         three,
-        three.pages.filter(p => p.id !== id),
+        pagesOf(three).filter(p => p.id !== id),
       )
     expect(followBook(CORE_CATALOG, at("p2"), without("p2"), three).stages[0]!.opened?.page).toBe("p3")
     expect(followBook(CORE_CATALOG, at("p3"), without("p3"), three).stages[0]!.opened?.page).toBe("p2")

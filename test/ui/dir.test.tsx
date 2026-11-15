@@ -1,6 +1,8 @@
 // ディレクトリ構成図のブック（plugins/books/dir）: ページを作る・行と罫線を描く・▸・▾ で開け閉めする・アクション（足す・パスから・書き換え・消す・移す・並べ替え）・紙に入らなければ断る
+
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, screen, within } from "@testing-library/react"
+import { pagesOf } from "../../web/src/core/book"
 import { toolsIn } from "../../web/src/core/tools"
 import { screenOf } from "../../web/src/core/window"
 import { createBookIn } from "../../web/src/plugins/base"
@@ -60,7 +62,7 @@ test("ページを作るボタンでダイアログが開き、根のフォル�
   expect((within(dialog).getByLabelText("根のフォルダの名前") as HTMLInputElement).value).toBe("構成図")
   fireEvent.change(within(dialog).getByLabelText("根のフォルダの名前"), { target: { value: "proj" } })
   fireEvent.click(within(dialog).getByRole("button", { name: "作る" }))
-  expect(book().pages[0]).toMatchObject({ title: "構成図", root: { kind: "folder", name: "proj" } })
+  expect(pagesOf(book())[0]).toMatchObject({ title: "構成図", root: { kind: "folder", name: "proj" } })
   expect(rowNames()).toEqual(["proj"])
 })
 
@@ -77,7 +79,7 @@ test("行を上から並べ、中身のあるフォルダには ▸・▾ を出
   expect(paper.querySelector(`[data-toggle="${ids.readme}"]`)).toBeNull()
   fireEvent.click(within(paper).getAllByRole("button", { name: "閉じる" })[1]!)
   expect(rowNames()).toEqual(["proj", "src", "README.md"])
-  expect(book().pages[0]).toMatchObject({ root: { children: [{ closed: true }, { kind: "file" }] } })
+  expect(pagesOf(book())[0]).toMatchObject({ root: { children: [{ closed: true }, { kind: "file" }] } })
   act(() => store.actions.command("s1", "@matomezu/base:tool-set", "@matomezu/base:hand"))
   fireEvent.click(within(paper).getByRole("button", { name: "開く" }))
   expect(rowNames()).toEqual(["proj", "src", "a.ts", "README.md"])
@@ -112,7 +114,7 @@ test("中身を足す・書き換える（根も）・消す・移す・並べ�
       icon: "@matomezu/dir:entry-icon-book",
     }).ok,
   ).toBe(true)
-  expect(book().pages[0]).toMatchObject({ root: { name: "app", icon: "@matomezu/dir:entry-icon-book" } })
+  expect(pagesOf(book())[0]).toMatchObject({ root: { name: "app", icon: "@matomezu/dir:entry-icon-book" } })
   expect(perform("@matomezu/dir:entry-move", { page: ids.page, entry: ids.readme, parent: ids.src }).ok).toBe(true)
   expect(rowNames()).toEqual(["app", "src", "a.ts", "z.ts", "README.md"])
   expect(perform("@matomezu/dir:entry-move", { page: ids.page, entry: ids.src, parent: ids.a }).ok).toBe(false)
@@ -179,7 +181,7 @@ test("Enter・F2・ダブルクリックで名前をその場で書き、Enter �
   let input = within(paper()).getByRole("textbox", { name: "名前" })
   writeRich(input, "app")
   fireEvent.keyDown(input, { key: "Enter" })
-  expect(book().pages[0]).toMatchObject({ root: { name: "app" } })
+  expect(pagesOf(book())[0]).toMatchObject({ root: { name: "app" } })
   fireEvent.doubleClick(row(ids.a))
   input = within(paper()).getByRole("textbox", { name: "名前" })
   writeRich(input, [
@@ -284,7 +286,7 @@ test("右クリックの「設定…」で、フォルダもファイルも同�
   fireEvent.click(within(dialog).getByRole("button", { name: "確定" }))
   expect(screen.queryByRole("dialog")).toBeNull()
   expect(rowNames()).toEqual(["proj", "src", "a.ts", "README.txt"])
-  expect(book().pages[0]).toMatchObject({
+  expect(pagesOf(book())[0]).toMatchObject({
     root: { children: [{ kind: "folder" }, { name: "README.txt", description: "はじめに読む" }] },
   })
   const note = paper().querySelector(`[data-note="${ids.readme}"]`)
@@ -298,7 +300,7 @@ test("右クリックの「設定…」で、フォルダもファイルも同�
   fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "設定…" }))
   writeRich(within(screen.getByRole("dialog")).getByLabelText("説明"), " ")
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "確定" }))
-  expect(book().pages[0]).not.toHaveProperty("root.children.1.description")
+  expect(pagesOf(book())[0]).not.toHaveProperty("root.children.1.description")
 })
 
 test("フォルダを選んで Tab で、行のすぐ右に種類を選ぶ枠を出す。↑↓ と Enter で選んだ種類を中の末尾に足して書き始め、Escape でやめる。ファイルでは出さない", () => {
@@ -381,7 +383,7 @@ test("紙の右クリックの「ページの設定」で、ページ名と削�
   expect(paper().querySelector("[data-divider]")).toBeNull()
   expect(panel()?.getAttribute("data-open")).toBe("false")
   fireEvent.click(within(dialog).getByRole("button", { name: "確定" }))
-  expect(book().pages[0]).toMatchObject({
+  expect(pagesOf(book())[0]).toMatchObject({
     settings: { "@matomezu/dir:notes": { shown: false, dots: true, divider: true } },
   })
 })
@@ -406,7 +408,7 @@ test("説明を出している間は、説明の列をダブルクリックし�
   writeRich(input(), "")
   fireEvent.blur(input())
   expect(note(ids.a)).toBeUndefined()
-  expect(JSON.stringify(book().pages[0])).not.toContain('"説明"') // データからも消す
+  expect(JSON.stringify(pagesOf(book())[0])).not.toContain('"説明"') // データからも消す
   perform("@matomezu/base:page-update", {
     page: ids.page,
     settings: { "@matomezu/dir:notes": { shown: false, dots: false, divider: false } },
@@ -436,7 +438,9 @@ test("中身のアイコンは、列挙 entry-icon の値で種類に合う物�
   expect(root(BOOK)).toBe(true)
   // 合う物は付き、行の頭の絵になる
   expect(perform("@matomezu/dir:entry-update", { page: ids.page, entry: ids.readme, icon: DRAWING }).ok).toBe(true)
-  expect(book().pages[0]).toMatchObject({ root: { children: [{ kind: "folder" }, { icon: DRAWING }, { name: "d" }] } })
+  expect(pagesOf(book())[0]).toMatchObject({
+    root: { children: [{ kind: "folder" }, { icon: DRAWING }, { name: "d" }] },
+  })
   const paper = screen.getByRole("img", { name: "紙" })
   expect(paper.querySelector(`[data-icon="${DRAWING}"] svg`)).not.toBeNull()
   // 値が無くなった中身は、既定の絵で描く（データは消えない）

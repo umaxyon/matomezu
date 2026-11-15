@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../../../web/src/core/book"
 import { shapesOf } from "../../../../web/src/core/placed"
 import type { BookOf } from "../../../../web/src/core/schema/book"
 import { resolveTokens } from "../../../../web/src/core/theme"
@@ -222,7 +223,7 @@ test("ブックのタイプが使えないテーマが残った箱も、テー�
   expect(place(first, { caption: "付箋", theme: "@matomezu/base:sticky" }).ok).toBe(true)
   // 図のブックが使えないテーマが残ったブックを読み込む（テーマタイプが後で変わったときなど）
   const books = JSON.parse(JSON.stringify(first.state.getState().books))
-  books.b1.pages[0].items[0].props.theme = "@matomezu/markdown:github-like"
+  books.pagesOf(b1)[0].items[0].props.theme = "@matomezu/markdown:github-like"
   const store = newStore({ books: Object.values(books) })
   store.actions.resizeStage("s1", { w: 1400, h: 1000 })
   const update = (props: Record<string, unknown>) =>

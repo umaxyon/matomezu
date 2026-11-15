@@ -96,7 +96,7 @@ test("開いていないページの変更は、そのページを開いたら�
     store,
     withPages(
       now,
-      now.pages.map(p => (p.id === second!.id ? { ...p, title: "AI" } : p)),
+      pagesOf(now).map(p => (p.id === second!.id ? { ...p, title: "AI" } : p)),
     ),
   )
   expect(historyOf(store)?.undo.map(s => s.by)).toEqual(["user"])

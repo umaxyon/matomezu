@@ -2,7 +2,7 @@
 
 import { expect, test } from "bun:test"
 import { USER } from "../../../../web/src/core/actor"
-import { restoreBooks } from "../../../../web/src/core/book"
+import { pagesOf, restoreBooks } from "../../../../web/src/core/book"
 import { buildCoreCatalog } from "../../../../web/src/core/core-catalog"
 import { perform } from "../../../../web/src/core/perform"
 import { shapesOf } from "../../../../web/src/core/placed"
@@ -176,7 +176,7 @@ test("関係の決まりを守らないブック（線の端が無い・行に�
   connect(store, "n1", "n2")
   const good = book(store)
   const withLines = (items: unknown[]) =>
-    withPages(good, [{ ...good.pages[0]!, items: [...shapesOf(good.pages[0]!), ...items] }])
+    withPages(good, [{ ...pagesOf(good)[0]!, items: [...shapesOf(pagesOf(good)[0]!), ...items] }])
   const line = (id: string, from: string, to: string) => ({
     id,
     item: "@matomezu/line:connector-line",

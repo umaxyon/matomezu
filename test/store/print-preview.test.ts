@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../web/src/core/book"
 import type { Book } from "../../web/src/core/schema/book"
 import { screenOf } from "../../web/src/core/window"
 import { pageContext } from "../../web/src/plugins/base/book-settings"
@@ -81,13 +82,13 @@ test("印刷区画に載っているか: 形は掛かっている印刷区画の
       { book: "b1" },
     )
   const book = () => store.state.getState().books.b1 as Book
-  const filled = () => [...(filledSheets(store.catalog.core, book(), book().pages[0]!) ?? [])].sort()
-  const paperW = paperSize(store.catalog.core, book().pages[0]!)!.w
+  const filled = () => [...(filledSheets(store.catalog.core, book(), pagesOf(book())[0]!) ?? [])].sort()
+  const paperW = paperSize(store.catalog.core, pagesOf(book())[0]!)!.w
   expect(place(40, "一").ok).toBe(true)
   expect(filled()).toEqual(["0,0"])
   // 1 つ目の印刷区画の右の端から少しだけはみ出す箱は、1 つ目と 2 つ目の印刷区画の両方に載り、またいだ箱として挙がる
   const box = (caption: string) =>
-    book().pages[0]!.items!.find(i => (i.props as { caption?: string }).caption === caption)!
+    pagesOf(book())[0]!.items!.find(i => (i.props as { caption?: string }).caption === caption)!
   const w = placedSize(store.catalog.core, box("一") as never)!.w
   expect(place(paperW - w + 10, "少し").ok).toBe(true)
   expect(filled()).toEqual(["0,0", "1,0"])
@@ -105,8 +106,8 @@ test("印刷区画に載っているか: 手で直した線の角がある印刷
       { book: "b1" },
     )
   const book = () => store.state.getState().books.b1 as Book
-  const filled = () => [...(filledSheets(store.catalog.core, book(), book().pages[0]!) ?? [])].sort()
-  const paper = paperSize(store.catalog.core, book().pages[0]!)!
+  const filled = () => [...(filledSheets(store.catalog.core, book(), pagesOf(book())[0]!) ?? [])].sort()
+  const paper = paperSize(store.catalog.core, pagesOf(book())[0]!)!
   expect(place(100, 100).ok).toBe(true) // n1
   expect(place(100, paper.h + 100).ok).toBe(true) // n2（下の印刷区画）
   // 両端を n1 と n2 の右の辺の真ん中に固定（ふち一周 328 の上で 132）。手で直した縦の区間を右の印刷区画に置く
@@ -182,14 +183,14 @@ test("印刷区画より大きい形は、またいでも直せないので、�
   const store = newStore()
   store.actions.perform("@matomezu/base:page-update", { page: "p1", grows: "right-down" }, { book: "b1" })
   const book = () => store.state.getState().books.b1 as Book
-  const paper = paperSize(store.catalog.core, book().pages[0]!)!
+  const paper = paperSize(store.catalog.core, pagesOf(book())[0]!)!
   const done = store.actions.perform(
     "@matomezu/paper:item-place",
     { page: "p1", item: BOX, at: { x: 40, y: 40 }, w: paper.w + 200, h: 64 },
     { book: "b1" },
   )
   expect(done.ok).toBe(true)
-  const id = book().pages[0]!.items![0]!.id
+  const id = pagesOf(book())[0]!.items![0]!.id
   expect(bookCrossings(store.catalog.core, book())).toEqual([{ page: "p1", crossing: [], oversized: [id] }])
   expect(store.actions.command("s1", "@matomezu/base:print-preview-open")).toBe(true)
   expect(screenOf(store.state.getState().window).stages[0]!.mode.kind).toBe("print-preview")

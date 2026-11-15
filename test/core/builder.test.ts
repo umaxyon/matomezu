@@ -3,31 +3,30 @@ import { describe, expect, test } from "bun:test"
 import { z } from "zod"
 import { restoreBooks } from "../../web/src/core/book"
 import { buildCoreCatalog, checkCoreCatalog } from "../../web/src/core/core-catalog"
-import type { BookOf } from "../../web/src/core/schema/book"
 import { BUILTIN } from "../../web/src/plugins"
 import { settingValue } from "../../web/src/plugins/base/book-settings"
 import { LINE_ROUTE } from "../../web/src/plugins/items/line/line"
 import { assemble, type Plugin, warningsOf } from "../../web/src/store/plugin"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
-const drawing = BUILTIN_PARTS.pageTypes.find(t => t.id === "@matomezu/drawing:drawing")!
 const withDrawing = (patch: object) => ({
   ...BUILTIN_PARTS,
   pageTypes: BUILTIN_PARTS.pageTypes.map(t => (t.id === "@matomezu/drawing:drawing" ? { ...t, ...patch } : t)),
 })
 const page = (items: unknown[], extra: object = {}) => ({
+  kind: "page",
   id: "p1",
+  type: "@matomezu/drawing:drawing",
   title: "P",
   paper: "@matomezu/base:a4",
   orientation: "landscape",
   items,
   ...extra,
 })
-const book = (pages: unknown[], extra: object = {}) => ({
-  type: "@matomezu/drawing:drawing",
+const book = (lineup: unknown[], extra: object = {}) => ({
   id: "b1",
   title: "T",
-  pages,
+  lineup,
   ...extra,
 })
 const box = { id: "n1", x: 10, y: 10, item: "@matomezu/box:shape-nest-box", props: {} }
@@ -42,55 +41,55 @@ describe("組み立てたブックの形", () => {
   })
 
   test("設定の項目のフィールドを持てるのは、タイプがその項目を選んだときだけ", () => {
-    const noRoute = buildCoreCatalog(withDrawing({ settings: { book: [], page: ["@matomezu/line:line-route"] } }))
+    const noRoute = buildCoreCatalog(withDrawing({ settings: [] }))
+    const routed = book([page([], { settings: { "@matomezu/line:line-route": "straight" } })])
+    expect(restoreBooks(CORE_CATALOG, [routed])).toHaveLength(1)
+    expect(restoreBooks(noRoute, [routed])).toHaveLength(0)
+    // ページの項目はブックに持てない（ブックが持てるのは、ブックの項目だけ）
     expect(
       restoreBooks(CORE_CATALOG, [book([page([])], { settings: { "@matomezu/line:line-route": "straight" } })]),
-    ).toHaveLength(1)
-    expect(
-      restoreBooks(noRoute, [book([page([])], { settings: { "@matomezu/line:line-route": "straight" } })]),
     ).toHaveLength(0)
-    expect(
-      restoreBooks(noRoute, [book([page([], { settings: { "@matomezu/line:line-route": "straight" } })])]),
-    ).toHaveLength(1)
   })
 
-  test("保存したデータのフィールドの並び: タイプの頭のフィールド（type・id・title）・ページ・設定の項目・タイプのほかのフィールド", () => {
+  test("保存したデータのフィールドの並び: ブックは id・title・lineup・settings、ページは kind・id・type・title・紙・アイテム・設定の項目", () => {
     const [restored] = restoreBooks(CORE_CATALOG, [
-      { ...book([page([])]), settings: { "@matomezu/line:line-route": "straight" } },
+      {
+        ...book([page([], { settings: { "@matomezu/line:line-route": "straight" } })]),
+        settings: { "@matomezu/base:print-preview-flow": "row" },
+      },
     ])
-    expect(Object.keys(restored!)).toEqual(["type", "id", "title", "pages", "settings"])
-    expect(Object.keys((restored as BookOf<"@matomezu/drawing:drawing">).pages[0]!)).toEqual([
+    expect(Object.keys(restored!)).toEqual(["id", "title", "lineup", "settings"])
+    expect(Object.keys(restored!.lineup[0]!)).toEqual([
+      "kind",
       "id",
+      "type",
       "title",
       "paper",
       "orientation",
       "items",
+      "settings",
     ])
   })
 
-  test("設定の値は、ページ → ブック → 定義の既定 の順に、最初に値のある所で決まる", () => {
-    const b = book([page([], { settings: { "@matomezu/line:line-route": "straight" } }), { ...page([]), id: "p2" }], {
-      settings: { "@matomezu/line:line-route": "elbow" },
-    })
-    const [p1, p2] = (b as { pages: object[] }).pages
-    const read = (target: object, at: object | null) => settingValue(CORE_CATALOG, target as never, at, LINE_ROUTE)
-    expect(read(b, p1!)).toBe("straight")
-    expect(read(b, p2!)).toBe("elbow")
-    expect(read(book([page([])]), null)).toBe("elbow") // 定義の既定
-    expect(read({ ...b, settings: { "@matomezu/line:line-route": "straight" } }, p2!)).toBe("straight")
+  test("ページの設定の値は、ページ → 定義の既定 の順に、最初に値のある所で決まる（ブックの値には戻らない）", () => {
+    expect(
+      settingValue(CORE_CATALOG, page([], { settings: { "@matomezu/line:line-route": "straight" } }), LINE_ROUTE),
+    ).toBe("straight")
+    expect(settingValue(CORE_CATALOG, page([]), LINE_ROUTE)).toBe("elbow") // 定義の既定
+    expect(settingValue(CORE_CATALOG, null, LINE_ROUTE)).toBe("elbow")
   })
 })
 
 describe("台帳アセンブルの食い違い", () => {
-  test("タイプが自分のフィールドに、機能台帳が足すフィールド（pages・settings）を書くと error", () => {
-    const own = drawing.schema.extend({ pages: z.array(z.unknown()) })
-    expect(checkCoreCatalog(withDrawing({ schema: own })).map(p => p.code)).toContain("E025")
-    const route = drawing.schema.extend({ settings: z.object({}).optional() })
-    expect(checkCoreCatalog(withDrawing({ schema: route })).map(p => p.code)).toContain("E025")
+  test("タイプがページに足すフィールドに、並びの要素が使う名前（lineup）や土台のフィールドの名前を書くと error", () => {
+    expect(checkCoreCatalog(withDrawing({ fields: { lineup: z.array(z.unknown()) } })).map(p => p.code)).toContain(
+      "E030",
+    )
+    expect(checkCoreCatalog(withDrawing({ fields: { settings: z.object({}) } })).map(p => p.code)).toContain("E030")
   })
 
   test("表に無い設定の項目・見せ方を選ぶと error", () => {
-    expect(checkCoreCatalog(withDrawing({ settings: { book: ["nope.setting"] } })).map(p => p.code)).toContain("E008")
+    expect(checkCoreCatalog(withDrawing({ settings: ["nope.setting"] })).map(p => p.code)).toContain("E008")
     expect(checkCoreCatalog(withDrawing({ presentation: "nope" })).map(p => p.code)).toContain("E008")
   })
 
@@ -142,21 +141,6 @@ test("形の仲間の名前が文言の表に無ければ E018（base の台帳�
     familyTitle: "no such message",
   })
   expect(found.map(p => p.code)).toEqual(["E018"])
-})
-
-test("ブックのタイプの createSettings がブックの設定の項目に無い項目を名指したら E035（base の台帳アセンブルのときの確かめ）", () => {
-  const plugins = (BUILTIN as readonly Plugin[]).map(p =>
-    p.id === "@matomezu/tree"
-      ? { ...p, pageTypes: (p.pageTypes ?? []).map(t => ({ ...t, createSettings: ["@matomezu/tree:no-such"] })) }
-      : p,
-  )
-  let found: { code: string }[] = []
-  try {
-    assemble(plugins)
-  } catch (e) {
-    found = (e as { details?: { code: string }[] }).details ?? []
-  }
-  expect(found.map(p => p.code)).toEqual(["E035"])
 })
 
 test("テーマの textColors の色が #rrggbb でなければ E038（base の台帳アセンブルのときの確かめ）", () => {

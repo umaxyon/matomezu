@@ -1,7 +1,9 @@
 // マークダウンのソースのペイン（markdown の view/SourcePane.tsx）: 書いた物をページの原文に送り、続けて書いた物を 1 つの画面の履歴の段にまとめ、
 // ほかからの変更に合わせ、ロック中は書けない。元に戻すのキーは base のコマンド、Tab キーは設定の項目の字
+
 import { afterEach, expect, setSystemTime, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
+import { pagesOf } from "../../web/src/core/book"
 import type { BookOf } from "../../web/src/core/schema/book"
 import { screenOf } from "../../web/src/core/window"
 import { addPageIn, createBookIn } from "../../web/src/plugins/base"
@@ -33,7 +35,7 @@ function setup() {
   })
   const id = (screenOf(store.state.getState().window).stages[0]!.opened as { book: string }).book
   const book = () => store.state.getState().books[id] as BookOf<"@matomezu/markdown:markdown">
-  const text = () => book().pages[0]!.text ?? ""
+  const text = () => pagesOf(book())[0]!.text ?? ""
   const field = () => within(screen.getByRole("region", { name: "ソース" })).getByRole("textbox") as HTMLTextAreaElement
   const undos = () => store.state.getState().history[id]?.undo.length ?? 0
   const settle = () => act(() => Promise.resolve())
@@ -94,7 +96,7 @@ test("ほかから原文が変わると、テキストFormもその原文にな�
   const { store, id, book, text, field, type, settle } = setup()
   type("foo\n")
   await settle()
-  const page = book().pages[0]!.id
+  const page = pagesOf(book())[0]!.id
   act(() => {
     store.actions.perform(
       "@matomezu/base:page-update",

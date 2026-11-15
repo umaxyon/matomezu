@@ -1,7 +1,7 @@
 // ブックのタイプが足す設定の項目（plugins/base/book-settings.ts）と、それを受け付ける base のアクション book-update・page-update
 import { expect, test } from "bun:test"
 import { z } from "zod"
-import { withSettings } from "../../../web/src/core/book"
+import { pagesOf, withSettings } from "../../../web/src/core/book"
 import type { BookOf } from "../../../web/src/core/schema/book"
 import { settingsArgs, settingsPatchOf } from "../../../web/src/plugins/base/book-settings"
 import { CORE_CATALOG, newStore } from "../../support"
@@ -41,7 +41,7 @@ test("@matomezu/base:book-update・@matomezu/base:page-update は、ブックの
       { book: "b1" },
     ).ok,
   ).toBe(true)
-  expect(book().pages[0]!.settings?.["@matomezu/line:line-route"]).toBe("elbow")
+  expect(pagesOf(book())[0]!.settings?.["@matomezu/line:line-route"]).toBe("elbow")
   expect(
     store.actions.perform(
       "@matomezu/base:page-update",
@@ -62,11 +62,11 @@ test("@matomezu/base:book-update・@matomezu/base:page-update は、ブックの
   expect(store.actions.perform("@matomezu/base:page-update", { page: "p1", title: "表紙" }, { book: "b1" }).ok).toBe(
     true,
   )
-  expect(book().pages[0]!.title).toBe("表紙")
+  expect(pagesOf(book())[0]!.title).toBe("表紙")
   expect(store.actions.perform("@matomezu/base:page-update", { page: "p1", title: "  " }, { book: "b1" }).ok).toBe(
     false,
   )
-  expect(book().pages[0]!.settings?.["@matomezu/line:line-route"]).toBe("elbow")
+  expect(pagesOf(book())[0]!.settings?.["@matomezu/line:line-route"]).toBe("elbow")
 })
 
 test("AI に見せる settings の形は、項目を宣言したタイプごとの形（説明にタイプの id）。タイプがいくつもあれば、そのどれか。印刷プレビューの設定（別の組）は見せない", () => {
@@ -123,7 +123,7 @@ test("@matomezu/base:page-add も、ページの設定の項目を settings で�
   expect(add({ "@matomezu/flowchart:flow-direction": "right" }).ok).toBe(false)
   const done = add({ "@matomezu/line:line-route": "straight" })
   expect(done.ok).toBe(true)
-  expect(book().pages.at(-1)).toMatchObject({ title: "直線", settings: { "@matomezu/line:line-route": "straight" } })
+  expect(pagesOf(book()).at(-1)).toMatchObject({ title: "直線", settings: { "@matomezu/line:line-route": "straight" } })
 })
 
 test("ブックの設定の項目も、変えるときの値の形は機能台帳から組み立てた形（describe）。テーマは表にあるテーマのどれかで、AI にもその形で見せる", () => {

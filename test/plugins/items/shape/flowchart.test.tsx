@@ -1,6 +1,8 @@
 // フローチャートのブック（@matomezu/flowchart）と形（@matomezu/shape）: 作る・ツールボックスに形が並ぶ・形を置いて描く・追加と編集のダイアログ・流れの向き・形のつなぎ口・分岐から出る線のキャプションの候補・自動で整列
+
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, screen, within } from "@testing-library/react"
+import { pagesOf } from "../../../../web/src/core/book"
 import { shapesOf } from "../../../../web/src/core/placed"
 import type { BookOf } from "../../../../web/src/core/schema/book"
 import { screenOf } from "../../../../web/src/core/window"
@@ -26,7 +28,7 @@ function flowchart() {
     expect(addPageIn(store, "s1", { title: "p1" })).toBe(true)
   })
   const book = () => store.state.getState().books[id] as BookOf<"@matomezu/flowchart:flowchart">
-  const page = () => book().pages[0]!
+  const page = () => pagesOf(book())[0]!
   return { store, on: { book: id }, book, page }
 }
 
