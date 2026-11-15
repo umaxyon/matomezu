@@ -126,7 +126,7 @@ function openPreview(ctx: CommandContext, a: CommandActions) {
     a.updatePluginState(RIGHT_SIDE_PANEL_RESTORE_STATE, kept => openedRestore(kept, open, now))
     return
   }
-  a.openPrintPreview(ctx.stage.id)
+  a.here.openPrintPreview()
 }
 
 // 開いているブックを印刷プレビューで見せる（ページを持つブックを編集している間）

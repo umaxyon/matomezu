@@ -32,7 +32,7 @@ export function PrintAreaLayer({ stage: id }: StageSlotProps) {
   const catalog = useCatalog().core
   const paper = stage && paperOf(stage)
   const area = stage && areaOf(stage)
-  const hidden = usePrintAreasHidden(id)
+  const hidden = usePrintAreasHidden()
   const lines = paper && area && !hidden ? printAreaLines(paper, area) : null
   const columns = lines?.columns ?? 0
   const rows = lines?.rows ?? 0
@@ -89,7 +89,7 @@ export function BookContentLayer({ stage: id }: StageSlotProps) {
   const stage = useStage(id)
   const catalog = useCatalog().core
   const views = useUiCatalog().presentationViews
-  const hidden = useContentHidden(id)
+  const hidden = useContentHidden()
   const type = stage?.opened?.type
   if (!type) return null
   const presentation = bookType(catalog, type).presentation

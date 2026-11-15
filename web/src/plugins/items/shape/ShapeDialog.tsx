@@ -11,7 +11,7 @@ import {
   useActions,
   useBook,
   useCoreCatalog,
-  useItem,
+  useItemAt,
   useMessages,
   usePerform,
 } from "../../../plugin-api/ui"
@@ -46,13 +46,13 @@ const EMPTY: ShapeProps = { caption: "", captionAlign: "center" }
 // 形 item を置く追加のダイアログ。回せる形（turnable）は、ブックのタイプが渡す指定（ShapeOptions の turned）で最初の向きを選ぶ
 export function addShapeDialog(item: string, turnable = false) {
   return function AddShapeDialog({ stage, args, onClose }: DialogProps<ShapeAddArgs>) {
-    const book = useBookOf(stage)
+    const book = useBookOf()
     const bookTheme = useBookTheme(book)
     const catalog = useCoreCatalog()
-    const opened = useBook(stage)
+    const opened = useBook()
     const turned = opened ? startTurned(catalog, opened, args.page, item) : false
     const { select } = useActions()
-    const perform = usePerform(stage)
+    const perform = usePerform()
     const add = (props: ShapeProps) => {
       if (!book) return { reason: "no-book" }
       const done = perform("@matomezu/paper:item-place", { ...args, item, props, crowd: "push" })
@@ -75,15 +75,15 @@ export function addShapeDialog(item: string, turnable = false) {
   }
 }
 
-export function EditShapeDialog({ stage, args, onClose }: DialogProps<{ page: string; item: string }>) {
-  const book = useBookOf(stage)
+export function EditShapeDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
+  const book = useBookOf()
   const bookTheme = useBookTheme(book)
-  const placed = useItem(stage, args.page, args.item)
+  const placed = useItemAt(args.page, args.item)
   // 回せる形は、向きの切り替えを出す（向きを書いていないデータは縦向き）
   const props = placed?.props as ShapeProps | undefined
   const start = props && placed && TURNABLE.includes(placed.item) ? { ...props, turned: props.turned ?? false } : props
   const { previewDialog } = useActions()
-  const perform = usePerform(stage)
+  const perform = usePerform()
   const preview = useCallback(
     (look: Look | null) => previewDialog(look && book ? { book, item: args.item, props: look } : null),
     [book, args.item, previewDialog],

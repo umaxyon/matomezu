@@ -41,7 +41,7 @@ export function ScrapCutDialog({ stage, args, onClose }: DialogProps<{ page: str
   const catalog = useCatalog().core
   const { perform, showToast } = useActions()
   const openPanel = useOpenLeftSidePanel()
-  const placeable = useScrapFrame(stage) !== null
+  const placeable = useScrapFrame() !== null
   const start = useMatomezuState(
     useShallow(s => {
       const at = pageById(s.books, args.page)
@@ -88,10 +88,10 @@ export function ScrapCutDialog({ stage, args, onClose }: DialogProps<{ page: str
 }
 
 // ステージ stage で、スクラップトレイから置くスクラップフレームのアイテム（開いているブックに置けなければ null）
-function useScrapFrame(stage: string) {
+function useScrapFrame() {
   const catalog = useCatalog().core
-  const book = pagedOf(useBook(stage))
-  const view = useStage(stage)
+  const book = pagedOf(useBook())
+  const view = useStage()
   return book && view ? scrapFrameIn(catalog, book, view.edits) : null
 }
 
@@ -103,7 +103,7 @@ const scrapTrayEntries = (stage: string): readonly LeftSidePanelEntry[] => [
 // スクラップトレイ（開く側が、置くステージ stage を渡す）。そのステージで置けないブックに替わったら閉じる
 function ScrapTrayView({ stage }: { stage: string }) {
   const t = useMessages(kit)
-  const placeable = useScrapFrame(stage) !== null
+  const placeable = useScrapFrame() !== null
   const close = useCloseLeftSidePanel()
   useEffect(() => {
     if (!placeable) close()
@@ -126,11 +126,11 @@ function Row({ stage, id, scrap }: { stage: string; id: string; scrap: Scrap }) 
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const { perform, togglePlacing, showToast } = useActions()
-  const view = useStage(stage)
-  const frame = useScrapFrame(stage)
+  const view = useStage()
+  const frame = useScrapFrame()
   const placing = view?.placing
   // 置くときの値: 開いているページの紙の半分に収める
-  const opened = usePage(stage)
+  const opened = usePage()
   const paper = opened ? paperSize(catalog, opened) : null
   const toPlace = paper ? scrapToPlace(scrap, paper) : scrap
   const pressed = frame !== null && placing?.item === frame && sameData(placing.props, toPlace)
@@ -199,7 +199,7 @@ export const SCRAP_DIALOG_VIEWS = { [SCRAP_CUT_DIALOG.id]: ScrapCutDialog }
 // スクラップトレイを開くボタン（フッタメニューのツールボックスの並びに置く）: 置けるブックを開いているときだけ出し、押すとスクラップトレイだけを開く（もう一度押すと閉じる）
 function ScrapTrayButton({ stage }: StageSlotProps) {
   const t = useMessages(kit)
-  const placeable = useScrapFrame(stage) !== null
+  const placeable = useScrapFrame() !== null
   const open = useLeftSidePanel()
   const toggle = useToggleLeftSidePanel()
   if (!placeable) return null

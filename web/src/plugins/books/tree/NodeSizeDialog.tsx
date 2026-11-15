@@ -12,15 +12,15 @@ import { NodeSizeSelect } from "./NodeSizeSetting"
 import { treeRootOf } from "./node"
 import { NODE_SIZE, type NodeSize } from "./size"
 
-export function NodeSizeDialog({ stage, args, onClose }: DialogProps<{ page: string; node: string }>) {
+export function NodeSizeDialog({ args, onClose }: DialogProps<{ page: string; node: string }>) {
   const t = useMessages(kit)
   const form = useId()
   const catalog = useCoreCatalog()
-  const book = pagedOf(useBook(stage))
+  const book = pagedOf(useBook())
   const page = book?.pages.find(p => p.id === args.page)
   const root = treeRootOf(page)
   const node = root ? nodeOf(root, args.node) : null
-  const perform = usePerform(stage)
+  const perform = usePerform()
   const [size, setSize] = useState<NodeSize | undefined>(node?.size)
   const [refused, setRefused] = useState<MessageKey | null>(null) // 断られたわけの文言
   if (!book || !page || !node) return null

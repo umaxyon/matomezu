@@ -26,7 +26,7 @@ export function UserSettings({ stage, settings }: { stage: string; settings?: re
   const catalog = useCatalog().core
   const views = useUiCatalog().userSettingViews
   const { values } = useSettings()
-  const set = useCommand(stage, SETTINGS_SET_COMMAND.id)
+  const set = useCommand(SETTINGS_SET_COMMAND.id)
   const widgets = useUiCatalog().widgets
   const claimed = new Set(
     (useLayout().slots[SETTINGS_CATEGORIES] ?? []).flatMap(id => widgets.get(id)?.settingsCategory?.settings ?? []),
@@ -65,18 +65,8 @@ export function UserSettings({ stage, settings }: { stage: string; settings?: re
 }
 
 // 項目ごとの囲み: その項目を変えられるか（コントロールセンターが変えさせない項目でないか）を問い、変えられなければまとめて押せなくする
-function SettingItem({
-  stage,
-  id,
-  enabled,
-  children,
-}: {
-  stage: string
-  id: string
-  enabled: boolean
-  children: ReactNode
-}) {
-  const allowed = useAllowed(stage, SETTINGS_SET.id, { settings: [id] })
+function SettingItem({ id, enabled, children }: { stage: string; id: string; enabled: boolean; children: ReactNode }) {
+  const allowed = useAllowed(SETTINGS_SET.id, { settings: [id] })
   return (
     <fieldset className={styles.item} disabled={!enabled || !allowed.ok}>
       {children}

@@ -114,7 +114,7 @@ export const PAPER_EDIT = kit.defineCommand({
     const def = placed && shapeDefOf(ctx.catalog, placed.item)
     const dialog = def && shapeDialogs(def).edit
     if (!page || !dialog) return
-    a.openDialog(ctx.stage.id, dialog, { page, item })
+    a.here.openDialog(dialog, { page, item })
   },
   // 右クリックのメニューでは、編集のダイアログを持つ形のときだけ出す
   when: ctx => onOpenedPage(ctx) && editable(ctx),
@@ -153,7 +153,7 @@ export const PAPER_SELECT_ALL = kit.defineCommand({
     if (!page) return
     const shapes = new Set(shapesOf(page).map(s => s.id))
     const connectors = connectorsOf(page).filter(c => shapes.has(c.from) && shapes.has(c.to))
-    a.select(ctx.stage.id, [...shapes, ...connectors.map(c => c.id)])
+    a.here.select([...shapes, ...connectors.map(c => c.id)])
   },
   when: onOpenedPage,
 })

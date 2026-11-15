@@ -58,8 +58,8 @@ export const SLIDE_PUT = kit.defineCommand({
       a.showToast({ kind: "warn", message: kit.message("Cannot place here") })
       return
     }
-    a.stopPlacing(ctx.stage.id)
-    a.select(ctx.stage.id, [(done.result as { item: string }).item])
+    a.here.stopPlacing()
+    a.here.select([(done.result as { item: string }).item])
   },
   when: ctx => onPage(ctx) && ctx.stage.placing !== null,
 })

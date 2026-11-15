@@ -9,8 +9,8 @@ import { PRINT_READY_STATE } from "./print-state"
 const NONE: Readonly<Record<string, PrintMeasured>> = {}
 
 // ステージ stage で、ブック book のページを測った結果（まだ無ければ空。置き直すまで同じ表を返す）
-export function useMeasures(stage: string, book: string | undefined): Readonly<Record<string, PrintMeasured>> {
-  const m = usePluginState(kit, PRINT_MEASURES, stage)
+export function useMeasures(book: string | undefined): Readonly<Record<string, PrintMeasured>> {
+  const m = usePluginState(kit, PRINT_MEASURES)
   return m && m.book === book ? m.pages : NONE
 }
 

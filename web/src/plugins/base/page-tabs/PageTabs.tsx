@@ -40,16 +40,15 @@ function sideways(el: HTMLElement | null): (() => void) | undefined {
 export function PageTabs({ stage }: { stage: string }) {
   const opened = useMatomezuState(s => stageIn(s.window, stage)?.opened)
   const book = useMatomezuState(s => (opened ? s.books[opened.book] : undefined))
-  const openPage = useCommand(stage, PAGE_OPEN.id)
-  const newPage = useCommand(stage, PAGE_NEW.id)
-  const openMenu = useContextMenu(stage, PAGE_CONTEXT)
+  const openPage = useCommand(PAGE_OPEN.id)
+  const newPage = useCommand(PAGE_NEW.id)
+  const openMenu = useContextMenu(PAGE_CONTEXT)
   const catalog = useCatalog().core
   const typeIcon = useUiCatalog().bookTypeIcons.get(book?.type ?? "") ?? <FileIcon /> // ブックのタイプのアイコン（名乗らないタイプは通常のファイル）
   const t = useMessages(kit)
   const list = useRef<HTMLDivElement | null>(null)
   const pages = book && hasPages(book) ? book.pages : []
   const tabDrag = useTabDrag(
-    stage,
     list,
     pages.map(p => p.id),
   )

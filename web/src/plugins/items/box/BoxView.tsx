@@ -18,11 +18,11 @@ type BoxProps = ItemProps<typeof BOX.id>
 
 export function BoxView({ props, size, hasChildren, id, stage }: ItemViewProps<BoxProps>) {
   const theme = props.theme
-  const vars = useThemeVars(stage, theme, BOX_TOKENS)
-  const at = useStage(stage)
+  const vars = useThemeVars(theme, BOX_TOKENS)
+  const at = useStage()
   const page = at?.opened?.page ?? undefined
-  const perform = usePerform(stage)
-  const grips = useBodyGrips(stage, id, "@matomezu/paper:item-update")
+  const perform = usePerform()
+  const grips = useBodyGrips(id, "@matomezu/paper:item-update")
   return (
     <div className={styles.frame} style={vars} data-theme={theme}>
       <div

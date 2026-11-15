@@ -16,11 +16,11 @@ import styles from "./ZoomBar.module.css"
 export function ZoomBar({ stage, className, fits }: { stage: string; className?: string; fits?: ReactNode }) {
   const t = useMessages(kit)
   const zoom = useMatomezuState(s => stageIn(s.window, stage)?.zoom ?? 1)
-  const reset = useCommand(stage, ZOOM_RESET.id)
-  const fit = useCommand(stage, ZOOM_FIT.id)
-  const out = useCommand(stage, ZOOM_OUT.id)
-  const zin = useCommand(stage, ZOOM_IN.id)
-  const ref = useZoomWheel(stage)
+  const reset = useCommand(ZOOM_RESET.id)
+  const fit = useCommand(ZOOM_FIT.id)
+  const out = useCommand(ZOOM_OUT.id)
+  const zin = useCommand(ZOOM_IN.id)
+  const ref = useZoomWheel()
   return (
     <div
       ref={ref}

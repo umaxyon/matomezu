@@ -78,7 +78,7 @@ function Badges({ stage, open }: { stage: string; open: RightSidePanelOpen }) {
 
 function Badge({ stage, id, current }: { stage: string; id: string; current: boolean }) {
   const setCurrent = useSetRightSidePanelCurrent()
-  const name = useAnchorName(stage, id)
+  const name = useAnchorName(id)
   return (
     <button
       type="button"
@@ -93,9 +93,9 @@ function Badge({ stage, id, current }: { stage: string; id: string; current: boo
 }
 
 // 付ける先の物がブックから消えたら（AI が消したなど）出す知らせ（閉じるまで出したまま）
-function Lost({ stage, anchors }: { stage: string; anchors: readonly string[] }) {
+function Lost({ anchors }: { stage: string; anchors: readonly string[] }) {
   const t = useMessages(kit)
-  const book = useBook(stage)
+  const book = useBook()
   const [lost, setLost] = useState(false)
   const before = useRef(anchors)
   useEffect(() => {
@@ -113,9 +113,9 @@ function Lost({ stage, anchors }: { stage: string; anchors: readonly string[] })
 // 新しく書く伝言: 文を書いて「付ける」（付ける先が無い間は付けられない）
 function NewNote({ stage, open }: { stage: string; open: RightSidePanelOpen }) {
   const t = useMessages(kit)
-  const run = usePerformOrToast(stage, "The note was refused")
+  const run = usePerformOrToast("The note was refused")
   const close = useCloseRightSidePanel()
-  const addable = useAllowed(stage, NOTE_ADD.id).ok
+  const addable = useAllowed(NOTE_ADD.id).ok
   const [text, setText] = useState("")
   const ready = addable && NoteTextSchema.safeParse(text).success && open.anchors.length > 0
   const add = () => {
@@ -155,10 +155,10 @@ function NoteEditor({
   open: RightSidePanelOpen
 }) {
   const t = useMessages(kit)
-  const run = usePerformOrToast(stage, "The note was refused")
+  const run = usePerformOrToast("The note was refused")
   const close = useCloseRightSidePanel()
-  const updatable = useAllowed(stage, NOTE_UPDATE.id).ok
-  const removable = useAllowed(stage, NOTE_REMOVE.id).ok
+  const updatable = useAllowed(NOTE_UPDATE.id).ok
+  const removable = useAllowed(NOTE_REMOVE.id).ok
   const [text, setText] = useState(props.text)
   const next = ordered(open)
   const moved = next.length !== anchors.length || next.some((a, i) => anchors[i] !== a)

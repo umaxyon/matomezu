@@ -17,10 +17,10 @@ import { ShapeBadges } from "./ShapeBadges"
 export function PrintCheckPanel({ stage }: StageSlotProps) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
-  const book = useBook(stage)
+  const book = useBook()
   const open = useRightSidePanel(stage)
   const reopen = useOpenRightSidePanel()
-  const preview = useCommand(stage, PRINT_PREVIEW_OPEN.id)
+  const preview = useCommand(PRINT_PREVIEW_OPEN.id)
   if (!book || open?.widget !== PRINT_CHECK_PANEL_ID) return null
   const found = bookCrossings(catalog, book)
   const crossing = found.flatMap(f => f.crossing.map(id => ({ page: f.page, id })))

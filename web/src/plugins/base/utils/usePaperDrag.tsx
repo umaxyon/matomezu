@@ -34,7 +34,7 @@ export function usePaperDrag(stage: StageView, area: RefObject<HTMLElement | nul
     const r = area.current?.getBoundingClientRect()
     return r ? { x: cx - r.left, y: cy - r.top } : null
   }
-  const toPaperOf = useToPaper(stage.id)
+  const toPaperOf = useToPaper()
   const toPaperAt = (cx: number, cy: number): Point | null => {
     const p = local(cx, cy)
     return p ? toPaperOf(p) : null

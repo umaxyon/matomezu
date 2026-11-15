@@ -44,13 +44,13 @@ export function MinimapView({
   const latest = useRef(stage)
   latest.current = stage
   const grab = useRef<{ pointer: number; dx: number; dy: number } | null>(null)
-  const vars = useBookThemeVars(id)
-  const drawn = useDrawnTable(id)
+  const vars = useBookThemeVars()
+  const drawn = useDrawnTable()
   const marks = useMemo(
     () => (book && page ? minimapMarks(catalog, book, page, item => drawnOn(drawn, item, page.id)) : []),
     [catalog, book, page, drawn],
   )
-  const attachWheel = useZoomWheel(id)
+  const attachWheel = useZoomWheel()
   const paper = stage ? areaOf(stage) : null
   if (!stage || !book || !paper) return null
   const scale = fitScale(paper, width, height)

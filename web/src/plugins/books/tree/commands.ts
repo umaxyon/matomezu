@@ -28,7 +28,7 @@ export const NODE_SELECT_MOVE = kit.defineCommand({
   run: (ctx, a, args: { to: Arrow }) => {
     const tree = treeAt(ctx)
     if (!tree) return
-    a.select(ctx.stage.id, [moveFrom(tree.root, tree.grow, selectedIn(tree.root, ctx.stage.selection), args.to)])
+    a.here.select([moveFrom(tree.root, tree.grow, selectedIn(tree.root, ctx.stage.selection), args.to)])
   },
   when: editingTree,
 })
@@ -39,7 +39,7 @@ export const NODE_SELECT_ROOT = kit.defineCommand({
   title: "Select root",
   run: (ctx, a) => {
     const tree = treeAt(ctx)
-    if (tree) a.select(ctx.stage.id, [tree.root.id])
+    if (tree) a.here.select([tree.root.id])
   },
   when: editingTree,
 })
@@ -54,9 +54,9 @@ export const NODE_EDIT = kit.defineCommand({
     const tree = treeAt(ctx)
     if (!tree) return
     const node = selectedIn(tree.root, ctx.stage.selection)
-    if (node === tree.root.id) return a.openDialog(ctx.stage.id, TREE_PAGE_SETTINGS_DIALOG.id, { page: tree.page.id })
-    a.select(ctx.stage.id, [node])
-    a.setEditing(ctx.stage.id, true)
+    if (node === tree.root.id) return a.here.openDialog(TREE_PAGE_SETTINGS_DIALOG.id, { page: tree.page.id })
+    a.here.select([node])
+    a.here.setEditing(true)
   },
   when: editingTree,
 })
@@ -90,8 +90,8 @@ function addCommand<const Id extends string>(
         a.showToast({ kind: "warn", message: why })
         return
       }
-      a.select(ctx.stage.id, [added])
-      a.setEditing(ctx.stage.id, ADDED_EDIT)
+      a.here.select([added])
+      a.here.setEditing(ADDED_EDIT)
     },
     when,
   })
@@ -123,8 +123,7 @@ export const NODE_DELETE = kit.defineCommand({
     const node = selectedIn(tree.root, ctx.stage.selection)
     const next = afterRemove(tree.root, tree.grow, node)
     if (!next) return
-    if (a.perform(NODE_REMOVE.id, { page: tree.page.id, node }, { book: opened.book }).ok)
-      a.select(ctx.stage.id, [next])
+    if (a.perform(NODE_REMOVE.id, { page: tree.page.id, node }, { book: opened.book }).ok) a.here.select([next])
   },
   when: ctx => {
     const tree = editingTree(ctx) && !ctx.stage.editing ? treeAt(ctx) : null
@@ -141,7 +140,7 @@ export const NODE_SIZE_EDIT = kit.defineCommand({
   run: (ctx, a) => {
     const tree = treeAt(ctx)
     if (!tree) return
-    a.openDialog(ctx.stage.id, NODE_SIZE_DIALOG.id, {
+    a.here.openDialog(NODE_SIZE_DIALOG.id, {
       page: tree.page.id,
       node: selectedIn(tree.root, ctx.stage.selection),
     })
@@ -161,8 +160,8 @@ export const NODE_COLOR_EDIT = kit.defineCommand({
   run: (ctx, a) => {
     const tree = treeAt(ctx)
     if (!tree) return
-    a.select(ctx.stage.id, [selectedIn(tree.root, ctx.stage.selection)])
-    a.setEditing(ctx.stage.id, NODE_COLOR_PICK)
+    a.here.select([selectedIn(tree.root, ctx.stage.selection)])
+    a.here.setEditing(NODE_COLOR_PICK)
   },
   when: ctx => editingTree(ctx) && !ctx.stage.editing && treeAt(ctx) !== null,
 })

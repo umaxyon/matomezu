@@ -12,7 +12,7 @@ import { kit } from "./kit"
 
 export function NewTreePageDialog({ stage, onClose }: DialogProps) {
   const t = useMessages(kit)
-  const book = pagedOf(useBook(stage))
+  const book = pagedOf(useBook())
   const addPage = useAddPage(stage)
   const options = useGrowOptions()
   const catalog = useCoreCatalog()

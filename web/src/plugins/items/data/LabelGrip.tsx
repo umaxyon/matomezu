@@ -12,7 +12,6 @@ import { kit } from "./kit"
 export function LabelGrip({
   c,
   size,
-  stage,
   id,
   onDrag,
 }: {
@@ -23,10 +22,10 @@ export function LabelGrip({
   onDrag: (labelSize: number | undefined) => void // ドラッグの間の大きさ（離せば undefined）
 }) {
   const t = useMessages(kit)
-  const at = useStage(stage)
+  const at = useStage()
   const page = at?.opened?.page ?? undefined
-  const perform = usePerform(stage)
-  const allowed = useAllowed(stage, "@matomezu/paper:item-update", { page, ids: [id] }).ok
+  const perform = usePerform()
+  const allowed = useAllowed("@matomezu/paper:item-update", { page, ids: [id] }).ok
   // つかんだポインタと、つかんだ所と、つかんだときの領域の大きさ
   const grab = useRef<{ pointer: number; x: number; y: number; start: number } | null>(null)
   if (!allowed || at === null || at.pans || !onlySelected(at.selection, id)) return null

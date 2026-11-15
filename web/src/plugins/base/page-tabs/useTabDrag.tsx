@@ -17,14 +17,9 @@ export interface TabDrag {
   index: number | null
 }
 
-export function useTabDrag(
-  stage: string,
-  list: RefObject<HTMLElement | null>,
-  ids: readonly string[],
-  axis: "x" | "y" = "x",
-) {
-  const perform = usePerform(stage)
-  const movable = useAllowed(stage, PAGE_MOVE.id).ok
+export function useTabDrag(list: RefObject<HTMLElement | null>, ids: readonly string[], axis: "x" | "y" = "x") {
+  const perform = usePerform()
+  const movable = useAllowed(PAGE_MOVE.id).ok
   const [drag, setDrag] = useState<TabDrag | null>(null)
   const slots = useRef(new Map<string, HTMLElement>())
   const press = useRef<{ id: string; x: number; y: number; grab: number } | null>(null)

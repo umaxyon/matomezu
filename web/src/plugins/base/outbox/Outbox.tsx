@@ -28,7 +28,7 @@ import type { OutboxProps } from "./tab-id"
 export function Outbox({ stage }: OutboxProps) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
-  const book = useBook(stage)
+  const book = useBook()
   const annotations = useAnnotationsIn(stage)
   const pages = useMemo(() => (book ? listedPages(catalog, book, annotations) : []), [catalog, book, annotations])
   if (pages.length === 0) return <p className={rows.empty}>{t("No notes")}</p>
@@ -52,15 +52,15 @@ export function Outbox({ stage }: OutboxProps) {
 function Row({ stage, annotation: a, now }: { stage: string; annotation: AiAnnotation; now: Date }) {
   const t = useMessages(kit)
   const go = useGo(stage)
-  const run = usePerformOrToast(stage, "Could not withdraw")
+  const run = usePerformOrToast("Could not withdraw")
   const catalog = useCoreCatalog()
-  const name = useAnchorName(stage, a.anchors.at(-1) ?? "")
+  const name = useAnchorName(a.anchors.at(-1) ?? "")
   const listed = listedOf(catalog, a)
   const at = listed?.def.addedAt(listed.props as never) ?? null
   const text = clampChars(listed?.def.text?.(listed.props as never) ?? name, BUBBLE_CHARS)
   const withdraw = listed?.def.withdraw
   // 取消のアクションを行えなければ（認可ステップが止めたなど）、取消を押せなくする
-  const withdrawable = useAllowed(stage, (withdraw?.action ?? "") as ActionId).ok
+  const withdrawable = useAllowed((withdraw?.action ?? "") as ActionId).ok
   return (
     <li className={rows.row} data-read={!a.awaits}>
       <button type="button" className={rows.open} onClick={() => go(a, listed?.def.panel)}>

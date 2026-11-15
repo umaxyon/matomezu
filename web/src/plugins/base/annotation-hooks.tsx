@@ -44,10 +44,9 @@ export function useAnnotationsOf(stage: string, annotation: string): readonly An
 
 // アクションを行う関数: 行えたら結果（無ければ {}）、断られたら断りをトーストに出して false を返す。refused は断りの理由が無いときの文言
 export function usePerformOrToast(
-  stage: string,
   refused: Parameters<typeof kit.message>[0],
 ): (action: string, args: unknown) => false | object {
-  const perform = usePerform(stage) as (action: string, args: unknown) => { ok: boolean; result?: unknown }
+  const perform = usePerform() as (action: string, args: unknown) => { ok: boolean; result?: unknown }
   const catalog = useCoreCatalog()
   const { showToast } = useActions()
   return (action, args) => {

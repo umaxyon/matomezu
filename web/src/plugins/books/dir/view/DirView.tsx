@@ -114,14 +114,14 @@ const Rows = memo(function Rows({
 }) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
-  const book = useShownBook(stage.id)
-  const page = useShownPage(stage.id)
-  const perform = usePerform(stage.id)
+  const book = useShownBook()
+  const page = useShownPage()
+  const perform = usePerform()
   const { select, setEditing, showToast, continueStep } = useActions()
-  const toggle = useCommand(stage.id, FOLDER_TOGGLE.id)
-  const addFolder = useCommand(stage.id, FOLDER_ADD.id)
-  const addFile = useCommand(stage.id, FILE_ADD.id)
-  const openEntryMenu = useContextMenu(stage.id, ENTRY_CONTEXT)
+  const toggle = useCommand(FOLDER_TOGGLE.id)
+  const addFolder = useCommand(FOLDER_ADD.id)
+  const addFile = useCommand(FILE_ADD.id)
+  const openEntryMenu = useContextMenu(ENTRY_CONTEXT)
   // 書いている字（どの中身のものか）と、入力Formを出してから終えたか（Enter のあとの blur で 2 度終えない）
   const [draft, setDraft] = useState<{ entry: string; text: string } | null>(null)
   const [noteDraft, setNoteDraft] = useState<{ entry: string; text: string } | null>(null) // 書いている説明
@@ -129,10 +129,10 @@ const Rows = memo(function Rows({
   const ended = useRef(false)
   const editor = useRef<RichInputHandle>(null)
   const drag = usePaperDrag(stage, area)
-  const renamable = useAllowed(stage.id, ENTRY_UPDATE.id, page ? { page: page.id } : undefined).ok // 名前・説明を書き始められるか
+  const renamable = useAllowed(ENTRY_UPDATE.id, page ? { page: page.id } : undefined).ok // 名前・説明を書き始められるか
   // 選択に従う右サイドパネル（書いている伝言など）を出している間は、押しても動かさない
   const follows = useFollowsSelection(stage.id)
-  const movable = useAllowed(stage.id, ENTRY_MOVE.id, page ? { page: page.id } : undefined).ok && !follows // ドラッグで動かし始められるか
+  const movable = useAllowed(ENTRY_MOVE.id, page ? { page: page.id } : undefined).ok && !follows // ドラッグで動かし始められるか
   const root = dirRootOf(page)
   // 可変ページなら、行と説明が入るだけ右と下へ並べた印刷区画に空きを足した広さを、ステージに知らせる
   const growing = book && page ? growOf(catalog, book, page) : undefined // ページの増やす向き
@@ -142,7 +142,7 @@ const Rows = memo(function Rows({
     growing && book && page
       ? laidPage(catalog, page, { setting: pageContext(catalog, book, page).setting, grow: growing })
       : null
-  useStageArea(stage.id, growing && wide ? laidArea(paper, growing, wide, true).size : null)
+  useStageArea(growing && wide ? laidArea(paper, growing, wide, true).size : null)
   if (!page || !root) return null
   const dir = root
   const usingPencil = stage.tool === PENCIL_TOOL.id
@@ -554,9 +554,9 @@ export function RowFace({ row: r }: { row: LaidRow }) {
 const FOLDER_ICON = <FolderIcon size={ICON} />
 const FILE_ICON = <FileIcon size={ICON} />
 
-function NoPages({ stage }: { stage: StageView }) {
+function NoPages(_props: { stage: StageView }) {
   const t = useMessages(kit)
-  const newPage = useCommand(stage.id, "@matomezu/base:page-new")
+  const newPage = useCommand("@matomezu/base:page-new")
   return (
     <div className={styles.empty}>
       <p className={styles.prompt}>{t("No pages")}</p>

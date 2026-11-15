@@ -3,4 +3,4 @@ import { usePluginState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { CONTENT_HIDDEN } from "./states"
 
-export const useContentHidden = (stage: string): boolean => usePluginState(kit, CONTENT_HIDDEN, stage) ?? false
+export const useContentHidden = (): boolean => usePluginState(kit, CONTENT_HIDDEN) ?? false

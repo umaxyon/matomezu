@@ -13,7 +13,7 @@ import { useAddPage } from "./useAddPage"
 
 export function NewPageDialog({ stage, onClose }: DialogProps) {
   const t = useMessages(kit)
-  const book = useBook(stage) ?? undefined
+  const book = useBook() ?? undefined
   if (!book || !hasPages(book)) return null
   return (
     <Dialog title={t("New page")} onClose={onClose}>

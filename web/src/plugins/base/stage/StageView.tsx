@@ -137,9 +137,9 @@ export const StageView = memo(function StageView({ stage: id }: { stage: string 
 })
 
 // 何も開いていないステージの中身: ブックを作るボタンと、ブックを探すコンポーネント
-function EmptyStage({ stage, onSelect }: { stage: string; onSelect: (book: string) => void }) {
+function EmptyStage({ onSelect }: { stage: string; onSelect: (book: string) => void }) {
   const t = useMessages(kit)
-  const newBook = useCommand(stage, BOOK_NEW.id)
+  const newBook = useCommand(BOOK_NEW.id)
   return (
     <div className={styles.empty}>
       {newBook.shown && (
@@ -158,7 +158,7 @@ function EmptyStage({ stage, onSelect }: { stage: string; onSelect: (book: strin
 // 開いたブックを、レイヤーを重ねて、テーマの値の中に描く（アンカーの表と、物の角に出す物の表はレイヤーみんなで使う）。
 // 印刷プレビューの間は、レイヤーを描かず印刷プレビューのビューだけを描く（ページの座標で描くレイヤーが、並べた印刷区画の上のずれた所に出ないように）
 function BookContent({ stage, type, previewing }: { stage: string; type: BookTypeId; previewing: boolean }) {
-  const style = useBookLookStyle(stage, type) // ブックのテーマの値・文字の色の値・タイプのプラグインのテーマキー
+  const style = useBookLookStyle(type) // ブックのテーマの値・文字の色の値・タイプのプラグインのテーマキー
   return (
     <div className={styles.book} style={style}>
       {previewing ? (

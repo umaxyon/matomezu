@@ -64,18 +64,18 @@ const TITLES = { source: "Source", rendered: "Preview" } as const
 export function MarkdownView({ stage }: BookViewProps) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
-  const page = useShownPage(stage)
-  const book = useBook(stage)
+  const page = useShownPage()
+  const book = useBook()
   const shownPage = page ? paneInputOf(page) : null
-  const chosen = usePluginState(kit, PANE_LAYOUT_STATE, stage)
-  const opening = usePluginState(kit, PANE_OPENING_STATE, stage)
+  const chosen = usePluginState(kit, PANE_LAYOUT_STATE)
+  const opening = usePluginState(kit, PANE_OPENING_STATE)
   const layout = paneLayoutOf(chosen, opening, shownPage)
   const setChosen = useSetPluginState(kit, PANE_LAYOUT_STATE)
   const setOpening = useSetPluginState(kit, PANE_OPENING_STATE)
   // 入れ替えるときだけ first を書き、境目を動かすだけなら入れ替えていないまま
   const setLayout = (patch: Partial<PaneLayout>) => setChosen(stage, chosenWith(chosen, layout, patch))
   const swap = usePaneSwap(() => setLayout({ first: swapPanes(layout).first }))
-  const openMenu = useContextMenu(stage, PANE_CONTEXT)
+  const openMenu = useContextMenu(PANE_CONTEXT)
   const panes = useRef<HTMLDivElement>(null)
   const source = useRef<HTMLDivElement>(null)
   const rendered = useRef<HTMLDivElement>(null)
@@ -90,7 +90,7 @@ export function MarkdownView({ stage }: BookViewProps) {
     const next = openingFor(opening, { id: openedId, text: openedText ?? "" })
     if (next) setOpening(stage, next)
   }, [openedId])
-  const scrolls = usePluginState(kit, SCROLL_STATE, stage)
+  const scrolls = usePluginState(kit, SCROLL_STATE)
   const setScrolls = useSetPluginState(kit, SCROLL_STATE)
   const memory = useScrollMemory(page?.id, scrolls, next => setScrolls(stage, next), source, rendered)
   if (!page || !book) return <NoPages stage={stage} />
@@ -188,7 +188,6 @@ export function MarkdownView({ stage }: BookViewProps) {
 // 縮めても紙の色がペインの下まで届くよう、縮める前の高さを倍率で割って伸ばす
 // 検索の当たりを光らせる（今の当たりは濃く）。ソースのペインを見せていなければ、今の当たりが見えるようにスクロールする（見せていれば、ソースのペインに付いて行く）
 function Rendered({
-  stage,
   page,
   document,
   width,
@@ -206,7 +205,7 @@ function Rendered({
   followHit: boolean
   onContextMenu: (e: MouseEvent) => void
 }) {
-  const search = useSearchHits(stage, page)
+  const search = useSearchHits(page)
   const [lit, setLit] = useState<{ all: Range[]; current: Range[] }>({ all: [], current: [] })
   useLayoutEffect(() => {
     const root = ref.current
@@ -316,9 +315,9 @@ function LayoutButtons({ stage }: { stage: string }) {
   )
 }
 
-function LayoutButton({ stage, id }: { stage: string; id: (typeof PANE_LAYOUT_COMMANDS)[number]["id"] }) {
+function LayoutButton({ id }: { stage: string; id: (typeof PANE_LAYOUT_COMMANDS)[number]["id"] }) {
   const t = useMessages(kit)
-  const command = useCommand(stage, id)
+  const command = useCommand(id)
   const icon = useUiCatalog().commandIcons.get(id)
   const title = t(command.title)
   return (
@@ -335,9 +334,9 @@ function LayoutButton({ stage, id }: { stage: string; id: (typeof PANE_LAYOUT_CO
   )
 }
 
-function NoPages({ stage }: { stage: string }) {
+function NoPages(_props: { stage: string }) {
   const t = useMessages(kit)
-  const newPage = useCommand(stage, "@matomezu/base:page-new")
+  const newPage = useCommand("@matomezu/base:page-new")
   return (
     <div className={styles.empty}>
       <p className={styles.prompt}>{t("No pages")}</p>

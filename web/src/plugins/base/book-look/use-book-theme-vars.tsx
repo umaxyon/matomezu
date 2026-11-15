@@ -5,8 +5,8 @@ import { themeVars } from "../../../ui/theme-vars"
 import { useShownBook } from "../../../ui/view-hooks"
 import { bookTokens } from "./look"
 
-export function useBookThemeVars(stage: string): CSSProperties | undefined {
+export function useBookThemeVars(): CSSProperties | undefined {
   const catalog = useCatalog().core
-  const book = useShownBook(stage)
+  const book = useShownBook()
   return useMemo(() => (book ? themeVars(bookTokens(catalog, book)) : undefined), [catalog, book])
 }

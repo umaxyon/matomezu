@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useId, useState } from "react"
 import type { MessageKey } from "../../../plugin-api"
-import { type DialogProps, useActions, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
+import { type DialogProps, useActions, useItemAt, useMessages, usePerform } from "../../../plugin-api/ui"
 import { ActionButton, BodyField, CaptionField, Dialog, DividerField, Form, rowClass, useBookOf } from "../../base/ui"
 import { ROW_ADD, ROW_REMOVE, ROW_UPDATE } from "./actions"
 import { kit } from "./kit"
@@ -16,8 +16,8 @@ type Text = Omit<RowProps, "checked">
 const EMPTY: Text = { caption: "", rule: true, body: "", captionAlign: "left", bodyAlign: "left" }
 
 export function AddRowDialog({ stage, args, onClose }: DialogProps<{ page: string; list: string }>) {
-  const book = useBookOf(stage)
-  const perform = usePerform(stage)
+  const book = useBookOf()
+  const perform = usePerform()
   const add = (props: Text) => {
     if (!book) return
     if (perform(ROW_ADD.id, { page: args.page, list: args.list, props }).ok) onClose()
@@ -36,10 +36,10 @@ export function AddRowDialog({ stage, args, onClose }: DialogProps<{ page: strin
 }
 
 export function EditRowDialog({ stage, args, onClose }: DialogProps<{ page: string; list: string; row: string }>) {
-  const book = useBookOf(stage)
-  const rows = useItem(stage, args.page, args.list, LIST.id)?.children
+  const book = useBookOf()
+  const rows = useItemAt(args.page, args.list, LIST.id)?.children
   const start = rows?.find(r => r.id === args.row)?.props
-  const perform = usePerform(stage)
+  const perform = usePerform()
   const { previewDialog } = useActions()
   // 書いている行の項目を、リストの行に重ねて見せる
   const preview = useCallback(

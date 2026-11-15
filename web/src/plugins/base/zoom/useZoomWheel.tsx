@@ -4,8 +4,8 @@ import { useCommand } from "../../../ui/commands"
 import { ZOOM_WHEEL } from "."
 
 // 要素に付ける ref。ページのスクロールを止めるため、受け身でない受け取りで付ける（描かれたときに付くので、後から出る要素にも付く）
-export function useZoomWheel(stage: string): (el: HTMLElement | null) => (() => void) | undefined {
-  const wheel = useCommand(stage, ZOOM_WHEEL.id)
+export function useZoomWheel(): (el: HTMLElement | null) => (() => void) | undefined {
+  const wheel = useCommand(ZOOM_WHEEL.id)
   const latest = useRef(wheel)
   latest.current = wheel
   return useCallback((el: HTMLElement | null) => {

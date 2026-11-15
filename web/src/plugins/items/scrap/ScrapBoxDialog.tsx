@@ -3,7 +3,7 @@
 // 紙に収まらないなど断られたら、閉じずに理由を出す。「元のページを開く」で、このステージで元のページを開いて閉じる
 import { useState } from "react"
 import type { ItemProps, ShapeEditArgs } from "../../../plugin-api"
-import { type DialogProps, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
+import { type DialogProps, useCoreCatalog, useItemAt, useMessages, usePerform } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import {
   ActionButton,
@@ -24,7 +24,7 @@ import { kit } from "./kit"
 type ScrapProps = ItemProps<typeof SCRAP_BOX.id>
 
 export function EditScrapBoxDialog({ stage, args, onClose }: DialogProps<ShapeEditArgs>) {
-  const placed = useItem(stage, args.page, args.item)
+  const placed = useItemAt(args.page, args.item)
   const start = placed?.props as ScrapProps | undefined
   return start ? <Editor stage={stage} args={args} start={start} onClose={onClose} /> : null
 }
@@ -42,10 +42,10 @@ function Editor({
 }) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
-  const perform = usePerform(stage)
+  const perform = usePerform()
   const [value, setValue] = useState(start)
   const { line, ...scrap } = value
-  const swatches = useSwatches(useBookTheme(useBookOf(stage)), SCRAP_LINE)
+  const swatches = useSwatches(useBookTheme(useBookOf()), SCRAP_LINE)
   // 枠線だけを変える（色の「なし」は項目を外す）
   const withLine = (next: string | undefined) => setValue(next === undefined ? scrap : { ...scrap, line: next })
   const [refused, setRefused] = useState<string | null>(null)

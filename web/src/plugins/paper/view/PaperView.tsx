@@ -130,7 +130,7 @@ export function PaperView({ stage: id }: BookViewProps) {
   const toPaperAt = useToPaper(id)
   const sweep = useRef<Sweep | null>(null)
   const followed = useFollowsSelection(id)
-  const placed = usePlaceTarget(id, placing ? pointer : null) // 置こうとしている間の、押すと置く所
+  const placed = usePlaceTarget(placing ? pointer : null) // 置こうとしている間の、押すと置く所
   const [box, setBox] = useState<Rect | null>(null) // 範囲のドラッグの四角（紙の上）
 
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
@@ -271,8 +271,8 @@ const Items = memo(function Items({
   localOf: LocalOf
 }) {
   const catalog = useCoreCatalog()
-  const page = usePage(stage.id)
-  const draft = useShownPage(stage.id)
+  const page = usePage()
+  const draft = useShownPage()
   const shownPage = useMemo(() => (page && draft ? settledDraft(catalog, page, draft) : null), [catalog, page, draft])
   return page && shownPage ? (
     <PageItems stage={stage} page={page} shownPage={shownPage} into={into} localOf={localOf} />
@@ -295,30 +295,30 @@ function PageItems({
 }) {
   const catalog = useCoreCatalog()
   const ui = useUiCatalog()
-  const book = useBook(stage.id)
+  const book = useBook()
   const followed = useFollowsSelection(stage.id)
   // 可変ページなら、形を置ける広さ（空きの印刷区画を含む。base の roomOf）をステージの広さとして知らせる
   const room = useMemo(
     () => (book && growOf(catalog, book, page) ? roomOf(catalog, book, page) : null),
     [catalog, book, page],
   )
-  useStageArea(stage.id, room)
+  useStageArea(room)
   // ブックで使えるつなぐもののビュー
   const connectors = (book ? bookItems(catalog, book) : []).flatMap(id => {
     const c = ui.connectors.get(id)
     return c ? [{ id, ...c }] : []
   })
-  const move = useCommand(stage.id, PAPER_MOVE.id)
-  const reparent = useCommand(stage.id, PAPER_REPARENT.id)
+  const move = useCommand(PAPER_MOVE.id)
+  const reparent = useCommand(PAPER_REPARENT.id)
   // 付け替えの道具のドラッグで、離すと入れる先（形の id。null はページ。ドラッグしていなければ undefined）
   const [target, setTarget] = useState<string | null | undefined>(undefined)
-  const edit = useCommand(stage.id, PAPER_EDIT.id)
-  const openMenu = useContextMenu(stage.id, ITEM_CONTEXT)
+  const edit = useCommand(PAPER_EDIT.id)
+  const openMenu = useContextMenu(ITEM_CONTEXT)
   const { select } = useActions()
-  const toPaperAt = useToPaper(stage.id)
+  const toPaperAt = useToPaper()
   const drag = useRef<Drag | null>(null)
   const [moved, setMoved] = useState<Point | null>(null)
-  const resize = useCommand(stage.id, PAPER_RESIZE.id)
+  const resize = useCommand(PAPER_RESIZE.id)
   const stretch = useRef<Stretch | null>(null)
   const [stretched, setStretched] = useState<Point>({ x: 0, y: 0 }) // 大きさを変えているドラッグの、画面の上で動いた量
   const pans = stage.pans
@@ -706,9 +706,9 @@ function Ghost({ placed }: { placed: Placing }) {
   )
 }
 
-function NoPages({ stage }: { stage: StageView }) {
+function NoPages(_props: { stage: StageView }) {
   const t = useMessages(kit)
-  const newPage = useCommand(stage.id, "@matomezu/base:page-new")
+  const newPage = useCommand("@matomezu/base:page-new")
   return (
     <div className={styles.empty}>
       <p className={styles.prompt}>{t("No pages")}</p>

@@ -115,8 +115,8 @@ function ContextMenuItem({ menu, id }: { menu: OpenedContextMenu; id: ContextMen
 }
 
 // anchorMenu の項目: 押すと閉じてから、押した物のアンカーの id を渡してコマンドを呼ぶ
-function AnchorMenuItem({ stage, id, anchor }: { stage: string; id: AnchorMenuCommandId; anchor: string }) {
-  const command = useCommand(stage, id)
+function AnchorMenuItem({ id, anchor }: { stage: string; id: AnchorMenuCommandId; anchor: string }) {
+  const command = useCommand(id)
   const icon = useUiCatalog().commandIcons.get(id)
   const { closeContextMenu } = useActions()
   const t = useMessages(kit)

@@ -10,7 +10,7 @@ import { usePrintAreasHidden, useTogglePrintAreas } from "./print-areas"
 export function PrintAreaToggle({ stage: id }: { stage: string }) {
   const t = useMessages(kit)
   const stage = useStage(id)
-  const hidden = usePrintAreasHidden(id)
+  const hidden = usePrintAreasHidden()
   const toggle = useTogglePrintAreas()
   const paper = stage && paperOf(stage)
   const area = stage && areaOf(stage)

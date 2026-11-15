@@ -56,7 +56,7 @@ function ThumbnailFrame({
   scale: number
   onWidth(w: number): void
 }) {
-  const look = useBookLookStyle(stage, book.type)
+  const look = useBookLookStyle(book.type)
   const frame = useRef<HTMLDivElement | null>(null)
   useResize(frame, size => onWidth(size.w))
   return (
@@ -76,14 +76,13 @@ export function PageList({ stage }: StageSlotProps) {
   const opened = useMatomezuState(s => stageIn(s.window, stage)?.opened)
   const book = useMatomezuState(s => (opened ? s.books[opened.book] : undefined))
   const catalog = useCatalog().core
-  const openPage = useCommand(stage, PAGE_OPEN.id)
-  const addAfter = useCommand(stage, PAGE_ADD_AFTER.id)
-  const openMenu = useContextMenu(stage, PAGE_CONTEXT)
+  const openPage = useCommand(PAGE_OPEN.id)
+  const addAfter = useCommand(PAGE_ADD_AFTER.id)
+  const openMenu = useContextMenu(PAGE_CONTEXT)
   const t = useMessages(kit)
   const list = useRef<HTMLDivElement | null>(null)
   const pages = book && hasPages(book) ? book.pages : []
   const drag = useTabDrag(
-    stage,
     list,
     pages.map(p => p.id),
     "y",

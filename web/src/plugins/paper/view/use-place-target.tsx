@@ -12,12 +12,12 @@ export interface Placing {
 }
 
 // ステージ stage で、ポインタ pointer（紙のビューの左上から）の所に置くときの置く所。置こうとしていない・ポインタが無いなら null
-export function usePlaceTarget(stage: string, pointer: Point | null): Placing | null {
-  const view = useStage(stage)
+export function usePlaceTarget(pointer: Point | null): Placing | null {
+  const view = useStage()
   const catalog = useCoreCatalog()
-  const book = pagedOf(useBook(stage))
-  const page = usePage(stage)
-  const toPaperAt = useToPaper(stage)
+  const book = pagedOf(useBook())
+  const page = usePage()
+  const toPaperAt = useToPaper()
   const placing = view?.placing ?? null
   const at = pointer && placeAt(toPaperAt, pointer)
   const point = pointer && toPaperAt(pointer)

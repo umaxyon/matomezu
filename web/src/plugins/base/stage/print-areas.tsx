@@ -4,7 +4,7 @@ import { kit } from "../kit"
 import { PRINT_AREAS_HIDDEN } from "./states"
 
 // ステージ stage で、区切りの線を隠しているか
-export const usePrintAreasHidden = (stage: string): boolean => usePluginState(kit, PRINT_AREAS_HIDDEN, stage) ?? false
+export const usePrintAreasHidden = (): boolean => usePluginState(kit, PRINT_AREAS_HIDDEN) ?? false
 
 // ステージの区切りの線を、見せる・隠すを入れ替える関数
 export function useTogglePrintAreas(): (stage: string) => void {

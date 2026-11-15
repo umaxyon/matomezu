@@ -93,7 +93,7 @@ export function DrawnSheet({
   const views = useUiCatalog().presentationViews
   const Measure = views.get(bookType(catalog, book.type).presentation)?.printMeasure
   const paper = paperSize(catalog, page as ItemPage)
-  const look = useBookLookStyle(stage, book.type)
+  const look = useBookLookStyle(book.type)
   const [measured, setMeasured] = useState<PrintMeasured | null>(null)
   const report = useCallback(
     (m: PrintMeasured) =>

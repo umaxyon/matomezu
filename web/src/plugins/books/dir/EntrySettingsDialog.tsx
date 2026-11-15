@@ -26,11 +26,11 @@ import { NodeIcon } from "./node-icon"
 export function EntrySettingsDialog({ stage, args, onClose }: DialogProps<{ page: string; entry: string }>) {
   const t = useMessages(kit)
   const form = useId()
-  const book = pagedOf(useBook(stage))
+  const book = pagedOf(useBook())
   const page = book?.pages.find(p => p.id === args.page)
   const root = dirRootOf(page)
   const entry = root ? entryOf(root, args.entry) : null
-  const perform = usePerform(stage)
+  const perform = usePerform()
   const [name, setName] = useState(entry?.name ?? "")
   const [description, setDescription] = useState(entry?.description ?? "")
   const [icon, setIcon] = useState<string | undefined>(entry?.icon)

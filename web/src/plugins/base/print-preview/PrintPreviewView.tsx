@@ -104,7 +104,7 @@ export function PrintPreviewView({ stage: id }: { stage: string }) {
   const lang = useMatomezuState(s => s.lang)
   // 測る見せ方のページの、測った結果（ページの id → 結果。base が持つステージごとのプラグイン状態。measures.tsx）
   const bookId = book?.id
-  const measures = useMeasures(id, bookId)
+  const measures = useMeasures(bookId)
   const report = useReportMeasure(id, bookId)
   // ページごとの、知らせを受ける関数（同じ物を渡し続け、紙をずらしても測るだけのビューを描き直させない。ブックが替われば作り直す）
   // biome-ignore lint/correctness/useExhaustiveDependencies: 知らせる先（ブック）が替わったら表を空にする

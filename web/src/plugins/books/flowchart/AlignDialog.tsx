@@ -10,13 +10,13 @@ import { ActionButton, Dialog, Form, Problem, rowClass, Switch } from "../../bas
 import { adaptedTitles, PAGE_ALIGN } from "./actions"
 import { kit } from "./kit"
 
-export function AlignDialog({ stage, args, onClose }: DialogProps<{ page: string }>) {
+export function AlignDialog({ args, onClose }: DialogProps<{ page: string }>) {
   const t = useMessages(kit)
   const form = useId()
   const catalog = useCoreCatalog()
-  const book = pagedOf(useBook(stage))
+  const book = pagedOf(useBook())
   const page = book?.pages.find(p => p.id === args.page)
-  const perform = usePerform(stage)
+  const perform = usePerform()
   const [adapt, setAdapt] = useState(false)
   const [refused, setRefused] = useState<MessageKey | null>(null) // 断られたわけの文言
   if (!book || !page) return null

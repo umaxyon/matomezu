@@ -80,7 +80,7 @@ export const stageOf = (ctx: CommandContext) => workspaceOf(ctx).stages.find(s =
 export const ZOOM_IN = kit.defineCommand({
   id: "zoom-in",
   title: "Zoom in",
-  run: (ctx, a, at: Point | null) => a.zoomStage(ctx.stage.id, stepZoom(ctx.stage.zoom, 1), at ?? undefined),
+  run: (ctx, a, at: Point | null) => a.here.zoomStage(stepZoom(ctx.stage.zoom, 1), at ?? undefined),
   when: zoomable,
   enabled: ctx => stepZoom(ctx.stage.zoom, 1) !== ctx.stage.zoom,
 })
@@ -88,7 +88,7 @@ export const ZOOM_IN = kit.defineCommand({
 export const ZOOM_OUT = kit.defineCommand({
   id: "zoom-out",
   title: "Zoom out",
-  run: (ctx, a, at: Point | null) => a.zoomStage(ctx.stage.id, stepZoom(ctx.stage.zoom, -1), at ?? undefined),
+  run: (ctx, a, at: Point | null) => a.here.zoomStage(stepZoom(ctx.stage.zoom, -1), at ?? undefined),
   when: zoomable,
   enabled: ctx => stepZoom(ctx.stage.zoom, -1) !== ctx.stage.zoom,
 })
@@ -98,7 +98,7 @@ export const ZOOM_WHEEL = kit.defineCommand({
   id: "zoom-wheel",
   title: "Zoom",
   run: (ctx, a, wheel: { delta: number; at?: Point }) =>
-    a.zoomStage(ctx.stage.id, wheelZoom(ctx.stage.zoom, wheel.delta), wheel.at),
+    a.here.zoomStage(wheelZoom(ctx.stage.zoom, wheel.delta), wheel.at),
   when: zoomable,
 })
 
@@ -106,7 +106,7 @@ export const ZOOM_WHEEL = kit.defineCommand({
 export const ZOOM_RESET = kit.defineCommand({
   id: "zoom-reset",
   title: "Reset view",
-  run: (ctx, a) => a.resetStageView(ctx.stage.id),
+  run: (_ctx, a) => a.here.resetStageView(),
   when: zoomable,
   enabled: ctx => {
     const stage = stageOf(ctx)

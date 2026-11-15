@@ -15,7 +15,7 @@ import { type BirdVisit, useBirdVisit, useSetBirdVisit } from "./bird-visit"
 import styles from "./MailLayer.module.css"
 
 export function MailLayer({ stage }: StageSlotProps) {
-  const visit = useBirdVisit(stage)
+  const visit = useBirdVisit()
   const set = useSetBirdVisit()
   const opened = useMatomezuState(s => stageIn(s.window, stage)?.opened ?? null)
   const here = !!visit && opened?.book === visit.book && (visit.page === null || opened.page === visit.page)

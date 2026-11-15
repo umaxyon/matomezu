@@ -29,19 +29,19 @@ export function PrintPreviewPanel({ stage }: StageSlotProps) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const ui = useUiCatalog()
-  const book = useBook(stage)
+  const book = useBook()
   const open = useRightSidePanel(stage)
   const close = useCloseRightSidePanel()
-  const perform = usePerform(stage)
+  const perform = usePerform()
   const previewing = useMatomezuState(s => {
     const st = stageIn(s.window, stage)
     return !!st && isPreviewing(st)
   })
   const [confirming, setConfirming] = useState<Patch | null>(null)
   // 変えられるか（ロックで止められるなら、確かめてから外して変えるので変えられる。ほかの認可ステップに止められるなら変えられない）
-  const changing = useAllowed(stage, PRINT_PREVIEW_UPDATE.id)
+  const changing = useAllowed(PRINT_PREVIEW_UPDATE.id)
   const blocked = !changing.ok && changing.permission !== null && changing.permission !== LOCK.id
-  const lockable = useAllowed(stage, book?.locked ? BOOK_UNLOCK.id : BOOK_LOCK.id).ok
+  const lockable = useAllowed(book?.locked ? BOOK_UNLOCK.id : BOOK_LOCK.id).ok
   const mine = open?.widget === PRINT_PREVIEW_PANEL_ID
   useEffect(() => {
     if (mine && !previewing) close(stage)
@@ -108,10 +108,10 @@ export function PrintPreviewPanel({ stage }: StageSlotProps) {
 }
 
 // 並べる向きと交わる辺を合わせるボタン（縦に並べるなら幅に合わせる ⟷、横なら高さに合わせる ↕）
-function FitButton({ stage }: { stage: string }) {
+function FitButton(_props: { stage: string }) {
   const catalog = useCatalog().core
-  const book = useBook(stage)
-  const fit = useCommand(stage, PRINT_PREVIEW_FIT.id)
+  const book = useBook()
+  const fit = useCommand(PRINT_PREVIEW_FIT.id)
   const width = fitSide(catalog, book ?? null) === "width"
   const icon = (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -122,9 +122,9 @@ function FitButton({ stage }: { stage: string }) {
 }
 
 // 印刷のボタン（見出しの下に、横いっぱいの幅で）
-function PrintButton({ stage }: { stage: string }) {
+function PrintButton(_props: { stage: string }) {
   const t = useMessages(kit)
-  const print = useCommand(stage, PRINT.id)
+  const print = useCommand(PRINT.id)
   if (!print.shown) return null
   return (
     <button type="button" className={styles.print} disabled={!print.enabled} onClick={() => print.run()}>

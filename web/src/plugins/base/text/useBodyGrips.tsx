@@ -4,9 +4,9 @@ import type { ActionId } from "../../../core/catalog"
 import { useAllowed, useStage } from "../../../ui/view-hooks"
 import { onlySelected } from "../utils/selection"
 
-export function useBodyGrips(stage: string, id: string, action: ActionId): boolean {
-  const at = useStage(stage)
+export function useBodyGrips(id: string, action: ActionId): boolean {
+  const at = useStage()
   const page = at?.opened?.page ?? undefined
-  const allowed = useAllowed(stage, action, { page, ids: [id] }).ok
+  const allowed = useAllowed(action, { page, ids: [id] }).ok
   return allowed && at !== null && !at.pans && onlySelected(at.selection, id)
 }

@@ -57,7 +57,7 @@ function step(ctx: CommandContext, a: CommandActions, direction: "forward" | "ba
   const next = stepHit(pages, from, direction, search.wrap)
   if (next === "none") return
   a.updatePluginState(SEARCH_STATE, () => ({ ...search, current: next }))
-  if (next.page !== ctx.stage.opened?.page) a.openPage(ctx.stage.id, next.page)
+  if (next.page !== ctx.stage.opened?.page) a.here.openPage(next.page)
 }
 export const SEARCH_NEXT = kit.defineCommand({
   id: "search-next",
@@ -101,7 +101,7 @@ export const SEARCH_REPLACE_ONE = kit.defineCommand({
     const { args, next } = replaceOneStep(s, ctx.book, search, ctx.stage.opened?.page ?? null)
     if (args !== "none" && !a.perform(PAGE_UPDATE.id, args, { book: ctx.book.id }).ok) return
     a.updatePluginState(SEARCH_STATE, () => ({ ...search, current: next }))
-    if (next !== "none" && next.page !== ctx.stage.opened?.page) a.openPage(ctx.stage.id, next.page)
+    if (next !== "none" && next.page !== ctx.stage.opened?.page) a.here.openPage(next.page)
   },
   when: opened,
 })

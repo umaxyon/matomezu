@@ -34,7 +34,7 @@ const arriving = new Set<string>()
 
 export function MarkLayer({ stage }: StageSlotProps) {
   const marks = useAnnotationsOf(stage, MARK.id)
-  const picker = useAnchorTargets(stage, MARK_PICKER)
+  const picker = useAnchorTargets(MARK_PICKER)
   return (
     <>
       {marks.map(m => (
@@ -53,7 +53,6 @@ export function MarkLayer({ stage }: StageSlotProps) {
 }
 
 function MarkStand({
-  stage,
   id,
   anchor,
   kind,
@@ -66,10 +65,10 @@ function MarkStand({
   addedAt: string
 }) {
   const t = useMessages(kit)
-  const run = usePerformOrToast(stage, "The mark was refused")
+  const run = usePerformOrToast("The mark was refused")
   const remove = () => run(MARK_REMOVE.id, { mark: id })
   const title = t(MARK_KINDS.find(k => k.id === kind)?.title ?? "Mark")
-  const awayLabel = t("Show {name}", { name: useAnchorName(stage, anchor) })
+  const awayLabel = t("Show {name}", { name: useAnchorName(anchor) })
   if (kind === "alert")
     return (
       <AtCorner
@@ -149,7 +148,7 @@ function MarkBird({
 // マークの種類を選ぶスタンド: 6 つの種類の絵を並べ、押した種類を付ける。Esc か、ほかを押すと付けずに閉じる
 function PickerStand({ stage, picker }: { stage: string; picker: AnchorTargets }) {
   const t = useMessages(kit)
-  const run = usePerformOrToast(stage, "The mark was refused")
+  const run = usePerformOrToast("The mark was refused")
   const setPicker = useSetAnchorTargets(MARK_PICKER)
   const ref = useRef<HTMLDivElement>(null)
   const end = () => setPicker(stage, null)

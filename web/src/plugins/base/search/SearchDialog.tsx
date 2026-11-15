@@ -55,18 +55,18 @@ export function SearchDialogHost() {
 function SearchDialog({ stage }: { stage: string }) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
-  const book = useBook(stage)
-  const opened = useStage(stage)?.opened?.page ?? null
-  const search = usePluginState(kit, SEARCH_STATE, stage)
-  const at = usePluginState(kit, SEARCH_AT_STATE, stage)
+  const book = useBook()
+  const opened = useStage()?.opened?.page ?? null
+  const search = usePluginState(kit, SEARCH_STATE)
+  const at = usePluginState(kit, SEARCH_AT_STATE)
   const readSearch = useReadPluginState(kit, SEARCH_STATE)
   const setSearch = useSetPluginState(kit, SEARCH_STATE)
   const setAt = useSetPluginState(kit, SEARCH_AT_STATE)
-  const next = useCommand(stage, SEARCH_NEXT.id)
-  const previous = useCommand(stage, SEARCH_PREVIOUS.id)
-  const close = useCommand(stage, SEARCH_CLOSE.id)
-  const replaceOne = useCommand(stage, SEARCH_REPLACE_ONE.id)
-  const replaceAll = useCommand(stage, SEARCH_REPLACE_ALL.id)
+  const next = useCommand(SEARCH_NEXT.id)
+  const previous = useCommand(SEARCH_PREVIOUS.id)
+  const close = useCommand(SEARCH_CLOSE.id)
+  const replaceOne = useCommand(SEARCH_REPLACE_ONE.id)
+  const replaceAll = useCommand(SEARCH_REPLACE_ALL.id)
   const find = useRef<HTMLInputElement>(null)
   const replace = useRef<HTMLInputElement>(null)
   // 開くたびに、開き方の入力Formに焦点を当てて中の字を選ぶ（打つ・切り替えるたびには当てない）

@@ -15,8 +15,8 @@ export function HistoryButtons({ stage }: { stage: string }) {
   )
 }
 
-function HistoryButton({ stage, id }: { stage: string; id: typeof UNDO.id | typeof REDO.id }) {
-  const command = useCommand(stage, id)
+function HistoryButton({ id }: { stage: string; id: typeof UNDO.id | typeof REDO.id }) {
+  const command = useCommand(id)
   const icon = useUiCatalog().commandIcons.get(id)
   const t = useMessages(kit)
   return (

@@ -13,13 +13,10 @@ export const SEARCH_HIGHLIGHT = "matomezu-search"
 export const SEARCH_CURRENT_HIGHLIGHT = "matomezu-search-current"
 
 // ステージ stage のページ page で、光らせる当たり（検索ダイアログを閉じていれば無い）と今の当たり（このページに無ければ none）
-export function useSearchHits(
-  stage: string,
-  page: string,
-): { hits: readonly SearchHit[]; current: SearchHit | "none" } {
+export function useSearchHits(page: string): { hits: readonly SearchHit[]; current: SearchHit | "none" } {
   const catalog = useCoreCatalog()
-  const book = useBook(stage)
-  const search = usePluginState(kit, SEARCH_STATE, stage)
+  const book = useBook()
+  const search = usePluginState(kit, SEARCH_STATE)
   return useMemo(() => {
     const s = searchableOf(catalog, book)
     if (!search || s === "none" || !book) return { hits: [], current: "none" }
@@ -58,8 +55,8 @@ export function useHighlightRanges(name: string, ranges: readonly Range[]): void
 }
 
 // 検索ダイアログを閉じたとき、ページ page の今の当たりを pick に渡す（閉じるたびに 1 回）
-export function useSearchPick(stage: string, page: string, pick: (hit: SearchHit) => void): void {
-  const picked = usePluginState(kit, SEARCH_PICK_STATE, stage)
+export function useSearchPick(page: string, pick: (hit: SearchHit) => void): void {
+  const picked = usePluginState(kit, SEARCH_PICK_STATE)
   const seen = useRef(picked?.n ?? 0)
   const call = useRef(pick)
   call.current = pick

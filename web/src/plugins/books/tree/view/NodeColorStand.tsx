@@ -28,7 +28,7 @@ export function NodeColorStand({
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
   const { setEditing, showToast } = useActions()
-  const { allowed, write } = useNodeWrite(stage, page, isRoot)
+  const { allowed, write } = useNodeWrite(page, isRoot)
   const [picked, setPicked] = useState<{ color: string | undefined } | null>(null) // 好きな色で選んでいる色（閉じるときに塗る）
   const ref = useRef<HTMLDivElement>(null)
   const pending = useRef(picked)

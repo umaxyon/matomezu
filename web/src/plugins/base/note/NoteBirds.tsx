@@ -79,7 +79,7 @@ function NoteBird({ stage, shown, onGone }: { stage: string; shown: Shown; onGon
   }, [shown.leaving, onGone])
   const remove = () => takeOff(stage, shown.anchor)
   const removeAsk = useRemoveAsk(remove)
-  const name = useAnchorName(stage, shown.anchor)
+  const name = useAnchorName(shown.anchor)
   return (
     <BirdWalk
       bird={shown.bird}

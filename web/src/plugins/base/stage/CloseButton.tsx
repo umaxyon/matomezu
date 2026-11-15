@@ -5,8 +5,8 @@ import { kit } from "../kit"
 import { STAGE_CLOSE } from "."
 import styles from "./CloseButton.module.css"
 
-export function CloseButton({ stage }: { stage: string }) {
-  const close = useCommand(stage, STAGE_CLOSE.id)
+export function CloseButton(_props: { stage: string }) {
+  const close = useCommand(STAGE_CLOSE.id)
   const t = useMessages(kit)
   if (!close.shown) return null
   return (

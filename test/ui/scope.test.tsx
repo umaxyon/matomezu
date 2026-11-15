@@ -88,7 +88,7 @@ const SIZE = { w: 1123, h: 794 }
 
 // 描いている場所のブックの 1 枚目のページを描く（ブックの見た目の CSS 変数も付ける）
 function Sheet({ book }: { book: ReturnType<ReturnType<typeof setup>["bookOf"]> }) {
-  const look = useBookLookStyle(useScreenId(), book.type)
+  const look = useBookLookStyle(book.type)
   return (
     <div data-sheet style={look}>
       <Printing>

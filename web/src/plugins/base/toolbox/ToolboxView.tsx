@@ -15,12 +15,12 @@ import styles from "./ToolboxView.module.css"
 import { panelOf, toolboxOf } from "./toolbox"
 
 export function ToolboxView({ stage }: { stage: string }) {
-  const book = useBook(stage) ?? undefined
+  const book = useBook() ?? undefined
   const placing = useMatomezuState(s => stageIn(s.window, stage)?.placing?.item ?? null)
   const { togglePlacing } = useActions()
   const t = useMessages(kit)
   const catalog = useCatalog().core
-  const edits = useStage(stage)?.edits ?? "items"
+  const edits = useStage()?.edits ?? "items"
   const tools = book ? toolboxOf(catalog, book, edits) : []
   const panel = book ? panelOf(catalog, book, edits) : []
   if (tools.length === 0 && panel.length === 0) return null

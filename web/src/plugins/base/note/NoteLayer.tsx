@@ -125,7 +125,6 @@ function ReadNote({ stage, id, anchors, props }: NoteViewProps) {
 // 読まれていない伝言の、付けた物が見える所の外にある間のマークポインタ（丸の中に伝言の絵。center はスタンドの中の丸の真ん中）。
 // 押すと付けた物を見せる。物が広く、見せても吹き出しが入らないときは、代わりに伝言を開く（onOpen）
 function NotePointer({
-  stage,
   anchor,
   center,
   onOpen,
@@ -137,7 +136,7 @@ function NotePointer({
 }) {
   const t = useMessages(kit)
   const opens = useStandAway()?.afterShow === "pointer"
-  const show = t("Show {name}", { name: useAnchorName(stage, anchor) })
+  const show = t("Show {name}", { name: useAnchorName(anchor) })
   return (
     <StandPointer
       center={center}
@@ -152,13 +151,13 @@ function NotePointer({
 }
 
 // AI が読んだ伝言の、付けた物が見える所の外にある間のマークポインタ（緑の丸のチェック。押すと付けた物を見せる）
-function ReadPointer({ stage, anchor, center }: { stage: string; anchor: string; center: { x: number; y: number } }) {
+function ReadPointer({ anchor, center }: { stage: string; anchor: string; center: { x: number; y: number } }) {
   const t = useMessages(kit)
   return (
     <StandPointer
       center={center}
       size={POINTER}
-      label={t("Show {name}", { name: useAnchorName(stage, anchor) })}
+      label={t("Show {name}", { name: useAnchorName(anchor) })}
       className={`${styles.readCheck} ${styles.readPointer}`}
     >
       <ReadCheckIcon />
@@ -171,7 +170,7 @@ function BubbleStand({ stage, id, anchors, props }: NoteViewProps) {
   const t = useMessages(kit)
   const anchor = anchors.at(-1) ?? ""
   const { open } = useOpenNote(stage, id, anchors)
-  const asks = useNoteAsks(stage, id, "hide")
+  const asks = useNoteAsks(id, "hide")
   return (
     <StandAt anchor={anchor} side="right" turn="none" minRoom={BUBBLE_MIN_W} edgePinned label={t("Note")}>
       <Away
@@ -192,7 +191,7 @@ function FoldedNote({ stage, id, anchors, props }: NoteViewProps) {
   const t = useMessages(kit)
   const anchor = anchors.at(-1) ?? ""
   const { open, busy } = useOpenNote(stage, id, anchors)
-  const asks = useNoteAsks(stage, id, "showOrRemove")
+  const asks = useNoteAsks(id, "showOrRemove")
   return (
     <AtCorner
       anchor={anchor}
@@ -217,11 +216,11 @@ function FoldedNote({ stage, id, anchors, props }: NoteViewProps) {
 }
 
 // 乗せて出す問い: hide は「隠す」（吹き出し）、showOrRemove は「表示」「消す」（たたんだ伝言の絵）。変えられない物は出さない
-function useNoteAsks(stage: string, note: string, kind: "hide" | "showOrRemove"): AskItem[] {
+function useNoteAsks(note: string, kind: "hide" | "showOrRemove"): AskItem[] {
   const t = useMessages(kit)
-  const run = usePerformOrToast(stage, "The note was refused")
-  const updatable = useAllowed(stage, NOTE_UPDATE.id).ok
-  const removable = useAllowed(stage, NOTE_REMOVE.id).ok
+  const run = usePerformOrToast("The note was refused")
+  const updatable = useAllowed(NOTE_UPDATE.id).ok
+  const removable = useAllowed(NOTE_REMOVE.id).ok
   const bubble = (on: boolean): AskItem => ({
     question: t(on ? "Show" : "Hide"),
     onYes: () => run(NOTE_UPDATE.id, { note, bubble: on }),

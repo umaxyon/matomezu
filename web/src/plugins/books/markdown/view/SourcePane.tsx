@@ -47,10 +47,10 @@ type Props = {
   onScroll: () => void
 }
 
-export function SourcePane({ stage, book, page, text, document, scrollRef, onScroll }: Props) {
-  const perform = usePerform(stage)
+export function SourcePane({ book, page, text, document, scrollRef, onScroll }: Props) {
+  const perform = usePerform()
   const { continueStep } = useActions()
-  const allowed = useAllowed(stage, "@matomezu/base:page-update", { page })
+  const allowed = useAllowed("@matomezu/base:page-update", { page })
   const tab = tabKeyText(useUserSetting(TAB_KEY.id))
   const numbered = useUserSetting(LINE_NUMBERS.id) === true
   const underlined = useUserSetting(CURRENT_LINE.id) === true
@@ -68,7 +68,7 @@ export function SourcePane({ stage, book, page, text, document, scrollRef, onScr
   const mirror = useRef<HTMLPreElement>(null)
 
   // 検索の当たりを写しの上で光らせ、今の当たりが変わったら見えるようにスクロールする
-  const search = useSearchHits(stage, page)
+  const search = useSearchHits(page)
   const [lit, setLit] = useState<{ all: Range[]; current: Range[] }>({ all: [], current: [] })
   // biome-ignore lint/correctness/useExhaustiveDependencies: 写しは書いている物 draft で描き直すので、そのたびに Range を作り直す
   useLayoutEffect(() => {
@@ -81,7 +81,7 @@ export function SourcePane({ stage, book, page, text, document, scrollRef, onScr
   // biome-ignore lint/correctness/useExhaustiveDependencies: 今の当たりが替わったときだけスクロールする（光らせ直しでは動かさない）
   useEffect(() => scrollToRange(scrollRef.current, lit.current[0]), [currentAt, lit.current.length > 0])
   // 検索ダイアログを閉じたら、今の当たりを選んで書けるようにする
-  useSearchPick(stage, page, hit => {
+  useSearchPick(page, hit => {
     const el = field.current
     if (!el) return
     el.focus()

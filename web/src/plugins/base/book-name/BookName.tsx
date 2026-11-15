@@ -22,7 +22,7 @@ import { FooterMenuContext } from "./footer-menu-context"
 const LEAVE_MS = 250
 
 export function BookName({ stage }: { stage: string }) {
-  const book = useBook(stage) ?? undefined
+  const book = useBook() ?? undefined
   const lang = useMatomezuState(s => s.lang)
   const current = useMatomezuState(s => workspaceOf(s.window, stage).current === stage)
   const t = useMessages(kit)

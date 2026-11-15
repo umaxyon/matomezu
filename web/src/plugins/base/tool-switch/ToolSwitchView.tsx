@@ -36,7 +36,7 @@ const angle = (icon: number, front: number, count: number) =>
 
 export function ToolSwitchView({ stage }: { stage: string }) {
   const t = useMessages(kit)
-  const next = useCommand(stage, TOOL_NEXT.id)
+  const next = useCommand(TOOL_NEXT.id)
   const catalog = useCatalog().core
   const toolIcons = useUiCatalog().toolIcons
   const set = useMatomezuState(s => {
@@ -44,7 +44,7 @@ export function ToolSwitchView({ stage }: { stage: string }) {
     return st ? toolSetOf(catalog, st) : null
   })
   const order: readonly ToolId[] = set ? toolsIn(catalog, set) : []
-  const tool = useStage(stage)?.tool ?? order[0] ?? null
+  const tool = useStage()?.tool ?? order[0] ?? null
   // 使えない道具（斜めの線を引く）。並びを文字で比べて、変わったときだけ描き直す
   const unusable = useMatomezuState(s =>
     unusableTools(catalog, workspaceOf(s.window, stage), stage, s.books).join("\n"),

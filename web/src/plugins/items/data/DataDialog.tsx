@@ -3,7 +3,7 @@
 // 上でキャプション・本文と文字の置き場所（TextFields）、見た目（表・棒・折れ線・円・散布図）と軸（AxesFields）を選ぶ。軸の列は下書きの列から選ぶ。
 // 文字の列を数の列に変えられるのは、どのセルも数として読めるときだけ。置けない（紙からはみ出すなど）ときは閉じずに理由を出す
 import { useId, useState } from "react"
-import { type DialogProps, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
+import { type DialogProps, useItemAt, useMessages, usePerform } from "../../../plugin-api/ui"
 import { ActionButton, Dialog, Form, Problem } from "../../base/ui"
 import { AxesFields } from "./AxesFields"
 import { DATA_SET } from "./actions"
@@ -35,8 +35,8 @@ import { type DataTextDraft, TextFields } from "./TextFields"
 import { type ColumnType, MAX_CELL_CHARS, MAX_COLUMNS, MAX_ROWS } from "./table"
 
 export function EditDataDialog({ stage, args, onClose }: DialogProps<{ page: string; item: string }>) {
-  const placed = useItem(stage, args.page, args.item, DATA.id)
-  const perform = usePerform(stage)
+  const placed = useItemAt(args.page, args.item, DATA.id)
+  const perform = usePerform()
   if (!placed) return null
   // 表と一緒に、見た目・文字・軸を書く（表の見た目なら、大きさが表と文字に合う。軸は列と行の位置で書く）
   const save = (d: Draft, a: AxesDraft, text: DataTextDraft) => {

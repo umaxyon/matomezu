@@ -28,11 +28,11 @@ export function DataItemView({
   id,
 }: ItemViewProps<DataProps, { readonly table?: Table }>) {
   const t = useMessages(kit)
-  const vars = useThemeVars(stage, props.theme, DATA_TOKENS)
-  const at = useStage(stage)
+  const vars = useThemeVars(props.theme, DATA_TOKENS)
+  const at = useStage()
   const page = at?.opened?.page ?? undefined
-  const perform = usePerform(stage)
-  const grips = useBodyGrips(stage, id, "@matomezu/paper:item-update")
+  const perform = usePerform()
+  const grips = useBodyGrips(id, "@matomezu/paper:item-update")
   const table = content.table
   const areas = areasOf(props, size)
   const motion = useMotion(motionState(table, props))

@@ -144,27 +144,27 @@ const Tree = memo(function Tree({
 }) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
-  const book = useShownBook(stage.id)
-  const page = useShownPage(stage.id)
-  const perform = usePerform(stage.id)
+  const book = useShownBook()
+  const page = useShownPage()
+  const perform = usePerform()
   const { select, setEditing, panStageBy, zoomStage, showToast, openDialog, continueStep } = useActions()
   const anchor = useAnchorRef() // 節にアンカーを付ける（そばにスタンドを立てられる）
   // 変更を始めてよいか（動かす・書き換える・足す。認可ステップが止めていれば始めない）
   const where = page ? { page: page.id } : undefined
   // 選択に従う右サイドパネル（書いている伝言など）を出している間は、押しても動かさない
   const follows = useFollowsSelection(stage.id)
-  const movable = useAllowed(stage.id, NODE_MOVE.id, where).ok && !follows
-  const editable = useAllowed(stage.id, NODE_UPDATE.id, where).ok
-  const addable = useAllowed(stage.id, NODE_ADD.id, where).ok
+  const movable = useAllowed(NODE_MOVE.id, where).ok && !follows
+  const editable = useAllowed(NODE_UPDATE.id, where).ok
+  const addable = useAllowed(NODE_ADD.id, where).ok
   // 画面からの足す・書き換えが断られた（画面が渡すページと節はあるので、認可ステップが止めたのでなければ、断られるのは紙に入らないとき）
   const refused = (done: Parameters<typeof refusalMessage>[1]) =>
     showToast({ kind: "warn", message: refusalMessage(catalog, done, kit.message("Does not fit on the paper")) })
-  const openNodeMenu = useContextMenu(stage.id, NODE_CONTEXT)
+  const openNodeMenu = useContextMenu(NODE_CONTEXT)
   const root = treeRootOf(page)
   const grow = settingValue(catalog, book ?? null, page ?? null, GROW)
   const usingEdit = stage.tool === EDIT_TOOL.id
   const selected = root ? selectedIn(root, stage.selection) : null
-  const nodeWrite = useNodeWrite(stage.id, page?.id, selected !== null && selected === root?.id)
+  const nodeWrite = useNodeWrite(page?.id, selected !== null && selected === root?.id)
   const swatches = useSwatches(useBookTheme(book?.id), NODE_FILL) // 節の色のスタンドに並べる色
   const picking = usingEdit && stage.editing === NODE_COLOR_PICK && selected !== null // 節の色を選んでいる
   // 背景編集モードの間の文字枠の書き換え（slide のもの。stage.editing は同じ true）は、節の書き換えにしない
@@ -195,7 +195,7 @@ const Tree = memo(function Tree({
       ? laidPage(catalog, page, { setting: pageContext(catalog, book, page).setting, grow: growing }, shown)
       : null
   // 可変ページなら、節の外枠が入るだけ並べた印刷区画に空きを足した広さと、木全体をずらした印刷区画の数を、ステージに知らせる
-  useStageArea(stage.id, laid && growing ? laidArea(paper, growing, laid, true).size : null, laidOrigin(laid))
+  useStageArea(laid && growing ? laidArea(paper, growing, laid, true).size : null, laidOrigin(laid))
   const at = laid?.nodes.find(n => n.id === selected)
   // 節のフォーカス（選んでいる節を中央に置き、そのほかを暗くする）を外している間か。背景編集モードに入ると外し（ページ全体を収める）、
   // 出てもそのまま（見え方は変えない）。節を選ぶか書き換え始めるか、ページを替えると戻る
@@ -420,9 +420,9 @@ export function NodeText({ node: n }: { node: LaidNode }) {
 // 節のフォーカスが付いているか。背景編集モードに入ると外し、ページ全体を収める（出ても外れたまま、見え方も変えない）。
 // 選びが空でなくなる（節を選ぶ）・節の書き換えを始める・ページが替わると、付いた状態に戻る
 function useFocus(stage: StageView, page: string | undefined): boolean {
-  const released = usePluginState(kit, TREE_FOCUS_RELEASED_STATE, stage.id) === true
+  const released = usePluginState(kit, TREE_FOCUS_RELEASED_STATE) === true
   const writeFocus = useSetPluginState(kit, TREE_FOCUS_RELEASED_STATE)
-  const fit = useCommand(stage.id, "@matomezu/base:zoom-fit")
+  const fit = useCommand("@matomezu/base:zoom-fit")
   const background = stage.edits === "slide"
   const items = stage.edits === "items"
   const selecting = stage.selection.length > 0
@@ -473,7 +473,7 @@ function useCentered(
 ) {
   const latest = useRef(stage)
   latest.current = stage
-  const latestPan = useLatestPan(stage.id)
+  const latestPan = useLatestPan()
   const { x, y, w, h } = rect ?? {}
   const [regained, setRegained] = useState(0)
   const waiting = useRef(false)
@@ -514,9 +514,9 @@ function useCentered(
   }, [regained, stage.zoom])
 }
 
-function NoPages({ stage }: { stage: StageView }) {
+function NoPages(_props: { stage: StageView }) {
   const t = useMessages(kit)
-  const newPage = useCommand(stage.id, "@matomezu/base:page-new")
+  const newPage = useCommand("@matomezu/base:page-new")
   return (
     <div className={styles.empty}>
       <p className={styles.prompt}>{t("No pages")}</p>

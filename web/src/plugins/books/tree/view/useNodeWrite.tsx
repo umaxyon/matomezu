@@ -3,13 +3,9 @@
 import { useAllowed, usePerform } from "../../../../plugin-api/ui"
 import { NODE_UPDATE } from "../actions"
 
-export function useNodeWrite(stage: string, page: string | undefined, isRoot: boolean) {
-  const perform = usePerform(stage)
-  const allowed = useAllowed(
-    stage,
-    isRoot ? "@matomezu/base:page-update" : NODE_UPDATE.id,
-    page ? { page } : undefined,
-  ).ok
+export function useNodeWrite(page: string | undefined, isRoot: boolean) {
+  const perform = usePerform()
+  const allowed = useAllowed(isRoot ? "@matomezu/base:page-update" : NODE_UPDATE.id, page ? { page } : undefined).ok
   const write = (page: string, node: string, patch: { caption?: string; color?: string | null }) =>
     isRoot
       ? perform("@matomezu/base:page-update", { page, fields: { root: patch } })

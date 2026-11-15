@@ -37,9 +37,9 @@ export function PageSettingsInstead({ onClose }: DialogProps<{ page: string }>) 
 }
 
 // ステージの上の行に置くボタン: そのステージから自分のコマンドを呼ぶ
-export function Ex1Buttons({ stage }: { stage: string }) {
-  const hello = useCommand(stage, HELLO.id)
-  const lang = useCommand(stage, SWITCH_LANG.id)
+export function Ex1Buttons(_props: { stage: string }) {
+  const hello = useCommand(HELLO.id)
+  const lang = useCommand(SWITCH_LANG.id)
   const t = useMessages(kit)
   return (
     <div>

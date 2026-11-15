@@ -9,7 +9,7 @@ import { kit } from "./kit"
 
 export function NewDirPageDialog({ stage, onClose }: DialogProps) {
   const t = useMessages(kit)
-  const book = pagedOf(useBook(stage))
+  const book = pagedOf(useBook())
   const addPage = useAddPage(stage)
   const [title, setTitle] = useState(() => (book ? nextPageTitle(book, t) : ""))
   const [name, setName] = useState<string | null>(null) // null はページ名と同じ

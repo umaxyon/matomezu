@@ -40,8 +40,8 @@ export function ShapeBadges({
   )
 }
 
-function Badge({ stage, id, onClick }: { stage: string; id: string; onClick: () => void }) {
-  const name = useAnchorName(stage, id)
+function Badge({ id, onClick }: { stage: string; id: string; onClick: () => void }) {
+  const name = useAnchorName(id)
   return (
     <button type="button" className={styles.badge} title={name} onClick={onClick}>
       {clampChars(name, BADGE_CHARS)}

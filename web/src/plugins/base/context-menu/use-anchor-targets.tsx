@@ -8,8 +8,7 @@ import type { AnchorTargets } from "./anchor-targets"
 type Targets = PluginStateDef<AnchorTargets> & { scope: "stage" }
 
 // そのステージの付ける先（無ければ null）
-export const useAnchorTargets = (stage: string, state: Targets): AnchorTargets | null =>
-  usePluginState(kit, state, stage) ?? null
+export const useAnchorTargets = (state: Targets): AnchorTargets | null => usePluginState(kit, state) ?? null
 
 // ステージの付ける先を置く（null なら終える）関数
 export function useSetAnchorTargets(state: Targets): (stage: string, targets: AnchorTargets | null) => void {

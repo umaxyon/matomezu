@@ -41,10 +41,10 @@ function Cards({
 
 function CardsView({ stage }: BookViewProps) {
   const t = useMessages(kit)
-  const written = cardsOf(usePage(stage))
-  const order = usePluginState(kit, DECK_ORDER, stage) ?? "written"
+  const written = cardsOf(usePage())
+  const order = usePluginState(kit, DECK_ORDER) ?? "written"
   const setOrder = useSetPluginState(kit, DECK_ORDER)
-  const picked = usePluginState(kit, DECK_PICKED, stage) ?? "none"
+  const picked = usePluginState(kit, DECK_PICKED) ?? "none"
   const setPicked = useSetPluginState(kit, DECK_PICKED)
   const cards = order === "sorted" ? [...written].sort() : written
   return (
