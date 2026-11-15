@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/alecthomas/kong"
+	claudelaunch "github.com/umaxyon/matomezu/clients/claude-code/launch"
 	"github.com/umaxyon/matomezu/internal/browser"
 	"github.com/umaxyon/matomezu/internal/engine"
 	"github.com/umaxyon/matomezu/internal/home"
@@ -115,9 +116,6 @@ type watchCmd struct {
 	Resident  bool          `help:"Start the command after -- once and keep it running: write one JSON line {id, session, text} to its stdin for each notice, and read one JSON line {id, result} (delivered, absent or failed) from its stdout."`
 	Deliver   []string      `arg:"" optional:"" passthrough:"" help:"A command (after --) that hands each notice to the AI, instead of printing it: started for each notice with the text on stdin, the session id of the conversation in MATOMEZU_SESSION and the notice id in MATOMEZU_WAKE_ID; exit 0 when delivered, 3 when the AI's program does not have that conversation, anything else when it failed."`
 }
-
-// claudeSessionEnv は、Claude Code が立てたプロセスに渡す、立てたときのセッション id の環境変数（/clear でも変わらない）
-const claudeSessionEnv = "CLAUDE_CODE_SESSION_ID"
 
 type permissionCmd struct{}
 
@@ -278,7 +276,7 @@ func (c *mcpCmd) Run() error {
 	}
 	// 渡すコマンドがあれば、起こす知らせの watch も並べて動かす（標準出力は MCP が使うので、渡すコマンドが無いときは動かさない）
 	host := hostProcess()
-	session := os.Getenv(claudeSessionEnv)
+	session := os.Getenv(claudelaunch.SessionEnv) // プラグインを使わずに matomezu mcp を登録した Claude Code でも、セッション id を添える
 	if len(deliverCommand(c.Deliver)) > 0 {
 		w := &watchCmd{Host: host, Session: session, Resident: c.Resident, Deliver: c.Deliver}
 		go func() {

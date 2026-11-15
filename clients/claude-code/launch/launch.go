@@ -3,6 +3,9 @@ package launch
 
 import "time"
 
+// SessionEnv は、Claude Code が立てたプロセス（MCP・フック・monitor）に渡す、立てたときのセッション id の環境変数（MCP と monitor では /clear でも変わらない）
+const SessionEnv = "CLAUDE_CODE_SESSION_ID"
+
 // ProjectDirEnv は、Claude Code がフック・monitor・MCP に渡す、開いているプロジェクトのフォルダの環境変数
 const ProjectDirEnv = "CLAUDE_PROJECT_DIR"
 

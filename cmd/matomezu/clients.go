@@ -112,7 +112,7 @@ type claudeWatchCmd struct{}
 // （Windows では、monitor から AI のプログラムまでたどれないことがある。そのときはセッション id だけで合わせる）
 func (claudeWatchCmd) Run() error {
 	claudeDev()
-	w := watchCmd{Host: hostProcess(), Session: os.Getenv(claudeSessionEnv), MaxLine: claudelaunch.MaxLine, MaxNotice: claudelaunch.MaxNotice, Gap: claudelaunch.Gap}
+	w := watchCmd{Host: hostProcess(), Session: os.Getenv(claudelaunch.SessionEnv), MaxLine: claudelaunch.MaxLine, MaxNotice: claudelaunch.MaxNotice, Gap: claudelaunch.Gap}
 	if w.Host == "" && w.Session == "" {
 		return nil
 	}
