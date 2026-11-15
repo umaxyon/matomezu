@@ -6,6 +6,13 @@ import { findFolder, findPage, lineupOf, pagesIn, pagesOf, putPage } from "../..
 import { checkCoreCatalog } from "../../../web/src/core/core-catalog"
 import { perform } from "../../../web/src/core/perform"
 import type { Book } from "../../../web/src/core/schema/book"
+import {
+  FOLDER_DUPLICATE,
+  FOLDER_MOVE,
+  FOLDER_REMOVE,
+  FOLDER_UPDATE,
+} from "../../../web/src/plugins/base/page-tabs/folders"
+import { PAGE_ADD } from "../../../web/src/plugins/base/page-tabs/page-add"
 import { DRAWING, drawingPage, MARKDOWN, SLIDE, testBook, testFolder, testPage } from "../../lineup"
 import { BUILTIN_PARTS, CORE_CATALOG, sequence } from "../../support"
 
@@ -26,40 +33,40 @@ const run = (b: Book, action: string, args: object) => perform(b as never, actio
 
 describe("page-add", () => {
   test("まとまらないタイプのページはブックの並びに、名前を渡さなければ重ならない（無題）で足す", () => {
-    const done = run(book, "@matomezu/base:page-add", { type: MARKDOWN, index: 1 })
+    const done = run(book, PAGE_ADD.id, { type: MARKDOWN, index: 1 })
     expect(done).toMatchObject({ ok: true, result: { page: "n1" } })
     expect(done.ok && lineupOf(done.next).map(e => e.id)).toEqual(["p1", "n1", "f1"])
     expect(done.ok && findPage(done.next, "n1")?.page).toMatchObject({ type: MARKDOWN, title: "（無題）" })
     // まとまらないタイプに入れる所は書けない
-    expect(run(book, "@matomezu/base:page-add", { type: DRAWING, into: { folder: "f1" } }).ok).toBe(false)
+    expect(run(book, PAGE_ADD.id, { type: DRAWING, into: { folder: "f1" } }).ok).toBe(false)
   })
 
   test("まとまるタイプは入れる所が要り、今あるフォルダか、新しいフォルダに入れる", () => {
-    expect(run(book, "@matomezu/base:page-add", { type: SLIDE }).ok).toBe(false)
-    const into = run(book, "@matomezu/base:page-add", { type: SLIDE, title: "s3", into: { folder: "f1" }, index: 0 })
+    expect(run(book, PAGE_ADD.id, { type: SLIDE }).ok).toBe(false)
+    const into = run(book, PAGE_ADD.id, { type: SLIDE, title: "s3", into: { folder: "f1" }, index: 0 })
     expect(into.ok && pagesIn(into.next, "f1").map(p => p.id)).toEqual(["n1", "s1", "s2"])
-    const made = run(book, "@matomezu/base:page-add", { type: SLIDE, into: { newFolder: "発表" }, index: 0 })
+    const made = run(book, PAGE_ADD.id, { type: SLIDE, into: { newFolder: "発表" }, index: 0 })
     expect(made).toMatchObject({ ok: true, result: { page: "n1", folder: "n2" } })
     expect(made.ok && lineupOf(made.next).map(e => e.id)).toEqual(["n2", "p1", "f1"])
     expect(made.ok && findFolder(made.next, "n2")).toMatchObject({ title: "発表", pageType: SLIDE })
     expect(made.ok && pagesIn(made.next, "n2").map(p => p.id)).toEqual(["n1"])
     // 同じ入れ物の中で同じ名前は付けられない
-    expect(run(book, "@matomezu/base:page-add", { type: SLIDE, into: { newFolder: "スライド" } }).ok).toBe(false)
-    expect(run(book, "@matomezu/base:page-add", { type: SLIDE, title: "s1", into: { folder: "f1" } }).ok).toBe(false)
+    expect(run(book, PAGE_ADD.id, { type: SLIDE, into: { newFolder: "スライド" } }).ok).toBe(false)
+    expect(run(book, PAGE_ADD.id, { type: SLIDE, title: "s1", into: { folder: "f1" } }).ok).toBe(false)
   })
 })
 
 describe("フォルダのアクション", () => {
   test("名前を変える・動かす（同じ並びの中）。ほかと同じ名前は断る", () => {
-    const renamed = run(book, "@matomezu/base:folder-update", { folder: "f1", title: "発表" })
+    const renamed = run(book, FOLDER_UPDATE.id, { folder: "f1", title: "発表" })
     expect(renamed.ok && findFolder(renamed.next, "f1")?.title).toBe("発表")
-    expect(run(book, "@matomezu/base:folder-update", { folder: "f1", title: "ページ 1" }).ok).toBe(false)
-    const moved = run(book, "@matomezu/base:folder-move", { folder: "f1", index: 0 })
+    expect(run(book, FOLDER_UPDATE.id, { folder: "f1", title: "ページ 1" }).ok).toBe(false)
+    const moved = run(book, FOLDER_MOVE.id, { folder: "f1", index: 0 })
     expect(moved.ok && lineupOf(moved.next).map(e => e.id)).toEqual(["f1", "p1"])
   })
 
   test("複製は中のページごと（id を振り直し、名前は「元の名前 2」）、削除は中のページごと", () => {
-    const copied = run(book, "@matomezu/base:folder-duplicate", { folder: "f1" })
+    const copied = run(book, FOLDER_DUPLICATE.id, { folder: "f1" })
     expect(copied.ok).toBe(true)
     if (!copied.ok) return
     const [, , copy] = lineupOf(copied.next)
@@ -68,7 +75,7 @@ describe("フォルダのアクション", () => {
     expect(ids).toHaveLength(2)
     expect(ids.some(id => ["s1", "s2"].includes(id))).toBe(false)
     expect(copy?.kind === "folder" && copy.lineup.map(p => p.title)).toEqual(["s1", "s2"])
-    const removed = run(book, "@matomezu/base:folder-remove", { folder: "f1" })
+    const removed = run(book, FOLDER_REMOVE.id, { folder: "f1" })
     expect(removed.ok && pagesOf(removed.next).map(p => p.id)).toEqual(["p1"])
   })
 })
@@ -127,7 +134,7 @@ test("アクションの結果でページのタイプが替わっていたら�
 })
 
 test('台帳アセンブル: "book" スコープのアクションがタイプで決まる付く先を持つと E063、設定の項目の holder の書き違いは E064・E065', () => {
-  const addPage = BUILTIN_PARTS.actions.find(a => a.id === "@matomezu/base:page-add")!
+  const addPage = BUILTIN_PARTS.actions.find(a => a.id === PAGE_ADD.id)!
   const typed = { ...addPage, attach: { items: ["@matomezu/box:shape-nest-box"] } }
   expect(
     checkCoreCatalog({ ...BUILTIN_PARTS, actions: BUILTIN_PARTS.actions.map(a => (a === addPage ? typed : a)) }).map(
