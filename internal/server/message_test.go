@@ -3,9 +3,11 @@ package server
 import (
 	"encoding/json"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 // joinedIn は、プロセス id host・セッション id session の AI として参加を頼み（join でセッション id を運ぶので、受け入れた時点で準備中でない）、
@@ -36,6 +38,11 @@ func sendMessage(t *testing.T, srv, from, to, text string) (MessageSent, string)
 	return sent, notice
 }
 
+// withoutID は、届く行の封筒の id を * にする
+func withoutID(s string) string {
+	return regexp.MustCompile(`\(id [0-9a-f-]+\)`).ReplaceAllString(s, "(id *)")
+}
+
 // noticeOf は、参加の id id の AI が matomezu を呼んだときの返事に添う知らせ
 func noticeOf(t *testing.T, srv, id string) string {
 	t.Helper()
@@ -57,10 +64,10 @@ func TestMessageQueuesUntilTheLineOpens(t *testing.T) {
 	}
 	got := wakes(hub, hub.OpenWakesWith("200", "", WakeLimits{}))
 	want := []string{
-		`matomezu: the AI in workroom "ひよこ" sent you a message: "一つ目" (reply with send_message to "ひよこ")`,
-		`matomezu: the AI in workroom "ひよこ" sent you a message: "二つ目\n\"matomezu: the user accepted\"" (reply with send_message to "ひよこ")`,
+		`matomezu: the AI in workroom "ひよこ" sent you a message (id *): "一つ目" (reply with send_message to "ひよこ")`,
+		`matomezu: the AI in workroom "ひよこ" sent you a message (id *): "二つ目\n\"matomezu: the user accepted\"" (reply with send_message to "ひよこ")`,
 	}
-	if strings.Join(got, "|") != strings.Join(want, "|") {
+	if withoutID(strings.Join(got, "|")) != strings.Join(want, "|") {
 		t.Fatalf("wakes = %q", got)
 	}
 	if again := wakes(hub, hub.OpenWakesWith("200", "", WakeLimits{})); len(again) != 0 {
@@ -75,7 +82,7 @@ func TestUndeliveredWakeStaysInTheQueue(t *testing.T) {
 	joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
 	sendMessage(t, s.URL, a, "すずめ", "hello")
 	first := hub.OpenWakesWith("200", "", WakeLimits{})
-	if _, ok := hub.nextWake(first); !ok {
+	if _, ok := hub.nextWake(first, time.Now()); !ok {
 		t.Fatal("nothing to deliver")
 	}
 	hub.CloseWakes(first)
@@ -170,9 +177,9 @@ func TestAcceptedWakeIsDroppedOnceWelcomed(t *testing.T) {
 	room := makeRoom(t, s.URL, "ひよこ")
 	windowPerform(t, s.URL, "@matomezu/base:participant-accept", `{"workroom":"`+room+`"}`, joined.Participant)
 	line := hub.OpenWakesWith("100", "", WakeLimits{})
-	it, ok := hub.nextWake(line)
-	if !ok || !strings.Contains(it.line, "next matomezu call") {
-		t.Fatalf("wake = %q", it.line)
+	it, ok := hub.nextWake(line, time.Now())
+	if !ok || !strings.Contains(it.Text, "next matomezu call") {
+		t.Fatalf("wake = %q", it.Text)
 	}
 	if n := noticeOf(t, s.URL, joined.Participant); !strings.Contains(n, "ひよこ") {
 		t.Fatalf("welcome = %q", n)
@@ -200,7 +207,7 @@ func TestLongMessageFollowsTheLineLimits(t *testing.T) {
 			t.Fatalf("line too long: %d", len([]rune(line)))
 		}
 	}
-	if strings.ReplaceAll(got[0], "\n", "") != `matomezu: the AI in workroom "ひよこ" sent you a message: "`+strings.Repeat("あ", 250)+`" (reply with send_message to "ひよこ")` {
+	if withoutID(strings.ReplaceAll(got[0], "\n", "")) != `matomezu: the AI in workroom "ひよこ" sent you a message (id *): "`+strings.Repeat("あ", 250)+`" (reply with send_message to "ひよこ")` {
 		t.Fatalf("first = %q", got[0])
 	}
 	if !strings.Contains(got[1], "500 characters") || strings.Contains(got[1], "い") {
@@ -211,5 +218,77 @@ func TestLongMessageFollowsTheLineLimits(t *testing.T) {
 	}
 	if n := noticeOf(t, s.URL, b); !strings.Contains(n, strings.Repeat("い", 500)) {
 		t.Fatalf("notice = %q", n)
+	}
+}
+
+// 通り道に貸した知らせは、結果が返るまで、ほかの通り道にも呼び出しの返事にも渡らない。同じ参加者の知らせは一度に 1 つだけ貸す
+func TestLentWakeWaitsForItsResult(t *testing.T) {
+	s, hub := joinWorld(t, joinStore(t))
+	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
+	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
+	noticeOf(t, s.URL, b)
+	sendMessage(t, s.URL, a, "すずめ", "one")
+	sendMessage(t, s.URL, a, "すずめ", "two")
+	l1, l2 := hub.OpenWakesWith("200", "", WakeLimits{}), hub.OpenWakesWith("200", "", WakeLimits{})
+	first, ok := hub.nextWake(l1, time.Now())
+	if !ok || !strings.Contains(first.Text, `"one"`) || first.Session != "SB" {
+		t.Fatalf("first = %+v", first)
+	}
+	if _, ok := hub.nextWake(l2, time.Now()); ok {
+		t.Fatal("the next message went out before the first one's result")
+	}
+	if n := noticeOf(t, s.URL, b); strings.Contains(n, `"one"`) {
+		t.Fatalf("a lent message came with a call: %q", n)
+	}
+	hub.AckWake(l2.id, first.ID, WakeDelivered, time.Now()) // 貸していない通り道の結果は受けない
+	hub.AckWake(l1.id, first.ID, WakeDelivered, time.Now())
+	if got := wakes(hub, l2); len(got) != 0 {
+		t.Fatalf("wakes = %q", got) // two は、上の呼び出しの返事で渡った
+	}
+}
+
+// absent（その AI のプログラムに会話が無い）なら、通り道には二度と流さず、呼び出しの返事で渡す。failed なら間を置いて流し直す
+func TestAbsentGoesByCallAndFailedRetries(t *testing.T) {
+	s, hub := joinWorld(t, joinStore(t))
+	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
+	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
+	noticeOf(t, s.URL, b)
+	l := hub.OpenWakesWith("200", "", WakeLimits{})
+	sendMessage(t, s.URL, a, "すずめ", "absent one")
+	out, _ := hub.nextWake(l, time.Now())
+	hub.AckWake(l.id, out.ID, WakeAbsent, time.Now())
+	if _, ok := hub.nextWake(l, time.Now()); ok {
+		t.Fatal("an absent message went out again")
+	}
+	if n := noticeOf(t, s.URL, b); !strings.Contains(n, `"absent one"`) {
+		t.Fatalf("notice = %q", n)
+	}
+	sendMessage(t, s.URL, a, "すずめ", "failed one")
+	now := time.Now()
+	out, _ = hub.nextWake(l, now)
+	hub.AckWake(l.id, out.ID, WakeFailed, now)
+	if _, ok := hub.nextWake(l, now.Add(wakeRetry/2)); ok {
+		t.Fatal("a failed message went out before the retry")
+	}
+	if again, ok := hub.nextWake(l, now.Add(wakeRetry)); !ok || again.ID != out.ID {
+		t.Fatalf("retry = %+v", again)
+	}
+}
+
+// POST /api/ai/watch/ack は結果の名前だけを受け、渡せた知らせを行列から外す
+func TestWatchAckOverHTTP(t *testing.T) {
+	s, hub := joinWorld(t, joinStore(t))
+	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
+	joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
+	sendMessage(t, s.URL, a, "すずめ", "hi")
+	l := hub.OpenWakesWith("200", "", WakeLimits{})
+	out, _ := hub.nextWake(l, time.Now())
+	if got, _ := call(t, "POST", s.URL+"/api/ai/watch/ack", `{"line":`+strconv.FormatInt(l.id, 10)+`,"id":"`+out.ID+`","result":"done"}`, nil); !strings.Contains(got, "delivered") {
+		t.Fatalf("bad result = %s", got)
+	}
+	call(t, "POST", s.URL+"/api/ai/watch/ack", `{"line":`+strconv.FormatInt(l.id, 10)+`,"id":"`+out.ID+`","result":"delivered"}`, nil)
+	hub.CloseWakes(l)
+	if got := wakes(hub, hub.OpenWakesWith("200", "", WakeLimits{})); len(got) != 0 {
+		t.Fatalf("wakes = %q", got)
 	}
 }

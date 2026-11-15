@@ -1,14 +1,18 @@
 package server
 
-// AI を起こす知らせ: 利用者トリガートークを待たずに AI に届ける 1 行。参加の要求が受け入れられた・断られた（窓のアクションで）知らせと、
+// AI を起こす知らせ: 利用者トリガートークを待たずに AI に届ける知らせ。参加の要求が受け入れられた・断られた（窓のアクションで）知らせと、
 // ほかの AI から届いた AI 間メッセージ（message.go）がある。常駐は AI の種類を知らない。
 //
 // 知らせは宛て先の参加者ごとの行列に入れ、受け取られるまで持つ（メモリだけ。常駐を起動し直すと消える）。行列は 1 人 wakeQueueMax 件までで、超えたら古い物から捨てる。
-// 受け取る道は 2 つあり、先に取った方が行列から外すので、二度は届かない:
-//   - 通り道: AI の側が matomezu watch でこの口につなぐ（Claude Code のプラグインの monitor が動かす。届いた行で AI のターンが始まる）。
+// 受け取る道は 2 つ:
+//   - 通り道: AI の側が matomezu watch でこの口につなぐ。watch は届いた知らせを AI に渡し（標準出力に書くか、渡すコマンドを呼ぶ）、
+//     結果を POST /api/ai/watch/ack で返す。常駐は知らせを通り道に貸し、結果が返るまで、ほかの道（ほかの通り道・呼び出しの返事）では渡さない:
+//     delivered（渡せた）なら行列から外し、absent（その AI のプログラムにその会話が無い）なら通り道には流さず呼び出しの返事だけで渡し、
+//     failed（失敗）なら間を置いて流し直す。通り道が切れたら、貸していた知らせを戻す（渡せたのに結果が届かなかった物は、もう一度渡る）。
+//     同じ参加者の知らせは一度に 1 つだけ貸す（順を守る）。
 //     通り道は AI のプログラムのプロセス id（host）ごと。参加者の宛て先は、join のときに MCP が添えたプロセス id。
 //     MCP と通り道の両方が、AI のプログラムが立てたときのセッション id を添えていれば、それも合う通り道だけ（プロセス id が別の AI のプログラムに使い回されたときに届けない）。
-//     書き出せた知らせだけを行列から外す（書き出せずに切れたら残り、次につながった通り道に流す）
+//     流す知らせには、宛て先の参加者に結んだセッション id を添える（渡すコマンドが、どの会話に渡すかを決める）
 //   - 参加の id の付いた /api/ai の呼び出しの返事（NoticeHeader。join.go の Called）: AI 間メッセージだけを渡す（参加の知らせは、その呼び出しが返す「参加しました」が兼ねる）
 //
 // 通り道ごとに、受け取る側が名乗った形で流す（常駐は AI の種類を知らない）: 1 行の上限（maxLine。超える行は改行で分ける）、1 回の知らせの上限（maxNotice）、
@@ -17,7 +21,9 @@ package server
 // 流す前に、もう役目の終わった知らせは捨てる: 受け入れは参加を伝え済み（Told）なら、断りは伝え済み（goneTold）なら。参加者が受け入れ済みでなくなった AI 間メッセージも捨てる。
 // 参加の知らせの行は英語の短い文で、中身（「参加しました」）は、話しかけのフックか、参加の id の付いた次の呼び出しの返事が添える
 //
-//	GET /api/ai/watch?host=<プロセス id>[&session=<立てたときのセッション id>][&maxLine=<字>][&maxNotice=<字>][&gap=<ミリ秒>]  SSE。event: wake、data: {"text"}（text は改行を含みうる）
+//	GET  /api/ai/watch?host=<プロセス id>[&session=<立てたときのセッション id>][&maxLine=<字>][&maxNotice=<字>][&gap=<ミリ秒>]
+//	     SSE。event: wake、data: {"line", "id", "session", "text"}（text は改行を含みうる。session は宛て先の参加者に結んだセッション id、分からなければ空）
+//	POST /api/ai/watch/ack {"line", "id", "result"}  result は delivered・absent・failed。{} を返す
 
 import (
 	"encoding/json"
@@ -30,7 +36,8 @@ import (
 
 // wakeLine は、AI のプログラム 1 つの、起こす知らせの通り道。行列に入った合図を ready で受ける
 type wakeLine struct {
-	host    string
+	id      int64         // 通り道の番号（貸した知らせの結果を見分ける）
+	host    string        // AI のプログラムのプロセス id
 	session string        // AI のプログラムが立てたときのセッション id（分からなければ空）
 	limits  WakeLimits    // 受け取る側が名乗った流し方
 	ready   chan struct{} // 宛て先の行列に何か入った合図（1 つだけ持つ）
@@ -65,14 +72,25 @@ func (lim WakeLimits) fits(line string) bool {
 
 // wakeItem は、行列の知らせ 1 つ
 type wakeItem struct {
-	seq         int64  // 行列の中で見分ける番号
-	participant string // 宛て先の参加者の id
-	kind        string // wakeAccepted・wakeDeclined・wakeMessage
-	line        string // 流す 1 行
-	from        string // AI 間メッセージの送り手のワークルーム名
-	chars       int    // AI 間メッセージの本文の字数
-	pointed     bool   // 1 回の知らせに入りきらず、通り道に「届いた」だけを流した（本文は次の呼び出しの返事で渡す）
-	pointer     bool   // nextWake が返した、「届いた」だけの知らせ（doneWake は行列から外さず pointed にする）
+	seq         int64     // 行列の中で見分ける番号
+	participant string    // 宛て先の参加者の id
+	kind        string    // wakeAccepted・wakeDeclined・wakeMessage
+	line        string    // 流す 1 行
+	from        string    // AI 間メッセージの送り手のワークルーム名
+	chars       int       // AI 間メッセージの本文の字数
+	pointed     bool      // 1 回の知らせに入りきらず、通り道に「届いた」だけを渡した（本文は呼び出しの返事で渡す）
+	replyOnly   bool      // 通り道の AI のプログラムにその会話が無かった（absent）。呼び出しの返事だけで渡す
+	lentTo      int64     // 貸している通り道の番号（0 は貸していない）
+	lentPointer bool      // 貸したのが「届いた」だけの知らせか
+	notBefore   time.Time // 失敗のあと、次に流せる時点
+}
+
+// WakeOut は、通り道に流す知らせ 1 つ
+type WakeOut struct {
+	Line    int64  `json:"line"`
+	ID      string `json:"id"`
+	Session string `json:"session"`
+	Text    string `json:"text"`
 }
 
 const (
@@ -81,17 +99,29 @@ const (
 	wakeMessage  = "message"  // AI 間メッセージ
 )
 
+// 貸した知らせの結果（POST /api/ai/watch/ack の result）
+const (
+	WakeDelivered = "delivered" // 渡せた
+	WakeAbsent    = "absent"    // その AI のプログラムに宛て先の会話が無い
+	WakeFailed    = "failed"    // 渡せなかった（間を置いて流し直す）
+)
+
 // wakeLineMax は、参加の知らせの 1 行の長さの上限（文字数）
 const wakeLineMax = 300
 
 // wakeQueueMax は、参加者 1 人の行列の上限（件）
 const wakeQueueMax = 50
 
-// OpenWakesWith は、受け取る側が名乗った流し方 limits で通り道をつなぐ。溜まっていた知らせがあれば合図する
+// wakeRetry は、失敗した知らせを流し直すまでの間
+const wakeRetry = 10 * time.Second
+
+// OpenWakesWith は、プロセス id host（立てたときのセッション id session）の AI の、起こす知らせの通り道を、受け取る側が名乗った流し方 limits でつなぐ。
+// 溜まっていた知らせがあれば合図する
 func (h *Hub) OpenWakesWith(host, session string, limits WakeLimits) *wakeLine {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	w := &wakeLine{host: host, session: session, limits: limits, ready: make(chan struct{}, 1), closed: make(chan struct{})}
+	h.wakeLineSeq++
+	w := &wakeLine{id: h.wakeLineSeq, host: host, session: session, limits: limits, ready: make(chan struct{}, 1), closed: make(chan struct{})}
 	if h.wakeLines == nil {
 		h.wakeLines = map[*wakeLine]struct{}{}
 	}
@@ -100,7 +130,7 @@ func (h *Hub) OpenWakesWith(host, session string, limits WakeLimits) *wakeLine {
 	return w
 }
 
-// CloseWakes は、起こす知らせの通り道を外す（行列はそのまま残る）
+// CloseWakes は、起こす知らせの通り道を外し、貸していた知らせを戻す
 func (h *Hub) CloseWakes(w *wakeLine) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -108,9 +138,18 @@ func (h *Hub) CloseWakes(w *wakeLine) {
 }
 
 func (h *Hub) closeWakesLocked(w *wakeLine) {
-	if _, ok := h.wakeLines[w]; ok {
-		delete(h.wakeLines, w)
-		close(w.closed)
+	if _, ok := h.wakeLines[w]; !ok {
+		return
+	}
+	delete(h.wakeLines, w)
+	close(w.closed)
+	for id, q := range h.wakeQueue {
+		for i := range q {
+			if q[i].lentTo == w.id {
+				q[i].lentTo = 0
+				h.signalWakes(id)
+			}
+		}
 	}
 }
 
@@ -119,19 +158,8 @@ func (l *wakeLine) reaches(n participantNote) bool {
 	return n.WakeHost != "" && l.host == n.WakeHost && (n.WakeSession == "" || l.session == "" || l.session == n.WakeSession)
 }
 
-// enqueueWake は、参加者 it.participant の行列に知らせ it を入れ、届く通り道に合図する（h.mu を持って呼ぶ）
-func (h *Hub) enqueueWake(it wakeItem) {
-	if h.wakeQueue == nil {
-		h.wakeQueue = map[string][]wakeItem{}
-	}
-	h.wakeSeq++
-	it.seq = h.wakeSeq
-	participant := it.participant
-	q := append(h.wakeQueue[participant], it)
-	if len(q) > wakeQueueMax {
-		q = q[len(q)-wakeQueueMax:]
-	}
-	h.wakeQueue[participant] = q
+// signalWakes は、参加者 participant に届く通り道に、流せる知らせがあるかもしれないと合図する（h.mu を持って呼ぶ）
+func (h *Hub) signalWakes(participant string) {
 	n := h.participantNotes[participant]
 	for l := range h.wakeLines {
 		if l.reaches(n) {
@@ -141,6 +169,21 @@ func (h *Hub) enqueueWake(it wakeItem) {
 			}
 		}
 	}
+}
+
+// enqueueWake は、参加者 it.participant の行列に知らせ it を入れ、届く通り道に合図する（h.mu を持って呼ぶ）
+func (h *Hub) enqueueWake(it wakeItem) {
+	if h.wakeQueue == nil {
+		h.wakeQueue = map[string][]wakeItem{}
+	}
+	h.wakeSeq++
+	it.seq = h.wakeSeq
+	q := append(h.wakeQueue[it.participant], it)
+	if len(q) > wakeQueueMax {
+		q = q[len(q)-wakeQueueMax:]
+	}
+	h.wakeQueue[it.participant] = q
+	h.signalWakes(it.participant)
 }
 
 // stale は、知らせ it が、もう役目を終えているか（joined は受け入れ済みの参加者の id。h.mu を持って呼ぶ）
@@ -170,16 +213,18 @@ func (h *Hub) joinedParticipants() map[string]bool {
 	return out
 }
 
-// nextWake は、通り道 l に流す、行列の先頭の知らせ（無ければ false）。文は l の流し方で分けてある。役目を終えた知らせは捨てる。行列からは外さない（書き出せたら doneWake で外す）。
-// 1 回の知らせに入りきらない AI 間メッセージは、「届いた」だけの知らせにして返し、それを流したあとは通り道に流さない（次の呼び出しの返事で渡す）
-func (h *Hub) nextWake(l *wakeLine) (wakeItem, bool) {
+// nextWake は、通り道 l に流す知らせを 1 つ選んで l に貸し、流す形にして返す（無ければ false）。役目を終えた知らせは捨てる。
+// 参加者ごとに行列の先頭から見て、呼び出しの返事だけで渡す物と、1 回の知らせに入りきらず「届いた」を渡し済みの物は飛ばす。
+// 貸している物か、流し直しを待っている物に当たったら、その参加者の後ろの物も流さない（順を守る）。
+// 1 回の知らせに入りきらない AI 間メッセージは、「届いた」だけの知らせにして貸す
+func (h *Hub) nextWake(l *wakeLine, now time.Time) (WakeOut, bool) {
 	joined := h.joinedParticipants()
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if _, ok := h.wakeLines[l]; !ok {
-		return wakeItem{}, false
+		return WakeOut{}, false
 	}
-	var first *wakeItem
+	var pick *wakeItem
 	for id, q := range h.wakeQueue {
 		if !l.reaches(h.participantNotes[id]) {
 			continue
@@ -195,59 +240,93 @@ func (h *Hub) nextWake(l *wakeLine) (wakeItem, bool) {
 			continue
 		}
 		h.wakeQueue[id] = kept
-		for _, it := range kept {
-			if it.pointed && !l.limits.fits(it.line) {
+		for i := range kept {
+			it := &kept[i]
+			if it.replyOnly || (it.pointed && !l.limits.fits(it.line)) {
 				continue
 			}
-			if first == nil || it.seq < first.seq {
-				first = &it
+			if it.lentTo == 0 && !now.Before(it.notBefore) && (pick == nil || it.seq < pick.seq) {
+				pick = it
 			}
 			break
 		}
 	}
-	if first == nil {
-		return wakeItem{}, false
+	if pick == nil {
+		return WakeOut{}, false
 	}
-	it := *first
-	if !l.limits.fits(it.line) {
-		it.pointer = true
-		it.line = "matomezu: the AI in workroom " + quote(it.from) + " sent you a message (" + strconv.Itoa(it.chars) + " characters, too long for this notice). Call any matomezu tool to receive it."
+	pick.lentTo = l.id
+	pick.lentPointer = !l.limits.fits(pick.line)
+	text := pick.line
+	if pick.lentPointer {
+		text = "matomezu: the AI in workroom " + quote(pick.from) + " sent you a message (" + strconv.Itoa(pick.chars) + " characters, too long for this notice). Call any matomezu tool to receive it."
 	}
-	it.line = l.limits.shape(it.line)
-	return it, true
+	return WakeOut{Line: l.id, ID: strconv.FormatInt(pick.seq, 10), Session: h.participantNotes[pick.participant].SessionID, Text: l.limits.shape(text)}, true
 }
 
-// doneWake は、届いた知らせ it を行列から外す（ほかの道が先に外していれば何もしない）
-func (h *Hub) doneWake(it wakeItem) {
+// AckWake は、通り道 line に貸した知らせ id の結果 result を受ける。貸した通り道からの結果だけを受け、ほかは何もしない
+func (h *Hub) AckWake(line int64, id, result string, now time.Time) {
+	seq, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		return
+	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	q := h.wakeQueue[it.participant]
-	for i, x := range q {
-		if x.seq == it.seq {
-			if it.pointer {
-				q[i].pointed = true
-			} else {
-				q = append(q[:i:i], q[i+1:]...)
+	for participant, q := range h.wakeQueue {
+		for i := range q {
+			it := &q[i]
+			if it.seq != seq {
+				continue
 			}
-			break
+			if it.lentTo != line {
+				return
+			}
+			it.lentTo = 0
+			switch result {
+			case WakeDelivered:
+				if it.lentPointer {
+					it.pointed = true
+				} else {
+					q = append(q[:i:i], q[i+1:]...)
+				}
+			case WakeAbsent:
+				it.replyOnly = true
+			default:
+				it.notBefore = now.Add(wakeRetry)
+				time.AfterFunc(wakeRetry, func() {
+					h.mu.Lock()
+					defer h.mu.Unlock()
+					h.signalWakes(participant)
+				})
+			}
+			if len(q) == 0 {
+				delete(h.wakeQueue, participant)
+			} else {
+				h.wakeQueue[participant] = q
+			}
+			h.signalWakes(participant)
+			return
 		}
-	}
-	if len(q) == 0 {
-		delete(h.wakeQueue, it.participant)
-	} else {
-		h.wakeQueue[it.participant] = q
 	}
 }
 
-// takeMessages は、参加者 id の行列の AI 間メッセージの行を全部取り出し、行列を空にする（参加の知らせは、呼び出しの返事の「参加しました」が兼ねるので捨てる。h.mu を持って呼ぶ）
+// takeMessages は、参加者 id の行列の AI 間メッセージの行を取り出す。通り道に貸している物は残す（結果を待つ）。
+// 参加の知らせは、呼び出しの返事の「参加しました」が兼ねるので捨てる（h.mu を持って呼ぶ）
 func (h *Hub) takeMessages(id string) []string {
 	var lines []string
+	var kept []wakeItem
 	for _, it := range h.wakeQueue[id] {
-		if it.kind == wakeMessage {
+		switch {
+		case it.lentTo != 0:
+			kept = append(kept, it)
+		case it.kind == wakeMessage:
 			lines = append(lines, it.line)
 		}
 	}
-	delete(h.wakeQueue, id)
+	if len(kept) == 0 {
+		delete(h.wakeQueue, id)
+	} else {
+		h.wakeQueue[id] = kept
+	}
 	return lines
 }
 
@@ -340,19 +419,15 @@ func (o Options) aiWatch(w http.ResponseWriter, r *http.Request) {
 		select {
 		case <-line.ready:
 			for {
-				it, ok := o.Hub.nextWake(line)
+				out, ok := o.Hub.nextWake(line, time.Now())
 				if !ok {
 					break
 				}
-				data, _ := json.Marshal(map[string]string{"text": it.line})
+				data, _ := json.Marshal(out)
 				if _, err := fmt.Fprintf(w, "event: wake\ndata: %s\n\n", data); err != nil {
 					return
 				}
 				flusher.Flush()
-				if r.Context().Err() != nil {
-					return
-				}
-				o.Hub.doneWake(it)
 				if line.limits.Gap > 0 {
 					select {
 					case <-time.After(line.limits.Gap):
@@ -374,4 +449,23 @@ func (o Options) aiWatch(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+}
+
+func (o Options) aiWatchAck(w http.ResponseWriter, r *http.Request) {
+	var ack struct {
+		Line   int64  `json:"line"`
+		ID     string `json:"id"`
+		Result string `json:"result"`
+	}
+	if !readJSON(w, r, &ack) {
+		return
+	}
+	switch ack.Result {
+	case WakeDelivered, WakeAbsent, WakeFailed:
+	default:
+		http.Error(w, "result is delivered, absent or failed", http.StatusBadRequest)
+		return
+	}
+	o.Hub.AckWake(ack.Line, ack.ID, ack.Result, time.Now())
+	writeJSON(w, struct{}{})
 }

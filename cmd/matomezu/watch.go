@@ -1,18 +1,28 @@
 package main
 
-// AI を起こす知らせ（watch）: 常駐の GET /api/ai/watch につなぎ、利用者が画面で行った事のうち AI を起こす物（参加の要求が受け入れられた・断られたなど）と、ほかの AI からの AI 間メッセージを標準出力に書く。
+// AI を起こす知らせ（watch）: 常駐の GET /api/ai/watch につなぎ、利用者が画面で行った事のうち AI を起こす物（参加の要求が受け入れられた・断られたなど）と、
+// ほかの AI からの AI 間メッセージを AI に渡し、渡せたかを常駐に返す（POST /api/ai/watch/ack）。
+// 渡し方は 3 つ（AI の種類は見ない。どれを使うかは clients/<AI の名前> が引数で決める）:
+//   - 何も付けなければ、標準出力に書く。書けたら渡せた（Claude Code のプラグインの monitor。書いた行で AI のターンが始まる）
+//   - -- のあとに渡すコマンドを付けると、知らせごとにそのコマンドを起動する。本文は標準入力、宛て先の会話のセッション id は環境変数 MATOMEZU_SESSION、
+//     知らせの id は MATOMEZU_WAKE_ID で渡す。終わりの値が 0 なら渡せた、3 なら宛て先の会話がその AI のプログラムに無い、ほかは失敗
+//   - --resident を付けると、渡すコマンドを 1 度だけ起動して立てたままにし、知らせごとに標準入力に 1 行の JSON {"id", "session", "text"} を書き、
+//     標準出力の 1 行の JSON {"id", "result"}（result は delivered・absent・failed）で答えを受ける
+// 渡すコマンドが deliverTimeout までに答えなければ、止めて失敗とする。
 // 受け取る AI のプログラムの上限（1 行・1 回の知らせ）と知らせの間は、--max-line・--max-notice・--gap で名乗る（常駐が合わせて流す）。
-// AI の側で裏に走らせ、書いた 1 行で AI のターンを始める物（Claude Code のプラグインの monitor。clients/claude-code）が動かす。
 // --host の AI のプログラムのプロセス id から join した参加者への知らせだけが届く
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -20,19 +30,60 @@ import (
 	"github.com/umaxyon/matomezu/internal/home"
 )
 
+// wakeOut は、常駐が通り道に流す知らせ 1 つ（server.WakeOut と同じ形）
+type wakeOut struct {
+	Line    int64  `json:"line"`
+	ID      string `json:"id"`
+	Session string `json:"session"`
+	Text    string `json:"text"`
+}
+
+// 渡した結果（常駐の WakeDelivered・WakeAbsent・WakeFailed と同じ名前）
+const (
+	deliverDelivered = "delivered"
+	deliverAbsent    = "absent"
+	deliverFailed    = "failed"
+)
+
+// deliverAbsentExit は、知らせごとに起動する渡すコマンドが「宛て先の会話がその AI のプログラムに無い」と答える終わりの値
+const deliverAbsentExit = 3
+
+// deliverTimeout は、渡すコマンドの答えを待つ上限
+const deliverTimeout = time.Minute
+
+// deliverer は、知らせ 1 つを AI に渡し、結果の名前を返す物
+type deliverer interface {
+	deliver(w wakeOut) string
+	close()
+}
+
 // watchRetry は、常駐が立っていない・切れたときに、つなぎ直すまで待つ間
 const watchRetry = 3 * time.Second
 
 // Run は、常駐の AI を起こす知らせ（GET /api/ai/watch）につなぎ、届いた 1 行ずつを標準出力に書く。常駐が立っていなければ待ち、切れたらつなぎ直す（常駐は立てない）。
 // --host のプロセスが居なくなったら終える（AI のプログラムが閉じたのに残らないように）
 func (c *watchCmd) Run() error {
+	d := c.deliverer(os.Stdout)
+	defer d.close()
 	for processAlive(c.Host) {
 		if s := runningServer(); s != nil {
-			_ = watchOnce(s, c.query(), c.Host, os.Stdout)
+			_ = watchOnce(s, c.query(), c.Host, d)
 		}
 		time.Sleep(watchRetry)
 	}
 	return nil
+}
+
+// deliverer は、引数で決めた渡し方
+func (c *watchCmd) deliverer(out io.Writer) deliverer {
+	switch {
+	case len(c.Deliver) == 0:
+		return printDeliverer{out}
+	case c.Resident:
+		return &residentDeliverer{args: c.Deliver}
+	default:
+		return commandDeliverer{args: c.Deliver}
+	}
 }
 
 // runningServer は、立っていて答える常駐のつなぎ方（無ければ nil）
@@ -63,8 +114,8 @@ func (c *watchCmd) query() string {
 	return q.Encode()
 }
 
-// watchOnce は、常駐 s の起こす知らせ（問い合わせ query）につなぎ、切れるまで、届いた知らせの文を out に書く（文が改行を含めば何行にもなる）。host のプロセスが居なくなったら終える
-func watchOnce(s *home.Server, query, host string, out io.Writer) error {
+// watchOnce は、常駐 s の起こす知らせ（問い合わせ query）につなぎ、切れるまで、届いた知らせを d で渡して、結果を常駐に返す。host のプロセスが居なくなったら終える
+func watchOnce(s *home.Server, query, host string, d deliverer) error {
 	res, err := request(s, http.MethodGet, "api/ai/watch?"+query, nil, 0, nil)
 	if err != nil {
 		return err
@@ -73,12 +124,18 @@ func watchOnce(s *home.Server, query, host string, out io.Writer) error {
 	if res.StatusCode != http.StatusOK {
 		return fmt.Errorf("watch: %s", res.Status)
 	}
-	return readWakes(res.Body, out, func() bool { return processAlive(host) })
+	return readWakes(res.Body, func() bool { return processAlive(host) }, func(w wakeOut) {
+		body, _ := json.Marshal(map[string]any{"line": w.Line, "id": w.ID, "result": d.deliver(w)})
+		if r, err := request(s, http.MethodPost, "api/ai/watch/ack", body, 10*time.Second, nil); err == nil {
+			r.Body.Close()
+		}
+	})
 }
 
-// readWakes は、SSE の流れ r の wake の知らせの文を、1 行ずつ out に書く（ほかの知らせは読み捨てる）。行を読むたびに still を聞き、偽なら終える（keep が間を置いて届く）
-func readWakes(r io.Reader, out io.Writer, still func() bool) error {
+// readWakes は、SSE の流れ r の wake の知らせを 1 つずつ on に渡す（ほかの知らせは読み捨てる）。行を読むたびに still を聞き、偽なら終える（keep が間を置いて届く）
+func readWakes(r io.Reader, still func() bool, on func(wakeOut)) error {
 	scan := bufio.NewScanner(r)
+	scan.Buffer(make([]byte, 64*1024), 1<<20)
 	name := ""
 	for scan.Scan() && still() {
 		line := scan.Text()
@@ -86,15 +143,130 @@ func readWakes(r io.Reader, out io.Writer, still func() bool) error {
 		case strings.HasPrefix(line, "event: "):
 			name = strings.TrimPrefix(line, "event: ")
 		case strings.HasPrefix(line, "data: ") && name == "wake":
-			var wake struct {
-				Text string `json:"text"`
-			}
-			if json.Unmarshal([]byte(strings.TrimPrefix(line, "data: ")), &wake) == nil && wake.Text != "" {
-				fmt.Fprintln(out, wake.Text)
+			var w wakeOut
+			if json.Unmarshal([]byte(strings.TrimPrefix(line, "data: ")), &w) == nil && w.Text != "" {
+				on(w)
 			}
 		case line == "":
 			name = ""
 		}
 	}
 	return scan.Err()
+}
+
+// printDeliverer は、標準出力に書いて渡す（書けたら渡せた）
+type printDeliverer struct{ out io.Writer }
+
+func (p printDeliverer) deliver(w wakeOut) string {
+	if _, err := fmt.Fprintln(p.out, w.Text); err != nil {
+		return deliverFailed
+	}
+	return deliverDelivered
+}
+
+func (printDeliverer) close() {}
+
+// commandDeliverer は、知らせごとに渡すコマンドを起動して渡す
+type commandDeliverer struct{ args []string }
+
+func (c commandDeliverer) deliver(w wakeOut) string {
+	ctx, cancel := context.WithTimeout(context.Background(), deliverTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, c.args[0], c.args[1:]...)
+	cmd.Env = append(os.Environ(), "MATOMEZU_SESSION="+w.Session, "MATOMEZU_WAKE_ID="+w.ID)
+	cmd.Stdin = strings.NewReader(w.Text)
+	cmd.Stdout = os.Stderr
+	cmd.Stderr = os.Stderr
+	err := cmd.Run()
+	var exit *exec.ExitError
+	switch {
+	case err == nil:
+		return deliverDelivered
+	case errors.As(err, &exit) && exit.ExitCode() == deliverAbsentExit:
+		return deliverAbsent
+	default:
+		return deliverFailed
+	}
+}
+
+func (commandDeliverer) close() {}
+
+// residentDeliverer は、渡すコマンドを立てたままにして、1 行の JSON でやり取りする。止まっていれば次の知らせのときに起動し直す
+type residentDeliverer struct {
+	args    []string
+	cmd     *exec.Cmd
+	in      io.WriteCloser
+	answers chan string
+}
+
+func (r *residentDeliverer) start() error {
+	cmd := exec.Command(r.args[0], r.args[1:]...)
+	in, err := cmd.StdinPipe()
+	if err != nil {
+		return err
+	}
+	out, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	cmd.Stderr = os.Stderr
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	answers := make(chan string)
+	go func() {
+		scan := bufio.NewScanner(out)
+		for scan.Scan() {
+			answers <- scan.Text()
+		}
+		close(answers)
+	}()
+	r.cmd, r.in, r.answers = cmd, in, answers
+	return nil
+}
+
+func (r *residentDeliverer) deliver(w wakeOut) string {
+	if r.cmd == nil {
+		if err := r.start(); err != nil {
+			return deliverFailed
+		}
+	}
+	line, _ := json.Marshal(map[string]string{"id": w.ID, "session": w.Session, "text": w.Text})
+	if _, err := r.in.Write(append(line, '\n')); err != nil {
+		r.close()
+		return deliverFailed
+	}
+	deadline := time.After(deliverTimeout)
+	for {
+		select {
+		case answer, ok := <-r.answers:
+			if !ok {
+				r.close()
+				return deliverFailed
+			}
+			var got struct{ ID, Result string }
+			if json.Unmarshal([]byte(answer), &got) != nil || got.ID != w.ID {
+				continue
+			}
+			switch got.Result {
+			case deliverDelivered, deliverAbsent:
+				return got.Result
+			default:
+				return deliverFailed
+			}
+		case <-deadline:
+			r.close()
+			return deliverFailed
+		}
+	}
+}
+
+func (r *residentDeliverer) close() {
+	if r.cmd == nil {
+		return
+	}
+	_ = r.in.Close()
+	_ = r.cmd.Process.Kill()
+	_ = r.cmd.Wait()
+	r.cmd = nil
 }

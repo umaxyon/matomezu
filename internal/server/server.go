@@ -32,7 +32,8 @@
 //	                         AI の応えを待つアノテーションの全部と、見られる前に利用者が戻した AI の変更の全部と、失敗にした AI 編集チケット（変更提案郵便など）の全部と、
 //	                         郵便が消えたと記した AI 編集チケット（cause は上限で消えた limit か、利用者が消した user）の全部
 //	                         （undone と failed と removed は、渡したら、次の利用者トリガートークのときに消える）
-//	GET  /api/ai/watch?host=<プロセス id>[&session=<立てたときのセッション id>][&maxLine&maxNotice&gap]  SSE。そのプロセス id の AI を起こす知らせ（event: wake、data: {"text"}。参加の要求が受け入れられた・断られた、AI 間メッセージ。watch.go）
+//	GET  /api/ai/watch?host=<プロセス id>[&session=<立てたときのセッション id>][&maxLine&maxNotice&gap]  SSE。そのプロセス id の AI を起こす知らせ（event: wake、data: {"line", "id", "session", "text"}。参加の要求が受け入れられた・断られた、AI 間メッセージ。watch.go）
+//	POST /api/ai/watch/ack   {"line", "id", "result"} 通り道に流した知らせを渡せたか（delivered・absent・failed）。{} を返す（watch.go）
 //	POST /api/ai/talked      {"sessionId", "host", "candidates", "woken"} AI のターンが始まった（AI のフックが知らせる）。candidates が無く woken でなければ、利用者トリガートークのときに行うアクションを、アノテーションのあるブックごとに行い、AI に渡した、見られる前に消えた AI の変更を消す。
 //	                         woken は、利用者トリガートークでなく、裏の知らせ（watch の 1 行など）で始まったターンのフック（結びつけと「参加しました」の知らせだけを行う）。
 //	                         どちらも {"welcomes", "unbound"} を返す（セッションと参加者の結びつけと「参加しました」の知らせ。talk_session.go）
@@ -142,6 +143,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("GET /api/ai/books/{id}/pages/{page}", o.ai(o.aiPage))
 	mux.Handle("GET /api/ai/awaiting", o.ai(o.aiAwaiting))
 	mux.Handle("GET /api/ai/watch", o.ai(o.aiWatch))
+	mux.Handle("POST /api/ai/watch/ack", o.ai(o.aiWatchAck))
 	mux.Handle("GET /api/ai/records", o.ai(o.aiRecords))
 	mux.Handle("GET /api/ai/search", o.ai(o.search(false)))
 	mux.Handle("POST /api/ai/talked", o.ai(o.aiTalked))

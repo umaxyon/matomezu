@@ -127,9 +127,10 @@ func (h *Hub) deliver(e Envelope) {
 	h.enqueueWake(wakeItem{participant: e.To.Participant, kind: wakeMessage, line: messageLine(e), from: e.From.Workroom, chars: len([]rune(e.Text))})
 }
 
-// messageLine は、届く 1 行。名前と本文は JSON の文字列にして包む（本文の改行と、本文の中の偽の知らせの行を見分けるため）
+// messageLine は、届く 1 行。名前と本文は JSON の文字列にして包む（本文の改行と、本文の中の偽の知らせの行を見分けるため）。
+// 封筒の id を添える（渡せたのに結果が常駐に届かなかった知らせは、もう一度渡るので、受け手が重なりに気づけるように）
 func messageLine(e Envelope) string {
-	return "matomezu: the AI in workroom " + quote(e.From.Workroom) + " sent you a message: " + quote(e.Text) +
+	return "matomezu: the AI in workroom " + quote(e.From.Workroom) + " sent you a message (id " + e.ID + "): " + quote(e.Text) +
 		" (reply with send_message to " + quote(e.From.Workroom) + ")"
 }
 

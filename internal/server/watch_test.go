@@ -33,16 +33,16 @@ func joinFromSession(t *testing.T, url, link, host, session string) string {
 	return joined.Participant
 }
 
-// wakes は、通り道 l に流れる知らせの文の全部（流したら行列から外す。知らせはアクションの返事より前に入るので、待たない）
+// wakes は、通り道 l に流れる知らせの文の全部（流すたびに「渡せた」を返す。知らせはアクションの返事より前に入るので、待たない）
 func wakes(hub *Hub, l *wakeLine) []string {
 	var out []string
 	for {
-		it, ok := hub.nextWake(l)
+		it, ok := hub.nextWake(l, time.Now())
 		if !ok {
 			return out
 		}
-		out = append(out, it.line)
-		hub.doneWake(it)
+		out = append(out, it.Text)
+		hub.AckWake(l.id, it.ID, WakeDelivered, time.Now())
 	}
 }
 
