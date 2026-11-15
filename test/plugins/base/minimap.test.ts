@@ -2,7 +2,6 @@
 // ページの絵（base/minimap/marks.ts と、形・線の定義の minimap）
 import { describe, expect, test } from "bun:test"
 import type { ItemPage } from "../../../web/src/core/placed"
-import type { Book } from "../../../web/src/core/schema/book"
 import { fitScale, grabAt, panFor, seenRect } from "../../../web/src/plugins/base/minimap/geometry"
 import { minimapMarks } from "../../../web/src/plugins/base/minimap/marks"
 import { CORE_CATALOG } from "../../support"
@@ -45,6 +44,8 @@ describe("紙の範囲の計算", () => {
 
 describe("ページの絵", () => {
   const page = (items: ItemPage["items"]): ItemPage => ({
+    kind: "page",
+    type: "@matomezu/drawing:drawing",
     id: "p1",
     title: "",
     paper: "@matomezu/base:a4",
@@ -52,8 +53,7 @@ describe("ページの絵", () => {
     items,
   })
   // タイプ type のブックの 1 枚だけのページ page の絵
-  const marksOf = (type: string, page: ItemPage) =>
-    minimapMarks(CORE_CATALOG, { id: "b1", type, pages: [page] } as unknown as Book, page)
+  const marksOf = (type: string, page: ItemPage) => minimapMarks(CORE_CATALOG, { ...page, type } as ItemPage)
 
   test("線を先に（下に）、形をあとに描く。形は定義の輪郭、定義の無い形は置いた四角", () => {
     const marks = marksOf(
@@ -121,6 +121,8 @@ describe("ページの絵", () => {
 
 test("アイテムを置かないツリーのページは、見せ方の minimap が節を四角で、線を両端を結ぶ線で描く", () => {
   const tree = {
+    kind: "page",
+    type: "@matomezu/tree:tree",
     id: "p1",
     title: "",
     paper: "@matomezu/base:a4",
@@ -128,25 +130,23 @@ test("アイテムを置かないツリーのページは、見せ方の minimap
     items: [],
     root: { id: "r", caption: "根", children: [{ id: "a", caption: "子" }] },
   } as ItemPage
-  const marks = minimapMarks(
-    CORE_CATALOG,
-    { id: "b1", type: "@matomezu/tree:tree", pages: [tree] } as unknown as Book,
-    tree,
-  )
+  const marks = minimapMarks(CORE_CATALOG, tree)
   expect(marks.map(m => m.kind)).toEqual(["polyline", "rect", "rect"])
 })
 
-// 箱 1 つのページを、タイプ type のブックで描いた絵
+// 箱 1 つの、タイプ type のページの絵
 const oneBox = (type: string) => {
   const box = { id: "a", item: "@matomezu/box:shape-nest-box", x: 100, y: 100, w: 100, h: 60, props: {} }
   const page = {
+    kind: "page",
+    type,
     id: "p1",
     title: "",
     paper: "@matomezu/base:a4",
     orientation: "landscape",
     items: [box],
   } as unknown as ItemPage
-  return minimapMarks(CORE_CATALOG, { id: "b1", type, pages: [page] } as unknown as Book, page)
+  return minimapMarks(CORE_CATALOG, page)
 }
 
 test("紙の見せ方は、置いたアイテムを描く", () => {
