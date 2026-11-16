@@ -1,7 +1,20 @@
 // Claude Code の部品。Anthropic の Messages API（POST /v1/messages）の本文を読む
 import { chars, firstDiff, hash, resultsOf } from "../common"
-import { isMatomezuTool, MATOMEZU_SERVERS } from "../matomezu"
-import type { Client, Entry, Group, Part, ReplyBlock, Summary, ToolResult, ToolUse, Usage } from "../types"
+import { isMatomezuSend, isMatomezuTool, MATOMEZU_SERVERS, matomezuReceipts } from "../matomezu"
+import {
+  type Client,
+  type Entry,
+  type Group,
+  type ItemFacts,
+  MAIN_THREAD,
+  type Part,
+  type ReplyBlock,
+  type Summary,
+  type ToolResult,
+  type ToolUse,
+  UNNAMED_AGENT_THREAD,
+  type Usage,
+} from "../types"
 
 export type Block = { type: string; [key: string]: unknown }
 export type Message = { role: string; content: string | Block[] }
@@ -145,6 +158,69 @@ export function tokens(u: Usage) {
     cacheNew: u.cache_creation_input_tokens,
     output: u.output_tokens,
   }
+}
+
+// ---- スレッドと事実 ----
+
+// サブエージェントのリクエストには、その子の id（Agent の結果の agentId と同じ）がヘッダーに付く。親には付かない。
+// 値を残していない記録（名前だけの <dropped>）は、子だとは分かるが、どの子かは分からない
+export function threadOf(headers: Headers): string {
+  const id = headers.get("x-claude-code-agent-id")
+  if (!id) return MAIN_THREAD
+  return id === "<dropped>" ? UNNAMED_AGENT_THREAD : id
+}
+
+// 届く文は、ブロックの頭（cross-session-message・agent-message は「Another Claude session sent a message:」の行のあと）か、
+// 行の頭（task-notification・matomezu の知らせ）にある物だけを見る。道具の結果や返答の中の引用は拾わない
+const CROSS_SESSION =
+  /^(?:Another Claude session sent a message:\n)?<cross-session-message from="[^"]*" from-name="([^"]*)"[^>]*>\n([\s\S]*?)\n<\/cross-session-message>/
+const AGENT_MESSAGE = /^(?:Another Claude session sent a message:\n)?<agent-message from="([\w-]+)">/
+const TASK_NOTIFICATION = /^<task-notification>\n<task-id>([\w-]+)<\/task-id>/gm
+// Agent の結果の、子の id の行。非同期は「Async agent launched successfully.」で始まり、子はまだ動いている
+const AGENT_ID = /^agentId: ([\w-]+) \(/m
+
+const textOf = (content: unknown) =>
+  Array.isArray(content)
+    ? content.map(b => (typeof b?.text === "string" ? b.text : "")).join("\n")
+    : typeof content === "string"
+      ? content
+      : ""
+
+export function factsOf(item: unknown): ItemFacts {
+  const facts: ItemFacts = { spawns: [], started: [], returns: [], sends: [], receipts: [] }
+  const m = item as Message | null
+  if (!m || (typeof m.content !== "string" && !Array.isArray(m.content))) return facts
+  for (const b of blocksOf(m)) {
+    if (m.role === "assistant" && b.type === "tool_use") {
+      const input = (b.input ?? {}) as Record<string, unknown>
+      const name = b.name as string
+      if (name === "Agent")
+        facts.spawns.push({
+          callId: b.id as string,
+          agentType: String(input.subagent_type ?? "general-purpose"),
+          description: String(input.description ?? ""),
+        })
+      else if (name === "SendMessage" && typeof input.to === "string" && typeof input.message === "string")
+        facts.sends.push({ callId: b.id as string, via: "SendMessage", to: input.to, text: input.message })
+      else if (isMatomezuSend(name) && typeof input.to === "string" && typeof input.text === "string")
+        facts.sends.push({ callId: b.id as string, via: "send_message", to: input.to, text: input.text })
+    } else if (m.role === "user" && b.type === "tool_result") {
+      const text = textOf(b.content)
+      const agentId = text.match(AGENT_ID)?.[1]
+      if (!agentId) continue
+      facts.started.push({ callId: b.tool_use_id as string, agentId })
+      if (!text.startsWith("Async agent launched")) facts.returns.push({ agentId, how: "result" })
+    } else if (m.role !== "assistant" && b.type === "text" && typeof b.text === "string") {
+      const text = b.text
+      const cross = text.match(CROSS_SESSION)
+      if (cross) facts.receipts.push({ via: "SendMessage", from: cross[1] ?? "", text: cross[2] ?? "" })
+      const handback = text.match(AGENT_MESSAGE)?.[1]
+      if (handback) facts.returns.push({ agentId: handback, how: "handback" })
+      for (const n of text.matchAll(TASK_NOTIFICATION)) facts.returns.push({ agentId: n[1] ?? "", how: "notification" })
+      for (const r of matomezuReceipts(text)) facts.receipts.push({ via: "send_message", ...r })
+    }
+  }
+  return facts
 }
 
 // ---- 中身の分け方 ----
@@ -384,11 +460,20 @@ export const claude: Client<MessagesBody> = {
   name: "claude",
   head: "",
   upstream: "https://api.anthropic.com",
-  keepHeaders: new Set(["content-type", "accept", "user-agent", "x-app", "anthropic-version", "anthropic-beta"]),
+  keepHeaders: new Set([
+    "content-type",
+    "accept",
+    "user-agent",
+    "x-app",
+    "anthropic-version",
+    "anthropic-beta",
+    "x-claude-code-agent-id",
+  ]),
   recorded: (method, path) => method === "POST" && path === "/v1/messages",
   sessionIdOf,
   // 同じセッションの中の、モデルと system の組（サブエージェントや要約の呼び出しは別の流れになる）
   streamOf: (_body, _headers, summary) => hash(summary.model, summary.systemHash).slice(0, 4),
+  threadOf,
   workroomNameOf,
   summarize,
   divergeAt,
@@ -405,6 +490,7 @@ export const claude: Client<MessagesBody> = {
   parseReply,
   toolUses,
   toolResults,
+  factsOf,
   // system と tools は毎回ほぼ同じ、messages は伸びていく
   split: ({ system, tools, messages, ...rest }) => ({
     rest,

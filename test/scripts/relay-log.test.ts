@@ -16,12 +16,14 @@ test("記録するヘッダーは、AI ごとに許可した物のほかは値�
     "anthropic-beta": "oauth-2025-04-20",
     "user-agent": "claude-cli",
     "session-id": "s1",
+    "x-claude-code-agent-id": "a1b2",
   })
   const a = headersForLog(h, claude.keepHeaders)
   expect(a.authorization).toBe("<dropped>")
   expect(a["x-api-key"]).toBe("<dropped>")
   expect(a.cookie).toBe("<dropped>")
   expect(a["anthropic-beta"]).toBe("oauth-2025-04-20")
+  expect(a["x-claude-code-agent-id"]).toBe("a1b2")
   expect(JSON.stringify(a)).not.toContain("secret")
   const c = headersForLog(h, codex.keepHeaders)
   expect(c["chatgpt-account-id"]).toBe("<dropped>")

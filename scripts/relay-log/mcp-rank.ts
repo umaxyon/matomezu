@@ -1,8 +1,7 @@
 // matomezu の MCP の結果を大きさで並べる。結果は以後のリクエストで毎回送り直されるので、呼び出し 1 回につき 1 回だけ数える。
-// 呼び出しと結果は、その行の AI の部品が並びの項目から取り出す。字数は部品の classify と同じく、結果を JSON にした長さ
-import { clientOf } from "./clients"
-import { matomezuTool } from "./matomezu"
-import type { StoredItem } from "./store"
+// 呼び出しと結果は、記録するときに部品が並びの項目から取り出した事実（facts.ts の mcp-call と result）。字数は部品の classify と同じく、
+// 結果を JSON にした長さ
+import type { ClientName } from "./types"
 
 export type McpCall = { session: string; at: string; tool: string; key: string; input: unknown; chars: number }
 export type McpToolRank = { key: string; calls: number; chars: number; max: number }
@@ -15,23 +14,27 @@ export function rankKey(tool: string, input: unknown): string {
   return tool === "perform" && typeof action === "string" ? `perform ${action}` : tool
 }
 
-export function matomezuCalls(items: StoredItem[]): McpCall[] {
-  const uses = new Map<string, { name: string; input: unknown }>()
+// 呼び出しの事実と、その結果の事実の組（store の mcpRows）。call と result は事実の data の JSON
+export type McpFactRow = {
+  callId: string
+  call: string
+  result: string
+  client: ClientName
+  at: string
+  session: string
+}
+
+// 結果が初めて現れた所で、呼び出し 1 回を 1 回だけ数える（rows は結果が現れた順）
+export function mcpCalls(rows: McpFactRow[]): McpCall[] {
   const done = new Set<string>()
   const calls: McpCall[] = []
-  for (const { session, client, at, item } of items) {
-    const part = clientOf(client)
-    for (const u of part.toolUses(item)) {
-      const tool = matomezuTool(u.name)
-      if (tool) uses.set(`${client}:${u.id}`, { name: tool, input: u.input })
-    }
-    for (const r of part.toolResults(item)) {
-      const id = `${client}:${r.id}`
-      const use = uses.get(id)
-      if (!use || done.has(id)) continue
-      done.add(id)
-      calls.push({ session, at, tool: use.name, key: rankKey(use.name, use.input), input: use.input, chars: r.chars })
-    }
+  for (const row of rows) {
+    const id = `${row.client}:${row.callId}`
+    if (done.has(id)) continue
+    done.add(id)
+    const { tool, input } = JSON.parse(row.call) as { tool: string; input: unknown }
+    const { chars } = JSON.parse(row.result) as { chars: number }
+    calls.push({ session: row.session, at: row.at, tool, key: rankKey(tool, input), input, chars })
   }
   return calls
 }

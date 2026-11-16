@@ -129,7 +129,6 @@ test("Codex の本文も元の形で読み戻し、input の項目を 1 度だ�
     ["codex", "0000abcd"],
   ])
   expect(store.sessions("claude").map(x => x.session)).toEqual(["a"])
-  expect(store.uniqueItems(undefined, "codex")).toHaveLength(3)
   store.close()
 })
 
@@ -167,7 +166,6 @@ test("AI の列・名前付きの骨組み・そろえた usage が無い行を�
     expect(e?.client).toBe("claude")
     expect(e?.tokens).toEqual({ input: 3, cacheRead: 100, cacheNew: 20, output: 7 })
     expect(store.body(e!.id)).toEqual(b)
-    expect(store.uniqueItems()).toHaveLength(2)
     expect(store.purge("2000-01-01T00:00:00Z")).toBe(0)
     expect(store.blobCount()).toBe(4)
     store.close()

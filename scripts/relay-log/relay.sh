@@ -31,7 +31,8 @@ relay_prepare() {
   if ! relay_health; then
     mkdir -p "$RELAY_STATE"
     setsid nohup bun scripts/relay-log.ts serve --db "$RELAY_DB" --port "$RELAY_PORT" --view-port "$VIEW_PORT" --pid-file "$RELAY_PIDFILE" >>"$RELAY_LOG" 2>&1 &
-    for _ in 1 2 3 4 5 6 7 8 9 10; do relay_health && break; sleep 0.5; done
+    # 中継は記録を開くときに事実を付け直す（取り出し方の版が変われば全部）ので、記録が多いと待ち受けまで数十秒かかる
+    for _ in $(seq 120); do relay_health && break; sleep 0.5; done
   fi
   if relay_health; then
     RELAY_OK=1

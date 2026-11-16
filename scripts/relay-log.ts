@@ -7,7 +7,7 @@
 //     matomezu に join したときのワークルーム名（本文に入る Workroom name の行を拾う。join し直せば名前も変わる）。join 前は
 //     session_id の 8 字。道の頭のあとに /s/<名前> を付けたときは、join 前の名前になる（/s/<名前> は外して渡す）
 //     scripts/claude-relay.sh・scripts/codex-relay.sh [AI の引数...] がこれを立てて claude・codex を起動する
-//     ビューワー（時間順の一覧と詳細、セッションと AI の絞り込み）は --view-port で同じプロセスが配る
+//     ビューワー（時間順の一覧と詳細、セッションと AI の絞り込み、/mcp のランキング）は --view-port で同じプロセスが配る
 //     --pid-file には待ち受けを始めたあとで自分の pid を書く（起こした側の $! は setsid が間に入ると別のプロセスになる）
 //     --no-body のときは本文（会話の全文が入る）を残さず、数字の要約だけにする。認証のヘッダーの値はどちらにも残さない
 //   bun scripts/relay-log.ts report [--db ...] [--session <名前>]   リクエストごとの表と、大きい結果の上位にまとめる
@@ -94,14 +94,18 @@ export function startRelay({ port, store, keepBody = true, upstream = {} }: Rela
       const full = client.summarize(body)
       const { prefix, results, ...summary } = full
       const stream = client.streamOf(body, req.headers, full)
-      const key = `${route.client}:${sessionId || route.session}:${stream}`
+      const thread = client.threadOf(req.headers)
+      // 食い違いは流れ（キャッシュの前置きを比べる単位）ごとに見る。同じ種類のサブエージェントが並ぶと流れがそろうので、スレッドでも分ける
+      const key = `${route.client}:${sessionId || route.session}:${thread}:${stream}`
       const diverge = client.divergeAt(lastPrefix.get(key), prefix)
       lastPrefix.set(key, prefix)
       // 道具の結果の id は AI ごとに付くので、AI で分けて覚える
       const newResults = results.filter(r => !seen.has(`${route.client}:${r.id}`))
       for (const r of newResults) seen.add(`${route.client}:${r.id}`)
-      const split = keepBody ? client.split(body) : undefined
-      if (split) split.rest = { ...split.rest, headers: headersForLog(req.headers, client.keepHeaders) }
+      const parts = client.split(body)
+      const split = keepBody
+        ? { ...parts, rest: { ...parts.rest, headers: headersForLog(req.headers, client.keepHeaders) } }
+        : undefined
       const probe = client.probeOf(body)
 
       // SSE かは content-type か、本文の頭（event: か data: の行）で決める
@@ -151,6 +155,7 @@ export function startRelay({ port, store, keepBody = true, upstream = {} }: Rela
           },
           split,
           keepBody ? text : undefined,
+          { thread, items: parts.list.items },
         )
       })().catch(e => console.error("relay-log: 記録に失敗した", e))
       return new Response(pass, { status: res.status, headers: resHeaders })

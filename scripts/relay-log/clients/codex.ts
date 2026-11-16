@@ -2,7 +2,18 @@
 // codex を、窓口の base_url を中継の /codex にした model_provider で起動すると、/codex を外した残りの道が上流へ渡る
 import { chars, firstDiff, hash, resultsOf, sseEvents } from "../common"
 import { isMatomezuNamespace, isMatomezuTool } from "../matomezu"
-import type { Client, Group, Part, ReplyBlock, Summary, ToolResult, ToolUse, Usage } from "../types"
+import {
+  type Client,
+  type Group,
+  type ItemFacts,
+  MAIN_THREAD,
+  type Part,
+  type ReplyBlock,
+  type Summary,
+  type ToolResult,
+  type ToolUse,
+  type Usage,
+} from "../types"
 
 export type ContentPart = { type: string; text?: string; [key: string]: unknown }
 export type Tool = { type?: string; name?: string; tools?: Tool[]; [key: string]: unknown }
@@ -132,6 +143,23 @@ export function tokens(u: Usage) {
     output: u.output_tokens,
   }
 }
+
+// ---- スレッドと事実 ----
+
+// 会話の糸は thread-id のヘッダー。親の糸の thread-id はセッションの session-id と同じ
+export function threadOf(headers: Headers): string {
+  const thread = headers.get("thread-id")
+  return !thread || thread === headers.get("session-id") ? MAIN_THREAD : thread
+}
+
+// Codex のサブエージェント（spawn_agent など）と AI 間メッセージの届き方は、まだ録った記録が無いので取り出さない
+export const factsOf = (_item: unknown): ItemFacts => ({
+  spawns: [],
+  started: [],
+  returns: [],
+  sends: [],
+  receipts: [],
+})
 
 // ---- 中身の分け方 ----
 // 場所（input の項目の種類と役割）と、録った本文で確かめた決まった見出しだけで決める。当てはまらない物は不明
@@ -300,6 +328,7 @@ export const codex: Client<ResponsesBody> = {
   sessionIdOf: (_body, headers) => headers.get("session-id") ?? "",
   // 流れは会話の糸（thread-id）。サブエージェントは別の糸になる
   streamOf: (body, headers) => hash(headers.get("thread-id") ?? body.model ?? "").slice(0, 4),
+  threadOf,
   workroomNameOf,
   summarize,
   divergeAt,
@@ -312,6 +341,7 @@ export const codex: Client<ResponsesBody> = {
   parseReply,
   toolUses,
   toolResults,
+  factsOf,
   // 道具の説明（additional_tools）も input の頭の項目なので、並びの項目として 1 度だけ保存される
   split: ({ input, ...rest }) => ({ rest, fixed: {}, list: { name: "input", items: input ?? [] } }),
   probeOf: () => undefined,
