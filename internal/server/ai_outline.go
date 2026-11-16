@@ -5,7 +5,7 @@ package server
 //
 //	GET /api/ai/books/{id}?outline=1                     {"id", "book": ブックの本文のうち lineup のページを {"kind", "id", "title", "type", "size"} にした物, "version", "annotations"}
 //	GET /api/ai/pages/{page}?outline=1        ページの items を [{"id", "item", "size"}] にした物（size は文字数）
-//	GET /api/ai/pages/{page}?item=<物の id>   {"id", "page": ページの id, "item": その物（子の形も）, "version", "annotations": その物と子の形に立つもの, "placed": その物と子の形の位置と大きさ}
+//	GET /api/ai/pages/{page}?item=<物の id>   {"book", "page": ページの id, "item": その物（子の形も）, "version", "annotations": その物と子の形に立つもの, "placed": その物と子の形の位置と大きさ}
 
 import "encoding/json"
 

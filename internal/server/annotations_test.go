@@ -97,7 +97,7 @@ func TestAIReadsAnnotations(t *testing.T) {
 	if _, got := send(t, "GET", s.URL+"/api/ai/books/b1", "", ai); !strings.Contains(got, `"annotations":[`+waiting+`]`) {
 		t.Fatalf("read_book = %s", got)
 	}
-	if _, got := send(t, "GET", s.URL+"/api/ai/pages/p1", "", ai); !strings.HasPrefix(got, `{"annotations":[`+waiting+`],"id":"b1","page":{"kind":"page","id":"p1"`) {
+	if _, got := send(t, "GET", s.URL+"/api/ai/pages/p1", "", ai); !strings.HasPrefix(got, `{"annotations":[`+waiting+`],"book":"b1","page":{"kind":"page","id":"p1"`) {
 		t.Fatalf("read_page = %s", got)
 	}
 	// 形の描いた位置と大きさ（placed）も添える

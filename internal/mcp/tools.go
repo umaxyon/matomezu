@@ -57,7 +57,7 @@ var tools = []tool{
 	},
 	{
 		"read_page",
-		"Read one page (the page and the items on it), id (the book that holds it), version (the page's own: it goes up each time the page changes), placed (where each shape is drawn, when the page type's presentation tells it, otherwise null: {id, x, y, w, h} with the top-left on the paper and the size as drawn, children too; use it to line shapes up, as the items' own x and y are from their parent and their w and h may be missing or smaller than drawn) and the annotations (such as the user's notes and marks) standing on things of that page. " +
+		"Read one page (the page and the items on it), book (the id of the book that holds it), version (the page's own: it goes up each time the page changes), placed (where each shape is drawn, when the page type's presentation tells it, otherwise null: {id, x, y, w, h} with the top-left on the paper and the size as drawn, children too; use it to line shapes up, as the items' own x and y are from their parent and their w and h may be missing or smaller than drawn) and the annotations (such as the user's notes and marks) standing on things of that page. " +
 			"A page too large to be answered at once is refused (too-large): with outline, the page's items are an outline (id, item, size in characters); with item, only that item (and what is inside it), its placed and the annotations on them are answered.",
 		map[string]any{
 			"type": "object",
