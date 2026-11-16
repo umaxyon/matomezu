@@ -59,8 +59,8 @@ function Row({ annotation: a, now }: { annotation: AiAnnotation; now: Date }) {
   const at = listed?.def.addedAt(listed.props as never) ?? null
   const text = clampChars(listed?.def.text?.(listed.props as never) ?? name, BUBBLE_CHARS)
   const withdraw = listed?.def.withdraw
-  // 取消のアクションを行えなければ（認可ステップが止めたなど）、取消を押せなくする
-  const withdrawable = useAllowed((withdraw?.action ?? "") as ActionId).ok
+  // 取消のアクションを、その物の付いているページで行えなければ（認可ステップが止めたなど）、取消を押せなくする
+  const withdrawable = useAllowed((withdraw?.action ?? "") as ActionId, { page: a.page }).ok
   return (
     <li className={rows.row} data-read={!a.awaits}>
       <button type="button" className={rows.open} onClick={() => go(a, listed?.def.panel)}>

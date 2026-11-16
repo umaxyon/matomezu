@@ -30,7 +30,7 @@ export type MarkProps = z.output<typeof MarkSchema>
 export const MARK = kit.defineAnnotation({
   id: "mark",
   title: "Mark",
-  aiDescription: `A mark the user put on things in a book (anchors), with no text: the user points at them, and may call them by the mark's kind, its flag's color, the bird's color or the bird in the talk ("the yellow flag", "the green bird"). kind is one of: ${MARK_KINDS.map(k => k.ai).join("; ")}. addedAt is when the user put it on. readAt is when AI read it (none: unread): mark it read with mark-read. Once the talk about it is done, remove it with mark-remove.`,
+  aiDescription: `A mark the user put on things of a page (anchors, the ids of things on that page), with no text; its actions take on.page, the page it is on (page in read_book, read_page and view): the user points at them, and may call them by the mark's kind, its flag's color, the bird's color or the bird in the talk ("the yellow flag", "the green bird"). kind is one of: ${MARK_KINDS.map(k => k.ai).join("; ")}. addedAt is when the user put it on. readAt is when AI read it (none: unread): mark it read with mark-read. Once the talk about it is done, remove it with mark-remove.`,
   props: MarkSchema,
   // 読まれていないもの
   awaits: p => p.readAt === undefined,

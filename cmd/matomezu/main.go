@@ -328,7 +328,7 @@ func writeAwaiting(out io.Writer, awaiting []awaitingItem) {
 		return
 	}
 	fmt.Fprintf(out, "matomezu: %d annotation(s), such as the user's notes and marks, wait for your answer. "+
-		"Answer each as its kind says (see actions). A line is only what tells them apart: read_page (or read_book for one with no page) shows what it stands on and the whole text of one that ends with … and its length.\n", len(awaiting))
+		"Answer each as its kind says (see actions), with on.page set to the page of its line. A line is only what tells them apart: read_page shows what it stands on and the whole text of one that ends with … and its length.\n", len(awaiting))
 	last := ""
 	for _, a := range awaiting {
 		if a.Book != last {
