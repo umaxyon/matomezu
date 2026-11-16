@@ -81,7 +81,7 @@ describe("組み立てたブックの形", () => {
 })
 
 describe("台帳アセンブルの食い違い", () => {
-  test("タイプがページに足すフィールドに、並びの要素が使う名前（lineup）や土台のフィールドの名前を書くと error", () => {
+  test("タイプがページに足すフィールドに、エントリが使う名前（lineup）や土台のフィールドの名前を書くと error", () => {
     expect(checkCoreCatalog(withDrawing({ fields: { lineup: z.array(z.unknown()) } })).map(p => p.code)).toContain(
       "E030",
     )

@@ -30,7 +30,7 @@ export interface PageDialogs {
   settings?: string
 }
 
-// ページのまとまり方: none は 1 枚ずつ並びに入る。binder は、このタイプのページだけを入れるバインダにいつも入る（並びの 1 つになるのはバインダ。スライド）
+// ページのまとまり方: none は 1 枚ずつ並びに入る。binder は、このタイプのページだけを入れるバインダにいつも入る（エントリ 1 つになるのはバインダ。スライド）
 export type PageGrouping = "none" | "binder"
 
 export interface PageTypeDef extends PageTypeExtras {

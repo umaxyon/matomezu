@@ -71,7 +71,7 @@ export interface ActionContext {
   // 行った時点（UTC の ISO 8601。例 2026-10-26T03:04:05.678Z）。最初に行った所（画面、AI ならホスト）が 1 回だけ決め、行い直しでも同じ値。
   // アクションは時刻や乱数を直に使わず、これと newId だけを使う（同じ入力なら同じ結果）
   now: string
-  // 許可スコープがページ 1 枚ごとに問う形（pages と denied）のアクションにだけ在る: 名指したページのうち、認可ステップにもページのタイプにも止められなかったページの id（ブックのページの順）
+  // 許可スコープがページ 1 枚ごとに問う形（pages と denied）のアクションに、名指したページがブックにあるときだけ在る: 名指したページのうち、認可ステップにもページのタイプにも止められなかったページの id（ブックのページの順）
   permittedPages?: readonly string[]
   actor: Actor // 行った者（利用者か AI か。AI には userOnly のアクションとロックを外すことを断る）
   // レコードが対象のアクションが読むだけのブック（アクションの readsBooks が引数から答えた id のブックだけ。ほかのアクションには無い。郵便に乗せる変更を確かめるのに使う）
@@ -148,8 +148,8 @@ export function attachedTo(def: Pick<ActionDef, "attach">, type: PageTypeDef): b
 export const ANY_PAGE_TYPE = "any"
 
 // 変える所。中身を変える所: page はページの id、ids はそのページの中の id を持つ物（アイテム・形の中身・ページのフィールドの中の物）の id、allPages はどのページも変える。
-// 並びを変える所（ページの中身は変えない）: entries は動かす・複製する・消す・名前を変える並びの要素（ページかバインダ）の id、creates は作るページのタイプの id（まだ分からなければ ANY_PAGE_TYPE）。
-// どれも無ければ、入れ物自身（名前・入れ物が持つ設定など）
+// 並びを変える所（ページの中身は変えない）: entries は動かす・複製する・消す・名前を変えるエントリ（ページかバインダ）の id、creates は作るページのタイプの id（まだ分からなければ ANY_PAGE_TYPE）。
+// どれも無ければ、ブック自身（名前・ブックが持つ設定など）
 export interface Where {
   page?: string
   ids?: readonly string[]
@@ -162,10 +162,10 @@ export interface Where {
 export type ArgsOfType<A, V> = { [K in keyof A & string]-?: NonNullable<A[K]> extends V ? K : never }[keyof A & string]
 
 // 許可スコープ: ブックが対象のアクションが、どこを変えるかの宣言。認可ステップは、行う前にこの所で問い、使えるかを決めるページのタイプも、この所から決まる
-// （ページとその中の物ならそのページのタイプ、並びの要素ならそのページのタイプかバインダに入るページのタイプ、作るページならそのタイプ）。
-// "book" は入れ物自身だけを変える（ページもアイテムも並びも変えない。ページのタイプでは決まらない）。
+// （ページとその中の物ならそのページのタイプ、エントリならそのページのタイプかバインダに入るページのタイプ、作るページならそのタイプ）。
+// "book" はブック自身だけを変える（ページもアイテムも並びも変えない。ページのタイプでは決まらない）。
 // page・item・items には、ページの id・アイテムの id・アイテムの id の並びが入っている引数の名前を書く（ページの中身を変える）。
-// entry には、並びの要素（ページかバインダ）の id が入っている引数の名前を書く（中身を変えずに、動かす・複製する・消す・名前を変える）。
+// entry には、エントリ（ページかバインダ）の id が入っている引数の名前を書く（中身を変えずに、動かす・複製する・消す・名前を変える）。
 // creates には、作るページのタイプの id が入っている引数の名前を書く。引数の名前で言えなければ、引数から所を返す関数を書く。
 // pages と denied: "skip" は、いくつものページをまとめて変えるアクションが書く: pages にはページの id の並びか "all"（ブックの全部のページ）が入っている引数の名前を書く。
 // 認可ステップとページのタイプには 1 枚ごとに問い、止められたページは変えずに飛ばす（止められなかったページの id を、run の ctx.permittedPages で受ける）。全部止められたら断る
@@ -221,7 +221,7 @@ export type AnyLibraryScope =
   | ((args: never) => LibraryTargets)
 
 // ブックが対象・一覧が対象・利用者の設定が対象のアクションは、許可スコープを必ず書く（defineAction の型が求める）
-// 許可スコープが "book"（入れ物自身だけを変える）と書いたアクションの印: 定義の型に "book" を残す（ページのタイプが足す・外すアクションの id から外すのに使う。core/def/page-type.ts）
+// 許可スコープが "book"（ブック自身だけを変える）と書いたアクションの印: 定義の型に "book" を残す（ページのタイプが足す・外すアクションの id から外すのに使う。core/def/page-type.ts）
 export type OnContainer<Sc> = Sc extends "book" ? { permissionScope: "book" } : unknown
 
 export type ScopeRequired<T extends ActionTarget, A> = T extends "book"

@@ -21,7 +21,7 @@ export const PatchSchema: z.ZodType<Patch> = z.lazy(() =>
 const fieldOf = (p: Patch, key: string): Patch | undefined => ("fields" in p ? p.fields[key] : undefined)
 const listOf = (p: Patch | undefined): readonly ListPatch[] => (p && "list" in p ? p.list : [])
 
-// 置き直す並びの要素（ブックの並び lineup の要素と、バインダの中のページ）と、その中で置き直す最上位のアイテム（要素を丸ごと置き直すなら undefined）。
+// 置き直すエントリ（ブックの並び lineup の要素と、バインダの中のページ）と、その中で置き直す最上位のアイテム（要素を丸ごと置き直すなら undefined）。
 // 中の並び（lineup）のフィールドを置き直す要素はバインダ（ページは lineup という名前のフィールドを持てない。台帳アセンブルの E030）なので、その中のページを返す。
 // ほかの要素は、ページかバインダかを Patch からは見分けられない（名前だけの置き直し・丸ごと足す・消す）ので、そのまま返す。
 // バインダの id が混ざるので、ページとして使う側がブックで確かめる（認可の所は、無いページを名指せばページのタイプでは決まらず、行った後の確かめが見る）
@@ -32,7 +32,7 @@ export function restoredEntries(p: Patch): { id: string; gone: boolean; items: r
   })
 }
 
-// 並びの要素 1 つの置き直し
+// エントリ 1 つの置き直し
 function restored(q: ListPatch): { id: string; gone: boolean; items: readonly string[] | undefined } {
   const items = "fields" in q.patch ? fieldOf(q.patch, "items") : undefined
   return {

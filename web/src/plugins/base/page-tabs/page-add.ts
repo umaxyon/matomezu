@@ -85,7 +85,7 @@ export function withNewPage(
   if (grows === null) return null
   const settings = args.settings === undefined ? null : settingsPatchOf(catalog, type.id)?.safeParse(args.settings)
   if (settings === undefined || settings?.success === false) return null
-  // 名前は、同じ入れ物の中で重ならない（渡した名前が重なれば、並びの決まりで断られる。渡さなければ、重ならない「（無題）」）
+  // 名前は、同じブックかバインダの中で重ならない（渡した名前が重なれば、並びの決まりで断られる。渡さなければ、重ならない「（無題）」）
   const siblings = binder ? pagesIn(book, binder.id) : args.into ? [] : lineupOf(book)
   const title =
     args.title ??

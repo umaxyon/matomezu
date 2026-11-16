@@ -52,7 +52,7 @@ describe("並び", () => {
     expect(findPage(mixed, "nope")).toBeUndefined()
   })
 
-  test("並べ替えは同じ入れ物の中だけ（ブックの並びならブックの並び、バインダの中ならそのバインダの中）", () => {
+  test("並べ替えは同じブックかバインダの中だけ（ブックの並びならブックの並び、バインダの中ならそのバインダの中）", () => {
     expect(lineupOf(moveEntry(mixed, "t1", 0)).map(e => e.id)).toEqual(["t1", "p1", "f1"])
     expect(lineupOf(moveEntry(mixed, "f1", 9)).map(e => e.id)).toEqual(["p1", "t1", "f1"])
     expect(pagesOf(moveEntry(mixed, "s2", 0)).map(p => p.id)).toEqual(["p1", "s2", "s1", "t1"])
@@ -76,14 +76,14 @@ describe("並び", () => {
         false,
       ],
       ["バインダの入れるタイプがまとまらないタイプ", testBook("b", "b", [testBinder("f1", "f", DRAWING)]), false],
-      ["同じ入れ物で名前が重なる", testBook("b", "b", [drawingPage("p1"), drawingPage("p2")]), false],
+      ["同じブックかバインダで名前が重なる", testBook("b", "b", [drawingPage("p1"), drawingPage("p2")]), false],
       [
         "バインダの中で名前が重なる",
         testBook("b", "b", [testBinder("f1", "f", SLIDE, testPage(SLIDE, "s1"), testPage(SLIDE, "s2"))]),
         false,
       ],
       [
-        "入れ物が違えば同じ名前でよい",
+        "ブックとバインダで分かれていれば同じ名前でよい",
         testBook("b", "b", [drawingPage("p1"), testBinder("f1", "f", SLIDE, testPage(SLIDE, "s1"))]),
         true,
       ],

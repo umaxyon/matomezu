@@ -174,13 +174,13 @@ describe("インスタンスを作る", () => {
     definePlugin({ id: "notes", pageTypes: [paged({ settings: add })] })
   })
 
-  test("ページのタイプは、入れ物自身だけを変えるアクション（許可スコープが book）を足せも外せもしない（型の誤り。型の無い書き方は E066）。並びの要素や作るページのアクションは書ける", () => {
+  test("ページのタイプは、ブック自身だけを変えるアクション（許可スコープが book）を足せも外せもしない（型の誤り。型の無い書き方は E066）。エントリや作るページのアクションは書ける", () => {
     const acting = <const C>(actions: C) => ({ ...LEAF, actions })
     definePlugin({
       id: "notes",
       pageTypes: [acting({ without: ["@matomezu/base:page-move", "@matomezu/base:page-add"] })],
     })
-    // @ts-expect-error ブックの名前を変えるアクションは、入れ物自身だけを変える
+    // @ts-expect-error ブックの名前を変えるアクションは、ブック自身だけを変える
     definePlugin({ id: "notes", pageTypes: [acting({ without: ["@matomezu/base:book-update"] })] })
     // ページをまとめて変えるアクションは、ページ 1 枚ごとに問うので書ける
     definePlugin({ id: "notes", pageTypes: [acting({ without: ["@matomezu/base:pages-update"] })] })

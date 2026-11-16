@@ -63,7 +63,7 @@ describe("inspect: アクションの許可", () => {
     })
   })
 
-  test("並びの要素と作るページは、そのページのタイプ・バインダに入るページのタイプ・作るタイプが決める（タイプが外したアクションは、そのタイプでだけ使えない）", () => {
+  test("エントリと作るページは、そのページのタイプ・バインダに入るページのタイプ・作るタイプが決める（タイプが外したアクションは、そのタイプでだけ使えない）", () => {
     const markdown = CORE_CATALOG.pageTypes.get(MARKDOWN)!
     const slide = CORE_CATALOG.pageTypes.get(SLIDE)!
     const without = (ids: string[]) => ({ without: ids }) as never
@@ -90,7 +90,7 @@ describe("inspect: アクションの許可", () => {
     expect(ask("page-add", { creates: MARKDOWN })).toBe(false)
     // 作るタイプがまだ分からなければ、どれかのタイプで使えるか
     expect(ask("page-add", { creates: ANY_PAGE_TYPE })).toBe(true)
-    // 無い並びの要素・無いタイプは、run が断る
+    // 無いエントリ・無いタイプは、run が断る
     expect(ask("binder-remove", { entries: ["nope"] })).toBe(true)
     expect(ask("page-add", { creates: "@x:nope" })).toBe(true)
   })

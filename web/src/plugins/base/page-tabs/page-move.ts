@@ -1,12 +1,12 @@
-// ページを動かす: アクション page-move（同じ入れ物の中で並びを入れ替える。ページの中身は変わらない）。
-// 並びに直に入っているページはブックの並びの中、バインダの中のページはそのバインダの中で動く（入れ物をまたいでは動かさない）
+// ページを動かす: アクション page-move（同じブックかバインダの中で並びを入れ替える。ページの中身は変わらない）。
+// 並びに直に入っているページはブックの並びの中、バインダの中のページはそのバインダの中で動く（ブックやバインダをまたいでは動かさない）
 import { z } from "zod"
 import { findPage, moveEntry, siblingsOf } from "../../../core/book"
 import { kit } from "../kit"
 
 const ARGS = z.strictObject({ page: z.string().min(1), index: z.number().int().min(0).optional() })
 
-// ページ page を、同じ入れ物の中の、page を除いて数えた index 番目に動かす（index が無ければ末尾）。無いページ・並びの外の index・今と同じ所は断る
+// ページ page を、同じブックかバインダの中の、page を除いて数えた index 番目に動かす（index が無ければ末尾）。無いページ・並びの外の index・今と同じ所は断る
 export const PAGE_MOVE = kit.defineAction({
   id: "page-move",
   attach: { books: true },

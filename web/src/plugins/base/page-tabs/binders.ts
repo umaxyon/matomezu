@@ -1,4 +1,4 @@
-// バインダのアクション: ブックの並びの中の、1 つのタイプのページだけを入れるバインダ（まとまるタイプのページの入れ物。スライド）の名前を変える・動かす・複製する・消す。
+// バインダのアクション: ブックの中の、1 つのタイプのページだけを入れるバインダ（スライドなど）の名前を変える・動かす・複製する・消す。
 // バインダを作るのは page-add（into の newBinder）。中のページを足す・動かす・消すのは、ページのアクション
 import { z } from "zod"
 import {
@@ -25,12 +25,12 @@ import { canPaperBinder } from "./pages"
 
 const BINDER = z.string().min(1)
 
-// バインダを変える: 名前（同じ名前のほかの並びの要素があれば断る）と、中のページ全部の紙と向き（紙をそろえる規定のタイプのバインダだけ。1 回で全部のページに付ける）
+// バインダを変える: 名前（同じ名前のほかのエントリがあれば断る）と、中のページ全部の紙と向き（1 回で全部のページに付ける）
 export const BINDER_UPDATE = kit.defineAction({
   id: "binder-update",
   attach: { books: true },
   aiDescription:
-    "Change a binder of a book (a binder holds the pages of one page type whose grouping is binder, and shows as one page tab named after it): its title, and paper and orientation, which are set on every page in it at once (only for a page type whose pages in a binder share one paper, such as slides; among the page type's papers). Only what is given changes. Returns nothing. Refused for a binder not in the book, a title another entry of the book's lineup (a page outside binders, or a binder) has, a paper or orientation the page type does not take, or when nothing is given. Not allowed (not-allowed) for a binder whose page type leaves this action out.",
+    "Change a binder of a book (a binder holds the pages of one page type whose grouping is binder, and shows as one page tab named after it): its title, and paper and orientation, which are set on every page in it at once (the pages in a binder share one paper and orientation; among the page type's papers). Only what is given changes. Returns nothing. Refused for a binder not in the book, a title another entry of the book's lineup (a page outside binders, or a binder) has, a paper or orientation the page type does not take, or when nothing is given. Not allowed (not-allowed) for a binder whose page type leaves this action out.",
   title: "Change binder",
   target: "book",
   args: z.strictObject({

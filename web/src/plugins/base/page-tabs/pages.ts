@@ -121,7 +121,7 @@ export function defaultPaper(
   }
 }
 
-// 次のページの題名の案（t は見た目の t()。今の言語で引く）。同じ入れ物の名前 taken（省けば、ブックの並び）と重ならない番号にする
+// 次のページの題名の案（t は見た目の t()。今の言語で引く）。同じブックかバインダの名前 taken（省けば、ブックの並び）と重ならない番号にする
 export function nextPageTitle(
   book: Book,
   t: (key: MessageKey, params?: Params) => string,

@@ -1,6 +1,6 @@
 package server
 
-// ブック（本文）の並び（lineup）を歩く口。並びの要素は、ページ（"kind": "page"）か、1 つのタイプのページだけを入れるバインダ（"kind": "binder"。中の並びも lineup）。
+// ブック（本文）の並び（lineup）を歩く口。エントリは、ページ（"kind": "page"）か、1 つのタイプのページだけを入れるバインダ（"kind": "binder"。中の並びも lineup）。
 // サーバーがブックの本文の中のページを読む・替えるのは、ここを通す（バインダの中のページも、並びの順に歩く）
 
 import "encoding/json"
@@ -14,7 +14,7 @@ type binderEntry struct {
 	Lineup   []json.RawMessage `json:"lineup"`
 }
 
-// kindOf は、並びの要素の kind（読めなければ空）
+// kindOf は、エントリの kind（読めなければ空）
 func kindOf(entry json.RawMessage) string {
 	var head struct {
 		Kind string `json:"kind"`

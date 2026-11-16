@@ -18,7 +18,7 @@ import type { BoundPlaceActions, Settings, WindowActions } from "../store"
 
 // コマンドの許可スコープ: "book" はページもアイテムも変えない、"opened-page" は開いているページ、"selection" はその選んでいる物（形の中身やページのフィールドの中の物も含む）。
 // { page } には、ページの id が入っている引数の名前を書く（右クリックしたページのように、引数が所を決めるとき）。
-// { entry } には並びの要素（ページかバインダ）の id、{ creates } には作るページのタイプの id が入っている引数の名前を書く（アクションの許可スコープと同じ）。
+// { entry } にはエントリ（ページかバインダ）の id、{ creates } には作るページのタイプの id が入っている引数の名前を書く（アクションの許可スコープと同じ）。
 // 言葉で言えなければ、呼ばれた場所の様子と引数（まだ無ければ undefined）から所を返す関数
 export type CommandScope<A = unknown> =
   | "book"
@@ -51,7 +51,7 @@ export function commandScopeOf(
   if (typeof scope === "object" && ("entry" in scope || "creates" in scope)) {
     const key = "entry" in scope ? scope.entry : scope.creates
     const value = typeof args === "object" && args !== null ? (args as Record<string, unknown>)[key] : undefined
-    // 作るタイプがまだ無ければ、どれかのタイプを作るとして問う（並びの要素がまだ無ければ、分からない）
+    // 作るタイプがまだ無ければ、どれかのタイプを作るとして問う（エントリがまだ無ければ、分からない）
     if ("creates" in scope) return { creates: typeof value === "string" ? value : ANY_PAGE_TYPE }
     return typeof value === "string" ? { entries: [value] } : undefined
   }

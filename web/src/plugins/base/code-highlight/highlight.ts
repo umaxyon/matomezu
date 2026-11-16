@@ -13,7 +13,7 @@ refractor.register(zig)
 // 色の種類は core/color.ts（スキンの既定の値も同じ種類で持つ）
 export { CODE_COLORS, type CodeColor }
 
-// 色付けした字の並びの 1 つ（color が plain なら字の色のまま）
+// 色付けした字のエントリ 1 つ（color が plain なら字の色のまま）
 export interface CodeSpan {
   text: string
   color: CodeColor | "plain"

@@ -50,7 +50,7 @@ describe("page-add", () => {
     expect(made.ok && lineupOf(made.next).map(e => e.id)).toEqual(["n2", "p1", "f1"])
     expect(made.ok && findBinder(made.next, "n2")).toMatchObject({ title: "発表", pageType: SLIDE })
     expect(made.ok && pagesIn(made.next, "n2").map(p => p.id)).toEqual(["n1"])
-    // 同じ入れ物の中で同じ名前は付けられない
+    // 同じブックかバインダの中で同じ名前は付けられない
     expect(run(book, PAGE_ADD.id, { type: SLIDE, into: { newBinder: "スライド" } }).ok).toBe(false)
     expect(run(book, PAGE_ADD.id, { type: SLIDE, title: "s1", into: { binder: "f1" } }).ok).toBe(false)
   })

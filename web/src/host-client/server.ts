@@ -176,7 +176,7 @@ const ShowSchema = z.object({
 })
 
 // 常駐が頼んだブックを出す。ステージが無ければカレント、split なら分けて右にできたステージに出す。
-// mode が print-preview なら、印刷プレビューで出す（ページを持つブックだけ）
+// mode が print-preview なら、印刷プレビューで出す
 export function showIn(instance: MatomezuInstance, show: z.infer<typeof ShowSchema>) {
   const { actions, state } = instance
   let stage = show.stage ?? screenOf(state.getState().window).current

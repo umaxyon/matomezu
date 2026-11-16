@@ -1,4 +1,4 @@
-// 印刷プレビューの見せ方の設定の項目（ブックの設定。ページを持つタイプが settings.book に選ぶ。変えるのは print-preview-update だけ）:
+// 印刷プレビューの見せ方の設定の項目（ブックが持つ設定の項目。変えるのは print-preview-update だけ）:
 // 印刷区画を並べる向き・可変ページの印刷区画を数える順・紙に印刷区画の番号とブック名とページ名を入れるか
 import { z } from "zod"
 import { kit } from "../kit"
@@ -54,7 +54,7 @@ export const PRINT_PREVIEW_PAGE_NAME = kit.defineSetting({
   default: "hidden",
 })
 
-// 印刷プレビューの設定の項目の id（ページを持つタイプが settings.book に並べる）
+// 印刷プレビューの設定の項目の id
 export const PRINT_PREVIEW_SETTINGS = [
   PRINT_PREVIEW_FLOW.id,
   PRINT_PREVIEW_ORDER.id,

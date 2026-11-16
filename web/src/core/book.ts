@@ -97,7 +97,7 @@ export function findPage(book: Book, id: string): { page: ItemPage; binder: Bind
   return undefined
 }
 
-// id の要素（ページかバインダ）と同じ入れ物の並び: 並びに直に入っている要素ならブックの並び、バインダの中のページならそのバインダの並び（無ければ undefined）
+// id の要素（ページかバインダ）と同じブックかバインダの並び: 並びに直に入っている要素ならブックの並び、バインダの中のページならそのバインダの並び（無ければ undefined）
 export function siblingsOf(book: Book, id: string): readonly LineupEntry[] | undefined {
   if (book.lineup.some(e => e.id === id)) return book.lineup
   return bindersOf(book).find(f => f.lineup.some(p => p.id === id))?.lineup
@@ -117,7 +117,7 @@ function mapPages<B extends Book>(book: B, f: (page: AnyPage) => AnyPage | undef
   return { ...book, lineup }
 }
 
-// ページを並びの要素にする。page に置いたアイテムがページのタイプの選んだものかは型では確かめられないので、ページの型だと言い張る
+// ページをエントリにする。page に置いたアイテムがページのタイプの選んだものかは型では確かめられないので、ページの型だと言い張る
 // （形は perform がアクションの後に機能台帳のブックの形で確かめ直す）
 const entryOf = (page: ItemPage): AnyPage => page as AnyPage
 
@@ -148,7 +148,7 @@ export function removePage<B extends Book>(book: B, page: string): B {
   return mapPages(book, e => (e.id === page ? undefined : e))
 }
 
-// 並びの要素（ページかバインダ）を、同じ入れ物の中の index 番目へ動かす（並びに直に入っている物は並びの中、バインダの中のページはそのバインダの中。
+// エントリ（ページかバインダ）を、同じブックかバインダの中の index 番目へ動かす（並びに直に入っている物は並びの中、バインダの中のページはそのバインダの中。
 // index が後ろすぎれば末尾。id が無ければ何も変えない）
 export function moveEntry<B extends Book>(book: B, id: string, index: number): B {
   const moved = <E extends LineupEntry>(list: readonly E[]): readonly E[] => {
@@ -180,7 +180,7 @@ export function removeBinder<B extends Book>(book: B, id: string): B {
   return { ...book, lineup: book.lineup.filter(e => !(e.kind === "binder" && e.id === id)) }
 }
 
-// 名前 title を、同じ入れ物の名前 taken と重ならない名前にする（重ならなければそのまま。重なれば「名前 2」から番号を付ける）
+// 名前 title を、同じブックかバインダの名前 taken と重ならない名前にする（重ならなければそのまま。重なれば「名前 2」から番号を付ける）
 export function freeTitle(title: string, taken: readonly string[]): string {
   if (!taken.includes(title)) return title
   for (let n = 2; ; n++) {
@@ -221,7 +221,7 @@ export function withSettings<T extends object>(target: T, patch: Readonly<Record
 // ブックが、データの形の外の決まりを守っているか:
 // - ページとバインダの id は、ブックの中で重ならない
 // - まとまるタイプ（grouping が binder）のページは、そのタイプのバインダの中にだけある。バインダが入れるタイプは、まとまるタイプ
-// - 同じ入れ物の中（ブックの並び・バインダの中）で、名前（ページとバインダの title）は重ならない
+// - 同じブックかバインダの中（ブックの並び・バインダの中）で、名前（ページとバインダの title）は重ならない
 // - バインダの中のページは、紙と向きが同じ
 // - どのページも、タイプの決まり（holds）と、つなぐものの定義の決まりを守る
 export function holds(catalog: CoreCatalog, book: Book): boolean {

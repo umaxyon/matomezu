@@ -13,7 +13,7 @@ export interface SearchableDef {
 
 declare module "../../../core/catalog" {
   interface PresentationExtras {
-    // ページの原文を探せる見せ方の、探し方と替え方（無ければ、その見せ方のブックは探せない）
+    // ページの原文を探せる見せ方の、探し方と替え方（無ければ、その見せ方のページは探せない）
     search?: SearchableDef
   }
 }

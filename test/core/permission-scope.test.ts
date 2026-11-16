@@ -12,7 +12,7 @@ test("許可スコープから所を出す: book は所なし、引数の名前�
   expect(scopeOf(undefined, args)).toBeUndefined()
 })
 
-test("並びの要素（entry）と作るページのタイプ（creates）は、引数の名前の値を所にする", () => {
+test("エントリ（entry）と作るページのタイプ（creates）は、引数の名前の値を所にする", () => {
   expect(scopeOf({ entry: "page" }, { page: "p1", index: 0 })).toEqual({ entries: ["p1"] })
   expect(scopeOf({ entry: "binder" }, { binder: "f1" })).toEqual({ entries: ["f1"] })
   expect(scopeOf({ creates: "type" }, { type: "@x:t" })).toEqual({ creates: "@x:t" })

@@ -117,7 +117,7 @@ type PageDialogCheck<P> = [WrongPageAdd<P> | WrongPageSettings<P>] extends [neve
         string]: "ページを作るダイアログは値を受けないか { type, binder? } を受け、ページの設定のダイアログは PageSettingsArgs を受ける"
     }
 
-// ページのタイプが足す・外すアクション（actions の add・without）のうち、入れ物自身だけを変えるアクション（許可スコープが "book"。どのページのタイプでも決まらないので、書けない）
+// ページのタイプが足す・外すアクション（actions の add・without）のうち、ブック自身だけを変えるアクション（許可スコープが "book"。どのページのタイプでも決まらないので、書けない）
 type ContainerActionId = {
   [K in ActionId]: ActionTable[K] extends { permissionScope: "book" } ? K : never
 }[ActionId]
@@ -131,7 +131,7 @@ type TypeActionsCheck<P> = [WrongTypeActions<P>] extends [never]
   ? unknown
   : {
       [id in WrongTypeActions<P> &
-        string]: "入れ物自身だけを変えるアクション（許可スコープが book）は、ページのタイプの actions に書けない"
+        string]: "ブック自身だけを変えるアクション（許可スコープが book）は、ページのタイプの actions に書けない"
     }
 
 // 無効にしたプラグイン: 名乗り（id・名前・概要）と文言だけを残し、定義の部品は全部外した物（組むのは名乗りと文言だけなので、アクション・種類・キーなどは台帳に入らない）。

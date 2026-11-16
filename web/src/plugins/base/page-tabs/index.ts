@@ -117,7 +117,7 @@ export const PAGE_SETTINGS = kit.defineCommand({
   when: ctx => ctx.book !== null && openedPage(ctx.stage.opened) !== null,
 })
 
-// ページ page のすぐ後ろ（同じ入れ物の中）に、同じタイプの新しいページを足して開く（ダイアログ無し。名前と紙はタイプの既定）
+// ページ page のすぐ後ろ（同じブックかバインダの中）に、同じタイプの新しいページを足して開く（ダイアログ無し。名前と紙はタイプの既定）
 export const PAGE_ADD_AFTER = kit.defineCommand({
   id: "page-add-after",
   performs: [PAGE_ADD.id],
@@ -152,7 +152,7 @@ export const PAGE_DUPLICATE_COMMAND = kit.defineCommand({
     const done = a.perform(PAGE_DUPLICATE.id, { page }, { book: ctx.book.id })
     if (done.ok) a.openPage(done.result.page)
   },
-  // 画面では、ロックしたページの複製を押せなくする（アクションは、並びの要素として複製する）
+  // 画面では、ロックしたページの複製を押せなくする（アクションは、エントリとして複製する）
   permissionScope: { page: "page" },
   when: ctx => ctx.book !== null,
 })

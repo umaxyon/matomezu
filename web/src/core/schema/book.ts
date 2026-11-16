@@ -33,7 +33,7 @@ export type PageData<T> = Page &
 export type AnyPage = { [K in PageTypeId]: PageData<PageTypeTable[K]> }[PageTypeId]
 export type PageOf<T extends PageTypeId> = PageData<PageTypeTable[T]>
 
-// 並びの 1 つ: ページ（kind: "page"）か、1 つのタイプのページだけを入れるバインダ（kind: "binder"。中身も同じ並びで、入るのはページだけ）。
+// エントリ 1 つ: ページ（kind: "page"）か、1 つのタイプのページだけを入れるバインダ（kind: "binder"。中身も同じ並びで、入るのはページだけ）。
 // どちらも並びの中で id を持つ（置き直しの Patch が、並びを id ごとにたどる。core/patch.ts）
 export interface BinderEntry {
   kind: "binder"

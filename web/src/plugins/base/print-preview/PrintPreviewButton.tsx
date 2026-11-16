@@ -1,4 +1,4 @@
-// 印刷プレビューを開くボタン（ウィジェット print-preview-button。フッタメニューに置く）。ページを持つブックを編集している間だけ出す
+// 印刷プレビューを開くボタン（ウィジェット print-preview-button。フッタメニューに置く）。ページを開いて編集している間だけ出す
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { kit } from "../kit"

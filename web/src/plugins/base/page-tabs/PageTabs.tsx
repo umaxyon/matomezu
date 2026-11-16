@@ -1,4 +1,4 @@
-// ステージのページのタブ（ウィジェット page-tabs）: そのステージのブックの並びを並べる（並びの 1 つが 1 つのタブ。バインダは 1 つのタブで、名前はバインダの名前）。
+// ステージのページのタブ（ウィジェット page-tabs）: そのステージのブックの並びを並べる（エントリ 1 つが 1 つのタブ。バインダは 1 つのタブで、名前はバインダの名前）。
 // 押したページをそのステージで開く（コマンド page-open）。バインダのタブを押すと、そのバインダを開く（コマンド binder-open）。＋でタイプを選んでページを作る（AddPageMenu.tsx）。
 // ロック中のページのタブには鍵の印を出す（押せない。外すのはページの設定のダイアログ）。
 // タブが横にあふれているときは、ホイールの縦の回転で横にスクロールする。
@@ -33,7 +33,7 @@ function sideways(el: HTMLElement | null): (() => void) | undefined {
   return () => el.removeEventListener("wheel", onWheel)
 }
 
-// 並びの 1 つのタイプ（ページはそのタイプ、バインダは入れるページのタイプ）
+// エントリ 1 つのタイプ（ページはそのタイプ、バインダは入れるページのタイプ）
 const typeOf = (e: LineupEntry): string => (e.kind === "page" ? e.type : e.pageType)
 
 export function PageTabs() {

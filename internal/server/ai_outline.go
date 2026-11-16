@@ -15,7 +15,7 @@ func sizeOf(v any) int {
 	return len([]rune(string(out)))
 }
 
-// outlinedPage は、目次のページ（並びの要素の形のまま、中身の代わりに大きさ）
+// outlinedPage は、目次のページ（エントリの形のまま、中身の代わりに大きさ）
 type outlinedPage struct {
 	Kind  string `json:"kind"`
 	ID    string `json:"id"`

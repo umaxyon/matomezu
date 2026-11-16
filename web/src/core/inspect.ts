@@ -107,10 +107,10 @@ function typeSteps(def: ActionDef, type: PageTypeDef): Step<boolean>[] {
 }
 
 // アクション def を、ブック book の所 where で使えるかのステップ。
-// - 所がページのタイプを決める（ページ page・その中の物 ids・並びの要素 entries・作るページ creates）: そのタイプで決める（いくつものタイプにまたがるなら、どのタイプでも使えるときだけ）
+// - 所がページのタイプを決める（ページ page・その中の物 ids・エントリ entries・作るページ creates）: そのタイプで決める（いくつものタイプにまたがるなら、どのタイプでも使えるときだけ）
 // - 作るページのタイプがまだ分からない（ANY_PAGE_TYPE）: どれかのタイプで使えるか
 // - アノテーションが対象で所が無い: ブックのどれかのページのタイプで使えるか（結び付く物のページごとの確かめは、行った後。core/annotation.ts）
-// - ほか（入れ物自身が対象）: タイプに依らない付く先（attach の books）だけで決める
+// - ほか（ブック自身が対象）: タイプに依らない付く先（attach の books）だけで決める
 function placeSteps(catalog: CoreCatalog, def: ActionDef, book: Book, where: Where | undefined): Step<boolean>[] {
   const at = typesAt(catalog, def, book, where)
   if (at === "missing") return [{ from: { source: "action", id: def.id, field: "run" }, value: true }]
@@ -123,7 +123,7 @@ function placeSteps(catalog: CoreCatalog, def: ActionDef, book: Book, where: Whe
 }
 
 // 所 where が決めるページのタイプ（重ねずに）と、どのタイプでも使えることが要るか（every）、どれかで使えればよいか（some）。
-// 所がページのタイプを決めなければ null（入れ物自身）。名指したページ・物・並びの要素・作るタイプが無ければ "missing"（タイプでは決められない。無い物は run が断る）
+// 所がページのタイプを決めなければ null（ブック自身）。名指したページ・物・エントリ・作るタイプが無ければ "missing"（タイプでは決められない。無い物は run が断る）
 function typesAt(
   catalog: CoreCatalog,
   def: ActionDef,
