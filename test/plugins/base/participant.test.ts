@@ -261,3 +261,80 @@ test("AI が参加を頼むときの役（runsWhenAIJoins）は、1 つの役を
   }).map(p => p.code)
   expect(codes).toContain("E044")
 })
+
+// いる参加者を外して入れる・新しい部屋を作って入れる・前の部屋を消して作る・部屋を消すは、1 つのアクションで、全部通るか全部断られる
+function roomWith(link: string, name: string) {
+  const r = ready()
+  const holder = r.request({ ...WHO, link }).result.participant
+  const room = r.addRoom(name).result.workroom
+  expect(r.perform(ACCEPT, { workroom: room }, { record: holder }).ok).toBe(true)
+  return { ...r, holder, room }
+}
+
+test("いる参加者を外して入れる: 渡した参加者がいれば外して入れ、違えば断って何も変えない。すでにいなくて空なら入れる", () => {
+  const { people, request, perform, holder, room } = roomWith("L1", "A")
+  const next = request({ ...WHO, link: "L2" }).result.participant
+  expect(perform(ACCEPT, { workroom: room }, { record: next }).ok).toBe(false)
+  expect(perform(ACCEPT, { workroom: room, occupant: next }, { record: next }).ok).toBe(false)
+  expect(people().map(p => p.id)).toContain(holder)
+  expect(perform(ACCEPT, { workroom: room, occupant: holder }, { record: next }).ok).toBe(true)
+  expect(people().map(p => [p.id, p.state, p.workroom])).toEqual([[next, "joined", room]])
+  // 外す参加者が（ホストの退室で）すでにいなくて空なら、そのまま入れる
+  const third = request({ ...WHO, link: "L3" }).result.participant
+  perform(REMOVE, {}, { record: next })
+  expect(perform(ACCEPT, { workroom: room, occupant: next }, { record: third }).ok).toBe(true)
+})
+
+test("新しい部屋を作って入れる: 部屋の id を返し、名前が重なれば断る", () => {
+  const { people, rooms, request, addRoom, perform } = ready()
+  const a = request().result.participant
+  const done = perform(ACCEPT, { newWorkroom: { name: "N", bird: "buncho" } }, { record: a })
+  expect(done.ok).toBe(true)
+  const made = (done.result as { workroom: string }).workroom
+  expect(rooms()).toMatchObject([{ id: made, name: "N", bird: "buncho" }])
+  expect(people()[0]).toMatchObject({ state: "joined", workroom: made })
+  const b = request({ ...WHO, link: "L2" }).result.participant
+  expect(perform(ACCEPT, { newWorkroom: { name: "N", bird: "inko" } }, { record: b }).ok).toBe(false)
+  addRoom("M")
+  expect(rooms()).toHaveLength(2)
+  expect(people().find(p => p.id === b)?.state).toBe("requested")
+})
+
+test("前の部屋を消して新しく始める: 同じ名前でよく、外した人と消した部屋が無くなる。名前が別の部屋と重なれば断り、外した人も消した部屋も残る", () => {
+  const { people, rooms, request, addRoom, perform, holder, room } = roomWith("L1", "A")
+  const other = addRoom("B").result.workroom
+  const next = request({ ...WHO, link: "L2" }).result.participant
+  const bad = { newWorkroom: { name: "B", bird: "inko" }, discarding: { workroom: room, occupant: holder } }
+  expect(perform(ACCEPT, bad, { record: next }).ok).toBe(false)
+  expect(people().map(p => p.id)).toContain(holder)
+  expect(rooms().map(r => r.id)).toContain(room)
+  const wrong = { newWorkroom: { name: "A", bird: "inko" }, discarding: { workroom: room, occupant: next } }
+  expect(perform(ACCEPT, wrong, { record: next }).ok).toBe(false)
+  expect(rooms().map(r => r.id)).toContain(room)
+  const good = { newWorkroom: { name: "A", bird: "inko" }, discarding: { workroom: room, occupant: holder } }
+  const done = perform(ACCEPT, good, { record: next })
+  expect(done.ok).toBe(true)
+  const made = (done.result as { workroom: string }).workroom
+  expect(made).not.toBe(room)
+  expect(
+    rooms()
+      .map(r => r.id)
+      .sort(),
+  ).toEqual([made, other].sort())
+  expect(people().map(p => [p.id, p.workroom])).toEqual([[next, made]])
+})
+
+test("部屋を消す: いる参加者を一緒に外し、渡した参加者が違えば断って何も変えない。すでにいなくて空なら消せる", () => {
+  const { people, rooms, perform, holder, room } = roomWith("L1", "A")
+  expect(perform(ROOM_REMOVE, {}, { record: room }).ok).toBe(false)
+  expect(perform(ROOM_REMOVE, { occupant: "other" }, { record: room }).ok).toBe(false)
+  expect(people()).toHaveLength(1)
+  expect(rooms()).toHaveLength(1)
+  expect(perform(ROOM_REMOVE, { occupant: holder }, { record: room }).ok).toBe(true)
+  expect(people()).toHaveLength(0)
+  expect(rooms()).toHaveLength(0)
+  // 外す参加者がすでにいなくて空の部屋も消せる
+  const again = roomWith("L9", "C")
+  again.perform(REMOVE, {}, { record: again.holder })
+  expect(again.perform(ROOM_REMOVE, { occupant: again.holder }, { record: again.room }).ok).toBe(true)
+})
