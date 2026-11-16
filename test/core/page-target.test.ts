@@ -151,19 +151,19 @@ test("使えるかは宛先のページのタイプで決まり、ロックは�
   expect(allowedOnBook(catalog, book, ADD, {})).toBe(false)
 })
 
-test("run が振る id は、ブックのほかのページの id とも重ならない（重なる値を飛ばす。同じ値の並びなら同じ id）", () => {
-  // 1 つ目の値は p2 の箱の id、2 つ目は短い id にすると p2 の箱の id、3 つ目はページの id と重なる
+test("run が振る id は、そのページの中の id と重ならない（重なる値を飛ばす。同じ値の並びなら同じ id）。ほかのページの id とは重なってよい", () => {
+  // 1 つ目の値は p1 の箱の id、2 つ目は短い id にすると p1 の箱の id、3 つ目は p1 そのものの id と重なる。4 つ目は p2 の箱の id（ほかのページなので使える）
   const values = () => {
-    const list = ["b", "b-", "m1", "fresh"]
+    const list = ["a", "a-", "p1", "b"]
     return () => list.shift() ?? "spare"
   }
   const first = act(book, "p1", ADD, {}, values())
   const again = act(book, "p1", ADD, {}, values())
-  expect(first).toMatchObject({ ok: true, result: { id: "fresh" } })
-  expect(again).toMatchObject({ ok: true, result: { id: "fresh" } })
+  expect(first).toMatchObject({ ok: true, result: { id: "b" } })
+  expect(again).toMatchObject({ ok: true, result: { id: "b" } })
   // run だけを行う口も同じ id を振る
   const ran = runAction(add as never, { book, page: "p1" }, {}, ctxOf(values()) as never)
-  expect(ran).toMatchObject({ result: { id: "fresh" } })
+  expect(ran).toMatchObject({ result: { id: "b" } })
 })
 
 test("performIn は宛先のページを持っているブックで行う。ゴミ箱のブックのページと、2 冊にあるページは no-page。行う前の問いも同じ答え", () => {

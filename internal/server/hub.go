@@ -11,7 +11,7 @@ package server
 //	book      {"book", "version", "client", "seq", "by", "act", "action"} ブックが変わった・足された（client と seq は変えたアクションのもの。窓の外からなら空。
 //	          by は頼んだ物（"ai"・"window"・常駐が自分で行ったなら "host"）、act は 1 回の Perform の印で、同じ Perform が変えたブックは同じ act。action は行ったアクションの id）
 //	settings  {"settings", "client", "seq"} 設定が変わった
-//	annotations {"book", "annotations", "client", "seq"} ブックのアノテーションが変わった（並びが空なら全部無くなった）
+//	annotations {"page", "annotations", "client", "seq"} ページのアノテーションが変わった（並びが空なら全部無くなった）
 //	ack       {"seq", "ok", "reason"} 送った窓にだけ。そのアクションを行い終えた（断ったなら ok が false）。そのアクションの book・settings・annotations・record のあとに届く
 //	record    {"records": [{"subject", "id", "record"（消したなら "removed"）, "version"}], "counters"?, "window", "client", "seq"} 1 つのアクションが変えた、対象の定義が足した種類のレコード
 //	          （郵便も。records.go）。window は最後にフォーカスされた窓
@@ -101,7 +101,7 @@ type client struct {
 	viewSeq     int64               // 受けた見ているものの番号（窓が知らせるたびに増やす。古い番号の知らせは捨てる）
 	shown       []string            // いまその窓に見えているブック（touched.go。新しく見えたブックだけを「開いた」とする。コントロールセンターを前に出している間は空）
 	held        []string            // いまその窓のブックスクリーンが開いているブック（隠れている物も含む。trash.go。AI はゴミ箱に入れられない）
-	editLocks   map[string][]string // 利用者がその窓で直している物（ブックの id → 物の id の並び。editlock.go）
+	editLocks   map[string][]string // 利用者がその窓で直している物（ページかブックの id → その中の物の id の並び。editlock.go）
 	recordLocks map[string][]string // 利用者がその窓で直しているレコード（対象の種類の id → レコードの id の並び。editlock.go）
 }
 
@@ -113,7 +113,7 @@ type Hub struct {
 	books            map[string]entry
 	order            []string // 置いた順のブックの id（GET /api/data の並び）
 	settings         json.RawMessage
-	annotations      map[string]json.RawMessage        // ブックの id → アノテーションの並び（1 つも無いブックは持たない）
+	annotations      map[string]json.RawMessage        // ページの id → アノテーションの並び（1 つも無いページは持たない）
 	roles            map[string]string                 // 常駐が読む種類の役（participants・workrooms）→ 対象の定義の id（records.go）
 	recordTables     map[string]map[string]recordEntry // 対象の定義が足した種類のレコード（種類の id → id → レコード。records.go）
 	kinds            map[string]engine.Kind            // 今のプラグインのレコードの種類（種類の id → 索引キーの宣言と、AI に見せる一覧の決まり。records.go の syncKinds）
@@ -225,8 +225,8 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 func (h *Hub) checkAnnotations() error {
 	pairs := []engine.AnnotatedBook{}
 	for _, id := range h.order {
-		if list, ok := h.annotations[id]; ok {
-			pairs = append(pairs, engine.AnnotatedBook{Book: h.books[id].body, Annotations: list})
+		if lists := h.annotationsIn(id); len(lists) > 0 {
+			pairs = append(pairs, engine.AnnotatedBook{Book: h.books[id].body, Annotations: lists})
 		}
 	}
 	lines := []string{}
@@ -246,40 +246,51 @@ func (h *Hub) checkAnnotations() error {
 	return nil
 }
 
-// putAnnotations は、ブック book のアノテーションの並びを書いて知らせる（空の並びなら消す。h.mu を持って呼ぶ）
-func (h *Hub) putAnnotations(book string, body json.RawMessage, client string, seq int64) error {
-	return h.putAnnotationLists(map[string]json.RawMessage{book: body}, client, seq)
+// annotationsIn は、ブック book のページのうち、アノテーションの有るページの id → その並び（h.mu を持って呼ぶ）
+func (h *Hub) annotationsIn(book string) map[string]json.RawMessage {
+	out := map[string]json.RawMessage{}
+	for _, page := range h.books[book].pages {
+		if list, ok := h.annotations[page]; ok {
+			out[page] = list
+		}
+	}
+	return out
 }
 
-// putAnnotationLists は、ブックごとのアノテーションの並び lists を 1 つのまとまりで書いて持ち、窓に知らせる（h.mu を持って呼ぶ）
+// putAnnotations は、ページ page のアノテーションの並びを書いて知らせる（空の並びなら消す。h.mu を持って呼ぶ）
+func (h *Hub) putAnnotations(page string, body json.RawMessage, client string, seq int64) error {
+	return h.putAnnotationLists(map[string]json.RawMessage{page: body}, client, seq)
+}
+
+// putAnnotationLists は、ページごとのアノテーションの並び lists を 1 つのまとまりで書いて持ち、窓に知らせる（h.mu を持って呼ぶ）
 func (h *Hub) putAnnotationLists(lists map[string]json.RawMessage, client string, seq int64) error {
 	if len(lists) == 0 {
 		return nil
 	}
 	batch := storage.Batch{}
-	books := slices.Sorted(maps.Keys(lists))
-	for _, book := range books {
-		batch.Annotations = append(batch.Annotations, storage.BookBody{Book: book, Body: lists[book]})
+	pages := slices.Sorted(maps.Keys(lists))
+	for _, page := range pages {
+		batch.Annotations = append(batch.Annotations, storage.PageBody{Page: page, Body: lists[page]})
 	}
 	if _, err := h.store.Apply(batch); err != nil {
 		return err
 	}
-	for _, book := range books {
-		h.applyAnnotations(book, lists[book], client, seq)
+	for _, page := range pages {
+		h.applyAnnotations(page, lists[page], client, seq)
 	}
 	return nil
 }
 
-// applyAnnotations は、書き終えたブック book のアノテーションの並びを持ち、窓に知らせる（h.mu を持って呼ぶ）
-func (h *Hub) applyAnnotations(book string, body json.RawMessage, client string, seq int64) {
+// applyAnnotations は、書き終えたページ page のアノテーションの並びを持ち、窓に知らせる（h.mu を持って呼ぶ）
+func (h *Hub) applyAnnotations(page string, body json.RawMessage, client string, seq int64) {
 	var list []json.RawMessage
 	if json.Unmarshal(body, &list) == nil && len(list) == 0 {
-		delete(h.annotations, book)
+		delete(h.annotations, page)
 		body = json.RawMessage("[]")
 	} else {
-		h.annotations[book] = body
+		h.annotations[page] = body
 	}
-	h.broadcast("annotations", map[string]any{"book": book, "annotations": body, "client": client, "seq": seq})
+	h.broadcast("annotations", map[string]any{"page": page, "annotations": body, "client": client, "seq": seq})
 }
 
 // checkBooks は ids のブックを今のプラグインで確かめ、warning のあるブックの一覧を直す。新しい warning は常駐のログに書く（h.mu を持って呼ぶ）
@@ -326,7 +337,7 @@ func (h *Hub) BookWarnings() map[string]engine.BookWarning {
 	return out
 }
 
-// Data は全部のブック（ゴミ箱のブックも）と設定とアノテーション（ブックの id → 並び）
+// Data は全部のブック（ゴミ箱のブックも）と設定とアノテーション（ページの id → 並び）
 func (h *Hub) Data() ([]storage.Book, json.RawMessage, map[string]json.RawMessage) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -411,9 +422,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		if e, ok := h.books[book]; ok {
 			in.Books = []json.RawMessage{e.body}
 		}
-		if list, ok := h.annotations[book]; ok {
-			in.Annotations[book] = list
-		}
+		in.Annotations = h.annotationsIn(book)
 	} else {
 		for _, id := range h.order {
 			in.Books = append(in.Books, h.books[id].body)
@@ -515,7 +524,7 @@ func (h *Hub) drop(c *client) {
 	close(c.ch)
 }
 
-// SetView は、窓が見ているものと、利用者が直している物 editLocks（ブックの id → 物の id の並び）を覚える（seq が受けたものより古ければ覚えない）。
+// SetView は、窓が見ているものと、利用者が直している物 editLocks（ページかブックの id → その中の物の id の並び）を覚える（seq が受けたものより古ければ覚えない）。
 // focused なら、その窓がいちばん新しくフォーカスされた窓になる
 func (h *Hub) SetView(clientID string, view json.RawMessage, editLocks, recordLocks map[string][]string, focused bool, seq int64) bool {
 	h.mu.Lock()

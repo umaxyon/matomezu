@@ -42,7 +42,7 @@ var tools = []tool{
 	},
 	{
 		"read_book",
-		"Read a book: the book without its pages' contents (title, settings and so on), its lineup as an outline (each entry is a page: kind page, id, title, type and size in characters; or a binder of pages of one type: kind binder, id, title, pageType and its own lineup of pages), its version and its annotations (such as the user's notes and marks: what they are tied to by anchors, the page of the last anchor, and awaiting, whether they wait for your answer). " +
+		"Read a book: the book without its pages' contents (title, settings and so on), its lineup as an outline (each entry is a page: kind page, id, title, type and size in characters; or a binder of pages of one type: kind binder, id, title, pageType and its own lineup of pages), its version and its annotations (such as the user's notes and marks: page, the page they are on; anchors, the things of that page they are tied to; and awaiting, whether they wait for your answer). " +
 			"Read the contents of a page with read_page.",
 		map[string]any{
 			"type":                 "object",
@@ -280,7 +280,7 @@ var performSchema = map[string]any{
 		"args":   map[string]any{"type": "object", "description": "The action's arguments, matching its args in actions."},
 		"on": map[string]any{
 			"type":        "object",
-			"description": "What the action is done on: the book, for an action whose target is book (or annotations); the page, for an action whose target is page (the page's id alone; no book); the record, for an action whose target is a subject listed in actions (subjects). Leave on out to make a new record.",
+			"description": "What the action is done on: the book, for an action whose target is book; the page, for an action whose target is page or annotations (the page's id alone; no book: for annotations, the page the annotation is on); the record, for an action whose target is a subject listed in actions (subjects). Leave on out to make a new record.",
 			"properties": map[string]any{
 				"book":   map[string]any{"type": "string", "description": "The book's id."},
 				"page":   map[string]any{"type": "string", "description": "The page's id (see read_book or view)."},

@@ -24,13 +24,13 @@ func TestAnnotationsAreKeptApartFromTheBook(t *testing.T) {
 		_, got := send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:`+action+`","args":`+args+on+`,"lang":"ja","ids":["c1"],"now":"2026-11-01T00:00:00.000Z"}`, nil)
 		return got
 	}
-	if got := perform("note-add", `{"anchors":["a"],"text":"x"}`, `,"on":{"book":"b1"}`); got != `{"ok":true,"result":{"note":"c1"}}` {
+	if got := perform("note-add", `{"anchors":["a"],"text":"x"}`, `,"on":{"page":"p1"}`); got != `{"ok":true,"result":{"note":"c1"}}` {
 		t.Fatalf("note-add = %s", got)
 	}
-	if got := next(t, a); !strings.HasPrefix(got, `annotations {"annotations":[{"id":"c1","annotation":"@matomezu/base:note","anchors":["a"]`) || !strings.Contains(got, `"book":"b1"`) {
+	if got := next(t, a); !strings.HasPrefix(got, `annotations {"annotations":[{"id":"c1","annotation":"@matomezu/base:note","anchors":["a"]`) || !strings.Contains(got, `"page":"p1"`) {
 		t.Fatalf("event = %s", got)
 	}
-	if _, data := send(t, "GET", s.URL+"/api/data", "", nil); !strings.Contains(data, `"annotations":{"b1":[{"id":"c1"`) {
+	if _, data := send(t, "GET", s.URL+"/api/data", "", nil); !strings.Contains(data, `"annotations":{"p1":[{"id":"c1"`) {
 		t.Fatalf("data = %s", data)
 	}
 	perform("book-trash", `{"book":"b1"}`, "")
@@ -51,7 +51,7 @@ func TestDroppingAPluginsAnnotations(t *testing.T) {
 	if _, _, err := store.PutBook("b1", json.RawMessage(boxed), 0); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.PutAnnotations("b1", json.RawMessage(list)); err != nil {
+	if err := store.PutAnnotations("p1", json.RawMessage(list)); err != nil {
 		t.Fatal(err)
 	}
 	eng, err := engine.New()
@@ -73,7 +73,7 @@ func TestDroppingAPluginsAnnotations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := string(kept["b1"]); got != `[{"id":"c2","annotation":"@ex/notesx:sticky","anchors":["a"],"props":{}}]` {
+	if got := string(kept["p1"]); got != `[{"id":"c2","annotation":"@ex/notesx:sticky","anchors":["a"],"props":{}}]` {
 		t.Fatalf("kept = %s", got)
 	}
 	if err := h.dropAnnotationsOf("@ex/notesx"); err != nil {
@@ -90,7 +90,7 @@ func TestAIReadsAnnotations(t *testing.T) {
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
 	ai := map[string]string{"Authorization": "Bearer secret"}
-	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:note-add","args":{"anchors":["a"],"text":"x"},"on":{"book":"b1"},"lang":"ja","ids":["c1"],"now":"2026-11-02T00:00:00.000Z"}`, nil)
+	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:note-add","args":{"anchors":["a"],"text":"x"},"on":{"page":"p1"},"lang":"ja","ids":["c1"],"now":"2026-11-02T00:00:00.000Z"}`, nil)
 	const waiting = `{"id":"c1","annotation":"@matomezu/base:note","anchors":["a"],"props":{"text":"x","bubble":true,"addedAt":"2026-11-02T00:00:00.000Z"},"page":"p1","awaits":true}`
 	if _, got := send(t, "GET", s.URL+"/api/ai/books/b1", "", ai); !strings.Contains(got, `"annotations":[`+waiting+`]`) {
 		t.Fatalf("read_book = %s", got)
@@ -114,7 +114,7 @@ func TestAIReadsAnnotations(t *testing.T) {
 	if _, got := send(t, "GET", s.URL+"/api/ai/awaiting", "", ai); got != `{"awaiting":[{"book":"b1","title":"T","annotation":`+waiting+`,"brief":"x"}],"failed":[],"removed":[],"undone":[]}` {
 		t.Fatalf("awaiting = %s", got)
 	}
-	send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:note-read","args":{"note":"c1"},"on":{"book":"b1"}}`, ai)
+	send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:note-read","args":{"note":"c1"},"on":{"page":"p1"}}`, ai)
 	if _, got := send(t, "GET", s.URL+"/api/ai/awaiting", "", ai); got != `{"awaiting":[],"failed":[],"removed":[],"undone":[]}` {
 		t.Fatalf("awaiting after read = %s", got)
 	}
@@ -127,9 +127,9 @@ func TestAICannotReadANoteTheUserIsEditing(t *testing.T) {
 	ai := map[string]string{"Authorization": "Bearer secret"}
 	a := listen(t, s.URL)
 	next(t, a)
-	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:note-add","args":{"anchors":["a"],"text":"x"},"on":{"book":"b1"},"lang":"ja","ids":["c1"],"now":"2026-11-02T00:00:00.000Z"}`, nil)
-	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"editLocks":{"b1":["c1"]},"seq":1}`, nil)
-	read := `{"action":"@matomezu/base:note-read","args":{"note":"c1"},"on":{"book":"b1"}}`
+	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:note-add","args":{"anchors":["a"],"text":"x"},"on":{"page":"p1"},"lang":"ja","ids":["c1"],"now":"2026-11-02T00:00:00.000Z"}`, nil)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"editLocks":{"p1":["c1"]},"seq":1}`, nil)
+	read := `{"action":"@matomezu/base:note-read","args":{"note":"c1"},"on":{"page":"p1"}}`
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", read, ai); got != `{"ok":false,"reason":"being-edited"}` {
 		t.Fatalf("note-read while editing = %s", got)
 	}
@@ -153,7 +153,7 @@ func TestRemovingABookTakesItsAnnotationWarnings(t *testing.T) {
 	if _, _, err := store.PutBook("b1", json.RawMessage(boxed), 0); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.PutAnnotations("b1", json.RawMessage(`[{"id":"c1","annotation":"@ex/notes:sticky","anchors":["a"],"props":{}}]`)); err != nil {
+	if err := store.PutAnnotations("p1", json.RawMessage(`[{"id":"c1","annotation":"@ex/notes:sticky","anchors":["a"],"props":{}}]`)); err != nil {
 		t.Fatal(err)
 	}
 	eng, err := engine.New()
@@ -191,7 +191,7 @@ func TestTalkStartsNoteExpiry(t *testing.T) {
 	}
 	const list = `[{"id":"c1","annotation":"@matomezu/base:note","anchors":["a"],"props":{"text":"x","bubble":true,"addedAt":"2026-11-05T00:00:00.000Z","readAt":"2026-11-05T00:01:00.000Z"}},` +
 		`{"id":"c2","annotation":"@matomezu/base:note","anchors":["a"],"props":{"text":"y","bubble":true,"addedAt":"2026-11-05T00:00:00.000Z"}}]`
-	if err := store.PutAnnotations("b1", json.RawMessage(list)); err != nil {
+	if err := store.PutAnnotations("p1", json.RawMessage(list)); err != nil {
 		t.Fatal(err)
 	}
 	eng, err := engine.New()
@@ -213,7 +213,7 @@ func TestTalkStartsNoteExpiry(t *testing.T) {
 				TalkedAt string `json:"talkedAt"`
 			} `json:"props"`
 		}
-		_ = json.Unmarshal(h.annotations["b1"], &got)
+		_ = json.Unmarshal(h.annotations["p1"], &got)
 		out := []string{}
 		for _, a := range got {
 			out = append(out, a.ID+":"+a.Props.TalkedAt)
@@ -225,7 +225,7 @@ func TestTalkStartsNoteExpiry(t *testing.T) {
 	}
 	// 窓で直している間は消さない
 	c := h.Join()
-	h.SetView(c.id, json.RawMessage(`{}`), map[string][]string{"b1": {"c1"}}, nil, true, 1)
+	h.SetView(c.id, json.RawMessage(`{}`), map[string][]string{"p1": {"c1"}}, nil, true, 1)
 	if err := h.Expire(talked.Add(3 * time.Hour)); err != nil {
 		t.Fatal(err)
 	}
@@ -239,8 +239,8 @@ func TestTalkStartsNoteExpiry(t *testing.T) {
 	if got := ids(); got != "c2:" {
 		t.Fatalf("after the expiry = %s", got)
 	}
-	if kept, _ := store.Annotations(); strings.Contains(string(kept["b1"]), `"c1"`) {
-		t.Fatalf("stored = %s", kept["b1"])
+	if kept, _ := store.Annotations(); strings.Contains(string(kept["p1"]), `"c1"`) {
+		t.Fatalf("stored = %s", kept["p1"])
 	}
 }
 

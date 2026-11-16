@@ -96,9 +96,15 @@ type Found struct {
 // ErrUnknownKey は、種類が宣言していない索引キーを条件か並びに書いたこと
 var ErrUnknownKey = errors.New("the kind has no such index key")
 
-// BookBody は Batch の、ブックごとの並び（アノテーション・AI 編集チケット）の置き換え（空の並びなら消す）
+// BookBody は Batch の、ブックごとの並び（AI 編集チケット）の置き換え（空の並びなら消す）
 type BookBody struct {
 	Book string
+	Body json.RawMessage
+}
+
+// PageBody は Batch の、ページごとの並び（アノテーション）の置き換え（空の並びなら消す）
+type PageBody struct {
+	Page string
 	Body json.RawMessage
 }
 
@@ -122,14 +128,14 @@ type Batch struct {
 	Books         []BookWrite
 	Removed       []string
 	Settings      *UserBody
-	Annotations   []BookBody
+	Annotations   []PageBody
 	AIEditTickets []BookBody
 	Records       []RecordWrite // 変えるレコード（1 つのアクションが変えた全部）
 	SearchTexts   []SearchText  // 変える探す文字（レコードと同じ 1 回の書き込みで）
 	Counters      []Counter     // 番号を進めた区切り（レコードを書くのと同じ 1 回の書き込みで）
 }
 
-// Storage はブックと設定とアノテーションの置き場所。設定は利用者ごとに、アノテーションはブックごとに持つ
+// Storage はブックと設定とアノテーションの置き場所。設定は利用者ごとに、アノテーションはページごとに持つ
 type Storage interface {
 	// Apply は b の全部を 1 つのまとまりとして書く。途中で 1 つでも失敗（版の違いも）したら、何も書かない。
 	// 版が違うときは、ErrConflict と、そのときの置いてあるブック
@@ -152,8 +158,8 @@ type Storage interface {
 	SyncSearch(keep []string, texts []SearchText) error
 	// Search は言葉で探す（SearchQuery）
 	Search(q SearchQuery) (SearchResult, error)
-	// DeleteBook はブック id と、それを開いた時刻と、そのアノテーションと AI 編集チケットを消す（戻せない）
-	DeleteBook(id string) error
+	// DeleteBook はブック id と、それを開いた時刻と、その AI 編集チケットと、そのページ pages のアノテーションを消す（戻せない）
+	DeleteBook(id string, pages []string) error
 	// PutBook は、置いてある版が base のときだけ body で書き換え、新しい版を返す。base が 0 なら、まだ無いときだけ足す。
 	// 違えば ErrConflict と、置いてあるブック
 	PutBook(id string, body json.RawMessage, base int64) (int64, *Book, error)
@@ -163,10 +169,10 @@ type Storage interface {
 	// ParticipantNotes は利用者の常駐だけが持つ参加者の記録（参加者の id → セッション id と、参加を伝えたかの印。JSON のまま。無ければ nil）。アクションを通さない記録
 	ParticipantNotes(user string) (json.RawMessage, error)
 	PutParticipantNotes(user string, body json.RawMessage) error
-	// Annotations はブックの id ごとのアノテーションの並び（JSON のまま。1 つも無いブックは無い）
+	// Annotations はページの id ごとのアノテーションの並び（JSON のまま。1 つも無いページは無い）
 	Annotations() (map[string]json.RawMessage, error)
-	// PutAnnotations はブック book のアノテーションの並びを body にする（空の並びなら消す）
-	PutAnnotations(book string, body json.RawMessage) error
+	// PutAnnotations はページ page のアノテーションの並びを body にする（空の並びなら消す）
+	PutAnnotations(page string, body json.RawMessage) error
 	// AIEditTickets はブックの id ごとの、AI 編集チケットの並び（JSON のまま。1 つも無いブックは無い）
 	AIEditTickets() (map[string]json.RawMessage, error)
 	// PutAIEditTickets はブック book の AI 編集チケットの並びを body にする（空の並びなら消す）

@@ -17,7 +17,7 @@ import type {
   ToolId,
 } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
-import type { ActionContext, ActionOn, BookTarget } from "../core/def/action"
+import type { ActionContext, ActionOn, PageTarget } from "../core/def/action"
 import type { PluginStateDef } from "../core/def/plugin-state"
 import { fail } from "../core/errors"
 import { deepFreeze } from "../core/freeze"
@@ -137,7 +137,7 @@ export interface MatomezuState {
   partial: readonly Warning[] // 読めるが、機能台帳に無いアイテムや設定の項目を持つブック（warning W007。無い物はそのまま残す）
   window: WindowState // 窓の、開いているスクリーンとカレントにした順・スクリーンアレンジメント（core/window.ts）
   settings: Settings
-  annotations: Annotations // ブックの id → そのブックのアノテーション（core/annotation.ts。1 つも無いブックは持たない）
+  annotations: Annotations // ページの id → そのページのアノテーション（core/annotation.ts。1 つも無いページは持たない）
   records: Records // 対象の定義が足した種類ごとのレコード（core/records.ts。種類の id → id → レコード）
   counters: Counters // 番号を振る種類ごとの、区切りごとの次の番号（core/records.ts）
   lang: Lang // 今の言語（設定の言語の項目が選んだ言語パックの言語。選んでいない・使えなければ、インスタンスを作ったときに決めた言語）
@@ -172,8 +172,8 @@ export interface ParticipantLive {
   readonly branch?: string
 }
 
-// 編集ロックの 1 つ: ブック book の物 ids（伝言など。ブックの中の物やアノテーションの id）か、対象の種類 subject のレコード ids
-export type EditLock = { book: string; ids: readonly string[] } | { subject: string; ids: readonly string[] }
+// 編集ロックの 1 つ: within（ページの id か、ブックの id）の中の物 ids（ページなら、アイテムなどとそのページのアノテーションとページそのもの。ブックなら、バインダとブックそのもの）か、対象の種類 subject のレコード ids
+export type EditLock = { within: string; ids: readonly string[] } | { subject: string; ids: readonly string[] }
 
 // トースト: 画面に出して、しばらくすると消える知らせ。info は普通の知らせ、success はうまくいったことを知らせ、warn は断りを知らせ、error は失敗を知らせて直るまで出しておく
 // （時間では消えず、出した側か利用者が消す）。文言は鍵で持ち、画面が今の言語で出す。何が起きたかを message に、原因を detail に分けて書ける。
@@ -190,12 +190,12 @@ interface ToastBody {
   detail?: { message: MessageKey; params?: Params } // 2 行目に出す文言（断った原因など）
 }
 
-// アクションの宛先。ブックが対象のアクションは、どのブックかを渡し、ページが対象のアクションは、どのページかを渡す（一覧と設定は 1 つしかないので渡さない）
+// アクションの宛先。ブックが対象のアクションは、どのブックかを渡し、ページとページのアノテーションが対象のアクションは、どのページかを渡す（一覧と設定は 1 つしかないので渡さない）
 // （対象の定義が足した種類のアクションは、直す・消すなら 1 件を指し、作るなら指さない）
 export type PerformArgs<Id extends ActionId> =
-  TargetOf<Id> extends BookTarget
+  TargetOf<Id> extends "book"
     ? [args: ArgsOf<Id>, on: { book: string }]
-    : TargetOf<Id> extends "page"
+    : TargetOf<Id> extends PageTarget
       ? [args: ArgsOf<Id>, on: { page: string }]
       : TargetOf<Id> extends SubjectId
         ? [args: ArgsOf<Id>, on?: { record: string }]

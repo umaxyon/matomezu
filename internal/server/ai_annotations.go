@@ -16,7 +16,7 @@ type aiAnnotation struct {
 	Anchors []string `json:"anchors"`
 }
 
-// annotatedBooks は、ブック（ids。nil なら全部）のうち、アノテーションの有る物（ゴミ箱のブックは入れない）の、ブックとアノテーションの並びと、その id
+// annotatedBooks は、ブック（ids。nil なら全部）のうち、アノテーションの有る物（ゴミ箱のブックは入れない）の、ブックとページごとのアノテーションの組と、その id
 func (h *Hub) annotatedBooks(ids []string) ([]engine.AnnotatedBook, []string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -27,11 +27,11 @@ func (h *Hub) annotatedBooks(ids []string) ([]engine.AnnotatedBook, []string) {
 	}
 	for _, id := range ids {
 		e, ok := h.books[id]
-		list, has := h.annotations[id]
-		if !ok || e.trashed || !has {
+		lists := h.annotationsIn(id)
+		if !ok || e.trashed || len(lists) == 0 {
 			continue
 		}
-		pairs = append(pairs, engine.AnnotatedBook{Book: e.body, Annotations: list})
+		pairs = append(pairs, engine.AnnotatedBook{Book: e.body, Annotations: lists})
 		books = append(books, id)
 	}
 	return pairs, books
@@ -59,10 +59,10 @@ func (h *Hub) AIAnnotations(ids []string) (map[string][]json.RawMessage, error) 
 	return out, nil
 }
 
-// AIBriefs は、ブックごとに、待っている物を AI に知らせる 1 行（アノテーションの id → 1 行。engine.AIBriefs）を返す。AIAnnotations と同じブックだけ
-func (h *Hub) AIBriefs() (map[string]map[string]string, error) {
+// AIBriefs は、ブックごとに、待っている物を AI に知らせる 1 行（ページの id → アノテーションの id → 1 行。engine.AIBriefs）を返す。AIAnnotations と同じブックだけ
+func (h *Hub) AIBriefs() (map[string]map[string]map[string]string, error) {
 	pairs, books := h.annotatedBooks(nil)
-	out := map[string]map[string]string{}
+	out := map[string]map[string]map[string]string{}
 	if len(pairs) == 0 {
 		return out, nil
 	}
@@ -230,10 +230,11 @@ func (o Options) aiAwaiting(w http.ResponseWriter, _ *http.Request) {
 		_ = json.Unmarshal(b.Body, &head)
 		for _, a := range pick(all[b.ID], awaiting) {
 			var id struct {
-				ID string `json:"id"`
+				ID   string `json:"id"`
+				Page string `json:"page"`
 			}
 			_ = json.Unmarshal(a, &id)
-			out = append(out, item{Book: b.ID, Title: head.Title, Annotation: a, Brief: briefs[b.ID][id.ID]})
+			out = append(out, item{Book: b.ID, Title: head.Title, Annotation: a, Brief: briefs[b.ID][id.Page][id.ID]})
 		}
 	}
 	undone, err := o.Hub.TellUndone()

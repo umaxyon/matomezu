@@ -2,7 +2,7 @@
 // run は新しい値と結果（作ったものの id など）を返す純粋な関数。対象に合わなければ null を返して断る
 import type { z } from "zod"
 import { type Actor, isAI } from "../actor"
-import type { BookAnnotations } from "../annotation"
+import type { PageAnnotations } from "../annotation"
 import type { ActionExtras, SubjectId, SubjectTable } from "../catalog"
 import type { CoreCatalog } from "../core-catalog"
 import type { Lang, MessageKey } from "../i18n/i18n"
@@ -16,13 +16,13 @@ import { type PageTypeDef, placeableOf } from "./page-type"
 
 // 対象ごとの、アクションが受け取って返すデータ。library はブックの一覧、settings は利用者の設定で、
 // この 2 つのアクションを使えるかはコントロールセンターが決める。page はページ 1 枚（その中身だけを変える。並びとほかのページは変えない）。
-// annotations はブック 1 冊のアノテーション（core/annotation.ts）で、使えるかは book と同じくそのページのタイプが決める
+// annotations はページ 1 枚のアノテーション（core/annotation.ts）で、使えるかは page と同じくそのページのタイプが決める
 export interface Subjects {
   library: Library
   book: Book
   page: ItemPage
   settings: Settings
-  annotations: BookAnnotations
+  annotations: PageAnnotations
 }
 
 // 土台が持つ対象の名前（対象の定義が足した種類は、その id が対象の名前になる）
@@ -61,11 +61,11 @@ export type RecordRead = {
 // アクションの宛先: ブックの id か、ページの id か、レコード（対象の定義が足した種類のデータ）の id
 export type ActionOn = { book: string } | { page: string } | { record: string }
 
-// 宛先のブック（on.book）を要る対象か（ブックと、ブックのアノテーション）
-export type BookTarget = "book" | "annotations"
-export const isOnBook = (target: ActionTarget | undefined): boolean => target === "book" || target === "annotations"
-// ブックの中の物を変える対象か（ブック・ページ・ブックのアノテーション。使えるかをページのタイプと認可ステップがブックで決める）
-export const isInBook = (target: ActionTarget | undefined): boolean => target === "page" || isOnBook(target)
+// 宛先のページ（on.page）を要る対象か（ページと、ページのアノテーション）
+export type PageTarget = "page" | "annotations"
+export const isOnPage = (target: ActionTarget | undefined): boolean => target === "page" || target === "annotations"
+// ブックの中の物を変える対象か（ブック・ページ・ページのアノテーション。使えるかをページのタイプと認可ステップがブックで決める）
+export const isInBook = (target: ActionTarget | undefined): boolean => target === "book" || isOnPage(target)
 
 export interface ActionContext {
   catalog: CoreCatalog // 使う機能台帳（アクション・ページのタイプ・紙など）

@@ -84,8 +84,8 @@ func (h *Hub) planWrites(out engine.Output, subject, by, act, at string) (*write
 		plan.batch.Settings = &storage.UserBody{User: user, Body: out.Settings}
 	}
 	h.planRecords(plan, out)
-	for book, body := range out.Annotations {
-		plan.batch.Annotations = append(plan.batch.Annotations, storage.BookBody{Book: book, Body: body})
+	for page, body := range out.Annotations {
+		plan.batch.Annotations = append(plan.batch.Annotations, storage.PageBody{Page: page, Body: body})
 	}
 	// AI 編集チケットの変え方は順に当てる（同じブックの物は前の結果に重ねる）。消えたブックを指す物は飛ばす
 	for _, c := range out.AIEditTickets {
@@ -144,7 +144,7 @@ func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act
 		h.reusePluginsForSettings()
 	}
 	h.applyRecords(plan, out, p)
-	for book, body := range out.Annotations {
-		h.applyAnnotations(book, body, p.Client, p.Seq)
+	for page, body := range out.Annotations {
+		h.applyAnnotations(page, body, p.Client, p.Seq)
 	}
 }

@@ -55,7 +55,7 @@ export const MARK_ADD = kit.defineAction({
   target: "annotations",
   userOnly: true,
   args: z.strictObject({ anchors: z.array(z.string().min(1)).min(1), kind: z.enum(KINDS) }),
-  run: ({ book, annotations }, args, ctx) => {
+  run: ({ page, annotations }, args, ctx) => {
     const anchors = [...new Set(args.anchors)]
     // 付ける物から、ほかのマークを外す（付く物が無くなったマークは消す）
     const kept = annotations.flatMap(a => {
@@ -69,7 +69,7 @@ export const MARK_ADD = kit.defineAction({
     )
     const props: MarkProps = { kind: args.kind, addedAt: ctx.now }
     const mark: Annotation = { id, annotation: MARK.id, anchors, props }
-    return { next: { book, annotations: [...kept, mark] }, result: { mark: id } }
+    return { next: { page, annotations: [...kept, mark] }, result: { mark: id } }
   },
 })
 
@@ -80,13 +80,13 @@ export const MARK_READ = kit.defineAction({
   title: "Mark mark read",
   target: "annotations",
   args: ID_ARGS,
-  run: ({ book, annotations }, args, ctx) => {
+  run: ({ page, annotations }, args, ctx) => {
     const found = annotations.find(a => a.id === args.mark && isMark(a))
     if (!found || (found.props as MarkProps).readAt) return null
     const next = annotations.map(a =>
       a === found ? { ...a, props: { ...(a.props as MarkProps), readAt: ctx.now } } : a,
     )
-    return { next: { book, annotations: next }, result: {} }
+    return { next: { page, annotations: next }, result: {} }
   },
 })
 
@@ -97,8 +97,8 @@ export const MARK_REMOVE = kit.defineAction({
   title: "Remove mark",
   target: "annotations",
   args: ID_ARGS,
-  run: ({ book, annotations }, args) => {
+  run: ({ page, annotations }, args) => {
     const next = annotations.filter(a => !(a.id === args.mark && isMark(a)))
-    return next.length === annotations.length ? null : { next: { book, annotations: next }, result: {} }
+    return next.length === annotations.length ? null : { next: { page, annotations: next }, result: {} }
   },
 })

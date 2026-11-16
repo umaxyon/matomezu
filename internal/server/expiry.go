@@ -2,10 +2,12 @@ package server
 
 // 期限と利用者トリガートーク: 種類の期限（expiresAt）が過ぎたアノテーションを、時間で消す（Expire。窓で利用者が直している物は消さない）。
 // 利用者トリガートークがあったら（AI のフックが POST /api/ai/talked で知らせる）、利用者トリガートークのときに行うアクション（runsWhenUserTalks）を、
-// アノテーションのあるブックごとに利用者として行う（Talked。伝言なら、読まれた伝言の期限が数え始まる）
+// アノテーションのあるページごとに利用者として行う（Talked。伝言なら、読まれた伝言の期限が数え始まる）
 
 import (
 	"encoding/json"
+	"maps"
+	"slices"
 	"time"
 
 	"github.com/umaxyon/matomezu/internal/engine"
@@ -24,19 +26,19 @@ func (h *Hub) Expire(now time.Time) error {
 	watched := h.watched()
 	at := isoTime(now)
 	live := map[string]json.RawMessage{}
-	for book, body := range h.annotations {
-		kept, changed, err := h.engine.AnnotationsUnexpired(body, h.settings, at, watched[book])
+	for page, body := range h.annotations {
+		kept, changed, err := h.engine.AnnotationsUnexpired(body, h.settings, at, watched[page])
 		if err != nil {
 			return err
 		}
 		if changed {
-			live[book] = kept
+			live[page] = kept
 		}
 	}
 	return h.putAnnotationLists(live, "", 0)
 }
 
-// Talked は、利用者トリガートークのときに行うアクションを、アノテーションのあるブックごとに行う（変える物の無いブックは、断られるだけで何もしない）
+// Talked は、利用者トリガートークのときに行うアクションを、アノテーションのあるページごとに行う（変える物の無いページは、断られるだけで何もしない）
 func (h *Hub) Talked(now time.Time) error {
 	ids, err := h.engine.TalkActions()
 	if err != nil {
@@ -47,14 +49,11 @@ func (h *Hub) Talked(now time.Time) error {
 		h.mu.Unlock()
 		return err
 	}
-	books := make([]string, 0, len(h.annotations))
-	for book := range h.annotations {
-		books = append(books, book)
-	}
+	pages := slices.Sorted(maps.Keys(h.annotations))
 	h.mu.Unlock()
-	for _, book := range books {
+	for _, page := range pages {
 		for _, id := range ids {
-			if _, err := h.Perform(Perform{Action: id, Args: json.RawMessage("{}"), On: &engine.On{Book: book}, Now: isoTime(now)}); err != nil {
+			if _, err := h.Perform(Perform{Action: id, Args: json.RawMessage("{}"), On: &engine.On{Page: page}, Now: isoTime(now)}); err != nil {
 				return err
 			}
 		}

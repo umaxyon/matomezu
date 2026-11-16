@@ -13,7 +13,7 @@ import { expiryOutlook } from "../../../web/src/plugins/base/note/expiry"
 import { CORE_CATALOG, newStore } from "../../support"
 
 type Drawing = Book
-const ON = { book: "b1" }
+const ON = { page: "p1" }
 
 // 見本のブック b1 の最初のページに箱を 2 つ置いた store
 function ready() {
@@ -30,7 +30,7 @@ function ready() {
     string,
     string,
   ]
-  const notes = (): readonly Annotation[] => store.state.getState().annotations.b1 ?? []
+  const notes = (): readonly Annotation[] => store.state.getState().annotations.p1 ?? []
   return { store, page, a, b, notes }
 }
 
@@ -67,7 +67,7 @@ test("ブックに無い物や、ページそのものには伝言を付けら�
 
 test("ロック中のブックにも伝言を付け・変え・消せる（ロックはアノテーションを止めない）", () => {
   const { store, a, notes } = ready()
-  expect(store.actions.perform("@matomezu/base:book-lock", {}, ON).ok).toBe(true)
+  expect(store.actions.perform("@matomezu/base:book-lock", {}, { book: "b1" }).ok).toBe(true)
   expect(store.actions.perform(ADD, { anchors: [a], text: "x" }, ON).ok).toBe(true)
   const id = notes()[0]!.id
   expect(store.actions.perform(UPDATE, { note: id, text: "y" }, ON).ok).toBe(true)

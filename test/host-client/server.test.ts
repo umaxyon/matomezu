@@ -476,12 +476,12 @@ test("設定の知らせで設定を入れ替える", async () => {
   expect(store.state.getState().settings).toMatchObject({ lang: "en", skin: "@matomezu/base:dark" })
 })
 
-test("アノテーションの知らせで、そのブックのアノテーションを入れ替える（空の並びなら無くす）", async () => {
+test("アノテーションの知らせで、そのページのアノテーションを入れ替える（空の並びなら無くす）", async () => {
   const { store, emit } = await connected()
   const list = [{ id: "c1", annotation: "@matomezu/base:note", anchors: ["x"], props: {} }]
-  emit("annotations", { book: "b1", annotations: list })
-  expect(store.state.getState().annotations).toEqual({ b1: list })
-  emit("annotations", { book: "b1", annotations: [] })
+  emit("annotations", { page: "p1", annotations: list })
+  expect(store.state.getState().annotations).toEqual({ p1: list })
+  emit("annotations", { page: "p1", annotations: [] })
   expect(store.state.getState().annotations).toEqual({})
 })
 
@@ -569,12 +569,12 @@ test("窓が見ているものと、窓がフォーカスされたことを、�
   ])
 })
 
-test("利用者が直している物（useEditLock）を、ブックごとにまとめて見ているものと一緒に知らせる。まとめた物が変わったときだけ知らせ、全部外したら空で知らせる", async () => {
+test("利用者が直している物（useEditLock）を、その物のあるページかブックごとにまとめて見ているものと一緒に知らせる。まとめた物が変わったときだけ知らせ、全部外したら空で知らせる", async () => {
   const s = await connected()
-  s.store.setEditLock("a", { book: "b1", ids: ["n1"] })
-  s.store.setEditLock("b", { book: "b1", ids: ["n1", "n2"] })
-  expect(s.sent.at(-1)).toMatchObject({ editLocks: { b1: ["n1", "n2"] }, seq: 3 })
-  s.store.setEditLock("a", { book: "b1", ids: ["n1"] })
+  s.store.setEditLock("a", { within: "p1", ids: ["n1"] })
+  s.store.setEditLock("b", { within: "p1", ids: ["n1", "n2"] })
+  expect(s.sent.at(-1)).toMatchObject({ editLocks: { p1: ["n1", "n2"] }, seq: 3 })
+  s.store.setEditLock("a", { within: "p1", ids: ["n1"] })
   expect(s.sent).toHaveLength(3)
   // 外しても、まとめた物が変わらなければ知らせない
   s.store.setEditLock("a", null)

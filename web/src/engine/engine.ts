@@ -15,7 +15,7 @@ import {
   talkActions,
   unexpired,
 } from "../core/annotation"
-import { checkBooks, findPage, pagesOf, restoreBooks } from "../core/book"
+import { checkBooks, findPage, pageById, pagesOf, restoreBooks } from "../core/book"
 import { briefLine } from "../core/brief"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import type { CoreCatalog } from "../core/core-catalog"
@@ -104,17 +104,17 @@ interface Input {
   now?: string // 画面で先に行った時点。無ければ（AI が頼んだときなど）ここで決める
   books?: unknown[]
   settings: unknown
-  annotations?: Readonly<Record<string, unknown>> // 要るブックのアノテーション（ブックの id → 並び）
+  annotations?: Readonly<Record<string, unknown>> // 要るブックのページのアノテーション（ページの id → 並び）
   counters?: unknown // 番号を振る種類の、区切りごとの次の番号（種類の id → 区切り → 次の番号。対象がその種類のアクションのとき）
   records?: unknown // 対象の定義が足した種類のレコード（種類の id → id → レコード。レコードが対象のアクションのとき、宛先と読むだけの種類）
   actor?: WireActor // 頼んだ者（無ければ利用者。AI は入っているワークルームの id を持つ）
-  watched?: Readonly<Record<string, readonly string[]>> // 利用者が直している物（ブックの id → 物の id。編集ロック）
+  watched?: Readonly<Record<string, readonly string[]>> // 利用者が直している物（ページかブックの id → その中の物の id。編集ロック）
   watchedRecords?: Readonly<Record<string, readonly string[]>> // 利用者が直しているレコード（対象の種類の id → レコードの id。編集ロック）
 }
 
-// 返すもの。aiEditTickets はレコードが対象のアクションが返した AI 編集チケットの変え方の並び、books は変わった・足したブック、removed は一覧から無くなったブック、annotations はアノテーションが変わったブックの id → 新しい並び（空なら全部無くなった）、
+// 返すもの。aiEditTickets はレコードが対象のアクションが返した AI 編集チケットの変え方の並び、books は変わった・足したブック、removed は一覧から無くなったブック、annotations はアノテーションが変わったページの id → 新しい並び（空なら全部無くなった）、
 // records は変わったレコードの並び（1 つのトランザクションで書く）、counters は進めた番号（種類の id → 区切り → 次の番号。進めた区切りだけ）。
-// AI のアクションと lockedForUser のアクションが、受けた watched の物（ブックの中の物とアノテーションの id）か watchedRecords のレコードを変えるか消すなら、何も変えずに being-edited で断る。
+// AI のアクションと lockedForUser のアクションが、受けた watched の物（ページの中の物・そのページのアノテーション・ページそのもの、ブックのバインダ・ブックそのもの）か watchedRecords のレコードを変えるか消すなら、何も変えずに being-edited で断る。
 // 断ったら、detail に AI への説明（MCP 公開ツールが理由に添えて AI に返す）。認可ステップが止めたら（denied）、permission にそのステップの id
 type Output =
   | {
@@ -205,7 +205,7 @@ function perform(input: Input): Output {
   const ids = [...(input.ids ?? [])]
   const books = Object.fromEntries(restoreBooks(catalog, input.books ?? []).map(b => [b.id, b]))
   const annotations = Object.fromEntries(
-    Object.entries(input.annotations ?? {}).map(([book, list]) => [book, restoreAnnotations(list)]),
+    Object.entries(input.annotations ?? {}).map(([page, list]) => [page, restoreAnnotations(list)]),
   )
   const records = restoreRecords(input.records)
   const counters = restoreCounters(input.counters)
@@ -225,10 +225,22 @@ function perform(input: Input): Output {
   const changed = done.book ? [done.book] : Object.values(next ?? {}).filter(b => books[b.id] !== b)
   const removed = next ? Object.keys(books).filter(id => !(id in next)) : []
   const notice = shiftNotice(books, changed)
+  // 行った後のブック（無くなったブックは無い）
+  const after = (id: string): Book | undefined =>
+    removed.includes(id) ? undefined : (changed.find(b => b.id === id) ?? books[id])
   const touched = Object.entries(input.watched ?? {}).flatMap(([id, watched]) => {
-    const book = removed.includes(id) ? undefined : (changed.find(b => b.id === id) ?? books[id])
+    // ブックの中の物（バインダ・ブックそのもの）
+    if (books[id]) return changedIn(books[id], after(id), watched)
+    // ページの中の物と、そのページのアノテーション
+    const was = pageById(books, id)
+    if (!was) return []
     const list = done.annotations && id in done.annotations ? done.annotations[id] : annotations[id]
-    return changedIn({ book: books[id], annotations: annotations[id] }, { book, annotations: list }, watched)
+    const book = after(was.book.id)
+    return changedIn(
+      { page: was.page, annotations: annotations[id] },
+      { page: book && findPage(book, id)?.page, annotations: list },
+      watched,
+    )
   })
   // AI のアクションと、利用者でも編集ロックで断るアクションは、利用者が直している物を変えも消しもしない（あとでやり直す）
   // レコードが対象のアクションは、変えるレコードのどれかを直しているなら、同じように断る（作るレコードは新しい id なので、直してはいない）
@@ -396,16 +408,25 @@ function aiTables(of: Assembled) {
 }
 
 // 残したアノテーションを今の機能台帳で確かめ、効かないもの（種類が無い W018・形が合わない W019）の warning の 1 行ずつを返す（常駐がログに書く）。
-// 読めないブックのアノテーションは確かめない
+// 受けるのは、ブックと、そのページごとのアノテーション（ページの id → 並び）の組。読めないブックのアノテーションは確かめない
 ;(globalThis as { matomezuCheckAnnotations?: (pairs: string) => string }).matomezuCheckAnnotations = pairs => {
   const catalog = assembled.catalog.core
-  const lines = (JSON.parse(pairs) as { book: unknown; annotations: unknown }[]).flatMap(p => {
+  const lines = (JSON.parse(pairs) as AnnotatedBook[]).flatMap(p => {
     const [book] = restoreBooks(catalog, [p.book])
-    return book ? checkAnnotations(catalog, book, restoreAnnotations(p.annotations)).map(warningText) : []
+    return book
+      ? pagesOf(book).flatMap(page =>
+          checkAnnotations(catalog, book, page, restoreAnnotations(p.annotations[page.id])).map(warningText),
+        )
+      : []
   })
   return JSON.stringify(lines)
 }
 
+// ブックと、そのページごとのアノテーション（ページの id → 並び）の組（常駐が渡す）
+interface AnnotatedBook {
+  book: unknown
+  annotations: Readonly<Record<string, unknown>>
+}
 // 常駐が初めて起動したときに 1 度だけ行うアクション（ActionDef の runsOnceAtStart）の id の並び
 ;(globalThis as { matomezuRunOnceActions?: () => string }).matomezuRunOnceActions = () =>
   JSON.stringify([...assembled.catalog.core.actions.values()].filter(a => a.runsOnceAtStart).map(a => a.id))
@@ -577,24 +598,32 @@ function searchTextOf(def: SubjectDef, record: unknown): { title: string; body: 
 ;(globalThis as { matomezuCheckRecords?: (records: string) => string }).matomezuCheckRecords = records =>
   JSON.stringify(checkRecords(assembled.catalog.core, restoreRecords(JSON.parse(records))).map(warningText))
 
-// ブックとそのアノテーションの並びごとに、AI に見せる並び（annotationsForAi。結び付く物の最後のあるページと、AI の応えを待っているか）を返す。
-// 読めないブックのアノテーションは、ページが分からず待たないものとして返す
+// ブックとそのページごとのアノテーションの組ごとに、AI に見せる並び（annotationsForAi。付いているページと、AI の応えを待っているか。ブックのページの順）を返す。
+// 読めないブックのアノテーションは、待たないものとして返す
 ;(globalThis as { matomezuAiAnnotations?: (pairs: string) => string }).matomezuAiAnnotations = pairs => {
   const catalog = assembled.catalog.core
-  const out = (JSON.parse(pairs) as { book: unknown; annotations: unknown }[]).map(p => {
-    const list = restoreAnnotations(p.annotations)
+  const out = (JSON.parse(pairs) as AnnotatedBook[]).map(p => {
     const [book] = restoreBooks(catalog, [p.book])
-    return book ? annotationsForAi(catalog, book, list) : list.map(a => ({ ...a, page: null, awaits: false }))
+    return book
+      ? pagesOf(book).flatMap(page => annotationsForAi(catalog, page, restoreAnnotations(p.annotations[page.id])))
+      : Object.entries(p.annotations).flatMap(([page, list]) =>
+          restoreAnnotations(list).map(a => ({ ...a, page, awaits: false })),
+        )
   })
   return JSON.stringify(out)
 }
 
-// ブックとそのアノテーションの並びごとに、待っている物を AI に知らせる 1 行（annotationBriefs。アノテーションの id → 1 行）を返す。読めないブックは空
+// ブックとそのページごとのアノテーションの組ごとに、待っている物を AI に知らせる 1 行（annotationBriefs。ページの id → アノテーションの id → 1 行）を返す。読めないブックは空
 ;(globalThis as { matomezuAiBriefs?: (pairs: string) => string }).matomezuAiBriefs = pairs => {
   const catalog = assembled.catalog.core
-  const out = (JSON.parse(pairs) as { book: unknown; annotations: unknown }[]).map(p => {
+  const out = (JSON.parse(pairs) as AnnotatedBook[]).map(p => {
     const [book] = restoreBooks(catalog, [p.book])
-    return book ? annotationBriefs(catalog, book, restoreAnnotations(p.annotations)) : {}
+    return Object.fromEntries(
+      (book ? pagesOf(book) : []).map(page => [
+        page.id,
+        annotationBriefs(catalog, page, restoreAnnotations(p.annotations[page.id])),
+      ]),
+    )
   })
   return JSON.stringify(out)
 }

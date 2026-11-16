@@ -303,12 +303,13 @@ export function binderOf(book: Book, opened: Opened | null): string | null {
 // 無くなっていれば隣（下の neighbourOf）。空のバインダを開いていて、バインダにページが入ったら、その最初のページ。
 // 開くものが変わったときだけ、ずらす量を紙の左上に戻し（初めの位置が届いたらそこへ合わせる）、選択を捨てる。同じページで紙も同じまま中身をずらした（ページの shift が変わった）なら、
 // 中身が画面の同じ所に見えるよう、ずらした分だけパンを合わせ、見せ方が知らせた広さもその分だけ先に変える（知らせ直す前に範囲に収め直して打ち消さないように）。
-// 選択からは、ブックに無くなった物（AI やほかの画面が消した物、Undo で無くなった物）を外す。
+// 選択からは、開いているページに無くなった物（AI やほかの画面が消した物、Undo で無くなった物）を外す。
 // そのブックを開いていなければ、同じ値を返す
 export function followBook(catalog: CoreCatalog, stage: Stage, book: Book, before?: Book): Stage {
   const next = followOpened(catalog, stage, book, before)
   if (next.selection.length === 0 || next.opened?.book !== book.id) return next
-  const ids = anchorIds(book)
+  const shown = findPage(book, shownPageId(next.opened) ?? "")?.page
+  const ids = shown ? anchorIds(shown) : new Set<string>()
   const kept = next.selection.filter(id => ids.has(id))
   if (kept.length === next.selection.length) return next
   return kept.length === 0 ? { ...next, selection: NONE, editing: false } : { ...next, selection: kept }

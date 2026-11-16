@@ -10,6 +10,7 @@ import {
   prune,
   unexpired,
 } from "../../web/src/core/annotation"
+import { findPage } from "../../web/src/core/book"
 import { performIn } from "../../web/src/core/perform"
 import { warningText } from "../../web/src/core/warnings"
 import { drawingPage, FLOWCHART, testBook, testPage } from "../lineup"
@@ -23,6 +24,8 @@ const book = testBook("d", "D", [
   }),
 ])
 
+const page = findPage(book, "p")!.page
+
 const note = (id: string, props: unknown): Annotation => ({
   id,
   annotation: "@matomezu/base:note",
@@ -34,7 +37,7 @@ const BAD = note("c2", { ask: "later" })
 const GONE: Annotation = { id: "c3", annotation: "@ex/notes:sticky", anchors: ["a"], props: {} }
 
 test("種類が機能台帳に無い物は W018、形が合わない物は W019 になる（データには手を付けない）", () => {
-  expect(checkAnnotations(CORE_CATALOG, book, [GOOD, BAD, GONE]).map(warningText)).toEqual([
+  expect(checkAnnotations(CORE_CATALOG, book, page, [GOOD, BAD, GONE]).map(warningText)).toEqual([
     "W019 @matomezu/base: book d (D): annotation c2 does not fit @matomezu/base:note (kept as it is, not used)",
     "W018 @ex/notes: book d (D): annotation c3 is a @ex/notes:sticky, which is not in the catalog (kept as it is, not used)",
   ])
@@ -44,7 +47,7 @@ test("効かないアノテーションがあっても、ほかのアノテー�
   const world = {
     books: { d: book },
     settings: {},
-    annotations: { d: [GOOD, BAD, GONE] },
+    annotations: { p: [GOOD, BAD, GONE] },
     participants: [],
     records: {},
     counters: {},
@@ -53,7 +56,7 @@ test("効かないアノテーションがあっても、ほかのアノテー�
     world,
     "@matomezu/base:note-remove",
     { note: "c1" },
-    { book: "d" },
+    { page: "p" },
     {
       catalog: CORE_CATALOG,
       controlCenter: null,
@@ -63,29 +66,29 @@ test("効かないアノテーションがあっても、ほかのアノテー�
       actor: USER,
     },
   )
-  expect(done).toMatchObject({ ok: true, annotations: { d: [BAD, GONE] } })
+  expect(done).toMatchObject({ ok: true, annotations: { p: [BAD, GONE] } })
 })
 
 test("prune は無くなった物をアンカーから外し、全部無くなった物を消す。変わらなければ同じ並び", () => {
   const list = [GOOD, { ...GOOD, id: "c4", anchors: ["a", "x"] }, { ...GOOD, id: "c5", anchors: ["x"] }]
-  expect(prune(list, book).map(a => [a.id, a.anchors])).toEqual([
+  expect(prune(list, page).map(a => [a.id, a.anchors])).toEqual([
     ["c1", ["a"]],
     ["c4", ["a"]],
   ])
   const same = [GOOD]
-  expect(prune(same, book)).toBe(same)
+  expect(prune(same, page)).toBe(same)
 })
 
 test("prune は anchors の形が壊れた物を消さずに残す（形の確かめは別の所で行う）", () => {
   const broken = { ...GOOD, id: "c6", anchors: "a" } as unknown as typeof GOOD
-  expect(prune([broken], book)).toEqual([broken])
+  expect(prune([broken], page)).toEqual([broken])
 })
 
-test("AI に見せるアノテーションは、結び付く物の最後のあるページと、AI の応えを待っているか（種類の awaits。形が合わない物と種類の無い物は待たない）を添える", () => {
+test("AI に見せるアノテーションは、付いているページと、AI の応えを待っているか（種類の awaits。形が合わない物と種類の無い物は待たない）を添える", () => {
   const read = note("c4", { text: "x", bubble: true, addedAt: "t", readAt: "t" })
   const unread = note("c5", { text: "見て", bubble: false, addedAt: "t" })
   expect(
-    annotationsForAi(CORE_CATALOG, book, [GOOD, read, unread, BAD, GONE]).map(a => [a.id, a.page, a.awaits]),
+    annotationsForAi(CORE_CATALOG, page, [GOOD, read, unread, BAD, GONE]).map(a => [a.id, a.page, a.awaits]),
   ).toEqual([
     ["c1", "p", true],
     ["c4", "p", false],
@@ -103,7 +106,7 @@ test("AI に知らせる 1 行は、種類の aiBrief を、改行と続く空�
     anchors: ["a"],
     props: { kind: "suzume", addedAt: "t" },
   }
-  expect(annotationBriefs(CORE_CATALOG, book, [GOOD, long, mark, BAD, GONE])).toEqual({
+  expect(annotationBriefs(CORE_CATALOG, page, [GOOD, long, mark, BAD, GONE])).toEqual({
     c1: "x",
     c6: `${"あ".repeat(30)} ${"い".repeat(9)}… (61 chars)`,
     m1: "suzume",
@@ -131,7 +134,7 @@ test("伝言は、会話の時点から伝言期限（利用者の設定。既�
   ).toEqual(["c7"])
 })
 
-test("タイプの混ざるブックでは、結び付く物のあるページのタイプごとに使えるかが決まる（またがるなら、どのページのタイプでも使えるときだけ）", () => {
+test("タイプの混ざるブックでは、付いているページのタイプで使えるかが決まる。ほかのページの物には結び付けられない", () => {
   const flowchart = CORE_CATALOG.pageTypes.get(FLOWCHART)!
   const catalog = {
     ...CORE_CATALOG,
@@ -146,8 +149,9 @@ test("タイプの混ざるブックでは、結び付く物のあるページ�
     testPage(FLOWCHART, "p2", { title: "流れ", items: [box("b")] }),
   ])
   const on = (id: string, anchors: string[]): Annotation => ({ ...GOOD, id, anchors })
-  const codes = (a: Annotation) => checkAnnotations(catalog, mixed, [a]).map(w => w.code)
-  expect(codes(on("n1", ["a"]))).toEqual([])
-  expect(codes(on("n2", ["b"]))).toEqual(["W019"])
-  expect(codes(on("n3", ["a", "b"]))).toEqual(["W019"])
+  const codes = (at: string, a: Annotation) =>
+    checkAnnotations(catalog, mixed, findPage(mixed, at)!.page, [a]).map(w => w.code)
+  expect(codes("p1", on("n1", ["a"]))).toEqual([])
+  expect(codes("p2", on("n2", ["b"]))).toEqual(["W019"])
+  expect(codes("p1", on("n3", ["a", "b"]))).toEqual(["W019"])
 })

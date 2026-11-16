@@ -118,7 +118,7 @@ func (h *Hub) resetForTest(books []json.RawMessage, enabledPlugins []string) err
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	for _, id := range h.order {
-		if err := h.store.DeleteBook(id); err != nil {
+		if err := h.store.DeleteBook(id, h.books[id].pages); err != nil {
 			return err
 		}
 	}

@@ -145,13 +145,13 @@ export function viewOf(catalog: CoreCatalog, state: MatomezuState) {
   return shownScreens(catalog, state.window).includes(book.id) ? { front, ...screen } : { front, hidden: screen }
 }
 
-// 利用者が直している物（useEditLock）を、ブックの id → 物の id の並びにまとめたもの（常駐はこれを変える AI のアクションを断る）
+// 利用者が直している物（useEditLock）を、ページかブックの id → その中の物の id の並びにまとめたもの（常駐はこれを変える AI のアクションを断る）
 export function editLocksOf(state: MatomezuState): Record<string, string[]> {
   const locks: Record<string, string[]> = {}
   for (const l of Object.values(state.editLocks)) {
-    if (!("book" in l)) continue
-    const now = locks[l.book] ?? []
-    locks[l.book] = [...now, ...l.ids.filter(id => !now.includes(id))]
+    if (!("within" in l)) continue
+    const now = locks[l.within] ?? []
+    locks[l.within] = [...now, ...l.ids.filter(id => !now.includes(id))]
   }
   return locks
 }
@@ -230,7 +230,7 @@ const ParticipantLiveSchema = z.object({
 })
 const TouchedSchema = z.object({ book: z.string(), at: z.string() })
 const RemovedSchema = z.object({ book: z.string(), ...Mark })
-const AnnotationsSchema = z.object({ book: z.string(), annotations: z.unknown(), ...Mark })
+const AnnotationsSchema = z.object({ page: z.string(), annotations: z.unknown(), ...Mark })
 // レコードの知らせ: 1 つのアクションが変えたレコードの全部（records。消したなら record は "removed"）と進めた番号（種類 → 区切り → 次の番号）。
 // window は最後にフォーカスされた窓（その窓が、郵便が届いたことをマーキーで知らせる）
 const RecordsSchema = z.object({
@@ -247,7 +247,7 @@ export interface ServerClient extends HostClient {
 export function serverClient(net: Net = browserNet): ServerClient {
   const confirmed = new Map<string, { book: unknown; version: number }>()
   let settings: unknown
-  let annotations: Record<string, unknown> = {} // ブックの id → アノテーションの並び
+  let annotations: Record<string, unknown> = {} // ページの id → アノテーションの並び
   let records: unknown = {} // 対象の定義が足した種類のレコード（種類の id → id → レコード）
   let counters: unknown = {} // 番号を振る種類の、区切りごとの次の番号
   let touched: Record<string, string> = {} // ブックの id → 触れた（開いたか書いた）時刻
@@ -582,9 +582,9 @@ export function serverClient(net: Net = browserNet): ServerClient {
     })
     on("annotations", data => {
       const e = AnnotationsSchema.parse(JSON.parse(data))
-      const { [e.book]: _, ...rest } = annotations
+      const { [e.page]: _, ...rest } = annotations
       annotations =
-        Array.isArray(e.annotations) && e.annotations.length === 0 ? rest : { ...rest, [e.book]: e.annotations }
+        Array.isArray(e.annotations) && e.annotations.length === 0 ? rest : { ...rest, [e.page]: e.annotations }
       settle(e)
       show()
     })

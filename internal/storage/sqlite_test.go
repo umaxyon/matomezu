@@ -124,7 +124,7 @@ func TestDeleteBook(t *testing.T) {
 	if err := s.Open("b2", "2026-10-29T00:00:00.000Z"); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.DeleteBook("b2"); err != nil {
+	if err := s.DeleteBook("b2", nil); err != nil {
 		t.Fatal(err)
 	}
 	if books, _ := s.Books(); len(books) != 1 || books[0].ID != "b1" {
@@ -135,24 +135,24 @@ func TestDeleteBook(t *testing.T) {
 	}
 }
 
-// アノテーションはブックごとに、ブックとは別に持つ。空の並びを書くと消え、ブックを消すと一緒に消える
-func TestAnnotationsPerBook(t *testing.T) {
+// アノテーションはページごとに、ブックとは別に持つ。空の並びを書くと消え、ブックを消すと、名指したそのページの物も一緒に消える
+func TestAnnotationsPerPage(t *testing.T) {
 	s := open(t, filepath.Join(t.TempDir(), "data.db"))
 	for _, id := range []string{"b1", "b2"} {
 		if _, _, err := s.PutBook(id, json.RawMessage(`{"id":"`+id+`"}`), 0); err != nil {
 			t.Fatal(err)
 		}
-		if err := s.PutAnnotations(id, json.RawMessage(`[{"id":"c"}]`)); err != nil {
+		if err := s.PutAnnotations(id+"-p1", json.RawMessage(`[{"id":"c"}]`)); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if all, _ := s.Annotations(); len(all) != 2 || string(all["b1"]) != `[{"id":"c"}]` {
+	if all, _ := s.Annotations(); len(all) != 2 || string(all["b1-p1"]) != `[{"id":"c"}]` {
 		t.Fatalf("annotations = %v", all)
 	}
-	if err := s.PutAnnotations("b1", json.RawMessage(`[]`)); err != nil {
+	if err := s.PutAnnotations("b1-p1", json.RawMessage(`[]`)); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.DeleteBook("b2"); err != nil {
+	if err := s.DeleteBook("b2", []string{"b2-p1"}); err != nil {
 		t.Fatal(err)
 	}
 	if all, _ := s.Annotations(); len(all) != 0 {
@@ -259,7 +259,7 @@ func TestApplyWritesAllOrNothingOnAConflict(t *testing.T) {
 	have, err := s.Apply(Batch{
 		Books:         []BookWrite{{"b1", json.RawMessage(`{"id":"b1"}`), 0}, {"b2", json.RawMessage(`{"id":"b2","x":1}`), 7}},
 		Settings:      &UserBody{"me", json.RawMessage(`{"a":1}`)},
-		Annotations:   []BookBody{{"b1", json.RawMessage(`[{"id":"n1"}]`)}},
+		Annotations:   []PageBody{{"p1", json.RawMessage(`[{"id":"n1"}]`)}},
 		AIEditTickets: []BookBody{{"b1", json.RawMessage(`[{"at":"t"}]`)}},
 	})
 	if !errors.Is(err, ErrConflict) || have == nil || have.Version != 1 {
@@ -665,5 +665,47 @@ func TestTicketsOfGoneMailAreClosed(t *testing.T) {
 	var version int
 	if err := s.(*sqliteStorage).db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != len(migrations) {
 		t.Fatalf("user_version = %d, %v; want %d", version, err, len(migrations))
+	}
+}
+
+// ブックごとのアノテーションの並びは、結び付く物の最後のあるページへ振り分ける。そのページに無い物の id は外し、どのページにも当たらない物は捨てる
+func TestAnnotationsMoveToTheirPages(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// ページごとの表を作る前の形まで進める
+	for i, m := range migrations[:21] {
+		if _, err := db.Exec(m); err != nil {
+			t.Fatalf("migration %d: %v", i, err)
+		}
+	}
+	book := `{"id":"b1","title":"t","lineup":[
+		{"kind":"page","id":"p1","items":[{"id":"a"},{"id":"b","shapes":[{"id":"b1"}]}]},
+		{"kind":"binder","id":"f1","lineup":[{"kind":"page","id":"p2","slide":[{"id":"c"}]}]}]}`
+	list := `[{"id":"n1","annotation":"k","anchors":["a","b1"],"props":{}},
+		{"id":"n2","annotation":"k","anchors":["a","c"],"props":{}},
+		{"id":"n3","annotation":"k","anchors":["gone"],"props":{}},
+		{"id":"n4","annotation":"k","anchors":["p1"],"props":{}}]`
+	if _, err := db.Exec(`INSERT INTO books (id, body, version, updated_at) VALUES ('b1', ?, 1, 't')`, book); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO annotations (book, body, updated_at) VALUES ('b1', ?, 't')`, list); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`PRAGMA user_version = 21`); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+	s := open(t, path)
+	all, err := s.Annotations()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(all) != 2 ||
+		string(all["p1"]) != `[{"anchors":["a","b1"],"annotation":"k","id":"n1","props":{}}]` ||
+		string(all["p2"]) != `[{"anchors":["c"],"annotation":"k","id":"n2","props":{}}]` {
+		t.Fatalf("annotations = %v", all)
 	}
 }

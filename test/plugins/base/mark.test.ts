@@ -13,7 +13,7 @@ import { pluginValueOf } from "../../../web/src/store/plugin-state"
 import { CORE_CATALOG, newStore } from "../../support"
 
 type Drawing = Book
-const ON = { book: "b1" }
+const ON = { page: "p1" }
 
 // 見本のブック b1 の最初のページに箱を 2 つ置いた store
 function ready() {
@@ -30,7 +30,7 @@ function ready() {
     string,
     string,
   ]
-  const marks = (): readonly Annotation[] => store.state.getState().annotations.b1 ?? []
+  const marks = (): readonly Annotation[] => store.state.getState().annotations.p1 ?? []
   // 種類は知らない名前も試すので、型を緩めて渡す
   const add = (anchors: string[], kind: string) =>
     (store.actions.perform as (id: string, args: unknown, on: typeof ON) => { ok: boolean; result?: unknown })(
@@ -78,7 +78,7 @@ test("AI はマークを付けられないが、読んだ印を付けて外せ�
   const id = marks()[0]!.id
   const s = store.state.getState()
   const book = s.books.b1!
-  expect(annotationsForAi(CORE_CATALOG, book, marks()).map(m => m.awaits)).toEqual([true])
+  expect(annotationsForAi(CORE_CATALOG, pagesOf(book)[0]!, marks()).map(m => m.awaits)).toEqual([true])
   let world = {
     books: s.books,
     settings: s.settings,
@@ -102,10 +102,12 @@ test("AI はマークを付けられないが、読んだ印を付けて外せ�
   }
   expect(ai("@matomezu/base:mark-add", { anchors: [a], kind: "inko" })).toEqual({ ok: false, reason: "not-allowed" })
   expect(ai("@matomezu/base:mark-read", { mark: id }).ok).toBe(true)
-  expect(annotationsForAi(CORE_CATALOG, book, world.annotations.b1 ?? []).map(m => m.awaits)).toEqual([false])
+  expect(annotationsForAi(CORE_CATALOG, pagesOf(book)[0]!, world.annotations.p1 ?? []).map(m => m.awaits)).toEqual([
+    false,
+  ])
   expect(ai("@matomezu/base:mark-read", { mark: id }).ok).toBe(false)
   expect(ai("@matomezu/base:mark-remove", { mark: id }).ok).toBe(true)
-  expect(world.annotations.b1).toEqual([])
+  expect(world.annotations.p1).toEqual([])
 })
 
 test("右クリックのコマンドは、base のステージのプラグイン状態に付ける先を置く（伝言は、右サイドパネルの付いた先。選択を合わせるのは右サイドパネルの入れ物）。選んでいる物の 1 つを押すと、選んでいる物の全部に付ける", () => {
