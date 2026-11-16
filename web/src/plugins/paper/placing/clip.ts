@@ -18,7 +18,15 @@ import {
   type Size,
   walkShapes,
 } from "../../../plugin-api"
-import { placeChild, placedSize, placeItem, renewable, renewedIds, shapeDefOf, shapeThemeFits } from "../../base"
+import {
+  placeChild,
+  placedSize,
+  placeItem,
+  renewedIds,
+  shapeDefOf,
+  shapeThemeFits,
+  survivesRenewedIds,
+} from "../../base"
 import { ancestorsOf, crowded, movedShapes, NO_FREE_SPOT } from "./crowd"
 import { freeAt, parsePlaced, stepToward, subtreeOf } from "./items"
 
@@ -36,7 +44,7 @@ export function clipOf(catalog: CoreCatalog, page: ItemPage, selection: readonly
   )
   if (roots.length === 0) return null
   if (
-    !renewable(
+    !survivesRenewedIds(
       catalog,
       roots.map(r => r.shape),
     )
@@ -60,7 +68,11 @@ function parsedTree(catalog: CoreCatalog, page: Pick<ItemPage, "type">, raw: unk
   const value = raw as { item: string; shapes?: unknown; [field: string]: unknown }
   if (!allowedItems(catalog, page).includes(value.item)) return null
   const shape = parsePlaced(catalog, value)
-  if (!shape || !shapeThemeFits(catalog, page.type, shape) || shapeDefOf(catalog, shape.item)?.renewsIds === false)
+  if (
+    !shape ||
+    !shapeThemeFits(catalog, page.type, shape) ||
+    shapeDefOf(catalog, shape.item)?.survivesRenewedIds === false
+  )
     return null
   const children = Array.isArray(value.shapes) ? value.shapes : []
   return children.every(child => parsedTree(catalog, page, child) !== null) ? shape : null

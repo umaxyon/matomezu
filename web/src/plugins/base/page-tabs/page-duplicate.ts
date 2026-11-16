@@ -1,6 +1,6 @@
 // ページを複製する: アクション page-duplicate（元のページのすぐ後ろ（同じブックかバインダの中）に、中身を写したページを足す）。
 // 中の物の id（ページの中のどの深さのオブジェクトの id）は、ブック全体で重ならないよう振り直し、つなぐものが指す相手（from・to）も新しい id に付け替える。
-// ロックは写さない。伝言・マークなど物に付けた物は写さない。使えるのは、タイプが宣言した（duplicatesPages）ページだけ（宣言の無いタイプは、中の id を指す別のフィールドを持ちうるので断る）。id を振り直すと壊れる形（定義の renewsIds が false）のあるページも断る。
+// ロックは写さない。伝言・マークなど物に付けた物は写さない。使えるのは、タイプが宣言した（duplicatesPages）ページだけ（宣言の無いタイプは、中の id を指す別のフィールドを持ちうるので断る）。id を振り直すと壊れる形（定義の survivesRenewedIds が false）のあるページも断る。
 // 写しの名前は、同じブックかバインダのほかのページと重ならない名前にする（渡した名前が重なれば断る。渡さなければ、元の名前に番号を付ける）
 import { z } from "zod"
 import { addPage, findPage, freeTitle, siblingsOf } from "../../../core/book"
@@ -8,22 +8,22 @@ import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import type { Declined } from "../../../core/def/action"
 import type { ItemPage } from "../../../core/placed"
 import { kit } from "../kit"
-import { renewable, renewedIds } from "../utils/ids"
+import { renewedIds, survivesRenewedIds } from "../utils/ids"
 
 // 複製を断る種類: id を振り直すと壊れる形がページにある（画面は、この種類で知らせる）
-export const HOLDS_UNRENEWABLE = kit.name("holds-unrenewable")
+export const UNRENEWABLE_SHAPE = kit.name("unrenewable-shape")
 
 // ページ page を複製できない理由（タイプが複製を宣言していなければ "type"、id を振り直すと壊れる形があれば "content"。複製できれば null）
 export function duplicateProblem(catalog: CoreCatalog, page: ItemPage): "type" | "content" | null {
   if (!pageType(catalog, page.type).duplicatesPages) return "type"
   const { id: _id, ...content } = page
-  return renewable(catalog, content) ? null : "content"
+  return survivesRenewedIds(catalog, content) ? null : "content"
 }
 
 // id を振り直すと壊れる形がページにあるときの断り
-export const HELD_UNRENEWABLE: Declined = {
+export const UNRENEWABLE_DECLINED: Declined = {
   declined: "a page holds an item that cannot be copied (such as a data item)",
-  kind: HOLDS_UNRENEWABLE,
+  kind: UNRENEWABLE_SHAPE,
 }
 
 const ARGS = z.strictObject({ page: z.string().min(1), title: z.string().trim().min(1).optional() })
@@ -41,7 +41,7 @@ export const PAGE_DUPLICATE = kit.defineAction({
     const at = findPage(book, args.page)
     if (!at) return null
     const problem = duplicateProblem(ctx.catalog, at.page)
-    if (problem === "content") return HELD_UNRENEWABLE
+    if (problem === "content") return UNRENEWABLE_DECLINED
     if (problem) return null
     const siblings = siblingsOf(book, args.page) ?? []
     const titles = siblings.map(e => e.title)

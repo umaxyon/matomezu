@@ -9,18 +9,18 @@ import type { ItemPage } from "../../../core/placed"
 declare module "../../../core/catalog" {
   interface ShapeItemExtras<D extends ShapeData = ShapeData> {
     // false なら、中の id を振り直した写し（renewedIds）で壊れる形（中の id を指す項目を持つなど）。コピーして貼るときも、ページを複製するときも写さない。書かなければ写せる
-    renewsIds?: false
+    survivesRenewedIds?: false
   }
 }
 
-// 値 value の中（どの深さも）に、id を振り直した写しで壊れる形（定義の renewsIds が false）が無いか
-export function renewable(catalog: CoreCatalog, value: unknown): boolean {
-  if (Array.isArray(value)) return value.every(v => renewable(catalog, v))
+// 値 value の中（どの深さも）に、id を振り直した写しで壊れる形（定義の survivesRenewedIds が false）が無いか
+export function survivesRenewedIds(catalog: CoreCatalog, value: unknown): boolean {
+  if (Array.isArray(value)) return value.every(v => survivesRenewedIds(catalog, v))
   if (typeof value !== "object" || value === null) return true
   const { item } = value as { item?: unknown }
   const def = typeof item === "string" ? catalog.items.get(item) : undefined
-  if (def?.kind === "shape" && def.renewsIds === false) return false
-  return Object.values(value).every(v => renewable(catalog, v))
+  if (def?.kind === "shape" && def.survivesRenewedIds === false) return false
+  return Object.values(value).every(v => survivesRenewedIds(catalog, v))
 }
 
 // ページ page の中で作る物の id を、続けて何個でも振る関数（そのページの中身のどの深さの id とも、振った id どうしも重ならない。ページの id は含めない）

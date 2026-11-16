@@ -17,7 +17,7 @@ import { ORIENTATIONS } from "../../../core/def/paper"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
 import { renewedIds } from "../utils/ids"
-import { duplicateProblem, HELD_UNRENEWABLE } from "./page-duplicate"
+import { duplicateProblem, UNRENEWABLE_DECLINED } from "./page-duplicate"
 import { pageProblems } from "./page-problems"
 import { canPaperBinder } from "./pages"
 
@@ -110,7 +110,7 @@ export const BINDER_DUPLICATE = kit.defineAction({
     const pages: string[] = []
     for (const page of pagesIn(book, source.id)) {
       const problem = duplicateProblem(ctx.catalog, page)
-      if (problem === "content") return HELD_UNRENEWABLE
+      if (problem === "content") return UNRENEWABLE_DECLINED
       if (problem) return null
       const { id: _id, locked: _locked, ...content } = page
       const added = addPage(next, renewedIds(page, content, ctx.newId), { binder: made.binder }, ctx.newId)

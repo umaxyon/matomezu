@@ -12,7 +12,7 @@ import { PAGE_LOCK, PAGE_UNLOCK } from "../lock"
 import { refusalMessage } from "../utils/refusal"
 import { BINDER_DUPLICATE, BINDER_REMOVE, BINDER_UPDATE } from "./binders"
 import { PAGE_ADD } from "./page-add"
-import { HOLDS_UNRENEWABLE, PAGE_DUPLICATE } from "./page-duplicate"
+import { PAGE_DUPLICATE, UNRENEWABLE_SHAPE } from "./page-duplicate"
 import { PAGE_REMOVE } from "./page-remove"
 import { PAGE_UPDATE } from "./page-update"
 
@@ -20,7 +20,7 @@ export { PAGE_ADD } from "./page-add"
 
 declare module "../../../core/catalog" {
   interface PageTypeExtras {
-    // ページを複製できるか（複製したページの中の id を振り直すだけで済むタイプだけが宣言する。無ければ複製できない）
+    // ページを複製できるか（無ければ複製できない）。宣言できるのは、ページの中の物の id を指すフィールドが、つなぐものの端と、survivesRenewedIds: false の形の中だけのタイプ（その形のあるページは、複製を断る）
     duplicatesPages?: boolean
   }
 }
@@ -162,7 +162,7 @@ function duplicateRefusal(
   catalog: CoreCatalog,
   done: { reason: string; permission?: string; kind?: string },
 ): MessageKey {
-  if (done.kind === HOLDS_UNRENEWABLE) return kit.message("Has an item that cannot be copied")
+  if (done.kind === UNRENEWABLE_SHAPE) return kit.message("Has a shape that cannot be copied")
   return refusalMessage(catalog, done, kit.message("Cannot be duplicated"))
 }
 

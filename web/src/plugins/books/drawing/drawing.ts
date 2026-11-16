@@ -45,7 +45,7 @@ export const DRAWING = kit.definePageType({
   id: "drawing",
   version: 1,
   title: "Drawing",
-  duplicatesPages: true, // 中の id を指す項目は、id を振り直す写しが付け替える物（線の両端）だけなので、ページを複製できる
+  duplicatesPages: true, // 中の id を指す項目は、線の両端（写しが付け替える）と、survivesRenewedIds: false の形（その形のあるページは複製を断る）だけ
   grouping: "none",
   grow: { choices: ["right-down", "right", "down", "all"] }, // 可変ページの増やす向き（base の拡張ポイント）
   paper: {

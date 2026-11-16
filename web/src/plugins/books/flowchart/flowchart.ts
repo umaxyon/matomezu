@@ -77,7 +77,7 @@ export const FLOWCHART = kit.definePageType({
   id: "flowchart",
   version: 1,
   title: "Flowchart",
-  duplicatesPages: true, // 中の id を指す項目は、id を振り直す写しが付け替える物（線の両端）だけなので、ページを複製できる
+  duplicatesPages: true, // 中の id を指す項目は、線の両端（写しが付け替える）と、survivesRenewedIds: false の形（その形のあるページは複製を断る）だけ
   grouping: "none",
   // 可変ページは、流れの始まりの側を固定して残りの 3 つの向きへ増やす（下へなら上を、右へなら左を固定。base の拡張ポイント）
   grow: {

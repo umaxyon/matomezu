@@ -214,7 +214,7 @@ test("図のページも複製できる: 中の物の id を振り直し、線�
   expect(run(data.next, "@matomezu/base:page-duplicate", { page: "p1" })).toMatchObject({
     ok: false,
     reason: "refused",
-    kind: "@matomezu/base:holds-unrenewable",
+    kind: "@matomezu/base:unrenewable-shape",
   })
 })
 
