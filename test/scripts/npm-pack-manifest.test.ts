@@ -45,6 +45,10 @@ test("入口は、親をたどるときに飛ばす入口として、自分の�
   expect(binEntry).toContain("MATOMEZU_ENTRY_PID: String(process.pid)")
 })
 
+test("入口は、本体のパッケージのフォルダ（プラグインの置き場所）を実行ファイルに環境変数で伝える", () => {
+  expect(binEntry).toContain('MATOMEZU_PACKAGE_DIR: require("node:path").join(__dirname, "..")')
+})
+
 test("opencode のプラグインは、本体と同じ版の別のパッケージで、サーバーと TUI の入口と、それらが読むファイルを持つ", () => {
   const pkg = opencodePackageJson("1.2.3")
   expect(pkg).toMatchObject({ name: "matomezu-opencode", version: "1.2.3", main: "index.ts", type: "module" })

@@ -3,40 +3,13 @@
 #   scripts/claude-relay.sh [claude に渡す引数...]
 #   セッションの名前は、matomezu に join したときのワークルーム名が記録から付く（join 前は session_id の頭 8 字）。
 #   join 前の名前を付けたいときだけ、RELAY_NAME=<名前> を付ける
-#   scripts/claude-relay.sh --stop        中央の中継を止める
+#   scripts/claude-relay.sh --stop        中央の中継を止める（scripts/codex-relay.sh --stop と同じ中継）
 #   環境変数: RELAY_NAME（任意）RELAY_PORT（既定 18951）VIEW_PORT（既定 18952）RELAY_DB（既定 ~/.local/state/matomezu-relay/central.db）
 # 中継を立てられなければ、警告を出して中継なしで claude を起動する（中継の障害で作業が止まらないように）
 set -uo pipefail
 cd "$(dirname "$0")/.."
+. scripts/relay-log/relay.sh
 
-RELAY_PORT=${RELAY_PORT:-18951}
-VIEW_PORT=${VIEW_PORT:-18952}
-DB=${RELAY_DB:-${XDG_STATE_HOME:-$HOME/.local/state}/matomezu-relay/central.db}
-STATE=$(dirname "$DB")
-PIDFILE=$STATE/server.pid
-LOG=$STATE/server.log
-health() { curl -fsS -m 1 "http://127.0.0.1:$RELAY_PORT/__relay/health" >/dev/null 2>&1; }
-
-if [ "${1:-}" = "--stop" ]; then
-  if [ -f "$PIDFILE" ] && kill "$(cat "$PIDFILE")" 2>/dev/null; then echo "中継を止めた"; else echo "動いている中継の記録が無い" >&2; fi
-  rm -f "$PIDFILE"
-  exit 0
-fi
-BASE="http://127.0.0.1:$RELAY_PORT"
-if [ -n "${RELAY_NAME:-}" ]; then
-  if ! [[ "$RELAY_NAME" =~ ^[A-Za-z0-9_.-]{1,40}$ ]]; then echo "RELAY_NAME は英数字と _ . - の 40 字まで" >&2; exit 2; fi
-  BASE="$BASE/s/$RELAY_NAME"
-fi
-
-if ! health; then
-  mkdir -p "$STATE"
-  setsid nohup bun scripts/relay-log.ts serve --db "$DB" --port "$RELAY_PORT" --view-port "$VIEW_PORT" --pid-file "$PIDFILE" >>"$LOG" 2>&1 &
-  for _ in 1 2 3 4 5 6 7 8 9 10; do health && break; sleep 0.5; done
-fi
-
-if health; then
-  echo "中継: ビューワー http://127.0.0.1:$VIEW_PORT" >&2
-  ANTHROPIC_BASE_URL="$BASE" exec claude "$@"
-fi
-echo "警告: 中継を立てられなかった（$LOG を見る）。中継なしで claude を起動する" >&2
+relay_prepare claude "$@"
+if [ "$RELAY_OK" = 1 ]; then ANTHROPIC_BASE_URL="$RELAY_BASE$(relay_name_path)" exec claude "$@"; fi
 exec claude "$@"

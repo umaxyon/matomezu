@@ -1,7 +1,10 @@
-// Package launch は、Claude Code のプラグインが matomezu を起動するときの、Claude Code の事情（matomezu claude-code の中身のうち、Claude Code に依る所）。
+// Package launch は、Claude Code のプラグインの外し方と、プラグインが matomezu を起動するときの、Claude Code の事情（matomezu claude-code の中身のうち、Claude Code に依る所）。
 package launch
 
 import "time"
+
+// PackageFolder は、npm の matomezu のパッケージの中の、このプラグインのフォルダ（scripts/npm-pack.ts が置く）
+const PackageFolder = "plugin"
 
 // SessionEnv は、Claude Code が立てたプロセス（MCP・フック・monitor）に渡す、立てたときのセッション id の環境変数（MCP と monitor では /clear でも変わらない）
 const SessionEnv = "CLAUDE_CODE_SESSION_ID"
@@ -28,3 +31,12 @@ func SessionEndsWith(name string) string {
 
 // HooksSendHost は、フックが AI のプログラムのプロセス id を添えるか。Claude Code の本体は会話ごとなので、/clear で変わったセッション id を同じ参加者に結び直すのに使える
 const HooksSendHost = true
+
+// Remove は、Claude Code から matomezu のプラグインと、その置き場所の登録を外すコマンド（順に打つ。置き場所のフォルダが消えたあとでも通る）
+var Remove = [][]string{
+	{"claude", "plugin", "uninstall", "matomezu@matomezu"},
+	{"claude", "plugin", "marketplace", "remove", "matomezu"},
+}
+
+// HookSetsTitle は、話しかけのフックの答えに会話の題名（sessionTitle）を書くか。Claude Code はそれでセッション名を替える
+const HookSetsTitle = true

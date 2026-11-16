@@ -2,7 +2,7 @@
 // 引き継げるワークルーム（空室か、いる参加者が生きていないワークルーム）に入る（一覧から選ぶ。名前・鳥・配色はワークルームのまま）かを選ぶ（引き継げるワークルームがなければ、新しく始めるだけ）。
 // 名前の初めは AI が頼んだ名前か元のセッション名。鳥は 5 羽から 1 つ（同じ鳥を何人に当ててもよい）、配色は 20 個から 1 つ（選ばなければ、鳥の元の配色）。配色を選ぶと、5 羽ともその配色に塗り替わる。
 // 同じ名前のワークルームに、生きている参加者がいる間は決められない。名前が引き継げるワークルームと同じなら、最後に引き継ぐか、前のワークルームを消して新しく始めるかを確かめる。
-// ワークルームを作る・いる参加者を外す・入れるは、アクション 1 件ずつ続けて行う（join-flow.ts）。キャンセルは閉じるだけで、参加要求は保留のまま
+// ワークルームを作る・いる参加者を外す・前のワークルームを消す・入れるは、1 つのアクション（participant-accept）で行う。キャンセルは閉じるだけで、参加要求は保留のまま
 import { useId, useState } from "react"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
@@ -13,11 +13,10 @@ import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton, controlClass, Field, Form, Problem } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { refusalMessage } from "../utils/refusal"
-import { PARTICIPANT_ACCEPT, WORKROOM_ADD, WORKROOM_NAME_MAX, type Workroom } from "."
+import { PARTICIPANT_ACCEPT, WORKROOM_NAME_MAX, type Workroom } from "."
 import { BirdFaceView } from "./BirdFaceView"
 import { asBird, originalPalette, PALETTE_TITLES } from "./birds"
 import { useIsAlive, useNowMs, useParticipantCalls, useParticipantLive, useParticipants, useWorkrooms } from "./hooks"
-import { acceptInNewRoom, acceptInRoom, discardAndStart } from "./join-flow"
 import { shownModel } from "./live"
 import styles from "./Participant.module.css"
 import { nameInUse, occupantOf, takeable } from "./workroom"
@@ -72,7 +71,11 @@ function JoinForm({ participant, onClose }: { participant: string; onClose: () =
   const paletteName = shownTitle ? t(shownTitle) : ""
   const chosen = quiet.find(r => r.id === pick)
   const room = { name: trimmed, bird, ...(palette ? { palette } : {}) }
-  const allowedNew = useAllowedOn(WORKROOM_ADD.id, { name: trimmed || "-", bird }).ok
+  const allowedNew = useAllowedOn(
+    PARTICIPANT_ACCEPT.id,
+    { newWorkroom: { name: trimmed || "-", bird } },
+    { record: participant },
+  ).ok
   const allowedAccept = useAllowedOn(PARTICIPANT_ACCEPT.id, { workroom: "-" }, { record: participant }).ok
   const refused = (done: Parameters<typeof refusalMessage>[1]) =>
     showToast({ kind: "warn", message: refusalMessage(catalog, done, kit.message("Could not answer the request")) })
@@ -80,23 +83,23 @@ function JoinForm({ participant, onClose }: { participant: string; onClose: () =
     if (done.ok) onClose()
     else refused(done)
   }
-  const doing = perform as unknown as Parameters<typeof acceptInNewRoom>[0]
-  const takeOver = (target: Workroom) =>
-    finish(
-      acceptInRoom(doing, participant, target.id, occupantOf(participants, target)?.id) as ReturnType<typeof perform>,
-    )
-  const discardAndStartNew = (target: Workroom) =>
-    finish(
-      discardAndStart(doing, participant, target.id, room, occupantOf(participants, target)?.id) as ReturnType<
-        typeof perform
-      >,
-    )
+  // 受け入れは 1 つのアクションで行う（いる参加者を外す・捨てるワークルームを消す・作るまで全部通るか、全部断られる）
+  const accept = (args: Parameters<typeof PARTICIPANT_ACCEPT.run>[1]) =>
+    finish(perform(PARTICIPANT_ACCEPT.id, args, { record: participant }))
+  const takeOver = (target: Workroom) => {
+    const occupant = occupantOf(participants, target)?.id
+    accept({ workroom: target.id, ...(occupant ? { occupant } : {}) })
+  }
+  const discardAndStartNew = (target: Workroom) => {
+    const occupant = occupantOf(participants, target)?.id
+    accept({ newWorkroom: room, discarding: { workroom: target.id, ...(occupant ? { occupant } : {}) } })
+  }
   // OK: 名前が引き継げるワークルームと同じ、または一覧から選んだなら、最後に確かめる
   const submit = () => {
     if (mode === "takeover") {
       if (chosen) setConfirming({ target: chosen, discardable: false })
     } else if (sameQuiet) setConfirming({ target: sameQuiet, discardable: true })
-    else finish(acceptInNewRoom(doing, participant, room) as ReturnType<typeof perform>)
+    else accept({ newWorkroom: room })
   }
   const ready = mode === "takeover" ? chosen !== undefined && allowedAccept : trimmed !== "" && !inUse && allowedNew
   if (confirming) {

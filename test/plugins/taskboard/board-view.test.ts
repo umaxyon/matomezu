@@ -1,5 +1,6 @@
-// タスクボードの見せ方の決め事（taskboard/board の shown.ts・sort.ts・maximize.ts）・今のチケット（current-ticket/task.ts）・チケットの番号と担当（ticket/label.ts・assignees.ts）と、利用者の設定 2 つ（board/user-settings.ts）
+// タスクボードの見せ方の決め事（taskboard/board の shown.ts・sort.ts・maximize.ts）・今のチケット（current-ticket/task.ts と、作業の様子の currentPairOf・workroomActivity）・チケットの番号と担当（ticket/label.ts・assignees.ts）と、利用者の設定 2 つ（board/user-settings.ts）
 import { expect, test } from "bun:test"
+import { workroomActivityOf } from "../../../web/src/plugins/base/participant/activity"
 import { autoInputOf } from "../../../web/src/plugins/base/settings/user-settings"
 import { laneKeyOf, movedLanes } from "../../../web/src/plugins/taskboard/board/lane-order"
 import { maximizedAmong, released, toggleBoard, toggleLane } from "../../../web/src/plugins/taskboard/board/maximize"
@@ -14,7 +15,10 @@ import {
 } from "../../../web/src/plugins/taskboard/board/shown"
 import { DEFAULT_SORT, type SortRules, sortTickets } from "../../../web/src/plugins/taskboard/board/sort"
 import { PROJECT_ORDER, SHOWN_PROJECTS } from "../../../web/src/plugins/taskboard/board/user-settings"
+import { CURRENT, currentPairOf } from "../../../web/src/plugins/taskboard/current-ticket"
 import { type CurrentRecord, currentTaskOf } from "../../../web/src/plugins/taskboard/current-ticket/task"
+import { PROJECT } from "../../../web/src/plugins/taskboard/project"
+import { TICKET } from "../../../web/src/plugins/taskboard/ticket"
 import { assigneesOf } from "../../../web/src/plugins/taskboard/ticket/assignees"
 import { ticketLabel } from "../../../web/src/plugins/taskboard/ticket/label"
 import { tagsOf } from "../../../web/src/plugins/taskboard/ticket/tags"
@@ -211,4 +215,23 @@ test("レーンのチケットカードの大きさは、レーンの cardSize�
   expect(cardSizeOf(p, "done")).toBe("small")
   expect(cardSizeOf(p, "unsorted")).toBe("large")
   expect(cardSizeOf(p, "gone")).toBe("large")
+})
+
+test("ワークルームの作業の様子は、今のチケットとそのプロジェクトがあれば作業中、宣言が無い・none・チケットが無ければ空き。行の下の 1 行と同じ判定", () => {
+  const records = (current?: { ticket: string }, withTicket = true): Record<string, Record<string, unknown>> => ({
+    [CURRENT.id]: current ? { w: { id: "w", ...current, at: "2026-11-01T00:00:00.000Z" } } : {},
+    [TICKET.id]: withTicket ? { t1: ticket("t1") } : {},
+    [PROJECT.id]: { p1: project("p1") },
+  })
+  const activity = (r: ReturnType<typeof records>) => workroomActivityOf(CORE_CATALOG, r, "w")
+  expect(activity(records({ ticket: "t1" }))).toBe("working")
+  expect(activity(records())).toBe("idle")
+  expect(activity(records({ ticket: "none" }))).toBe("idle")
+  expect(activity(records({ ticket: "t1" }, false))).toBe("idle")
+  const read = (subject: string, id: string) => records({ ticket: "t1" })[subject]?.[id] ?? "none"
+  expect(currentPairOf("w", read)).toMatchObject({ ticket: { id: "t1" }, project: { id: "p1" } })
+})
+
+test("作業の様子を答える種類が無ければ unknown", () => {
+  expect(workroomActivityOf({ ...CORE_CATALOG, subjects: new Map() }, {}, "w")).toBe("unknown")
 })

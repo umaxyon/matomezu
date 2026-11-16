@@ -11,31 +11,87 @@ npm で入れます。node と npm が要ります。
 1. `npm i -g matomezu` を打つ
 2. `matomezu version` を打って、版が出れば入っています
 
-- 更新するときも、`npm i -g matomezu` を打ちます
-- 更新する前に、`matomezu stop` で止めておきます（下の注）
 - Claude Code と Codex のプラグインも一緒に入ります。AI に組み込むのは、別に 1 度だけ行います（16 章「Claude Code のプラグイン」「Codex のプラグイン」）
-
-注: Windows では、動いている matomezu を上書きできません。止めずに入れ直すと失敗します。
+- opencode のプラグインは、別に入れます（16 章「opencode のプラグイン」）
 
 使える OS: Linux・macOS・Windows（64 ビット。Linux と macOS は Arm も）。
 
 プラグインの置き場所:
 
-npm で入れた matomezu のフォルダの下にあります。
+npm で入れた matomezu のフォルダの下にあります。場所は `matomezu plugin-path` で出せます。
 
-| プラグイン | 置き場所 |
+| プラグイン | 場所を出すコマンド |
 |---|---|
-| Claude Code のプラグイン | （matomezu のフォルダ）/plugin |
-| Codex のプラグイン | （matomezu のフォルダ）/codex-plugin |
+| Claude Code のプラグイン | `matomezu plugin-path claude-code` |
+| Codex のプラグイン | `matomezu plugin-path codex` |
 
-matomezu のフォルダは、ふつうは `npm root -g` が出すフォルダの下の matomezu です。
+- フォルダが 1 行で出ます。プラグインを入れるときは、これを渡します（16 章「Claude Code のプラグイン」「Codex のプラグイン」）
+- node の入れ方（volta など）で場所が変わっても、正しいフォルダが出ます
 
-注: volta で node を入れているときは、`npm root -g` が出すフォルダに matomezu はありません。matomezu のフォルダは `%LOCALAPPDATA%\Volta\tools\image\packages\matomezu\node_modules\matomezu` です（Windows のとき）。
+注: プラグインのフォルダが見つからないときは、`the plugin folder was not found (it comes with matomezu installed by npm: npm i -g matomezu)` と出ます。`npm i -g matomezu` で入れ直します。
 注: volta の npm でレジストリを指すときは、`--registry=URL` と `=` でつなぎます。`--registry URL` と空白で区切ると、読み違えます。
 
 注: 合わない OS で動かすと、`matomezu: ... is not installed (this OS or CPU is not supported, or optional dependencies were skipped)` と出て、動きません。npm の設定で「optional dependencies」を入れないようにしているときも同じです。
 
 【未確定】公開の npm に出しているか（今は内部のレジストリで試している段階）。
+
+### 更新する
+
+1. `matomezu stop` で止める
+2. `npm i -g matomezu` を打つ
+3. AI に入れたプラグインを、新しい版にする（下の表）
+
+| AI | プラグインを新しくする |
+|---|---|
+| Claude Code | 【未確認】`claude plugin marketplace update matomezu` を打ち、`claude plugin update matomezu@matomezu` を打つ |
+| Codex | `codex plugin remove matomezu@matomezu` を打ち、`codex plugin add matomezu@matomezu` を打つ。そのあと Codex を起動し直す |
+| opencode | matomezu-opencode を、本体と同じ版にそろえる |
+
+注: Codex では、`codex plugin marketplace upgrade` は効きません（`No configured Git marketplaces to upgrade.` と出ます）。Codex はプラグインを自分の所に写して使うので、外して入れ直すと新しい版が写ります。
+注: Windows では、動いている matomezu を上書きできません。2 が `Could not remove directory`（volta なら `Volta error: Could not remove directory`）で失敗します。そのときは、AI（Claude Code・Codex・opencode）を終え、PowerShell で `Get-Process matomezu | Stop-Process` を打って、残っている matomezu を止めます。そのあと、もう一度 2 を打ちます。
+
+### 外す
+
+matomezu を外すときは、npm で消す前に、AI からプラグインを外します。
+
+1. `matomezu plugin-remove` を打つ
+2. Claude Code・Codex・opencode を終える
+3. `npm uninstall -g matomezu` を打つ
+
+1 で行う事:
+
+- matomezu を止める
+- Claude Code・Codex・opencode から、matomezu のプラグインと、その置き場所の登録を外す（下の表のコマンドを順に打ちます）
+- 入っていない AI は、`skipped` と出して飛ばす
+- 最後に、ブック（図のデータ）を置いたフォルダの場所と、2・3 の手順を出す
+
+| AI | 外すコマンド |
+|---|---|
+| Claude Code | `claude plugin uninstall matomezu@matomezu` と `claude plugin marketplace remove matomezu` |
+| Codex | `codex plugin remove matomezu@matomezu` と `codex plugin marketplace remove matomezu` |
+| opencode | `opencode plugin remove matomezu-opencode` |
+
+- ブックは消えません。要らなければ、1 で出たフォルダを自分で消します
+- 一部の AI からだけ外すときは、AI の名前を添えます（例: `matomezu plugin-remove codex`）。名前は `claude-code`・`codex`・`opencode` です
+
+注: Windows では、AI を終えずに 3 を打つと、AI が使っている matomezu を消せず、`Could not remove directory` で失敗します。
+注: npm で消すだけでは、AI のプラグインは残ります。npm は、消すときに matomezu の後片付けをしないからです。
+注: 外すコマンドが失敗した AI には、`failed` と出ます。残りの AI は続けて外し、最後に失敗したコマンドを並べて出します。並んだコマンドは、手で打ち直します。
+注: 知らない名前を添えると、`unknown AI program ... (claude-code, codex or opencode)` と出て、何も外しません。
+
+#### 先に npm で消してしまったとき
+
+上の表のコマンドを、AI ごとに手で打ちます。
+
+- `claude plugin uninstall matomezu@matomezu` は、プラグインの置き場所が消えたあとでも通ります
+
+プラグインが残っていると、次のようになります。
+
+| AI | 起きる事 |
+|---|---|
+| Claude Code | プラグインが読み込まれない。会話には何も出ない（16 章「matomezu が見つからないとき（Claude Code）」） |
+| Codex | 話しかけるたびに、matomezu が見つからないという文が出る（16 章「matomezu が見つからないとき（Codex）」） |
+| opencode | プラグインは何もしない（16 章「opencode のプラグイン」の「matomezu が見つからないとき」） |
 
 ### 起動する
 
@@ -2772,10 +2828,13 @@ Claude Code には、matomezu のプラグインを入れます。入れるだ�
 入れ方（利用者ごとに 1 度）:
 
 1. `npm i -g matomezu` で matomezu を入れておく
-2. `claude plugin marketplace add （matomezu のフォルダ）/plugin` を打つ（1 章「入れる」の「プラグインの置き場所」）。ふつうは `claude plugin marketplace add $(npm root -g)/matomezu/plugin` です
+2. 次を打つ（1 章「入れる」の「プラグインの置き場所」）
+   - PowerShell: `claude plugin marketplace add (matomezu plugin-path claude-code)`
+   - Linux・macOS などのシェル: `claude plugin marketplace add "$(matomezu plugin-path claude-code)"`
 3. `claude plugin install matomezu@matomezu` を打つ
 
-- matomezu を npm で更新すると、プラグインも同じ版に新しくなります
+- matomezu を npm で更新したときは、プラグインも新しくします（1 章「更新する」）
+- 外すときは、npm で消す前に `matomezu plugin-remove` を打ちます（1 章「外す」）
 - 入れたあとは、Claude Code から AI に「matomezu に参加して」と頼めば、参加の流れに進めます（下の「AI の参加」）
 
 注: 前に Claude Code へ手で登録した matomezu の MCP は外します。
@@ -2794,21 +2853,29 @@ Claude Code には、matomezu のプラグインを入れます。入れるだ�
 | show（ブックを画面に出す） | 聞く |
 | join（参加を頼む） | 聞く |
 
-matomezu が見つからないとき（`matomezu` のコマンドが使えないとき）:
+#### matomezu が見つからないとき（Claude Code）
 
-- 話しかけたときの知らせ・モデルの知らせ・画面の操作を待つ事は、動きません
-- 話しかけるたびなどに、Claude Code に「Hook failed」などの警告が出ます。話しかけた文は、そのまま AI に届きます
-- MCP はつながりません
+起きる事は、見つからない訳で違います。
 
-例えば、次のときに起きます。
+| 訳 | 起きる事 |
+|---|---|
+| npm で matomezu を消した | プラグインが読み込まれない。会話には何も出ない |
+| node の版を切り替えて、matomezu の入っていない node になった | 【未確認】話しかけるたびなどに、フックの失敗の知らせが出る |
 
-- npm の matomezu を消したが、プラグインが残っている
-- node の版を切り替えて、matomezu の入っていない node になった
+どちらも、MCP はつながらず、話しかけたときの知らせ・モデルの知らせ・画面の操作を待つ事は動きません。話しかけた文は、そのまま AI に届きます。
+
+npm で消したときに気づけるのは、次の所だけです。
+
+- `claude plugin list` に、`failed to load` と `Marketplace matomezu failed to load: cache-miss` が出る
+- `/plugin` の Errors のタブに出る。黄色の警告が出る
+- 起動したときの `1 more notice hidden` を開くと出る
+
+注: フックの失敗の知らせは、例えば `UserPromptSubmit hook error` に、シェルの `matomezu: command not found` などの 1 行が添えられた形です。
 
 直し方は、次のどちらかです。
 
 - `npm i -g matomezu` で入れ直す
-- プラグインを外す（`claude plugin uninstall matomezu@matomezu`）
+- プラグインを外す（1 章「外す」の「先に npm で消してしまったとき」）
 
 注: matomezu が起動していないだけなら、話しかけたときの知らせとモデルの知らせは何もしません。画面の操作を待つ事は、起動したらつながります。
 
@@ -2830,10 +2897,13 @@ Codex にも、matomezu のプラグインを入れます。入れるだけで�
 入れ方（利用者ごとに 1 度）:
 
 1. `npm i -g matomezu` で matomezu を入れておく（1 章「入れる」）
-2. `codex plugin marketplace add （matomezu のフォルダ）/codex-plugin` を打つ（1 章「入れる」の「プラグインの置き場所」）
-3. Codex の中で、matomezu のプラグインを入れる
+2. 次を打つ（1 章「入れる」の「プラグインの置き場所」）
+   - PowerShell: `codex plugin marketplace add (matomezu plugin-path codex)`
+   - Linux・macOS などのシェル: `codex plugin marketplace add "$(matomezu plugin-path codex)"`
+3. `codex plugin add matomezu@matomezu` を打つ（Codex の中なら `/plugins` から matomezu を選んで入れる）。入れたら Codex を起動し直す
 
-- matomezu を npm で更新すると、プラグインも同じ版に新しくなります
+- matomezu を npm で更新したときは、プラグインを入れ直します（1 章「更新する」）
+- 外すときは、npm で消す前に `matomezu plugin-remove` を打ちます（1 章「外す」）
 - Windows（WSL でない）でも、そのまま使えます
 
 注: matomezu のリポジトリから試すときは、2 の代わりに `codex plugin marketplace add （matomezu のリポジトリ）/clients/codex` を打ちます。AI がつなぐのは、そのリポジトリで動かしている開発用の matomezu です。
@@ -2846,16 +2916,23 @@ Codex にも、matomezu のプラグインを入れます。入れるだけで�
 注: 例えば Orca の端末で `codex` と打つと、Orca が `--no-daemon` を足します。
 注: Windows で、管理者として起動した Codex は、メッセージで動き出しません。メッセージは、次に AI が matomezu を使った時に届きます。
 
-matomezu が見つからないとき（`matomezu` のコマンドが使えないとき）:
+#### matomezu が見つからないとき（Codex）
 
+npm で matomezu を消したときや、matomezu の入っていない node に切り替えたときです。
+
+- 話しかけるたびに、Codex に次の文が出ます。話しかけた文は、そのまま AI に届きます
 - 話しかけたときの知らせとモデルの知らせは、動きません
-- 話しかけるたびなどに、Codex に警告が出ます。話しかけた文は、そのまま AI に届きます
-- MCP はつながりません
+- MCP はつながりません。つながらないという知らせは出ません
 
-直し方は、次のどちらかです（起きるときは、上の「Claude Code のプラグイン」と同じです）。
+> matomezu was not found. Install it again (npm i -g matomezu) or remove this plugin (codex plugin remove matomezu@matomezu).
+
+注: 新しい会話の最初の発言では、2 回出ます（会話を始めたときの分と、話しかけた分）。
+注: npm で消しても出るのは、Codex がプラグインを自分の所に写して使っているからです。
+
+直し方は、次のどちらかです。
 
 - `npm i -g matomezu` で入れ直す
-- プラグインを外す（`codex plugin remove matomezu@matomezu`）
+- プラグインを外す（1 章「外す」の「先に npm で消してしまったとき」）
 
 ### opencode のプラグイン
 
@@ -2882,7 +2959,8 @@ opencode（v2）にも、matomezu のプラグインを入れます。Ollama な
 2. `opencode plugin add matomezu-opencode` を打つ
 
 - matomezu-opencode は、matomezu の本体とは別の npm のパッケージです。版は本体と同じです
-- 本体を更新したら、matomezu-opencode も同じ版にそろえます
+- 本体を更新したら、matomezu-opencode も同じ版にそろえます（1 章「更新する」）
+- 外すときは、npm で本体を消す前に `matomezu plugin-remove` を打ちます（1 章「外す」）
 
 注: matomezu の MCP は、そのフォルダで最初に AI に話しかけたターンから使えます。
 
@@ -3017,16 +3095,20 @@ AI は、利用者の「ワークルーム」に参加者として入れます�
 行の並び（上から）:
 
 1. 管理者のワークルーム
-2. 参加者のいるワークルーム。動きの新しい順
-3. 空室と準備中のワークルーム。作った順
+2. 作業中のワークルーム。名前の下にチケットの番号と名前が出ている行
+3. 空きのワークルーム。名前の下に（空き）か（準備中）が出ている行
+4. 空室
 
+- 組の中は、動きの新しい順です。動きの無い行は、その組の最後に、作った順で並びます
 - 動きの時刻は、AI が最後に matomezu を使った時刻と、参加した時刻の、新しいほうです
-- AI が matomezu を使うと、その行が上へ動きます
+- AI が matomezu を使うと、その行が組の中で上へ動きます
+- AI が今のチケットを決めたり外したりすると、その行が作業中と空きの組の間を動きます（18 章「今のチケット」）
 - 並びが変わると、行が滑って動きます
 - 一覧の上にポインタがある間は、並びが止まります。ポインタが一覧を出ると、並び直します
 
 注: パソコンの設定で動きを減らしていると、行は滑らずに入れ替わります。
 注: キーボードで行を選んでいる間は、並びは止まりません。
+注: 空室は、前の参加者の今のチケットが残っていても、空室の組に並びます。AI が引き継いで入り直すと、そのチケットで作業中の組に戻ります（下の「ワークルームを引き継ぐ」）。
 
 行を押すと、そのワークルームが選ばれ、プロジェクトの画面の下のワークルームの枠に出ます（下の「ワークルームの枠」）。
 
@@ -3994,6 +4076,8 @@ AI は、自分のワークルームが今取り組んでいるチケットを�
 - ワークルームの一覧の行の、名前の下の 1 行（16 章「ワークルームの一覧」）
 - ワークルームの枠の、現在のタスクの列（16 章「ワークルームの枠」）
 
+今のチケットがあるワークルームは、ワークルームの一覧で、作業中の組に並びます（16 章「ワークルームの一覧」）。
+
 ボードのどこにあるかは、現在のタスクの列の「ボードで見る」で、鳥が教えます（16 章「ボードで見る」）。
 
 ### チケットを完了にする
@@ -4024,7 +4108,7 @@ AI は、自分のワークルームが今取り組んでいるチケットを�
 ### AI に頼めること
 
 - プロジェクトの一覧を読む（下の「一覧に載らない物」）
-- チケットの一覧を、番号の順で読む。プロジェクトで絞れます（下の「一覧に載らない物」）
+- チケットの一覧を、番号の順で読む。絞れる物は下の「AI が一覧を絞れる物」（載らない物は下の「一覧に載らない物」）
 - プロジェクトやチケットを 1 つ、全部読む。いくつかを一度に全部読むこともできます（20 件まで）。プロジェクトを読むと、チケットサイズも分かります
 - プロジェクトを足す。名前とチケットプレフィクスを伝えます。2 つ目からは、ほかと違うチケットプレフィクスを伝えます。レーンとタグは、標準のプロジェクトと同じ物で始まります
 - プロジェクトを閉じる・開け直す。人が頼んだときに行います
@@ -4033,7 +4117,7 @@ AI は、自分のワークルームが今取り組んでいるチケットを�
 - チケットをロックする
 - チケット履歴に、題を選んで 1 行書く。本文更新の題は、書いた事なしで書けます
 - チケットを完了にする（上の「チケットを完了にする」）
-- チケット履歴を読む。チケットで絞れます
+- チケット履歴を読む。チケットと題で絞れます（下の「AI が一覧を絞れる物」）
 - 自分のワークルームの今のチケットを知らせる・無しにする
 - ワークルームごとの今のチケットを読む
 - 言葉でチケットとチケット履歴を探す（19 章「AI に探してもらう」）
@@ -4076,6 +4160,21 @@ AI は、自分のワークルームが今取り組んでいるチケットを�
 
 注: チケットを、ほかのプロジェクトへ移すことはできません。
 注: 一覧は一度に 100 件までです。多いときは、AI が絞って読みます。
+
+#### AI が一覧を絞れる物
+
+AI がチケットとチケット履歴の一覧を読むとき、絞れるのは次の物だけです。
+
+| 一覧 | 絞れる物 |
+|---|---|
+| チケット | プロジェクト・レーン・担当の数・番号 |
+| チケット履歴 | どのチケットの行か・題 |
+
+- 例: 「作業中のレーンのチケットを一覧して」「担当のいないチケットを一覧して」「このチケットの質問の履歴を読んで」
+- 番号はプロジェクトごとの通し番号です。1 枚を引くときは、プロジェクトと合わせて絞ります
+- 絞れない物で絞ろうとすると、AI は断られ、絞れる物の一覧を受け取ります。その中から選び直します
+
+注: 名前・タグ・優先度では、一覧を絞れません。言葉で探すとき（19 章「AI に探してもらう」）は、名前で当てられます。
 
 #### 一覧に載らない物
 

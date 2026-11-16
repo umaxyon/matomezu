@@ -32,6 +32,7 @@ type hookInput struct {
 	ToolName       string `json:"tool_name"`       // 道具を使う前のフックの、使う道具の名前
 	Host           string `json:"-"`               // AI のプログラムのプロセス id（フックが --host で渡す）
 	Woken          bool   `json:"-"`               // 起こす知らせで始まったターン（フックが --woken で渡す）
+	Titled         bool   `json:"-"`               // formatHook の答えに sessionTitle を書くか（それを読む AI のプログラムだけ。知らない項目のある JSON を断る AI がある）
 }
 
 // eventName は、フックの出力に書くイベント名（入力のイベント名。無ければ UserPromptSubmit）
@@ -132,7 +133,7 @@ func talked(out io.Writer, hook hookInput, context, format string, api hookAPI) 
 		return
 	}
 	special := map[string]any{"hookEventName": hook.eventName(), "additionalContext": forAI}
-	if title != "" {
+	if title != "" && hook.Titled {
 		special["sessionTitle"] = title
 	}
 	_ = json.NewEncoder(out).Encode(map[string]any{

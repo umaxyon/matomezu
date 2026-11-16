@@ -3,9 +3,24 @@
 import { z } from "zod"
 import { WORKROOM_SUBJECT } from "../by"
 import { kit } from "../kit"
+import { PROJECT } from "../project"
 import { TICKET } from "../ticket"
 
 export const NO_TICKET = "none"
+
+// ワークルームの今のチケットとそのプロジェクト（宣言が無い・none・チケットかプロジェクトが無ければ none）。
+// 参加者の一覧の行の下の 1 行（WorkroomRowLine）と、作業の様子（workroomActivity）が同じ判定を使う。read はレコードを種類と id で読む（無ければ none）
+export function currentPairOf(
+  workroom: string,
+  read: (subject: string, id: string) => unknown,
+): { ticket: z.output<typeof TICKET.record>; project: z.output<typeof PROJECT.record> } | "none" {
+  const current = CURRENT.record.safeParse(read(CURRENT.id, workroom))
+  if (!current.success || current.data.ticket === NO_TICKET) return "none"
+  const ticket = TICKET.record.safeParse(read(TICKET.id, current.data.ticket))
+  if (!ticket.success) return "none"
+  const project = PROJECT.record.safeParse(read(PROJECT.id, ticket.data.project))
+  return project.success ? { ticket: ticket.data, project: project.data } : "none"
+}
 
 export const CURRENT = kit.defineSubject({
   id: "current-ticket",
@@ -24,4 +39,6 @@ export const CURRENT = kit.defineSubject({
     ...(c.ticket === NO_TICKET ? [] : [{ subject: TICKET.id, id: c.ticket }]),
   ],
   aiBrief: c => `${c.id}: ${c.ticket}`,
+  // 参加者リストの並びを見せるためだけ（今のチケットは、ほかの動きを決めない）
+  workroomActivity: (workroom, read) => (currentPairOf(workroom, read) === "none" ? "idle" : "working"),
 })

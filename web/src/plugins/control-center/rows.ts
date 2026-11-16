@@ -12,8 +12,10 @@ export function rowDetail(row: WorkroomRow): RowDetail {
 export const pickedRow = (rows: readonly WorkroomRow[], picked: string | undefined): WorkroomRow | undefined =>
   rows.find(r => r.room.id === picked)
 
-// 列の並び: 管理者を先頭に固定し、次に、変化のあった順（参加済みの行の、呼ばれた時刻と参加した時刻の新しいほう。新しい順）、最後に変化の無い行（空室・準備中）を、受け取った順のまま。
-// 同じ時刻の行は受け取った順（作った順）のまま。並べるだけで、画面の状態は持たない
+// 列の並び: 組の順に、1 管理者 2 作業中 3 空き（準備中も）4 空室。作業の様子を答える種類が無ければ、作業中と空きを分けない（2 に入れる）。
+// 空室は、今のチケットが残っていても 4（引き継いで入り直せば、その様子で 2 か 3 に戻る）。
+// 組の中は、変化のあった順（参加済みの行の、呼ばれた時刻と参加した時刻の新しいほう。新しい順）、そのあとに変化の無い行を受け取った順（作った順）のまま。
+// 同じ時刻の行も受け取った順のまま。並べるだけで、画面の状態は持たない
 const changedAtOf = (row: WorkroomRow): number | undefined => {
   if (row.state !== "ready") return undefined
   const times = [row.calledAt, row.participant?.joinedAt]
@@ -22,15 +24,23 @@ const changedAtOf = (row: WorkroomRow): number | undefined => {
   return times.length === 0 ? undefined : Math.max(...times)
 }
 
-export function orderByChange(rows: readonly WorkroomRow[]): WorkroomRow[] {
-  const rest = rows.filter(r => !r.admin)
-  const changed = rest.flatMap(row => {
-    const at = changedAtOf(row)
-    return at === undefined ? [] : [{ row, at }]
-  })
-  changed.sort((a, b) => b.at - a.at)
-  const kept = new Set(changed.map(c => c.row))
-  return [...rows.filter(r => r.admin), ...changed.map(c => c.row), ...rest.filter(r => !kept.has(r))]
+const groupOf = (row: WorkroomRow): number => {
+  if (row.admin) return 1
+  if (row.state === "empty") return 4
+  if (row.state === "preparing") return 3
+  return row.activity === "idle" ? 3 : 2
+}
+
+export function orderRows(rows: readonly WorkroomRow[]): WorkroomRow[] {
+  const keyed = rows.map((row, i) => ({ row, i, group: groupOf(row), at: changedAtOf(row) }))
+  keyed.sort(
+    (a, b) =>
+      a.group - b.group ||
+      (a.at === undefined ? 1 : 0) - (b.at === undefined ? 1 : 0) ||
+      (b.at ?? 0) - (a.at ?? 0) ||
+      a.i - b.i,
+  )
+  return keyed.map(k => k.row)
 }
 
 // 並びを止めている間（列に触れている間）の並び: 止めた時の並び（id の列）に従い、新しく出た行は最後に
