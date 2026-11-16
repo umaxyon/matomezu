@@ -73,11 +73,19 @@ func (h *Hub) bookOfPage(page string) string {
 	return found
 }
 
-// BookOfPage は、ページ page を持っているブックの id（bookOfPage と同じ決まり）
-func (h *Hub) BookOfPage(page string) string {
+// bookOn は、宛先 on のアクションを行うブックの id（宛先がページなら、そのページを持っているブック。bookOfPage の決まり。h.mu を持って呼ぶ）
+func (h *Hub) bookOn(on *engine.On) string {
+	if on.Page != "" {
+		return h.bookOfPage(on.Page)
+	}
+	return on.Book
+}
+
+// BookOn は、宛先 on のアクションを行うブックの id（bookOn と同じ決まり）
+func (h *Hub) BookOn(on *engine.On) string {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	return h.bookOfPage(page)
+	return h.bookOn(on)
 }
 
 type event struct {
@@ -399,10 +407,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		}
 	} else if p.On != nil {
 		// 宛先がページなら、そのページを持っているブックで行う
-		book := p.On.Book
-		if p.On.Page != "" {
-			book = h.bookOfPage(p.On.Page)
-		}
+		book := h.bookOn(p.On)
 		if e, ok := h.books[book]; ok {
 			in.Books = []json.RawMessage{e.body}
 		}

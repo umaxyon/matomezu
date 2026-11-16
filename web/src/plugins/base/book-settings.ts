@@ -136,15 +136,15 @@ export const pageContext = (catalog: CoreCatalog, page: Pick<Page, "type">): Pag
   setting: settingsAt(catalog, page),
 })
 
-// 設定を変えたあとのページ: そのページで効いている設定の値で整える（place/placed.ts の tidyConnectors）
-export const settlePage = <P extends ItemPage>(catalog: CoreCatalog, page: P): P =>
+// 形か設定が変わったあとのページ: つなぐものの定義の整えを全部かける（place/placed.ts の tidyConnectors。そのページで効いている設定の値で）
+export const tidyPage = <P extends ItemPage>(catalog: CoreCatalog, page: P): P =>
   tidyConnectors(catalog, page, settingsAt(catalog, page))
 
-// 設定を変えたあとのブック: どのページも整える（settlePage）。変わったページは putPage で替える
+// 設定を変えたあとのブック: どのページも整える（tidyPage）。変わったページは putPage で替える
 export function settleBook<B extends Book>(catalog: CoreCatalog, book: B): B {
   let next = book
   for (const page of pagesOf(book)) {
-    const tidy = settlePage(catalog, page)
+    const tidy = tidyPage(catalog, page)
     if (tidy !== page) next = putPage(next, tidy)
   }
   return next

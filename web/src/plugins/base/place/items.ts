@@ -22,20 +22,11 @@ import {
   walkShapes,
 } from "../../../core/placed"
 import { themeFits } from "../book-look/theme-types"
-import { type PageContext, type SettingReader, settingsAt } from "../book-settings"
+import { type PageContext, type SettingReader, settingsAt, tidyPage } from "../book-settings"
 import { setField } from "../fields"
 import { contentIdMaker } from "../utils/ids"
 import { GROW_CHOICE_SIDES, type GrowSides, grownArea } from "./grow"
-import {
-  childrenSize,
-  connectorGaps,
-  type PortArea,
-  placedSize,
-  portAreasOf,
-  rectsOf,
-  shapeDefOf,
-  tidyConnectors as tidyItems,
-} from "./placed"
+import { childrenSize, connectorGaps, type PortArea, placedSize, portAreasOf, rectsOf, shapeDefOf } from "./placed"
 import {
   apartWay,
   evenGap,
@@ -121,9 +112,8 @@ declare module "../../../core/catalog" {
 // ページの、2 つの形の組の間隔の下限（線でつながった組は広い。つなぐものの定義が決める）
 export const gapOf = (catalog: CoreCatalog, page: ItemPage): Gap => connectorGaps(catalog, page, evenGap)
 
-// 形が変わったあとのページ（つなぐものの定義の整えを全部かける。そのページで効いている設定の値で）
-export const tidyPage = <P extends ItemPage>(catalog: CoreCatalog, page: P): P =>
-  tidyItems(catalog, page, settingsAt(catalog, page))
+// 形が変わったあとのページの整え（book-settings.ts の tidyPage）
+export { tidyPage }
 
 // ページ page に次に置くアイテムの id（newId から振る。そのページの中身の、どの深さの id とも重ならない）
 export function nextItemId(page: ItemPage, newId: () => string): string {

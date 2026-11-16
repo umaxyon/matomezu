@@ -5,7 +5,7 @@ import type { CoreCatalog } from "../../../core/core-catalog"
 import { GROW_CHOICES, ORIENTATIONS } from "../../../core/def/paper"
 import type { ItemPage } from "../../../core/placed"
 import { withPageSettings } from "../book-look/page-settings"
-import { settingsArgs, settlePage } from "../book-settings"
+import { settingsArgs, tidyPage } from "../book-settings"
 import { kit } from "../kit"
 import { contentIdMaker } from "../utils/ids"
 import { fieldsArgs, writeFields } from "./page-fields"
@@ -24,7 +24,7 @@ const ARGS = z.strictObject({
 // ページ page の、渡した項目だけを変える。名前は前後の空白を除いて 1 字以上（空にはできない）。
 // 紙と向きはタイプの規定の中から選ぶ（バインダの中のページが同じバインダのほかのページとそろうかは、ブックの決まりが確かめる）。可変ページはタイプが増やす向きの決め方を持つときだけで、向きはタイプが選べるものの中から。
 // 形が紙からはみ出すなら、ノーマライズステップ（variable-pages.ts）が断る（可変ページの広さは、紙の大きさで区切った印刷区画を増やして決まる）。
-// settings はページのタイプが選んだ項目だけ（null は消す。形に合わない・選んでいないタイプなら断る）。設定を変えたらページを整える（settlePage）。
+// settings はページのタイプが選んだ項目だけ（null は消す。形に合わない・選んでいないタイプなら断る）。設定を変えたらページを整える（tidyPage）。
 // fields はタイプがページに足したフィールドだけで、受け方はタイプが決められる（決めていなければ、書いたフィールドを丸ごと替える。形に合わない・フィールドの無いタイプなら断る）。
 // 受け方が結果を返せば、結果の fields に入れて返す。変えたページにタイプが問題を知らせれば断る（page-problems.ts）
 export const PAGE_UPDATE = kit.defineAction({
@@ -50,7 +50,7 @@ export const PAGE_UPDATE = kit.defineAction({
     const result = written.result === undefined ? {} : { fields: written.result }
     const set = args.settings === undefined ? page : withPageSettings(ctx.catalog, page, args.settings)
     if (!set) return null
-    const next = args.settings === undefined ? page : settlePage(ctx.catalog, set)
+    const next = args.settings === undefined ? page : tidyPage(ctx.catalog, set)
     if (pageProblem(ctx.catalog, next)) return null
     return { next, result }
   },

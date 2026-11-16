@@ -5,7 +5,7 @@
 import type { z } from "zod"
 import { USER } from "./actor"
 import { type Annotations, annotationsSettle, type BookAnnotations, prune } from "./annotation"
-import { findPage, holds, keepsPageTypes, pagesOf, putPage } from "./book"
+import { findPage, holds, keepsPageTypes, pageById, pagesOf, putPage } from "./book"
 import type { ActionId, ActionTable } from "./catalog"
 import { changesOf } from "./changes"
 import { type CoreCatalog, pageType } from "./core-catalog"
@@ -491,9 +491,9 @@ export type PerformedIn =
 // ゴミ箱のブックのページは無いものとし、同じ id のページが 2 冊にあれば、どちらとも決めずに無いとする
 function pageIn(world: World, on: ActionOn | undefined): PageInBook | NoPage {
   const page = (on && "page" in on ? on.page : undefined) ?? ""
-  const held = Object.values(world.books).filter(b => b.trashed === undefined && findPage(b, page) !== undefined)
-  const [book] = held
-  return book && held.length === 1 ? { book, page } : noPage(page)
+  const kept = Object.fromEntries(Object.entries(world.books).filter(([, b]) => b.trashed === undefined))
+  const book = pageById(kept, page)?.book
+  return book ? { book, page } : noPage(page)
 }
 
 // on.record に指した id のレコードが無いときの断り: どの種類のどの id が無いか。AI に見える種類なら、直し方（一覧の引き方）と種類の説明（id が何の id か）も

@@ -603,7 +603,7 @@ func TestSettingsActions(t *testing.T) {
 	}
 }
 
-// ページが宛先のアクションは、そのページを持っているブックで行い、そのブックを書く。ゴミ箱のブックのページは no-page
+// ページが宛先のアクションは、そのページを持っているブックで行い、そのブックを書く。ゴミ箱のブックのページと、2 冊にあるページは no-page
 func TestPerformOnAPage(t *testing.T) {
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
@@ -625,6 +625,16 @@ func TestPerformOnAPage(t *testing.T) {
 	}
 	if got := perform("page-lock", `{}`, `{"page":"p1"}`); !strings.Contains(got, `"reason":"no-page"`) {
 		t.Fatalf("lock a page of a trashed book = %s", got)
+	}
+	// 同じ id のページが、ゴミ箱でないブックの 1 冊だけにあれば、そのブックで行う。2 冊にあれば、どちらとも決めずに no-page
+	copyOf := func(id string) string { return strings.Replace(drawing, `"id":"b1"`, `"id":"`+id+`"`, 1) }
+	send(t, "PUT", s.URL+"/api/books-for-test/b2", `{"book":`+copyOf("b2")+`,"base":0}`, nil)
+	if got := perform("page-lock", `{}`, `{"page":"p1"}`); got != `{"ok":true,"result":{}}` {
+		t.Fatalf("lock a page another book has too, in the trash = %s", got)
+	}
+	send(t, "PUT", s.URL+"/api/books-for-test/b3", `{"book":`+copyOf("b3")+`,"base":0}`, nil)
+	if got := perform("page-unlock", `{}`, `{"page":"p1"}`); !strings.Contains(got, `"reason":"no-page"`) {
+		t.Fatalf("unlock a page two books have = %s", got)
 	}
 }
 
