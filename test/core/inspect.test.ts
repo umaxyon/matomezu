@@ -95,6 +95,34 @@ describe("inspect: アクションの許可", () => {
     expect(ask("page-add", { creates: "@x:nope" })).toBe(true)
   })
 
+  test("ページが対象のアクションを、どのページも変える所（allPages）で問うと、ブックのどのページのタイプでも使えるときだけ。ページを名指さなければ、タイプに依らない付く先（attach の pages）が決める", () => {
+    const markdown = CORE_CATALOG.pageTypes.get(MARKDOWN)!
+    const without = { ...CORE_CATALOG.pageTypes.get(MARKDOWN)!.actions, without: ["@matomezu/base:page-update"] }
+    const catalog = {
+      ...CORE_CATALOG,
+      pageTypes: new Map([...CORE_CATALOG.pageTypes, [MARKDOWN, { ...markdown, actions: without as never }]]),
+    } as typeof CORE_CATALOG
+    const mixed = testBook("m4", "混ざる", [drawingPage("p1"), testPage(MARKDOWN, "t1", { title: "文書" })])
+    const update = { kind: "action", actor: USER, action: "@matomezu/base:page-update", book: mixed } as const
+    expect(inspect(CORE_CATALOG, { ...update, where: { allPages: true } }).value).toBe(true)
+    // 1 つのタイプが外していれば、どのページも変える所では使えない（外していないタイプのページを名指せば使える）
+    expect(inspect(catalog, { ...update, where: { allPages: true } })).toMatchObject({
+      value: false,
+      decidedBy: { source: "pageType", id: MARKDOWN, field: "actions.without" },
+    })
+    expect(inspect(catalog, { ...update, where: { page: "p1" } }).value).toBe(true)
+    expect(inspect(catalog, update)).toMatchObject({
+      value: true,
+      decidedBy: { source: "action", id: "@matomezu/base:page-update", field: "attach.pages" },
+    })
+    // ページが 1 枚も無ければ、どのページも変える所では使えない
+    const empty = testBook("m5", "空", [])
+    expect(inspect(CORE_CATALOG, { ...update, book: empty, where: { allPages: true } })).toMatchObject({
+      value: false,
+      decidedBy: { source: "action", id: "@matomezu/base:page-update", field: "attach.pages" },
+    })
+  })
+
   test("名指したページがブックに無ければ、ここでは止めない（無い物は run が断る）", () => {
     const book = testBook("m2", "図", [drawingPage("p1")])
     expect(

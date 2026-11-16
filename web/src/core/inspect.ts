@@ -115,14 +115,17 @@ function typeSteps(def: ActionDef, type: PageTypeDef): Step<boolean>[] {
 function placeSteps(catalog: CoreCatalog, def: ActionDef, book: Book, where: Where | undefined): Step<boolean>[] {
   const at = typesAt(catalog, def, book, where)
   if (at === "missing") return [{ from: { source: "action", id: def.id, field: "run" }, value: true }]
+  const onPage = def.target === "page"
+  const field = onPage ? "attach.pages" : "attach.books"
   if (at === null)
     return [
-      def.target === "page"
-        ? { from: { source: "action", id: def.id, field: "attach.pages" }, value: def.attach?.pages === true }
-        : { from: { source: "action", id: def.id, field: "attach.books" }, value: def.attach?.books === true },
+      {
+        from: { source: "action", id: def.id, field },
+        value: (onPage ? def.attach?.pages : def.attach?.books) === true,
+      },
     ]
   const [first, ...rest] = at.types.map(t => typeSteps(def, t))
-  if (!first) return [{ from: { source: "action", id: def.id, field: "attach.books" }, value: false }]
+  if (!first) return [{ from: { source: "action", id: def.id, field }, value: false }]
   if (at.need === "some") return [first, ...rest].find(steps => decide(steps).value === true) ?? first
   return [first, ...rest].find(steps => decide(steps).value !== true) ?? first
 }
