@@ -14,7 +14,7 @@ const sheets = (page: Page) => page.locator("[data-sheet]")
 async function addPage(page: Page) {
   await addFromTabs(page)
   await page.keyboard.press("Enter")
-  await expect(page.getByRole("dialog", { name: "新しいページ" })).toBeHidden()
+  await expect(page.getByRole("dialog", { name: /^新しい/ })).toBeHidden()
 }
 
 // 印刷プレビューを開き、右サイドパネルに中身が出るまで待つ

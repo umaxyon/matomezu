@@ -101,7 +101,10 @@ test("ブック全体では、当たりのある次のページを開いて移�
 }) => {
   await markdownBook(page, "一枚目に 猫")
   await addFromTabs(page, "マークダウン")
-  await page.getByRole("dialog", { name: "新しいページ" }).getByRole("button", { name: "作成" }).click()
+  await page
+    .getByRole("dialog", { name: /^新しい/ })
+    .getByRole("button", { name: "作成" })
+    .click()
   await source(page).click()
   await page.keyboard.insertText("二枚目にも 猫")
   await page.getByRole("tab", { name: "ページ 1" }).click()

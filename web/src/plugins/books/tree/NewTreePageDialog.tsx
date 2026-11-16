@@ -31,7 +31,7 @@ export function NewTreePageDialog({ onClose }: DialogProps) {
     if (added) onClose()
   }
   return (
-    <Dialog title={t("New page")} onClose={onClose}>
+    <Dialog title={t("New tree")} onClose={onClose}>
       <Form submit={t("Create")} ready={title.trim() !== ""} onSubmit={create}>
         <Field label={t("Page name")}>
           {id => (

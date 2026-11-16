@@ -21,9 +21,10 @@ export function NewPageDialog({ args, onClose }: DialogProps<NewPageDialogArgs>)
   const t = useMessages(kit)
   const book = useBook() ?? undefined
   const catalog = useCatalog().core
-  if (!book || !catalog.pageTypes.has(args.type)) return null
+  const type = catalog.pageTypes.get(args.type)
+  if (!book || !type) return null
   return (
-    <Dialog title={t("New page")} onClose={onClose}>
+    <Dialog title={t("New {type}", { type: t(type.title) })} onClose={onClose}>
       <NewPageForm book={book} args={args} onDone={onClose} />
     </Dialog>
   )
@@ -59,7 +60,7 @@ function NewPageForm({ book, args, onDone }: { book: Book; args: NewPageDialogAr
         if (addPage({ type: args.type, ...named, ...paper.patch, ...into })) onDone()
       }}
     >
-      <Field label={t(newFolder ? "Folder name" : "Page name")}>
+      <Field label={t(newFolder ? "Name" : "Page name")}>
         {id => (
           // biome-ignore lint/a11y/noAutofocus: 開いたダイアログの最初の入力Form
           <input id={id} className={controlClass} value={title} autoFocus onChange={e => setTitle(e.target.value)} />

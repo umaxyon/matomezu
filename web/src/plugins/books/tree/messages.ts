@@ -51,7 +51,7 @@ export const TREE_MESSAGES = defineMessages({
   Center: { en: "Center", ja: "中央から" },
   "Inherit from book": { en: "Book", ja: "ブック継承" },
   "Inherit from book ({direction})": { en: "Inherit from book ({direction})", ja: "ブックを継承（{direction}）" },
-  "New page": { en: "New page", ja: "新しいページ" },
+  "New tree": { en: "New tree", ja: "新しいツリー" },
   "Page name": { en: "Page name", ja: "ページ名" },
   "Root caption": { en: "Root caption", ja: "根のキャプション" },
   "Root body": { en: "Root body", ja: "根の本文" },

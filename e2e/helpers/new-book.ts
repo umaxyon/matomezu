@@ -13,7 +13,7 @@ export async function newBook(page: Page, title: string, type: string) {
   await page.getByRole("button", { name: "ステージを閉じる" }).first().click()
   await page.getByRole("button", { name: "ページを足す" }).click()
   await page.getByRole("menu").getByRole("menuitem", { name: type, exact: true }).click()
-  return page.getByRole("dialog", { name: "新しいページ" })
+  return page.getByRole("dialog", { name: /^新しい/ })
 }
 
 // scope（画面かステージかタブの列）のページタブの＋を押し、メニューでタイプ type（ページのタイプの名前）を選ぶ

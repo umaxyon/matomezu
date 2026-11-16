@@ -4,6 +4,8 @@ import styles from "./ContextMenuHost.module.css"
 
 export function MenuRow(props: {
   icon?: ReactNode
+  // アイコンの描き方: line は線の絵（メニューの字の色で描く）、picture は自分の色を持つ絵（ページのタイプのアイコンなど。色を変えない）
+  iconLook?: "line" | "picture"
   label: string
   keyLabel?: string | null
   title?: string
@@ -19,7 +21,7 @@ export function MenuRow(props: {
       disabled={props.disabled}
       onClick={props.onPick}
     >
-      {props.icon && <span className={styles.icon}>{props.icon}</span>}
+      {props.icon && <span className={props.iconLook === "picture" ? styles.picture : styles.icon}>{props.icon}</span>}
       <span className={styles.label}>{props.label}</span>
       {props.keyLabel && <kbd className={styles.key}>{props.keyLabel}</kbd>}
     </button>

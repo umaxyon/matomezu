@@ -124,7 +124,7 @@ test("＋でページを作るダイアログが開き（紙は A 判とレタ�
   renderBooksScreen()
   fireEvent.click(screen.getByRole("button", { name: "ページを足す" }))
   fireEvent.click(screen.getByRole("menuitem", { name: "図面" }))
-  const dialog = screen.getByRole("dialog", { name: "新しいページ" })
+  const dialog = screen.getByRole("dialog", { name: /^新しい/ })
   const name = within(dialog).getByLabelText("ページの名前") as HTMLInputElement
   expect(name.value).toBe("ページ 2")
   expect((within(dialog).getByLabelText("紙のサイズ") as HTMLSelectElement).value).toBe("@matomezu/base:a4")
@@ -140,7 +140,7 @@ test("＋でページを作るダイアログが開き（紙は A 判とレタ�
   const tabs = screen.getAllByRole("tab")
   expect(tabs.map(t => t.textContent)).toEqual(["ページ 1", "裏表紙"])
   expect(tabs[1]!.getAttribute("aria-selected")).toBe("true")
-  expect(screen.queryByRole("dialog", { name: "新しいページ" })).toBeNull()
+  expect(screen.queryByRole("dialog", { name: /^新しい/ })).toBeNull()
 })
 
 test("日本語の変換を確定する Enter では、候補を選ばない", () => {
@@ -157,7 +157,7 @@ test("言語を英語にすると、画面の文言が英語になり、＋で�
   renderBooksScreen({ books: SAMPLE_BOOKS, lang: "en" })
   fireEvent.click(screen.getByRole("button", { name: "Add page" }))
   fireEvent.click(screen.getByRole("menuitem", { name: "Drawing" }))
-  const dialog = screen.getByRole("dialog", { name: "New page" })
+  const dialog = screen.getByRole("dialog", { name: /^New / })
   fireEvent.click(within(dialog).getByRole("button", { name: "Create" }))
   expect(screen.getAllByRole("tab").map(t => t.textContent)).toEqual(["ページ 1", "Page 2"])
   fireEvent.click(fromMenu("Split screen"))
@@ -201,7 +201,7 @@ test("新しいブックのダイアログでブックを作ると、そのス�
     "スライド",
   ])
   fireEvent.click(screen.getByRole("menuitem", { name: "図面" }))
-  const page = screen.getByRole("dialog", { name: "新しいページ" })
+  const page = screen.getByRole("dialog", { name: /^新しい/ })
   expect((within(page).getByLabelText("ページの名前") as HTMLInputElement).value).toBe("ページ 1")
   fireEvent.click(within(page).getByRole("button", { name: "作成" }))
   expect(screen.getAllByRole("tab").map(t => t.textContent)).toEqual(["ページ 1"])
@@ -234,7 +234,7 @@ test("文字の変換中の Escape ではダイアログを閉じず、変換し
   const store = renderBooksScreen()
   fireEvent.click(screen.getByRole("button", { name: "ページを足す" }))
   fireEvent.click(screen.getByRole("menuitem", { name: "図面" }))
-  const name = within(screen.getByRole("dialog", { name: "新しいページ" })).getByRole("textbox")
+  const name = within(screen.getByRole("dialog", { name: /^新しい/ })).getByRole("textbox")
   fireEvent.keyDown(name, { key: "Escape", isComposing: true })
   expect(store.state.getState().dialog).toMatchObject({ id: "@matomezu/base:page-new" })
   fireEvent.keyDown(name, { key: "Escape" })
@@ -291,7 +291,7 @@ test("StrictMode で描いても、開いたダイアログは閉じない", asy
   fireEvent.click(screen.getByRole("menuitem", { name: "図面" }))
   await new Promise(r => setTimeout(r, 50))
   expect(store.state.getState().dialog).toMatchObject({ id: "@matomezu/base:page-new" })
-  expect(screen.getByRole("dialog", { name: "新しいページ" })).toBeTruthy()
+  expect(screen.getByRole("dialog", { name: /^新しい/ })).toBeTruthy()
 })
 
 test("図面の画面を右クリックすると押した位置にメニュー（一番上にページ全体を収める・初めの位置に戻す・画面の分割、区切り線の下に貼り付け、区切り線の下にスクラップを切り抜く・ページの設定・ブックの設定）が出て、設定を押すと閉じて設定のダイアログが開く", () => {

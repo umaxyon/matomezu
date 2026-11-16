@@ -18,7 +18,7 @@ export function NewDirPageDialog({ onClose }: DialogProps) {
     if (addPage({ type: DIR.id, title, fields: { root: { name: name ?? title } } })) onClose()
   }
   return (
-    <Dialog title={t("New page")} onClose={onClose}>
+    <Dialog title={t("New directory diagram")} onClose={onClose}>
       <Form submit={t("Create")} ready={title.trim() !== ""} onSubmit={create}>
         <Field label={t("Page name")}>
           {id => (

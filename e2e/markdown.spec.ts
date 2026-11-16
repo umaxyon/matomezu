@@ -367,7 +367,7 @@ const LONG = Array.from({ length: 120 }, (_, i) => `段落 ${i + 1}`).join("\n\n
 async function addPage(page: Page) {
   await addFromTabs(page, "マークダウン")
   await page.keyboard.press("Enter")
-  await expect(page.getByRole("dialog", { name: "新しいページ" })).toBeHidden()
+  await expect(page.getByRole("dialog", { name: /^新しい/ })).toBeHidden()
 }
 
 test("スクロール位置は、初めて開いたページは先頭から。スクロールしたら覚え、ほかのページに替えて戻したときと、読み直したときに前回の位置で開く", async ({

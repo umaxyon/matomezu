@@ -70,7 +70,7 @@ test("ページタブをドラッグして並べ替えられ、元に戻すで�
 }) => {
   await page.goto(BOOK_SCREEN_URL)
   await addFromTabs(page)
-  const dialog = page.getByRole("dialog", { name: "新しいページ" })
+  const dialog = page.getByRole("dialog", { name: /^新しい/ })
   await page.keyboard.press("Enter")
   await expect(dialog).toBeHidden()
   const tabs = page.getByRole("tab")

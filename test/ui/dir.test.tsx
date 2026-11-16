@@ -59,7 +59,7 @@ test("ページタブの＋でディレクトリ構成図を選ぶとダイア�
   const { book } = setup()
   fireEvent.click(screen.getByRole("button", { name: "ページを足す" }))
   fireEvent.click(screen.getByRole("menuitem", { name: "ディレクトリ構成図" }))
-  const dialog = screen.getByRole("dialog", { name: "新しいページ" })
+  const dialog = screen.getByRole("dialog", { name: /^新しい/ })
   fireEvent.change(within(dialog).getByLabelText("ページ名"), { target: { value: "構成図" } })
   expect((within(dialog).getByLabelText("根のフォルダの名前") as HTMLInputElement).value).toBe("構成図")
   fireEvent.change(within(dialog).getByLabelText("根のフォルダの名前"), { target: { value: "proj" } })

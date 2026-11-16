@@ -70,6 +70,7 @@ function AddPageRow({ type, close }: { type: string; close(): void }) {
   return (
     <MenuRow
       icon={icon ?? <FileIcon />}
+      iconLook="picture"
       label={def ? t(def.title) : type}
       disabled={!newPage.enabled}
       onPick={() => {

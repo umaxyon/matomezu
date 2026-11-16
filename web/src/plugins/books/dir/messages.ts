@@ -46,7 +46,7 @@ export const DIR_MESSAGES = defineMessages({
   File: { en: "File", ja: "ファイル" },
   Open: { en: "Open", ja: "開く" },
   Close: { en: "Close", ja: "閉じる" },
-  "New page": { en: "New page", ja: "新しいページ" },
+  "New directory diagram": { en: "New directory diagram", ja: "新しいディレクトリ構成図" },
   "Page name": { en: "Page name", ja: "ページ名" },
   "Root folder name": { en: "Root folder name", ja: "根のフォルダの名前" },
   Create: { en: "Create", ja: "作る" },

@@ -40,7 +40,7 @@ test("ページを作るボタンでツリーのダイアログが開き、ペ�
   const { book } = setup()
   expect(screen.queryByRole("button", { name: "箱" })).toBeNull()
   addTreePage()
-  const dialog = screen.getByRole("dialog", { name: "新しいページ" })
+  const dialog = screen.getByRole("dialog", { name: /^新しい/ })
   fireEvent.change(within(dialog).getByLabelText("ページ名"), { target: { value: "組織" } })
   fireEvent.click(within(dialog).getByRole("radio", { name: "右へ" }))
   fireEvent.change(within(dialog).getByLabelText("根のキャプション"), { target: { value: "社長" } })
