@@ -191,11 +191,9 @@ test("ロック中のページでは、スライドのアイテムを動かせ�
   s.perform("@matomezu/slide:slide-place", { item: TEXT, at: { x: 10, y: 20 }, props: { text: "a" } }, { page: s.page })
   const item = s.slide()[0]?.id as string
   expect(s.perform("@matomezu/base:page-lock", {}, { page: s.page }).ok).toBe(true)
-  for (const [id, args] of [
-    ["@matomezu/slide:slide-move", { page: s.page, item, at: { x: 0, y: 0 } }],
-    ["@matomezu/slide:slide-remove", { page: s.page, item }],
-  ] as const)
-    expect(s.perform(id, args)).toMatchObject({ ok: false })
+  const denied = { ok: false, reason: "denied", permission: "@matomezu/base:lock" }
+  expect(s.perform("@matomezu/slide:slide-move", { item, at: { x: 0, y: 0 } }, { page: s.page })).toMatchObject(denied)
+  expect(s.perform("@matomezu/slide:slide-remove", { item }, { page: s.page })).toMatchObject(denied)
   expect(s.slide()).toHaveLength(1)
   expect(s.perform("@matomezu/base:page-unlock", {}, { page: s.page }).ok).toBe(true)
   expect(s.perform("@matomezu/slide:slide-move", { item, at: { x: 0, y: 0 } }, { page: s.page }).ok).toBe(true)

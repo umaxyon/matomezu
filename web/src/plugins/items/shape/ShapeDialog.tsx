@@ -5,7 +5,7 @@
 // 追加は開いたときに渡された置く所（ShapeAddArgs）を、そのままアクション item-place に渡して形を置き（ほかの形は画面と同じに押す）、置いた形を選ぶ。編集は形の項目を書き換える（アクション item-update）
 
 import { useCallback, useEffect, useId, useState } from "react"
-import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
+import { findPage, type ItemProps, type MessageKey, type ShapeAddArgs } from "../../../plugin-api"
 import {
   type DialogProps,
   useActions,
@@ -50,7 +50,8 @@ export function addShapeDialog(item: string, turnable = false) {
     const bookTheme = usePageTheme()
     const catalog = useCoreCatalog()
     const opened = useBook()
-    const turned = opened ? startTurned(catalog, opened, args.page, item) : false
+    const page = opened ? findPage(opened, args.page)?.page : undefined
+    const turned = page ? startTurned(catalog, page, item) : false
     const { select } = useActions()
     const perform = usePerform()
     const add = (props: ShapeProps) => {
