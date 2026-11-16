@@ -2,8 +2,13 @@
 // AI とほかの窓の変更は、まだ見ていない画面の履歴の段として store が溜め、変えた物が見えたら時刻の位置に差し込む
 import type { Folder } from "./folders"
 import type { ListPatch, Patch } from "./patch"
-import type { RowChange } from "./restore"
 import type { AnyPage, Book } from "./schema/book"
+
+// ページ・フォルダ 1 つの、変わる前と後（無いときは "none"）
+export interface RowChange<T> {
+  before: T | "none"
+  after: T | "none"
+}
 
 // 画面の履歴の段を作った物: この窓の利用者・AI・ほかの窓
 export type HistoryBy = "user" | "ai" | "window"

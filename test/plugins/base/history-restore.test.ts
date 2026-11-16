@@ -1,19 +1,25 @@
-// 画面の履歴の段の置き直し（core/restore.ts と、base の book-revert）: 変えたページとフォルダごとの前後から、片方の値にする値（patchesToward）を作り、
+// 画面の履歴の段の置き直し（base の history と、core/folders.ts の restoredTables）: 変えたページとフォルダごとの前後から、片方の値にする値（patchesToward）を作り、
 // 今の表・一覧の上で行う（restoredTables・restoredLibrary）。行った後に、中身の無いエントリと、どの並びからもたどれないページ・フォルダを落とす。
 // 置き直すページと最上位のアイテム（restoredPages）が、認可の所（permissionScope）を決める（値の置き直しそのものは core/patch.test.ts）
 import { expect, test } from "bun:test"
-import { changesBetween, type TableChanges, type Tables, tablesOf } from "../../web/src/core/folders"
-import { REMOVED } from "../../web/src/core/records"
+import {
+  changesBetween,
+  type RowPatches,
+  restoredTables,
+  type TableChanges,
+  type Tables,
+  tablesOf,
+} from "../../../web/src/core/folders"
+import type { RowChange } from "../../../web/src/core/history"
+import { REMOVED } from "../../../web/src/core/records"
+import type { Book } from "../../../web/src/core/schema/book"
+import { HISTORY_RESTORE } from "../../../web/src/plugins/base/history"
 import {
   patchesToward,
-  type RowChange,
-  type RowPatches,
+  type RevertArgs,
   restoredLibrary,
-  restoredTables,
-} from "../../web/src/core/restore"
-import type { Book } from "../../web/src/core/schema/book"
-import { HISTORY_RESTORE } from "../../web/src/plugins/base/history"
-import { type RevertArgs, restoredPages } from "../../web/src/plugins/base/history/restore"
+  restoredPages,
+} from "../../../web/src/plugins/base/history/restore"
 
 const item = (id: string, caption = id) => ({ id, item: "x", x: 0, y: 0, props: { caption } })
 const book = (fields: Record<string, unknown>, lineup: unknown[], id = "b") =>

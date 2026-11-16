@@ -6,11 +6,10 @@ import { pagesOf } from "../../../core/book"
 import type { LibraryTargets } from "../../../core/def/action"
 import type { HistoryStep } from "../../../core/history"
 import type { Library } from "../../../core/library"
-import { patchesToward, restoredLibrary } from "../../../core/restore"
 import { shownPageId } from "../../../core/stage"
 import { booksOf, type CommandActions, type CommandContext } from "../../../store/commands/def"
 import { kit } from "../kit"
-import { RevertArgs, restoredPages } from "./restore"
+import { patchesToward, RevertArgs, restoredLibrary, restoredPages } from "./restore"
 
 export const HISTORY_RESTORE = kit.defineAction({
   id: "book-revert",

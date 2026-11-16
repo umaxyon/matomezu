@@ -3,6 +3,7 @@
 // ブック（core/schema/book.ts の Book）は、ブックのフォルダと、その下のバインダ・ページの中身をまとめた、読む用の値。ここの関数が表から組み、変えた結果を表への書き込みに分ける
 // （組むのと分けるのは、ここだけ。同じページが 2 つの値に入らないよう、持つのは表の方）
 
+import { applyPatch, type Patch } from "./patch"
 import { REMOVED } from "./records"
 import { sameData } from "./same"
 import type { AnyPage, BinderEntry, Book, LineupEntry } from "./schema/book"
@@ -286,4 +287,74 @@ export function rawBooksOf(pages: readonly unknown[], folders: readonly unknown[
     if (!isObject(f)) return [f]
     return typeof f.id === "string" && entered.has(f.id) ? [] : [made(f, "book")]
   })
+}
+
+// ページとフォルダごとの置き直す値（id → Patch。core/patch.ts。足すなら set、無くすなら absent）
+export interface RowPatches {
+  pages: Readonly<Record<string, Patch>>
+  folders: Readonly<Record<string, Patch>>
+}
+
+// 表 table の、patches に挙げた id の物を置き直した表（何も変わらなければ table のまま）
+function patched<T>(
+  table: Readonly<Record<string, T>>,
+  patches: Readonly<Record<string, Patch>>,
+): Readonly<Record<string, T>> {
+  let next: Record<string, T> | undefined
+  for (const [id, p] of Object.entries(patches)) {
+    const now = table[id]
+    const to = applyPatch(now, p) as T | undefined
+    if (to === now) continue
+    next ??= { ...table }
+    if (to === undefined) delete next[id]
+    else next[id] = to
+  }
+  return next ?? table
+}
+
+// 並び lineup の、has が在ると答えたエントリだけの並び（全部在れば lineup のまま）
+function there<R extends EntryRef>(lineup: readonly R[], has: (r: R) => boolean): readonly R[] {
+  const kept = lineup.filter(has)
+  return kept.length === lineup.length ? lineup : kept
+}
+
+// 表 tables に、ページとフォルダごとの置き直す値 patches を行った表（何も変わらなければ tables のまま）。ページとフォルダは別々に置き直すので、
+// 行った後に、エントリとその中身が食い違う所を落とす: 中身（ページ・バインダ）が表に無いエントリは並びから外し、どのブックの並びからもたどれないページとフォルダは表から外す
+export function restoredTables(tables: Tables, patches: RowPatches): Tables {
+  const pages = patched(tables.pages, patches.pages)
+  const folders = patched(tables.folders, patches.folders)
+  if (pages === tables.pages && folders === tables.folders) return tables
+  // ブックからたどれるエントリだけを残す（中身の無いエントリは、並びから外す）
+  const kept: Record<string, Folder> = {}
+  const reached = new Set<string>()
+  const hasPage = (r: EntryRef) => r.kind === "page" && pages[r.id] !== undefined
+  for (const folder of Object.values(folders)) {
+    if (folder.folderRole !== "book" || !Array.isArray(folder.lineup)) continue
+    const lineup = there<EntryRef>(
+      folder.lineup,
+      r => hasPage(r) || (r.kind === "binder" && folders[r.id]?.folderRole === "binder"),
+    )
+    kept[folder.id] = lineup === folder.lineup ? folder : { ...folder, lineup }
+    for (const r of lineup) {
+      reached.add(r.id)
+      const binder = r.kind === "binder" ? folders[r.id] : undefined
+      if (binder?.folderRole !== "binder" || !Array.isArray(binder.lineup)) continue
+      const inner = there<PageRef>(binder.lineup, hasPage)
+      kept[binder.id] = inner === binder.lineup ? binder : { ...binder, lineup: inner }
+      for (const p of inner) reached.add(p.id)
+    }
+  }
+  const sameFolders =
+    Object.keys(kept).length === Object.keys(folders).length &&
+    Object.entries(kept).every(([id, f]) => folders[id] === f)
+  const left = Object.entries(pages).filter(([id]) => reached.has(id))
+  return {
+    pages: left.length === Object.keys(pages).length ? pages : Object.fromEntries(left),
+    folders: sameFolders ? folders : kept,
+  }
+}
+
+// ブック books の表に、ページとフォルダごとの置き直す値 patches を行って組み直した一覧（変わらなかったブックは同じ値のまま。組めないブックは入らない）
+export function withRowPatches(books: readonly Book[], patches: RowPatches): Readonly<Record<string, Book>> {
+  return libraryOf(restoredTables(tablesOf(books), patches))
 }

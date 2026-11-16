@@ -42,6 +42,7 @@ import {
   type HistoryStep,
   insertStep,
   NO_HISTORY,
+  type RowChange,
   type SeenTest,
 } from "../core/history"
 import { detectLang, type Lang, type Params } from "../core/i18n/i18n"
@@ -57,7 +58,6 @@ import {
   withCounters,
   withRecords,
 } from "../core/records"
-import type { RowChange } from "../core/restore"
 import { sameData } from "../core/same"
 import type { AnyPage, Book } from "../core/schema/book"
 import { keyChangesOf, langOf, restoreSettings, type Settings } from "../core/settings"
