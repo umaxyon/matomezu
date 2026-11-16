@@ -11,25 +11,19 @@ import {
   unexpired,
 } from "../../web/src/core/annotation"
 import { performIn } from "../../web/src/core/perform"
-import type { Book } from "../../web/src/core/schema/book"
 import { warningText } from "../../web/src/core/warnings"
-import { drawingPage, FLOWCHART, pagesBook, testBook, testPage } from "../lineup"
+import { drawingPage, FLOWCHART, testBook, testPage } from "../lineup"
 import { CORE_CATALOG } from "../support"
 
-const book = pagesBook({
-  type: "@matomezu/drawing:drawing",
-  id: "d",
-  title: "D",
-  pages: [
-    {
-      id: "p",
-      title: "P",
-      paper: "@matomezu/base:a4",
-      orientation: "portrait",
-      items: [{ id: "a", item: "@matomezu/box:shape-nest-box", x: 0, y: 0, w: 64, h: 64, props: { caption: "A" } }],
-    },
-  ],
-}) as unknown as Book
+const book = testBook("d", "D", [
+  drawingPage("p", {
+    title: "P",
+    orientation: "portrait",
+    items: [
+      { id: "a", item: "@matomezu/box:shape-nest-box", x: 0, y: 0, w: 64, h: 64, props: { caption: "A" } },
+    ] as never,
+  }),
+])
 
 const note = (id: string, props: unknown): Annotation => ({
   id,

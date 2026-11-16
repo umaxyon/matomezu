@@ -4,7 +4,7 @@
 import { expect, test } from "bun:test"
 import { pagesOf, restoreBooks } from "../../../web/src/core/book"
 import { moveItems } from "../../../web/src/plugins/paper/placing/items"
-import { pagesBook } from "../../lineup"
+import { drawingPage, testBook } from "../../lineup"
 import { CORE_CATALOG } from "../../support"
 
 const S = (
@@ -98,13 +98,8 @@ const items = [
   L("6b14987870", "c585cfbc31", "e6a849e362", { route: "straight", endHead: "arrow", exitAt: 0.3871, enterAt: 0.7118 }),
 ]
 test("全部を右へ動かしても、via は動いた量だけずれる（動かす量が 1〜170（紙に収まる範囲）のどれでも消えない）", () => {
-  const raw = pagesBook({
-    id: "b",
-    type: "@matomezu/drawing:drawing",
-    title: "t",
-    pages: [{ id: "p", title: "現在", paper: "@matomezu/base:a4", orientation: "landscape", items }],
-  })
-  const [book] = restoreBooks(CORE_CATALOG, [raw as never])
+  const raw = testBook("b", "t", [drawingPage("p", { title: "現在", items: items as never })])
+  const [book] = restoreBooks(CORE_CATALOG, [raw])
   const ids = [
     "eb78b10e2b",
     "cc936c0a13",

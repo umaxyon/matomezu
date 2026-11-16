@@ -11,7 +11,7 @@ import type { StoreOptions } from "../../web/src/store/store"
 import { definePluginUi } from "../../web/src/ui/plugin"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { WindowRoot } from "../../web/src/ui/WindowRoot"
-import { pagesBook } from "../lineup"
+import { drawingPage, testBook } from "../lineup"
 import { SAMPLE_BOOKS } from "../sample-books"
 
 const SKIN = "@matomezu/base:skin"
@@ -262,12 +262,9 @@ test("メニューのボタンは、コマンドが押せないとき押せな�
 })
 
 test("表に無い紙のページは、代わりの紙に「不明な紙」と示して描き、データの紙の id は残す", () => {
-  const book = pagesBook({
-    type: "@matomezu/drawing:drawing" as const,
-    id: "x",
-    title: "外した紙",
-    pages: [{ id: "p1", title: "ページ 1", paper: "b5", orientation: "portrait" as const }],
-  })
+  const book = testBook("x", "外した紙", [
+    drawingPage("p1", { title: "ページ 1", paper: "b5", orientation: "portrait" }),
+  ])
   const store = renderBooksScreen({ books: [book] })
   expect(within(screen.getByRole("img", { name: "紙" })).getByText("不明な紙")).toBeTruthy()
   expect(store.state.getState().books.x).toEqual(book)
@@ -546,20 +543,9 @@ test("読めないブックは、ブックを開くの一覧に押せない行�
 })
 
 test("一部のプラグインが無いブックは開け、知らない形は枠だけで描き、ダブルクリックしても編集のダイアログは出ない。一覧の名前の横に印が付く", () => {
-  const book = pagesBook({
-    type: "@matomezu/drawing:drawing",
-    id: "u1",
-    title: "星の残る図",
-    pages: [
-      {
-        id: "p1",
-        title: "P",
-        paper: "@matomezu/base:a4",
-        orientation: "landscape",
-        items: [{ id: "s", item: "@foo/stars:star", x: 40, y: 40, props: {} }],
-      },
-    ],
-  })
+  const book = testBook("u1", "星の残る図", [
+    drawingPage("p1", { title: "P", items: [{ id: "s", item: "@foo/stars:star", x: 40, y: 40, props: {} }] as never }),
+  ])
   const store = renderBooksScreen({ books: [], savedBooks: [book] })
   act(() => store.actions.openBook("s1", "u1"))
   const star = document.querySelector<HTMLElement>('[data-item="s"]')!
@@ -605,24 +591,16 @@ test("内包ボックスの子は親の中に描き、子に付いた線も描�
     props: { caption: id },
     ...(shapes ? { shapes } : {}),
   })
-  const book = pagesBook({
-    type: "@matomezu/drawing:drawing",
-    id: "n1",
-    title: "内包",
-    pages: [
-      {
-        id: "p1",
-        title: "P",
-        paper: "@matomezu/base:a4",
-        orientation: "landscape",
-        items: [
-          box("a", 40, 40, 400, 300, [box("b", 20, 60, 200, 150, [box("c", 10, 50, 100, 60)])]),
-          box("d", 600, 40, 100, 60),
-          { id: "l1", item: "@matomezu/line:connector-line", from: "d", to: "c", props: {} },
-        ],
-      },
-    ],
-  })
+  const book = testBook("n1", "内包", [
+    drawingPage("p1", {
+      title: "P",
+      items: [
+        box("a", 40, 40, 400, 300, [box("b", 20, 60, 200, 150, [box("c", 10, 50, 100, 60)])]),
+        box("d", 600, 40, 100, 60),
+        { id: "l1", item: "@matomezu/line:connector-line", from: "d", to: "c", props: {} },
+      ] as never,
+    }),
+  ])
   const store = renderBooksScreen({ books: [], savedBooks: [book] })
   act(() => store.actions.openBook("s1", "n1"))
   const item = (id: string) => document.querySelector<HTMLElement>(`[data-item="${id}"]`)!
@@ -652,20 +630,9 @@ test("本文のある箱を選ぶと本文の列の端につまみが出て（�
     h: 140,
     props: { caption: "見出し", body: "本文の幅を縮めるための長い文です。", captionAlign },
   })
-  const book = pagesBook({
-    type: "@matomezu/drawing:drawing",
-    id: "w1",
-    title: "幅",
-    pages: [
-      {
-        id: "p1",
-        title: "P",
-        paper: "@matomezu/base:a4",
-        orientation: "landscape",
-        items: [box("c", 40, "center"), box("l", 400, "left")],
-      },
-    ],
-  })
+  const book = testBook("w1", "幅", [
+    drawingPage("p1", { title: "P", items: [box("c", 40, "center"), box("l", 400, "left")] as never }),
+  ])
   const store = renderBooksScreen({ books: [], savedBooks: [book] })
   act(() => store.actions.openBook("s1", "w1"))
   const item = (id: string) => document.querySelector<HTMLElement>(`[data-item="${id}"]`)!

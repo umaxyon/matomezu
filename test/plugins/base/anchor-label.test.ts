@@ -3,16 +3,11 @@
 import { expect, test } from "bun:test"
 import type { Book } from "../../../web/src/core/schema/book"
 import { anchorLabel } from "../../../web/src/plugins/base/label/labels"
-import { pagesBook } from "../../lineup"
+import { DIR, drawingPage, TREE, testBook, testPage } from "../../lineup"
 import { CORE_CATALOG } from "../../support"
 
 const drawing = (items: readonly unknown[]): Book =>
-  pagesBook({
-    type: "@matomezu/drawing:drawing",
-    id: "b1",
-    title: "見本",
-    pages: [{ id: "p1", title: "1", paper: "@matomezu/base:a4", orientation: "landscape", items }],
-  }) as unknown as Book
+  testBook("b1", "見本", [drawingPage("p1", { title: "1", items: items as never })])
 const label = (book: Book, id: string) => anchorLabel(CORE_CATALOG, book, id)
 
 test("箱はキャプション、無ければ本文の最初の行。どちらも無ければ種類の名前。装飾は外す", () => {
@@ -70,36 +65,21 @@ test("リストはキャプション、行は行のキャプションか本文�
 })
 
 test("ツリーの節と、ディレクトリの行は、ブックのタイプの labelOf で引く", () => {
-  const tree = pagesBook({
-    type: "@matomezu/tree:tree",
-    id: "t",
-    title: "木",
-    pages: [
-      {
-        id: "p1",
-        title: "1",
-        paper: "@matomezu/base:a4",
-        orientation: "landscape",
-        root: { id: "root", caption: "根", children: [{ id: "k", caption: "{red:子}" }] },
-      },
-    ],
-  }) as unknown as Book
+  const tree = testBook("t", "木", [
+    testPage(TREE, "p1", {
+      title: "1",
+      root: { id: "root", caption: "根", children: [{ id: "k", caption: "{red:子}" }] },
+    }),
+  ])
   expect(label(tree, "root")).toEqual({ text: "根" })
   expect(label(tree, "k")).toEqual({ text: "子" })
-  const dir = pagesBook({
-    type: "@matomezu/dir:dir",
-    id: "d",
-    title: "構成",
-    pages: [
-      {
-        id: "p1",
-        title: "1",
-        paper: "@matomezu/base:a4",
-        orientation: "portrait",
-        root: { id: "root", kind: "folder", name: "src", children: [{ id: "f", kind: "file", name: "main.ts" }] },
-      },
-    ],
-  }) as unknown as Book
+  const dir = testBook("d", "構成", [
+    testPage(DIR, "p1", {
+      title: "1",
+      orientation: "portrait",
+      root: { id: "root", kind: "folder", name: "src", children: [{ id: "f", kind: "file", name: "main.ts" }] },
+    }),
+  ])
   expect(label(dir, "root")).toEqual({ text: "src" })
   expect(label(dir, "f")).toEqual({ text: "main.ts" })
 })

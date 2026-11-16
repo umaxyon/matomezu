@@ -5,7 +5,7 @@ import { pagesOf, restoreBooks } from "../../web/src/core/book"
 import { findShape, type ItemPage, type PlacedShape, replaceShape, walkShapes } from "../../web/src/core/placed"
 import { shownRects } from "../../web/src/plugins/base/place/items"
 import { NEST_PADDING, placedSize } from "../../web/src/plugins/base/place/placed"
-import { pagesBook } from "../lineup"
+import { drawingPage, testBook } from "../lineup"
 import { CORE_CATALOG } from "../support"
 
 const BOX = "@matomezu/box:shape-nest-box"
@@ -15,13 +15,7 @@ const LINE = "@matomezu/line:connector-line"
 // 図面のブックは内包ボックス（ケイパビリティ nests）・リスト・線を使う
 const nesting = CORE_CATALOG
 
-const book = (items: unknown[]) =>
-  pagesBook({
-    type: "@matomezu/drawing:drawing",
-    id: "b1",
-    title: "T",
-    pages: [{ id: "p1", title: "P", paper: "@matomezu/base:a4", orientation: "landscape", items }],
-  })
+const book = (items: unknown[]) => testBook("b1", "T", [drawingPage("p1", { title: "P", items: items as never })])
 const box = (id: string, x: number, y: number, shapes?: unknown[]) => ({
   id,
   x,

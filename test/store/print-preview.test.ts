@@ -11,7 +11,7 @@ import { PRINT_READY_STATE } from "../../web/src/plugins/base/print-preview/prin
 import { printLaid as printDir } from "../../web/src/plugins/books/dir/print"
 import { printLaid as printTree } from "../../web/src/plugins/books/tree/print"
 import { isEnabled, isShown } from "../../web/src/store/commands"
-import { pagesBook } from "../lineup"
+import { FLOWCHART, TREE, testBook, testPage } from "../lineup"
 import { newStore } from "../support"
 
 const BOX = "@matomezu/box:shape-nest-box"
@@ -140,16 +140,8 @@ test("印刷区画に載っているか: 手で直した線の角がある印刷
 
 test("ツリーのように並べ方を描くときに決めるタイプは、見せ方の printSheets が印刷区画と載っている印刷区画を返す（形の位置からは判定しない）", () => {
   const store = newStore()
-  const page = {
-    kind: "page" as const,
-    type: "@matomezu/tree:tree",
-    id: "p1",
-    title: "1",
-    paper: "@matomezu/base:a4",
-    orientation: "landscape" as const,
-    root: { id: "r", caption: "根", children: [] },
-  }
-  const tree = pagesBook({ type: "@matomezu/tree:tree" as const, id: "t1", title: "木", pages: [page] })
+  const page = testPage(TREE, "p1", { title: "1", root: { id: "r", caption: "根", children: [] } })
+  const tree = testBook("t1", "木", [page])
   expect(filledSheets(store.catalog.core, page)).toBeNull()
   expect(sheetsOfPage(store.catalog.core, page)).toEqual({
     columns: 1,
@@ -255,12 +247,7 @@ test("印刷のときの改ページ: ツリーとディレクトリ構成図の
 
 test("並べ方が自動のタイプ（フローチャート）は、またいだ形を調べない", () => {
   const store = newStore()
-  const flow = pagesBook({
-    type: "@matomezu/flowchart:flowchart",
-    id: "f1",
-    title: "流れ",
-    pages: [{ id: "p1", title: "1", paper: "@matomezu/base:a4", orientation: "landscape", grows: true, items: [] }],
-  })
+  const flow = testBook("f1", "流れ", [testPage(FLOWCHART, "p1", { title: "1", grows: true, items: [] })])
   expect(bookCrossings(store.catalog.core, flow as never)).toEqual([])
 })
 

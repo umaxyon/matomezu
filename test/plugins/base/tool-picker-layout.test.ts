@@ -11,7 +11,7 @@ import {
   type PickerLayout,
   pickerSlots,
 } from "../../../web/src/plugins/base/tool-picker/layout"
-import { pagesBook } from "../../lineup"
+import { drawingPage, testBook } from "../../lineup"
 import { CORE_CATALOG } from "../../support"
 
 const view = { w: 1200, h: 800 }
@@ -31,12 +31,7 @@ const clear = (l: PickerLayout, at: Point, size = view) => {
 }
 
 test("開くと出す所だけを持ち、閉じれば消える", () => {
-  const paged = pagesBook({
-    type: "@matomezu/drawing:drawing" as const,
-    id: "b1",
-    title: "見本",
-    pages: [{ id: "p1", title: "1", paper: "@matomezu/base:a4", orientation: "landscape" as const }],
-  })
+  const paged = testBook("b1", "見本", [drawingPage("p1", { title: "1" })])
   const picked = openPicker(openBook(CORE_CATALOG, newStage("s1"), paged), { x: 10, y: 20 })
   expect(picked.picker).toEqual({ at: { x: 10, y: 20 } })
   expect(closePicker(picked).picker).toBeNull()

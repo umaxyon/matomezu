@@ -14,35 +14,17 @@ import {
 import { minimapMarks } from "../../web/src/plugins/base/minimap/marks"
 import { sheetsOfPage } from "../../web/src/plugins/base/print-preview/book-sheets"
 import { placeableIn } from "../../web/src/plugins/base/toolbox/toolbox"
-import { pagesBook } from "../lineup"
+import { DRAWING, drawingPage, SLIDE, testBook, testFolder, testPage, withSlide } from "../lineup"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
 const typeOf = (id: string) => BUILTIN_PARTS.pageTypes.find(t => t.id === id)!
-const DRAWING = "@matomezu/drawing:drawing"
-const SLIDE = "@matomezu/slide-book:slide"
 const ELLIPSE = "@matomezu/slide:slide-ellipse"
 const backdrop = { id: "bg", item: ELLIPSE, x: 10, y: 10, w: 100, h: 60, props: {} }
-const pages = [
-  {
-    kind: "page" as const,
-    type: DRAWING,
-    id: "p1",
-    title: "1",
-    paper: "@matomezu/base:a4",
-    orientation: "landscape" as const,
-    slide: [backdrop],
-  },
-  {
-    kind: "page" as const,
-    type: DRAWING,
-    id: "p2",
-    title: "2",
-    paper: "@matomezu/base:a4",
-    orientation: "landscape" as const,
-    slide: [backdrop],
-  },
-]
-const book = (type: string, extra: object = {}) => pagesBook({ type, id: "b1", title: "B", pages, ...extra })
+const pages = ["p1", "p2"].map(id => withSlide(drawingPage(id, { title: id.slice(1) }), [backdrop]))
+const slides = ["p1", "p2"].map(id => withSlide(testPage(SLIDE, id, { title: id.slice(1) }), [backdrop]))
+// タイプ type のページ p1・p2 のブック（スライドのページはフォルダ 1 つに入れる）
+const book = (type: typeof DRAWING | typeof SLIDE) =>
+  testBook("b1", "B", type === SLIDE ? [testFolder("b1-slides", "B", SLIDE, ...slides)] : pages)
 
 test("slide が背景か本体かは、タイプが slide に background を書いたかで決まる。直している並びで置ける物が変わる", () => {
   expect(slideIsBackground(typeOf(DRAWING))).toBe(true)
@@ -56,7 +38,7 @@ test("slide が背景か本体かは、タイプが slide に background を書�
 })
 
 test("背景編集モードには、背景を持つタイプのページを開いている間だけ入れる。入ると選択と置こうとしている物を捨てる", () => {
-  const open = (type: string) => openBook(CORE_CATALOG, newStage("s1"), book(type))
+  const open = (type: typeof DRAWING | typeof SLIDE) => openBook(CORE_CATALOG, newStage("s1"), book(type))
   expect(editingBackground(startBackground(CORE_CATALOG, open(DRAWING)))).toBe(true)
   expect(editingBackground(startBackground(CORE_CATALOG, open(SLIDE)))).toBe(false) // 本体のタイプには無い
   expect(startBackground(CORE_CATALOG, newStage("s1")).edits).toBe("items") // 何も開いていない

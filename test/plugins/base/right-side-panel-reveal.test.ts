@@ -7,19 +7,14 @@ import { paperRectOf, revealView } from "../../../web/src/plugins/base/right-sid
 import { movedFrom, openedRestore, restoreTo, withRestore } from "../../../web/src/plugins/base/right-side-panel/state"
 import { EDGE_STAND_ROOM } from "../../../web/src/plugins/base/utils/stand-place"
 import { fitView, moveView, ZOOM_MIN } from "../../../web/src/plugins/base/zoom"
-import { pagesBook } from "../../lineup"
+import { drawingPage, testBook } from "../../lineup"
 import { CORE_CATALOG } from "../../support"
 
 const OPEN = { widget: "p:panel", subject: "c1", anchors: ["a1"], current: "a1", book: "b1", page: "p1" }
 const HOME = { zoom: 1, pan: { x: 0, y: 0 } }
 const PANNED = { zoom: 0.8, pan: { x: -40, y: -10 } }
 
-const book = pagesBook({
-  type: "@matomezu/drawing:drawing" as const,
-  id: "b1",
-  title: "見本",
-  pages: [{ id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" as const }],
-})
+const book = testBook("b1", "見本", [drawingPage("p1")])
 const stage = resize(openBook(CORE_CATALOG, newStage("s1"), book), { w: 400, h: 300 })
 
 test("開くと、開く前の見え方を覚え、物はまだ見せていない。閉じて戻す前に同じページで開き直しても、最初に開く前の見え方と、変えたかはそのまま", () => {

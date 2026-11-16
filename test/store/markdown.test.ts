@@ -24,7 +24,6 @@ import { MAX_REMEMBERED, positionOf, remember, SCROLL_STATE } from "../../web/sr
 import { sourceEdit } from "../../web/src/plugins/books/markdown/source-edit"
 import { isActive, isShown } from "../../web/src/store/commands"
 import type { DoneAction as Done } from "../../web/src/store/store"
-import { withPages } from "../lineup"
 import { newStore } from "../support"
 
 const markdownStore = (options: Parameters<typeof newStore>[0] = {}) => {
@@ -313,7 +312,7 @@ test("ソースのペインで書いた所は、ホストで AI の変更のあ�
     return store.actions.perform("@matomezu/base:page-update", { page, fields: edit.fields }, { book: id })
   }
   store.actions.perform("@matomezu/base:page-update", { page, fields: { text: "# T\n\nfoo\n" } }, { book: id })
-  const confirmed = (text: string) => withPages(book(), [{ ...pagesOf(book())[0]!, text }])
+  const confirmed = (text: string) => ({ ...book(), lineup: [{ ...pagesOf(book())[0]!, text }] })
   // AI が先頭に行を足したホストのブックに、foo の後ろへ書いた物を行い直す
   write("# T\n\nfoo\n", "# T\n\nfoo bar\n")
   store.receive({ books: [confirmed("AI\n# T\n\nfoo\n")], settings: {} }, [done.at(-1)!])

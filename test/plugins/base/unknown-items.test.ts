@@ -1,28 +1,20 @@
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../../web/src/core/book"
 import { rectsOf } from "../../../web/src/plugins/base"
-import { pagesBook } from "../../lineup"
+import { drawingPage, testBook } from "../../lineup"
 import { newStore } from "../../support"
 
 // 外したプラグインの星（大きさ無し）と、外したプラグインの線（星から箱へ）が残る図面
-const book = pagesBook({
-  type: "@matomezu/drawing:drawing",
-  id: "u1",
-  title: "星の残る図",
-  pages: [
-    {
-      id: "p1",
-      title: "P",
-      paper: "@matomezu/base:a4",
-      orientation: "landscape",
-      items: [
-        { id: "s", item: "@foo/stars:star", x: 40, y: 40, props: { points: 5 } },
-        { id: "b", item: "@matomezu/box:shape-nest-box", x: 400, y: 40, props: { caption: "箱" } },
-        { id: "l", item: "@foo/stars:beam", from: "s", to: "b", props: {} },
-      ],
-    },
-  ],
-})
+const book = testBook("u1", "星の残る図", [
+  drawingPage("p1", {
+    title: "P",
+    items: [
+      { id: "s", item: "@foo/stars:star", x: 40, y: 40, props: { points: 5 } },
+      { id: "b", item: "@matomezu/box:shape-nest-box", x: 400, y: 40, props: { caption: "箱" } },
+      { id: "l", item: "@foo/stars:beam", from: "s", to: "b", props: {} },
+    ] as never,
+  }),
+])
 
 const page = (store: ReturnType<typeof newStore>) => pagesOf(store.state.getState().books.u1!)[0]!
 

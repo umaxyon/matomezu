@@ -1,4 +1,4 @@
-import { pagesBook } from "../../test/lineup"
+import { DIR, drawingPage, MARKDOWN, TREE, testBook, testPage } from "../../test/lineup"
 
 // 測るブック: A3 の横の紙 1 枚に、箱を格子に並べ、線で順につなぐ（行の中は右の箱へ、行の右端からは次の行の左端へ）。
 // 線でつながる横の間は 40（線の間隔の下限 32 より広く）、縦の間は 12（つながらない箱の下限 8 より広く）
@@ -32,20 +32,9 @@ export function gridBook(id: string, n: number) {
     to: `b${i + 1}`,
     props: {},
   }))
-  return pagesBook({
-    type: "@matomezu/drawing:drawing",
-    id,
-    title: `箱 ${n}`,
-    pages: [
-      {
-        id: PAGE,
-        title: "ページ 1",
-        paper: "@matomezu/base:a3",
-        orientation: "landscape",
-        items: [...boxes, ...lines],
-      },
-    ],
-  })
+  return testBook(id, `箱 ${n}`, [
+    drawingPage(PAGE, { paper: "@matomezu/base:a3", items: [...boxes, ...lines] as never }),
+  ])
 }
 
 // 根の下に 10 の枝、残りの節を枝へ順に配った木（節は根を入れて n 個）
@@ -56,20 +45,9 @@ export function treeBook(id: string, n: number) {
     children: [] as { id: string; caption: string }[],
   }))
   for (let i = 0; i < n - 11; i++) branches[i % 10]!.children.push({ id: `n${10 + i}`, caption: `葉 ${i + 1}` })
-  return pagesBook({
-    type: "@matomezu/tree:tree",
-    id,
-    title: `節 ${n}`,
-    pages: [
-      {
-        id: PAGE,
-        title: "ページ 1",
-        paper: "@matomezu/base:a3",
-        orientation: "landscape",
-        root: { id: "root", caption: "根", children: branches },
-      },
-    ],
-  })
+  return testBook(id, `節 ${n}`, [
+    testPage(TREE, PAGE, { paper: "@matomezu/base:a3", root: { id: "root", caption: "根", children: branches } }),
+  ])
 }
 
 // 根のフォルダの下に 10 のフォルダ、残りのファイルをフォルダへ順に配った構成（中身は根を入れて n 個）
@@ -82,20 +60,13 @@ export function dirBook(id: string, n: number) {
   }))
   for (let i = 0; i < n - 11; i++)
     folders[i % 10]!.children.push({ id: `f${i}`, kind: "file", name: `file${i + 1}.ts` })
-  return pagesBook({
-    type: "@matomezu/dir:dir",
-    id,
-    title: `中身 ${n}`,
-    pages: [
-      {
-        id: PAGE,
-        title: "ページ 1",
-        paper: "@matomezu/base:a3",
-        orientation: "portrait",
-        root: { id: "root", kind: "folder", name: "root", children: folders },
-      },
-    ],
-  })
+  return testBook(id, `中身 ${n}`, [
+    testPage(DIR, PAGE, {
+      paper: "@matomezu/base:a3",
+      orientation: "portrait",
+      root: { id: "root", kind: "folder", name: "root", children: folders },
+    }),
+  ])
 }
 
 // マークダウンの 1 ページに、lines 行の原文（20 行ごとに見出し、段落とリストを交互に）
@@ -105,10 +76,5 @@ export function markdownBook(id: string, lines: number) {
     if (i % 20 === 1 || i % 5 === 0) return ""
     return i % 40 < 20 ? `本文の行 ${i + 1}。**太字** と \`code\` を含む。` : `- 項目 ${i + 1}`
   }).join("\n")
-  return pagesBook({
-    type: "@matomezu/markdown:markdown",
-    id,
-    title: `原文 ${lines} 行`,
-    pages: [{ id: PAGE, title: "ページ 1", paper: "@matomezu/base:a4", orientation: "portrait", text }],
-  })
+  return testBook(id, `原文 ${lines} 行`, [testPage(MARKDOWN, PAGE, { orientation: "portrait", text })])
 }

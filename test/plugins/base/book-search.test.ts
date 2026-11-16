@@ -1,14 +1,8 @@
 import { expect, test } from "bun:test"
 import { searchBooks } from "../../../web/src/plugins/base/book-open/book-search"
-import { pagesBook } from "../../lineup"
+import { drawingPage, testBook } from "../../lineup"
 
-const book = (id: string, title: string) =>
-  pagesBook({
-    type: "@matomezu/drawing:drawing" as const,
-    id,
-    title,
-    pages: [{ id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" as const }],
-  })
+const book = (id: string, title: string) => testBook(id, title, [drawingPage("p1")])
 const books = [
   book("u", ""),
   book("a", "画面の構成"),

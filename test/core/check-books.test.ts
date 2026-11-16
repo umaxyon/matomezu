@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { checkBooks } from "../../web/src/core/book"
 import { warningText } from "../../web/src/core/warnings"
-import { drawingPage, testBook, withPages } from "../lineup"
+import { drawingPage, testBook } from "../lineup"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { CORE_CATALOG } from "../support"
 
@@ -11,7 +11,7 @@ test("読めるブックと、読めないブックの warning（タイプが無
   const misfit = { ...ok, id: "x2", title: "壊れた図面", lineup: "?" }
   const page = drawingPage("p1", { title: "P" })
   const line = { id: "l", item: "@matomezu/line:connector-line", from: "a", to: "b", props: {} }
-  const broken = withPages({ ...ok, id: "x3", title: "線だけ" }, [{ ...page, items: [line] }])
+  const broken = { ...ok, id: "x3", title: "線だけ", lineup: [{ ...page, items: [line] }] }
   const done = checkBooks(CORE_CATALOG, [ok, noType, misfit, broken])
   expect(done.books.map(b => b.id)).toEqual([ok.id])
   expect(done.warnings.map(warningText)).toEqual([
@@ -25,9 +25,12 @@ test("機能台帳に無いアイテムと設定の項目は、ブックを読�
   const ok = SAMPLE_BOOKS[0]!
   const page = drawingPage("p1", { title: "P" })
   const star = { id: "s", item: "@foo/stars:star", x: 10, y: 10, props: { points: 5 } }
-  const withStar = withPages({ ...ok, id: "y1", title: "星" }, [
-    { ...page, items: [star], settings: { "@foo/stars:sky": "night" } },
-  ])
+  const withStar = {
+    ...ok,
+    id: "y1",
+    title: "星",
+    lineup: [{ ...page, items: [star], settings: { "@foo/stars:sky": "night" } }],
+  }
   const done = checkBooks(CORE_CATALOG, [withStar])
   expect(done.books).toHaveLength(1)
   expect(done.books[0]).toMatchObject({ lineup: [{ items: [star], settings: { "@foo/stars:sky": "night" } }] })
@@ -35,12 +38,18 @@ test("機能台帳に無いアイテムと設定の項目は、ブックを読�
     "W007 @foo/stars: book y1 (星): it has @foo/stars:sky, @foo/stars:star, not in the catalog (kept as they are)",
   ])
   // 機能台帳にあって、図面が選んでいない設定の項目（ツリーの伸びる向き）と、項目の形が合わないアイテムは読めない
-  const unselected = withPages({ ...ok, id: "y2", title: "選んでいない" }, [
-    { ...page, settings: { "@matomezu/tree:grow": "down" } },
-  ])
-  const misfit = withPages({ ...ok, id: "y3", title: "形違い" }, [
-    { ...page, items: [{ ...star, item: "@matomezu/box:shape-nest-box", props: { nope: 1 } }] },
-  ])
+  const unselected = {
+    ...ok,
+    id: "y2",
+    title: "選んでいない",
+    lineup: [{ ...page, settings: { "@matomezu/tree:grow": "down" } }],
+  }
+  const misfit = {
+    ...ok,
+    id: "y3",
+    title: "形違い",
+    lineup: [{ ...page, items: [{ ...star, item: "@matomezu/box:shape-nest-box", props: { nope: 1 } }] }],
+  }
   expect(checkBooks(CORE_CATALOG, [unselected, misfit]).warnings.map(n => n.code)).toEqual(["W005", "W005"])
 })
 
@@ -58,10 +67,13 @@ test("子の形の中にある機能台帳に無いアイテムも W007 に出�
     props: {},
     shapes,
   })
-  const page = { id: "p1", title: "P", paper: "@matomezu/base:a4", orientation: "landscape" as const }
-  const book = withPages({ ...ok, id: "z1", title: "入れ子" }, [
-    { ...page, items: [nest("a", [star, nest("b", [moon])])] },
-  ])
+  const page = drawingPage("p1", { title: "P" })
+  const book = {
+    ...ok,
+    id: "z1",
+    title: "入れ子",
+    lineup: [{ ...page, items: [nest("a", [star, nest("b", [moon])])] }],
+  }
   const done = checkBooks(CORE_CATALOG, [book])
   expect(done.books).toHaveLength(1)
   expect(done.partial.map(warningText)).toEqual([

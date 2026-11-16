@@ -28,7 +28,7 @@ test("設定の「プラグイン」に、足した追加プラグインがス�
       <WindowRoot />
     </MatomezuProvider>,
   )
-  fireEvent.click(screen.getByRole("button", { name: "設定を開く", hidden: true }))
+  fireEvent.click(screen.getByRole("button", { name: "全体設定", hidden: true }))
   fireEvent.click(screen.getByRole("tab", { name: "プラグイン" }))
   const panel = screen.getByRole("tabpanel", { name: "プラグイン" })
   const boxes = within(panel).getAllByRole("checkbox") as HTMLInputElement[]

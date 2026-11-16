@@ -1,4 +1,4 @@
-import { pagesBook } from "../../test/lineup"
+import { drawingPage, testBook } from "../../test/lineup"
 import { E2E_BOOKS, pagesIn } from "../books"
 import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test, urlStages } from "../fixtures"
 import { addBox } from "../helpers/paper"
@@ -132,33 +132,24 @@ test("AI が show で頼むと、最後にフォーカスした窓が、分け�
 })
 
 // 線のあるブック: 箱 a・b・c と、a から b（終点に矢印・キャプション）・a から c・b から c の線
-const LINE_BOOK = pagesBook({
-  type: "@matomezu/drawing:drawing",
-  id: "e2e-line",
-  title: "線",
-  pages: [
-    {
-      id: "p1",
-      title: "ページ 1",
-      paper: "@matomezu/base:a4",
-      orientation: "landscape",
-      items: [
-        { id: "a", x: 100, y: 100, item: "@matomezu/box:shape-nest-box", w: 100, h: 64, props: { caption: "A" } },
-        { id: "b", x: 400, y: 100, item: "@matomezu/box:shape-nest-box", w: 100, h: 64, props: { caption: "B" } },
-        { id: "c", x: 100, y: 400, item: "@matomezu/box:shape-nest-box", w: 100, h: 64, props: { caption: "C" } },
-        {
-          id: "l1",
-          item: "@matomezu/line:connector-line",
-          from: "a",
-          to: "b",
-          props: { endHead: "arrow", caption: "申請" },
-        },
-        { id: "l2", item: "@matomezu/line:connector-line", from: "a", to: "c", props: {} },
-        { id: "l3", item: "@matomezu/line:connector-line", from: "b", to: "c", props: {} },
-      ],
-    },
-  ],
-})
+const LINE_BOOK = testBook("e2e-line", "線", [
+  drawingPage("p1", {
+    items: [
+      { id: "a", x: 100, y: 100, item: "@matomezu/box:shape-nest-box", w: 100, h: 64, props: { caption: "A" } },
+      { id: "b", x: 400, y: 100, item: "@matomezu/box:shape-nest-box", w: 100, h: 64, props: { caption: "B" } },
+      { id: "c", x: 100, y: 400, item: "@matomezu/box:shape-nest-box", w: 100, h: 64, props: { caption: "C" } },
+      {
+        id: "l1",
+        item: "@matomezu/line:connector-line",
+        from: "a",
+        to: "b",
+        props: { endHead: "arrow", caption: "申請" },
+      },
+      { id: "l2", item: "@matomezu/line:connector-line", from: "a", to: "c", props: {} },
+      { id: "l3", item: "@matomezu/line:connector-line", from: "b", to: "c", props: {} },
+    ] as never,
+  }),
+])
 
 test("線は箱より手前に描かれ、選択の道具で押すと選ばれ、Delete と右クリックのメニューで消せる。箱を消すと、つながる線も消える", async ({
   page,

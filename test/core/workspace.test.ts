@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test"
-import { pagesOf } from "../../web/src/core/book"
 import { openedPage, panBy, shownPageId } from "../../web/src/core/stage"
 import {
   close,
@@ -18,19 +17,13 @@ import {
   split,
   unsplit,
 } from "../../web/src/core/workspace"
-import { pagesBook, withPages } from "../lineup"
+import { drawingPage, testBook } from "../lineup"
 import { CORE_CATALOG } from "../support"
 
 describe("workspace", () => {
-  const book = pagesBook({
-    type: "@matomezu/drawing:drawing" as const,
-    id: "b1",
-    title: "見本",
-    pages: [
-      { id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" as const },
-      { id: "p2", title: "ページ 2", paper: "@matomezu/base:a4", orientation: "landscape" as const },
-    ],
-  })
+  const p1 = drawingPage("p1")
+  const p2 = drawingPage("p2", { title: "ページ 2" })
+  const book = testBook("b1", "見本", [p1, p2])
   const ws = newWorkspace(CORE_CATALOG, book)
 
   test("分けると、カレントの右に何も開いていないステージが増え、カレントは変わらない", () => {
@@ -89,9 +82,9 @@ describe("workspace", () => {
   test("ブックが変わると、開いているステージを合わせる。開いていたページが無くなれば最初のページ、紙が変われば紙を決め直す", () => {
     const two = showPage(CORE_CATALOG, split(ws, "s2"), "s1", book, "p2")
     const both = mapStage(two, "s2", s => ({ ...s, opened: two.stages[0]!.opened }))
-    const removed = withPages(book, [pagesOf(book)[0]!])
+    const removed = { ...book, lineup: [p1] }
     expect(followBook(CORE_CATALOG, both, removed).stages.map(s => shownPageId(s.opened ?? null))).toEqual(["p1", "p1"])
-    const a3 = withPages(book, [pagesOf(book)[0]!, { ...pagesOf(book)[1]!, paper: "@matomezu/base:a3" }])
+    const a3 = { ...book, lineup: [p1, { ...p2, paper: "@matomezu/base:a3" }] }
     expect(openedPage(followBook(CORE_CATALOG, both, a3).stages[0]!.opened ?? null)?.paper).toMatchObject({
       status: "known",
       size: { w: 1587, h: 1123 },
@@ -100,18 +93,14 @@ describe("workspace", () => {
   })
 
   test("変わる前のブックを渡すと、開いていたページが無くなったときは隣のページ（後ろ、無ければ前）を開く", () => {
-    const page = (id: string) => ({ ...pagesOf(book)[0]!, id })
-    const three = withPages(book, [page("p1"), page("p2"), page("p3")])
+    const page = (id: string) => ({ ...p1, id })
+    const three = { ...book, lineup: [page("p1"), page("p2"), page("p3")] }
     const at = (id: string) => showPage(CORE_CATALOG, ws, "s1", three, id)
-    const without = (id: string) =>
-      withPages(
-        three,
-        pagesOf(three).filter(p => p.id !== id),
-      )
+    const without = (id: string) => ({ ...three, lineup: three.lineup.filter(p => p.id !== id) })
     expect(shownPageId(followBook(CORE_CATALOG, at("p2"), without("p2"), three).stages[0]!.opened ?? null)).toBe("p3")
     expect(shownPageId(followBook(CORE_CATALOG, at("p3"), without("p3"), three).stages[0]!.opened ?? null)).toBe("p2")
     expect(
-      shownPageId(followBook(CORE_CATALOG, at("p1"), withPages(three, []), three).stages[0]!.opened ?? null),
+      shownPageId(followBook(CORE_CATALOG, at("p1"), { ...three, lineup: [] }, three).stages[0]!.opened ?? null),
     ).toBeNull()
   })
 

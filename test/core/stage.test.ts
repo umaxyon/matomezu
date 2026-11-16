@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test"
-import { pagesOf } from "../../web/src/core/book"
 import {
   areaOf,
   closePrintPreview,
@@ -25,19 +24,14 @@ import {
   zoomTo,
 } from "../../web/src/core/stage"
 import { contentSize, MARGIN } from "../../web/src/core/viewport"
-import { drawingPage, pagesBook, SLIDE, testBook, testFolder, testPage, withPages } from "../lineup"
+import { drawingPage, SLIDE, testBook, testFolder, testPage } from "../lineup"
 import { CORE_CATALOG } from "../support"
 
 describe("stage", () => {
-  const paged = pagesBook({
-    type: "@matomezu/drawing:drawing" as const,
-    id: "b1",
-    title: "見本",
-    pages: [
-      { id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" as const },
-      { id: "p2", title: "ページ 2", paper: "@matomezu/base:a5", orientation: "portrait" as const },
-    ],
-  })
+  const paged = testBook("b1", "見本", [
+    drawingPage("p1"),
+    drawingPage("p2", { title: "ページ 2", paper: "@matomezu/base:a5", orientation: "portrait" }),
+  ])
   const stage = openBook(CORE_CATALOG, newStage("s1"), paged)
   const content = contentSize(paperOf(stage)!, 1)
   const small = { w: 400, h: 300 } // 中身が収まらない表示領域
@@ -110,15 +104,10 @@ describe("stage", () => {
   })
 
   test("ブックを開くと、最初のページを開き、ずらす量は範囲に収めた最初の位置", () => {
-    const book = pagesBook({
-      type: "@matomezu/drawing:drawing" as const,
-      id: "b9",
-      title: "見本",
-      pages: [
-        { id: "p4", title: "ページ 4", paper: "@matomezu/base:a4", orientation: "landscape" as const },
-        { id: "p5", title: "ページ 5", paper: "@matomezu/base:a4", orientation: "landscape" as const },
-      ],
-    })
+    const book = testBook("b9", "見本", [
+      drawingPage("p4", { title: "ページ 4" }),
+      drawingPage("p5", { title: "ページ 5" }),
+    ])
     const opened = openBook(CORE_CATALOG, resize(newStage("s2"), small), book)
     expect(opened.opened).toEqual({
       kind: "page",
@@ -131,7 +120,7 @@ describe("stage", () => {
   })
 
   test("ページの無いブックを開くと、ページも紙も開かず、ずらせない", () => {
-    const opened = openBook(CORE_CATALOG, resize(stage, small), withPages({ ...paged, id: "b0" }, []))
+    const opened = openBook(CORE_CATALOG, resize(stage, small), testBook("b0", "見本", []))
     expect(opened.opened).toEqual({ kind: "none", book: "b0" })
     expect(placement(opened)).toBeNull()
     expect(panBy(opened, -10, -10)).toBe(opened)
@@ -150,12 +139,8 @@ test("その場で編集中（editing）は、選んでいる物があるとき�
 })
 
 test("見せ方が知らせた広さ（可変ページ）は、紙の枠とずらす量の範囲に効き、紙 1 枚の大きさ（paperOf）は変えない。紙が変われば捨てる", () => {
-  const book = pagesBook({
-    type: "@matomezu/drawing:drawing" as const,
-    id: "b1",
-    title: "見本",
-    pages: [{ id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "portrait" as const }],
-  })
+  const page = drawingPage("p1", { orientation: "portrait" })
+  const book = testBook("b1", "見本", [page])
   const opened = resize(openBook(CORE_CATALOG, newStage("s1"), book), { w: 400, h: 300 })
   const sheet = paperOf(opened)!
   expect(areaOf(opened)).toEqual(sheet)
@@ -172,24 +157,19 @@ test("見せ方が知らせた広さ（可変ページ）は、紙の枠とず�
   expect(areaOf(back)).toEqual(sheet)
   expect(back.pan.y).toBe(300 - contentSize(sheet, 1).h)
   // 開いているページの紙が変われば、知らせた広さは捨てる（知らせ直すまで紙 1 枚）
-  const a3 = withPages(book, [{ ...pagesOf(book)[0]!, paper: "@matomezu/base:a3" }])
+  const a3 = { ...book, lineup: [{ ...page, paper: "@matomezu/base:a3" }] }
   expect(areaOf(followBook(CORE_CATALOG, grown, a3))).toEqual(paperOf(followBook(CORE_CATALOG, grown, a3)))
 })
 
 test("開いているページの中身をずらした（ページの shift が変わった）なら、中身が同じ所に見えるようパンを合わせ、知らせた広さも先に広げる", () => {
-  const page = { id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "portrait" as const }
-  const book = pagesBook({
-    type: "@matomezu/drawing:drawing" as const,
-    id: "b1",
-    title: "見本",
-    pages: [page],
-  })
+  const page = drawingPage("p1", { orientation: "portrait" })
+  const book = testBook("b1", "見本", [page])
   const sheet = paperOf(openBook(CORE_CATALOG, newStage("s1"), book))!
   const view = { w: 400, h: 300 }
   const start = setArea(resize(openBook(CORE_CATALOG, newStage("s1"), book), view), { w: sheet.w * 3, h: sheet.h * 3 })
   const at = panBy(start, -sheet.w, -sheet.h) // 2 つ目の印刷区画の左上あたりを見ている
   // 右へ印刷区画 1 つ分、下へは動かさずにずらす
-  const shifted = followBook(CORE_CATALOG, at, withPages(book, [{ ...page, shift: { x: 1, y: 0 } }]))
+  const shifted = followBook(CORE_CATALOG, at, { ...book, lineup: [{ ...page, shift: { x: 1, y: 0 } }] })
   expect(shifted.pan).toEqual({ x: at.pan.x - sheet.w, y: at.pan.y })
   expect(areaOf(shifted)).toEqual({ w: sheet.w * 4, h: sheet.h * 3 })
   // 詰めて戻せば、パンも戻る
@@ -200,13 +180,8 @@ test("開いているページの中身をずらした（ページの shift が�
 })
 
 test("位置をデータに持たない見せ方が、描く中身をずらした量（origin）を広さと一緒に知らせて変われば、中身が同じ所に見えるようパンを合わせる", () => {
-  const page = { id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "portrait" as const }
-  const book = pagesBook({
-    type: "@matomezu/drawing:drawing" as const,
-    id: "b1",
-    title: "見本",
-    pages: [page],
-  })
+  const page = drawingPage("p1", { orientation: "portrait" })
+  const book = testBook("b1", "見本", [page])
   const sheet = paperOf(openBook(CORE_CATALOG, newStage("s1"), book))!
   const view = { w: 400, h: 300 }
   const area = { w: sheet.w * 3, h: sheet.h * 2 }
@@ -222,13 +197,8 @@ test("位置をデータに持たない見せ方が、描く中身をずらし�
 })
 
 test("開いたばかりのページは、知らせた初めの位置（start）を表示領域の左上に置く。紙の左上でなければ広さが届くまで待ち、動かしたあとや開き直すまでは合わせない", () => {
-  const page = { id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "portrait" as const }
-  const book = pagesBook({
-    type: "@matomezu/drawing:drawing" as const,
-    id: "b1",
-    title: "見本",
-    pages: [page],
-  })
+  const page = drawingPage("p1", { orientation: "portrait" })
+  const book = testBook("b1", "見本", [page])
   const view = { w: 400, h: 300 }
   const opened = resize(openBook(CORE_CATALOG, newStage("s1"), book), view)
   const sheet = paperOf(opened)!
@@ -256,21 +226,16 @@ test("開いたばかりのページは、知らせた初めの位置（start）
 })
 
 test("開いていたページが無くなって隣のページを開いたときも初めの位置に合わせる。印刷プレビューを開けば合わせず、印刷プレビューの間に戻すと並べた広さの左上", () => {
-  const p1 = { id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "portrait" as const }
+  const p1 = drawingPage("p1", { orientation: "portrait" })
   const p2 = { ...p1, id: "p2", title: "ページ 2" }
-  const book = pagesBook({
-    type: "@matomezu/drawing:drawing" as const,
-    id: "b1",
-    title: "見本",
-    pages: [p1, p2],
-  })
+  const book = testBook("b1", "見本", [p1, p2])
   const view = { w: 400, h: 300 }
   const opened = resize(openBook(CORE_CATALOG, newStage("s1"), book), view)
   const sheet = paperOf(opened)!
   const area = { w: sheet.w * 2, h: sheet.h * 2 }
   const start = { x: sheet.w, y: sheet.h }
   const settledAt = panBy(setStart(setArea(opened, area), start), 50, 50)
-  const removed = followBook(CORE_CATALOG, settledAt, withPages(book, [p2]), book)
+  const removed = followBook(CORE_CATALOG, settledAt, { ...book, lineup: [p2] }, book)
   expect([shownPageId(removed.opened ?? null), removed.starting, removed.pan]).toEqual(["p2", true, { x: 0, y: 0 }])
   expect(setStart(setArea(removed, area), start).pan).toEqual({ x: -sheet.w, y: -sheet.h })
   // 印刷プレビューを開けば印を下ろし、閉じて知らせが届いても合わせない

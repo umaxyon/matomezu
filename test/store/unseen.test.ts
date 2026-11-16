@@ -6,7 +6,6 @@ import { expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
 import type { Book } from "../../web/src/core/schema/book"
 import type { AIEditTicketOutcome } from "../../web/src/store/store"
-import { withPages } from "../lineup"
 import { newStore, sequence } from "../support"
 
 const BOX = "@matomezu/box:shape-nest-box"
@@ -39,12 +38,12 @@ const foreign = (
   action = "@matomezu/paper:item-update",
 ) => store.receive({ books: [book], settings: {} }, [], { book: book.id, by, act, action })
 const renamed = (book: Drawing, i: number, caption: string): Drawing =>
-  withPages(
-    book,
-    pagesOf(book).map((p, k) =>
+  ({
+    ...book,
+    lineup: pagesOf(book).map((p, k) =>
       k === 0 ? { ...p, items: p.items?.map((x, j) => (j === i ? { ...x, props: { ...x.props, caption } } : x)) } : p,
     ),
-  ) as Drawing
+  }) as Drawing
 // ステージの表示領域を、紙の左上の角の外の小さな所にする（どの形の頭も見えない）・元の広さに戻す
 const hide = (store: Store) => store.actions.resizeStage("s1", { w: 1, h: 1 })
 const show = (store: Store) => store.actions.resizeStage("s1", { w: 1400, h: 1000 })
@@ -92,13 +91,7 @@ test("開いていないページの変更は、そのページを開いたら�
   const [, second] = pagesOf(bookOf(store))
   store.actions.openPage("s1", pagesOf(book)[0]!.id)
   const now = bookOf(store)
-  foreign(
-    store,
-    withPages(
-      now,
-      pagesOf(now).map(p => (p.id === second!.id ? { ...p, title: "AI" } : p)),
-    ),
-  )
+  foreign(store, { ...now, lineup: now.lineup.map(p => (p.id === second!.id ? { ...p, title: "AI" } : p)) })
   expect(historyOf(store)?.undo.map(s => s.by)).toEqual(["user"])
   store.actions.openPage("s1", second!.id)
   expect(historyOf(store)?.undo.map(s => s.by)).toEqual(["user", "ai"])

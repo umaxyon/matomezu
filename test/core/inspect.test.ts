@@ -3,7 +3,7 @@ import { USER } from "../../web/src/core/actor"
 import { pagesOf } from "../../web/src/core/book"
 import { ANY_PAGE_TYPE } from "../../web/src/core/def/action"
 import { deniedBy, inspect } from "../../web/src/core/inspect"
-import { DRAWING, drawingPage, MARKDOWN, SLIDE, testBook, testFolder, testPage, withPages } from "../lineup"
+import { DRAWING, drawingPage, MARKDOWN, SLIDE, testBook, testFolder, testPage } from "../lineup"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { CORE_CATALOG } from "../support"
 
@@ -26,10 +26,10 @@ describe("inspect: アクションの許可", () => {
       inspect(CORE_CATALOG, { kind: "action", actor: USER, action: "@matomezu/base:book-unlock", book: locked }).value,
     ).toBe(true)
     const page = pagesOf(drawing)[0]!.id
-    const pageLocked = withPages(
-      drawing,
-      pagesOf(drawing).map((p, i) => (i === 0 ? { ...p, locked: true as const } : p)),
-    )
+    const pageLocked = {
+      ...drawing,
+      lineup: drawing.lineup.map((p, i) => (i === 0 ? { ...p, locked: true as const } : p)),
+    }
     const update = { kind: "action", actor: USER, action: "@matomezu/base:page-update", book: pageLocked } as const
     expect(inspect(CORE_CATALOG, { ...update, where: { page } })).toMatchObject({ value: false, decidedBy: lock })
     expect(inspect(CORE_CATALOG, update).value).toBe(true)

@@ -10,21 +10,13 @@ import { warningText } from "../../web/src/core/warnings"
 import { itemMinimapMarks } from "../../web/src/plugins/base/minimap/marks"
 import { filledSheets } from "../../web/src/plugins/base/print-preview/filled"
 import { toolboxOf } from "../../web/src/plugins/base/toolbox/toolbox"
-import { pagesBook } from "../lineup"
+import { SLIDE, testBook, testFolder, testPage, withSlide } from "../lineup"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
-const SLIDE_TYPE = "@matomezu/slide-book:slide"
-const slideType = BUILTIN_PARTS.pageTypes.find(t => t.id === SLIDE_TYPE)!
+const slideType = BUILTIN_PARTS.pageTypes.find(t => t.id === SLIDE)!
 const TEXT = "@matomezu/slide:slide-text"
-const page = {
-  kind: "page" as const,
-  type: SLIDE_TYPE,
-  id: "p1",
-  title: "P",
-  paper: "@matomezu/base:ratio-16x9",
-  orientation: "landscape" as const,
-}
-const bookWith = (slide: object[]) => pagesBook({ type: SLIDE_TYPE, id: "s1", title: "S", pages: [{ ...page, slide }] })
+const page = testPage(SLIDE, "p1", { title: "P", paper: "@matomezu/base:ratio-16x9" })
+const bookWith = (slide: object[]) => testBook("s1", "S", [testFolder("s1-slides", "S", SLIDE, withSlide(page, slide))])
 
 test("slide に置けるのは形だけ（E042）", () => {
   const withLine = { ...slideType, slide: { allowed: ["@matomezu/line:connector-line"] } }
@@ -62,7 +54,7 @@ test("置けるアイテムは items.allowed と slide.allowed の合わせ: ア
   const onlySlide = { ...drawing, items: { ...drawing.items, allowed: [] }, slide: { allowed: [box.id] } }
   const ids = tokenDefsOf(CORE_CATALOG, onlySlide).map(d => d.id)
   for (const t of box.tokens) expect(ids).toContain(t.id)
-  expect(toolboxOf(CORE_CATALOG, SLIDE_TYPE, "items")).toEqual(slideType.slide!.allowed as never)
+  expect(toolboxOf(CORE_CATALOG, SLIDE, "items")).toEqual(slideType.slide!.allowed as never)
 })
 
 test("ミニマップと印刷区画の既定は、ページの slide の形も数える（形の定義の minimap。無いなら置いた四角）", () => {

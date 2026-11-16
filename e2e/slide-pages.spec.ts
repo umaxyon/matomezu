@@ -1,13 +1,9 @@
 // スライドのフォルダのページ一覧（ステージの左の縦の列）: サムネイルを並べ、押して開く・ドラッグで並べ替え・右クリックで ここに追加・複製・削除（確認つき）。ページタブには、フォルダが 1 つのタブで出る
-import { pagesBook } from "../test/lineup"
+import { SLIDE, testBook, testFolder, testPage, withSlide } from "../test/lineup"
 import { BOOK_SCREEN_URL, expect, test } from "./fixtures"
 
-const page3 = (id: string, title: string) => ({
-  id,
-  title,
-  paper: "@matomezu/base:ratio-16x9",
-  orientation: "landscape",
-  slide: [
+const page3 = (id: string, title: string) =>
+  withSlide(testPage(SLIDE, id, { title, paper: "@matomezu/base:ratio-16x9" }), [
     {
       id: `${id}-t`,
       x: 80,
@@ -17,17 +13,13 @@ const page3 = (id: string, title: string) => ({
       h: 80,
       props: { text: `${title}の文字`, fontSize: 48 },
     },
-  ],
-})
+  ])
 
 test.use({
   books: [
-    pagesBook({
-      type: "@matomezu/slide-book:slide",
-      id: "b1",
-      title: "スライド",
-      pages: [page3("p1", "一枚目"), page3("p2", "二枚目"), page3("p3", "三枚目")],
-    }),
+    testBook("b1", "スライド", [
+      testFolder("b1-slides", "スライド", SLIDE, page3("p1", "一枚目"), page3("p2", "二枚目"), page3("p3", "三枚目")),
+    ]),
   ],
 })
 
@@ -83,12 +75,9 @@ test("右クリックで、ここに追加・複製・削除ができる（削�
 test.describe("ロック中のページ", () => {
   test.use({
     books: [
-      pagesBook({
-        type: "@matomezu/slide-book:slide",
-        id: "b1",
-        title: "スライド",
-        pages: [page3("p1", "一枚目"), { ...page3("p2", "二枚目"), locked: true }],
-      }),
+      testBook("b1", "スライド", [
+        testFolder("b1-slides", "スライド", SLIDE, page3("p1", "一枚目"), { ...page3("p2", "二枚目"), locked: true }),
+      ]),
     ],
   })
 

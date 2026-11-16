@@ -13,7 +13,7 @@ import { LOCK } from "../../web/src/plugins/base/lock"
 import { addPageIn } from "../../web/src/plugins/base/page-tabs/add-page"
 import type { CommandId } from "../../web/src/store/commands"
 import { isEnabled } from "../../web/src/store/commands"
-import { withPages } from "../lineup"
+import { drawingPage, testBook } from "../lineup"
 import { CORE_CATALOG, newStore } from "../support"
 
 type Drawing = Book
@@ -85,16 +85,16 @@ test("AI はロックを掛けられるが外せない（userOnly のアクシ�
 })
 
 test("変える所を言わないアクションは、行う前にはページのロックで止めず、行った後の変化で止める", () => {
-  const page = { kind: "page" as const, id: "p1", type: "t", title: "1", locked: true as const }
-  const before = { id: "b1", title: "b", lineup: [page] } as unknown as Book
+  const page = drawingPage("p1", { title: "1", locked: true })
+  const before = testBook("b1", "b", [page])
   const action = CORE_CATALOG.actions.get("@matomezu/base:page-update")!
   expect(LOCK.denies({ kind: "book", action, book: before, actor: USER })).toBe(false)
   expect(LOCK.denies({ kind: "book", action, book: before, where: { page: "p1" }, actor: USER })).toBe(true)
-  const after = withPages(before, [{ ...page, title: "x" }]) as unknown as Book
+  const after = { ...before, lineup: [{ ...page, title: "x" }] }
   expect(LOCK.keeps!({ kind: "book", action, before, after, changes: changesOf(before, after), actor: USER })).toBe(
     false,
   )
-  const unlocked = withPages(before, [{ kind: "page", id: "p1", type: "t", title: "1" }]) as unknown as Book
+  const unlocked = { ...before, lineup: [drawingPage("p1", { title: "1" })] }
   expect(
     LOCK.keeps!({ kind: "book", action, before, after: unlocked, changes: changesOf(before, unlocked), actor: USER }),
   ).toBe(true)
