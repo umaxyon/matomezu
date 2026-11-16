@@ -1,4 +1,4 @@
-// Package launch は、Codex のプラグインが matomezu を起動するときの、Codex の事情（matomezu codex の中身のうち、Codex に依る所）。
+// Package launch は、Codex のプラグインの外し方と、プラグインが matomezu を起動するときの、Codex の事情（matomezu codex の中身のうち、Codex に依る所）。
 // Codex は MCP にもフックにも開いているプロジェクトのフォルダを教えないので、プラグインを入れた元（設定の [marketplaces.matomezu] の source）で開発の常駐を見分ける
 package launch
 
@@ -85,3 +85,12 @@ func tomlString(v string) string {
 	}
 	return ""
 }
+
+// Remove は、Codex から matomezu のプラグインと、その置き場所の登録を外すコマンド（順に打つ）
+var Remove = [][]string{
+	{"codex", "plugin", "remove", "matomezu@matomezu"},
+	{"codex", "plugin", "marketplace", "remove", "matomezu"},
+}
+
+// NotFoundMessage は、フック（hooks/hooks.json）が matomezu を PATH に見つけられないときに Codex に出させる文
+const NotFoundMessage = "matomezu was not found. Install it again (npm i -g matomezu) or remove this plugin (codex plugin remove matomezu@matomezu)."

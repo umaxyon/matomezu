@@ -5,8 +5,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if command -v matomezu >/dev/null 2>&1; then exec matomezu codex hook prompt; else echo '{\"systemMessage\":\"matomezu was not found. Install it again (npm i -g matomezu) or remove this plugin.\"}'; fi",
-            "commandWindows": "if (Get-Command matomezu -ErrorAction SilentlyContinue) { matomezu codex hook prompt } else { '{\"systemMessage\":\"matomezu was not found. Install it again (npm i -g matomezu) or remove this plugin.\"}' }"
+            "command": "if command -v matomezu >/dev/null 2>&1; then exec matomezu codex hook prompt; else echo '{\"systemMessage\":\"matomezu was not found. Install it again (npm i -g matomezu) or remove this plugin (codex plugin remove matomezu@matomezu).\"}'; fi",
+            "commandWindows": "if (Get-Command matomezu -ErrorAction SilentlyContinue) { matomezu codex hook prompt } else { '{\"systemMessage\":\"matomezu was not found. Install it again (npm i -g matomezu) or remove this plugin (codex plugin remove matomezu@matomezu).\"}' }"
           }
         ]
       }
@@ -16,8 +16,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if command -v matomezu >/dev/null 2>&1; then exec matomezu codex hook model; else echo '{\"systemMessage\":\"matomezu was not found. Install it again (npm i -g matomezu) or remove this plugin.\"}'; fi",
-            "commandWindows": "if (Get-Command matomezu -ErrorAction SilentlyContinue) { matomezu codex hook model } else { '{\"systemMessage\":\"matomezu was not found. Install it again (npm i -g matomezu) or remove this plugin.\"}' }"
+            "command": "if command -v matomezu >/dev/null 2>&1; then exec matomezu codex hook model; else echo '{\"systemMessage\":\"matomezu was not found. Install it again (npm i -g matomezu) or remove this plugin (codex plugin remove matomezu@matomezu).\"}'; fi",
+            "commandWindows": "if (Get-Command matomezu -ErrorAction SilentlyContinue) { matomezu codex hook model } else { '{\"systemMessage\":\"matomezu was not found. Install it again (npm i -g matomezu) or remove this plugin (codex plugin remove matomezu@matomezu).\"}' }"
           }
         ]
       }
