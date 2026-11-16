@@ -112,10 +112,12 @@ export function updateArgsOf(
   tags: readonly TagRow[],
   doneKey: string,
   cardSize: Project["cardSize"],
+  cardShows: Project["cardShows"],
 ) {
   return {
     name: name.trim(),
     cardSize,
+    cardShows,
     prefix: prefix.trim(),
     doneLane: doneLaneOf(lanes, doneKey),
     lanes: lanes.flatMap((l): (Lane | { kind: "unsorted"; shown: boolean } | Omit<Lane, "id">)[] => {

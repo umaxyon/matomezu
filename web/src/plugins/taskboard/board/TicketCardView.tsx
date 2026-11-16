@@ -1,10 +1,10 @@
-// チケットのチケットカード（レーンの中の 1 枚）: 番号（プレフィクス＋番号）・名前・タグのバッヂ・優先度の印・右上に担当の鳥。
+// チケットのチケットカード（レーンの中の 1 枚）: 番号（プレフィクス＋番号）・名前・タグのバッヂ・優先度の印（プロジェクトの cardShows が出すときだけ）・右上に担当の鳥。
 // 大きさ（チケットサイズ）で形が変わる: large は名前とタグを折り返し（タグは 3 行まで）、medium は名前を 1 行で … で切りタグも 1 行、small は番号と名前の 1 行だけ（… で切る）。
 // タグはプロジェクトの順で、入らない分は「+N」
 // 押すとチケットスクリーンを開く。チケットカードには data-card（チケットの id）を付ける
 import { useMessages, usePluginState, useScreens } from "../../../plugin-api/ui"
 import { kit } from "../kit"
-import type { CardSize } from "../project"
+import type { CardShows, CardSize } from "../project"
 import { ticketLabel } from "../ticket/label"
 import { TICKET_SCREEN } from "../ticket-screen"
 import { CARD_VISIT } from "."
@@ -21,12 +21,14 @@ const barHeight = (i: number) => 3 + i * 1.75
 
 export function TicketCardView({
   size,
+  shows,
   ticket,
   prefix,
   tags,
   assignees,
 }: {
   size: CardSize
+  shows: CardShows
   ticket: TicketRecord
   prefix: string
   tags: readonly TagRecord[]
@@ -68,7 +70,7 @@ export function TicketCardView({
           <span className={styles.cardName}>{ticket.name}</span>
           <span className={styles.foot}>
             <CardTags tags={tags} lines={size === "large" ? 3 : 1} />
-            <PriorityMark priority={ticket.priority} />
+            {shows.priority ? <PriorityMark priority={ticket.priority} /> : null}
           </span>
         </>
       )}
