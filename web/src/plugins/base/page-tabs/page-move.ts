@@ -11,7 +11,7 @@ export const PAGE_MOVE = kit.defineAction({
   id: "page-move",
   attach: { books: true },
   aiDescription:
-    "Move a page to index among the entries of the place it is in, counted without the moved page (the end without it): a page outside folders moves in the book's lineup (which reorders the page tabs; a folder counts as one entry), a page in a folder moves inside that folder. Returns nothing. Refused for a page not in the book, an index past the end, or when the page would stay where it is.",
+    "Move a page to index among the entries of the place it is in, counted without the moved page (the end without it): a page outside folders moves in the book's lineup (which reorders the page tabs; a folder counts as one entry), a page in a folder moves inside that folder. Returns nothing. Refused for a page not in the book, an index past the end, or when the page would stay where it is. Not allowed (not-allowed) for a page whose page type leaves this action out.",
   title: "Move page",
   target: "book",
   args: ARGS,

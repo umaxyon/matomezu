@@ -30,7 +30,7 @@ export const FOLDER_UPDATE = kit.defineAction({
   id: "folder-update",
   attach: { books: true },
   aiDescription:
-    "Change a folder of a book (a folder holds the pages of one page type whose grouping is own-folder, and shows as one page tab named after it): its title, and paper and orientation, which are set on every page in it at once (only for a page type whose pages in a folder share one paper, such as slides; among the page type's papers). Only what is given changes. Returns nothing. Refused for a folder not in the book, a title another entry of the book's lineup (a page outside folders, or a folder) has, a paper or orientation the page type does not take, or when nothing is given.",
+    "Change a folder of a book (a folder holds the pages of one page type whose grouping is own-folder, and shows as one page tab named after it): its title, and paper and orientation, which are set on every page in it at once (only for a page type whose pages in a folder share one paper, such as slides; among the page type's papers). Only what is given changes. Returns nothing. Refused for a folder not in the book, a title another entry of the book's lineup (a page outside folders, or a folder) has, a paper or orientation the page type does not take, or when nothing is given. Not allowed (not-allowed) for a folder whose page type leaves this action out.",
   title: "Change folder",
   target: "book",
   args: z.strictObject({
@@ -71,7 +71,7 @@ export const FOLDER_MOVE = kit.defineAction({
   id: "folder-move",
   attach: { books: true },
   aiDescription:
-    "Move a folder to index among the entries of the book's lineup counted without it (the end without index), which reorders the page tabs. Returns nothing. Refused for a folder not in the book, an index past the end, or when the folder would stay where it is.",
+    "Move a folder to index among the entries of the book's lineup counted without it (the end without index), which reorders the page tabs. Returns nothing. Refused for a folder not in the book, an index past the end, or when the folder would stay where it is. Not allowed (not-allowed) for a folder whose page type leaves this action out.",
   title: "Move folder",
   target: "book",
   args: z.strictObject({ folder: FOLDER, index: z.number().int().min(0).optional() }),
@@ -90,7 +90,7 @@ export const FOLDER_DUPLICATE = kit.defineAction({
   id: "folder-duplicate",
   attach: { books: true },
   aiDescription:
-    "Duplicate a folder with its pages: a copy is added right after it. title is the copy's name and must differ from the other entries' of the book's lineup; without it the copy is named after the original with a number. The pages and everything on them get new ids; locks, notes and marks are not copied. Returns the new folder's id and its pages' ids, in order. Refused for a folder not in the book or a title already used.",
+    "Duplicate a folder with its pages: a copy is added right after it. title is the copy's name and must differ from the other entries' of the book's lineup; without it the copy is named after the original with a number. The pages and everything on them get new ids; locks, notes and marks are not copied. Returns the new folder's id and its pages' ids, in order. Refused for a folder not in the book or a title already used. Not allowed (not-allowed) for a folder whose page type leaves this action out.",
   title: "Duplicate folder",
   target: "book",
   args: z.strictObject({ folder: FOLDER, title: z.string().trim().min(1).optional() }),
@@ -130,7 +130,7 @@ export const FOLDER_REMOVE = kit.defineAction({
   id: "folder-remove",
   attach: { books: true },
   aiDescription:
-    "Remove a folder with all its pages and everything on them (it cannot be undone). Returns nothing. Refused for a folder not in the book.",
+    "Remove a folder with all its pages and everything on them (it cannot be undone). Returns nothing. Refused for a folder not in the book. Not allowed (not-allowed) for a folder whose page type leaves this action out.",
   title: "Remove folder",
   target: "book",
   args: z.strictObject({ folder: FOLDER }),

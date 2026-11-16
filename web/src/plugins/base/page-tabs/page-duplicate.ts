@@ -16,7 +16,7 @@ export const PAGE_DUPLICATE = kit.defineAction({
   id: "page-duplicate",
   attach: { books: true },
   aiDescription:
-    "Duplicate a page: a copy with the same contents is added right after it, in the same place (the book's lineup or its folder). title is the copy's name and must differ from the other pages' there; without it the copy is named after the original with a number (such as \"Plan 2\"). Everything on the copy gets new ids. The lock and notes or marks on the page are not copied. Returns the new page's id. Refused for a page not in the book, for a page type whose pages cannot be duplicated, or for a title already used there.",
+    "Duplicate a page: a copy with the same contents is added right after it, in the same place (the book's lineup or its folder). title is the copy's name and must differ from the other pages' there; without it the copy is named after the original with a number (such as \"Plan 2\"). Everything on the copy gets new ids. The lock and notes or marks on the page are not copied. Returns the new page's id. Refused for a page not in the book, for a page type whose pages cannot be duplicated, or for a title already used there. Not allowed (not-allowed) for a page whose page type leaves this action out.",
   title: "Duplicate page",
   target: "book",
   args: ARGS,
