@@ -144,7 +144,7 @@ test("スライドのタブの右クリックの「設定…」で紙のサイ�
 
   await tab.click({ button: "right" })
   await page.getByRole("menu").getByRole("menuitem", { name: "削除…" }).click()
-  const confirm = page.getByRole("dialog", { name: "削除" })
+  const confirm = page.getByRole("dialog", { name: "スライドを削除" })
   await expect(confirm).toContainText("スライドと中のページが消えます")
   await confirm.getByRole("button", { name: "削除" }).click()
   await expect(page.getByRole("tab")).toHaveCount(0)

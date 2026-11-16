@@ -36,6 +36,7 @@ export const PAGE_MESSAGES = defineMessages({
   "Delete...": { en: "Delete...", ja: "削除…" },
   "Settings...": { en: "Settings...", ja: "設定…" },
   "{type} settings": { en: "{type} settings", ja: "{type}の設定" },
+  "Delete {type}": { en: "Delete {type}", ja: "{type}を削除" },
   "The {type} and its pages will be deleted": {
     en: "The {type} and its pages will be deleted",
     ja: "{type}と中のページが消えます",

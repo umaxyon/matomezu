@@ -21,7 +21,7 @@ export function FolderDeleteDialog({ args, onClose }: DialogProps<FolderSettings
   if (!folder || !type) return null
   return (
     <Dialog
-      title={t("Delete")}
+      title={t("Delete {type}", { type: t(type.title) })}
       onClose={onClose}
       actions={
         <>
