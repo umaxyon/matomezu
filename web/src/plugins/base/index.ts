@@ -233,6 +233,7 @@ export {
   keepApart,
   minSize,
   nextItemId,
+  nextItemIdOfBook,
   paperSize,
   placedAt,
   placeItem,

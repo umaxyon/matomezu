@@ -1,7 +1,7 @@
 // データのアクション: 中身の表を丸ごと入れ替える（data-set）。見た目・文字・軸も一緒に変えられる
 import { z } from "zod"
 import { findPage, findShape, type PlacedShape } from "../../../plugin-api"
-import { contentIdMaker, replaceShapePushing, roomOf, textPatch, widenForCaption } from "../../base"
+import { contentIdMakerOfBook, replaceShapePushing, roomOf, textPatch, widenForCaption } from "../../base"
 import { settleAxes } from "./axes"
 import {
   BAR_DIRECTIONS,
@@ -126,7 +126,7 @@ export const DATA_SET = kit.defineAction({
     const rowIds = args.rows.map(r => r.id)
     if (!keepsIds(before?.columns, columnIds) || !keepsIds(before?.rows, rowIds)) return null
     if (!args.rows.every(r => cellsFit(args.columns, r.cells))) return null
-    const newId = contentIdMaker(book, ctx.newId)
+    const newId = contentIdMakerOfBook(book, ctx.newId)
     const table = TableSchema.safeParse({
       columns: args.columns.map(c => ({ id: c.id ?? newId(), name: c.name, type: c.type })),
       rows: args.rows.map(r => ({ id: r.id ?? newId(), cells: r.cells })),

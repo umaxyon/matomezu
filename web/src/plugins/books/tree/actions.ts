@@ -4,7 +4,7 @@
 // ページのフィールド root を書き換える。書き換えた木が紙に入らなければ断る。ツリーの見せ方について来る
 import { z } from "zod"
 import { type Book, type CoreCatalog, findPage, putPage } from "../../../plugin-api"
-import { ColorSchema, contentIdMaker, growOf, pageContext } from "../../base"
+import { ColorSchema, contentIdMakerOfBook, growOf, pageContext } from "../../base"
 import { addNodes, changeNode, moveNode, nodeOf, removeNode } from "./edit"
 import { treeFits } from "./fit"
 import { kit } from "./kit"
@@ -46,7 +46,7 @@ export const NODE_ADD = kit.defineAction({
     const tree = treeOf(book, args.page, ctx.catalog)
     if (!tree) return null
     const parent = args.parent === tree.root.id ? tree.root : nodeOf(tree.root, args.parent)
-    const given = giveIds(args.nodes, contentIdMaker(book, ctx.newId), parent?.color)
+    const given = giveIds(args.nodes, contentIdMakerOfBook(book, ctx.newId), parent?.color)
     const next = addNodes(tree.root, args.parent, given.nodes, args.index)
     const written = next && tree.put(next)
     return written && { next: written, result: { nodes: given.ids } }

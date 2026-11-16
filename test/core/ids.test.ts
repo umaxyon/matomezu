@@ -2,8 +2,9 @@
 
 import { expect, test } from "bun:test"
 import { changedIn, idMaker, idsIn } from "../../web/src/core/ids"
+import type { ItemPage } from "../../web/src/core/placed"
 import type { Book } from "../../web/src/core/schema/book"
-import { contentIdMaker } from "../../web/src/plugins/base/utils/ids"
+import { contentIdMaker, contentIdMakerOfBook, renewedIds } from "../../web/src/plugins/base/utils/ids"
 
 // 決めた並びの値を返す newId（尽きたら同じ値を返し続ける）
 const seq = (...values: string[]) => {
@@ -28,7 +29,7 @@ test("idMaker は、使われている id と、前に振った id を避けて�
   expect(make()).toBe("cccc") // aaaa は使われていて、bbbb は前に振った
 })
 
-test("contentIdMaker は、ほかのページのアイテムの中身やページのフィールドの中の id も避け、ページの id は避けない", () => {
+test("contentIdMakerOfBook は、ほかのページのアイテムの中身やページのフィールドの中の id も避け、ページの id は避けない", () => {
   const book = {
     id: "book",
     title: "b",
@@ -37,9 +38,29 @@ test("contentIdMaker は、ほかのページのアイテムの中身やペー�
       { kind: "page", id: "p2", type: "t", title: "2", nodes: [{ id: "n1", children: [{ id: "n2" }] }] },
     ],
   } as unknown as Book
-  const make = contentIdMaker(book, seq("i1", "row1", "n1", "n2", "p1", "z"))
+  const make = contentIdMakerOfBook(book, seq("i1", "row1", "n1", "n2", "p1", "z"))
   expect(make()).toBe("p1")
   expect(make()).toBe("z")
+})
+
+test("contentIdMaker と renewedIds は、渡したページの中身の id だけを避ける（ページの id は避けない）", () => {
+  const page = {
+    kind: "page",
+    id: "p1",
+    type: "t",
+    title: "1",
+    items: [{ id: "i1", item: "x", children: [{ id: "row1" }] }],
+  } as unknown as ItemPage
+  const make = contentIdMaker(page, seq("i1", "row1", "p1", "z"))
+  expect(make()).toBe("p1")
+  expect(make()).toBe("z")
+  // 写しの中の id は全部振り直し、つなぐ相手も付け替える
+  const copy = renewedIds(
+    page,
+    { shapes: [{ id: "i1" }, { id: "k" }], lines: [{ id: "l", from: "i1", to: "out" }] },
+    seq("i1", "a", "b", "c"),
+  )
+  expect(copy).toEqual({ shapes: [{ id: "a" }, { id: "b" }], lines: [{ id: "c", from: "a", to: "out" }] })
 })
 
 test("changedIn は、前にあった物のうち、変わったか無くなった物（中の物が変わっても変わったとする）", () => {

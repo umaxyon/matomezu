@@ -12,7 +12,10 @@ const TITLES = [
   "Design Notes",
 ]
 
-export const E2E_BOOKS = TITLES.map((title, i) => testBook(`b${i + 1}`, title, [drawingPage("p1")]))
+// 見本のブック book のページの id（ページの id はブックをまたいで重ならない: b1 は p1、ほかは b2-p1 のようにブックの id を頭に付ける）
+export const samplePage = (book: string): string => (book === "b1" ? "p1" : `${book}-p1`)
+
+export const E2E_BOOKS = TITLES.map((title, i) => testBook(`b${i + 1}`, title, [drawingPage(samplePage(`b${i + 1}`))]))
 
 // 読んだブック（JSON）の並びのページ（バインダの中も、並びの順に）
 type Entry = { kind: string; id: string; lineup?: readonly Entry[] } & Record<string, unknown>

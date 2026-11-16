@@ -6,7 +6,7 @@
 import { z } from "zod"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import type { Book, Page } from "../../../core/schema/book"
-import { contentIdMaker } from "../utils/ids"
+import { contentIdMakerOfBook } from "../utils/ids"
 
 export type FieldsOf = "add" | "update"
 
@@ -63,7 +63,7 @@ export function writeFields(
   if (!parsed?.success) return null
   const way = wayOf(catalog, page.type, of)
   if (!way) return { page: { ...page, ...parsed.data } }
-  const written = way.write(page as Readonly<Record<string, unknown>>, parsed.data, contentIdMaker(book, newId))
+  const written = way.write(page as Readonly<Record<string, unknown>>, parsed.data, contentIdMakerOfBook(book, newId))
   const own = pageType(catalog, page.type).fields ?? {}
   if (!written || !Object.keys(written.fields).every(k => k in own)) return null
   return { page: { ...page, ...written.fields }, result: written.result }

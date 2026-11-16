@@ -19,7 +19,7 @@ import { freshPageId } from "../../../core/ids"
 import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
-import { renewedIds } from "../utils/ids"
+import { renewedIdsOfBook } from "../utils/ids"
 import { pageProblems } from "./page-problems"
 import { canPaperBinder } from "./pages"
 
@@ -117,7 +117,7 @@ export const BINDER_DUPLICATE = kit.defineAction({
     const pages: string[] = []
     for (const page of pagesIn(book, source.id)) {
       const { id: _id, locked: _locked, ...content } = page
-      const copy = { ...renewedIds(next, content, ctx.newId), id: fresh() } as ItemPage
+      const copy = { ...renewedIdsOfBook(next, content, ctx.newId), id: fresh() } as ItemPage
       pages.push(copy.id)
       next = addPage(next, copy, { binder: made.id })
     }

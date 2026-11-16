@@ -103,6 +103,7 @@ export {
   NEST_PADDING,
   newClash,
   nextItemId,
+  nextItemIdOfBook,
   nextPageTitle,
   PAGE_PAPER_COLOR,
   PAGE_TEXT_COLORS,

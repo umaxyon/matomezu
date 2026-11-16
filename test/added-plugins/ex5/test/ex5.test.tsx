@@ -2,7 +2,7 @@
 
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
-import { addPageIn, type Book, createBookIn, nextItemId, pagesOf } from "matomezu"
+import { addPageIn, type Book, createBookIn, nextItemIdOfBook, pagesOf } from "matomezu"
 import {
   BUILTIN_UI,
   createMatomezu,
@@ -119,7 +119,7 @@ test("次に置くアイテムの id は、中身のフィールド tiles の札
   })
   const book = instance.state.getState().books[on.book] as unknown as Book
   const ids = new Set<string>()
-  for (let k = 0; k < 20; k++) ids.add(nextItemId(book, () => tile))
+  for (let k = 0; k < 20; k++) ids.add(nextItemIdOfBook(book, () => tile))
   expect(ids.has(tile)).toBe(false)
 })
 

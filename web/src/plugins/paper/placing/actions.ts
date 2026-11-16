@@ -15,7 +15,7 @@ import {
 } from "../../../plugin-api"
 import {
   allRectsOf,
-  nextItemId,
+  nextItemIdOfBook,
   placeChild,
   placedSize,
   placeItem,
@@ -93,7 +93,7 @@ export const ITEM_PLACE = kit.defineAction({
     if (!page || !allowedItems(ctx.catalog, page).includes(args.item)) return null
     const props = ctx.catalog.items.get(args.item)?.props.safeParse(args.props ?? {})
     if (!props?.success) return null
-    const base = { id: nextItemId(book, ctx.newId), item: args.item, x: 0, y: 0, props: props.data }
+    const base = { id: nextItemIdOfBook(book, ctx.newId), item: args.item, x: 0, y: 0, props: props.data }
     // 大きさを w・h に持つ形か（大きさを項目に写す形〈定義の resizedTo〉は、w・h を書かない。大きさは項目から決まる）
     const resizable =
       ctx.catalog.items.get(args.item)?.capabilities.includes("resizable") &&

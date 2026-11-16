@@ -26,7 +26,7 @@ import type { Book } from "../../../core/schema/book"
 import { themeFits } from "../book-look/theme-types"
 import { type PageContext, type SettingReader, settingsAt } from "../book-settings"
 import { setField } from "../fields"
-import { contentIdMaker } from "../utils/ids"
+import { contentIdMaker, contentIdMakerOfBook } from "../utils/ids"
 import { GROW_CHOICE_SIDES, type GrowSides, grownArea } from "./grow"
 import {
   childrenSize,
@@ -127,9 +127,14 @@ export const gapOf = (catalog: CoreCatalog, page: ItemPage): Gap => connectorGap
 export const tidyPage = <P extends ItemPage>(catalog: CoreCatalog, page: P): P =>
   tidyItems(catalog, page, settingsAt(catalog, page))
 
-// 次に置くアイテムの id（newId から振る。ブックの全部のページの中身の、どの深さの id とも重ならない。utils/ids.ts の contentIdMaker で振る）
-export function nextItemId(book: Book, newId: () => string): string {
-  return contentIdMaker(book, newId)()
+// 次に置くアイテムの id（newId から振る。ブックの全部のページの中身の、どの深さの id とも重ならない。utils/ids.ts の contentIdMakerOfBook で振る）
+export function nextItemIdOfBook(book: Book, newId: () => string): string {
+  return contentIdMakerOfBook(book, newId)()
+}
+
+// ページ page に次に置くアイテムの id（newId から振る。そのページの中身の、どの深さの id とも重ならない）
+export function nextItemId(page: ItemPage, newId: () => string): string {
+  return contentIdMaker(page, newId)()
 }
 
 // 置く前のアイテムの大きさ（定義の大きさ。表に無いアイテムと、大きさを持たないアイテムは null）
@@ -480,7 +485,7 @@ export function unpinPage<P extends ItemPage>(catalog: CoreCatalog, page: P): P 
   return { ...page, items: pageItemsOf(page).map(i => unpinned.get(i.id) ?? i) }
 }
 
-// ページにアイテムを置く（id は nextItemId で振ったもの）。重なった相手は右へ、駄目なら下へ押し、それも駄目なら押した列を縮めて右へ・下へ（push.ts の planPlace）。
+// ページにアイテムを置く（id は nextItemIdOfBook で振ったもの）。重なった相手は右へ、駄目なら下へ押し、それも駄目なら押した列を縮めて右へ・下へ（push.ts の planPlace）。
 // 無いページ・はみ出す所・押した相手が収まらないなら null
 export function placeItem<B extends Book>(catalog: CoreCatalog, book: B, pageId: string, item: PlacedShape): B | null {
   const page = findPage(book, pageId)?.page

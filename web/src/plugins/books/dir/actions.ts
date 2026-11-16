@@ -3,7 +3,7 @@
 // ページのフィールド root を書き換える。書き換えた行が紙に入らなければ断る。ディレクトリ構成図の見せ方について来る
 import { z } from "zod"
 import { type Book, type CoreCatalog, findPage, putPage } from "../../../plugin-api"
-import { contentIdMaker, growOf } from "../../base"
+import { contentIdMakerOfBook, growOf } from "../../base"
 import { addEntries, buildPaths, changeEntry, entryOf, moveEntry, removeEntry, setClosed, sortFolder } from "./edit"
 import {
   type DirFolder,
@@ -62,7 +62,7 @@ export const ENTRY_ADD = kit.defineAction({
     if (!dir) return null
     const problem = newEntriesProblem(args.entries, (kind, icon) => iconProblem(ctx.catalog, kind, icon))
     if (problem) return { declined: problem }
-    const given = giveIds(args.entries, contentIdMaker(book, ctx.newId))
+    const given = giveIds(args.entries, contentIdMakerOfBook(book, ctx.newId))
     const next = addEntries(dir.root, args.parent, given.entries, args.index)
     const written = next && dir.put(next)
     return written && { next: written, result: { entries: given.ids } }
@@ -84,7 +84,7 @@ export const PATHS_ADD = kit.defineAction({
   permissionScope: { page: "page" },
   run: (book, args, ctx) => {
     const dir = dirOf(book, args.page, ctx.catalog)
-    const built = dir && buildPaths(dir.root, args.parent, args.paths, contentIdMaker(book, ctx.newId))
+    const built = dir && buildPaths(dir.root, args.parent, args.paths, contentIdMakerOfBook(book, ctx.newId))
     const written = built && dir?.put(built.root)
     return written ? { next: written, result: { ids: built.ids } } : null
   },

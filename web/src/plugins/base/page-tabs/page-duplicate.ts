@@ -8,7 +8,7 @@ import { pageType } from "../../../core/core-catalog"
 import { freshPageId } from "../../../core/ids"
 import type { ItemPage } from "../../../core/placed"
 import { kit } from "../kit"
-import { renewedIds } from "../utils/ids"
+import { renewedIdsOfBook } from "../utils/ids"
 
 const ARGS = z.strictObject({ page: z.string().min(1), title: z.string().trim().min(1).optional() })
 
@@ -30,7 +30,7 @@ export const PAGE_DUPLICATE = kit.defineAction({
     const { id: _id, locked: _locked, ...content } = at.page
     const id = freshPageId(ctx.newId, lineupIds(book))
     const page: ItemPage = {
-      ...renewedIds(book, content, ctx.newId),
+      ...renewedIdsOfBook(book, content, ctx.newId),
       id,
       title: args.title ?? freeTitle(at.page.title, titles),
     }

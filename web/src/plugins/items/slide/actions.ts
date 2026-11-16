@@ -13,7 +13,7 @@ import {
   shapeSchema,
   slideOf,
 } from "../../../plugin-api"
-import { nextItemId } from "../../base"
+import { nextItemIdOfBook } from "../../base"
 import { kit } from "./kit"
 import { ORDERS } from "./order"
 import { scaledFontSize } from "./rect"
@@ -98,7 +98,7 @@ export const SLIDE_PLACE = kit.defineAction({
     const w = args.w ?? def.size.w
     const h = args.h ?? def.size.h
     const shape: Shape = {
-      id: nextItemId(book, ctx.newId),
+      id: nextItemIdOfBook(book, ctx.newId),
       x: args.at?.x ?? 0,
       y: args.at?.y ?? 0,
       item: args.item,

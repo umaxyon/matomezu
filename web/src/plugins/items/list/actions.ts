@@ -1,7 +1,7 @@
 // リストの行のアクション: 行を足す・変える・消す・チェックする・高さ（本文を見せる行数）を書き換える・動かす（並べ替えと、同じページの別のリストへ）。行の中身の形は RowPropsSchema（書かなかった項目は既定）
 
 import { z } from "zod"
-import { nextItemId, textNew, textPatch } from "../../base"
+import { nextItemIdOfBook, textNew, textPatch } from "../../base"
 import { kit } from "./kit"
 import { ROW_ITEM, type RowProps, RowPropsSchema } from "./list"
 import { findList, rowsOf, withList, withRowLines } from "./rows"
@@ -35,7 +35,7 @@ export const ROW_ADD = kit.defineAction({
     const found = findList(book, args.page, args.list)
     const props = RowPropsSchema.safeParse(args.props ?? {})
     if (!found || !props.success) return null
-    const row = { id: nextItemId(book, ctx.newId), item: ROW_ITEM, props: props.data }
+    const row = { id: nextItemIdOfBook(book, ctx.newId), item: ROW_ITEM, props: props.data }
     const next = withList(book, found.page, { ...found.list, children: [...rowsOf(found.list), row] })
     return { next, result: { row: row.id } }
   },

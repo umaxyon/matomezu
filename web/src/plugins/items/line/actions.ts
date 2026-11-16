@@ -10,7 +10,7 @@ import {
   pageItemsOf,
   putPage,
 } from "../../../plugin-api"
-import { keepApart, nextItemId, portAreasOf } from "../../base"
+import { keepApart, nextItemIdOfBook, portAreasOf } from "../../base"
 import { connectable } from "./connect"
 import { kit } from "./kit"
 import { elbowAt, LINE, LinePatchSchema } from "./line"
@@ -60,7 +60,7 @@ export const LINE_CONNECT = kit.defineAction({
     if (!page || !connectable(ctx.catalog, page, args.from) || !connectable(ctx.catalog, page, args.to)) return null
     if (!canConnect(linesOf(page), args.from, args.to)) return null
     const line = PlacedLineSchema.safeParse({
-      id: nextItemId(book, ctx.newId),
+      id: nextItemIdOfBook(book, ctx.newId),
       item: LINE.id,
       from: args.from,
       to: args.to,

@@ -21,7 +21,7 @@ import {
   type Size,
   walkShapes,
 } from "../../../plugin-api"
-import { placeChild, placedSize, placeItem, renewedIds, shapeDefOf, shapeThemeFits } from "../../base"
+import { placeChild, placedSize, placeItem, renewedIdsOfBook, shapeDefOf, shapeThemeFits } from "../../base"
 import { kit } from "../kit"
 import { ancestorsOf, crowded, movedShapes, NO_FREE_SPOT } from "./crowd"
 import { freeAt, parsePlaced, stepToward, subtreeOf } from "./items"
@@ -127,7 +127,11 @@ export function pasted(
   // 線の両端は、写した形の中の形
   const inside = new Set((parsed as PlacedShape[]).flatMap(shapeIds))
   if ((connectors as PlacedConnector[]).some(c => !inside.has(c.from) || !inside.has(c.to))) return null
-  const copy = renewedIds(book, { shapes: parsed as PlacedShape[], connectors: connectors as PlacedConnector[] }, newId)
+  const copy = renewedIdsOfBook(
+    book,
+    { shapes: parsed as PlacedShape[], connectors: connectors as PlacedConnector[] },
+    newId,
+  )
   const box = boxOf(catalog, copy.shapes)
   const parent = args.parent ?? null
   if (!box) return null
