@@ -79,7 +79,7 @@ export function inspect(
   return action(catalog, query, ctx?.controlCenter ?? null)
 }
 
-// アクション action を、開いているブック book の所 where で使えるかの問い。ブックとアノテーションが対象のアクションだけ book と where を渡す
+// アクション action を、開いているブック book の所 where で使えるかの問い。ブック・ページ・アノテーションが対象のアクションだけ book と where を渡す
 // （ほかの対象は、コントロールセンターで決まる）
 export function actionQuery(catalog: CoreCatalog, action: string, book: Book | undefined, where?: Where): Query {
   const onBook = book !== undefined && isInBook(catalog.actions.get(action)?.target)
@@ -226,7 +226,7 @@ function userSettingSteps(
 }
 
 // アクションの許可: 表にあるか → AI が利用者だけのアクション・項目を頼んだか → 認可ステップ（ブックがあるとき）→
-// ブックとアノテーションが対象なら所が名指すページのタイプ（名指さなければ、タイプに依らない付く先）、そのほかが対象ならコントロールセンター（変えさせない項目 → アクションを使えるか）
+// ブック・ページ・アノテーションが対象なら所が名指すページのタイプ（名指さなければ、タイプに依らない付く先）、そのほかが対象ならコントロールセンター（変えさせない項目 → アクションを使えるか）
 function action(
   catalog: CoreCatalog,
   q: Extract<Query, { kind: "action" }>,
