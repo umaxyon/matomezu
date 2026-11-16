@@ -245,10 +245,12 @@ var actionsSchema = map[string]any{
 	"type": "object",
 	"properties": map[string]any{
 		"ids": map[string]any{
-			"type":        "array",
-			"items":       map[string]any{"type": "string"},
-			"minItems":    1,
-			"description": "The ids to answer in full (see the index you get without ids): actions, items, settings and so on.",
+			"type":     "array",
+			"items":    map[string]any{"type": "string"},
+			"minItems": 1,
+			"description": "The ids to answer in full (see the index you get without ids): actions, items, settings and so on. " +
+				"An action's id without the plugin part (\"ticket-complete\" for \"@matomezu/taskboard:ticket-complete\") is answered in full, with corrected (the right id), when only one action ends with it; " +
+				"when several do, ambiguous lists their right ids and none is chosen. perform takes only the right id.",
 		},
 	},
 	"additionalProperties": false,

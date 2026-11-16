@@ -530,6 +530,28 @@ func TestAICatalogIndexListsEverythingAndEntriesGiveTheFullText(t *testing.T) {
 	}
 }
 
+// 頭のプラグイン名を付け忘れた名前は、アクションの名前の終わりが 1 つだけに合うなら全文と正しい名前を返し、2 つ以上なら候補の名前だけ、合わなければ unknown
+func TestAICatalogEntriesAcceptsANameWithoutThePlugin(t *testing.T) {
+	e := newEngine(t)
+	e.aiCatalog = json.RawMessage(`{"index":{},"actions":[{"id":"@a/one:go","args":1},{"id":"@b/two:go","args":2},{"id":"@a/one:solo","args":3},{"id":"@a/one:xgo","args":4}],"items":[{"id":"@a/one:solo"}]}`)
+	var got struct {
+		Actions   []map[string]json.RawMessage `json:"actions"`
+		Items     []map[string]json.RawMessage `json:"items"`
+		Corrected map[string]string            `json:"corrected"`
+		Ambiguous map[string][]string          `json:"ambiguous"`
+		Unknown   []string                     `json:"unknown"`
+	}
+	if err := json.Unmarshal(e.AICatalogEntries([]string{"solo", "go", "o", "nope", "@a/one:go"}), &got); err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Actions) != 2 || string(got.Actions[0]["id"]) != `"@a/one:go"` || string(got.Actions[1]["id"]) != `"@a/one:solo"` || len(got.Items) != 0 ||
+		got.Corrected["solo"] != "@a/one:solo" || len(got.Corrected) != 1 ||
+		strings.Join(got.Ambiguous["go"], ",") != "@a/one:go,@b/two:go" || len(got.Ambiguous) != 1 ||
+		strings.Join(got.Unknown, ",") != "nope,o" {
+		t.Fatalf("entries = %+v", got)
+	}
+}
+
 func TestAICatalogVersionChangesWithTheAddedPlugins(t *testing.T) {
 	e := newEngine(t)
 	version := func() string {
