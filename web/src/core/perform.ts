@@ -5,7 +5,7 @@
 import type { z } from "zod"
 import { USER } from "./actor"
 import { type Annotations, annotationsSettle, type BookAnnotations, prune } from "./annotation"
-import { holds, keepsPageTypes } from "./book"
+import { holds, keepsPageTypes, pagesOf } from "./book"
 import type { ActionId, ActionTable } from "./catalog"
 import { changesOf } from "./changes"
 import { type CoreCatalog, pageType } from "./core-catalog"
@@ -20,6 +20,7 @@ import {
   type AnySettingsScope,
   libraryScopeOf,
   type OtherRecord,
+  pagesScopeOf,
   type SubjectData,
   type Subjects,
   scopeOf,
@@ -176,7 +177,7 @@ function permits(
   action: ActionDef,
   subject: unknown,
   args: { success: true; data: unknown } | { success: false },
-): Permitted {
+): Permitted & { pages?: readonly string[] } {
   const settings =
     args.success && action.target === "settings"
       ? settingsScopeOf(action.permissionScope as AnySettingsScope, args.data)
@@ -228,6 +229,16 @@ function permits(
         ? (subject as BookAnnotations).book
         : undefined
   if (action.target !== "book") return asked(book, undefined)
+  // ページ 1 枚ごとに問う形: 名指したページのうち、止められなかったページを残す。1 枚も残らなければ、最初のページの答えで断る。
+  // 名指したページがブックに 1 枚も無ければ、ページでは問わない（無いページは run が断る）
+  const named = args.success ? pagesScopeOf(action.permissionScope as AnyPermissionScope | undefined, args.data) : null
+  const each = named && book ? pagesOf(book).filter(p => named === "all" || named.includes(p.id)) : []
+  if (each.length > 0) {
+    const answers = each.map(p => ({ page: p.id, answer: asking(book, { page: p.id }) }))
+    const pages = answers.filter(a => a.answer.value === true).map(a => a.page)
+    const first = answers[0]
+    return pages.length > 0 || !first ? { ok: true, pages } : answerOf(first.answer)
+  }
   const answer = asking(book, placeOf(action, args))
   // 引数が形に合わなければ所が出せないので、所のステップ（ページのタイプと付く先）では止めない（行う側が bad-args で断る。認可ステップなどが止めるなら、そちらが先）
   return !args.success && answer.value === false && decidedByPlace(answer) ? { ok: true } : answerOf(answer)
@@ -272,7 +283,8 @@ function answerOf(answer: Inspected<boolean>): Permitted {
 export function permitted(subject: unknown, id: string, args: unknown, ctx: PermitContext): Permitted | Refused {
   const action: ActionDef | undefined = ctx.catalog.actions.get(id)
   if (!action) return { ok: false, reason: "unknown" }
-  return permits(ctx, action, subject as Subjects[keyof Subjects], action.args.safeParse(args))
+  const answer = permits(ctx, action, subject as Subjects[keyof Subjects], action.args.safeParse(args))
+  return answer.ok ? { ok: true } : answer
 }
 
 export function perform<Id extends ActionId>(
@@ -287,7 +299,11 @@ export function perform<Id extends ActionId>(
   const permitted = permits(ctx, action, subject, parsed)
   if (!permitted.ok) return permitted
   if (!parsed.success) return { ok: false, reason: "bad-args" }
-  const ran = action.run(subject as never, parsed.data, ctx)
+  const ran = action.run(
+    subject as never,
+    parsed.data,
+    permitted.pages ? { ...ctx, permittedPages: permitted.pages } : ctx,
+  )
   if (!ran) return { ok: false, reason: "refused" }
   if ("declined" in ran)
     return { ok: false, reason: "refused", detail: ran.declined, ...(ran.kind === undefined ? {} : { kind: ran.kind }) }

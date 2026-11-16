@@ -101,10 +101,10 @@ describe("pages-update", () => {
       settings: { [THEME]: "@matomezu/base:standard" },
     })
     expect(one).toMatchObject({ ok: true, result: { updated: ["m1"], skipped: [] } })
-    // 1 枚も変えられなければ断り、無いページを名指しても断る
+    // 名指したページが全部ロック中なら、ロックの認可ステップが止める。無いページを名指しても断る
     expect(
-      run(mixed, "@matomezu/base:pages-update", { pages: ["p2"], settings: { [THEME]: "@matomezu/base:standard" } }).ok,
-    ).toBe(false)
+      run(mixed, "@matomezu/base:pages-update", { pages: ["p2"], settings: { [THEME]: "@matomezu/base:standard" } }),
+    ).toEqual({ ok: false, reason: "denied", permission: "@matomezu/base:lock" })
     expect(
       run(mixed, "@matomezu/base:pages-update", { pages: ["nope"], settings: { [THEME]: "@matomezu/base:standard" } })
         .ok,

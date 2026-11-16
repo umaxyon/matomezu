@@ -55,16 +55,17 @@ const PAGES_ARGS = z.strictObject({
   settings: z.record(z.string(), z.unknown()), // ページの設定の項目（項目の id → 値。null は消す）
 })
 
-// ブックのページの設定の項目を、まとめて変える。変えるのは、ロックしておらず、渡した項目を全部持ち、値が合うタイプのページだけで、合わないページ（ロックしたページ・項目を選んでいないタイプ・
-// そのタイプで使えないテーマなど）は変えずに飛ばす。変えたページは整え（settleBook）、変えたページに問題が出れば断る。1 枚も変えられなければ断る
+// ブックのページの設定の項目を、まとめて変える。変えるのは、認可ステップにもページのタイプにも止められず（ctx.permittedPages。ロックしたページは認可ステップが止める）、
+// 渡した項目を全部持ち、値が合うタイプのページだけで、ほかのページ（項目を選んでいないタイプ・そのタイプで使えないテーマなど）は変えずに飛ばす。
+// 変えたページは整え（settleBook）、変えたページに問題が出れば断る。1 枚も変えられなければ断る
 export const PAGES_UPDATE = kit.defineAction({
   id: "pages-update",
   attach: { books: true },
   aiDescription:
-    'Change the page settings of many pages of a book at once (such as @matomezu/base:page-theme and @matomezu/base:page-paper-color): pages is "all" or the ids of the pages, settings the values keyed by the setting\'s id (null removes one). A page is changed only when it is not locked, its page type has every given setting and takes the values (a theme must be one its page type lists); the other pages are left as they are. Returns updated (the ids of the pages changed) and skipped (the ids left as they were). Refused when no page can be changed, or for a page id not in the book.',
+    'Change the page settings of many pages of a book at once (such as @matomezu/base:page-theme and @matomezu/base:page-paper-color): pages is "all" or the ids of the pages, settings the values keyed by the setting\'s id (null removes one). A page is changed only when nothing stops this action on it (a page that a permission stops, such as a locked page, is left as it is), its page type has every given setting and takes the values (a theme must be one its page type lists); the other pages are left as they are. Returns updated (the ids of the pages changed) and skipped (the ids left as they were). Denied when a permission stops every page named; refused when no page can be changed, or for a page id not in the book.',
   title: "Change pages",
   target: "book",
-  permissionScope: "book",
+  permissionScope: { pages: "pages", denied: "skip" },
   args: PAGES_ARGS,
   describeArgs: catalog => PAGES_ARGS.extend({ settings: settingsArgs(catalog) }),
   run: (book, args, ctx) => {
@@ -73,9 +74,9 @@ export const PAGES_UPDATE = kit.defineAction({
     let next: Book = book
     const updated: string[] = []
     const skipped: string[] = []
+    const permitted = new Set(ctx.permittedPages)
     for (const page of targets) {
-      // ロックしたページは変えずに飛ばす（合わないページと同じ扱い）
-      const changed = page.locked ? null : withPageSettings(ctx.catalog, page, args.settings)
+      const changed = permitted.has(page.id) ? withPageSettings(ctx.catalog, page, args.settings) : null
       if (!changed) {
         skipped.push(page.id)
         continue

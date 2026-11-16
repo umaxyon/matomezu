@@ -71,6 +71,8 @@ export interface ActionContext {
   // 行った時点（UTC の ISO 8601。例 2026-10-26T03:04:05.678Z）。最初に行った所（画面、AI ならホスト）が 1 回だけ決め、行い直しでも同じ値。
   // アクションは時刻や乱数を直に使わず、これと newId だけを使う（同じ入力なら同じ結果）
   now: string
+  // 許可スコープがページ 1 枚ごとに問う形（pages と denied）のアクションにだけ在る: 名指したページのうち、認可ステップにもページのタイプにも止められなかったページの id（ブックのページの順）
+  permittedPages?: readonly string[]
   actor: Actor // 行った者（利用者か AI か。AI には userOnly のアクションとロックを外すことを断る）
   // レコードが対象のアクションが読むだけのブック（アクションの readsBooks が引数から答えた id のブックだけ。ほかのアクションには無い。郵便に乗せる変更を確かめるのに使う）
   books?: Readonly<Library>
@@ -164,9 +166,12 @@ export type ArgsOfType<A, V> = { [K in keyof A & string]-?: NonNullable<A[K]> ex
 // "book" は入れ物自身だけを変える（ページもアイテムも並びも変えない。ページのタイプでは決まらない）。
 // page・item・items には、ページの id・アイテムの id・アイテムの id の並びが入っている引数の名前を書く（ページの中身を変える）。
 // entry には、並びの要素（ページかバインダ）の id が入っている引数の名前を書く（中身を変えずに、動かす・複製する・消す・名前を変える）。
-// creates には、作るページのタイプの id が入っている引数の名前を書く。引数の名前で言えなければ、引数から所を返す関数を書く
+// creates には、作るページのタイプの id が入っている引数の名前を書く。引数の名前で言えなければ、引数から所を返す関数を書く。
+// pages と denied: "skip" は、いくつものページをまとめて変えるアクションが書く: pages にはページの id の並びか "all"（ブックの全部のページ）が入っている引数の名前を書く。
+// 認可ステップとページのタイプには 1 枚ごとに問い、止められたページは変えずに飛ばす（止められなかったページの id を、run の ctx.permittedPages で受ける）。全部止められたら断る
 export type PermissionScope<A = unknown> =
   | "book"
+  | { pages: ArgsOfType<A, "all" | readonly string[]>; denied: "skip" }
   | { page: ArgsOfType<A, string>; item?: ArgsOfType<A, string>; items?: ArgsOfType<A, readonly string[]> }
   | { entry: ArgsOfType<A, string> }
   | { creates: ArgsOfType<A, string> }
@@ -175,6 +180,7 @@ export type PermissionScope<A = unknown> =
 // 表に並べたアクションの許可スコープ（引数の形を問わない形。書くときの型は PermissionScope<A>）
 export type AnyPermissionScope =
   | "book"
+  | { pages: string; denied: "skip" }
   | { page: string; item?: string | undefined; items?: string | undefined }
   | { entry: string }
   | { creates: string }
@@ -242,6 +248,7 @@ export function scopeOf(scope: AnyPermissionScope | undefined, args: unknown): W
   if (scope === undefined) return undefined
   if (scope === "book") return {}
   if (typeof scope === "function") return (scope as (args: unknown) => Where)(args)
+  if ("pages" in scope) return {}
   const a = args as Record<string, unknown>
   const id = (k: string | undefined) => (k !== undefined && typeof a[k] === "string" ? (a[k] as string) : undefined)
   if ("entry" in scope) {
@@ -256,6 +263,14 @@ export function scopeOf(scope: AnyPermissionScope | undefined, args: unknown): W
   const item = id(scope.item)
   const items = scope.items !== undefined && Array.isArray(a[scope.items]) ? (a[scope.items] as string[]) : undefined
   return { ...(page ? { page } : {}), ...(item ? { ids: [item] } : items ? { ids: items } : {}) }
+}
+
+// 許可スコープが、ページ 1 枚ごとに問う形（pages と denied）なら、引数 args が名指すページ（id の並びか "all"）。その形でなければ null
+export function pagesScopeOf(scope: AnyPermissionScope | undefined, args: unknown): "all" | readonly string[] | null {
+  if (typeof scope !== "object" || !("pages" in scope)) return null
+  const named = (args as Record<string, unknown>)[scope.pages]
+  if (named === "all") return "all"
+  return Array.isArray(named) ? named.filter((id): id is string => typeof id === "string") : null
 }
 
 // 利用者の設定の許可スコープから、引数 args で変える項目の id を出す

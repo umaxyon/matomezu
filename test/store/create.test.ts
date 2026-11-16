@@ -182,8 +182,8 @@ describe("インスタンスを作る", () => {
     })
     // @ts-expect-error ブックの名前を変えるアクションは、入れ物自身だけを変える
     definePlugin({ id: "notes", pageTypes: [acting({ without: ["@matomezu/base:book-update"] })] })
-    // @ts-expect-error まとめて見た目を変えるアクションも、入れ物自身だけを変える
-    definePlugin({ id: "notes", pageTypes: [acting({ add: ["@matomezu/base:pages-update"] })] })
+    // ページをまとめて変えるアクションは、ページ 1 枚ごとに問うので書ける
+    definePlugin({ id: "notes", pageTypes: [acting({ without: ["@matomezu/base:pages-update"] })] })
     const drawing = BUILTIN_PARTS.pageTypes.find(t => t.id === "@matomezu/drawing:drawing")!
     const wrong = { ...drawing, actions: { without: ["@matomezu/base:book-update"] } }
     expect(
