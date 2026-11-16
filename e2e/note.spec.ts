@@ -3,7 +3,7 @@ import { browserMenuStopped } from "./helpers/browser-menu"
 import { addList, addRow } from "./helpers/list"
 import { panel, writeNote } from "./helpers/note"
 import { addBox, items, settled } from "./helpers/paper"
-import { openGeneral, settingsDialog } from "./helpers/settings"
+import { backToBook, openGeneral, settingsDialog } from "./helpers/settings"
 import { fromMenu } from "./helpers/stage-menu"
 
 const stands = (page: Page) => page.locator("[data-stand]")
@@ -690,6 +690,7 @@ test("設定画面の「コーナーステータスの並び」で、角に出�
   await order.getByRole("button", { name: "たたんだ伝言を前へ" }).click()
   await expect(names).toHaveText(["既読の伝言", "たたんだ伝言", "びっくりマーク"])
   await settingsDialog(page).getByRole("button", { name: "閉じる" }).click()
+  await backToBook(page)
 
   // 既読の伝言とびっくりマークを付けると、既読の伝言が先に並ぶ
   await page.goto(BOOK_SCREEN_URL)

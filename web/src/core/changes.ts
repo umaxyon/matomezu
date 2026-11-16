@@ -1,5 +1,5 @@
 // ブックの変化: アクションの前と後のブックを比べ、変わったフィールド・ページ・アイテムを求める（認可ステップが行った後に見る）
-import { pagesOf } from "./book"
+import { lineupOf, pagesOf } from "./book"
 import type { Changes, PageChange } from "./def/permission"
 import { sameData } from "./same"
 import type { Book } from "./schema/book"
@@ -39,13 +39,20 @@ function pageChange(id: string, before: Page | undefined, after: Page | undefine
   }
 }
 
+// 並びの骨組み: 要素の id の順と、バインダの名前・入れるタイプ・中のページの id の順（ページの中身は入れない）
+const skeleton = (book: Book): unknown =>
+  lineupOf(book).map(e =>
+    e.kind === "page" ? e.id : { id: e.id, title: e.title, pageType: e.pageType, lineup: e.lineup.map(p => p.id) },
+  )
+
 export function changesOf(before: Book | undefined, after: Book | undefined): Changes {
-  if (!after) return { gone: true, added: false, fields: [], pages: [] }
+  if (!after) return { gone: true, added: false, fields: [], lineup: false, pages: [] }
   if (!before)
     return {
       gone: false,
       added: true,
-      fields: Object.keys(after).filter(k => k !== "pages"),
+      fields: Object.keys(after).filter(k => k !== "lineup"),
+      lineup: lineupOf(after).length > 0,
       pages: pagesOf(after).map(p => pageChange(p.id, undefined, p)),
     }
   const was = new Map(pagesOf(before).map(p => [p.id, p]))
@@ -54,7 +61,8 @@ export function changesOf(before: Book | undefined, after: Book | undefined): Ch
   return {
     gone: false,
     added: false,
-    fields: changedFields(before as Fields, after as Fields, ["pages"]),
+    fields: changedFields(before as Fields, after as Fields, ["lineup"]),
+    lineup: !sameData(skeleton(before), skeleton(after)),
     pages: [...ids]
       .filter(id => !sameData(was.get(id), now.get(id)))
       .map(id => pageChange(id, was.get(id), now.get(id))),

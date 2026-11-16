@@ -1,6 +1,7 @@
 // スクラップ: 紙の右クリックの「スクラップを切り抜く」で、範囲（はじめはページ全体）を決めてスクラップトレイに入れると、左サイドパネルのスクラップトレイが開く。
 // スクラップトレイの 1 つを押して紙を押すと、その値のスクラップボックスが置かれ、中に元のページの箱が見える。スクラップトレイには残り、× で消える。
 // 置いたスクラップボックスをダブルクリックすると設定のダイアログが開き、枠線を切り替えられる。大きさは、四隅のつまみで比を保って変える
+import { drawingPage, MARKDOWN, TREE, testBook, testPage } from "../test/lineup"
 import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { leftPanel } from "./helpers/outbox"
 import { addBox, items, onPaper, paper } from "./helpers/paper"
@@ -15,14 +16,7 @@ async function openScrapTray(page: Page) {
 
 // ページの id はブックをまたいで重ならない（スクラップはページの id だけで指す）。共有の見本はどのブックも p1 なので、ここでは自分のブックを置く
 test.use({
-  books: [
-    {
-      type: "@matomezu/drawing:drawing",
-      id: "scrap-book",
-      title: "まとめ図の構想",
-      pages: [{ id: "scrap-page", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" }],
-    },
-  ],
+  books: [testBook("scrap-book", "まとめ図の構想", [drawingPage("scrap-page")])],
 })
 
 test("ページを切り抜いてスクラップトレイに入れ、スクラップトレイから置くと中に元のページが見える。置いてもスクラップトレイに残り、× で消える。角のつまみで比を保って大きさを変えられ、ダブルクリックで枠線を直せる", async ({
@@ -102,26 +96,14 @@ test.describe("マークダウンのページ", () => {
     // 2 冊の並びは、値と設定の組 [値, {}] で渡す（そのままだと 2 冊目を設定と読む）
     books: [
       [
-        {
-          type: "@matomezu/markdown:markdown",
-          id: "scrap-md",
-          title: "メモ",
-          pages: [
-            {
-              id: "scrap-md-page",
-              title: "本文",
-              paper: "@matomezu/base:a4",
-              orientation: "portrait",
-              text: "# 見出しの字\n\n本文の字です。",
-            },
-          ],
-        },
-        {
-          type: "@matomezu/drawing:drawing",
-          id: "scrap-to",
-          title: "置き先",
-          pages: [{ id: "scrap-to-page", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" }],
-        },
+        testBook("scrap-md", "メモ", [
+          testPage(MARKDOWN, "scrap-md-page", {
+            title: "本文",
+            orientation: "portrait",
+            text: "# 見出しの字\n\n本文の字です。",
+          }),
+        ]),
+        testBook("scrap-to", "置き先", [drawingPage("scrap-to-page")]),
       ],
       {},
     ],
@@ -162,20 +144,9 @@ test.describe("マークダウンのページ", () => {
 test.describe("ツリーのページ", () => {
   test.use({
     books: [
-      {
-        type: "@matomezu/tree:tree",
-        id: "scrap-tree",
-        title: "木",
-        pages: [
-          {
-            id: "scrap-tree-page",
-            title: "ページ 1",
-            paper: "@matomezu/base:a4",
-            orientation: "landscape",
-            root: { id: "r", caption: "根の字", children: [] },
-          },
-        ],
-      },
+      testBook("scrap-tree", "木", [
+        testPage(TREE, "scrap-tree-page", { root: { id: "r", caption: "根の字", children: [] } }),
+      ]),
     ],
   })
 

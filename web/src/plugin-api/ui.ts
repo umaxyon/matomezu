@@ -12,6 +12,8 @@ export { useMenu, useMenuCommand } from "../ui/menu"
 export type {
   BookViewDef,
   BookViewProps,
+  ContextMenuRow,
+  ContextMenuRows,
   DialogProps,
   EnumValueIcon,
   ItemUi,

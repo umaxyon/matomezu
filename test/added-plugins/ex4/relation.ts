@@ -1,6 +1,7 @@
 // ex4 の 2 つ目のつなぐもの「関係線」: 形どうしを点線で結ぶ。ビルトインの線と同じページに引ける。
 // 整え（tidy）と関係の決まり（holds）を持たない（端の形を消したときに何が起きるかを見るため）
-import { putPage, shapesOf, z } from "matomezu"
+
+import { findPage, putPage, shapesOf, z } from "matomezu"
 import { kit } from "./kit"
 
 export const RELATION = kit.defineConnector({
@@ -24,7 +25,7 @@ export const RELATE = kit.defineAction({
   args: z.strictObject({ page: z.string().min(1), from: z.string().min(1), to: z.string().min(1) }),
   permissionScope: { page: "page" },
   run: (book, args, ctx) => {
-    const page = book.pages.find(p => p.id === args.page)
+    const page = findPage(book, args.page)?.page
     if (!page) return null
     const shapes = new Set(shapesOf(page).map(s => s.id))
     if (!shapes.has(args.from) || !shapes.has(args.to)) return null
@@ -35,16 +36,12 @@ export const RELATE = kit.defineAction({
 })
 
 // 関係図: ビルトインの箱と線に、関係線を足したタイプ。関係線を先に選ぶ（つなぐもののビューの外側になる）
-export const MAP = kit.defineBookType({
+export const MAP = kit.definePageType({
   id: "map",
   version: 1,
   title: "map",
-  schema: z.strictObject({ id: z.string().min(1) }),
-  create: init => ({ ...init, pages: [] }),
-  addPagesFromTabs: true,
-  pages: {
-    paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
-  },
+  grouping: "none",
+  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape" },
   items: {
     allowed: [kit.name("relation"), "@matomezu/box:shape-box", "@matomezu/line:connector-line"],
   },
@@ -54,5 +51,5 @@ export const MAP = kit.defineBookType({
   presentation: "@matomezu/paper:paper",
   tokens: [],
   tools: "@matomezu/paper:paper",
-  settings: { book: [], page: [] },
+  settings: [],
 })

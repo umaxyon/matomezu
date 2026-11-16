@@ -1,21 +1,28 @@
-// 紙・向き・可変ページかの入力Form（ページを作るダイアログと、ページの設定のダイアログ）。選べる紙と向きはブックのタイプの規定で決まり（1 つしか無ければ選べない）、
+// 紙・向き・可変ページかの入力Form（ページを作るダイアログと、ページの設定のダイアログ）。選べる紙と向きはページのタイプの規定で決まり（1 つしか無ければ選べない）、
+// バインダに入るタイプ（スライド）は、そろえる相手のいる所（ページの設定と、今あるバインダに足すページ）では紙と向きを出さない（バインダの設定でまとめて変える）。
 // 可変ページかは、タイプが増やす向きの決め方を持つときだけ出す（利用者が向きを選ぶタイプなら、可変ページにすると増やす向きも選べる）。ページの設定では、変えた項目だけをアクション page-update に渡し、形が紙に入らなければ問題にする
+
 import { useState } from "react"
-import { type PagedBook, putPage } from "../../../core/book"
+import { putPage } from "../../../core/book"
+import { pageType } from "../../../core/core-catalog"
 import type { GrowChoice, Orientation } from "../../../core/def/paper"
-import type { Page } from "../../../core/schema/book"
+import type { Book, Page } from "../../../core/schema/book"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog } from "../../../ui/store-context"
 import { controlClass, Field, rowClass, Switch } from "../dialog-host/FormParts"
 import { kit } from "../kit"
+import { PaperFields } from "./PaperFields"
 import type { PageProblem } from "./page-problems"
-import { canGrow, defaultPaper, growChoices, normalizedPage, paperChoices, paperChoicesFor, withGrows } from "./pages"
-
-// 向きの名前
-const ORIENTATION_TITLES = { portrait: "Portrait", landscape: "Landscape" } as const satisfies Record<
-  Orientation,
-  string
->
+import {
+  canGrow,
+  defaultPaper,
+  growChoices,
+  normalizedPage,
+  type PaperPlace,
+  paperChoices,
+  paperChoicesFor,
+  withGrows,
+} from "./pages"
 
 // 増やす向きの名前
 const GROW_TITLES = {
@@ -32,20 +39,29 @@ export interface PaperValue {
   grows: Page["grows"]
 }
 
-// page はページの設定なら変えるページ、ページを作るなら null（タイプの規定の既定から始める）
-export function usePaperControls(book: PagedBook | undefined, page: Page | null) {
+// page はページの設定なら変えるページ、ページを作るなら null（タイプ type の規定の既定から始める。page があれば type はそのページのタイプ）
+export function usePaperControls(
+  book: Book | undefined,
+  page: Page | null,
+  type: string | undefined,
+  place: PaperPlace = "lineup", // ページを作るなら、入れる所（紙をそろえる相手が決まる）
+) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const [value, setValue] = useState<PaperValue | null>(() => {
-    if (!book) return null
-    const from = page ?? defaultPaper(catalog, book)
-    const choices = growChoices(catalog, book)
+    if (!book || type === undefined) return null
+    const from = page ?? defaultPaper(catalog, book, type, place)
+    const choices = growChoices(catalog, type)
     const grows = page?.grows === true && choices[0] ? choices[0] : page?.grows
     return { paper: from.paper, orientation: from.orientation, grows }
   })
-  if (!book || !value) return { controls: null, value: null, patch: {}, draft: (p: Page) => p, problems: [] }
-  const { papers, orientations } = page ? paperChoicesFor(catalog, book, page.id) : paperChoices(catalog, book)
-  const choices = growChoices(catalog, book)
+  if (!book || !value || type === undefined)
+    return { controls: null, value: null, patch: {}, draft: (p: Page) => p, problems: [] }
+  const { papers, orientations } = page
+    ? paperChoicesFor(catalog, book, page)
+    : paperChoices(catalog, book, type, place)
+  const choices = growChoices(catalog, type)
+  const shared = pageType(catalog, type).grouping === "binder" && (page !== null || place !== "new-binder") // 紙と向きを、そろえる相手に任せるか
   const chosen = value.grows === true ? undefined : value.grows // 選んでいる増やす向き
   // 変えた項目（ページを作るなら全部）
   const patch = {
@@ -66,44 +82,17 @@ export function usePaperControls(book: PagedBook | undefined, page: Page | null)
     page && !fits ? [{ page, problem: { message: kit.message("The shapes do not fit on the paper") } }] : []
   const controls = (
     <>
-      <Field label={t("Paper size")}>
-        {id => (
-          <select
-            id={id}
-            className={controlClass}
-            value={value.paper}
-            disabled={papers.length < 2}
-            onChange={e => setValue({ ...value, paper: e.target.value })}
-          >
-            {papers.map(p => {
-              const def = catalog.papers.get(p)
-              return (
-                <option key={p} value={p}>
-                  {def ? t(def.title) : t("Unknown paper")}
-                </option>
-              )
-            })}
-          </select>
-        )}
-      </Field>
-      <Field label={t("Orientation")}>
-        {id => (
-          <select
-            id={id}
-            className={controlClass}
-            value={value.orientation}
-            disabled={orientations.length < 2}
-            onChange={e => setValue({ ...value, orientation: e.target.value as Orientation })}
-          >
-            {orientations.map(o => (
-              <option key={o} value={o}>
-                {t(ORIENTATION_TITLES[o])}
-              </option>
-            ))}
-          </select>
-        )}
-      </Field>
-      {canGrow(catalog, book) && (
+      {!shared && (
+        <PaperFields
+          papers={papers}
+          orientations={orientations}
+          paper={value.paper}
+          orientation={value.orientation}
+          onPaper={paper => setValue({ ...value, paper })}
+          onOrientation={orientation => setValue({ ...value, orientation })}
+        />
+      )}
+      {canGrow(catalog, type) && (
         <div className={rowClass}>
           <span>{t("Variable page")}</span>
           <Switch

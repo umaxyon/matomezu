@@ -281,20 +281,22 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	if got := next(t, screen); got != `plugins {"version":1}` {
 		t.Fatalf("event = %s", got)
 	}
-	made := perform(`{"action":"@matomezu/base:book-create","args":{"title":"F","type":"ex2:flow"}}`)
+	made := perform(`{"action":"@matomezu/base:book-create","args":{"title":"F"}}`)
 	if !strings.Contains(made, `"ok":true`) {
 		t.Fatalf("@matomezu/base:book-create = %s", made)
 	}
 	var created struct{ Result struct{ Book string } }
 	_ = json.Unmarshal([]byte(made), &created)
 	next(t, screen) // book
-	if got := perform(`{"action":"@matomezu/base:page-add","args":{"title":"P"},"on":{"book":"` + created.Result.Book + `"}}`); !strings.Contains(got, `"ok":true`) {
+	if got := perform(`{"action":"@matomezu/base:page-add","args":{"type":"ex2:flow","title":"P"},"on":{"book":"` + created.Result.Book + `"}}`); !strings.Contains(got, `"ok":true`) {
 		t.Fatalf("@matomezu/base:page-add = %s", got)
 	}
 	next(t, screen) // book
 	_, read := get(t, s.URL+"/api/ai/books/"+created.Result.Book, "secret")
 	var book struct {
-		Book struct{ Pages []struct{ ID string } }
+		Book struct {
+			Pages []struct{ ID string } `json:"lineup"`
+		}
 	}
 	if json.Unmarshal([]byte(read), &book) != nil || len(book.Book.Pages) == 0 {
 		t.Fatalf("book = %s", read)
@@ -352,7 +354,7 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	if got := perform(place); strings.Contains(got, `"ok":true`) {
 		t.Fatalf("place after removing = %s", got)
 	}
-	if got := perform(`{"action":"@matomezu/base:book-create","args":{"title":"D","type":"@matomezu/drawing:drawing"}}`); !strings.Contains(got, `"ok":true`) {
+	if got := perform(`{"action":"@matomezu/base:book-create","args":{"title":"D","page":{"type":"@matomezu/drawing:drawing"}}}`); !strings.Contains(got, `"ok":true`) {
 		t.Fatalf("@matomezu/base:book-create drawing = %s", got)
 	}
 	if _, got := send(t, "POST", s.URL+"/api/plugins/remove", `{"id":"ex2"}`, ai); !strings.Contains(got, `"ok":false`) {
@@ -369,7 +371,7 @@ func TestBooksAreKeptWithVersions(t *testing.T) {
 		t.Fatalf("empty data = %d %s", code, body)
 	}
 	book := func(title string) string {
-		return `{"type":"@matomezu/drawing:drawing","id":"b1","title":"` + title + `","pages":[]}`
+		return `{"id":"b1","title":"` + title + `","lineup":[]}`
 	}
 	put := func(title string, base int) (int, string) {
 		return send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+book(title)+`,"base":`+strconv.Itoa(base)+`}`, nil)
@@ -390,7 +392,7 @@ func TestBooksAreKeptWithVersions(t *testing.T) {
 func TestResetForTestLeavesOnlyTheGivenBooks(t *testing.T) {
 	s := newServer(t, nil)
 	book := func(id string) string {
-		return `{"type":"@matomezu/drawing:drawing","id":"` + id + `","title":"t","pages":[]}`
+		return `{"id":"` + id + `","title":"t","lineup":[]}`
 	}
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+book("b1")+`,"base":0}`, nil)
 	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:skin":"@matomezu/base:dark"}},"lang":"ja"}`, nil)
@@ -447,7 +449,7 @@ func TestScreenAPIOnlyFromItsOwnPage(t *testing.T) {
 	}
 }
 
-const drawing = `{"type":"@matomezu/drawing:drawing","id":"b1","title":"T","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape"}]}`
+const drawing = `{"id":"b1","title":"T","lineup":[{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"P","paper":"@matomezu/base:a4","orientation":"landscape"}]}`
 
 // listen は /api/events につなぎ、届いたイベントを「名前 data」の行で返す通り道
 func listen(t *testing.T, url string) <-chan string {
@@ -841,10 +843,10 @@ func TestAIEntrancesNeedTheToken(t *testing.T) {
 			t.Errorf("%s without the token = %d", path, code)
 		}
 	}
-	if _, body := send(t, "GET", s.URL+"/api/ai/books", "", auth); body != `{"books":[{"id":"b1","type":"@matomezu/drawing:drawing","title":"T","version":1}]}` {
+	if _, body := send(t, "GET", s.URL+"/api/ai/books", "", auth); body != `{"books":[{"id":"b1","title":"T","version":1}]}` {
 		t.Fatalf("books = %s", body)
 	}
-	code, body := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-add","args":{"title":"Two"},"on":{"book":"b1"}}`, auth)
+	code, body := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/drawing:drawing","title":"Two"},"on":{"book":"b1"}}`, auth)
 	if code != 200 || !strings.HasPrefix(body, `{"ok":true,"result":{"page":"`) {
 		t.Fatalf("perform = %d %s", code, body)
 	}
@@ -935,7 +937,7 @@ func TestShowWithoutAWindowNorABrowser(t *testing.T) {
 func TestListsWhyABookCannotBeRead(t *testing.T) {
 	s := newServer(t, nil)
 	// ex2 を結んでいる間に書いたフローのブックは、ex2 を外すと読めなくなる（読めないブックは書けないので、結んでから書く）
-	flow := `{"type":"ex2:flow","id":"f1","title":"Flow","pages":[]}`
+	flow := `{"id":"f1","title":"Flow","lineup":[{"kind":"page","id":"p1","type":"ex2:flow","title":"P","paper":"@matomezu/base:a4","orientation":"portrait"}]}`
 	if got := link(t, s, "../../test/added-plugins/ex2"); got != `{"id":"ex2","ok":true}` {
 		t.Fatalf("link = %s", got)
 	}
@@ -961,12 +963,12 @@ func TestListsWhyABookCannotBeRead(t *testing.T) {
 		}
 		return "missing"
 	}
-	if got := problem(); got != "W004 ex2: book f1 (Flow): its type ex2:flow is not in the catalog" {
+	if got := problem(); got != "W004 ex2: book f1 (Flow): it has a page of type ex2:flow, which is not in the catalog" {
 		t.Fatalf("after unlinking = %q", got)
 	}
 	// 読めないブックへのアクションは「無い」でなく、その理由で断る
-	page := `{"action":"@matomezu/base:page-add","args":{"title":"p"},"on":{"book":"f1"}}`
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", page, ai); got != `{"detail":"W004 ex2: book f1 (Flow): its type ex2:flow is not in the catalog","ok":false,"reason":"unreadable"}` {
+	page := `{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/drawing:drawing","title":"p"},"on":{"book":"f1"}}`
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", page, ai); got != `{"detail":"W004 ex2: book f1 (Flow): it has a page of type ex2:flow, which is not in the catalog","ok":false,"reason":"unreadable"}` {
 		t.Fatalf("perform on an unreadable book = %s", got)
 	}
 	if got := link(t, s, "../../test/added-plugins/ex2"); got != `{"id":"ex2","ok":true}` {
@@ -986,7 +988,7 @@ func TestListsWhyABookCannotBeRead(t *testing.T) {
 // 一部のプラグインが無いだけのブックは読め、AI のブックの一覧には warning が付く（problem は付かない）
 func TestListsAWarningForAPartlyKnownBook(t *testing.T) {
 	s := newServer(t, nil)
-	book := `{"type":"@matomezu/drawing:drawing","id":"u1","title":"Stars","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[{"id":"s","item":"@foo/stars:star","x":0,"y":0,"props":{}}]}]}`
+	book := `{"id":"u1","title":"Stars","lineup":[{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[{"id":"s","item":"@foo/stars:star","x":0,"y":0,"props":{}}]}]}`
 	if code, body := send(t, "PUT", s.URL+"/api/books-for-test/u1", `{"book":`+book+`,"base":0}`, nil); code != 200 {
 		t.Fatalf("put = %d %s", code, body)
 	}
@@ -1202,7 +1204,7 @@ func TestEditLocksSeeOnlyTheLockedThing(t *testing.T) {
 // 置いたときのままの書き方（読み直すと既定が足される）のブックでも、編集ロックを掛けていない物を AI が変えれば通る
 func TestEditLocksIgnoreDefaultsFilledOnRead(t *testing.T) {
 	s := newServer(t, nil)
-	book := `{"type":"@matomezu/drawing:drawing","id":"b1","title":"T","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[` +
+	book := `{"id":"b1","title":"T","lineup":[{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[` +
 		`{"id":"k1","item":"@matomezu/box:shape-nest-box","x":10,"y":10,"props":{"caption":"一"}},` +
 		`{"id":"k2","item":"@matomezu/box:shape-nest-box","x":300,"y":10,"props":{"caption":"二"}}]}]}`
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+book+`,"base":0}`, nil)
@@ -1329,16 +1331,16 @@ func TestAIReadsABookAsAnOutlineAndAPageByItem(t *testing.T) {
 		return `{"id":"` + id + `","x":10,"y":10,"item":"@matomezu/box:shape-nest-box","w":200,"h":100,"props":{"caption":"` + caption + `","rule":true,"body":"","captionAlign":"left","bodyAlign":"left"}` + children + `}`
 	}
 	nested := box("x1", "A", `,"shapes":[`+box("x2", "B", "")+`]`)
-	body := `{"type":"@matomezu/drawing:drawing","id":"b1","title":"T","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[` + nested + `,` + box("x3", "C", "") + `]}]}`
+	body := `{"id":"b1","title":"T","lineup":[{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[` + nested + `,` + box("x3", "C", "") + `]}]}`
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+body+`,"base":0}`, nil)
 	ai := map[string]string{"Authorization": "Bearer secret"}
 
-	// ブックは、ページの中身を除いた目次（id・題名・大きさ）
+	// ブックは、ページの中身を除いた目次（kind・id・題名・タイプ・大きさ）
 	_, got := send(t, "GET", s.URL+"/api/ai/books/b1?outline=1", "", ai)
 	var book struct {
 		Book struct {
 			Title string                       `json:"title"`
-			Pages []map[string]json.RawMessage `json:"pages"`
+			Pages []map[string]json.RawMessage `json:"lineup"`
 		} `json:"book"`
 	}
 	if err := json.Unmarshal([]byte(got), &book); err != nil || book.Book.Title != "T" || len(book.Book.Pages) != 1 ||
@@ -1494,7 +1496,7 @@ func TestAIActionsOfTheControlCenterNeedAConfirmedParticipation(t *testing.T) {
 		t.Fatal("while preparing (accepted, the hook has not told), the action was not refused")
 	}
 	// ブックのアクションは、参加を問わない
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-add","args":{"title":"P"},"on":{"book":"nothing"}}`, ai); strings.Contains(got, "not joined") {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/drawing:drawing","title":"P"},"on":{"book":"nothing"}}`, ai); strings.Contains(got, "not joined") {
 		t.Fatalf("a book action was stopped for the participation: %s", got)
 	}
 	// 参加が確定した AI は行える

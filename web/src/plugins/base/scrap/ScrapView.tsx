@@ -4,14 +4,14 @@
 import { createContext, type ReactNode, useCallback, useContext, useLayoutEffect, useMemo, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { pageById } from "../../../core/book"
-import { bookType } from "../../../core/core-catalog"
+import { pageType } from "../../../core/core-catalog"
 import type { Size } from "../../../core/geom"
 import type { ItemPage } from "../../../core/placed"
 import type { Book, Page } from "../../../core/schema/book"
 import { useMessages } from "../../../ui/i18n"
 import { PageScope } from "../../../ui/scope"
 import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
-import { useBookLookStyle } from "../book-look/use-book-look-style"
+import { usePageLookStyle } from "../book-look/use-page-look-style"
 import { kit } from "../kit"
 import { pageArea, paperSize } from "../place/items"
 import type { PrintMeasured } from "../print-preview/measures-state"
@@ -46,7 +46,7 @@ export function ScrapView({ scrap, zoom = 1 }: ScrapViewProps) {
   const state: ScrapState = !book || !page ? "none" : traced.includes(pageId) ? "loop" : "shown"
   const placed = scrapSize(scrap)
   const frame = { width: placed.w, height: placed.h }
-  const size = book && page ? pageArea(catalog, book, page)?.size : undefined
+  const size = book && page ? pageArea(catalog, page)?.size : undefined
   const paper = page ? paperSize(catalog, page) : null
   const inner = useMemo(() => [...traced, pageId], [traced, pageId])
   if (state !== "shown" || !book || !page || !size || !paper)
@@ -87,9 +87,9 @@ export function DrawnSheet({
 }) {
   const catalog = useCatalog().core
   const views = useUiCatalog().presentationViews
-  const Measure = views.get(bookType(catalog, book.type).presentation)?.printMeasure
+  const Measure = views.get(pageType(catalog, page.type).presentation)?.printMeasure
   const paper = paperSize(catalog, page as ItemPage)
-  const look = useBookLookStyle(book.type)
+  const look = usePageLookStyle()
   const [measured, setMeasured] = useState<PrintMeasured | null>(null)
   const report = useCallback(
     (m: PrintMeasured) =>

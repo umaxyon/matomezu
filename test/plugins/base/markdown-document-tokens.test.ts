@@ -1,5 +1,5 @@
 // 描いた文書（base/markdown）が CSS で読む --markdown-… は、base が出すテーマキーの並び（MARKDOWN_DOCUMENT_TOKENS）にある物だけ。
-// 並びに無い名前を読むと、ブックの外で文書を描く所が置く変数からも、マークダウンのブックのタイプの宣言からも抜ける
+// 並びに無い名前を読むと、ブックの外で文書を描く所が置く変数からも、マークダウンのページのタイプの宣言からも抜ける
 import { expect, test } from "bun:test"
 import { Glob } from "bun"
 import { MARKDOWN_DOCUMENT_TOKENS } from "../../../web/src/plugins/base"

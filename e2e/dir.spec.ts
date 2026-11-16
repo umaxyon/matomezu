@@ -88,7 +88,7 @@ test("日本語の変換中（確定する前）の名前にも、入力の枠�
   await expect.poll(async () => (await input.boundingBox())!.width).toBeGreaterThan(before)
 })
 
-test("ページタブの頭にブックのタイプのアイコンが付き、ノードの設定でアイコンを選ぶと行の頭の絵が替わる（フォルダは folder・book、ファイルはそれ以外）", async ({
+test("ページタブの頭にページのタイプのアイコンが付き、ノードの設定でアイコンを選ぶと行の頭の絵が替わる（フォルダは folder・book、ファイルはそれ以外）", async ({
   page,
 }) => {
   await dirBook(page)

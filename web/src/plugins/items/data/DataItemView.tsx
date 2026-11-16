@@ -4,9 +4,9 @@
 // グラフの見た目なら、グラフ（ChartView）を描く。
 // データを選んでいる間（紙をずらす道具の間は除く）は、本文の列の端につまみを出し、離したら本文の幅（bodyWidth）をアクション item-update で書く。
 // 表やグラフの動き（motion.ts）のきっかけは、ここで前の様子と比べて決める（表からグラフに変えたのも、見た目を変えたきっかけにする）。
-// データにテーマ（theme）を当てていれば、そのテーマのデータのテーマキーで描く。ブックのタイプが使えないテーマならブックのテーマのまま
+// データにテーマ（theme）を当てていれば、そのテーマのデータのテーマキーで描く。ページのタイプが使えないテーマならブックのテーマのまま
 import { type ReactNode, useState } from "react"
-import type { ItemProps } from "../../../plugin-api"
+import { type ItemProps, shownPageId } from "../../../plugin-api"
 import { type ItemViewProps, useMessages, usePerform, useStage } from "../../../plugin-api/ui"
 import { TextBlockView, useBodyGrips, useThemeVars } from "../../base/ui"
 import { areasOf } from "./areas"
@@ -24,7 +24,7 @@ export function DataItemView({ props, content, size, id }: ItemViewProps<DataPro
   const t = useMessages(kit)
   const vars = useThemeVars(props.theme, DATA_TOKENS)
   const at = useStage()
-  const page = at?.opened?.page ?? undefined
+  const page = shownPageId(at?.opened ?? null) ?? undefined
   const perform = usePerform()
   const grips = useBodyGrips(id, "@matomezu/paper:item-update")
   const table = content.table

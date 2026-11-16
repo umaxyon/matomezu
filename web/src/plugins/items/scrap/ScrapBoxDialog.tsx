@@ -14,8 +14,7 @@ import {
   rowClass,
   ScrapForm,
   Switch,
-  useBookOf,
-  useBookTheme,
+  usePageTheme,
   useSwatches,
 } from "../../base/ui"
 import { NO_LINE, type SCRAP_BOX, SCRAP_LINE } from "."
@@ -35,7 +34,7 @@ function Editor({ args, start, onClose }: { args: ShapeEditArgs; start: ScrapPro
   const perform = usePerform()
   const [value, setValue] = useState(start)
   const { line, ...scrap } = value
-  const swatches = useSwatches(useBookTheme(useBookOf()), SCRAP_LINE)
+  const swatches = useSwatches(usePageTheme(), SCRAP_LINE)
   // 枠線だけを変える（色の「なし」は項目を外す）
   const withLine = (next: string | undefined) => setValue(next === undefined ? scrap : { ...scrap, line: next })
   const [refused, setRefused] = useState<string | null>(null)

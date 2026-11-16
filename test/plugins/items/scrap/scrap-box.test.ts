@@ -1,9 +1,11 @@
 // スクラップボックス（@matomezu/scrap:shape-scrap-box）: スクラップトレイのスクラップの値を持って置こうとし、紙を押すと、追加のダイアログ無しでその値のまま置く。
 // 大きさは見る範囲 × 倍率。置いたあともスクラップトレイのスクラップは変わらず、元に戻すと置いた形だけが消える
+
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../../../web/src/core/book"
 import type { Point } from "../../../../web/src/core/geom"
 import type { PlacedShape } from "../../../../web/src/core/placed"
-import type { BookOf } from "../../../../web/src/core/schema/book"
+import type { Book } from "../../../../web/src/core/schema/book"
 import { placement } from "../../../../web/src/core/stage"
 import { screenOf } from "../../../../web/src/core/window"
 import { type Edges, placedSize, resizedBy } from "../../../../web/src/plugins/base"
@@ -21,8 +23,7 @@ function pointerFor(store: ReturnType<typeof sizedStore>, at: Point): Point {
   const p = placement(screenOf(store.state.getState().window).stages[0]!)!
   return { x: p.x + at.x * p.zoom + PLACE_OFFSET.x, y: p.y + at.y * p.zoom + PLACE_OFFSET.y }
 }
-const items = (store: ReturnType<typeof sizedStore>) =>
-  (store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!.items ?? []
+const items = (store: ReturnType<typeof sizedStore>) => pagesOf(store.state.getState().books.b1 as Book)[0]!.items ?? []
 const tray = (store: ReturnType<typeof sizedStore>) => Object.values(store.state.getState().records[SCRAP.id] ?? {})
 
 test("置こうとしている間の影の大きさは、渡した値の見る範囲 × 倍率（値が無ければアイテムの既定）", () => {
@@ -64,7 +65,7 @@ function placedOne() {
   const store = sizedStore()
   store.actions.togglePlacing("s1", BOX, ONE)
   store.actions.command("s1", "@matomezu/paper:paper-place", pointerFor(store, { x: 100, y: 50 }))
-  const page = () => (store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!
+  const page = () => pagesOf(store.state.getState().books.b1 as Book)[0]!
   const box = () => page().items![0] as PlacedShape
   const resize = (args: object) =>
     (store.actions.perform as (id: string, args: unknown, on: unknown) => { ok: boolean })(

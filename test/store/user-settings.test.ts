@@ -4,7 +4,7 @@ import { expect, test } from "bun:test"
 import { z } from "zod"
 import { type Actor, AI, USER } from "../../web/src/core/actor"
 import { buildCoreCatalog, checkCoreCatalog } from "../../web/src/core/core-catalog"
-import type { SettingDef } from "../../web/src/core/def/setting"
+import type { HeldSettingDef, UserSettingDef } from "../../web/src/core/def/setting"
 import { performIn } from "../../web/src/core/perform"
 import {
   aiSettings,
@@ -19,14 +19,14 @@ import { assemble, type Plugin } from "../../web/src/store/plugin"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
 // 利用者だけが変える項目を 1 つ持つ追加プラグイン
-const SECRET: SettingDef = {
+const SECRET: UserSettingDef = {
   id: "@ex/u:secret",
   title: "@matomezu/base:Language",
   schema: z.string(),
   default: "none",
   userOnly: true,
 }
-const OPEN: SettingDef = { id: "@ex/u:open", title: "@matomezu/base:Language", schema: z.number(), default: 1 }
+const OPEN: UserSettingDef = { id: "@ex/u:open", title: "@matomezu/base:Language", schema: z.number(), default: 1 }
 const EX: Plugin = { id: "@ex/u", userSettings: [SECRET, OPEN] }
 
 const ctx = (catalog = CORE_CATALOG, actor: Actor = USER) => ({
@@ -78,15 +78,19 @@ test("値の形は機能台帳から組み立て（言語は入れてある言�
 })
 
 test("role と userOnly は利用者の設定の項目だけが持ち、1 つの role は 1 つの項目だけ。ブックの設定の項目と同じ id は持てない", () => {
-  const lang = BUILTIN_PARTS.userSettings.find(d => d.role === "lang") as SettingDef
+  const lang = BUILTIN_PARTS.userSettings.find(d => d.role === "lang") as UserSettingDef
   const codes = (parts: Partial<typeof BUILTIN_PARTS>) =>
     checkCoreCatalog({ ...BUILTIN_PARTS, ...parts }).map(p => p.code)
   expect(codes({ userSettings: [...BUILTIN_PARTS.userSettings, { ...lang, id: "@ex/u:lang2" }] })).toEqual(["E037"])
-  expect(codes({ settings: [...BUILTIN_PARTS.settings, { ...OPEN, role: "skin" }] })).toEqual(["E036"])
-  expect(codes({ settings: [...BUILTIN_PARTS.settings, { ...OPEN, userOnly: true }] })).toEqual(["E036"])
-  expect(codes({ userSettings: [...BUILTIN_PARTS.userSettings, BUILTIN_PARTS.settings[0] as SettingDef] })).toEqual([
-    "E001",
-  ])
+  expect(
+    codes({ settings: [...BUILTIN_PARTS.settings, { ...OPEN, holder: "page", role: "skin" } as HeldSettingDef] }),
+  ).toEqual(["E036"])
+  expect(
+    codes({ settings: [...BUILTIN_PARTS.settings, { ...OPEN, holder: "page", userOnly: true } as HeldSettingDef] }),
+  ).toEqual(["E036"])
+  // ページの設定の項目と同じ id の利用者の設定の項目は E001（holder を外しても同じ）
+  const { holder: _, ...same } = BUILTIN_PARTS.settings[0]!
+  expect(codes({ userSettings: [...BUILTIN_PARTS.userSettings, same as UserSettingDef] })).toEqual(["E001"])
   // role の無い台帳アセンブルもできる（土台は既定で読む）
   expect(buildCoreCatalog({ ...BUILTIN_PARTS, userSettings: [] }).roles.size).toBe(0)
 })

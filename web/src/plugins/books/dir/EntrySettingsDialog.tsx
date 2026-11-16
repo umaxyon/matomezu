@@ -1,7 +1,7 @@
 // ノードの設定のダイアログ（フォルダもファイルも、根も同じ形）: 名前と説明（どちらも上に装飾のボックス）と、アイコン（フォルダは folder・book、ファイルは file とそれ以外）を選ぶ。
 // 確定でアクション entry-update を行う。断られたら、閉じずに理由を出す（認可ステップが止めたならそのステップの名前、ほかは紙に入らない）
 import { useId, useRef, useState } from "react"
-import { type MessageKey, pagedOf } from "../../../plugin-api"
+import { findPage, type MessageKey } from "../../../plugin-api"
 import { type DialogProps, useBook, useCoreCatalog, useMessages, usePerform, useT } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import {
@@ -26,8 +26,8 @@ import { NodeIcon } from "./node-icon"
 export function EntrySettingsDialog({ args, onClose }: DialogProps<{ page: string; entry: string }>) {
   const t = useMessages(kit)
   const form = useId()
-  const book = pagedOf(useBook())
-  const page = book?.pages.find(p => p.id === args.page)
+  const book = useBook()
+  const page = book ? findPage(book, args.page)?.page : undefined
   const root = dirRootOf(page)
   const entry = root ? entryOf(root, args.entry) : null
   const perform = usePerform()

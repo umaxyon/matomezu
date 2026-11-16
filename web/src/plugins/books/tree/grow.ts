@@ -1,4 +1,4 @@
-// 伸びる向き: 木が根からどちらへ伸びるか（上・下・左・右・中央）。ブックとページの設定の項目で持ち、ページはブックを継承できる
+// 伸びる向き: 木が根からどちらへ伸びるか（上・下・左・右・中央）。ページの設定の項目で持つ
 import { z } from "zod"
 import type { GrowSides } from "../../base"
 import { kit } from "./kit"
@@ -8,6 +8,7 @@ export type Grow = (typeof GROWS)[number]
 
 export const GROW = kit.defineSetting({
   id: "grow",
+  holder: "page",
   title: "Grow direction",
   schema: z.enum(GROWS),
   default: "down",

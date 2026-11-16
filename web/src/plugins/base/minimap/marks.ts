@@ -1,13 +1,12 @@
-// ミニマップに描くページの絵（紙の座標）: ブックのタイプの見せ方の minimap が決める（無ければ何も描かない）。
+// ミニマップに描くページの絵（紙の座標）: ページのタイプの見せ方の minimap が決める（無ければ何も描かない）。
 // 置いたアイテムで描く見せ方（紙など）は itemMinimapMarks を使う: 形は定義の minimap（無ければ置いた四角）、つなぐものは種類ごとに定義の minimap（無ければ描かない）。
 // つなぐものを先に（下に）、形をあとに（上に）並べる。機能台帳に無い形は、置いた四角。
 // つなぐものは、紙が描いた絵（drawn.tsx）があればそれを使う
-import { bookType, type CoreCatalog } from "../../../core/core-catalog"
-import { slideIsBackground } from "../../../core/def/book-type"
+import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import type { ConnectorData, ShapeData } from "../../../core/def/item"
+import { slideIsBackground } from "../../../core/def/page-type"
 import type { Point, Rect } from "../../../core/geom"
 import { byConnector, type ItemPage, shapesOf, slideOf } from "../../../core/placed"
-import type { Book } from "../../../core/schema/book"
 import { type SettingReader, settingsAt } from "../book-settings"
 import type { GrowSides } from "../place/grow"
 import { growOf } from "../place/items"
@@ -47,19 +46,18 @@ interface MinimapOn {
 
 const rectMark = (r: Rect): MinimapMark => ({ kind: "rect", x: r.x, y: r.y, w: r.w, h: r.h })
 
-// ブック book のページ page の絵。drawn は、紙が描いたつなぐものの絵（種類の id ごと。無ければ定義の minimap で作る）
+// ページ page の絵。drawn は、紙が描いたつなぐものの絵（種類の id ごと。無ければ定義の minimap で作る）
 export function minimapMarks(
   catalog: CoreCatalog,
-  book: Book,
   page: ItemPage,
   drawn: (item: string) => readonly MinimapMark[] | undefined = () => undefined,
 ): readonly MinimapMark[] {
-  const type = bookType(catalog, book.type)
+  const type = pageType(catalog, page.type)
   const minimap = catalog.presentations.get(type.presentation)?.minimap
   if (!minimap) return []
   // 背景（ページの slide。背景を持つタイプ）は、ミニマップに描かない（中身の位置の目印）
   const shown = slideIsBackground(type) ? { ...page, slide: undefined } : page
-  return minimap(catalog, shown, { setting: settingsAt(catalog, book, page), grow: growOf(catalog, book, page), drawn })
+  return minimap(catalog, shown, { setting: settingsAt(catalog, page), grow: growOf(catalog, page), drawn })
 }
 
 // 置いたアイテムの絵（ページの slide の形も含む。背景は minimapMarks が外す。見せ方の minimap に、そのまま書ける）

@@ -1,7 +1,6 @@
-// ブックの中を探す（見た目を持たない計算）: 見せ方がフィールド search（PresentationExtras）を持てば、そのブックのページの原文を探し、
-// 今の当たりから次・前の当たりへ進み、当たりを置き換える page-update の fields を作り、検索ダイアログに出す数を数える。探す・置き換える計算は find.ts
+import { findPage, pagesOf } from "../../../core/book"
 import type { CoreCatalog } from "../../../core/core-catalog"
-import { bookType } from "../../../core/core-catalog"
+import { pageType } from "../../../core/core-catalog"
 import type { Book, Page } from "../../../core/schema/book"
 import { findAll, replaceAll, replaceOne, type SearchHit, type SearchQuery } from "./find"
 import type { SearchOpen, SearchSpot } from "./state"
@@ -14,24 +13,24 @@ export interface SearchableDef {
 
 declare module "../../../core/catalog" {
   interface PresentationExtras {
-    // ページの原文を探せる見せ方の、探し方と替え方（無ければ、その見せ方のブックは探せない）
+    // ページの原文を探せる見せ方の、探し方と替え方（無ければ、その見せ方のページは探せない）
     search?: SearchableDef
   }
 }
 
-// ブック book が探せるなら、その見せ方の search（探せなければ none）
-export function searchableOf(catalog: CoreCatalog, book: Book | null): SearchableDef | "none" {
-  if (!book) return "none"
-  const presentation = bookType(catalog, book.type).presentation
+// ページ page が探せるなら、そのタイプの見せ方の search（探せなければ none）
+export function searchableOf(
+  catalog: CoreCatalog,
+  page: Pick<Page, "type"> | null | undefined,
+): SearchableDef | "none" {
+  if (!page) return "none"
+  const presentation = pageType(catalog, page.type).presentation
   return (presentation ? catalog.presentations.get(presentation)?.search : undefined) ?? "none"
 }
 
-// ブック book のページ（ページを持たなければ空）
-export const pagesOf = (book: Book): readonly Page[] => ("pages" in book && Array.isArray(book.pages) ? book.pages : [])
-
 // 探す範囲のページごとの当たり（page なら開いているページ opened だけ。正規表現が読めなければ bad-pattern）
 export function hitsIn(
-  searchable: SearchableDef,
+  catalog: CoreCatalog,
   book: Book,
   query: SearchQuery,
   scope: "page" | "book",
@@ -40,6 +39,8 @@ export function hitsIn(
   const pages = pagesOf(book).filter(p => scope === "book" || p.id === opened)
   const out: { page: Page; hits: SearchHit[] }[] = []
   for (const page of pages) {
+    const searchable = searchableOf(catalog, page)
+    if (searchable === "none") continue // 探せないタイプのページは飛ばす
     const found = findAll(searchable.textOf(page), query)
     if (found.kind === "bad-pattern") return "bad-pattern"
     out.push({ page, hits: found.hits })
@@ -68,11 +69,13 @@ export function stepHit(
 
 // ページ page の当たりを全部 replacement に置き換える page-update の引数（替わる物が無ければ none）
 export function replaceAllArgs(
-  searchable: SearchableDef,
+  catalog: CoreCatalog,
   page: Page,
   query: SearchQuery,
   replacement: string,
 ): { page: string; fields: Readonly<Record<string, unknown>> } | "none" {
+  const searchable = searchableOf(catalog, page)
+  if (searchable === "none") return "none"
   const before = searchable.textOf(page)
   const after = replaceAll(before, query, replacement)
   return after === before ? "none" : { page: page.id, fields: searchable.edit(page, before, after) }
@@ -103,13 +106,8 @@ export type SearchCount =
   | { kind: "bad-pattern" }
   | { kind: "count"; at: number; all: number; pages: { at: number; all: number } | "none" }
 
-export function searchCount(
-  searchable: SearchableDef,
-  book: Book,
-  search: SearchOpen,
-  opened: string | null,
-): SearchCount {
-  const pages = hitsIn(searchable, book, search.query, search.scope, opened)
+export function searchCount(catalog: CoreCatalog, book: Book, search: SearchOpen, opened: string | null): SearchCount {
+  const pages = hitsIn(catalog, book, search.query, search.scope, opened)
   if (pages === "bad-pattern") return { kind: "bad-pattern" }
   const all = pages.flatMap(p => p.hits.map(h => ({ page: p.page.id, start: h.start })))
   const cur = liveCurrent(pages, search.current)
@@ -125,7 +123,7 @@ export function searchCount(
 
 // 検索 search を change で変えた物。探す字・切り替え・範囲が変われば、今の当たりを、今の当たりの頭から先の最初の当たりに選び直す
 export function changedSearch(
-  searchable: SearchableDef,
+  catalog: CoreCatalog,
   book: Book,
   search: SearchOpen,
   change: Partial<SearchOpen>,
@@ -134,23 +132,24 @@ export function changedSearch(
   const next = { ...search, ...change }
   const requery = change.query !== undefined || (change.scope !== undefined && change.scope !== search.scope)
   if (!requery) return next
-  const pages = hitsIn(searchable, book, next.query, next.scope, opened)
+  const pages = hitsIn(catalog, book, next.query, next.scope, opened)
   return { ...next, current: pages === "bad-pattern" ? "none" : firstHitFrom(pages, search.current, opened ?? "") }
 }
 
 // 今の当たりを置き換える: page-update の引数と、置き換えたあとの次の当たり（置き換えた字の後ろから先。置き換えた字の中は探さない）。
 // 今の当たりが無いか、もう当たりでなければ、置き換えずに次の当たりへ移る（args が none）
 export function replaceOneStep(
-  searchable: SearchableDef,
+  catalog: CoreCatalog,
   book: Book,
   search: SearchOpen,
   opened: string | null,
 ): { args: { page: string; fields: Readonly<Record<string, unknown>> } | "none"; next: SearchSpot | "none" } {
-  const pages = hitsIn(searchable, book, search.query, search.scope, opened)
+  const pages = hitsIn(catalog, book, search.query, search.scope, opened)
   if (pages === "bad-pattern") return { args: "none", next: "none" }
   const cur = liveCurrent(pages, search.current)
-  const page = cur === "none" ? undefined : pagesOf(book).find(p => p.id === cur.page)
-  if (cur === "none" || !page) {
+  const page = cur === "none" ? undefined : findPage(book, cur.page)?.page
+  const searchable = searchableOf(catalog, page)
+  if (cur === "none" || !page || searchable === "none") {
     const from =
       search.current === "none"
         ? { page: opened ?? "", at: 0 }

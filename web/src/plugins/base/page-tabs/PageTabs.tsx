@@ -1,28 +1,24 @@
-// ステージのページのタブ（ウィジェット page-tabs）: そのステージのブックのページを並べる（ページを持たないブックはタブを出さない）。
-// 押したページをそのステージで開く（コマンド page-open）。ブックのタイプが決めていれば、＋でページを作る（コマンド page-new。開くダイアログはタイプが決められる）。
+// ステージのページのタブ（ウィジェット page-tabs）: そのステージのブックの並びを並べる（エントリ 1 つが 1 つのタブ。バインダは 1 つのタブで、名前はバインダの名前）。
+// 押したページをそのステージで開く（コマンド page-open）。バインダのタブを押すと、そのバインダを開く（コマンド binder-open）。＋でタイプを選んでページを作る（AddPageMenu.tsx）。
 // ロック中のページのタブには鍵の印を出す（押せない。外すのはページの設定のダイアログ）。
 // タブが横にあふれているときは、ホイールの縦の回転で横にスクロールする。
-// タブはドラッグで並べ替えられる（useTabDrag。アクション page-move）。掴んだタブは元の所で薄くなり、写しがポインタに付き、落とす所に線が出る
+// タブはドラッグで並べ替えられる（useTabDrag。アクション page-move・binder-move）。掴んだタブは元の所で薄くなり、写しがポインタに付き、落とす所に線が出る
 import { useRef } from "react"
-import { hasPages } from "../../../core/book"
-import { bookType, type CoreCatalog } from "../../../core/core-catalog"
-import type { Book } from "../../../core/schema/book"
+import { lineupOf } from "../../../core/book"
+import type { LineupEntry } from "../../../core/schema/book"
+import { binderOf, shownPageId, shownType } from "../../../core/stage"
 import { useCommand } from "../../../ui/commands"
 import { useContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
 import { useStageHere } from "../../../ui/scope"
-import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
+import { useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { LockIcon } from "../lock/LockIcon"
-import { PAGE_CONTEXT, PAGE_NEW, PAGE_OPEN } from "."
+import { BINDER_CONTEXT, BINDER_OPEN, PAGE_CONTEXT, PAGE_OPEN } from "."
+import { AddPageMenu } from "./AddPageMenu"
 import { FileIcon } from "./FileIcon"
 import styles from "./PageTabs.module.css"
 import { useTabDrag } from "./useTabDrag"
-
-// ページタブの横に、ページを足すボタンを出すか（タイプが出すと決める。ページを作れるかはコマンド page-new が決める）
-function addsFromTabs(catalog: CoreCatalog, book: Book): boolean {
-  return hasPages(book) && bookType(catalog, book.type).addPagesFromTabs === true
-}
 
 // 横にあふれた要素の上で、ホイールの縦の回転を横のスクロールにする（あふれていない・横に回したときは、そのまま）。
 // 止める（preventDefault）ために、React の onWheel ではなく passive でない受け手を付ける
@@ -37,25 +33,31 @@ function sideways(el: HTMLElement | null): (() => void) | undefined {
   return () => el.removeEventListener("wheel", onWheel)
 }
 
+// エントリ 1 つのタイプ（ページはそのタイプ、バインダは入れるページのタイプ）
+const typeOf = (e: LineupEntry): string => (e.kind === "page" ? e.type : e.pageType)
+
 export function PageTabs() {
   const opened = useStageHere(st => st?.opened)
   const book = useMatomezuState(s => (opened ? s.books[opened.book] : undefined))
   const openPage = useCommand(PAGE_OPEN.id)
-  const newPage = useCommand(PAGE_NEW.id)
+  const openBinder = useCommand(BINDER_OPEN.id)
   const openMenu = useContextMenu(PAGE_CONTEXT)
-  const catalog = useCatalog().core
-  const typeIcon = useUiCatalog().bookTypeIcons.get(book?.type ?? "") ?? <FileIcon /> // ブックのタイプのアイコン（名乗らないタイプは通常のファイル）
+  const openBinderMenu = useContextMenu(BINDER_CONTEXT)
+  const icons = useUiCatalog().pageTypeIcons // タイプのアイコン（名乗らないタイプは通常のファイル）
   const t = useMessages(kit)
   const list = useRef<HTMLDivElement | null>(null)
-  const pages = book && hasPages(book) ? book.pages : []
+  const lineup = book ? lineupOf(book) : []
   const tabDrag = useTabDrag(
     list,
-    pages.map(p => p.id),
+    lineup.map(e => e.id),
+    "x",
+    new Set(lineup.flatMap(e => (e.kind === "binder" ? [e.id] : []))),
   )
-  if (!book || !hasPages(book) || bookType(catalog, book.type).pageList || !openPage.enabled)
-    return <div className={styles.tabs} data-page-tabs />
+  if (!book || !openPage.enabled) return <div className={styles.tabs} data-page-tabs />
   const { drag } = tabDrag
-  const grabbed = drag && book.pages.find(p => p.id === drag.id)
+  const grabbed = drag && lineup.find(e => e.id === drag.id)
+  const shown = shownPageId(opened ?? null)
+  const binder = binderOf(book, opened ?? null)
   return (
     <div
       className={styles.tabs}
@@ -67,26 +69,32 @@ export function PageTabs() {
         return sideways(el)
       }}
     >
-      {book.pages.map(p => (
-        <span key={p.id} className={styles.slot} ref={tabDrag.slot(p.id)} data-carried={drag?.id === p.id}>
+      {lineup.map(e => (
+        <span key={e.id} className={styles.slot} ref={tabDrag.slot(e.id)} data-carried={drag?.id === e.id}>
           <button
             type="button"
             role="tab"
             className={styles.tab}
-            data-locked={p.locked === true}
-            aria-selected={p.id === opened?.page}
+            data-locked={e.kind === "page" && e.locked === true}
+            data-binder={e.kind === "binder" || undefined}
+            aria-selected={e.kind === "page" ? e.id === shown : e.id === binder}
             onClick={() => {
-              if (!tabDrag.swallowClick()) openPage.run(p.id)
+              if (tabDrag.swallowClick()) return
+              if (e.kind === "page") openPage.run(e.id)
+              else openBinder.run(e.id)
             }}
-            onContextMenu={e => openMenu(e, { page: p.id })}
-            {...tabDrag.handlers(p.id)}
+            onContextMenu={ev => {
+              if (e.kind === "page") openMenu(ev, { page: e.id })
+              else openBinderMenu(ev, { binder: e.id })
+            }}
+            {...tabDrag.handlers(e.id)}
           >
             <span className={styles.typeIcon} aria-hidden="true">
-              {typeIcon}
+              {icons.get(typeOf(e)) ?? <FileIcon />}
             </span>
-            {p.title}
+            {e.title}
           </button>
-          {p.locked && (
+          {e.kind === "page" && e.locked && (
             <span className={styles.lock} role="img" aria-label={t("Locked")}>
               <LockIcon />
             </span>
@@ -99,13 +107,7 @@ export function PageTabs() {
           {grabbed.title}
         </div>
       )}
-      {addsFromTabs(catalog, book) && newPage.shown && (
-        <button type="button" className={styles.add} aria-label={t("Add page")} onClick={() => newPage.run()}>
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M8 3v10M3 8h10" />
-          </svg>
-        </button>
-      )}
+      <AddPageMenu first={shownType(opened ?? null)} />
     </div>
   )
 }

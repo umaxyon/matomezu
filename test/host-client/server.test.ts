@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test"
-import type { BookOf } from "../../web/src/core/schema/book"
+import { pagesOf } from "../../web/src/core/book"
+import type { Book } from "../../web/src/core/schema/book"
 import { screenOf } from "../../web/src/core/window"
 import { type Events, NoServer, OFFLINE_MS, QUIET_MS, serverClient } from "../../web/src/host-client/server"
 import { SAMPLE_BOOKS } from "../sample-books"
@@ -143,7 +144,7 @@ async function connected(server = fakeServer()) {
   return { ...server, store, stop }
 }
 const itemsOf = (store: ReturnType<typeof newStore>) =>
-  (store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!.items?.map(i => i.id) ?? []
+  pagesOf(store.state.getState().books.b1 as Book)[0]!.items?.map(i => i.id) ?? []
 const place = (store: ReturnType<typeof newStore>) =>
   store.actions.perform(
     "@matomezu/paper:item-place",
@@ -152,10 +153,10 @@ const place = (store: ReturnType<typeof newStore>) =>
   )
 // 常駐が知らせる、アイテムを足した b1
 const b1With = (...ids: string[]) => ({
-  ...SAMPLE_BOOKS[0],
-  pages: [
+  ...SAMPLE_BOOKS[0]!,
+  lineup: [
     {
-      ...SAMPLE_BOOKS[0]!.pages[0],
+      ...pagesOf(SAMPLE_BOOKS[0]!)[0],
       items: ids.map(id => ({ id, item: "@matomezu/box:shape-nest-box", x: 0, y: 0, props: {} })),
     },
   ],

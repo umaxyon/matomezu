@@ -1,5 +1,5 @@
 // コントロールセンターの定義: ブックでない、利用者に 1 つの入口。ブックの一覧・利用者の設定・対象の定義の種類（郵便などのレコード）を変えるアクション
-// （どれもブックが対象でない）を許すかと、利用者の設定の項目のうち変えさせない物を決める。ブックのタイプの actions とは別で、ブックのタイプはこれを知らない
+// （どれもブックが対象でない）を許すかと、利用者の設定の項目のうち変えさせない物を決める。ページのタイプの actions とは別で、ページのタイプはこれを知らない
 import type { ActionId, ControlCenterExtras, SubjectId } from "../catalog"
 
 export interface ControlCenterDef extends ControlCenterExtras {

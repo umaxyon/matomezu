@@ -1,4 +1,4 @@
-// ツリーのページの設定のダイアログ（根のダイアログを兼ねる）: ページ名・紙と向き（base の usePaperControls）・木の伸びる向き・節の大きさ（ページの設定の項目。無ければブックを継承）と、
+// ツリーのページの設定のダイアログ（根のダイアログを兼ねる）: ページ名・紙と向き（base の usePaperControls）・木の伸びる向き・節の大きさ（ページの設定の項目。無ければ既定）と、
 // 根のキャプション・本文・本文を紙に描くか（ページのフィールド root）を並べる。見出しの行の右にキャンセルと確定のボタン。
 // 設定の項目はタイプが選んだ物（base の useSettingControls）を並べ、選んだそばからページに重ねて見せる（ダイアログの下書き）。
 // 選んでいる値でページに問題（木が紙に入らないなど）が出れば、その知らせを出して確定できない。
@@ -6,7 +6,7 @@
 // 見出しの右の鍵でロックを切り替え、確定で page-lock・page-unlock を行う（外すのは書く前、掛けるのは書いた後）。削除のボタンは、認可ステップが page-remove を止めていれば
 // 押せない。認可ステップが page-update を止めていれば項目を押せない（ロックなら、鍵を外す方にすれば押せる）
 import { useEffect, useId, useState } from "react"
-import { type PageSettingsArgs, pagedOf, putPage, withSettings } from "../../../plugin-api"
+import { findPage, type PageSettingsArgs, putPage, withSettings } from "../../../plugin-api"
 import { type DialogProps, useActions, useAllowed, useBook, useMessages, usePerform } from "../../../plugin-api/ui"
 import { BODY_MAX, changeWithLock } from "../../base"
 import {
@@ -31,14 +31,14 @@ import { treeRootOf } from "./node"
 export function TreePageSettingsDialog({ args, onClose }: DialogProps<PageSettingsArgs>) {
   const t = useMessages(kit)
   const form = useId()
-  const book = pagedOf(useBook())
-  const page = book?.pages.find(p => p.id === args.page)
+  const book = useBook()
+  const page = book ? findPage(book, args.page)?.page : undefined
   const root = treeRootOf(page)
   const perform = usePerform()
   const { previewDialog } = useActions()
   const [title, setTitle] = useState(page?.title ?? "")
-  const settings = useSettingControls(book, "page", page ?? null)
-  const paper = usePaperControls(book, page ?? null)
+  const settings = useSettingControls(book ?? undefined, "page", page ?? null)
+  const paper = usePaperControls(book ?? undefined, page ?? null, page?.type)
   const [caption, setCaption] = useState(root ? root.caption : "")
   const [body, setBody] = useState(root ? (root.body ?? "") : "")
   const [showBody, setShowBody] = useState(root?.showBody === true)

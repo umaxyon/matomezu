@@ -1,7 +1,7 @@
 // 箱のダイアログ: 追加と編集で同じ並び（キャプション・区切り線・本文・テーマ・色。キャプションと本文の名前の右に、左・中央・右の寄せ）。
 // キャプションの寄せの隣に、キャプションと本文の塊の縦の位置（上・真ん中・下）。押している物をもう一度押すと自動（どれも押していない）に戻す。
 // 子を持つ内包ボックスでは、真ん中は押せない（子がある間は上として描くため）。
-// テーマは「ブックのテーマ」（箱に当てない）か、ブックのタイプが使えるテーマから選ぶ。色は色を選ぶポップアップで、箱の（無ければブックの）テーマの代表色か、好きな色を選ぶ。
+// テーマは「ブックのテーマ」（箱に当てない）か、ページのタイプが使えるテーマから選ぶ。色は色を選ぶポップアップで、箱の（無ければブックの）テーマの代表色か、好きな色を選ぶ。
 // 編集では、書いた本文と選んだ寄せ・縦の位置・テーマ・色を決める前から箱に重ねて見せる（ダイアログの下書き。確定で書き、キャンセルでは元のまま）。見出しの行の右にキャンセルと決めるボタン（キャプションのテキストFormの Enter でも決める）。
 // キャプション・区切り線・本文は base の文字の領域の入力Formのコンポーネント（CaptionField・DividerField・BodyField）。
 // 置けない（紙からはみ出す・止められたなど）ときは閉じずに理由を出す。
@@ -26,8 +26,8 @@ import {
   rowClass,
   type TextDraft,
   useBookOf,
-  useBookTheme,
-  useBookThemes,
+  usePageTheme,
+  usePageThemes,
   useSwatches,
 } from "../../base/ui"
 import { BOX, BOX_FILL, NEST_BOX } from "./box"
@@ -56,7 +56,7 @@ export const AddNestBoxDialog = addDialog(NEST_BOX.id)
 
 function AddBox({ args, onClose, item }: DialogProps<ShapeAddArgs> & { item: typeof BOX.id | typeof NEST_BOX.id }) {
   const book = useBookOf()
-  const bookTheme = useBookTheme(book)
+  const bookTheme = usePageTheme()
   const { select } = useActions()
   const perform = usePerform()
   const add = (props: BoxProps) => {
@@ -72,7 +72,6 @@ function AddBox({ args, onClose, item }: DialogProps<ShapeAddArgs> & { item: typ
       title={kit.message("Add box")}
       submit={kit.message("Add")}
       start={EMPTY}
-      book={book}
       bookTheme={bookTheme}
       ready={book !== undefined}
       onSubmit={add}
@@ -83,7 +82,7 @@ function AddBox({ args, onClose, item }: DialogProps<ShapeAddArgs> & { item: typ
 
 export function EditBoxDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
   const book = useBookOf()
-  const bookTheme = useBookTheme(book)
+  const bookTheme = usePageTheme()
   // 編集するのは箱か内包ボックス（項目は同じ）
   const box = useItem(args.page, args.item, BOX.id)
   const nestBox = useItem(args.page, args.item, NEST_BOX.id)
@@ -118,7 +117,6 @@ export function EditBoxDialog({ args, onClose }: DialogProps<{ page: string; ite
       submit={kit.message("OK")}
       start={start}
       hasChildren={hasChildren}
-      book={book}
       bookTheme={bookTheme}
       ready
       onSubmit={update}
@@ -132,7 +130,6 @@ function BoxDialog({
   title,
   submit,
   start,
-  book,
   bookTheme,
   ready,
   onSubmit,
@@ -143,7 +140,6 @@ function BoxDialog({
   title: MessageKey
   submit: MessageKey
   start: BoxProps
-  book: string | undefined // 開いているブックの id（使えるテーマを決める）
   bookTheme: string | undefined // ブックのテーマの id（色の見本に使う）
   ready: boolean
   onSubmit: (props: BoxProps) => { reason: string; permission?: string; kind?: string } | null // 断られたわけ（決められたら null。kind は断りの種類）
@@ -162,7 +158,7 @@ function BoxDialog({
   })
   const { body, captionAlign, bodyAlign } = text
   const [vAlign, setVAlign] = useState(start.vAlign)
-  const themes = useBookThemes(book) // ブックのタイプが使えるテーマ
+  const themes = usePageThemes() // ページのタイプが使えるテーマ
   // 始めのテーマ（使えないテーマが残っていれば「ブックのテーマ」から始める。データのテーマは変えない限り残す）
   const startTheme = themes.some(th => th.id === start.theme) ? (start.theme ?? "") : ""
   const [theme, setTheme] = useState(startTheme)
@@ -239,7 +235,7 @@ function BoxDialog({
         <Field label={t("Theme")}>
           {id => (
             <select id={id} className={controlClass} value={theme} onChange={e => setTheme(e.target.value)}>
-              <option value="">{t("Book's theme")}</option>
+              <option value="">{t("Page's theme")}</option>
               {themes.map(th => (
                 <option key={th.id} value={th.id}>
                   {t(th.title)}

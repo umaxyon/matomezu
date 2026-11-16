@@ -4,16 +4,36 @@
 export type { Actor } from "../core/actor"
 export { isAI, isUser } from "../core/actor"
 export type { Annotation, BookAnnotations } from "../core/annotation"
-export type { PagedBook } from "../core/book"
-export { bookItems, creatableTypes, createBook, hasPages, pagedOf, putPage, withSettings } from "../core/book"
+export type { PageInto } from "../core/book"
+export {
+  addBinder,
+  addPage,
+  allowedItems,
+  bindersOf,
+  findBinder,
+  findPage,
+  freeTitle,
+  lineupIds,
+  lineupOf,
+  moveEntry,
+  newPage,
+  pagesIn,
+  pagesOf,
+  putBinder,
+  putPage,
+  removeBinder,
+  removePage,
+  siblingsOf,
+  withSettings,
+} from "../core/book"
 export type {
   ActionId,
-  BookTypeId,
   CommandId,
   DialogId,
   ItemId,
   KeyScopeId,
   MessageKey,
+  PageTypeId,
   PaperId,
   PresentationId,
   SettingId,
@@ -24,11 +44,9 @@ export type {
 } from "../core/catalog"
 export { HEX, isLight, isPaletteName, PALETTE } from "../core/color"
 export type { CoreCatalog, ItemProps } from "../core/core-catalog"
-export { bookType } from "../core/core-catalog"
+export { pageType } from "../core/core-catalog"
 export type { ActionContext, ActionDef, Declined, RecordOf, RecordRead } from "../core/def/action"
 export type { AnnotationDef } from "../core/def/annotation"
-export type { BookTypeDef } from "../core/def/book-type"
-export { slideIsBackground } from "../core/def/book-type"
 export type { EnumDef, EnumValueDef } from "../core/def/enum"
 export type {
   ConnectorData,
@@ -37,6 +55,8 @@ export type {
   ShapeData,
   ShapeEditArgs,
 } from "../core/def/item"
+export type { PageTypeDef } from "../core/def/page-type"
+export { slideIsBackground } from "../core/def/page-type"
 export type { PaperDef } from "../core/def/paper"
 export type { PluginStateDef } from "../core/def/plugin-state"
 export type { PresentationDef } from "../core/def/presentation"
@@ -51,7 +71,7 @@ export type { Point, Rect, Size } from "../core/geom"
 export { translate } from "../core/i18n/i18n"
 export { defineMessages } from "../core/i18n/messages"
 export type { Owned } from "../core/names"
-export { actionsOf } from "../core/perform"
+export { actionsOfPage } from "../core/perform"
 export type { ItemPage, PlacedConnector, PlacedOf, PlacedShape, ShapeOnPage } from "../core/placed"
 export {
   connectableShape,
@@ -66,7 +86,17 @@ export {
   walkShapes,
 } from "../core/placed"
 export type { Book } from "../core/schema/book"
-export { areaOf, paperOf, placement, toPaper, toPaperDelta } from "../core/stage"
+export {
+  areaOf,
+  binderOf,
+  openedPage,
+  paperOf,
+  placement,
+  shownPageId,
+  shownType,
+  toPaper,
+  toPaperDelta,
+} from "../core/stage"
 export { resolveTokens } from "../core/theme"
 export type { WideSearchAnswer, WideSearchHit, WideSearchQuery } from "../core/wide-search"
 export type { StageView } from "../core/workspace"

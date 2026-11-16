@@ -4,22 +4,23 @@
 // ステージの id は、作るたびに番号を 1 つ進めて振り（窓が振る。window.ts）、閉じたステージの id も使い回さない（後から届く操作や履歴が、別のステージを指さないように）。
 // 操作はデータを書き換えず、新しい値を返す（変わらないステージは同じものを使い回す）
 
-import type { PagedBook } from "./book"
 import type { ItemId, ToolId } from "./catalog"
 import type { CoreCatalog } from "./core-catalog"
 import { fail } from "./errors"
 import type { Library } from "./library"
 import type { Book } from "./schema/book"
-import type { Placing } from "./stage"
 import {
   closeBook,
   followBook as followStage,
   newStage,
+  openBinder,
   openBook,
   openPage,
+  type Placing,
   type Stage,
   type StageMode,
   setEditing,
+  shownPageId,
   stopPlacing,
   togglePlacing as togglePlacingOn,
 } from "./stage"
@@ -131,7 +132,7 @@ export function toolOf(catalog: CoreCatalog, ws: Workspace, id: string, books: L
 // ステージで道具を使えるか（開いているブックのページで、行うアクションのどれかを認可ステップが止めない）
 export function usableIn(catalog: CoreCatalog, stage: Stage, books: Library): (tool: string) => boolean {
   const book = stage.opened ? (books[stage.opened.book] ?? null) : null
-  return tool => toolUsable(catalog, tool, book, stage.opened?.page ?? null)
+  return tool => toolUsable(catalog, tool, book, shownPageId(stage.opened))
 }
 
 // ステージが使う道具の組の道具を替える。同じ組を使うステージは、全部その道具になる。組に無い道具には替えない。
@@ -166,8 +167,13 @@ export function togglePlacing(
 }
 
 // ステージに、開いているブックのページを開く
-export function showPage(catalog: CoreCatalog, ws: Workspace, stage: string, book: PagedBook, page: string): Workspace {
+export function showPage(catalog: CoreCatalog, ws: Workspace, stage: string, book: Book, page: string): Workspace {
   return mapStage(ws, stage, s => openPage(catalog, s, book, page))
+}
+
+// ステージに、開いているブックのバインダを開く（中の最初のページ。空ならバインダ）
+export function showBinder(catalog: CoreCatalog, ws: Workspace, stage: string, book: Book, binder: string): Workspace {
+  return mapStage(ws, stage, s => openBinder(catalog, s, book, binder))
 }
 
 // ブックが変わったとき、そのブックを開いている全部のステージを合わせる（stage.ts の followBook。before は変わる前のブック）

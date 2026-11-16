@@ -8,6 +8,5 @@ export function SlideView() {
   const t = useMessages(kit)
   const stage = useStage()
   if (!stage) return null
-  if (stage.opened?.page === null) return <p className={styles.empty}>{t("No slides yet")}</p>
   return <PaperFrame stage={stage} role="img" aria-label={t("Paper")} className={styles.paper} />
 }

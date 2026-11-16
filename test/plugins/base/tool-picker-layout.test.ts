@@ -1,5 +1,6 @@
 // 右ボタンの長押しの道具のアイコンとミニマップの置き方（base/tool-picker/layout.ts）: ミニマップは並びの外側（ポインタと反対の側）に並びと一緒に置き、
 // 入らなければ出さない。離れたかは、アイコンとミニマップを合わせた枠から測る。開閉（core/stage.ts）
+
 import { describe, expect, test } from "bun:test"
 import type { Point, Rect } from "../../../web/src/core/geom"
 import { closePicker, newStage, openBook, openPicker } from "../../../web/src/core/stage"
@@ -10,6 +11,7 @@ import {
   type PickerLayout,
   pickerSlots,
 } from "../../../web/src/plugins/base/tool-picker/layout"
+import { drawingPage, testBook } from "../../lineup"
 import { CORE_CATALOG } from "../../support"
 
 const view = { w: 1200, h: 800 }
@@ -29,12 +31,7 @@ const clear = (l: PickerLayout, at: Point, size = view) => {
 }
 
 test("開くと出す所だけを持ち、閉じれば消える", () => {
-  const paged = {
-    type: "@matomezu/drawing:drawing" as const,
-    id: "b1",
-    title: "見本",
-    pages: [{ id: "p1", title: "1", paper: "@matomezu/base:a4", orientation: "landscape" as const }],
-  }
+  const paged = testBook("b1", "見本", [drawingPage("p1", { title: "1" })])
   const picked = openPicker(openBook(CORE_CATALOG, newStage("s1"), paged), { x: 10, y: 20 })
   expect(picked.picker).toEqual({ at: { x: 10, y: 20 } })
   expect(closePicker(picked).picker).toBeNull()

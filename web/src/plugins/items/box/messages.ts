@@ -11,7 +11,7 @@ export const BOX_MESSAGES = defineMessages({
   "Does not fit on the paper": { en: "Does not fit on the paper", ja: "紙に収まりません" },
   "No free spot": { en: "No free spot", ja: "空きがありません" },
   Theme: { en: "Theme", ja: "テーマ" },
-  "Book's theme": { en: "Book's theme", ja: "ブックを継承" },
+  "Page's theme": { en: "Page's theme", ja: "ページのテーマ" },
   Color: { en: "Color", ja: "色" },
   "Vertical position": { en: "Vertical position", ja: "縦の位置" },
   Top: { en: "Top", ja: "上" },

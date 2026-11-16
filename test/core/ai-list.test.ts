@@ -19,7 +19,10 @@ const THING = {
   aiDescription: "a thing",
   record: z.strictObject({ id: z.string(), box: z.string(), n: z.number() }),
   refers: (t: { box: string }) => [{ subject: "@ex/ai:box", id: t.box }],
-  keys: { box: { type: "text", of: (t: { box: string }) => t.box }, n: { type: "number", of: (t: { n: number }) => t.n } },
+  keys: {
+    box: { type: "text", of: (t: { box: string }) => t.box },
+    n: { type: "number", of: (t: { n: number }) => t.n },
+  },
   aiBrief: (t: { id: string; n: number }) => `${t.id} #${t.n}`,
   aiOrder: (t: { n: number }) => -t.n,
   aiListed: {

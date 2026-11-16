@@ -13,12 +13,14 @@ import { useAnchorMenuItems, useContextMenuItems } from "../../../ui/context-men
 import { useMessages } from "../../../ui/i18n"
 import { useKeyLabel } from "../../../ui/keys"
 import { type AnchorMenuCommandId, type ContextMenuCommandId, SEPARATOR } from "../../../ui/layout"
+import type { ContextMenuRow } from "../../../ui/plugin"
 import { ActsOnScope } from "../../../ui/scope"
 import { useMatomezuState, useStoreActions, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { useAnchorContextMenu } from "./anchor-context"
 import styles from "./ContextMenuHost.module.css"
 import { fitInside } from "./fit"
+import { MenuRow } from "./MenuRow"
 import { pressedAnchor } from "./pressed-anchor"
 
 export function ContextMenuHost() {
@@ -39,7 +41,8 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
   const [anchor] = useState(() => pressedAnchor(menu.at)) // 開いたときの、押した物のアンカー
   const shown = useAnchorMenuItems(menu.stage)
   const anchored = anchor === undefined ? [] : shown
-  const empty = items.every(i => i === SEPARATOR) && anchored.length === 0
+  const own = useUiCatalog().contextMenuRows.get(menu.id) // メニューが自分で出す行（あれば、UI マッピングのコマンドの並びの前に出す）
+  const empty = !own && items.every(i => i === SEPARATOR) && anchored.length === 0
   useEffect(() => {
     if (empty) closeContextMenu()
   }, [empty, closeContextMenu])
@@ -50,8 +53,9 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
     const el = ref.current
     if (!el) return
     const r = el.getBoundingClientRect()
-    setAt(fitInside(menu.at, { w: r.width, h: r.height }, { w: window.innerWidth, h: window.innerHeight }))
-  }, [menu.at])
+    const from = menu.opens === "up" ? { x: menu.at.x, y: menu.at.y - r.height } : menu.at
+    setAt(fitInside(from, { w: r.width, h: r.height }, { w: window.innerWidth, h: window.innerHeight }))
+  }, [menu.at, menu.opens])
   useEffect(() => {
     const onPointerDown = (e: PointerEvent) => {
       if (!ref.current?.contains(e.target as Node)) closeContextMenu()
@@ -69,6 +73,8 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
   if (empty) return null
   return (
     <div ref={ref} className={styles.menu} role="menu" aria-label={t("Menu")} style={{ left: at.x, top: at.y }}>
+      {own && <OwnRows rows={own} menu={menu} />}
+      {own && items.length > 0 && <hr className={styles.separator} />}
       {items.map((id, i) =>
         id === SEPARATOR ? (
           // biome-ignore lint/suspicious/noArrayIndexKey: 区切り線は id を持たず、並びの位置で見分ける
@@ -89,6 +95,33 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
   )
 }
 
+// メニューが自分で出す行: メニューの持ち主のフック rows が、開いたときに受け取った物から出す
+function OwnRows({ rows, menu }: { rows: (target: never) => readonly ContextMenuRow[]; menu: OpenedContextMenu }) {
+  return rows(menu.target as never).map((row, i) => (
+    // biome-ignore lint/suspicious/noArrayIndexKey: 行は id を持たず、並びの位置で見分ける
+    <OwnRow key={i} row={row} />
+  ))
+}
+
+// 行 row: その引数でコマンドを出さないなら出さず、押せないなら出したまま押せなくする。押すと閉じてからコマンドを呼ぶ
+function OwnRow({ row }: { row: ContextMenuRow }) {
+  const command = useCommand(row.command, row.args as never)
+  const { closeContextMenu } = useStoreActions()
+  if (!command.shown) return null
+  return (
+    <MenuRow
+      icon={row.icon}
+      {...(row.iconLook ? { iconLook: row.iconLook } : {})}
+      label={row.label}
+      disabled={!command.enabled}
+      onPick={() => {
+        closeContextMenu()
+        ;(command.run as (args?: unknown) => void)(row.args)
+      }}
+    />
+  )
+}
+
 function ContextMenuItem({ menu, id }: { menu: OpenedContextMenu; id: ContextMenuCommandId<ContextMenuId> }) {
   const command = useCommand(id, menu.target as never)
   const icon = useUiCatalog().commandIcons.get(id)
@@ -96,21 +129,17 @@ function ContextMenuItem({ menu, id }: { menu: OpenedContextMenu; id: ContextMen
   const { closeContextMenu } = useStoreActions()
   const t = useMessages(kit)
   return (
-    <button
-      type="button"
-      role="menuitem"
-      className={styles.item}
+    <MenuRow
+      icon={icon}
+      label={t(command.title)}
+      keyLabel={key}
       disabled={!command.enabled}
-      onClick={() => {
+      onPick={() => {
         closeContextMenu()
         // 引数を取らないコマンドは、渡した物を使わない
         ;(command.run as (target?: unknown) => void)(menu.target)
       }}
-    >
-      {icon && <span className={styles.icon}>{icon}</span>}
-      <span className={styles.label}>{t(command.title)}</span>
-      {key && <kbd className={styles.key}>{key}</kbd>}
-    </button>
+    />
   )
 }
 
@@ -121,19 +150,15 @@ function AnchorMenuItem({ id, anchor }: { id: AnchorMenuCommandId; anchor: strin
   const { closeContextMenu } = useStoreActions()
   const t = useMessages(kit)
   return (
-    <button
-      type="button"
-      role="menuitem"
-      className={styles.item}
+    <MenuRow
+      icon={icon}
+      label={t(command.title)}
       disabled={!command.enabled}
-      onClick={() => {
+      onPick={() => {
         closeContextMenu()
         // 引数を取らないコマンドは、渡した物を使わない
         ;(command.run as (anchor?: string) => void)(anchor)
       }}
-    >
-      {icon && <span className={styles.icon}>{icon}</span>}
-      <span className={styles.label}>{t(command.title)}</span>
-    </button>
+    />
   )
 }

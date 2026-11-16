@@ -2,9 +2,8 @@
 // 画面では見えず、刷るときだけこれを出す（画面を隠すのも PrintOutput.module.css）。紙は印刷区画の大きさの名前付きの @page で、余白 0（print-pages.ts）。
 // ステージの中は倍率とずらしと切り取りが掛かり改ページが効かないので、body の直下に描き、ブックのテーマの値を包み直す
 import { createPortal } from "react-dom"
-import type { BookTypeId } from "../../../core/core-catalog"
 import type { Book, Page } from "../../../core/schema/book"
-import { useBookLookStyle } from "../book-look/use-book-look-style"
+import { usePageLookStyle } from "../book-look/use-page-look-style"
 import styles from "./PrintOutput.module.css"
 import { pageNameOf, pageRules, type SheetLabels } from "./print-pages"
 import { type SheetAt, SheetFrame } from "./SheetFrame"
@@ -16,17 +15,8 @@ export interface OutputSheet extends SheetAt {
   labels: SheetLabels
 }
 
-export function PrintOutput({
-  type,
-  book,
-  sheets,
-}: {
-  stage: string
-  type: BookTypeId
-  book: Book
-  sheets: readonly OutputSheet[]
-}) {
-  const style = useBookLookStyle(type)
+export function PrintOutput({ book, sheets }: { stage: string; book: Book; sheets: readonly OutputSheet[] }) {
+  const style = usePageLookStyle() // 外の枠は開いているページの見た目。区画の中は、区画ごとのページの見た目（SheetFrame）
   return createPortal(
     <div className={styles.output} style={style} data-print-output={sheets.length} aria-hidden="true">
       <style>{pageRules(sheets)}</style>

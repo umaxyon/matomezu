@@ -12,7 +12,7 @@ import { useMessages } from "../../../ui/i18n"
 import { useStageHere } from "../../../ui/scope"
 import { useCatalog } from "../../../ui/store-context"
 import { useActions, useShownBook, useShownPage, useStage } from "../../../ui/view-hooks"
-import { useBookThemeVars } from "../book-look/use-book-theme-vars"
+import { usePageThemeVars } from "../book-look/use-page-theme-vars"
 import { kit } from "../kit"
 import { TOOL_SET } from "../tool-picker"
 import { keepsPan, panningTool } from "../tool-switch/tools"
@@ -34,10 +34,10 @@ export function MinimapView({ width, height, className }: { width: number; heigh
   const latest = useRef(stage)
   latest.current = stage
   const grab = useRef<{ pointer: number; dx: number; dy: number } | null>(null)
-  const vars = useBookThemeVars()
+  const vars = usePageThemeVars()
   const drawn = useDrawnTable()
   const marks = useMemo(
-    () => (book && page ? minimapMarks(catalog, book, page, item => drawnOn(drawn, item, page.id)) : []),
+    () => (book && page ? minimapMarks(catalog, page, item => drawnOn(drawn, item, page.id)) : []),
     [catalog, book, page, drawn],
   )
   const attachWheel = useZoomWheel()

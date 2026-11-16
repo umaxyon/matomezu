@@ -18,8 +18,8 @@ test("書いた定義の関数は pluginKit にあり、pluginKit の定義の�
   expect(listed.sort()).toEqual(defines.sort())
 })
 
-test("書いた見た目のフィールドは見た目の表にあり、見た目の表のフィールド（ウィジェットのほか）はどれもどこかの種類に書いてある", () => {
+test("書いた見た目のフィールドは見た目の表にあり、見た目の表のフィールド（ウィジェットと、メニューが自分で出す行のほか）はどれもどこかの種類に書いてある", () => {
   const listed: string[] = [...new Set(Object.values(PART_UI).flatMap(p => [...p.views]))]
-  const fields = Object.keys(assembleUi([])).filter(k => k !== "widgets")
+  const fields = Object.keys(assembleUi([])).filter(k => k !== "widgets" && k !== "contextMenuRows")
   expect(listed.sort()).toEqual(fields.sort())
 })

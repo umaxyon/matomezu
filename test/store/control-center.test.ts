@@ -23,13 +23,13 @@ describe("コントロールセンター", () => {
   test("最初に開くのは、渡したブックの最初の 1 冊", () => {
     const instance = newStore()
     expect(screenOf(instance.state.getState().window).stages[0]!.opened?.book).toBe(SAMPLE_BOOKS[0]!.id)
-    expect(createBookIn(instance, "s1", { title: "新しい図", type: "@matomezu/drawing:drawing" })).toBe(true)
+    expect(createBookIn(instance, "s1", { title: "新しい図" })).toBe(true)
   })
 
   test("コントロールセンターの無いインスタンスは、ブックの一覧を変えるアクションを断り、そのコマンドを出さない", () => {
     const instance = createMatomezu({ plugins: BUILTIN, books: SAMPLE_BOOKS })
     expect(instance.controlCenter).toBeNull()
-    expect(createBookIn(instance, "s1", { title: "新しい図", type: "@matomezu/drawing:drawing" })).toBe(false)
+    expect(createBookIn(instance, "s1", { title: "新しい図" })).toBe(false)
     expect(isShown(instance, instance.state.getState(), "s1", "@matomezu/base:book-new")).toBe(false)
   })
 
@@ -67,14 +67,14 @@ describe("コントロールセンター", () => {
     const locked = withCenter({ actions: [] })
     expect(locked.actions.perform("@matomezu/base:settings-set", { values: skin }).ok).toBe(false)
     expect(isShown(locked, locked.state.getState(), "s1", "@matomezu/base:settings-set")).toBe(false)
-    expect(createBookIn(locked, "s1", { title: "x", type: "@matomezu/drawing:drawing" })).toBe(false)
+    expect(createBookIn(locked, "s1", { title: "x" })).toBe(false)
     // スキンだけを変えさせないコントロールセンター: 言語は変えられ、スキンは断る（一緒に頼んだ言語も変えない）
     const some = withCenter({ fixedUserSettings: ["@matomezu/base:skin"] })
     expect(some.actions.perform("@matomezu/base:settings-set", { values: { ...lang, ...skin } }).ok).toBe(false)
     expect(some.state.getState().settings).toEqual({})
     expect(some.actions.perform("@matomezu/base:settings-set", { values: lang }).ok).toBe(true)
     // fixedUserSettings に利用者の設定の項目でない id を書いても台帳アセンブルでき、その行だけ効かず warning を残す
-    const warned = withCenter({ fixedUserSettings: ["@matomezu/base:book-theme"] })
+    const warned = withCenter({ fixedUserSettings: ["@matomezu/base:page-theme"] })
     expect(warningsOf(warned.catalog).map(w => w.code)).toContain("W013")
     // 断りには、使えない項目と理由が付く
     expect(some.actions.perform("@matomezu/base:settings-set", { values: skin })).toEqual({

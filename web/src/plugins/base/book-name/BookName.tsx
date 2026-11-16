@@ -9,9 +9,7 @@ import { workspaceOf } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import { Slot } from "../../../ui/Slot"
 import { useStageHere } from "../../../ui/scope"
-import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { useBook } from "../../../ui/view-hooks"
-import { bookTitle } from "../book-open/book-title"
 import { kit } from "../kit"
 import { LockIcon } from "../lock/LockIcon"
 import { useBottomHover } from "../workspace/bottom-hover"
@@ -24,7 +22,6 @@ const LEAVE_MS = 250
 
 export function BookName() {
   const book = useBook() ?? undefined
-  const lang = useMatomezuState(s => s.lang)
   const current = useStageHere((st, s) => st !== null && workspaceOf(s.window, st.id).current === st.id)
   const t = useMessages(kit)
   const [open, setOpen] = useState(false)
@@ -57,8 +54,7 @@ export function BookName() {
     else toggles.current.hide()
   }, [bottom])
   const own = bottom === null ? { onMouseEnter: show, onMouseLeave: hide } : {}
-  const catalog = useCatalog().core
-  const title = book ? bookTitle(catalog, book, lang) : ""
+  const title = book ? book.title : ""
   return (
     <>
       <div className={styles.name} {...own}>

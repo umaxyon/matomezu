@@ -1,7 +1,8 @@
 // ex8（自分の見せ方を持つ）で、見せ方のビューが開いたページのカードを描き、ページのフィールド cards を base の page-update で変えると描き直すのを確かめる
+
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
-import { addPageIn, createBookIn, themeFits, themesFor } from "matomezu"
+import { addPageIn, createBookIn, pagesOf, themeFits, themesFor } from "matomezu"
 import {
   BUILTIN_UI,
   createMatomezu,
@@ -29,14 +30,14 @@ test("単語帳を開くと、カードの見せ方のビューがページの�
     </MatomezuProvider>,
   )
   act(() => {
-    expect(createBookIn(instance, "s1", { title: "単語帳", type: "ex8:deck" })).toBe(true)
+    expect(createBookIn(instance, "s1", { title: "単語帳" })).toBe(true)
   })
   const book = (openedIn(instance) as { book: string }).book
   act(() => {
-    expect(addPageIn(instance, "s1", { title: "1" })).toBe(true)
+    expect(addPageIn(instance, "s1", { type: "ex8:deck", title: "1" })).toBe(true)
   })
   expect(document.querySelector("[data-ex8-deck] p")?.textContent).toBe("カードがありません")
-  const page = (instance.state.getState().books[book] as unknown as { pages: { id: string }[] }).pages[0]!.id
+  const page = pagesOf(instance.state.getState().books[book]!)[0]!.id
   act(() => {
     expect(
       instance.actions.perform(
@@ -72,11 +73,11 @@ test("カードの並べ方は画面の場所に入り（読み直しても戻�
     </MatomezuProvider>,
   )
   act(() => {
-    createBookIn(instance, "s1", { title: "単語帳", type: "ex8:deck" })
-    addPageIn(instance, "s1", { title: "1" })
+    createBookIn(instance, "s1", { title: "単語帳" })
+    addPageIn(instance, "s1", { type: "ex8:deck", title: "1" })
   })
   const book = (openedIn(instance) as { book: string }).book
-  const page = (instance.state.getState().books[book] as unknown as { pages: { id: string }[] }).pages[0]!.id
+  const page = pagesOf(instance.state.getState().books[book]!)[0]!.id
   act(() => {
     instance.actions.perform(
       "@matomezu/base:page-update",

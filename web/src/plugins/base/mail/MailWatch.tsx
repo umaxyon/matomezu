@@ -1,7 +1,9 @@
 // 郵便の見張り（ウィジェット mail-watch。根に置き、何も描かない）:
 // - 郵便が届いたのを見たら、フォーカスのある窓か、最後にフォーカスされた窓（常駐が知らせる）でマーキー「郵便が届きました: 題」を出す（読み込んだときからあった郵便では出さない）
 // - 行き先のある、まだ行き先を見ていない郵便の行き先が、どれかのステージに出たら（そのブックのそのページを開き、物があればその物が表示領域に入ったら）、行き先を見たことにする
+
 import { useEffect, useRef } from "react"
+import { shownPageId } from "../../../core/stage"
 import { shownBookScreens } from "../../../core/window"
 import { useT } from "../../../ui/i18n"
 import { useReadState, useStoreActions } from "../../../ui/store-context"
@@ -56,7 +58,7 @@ function useVisited() {
         if (!m.to || m.visitedAt) continue
         const stages = shown
           .flatMap(x => x.stages.stages)
-          .flatMap(st => (st.opened ? [{ id: st.id, book: st.opened.book, page: st.opened.page }] : []))
+          .flatMap(st => (st.opened ? [{ id: st.id, book: st.opened.book, page: shownPageId(st.opened) }] : []))
         if (placeShown(m, stages, onScreen)) perform(MAIL_VISITED.id, {}, { record: m.id })
       }
     }

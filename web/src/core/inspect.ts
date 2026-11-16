@@ -3,21 +3,33 @@
 // ステップ（steps）は見る順に並べ、最初に値のあったステップで決まる（決まった後のステップも並べる）。ステップの出どころは文ではなくデータで返す
 
 import { type Actor, hasJoined, isAI, USER } from "./actor"
+import { findBinder, findPage, pagesOf } from "./book"
 import type { ActionId, SubjectId } from "./catalog"
-import { bookType, type CoreCatalog } from "./core-catalog"
-import { type ActionContext, type ActionDef, attachedTo, BASE_TARGETS, isOnBook, type Where } from "./def/action"
-import type { BookTypeDef } from "./def/book-type"
+import { type CoreCatalog, pageType } from "./core-catalog"
+import {
+  type ActionContext,
+  type ActionDef,
+  ANY_PAGE_TYPE,
+  attachedTo,
+  BASE_TARGETS,
+  isOnBook,
+  type Where,
+} from "./def/action"
 import type { ControlCenterDef } from "./def/control-center"
+import type { PageTypeDef } from "./def/page-type"
 import type { PermissionQuery, Referred } from "./def/permission"
 import type { SubjectDef } from "./def/subject"
+import { idsIn } from "./ids"
 import type { KeyBinding } from "./keys"
 import type { Book } from "./schema/book"
 
 // ステップの出どころ
 export type Source =
   | { source: "catalog"; table: "actions"; id: string } // 表にその定義があるか
-  | { source: "bookType"; id: string; field: "actions.without" | "actions.add" } // ブックのタイプが外す・足すアクション
-  | { source: "action"; id: string; field: "attach"; bookType: string } // アクションの付く先が、そのタイプに当てはまるか
+  | { source: "pageType"; id: string; field: "actions.without" | "actions.add" } // ページのタイプが外す・足すアクション
+  | { source: "action"; id: string; field: "attach"; pageType: string } // アクションの付く先が、そのタイプのページに当てはまるか
+  | { source: "action"; id: string; field: "attach.books" } // アクションが、どのブックにも付くか（ページを名指さないとき）
+  | { source: "action"; id: string; field: "run" } // 名指した所がブックに無い: ここでは止めず、行う側（run）が断る
   | { source: "action"; id: string; field: "userOnly" } // 利用者だけが行うアクションを、AI が頼んだ
   | { source: "participation"; id: string } // 参加が確定していない AI が、ブックでない対象のアクションを頼んだ
   | { source: "userSetting"; id: string; field: "userOnly" } // 利用者だけが変える利用者の設定の項目を、AI が変えようとした
@@ -80,22 +92,78 @@ const decide = <V>(steps: Step<V>[]): Inspected<V> => {
 }
 
 // タイプ type でアクションを使えるかのステップ: タイプが外す（without）→ タイプが足す（add）→ アクションの付く先（attach）
-function typeSteps(def: ActionDef, type: BookTypeDef): Step<boolean>[] {
+function typeSteps(def: ActionDef, type: PageTypeDef): Step<boolean>[] {
   return [
     {
-      from: { source: "bookType", id: type.id, field: "actions.without" },
+      from: { source: "pageType", id: type.id, field: "actions.without" },
       value: type.actions.without?.includes(def.id as ActionId) ? false : null,
     },
     {
-      from: { source: "bookType", id: type.id, field: "actions.add" },
+      from: { source: "pageType", id: type.id, field: "actions.add" },
       value: type.actions.add?.includes(def.id as ActionId) ? true : null,
     },
-    { from: { source: "action", id: def.id, field: "attach", bookType: type.id }, value: attachedTo(def, type) },
+    { from: { source: "action", id: def.id, field: "attach", pageType: type.id }, value: attachedTo(def, type) },
   ]
 }
 
+// アクション def を、ブック book の所 where で使えるかのステップ。
+// - 所がページのタイプを決める（ページ page・その中の物 ids・エントリ entries・作るページ creates）: そのタイプで決める（いくつものタイプにまたがるなら、どのタイプでも使えるときだけ）
+// - 作るページのタイプがまだ分からない（ANY_PAGE_TYPE）: どれかのタイプで使えるか
+// - アノテーションが対象で所が無い: ブックのどれかのページのタイプで使えるか（結び付く物のページごとの確かめは、行った後。core/annotation.ts）
+// - ほか（ブック自身が対象）: タイプに依らない付く先（attach の books）だけで決める
+function placeSteps(catalog: CoreCatalog, def: ActionDef, book: Book, where: Where | undefined): Step<boolean>[] {
+  const at = typesAt(catalog, def, book, where)
+  if (at === "missing") return [{ from: { source: "action", id: def.id, field: "run" }, value: true }]
+  if (at === null)
+    return [{ from: { source: "action", id: def.id, field: "attach.books" }, value: def.attach?.books === true }]
+  const [first, ...rest] = at.types.map(t => typeSteps(def, t))
+  if (!first) return [{ from: { source: "action", id: def.id, field: "attach.books" }, value: false }]
+  if (at.need === "some") return [first, ...rest].find(steps => decide(steps).value === true) ?? first
+  return [first, ...rest].find(steps => decide(steps).value !== true) ?? first
+}
+
+// 所 where が決めるページのタイプ（重ねずに）と、どのタイプでも使えることが要るか（every）、どれかで使えればよいか（some）。
+// 所がページのタイプを決めなければ null（ブック自身）。名指したページ・物・エントリ・作るタイプが無ければ "missing"（タイプでは決められない。無い物は run が断る）
+function typesAt(
+  catalog: CoreCatalog,
+  def: ActionDef,
+  book: Book,
+  where: Where | undefined,
+): { types: PageTypeDef[]; need: "every" | "some" } | "missing" | null {
+  // 許可スコープが "book" のアクションは、問う側が所を添えても、ページのタイプでは決めない（画面と perform で答えが割れないように）
+  if (def.target === "book" && def.permissionScope === "book") return null
+  const every = (ids: readonly (string | undefined)[]) =>
+    (ids.length === 0 && def.target !== "annotations") || ids.includes(undefined)
+      ? ("missing" as const)
+      : { types: [...new Set(ids)].flatMap(t => (t ? [pageType(catalog, t)] : [])), need: "every" as const }
+  if (where?.creates === ANY_PAGE_TYPE) return { types: [...catalog.pageTypes.values()], need: "some" }
+  if (where?.creates !== undefined) return every([catalog.pageTypes.get(where.creates)?.id])
+  if (where?.entries !== undefined)
+    return every(where.entries.map(id => findPage(book, id)?.page.type ?? findBinder(book, id)?.pageType))
+  const pages = pagesOf(book)
+  if (where?.page !== undefined) return every(pages.filter(p => p.id === where.page).map(p => p.type))
+  if (where?.ids !== undefined)
+    return every(
+      pages
+        .filter(({ id: _page, ...content }) => {
+          const ids = new Set(idsIn(content))
+          return where.ids?.some(id => ids.has(id))
+        })
+        .map(p => p.type),
+    )
+  // アノテーションが対象で所が無ければ、ブックのどれかのページのタイプ（ページが 1 枚も無ければ、使えない）
+  return def.target === "annotations"
+    ? { types: [...new Set(pages.map(p => p.type))].map(t => pageType(catalog, t)), need: "some" }
+    : null
+}
+
+// 答え answer を決めたのが、所のステップ（ページのタイプとアクションの付く先）か
+export const decidedByPlace = (answer: Inspected<boolean>): boolean =>
+  answer.decidedBy?.source === "pageType" ||
+  (answer.decidedBy?.source === "action" && answer.decidedBy.field !== "userOnly")
+
 // タイプ type でアクションを使えるか（typeSteps で決まる答え）
-export const typeAllows = (def: ActionDef, type: BookTypeDef): boolean => decide(typeSteps(def, type)).value === true
+export const typeAllows = (def: ActionDef, type: PageTypeDef): boolean => decide(typeSteps(def, type)).value === true
 
 // 認可ステップ: 表の並びで、止めるなら false（許すことはしないので、ほかは null）
 function permissionSteps(catalog: CoreCatalog, q: PermissionQuery): Step<boolean>[] {
@@ -149,7 +217,7 @@ function userSettingSteps(
 }
 
 // アクションの許可: 表にあるか → AI が利用者だけのアクション・項目を頼んだか → 認可ステップ（ブックがあるとき）→
-// ブックとアノテーションが対象ならそのブックのタイプ、そのほかが対象ならコントロールセンター（変えさせない項目 → アクションを使えるか）
+// ブックとアノテーションが対象なら所が名指すページのタイプ（名指さなければ、タイプに依らない付く先）、そのほかが対象ならコントロールセンター（変えさせない項目 → アクションを使えるか）
 function action(
   catalog: CoreCatalog,
   q: Extract<Query, { kind: "action" }>,
@@ -185,7 +253,7 @@ function action(
       : []
   if (def.target === "book" || def.target === "annotations")
     return book
-      ? decide([known, userOnly, ...permitted, ...typeSteps(def, bookType(catalog, book.type))])
+      ? decide([known, userOnly, ...permitted, ...placeSteps(catalog, def, book, where)])
       : decide([known, userOnly])
   const center = controlCenter === null ? undefined : catalog.controlCenters.get(controlCenter)
   if (!center)

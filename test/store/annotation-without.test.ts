@@ -1,20 +1,18 @@
 // タイプが使わせないアノテーションの種類（annotations.without）: 伝言とマークを外したタイプのブックには付けられず、右クリックのコマンドも出さない
 import { expect, test } from "bun:test"
-import { z } from "zod"
-import { defineBookType } from "../../web/src/core/def/book-type"
+import { definePageType } from "../../web/src/core/def/page-type"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { isShown } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
 import { definePlugin } from "../../web/src/store/plugin"
 
-const PLAIN = defineBookType({
+const PLAIN = definePageType({
   id: "plain:note",
   version: 1,
   title: "@matomezu/drawing:Drawing",
-  schema: z.strictObject({ type: z.literal("plain:note"), id: z.string().min(1) }),
-  create: init => ({ type: "plain:note" as const, ...init }),
-  pages: null,
+  grouping: "none",
+  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape" },
   items: { allowed: [] },
   actions: {},
   annotations: { without: ["@matomezu/base:note", "@matomezu/base:mark"] },
@@ -30,8 +28,8 @@ function ready() {
     controlCenter: "@matomezu/control-center:control-center",
     newId: () => "n1",
   })
-  store.use([definePlugin({ id: "plain", bookTypes: [PLAIN] })])
-  createBookIn(store, "s1", { title: "メモ", type: "plain:note" as never })
+  store.use([definePlugin({ id: "plain", pageTypes: [PLAIN] })])
+  createBookIn(store, "s1", { title: "メモ" })
   return store
 }
 

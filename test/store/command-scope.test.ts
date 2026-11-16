@@ -4,17 +4,17 @@ import type { MessageKey } from "../../web/src/core/catalog"
 import { type CommandContext, commandScopeOf, defineCommand } from "../../web/src/store/commands/def"
 
 test("コマンドの許可スコープ: 言葉ごとに、呼ばれた場所の様子から所を出す", () => {
-  const ctx = () => ({ stage: { opened: { page: "p1" }, selection: ["a"] } }) as unknown as CommandContext
+  const ctx = () => ({ stage: { opened: { kind: "page", page: "p1" }, selection: ["a"] } }) as unknown as CommandContext
   expect(commandScopeOf("book", ctx())).toEqual({})
   expect(commandScopeOf("opened-page", ctx())).toEqual({ page: "p1" })
   expect(commandScopeOf("selection", ctx())).toEqual({ page: "p1", ids: ["a"] })
   expect(commandScopeOf(undefined, ctx())).toBeUndefined()
 })
 
-test("コマンドの許可スコープが { page } なら、その名前の引数のページ（まだ引数が無ければブック）", () => {
+test("コマンドの許可スコープが { page } なら、その名前の引数のページ（まだ引数が無ければ分からない。問う側が開いているページで問う）", () => {
   const ctx = {} as CommandContext
   expect(commandScopeOf({ page: "page" }, ctx, { page: "p2" })).toEqual({ page: "p2" })
-  expect(commandScopeOf({ page: "page" }, ctx)).toEqual({})
+  expect(commandScopeOf({ page: "page" }, ctx)).toBeUndefined()
 })
 
 test("コマンドの許可スコープが関数なら、呼ばれた引数も受け取る（まだ引数が無ければ undefined）", () => {

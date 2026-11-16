@@ -1,6 +1,6 @@
 // 線のコマンド: 形の〇から引いて離したときに線を引く（ラインビューから呼ぶ）、線の編集のダイアログを開く（線のダブルクリックと右クリックのメニュー）、線の端をほかの形の上で離したときにつなぎ替える
 
-import { type CommandContext, type Point, pagedOf } from "../../../plugin-api"
+import { type CommandContext, findPage, openedPage, type Point, shownPageId } from "../../../plugin-api"
 import { amongSelected, portAreasOf } from "../../base"
 import { LINE_CONNECT, LINE_RECONNECT, LINE_UPDATE } from "./actions"
 import { drawnLineProps, loopEndsNear, nearestEnd } from "./connect"
@@ -10,7 +10,7 @@ import { linesOf } from "./placed"
 import type { Side } from "./route"
 
 // ページを開いているか（ページの無いブックと、ページが 1 枚も無いブックでは開いていない）
-const onOpenedPage = (ctx: CommandContext) => ctx.stage.opened?.page != null
+const onOpenedPage = (ctx: CommandContext) => shownPageId(ctx.stage.opened ?? null) != null
 
 // 形 from の side の辺の〇から引き、形 to の上の at（表示領域の左上からの画面の座標）で離したときに線を引く（connect.ts の drawnLineProps の端と矢印）。
 // 引けない相手なら何もしない
@@ -20,13 +20,13 @@ export const LINE_DRAW = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Connect items",
   run: (ctx, a, args: { from: string; side: Side; to: string; at: Point }) => {
-    const { opened } = ctx.stage
-    const book = pagedOf(ctx.book) ?? null
-    const page = book?.pages.find(p => p.id === opened?.page)
+    const opened = openedPage(ctx.stage.opened ?? null)
+    const book = ctx.book
+    const page = opened && book ? findPage(book, opened.page)?.page : undefined
     const drop = ctx.toPaper(args.at)
     if (!opened || !book || !page || !drop) return
     const rects = portAreasOf(ctx.catalog, page)
-    const props = drawnLineProps(page, rects, elbowAt(ctx.catalog, book, page), args.from, args.side, args.to, drop)
+    const props = drawnLineProps(page, rects, elbowAt(ctx.catalog, page), args.from, args.side, args.to, drop)
     if (props) a.perform(LINE_CONNECT.id, { page: page.id, from: args.from, to: args.to, props }, { book: opened.book })
   },
   when: onOpenedPage,
@@ -39,7 +39,7 @@ export const LINE_EDIT = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Settings",
   run: (ctx, a, { item }: { item: string }) => {
-    const page = ctx.stage.opened?.page
+    const page = shownPageId(ctx.stage.opened ?? null)
     if (page) a.openDialog(LINE_EDIT_DIALOG.id, { page, item })
   },
   when: ctx => {
@@ -56,9 +56,9 @@ export const LINE_RECONNECT_DROP = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Reconnect line",
   run: (ctx, a, args: { line: string; end: "from" | "to"; item: string; at: Point }) => {
-    const { opened } = ctx.stage
-    const book = pagedOf(ctx.book) ?? null
-    const page = book?.pages.find(p => p.id === opened?.page)
+    const opened = openedPage(ctx.stage.opened ?? null)
+    const book = ctx.book
+    const page = opened && book ? findPage(book, opened.page)?.page : undefined
     const line = page && linesOf(page).find(l => l.id === args.line)
     const drop = ctx.toPaper(args.at)
     if (!opened || !book || !page || !line || !drop) return
@@ -68,7 +68,7 @@ export const LINE_RECONNECT_DROP = kit.defineCommand({
     if (!to) return
     const props =
       args.item === other
-        ? (loopEndsNear(page, rects, elbowAt(ctx.catalog, book, page), args.item, drop, line.id) ?? undefined)
+        ? (loopEndsNear(page, rects, elbowAt(ctx.catalog, page), args.item, drop, line.id) ?? undefined)
         : { [args.end === "from" ? "exitAt" : "enterAt"]: nearestEnd(to, drop) }
     a.perform(
       LINE_RECONNECT.id,

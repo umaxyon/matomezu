@@ -1,13 +1,13 @@
-// 文字の色の値: 文字の色の定義の色を、ブックのテーマの textColors で変え、ブックの設定の項目 book-text-colors（文字の色の id → #rrggbb）で上書きし、
-// 利用者の上書き（利用者の設定の項目 text-colors）をさらに重ねる。ブックのタイプが settings.book に選んだブックだけが上書きを持てる（選ばなければテーマか定義の色）
+// 文字の色の値: 文字の色の定義の色を、ページのテーマの textColors で変え、ページの設定の項目 page-text-colors（文字の色の id → #rrggbb）で上書きし、
+// 利用者の上書き（利用者の設定の項目 text-colors）をさらに重ねる。ページのタイプが settings に選んだページだけが上書きを持てる（選ばなければテーマか定義の色）
 import { z } from "zod"
 import { HEX } from "../../../core/color"
 import type { CatalogCheckDef, CoreCatalog } from "../../../core/core-catalog"
 import { problem } from "../../../core/errors"
 import { splitId } from "../../../core/names"
-import type { Book } from "../../../core/schema/book"
+import type { Page } from "../../../core/schema/book"
 import { warning } from "../../../core/warnings"
-import { bookTheme } from "../book-look"
+import { pageTheme } from "../book-look"
 import { settingValue } from "../book-settings"
 import { kit } from "../kit"
 
@@ -29,9 +29,10 @@ export const THEME_TEXT_COLORS_CHECK: CatalogCheckDef = catalog =>
     ]),
   )
 
-// ブックの文字の色の上書き（無い色の id は使わずに残す）
-export const BOOK_TEXT_COLORS = kit.defineSetting({
-  id: "book-text-colors",
+// ページの文字の色の上書き（無い色の id は使わずに残す）
+export const PAGE_TEXT_COLORS = kit.defineSetting({
+  id: "page-text-colors",
+  holder: "page",
   title: "Text colors",
   schema: z.record(z.string(), z.string().regex(HEX)),
 })
@@ -67,14 +68,14 @@ export function textColorVars(colors: ReadonlyMap<string, string>): Record<strin
 
 export type TextColorValues = Readonly<Record<string, string>>
 
-// 文字の色の id → 色: 定義の色 ← テーマ ← ブックの上書き ← 利用者の上書き viewer
+// ページ page の、文字の色の id → 色: 定義の色 ← テーマ ← ページの上書き ← 利用者の上書き viewer
 export function textColorsOf(
   catalog: CoreCatalog,
-  book: Book,
+  page: Pick<Page, "type">,
   viewer: TextColorValues = {},
 ): ReadonlyMap<string, string> {
-  const own = settingValue(catalog, book, null, BOOK_TEXT_COLORS) ?? {}
-  const theme = catalog.themes.get(bookTheme(catalog, book))?.textColors ?? {}
+  const own = settingValue(catalog, page, PAGE_TEXT_COLORS) ?? {}
+  const theme = catalog.themes.get(pageTheme(catalog, page))?.textColors ?? {}
   return new Map(
     [...catalog.textColors.values()].map(c => [c.id, viewer[c.id] ?? own[c.id] ?? theme[c.id] ?? c.color] as const),
   )

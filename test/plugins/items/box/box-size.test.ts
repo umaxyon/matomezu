@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../../../web/src/core/book"
 import { shapesOf } from "../../../../web/src/core/placed"
-import type { BookOf } from "../../../../web/src/core/schema/book"
+import type { Book } from "../../../../web/src/core/schema/book"
 import { resolveTokens } from "../../../../web/src/core/theme"
 import { screenOf } from "../../../../web/src/core/window"
 import { textBlock } from "../../../../web/src/plugins/base/text/block"
@@ -16,8 +17,7 @@ import {
 } from "../../../../web/src/plugins/items/box/size"
 import { newStore, sizedStore } from "../../../support"
 
-const page = (store: ReturnType<typeof newStore>) =>
-  (store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!
+const page = (store: ReturnType<typeof newStore>) => pagesOf(store.state.getState().books.b1 as Book)[0]!
 const items = (store: ReturnType<typeof newStore>) => shapesOf(page(store))
 const ALIGNS = { captionAlign: "center", bodyAlign: "left" } as const
 const box = (body: string, rule = true) => ({ caption: "見出し", rule, body, ...ALIGNS })
@@ -170,7 +170,7 @@ test("寄せの項目は既定でキャプションが中央、本文が左。�
   expect(update({ bodyAlign: "justify" }).ok).toBe(false)
 })
 
-test("箱にテーマを当てられる。表に無いテーマと、ブックのタイプが使えないテーマは断る。テーマの箱のテーマキーは、宣言の値かテーマの上書きで決まる", () => {
+test("箱にテーマを当てられる。表に無いテーマと、ページのタイプが使えないテーマは断る。テーマの箱のテーマキーは、宣言の値かテーマの上書きで決まる", () => {
   const store = ready()
   expect(place(store, { caption: "付箋", theme: "@matomezu/base:sticky" }).ok).toBe(true)
   expect(items(store)[0]!.props).toMatchObject({ theme: "@matomezu/base:sticky" })
@@ -217,12 +217,12 @@ test("縦の位置は書いていなければ自動（本文も子も無けれ�
   expect(vAlignOf({ body: "", vAlign: "bottom" }, true)).toBe("bottom")
 })
 
-test("ブックのタイプが使えないテーマが残った箱も、テーマに触れない直しはでき、残ったテーマはデータに残る。そのテーマを渡して直すのは断る", () => {
+test("ページのタイプが使えないテーマが残った箱も、テーマに触れない直しはでき、残ったテーマはデータに残る。そのテーマを渡して直すのは断る", () => {
   const first = ready()
   expect(place(first, { caption: "付箋", theme: "@matomezu/base:sticky" }).ok).toBe(true)
   // 図のブックが使えないテーマが残ったブックを読み込む（テーマタイプが後で変わったときなど）
   const books = JSON.parse(JSON.stringify(first.state.getState().books))
-  books.b1.pages[0].items[0].props.theme = "@matomezu/markdown:github-like"
+  books.b1.lineup[0].items[0].props.theme = "@matomezu/markdown:github-like"
   const store = newStore({ books: Object.values(books) })
   store.actions.resizeStage("s1", { w: 1400, h: 1000 })
   const update = (props: Record<string, unknown>) =>

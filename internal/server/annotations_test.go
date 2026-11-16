@@ -12,7 +12,7 @@ import (
 )
 
 // boxed は、箱 a を 1 つ置いたブック b1
-const boxed = `{"type":"@matomezu/drawing:drawing","id":"b1","title":"T","pages":[{"id":"p1","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[{"id":"a","x":40,"y":40,"item":"@matomezu/box:shape-nest-box","w":64,"h":64,"props":{"caption":"A","rule":true,"body":"","captionAlign":"center","bodyAlign":"left"}}]}]}`
+const boxed = `{"id":"b1","title":"T","lineup":[{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[{"id":"a","x":40,"y":40,"item":"@matomezu/box:shape-nest-box","w":64,"h":64,"props":{"caption":"A","rule":true,"body":"","captionAlign":"center","bodyAlign":"left"}}]}]}`
 
 // アノテーションのアクションは、変わったアノテーションを書いて知らせ（annotations）、/api/data にも出る。ブックを消すと一緒に消える
 func TestAnnotationsAreKeptApartFromTheBook(t *testing.T) {
@@ -95,7 +95,7 @@ func TestAIReadsAnnotations(t *testing.T) {
 	if _, got := send(t, "GET", s.URL+"/api/ai/books/b1", "", ai); !strings.Contains(got, `"annotations":[`+waiting+`]`) {
 		t.Fatalf("read_book = %s", got)
 	}
-	if _, got := send(t, "GET", s.URL+"/api/ai/books/b1/pages/p1", "", ai); !strings.HasPrefix(got, `{"annotations":[`+waiting+`],"id":"b1","page":{"id":"p1"`) {
+	if _, got := send(t, "GET", s.URL+"/api/ai/books/b1/pages/p1", "", ai); !strings.HasPrefix(got, `{"annotations":[`+waiting+`],"id":"b1","page":{"kind":"page","id":"p1"`) {
 		t.Fatalf("read_page = %s", got)
 	}
 	// 形の描いた位置と大きさ（placed）も添える

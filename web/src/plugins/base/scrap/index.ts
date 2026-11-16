@@ -1,13 +1,14 @@
 // スクラップの、base の側: スクラップフレームの印（アイテムの定義の拡張ポイント scrapFrame）、切り抜くダイアログとそれを開くコマンド。
 // 切り抜くのは、切り抜きたいページで（ページタブと紙の右クリック）。切り抜いたスクラップはスクラップトレイに入り、置くのはスクラップトレイから（ui.tsx）
-import { pagedOf } from "../../../core/book"
-import { bookType, type CatalogCheckDef, type CoreCatalog, type ItemId } from "../../../core/core-catalog"
-import type { EditList } from "../../../core/def/book-type"
+
+import { findPage } from "../../../core/book"
+import { type CatalogCheckDef, type CoreCatalog, type ItemId, pageType } from "../../../core/core-catalog"
 import type { ShapeData } from "../../../core/def/item"
+import type { EditList } from "../../../core/def/page-type"
 import { problem } from "../../../core/errors"
 import { findShape } from "../../../core/placed"
 import { sameData } from "../../../core/same"
-import type { Book } from "../../../core/schema/book"
+import { openedPage, shownPageId } from "../../../core/stage"
 import type { CommandContext } from "../../../store/commands/def"
 import { kit } from "../kit"
 import { placeableIn } from "../toolbox/toolbox"
@@ -36,9 +37,9 @@ export const SCRAP_FRAME_CHECK: CatalogCheckDef = catalog =>
     return parsed?.success && sameData(parsed.data, SAMPLE) ? [] : [problem("E127", { id: i.id })]
   })
 
-// ブック book の、直している並び edits に置ける、スクラップフレームのアイテム（いくつもあれば、置ける物の並びの先頭。無ければ null）
-export function scrapFrameIn(catalog: CoreCatalog, book: Book, edits: EditList): ItemId | null {
-  const found = placeableIn(bookType(catalog, book.type), edits).find(
+// タイプ type のページの、直している並び edits に置ける、スクラップフレームのアイテム（いくつもあれば、置ける物の並びの先頭。無ければ null）
+export function scrapFrameIn(catalog: CoreCatalog, type: string, edits: EditList): ItemId | null {
+  const found = placeableIn(pageType(catalog, type), edits).find(
     id => (catalog.items.get(id) as { scrapFrame?: true } | undefined)?.scrapFrame === true,
   )
   return (found as ItemId | undefined) ?? null
@@ -54,16 +55,17 @@ export const SCRAP_CUT_COMMAND = kit.defineCommand({
   performs: [SCRAP_CUT.id],
   // 受けるのは、ページタブの右クリックのページか、紙の右クリックの所（使わない）
   run: (ctx, a, target: { page?: string; pointer?: unknown }) => {
-    const page = target.page ?? ctx.stage.opened?.page
+    const page = target.page ?? shownPageId(ctx.stage.opened ?? null)
     if (page) a.openDialog(SCRAP_CUT_DIALOG.id, { page })
   },
-  when: ctx => ctx.book !== null && ctx.stage.opened?.page != null,
+  when: ctx => ctx.book !== null && shownPageId(ctx.stage.opened ?? null) != null,
 })
 
 // 右クリックした形 item が、スクラップフレームなら、その項目のスクラップ（違えば null）
 function scrapOf(ctx: CommandContext, item: string | undefined): Scrap | null {
   if (item === undefined) return null
-  const page = pagedOf(ctx.book)?.pages.find(p => p.id === ctx.stage.opened?.page)
+  const opened = openedPage(ctx.stage.opened ?? null)
+  const page = opened && ctx.book ? findPage(ctx.book, opened.page)?.page : undefined
   const placed = page && findShape(page, item)?.shape
   const def = placed && (ctx.catalog.items.get(placed.item) as { scrapFrame?: true } | undefined)
   return placed && def?.scrapFrame === true ? (placed.props as Scrap) : null

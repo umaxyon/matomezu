@@ -1,60 +1,176 @@
 import { describe, expect, test } from "bun:test"
-import { addPage, createBook } from "../../web/src/core/book"
+import {
+  addPage,
+  checkBooks,
+  findPage,
+  holds,
+  keepsPageTypes,
+  lineupOf,
+  moveEntry,
+  newPage,
+  pagesOf,
+} from "../../web/src/core/book"
 import { resolvePaper } from "../../web/src/core/paper"
 import { PAPER_IDS } from "../../web/src/plugins/base"
 import { choosablePapers, defaultPaper, paperChoices } from "../../web/src/plugins/base/page-tabs/pages"
+import { DRAWING, drawingPage, MARKDOWN, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { CORE_CATALOG } from "../support"
 
-const book = {
-  type: "@matomezu/drawing:drawing" as const,
-  id: "b1",
-  title: "ブック",
-  pages: [
-    { id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" as const },
-    { id: "p3", title: "ページ 3", paper: "@matomezu/base:a3", orientation: "portrait" as const },
-  ],
-}
+const book = testBook("b1", "ブック", [
+  drawingPage("p1"),
+  drawingPage("p3", { title: "ページ 3", paper: "@matomezu/base:a3", orientation: "portrait" }),
+])
 
-test("ページを足すと、newId の値そのままの id（uuid）で、決めた名前と紙のページになる。ほかのページと重なる id は振り直す", () => {
+test("新しいページは、newId の値そのままの id（uuid）で、決めたタイプ・名前・紙のページになる。ほかのページと重なる id は振り直す", () => {
   const ids = ["p3", "p-2a"]
-  const { book: next, page } = addPage(
+  const page = newPage(
     book,
-    { title: "表紙", paper: "@matomezu/base:a5", orientation: "portrait" },
+    { type: DRAWING, title: "表紙", paper: "@matomezu/base:a5", orientation: "portrait" },
     () => ids.shift()!,
   )
-  expect(page).toEqual({ id: "p-2a", title: "表紙", paper: "@matomezu/base:a5", orientation: "portrait" })
-  expect(next.pages.map(p => p.id)).toEqual(["p1", "p3", "p-2a"])
-  expect(book.pages).toHaveLength(2)
+  expect(page).toEqual({
+    kind: "page",
+    id: "p-2a",
+    type: DRAWING,
+    title: "表紙",
+    paper: "@matomezu/base:a5",
+    orientation: "portrait",
+  })
+  const next = addPage(book, page)
+  expect(pagesOf(next).map(p => p.id)).toEqual(["p1", "p3", "p-2a"])
+  expect(pagesOf(book)).toHaveLength(2)
 })
 
-test("作ったブックは、そのタイプの形の空のブック", () => {
-  const made = createBook(CORE_CATALOG, "@matomezu/drawing:drawing", { id: "x", title: "新しい図" })
-  expect(made).toEqual({ type: "@matomezu/drawing:drawing", id: "x", title: "新しい図", pages: [] })
-  expect(CORE_CATALOG.bookSchema.safeParse(made).success).toBe(true)
+describe("並び", () => {
+  const slides = testBinder("f1", "スライド", SLIDE, testPage(SLIDE, "s1"), testPage(SLIDE, "s2", { title: "2" }))
+  const mixed = testBook("b2", "混ざる", [drawingPage("p1"), slides, testPage(MARKDOWN, "t1", { title: "文書" })])
+
+  test("バインダの中のページも並びの順に読め、どのバインダに入っているかも引ける", () => {
+    expect(pagesOf(mixed).map(p => p.id)).toEqual(["p1", "s1", "s2", "t1"])
+    expect(findPage(mixed, "s2")?.binder?.id).toBe("f1")
+    expect(findPage(mixed, "p1")?.binder).toBeNull()
+    expect(findPage(mixed, "nope")).toBeUndefined()
+  })
+
+  test("並べ替えは同じブックかバインダの中だけ（ブックの並びならブックの並び、バインダの中ならそのバインダの中）", () => {
+    expect(lineupOf(moveEntry(mixed, "t1", 0)).map(e => e.id)).toEqual(["t1", "p1", "f1"])
+    expect(lineupOf(moveEntry(mixed, "f1", 9)).map(e => e.id)).toEqual(["p1", "t1", "f1"])
+    expect(pagesOf(moveEntry(mixed, "s2", 0)).map(p => p.id)).toEqual(["p1", "s2", "s1", "t1"])
+    expect(moveEntry(mixed, "nope", 0)).toEqual(mixed)
+  })
+
+  test("バインダに足すページは、そのバインダの中に入る", () => {
+    const next = addPage(mixed, testPage(SLIDE, "s3", { title: "3" }), { binder: "f1", index: 0 })
+    expect(pagesOf(next).map(p => p.id)).toEqual(["p1", "s3", "s1", "s2", "t1"])
+  })
+
+  test("並びの決まりを破るブックは読めない", () => {
+    const cases: [string, ReturnType<typeof testBook>, boolean][] = [
+      ["守っている", mixed, true],
+      ["ページの id が重なる", testBook("b", "b", [drawingPage("p1"), drawingPage("p1", { title: "2" })]), false],
+      ["ページとバインダの id が重なる", testBook("b", "b", [drawingPage("f1"), slides]), false],
+      ["まとまるタイプのページがバインダの外", testBook("b", "b", [testPage(SLIDE, "s1")]), false],
+      [
+        "まとまらないタイプのページがバインダの中",
+        testBook("b", "b", [testBinder("f1", "f", SLIDE, drawingPage("p1") as never)]),
+        false,
+      ],
+      ["バインダの入れるタイプがまとまらないタイプ", testBook("b", "b", [testBinder("f1", "f", DRAWING)]), false],
+      ["同じブックかバインダで名前が重なる", testBook("b", "b", [drawingPage("p1"), drawingPage("p2")]), false],
+      [
+        "バインダの中で名前が重なる",
+        testBook("b", "b", [testBinder("f1", "f", SLIDE, testPage(SLIDE, "s1"), testPage(SLIDE, "s2"))]),
+        false,
+      ],
+      [
+        "ブックとバインダで分かれていれば同じ名前でよい",
+        testBook("b", "b", [drawingPage("p1"), testBinder("f1", "f", SLIDE, testPage(SLIDE, "s1"))]),
+        true,
+      ],
+      [
+        "バインダの中で紙が違う",
+        testBook("b", "b", [
+          testBinder(
+            "f1",
+            "f",
+            SLIDE,
+            testPage(SLIDE, "s1", { title: "1" }),
+            testPage(SLIDE, "s2", { title: "2", paper: "@matomezu/base:a3" }),
+          ),
+        ]),
+        false,
+      ],
+      [
+        "バインダの中で向きが違う",
+        testBook("b", "b", [
+          testBinder(
+            "f1",
+            "f",
+            SLIDE,
+            testPage(SLIDE, "s1", { title: "1" }),
+            testPage(SLIDE, "s2", { title: "2", orientation: "portrait" }),
+          ),
+        ]),
+        false,
+      ],
+      [
+        "バインダが違えば紙が違ってよい。バインダの外のページは、紙が違ってよい",
+        testBook("b", "b", [
+          drawingPage("p1", { title: "1" }),
+          drawingPage("p2", { title: "2", paper: "@matomezu/base:a3" }),
+          testBinder("f1", "f", SLIDE, testPage(SLIDE, "s1", { title: "1" })),
+          testBinder("f2", "g", SLIDE, testPage(SLIDE, "s2", { title: "1", paper: "@matomezu/base:a3" })),
+        ]),
+        true,
+      ],
+    ]
+    for (const [name, b, ok] of cases) expect([name, holds(CORE_CATALOG, b)]).toEqual([name, ok])
+  })
+
+  test("機能台帳に無いタイプのページ・空のバインダのあるブックは W004", () => {
+    const unknownPage = testBook("b", "b", [
+      drawingPage("p1"),
+      { ...drawingPage("p2", { title: "2" }), type: "@x/y:z" } as never,
+    ])
+    const unknownBinder = testBook("c", "c", [testBinder("f1", "f", "@x/y:z" as never)])
+    const { books, warnings } = checkBooks(CORE_CATALOG, [unknownPage, unknownBinder, mixed])
+    expect(books.map(b => b.id)).toEqual(["b2"])
+    expect(warnings.map(w => w.code)).toEqual(["W004", "W004"])
+  })
+
+  test("ページのタイプとバインダの入れるタイプは、変えた後も同じでなければならない", () => {
+    expect(keepsPageTypes(mixed, moveEntry(mixed, "t1", 0))).toBe(true)
+    const retyped = testBook("b2", "混ざる", [{ ...drawingPage("p1"), type: MARKDOWN } as never])
+    expect(keepsPageTypes(mixed, retyped)).toBe(false)
+    const refolded = testBook("b2", "混ざる", [{ ...slides, pageType: DRAWING }])
+    expect(keepsPageTypes(mixed, refolded)).toBe(false)
+  })
 })
 
 describe("紙の規定（図面はページごとに選べる）", () => {
   test("どのページでも、規定の紙を全部選べ、既定は A4 横", () => {
-    expect(paperChoices(CORE_CATALOG, book)).toEqual({ papers: PAPER_IDS, orientations: ["portrait", "landscape"] })
-    expect(defaultPaper(CORE_CATALOG, { ...book, pages: [] })).toEqual({
+    expect(paperChoices(CORE_CATALOG, book, DRAWING)).toEqual({
+      papers: PAPER_IDS,
+      orientations: ["portrait", "landscape"],
+    })
+    expect(defaultPaper(CORE_CATALOG, testBook("b0", "空", []), DRAWING)).toEqual({
       paper: "@matomezu/base:a4",
       orientation: "landscape",
     })
   })
 
-  test("1 冊の紙をそろえる規定では、最初のページは規定から選び、後のページは最初のページの紙だけ", () => {
+  test("そろえる相手のページがいなければ規定から選び、いれば最初のページの紙と向きだけ", () => {
     const rule = {
       allowed: ["@matomezu/base:a4", "@matomezu/base:a3"],
       default: "@matomezu/base:a4",
       orientation: "landscape" as const,
-      perPage: false,
     }
     expect(choosablePapers(rule, [])).toEqual({
       papers: ["@matomezu/base:a4", "@matomezu/base:a3"],
       orientations: ["portrait", "landscape"],
     })
     expect(
-      choosablePapers(rule, [{ id: "p1", title: "1", paper: "@matomezu/base:a3", orientation: "portrait" }]),
+      choosablePapers(rule, [drawingPage("p1", { title: "1", paper: "@matomezu/base:a3", orientation: "portrait" })]),
     ).toEqual({
       papers: ["@matomezu/base:a3"],
       orientations: ["portrait"],
@@ -62,23 +178,22 @@ describe("紙の規定（図面はページごとに選べる）", () => {
   })
 })
 
-test("ブックの形に無い項目があれば形に合わない。形はタイプで決まる", () => {
-  const ok = {
-    type: "@matomezu/drawing:drawing",
-    id: "b1",
-    title: "ブック",
-    pages: [{ id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" }],
-  }
+test("ブックの形に無い項目があれば形に合わない。ページの形はページのタイプで決まる", () => {
+  const ok = testBook("b1", "ブック")
+  const page = drawingPage()
+  const withPage = (p: object) => ({ ...ok, lineup: [p] })
   expect(CORE_CATALOG.bookSchema.safeParse(ok).success).toBe(true)
   expect(CORE_CATALOG.bookSchema.safeParse({ ...ok, extra: 1 }).success).toBe(false)
-  expect(CORE_CATALOG.bookSchema.safeParse({ ...ok, pages: [] }).success).toBe(true)
-  expect(CORE_CATALOG.bookSchema.safeParse({ ...ok, pages: [{ id: "p1", title: "ページ 1" }] }).success).toBe(false)
+  expect(CORE_CATALOG.bookSchema.safeParse({ ...ok, lineup: [] }).success).toBe(true)
+  expect(
+    CORE_CATALOG.bookSchema.safeParse(withPage({ kind: "page", id: "p1", type: DRAWING, title: "ページ 1" })).success,
+  ).toBe(false)
   // 表に無い紙の id も受け取る（描き方は resolvePaper）。向きは決まった値だけ
-  expect(CORE_CATALOG.bookSchema.safeParse({ ...ok, pages: [{ ...ok.pages[0], paper: "b5" }] }).success).toBe(true)
-  expect(CORE_CATALOG.bookSchema.safeParse({ ...ok, pages: [{ ...ok.pages[0], orientation: "up" }] }).success).toBe(
-    false,
-  )
-  expect(CORE_CATALOG.bookSchema.safeParse({ id: "b1", title: "ブック", pages: ok.pages }).success).toBe(false)
+  expect(CORE_CATALOG.bookSchema.safeParse(withPage({ ...page, paper: "b5" })).success).toBe(true)
+  expect(CORE_CATALOG.bookSchema.safeParse(withPage({ ...page, orientation: "up" })).success).toBe(false)
+  // 題は 1 字以上、並びは必須
+  expect(CORE_CATALOG.bookSchema.safeParse({ ...ok, title: "" }).success).toBe(false)
+  expect(CORE_CATALOG.bookSchema.safeParse({ id: "b1", title: "ブック" }).success).toBe(false)
 })
 
 describe("ページの紙を描く大きさ", () => {

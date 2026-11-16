@@ -1,6 +1,8 @@
 // ステージのビュー: パン（紙をずらす量）が変わっても、ステージのビューとその中のレイヤーは描き直さない（パンを読むレイヤーだけが描き直す）
+
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
+import { openedPage } from "../../web/src/core/stage"
 import { screenOf } from "../../web/src/core/window"
 import { BOOK_LAYERS } from "../../web/src/plugins/base/workspace/slots"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
@@ -43,7 +45,7 @@ test("パンしても、book-layers のレイヤーは描き直さない", () =>
     instance.actions.zoomStage("s1", 1.8) // 紙が表示領域からはみ出して、ずらせるように
   })
   const stage = () => screenOf(instance.state.getState().window).stages[0]!
-  expect(stage().opened?.paper).toBeTruthy()
+  expect(openedPage(stage().opened ?? null)?.paper).toBeTruthy()
   const before = drawn
   expect(before).toBeGreaterThan(0)
   const pan = stage().pan

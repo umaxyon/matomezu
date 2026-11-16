@@ -5,8 +5,8 @@ import type { Part } from "../core/catalog"
 import type { PluginKit } from "../store/kit"
 import type { UiCatalog } from "./plugin"
 
-// 種類ごとの見た目のフィールド（ウィジェットは種類に付かないので入れない）
-type ViewField = Exclude<keyof UiCatalog, "widgets">
+// 種類ごとの見た目のフィールド（ウィジェットと、メニューが自分で出す行は、種類に付かないので入れない）
+type ViewField = Exclude<keyof UiCatalog, "widgets" | "contextMenuRows">
 type DefineName = Extract<keyof PluginKit<string, Record<never, never>>, `define${string}`>
 
 export interface PartUi {
@@ -15,7 +15,7 @@ export interface PartUi {
 }
 
 export const PART_UI = {
-  bookTypes: { views: ["bookTypeIcons"], define: ["defineBookType"] },
+  pageTypes: { views: ["pageTypeIcons"], define: ["definePageType"] },
   controlCenters: { views: [], define: ["defineControlCenter"] },
   items: { views: ["items", "connectors"], define: ["defineShape", "defineConnector"] },
   actions: { views: [], define: ["defineAction"] },

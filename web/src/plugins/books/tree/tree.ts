@@ -1,16 +1,14 @@
 // ツリーのブック: ページごとに紙を置き、ページのフィールド root（根）から伸びる木を、自分の見せ方（tree）で紙に描く。紙に置けるアイテムは無い。
 // 伸びる向き・節の大きさの選び方・節の形・線の形は、ブックとページの設定の項目（grow.ts・size.ts・shape.ts・line-shape.ts）。新しいページを作るダイアログと、ページの設定のダイアログ（根のダイアログを兼ねる）は自分の物を名指す。道具は自分の組（tools.ts。編集とハンド）。
 // 見た目（テーマと紙の色）と文字の色は base の設定の項目で変えられる。根の本文は太字と文字の色で装飾できる
-import { z } from "zod"
 import type { PageSettingsArgs } from "../../../plugin-api"
 import {
   BACKGROUND_PRINT,
-  BOOK_PAPER_COLOR,
-  BOOK_TEXT_COLORS,
-  BOOK_THEME,
   DIAGRAM_THEME_TYPE,
+  PAGE_PAPER_COLOR,
+  PAGE_TEXT_COLORS,
+  PAGE_THEME,
   PAPER_IDS,
-  PRINT_PREVIEW_SETTINGS,
 } from "../../base"
 import { nodeOf } from "./edit"
 import { treeFits } from "./fit"
@@ -66,14 +64,11 @@ export const NODE_SIZE_DIALOG = kit.defineDialogWith<{ page: string; node: strin
 // 節の塗りのテーマキー（無ければテーマの塗り。節の色を選ぶときの「なし」の色）
 export const NODE_FILL = { id: kit.name("tree-node-fill"), fallback: "fill" } as const
 
-export const TREE = kit.defineBookType({
+export const TREE = kit.definePageType({
   id: "tree",
   version: 1,
   title: "Tree",
-  schema: z.strictObject({ id: z.string().min(1) }),
-  create: init => ({ ...init, pages: [] }),
-  addPagesFromTabs: true,
-  createSettings: [kit.name("grow")], // ブックを作るダイアログで、伸びる向きを聞く
+  grouping: "none",
   pageFieldsInput, // 根は作るときに子ごと受けて id を振り、直すときは根のキャプション・本文・本文を描くか・色だけ
   // 木が紙に入らないページは問題（base のページ・ブックのアクションは書かない）
   pageProblem: (catalog, page, setting, grow) =>
@@ -87,16 +82,13 @@ export const TREE = kit.defineBookType({
     const root = treeRootOf(page)
     return (root?.id === id ? root.caption : root && nodeOf(root, id)?.caption) ?? ""
   },
-  pages: {
-    paper: {
-      allowed: PAPER_IDS,
-      default: "@matomezu/base:a4",
-      orientation: "landscape",
-      perPage: true,
-    },
-    fields: { root: TreeRootSchema },
-    dialogs: { add: NEW_TREE_PAGE_DIALOG.id, settings: TREE_PAGE_SETTINGS_DIALOG.id },
+  paper: {
+    allowed: PAPER_IDS,
+    default: "@matomezu/base:a4",
+    orientation: "landscape",
   },
+  fields: { root: TreeRootSchema },
+  dialogs: { add: NEW_TREE_PAGE_DIALOG.id, settings: TREE_PAGE_SETTINGS_DIALOG.id },
   items: { allowed: [] },
   slide: { allowed: BACKGROUND_ITEMS, background: true },
   actions: {}, // 使うアクションは、見せ方・ページについて来る
@@ -111,24 +103,14 @@ export const TREE = kit.defineBookType({
     { id: "tree-line", fallback: "line" }, // 親から子への線
   ],
   tools: TREE_TOOLS.id,
-  settings: {
-    book: [
-      BOOK_THEME.id,
-      BOOK_PAPER_COLOR.id,
-      kit.name("grow"),
-      kit.name("node-size"),
-      kit.name("node-shape"),
-      kit.name("line-shape"),
-      BOOK_TEXT_COLORS.id,
-      ...PRINT_PREVIEW_SETTINGS,
-      BACKGROUND_PRINT.id,
-    ],
-    page: [
-      kit.name("grow"),
-      kit.name("node-size"),
-      kit.name("node-shape"),
-      kit.name("line-shape"),
-      BACKGROUND_PRINT.id,
-    ],
-  },
+  settings: [
+    PAGE_THEME.id,
+    PAGE_PAPER_COLOR.id,
+    kit.name("grow"),
+    kit.name("node-size"),
+    kit.name("node-shape"),
+    kit.name("line-shape"),
+    PAGE_TEXT_COLORS.id,
+    BACKGROUND_PRINT.id,
+  ],
 })

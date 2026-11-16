@@ -5,10 +5,12 @@
 // 少しでも違う・無いなら失敗にする。反映は 1 つのアクションで、乗せた変更を順に行い、1 つでも断られたら全部取り消す。
 // 送ると AI 編集チケットを作り、反映したら閉じ、失敗したら失敗にし、反映も失敗もしないまま郵便が消えたら消えたと記す（郵便箱の上限で消えたか、利用者が消したか。
 // 失敗と消えたことは、次の利用者トリガートークのときに AI に渡る）
+
 import { z } from "zod"
 import { USER } from "../../../core/actor"
+import { pagesOf } from "../../../core/book"
 import type { ActionContext } from "../../../core/def/action"
-import { actionsOf, perform } from "../../../core/perform"
+import { allowedOnBook, perform } from "../../../core/perform"
 import { sameData } from "../../../core/same"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
@@ -104,8 +106,8 @@ function carry(
       after = done.next as Book
       continue
     }
-    // 送ってから反映するまでにプラグインが変わっていても、そのブックのタイプで使えないアクションは行わない
-    if (!actionsOf(ctx.catalog, after).includes(c.action))
+    // 送ってから反映するまでにプラグインが変わっていても、所（引数が名指すページ）のタイプで使えないアクションは行わない（認可ステップは反映の perform が見る）
+    if (!allowedOnBook(ctx.catalog, after, c.action, c.args))
       return { declined: `${what}: it cannot be done on this book` }
     const parsed = def.args.safeParse(c.args)
     const ran = parsed.success ? def.run(after as never, parsed.data as never, counted) : null
@@ -150,7 +152,7 @@ export const PROPOSAL_SEND = kit.defineAction({
     const touched = ownChanged(book, carried.after).filter(id => id !== book.id)
     if (touched.length === 0) return { declined: "the changes change nothing" }
     const before = ownValues(book)
-    const pages = new Set("pages" in book ? (book.pages as readonly { id: string }[]).map(p => p.id) : [])
+    const pages = new Set(pagesOf(book).map(p => p.id))
     const things = touched.filter(id => !pages.has(id))
     const added = mailAdded(ctx, {
       mail: MAIL_PROPOSAL.id,

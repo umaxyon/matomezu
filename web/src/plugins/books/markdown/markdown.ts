@@ -3,7 +3,7 @@
 // どのページもいつも可変ページで、下へ増やす。新しいページとページの設定のダイアログは base の物。原文は base の page-update で、丸ごとか 1 か所の置き換えで変える。道具は持たない。見た目（テーマと紙の色）は base の設定の項目で変えられ、描いた文書の色・字の大きさ・余白はテーマで差し替える（tokens.ts）
 
 import { z } from "zod"
-import { BOOK_PAPER_COLOR, BOOK_THEME, DOCUMENT_THEME_TYPE, PAPER_IDS, PRINT_PREVIEW_SETTINGS } from "../../base"
+import { DOCUMENT_THEME_TYPE, PAGE_PAPER_COLOR, PAGE_THEME, PAPER_IDS } from "../../base"
 import { kit } from "./kit"
 import { pageFieldsInput } from "./page-fields"
 import { sourceEdit } from "./source-edit"
@@ -31,32 +31,24 @@ export const SOURCE_KEYS_SCOPE = SOURCE_KEY_SCOPE.id
 // ビューが開く右クリックのメニュー: ペインのタブ（右クリックしたペインを受け取る）（ui.tsx で core/catalog.ts に書き足す）
 export const PANE_CONTEXT = kit.name("pane-context")
 
-export const MARKDOWN = kit.defineBookType({
+export const MARKDOWN = kit.definePageType({
   id: "markdown",
   version: 1,
   title: "Markdown",
-  schema: z.strictObject({ id: z.string().min(1) }),
-  create: init => ({ ...init, pages: [] }),
-  addPagesFromTabs: true,
+  grouping: "none",
   pageFieldsInput, // 直すときは、原文を丸ごとか、1 か所だけ置き換えて受ける
   grow: { always: { up: false, down: true, left: false, right: false } }, // いつも可変ページで、下へ増やす（base の拡張ポイント）
-  pages: {
-    paper: {
-      allowed: PAPER_IDS,
-      default: "@matomezu/base:a4",
-      orientation: "portrait",
-      perPage: true,
-    },
-    fields: { text: z.string().describe("The page's document, in Markdown").optional() }, // 無ければ空の文書
+  paper: {
+    allowed: PAPER_IDS,
+    default: "@matomezu/base:a4",
+    orientation: "portrait",
   },
+  fields: { text: z.string().describe("The page's document, in Markdown").optional() }, // 無ければ空の文書
   items: { allowed: [] },
   actions: {},
   theme: "@matomezu/base:standard",
   themeTypes: [DOCUMENT_THEME_TYPE], // 使えるテーマのテーマタイプ
   presentation: MARKDOWN_PRESENTATION.id,
   tokens: MARKDOWN_TOKENS, // 描いた文書の見た目（tokens.ts）
-  settings: {
-    book: [BOOK_THEME.id, BOOK_PAPER_COLOR.id, ...PRINT_PREVIEW_SETTINGS],
-    page: [],
-  },
+  settings: [PAGE_THEME.id, PAGE_PAPER_COLOR.id],
 })

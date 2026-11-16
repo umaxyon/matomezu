@@ -4,11 +4,20 @@
 // 画面に置くインスタンスは、見た目を結んだプラグインだけで作る（MatomezuProvider が型と台帳アセンブルで確かめる）
 
 import type { ComponentType, ReactNode } from "react"
-import type { BookViewExtras, ContextMenuId, DialogId, PresentationId, WidgetId, WidgetTable } from "../core/catalog"
+import type {
+  BookViewExtras,
+  CommandId,
+  ContextMenuId,
+  ContextMenuTable,
+  DialogId,
+  PresentationId,
+  WidgetId,
+  WidgetTable,
+} from "../core/catalog"
 import { fail } from "../core/errors"
 import type { Size } from "../core/geom"
 import { isOwnedBy } from "../core/names"
-import type { Book } from "../core/schema/book"
+import type { Book, Page } from "../core/schema/book"
 import type { DialogArgsOf, DialogDef } from "../store/dialogs"
 import { type IdsOf, type Plugin, withoutParts } from "../store/plugin"
 import type { ConnectorUi } from "./connector"
@@ -16,7 +25,7 @@ import type { AnyWidgetDef } from "./layout"
 
 // ブックのビューが受け取る物は無い（描くページと操作は、フックが描いている場所から引く。ui/scope.tsx）
 export type BookViewProps = Record<string, never>
-// ブックのビュー: 開いたブックのタイプが選んだ見せ方（core/def/presentation.ts）のコンポーネント（見せ方の id で結び、UI マッピングには書かない）。
+// ブックのビュー: 開いたページのタイプが選んだ見せ方（core/def/presentation.ts）のコンポーネント（見せ方の id で結び、UI マッピングには書かない）。
 // ウィジェットと同じく、開く右クリックのメニュー（useContextMenu）を contextMenus に全部書く
 export interface BookViewDef extends BookViewExtras {
   view: ComponentType<BookViewProps>
@@ -56,13 +65,15 @@ export interface UserSettingControlProps<V = unknown> {
   value: V | undefined
   onChange(value: V | undefined): void
 }
-// 設定の項目（core/def/setting.ts）を変えるコンポーネントに渡す値。of はブックかページか、value はその段の値（無ければ undefined）、
-// inherited は値が無いときに効く値（ページならブックの値か既定、ブックなら既定。既定の無い項目なら undefined のことがある）。onChange の undefined は値を消す（上の段を継ぐ）。
-// book は、ダイアログで変えている項目を重ねたブック（ほかの項目の値で見せ方が変わるコンポーネントが読む）
+// 設定の項目（core/def/setting.ts）を変えるコンポーネントに渡す値。of は項目を持つ所（ブックかページか）、value はその所の値（無ければ undefined）、
+// inherited は値が無いときに効く値（定義の既定。既定の無い項目なら undefined のことがある）。onChange の undefined は値を消す（既定に戻す）。
+// book は、ダイアログで変えている項目を重ねたブック。page は、ページの項目なら変えている項目を重ねたそのページ（ブックの項目なら null）。
+// どちらも、ほかの項目の値やページのタイプで見せ方が変わるコンポーネントが読む
 export interface SettingControlProps<V = unknown> extends UserSettingControlProps<V> {
   of: "book" | "page"
   inherited: V | undefined
   book: Book
+  page: Page | null
 }
 // 設定の項目のビュー: 設定のダイアログに並べるコンポーネント
 export interface SettingUi {
@@ -142,15 +153,34 @@ export interface Overrides {
 export type EnumValueIcon = ReactNode | { readonly closed: ReactNode; readonly open: ReactNode }
 
 // widgets はこのプラグインのウィジェット、commandIcons はメニューなどに出すコマンドのアイコン（無ければ名前の文字だけを出す）、
-// bookTypeIcons はブックのタイプのアイコン（ページタブの頭に出す。名乗らないタイプは、通常のファイルの絵）、
-// enumValueIcons は自分が足した列挙の値のアイコン（絵を使う列挙の宣言側が読む。無ければ宣言側が決めた絵）
+// pageTypeIcons はページのタイプのアイコン（ページタブの頭に出す。名乗らないタイプは、通常のファイルの絵）、
+// enumValueIcons は自分が足した列挙の値のアイコン（絵を使う列挙の宣言側が読む。無ければ宣言側が決めた絵）、
+// contextMenuRows は自分のメニューが自分で出す行（機能台帳から決まる一覧など。UI マッピングのコマンドの並びの前に出る）
 export type UiParts<P> = PluginViews<P> & {
   widgets?: readonly AnyWidgetDef[]
   commandIcons?: { [id in IdsOf<P, "commands">]?: ReactNode }
-  bookTypeIcons?: { [id in IdsOf<P, "bookTypes">]?: ReactNode }
+  pageTypeIcons?: { [id in IdsOf<P, "pageTypes">]?: ReactNode }
   enumValueIcons?: { [id in IdsOf<P, "enumValues">]?: EnumValueIcon }
+  contextMenuRows?: { [M in OwnContextMenuId<P>]?: ContextMenuRows<M> }
   overrides?: Overrides
 }
+
+// プラグイン P が ContextMenuTable に書き足した、自分のメニューの id
+type OwnContextMenuId<P> = P extends { id: infer Id extends string } ? ContextMenuId & `${Id}:${string}` : never
+
+// メニューが自分で出す行: コマンドと、その引数・名前・アイコン。出すか・押せるかは、その引数でのコマンドが決める
+export interface ContextMenuRow {
+  command: CommandId
+  args?: unknown
+  label: string
+  icon?: ReactNode
+  iconLook?: "line" | "picture" // アイコンの見せ方（line は線の絵でスキンの色、picture は絵の元の色。書かなければ line）
+}
+
+// メニュー M の行を、開いたときに受け取った物 target から出すフック（中で文言や機能台帳のフックを使える）
+export type ContextMenuRows<M extends ContextMenuId = ContextMenuId> = (
+  target: ContextMenuTable[M],
+) => readonly ContextMenuRow[]
 export type PluginUi<P extends Plugin> = P & { ui: UiParts<P> }
 // 見た目を結んだプラグインのどれか
 export type AnyPluginUi = Plugin & { ui: object }
@@ -171,8 +201,9 @@ export interface UiCatalog {
   widgets: ReadonlyMap<string, AnyWidgetDef>
   commandIcons: ReadonlyMap<string, ReactNode>
   toolIcons: ReadonlyMap<string, ReactNode>
-  bookTypeIcons: ReadonlyMap<string, ReactNode>
+  pageTypeIcons: ReadonlyMap<string, ReactNode>
   enumValueIcons: ReadonlyMap<string, EnumValueIcon>
+  contextMenuRows: ReadonlyMap<string, (target: never) => readonly ContextMenuRow[]>
 }
 
 interface LooseUi {
@@ -185,8 +216,9 @@ interface LooseUi {
   widgets?: readonly AnyWidgetDef[]
   commandIcons?: Record<string, ReactNode>
   toolIcons?: Record<string, ReactNode>
-  bookTypeIcons?: Record<string, ReactNode>
+  pageTypeIcons?: Record<string, ReactNode>
   enumValueIcons?: Record<string, EnumValueIcon>
+  contextMenuRows?: Record<string, (target: never) => readonly ContextMenuRow[]>
   overrides?: {
     presentationViews?: Record<string, BookViewDef>
     dialogViews?: Record<string, AnyDialogView>
@@ -214,8 +246,9 @@ function buildUi(plugins: readonly Plugin[]): UiCatalog {
   const dialogViews = new Map<string, AnyDialogView>()
   const widgets = new Map<string, AnyWidgetDef>()
   const commandIcons = new Map<string, ReactNode>()
+  const contextMenuRows = new Map<string, (target: never) => readonly ContextMenuRow[]>()
   const toolIcons = new Map<string, ReactNode>()
-  const bookTypeIcons = new Map<string, ReactNode>()
+  const pageTypeIcons = new Map<string, ReactNode>()
   const enumValueIcons = new Map<string, EnumValueIcon>()
   const uis = plugins.map(p => {
     const ui = (p as Partial<AnyPluginUi>).ui as LooseUi | undefined
@@ -267,10 +300,14 @@ function buildUi(plugins: readonly Plugin[]): UiCatalog {
       if (!own.has(id)) fail("E307", { plugin: p.id, command: id })
       commandIcons.set(id, icon)
     }
-    const ownTypes = new Set((p.bookTypes ?? []).map(t => t.id))
-    for (const [id, icon] of Object.entries(ui.bookTypeIcons ?? {})) {
+    for (const [id, rows] of Object.entries(ui.contextMenuRows ?? {})) {
+      if (!isOwnedBy(p.id, id)) fail("E315", { plugin: p.id, id })
+      contextMenuRows.set(id, rows)
+    }
+    const ownTypes = new Set((p.pageTypes ?? []).map(t => t.id))
+    for (const [id, icon] of Object.entries(ui.pageTypeIcons ?? {})) {
       if (!ownTypes.has(id)) fail("E313", { plugin: p.id, id })
-      bookTypeIcons.set(id, icon)
+      pageTypeIcons.set(id, icon)
     }
     const ownValues = new Set((p.enumValues ?? []).map(v => v.id))
     for (const [id, icon] of Object.entries(ui.enumValueIcons ?? {})) {
@@ -308,7 +345,8 @@ function buildUi(plugins: readonly Plugin[]): UiCatalog {
     widgets,
     commandIcons,
     toolIcons,
-    bookTypeIcons,
+    pageTypeIcons,
     enumValueIcons,
+    contextMenuRows,
   }
 }

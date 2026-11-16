@@ -26,7 +26,7 @@ export function ownTokenVars(tokens: Iterable<string>, owner: string): CSSProper
   return Object.fromEntries(own.map(id => [ownTokenVarName(id), `var(${tokenVarName(id)})`])) as CSSProperties
 }
 
-// 定義 def（アイテム・ブックのタイプなど。本当の id）のプラグインのテーマキーを、--<名前> で読めるようにする値。
+// 定義 def（アイテム・ページのタイプなど。本当の id）のプラグインのテーマキーを、--<名前> で読めるようにする値。
 // プラグインの見た目を描く所（紙のアイテムの枠・つなぐもののビューなど）が、その要素の style に置く
 export function useTokenScope(def: string): CSSProperties {
   const catalog = useCatalog().core
@@ -34,7 +34,7 @@ export function useTokenScope(def: string): CSSProperties {
     const owner = splitId(def).owner
     if (owner === null) return {}
     const declared = [
-      ...[...catalog.bookTypes.values(), ...catalog.items.values()].flatMap(d => d.tokens.map(t => t.id)),
+      ...[...catalog.pageTypes.values(), ...catalog.items.values()].flatMap(d => d.tokens.map(t => t.id)),
       ...catalog.tokens.keys(),
     ]
     return ownTokenVars(declared, owner)

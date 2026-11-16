@@ -13,9 +13,9 @@ import {
 const OPEN = { widget: "p:panel", subject: "c1", anchors: ["a1"], current: "a1", book: "b1", page: "p1" }
 
 test("開いたときのブックとページを開いている間だけ、開いたままにする", () => {
-  expect(stillOn(OPEN, { opened: { book: "b1", page: "p1" } as never })).toBe(true)
-  expect(stillOn(OPEN, { opened: { book: "b1", page: "p2" } as never })).toBe(false)
-  expect(stillOn(OPEN, { opened: { book: "b2", page: "p1" } as never })).toBe(false)
+  expect(stillOn(OPEN, { opened: { kind: "page", book: "b1", page: "p1" } as never })).toBe(true)
+  expect(stillOn(OPEN, { opened: { kind: "page", book: "b1", page: "p2" } as never })).toBe(false)
+  expect(stillOn(OPEN, { opened: { kind: "page", book: "b2", page: "p1" } as never })).toBe(false)
   expect(stillOn(OPEN, { opened: null })).toBe(false)
 })
 

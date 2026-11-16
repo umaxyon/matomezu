@@ -29,7 +29,7 @@ export type GrowRule =
 
 // 可変ページの増やす向きの決め方（定義オブジェクトの拡張ポイントに書き足す。無ければ可変ページを作れない。ページを持つタイプだけが使う）
 declare module "../../../core/catalog" {
-  interface BookTypeExtras {
+  interface PageTypeExtras {
     grow?: GrowRule
   }
 }

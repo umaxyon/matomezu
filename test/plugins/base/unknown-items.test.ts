@@ -1,30 +1,22 @@
 import { expect, test } from "bun:test"
-import type { ItemPage } from "../../../web/src/core/placed"
+import { pagesOf } from "../../../web/src/core/book"
 import { rectsOf } from "../../../web/src/plugins/base"
+import { drawingPage, testBook } from "../../lineup"
 import { newStore } from "../../support"
 
 // 外したプラグインの星（大きさ無し）と、外したプラグインの線（星から箱へ）が残る図面
-const book = {
-  type: "@matomezu/drawing:drawing",
-  id: "u1",
-  title: "星の残る図",
-  pages: [
-    {
-      id: "p1",
-      title: "P",
-      paper: "@matomezu/base:a4",
-      orientation: "landscape",
-      items: [
-        { id: "s", item: "@foo/stars:star", x: 40, y: 40, props: { points: 5 } },
-        { id: "b", item: "@matomezu/box:shape-nest-box", x: 400, y: 40, props: { caption: "箱" } },
-        { id: "l", item: "@foo/stars:beam", from: "s", to: "b", props: {} },
-      ],
-    },
-  ],
-}
+const book = testBook("u1", "星の残る図", [
+  drawingPage("p1", {
+    title: "P",
+    items: [
+      { id: "s", item: "@foo/stars:star", x: 40, y: 40, props: { points: 5 } },
+      { id: "b", item: "@matomezu/box:shape-nest-box", x: 400, y: 40, props: { caption: "箱" } },
+      { id: "l", item: "@foo/stars:beam", from: "s", to: "b", props: {} },
+    ],
+  }),
+])
 
-const page = (store: ReturnType<typeof newStore>) =>
-  (store.state.getState().books.u1 as unknown as { pages: ItemPage[] }).pages[0]!
+const page = (store: ReturnType<typeof newStore>) => pagesOf(store.state.getState().books.u1!)[0]!
 
 test("機能台帳に無いアイテムのあるブックも読め、知らない形は 64×64 の四角として並べ、動かし・消せる。知らない物のデータはそのまま残る", () => {
   const store = newStore({ savedBooks: [book] })
@@ -45,7 +37,7 @@ test("機能台帳に無いアイテムのあるブックも読め、知らな�
   expect(
     store.actions.perform("@matomezu/paper:item-update", { page: "p1", item: "b", props: { caption: "箱2" } }, on).ok,
   ).toBe(true)
-  expect(page(store).items?.find(i => i.id === "l") as unknown).toEqual(book.pages[0]!.items[2])
+  expect(page(store).items?.find(i => i.id === "l") as unknown).toEqual(pagesOf(book)[0]!.items?.[2])
   expect(store.actions.perform("@matomezu/paper:item-remove", { page: "p1", items: ["s"] }, on).ok).toBe(true)
   expect(page(store).items?.map(i => i.id)).not.toContain("s")
 })

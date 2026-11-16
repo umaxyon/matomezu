@@ -1,6 +1,6 @@
 // Frame（形を並べる所）: ページの形は紙の中に、子の形は親の子の領域の中に並べる（紙に収める決まりを、親の中にも同じにかける）。
 // Frame の中の四角は Frame の左上から。子の領域は右と下へ限りが無く（親が子に合わせて育つ）、縮めはしない
-import type { PagedBook } from "../../../core/book"
+import { findPage } from "../../../core/book"
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { ShapeData } from "../../../core/def/item"
 import type { Point, Rect, Size } from "../../../core/geom"
@@ -35,10 +35,10 @@ function childRects(catalog: CoreCatalog, parent: PlacedShape, origin: Point): M
   return rects
 }
 
-// ブック book のページ page の、形 parent の子の領域の Frame（null ならページの紙。可変ページは、空きの印刷区画を含めた広さ。roomOf）。無い形・描けない紙なら null
-export function frameOf(catalog: CoreCatalog, book: Book, page: ItemPage, parent: string | null): Frame | null {
+// ページ page の、形 parent の子の領域の Frame（null ならページの紙。可変ページは、空きの印刷区画を含めた広さ。roomOf）。無い形・描けない紙なら null
+export function frameOf(catalog: CoreCatalog, page: ItemPage, parent: string | null): Frame | null {
   if (parent === null) {
-    const paper = roomOf(catalog, book, page)
+    const paper = roomOf(catalog, page)
     return paper && { parent, origin: { x: 0, y: 0 }, paper, rects: rectsOf(catalog, page) }
   }
   const shape = findShape(page, parent)?.shape
@@ -47,10 +47,10 @@ export function frameOf(catalog: CoreCatalog, book: Book, page: ItemPage, parent
   return { parent, origin, paper: CHILD_AREA, rects: childRects(catalog, shape, origin) }
 }
 
-// ブック book のページ page で、形 id が並ぶ Frame（ページの形なら紙、子の形なら親の子の領域）。無い形なら null
-export function frameAround(catalog: CoreCatalog, book: Book, page: ItemPage, id: string): Frame | null {
+// ページ page で、形 id が並ぶ Frame（ページの形なら紙、子の形なら親の子の領域）。無い形なら null
+export function frameAround(catalog: CoreCatalog, page: ItemPage, id: string): Frame | null {
   const found = findShape(page, id)
-  return found ? frameOf(catalog, book, page, found.parent) : null
+  return found ? frameOf(catalog, page, found.parent) : null
 }
 
 // Frame の中の四角を、データの位置にしたもの（Frame の左上を足す）
@@ -59,7 +59,7 @@ export const toData = (frame: Frame, rects: ReadonlyMap<string, Rect>): Map<stri
 
 // 子の領域の Frame の四角 after を、親の子の位置にしたブック。put の形は、同じ id の子と置き換えるか、末尾に足す（位置は after から）。
 // 親は子に合わせて育ち、一番上の祖先でページの形を押す（replaceShapePushing）。無いページ・無い親・紙に収まらないなら null
-export function commitChildren<B extends PagedBook>(
+export function commitChildren<B extends Book>(
   catalog: CoreCatalog,
   book: B,
   pageId: string,
@@ -92,7 +92,7 @@ export function settleChildren(catalog: CoreCatalog, shape: PlacedShape): Placed
 
 // 形 shape を、形 parent の子の領域に置いたブック（at は親の左上から。子の領域より左や上なら、子の領域の左上へ寄せる）。
 // 重なった子は右へ、駄目なら下へ押す（紙に置くときと同じ。縮めない）。無いページ・無い親・紙に収まらないなら null
-export function placeChild<B extends PagedBook>(
+export function placeChild<B extends Book>(
   catalog: CoreCatalog,
   book: B,
   pageId: string,
@@ -100,8 +100,8 @@ export function placeChild<B extends PagedBook>(
   shape: PlacedShape,
   at: Point,
 ): B | null {
-  const page = book.pages.find(p => p.id === pageId)
-  const frame = page && frameOf(catalog, book, page, parent)
+  const page = findPage(book, pageId)?.page
+  const frame = page && frameOf(catalog, page, parent)
   const size = placedSize(catalog, shape)
   if (!page || !frame || !size) return null
   const rect = { x: Math.max(0, at.x - frame.origin.x), y: Math.max(0, at.y - frame.origin.y), ...size }
@@ -110,14 +110,14 @@ export function placeChild<B extends PagedBook>(
 }
 
 // 子の形を next に置き換え、近づきすぎた兄弟を親の中で押してどけたブック（縮めない）。子の領域より左や上・押せない・紙に収まらないなら null
-export function replaceChild<B extends PagedBook>(
+export function replaceChild<B extends Book>(
   catalog: CoreCatalog,
   book: B,
   pageId: string,
   next: PlacedShape,
 ): B | null {
-  const page = book.pages.find(p => p.id === pageId)
-  const frame = page && frameAround(catalog, book, page, next.id)
+  const page = findPage(book, pageId)?.page
+  const frame = page && frameAround(catalog, page, next.id)
   const size = placedSize(catalog, next)
   if (!page || !frame || frame.parent === null || !size) return null
   const rect = { x: next.x - frame.origin.x, y: next.y - frame.origin.y, ...size }

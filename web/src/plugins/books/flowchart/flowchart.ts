@@ -1,14 +1,13 @@
 // フローチャートのブック: ページごとに紙を置き、紙の上に形（@matomezu/shape）・箱・線を置く。
-// 流れの向き（下へ・右へ）はブックとページの設定の項目で持つ（ページはブックを継承できる）。分岐（ひし形）から出る線には、キャプションの候補 Yes / No を線に渡す。見た目（テーマと紙の色）・文字の色と線の既定の通り方も設定の項目で変えられる
+// 流れの向き（下へ・右へ）はページの設定の項目で持つ。分岐（ひし形）から出る線には、キャプションの候補 Yes / No を線に渡す。見た目（テーマと紙の色）・文字の色と線の既定の通り方も設定の項目で変えられる
 import { z } from "zod"
 import {
   BACKGROUND_PRINT,
-  BOOK_PAPER_COLOR,
-  BOOK_TEXT_COLORS,
-  BOOK_THEME,
   DIAGRAM_THEME_TYPE,
+  PAGE_PAPER_COLOR,
+  PAGE_TEXT_COLORS,
+  PAGE_THEME,
   PAPER_IDS,
-  PRINT_PREVIEW_SETTINGS,
   type SettingReader,
 } from "../../base"
 import { kit } from "./kit"
@@ -17,9 +16,10 @@ import { FLOWCHART_TOOLS } from "./tools"
 export const FLOW_DIRECTIONS = ["down", "right"] as const
 export type FlowDirection = (typeof FLOW_DIRECTIONS)[number]
 
-// 流れの向き（ブックとページに持たせる。ページはブックを継承できる。無ければ下へ）
+// 流れの向き（ページの設定の項目。無ければ下へ）
 export const FLOW_DIRECTION = kit.defineSetting({
   id: "flow-direction",
+  holder: "page",
   title: "Flow direction",
   schema: z.enum(FLOW_DIRECTIONS),
   default: "down",
@@ -73,13 +73,11 @@ const BACKGROUND_ITEMS = [
   "@matomezu/slide:slide-ellipse",
 ] as const
 
-export const FLOWCHART = kit.defineBookType({
+export const FLOWCHART = kit.definePageType({
   id: "flowchart",
   version: 1,
   title: "Flowchart",
-  schema: z.strictObject({ id: z.string().min(1) }),
-  create: init => ({ ...init, pages: [] }),
-  addPagesFromTabs: true,
+  grouping: "none",
   // 可変ページは、流れの始まりの側を固定して残りの 3 つの向きへ増やす（下へなら上を、右へなら左を固定。base の拡張ポイント）
   grow: {
     sides: setting =>
@@ -87,13 +85,10 @@ export const FLOWCHART = kit.defineBookType({
         ? { up: true, down: true, left: false, right: true }
         : { up: false, down: true, left: true, right: true },
   },
-  pages: {
-    paper: {
-      allowed: PAPER_IDS,
-      default: "@matomezu/base:a4",
-      orientation: "portrait",
-      perPage: true,
-    },
+  paper: {
+    allowed: PAPER_IDS,
+    default: "@matomezu/base:a4",
+    orientation: "portrait",
   },
   slide: { allowed: BACKGROUND_ITEMS, background: true },
   items: {
@@ -116,16 +111,12 @@ export const FLOWCHART = kit.defineBookType({
   tools: FLOWCHART_TOOLS.id,
   // キャプションで形が広がるときは、流れが下へなら横の真ん中を保ち（本筋の縦の線がずれない）、右へなら左を保つ
   growFrom: setting => (turnedRight(setting) ? { x: "start", y: "center" } : { x: "center", y: "start" }),
-  settings: {
-    book: [
-      BOOK_THEME.id,
-      BOOK_PAPER_COLOR.id,
-      "@matomezu/line:line-route",
-      kit.name("flow-direction"),
-      BOOK_TEXT_COLORS.id,
-      ...PRINT_PREVIEW_SETTINGS,
-      BACKGROUND_PRINT.id,
-    ],
-    page: ["@matomezu/line:line-route", kit.name("flow-direction"), BACKGROUND_PRINT.id],
-  },
+  settings: [
+    PAGE_THEME.id,
+    PAGE_PAPER_COLOR.id,
+    "@matomezu/line:line-route",
+    kit.name("flow-direction"),
+    PAGE_TEXT_COLORS.id,
+    BACKGROUND_PRINT.id,
+  ],
 })

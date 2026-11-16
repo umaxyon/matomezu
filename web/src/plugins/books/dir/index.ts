@@ -1,4 +1,4 @@
-// ディレクトリ構成図のプラグイン: ディレクトリ構成図のブックのタイプと、その見せ方・説明の見せ方の設定の項目・ページを作るダイアログ・中身のアクションとコマンド・道具の組（鉛筆とハンド）。
+// ディレクトリ構成図のプラグイン: ディレクトリ構成図のページのタイプと、その見せ方・説明の見せ方の設定の項目・ページを作るダイアログ・中身のアクションとコマンド・道具の組（鉛筆とハンド）。
 // テーマと紙の色と文字の色の設定の項目とハンドの道具は、ほかのプラグインの定義を id で選ぶ（dir.ts・tools.ts）
 import { defineBuiltin } from "../../../plugin-api/builtin"
 import { ENTRY_ADD, ENTRY_MOVE, ENTRY_REMOVE, ENTRY_UPDATE, FOLDER_CLOSE, FOLDER_SORT, PATHS_ADD } from "./actions"
@@ -36,7 +36,7 @@ import { DIR_TOOLS, PENCIL_TOOL } from "./tools"
 
 export const DIR_PLUGIN = defineBuiltin(
   kit.plugin({
-    bookTypes: [DIR],
+    pageTypes: [DIR],
     enums: [ENTRY_ICON],
     enumValues: [ICON_FOLDER, ICON_BOOK, ICON_FILE, ICON_DIRECTORY, ICON_CLASS_DIAGRAM, ICON_HTML],
     presentations: [DIR_PRESENTATION],
@@ -68,7 +68,7 @@ export const DIR_PLUGIN = defineBuiltin(
 )
 
 declare module "../../../core/catalog" {
-  interface BookTypeTable {
+  interface PageTypeTable {
     "@matomezu/dir:dir": typeof DIR
   }
   interface PresentationTable {

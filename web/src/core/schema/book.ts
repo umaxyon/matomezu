@@ -1,8 +1,8 @@
-// ブックのデータの型。形はブックのタイプ（type）ごとに違う。タイプが自分で持つフィールドに、タイプが選んだものから決まるフィールド
-// （ページと、そこに置けるアイテム・設定の項目）を足す。ここは、core/catalog.ts の BookTypeTable に書き足したタイプの型を 1 つに束ねる。
-// データを検査する形は、core 台帳が同じ決まりで組み立てる（CoreCatalog の schemas と bookSchema）
+// ブックとページのデータの型。ブックはタイプを持たず、並び（lineup）にページとバインダを順に持つ。ページの形はページのタイプ（type）ごとに違い、
+// 土台のフィールドに、タイプが選んだものから決まるフィールド（置けるアイテム・設定の項目・タイプが足すフィールド）を足す。
+// ここは、core/catalog.ts の PageTypeTable に書き足したタイプの型を 1 つに束ねる。データを検査する形は、core 台帳が同じ決まりで組み立てる（CoreCatalog の schemas と bookSchema）
 import type { z } from "zod"
-import type { BookTypeId, BookTypeTable, SettingTable } from "../catalog"
+import type { PageTypeId, PageTypeTable, SettingTable } from "../catalog"
 import type { PlacedOf } from "../placed"
 import type { Page } from "./page"
 
@@ -11,29 +11,47 @@ type SettingFields<Ids> = [Ids] extends [never] ? unknown : { settings?: Setting
 type SettingValuesOf<Ids> = {
   [K in Ids & keyof SettingTable]?: SettingTable[K] extends { schema: infer S extends z.ZodType } ? z.output<S> : never
 }
-type Selected<T, Of extends "book" | "page"> = T extends { settings: { [k in Of]: readonly (infer I)[] } } ? I : never
+type Selected<T> = T extends { settings: readonly (infer I)[] } ? I : never
+// ブックが持つ設定の項目（holder が "book" の項目）の id
+type BookSettingId = {
+  [K in keyof SettingTable]: SettingTable[K] extends { holder: "book" } ? K : never
+}[keyof SettingTable]
 
-// タイプがページに足すフィールド（pages.fields）
-type PageFields<T> = T extends { pages: { fields: infer F extends Readonly<Record<string, z.ZodType>> } }
+// タイプがページに足すフィールド（fields）
+type PageFields<T> = T extends { fields: infer F extends Readonly<Record<string, z.ZodType>> }
   ? z.output<z.ZodObject<{ -readonly [K in keyof F]: F[K] }>>
   : unknown
 
 // タイプ T のページ（置けるのは、タイプが選んだアイテムだけ）
-export type PageOf<T> = Page &
+export type PageData<T> = Page &
+  (T extends { id: infer Id extends string } ? { type: Id } : unknown) &
   PageFields<T> & {
     items?: readonly PlacedOf<T extends { items: { allowed: readonly (infer I extends string)[] } } ? I : never>[]
-  } & SettingFields<Selected<T, "page">>
+  } & SettingFields<Selected<T>>
 
-// タイプ T のブック（名前 title・ロック locked・ゴミ箱に入れた時刻 trashed は土台のフィールドで、どのタイプのブックも持つ。名前は空でもよい）
-export type BookData<T> = (T extends { schema: infer S extends z.ZodType } ? z.output<S> : never) & {
+// 書き足したページのタイプごとの、ページのデータの型の和（type で分かれる）。Page は、どのタイプのページも持つ土台のフィールドだけの型
+export type AnyPage = { [K in PageTypeId]: PageData<PageTypeTable[K]> }[PageTypeId]
+export type PageOf<T extends PageTypeId> = PageData<PageTypeTable[T]>
+
+// エントリ 1 つ: ページ（kind: "page"）か、1 つのタイプのページだけを入れるバインダ（kind: "binder"。中身も同じ並びで、入るのはページだけ）。
+// どちらも並びの中で id を持つ（置き直しの Patch が、並びを id ごとにたどる。core/patch.ts）
+export interface BinderEntry {
+  kind: "binder"
+  id: string
+  title: string
+  pageType: string // 入れるページのタイプの id
+  lineup: readonly AnyPage[]
+}
+export type LineupEntry = AnyPage | BinderEntry
+
+// ブック（名前 title・ロック locked・ゴミ箱に入れた時刻 trashed・並び lineup・ブックが持つ設定の項目）
+export type Book = {
+  id: string
   title: string
   locked?: true
   trashed?: string
-} & (T extends { pages: null } ? unknown : { pages: readonly PageOf<T>[] }) &
-  SettingFields<Selected<T, "book">>
+  lineup: readonly LineupEntry[]
+} & SettingFields<BookSettingId>
 
-// 書き足したブックのタイプごとの、データの型の和
-export type Book = { [K in BookTypeId]: BookData<BookTypeTable[K]> }[BookTypeId]
-export type BookOf<T extends Book["type"]> = Extract<Book, { type: T }>
 export type { Page } from "./page"
 export { PageSchema } from "./page"

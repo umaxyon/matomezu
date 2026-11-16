@@ -2,8 +2,9 @@
 // 結び付く物（アンカー）は、ブックのページの中の id を持つ物（ページそのものは含まない）。アンカーの物が全部無くなったアノテーションは残らない。
 // 種類の期限（expiresAt）の過ぎたアノテーションも残らない（消すのは常駐で、画面はそれまで出さない）
 import { z } from "zod"
+import { pagesOf } from "./book"
 import { briefLine } from "./brief"
-import { bookType, type CoreCatalog } from "./core-catalog"
+import { type CoreCatalog, pageType } from "./core-catalog"
 import { idsIn } from "./ids"
 import { splitId } from "./names"
 import type { Book } from "./schema/book"
@@ -33,8 +34,7 @@ export const restoreAnnotations = (saved: unknown): readonly Annotation[] =>
 
 // ブックの中の、アンカーにできる物の id
 export function anchorIds(book: Book): ReadonlySet<string> {
-  const pages = "pages" in book ? (book.pages as readonly { id: string }[]) : []
-  return new Set(pages.flatMap(({ id: _page, ...content }) => idsIn(content)))
+  return new Set(pagesOf(book).flatMap(({ id: _page, ...content }) => idsIn(content)))
 }
 
 // ブック book に無い物の id をアンカーから外し、アンカーが全部無くなったアノテーションを消す（変わらなければ同じ並び）
@@ -52,16 +52,26 @@ export function prune(annotations: readonly Annotation[], book: Book): readonly 
   return changed ? next : annotations
 }
 
-// タイプ type のブックで、種類 id のアノテーションを使えるか（種類が機能台帳にあり、タイプが外していない）
+// タイプ type のページで、種類 id のアノテーションを使えるか（種類が機能台帳にあり、タイプが外していない）
 const annotationAllowed = (catalog: CoreCatalog, type: string, id: string): boolean =>
-  catalog.annotations.has(id) && !(bookType(catalog, type).annotations?.without?.includes(id as never) ?? false)
+  catalog.annotations.has(id) && !(pageType(catalog, type).annotations?.without?.includes(id as never) ?? false)
 
-// 1 つのアノテーションが決まりを守っているか: 形が合い、ブックのタイプが種類を使え、種類の形に合い、アンカーがどれもブックにある
-function fits(catalog: CoreCatalog, book: Book, ids: ReadonlySet<string>, a: Annotation): boolean {
-  if (!AnnotationSchema.safeParse(a).success || !annotationAllowed(catalog, book.type, a.annotation)) return false
+// ブックの中の、アンカーにできる物の id → その物があるページのタイプ
+function anchorTypes(book: Book): ReadonlyMap<string, string> {
+  return new Map(
+    pagesOf(book).flatMap(({ id: _page, type, ...content }) => idsIn(content).map(id => [id, type] as const)),
+  )
+}
+
+// 1 つのアノテーションが決まりを守っているか: 形が合い、種類の形に合い、アンカーがどれもブックにあり、アンカーのあるどのページのタイプも種類を使える
+function fits(catalog: CoreCatalog, types: ReadonlyMap<string, string>, a: Annotation): boolean {
+  if (!AnnotationSchema.safeParse(a).success) return false
   const def = catalog.annotations.get(a.annotation)
-  if (!def) return false
-  return def.props.safeParse(a.props).success && a.anchors.every(id => ids.has(id))
+  if (!def?.props.safeParse(a.props).success) return false
+  return a.anchors.every(id => {
+    const type = types.get(id)
+    return type !== undefined && annotationAllowed(catalog, type, a.annotation)
+  })
 }
 
 // アクションが返した並び after が決まりを守っているか: id が重ならず、前の並び before から足した・変えた物はどれも決まりを守る。
@@ -74,20 +84,20 @@ export function annotationsSettle(
 ): boolean {
   if (new Set(after.map(a => a.id)).size !== after.length) return false
   const kept = new Set(before)
-  const ids = anchorIds(book)
-  return after.every(a => kept.has(a) || fits(catalog, book, ids, a))
+  const types = anchorTypes(book)
+  return after.every(a => kept.has(a) || fits(catalog, types, a))
 }
 
 // 残しておいたアノテーションを確かめる: 種類が機能台帳に無い物（W018）・形が合わない物（W019）を warning にする（データには手を付けない）
 export function checkAnnotations(catalog: CoreCatalog, book: Book, annotations: readonly Annotation[]): Warning[] {
-  const ids = anchorIds(book)
+  const types = anchorTypes(book)
   return annotations.flatMap(a => {
     const id = typeof a?.id === "string" ? a.id : ""
     const kind = typeof a?.annotation === "string" ? a.annotation : ""
     const params = { book: book.id, title: book.title, id, annotation: kind }
     const plugin = splitId(kind).owner ?? ""
     if (!catalog.annotations.has(kind)) return [warning("W018", plugin, params)]
-    return fits(catalog, book, ids, a) ? [] : [warning("W019", plugin, params)]
+    return fits(catalog, types, a) ? [] : [warning("W019", plugin, params)]
   })
 }
 
@@ -98,12 +108,13 @@ export interface AiAnnotation extends Annotation {
 }
 
 export function annotationsForAi(catalog: CoreCatalog, book: Book, annotations: readonly Annotation[]): AiAnnotation[] {
-  const pages = "pages" in book ? (book.pages as readonly { id: string }[]) : []
-  const pageOf = new Map(pages.flatMap(({ id: page, ...content }) => idsIn(content).map(id => [id, page] as const)))
-  const ids = anchorIds(book)
+  const pageOf = new Map(
+    pagesOf(book).flatMap(({ id: page, ...content }) => idsIn(content).map(id => [id, page] as const)),
+  )
+  const types = anchorTypes(book)
   return annotations.map(a => {
     const def = catalog.annotations.get(a.annotation)
-    const awaits = def?.awaits !== undefined && fits(catalog, book, ids, a) && def.awaits(a.props)
+    const awaits = def?.awaits !== undefined && fits(catalog, types, a) && def.awaits(a.props)
     return { ...a, page: pageOf.get(a.anchors.at(-1) ?? "") ?? null, awaits }
   })
 }
@@ -118,11 +129,11 @@ export function annotationBriefs(
   book: Book,
   annotations: readonly Annotation[],
 ): Record<string, string> {
-  const ids = anchorIds(book)
+  const types = anchorTypes(book)
   const out: Record<string, string> = {}
   for (const a of annotations) {
     const def = catalog.annotations.get(a.annotation)
-    if (def?.aiBrief === undefined || !fits(catalog, book, ids, a)) continue
+    if (def?.aiBrief === undefined || !fits(catalog, types, a)) continue
     const line = briefLine(def.aiBrief(a.props), BRIEF_LIMIT)
     if (line !== "") out[a.id] = line
   }

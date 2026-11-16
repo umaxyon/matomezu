@@ -1,5 +1,6 @@
-// ex3 のブックのタイプ「ボード」: 自分の形（星）・紙（正方形）・設定の項目（方眼）・テーマ（ミント）を持ち、ビルトインの見せ方（紙）・リスト・線を id で選ぶ。
-// テーマはほかのタイプのブックにも id で選べ、スキンは利用者が設定で選ぶ
+// ex3 のページのタイプ「ボード」: 自分の形（星）・紙（正方形）・設定の項目（方眼）・テーマ（ミント）を持ち、ビルトインの見せ方（紙）・リスト・線を id で選ぶ。
+// テーマはほかのタイプのページにも id で選べ、スキンは利用者が設定で選ぶ
+
 import { type ShapeAddArgs, type ShapeEditArgs, z } from "matomezu"
 import { kit } from "./kit"
 
@@ -30,6 +31,7 @@ export const SQUARE = kit.definePaper({ id: "square", title: "square", size: { w
 // 方眼を出すか（ブックに持たせる）
 export const GRID = kit.defineSetting({
   id: "board-grid",
+  holder: "page",
   title: "grid",
   schema: z.boolean(),
   default: false,
@@ -99,20 +101,15 @@ export const NIGHT = kit.defineSkin({
   palette: { primary: "#7aa2ff" }, // 外観枠の代表色は役割ごとに上書きできる（書かない役割は、暗いスキンの既定）
 })
 
-export const BOARD = kit.defineBookType({
+export const BOARD = kit.definePageType({
   id: "board",
   version: 1,
   title: "board",
-  schema: z.strictObject({ id: z.string().min(1) }),
-  create: init => ({ ...init, pages: [] }),
-  addPagesFromTabs: true,
-  pages: {
-    paper: {
-      allowed: [SQUARE.id, "@matomezu/base:a4"],
-      default: SQUARE.id,
-      orientation: "portrait",
-      perPage: true,
-    },
+  grouping: "none",
+  paper: {
+    allowed: [SQUARE.id, "@matomezu/base:a4"],
+    default: SQUARE.id,
+    orientation: "portrait",
   },
   items: {
     allowed: [STAR.id, "@matomezu/list:shape-list", "@matomezu/line:connector-line"],
@@ -123,5 +120,5 @@ export const BOARD = kit.defineBookType({
   presentation: "@matomezu/paper:paper",
   tokens: [],
   tools: "@matomezu/paper:paper",
-  settings: { book: ["@matomezu/base:book-theme", GRID.id], page: [] },
+  settings: ["@matomezu/base:page-theme", GRID.id],
 })

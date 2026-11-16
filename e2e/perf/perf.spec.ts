@@ -186,13 +186,18 @@ test("アクション: AI の入口から箱と線を 300 まで足す", async (
   const n = Math.max(...COUNTS)
   const made = await perform({
     action: "@matomezu/base:book-create",
-    args: { type: "@matomezu/drawing:drawing", title: "速さ" },
+    args: { title: "速さ" },
   })
   const book = made.result.book as string
   const on = { book }
   const added = await perform({
     action: "@matomezu/base:page-add",
-    args: { title: "ページ 1", paper: "@matomezu/base:a3", orientation: "landscape" },
+    args: {
+      type: "@matomezu/drawing:drawing",
+      title: "ページ 1",
+      paper: "@matomezu/base:a3",
+      orientation: "landscape",
+    },
     on,
   })
   const pageId = added.result.page as string

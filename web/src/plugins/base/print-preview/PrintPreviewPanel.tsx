@@ -1,4 +1,4 @@
-// 印刷プレビューの右サイドパネルの中身（ウィジェット print-preview-panel）: 見出し、印刷のボタン（測っている途中と、並べる物が無い間は押せない）、拡大縮小の帯（フッタを隠すので、ここに出す。幅か高さに合わせるボタンを足す）、ブックのロックの掛け外し、印刷プレビューの設定の項目（ブックのタイプが選んだ物）、
+// 印刷プレビューの右サイドパネルの中身（ウィジェット print-preview-panel）: 見出し、印刷のボタン（測っている途中と、並べる物が無い間は押せない）、拡大縮小の帯（フッタを隠すので、ここに出す。幅か高さに合わせるボタンを足す）、ブックのロックの掛け外し、印刷プレビューの設定の項目（ページのタイプが選んだ物）、
 // 印刷区画より大きくて紙の境目で切れる形のバッジ（押すとその形のページの編集へ）。
 // 項目を変えるとすぐに print-preview-update で変える。ブックがロック中なら先に書き換えてよいかを確かめ、よければロックを外して変え、掛け直す。
 // 右サイドパネルの閉じるボタン（と Esc）で閉じると、印刷プレビューも閉じる（PrintPreviewView）。ステージが印刷プレビューでなくなったら、右サイドパネルを閉じる
@@ -9,7 +9,7 @@ import { useMessages } from "../../../ui/i18n"
 import { useStageHere } from "../../../ui/scope"
 import { useCatalog, useUiCatalog } from "../../../ui/store-context"
 import { useAllowed, useBook, usePerform } from "../../../ui/view-hooks"
-import { ownSettings, settingDefs } from "../book-settings"
+import { bookSettingDefs, ownSettings } from "../book-settings"
 import { Confirm } from "../dialog-host/Confirm"
 import { kit } from "../kit"
 import { BOOK_LOCK, BOOK_UNLOCK, LOCK } from "../lock"
@@ -62,7 +62,7 @@ export function PrintPreviewPanel() {
         />
       </fieldset>
       <fieldset className={styles.settings} disabled={blocked}>
-        {settingDefs(catalog, book.type, "book", "print-preview").map(def => {
+        {bookSettingDefs(catalog, "print-preview").map(def => {
           const id = def.id
           const Control = ui.settingViews.get(id)?.control
           if (!Control) return null
@@ -74,6 +74,7 @@ export function PrintPreviewPanel() {
               value={own[id]}
               inherited={def.default}
               book={book}
+              page={null}
               onChange={(v: string | undefined) => change({ [id]: v ?? null })}
             />
           )

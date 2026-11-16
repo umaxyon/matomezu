@@ -14,7 +14,6 @@
 // 追加プラグインが変わったと届いたら（plugins）、画面を読み直す（台帳アセンブルし直すため）。
 // つながりが切れた・読み直せなかった・古い版を捨てたなどは、常駐のログにも書き残す（POST /api/log。切れている間の分は、つながってから送る）
 import { z } from "zod"
-import { hasPages } from "../core/book"
 import type { CoreCatalog } from "../core/core-catalog"
 import { fail, matomezuError, problem } from "../core/errors"
 import { restoreCounters, restoreRecords, withCounters, withRecords } from "../core/records"
@@ -177,7 +176,7 @@ const ShowSchema = z.object({
 })
 
 // 常駐が頼んだブックを出す。ステージが無ければカレント、split なら分けて右にできたステージに出す。
-// mode が print-preview なら、印刷プレビューで出す（ページを持つブックだけ）
+// mode が print-preview なら、印刷プレビューで出す
 export function showIn(instance: MatomezuInstance, show: z.infer<typeof ShowSchema>) {
   const { actions, state } = instance
   let stage = show.stage ?? screenOf(state.getState().window).current
@@ -191,7 +190,7 @@ export function showIn(instance: MatomezuInstance, show: z.infer<typeof ShowSche
   actions.openBook(stage, show.book)
   if (show.page) actions.openPage(stage, show.page)
   const book = state.getState().books[show.book]
-  if (show.mode === "print-preview" && book && hasPages(book)) actions.openPrintPreview(stage)
+  if (show.mode === "print-preview" && book) actions.openPrintPreview(stage)
 }
 
 const DataSchema = z.object({

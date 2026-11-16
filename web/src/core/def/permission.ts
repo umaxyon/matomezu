@@ -10,7 +10,7 @@ import type { ActionDef, Where } from "./action"
 import type { SubjectDef } from "./subject"
 
 // 行う前の問い: どこに対して・誰が行うか。book はアクションが変えるブック、where はその中の所（分からなければ無い）。
-// 一覧が対象のアクションは、変えるブックごとに問う。作るブックは、そのタイプで作る空のブックで問う（その id と名前は問うためだけの物で、頼らない）
+// 一覧が対象のアクションは、変えるブックごとに問う。作るブックは、空のブックで問う（その id と名前は問うためだけの物で、頼らない）
 export interface BookPermissionQuery {
   kind: "book"
   action: ActionDef
@@ -46,7 +46,8 @@ export type PermissionQuery = BookPermissionQuery | RecordPermissionQuery
 export interface Changes {
   gone: boolean // ブックが一覧から無くなった
   added: boolean // ブックが一覧に新しく増えた（fields は増えたブックのフィールド全部、pages はどのページも足した）
-  fields: readonly string[] // 変わったブックのフィールド（pages を除く）
+  fields: readonly string[] // 変わったブックのフィールド（並び lineup を除く）
+  lineup: boolean // 並びが変わった（ページやバインダの順・入っているバインダ・バインダの足し引きと名前。ページの中身の変化は pages）
   pages: readonly PageChange[] // 足した・消した・変わったページ
 }
 

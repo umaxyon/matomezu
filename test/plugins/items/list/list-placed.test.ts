@@ -1,7 +1,8 @@
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../../../web/src/core/book"
 import type { Point } from "../../../../web/src/core/geom"
 import { shapesOf } from "../../../../web/src/core/placed"
-import type { BookOf } from "../../../../web/src/core/schema/book"
+import type { Book } from "../../../../web/src/core/schema/book"
 import { placement } from "../../../../web/src/core/stage"
 import { resolveTokens } from "../../../../web/src/core/theme"
 import { screenOf } from "../../../../web/src/core/window"
@@ -10,6 +11,7 @@ import { BOX_TOKENS } from "../../../../web/src/plugins/items/box/box"
 import { LIST } from "../../../../web/src/plugins/items/list/list"
 import { LIST_MIN, LIST_SIZE, listCaptionWidth, placedListWidth } from "../../../../web/src/plugins/items/list/size"
 import { PLACE_OFFSET } from "../../../../web/src/plugins/paper/placing/items"
+import { drawingPage, testBook } from "../../../lineup"
 import { CORE_CATALOG, sizedStore } from "../../../support"
 
 // 置いたリストの大きさ・押されたときの縮め方・コマンド・データの形（箱と同じ置き場の決まりを、リストも持つこと）
@@ -18,7 +20,7 @@ const PAPER = { w: 1123, h: 794 } // A4 横
 const ready = () => sizedStore()
 type Store = ReturnType<typeof ready>
 const at = (store: Store, id: string) =>
-  shapesOf((store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!).find(i => i.id === id)!
+  shapesOf(pagesOf(store.state.getState().books.b1 as Book)[0]!).find(i => i.id === id)!
 const place = (store: Store, item: string, x: number, y: number, extra: Record<string, unknown> = {}) =>
   store.actions.perform("@matomezu/paper:item-place", { page: "p1", item, at: { x, y }, ...extra }, { book: "b1" })
 const resize = (store: Store, item: string, size: { w?: number; h?: number }) =>
@@ -88,20 +90,8 @@ test("リストを置こうとして紙の上で押すとリストの追加の�
 })
 
 test("図面のデータの形: 行（children）を持てるのはリストだけ。行の項目は行の形で確かめる", () => {
-  const book = (item: Record<string, unknown>) => ({
-    type: "@matomezu/drawing:drawing",
-    id: "x",
-    title: "x",
-    pages: [
-      {
-        id: "p",
-        title: "p",
-        paper: "@matomezu/base:a4",
-        orientation: "landscape",
-        items: [{ id: "i", x: 0, y: 0, ...item }],
-      },
-    ],
-  })
+  const book = (item: Record<string, unknown>) =>
+    testBook("x", "x", [drawingPage("p", { title: "p", items: [{ id: "i", x: 0, y: 0, ...item }] })])
   const row = { id: "r", item: "list.row", props: { caption: "行" } }
   const ok = (item: Record<string, unknown>) => CORE_CATALOG.bookSchema.safeParse(book(item)).success
   expect(ok({ item: "@matomezu/list:shape-list", props: {}, children: [row] })).toBe(true)

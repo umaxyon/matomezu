@@ -1,4 +1,5 @@
-import { E2E_BOOKS } from "../books"
+import { drawingPage, testBook } from "../../test/lineup"
+import { E2E_BOOKS, pagesIn } from "../books"
 import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test, urlStages } from "../fixtures"
 import { addBox } from "../helpers/paper"
 import { openGeneral } from "../helpers/settings"
@@ -61,7 +62,7 @@ test("1 つの窓で置いた箱は、同じブックを開いているほかの
     h: 64,
     props: { caption: "残る箱" },
   }
-  await put(a, { ...E2E_1, pages: [{ ...E2E_1.pages[0]!, items: [box] }] })
+  await put(a, { ...E2E_1, lineup: [{ ...pagesIn(E2E_1)[0]!, items: [box] }] })
   for (const page of [a, b]) {
     await page.goto(BOOK_SCREEN_URL)
     await expect(page.getByRole("tablist")).toHaveAttribute("aria-label", E2E_1.title)
@@ -118,7 +119,7 @@ test("AI が show で頼むと、最後にフォーカスした窓が、分け�
     headers: ai,
     data: {
       action: "@matomezu/base:book-create",
-      args: { type: "@matomezu/drawing:drawing", title: "AI のブック" },
+      args: { title: "AI のブック" },
     },
   })
   const { result } = await made.json()
@@ -131,33 +132,24 @@ test("AI が show で頼むと、最後にフォーカスした窓が、分け�
 })
 
 // 線のあるブック: 箱 a・b・c と、a から b（終点に矢印・キャプション）・a から c・b から c の線
-const LINE_BOOK = {
-  type: "@matomezu/drawing:drawing",
-  id: "e2e-line",
-  title: "線",
-  pages: [
-    {
-      id: "p1",
-      title: "ページ 1",
-      paper: "@matomezu/base:a4",
-      orientation: "landscape",
-      items: [
-        { id: "a", x: 100, y: 100, item: "@matomezu/box:shape-nest-box", w: 100, h: 64, props: { caption: "A" } },
-        { id: "b", x: 400, y: 100, item: "@matomezu/box:shape-nest-box", w: 100, h: 64, props: { caption: "B" } },
-        { id: "c", x: 100, y: 400, item: "@matomezu/box:shape-nest-box", w: 100, h: 64, props: { caption: "C" } },
-        {
-          id: "l1",
-          item: "@matomezu/line:connector-line",
-          from: "a",
-          to: "b",
-          props: { endHead: "arrow", caption: "申請" },
-        },
-        { id: "l2", item: "@matomezu/line:connector-line", from: "a", to: "c", props: {} },
-        { id: "l3", item: "@matomezu/line:connector-line", from: "b", to: "c", props: {} },
-      ],
-    },
-  ],
-}
+const LINE_BOOK = testBook("e2e-line", "線", [
+  drawingPage("p1", {
+    items: [
+      { id: "a", x: 100, y: 100, item: "@matomezu/box:shape-nest-box", w: 100, h: 64, props: { caption: "A" } },
+      { id: "b", x: 400, y: 100, item: "@matomezu/box:shape-nest-box", w: 100, h: 64, props: { caption: "B" } },
+      { id: "c", x: 100, y: 400, item: "@matomezu/box:shape-nest-box", w: 100, h: 64, props: { caption: "C" } },
+      {
+        id: "l1",
+        item: "@matomezu/line:connector-line",
+        from: "a",
+        to: "b",
+        props: { endHead: "arrow", caption: "申請" },
+      },
+      { id: "l2", item: "@matomezu/line:connector-line", from: "a", to: "c", props: {} },
+      { id: "l3", item: "@matomezu/line:connector-line", from: "b", to: "c", props: {} },
+    ],
+  }),
+])
 
 test("線は箱より手前に描かれ、選択の道具で押すと選ばれ、Delete と右クリックのメニューで消せる。箱を消すと、つながる線も消える", async ({
   page,
@@ -203,7 +195,7 @@ test("線は箱より手前に描かれ、選択の道具で押すと選ばれ�
   await expect
     .poll(async () => {
       const saved = (await data(page)).books.find((x: { id: string }) => x.id === LINE_BOOK.id)
-      return saved?.book.pages[0].items.map((i: { id: string }) => i.id)
+      return saved ? pagesIn<{ items: { id: string }[] }>(saved.book)[0]!.items.map(i => i.id) : undefined
     })
     .toEqual(["a", "c"])
 })
@@ -263,7 +255,7 @@ test("ロック中のブックの名前とページタブに鍵が出る。鍵�
     id: "e2e-locked",
     title: "鍵のブック",
     locked: true,
-    pages: [{ ...E2E_1.pages[0]!, locked: true }],
+    lineup: [{ ...pagesIn(E2E_1)[0]!, locked: true }],
   })
   await page.goto("/?b0=e2e-locked")
   await expect(page.getByRole("img", { name: "ロック中" })).toHaveCount(2)
@@ -291,7 +283,7 @@ test("ロック中のブックの名前とページタブに鍵が出る。鍵�
   await expect
     .poll(async () => {
       const b = (await data(page)).books.find((x: { id: string }) => x.id === "e2e-locked").book
-      return [b.locked, b.pages[0].locked]
+      return [b.locked, pagesIn<{ locked?: true }>(b)[0]?.locked]
     })
     .toEqual([undefined, undefined])
 })
@@ -308,12 +300,12 @@ test("AI がマークダウンのページの原文を page-update で変える�
     .toHaveProperty("stage")
   const { result } = await perform({
     action: "@matomezu/base:book-create",
-    args: { type: "@matomezu/markdown:markdown", title: "AI のメモ" },
+    args: { title: "AI のメモ" },
   })
   const on = { book: result.book }
   const added = await perform({
     action: "@matomezu/base:page-add",
-    args: { title: "1", fields: { text: "# 最初" } },
+    args: { type: "@matomezu/markdown:markdown", title: "1", fields: { text: "# 最初" } },
     on,
   })
   await page.request.post("/api/ai/show", { headers: ai, data: { book: result.book } })
@@ -333,8 +325,10 @@ test("AI がマークダウンのページの原文を page-update で変える�
   await field().click()
   await page.keyboard.press("ControlOrMeta+End")
   await page.keyboard.type("\n\n本文")
-  const textOf = async () =>
-    ((await bookIn(page, result.book)) as { pages?: { text?: string }[] } | undefined)?.pages?.[0]?.text
+  const textOf = async () => {
+    const found = (await bookIn(page, result.book)) as { lineup: unknown[] } | undefined
+    return found ? pagesIn<{ text?: string }>(found)[0]?.text : undefined
+  }
   await expect.poll(textOf).toBe("# AI の見出し\n\n本文")
   await expect.poll(() => urlStages(page)[0]?.s).toBeTruthy()
   await page.reload()
@@ -354,10 +348,14 @@ test("伝言を書いている間に AI が付ける先の物を消すと、右�
     .toHaveProperty("stage")
   const { result } = await perform({
     action: "@matomezu/base:book-create",
-    args: { type: "@matomezu/drawing:drawing", title: "伝言の消える先" },
+    args: { title: "伝言の消える先" },
   })
   const on = { book: result.book }
-  const added = await perform({ action: "@matomezu/base:page-add", args: { title: "1" }, on })
+  const added = await perform({
+    action: "@matomezu/base:page-add",
+    args: { type: "@matomezu/drawing:drawing", title: "1" },
+    on,
+  })
   const place = async (x: number, caption: string) =>
     (
       await perform({
@@ -403,10 +401,14 @@ test("付けた伝言を右サイドパネルで開いて文を直している�
     .toHaveProperty("stage")
   const { result } = await perform({
     action: "@matomezu/base:book-create",
-    args: { type: "@matomezu/drawing:drawing", title: "直している伝言" },
+    args: { title: "直している伝言" },
   })
   const on = { book: result.book }
-  const added = await perform({ action: "@matomezu/base:page-add", args: { title: "1" }, on })
+  const added = await perform({
+    action: "@matomezu/base:page-add",
+    args: { type: "@matomezu/drawing:drawing", title: "1" },
+    on,
+  })
   const placed = await perform({
     action: "@matomezu/paper:item-place",
     args: {
@@ -463,10 +465,14 @@ test("箱の編集のダイアログを開いている間は、AI がその箱�
     .toHaveProperty("stage")
   const { result } = await perform({
     action: "@matomezu/base:book-create",
-    args: { type: "@matomezu/drawing:drawing", title: "直している箱" },
+    args: { title: "直している箱" },
   })
   const on = { book: result.book }
-  const added = await perform({ action: "@matomezu/base:page-add", args: { title: "1" }, on })
+  const added = await perform({
+    action: "@matomezu/base:page-add",
+    args: { type: "@matomezu/drawing:drawing", title: "1" },
+    on,
+  })
   const pageId = added.result.page as string
   const place = async (x: number, caption: string) =>
     (

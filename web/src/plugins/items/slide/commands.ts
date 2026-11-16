@@ -1,6 +1,6 @@
 // スライドのコマンド: 画面の操作（置く・動かす・大きさを変える・項目を変える・消す）から、スライドのアクション（slide プラグイン）を呼ぶ。
 // 位置と大きさは、見せ方が決めた紙の上の px で受け取る。置けたら置くのをやめ、置いたアイテムを選ぶ
-import { type ItemId, type ItemPage, pagedOf, type Rect, slideOf } from "../../../plugin-api"
+import { findPage, type ItemId, type ItemPage, openedPage, type Rect, shownPageId, slideOf } from "../../../plugin-api"
 
 import { SLIDE_MOVE, SLIDE_PLACE, SLIDE_REMOVE, SLIDE_REORDER, SLIDE_RESIZE, SLIDE_UPDATE } from "./actions"
 import { kit } from "./kit"
@@ -19,11 +19,12 @@ type Ctx = Parameters<Run>[0]
 type Actions = Parameters<Run>[1]
 
 // 開いているページがあるか
-const onPage = (ctx: Ctx): boolean => ctx.stage.opened?.page != null
+const onPage = (ctx: Ctx): boolean => shownPageId(ctx.stage.opened ?? null) != null
 
 // 開いているページの slide のアイテムの id（後ろから前への並び）
 function slideIds(ctx: Ctx): string[] {
-  const page = pagedOf(ctx.book)?.pages.find(p => p.id === ctx.stage.opened?.page)
+  const opened = openedPage(ctx.stage.opened ?? null)
+  const page = opened && ctx.book ? findPage(ctx.book, opened.page)?.page : undefined
   return page ? slideOf(page as ItemPage).map(s => s.id) : []
 }
 
@@ -40,7 +41,7 @@ export const SLIDE_PUT = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Place on slide",
   run: (ctx, a, args: { item: ItemId; rect: Rect; props: Record<string, unknown> }) => {
-    const { opened } = ctx.stage
+    const opened = openedPage(ctx.stage.opened ?? null)
     if (!opened?.page) return
     const done = a.perform(
       PLACE,
@@ -71,7 +72,7 @@ export const SLIDE_MOVE_TO = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Move on slide",
   run: (ctx, a, args: { moves: readonly { item: string; at: { x: number; y: number } }[] }) => {
-    const { opened } = ctx.stage
+    const opened = openedPage(ctx.stage.opened ?? null)
     if (!opened?.page) return
     for (const m of args.moves) a.perform(MOVE, { page: opened.page, item: m.item, at: m.at }, { book: opened.book })
   },
@@ -85,7 +86,7 @@ export const SLIDE_RESHAPE = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Resize on slide",
   run: (ctx, a, args: { item: string; rect: Rect; scaled: boolean }) => {
-    const { opened } = ctx.stage
+    const opened = openedPage(ctx.stage.opened ?? null)
     if (!opened?.page) return
     const { rect } = args
     a.perform(
@@ -111,7 +112,7 @@ export const SLIDE_SET = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Change on slide",
   run: (ctx, a, args: { items: readonly string[]; props: Record<string, unknown> }) => {
-    const { opened } = ctx.stage
+    const opened = openedPage(ctx.stage.opened ?? null)
     if (!opened?.page) return
     for (const item of args.items)
       a.perform(UPDATE, { page: opened.page, item, props: args.props }, { book: opened.book })
@@ -126,7 +127,7 @@ export const SLIDE_DELETE = kit.defineCommand({
   permissionScope: "selection",
   title: "Delete",
   run: (ctx, a) => {
-    const { opened } = ctx.stage
+    const opened = openedPage(ctx.stage.opened ?? null)
     if (!opened?.page) return
     for (const item of selectedOnSlide(ctx)) a.perform(REMOVE, { page: opened.page, item }, { book: opened.book })
     a.select([])
@@ -136,7 +137,7 @@ export const SLIDE_DELETE = kit.defineCommand({
 
 // 選んでいるアイテムの重ねの順を to へ動かす（選んだ物どうしの前後は保つ。画面の履歴は 1 段）
 function reorder(ctx: Ctx, a: Actions, to: Order): void {
-  const { opened } = ctx.stage
+  const opened = openedPage(ctx.stage.opened ?? null)
   if (!opened?.page) return
   for (const step of orderSteps(slideIds(ctx), new Set(selectedOnSlide(ctx)), to))
     a.perform(REORDER, { page: opened.page, item: step.item, to: step.to }, { book: opened.book })

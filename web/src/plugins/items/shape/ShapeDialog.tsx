@@ -26,7 +26,7 @@ import {
   rowClass,
   Switch,
   useBookOf,
-  useBookTheme,
+  usePageTheme,
   useSwatches,
 } from "../../base/ui"
 import { kit } from "./kit"
@@ -43,11 +43,11 @@ type Look = Pick<ShapeProps, "captionAlign" | "color">
 
 const EMPTY: ShapeProps = { caption: "", captionAlign: "center" }
 
-// 形 item を置く追加のダイアログ。回せる形（turnable）は、ブックのタイプが渡す指定（ShapeOptions の turned）で最初の向きを選ぶ
+// 形 item を置く追加のダイアログ。回せる形（turnable）は、ページのタイプが渡す指定（ShapeOptions の turned）で最初の向きを選ぶ
 export function addShapeDialog(item: string, turnable = false) {
   return function AddShapeDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
     const book = useBookOf()
-    const bookTheme = useBookTheme(book)
+    const bookTheme = usePageTheme()
     const catalog = useCoreCatalog()
     const opened = useBook()
     const turned = opened ? startTurned(catalog, opened, args.page, item) : false
@@ -77,7 +77,7 @@ export function addShapeDialog(item: string, turnable = false) {
 
 export function EditShapeDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
   const book = useBookOf()
-  const bookTheme = useBookTheme(book)
+  const bookTheme = usePageTheme()
   const placed = useItem(args.page, args.item)
   // 回せる形は、向きの切り替えを出す（向きを書いていないデータは縦向き）
   const props = placed?.props as ShapeProps | undefined

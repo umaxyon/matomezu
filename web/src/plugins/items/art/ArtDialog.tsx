@@ -16,7 +16,7 @@ import {
   Problem,
   rowClass,
   useBookOf,
-  useBookTheme,
+  usePageTheme,
   useSwatches,
 } from "../../base/ui"
 import { ART_FILL, type PERSON } from "./art"
@@ -31,7 +31,7 @@ type ArtProps = ItemProps<typeof PERSON.item.id>
 export function addArtDialog(item: string) {
   return function AddArtDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
     const book = useBookOf()
-    const bookTheme = useBookTheme(book)
+    const bookTheme = usePageTheme()
     const { select } = useActions()
     const perform = usePerform()
     const add = (props: ArtProps) => {
@@ -58,7 +58,7 @@ export function addArtDialog(item: string) {
 
 export function EditArtDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
   const book = useBookOf()
-  const bookTheme = useBookTheme(book)
+  const bookTheme = usePageTheme()
   const placed = useItem(args.page, args.item)
   const start = placed?.props as ArtProps | undefined
   const { previewDialog } = useActions()

@@ -5,13 +5,13 @@ import { CARDS, CHALK, DECK, DECK_ORDER, DECK_PICKED } from "./deck"
 import { kit } from "./kit"
 
 export const EX8 = definePlugin(
-  kit.plugin({ bookTypes: [DECK], presentations: [CARDS], themes: [CHALK], pluginStates: [DECK_ORDER, DECK_PICKED] }),
+  kit.plugin({ pageTypes: [DECK], presentations: [CARDS], themes: [CHALK], pluginStates: [DECK_ORDER, DECK_PICKED] }),
 )
 
 export default EX8
 
 declare module "matomezu/catalog" {
-  interface BookTypeTable {
+  interface PageTypeTable {
     "ex8:deck": typeof DECK
   }
   interface PluginStateTable {

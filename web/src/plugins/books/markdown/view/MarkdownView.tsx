@@ -92,7 +92,7 @@ export function MarkdownView() {
   const scrolls = usePluginState(kit, SCROLL_STATE)
   const setScrolls = useSetPluginState(kit, SCROLL_STATE)
   const memory = useScrollMemory(page?.id, scrolls, next => setScrolls(next), source, rendered)
-  if (!page || !book) return <NoPages />
+  if (!page || !book) return null
   const width = paperSize(catalog, page)?.w
   // ソースのペインのスクロールに、描いた文書のペインを付いて行かせる（片方だけ見せている間は、描いた文書のペインが無い）
   const follow = () => {
@@ -327,20 +327,5 @@ function LayoutButton({ id }: { id: (typeof PANE_LAYOUT_COMMANDS)[number]["id"] 
     >
       {icon ?? title}
     </button>
-  )
-}
-
-function NoPages() {
-  const t = useMessages(kit)
-  const newPage = useCommand("@matomezu/base:page-new")
-  return (
-    <div className={styles.empty}>
-      <p className={styles.prompt}>{t("No pages")}</p>
-      {newPage.shown && (
-        <button type="button" className={styles.create} onClick={() => newPage.run()}>
-          {t("Create page")}
-        </button>
-      )}
-    </div>
   )
 }

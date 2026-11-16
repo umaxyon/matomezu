@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
-import { addPageIn, createBookIn } from "matomezu"
+import { addPageIn, createBookIn, pagesOf } from "matomezu"
 import {
   BUILTIN_UI,
   createMatomezu,
@@ -31,18 +31,13 @@ const make = () => {
 
 const board = (instance: ReturnType<typeof make>) => {
   act(() => {
-    expect(createBookIn(instance, "s1", { title: "ボード", type: "ex3:board" })).toBe(true)
+    expect(createBookIn(instance, "s1", { title: "ボード" })).toBe(true)
   })
   const book = (openedIn(instance) as { book: string }).book
   act(() => {
-    expect(addPageIn(instance, "s1", { title: "p1" })).toBe(true)
+    expect(addPageIn(instance, "s1", { type: "ex3:board", title: "p1" })).toBe(true)
   })
-  const page = () =>
-    (
-      instance.state.getState().books[book] as unknown as {
-        pages: { id: string; paper: string; items?: { id: string }[] }[]
-      }
-    ).pages[0]!
+  const page = () => pagesOf(instance.state.getState().books[book]!)[0]!
   return { on: { book }, page }
 }
 
@@ -70,23 +65,29 @@ test("ボードは自分の紙（正方形）で始まり、星とビルトイ�
       ok: true,
     })
     expect(
-      instance.actions.perform("@matomezu/base:book-update", { settings: { "ex3:board-grid": true } }, on),
+      instance.actions.perform(
+        "@matomezu/base:pages-update",
+        { pages: "all", settings: { "ex3:board-grid": true } },
+        on,
+      ),
     ).toMatchObject({
       ok: true,
     })
   })
-  expect(instance.state.getState().books[on.book]).toMatchObject({ settings: { "ex3:board-grid": true } })
+  expect(page()).toMatchObject({ settings: { "ex3:board-grid": true } })
   expect(document.querySelector("[data-ex3-star]")?.getAttribute("data-ex3-star")).toBe("6")
 })
 
-test("既定のテーマはミントで、置いてほしいと書いたボタンで、開いているブックをミントにする", () => {
+test("既定のテーマはミントで、置いてほしいと書いたボタンで、開いているブックのページをミントにする", () => {
   const instance = make()
   act(() => {
-    createBookIn(instance, "s1", { title: "図面", type: "@matomezu/drawing:drawing" })
+    createBookIn(instance, "s1", { title: "図面", page: { type: "@matomezu/drawing:drawing" } })
   })
   const book = (openedIn(instance) as { book: string }).book
   fireEvent.click(screen.getByRole("button", { name: "ミントにする" }))
-  expect(instance.state.getState().books[book]).toMatchObject({ settings: { "@matomezu/base:book-theme": "ex3:mint" } })
+  expect(pagesOf(instance.state.getState().books[book]!)[0]).toMatchObject({
+    settings: { "@matomezu/base:page-theme": "ex3:mint" },
+  })
 })
 
 test("持ち込んだスキンを、利用者の設定で選べる", () => {

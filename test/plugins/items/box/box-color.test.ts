@@ -1,14 +1,14 @@
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../../../web/src/core/book"
 import { shapesOf } from "../../../../web/src/core/placed"
-import type { BookOf } from "../../../../web/src/core/schema/book"
+import type { Book } from "../../../../web/src/core/schema/book"
 import { resolveTokens } from "../../../../web/src/core/theme"
 import { BOX } from "../../../../web/src/plugins/items/box/box"
 import { paintVars } from "../../../../web/src/plugins/items/box/paint"
 import { type newStore, sizedStore } from "../../../support"
 
 const ready = () => sizedStore()
-const items = (store: ReturnType<typeof newStore>) =>
-  shapesOf((store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!)
+const items = (store: ReturnType<typeof newStore>) => shapesOf(pagesOf(store.state.getState().books.b1 as Book)[0]!)
 const place = (store: ReturnType<typeof newStore>, props: Record<string, unknown>, x = 100) =>
   store.actions.perform(
     "@matomezu/paper:item-place",

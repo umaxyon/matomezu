@@ -1,7 +1,16 @@
 // プラグイン: 1 つの部品の定義の組（定義の種類は core/catalog.ts の PARTS と、store の物（コマンド・ダイアログ・既定のキーバインドなど））。React を使わない部分だけを持つ。
 // インスタンスは渡されたプラグインを assemble で 機能台帳（Assembled の catalog）にし、作った後は変えない
 
-import { type CorePart, type MessageKey, PARTS, type Part, type PartDefTable, partsOf } from "../core/catalog"
+import {
+  type ActionId,
+  type ActionTable,
+  type CorePart,
+  type MessageKey,
+  PARTS,
+  type Part,
+  type PartDefTable,
+  partsOf,
+} from "../core/catalog"
 import { buildCoreCatalog, type CatalogCheckDef, type CoreCatalog, type CoreCatalogParts } from "../core/core-catalog"
 import type { ShapeAddArgs, ShapeEditArgs } from "../core/def/item"
 import type { NormalizeStepDef } from "../core/def/normalize-step"
@@ -88,20 +97,41 @@ type ShapeDialogCheck<P> = [WrongAdd<P> | WrongEdit<P>] extends [never]
         string]: "形の追加のダイアログは ShapeAddArgs、編集のダイアログは ShapeEditArgs を受ける"
     }
 
-// ブックのタイプが名指すページを作るダイアログとページの設定のダイアログのうち、受ける値が合わないもの（ページを作るダイアログは値を受けず、ページの設定のダイアログは PageSettingsArgs）
-type PageDialogsOf<P> = P extends { bookTypes?: readonly (infer T)[] }
-  ? T extends { pages: { dialogs?: infer G } }
+// ページのタイプが名指すページを作るダイアログとページの設定のダイアログのうち、受ける値が合わないもの
+// （ページを作るダイアログは、値を受けないか、作るタイプと入れるバインダ { type, binder? } を受け、ページの設定のダイアログは PageSettingsArgs）
+type PageDialogsOf<P> = P extends { pageTypes?: readonly (infer T)[] }
+  ? T extends { dialogs?: infer G }
     ? NonNullable<G>
     : never
   : never
-type WrongPageAdd<P> = Exclude<AddOf<PageDialogsOf<P>>, DialogTaking<undefined> | undefined>
+type WrongPageAdd<P> = Exclude<
+  AddOf<PageDialogsOf<P>>,
+  DialogTaking<undefined> | DialogTaking<{ type: string; binder?: string }> | undefined
+>
 type SettingsDialogOf<G> = G extends { settings: infer S } ? S : never
 type WrongPageSettings<P> = Exclude<SettingsDialogOf<PageDialogsOf<P>>, DialogTaking<PageSettingsArgs> | undefined>
 type PageDialogCheck<P> = [WrongPageAdd<P> | WrongPageSettings<P>] extends [never]
   ? unknown
   : {
       [id in (WrongPageAdd<P> | WrongPageSettings<P>) &
-        string]: "ページを作るダイアログは値を受けず、ページの設定のダイアログは PageSettingsArgs を受ける"
+        string]: "ページを作るダイアログは値を受けないか { type, binder? } を受け、ページの設定のダイアログは PageSettingsArgs を受ける"
+    }
+
+// ページのタイプが足す・外すアクション（actions の add・without）のうち、ブック自身だけを変えるアクション（許可スコープが "book"。どのページのタイプでも決まらないので、書けない）
+type ContainerActionId = {
+  [K in ActionId]: ActionTable[K] extends { permissionScope: "book" } ? K : never
+}[ActionId]
+type TypeActionsOf<P> = P extends { pageTypes?: readonly (infer T)[] }
+  ? T extends { actions: infer C }
+    ? (C extends { add: readonly (infer X)[] } ? X : never) | (C extends { without: readonly (infer Y)[] } ? Y : never)
+    : never
+  : never
+type WrongTypeActions<P> = TypeActionsOf<P> & ContainerActionId
+type TypeActionsCheck<P> = [WrongTypeActions<P>] extends [never]
+  ? unknown
+  : {
+      [id in WrongTypeActions<P> &
+        string]: "ブック自身だけを変えるアクション（許可スコープが book）は、ページのタイプの actions に書けない"
     }
 
 // 無効にしたプラグイン: 名乗り（id・名前・概要）と文言だけを残し、定義の部品は全部外した物（組むのは名乗りと文言だけなので、アクション・種類・キーなどは台帳に入らない）。
@@ -113,9 +143,13 @@ export const withoutParts = <P extends Plugin>(p: P): Plugin => ({
   ...(p.messages ? { messages: p.messages } : {}),
 })
 
-// プラグインを書く入口。id の頭と、形とブックのタイプが名指すダイアログの受ける値を型で確かめる（台帳アセンブルでも確かめる）
+// プラグインを書く入口。id の頭と、形とページのタイプが名指すダイアログの受ける値を型で確かめる（台帳アセンブルでも確かめる）
 export const definePlugin = <const P extends Plugin>(
-  plugin: P & PrefixCheck<P> & ShapeDialogCheck<P> & PageDialogCheck<P> & { checks?: never; normalizeSteps?: never },
+  plugin: P &
+    PrefixCheck<P> &
+    ShapeDialogCheck<P> &
+    PageDialogCheck<P> &
+    TypeActionsCheck<P> & { checks?: never; normalizeSteps?: never },
 ): P => plugin
 
 // ビルトインプラグインが台帳アセンブルのときの確かめ（checks）を書くための型と、問題と warning の作り方、テーマキーに書かれた値の引き方（plugin-api/builtin が出し直す）
@@ -126,7 +160,7 @@ export { problem, warning, writtenValues }
 // 印は symbol の項目に持つ（見た目を結ぶときなど、プラグインを写しても印が残る）
 const BUILTIN_MARK = Symbol("matomezu.builtin")
 export function defineBuiltin<const P extends Plugin>(
-  plugin: P & PrefixCheck<P> & ShapeDialogCheck<P> & PageDialogCheck<P>,
+  plugin: P & PrefixCheck<P> & ShapeDialogCheck<P> & PageDialogCheck<P> & TypeActionsCheck<P>,
 ): P {
   return Object.assign(plugin, { [BUILTIN_MARK]: true })
 }
@@ -168,7 +202,7 @@ export function assemble(
     for (const d of p.userSettings ?? []) if (d.role && !isBuiltin(p)) fail("E309", { plugin: p.id, id: d.id })
     for (const kind of Object.keys(PARTS) as Part[])
       for (const d of p[kind] ?? []) if (!isOwnedBy(p.id, d.id)) fail("E301", { plugin: p.id, kind, id: d.id })
-    for (const t of [...(p.items ?? []), ...(p.bookTypes ?? [])].flatMap(o => o.tokens).concat(p.tokens ?? [])) {
+    for (const t of [...(p.items ?? []), ...(p.pageTypes ?? [])].flatMap(o => o.tokens).concat(p.tokens ?? [])) {
       if (!isOwnedBy(p.id, t.id)) fail("E301", { plugin: p.id, kind: "token", id: t.id })
       if (/^(theme|skin)-/.test(splitId(t.id).name)) fail("E306", { plugin: p.id, token: t.id })
     }
@@ -205,8 +239,8 @@ export function assemble(
     if (i.kind === "shape")
       for (const dialog of [i.dialogs?.add, i.dialogs?.edit])
         if (dialog !== undefined && !dialogIds.has(dialog)) problems.push(problem("E026", { id: i.id, dialog }))
-  for (const t of all("bookTypes"))
-    for (const dialog of [t.pages?.dialogs?.add, t.pages?.dialogs?.settings])
+  for (const t of all("pageTypes"))
+    for (const dialog of [t.dialogs?.add, t.dialogs?.settings])
       if (dialog !== undefined && !dialogIds.has(dialog)) problems.push(problem("E031", { id: t.id, dialog }))
   if (problems.length > 0) throw matomezuError(problem("E016", { count: problems.length }), problems)
   const catalog = buildCoreCatalog({

@@ -2,7 +2,7 @@
 // 道具を替えるコマンドと、開くコマンド（キーの既定は、ステージの範囲の Space）
 
 import type { ToolId } from "../../../core/catalog"
-import { paperOf } from "../../../core/stage"
+import { paperOf, shownPageId } from "../../../core/stage"
 import { toolUsable } from "../../../core/tools"
 import { kit } from "../kit"
 
@@ -10,7 +10,7 @@ export const TOOL_SET = kit.defineCommand({
   id: "tool-set",
   title: "Set tool",
   run: (ctx, a, tool: ToolId) => {
-    if (toolUsable(ctx.catalog, tool, ctx.book, ctx.stage.opened?.page ?? null)) a.setTool(tool)
+    if (toolUsable(ctx.catalog, tool, ctx.book, shownPageId(ctx.stage.opened ?? null) ?? null)) a.setTool(tool)
   },
   when: ctx => paperOf(ctx.stage) !== null,
 })

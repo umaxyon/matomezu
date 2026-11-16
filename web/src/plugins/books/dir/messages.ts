@@ -1,4 +1,4 @@
-// ディレクトリ構成図のプラグインの文言（ブックのタイプの名前、道具、アクションとコマンド、ページを作るダイアログ、ビュー）
+// ディレクトリ構成図のプラグインの文言（ページのタイプの名前、道具、アクションとコマンド、ページを作るダイアログ、ビュー）
 import { defineMessages } from "../../../plugin-api"
 
 export const DIR_MESSAGES = defineMessages({
@@ -46,13 +46,11 @@ export const DIR_MESSAGES = defineMessages({
   File: { en: "File", ja: "ファイル" },
   Open: { en: "Open", ja: "開く" },
   Close: { en: "Close", ja: "閉じる" },
-  "New page": { en: "New page", ja: "新しいページ" },
+  "New directory diagram": { en: "New directory diagram", ja: "新しいディレクトリ構成図" },
   "Page name": { en: "Page name", ja: "ページ名" },
   "Root folder name": { en: "Root folder name", ja: "根のフォルダの名前" },
   Create: { en: "Create", ja: "作る" },
   Paper: { en: "Paper", ja: "紙" },
   "This paper cannot be shown": { en: "This paper cannot be shown", ja: "この紙は表示できません" },
-  "Create page": { en: "Create page", ja: "ページを作る" },
-  "No pages": { en: "No pages", ja: "ページがありません" },
   "Unknown paper": { en: "Unknown paper", ja: "不明な紙" },
 })

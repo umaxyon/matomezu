@@ -2,9 +2,6 @@
 import { defineMessages } from "../../../core/i18n/messages"
 
 export const SETTINGS_MESSAGES = defineMessages({
-  // 選択肢から選ぶ設定の項目（ChoiceSetting.tsx）
-  "Inherit from book": { en: "Book", ja: "ブック継承" },
-  "Inherit from book ({value})": { en: "Inherit from book ({value})", ja: "ブックを継承（{value}）" },
   // コーナーステータスの並びの設定（CornerStatusOrderSetting.tsx）
   "Move {name} up": { en: "Move {name} up", ja: "{name}を前へ" },
   "Move {name} down": { en: "Move {name} down", ja: "{name}を後ろへ" },

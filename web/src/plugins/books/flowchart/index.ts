@@ -1,4 +1,4 @@
-// フローチャートのプラグイン: フローチャートのブックのタイプと、流れの向きの設定の項目、自動で整列するアクションとコマンドと確認のダイアログ。
+// フローチャートのプラグイン: フローチャートのページのタイプと、流れの向きの設定の項目、自動で整列するアクションとコマンドと確認のダイアログ。
 // 形・箱・線・見せ方・ほかの設定の項目は、ほかのプラグインの定義を id で選ぶ（flowchart.ts）
 import { defineBuiltin } from "../../../plugin-api/builtin"
 import { PAGE_ALIGN, PAGE_ALIGN_COMMAND, PAGE_ALIGN_DIALOG } from "./actions"
@@ -9,7 +9,7 @@ import { FLOWCHART_TOOLS } from "./tools"
 
 export const FLOWCHART_PLUGIN = defineBuiltin(
   kit.plugin({
-    bookTypes: [FLOWCHART],
+    pageTypes: [FLOWCHART],
     enumValues: [FLOWCHART_ENTRY_ICON],
     settings: [FLOW_DIRECTION],
     actions: [PAGE_ALIGN],
@@ -23,7 +23,7 @@ declare module "../../../core/catalog" {
   interface EnumValueTable {
     "@matomezu/flowchart:entry-icon": typeof FLOWCHART_ENTRY_ICON
   }
-  interface BookTypeTable {
+  interface PageTypeTable {
     "@matomezu/flowchart:flowchart": typeof FLOWCHART
   }
   interface SettingTable {

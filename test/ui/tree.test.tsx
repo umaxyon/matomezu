@@ -1,7 +1,9 @@
 // ツリーのブック（@matomezu/tree）: 自分のダイアログでページを作り（ページ名・伸びる向き・根のキャプション）、根から伸びる木を紙に描く
+
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, screen, within } from "@testing-library/react"
 import { z } from "zod"
+import { pagesOf } from "../../web/src/core/book"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { toolsIn } from "../../web/src/core/tools"
 import { screenOf } from "../../web/src/core/window"
@@ -18,28 +20,34 @@ import { renderScreen } from "./support"
 
 afterEach(cleanup)
 
+// ページタブの＋のメニューから、ツリーのページを作るダイアログを開く
+function addTreePage() {
+  fireEvent.click(screen.getByRole("button", { name: "ページを足す" }))
+  fireEvent.click(screen.getByRole("menuitem", { name: "ツリー" }))
+}
+
 function setup(plugins: readonly AnyPluginUi[] = BUILTIN_UI) {
   const store = renderScreen({ plugins })
   act(() => {
-    expect(createBookIn(store, "s1", { title: "木", type: "@matomezu/tree:tree" })).toBe(true)
+    expect(createBookIn(store, "s1", { title: "木" })).toBe(true)
   })
   const id = (screenOf(store.state.getState().window).stages[0]!.opened as { book: string }).book
-  const book = () => store.state.getState().books[id] as { pages: readonly Record<string, unknown>[] }
+  const book = () => store.state.getState().books[id]!
   return { store, id, book }
 }
 
 test("ページを作るボタンでツリーのダイアログが開き、ページ名・伸びる向き・根のキャプションで作ると、根が紙に描かれる。ツールボックスに置けるアイテムは無い", () => {
   const { book } = setup()
   expect(screen.queryByRole("button", { name: "箱" })).toBeNull()
-  fireEvent.click(screen.getByRole("button", { name: "ページを作る" }))
-  const dialog = screen.getByRole("dialog", { name: "新しいページ" })
+  addTreePage()
+  const dialog = screen.getByRole("dialog", { name: /^新しい/ })
   fireEvent.change(within(dialog).getByLabelText("ページ名"), { target: { value: "組織" } })
   fireEvent.click(within(dialog).getByRole("radio", { name: "右へ" }))
   fireEvent.change(within(dialog).getByLabelText("根のキャプション"), { target: { value: "社長" } })
   fireEvent.click(within(dialog).getByRole("button", { name: "作る" }))
   expect(screen.queryByRole("dialog")).toBeNull()
-  expect(book().pages).toHaveLength(1)
-  expect(book().pages[0]).toMatchObject({
+  expect(pagesOf(book())).toHaveLength(1)
+  expect(pagesOf(book())[0]).toMatchObject({
     title: "組織",
     settings: { "@matomezu/tree:grow": "right" },
     root: { caption: "社長" },
@@ -51,50 +59,28 @@ test("ページを作るボタンでツリーのダイアログが開き、ペ�
   expect(Number.parseFloat(root.style.left)).toBe(24) // 右へ伸びる木の根は、紙の左辺の中央
 })
 
-test("新しいページの伸びる向きは「ブック継承」から始まり、そのままならページに書かない（あとでブックの向きを変えると、ページも従う）", () => {
-  const { store, id, book } = setup()
-  act(() => {
-    store.actions.perform("@matomezu/base:book-update", { settings: { "@matomezu/tree:grow": "right" } }, { book: id })
-  })
-  fireEvent.click(screen.getByRole("button", { name: "ページを作る" }))
-  const dialog = screen.getByRole("dialog", { name: "新しいページ" })
-  const inherit = within(dialog).getByRole("radio", { name: "ブックを継承（右へ）" }) as HTMLInputElement
-  expect(inherit.checked).toBe(true)
-  fireEvent.change(within(dialog).getByLabelText("根のキャプション"), { target: { value: "社長" } })
-  fireEvent.click(within(dialog).getByRole("button", { name: "作る" }))
-  expect(book().pages[0]).not.toHaveProperty("settings")
-  const root = () => screen.getByRole("img", { name: "紙" }).querySelector('[data-root="true"]') as HTMLElement
-  expect(Number.parseFloat(root().style.left)).toBe(24) // ブックの右へ
-  act(() => {
-    store.actions.perform("@matomezu/base:book-update", { settings: { "@matomezu/tree:grow": "down" } }, { book: id })
-  })
-  expect(Number.parseFloat(root().style.top)).toBe(24) // ブックの下へに従う
-})
-
-test("ページとブックの設定のダイアログで伸びる向きを選ぶと、確定の前から並べ直して見せ、キャンセルで元に戻す", () => {
+test("ページの設定のダイアログで伸びる向きを選ぶと、確定の前から並べ直して見せ、キャンセルで元に戻す", () => {
   const { store, id } = setup()
   act(() => {
-    expect(addPageIn(store, "s1", { title: "p1", fields: { root: { caption: "根" } } })).toBe(true)
+    expect(
+      addPageIn(store, "s1", {
+        type: "@matomezu/tree:tree",
+        title: "p1",
+        fields: { root: { caption: "根" } },
+      }),
+    ).toBe(true)
   })
-  const page = (store.state.getState().books[id] as { pages: readonly { id: string }[] }).pages[0]!.id
+  const page = pagesOf(store.state.getState().books[id]!)[0]!.id
   const top = () =>
     Number.parseFloat(
       (screen.getByRole("img", { name: "紙" }).querySelector('[data-root="true"]') as HTMLElement).style.top,
     )
   expect(top()).toBe(24) // 既定は下へ（根は上辺の中央）
   act(() => store.actions.openDialog("s1", "@matomezu/base:page-settings", { page }))
-  let dialog = screen.getByRole("dialog", { name: "ページの設定" })
+  const dialog = screen.getByRole("dialog", { name: "ページの設定" })
   fireEvent.click(within(dialog).getByRole("radio", { name: "上へ" }))
   expect(top()).toBeGreaterThan(24) // 上へ（根は下辺の中央）を、確定の前から見せる
   expect(store.state.getState().books[id]).not.toHaveProperty("pages.0.settings")
-  fireEvent.click(within(dialog).getByRole("button", { name: "キャンセル" }))
-  expect(top()).toBe(24)
-  act(() => store.actions.openDialog("s1", "@matomezu/base:book-settings"))
-  dialog = screen.getByRole("dialog", { name: "ブックの設定" })
-  fireEvent.click(
-    within(within(dialog).getByRole("group", { name: "伸びる向き" })).getByRole("radio", { name: "上へ" }),
-  )
-  expect(top()).toBeGreaterThan(24)
   fireEvent.click(within(dialog).getByRole("button", { name: "キャンセル" }))
   expect(top()).toBe(24)
 })
@@ -102,7 +88,13 @@ test("ページとブックの設定のダイアログで伸びる向きを選�
 test("ツリーの道具の組は編集とハンド（初めは編集）。編集の道具の間は紙をずらさない", () => {
   const { store } = setup()
   act(() => {
-    expect(addPageIn(store, "s1", { title: "p1", fields: { root: { caption: "根" } } })).toBe(true)
+    expect(
+      addPageIn(store, "s1", {
+        type: "@matomezu/tree:tree",
+        title: "p1",
+        fields: { root: { caption: "根" } },
+      }),
+    ).toBe(true)
   })
   expect(toolsIn(store.catalog.core, "@matomezu/tree:tree")).toEqual(["@matomezu/tree:edit", "@matomezu/base:hand"])
   expect(keepsPan(store.catalog.core, "@matomezu/tree:edit")).toBe(true)
@@ -114,15 +106,24 @@ test("ツリーの道具の組は編集とハンド（初めは編集）。編�
 test("根を渡さずにページは作れない（根はツリーのページのフィールド）", () => {
   const { store } = setup()
   act(() => {
-    expect(addPageIn(store, "s1", { title: "p1" })).toBe(false)
+    expect(addPageIn(store, "s1", { type: "@matomezu/tree:tree", title: "p1" })).toBe(false)
   })
 })
 
 // ページを作る（base の page-add）。結果の fields に、振った子の id が同じ入れ子で返る
-function addTree(store: ReturnType<typeof setup>["store"], id: string, root: unknown) {
+function addTree(
+  store: ReturnType<typeof setup>["store"],
+  id: string,
+  root: unknown,
+  settings?: Record<string, unknown>,
+) {
   let done: ReturnType<typeof store.actions.perform> | undefined
   act(() => {
-    done = store.actions.perform("@matomezu/base:page-add", { title: "p1", fields: { root } }, { book: id })
+    done = store.actions.perform(
+      "@matomezu/base:page-add",
+      { type: "@matomezu/tree:tree", title: "p1", fields: { root }, ...(settings ? { settings } : {}) },
+      { book: id },
+    )
   })
   if (!done?.ok) throw new Error("page-add refused")
   return done.result as {
@@ -142,7 +143,7 @@ test("子は根から伸びる向きへ描き、親から子へ線を引く。�
   expect(paper.querySelector("svg")!.querySelectorAll("path")).toHaveLength(2) // 親から子への線（＋ の印の svg は数えない）
   const top = (n: string) => Number.parseFloat(node(n).style.top)
   expect(top(a!)).toBeGreaterThan(top(done.fields!.root.id)) // 既定は下へ
-  const page = (store.state.getState().books[id] as { pages: readonly { id: string }[] }).pages[0]!.id
+  const page = pagesOf(store.state.getState().books[id]!)[0]!.id
   act(() => {
     store.actions.perform(
       "@matomezu/base:page-update",
@@ -163,7 +164,7 @@ test("ページを作るとき、根の子は id を書かずに入れ子で渡�
   const ids = done.fields!.root.children
   const all = [ids[0]!.id, ids[0]!.children![0]!.id, ids[1]!.id]
   expect(new Set(all).size).toBe(3)
-  expect(book().pages[0]).toMatchObject({
+  expect(pagesOf(book())[0]).toMatchObject({
     id: done.page,
     root: {
       caption: "根",
@@ -177,7 +178,11 @@ test("ページを作るとき、根の子は id を書かずに入れ子で渡�
   act(() => {
     const given = { caption: "根", children: [{ id: "x", caption: "子" }] }
     expect(
-      store.actions.perform("@matomezu/base:page-add", { title: "p2", fields: { root: given } }, { book: id }).ok,
+      store.actions.perform(
+        "@matomezu/base:page-add",
+        { type: "@matomezu/tree:tree", title: "p2", fields: { root: given } },
+        { book: id },
+      ).ok,
     ).toBe(false)
   })
 })
@@ -190,19 +195,19 @@ test("ページを直すとき、根は書いたキャプションと本文だ�
   act(() => {
     expect(update({ caption: "代表" })).toBe(true)
   })
-  expect(book().pages[0]).toMatchObject({ root: { caption: "代表", body: "本文", children: [{ caption: "子 A" }] } })
+  expect(pagesOf(book())[0]).toMatchObject({ root: { caption: "代表", body: "本文", children: [{ caption: "子 A" }] } })
   act(() => {
     expect(update({ body: null })).toBe(true)
     expect(update({ children: [] })).toBe(false)
   })
-  expect(book().pages[0]).toMatchObject({ root: { caption: "代表", children: [{ caption: "子 A" }] } })
-  expect(book().pages[0]).not.toHaveProperty("root.body")
+  expect(pagesOf(book())[0]).toMatchObject({ root: { caption: "代表", children: [{ caption: "子 A" }] } })
+  expect(pagesOf(book())[0]).not.toHaveProperty("root.body")
 })
 
 test("AI に見せる fields は、作るときは id の無い入れ子の子を含み、直すときは根のキャプションと本文だけ", () => {
   const { store } = setup()
   const add = JSON.stringify(z.toJSONSchema(fieldsArgs(store.catalog.core, "add"), { io: "input" }))
-  expect(add).toContain("page fields of @matomezu/tree:tree books")
+  expect(add).toContain("page fields of @matomezu/tree:tree pages")
   expect(add).toContain("children")
   expect(add).not.toContain('"id"')
   const update = JSON.stringify(z.toJSONSchema(fieldsArgs(store.catalog.core, "update"), { io: "input" }))
@@ -223,12 +228,12 @@ test("ツリーの受け方は同じ入力なら同じ結果: 同じ id のも�
     act(() => {
       const made = store.actions.perform("@matomezu/base:book-create", {
         title: "木",
-        type: "@matomezu/tree:tree",
       })
       book = (made as { result: { book: string } }).result.book
       store.actions.perform(
         "@matomezu/base:page-add",
         {
+          type: "@matomezu/tree:tree",
           title: "p1",
           fields: { root: { caption: "根", children: [{ caption: "子", children: [{ caption: "孫" }] }] } },
         },
@@ -238,7 +243,7 @@ test("ツリーの受け方は同じ入力なら同じ結果: 同じ id のも�
     return store.state.getState().books[book]
   }
   const first = make()
-  expect(first).toMatchObject({ pages: [{ root: { children: [{ caption: "子", children: [{ caption: "孫" }] }] } }] })
+  expect(first).toMatchObject({ lineup: [{ root: { children: [{ caption: "子", children: [{ caption: "孫" }] }] } }] })
   expect(make()).toEqual(first)
 })
 
@@ -256,7 +261,7 @@ test("node-add は親の子に id の無い入れ子で足し、全部にほか�
   const given = (added as { result: { nodes: { id: string; children: { id: string }[] }[] } }).result.nodes
   const ids = [root.id, root.children[0]!.id, given[0]!.id, given[0]!.children[0]!.id]
   expect(new Set(ids).size).toBe(4)
-  expect(book().pages[0]).toMatchObject({
+  expect(pagesOf(book())[0]).toMatchObject({
     root: {
       children: [
         { id: given[0]!.id, caption: "子 0", children: [{ id: given[0]!.children[0]!.id, caption: "孫" }] },
@@ -282,12 +287,12 @@ test("node-update は子のキャプションを替え（根は断る）、node-
     expect(perform("@matomezu/tree:node-update", { node: a, caption: "子 A'" })).toBe(true)
     expect(perform("@matomezu/tree:node-update", { node: root.id, caption: "代表" })).toBe(false)
   })
-  expect(book().pages[0]).toMatchObject({ root: { caption: "根", children: [{ caption: "子 A'" }] } })
+  expect(pagesOf(book())[0]).toMatchObject({ root: { caption: "根", children: [{ caption: "子 A'" }] } })
   act(() => {
     expect(perform("@matomezu/tree:node-remove", { node: root.id })).toBe(false)
     expect(perform("@matomezu/tree:node-remove", { node: a })).toBe(true)
   })
-  expect(book().pages[0]).not.toHaveProperty("root.children")
+  expect(pagesOf(book())[0]).not.toHaveProperty("root.children")
 })
 
 test("node-move は子孫ごと付け替え、兄弟の順番を入れ替える。根・自分の子孫の下へは断る", () => {
@@ -306,13 +311,15 @@ test("node-move は子孫ごと付け替え、兄弟の順番を入れ替える�
     expect(move({ node: a, parent: grand })).toBe(false)
     expect(move({ node: a, parent: b })).toBe(true)
   })
-  expect(book().pages[0]).toMatchObject({
+  expect(pagesOf(book())[0]).toMatchObject({
     root: { children: [{ id: b, children: [{ id: a, children: [{ id: grand }] }] }] },
   })
   act(() => {
     expect(move({ node: a, parent: root.id, index: 0 })).toBe(true)
   })
-  expect((book().pages[0] as { root: { children: { id: string }[] } }).root.children.map(n => n.id)).toEqual([a, b])
+  expect(
+    (pagesOf(book())[0] as unknown as { root: { children: { id: string }[] } }).root.children.map(n => n.id),
+  ).toEqual([a, b])
 })
 
 test("編集の道具の間は、選んでいる節（初めは根）に印が付く。押した節を選び、上下左右のキーで伸びる向きに沿って動かす。ハンドでは印を出さない", () => {
@@ -360,7 +367,8 @@ test("選んでいる節の＋で空の子を足してその場で書き、Enter
   writeRich(input, "子 A")
   fireEvent.keyDown(input, { key: "Enter" })
   expect(within(paper()).queryByRole("textbox")).toBeNull()
-  const a = (book().pages[0] as { root: { children: { id: string; caption: string }[] } }).root.children[0]!
+  const a = (pagesOf(book())[0] as unknown as { root: { children: { id: string; caption: string }[] } }).root
+    .children[0]!
   expect(a.caption).toBe("子 A")
   expect(selected()).toBe(a.id)
   // 子には、子の＋と、前と後ろの兄弟の＋
@@ -371,12 +379,12 @@ test("選んでいる節の＋で空の子を足してその場で書き、Enter
   ).toEqual(["子を足す", "前に兄弟を足す", "後ろに兄弟を足す"])
   fireEvent.click(within(paper()).getByRole("button", { name: "後ろに兄弟を足す" }))
   fireEvent.keyDown(within(paper()).getByRole("textbox"), { key: "Escape" })
-  expect((book().pages[0] as { root: { children: unknown[] } }).root.children).toHaveLength(1)
+  expect((pagesOf(book())[0] as unknown as { root: { children: unknown[] } }).root.children).toHaveLength(1)
   expect(selected()).toBe(a.id) // 前の兄弟
   fireEvent.click(within(paper()).getByRole("button", { name: "子を足す" }))
   fireEvent.keyDown(within(paper()).getByRole("textbox"), { key: "Enter" }) // 空のまま確定
-  expect(book().pages[0]).toMatchObject({ root: { children: [{ id: a.id, caption: "子 A" }] } })
-  expect(book().pages[0]).not.toHaveProperty("root.children.0.children")
+  expect(pagesOf(book())[0]).toMatchObject({ root: { children: [{ id: a.id, caption: "子 A" }] } })
+  expect(pagesOf(book())[0]).not.toHaveProperty("root.children.0.children")
   expect(selected()).toBe(a.id) // 親
   expect(rootId).not.toBe(a.id)
 })
@@ -391,12 +399,12 @@ test("F2 かダブルクリックで、選んでいる子の節をその場で�
   expect(input.textContent).toBe("子 A")
   writeRich(input, "")
   fireEvent.keyDown(input, { key: "Enter" })
-  expect(book().pages[0]).toMatchObject({ root: { children: [{ id: a, caption: "子 A" }] } })
+  expect(pagesOf(book())[0]).toMatchObject({ root: { children: [{ id: a, caption: "子 A" }] } })
   fireEvent.keyDown(window, { key: "F2" })
   input = within(paper()).getByRole("textbox")
   writeRich(input, "子 B")
   fireEvent.keyDown(input, { key: "Escape" })
-  expect(book().pages[0]).toMatchObject({ root: { children: [{ id: a, caption: "子 A" }] } })
+  expect(pagesOf(book())[0]).toMatchObject({ root: { children: [{ id: a, caption: "子 A" }] } })
   expect(within(paper()).queryByRole("textbox")).toBeNull()
 })
 
@@ -442,7 +450,8 @@ test("Tab で選んでいる節に子を、Enter ですぐ後ろの兄弟を足�
   const done = addTree(store, id, { caption: "根", children: [{ caption: "子 A" }, { caption: "子 B" }] })
   const [a, b] = done.fields!.root.children.map(n => n.id) as [string, string]
   const paper = () => screen.getByRole("img", { name: "紙" })
-  const kids = () => (book().pages[0] as { root: { children: { id: string; caption: string }[] } }).root.children
+  const kids = () =>
+    (pagesOf(book())[0] as unknown as { root: { children: { id: string; caption: string }[] } }).root.children
   fireEvent.keyDown(window, { key: "Enter" }) // 根
   expect(within(paper()).queryByRole("textbox")).toBeNull()
   expect(kids()).toHaveLength(2)
@@ -462,19 +471,18 @@ test("Tab で選んでいる節に子を、Enter ですぐ後ろの兄弟を足�
 
 test("中央の木の根で Tab を押すと、子の少ない向きへ子を足す", () => {
   const { store, id, book } = setup()
-  act(() => {
-    store.actions.perform("@matomezu/base:book-update", { settings: { "@matomezu/tree:grow": "center" } }, { book: id })
-  })
-  addTree(store, id, { caption: "根", children: [{ caption: "上", side: "up" }] })
+  addTree(store, id, { caption: "根", children: [{ caption: "上", side: "up" }] }, { "@matomezu/tree:grow": "center" })
   fireEvent.keyDown(window, { key: "Tab" })
   fireEvent.keyDown(within(screen.getByRole("img", { name: "紙" })).getByRole("textbox"), { key: "Escape" })
-  expect((book().pages[0] as { root: { children: unknown[] } }).root.children).toHaveLength(1) // 空のまま取り消せば消す
+  expect((pagesOf(book())[0] as unknown as { root: { children: unknown[] } }).root.children).toHaveLength(1) // 空のまま取り消せば消す
   fireEvent.keyDown(window, { key: "Tab" })
   writeRich(within(screen.getByRole("img", { name: "紙" })).getByRole("textbox"), "下")
   fireEvent.keyDown(within(screen.getByRole("img", { name: "紙" })).getByRole("textbox"), { key: "Enter" })
-  expect((book().pages[0] as { root: { children: { side?: string }[] } }).root.children[1]).toMatchObject({
-    side: "down",
-  })
+  expect((pagesOf(book())[0] as unknown as { root: { children: { side?: string }[] } }).root.children[1]).toMatchObject(
+    {
+      side: "down",
+    },
+  )
 })
 
 test("その場の編集は、同じ道具を選び直しても続き、道具が替わると終わる", () => {
@@ -505,7 +513,8 @@ test("Delete（Backspace）と節の右クリックのメニューの「削除�
   const [a, b, c] = root.children.map(n => n.id) as [string, string, string]
   const paper = () => screen.getByRole("img", { name: "紙" })
   const selected = () => paper().querySelector('[data-selected="true"]')?.getAttribute("data-node")
-  const kids = () => ((book().pages[0] as { root: { children?: { id: string }[] } }).root.children ?? []).map(n => n.id)
+  const kids = () =>
+    ((pagesOf(book())[0] as unknown as { root: { children?: { id: string }[] } }).root.children ?? []).map(n => n.id)
   fireEvent.keyDown(window, { key: "Delete" }) // 根は消せない
   expect(kids()).toEqual([a, b, c])
   fireEvent.pointerDown(paper().querySelector(`[data-node="${b}"]`)!, { button: 0 })
@@ -538,10 +547,7 @@ test("Delete（Backspace）と節の右クリックのメニューの「削除�
 
 test("中央の木の根には上下左右の 4 つの＋が出て、押した向きへ伸びる子を足す", () => {
   const { store, id, book } = setup()
-  act(() => {
-    store.actions.perform("@matomezu/base:book-update", { settings: { "@matomezu/tree:grow": "center" } }, { book: id })
-  })
-  addTree(store, id, { caption: "根" })
+  addTree(store, id, { caption: "根" }, { "@matomezu/tree:grow": "center" })
   const paper = () => screen.getByRole("img", { name: "紙" })
   expect(
     within(paper())
@@ -552,7 +558,8 @@ test("中央の木の根には上下左右の 4 つの＋が出て、押した�
   const input = within(paper()).getByRole("textbox")
   writeRich(input, "上の子")
   fireEvent.keyDown(input, { key: "Enter" })
-  const child = (book().pages[0] as { root: { children: { id: string; side?: string }[] } }).root.children[0]!
+  const child = (pagesOf(book())[0] as unknown as { root: { children: { id: string; side?: string }[] } }).root
+    .children[0]!
   expect(child.side).toBe("up")
   const top = (n: string) => Number.parseFloat((paper().querySelector(`[data-node="${n}"]`) as HTMLElement).style.top)
   const rootTop = Number.parseFloat((paper().querySelector('[data-root="true"]') as HTMLElement).style.top)
@@ -595,12 +602,14 @@ const MOST_RIGHT = (() => {
 
 test("節を足すのが紙に入らなければ、node-add は断る。＋で断られたらトースト「紙に入りません」を出し、空の子は残らない", () => {
   const { store, id, book } = setup()
-  act(() => {
-    store.actions.perform("@matomezu/base:book-update", { settings: { "@matomezu/tree:grow": "right" } }, { book: id })
-  })
-  const done = addTree(store, id, { caption: "根", children: kids(MOST_RIGHT).map(k => ({ caption: k.caption })) })
+  const done = addTree(
+    store,
+    id,
+    { caption: "根", children: kids(MOST_RIGHT).map(k => ({ caption: k.caption })) },
+    { "@matomezu/tree:grow": "right" },
+  )
   const root = done.fields!.root
-  const count = () => (book().pages[0] as { root: { children: unknown[] } }).root.children.length
+  const count = () => (pagesOf(book())[0] as unknown as { root: { children: unknown[] } }).root.children.length
   act(() => {
     expect(
       store.actions.perform(
@@ -617,13 +626,15 @@ test("節を足すのが紙に入らなければ、node-add は断る。＋で�
   expect(within(paper).queryByRole("textbox")).toBeNull()
 })
 
-test("向きを変えると紙に入らなくなるなら、ページとブックの設定の変更は断る。設定のダイアログは、確定の前から入らないページの名前と知らせを出し、確定できない", () => {
+test("向きを変えると紙に入らなくなるなら、ページの設定の変更（page-update・pages-update）は断る。ページの設定のダイアログは、確定の前から知らせを出し、確定できない", () => {
   const { store, id, book } = setup()
-  act(() => {
-    store.actions.perform("@matomezu/base:book-update", { settings: { "@matomezu/tree:grow": "right" } }, { book: id })
-  })
   expect(fitsWith(MOST_RIGHT, "down")).toBe(false) // 右へなら入り、下へなら入らない数
-  const done = addTree(store, id, { caption: "根", children: kids(MOST_RIGHT).map(k => ({ caption: k.caption })) })
+  const done = addTree(
+    store,
+    id,
+    { caption: "根", children: kids(MOST_RIGHT).map(k => ({ caption: k.caption })) },
+    { "@matomezu/tree:grow": "right" },
+  )
   act(() => {
     expect(
       store.actions.perform(
@@ -633,13 +644,16 @@ test("向きを変えると紙に入らなくなるなら、ページとブッ�
       ).ok,
     ).toBe(false)
     expect(
-      store.actions.perform("@matomezu/base:book-update", { settings: { "@matomezu/tree:grow": "down" } }, { book: id })
-        .ok,
+      store.actions.perform(
+        "@matomezu/base:pages-update",
+        { pages: "all", settings: { "@matomezu/tree:grow": "down" } },
+        { book: id },
+      ).ok,
     ).toBe(false)
   })
-  expect(book()).toMatchObject({ settings: { "@matomezu/tree:grow": "right" } })
-  act(() => store.actions.openDialog("s1", "@matomezu/base:book-settings"))
-  const dialog = screen.getByRole("dialog", { name: "ブックの設定" })
+  expect(pagesOf(book())[0]).toMatchObject({ settings: { "@matomezu/tree:grow": "right" } })
+  act(() => store.actions.openDialog("s1", "@matomezu/base:page-settings", { page: done.page }))
+  const dialog = screen.getByRole("dialog", { name: "ページの設定" })
   fireEvent.click(
     within(within(dialog).getByRole("group", { name: "伸びる向き" })).getByRole("radio", { name: "下へ" }),
   )
@@ -683,7 +697,7 @@ test("節の大きさ: ページの設定で選び方を変えると並べ直し
   expect(select.options[0]!.textContent).toBe("ページを継承（10 字で折り返す）")
   fireEvent.change(select, { target: { value: "grow" } })
   fireEvent.click(within(dialog).getByRole("button", { name: "確定" }))
-  expect(book().pages[0]).toMatchObject({ root: { children: [{ id: a, size: "grow" }] } })
+  expect(pagesOf(book())[0]).toMatchObject({ root: { children: [{ id: a, size: "grow" }] } })
   expect(node().textContent).toBe(long)
 })
 
@@ -711,7 +725,7 @@ test("節の色: 節のメニューの「節の色」で節のそばに色のス
   // 代表色は押すとすぐ塗って閉じる
   fireEvent.click(within(open(a)).getByRole("button", { name: "テーマの色 1" }))
   expect(screen.queryByRole("group", { name: "節の色" })).toBeNull()
-  expect(book().pages[0]).toMatchObject({ root: { children: [{ id: a, color: "primary" }] } })
+  expect(pagesOf(book())[0]).toMatchObject({ root: { children: [{ id: a, color: "primary" }] } })
   // Esc は、選んだ好きな色を塗らずに閉じる
   {
     const stand = open(a)
@@ -721,20 +735,20 @@ test("節の色: 節のメニューの「節の色」で節のそばに色のス
     fireEvent.keyDown(within(picker).getByRole("textbox"), { key: "Enter" })
     fireEvent.keyDown(window, { key: "Escape" })
     expect(screen.queryByRole("group", { name: "節の色" })).toBeNull()
-    expect(book().pages[0]).toMatchObject({ root: { children: [{ id: a, color: "primary" }] } })
+    expect(pagesOf(book())[0]).toMatchObject({ root: { children: [{ id: a, color: "primary" }] } })
   }
   pick(a, "#ff0000")
-  expect(book().pages[0]).toMatchObject({ root: { children: [{ id: a, color: "#ff0000" }] } })
+  expect(pagesOf(book())[0]).toMatchObject({ root: { children: [{ id: a, color: "#ff0000" }] } })
   expect(nodeEl(a).style.getPropertyValue("--tree-node-fill")).toBe("#ff0000")
   pick(root.id, "#00ff00")
-  expect(book().pages[0]).toMatchObject({ root: { color: "#00ff00" } })
+  expect(pagesOf(book())[0]).toMatchObject({ root: { color: "#00ff00" } })
   // 子 A を選んで、子を足す（親の色を写す）
   fireEvent.pointerDown(nodeEl(a), { button: 0 })
   fireEvent.click(within(paper()).getByRole("button", { name: "子を足す" }))
   const input = within(paper()).getByRole("textbox")
   writeRich(input, "孫")
   fireEvent.keyDown(input, { key: "Enter" })
-  expect(book().pages[0]).toMatchObject({
+  expect(pagesOf(book())[0]).toMatchObject({
     root: { children: [{ id: a, children: [{ caption: "孫", color: "#ff0000" }] }] },
   })
 })
@@ -751,7 +765,7 @@ test("根は F2・ダブルクリック・紙の右クリックの「ページ�
   writeRich(within(dialog).getByLabelText("根の本文"), "本文の一行目")
   fireEvent.click(within(dialog).getByRole("switch", { name: "本文を紙に描く" }))
   fireEvent.click(within(dialog).getByRole("button", { name: "確定" }))
-  expect(book().pages[0]).toMatchObject({
+  expect(pagesOf(book())[0]).toMatchObject({
     id: done.page,
     root: { caption: "代表", body: "本文の一行目", showBody: true },
   })
@@ -762,7 +776,7 @@ test("根は F2・ダブルクリック・紙の右クリックの「ページ�
   fireEvent.click(within(dialog).getByRole("switch", { name: "本文を紙に描く" }))
   fireEvent.click(within(dialog).getByRole("button", { name: "確定" }))
   expect(Number.parseFloat(rootEl().style.height)).toBeLessThan(before)
-  expect(book().pages[0]).not.toHaveProperty("root.showBody")
+  expect(pagesOf(book())[0]).not.toHaveProperty("root.showBody")
   fireEvent.contextMenu(paper())
   fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: /^ページの設定/ }))
   dialog = screen.getByRole("dialog", { name: "ページの設定" })
@@ -779,20 +793,22 @@ test("ツリーのページの設定の鍵でページをロックし、ロッ�
   let dialog = open()
   fireEvent.click(within(dialog).getByRole("button", { name: "ページをロックする" }))
   fireEvent.click(within(dialog).getByRole("button", { name: "確定" }))
-  expect(book().pages[0]).toMatchObject({ locked: true })
+  expect(pagesOf(book())[0]).toMatchObject({ locked: true })
   dialog = open()
   expect((within(dialog).getByRole("button", { name: "ページを削除" }) as HTMLButtonElement).disabled).toBe(true)
   fireEvent.click(within(dialog).getByRole("button", { name: "ページのロックを外す" }))
   fireEvent.click(within(dialog).getByRole("button", { name: "確定" }))
-  expect(book().pages[0]).not.toHaveProperty("locked")
+  expect(pagesOf(book())[0]).not.toHaveProperty("locked")
 })
 
 test("ツリーのページの設定でも、選んでいる値で木が紙に入らなければ、確定の前から知らせを出して確定できない", () => {
   const { store, id } = setup()
-  act(() => {
-    store.actions.perform("@matomezu/base:book-update", { settings: { "@matomezu/tree:grow": "right" } }, { book: id })
-  })
-  const done = addTree(store, id, { caption: "根", children: kids(MOST_RIGHT).map(k => ({ caption: k.caption })) })
+  const done = addTree(
+    store,
+    id,
+    { caption: "根", children: kids(MOST_RIGHT).map(k => ({ caption: k.caption })) },
+    { "@matomezu/tree:grow": "right" },
+  )
   act(() => store.actions.openDialog("s1", "@matomezu/tree:page-settings", { page: done.page }))
   const dialog = screen.getByRole("dialog", { name: "ページの設定" })
   fireEvent.click(
@@ -860,48 +876,19 @@ test("編集の道具では 125% で、選んでいる節のほかを少し暗�
   expect(zoom()).toBe(1)
 })
 
-test("ブックを作るダイアログでツリーを選ぶと、伸びる向きを聞く項目が開き、選んだ向きをブックの設定に書く。図面では開かない", () => {
+test("book-create は、最初のページのタイプが選んだページの設定の項目を受け、形に合わない値は断る", () => {
   const { store } = setup()
-  act(() => store.actions.openDialog("s1", "@matomezu/base:book-new"))
-  const dialog = screen.getByRole("dialog", { name: "新しいブック" })
-  const type = within(dialog).getByLabelText("ブックのタイプ") as HTMLSelectElement
-  fireEvent.change(type, { target: { value: "@matomezu/drawing:drawing" } })
-  expect(within(dialog).queryByRole("group", { name: "伸びる向き" })).toBeNull()
-  fireEvent.change(type, { target: { value: "@matomezu/tree:tree" } })
-  expect(within(dialog).getByText("ツリーの設定")).toBeTruthy()
-  fireEvent.click(
-    within(within(dialog).getByRole("group", { name: "伸びる向き" })).getByRole("radio", { name: "右へ" }),
-  )
-  fireEvent.change(within(dialog).getByLabelText("ブックの名前"), { target: { value: "右の木" } })
-  fireEvent.click(within(dialog).getByRole("button", { name: "作成" }))
-  const made = Object.values(store.state.getState().books).find(b => b.title === "右の木")
-  expect(made).toMatchObject({ type: "@matomezu/tree:tree", settings: { "@matomezu/tree:grow": "right" } })
-})
-
-test("book-create は、タイプが選んだブックの設定の項目を受け、形に合わない値は断る", () => {
-  const { store } = setup()
+  const tree = (title: string, settings: Record<string, unknown>) =>
+    store.actions.perform("@matomezu/base:book-create", {
+      title,
+      page: { type: "@matomezu/tree:tree", settings, fields: { root: { caption: "根" } } },
+    })
   act(() => {
-    const ok = store.actions.perform("@matomezu/base:book-create", {
-      title: "左の木",
-      type: "@matomezu/tree:tree",
-      settings: { "@matomezu/tree:grow": "left" },
-    })
-    expect(ok.ok).toBe(true)
-    const bad = store.actions.perform("@matomezu/base:book-create", {
-      title: "変な木",
-      type: "@matomezu/tree:tree",
-      settings: { "@matomezu/tree:grow": "sideways" },
-    })
-    expect(bad.ok).toBe(false)
-    // 確かめと整え方は book-update と同じ（表に無いテーマは断る）
-    const theme = store.actions.perform("@matomezu/base:book-create", {
-      title: "テーマの無い木",
-      type: "@matomezu/tree:tree",
-      settings: { "@matomezu/base:book-theme": "no-such-theme" },
-    })
-    expect(theme.ok).toBe(false)
+    expect(tree("左の木", { "@matomezu/tree:grow": "left" }).ok).toBe(true)
+    expect(tree("変な木", { "@matomezu/tree:grow": "sideways" }).ok).toBe(false)
+    // 確かめと整え方は page-update と同じ（表に無いテーマは断る）
+    expect(tree("テーマの無い木", { "@matomezu/base:page-theme": "no-such-theme" }).ok).toBe(false)
   })
-  expect(Object.values(store.state.getState().books).find(b => b.title === "左の木")).toMatchObject({
-    settings: { "@matomezu/tree:grow": "left" },
-  })
+  const made = Object.values(store.state.getState().books).find(b => b.title === "左の木")!
+  expect(pagesOf(made)[0]).toMatchObject({ settings: { "@matomezu/tree:grow": "left" } })
 })

@@ -1,16 +1,18 @@
 // スクラップの見た目の、base の側: 切り抜くダイアログ（ScrapForm で範囲と倍率を決め、スクラップトレイに入れる）と、スクラップトレイ（左サイドパネルのタブ）と、スクラップトレイを開くボタン。
 // スクラップトレイを開けるのは、スクラップフレームを置けるブックを開いているステージだけ（ボタンは、そのときだけ出る。置けないブックに替わったら、開いているスクラップトレイを閉じる）。
 // スクラップトレイは切り抜いた新しい順に並べ、押すと、今のステージで置けるスクラップフレーム（scrapFrameIn）で、その値のまま置こうとする。× は確かめてから消す
+
 import { useEffect, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
-import { pageById, pagedOf } from "../../../core/book"
+import { pageById } from "../../../core/book"
 import type { ItemPage } from "../../../core/placed"
 import { sameData } from "../../../core/same"
+import { shownType } from "../../../core/stage"
 import { useMessages } from "../../../ui/i18n"
 import { defineWidget } from "../../../ui/layout"
 import type { DialogProps } from "../../../ui/plugin"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
-import { useActions, useAllowedOn, useBook, usePage, useRecords, useStage } from "../../../ui/view-hooks"
+import { useActions, useAllowedOn, usePage, useRecords, useStage } from "../../../ui/view-hooks"
 import { Confirm } from "../dialog-host/Confirm"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton, Form } from "../dialog-host/FormParts"
@@ -45,7 +47,7 @@ export function ScrapCutDialog({ args, onClose }: DialogProps<{ page: string }>)
   const start = useMatomezuState(
     useShallow(s => {
       const at = pageById(s.books, args.page)
-      return at ? wholePage(catalog, at.book, at.page as ItemPage) : null
+      return at ? wholePage(catalog, at.page as ItemPage) : null
     }),
   )
   const [value, setValue] = useState<Scrap | null>(start ? { page: args.page, area: start, scale: 1 } : null)
@@ -87,12 +89,12 @@ export function ScrapCutDialog({ args, onClose }: DialogProps<{ page: string }>)
   )
 }
 
-// 描いている場所のステージで、スクラップトレイから置くスクラップフレームのアイテム（開いているブックに置けなければ null）
+// 描いている場所のステージで、スクラップトレイから置くスクラップフレームのアイテム（開いているページに置けなければ null）
 function useScrapFrame() {
   const catalog = useCatalog().core
-  const book = pagedOf(useBook())
   const view = useStage()
-  return book && view ? scrapFrameIn(catalog, book, view.edits) : null
+  const type = shownType(view?.opened ?? null)
+  return view && type ? scrapFrameIn(catalog, type, view.edits) : null
 }
 
 // スクラップトレイを開く側が、左サイドパネルに渡すタブの組（スクラップトレイだけ）

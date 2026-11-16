@@ -1,5 +1,6 @@
 import { BOOK_SCREEN_URL, expect, test } from "./fixtures"
 import { browserMenuStopped } from "./helpers/browser-menu"
+import { addFromTabs } from "./helpers/new-book"
 import { openGeneral } from "./helpers/settings"
 import { fromMenu, menuOf } from "./helpers/stage-menu"
 
@@ -147,8 +148,8 @@ test("ハンドの道具ではドラッグで紙がずれ、ずらせるのは�
 test("＋で開くダイアログでページを作るとタブが増え、そのページが選ばれ、選んだ紙になる", async ({ page }) => {
   await page.goto(BOOK_SCREEN_URL)
   const before = (await page.getByRole("img", { name: "紙" }).boundingBox())!
-  await page.getByRole("button", { name: "ページを足す" }).click()
-  const dialog = page.getByRole("dialog", { name: "新しいページ" })
+  await addFromTabs(page)
+  const dialog = page.getByRole("dialog", { name: /^新しい/ })
   await expect(dialog.getByLabel("ページの名前")).toBeFocused()
   await dialog.getByLabel("向き").selectOption("portrait")
   await page.keyboard.press("Enter")
@@ -164,9 +165,9 @@ test("ページが多くてタブが横にあふれているとき、タブの�
   await page.goto(BOOK_SCREEN_URL)
   // タブは縮んで「…」になってから、横にあふれる
   for (let i = 0; i < 24; i++) {
-    await page.getByRole("button", { name: "ページを足す" }).click()
+    await addFromTabs(page)
     await page.keyboard.press("Enter")
-    await expect(page.getByRole("dialog", { name: "新しいページ" })).toBeHidden()
+    await expect(page.getByRole("dialog", { name: /^新しい/ })).toBeHidden()
   }
   const tabs = page.getByRole("tablist").first()
   expect(await tabs.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(true)
@@ -183,8 +184,11 @@ test("分割して右で同じブックを開くと右にもタブがあり、�
   await right.getByRole("option", { name: "まとめ図の構想" }).click()
   const lists = page.getByRole("tablist")
   await expect(lists).toHaveCount(2)
-  await lists.nth(1).getByRole("button", { name: "ページを足す" }).click()
-  await page.getByRole("dialog", { name: "新しいページ" }).getByRole("button", { name: "作成" }).click()
+  await addFromTabs(lists.nth(1))
+  await page
+    .getByRole("dialog", { name: /^新しい/ })
+    .getByRole("button", { name: "作成" })
+    .click()
   await expect(lists.nth(0).getByRole("tab", { selected: true })).toHaveText("ページ 1")
   await expect(lists.nth(1).getByRole("tab", { selected: true })).toHaveText("ページ 2")
   // 右のタブは、右のステージの真下で、ブックの名前のボタン（156px）の右にある
@@ -207,8 +211,11 @@ test("右のステージの新しいブックで作ると空のブックが開�
   await page.getByRole("button", { name: "ステージを閉じる" }).first().click()
   await expect(page.getByRole("tablist")).toHaveAttribute("aria-label", "新しい図")
   await expect(page.getByRole("img", { name: "紙" })).toHaveCount(0)
-  await page.getByRole("button", { name: "ページを作る" }).click()
-  await page.getByRole("dialog", { name: "新しいページ" }).getByRole("button", { name: "作成" }).click()
+  await addFromTabs(page, "図面")
+  await page
+    .getByRole("dialog", { name: /^新しい/ })
+    .getByRole("button", { name: "作成" })
+    .click()
   await expect(page.getByRole("tab")).toHaveText(["ページ 1"])
   await expect(page.getByRole("img", { name: "紙" })).toHaveCount(1)
   // 作ったブックは探すテキストFormにも出る

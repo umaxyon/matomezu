@@ -1,27 +1,28 @@
-// ページを動かす: アクション page-move（ページタブの並びを入れ替える。ページの中身は変わらない）
+// ページを動かす: アクション page-move（同じブックかバインダの中で並びを入れ替える。ページの中身は変わらない）。
+// 並びに直に入っているページはブックの並びの中、バインダの中のページはそのバインダの中で動く（ブックやバインダをまたいでは動かさない）
 import { z } from "zod"
-import { hasPages, putPage, removePage } from "../../../core/book"
-import type { ItemPage } from "../../../core/placed"
+import { findPage, moveEntry, siblingsOf } from "../../../core/book"
 import { kit } from "../kit"
 
 const ARGS = z.strictObject({ page: z.string().min(1), index: z.number().int().min(0).optional() })
 
-// ページ page を、page を除いて数えた index 番目に動かす（index が無ければ末尾）。無いページ・並びの外の index・今と同じ所は断る
+// ページ page を、同じブックかバインダの中の、page を除いて数えた index 番目に動かす（index が無ければ末尾）。無いページ・並びの外の index・今と同じ所は断る
 export const PAGE_MOVE = kit.defineAction({
   id: "page-move",
-  attach: { pages: true },
+  attach: { books: true },
   aiDescription:
-    "Move a page to index among the pages counted without the moved page (the end without it), which reorders the page tabs. Returns nothing. Refused for a page not in the book, an index past the end, or when the page would stay where it is.",
+    "Move a page to index among the entries of the place it is in, counted without the moved page (the end without it): a page outside binders moves in the book's lineup (which reorders the page tabs; a binder counts as one entry), a page in a binder moves inside that binder. Returns nothing. Refused for a page not in the book, an index past the end, or when the page would stay where it is. Not allowed (not-allowed) for a page whose page type leaves this action out.",
   title: "Move page",
   target: "book",
   args: ARGS,
-  permissionScope: "book",
+  permissionScope: { entry: "page" },
   run: (book, args) => {
-    if (!hasPages(book)) return null
-    const from = book.pages.findIndex((p: ItemPage) => p.id === args.page)
-    const page = book.pages[from]
-    const to = args.index ?? book.pages.length - 1
-    if (!page || to > book.pages.length - 1 || to === from) return null
-    return { next: putPage(removePage(book, args.page), page, to), result: {} }
+    const siblings = findPage(book, args.page) && siblingsOf(book, args.page)
+    if (!siblings) return null
+    const ids = siblings.map(e => e.id)
+    const from = ids.indexOf(args.page)
+    const to = args.index ?? ids.length - 1
+    if (to > ids.length - 1 || to === from) return null
+    return { next: moveEntry(book, args.page, to), result: {} }
   },
 })

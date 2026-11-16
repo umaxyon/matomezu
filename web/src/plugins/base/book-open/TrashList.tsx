@@ -12,7 +12,6 @@ import { kit } from "../kit"
 import { refusalMessage } from "../utils"
 import { useElapsed } from "../utils/ui"
 import styles from "./BookSearch.module.css"
-import { bookTitle } from "./book-title"
 import { BOOK_PURGE, BOOK_RESTORE, TRASH_EMPTY, trashOrder } from "./book-trash"
 
 export function TrashList() {
@@ -66,14 +65,12 @@ export function TrashList() {
 // ゴミ箱の 1 行: 戻すボタンと消すボタンは、そのブックに行えるときだけ押せる
 function TrashRow({ book, onRestore, onDelete }: { book: Book; onRestore: () => void; onDelete: () => void }) {
   const elapsed = useElapsed()
-  const catalog = useCatalog().core
-  const lang = useMatomezuState(s => s.lang)
   const t = useMessages(kit)
   const restorable = useAllowedOn(BOOK_RESTORE.id, { book: book.id }).ok
   const deletable = useAllowedOn(BOOK_PURGE.id, { books: [book.id] }).ok
   return (
     <li className={styles.trashed}>
-      <span className={styles.title}>{bookTitle(catalog, book, lang)}</span>
+      <span className={styles.title}>{book.title}</span>
       <span className={styles.when}>{elapsed(book.trashed ?? "")}</span>
       <ActionButton disabled={!restorable} onClick={onRestore}>
         {t("Restore")}

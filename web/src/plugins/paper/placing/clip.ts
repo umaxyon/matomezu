@@ -3,15 +3,15 @@
 // 形の位置（x・y）は、写したときの紙の上の左上（子の形も、根の形にして写す）。貼るときは id をブックで重ならないように振り直す
 
 import {
-  bookItems,
+  allowedItems,
+  type Book,
   type CoreCatalog,
   connectorSchema,
   connectorsOf,
   type Declined,
+  findPage,
   findShape,
-  hasPages,
   type ItemPage,
-  type PagedBook,
   type PlacedConnector,
   type PlacedShape,
   type Point,
@@ -63,15 +63,15 @@ function shapeIds(shape: ShapeData): string[] {
 }
 
 // 渡された形 raw を確かめた形。ブックで使えるアイテム・使えるテーマ・写せる形だけ。子の形もたどる。通らなければ null
-function parsedTree(catalog: CoreCatalog, book: PagedBook, raw: unknown): PlacedShape | null {
+function parsedTree(catalog: CoreCatalog, page: Pick<ItemPage, "type">, raw: unknown): PlacedShape | null {
   if (typeof raw !== "object" || raw === null || typeof (raw as { item?: unknown }).item !== "string") return null
   const value = raw as { item: string; shapes?: unknown; [field: string]: unknown }
-  if (!bookItems(catalog, book).includes(value.item)) return null
+  if (!allowedItems(catalog, page).includes(value.item)) return null
   const shape = parsePlaced(catalog, value)
-  if (!shape || !shapeThemeFits(catalog, book.type, shape) || shapeDefOf(catalog, shape.item)?.[COPIES] === false)
+  if (!shape || !shapeThemeFits(catalog, page.type, shape) || shapeDefOf(catalog, shape.item)?.[COPIES] === false)
     return null
   const children = Array.isArray(value.shapes) ? value.shapes : []
-  return children.every(child => parsedTree(catalog, book, child) !== null) ? shape : null
+  return children.every(child => parsedTree(catalog, page, child) !== null) ? shape : null
 }
 
 // 写しの根の形が占める範囲（紙の上の左上と大きさ）
@@ -99,7 +99,7 @@ export interface PasteArgs {
 }
 
 export interface Pasted {
-  next: PagedBook
+  next: Book
   items: string[] // 貼った根の形の id
   at: Point // 写しの範囲の左上
 }
@@ -108,19 +108,18 @@ export interface Pasted {
 // ほかの形を動かすことになる（crowd が push でない）・空きが無いなら、断りの文
 export function pasted(
   catalog: CoreCatalog,
-  book: PagedBook,
+  book: Book,
   newId: () => string,
   args: PasteArgs,
 ): Pasted | Declined | null {
-  if (!hasPages(book)) return null
-  const page = book.pages.find(p => p.id === args.page)
+  const page = findPage(book, args.page)?.page
   if (!page) return null
-  const parsed = args.shapes.map(raw => parsedTree(catalog, book, raw))
+  const parsed = args.shapes.map(raw => parsedTree(catalog, page, raw))
   if (parsed.length === 0 || parsed.some(s => s === null)) return null
   const connectors = (args.connectors ?? []).map(raw => {
     const item = typeof raw === "object" && raw !== null ? (raw as { item?: unknown }).item : undefined
     const def = typeof item === "string" ? catalog.items.get(item) : undefined
-    const ok = def?.kind === "connector" && bookItems(catalog, book).includes(def.id)
+    const ok = def?.kind === "connector" && allowedItems(catalog, page).includes(def.id)
     const result = ok ? connectorSchema(def).safeParse(raw) : null
     return result?.success ? (result.data as unknown as PlacedConnector) : null
   })
@@ -141,7 +140,7 @@ export function pasted(
   const grows = new Set(parent === null ? [] : [parent, ...ancestorsOf(page, parent)])
   // 範囲の左上を at にして貼ったブックと、動いたほかの形
   const tryAt = (at: Point) => {
-    let next: PagedBook | null = book
+    let next: Book | null = book
     for (const s of copy.shapes) {
       const to = { x: at.x + s.x - box.origin.x, y: at.y + s.y - box.origin.y }
       if (next === null) break
@@ -150,7 +149,7 @@ export function pasted(
           ? placeItem(catalog, next, args.page, { ...s, ...to })
           : placeChild(catalog, next, args.page, parent, { ...s, ...to }, to)
     }
-    const placed = next?.pages.find(p => p.id === args.page)
+    const placed = next ? findPage(next, args.page)?.page : undefined
     if (!next || !placed || !copy.shapes.every(s => findShape(placed, s.id))) return null
     const withLines = putPage(next, { ...placed, items: [...pageItemsOf(placed), ...copy.connectors] })
     return { next: withLines, moved: movedShapes(catalog, page, placed, new Set(), grows) }
@@ -159,7 +158,7 @@ export function pasted(
     const tried = tryAt(at)
     return tried !== null && (push || tried.moved.length === 0)
   }
-  const at = args.at ?? freeAt(catalog, book, page, parent, box.size, calm)
+  const at = args.at ?? freeAt(catalog, page, parent, box.size, calm)
   if (!at)
     return {
       declined: `there is no free spot for it${push ? "" : ' (crowd "push" pushes the others)'}`,
@@ -168,7 +167,7 @@ export function pasted(
   const tried = tryAt(at)
   if (!tried) return null
   if (!push && tried.moved.length > 0)
-    return crowded(catalog, page, tried.moved, freeAt(catalog, book, page, parent, box.size, calm))
+    return crowded(catalog, page, tried.moved, freeAt(catalog, page, parent, box.size, calm))
   return { next: tried.next, items: copy.shapes.map(s => s.id), at }
 }
 
@@ -176,13 +175,13 @@ export function pasted(
 // 入れる先の最初の空きへ向けて 1px ずつ寄せる（stepToward）。どこにも貼れなければ null
 export function nearestPaste(
   catalog: CoreCatalog,
-  book: PagedBook,
+  book: Book,
   page: string,
   clip: Clip,
   parent: string | null,
   asked: Point,
 ): Point | null {
-  const found = book.pages.find(p => p.id === page)
+  const found = findPage(book, page)?.page
   const size = clipSize(catalog, clip)
   if (!found || !size) return null
   let n = 0
@@ -198,6 +197,6 @@ export function nearestPaste(
     return done !== null && "next" in done
   }
   if (fits(asked)) return asked
-  const spot = freeAt(catalog, book, found, parent, size, fits)
+  const spot = freeAt(catalog, found, parent, size, fits)
   return spot && stepToward(asked, spot, fits)
 }

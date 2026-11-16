@@ -2,11 +2,11 @@
 // 塊は base の TextBlockView で、枠と余白の内側に描く（本文の列の幅で折り返して高さに収めた行。区切り線も本文の列の幅に引く）。
 // 箱を選んでいる間（紙をずらす道具の間は除く）は、本文の列の動かせる端につまみを出し、離したら本文の幅（bodyWidth）をアクション item-update で書く
 // （箱の中いっぱいになれば消す）。書き換えが止められていれば、つまみを出さない。
-// 箱にテーマ（theme）を当てていれば、そのテーマの箱のテーマキー（塗り・線・文字・角の丸み・影・角の折り返し）で描く。ブックのタイプが使えないテーマならブックのテーマのまま。
+// 箱にテーマ（theme）を当てていれば、そのテーマの箱のテーマキー（塗り・線・文字・角の丸み・影・角の折り返し）で描く。ページのタイプが使えないテーマならブックのテーマのまま。
 // 色（color）があれば、塗りと文字のテーマキーをその色で上書きする（paint.ts）
 
 import type { CSSProperties } from "react"
-import type { ItemProps } from "../../../plugin-api"
+import { type ItemProps, shownPageId } from "../../../plugin-api"
 import { type ItemViewProps, usePerform, useStage } from "../../../plugin-api/ui"
 import { TextBlockView, useBodyGrips, useThemeVars } from "../../base/ui"
 import styles from "./BoxView.module.css"
@@ -20,7 +20,7 @@ export function BoxView({ props, size, hasChildren, id }: ItemViewProps<BoxProps
   const theme = props.theme
   const vars = useThemeVars(theme, BOX_TOKENS)
   const at = useStage()
-  const page = at?.opened?.page ?? undefined
+  const page = shownPageId(at?.opened ?? null) ?? undefined
   const perform = usePerform()
   const grips = useBodyGrips(id, "@matomezu/paper:item-update")
   return (

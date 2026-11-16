@@ -1,18 +1,16 @@
 // 作るブックと認可ステップ: 行った後の確かめ（keeps）は、一覧が対象のアクションで新しく増えたブックも見る（前のブックは無い）。
-// 行う前は、作るタイプの空のブックで問う
+// 行う前は、空のブックで問う
 
 import { expect, test } from "bun:test"
-import { USER } from "../../web/src/core/actor"
-import { creatableTypes } from "../../web/src/core/book"
+import { findPage, pagesOf } from "../../web/src/core/book"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { BUILTIN } from "../../web/src/plugins"
-import { typesToCreate } from "../../web/src/plugins/base/book-new/book-create"
+import { isEnabled, isShown } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
-import { worldOf } from "../../web/src/store/world"
 import { SAMPLE_BOOKS } from "../sample-books"
 
-test("keeps だけを書いた認可ステップでも、そのタイプのブックを作るのを止められる。ほかのタイプは作れる", () => {
+test("keeps だけを書いた認可ステップでも、そのタイプのページを入れたブックを作るのを止められる。ほかのタイプは作れる", () => {
   const kit = pluginKit("@ex/no-tree", defineMessages({ noTree: { en: "No tree", ja: "ツリーは作らない" } }))
   const seen: { before: unknown; added: boolean }[] = []
   const store = createMatomezu({
@@ -27,13 +25,13 @@ test("keeps だけを書いた認可ステップでも、そのタイプのブ�
           kit.definePermission({
             id: "no-tree",
             title: "noTree",
-            aiDescription: "no tree book is made",
+            aiDescription: "no book is made with a tree page",
             denies: () => false,
             keeps: c => {
               if (c.kind !== "book") return true
               const { before, after, changes } = c
               if (changes.added) seen.push({ before, added: changes.added })
-              return !(changes.added && after?.type === "@matomezu/tree:tree")
+              return !(changes.added && after && pagesOf(after).some(p => p.type === "@matomezu/tree:tree"))
             },
           }),
         ],
@@ -45,7 +43,7 @@ test("keeps だけを書いた認可ステップでも、そのタイプのブ�
   expect(
     store.actions.perform("@matomezu/base:book-create", {
       title: "木",
-      type: "@matomezu/tree:tree",
+      page: { type: "@matomezu/tree:tree", fields: { root: { caption: "根" } } },
     }),
   ).toEqual({
     ok: false,
@@ -55,16 +53,15 @@ test("keeps だけを書いた認可ステップでも、そのタイプのブ�
   expect(count()).toBe(was)
   expect(seen).toEqual([{ before: undefined, added: true }])
   expect(
-    store.actions.perform("@matomezu/base:book-create", {
-      title: "図",
-      type: "@matomezu/drawing:drawing",
-    }).ok,
+    store.actions.perform("@matomezu/base:book-create", { title: "図", page: { type: "@matomezu/drawing:drawing" } })
+      .ok,
   ).toBe(true)
   expect(count()).toBe(was + 1)
 })
 
-test("新しいブックのダイアログが出すタイプ（typesToCreate）は、作れるタイプのうち認可ステップが行う前に止めないもの", () => {
-  const kit = pluginKit("@ex/no-dir", defineMessages({ noDir: { en: "No dir", ja: "ディレクトリは作らない" } }))
+test("認可ステップは、作るページのタイプを行う前に見られる（所の creates）。止めたタイプは、ページを足すコマンドが出たまま押せず、行っても断る。ほかのタイプは足せる", () => {
+  const kit = pluginKit("@ex/no-markdown", defineMessages({ noMarkdown: { en: "No documents", ja: "文書は作らない" } }))
+  const MARKDOWN = "@matomezu/markdown:markdown"
   const store = createMatomezu({
     controlCenter: "@matomezu/control-center:control-center",
     books: SAMPLE_BOOKS,
@@ -75,16 +72,37 @@ test("新しいブックのダイアログが出すタイプ（typesToCreate）�
       kit.plugin({
         permissions: [
           kit.definePermission({
-            id: "no-dir",
-            title: "noDir",
-            aiDescription: "no dir book is made",
-            denies: q => q.kind === "book" && q.book.type === "@matomezu/dir:dir",
+            id: "no-markdown",
+            title: "noMarkdown",
+            aiDescription: "no markdown page is made",
+            denies: q => q.kind === "book" && q.where?.creates === MARKDOWN,
+            keeps: c =>
+              c.kind !== "book" ||
+              !c.changes.pages.some(p => p.change === "added" && findPage(c.after!, p.id)?.page.type === MARKDOWN),
           }),
         ],
       }),
     ],
   })
-  const ctx = { catalog: store.catalog.core, controlCenter: store.controlCenter, actor: USER }
-  const types = typesToCreate(worldOf(store.state.getState()), ctx)
-  expect(types).toEqual(creatableTypes(store.catalog.core).filter(t => t !== "@matomezu/dir:dir"))
+  const book = SAMPLE_BOOKS[0]!.id
+  store.actions.openBook("s1", book)
+  const command = (arg?: { type: string }) => {
+    const state = store.state.getState()
+    return {
+      shown: isShown(store, state, "s1", "@matomezu/base:page-new", arg),
+      enabled: isEnabled(store, state, "s1", "@matomezu/base:page-new", arg as never),
+    }
+  }
+  // タイプを選ぶ前（＋のボタン）と、止めていないタイプは押せる。止めたタイプは出たまま押せない
+  expect(command()).toEqual({ shown: true, enabled: true })
+  expect(command({ type: "@matomezu/drawing:drawing" })).toEqual({ shown: true, enabled: true })
+  expect(command({ type: MARKDOWN })).toEqual({ shown: true, enabled: false })
+  expect(store.actions.perform("@matomezu/base:page-add", { type: MARKDOWN }, { book })).toEqual({
+    ok: false,
+    reason: "denied",
+    permission: "@ex/no-markdown:no-markdown",
+  })
+  expect(store.actions.perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing" }, { book }).ok).toBe(
+    true,
+  )
 })

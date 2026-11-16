@@ -1,7 +1,9 @@
 // 右サイドパネルを開け閉めするフック（持ち方は state.ts）。窓に 1 つだけで、守るのは入れ物（RightSidePanel）。
 // 開くのは、ステージに置いてそのステージをカレントにするだけ（ほかのステージで開いていた物は、入れ物が閉じる）
+
 import { createContext, useCallback, useContext, useEffect, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
+import { shownPageId } from "../../../core/stage"
 import { screenOf, stageIn } from "../../../core/window"
 import { type PluginValues, pluginValueOf } from "../../../store/plugin-state"
 import { useReadPluginStateAt, useSetPluginStateAt, useSetPluginStatesAt } from "../../../ui/at-hooks"
@@ -70,7 +72,7 @@ export function useOpenRightSidePanelAt(): (
       const now = stageIn(window, stage)
       const opened = now?.opened
       if (!now || !opened) return
-      const panel = { ...open, book: opened.book, page: opened.page }
+      const panel = { ...open, book: opened.book, page: shownPageId(opened) }
       setStates(
         restore === "back"
           ? [

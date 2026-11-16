@@ -1,9 +1,11 @@
 // 子の形（ケイパビリティ nests の形が持つ shapes）: ブックの形が受け付ける子と、子までたどる・探す・置き換える関数（core/placed.ts）・子を持つ形の大きさ（base の place/placed.ts）
+
 import { describe, expect, test } from "bun:test"
-import { pagedOf, restoreBooks } from "../../web/src/core/book"
+import { pagesOf, restoreBooks } from "../../web/src/core/book"
 import { findShape, type ItemPage, type PlacedShape, replaceShape, walkShapes } from "../../web/src/core/placed"
 import { shownRects } from "../../web/src/plugins/base/place/items"
 import { NEST_PADDING, placedSize } from "../../web/src/plugins/base/place/placed"
+import { drawingPage, testBook } from "../lineup"
 import { CORE_CATALOG } from "../support"
 
 const BOX = "@matomezu/box:shape-nest-box"
@@ -13,12 +15,7 @@ const LINE = "@matomezu/line:connector-line"
 // 図面のブックは内包ボックス（ケイパビリティ nests）・リスト・線を使う
 const nesting = CORE_CATALOG
 
-const book = (items: unknown[]) => ({
-  type: "@matomezu/drawing:drawing",
-  id: "b1",
-  title: "T",
-  pages: [{ id: "p1", title: "P", paper: "@matomezu/base:a4", orientation: "landscape", items }],
-})
+const book = (items: object[]) => testBook("b1", "T", [drawingPage("p1", { title: "P", items: items })])
 const box = (id: string, x: number, y: number, shapes?: unknown[]) => ({
   id,
   x,
@@ -29,7 +26,7 @@ const box = (id: string, x: number, y: number, shapes?: unknown[]) => ({
 })
 const list = (id: string) => ({ id, x: 0, y: 0, item: LIST, props: {} })
 const line = (id: string, from: string, to: string) => ({ id, item: LINE, from, to, props: {} })
-const reads = (items: unknown[]) => restoreBooks(nesting, [book(items)]).length === 1
+const reads = (items: object[]) => restoreBooks(nesting, [book(items)]).length === 1
 
 describe("子の形を受け付けるブックの形", () => {
   test("ケイパビリティ nests の形は、ブックで使える形を何段でも子に持てる", () => {
@@ -49,7 +46,7 @@ describe("子の形を受け付けるブックの形", () => {
     expect(reads([box("a", 0, 0, [{ ...box("b", 0, 0), props: { caption: 1 } }])])).toBe(false)
     const stray = { id: "s", x: 1, y: 2, item: "@foo/stars:star", props: { n: 5 } }
     const [restored] = restoreBooks(nesting, [book([box("a", 0, 0, [stray])])])
-    expect((pagedOf(restored)?.pages[0] as ItemPage | undefined)?.items?.[0]).toMatchObject({ shapes: [stray] })
+    expect((restored ? pagesOf(restored)[0] : undefined)?.items?.[0]).toMatchObject({ shapes: [stray] })
   })
 })
 

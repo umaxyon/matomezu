@@ -1,10 +1,14 @@
 // スクラップのビュー（base/scrap/ScrapView）: 指したページを、そのブックの物で、範囲 × 倍率の枠に描く。指す先が無ければ枠だけを描く
+
 import { afterEach, describe, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
+import { pagesOf } from "../../../web/src/core/book"
+import type { PageOf } from "../../../web/src/core/schema/book"
 import { ScrapView } from "../../../web/src/plugins/base/scrap/ScrapView"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../../web/src/plugins/ui"
 import { createMatomezu } from "../../../web/src/store/create"
 import { MatomezuProvider } from "../../../web/src/ui/store-context"
+import { type DRAWING, drawingPage, testBook } from "../../lineup"
 
 afterEach(cleanup)
 
@@ -18,29 +22,22 @@ const box = (id: string, x: number) => ({
   props: { caption: id },
 })
 
-const drawing = (id: string, settings: object) => ({
-  type: "@matomezu/drawing:drawing",
-  id,
-  title: id,
-  settings,
-  pages: [
-    {
-      id: `p${id}`,
+const drawing = (id: string, settings?: PageOf<typeof DRAWING>["settings"]) =>
+  testBook(id, id, [
+    drawingPage(`p${id}`, {
       title: "P",
-      paper: "@matomezu/base:a4",
-      orientation: "landscape",
+      ...(settings ? { settings } : {}),
       items: [
         box("a", 40),
         box("b", 400),
         { id: "l1", item: "@matomezu/line:connector-line", from: "a", to: "b", props: {} },
       ],
-    },
-  ],
-})
+    }),
+  ])
 
 // x はテーマと線の引き方を選んだブック、y は何も選んでいないブック（ページ px・py に、同じ id の箱と線がある）
-const X = drawing("x", { "@matomezu/base:book-theme": "sticky", "@matomezu/line:line-route": "straight" })
-const Y = drawing("y", {})
+const X = drawing("x", { "@matomezu/base:page-theme": "sticky", "@matomezu/line:line-route": "straight" })
+const Y = drawing("y")
 
 function setup(extra: readonly object[] = []) {
   const instance = createMatomezu({
@@ -75,7 +72,7 @@ describe("スクラップの中（ScrapView）", () => {
   })
 
   test("指したページが無いか、同じ id のページが 2 つのブックにあれば、枠だけを描く（無い）", () => {
-    const twin = (id: string) => ({ ...Y, id, pages: [{ ...Y.pages[0]!, id: "twin" }] })
+    const twin = (id: string) => ({ ...Y, id, lineup: [{ ...pagesOf(Y)[0]!, id: "twin" }] })
     const { wrap } = setup([twin("t1"), twin("t2")])
     const { container } = render(
       wrap(
@@ -89,7 +86,11 @@ describe("スクラップの中（ScrapView）", () => {
   })
 
   test("可変ページの中身を右・下へずらしたら、ずらした印刷区画の分だけ先を描く", () => {
-    const shiftedBook = { ...X, id: "g", pages: [{ ...X.pages[0]!, id: "pg", grows: "all", shift: { x: 1, y: 2 } }] }
+    const shiftedBook = {
+      ...X,
+      id: "g",
+      lineup: [{ ...pagesOf(X)[0]!, id: "pg", grows: "all", shift: { x: 1, y: 2 } }],
+    }
     const { wrap } = setup([shiftedBook])
     const { container } = render(
       wrap(<ScrapView scrap={{ page: "pg", area: { x: 20, y: 30, w: 400, h: 200 }, scale: 1 }} />),

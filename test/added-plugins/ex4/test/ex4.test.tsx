@@ -2,7 +2,7 @@
 
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render } from "@testing-library/react"
-import { addPageIn, createBookIn } from "matomezu"
+import { addPageIn, createBookIn, pagesOf } from "matomezu"
 import {
   BUILTIN_UI,
   createMatomezu,
@@ -39,14 +39,14 @@ interface Page {
 const map = () => {
   const instance = make()
   act(() => {
-    expect(createBookIn(instance, "s1", { title: "関係図", type: "ex4:map" })).toBe(true)
+    expect(createBookIn(instance, "s1", { title: "関係図" })).toBe(true)
   })
   const book = (openedIn(instance) as { book: string }).book
   act(() => {
-    expect(addPageIn(instance, "s1", { title: "p1" })).toBe(true)
+    expect(addPageIn(instance, "s1", { type: "ex4:map", title: "p1" })).toBe(true)
   })
   const on = { book }
-  const page = () => (instance.state.getState().books[book] as unknown as { pages: Page[] }).pages[0]!
+  const page = () => pagesOf(instance.state.getState().books[book]!)[0] as unknown as Page
   const box = (x: number) => {
     let r: ReturnType<typeof instance.actions.perform> | undefined
     act(() => {

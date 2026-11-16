@@ -1,4 +1,4 @@
-// マークダウンのプラグインの文言（ブックのタイプの名前、ペインのタブ、ペインの分割のコマンド、ソースの Tab キーの設定の項目）
+// マークダウンのプラグインの文言（ページのタイプの名前、ペインのタブ、ペインの分割のコマンド、ソースの Tab キーの設定の項目）
 import { defineMessages } from "../../../plugin-api"
 
 export const MARKDOWN_MESSAGES = defineMessages({
@@ -10,8 +10,6 @@ export const MARKDOWN_MESSAGES = defineMessages({
   "Side by side": { en: "Side by side", ja: "左右に並べる" },
   "Top and bottom": { en: "Top and bottom", ja: "上下に並べる" },
   "Preview only": { en: "Preview only", ja: "プレビューだけ" },
-  "No pages": { en: "No pages", ja: "ページがありません" },
-  "Create page": { en: "Create page", ja: "ページを作る" },
   Panes: { en: "Panes", ja: "ペイン" },
   "Line numbers": { en: "Line numbers", ja: "行番号を出す" },
   "Underline the current line": { en: "Underline the current line", ja: "カーソルのある行に下線を引く" },

@@ -1,5 +1,6 @@
 import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { addList, addRow } from "./helpers/list"
+import { addFromTabs } from "./helpers/new-book"
 import { panel, writeNote } from "./helpers/note"
 import { leftPanel, openOutbox } from "./helpers/outbox"
 import { addBox, settled } from "./helpers/paper"
@@ -125,7 +126,7 @@ test("開いたステージのページが替わるか、分けると閉じる�
   await picker.getByRole("button", { name: "ハンドツール" }).click()
   await icon.click()
   await expect(panel(page)).toContainText("見てほしい")
-  await page.getByRole("button", { name: "ページを足す" }).click()
+  await addFromTabs(page)
   await page.keyboard.press("Enter")
   await expect(page.getByRole("tab", { name: "ページ 2" })).toHaveAttribute("aria-selected", "true")
   await expect(panel(page)).toHaveCount(0)

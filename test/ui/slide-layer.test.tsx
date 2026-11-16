@@ -3,8 +3,7 @@
 
 import { afterEach, describe, expect, test } from "bun:test"
 import { act, cleanup, render, screen } from "@testing-library/react"
-import { z } from "zod"
-import { defineBookType } from "../../web/src/core/def/book-type"
+import { definePageType } from "../../web/src/core/def/page-type"
 import { definePresentation } from "../../web/src/core/def/presentation"
 import { screenOf } from "../../web/src/core/window"
 import { createBookIn } from "../../web/src/plugins/base"
@@ -20,15 +19,12 @@ afterEach(cleanup)
 const TEXT = "@matomezu/slide:slide-text"
 const BOX = "@matomezu/box:shape-nest-box"
 const LOOK = definePresentation({ id: "back:look" })
-const BACK = defineBookType({
+const BACK = definePageType({
   id: "back:back",
   version: 1,
   title: "@matomezu/drawing:Drawing",
-  schema: z.strictObject({ type: z.literal("back:back"), id: z.string().min(1) }),
-  create: init => ({ type: "back:back" as const, ...init, pages: [] }),
-  pages: {
-    paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
-  },
+  grouping: "none",
+  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape" },
   items: { allowed: [BOX] },
   slide: { allowed: [TEXT], background: true },
   actions: {},
@@ -37,13 +33,13 @@ const BACK = defineBookType({
   presentation: LOOK.id,
   tokens: [],
 })
-const back = definePlugin({ id: "back", bookTypes: [BACK], presentations: [LOOK] })
+const back = definePlugin({ id: "back", pageTypes: [BACK], presentations: [LOOK] })
 const backUi = definePluginUi(back, { presentationViews: { "back:look": { view: () => <p>back view</p> } } })
 
 const layer = () => document.querySelector<HTMLElement>("[data-slide-layer]")
 
 describe("スライドのレイヤー", () => {
-  test("背景を持つタイプのブックでは描かれ、背景編集モードで置こうとしている間（slide のアイテム）だけ押しを受ける", () => {
+  test("背景を持つタイプのページでは描かれ、背景編集モードで置こうとしている間（slide のアイテム）だけ押しを受ける", () => {
     const instance = createMatomezu({
       plugins: [...BUILTIN_UI, backUi],
       partial: true,
@@ -56,10 +52,10 @@ describe("スライドのレイヤー", () => {
       </MatomezuProvider>,
     )
     act(() => {
-      createBookIn(instance, "s1", { title: "背景", type: "back:back" as never })
+      createBookIn(instance, "s1", { title: "背景" })
     })
-    expect(screen.getByText("back view")).toBeTruthy()
-    expect(layer()).toBeNull() // ページが無い間は描かない
+    expect(screen.queryByText("back view")).toBeNull() // ページが無い間は、見せ方も slide のレイヤーも描かない
+    expect(layer()).toBeNull()
     const stage = screenOf(instance.state.getState().window).current as string
     act(() => {
       ;(
@@ -68,10 +64,11 @@ describe("スライドのレイヤー", () => {
         }
       ).perform(
         "@matomezu/base:page-add",
-        { title: "1" },
+        { type: "back:back", title: "1" },
         { book: Object.keys(instance.state.getState().books)[0] as string },
       )
     })
+    expect(screen.getByText("back view")).toBeTruthy()
     expect(layer()?.dataset.active).toBe("false") // 押しはステージと下のレイヤーへ通す
     act(() => instance.actions.togglePlacing(stage, BOX))
     expect(layer()?.dataset.active).toBe("false") // 紙のアイテムを置こうとしている間は取らない

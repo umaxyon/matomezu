@@ -15,12 +15,12 @@ import {
   talkActions,
   unexpired,
 } from "../core/annotation"
-import { checkBooks, restoreBooks } from "../core/book"
+import { checkBooks, findPage, pagesOf, restoreBooks } from "../core/book"
 import { briefLine } from "../core/brief"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
-import { bookType, type CoreCatalog } from "../core/core-catalog"
+import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, type AIEditTicketChange, stopsOnEditLock } from "../core/def/action"
-import { slideIsBackground } from "../core/def/book-type"
+import { slideIsBackground } from "../core/def/page-type"
 import type { SubjectDef } from "../core/def/subject"
 import { detectLang, translate } from "../core/i18n/i18n"
 import { changedIn } from "../core/ids"
@@ -38,7 +38,7 @@ import {
   restoreCounters,
   restoreRecords,
 } from "../core/records"
-import type { Book, Page } from "../core/schema/book"
+import type { Book } from "../core/schema/book"
 import {
   aiSettings,
   disabledPluginsOf,
@@ -138,7 +138,7 @@ const AI_REFUSALS: Record<Exclude<PerformedIn, { ok: true }>["reason"], string> 
   unknown: "there is no action with that id (see actions)",
   "bad-args": "the args do not match the action's args (see actions)",
   "not-allowed":
-    "this book's type (or, for the library, the settings and the records, the control center) does not allow it",
+    "the page's type (or, for an action on the whole book, the action itself; or, for the library, the settings and the records, the control center) does not allow it",
   refused: "the action's rules refuse it (for example the page or item does not exist); read_page to check",
   denied: "a permission step stopped it",
   "no-book": "there is no book with that id (see list_books)",
@@ -251,23 +251,21 @@ function perform(input: Input): Output {
 // 中身をずらした可変ページ（ページの shift が変わった）があれば、AI への知らせ（位置が変わったので読み直す）
 function shiftNotice(before: Readonly<Record<string, Book>>, changed: readonly Book[]): string | null {
   const shiftOf = (b: Book | undefined, page: string) =>
-    (b && "pages" in b ? (b.pages as readonly Page[]).find(p => p.id === page)?.shift : undefined) ?? { x: 0, y: 0 }
+    (b ? findPage(b, page)?.page.shift : undefined) ?? { x: 0, y: 0 }
   const moved = changed.flatMap(b =>
-    "pages" in b
-      ? (b.pages as readonly Page[]).flatMap(p => {
-          const was = shiftOf(before[b.id], p.id)
-          const now = shiftOf(b, p.id)
-          const dx = now.x - was.x
-          const dy = now.y - was.y
-          return dx || dy ? [`page ${p.id} of book ${b.id} by ${dx} paper(s) right and ${dy} down`] : []
-        })
-      : [],
+    pagesOf(b).flatMap(p => {
+      const was = shiftOf(before[b.id], p.id)
+      const now = shiftOf(b, p.id)
+      const dx = now.x - was.x
+      const dy = now.y - was.y
+      return dx || dy ? [`page ${p.id} of book ${b.id} by ${dx} paper(s) right and ${dy} down`] : []
+    }),
   )
   return moved.length
     ? `The contents of a variable page were shifted by whole papers, so every position there changed (${moved.join("; ")}); read_page before using positions.`
     : null
 }
-// ブックのタイプのページの可変ページの決め方（aiCatalog）: 利用者が選べる増やす向きの一覧（最初のものが既定）、タイプが向きを決める by-type、
+// ページのタイプのページの可変ページの決め方（aiCatalog）: 利用者が選べる増やす向きの一覧（最初のものが既定）、タイプが向きを決める by-type、
 // どのページもいつも可変ページの always、可変ページを作れない none
 const growsOf = (rule: GrowRule | undefined): readonly string[] | "by-type" | "always" | "none" =>
   !rule ? "none" : "always" in rule ? "always" : "choices" in rule ? rule.choices : "by-type"
@@ -303,15 +301,15 @@ function aiTables(of: Assembled) {
         description: a.aiDescription,
         args: z.toJSONSchema(a.describeArgs?.(catalog) ?? a.args, { io: "input", unrepresentable: "any" }),
       })),
-    bookTypes: [...catalog.bookTypes.values()].map(t => ({
+    pageTypes: [...catalog.pageTypes.values()].map(t => ({
       id: t.id,
       title: en(t.title),
-      pages: t.pages !== null,
-      grows: t.pages ? growsOf(t.grow) : "none", // 可変ページの決め方
+      grouping: t.grouping, // binder のタイプのページは、そのタイプのバインダの中にだけ置ける
+      grows: growsOf(t.grow), // 可変ページの決め方
       items: t.items.allowed, // ページに置けるアイテム
       // ページの slide（形だけの並び）に置けるアイテムと、その並びがページの背景か本体か（無ければ null）。read_page には、背景は有無と文字だけが見える（page.background.texts）
       slide: t.slide ? { items: t.slide.allowed, role: slideIsBackground(t) ? "background" : "body" } : null,
-      themes: themesFor(catalog, t.id).map(th => th.id), // そのタイプのブックと中の形に当てられるテーマ（テーマタイプの重なりは、ここで計算して出す）
+      themes: themesFor(catalog, t.id).map(th => th.id), // そのタイプのページと中の形に当てられるテーマ（テーマタイプの重なりは、ここで計算して出す）
     })),
     items: [...catalog.items.values()].map(i => ({
       id: i.id,
@@ -612,14 +610,9 @@ function searchTextOf(def: SubjectDef, record: unknown): { title: string; body: 
 ;(globalThis as { matomezuAiPage?: (book: string, page: string) => string }).matomezuAiPage = (book, page) => {
   const catalog = assembled.catalog.core
   const [read] = restoreBooks(catalog, [JSON.parse(book)])
-  const body = JSON.parse(page) as { slide?: { id: string; item: string }[] }
-  if (
-    !read ||
-    !Array.isArray(body.slide) ||
-    body.slide.length === 0 ||
-    !slideIsBackground(bookType(catalog, read.type))
-  )
-    return page
+  const body = JSON.parse(page) as { type?: string; slide?: { id: string; item: string }[] }
+  const type = typeof body.type === "string" ? catalog.pageTypes.get(body.type) : undefined
+  if (!read || !type || !Array.isArray(body.slide) || body.slide.length === 0 || !slideIsBackground(type)) return page
   const { slide, ...rest } = body
   const texts = slide.flatMap(s => {
     const def = catalog.items.get(s.item)

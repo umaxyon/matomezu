@@ -1,6 +1,7 @@
 // base の拡大縮小のコマンド（zoom-in・zoom-out・zoom-reset・zoom-fit）と、倍率の範囲
+
 import { expect, test } from "bun:test"
-import type { ItemPage } from "../../web/src/core/placed"
+import { findPage } from "../../web/src/core/book"
 import { paperOf } from "../../web/src/core/stage"
 import { MARGIN } from "../../web/src/core/viewport"
 import { screenOf } from "../../web/src/core/window"
@@ -99,11 +100,11 @@ test("左と上へ増やす可変ページは、開くと、空きの印刷区�
   actions.openPage("s1", "p1")
   actions.resizeStage("s1", { w: 800, h: 600 })
   const book = state.getState().books.b1!
-  const page = (book as { pages: readonly ItemPage[] }).pages.find(p => p.id === "p1")!
+  const page = findPage(book, "p1")!.page
   const sheet = paperOf(stage())!
-  const start = startOf(catalog.core, book, page)
+  const start = startOf(catalog.core, page)
   expect(start).toEqual({ x: sheet.w, y: sheet.h })
-  actions.setStageArea("s1", roomOf(catalog.core, book, page))
+  actions.setStageArea("s1", roomOf(catalog.core, page))
   actions.setStageStart("s1", start)
   expect(stage().pan).toEqual({ x: -sheet.w, y: -sheet.h })
   expect(enabled()).toBe(false)
@@ -118,6 +119,8 @@ test("ツリーの可変ページも、左へ増やす向きなら左の印刷�
   const { catalog } = newStore()
   const children = Array.from({ length: 3 }, (_, i) => ({ id: `c${i}`, caption: `子 ${i}` }))
   const page = {
+    kind: "page" as const,
+    type: "@matomezu/tree:tree",
     id: "p1",
     title: "1",
     paper: "@matomezu/base:a4",
@@ -125,15 +128,16 @@ test("ツリーの可変ページも、左へ増やす向きなら左の印刷�
     grows: true as const,
     root: { id: "r", caption: "根", children },
   }
-  const tree = { type: "@matomezu/tree:tree" as const, id: "t1", title: "木", pages: [page] }
-  expect(startOf(catalog.core, tree as never, page as never)).toEqual({ x: 1123, y: 0 })
+  expect(startOf(catalog.core, page as never)).toEqual({ x: 1123, y: 0 })
   // 中身の無いページ・可変ページでないページは紙の左上
-  const plain = { id: "p2", title: "2", paper: "@matomezu/base:a4", orientation: "landscape" as const, items: [] }
-  const drawing = {
-    type: "@matomezu/drawing:drawing" as const,
-    id: "d1",
-    title: "図",
-    pages: [plain],
+  const plain = {
+    kind: "page" as const,
+    type: "@matomezu/drawing:drawing",
+    id: "p2",
+    title: "2",
+    paper: "@matomezu/base:a4",
+    orientation: "landscape" as const,
+    items: [],
   }
-  expect(startOf(catalog.core, drawing as never, plain as never)).toEqual({ x: 0, y: 0 })
+  expect(startOf(catalog.core, plain as never)).toEqual({ x: 0, y: 0 })
 })

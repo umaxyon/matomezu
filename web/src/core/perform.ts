@@ -1,12 +1,14 @@
 // アクションを行う、データを変える入口。対象で使えるアクションかと引数の形を確かめてから run する。
-// 使えるかは、book と annotations が対象ならそのブックのタイプ、library・settings と対象の定義の種類が対象ならインスタンスのコントロールセンターが決める（コントロールセンターが無ければ断る）。
+// 使えるかは、book と annotations が対象ならアクションが名指すページのタイプ（名指さなければ、タイプに依らない付く先だけ）、library・settings と対象の定義の種類が対象ならインスタンスのコントロールセンターが決める（コントロールセンターが無ければ断る）。
 // その前に認可ステップ（core/def/permission.ts）が止められ、run の結果も認可ステップが守らせることを守っていなければ断る（denied）
+
 import type { z } from "zod"
+import { USER } from "./actor"
 import { type Annotations, annotationsSettle, type BookAnnotations, prune } from "./annotation"
-import { creatableTypes, createBook, holds } from "./book"
+import { holds, keepsPageTypes, pagesOf } from "./book"
 import type { ActionId, ActionTable } from "./catalog"
 import { changesOf } from "./changes"
-import { bookType, type CoreCatalog } from "./core-catalog"
+import { type CoreCatalog, pageType } from "./core-catalog"
 import {
   type ActionContext,
   type ActionDef,
@@ -18,7 +20,7 @@ import {
   type AnySettingsScope,
   libraryScopeOf,
   type OtherRecord,
-  pagedOnly,
+  pagesScopeOf,
   type SubjectData,
   type Subjects,
   scopeOf,
@@ -27,13 +29,13 @@ import {
 } from "./def/action"
 import type { Referred } from "./def/permission"
 import type { SubjectDef } from "./def/subject"
-import { deniedBy, type Inspected, inspect, typeAllows } from "./inspect"
+import { decidedByPlace, deniedBy, type Inspected, inspect, typeAllows, withoutPermissions } from "./inspect"
 import type { Library } from "./library"
 import { type RecordSource, readFrom, SOURCE, sourceIn, sourceOf, type WithSource } from "./record-source"
 import { type Counters, NO_RECORD, RECORDS_MAX, REMOVED, type RecordChange, type Records } from "./records"
 import { referredOf } from "./refs"
 import { sameData } from "./same"
-import type { Book } from "./schema/book"
+import type { Book, Page } from "./schema/book"
 import type { Settings } from "./settings"
 import { settledAfter } from "./settle"
 
@@ -69,14 +71,14 @@ export type Performed<Id extends ActionId> =
     }
   | Refused
 
-// タイプで使えるアクション（表の並び）: タイプが選んだ物に付くアクションとタイプが足すアクションから、タイプが外すアクションを除く（inspect と同じ決まり）
-function typeActions(catalog: CoreCatalog, type: string): readonly string[] {
-  const t = bookType(catalog, type)
-  return [...catalog.actions.values()].filter(a => typeAllows(a, t)).map(a => a.id)
+// タイプ type のページで使えるアクション（表の並び）: タイプが選んだ物に付くアクションとタイプが足すアクションから、タイプが外すアクションを除く（inspect と同じ決まり）。
+// ブック自身だけを変えるアクション（許可スコープが "book"）は、タイプでは決まらないので、タイプに依らない付く先（attach の books）だけで並べる
+export function actionsOfPage(catalog: CoreCatalog, page: Pick<Page, "type">): readonly string[] {
+  const t = pageType(catalog, page.type)
+  return [...catalog.actions.values()]
+    .filter(a => (a.target === "book" && a.permissionScope === "book" ? a.attach?.books === true : typeAllows(a, t)))
+    .map(a => a.id)
 }
-
-// ブックで使えるアクション
-export const actionsOf = (catalog: CoreCatalog, book: Book): readonly string[] => typeActions(catalog, book.type)
 
 // アクションが返したブック after を、ノーマライズステップ（core/def/normalize-step.ts）を順にかけて整えたもの。
 // run がステップだけが書くページのフィールドを変えていたら（前の状態に戻すアクションを除く）、または整えられなければ null
@@ -168,38 +170,37 @@ export type PermitContext = Pick<ActionContext, "catalog" | "controlCenter" | "a
 
 // 使えるかは inspect と同じ決まりで決める（問い合わせの答えと、実際に行えるかを食い違わせない）。利用者の設定が対象なら、許可スコープで引数から出した変える項目の id も渡す。
 // 認可ステップに渡すのは、ブックが対象ならそのブックと、アクションの許可スコープ（permissionScope）で引数から出す所（無ければ分からないとして渡す）。
-// 一覧が対象なら、許可スコープで引数から出した変えるブックごとに、そのブックとその中の所（作るブックは、そのタイプで作る空のブック）を渡し、どれかで止められれば止める。
+// 一覧が対象なら、許可スコープで引数から出した変えるブックごとに、そのブックとその中の所（作るブックは、空のブック）を渡し、どれかで止められれば止める。
 // 一覧の許可スコープが "unknown" なら、認可ステップは行った後の keeps だけで見る
 function permits(
   ctx: PermitContext,
   action: ActionDef,
   subject: unknown,
   args: { success: true; data: unknown } | { success: false },
-): Permitted {
+): Permitted & { pages?: readonly string[] } {
   const settings =
     args.success && action.target === "settings"
       ? settingsScopeOf(action.permissionScope as AnySettingsScope, args.data)
       : undefined
-  const asked = (
+  const asking = (
     book: Book | undefined,
     where: Where | undefined,
     record?: { record: unknown; refs: readonly Referred[] },
   ) =>
-    answerOf(
-      inspect(
-        ctx.catalog,
-        {
-          kind: "action",
-          action: action.id,
-          book,
-          ...(where ? { where } : {}),
-          ...(settings ? { settings } : {}),
-          ...(record ? { record } : {}),
-          actor: ctx.actor,
-        },
-        ctx,
-      ),
+    inspect(
+      ctx.catalog,
+      {
+        kind: "action",
+        action: action.id,
+        book,
+        ...(where ? { where } : {}),
+        ...(settings ? { settings } : {}),
+        ...(record ? { record } : {}),
+        actor: ctx.actor,
+      },
+      ctx,
     )
+  const asked = (...at: Parameters<typeof asking>) => answerOf(asking(...at))
   if (isRecordTarget(ctx.catalog, action.target)) {
     const refs = referredOf(ctx.catalog, action.target, subject, ctx.records ?? {}, sourceIn(ctx))
     if (refs === "unreadable") return { ok: false, reason: "not-allowed" }
@@ -212,10 +213,7 @@ function permits(
       const book = library[t.book]
       return book ? [{ book, where: t.where }] : []
     })
-    const creatable = creatableTypes(ctx.catalog)
-    const made = (targets?.creates ?? []).flatMap(type =>
-      creatable.includes(type as never) ? [{ book: createBook(ctx.catalog, type, NEW_BOOK), where: {} }] : [],
-    )
+    const made = targets?.creates ? [{ book: NEW_BOOK, where: {} }] : []
     const asks = [...books, ...made]
     if (asks.length === 0) return asked(undefined, undefined)
     for (const a of asks) {
@@ -230,15 +228,40 @@ function permits(
       : action.target === "annotations"
         ? (subject as BookAnnotations).book
         : undefined
-  const where =
-    args.success && action.target === "book"
-      ? scopeOf(action.permissionScope as AnyPermissionScope, args.data)
-      : undefined
-  return asked(book, where)
+  if (action.target !== "book") return asked(book, undefined)
+  // ページ 1 枚ごとに問う形: 名指したページのうち、止められなかったページを残す。1 枚も残らなければ、最初のページの答えで断る。
+  // 名指したページがブックに 1 枚も無ければ、ページでは問わない（無いページは run が断る）
+  const named = args.success ? pagesScopeOf(action.permissionScope as AnyPermissionScope | undefined, args.data) : null
+  const each = named && book ? pagesOf(book).filter(p => named === "all" || named.includes(p.id)) : []
+  if (each.length > 0) {
+    const answers = each.map(p => ({ page: p.id, answer: asking(book, { page: p.id }) }))
+    const pages = answers.filter(a => a.answer.value === true).map(a => a.page)
+    const first = answers[0]
+    return pages.length > 0 || !first ? { ok: true, pages } : answerOf(first.answer)
+  }
+  const answer = asking(book, placeOf(action, args))
+  // 引数が形に合わなければ所が出せないので、所のステップ（ページのタイプと付く先）では止めない（行う側が bad-args で断る。認可ステップなどが止めるなら、そちらが先）
+  return !args.success && answer.value === false && decidedByPlace(answer) ? { ok: true } : answerOf(answer)
 }
 
-// 作るブックを認可ステップに問うときの id と名前（問うためだけの物で、作るブックの中身はタイプが決める）
-const NEW_BOOK = { id: "new-book", title: "new book" }
+// ブックが対象のアクション action が、引数で名指す所（引数が形に合わなければ、分からない）
+const placeOf = (action: ActionDef, args: { success: true; data: unknown } | { success: false }): Where | undefined =>
+  args.success ? scopeOf(action.permissionScope as AnyPermissionScope | undefined, args.data) : undefined
+
+// ブック book に、ブックが対象のアクション id を引数 args で行えるか、認可ステップを除いて問う（引数が名指すページのタイプと、アクションの付く先だけで決まる）。
+// 引数が形に合わなければ行えない
+export function allowedOnBook(catalog: CoreCatalog, book: Book, id: string, args: unknown): boolean {
+  const action: ActionDef | undefined = catalog.actions.get(id)
+  if (action?.target !== "book") return false
+  const parsed = action.args.safeParse(args)
+  if (!parsed.success) return false
+  const where = placeOf(action, parsed)
+  const answer = inspect(catalog, { kind: "action", action: id, book, ...(where ? { where } : {}), actor: USER })
+  return withoutPermissions(answer).value === true
+}
+
+// 作るブックを認可ステップに問うときの、空のブック（問うためだけの物）
+const NEW_BOOK: Book = { id: "new-book", title: "new book", lineup: [] }
 
 // 行う前の問いの答え: 使えるか、止めた理由
 export type Permitted = { ok: true } | NotAllowed | { ok: false; reason: "denied"; permission: string }
@@ -260,7 +283,8 @@ function answerOf(answer: Inspected<boolean>): Permitted {
 export function permitted(subject: unknown, id: string, args: unknown, ctx: PermitContext): Permitted | Refused {
   const action: ActionDef | undefined = ctx.catalog.actions.get(id)
   if (!action) return { ok: false, reason: "unknown" }
-  return permits(ctx, action, subject as Subjects[keyof Subjects], action.args.safeParse(args))
+  const answer = permits(ctx, action, subject as Subjects[keyof Subjects], action.args.safeParse(args))
+  return answer.ok ? { ok: true } : answer
 }
 
 export function perform<Id extends ActionId>(
@@ -275,9 +299,11 @@ export function perform<Id extends ActionId>(
   const permitted = permits(ctx, action, subject, parsed)
   if (!permitted.ok) return permitted
   if (!parsed.success) return { ok: false, reason: "bad-args" }
-  // 付く先がページを持つタイプだけのアクションに、ページの無いブックは渡さない（run は PagedBook を受ける）
-  if (pagedOnly(action.attach) && !("pages" in (subject as Book))) return { ok: false, reason: "refused" }
-  const ran = action.run(subject as never, parsed.data, ctx)
+  const ran = action.run(
+    subject as never,
+    parsed.data,
+    permitted.pages ? { ...ctx, permittedPages: permitted.pages } : ctx,
+  )
   if (!ran) return { ok: false, reason: "refused" }
   if ("declined" in ran)
     return { ok: false, reason: "refused", detail: ran.declined, ...(ran.kind === undefined ? {} : { kind: ran.kind }) }
@@ -297,7 +323,11 @@ export function perform<Id extends ActionId>(
           ? broken(ctx, action, pair.book, pair.book)
           : null
   if (permission) return { ok: false, reason: "denied", permission }
-  if (action.target === "book" && !settles(ctx.catalog, done.next as Book)) return { ok: false, reason: "refused" }
+  if (action.target === "book") {
+    // ページのタイプは作ったあと変えない（アクションが替えていたら断る）
+    if (!settles(ctx.catalog, done.next as Book) || !keepsPageTypes(subject as Book, done.next as Book))
+      return { ok: false, reason: "refused" }
+  }
   if (action.target === "library" && !librarySettles(ctx.catalog, subject as Library, done.next as Library))
     return { ok: false, reason: "refused" }
   if (action.target === "annotations") {

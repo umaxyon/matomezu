@@ -1,6 +1,6 @@
 // 画面の履歴（Undo・Redo）: 利用者の 1 回の操作で変わったブックの前と後を画面の履歴の段 1 つに持つ（store が作り、戻す・やり直すのは base の history）。
 // AI とほかの窓の変更は、まだ見ていない画面の履歴の段として store が溜め、変えた物が見えたら時刻の位置に差し込む
-import type { Patch } from "./patch"
+import type { ListPatch, Patch } from "./patch"
 import type { Book } from "./schema/book"
 
 // 画面の履歴の段を作った物: この窓の利用者・AI・ほかの窓
@@ -40,6 +40,18 @@ function changedIds(item: string, p: Patch): string[] {
   return own.length + children.length > 0 ? [...own, ...children] : [item]
 }
 
+// 並びの Patch の中の、ページ page の Patch（ページ page に触れていなければ undefined）。バインダの中のページは、バインダの要素の中の並び（lineup）をたどる。
+// 中の並び（lineup）のフィールドを持つのはバインダだけ（ページは lineup という名前のフィールドを持てない。台帳アセンブルの E030）
+function patchOfPage(list: readonly ListPatch[], page: string): ListPatch | undefined {
+  for (const x of list) {
+    if (x.id === page) return x
+    const inner = "fields" in x.patch ? x.patch.fields.lineup : undefined
+    const found = inner && "list" in inner ? inner.list.find(y => y.id === page) : undefined
+    if (found) return found
+  }
+  return undefined
+}
+
 // まだ見ていない変更（ブックを before から after にした Patch made）が、そのブックのページ page（ページを持たなければ null）を開いているステージで見えたか（どれか 1 つが見えたら全体）。
 // ブックやページのフィールドの変更は、開いていれば見えたとする。アイテムは、変えた物（子の形を変えたならその子）を seen に前と後のブックで聞き（消えた物は前の場所）、
 // seen が無ければ見えたとする
@@ -49,10 +61,10 @@ export function changeSeen(
   page: string | null,
   seen?: SeenTest,
 ): boolean {
-  if (page === null || !("fields" in made) || Object.keys(made.fields).some(k => k !== "pages")) return true
-  const pages = made.fields.pages
-  if (!pages || !("list" in pages) || pages.list.length === 0) return true
-  const q = pages.list.find(x => x.id === page)
+  if (page === null || !("fields" in made) || Object.keys(made.fields).some(k => k !== "lineup")) return true
+  const lineup = made.fields.lineup
+  if (!lineup || !("list" in lineup) || lineup.list.length === 0) return true
+  const q = patchOfPage(lineup.list, page)
   if (!q) return false
   if (!("fields" in q.patch) || Object.keys(q.patch.fields).some(k => k !== "items")) return true
   const items = q.patch.fields.items

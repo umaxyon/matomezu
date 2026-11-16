@@ -1,4 +1,5 @@
 // スライドのアイテムの重なり順（右クリックのメニューとキー）・複数選択・線の端点
+import { SLIDE, testBinder, testBook, testPage, withSlide } from "../test/lineup"
 import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { onPaper, paper } from "./helpers/paper"
 
@@ -14,20 +15,18 @@ const ellipse = (id: string, x: number) => ({
 
 test.use({
   books: [
-    {
-      type: "@matomezu/slide-book:slide",
-      id: "b1",
-      title: "スライド",
-      pages: [
-        {
-          id: "p1",
-          title: "1",
-          paper: "@matomezu/base:ratio-16x9",
-          orientation: "landscape",
-          slide: [ellipse("e1", 100), ellipse("e2", 400), ellipse("e3", 700)],
-        },
-      ],
-    },
+    testBook("b1", "スライド", [
+      testBinder(
+        "b1-slides",
+        "スライド",
+        SLIDE,
+        withSlide(testPage(SLIDE, "p1", { title: "1", paper: "@matomezu/base:ratio-16x9" }), [
+          ellipse("e1", 100),
+          ellipse("e2", 400),
+          ellipse("e3", 700),
+        ]),
+      ),
+    ]),
   ],
 })
 
@@ -134,33 +133,27 @@ test.describe("線の端点", () => {
   })
   test.use({
     books: [
-      {
-        type: "@matomezu/slide-book:slide",
-        id: "b1",
-        title: "スライド",
-        pages: [
-          {
-            id: "p1",
-            title: "1",
-            paper: "@matomezu/base:ratio-16x9",
-            orientation: "landscape",
-            slide: [
-              line("l1", "@matomezu/slide:slide-line", { width: 4, color: "#286983" }),
-              {
-                ...line("f1", "@matomezu/slide:slide-free-line", {
-                  points: [
-                    { x: 0, y: 1 },
-                    { x: 0.5, y: 0 },
-                    { x: 1, y: 1 },
-                  ],
-                  width: 4,
-                }),
-                x: 700,
-              },
-            ],
-          },
-        ],
-      },
+      testBook("b1", "スライド", [
+        testBinder(
+          "b1-slides",
+          "スライド",
+          SLIDE,
+          withSlide(testPage(SLIDE, "p1", { title: "1", paper: "@matomezu/base:ratio-16x9" }), [
+            line("l1", "@matomezu/slide:slide-line", { width: 4, color: "#286983" }),
+            {
+              ...line("f1", "@matomezu/slide:slide-free-line", {
+                points: [
+                  { x: 0, y: 1 },
+                  { x: 0.5, y: 0 },
+                  { x: 1, y: 1 },
+                ],
+                width: 4,
+              }),
+              x: 700,
+            },
+          ]),
+        ),
+      ]),
     ],
   })
 

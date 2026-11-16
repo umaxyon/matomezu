@@ -2,27 +2,20 @@
 // 返した定義の id は本当の id（型も）で、自分の物はそれか kit.name(名前) で名指す。ほかのプラグインの物は本当の id で書く。
 // 頭を付けるのは、定義の id・名前（title。自分の文言の短い鍵）・宣言するテーマキーの id・テーマが上書きする自分のテーマキーだけ
 import type { ActionId, DialogExtras, MessageKey } from "../core/catalog"
-import type { ActionAttach, ActionDef, ActionTarget, ScopeRequired } from "../core/def/action"
+import type { ActionAttach, ActionDef, ActionTarget, OnContainer, ScopeRequired } from "../core/def/action"
 import type { AnnotationDef } from "../core/def/annotation"
-import {
-  type BookSchema,
-  type BookTypeDef,
-  type DataOf,
-  type NewBook,
-  type WithTypeField,
-  withTypeField,
-} from "../core/def/book-type"
 import type { ControlCenterDef } from "../core/def/control-center"
 import type { EnumDataOf, EnumDef, EnumValueDef } from "../core/def/enum"
 import type { ConnectorDataOf, ConnectorItemDef, ShapeDataOf, ShapeItemDef } from "../core/def/item"
 import type { MailDef } from "../core/def/mail"
+import type { PageTypeDef } from "../core/def/page-type"
 import type { PaperDef } from "../core/def/paper"
 import type { PermissionDef } from "../core/def/permission"
 import type { PluginStateAddress, PluginStateDef, PluginStateSchema, PluginStateScope } from "../core/def/plugin-state"
 import type { PresentationDef } from "../core/def/presentation"
 import type { ScreenArrangementDef } from "../core/def/screen-arrangement"
 import type { ScreenDef } from "../core/def/screen-def"
-import type { DefaultedSettingDef, SettingDef } from "../core/def/setting"
+import type { DefaultedSettingDef, SettingDef, SettingHolder } from "../core/def/setting"
 import type { SkinDef } from "../core/def/skin"
 import type { KeysOfTypes, RecordKeyDef, SubjectDef } from "../core/def/subject"
 import type { TextColorDef } from "../core/def/text-color"
@@ -42,17 +35,8 @@ type Titled<D, K extends string> = Omit<D, "id" | "title"> & { title: K }
 type Placed<D, Id extends string> = Omit<D, "id" | "title"> & { id: Id; title: MessageKey }
 type ShapeProps = ShapeItemDef["props"]
 
-// ブックのタイプ（schema に type は書かない）。create の返すデータの形は、台帳アセンブルが schema で確かめる
-// （ここで schema から型を作って縛ると、型の推論が回って崩れる）
-type BookTypeIn<S extends BookSchema, K extends string> = Titled<Omit<BookTypeDef<S>, "create">, K> & {
-  create(init: NewBook): object
-}
-type BookTypeOut<T, S extends BookSchema, Id extends string> = Omit<T, "id" | "title" | "schema" | "create"> & {
-  id: Id
-  title: MessageKey
-  schema: WithTypeField<S, Id>
-  create(init: NewBook): DataOf<WithTypeField<S, Id>>
-}
+// 設定の項目の定義の、持つ所（holder を書いた定義はその値、書かない定義は持たない）
+type Held<H> = H extends SettingHolder ? { holder: H } : { holder?: never }
 
 // 定義の関数の組。返す型は書いておく（文言の表を通して、この組の型が自分を参照するため）
 export interface PluginKit<P extends string, M extends MessageMap> {
@@ -108,17 +92,27 @@ export interface PluginKit<P extends string, M extends MessageMap> {
     R,
     I,
     const At extends ActionAttach | undefined = undefined,
+    const Sc = unknown,
   >(
-    def: ActionDef<T, A, R, I, keyof M & string, At> & { id: Id } & ScopeRequired<T, A>,
-  ): Omit<ActionDef<T, A, R, I, MessageKey, At>, "id"> & { id: Owned<P, Id> }
+    def: ActionDef<T, A, R, I, keyof M & string, At> & { id: Id } & ScopeRequired<T, A> & { permissionScope?: Sc },
+  ): Omit<ActionDef<T, A, R, I, MessageKey, At>, "id"> & { id: Owned<P, Id> } & OnContainer<Sc>
 
   // 既定を持つ項目は、読むとき（settingValue）に必ず値があると分かるように、default を持つ形で返す
-  defineSetting<const Id extends string, S extends SettingDef["schema"]>(
-    def: DefaultedSettingDef<S, keyof M & string> & { id: Id },
-  ): Omit<DefaultedSettingDef<S>, "id"> & { id: Owned<P, Id> }
-  defineSetting<const Id extends string, S extends SettingDef["schema"]>(
-    def: SettingDef<S, keyof M & string> & { id: Id },
-  ): Omit<SettingDef<S>, "id"> & { id: Owned<P, Id> }
+  // 設定の項目。holder（"page" か "book"）を書いた定義はページ・ブックの項目、書かない定義は利用者の設定の項目（型に holder が残り、読む関数が合う項目だけを受ける）
+  defineSetting<
+    const Id extends string,
+    S extends SettingDef["schema"],
+    const H extends SettingHolder | undefined = undefined,
+  >(
+    def: Omit<DefaultedSettingDef<S, keyof M & string>, "holder"> & { id: Id; holder?: H },
+  ): Omit<DefaultedSettingDef<S>, "id" | "holder"> & { id: Owned<P, Id> } & Held<H>
+  defineSetting<
+    const Id extends string,
+    S extends SettingDef["schema"],
+    const H extends SettingHolder | undefined = undefined,
+  >(
+    def: Omit<SettingDef<S, keyof M & string>, "holder"> & { id: Id; holder?: H },
+  ): Omit<SettingDef<S>, "id" | "holder"> & { id: Owned<P, Id> } & Held<H>
 
   definePresentation<const Id extends string>(
     def: Omit<PresentationDef, "id"> & { id: Id },
@@ -177,10 +171,10 @@ export interface PluginKit<P extends string, M extends MessageMap> {
     def: EnumValueDef<E, EnumDataOf<E>, keyof M & string> & { id: Id },
   ): Omit<EnumValueDef<E>, "id"> & { id: Owned<P, Id> }
 
-  // ブックのタイプ: データの type は本当の id。schema に type は書かず、ここで足す
-  defineBookType<const Id extends string, const S extends BookSchema, const T extends BookTypeIn<S, keyof M & string>>(
-    def: T & { id: Id; schema: S },
-  ): BookTypeOut<T, S, Owned<P, Id>>
+  // ページのタイプ: ページのデータの type は、ここで頭を付けた本当の id
+  definePageType<const Id extends string, const T extends Titled<PageTypeDef, keyof M & string>>(
+    def: T & { id: Id },
+  ): Placed<T, Owned<P, Id>>
 
   // コントロールセンター（ブックでない、利用者に 1 つの入口。core/def/control-center.ts）
   defineControlCenter<const Id extends string, const T extends Omit<ControlCenterDef, "id">>(
@@ -307,14 +301,7 @@ export function pluginKit<const P extends string, const M extends MessageMap = R
     defineScreenArrangement: place,
     defineEnum: place,
     defineEnumValue: place,
-    defineBookType: (def: { id: string; schema: BookSchema; create(init: NewBook): object }) => {
-      const id = owned(plugin, def.id)
-      return {
-        ...place(def),
-        schema: withTypeField(def.schema, id),
-        create: (init: NewBook) => ({ type: id, ...def.create(init) }),
-      }
-    },
+    definePageType: place,
     defineControlCenter: place,
     defineTheme: (def: { id: string; tokens?: Record<string, unknown> }) => {
       const placed = place(def)

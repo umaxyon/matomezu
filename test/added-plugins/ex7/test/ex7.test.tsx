@@ -1,9 +1,10 @@
 // ex6 と ex7 で、定義オブジェクトの拡張ポイントを確かめる: ex6-spec が形の拡張ポイントに書き足したメソッド "ex6:weight" に ex7 の木箱が答え、
 // ex6 のアクションが機能台帳から引いて使う。ex6 と ex7 を一緒に組むので、このテストだけは ex6 のコード（ex6/ui）を読む
+
 import { expect, test } from "bun:test"
 import { act } from "@testing-library/react"
 import EX6_UI from "ex6/ui"
-import { addPageIn, createBookIn } from "matomezu"
+import { addPageIn, createBookIn, pagesOf } from "matomezu"
 import { BUILTIN_UI, createMatomezu, openedIn } from "matomezu/testing"
 import EX7_UI from "../ui"
 
@@ -14,14 +15,14 @@ test("ex6 のページの重さは、ex7 の木箱が ex6:weight で答えた重
     lang: "ja",
   })
   act(() => {
-    expect(createBookIn(instance, "s1", { title: "置き場", type: "ex7:yard" })).toBe(true)
+    expect(createBookIn(instance, "s1", { title: "置き場" })).toBe(true)
   })
   const book = (openedIn(instance) as { book: string }).book
   act(() => {
-    expect(addPageIn(instance, "s1", { title: "p1" })).toBe(true)
+    expect(addPageIn(instance, "s1", { type: "ex7:yard", title: "p1" })).toBe(true)
   })
   const on = { book }
-  const page = (instance.state.getState().books[book] as unknown as { pages: readonly { id: string }[] }).pages[0]!.id
+  const page = pagesOf(instance.state.getState().books[book]!)[0]!.id
   act(() => {
     for (const [x, load] of [
       [40, 3],

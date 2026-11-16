@@ -125,8 +125,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:control-center-toggle",
       { either: ["@matomezu/base:stage-split", "@matomezu/base:stage-unsplit"] },
       "@matomezu/base:book-open",
-      "@matomezu/base:book-settings",
-      "@matomezu/base:settings-open",
+      { either: ["@matomezu/base:binder-settings-opened", "@matomezu/base:page-settings"] },
     ],
   },
   // 押した物にアンカーがあれば、どの右クリックのメニューにも末尾に出す
@@ -199,11 +198,27 @@ export const DEFAULT_LAYOUT = defineLayout({
       "-",
       "@matomezu/paper:paper-delete",
     ],
+    // 行は、メニューが自分で並べる（ページのタイプの一覧）
+    "@matomezu/base:add-page-menu": [],
     "@matomezu/base:page-context": [
+      "@matomezu/base:page-duplicate",
+      "@matomezu/base:scrap-cut",
+      "@matomezu/base:background-edit",
+      "-",
+      "@matomezu/base:page-delete",
+    ],
+    "@matomezu/base:binder-context": [
+      "@matomezu/base:binder-settings",
+      "@matomezu/base:binder-duplicate",
+      "-",
+      "@matomezu/base:binder-delete",
+    ],
+    "@matomezu/base:page-list-context": [
       "@matomezu/base:page-add-after",
       "@matomezu/base:page-duplicate",
       "@matomezu/base:scrap-cut",
       "@matomezu/base:background-edit",
+      "@matomezu/base:page-settings-of",
       "-",
       "@matomezu/base:page-delete",
     ],

@@ -1,14 +1,16 @@
-// ページタブのドラッグ（フック）: タブ（ページ一覧のページも）を掴んで並べ替える。並びの向き axis は、タブの横（x）か、ページ一覧の縦（y）。4px 動かしてから始め、落とす所を index で追い、離したらアクション page-move を行う。
+// ページタブのドラッグ（フック）: タブ（ページ一覧のページも）を掴んで並べ替える。並びの向き axis は、タブの横（x）か、ページ一覧の縦（y）。4px 動かしてから始め、落とす所を index で追い、離したらアクション page-move（バインダのタブなら binder-move）を行う。
 // タブの並びの外で離したら取り消す。並びが横にあふれていれば、端へ寄せている間スクロールする。始める前に page-move を行えるか問い、行えなければ始めない
 import { type PointerEvent, type RefObject, useEffect, useRef, useState } from "react"
 import { useAllowed, usePerform } from "../../../ui/view-hooks"
 import { DRAG_START, edgePanner } from "../utils"
+import { BINDER_MOVE } from "./binders"
 import { PAGE_MOVE } from "./page-move"
 import { dropIndex, within } from "./tab-drop"
 
 const OUTSIDE = 24 // タブの並びの外へ出たと見る px
+const NO_BINDERS: ReadonlySet<string> = new Set()
 
-// ドラッグ中の様子: 掴んだページ、ポインタの位置（画面の座標）、掴んだ所のタブの左からの距離、落とす所の index（掴んだタブを除いて数える。並びの外なら null）
+// ドラッグ中の様子: 掴んだページ（かバインダ）、ポインタの位置（画面の座標）、掴んだ所のタブの左からの距離、落とす所の index（掴んだタブを除いて数える。並びの外なら null）
 export interface TabDrag {
   id: string
   x: number
@@ -17,7 +19,13 @@ export interface TabDrag {
   index: number | null
 }
 
-export function useTabDrag(list: RefObject<HTMLElement | null>, ids: readonly string[], axis: "x" | "y" = "x") {
+// binders は ids のうちバインダの id（ページタブの並びに出るバインダ）
+export function useTabDrag(
+  list: RefObject<HTMLElement | null>,
+  ids: readonly string[],
+  axis: "x" | "y" = "x",
+  binders: ReadonlySet<string> = NO_BINDERS,
+) {
   const perform = usePerform()
   const movable = useAllowed(PAGE_MOVE.id).ok
   const [drag, setDrag] = useState<TabDrag | null>(null)
@@ -68,8 +76,10 @@ export function useTabDrag(list: RefObject<HTMLElement | null>, ids: readonly st
     pointer.current = null
     const d = drag
     setDrag(null)
-    if (commit && g && d?.index != null && d.index !== ids.indexOf(g.id))
-      perform(PAGE_MOVE.id, { page: g.id, index: d.index })
+    if (commit && g && d?.index != null && d.index !== ids.indexOf(g.id)) {
+      if (binders.has(g.id)) perform(BINDER_MOVE.id, { binder: g.id, index: d.index })
+      else perform(PAGE_MOVE.id, { page: g.id, index: d.index })
+    }
   }
 
   return {

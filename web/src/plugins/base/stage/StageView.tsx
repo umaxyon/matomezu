@@ -7,7 +7,6 @@
 // Ctrl+ホイール（Mac は Cmd も。ピンチも）は、回した量とポインタの位置をそのままコマンド zoom-wheel に渡す（倍率はコマンドが決める。
 // コマンドが出ているステージならブラウザの拡大は止める）
 import { memo, type PointerEvent, useEffect, useRef, useState, type WheelEvent } from "react"
-import type { BookTypeId } from "../../../core/core-catalog"
 import { paperOf } from "../../../core/stage"
 import { workspaceOf } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
@@ -16,7 +15,7 @@ import { Slot } from "../../../ui/Slot"
 import { useStageId } from "../../../ui/scope"
 import { useCatalog, useMatomezuState, useStoreActions } from "../../../ui/store-context"
 import { useBook, useStage } from "../../../ui/view-hooks"
-import { useBookLookStyle } from "../book-look/use-book-look-style"
+import { usePageLookStyle } from "../book-look/use-page-look-style"
 import { BOOK_NEW } from "../book-new"
 import { BookSearch } from "../book-open/BookSearch"
 import { kit } from "../kit"
@@ -130,7 +129,7 @@ export const StageView = memo(function StageView() {
       onWheel={onWheel}
     >
       {stage.opened && book ? (
-        <BookContent stage={id} type={stage.opened.type} previewing={inPreview} />
+        <BookContent stage={id} previewing={inPreview} />
       ) : (
         <EmptyStage stage={id} onSelect={book => openBook(id, book)} />
       )}
@@ -159,8 +158,8 @@ function EmptyStage({ onSelect }: { stage: string; onSelect: (book: string) => v
 
 // 開いたブックを、レイヤーを重ねて、テーマの値の中に描く（アンカーの表と、物の角に出す物の表はレイヤーみんなで使う）。
 // 印刷プレビューの間は、レイヤーを描かず印刷プレビューのビューだけを描く（ページの座標で描くレイヤーが、並べた印刷区画の上のずれた所に出ないように）
-function BookContent({ stage, type, previewing }: { stage: string; type: BookTypeId; previewing: boolean }) {
-  const style = useBookLookStyle(type) // ブックのテーマの値・文字の色の値・タイプのプラグインのテーマキー
+function BookContent({ stage, previewing }: { stage: string; previewing: boolean }) {
+  const style = usePageLookStyle() // 開いているページのテーマの値・文字の色の値・タイプのプラグインのテーマキー（ページを開いていなければ空）
   return (
     <div className={styles.book} style={style}>
       {previewing ? (

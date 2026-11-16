@@ -1,5 +1,5 @@
 // 印刷プレビューのビュー: ステージで開いたブックの全ページの印刷区画を、並べ方（book-sheets.ts）のとおりに紙の面で描き、
-// 中身はブックのタイプの印刷区画 1 つのビュー（printSheet）で描く（無ければ白紙。設定で、ブック名・ページ名と印刷区画の番号を重ねる。SheetFrame）。何も載っていない印刷区画とページは並べず、
+// 中身はページのタイプの印刷区画 1 つのビュー（printSheet）で描く（無ければ白紙。設定で、ブック名・ページ名と印刷区画の番号を重ねる。SheetFrame）。何も載っていない印刷区画とページは並べず、
 // 並べる物が 1 つも無ければ、表示領域の真ん中に印刷できるものが無いと知らせる。
 // 並べた広さはステージに知らせ（初めは幅に合わせる）、ずらす量と倍率は編集と同じくステージが持つ。
 // 見るだけで、アンカーもスタンドも置かず、右クリックのメニューも出さない。印刷区画をダブルクリックすると、そのページの編集に戻る。
@@ -8,8 +8,8 @@
 // 右サイドパネルに出している間、刷れるなら（測り終え、並べる物がある）、刷る物（PrintOutput）を置いておき、刷れるかをステージの状態に置く（印刷のコマンドが読む）
 
 import { type ComponentType, type CSSProperties, useEffect, useMemo, useRef } from "react"
-import { pagedOf } from "../../../core/book"
-import { bookType } from "../../../core/core-catalog"
+import { pagesOf } from "../../../core/book"
+import { pageType } from "../../../core/core-catalog"
 import type { Size } from "../../../core/geom"
 import type { Book, Page } from "../../../core/schema/book"
 import { extentOf as previewArea } from "../../../core/stage"
@@ -21,8 +21,7 @@ import { useMessages } from "../../../ui/i18n"
 import { PageScope, useStageId } from "../../../ui/scope"
 import { useCatalog, useMatomezuState, useReadState, useStoreActions, useUiCatalog } from "../../../ui/store-context"
 import { useBook, useStage, useStagePan } from "../../../ui/view-hooks"
-import { bookTitle } from "../book-open/book-title"
-import { settingValue } from "../book-settings"
+import { bookSettingValue } from "../book-settings"
 import { kit } from "../kit"
 import { paperSize } from "../place/items"
 import { useOpenRightSidePanelAt, useRightSidePanelAt, useSidePanelSliding } from "../right-side-panel/hooks"
@@ -101,7 +100,6 @@ export function PrintPreviewView() {
   const panel = useRightSidePanelAt(id)
   const { setPreviewArea, closePrintPreview, openPage } = useStoreActions()
   const read = useReadState()
-  const lang = useMatomezuState(s => s.lang)
   // 測る見せ方のページの、測った結果（ページの id → 結果。base が持つステージごとのプラグイン状態。measures.tsx）
   const bookId = book?.id
   const measures = useMeasures(bookId)
@@ -121,18 +119,16 @@ export function PrintPreviewView() {
     reporters.set(page, made)
     return made
   }
-  const Measure = book ? views.get(bookType(catalog, book.type).presentation)?.printMeasure : undefined
-  const pages = useMemo(() => (book && pagedOf(book)?.pages) || [], [book])
-  // 測るページ（紙のあるページ）と、その紙の大きさ
+  const pages = useMemo(() => (book ? pagesOf(book) : []), [book])
+  // 測るページ（タイプの見せ方が測るビューを持ち、紙のあるページ）と、その紙の大きさと測るビュー
   const measuring = useMemo(
     () =>
-      Measure
-        ? pages.flatMap(p => {
-            const paper = paperSize(catalog, p)
-            return paper ? [{ page: p, paper }] : []
-          })
-        : [],
-    [Measure, pages, catalog],
+      pages.flatMap(p => {
+        const Measure = views.get(pageType(catalog, p.type).presentation)?.printMeasure
+        const paper = paperSize(catalog, p)
+        return Measure && paper ? [{ page: p, paper, Measure }] : []
+      }),
+    [views, pages, catalog],
   )
   const measured = useMemo(
     () => new Map(measuring.map(({ page }) => [page.id, measures[page.id]?.rows ?? ("pending" as const)])),
@@ -205,21 +201,21 @@ export function PrintPreviewView() {
   const pageOf = (pageId: string) => pages.find(p => p.id === pageId)
   // ブック名・ページ名と印刷区画の番号（設定で入れるときだけ。番号は並べた印刷区画全体の通し）
   const shows = {
-    sheetNumbers: settingValue(catalog, book, null, PRINT_PREVIEW_SHEET_NUMBERS) === "shown",
-    bookName: settingValue(catalog, book, null, PRINT_PREVIEW_BOOK_NAME) === "shown",
-    pageName: settingValue(catalog, book, null, PRINT_PREVIEW_PAGE_NAME) === "shown",
+    sheetNumbers: bookSettingValue(catalog, book, PRINT_PREVIEW_SHEET_NUMBERS) === "shown",
+    bookName: bookSettingValue(catalog, book, PRINT_PREVIEW_BOOK_NAME) === "shown",
+    pageName: bookSettingValue(catalog, book, PRINT_PREVIEW_PAGE_NAME) === "shown",
   }
   const labelsOf = (s: { index: number; page: string }) =>
     sheetLabels(s.index, layout.sheets.length, shows, {
-      book: bookTitle(catalog, book, lang),
+      book: book.title,
       page: pageOf(s.page)?.title ?? "",
     })
   const origin = paperOrigin(pan)
   // 測るだけのビュー（見えない所に、倍率をかけずに描く）
-  const measuringViews = Measure && (
+  const measuringViews = measuring.length > 0 && (
     <div ref={measureBox} className={styles.measure} aria-hidden="true">
       <Printing>
-        {measuring.map(({ page: p, paper }) => (
+        {measuring.map(({ page: p, paper, Measure }) => (
           // 測るページを、ステージの外で見るだけに描くページとして描く
           <PageScope key={p.id} book={book.id} page={p.id} zoom={1}>
             <Measure book={book} page={p} paper={paper} report={reporterOf(p.id)} />
@@ -278,7 +274,6 @@ export function PrintPreviewView() {
       {shown && ready && opened && (
         <PrintOutput
           stage={id}
-          type={opened.type}
           book={book}
           sheets={layout.sheets.map(s => ({
             ...s,

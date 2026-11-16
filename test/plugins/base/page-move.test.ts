@@ -1,16 +1,18 @@
 // base のアクション page-move: ページタブの並びを入れ替える（動かすページを除いて数える）。画面の履歴で戻せる。ブックのロックだけが止める
+
 import { expect, test } from "bun:test"
-import type { BookOf } from "../../../web/src/core/schema/book"
+import { pagesOf } from "../../../web/src/core/book"
+import type { Book } from "../../../web/src/core/schema/book"
 import { addPageIn } from "../../../web/src/plugins/base/page-tabs/add-page"
 import { newStore } from "../../support"
 
 function setup() {
   const store = newStore()
-  const book = () => store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
-  addPageIn(store, "s1", { title: "ページ 2" })
-  addPageIn(store, "s1", { title: "ページ 3" })
-  const ids = book().pages.map(p => p.id)
-  const order = () => book().pages.map(p => ids.indexOf(p.id))
+  const book = () => store.state.getState().books.b1 as Book
+  addPageIn(store, "s1", { type: "@matomezu/drawing:drawing", title: "ページ 2" })
+  addPageIn(store, "s1", { type: "@matomezu/drawing:drawing", title: "ページ 3" })
+  const ids = pagesOf(book()).map(p => p.id)
+  const order = () => pagesOf(book()).map(p => ids.indexOf(p.id))
   const move = (page: number, index?: number) =>
     store.actions.perform("@matomezu/base:page-move", { page: ids[page] as string, index }, { book: "b1" })
   return { store, book, order, move, ids }

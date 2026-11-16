@@ -1,11 +1,12 @@
 // 描いている場所（ui/scope.tsx）: ステージの外で見るだけに描くページ（PageScope）の中は、置いたページのブックの物で描き、外がステージでも、その選択は写らず、中からは何も行えない。
 // ダイアログの中は開いたステージが、無くなったステージを置いた所は何も行えない所が、描いている場所になる
+
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
-import { pagedOf } from "../../web/src/core/book"
-import type { Book } from "../../web/src/core/schema/book"
+import { pagesOf } from "../../web/src/core/book"
+import type { Book, PageOf } from "../../web/src/core/schema/book"
 import { screenOf } from "../../web/src/core/window"
-import { useBookLookStyle } from "../../web/src/plugins/base/book-look/use-book-look-style"
+import { usePageLookStyle } from "../../web/src/plugins/base/book-look/use-page-look-style"
 import { kit as baseKit } from "../../web/src/plugins/base/kit"
 import { PRINT_MEASURES } from "../../web/src/plugins/base/print-preview/measures-state"
 import { Printing } from "../../web/src/plugins/base/print-preview/printing"
@@ -29,6 +30,7 @@ import {
   useStageArea,
   useStagePan,
 } from "../../web/src/ui/view-hooks"
+import { type DRAWING, drawingPage, testBook } from "../lineup"
 
 afterEach(cleanup)
 
@@ -42,29 +44,22 @@ const box = (id: string, x: number) => ({
   props: { caption: id },
 })
 
-const drawing = (id: string, settings: object) => ({
-  type: "@matomezu/drawing:drawing",
-  id,
-  title: id,
-  settings,
-  pages: [
-    {
-      id: `p${id}`,
+const drawing = (id: string, settings?: PageOf<typeof DRAWING>["settings"]) =>
+  testBook(id, id, [
+    drawingPage(`p${id}`, {
       title: "P",
-      paper: "@matomezu/base:a4",
-      orientation: "landscape",
+      ...(settings ? { settings } : {}),
       items: [
         box("a", 40),
         box("b", 400),
         { id: "l1", item: "@matomezu/line:connector-line", from: "a", to: "b", props: {} },
       ],
-    },
-  ],
-})
+    }),
+  ])
 
 // x はテーマと線の引き方を選んだブック、y は何も選んでいないブック（ページ px・py に、同じ id の箱と線がある）
-const X = drawing("x", { "@matomezu/base:book-theme": "sticky", "@matomezu/line:line-route": "straight" })
-const Y = drawing("y", {})
+const X = drawing("x", { "@matomezu/base:page-theme": "sticky", "@matomezu/line:line-route": "straight" })
+const Y = drawing("y")
 
 function setup(extra: readonly object[] = []) {
   const instance = createMatomezu({
@@ -80,7 +75,7 @@ function setup(extra: readonly object[] = []) {
       {node}
     </MatomezuProvider>
   )
-  const bookOf = (id: string) => pagedOf(instance.state.getState().books[id] as Book)!
+  const bookOf = (id: string) => instance.state.getState().books[id] as Book
   return { instance, wrap, bookOf }
 }
 
@@ -88,11 +83,11 @@ const SIZE = { w: 1123, h: 794 }
 
 // 描いている場所のブックの 1 枚目のページを描く（ブックの見た目の CSS 変数も付ける）
 function Sheet({ book }: { book: ReturnType<ReturnType<typeof setup>["bookOf"]> }) {
-  const look = useBookLookStyle(book.type)
+  const look = usePageLookStyle()
   return (
     <div data-sheet style={look}>
       <Printing>
-        <SheetLayers book={book} page={book.pages[0]!} column={0} row={0} paper={SIZE} />
+        <SheetLayers book={book} page={pagesOf(book)[0]!} column={0} row={0} paper={SIZE} />
       </Printing>
     </div>
   )

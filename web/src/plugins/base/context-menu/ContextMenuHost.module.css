@@ -39,6 +39,15 @@
   display: grid;
   line-height: 0;
 }
+/* 自分の色を持つ絵のアイコン（色は変えず、大きさだけそろえる） */
+.picture {
+  display: grid;
+  line-height: 0;
+}
+.picture svg {
+  width: 16px;
+  height: 16px;
+}
 .icon svg {
   width: 16px;
   height: 16px;

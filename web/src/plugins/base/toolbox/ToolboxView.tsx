@@ -3,26 +3,29 @@
 // シェイプパネルに並べるアイテムがあれば、最後に「形」のボタンを 1 つ出す。押すと、その上に形のアイコンの格子（パネル）を開き、
 // 形を押すとその形を置こうとして、パネルを閉じる（フッタメニューの中ならフッタメニューも下げる）。パネルの外を押すか Escape でも閉じる。
 // シェイプパネルのどれかを置こうとしている間は、「形」のボタンを押されている見た目にする
+
 import { useEffect, useRef, useState } from "react"
 import type { ItemId } from "../../../core/core-catalog"
+import { shownType } from "../../../core/stage"
 import { useMessages } from "../../../ui/i18n"
 import { useStageHere } from "../../../ui/scope"
 import { useCatalog, useUiCatalog } from "../../../ui/store-context"
-import { useActions, useBook, useStage } from "../../../ui/view-hooks"
+import { useActions, useStage } from "../../../ui/view-hooks"
 import { useCloseFooterMenu } from "../book-name/footer-menu-context"
 import { kit } from "../kit"
 import styles from "./ToolboxView.module.css"
 import { panelOf, toolboxOf } from "./toolbox"
 
 export function ToolboxView() {
-  const book = useBook() ?? undefined
   const placing = useStageHere(st => st?.placing?.item ?? null)
   const { togglePlacing } = useActions()
   const t = useMessages(kit)
   const catalog = useCatalog().core
-  const edits = useStage()?.edits ?? "items"
-  const tools = book ? toolboxOf(catalog, book, edits) : []
-  const panel = book ? panelOf(catalog, book, edits) : []
+  const stage = useStage()
+  const edits = stage?.edits ?? "items"
+  const type = shownType(stage?.opened ?? null) // 開いているページのタイプ（ページを開いていなければ、何も出さない）
+  const tools = type ? toolboxOf(catalog, type, edits) : []
+  const panel = type ? panelOf(catalog, type, edits) : []
   if (tools.length === 0 && panel.length === 0) return null
   return (
     <div className={styles.toolbox} role="toolbar" aria-label={t("Tools")}>

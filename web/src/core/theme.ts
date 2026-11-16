@@ -4,7 +4,7 @@
 
 import { isLight, PALETTE } from "./color"
 import type { CoreCatalog } from "./core-catalog"
-import { type BookTypeDef, placeableOf } from "./def/book-type"
+import { type PageTypeDef, placeableOf } from "./def/page-type"
 import type { ThemeDef, ThemeValue, TokenDef } from "./def/theme"
 import { fail } from "./errors"
 import { splitId } from "./names"
@@ -60,9 +60,9 @@ export function resolveTokens(
   return values
 }
 
-// ブックのタイプ type のブックを描くのに使うテーマキーの宣言: タイプのテーマキーと、タイプが置けるアイテム（allowed）のテーマキー、
+// ページのタイプ type のブックを描くのに使うテーマキーの宣言: タイプのテーマキーと、タイプが置けるアイテム（allowed）のテーマキー、
 // そのアイテムの持ち主のプラグインが持つテーマキー（いくつものアイテムが共に使うもの）。同じ id は 1 つにまとめる
-export function tokenDefsOf(catalog: CoreCatalog, type: BookTypeDef): TokenDef[] {
+export function tokenDefsOf(catalog: CoreCatalog, type: PageTypeDef): TokenDef[] {
   const items = placeableOf(type).flatMap(id => catalog.items.get(id) ?? [])
   const owners = new Set(items.map(i => splitId(i.id).owner))
   const defs = [

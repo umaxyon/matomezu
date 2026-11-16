@@ -59,7 +59,7 @@ export function BackgroundPrintControl() {
   const book = useBook()
   const page = usePage()
   if (!set.shown || !book || !page) return null
-  const now = settingValue(catalog, book, page, BACKGROUND_PRINT)
+  const now = settingValue(catalog, page, BACKGROUND_PRINT)
   const choices: { value: BackgroundPrint; label: string }[] = [
     { value: "auto", label: t("Background if filled") },
     { value: "always", label: t("Background always") },

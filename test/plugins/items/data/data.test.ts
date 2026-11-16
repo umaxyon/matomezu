@@ -1,7 +1,9 @@
 // データ（@matomezu/data）: 図面に置くと表の無いまま置かれ、data-set で表を丸ごと入れ替える。列は数か文字の型を持ち、セルは列の型に合わなければ断る
+
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../../../web/src/core/book"
 import { shapesOf } from "../../../../web/src/core/placed"
-import type { BookOf } from "../../../../web/src/core/schema/book"
+import type { Book } from "../../../../web/src/core/schema/book"
 import { paperSize } from "../../../../web/src/plugins/base"
 import { toolboxOf } from "../../../../web/src/plugins/base/toolbox/toolbox"
 import { DATA, DATA_MIN, DATA_SIZE } from "../../../../web/src/plugins/items/data/data"
@@ -20,9 +22,9 @@ import { CORE_CATALOG, sizedStore } from "../../../support"
 
 const ready = () => sizedStore()
 type Store = ReturnType<typeof ready>
-const book = (store: Store) => store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
+const book = (store: Store) => store.state.getState().books.b1 as Book
 const at = (store: Store, id: string) =>
-  shapesOf(book(store).pages[0]!).find(i => i.id === id) as unknown as Record<string, unknown>
+  shapesOf(pagesOf(book(store))[0]!).find(i => i.id === id) as unknown as Record<string, unknown>
 const place = (store: Store) =>
   store.actions.perform(
     "@matomezu/paper:item-place",
@@ -42,8 +44,7 @@ const MONTHS = {
 }
 
 test("図面のツールボックスに、リストの次にデータのボタンが出る", () => {
-  const store = ready()
-  expect(toolboxOf(CORE_CATALOG, book(store), "items")).toEqual([
+  expect(toolboxOf(CORE_CATALOG, "@matomezu/drawing:drawing", "items")).toEqual([
     "@matomezu/box:shape-nest-box",
     "@matomezu/list:shape-list",
     DATA.id,
@@ -164,7 +165,7 @@ test("表の見た目なら、data-set は表が全部見える大きさに合�
   const tall = { columns: MONTHS.columns, rows: Array.from({ length: 200 }, (_, i) => ({ cells: [`${i}`, i] })) }
   expect(set(store, tall).ok).toBe(true)
   const placed = at(store, "n1") as { y: number; h: number }
-  const paper = paperSize(CORE_CATALOG, book(store).pages[0]!)!
+  const paper = paperSize(CORE_CATALOG, pagesOf(book(store))[0]!)!
   expect(placed.h).toBeLessThan(tableSize(at(store, "n1").table as Table).h)
   expect(placed.y + placed.h).toBe(paper.h)
   // グラフの見た目では、表を入れ替えても大きさはそのまま

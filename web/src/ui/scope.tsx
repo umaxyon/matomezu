@@ -7,11 +7,11 @@
 // フック（ui/view-hooks.ts など）は、読む物を描くページから、操作を向け先から引く。向け先が無い所からは、何も行えない。
 // コンテキストの値は id と数だけで、同じ場所の間は同じ参照（ブックやページの中身・選択・紙をずらす量は入れない。変わるたびに中の全部を描き直さないため）
 import { createContext, type ReactNode, useCallback, useContext, useMemo } from "react"
-import { pagedOf } from "../core/book"
-import type { BookTypeId } from "../core/catalog"
+import { findPage } from "../core/book"
+import type { PageTypeId } from "../core/catalog"
 import type { ItemPage } from "../core/placed"
 import type { Book } from "../core/schema/book"
-import type { Stage } from "../core/stage"
+import { type Stage, shownPageId } from "../core/stage"
 import { stageIn } from "../core/window"
 import { NO_STAGE } from "../store/dialogs"
 import type { MatomezuState } from "../store/store"
@@ -109,7 +109,8 @@ export function openedOf(s: MatomezuState, scope: Scope): { book: string; page: 
   const ref = scope.page
   if (!ref) return null
   if (ref.from === "page") return { book: ref.book, page: ref.page }
-  return stageIn(s.window, ref.stage)?.opened ?? null
+  const opened = stageIn(s.window, ref.stage)?.opened
+  return opened ? { book: opened.book, page: shownPageId(opened) } : null
 }
 
 // 描くページのブック（無ければ null）
@@ -118,18 +119,16 @@ export function bookOf(s: MatomezuState, scope: Scope): Book | null {
   return o ? (s.books[o.book] ?? null) : null
 }
 
-// 描くページ（ページを持たないブック・ページを開いていなければ null）
+// 描くページ（ページを開いていなければ null）
 export function pageOf(s: MatomezuState, scope: Scope): ItemPage | null {
   const o = openedOf(s, scope)
-  const book = o ? pagedOf(s.books[o.book]) : undefined
-  return (book?.pages.find(p => p.id === o?.page) as ItemPage | undefined) ?? null
+  const book = o ? s.books[o.book] : undefined
+  return (book && o?.page ? findPage(book, o.page)?.page : undefined) ?? null
 }
 
-// 描くページのブックのタイプ（描くページが無ければ undefined）
-export function bookTypeOf(s: MatomezuState, scope: Scope): BookTypeId | undefined {
-  const ref = scope.page
-  if (!ref) return undefined
-  return ref.from === "page" ? s.books[ref.book]?.type : stageIn(s.window, ref.stage)?.opened?.type
+// 描くページのタイプ（描くページが無ければ undefined）
+export function pageTypeOf(s: MatomezuState, scope: Scope): PageTypeId | undefined {
+  return pageOf(s, scope)?.type as PageTypeId | undefined
 }
 
 // 描くページの倍率（ステージの外で見るだけに描くページは渡された倍率、ステージはそのステージの倍率。描くページが無ければ null）

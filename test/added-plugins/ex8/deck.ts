@@ -1,6 +1,7 @@
-// ex8 のブックのタイプ「単語帳」: ページ 1 つがカードの束で、カードの文字はページのフィールド cards に持つ（置けるアイテムは無い）。
+// ex8 のページのタイプ「単語帳」: ページ 1 つがカードの束で、カードの文字はページのフィールド cards に持つ（置けるアイテムは無い）。
 // 自分の見せ方（カード）を持ち、ステージに紙を置かずにビューがカードを並べる。ページは紙を持ち、印刷プレビューでは 1 ページを紙 1 枚に描く
-import { BOOK_THEME, PAPER_IDS, PRINT_PREVIEW_SETTINGS, z } from "matomezu"
+
+import { PAGE_THEME, PAPER_IDS, z } from "matomezu"
 import { kit } from "./kit"
 
 // 単語帳のテーマタイプ（自分で足す。単語帳はこれだけを使うので、選べるのは "all" のテーマと、黒板のテーマ）
@@ -50,22 +51,18 @@ export const DECK_PICKED = kit.definePluginStateOf<number>()({ id: "picked", sco
 // カードの見せ方: ステージに紙を置かない（ビューが描く広さとスクロールを持つ）
 export const CARDS = kit.definePresentation({ id: "cards", paper: false })
 
-export const DECK = kit.defineBookType({
+export const DECK = kit.definePageType({
   id: "deck",
   version: 1,
   title: "deck",
-  schema: z.strictObject({ id: z.string().min(1) }),
-  create: init => ({ ...init, pages: [] }),
-  addPagesFromTabs: true,
-  pages: {
-    paper: { allowed: PAPER_IDS, default: "@matomezu/base:a4", orientation: "portrait", perPage: true },
-    fields: { cards: z.array(z.string()).describe("The cards' words, in order").optional() }, // 無ければカードは無い
-  },
+  grouping: "none",
+  paper: { allowed: PAPER_IDS, default: "@matomezu/base:a4", orientation: "portrait" },
+  fields: { cards: z.array(z.string()).describe("The cards' words, in order").optional() }, // 無ければカードは無い
   items: { allowed: [] },
   actions: {},
   theme: "@matomezu/base:standard",
   themeTypes: [CARD_THEMES],
   presentation: CARDS.id,
   tokens: [],
-  settings: { book: [BOOK_THEME.id, ...PRINT_PREVIEW_SETTINGS], page: [] },
+  settings: [PAGE_THEME.id],
 })

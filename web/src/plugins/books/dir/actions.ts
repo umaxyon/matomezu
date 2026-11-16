@@ -2,7 +2,7 @@
 // 中身ごと消す（根は消せない）・中身ごとほかのフォルダへ移す（付け替えと並びの入れ替え）・フォルダを開け閉めする・フォルダの直下を名前で並べる。
 // ページのフィールド root を書き換える。書き換えた行が紙に入らなければ断る。ディレクトリ構成図の見せ方について来る
 import { z } from "zod"
-import { type CoreCatalog, type PagedBook, putPage } from "../../../plugin-api"
+import { type Book, type CoreCatalog, findPage, putPage } from "../../../plugin-api"
 import { contentIdMaker, growOf } from "../../base"
 import { addEntries, buildPaths, changeEntry, entryOf, moveEntry, removeEntry, setClosed, sortFolder } from "./edit"
 import {
@@ -21,15 +21,15 @@ import { kit } from "./kit"
 const ON_DIRS = { presentations: [kit.name("dir")] }
 
 // ページ page の根と、根を替えたブックを作る関数（ディレクトリ構成図のページでなければ null）
-function dirOf(book: PagedBook, page: string, catalog: CoreCatalog) {
-  const found = book.pages.find(p => p.id === page)
+function dirOf(book: Book, page: string, catalog: CoreCatalog) {
+  const found = findPage(book, page)?.page
   const root = dirRootOf(found)
   if (!found || !root) return null
   return {
     root,
     put: (next: DirFolder) => {
       const written = { ...found, root: next }
-      return dirFits(catalog, written, growOf(catalog, book, written), next) ? putPage(book, written) : null
+      return dirFits(catalog, written, growOf(catalog, written), next) ? putPage(book, written) : null
     },
   }
 }
@@ -58,7 +58,6 @@ export const ENTRY_ADD = kit.defineAction({
     }),
   permissionScope: { page: "page" },
   run: (book, args, ctx) => {
-    if (!("pages" in book)) return null
     const dir = dirOf(book, args.page, ctx.catalog)
     if (!dir) return null
     const problem = newEntriesProblem(args.entries, (kind, icon) => iconProblem(ctx.catalog, kind, icon))
@@ -84,7 +83,6 @@ export const PATHS_ADD = kit.defineAction({
   }),
   permissionScope: { page: "page" },
   run: (book, args, ctx) => {
-    if (!("pages" in book)) return null
     const dir = dirOf(book, args.page, ctx.catalog)
     const built = dir && buildPaths(dir.root, args.parent, args.paths, contentIdMaker(book, ctx.newId))
     const written = built && dir?.put(built.root)
@@ -116,7 +114,6 @@ export const ENTRY_UPDATE = kit.defineAction({
     }),
   permissionScope: { page: "page" },
   run: (book, args, ctx) => {
-    if (!("pages" in book)) return null
     const dir = dirOf(book, args.page, ctx.catalog)
     const target = dir && entryOf(dir.root, args.entry)
     if (target && typeof args.icon === "string") {
@@ -140,7 +137,6 @@ export const ENTRY_REMOVE = kit.defineAction({
   args: z.strictObject({ page: PAGE, entry: z.string().min(1) }),
   permissionScope: { page: "page" },
   run: (book, args, ctx) => {
-    if (!("pages" in book)) return null
     const dir = dirOf(book, args.page, ctx.catalog)
     const next = dir && removeEntry(dir.root, args.entry)
     const written = next && dir?.put(next)
@@ -163,7 +159,6 @@ export const ENTRY_MOVE = kit.defineAction({
   }),
   permissionScope: { page: "page" },
   run: (book, args, ctx) => {
-    if (!("pages" in book)) return null
     const dir = dirOf(book, args.page, ctx.catalog)
     const next = dir && moveEntry(dir.root, args.entry, args.parent, args.index)
     const written = next && dir?.put(next)
@@ -181,7 +176,6 @@ export const FOLDER_CLOSE = kit.defineAction({
   args: z.strictObject({ page: PAGE, folder: z.string().min(1), closed: z.boolean() }),
   permissionScope: { page: "page" },
   run: (book, args, ctx) => {
-    if (!("pages" in book)) return null
     const dir = dirOf(book, args.page, ctx.catalog)
     const next = dir && setClosed(dir.root, args.folder, args.closed)
     const written = next && dir?.put(next)
@@ -199,7 +193,6 @@ export const FOLDER_SORT = kit.defineAction({
   args: z.strictObject({ page: PAGE, folder: z.string().min(1), order: z.enum(["asc", "desc"]) }),
   permissionScope: { page: "page" },
   run: (book, args, ctx) => {
-    if (!("pages" in book)) return null
     const dir = dirOf(book, args.page, ctx.catalog)
     const next = dir && sortFolder(dir.root, args.folder, args.order)
     const written = next && dir?.put(next)

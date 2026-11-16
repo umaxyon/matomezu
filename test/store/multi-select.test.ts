@@ -1,8 +1,10 @@
 // 複数選択: Mod+クリックの選び方（placing/selection.ts）、ブックが変わったら無くなった物を選択から外す（core の followBook）、全部を選ぶ・まとめて消すコマンド、
 // 複数を選んだ右クリックのメニュー、両端の形を一緒に動かした線の手直し（base の followConnectors）
+
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../web/src/core/book"
 import { type ItemPage, shapesOf } from "../../web/src/core/placed"
-import type { BookOf } from "../../web/src/core/schema/book"
+import type { Book } from "../../web/src/core/schema/book"
 import { screenOf } from "../../web/src/core/window"
 import { amongSelected, onlySelected, toggledSelection } from "../../web/src/plugins/base"
 import { anchorsFor } from "../../web/src/plugins/base/context-menu/anchor-targets"
@@ -24,7 +26,7 @@ const EMPTY = { id: "p0", items: [] } as unknown as ItemPage
 
 const ready = () => sizedStore()
 type Store = ReturnType<typeof ready>
-const page = (store: Store) => (store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!
+const page = (store: Store) => pagesOf(store.state.getState().books.b1 as Book)[0]!
 const selection = (store: Store) => screenOf(store.state.getState().window).stages[0]!.selection
 const place = (store: Store, x: number, y: number, parent?: string, size = { w: 100, h: 64 }) =>
   store.actions.perform(
@@ -114,11 +116,10 @@ test("一緒に動かせるのは、ページの形どうしか、同じ親の�
   place(store, 600, 100)
   place(store, 20, 60, "n1")
   place(store, 160, 60, "n1")
-  const book = store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">
-  expect(movableTogether(CORE_CATALOG, book, page(store), ["n1", "n2"])).toBe(true)
-  expect(movableTogether(CORE_CATALOG, book, page(store), ["n3", "n4"])).toBe(true)
-  expect(movableTogether(CORE_CATALOG, book, page(store), ["n2", "n3"])).toBe(false)
-  expect(movableTogether(CORE_CATALOG, book, page(store), [])).toBe(false)
+  expect(movableTogether(CORE_CATALOG, page(store), ["n1", "n2"])).toBe(true)
+  expect(movableTogether(CORE_CATALOG, page(store), ["n3", "n4"])).toBe(true)
+  expect(movableTogether(CORE_CATALOG, page(store), ["n2", "n3"])).toBe(false)
+  expect(movableTogether(CORE_CATALOG, page(store), [])).toBe(false)
 })
 
 test("いくつか選んで、その中の物を右クリックしたメニューには「設定」を出さない（1 つだけなら出す）", () => {

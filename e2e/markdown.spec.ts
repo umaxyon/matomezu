@@ -1,7 +1,8 @@
 // マークダウンのブック（@matomezu/markdown）: 紙を置かず、ソースとプレビューのペインを（選んでいなければ空のページは左右、本文のあるページはプレビューだけで）開く。上の行のボタンで並べ方を変え、見出しのドラッグで入れ替え、境目のドラッグで大きさを変え（どれも読み直しても戻る）、右クリックでページの設定を開く
+import { pageIn } from "./books"
 import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test, urlStages } from "./fixtures"
-import { newBook } from "./helpers/new-book"
-import { openGeneral, settingsDialog } from "./helpers/settings"
+import { addFromTabs, newBook } from "./helpers/new-book"
+import { backToBook, openGeneral, openSettings, settingsDialog } from "./helpers/settings"
 import { fromMenu } from "./helpers/stage-menu"
 
 // マークダウンのブックを作り、ページを 1 つ作る
@@ -254,13 +255,14 @@ test("描いた文書は、段落の中の改行 1 つを既定で改行にし�
       return new Set([...range.getClientRects()].filter(r => r.width > 0).map(r => Math.round(r.top))).size
     })
   await expect.poll(lines).toBe(2)
-  // フッタメニューから設定画面を開き、マークダウンを開いたまま変える
-  await (await fromMenu(page, "設定を開く")).click()
+  // 設定画面を開き、マークダウンを開いたまま変える
+  await openSettings(page)
   await settingsDialog(page).getByRole("tab", { name: "マークダウン" }).click()
   const select = settingsDialog(page).getByLabel("段落の中の改行")
   await expect(select).toHaveValue("line-break")
   await select.selectOption({ label: "空白にする（GFM方式）" })
   await page.keyboard.press("Escape")
+  await backToBook(page)
   await expect.poll(lines).toBe(1)
 })
 
@@ -280,9 +282,9 @@ test("ソースのペインで Mod+Z で戻すと、自分が書いた所だけ�
   // 書いた物が常駐に届いてから、AI が書く
   const text = async () => {
     const got = (await (await page.request.get(`/api/ai/books/${view.book}`, { headers: ai })).json()) as {
-      book: { pages: { id: string; text?: string }[] }
+      book: { lineup: unknown[] }
     }
-    return got.book.pages.find(p => p.id === view.page)?.text
+    return pageIn<{ text?: string }>(got.book, view.page)?.text
   }
   await expect.poll(text).toBe("# 見出し")
   // 書いている間は AI が書けない（編集ロック）ので、フォーカスを外してから AI が書く
@@ -309,7 +311,7 @@ test("ソースのペインで Mod+Z で戻すと、自分が書いた所だけ�
   await expect(field()).toHaveValue("AI の行\n# 見出し")
 })
 
-test("ブックの設定のテーマは、マークダウンのブックが選べるテーマ（標準と GitHub 風）だけを並べ、GitHub 風にすると描いた文書の字が大きくなる", async ({
+test("ページの設定のテーマは、マークダウンのページが選べるテーマ（標準と GitHub 風）だけを並べ、GitHub 風にすると描いた文書の字が大きくなる", async ({
   page,
 }) => {
   await markdownBook(page)
@@ -317,8 +319,9 @@ test("ブックの設定のテーマは、マークダウンのブックが選�
   await page.keyboard.type("本文")
   const paragraph = pane(page, "プレビュー").locator("p")
   await expect(paragraph).toContainText("本文")
-  await (await fromMenu(page, "ブックの設定")).click()
-  const dialog = page.getByRole("dialog", { name: "ブックの設定" })
+  await pane(page, "プレビュー").click({ button: "right", position: { x: 60, y: 120 } })
+  await page.getByRole("menu").getByRole("menuitem", { name: "ページの設定" }).click()
+  const dialog = page.getByRole("dialog", { name: "ページの設定" })
   const theme = dialog.getByLabel("テーマ")
   await expect(theme.locator("option")).toHaveText(["標準", "GitHub 風"])
   await theme.selectOption({ label: "GitHub 風" })
@@ -363,9 +366,9 @@ const LONG = Array.from({ length: 120 }, (_, i) => `段落 ${i + 1}`).join("\n\n
 
 // ＋で開くダイアログで、ページを 1 つ足す
 async function addPage(page: Page) {
-  await page.getByRole("button", { name: "ページを足す" }).click()
+  await addFromTabs(page, "マークダウン")
   await page.keyboard.press("Enter")
-  await expect(page.getByRole("dialog", { name: "新しいページ" })).toBeHidden()
+  await expect(page.getByRole("dialog", { name: /^新しい/ })).toBeHidden()
 }
 
 test("スクロール位置は、初めて開いたページは先頭から。スクロールしたら覚え、ほかのページに替えて戻したときと、読み直したときに前回の位置で開く", async ({

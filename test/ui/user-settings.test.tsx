@@ -1,4 +1,4 @@
-// 設定画面の「全体」: 利用者の設定の項目を、項目のビューか値の形から作った入力Form で並べる（base の UserSettings）。設定画面はフッタメニューの「設定を開く」で開く
+// 設定画面の「全体」: 利用者の設定の項目を、項目のビューか値の形から作った入力Form で並べる（base の UserSettings）。設定画面はコントロールセンターの「全体設定」で開く
 import { afterEach, expect, test } from "bun:test"
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { z } from "zod"
@@ -46,7 +46,7 @@ const EX_PLUGIN = kit.plugin({
 })
 const EX = definePluginUi(EX_PLUGIN, {})
 
-// book のブックを開いた（無ければブックを開いていない）ステージで、設定画面を開いて「全体」の中身（tabpanel）を返す（フッタメニューの「設定を開く」で）
+// book のブックを開いた（無ければブックを開いていない）ステージで、設定画面を開いて「全体」の中身（tabpanel）を返す（コントロールセンターの「全体設定」で）
 function renderGeneral(plugins: readonly AnyPluginUi[] = [...BUILTIN_UI, EX], book?: string) {
   const store = createMatomezu({
     controlCenter: "@matomezu/control-center:control-center",
@@ -60,7 +60,7 @@ function renderGeneral(plugins: readonly AnyPluginUi[] = [...BUILTIN_UI, EX], bo
       <WindowRoot />
     </MatomezuProvider>,
   )
-  fireEvent.click(screen.getByRole("button", { name: "設定を開く", hidden: true }))
+  fireEvent.click(screen.getByRole("button", { name: "全体設定", hidden: true }))
   const value = (id: string) => userSetting(store.catalog.core, store.state.getState().settings, `@ex/s:${id}`)
   return { store, value, general: screen.getByRole("tabpanel", { name: "全体" }) }
 }

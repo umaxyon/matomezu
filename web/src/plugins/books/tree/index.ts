@@ -1,4 +1,4 @@
-// ツリーのプラグイン: ツリーのブックのタイプと、その見せ方・伸びる向き・節の大きさ・節の形・線の形の設定の項目・ページを作るダイアログ・節の大きさと色のダイアログ・
+// ツリーのプラグイン: ツリーのページのタイプと、その見せ方・伸びる向き・節の大きさ・節の形・線の形の設定の項目・ページを作るダイアログ・節の大きさと色のダイアログ・
 // 節のアクションとコマンド・道具の組（編集とハンド）。
 // テーマと紙の色の設定の項目とハンドの道具は、ほかのプラグインの定義を id で選ぶ（tree.ts・tools.ts）
 import { defineBuiltin } from "../../../plugin-api/builtin"
@@ -33,7 +33,7 @@ import {
 
 export const TREE_PLUGIN = defineBuiltin(
   kit.plugin({
-    bookTypes: [TREE],
+    pageTypes: [TREE],
     enumValues: [TREE_ENTRY_ICON],
     pluginStates: TREE_STATES,
     presentations: [TREE_PRESENTATION],
@@ -61,7 +61,7 @@ declare module "../../../core/catalog" {
   interface EnumValueTable {
     "@matomezu/tree:entry-icon": typeof TREE_ENTRY_ICON
   }
-  interface BookTypeTable {
+  interface PageTypeTable {
     "@matomezu/tree:tree": typeof TREE
   }
   interface PresentationTable {

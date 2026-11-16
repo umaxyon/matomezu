@@ -1,10 +1,13 @@
 // フローチャートのブック（@matomezu/flowchart）と形（@matomezu/shape）: 作る・ツールボックスに形が並ぶ・形を置いて描く・追加と編集のダイアログ・流れの向き・形のつなぎ口・分岐から出る線のキャプションの候補・自動で整列
+
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, screen, within } from "@testing-library/react"
+import { pagesOf } from "../../../../web/src/core/book"
 import { shapesOf } from "../../../../web/src/core/placed"
-import type { BookOf } from "../../../../web/src/core/schema/book"
+import type { Book } from "../../../../web/src/core/schema/book"
 import { screenOf } from "../../../../web/src/core/window"
 import { addPageIn, createBookIn, portAreasOf, rectsOf } from "../../../../web/src/plugins/base"
+import { ownSettings } from "../../../../web/src/plugins/base/book-settings"
 import { floorsOf } from "../../../../web/src/plugins/base/place/items"
 import { ALIGN_MARGIN } from "../../../../web/src/plugins/books/flowchart/actions"
 import { linesOf } from "../../../../web/src/plugins/items/line/placed"
@@ -19,14 +22,14 @@ afterEach(cleanup)
 function flowchart() {
   const store = renderScreen()
   act(() => {
-    expect(createBookIn(store, "s1", { title: "流れ", type: "@matomezu/flowchart:flowchart" })).toBe(true)
+    expect(createBookIn(store, "s1", { title: "流れ" })).toBe(true)
   })
   const id = (screenOf(store.state.getState().window).stages[0]!.opened as { book: string }).book
   act(() => {
-    expect(addPageIn(store, "s1", { title: "p1" })).toBe(true)
+    expect(addPageIn(store, "s1", { type: "@matomezu/flowchart:flowchart", title: "p1" })).toBe(true)
   })
-  const book = () => store.state.getState().books[id] as BookOf<"@matomezu/flowchart:flowchart">
-  const page = () => book().pages[0]!
+  const book = () => store.state.getState().books[id] as Book
+  const page = () => pagesOf(book())[0]!
   return { store, on: { book: id }, book, page }
 }
 
@@ -99,18 +102,18 @@ test("形の追加のダイアログでキャプションを決めて置き、�
   expect(shapesOf(page()).find(i => i.id === hexagon.id)?.props).toMatchObject({ caption: "準備する" })
 })
 
-test("流れの向きはブックの設定で、既定は下へ。右へに変えられる", () => {
-  const { store, on, book } = flowchart()
+test("流れの向きはページの設定で、既定は下へ。右へに変えられる", () => {
+  const { store, on, page } = flowchart()
   act(() => {
     expect(
       store.actions.perform(
-        "@matomezu/base:book-update",
-        { settings: { "@matomezu/flowchart:flow-direction": "right" } },
+        "@matomezu/base:pages-update",
+        { pages: "all", settings: { "@matomezu/flowchart:flow-direction": "right" } },
         on,
       ).ok,
     ).toBe(true)
   })
-  expect(book().settings).toMatchObject({ "@matomezu/flowchart:flow-direction": "right" })
+  expect(ownSettings(page())).toMatchObject({ "@matomezu/flowchart:flow-direction": "right" })
 })
 
 test("形は辺の真ん中（頂点）だけに線をつなぎ、平行四辺形と台形は食い込みの半分だけ内側につなぐ。箱はふち全体", () => {
@@ -210,8 +213,8 @@ test("流れの向きが右へのブックの自動で整列は、本筋を横�
   const ids = chart(f)
   act(() => {
     store.actions.perform(
-      "@matomezu/base:book-update",
-      { settings: { "@matomezu/flowchart:flow-direction": "right" } },
+      "@matomezu/base:pages-update",
+      { pages: "all", settings: { "@matomezu/flowchart:flow-direction": "right" } },
       on,
     )
   })
@@ -442,8 +445,8 @@ test("キャプションで形が広がるとき、流れが下へなら横の�
   expect(Math.abs(rect().x + rect().w / 2 - center)).toBeLessThanOrEqual(1)
   act(() => {
     store.actions.perform(
-      "@matomezu/base:book-update",
-      { settings: { "@matomezu/flowchart:flow-direction": "right" } },
+      "@matomezu/base:pages-update",
+      { pages: "all", settings: { "@matomezu/flowchart:flow-direction": "right" } },
       on,
     )
   })
@@ -477,8 +480,8 @@ test("台形は向きを持つ: 横向きなら反時計回りに 90 度回し�
   expect(areas().get(sideways!.id)).toMatchObject({ x: sideways!.x, y: sideways!.y + TURNED_SLANT / 2 })
   act(() => {
     store.actions.perform(
-      "@matomezu/base:book-update",
-      { settings: { "@matomezu/flowchart:flow-direction": "right" } },
+      "@matomezu/base:pages-update",
+      { pages: "all", settings: { "@matomezu/flowchart:flow-direction": "right" } },
       on,
     )
   })
@@ -505,8 +508,8 @@ test("台形の編集のダイアログで向きを切り替えると、幅と�
   expect(size()).toMatchObject({ w: h, h: w })
   act(() => {
     store.actions.perform(
-      "@matomezu/base:book-update",
-      { settings: { "@matomezu/flowchart:flow-direction": "right" } },
+      "@matomezu/base:pages-update",
+      { pages: "all", settings: { "@matomezu/flowchart:flow-direction": "right" } },
       on,
     )
   })
@@ -522,8 +525,8 @@ test("確認のダイアログで「台形の向きを合わせる」をオン�
   const { store, on, page } = f
   act(() => {
     store.actions.perform(
-      "@matomezu/base:book-update",
-      { settings: { "@matomezu/flowchart:flow-direction": "right" } },
+      "@matomezu/base:pages-update",
+      { pages: "all", settings: { "@matomezu/flowchart:flow-direction": "right" } },
       on,
     )
     store.actions.perform(
@@ -549,8 +552,8 @@ test("90 度回転した台形は、キャプションが伸びたら縦に広�
   const { store, on, page } = flowchart()
   act(() => {
     store.actions.perform(
-      "@matomezu/base:book-update",
-      { settings: { "@matomezu/flowchart:flow-direction": "right" } },
+      "@matomezu/base:pages-update",
+      { pages: "all", settings: { "@matomezu/flowchart:flow-direction": "right" } },
       on,
     )
     store.actions.perform(
@@ -584,8 +587,8 @@ test("確認のダイアログの切り替えは、仲間の形をまとめた�
   const { store, on, page } = flowchart()
   act(() => {
     store.actions.perform(
-      "@matomezu/base:book-update",
-      { settings: { "@matomezu/flowchart:flow-direction": "right" } },
+      "@matomezu/base:pages-update",
+      { pages: "all", settings: { "@matomezu/flowchart:flow-direction": "right" } },
       on,
     )
     store.actions.perform(
@@ -599,17 +602,15 @@ test("確認のダイアログの切り替えは、仲間の形をまとめた�
   expect(within(dialog).getByText("台形をページに合わせて整列")).toBeTruthy()
 })
 
-test("流れの向きはページにも持て、ページの設定では「ブック継承」か下へ・右へのボタンで選ぶ。ページが右へなら、ブックが下へでも右へで並べる", () => {
+test("流れの向きはページの設定で、下へ・右へのボタンで選ぶ（既定は下へ）。ページが右へなら、右へで並べる", () => {
   const f = flowchart()
   const { store, on, page } = f
   const ids = chart(f)
   act(() => store.actions.openDialog("s1", "@matomezu/base:page-settings", { page: page().id }))
   const dialog = screen.getByRole("dialog", { name: "ページの設定" })
   const choices = within(within(dialog).getByRole("group", { name: "流れの向き" })).getAllByRole("radio")
-  expect(choices.map(c => c.getAttribute("aria-label"))).toEqual(["ブックを継承（下へ）", "下へ", "右へ"])
+  expect(choices.map(c => c.getAttribute("aria-label"))).toEqual(["下へ", "右へ"])
   expect((choices[0] as HTMLInputElement).checked).toBe(true)
-  // 継承のボタンは文字で出す（線の既定の通り方と流れの向きと背景の印刷の 3 つ）
-  expect(within(dialog).getAllByText("ブック継承")).toHaveLength(3)
   fireEvent.click(within(dialog).getByRole("button", { name: "キャンセル" }))
   act(() => {
     expect(

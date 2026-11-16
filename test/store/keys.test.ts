@@ -130,7 +130,7 @@ test("押したキーは、当たった範囲のコマンドを行い、押せ�
   expect(store.actions.pressKey("Escape")).toBe(true)
   expect(store.state.getState().dialog).toBeNull()
   expect(store.actions.pressKey("Backspace")).toBe(true)
-  expect(store.state.getState().books.b1).toMatchObject({ pages: [{ items: [] }] })
+  expect(store.state.getState().books.b1).toMatchObject({ lineup: [{ items: [] }] })
 })
 
 test("利用者のキーの変更は利用者の設定の項目 @matomezu/base:keys に入れ、表に効く", () => {

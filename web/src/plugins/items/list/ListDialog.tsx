@@ -28,8 +28,8 @@ import {
   Switch,
   SwitchPanel,
   useBookOf,
-  useBookTheme,
-  useBookThemes,
+  usePageTheme,
+  usePageThemes,
   useSwatches,
 } from "../../base/ui"
 import { ROW_LINES } from "./actions"
@@ -66,7 +66,7 @@ const EMPTY: ListProps = {
 
 export function AddListDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
   const book = useBookOf()
-  const bookTheme = useBookTheme(book)
+  const bookTheme = usePageTheme()
   const { select } = useActions()
   const perform = usePerform()
   const add = (props: ListProps) => {
@@ -83,7 +83,6 @@ export function AddListDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
       submit={kit.message("Add")}
       start={EMPTY}
       checked={false}
-      book={book}
       bookTheme={bookTheme}
       ready={book !== undefined}
       onSubmit={add}
@@ -94,7 +93,7 @@ export function AddListDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
 
 export function EditListDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
   const book = useBookOf()
-  const bookTheme = useBookTheme(book)
+  const bookTheme = usePageTheme()
   const found = useItem(args.page, args.item, LIST.id)
   const { previewDialog } = useActions()
   const perform = usePerform()
@@ -136,7 +135,6 @@ export function EditListDialog({ args, onClose }: DialogProps<{ page: string; it
       start={found.props}
       checked={rows.some(r => r.props.checked === true)}
       hasRows={rows.length > 0}
-      book={book}
       bookTheme={bookTheme}
       ready
       onSubmit={update}
@@ -152,7 +150,6 @@ function ListDialog({
   start,
   checked,
   hasRows = false,
-  book,
   bookTheme,
   ready,
   onSubmit,
@@ -164,7 +161,6 @@ function ListDialog({
   start: ListProps
   checked: boolean // チェックの入った行があるか（チェックリストを切るときに確かめる）
   hasRows?: boolean // 行があるか（あれば「行の高さ」を出す）
-  book: string | undefined // 開いているブックの id（使えるテーマを決める）
   bookTheme: string | undefined
   ready: boolean
   onSubmit: (props: ListProps, rowLines?: RowsLines) => { reason: string; permission?: string; kind?: string } | null // 断られたわけ（決められたら null。kind は断りの種類）
@@ -176,7 +172,7 @@ function ListDialog({
   const catalog = useCoreCatalog()
   const [head, setHead] = useState({ caption: start.caption, captionAlign: start.captionAlign }) // キャプションと寄せ
   const { caption, captionAlign } = head
-  const themes = useBookThemes(book) // ブックのタイプが使えるテーマ
+  const themes = usePageThemes() // ページのタイプが使えるテーマ
   // 始めのテーマ（使えないテーマが残っていれば「ブックのテーマ」から始める。データのテーマは変えない限り残す）
   const startTheme = themes.some(th => th.id === start.theme) ? (start.theme ?? "") : ""
   const [theme, setTheme] = useState(startTheme)
@@ -267,7 +263,7 @@ function ListDialog({
           <label className={pairClass}>
             <span>{t("Theme")}</span>
             <select className={controlClass} value={theme} onChange={e => setTheme(e.target.value)}>
-              <option value="">{t("Book's theme")}</option>
+              <option value="">{t("Page's theme")}</option>
               {themes.map(th => (
                 <option key={th.id} value={th.id}>
                   {t(th.title)}

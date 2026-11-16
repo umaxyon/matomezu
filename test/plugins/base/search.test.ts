@@ -3,6 +3,7 @@ import { expect, test } from "bun:test"
 import { findAll, replaceAll, replaceOne, type SearchQuery } from "../../../web/src/plugins/base/search/find"
 import { changedSearch, replaceOneStep, searchCount, stepHit } from "../../../web/src/plugins/base/search/search"
 import type { SearchOpen } from "../../../web/src/plugins/base/search/state"
+import { CORE_CATALOG } from "../../support"
 
 const q = (text: string, opts: Partial<SearchQuery> = {}): SearchQuery => ({
   text,
@@ -54,13 +55,14 @@ test("全部置換は当たりを全部替える（正規表現の $1 も）", (
 })
 
 const page = (id: string, text: string) => ({
+  kind: "page" as const,
+  type: "@matomezu/markdown:markdown",
   id,
   title: id,
   paper: "@matomezu/base:a4",
   orientation: "portrait" as const,
   text,
 })
-const md = { textOf: (p: { text?: unknown }) => (typeof p.text === "string" ? p.text : ""), edit: () => ({}) }
 const pagesOfTexts = (texts: readonly string[], query: SearchQuery) =>
   texts.map((t, i) => {
     const found = findAll(t, query)
@@ -69,9 +71,8 @@ const pagesOfTexts = (texts: readonly string[], query: SearchQuery) =>
 const book = (texts: readonly string[]) =>
   ({
     id: "b",
-    type: "@matomezu/markdown:markdown",
     title: "b",
-    pages: texts.map((t, i) => page(`p${i + 1}`, t)),
+    lineup: texts.map((t, i) => page(`p${i + 1}`, t)),
   }) as never
 const open = (current: SearchOpen["current"], more: Partial<SearchOpen> = {}): SearchOpen => ({
   query: q("x"),
@@ -95,14 +96,19 @@ test("次・前はページをまたいで進み・戻り、ブックの端で�
 
 test("探す字を変えると、今の当たりの頭から先の最初の当たりを選び直す。数は今の当たりの番号とページ", () => {
   const b = book(["ab ab", "ab"])
-  const changed = changedSearch(md as never, b, open({ page: "p1", start: 3, end: 5 }), { query: q("ab") }, "p1")
+  const changed = changedSearch(CORE_CATALOG, b, open({ page: "p1", start: 3, end: 5 }), { query: q("ab") }, "p1")
   expect(changed.current).toEqual({ page: "p1", start: 3, end: 5 })
-  expect(searchCount(md as never, b, changed, "p1")).toEqual({ kind: "count", at: 2, all: 3, pages: { at: 1, all: 2 } })
+  expect(searchCount(CORE_CATALOG, b, changed, "p1")).toEqual({
+    kind: "count",
+    at: 2,
+    all: 3,
+    pages: { at: 1, all: 2 },
+  })
   // 当たりでなくなった今の当たりは数えない
-  expect(searchCount(md as never, b, { ...changed, current: { page: "p1", start: 1, end: 3 } }, "p1")).toMatchObject({
+  expect(searchCount(CORE_CATALOG, b, { ...changed, current: { page: "p1", start: 1, end: 3 } }, "p1")).toMatchObject({
     at: 0,
   })
-  expect(searchCount(md as never, b, { ...changed, query: q("(", { regex: true }) }, "p1")).toEqual({
+  expect(searchCount(CORE_CATALOG, b, { ...changed, query: q("(", { regex: true }) }, "p1")).toEqual({
     kind: "bad-pattern",
   })
 })
@@ -110,7 +116,7 @@ test("探す字を変えると、今の当たりの頭から先の最初の当�
 test("1 つ置換のあとの次の当たりは、長さの違う置き換えでも置き換えた字の後ろから。今の当たりが無ければ置き換えずに次へ", () => {
   const b = book(["cat cat cat"])
   const step = replaceOneStep(
-    md as never,
+    CORE_CATALOG,
     b,
     open({ page: "p1", start: 0, end: 3 }, { query: q("cat"), replacement: "x", scope: "page" }),
     "p1",
@@ -119,12 +125,12 @@ test("1 つ置換のあとの次の当たりは、長さの違う置き換えで
   expect(step.args).not.toBe("none")
   // 置き換えた字が探す字を含んでも、その中は探さない
   const grow = replaceOneStep(
-    md as never,
+    CORE_CATALOG,
     book(["a a"]),
     open({ page: "p1", start: 0, end: 1 }, { query: q("a"), replacement: "aa", scope: "page" }),
     "p1",
   )
   expect(grow.next).toEqual({ page: "p1", start: 3, end: 4 })
-  const none = replaceOneStep(md as never, b, open("none", { query: q("cat"), scope: "page" }), "p1")
+  const none = replaceOneStep(CORE_CATALOG, b, open("none", { query: q("cat"), scope: "page" }), "p1")
   expect(none).toEqual({ args: "none", next: { page: "p1", start: 0, end: 3 } })
 })

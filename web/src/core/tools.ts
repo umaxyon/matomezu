@@ -3,12 +3,12 @@
 // 道具の行うアクション（performs）がどれも認可ステップに止められるステージでは、その道具は使えず、組の使える道具を使う（覚えている道具は変えない）
 
 import type { ToolId } from "./catalog"
-import { bookType, type CoreCatalog } from "./core-catalog"
+import { type CoreCatalog, pageType } from "./core-catalog"
 import type { ToolDef, ToolSetDef } from "./def/tool"
 import { fail } from "./errors"
 import { actionQuery, deniedBy, inspect } from "./inspect"
 import type { Book } from "./schema/book"
-import type { Stage } from "./stage"
+import { openedPage, type Stage } from "./stage"
 
 // 組ごとの今の道具（替えたことの無い組は持たず、組の初めの道具を使う）。鍵は組の id、値は道具の id
 export type Tools = Readonly<Record<string, string>>
@@ -18,9 +18,10 @@ const setOf = (catalog: CoreCatalog, id: string): ToolSetDef => catalog.toolSets
 // 道具の定義
 export const toolDef = (catalog: CoreCatalog, id: string): ToolDef => catalog.tools.get(id) ?? fail("E115", { id })
 
-// ステージで使う道具の組の id（何も開いていないか、開いているブックのタイプが道具を使わなければ null）
+// ステージで使う道具の組の id（ページを開いていないか、開いているページのタイプが道具を使わなければ null）
 export function toolSetOf(catalog: CoreCatalog, stage: Pick<Stage, "opened">): string | null {
-  return stage.opened ? (bookType(catalog, stage.opened.type).tools ?? null) : null
+  const page = openedPage(stage.opened)
+  return page ? (pageType(catalog, page.type).tools ?? null) : null
 }
 
 // 組の道具（回す順。組の道具があることは台帳アセンブルが確かめるので、表の道具の id として返す）

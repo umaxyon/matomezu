@@ -1,6 +1,7 @@
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
+import { pagesIn } from "../books"
 import { aiAuth, BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test, urlPlace } from "../fixtures"
 import { footerMenuTool } from "../helpers/footer-menu"
 import { enablePlugins } from "../helpers/settings"
@@ -9,13 +10,21 @@ import { fromMenu } from "../helpers/stage-menu"
 // 追加プラグインの見本 ex2 のフォルダを結んで立てた常駐（playwright.config.ts の plugins）を使う。ex1・ex3 などは、使うテストが自分で足し、テストが終われば外す
 
 const data = async (page: Page) => (await page.request.get("/api/data")).json()
+// 保存したフローのブックの、最初のページのテーマ
+const pageTheme = async (page: Page) => {
+  const found = await saved(page, flow.id)
+  return found
+    ? pagesIn<{ settings?: Record<string, unknown> }>(found)[0]?.settings?.["@matomezu/base:page-theme"]
+    : undefined
+}
 const flow = {
-  type: "ex2:flow",
   id: "flow-1",
   title: "フロー",
-  pages: [
+  lineup: [
     {
+      kind: "page",
       id: "p1",
+      type: "ex2:flow",
       title: "P",
       paper: "@matomezu/base:a4",
       orientation: "landscape",
@@ -194,10 +203,10 @@ test("3 つを読ませると、作り手の違うプラグインのボタンが
   await enablePlugins(page, "ex1", "ex3")
   await expect(page.getByRole("button", { name: "あいさつする" })).toBeVisible()
   await page.getByRole("button", { name: "ミントにする" }).click()
-  await expect.poll(async () => (await saved(page, flow.id))?.settings?.["@matomezu/base:book-theme"]).toBe("ex3:mint")
+  await expect.poll(async () => await pageTheme(page)).toBe("ex3:mint")
   await page.reload()
   await expect(page.getByRole("button", { name: "ミントにする" })).toBeVisible()
-  expect((await saved(page, flow.id))?.settings?.["@matomezu/base:book-theme"]).toBe("ex3:mint")
+  expect(await pageTheme(page)).toBe("ex3:mint")
 })
 
 test("AI は actions で追加プラグインのアクションを読み、perform で行える。形は選んだタイプのブックにだけ置ける", async ({
@@ -242,19 +251,27 @@ test("新しいブックのダイアログに追加プラグインのタイプ�
   await (await fromMenu(page, "画面を分割")).click()
   await page.getByRole("region", { name: "ステージ" }).nth(1).getByRole("button", { name: "新しいブック" }).click()
   const dialog = page.getByRole("dialog", { name: "新しいブック" })
-  const types = dialog.getByLabel("ブックのタイプ")
-  await expect(types.locator("option")).toContainText(["フロー", "ボード"])
-  await types.selectOption({ label: "ボード" })
   await page.keyboard.type("星のボード")
   await page.keyboard.press("Enter")
   await expect(dialog).toBeHidden()
   await page.getByRole("button", { name: "ステージを閉じる" }).first().click()
-  await page.getByRole("button", { name: "ページを作る" }).click()
-  await page.getByRole("dialog", { name: "新しいページ" }).getByRole("button", { name: "作成" }).click()
+  // ページタブの＋のメニューに、足したプラグインのページのタイプも並ぶ
+  await page.getByRole("button", { name: "ページを足す" }).click()
+  await expect(page.getByRole("menu").getByRole("menuitem")).toContainText(["フロー", "ボード"])
+  await page.getByRole("menuitem", { name: "ボード" }).click()
+  await page
+    .getByRole("dialog", { name: /^新しい/ })
+    .getByRole("button", { name: "作成" })
+    .click()
   await expect(page.getByRole("img", { name: "紙" })).toBeVisible()
   const board = async () =>
-    (await data(page)).books.find((b: { book: { type: string } }) => b.book.type === "ex3:board")?.book
-  await expect.poll(async () => (await board())?.pages?.[0]?.paper).toBe("ex3:square")
+    (await data(page)).books.find((b: { book: { title: string } }) => b.book.title === "星のボード")?.book
+  await expect
+    .poll(async () => {
+      const found = await board()
+      return found ? pagesIn<{ paper: string }>(found)[0]?.paper : undefined
+    })
+    .toBe("ex3:square")
   await page.reload()
   expect((await board())?.title).toBe("星のボード")
 })
@@ -264,12 +281,13 @@ test("ex6 と ex7 を読ませると、ex7 の木箱が ex6 の拡張ポイン�
 }) => {
   await link(page, "test/added-plugins/ex6", "test/added-plugins/ex7")
   const yard = {
-    type: "ex7:yard",
     id: "yard-1",
     title: "置き場",
-    pages: [
+    lineup: [
       {
+        kind: "page",
         id: "p1",
+        type: "ex7:yard",
         title: "P",
         paper: "@matomezu/base:a4",
         orientation: "landscape",
@@ -323,12 +341,27 @@ test("ex8 を読ませると、自分の見せ方のビューが開いたペー�
 }) => {
   await link(page, "test/added-plugins/ex8")
   const deck = {
-    type: "ex8:deck",
     id: "deck-1",
     title: "単語帳",
-    pages: [
-      { id: "p1", title: "1", paper: "@matomezu/base:a4", orientation: "portrait", cards: ["りんご", "みかん"] },
-      { id: "p2", title: "2", paper: "@matomezu/base:a4", orientation: "portrait", cards: ["ぶどう"] },
+    lineup: [
+      {
+        kind: "page",
+        id: "p1",
+        type: "ex8:deck",
+        title: "1",
+        paper: "@matomezu/base:a4",
+        orientation: "portrait",
+        cards: ["りんご", "みかん"],
+      },
+      {
+        kind: "page",
+        id: "p2",
+        type: "ex8:deck",
+        title: "2",
+        paper: "@matomezu/base:a4",
+        orientation: "portrait",
+        cards: ["ぶどう"],
+      },
     ],
   }
   expect((await page.request.put(`/api/books-for-test/${deck.id}`, { data: { book: deck, base: 0 } })).ok()).toBe(true)

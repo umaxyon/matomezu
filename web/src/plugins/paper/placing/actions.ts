@@ -2,10 +2,10 @@
 
 import { z } from "zod"
 import {
-  bookItems,
+  allowedItems,
   type CoreCatalog,
+  findPage,
   findShape,
-  hasPages,
   type ItemPage,
   type PlacedShape,
   type Point,
@@ -46,7 +46,7 @@ declare module "../../../core/catalog" {
   }
 }
 
-// 置くアイテムは、ブックで使えるアイテムだけ。項目は props（そのアイテムの項目の形で確かめる。書かなかった項目は既定。テーマはブックのタイプが使えるものだけ。base の book-look/theme-types.ts）。
+// 置くアイテムは、ブックで使えるアイテムだけ。項目は props（そのアイテムの項目の形で確かめる。書かなかった項目は既定。テーマはページのタイプが使えるものだけ。base の book-look/theme-types.ts）。
 // w・h は大きさを変えられるアイテムの幅と高さ（無ければ、そのアイテムの定義が決める大きさ。データには決まった値を書く）
 // 紙の上にアイテムを置くアクションは、紙の見せ方のタイプについて来る
 const ON_PAPER = { presentations: [kit.name("paper")] }
@@ -74,7 +74,7 @@ export const ITEM_PLACE = kit.defineAction({
   aiDescription:
     "Place an item on a page with its top-left at at (in paper pixels). With parent (the id of a shape that can hold children), the item becomes the parent's last child and at is from the parent's top-left; it goes in the parent's child area below its caption and body (moved there if at is left of or above it), and the parent grows to hold its children. Without at, it goes in the first free spot of the parent (or of the page): a grid from the top-left, left to right, then down. w and h set the size of an item that can be resized; without them it takes its own default size (see its props). Coming within 8 pixels of another shape (shapes joined by some connectors keep further apart; see those connectors' actions) would move it: " +
     CROWD_AI +
-    " Pushed shapes go right, or else down, or else shrink as they are pushed; a parent that grows pushes the page's shapes the same way. It is refused if it does not fit on the paper (on a variable page, the papers it has plus a blank one each way it grows; see page-add). Returns the new item's id and its at. To see where shapes are drawn (their size as drawn), read_page. The items, their props and sizes, the themes and the colors are in actions; a theme must be one its book type lists (bookTypes[].themes in actions).",
+    " Pushed shapes go right, or else down, or else shrink as they are pushed; a parent that grows pushes the page's shapes the same way. It is refused if it does not fit on the paper (on a variable page, the papers it has plus a blank one each way it grows; see page-add). Returns the new item's id and its at. To see where shapes are drawn (their size as drawn), read_page. The items, their props and sizes, the themes and the colors are in actions; a theme must be one its book type lists (pageTypes[].themes in actions).",
   title: "Place item",
   target: "book",
   args: z.strictObject({
@@ -89,9 +89,8 @@ export const ITEM_PLACE = kit.defineAction({
   }),
   permissionScope: { page: "page" },
   run: (book, args, ctx) => {
-    if (!hasPages(book)) return null
-    const page = book.pages.find(p => p.id === args.page)
-    if (!page || !bookItems(ctx.catalog, book).includes(args.item)) return null
+    const page = findPage(book, args.page)?.page
+    if (!page || !allowedItems(ctx.catalog, page).includes(args.item)) return null
     const props = ctx.catalog.items.get(args.item)?.props.safeParse(args.props ?? {})
     if (!props?.success) return null
     const base = { id: nextItemId(book, ctx.newId), item: args.item, x: 0, y: 0, props: props.data }
@@ -104,7 +103,7 @@ export const ITEM_PLACE = kit.defineAction({
     const size = placedSize(ctx.catalog, draft)
     const item = resizable && size ? parsePlaced(ctx.catalog, { ...draft, w: size.w, h: args.h ?? size.h }) : draft
     const sized = item && placedSize(ctx.catalog, item)
-    if (!item || !sized || !shapeThemeFits(ctx.catalog, book.type, item)) return null
+    if (!item || !sized || !shapeThemeFits(ctx.catalog, page.type, item)) return null
     const parent = args.parent ?? null
     const push = args.crowd === "push"
     const grows = new Set(parent === null ? [] : [parent, ...ancestorsOf(page, parent)])
@@ -114,7 +113,7 @@ export const ITEM_PLACE = kit.defineAction({
         parent === null
           ? placeItem(ctx.catalog, book, args.page, { ...item, ...at })
           : placeChild(ctx.catalog, book, args.page, parent, item, at)
-      const placed = next?.pages.find(p => p.id === args.page)
+      const placed = next ? findPage(next, args.page)?.page : undefined
       const found = placed && findShape(placed, item.id)?.shape
       return next && placed && found
         ? { next, found, moved: movedShapes(ctx.catalog, page, placed, new Set(), grows) }
@@ -125,7 +124,7 @@ export const ITEM_PLACE = kit.defineAction({
       const tried = tryAt(at)
       return tried !== null && (push || tried.moved.length === 0)
     }
-    const at = args.at ?? freeAt(ctx.catalog, book, page, parent, sized, calm)
+    const at = args.at ?? freeAt(ctx.catalog, page, parent, sized, calm)
     if (!at)
       return {
         declined: `there is no free spot for it${push ? "" : ' (crowd "push" pushes the others)'}`,
@@ -134,7 +133,7 @@ export const ITEM_PLACE = kit.defineAction({
     const tried = tryAt(at)
     if (!tried) return null
     if (!push && tried.moved.length > 0)
-      return crowded(ctx.catalog, page, tried.moved, freeAt(ctx.catalog, book, page, parent, sized, calm))
+      return crowded(ctx.catalog, page, tried.moved, freeAt(ctx.catalog, page, parent, sized, calm))
     return { next: tried.next, result: { item: item.id, at: { x: tried.found.x, y: tried.found.y } } }
   },
 })
@@ -184,11 +183,10 @@ export const ITEM_MOVE = kit.defineAction({
   }),
   permissionScope: { page: "page", items: "items" },
   run: (book, args, ctx) => {
-    if (!hasPages(book)) return null
     const next = moveItems(ctx.catalog, book, args.page, args.items, args.by, args.came)
     if (!next || args.crowd === "push") return next && { next, result: {} }
-    const page = book.pages.find(p => p.id === args.page)
-    const moved = next.pages.find(p => p.id === args.page)
+    const page = findPage(book, args.page)?.page
+    const moved = findPage(next, args.page)?.page
     if (!page || !moved) return null
     const before = allRectsOf(ctx.catalog, page)
     const after = allRectsOf(ctx.catalog, moved)
@@ -227,8 +225,7 @@ export const ITEM_REPARENT = kit.defineAction({
   }),
   permissionScope: { page: "page", item: "item" },
   run: (book, args, ctx) => {
-    if (!hasPages(book)) return null
-    const page = book.pages.find(p => p.id === args.page)
+    const page = findPage(book, args.page)?.page
     const found = page && findShape(page, args.item)
     if (!page || !found || found.parent === args.parent) return null
     // 抜いたページ（線の整えはまだかけない。抜いた形につながる線を残すため）
@@ -253,7 +250,7 @@ export const ITEM_REPARENT = kit.defineAction({
             y: where.y - origin.y,
           })
         : placeItem(ctx.catalog, without, args.page, { ...shape, ...where })
-      const after = next?.pages.find(p => p.id === args.page)
+      const after = next ? findPage(next, args.page)?.page : undefined
       return next && after ? { next, moved: movedShapes(ctx.catalog, page, after, free, grows) } : null
     }
     const tried = tryAt(args.at ?? found.at)
@@ -262,13 +259,13 @@ export const ITEM_REPARENT = kit.defineAction({
     // 添える空き（入れる先の中の、ほかの形を動かさない所。紙の上の位置）
     const size = placedSize(ctx.catalog, shape)
     const calm = (at: Point) => tryAt({ x: at.x + origin.x, y: at.y + origin.y })?.moved.length === 0
-    const spot = size && freeAt(ctx.catalog, without, out, args.parent, size, calm)
+    const spot = size && freeAt(ctx.catalog, out, args.parent, size, calm)
     return crowded(ctx.catalog, page, tried.moved, spot ? { x: spot.x + origin.x, y: spot.y + origin.y } : null)
   },
 })
 
 // アイテムの項目を変える。props に書いた項目だけを変え、書かなかった項目はそのまま。null を書いた項目は消す（既定に戻す）。
-// 形に当てるテーマ（theme）はブックのタイプが使えるものだけ（渡したときだけ確かめる。残っている使えないテーマは、ほかの項目を変えても断らない）。形のキャプションが変わったら、20 字まで見える幅まで右へ広げ（base/place/items.ts の widenForCaption。狭めはしない）、
+// 形に当てるテーマ（theme）はページのタイプが使えるものだけ（渡したときだけ確かめる。残っている使えないテーマは、ほかの項目を変えても断らない）。形のキャプションが変わったら、20 字まで見える幅まで右へ広げ（base/place/items.ts の widenForCaption。狭めはしない）、
 // 近づきすぎた相手を押す。押した相手が紙に収まらなければ、広げずに変える。項目の形に合わなければ断る
 export const ITEM_UPDATE = kit.defineAction({
   id: "item-update",
@@ -284,8 +281,7 @@ export const ITEM_UPDATE = kit.defineAction({
   }),
   permissionScope: { page: "page", item: "item" },
   run: (book, args, ctx) => {
-    if (!hasPages(book)) return null
-    const page = book.pages.find(p => p.id === args.page)
+    const page = findPage(book, args.page)?.page
     const now = page && findShape(page, args.item)?.shape
     if (!now) return null
     const props = Object.fromEntries(Object.entries({ ...now.props, ...args.props }).filter(([, v]) => v !== null))
@@ -295,10 +291,10 @@ export const ITEM_UPDATE = kit.defineAction({
       item: now.item,
       props: Object.fromEntries(Object.entries(args.props).filter(([, v]) => v !== null)),
     }
-    if (!parsed || !page || !shapeThemeFits(ctx.catalog, book.type, given)) return null
+    if (!parsed || !page || !shapeThemeFits(ctx.catalog, page.type, given)) return null
     const item =
       (shapeDefOf(ctx.catalog, parsed.item)?.[kit.name("settle")]?.(parsed, now) as PlacedShape | undefined) ?? parsed
-    const wide = widenForCaption(ctx.catalog, book, page, now, item)
+    const wide = widenForCaption(ctx.catalog, page, now, item)
     const next =
       replaceAnywhere(ctx.catalog, book, page, wide, false) ??
       (wide !== item ? replaceAnywhere(ctx.catalog, book, page, item, false) : null)
@@ -327,8 +323,7 @@ export const ITEM_RESIZE = kit.defineAction({
   }),
   permissionScope: { page: "page", item: "item" },
   run: (book, args, ctx) => {
-    if (!hasPages(book)) return null
-    const page = book.pages.find(p => p.id === args.page)
+    const page = findPage(book, args.page)?.page
     const now = page && findShape(page, args.item)?.shape
     if (!page || !now || !ctx.catalog.items.get(now.item)?.capabilities.includes("resizable")) return null
     const size = placedSize(ctx.catalog, now)
@@ -365,7 +360,6 @@ export const ITEM_REMOVE = kit.defineAction({
   args: z.strictObject({ page: z.string().min(1), items: z.array(z.string().min(1)).min(1) }),
   permissionScope: { page: "page", items: "items" },
   run: (book, args, ctx) => {
-    if (!hasPages(book)) return null
     const next = removeItems(ctx.catalog, book, args.page, args.items)
     return next && { next, result: {} }
   },

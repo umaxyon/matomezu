@@ -9,7 +9,7 @@ import { SlideIcon } from "./type-icon"
 import { SlideView } from "./view/SlideView"
 
 export const SLIDE_BOOK_UI = definePluginUi(SLIDE_BOOK_PLUGIN, {
-  bookTypeIcons: { [SLIDE_BOOK.id]: <SlideIcon /> },
+  pageTypeIcons: { [SLIDE_BOOK.id]: <SlideIcon /> },
   enumValueIcons: { [SLIDE_BOOK_ENTRY_ICON.id]: <SlideIcon /> },
   settingViews: { [SLIDE_PRINT.id]: { control: SlidePrintSetting } },
   presentationViews: { [SLIDE_PRESENTATION.id]: { view: SlideView } },

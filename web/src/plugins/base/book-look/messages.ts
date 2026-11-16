@@ -3,6 +3,7 @@ import { defineMessages } from "../../../core/i18n/messages"
 
 export const BOOK_LOOK_MESSAGES = defineMessages({
   "Change book": { en: "Change book", ja: "ブックを変える" },
+  "Change pages": { en: "Change pages", ja: "ページをまとめて変える" },
   "Book settings": { en: "Book settings", ja: "ブックの設定" },
   "Book name": { en: "Book name", ja: "ブックの名前" },
   "Paper color": { en: "Paper color", ja: "紙の色" },

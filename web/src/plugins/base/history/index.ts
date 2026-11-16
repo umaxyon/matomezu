@@ -1,11 +1,15 @@
 // 画面の履歴（Undo・Redo）: 戻す・やり直すコマンドと、画面の履歴の段が変えた所を置き直すアクション（book-revert）。履歴は store が、利用者が画面で
 // 行ったアクションと、その窓で見えた AI とほかの窓の変更から作る（ロックの掛け外しのように history: false のアクションは入らない）。
 // 戻すのは、カレントのステージで開いているブックの最後の画面の履歴の段。その画面の履歴の段がいくつかのブックを変えていれば、その全部を戻す
+
+import { findPage } from "../../../core/book"
 import type { HistoryStep } from "../../../core/history"
 import { type Patch, patchOf } from "../../../core/patch"
+import type { Book } from "../../../core/schema/book"
+import { shownPageId } from "../../../core/stage"
 import type { CommandActions, CommandContext } from "../../../store/commands/def"
 import { kit } from "../kit"
-import { applyRestore, PatchSchema, restoredPages } from "./restore"
+import { applyRestore, PatchSchema, restoredEntries } from "./restore"
 
 export const HISTORY_RESTORE = kit.defineAction({
   id: "book-revert",
@@ -15,26 +19,27 @@ export const HISTORY_RESTORE = kit.defineAction({
   aiDescription: "The screen's undo and redo: put back what one step of the user's history changed.",
   title: "Undo or redo",
   target: "book",
-  // 変えるページが 1 つならそのページとアイテム。いくつもなら所は言えず、ページのロックは行った後の keeps が止める
+  // 置き直すエントリが 1 つなら、それをページとして名指す（とアイテム）。バインダなら無いページを名指すことになり、いくつもなら所は言えない。どちらも、ロックは行った後の keeps が止める
   permissionScope: (args: Patch) => {
-    const pages = restoredPages(args)
-    const page = pages.length === 1 ? pages[0] : undefined
+    const entries = restoredEntries(args)
+    const page = entries.length === 1 ? entries[0] : undefined
     return page ? { page: page.id, ...(page.items ? { items: [...page.items] } : {}) } : {}
   },
   args: PatchSchema,
   run: (book, args) => ({ next: applyRestore(book, args), result: {} }),
 })
 
-// 置き直したあと、開いていたいページ: 画面の履歴の段がそのブックで変えたページのうち、置き直したあとも残る最初のページ
-const pageOf = (args: Patch): string | undefined => restoredPages(args).find(p => !p.gone)?.id
+// 置き直したあと、開いていたいページ: 画面の履歴の段がそのブックで変えたページのうち、置き直したあとのブック to に在る最初のページ
+const pageOf = (args: Patch, to: Book): string | undefined =>
+  restoredEntries(args).find(p => findPage(to, p.id) !== undefined)?.id
 
-// 画面の履歴の段 step を、from が undo なら前へ戻し、redo なら後へやり直す。断られたら（ロック中など）トーストで知らせ（認可ステップが止めたなら、2 行目にそのブックの名前（名前が空なら「関連ブック」）と認可ステップの名前）、画面の履歴の段は動かさない。
+// 画面の履歴の段 step を、from が undo なら前へ戻し、redo なら後へやり直す。断られたら（ロック中など）トーストで知らせ（認可ステップが止めたなら、2 行目にそのブックの名前と認可ステップの名前）、画面の履歴の段は動かさない。
 // いくつものブックを変えた画面の履歴の段で途中のブックが断られたら、置き直したブックを元に戻す（どのブックも画面の履歴の段のとおりのまま）
 function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"): void {
   const step: HistoryStep | undefined = ctx.bookHistory[from].at(-1)
   const opened = ctx.stage.opened
   if (!step || !opened) return
-  const done: { book: string; args: Patch; back: Patch }[] = []
+  const done: { book: string; args: Patch; to: Book; back: Patch }[] = []
   for (const [book, { before, after }] of Object.entries(step.books)) {
     const [was, to] = from === "undo" ? [after, before] : [before, after]
     const args = patchOf(was, to)
@@ -47,17 +52,17 @@ function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"):
         kind: "warn",
         message: from === "undo" ? kit.message("Could not undo") : kit.message("Could not redo"),
         detail: denied && {
-          message: was.title.trim() ? kit.message('{reason}: "{book}"') : kit.message("{reason}: a related book"),
+          message: kit.message('{reason}: "{book}"'),
           params: { book: was.title, reason: { message: denied.title } },
         },
       })
       return
     }
-    done.push({ book, args, back: patchOf(to, was) as Patch })
+    done.push({ book, args, to, back: patchOf(to, was) as Patch })
   }
   const shown = done.find(d => d.book === opened.book)
-  const page = shown && pageOf(shown.args)
-  if (page && page !== opened.page) a.openPage(page)
+  const page = shown && pageOf(shown.args, shown.to)
+  if (page && page !== shownPageId(opened)) a.openPage(page)
   a.moveHistory(opened.book, from)
 }
 

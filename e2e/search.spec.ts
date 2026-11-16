@@ -1,7 +1,7 @@
 // 検索（base の検索ダイアログ。探せるのはマークダウンのブック）: Mod+F で開き、打つと当たりを数えて光らせ、次・前へ移り、置き換え、閉じると今の当たりを選ぶ。
 // ブック全体の検索は、当たりのある次のページを開いて移る。ダイアログは見出しを掴んで動かせる
 import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
-import { newBook } from "./helpers/new-book"
+import { addFromTabs, newBook } from "./helpers/new-book"
 
 // ブックスクリーンでマークダウンのブックを作り、ページの原文を text にする
 async function markdownBook(page: Page, text: string) {
@@ -100,8 +100,11 @@ test("ブック全体では、当たりのある次のページを開いて移�
   page,
 }) => {
   await markdownBook(page, "一枚目に 猫")
-  await page.getByRole("button", { name: "ページを足す" }).click()
-  await page.getByRole("dialog", { name: "新しいページ" }).getByRole("button", { name: "作成" }).click()
+  await addFromTabs(page, "マークダウン")
+  await page
+    .getByRole("dialog", { name: /^新しい/ })
+    .getByRole("button", { name: "作成" })
+    .click()
   await source(page).click()
   await page.keyboard.insertText("二枚目にも 猫")
   await page.getByRole("tab", { name: "ページ 1" }).click()

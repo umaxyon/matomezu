@@ -1,7 +1,8 @@
 // 形の〇から線を引くときの決まり（items/line/connect.ts）
 
 import { expect, test } from "bun:test"
-import type { BookOf } from "../../../../web/src/core/schema/book"
+import { pagesOf } from "../../../../web/src/core/book"
+import type { Book } from "../../../../web/src/core/schema/book"
 import { rectsOf } from "../../../../web/src/plugins/base"
 import { drawnLineProps, portAt, targetsFrom } from "../../../../web/src/plugins/items/line/connect"
 import { CORE_CATALOG, newStore } from "../../../support"
@@ -21,8 +22,7 @@ function ready() {
   store.actions.perform("@matomezu/list:row-add", { page: "p1", list: "n3" }, { book: "b1" }) // n4
   return store
 }
-const page = (store: ReturnType<typeof ready>) =>
-  (store.state.getState().books.b1 as BookOf<"@matomezu/drawing:drawing">).pages[0]!
+const page = (store: ReturnType<typeof ready>) => pagesOf(store.state.getState().books.b1 as Book)[0]!
 
 test("引ける相手は、同じページのつなげる形（自分も入る）。同じ向きの線がある相手と、リストの行は入らない。逆向きの線があっても引ける", () => {
   const store = ready()

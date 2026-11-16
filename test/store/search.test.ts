@@ -1,7 +1,9 @@
 // 検索（base/search）: 探せるブック（マークダウン）で検索ダイアログを開き、次・前へ移り（ページをまたぐ）、置き換え、閉じる
 
 import { expect, test } from "bun:test"
-import type { BookOf } from "../../web/src/core/schema/book"
+import { pagesOf } from "../../web/src/core/book"
+import type { Book } from "../../web/src/core/schema/book"
+import { shownPageId } from "../../web/src/core/stage"
 import { screenOf } from "../../web/src/core/window"
 import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
 import { addPageIn } from "../../web/src/plugins/base/page-tabs/add-page"
@@ -12,11 +14,16 @@ import { newStore } from "../support"
 
 function markdownStore(texts: readonly string[]) {
   const store = newStore()
-  createBookIn(store, "s1", { title: "メモ", type: "@matomezu/markdown:markdown" })
-  for (const [i, text] of texts.entries()) addPageIn(store, "s1", { title: `p${i + 1}`, fields: { text } })
+  createBookIn(store, "s1", { title: "メモ" })
+  for (const [i, text] of texts.entries())
+    addPageIn(store, "s1", {
+      type: "@matomezu/markdown:markdown",
+      title: `p${i + 1}`,
+      fields: { text },
+    })
   const id = screenOf(store.state.getState().window).stages[0]!.opened!.book
-  const book = () => store.state.getState().books[id] as BookOf<"@matomezu/markdown:markdown">
-  const pages = () => book().pages.map(p => p.id)
+  const book = () => store.state.getState().books[id] as Book
+  const pages = () => pagesOf(book()).map(p => p.id)
   const search = () => pluginValueOf(store.state.getState().pluginValues, "s1", SEARCH_STATE)
   const setQuery = (text: string, more: object = {}) =>
     store.setPluginState("@matomezu/base:search", "s1", {
@@ -67,7 +74,7 @@ test("ブック全体では、当たりのある次のページを開いて移�
   actions.openPage("s1", pages()[0]!)
   actions.command("s1", "@matomezu/base:search-open-book")
   setQuery("x")
-  const opened = () => screenOf(state.getState().window).stages[0]!.opened!.page
+  const opened = () => shownPageId(screenOf(state.getState().window).stages[0]!.opened ?? null)
   actions.command("s1", "@matomezu/base:search-next")
   expect([opened(), search()!.current]).toEqual([pages()[0]!, { page: pages()[0]!, start: 0, end: 1 }])
   actions.command("s1", "@matomezu/base:search-next")
@@ -87,11 +94,11 @@ test("1 つ置換は今の当たりだけを替えて次へ、全部置換は範
   actions.command("s1", "@matomezu/base:search-next")
   expect(search()!.current).toMatchObject({ start: 4 })
   actions.command("s1", "@matomezu/base:search-replace-one")
-  expect(book().pages.map(p => p.text)).toEqual(["cat dog", "cat"])
+  expect(pagesOf(book()).map(p => (p as { text?: string }).text)).toEqual(["cat dog", "cat"])
   actions.command("s1", "@matomezu/base:search-replace-all")
-  expect(book().pages.map(p => p.text)).toEqual(["dog dog", "dog"])
+  expect(pagesOf(book()).map(p => (p as { text?: string }).text)).toEqual(["dog dog", "dog"])
   actions.command("s1", "@matomezu/base:undo")
-  expect(book().pages.map(p => p.text)).toEqual(["cat dog", "cat"])
+  expect(pagesOf(book()).map(p => (p as { text?: string }).text)).toEqual(["cat dog", "cat"])
 })
 
 test("長さの違う置き換えでも、1 つ置換のあとの今の当たりは次の当たりを指し、続けて押せる", () => {
@@ -101,10 +108,10 @@ test("長さの違う置き換えでも、1 つ置換のあとの今の当たり
   setQuery("cat", { replacement: "x" })
   actions.command("s1", "@matomezu/base:search-next")
   actions.command("s1", "@matomezu/base:search-replace-one")
-  expect(book().pages[0]!.text).toBe("x cat cat")
+  expect((pagesOf(book())[0] as { text?: string }).text).toBe("x cat cat")
   expect(search()!.current).toMatchObject({ start: 2, end: 5 })
   actions.command("s1", "@matomezu/base:search-replace-one")
-  expect(book().pages[0]!.text).toBe("x x cat")
+  expect((pagesOf(book())[0] as { text?: string }).text).toBe("x x cat")
 })
 
 test("ページにロックが掛かっていると、そのページを替える置換は押せない（ブック全体の全部置換も）", () => {

@@ -2,7 +2,7 @@
 // 右サイドパネルを閉じる（Esc）か読み直すと編集に戻る。印刷区画をダブルクリックすると、そのページの編集に戻る。右端にスクロールバーを出す
 import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { afterFrames } from "./helpers/frames"
-import { newBook } from "./helpers/new-book"
+import { addFromTabs, newBook } from "./helpers/new-book"
 import { panel } from "./helpers/note"
 import { addBox, items, onPaper, settled } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
@@ -12,9 +12,9 @@ const sheets = (page: Page) => page.locator("[data-sheet]")
 
 // ＋で開くダイアログで、ページを 1 つ足す
 async function addPage(page: Page) {
-  await page.getByRole("button", { name: "ページを足す" }).click()
+  await addFromTabs(page)
   await page.keyboard.press("Enter")
-  await expect(page.getByRole("dialog", { name: "新しいページ" })).toBeHidden()
+  await expect(page.getByRole("dialog", { name: /^新しい/ })).toBeHidden()
 }
 
 // 印刷プレビューを開き、右サイドパネルに中身が出るまで待つ

@@ -3,6 +3,7 @@
 
 import { expect, test } from "bun:test"
 import { AI, USER } from "../../../web/src/core/actor"
+import { pagesOf } from "../../../web/src/core/book"
 import { performIn } from "../../../web/src/core/perform"
 import { MAIL, mailboxOf } from "../../../web/src/plugins/base/mail"
 import type { Mail } from "../../../web/src/plugins/base/mail/mail"
@@ -47,11 +48,8 @@ function ready() {
   const props = () => mail().props as ProposalProps
   const apply = () => perform(APPLY, { page: "p1", changes: props().changes, snapshot: props().snapshot }, on)
   const caption = (item: string) =>
-    (
-      store.state.getState().books.b1 as unknown as {
-        pages: { items: { id: string; props: { caption: string } }[] }[]
-      }
-    ).pages[0]?.items.find(i => i.id === item)?.props.caption
+    (pagesOf(store.state.getState().books.b1!)[0]?.items?.find(i => i.id === item)?.props as { caption?: string })
+      ?.caption
   return { store, perform, on, one, two, rename, send, mail, props, apply, caption }
 }
 

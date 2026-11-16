@@ -1,18 +1,24 @@
 // 可変ページの中身のずらし（base の place/items の alignPadding）: 左・上へ増やすとき、ページの slide の形も、中身（items）と同じ量でずれる
+
 import { expect, test } from "bun:test"
-import type { BookOf } from "../../../web/src/core/schema/book"
+import { pagesOf } from "../../../web/src/core/book"
+import type { Book } from "../../../web/src/core/schema/book"
 import { paperSize } from "../../../web/src/plugins/base/place/items"
 import { ELLIPSE } from "../../../web/src/plugins/items/slide/slide"
 import { CORE_CATALOG, newStore } from "../../support"
 
-type Drawing = BookOf<"@matomezu/drawing:drawing">
+type Drawing = Book
 
 test("左・上へ増やす可変ページにすると、slide の形も中身と同じ印刷区画の分ずれ、可変ページをやめると戻る", () => {
   const { state, actions } = newStore()
-  const pages = () => (state.getState().books.b1 as Drawing).pages
-  expect(actions.perform("@matomezu/base:page-add", { title: "p", orientation: "landscape" }, { book: "b1" }).ok).toBe(
-    true,
-  )
+  const pages = () => pagesOf(state.getState().books.b1 as Drawing)
+  expect(
+    actions.perform(
+      "@matomezu/base:page-add",
+      { type: "@matomezu/drawing:drawing", title: "p", orientation: "landscape" },
+      { book: "b1" },
+    ).ok,
+  ).toBe(true)
   const page = pages().at(-1)?.id as string
   const at = () =>
     pages().find(p => p.id === page) as unknown as {

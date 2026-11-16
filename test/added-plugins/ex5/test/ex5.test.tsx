@@ -1,7 +1,8 @@
 // ex5（文字を持たず、中身のフィールドが children でない形）で、自分の意味の theme の項目・文字を持たない形の幅・children でない中身のフィールドを確かめる（themeProp の型は type-checks.ts）
+
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
-import { addPageIn, createBookIn, nextItemId, type PagedBook } from "matomezu"
+import { addPageIn, type Book, createBookIn, nextItemId, pagesOf } from "matomezu"
 import {
   BUILTIN_UI,
   createMatomezu,
@@ -32,14 +33,14 @@ const shelf = () => {
     </MatomezuProvider>,
   )
   act(() => {
-    expect(createBookIn(instance, "s1", { title: "棚", type: "ex5:shelf" })).toBe(true)
+    expect(createBookIn(instance, "s1", { title: "棚" })).toBe(true)
   })
   const book = (openedIn(instance) as { book: string }).book
   act(() => {
-    expect(addPageIn(instance, "s1", { title: "p1" })).toBe(true)
+    expect(addPageIn(instance, "s1", { type: "ex5:shelf", title: "p1" })).toBe(true)
   })
   const on = { book }
-  const page = () => (instance.state.getState().books[book] as unknown as { pages: Page[] }).pages[0]!
+  const page = () => pagesOf(instance.state.getState().books[book]!)[0] as unknown as Page
   const place = (props: { theme?: "warm" | "cool"; caption?: string }, w?: number) => {
     let r: ReturnType<typeof instance.actions.perform> | undefined
     act(() => {
@@ -116,7 +117,7 @@ test("次に置くアイテムの id は、中身のフィールド tiles の札
     const r = instance.actions.perform("ex5:tile-add", { page: page().id, item, color: "#ff0000" }, on)
     tile = (r as { result: { tile: string } }).result.tile
   })
-  const book = instance.state.getState().books[on.book] as unknown as PagedBook
+  const book = instance.state.getState().books[on.book] as unknown as Book
   const ids = new Set<string>()
   for (let k = 0; k < 20; k++) ids.add(nextItemId(book, () => tile))
   expect(ids.has(tile)).toBe(false)

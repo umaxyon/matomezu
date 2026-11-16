@@ -8,10 +8,11 @@ import type { MessageKey } from "../../../core/i18n/i18n"
 import { splitId } from "../../../core/names"
 import { resolveTokens, type Shades } from "../../../core/theme"
 import { useMessages } from "../../../ui/i18n"
-import { bookTypeOf, openedOf, useScope } from "../../../ui/scope"
+import { openedOf, pageTypeOf, useScope } from "../../../ui/scope"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
 import { themeVars } from "../../../ui/theme-vars"
-import { bookTheme } from "../book-look/look"
+import { usePage, useShownPage } from "../../../ui/view-hooks"
+import { pageTheme } from "../book-look/look"
 import { themeFits, themesFor } from "../book-look/theme-types"
 import { shadeOf, useDarkScheme } from "../book-look/use-dark-scheme"
 import { kit } from "../kit"
@@ -43,20 +44,18 @@ export function useBookOf(): string | undefined {
   return useMatomezuState(s => openedOf(s, scope)?.book)
 }
 
-// ブック book（id）のタイプが、ブックと中の形に使えるテーマ（book-look/theme-types.ts。ブックが無ければ空）
-export function useBookThemes(book: string | undefined): ThemeDef[] {
+// 描いているページのタイプが、ページと中の形に使えるテーマ（book-look/theme-types.ts。ページを描いていなければ空）
+export function usePageThemes(): ThemeDef[] {
   const catalog = useCatalog().core
-  const type = useMatomezuState(s => (book ? s.books[book]?.type : undefined))
+  const type = usePage()?.type
   return useMemo(() => (type === undefined ? [] : themesFor(catalog, type)), [catalog, type])
 }
 
-// ブックのテーマの id
-export function useBookTheme(book: string | undefined) {
+// 描いているページのテーマの id（設定のダイアログの下書きを重ねたページで決める。ページを描いていなければ undefined）
+export function usePageTheme(): string | undefined {
   const catalog = useCatalog().core
-  return useMatomezuState(s => {
-    const b = book ? s.books[book] : undefined
-    return b ? bookTheme(catalog, b) : undefined
-  })
+  const page = useShownPage()
+  return useMemo(() => (page ? pageTheme(catalog, page) : undefined), [catalog, page])
 }
 
 // 色の見本: テーマ looks の代表色と、「なし」の色（形の塗りのテーマキー fill の値）。表に無いテーマなら null
@@ -79,11 +78,11 @@ export function useSwatches(looks: string | undefined, fill: TokenDef) {
 }
 
 // 描くページのブックの中の形に当てたテーマ theme の、テーマキー defs の値の CSS 変数
-// （当てていないか、ブックのタイプが使えないテーマなら undefined。ブックのテーマのまま描く。book-look/theme-types.ts）
+// （当てていないか、ページのタイプが使えないテーマなら undefined。ブックのテーマのまま描く。book-look/theme-types.ts）
 export function useThemeVars(theme: string | undefined, defs: readonly TokenDef[]): CSSProperties | undefined {
   const catalog = useCatalog().core
   const scope = useScope()
-  const type = useMatomezuState(s => bookTypeOf(s, scope))
+  const type = useMatomezuState(s => pageTypeOf(s, scope))
   return useMemo(() => {
     if (!theme || type === undefined || !themeFits(catalog, type, theme)) return undefined
     const owners = new Set(defs.map(d => splitId(d.id).owner))

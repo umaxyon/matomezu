@@ -1,12 +1,9 @@
-// スライドのブックのページ一覧（ステージの左の縦の列）: サムネイルを並べ、押して開く・ドラッグで並べ替え・右クリックで ここに追加・複製・削除（確認つき）。ページタブは出ない
+// スライドのバインダのページ一覧（ステージの左の縦の列）: サムネイルを並べ、押して開く・ドラッグで並べ替え・右クリックで ここに追加・複製・削除（確認つき）。ページタブには、バインダが 1 つのタブで出る
+import { SLIDE, testBinder, testBook, testPage, withSlide } from "../test/lineup"
 import { BOOK_SCREEN_URL, expect, test } from "./fixtures"
 
-const page3 = (id: string, title: string) => ({
-  id,
-  title,
-  paper: "@matomezu/base:ratio-16x9",
-  orientation: "landscape",
-  slide: [
+const page3 = (id: string, title: string) =>
+  withSlide(testPage(SLIDE, id, { title, paper: "@matomezu/base:ratio-16x9" }), [
     {
       id: `${id}-t`,
       x: 80,
@@ -16,25 +13,23 @@ const page3 = (id: string, title: string) => ({
       h: 80,
       props: { text: `${title}の文字`, fontSize: 48 },
     },
-  ],
-})
+  ])
 
 test.use({
   books: [
-    {
-      type: "@matomezu/slide-book:slide",
-      id: "b1",
-      title: "スライド",
-      pages: [page3("p1", "一枚目"), page3("p2", "二枚目"), page3("p3", "三枚目")],
-    },
+    testBook("b1", "スライド", [
+      testBinder("b1-slides", "スライド", SLIDE, page3("p1", "一枚目"), page3("p2", "二枚目"), page3("p3", "三枚目")),
+    ]),
   ],
 })
 
-test("ページ一覧はサムネイルを縦に並べ、ページタブは出ない。押したページが開く", async ({ page }) => {
+test("ページ一覧はサムネイルを縦に並べ、ページタブにはバインダが 1 つのタブで出る。押したページが開く", async ({
+  page,
+}) => {
   await page.goto(BOOK_SCREEN_URL)
   const list = page.locator("[data-page-list]")
   await expect(list).toBeVisible()
-  await expect(page.getByRole("tab")).toHaveCount(0)
+  await expect(page.getByRole("tab")).toHaveText(["スライド"])
   const pages = list.locator("[data-page]")
   await expect(pages).toHaveCount(3)
   await expect(pages.nth(0).locator("button")).toHaveAttribute("aria-current", "page")
@@ -80,12 +75,9 @@ test("右クリックで、ここに追加・複製・削除ができる（削�
 test.describe("ロック中のページ", () => {
   test.use({
     books: [
-      {
-        type: "@matomezu/slide-book:slide",
-        id: "b1",
-        title: "スライド",
-        pages: [page3("p1", "一枚目"), { ...page3("p2", "二枚目"), locked: true }],
-      },
+      testBook("b1", "スライド", [
+        testBinder("b1-slides", "スライド", SLIDE, page3("p1", "一枚目"), { ...page3("p2", "二枚目"), locked: true }),
+      ]),
     ],
   })
 
@@ -104,17 +96,56 @@ test.describe("ロック中のページ", () => {
   })
 })
 
-test.describe("ページが 0 枚", () => {
+test.describe("空のバインダ", () => {
   test.use({
-    books: [{ type: "@matomezu/slide-book:slide", id: "b1", title: "スライド", pages: [] }],
+    books: [
+      {
+        id: "b1",
+        title: "スライド",
+        lineup: [{ kind: "binder", id: "f1", title: "スライド", pageType: "@matomezu/slide-book:slide", lineup: [] }],
+      },
+    ],
   })
 
   test("ページ一覧の＋で、ダイアログ無しで「（無題）」のページを足せる", async ({ page }) => {
     await page.goto(BOOK_SCREEN_URL)
     const pages = page.locator("[data-page-list] [data-page]")
     await expect(pages).toHaveCount(0)
-    await page.getByRole("button", { name: "ページを足す" }).click()
+    await page.getByRole("navigation", { name: "ページ一覧" }).getByRole("button", { name: "ページを足す" }).click()
     await expect(pages).toHaveCount(1)
     await expect(pages.nth(0).locator("button")).toHaveAttribute("aria-label", "（無題）")
   })
+})
+
+test("スライドのタブの右クリックの「設定…」で紙のサイズを変えると、全部のサムネイルの形が変わる。「削除…」で確かめてから、スライドごと消える", async ({
+  page,
+}) => {
+  await page.goto(BOOK_SCREEN_URL)
+  const thumbs = page.locator("[data-page-list] [data-page] button")
+  await expect(thumbs).toHaveCount(3)
+  const ratios = () =>
+    thumbs.evaluateAll(els =>
+      els.map(el => {
+        const r = el.getBoundingClientRect()
+        return Math.round((r.height / r.width) * 100)
+      }),
+    )
+  const before = await ratios()
+  expect(new Set(before).size).toBe(1)
+  const tab = page.getByRole("tab", { name: "スライド" })
+  await tab.click({ button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "設定…" }).click()
+  const dialog = page.getByRole("dialog", { name: "スライドの設定" })
+  await dialog.getByLabel("紙のサイズ").selectOption("@matomezu/base:a4")
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(dialog).toBeHidden()
+  await expect.poll(async () => (await ratios()).every(r => r !== before[0])).toBe(true)
+  expect(new Set(await ratios()).size).toBe(1)
+
+  await tab.click({ button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "削除…" }).click()
+  const confirm = page.getByRole("dialog", { name: "スライドを削除" })
+  await expect(confirm).toContainText("スライドと中のページが消えます")
+  await confirm.getByRole("button", { name: "削除" }).click()
+  await expect(page.getByRole("tab")).toHaveCount(0)
 })

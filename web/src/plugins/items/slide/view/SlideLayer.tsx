@@ -1,5 +1,5 @@
 // スライドのレイヤー（スロット book-layers に置くウィジェット）: 紙の枠の中に、開いたページの slide のアイテムを重ねの順に描き、選ぶ・動かす・大きさを変える・回す・置く・文字の書き換えを受ける。
-// ブックのタイプが slide を選んでいるブックだけで描く（選んでいなければ何も出さない）。ポインタを受けるのは、アイテムと選んだ物のつまみ・バーの上と、置こうとしている間の紙の上、
+// ページのタイプが slide を選んでいるブックだけで描く（選んでいなければ何も出さない）。ポインタを受けるのは、アイテムと選んだ物のつまみ・バーの上と、置こうとしている間の紙の上、
 // 置けるアイテムが slide だけのタイプでは何も無い所も（選びを外す）。それ以外はステージ（と下のレイヤー）へ通す。
 // アイテムは書いた位置と大きさ（紙の左上から。負でも、紙より大きくてもよい）に置き、角度（rotation）は枠の中心でかける。紙の外にはみ出た部分は切る（切るのはアイテムを描く所だけで、選んだ物のつまみは切らない）。
 // 置こうとしている間は、紙の上でドラッグした四角（直線は線、自由な線はなぞった跡）に置く。押しただけなら、そのアイテムの置くときの大きさで押した所に置く。文字枠を置いたら、そのまま文字を打てる。
@@ -8,10 +8,11 @@
 // ドラッグの途中の様子はビューに持ち、離したときに 1 回だけコマンドを呼ぶ（元に戻すのも 1 回）
 import { type PointerEvent, useEffect, useRef, useState } from "react"
 import {
-  bookType,
   type ItemId,
+  openedPage,
   type PlacedShape,
   type Point,
+  pageType,
   type Rect,
   type StageView,
   slideIsBackground,
@@ -128,11 +129,11 @@ const roundRect = (f: Rect): Rect => ({ x: round(f.x), y: round(f.y), w: round(f
 export function SlideLayer() {
   const stage = useStage()
   const catalog = useCoreCatalog()
-  const type = stage?.opened?.type
-  const slide = type ? bookType(catalog, type).slide : undefined
-  if (!stage || !slide || stage.opened?.page == null) return null
+  const opened = openedPage(stage?.opened ?? null)
+  const slide = opened ? pageType(catalog, opened.type).slide : undefined
+  if (!stage || !opened || !slide) return null
   // slide がページの本体のタイプは、紙の何も無い所の押しも受ける（選びを外す）。背景のタイプは、背景編集モードの間だけ操作を受ける（ふだんは描くだけ）
-  const body = !slideIsBackground(bookType(catalog, type as string))
+  const body = !slideIsBackground(pageType(catalog, opened.type))
   return <SlidePageView stage={stage} operable={body || stage.edits === "slide"} placeable={slide.allowed} />
 }
 
@@ -166,7 +167,7 @@ function SlidePageView({
   const typeNext = useRef(false) // 置いた文字枠で、そのまま文字を打つ
   const shapes = page ? slideOf(page) : []
   // 位置をデータに持たない見せ方（ツリー）が、可変ページで中身をずらした量。slide の形は、データの座標のまま、この分ずらして描く
-  const offset = book && page ? slideOffsetOf(catalog, book, page) : { x: 0, y: 0 }
+  const offset = book && page ? slideOffsetOf(catalog, page) : { x: 0, y: 0 }
   const chosen = shapes.filter(s => stage.selection.includes(s.id)) // 選んでいるアイテム（重ねの順）
   const selected = chosen.length === 1 && stage.selection.length === 1 ? chosen[0] : undefined
   const placing =

@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
-import { addPageIn, createBookIn } from "matomezu"
+import { addPageIn, createBookIn, pagesOf } from "matomezu"
 import {
   BUILTIN_UI,
   createMatomezu,
@@ -31,18 +31,13 @@ const make = () => {
 // フローのブックを作って開き、ページを 1 つ足す
 const flow = (instance: ReturnType<typeof make>) => {
   act(() => {
-    expect(createBookIn(instance, "s1", { title: "フロー", type: "ex2:flow" })).toBe(true)
+    expect(createBookIn(instance, "s1", { title: "フロー" })).toBe(true)
   })
   const book = (openedIn(instance) as { book: string }).book
   act(() => {
-    expect(addPageIn(instance, "s1", { title: "p1" })).toBe(true)
+    expect(addPageIn(instance, "s1", { type: "ex2:flow", title: "p1" })).toBe(true)
   })
-  const page = () =>
-    (
-      instance.state.getState().books[book] as unknown as {
-        pages: { id: string; items?: { id: string; props?: object }[] }[]
-      }
-    ).pages[0]!
+  const page = () => pagesOf(instance.state.getState().books[book]!)[0]!
   return { on: { book }, page }
 }
 
@@ -70,15 +65,16 @@ test("フローのブックに判断のひし形とビルトインの箱を置�
       ok: true,
     })
     expect(
-      instance.actions.perform("@matomezu/base:book-update", { settings: { "ex2:flow-direction": "right" } }, on),
+      instance.actions.perform(
+        "@matomezu/base:pages-update",
+        { pages: "all", settings: { "ex2:flow-direction": "right" } },
+        on,
+      ),
     ).toMatchObject({
       ok: true,
     })
   })
-  expect(instance.state.getState().books[on.book]).toMatchObject({
-    type: "ex2:flow",
-    settings: { "ex2:flow-direction": "right" },
-  })
+  expect(page()).toMatchObject({ type: "ex2:flow", settings: { "ex2:flow-direction": "right" } })
   expect(page().items).toHaveLength(3)
   expect(document.querySelector("[data-ex2-diamond]")?.textContent).toBe("判断")
 })
@@ -137,13 +133,13 @@ test("追加のダイアログで置き、編集のダイアログで答える�
 test("判断のひし形は、選んでいないビルトインのタイプ（図面）のブックには置けない", () => {
   const instance = make()
   act(() => {
-    createBookIn(instance, "s1", { title: "図面", type: "@matomezu/drawing:drawing" })
+    createBookIn(instance, "s1", { title: "図面" })
   })
   const book = (openedIn(instance) as { book: string }).book
   act(() => {
-    addPageIn(instance, "s1", { title: "p1" })
+    addPageIn(instance, "s1", { type: "@matomezu/drawing:drawing", title: "p1" })
   })
-  const page = (instance.state.getState().books[book] as { pages: readonly { id: string }[] }).pages[0]!
+  const page = pagesOf(instance.state.getState().books[book]!)[0]!
   const r = instance.actions.perform(
     "@matomezu/paper:item-place",
     { page: page.id, item: "ex2:diamond", at: { x: 0, y: 0 } },

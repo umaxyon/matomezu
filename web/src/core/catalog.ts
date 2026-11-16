@@ -4,7 +4,7 @@ import type { ConnectorData, ShapeData } from "./def/item"
 // ビルトインプラグインも追加プラグインも同じ口を使う（追加プラグインからは matomezu/catalog の名前で、このファイルを指す）。ここから id の型・ブックの型・アクションの引数の型などが決まる。
 // 書き足しは、このファイルに向ける。このファイルを読み直して出す別のファイルに向けると、ほかの書き足しと合わさらない。
 // 書き足した id と、インスタンスに渡した定義の id がそろっているかは、createMatomezu の型が確かめる
-export interface BookTypeTable {}
+export interface PageTypeTable {}
 export interface ControlCenterTable {}
 export interface ItemTable {}
 export interface ActionTable {}
@@ -41,8 +41,8 @@ export interface CapabilityTable {
   nests: true
 }
 
-// テーマタイプ（テーマがどのブックのタイプ向けか）の id → true。土台は意味を知らない。base が図（@matomezu/base:diagram）と文書（@matomezu/base:document）を書き足す。
-// プラグインは自分の id を頭に付けたテーマタイプを書き足せる。テーマとブックのタイプがテーマタイプを書くのは、base が書き足した拡張ポイント（plugins/base/book-look/theme-types.ts）
+// テーマタイプ（テーマがどのページのタイプ向けか）の id → true。土台は意味を知らない。base が図（@matomezu/base:diagram）と文書（@matomezu/base:document）を書き足す。
+// プラグインは自分の id を頭に付けたテーマタイプを書き足せる。テーマとページのタイプがテーマタイプを書くのは、base が書き足した拡張ポイント（plugins/base/book-look/theme-types.ts）
 export interface ThemeTypeTable {}
 
 // 土台のキーの範囲（キーバインドが効く所）: global（ダイアログもメニューも開いていないとき、ステージに結び付かない画面全体のキー）・stage（カレントのステージ）・
@@ -65,7 +65,7 @@ export interface ContextMenuTable {}
 // 定義の種類: プラグインが持てる定義のフィールドの名前 → その種類が入る台帳（core 台帳か store 台帳）と、error の文に使う名前。
 // 種類を足すときは、ここに 1 行と、下の PartTables に id の表を足し、定義の型をその台帳のクレートから PartDefTable に書き足す（core の種類は core/core-catalog.ts、store の種類は store/plugin.ts）
 export const PARTS = {
-  bookTypes: { catalog: "core", label: "bookType" },
+  pageTypes: { catalog: "core", label: "pageType" },
   controlCenters: { catalog: "core", label: "controlCenter" },
   items: { catalog: "core", label: "item" },
   actions: { catalog: "core", label: "action" },
@@ -99,7 +99,7 @@ export const partsOf = <S extends "core" | "store">(name: S) =>
 
 // 種類ごとの id の表（PARTS と同じ種類を並べる。足りなければ、種類ごとに引く所 PartTables[Part] が型の誤りになる）
 export interface PartTables {
-  bookTypes: BookTypeTable
+  pageTypes: PageTypeTable
   controlCenters: ControlCenterTable
   items: ItemTable
   actions: ActionTable
@@ -128,7 +128,7 @@ export interface PartTables {
 // 種類ごとの定義の型。その台帳のクレートが書き足す（ここは空。書き足し忘れは、種類ごとに引く所 PartDefTable[Part] が型の誤りになる）
 export interface PartDefTable {}
 
-export type BookTypeId = keyof BookTypeTable & string
+export type PageTypeId = keyof PageTypeTable & string
 export type ControlCenterId = keyof ControlCenterTable & string
 export type ItemId = keyof ItemTable & string
 export type ActionId = keyof ActionTable & string
@@ -164,7 +164,7 @@ export type SlotProps<S extends SlotId> = S extends keyof SlotTable ? SlotTable[
 // 土台の定義オブジェクトの型に書くのは土台が読むフィールド・メソッドだけで、ほかのプラグインが読むものは、読む側のプラグインが
 // ここに declare module で書き足す（base も追加プラグインも。追加プラグインからは matomezu/catalog）。定義を書くプラグインは、書き足されたものを
 // 自分の定義オブジェクトに書く（型が効く）。base は短い名前、base 以外は "<プラグインの id>:<名前>"（例 "@foo/pdf:draw"）で書き足す
-export interface BookTypeExtras {}
+export interface PageTypeExtras {}
 // 形とつなぐものの拡張ポイントは、書き足すメソッドが置いたデータの型 D を使えるように型引数を持つ（書き足すときも同じ型引数で書く）。
 // dataOf は D を拡張ポイントに結ぶためだけの型の印で、値は持たない
 declare const dataOf: unique symbol

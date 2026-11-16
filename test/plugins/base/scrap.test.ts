@@ -63,13 +63,12 @@ test("置いたときの大きさは、見る範囲 × 倍率（小数は切り�
   expect(scrapSize({ area: { x: 0, y: 0, w: 101, h: 33 }, scale: 0.5 })).toEqual({ w: 51, h: 17 })
 })
 
-test("スクラップフレームは、ブックのタイプが置けるアイテムのうち scrapFrame の付いた物（図面・フローチャートはスクラップボックス、ツリーには無い）", () => {
+test("スクラップフレームは、ページのタイプが置けるアイテムのうち scrapFrame の付いた物（図面・フローチャートはスクラップボックス、ツリーには無い）", () => {
   const { store } = ready()
   const catalog = store.catalog.core
-  const book = (type: string) => ({ id: "x", title: "x", type, pages: [] }) as never
-  expect(scrapFrameIn(catalog, book("@matomezu/drawing:drawing"), "items")).toBe("@matomezu/scrap:shape-scrap-box")
-  expect(scrapFrameIn(catalog, book("@matomezu/flowchart:flowchart"), "items")).toBe("@matomezu/scrap:shape-scrap-box")
-  expect(scrapFrameIn(catalog, book("@matomezu/tree:tree"), "items")).toBeNull()
+  expect(scrapFrameIn(catalog, "@matomezu/drawing:drawing", "items")).toBe("@matomezu/scrap:shape-scrap-box")
+  expect(scrapFrameIn(catalog, "@matomezu/flowchart:flowchart", "items")).toBe("@matomezu/scrap:shape-scrap-box")
+  expect(scrapFrameIn(catalog, "@matomezu/tree:tree", "items")).toBeNull()
 })
 
 test("切り抜くコマンドは、開いているページ（ページタブなら渡されたページ）で切り抜くダイアログを開く", () => {

@@ -1,7 +1,8 @@
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../web/src/core/book"
 import type { Point } from "../../web/src/core/geom"
-import type { BookOf } from "../../web/src/core/schema/book"
-import { placement } from "../../web/src/core/stage"
+import type { Book } from "../../web/src/core/schema/book"
+import { openedPage, placement } from "../../web/src/core/stage"
 import { screenOf } from "../../web/src/core/window"
 import { toolOf } from "../../web/src/core/workspace"
 import { BUILTIN } from "../../web/src/plugins"
@@ -20,7 +21,7 @@ function pointerFor(store: ReturnType<typeof newStore>, at: Point): Point {
   return { x: p.x + at.x * p.zoom + PLACE_OFFSET.x, y: p.y + at.y * p.zoom + PLACE_OFFSET.y }
 }
 const page = (store: ReturnType<typeof newStore>, book = "b1", i = 0) =>
-  (store.state.getState().books[book] as BookOf<"@matomezu/drawing:drawing">).pages[i]!
+  pagesOf(store.state.getState().books[book] as Book)[i]!
 
 // そのステージの今の道具
 const toolAt = (store: ReturnType<typeof newStore>, stage = "s1") =>
@@ -73,7 +74,7 @@ test("紙から少しでもはみ出す所では置かず、置こうとした�
   const store = ready()
   store.actions.togglePlacing("s1", "@matomezu/box:shape-nest-box")
   store.actions.command("s1", "@matomezu/paper:paper-place", pointerFor(store, { x: -1, y: 0 }))
-  const w = screenOf(store.state.getState().window).stages[0]!.opened!.paper
+  const w = openedPage(screenOf(store.state.getState().window).stages[0]!.opened ?? null)?.paper
   const right = w?.status === "known" ? w.size.w - 64 + 1 : 0
   store.actions.command("s1", "@matomezu/paper:paper-place", pointerFor(store, { x: right, y: 0 }))
   expect(page(store).items).toBeUndefined()
@@ -84,7 +85,7 @@ test("アイテムの id は振った値から作り、ブックのどのペー�
   const ids = ["p2", "x", "x", "y"]
   const store = newStore({ newId: () => ids.shift()! })
   store.actions.resizeStage("s1", { w: 1400, h: 1000 })
-  addPageIn(store, "s1", { title: "ページ 2" })
+  addPageIn(store, "s1", { type: "@matomezu/drawing:drawing", title: "ページ 2" })
   store.actions.perform(
     "@matomezu/paper:item-place",
     { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x: 0, y: 0 } },
@@ -146,7 +147,7 @@ test("ハンドの道具でアイテムを置こうとすると、選択の道�
 
 test("ページを替えると、選択と置こうとしていたアイテムを捨てる", () => {
   const store = ready()
-  addPageIn(store, "s1", { title: "ページ 2" })
+  addPageIn(store, "s1", { type: "@matomezu/drawing:drawing", title: "ページ 2" })
   store.actions.select("s1", ["b9"])
   store.actions.togglePlacing("s1", "@matomezu/box:shape-nest-box")
   store.actions.openPage("s1", "p1")

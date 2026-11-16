@@ -3,9 +3,9 @@
 import {
   type Book,
   type CoreCatalog,
+  findPage,
   findShape,
   type ItemPage,
-  type PagedBook,
   type PlacedShape,
   type Point,
   putPage,
@@ -41,16 +41,8 @@ export const PLACE_OFFSET: Point = { x: 16, y: 12 }
 const noiseless = (v: number): number => Math.round(v * 1e6) / 1e6
 
 // ドラッグ中のアイテム id の通り道を覚え直す（drag.ts の track）
-export function trackDrag(
-  catalog: CoreCatalog,
-  book: Book,
-  page: ItemPage,
-  id: string,
-  prev: Point,
-  by: Point,
-  came: Came,
-): Came {
-  const frame = frameAround(catalog, book, page, id)
+export function trackDrag(catalog: CoreCatalog, page: ItemPage, id: string, prev: Point, by: Point, came: Came): Came {
+  const frame = frameAround(catalog, page, id)
   return frame ? track(frame.rects, id, prev, by, came) : came
 }
 
@@ -58,19 +50,18 @@ export function trackDrag(
 // 四角はデータの位置（子の形は親の左上から）。無い形・描けない紙なら null
 export function dragging(
   catalog: CoreCatalog,
-  book: Book,
   page: ItemPage,
   id: string,
   by: Point,
   came: Came,
 ): Map<string, Rect> | null {
-  const frame = frameAround(catalog, book, page, id)
+  const frame = frameAround(catalog, page, id)
   return frame && toData(frame, dragRects(frame.rects, id, by, came, frame.paper, gapOf(catalog, page)))
 }
 
 // ページのアイテム ids を一緒に動かせるか: どれも形で、同じ Frame の形（ページの形どうしか、同じ親の子どうし）
-export function movableTogether(catalog: CoreCatalog, book: Book, page: ItemPage, ids: readonly string[]): boolean {
-  const frame = ids[0] !== undefined ? frameAround(catalog, book, page, ids[0]) : null
+export function movableTogether(catalog: CoreCatalog, page: ItemPage, ids: readonly string[]): boolean {
+  const frame = ids[0] !== undefined ? frameAround(catalog, page, ids[0]) : null
   return frame !== null && ids.every(id => frame.rects.has(id))
 }
 
@@ -78,14 +69,14 @@ export function movableTogether(catalog: CoreCatalog, book: Book, page: ItemPage
 // came はドラッグの通り道で覚えた、相手ごとの先端が来た向き（無ければ始めの位置から見た向き）。無いページ・無いアイテム・収まらないなら null
 export function moveItems(
   catalog: CoreCatalog,
-  book: PagedBook,
+  book: Book,
   pageId: string,
   ids: readonly string[],
   by: Point,
   came?: Came,
-): PagedBook | null {
-  const page = book.pages.find(p => p.id === pageId)
-  const frame = page && ids[0] !== undefined ? frameAround(catalog, book, page, ids[0]) : null
+): Book | null {
+  const page = findPage(book, pageId)?.page
+  const frame = page && ids[0] !== undefined ? frameAround(catalog, page, ids[0]) : null
   if (!page || !frame) return null
   // どれも同じ Frame の形（ページの形と子の形、親の違う子は一緒に動かさない）
   if (!ids.every(id => frame.rects.has(id))) return null
@@ -111,14 +102,14 @@ export function moveItems(
 // 始めの位置へ 1px ずつ（大きい方の軸で数えた歩数。400 まで）戻して、最初に収まる量（stepToward）。決まった手順なので同じ入力なら同じ結果。収まる量が無ければ null
 export function nearestMove(
   catalog: CoreCatalog,
-  book: PagedBook,
+  book: Book,
   pageId: string,
   ids: readonly string[],
   by: Point,
   came?: Came,
 ): Point | null {
-  const page = book.pages.find(p => p.id === pageId)
-  const frame = page && ids[0] !== undefined ? frameAround(catalog, book, page, ids[0]) : null
+  const page = findPage(book, pageId)?.page
+  const frame = page && ids[0] !== undefined ? frameAround(catalog, page, ids[0]) : null
   if (!frame) return null
   const to = clampBy(frame.rects, ids, by, frame.paper)
   return stepToward(to, { x: 0, y: 0 }, p => moveItems(catalog, book, pageId, ids, p, came) !== null)
@@ -128,13 +119,13 @@ export function nearestMove(
 // （action の item-reparent と同じ決まり。抜いて、親の子の領域の左上より左や上なら寄せて入れる）
 export function reparentedAt(
   catalog: CoreCatalog,
-  book: PagedBook,
+  book: Book,
   pageId: string,
   item: string,
   parent: string | null,
   where: Point,
-): PagedBook | null {
-  const page = book.pages.find(p => p.id === pageId)
+): Book | null {
+  const page = findPage(book, pageId)?.page
   const found = page && findShape(page, item)
   const out = page && replaceShape(page, item, () => null)
   if (!page || !found || !out || found.parent === parent) return null
@@ -152,13 +143,13 @@ export function reparentedAt(
 // 最初に入れられる at。無ければ null
 export function nearestReparent(
   catalog: CoreCatalog,
-  book: PagedBook,
+  book: Book,
   pageId: string,
   item: string,
   parent: string | null,
   at: Point,
 ): Point | null {
-  const page = book.pages.find(p => p.id === pageId)
+  const page = findPage(book, pageId)?.page
   const found = page && findShape(page, item)
   const into = page && parent !== null ? findShape(page, parent) : null
   if (!page || !found) return null
@@ -213,13 +204,12 @@ export function dropTarget(catalog: CoreCatalog, page: ItemPage, id: string, at:
 // 空きは base の freeSpotIn の格子で、fits が通す目（Frame の左上からでなく、この at で受ける）。無ければ null
 export function freeAt(
   catalog: CoreCatalog,
-  book: Book,
   page: ItemPage,
   parent: string | null,
   size: Size,
   fits: (at: Point) => boolean = () => true,
 ): Point | null {
-  const frame = frameOf(catalog, book, page, parent)
+  const frame = frameOf(catalog, page, parent)
   if (!frame) return null
   const at = (spot: Point) => ({ x: spot.x + frame.origin.x, y: spot.y + frame.origin.y })
   const spot = freeSpotIn(frame, size, s => fits(at(s)))
@@ -259,7 +249,7 @@ export interface PlaceTarget {
 // 置けるか（fits）は、画面と同じに押して置いてみて決める（親が育って紙からはみ出すなら置けない）
 export function placeTarget(
   catalog: CoreCatalog,
-  book: PagedBook,
+  book: Book,
   page: ItemPage,
   pointer: Point,
   at: Point,
@@ -279,7 +269,7 @@ export function placeTarget(
     const fits = placeChild(catalog, book, page.id, under.shape.id, shape, inner) !== null
     return { parent: under.shape.id, at: inner, free: false, shown, fits }
   }
-  const spot = freeAt(catalog, book, page, under.parent, size)
+  const spot = freeAt(catalog, page, under.parent, size)
   const base = under.parent === null ? { x: 0, y: 0 } : walkShapes(page).find(s => s.shape.id === under.parent)?.at
   if (!spot || !base) return null
   return { parent: under.parent, at: spot, free: true, shown: { x: base.x + spot.x, y: base.y + spot.y }, fits: true }

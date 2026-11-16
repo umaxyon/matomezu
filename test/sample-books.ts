@@ -1,5 +1,6 @@
-// 見本の図面のブック（どれも A4 横のページが 1 つ）
-import type { BookOf } from "../web/src/core/schema/book"
+// 見本のブック（どれも、A4 横の図面のページが 1 つ）
+import type { Book } from "../web/src/core/schema/book"
+import { testBook } from "./lineup"
 
 const TITLES = [
   "まとめ図の構想",
@@ -12,9 +13,4 @@ const TITLES = [
   "Design Notes",
 ]
 
-export const SAMPLE_BOOKS: BookOf<"@matomezu/drawing:drawing">[] = TITLES.map((title, i) => ({
-  type: "@matomezu/drawing:drawing",
-  id: `b${i + 1}`,
-  title,
-  pages: [{ id: "p1", title: "ページ 1", paper: "@matomezu/base:a4", orientation: "landscape" }],
-}))
+export const SAMPLE_BOOKS: Book[] = TITLES.map((title, i) => testBook(`b${i + 1}`, title))

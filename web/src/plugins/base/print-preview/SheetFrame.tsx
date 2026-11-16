@@ -1,8 +1,9 @@
-// 印刷区画 1 つの中身: ページの原点を印刷区画の左上にずらして、印刷区画のレイヤー（スロット sheet-layers。ブックの中身は、ブックのタイプの印刷区画 1 つのビュー printSheet）で描き、
+// 印刷区画 1 つの中身: ページの原点を印刷区画の左上にずらして、印刷区画のレイヤー（スロット sheet-layers。ブックの中身は、ページのタイプの印刷区画 1 つのビュー printSheet）で描き、
 // 中身は、ステージの外で見るだけに描くページとして描く（描いている場所は、その印刷区画のページ。中からは何も行えない。ui/scope.tsx）。
 // 名前（ブック名とページ名。左上）と印刷区画の番号（下の真ん中）を中身の上に重ねる。印刷プレビューの画面と、刷る物の両方が使う（外の枠は使う側が置く）
 import type { Book, Page } from "../../../core/schema/book"
 import { PageScope } from "../../../ui/scope"
+import { PageLook } from "../book-look/use-page-look-style"
 import styles from "./PrintPreviewView.module.css"
 import type { SheetLabels } from "./print-pages"
 import { Printing } from "./printing"
@@ -37,14 +38,16 @@ export function SheetFrame({
         <div className={styles.origin} style={{ left: -sheet.column * sheet.w, top: -sheet.row * sheet.h }}>
           <Printing>
             <PageScope book={book.id} page={page.id} zoom={zoom}>
-              <SheetLayers
-                book={book}
-                page={page}
-                column={sheet.column}
-                row={sheet.row}
-                paper={{ w: sheet.w, h: sheet.h }}
-                {...(measured !== undefined ? { measured } : {})}
-              />
+              <PageLook>
+                <SheetLayers
+                  book={book}
+                  page={page}
+                  column={sheet.column}
+                  row={sheet.row}
+                  paper={{ w: sheet.w, h: sheet.h }}
+                  {...(measured !== undefined ? { measured } : {})}
+                />
+              </PageLook>
             </PageScope>
           </Printing>
         </div>

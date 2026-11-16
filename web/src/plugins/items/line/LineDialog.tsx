@@ -5,7 +5,7 @@
 // キャプションで間隔が広がって押した形が紙に収まらなければ、閉じずに理由を出す
 
 import { useCallback, useEffect, useId, useState } from "react"
-import { findShape, type MessageKey, pagedOf } from "../../../plugin-api"
+import { findPage, findShape, type MessageKey } from "../../../plugin-api"
 import {
   type DialogProps,
   useActions,
@@ -68,11 +68,11 @@ export function EditLineDialog({ args, onClose }: DialogProps<{ page: string; it
   const catalog = useCoreCatalog()
   const book = useBookOf()
   const drawing = useBook()
-  const page = (drawing && pagedOf(drawing)?.pages.find(p => p.id === args.page)) || undefined
+  const page = (drawing && (drawing ? findPage(drawing, args.page)?.page : undefined)) || undefined
   const line = useItem(args.page, args.item, LINE.id)
   const { previewDialog } = useActions()
   const perform = usePerform()
-  const elbow = drawing && page ? elbowAt(catalog, drawing, page) : true
+  const elbow = page ? elbowAt(catalog, page) : true
   const startRoute: LineRoute = line?.props.route ?? (elbow ? "elbow" : "straight")
   const [caption, setCaption] = useState(line?.props.caption ?? "")
   const [route, setRoute] = useState<LineRoute>(startRoute)
@@ -104,9 +104,9 @@ export function EditLineDialog({ args, onClose }: DialogProps<{ page: string; it
   }, [changed, route, dash, startHead, endHead, preview])
   if (!book || !page || !line) return null
   const self = line.from === line.to
-  // キャプションの候補: ブックのタイプが、始点のアイテムに決めたもの
+  // キャプションの候補: ページのタイプが、始点のアイテムに決めたもの
   const fromItem = findShape(page, line.from)?.shape.item
-  const words = !self && fromItem && drawing ? captionWordsOf(catalog, drawing, fromItem) : []
+  const words = !self && fromItem ? captionWordsOf(catalog, page, fromItem) : []
   const rects = portAreasOf(catalog, page)
   const p = line.props
   const fixed = p.exitAt !== undefined || p.enterAt !== undefined

@@ -1,4 +1,4 @@
-// 印刷プレビューの見せ方の設定の項目（ブックの設定。ページを持つタイプが settings.book に選ぶ。変えるのは print-preview-update だけ）:
+// 印刷プレビューの見せ方の設定の項目（ブックが持つ設定の項目。変えるのは print-preview-update だけ）:
 // 印刷区画を並べる向き・可変ページの印刷区画を数える順・紙に印刷区画の番号とブック名とページ名を入れるか
 import { z } from "zod"
 import { kit } from "../kit"
@@ -16,6 +16,7 @@ export const ShownSchema = z.enum(["shown", "hidden"])
 
 export const PRINT_PREVIEW_FLOW = kit.defineSetting({
   id: "print-preview-flow",
+  holder: "book",
   title: "Arrange sheets",
   schema: SheetFlowSchema,
   default: "column",
@@ -23,6 +24,7 @@ export const PRINT_PREVIEW_FLOW = kit.defineSetting({
 
 export const PRINT_PREVIEW_ORDER = kit.defineSetting({
   id: "print-preview-order",
+  holder: "book",
   title: "Order of print areas",
   schema: SheetOrderSchema,
   default: "across",
@@ -30,6 +32,7 @@ export const PRINT_PREVIEW_ORDER = kit.defineSetting({
 
 export const PRINT_PREVIEW_SHEET_NUMBERS = kit.defineSetting({
   id: "print-preview-sheet-numbers",
+  holder: "book",
   title: "Print page numbers",
   schema: ShownSchema,
   default: "hidden",
@@ -37,6 +40,7 @@ export const PRINT_PREVIEW_SHEET_NUMBERS = kit.defineSetting({
 
 export const PRINT_PREVIEW_BOOK_NAME = kit.defineSetting({
   id: "print-preview-book-name",
+  holder: "book",
   title: "Print the book name",
   schema: ShownSchema,
   default: "hidden",
@@ -44,12 +48,13 @@ export const PRINT_PREVIEW_BOOK_NAME = kit.defineSetting({
 
 export const PRINT_PREVIEW_PAGE_NAME = kit.defineSetting({
   id: "print-preview-page-name",
+  holder: "book",
   title: "Print the page name",
   schema: ShownSchema,
   default: "hidden",
 })
 
-// 印刷プレビューの設定の項目の id（ページを持つタイプが settings.book に並べる）
+// 印刷プレビューの設定の項目の id
 export const PRINT_PREVIEW_SETTINGS = [
   PRINT_PREVIEW_FLOW.id,
   PRINT_PREVIEW_ORDER.id,
@@ -58,13 +63,14 @@ export const PRINT_PREVIEW_SETTINGS = [
   PRINT_PREVIEW_PAGE_NAME.id,
 ] as const
 
-// 背景（ページの slide。背景を持つタイプのページ）を印刷に出すか（ページとブックの設定。ページはブックを継承できる）。
+// 背景（ページの slide。背景を持つタイプのページ）を印刷に出すか（ページの設定の項目）。
 // auto は、中身の載った印刷区画にだけ背景を敷き（背景だけの印刷区画は並べない）、always は中身が無くてもそのページの全部の印刷区画に出し、never は背景を出さない
 export const BackgroundPrintSchema = z.enum(["auto", "always", "never"])
 export type BackgroundPrint = z.infer<typeof BackgroundPrintSchema>
 
 export const BACKGROUND_PRINT = kit.defineSetting({
   id: "background-print",
+  holder: "page",
   title: "Print background",
   schema: BackgroundPrintSchema,
   default: "auto",

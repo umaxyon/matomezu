@@ -3,6 +3,7 @@
 
 import { expect, test } from "bun:test"
 import { USER } from "../../web/src/core/actor"
+import { pagesOf } from "../../web/src/core/book"
 import { permittedIn } from "../../web/src/core/perform"
 import { screenOf } from "../../web/src/core/window"
 import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
@@ -18,7 +19,7 @@ test("book-trash はブックに時刻を付けてゴミ箱へ移し、開いて
   expect(actions.perform("@matomezu/base:book-trash", { book: "b1" }).ok).toBe(true)
   expect("b1" in state.getState().books).toBe(false)
   expect(state.getState().trash.b1?.trashed).toBe(NOW)
-  expect(Object.keys(state.getState().trash.b1 ?? {}).slice(0, 4)).toEqual(["type", "id", "title", "trashed"])
+  expect(Object.keys(state.getState().trash.b1 ?? {}).slice(0, 4)).toEqual(["id", "title", "trashed", "lineup"])
   expect(screenOf(state.getState().window).stages[0]?.opened).toBeNull()
   expect(actions.perform("@matomezu/base:book-trash", { book: "b1" }).ok).toBe(false)
 })
@@ -35,8 +36,8 @@ test("ゴミ箱のブックは、ブックが対象のアクションでは無�
 test("ロック中のブックと、ロック中のページを持つブックはゴミ箱に入れられない（locked）", () => {
   const store = newStore()
   const { actions } = store
-  addPageIn(store, "s1", { title: "ページ 2" })
-  const page = (store.state.getState().books.b1 as { pages: readonly { id: string }[] }).pages[1]?.id as string
+  addPageIn(store, "s1", { type: "@matomezu/drawing:drawing", title: "ページ 2" })
+  const page = pagesOf(store.state.getState().books.b1!)[1]?.id as string
   actions.perform("@matomezu/base:page-lock", { page }, { book: "b1" })
   expect(actions.perform("@matomezu/base:book-trash", { book: "b1" })).toEqual({
     ok: false,
@@ -54,8 +55,8 @@ test("ロック中のブックと、ロック中のページを持つブック�
 
 test("ロック中のページを持つブックのゴミ箱入れは、行う前の問いでも止める（ブックの全部を変えるので、どのページのロックも効く）", () => {
   const store = newStore()
-  addPageIn(store, "s1", { title: "ページ 2" })
-  const page = (store.state.getState().books.b1 as { pages: readonly { id: string }[] }).pages[1]?.id as string
+  addPageIn(store, "s1", { type: "@matomezu/drawing:drawing", title: "ページ 2" })
+  const page = pagesOf(store.state.getState().books.b1!)[1]?.id as string
   store.actions.perform("@matomezu/base:page-lock", { page }, { book: "b1" })
   const world = worldOf(store.state.getState())
   const ctx = { catalog: store.catalog.core, controlCenter: store.controlCenter, actor: USER }
@@ -71,7 +72,7 @@ test("戻す・消す・空にする。ゴミ箱に無いブックは戻さず�
   const store = newStore({ books: [], savedBooks: (await host.load()).books })
   host.connect(store)
   const made = ["一", "二", "三"].map(title => {
-    createBookIn(store, "s1", { title, type: "@matomezu/drawing:drawing" })
+    createBookIn(store, "s1", { title })
     return Object.values(store.state.getState().books).find(b => b.title === title)?.id as string
   })
   const [one, two, three] = made as [string, string, string]

@@ -1,29 +1,33 @@
 // ex3: ex1・ex2 とは別の作り手の追加プラグイン（React なし）。ほかの見本とは id でだけ関わる。
-// ブックのタイプ・形・紙・設定の項目・テーマ・スキンと、開いているブックをミントにするコマンド
-import { definePlugin, themeFits } from "matomezu"
+// ページのタイプ・形・紙・設定の項目・テーマ・スキンと、開いているブックをミントにするコマンド
+import { definePlugin, shownType, themeFits } from "matomezu"
 import { BOARD, GRID, MINT, NIGHT, SQUARE, STAR, STAR_ADD_DIALOG, STAR_EDIT_DIALOG } from "./board"
 import { kit } from "./kit"
 
 // 開いているブックのテーマをミントにする（ほかの作り手のタイプのブックにも、そのタイプが図のテーマタイプを使えば使える）
 export const USE_MINT = kit.defineCommand({
   id: "mint",
-  performs: ["@matomezu/base:book-update"],
+  performs: ["@matomezu/base:pages-update"],
   permissionScope: "book",
   title: "useMint",
   run: (ctx, a) => {
     if (ctx.book)
       a.perform(
-        "@matomezu/base:book-update",
-        { settings: { "@matomezu/base:book-theme": MINT.id } },
+        "@matomezu/base:pages-update",
+        { pages: "all", settings: { "@matomezu/base:page-theme": MINT.id } },
         { book: ctx.book.id },
       )
   },
-  when: ctx => ctx.book !== null && "pages" in ctx.book && themeFits(ctx.catalog, ctx.book.type, MINT.id),
+  // 開いているページのタイプがミントのテーマを使えるときだけ
+  when: ctx => {
+    const type = shownType(ctx.stage.opened ?? null)
+    return ctx.book !== null && type !== null && themeFits(ctx.catalog, type, MINT.id)
+  },
 })
 
 export const EX3 = definePlugin(
   kit.plugin({
-    bookTypes: [BOARD],
+    pageTypes: [BOARD],
     items: [STAR],
     papers: [SQUARE],
     settings: [GRID],
@@ -37,7 +41,7 @@ export const EX3 = definePlugin(
 export default EX3
 
 declare module "matomezu/catalog" {
-  interface BookTypeTable {
+  interface PageTypeTable {
     "ex3:board": typeof BOARD
   }
   interface ItemTable {

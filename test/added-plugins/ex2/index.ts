@@ -1,4 +1,4 @@
-// ex2: 自分のブックのタイプと形と自分のアクションを持つ追加プラグイン（React なし）。
+// ex2: 自分のページのタイプと形と自分のアクションを持つ追加プラグイン（React なし）。
 // ダイアログは usePerform でアクションを行う（追加のダイアログは置き、編集のダイアログは答える。views.tsx）
 import { definePlugin } from "matomezu"
 import { ANSWER, DIAMOND, DIAMOND_ADD_DIALOG, DIAMOND_EDIT_DIALOG, FLOW, FLOW_DIRECTION } from "./flow"
@@ -6,7 +6,7 @@ import { kit } from "./kit"
 
 export const EX2 = definePlugin(
   kit.plugin({
-    bookTypes: [FLOW],
+    pageTypes: [FLOW],
     items: [DIAMOND],
     actions: [ANSWER],
     settings: [FLOW_DIRECTION],
@@ -17,7 +17,7 @@ export const EX2 = definePlugin(
 export default EX2
 
 declare module "matomezu/catalog" {
-  interface BookTypeTable {
+  interface PageTypeTable {
     "ex2:flow": typeof FLOW
   }
   interface ItemTable {

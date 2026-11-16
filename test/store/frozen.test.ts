@@ -1,6 +1,8 @@
 // 状態は凍っていて、その場で書き換えると誤りになる（前の状態と変わらない所を共有しているので、書き換えると前の状態まで変わる）。
 // アクションで変えたあとの新しいブックも、作ったときに渡したブックも同じ
+
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../web/src/core/book"
 import { screenOf } from "../../web/src/core/window"
 import { newStore } from "../support"
 
@@ -9,14 +11,14 @@ test("状態のブックは、作ったときのものもアクションのあ�
   const before = state.getState().books.b1
   expect(Object.isFrozen(before)).toBe(true)
   expect(actions.perform("@matomezu/base:book-update", { title: "新しい名前" }, { book: "b1" }).ok).toBe(true)
-  const after = state.getState().books.b1 as { title: string; pages: readonly { title: string }[] }
+  const after = state.getState().books.b1!
   expect(Object.isFrozen(after)).toBe(true)
-  expect(Object.isFrozen(after.pages[0])).toBe(true)
+  expect(Object.isFrozen(pagesOf(after)[0])).toBe(true)
   expect(() => {
     ;(after as { title: string }).title = "x"
   }).toThrow()
   expect(() => {
-    ;(after.pages as { title: string }[]).push({ title: "x" })
+    ;(after.lineup as unknown[]).push({ title: "x" })
   }).toThrow()
   expect((before as { title: string }).title).not.toBe("新しい名前")
 })

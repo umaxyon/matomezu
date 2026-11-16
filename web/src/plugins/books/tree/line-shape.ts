@@ -1,5 +1,5 @@
 // 親から子への線の形: 直線・折れ線（伸びる向きに半分進んで曲がる、組織図の形）・曲線（マインドマップの形）。
-// ブックとページの設定の項目で持ち、ページはブックを継承できる。道筋は線の両端と伸びる向きから決める（treePath）
+// ページの設定の項目で持つ。道筋は線の両端と伸びる向きから決める（treePath）
 import { z } from "zod"
 import type { Point } from "../../../plugin-api"
 import { kit } from "./kit"
@@ -13,6 +13,7 @@ export const DEFAULT_LINE_SHAPE: LineShape = "elbow"
 
 export const LINE_SHAPE = kit.defineSetting({
   id: "line-shape",
+  holder: "page",
   title: "Line shape",
   schema: z.enum(LINE_SHAPES),
   default: DEFAULT_LINE_SHAPE,

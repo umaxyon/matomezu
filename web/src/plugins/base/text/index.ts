@@ -12,7 +12,7 @@ export {
   wrapRich,
 } from "./rich"
 export {
-  BOOK_TEXT_COLORS,
+  PAGE_TEXT_COLORS,
   THEME_TEXT_COLORS_CHECK,
   textColorsOf,
   textColorVars,

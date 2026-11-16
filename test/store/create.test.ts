@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import { z } from "zod"
-import { defineBookType } from "../../web/src/core/def/book-type"
+import { pagesOf } from "../../web/src/core/book"
+import { checkCoreCatalog } from "../../web/src/core/core-catalog"
+import { definePageType } from "../../web/src/core/def/page-type"
 import { type MatomezuError, problemText } from "../../web/src/core/errors"
 import { translate } from "../../web/src/core/i18n/i18n"
 import { screenOf } from "../../web/src/core/window"
@@ -12,15 +14,15 @@ import { createMatomezu } from "../../web/src/store/create"
 import { defineDialog, defineDialogWith, type PageSettingsArgs } from "../../web/src/store/dialogs"
 import { definePlugin } from "../../web/src/store/plugin"
 import type { Actions } from "../../web/src/store/store"
+import { BUILTIN_PARTS } from "../support"
 
 // テストのプラグイン。型（core/catalog.ts）は書き足さない（書き足すと、このプロジェクトの全部のインスタンスに要るものになる）ので、インスタンスは partial で作る
-const NOTE = defineBookType({
+const NOTE = definePageType({
   id: "notes:note",
   version: 1,
   title: "@matomezu/drawing:Drawing",
-  schema: z.strictObject({ type: z.literal("notes:note"), id: z.string().min(1) }),
-  create: init => ({ type: "notes:note" as const, ...init }),
-  pages: null,
+  grouping: "none",
+  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape" },
   items: { allowed: [] },
   actions: {},
   theme: "@matomezu/base:standard",
@@ -36,7 +38,7 @@ const SHOOT = defineCommand({
 })
 const notes = definePlugin({
   id: "notes",
-  bookTypes: [NOTE],
+  pageTypes: [NOTE],
   commands: [SHOOT],
   dialogs: [defineDialog({ id: "notes:shot" })],
 })
@@ -46,19 +48,15 @@ const LEAF_DIALOGS = [
   defineDialog({ id: "notes:leaf-new" }),
   defineDialogWith<PageSettingsArgs>()({ id: "notes:leaf-settings" }),
 ] as const
-const LEAF = defineBookType({
+const LEAF = definePageType({
   id: "notes:leaf",
   version: 1,
   title: "@matomezu/drawing:Drawing",
-  schema: z.strictObject({ type: z.literal("notes:leaf"), id: z.string().min(1) }),
-  create: init => ({ type: "notes:leaf" as const, ...init, pages: [] }),
-  addPagesFromTabs: true,
-  pages: {
-    paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
-    fields: { root: z.strictObject({ caption: z.string() }) },
-    // core/catalog.ts に書き足していないダイアログは、型では名指せないので言い張る
-    dialogs: { add: "notes:leaf-new" as never, settings: "notes:leaf-settings" as never },
-  },
+  grouping: "none",
+  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape" },
+  fields: { root: z.strictObject({ caption: z.string() }) },
+  // core/catalog.ts に書き足していないダイアログは、型では名指せないので言い張る
+  dialogs: { add: "notes:leaf-new" as never, settings: "notes:leaf-settings" as never },
   items: { allowed: [] },
   actions: {},
   theme: "@matomezu/base:standard",
@@ -69,7 +67,10 @@ const LEAF = defineBookType({
 
 // core/catalog.ts に書き足していない id で呼ぶ
 const untyped = (a: Actions) =>
-  a as unknown as { command(stage: string, id: string): boolean; openDialog(stage: string, id: string): void }
+  a as unknown as {
+    command(stage: string, id: string, args?: unknown): boolean
+    openDialog(stage: string, id: string): void
+  }
 
 const thrown = (run: () => unknown) => {
   try {
@@ -87,8 +88,8 @@ describe("インスタンスを作る", () => {
       controlCenter: "@matomezu/control-center:control-center",
       newId: () => "n1",
     })
-    expect(instance.catalog.core.bookTypes.has("notes:note")).toBe(true)
-    expect(createBookIn(instance, "s1", { title: "メモ", type: "notes:note" as never })).toBe(true)
+    expect(instance.catalog.core.pageTypes.has("notes:note")).toBe(true)
+    expect(createBookIn(instance, "s1", { title: "メモ", page: { type: "notes:note" } as never })).toBe(true)
     expect(screenOf(instance.state.getState().window).stages[0]!.opened).toMatchObject({
       type: "notes:note",
       book: "n1",
@@ -97,7 +98,7 @@ describe("インスタンスを作る", () => {
     expect(instance.state.getState().dialog).toMatchObject({ id: "notes:shot", stage: "s1" })
 
     const plain = createMatomezu({ plugins: BUILTIN })
-    expect(createBookIn(plain, "s1", { title: "メモ", type: "notes:note" as never })).toBe(false)
+    expect(createBookIn(plain, "s1", { title: "メモ", page: { type: "notes:note" } as never })).toBe(false)
     expect(thrown(() => untyped(plain.actions).command("s1", "notes:shoot"))).toMatchObject({ code: "E107" })
     expect(thrown(() => untyped(plain.actions).openDialog("s1", "notes:shot"))).toMatchObject({ code: "E108" })
   })
@@ -162,19 +163,39 @@ describe("インスタンスを作る", () => {
     definePlugin({ id: "notes", items: [shape({ edit: "@matomezu/box:box-add" })] })
   })
 
-  test("ブックのタイプが名指すページのダイアログは、ページを作るなら値を受けず、ページの設定なら PageSettingsArgs を受けるものでなければ型の誤り", () => {
-    const paged = <const G>(dialogs: G) => ({ ...LEAF, pages: { ...LEAF.pages, dialogs } })
+  test("ページのタイプが名指すページのダイアログは、ページを作るなら NewPageDialogArgs を受け、ページの設定なら PageSettingsArgs を受けるものでなければ型の誤り", () => {
+    const paged = <const G>(dialogs: G) => ({ ...LEAF, dialogs })
     const add = "@matomezu/base:page-new"
     const settings = "@matomezu/base:page-settings"
-    definePlugin({ id: "notes", bookTypes: [paged({ add, settings })] })
+    definePlugin({ id: "notes", pageTypes: [paged({ add, settings })] })
     // @ts-expect-error ページの設定のダイアログを、ページを作るダイアログに名指している
-    definePlugin({ id: "notes", bookTypes: [paged({ add: settings })] })
+    definePlugin({ id: "notes", pageTypes: [paged({ add: settings })] })
     // @ts-expect-error ページを作るダイアログを、ページの設定のダイアログに名指している
-    definePlugin({ id: "notes", bookTypes: [paged({ settings: add })] })
+    definePlugin({ id: "notes", pageTypes: [paged({ settings: add })] })
   })
 
-  test("ブックのタイプがページのダイアログを名指すと、ページを作る・ページの設定のコマンドはそのダイアログを開く。ページは base の page-add・page-update で、タイプがページに足したフィールドごと作り変える", () => {
-    const plugin = definePlugin({ id: "notes", bookTypes: [LEAF], dialogs: LEAF_DIALOGS })
+  test("ページのタイプは、ブック自身だけを変えるアクション（許可スコープが book）を足せも外せもしない（型の誤り。型の無い書き方は E066）。エントリや作るページのアクションは書ける", () => {
+    const acting = <const C>(actions: C) => ({ ...LEAF, actions })
+    definePlugin({
+      id: "notes",
+      pageTypes: [acting({ without: ["@matomezu/base:page-move", "@matomezu/base:page-add"] })],
+    })
+    // @ts-expect-error ブックの名前を変えるアクションは、ブック自身だけを変える
+    definePlugin({ id: "notes", pageTypes: [acting({ without: ["@matomezu/base:book-update"] })] })
+    // ページをまとめて変えるアクションは、ページ 1 枚ごとに問うので書ける
+    definePlugin({ id: "notes", pageTypes: [acting({ without: ["@matomezu/base:pages-update"] })] })
+    const drawing = BUILTIN_PARTS.pageTypes.find(t => t.id === "@matomezu/drawing:drawing")!
+    const wrong = { ...drawing, actions: { without: ["@matomezu/base:book-update"] } }
+    expect(
+      checkCoreCatalog({
+        ...BUILTIN_PARTS,
+        pageTypes: BUILTIN_PARTS.pageTypes.map(t => (t === drawing ? wrong : t)),
+      } as never).map(p => p.code),
+    ).toEqual(["E066"])
+  })
+
+  test("ページのタイプがページのダイアログを名指すと、ページを作る・ページの設定のコマンドはそのダイアログを開く。ページは base の page-add・page-update で、タイプがページに足したフィールドごと作り変える", () => {
+    const plugin = definePlugin({ id: "notes", pageTypes: [LEAF], dialogs: LEAF_DIALOGS })
     const instance = createMatomezu({
       plugins: [...BUILTIN, plugin],
       partial: true,
@@ -182,16 +203,22 @@ describe("インスタンスを作る", () => {
       newId: () => "n1",
     })
     const perform = instance.actions.perform as (id: string, args: unknown, on: unknown) => { ok: boolean }
-    expect(createBookIn(instance, "s1", { title: "葉", type: "notes:leaf" as never })).toBe(true)
-    expect(untyped(instance.actions).command("s1", "@matomezu/base:page-new")).toBe(true)
+    expect(createBookIn(instance, "s1", { title: "葉" })).toBe(true)
+    expect(untyped(instance.actions).command("s1", "@matomezu/base:page-new", { type: "notes:leaf" })).toBe(true)
     expect(instance.state.getState().dialog).toMatchObject({ id: "notes:leaf-new", stage: "s1" })
     // 要るフィールド（根）を渡さなければ、ブックのデータの形に合わず断る。タイプに無いフィールドも断る
-    expect(perform("@matomezu/base:page-add", { title: "p" }, { book: "n1" }).ok).toBe(false)
-    expect(perform("@matomezu/base:page-add", { title: "p", fields: { stem: {} } }, { book: "n1" }).ok).toBe(false)
+    expect(perform("@matomezu/base:page-add", { type: "notes:leaf", title: "p" }, { book: "n1" }).ok).toBe(false)
     expect(
-      perform("@matomezu/base:page-add", { title: "p", fields: { root: { caption: "根" } } }, { book: "n1" }).ok,
+      perform("@matomezu/base:page-add", { type: "notes:leaf", title: "p", fields: { stem: {} } }, { book: "n1" }).ok,
+    ).toBe(false)
+    expect(
+      perform(
+        "@matomezu/base:page-add",
+        { type: "notes:leaf", title: "p", fields: { root: { caption: "根" } } },
+        { book: "n1" },
+      ).ok,
     ).toBe(true)
-    const page = () => (instance.state.getState().books.n1 as unknown as { pages: { root: unknown }[] }).pages[0]
+    const page = () => pagesOf(instance.state.getState().books.n1!)[0]
     expect(page()).toMatchObject({ id: "n1", title: "p", root: { caption: "根" } })
     expect(
       perform("@matomezu/base:page-update", { page: "n1", fields: { root: { caption: "幹" } } }, { book: "n1" }).ok,
@@ -202,13 +229,13 @@ describe("インスタンスを作る", () => {
     expect(instance.state.getState().dialog).toMatchObject({ id: "notes:leaf-settings", args: { page: "n1" } })
   })
 
-  test("ブックのタイプが名指すページのダイアログが無ければ E031 で作らない", () => {
-    const plugin = definePlugin({ id: "notes", bookTypes: [LEAF] })
+  test("ページのタイプが名指すページのダイアログが無ければ E031 で作らない", () => {
+    const plugin = definePlugin({ id: "notes", pageTypes: [LEAF] })
     const e = thrown(() => createMatomezu({ plugins: [...BUILTIN, plugin], partial: true }))
     expect(e).toMatchObject({ name: "MatomezuError" })
     expect((e as MatomezuError).details.map(problemText)).toEqual([
-      "E031 bookType notes:leaf: unknown dialog notes:leaf-new",
-      "E031 bookType notes:leaf: unknown dialog notes:leaf-settings",
+      "E031 pageType notes:leaf: unknown dialog notes:leaf-new",
+      "E031 pageType notes:leaf: unknown dialog notes:leaf-settings",
     ])
   })
 

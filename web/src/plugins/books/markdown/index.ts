@@ -1,4 +1,4 @@
-// マークダウンのプラグイン: マークダウンのブックのタイプと、その見せ方（ステージに紙を置かない）・ペインの並べ方のコマンド（並べ方は画面の場所に入れる）・ソースのペインのキーと、Tab キーとソースのペインの見た目。
+// マークダウンのプラグイン: マークダウンのページのタイプと、その見せ方（ステージに紙を置かない）・ペインの並べ方のコマンド（並べ方は画面の場所に入れる）・ソースのペインのキーと、Tab キーとソースのペインの見た目。
 // テーマと紙の色の設定の項目、新しいページとページの設定のダイアログは base の物を使う
 import { defineBuiltin } from "../../../plugin-api/builtin"
 import { PANE_LAYOUT_COMMANDS, SOURCE_KEYS } from "./commands"
@@ -13,7 +13,7 @@ import { TAB_KEY } from "./tab-key"
 
 export const MARKDOWN_PLUGIN = defineBuiltin(
   kit.plugin({
-    bookTypes: [MARKDOWN],
+    pageTypes: [MARKDOWN],
     enumValues: [MARKDOWN_ENTRY_ICON],
     presentations: [MARKDOWN_PRESENTATION],
     commands: [...PANE_LAYOUT_COMMANDS],
@@ -29,7 +29,7 @@ declare module "../../../core/catalog" {
   interface EnumValueTable {
     "@matomezu/markdown:entry-icon": typeof MARKDOWN_ENTRY_ICON
   }
-  interface BookTypeTable {
+  interface PageTypeTable {
     "@matomezu/markdown:markdown": typeof MARKDOWN
   }
   interface PresentationTable {

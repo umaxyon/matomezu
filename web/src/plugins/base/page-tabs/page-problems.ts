@@ -1,8 +1,8 @@
-// ページの問題: ブックのタイプが、ページを見て問題（ツリーが紙に入らないなど）を知らせる（定義オブジェクトの拡張ポイントに書き足す）。
-// base のアクション page-add・page-update・book-update は、書いたあとのページ（book-update は全部のページ）に問題があれば断る。
+// ページの問題: ページのタイプが、ページを見て問題（ツリーが紙に入らないなど）を知らせる（定義オブジェクトの拡張ポイントに書き足す）。
+// base のアクション page-add・page-update・pages-update は、書いたあとのページに問題があれば断る。
 // 断ったことを利用者に知らせるか、どう知らせるかは呼んだ側が決める（問題の文言は任意。base のダイアログは、文言があればダイアログの中に出す）
-import { hasPages } from "../../../core/book"
-import { bookType, type CoreCatalog } from "../../../core/core-catalog"
+import { pagesOf } from "../../../core/book"
+import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import type { MessageKey } from "../../../core/i18n/i18n"
 import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
@@ -15,8 +15,8 @@ export interface PageProblem {
 }
 
 declare module "../../../core/catalog" {
-  interface BookTypeExtras {
-    // page で効いている設定の値は setting で読む（ブックとページの設定の項目を、ページ → ブック → 既定の順に）。
+  interface PageTypeExtras {
+    // page で効いている設定の値は setting で読む（ページの設定の項目を、ページ → 既定の順に）。
     // grow はページの増やす向き（可変ページでなければ undefined。place/items の growOf）
     pageProblem?(
       catalog: CoreCatalog,
@@ -27,17 +27,20 @@ declare module "../../../core/catalog" {
   }
 }
 
-// ブック book のページ（pages に id を書けばそのページだけ）のうち、問題のあるものと、その問題
+// ブック book のページ（pages に id を書けばそのページだけ）のうち、問題のあるものと、その問題（問題は、ページのタイプが知らせる）
 export function pageProblems(
   catalog: CoreCatalog,
   book: Book,
   pages?: readonly string[],
 ): { page: ItemPage; problem: PageProblem }[] {
-  const check = bookType(catalog, book.type).pageProblem
-  if (!check || !hasPages(book)) return []
-  return book.pages.flatMap(page => {
+  return pagesOf(book).flatMap(page => {
     if (pages && !pages.includes(page.id)) return []
-    const problem = check(catalog, page, settingsAt(catalog, book, page), growOf(catalog, book, page))
+    const problem = pageType(catalog, page.type).pageProblem?.(
+      catalog,
+      page,
+      settingsAt(catalog, page),
+      growOf(catalog, page),
+    )
     return problem ? [{ page, problem }] : []
   })
 }

@@ -2,11 +2,11 @@
 // 紙の面と区切りの線は紙の座標の枠（PaperFrame）に描き、ポインタは受けない（上のレイヤーとステージが受ける）。ページが無い・紙を出せないときは描かない（知らせはブックのビューが出す）
 
 import { useLayoutEffect, useMemo } from "react"
-import { bookType } from "../../../core/core-catalog"
+import { pageType } from "../../../core/core-catalog"
 import { fail } from "../../../core/errors"
-import { areaOf, paperOf } from "../../../core/stage"
+import { areaOf, openedPage, paperOf } from "../../../core/stage"
 import { useCatalog, useUiCatalog } from "../../../ui/store-context"
-import { useActions, useBook, usePage, useStage } from "../../../ui/view-hooks"
+import { useActions, usePage, useStage } from "../../../ui/view-hooks"
 import { printAreaLines } from "../place/grow"
 import { startOf, unprintedSheets } from "../print-preview/book-sheets"
 import { sheetKey } from "../print-preview/filled"
@@ -17,7 +17,7 @@ import { usePrintAreasHidden } from "./print-areas"
 
 export function PaperLayer() {
   const stage = useStage()
-  if (!stage?.opened || stage.opened.page === null) return null
+  if (!openedPage(stage?.opened ?? null) || !stage) return null
   return <PaperFrame stage={stage} className={styles.paper} aria-hidden="true" data-paper-surface />
 }
 
@@ -26,7 +26,6 @@ export function PaperLayer() {
 // 初めの位置（暗くしない所の左上）も、ここからステージに知らせる
 export function PrintAreaLayer() {
   const stage = useStage()
-  const book = useBook()
   const page = usePage()
   const catalog = useCatalog().core
   const paper = stage && paperOf(stage)
@@ -36,8 +35,8 @@ export function PrintAreaLayer() {
   const columns = lines?.columns ?? 0
   const rows = lines?.rows ?? 0
   const unprinted = useMemo(
-    () => (columns > 0 && book && page ? unprintedSheets(catalog, book, page, columns, rows) : []),
-    [catalog, book, page, columns, rows],
+    () => (columns > 0 && page ? unprintedSheets(catalog, page, columns, rows) : []),
+    [catalog, page, columns, rows],
   )
   useStartReport()
   if (!stage || !area || !paper || !lines) return null
@@ -72,14 +71,13 @@ export function PrintAreaLayer() {
 function useStartReport() {
   const { setStageStart } = useActions()
   const catalog = useCatalog().core
-  const book = useBook()
   const page = usePage()
   const opened = useStage()?.opened
-  const start = useMemo(() => (book && page ? startOf(catalog, book, page) : null), [catalog, book, page])
+  const start = useMemo(() => (page ? startOf(catalog, page) : null), [catalog, page])
   const x = start?.x
   const y = start?.y
   useLayoutEffect(() => {
-    if (x !== undefined && y !== undefined && opened?.paper) setStageStart({ x, y })
+    if (x !== undefined && y !== undefined && openedPage(opened ?? null)?.paper) setStageStart({ x, y })
   }, [setStageStart, x, y, opened])
 }
 
@@ -89,9 +87,9 @@ export function BookContentLayer() {
   const catalog = useCatalog().core
   const views = useUiCatalog().presentationViews
   const hidden = useContentHidden()
-  const type = stage?.opened?.type
-  if (!type) return null
-  const presentation = bookType(catalog, type).presentation
+  const type = openedPage(stage?.opened ?? null)?.type
+  if (!type || !stage) return null
+  const presentation = pageType(catalog, type).presentation
   const View = (views.get(presentation) ?? fail("E109", { kind: "presentation", id: presentation })).view
   if (stage.edits !== "slide") return <View />
   return (

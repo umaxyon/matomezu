@@ -1,6 +1,6 @@
-// 印刷区画 1 つの中身: レイヤー（スロット sheet-layers）を下から重ねて描く。ブックの中身（ブックのタイプの見せ方の printSheet）は、ウィジェット sheet-content が描く。
+// 印刷区画 1 つの中身: レイヤー（スロット sheet-layers）を下から重ねて描く。ブックの中身（ページのタイプの見せ方の printSheet）は、ウィジェット sheet-content が描く。
 // 印刷プレビューと印刷と、ページ一覧のサムネイルが使う（描く物が同じになる）
-import { bookType } from "../../../core/core-catalog"
+import { pageType } from "../../../core/core-catalog"
 import { Slot } from "../../../ui/Slot"
 import { useZoomHere } from "../../../ui/scope"
 import { useCatalog, useUiCatalog } from "../../../ui/store-context"
@@ -13,10 +13,10 @@ export function SheetLayers(props: Omit<PrintSheetProps, "zoom">) {
   return <Slot name={SHEET_LAYERS} props={{ ...props, zoom }} />
 }
 
-// ブックの中身のレイヤー: ブックのタイプの見せ方の印刷区画 1 つのビュー（無ければ白紙）
+// ページの中身のレイヤー: ページのタイプの見せ方の印刷区画 1 つのビュー（無ければ白紙）
 export function SheetContent(props: PrintSheetProps) {
   const catalog = useCatalog().core
   const views = useUiCatalog().presentationViews
-  const Sheet = views.get(bookType(catalog, props.book.type).presentation)?.printSheet
+  const Sheet = views.get(pageType(catalog, props.page.type).presentation)?.printSheet
   return Sheet ? <Sheet {...props} /> : null
 }

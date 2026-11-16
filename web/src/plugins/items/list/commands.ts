@@ -1,12 +1,21 @@
 // リストの行のコマンド: 行の追加・編集のダイアログを開く、行を消す（選んでいる行を Delete で消すのも）、チェックを入れ切りする、行を動かす、行の下の端をドラッグして高さを変える（リストのビューと、行の右クリックのメニューから呼ぶ）
-import { type CommandContext, type ItemPage, type Point, pagedOf, toPaperDelta, walkShapes } from "../../../plugin-api"
+import {
+  type CommandContext,
+  findPage,
+  type ItemPage,
+  openedPage,
+  type Point,
+  shownPageId,
+  toPaperDelta,
+  walkShapes,
+} from "../../../plugin-api"
 import { ROW_ADD, ROW_CHECK, ROW_LINES, ROW_MOVE, ROW_REMOVE, ROW_UPDATE } from "./actions"
 import { kit } from "./kit"
 import { LIST, LIST_ROWS_SCOPE, type ListRow, ROW_ADD_DIALOG, ROW_EDIT_DIALOG } from "./list"
 import { linesFor } from "./size"
 
 // ページを開いているか（ページの無いブックと、ページが 1 枚も無いブックでは開いていない）
-const onOpenedPage = (ctx: CommandContext) => ctx.stage.opened?.page != null
+const onOpenedPage = (ctx: CommandContext) => shownPageId(ctx.stage.opened ?? null) != null
 
 // リスト list の最後に行を足すダイアログを開く
 export const LIST_ADD_ROW = kit.defineCommand({
@@ -15,7 +24,7 @@ export const LIST_ADD_ROW = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Add row",
   run: (ctx, a, { list }: { list: string }) => {
-    const page = ctx.stage.opened?.page
+    const page = shownPageId(ctx.stage.opened ?? null)
     if (page) a.openDialog(ROW_ADD_DIALOG.id, { page, list })
   },
   when: onOpenedPage,
@@ -28,7 +37,7 @@ export const LIST_EDIT_ROW = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Edit row",
   run: (ctx, a, { list, row }: { list: string; row: string }) => {
-    const page = ctx.stage.opened?.page
+    const page = shownPageId(ctx.stage.opened ?? null)
     if (page) a.openDialog(ROW_EDIT_DIALOG.id, { page, list, row })
   },
   when: onOpenedPage,
@@ -41,7 +50,7 @@ export const LIST_DELETE_ROW = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Delete row",
   run: (ctx, a, { list, row }: { list: string; row: string }) => {
-    const { opened } = ctx.stage
+    const opened = openedPage(ctx.stage.opened ?? null)
     if (opened?.page) a.perform(ROW_REMOVE.id, { page: opened.page, list, rows: [row] }, { book: opened.book })
   },
   when: onOpenedPage,
@@ -49,8 +58,9 @@ export const LIST_DELETE_ROW = kit.defineCommand({
 
 // 選んでいる物が、開いているページの 1 つのリストの行だけなら、そのリストと行（でなければ null）
 function selectedRows(ctx: CommandContext): { page: string; list: string; rows: readonly string[] } | null {
-  const { opened, selection } = ctx.stage
-  const page = pagedOf(ctx.book)?.pages.find(p => p.id === opened?.page)
+  const opened = openedPage(ctx.stage.opened ?? null)
+  const { selection } = ctx.stage
+  const page = opened && ctx.book ? findPage(ctx.book, opened.page)?.page : undefined
   if (!page || selection.length === 0) return null
   const list = walkLists(page).find(l => selection.every(id => l.rows.includes(id)))
   return list ? { page: page.id, list: list.id, rows: selection } : null
@@ -85,7 +95,7 @@ export const LIST_CHECK = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Check",
   run: (ctx, a, { list, row, checked }: { list: string; row: string; checked: boolean }) => {
-    const { opened } = ctx.stage
+    const opened = openedPage(ctx.stage.opened ?? null)
     if (opened?.page) a.perform(ROW_CHECK.id, { page: opened.page, list, row, checked }, { book: opened.book })
   },
   when: onOpenedPage,
@@ -98,7 +108,7 @@ export const LIST_STRETCH_ROW = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Set row heights",
   run: (ctx, a, { list, row, height, by }: { list: string; row: string; height: number; by: Point }) => {
-    const { opened } = ctx.stage
+    const opened = openedPage(ctx.stage.opened ?? null)
     if (!opened?.page) return
     const lines = linesFor(height + toPaperDelta(ctx.stage, by).y)
     a.perform(ROW_LINES.id, { page: opened.page, list, rows: [row], lines }, { book: opened.book })
@@ -113,7 +123,7 @@ export const LIST_MOVE_ROW = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Move row",
   run: (ctx, a, args: { list: string; row: string; to: string; before?: string }) => {
-    const { opened } = ctx.stage
+    const opened = openedPage(ctx.stage.opened ?? null)
     if (!opened?.page) return
     const before = args.before === undefined ? {} : { before: args.before }
     a.perform(

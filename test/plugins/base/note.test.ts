@@ -5,20 +5,21 @@ import { expect, test } from "bun:test"
 import { z } from "zod"
 import { AI } from "../../../web/src/core/actor"
 import type { Annotation } from "../../../web/src/core/annotation"
+import { pagesOf } from "../../../web/src/core/book"
 import { defineAction } from "../../../web/src/core/def/action"
 import { performIn } from "../../../web/src/core/perform"
-import type { BookOf } from "../../../web/src/core/schema/book"
+import type { Book } from "../../../web/src/core/schema/book"
 import { expiryOutlook } from "../../../web/src/plugins/base/note/expiry"
 import { CORE_CATALOG, newStore } from "../../support"
 
-type Drawing = BookOf<"@matomezu/drawing:drawing">
+type Drawing = Book
 const ON = { book: "b1" }
 
 // 見本のブック b1 の最初のページに箱を 2 つ置いた store
 function ready() {
   const store = newStore()
   store.actions.resizeStage("s1", { w: 1400, h: 1000 })
-  const page = (store.state.getState().books.b1 as Drawing).pages[0]!.id
+  const page = pagesOf(store.state.getState().books.b1 as Drawing)[0]!.id
   const place = (x: number) =>
     store.actions.perform(
       "@matomezu/paper:item-place",
@@ -96,7 +97,7 @@ test("アンカーの物を消すとアンカーから外れ、全部消える�
   expect(store.state.getState().annotations).toEqual({})
   await Promise.resolve()
   expect(store.actions.command("s1", "@matomezu/base:undo")).toBe(true)
-  expect((store.state.getState().books.b1 as Drawing).pages[0]!.items!.map(i => i.id)).toContain(b)
+  expect(pagesOf(store.state.getState().books.b1 as Drawing)[0]!.items!.map(i => i.id)).toContain(b)
   expect(notes()).toEqual([])
 })
 

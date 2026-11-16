@@ -1,24 +1,20 @@
 // 送信トレイの並び（base/outbox/rows.ts）: ページの順にまとめ、ページの中は付けた時点の新しい順。ページの見つからない物は最後。時刻は同じ日なら時:分
+
 import { expect, test } from "bun:test"
 import type { Annotation } from "../../../web/src/core/annotation"
-import type { Book } from "../../../web/src/core/schema/book"
 import { shownTime } from "../../../web/src/plugins/base/left-side-panel/time"
 import { defineLeftSidePanelTab, opensOf, tabEntry } from "../../../web/src/plugins/base/left-side-panel/ui"
 import { newlyRead } from "../../../web/src/plugins/base/note/ReadNotice"
 import { listedPages } from "../../../web/src/plugins/base/outbox/rows"
 import { defineAnnotationIcon } from "../../../web/src/plugins/base/outbox/ui"
+import { drawingPage, testBook } from "../../lineup"
 import { CORE_CATALOG } from "../../support"
 
 const box = (id: string) => ({ id, item: "@matomezu/box:shape-nest-box", x: 0, y: 0, props: { caption: id, body: "" } })
-const book = {
-  type: "@matomezu/drawing:drawing",
-  id: "b1",
-  title: "見本",
-  pages: [
-    { id: "p1", title: "一", paper: "@matomezu/base:a4", orientation: "landscape", items: [box("a"), box("b")] },
-    { id: "p2", title: "二", paper: "@matomezu/base:a4", orientation: "landscape", items: [box("c")] },
-  ],
-} as unknown as Book
+const book = testBook("b1", "見本", [
+  drawingPage("p1", { title: "一", items: [box("a"), box("b")] }),
+  drawingPage("p2", { title: "二", items: [box("c")] }),
+])
 const note = (id: string, anchor: string, addedAt: string): Annotation => ({
   id,
   annotation: "@matomezu/base:note",

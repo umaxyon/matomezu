@@ -1,13 +1,15 @@
 // まだ見ていない、AI とほかの窓の変更: 常駐の知らせ（receive の change）のうち、この窓のでない物は、まだ見ていない画面の履歴の段として溜め、
 // 変えた物がどこかのステージで見えたら、そのブックの画面の履歴に時刻の位置で差し込む（やり直せる画面の履歴の段は消さない）。
 // ビューが物の見え方を知らせなければ、開いているページの変更は見えたとする。戻す・やり直すが上書きした、まだ見ていない変更は捨てる
+
 import { expect, test } from "bun:test"
-import type { Book, BookOf } from "../../web/src/core/schema/book"
+import { pagesOf } from "../../web/src/core/book"
+import type { Book } from "../../web/src/core/schema/book"
 import type { AIEditTicketOutcome } from "../../web/src/store/store"
 import { newStore, sequence } from "../support"
 
 const BOX = "@matomezu/box:shape-nest-box"
-type Drawing = BookOf<"@matomezu/drawing:drawing">
+type Drawing = Book
 type Store = ReturnType<typeof newStore>
 const bookOf = (store: Store) => store.state.getState().books.b1 as Drawing
 const historyOf = (store: Store) => store.state.getState().history.b1
@@ -23,7 +25,7 @@ function ready(clock?: () => string, aiEditTicket?: (c: AIEditTicketOutcome) => 
 const place = (store: Store, caption: string, x = 40) =>
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: bookOf(store).pages[0]!.id, item: BOX, at: { x, y: 40 }, props: { caption } },
+    { page: pagesOf(bookOf(store))[0]!.id, item: BOX, at: { x, y: 40 }, props: { caption } },
     { book: "b1" },
   )
 const confirm = (store: Store) => store.receive({ books: [bookOf(store)], settings: {} }, [])
@@ -38,7 +40,7 @@ const foreign = (
 const renamed = (book: Drawing, i: number, caption: string): Drawing =>
   ({
     ...book,
-    pages: book.pages.map((p, k) =>
+    lineup: pagesOf(book).map((p, k) =>
       k === 0 ? { ...p, items: p.items?.map((x, j) => (j === i ? { ...x, props: { ...x.props, caption } } : x)) } : p,
     ),
   }) as Drawing
@@ -46,14 +48,14 @@ const renamed = (book: Drawing, i: number, caption: string): Drawing =>
 const hide = (store: Store) => store.actions.resizeStage("s1", { w: 1, h: 1 })
 const show = (store: Store) => store.actions.resizeStage("s1", { w: 1400, h: 1000 })
 const captions = (store: Store) =>
-  (bookOf(store).pages[0]?.items ?? []).map(x => (x.props as { caption?: string }).caption)
+  (pagesOf(bookOf(store))[0]?.items ?? []).map(x => (x.props as { caption?: string }).caption)
 
 test("開いているページの AI の変更は、すぐ画面の履歴に入り、時刻の新しい方から戻る（AI の変更が先に戻る）", async () => {
   const store = ready(sequence())
   place(store, "自分")
   await settled()
   confirm(store)
-  const last = (bookOf(store).pages[0]?.items?.length ?? 0) - 1
+  const last = (pagesOf(bookOf(store))[0]?.items?.length ?? 0) - 1
   foreign(store, renamed(bookOf(store), last, "AI"))
   expect(historyOf(store)?.undo).toHaveLength(2)
   expect(historyOf(store)?.undo.at(-1)?.by).toBe("ai")
@@ -83,13 +85,13 @@ test("見える所に無い物の変更は溜めておき、見えたら時刻�
 test("開いていないページの変更は、そのページを開いたら見えたとする", async () => {
   const store = ready(sequence())
   const book = bookOf(store)
-  store.actions.perform("@matomezu/base:page-add", { title: "2" }, { book: "b1" })
+  store.actions.perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", title: "2" }, { book: "b1" })
   await settled()
   confirm(store)
-  const [, second] = bookOf(store).pages
-  store.actions.openPage("s1", book.pages[0]!.id)
+  const [, second] = pagesOf(bookOf(store))
+  store.actions.openPage("s1", pagesOf(book)[0]!.id)
   const now = bookOf(store)
-  foreign(store, { ...now, pages: now.pages.map(p => (p.id === second!.id ? { ...p, title: "AI" } : p)) })
+  foreign(store, { ...now, lineup: now.lineup.map(p => (p.id === second!.id ? { ...p, title: "AI" } : p)) })
   expect(historyOf(store)?.undo.map(s => s.by)).toEqual(["user"])
   store.actions.openPage("s1", second!.id)
   expect(historyOf(store)?.undo.map(s => s.by)).toEqual(["user", "ai"])
@@ -101,7 +103,7 @@ test("戻すが上書きした、まだ見ていない変更は捨てる（あ�
   place(store, "自分")
   await settled()
   confirm(store)
-  const last = (bookOf(store).pages[0]?.items?.length ?? 0) - 1
+  const last = (pagesOf(bookOf(store))[0]?.items?.length ?? 0) - 1
   foreign(store, renamed(bookOf(store), last, "AI"))
   store.actions.command("s1", "@matomezu/base:undo")
   show(store)
@@ -124,17 +126,22 @@ test("AI の変更が見えたら seen を、見られる前に戻すが上書�
   place(store, "自分")
   await settled()
   confirm(store)
-  const last = (bookOf(store).pages[0]?.items?.length ?? 0) - 1
-  const item = bookOf(store).pages[0]!.items![last]!.id
+  const last = (pagesOf(bookOf(store))[0]?.items?.length ?? 0) - 1
+  const item = pagesOf(bookOf(store))[0]!.items![last]!.id
   foreign(store, renamed(bookOf(store), last, "AI"), "ai", "5")
   store.actions.command("s1", "@matomezu/base:undo")
   show(store)
   // ブックのフィールドの変更は、ブックを開いていればすぐ見えた（ほかの窓の物は知らせない）
   foreign(store, { ...bookOf(store), title: "窓の題" }, "window", "6")
   foreign(store, { ...bookOf(store), title: "AI の題" }, "ai", "7")
-  const page = bookOf(store).pages[0]!.id
+  const page = pagesOf(bookOf(store))[0]!.id
   expect(told).toEqual([
-    { book: "b1", act: "5", outcome: "lost", lost: [{ at: `pages/${page}/items/${item}/props/caption`, value: "AI" }] },
+    {
+      book: "b1",
+      act: "5",
+      outcome: "lost",
+      lost: [{ at: `lineup/${page}/items/${item}/props/caption`, value: "AI" }],
+    },
     { book: "b1", act: "7", outcome: "seen" },
   ])
 })
@@ -146,9 +153,9 @@ test("戻すが消したのでなく、ふつうの操作のあとに戻して A
   place(store, "自分")
   await settled()
   confirm(store)
-  const last = (bookOf(store).pages[0]?.items?.length ?? 0) - 1
-  const item = bookOf(store).pages[0]!.items![last]!.id
-  const page = bookOf(store).pages[0]!.id
+  const last = (pagesOf(bookOf(store))[0]?.items?.length ?? 0) - 1
+  const item = pagesOf(bookOf(store))[0]!.items![last]!.id
+  const page = pagesOf(bookOf(store))[0]!.id
   foreign(store, renamed(bookOf(store), last, "AI"), "ai", "5")
   store.actions.perform("@matomezu/paper:item-update", { page, item, props: { caption: "打ち直し" } }, { book: "b1" })
   await settled()

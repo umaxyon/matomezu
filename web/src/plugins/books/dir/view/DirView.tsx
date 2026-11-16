@@ -24,7 +24,7 @@ import {
   useRef,
   useState,
 } from "react"
-import { paperOf, type StageView } from "../../../../plugin-api"
+import { openedPage, paperOf, type StageView } from "../../../../plugin-api"
 import {
   useActions,
   useAllowed,
@@ -89,8 +89,7 @@ function Content({ stage, area }: { stage: StageView; area: RefObject<HTMLDivEle
   const w = size?.w
   const h = size?.h
   const paperSize = useMemo(() => (w !== undefined && h !== undefined ? { w, h } : null), [w, h])
-  const paper = stage.opened?.paper
-  if (stage.opened?.page === null) return <NoPages stage={stage} />
+  const paper = openedPage(stage.opened ?? null)?.paper
   if (paper?.status === "unshowable") return <p className={styles.error}>{t("This paper cannot be shown")}</p>
   if (!paperSize) return null
   return (
@@ -134,12 +133,12 @@ const Rows = memo(function Rows({
   const movable = useAllowed(ENTRY_MOVE.id, page ? { page: page.id } : undefined).ok && !follows // ドラッグで動かし始められるか
   const root = dirRootOf(page)
   // 可変ページなら、行と説明が入るだけ右と下へ並べた印刷区画に空きを足した広さを、ステージに知らせる
-  const growing = book && page ? growOf(catalog, book, page) : undefined // ページの増やす向き
+  const growing = book && page ? growOf(catalog, page) : undefined // ページの増やす向き
   const variable = growing !== undefined
   // 印刷と同じ並べ方（print.ts の laidPage）で並べた広さ
   const wide =
     growing && book && page
-      ? laidPage(catalog, page, { setting: pageContext(catalog, book, page).setting, grow: growing })
+      ? laidPage(catalog, page, { setting: pageContext(catalog, page).setting, grow: growing })
       : null
   useStageArea(growing && wide ? laidArea(paper, growing, wide, true).size : null)
   if (!page || !root) return null
@@ -151,7 +150,7 @@ const Rows = memo(function Rows({
   const picking = usingPencil && stage.editing === KIND_PICK
   const text = writing && draft?.entry === selected ? draft.text : null
   const shown: DirFolder = text === null ? dir : (changeEntry(dir, selected, { name: text }) ?? dir)
-  const look = settingValue(catalog, book ?? null, page, NOTES)
+  const look = settingValue(catalog, page, NOTES)
   const { rows, lines, notes, divider } = layoutDir(shown, paper, look, variable)
   const at = rows.find(r => r.id === selected)
   const noting = usingPencil && stage.editing === NOTE_EDIT && notes !== null
@@ -544,18 +543,3 @@ export function RowFace({ row: r }: { row: LaidRow }) {
 // 足す種類を選ぶボタンの絵（フォルダとファイルの既定の絵）
 const FOLDER_ICON = <FolderIcon size={ICON} />
 const FILE_ICON = <FileIcon size={ICON} />
-
-function NoPages(_props: { stage: StageView }) {
-  const t = useMessages(kit)
-  const newPage = useCommand("@matomezu/base:page-new")
-  return (
-    <div className={styles.empty}>
-      <p className={styles.prompt}>{t("No pages")}</p>
-      {newPage.shown && (
-        <button type="button" className={styles.create} onClick={() => newPage.run()}>
-          {t("Create page")}
-        </button>
-      )}
-    </div>
-  )
-}

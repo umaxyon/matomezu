@@ -1,8 +1,11 @@
 // スライドのブック: ページの slide にアイテムを置く・動かす・大きさを変える・項目を変える・重ねを変える・消す（plugins/items/slide）
+
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../web/src/core/book"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { createMatomezu } from "../../web/src/store/create"
+import { SLIDE, testBinder, testBook, testPage, withSlide } from "../lineup"
 import { newStore, sequence } from "../support"
 
 const TEXT = "@matomezu/slide:slide-text"
@@ -10,26 +13,37 @@ const ELLIPSE = "@matomezu/slide:slide-ellipse"
 const LINE = "@matomezu/slide:slide-line"
 const FREE = "@matomezu/slide:slide-free-line"
 
+// 何も置いていないスライドのページ p1 を、バインダ 1 つに入れたブック b1
+const slideBook = () =>
+  testBook("b1", "スライド", [
+    testBinder(
+      "b1-slides",
+      "スライド",
+      SLIDE,
+      withSlide(testPage(SLIDE, "p1", { title: "1", paper: "@matomezu/base:ratio-16x9" }), []),
+    ),
+  ])
+
 function setup() {
   const instance = createMatomezu({
     plugins: BUILTIN,
     controlCenter: "@matomezu/control-center:control-center",
     newId: sequence(),
   })
-  createBookIn(instance, "s1", { title: "スライド", type: "@matomezu/slide-book:slide" as never })
-  const book = Object.keys(instance.state.getState().books).find(
-    id => (instance.state.getState().books[id] as { type: string }).type === "@matomezu/slide-book:slide",
-  ) as string
+  // スライドのバインダに 1 枚入れたブックを作る
+  createBookIn(instance, "s1", {
+    title: "スライド",
+    page: { type: "@matomezu/slide-book:slide", title: "1", into: { newBinder: "スライド" } },
+  })
+  const book = Object.keys(instance.state.getState().books).at(-1) as string
   const perform = (id: string, args: object) =>
     (
       instance.actions as unknown as {
         perform(id: string, a: object, on: { book: string }): { ok: boolean; result?: unknown }
       }
     ).perform(id, args, { book })
-  expect(perform("@matomezu/base:page-add", { title: "1" }).ok).toBe(true)
   const slide = () =>
-    (instance.state.getState().books[book] as unknown as { pages: { id: string; slide?: Record<string, unknown>[] }[] })
-      .pages[0]
+    pagesOf(instance.state.getState().books[book]!)[0] as { id: string; slide?: Record<string, unknown>[] }
   const page = slide()?.id as string
   return { perform, page, slide: () => slide()?.slide ?? [] }
 }
@@ -120,17 +134,9 @@ test("項目: 角度を書き、null で消せる。形に合わない項目は�
 
 test("文字枠を置いて続けて打った文字は、置いた画面の履歴の段にまとまり、元に戻すは 1 回で文字枠ごと消える", async () => {
   const store = newStore({
-    books: [
-      {
-        type: "@matomezu/slide-book:slide",
-        id: "b1",
-        title: "スライド",
-        pages: [{ id: "p1", title: "1", paper: "@matomezu/base:ratio-16x9", orientation: "landscape", slide: [] }],
-      },
-    ] as never,
+    books: [slideBook()],
   })
-  const state = () =>
-    (store.state.getState().books.b1 as unknown as { pages: { slide: { id: string }[] }[] }).pages[0]!.slide
+  const state = () => pagesOf(store.state.getState().books.b1!)[0]!.slide ?? []
   const on = { book: "b1" }
   const put = store.actions.perform(
     "@matomezu/slide:slide-place",
@@ -150,18 +156,13 @@ test("文字枠を置いて続けて打った文字は、置いた画面の履�
 
 test("続けている画面の履歴の段には、コマンド（slide-set）が行うアクションも足され、元に戻すは 1 回で最初の値に戻る", async () => {
   const store = newStore({
-    books: [
-      {
-        type: "@matomezu/slide-book:slide",
-        id: "b1",
-        title: "スライド",
-        pages: [{ id: "p1", title: "1", paper: "@matomezu/base:ratio-16x9", orientation: "landscape", slide: [] }],
-      },
-    ] as never,
+    books: [slideBook()],
   })
   const slide = () =>
-    (store.state.getState().books.b1 as unknown as { pages: { slide: { id: string; props: { width?: number } }[] }[] })
-      .pages[0]!.slide
+    (pagesOf(store.state.getState().books.b1!)[0]!.slide ?? []) as unknown as {
+      id: string
+      props: { width?: number }
+    }[]
   const on = { book: "b1" }
   store.actions.perform(
     "@matomezu/slide:slide-place",

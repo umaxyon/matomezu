@@ -27,11 +27,12 @@ import {
   useState,
 } from "react"
 import {
+  allowedItems,
   areaOf,
-  bookItems,
   type CoreCatalog,
   findShape,
   type ItemPage,
+  openedPage,
   type PlacedShape,
   type Point,
   type Rect,
@@ -216,8 +217,7 @@ function Content({
   localOf: LocalOf
 }) {
   const t = useMessages(kit)
-  const paper = stage.opened?.paper
-  if (stage.opened?.page === null) return <NoPages stage={stage} />
+  const paper = openedPage(stage.opened ?? null)?.paper
   if (paper?.status === "unshowable") return <p className={styles.error}>{t("This paper cannot be shown")}</p>
   return (
     <PaperFrame stage={stage} role="img" aria-label={t("Paper")}>
@@ -297,13 +297,10 @@ function PageItems({
   const book = useBook()
   const followed = useFollowsSelection()
   // 可変ページなら、形を置ける広さ（空きの印刷区画を含む。base の roomOf）をステージの広さとして知らせる
-  const room = useMemo(
-    () => (book && growOf(catalog, book, page) ? roomOf(catalog, book, page) : null),
-    [catalog, book, page],
-  )
+  const room = useMemo(() => (book && growOf(catalog, page) ? roomOf(catalog, page) : null), [catalog, book, page])
   useStageArea(room)
-  // ブックで使えるつなぐもののビュー
-  const connectors = (book ? bookItems(catalog, book) : []).flatMap(id => {
+  // ページに置けるつなぐもののビュー
+  const connectors = allowedItems(catalog, page).flatMap(id => {
     const c = ui.connectors.get(id)
     return c ? [{ id, ...c }] : []
   })
@@ -340,7 +337,7 @@ function PageItems({
     const items = shapesIn(page, press.drag)
     // 動かせないとき（認可ステップが止めるなど、コマンドを押せない。親の違う形が混じっている）は選ぶだけ
     const movable =
-      (reparenting ? reparent.enabled : move.enabled) && book !== null && movableTogether(catalog, book, page, items)
+      (reparenting ? reparent.enabled : move.enabled) && book !== null && movableTogether(catalog, page, items)
     if (!movable && press.release === null) return
     e.currentTarget.setPointerCapture(e.pointerId)
     drag.current = {
@@ -369,9 +366,9 @@ function PageItems({
       setTarget(point ? dropTarget(catalog, page, d.items[0] as string, point) : null)
     } else if (d.items.length === 1 && book) {
       const id = d.items[0] as string
-      d.came = trackDrag(catalog, book, page, id, d.prev, by, d.came)
+      d.came = trackDrag(catalog, page, id, d.prev, by, d.came)
       // 入れ替えが起きたら覚える（このドラッグの終わりまで）
-      const plan = dragging(catalog, book, page, id, by, d.came)
+      const plan = dragging(catalog, page, id, by, d.came)
       const moved = ([k, r]: [string, Rect]) => {
         const now = findShape(page, k)?.shape
         return k !== id && (r.x !== now?.x || r.y !== now?.y)
@@ -398,7 +395,7 @@ function PageItems({
   const dragged = shift && d ? d.items : []
   const plan =
     shift && book && d?.items.length === 1 && !d.reparent
-      ? dragging(catalog, book, page, d.items[0] as string, shift, d.came)
+      ? dragging(catalog, page, d.items[0] as string, shift, d.came)
       : null
   // ドラッグ中にずらして描く量（紙の上）
   const shiftOf = (item: PlacedShape): Point | null => {
@@ -697,20 +694,5 @@ function Ghost({ placed }: { placed: Placing }) {
       data-fits={target?.fits === true}
       style={{ left: at.x, top: at.y, width: size.w, height: size.h }}
     />
-  )
-}
-
-function NoPages(_props: { stage: StageView }) {
-  const t = useMessages(kit)
-  const newPage = useCommand("@matomezu/base:page-new")
-  return (
-    <div className={styles.empty}>
-      <p className={styles.prompt}>{t("No pages")}</p>
-      {newPage.shown && (
-        <button type="button" className={styles.create} onClick={() => newPage.run()}>
-          {t("Create page")}
-        </button>
-      )}
-    </div>
   )
 }

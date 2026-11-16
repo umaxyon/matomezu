@@ -5,7 +5,7 @@ import { SHELF, SHELF_TOOLS, SORT_TOOL, TILE_ADD, TILE_LIMIT_PERMISSION, TILES, 
 
 export const EX5 = definePlugin(
   kit.plugin({
-    bookTypes: [SHELF],
+    pageTypes: [SHELF],
     items: [TILES],
     actions: [TILE_ADD],
     tools: [SORT_TOOL],
@@ -21,7 +21,7 @@ declare module "matomezu/catalog" {
   interface CapabilityTable {
     "ex5:stackable": true // 札を積める（ex5 だけが読むケイパビリティの見本）
   }
-  interface BookTypeTable {
+  interface PageTypeTable {
     "ex5:shelf": typeof SHELF
   }
   interface ItemTable {

@@ -1,10 +1,12 @@
 // ページの紙・向き・伸びるか: page-add で決め、page-update であとから変える（plugins/base/page-tabs）
+
 import { expect, test } from "bun:test"
 import { z } from "zod"
-import { putPage } from "../../web/src/core/book"
+import { findPage, pagesOf, putPage } from "../../web/src/core/book"
 import { defineAction } from "../../web/src/core/def/action"
-import { defineBookType } from "../../web/src/core/def/book-type"
-import type { BookOf } from "../../web/src/core/schema/book"
+import { definePageType } from "../../web/src/core/def/page-type"
+import type { ItemPage } from "../../web/src/core/placed"
+import type { Book } from "../../web/src/core/schema/book"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { normalizedPage, withGrows } from "../../web/src/plugins/base/page-tabs/pages"
@@ -13,14 +15,18 @@ import { createMatomezu } from "../../web/src/store/create"
 import { definePlugin } from "../../web/src/store/plugin"
 import { CORE_CATALOG, newStore, sequence } from "../support"
 
-type Drawing = BookOf<"@matomezu/drawing:drawing">
+type Drawing = Book
 
 test("紙と向きはあとから変えられ、形が紙からはみ出す変更は断る。図面のページは可変ページにでき、そうすれば紙の外へ広がってよい", () => {
   const { state, actions } = newStore()
-  const pages = () => (state.getState().books.b1 as Drawing).pages
-  expect(actions.perform("@matomezu/base:page-add", { title: "p", orientation: "landscape" }, { book: "b1" }).ok).toBe(
-    true,
-  )
+  const pages = () => pagesOf(state.getState().books.b1 as Drawing)
+  expect(
+    actions.perform(
+      "@matomezu/base:page-add",
+      { type: "@matomezu/drawing:drawing", title: "p", orientation: "landscape" },
+      { book: "b1" },
+    ).ok,
+  ).toBe(true)
   const page = pages().at(-1)?.id as string
   const update = (args: object) => actions.perform("@matomezu/base:page-update", { page, ...args }, { book: "b1" }).ok
   expect(
@@ -49,21 +55,17 @@ test("紙と向きはあとから変えられ、形が紙からはみ出す変�
 })
 
 // 伸びられるタイプの見本（core/catalog.ts には書き足さないので、インスタンスは partial で作る）
-const SHEET = defineBookType({
+const SHEET = definePageType({
   id: "notes:sheet",
   version: 1,
   title: "@matomezu/drawing:Drawing",
-  schema: z.strictObject({ type: z.literal("notes:sheet"), id: z.string().min(1) }),
-  create: init => ({ type: "notes:sheet" as const, ...init, pages: [] }),
-  grow: { sides: () => ({ up: false, down: true, left: false, right: true }) },
-  pages: {
-    paper: {
-      allowed: ["@matomezu/base:a4", "@matomezu/base:a3"],
-      default: "@matomezu/base:a4",
-      orientation: "portrait",
-      perPage: false,
-    },
+  grouping: "none",
+  paper: {
+    allowed: ["@matomezu/base:a4", "@matomezu/base:a3"],
+    default: "@matomezu/base:a4",
+    orientation: "portrait",
   },
+  grow: { sides: () => ({ up: false, down: true, left: false, right: true }) },
   items: { allowed: [] },
   actions: {},
   theme: "@matomezu/base:standard",
@@ -72,58 +74,61 @@ const SHEET = defineBookType({
   tokens: [],
 })
 
-test("伸びられるタイプのページは、作るときもあとからも可変ページにでき、grows は向きの次に並ぶ。1 冊の紙をそろえる規定では、ほかのページがあれば紙を変えられない", () => {
+test("伸びられるタイプのページは、作るときもあとからも可変ページにでき、grows は向きの次に並ぶ。バインダに入らないタイプのページは、ほかのページがあっても紙を変えられる", () => {
   const ids = ["n1", "n2", "n3"]
   const instance = createMatomezu({
-    plugins: [...BUILTIN, definePlugin({ id: "notes", bookTypes: [SHEET] })],
+    plugins: [...BUILTIN, definePlugin({ id: "notes", pageTypes: [SHEET] })],
     partial: true,
     controlCenter: "@matomezu/control-center:control-center",
     newId: () => ids.shift() ?? "nx",
   })
   const perform = instance.actions.perform as (id: string, args: unknown, on: unknown) => { ok: boolean }
-  const pages = () => (instance.state.getState().books.n1 as unknown as { pages: Record<string, unknown>[] }).pages
-  expect(createBookIn(instance, "s1", { title: "表", type: "notes:sheet" as never })).toBe(true)
-  expect(perform("@matomezu/base:page-add", { title: "p", grows: true }, { book: "n1" }).ok).toBe(true)
-  expect(Object.keys(pages()[0] ?? {})).toEqual(["id", "title", "paper", "orientation", "grows"])
+  const pages = () => pagesOf(instance.state.getState().books.n1!)
+  expect(createBookIn(instance, "s1", { title: "表" })).toBe(true)
+  expect(perform("@matomezu/base:page-add", { type: "notes:sheet", title: "p", grows: true }, { book: "n1" }).ok).toBe(
+    true,
+  )
+  expect(Object.keys(pages()[0] ?? {})).toEqual(["kind", "id", "type", "title", "paper", "orientation", "grows"])
   // タイプが向きを決めるなら grows は true だけ（向きは選べない）
   expect(pages()[0]?.grows).toBe(true)
   expect(perform("@matomezu/base:page-update", { page: "n2", grows: "down" }, { book: "n1" }).ok).toBe(false)
   expect(perform("@matomezu/base:page-update", { page: "n2", grows: false }, { book: "n1" }).ok).toBe(true)
   expect("grows" in (pages()[0] ?? {})).toBe(false)
-  // ページが 1 枚なら、紙をそろえる規定でも変えられる
   expect(perform("@matomezu/base:page-update", { page: "n2", paper: "@matomezu/base:a3" }, { book: "n1" }).ok).toBe(
     true,
   )
-  expect(perform("@matomezu/base:page-add", { title: "q" }, { book: "n1" }).ok).toBe(true)
-  expect(pages()[1]).toMatchObject({ paper: "@matomezu/base:a3" })
+  expect(perform("@matomezu/base:page-add", { type: "notes:sheet", title: "q" }, { book: "n1" }).ok).toBe(true)
+  expect(pages()[1]).toMatchObject({ paper: "@matomezu/base:a4" })
   expect(perform("@matomezu/base:page-update", { page: "n2", paper: "@matomezu/base:a4" }, { book: "n1" }).ok).toBe(
-    false,
+    true,
   )
 })
 
-// 下へだけ伸びられる、形を置くタイプの見本（図面のブックのタイプを借りる）
-const SCROLL = defineBookType({
+// 下へだけ伸びられる、形を置くタイプの見本（図面のページのタイプを借りる）
+const SCROLL = definePageType({
   ...DRAWING,
   id: "notes:scroll",
-  schema: z.strictObject({ type: z.literal("notes:scroll"), id: z.string().min(1) }),
-  create: init => ({ type: "notes:scroll" as const, ...init, pages: [] }),
   grow: { choices: ["down"] },
 })
 
 test("可変ページは、伸びない向き（下へだけ伸びるなら横）だけ紙 1 枚に収まればよい。伸びるのをやめるのは、形が紙 1 枚に入るときだけ", () => {
   const instance = createMatomezu({
-    plugins: [...BUILTIN, definePlugin({ id: "notes", bookTypes: [SCROLL] })],
+    plugins: [...BUILTIN, definePlugin({ id: "notes", pageTypes: [SCROLL] })],
     partial: true,
     controlCenter: "@matomezu/control-center:control-center",
     newId: sequence(),
   })
   const perform = instance.actions.perform as (id: string, args: unknown, on: unknown) => { ok: boolean }
-  expect(createBookIn(instance, "s1", { title: "巻物", type: "notes:scroll" as never })).toBe(true)
+  expect(createBookIn(instance, "s1", { title: "巻物" })).toBe(true)
   const book = Object.keys(instance.state.getState().books)[0] as string
-  const pages = () => (instance.state.getState().books[book] as unknown as { pages: { id: string }[] }).pages
-  expect(perform("@matomezu/base:page-add", { title: "p", orientation: "portrait", grows: true }, { book }).ok).toBe(
-    true,
-  )
+  const pages = () => pagesOf(instance.state.getState().books[book]!)
+  expect(
+    perform(
+      "@matomezu/base:page-add",
+      { type: "notes:scroll", title: "p", orientation: "portrait", grows: true },
+      { book },
+    ).ok,
+  ).toBe(true)
   const page = pages()[0]?.id as string
   const place = (x: number, y: number) =>
     perform("@matomezu/paper:item-place", { page, item: "@matomezu/box:shape-nest-box", at: { x, y } }, { book }).ok
@@ -142,10 +147,14 @@ test("可変ページは、伸びない向き（下へだけ伸びるなら横�
 
 test("上下左右へ伸びる可変ページは、左・上に空きの印刷区画を 1 つ持つ。左の空きへ置けば中身を 印刷区画 1 つ分右へずらし、左端の印刷区画が空けば詰める（ずらした量はページの shift）", () => {
   const { state, actions } = newStore()
-  const pages = () => (state.getState().books.b1 as Drawing).pages
-  expect(actions.perform("@matomezu/base:page-add", { title: "p", orientation: "landscape" }, { book: "b1" }).ok).toBe(
-    true,
-  )
+  const pages = () => pagesOf(state.getState().books.b1 as Drawing)
+  expect(
+    actions.perform(
+      "@matomezu/base:page-add",
+      { type: "@matomezu/drawing:drawing", title: "p", orientation: "landscape" },
+      { book: "b1" },
+    ).ok,
+  ).toBe(true)
   const page = pages().at(-1)?.id as string
   const at = () =>
     pages().find(p => p.id === page) as unknown as {
@@ -176,7 +185,7 @@ test("上下左右へ伸びる可変ページは、左・上に空きの印刷�
   expect(at().items.find(i => i.id === first)).toMatchObject({ x: 1223, y: 894 })
   // ページの設定のダイアログが確かめる下書き（normalizedPage）も、アクションのあとと同じく空きを詰めてから紙に入るかを見る
   const book = state.getState().books.b1 as Drawing
-  const off = withGrows(book.pages.find(p => p.id === page) as Drawing["pages"][number], undefined)
+  const off = withGrows(findPage(book, page)?.page as ItemPage, undefined)
   expect(normalizedPage(CORE_CATALOG, book, putPage(book, off), off)).toMatchObject({ items: [{ x: 100, y: 100 }] })
   // 可変ページをやめると、空きを詰めて紙 1 枚に戻す
   expect(actions.perform("@matomezu/base:page-update", { page, grows: false }, { book: "b1" }).ok).toBe(true)
@@ -190,12 +199,12 @@ const SHIFTER = defineAction({
   title: "@matomezu/drawing:Drawing",
   aiDescription: "Write a page's shift.",
   target: "book",
-  attach: { pages: true },
+  attach: { books: true },
   permissionScope: "book",
   args: z.strictObject({ page: z.string() }),
   run: (book, args) => ({
     next: putPage(book, {
-      ...(book.pages.find(p => p.id === args.page) as Drawing["pages"][number]),
+      ...(findPage(book, args.page)?.page as ItemPage),
       shift: { x: 1, y: 0 },
     }),
     result: {},
@@ -214,10 +223,10 @@ test("ページの shift は可変ページを整えるステップだけが書�
     args: unknown,
     on: unknown,
   ) => { ok: boolean; reason?: string }
-  expect(createBookIn(instance, "s1", { title: "図", type: "@matomezu/drawing:drawing" })).toBe(true)
+  expect(createBookIn(instance, "s1", { title: "図" })).toBe(true)
   const book = Object.keys(instance.state.getState().books)[0] as string
-  expect(perform("@matomezu/base:page-add", { title: "p" }, { book }).ok).toBe(true)
-  const page = (instance.state.getState().books[book] as Drawing).pages[0]?.id
+  expect(perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", title: "p" }, { book }).ok).toBe(true)
+  const page = pagesOf(instance.state.getState().books[book] as Drawing)[0]?.id
   expect(perform("notes:shift", { page }, { book })).toMatchObject({ ok: false, reason: "refused" })
 })
 
@@ -225,15 +234,16 @@ test("フローチャートの可変ページは、流れの始まりの側を�
   const store = newStore()
   const { state, actions } = store
   const before = new Set(Object.keys(state.getState().books))
-  expect(createBookIn(store, "s1", { title: "流れ", type: "@matomezu/flowchart:flowchart" })).toBe(true)
+  expect(createBookIn(store, "s1", { title: "流れ" })).toBe(true)
   const book = Object.keys(state.getState().books).find(id => !before.has(id)) as string
-  const pageOf = () =>
-    (
-      state.getState().books[book] as unknown as {
-        pages: { id: string; shift?: object; items?: { x: number; y: number }[] }[]
-      }
-    ).pages[0]
-  expect(actions.perform("@matomezu/base:page-add", { title: "p", grows: true }, { book }).ok).toBe(true)
+  const pageOf = () => pagesOf(state.getState().books[book]!)[0]
+  expect(
+    actions.perform(
+      "@matomezu/base:page-add",
+      { type: "@matomezu/flowchart:flowchart", title: "p", grows: true },
+      { book },
+    ).ok,
+  ).toBe(true)
   const page = pageOf()?.id as string
   expect(
     actions.perform(
