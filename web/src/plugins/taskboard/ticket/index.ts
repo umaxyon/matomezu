@@ -38,6 +38,7 @@ export const TICKET = kit.defineSubject({
     project: { type: "text", of: t => t.project },
     lane: { type: "text", of: t => t.lane },
     assigned: { type: "number", of: t => t.assignees.length },
+    number: { type: "number", of: t => t.number }, // 番号（プロジェクトごとの連番。プロジェクトと合わせて 1 枚を引く）
   },
   numbered: true,
   lockable: true,

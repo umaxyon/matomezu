@@ -24,6 +24,7 @@ const input = (over: Partial<Parameters<typeof workroomRows>[0]> = {}) => ({
   ready: ["pa"],
   live: {},
   calls: {},
+  activities: {},
   ...over,
 })
 
@@ -92,4 +93,9 @@ test("ワークルームを出る・管理者にする・ワークルームを�
   answers["@matomezu/base:participant-remove"] = false
   expect(removeWorkroom(perform, "a", "pa").ok).toBe(false)
   expect(calls).toEqual(["@matomezu/base:participant-remove:pa"]) // 外すのが断られたら、消すところまで行かない
+})
+
+test("行は、ワークルームの作業の様子を持ち、知らされていなければ unknown", () => {
+  const rows = workroomRows(input({ activities: { a: "working", b: "idle" } }))
+  expect(rows.map(r => r.activity)).toEqual(["working", "idle", "unknown"])
 })

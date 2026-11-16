@@ -4,8 +4,8 @@ import type { WorkroomRow } from "../../../web/src/plugins/base"
 import { frontScreenOf } from "../../../web/src/plugins/control-center/control-center"
 import {
   lastAccessOf,
-  orderByChange,
   orderHeld,
+  orderRows,
   pickedRow,
   retreatOf,
   rowDetail,
@@ -15,6 +15,7 @@ const row = (state: WorkroomRow["state"], admin = false, id = "a"): WorkroomRow 
   room: { id, name: id, bird: "inko", createdAt: "t" },
   state,
   admin,
+  activity: "unknown",
 })
 
 test("一覧の下の 1 行は、空室と準備中だけ文字で出し、参加済みはスロットに任せる", () => {
@@ -52,22 +53,49 @@ test("枠が退くのは、前に出している画面の最大化のときだ�
   expect(retreatOf("projects", false, false)).toEqual({ left: false, workroom: false })
 })
 
-test("列の並びは、管理者が先頭、次に参加済みの変化（呼ばれた時刻と参加の新しいほう）の新しい順、最後に空室と準備中。同じ時刻は作った順", () => {
-  const ready = (id: string, calledAt?: string, joinedAt = "2026-11-14T00:00:00.000Z"): WorkroomRow => ({
-    ...row("ready", false, id),
-    participant: { id: `p-${id}`, joinedAt } as WorkroomRow["participant"],
-    ...(calledAt ? { calledAt } : {}),
-  })
+const ready = (
+  id: string,
+  activity: WorkroomRow["activity"],
+  calledAt?: string,
+  joinedAt = "2026-11-14T00:00:00.000Z",
+): WorkroomRow => ({
+  ...row("ready", false, id),
+  participant: { id: `p-${id}`, joinedAt } as WorkroomRow["participant"],
+  activity,
+  ...(calledAt ? { calledAt } : {}),
+})
+
+test("列の並びは、組の順に管理者・作業中・空き（準備中も）・空室。組の中は変化（呼ばれた時刻と参加の新しいほう）の新しい順、変化の無い行と同じ時刻は作った順", () => {
+  const rows = [
+    { ...row("empty", false, "empty"), activity: "working" as const }, // 前の今のチケットが残った空室
+    ready("idle-old", "idle", "2026-11-14T01:00:00.000Z"),
+    row("preparing", false, "prep"),
+    { ...ready("boss", "idle", "2026-11-14T00:30:00.000Z"), admin: true },
+    ready("work-old", "working", "2026-11-14T01:00:00.000Z"),
+    ready("idle-new", "idle", "2026-11-14T03:00:00.000Z"),
+    ready("work-joined", "working", undefined, "2026-11-14T02:00:00.000Z"),
+    ready("work-tie", "working", "2026-11-14T01:00:00.000Z"),
+  ]
+  expect(orderRows(rows).map(r => r.room.id)).toEqual([
+    "boss",
+    "work-joined",
+    "work-old",
+    "work-tie",
+    "idle-new",
+    "idle-old",
+    "prep",
+    "empty",
+  ])
+})
+
+test("作業の様子を答える種類が無ければ（unknown）、作業中と空きを分けずに変化の新しい順。準備中と空室はそのあと", () => {
   const rows = [
     row("empty", false, "empty"),
-    ready("old", "2026-11-14T01:00:00.000Z"),
     row("preparing", false, "prep"),
-    { ...ready("boss", "2026-11-14T00:30:00.000Z"), admin: true },
-    ready("new", "2026-11-14T03:00:00.000Z"),
-    ready("joined", undefined, "2026-11-14T02:00:00.000Z"),
-    ready("tie", "2026-11-14T01:00:00.000Z"),
+    ready("old", "unknown", "2026-11-14T01:00:00.000Z"),
+    ready("new", "unknown", "2026-11-14T03:00:00.000Z"),
   ]
-  expect(orderByChange(rows).map(r => r.room.id)).toEqual(["boss", "new", "joined", "old", "tie", "empty", "prep"])
+  expect(orderRows(rows).map(r => r.room.id)).toEqual(["new", "old", "prep", "empty"])
 })
 
 test("並びを止めている間は、止めた時の並びのまま。新しく出た行は最後", () => {

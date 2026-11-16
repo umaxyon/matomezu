@@ -35,6 +35,28 @@ func TestAIReadsRecords(t *testing.T) {
 	if _, got = send(t, "GET", s.URL+"/api/ai/records?kind="+ticket+"&where.number=2", "", ai); !strings.Contains(got, `"total":1`) {
 		t.Fatalf("where number = %s", got)
 	}
+	// チケット履歴は、どのチケットの行か（ticket）と題（topic）で絞れる。ほかの項目では断る
+	const history = "@matomezu/taskboard:ticket-history"
+	hbody := `{"action":"@matomezu/taskboard:ticket-history-add","args":{"ticket":"t1","topic":"@matomezu/taskboard:topic-status","text":"working"},"lang":"ja","ids":["h1"],"now":"2026-11-12T00:00:00.000Z"}`
+	if _, got = send(t, "POST", s.URL+"/api/perform", hbody, nil); !strings.Contains(got, `"ok":true`) {
+		t.Fatalf("ticket-history-add = %s", got)
+	}
+	if _, got = send(t, "GET", s.URL+"/api/ai/records?kind="+history+"&where.ticket=t1", "", ai); !strings.Contains(got, `"total":1`) {
+		t.Fatalf("history of t1 = %s", got)
+	}
+	if _, got = send(t, "GET", s.URL+"/api/ai/records?kind="+history+"&where.ticket=t2", "", ai); !strings.Contains(got, `"total":0`) {
+		t.Fatalf("history of t2 = %s", got)
+	}
+	if code, got := send(t, "GET", s.URL+"/api/ai/records?kind="+history+"&where.text=working", "", ai); code != 400 || !strings.Contains(got, "its index keys: ticket, topic") {
+		t.Fatalf("history where text = %d %s", code, got)
+	}
+	// where は索引キーだけ: 索引キーでない名前は断り（理由に索引キーを並べ）、数のキーは数で受ける
+	if code, got := send(t, "GET", s.URL+"/api/ai/records?kind="+ticket+"&where.name=first", "", ai); code != 400 || !strings.Contains(got, "name is not an index key of this kind (its index keys: project, lane, assigned, number)") {
+		t.Fatalf("where name = %d %s", code, got)
+	}
+	if code, got := send(t, "GET", s.URL+"/api/ai/records?kind="+ticket+"&where.number=two", "", ai); code != 400 || !strings.Contains(got, "number is a number") {
+		t.Fatalf("where number two = %d %s", code, got)
+	}
 	if _, got = send(t, "GET", s.URL+"/api/ai/records?kind="+ticket+"&where.project=nothing", "", ai); !strings.Contains(got, `"total":0`) {
 		t.Fatalf("where nothing = %s", got)
 	}
