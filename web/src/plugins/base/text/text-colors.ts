@@ -1,4 +1,4 @@
-// 文字の色の値: 文字の色の定義の色を、ブックのテーマの textColors で変え、ブックの設定の項目 book-text-colors（文字の色の id → #rrggbb）で上書きし、
+// 文字の色の値: 文字の色の定義の色を、ページのテーマの textColors で変え、ページの設定の項目 page-text-colors（文字の色の id → #rrggbb）で上書きし、
 // 利用者の上書き（利用者の設定の項目 text-colors）をさらに重ねる。ページのタイプが settings に選んだページだけが上書きを持てる（選ばなければテーマか定義の色）
 import { z } from "zod"
 import { HEX } from "../../../core/color"

@@ -76,7 +76,7 @@ export const restoreBooks = (catalog: CoreCatalog, saved: readonly unknown[]): B
 // ブックの並び（ページタブの順。1 つはページか、1 つのタイプのページだけを入れるフォルダ）
 export const lineupOf = (book: Book): readonly LineupEntry[] => book.lineup
 
-// このブックが持つページを、並びの順に（フォルダの中のページも、フォルダの所に続けて）。よそのページを指すだけの要素は含めない
+// このブックが持つページを、並びの順に（フォルダの中のページも、フォルダの所に続けて）
 export const pagesOf = (book: Book): readonly ItemPage[] =>
   book.lineup.flatMap((e): readonly ItemPage[] => (e.kind === "page" ? [e] : e.lineup))
 
