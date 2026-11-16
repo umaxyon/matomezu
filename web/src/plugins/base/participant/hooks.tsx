@@ -8,6 +8,7 @@ import { useActions, useCoreCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { refusalMessage } from "../utils/refusal"
 import { ADMIN_MARK, PARTICIPANT, type Participant, WORKROOM, type Workroom } from "."
+import { workroomActivityOf } from "./activity"
 import { type Do, leaveWorkroom, makeAdmin, removeWorkroom } from "./join-flow"
 import { adminRoomOf, type WorkroomRow, workroomRows } from "./rows"
 
@@ -56,15 +57,19 @@ export function useAdminRoom(): string | undefined {
 
 // ワークルームごとの行（管理者のワークルームが先頭）。生きているかは、行の calledAt から決める
 export function useWorkroomRows(): readonly WorkroomRow[] {
+  const catalog = useCoreCatalog()
   const rooms = useWorkrooms()
   const participants = useParticipants()
   const admin = useAdminRoom()
   const ready = useParticipantReady()
   const live = useParticipantLive()
   const calls = useParticipantCalls()
+  const activities = useMatomezuState(
+    useShallow(s => Object.fromEntries(rooms.map(r => [r.id, workroomActivityOf(catalog, s.records, r.id)]))),
+  )
   return useMemo(
-    () => workroomRows({ rooms, participants, admin, ready, live, calls }),
-    [rooms, participants, admin, ready, live, calls],
+    () => workroomRows({ rooms, participants, admin, ready, live, calls, activities }),
+    [rooms, participants, admin, ready, live, calls, activities],
   )
 }
 
