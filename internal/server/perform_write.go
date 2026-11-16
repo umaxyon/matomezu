@@ -27,10 +27,10 @@ type writePlan struct {
 	batch   storage.Batch
 	pages   []rowPut
 	folders []rowPut
-	removed []string                  // 置いてあって消すブック
-	tickets map[string][]AIEditTicket // 書き換えた AI 編集チケットの並び（ブックごと）
-	records []recordPut               // 変えたレコードの全部
-	quiet   bool                      // 窓に知らせず、触れた時刻も残さない（テストの用意で世界を置き直すとき）
+	removed []string        // 置いてあって消すブック
+	tickets *[]AIEditTicket // 書き換えた AI 編集チケットの並びの全部（変えなければ nil）
+	records []recordPut     // 変えたレコードの全部
+	quiet   bool            // 窓に知らせず、触れた時刻も残さない（テストの用意で世界を置き直すとき）
 }
 
 // planWrites は out の変えた物を、置き場所に書く形（batch）と、当てる物にする。subject はアクションの対象の種類（ブックが対象なら空）。何も変えない（h.mu を持って呼ぶ）。
@@ -44,7 +44,7 @@ func (h *Hub) planWrites(out engine.Output, subject, by, act, at string) (*write
 			return nil, nil
 		}
 	}
-	plan := &writePlan{tickets: map[string][]AIEditTicket{}}
+	plan := &writePlan{}
 	gone := []string{}
 	for _, c := range out.Pages {
 		base := h.pages[c.ID].version
@@ -70,12 +70,6 @@ func (h *Hub) planWrites(out engine.Output, subject, by, act, at string) (*write
 	for id := range h.books {
 		has[id] = true
 	}
-	ticketsOf := func(id string) []AIEditTicket {
-		if l, ok := plan.tickets[id]; ok {
-			return l
-		}
-		return h.aiEditTickets[id]
-	}
 	for _, id := range out.Books {
 		if body, folder := changed[id]; folder && body == nil {
 			if has[id] {
@@ -85,11 +79,31 @@ func (h *Hub) planWrites(out engine.Output, subject, by, act, at string) (*write
 			continue
 		}
 		has[id] = true
-		if by == "ai" {
-			plan.tickets[id] = recordedTickets(ticketsOf(id), act, at)
-		}
 	}
 	plan.batch.RemovedBooks = plan.removed
+	// AI 編集チケット: 消すブックの分を外し、AI のアクションなら 1 つ開く（変えたページとフォルダ。消すブックの物は入れない）
+	tickets, ticketsChanged := h.aiEditTickets, false
+	removedBooks, goneRows := map[string]bool{}, map[string]bool{}
+	for _, id := range plan.removed {
+		removedBooks[id] = true
+		for _, row := range h.rowsUnder(id) {
+			goneRows[row] = true
+		}
+	}
+	if len(plan.removed) > 0 {
+		tickets, ticketsChanged = prunedTickets(tickets, removedBooks, goneRows)
+	}
+	if by == "ai" {
+		unseen := []string{}
+		for _, c := range slices.Concat(out.Pages, out.Folders) {
+			if !goneRows[c.ID] {
+				unseen = append(unseen, c.ID)
+			}
+		}
+		if len(unseen) > 0 {
+			tickets, ticketsChanged = recordedTickets(tickets, act, at, unseen), true
+		}
+	}
 	if len(out.Settings) > 0 {
 		plan.batch.Settings = &storage.UserBody{User: user, Body: out.Settings}
 	}
@@ -102,32 +116,18 @@ func (h *Hub) planWrites(out engine.Output, subject, by, act, at string) (*write
 		if !has[c.Book] {
 			continue
 		}
-		if list, changed := changedTickets(ticketsOf(c.Book), subject, c, at); changed {
-			plan.tickets[c.Book] = list
+		if list, changed := changedTickets(tickets, subject, c, at); changed {
+			tickets, ticketsChanged = list, true
 		}
 	}
-	for book, list := range plan.tickets {
-		if !has[book] {
-			continue
-		}
-		body, err := json.Marshal(list)
+	if ticketsChanged {
+		body, err := ticketsBody(tickets)
 		if err != nil {
 			return nil, err
 		}
-		plan.batch.AIEditTickets = append(plan.batch.AIEditTickets, storage.BookBody{Book: book, Body: body})
+		plan.tickets, plan.batch.AIEditTickets = &tickets, body
 	}
-	slices.SortFunc(plan.batch.AIEditTickets, func(a, b storage.BookBody) int { return compareStrings(a.Book, b.Book) })
 	return plan, nil
-}
-
-func compareStrings(a, b string) int {
-	switch {
-	case a < b:
-		return -1
-	case a > b:
-		return 1
-	}
-	return 0
 }
 
 // rowNotice は、窓に知らせるページ・フォルダ 1 つ（field は "page" か "folder"）
@@ -182,12 +182,8 @@ func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act
 			h.checkBook(id, e.body)
 		}
 	}
-	for book, list := range plan.tickets {
-		if len(list) == 0 {
-			delete(h.aiEditTickets, book)
-		} else {
-			h.aiEditTickets[book] = list
-		}
+	if plan.tickets != nil {
+		h.aiEditTickets = *plan.tickets
 	}
 	for _, id := range plan.removed {
 		h.dropBook(id)
@@ -217,4 +213,14 @@ func (h *Hub) checkBook(id string, body json.RawMessage) {
 		return
 	}
 	h.recordWarnings([]string{id}, found)
+}
+
+func compareStrings(a, b string) int {
+	switch {
+	case a < b:
+		return -1
+	case a > b:
+		return 1
+	}
+	return 0
 }

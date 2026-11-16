@@ -139,10 +139,11 @@ test("AI の変更が見えたら seen を、見られる前に戻すが上書�
     {
       book: "b1",
       act: "5",
+      places: [page],
       outcome: "lost",
       lost: [{ at: `lineup/${page}/items/${item}/props/caption`, value: "AI" }],
     },
-    { book: "b1", act: "7", outcome: "seen" },
+    { book: "b1", act: "7", places: ["b1"], outcome: "seen" },
   ])
 })
 
@@ -163,7 +164,7 @@ test("戻すが消したのでなく、ふつうの操作のあとに戻して A
   expect(captions(store).at(-1)).toBe("AI")
   expect(told).toEqual([])
   show(store)
-  expect(told).toEqual([{ book: "b1", act: "5", outcome: "seen" }])
+  expect(told).toEqual([{ book: "b1", act: "5", places: [page], outcome: "seen" }])
 })
 
 test("窓が見えていない間は、見えたとしない。見えるようになって確かめ直したら差し込む", () => {

@@ -23,6 +23,7 @@ import { fail } from "../core/errors"
 import {
   type Folders,
   libraryOf,
+  changesBetween,
   type Pages,
   rawBooksOf,
   settledOn,
@@ -525,10 +526,11 @@ function initialState(
   }
 }
 
-// まだ見ていない AI の変更（act は常駐の book の知らせの印）が、この窓で見えた（seen）か、見られる前に消えた（lost。消えた所と AI が書いた値）
+// まだ見ていない AI の変更（act は常駐の changed の知らせの印）のうち、ブック book の分（places は、その変更が変えた・足した・無くしたページとフォルダの id）が、
+// この窓で見えた（seen）か、見られる前に消えた（lost。消えた所と AI が書いた値）
 export type AIEditTicketOutcome =
-  | { book: string; act: string; outcome: "seen" }
-  | { book: string; act: string; outcome: "lost"; lost: readonly Written[] }
+  | { book: string; act: string; places: readonly string[]; outcome: "seen" }
+  | { book: string; act: string; places: readonly string[]; outcome: "lost"; lost: readonly Written[] }
 
 export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> {
   plugins: Ps
@@ -690,8 +692,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     lastPut = { ...lastPut, ...Object.fromEntries(Object.keys(prior.books).map(id => [id, prior])) }
   }
   // まだ見ていない、AI とほかの窓の変更（古い順。ブックごとに 1 つの画面の履歴の段で、見えたらそのブックの画面の履歴に入る）。act は常駐が 1 回の perform に振った印。
-  // book は変えたブック、made はその変えた所（前から後への Patch。見えたかと、戻されたかを見るたびに求め直さない）
-  type Unseen = { step: HistoryStep; act: string; book: string; made: Patch }
+  // book は変えたブック、made はその変えた所（前から後への Patch。見えたかと、戻されたかを見るたびに求め直さない）、
+  // places は変えた・足した・無くしたページとフォルダの id（常駐に、見えた・消えたと知らせる範囲）
+  type Unseen = { step: HistoryStep; act: string; book: string; made: Patch; places: readonly string[] }
   let unseen: Unseen[] = []
   // 確かめた世界の、最後に知っているブック（よその変更の前の値）
   let known: Library = {}
@@ -731,9 +734,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     if (now.length === 0) return
     unseen = unseen.filter(u => !now.includes(u))
     const history = { ...getState().history }
-    for (const { step, act, book } of now) {
+    for (const { step, act, book, places } of now) {
       history[book] = insertStep(history[book] ?? NO_HISTORY, step)
-      if (step.by === "ai") options.aiEditTicket?.({ book, act, outcome: "seen" })
+      if (step.by === "ai") options.aiEditTicket?.({ book, act, places, outcome: "seen" })
     }
     setState({ history })
   }
@@ -743,7 +746,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     unseen = unseen.filter(u => {
       const lost = u.book === after.id ? undoneIn(u.made, before, after) : []
       if (lost.length > 0 && u.step.by === "ai")
-        options.aiEditTicket?.({ book: u.book, act: u.act, outcome: "lost", lost })
+        options.aiEditTicket?.({ book: u.book, act: u.act, places: u.places, outcome: "lost", lost })
       return lost.length === 0
     })
   }
@@ -754,7 +757,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     const step: HistoryStep = { at: clock(), by: change.by, books: { [after.id]: { before, after } } }
     const mine = unseen.filter(u => u.book === after.id)
     const over = mine.length >= HISTORY_LIMIT ? mine[0] : undefined
-    unseen = [...unseen.filter(u => u !== over), { step, act: change.act, book: after.id, made }]
+    const changes = changesBetween([before], [after])
+    const places = [...Object.keys(changes.pages), ...Object.keys(changes.folders)]
+    unseen = [...unseen.filter(u => u !== over), { step, act: change.act, book: after.id, made, places }]
   }
   const record = (before: Book, after: Book, at: string): OpenStep => {
     if (!open) {

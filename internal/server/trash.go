@@ -33,7 +33,6 @@ func (h *Hub) trashesShown(ids []string) bool {
 // dropBook は、置き場所から消し終えたブック id をメモリから外す（ページとフォルダの表と、窓への知らせは、消した側が済ませている。h.mu を持って呼ぶ）
 func (h *Hub) dropBook(id string) {
 	delete(h.books, id)
-	delete(h.aiEditTickets, id)
 	delete(h.bookWarnings, id)
 	delete(h.touched, id)
 	h.order = slices.DeleteFunc(h.order, func(x string) bool { return x == id })

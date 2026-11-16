@@ -153,6 +153,23 @@ func (h *Hub) bookOfEntry(id string) string {
 	return ""
 }
 
+// rowsUnder は、ブック id のフォルダと、その下のページとバインダの id の全部（h.mu を持って呼ぶ）
+func (h *Hub) rowsUnder(id string) []string {
+	f, ok := h.folders[id]
+	if !ok {
+		return nil
+	}
+	out := []string{id}
+	for _, e := range f.entries {
+		if _, folder := h.folders[e]; folder {
+			out = append(out, h.rowsUnder(e)...)
+		} else {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
 // rowsOf は、ブック ids のページとフォルダの本文（エンジンに渡す。ブックのフォルダ・その下のバインダ・その中のページ。h.mu を持って呼ぶ）
 func (h *Hub) rowsOf(ids []string) (pages, folders []json.RawMessage) {
 	pages, folders = []json.RawMessage{}, []json.RawMessage{}
@@ -259,19 +276,9 @@ func (h *Hub) putWholeBook(id string, body json.RawMessage, base int64, quiet bo
 	}
 	// そのブックが今持っているページとフォルダ（置き換えで無くなる物を消し、id を使い直せるようにする）
 	old := map[string]bool{}
-	var walk func(folder string)
-	walk = func(folder string) {
-		f, ok := h.folders[folder]
-		if !ok {
-			return
-		}
-		old[folder] = true
-		for _, e := range f.entries {
-			old[e] = true
-			walk(e)
-		}
+	for _, row := range h.rowsUnder(id) {
+		old[row] = true
 	}
-	walk(id)
 	taken := map[string]bool{}
 	for other := range h.pages {
 		taken[other] = !old[other]
@@ -328,6 +335,7 @@ func (h *Hub) clearBooks() error {
 		batch.Entries = append(batch.Entries, storage.EntryPut{ID: id})
 	}
 	batch.RemovedBooks = slices.Clone(h.order)
+	batch.AIEditTickets = json.RawMessage("[]")
 	for page := range h.annotations {
 		batch.Annotations = append(batch.Annotations, storage.PageBody{Page: page, Body: json.RawMessage("[]")})
 	}
@@ -340,7 +348,7 @@ func (h *Hub) clearBooks() error {
 	h.books = map[string]entry{}
 	h.order = nil
 	h.annotations = map[string]json.RawMessage{}
-	h.aiEditTickets = map[string][]AIEditTicket{}
+	h.aiEditTickets = nil
 	h.touched = map[string]string{}
 	h.bookWarnings = map[string]engine.BookWarning{}
 	h.annotationWarnings = nil

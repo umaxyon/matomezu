@@ -186,6 +186,8 @@ var migrations = []string{
 		folder TEXT NOT NULL
 	);
 	CREATE INDEX entries_folder ON entries (folder);`,
+	// AI 編集チケットを、ブックごとの並びから、全部で 1 つの並びにする（1 回のアクションに 1 つで、変えたページとフォルダを持つため。Go の移し替え。migrate_tickets.go）
+	`SELECT 1;`,
 }
 
 // goMigrations は、SQL だけでは書けない移し替え（JSON の中をたどる物）。鍵は migrations の番号（0 から）で、その SQL を行ったあと、同じトランザクションの中で行う
@@ -193,6 +195,7 @@ var goMigrations = map[int]func(tx *sql.Tx) error{
 	21: annotationsToPages,
 	22: proposalSnapshotsToPlaces,
 	23: booksToTables,
+	24: ticketsToOneList,
 }
 
 type sqliteStorage struct {
@@ -390,10 +393,8 @@ func (s *sqliteStorage) Apply(b Batch) error {
 			}
 		}
 		for _, id := range b.RemovedBooks {
-			for _, q := range []string{`DELETE FROM opened WHERE id = ?`, `DELETE FROM ai_edit_tickets WHERE book = ?`} {
-				if _, err := tx.Exec(q, id); err != nil {
-					return err
-				}
+			if _, err := tx.Exec(`DELETE FROM opened WHERE id = ?`, id); err != nil {
+				return err
 			}
 		}
 		for _, u := range []struct {
@@ -412,8 +413,8 @@ func (s *sqliteStorage) Apply(b Batch) error {
 				return err
 			}
 		}
-		for _, t := range b.AIEditTickets {
-			if err := txPutList(tx, "ai_edit_tickets", "book", t.Book, t.Body); err != nil {
+		if b.AIEditTickets != nil {
+			if err := txPutTickets(tx, b.AIEditTickets); err != nil {
 				return err
 			}
 		}
@@ -549,7 +550,7 @@ func txPutUser(tx *sql.Tx, table, user string, body json.RawMessage) error {
 	return err
 }
 
-// txPutList は、並びを 1 行に持つ表 table（page_annotations・ai_edit_tickets）の、鍵の列 column が key の行を置き換える（空の並びなら消す）
+// txPutList は、並びを 1 行に持つ表 table（page_annotations）の、鍵の列 column が key の行を置き換える（空の並びなら消す）
 func txPutList(tx *sql.Tx, table, column, key string, body json.RawMessage) error {
 	if empty(body) {
 		_, err := tx.Exec(`DELETE FROM `+table+` WHERE `+column+` = ?`, key)
@@ -581,25 +582,31 @@ func (s *sqliteStorage) PutAnnotations(page string, body json.RawMessage) error 
 	return s.Apply(Batch{Annotations: []PageBody{{page, body}}})
 }
 
-func (s *sqliteStorage) AIEditTickets() (map[string]json.RawMessage, error) {
-	rows, err := s.db.Query(`SELECT book, body FROM ai_edit_tickets`)
+// txPutTickets は、AI 編集チケットの並びの全部（表 ai_edit_tickets の 1 行）を置き換える（空の並びなら消す）
+func txPutTickets(tx *sql.Tx, body json.RawMessage) error {
+	if empty(body) {
+		_, err := tx.Exec(`DELETE FROM ai_edit_tickets`)
+		return err
+	}
+	_, err := tx.Exec(`INSERT INTO ai_edit_tickets (id, body, updated_at) VALUES (1, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at`, string(body), now())
+	return err
+}
+
+func (s *sqliteStorage) AIEditTickets() (json.RawMessage, error) {
+	var body string
+	err := s.db.QueryRow(`SELECT body FROM ai_edit_tickets`).Scan(&body)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	all := map[string]json.RawMessage{}
-	for rows.Next() {
-		var book, body string
-		if err := rows.Scan(&book, &body); err != nil {
-			return nil, err
-		}
-		all[book] = json.RawMessage(body)
-	}
-	return all, rows.Err()
+	return json.RawMessage(body), nil
 }
 
-func (s *sqliteStorage) PutAIEditTickets(book string, body json.RawMessage) error {
-	return s.Apply(Batch{AIEditTickets: []BookBody{{book, body}}})
+func (s *sqliteStorage) PutAIEditTickets(body json.RawMessage) error {
+	return s.Apply(Batch{AIEditTickets: body})
 }
 
 // empty は、並びの JSON が空（[] か null）か

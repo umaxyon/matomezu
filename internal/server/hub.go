@@ -146,12 +146,12 @@ type Hub struct {
 	recordLines map[recordKey][]string
 	// 窓が見つけて知らせた warning（窓のつながりの id → warning の 1 行ずつ。warnings.go）。窓が離れたら消す
 	windowWarnings map[string][]string
-	touched        map[string]string         // ブックの id → 触れた時刻（touched.go）
-	performed      map[string]Performed      // 最近行ったアクションの番号（Perform の Key）→ その結果
-	performedOrder []string                  // performed の番号を行った順に（古いものから忘れる）
-	acts           int64                     // 行ったアクションの数（book の知らせの act の後ろ。1 回の Perform が変えたブックに同じ印を付ける）
-	actPrefix      string                    // book の知らせの act の前（起動ごとに違う値。起動し直しても、前の act と重ならない）
-	aiEditTickets  map[string][]AIEditTicket // ブックの id → AI 編集チケット（ai_edit_tickets.go。1 つも無いブックは持たない）
+	touched        map[string]string    // ブックの id → 触れた時刻（touched.go）
+	performed      map[string]Performed // 最近行ったアクションの番号（Perform の Key）→ その結果
+	performedOrder []string             // performed の番号を行った順に（古いものから忘れる）
+	acts           int64                // 行ったアクションの数（changed の知らせの act の後ろ。1 回の Perform に 1 つの印）
+	actPrefix      string               // changed の知らせの act の前（起動ごとに違う値。起動し直しても、前の act と重ならない）
+	aiEditTickets  []AIEditTicket       // AI 編集チケットの全部（古い順。ai_edit_tickets.go）
 }
 
 // NewHub は置き場所から世界を読む
@@ -182,13 +182,11 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	if err != nil {
 		return nil, err
 	}
-	aiEditTickets := map[string][]AIEditTicket{}
-	for id, body := range stored {
-		var list []AIEditTicket
-		if err := json.Unmarshal(body, &list); err != nil {
-			return nil, fmt.Errorf("the AI edit tickets of book %s cannot be read: %w", id, err)
+	var aiEditTickets []AIEditTicket
+	if stored != nil {
+		if err := json.Unmarshal(stored, &aiEditTickets); err != nil {
+			return nil, fmt.Errorf("the AI edit tickets cannot be read: %w", err)
 		}
-		aiEditTickets[id] = list
 	}
 	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, participantNotes: notes, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}, aiEditTickets: aiEditTickets, actPrefix: strconv.FormatInt(time.Now().UnixNano(), 36)}
 	if err := h.loadTables(); err != nil {

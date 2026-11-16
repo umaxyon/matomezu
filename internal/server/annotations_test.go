@@ -34,6 +34,10 @@ func TestAnnotationsAreKeptApartFromTheBook(t *testing.T) {
 		t.Fatalf("data = %s", data)
 	}
 	perform("book-trash", `{"book":"b1"}`, "")
+	// ゴミ箱のブックのページは、AI に見せない（ページの id だけで読んでも）
+	if code, _ := send(t, "GET", s.URL+"/api/ai/pages/p1", "", map[string]string{"Authorization": "Bearer secret"}); code != 404 {
+		t.Fatalf("read_page of a page in the trash = %d", code)
+	}
 	perform("book-purge", `{"books":["b1"]}`, "")
 	if _, data := send(t, "GET", s.URL+"/api/data", "", nil); !strings.Contains(data, `"annotations":{}`) {
 		t.Fatalf("data after purge = %s", data)

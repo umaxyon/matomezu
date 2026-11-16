@@ -113,12 +113,6 @@ type Found struct {
 // ErrUnknownKey は、種類が宣言していない索引キーを条件か並びに書いたこと
 var ErrUnknownKey = errors.New("the kind has no such index key")
 
-// BookBody は Batch の、ブックごとの並び（AI 編集チケット）の置き換え（空の並びなら消す）
-type BookBody struct {
-	Book string
-	Body json.RawMessage
-}
-
 // PageBody は Batch の、ページごとの並び（アノテーション）の置き換え（空の並びなら消す）
 type PageBody struct {
 	Page string
@@ -145,13 +139,13 @@ type Batch struct {
 	Pages         []RowWrite
 	Folders       []RowWrite
 	Entries       []EntryPut // 入っているフォルダが変わったエントリ（足した・消した・動かした）。消す分（Folder が空）を先に、入れる分を後に当てる
-	RemovedBooks  []string   // 消したブックの id（そのブックを開いた時刻と、AI 編集チケットを消す。ページとフォルダは Pages・Folders に Removed で並べる）
+	RemovedBooks  []string   // 消したブックの id（そのブックを開いた時刻を消す。ページとフォルダは Pages・Folders に Removed で並べる）
 	Settings      *UserBody
 	Annotations   []PageBody
-	AIEditTickets []BookBody
-	Records       []RecordWrite // 変えるレコード（1 つのアクションが変えた全部）
-	SearchTexts   []SearchText  // 変える探す文字（レコードと同じ 1 回の書き込みで）
-	Counters      []Counter     // 番号を進めた区切り（レコードを書くのと同じ 1 回の書き込みで）
+	AIEditTickets json.RawMessage // AI 編集チケットの並びの全部（置き換える。空の並びなら消す。変えないなら nil）
+	Records       []RecordWrite   // 変えるレコード（1 つのアクションが変えた全部）
+	SearchTexts   []SearchText    // 変える探す文字（レコードと同じ 1 回の書き込みで）
+	Counters      []Counter       // 番号を進めた区切り（レコードを書くのと同じ 1 回の書き込みで）
 }
 
 // Storage はページとフォルダと設定とアノテーションの置き場所。設定は利用者ごとに、アノテーションはページごとに持つ
@@ -189,10 +183,10 @@ type Storage interface {
 	Annotations() (map[string]json.RawMessage, error)
 	// PutAnnotations はページ page のアノテーションの並びを body にする（空の並びなら消す）
 	PutAnnotations(page string, body json.RawMessage) error
-	// AIEditTickets はブックの id ごとの、AI 編集チケットの並び（JSON のまま。1 つも無いブックは無い）
-	AIEditTickets() (map[string]json.RawMessage, error)
-	// PutAIEditTickets はブック book の AI 編集チケットの並びを body にする（空の並びなら消す）
-	PutAIEditTickets(book string, body json.RawMessage) error
+	// AIEditTickets は、AI 編集チケットの並びの全部（JSON のまま。1 つも無ければ nil）
+	AIEditTickets() (json.RawMessage, error)
+	// PutAIEditTickets は、AI 編集チケットの並びの全部を body にする（空の並びなら消す）
+	PutAIEditTickets(body json.RawMessage) error
 	// Touched は、フォルダの id ごとの、開いたか書いた時刻の新しい方（Stamp の形）。書いた時刻は、そのフォルダと、その下（バインダの中まで）のページとフォルダを書いた時刻。
 	// 開いた時刻は、置き場所に無い id にも残る
 	Touched() (map[string]string, error)

@@ -204,13 +204,12 @@ func TestTouchedIsTheNewestOfOpenedAndWrittenBelow(t *testing.T) {
 	}
 }
 
-// 消したブック（RemovedBooks）は、開いた時刻と AI 編集チケットが消える。ほかのブックの物は残る
-func TestRemovedBooksLoseOpenedAndTickets(t *testing.T) {
+// 消したブック（RemovedBooks）は、開いた時刻が消える。ほかのブックの物は残る
+func TestRemovedBooksLoseOpened(t *testing.T) {
 	s := open(t, filepath.Join(t.TempDir(), "data.db"))
 	for _, id := range []string{"b1", "b2"} {
 		if err := s.Apply(Batch{
-			Folders:       []RowWrite{row(id, 0, `{"id":"`+id+`"}`)},
-			AIEditTickets: []BookBody{{id, json.RawMessage(`[{"at":"t"}]`)}},
+			Folders: []RowWrite{row(id, 0, `{"id":"`+id+`"}`)},
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -226,9 +225,6 @@ func TestRemovedBooksLoseOpenedAndTickets(t *testing.T) {
 	}
 	if touched, _ := s.Touched(); len(touched) != 1 || touched["b1"] != "2030-01-01T00:00:00.000Z" {
 		t.Fatalf("touched = %v; want only b1 at its opened time", touched)
-	}
-	if tickets, _ := s.AIEditTickets(); len(tickets) != 1 || tickets["b1"] == nil {
-		t.Fatalf("tickets = %v; want only b1's", tickets)
 	}
 }
 
@@ -378,7 +374,7 @@ func TestApplyWritesAllOrNothingOnAConflict(t *testing.T) {
 		Entries:       []EntryPut{{"p1", "b1"}},
 		Settings:      &UserBody{"me", json.RawMessage(`{"a":1}`)},
 		Annotations:   []PageBody{{"p1", json.RawMessage(`[{"id":"n1"}]`)}},
-		AIEditTickets: []BookBody{{"b1", json.RawMessage(`[{"at":"t"}]`)}},
+		AIEditTickets: json.RawMessage(`[{"at":"t"}]`),
 	}
 	stale := map[string]Batch{
 		"record": whole,
@@ -764,7 +760,7 @@ func TestEmptyMailboxBecomesNoRecords(t *testing.T) {
 const ticketsMigration = 18
 
 // 閉じる者のいない AI 編集チケット（key があり、失敗にも消えたことにもしておらず、同じ id の郵便のレコードが無い物）は閉じる（AI には渡さない）。
-// key の無い物・郵便が残っている物・失敗にした物・消えたと記した物は並びの順のまま残し、1 つも残らないブックの行は消す。表の形の版は 1 つ進む
+// 郵便が残っている物・失敗にした物・消えたと記した物は残る。そのあとの移し替え（全部で 1 つの並びにする）で、key の無い物は捨てられ、残った物は置いてあったブックの id を持つ
 func TestTicketsOfGoneMailAreClosed(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data.db")
 	db, err := sql.Open("sqlite", path)
@@ -792,17 +788,18 @@ func TestTicketsOfGoneMailAreClosed(t *testing.T) {
 	}
 	var keys []string
 	var list []struct {
-		Act string `json:"act"`
-		Key string `json:"key"`
+		Act  string `json:"act"`
+		Key  string `json:"key"`
+		Book string `json:"book"`
 	}
-	if err := json.Unmarshal(tickets["b1"], &list); err != nil {
+	if err := json.Unmarshal(tickets, &list); err != nil {
 		t.Fatal(err)
 	}
 	for _, c := range list {
-		keys = append(keys, c.Act+c.Key)
+		keys = append(keys, c.Act+c.Key+"@"+c.Book)
 	}
-	if fmt.Sprint(keys) != "[a1 kept failed removed]" || len(tickets) != 1 {
-		t.Fatalf("tickets = %v (%d books)", keys, len(tickets))
+	if fmt.Sprint(keys) != "[kept@b1 failed@b1 removed@b1]" {
+		t.Fatalf("tickets = %v", keys)
 	}
 	var version int
 	if err := s.(*sqliteStorage).db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != len(migrations) {
@@ -956,5 +953,65 @@ func TestBooksBecomePagesAndFolders(t *testing.T) {
 	var n int
 	if err := s.(*sqliteStorage).db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE name = 'books'`).Scan(&n); err != nil || n != 0 {
 		t.Fatalf("the books table is still there (%d, %v)", n, err)
+	}
+}
+
+// ticketsListMigration は、AI 編集チケットを全部で 1 つの並びにする足し方の番号
+const ticketsListMigration = 24
+
+// ブックごとの AI 編集チケットの並びは、全部で 1 つの並びになる。key で見分ける物だけが、置いてあったブックの id を持って残り（変えた時点の古い順）、
+// AI のアクションごとの物（act）は捨てる。読めない行は捨てる。書き直すと置き換わり、空の並びにすると消える
+func TestTicketsBecomeOneList(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := migrations[:ticketsListMigration:ticketsListMigration]
+	for i, q := range before {
+		tx, err := db.Begin()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := tx.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+		if run := goMigrations[i]; run != nil {
+			if err := run(tx); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := tx.Commit(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, q := range []string{
+		fmt.Sprintf(`PRAGMA user_version = %d`, len(before)),
+		`INSERT INTO ai_edit_tickets (book, body, updated_at) VALUES
+			('b2', '[{"act":"a1","at":"t1"},{"key":"m2","subject":"@matomezu/base:mail","at":"t3","failed":true,"changed":["x"]}]', 'x'),
+			('b1', '[{"key":"m1","subject":"@matomezu/base:mail","at":"t2"},{"act":"a2","at":"t4","lost":[{"at":"title"}]}]', 'x'),
+			('b3', 'not json', 'x')`,
+	} {
+		if _, err := db.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	db.Close()
+	s := open(t, path)
+	want := `[{"at":"t2","book":"b1","key":"m1","subject":"@matomezu/base:mail"},{"at":"t3","book":"b2","changed":["x"],"failed":true,"key":"m2","subject":"@matomezu/base:mail"}]`
+	if got, err := s.AIEditTickets(); err != nil || string(got) != want {
+		t.Fatalf("tickets = %s, %v; want %s", got, err, want)
+	}
+	if err := s.PutAIEditTickets(json.RawMessage(`[{"act":"a","at":"t"}]`)); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := s.AIEditTickets(); string(got) != `[{"act":"a","at":"t"}]` {
+		t.Fatalf("tickets after putting = %s", got)
+	}
+	if err := s.PutAIEditTickets(json.RawMessage(`[]`)); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := s.AIEditTickets(); err != nil || got != nil {
+		t.Fatalf("tickets after emptying = %s, %v", got, err)
 	}
 }

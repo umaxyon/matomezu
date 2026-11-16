@@ -205,7 +205,7 @@ func TestAIEditTicketsAreFoundBySubjectAndKey(t *testing.T) {
 	if left, changed := changedTickets(list, mailKind, engine.AIEditTicketChange{Book: "b1", Key: "k", Outcome: "closed"}, "t"); !changed || len(left) != 0 {
 		t.Fatalf("closed = %+v, %v", left, changed)
 	}
-	old := []AIEditTicket{{Key: "k", At: "t"}}
+	old := []AIEditTicket{{Key: "k", Book: "b1", At: "t"}}
 	if left, changed := changedTickets(old, mailKind, engine.AIEditTicketChange{Book: "b1", Key: "k", Outcome: "closed"}, "t"); !changed || len(left) != 0 {
 		t.Fatalf("closed without a subject = %+v, %v", left, changed)
 	}
@@ -221,7 +221,7 @@ func TestProposalSendOpensAndRemovesTicketsInOneWrite(t *testing.T) {
 	t.Cleanup(func() { store.Close() })
 	batch := bookBatch(t, boxed)
 	batch.Counters, batch.AIEditTickets = []storage.Counter{{Subject: mailKind, Scope: "mail", Next: 201}},
-		[]storage.BookBody{{Book: "b1", Body: json.RawMessage(`[{"key":"m001","subject":"` + mailKind + `","at":"t"}]`)}}
+		json.RawMessage(`[{"key":"m001","subject":"`+mailKind+`","book":"b1","at":"t"}]`)
 	for i := 1; i <= 200; i++ {
 		id := fmt.Sprintf("m%03d", i)
 		body := fmt.Sprintf(`{"id":%q,"mail":"@matomezu/base:letter","from":"a","sentAt":"t","props":{"title":"%d","body":""},"order":%d}`, id, i, i)
@@ -248,13 +248,13 @@ func TestProposalSendOpensAndRemovesTicketsInOneWrite(t *testing.T) {
 	if err != nil || !done.OK || json.Unmarshal(done.Result, &sent) != nil || sent.Mail == "" {
 		t.Fatalf("proposal-send = %+v, %v", done, err)
 	}
-	want := fmt.Sprintf(`[{"key":"m001","subject":%q,"at":"t","removed":"limit"},{"key":%q,"subject":%q,"at":`, mailKind, sent.Mail, mailKind)
+	want := fmt.Sprintf(`[{"key":"m001","subject":%q,"book":"b1","at":"t","removed":"limit"},{"key":%q,"subject":%q,"book":"b1","at":`, mailKind, sent.Mail, mailKind)
 	stored, err := store.AIEditTickets()
-	if err != nil || !strings.HasPrefix(string(stored["b1"]), want) {
-		t.Fatalf("stored tickets = %s, %v; want %s…", stored["b1"], err, want)
+	if err != nil || !strings.HasPrefix(string(stored), want) {
+		t.Fatalf("stored tickets = %s, %v; want %s…", stored, err, want)
 	}
 	h.mu.Lock()
-	list := h.aiEditTickets["b1"]
+	list := h.aiEditTickets
 	h.mu.Unlock()
 	if len(list) != 2 || list[0].Removed != "limit" || list[1].Key != sent.Mail || list[1].Removed != "" {
 		t.Fatalf("tickets = %+v", list)
