@@ -69,7 +69,10 @@ test("AI が伝言を読むと、上からマーキーが下りて「AIが伝言
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
     .toHaveProperty("stage")
-  const { book } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as { book: string }
+  const { book, page: shown } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
+    book: string
+    page: string
+  }
   await addBox(page, 200, 150, "一")
   await writeNote(page, items(page).filter({ hasText: "一" }), "読んで")
   await openOutbox(page)
@@ -82,7 +85,7 @@ test("AI が伝言を読むと、上からマーキーが下りて「AIが伝言
   const note = (
     (await (await page.request.get(`/api/ai/books/${book}`, { headers: ai })).json()).annotations as { id: string }[]
   )[0]!.id
-  expect(await perform({ action: "@matomezu/base:note-read", args: { note }, on: { book } })).toMatchObject({
+  expect(await perform({ action: "@matomezu/base:note-read", args: { note }, on: { page: shown } })).toMatchObject({
     ok: true,
   })
   await expect(page.getByRole("status").filter({ hasText: "AIが伝言を読みました" })).toBeVisible()

@@ -433,13 +433,14 @@ test("付けた伝言を右サイドパネルで開いて文を直している�
   const locked = page.waitForResponse(
     r =>
       r.url().endsWith("/api/view") &&
-      (r.request().postData() ?? "").includes(`"editLocks":{"${result.book}":["${id}"]}`),
+      (r.request().postData() ?? "").includes(`"editLocks":{"${added.result.page}":["${id}"]}`),
   )
   await page.getByRole("button", { name: "伝言を開く" }).click()
   await expect(panel.getByLabel("伝言", { exact: true })).toHaveValue("見てほしい")
   await panel.getByLabel("伝言", { exact: true }).fill("見てほしい所")
   await locked
-  const read = () => perform({ action: "@matomezu/base:note-read", args: { note: id }, on })
+  const read = () =>
+    perform({ action: "@matomezu/base:note-read", args: { note: id }, on: { page: added.result.page } })
   expect(await read()).toMatchObject({ ok: false, reason: "being-edited" })
   await page.keyboard.press("Escape")
   await expect(panel).toHaveCount(0)
@@ -482,8 +483,7 @@ test("箱の編集のダイアログを開いている間は、AI がその箱�
   await page.request.post("/api/ai/show", { headers: ai, data: { book: result.book } })
   const locked = page.waitForResponse(
     r =>
-      r.url().endsWith("/api/view") &&
-      (r.request().postData() ?? "").includes(`"editLocks":{"${result.book}":["${one}"]}`),
+      r.url().endsWith("/api/view") && (r.request().postData() ?? "").includes(`"editLocks":{"${pageId}":["${one}"]}`),
   )
   await page.locator(`[data-item="${one}"]`).dblclick()
   const dialog = page.getByRole("dialog", { name: "ボックスの編集" })

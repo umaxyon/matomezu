@@ -59,7 +59,7 @@ test("送ると、乗せた変更と、当たる物の送った時の値と、�
   const done = send([rename(one, "AI")])
   expect(done).toMatchObject({ ok: true, result: { mail: expect.any(String) } })
   expect(mail()).toMatchObject({ mail: "@matomezu/base:proposal", to: { book: "b1", page: "p1", ids: [one] } })
-  expect(Object.keys(props().snapshot)).toEqual([one])
+  expect(props().snapshot).toEqual({ p1: { [one]: expect.anything() } })
   expect(caption(one)).toBe("一")
 })
 

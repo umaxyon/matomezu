@@ -10,7 +10,14 @@ import { kit } from "../kit"
 import { MAIL_VISITED } from "."
 import { useShowMailPlace } from "./hooks"
 import own from "./Mail.module.css"
-import { PROPOSAL_APPLY, PROPOSAL_SETTLE, type ProposalProps, proposalChanged, proposalOf } from "./proposal"
+import {
+  PROPOSAL_APPLY,
+  PROPOSAL_SETTLE,
+  type ProposalProps,
+  proposalChanged,
+  proposalOf,
+  snapshotIds,
+} from "./proposal"
 import type { MailActionsProps } from "./slots"
 
 // 形の合わない郵便（郵便箱には残る）には、ボタンを出さない
@@ -62,7 +69,7 @@ function Proposal({ mail, onClose, dock, props }: MailActionsProps & { props: Pr
       return
     }
     const book = read().books[props.book]
-    const changed = book ? proposalChanged(book, props.snapshot) : Object.keys(props.snapshot)
+    const changed = book ? proposalChanged(book, props.snapshot) : snapshotIds(props.snapshot)
     actions.perform(PROPOSAL_SETTLE.id, { outcome: "failed", changed }, { record: mail.id })
     actions.showToast({
       kind: "warn",

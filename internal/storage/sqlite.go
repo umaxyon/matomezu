@@ -165,11 +165,14 @@ var migrations = []string{
 		body TEXT NOT NULL,
 		updated_at TEXT NOT NULL
 	);`,
+	// 変更提案郵便が持つ、当たる物の送った時の値を、物のある所（ページかブック）ごとの表に直す（Go の移し替え。migrate_proposals.go）
+	`SELECT 1;`,
 }
 
 // goMigrations は、SQL だけでは書けない移し替え（JSON の中をたどる物）。鍵は migrations の番号（0 から）で、その SQL を行ったあと、同じトランザクションの中で行う
 var goMigrations = map[int]func(tx *sql.Tx) error{
 	21: annotationsToPages,
+	22: proposalSnapshotsToPlaces,
 }
 
 type sqliteStorage struct {

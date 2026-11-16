@@ -709,3 +709,44 @@ func TestAnnotationsMoveToTheirPages(t *testing.T) {
 		t.Fatalf("annotations = %v", all)
 	}
 }
+
+// 変更提案郵便の、当たる物の送った時の値は、物のある所（ページ。どのページにも無い物はブック）ごとの表に直す
+func TestProposalSnapshotsMoveToTheirPlaces(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, m := range migrations[:22] {
+		if _, err := db.Exec(m); err != nil {
+			t.Fatalf("migration %d: %v", i, err)
+		}
+	}
+	book := `{"id":"b1","title":"t","lineup":[{"kind":"page","id":"p1","items":[{"id":"a"}]},{"kind":"binder","id":"f1","lineup":[{"kind":"page","id":"p2","items":[{"id":"c"}]}]}]}`
+	mail := `{"id":"m1","mail":"@matomezu/base:proposal","props":{"book":"b1","snapshot":{"a":{"id":"a"},"p2":{"id":"p2"},"f1":{"id":"f1"},"gone":1}}}`
+	letter := `{"id":"m2","mail":"@matomezu/base:letter","props":{"title":"x"}}`
+	if _, err := db.Exec(`INSERT INTO books (id, body, version, updated_at) VALUES ('b1', ?, 1, 't')`, book); err != nil {
+		t.Fatal(err)
+	}
+	for id, body := range map[string]string{"m1": mail, "m2": letter} {
+		if _, err := db.Exec(`INSERT INTO records (subject, id, body, version, updated_at) VALUES ('@matomezu/base:mail', ?, ?, 1, 't')`, id, body); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := db.Exec(`PRAGMA user_version = 22`); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+	s := open(t, path)
+	got, err := s.Record("@matomezu/base:mail", "m1")
+	if err != nil || got == nil {
+		t.Fatalf("record = %v, %v", got, err)
+	}
+	want := `{"id":"m1","mail":"@matomezu/base:proposal","props":{"book":"b1","snapshot":{"b1":{"f1":{"id":"f1"},"gone":1},"p1":{"a":{"id":"a"}},"p2":{"p2":{"id":"p2"}}}}}`
+	if string(got.Body) != want {
+		t.Fatalf("mail = %s", got.Body)
+	}
+	if other, _ := s.Record("@matomezu/base:mail", "m2"); other == nil || string(other.Body) != letter {
+		t.Fatalf("letter = %v", other)
+	}
+}

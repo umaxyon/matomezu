@@ -441,7 +441,10 @@ test("読まれていない伝言は、箱の上の辺が画面の外に出る�
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
     .toHaveProperty("stage")
-  const { book } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as { book: string }
+  const { book, page: shown } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
+    book: string
+    page: string
+  }
   await addBox(page, 200, 150, "一")
   await writeNote(page, items(page).filter({ hasText: "一" }), "読んで")
   const bubble = page.getByRole("button", { name: "伝言を開く" })
@@ -467,7 +470,7 @@ test("読まれていない伝言は、箱の上の辺が画面の外に出る�
   )[0]!.id
   await page.request.post("/api/ai/perform", {
     headers: ai,
-    data: { action: "@matomezu/base:note-read", args: { note }, on: { book } },
+    data: { action: "@matomezu/base:note-read", args: { note }, on: { page: shown } },
   })
   await expect(bubble).toHaveAttribute("data-read", "true")
   await away()
@@ -492,7 +495,10 @@ test("リストの行に付けた AI が読んだ伝言も、リストが画面�
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
     .toHaveProperty("stage")
-  const { book } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as { book: string }
+  const { book, page: shown } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
+    book: string
+    page: string
+  }
   const list = await addList(page, "行のリスト")
   await addRow(page, list, "行 1")
   await writeNote(page, list.getByRole("listitem").first(), "読んで")
@@ -501,7 +507,7 @@ test("リストの行に付けた AI が読んだ伝言も、リストが画面�
   )[0]!.id
   await page.request.post("/api/ai/perform", {
     headers: ai,
-    data: { action: "@matomezu/base:note-read", args: { note }, on: { book } },
+    data: { action: "@matomezu/base:note-read", args: { note }, on: { page: shown } },
   })
   const check = page.locator("[data-read-check]")
   await expect(check).toHaveCount(1)
@@ -532,7 +538,10 @@ test("物の角に 2 つ以上あれば、先頭の 2 つを重ねた絵にま�
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
     .toHaveProperty("stage")
-  const { book } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as { book: string }
+  const { book, page: shown } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
+    book: string
+    page: string
+  }
   await addBox(page, 200, 200, "二")
   const two = items(page).filter({ hasText: "二" })
   const readAll = async () => {
@@ -543,7 +552,7 @@ test("物の角に 2 つ以上あれば、先頭の 2 つを重ねた絵にま�
     for (const n of notes.filter(n => !n.props.readAt))
       await page.request.post("/api/ai/perform", {
         headers: ai,
-        data: { action: "@matomezu/base:note-read", args: { note: n.id }, on: { book } },
+        data: { action: "@matomezu/base:note-read", args: { note: n.id }, on: { page: shown } },
       })
   }
   // 1 つだけなら、まとめずにその絵（既読のチェック）
@@ -697,7 +706,10 @@ test("設定画面の「コーナーステータスの並び」で、角に出�
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
     .toHaveProperty("stage")
-  const { book } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as { book: string }
+  const { book, page: shown } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
+    book: string
+    page: string
+  }
   await addBox(page, 200, 200, "並")
   const box = items(page).filter({ hasText: "並" })
   await writeNote(page, box, "読む")
@@ -707,7 +719,7 @@ test("設定画面の「コーナーステータスの並び」で、角に出�
   for (const n of notes)
     await page.request.post("/api/ai/perform", {
       headers: ai,
-      data: { action: "@matomezu/base:note-read", args: { note: n.id }, on: { book } },
+      data: { action: "@matomezu/base:note-read", args: { note: n.id }, on: { page: shown } },
     })
   await box.click({ button: "right" })
   await page.getByRole("menu").getByRole("menuitem", { name: "AIに示す" }).click()

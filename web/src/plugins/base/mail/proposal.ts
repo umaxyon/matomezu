@@ -1,14 +1,13 @@
 // 変更提案郵便: AI のアクションが編集ロックで断られたとき（being-edited）、AI がそのアクションを郵便に乗せて利用者に届け、利用者が押すと反映される郵便。
 // 種類は proposal。送るのは proposal-send（AI も送れる）、反映するのは proposal-apply、反映した・失敗したを郵便に残すのは proposal-settle（どちらも利用者だけ）。
 // 乗せられるのは 1 冊のブックの、既にある物を変える・消すアクションだけ（物を足すアクション・利用者だけのアクション・画面の履歴に入らないアクションは乗せられない）。
-// 送るときに変更を試しに当て（ブックは変えない）、当たる物のその時の自分の値（core/ids.ts の ownValues）を郵便にしまう。反映のときに今の値と比べ、
+// 送るときに変更を試しに当て（ブックは変えない）、当たる物のその時の自分の値（own-values.ts の ownValuesIn）を、その物のある所（ページかブック）ごとに郵便にしまう。反映のときに今の値と比べ、
 // 少しでも違う・無いなら失敗にする。反映は 1 つのアクションで、乗せた変更を順に行い、1 つでも断られたら全部取り消す。
 // 送ると AI 編集チケットを作り、反映したら閉じ、失敗したら失敗にし、反映も失敗もしないまま郵便が消えたら消えたと記す（郵便箱の上限で消えたか、利用者が消したか。
 // 失敗と消えたことは、次の利用者トリガートークのときに AI に渡る）
 
 import { z } from "zod"
 import { USER } from "../../../core/actor"
-import { pagesOf } from "../../../core/book"
 import type { ActionContext } from "../../../core/def/action"
 import { allowedOnBook, perform, runAction } from "../../../core/perform"
 import { sameData } from "../../../core/same"
@@ -16,7 +15,7 @@ import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
 import { MAIL, mailAdded, READS_MAILBOX_KEYS } from "."
 import type { Mail } from "./mail"
-import { ownChanged, ownValues } from "./own-values"
+import { ownChangedIn, ownValuesIn } from "./own-values"
 
 // 乗せた変更 1 つ: アクションと引数と、ページが対象のアクションなら宛先のページ（perform の on と同じ形。ブックが対象のアクションには書かない）
 const ChangeSchema = z.strictObject({
@@ -27,13 +26,17 @@ const ChangeSchema = z.strictObject({
 const ChangesSchema = z.array(ChangeSchema).min(1).max(50)
 type Change = z.output<typeof ChangeSchema>
 
+// 当たる物の自分の値: 物のある所（ページの id。バインダとブックそのものは、ブックの id）→ 物の id → 値
+const SnapshotSchema = z.record(z.string(), z.record(z.string(), z.unknown()))
+type Snapshot = z.output<typeof SnapshotSchema>
+
 const ProposalSchema = z.strictObject({
   title: z.string().trim().min(1).max(80), // 題（一覧・しおり・ダイアログの見出し）
   body: z.string().max(4000), // 本文（AI が書いた変更の説明。空でもよい）
   book: z.string().min(1), // 変えるブック
   page: z.string().min(1).optional(), // 変えるページ（許可スコープ。ページを持たないブックや、いくつものページを変えるなら無い）
   changes: ChangesSchema, // 乗せたアクション（順に行う）
-  snapshot: z.record(z.string(), z.unknown()), // 当たる物の、送った時の自分の値（物の id → 値）
+  snapshot: SnapshotSchema, // 当たる物の、送った時の自分の値（物のある所〈ページの id か、ブックの id〉→ 物の id → 値）
   appliedAt: z.string().optional(), // 反映した時点
   failedAt: z.string().optional(), // 反映が失敗した時点
   changed: z.array(z.string()).optional(), // 失敗したときの、変わった・無くなった物の id
@@ -130,12 +133,17 @@ function carry(
 }
 
 // ブック book の今の値が、送った時の値 snapshot から変わった・無くなった物の id
-export function proposalChanged(book: Book, snapshot: Readonly<Record<string, unknown>>): string[] {
-  const now = ownValues(book)
-  return Object.entries(snapshot)
-    .filter(([id, v]) => !now.has(id) || !sameData(now.get(id), v))
-    .map(([id]) => id)
+export function proposalChanged(book: Book, snapshot: Snapshot): string[] {
+  const now = ownValuesIn(book)
+  return Object.entries(snapshot).flatMap(([within, values]) =>
+    Object.entries(values)
+      .filter(([id, v]) => !now.get(within)?.has(id) || !sameData(now.get(within)?.get(id), v))
+      .map(([id]) => id),
+  )
 }
+
+// 送った時の値 snapshot が持つ、物の id の全部
+export const snapshotIds = (snapshot: Snapshot): string[] => Object.values(snapshot).flatMap(v => Object.keys(v))
 
 export const PROPOSAL_SEND = kit.defineAction({
   id: "proposal-send",
@@ -160,11 +168,13 @@ export const PROPOSAL_SEND = kit.defineAction({
     if (!book) return { declined: "there is no book with that id (see list_books)" }
     const carried = carry(book, args.changes, ctx, true)
     if ("declined" in carried) return carried
-    const touched = ownChanged(book, carried.after).filter(id => id !== book.id)
+    const touched = ownChangedIn(book, carried.after).filter(t => t.id !== book.id)
     if (touched.length === 0) return { declined: "the changes change nothing" }
-    const before = ownValues(book)
-    const pages = new Set(pagesOf(book).map(p => p.id))
-    const things = touched.filter(id => !pages.has(id))
+    const before = ownValuesIn(book)
+    const snapshot: Record<string, Record<string, unknown>> = {}
+    for (const t of touched) snapshot[t.within] = { ...snapshot[t.within], [t.id]: before.get(t.within)?.get(t.id) }
+    // 郵便の行き先に添える物: 変えるページの中の、当たる物（ページそのものは除く）
+    const things = touched.filter(t => t.within === args.page && t.id !== args.page).map(t => t.id)
     const added = mailAdded(ctx, {
       mail: MAIL_PROPOSAL.id,
       from: args.from,
@@ -180,7 +190,7 @@ export const PROPOSAL_SEND = kit.defineAction({
         book: book.id,
         ...(args.page ? { page: args.page } : {}),
         changes: args.changes,
-        snapshot: Object.fromEntries(touched.map(t => [t, before.get(t)])),
+        snapshot,
       } satisfies ProposalProps,
     })
     if (!added) return null
@@ -200,7 +210,7 @@ export const PROPOSAL_REFUSED = kit.name("proposal-refused")
 const ApplyArgs = z.strictObject({
   page: z.string().min(1).optional(),
   changes: ChangesSchema,
-  snapshot: z.record(z.string(), z.unknown()),
+  snapshot: SnapshotSchema,
 })
 
 export const PROPOSAL_APPLY = kit.defineAction({
@@ -214,7 +224,7 @@ export const PROPOSAL_APPLY = kit.defineAction({
   target: "book",
   // 変えるページが分かればそのページと当たる物。分からなければ所は言えず、ページのロックは行った後の keeps が止める
   permissionScope: (args: z.output<typeof ApplyArgs>) =>
-    args.page ? { page: args.page, ids: Object.keys(args.snapshot) } : {},
+    args.page ? { page: args.page, ids: Object.keys(args.snapshot[args.page] ?? {}) } : {},
   args: ApplyArgs,
   run: (book, args, ctx) => {
     const changed = proposalChanged(book, args.snapshot)

@@ -205,6 +205,12 @@ export function addBinder<B extends Book>(
   return { book: { ...book, lineup: insertAt<LineupEntry>(book.lineup, made, index) }, binder: made.id }
 }
 
+// ブックの骨組み: ブックとバインダのフィールドはそのままで、ページを id だけにした値（ブックそのものとバインダだけを、中のページの中身と分けて比べるのに使う）
+export function frameOf(book: Book): unknown {
+  const stub = ({ id }: { id: string }) => ({ id })
+  return { ...book, lineup: book.lineup.map(e => (e.kind === "page" ? stub(e) : { ...e, lineup: e.lineup.map(stub) })) }
+}
+
 // id のバインダを、f の返すバインダに替える（場所は変えない）
 export function putBinder<B extends Book>(book: B, id: string, f: (binder: BinderEntry) => BinderEntry): B {
   return { ...book, lineup: book.lineup.map(e => (e.kind === "binder" && e.id === id ? f(e) : e)) }
