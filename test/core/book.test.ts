@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import {
+  addBinder,
   addPage,
   checkBooks,
   findPage,
@@ -7,28 +8,29 @@ import {
   keepsPageTypes,
   lineupOf,
   moveEntry,
-  newPage,
   pagesOf,
 } from "../../web/src/core/book"
 import { resolvePaper } from "../../web/src/core/paper"
 import { PAPER_IDS } from "../../web/src/plugins/base"
 import { choosablePapers, defaultPaper, paperChoices } from "../../web/src/plugins/base/page-tabs/pages"
 import { DRAWING, drawingPage, MARKDOWN, SLIDE, testBinder, testBook, testPage } from "../lineup"
-import { CORE_CATALOG } from "../support"
+import { CORE_CATALOG, sequence } from "../support"
 
 const book = testBook("b1", "ブック", [
   drawingPage("p1"),
   drawingPage("p3", { title: "ページ 3", paper: "@matomezu/base:a3", orientation: "portrait" }),
 ])
 
-test("新しいページは、newId の値そのままの id（uuid）で、決めたタイプ・名前・紙のページになる。ほかのページと重なる id は振り直す", () => {
+test("足すページの id は、newId の値そのまま（uuid）で振られる。ほかのページと重なる値は飛ばす。足す側は id を決められない", () => {
   const ids = ["p3", "p-2a"]
-  const page = newPage(
+  const added = addPage(
     book,
-    { type: DRAWING, title: "表紙", paper: "@matomezu/base:a5", orientation: "portrait" },
+    { kind: "page", type: DRAWING, title: "表紙", paper: "@matomezu/base:a5", orientation: "portrait" },
+    {},
     () => ids.shift()!,
   )
-  expect(page).toEqual({
+  expect(added?.page).toBe("p-2a")
+  expect(added && pagesOf(added.book).at(-1)).toEqual({
     kind: "page",
     id: "p-2a",
     type: DRAWING,
@@ -36,8 +38,7 @@ test("新しいページは、newId の値そのままの id（uuid）で、決�
     paper: "@matomezu/base:a5",
     orientation: "portrait",
   })
-  const next = addPage(book, page)
-  expect(pagesOf(next).map(p => p.id)).toEqual(["p1", "p3", "p-2a"])
+  expect(added && pagesOf(added.book).map(p => p.id)).toEqual(["p1", "p3", "p-2a"])
   expect(pagesOf(book)).toHaveLength(2)
 })
 
@@ -60,8 +61,27 @@ describe("並び", () => {
   })
 
   test("バインダに足すページは、そのバインダの中に入る", () => {
-    const next = addPage(mixed, testPage(SLIDE, "s3", { title: "3" }), { binder: "f1", index: 0 })
-    expect(pagesOf(next).map(p => p.id)).toEqual(["p1", "s3", "s1", "s2", "t1"])
+    const { id: _id, ...third } = testPage(SLIDE, "s3", { title: "3" })
+    const added = addPage(mixed, third, { binder: "f1", index: 0 }, sequence("n"))
+    expect(added && pagesOf(added.book).map(p => p.id)).toEqual(["p1", "n1", "s1", "s2", "t1"])
+    // 無いバインダには足せない
+    expect(addPage(mixed, third, { binder: "nope" }, sequence("n"))).toBeUndefined()
+  })
+
+  test("一緒に作るバインダに足すと、ページの id・バインダの id の順に振り、バインダは並びの index 番目に入る。空のバインダだけも足せる", () => {
+    const { id: _id, ...first } = testPage(SLIDE, "x", { title: "1" })
+    const added = addPage(
+      mixed,
+      first,
+      { newBinder: { title: "別のスライド", pageType: SLIDE }, index: 0 },
+      sequence("n"),
+    )
+    expect(added).toMatchObject({ page: "n1", binder: "n2" })
+    expect(added && lineupOf(added.book).map(e => e.id)).toEqual(["n2", "p1", "f1", "t1"])
+    expect(added && findPage(added.book, "n1")?.binder?.id).toBe("n2")
+    const empty = addBinder(mixed, { title: "空", pageType: SLIDE }, undefined, sequence("n"))
+    expect(empty.binder).toBe("n1")
+    expect(lineupOf(empty.book).at(-1)).toEqual({ kind: "binder", id: "n1", title: "空", pageType: SLIDE, lineup: [] })
   })
 
   test("並びの決まりを破るブックは読めない", () => {

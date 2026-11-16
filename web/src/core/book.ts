@@ -4,7 +4,6 @@
 import { type CoreCatalog, pageType } from "./core-catalog"
 import { freshPageId } from "./ids"
 import { splitId } from "./names"
-import type { PaperChoice } from "./paper"
 import { type ItemPage, pageHolds, slideOf, walkShapes } from "./placed"
 import type { AnyPage, BinderEntry, Book, LineupEntry, Page } from "./schema/book"
 import { type Warning, warning } from "./warnings"
@@ -132,15 +131,45 @@ export type PageInto = { index?: number } | { binder: string; index?: number }
 const insertAt = <T>(list: readonly T[], item: T, index?: number): T[] =>
   index === undefined || index >= list.length ? [...list, item] : [...list.slice(0, index), item, ...list.slice(index)]
 
-// ページを into の所に足す（バインダを名指して無ければ、何も変えない）
-export function addPage<B extends Book>(book: B, page: ItemPage, into: PageInto = {}): B {
-  if (!("binder" in into)) return { ...book, lineup: insertAt<LineupEntry>(book.lineup, entryOf(page), into.index) }
-  return {
-    ...book,
-    lineup: book.lineup.map(e =>
-      e.kind === "binder" && e.id === into.binder ? { ...e, lineup: insertAt(e.lineup, entryOf(page), into.index) } : e,
-    ),
+// 新しいページを入れる所: PageInto か、一緒に作るバインダ newBinder の中（バインダは並びの index 番目。省けば末尾）
+export type NewPageInto = PageInto | { newBinder: NewBinder; index?: number }
+
+// まだブックに入れていないページとバインダ（id は、足すときに振る）
+export type NewPage = Omit<ItemPage, "id">
+export type NewBinder = Omit<BinderEntry, "id" | "kind" | "lineup">
+
+// ページ page（id を持たない中身）を into の所に足したブックと、振ったページの id（一緒にバインダを作ったなら、その id も）。名指したバインダが無ければ undefined。
+// id は newId の値そのまま（uuid）で、ブックのほかのページ・バインダと重ならない。ページの id を決めて足す口は無い（id はここで振る）
+export function addPage<B extends Book>(
+  book: B,
+  page: NewPage,
+  into: NewPageInto,
+  newId: () => string,
+): { book: B; page: string; binder?: string } | undefined {
+  const taken = lineupIds(book)
+  const id = freshPageId(newId, taken)
+  const { kind, ...rest } = page
+  const entry = entryOf({ kind, id, ...rest })
+  if ("newBinder" in into) {
+    const binder: BinderEntry = {
+      ...into.newBinder,
+      kind: "binder",
+      id: freshPageId(newId, [...taken, id]),
+      lineup: [entry],
+    }
+    return {
+      book: { ...book, lineup: insertAt<LineupEntry>(book.lineup, binder, into.index) },
+      page: id,
+      binder: binder.id,
+    }
   }
+  if (!("binder" in into))
+    return { book: { ...book, lineup: insertAt<LineupEntry>(book.lineup, entry, into.index) }, page: id }
+  if (!findBinder(book, into.binder)) return undefined
+  const lineup = book.lineup.map(e =>
+    e.kind === "binder" && e.id === into.binder ? { ...e, lineup: insertAt(e.lineup, entry, into.index) } : e,
+  )
+  return { book: { ...book, lineup }, page: id }
 }
 
 // ブック book から、id が page のページを除く
@@ -165,9 +194,15 @@ export function moveEntry<B extends Book>(book: B, id: string, index: number): B
   return { ...book, lineup: book.lineup.map(e => (e.kind === "binder" ? { ...e, lineup: moved(e.lineup) } : e)) }
 }
 
-// バインダを並びの index 番目に足す（省けば末尾）
-export function addBinder<B extends Book>(book: B, binder: BinderEntry, index?: number): B {
-  return { ...book, lineup: insertAt<LineupEntry>(book.lineup, binder, index) }
+// 空のバインダ binder（id を持たない）を並びの index 番目（省けば末尾）に足したブックと、振ったバインダの id（newId の値そのまま。ブックのほかの id と重ならない）
+export function addBinder<B extends Book>(
+  book: B,
+  binder: NewBinder,
+  index: number | undefined,
+  newId: () => string,
+): { book: B; binder: string } {
+  const made: BinderEntry = { ...binder, kind: "binder", id: freshPageId(newId, lineupIds(book)), lineup: [] }
+  return { book: { ...book, lineup: insertAt<LineupEntry>(book.lineup, made, index) }, binder: made.id }
 }
 
 // id のバインダを、f の返すバインダに替える（場所は変えない）
@@ -190,20 +225,11 @@ export function freeTitle(title: string, taken: readonly string[]): string {
 }
 
 // ブックの中の id（ページとバインダ）。新しい id を振るときに、重ならないようにする相手
-export const lineupIds = (book: Book): string[] => [...pagesOf(book).map(p => p.id), ...bindersOf(book).map(f => f.id)]
+const lineupIds = (book: Book): string[] => [...pagesOf(book).map(p => p.id), ...bindersOf(book).map(f => f.id)]
 
 // タイプのページで使えるアイテム（タイプの候補。データに置ける・引けるのはこの中だけ）
 export function allowedItems(catalog: CoreCatalog, page: Pick<Page, "type">): readonly string[] {
   return pageType(catalog, page.type).items.allowed
-}
-
-// 新しいページ（まだブックに入れていない）。id は newId の値（uuid。ブックのほかのページ・バインダと重ならない）
-export function newPage(
-  book: Book,
-  init: { type: string; title: string; grows?: Page["grows"] } & PaperChoice,
-  newId: () => string,
-): Page {
-  return { kind: "page", id: freshPageId(newId, lineupIds(book)), ...init }
 }
 
 // ブックかページの設定の項目（settings のフィールド）を変えた値: patch（項目の id → 値）の null の項目は消し、undefined の項目は変えない。

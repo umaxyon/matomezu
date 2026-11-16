@@ -3,10 +3,8 @@
 // ロックは写さない。伝言・マークなど物に付けた物は写さない。使えるのは、タイプが宣言した（duplicatesPages）ページだけ（宣言の無いタイプは、中の id を指す別のフィールドを持ちうるので断る）。
 // 写しの名前は、同じブックかバインダのほかのページと重ならない名前にする（渡した名前が重なれば断る。渡さなければ、元の名前に番号を付ける）
 import { z } from "zod"
-import { addPage, findPage, freeTitle, lineupIds, siblingsOf } from "../../../core/book"
+import { addPage, findPage, freeTitle, siblingsOf } from "../../../core/book"
 import { pageType } from "../../../core/core-catalog"
-import { freshPageId } from "../../../core/ids"
-import type { ItemPage } from "../../../core/placed"
 import { kit } from "../kit"
 import { renewedIds } from "../utils/ids"
 
@@ -28,16 +26,9 @@ export const PAGE_DUPLICATE = kit.defineAction({
     const titles = siblings.map(e => e.title)
     if (args.title !== undefined && titles.includes(args.title)) return null
     const { id: _id, locked: _locked, ...content } = at.page
-    const id = freshPageId(ctx.newId, lineupIds(book))
-    const page: ItemPage = {
-      ...renewedIds(at.page, content, ctx.newId),
-      id,
-      title: args.title ?? freeTitle(at.page.title, titles),
-    }
+    const copy = { ...renewedIds(at.page, content, ctx.newId), title: args.title ?? freeTitle(at.page.title, titles) }
     const index = siblings.findIndex(e => e.id === args.page) + 1
-    return {
-      next: addPage(book, page, at.binder ? { binder: at.binder.id, index } : { index }),
-      result: { page: page.id },
-    }
+    const added = addPage(book, copy, at.binder ? { binder: at.binder.id, index } : { index }, ctx.newId)
+    return added ? { next: added.book, result: { page: added.page } } : null
   },
 })

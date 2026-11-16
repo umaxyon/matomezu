@@ -172,19 +172,20 @@ test("ロックしたページは、並びの中で動かせる・複製でき�
 
 test("ブックが対象のアクションが振る id も、ブックのほかのページの中の id と重ならない（写したページの中の物の id）", () => {
   const shape = (id: string) => ({ id, item: "@matomezu/slide:slide-ellipse", x: 10, y: 10, w: 100, h: 60, props: {} })
-  // newId は n1・n2・… の順。n2 はほかのページの形が使っている
+  // newId は n1・n2・… の順。n1 はほかのページの形が使っている
   const two = testBook("b2", "2 枚", [
     testBinder(
       "b2-f1",
       "スライド",
       SLIDE,
       withSlide(slide("b2-s1"), [shape("a")]),
-      withSlide(slide("b2-s2"), [shape("n2")]),
+      withSlide(slide("b2-s2"), [shape("n1")]),
     ),
   ])
   const done = run(two, "@matomezu/base:page-duplicate", { page: "b2-s1" })
-  const copy = done.ok ? findPage(done.next, "n1")?.page : undefined
-  expect((copy as { slide?: { id: string }[] } | undefined)?.slide?.map(i => i.id)).toEqual(["n3"])
+  expect(done).toMatchObject({ ok: true, result: { page: "n3" } })
+  const copy = done.ok ? findPage(done.next, "n3")?.page : undefined
+  expect((copy as { slide?: { id: string }[] } | undefined)?.slide?.map(i => i.id)).toEqual(["n2"])
 })
 
 test("スライドのバインダの中は紙と向きがそろう: 足すページ・1 枚だけの変更は今の紙だけ、binder-update は全部のページに 1 回で付ける。別のバインダは別にそろう", () => {

@@ -6,7 +6,6 @@ import {
   addPage,
   findBinder,
   freeTitle,
-  lineupIds,
   lineupOf,
   moveEntry,
   pagesIn,
@@ -15,8 +14,6 @@ import {
   removeBinder,
 } from "../../../core/book"
 import { ORIENTATIONS } from "../../../core/def/paper"
-import { freshPageId } from "../../../core/ids"
-import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
 import { renewedIds } from "../utils/ids"
@@ -100,28 +97,24 @@ export const BINDER_DUPLICATE = kit.defineAction({
     if (!source) return null
     const titles = lineupOf(book).map(e => e.title)
     if (args.title !== undefined && titles.includes(args.title)) return null
-    const taken = lineupIds(book)
-    const fresh = () => {
-      const id = freshPageId(ctx.newId, taken)
-      taken.push(id)
-      return id
-    }
     // 中の物の id は、ページごとに振り直す（ブックのどの id とも、写しどうしでも重ならない。core が run の振る id を重ねない）
-    let next: Book = addBinder(
+    const { id: _binder, kind: _kind, lineup: _lineup, ...binder } = source
+    const made = addBinder(
       book,
-      { ...source, id: fresh(), title: args.title ?? freeTitle(source.title, titles), lineup: [] },
+      { ...binder, title: args.title ?? freeTitle(source.title, titles) },
       lineupOf(book).findIndex(e => e.id === source.id) + 1,
+      ctx.newId,
     )
-    const made = lineupOf(next)[lineupOf(book).findIndex(e => e.id === source.id) + 1]
-    if (made?.kind !== "binder") return null
+    let next: Book = made.book
     const pages: string[] = []
     for (const page of pagesIn(book, source.id)) {
       const { id: _id, locked: _locked, ...content } = page
-      const copy = { ...renewedIds(page, content, ctx.newId), id: fresh() } as ItemPage
-      pages.push(copy.id)
-      next = addPage(next, copy, { binder: made.id })
+      const added = addPage(next, renewedIds(page, content, ctx.newId), { binder: made.binder }, ctx.newId)
+      if (!added) return null
+      pages.push(added.page)
+      next = added.book
     }
-    return { next, result: { binder: made.id, pages } }
+    return { next, result: { binder: made.binder, pages } }
   },
 })
 

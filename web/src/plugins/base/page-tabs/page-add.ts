@@ -5,15 +5,13 @@
 // 足したページにタイプが問題を知らせれば断る（page-problems.ts）
 import { z } from "zod"
 import {
-  addBinder,
   addPage,
   findBinder,
   findPage,
   freeTitle,
-  lineupIds,
   lineupOf,
-  newPage,
-  type PageInto,
+  type NewPage,
+  type NewPageInto,
   pagesIn,
   putPage,
   withSettings,
@@ -21,7 +19,6 @@ import {
 import type { CoreCatalog } from "../../../core/core-catalog"
 import { GROW_CHOICES, ORIENTATIONS } from "../../../core/def/paper"
 import { translate } from "../../../core/i18n/i18n"
-import { freshPageId } from "../../../core/ids"
 import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import { settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
@@ -94,22 +91,18 @@ export function withNewPage(
       translate(catalog.messages, ctx.lang as never, kit.message("Untitled")),
       siblings.map(e => e.title),
     )
-  const fresh = newPage(book, { type: type.id, title, ...choice, ...(grows === undefined ? {} : { grows }) }, ctx.newId)
-  // 新しいバインダの id は、足すページとも、ブックのほかの id とも重ならない
-  const made =
+  const content: NewPage = { kind: "page", type: type.id, title, ...choice, ...(grows === undefined ? {} : { grows }) }
+  const into: NewPageInto =
     args.into && "newBinder" in args.into
-      ? {
-          kind: "binder" as const,
-          id: freshPageId(ctx.newId, [...lineupIds(book), fresh.id]),
-          title: args.into.newBinder,
-          pageType: type.id,
-          lineup: [],
-        }
-      : undefined
-  const into: PageInto = made ? { binder: made.id } : binder ? { binder: binder.id, index: at } : { index: at }
-  const based = made ? addBinder(book, made, args.index) : book
-  const placed = addPage(based, fresh as ItemPage, clean(into))
-  const written = writeFields(catalog, fresh, args.fields, "add", contentIdMaker(fresh as ItemPage, ctx.newId))
+      ? { newBinder: { title: args.into.newBinder, pageType: type.id }, ...indexOf(args.index) }
+      : binder
+        ? { binder: binder.id, ...indexOf(at) }
+        : indexOf(at)
+  const made = addPage(book, content, into, ctx.newId)
+  const fresh = made && findPage(made.book, made.page)?.page
+  if (!made || !fresh) return null
+  const placed = made.book
+  const written = writeFields(catalog, fresh, args.fields, "add", contentIdMaker(fresh, ctx.newId))
   if (!written) return null
   const next = settings
     ? settleBook(
@@ -117,23 +110,20 @@ export function withNewPage(
         putPage(placed, withSettings(written.page, settings.data as Record<string, unknown>) as ItemPage),
       )
     : putPage(placed, written.page as ItemPage)
-  const added = findPage(next, fresh.id)?.page
+  const added = findPage(next, made.page)?.page
   if (!added || pageProblem(catalog, added)) return null
   return {
     book: next,
     result: {
-      page: fresh.id,
-      ...(made ? { binder: made.id } : {}),
+      page: made.page,
+      ...(made.binder === undefined ? {} : { binder: made.binder }),
       ...(written.result === undefined ? {} : { fields: written.result }),
     },
   }
 }
 
 // index が無ければ、フィールドを持たない形にする（exactOptionalPropertyTypes のため）
-const clean = (into: { binder?: string; index?: number | undefined }): PageInto => {
-  const index = into.index === undefined ? {} : { index: into.index }
-  return into.binder === undefined ? index : { binder: into.binder, ...index }
-}
+const indexOf = (index: number | undefined): { index?: number } => (index === undefined ? {} : { index })
 
 export const PAGE_ADD = kit.defineAction({
   id: "page-add",
