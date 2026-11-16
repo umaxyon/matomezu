@@ -1,5 +1,6 @@
-// relay-log の記録を、時間順の一覧と詳細で見るページと、matomezu の MCP の結果の大きさのランキング（/mcp）を配る（中継と同じプロセスから
-// startViewer で立てる）。/api/timeline と /api/mcp は、記録するときに取り出した事実の表を読む
+// relay-log の記録を、時間順の一覧と詳細で見るページ（?open=<id> でその行を開く）と、セッションとサブエージェントの帯と矢印（/timeline）と、
+// matomezu の MCP の結果の大きさのランキング（/mcp）を配る（中継と同じプロセスから startViewer で立てる）。/timeline と /mcp は、
+// 記録するときに取り出した事実の表を読む
 // 127.0.0.1 だけで待ち受け、CORS は付けない。ページは定期的に読み直す。中身と返答は、その行の AI の部品が読む
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
@@ -27,6 +28,7 @@ export function spanOf(params: URLSearchParams, now = Date.now()): { from: strin
 export function startViewer({ store, port }: { store: Store; port: number }) {
   const html = readFileSync(join(import.meta.dir, "viewer.html"), "utf8")
   const mcpHtml = readFileSync(join(import.meta.dir, "mcp.html"), "utf8")
+  const timelineHtml = readFileSync(join(import.meta.dir, "timeline.html"), "utf8")
   const page = (text: string) => new Response(text, { headers: { "content-type": "text/html; charset=utf-8" } })
   return Bun.serve({
     port,
@@ -36,6 +38,7 @@ export function startViewer({ store, port }: { store: Store; port: number }) {
       const path = url.pathname
       if (path === "/") return page(html)
       if (path === "/mcp") return page(mcpHtml)
+      if (path === "/timeline") return page(timelineHtml)
       const session = url.searchParams.get("session") ?? undefined
       const asked = url.searchParams.get("client")
       const client = asked && asked in clients ? (asked as ClientName) : undefined

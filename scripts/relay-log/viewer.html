@@ -26,7 +26,7 @@
 </style>
 </head>
 <body>
-<header><b>relay-log</b><select id="client"><option value="">全部の AI</option><option value="claude">claude</option><option value="codex">codex</option></select><select id="session"><option value="">全セッション</option></select><span id="count"></span><span id="auto">3 秒ごとに読み直す</span><a href="/mcp">matomezu の結果のランキング</a></header>
+<header><b>relay-log</b><select id="client"><option value="">全部の AI</option><option value="claude">claude</option><option value="codex">codex</option></select><select id="session"><option value="">全セッション</option></select><span id="count"></span><span id="auto">3 秒ごとに読み直す</span><a href="/timeline">タイムライン</a><a href="/mcp">matomezu の結果のランキング</a></header>
 <table>
   <thead><tr>
     <th class="n">#</th><th>AI</th><th>セッション</th><th>時刻</th><th>流れ</th><th>model</th><th class="n">msgs</th><th class="n">input</th>
@@ -55,6 +55,7 @@ function renderRows() {
   for (const e of entries) {
     const u = e.tokens, s = e.summary
     const tr = el("tr", { className: "row" + (open.has(e.id) ? " open" : "") })
+    tr.dataset.id = e.id
     tr.append(
       cell(e.id, "n"), cell(e.client), cell(e.session), cell(new Date(e.at).toLocaleTimeString()), cell(e.stream, "muted"), cell(s.model),
       cell(s.messages, "n"), cell(num(u.input), "n"), cell(num(u.cacheRead), "n"),
@@ -161,6 +162,16 @@ async function load() {
   const query = new URLSearchParams({ ...(select.value ? { session: select.value } : {}), ...(client ? { client } : {}) })
   const next = await get("/api/entries?" + query)
   if (next.length !== entries.length || next.at(-1)?.id !== entries.at(-1)?.id) { entries = next; renderRows() }
+  showAsked()
+}
+// ?open=<id>（タイムラインの点から来たとき）は、最初に読めたときに 1 度だけ、その行を開いて見える所へ送る
+let asked = Number(new URLSearchParams(location.search).get("open")) || undefined
+function showAsked() {
+  if (!asked || !entries.some(e => e.id === asked)) return
+  open.add(asked)
+  renderRows()
+  document.querySelector(`tr[data-id="${asked}"]`)?.scrollIntoView({ block: "center" })
+  asked = undefined
 }
 document.getElementById("session").onchange = () => { entries = []; renderRows(); load() }
 document.getElementById("client").onchange = () => { entries = []; renderRows(); load() }

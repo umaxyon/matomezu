@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>relay-log タイムライン</title>
+<style>
+  :root {
+    --bg:#fff; --fg:#1f2328; --muted:#6a737d; --line:#d8dee4; --band:#f6f8fa; --err:#c62828;
+    --call:#2a78d6; --return:#1baf7a; --resume:#2a78d6; --sendmessage:#eb6834; --send_message:#6250d6;
+    --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#6250d6; --s8:#e34948; --other:#9aa1a9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#14181d; --fg:#d7dde3; --muted:#8b949e; --line:#2d333b; --band:#1a1f26; --err:#ef7070;
+      --call:#3987e5; --return:#199e70; --resume:#3987e5; --sendmessage:#d95926; --send_message:#9085e9;
+      --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#0ca30c; --s7:#9085e9; --s8:#e66767; --other:#6e7681;
+    }
+  }
+  body { margin:0; background:var(--bg); color:var(--fg); font:13px/1.5 ui-monospace,Menlo,Consolas,monospace; }
+  header { display:flex; flex-wrap:wrap; gap:12px 16px; align-items:center; padding:8px 16px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); z-index:1; }
+  header b { font-size:14px; } header span { color:var(--muted); } a { color:inherit; }
+  main { padding:8px 16px 32px; }
+  h3 { margin:16px 0 6px; font-size:13px; } h3 span { color:var(--muted); font-weight:normal; }
+  .legend { display:flex; flex-wrap:wrap; gap:4px 16px; color:var(--muted); }
+  .legend svg { vertical-align:middle; }
+  svg text { fill:var(--muted); font:11px ui-monospace,Menlo,Consolas,monospace; }
+  svg .label { fill:var(--fg); }
+  .dot { cursor:pointer; }
+  table { border-collapse:collapse; }
+  th, td { text-align:right; padding:3px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th { color:var(--muted); font-weight:normal; } th:first-child, td:first-child { text-align:left; }
+  .swatch { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px; vertical-align:-1px; }
+  .muted { color:var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <a href="/">一覧へ</a><b>タイムライン</b>
+  <label>期間 <select id="span">
+    <option value="0.25">15 分</option><option value="1">1 時間</option><option value="3" selected>3 時間</option><option value="6">6 時間</option>
+    <option value="12">12 時間</option><option value="24">24 時間</option><option value="72">3 日</option><option value="168">7 日</option>
+  </select></label>
+  <label>終わり <input type="datetime-local" id="end"></label>
+  <button type="button" id="now">今まで</button>
+  <button type="button" id="reload">読み直す</button>
+  <span id="count"></span>
+</header>
+<main>
+  <div class="legend" id="legend"></div>
+  <h3>セッションとサブエージェント <span>（点を押すと、そのリクエストの詳細へ。最後に動いた順）</span></h3>
+  <div id="bands"></div>
+  <h3>コンテキストの大きさ <span>（input + cache_read + cache_new のトークン。サブエージェントは細い破線）</span></h3>
+  <div id="chart"></div>
+  <h3>セッションごと</h3>
+  <table>
+    <thead><tr><th>セッション</th><th>AI</th><th>リクエスト</th><th>トークンの合計</th><th>キャッシュの率</th><th>コンテキストの最大</th><th>matomezu の割合</th></tr></thead>
+    <tbody id="stats"></tbody>
+  </table>
+</main>
+<script>
+const NS = "http://www.w3.org/2000/svg"
+const LEFT = 220, RIGHT = 16, MAIN_H = 26, CHILD_H = 16
+const KINDS = [
+  { kind: "call", label: "サブエージェントの呼び出し", color: "var(--call)", dash: "" },
+  { kind: "return", label: "サブエージェントの戻り", color: "var(--return)", dash: "" },
+  { kind: "resume", label: "再開（親から子へ SendMessage）", color: "var(--resume)", dash: "5 3" },
+  { kind: "SendMessage", label: "セッション間の SendMessage", color: "var(--sendmessage)", dash: "" },
+  { kind: "send_message", label: "matomezu の send_message", color: "var(--send_message)", dash: "2 3" },
+]
+const num = n => n.toLocaleString("en-US")
+const pct = r => r === null ? "-" : `${Math.round(r * 100)}%`
+const el = (tag, props = {}, ...kids) => {
+  const e = Object.assign(document.createElement(tag), props)
+  for (const k of kids) e.append(k)
+  return e
+}
+const svg = (tag, attrs = {}, ...kids) => {
+  const e = document.createElementNS(NS, tag)
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v)
+  for (const k of kids) e.append(k)
+  return e
+}
+const title = text => svg("title", {}, text)
+
+// セッションの色は、最後に動いた順の上から 8 つ。ほかは灰色
+const colorOf = i => i < 8 ? `var(--s${i + 1})` : "var(--other)"
+
+function legend() {
+  const box = document.getElementById("legend")
+  box.replaceChildren(...KINDS.map(k => el("span", {},
+    svg("svg", { width: 34, height: 10 }, svg("line", { x1: 2, y1: 5, x2: 32, y2: 5, stroke: k.color, "stroke-width": 2, "stroke-dasharray": k.dash, "marker-end": `url(#head-${k.kind})` })),
+    " " + k.label)))
+}
+
+function markers() {
+  return svg("defs", {}, ...KINDS.map(k => svg("marker", { id: `head-${k.kind}`, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 6, markerHeight: 6, orient: "auto-start-reverse" },
+    svg("path", { d: "M0,0 L10,5 L0,10 z", fill: k.color }))))
+}
+
+// 目盛りの間隔は、期間に 4〜10 本入る物
+function ticks(from, to) {
+  const steps = [5, 10, 15, 30, 60, 120, 180, 360, 720, 1440].map(m => m * 60000)
+  const step = steps.find(s => (to - from) / s <= 10) ?? steps.at(-1)
+  const out = []
+  for (let t = Math.ceil(from / step) * step; t <= to; t += step) out.push(t)
+  return out
+}
+const tickLabel = (t, span) => {
+  const d = new Date(t)
+  const hm = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  return span > 86400000 ? `${d.getMonth() + 1}/${d.getDate()} ${hm}` : hm
+}
+
+function axis(g, x, from, to, top, bottom) {
+  for (const t of ticks(from, to)) {
+    g.append(svg("line", { x1: x(t), x2: x(t), y1: top, y2: bottom, stroke: "var(--line)" }))
+    g.append(svg("text", { x: x(t), y: top - 4, "text-anchor": "middle" }, tickLabel(t, to - from)))
+  }
+}
+
+function threadName(t) {
+  if (t.thread === "main") return "main"
+  if (t.thread === "unnamed-agent") return "サブエージェント（どの子か記録なし）"
+  return t.agent ? `${t.agent.type} ${t.agent.description}` : `サブエージェント ${t.thread.slice(0, 8)}`
+}
+
+function drawBands(tl, width, from, to) {
+  const x = t => LEFT + ((t - from) / (to - from)) * (width - LEFT - RIGHT)
+  const clampX = t => Math.min(width - RIGHT, Math.max(LEFT, x(t)))
+  const rows = new Map()
+  let y = 24
+  const g = svg("g")
+  const back = svg("g")
+  tl.sessions.forEach((s, i) => {
+    s.threads.forEach((t, j) => {
+      const h = j === 0 ? MAIN_H : CHILD_H
+      const cy = y + h / 2
+      rows.set(`${s.session}\t${t.thread}`, cy)
+      if (j === 0) back.append(svg("rect", { x: 0, y, width, height: h, fill: "var(--band)" }))
+      else back.append(svg("rect", { x: LEFT, y: y + 2, width: width - LEFT - RIGHT, height: h - 4, fill: "var(--band)", rx: 2 }))
+      const name = j === 0 ? s.session : threadName(t)
+      // 名前は帯の左の欄に収まる字数で切る（全部は title に出す）
+      const room = Math.floor((LEFT - 24 - t.depth * 14) / 7) - (j === 0 ? 0 : 2)
+      const shown = name.length > room ? `${name.slice(0, room - 1)}…` : name
+      const label = svg("text", { x: 8 + t.depth * 14, y: cy + 4, class: j === 0 ? "label" : "" }, (j === 0 ? "" : "└ ") + shown)
+      label.append(title(j === 0 ? `${s.session}（${s.client}）` : `${name}\n${t.thread}`))
+      g.append(label)
+      if (j === 0) g.append(svg("rect", { x: LEFT - 14, y: cy - 5, width: 10, height: 10, rx: 2, fill: colorOf(i) }))
+      for (const p of t.points) {
+        const dot = svg("circle", {
+          class: "dot", cx: x(Date.parse(p.at)), cy, r: j === 0 ? 4 : 3,
+          fill: p.mark === "error" ? "var(--bg)" : p.mark === "probe" ? "var(--other)" : colorOf(i),
+          stroke: p.mark === "error" ? "var(--err)" : "var(--bg)", "stroke-width": p.mark === "error" ? 2 : 1,
+        })
+        dot.append(title(`#${p.id} ${new Date(p.at).toLocaleString()}\nコンテキスト ${num(p.context)}${p.mark === "error" ? "\nエラー" : p.mark === "probe" ? "\n枠の確かめ" : ""}`))
+        dot.onclick = () => { location.href = `/?open=${p.id}` }
+        g.append(dot)
+      }
+      y += h
+    })
+    y += 6
+  })
+  const height = Math.max(y, 60)
+  const ax = svg("g")
+  axis(ax, x, from, to, 20, height)
+  const arrows = svg("g", { fill: "none" })
+  for (const a of tl.arrows) {
+    const y1 = rows.get(`${a.from.session}\t${a.from.thread}`), y2 = rows.get(`${a.to.session}\t${a.to.thread}`)
+    if (y1 === undefined || y2 === undefined) continue
+    const k = KINDS.find(k => k.kind === a.kind)
+    const x1 = clampX(Date.parse(a.from.at)), x2 = clampX(Date.parse(a.to.at))
+    const bend = Math.max(12, Math.min(60, Math.abs(y2 - y1) / 3))
+    const path = svg("path", {
+      d: `M${x1},${y1} C${x1 + bend},${y1} ${x2 - bend},${y2} ${x2},${y2}`,
+      stroke: k.color, "stroke-width": 1.5, "stroke-dasharray": k.dash, "marker-end": `url(#head-${k.kind})`, opacity: 0.85,
+    })
+    path.append(title(`${k.label}\n#${a.from.id} → #${a.to.id}`))
+    arrows.append(path)
+  }
+  const box = document.getElementById("bands")
+  box.replaceChildren(svg("svg", { width, height }, markers(), back, ax, arrows, g))
+  if (tl.sessions.length === 0) box.append(el("div", { className: "muted", textContent: "この期間の記録が無い" }))
+}
+
+function drawChart(tl, width, from, to) {
+  const height = 220, top = 20, bottom = height - 20
+  const x = t => LEFT + ((t - from) / (to - from)) * (width - LEFT - RIGHT)
+  const max = Math.max(1, ...tl.sessions.flatMap(s => s.threads.flatMap(t => t.points.filter(p => !p.mark).map(p => p.context))))
+  const y = v => bottom - (v / max) * (bottom - top)
+  const g = svg("g")
+  axis(g, x, from, to, top, bottom)
+  for (let i = 0; i <= 4; i++) {
+    const v = (max / 4) * i
+    g.append(svg("line", { x1: LEFT, x2: width - RIGHT, y1: y(v), y2: y(v), stroke: "var(--line)" }))
+    g.append(svg("text", { x: LEFT - 6, y: y(v) + 4, "text-anchor": "end" }, num(Math.round(v))))
+  }
+  tl.sessions.forEach((s, i) => {
+    for (const t of s.threads) {
+      const pts = t.points.filter(p => !p.mark && p.context > 0)
+      if (pts.length === 0) continue
+      const child = t.thread !== "main"
+      const line = svg("polyline", {
+        points: pts.map(p => `${x(Date.parse(p.at))},${y(p.context)}`).join(" "),
+        fill: "none", stroke: colorOf(i), "stroke-width": child ? 1 : 2, "stroke-dasharray": child ? "3 2" : "",
+        "stroke-linejoin": "round", opacity: child ? 0.7 : 1,
+      })
+      line.append(title(`${s.session}${child ? ` / ${threadName(t)}` : ""}`))
+      g.append(line)
+      for (const p of pts) {
+        const hit = svg("circle", { class: "dot", cx: x(Date.parse(p.at)), cy: y(p.context), r: 4, fill: "transparent" })
+        hit.append(title(`${s.session}${child ? ` / ${threadName(t)}` : ""}\n#${p.id} ${new Date(p.at).toLocaleTimeString()}\n${num(p.context)} トークン`))
+        hit.onclick = () => { location.href = `/?open=${p.id}` }
+        g.append(hit)
+      }
+    }
+  })
+  document.getElementById("chart").replaceChildren(svg("svg", { width, height }, g))
+}
+
+function drawStats(tl) {
+  document.getElementById("stats").replaceChildren(...tl.sessions.map((s, i) => {
+    const t = s.stats
+    return el("tr", {},
+      el("td", {}, el("span", { className: "swatch", style: `background:${colorOf(i)}` }), s.session),
+      el("td", { textContent: s.client }),
+      el("td", { textContent: num(t.requests) }),
+      el("td", { textContent: num(t.input + t.cacheRead + t.cacheNew + t.output) }),
+      el("td", { textContent: pct(t.cacheRate) }),
+      el("td", { textContent: num(t.maxContext) }),
+      el("td", { textContent: pct(t.matomezuShare) }))
+  }))
+}
+
+let last
+function draw() {
+  if (!last) return
+  const main = document.querySelector("main")
+  const pad = parseFloat(getComputedStyle(main).paddingLeft) + parseFloat(getComputedStyle(main).paddingRight)
+  const width = Math.max(600, main.clientWidth - pad)
+  const from = Date.parse(last.from), to = Date.parse(last.to)
+  drawBands(last, width, from, to)
+  drawChart(last, width, from, to)
+  drawStats(last)
+  const n = last.sessions.reduce((a, s) => a + s.stats.requests, 0)
+  document.getElementById("count").textContent = `${last.sessions.length} セッション ${num(n)} リクエスト 矢印 ${last.arrows.length}`
+}
+
+async function load() {
+  const hours = Number(document.getElementById("span").value)
+  const endValue = document.getElementById("end").value
+  const to = endValue ? new Date(endValue).getTime() : Date.now()
+  const query = new URLSearchParams({ from: new Date(to - hours * 3600000).toISOString(), to: new Date(to).toISOString() })
+  last = await (await fetch("/api/timeline?" + query)).json()
+  draw()
+}
+legend()
+document.getElementById("span").onchange = load
+document.getElementById("end").onchange = load
+document.getElementById("now").onclick = () => { document.getElementById("end").value = ""; load() }
+document.getElementById("reload").onclick = load
+addEventListener("resize", draw)
+load()
+// 終わりが今のときは、10 秒ごとに読み直す
+setInterval(() => { if (!document.getElementById("end").value) load() }, 10000)
+</script>
+</body>
+</html>

@@ -7,7 +7,8 @@
 //     matomezu に join したときのワークルーム名（本文に入る Workroom name の行を拾う。join し直せば名前も変わる）。join 前は
 //     session_id の 8 字。道の頭のあとに /s/<名前> を付けたときは、join 前の名前になる（/s/<名前> は外して渡す）
 //     scripts/claude-relay.sh・scripts/codex-relay.sh [AI の引数...] がこれを立てて claude・codex を起動する
-//     ビューワー（時間順の一覧と詳細、セッションと AI の絞り込み、/mcp のランキング）は --view-port で同じプロセスが配る
+//     ビューワー（時間順の一覧と詳細、セッションと AI の絞り込み、/timeline のセッションとサブエージェントの帯、/mcp のランキング）は
+//     --view-port で同じプロセスが配る
 //     --pid-file には待ち受けを始めたあとで自分の pid を書く（起こした側の $! は setsid が間に入ると別のプロセスになる）
 //     --no-body のときは本文（会話の全文が入る）を残さず、数字の要約だけにする。認証のヘッダーの値はどちらにも残さない
 //   bun scripts/relay-log.ts report [--db ...] [--session <名前>]   リクエストごとの表と、大きい結果の上位にまとめる
