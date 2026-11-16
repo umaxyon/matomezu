@@ -3,7 +3,7 @@
 
 import type { ActionId, ActionTable, CommandExtras, ContextMenuId, ContextMenuTable, MenuId } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
-import type { ArgsOfType, Where } from "../../core/def/action"
+import { ANY_PAGE_TYPE, type ArgsOfType, type Where } from "../../core/def/action"
 import type { PluginStateDef } from "../../core/def/plugin-state"
 import { fail } from "../../core/errors"
 import type { Point } from "../../core/geom"
@@ -18,12 +18,15 @@ import type { BoundPlaceActions, Settings, WindowActions } from "../store"
 
 // コマンドの許可スコープ: "book" はページもアイテムも変えない、"opened-page" は開いているページ、"selection" はその選んでいる物（形の中身やページのフィールドの中の物も含む）。
 // { page } には、ページの id が入っている引数の名前を書く（右クリックしたページのように、引数が所を決めるとき）。
+// { entry } には並びの要素（ページかフォルダ）の id、{ creates } には作るページのタイプの id が入っている引数の名前を書く（アクションの許可スコープと同じ）。
 // 言葉で言えなければ、呼ばれた場所の様子と引数（まだ無ければ undefined）から所を返す関数
 export type CommandScope<A = unknown> =
   | "book"
   | "opened-page"
   | "selection"
   | { page: ArgsOfType<A, string> }
+  | { entry: ArgsOfType<A, string> }
+  | { creates: ArgsOfType<A, string> }
   | ((ctx: CommandContext, args: A | undefined) => Where)
 
 // 表に並べたコマンドの許可スコープ（引数の形を問わない形。書くときの型は CommandScope<A>）
@@ -32,6 +35,8 @@ export type AnyCommandScope =
   | "opened-page"
   | "selection"
   | { page: string }
+  | { entry: string }
+  | { creates: string }
   | ((ctx: CommandContext, args: never) => Where)
 
 // 呼ばれた場所の様子 ctx と引数 args（まだ無ければ undefined）での、コマンドの許可スコープの所
@@ -43,6 +48,13 @@ export function commandScopeOf(
   if (scope === undefined) return undefined
   if (scope === "book") return {}
   if (typeof scope === "function") return scope(ctx, args as never)
+  if (typeof scope === "object" && ("entry" in scope || "creates" in scope)) {
+    const key = "entry" in scope ? scope.entry : scope.creates
+    const value = typeof args === "object" && args !== null ? (args as Record<string, unknown>)[key] : undefined
+    // 作るタイプがまだ無ければ、どれかのタイプを作るとして問う（並びの要素がまだ無ければ、分からない）
+    if ("creates" in scope) return { creates: typeof value === "string" ? value : ANY_PAGE_TYPE }
+    return typeof value === "string" ? { entries: [value] } : undefined
+  }
   if (typeof scope === "object") {
     const page = typeof args === "object" && args !== null ? (args as Record<string, unknown>)[scope.page] : undefined
     // 引数がまだ無ければ、所は分からない（問う側が、開いているページで問う）

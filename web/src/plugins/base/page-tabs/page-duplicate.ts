@@ -20,7 +20,7 @@ export const PAGE_DUPLICATE = kit.defineAction({
   title: "Duplicate page",
   target: "book",
   args: ARGS,
-  permissionScope: "book",
+  permissionScope: { entry: "page" },
   run: (book, args, ctx) => {
     const at = findPage(book, args.page)
     if (!at || !pageType(ctx.catalog, at.page.type).duplicatesPages) return null

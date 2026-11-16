@@ -3,10 +3,18 @@
 // ステップ（steps）は見る順に並べ、最初に値のあったステップで決まる（決まった後のステップも並べる）。ステップの出どころは文ではなくデータで返す
 
 import { type Actor, hasJoined, isAI, USER } from "./actor"
-import { pagesOf } from "./book"
+import { findFolder, findPage, pagesOf } from "./book"
 import type { ActionId, SubjectId } from "./catalog"
 import { type CoreCatalog, pageType } from "./core-catalog"
-import { type ActionContext, type ActionDef, attachedTo, BASE_TARGETS, isOnBook, type Where } from "./def/action"
+import {
+  type ActionContext,
+  type ActionDef,
+  ANY_PAGE_TYPE,
+  attachedTo,
+  BASE_TARGETS,
+  isOnBook,
+  type Where,
+} from "./def/action"
 import type { ControlCenterDef } from "./def/control-center"
 import type { PageTypeDef } from "./def/page-type"
 import type { PermissionQuery, Referred } from "./def/permission"
@@ -99,46 +107,54 @@ function typeSteps(def: ActionDef, type: PageTypeDef): Step<boolean>[] {
 }
 
 // アクション def を、ブック book の所 where で使えるかのステップ。
-// - 所がページを名指す（page か、ページの中の物 ids）: そのページのタイプで決める（いくつものタイプにまたがるなら、どのタイプでも使えるときだけ）
+// - 所がページのタイプを決める（ページ page・その中の物 ids・並びの要素 entries・作るページ creates）: そのタイプで決める（いくつものタイプにまたがるなら、どのタイプでも使えるときだけ）
+// - 作るページのタイプがまだ分からない（ANY_PAGE_TYPE）: どれかのタイプで使えるか
 // - アノテーションが対象で所が無い: ブックのどれかのページのタイプで使えるか（結び付く物のページごとの確かめは、行った後。core/annotation.ts）
-// - ほか（ブック全体が対象）: タイプに依らない付く先（attach の books）だけで決める
+// - ほか（入れ物自身が対象）: タイプに依らない付く先（attach の books）だけで決める
 function placeSteps(catalog: CoreCatalog, def: ActionDef, book: Book, where: Where | undefined): Step<boolean>[] {
-  const types = typesAt(catalog, def, book, where)
-  if (types === "missing") return [{ from: { source: "action", id: def.id, field: "run" }, value: true }]
-  if (types === null)
+  const at = typesAt(catalog, def, book, where)
+  if (at === "missing") return [{ from: { source: "action", id: def.id, field: "run" }, value: true }]
+  if (at === null)
     return [{ from: { source: "action", id: def.id, field: "attach.books" }, value: def.attach?.books === true }]
-  const [first, ...rest] = types.map(t => typeSteps(def, t))
+  const [first, ...rest] = at.types.map(t => typeSteps(def, t))
   if (!first) return [{ from: { source: "action", id: def.id, field: "attach.books" }, value: false }]
-  if (def.target === "annotations" && where === undefined)
-    return [first, ...rest].find(steps => decide(steps).value === true) ?? first
+  if (at.need === "some") return [first, ...rest].find(steps => decide(steps).value === true) ?? first
   return [first, ...rest].find(steps => decide(steps).value !== true) ?? first
 }
 
-// 所 where が名指すページのタイプ（重ねずに）。ページを名指さなければ null（アノテーションが対象なら、ブックの全部のページのタイプ）。
-// 名指したページ・物がブックに無ければ "missing"（タイプでは決められない。無い物は run が断る）
+// 所 where が決めるページのタイプ（重ねずに）と、どのタイプでも使えることが要るか（every）、どれかで使えればよいか（some）。
+// 所がページのタイプを決めなければ null（入れ物自身）。名指したページ・物・並びの要素・作るタイプが無ければ "missing"（タイプでは決められない。無い物は run が断る）
 function typesAt(
   catalog: CoreCatalog,
   def: ActionDef,
   book: Book,
   where: Where | undefined,
-): PageTypeDef[] | "missing" | null {
+): { types: PageTypeDef[]; need: "every" | "some" } | "missing" | null {
   // 許可スコープが "book" のアクションは、問う側が所を添えても、ページのタイプでは決めない（画面と perform で答えが割れないように）
   if (def.target === "book" && def.permissionScope === "book") return null
+  const every = (ids: readonly (string | undefined)[]) =>
+    (ids.length === 0 && def.target !== "annotations") || ids.includes(undefined)
+      ? ("missing" as const)
+      : { types: [...new Set(ids)].flatMap(t => (t ? [pageType(catalog, t)] : [])), need: "every" as const }
+  if (where?.creates === ANY_PAGE_TYPE) return { types: [...catalog.pageTypes.values()], need: "some" }
+  if (where?.creates !== undefined) return every([catalog.pageTypes.get(where.creates)?.id])
+  if (where?.entries !== undefined)
+    return every(where.entries.map(id => findPage(book, id)?.page.type ?? findFolder(book, id)?.pageType))
   const pages = pagesOf(book)
-  const named =
-    where?.page !== undefined
-      ? pages.filter(p => p.id === where.page)
-      : where?.ids !== undefined
-        ? pages.filter(({ id: _page, ...content }) => {
-            const ids = new Set(idsIn(content))
-            return where.ids?.some(id => ids.has(id))
-          })
-        : def.target === "annotations"
-          ? pages
-          : null
-  if (named === null) return null
-  if (named.length === 0 && def.target !== "annotations") return "missing"
-  return [...new Set(named.map(p => p.type))].map(t => pageType(catalog, t))
+  if (where?.page !== undefined) return every(pages.filter(p => p.id === where.page).map(p => p.type))
+  if (where?.ids !== undefined)
+    return every(
+      pages
+        .filter(({ id: _page, ...content }) => {
+          const ids = new Set(idsIn(content))
+          return where.ids?.some(id => ids.has(id))
+        })
+        .map(p => p.type),
+    )
+  // アノテーションが対象で所が無ければ、ブックのどれかのページのタイプ（ページが 1 枚も無ければ、使えない）
+  return def.target === "annotations"
+    ? { types: [...new Set(pages.map(p => p.type))].map(t => pageType(catalog, t)), need: "some" }
+    : null
 }
 
 // 答え answer を決めたのが、所のステップ（ページのタイプとアクションの付く先）か

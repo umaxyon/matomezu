@@ -134,10 +134,10 @@ test("アクションの結果でページのタイプが替わっていたら�
 })
 
 test('台帳アセンブル: "book" スコープのアクションがタイプで決まる付く先を持つと E063、設定の項目の holder の書き違いは E064・E065', () => {
-  const addPage = BUILTIN_PARTS.actions.find(a => a.id === PAGE_ADD.id)!
-  const typed = { ...addPage, attach: { items: ["@matomezu/box:shape-nest-box"] } }
+  const whole = BUILTIN_PARTS.actions.find(a => a.id === "@matomezu/base:book-update")!
+  const typed = { ...whole, attach: { items: ["@matomezu/box:shape-nest-box"] } }
   expect(
-    checkCoreCatalog({ ...BUILTIN_PARTS, actions: BUILTIN_PARTS.actions.map(a => (a === addPage ? typed : a)) }).map(
+    checkCoreCatalog({ ...BUILTIN_PARTS, actions: BUILTIN_PARTS.actions.map(a => (a === whole ? typed : a)) }).map(
       p => p.code,
     ),
   ).toEqual(["E063"])
@@ -154,4 +154,15 @@ test('台帳アセンブル: "book" スコープのアクションがタイプ�
       .map(p => p.code)
       .filter(c => c !== "E062"), // holder を外した項目を選んでいるタイプは、E062 にもなる
   ).toEqual(["E064", "E065"])
+})
+
+test("ロックしたページは、並びの中で動かせる・複製できる（中身は変えない）。無いフォルダを名指せば refused", () => {
+  const locked = putPage(book, { ...slide("s1"), locked: true } as never)
+  expect(run(locked, "@matomezu/base:page-move", { page: "s1", index: 1 })).toMatchObject({ ok: true })
+  expect(run(locked, "@matomezu/base:page-duplicate", { page: "s1" })).toMatchObject({ ok: true })
+  expect(run(locked, "@matomezu/base:page-update", { page: "s1", title: "別" })).toMatchObject({
+    ok: false,
+    reason: "denied",
+  })
+  expect(run(book, FOLDER_REMOVE.id, { folder: "nope" })).toEqual({ ok: false, reason: "refused" })
 })

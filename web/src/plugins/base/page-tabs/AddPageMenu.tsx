@@ -55,23 +55,27 @@ export function AddPageMenu({ first }: { first: string | null }) {
 
 // メニュー add-page-menu の行: タイプごとに 1 行
 export function AddPageRows({ menu, close }: { menu: OpenedContextMenu; close(): void }) {
-  const t = useMessages(kit)
   const catalog = useCatalog().core
-  const icons = useUiCatalog().pageTypeIcons
-  const newPage = useCommand(PAGE_NEW.id)
   const { first } = menu.target as { first: string | null }
-  return typesToAdd(catalog, first).map(id => {
-    const type = catalog.pageTypes.get(id)
-    return (
-      <MenuRow
-        key={id}
-        icon={icons.get(id) ?? <FileIcon />}
-        label={type ? t(type.title) : id}
-        onPick={() => {
-          close()
-          newPage.run({ type: id })
-        }}
-      />
-    )
-  })
+  return typesToAdd(catalog, first).map(id => <AddPageRow key={id} type={id} close={close} />)
+}
+
+// タイプ type の行: そのタイプのページを足せなければ（タイプがページを足すアクションを外している）出さず、認可ステップが止めるなら出したまま押せなくする
+function AddPageRow({ type, close }: { type: string; close(): void }) {
+  const t = useMessages(kit)
+  const def = useCatalog().core.pageTypes.get(type)
+  const icon = useUiCatalog().pageTypeIcons.get(type)
+  const newPage = useCommand(PAGE_NEW.id, { type })
+  if (!newPage.shown) return null
+  return (
+    <MenuRow
+      icon={icon ?? <FileIcon />}
+      label={def ? t(def.title) : type}
+      disabled={!newPage.enabled}
+      onPick={() => {
+        close()
+        newPage.run({ type })
+      }}
+    />
+  )
 }

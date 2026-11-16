@@ -142,28 +142,42 @@ export function attachedTo(def: Pick<ActionDef, "attach">, type: PageTypeDef): b
   )
 }
 
-// ブックの中の所: page はページの id、ids はそのページの中の id を持つ物（アイテム・形の中身・ページのフィールドの中の物）の id、allPages はページを含むブックの全部（どのページも変える）
+// 作るページのタイプが、まだ分からない（どれかのタイプのページを作る。ページを足す入口のボタンなど、タイプを選ぶ前の問い）
+export const ANY_PAGE_TYPE = "any"
+
+// 変える所。中身を変える所: page はページの id、ids はそのページの中の id を持つ物（アイテム・形の中身・ページのフィールドの中の物）の id、allPages はどのページも変える。
+// 並びを変える所（ページの中身は変えない）: entries は動かす・複製する・消す・名前を変える並びの要素（ページかフォルダ）の id、creates は作るページのタイプの id（まだ分からなければ ANY_PAGE_TYPE）。
+// どれも無ければ、入れ物自身（名前・入れ物が持つ設定など）
 export interface Where {
   page?: string
   ids?: readonly string[]
   allPages?: true
+  entries?: readonly string[]
+  creates?: string
 }
 
 // 引数の形 A のうち、値の型が V に当たる引数の名前
 export type ArgsOfType<A, V> = { [K in keyof A & string]-?: NonNullable<A[K]> extends V ? K : never }[keyof A & string]
 
-// 許可スコープ: ブックが対象のアクションが、ブックのどこを変えるかの宣言。認可ステップは、行う前にこの所で問う。
-// "book" はページもアイテムも変えない。page・item・items には、ページの id・アイテムの id・アイテムの id の並びが入っている引数の名前を書く。
-// 引数の名前で言えなければ、引数から所を返す関数を書く
+// 許可スコープ: ブックが対象のアクションが、どこを変えるかの宣言。認可ステップは、行う前にこの所で問い、使えるかを決めるページのタイプも、この所から決まる
+// （ページとその中の物ならそのページのタイプ、並びの要素ならそのページのタイプかフォルダに入るページのタイプ、作るページならそのタイプ）。
+// "book" は入れ物自身だけを変える（ページもアイテムも並びも変えない。ページのタイプでは決まらない）。
+// page・item・items には、ページの id・アイテムの id・アイテムの id の並びが入っている引数の名前を書く（ページの中身を変える）。
+// entry には、並びの要素（ページかフォルダ）の id が入っている引数の名前を書く（中身を変えずに、動かす・複製する・消す・名前を変える）。
+// creates には、作るページのタイプの id が入っている引数の名前を書く。引数の名前で言えなければ、引数から所を返す関数を書く
 export type PermissionScope<A = unknown> =
   | "book"
   | { page: ArgsOfType<A, string>; item?: ArgsOfType<A, string>; items?: ArgsOfType<A, readonly string[]> }
+  | { entry: ArgsOfType<A, string> }
+  | { creates: ArgsOfType<A, string> }
   | ((args: A) => Where)
 
 // 表に並べたアクションの許可スコープ（引数の形を問わない形。書くときの型は PermissionScope<A>）
 export type AnyPermissionScope =
   | "book"
   | { page: string; item?: string | undefined; items?: string | undefined }
+  | { entry: string }
+  | { creates: string }
   | ((args: never) => Where)
 
 // 利用者の設定が対象のアクションの許可スコープ: どの項目を変えるかの宣言。使えるかは、行う前に項目ごとに問う（core/inspect.ts）。
@@ -227,6 +241,14 @@ export function scopeOf(scope: AnyPermissionScope | undefined, args: unknown): W
   if (typeof scope === "function") return (scope as (args: unknown) => Where)(args)
   const a = args as Record<string, unknown>
   const id = (k: string | undefined) => (k !== undefined && typeof a[k] === "string" ? (a[k] as string) : undefined)
+  if ("entry" in scope) {
+    const entry = id(scope.entry)
+    return entry ? { entries: [entry] } : {}
+  }
+  if ("creates" in scope) {
+    const creates = id(scope.creates)
+    return creates ? { creates } : {}
+  }
   const page = id(scope.page)
   const item = id(scope.item)
   const items = scope.items !== undefined && Array.isArray(a[scope.items]) ? (a[scope.items] as string[]) : undefined

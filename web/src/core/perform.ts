@@ -70,10 +70,13 @@ export type Performed<Id extends ActionId> =
     }
   | Refused
 
-// タイプ type のページで使えるアクション（表の並び）: タイプが選んだ物に付くアクションとタイプが足すアクションから、タイプが外すアクションを除く（inspect と同じ決まり）
+// タイプ type のページで使えるアクション（表の並び）: タイプが選んだ物に付くアクションとタイプが足すアクションから、タイプが外すアクションを除く（inspect と同じ決まり）。
+// 入れ物自身だけを変えるアクション（許可スコープが "book"）は、タイプでは決まらないので、タイプに依らない付く先（attach の books）だけで並べる
 export function actionsOfPage(catalog: CoreCatalog, page: Pick<Page, "type">): readonly string[] {
   const t = pageType(catalog, page.type)
-  return [...catalog.actions.values()].filter(a => typeAllows(a, t)).map(a => a.id)
+  return [...catalog.actions.values()]
+    .filter(a => (a.target === "book" && a.permissionScope === "book" ? a.attach?.books === true : typeAllows(a, t)))
+    .map(a => a.id)
 }
 
 // アクションが返したブック after を、ノーマライズステップ（core/def/normalize-step.ts）を順にかけて整えたもの。

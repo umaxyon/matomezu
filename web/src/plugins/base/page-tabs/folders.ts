@@ -30,7 +30,7 @@ export const FOLDER_UPDATE = kit.defineAction({
   title: "Rename folder",
   target: "book",
   args: z.strictObject({ folder: FOLDER, title: z.string().trim().min(1) }),
-  permissionScope: "book",
+  permissionScope: { entry: "folder" },
   run: (book, args) => {
     if (!findFolder(book, args.folder)) return null
     if (lineupOf(book).some(e => e.id !== args.folder && e.title === args.title)) return null
@@ -47,7 +47,7 @@ export const FOLDER_MOVE = kit.defineAction({
   title: "Move folder",
   target: "book",
   args: z.strictObject({ folder: FOLDER, index: z.number().int().min(0).optional() }),
-  permissionScope: "book",
+  permissionScope: { entry: "folder" },
   run: (book, args) => {
     const ids = lineupOf(book).map(e => e.id)
     const from = ids.indexOf(args.folder)
@@ -66,7 +66,7 @@ export const FOLDER_DUPLICATE = kit.defineAction({
   title: "Duplicate folder",
   target: "book",
   args: z.strictObject({ folder: FOLDER, title: z.string().trim().min(1).optional() }),
-  permissionScope: "book",
+  permissionScope: { entry: "folder" },
   run: (book, args, ctx) => {
     const source = findFolder(book, args.folder)
     if (!source) return null
@@ -106,7 +106,7 @@ export const FOLDER_REMOVE = kit.defineAction({
   title: "Remove folder",
   target: "book",
   args: z.strictObject({ folder: FOLDER }),
-  permissionScope: "book",
+  permissionScope: { entry: "folder" },
   run: (book, args) => {
     if (!findFolder(book, args.folder)) return null
     return { next: removeFolder(book, args.folder), result: {} }

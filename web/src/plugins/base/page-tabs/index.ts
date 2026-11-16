@@ -3,6 +3,7 @@
 
 import { findPage, siblingsOf } from "../../../core/book"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
+import { ANY_PAGE_TYPE } from "../../../core/def/action"
 import { editingBackground, openedPage } from "../../../core/stage"
 import type { DialogTaking, PageSettingsArgs } from "../../../store/dialogs"
 import { kit } from "../kit"
@@ -58,7 +59,7 @@ export function pageDialog(catalog: CoreCatalog, type: string, of: "add" | "sett
 export const PAGE_NEW = kit.defineCommand({
   id: "page-new",
   performs: [PAGE_ADD.id],
-  permissionScope: "book",
+  permissionScope: { creates: "type" },
   title: "New page",
   run: (ctx, a, args: NewPageDialogArgs) => {
     if (ctx.book && ctx.catalog.pageTypes.has(args.type)) a.openDialog(pageDialog(ctx.catalog, args.type, "add"), args)
@@ -100,7 +101,10 @@ export const PAGE_SETTINGS = kit.defineCommand({
 export const PAGE_ADD_AFTER = kit.defineCommand({
   id: "page-add-after",
   performs: [PAGE_ADD.id],
-  permissionScope: "book",
+  // 作るのは、ページ page と同じタイプのページ
+  permissionScope: (ctx, args: { page: string } | undefined) => ({
+    creates: (args && ctx.book && findPage(ctx.book, args.page)?.page.type) || ANY_PAGE_TYPE,
+  }),
   title: "Add page here",
   run: (ctx, a, { page }: { page: string }) => {
     const { book } = ctx
@@ -128,7 +132,7 @@ export const PAGE_DUPLICATE_COMMAND = kit.defineCommand({
     const done = a.perform(PAGE_DUPLICATE.id, { page }, { book: ctx.book.id })
     if (done.ok) a.openPage(done.result.page)
   },
-  permissionScope: { page: "page" },
+  permissionScope: { entry: "page" },
   when: ctx => ctx.book !== null,
 })
 
