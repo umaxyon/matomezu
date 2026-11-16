@@ -40,11 +40,13 @@ export function addUsage(into: Usage, value: unknown, prefix = "") {
   }
 }
 
-// SSE を届いた順に読み、部品が選んだイベントの usage を拾う。チャンクは行の途中で切れてよい
+// SSE を届いた順に読み、部品が選んだイベントの usage を拾う。チャンクは行の途中で切れてよい。
+// ended は返答の終わりのイベント（部品の endEvent）を読んだか
 export class UsageReader {
   private rest = ""
   readonly usage: Usage = {}
-  constructor(private readonly client: Pick<Client<unknown>, "usageOfEvent">) {}
+  ended = false
+  constructor(private readonly client: Pick<Client<unknown>, "usageOfEvent" | "endEvent">) {}
   feed(chunk: string) {
     const lines = (this.rest + chunk).split("\n")
     this.rest = lines.pop() ?? ""
@@ -57,7 +59,9 @@ export class UsageReader {
   private line(line: string) {
     if (!line.startsWith("data:")) return
     try {
-      addUsage(this.usage, this.client.usageOfEvent(JSON.parse(line.slice(5))))
+      const event = JSON.parse(line.slice(5))
+      addUsage(this.usage, this.client.usageOfEvent(event))
+      if (event?.type === this.client.endEvent) this.ended = true
     } catch {}
   }
 }

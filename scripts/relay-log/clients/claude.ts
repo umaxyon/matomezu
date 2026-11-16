@@ -400,6 +400,7 @@ export const claude: Client<MessagesBody> = {
       : event.type === "message_delta"
         ? event.usage
         : undefined,
+  endEvent: "message_stop",
   tokens,
   parseReply,
   toolUses,

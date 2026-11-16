@@ -229,6 +229,46 @@ test("呼び手が返答の途中で接続を切っても中継は落ちず、�
   ])
 })
 
+// Codex は response.completed を受けると、上流が閉じる前に接続を切る。content-type が SSE でなくても本文の頭で SSE と読む
+const endScenario = `
+import { startRelay } from ${JSON.stringify(join(import.meta.dir, "../../scripts/relay-log.ts"))}
+import { openStore } from ${JSON.stringify(join(import.meta.dir, "../../scripts/relay-log/store.ts"))}
+const [db, body] = process.argv.slice(1)
+const upstream = Bun.serve({ port: 0, hostname: "127.0.0.1", idleTimeout: 0, fetch() {
+  const stream = new ReadableStream({ async start(c) {
+    c.enqueue(new TextEncoder().encode('event: response.completed\\ndata: {"type":"response.completed","response":{"usage":{"input_tokens":9,"output_tokens":1}}}\\n\\n'))
+    await Bun.sleep(5000)
+    c.close()
+  } })
+  return new Response(stream, { headers: { "content-type": "application/octet-stream" } })
+} })
+const store = openStore(db)
+const relay = startRelay({ port: 0, store, upstream: { codex: "http://127.0.0.1:" + upstream.port } })
+const ac = new AbortController()
+const res = await fetch("http://127.0.0.1:" + relay.port + "/codex/responses", {
+  method: "POST", headers: { "content-type": "application/json" }, body, signal: ac.signal,
+})
+const reader = res.body.getReader()
+await reader.read()
+ac.abort()
+let entries = []
+for (let i = 0; i < 200 && !entries.length; i++) { await Bun.sleep(10); entries = store.entries() }
+console.log(JSON.stringify({ entries }))
+relay.stop(true); upstream.stop(true)
+process.exit(0)
+`
+
+test("返答の終わりのイベントのあとで呼び手が接続を切っても中断にせず、content-type が SSE でない SSE からも usage を拾う", async () => {
+  const child = Bun.spawn(["bun", "-e", endScenario, join(dir, "end.db"), JSON.stringify(codexBody)], {
+    stdout: "pipe",
+    stderr: "inherit",
+  })
+  const got = JSON.parse(await new Response(child.stdout).text())
+  expect(got.entries.map((e: Entry) => [e.client, e.aborted, e.tokens])).toEqual([
+    ["codex", undefined, { input: 9, output: 1 }],
+  ])
+})
+
 // 起動の sh は、PATH の頭に置いた偽の curl・bun・sleep・claude・codex で動かす（本物の中継には触れない）。
 // 偽の curl は up のファイルがあれば中継が動いているとし、偽の bun は FAKE_START があれば up を作る
 function fakeBin(state: string) {

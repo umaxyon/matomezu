@@ -49,7 +49,8 @@ export function routeOf(pathname: string): { client: ClientName; session: string
   const rest = pathname.slice(client.head.length) || "/"
   const m = rest.match(/^\/s\/([^/]+)(\/.*)?$/)
   if (!m) return { client: client.name, session: "unnamed", path: rest }
-  return { client: client.name, session: /^[\w.-]{1,40}$/.test(m[1]!) ? m[1]! : "unnamed", path: m[2] ?? "/" }
+  const name = m[1] ?? ""
+  return { client: client.name, session: /^[\w.-]{1,40}$/.test(name) ? name : "unnamed", path: m[2] ?? "/" }
 }
 
 export function startRelay({ port, store, keepBody = true, upstream = {} }: RelayOptions) {
@@ -103,18 +104,23 @@ export function startRelay({ port, store, keepBody = true, upstream = {} }: Rela
       if (split) split.rest = { ...split.rest, headers: headersForLog(req.headers, client.keepHeaders) }
       const probe = client.probeOf(body)
 
-      const sse = (res.headers.get("content-type") ?? "").includes("text/event-stream")
+      // SSE かは content-type か、本文の頭（event: か data: の行）で決める
+      let sse = (res.headers.get("content-type") ?? "").includes("text/event-stream")
       const [pass, copy] = res.body.tee()
       // 記録は返答を待たせずに走らせる。呼び手が途中で接続を切ると copy の読み取りが AbortError で止まるので、
-      // そこまでを中断した呼び出しとして記録する（拒否を放っておくと中継のプロセスごと落ちる）
+      // そこまでを記録する（拒否を放っておくと中継のプロセスごと落ちる）。返答の終わりのイベントより前に切れた物だけを中断とする
+      // （Codex は終わりのイベントを受けると、上流が閉じる前に接続を切る）
       ;(async () => {
         const reader = new UsageReader(client)
         const decoder = new TextDecoder()
         let text = ""
         let aborted = false
+        let first = true
         try {
           for await (const chunk of copy) {
             const s = decoder.decode(chunk, { stream: true })
+            if (first) sse ||= /^(event|data):/.test(s.trimStart())
+            first = false
             if (sse) reader.feed(s)
             if (!sse || keepBody) text += s
           }
@@ -123,6 +129,7 @@ export function startRelay({ port, store, keepBody = true, upstream = {} }: Rela
           aborted = true
         }
         reader.end()
+        if (reader.ended) aborted = false
         const usage = sse ? reader.usage : usageFromJson(text)
         store.add(
           {

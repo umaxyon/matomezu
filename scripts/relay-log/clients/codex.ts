@@ -291,6 +291,7 @@ export const codex: Client<ResponsesBody> = {
   // usage は最後の response.completed の response に来る
   usageOfEvent: event =>
     event.type === "response.completed" ? (event.response as { usage?: unknown } | undefined)?.usage : undefined,
+  endEvent: "response.completed",
   tokens,
   parseReply,
   toolUses,

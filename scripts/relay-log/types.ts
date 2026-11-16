@@ -93,6 +93,8 @@ export type Client<B> = {
   classify(body: B): Part[]
   // SSE の 1 つのイベントのうち、usage として足す物
   usageOfEvent(event: { type?: string; [key: string]: unknown }): unknown
+  // SSE の返答の終わりのイベントの type
+  endEvent: string
   tokens(usage: Usage): Tokens
   parseReply(raw: string): ReplyBlock[]
   // 本文の並びの 1 つの項目にある、道具の呼び出しと結果
