@@ -60,3 +60,26 @@ func TestClaudeProjectDir(t *testing.T) {
 		t.Errorf("without the env %q, want %q", got, wd)
 	}
 }
+
+// npm で配る版（version に版の番号が入った物）は、開いたフォルダに .dev-home の実行ファイルがあっても開発の常駐を使わない（よそのリポジトリの物を起動しない）
+func TestDevRootOnlyInTheDevelopmentBuild(t *testing.T) {
+	repo := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repo, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(repo, devHomeDir), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(devBinary(repo), nil, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := devRoot(repo); got != repo {
+		t.Fatalf("development build: %q, want %q", got, repo)
+	}
+	saved := version
+	t.Cleanup(func() { version = saved })
+	version = "1.2.3"
+	if got := devRoot(repo); got != "" {
+		t.Errorf("released build: %q, want none", got)
+	}
+}

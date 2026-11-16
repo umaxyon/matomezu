@@ -32,7 +32,7 @@ import (
 	"github.com/umaxyon/matomezu/web"
 )
 
-var version = "dev"
+var version = devVersion
 
 // DefaultAddr は常駐が待つ場所。画面の設定のうちブラウザに残すもの（localStorage）はアドレスごとに分かれるので、ポートは毎回同じにする
 const DefaultAddr = "127.0.0.1:7230"

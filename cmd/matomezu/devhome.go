@@ -27,10 +27,14 @@ func devBinary(root string) string {
 	return filepath.Join(root, devHomeDir, name)
 }
 
+// devVersion は、手元で作った開発の版の version（npm で配る版は、作るときに版の番号を埋め込む）
+const devVersion = "dev"
+
 // devRoot は、フォルダ dir が matomezu のリポジトリ（作業ツリーを含む）の中なら、開発の常駐のあるリポジトリの根（無ければ空）。
+// 開発の版（version が devVersion）のときだけ見る。配る版が開いたフォルダの .dev-home の実行ファイルを起動すると、よそのリポジトリに置かれた物が利用者の権限で動くため。
 // git を呼ばずに .git を読む（.git がファイルなら gitdir と commondir をたどる。git の無い Windows でも同じ）
 func devRoot(dir string) string {
-	if dir == "" {
+	if dir == "" || version != devVersion {
 		return ""
 	}
 	dir, err := filepath.Abs(dir)
