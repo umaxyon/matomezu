@@ -4,7 +4,16 @@
 // 画面に置くインスタンスは、見た目を結んだプラグインだけで作る（MatomezuProvider が型と台帳アセンブルで確かめる）
 
 import type { ComponentType, ReactNode } from "react"
-import type { BookViewExtras, ContextMenuId, DialogId, PresentationId, WidgetId, WidgetTable } from "../core/catalog"
+import type {
+  BookViewExtras,
+  CommandId,
+  ContextMenuId,
+  ContextMenuTable,
+  DialogId,
+  PresentationId,
+  WidgetId,
+  WidgetTable,
+} from "../core/catalog"
 import { fail } from "../core/errors"
 import type { Size } from "../core/geom"
 import { isOwnedBy } from "../core/names"
@@ -145,14 +154,33 @@ export type EnumValueIcon = ReactNode | { readonly closed: ReactNode; readonly o
 
 // widgets はこのプラグインのウィジェット、commandIcons はメニューなどに出すコマンドのアイコン（無ければ名前の文字だけを出す）、
 // pageTypeIcons はページのタイプのアイコン（ページタブの頭に出す。名乗らないタイプは、通常のファイルの絵）、
-// enumValueIcons は自分が足した列挙の値のアイコン（絵を使う列挙の宣言側が読む。無ければ宣言側が決めた絵）
+// enumValueIcons は自分が足した列挙の値のアイコン（絵を使う列挙の宣言側が読む。無ければ宣言側が決めた絵）、
+// contextMenuRows は自分のメニューが自分で出す行（機能台帳から決まる一覧など。UI マッピングのコマンドの並びの前に出る）
 export type UiParts<P> = PluginViews<P> & {
   widgets?: readonly AnyWidgetDef[]
   commandIcons?: { [id in IdsOf<P, "commands">]?: ReactNode }
   pageTypeIcons?: { [id in IdsOf<P, "pageTypes">]?: ReactNode }
   enumValueIcons?: { [id in IdsOf<P, "enumValues">]?: EnumValueIcon }
+  contextMenuRows?: { [M in OwnContextMenuId<P>]?: ContextMenuRows<M> }
   overrides?: Overrides
 }
+
+// プラグイン P が ContextMenuTable に書き足した、自分のメニューの id
+type OwnContextMenuId<P> = P extends { id: infer Id extends string } ? ContextMenuId & `${Id}:${string}` : never
+
+// メニューが自分で出す行: コマンドと、その引数・名前・アイコン。出すか・押せるかは、その引数でのコマンドが決める
+export interface ContextMenuRow {
+  command: CommandId
+  args?: unknown
+  label: string
+  icon?: ReactNode
+  iconLook?: "line" | "picture" // アイコンの見せ方（line は線の絵でスキンの色、picture は絵の元の色。書かなければ line）
+}
+
+// メニュー M の行を、開いたときに受け取った物 target から出すフック（中で文言や機能台帳のフックを使える）
+export type ContextMenuRows<M extends ContextMenuId = ContextMenuId> = (
+  target: ContextMenuTable[M],
+) => readonly ContextMenuRow[]
 export type PluginUi<P extends Plugin> = P & { ui: UiParts<P> }
 // 見た目を結んだプラグインのどれか
 export type AnyPluginUi = Plugin & { ui: object }
@@ -175,6 +203,7 @@ export interface UiCatalog {
   toolIcons: ReadonlyMap<string, ReactNode>
   pageTypeIcons: ReadonlyMap<string, ReactNode>
   enumValueIcons: ReadonlyMap<string, EnumValueIcon>
+  contextMenuRows: ReadonlyMap<string, (target: never) => readonly ContextMenuRow[]>
 }
 
 interface LooseUi {
@@ -189,6 +218,7 @@ interface LooseUi {
   toolIcons?: Record<string, ReactNode>
   pageTypeIcons?: Record<string, ReactNode>
   enumValueIcons?: Record<string, EnumValueIcon>
+  contextMenuRows?: Record<string, (target: never) => readonly ContextMenuRow[]>
   overrides?: {
     presentationViews?: Record<string, BookViewDef>
     dialogViews?: Record<string, AnyDialogView>
@@ -216,6 +246,7 @@ function buildUi(plugins: readonly Plugin[]): UiCatalog {
   const dialogViews = new Map<string, AnyDialogView>()
   const widgets = new Map<string, AnyWidgetDef>()
   const commandIcons = new Map<string, ReactNode>()
+  const contextMenuRows = new Map<string, (target: never) => readonly ContextMenuRow[]>()
   const toolIcons = new Map<string, ReactNode>()
   const pageTypeIcons = new Map<string, ReactNode>()
   const enumValueIcons = new Map<string, EnumValueIcon>()
@@ -269,6 +300,10 @@ function buildUi(plugins: readonly Plugin[]): UiCatalog {
       if (!own.has(id)) fail("E307", { plugin: p.id, command: id })
       commandIcons.set(id, icon)
     }
+    for (const [id, rows] of Object.entries(ui.contextMenuRows ?? {})) {
+      if (!isOwnedBy(p.id, id)) fail("E315", { plugin: p.id, id })
+      contextMenuRows.set(id, rows)
+    }
     const ownTypes = new Set((p.pageTypes ?? []).map(t => t.id))
     for (const [id, icon] of Object.entries(ui.pageTypeIcons ?? {})) {
       if (!ownTypes.has(id)) fail("E313", { plugin: p.id, id })
@@ -312,5 +347,6 @@ function buildUi(plugins: readonly Plugin[]): UiCatalog {
     toolIcons,
     pageTypeIcons,
     enumValueIcons,
+    contextMenuRows,
   }
 }

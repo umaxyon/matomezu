@@ -146,6 +146,7 @@ test("右クリックのメニューは 1 つだけ出し、開いたステー�
     stage: "s2",
     target: {},
     at: { x: 30, y: 40 },
+    opens: "down",
   })
   actions.closeStage("s2")
   expect(state.getState().contextMenu).toBeNull()

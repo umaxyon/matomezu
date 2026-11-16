@@ -18,6 +18,7 @@ import {
   PAGE_SETTINGS,
   PAGE_SETTINGS_DIALOG,
 } from "."
+import { useAddPageRows } from "./AddPageMenu"
 import { BinderDeleteDialog } from "./BinderDeleteDialog"
 import { BinderSettingsDialog } from "./BinderSettingsDialog"
 import { NewPageDialog } from "./NewPageDialog"
@@ -62,4 +63,9 @@ export const PAGE_DIALOG_VIEWS = {
   [BINDER_DELETE_DIALOG.id]: BinderDeleteDialog,
   [NEW_PAGE_DIALOG.id]: NewPageDialog,
   [PAGE_SETTINGS_DIALOG.id]: PageSettingsDialog,
+}
+
+// メニューが自分で出す行
+export const PAGE_CONTEXT_MENU_ROWS = {
+  [ADD_PAGE_MENU]: useAddPageRows,
 }

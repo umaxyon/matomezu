@@ -109,7 +109,7 @@ import {
 } from "../core/workspace"
 import { type CommandArgs, type CommandId, called, commandOwner, isEnabled } from "./commands"
 import type { CommandActions } from "./commands/def"
-import type { OpenedContextMenu } from "./context-menus"
+import type { MenuOpens, OpenedContextMenu } from "./context-menus"
 import { type DialogArgs, type DialogPreview, NO_STAGE, type OpenedDialog } from "./dialogs"
 import { findKey, type KeyReach, type KeyTable, keyScopes, keyTable } from "./keys"
 import { type Assembled, assemble, type Plugin } from "./plugin"
@@ -264,7 +264,7 @@ export interface PlaceActions {
   // ダイアログを開く。at は、開く場所: ステージの id か、開いているスクリーンの id（ステージを持たないスクリーンから開くとき）。どちらでもなければ開かない
   openDialog<Id extends DialogId>(at: string, id: Id, ...args: DialogArgs<Id>): void
   // そのステージで右クリックされた物 target のメニュー id を、画面の座標 at に出す（出ていたものは閉じる）
-  openContextMenu(stage: string, id: string, target: unknown, at: Point): void
+  openContextMenu(stage: string, id: string, target: unknown, at: Point, opens?: MenuOpens): void
   split(stage: string): void // そのステージをカレントにして、右に何も開いていないステージを足す
   unsplit(stage: string): void // そのステージだけを残す
   closeStage(id: string): void // 分けたステージの 1 つを閉じ、残りで画面を使う
@@ -997,8 +997,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       }
       return false
     },
-    openContextMenu: (stage, id, target, at) => {
-      if (inWindow(stage)) setState({ contextMenu: { id, stage, target, at } })
+    openContextMenu: (stage, id, target, at, opens = "down") => {
+      if (inWindow(stage)) setState({ contextMenu: { id, stage, target, at, opens } })
     },
     closeContextMenu: () => {
       if (getState().contextMenu) setState({ contextMenu: null })

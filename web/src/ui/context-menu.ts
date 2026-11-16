@@ -5,6 +5,7 @@ import { useShallow } from "zustand/react/shallow"
 import type { ContextMenuId, ContextMenuTable } from "../core/catalog"
 import type { Point } from "../core/geom"
 import { isShown } from "../store/commands"
+import type { MenuOpens } from "../store/context-menus"
 import { type AnchorMenuCommandId, type ContextMenuEntry, SEPARATOR, tidySeparators } from "./layout"
 import { useAt } from "./scope"
 import { useInstance, useLayout, useMatomezuState, useStoreActions } from "./store-context"
@@ -53,12 +54,14 @@ export function useContextMenu<M extends ContextMenuId>(id: M): (e: MouseEvent, 
 }
 
 // 向け先のステージで、ボタンを押して開くメニュー id を、画面の位置 at に開く口（右ボタンの押し続けの決まりは通らない）。
-// 向け先が無い所では、開かない
-export function useButtonMenu<M extends ContextMenuId>(id: M): (at: Point, target: ContextMenuTable[M]) => void {
+// opens が up なら、at を左下にして上へ開く（画面の下にあるボタンから開くとき。書かなければ下へ）。向け先が無い所では、開かない
+export function useButtonMenu<M extends ContextMenuId>(
+  id: M,
+): (at: Point, target: ContextMenuTable[M], how?: { opens?: MenuOpens }) => void {
   const stage = useAt()
   const { openContextMenu } = useStoreActions()
-  return (at, target) => {
-    if (stage !== null) openContextMenu(stage, id, target, at)
+  return (at, target, how) => {
+    if (stage !== null) openContextMenu(stage, id, target, at, how?.opens)
   }
 }
 

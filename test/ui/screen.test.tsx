@@ -156,6 +156,8 @@ test("日本語の変換を確定する Enter では、候補を選ばない", (
 test("言語を英語にすると、画面の文言が英語になり、＋で足すページの名前の案も英語になる", () => {
   renderBooksScreen({ books: SAMPLE_BOOKS, lang: "en" })
   fireEvent.click(screen.getByRole("button", { name: "Add page" }))
+  // ＋のメニューの行は、機能台帳のページのタイプ（開いているページのタイプが先頭）
+  expect(screen.getAllByRole("menuitem").map(m => m.textContent)[0]).toBe("Drawing")
   fireEvent.click(screen.getByRole("menuitem", { name: "Drawing" }))
   const dialog = screen.getByRole("dialog", { name: /^New / })
   fireEvent.click(within(dialog).getByRole("button", { name: "Create" }))

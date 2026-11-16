@@ -108,6 +108,7 @@ export const ERRORS = {
   E312: "plugin {plugin}: widget {id} is for the kind {kind}, which the plugin does not own (only the owner of a kind may add a widget for it)",
   E313: "plugin {plugin}: pageTypeIcons has {id}, which is not its own page type",
   E314: "plugin {plugin}: enumValueIcons has {id}, which is not its own enum value",
+  E315: "plugin {plugin}: contextMenuRows has {id}, which is not its own context menu",
 
   E401: "the server could not give the data: {status}",
   E402: "the server does not know this browser (run matomezu open in a terminal)",

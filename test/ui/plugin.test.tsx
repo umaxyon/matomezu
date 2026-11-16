@@ -100,6 +100,14 @@ describe("見た目のプラグイン", () => {
     expect(thrown(() => assembleUi([...BUILTIN_UI, icons]))).toMatchObject({ code: "E307" })
   })
 
+  test("メニューが自分で出す行は、自分のメニューにだけ書ける（ほかのプラグインのメニューなら E315）", () => {
+    const rows = definePluginUi(definePlugin({ id: "rows" }), {
+      contextMenuRows: { "@matomezu/base:add-page-menu": () => [] } as never,
+    })
+    expect(thrown(() => assembleUi([...BUILTIN_UI, rows]))).toMatchObject({ code: "E315" })
+    expect(assembleUi(BUILTIN_UI).contextMenuRows.has("@matomezu/base:add-page-menu")).toBe(true)
+  })
+
   test("ブックのタイプのアイコンは自分のタイプにだけ付けられる（ほかのプラグインのタイプなら E313）。名乗らないタイプは表に入らない", () => {
     const icons = definePluginUi(definePlugin({ id: "icons" }), {
       pageTypeIcons: { "@matomezu/drawing:drawing": <span /> },

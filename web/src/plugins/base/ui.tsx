@@ -25,7 +25,7 @@ import { ALERT_STATUS, MARK_ICON, MARK_LAYER } from "./mark/ui"
 import { FOLDED_NOTE_STATUS, NOTE_ICON, NOTE_LAYER, NOTE_PANEL, NOTE_READ_NOTICE, READ_NOTE_STATUS } from "./note/ui"
 import type { AnnotationIconProps } from "./outbox/slots"
 import { OUTBOX } from "./outbox/ui"
-import { PAGE_DIALOG_VIEWS, PAGE_LIST, PAGE_SETTINGS_ICONS, PAGE_TABS } from "./page-tabs/ui"
+import { PAGE_CONTEXT_MENU_ROWS, PAGE_DIALOG_VIEWS, PAGE_LIST, PAGE_SETTINGS_ICONS, PAGE_TABS } from "./page-tabs/ui"
 import { JOIN_REQUEST_ACTIONS, PARTICIPANT_DIALOG_VIEWS } from "./participant/ui"
 import {
   PRINT_CHECK_PANEL,
@@ -251,6 +251,7 @@ export const BASE_UI = definePluginUi(BASE, {
     KEYS_CATEGORY,
     PLUGINS_CATEGORY,
   ],
+  contextMenuRows: PAGE_CONTEXT_MENU_ROWS,
   commandIcons: {
     ...STAGE_ICONS,
     ...ZOOM_ICONS,

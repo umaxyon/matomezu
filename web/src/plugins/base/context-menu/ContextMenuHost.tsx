@@ -4,7 +4,7 @@
 // 項目を押すと閉じてから、右クリックされた物を渡してコマンドを呼ぶ。項目の横には、そのコマンドのキーを添える。
 // 中の項目の描いている場所は、メニューを開いた場所（ui/scope.tsx）。
 // 押した物にアンカーが付いていれば、どのメニューにも、区切り線のあとに UI マッピングの anchorMenu のコマンドを足し、押した物のアンカーの id を渡す
-import { type ComponentType, useEffect, useLayoutEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import type { ContextMenuId } from "../../../core/catalog"
 import type { Point } from "../../../core/geom"
 import type { OpenedContextMenu } from "../../../store/context-menus"
@@ -13,23 +13,15 @@ import { useAnchorMenuItems, useContextMenuItems } from "../../../ui/context-men
 import { useMessages } from "../../../ui/i18n"
 import { useKeyLabel } from "../../../ui/keys"
 import { type AnchorMenuCommandId, type ContextMenuCommandId, SEPARATOR } from "../../../ui/layout"
+import type { ContextMenuRow } from "../../../ui/plugin"
 import { ActsOnScope } from "../../../ui/scope"
 import { useMatomezuState, useStoreActions, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
-import { ADD_PAGE_MENU } from "../page-tabs"
-import { AddPageRows } from "../page-tabs/AddPageMenu"
 import { useAnchorContextMenu } from "./anchor-context"
 import styles from "./ContextMenuHost.module.css"
 import { fitInside } from "./fit"
 import { MenuRow } from "./MenuRow"
 import { pressedAnchor } from "./pressed-anchor"
-
-// メニューが自分で並べる行（UI マッピングのコマンドの並びの前に出す）と、開く向き（above なら、開いた位置を左下にして上へ開く）。
-// 中身がコマンドの並びで言えないメニュー（機能台帳から決まる一覧）が書く
-const OWN_ROWS: { [id: string]: { rows: ComponentType<{ menu: OpenedContextMenu; close(): void }>; above: boolean } } =
-  {
-    [ADD_PAGE_MENU]: { rows: AddPageRows, above: true },
-  }
 
 export function ContextMenuHost() {
   useAnchorContextMenu()
@@ -49,7 +41,7 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
   const [anchor] = useState(() => pressedAnchor(menu.at)) // 開いたときの、押した物のアンカー
   const shown = useAnchorMenuItems(menu.stage)
   const anchored = anchor === undefined ? [] : shown
-  const own = OWN_ROWS[menu.id]
+  const own = useUiCatalog().contextMenuRows.get(menu.id) // メニューが自分で出す行（あれば、UI マッピングのコマンドの並びの前に出す）
   const empty = !own && items.every(i => i === SEPARATOR) && anchored.length === 0
   useEffect(() => {
     if (empty) closeContextMenu()
@@ -61,9 +53,9 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
     const el = ref.current
     if (!el) return
     const r = el.getBoundingClientRect()
-    const from = own?.above ? { x: menu.at.x, y: menu.at.y - r.height } : menu.at
+    const from = menu.opens === "up" ? { x: menu.at.x, y: menu.at.y - r.height } : menu.at
     setAt(fitInside(from, { w: r.width, h: r.height }, { w: window.innerWidth, h: window.innerHeight }))
-  }, [menu.at, own?.above])
+  }, [menu.at, menu.opens])
   useEffect(() => {
     const onPointerDown = (e: PointerEvent) => {
       if (!ref.current?.contains(e.target as Node)) closeContextMenu()
@@ -81,7 +73,7 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
   if (empty) return null
   return (
     <div ref={ref} className={styles.menu} role="menu" aria-label={t("Menu")} style={{ left: at.x, top: at.y }}>
-      {own && <own.rows menu={menu} close={closeContextMenu} />}
+      {own && <OwnRows rows={own} menu={menu} />}
       {own && items.length > 0 && <hr className={styles.separator} />}
       {items.map((id, i) =>
         id === SEPARATOR ? (
@@ -100,6 +92,33 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
         </>
       )}
     </div>
+  )
+}
+
+// メニューが自分で出す行: メニューの持ち主のフック rows が、開いたときに受け取った物から出す
+function OwnRows({ rows, menu }: { rows: (target: never) => readonly ContextMenuRow[]; menu: OpenedContextMenu }) {
+  return rows(menu.target as never).map((row, i) => (
+    // biome-ignore lint/suspicious/noArrayIndexKey: 行は id を持たず、並びの位置で見分ける
+    <OwnRow key={i} row={row} />
+  ))
+}
+
+// 行 row: その引数でコマンドを出さないなら出さず、押せないなら出したまま押せなくする。押すと閉じてからコマンドを呼ぶ
+function OwnRow({ row }: { row: ContextMenuRow }) {
+  const command = useCommand(row.command, row.args as never)
+  const { closeContextMenu } = useStoreActions()
+  if (!command.shown) return null
+  return (
+    <MenuRow
+      icon={row.icon}
+      {...(row.iconLook ? { iconLook: row.iconLook } : {})}
+      label={row.label}
+      disabled={!command.enabled}
+      onPick={() => {
+        closeContextMenu()
+        ;(command.run as (args?: unknown) => void)(row.args)
+      }}
+    />
   )
 }
 

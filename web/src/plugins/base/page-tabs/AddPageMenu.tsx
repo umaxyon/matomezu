@@ -1,14 +1,13 @@
 // ページタブの＋: 押すとページのタイプの一覧のメニュー（add-page-menu）を＋の上に開く。
-// メニューの行（AddPageRows。右クリックのメニューの置き場が、このメニューの頭に並べる）は、開いているページのタイプを先頭に、ほかは機能台帳の順。
+// メニューの行（useAddPageRows。メニューが自分で出す行）は、開いているページのタイプを先頭に、ほかは機能台帳の順。
 // 選んだタイプのページを作るダイアログを開く（コマンド page-new）
 import { useRef } from "react"
 import type { CoreCatalog } from "../../../core/core-catalog"
-import type { OpenedContextMenu } from "../../../store/context-menus"
 import { useCommand } from "../../../ui/commands"
 import { useButtonMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
+import type { ContextMenuRow } from "../../../ui/plugin"
 import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
-import { MenuRow } from "../context-menu/MenuRow"
 import { kit } from "../kit"
 import { ADD_PAGE_MENU, PAGE_NEW } from "."
 import { FileIcon } from "./FileIcon"
@@ -42,8 +41,8 @@ export function AddPageMenu({ first }: { first: string | null }) {
       onClick={e => {
         if (wasOpened.current) return
         const r = e.currentTarget.getBoundingClientRect()
-        // ＋の左上を、メニューの左下にする（右クリックのメニューの置き場が、上へ開く）
-        open({ x: r.left, y: r.top - 4 }, { first })
+        // ＋の左上を、メニューの左下にする（上へ開く）
+        open({ x: r.left, y: r.top - 4 }, { first }, { opens: "up" })
       }}
     >
       <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -53,30 +52,19 @@ export function AddPageMenu({ first }: { first: string | null }) {
   )
 }
 
-// メニュー add-page-menu の行: タイプごとに 1 行
-export function AddPageRows({ menu, close }: { menu: OpenedContextMenu; close(): void }) {
-  const catalog = useCatalog().core
-  const { first } = menu.target as { first: string | null }
-  return typesToAdd(catalog, first).map(id => <AddPageRow key={id} type={id} close={close} />)
-}
-
-// タイプ type の行: そのタイプのページを足せなければ（タイプがページを足すアクションを外している）出さず、認可ステップが止めるなら出したまま押せなくする
-function AddPageRow({ type, close }: { type: string; close(): void }) {
+// メニュー add-page-menu の行: タイプごとに 1 行（そのタイプのページを作るコマンド page-new。タイプがページを足すアクションを外していれば出ず、認可ステップが止めるなら押せない）
+export function useAddPageRows({ first }: { first: string | null }): readonly ContextMenuRow[] {
   const t = useMessages(kit)
-  const def = useCatalog().core.pageTypes.get(type)
-  const icon = useUiCatalog().pageTypeIcons.get(type)
-  const newPage = useCommand(PAGE_NEW.id, { type })
-  if (!newPage.shown) return null
-  return (
-    <MenuRow
-      icon={icon ?? <FileIcon />}
-      iconLook="picture"
-      label={def ? t(def.title) : type}
-      disabled={!newPage.enabled}
-      onPick={() => {
-        close()
-        newPage.run({ type })
-      }}
-    />
-  )
+  const catalog = useCatalog().core
+  const icons = useUiCatalog().pageTypeIcons
+  return typesToAdd(catalog, first).map(type => {
+    const def = catalog.pageTypes.get(type)
+    return {
+      command: PAGE_NEW.id,
+      args: { type },
+      label: def ? t(def.title) : type,
+      icon: icons.get(type) ?? <FileIcon />,
+      iconLook: "picture",
+    }
+  })
 }
