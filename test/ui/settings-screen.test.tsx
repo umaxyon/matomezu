@@ -1,4 +1,4 @@
-// 設定画面: フッタメニューから設定画面のダイアログを開き、左の項目（全体・ショートカットキー）を押すと右の部分が切り替わる
+// 設定画面: コントロールセンターから設定画面のダイアログを開き、左の項目（全体・ショートカットキー）を押すと右の部分が切り替わる
 import { afterEach, expect, test } from "bun:test"
 import { cleanup, fireEvent, screen, within } from "@testing-library/react"
 import { CONTROL_CENTER } from "../../web/src/plugins/control-center"
@@ -9,9 +9,9 @@ import { renderScreen } from "./support"
 
 afterEach(cleanup)
 
-test("フッタメニューの「設定を開く」で設定画面が開き、項目を押すと右の部分がその項目になり、閉じるで閉じる", () => {
+test("コントロールセンターの「全体設定」で設定画面が開き、項目を押すと右の部分がその項目になり、閉じるで閉じる", () => {
   renderScreen({ books: SAMPLE_BOOKS })
-  fireEvent.click(screen.getByRole("button", { name: "設定を開く", hidden: true }))
+  fireEvent.click(screen.getByRole("button", { name: "全体設定", hidden: true }))
   const dialog = screen.getByRole("dialog", { name: "設定" })
   const tab = (name: string) => screen.getByRole("tab", { name })
   expect(tab("全体").getAttribute("aria-selected")).toBe("true")
@@ -24,10 +24,10 @@ test("フッタメニューの「設定を開く」で設定画面が開き、�
   expect(dialog.isConnected).toBe(false)
 })
 
-// フッタメニューから設定画面を開き、ショートカットキーの部分にする
+// コントロールセンターから設定画面を開き、ショートカットキーの部分にする
 function openKeys(plugins: readonly AnyPluginUi[] = BUILTIN_UI) {
   const store = renderScreen({ books: SAMPLE_BOOKS, plugins })
-  fireEvent.click(screen.getByRole("button", { name: "設定を開く", hidden: true }))
+  fireEvent.click(screen.getByRole("button", { name: "全体設定", hidden: true }))
   fireEvent.click(screen.getByRole("tab", { name: "ショートカットキー" }))
   const keys = () => store.state.getState().settings["@matomezu/base:keys"] as { added: unknown[]; removed: unknown[] }
   const dialog = within(screen.getByRole("dialog", { name: "設定" }))

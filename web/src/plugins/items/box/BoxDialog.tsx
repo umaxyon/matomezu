@@ -235,7 +235,7 @@ function BoxDialog({
         <Field label={t("Theme")}>
           {id => (
             <select id={id} className={controlClass} value={theme} onChange={e => setTheme(e.target.value)}>
-              <option value="">{t("Book's theme")}</option>
+              <option value="">{t("Page's theme")}</option>
               {themes.map(th => (
                 <option key={th.id} value={th.id}>
                   {t(th.title)}

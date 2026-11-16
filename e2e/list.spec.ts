@@ -353,7 +353,7 @@ test("リストのテーマを付箋紙にすると行が黄色の付箋にな�
   await expect(dialog).toBeHidden()
   expect(await look()).toEqual({ card: "rgb(255, 243, 166)", fold: "10px", mount: "rgb(207, 226, 255)" })
   await list.getByText("見た目").dblclick()
-  await dialog.getByLabel("テーマ").selectOption({ label: "ブックを継承" })
+  await dialog.getByLabel("テーマ").selectOption({ label: "ページのテーマ" })
   await dialog.getByRole("button", { name: "色", exact: true }).click()
   await page.getByRole("dialog", { name: "色を選ぶ" }).getByRole("button", { name: "なし" }).click()
   await page.keyboard.press("Escape")

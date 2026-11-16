@@ -2,7 +2,7 @@
 import { pageIn } from "./books"
 import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test, urlStages } from "./fixtures"
 import { addFromTabs, newBook } from "./helpers/new-book"
-import { openGeneral, settingsDialog } from "./helpers/settings"
+import { backToBook, openGeneral, openSettings, settingsDialog } from "./helpers/settings"
 import { fromMenu } from "./helpers/stage-menu"
 
 // マークダウンのブックを作り、ページを 1 つ作る
@@ -255,13 +255,14 @@ test("描いた文書は、段落の中の改行 1 つを既定で改行にし�
       return new Set([...range.getClientRects()].filter(r => r.width > 0).map(r => Math.round(r.top))).size
     })
   await expect.poll(lines).toBe(2)
-  // フッタメニューから設定画面を開き、マークダウンを開いたまま変える
-  await (await fromMenu(page, "設定を開く")).click()
+  // 設定画面を開き、マークダウンを開いたまま変える
+  await openSettings(page)
   await settingsDialog(page).getByRole("tab", { name: "マークダウン" }).click()
   const select = settingsDialog(page).getByLabel("段落の中の改行")
   await expect(select).toHaveValue("line-break")
   await select.selectOption({ label: "空白にする（GFM方式）" })
   await page.keyboard.press("Escape")
+  await backToBook(page)
   await expect.poll(lines).toBe(1)
 })
 

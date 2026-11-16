@@ -46,12 +46,7 @@ export function NodeSizeDialog({ args, onClose }: DialogProps<{ page: string; no
       <Form id={form} ready onSubmit={submit}>
         <div className={rowClass}>
           <span>{t("Node size")}</span>
-          <NodeSizeSelect
-            label={t("Node size")}
-            value={size}
-            inherit={{ size: inherited, from: "page" }}
-            onChange={setSize}
-          />
+          <NodeSizeSelect label={t("Node size")} value={size} inherit={{ size: inherited }} onChange={setSize} />
         </div>
         {refused && <Problem>{t(refused)}</Problem>}
       </Form>

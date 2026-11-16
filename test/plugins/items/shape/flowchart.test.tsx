@@ -602,17 +602,15 @@ test("確認のダイアログの切り替えは、仲間の形をまとめた�
   expect(within(dialog).getByText("台形をページに合わせて整列")).toBeTruthy()
 })
 
-test("流れの向きはページにも持て、ページの設定では「ブック継承」か下へ・右へのボタンで選ぶ。ページが右へなら、ブックが下へでも右へで並べる", () => {
+test("流れの向きはページの設定で、下へ・右へのボタンで選ぶ（既定は下へ）。ページが右へなら、右へで並べる", () => {
   const f = flowchart()
   const { store, on, page } = f
   const ids = chart(f)
   act(() => store.actions.openDialog("s1", "@matomezu/base:page-settings", { page: page().id }))
   const dialog = screen.getByRole("dialog", { name: "ページの設定" })
   const choices = within(within(dialog).getByRole("group", { name: "流れの向き" })).getAllByRole("radio")
-  expect(choices.map(c => c.getAttribute("aria-label"))).toEqual(["ブックを継承（下へ）", "下へ", "右へ"])
+  expect(choices.map(c => c.getAttribute("aria-label"))).toEqual(["下へ", "右へ"])
   expect((choices[0] as HTMLInputElement).checked).toBe(true)
-  // 継承のボタンは文字で出す（線の既定の通り方と流れの向きと背景の印刷の 3 つ）
-  expect(within(dialog).getAllByText("ブック継承")).toHaveLength(3)
   fireEvent.click(within(dialog).getByRole("button", { name: "キャンセル" }))
   act(() => {
     expect(

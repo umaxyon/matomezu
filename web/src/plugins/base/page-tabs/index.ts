@@ -1,13 +1,14 @@
 // ページ: ページを作る・開くコマンドと、ページを作るダイアログ（作るものはダイアログで決める）。ページの設定のダイアログと、それを開くコマンド。
 // ページを作るダイアログとページの設定のダイアログは、ページのタイプが自分のものにできる（dialogs。行うアクションは同じ page-add・page-update）
 
-import { findPage, siblingsOf } from "../../../core/book"
+import { findFolder, findPage, siblingsOf } from "../../../core/book"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import { ANY_PAGE_TYPE } from "../../../core/def/action"
-import { editingBackground, openedPage } from "../../../core/stage"
+import { editingBackground, folderOf, openedPage } from "../../../core/stage"
 import type { DialogTaking, PageSettingsArgs } from "../../../store/dialogs"
 import { kit } from "../kit"
 import { PAGE_LOCK, PAGE_UNLOCK } from "../lock"
+import { FOLDER_DUPLICATE, FOLDER_REMOVE, FOLDER_UPDATE } from "./folders"
 import { PAGE_ADD } from "./page-add"
 import { PAGE_DUPLICATE } from "./page-duplicate"
 import { PAGE_REMOVE } from "./page-remove"
@@ -36,9 +37,25 @@ export const PAGE_DELETE_DIALOG = kit.defineDialogWith<{ page: string }>()({
   edits: a => [a.page],
 })
 
-// ページ一覧のページの右クリックのメニュー（受け取るのは右クリックしたページの id）
+// フォルダの設定のダイアログ（名前・紙・向き・削除）と、フォルダを消す前に確かめるダイアログが受ける値: フォルダの id
+export interface FolderSettingsArgs {
+  folder: string
+}
+
+export const FOLDER_SETTINGS_DIALOG = kit.defineDialogWith<FolderSettingsArgs>()({
+  id: "folder-settings",
+  edits: a => [a.folder],
+})
+
+export const FOLDER_DELETE_DIALOG = kit.defineDialogWith<FolderSettingsArgs>()({
+  id: "folder-delete",
+  edits: a => [a.folder],
+})
+
 // ページタブのページの右クリックのメニュー
 export const PAGE_CONTEXT = kit.name("page-context")
+// ページタブのフォルダの右クリックのメニュー
+export const FOLDER_CONTEXT = kit.name("folder-context")
 // ページ一覧のページの右クリックのメニュー（ページタブのメニューに、ここにページを足すが加わる）
 export const PAGE_LIST_CONTEXT = kit.name("page-list-context")
 // ページタブの＋が開く、ページのタイプの一覧のメニュー
@@ -147,5 +164,57 @@ export const PAGE_DELETE = kit.defineCommand({
   title: "Delete page...",
   run: (_ctx, a, { page }: { page: string }) => a.openDialog(PAGE_DELETE_DIALOG.id, { page }),
   permissionScope: { page: "page" },
+  when: ctx => ctx.book !== null,
+})
+
+// フォルダ folder の設定のダイアログを開く
+export const FOLDER_SETTINGS = kit.defineCommand({
+  id: "folder-settings",
+  performs: [FOLDER_UPDATE.id, FOLDER_REMOVE.id],
+  permissionScope: { entry: "folder" },
+  title: "Settings...",
+  run: (ctx, a, { folder }: FolderSettingsArgs) => {
+    if (ctx.book && findFolder(ctx.book, folder)) a.openDialog(FOLDER_SETTINGS_DIALOG.id, { folder })
+  },
+  when: ctx => ctx.book !== null,
+})
+
+// 開いているフォルダ（開いているページが入っているフォルダか、開いている空のフォルダ）の設定のダイアログを開く（フッタメニューの歯車。フォルダの外のページを開いていれば出さない）
+export const FOLDER_SETTINGS_OPENED = kit.defineCommand({
+  id: "folder-settings-opened",
+  performs: [FOLDER_UPDATE.id, FOLDER_REMOVE.id],
+  permissionScope: ctx => {
+    const folder = ctx.book ? folderOf(ctx.book, ctx.stage.opened) : null
+    return folder ? { entries: [folder] } : {}
+  },
+  title: "Settings",
+  run: (ctx, a) => {
+    const folder = ctx.book ? folderOf(ctx.book, ctx.stage.opened) : null
+    if (folder) a.openDialog(FOLDER_SETTINGS_DIALOG.id, { folder })
+  },
+  when: ctx => ctx.book !== null && folderOf(ctx.book, ctx.stage.opened) !== null,
+})
+
+// フォルダ folder を中のページごと複製して、できたフォルダを開く
+export const FOLDER_DUPLICATE_COMMAND = kit.defineCommand({
+  id: "folder-duplicate",
+  performs: [FOLDER_DUPLICATE.id],
+  permissionScope: { entry: "folder" },
+  title: "Duplicate",
+  run: (ctx, a, { folder }: FolderSettingsArgs) => {
+    if (!ctx.book) return
+    const done = a.perform(FOLDER_DUPLICATE.id, { folder }, { book: ctx.book.id })
+    if (done.ok) a.openFolder(done.result.folder)
+  },
+  when: ctx => ctx.book !== null,
+})
+
+// フォルダ folder を消す前に確かめるダイアログを開く
+export const FOLDER_DELETE = kit.defineCommand({
+  id: "folder-delete",
+  performs: [FOLDER_REMOVE.id],
+  permissionScope: { entry: "folder" },
+  title: "Delete...",
+  run: (_ctx, a, { folder }: FolderSettingsArgs) => a.openDialog(FOLDER_DELETE_DIALOG.id, { folder }),
   when: ctx => ctx.book !== null,
 })

@@ -33,6 +33,13 @@ export const PAGE_MESSAGES = defineMessages({
     ja: "ページと中身が消えます",
   },
   Delete: { en: "Delete", ja: "削除" },
+  "Delete...": { en: "Delete...", ja: "削除…" },
+  "Settings...": { en: "Settings...", ja: "設定…" },
+  "{type} settings": { en: "{type} settings", ja: "{type}の設定" },
+  "The {type} and its pages will be deleted": {
+    en: "The {type} and its pages will be deleted",
+    ja: "{type}と中のページが消えます",
+  },
   "Page {n}": { en: "Page {n}", ja: "ページ {n}" },
   Untitled: { en: "Untitled", ja: "（無題）" },
   Portrait: { en: "Portrait", ja: "縦" },

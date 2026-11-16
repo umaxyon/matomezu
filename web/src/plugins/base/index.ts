@@ -52,7 +52,13 @@ import { NOTE_EXPIRY } from "./note/expiry"
 // 拡張ポイントに書き足したフィールド listed の型（outbox/listed.ts の declare module）
 import type {} from "./outbox/listed"
 import {
+  FOLDER_DELETE,
+  FOLDER_DELETE_DIALOG,
+  FOLDER_DUPLICATE_COMMAND,
   FOLDER_OPEN,
+  FOLDER_SETTINGS,
+  FOLDER_SETTINGS_DIALOG,
+  FOLDER_SETTINGS_OPENED,
   NEW_PAGE_DIALOG,
   PAGE_ADD,
   PAGE_ADD_AFTER,
@@ -419,6 +425,10 @@ export const BASE = defineBuiltin(
       BOOK_OPEN,
       PAGE_NEW,
       FOLDER_OPEN,
+      FOLDER_SETTINGS,
+      FOLDER_SETTINGS_OPENED,
+      FOLDER_DUPLICATE_COMMAND,
+      FOLDER_DELETE,
       PAGE_OPEN,
       PAGE_ADD_AFTER,
       PAGE_DUPLICATE_COMMAND,
@@ -442,6 +452,8 @@ export const BASE = defineBuiltin(
       OPEN_BOOK_DIALOG,
       NEW_PAGE_DIALOG,
       PAGE_DELETE_DIALOG,
+      FOLDER_SETTINGS_DIALOG,
+      FOLDER_DELETE_DIALOG,
       SCRAP_CUT_DIALOG,
       PAGE_SETTINGS_DIALOG,
       BOOK_SETTINGS_DIALOG,
@@ -645,6 +657,10 @@ declare module "../../core/catalog" {
     "@matomezu/base:page-new": typeof PAGE_NEW
     "@matomezu/base:page-open": typeof PAGE_OPEN
     "@matomezu/base:folder-open": typeof FOLDER_OPEN
+    "@matomezu/base:folder-settings": typeof FOLDER_SETTINGS
+    "@matomezu/base:folder-settings-opened": typeof FOLDER_SETTINGS_OPENED
+    "@matomezu/base:folder-duplicate": typeof FOLDER_DUPLICATE_COMMAND
+    "@matomezu/base:folder-delete": typeof FOLDER_DELETE
     "@matomezu/base:page-add-after": typeof PAGE_ADD_AFTER
     "@matomezu/base:page-duplicate": typeof PAGE_DUPLICATE_COMMAND
     "@matomezu/base:page-delete": typeof PAGE_DELETE
@@ -699,6 +715,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-open": typeof OPEN_BOOK_DIALOG
     "@matomezu/base:page-new": typeof NEW_PAGE_DIALOG
     "@matomezu/base:page-delete": typeof PAGE_DELETE_DIALOG
+    "@matomezu/base:folder-settings": typeof FOLDER_SETTINGS_DIALOG
+    "@matomezu/base:folder-delete": typeof FOLDER_DELETE_DIALOG
     "@matomezu/base:scrap-cut": typeof SCRAP_CUT_DIALOG
     "@matomezu/base:page-settings": typeof PAGE_SETTINGS_DIALOG
     "@matomezu/base:book-settings": typeof BOOK_SETTINGS_DIALOG

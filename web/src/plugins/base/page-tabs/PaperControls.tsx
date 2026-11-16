@@ -1,8 +1,10 @@
 // 紙・向き・可変ページかの入力Form（ページを作るダイアログと、ページの設定のダイアログ）。選べる紙と向きはページのタイプの規定で決まり（1 つしか無ければ選べない）、
+// 紙をそろえる規定のタイプ（スライド）は、そろえる相手のいる所（ページの設定と、今あるフォルダに足すページ）では紙と向きを出さない（フォルダの設定でまとめて変える）。
 // 可変ページかは、タイプが増やす向きの決め方を持つときだけ出す（利用者が向きを選ぶタイプなら、可変ページにすると増やす向きも選べる）。ページの設定では、変えた項目だけをアクション page-update に渡し、形が紙に入らなければ問題にする
 
 import { useState } from "react"
 import { putPage } from "../../../core/book"
+import { pageType } from "../../../core/core-catalog"
 import type { GrowChoice, Orientation } from "../../../core/def/paper"
 import type { Book, Page } from "../../../core/schema/book"
 import { useMessages } from "../../../ui/i18n"
@@ -22,7 +24,7 @@ import {
 } from "./pages"
 
 // 向きの名前
-const ORIENTATION_TITLES = { portrait: "Portrait", landscape: "Landscape" } as const satisfies Record<
+export const ORIENTATION_TITLES = { portrait: "Portrait", landscape: "Landscape" } as const satisfies Record<
   Orientation,
   string
 >
@@ -64,6 +66,7 @@ export function usePaperControls(
     ? paperChoicesFor(catalog, book, page)
     : paperChoices(catalog, book, type, place)
   const choices = growChoices(catalog, type)
+  const shared = !pageType(catalog, type).paper.perPage && (page !== null || place !== "new-folder") // 紙と向きを、そろえる相手に任せるか
   const chosen = value.grows === true ? undefined : value.grows // 選んでいる増やす向き
   // 変えた項目（ページを作るなら全部）
   const patch = {
@@ -84,43 +87,47 @@ export function usePaperControls(
     page && !fits ? [{ page, problem: { message: kit.message("The shapes do not fit on the paper") } }] : []
   const controls = (
     <>
-      <Field label={t("Paper size")}>
-        {id => (
-          <select
-            id={id}
-            className={controlClass}
-            value={value.paper}
-            disabled={papers.length < 2}
-            onChange={e => setValue({ ...value, paper: e.target.value })}
-          >
-            {papers.map(p => {
-              const def = catalog.papers.get(p)
-              return (
-                <option key={p} value={p}>
-                  {def ? t(def.title) : t("Unknown paper")}
-                </option>
-              )
-            })}
-          </select>
-        )}
-      </Field>
-      <Field label={t("Orientation")}>
-        {id => (
-          <select
-            id={id}
-            className={controlClass}
-            value={value.orientation}
-            disabled={orientations.length < 2}
-            onChange={e => setValue({ ...value, orientation: e.target.value as Orientation })}
-          >
-            {orientations.map(o => (
-              <option key={o} value={o}>
-                {t(ORIENTATION_TITLES[o])}
-              </option>
-            ))}
-          </select>
-        )}
-      </Field>
+      {!shared && (
+        <>
+          <Field label={t("Paper size")}>
+            {id => (
+              <select
+                id={id}
+                className={controlClass}
+                value={value.paper}
+                disabled={papers.length < 2}
+                onChange={e => setValue({ ...value, paper: e.target.value })}
+              >
+                {papers.map(p => {
+                  const def = catalog.papers.get(p)
+                  return (
+                    <option key={p} value={p}>
+                      {def ? t(def.title) : t("Unknown paper")}
+                    </option>
+                  )
+                })}
+              </select>
+            )}
+          </Field>
+          <Field label={t("Orientation")}>
+            {id => (
+              <select
+                id={id}
+                className={controlClass}
+                value={value.orientation}
+                disabled={orientations.length < 2}
+                onChange={e => setValue({ ...value, orientation: e.target.value as Orientation })}
+              >
+                {orientations.map(o => (
+                  <option key={o} value={o}>
+                    {t(ORIENTATION_TITLES[o])}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+        </>
+      )}
       {canGrow(catalog, type) && (
         <div className={rowClass}>
           <span>{t("Variable page")}</span>

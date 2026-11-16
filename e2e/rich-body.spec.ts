@@ -3,7 +3,7 @@ import { BOOK_SCREEN_URL, expect, test } from "./fixtures"
 import { footerMenuTool } from "./helpers/footer-menu"
 import { onPaper } from "./helpers/paper"
 import { selectText } from "./helpers/rich"
-import { openGeneral, settingsDialog } from "./helpers/settings"
+import { backToBook, openGeneral, settingsDialog } from "./helpers/settings"
 
 test("本文の上のボックスで、選んだ範囲を太字と注意の色にすると、記号は見せずに装飾して描き、箱でも太字・色で描く", async ({
   page,
@@ -120,5 +120,6 @@ test("設定画面の「全体」で文字の色を自分用に変えると、�
   await picker.getByLabel("色の値（#rrggbb）").press("Enter")
   await page.keyboard.press("Escape")
   await settingsDialog(page).getByRole("button", { name: "閉じる" }).click()
+  await backToBook(page)
   await expect(span).toHaveCSS("color", "rgb(124, 58, 237)")
 })

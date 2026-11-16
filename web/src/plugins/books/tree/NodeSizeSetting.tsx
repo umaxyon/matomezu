@@ -1,5 +1,5 @@
 // 節の大きさの選び方のコンポーネント（設定の項目 node-size のビュー）: 伸びる・N 字で折り返す・N 字で固定から選ぶ。
-// ブックの設定では既定を選べば値を消し、ページの設定では先頭の「ブックを継承」を選べば値を消す（継承の名前に、今のブックの選び方を添える）
+// 既定を選べば値を消す
 import { type SettingControlProps, useMessages } from "../../../plugin-api/ui"
 import { controlClass, rowClass } from "../../base/ui"
 import { kit } from "./kit"
@@ -16,7 +16,7 @@ export function useSizeName() {
 
 const INHERIT = ""
 
-// 選び方の選択（inherit を渡せば、先頭に「ブックを継承（その選び方）」か「ページを継承（その選び方）」を置き、それを選ぶと undefined）
+// 選び方の選択（inherit を渡せば、先頭に「ページを継承（その選び方）」を置き、それを選ぶと undefined）
 export function NodeSizeSelect({
   label,
   value,
@@ -25,7 +25,7 @@ export function NodeSizeSelect({
 }: {
   label: string
   value: NodeSize | undefined
-  inherit?: { size: NodeSize; from: "book" | "page" }
+  inherit?: { size: NodeSize }
   onChange: (value: NodeSize | undefined) => void
 }) {
   const t = useMessages(kit)
@@ -40,13 +40,7 @@ export function NodeSizeSelect({
         onChange(picked)
       }}
     >
-      {inherit && (
-        <option value={INHERIT}>
-          {t(inherit.from === "book" ? "Inherit from book ({size})" : "Inherit from page ({size})", {
-            size: name(inherit.size),
-          })}
-        </option>
-      )}
+      {inherit && <option value={INHERIT}>{t("Inherit from page ({size})", { size: name(inherit.size) })}</option>}
       {NODE_SIZES.map(s => (
         <option key={s} value={s}>
           {name(s)}
@@ -56,20 +50,16 @@ export function NodeSizeSelect({
   )
 }
 
-export function NodeSizeSetting({ of, label, value, inherited: given, onChange }: SettingControlProps<NodeSize>) {
+export function NodeSizeSetting({ label, value, inherited: given, onChange }: SettingControlProps<NodeSize>) {
   const inherited = given ?? DEFAULT_NODE_SIZE
   return (
     <div className={rowClass}>
       <span>{label}</span>
-      {of === "book" ? (
-        <NodeSizeSelect
-          label={label}
-          value={value ?? inherited}
-          onChange={v => onChange(v === inherited ? undefined : v)}
-        />
-      ) : (
-        <NodeSizeSelect label={label} value={value} inherit={{ size: inherited, from: "book" }} onChange={onChange} />
-      )}
+      <NodeSizeSelect
+        label={label}
+        value={value ?? inherited}
+        onChange={v => onChange(v === inherited ? undefined : v)}
+      />
     </div>
   )
 }

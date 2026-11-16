@@ -127,3 +127,36 @@ test.describe("空のフォルダ", () => {
     await expect(pages.nth(0).locator("button")).toHaveAttribute("aria-label", "（無題）")
   })
 })
+
+test("スライドのタブの右クリックの「設定…」で紙のサイズを変えると、全部のサムネイルの形が変わる。「削除…」で確かめてから、スライドごと消える", async ({
+  page,
+}) => {
+  await page.goto(BOOK_SCREEN_URL)
+  const thumbs = page.locator("[data-page-list] [data-page] button")
+  await expect(thumbs).toHaveCount(3)
+  const ratios = () =>
+    thumbs.evaluateAll(els =>
+      els.map(el => {
+        const r = el.getBoundingClientRect()
+        return Math.round((r.height / r.width) * 100)
+      }),
+    )
+  const before = await ratios()
+  expect(new Set(before).size).toBe(1)
+  const tab = page.getByRole("tab", { name: "スライド" })
+  await tab.click({ button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "設定…" }).click()
+  const dialog = page.getByRole("dialog", { name: "スライドの設定" })
+  await dialog.getByLabel("紙のサイズ").selectOption("@matomezu/base:a4")
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(dialog).toBeHidden()
+  await expect.poll(async () => (await ratios()).every(r => r !== before[0])).toBe(true)
+  expect(new Set(await ratios()).size).toBe(1)
+
+  await tab.click({ button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "削除…" }).click()
+  const confirm = page.getByRole("dialog", { name: "削除" })
+  await expect(confirm).toContainText("スライドと中のページが消えます")
+  await confirm.getByRole("button", { name: "削除" }).click()
+  await expect(page.getByRole("tab")).toHaveCount(0)
+})

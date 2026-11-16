@@ -1,5 +1,5 @@
 // フローチャートのブック: ページごとに紙を置き、紙の上に形（@matomezu/shape）・箱・線を置く。
-// 流れの向き（下へ・右へ）はブックとページの設定の項目で持つ（ページはブックを継承できる）。分岐（ひし形）から出る線には、キャプションの候補 Yes / No を線に渡す。見た目（テーマと紙の色）・文字の色と線の既定の通り方も設定の項目で変えられる
+// 流れの向き（下へ・右へ）はページの設定の項目で持つ。分岐（ひし形）から出る線には、キャプションの候補 Yes / No を線に渡す。見た目（テーマと紙の色）・文字の色と線の既定の通り方も設定の項目で変えられる
 import { z } from "zod"
 import {
   BACKGROUND_PRINT,
@@ -16,7 +16,7 @@ import { FLOWCHART_TOOLS } from "./tools"
 export const FLOW_DIRECTIONS = ["down", "right"] as const
 export type FlowDirection = (typeof FLOW_DIRECTIONS)[number]
 
-// 流れの向き（ブックとページに持たせる。ページはブックを継承できる。無ければ下へ）
+// 流れの向き（ページの設定の項目。無ければ下へ）
 export const FLOW_DIRECTION = kit.defineSetting({
   id: "flow-direction",
   holder: "page",

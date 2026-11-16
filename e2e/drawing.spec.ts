@@ -414,7 +414,7 @@ test("ダイアログで箱のテーマを付箋紙にすると黄色の付箋�
   }
   await choose("付箋紙")
   expect(await look()).toEqual({ fill: "rgb(255, 243, 166)", fold: "12px" })
-  await choose("ブックを継承")
+  await choose("ページのテーマ")
   expect(await look()).toEqual({ fill: "rgb(255, 255, 255)", fold: "0px" })
 })
 
@@ -510,7 +510,7 @@ test("テーマの色はテーマを変えるとそのテーマの色になり�
   await edit(() =>
     dialog
       .getByLabel("テーマ")
-      .selectOption({ label: "ブックを継承" })
+      .selectOption({ label: "ページのテーマ" })
       .then(() => {}),
   )
   expect(await fill()).toBe("rgb(30, 58, 138)")
@@ -1031,10 +1031,8 @@ test("紙の右クリックの「ページの設定」で、線の既定の通�
   await page.mouse.click(empty.x, empty.y, { button: "right" })
   await page.getByRole("menu").getByRole("menuitem", { name: "ページの設定" }).click()
   const dialog = page.getByRole("dialog", { name: "ページの設定" })
-  // 既定は「ブック継承」（ブックの既定は折れ線。ボタンの名前に添える）
-  const inherit = dialog.getByRole("radio", { name: "ブックを継承（折れ線）" })
-  await expect(inherit).toBeChecked()
-  await expect(dialog.getByRole("group", { name: "線の既定の通り方" }).getByText("ブック継承")).toBeVisible()
+  // 既定は折れ線
+  await expect(dialog.getByRole("radio", { name: "折れ線" })).toBeChecked()
   await dialog.getByRole("radio", { name: "直線" }).check({ force: true })
   await expect.poll(async () => (await points.getAttribute("points"))!.split(" ").length).toBe(2) // ダイアログの下書き
   await dialog.getByRole("button", { name: "確定" }).click()

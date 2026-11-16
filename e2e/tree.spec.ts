@@ -6,7 +6,7 @@ import { newBook } from "./helpers/new-book"
 import { paper, settled } from "./helpers/paper"
 import { selectText } from "./helpers/rich"
 
-// ツリーのブックを作り、根だけのページを作る（grow は伸びる向きのボタンの名前。無ければブック継承）
+// ツリーのブックを作り、根だけのページを作る（grow は伸びる向きのボタンの名前。無ければ既定の向き）
 async function treeBook(page: Page, grow?: string) {
   await page.goto(BOOK_SCREEN_URL)
   const add = await newBook(page, "木", "ツリー")

@@ -14,7 +14,7 @@ import { useStageHere } from "../../../ui/scope"
 import { useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { LockIcon } from "../lock/LockIcon"
-import { FOLDER_OPEN, PAGE_CONTEXT, PAGE_OPEN } from "."
+import { FOLDER_CONTEXT, FOLDER_OPEN, PAGE_CONTEXT, PAGE_OPEN } from "."
 import { AddPageMenu } from "./AddPageMenu"
 import { FileIcon } from "./FileIcon"
 import styles from "./PageTabs.module.css"
@@ -42,6 +42,7 @@ export function PageTabs() {
   const openPage = useCommand(PAGE_OPEN.id)
   const openFolder = useCommand(FOLDER_OPEN.id)
   const openMenu = useContextMenu(PAGE_CONTEXT)
+  const openFolderMenu = useContextMenu(FOLDER_CONTEXT)
   const icons = useUiCatalog().pageTypeIcons // タイプのアイコン（名乗らないタイプは通常のファイル）
   const t = useMessages(kit)
   const list = useRef<HTMLDivElement | null>(null)
@@ -84,6 +85,7 @@ export function PageTabs() {
             }}
             onContextMenu={ev => {
               if (e.kind === "page") openMenu(ev, { page: e.id })
+              else openFolderMenu(ev, { folder: e.id })
             }}
             {...tabDrag.handlers(e.id)}
           >
