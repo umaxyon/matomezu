@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/umaxyon/matomezu/internal/engine"
 	"github.com/umaxyon/matomezu/internal/storage"
 )
 
@@ -99,7 +100,11 @@ func (h *Hub) AIRecords(q RecordsQuery) (out json.RawMessage, refusal string, ok
 		if len(q.Is) > 0 || q.Limit != "" || q.Before != "" {
 			return nil, "this kind takes only where (it has no index keys to list by)", true, nil
 		}
-		return h.aiRecordsOfAll(q.Kind, q.Where, q.Unlisted)
+		where, refusal := indexWhere(kind, q.Where)
+		if refusal != "" {
+			return nil, refusal, true, nil
+		}
+		return h.aiRecordsOfAll(q.Kind, where, q.Unlisted)
 	}
 	limit := kind.AIList.Limit
 	if q.Limit != "" {
@@ -194,7 +199,41 @@ func (h *Hub) AIRecords(q RecordsQuery) (out json.RawMessage, refusal string, ok
 	return out, "", err == nil, err
 }
 
-// aiRecordsOfAll は、一覧の既定の並びを持たない種類の一覧: 種類の全部を読み、where（トップの項目 = 値）に合う物を、unlisted（hide・include・only）に従ってエンジンが分けて並べる（100 行まで）。
+// indexWhere は、全部を読む種類の where を、索引キーだけに絞る: 索引キーでない名前は断る理由を返し（索引キーの無い種類は where を受けない）、
+// 数の索引キーの値は、エンジンが比べる書き方（JSON の数）にそろえる
+func indexWhere(kind engine.Kind, where map[string]string) (map[string]string, string) {
+	if len(where) == 0 {
+		return where, ""
+	}
+	types := map[string]string{}
+	names := make([]string, 0, len(kind.Keys))
+	for _, k := range kind.Keys {
+		types[k.Name] = k.Type
+		names = append(names, k.Name)
+	}
+	if len(names) == 0 {
+		return nil, "this kind has no index keys, so it takes no where"
+	}
+	out := map[string]string{}
+	for _, name := range slices.Sorted(maps.Keys(where)) {
+		typ, has := types[name]
+		if !has {
+			return nil, fmt.Sprintf("%s is not an index key of this kind (its index keys: %s)", name, strings.Join(names, ", "))
+		}
+		value := where[name]
+		if typ == "number" {
+			n, err := strconv.ParseFloat(value, 64)
+			if err != nil {
+				return nil, fmt.Sprintf("%s is a number", name)
+			}
+			value = strconv.FormatFloat(n, 'f', -1, 64)
+		}
+		out[name] = value
+	}
+	return out, ""
+}
+
+// aiRecordsOfAll は、一覧の既定の並びを持たない種類の一覧: 種類の全部を読み、where（索引キー = 値）に合う物を、unlisted（hide・include・only）に従ってエンジンが分けて並べる（100 行まで）。
 // hide のときは、載せなかった数 unlisted も添える（0 なら省く）。指す先のレコードは置き場所から引くので、エンジンを呼ぶ間も h.mu を持つ（行う間と同じ）
 func (h *Hub) aiRecordsOfAll(kind string, where map[string]string, unlisted string) (out json.RawMessage, refusal string, ok bool, err error) {
 	h.mu.Lock()

@@ -1,4 +1,4 @@
-// AI の一覧（read_records）の、種類の全部を読む道: 載せる物・載せない物（aiListed）・unlisted の 3 つの扱い・where・数・指す先の読み・形に合わないレコード
+// AI の一覧（read_records）の、種類の全部を読む道: 載せる物・載せない物（aiListed）・unlisted の 3 つの扱い・where（索引キーだけ）・数・指す先の読み・形に合わないレコード
 import { expect, test } from "bun:test"
 import { z } from "zod"
 import { listAIRecords } from "../../web/src/core/ai-list"
@@ -19,6 +19,7 @@ const THING = {
   aiDescription: "a thing",
   record: z.strictObject({ id: z.string(), box: z.string(), n: z.number() }),
   refers: (t: { box: string }) => [{ subject: "@ex/ai:box", id: t.box }],
+  keys: { box: { type: "text", of: (t: { box: string }) => t.box }, n: { type: "number", of: (t: { n: number }) => t.n } },
   aiBrief: (t: { id: string; n: number }) => `${t.id} #${t.n}`,
   aiOrder: (t: { n: number }) => -t.n,
   aiListed: {
@@ -54,6 +55,15 @@ test("where に合う物の中で分け、載せなかった数も where に合�
   expect(out.unlisted).toBe(1)
   expect(list("hide", { box: "b1" }).unlisted).toBe(0)
   expect(list("only", { n: "2" }).rows.map(r => r.id)).toEqual(["t2"])
+})
+
+test("where は索引キーの値と比べる（索引キーでない項目では絞れない。形に合わないレコードは、条件があれば合わない）", () => {
+  // id は索引キーでないので、同じ値でも合わない（呼ぶ側が名前を断る。ここまで届いても何にも合わない）
+  expect(list("include", { id: "t1" }).rows).toEqual([])
+  expect(list("include", { n: "3" }).rows.map(r => r.id)).toEqual(["t3"])
+  const broken = [...things, { id: "bad", box: 1 }]
+  expect(list("include", {}, broken).rows.map(r => r.id)).toContain("bad")
+  expect(list("include", { box: "b1" }, broken).rows.map(r => r.id)).toEqual(["t3", "t1"])
 })
 
 test("指す先は、そのレコードが指す先（refers）だけ読める。ほかの物は none", () => {
