@@ -49,8 +49,8 @@ test("フローのブックに判断のひし形とビルトインの箱を置�
     act(() => {
       r = instance.actions.perform(
         "@matomezu/paper:item-place",
-        { page: page().id, item, at: { x, y: 40 }, props: { caption } },
-        on,
+        { item, at: { x, y: 40 }, props: { caption } },
+        { page: page().id },
       )
     })
     expect(r).toMatchObject({ ok: true })
@@ -60,7 +60,7 @@ test("フローのブックに判断のひし形とビルトインの箱を置�
   const b = place("@matomezu/box:shape-box", 300, "処理")
   act(() => {
     expect(
-      instance.actions.perform("@matomezu/line:line-connect", { page: page().id, from: d, to: b }, on),
+      instance.actions.perform("@matomezu/line:line-connect", { from: d, to: b }, { page: page().id }),
     ).toMatchObject({
       ok: true,
     })
@@ -81,29 +81,29 @@ test("フローのブックに判断のひし形とビルトインの箱を置�
 
 test("自分のアクションで判断に答える。判断のひし形でないアイテムには断る", () => {
   const instance = make()
-  const { on, page } = flow(instance)
+  const { page } = flow(instance)
   act(() => {
     instance.actions.perform(
       "@matomezu/paper:item-place",
-      { page: page().id, item: "ex2:diamond", at: { x: 40, y: 40 } },
-      on,
+      { item: "ex2:diamond", at: { x: 40, y: 40 } },
+      { page: page().id },
     )
     instance.actions.perform(
       "@matomezu/paper:item-place",
-      { page: page().id, item: "@matomezu/box:shape-box", at: { x: 300, y: 40 } },
-      on,
+      { item: "@matomezu/box:shape-box", at: { x: 300, y: 40 } },
+      { page: page().id },
     )
   })
   const [d, b] = page().items!.map(i => i.id)
   act(() => {
-    expect(instance.actions.perform("ex2:diamond-answer", { page: page().id, item: d!, answer: "yes" }, on)).toEqual({
+    expect(instance.actions.perform("ex2:diamond-answer", { item: d!, answer: "yes" }, { page: page().id })).toEqual({
       ok: true,
       result: {},
     })
   })
   expect(page().items![0]!.props).toMatchObject({ answer: "yes" })
   expect(document.querySelector("[data-ex2-diamond]")?.getAttribute("data-ex2-diamond")).toBe("yes")
-  expect(instance.actions.perform("ex2:diamond-answer", { page: page().id, item: b!, answer: "no" }, on)).toEqual({
+  expect(instance.actions.perform("ex2:diamond-answer", { item: b!, answer: "no" }, { page: page().id })).toEqual({
     ok: false,
     reason: "refused",
   })
@@ -142,8 +142,8 @@ test("判断のひし形は、選んでいないビルトインのタイプ（�
   const page = pagesOf(instance.state.getState().books[book]!)[0]!
   const r = instance.actions.perform(
     "@matomezu/paper:item-place",
-    { page: page.id, item: "ex2:diamond", at: { x: 0, y: 0 } },
-    { book },
+    { item: "ex2:diamond", at: { x: 0, y: 0 } },
+    { page: page.id },
   )
   expect(r).toEqual({ ok: false, reason: "refused" })
 })

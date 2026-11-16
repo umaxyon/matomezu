@@ -76,7 +76,8 @@ const STAMP = defineAction({
   },
 })
 const notes = definePlugin({ id: "notes", pageTypes: [NOTE], actions: [RENAME, BREAK, STAMP] })
-const untyped = (a: Actions) => a as unknown as { perform(id: string, args: unknown, on?: { book: string }): unknown }
+const untyped = (a: Actions) =>
+  a as unknown as { perform(id: string, args: unknown, on?: { book: string } | { page: string }): unknown }
 // メモのページを 1 枚入れたブック n1 を作る（ブックとページの id は newId の n1・n2）
 const notesBook = (instance: ReturnType<typeof createMatomezu>) => {
   createBookIn(instance, "s1", { title: "メモ", page: { type: "notes:note", title: "メモ" } as never })
@@ -235,7 +236,7 @@ describe("アクションの入口", () => {
       ok: false,
       reason: "no-book",
     })
-    expect(actions.perform("@matomezu/line:line-connect", { page: "n2", from: "a", to: "b" }, { book: "n1" })).toEqual({
+    expect(actions.perform("@matomezu/line:line-connect", { from: "a", to: "b" }, { page: "n2" })).toEqual({
       ok: false,
       reason: "not-allowed",
     })
@@ -245,14 +246,15 @@ describe("アクションの入口", () => {
       ok: false,
       reason: "bad-args",
     })
-    // ページのタイプで決まるアクションも、引数の形が違えば bad-args（所が出せないので、タイプでは断らない）、名指したページが無ければ run が断る
-    expect(untyped(actions).perform("@matomezu/line:line-connect", { page: "n2", from: 1 }, { book: "n1" })).toEqual({
+    // ページのタイプで決まるアクションも、引数の形が違えば bad-args（所が出せないので、タイプでは断らない）、宛先のページが無ければ no-page
+    expect(untyped(actions).perform("@matomezu/line:line-connect", { from: 1 }, { page: "n2" })).toEqual({
       ok: false,
       reason: "bad-args",
     })
-    expect(
-      actions.perform("@matomezu/line:line-connect", { page: "nope", from: "a", to: "b" }, { book: "n1" }),
-    ).toEqual({ ok: false, reason: "refused" })
+    expect(actions.perform("@matomezu/line:line-connect", { from: "a", to: "b" }, { page: "nope" })).toMatchObject({
+      ok: false,
+      reason: "no-page",
+    })
     expect(state.getState()).toBe(before)
   })
 

@@ -61,7 +61,8 @@ function AddBox({ args, onClose, item }: DialogProps<ShapeAddArgs> & { item: typ
   const perform = usePerform()
   const add = (props: BoxProps) => {
     if (!book) return { reason: "no-book" }
-    const done = perform("@matomezu/paper:item-place", { ...args, item, props, crowd: "push" })
+    const { page, ...where } = args
+    const done = perform("@matomezu/paper:item-place", { ...where, item, props, crowd: "push" }, { page })
     if (!done.ok) return done
     select([done.result.item])
     onClose()
@@ -97,17 +98,20 @@ export function EditBoxDialog({ args, onClose }: DialogProps<{ page: string; ite
   if (!book || !start) return null
   const update = (props: BoxProps) => {
     // 「ブックのテーマ」・色の「なし」に戻したら、箱のテーマ・色の項目を消す
-    const done = perform("@matomezu/paper:item-update", {
-      page: args.page,
-      item: args.item,
-      props: {
-        ...props,
-        vAlign: props.vAlign ?? null,
-        // テーマは変えたときだけ送る（使えないテーマが残っていても、ほかの項目は直せる）
-        ...(props.theme === start.theme ? {} : { theme: props.theme ?? null }),
-        color: props.color ?? null,
+    const done = perform(
+      "@matomezu/paper:item-update",
+      {
+        item: args.item,
+        props: {
+          ...props,
+          vAlign: props.vAlign ?? null,
+          // テーマは変えたときだけ送る（使えないテーマが残っていても、ほかの項目は直せる）
+          ...(props.theme === start.theme ? {} : { theme: props.theme ?? null }),
+          color: props.color ?? null,
+        },
       },
-    })
+      { page: args.page },
+    )
     if (done.ok) onClose()
     return done.ok ? null : done
   }

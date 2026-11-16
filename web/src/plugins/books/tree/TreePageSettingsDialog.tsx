@@ -73,13 +73,16 @@ export function TreePageSettingsDialog({ args, onClose }: DialogProps<PageSettin
       () => perform("@matomezu/base:page-lock", {}, { page: page.id }).ok,
       () => perform("@matomezu/base:page-unlock", {}, { page: page.id }).ok,
       () =>
-        perform("@matomezu/base:page-update", {
-          page: page.id,
-          title,
-          settings: settings.patch,
-          ...paper.patch,
-          fields: { root: { caption, body: body === "" ? null : body, showBody } },
-        }).ok,
+        perform(
+          "@matomezu/base:page-update",
+          {
+            title,
+            settings: settings.patch,
+            ...paper.patch,
+            fields: { root: { caption, body: body === "" ? null : body, showBody } },
+          },
+          { page: page.id },
+        ).ok,
     )
     if (done) onClose()
   }

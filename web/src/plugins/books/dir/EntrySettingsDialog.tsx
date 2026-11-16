@@ -39,14 +39,17 @@ export function EntrySettingsDialog({ args, onClose }: DialogProps<{ page: strin
   const [refused, setRefused] = useState<MessageKey | null>(null) // 断られたわけの文言
   if (!book || !page || !entry) return null
   const submit = () => {
-    const done = perform(ENTRY_UPDATE.id, {
-      page: page.id,
-      entry: entry.id,
-      name,
-      description: description.trim() === "" ? null : description,
-      // 変えていないアイコンは送らない（足したプラグインが無効で値が無くても、名前などは直せる）
-      ...(icon === entry.icon ? {} : { icon: icon ?? null }),
-    })
+    const done = perform(
+      ENTRY_UPDATE.id,
+      {
+        entry: entry.id,
+        name,
+        description: description.trim() === "" ? null : description,
+        // 変えていないアイコンは送らない（足したプラグインが無効で値が無くても、名前などは直せる）
+        ...(icon === entry.icon ? {} : { icon: icon ?? null }),
+      },
+      { page: page.id },
+    )
     if (done.ok) onClose()
     else setRefused(refusalMessage(catalog, done, kit.message("Does not fit on the paper")))
   }

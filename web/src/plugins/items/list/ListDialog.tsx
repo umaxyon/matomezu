@@ -71,7 +71,8 @@ export function AddListDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
   const perform = usePerform()
   const add = (props: ListProps) => {
     if (!book) return { reason: "no-book" }
-    const done = perform("@matomezu/paper:item-place", { ...args, item: LIST.id, props, crowd: "push" })
+    const { page, ...where } = args
+    const done = perform("@matomezu/paper:item-place", { ...where, item: LIST.id, props, crowd: "push" }, { page })
     if (!done.ok) return done
     select([done.result.item])
     onClose()
@@ -113,18 +114,21 @@ export function EditListDialog({ args, onClose }: DialogProps<{ page: string; it
   const rows: readonly ListRow[] = found.children ?? []
   const update = (props: ListProps, rowLines?: RowsLines) => {
     // 「ブックのテーマ」・色の「なし」に戻したら、リストのテーマ・色の項目を消す
-    const done = perform("@matomezu/paper:item-update", {
-      page: args.page,
-      item: args.item,
-      props: {
-        ...props,
-        // テーマは変えたときだけ送る（使えないテーマが残っていても、ほかの項目は直せる）
-        ...(props.theme === found.props.theme ? {} : { theme: props.theme ?? null }),
-        color: props.color ?? null,
+    const done = perform(
+      "@matomezu/paper:item-update",
+      {
+        item: args.item,
+        props: {
+          ...props,
+          // テーマは変えたときだけ送る（使えないテーマが残っていても、ほかの項目は直せる）
+          ...(props.theme === found.props.theme ? {} : { theme: props.theme ?? null }),
+          color: props.color ?? null,
+        },
       },
-    })
+      { page: args.page },
+    )
     if (done.ok && rowLines !== undefined && rows.length > 0)
-      perform(ROW_LINES.id, { page: args.page, list: args.item, lines: rowLines })
+      perform(ROW_LINES.id, { list: args.item, lines: rowLines }, { page: args.page })
     if (done.ok) onClose()
     return done.ok ? null : done
   }

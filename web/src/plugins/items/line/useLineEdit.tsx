@@ -145,7 +145,7 @@ export function useLineEdit(catalog: CoreCatalog, localOf: (e: PointerEvent<Elem
             ? (["captionAt", "captionOffset"] as const)
             : ([w.end === "from" ? "exitAt" : "enterAt"] as const)
       const patch = Object.fromEntries(keys.map(k => [k, props[k] ?? null]))
-      perform(LINE_UPDATE.id, { page: scene.page.id, line: line.id, props: patch })
+      perform(LINE_UPDATE.id, { line: line.id, props: patch }, { page: scene.page.id })
     },
   }
 }

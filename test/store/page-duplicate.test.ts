@@ -59,12 +59,11 @@ test("page-duplicate は元のすぐ後ろに写しを足し、中の id を振�
   const s = slideSetup()
   const first = s.add({ title: "A" }).result?.page as string
   s.add({ title: "B" })
-  const placed = s.perform("@matomezu/slide:slide-place", {
-    page: first,
-    item: TEXT,
-    at: { x: 1, y: 2 },
-    props: { text: "a" },
-  })
+  const placed = s.perform(
+    "@matomezu/slide:slide-place",
+    { item: TEXT, at: { x: 1, y: 2 }, props: { text: "a" } },
+    { page: first },
+  )
   expect(placed.ok).toBe(true)
   expect(s.perform("@matomezu/base:page-lock", {}, { page: first }).ok).toBe(true)
   const done = s.perform("@matomezu/base:page-duplicate", { page: first, title: "A 写し" })

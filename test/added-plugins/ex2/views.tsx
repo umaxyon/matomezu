@@ -41,7 +41,12 @@ export function AddDiamondDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
   const [caption, setCaption] = useState("")
   const add = () => {
     // 置く所はそのまま渡し、画面で置くので、ほかの形は押してどける
-    const done = perform("@matomezu/paper:item-place", { ...args, item: DIAMOND.id, props: { caption }, crowd: "push" })
+    const { page, ...where } = args
+    const done = perform(
+      "@matomezu/paper:item-place",
+      { ...where, item: DIAMOND.id, props: { caption }, crowd: "push" },
+      { page },
+    )
     if (done.ok) onClose()
   }
   return (
@@ -63,7 +68,7 @@ export function EditDiamondDialog({ args, onClose }: DialogProps<{ page: string;
   const diamond = useItem(args.page, args.item, DIAMOND.id)
   const perform = usePerform()
   const answer = (value: "yes" | "no") => {
-    if (perform(ANSWER.id, { ...args, answer: value }).ok) onClose()
+    if (perform(ANSWER.id, { item: args.item, answer: value }, { page: args.page }).ok) onClose()
   }
   return (
     <Dialog title={t("editDecision")} onClose={onClose}>

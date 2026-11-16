@@ -12,11 +12,11 @@ const items = (store: ReturnType<typeof newStore>) => shapesOf(pagesOf(store.sta
 const place = (store: ReturnType<typeof newStore>, props: Record<string, unknown>, x = 100) =>
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x, y: 100 }, props },
-    { book: "b1" },
+    { item: "@matomezu/box:shape-nest-box", at: { x, y: 100 }, props },
+    { page: "p1" },
   )
 const update = (store: ReturnType<typeof newStore>, props: Record<string, unknown>) =>
-  store.actions.perform("@matomezu/paper:item-update", { page: "p1", item: "n1", props }, { book: "b1" })
+  store.actions.perform("@matomezu/paper:item-update", { item: "n1", props }, { page: "p1" })
 
 test("箱の色は代表色の名前か #rrggbb。ほかは断り、null で消す", () => {
   const store = ready()

@@ -48,8 +48,8 @@ test("置くときに渡した項目を箱に入れ、書かなかった項目�
   const at = { x: 100, y: 50 }
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item: "@matomezu/box:shape-nest-box", at, props: { caption: "見出し", body: "本文" } },
-    { book: "b1" },
+    { item: "@matomezu/box:shape-nest-box", at, props: { caption: "見出し", body: "本文" } },
+    { page: "p1" },
   )
   expect(page(store).items).toEqual([
     {
@@ -64,8 +64,8 @@ test("置くときに渡した項目を箱に入れ、書かなかった項目�
   ])
   const bad = store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item: "@matomezu/box:shape-nest-box", at, props: { text: "x" } },
-    { book: "b1" },
+    { item: "@matomezu/box:shape-nest-box", at, props: { text: "x" } },
+    { page: "p1" },
   )
   expect(bad).toEqual({ ok: false, reason: "refused" })
 })
@@ -88,13 +88,13 @@ test("アイテムの id は振った値から作り、ブックのどのペー�
   addPageIn(store, "s1", { type: "@matomezu/drawing:drawing", title: "ページ 2" })
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x: 0, y: 0 } },
-    { book: "b1" },
+    { item: "@matomezu/box:shape-nest-box", at: { x: 0, y: 0 } },
+    { page: "p1" },
   )
   const done = store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p2", item: "@matomezu/box:shape-nest-box", at: { x: 0, y: 0 } },
-    { book: "b1" },
+    { item: "@matomezu/box:shape-nest-box", at: { x: 0, y: 0 } },
+    { page: "p2" },
   )
   expect(done).toEqual({ ok: true, result: { item: "y", at: { x: 0, y: 0 } } })
 })
@@ -103,8 +103,8 @@ test("ブックで使えないアイテムは置けない", () => {
   const store = ready()
   const done = store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item: "shape.nope", at: { x: 0, y: 0 } },
-    { book: "b1" },
+    { item: "shape.nope", at: { x: 0, y: 0 } },
+    { page: "p1" },
   )
   expect(done).toEqual({ ok: false, reason: "refused" })
 })
@@ -113,8 +113,8 @@ test("動かすのは画面の上で動いた量を倍率で割った量。は�
   const store = ready()
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x: 10, y: 10 } },
-    { book: "b1" },
+    { item: "@matomezu/box:shape-nest-box", at: { x: 10, y: 10 } },
+    { page: "p1" },
   )
   store.actions.command("s1", "@matomezu/paper:paper-move", { items: ["n1"], by: { x: 30, y: 20 } })
   expect(page(store).items![0]).toMatchObject({ x: 40, y: 30 })
@@ -159,13 +159,13 @@ test("箱の編集は書いた項目だけを変え、位置・大きさと id �
   const at = { x: 10, y: 20 }
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item: "@matomezu/box:shape-nest-box", at, props: { caption: "前" } },
-    { book: "b1" },
+    { item: "@matomezu/box:shape-nest-box", at, props: { caption: "前" } },
+    { page: "p1" },
   )
   const done = store.actions.perform(
     "@matomezu/paper:item-update",
-    { page: "p1", item: "n1", props: { caption: "後", body: "本文" } },
-    { book: "b1" },
+    { item: "n1", props: { caption: "後", body: "本文" } },
+    { page: "p1" },
   )
   expect(done.ok).toBe(true)
   expect(page(store).items).toEqual([
@@ -179,16 +179,8 @@ test("箱の編集は書いた項目だけを変え、位置・大きさと id �
       props: { caption: "後", rule: true, body: "本文", captionAlign: "center", bodyAlign: "left" },
     },
   ])
-  const bad = store.actions.perform(
-    "@matomezu/paper:item-update",
-    { page: "p1", item: "n1", props: { text: "x" } },
-    { book: "b1" },
-  )
-  const none = store.actions.perform(
-    "@matomezu/paper:item-update",
-    { page: "p1", item: "b9", props: {} },
-    { book: "b1" },
-  )
+  const bad = store.actions.perform("@matomezu/paper:item-update", { item: "n1", props: { text: "x" } }, { page: "p1" })
+  const none = store.actions.perform("@matomezu/paper:item-update", { item: "b9", props: {} }, { page: "p1" })
   expect([bad.ok, none.ok]).toEqual([false, false])
 })
 
@@ -196,8 +188,8 @@ test("箱を編集するコマンドは、そのページの箱を渡して編�
   const store = ready()
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x: 0, y: 0 } },
-    { book: "b1" },
+    { item: "@matomezu/box:shape-nest-box", at: { x: 0, y: 0 } },
+    { page: "p1" },
   )
   store.actions.command("s1", "@matomezu/paper:paper-edit", { item: "b9" })
   expect(store.state.getState().dialog).toBeNull()
@@ -238,15 +230,15 @@ test("選んでいるアイテムを消すと選択も外れる。選んでい�
   for (const x of [0, 200, 400])
     store.actions.perform(
       "@matomezu/paper:item-place",
-      { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x, y: 0 } },
-      { book: "b1" },
+      { item: "@matomezu/box:shape-nest-box", at: { x, y: 0 } },
+      { page: "p1" },
     )
   expect(store.actions.command("s1", "@matomezu/paper:paper-delete")).toBe(false)
   store.actions.select("s1", ["n1", "n3"])
   expect(store.actions.command("s1", "@matomezu/paper:paper-delete")).toBe(true)
   expect(page(store).items!.map(i => i.id)).toEqual(["n2"])
   expect(screenOf(store.state.getState().window).stages[0]!.selection).toEqual([])
-  const none = store.actions.perform("@matomezu/paper:item-remove", { page: "p1", items: ["n2", "b9"] }, { book: "b1" })
+  const none = store.actions.perform("@matomezu/paper:item-remove", { items: ["n2", "b9"] }, { page: "p1" })
   expect(none.ok).toBe(false)
   expect(page(store).items!.map(i => i.id)).toEqual(["n2"])
 })

@@ -6,7 +6,7 @@ import { newStore } from "../../support"
 
 // 外したプラグインの星（大きさ無し）と、外したプラグインの線（星から箱へ）が残る図面
 const book = testBook("u1", "星の残る図", [
-  drawingPage("p1", {
+  drawingPage("u1-p1", {
     title: "P",
     items: [
       { id: "s", item: "@foo/stars:star", x: 40, y: 40, props: { points: 5 } },
@@ -22,9 +22,8 @@ test("機能台帳に無いアイテムのあるブックも読め、知らな�
   const store = newStore({ savedBooks: [book] })
   expect(store.state.getState().partial.map(n => n.code)).toEqual(["W007"])
   expect(rectsOf(store.catalog.core, page(store)).get("s")).toEqual({ x: 40, y: 40, w: 64, h: 64 })
-  const on = { book: "u1" }
   expect(
-    store.actions.perform("@matomezu/paper:item-move", { page: "p1", items: ["s"], by: { x: 20, y: 0 } }, on).ok,
+    store.actions.perform("@matomezu/paper:item-move", { items: ["s"], by: { x: 20, y: 0 } }, { page: "u1-p1" }).ok,
   ).toBe(true)
   expect(page(store).items?.find(i => i.id === "s") as unknown).toEqual({
     id: "s",
@@ -35,9 +34,10 @@ test("機能台帳に無いアイテムのあるブックも読め、知らな�
   })
   // ほかのアクションでも、知らない線はそのまま残る
   expect(
-    store.actions.perform("@matomezu/paper:item-update", { page: "p1", item: "b", props: { caption: "箱2" } }, on).ok,
+    store.actions.perform("@matomezu/paper:item-update", { item: "b", props: { caption: "箱2" } }, { page: "u1-p1" })
+      .ok,
   ).toBe(true)
   expect(page(store).items?.find(i => i.id === "l") as unknown).toEqual(pagesOf(book)[0]!.items?.[2])
-  expect(store.actions.perform("@matomezu/paper:item-remove", { page: "p1", items: ["s"] }, on).ok).toBe(true)
+  expect(store.actions.perform("@matomezu/paper:item-remove", { items: ["s"] }, { page: "u1-p1" }).ok).toBe(true)
   expect(page(store).items?.map(i => i.id)).not.toContain("s")
 })

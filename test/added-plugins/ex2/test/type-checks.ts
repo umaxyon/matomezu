@@ -10,7 +10,7 @@ const instance = createMatomezu({
   controlCenter: "@matomezu/control-center:control-center",
 })
 // @ts-expect-error 自分のアクションの引数の形が違う
-instance.actions.perform("ex2:diamond-answer", { page: "p", item: "i", answer: "maybe" }, { book: "b" })
+instance.actions.perform("ex2:diamond-answer", { item: "i", answer: "maybe" }, { page: "p" })
 // @ts-expect-error 型を書き足した ex2 を渡し忘れた
 createMatomezu({ plugins: BUILTIN_UI, controlCenter: "@matomezu/control-center:control-center" })
 // @ts-expect-error 判断のひし形のビューを結び忘れた

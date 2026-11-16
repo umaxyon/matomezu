@@ -24,8 +24,8 @@ function previewing() {
   store.actions.resizeStage("s1", { w: 1400, h: 1000 })
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item: BOX, at: { x: 40, y: 40 }, props: { caption: "箱" } },
-    { book: "b1" },
+    { item: BOX, at: { x: 40, y: 40 }, props: { caption: "箱" } },
+    { page: "p1" },
   )
   expect(store.actions.command("s1", "@matomezu/base:print-preview-open")).toBe(true)
   return store
@@ -73,13 +73,13 @@ test("印刷プレビューの設定は print-preview-update で変え、画面�
 
 test("印刷区画に載っているか: 形は掛かっている印刷区画のどれにも載る。またいだ形は直してもらう形として挙げる。空の印刷区画は印刷プレビューに並べない", async () => {
   const store = newStore()
-  const done = store.actions.perform("@matomezu/base:page-update", { page: "p1", grows: "right-down" }, { book: "b1" })
+  const done = store.actions.perform("@matomezu/base:page-update", { grows: "right-down" }, { page: "p1" })
   expect(done.ok).toBe(true)
   const place = (x: number, caption: string) =>
     store.actions.perform(
       "@matomezu/paper:item-place",
-      { page: "p1", item: BOX, at: { x, y: 40 }, props: { caption }, crowd: "push" },
-      { book: "b1" },
+      { item: BOX, at: { x, y: 40 }, props: { caption }, crowd: "push" },
+      { page: "p1" },
     )
   const book = () => store.state.getState().books.b1 as Book
   const filled = () => [...(filledSheets(store.catalog.core, pagesOf(book())[0]!) ?? [])].sort()
@@ -98,13 +98,9 @@ test("印刷区画に載っているか: 形は掛かっている印刷区画の
 
 test("印刷区画に載っているか: 手で直した線の角がある印刷区画は載り、線が通り抜けるだけの印刷区画は載らない。形は掛かる印刷区画の全部に載る（端がちょうど境目なら次には掛からない）", () => {
   const store = newStore()
-  store.actions.perform("@matomezu/base:page-update", { page: "p1", grows: "right-down" }, { book: "b1" })
+  store.actions.perform("@matomezu/base:page-update", { grows: "right-down" }, { page: "p1" })
   const place = (x: number, y: number, w = 100) =>
-    store.actions.perform(
-      "@matomezu/paper:item-place",
-      { page: "p1", item: BOX, at: { x, y }, w, h: 64 },
-      { book: "b1" },
-    )
+    store.actions.perform("@matomezu/paper:item-place", { item: BOX, at: { x, y }, w, h: 64 }, { page: "p1" })
   const book = () => store.state.getState().books.b1 as Book
   const filled = () => [...(filledSheets(store.catalog.core, pagesOf(book())[0]!) ?? [])].sort()
   const paper = paperSize(store.catalog.core, pagesOf(book())[0]!)!
@@ -113,15 +109,15 @@ test("印刷区画に載っているか: 手で直した線の角がある印刷
   // 両端を n1 と n2 の右の辺の真ん中に固定（ふち一周 328 の上で 132）。手で直した縦の区間を右の印刷区画に置く
   const ends = { exitAt: 132 / 328, enterAt: 132 / 328 }
   const connect = (props: Record<string, unknown>) =>
-    store.actions.perform("@matomezu/line:line-connect", { page: "p1", from: "n1", to: "n2", props }, { book: "b1" })
+    store.actions.perform("@matomezu/line:line-connect", { from: "n1", to: "n2", props }, { page: "p1" })
   const line = connect({ ...ends })
   expect(line.ok).toBe(true)
   expect(filled()).toEqual(["0,0", "0,1"])
   const id = (line as { result: { line: string } }).result.line
   const update = store.actions.perform(
     "@matomezu/line:line-update",
-    { page: "p1", line: id, props: { via: [paper.w + 200] } },
-    { book: "b1" },
+    { line: id, props: { via: [paper.w + 200] } },
+    { page: "p1" },
   )
   expect(update.ok).toBe(true)
   expect(filled()).toEqual(["0,0", "0,1", "1,0", "1,1"])
@@ -182,13 +178,13 @@ test("可変ページのツリーとディレクトリ構成図で中身があ�
 
 test("印刷区画より大きい形は、またいでも直せないので、印刷区画より大きい形として挙げる（印刷プレビューは開ける）", () => {
   const store = newStore()
-  store.actions.perform("@matomezu/base:page-update", { page: "p1", grows: "right-down" }, { book: "b1" })
+  store.actions.perform("@matomezu/base:page-update", { grows: "right-down" }, { page: "p1" })
   const book = () => store.state.getState().books.b1 as Book
   const paper = paperSize(store.catalog.core, pagesOf(book())[0]!)!
   const done = store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item: BOX, at: { x: 40, y: 40 }, w: paper.w + 200, h: 64 },
-    { book: "b1" },
+    { item: BOX, at: { x: 40, y: 40 }, w: paper.w + 200, h: 64 },
+    { page: "p1" },
   )
   expect(done.ok).toBe(true)
   const id = pagesOf(book())[0]!.items![0]!.id

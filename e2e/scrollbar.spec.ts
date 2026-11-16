@@ -52,22 +52,25 @@ test("リストの行が収まらず縦のスクロールバーが出ても、�
     book: string
     page: string
   }
-  const perform = async (action: string, args: object) =>
-    (await page.request.post("/api/ai/perform", { headers: ai, data: { action, args, on: { book } } })).json()
-  const placed = await perform("@matomezu/paper:item-place", {
-    page: shown,
-    item: "@matomezu/list:shape-list",
-    at: { x: 12, y: 12 },
-    w: 588, // 字の置き場が 546px（全角の字 13px のちょうど 42 字）になる幅
-    h: 150,
-    props: { caption: "切れない" },
-  })
+  const perform = async (action: string, args: object, on: object = { book }) =>
+    (await page.request.post("/api/ai/perform", { headers: ai, data: { action, args, on } })).json()
+  const placed = await perform(
+    "@matomezu/paper:item-place",
+    {
+      item: "@matomezu/list:shape-list",
+      at: { x: 12, y: 12 },
+      w: 588, // 字の置き場が 546px（全角の字 13px のちょうど 42 字）になる幅
+      h: 150,
+      props: { caption: "切れない" },
+    },
+    { page: shown },
+  )
   const list = placed.result.item as string
   // 字の置き場ちょうどまで字が並ぶ本文（全角の字は表の幅どおりなので、折り返しの計算と描いた幅が合う）
   const body = "あ".repeat(120)
   for (const bodyAlign of ["left", "right"])
-    await perform("@matomezu/list:row-add", { page: shown, list, props: { caption: bodyAlign, body, bodyAlign } })
-  await perform("@matomezu/list:row-lines", { page: shown, list, lines: "fit" })
+    await perform("@matomezu/list:row-add", { list, props: { caption: bodyAlign, body, bodyAlign } }, { page: shown })
+  await perform("@matomezu/list:row-lines", { list, lines: "fit" }, { page: shown })
   const measured = await page.locator("[data-item]").evaluate((item: HTMLElement) => {
     const rows = [...item.querySelectorAll<HTMLElement>("*")].find(e => getComputedStyle(e).overflowY === "auto")!
     const lines = [...item.querySelectorAll<HTMLElement>("[data-align] > div")]

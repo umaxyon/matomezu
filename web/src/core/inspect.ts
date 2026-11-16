@@ -28,7 +28,7 @@ export type Source =
   | { source: "catalog"; table: "actions"; id: string } // 表にその定義があるか
   | { source: "pageType"; id: string; field: "actions.without" | "actions.add" } // ページのタイプが外す・足すアクション
   | { source: "action"; id: string; field: "attach"; pageType: string } // アクションの付く先が、そのタイプのページに当てはまるか
-  | { source: "action"; id: string; field: "attach.books" } // アクションが、どのブックにも付くか（ページを名指さないとき）
+  | { source: "action"; id: string; field: "attach.books" | "attach.pages" } // アクションが、どのブック・どのページにも付くか（ページを名指さないとき）
   | { source: "action"; id: string; field: "run" } // 名指した所がブックに無い: ここでは止めず、行う側（run）が断る
   | { source: "action"; id: string; field: "userOnly" } // 利用者だけが行うアクションを、AI が頼んだ
   | { source: "participation"; id: string } // 参加が確定していない AI が、ブックでない対象のアクションを頼んだ
@@ -110,12 +110,17 @@ function typeSteps(def: ActionDef, type: PageTypeDef): Step<boolean>[] {
 // - 所がページのタイプを決める（ページ page・その中の物 ids・エントリ entries・作るページ creates）: そのタイプで決める（いくつものタイプにまたがるなら、どのタイプでも使えるときだけ）
 // - 作るページのタイプがまだ分からない（ANY_PAGE_TYPE）: どれかのタイプで使えるか
 // - アノテーションが対象で所が無い: ブックのどれかのページのタイプで使えるか（結び付く物のページごとの確かめは、行った後。core/annotation.ts）
-// - ほか（ブック自身が対象）: タイプに依らない付く先（attach の books）だけで決める
+// - ページが対象で、どのページも変える所（allPages）: ブックのどのページのタイプでも使えるか
+// - ほか（ブック自身が対象・所がページを決めない）: タイプに依らない付く先（ブックが対象なら attach の books、ページが対象なら pages）だけで決める
 function placeSteps(catalog: CoreCatalog, def: ActionDef, book: Book, where: Where | undefined): Step<boolean>[] {
   const at = typesAt(catalog, def, book, where)
   if (at === "missing") return [{ from: { source: "action", id: def.id, field: "run" }, value: true }]
   if (at === null)
-    return [{ from: { source: "action", id: def.id, field: "attach.books" }, value: def.attach?.books === true }]
+    return [
+      def.target === "page"
+        ? { from: { source: "action", id: def.id, field: "attach.pages" }, value: def.attach?.pages === true }
+        : { from: { source: "action", id: def.id, field: "attach.books" }, value: def.attach?.books === true },
+    ]
   const [first, ...rest] = at.types.map(t => typeSteps(def, t))
   if (!first) return [{ from: { source: "action", id: def.id, field: "attach.books" }, value: false }]
   if (at.need === "some") return [first, ...rest].find(steps => decide(steps).value === true) ?? first
@@ -151,10 +156,11 @@ function typesAt(
         })
         .map(p => p.type),
     )
-  // アノテーションが対象で所が無ければ、ブックのどれかのページのタイプ（ページが 1 枚も無ければ、使えない）
-  return def.target === "annotations"
-    ? { types: [...new Set(pages.map(p => p.type))].map(t => pageType(catalog, t)), need: "some" }
-    : null
+  // ページが対象で、どのページも変える所（allPages）なら、ブックのどのページのタイプでも使えるときだけ（ページが 1 枚も無ければ、使えない）。
+  // アノテーションが対象で所が無ければ、ブックのどれかのページのタイプ
+  const types = [...new Set(pages.map(p => p.type))].map(t => pageType(catalog, t))
+  if (def.target === "page" && where?.allPages) return { types, need: "every" }
+  return def.target === "annotations" ? { types, need: "some" } : null
 }
 
 // 答え answer を決めたのが、所のステップ（ページのタイプとアクションの付く先）か

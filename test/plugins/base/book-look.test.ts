@@ -10,7 +10,7 @@ const page = (store: ReturnType<typeof newStore>) => pagesOf(book(store))[0]!
 const update = (store: ReturnType<typeof newStore>, args: Record<string, unknown>) =>
   store.actions.perform("@matomezu/base:book-update", args, { book: "b1" })
 const updatePage = (store: ReturnType<typeof newStore>, settings: Record<string, unknown>) =>
-  store.actions.perform("@matomezu/base:page-update", { page: "p1", settings }, { book: "b1" })
+  store.actions.perform("@matomezu/base:page-update", { settings }, { page: "p1" })
 
 const THEME = "@matomezu/base:page-theme"
 const PAPER = "@matomezu/base:page-paper-color"

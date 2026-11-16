@@ -35,12 +35,14 @@ export function pageProblems(
 ): { page: ItemPage; problem: PageProblem }[] {
   return pagesOf(book).flatMap(page => {
     if (pages && !pages.includes(page.id)) return []
-    const problem = pageType(catalog, page.type).pageProblem?.(
-      catalog,
-      page,
-      settingsAt(catalog, page),
-      growOf(catalog, page),
-    )
+    const problem = pageProblem(catalog, page)
     return problem ? [{ page, problem }] : []
   })
+}
+
+// ページ page の問題（ページのタイプが知らせる。無ければ null）
+export function pageProblem(catalog: CoreCatalog, page: ItemPage): PageProblem | null {
+  return (
+    pageType(catalog, page.type).pageProblem?.(catalog, page, settingsAt(catalog, page), growOf(catalog, page)) ?? null
+  )
 }

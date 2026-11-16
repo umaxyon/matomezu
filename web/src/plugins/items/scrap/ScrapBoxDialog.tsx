@@ -58,7 +58,7 @@ function Editor({ args, start, onClose }: { args: ShapeEditArgs; start: ScrapPro
         fill
         ready
         onSubmit={() => {
-          const done = perform("@matomezu/paper:item-update", { page: args.page, item: args.item, props: value })
+          const done = perform("@matomezu/paper:item-update", { item: args.item, props: value }, { page: args.page })
           if (done.ok) {
             onClose()
             return

@@ -56,7 +56,7 @@ export function LabelGrip({
       onDrag(undefined)
       const next = sizeAt(e, g)
       if (page && next !== g.start)
-        perform("@matomezu/paper:item-update", { page, item: id, props: { labelSize: next } })
+        perform("@matomezu/paper:item-update", { item: id, props: { labelSize: next } }, { page })
     },
     onPointerCancel: () => {
       grab.current = null

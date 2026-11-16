@@ -156,7 +156,7 @@ function probeOf(seen: { now: Seen | null }) {
       allowed,
       done:
         seen.now?.done ??
-        perform("@matomezu/paper:item-update", { page: "px", item: "a", props: { caption: "変えた" } } as never),
+        perform("@matomezu/paper:item-update", { item: "a", props: { caption: "変えた" } } as never, { page: "px" }),
       command: fit.shown,
       screenCommand: settings.shown,
       menu,

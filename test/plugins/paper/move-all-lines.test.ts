@@ -112,9 +112,9 @@ test("全部を右へ動かしても、via は動いた量だけずれる（動�
     "c585cfbc31",
   ]
   for (let dx = 1; dx <= 170; dx++) {
-    const next = moveItems(CORE_CATALOG, book as never, "p", ids, { x: dx, y: 0 })
+    const next = moveItems(CORE_CATALOG, pagesOf(book!)[0]!, ids, { x: dx, y: 0 })
     expect(next).not.toBeNull()
-    const items = ((next ? pagesOf(next)[0]?.items : undefined) ?? []) as unknown as {
+    const items = (next?.items ?? []) as unknown as {
       id: string
       props: { via?: number[] }
     }[]

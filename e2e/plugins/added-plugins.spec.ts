@@ -23,7 +23,7 @@ const flow = {
   lineup: [
     {
       kind: "page",
-      id: "p1",
+      id: "flow-p1",
       type: "ex2:flow",
       title: "P",
       paper: "@matomezu/base:a4",
@@ -228,8 +228,8 @@ test("AI は actions で追加プラグインのアクションを読み、perfo
   expect(
     await perform({
       action: "ex2:diamond-answer",
-      args: { page: "p1", item: "d1", answer: "yes" },
-      on: { book: flow.id },
+      args: { item: "d1", answer: "yes" },
+      on: { page: "flow-p1" },
     }),
   ).toMatchObject({ ok: true })
   await expect(page.locator('[data-ex2-diamond="yes"]')).toBeVisible()
@@ -237,8 +237,8 @@ test("AI は actions で追加プラグインのアクションを読み、perfo
   expect(
     await perform({
       action: "@matomezu/paper:item-place",
-      args: { page: "p1", item: "ex3:star", at: { x: 300, y: 300 } },
-      on: { book: flow.id },
+      args: { item: "ex3:star", at: { x: 300, y: 300 } },
+      on: { page: "flow-p1" },
     }),
   ).toMatchObject({ ok: false, reason: "refused" })
 })
@@ -286,7 +286,7 @@ test("ex6 と ex7 を読ませると、ex7 の木箱が ex6 の拡張ポイン�
     lineup: [
       {
         kind: "page",
-        id: "p1",
+        id: "yard-p1",
         type: "ex7:yard",
         title: "P",
         paper: "@matomezu/base:a4",
@@ -301,12 +301,12 @@ test("ex6 と ex7 を読ませると、ex7 の木箱が ex6 の拡張ポイン�
   expect((await page.request.put(`/api/books-for-test/${yard.id}`, { data: { book: yard, base: 0 } })).ok()).toBe(true)
   const perform = async (body: object) =>
     (await page.request.post("/api/ai/perform", { headers: aiAuth(), data: body })).json()
-  expect(await perform({ action: "ex6:page-weight", args: { page: "p1" }, on: { book: yard.id } })).toMatchObject({
+  expect(await perform({ action: "ex6:page-weight", args: {}, on: { page: "yard-p1" } })).toMatchObject({
     ok: true,
     result: { weight: 7 },
   })
   // 画面も ex7 の見た目を読み、置き場の木箱を描く
-  await page.goto(`/?b0=${yard.id}&p0=p1`)
+  await page.goto(`/?b0=${yard.id}&p0=yard-p1`)
   await expect(page.locator("[data-ex7-crate]")).toHaveCount(2)
 })
 

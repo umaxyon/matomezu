@@ -5,6 +5,7 @@ import { USER } from "../../../web/src/core/actor"
 import { findBinder, findPage, lineupOf, pagesIn, pagesOf, putPage } from "../../../web/src/core/book"
 import { checkCoreCatalog } from "../../../web/src/core/core-catalog"
 import { perform } from "../../../web/src/core/perform"
+import type { ItemPage } from "../../../web/src/core/placed"
 import type { Book } from "../../../web/src/core/schema/book"
 import {
   BINDER_DUPLICATE,
@@ -30,6 +31,8 @@ const book = testBook("b1", "混ざる", [
   testBinder("f1", "スライド", SLIDE, slide("s1"), slide("s2")),
 ])
 const run = (b: Book, action: string, args: object) => perform(b as never, action as never, args as never, ctx())
+const runOn = (b: Book, page: string, action: string, args: object) =>
+  perform({ book: b, page } as never, action as never, args as never, ctx())
 
 describe("page-add", () => {
   test("まとまらないタイプのページはブックの並びに、名前を渡さなければ重ならない（無題）で足す", () => {
@@ -124,10 +127,10 @@ test("アクションの結果でページのタイプが替わっていたら�
   const def = CORE_CATALOG.actions.get("@matomezu/base:page-update")!
   const swapped = {
     ...def,
-    run: (b: Book) => ({ next: putPage(b, { ...drawingPage("p1"), type: MARKDOWN } as never), result: {} }),
+    run: (p: ItemPage) => ({ next: { ...p, type: MARKDOWN }, result: {} }),
   }
   const catalog = { ...CORE_CATALOG, actions: new Map([...CORE_CATALOG.actions, [def.id, swapped]]) }
-  expect(perform(book as never, def.id as never, { page: "p1" } as never, { ...ctx(), catalog })).toEqual({
+  expect(perform({ book, page: "p1" } as never, def.id as never, {} as never, { ...ctx(), catalog })).toEqual({
     ok: false,
     reason: "refused",
   })
@@ -160,7 +163,7 @@ test("ロックしたページは、並びの中で動かせる・複製でき�
   const locked = putPage(book, { ...slide("s1"), locked: true } as never)
   expect(run(locked, "@matomezu/base:page-move", { page: "s1", index: 1 })).toMatchObject({ ok: true })
   expect(run(locked, "@matomezu/base:page-duplicate", { page: "s1" })).toMatchObject({ ok: true })
-  expect(run(locked, "@matomezu/base:page-update", { page: "s1", title: "別" })).toMatchObject({
+  expect(runOn(locked, "s1", "@matomezu/base:page-update", { title: "別" })).toMatchObject({
     ok: false,
     reason: "denied",
   })
@@ -175,7 +178,7 @@ test("スライドのバインダの中は紙と向きがそろう: 足すペー
     ok: false,
     reason: "refused",
   })
-  expect(run(book, "@matomezu/base:page-update", { page: "s1", paper: A4 })).toEqual({
+  expect(runOn(book, "s1", "@matomezu/base:page-update", { paper: A4 })).toEqual({
     ok: false,
     reason: "refused",
   })

@@ -1,7 +1,7 @@
 // 子の形のアクション: 親を渡して置く・子を動かす・変える・大きさを変える・子孫ごと消す・付け替え（紙のプラグインの item-*）
 
 import { expect, test } from "bun:test"
-import { pagesOf } from "../../../web/src/core/book"
+import { findPage, pagesOf } from "../../../web/src/core/book"
 import { findShape, type ItemPage, walkShapes } from "../../../web/src/core/placed"
 import type { Book } from "../../../web/src/core/schema/book"
 import { screenOf } from "../../../web/src/core/window"
@@ -25,7 +25,7 @@ const LIST = "@matomezu/list:shape-list"
 const page = (store: ReturnType<typeof newStore>) =>
   pagesOf(store.state.getState().books.b1 as Book)[0] as unknown as ItemPage
 const run = (store: ReturnType<typeof newStore>, action: string, args: object) =>
-  store.actions.perform(action as never, { page: "p1", ...args } as never, { book: "b1" })
+  store.actions.perform(action as never, args as never, { page: "p1" } as never)
 const place = (store: ReturnType<typeof newStore>, args: object) => {
   const done = run(store, "@matomezu/paper:item-place", { item: NEST, w: 200, h: 100, ...args })
   return done.ok ? (done.result as { item: string }).item : null
@@ -115,36 +115,35 @@ test("子は親の中で動かし、子の領域より左や上には動かさ�
   expect(run(store, "@matomezu/paper:item-move", { items: [a, b], by: { x: 1, y: 0 } }).ok).toBe(false)
 })
 
-const pagedBook = (store: ReturnType<typeof newStore>) =>
-  store.state.getState().books.b1 as unknown as Parameters<typeof nearestMove>[1]
+const pageOne = (store: ReturnType<typeof newStore>) => findPage(store.state.getState().books.b1 as Book, "p1")!.page
 
 test("離したとき、子の領域や紙の端の外へ出した量は、収まる一番近い所へ寄せる。斜めなら端に沿い、兄弟の手前が外でも収まる所まで", () => {
   const store = newStore()
   const a = place(store, { at: { x: 100, y: 100 }, w: 400, h: 300 })!
   const b = place(store, { at: { x: 40, y: 60 }, parent: a, w: 80, h: 40 })!
-  const book = pagedBook(store)
+  const paged = pageOne(store)
   // 子の領域の左の外へ: 左端（O.x）まで
-  expect(nearestMove(CORE_CATALOG, book, "p1", [b], { x: -300, y: 0 })).toEqual({ x: O.x - 40, y: 0 })
+  expect(nearestMove(CORE_CATALOG, paged, [b], { x: -300, y: 0 })).toEqual({ x: O.x - 40, y: 0 })
   // 左上の外へ斜めに: 左端と上端へ滑る
-  expect(nearestMove(CORE_CATALOG, book, "p1", [b], { x: -300, y: -300 })).toEqual({
+  expect(nearestMove(CORE_CATALOG, paged, [b], { x: -300, y: -300 })).toEqual({
     x: O.x - 40,
     y: O.y - at(store, b)!.shape.y,
   })
   // ページの形は紙の外へ出さず、紙の端へ
-  expect(nearestMove(CORE_CATALOG, book, "p1", [a], { x: -500, y: 0 })).toEqual({ x: -100, y: 0 })
+  expect(nearestMove(CORE_CATALOG, paged, [a], { x: -500, y: 0 })).toEqual({ x: -100, y: 0 })
   // 収まる量はそのまま
-  expect(nearestMove(CORE_CATALOG, book, "p1", [b], { x: 20, y: 10 })).toEqual({ x: 20, y: 10 })
+  expect(nearestMove(CORE_CATALOG, paged, [b], { x: 20, y: 10 })).toEqual({ x: 20, y: 10 })
 })
 
 test("付け替えの道具で別の親へ入れ、入れる所が紙に収まらないときは、入れられる一番近い所へ入れる", () => {
   const store = newStore()
   const a = place(store, { at: { x: 0, y: 0 }, w: 400, h: 300 })!
   const b = place(store, { at: { x: 500, y: 100 }, w: 80, h: 40 })!
-  const book = pagedBook(store)
+  const paged = pageOne(store)
   // 親が育って紙からはみ出す所は、入れられない。入れられる所まで寄る
   const asked = { x: 5000, y: 100 }
-  expect(nearestReparent(CORE_CATALOG, book, "p1", b, a, asked)).not.toBeNull()
-  const near = nearestReparent(CORE_CATALOG, book, "p1", b, a, asked)!
+  expect(nearestReparent(CORE_CATALOG, paged, b, a, asked)).not.toBeNull()
+  const near = nearestReparent(CORE_CATALOG, paged, b, a, asked)!
   expect(near.x).toBeLessThan(asked.x)
   expect(near.x).toBeGreaterThan(O.x)
 })
@@ -377,8 +376,6 @@ test("内包ボックスの辺をつまんで縮めると、子がみな入る�
   expect(tall.h).toBe(placedSize(CORE_CATALOG, shape as never)!.h)
 })
 
-const drawing = (store: ReturnType<typeof newStore>) => store.state.getState().books.b1 as Book
-
 test("置く先: 点の下に形が無ければページのその所、子を持てる形の上ならその中（親の左上から）、子を持てない形の上ならその親の中の空き", () => {
   const store = newStore()
   const a = place(store, { at: { x: 100, y: 100 }, w: 400, h: 300 })!
@@ -387,7 +384,7 @@ test("置く先: 点の下に形が無ければページのその所、子を持
   const size = { w: 120, h: 60 }
   const shape = { ...placingShape(CORE_CATALOG, NEST)!, ...size }
   const target = (pointer: { x: number; y: number }) =>
-    placeTarget(CORE_CATALOG, drawing(store), page(store), pointer, { x: pointer.x - 16, y: pointer.y - 12 }, shape)
+    placeTarget(CORE_CATALOG, page(store), pointer, { x: pointer.x - 16, y: pointer.y - 12 }, shape)
   expect(target({ x: 40, y: 40 })).toEqual({
     parent: null,
     at: { x: 24, y: 28 },
@@ -523,7 +520,7 @@ test("置く先の置けるか: 内包ボックスの中でも、置くと箱が
   const a = place(store, { at: { x: 0, y: 600 }, w: 400, h: 150 })!
   const shape = { ...placingShape(CORE_CATALOG, NEST)!, w: 120, h: 60 }
   const target = (pointer: { x: number; y: number }) =>
-    placeTarget(CORE_CATALOG, drawing(store), page(store), pointer, { x: pointer.x - 16, y: pointer.y - 12 }, shape)
+    placeTarget(CORE_CATALOG, page(store), pointer, { x: pointer.x - 16, y: pointer.y - 12 }, shape)
   expect(target({ x: 40, y: 660 })).toMatchObject({ parent: a, fits: true })
   expect(target({ x: 40, y: 740 })).toMatchObject({ parent: a, fits: false })
 })

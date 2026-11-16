@@ -28,12 +28,12 @@ test("紙と向きはあとから変えられ、形が紙からはみ出す変�
     ).ok,
   ).toBe(true)
   const page = pages().at(-1)?.id as string
-  const update = (args: object) => actions.perform("@matomezu/base:page-update", { page, ...args }, { book: "b1" }).ok
+  const update = (args: object) => actions.perform("@matomezu/base:page-update", { ...args }, { page }).ok
   expect(
     actions.perform(
       "@matomezu/paper:item-place",
-      { page, item: "@matomezu/box:shape-nest-box", at: { x: 900, y: 100 } },
-      { book: "b1" },
+      { item: "@matomezu/box:shape-nest-box", at: { x: 900, y: 100 } },
+      { page },
     ).ok,
   ).toBe(true)
   // A4 横（1123 幅）の右寄りの箱は、A5 横（794 幅）にも縦の向きにも入らない
@@ -91,17 +91,13 @@ test("伸びられるタイプのページは、作るときもあとからも�
   expect(Object.keys(pages()[0] ?? {})).toEqual(["kind", "id", "type", "title", "paper", "orientation", "grows"])
   // タイプが向きを決めるなら grows は true だけ（向きは選べない）
   expect(pages()[0]?.grows).toBe(true)
-  expect(perform("@matomezu/base:page-update", { page: "n2", grows: "down" }, { book: "n1" }).ok).toBe(false)
-  expect(perform("@matomezu/base:page-update", { page: "n2", grows: false }, { book: "n1" }).ok).toBe(true)
+  expect(perform("@matomezu/base:page-update", { grows: "down" }, { page: "n2" }).ok).toBe(false)
+  expect(perform("@matomezu/base:page-update", { grows: false }, { page: "n2" }).ok).toBe(true)
   expect("grows" in (pages()[0] ?? {})).toBe(false)
-  expect(perform("@matomezu/base:page-update", { page: "n2", paper: "@matomezu/base:a3" }, { book: "n1" }).ok).toBe(
-    true,
-  )
+  expect(perform("@matomezu/base:page-update", { paper: "@matomezu/base:a3" }, { page: "n2" }).ok).toBe(true)
   expect(perform("@matomezu/base:page-add", { type: "notes:sheet", title: "q" }, { book: "n1" }).ok).toBe(true)
   expect(pages()[1]).toMatchObject({ paper: "@matomezu/base:a4" })
-  expect(perform("@matomezu/base:page-update", { page: "n2", paper: "@matomezu/base:a4" }, { book: "n1" }).ok).toBe(
-    true,
-  )
+  expect(perform("@matomezu/base:page-update", { paper: "@matomezu/base:a4" }, { page: "n2" }).ok).toBe(true)
 })
 
 // 下へだけ伸びられる、形を置くタイプの見本（図面のページのタイプを借りる）
@@ -131,8 +127,8 @@ test("可変ページは、伸びない向き（下へだけ伸びるなら横�
   ).toBe(true)
   const page = pages()[0]?.id as string
   const place = (x: number, y: number) =>
-    perform("@matomezu/paper:item-place", { page, item: "@matomezu/box:shape-nest-box", at: { x, y } }, { book }).ok
-  const update = (args: object) => perform("@matomezu/base:page-update", { page, ...args }, { book }).ok
+    perform("@matomezu/paper:item-place", { item: "@matomezu/box:shape-nest-box", at: { x, y } }, { page }).ok
+  const update = (args: object) => perform("@matomezu/base:page-update", { ...args }, { page }).ok
   // A4 縦（794×1123）の下の方の箱は、A5 縦（559×794）の高さを越えるが、下へ伸びるので入る
   expect(place(40, 900)).toBe(true)
   expect(update({ paper: "@matomezu/base:a5" })).toBe(true)
@@ -165,13 +161,13 @@ test("上下左右へ伸びる可変ページは、左・上に空きの印刷�
     (
       actions.perform(
         "@matomezu/paper:item-place",
-        { page, item: "@matomezu/box:shape-nest-box", at: { x, y } },
-        { book: "b1" },
+        { item: "@matomezu/box:shape-nest-box", at: { x, y } },
+        { page },
       ) as { ok: boolean; result?: { item: string } }
     ).result?.item
   const first = place(100, 100) as string
   // 可変ページにすると、左と上に空きの印刷区画を 1 つずつ持つよう中身が 印刷区画 1 つ分ずつずれる（A4 横は 1123×794）
-  expect(actions.perform("@matomezu/base:page-update", { page, grows: "all" }, { book: "b1" }).ok).toBe(true)
+  expect(actions.perform("@matomezu/base:page-update", { grows: "all" }, { page }).ok).toBe(true)
   expect(at().shift).toEqual({ x: 1, y: 1 })
   expect(at().items.find(i => i.id === first)).toMatchObject({ x: 1223, y: 894 })
   // 左の空きの印刷区画へ置くと、全体が印刷区画 1 つ分右へずれる
@@ -180,7 +176,7 @@ test("上下左右へ伸びる可変ページは、左・上に空きの印刷�
   expect(at().items.find(i => i.id === left)).toMatchObject({ x: 1173, y: 900 })
   expect(at().items.find(i => i.id === first)).toMatchObject({ x: 2346, y: 894 })
   // 左の箱を消すと、空いた左端の印刷区画を詰める
-  expect(actions.perform("@matomezu/paper:item-remove", { page, items: [left] }, { book: "b1" }).ok).toBe(true)
+  expect(actions.perform("@matomezu/paper:item-remove", { items: [left] }, { page }).ok).toBe(true)
   expect(at().shift).toEqual({ x: 1, y: 1 })
   expect(at().items.find(i => i.id === first)).toMatchObject({ x: 1223, y: 894 })
   // ページの設定のダイアログが確かめる下書き（normalizedPage）も、アクションのあとと同じく空きを詰めてから紙に入るかを見る
@@ -188,7 +184,7 @@ test("上下左右へ伸びる可変ページは、左・上に空きの印刷�
   const off = withGrows(findPage(book, page)?.page as ItemPage, undefined)
   expect(normalizedPage(CORE_CATALOG, book, putPage(book, off), off)).toMatchObject({ items: [{ x: 100, y: 100 }] })
   // 可変ページをやめると、空きを詰めて紙 1 枚に戻す
-  expect(actions.perform("@matomezu/base:page-update", { page, grows: false }, { book: "b1" }).ok).toBe(true)
+  expect(actions.perform("@matomezu/base:page-update", { grows: false }, { page }).ok).toBe(true)
   expect(at().shift).toBeUndefined()
   expect(at().items.find(i => i.id === first)).toMatchObject({ x: 100, y: 100 })
 })
@@ -246,11 +242,8 @@ test("フローチャートの可変ページは、流れの始まりの側を�
   ).toBe(true)
   const page = pageOf()?.id as string
   expect(
-    actions.perform(
-      "@matomezu/paper:item-place",
-      { page, item: "@matomezu/box:shape-box", at: { x: 100, y: 100 } },
-      { book },
-    ).ok,
+    actions.perform("@matomezu/paper:item-place", { item: "@matomezu/box:shape-box", at: { x: 100, y: 100 } }, { page })
+      .ok,
   ).toBe(true)
   // A4 縦は 794×1123
   expect(pageOf()?.shift).toEqual({ x: 1, y: 0 })
@@ -258,8 +251,8 @@ test("フローチャートの可変ページは、流れの始まりの側を�
   expect(
     actions.perform(
       "@matomezu/base:page-update",
-      { page, settings: { "@matomezu/flowchart:flow-direction": "right" } },
-      { book },
+      { settings: { "@matomezu/flowchart:flow-direction": "right" } },
+      { page },
     ).ok,
   ).toBe(true)
   expect(pageOf()?.shift).toEqual({ x: 0, y: 1 })

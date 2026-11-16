@@ -35,8 +35,8 @@ const place = (
 ) =>
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item: "@matomezu/box:shape-nest-box", at, props, ...size },
-    { book: "b1" },
+    { item: "@matomezu/box:shape-nest-box", at, props, ...size },
+    { page: "p1" },
   )
 
 test("文字の塊は箱の上下の枠と余白の内側に収め、本文を n 行出す高さの箱で n 行出す。一番低い高さはキャプション 1 行ぶん", () => {
@@ -87,11 +87,7 @@ test("本文は 2000 字まで", () => {
 test("本文を変えても大きさは変わらない", () => {
   const store = ready()
   place(store, box("短い"))
-  store.actions.perform(
-    "@matomezu/paper:item-update",
-    { page: "p1", item: "n1", props: { body: LONG } },
-    { book: "b1" },
-  )
+  store.actions.perform("@matomezu/paper:item-update", { item: "n1", props: { body: LONG } }, { page: "p1" })
   expect(items(store)[0]).toMatchObject({ w: 64, h: 64, props: { body: LONG } })
 })
 
@@ -99,7 +95,7 @@ test("@matomezu/paper:item-resize で渡した値だけを変える。x・y を�
   const store = ready()
   place(store, box("本文"))
   const resize = (args: { w?: number; h?: number; x?: number; y?: number }) =>
-    store.actions.perform("@matomezu/paper:item-resize", { page: "p1", item: "n1", ...args }, { book: "b1" })
+    store.actions.perform("@matomezu/paper:item-resize", { item: "n1", ...args }, { page: "p1" })
   expect(resize({ w: 300 }).ok).toBe(true)
   expect(items(store)[0]).toMatchObject({ x: 100, y: 100, w: 300, h: 64 })
   expect(resize({ h: 200, y: 50 }).ok).toBe(true)
@@ -130,7 +126,7 @@ test("中身を変えてキャプションが長くなったら、20 字まで�
   const store = ready()
   place(store, box("本文"))
   const update = (props: Record<string, unknown>) =>
-    store.actions.perform("@matomezu/paper:item-update", { page: "p1", item: "n1", props }, { book: "b1" })
+    store.actions.perform("@matomezu/paper:item-update", { item: "n1", props }, { page: "p1" })
   const twenty = "あ".repeat(20)
   expect(update({ caption: twenty }).ok).toBe(true)
   expect(items(store)[0]).toMatchObject({
@@ -142,7 +138,7 @@ test("中身を変えてキャプションが長くなったら、20 字まで�
   expect(wide).toBe(placedWidth({ caption: "あ".repeat(30), rule: true, body: "", ...ALIGNS }))
   update({ caption: "短い" })
   expect(items(store)[0]!.w).toBe(wide)
-  store.actions.perform("@matomezu/paper:item-resize", { page: "p1", item: "n1", w: 64, x: 1123 - 100 }, { book: "b1" })
+  store.actions.perform("@matomezu/paper:item-resize", { item: "n1", w: 64, x: 1123 - 100 }, { page: "p1" })
   update({ caption: twenty })
   expect(items(store)[0]).toMatchObject({ x: 1023, w: 100 })
 })
@@ -150,12 +146,8 @@ test("中身を変えてキャプションが長くなったら、20 字まで�
 test("キャプションを変えないなら、幅はそのまま", () => {
   const store = ready()
   place(store, box("本文"), { x: 100, y: 100 }, { w: 64 })
-  store.actions.perform("@matomezu/paper:item-resize", { page: "p1", item: "n1", w: 64 }, { book: "b1" })
-  store.actions.perform(
-    "@matomezu/paper:item-update",
-    { page: "p1", item: "n1", props: { body: "変えた" } },
-    { book: "b1" },
-  )
+  store.actions.perform("@matomezu/paper:item-resize", { item: "n1", w: 64 }, { page: "p1" })
+  store.actions.perform("@matomezu/paper:item-update", { item: "n1", props: { body: "変えた" } }, { page: "p1" })
   expect(items(store)[0]!.w).toBe(64)
 })
 
@@ -164,7 +156,7 @@ test("寄せの項目は既定でキャプションが中央、本文が左。�
   place(store, { caption: "見出し" })
   expect(items(store)[0]!.props).toMatchObject({ captionAlign: "center", bodyAlign: "left" })
   const update = (props: Record<string, unknown>) =>
-    store.actions.perform("@matomezu/paper:item-update", { page: "p1", item: "n1", props }, { book: "b1" })
+    store.actions.perform("@matomezu/paper:item-update", { item: "n1", props }, { page: "p1" })
   expect(update({ captionAlign: "right", bodyAlign: "center" }).ok).toBe(true)
   expect(items(store)[0]!.props).toMatchObject({ captionAlign: "right", bodyAlign: "center" })
   expect(update({ bodyAlign: "justify" }).ok).toBe(false)
@@ -178,7 +170,7 @@ test("箱にテーマを当てられる。表に無いテーマと、ページ�
   // 文書のテーマタイプのテーマは、図のブックの箱には当てられない
   expect(place(store, { caption: "文書", theme: "@matomezu/markdown:github-like" }, { x: 400, y: 100 }).ok).toBe(false)
   const update = (props: Record<string, unknown>) =>
-    store.actions.perform("@matomezu/paper:item-update", { page: "p1", item: "n1", props }, { book: "b1" })
+    store.actions.perform("@matomezu/paper:item-update", { item: "n1", props }, { page: "p1" })
   expect(update({ theme: "@matomezu/base:simple" }).ok).toBe(true)
   expect(update({ theme: "nope" }).ok).toBe(false)
   expect(update({ theme: null }).ok).toBe(true)
@@ -226,7 +218,7 @@ test("ページのタイプが使えないテーマが残った箱も、テー�
   const store = newStore({ books: Object.values(books) })
   store.actions.resizeStage("s1", { w: 1400, h: 1000 })
   const update = (props: Record<string, unknown>) =>
-    store.actions.perform("@matomezu/paper:item-update", { page: "p1", item: "n1", props }, { book: "b1" })
+    store.actions.perform("@matomezu/paper:item-update", { item: "n1", props }, { page: "p1" })
   expect(update({ caption: "直した" }).ok).toBe(true)
   expect(items(store)[0]!.props).toMatchObject({ caption: "直した", theme: "@matomezu/markdown:github-like" })
   expect(update({ theme: "@matomezu/markdown:github-like" }).ok).toBe(false)

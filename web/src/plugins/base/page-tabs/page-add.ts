@@ -26,8 +26,9 @@ import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import { settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
 import { kit } from "../kit"
+import { contentIdMakerOfBook } from "../utils/ids"
 import { fieldsArgs, writeFields } from "./page-fields"
-import { pageProblems } from "./page-problems"
+import { pageProblem } from "./page-problems"
 import { canChoose, defaultPaper, growsValue, paperChoices } from "./pages"
 
 // 足すページの引数（book-create も、最初のページに同じ引数を受ける）
@@ -108,7 +109,7 @@ export function withNewPage(
   const into: PageInto = made ? { binder: made.id } : binder ? { binder: binder.id, index: at } : { index: at }
   const based = made ? addBinder(book, made, args.index) : book
   const placed = addPage(based, fresh as ItemPage, clean(into))
-  const written = writeFields(catalog, placed, fresh, args.fields, "add", ctx.newId)
+  const written = writeFields(catalog, fresh, args.fields, "add", contentIdMakerOfBook(placed, ctx.newId))
   if (!written) return null
   const next = settings
     ? settleBook(
@@ -116,7 +117,8 @@ export function withNewPage(
         putPage(placed, withSettings(written.page, settings.data as Record<string, unknown>) as ItemPage),
       )
     : putPage(placed, written.page as ItemPage)
-  if (!findPage(next, fresh.id) || pageProblems(catalog, next, [fresh.id]).length > 0) return null
+  const added = findPage(next, fresh.id)?.page
+  if (!added || pageProblem(catalog, added)) return null
   return {
     book: next,
     result: {

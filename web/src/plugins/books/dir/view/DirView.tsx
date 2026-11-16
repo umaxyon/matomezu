@@ -174,10 +174,10 @@ const Rows = memo(function Rows({
     const todo = editEnd(dir, selected, commit ? text : null)
     if (todo.kind === "remove") {
       const next = afterRemove(dir, selected)
-      if (perform(ENTRY_REMOVE.id, { page: pageId, entry: selected }).ok && next) select([next])
+      if (perform(ENTRY_REMOVE.id, { entry: selected }, { page: pageId }).ok && next) select([next])
     }
     if (todo.kind === "rename") {
-      const done = perform(ENTRY_UPDATE.id, { page: pageId, entry: selected, name: todo.name })
+      const done = perform(ENTRY_UPDATE.id, { entry: selected, name: todo.name }, { page: pageId })
       if (!done.ok) refused(done) // 書けない字は書かず、元の名前のまま
     }
     setDraft(null)
@@ -189,7 +189,7 @@ const Rows = memo(function Rows({
     ended.current = true
     const next = commit ? noteEnd(dir, selected, noteText) : undefined
     if (next !== undefined) {
-      const done = perform(ENTRY_UPDATE.id, { page: pageId, entry: selected, description: next })
+      const done = perform(ENTRY_UPDATE.id, { entry: selected, description: next }, { page: pageId })
       if (!done.ok) refused(done)
     }
     setNoteDraft(null)
@@ -212,7 +212,7 @@ const Rows = memo(function Rows({
     const target = dropAt(dir, rows, entry, point)
     if (!target) return
     const { mark: _mark, ...where } = target
-    const moved = perform(ENTRY_MOVE.id, { page: pageId, entry, ...where })
+    const moved = perform(ENTRY_MOVE.id, { entry, ...where }, { page: pageId })
     if (!moved.ok) refused(moved)
   }
   return (

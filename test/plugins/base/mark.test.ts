@@ -23,8 +23,8 @@ function ready() {
   const place = (x: number) =>
     store.actions.perform(
       "@matomezu/paper:item-place",
-      { page, item: "@matomezu/box:shape-nest-box", at: { x, y: 40 }, props: { caption: "箱" } },
-      ON,
+      { item: "@matomezu/box:shape-nest-box", at: { x, y: 40 }, props: { caption: "箱" } },
+      { page },
     )
   const [a, b] = [place(40), place(400)].map(done => (done.ok ? (done.result as { item: string }).item : "")) as [
     string,

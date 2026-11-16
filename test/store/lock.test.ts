@@ -42,16 +42,11 @@ test("ロック中のページは変えられず消せない。ほかのペー�
   const [first, second] = pagesOf(book()).map(p => p.id) as [string, string]
   expect(actions.perform("@matomezu/base:page-lock", {}, { page: first }).ok).toBe(true)
   expect(pagesOf(book())[0]?.locked).toBe(true)
-  for (const [id, args] of [
-    ["@matomezu/base:page-update", { page: first, title: "x" }],
-    ["@matomezu/base:page-remove", { page: first }],
-  ] as const)
-    expect(actions.perform(id, args, { book: "b1" })).toEqual({
-      ok: false,
-      reason: "denied",
-      permission: "@matomezu/base:lock",
-    })
-  expect(actions.perform("@matomezu/base:page-update", { page: second, title: "y" }, { book: "b1" }).ok).toBe(true)
+  const denied = (done: unknown) =>
+    expect(done).toEqual({ ok: false, reason: "denied", permission: "@matomezu/base:lock" })
+  denied(actions.perform("@matomezu/base:page-update", { title: "x" }, { page: first }))
+  denied(actions.perform("@matomezu/base:page-remove", { page: first }, { book: "b1" }))
+  expect(actions.perform("@matomezu/base:page-update", { title: "y" }, { page: second }).ok).toBe(true)
   expect(actions.perform("@matomezu/base:page-unlock", {}, { page: first }).ok).toBe(true)
   expect(actions.perform("@matomezu/base:page-remove", { page: first }, { book: "b1" }).ok).toBe(true)
 })

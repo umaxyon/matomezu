@@ -52,7 +52,7 @@ test("どのページもいつも下へ増やす可変ページ。page-add・pag
     perform("@matomezu/base:page-add", { type: "@matomezu/markdown:markdown", title: "2", grows: true }, { book: id })
       .ok,
   ).toBe(false)
-  expect(perform("@matomezu/base:page-update", { page: page.id, grows: "down" }, { book: id }).ok).toBe(false)
+  expect(perform("@matomezu/base:page-update", { grows: "down" }, { page: page.id }).ok).toBe(false)
   expect(
     perform("@matomezu/base:page-add", { type: "@matomezu/markdown:markdown", title: "2", grows: false }, { book: id })
       .ok,
@@ -60,23 +60,19 @@ test("どのページもいつも下へ増やす可変ページ。page-add・pag
 })
 
 test("原文はページのフィールド text（無ければ空の文書）。page-update で丸ごと替える", () => {
-  const { store, id, book } = markdownStore()
+  const { store, book } = markdownStore()
   const page = pagesOf(book())[0]!
   expect("text" in page).toBe(false)
-  const done = store.actions.perform(
-    "@matomezu/base:page-update",
-    { page: page.id, fields: { text: "# 見出し" } },
-    { book: id },
-  )
+  const done = store.actions.perform("@matomezu/base:page-update", { fields: { text: "# 見出し" } }, { page: page.id })
   expect(done.ok).toBe(true)
   expect((pagesOf(book())[0] as { text?: string }).text).toBe("# 見出し")
 })
 
 test("page-update の find・replace は、原文にちょうど 1 か所ある find を替える", () => {
-  const { store, id, book } = markdownStore()
+  const { store, book } = markdownStore()
   const page = pagesOf(book())[0]!.id
   const update = (fields: Record<string, unknown>) =>
-    store.actions.perform("@matomezu/base:page-update", { page, fields }, { book: id })
+    store.actions.perform("@matomezu/base:page-update", { fields }, { page })
   expect(update({ text: "# 見出し\n本文" }).ok).toBe(true)
   expect(update({ find: "本文", replace: "直した本文" }).ok).toBe(true)
   expect((pagesOf(book())[0] as { text?: string }).text).toBe("# 見出し\n直した本文")
@@ -84,7 +80,8 @@ test("page-update の find・replace は、原文にちょうど 1 か所ある 
 
 test("原文の改行はいつも \\n だけ: page-add・page-update の text と find・replace の \\r\\n と \\r を \\n にそろえる", () => {
   const { store, id, book } = markdownStore()
-  const perform = (action: string, args: object) => store.actions.perform(action as never, args as never, { book: id })
+  const perform = (action: string, args: object, on: { book: string } | { page: string } = { book: id }) =>
+    store.actions.perform(action as never, args as never, on as never)
   expect(
     perform("@matomezu/base:page-add", {
       type: "@matomezu/markdown:markdown",
@@ -94,17 +91,19 @@ test("原文の改行はいつも \\n だけ: page-add・page-update の text �
   ).toBe(true)
   expect((pagesOf(book())[1] as { text?: string }).text).toBe("a\nb\nc")
   const page = pagesOf(book())[0]!.id
-  expect(perform("@matomezu/base:page-update", { page, fields: { text: "x\r\ny" } }).ok).toBe(true)
+  expect(perform("@matomezu/base:page-update", { fields: { text: "x\r\ny" } }, { page }).ok).toBe(true)
   expect((pagesOf(book())[0] as { text?: string }).text).toBe("x\ny")
-  expect(perform("@matomezu/base:page-update", { page, fields: { find: "x\r\ny", replace: "1\r\n2" } }).ok).toBe(true)
+  expect(perform("@matomezu/base:page-update", { fields: { find: "x\r\ny", replace: "1\r\n2" } }, { page }).ok).toBe(
+    true,
+  )
   expect((pagesOf(book())[0] as { text?: string }).text).toBe("1\n2")
 })
 
 test("find が無い・2 か所以上（重なりも数える）・text と一緒なら断る", () => {
-  const { store, id, book } = markdownStore()
+  const { store, book } = markdownStore()
   const page = pagesOf(book())[0]!.id
   const update = (fields: Record<string, unknown>) =>
-    store.actions.perform("@matomezu/base:page-update", { page, fields }, { book: id })
+    store.actions.perform("@matomezu/base:page-update", { fields }, { page })
   expect(update({ find: "a", replace: "b" }).ok).toBe(false) // 原文が無いページ
   expect(update({ text: "aaa" }).ok).toBe(true)
   expect(update({ find: "x", replace: "b" }).ok).toBe(false)
@@ -285,14 +284,14 @@ test("ほかのタイプのブックでは、ペインの並べ方のコマン�
 })
 
 test("ページを切り替えても、紙を変えても、ステージに紙を置かない。紙で決まる倍率・道具のアイコンのコマンドは出さない", () => {
-  const { store, id, book } = markdownStore()
+  const { store, book } = markdownStore()
   const { state, actions } = store
   addPageIn(store, "s1", { type: "@matomezu/markdown:markdown", title: "ページ 2" })
   const [first, second] = pagesOf(book()).map(p => p.id) as [string, string]
   expect(shownPageId(screenOf(state.getState().window).stages[0]!.opened ?? null)).toBe(second)
   actions.openPage("s1", first)
   expect(screenOf(state.getState().window).stages[0]!.opened).toMatchObject({ page: first, paper: null })
-  actions.perform("@matomezu/base:page-update", { page: first, paper: "@matomezu/base:a3" }, { book: id })
+  actions.perform("@matomezu/base:page-update", { paper: "@matomezu/base:a3" }, { page: first })
   expect(screenOf(state.getState().window).stages[0]!.opened).toMatchObject({ page: first, paper: null })
   for (const c of ["@matomezu/base:zoom-in", "@matomezu/base:tool-picker"] as const)
     expect(isShown(store, state.getState(), "s1", c)).toBe(false)
@@ -300,7 +299,7 @@ test("ページを切り替えても、紙を変えても、ステージに紙�
 
 test("ソースのペインで書いた所は、ホストで AI の変更のあとに行い直しても、重ならなければ残り、重なって 1 か所にならなければ落ちる", () => {
   const done: Done[] = []
-  const { store, id, book } = markdownStore({
+  const { store, book } = markdownStore({
     observe: d => {
       done.push(d)
     },
@@ -309,9 +308,9 @@ test("ソースのペインで書いた所は、ホストで AI の変更のあ�
   const write = (from: string, to: string) => {
     const edit = sourceEdit(from, to, from)
     if (edit.kind !== "send") throw new Error(edit.kind)
-    return store.actions.perform("@matomezu/base:page-update", { page, fields: edit.fields }, { book: id })
+    return store.actions.perform("@matomezu/base:page-update", { fields: edit.fields }, { page })
   }
-  store.actions.perform("@matomezu/base:page-update", { page, fields: { text: "# T\n\nfoo\n" } }, { book: id })
+  store.actions.perform("@matomezu/base:page-update", { fields: { text: "# T\n\nfoo\n" } }, { page })
   const confirmed = (text: string) => ({ ...book(), lineup: [{ ...pagesOf(book())[0]!, text }] })
   // AI が先頭に行を足したホストのブックに、foo の後ろへ書いた物を行い直す
   write("# T\n\nfoo\n", "# T\n\nfoo bar\n")

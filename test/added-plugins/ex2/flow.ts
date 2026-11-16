@@ -1,7 +1,7 @@
 // ex2 のページのタイプ「フロー」: 自分の形（判断のひし形）と設定の項目（流れの向き）と自分のアクションを持ち、
 // ビルトインの見せ方（紙）・箱・線・線の設定を id で選ぶ
 
-import { findPage, putPage, type ShapeAddArgs, type ShapeEditArgs, z } from "matomezu"
+import { type ShapeAddArgs, type ShapeEditArgs, z } from "matomezu"
 import { kit } from "./kit"
 
 export const DIAMOND_ADD_DIALOG = kit.defineDialogWith<ShapeAddArgs>()({ id: "diamond-add" })
@@ -31,16 +31,15 @@ export const ANSWER = kit.defineAction({
   attach: { items: [kit.name("diamond")] }, // 判断のひし形を置けるタイプで使える
   title: "answerDecision",
   aiDescription:
-    "Answer a decision (an item ex2/diamond) on a page: answer is yes or no. Refused when the item is not a decision on that page.",
-  target: "book",
-  args: z.strictObject({ page: z.string().min(1), item: z.string().min(1), answer: z.enum(["yes", "no"]) }),
-  permissionScope: { page: "page", item: "item" },
-  run: (book, args) => {
-    const page = findPage(book, args.page)?.page
-    const item = page?.items?.find(i => i.id === args.item)
-    if (!page || item?.item !== DIAMOND.id) return null
+    "Answer a decision (an item ex2/diamond) on a page: answer is yes or no. Refused when the item is not a decision on the page.",
+  target: "page",
+  args: z.strictObject({ item: z.string().min(1), answer: z.enum(["yes", "no"]) }),
+  permissionScope: { item: "item" },
+  run: (page, args) => {
+    const item = page.items?.find(i => i.id === args.item)
+    if (item?.item !== DIAMOND.id) return null
     const items = page.items?.map(i => (i === item ? { ...item, props: { ...item.props, answer: args.answer } } : i))
-    return { next: putPage(book, { ...page, items }), result: {} }
+    return { next: { ...page, items }, result: {} }
   },
 })
 

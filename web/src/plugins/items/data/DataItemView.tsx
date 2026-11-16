@@ -40,7 +40,7 @@ export function DataItemView({ props, content, size, id }: ItemViewProps<DataPro
         grips={grips}
         lineColor="var(--data-line)"
         onBodyWidth={bodyWidth => {
-          if (page) perform("@matomezu/paper:item-update", { page, item: id, props: { bodyWidth } })
+          if (page) perform("@matomezu/paper:item-update", { item: id, props: { bodyWidth } }, { page })
         }}
       />
     </div>

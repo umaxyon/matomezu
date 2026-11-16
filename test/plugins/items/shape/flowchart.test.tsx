@@ -70,13 +70,13 @@ test("フローチャートのツールボックス（下の行のフッタメ�
 })
 
 test("8 つの形を置け、形ごとの輪郭で描く。置いたときの幅はキャプションが見える幅（一番狭くて形の大きさ）", () => {
-  const { store, on, page } = flowchart()
+  const { store, page } = flowchart()
   act(() => {
     SHAPES.forEach((s, i) => {
       const at = { x: 20, y: 20 + i * 90 }
       const props = { caption: i === 0 ? "" : "開始" }
       expect(
-        store.actions.perform("@matomezu/paper:item-place", { page: page().id, item: s.item.id, at, props }, on).ok,
+        store.actions.perform("@matomezu/paper:item-place", { item: s.item.id, at, props }, { page: page().id }).ok,
       ).toBe(true)
     })
   })
@@ -117,9 +117,9 @@ test("流れの向きはページの設定で、既定は下へ。右へに変�
 })
 
 test("形は辺の真ん中（頂点）だけに線をつなぎ、平行四辺形と台形は食い込みの半分だけ内側につなぐ。箱はふち全体", () => {
-  const { store, on, page } = flowchart()
+  const { store, page } = flowchart()
   const place = (item: string, x: number) =>
-    store.actions.perform("@matomezu/paper:item-place", { page: page().id, item, at: { x, y: 40 } }, on)
+    store.actions.perform("@matomezu/paper:item-place", { item, at: { x, y: 40 } }, { page: page().id })
   act(() => {
     place("@matomezu/shape:shape-diamond", 40)
     place("@matomezu/shape:shape-parallelogram", 240)
@@ -133,18 +133,18 @@ test("形は辺の真ん中（頂点）だけに線をつなぎ、平行四辺�
 })
 
 test("ひし形から出る線の編集のダイアログに、キャプションの候補 Yes / No を出し、押すとキャプションに入る", () => {
-  const { store, on, page } = flowchart()
+  const { store, page } = flowchart()
   act(() => {
     for (const [item, x] of [
       ["@matomezu/shape:shape-diamond", 40],
       ["@matomezu/box:shape-box", 300],
       ["@matomezu/box:shape-box", 560],
     ] as const)
-      store.actions.perform("@matomezu/paper:item-place", { page: page().id, item, at: { x, y: 40 } }, on)
+      store.actions.perform("@matomezu/paper:item-place", { item, at: { x, y: 40 } }, { page: page().id })
   })
   const [diamond, box, other] = shapesOf(page())
   const connect = (from: string, to: string) =>
-    expect(store.actions.perform("@matomezu/line:line-connect", { page: page().id, from, to }, on).ok).toBe(true)
+    expect(store.actions.perform("@matomezu/line:line-connect", { from, to }, { page: page().id }).ok).toBe(true)
   act(() => {
     connect(diamond!.id, box!.id)
     connect(other!.id, diamond!.id)
@@ -161,9 +161,9 @@ test("ひし形から出る線の編集のダイアログに、キャプショ�
 
 // 開始 → 処理 → 分岐 → (Yes) 終了 / (No) 処理 2 の流れを置き、線でつなぐ（端は固定して引く）
 function chart(f: ReturnType<typeof flowchart>) {
-  const { store, on, page } = f
+  const { store, page } = f
   const place = (item: string, x: number, y: number, caption: string) =>
-    store.actions.perform("@matomezu/paper:item-place", { page: page().id, item, at: { x, y }, props: { caption } }, on)
+    store.actions.perform("@matomezu/paper:item-place", { item, at: { x, y }, props: { caption } }, { page: page().id })
   act(() => {
     place("@matomezu/shape:shape-rounded", 20, 20, "開始")
     place("@matomezu/box:shape-box", 300, 120, "処理")
@@ -176,8 +176,8 @@ function chart(f: ReturnType<typeof flowchart>) {
     expect(
       store.actions.perform(
         "@matomezu/line:line-connect",
-        { page: page().id, from, to, props: { exitAt: 0.3, enterAt: 0.7 } },
-        on,
+        { from, to, props: { exitAt: 0.3, enterAt: 0.7 } },
+        { page: page().id },
       ).ok,
     ).toBe(true)
   act(() => {
@@ -191,10 +191,10 @@ function chart(f: ReturnType<typeof flowchart>) {
 
 test("自動で整列: 本筋を紙の左右の真ん中の縦の線にそろえ、分岐の枝は右に置き、線の端の固定を外す", () => {
   const f = flowchart()
-  const { store, on, page } = f
+  const { store, page } = f
   const ids = chart(f)
   act(() => {
-    expect(store.actions.perform("@matomezu/flowchart:page-align", { page: page().id }, on).ok).toBe(true)
+    expect(store.actions.perform("@matomezu/flowchart:page-align", {}, { page: page().id }).ok).toBe(true)
   })
   const rects = rectsOf(store.catalog.core, page())
   const cx = (id: string) => rects.get(id)!.x + rects.get(id)!.w / 2
@@ -219,7 +219,7 @@ test("流れの向きが右へのブックの自動で整列は、本筋を横�
     )
   })
   act(() => {
-    expect(store.actions.perform("@matomezu/flowchart:page-align", { page: page().id }, on).ok).toBe(true)
+    expect(store.actions.perform("@matomezu/flowchart:page-align", {}, { page: page().id }).ok).toBe(true)
   })
   const rects = rectsOf(store.catalog.core, page())
   const cy = (id: string) => rects.get(id)!.y + rects.get(id)!.h / 2
@@ -230,52 +230,44 @@ test("流れの向きが右へのブックの自動で整列は、本筋を横�
 })
 
 test("自動で整列は、紙に収まらなければ断って何も変えない", () => {
-  const { store, on, page } = flowchart()
+  const { store, page } = flowchart()
   // 縦に 20 段の流れは A4 の縦に収まらない
   act(() => {
     for (let i = 0; i < 20; i++)
       store.actions.perform(
         "@matomezu/paper:item-place",
-        {
-          page: page().id,
-          item: "@matomezu/box:shape-box",
-          at: { x: 20 + (i % 5) * 150, y: 20 + Math.floor(i / 5) * 200 },
-        },
-        on,
+        { item: "@matomezu/box:shape-box", at: { x: 20 + (i % 5) * 150, y: 20 + Math.floor(i / 5) * 200 } },
+        { page: page().id },
       )
   })
   const ids = shapesOf(page()).map(s => s.id)
   act(() => {
     for (let i = 1; i < ids.length; i++)
-      store.actions.perform("@matomezu/line:line-connect", { page: page().id, from: ids[i - 1]!, to: ids[i]! }, on)
+      store.actions.perform("@matomezu/line:line-connect", { from: ids[i - 1]!, to: ids[i]! }, { page: page().id })
   })
   const before = page()
   act(() => {
-    expect(store.actions.perform("@matomezu/flowchart:page-align", { page: page().id }, on).ok).toBe(false)
+    expect(store.actions.perform("@matomezu/flowchart:page-align", {}, { page: page().id }).ok).toBe(false)
   })
   expect(page()).toBe(before)
 })
 
 test("可変ページの自動で整列は、紙 1 枚に収まらない流れも下へ並べ、印刷区画を増やす", () => {
-  const { store, on, page } = flowchart()
+  const { store, page } = flowchart()
   act(() => {
-    expect(store.actions.perform("@matomezu/base:page-update", { page: page().id, grows: true }, on).ok).toBe(true)
+    expect(store.actions.perform("@matomezu/base:page-update", { grows: true }, { page: page().id }).ok).toBe(true)
     for (let i = 0; i < 20; i++)
       store.actions.perform(
         "@matomezu/paper:item-place",
-        {
-          page: page().id,
-          item: "@matomezu/box:shape-box",
-          at: { x: 20 + (i % 5) * 150, y: 20 + Math.floor(i / 5) * 200 },
-        },
-        on,
+        { item: "@matomezu/box:shape-box", at: { x: 20 + (i % 5) * 150, y: 20 + Math.floor(i / 5) * 200 } },
+        { page: page().id },
       )
   })
   const ids = shapesOf(page()).map(s => s.id)
   act(() => {
     for (let i = 1; i < ids.length; i++)
-      store.actions.perform("@matomezu/line:line-connect", { page: page().id, from: ids[i - 1]!, to: ids[i]! }, on)
-    expect(store.actions.perform("@matomezu/flowchart:page-align", { page: page().id }, on).ok).toBe(true)
+      store.actions.perform("@matomezu/line:line-connect", { from: ids[i - 1]!, to: ids[i]! }, { page: page().id })
+    expect(store.actions.perform("@matomezu/flowchart:page-align", {}, { page: page().id }).ok).toBe(true)
   })
   // A4 縦（高さ 1123）より下まで並ぶ
   expect(Math.max(...shapesOf(page()).map(s => s.y))).toBeGreaterThan(1123)
@@ -302,23 +294,19 @@ test("紙の右クリックのメニューの「自動で整列」は、確認�
 })
 
 test("確認のダイアログの実行が紙に収まらず断られたら、閉じずに理由を出す", () => {
-  const { store, on, page } = flowchart()
+  const { store, page } = flowchart()
   act(() => {
     for (let i = 0; i < 20; i++)
       store.actions.perform(
         "@matomezu/paper:item-place",
-        {
-          page: page().id,
-          item: "@matomezu/box:shape-box",
-          at: { x: 20 + (i % 5) * 150, y: 20 + Math.floor(i / 5) * 200 },
-        },
-        on,
+        { item: "@matomezu/box:shape-box", at: { x: 20 + (i % 5) * 150, y: 20 + Math.floor(i / 5) * 200 } },
+        { page: page().id },
       )
   })
   const ids = shapesOf(page()).map(s => s.id)
   act(() => {
     for (let i = 1; i < ids.length; i++)
-      store.actions.perform("@matomezu/line:line-connect", { page: page().id, from: ids[i - 1]!, to: ids[i]! }, on)
+      store.actions.perform("@matomezu/line:line-connect", { from: ids[i - 1]!, to: ids[i]! }, { page: page().id })
   })
   act(() => store.actions.openDialog("s1", "@matomezu/flowchart:page-align", { page: page().id }))
   const dialog = screen.getByRole("dialog", { name: "自動で整列" })
@@ -357,7 +345,7 @@ test("トーストの原因（detail）は 2 行目に出す", () => {
 
 // 開始の形と箱をつないだチャートを n 個置く（チャートどうしはつながない）
 function charts(f: ReturnType<typeof flowchart>, n: number) {
-  const { store, on, page } = f
+  const { store, page } = f
   act(() => {
     for (let i = 0; i < n; i++) {
       for (const [item, y] of [
@@ -366,8 +354,8 @@ function charts(f: ReturnType<typeof flowchart>, n: number) {
       ] as const)
         store.actions.perform(
           "@matomezu/paper:item-place",
-          { page: page().id, item, at: { x: 20 + i * 140, y: y + (i % 2) * 300 }, props: { caption: `c${i}` } },
-          on,
+          { item, at: { x: 20 + i * 140, y: y + (i % 2) * 300 }, props: { caption: `c${i}` } },
+          { page: page().id },
         )
     }
   })
@@ -376,8 +364,8 @@ function charts(f: ReturnType<typeof flowchart>, n: number) {
     for (let i = 0; i < n; i++)
       store.actions.perform(
         "@matomezu/line:line-connect",
-        { page: page().id, from: ids[i * 2]!, to: ids[i * 2 + 1]! },
-        on,
+        { from: ids[i * 2]!, to: ids[i * 2 + 1]! },
+        { page: page().id },
       )
   })
   return Array.from({ length: n }, (_, i) => [ids[i * 2]!, ids[i * 2 + 1]!] as const)
@@ -385,10 +373,10 @@ function charts(f: ReturnType<typeof flowchart>, n: number) {
 
 test("自動で整列: つながっていないチャートは、上をそろえて左右に並べ、紙の幅を超えるなら折り返して下の段に置く", () => {
   const f = flowchart()
-  const { store, on, page } = f
+  const { store, page } = f
   const list = charts(f, 6)
   act(() => {
-    expect(store.actions.perform("@matomezu/flowchart:page-align", { page: page().id }, on).ok).toBe(true)
+    expect(store.actions.perform("@matomezu/flowchart:page-align", {}, { page: page().id }).ok).toBe(true)
   })
   const rects = rectsOf(store.catalog.core, page())
   const starts = list.map(([s]) => rects.get(s)!)
@@ -404,20 +392,15 @@ test("自動で整列: つながっていないチャートは、上をそろえ
 })
 
 test("形は個別のテーマを持たない: 追加と編集のダイアログにテーマの入力Formは無く、テーマを書いて置くと断る", () => {
-  const { store, on, page } = flowchart()
+  const { store, page } = flowchart()
   act(() => store.actions.openDialog("s1", "@matomezu/shape:diamond-add", { page: page().id, at: { x: 40, y: 40 } }))
   const add = screen.getByRole("dialog", { name: "形の追加" })
   expect(within(add).queryByLabelText("テーマ")).toBeNull()
   fireEvent.click(within(add).getByRole("button", { name: "キャンセル" }))
   const placed = store.actions.perform(
     "@matomezu/paper:item-place",
-    {
-      page: page().id,
-      item: "@matomezu/shape:shape-diamond",
-      at: { x: 40, y: 40 },
-      props: { theme: "@matomezu/base:sticky" },
-    },
-    on,
+    { item: "@matomezu/shape:shape-diamond", at: { x: 40, y: 40 }, props: { theme: "@matomezu/base:sticky" } },
+    { page: page().id },
   )
   expect(placed.ok).toBe(false)
 })
@@ -427,8 +410,8 @@ test("キャプションで形が広がるとき、流れが下へなら横の�
   act(() => {
     store.actions.perform(
       "@matomezu/paper:item-place",
-      { page: page().id, item: "@matomezu/shape:shape-rounded", at: { x: 300, y: 40 }, props: { caption: "a" } },
-      on,
+      { item: "@matomezu/shape:shape-rounded", at: { x: 300, y: 40 }, props: { caption: "a" } },
+      { page: page().id },
     )
   })
   const id = shapesOf(page())[0]!.id
@@ -437,7 +420,7 @@ test("キャプションで形が広がるとき、流れが下へなら横の�
   const widen = (caption: string) =>
     act(() => {
       expect(
-        store.actions.perform("@matomezu/paper:item-update", { page: page().id, item: id, props: { caption } }, on).ok,
+        store.actions.perform("@matomezu/paper:item-update", { item: id, props: { caption } }, { page: page().id }).ok,
       ).toBe(true)
     })
   widen("とても長いキャプションです")
@@ -460,13 +443,13 @@ test("台形は向きを持つ: 横向きなら反時計回りに 90 度回し�
   act(() => {
     store.actions.perform(
       "@matomezu/paper:item-place",
-      { page: page().id, item: "@matomezu/shape:shape-trapezoid", at: { x: 40, y: 40 } },
-      on,
+      { item: "@matomezu/shape:shape-trapezoid", at: { x: 40, y: 40 } },
+      { page: page().id },
     )
     store.actions.perform(
       "@matomezu/paper:item-place",
-      { page: page().id, item: "@matomezu/shape:shape-trapezoid", at: { x: 300, y: 40 }, props: { turned: true } },
-      on,
+      { item: "@matomezu/shape:shape-trapezoid", at: { x: 300, y: 40 }, props: { turned: true } },
+      { page: page().id },
     )
   })
   const [upright, sideways] = shapesOf(page())
@@ -493,8 +476,8 @@ test("台形の編集のダイアログで向きを切り替えると、幅と�
   act(() => {
     store.actions.perform(
       "@matomezu/paper:item-place",
-      { page: page().id, item: "@matomezu/shape:shape-trapezoid", at: { x: 40, y: 40 } },
-      on,
+      { item: "@matomezu/shape:shape-trapezoid", at: { x: 40, y: 40 } },
+      { page: page().id },
     )
   })
   const t = shapesOf(page())[0]!
@@ -531,8 +514,8 @@ test("確認のダイアログで「台形の向きを合わせる」をオン�
     )
     store.actions.perform(
       "@matomezu/paper:item-place",
-      { page: page().id, item: "@matomezu/shape:shape-trapezoid", at: { x: 40, y: 40 } },
-      on,
+      { item: "@matomezu/shape:shape-trapezoid", at: { x: 40, y: 40 } },
+      { page: page().id },
     )
   })
   const t = shapesOf(page())[0]!
@@ -558,13 +541,8 @@ test("90 度回転した台形は、キャプションが伸びたら縦に広�
     )
     store.actions.perform(
       "@matomezu/paper:item-place",
-      {
-        page: page().id,
-        item: "@matomezu/shape:shape-trapezoid",
-        at: { x: 300, y: 300 },
-        props: { caption: "a", turned: true },
-      },
-      on,
+      { item: "@matomezu/shape:shape-trapezoid", at: { x: 300, y: 300 }, props: { caption: "a", turned: true } },
+      { page: page().id },
     )
   })
   const t = shapesOf(page())[0]!
@@ -573,8 +551,8 @@ test("90 度回転した台形は、キャプションが伸びたら縦に広�
   act(() => {
     store.actions.perform(
       "@matomezu/paper:item-update",
-      { page: page().id, item: t.id, props: { caption: "とても長いキャプションです" } },
-      on,
+      { item: t.id, props: { caption: "とても長いキャプションです" } },
+      { page: page().id },
     )
   })
   expect(rect().h).toBeGreaterThan(before.h)
@@ -593,8 +571,8 @@ test("確認のダイアログの切り替えは、仲間の形をまとめた�
     )
     store.actions.perform(
       "@matomezu/paper:item-place",
-      { page: page().id, item: "@matomezu/shape:shape-trapezoid-reversed", at: { x: 40, y: 40 } },
-      on,
+      { item: "@matomezu/shape:shape-trapezoid-reversed", at: { x: 40, y: 40 } },
+      { page: page().id },
     )
   })
   act(() => store.actions.openDialog("s1", "@matomezu/flowchart:page-align", { page: page().id }))
@@ -604,7 +582,7 @@ test("確認のダイアログの切り替えは、仲間の形をまとめた�
 
 test("流れの向きはページの設定で、下へ・右へのボタンで選ぶ（既定は下へ）。ページが右へなら、右へで並べる", () => {
   const f = flowchart()
-  const { store, on, page } = f
+  const { store, page } = f
   const ids = chart(f)
   act(() => store.actions.openDialog("s1", "@matomezu/base:page-settings", { page: page().id }))
   const dialog = screen.getByRole("dialog", { name: "ページの設定" })
@@ -616,13 +594,13 @@ test("流れの向きはページの設定で、下へ・右へのボタンで�
     expect(
       store.actions.perform(
         "@matomezu/base:page-update",
-        { page: page().id, settings: { "@matomezu/flowchart:flow-direction": "right" } },
-        on,
+        { settings: { "@matomezu/flowchart:flow-direction": "right" } },
+        { page: page().id },
       ).ok,
     ).toBe(true)
   })
   act(() => {
-    expect(store.actions.perform("@matomezu/flowchart:page-align", { page: page().id }, on).ok).toBe(true)
+    expect(store.actions.perform("@matomezu/flowchart:page-align", {}, { page: page().id }).ok).toBe(true)
   })
   const rects = rectsOf(store.catalog.core, page())
   const cy = (id: string) => rects.get(id)!.y + rects.get(id)!.h / 2

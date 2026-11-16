@@ -90,10 +90,10 @@ test("左と上へ増やす可変ページは、開くと、空きの印刷区�
   const stage = () => screenOf(state.getState().window).stages[0]!
   actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x: 100, y: 100 } },
-    { book: "b1" },
+    { item: "@matomezu/box:shape-nest-box", at: { x: 100, y: 100 } },
+    { page: "p1" },
   )
-  expect(actions.perform("@matomezu/base:page-update", { page: "p1", grows: "all" }, { book: "b1" }).ok).toBe(true)
+  expect(actions.perform("@matomezu/base:page-update", { grows: "all" }, { page: "p1" }).ok).toBe(true)
   // 開き直し、表示領域を測って、見せ方とレイヤーが広さと初めの位置を知らせる（左と上の印刷区画は空き）
   actions.openBook("s1", "b1")
   actions.openPage("s1", "p2")

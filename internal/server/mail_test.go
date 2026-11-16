@@ -244,7 +244,7 @@ func TestProposalSendOpensAndRemovesTicketsInOneWrite(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	change := `[{"action":"@matomezu/paper:item-update","args":{"page":"p1","item":"a","props":{"caption":"AI"}}}]`
+	change := `[{"action":"@matomezu/paper:item-update","args":{"item":"a","props":{"caption":"AI"}},"on":{"page":"p1"}}]`
 	done, err := h.Perform(Perform{Action: "@matomezu/base:proposal-send", Args: json.RawMessage(`{"from":"E94","title":"名前","book":"b1","page":"p1","changes":` + change + `}`)})
 	var sent struct{ Mail string }
 	if err != nil || !done.OK || json.Unmarshal(done.Result, &sent) != nil || sent.Mail == "" {

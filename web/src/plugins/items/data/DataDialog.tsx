@@ -42,7 +42,11 @@ export function EditDataDialog({ args, onClose }: DialogProps<{ page: string; it
   const save = (d: Draft, a: AxesDraft, text: DataTextDraft) => {
     const set = draftArgs(d)
     if (!set) return false
-    const done = perform(DATA_SET.id, { page: args.page, item: args.item, ...set, props: { ...text, ...axesProps(a) } })
+    const done = perform(
+      DATA_SET.id,
+      { item: args.item, ...set, props: { ...text, ...axesProps(a) } },
+      { page: args.page },
+    )
     if (done.ok) onClose()
     return done.ok
   }

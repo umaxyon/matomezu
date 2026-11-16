@@ -17,13 +17,13 @@ const at = (store: Store, id: string) => shapesOf(pagesOf(book(store))[0]!).find
 const place = (store: Store, item: string, props: Record<string, unknown>) =>
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item, at: { x: 100, y: 100 }, props, crowd: "push" },
-    { book: "b1" },
+    { item, at: { x: 100, y: 100 }, props, crowd: "push" },
+    { page: "p1" },
   )
 const resize = (store: Store, item: string, size: { w?: number; h?: number; y?: number }) =>
-  store.actions.perform("@matomezu/paper:item-resize", { page: "p1", item, ...size }, { book: "b1" })
+  store.actions.perform("@matomezu/paper:item-resize", { item, ...size }, { page: "p1" })
 const update = (store: Store, item: string, props: Record<string, unknown>) =>
-  store.actions.perform("@matomezu/paper:item-update", { page: "p1", item, props }, { book: "b1" })
+  store.actions.perform("@matomezu/paper:item-update", { item, props }, { page: "p1" })
 
 test("図面のツールボックスは箱とリストとデータのボタンで、シェイプ 15 はシェイプパネルに並ぶ（8 つの形は図面には無い）", () => {
   expect(toolboxOf(CORE_CATALOG, "@matomezu/drawing:drawing", "items")).toEqual([

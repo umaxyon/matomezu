@@ -133,7 +133,7 @@ func TestAICannotReadANoteTheUserIsEditing(t *testing.T) {
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", read, ai); got != `{"ok":false,"reason":"being-edited"}` {
 		t.Fatalf("note-read while editing = %s", got)
 	}
-	remove := `{"action":"@matomezu/paper:item-remove","args":{"page":"p1","items":["a"]},"on":{"book":"b1"}}`
+	remove := `{"action":"@matomezu/paper:item-remove","args":{"items":["a"]},"on":{"page":"p1"}}`
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", remove, ai); got != `{"ok":false,"reason":"being-edited"}` {
 		t.Fatalf("removing the noted thing while editing = %s", got)
 	}

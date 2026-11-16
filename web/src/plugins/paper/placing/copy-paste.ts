@@ -44,22 +44,19 @@ function pasteAt(
   where: { parent: string | null; at?: Point },
   quiet = false,
 ): boolean {
-  const opened = openedPage(ctx.stage.opened ?? null)
-  const paged = ctx.book
   const page = pageOf(ctx)
-  if (!opened?.page || !paged || !page) return false
-  const at = where.at && (nearestPaste(ctx.catalog, paged, page.id, clip, where.parent, where.at) ?? undefined)
+  if (!page) return false
+  const at = where.at && (nearestPaste(ctx.catalog, page, clip, where.parent, where.at) ?? undefined)
   const done = a.perform(
     ITEM_PASTE.id,
     {
-      page: page.id,
       ...(where.parent === null ? {} : { parent: where.parent }),
       ...(at ? { at } : {}),
       crowd: "push",
       shapes: clip.shapes as unknown as Record<string, unknown>[],
       connectors: clip.connectors as unknown as Record<string, unknown>[],
     },
-    { book: opened.book },
+    { page: page.id },
   )
   if (!done.ok) {
     if (!quiet)
@@ -114,7 +111,7 @@ export const PAPER_CUT = kit.defineCommand({
     const { selection } = ctx.stage
     const clip = copiedClip(ctx, a)
     if (!opened?.page || !clip) return
-    const done = a.perform(ITEM_REMOVE.id, { page: opened.page, items: [...selection] }, { book: opened.book })
+    const done = a.perform(ITEM_REMOVE.id, { items: [...selection] }, { page: opened.page })
     if (!done.ok) return
     keep(a, clip)
     a.select([])

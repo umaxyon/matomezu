@@ -29,8 +29,12 @@ test("断られた変更を変更提案郵便で送り、場所を示すで郵�
   const editing = page.getByRole("dialog", { name: "ボックスの編集" })
   await items(page).filter({ hasText: "一" }).dblclick()
   await expect(editing).toBeVisible()
-  const change = { action: "@matomezu/paper:item-update", args: { page: at.page, item: box, props: { caption: "AI" } } }
-  await expect.poll(async () => (await perform(page, { ...change, on: { book: at.book } })).reason).toBe("being-edited")
+  const change = {
+    action: "@matomezu/paper:item-update",
+    args: { item: box, props: { caption: "AI" } },
+    on: { page: at.page },
+  }
+  await expect.poll(async () => (await perform(page, change)).reason).toBe("being-edited")
   const sent = await perform(page, {
     action: "@matomezu/base:proposal-send",
     args: {
@@ -62,7 +66,7 @@ test("断られた変更を変更提案郵便で送り、場所を示すで郵�
   const otherEditing = other.getByRole("dialog", { name: "ボックスの編集" })
   await items(other).filter({ hasText: "一" }).dblclick()
   await expect(otherEditing).toBeVisible()
-  await expect.poll(async () => (await perform(page, { ...change, on: { book: at.book } })).reason).toBe("being-edited")
+  await expect.poll(async () => (await perform(page, change)).reason).toBe("being-edited")
   await page.bringToFront()
   await mail.getByRole("button", { name: "反映" }).click()
   await expect(page.getByRole("alert").filter({ hasText: "直している最中です" })).toBeVisible()
@@ -72,11 +76,11 @@ test("断られた変更を変更提案郵便で送り、場所を示すで郵�
   await expect(otherEditing).toHaveCount(0)
   await other.close()
   // 直し終えてから押すと反映され、郵便は閉じ、郵便箱の行に反映済みが出る
-  await expect.poll(async () => (await perform(page, { ...change, on: { book: at.book } })).ok).toBe(true)
+  await expect.poll(async () => (await perform(page, change)).ok).toBe(true)
   await perform(page, {
     action: "@matomezu/paper:item-update",
-    args: { page: at.page, item: box, props: { caption: "一" } },
-    on: { book: at.book },
+    args: { item: box, props: { caption: "一" } },
+    on: { page: at.page },
   })
   await expect(items(page).filter({ hasText: "一" })).toHaveCount(1)
   await mail.getByRole("button", { name: "反映" }).click()

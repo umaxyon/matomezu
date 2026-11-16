@@ -76,7 +76,7 @@ export const PAGE_LOCK = kit.defineAction({
   id: "page-lock",
   history: false,
   attach: { pages: true },
-  aiDescription: `Lock a page: while locked, the page and everything on it cannot be changed or removed and its book cannot be moved to the trash, by the user or by AI (denied by ${kit.name("lock")}). Only the user can unlock it. Refused if the page does not exist or is already locked.`,
+  aiDescription: `Lock a page: while locked, the page and everything on it cannot be changed or removed and its book cannot be moved to the trash, by the user or by AI (denied by ${kit.name("lock")}). Only the user can unlock it. Refused if the page is already locked.`,
   title: "Lock page",
   target: "page",
   args: PAGE_ARGS,

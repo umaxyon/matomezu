@@ -1,7 +1,7 @@
 // データのアクション: 中身の表を丸ごと入れ替える（data-set）。見た目・文字・軸も一緒に変えられる
 import { z } from "zod"
-import { findPage, findShape, type PlacedShape } from "../../../plugin-api"
-import { contentIdMakerOfBook, replaceShapePushing, roomOf, textPatch, widenForCaption } from "../../base"
+import { findShape, type PlacedShape } from "../../../plugin-api"
+import { contentIdMaker, replaceShapePushing, roomOf, textPatch, widenForCaption } from "../../base"
 import { settleAxes } from "./axes"
 import {
   BAR_DIRECTIONS,
@@ -95,18 +95,16 @@ export const DATA_SET = kit.defineAction({
   aiDescription:
     "Replace the whole table of a data item (@matomezu/data:shape-data). Each column has a name and a type, number or text; each row has one cell per column, in column order: a finite number in a number column, a string in a text column. No cell may be empty: write 0 where a number is missing. A table has at most 30 columns and 1000 rows, and a text cell at most 200 characters. A column or row given with the id of one in the table now keeps that id (and what refers to it); one without an id gets a new id. While the item shows the table (view table), it is resized to show the whole table, up to the paper's edge, pushing the items it would come too close to (when they cannot move, it keeps its size); a column is as wide as its longest text and a row is one line high. With no columns, the table is removed and the item shows No Data. props, when given, changes the item's look, text and axes together with the table, as @matomezu/paper:item-update does (only the props given; null removes one), except that x, series columns, label and sortBy are positions (from 0) in columns and picked are positions in rows, so a new column or row can be named before it has an id; outside the table view, a caption that grows widens the item to show it. It is refused when a row's cells do not fit the columns, when an id is not in the table now, or when props names a position that is not there or does not fit the item. Axes naming a column that is gone or no longer a number column are dropped. Returns the ids of the columns and rows, in order. read_page shows the table in the item's table field.",
   title: "Set data",
-  target: "book",
+  target: "page",
   args: z.strictObject({
-    page: z.string().min(1),
     item: z.string().min(1),
     columns: z.array(NewColumnSchema).max(MAX_COLUMNS),
     rows: z.array(NewRowSchema).max(MAX_ROWS),
     props: PropsSchema.optional(),
   }),
-  permissionScope: { page: "page", item: "item" },
-  run: (book, args, ctx) => {
-    const page = findPage(book, args.page)?.page
-    const now = page && findShape(page, args.item)?.shape
+  permissionScope: { item: "item" },
+  run: (page, args, ctx) => {
+    const now = findShape(page, args.item)?.shape
     if (!now || now.item !== DATA.id) return null
     const before = now.table
     if (args.columns.length === 0) {
@@ -118,15 +116,15 @@ export const DATA_SET = kit.defineAction({
       const emptied = { ...rest, props }
       const shown = widenForCaption(ctx.catalog, page, now, emptied as PlacedShape)
       const next =
-        replaceShapePushing(ctx.catalog, book, args.page, args.item, () => shown) ??
-        (shown !== emptied ? replaceShapePushing(ctx.catalog, book, args.page, args.item, () => emptied) : null)
+        replaceShapePushing(ctx.catalog, page, args.item, () => shown) ??
+        (shown !== emptied ? replaceShapePushing(ctx.catalog, page, args.item, () => emptied) : null)
       return next && { next, result: { columns: [], rows: [] } }
     }
     const columnIds = args.columns.map(c => c.id)
     const rowIds = args.rows.map(r => r.id)
     if (!keepsIds(before?.columns, columnIds) || !keepsIds(before?.rows, rowIds)) return null
     if (!args.rows.every(r => cellsFit(args.columns, r.cells))) return null
-    const newId = contentIdMakerOfBook(book, ctx.newId)
+    const newId = contentIdMaker(page, ctx.newId)
     const table = TableSchema.safeParse({
       columns: args.columns.map(c => ({ id: c.id ?? newId(), name: c.name, type: c.type })),
       rows: args.rows.map(r => ({ id: r.id ?? newId(), cells: r.cells })),
@@ -148,9 +146,9 @@ export const DATA_SET = kit.defineAction({
     // 表に合わせないときは、キャプションが見える幅まで広げる（広げて置けなければ、大きさはそのまま）
     const shown = fitted ? item : widenForCaption(ctx.catalog, page, now, item as PlacedShape)
     const next =
-      (fitted && replaceShapePushing(ctx.catalog, book, args.page, args.item, () => ({ ...item, ...fitted }))) ??
-      (shown !== item ? replaceShapePushing(ctx.catalog, book, args.page, args.item, () => shown) : null) ??
-      replaceShapePushing(ctx.catalog, book, args.page, args.item, () => item)
+      (fitted && replaceShapePushing(ctx.catalog, page, args.item, () => ({ ...item, ...fitted }))) ??
+      (shown !== item ? replaceShapePushing(ctx.catalog, page, args.item, () => shown) : null) ??
+      replaceShapePushing(ctx.catalog, page, args.item, () => item)
     return (
       next && {
         next,

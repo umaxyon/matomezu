@@ -93,16 +93,12 @@ test("Mod+Z で、テキストFormの中からも元に戻す（画面の履歴�
 })
 
 test("ほかから原文が変わると、テキストFormもその原文になる。日本語の変換中は変換が終わってから合わせ、書いた物も送る", async () => {
-  const { store, id, book, text, field, type, settle } = setup()
+  const { store, book, text, field, type, settle } = setup()
   type("foo\n")
   await settle()
   const page = pagesOf(book())[0]!.id
   act(() => {
-    store.actions.perform(
-      "@matomezu/base:page-update",
-      { page, fields: { find: "foo", replace: "AI foo" } },
-      { book: id },
-    )
+    store.actions.perform("@matomezu/base:page-update", { fields: { find: "foo", replace: "AI foo" } }, { page })
   })
   expect(field().value).toBe("AI foo\n")
   // 変換中に AI が先頭に行を足す
@@ -111,11 +107,7 @@ test("ほかから原文が変わると、テキストFormもその原文にな�
     fireEvent.change(field(), { target: { value: "AI foo\nあ", selectionStart: 8, selectionEnd: 8 } })
   })
   act(() => {
-    store.actions.perform(
-      "@matomezu/base:page-update",
-      { page, fields: { find: "AI", replace: "# T\nAI" } },
-      { book: id },
-    )
+    store.actions.perform("@matomezu/base:page-update", { fields: { find: "AI", replace: "# T\nAI" } }, { page })
   })
   expect(field().value).toBe("AI foo\nあ")
   act(() => {

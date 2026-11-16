@@ -46,14 +46,13 @@ export const SLIDE_PUT = kit.defineCommand({
     const done = a.perform(
       PLACE,
       {
-        page: opened.page,
         item: args.item,
         at: { x: args.rect.x, y: args.rect.y },
         w: args.rect.w,
         h: args.rect.h,
         props: args.props,
       } as never,
-      { book: opened.book },
+      { page: opened.page },
     )
     if (!done.ok) {
       a.showToast({ kind: "warn", message: kit.message("Cannot place here") })
@@ -74,7 +73,7 @@ export const SLIDE_MOVE_TO = kit.defineCommand({
   run: (ctx, a, args: { moves: readonly { item: string; at: { x: number; y: number } }[] }) => {
     const opened = openedPage(ctx.stage.opened ?? null)
     if (!opened?.page) return
-    for (const m of args.moves) a.perform(MOVE, { page: opened.page, item: m.item, at: m.at }, { book: opened.book })
+    for (const m of args.moves) a.perform(MOVE, { item: m.item, at: m.at }, { page: opened.page })
   },
   when: onPage,
 })
@@ -92,14 +91,13 @@ export const SLIDE_RESHAPE = kit.defineCommand({
     a.perform(
       RESIZE,
       {
-        page: opened.page,
         item: args.item,
         at: { x: rect.x, y: rect.y },
         w: rect.w,
         h: rect.h,
         scale: args.scaled,
       },
-      { book: opened.book },
+      { page: opened.page },
     )
   },
   when: onPage,
@@ -114,8 +112,7 @@ export const SLIDE_SET = kit.defineCommand({
   run: (ctx, a, args: { items: readonly string[]; props: Record<string, unknown> }) => {
     const opened = openedPage(ctx.stage.opened ?? null)
     if (!opened?.page) return
-    for (const item of args.items)
-      a.perform(UPDATE, { page: opened.page, item, props: args.props }, { book: opened.book })
+    for (const item of args.items) a.perform(UPDATE, { item, props: args.props }, { page: opened.page })
   },
   when: onPage,
 })
@@ -129,7 +126,7 @@ export const SLIDE_DELETE = kit.defineCommand({
   run: (ctx, a) => {
     const opened = openedPage(ctx.stage.opened ?? null)
     if (!opened?.page) return
-    for (const item of selectedOnSlide(ctx)) a.perform(REMOVE, { page: opened.page, item }, { book: opened.book })
+    for (const item of selectedOnSlide(ctx)) a.perform(REMOVE, { item }, { page: opened.page })
     a.select([])
   },
   when: ctx => onPage(ctx) && selectedOnSlide(ctx).length > 0,
@@ -140,7 +137,7 @@ function reorder(ctx: Ctx, a: Actions, to: Order): void {
   const opened = openedPage(ctx.stage.opened ?? null)
   if (!opened?.page) return
   for (const step of orderSteps(slideIds(ctx), new Set(selectedOnSlide(ctx)), to))
-    a.perform(REORDER, { page: opened.page, item: step.item, to: step.to }, { book: opened.book })
+    a.perform(REORDER, { item: step.item, to: step.to }, { page: opened.page })
 }
 
 // 選んでいるアイテムを最前面へ

@@ -286,15 +286,12 @@ test("節をその場で書いている間は、AI がその節を変えると�
   await page.keyboard.type("子")
   const child = paperEl.locator('[data-node]:not([data-root="true"])')
   const node = (await child.getAttribute("data-node"))!
-  const { book, page: shown } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
-    book: string
-    page: string
-  }
+  const { page: shown } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as { page: string }
   const rename = async () =>
     (
       await page.request.post("/api/ai/perform", {
         headers: ai,
-        data: { action: "@matomezu/tree:node-update", args: { page: shown, node, caption: "AI" }, on: { book } },
+        data: { action: "@matomezu/tree:node-update", args: { node, caption: "AI" }, on: { page: shown } },
       })
     ).json()
   await expect.poll(async () => (await rename()).reason).toBe("being-edited")

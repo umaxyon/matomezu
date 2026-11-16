@@ -37,16 +37,16 @@ test("@matomezu/base:pages-update・@matomezu/base:page-update は、ページ�
   expect(
     store.actions.perform(
       "@matomezu/base:page-update",
-      { page: "p1", settings: { "@matomezu/line:line-route": "elbow" } },
-      { book: "b1" },
+      { settings: { "@matomezu/line:line-route": "elbow" } },
+      { page: "p1" },
     ).ok,
   ).toBe(true)
   expect(ownSettings(pagesOf(book())[0]!)["@matomezu/line:line-route"]).toBe("elbow")
   expect(
     store.actions.perform(
       "@matomezu/base:page-update",
-      { page: "nope", settings: { "@matomezu/line:line-route": "elbow" } },
-      { book: "b1" },
+      { settings: { "@matomezu/line:line-route": "elbow" } },
+      { page: "nope" },
     ).ok,
   ).toBe(false)
   // ブックの名前は book-update で変える。ページの項目は、ブックには持てない
@@ -60,13 +60,9 @@ test("@matomezu/base:pages-update・@matomezu/base:page-update は、ページ�
   ).toBe(false)
   expect([book().title, "settings" in book()]).toEqual(["新しい名前", false])
   // ページの名前も page-update で変える（settings は書かなくてよい。空の名前は断る）
-  expect(store.actions.perform("@matomezu/base:page-update", { page: "p1", title: "表紙" }, { book: "b1" }).ok).toBe(
-    true,
-  )
+  expect(store.actions.perform("@matomezu/base:page-update", { title: "表紙" }, { page: "p1" }).ok).toBe(true)
   expect(pagesOf(book())[0]!.title).toBe("表紙")
-  expect(store.actions.perform("@matomezu/base:page-update", { page: "p1", title: "  " }, { book: "b1" }).ok).toBe(
-    false,
-  )
+  expect(store.actions.perform("@matomezu/base:page-update", { title: "  " }, { page: "p1" }).ok).toBe(false)
   expect(ownSettings(pagesOf(book())[0]!)["@matomezu/line:line-route"]).toBe("elbow")
 })
 

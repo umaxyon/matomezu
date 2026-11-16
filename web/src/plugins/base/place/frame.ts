@@ -1,11 +1,9 @@
 // Frame（形を並べる所）: ページの形は紙の中に、子の形は親の子の領域の中に並べる（紙に収める決まりを、親の中にも同じにかける）。
 // Frame の中の四角は Frame の左上から。子の領域は右と下へ限りが無く（親が子に合わせて育つ）、縮めはしない
-import { findPage } from "../../../core/book"
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { ShapeData } from "../../../core/def/item"
 import type { Point, Rect, Size } from "../../../core/geom"
 import { findShape, type ItemPage, type PlacedShape } from "../../../core/placed"
-import type { Book } from "../../../core/schema/book"
 import { gapOf, replaceShapePushing, roomOf } from "./items"
 import { NEST_PADDING, placedSize, rectsOf, shapeDefOf } from "./placed"
 import { GAP, inPaper, newClash, planPlace, pushFrom, tooClose } from "./push"
@@ -57,21 +55,20 @@ export function frameAround(catalog: CoreCatalog, page: ItemPage, id: string): F
 export const toData = (frame: Frame, rects: ReadonlyMap<string, Rect>): Map<string, Rect> =>
   new Map([...rects].map(([id, r]) => [id, { ...r, x: r.x + frame.origin.x, y: r.y + frame.origin.y }]))
 
-// 子の領域の Frame の四角 after を、親の子の位置にしたブック。put の形は、同じ id の子と置き換えるか、末尾に足す（位置は after から）。
-// 親は子に合わせて育ち、一番上の祖先でページの形を押す（replaceShapePushing）。無いページ・無い親・紙に収まらないなら null
-export function commitChildren<B extends Book>(
+// 子の領域の Frame の四角 after を、親の子の位置にしたページ。put の形は、同じ id の子と置き換えるか、末尾に足す（位置は after から）。
+// 親は子に合わせて育ち、一番上の祖先でページの形を押す（replaceShapePushing）。無い親・紙に収まらないなら null
+export function commitChildren(
   catalog: CoreCatalog,
-  book: B,
-  pageId: string,
+  page: ItemPage,
   frame: Frame & { parent: string },
   after: ReadonlyMap<string, Rect>,
   put: readonly PlacedShape[] = [],
-): B | null {
+): ItemPage | null {
   const at = (s: PlacedShape): PlacedShape => {
     const r = after.get(s.id)
     return r ? { ...s, x: r.x + frame.origin.x, y: r.y + frame.origin.y } : s
   }
-  return replaceShapePushing(catalog, book, pageId, frame.parent, parent => {
+  return replaceShapePushing(catalog, page, frame.parent, parent => {
     const now = (parent.shapes ?? []) as PlacedShape[]
     const kept = now.map(c => at(put.find(p => p.id === c.id) ?? c))
     const added = put.filter(p => !now.some(c => c.id === p.id)).map(at)
@@ -90,42 +87,34 @@ export function settleChildren(catalog: CoreCatalog, shape: PlacedShape): Placed
   return { ...shape, shapes: children.map(c => ({ ...c, x: c.x + dx, y: c.y + dy })) } as PlacedShape
 }
 
-// 形 shape を、形 parent の子の領域に置いたブック（at は親の左上から。子の領域より左や上なら、子の領域の左上へ寄せる）。
-// 重なった子は右へ、駄目なら下へ押す（紙に置くときと同じ。縮めない）。無いページ・無い親・紙に収まらないなら null
-export function placeChild<B extends Book>(
+// 形 shape を、形 parent の子の領域に置いたページ（at は親の左上から。子の領域より左や上なら、子の領域の左上へ寄せる）。
+// 重なった子は右へ、駄目なら下へ押す（紙に置くときと同じ。縮めない）。無い親・紙に収まらないなら null
+export function placeChild(
   catalog: CoreCatalog,
-  book: B,
-  pageId: string,
+  page: ItemPage,
   parent: string,
   shape: PlacedShape,
   at: Point,
-): B | null {
-  const page = findPage(book, pageId)?.page
-  const frame = page && frameOf(catalog, page, parent)
+): ItemPage | null {
+  const frame = frameOf(catalog, page, parent)
   const size = placedSize(catalog, shape)
-  if (!page || !frame || !size) return null
+  if (!frame || !size) return null
   const rect = { x: Math.max(0, at.x - frame.origin.x), y: Math.max(0, at.y - frame.origin.y), ...size }
   const after = planPlace(frame.rects, shape.id, rect, frame.paper, undefined, gapOf(catalog, page))
-  return after && commitChildren(catalog, book, pageId, { ...frame, parent }, after, [shape])
+  return after && commitChildren(catalog, page, { ...frame, parent }, after, [shape])
 }
 
-// 子の形を next に置き換え、近づきすぎた兄弟を親の中で押してどけたブック（縮めない）。子の領域より左や上・押せない・紙に収まらないなら null
-export function replaceChild<B extends Book>(
-  catalog: CoreCatalog,
-  book: B,
-  pageId: string,
-  next: PlacedShape,
-): B | null {
-  const page = findPage(book, pageId)?.page
-  const frame = page && frameAround(catalog, page, next.id)
+// 子の形を next に置き換え、近づきすぎた兄弟を親の中で押してどけたページ（縮めない）。子の領域より左や上・押せない・紙に収まらないなら null
+export function replaceChild(catalog: CoreCatalog, page: ItemPage, next: PlacedShape): ItemPage | null {
+  const frame = frameAround(catalog, page, next.id)
   const size = placedSize(catalog, next)
-  if (!page || !frame || frame.parent === null || !size) return null
+  if (!frame || frame.parent === null || !size) return null
   const rect = { x: next.x - frame.origin.x, y: next.y - frame.origin.y, ...size }
   if (!inPaper(rect, frame.paper)) return null
   const gap = gapOf(catalog, page)
   const after = pushFrom(frame.rects, next.id, rect, frame.paper, undefined, gap)
   if (!after || newClash(frame.rects, after, gap)) return null
-  return commitChildren(catalog, book, pageId, { ...frame, parent: frame.parent }, after, [next])
+  return commitChildren(catalog, page, { ...frame, parent: frame.parent }, after, [next])
 }
 
 // Frame の中で、大きさ size の形を置ける空き（Frame の左上から）。格子で探す: 目の大きさは、兄弟と置く形の一番大きい幅・高さに間隔（GAP）を足したもの、

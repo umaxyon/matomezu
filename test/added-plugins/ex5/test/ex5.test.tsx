@@ -2,7 +2,7 @@
 
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
-import { addPageIn, type Book, createBookIn, nextItemIdOfBook, pagesOf } from "matomezu"
+import { addPageIn, createBookIn, nextItemId, pagesOf } from "matomezu"
 import {
   BUILTIN_UI,
   createMatomezu,
@@ -46,8 +46,8 @@ const shelf = () => {
     act(() => {
       r = instance.actions.perform(
         "@matomezu/paper:item-place",
-        { page: page().id, item: "ex5:tiles", at: { x: 40, y: 40 }, w, props },
-        on,
+        { item: "ex5:tiles", at: { x: 40, y: 40 }, w, props },
+        { page: page().id },
       )
     })
     return r!
@@ -56,11 +56,11 @@ const shelf = () => {
 }
 
 test("タイルを置き、札を足すと中身のフィールド tiles に入る", () => {
-  const { instance, on, page, place } = shelf()
+  const { instance, page, place } = shelf()
   const item = (place({}) as { result: { item: string } }).result.item
   act(() => {
     for (const color of ["#ff0000", "#00ff00"])
-      expect(instance.actions.perform("ex5:tile-add", { page: page().id, item, color }, on)).toMatchObject({ ok: true })
+      expect(instance.actions.perform("ex5:tile-add", { item, color }, { page: page().id })).toMatchObject({ ok: true })
   })
   expect(page().items![0]!.tiles).toHaveLength(2)
   // プラグインが持つテーマキーも、タイルの要素で --tiles-fill として読める
@@ -68,9 +68,9 @@ test("タイルを置き、札を足すと中身のフィールド tiles に入�
 })
 
 test("自分の認可ステップ: 1 ページの札が 6 枚になると、そのページに札を足すのを止め、止めたステップの id を返す", () => {
-  const { instance, on, page, place } = shelf()
+  const { instance, page, place } = shelf()
   const item = (place({}) as { result: { item: string } }).result.item
-  const add = () => instance.actions.perform("ex5:tile-add", { page: page().id, item, color: "#ff0000" }, on)
+  const add = () => instance.actions.perform("ex5:tile-add", { item, color: "#ff0000" }, { page: page().id })
   act(() => {
     for (let i = 0; i < 6; i++) expect(add()).toMatchObject({ ok: true })
     expect(add()).toEqual({ ok: false, reason: "denied", permission: "ex5:tile-limit" })
@@ -79,10 +79,10 @@ test("自分の認可ステップ: 1 ページの札が 6 枚になると、そ�
 })
 
 test("ビューの content に、中身のフィールド tiles の札が来る（children でなくても）", () => {
-  const { instance, on, page, place } = shelf()
+  const { instance, page, place } = shelf()
   const item = (place({}) as { result: { item: string } }).result.item
   act(() => {
-    instance.actions.perform("ex5:tile-add", { page: page().id, item, color: "#ff0000" }, on)
+    instance.actions.perform("ex5:tile-add", { item, color: "#ff0000" }, { page: page().id })
   })
   expect(document.querySelector("[data-ex5-tiles]")?.getAttribute("data-ex5-tiles")).toBe("1")
   // 形のビューには、ステージの今の倍率も渡る
@@ -95,14 +95,14 @@ test("自分の意味の theme の項目（札の色合い）を持つ形を置�
 })
 
 test("文字を持たない形は、caption の項目を変えても幅が変わらない", () => {
-  const { instance, on, page, place } = shelf()
+  const { instance, page, place } = shelf()
   const item = (place({ caption: "a" }, 100) as { result: { item: string } }).result.item
   act(() => {
     expect(
       instance.actions.perform(
         "@matomezu/paper:item-update",
-        { page: page().id, item, props: { caption: "とても長い札の並びの名前" } },
-        on,
+        { item, props: { caption: "とても長い札の並びの名前" } },
+        { page: page().id },
       ),
     ).toMatchObject({ ok: true })
   })
@@ -114,12 +114,11 @@ test("次に置くアイテムの id は、中身のフィールド tiles の札
   const item = (place({}) as { result: { item: string } }).result.item
   let tile = ""
   act(() => {
-    const r = instance.actions.perform("ex5:tile-add", { page: page().id, item, color: "#ff0000" }, on)
+    const r = instance.actions.perform("ex5:tile-add", { item, color: "#ff0000" }, { page: page().id })
     tile = (r as { result: { tile: string } }).result.tile
   })
-  const book = instance.state.getState().books[on.book] as unknown as Book
   const ids = new Set<string>()
-  for (let k = 0; k < 20; k++) ids.add(nextItemIdOfBook(book, () => tile))
+  for (let k = 0; k < 20; k++) ids.add(nextItemId(pagesOf(instance.state.getState().books[on.book]!)[0]!, () => tile))
   expect(ids.has(tile)).toBe(false)
 })
 

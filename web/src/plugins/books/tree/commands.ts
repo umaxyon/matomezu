@@ -77,11 +77,10 @@ function addCommand<const Id extends string>(
     title,
     run: (ctx, a) => {
       const tree = treeAt(ctx)
-      const opened = ctx.stage.opened
-      if (!tree || !opened) return
+      if (!tree) return
       const plus = keyPlus(tree.root, tree.grow, selectedIn(tree.root, ctx.stage.selection), kind)
       if (!plus) return
-      const done = a.perform(NODE_ADD.id, addArgs(tree.page.id, plus), { book: opened.book })
+      const done = a.perform(NODE_ADD.id, addArgs(plus), { page: tree.page.id })
       const added = done.ok ? done.result.nodes[0]?.id : undefined
       if (!added) {
         const why = refusalMessage(
@@ -125,7 +124,7 @@ export const NODE_DELETE = kit.defineCommand({
     const node = selectedIn(tree.root, ctx.stage.selection)
     const next = afterRemove(tree.root, tree.grow, node)
     if (!next) return
-    if (a.perform(NODE_REMOVE.id, { page: tree.page.id, node }, { book: opened.book }).ok) a.select([next])
+    if (a.perform(NODE_REMOVE.id, { node }, { page: tree.page.id }).ok) a.select([next])
   },
   when: ctx => {
     const tree = editingTree(ctx) && !ctx.stage.editing ? treeAt(ctx) : null

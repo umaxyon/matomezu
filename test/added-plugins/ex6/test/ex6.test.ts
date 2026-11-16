@@ -19,16 +19,15 @@ test("答える形の無いページの重さは 0", () => {
   act(() => {
     expect(addPageIn(instance, "s1", { type: "@matomezu/drawing:drawing", title: "p1" })).toBe(true)
   })
-  const on = { book }
   const page = pagesOf(instance.state.getState().books[book]!)[0]!.id
   act(() => {
     expect(
       instance.actions.perform(
         "@matomezu/paper:item-place",
-        { page, item: "@matomezu/box:shape-nest-box", at: { x: 40, y: 40 } },
-        on,
+        { item: "@matomezu/box:shape-nest-box", at: { x: 40, y: 40 } },
+        { page },
       ),
     ).toMatchObject({ ok: true })
   })
-  expect(instance.actions.perform("ex6:page-weight", { page }, on)).toMatchObject({ ok: true, result: { weight: 0 } })
+  expect(instance.actions.perform("ex6:page-weight", {}, { page })).toMatchObject({ ok: true, result: { weight: 0 } })
 })

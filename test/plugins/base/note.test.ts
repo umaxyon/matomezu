@@ -23,8 +23,8 @@ function ready() {
   const place = (x: number) =>
     store.actions.perform(
       "@matomezu/paper:item-place",
-      { page, item: "@matomezu/box:shape-nest-box", at: { x, y: 40 }, props: { caption: "箱" } },
-      ON,
+      { item: "@matomezu/box:shape-nest-box", at: { x, y: 40 }, props: { caption: "箱" } },
+      { page },
     )
   const [a, b] = [place(40), place(400)].map(done => (done.ok ? (done.result as { item: string }).item : "")) as [
     string,
@@ -89,10 +89,10 @@ test("アンカーの物を消すとアンカーから外れ、全部消える�
   await Promise.resolve()
   store.actions.perform(ADD, { anchors: [a, b], text: "x" }, ON)
   store.actions.perform(ADD, { anchors: [a], text: "y" }, ON)
-  expect(store.actions.perform("@matomezu/paper:item-remove", { page, items: [a] }, ON).ok).toBe(true)
+  expect(store.actions.perform("@matomezu/paper:item-remove", { items: [a] }, { page }).ok).toBe(true)
   expect(notes().map(n => n.anchors)).toEqual([[b]])
   await Promise.resolve()
-  expect(store.actions.perform("@matomezu/paper:item-remove", { page, items: [b] }, ON).ok).toBe(true)
+  expect(store.actions.perform("@matomezu/paper:item-remove", { items: [b] }, { page }).ok).toBe(true)
   expect(notes()).toEqual([])
   expect(store.state.getState().annotations).toEqual({})
   await Promise.resolve()

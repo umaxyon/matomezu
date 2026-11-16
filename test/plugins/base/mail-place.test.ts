@@ -38,8 +38,8 @@ test("物を指しているときは、1 つでも今もあれば true、どれ�
   const page = pagesOf(store.state.getState().books[id]!)[0]?.id ?? ""
   const placed = store.actions.perform(
     "@matomezu/paper:item-place",
-    { page, item: "@matomezu/box:shape-nest-box", at: { x: 40, y: 40 } },
-    { book: id },
+    { item: "@matomezu/box:shape-nest-box", at: { x: 40, y: 40 } },
+    { page },
   )
   expect(placed.ok).toBe(true)
   const item = (placed as { result: { item: string } }).result.item

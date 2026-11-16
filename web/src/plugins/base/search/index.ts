@@ -108,7 +108,7 @@ export const SEARCH_REPLACE_ONE = kit.defineCommand({
     const search = ctx.pluginState(SEARCH_STATE)
     if (!search || !searchable(ctx) || !ctx.book) return
     const { args, next } = replaceOneStep(ctx.catalog, ctx.book, search, shownPageId(ctx.stage.opened ?? null) ?? null)
-    if (args !== "none" && !a.perform(PAGE_UPDATE.id, args, { book: ctx.book.id }).ok) return
+    if (args !== "none" && !a.perform(PAGE_UPDATE.id, { fields: args.fields }, { page: args.page }).ok) return
     a.updatePluginState(SEARCH_STATE, () => ({ ...search, current: next }))
     if (next !== "none" && next.page !== shownPageId(ctx.stage.opened ?? null)) a.openPage(next.page)
   },
@@ -131,7 +131,7 @@ export const SEARCH_REPLACE_ALL = kit.defineCommand({
     const pages = pagesOf(book).filter(p => search.scope === "book" || p.id === shownPageId(ctx.stage.opened ?? null))
     for (const page of pages) {
       const args = replaceAllArgs(ctx.catalog, page, search.query, search.replacement)
-      if (args !== "none") a.perform(PAGE_UPDATE.id, args, { book: book.id })
+      if (args !== "none") a.perform(PAGE_UPDATE.id, { fields: args.fields }, { page: args.page })
     }
     a.updatePluginState(SEARCH_STATE, () => ({ ...search, current: "none" as const }))
   },

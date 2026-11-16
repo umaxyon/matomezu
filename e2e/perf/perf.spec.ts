@@ -206,14 +206,8 @@ test("アクション: AI の入口から箱と線を 300 まで足す", async (
   for (let i = 0; i < n; i++) {
     const done = await perform({
       action: "@matomezu/paper:item-place",
-      args: {
-        page: pageId,
-        item: "@matomezu/box:shape-nest-box",
-        at: boxAt(i),
-        ...BOX_SIZE,
-        props: { caption: String(i + 1) },
-      },
-      on,
+      args: { item: "@matomezu/box:shape-nest-box", at: boxAt(i), ...BOX_SIZE, props: { caption: String(i + 1) } },
+      on: { page: pageId },
     })
     places.push(done.ms)
     ids.push(done.result.item as string)
@@ -222,8 +216,8 @@ test("アクション: AI の入口から箱と線を 300 まで足す", async (
   for (let i = 0; i < n - 1; i++) {
     const done = await perform({
       action: "@matomezu/line:line-connect",
-      args: { page: pageId, from: ids[i], to: ids[i + 1] },
-      on,
+      args: { from: ids[i], to: ids[i + 1] },
+      on: { page: pageId },
     })
     connects.push(done.ms)
   }

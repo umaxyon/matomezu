@@ -18,10 +18,10 @@ function setup() {
   })
   const id = (screenOf(store.state.getState().window).stages[0]!.opened as { book: string }).book
   const book = () => store.state.getState().books[id]!
-  const perform = (action: string, args: unknown) => {
+  const perform = (action: string, args: unknown, on: { book: string } | { page: string } = { book: id }) => {
     let done: ReturnType<typeof store.actions.perform> | undefined
     act(() => {
-      done = store.actions.perform(action as never, args as never, { book: id })
+      done = store.actions.perform(action as never, args as never, on as never)
     })
     return done!
   }
@@ -98,32 +98,34 @@ test("編集のロック中は ▸・▾ を押せない", () => {
 test("中身を足す・書き換える（根も）・消す・移す・並べ替える。パスから組み立てると、パスごとに指す id を返す", () => {
   const { perform, book } = setup()
   const ids = addProject(perform)
-  const added = perform("@matomezu/dir:entry-add", {
-    page: ids.page,
-    parent: ids.src,
-    index: 0,
-    entries: [{ kind: "file", name: "z.ts" }],
-  })
+  const added = perform(
+    "@matomezu/dir:entry-add",
+    { parent: ids.src, index: 0, entries: [{ kind: "file", name: "z.ts" }] },
+    { page: ids.page },
+  )
   expect(added.ok && (added.result as { entries: { id: string }[] }).entries).toHaveLength(1)
   expect(rowNames()).toEqual(["proj", "src", "z.ts", "a.ts", "README.md"])
-  expect(perform("@matomezu/dir:folder-sort", { page: ids.page, folder: ids.src, order: "asc" }).ok).toBe(true)
+  expect(perform("@matomezu/dir:folder-sort", { folder: ids.src, order: "asc" }, { page: ids.page }).ok).toBe(true)
   expect(rowNames()).toEqual(["proj", "src", "a.ts", "z.ts", "README.md"])
   expect(
-    perform("@matomezu/dir:entry-update", {
-      page: ids.page,
-      entry: ids.root,
-      name: "app",
-      icon: "@matomezu/dir:entry-icon-book",
-    }).ok,
+    perform(
+      "@matomezu/dir:entry-update",
+      { entry: ids.root, name: "app", icon: "@matomezu/dir:entry-icon-book" },
+      { page: ids.page },
+    ).ok,
   ).toBe(true)
   expect(pagesOf(book())[0]).toMatchObject({ root: { name: "app", icon: "@matomezu/dir:entry-icon-book" } })
-  expect(perform("@matomezu/dir:entry-move", { page: ids.page, entry: ids.readme, parent: ids.src }).ok).toBe(true)
+  expect(perform("@matomezu/dir:entry-move", { entry: ids.readme, parent: ids.src }, { page: ids.page }).ok).toBe(true)
   expect(rowNames()).toEqual(["app", "src", "a.ts", "z.ts", "README.md"])
-  expect(perform("@matomezu/dir:entry-move", { page: ids.page, entry: ids.src, parent: ids.a }).ok).toBe(false)
-  expect(perform("@matomezu/dir:entry-remove", { page: ids.page, entry: ids.src }).ok).toBe(true)
+  expect(perform("@matomezu/dir:entry-move", { entry: ids.src, parent: ids.a }, { page: ids.page }).ok).toBe(false)
+  expect(perform("@matomezu/dir:entry-remove", { entry: ids.src }, { page: ids.page }).ok).toBe(true)
   expect(rowNames()).toEqual(["app"])
-  expect(perform("@matomezu/dir:entry-remove", { page: ids.page, entry: ids.root }).ok).toBe(false)
-  const built = perform("@matomezu/dir:paths-add", { page: ids.page, parent: ids.root, paths: ["web/src/", "go.mod"] })
+  expect(perform("@matomezu/dir:entry-remove", { entry: ids.root }, { page: ids.page }).ok).toBe(false)
+  const built = perform(
+    "@matomezu/dir:paths-add",
+    { parent: ids.root, paths: ["web/src/", "go.mod"] },
+    { page: ids.page },
+  )
   expect(built.ok && (built.result as { ids: string[] }).ids).toHaveLength(2)
   expect(rowNames()).toEqual(["app", "web", "src", "go.mod"])
 })
@@ -132,10 +134,10 @@ test("行が紙に入らなくなる足し方・開き方は断る（閉じた�
   const { perform } = setup()
   const ids = addProject(perform)
   const many = Array.from({ length: 60 }, (_, i) => ({ kind: "file" as const, name: `f${i}` }))
-  expect(perform("@matomezu/dir:entry-add", { page: ids.page, parent: ids.src, entries: many }).ok).toBe(false)
-  expect(perform("@matomezu/dir:folder-close", { page: ids.page, folder: ids.src, closed: true }).ok).toBe(true)
-  expect(perform("@matomezu/dir:entry-add", { page: ids.page, parent: ids.src, entries: many }).ok).toBe(true)
-  expect(perform("@matomezu/dir:folder-close", { page: ids.page, folder: ids.src, closed: false }).ok).toBe(false)
+  expect(perform("@matomezu/dir:entry-add", { parent: ids.src, entries: many }, { page: ids.page }).ok).toBe(false)
+  expect(perform("@matomezu/dir:folder-close", { folder: ids.src, closed: true }, { page: ids.page }).ok).toBe(true)
+  expect(perform("@matomezu/dir:entry-add", { parent: ids.src, entries: many }, { page: ids.page }).ok).toBe(true)
+  expect(perform("@matomezu/dir:folder-close", { folder: ids.src, closed: false }, { page: ids.page }).ok).toBe(false)
 })
 
 const paper = () => screen.getByRole("img", { name: "紙" })
@@ -243,7 +245,7 @@ test("足して名前を書いた物は 1 つの画面の履歴の段で、元�
 test("＋はフォルダの行なら中の末尾に（閉じていれば開く）、ファイルの行ならすぐ下に足して書き始める", () => {
   const { perform } = setup()
   const ids = addProject(perform)
-  perform("@matomezu/dir:folder-close", { page: ids.page, folder: ids.src, closed: true })
+  perform("@matomezu/dir:folder-close", { folder: ids.src, closed: true }, { page: ids.page })
   fireEvent.pointerDown(row(ids.src), { button: 0 })
   fireEvent.click(within(paper()).getByRole("button", { name: "ファイルを足す" }))
   writeRich(within(paper()).getByRole("textbox", { name: "名前" }), "z.ts")
@@ -345,14 +347,17 @@ test("選んでいる行が、閉じたフォルダの中に隠れたら、見�
 test("右クリックの並べ替えで、直下を名前の昇順・降順に並べる（フォルダが先）", () => {
   const { perform } = setup()
   const ids = addProject(perform)
-  perform("@matomezu/dir:entry-add", {
-    page: ids.page,
-    parent: ids.src,
-    entries: [
-      { kind: "file", name: "ホゲ" },
-      { kind: "file", name: "イヌ" },
-    ],
-  })
+  perform(
+    "@matomezu/dir:entry-add",
+    {
+      parent: ids.src,
+      entries: [
+        { kind: "file", name: "ホゲ" },
+        { kind: "file", name: "イヌ" },
+      ],
+    },
+    { page: ids.page },
+  )
   expect(rowNames()).toEqual(["proj", "src", "a.ts", "ホゲ", "イヌ", "README.md"])
   fireEvent.contextMenu(row(ids.src))
   fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "昇順で並べる" }))
@@ -365,7 +370,7 @@ test("右クリックの並べ替えで、直下を名前の昇順・降順に�
 test("紙の右クリックの「ページの設定」で、ページ名と削除のほかに、説明の表示と、その下に開く枠の前の「・・・」・左の区切り線を切り替える（確定の前から見せる。表示を切ると枠を閉じる）", () => {
   const { book, perform } = setup()
   const ids = addProject(perform)
-  perform("@matomezu/dir:entry-update", { page: ids.page, entry: ids.a, description: "説明" })
+  perform("@matomezu/dir:entry-update", { entry: ids.a, description: "説明" }, { page: ids.page })
   fireEvent.contextMenu(paper())
   fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "ページの設定" }))
   const dialog = screen.getByRole("dialog", { name: "ページの設定" })
@@ -393,7 +398,7 @@ test("紙の右クリックの「ページの設定」で、ページ名と削�
 test("説明を出している間は、説明の列をダブルクリックして説明をその場で書く（説明の無い行も）。Enter で確定、Escape で取り消し、空にすると消す。ハンドと、説明を出さないページでは書けない", () => {
   const { book, perform } = setup()
   const ids = addProject(perform)
-  perform("@matomezu/dir:entry-update", { page: ids.page, entry: ids.a, description: "説明" })
+  perform("@matomezu/dir:entry-update", { entry: ids.a, description: "説明" }, { page: ids.page })
   const note = (id: string) => paper().querySelector(`[data-note="${id}"]`)?.textContent
   const cell = (id: string) => paper().querySelector(`[data-note-cell="${id}"]`) as HTMLElement
   const input = () => within(paper()).getByRole("textbox", { name: "説明" })
@@ -411,10 +416,11 @@ test("説明を出している間は、説明の列をダブルクリックし�
   fireEvent.blur(input())
   expect(note(ids.a)).toBeUndefined()
   expect(JSON.stringify(pagesOf(book())[0])).not.toContain('"説明"') // データからも消す
-  perform("@matomezu/base:page-update", {
-    page: ids.page,
-    settings: { "@matomezu/dir:notes": { shown: false, dots: false, divider: false } },
-  })
+  perform(
+    "@matomezu/base:page-update",
+    { settings: { "@matomezu/dir:notes": { shown: false, dots: false, divider: false } } },
+    { page: ids.page },
+  )
   expect(cell(ids.a)).toBeNull()
 })
 
@@ -424,15 +430,17 @@ test("中身のアイコンは、列挙 entry-icon の値で種類に合う物�
   const DRAWING = "@matomezu/drawing:entry-icon"
   const BOOK = "@matomezu/dir:entry-icon-book"
   // 種類に合わない・値の無いアイコンは断られる
-  expect(perform("@matomezu/dir:entry-update", { page: ids.page, entry: ids.src, icon: DRAWING }).ok).toBe(false)
-  expect(perform("@matomezu/dir:entry-update", { page: ids.page, entry: ids.readme, icon: BOOK }).ok).toBe(false)
-  expect(perform("@matomezu/dir:entry-update", { page: ids.page, entry: ids.readme, icon: "nothing" }).ok).toBe(false)
+  expect(perform("@matomezu/dir:entry-update", { entry: ids.src, icon: DRAWING }, { page: ids.page }).ok).toBe(false)
+  expect(perform("@matomezu/dir:entry-update", { entry: ids.readme, icon: BOOK }, { page: ids.page }).ok).toBe(false)
+  expect(perform("@matomezu/dir:entry-update", { entry: ids.readme, icon: "nothing" }, { page: ids.page }).ok).toBe(
+    false,
+  )
   const nested = (icon: string) =>
-    perform("@matomezu/dir:entry-add", {
-      page: ids.page,
-      parent: ids.root,
-      entries: [{ kind: "folder", name: "d", children: [{ kind: "file", name: "f", icon }] }],
-    }).ok
+    perform(
+      "@matomezu/dir:entry-add",
+      { parent: ids.root, entries: [{ kind: "folder", name: "d", children: [{ kind: "file", name: "f", icon }] }] },
+      { page: ids.page },
+    ).ok
   expect(nested(BOOK)).toBe(false)
   expect(nested(DRAWING)).toBe(true)
   const root = (icon: string) =>
@@ -440,12 +448,12 @@ test("中身のアイコンは、列挙 entry-icon の値で種類に合う物�
   expect(root(DRAWING)).toBe(false)
   expect(root(BOOK)).toBe(true)
   // 合う物は付き、行の頭の絵になる
-  expect(perform("@matomezu/dir:entry-update", { page: ids.page, entry: ids.readme, icon: DRAWING }).ok).toBe(true)
+  expect(perform("@matomezu/dir:entry-update", { entry: ids.readme, icon: DRAWING }, { page: ids.page }).ok).toBe(true)
   expect(pagesOf(book())[0]).toMatchObject({
     root: { children: [{ kind: "folder" }, { icon: DRAWING }, { name: "d" }] },
   })
   const paper = screen.getByRole("img", { name: "紙" })
   expect(paper.querySelector(`[data-icon="${DRAWING}"] svg`)).not.toBeNull()
   // 値が無くなった中身は、既定の絵で描く（データは消えない）
-  expect(perform("@matomezu/dir:entry-update", { page: ids.page, entry: ids.readme, icon: null }).ok).toBe(true)
+  expect(perform("@matomezu/dir:entry-update", { entry: ids.readme, icon: null }, { page: ids.page }).ok).toBe(true)
 })

@@ -25,8 +25,8 @@ func newEngine(t *testing.T) *Engine {
 func place(ids ...string) Input {
 	return Input{
 		Action: "@matomezu/paper:item-place",
-		Args:   json.RawMessage(`{"page":"p1","item":"@matomezu/box:shape-nest-box","at":{"x":10,"y":20},"props":{"caption":"c"}}`),
-		On:     &On{Book: "b1"},
+		Args:   json.RawMessage(`{"item":"@matomezu/box:shape-nest-box","at":{"x":10,"y":20},"props":{"caption":"c"}}`),
+		On:     &On{Page: "p1"},
 		Lang:   "ja",
 		IDs:    ids,
 		Books:  []json.RawMessage{json.RawMessage(book)},
@@ -59,8 +59,8 @@ func TestRefusals(t *testing.T) {
 	e := newEngine(t)
 	cases := map[string]Input{
 		"unknown":  {Action: "nope", Lang: "ja"},
-		"no-book":  {Action: "@matomezu/paper:item-place", Args: place().Args, On: &On{Book: "b9"}, Lang: "ja", Books: place().Books},
-		"bad-args": {Action: "@matomezu/paper:item-place", Args: json.RawMessage(`{"page":"p1"}`), On: &On{Book: "b1"}, Lang: "ja", Books: place().Books},
+		"no-page":  {Action: "@matomezu/paper:item-place", Args: place().Args, On: &On{Page: "p9"}, Lang: "ja", Books: place().Books},
+		"bad-args": {Action: "@matomezu/paper:item-place", Args: json.RawMessage(`{}`), On: &On{Page: "p1"}, Lang: "ja", Books: place().Books},
 	}
 	for want, in := range cases {
 		out, err := e.Perform(in)
@@ -172,7 +172,7 @@ func TestAICatalogDescribesActionsAndItems(t *testing.T) {
 			t.Errorf("%s has no description for the AI", a.ID)
 		}
 		if a.ID == "@matomezu/paper:item-place" {
-			found = a.Target == "book" && strings.Contains(string(a.Args), `"page"`) && strings.Contains(string(a.Args), `"required"`)
+			found = a.Target == "page" && !strings.Contains(string(a.Args), `"page"`) && strings.Contains(string(a.Args), `"required"`)
 		}
 	}
 	langs := []string{}
@@ -270,8 +270,8 @@ func TestConnectsItemsWithALine(t *testing.T) {
 		`{"id":"b","x":400,"y":300,"item":"@matomezu/box:shape-nest-box","w":100,"h":64,"props":{}}]}]}`
 	out, err := e.Perform(Input{
 		Action: "@matomezu/line:line-connect",
-		Args:   json.RawMessage(`{"page":"p1","from":"a","to":"b","props":{"exitAt":0.4024,"enterAt":0.9024,"via":[300]}}`),
-		On:     &On{Book: "b1"},
+		Args:   json.RawMessage(`{"from":"a","to":"b","props":{"exitAt":0.4024,"enterAt":0.9024,"via":[300]}}`),
+		On:     &On{Page: "p1"},
 		Lang:   "ja",
 		IDs:    []string{"l1"},
 		Books:  []json.RawMessage{json.RawMessage(two)},

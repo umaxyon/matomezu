@@ -3,8 +3,8 @@
 // 根のキャプションと本文は、ページのフィールドの受け方（page-fields.ts）で base の page-update が替える。
 // ページのフィールド root を書き換える。書き換えた木が紙に入らなければ断る。ツリーの見せ方について来る
 import { z } from "zod"
-import { type Book, type CoreCatalog, findPage, putPage } from "../../../plugin-api"
-import { ColorSchema, contentIdMakerOfBook, growOf, pageContext } from "../../base"
+import type { CoreCatalog, ItemPage } from "../../../plugin-api"
+import { ColorSchema, contentIdMaker, growOf, pageContext } from "../../base"
 import { addNodes, changeNode, moveNode, nodeOf, removeNode } from "./edit"
 import { treeFits } from "./fit"
 import { kit } from "./kit"
@@ -13,17 +13,16 @@ import { NODE_SIZES } from "./size"
 
 const ON_TREES = { presentations: [kit.name("tree")] }
 
-// ページ page の根と、根を替えたブックを作る関数（ツリーのページでなければ null）
-function treeOf(book: Book, page: string, catalog: CoreCatalog) {
-  const found = findPage(book, page)?.page
-  const root = treeRootOf(found)
-  if (!found || !root) return null
+// ページ page の根と、根を替えたページを作る関数（ツリーのページでなければ null）
+function treeOf(page: ItemPage, catalog: CoreCatalog) {
+  const root = treeRootOf(page)
+  if (!root) return null
   return {
     root,
     put: (next: TreeRoot) => {
-      const written = { ...found, root: next }
+      const written = { ...page, root: next }
       const fits = treeFits(catalog, written, pageContext(catalog, written).setting, growOf(catalog, written), next)
-      return fits ? putPage(book, written) : null
+      return fits ? written : null
     },
   }
 }
@@ -34,19 +33,18 @@ export const NODE_ADD = kit.defineAction({
   aiDescription:
     "Add nodes to a tree page under the node parent (the root's id for its children), at index among its children (the end without it). nodes are nested (write no ids); every node gets an id, returned in nodes in the same nesting. A node without color takes its parent's. In a center tree, side tells which way a direct child of the root grows (right without it); it is not used elsewhere. Refused if the page is not a tree page, parent is not in it, or index is past the end.",
   title: "Add nodes",
-  target: "book",
+  target: "page",
   args: z.strictObject({
-    page: z.string().min(1),
     parent: z.string().min(1),
     index: z.number().int().min(0).optional(),
     nodes: z.array(NewNodeSchema).min(1),
   }),
-  permissionScope: { page: "page" },
-  run: (book, args, ctx) => {
-    const tree = treeOf(book, args.page, ctx.catalog)
+  permissionScope: "page",
+  run: (page, args, ctx) => {
+    const tree = treeOf(page, ctx.catalog)
     if (!tree) return null
     const parent = args.parent === tree.root.id ? tree.root : nodeOf(tree.root, args.parent)
-    const given = giveIds(args.nodes, contentIdMakerOfBook(book, ctx.newId), parent?.color)
+    const given = giveIds(args.nodes, contentIdMaker(page, ctx.newId), parent?.color)
     const next = addNodes(tree.root, args.parent, given.nodes, args.index)
     const written = next && tree.put(next)
     return written && { next: written, result: { nodes: given.ids } }
@@ -59,17 +57,16 @@ export const NODE_UPDATE = kit.defineAction({
   aiDescription:
     "Change a child node of a tree page: its caption, its size (how it is sized; null follows the page's @matomezu/tree:node-size) and its color (a palette name or #rrggbb; null for the theme's fill). Only what is given changes. Returns nothing. Refused for the root (its caption, body and color are the page's field root: change them with @matomezu/base:page-update; the root's id is still the parent for @matomezu/tree:node-add and @matomezu/tree:node-move), a node not in the page, or when the tree would not fit on the paper.",
   title: "Update node",
-  target: "book",
+  target: "page",
   args: z.strictObject({
-    page: z.string().min(1),
     node: z.string().min(1),
     caption: z.string().optional(),
     size: z.enum(NODE_SIZES).nullable().optional(),
     color: ColorSchema.nullable().optional(),
   }),
-  permissionScope: { page: "page" },
-  run: (book, args, ctx) => {
-    const tree = treeOf(book, args.page, ctx.catalog)
+  permissionScope: "page",
+  run: (page, args, ctx) => {
+    const tree = treeOf(page, ctx.catalog)
     const next = tree && changeNode(tree.root, args.node, { caption: args.caption, size: args.size, color: args.color })
     const written = next && tree?.put(next)
     return written ? { next: written, result: {} } : null
@@ -82,11 +79,11 @@ export const NODE_REMOVE = kit.defineAction({
   aiDescription:
     "Remove a child node of a tree page with all its descendants. Returns nothing. Refused for the root or a node not in the page.",
   title: "Remove node",
-  target: "book",
-  args: z.strictObject({ page: z.string().min(1), node: z.string().min(1) }),
-  permissionScope: { page: "page" },
-  run: (book, args, ctx) => {
-    const tree = treeOf(book, args.page, ctx.catalog)
+  target: "page",
+  args: z.strictObject({ node: z.string().min(1) }),
+  permissionScope: "page",
+  run: (page, args, ctx) => {
+    const tree = treeOf(page, ctx.catalog)
     const next = tree && removeNode(tree.root, args.node)
     const written = next && tree?.put(next)
     return written ? { next: written, result: {} } : null
@@ -99,17 +96,16 @@ export const NODE_MOVE = kit.defineAction({
   aiDescription:
     "Move a child node of a tree page, with all its descendants, under the node parent (the root's id for its children) at index among its children counted without the moved node (the end without it). Use it to reparent a node or reorder siblings. In a center tree, side tells which way it grows when it becomes a direct child of the root (right without it). Returns nothing. Refused for the root, a node or parent not in the page, a parent inside the moved node, index past the end, or when the tree would not fit on the paper.",
   title: "Move node",
-  target: "book",
+  target: "page",
   args: z.strictObject({
-    page: z.string().min(1),
     node: z.string().min(1),
     parent: z.string().min(1),
     index: z.number().int().min(0).optional(),
     side: z.enum(SIDE_NAMES).optional(),
   }),
-  permissionScope: { page: "page" },
-  run: (book, args, ctx) => {
-    const tree = treeOf(book, args.page, ctx.catalog)
+  permissionScope: "page",
+  run: (page, args, ctx) => {
+    const tree = treeOf(page, ctx.catalog)
     const next = tree && moveNode(tree.root, args.node, args.parent, args.index, args.side)
     const written = next && tree?.put(next)
     return written ? { next: written, result: {} } : null

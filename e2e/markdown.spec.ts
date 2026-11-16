@@ -295,8 +295,8 @@ test("ソースのペインで Mod+Z で戻すと、自分が書いた所だけ�
         headers: ai,
         data: {
           action: "@matomezu/base:page-update",
-          args: { page: view.page, fields: { find: "# 見出し", replace: "AI の行\n# 見出し" } },
-          on: { book: view.book },
+          args: { fields: { find: "# 見出し", replace: "AI の行\n# 見出し" } },
+          on: { page: view.page },
         },
       })
       return ((await done.json()) as { ok: boolean }).ok
@@ -350,8 +350,8 @@ test("ソースに書いている間（テキストFormにフォーカスがあ�
           headers: ai,
           data: {
             action: "@matomezu/base:page-update",
-            args: { page: view.page, title: "AI の題" },
-            on: { book: view.book },
+            args: { title: "AI の題" },
+            on: { page: view.page },
           },
         })
       ).json()

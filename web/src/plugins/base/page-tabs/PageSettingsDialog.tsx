@@ -60,12 +60,15 @@ export function PageSettingsDialog({ args, onClose }: DialogProps<{ page: string
       () => perform(PAGE_LOCK.id, {}, { page: page.id }).ok,
       () => perform(PAGE_UNLOCK.id, {}, { page: page.id }).ok,
       () =>
-        perform(PAGE_UPDATE.id, {
-          page: page.id,
-          title,
-          ...(changed ? { settings: settings.patch } : {}), // ページの設定の項目を持たないタイプは settings を受けない
-          ...paper.patch,
-        }).ok,
+        perform(
+          PAGE_UPDATE.id,
+          {
+            title,
+            ...(changed ? { settings: settings.patch } : {}), // ページの設定の項目を持たないタイプは settings を受けない
+            ...paper.patch,
+          },
+          { page: page.id },
+        ).ok,
     )
     if (done) onClose()
   }

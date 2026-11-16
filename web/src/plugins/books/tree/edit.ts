@@ -220,9 +220,8 @@ export function keyPlus(root: TreeRoot, grow: Grow, id: string, kind: "child" | 
   return found.reduce<Plus | null>((best, p) => (best && count(best.towards) <= count(p.towards) ? best : p), null)
 }
 
-// ＋ plus で、ページ page に空の節を 1 つ足すアクション node-add の引数
-export const addArgs = (page: string, plus: Plus) => ({
-  page,
+// ＋ plus で、空の節を 1 つ足すアクション node-add の引数
+export const addArgs = (plus: Plus) => ({
   parent: plus.parent,
   ...(plus.index === undefined ? {} : { index: plus.index }),
   nodes: [{ caption: "", ...(plus.towards ? { side: plus.towards } : {}) }],

@@ -26,7 +26,7 @@ export function NodeSizeDialog({ args, onClose }: DialogProps<{ page: string; no
   if (!book || !page || !node) return null
   const inherited = settingValue(catalog, page, NODE_SIZE)
   const submit = () => {
-    const done = perform(NODE_UPDATE.id, { page: page.id, node: node.id, size: size ?? null })
+    const done = perform(NODE_UPDATE.id, { node: node.id, size: size ?? null }, { page: page.id })
     if (done.ok) onClose()
     else setRefused(refusalMessage(catalog, done, kit.message("Does not fit on the paper")))
   }

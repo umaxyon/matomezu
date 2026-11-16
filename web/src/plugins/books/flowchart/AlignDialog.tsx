@@ -24,7 +24,7 @@ export function AlignDialog({ args, onClose }: DialogProps<{ page: string }>) {
   const adaptable = titles.length > 0
   const label = t("Fit {shapes} to the page and align", { shapes: titles.join(t("List separator")) })
   const run = () => {
-    const done = perform(PAGE_ALIGN.id, { page: page.id, ...(adapt && adaptable ? { adapt: true } : {}) })
+    const done = perform(PAGE_ALIGN.id, adapt && adaptable ? { adapt: true } : {}, { page: page.id })
     if (done.ok) onClose()
     else setRefused(refusalMessage(catalog, done, kit.message("Does not fit on the paper")))
   }

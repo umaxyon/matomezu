@@ -26,8 +26,8 @@ const ready = () => sizedStore()
 const place = (store: ReturnType<typeof newStore>, x: number, caption = "箱") =>
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: pagesOf(bookOf(store))[0]!.id, item: BOX, at: { x, y: 40 }, props: { caption } },
-    { book: "b1" },
+    { item: BOX, at: { x, y: 40 }, props: { caption } },
+    { page: pagesOf(bookOf(store))[0]!.id },
   )
 
 test("箱を置いた画面の履歴の段を元に戻すと箱が消え、やり直すと同じ id の箱が同じ所に戻る", async () => {
@@ -181,7 +181,7 @@ test("continueStep のあとに同じ処理で行ったアクションは、そ�
   const id = pagesOf(bookOf(store))[0]!.items!.at(-1)!.id
   const page = pagesOf(bookOf(store))[0]!.id
   store.actions.continueStep("b1")
-  store.actions.perform("@matomezu/paper:item-update", { page, item: id, props: { caption: "書いた" } }, { book: "b1" })
+  store.actions.perform("@matomezu/paper:item-update", { item: id, props: { caption: "書いた" } }, { page })
   await settled()
   expect(historyOf(store)?.undo).toHaveLength(1)
   store.actions.command("s1", "@matomezu/base:undo")
@@ -220,8 +220,8 @@ test("continueStep で足すのは、そのブックに最後に入れた画面�
   await settled()
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "b2-p1", item: BOX, at: { x: 40, y: 40 }, props: { caption: "箱" } },
-    { book: "b2" },
+    { item: BOX, at: { x: 40, y: 40 }, props: { caption: "箱" } },
+    { page: "b2-p1" },
   )
   await settled()
   store.actions.continueStep("b1")
@@ -237,13 +237,8 @@ test("いくつものブックを変えた画面の履歴の段にも、どち�
   const placeIn = (book: string, x: number) =>
     store.actions.perform(
       "@matomezu/paper:item-place",
-      {
-        page: book === "b1" ? pagesOf(bookOf(store))[0]!.id : samplePage(book),
-        item: BOX,
-        at: { x, y: 40 },
-        props: { caption: "箱" },
-      },
-      { book },
+      { item: BOX, at: { x, y: 40 }, props: { caption: "箱" } },
+      { page: book === "b1" ? pagesOf(bookOf(store))[0]!.id : samplePage(book) },
     )
   placeIn("b1", 40)
   placeIn("b2", 40)
@@ -260,8 +255,8 @@ test("いくつものブックを変えた画面の履歴の段は、途中の�
   const placeIn = (book: string) =>
     store.actions.perform(
       "@matomezu/paper:item-place",
-      { page: samplePage(book), item: BOX, at: { x: 40, y: 40 }, props: { caption: "箱" } },
-      { book },
+      { item: BOX, at: { x: 40, y: 40 }, props: { caption: "箱" } },
+      { page: samplePage(book) },
     )
   placeIn("b1")
   placeIn("b2")
@@ -310,8 +305,8 @@ test("いくつものブックを変えた画面の履歴の段は、途中の�
   const placeIn = (book: string) =>
     store.actions.perform(
       "@matomezu/paper:item-place",
-      { page: samplePage(book), item: BOX, at: { x: 40, y: 40 }, props: { caption: "箱" } },
-      { book },
+      { item: BOX, at: { x: 40, y: 40 }, props: { caption: "箱" } },
+      { page: samplePage(book) },
     )
   placeIn("b1")
   placeIn("b2")
@@ -329,13 +324,13 @@ test("いくつものブックを変えた画面の履歴の段は、途中の�
 test("上下左右へ増やす可変ページで、左の空きへ置いて中身をずらした段を元に戻すと、ずらした量（shift）も前に戻る", async () => {
   const store = ready()
   const page = pagesOf(bookOf(store))[0]!.id
-  expect(store.actions.perform("@matomezu/base:page-update", { page, grows: "all" }, { book: "b1" }).ok).toBe(true)
+  expect(store.actions.perform("@matomezu/base:page-update", { grows: "all" }, { page }).ok).toBe(true)
   await settled()
   const shift = () => pagesOf(bookOf(store))[0]!.shift
   const was = shift()
-  expect(
-    store.actions.perform("@matomezu/paper:item-place", { page, item: BOX, at: { x: 20, y: 900 } }, { book: "b1" }).ok,
-  ).toBe(true)
+  expect(store.actions.perform("@matomezu/paper:item-place", { item: BOX, at: { x: 20, y: 900 } }, { page }).ok).toBe(
+    true,
+  )
   await settled()
   expect(shift()?.x).toBe((was?.x ?? 0) + 1)
   expect(store.actions.command("s1", "@matomezu/base:undo")).toBe(true)

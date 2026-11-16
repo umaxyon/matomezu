@@ -118,7 +118,7 @@ export function SourcePane({ book, page, text, document, scrollRef, onScroll }: 
     if (plan.kind === "send" && plan.continues) continueStep(book)
     const was = base.current
     base.current = next
-    const done = plan.kind === "send" ? perform("@matomezu/base:page-update", { page, fields: plan.fields }) : null
+    const done = plan.kind === "send" ? perform("@matomezu/base:page-update", { fields: plan.fields }, { page }) : null
     if (!done?.ok) {
       // 送れなければ、ページの原文に戻す（書いた字は残らない）
       base.current = was

@@ -118,7 +118,7 @@ async function aiReady(page: Page) {
     const item = pageIn<{ items: { id: string }[] }>(read.book, shown)!.items[0]!.id
     await page.request.post("/api/ai/perform", {
       headers: ai,
-      data: { action: "@matomezu/paper:item-update", args: { page: shown, item, props: { caption } }, on: { book } },
+      data: { action: "@matomezu/paper:item-update", args: { item, props: { caption } }, on: { page: shown } },
     })
   }
   const undone = async () =>
@@ -154,8 +154,8 @@ test("見えている箱を AI が書き換えたら、Ctrl+Z はまず AI の�
     headers: ai,
     data: {
       action: "@matomezu/paper:item-update",
-      args: { page: shown, item, props: { caption: "AI" } },
-      on: { book },
+      args: { item, props: { caption: "AI" } },
+      on: { page: shown },
     },
   })
   await expect(items(page)).toHaveText("AI")

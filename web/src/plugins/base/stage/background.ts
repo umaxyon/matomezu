@@ -73,8 +73,8 @@ export const BACKGROUND_PRINT_SET = kit.defineCommand({
   title: "Print background",
   run: (ctx, a, { mode }: { mode: BackgroundPrint }) => {
     const opened = openedPage(ctx.stage.opened)
-    if (!opened || !ctx.book) return
-    a.perform(PAGE_UPDATE.id, { page: opened.page, settings: { [BACKGROUND_PRINT.id]: mode } }, { book: opened.book })
+    if (!opened) return
+    a.perform(PAGE_UPDATE.id, { settings: { [BACKGROUND_PRINT.id]: mode } }, { page: opened.page })
   },
   when: editingBackground,
 })

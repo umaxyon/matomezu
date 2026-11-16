@@ -25,8 +25,8 @@ function ready(clock?: () => string, aiEditTicket?: (c: AIEditTicketOutcome) => 
 const place = (store: Store, caption: string, x = 40) =>
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: pagesOf(bookOf(store))[0]!.id, item: BOX, at: { x, y: 40 }, props: { caption } },
-    { book: "b1" },
+    { item: BOX, at: { x, y: 40 }, props: { caption } },
+    { page: pagesOf(bookOf(store))[0]!.id },
   )
 const confirm = (store: Store) => store.receive({ books: [bookOf(store)], settings: {} }, [])
 // よその変更: 確かめた世界のブックを change で変えたものが届く
@@ -157,7 +157,7 @@ test("戻すが消したのでなく、ふつうの操作のあとに戻して A
   const item = pagesOf(bookOf(store))[0]!.items![last]!.id
   const page = pagesOf(bookOf(store))[0]!.id
   foreign(store, renamed(bookOf(store), last, "AI"), "ai", "5")
-  store.actions.perform("@matomezu/paper:item-update", { page, item, props: { caption: "打ち直し" } }, { book: "b1" })
+  store.actions.perform("@matomezu/paper:item-update", { item, props: { caption: "打ち直し" } }, { page })
   await settled()
   store.actions.command("s1", "@matomezu/base:undo")
   expect(captions(store).at(-1)).toBe("AI")

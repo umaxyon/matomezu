@@ -19,7 +19,7 @@ function ready() {
   const perform = store.actions.perform as (
     id: string,
     args: unknown,
-    on?: { book: string } | { record: string },
+    on?: { book: string } | { page: string } | { record: string },
   ) => {
     ok: boolean
     result?: unknown
@@ -32,15 +32,16 @@ function ready() {
     (
       perform(
         "@matomezu/paper:item-place",
-        { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x, y: 100 }, props: { caption } },
-        on,
+        { item: "@matomezu/box:shape-nest-box", at: { x, y: 100 }, props: { caption } },
+        { page: "p1" },
       ).result as { item: string }
     ).item
   const one = place(100, "一")
   const two = place(400, "二")
   const rename = (item: string, caption: string) => ({
     action: "@matomezu/paper:item-update",
-    args: { page: "p1", item, props: { caption } },
+    args: { item, props: { caption } },
+    on: { page: "p1" },
   })
   const send = (changes: object[]) =>
     perform(SEND, { from: "E51", title: "名前を直す", book: "b1", page: "p1", changes })
@@ -66,7 +67,8 @@ test("物を足す変更・利用者だけの変更・行えない変更・何�
   const { send, one, rename } = ready()
   const add = {
     action: "@matomezu/paper:item-place",
-    args: { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x: 700, y: 100 } },
+    args: { item: "@matomezu/box:shape-nest-box", at: { x: 700, y: 100 } },
+    on: { page: "p1" },
   }
   expect(send([add])).toMatchObject({ ok: false, detail: expect.stringContaining("adds things") })
   expect(send([{ action: "@matomezu/base:book-revert", args: {} }])).toMatchObject({
@@ -92,12 +94,12 @@ test("反映すると乗せた変更を順に行い、画面の履歴の段は 1
 })
 
 test("送ったあとに当たる物が変わっていたら反映を断り（proposal-changed）、変わった物が分かる。ほかの物が変わっていても反映できる", () => {
-  const { store, perform, on, send, props, apply, one, two, rename, caption } = ready()
+  const { store, perform, send, props, apply, one, two, rename, caption } = ready()
   send([rename(one, "AI")])
-  perform("@matomezu/paper:item-update", { page: "p1", item: two, props: { caption: "利用者" } }, on)
+  perform("@matomezu/paper:item-update", { item: two, props: { caption: "利用者" } }, { page: "p1" })
   expect(apply()).toMatchObject({ ok: true })
   send([rename(one, "AI 2")])
-  perform("@matomezu/paper:item-update", { page: "p1", item: one, props: { caption: "利用者" } }, on)
+  perform("@matomezu/paper:item-update", { item: one, props: { caption: "利用者" } }, { page: "p1" })
   expect(apply()).toMatchObject({ ok: false, kind: "@matomezu/base:proposal-changed" })
   expect(caption(one)).toBe("利用者")
   expect(proposalChanged(store.state.getState().books.b1 as never, props().snapshot)).toEqual([one])

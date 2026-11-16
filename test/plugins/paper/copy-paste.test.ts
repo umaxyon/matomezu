@@ -1,7 +1,7 @@
 // コピーして貼る: 選びから写しを作り（clipOf）、アクション item-paste が id を振り直して置く
 
 import { expect, test } from "bun:test"
-import { pagesOf } from "../../../web/src/core/book"
+import { findPage, pagesOf } from "../../../web/src/core/book"
 import { connectorsOf, findShape, type ItemPage, shapesOf, walkShapes } from "../../../web/src/core/placed"
 import type { Book } from "../../../web/src/core/schema/book"
 import { screenOf } from "../../../web/src/core/window"
@@ -16,7 +16,7 @@ type Store = ReturnType<typeof newStore>
 const book = (store: Store) => store.state.getState().books.b1 as Book
 const page = (store: Store) => pagesOf(book(store))[0] as unknown as ItemPage
 const run = (store: Store, action: string, args: object) =>
-  store.actions.perform(action as never, { page: "p1", ...args } as never, { book: "b1" })
+  store.actions.perform(action as never, args as never, { page: "p1" } as never)
 const place = (store: Store, item: string, args: object = {}) => {
   const done = run(store, "@matomezu/paper:item-place", { item, w: 120, h: 80, ...args })
   if (!done.ok) throw new Error(`could not place ${item}: ${done.reason}`)
@@ -144,9 +144,9 @@ test("紙に収まらない場所は、収まる一番近い場所へ寄せる�
   const store = newStore()
   const a = place(store, BOX, { at: { x: 0, y: 0 } })
   const clip = clipFrom(store, [a])
-  const paged = book(store)
-  expect(nearestPaste(CORE_CATALOG, paged as never, "p1", clip, null, { x: 300, y: 300 })).toEqual({ x: 300, y: 300 })
-  const near = nearestPaste(CORE_CATALOG, paged as never, "p1", clip, null, { x: -500, y: -500 })
+  const paged = findPage(book(store), "p1")!.page
+  expect(nearestPaste(CORE_CATALOG, paged, clip, null, { x: 300, y: 300 })).toEqual({ x: 300, y: 300 })
+  const near = nearestPaste(CORE_CATALOG, paged, clip, null, { x: -500, y: -500 })
   expect(near).not.toBeNull()
   expect(near?.x).toBeGreaterThanOrEqual(0)
   expect(near?.y).toBeGreaterThanOrEqual(0)

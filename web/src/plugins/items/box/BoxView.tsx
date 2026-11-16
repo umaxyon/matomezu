@@ -37,7 +37,7 @@ export function BoxView({ props, size, hasChildren, id }: ItemViewProps<BoxProps
           grips={grips}
           lineColor="var(--box-line)"
           onBodyWidth={bodyWidth => {
-            if (page) perform("@matomezu/paper:item-update", { page, item: id, props: { bodyWidth } })
+            if (page) perform("@matomezu/paper:item-update", { item: id, props: { bodyWidth } }, { page })
           }}
         />
       </div>

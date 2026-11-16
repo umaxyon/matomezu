@@ -1,7 +1,7 @@
 // リストの行のアクション: 行を足す・変える・消す・チェックする・高さ（本文を見せる行数）を書き換える・動かす（並べ替えと、同じページの別のリストへ）。行の中身の形は RowPropsSchema（書かなかった項目は既定）
 
 import { z } from "zod"
-import { nextItemIdOfBook, textNew, textPatch } from "../../base"
+import { nextItemId, textNew, textPatch } from "../../base"
 import { kit } from "./kit"
 import { ROW_ITEM, type RowProps, RowPropsSchema } from "./list"
 import { findList, rowsOf, withList, withRowLines } from "./rows"
@@ -24,19 +24,18 @@ export const ROW_ADD = kit.defineAction({
   aiDescription:
     "Add a row at the end of a list (an item @matomezu/list:shape-list). A row has a caption, a divider between the caption and the body (rule), a body and alignments. Returns the new row's id. read_page shows a list's rows in its children, in order, with their checks.",
   title: "Add row",
-  target: "book",
+  target: "page",
   args: z.strictObject({
-    page: z.string().min(1),
     list: z.string().min(1),
     props: RowNewSchema.optional(),
   }),
-  permissionScope: { page: "page", item: "list" },
-  run: (book, args, ctx) => {
-    const found = findList(book, args.page, args.list)
+  permissionScope: { item: "list" },
+  run: (page, args, ctx) => {
+    const list = findList(page, args.list)
     const props = RowPropsSchema.safeParse(args.props ?? {})
-    if (!found || !props.success) return null
-    const row = { id: nextItemIdOfBook(book, ctx.newId), item: ROW_ITEM, props: props.data }
-    const next = withList(book, found.page, { ...found.list, children: [...rowsOf(found.list), row] })
+    if (!list || !props.success) return null
+    const row = { id: nextItemId(page, ctx.newId), item: ROW_ITEM, props: props.data }
+    const next = withList(page, { ...list, children: [...rowsOf(list), row] })
     return { next, result: { row: row.id } }
   },
 })
@@ -48,23 +47,22 @@ export const ROW_UPDATE = kit.defineAction({
   aiDescription:
     "Change some props of a list's row. Props not given stay; a prop given as null is removed (back to its default).",
   title: "Update row",
-  target: "book",
+  target: "page",
   args: z.strictObject({
-    page: z.string().min(1),
     list: z.string().min(1),
     row: z.string().min(1),
     props: RowPatchSchema,
   }),
-  permissionScope: { page: "page", item: "list" },
-  run: (book, args) => {
-    const found = findList(book, args.page, args.list)
-    const now = found && rowsOf(found.list).find(r => r.id === args.row)
-    if (!found || !now) return null
+  permissionScope: { item: "list" },
+  run: (page, args) => {
+    const list = findList(page, args.list)
+    const now = list && rowsOf(list).find(r => r.id === args.row)
+    if (!list || !now) return null
     const merged = Object.fromEntries(Object.entries({ ...now.props, ...args.props }).filter(([, v]) => v !== null))
     const props = RowPropsSchema.safeParse(merged)
     if (!props.success) return null
-    const children = rowsOf(found.list).map(r => (r.id === args.row ? { ...r, props: props.data } : r))
-    return { next: withList(book, found.page, { ...found.list, children }), result: {} }
+    const children = rowsOf(list).map(r => (r.id === args.row ? { ...r, props: props.data } : r))
+    return { next: withList(page, { ...list, children }), result: {} }
   },
 })
 
@@ -74,19 +72,18 @@ export const ROW_REMOVE = kit.defineAction({
   attach: ON_LISTS,
   aiDescription: "Remove rows from a list.",
   title: "Remove rows",
-  target: "book",
+  target: "page",
   args: z.strictObject({
-    page: z.string().min(1),
     list: z.string().min(1),
     rows: z.array(z.string().min(1)).min(1),
   }),
-  permissionScope: { page: "page", item: "list" },
-  run: (book, args) => {
-    const found = findList(book, args.page, args.list)
-    const rows = found ? rowsOf(found.list) : []
-    if (!found || !args.rows.every(id => rows.some(r => r.id === id))) return null
+  permissionScope: { item: "list" },
+  run: (page, args) => {
+    const list = findList(page, args.list)
+    const rows = list ? rowsOf(list) : []
+    if (!list || !args.rows.every(id => rows.some(r => r.id === id))) return null
     const children = rows.filter(r => !args.rows.includes(r.id))
-    return { next: withList(book, found.page, { ...found.list, children }), result: {} }
+    return { next: withList(page, { ...list, children }), result: {} }
   },
 })
 
@@ -97,21 +94,20 @@ export const ROW_CHECK = kit.defineAction({
   aiDescription:
     "Check or uncheck a row of a list that is a checklist (its checklist prop is true; set it with @matomezu/paper:item-update, and setting it false removes every row's check). The user checks rows too, so a check can carry their answer.",
   title: "Check row",
-  target: "book",
+  target: "page",
   args: z.strictObject({
-    page: z.string().min(1),
     list: z.string().min(1),
     row: z.string().min(1),
     checked: z.boolean(),
   }),
-  permissionScope: { page: "page", item: "list" },
-  run: (book, args) => {
-    const found = findList(book, args.page, args.list)
-    if (!found?.list.props.checklist || !rowsOf(found.list).some(r => r.id === args.row)) return null
-    const children = rowsOf(found.list).map(r =>
+  permissionScope: { item: "list" },
+  run: (page, args) => {
+    const list = findList(page, args.list)
+    if (!list?.props.checklist || !rowsOf(list).some(r => r.id === args.row)) return null
+    const children = rowsOf(list).map(r =>
       r.id === args.row ? { ...r, props: { ...r.props, checked: args.checked } } : r,
     )
-    return { next: withList(book, found.page, { ...found.list, children }), result: {} }
+    return { next: withList(page, { ...list, children }), result: {} }
   },
 })
 
@@ -123,19 +119,18 @@ export const ROW_LINES = kit.defineAction({
   aiDescription:
     'Set how many body lines rows of a list show (rows given, or every row): a number gives them all that height whatever their body; "max" gives them all the height of the longest body; "fit" gives each row the height of its own body. null removes it: rows without it share the height of the most body lines among them, up to 5, and a longer body is cut with ….',
   title: "Set row heights",
-  target: "book",
+  target: "page",
   args: z.strictObject({
-    page: z.string().min(1),
     list: z.string().min(1),
     rows: z.array(z.string().min(1)).min(1).optional(),
     lines: z.union([z.number().int().min(0).max(MAX_ROW_LINES), z.literal("max"), z.literal("fit")]).nullable(),
   }),
-  permissionScope: { page: "page", item: "list" },
-  run: (book, args) => {
-    const found = findList(book, args.page, args.list)
-    const rows = found ? rowsOf(found.list) : []
-    if (!found || !(args.rows ?? []).every(id => rows.some(r => r.id === id))) return null
-    return { next: withList(book, found.page, withRowLines(found.list, args.lines, args.rows)), result: {} }
+  permissionScope: { item: "list" },
+  run: (page, args) => {
+    const list = findList(page, args.list)
+    const rows = list ? rowsOf(list) : []
+    if (!list || !(args.rows ?? []).every(id => rows.some(r => r.id === id))) return null
+    return { next: withList(page, withRowLines(list, args.lines, args.rows)), result: {} }
   },
 })
 
@@ -147,29 +142,28 @@ export const ROW_MOVE = kit.defineAction({
   aiDescription:
     "Move a row of a list before the row before (or to the end without it), in the same list or in another list (to) on the same page. A row moved to a list that is not a checklist loses its check.",
   title: "Move row",
-  target: "book",
+  target: "page",
   args: z.strictObject({
-    page: z.string().min(1),
     list: z.string().min(1),
     row: z.string().min(1),
     to: z.string().min(1).optional(),
     before: z.string().min(1).optional(),
   }),
-  permissionScope: { page: "page", item: "list" },
-  run: (book, args) => {
-    const from = findList(book, args.page, args.list)
-    const moving = from && rowsOf(from.list).find(r => r.id === args.row)
+  permissionScope: { item: "list" },
+  run: (page, args) => {
+    const from = findList(page, args.list)
+    const moving = from && rowsOf(from).find(r => r.id === args.row)
     if (!from || !moving || args.before === args.row) return null
-    const rest = rowsOf(from.list).filter(r => r.id !== args.row)
-    const left = withList(book, from.page, { ...from.list, children: rest })
-    const to = findList(left, args.page, args.to ?? args.list)
+    const rest = rowsOf(from).filter(r => r.id !== args.row)
+    const left = withList(page, { ...from, children: rest })
+    const to = findList(left, args.to ?? args.list)
     if (!to) return null
-    const target = rowsOf(to.list)
+    const target = rowsOf(to)
     const at = args.before === undefined ? target.length : target.findIndex(r => r.id === args.before)
     if (at < 0) return null
     const { checked, ...plain } = moving.props
-    const row = to.list.props.checklist || checked === undefined ? moving : { ...moving, props: plain as RowProps }
+    const row = to.props.checklist || checked === undefined ? moving : { ...moving, props: plain as RowProps }
     const children = [...target.slice(0, at), row, ...target.slice(at)]
-    return { next: withList(left, to.page, { ...to.list, children }), result: {} }
+    return { next: withList(left, { ...to, children }), result: {} }
   },
 })

@@ -213,7 +213,7 @@ const Tree = memo(function Tree({
     const todo = editEnd(tree, selected, commit ? text : null)
     if (todo.kind === "remove") {
       const next = afterRemove(tree, grow, selected)
-      if (perform(NODE_REMOVE.id, { page: pageId, node: selected }).ok && next) select([next])
+      if (perform(NODE_REMOVE.id, { node: selected }, { page: pageId }).ok && next) select([next])
     }
     const done =
       todo.kind === "root" || todo.kind === "child"
@@ -225,7 +225,7 @@ const Tree = memo(function Tree({
   }
   // ＋: 空の節を足して選び、その場で編集し始める
   const add = (plus: Plus) => {
-    const done = perform(NODE_ADD.id, addArgs(pageId, plus))
+    const done = perform(NODE_ADD.id, addArgs(plus), { page: pageId })
     const id = done.ok ? done.result.nodes[0]?.id : undefined
     if (!id) return refused(done.ok ? { reason: "refused" } : done)
     select([id])
@@ -241,7 +241,7 @@ const Tree = memo(function Tree({
     const target = dropAt(tree, grow, nodes, node, at)
     if (!target) return
     const { mark: _mark, ...where } = target
-    const moved = perform(NODE_MOVE.id, { page: pageId, node, ...where })
+    const moved = perform(NODE_MOVE.id, { node, ...where }, { page: pageId })
     if (!moved.ok) refused(moved)
   }
   return (

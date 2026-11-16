@@ -10,6 +10,7 @@ import { pagesOf, putPage } from "../../core/book"
 import { type CoreCatalog, pageType } from "../../core/core-catalog"
 import type { BookSettingDef, DefaultedSettingDef, PageSettingDef, SettingDef } from "../../core/def/setting"
 import { fail } from "../../core/errors"
+import type { ItemPage } from "../../core/placed"
 import type { Book, Page } from "../../core/schema/book"
 import { settingSchema } from "../../core/settings"
 import { tidyConnectors } from "./place/placed"
@@ -135,11 +136,15 @@ export const pageContext = (catalog: CoreCatalog, page: Pick<Page, "type">): Pag
   setting: settingsAt(catalog, page),
 })
 
-// 設定を変えたあとのブック: どのページも整える（place/placed.ts の tidyConnectors）。変わったページは putPage で替える
+// 設定を変えたあとのページ: そのページで効いている設定の値で整える（place/placed.ts の tidyConnectors）
+export const settlePage = <P extends ItemPage>(catalog: CoreCatalog, page: P): P =>
+  tidyConnectors(catalog, page, settingsAt(catalog, page))
+
+// 設定を変えたあとのブック: どのページも整える（settlePage）。変わったページは putPage で替える
 export function settleBook<B extends Book>(catalog: CoreCatalog, book: B): B {
   let next = book
   for (const page of pagesOf(book)) {
-    const tidy = tidyConnectors(catalog, page, settingsAt(catalog, page))
+    const tidy = settlePage(catalog, page)
     if (tidy !== page) next = putPage(next, tidy)
   }
   return next

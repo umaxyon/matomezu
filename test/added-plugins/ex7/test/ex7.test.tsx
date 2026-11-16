@@ -21,7 +21,6 @@ test("ex6 のページの重さは、ex7 の木箱が ex6:weight で答えた重
   act(() => {
     expect(addPageIn(instance, "s1", { type: "ex7:yard", title: "p1" })).toBe(true)
   })
-  const on = { book }
   const page = pagesOf(instance.state.getState().books[book]!)[0]!.id
   act(() => {
     for (const [x, load] of [
@@ -31,10 +30,10 @@ test("ex6 のページの重さは、ex7 の木箱が ex6:weight で答えた重
       expect(
         instance.actions.perform(
           "@matomezu/paper:item-place",
-          { page, item: "ex7:crate", at: { x, y: 40 }, props: { load } },
-          on,
+          { item: "ex7:crate", at: { x, y: 40 }, props: { load } },
+          { page },
         ),
       ).toMatchObject({ ok: true })
   })
-  expect(instance.actions.perform("ex6:page-weight", { page }, on)).toMatchObject({ ok: true, result: { weight: 7 } })
+  expect(instance.actions.perform("ex6:page-weight", {}, { page })).toMatchObject({ ok: true, result: { weight: 7 } })
 })

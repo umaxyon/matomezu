@@ -16,12 +16,12 @@ const list = (store: ReturnType<typeof newStore>) => {
   return found as Extract<typeof found, { item: "@matomezu/list:shape-list" }>
 }
 const act = (store: ReturnType<typeof newStore>, id: string, args: Record<string, unknown>) =>
-  store.actions.perform(id as "@matomezu/list:row-add", { page: "p1", ...args } as never, { book: "b1" })
+  store.actions.perform(id as "@matomezu/list:row-add", args as never, { page: "p1" })
 const place = (store: ReturnType<typeof newStore>, props: Record<string, unknown> = {}) =>
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item: "@matomezu/list:shape-list", at: { x: 100, y: 100 }, props },
-    { book: "b1" },
+    { item: "@matomezu/list:shape-list", at: { x: 100, y: 100 }, props },
+    { page: "p1" },
   )
 
 test("リストを置くと、幅は 240（長いキャプションならキャプションの幅）、高さは行 3 つぶんの空きで、行は無い", () => {
@@ -60,18 +60,10 @@ test("チェックはチェックリストのリストだけ。チェックリ�
   act(store, "@matomezu/list:row-add", { list: "n1", props: { caption: "牛乳" } })
   const row = list(store).children![0]!.id
   expect(act(store, "@matomezu/list:row-check", { list: "n1", row, checked: true }).ok).toBe(false)
-  store.actions.perform(
-    "@matomezu/paper:item-update",
-    { page: "p1", item: "n1", props: { checklist: true } },
-    { book: "b1" },
-  )
+  store.actions.perform("@matomezu/paper:item-update", { item: "n1", props: { checklist: true } }, { page: "p1" })
   expect(act(store, "@matomezu/list:row-check", { list: "n1", row, checked: true }).ok).toBe(true)
   expect(list(store).children![0]!.props.checked).toBe(true)
-  store.actions.perform(
-    "@matomezu/paper:item-update",
-    { page: "p1", item: "n1", props: { checklist: false } },
-    { book: "b1" },
-  )
+  store.actions.perform("@matomezu/paper:item-update", { item: "n1", props: { checklist: false } }, { page: "p1" })
   expect("checked" in list(store).children![0]!.props).toBe(false)
 })
 
@@ -146,8 +138,8 @@ test("@matomezu/list:row-move で行を並べ替え、同じページの別の�
   place(store, { checklist: true })
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item: "@matomezu/list:shape-list", at: { x: 500, y: 100 }, props: {} },
-    { book: "b1" },
+    { item: "@matomezu/list:shape-list", at: { x: 500, y: 100 }, props: {} },
+    { page: "p1" },
   )
   for (const c of ["一", "二", "三"]) act(store, "@matomezu/list:row-add", { list: "n1", props: { caption: c } })
   const ids = list(store).children!.map(r => r.id)

@@ -145,11 +145,7 @@ test("子は根から伸びる向きへ描き、親から子へ線を引く。�
   expect(top(a!)).toBeGreaterThan(top(done.fields!.root.id)) // 既定は下へ
   const page = pagesOf(store.state.getState().books[id]!)[0]!.id
   act(() => {
-    store.actions.perform(
-      "@matomezu/base:page-update",
-      { page, settings: { "@matomezu/tree:grow": "up" } },
-      { book: id },
-    )
+    store.actions.perform("@matomezu/base:page-update", { settings: { "@matomezu/tree:grow": "up" } }, { page })
   })
   expect(top(a!)).toBeLessThan(top(done.fields!.root.id))
 })
@@ -191,7 +187,7 @@ test("ページを直すとき、根は書いたキャプションと本文だ�
   const { store, id, book } = setup()
   const done = addTree(store, id, { caption: "社長", body: "本文", children: [{ caption: "子 A" }] })
   const update = (root: Record<string, unknown>) =>
-    store.actions.perform("@matomezu/base:page-update", { page: done.page, fields: { root } }, { book: id }).ok
+    store.actions.perform("@matomezu/base:page-update", { fields: { root } }, { page: done.page }).ok
   act(() => {
     expect(update({ caption: "代表" })).toBe(true)
   })
@@ -252,7 +248,7 @@ test("node-add は親の子に id の無い入れ子で足し、全部にほか�
   const done = addTree(store, id, { caption: "根", children: [{ caption: "子 A" }] })
   const root = done.fields!.root
   const run = (args: Record<string, unknown>) =>
-    store.actions.perform("@matomezu/tree:node-add", { page: done.page, ...args } as never, { book: id })
+    store.actions.perform("@matomezu/tree:node-add", { ...args } as never, { page: done.page })
   let added: ReturnType<typeof run> | undefined
   act(() => {
     added = run({ parent: root.id, index: 0, nodes: [{ caption: "子 0", children: [{ caption: "孫" }] }] })
@@ -282,7 +278,7 @@ test("node-update は子のキャプションを替え（根は断る）、node-
   const root = done.fields!.root
   const a = root.children[0]!.id
   const perform = (action: "@matomezu/tree:node-update" | "@matomezu/tree:node-remove", args: object) =>
-    store.actions.perform(action, { page: done.page, ...args } as never, { book: id }).ok
+    store.actions.perform(action, args as never, { page: done.page }).ok
   act(() => {
     expect(perform("@matomezu/tree:node-update", { node: a, caption: "子 A'" })).toBe(true)
     expect(perform("@matomezu/tree:node-update", { node: root.id, caption: "代表" })).toBe(false)
@@ -305,7 +301,7 @@ test("node-move は子孫ごと付け替え、兄弟の順番を入れ替える�
   const [a, b] = root.children.map(n => n.id) as [string, string]
   const grand = root.children[0]!.children![0]!.id
   const move = (args: object) =>
-    store.actions.perform("@matomezu/tree:node-move", { page: done.page, ...args } as never, { book: id }).ok
+    store.actions.perform("@matomezu/tree:node-move", { ...args } as never, { page: done.page }).ok
   act(() => {
     expect(move({ node: root.id, parent: a })).toBe(false)
     expect(move({ node: a, parent: grand })).toBe(false)
@@ -614,8 +610,8 @@ test("節を足すのが紙に入らなければ、node-add は断る。＋で�
     expect(
       store.actions.perform(
         "@matomezu/tree:node-add",
-        { page: done.page, parent: root.id, nodes: [{ caption: "もう 1 つ" }] },
-        { book: id },
+        { parent: root.id, nodes: [{ caption: "もう 1 つ" }] },
+        { page: done.page },
       ).ok,
     ).toBe(false)
   })
@@ -639,8 +635,8 @@ test("向きを変えると紙に入らなくなるなら、ページの設定�
     expect(
       store.actions.perform(
         "@matomezu/base:page-update",
-        { page: done.page, settings: { "@matomezu/tree:grow": "down" } },
-        { book: id },
+        { settings: { "@matomezu/tree:grow": "down" } },
+        { page: done.page },
       ).ok,
     ).toBe(false)
     expect(
@@ -681,8 +677,8 @@ test("節の大きさ: ページの設定で選び方を変えると並べ直し
   act(() => {
     store.actions.perform(
       "@matomezu/base:page-update",
-      { page: done.page, settings: { "@matomezu/tree:node-size": "wrap-10" } },
-      { book: id },
+      { settings: { "@matomezu/tree:node-size": "wrap-10" } },
+      { page: done.page },
     )
   })
   expect(node().textContent).toContain("\n")
@@ -826,8 +822,8 @@ test("節の形: ページの設定で下線を選ぶと、子の節を下線の
   act(() => {
     store.actions.perform(
       "@matomezu/base:page-update",
-      { page: done.page, settings: { "@matomezu/tree:node-shape": "underline" } },
-      { book: id },
+      { settings: { "@matomezu/tree:node-shape": "underline" } },
+      { page: done.page },
     )
   })
   expect([...paper().querySelectorAll("[data-node]")].map(n => n.getAttribute("data-shape"))).toEqual([
@@ -847,8 +843,8 @@ test("線の形: ページの設定で曲線を選ぶと、親から子への線
   act(() => {
     store.actions.perform(
       "@matomezu/base:page-update",
-      { page: done.page, settings: { "@matomezu/tree:line-shape": "curve" } },
-      { book: id },
+      { settings: { "@matomezu/tree:line-shape": "curve" } },
+      { page: done.page },
     )
   })
   expect(path()).toContain(" C")

@@ -4,11 +4,9 @@
 // 並べ直したら線の端の固定と手直しを外す（つなぐものの定義の unpin）。紙に収まらなければ間隔を詰めて試し、それでも収まらなければ断る（可変ページは、下へ段を重ね、広いチャートは右へはみ出して印刷区画を増やすので断らない）
 import { z } from "zod"
 import {
-  type Book,
   type CommandContext,
   type CoreCatalog,
   connectorsOf,
-  findPage,
   type ItemPage,
   type MessageKey,
   type Rect,
@@ -25,8 +23,8 @@ import {
   rectsOf,
   type SettingReader,
   settingValue,
+  tidyPage,
   unpinPage,
-  withPage,
 } from "../../base"
 import { alignFlow, type FlowAlignOptions, type FlowItem } from "./align"
 import { FLOW_DIRECTION, type FlowDirection, isBranch, isStart } from "./flowchart"
@@ -163,13 +161,10 @@ export const PAGE_ALIGN = kit.defineAction({
   aiDescription:
     "Arrange the shapes of a flowchart page along its lines: starting from a rounded or circle shape with no line coming in, the main path is lined up on the middle of the paper and branches go beside it (right first; for a page whose flow direction is right (the page's own, or else its book's), the main path runs left to right and branches go below first). A line from one diamond to another puts the second diamond beside the first. Shapes not joined by lines make separate charts, placed side by side with their tops level (rows centered on the paper; for the flow direction right, one below another with their left ends level) and wrapped to a new row when the next one would not fit. With adapt true, the shapes are first made to suit the page (trapezoids turn sideways for the flow direction right and upright for down); without it they keep their orientation. Lines lose their fixed ends and hand-set routes. It is refused if the shapes do not fit on the paper even with smaller gaps; on a variable page (grows) it wraps at the paper's width, rows go on downward and a chart wider than the paper starts at its left, adding print areas.",
   title: "Auto align",
-  target: "book",
-  args: z.strictObject({ page: z.string().min(1), adapt: z.boolean().optional() }),
-  permissionScope: { page: "page" },
-  run: (subject, args, ctx) => {
-    const book = subject
-    const page = book ? findPage(book, args.page)?.page : undefined
-    if (!book || !page) return null
+  target: "page",
+  args: z.strictObject({ adapt: z.boolean().optional() }),
+  permissionScope: "page",
+  run: (page, args, ctx) => {
     const dir = settingValue(ctx.catalog, page, FLOW_DIRECTION)
     // adapt なら、先に形をそのページに合わせる（台形の向きをページの流れの向きにそろえる）
     const shaped = args.adapt ? adaptPage(ctx.catalog, page, pageContext(ctx.catalog, page)) : page
@@ -181,9 +176,8 @@ export const PAGE_ALIGN = kit.defineAction({
       growOf(ctx.catalog, page) !== undefined,
     )
     if (!rects) return null
-    const next: Book = withPage(
+    const next = tidyPage(
       ctx.catalog,
-      book,
       unpinPage(ctx.catalog, { ...shaped, items: placedAt(ctx.catalog, shaped, rects) }),
     )
     return { next, result: {} }

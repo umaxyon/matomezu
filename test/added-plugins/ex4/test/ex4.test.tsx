@@ -52,17 +52,17 @@ const map = () => {
     act(() => {
       r = instance.actions.perform(
         "@matomezu/paper:item-place",
-        { page: page().id, item: "@matomezu/box:shape-box", at: { x, y: 40 }, props: { caption: `箱${x}` } },
-        on,
+        { item: "@matomezu/box:shape-box", at: { x, y: 40 }, props: { caption: `箱${x}` } },
+        { page: page().id },
       )
     })
     return (r as { result: { item: string } }).result.item
   }
   const [a, b, c] = [box(40), box(300), box(560)]
   act(() => {
-    expect(instance.actions.perform("ex4:relate", { page: page().id, from: a, to: b }, on)).toMatchObject({ ok: true })
+    expect(instance.actions.perform("ex4:relate", { from: a, to: b }, { page: page().id })).toMatchObject({ ok: true })
     expect(
-      instance.actions.perform("@matomezu/line:line-connect", { page: page().id, from: b, to: c }, on),
+      instance.actions.perform("@matomezu/line:line-connect", { from: b, to: c }, { page: page().id }),
     ).toMatchObject({ ok: true })
   })
   const el = (id: string) => document.querySelector(`[data-item="${id}"]`)!
@@ -92,9 +92,9 @@ test("関係線のビューが薄くするよう求めた形は薄くなる（�
 })
 
 test("端の形を消すと、端の無くなった関係線も消える（つなぐものが tidy を書かなくても）", () => {
-  const { instance, on, page, a } = map()
+  const { instance, page, a } = map()
   act(() => {
-    expect(instance.actions.perform("@matomezu/paper:item-remove", { page: page().id, items: [a] }, on)).toMatchObject({
+    expect(instance.actions.perform("@matomezu/paper:item-remove", { items: [a] }, { page: page().id })).toMatchObject({
       ok: true,
     })
   })

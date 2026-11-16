@@ -70,8 +70,8 @@ function placedOne() {
   const resize = (args: object) =>
     (store.actions.perform as (id: string, args: unknown, on: unknown) => { ok: boolean })(
       "@matomezu/paper:item-resize",
-      { page: page().id, item: box().id, ...args },
-      { book: "b1" },
+      { item: box().id, ...args },
+      { page: page().id },
     )
   return { store, page, box, resize }
 }

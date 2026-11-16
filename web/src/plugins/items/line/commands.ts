@@ -27,7 +27,7 @@ export const LINE_DRAW = kit.defineCommand({
     if (!opened || !book || !page || !drop) return
     const rects = portAreasOf(ctx.catalog, page)
     const props = drawnLineProps(page, rects, elbowAt(ctx.catalog, page), args.from, args.side, args.to, drop)
-    if (props) a.perform(LINE_CONNECT.id, { page: page.id, from: args.from, to: args.to, props }, { book: opened.book })
+    if (props) a.perform(LINE_CONNECT.id, { from: args.from, to: args.to, props }, { page: page.id })
   },
   when: onOpenedPage,
 })
@@ -72,8 +72,8 @@ export const LINE_RECONNECT_DROP = kit.defineCommand({
         : { [args.end === "from" ? "exitAt" : "enterAt"]: nearestEnd(to, drop) }
     a.perform(
       LINE_RECONNECT.id,
-      { page: page.id, line: line.id, end: args.end, item: args.item, ...(props ? { props } : {}) },
-      { book: opened.book },
+      { line: line.id, end: args.end, item: args.item, ...(props ? { props } : {}) },
+      { page: page.id },
     )
   },
   when: onOpenedPage,

@@ -27,11 +27,9 @@ test("内包ボックスの中のリストの設定ダイアログの下書き�
   })
   instance.actions.resizeStage("s1", { w: 1400, h: 1000 })
   const place = (args: object) => {
-    const done = instance.actions.perform(
-      "@matomezu/paper:item-place" as never,
-      { page: "p1", w: 200, h: 100, ...args } as never,
-      { book: "b1" },
-    )
+    const done = instance.actions.perform("@matomezu/paper:item-place", { w: 200, h: 100, ...args } as never, {
+      page: "p1",
+    })
     if (!done.ok) throw new Error(JSON.stringify(done))
     return (done as { result: { item: string } }).result.item
   }

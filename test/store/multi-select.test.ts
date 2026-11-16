@@ -31,13 +31,13 @@ const selection = (store: Store) => screenOf(store.state.getState().window).stag
 const place = (store: Store, x: number, y: number, parent?: string, size = { w: 100, h: 64 }) =>
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x, y }, ...size, ...(parent ? { parent } : {}) },
-    { book: "b1" },
+    { item: "@matomezu/box:shape-nest-box", at: { x, y }, ...size, ...(parent ? { parent } : {}) },
+    { page: "p1" },
   )
 const connect = (store: Store, from: string, to: string, props: Record<string, unknown> = {}) =>
-  store.actions.perform("@matomezu/line:line-connect", { page: "p1", from, to, props }, { book: "b1" })
+  store.actions.perform("@matomezu/line:line-connect", { from, to, props }, { page: "p1" })
 const move = (store: Store, items: string[], by: { x: number; y: number }) =>
-  store.actions.perform("@matomezu/paper:item-move", { page: "p1", items, by }, { book: "b1" })
+  store.actions.perform("@matomezu/paper:item-move", { items, by }, { page: "p1" })
 
 test("押したときの選び方: Mod なら足す（選んでいる物は、動かさずに離したときに外す）。修飾なしで選んでいる物を押したら、離したときにその 1 つへ選び直す", () => {
   expect(pressSelection(EMPTY, [], "a", { mod: false })).toEqual({ now: ["a"], drag: ["a"], release: null })
@@ -74,9 +74,7 @@ test("ブックが変わったら、選択から無くなった物を外す（AI
   place(store, 400, 100)
   place(store, 700, 100)
   store.actions.select("s1", ["n1", "n2", "n3"])
-  expect(store.actions.perform("@matomezu/paper:item-remove", { page: "p1", items: ["n2"] }, { book: "b1" }).ok).toBe(
-    true,
-  )
+  expect(store.actions.perform("@matomezu/paper:item-remove", { items: ["n2"] }, { page: "p1" }).ok).toBe(true)
   expect(selection(store)).toEqual(["n1", "n3"])
   expect(store.actions.command("s1", "@matomezu/paper:paper-delete")).toBe(true)
   expect(shapesOf(page(store)).map(s => s.id)).toEqual([])
@@ -179,13 +177,13 @@ function withList(store: Store) {
   const list = (
     store.actions.perform(
       "@matomezu/paper:item-place",
-      { page: "p1", item: "@matomezu/list:shape-list", at: { x: 400, y: 40 } },
-      { book: "b1" },
+      { item: "@matomezu/list:shape-list", at: { x: 400, y: 40 } },
+      { page: "p1" },
     ) as { result: { item: string } }
   ).result.item
   const row = (caption: string) =>
     (
-      store.actions.perform("@matomezu/list:row-add", { page: "p1", list, props: { caption } }, { book: "b1" }) as {
+      store.actions.perform("@matomezu/list:row-add", { list, props: { caption } }, { page: "p1" }) as {
         result: { row: string }
       }
     ).result.row

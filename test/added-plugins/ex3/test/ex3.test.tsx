@@ -48,19 +48,19 @@ test("ボードは自分の紙（正方形）で始まり、星とビルトイ�
   act(() => {
     instance.actions.perform(
       "@matomezu/paper:item-place",
-      { page: page().id, item: "ex3:star", at: { x: 40, y: 40 }, props: { caption: "目標", points: 6 } },
-      on,
+      { item: "ex3:star", at: { x: 40, y: 40 }, props: { caption: "目標", points: 6 } },
+      { page: page().id },
     )
     instance.actions.perform(
       "@matomezu/paper:item-place",
-      { page: page().id, item: "@matomezu/list:shape-list", at: { x: 300, y: 40 } },
-      on,
+      { item: "@matomezu/list:shape-list", at: { x: 300, y: 40 } },
+      { page: page().id },
     )
   })
   const [s, l] = page().items!.map(i => i.id)
   act(() => {
     expect(
-      instance.actions.perform("@matomezu/line:line-connect", { page: page().id, from: s!, to: l! }, on),
+      instance.actions.perform("@matomezu/line:line-connect", { from: s!, to: l! }, { page: page().id }),
     ).toMatchObject({
       ok: true,
     })

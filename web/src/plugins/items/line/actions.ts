@@ -1,16 +1,8 @@
 // 線のアクション: 線を引く・項目を変える・端をつなぎ替える。消すのは item-remove（形を消すと、つながる線も消える）
 
 import { z } from "zod"
-import {
-  type Book,
-  type CoreCatalog,
-  connectorSchema,
-  findPage,
-  type ItemPage,
-  pageItemsOf,
-  putPage,
-} from "../../../plugin-api"
-import { keepApart, nextItemIdOfBook, portAreasOf } from "../../base"
+import { type CoreCatalog, connectorSchema, type ItemPage, pageItemsOf } from "../../../plugin-api"
+import { keepApart, nextItemId, portAreasOf } from "../../base"
 import { connectable } from "./connect"
 import { kit } from "./kit"
 import { elbowAt, LINE, LinePatchSchema } from "./line"
@@ -28,11 +20,10 @@ const viaDrawn = (catalog: CoreCatalog, page: ItemPage, line: PlacedLine): boole
   !line.props.via || tidied(catalog, page, line).props.via !== undefined
 
 // ページの線 line を置き換え（無ければ最後に足し）、線でつながった 2 つの形が間隔の下限より近ければ、stay の形（無ければ始点）はそのままでもう一方をどける
-function withLine(catalog: CoreCatalog, book: Book, page: ItemPage, line: PlacedLine, stay = line.from): Book | null {
+function withLine(catalog: CoreCatalog, page: ItemPage, line: PlacedLine, stay = line.from): ItemPage | null {
   const items = pageItemsOf(page)
   const next = items.some(i => i.id === line.id) ? items.map(i => (i.id === line.id ? line : i)) : [...items, line]
-  const changed = putPage(book, { ...page, items: next })
-  return keepApart(catalog, changed, page.id, stay, stay === line.from ? line.to : line.from)
+  return keepApart(catalog, { ...page, items: next }, stay, stay === line.from ? line.to : line.from)
 }
 
 // 形 from から to へ線を引く（同じ形なら自分に戻る線）。両端は同じページのつなげる形（箱・リスト。リストの行にはつながない）。
@@ -47,27 +38,25 @@ export const LINE_CONNECT = kit.defineAction({
   aiDescription:
     "Draw a line from the item from to the item to (shapes that can be joined, on the same page; not a list's rows); from and to the same item draws a line looping back to it. Two items are joined by one line at most each way (a line back the other way is a separate line); an item may loop back to itself any number of times. route is straight or elbow (without it, elbow); startHead and endHead put a shape on that end (arrow is a filled triangle); dash is solid or dashed. exitAt and enterAt fix where the line leaves from and enters to: a fraction (0 to 1) of the way clockwise round the item's edge from its top-left corner; without them the line picks its ends. via (elbow lines with both ends fixed) places the line's middle segments. Items joined by a line keep 32 pixels apart (40 when the line has a caption) instead of 8, also when they are placed, moved, changed or resized with @matomezu/paper:item-place, item-move, item-update and item-resize; if the two items are now too close, to is moved away. Returns the new line's id. read_page shows lines among a page's items.",
   title: "Connect items",
-  target: "book",
+  target: "page",
   args: z.strictObject({
-    page: z.string().min(1),
     from: z.string().min(1),
     to: z.string().min(1),
     props: LINE.props.optional(),
   }),
-  permissionScope: { page: "page" },
-  run: (book, args, ctx) => {
-    const page = findPage(book, args.page)?.page
-    if (!page || !connectable(ctx.catalog, page, args.from) || !connectable(ctx.catalog, page, args.to)) return null
+  permissionScope: "page",
+  run: (page, args, ctx) => {
+    if (!connectable(ctx.catalog, page, args.from) || !connectable(ctx.catalog, page, args.to)) return null
     if (!canConnect(linesOf(page), args.from, args.to)) return null
     const line = PlacedLineSchema.safeParse({
-      id: nextItemIdOfBook(book, ctx.newId),
+      id: nextItemId(page, ctx.newId),
       item: LINE.id,
       from: args.from,
       to: args.to,
       props: args.props ?? {},
     })
     if (!line.success || !viaDrawn(ctx.catalog, page, line.data)) return null
-    const next = withLine(ctx.catalog, book, page, line.data)
+    const next = withLine(ctx.catalog, page, line.data)
     return next && { next, result: { line: line.data.id } }
   },
 })
@@ -82,21 +71,19 @@ export const LINE_UPDATE = kit.defineAction({
   aiDescription:
     "Change some props of a line. Props not given stay; a prop given as null is removed (back to its default). A caption that widens the gap moves the end item away.",
   title: "Update line",
-  target: "book",
+  target: "page",
   args: z.strictObject({
-    page: z.string().min(1),
     line: z.string().min(1),
     props: LinePatchSchema,
   }),
-  permissionScope: { page: "page", item: "line" },
-  run: (book, args, ctx) => {
-    const page = findPage(book, args.page)?.page
-    const now = page && linesOf(page).find(l => l.id === args.line)
-    if (!page || !now) return null
+  permissionScope: { item: "line" },
+  run: (page, args, ctx) => {
+    const now = linesOf(page).find(l => l.id === args.line)
+    if (!now) return null
     const line = PlacedLineSchema.safeParse({ ...now, props: patchedProps(now.props, args.props) })
     if (!line.success) return null
     if (args.props.via != null && !viaDrawn(ctx.catalog, page, line.data)) return null
-    const next = withLine(ctx.catalog, book, page, tidied(ctx.catalog, page, line.data))
+    const next = withLine(ctx.catalog, page, tidied(ctx.catalog, page, line.data))
     return next && { next, result: {} }
   },
 })
@@ -111,19 +98,17 @@ export const LINE_RECONNECT = kit.defineAction({
   aiDescription:
     "Move one end of a line (end is from or to) to another item on the page, keeping its caption, heads, style and route. Its hand-placed middle segments and the moved end's fixed place are dropped (both ends' places when it becomes or stops being a loop); props.exitAt or props.enterAt fix them again. There must be no other line the same way between the item and the other end. If they are now too close, the other end's item is moved away.",
   title: "Reconnect line",
-  target: "book",
+  target: "page",
   args: z.strictObject({
-    page: z.string().min(1),
     line: z.string().min(1),
     end: z.enum(["from", "to"]),
     item: z.string().min(1),
     props: z.strictObject({ exitAt: LINE.props.shape.exitAt, enterAt: LINE.props.shape.enterAt }).optional(),
   }),
-  permissionScope: { page: "page", item: "line" },
-  run: (book, args, ctx) => {
-    const page = findPage(book, args.page)?.page
-    const now = page && linesOf(page).find(l => l.id === args.line)
-    if (!page || !now || now[args.end] === args.item || !connectable(ctx.catalog, page, args.item)) return null
+  permissionScope: { item: "line" },
+  run: (page, args, ctx) => {
+    const now = linesOf(page).find(l => l.id === args.line)
+    if (!now || now[args.end] === args.item || !connectable(ctx.catalog, page, args.item)) return null
     const moved = { ...now, [args.end]: args.item }
     if (
       !canConnect(
@@ -139,7 +124,7 @@ export const LINE_RECONNECT = kit.defineAction({
     if (loopChanged || args.end === "to") delete props.enterAt
     const line = PlacedLineSchema.safeParse({ ...moved, props: { ...props, ...args.props } })
     if (!line.success) return null
-    const next = withLine(ctx.catalog, book, page, line.data, args.item)
+    const next = withLine(ctx.catalog, page, line.data, args.item)
     return next && { next, result: {} }
   },
 })

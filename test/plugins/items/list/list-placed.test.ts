@@ -22,11 +22,11 @@ type Store = ReturnType<typeof ready>
 const at = (store: Store, id: string) =>
   shapesOf(pagesOf(store.state.getState().books.b1 as Book)[0]!).find(i => i.id === id)!
 const place = (store: Store, item: string, x: number, y: number, extra: Record<string, unknown> = {}) =>
-  store.actions.perform("@matomezu/paper:item-place", { page: "p1", item, at: { x, y }, ...extra }, { book: "b1" })
+  store.actions.perform("@matomezu/paper:item-place", { item, at: { x, y }, ...extra }, { page: "p1" })
 const resize = (store: Store, item: string, size: { w?: number; h?: number }) =>
-  store.actions.perform("@matomezu/paper:item-resize", { page: "p1", item, ...size }, { book: "b1" })
+  store.actions.perform("@matomezu/paper:item-resize", { item, ...size }, { page: "p1" })
 const update = (store: Store, item: string, props: Record<string, unknown>) =>
-  store.actions.perform("@matomezu/paper:item-update", { page: "p1", item, props }, { book: "b1" })
+  store.actions.perform("@matomezu/paper:item-update", { item, props }, { page: "p1" })
 
 test("リストの大きさは置いたあとも変えられる。一番小さい大きさ（見出しと「＋」の行）より小さくはできない", () => {
   const store = ready()

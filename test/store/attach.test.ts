@@ -116,14 +116,14 @@ test("線を置けないタイプが line-connect を足していても、線を
   const place = (x: number) =>
     instance.actions.perform(
       "@matomezu/paper:item-place",
-      { page: p, item: "@matomezu/box:shape-nest-box", at: { x, y: 40 }, props: { caption: "箱" } },
-      { book: id },
+      { item: "@matomezu/box:shape-nest-box", at: { x, y: 40 }, props: { caption: "箱" } },
+      { page: p },
     )
   const a = place(40)
   const b = place(400)
   expect(a.ok && b.ok).toBe(true)
   const from = a.ok ? (a.result as { item: string }).item : ""
   const to = b.ok ? (b.result as { item: string }).item : ""
-  const done = instance.actions.perform("@matomezu/line:line-connect", { page: p, from, to }, { book: id })
+  const done = instance.actions.perform("@matomezu/line:line-connect", { from, to }, { page: p })
   expect(done).toEqual({ ok: false, reason: "refused" })
 })

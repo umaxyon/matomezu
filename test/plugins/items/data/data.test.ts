@@ -28,12 +28,12 @@ const at = (store: Store, id: string) =>
 const place = (store: Store) =>
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item: DATA.id, at: { x: 100, y: 100 }, props: {} },
-    { book: "b1" },
+    { item: DATA.id, at: { x: 100, y: 100 }, props: {} },
+    { page: "p1" },
   )
 // 断る形も渡すので、引数の型は見ない
 const set = (store: Store, args: { columns: unknown[]; rows: unknown[] }) =>
-  store.actions.perform("@matomezu/data:data-set", { page: "p1", item: "n1", ...args } as never, { book: "b1" })
+  store.actions.perform("@matomezu/data:data-set", { item: "n1", ...args } as never, { page: "p1" })
 
 const MONTHS = {
   columns: [
@@ -145,8 +145,8 @@ test("data-set はデータでない形には断る", () => {
   const store = ready()
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item: "@matomezu/list:shape-list", at: { x: 100, y: 100 }, props: {} },
-    { book: "b1" },
+    { item: "@matomezu/list:shape-list", at: { x: 100, y: 100 }, props: {} },
+    { page: "p1" },
   )
   expect(set(store, MONTHS).ok).toBe(false)
 })
@@ -169,11 +169,7 @@ test("表の見た目なら、data-set は表が全部見える大きさに合�
   expect(placed.h).toBeLessThan(tableSize(at(store, "n1").table as Table).h)
   expect(placed.y + placed.h).toBe(paper.h)
   // グラフの見た目では、表を入れ替えても大きさはそのまま
-  store.actions.perform(
-    "@matomezu/paper:item-update",
-    { page: "p1", item: "n1", props: { view: "bar" } },
-    { book: "b1" },
-  )
+  store.actions.perform("@matomezu/paper:item-update", { item: "n1", props: { view: "bar" } }, { page: "p1" })
   const before = at(store, "n1") as { w: number; h: number }
   set(store, MONTHS)
   expect(at(store, "n1")).toMatchObject({ w: before.w, h: before.h })

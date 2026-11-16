@@ -51,7 +51,7 @@ export const LIST_DELETE_ROW = kit.defineCommand({
   title: "Delete row",
   run: (ctx, a, { list, row }: { list: string; row: string }) => {
     const opened = openedPage(ctx.stage.opened ?? null)
-    if (opened?.page) a.perform(ROW_REMOVE.id, { page: opened.page, list, rows: [row] }, { book: opened.book })
+    if (opened?.page) a.perform(ROW_REMOVE.id, { list, rows: [row] }, { page: opened.page })
   },
   when: onOpenedPage,
 })
@@ -80,9 +80,8 @@ export const LIST_DELETE_ROWS = kit.defineCommand({
   title: "Delete rows",
   run: (ctx, a) => {
     const found = selectedRows(ctx)
-    const book = ctx.stage.opened?.book
-    if (!found || !book) return
-    const done = a.perform(ROW_REMOVE.id, { page: found.page, list: found.list, rows: [...found.rows] }, { book })
+    if (!found) return
+    const done = a.perform(ROW_REMOVE.id, { list: found.list, rows: [...found.rows] }, { page: found.page })
     if (done.ok) a.select([])
   },
   when: ctx => selectedRows(ctx) !== null,
@@ -96,7 +95,7 @@ export const LIST_CHECK = kit.defineCommand({
   title: "Check",
   run: (ctx, a, { list, row, checked }: { list: string; row: string; checked: boolean }) => {
     const opened = openedPage(ctx.stage.opened ?? null)
-    if (opened?.page) a.perform(ROW_CHECK.id, { page: opened.page, list, row, checked }, { book: opened.book })
+    if (opened?.page) a.perform(ROW_CHECK.id, { list, row, checked }, { page: opened.page })
   },
   when: onOpenedPage,
 })
@@ -111,7 +110,7 @@ export const LIST_STRETCH_ROW = kit.defineCommand({
     const opened = openedPage(ctx.stage.opened ?? null)
     if (!opened?.page) return
     const lines = linesFor(height + toPaperDelta(ctx.stage, by).y)
-    a.perform(ROW_LINES.id, { page: opened.page, list, rows: [row], lines }, { book: opened.book })
+    a.perform(ROW_LINES.id, { list, rows: [row], lines }, { page: opened.page })
   },
   when: onOpenedPage,
 })
@@ -126,11 +125,7 @@ export const LIST_MOVE_ROW = kit.defineCommand({
     const opened = openedPage(ctx.stage.opened ?? null)
     if (!opened?.page) return
     const before = args.before === undefined ? {} : { before: args.before }
-    a.perform(
-      ROW_MOVE.id,
-      { page: opened.page, list: args.list, row: args.row, to: args.to, ...before },
-      { book: opened.book },
-    )
+    a.perform(ROW_MOVE.id, { list: args.list, row: args.row, to: args.to, ...before }, { page: opened.page })
   },
   when: onOpenedPage,
 })

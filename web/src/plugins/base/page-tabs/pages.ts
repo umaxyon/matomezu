@@ -45,6 +45,10 @@ export function paperChoices(
   return choosablePapers(paperRule(catalog, type), mates(book, place))
 }
 
+// タイプ type のページに、そろえる相手を見ずに選べる紙と向き（タイプの規定）
+export const typePaperChoices = (catalog: CoreCatalog, type: string): PaperOptions =>
+  choosablePapers(paperRule(catalog, type), [])
+
 // ページ page の紙と向きを変えるときに選べるもの（そのページ自身は、そろえる相手にしない）
 export function paperChoicesFor(catalog: CoreCatalog, book: Book, page: Page): PaperOptions {
   const binder = findPage(book, page.id)?.binder

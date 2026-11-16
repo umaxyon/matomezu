@@ -51,22 +51,22 @@ function setup() {
 test("置いた物は書いたとおりの位置に残り、押し合わず、紙の外でもよい", () => {
   const s = setup()
   expect(
-    s.perform("@matomezu/slide:slide-place", { page: s.page, item: TEXT, at: { x: 10, y: 20 }, props: { text: "a" } })
-      .ok,
+    s.perform(
+      "@matomezu/slide:slide-place",
+      { item: TEXT, at: { x: 10, y: 20 }, props: { text: "a" } },
+      { page: s.page },
+    ).ok,
   ).toBe(true)
   // 重なる位置と、紙の外（負の位置）にも置け、先に置いた物は動かない
   expect(
-    s.perform("@matomezu/slide:slide-place", {
-      page: s.page,
-      item: ELLIPSE,
-      at: { x: 12, y: 22 },
-      w: 200,
-      h: 100,
-      props: {},
-    }).ok,
+    s.perform(
+      "@matomezu/slide:slide-place",
+      { item: ELLIPSE, at: { x: 12, y: 22 }, w: 200, h: 100, props: {} },
+      { page: s.page },
+    ).ok,
   ).toBe(true)
   expect(
-    s.perform("@matomezu/slide:slide-place", { page: s.page, item: LINE, at: { x: -50, y: -50 }, props: {} }).ok,
+    s.perform("@matomezu/slide:slide-place", { item: LINE, at: { x: -50, y: -50 }, props: {} }, { page: s.page }).ok,
   ).toBe(true)
   expect(s.slide().map(i => [i.item, i.x, i.y])).toEqual([
     [TEXT, 10, 20],
@@ -75,60 +75,66 @@ test("置いた物は書いたとおりの位置に残り、押し合わず、�
   ])
   // ブックの物（箱）は置けない
   expect(
-    s.perform("@matomezu/paper:item-place", { page: s.page, item: "@matomezu/box:shape-box", at: { x: 0, y: 0 } }).ok,
+    s.perform("@matomezu/paper:item-place", { item: "@matomezu/box:shape-box", at: { x: 0, y: 0 } }, { page: s.page })
+      .ok,
   ).toBe(false)
 })
 
 test("大きさ: 書いた方だけ変わり、scale なら文字の大きさも幅の倍率で変わる。最小より小さくはできない", () => {
   const s = setup()
-  s.perform("@matomezu/slide:slide-place", {
-    page: s.page,
-    item: TEXT,
-    w: 200,
-    h: 100,
-    props: { text: "a", fontSize: 20 },
-  })
+  s.perform(
+    "@matomezu/slide:slide-place",
+    { item: TEXT, w: 200, h: 100, props: { text: "a", fontSize: 20 } },
+    { page: s.page },
+  )
   const id = s.slide()[0]?.id as string
   const prop = (k: string) => (s.slide()[0] as { props: Record<string, unknown> }).props[k]
   const box = () => s.slide()[0] as { w: number; h: number }
   // 幅だけ書けば、高さは今のまま
-  expect(s.perform("@matomezu/slide:slide-resize", { page: s.page, item: id, w: 300 }).ok).toBe(true)
+  expect(s.perform("@matomezu/slide:slide-resize", { item: id, w: 300 }, { page: s.page }).ok).toBe(true)
   expect([box().w, box().h]).toEqual([300, 100])
   // 幅と高さを書き、scale なら文字の大きさも幅の倍率で変わる
-  expect(s.perform("@matomezu/slide:slide-resize", { page: s.page, item: id, w: 600, h: 300, scale: true }).ok).toBe(
-    true,
-  )
+  expect(
+    s.perform("@matomezu/slide:slide-resize", { item: id, w: 600, h: 300, scale: true }, { page: s.page }).ok,
+  ).toBe(true)
   expect([box().w, box().h]).toEqual([600, 300])
   expect(prop("fontSize")).toBe(40)
   // 最小より小さくはできない
-  expect(s.perform("@matomezu/slide:slide-resize", { page: s.page, item: id, w: 1, h: 1 }).ok).toBe(false)
+  expect(s.perform("@matomezu/slide:slide-resize", { item: id, w: 1, h: 1 }, { page: s.page }).ok).toBe(false)
 })
 
 test("項目: 角度を書き、null で消せる。形に合わない項目は断る。動かす・重ねを変える・消す", () => {
   const s = setup()
-  s.perform("@matomezu/slide:slide-place", {
-    page: s.page,
-    item: FREE,
-    props: {
-      points: [
-        { x: 0, y: 0 },
-        { x: 1, y: 1 },
-      ],
+  s.perform(
+    "@matomezu/slide:slide-place",
+    {
+      item: FREE,
+      props: {
+        points: [
+          { x: 0, y: 0 },
+          { x: 1, y: 1 },
+        ],
+      },
     },
-  })
-  s.perform("@matomezu/slide:slide-place", { page: s.page, item: ELLIPSE, props: {} })
+    { page: s.page },
+  )
+  s.perform("@matomezu/slide:slide-place", { item: ELLIPSE, props: {} }, { page: s.page })
   const [a, b] = s.slide().map(i => i.id as string) as [string, string]
-  expect(s.perform("@matomezu/slide:slide-update", { page: s.page, item: a, props: { rotation: 45 } }).ok).toBe(true)
+  expect(s.perform("@matomezu/slide:slide-update", { item: a, props: { rotation: 45 } }, { page: s.page }).ok).toBe(
+    true,
+  )
   expect((s.slide()[0] as { props: { rotation?: number } }).props.rotation).toBe(45)
-  expect(s.perform("@matomezu/slide:slide-update", { page: s.page, item: a, props: { rotation: null } }).ok).toBe(true)
+  expect(s.perform("@matomezu/slide:slide-update", { item: a, props: { rotation: null } }, { page: s.page }).ok).toBe(
+    true,
+  )
   expect((s.slide()[0] as { props: { rotation?: number } }).props.rotation).toBeUndefined()
   expect(
-    s.perform("@matomezu/slide:slide-update", { page: s.page, item: a, props: { points: [{ x: 2, y: 0 }] } }).ok,
+    s.perform("@matomezu/slide:slide-update", { item: a, props: { points: [{ x: 2, y: 0 }] } }, { page: s.page }).ok,
   ).toBe(false)
-  expect(s.perform("@matomezu/slide:slide-move", { page: s.page, item: a, at: { x: -5, y: 7 } }).ok).toBe(true)
-  expect(s.perform("@matomezu/slide:slide-reorder", { page: s.page, item: a, to: "front" }).ok).toBe(true)
+  expect(s.perform("@matomezu/slide:slide-move", { item: a, at: { x: -5, y: 7 } }, { page: s.page }).ok).toBe(true)
+  expect(s.perform("@matomezu/slide:slide-reorder", { item: a, to: "front" }, { page: s.page }).ok).toBe(true)
   expect(s.slide().map(i => i.id)).toEqual([b, a])
-  expect(s.perform("@matomezu/slide:slide-remove", { page: s.page, item: b }).ok).toBe(true)
+  expect(s.perform("@matomezu/slide:slide-remove", { item: b }, { page: s.page }).ok).toBe(true)
   expect(s.slide().map(i => i.id)).toEqual([a])
 })
 
@@ -137,17 +143,16 @@ test("文字枠を置いて続けて打った文字は、置いた画面の履�
     books: [slideBook()],
   })
   const state = () => pagesOf(store.state.getState().books.b1!)[0]!.slide ?? []
-  const on = { book: "b1" }
   const put = store.actions.perform(
     "@matomezu/slide:slide-place",
-    { page: "p1", item: TEXT, at: { x: 10, y: 10 }, props: { text: "" } },
-    on,
+    { item: TEXT, at: { x: 10, y: 10 }, props: { text: "" } },
+    { page: "p1" },
   )
   expect(put.ok).toBe(true)
   await Promise.resolve()
   const id = state()[0]!.id
   store.actions.continueStep("b1")
-  store.actions.perform("@matomezu/slide:slide-update", { page: "p1", item: id, props: { text: "書いた" } }, on)
+  store.actions.perform("@matomezu/slide:slide-update", { item: id, props: { text: "書いた" } }, { page: "p1" })
   await Promise.resolve()
   expect(store.state.getState().history.b1?.undo).toHaveLength(1)
   store.actions.command("s1", "@matomezu/base:undo")
@@ -163,16 +168,10 @@ test("続けている画面の履歴の段には、コマンド（slide-set）�
       id: string
       props: { width?: number }
     }[]
-  const on = { book: "b1" }
   store.actions.perform(
     "@matomezu/slide:slide-place",
-    {
-      page: "p1",
-      item: "@matomezu/slide:slide-ellipse",
-      at: { x: 10, y: 10 },
-      props: {},
-    },
-    on,
+    { item: "@matomezu/slide:slide-ellipse", at: { x: 10, y: 10 }, props: {} },
+    { page: "p1" },
   )
   await Promise.resolve()
   const id = slide()[0]!.id
@@ -189,7 +188,7 @@ test("続けている画面の履歴の段には、コマンド（slide-set）�
 
 test("ロック中のページでは、スライドのアイテムを動かせず消せない（土台が slide のアイテムの id を変化に入れる）", () => {
   const s = setup()
-  s.perform("@matomezu/slide:slide-place", { page: s.page, item: TEXT, at: { x: 10, y: 20 }, props: { text: "a" } })
+  s.perform("@matomezu/slide:slide-place", { item: TEXT, at: { x: 10, y: 20 }, props: { text: "a" } }, { page: s.page })
   const item = s.slide()[0]?.id as string
   expect(s.perform("@matomezu/base:page-lock", {}, { page: s.page }).ok).toBe(true)
   for (const [id, args] of [
@@ -199,5 +198,5 @@ test("ロック中のページでは、スライドのアイテムを動かせ�
     expect(s.perform(id, args)).toMatchObject({ ok: false })
   expect(s.slide()).toHaveLength(1)
   expect(s.perform("@matomezu/base:page-unlock", {}, { page: s.page }).ok).toBe(true)
-  expect(s.perform("@matomezu/slide:slide-move", { page: s.page, item, at: { x: 0, y: 0 } }).ok).toBe(true)
+  expect(s.perform("@matomezu/slide:slide-move", { item, at: { x: 0, y: 0 } }, { page: s.page }).ok).toBe(true)
 })

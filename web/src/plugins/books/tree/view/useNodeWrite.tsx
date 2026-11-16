@@ -8,7 +8,7 @@ export function useNodeWrite(page: string | undefined, isRoot: boolean) {
   const allowed = useAllowed(isRoot ? "@matomezu/base:page-update" : NODE_UPDATE.id, page ? { page } : undefined).ok
   const write = (page: string, node: string, patch: { caption?: string; color?: string | null }) =>
     isRoot
-      ? perform("@matomezu/base:page-update", { page, fields: { root: patch } })
-      : perform(NODE_UPDATE.id, { page, node, ...patch })
+      ? perform("@matomezu/base:page-update", { fields: { root: patch } }, { page })
+      : perform(NODE_UPDATE.id, { node, ...patch }, { page })
   return { allowed, write }
 }

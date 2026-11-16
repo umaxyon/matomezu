@@ -220,9 +220,7 @@ describe("インスタンスを作る", () => {
     ).toBe(true)
     const page = () => pagesOf(instance.state.getState().books.n1!)[0]
     expect(page()).toMatchObject({ id: "n1", title: "p", root: { caption: "根" } })
-    expect(
-      perform("@matomezu/base:page-update", { page: "n1", fields: { root: { caption: "幹" } } }, { book: "n1" }).ok,
-    ).toBe(true)
+    expect(perform("@matomezu/base:page-update", { fields: { root: { caption: "幹" } } }, { page: "n1" }).ok).toBe(true)
     expect(page()).toMatchObject({ title: "p", root: { caption: "幹" } })
     instance.actions.openPage("s1", "n1")
     expect(untyped(instance.actions).command("s1", "@matomezu/base:page-settings")).toBe(true)

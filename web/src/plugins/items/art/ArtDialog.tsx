@@ -36,7 +36,8 @@ export function addArtDialog(item: string) {
     const perform = usePerform()
     const add = (props: ArtProps) => {
       if (!book) return { reason: "no-book" }
-      const done = perform("@matomezu/paper:item-place", { ...args, item, props, crowd: "push" })
+      const { page, ...where } = args
+      const done = perform("@matomezu/paper:item-place", { ...where, item, props, crowd: "push" }, { page })
       if (!done.ok) return done
       select([done.result.item])
       onClose()
@@ -71,11 +72,14 @@ export function EditArtDialog({ args, onClose }: DialogProps<{ page: string; ite
   if (!book || !start) return null
   const update = (props: ArtProps) => {
     // 色の「なし」に戻したら、絵の色の項目を消す
-    const done = perform("@matomezu/paper:item-update", {
-      page: args.page,
-      item: args.item,
-      props: { ...props, color: props.color ?? null },
-    })
+    const done = perform(
+      "@matomezu/paper:item-update",
+      {
+        item: args.item,
+        props: { ...props, color: props.color ?? null },
+      },
+      { page: args.page },
+    )
     if (done.ok) onClose()
     return done.ok ? null : done
   }

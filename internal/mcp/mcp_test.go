@@ -131,12 +131,12 @@ func TestActionsReturnsTheAICatalog(t *testing.T) {
 
 func TestPerformingAnAction(t *testing.T) {
 	api := &fakeAPI{answer: `{"ok":true,"result":{"item":"k1"}}`}
-	got := talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"perform","arguments":{"action":"@matomezu/paper:item-place","args":{"page":"p1"},"on":{"book":"b1"}}}}`)
+	got := talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"perform","arguments":{"action":"@matomezu/paper:item-place","args":{},"on":{"page":"p1"}}}}`)
 	r := got[0]["result"].(map[string]any)
 	if r["isError"] != false || r["content"].([]any)[0].(map[string]any)["text"] != `{"item":"k1"}` {
 		t.Fatalf("call = %v", r)
 	}
-	if api.posts[0] != `api/ai/perform {"action":"@matomezu/paper:item-place","args":{"page":"p1"},"on":{"book":"b1"}}` {
+	if api.posts[0] != `api/ai/perform {"action":"@matomezu/paper:item-place","args":{},"on":{"page":"p1"}}` {
 		t.Fatalf("posted = %v", api.posts)
 	}
 	for answer, want := range map[string]string{`{"ok":false,"reason":"no-book"}`: "no-book:", `{"ok":false,"reason":"unknown"}`: "unknown:", `{"ok":false,"reason":"unreadable","detail":"W004 x"}`: "unreadable: the book cannot be read now (W004 x)", `{"ok":false,"reason":"denied","permission":"@matomezu/base:lock","detail":"by @matomezu/base:lock: it is locked"}`: "denied: by @matomezu/base:lock: it is locked", `{"ok":false,"reason":"not-allowed","detail":"the control center keeps the setting x fixed"}`: "not-allowed: the control center keeps the setting x fixed", `{"ok":false,"reason":"refused","detail":"the action's rules refuse it"}`: "refused: the action's rules refuse it", `{"ok":false,"reason":"not-allowed"}`: "not-allowed: it could not be done here"} {

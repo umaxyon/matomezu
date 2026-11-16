@@ -13,13 +13,13 @@ function ready() {
   const place = (x: number, y: number, item = "@matomezu/box:shape-nest-box") =>
     store.actions.perform(
       "@matomezu/paper:item-place",
-      { page: "p1", item, at: { x, y }, ...(item === "@matomezu/box:shape-nest-box" ? { w: 100, h: 64 } : {}) },
-      { book: "b1" },
+      { item, at: { x, y }, ...(item === "@matomezu/box:shape-nest-box" ? { w: 100, h: 64 } : {}) },
+      { page: "p1" },
     )
   place(100, 100) // n1
   place(400, 100) // n2
   place(100, 300, "@matomezu/list:shape-list") // n3
-  store.actions.perform("@matomezu/list:row-add", { page: "p1", list: "n3" }, { book: "b1" }) // n4
+  store.actions.perform("@matomezu/list:row-add", { list: "n3" }, { page: "p1" }) // n4
   return store
 }
 const page = (store: ReturnType<typeof ready>) => pagesOf(store.state.getState().books.b1 as Book)[0]!
@@ -27,7 +27,7 @@ const page = (store: ReturnType<typeof ready>) => pagesOf(store.state.getState()
 test("引ける相手は、同じページのつなげる形（自分も入る）。同じ向きの線がある相手と、リストの行は入らない。逆向きの線があっても引ける", () => {
   const store = ready()
   expect([...targetsFrom(CORE_CATALOG, page(store), "n1")]).toEqual(["n1", "n2", "n3"])
-  store.actions.perform("@matomezu/line:line-connect", { page: "p1", from: "n1", to: "n2" }, { book: "b1" })
+  store.actions.perform("@matomezu/line:line-connect", { from: "n1", to: "n2" }, { page: "p1" })
   expect([...targetsFrom(CORE_CATALOG, page(store), "n1")]).toEqual(["n1", "n3"])
   expect([...targetsFrom(CORE_CATALOG, page(store), "n2")]).toContain("n1")
   expect([...targetsFrom(CORE_CATALOG, page(store), "n4")]).toEqual([])

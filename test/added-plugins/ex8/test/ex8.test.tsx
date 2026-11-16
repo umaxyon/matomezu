@@ -40,11 +40,7 @@ test("単語帳を開くと、カードの見せ方のビューがページの�
   const page = pagesOf(instance.state.getState().books[book]!)[0]!.id
   act(() => {
     expect(
-      instance.actions.perform(
-        "@matomezu/base:page-update",
-        { page, fields: { cards: ["りんご", "みかん"] } },
-        { book },
-      ).ok,
+      instance.actions.perform("@matomezu/base:page-update", { fields: { cards: ["りんご", "みかん"] } }, { page }).ok,
     ).toBe(true)
   })
   expect([...document.querySelectorAll("[data-ex8-card]")].map(c => c.textContent)).toEqual(["りんご", "みかん"])
@@ -81,8 +77,8 @@ test("カードの並べ方は画面の場所に入り（読み直しても戻�
   act(() => {
     instance.actions.perform(
       "@matomezu/base:page-update",
-      { page, fields: { cards: ["みかん", "りんご", "いちご"] } },
-      { book },
+      { fields: { cards: ["みかん", "りんご", "いちご"] } },
+      { page },
     )
   })
   const words = () => [...document.querySelectorAll("[data-ex8-card]")].map(c => c.textContent)

@@ -1,7 +1,7 @@
 // ex4 の 2 つ目のつなぐもの「関係線」: 形どうしを点線で結ぶ。ビルトインの線と同じページに引ける。
 // 整え（tidy）と関係の決まり（holds）を持たない（端の形を消したときに何が起きるかを見るため）
 
-import { findPage, putPage, shapesOf, z } from "matomezu"
+import { shapesOf, z } from "matomezu"
 import { kit } from "./kit"
 
 export const RELATION = kit.defineConnector({
@@ -21,17 +21,15 @@ export const RELATE = kit.defineAction({
   attach: { items: [kit.name("relation")] },
   title: "relate",
   aiDescription: "Join the items from and to (shapes on the same page) with a dotted relation line. Returns its id.",
-  target: "book",
-  args: z.strictObject({ page: z.string().min(1), from: z.string().min(1), to: z.string().min(1) }),
-  permissionScope: { page: "page" },
-  run: (book, args, ctx) => {
-    const page = findPage(book, args.page)?.page
-    if (!page) return null
+  target: "page",
+  args: z.strictObject({ from: z.string().min(1), to: z.string().min(1) }),
+  permissionScope: "page",
+  run: (page, args, ctx) => {
     const shapes = new Set(shapesOf(page).map(s => s.id))
     if (!shapes.has(args.from) || !shapes.has(args.to)) return null
     const id = ctx.newId()
     const items = [...(page.items ?? []), { id, item: RELATION.id, from: args.from, to: args.to, props: {} }]
-    return { next: putPage(book, { ...page, items }), result: { relation: id } }
+    return { next: { ...page, items }, result: { relation: id } }
   },
 })
 

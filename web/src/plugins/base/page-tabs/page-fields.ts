@@ -5,13 +5,12 @@
 
 import { z } from "zod"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
-import type { Book, Page } from "../../../core/schema/book"
-import { contentIdMakerOfBook } from "../utils/ids"
+import type { Page } from "../../../core/schema/book"
 
 export type FieldsOf = "add" | "update"
 
 // タイプの受け方の 1 つ: 受ける形 args（機能台帳で変わる形、たとえば別のプラグインが足す値から選ぶ形は、台帳から作る関数）と、受けた値 input をページ page に書いて、書き足すフィールドを返す書き方 write（断るなら null）。
-// 書けるのはタイプがページに足したフィールドだけ（ほかのフィールドを返せば断る）。新しい id は makeId で振る（ブックの全部のページの中身と重ならない）。
+// 書けるのはタイプがページに足したフィールドだけ（ほかのフィールドを返せば断る）。新しい id は makeId で振る（そのページの中身と重ならない）。
 // result は、アクションの結果の fields に入れて返す物（振った id など）。形と書き方の型を合わせるには pageFieldsWay で作る
 export interface PageFieldsWay<A extends z.ZodObject = z.ZodObject> {
   args: A | ((catalog: CoreCatalog) => A)
@@ -50,20 +49,19 @@ export function fieldsArgsOf(catalog: CoreCatalog, type: string, of: FieldsOf): 
 }
 
 // 渡したフィールド fields を受けて書いたページと、受け方の返した結果（形に合わない・フィールドの無いタイプ・受け方が断れば null）
-export function writeFields(
+export function writeFields<P extends Page>(
   catalog: CoreCatalog,
-  book: Book,
-  page: Page,
+  page: P,
   fields: Readonly<Record<string, unknown>> | undefined,
   of: FieldsOf,
-  newId: () => string,
-): { page: Page; result?: unknown } | null {
+  makeId: () => string,
+): { page: P; result?: unknown } | null {
   if (fields === undefined) return { page }
   const parsed = fieldsArgsOf(catalog, page.type, of)?.safeParse(fields)
   if (!parsed?.success) return null
   const way = wayOf(catalog, page.type, of)
   if (!way) return { page: { ...page, ...parsed.data } }
-  const written = way.write(page as Readonly<Record<string, unknown>>, parsed.data, contentIdMakerOfBook(book, newId))
+  const written = way.write(page as Readonly<Record<string, unknown>>, parsed.data, makeId)
   const own = pageType(catalog, page.type).fields ?? {}
   if (!written || !Object.keys(written.fields).every(k => k in own)) return null
   return { page: { ...page, ...written.fields }, result: written.result }

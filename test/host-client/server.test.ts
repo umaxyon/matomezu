@@ -148,8 +148,8 @@ const itemsOf = (store: ReturnType<typeof newStore>) =>
 const place = (store: ReturnType<typeof newStore>) =>
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x: 0, y: 0 }, crowd: "push" },
-    { book: "b1" },
+    { item: "@matomezu/box:shape-nest-box", at: { x: 0, y: 0 }, crowd: "push" },
+    { page: "p1" },
   )
 // 常駐が知らせる、アイテムを足した b1
 const b1With = (...ids: string[]) => ({
@@ -254,7 +254,7 @@ test("画面で行ったアクションは、振った id と、つながりの 
   expect(sent.filter(x => x.url === "api/perform")).toEqual([
     expect.objectContaining({
       action: "@matomezu/paper:item-place",
-      on: { book: "b1" },
+      on: { page: "p1" },
       ids: ["n1"],
       lang: "ja",
       client: "c1",
@@ -311,8 +311,8 @@ test("断られたアクションを入れた画面の履歴の段は捨て、pe
   const { store, emit } = await connected()
   const answer = store.actions.performConfirmed(
     "@matomezu/paper:item-place",
-    { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x: 0, y: 0 }, crowd: "push" },
-    { book: "b1" },
+    { item: "@matomezu/box:shape-nest-box", at: { x: 0, y: 0 }, crowd: "push" },
+    { page: "p1" },
   )
   await Promise.resolve()
   expect(store.state.getState().history.b1?.undo).toHaveLength(1)
@@ -326,8 +326,8 @@ test("行えたアクションの画面の履歴の段は残し、performConfirm
   const { store, emit } = await connected()
   const answer = store.actions.performConfirmed(
     "@matomezu/paper:item-place",
-    { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x: 0, y: 0 }, crowd: "push" },
-    { book: "b1" },
+    { item: "@matomezu/box:shape-nest-box", at: { x: 0, y: 0 }, crowd: "push" },
+    { page: "p1" },
   )
   await Promise.resolve()
   const id = itemsOf(store)[0] as string

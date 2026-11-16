@@ -233,7 +233,6 @@ export {
   keepApart,
   minSize,
   nextItemId,
-  nextItemIdOfBook,
   paperSize,
   placedAt,
   placeItem,
@@ -245,9 +244,9 @@ export {
   shapeThemeFits,
   shownRects,
   slideOffsetOf,
+  tidyPage,
   unpinPage,
   widenForCaption,
-  withPage,
 } from "./place/items"
 export type { PortArea, Ports } from "./place/placed"
 export { allRectsOf, NEST_PADDING, placedSize, portAreasOf, rectsOf, shapeDefOf } from "./place/placed"

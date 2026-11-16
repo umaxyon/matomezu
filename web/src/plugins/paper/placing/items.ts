@@ -1,14 +1,11 @@
 // 紙のページに置いたアイテムのドラッグ（データを書き換えず、新しい値を返す）。置く・押す・消すなどはbase（place/items.ts）。
 // ページの形は紙の中で、子の形は親の子の領域の中で動かす（base の place/frame.ts の Frame。決まりは同じ）
 import {
-  type Book,
   type CoreCatalog,
-  findPage,
   findShape,
   type ItemPage,
   type PlacedShape,
   type Point,
-  putPage,
   type Rect,
   replaceShape,
   type ShapeOnPage,
@@ -29,8 +26,8 @@ import {
   placedSize,
   placeItem,
   shapeDefOf,
+  tidyPage,
   toData,
-  withPage,
 } from "../../base"
 import { type Came, clampBy, dragRects, dropManyRects, dropRects, track } from "./drag"
 
@@ -66,18 +63,16 @@ export function movableTogether(catalog: CoreCatalog, page: ItemPage, ids: reado
 }
 
 // ページのアイテム ids（どれも同じ Frame の形）を by だけ動かす（drag.ts。1 つなら入れ替え・向こう側へ寄せる・手前へ戻す、何個かならまとめて手前へ戻す）。
-// came はドラッグの通り道で覚えた、相手ごとの先端が来た向き（無ければ始めの位置から見た向き）。無いページ・無いアイテム・収まらないなら null
+// came はドラッグの通り道で覚えた、相手ごとの先端が来た向き（無ければ始めの位置から見た向き）。無いアイテム・収まらないなら null
 export function moveItems(
   catalog: CoreCatalog,
-  book: Book,
-  pageId: string,
+  page: ItemPage,
   ids: readonly string[],
   by: Point,
   came?: Came,
-): Book | null {
-  const page = findPage(book, pageId)?.page
-  const frame = page && ids[0] !== undefined ? frameAround(catalog, page, ids[0]) : null
-  if (!page || !frame) return null
+): ItemPage | null {
+  const frame = ids[0] !== undefined ? frameAround(catalog, page, ids[0]) : null
+  if (!frame) return null
   // どれも同じ Frame の形（ページの形と子の形、親の違う子は一緒に動かさない）
   if (!ids.every(id => frame.rects.has(id))) return null
   const gap = gapOf(catalog, page)
@@ -94,46 +89,41 @@ export function moveItems(
       moved.set(id, { x: noiseless(r.x - was.x), y: noiseless(r.y - was.y) })
   }
   const followed = followConnectors(catalog, page, moved)
-  if (frame.parent === null) return withPage(catalog, book, { ...followed, items: placedAt(catalog, followed, after) })
-  return commitChildren(catalog, putPage(book, followed), pageId, { ...frame, parent: frame.parent }, after)
+  if (frame.parent === null) return tidyPage(catalog, { ...followed, items: placedAt(catalog, followed, after) })
+  return commitChildren(catalog, followed, { ...frame, parent: frame.parent }, after)
 }
 
 // moveItems が収まらないとき（null）、画面のドラッグを離したときの動かす量: by を紙の端まで切り詰め（clampBy）、それでも収まらなければ、
 // 始めの位置へ 1px ずつ（大きい方の軸で数えた歩数。400 まで）戻して、最初に収まる量（stepToward）。決まった手順なので同じ入力なら同じ結果。収まる量が無ければ null
 export function nearestMove(
   catalog: CoreCatalog,
-  book: Book,
-  pageId: string,
+  page: ItemPage,
   ids: readonly string[],
   by: Point,
   came?: Came,
 ): Point | null {
-  const page = findPage(book, pageId)?.page
-  const frame = page && ids[0] !== undefined ? frameAround(catalog, page, ids[0]) : null
+  const frame = ids[0] !== undefined ? frameAround(catalog, page, ids[0]) : null
   if (!frame) return null
   const to = clampBy(frame.rects, ids, by, frame.paper)
-  return stepToward(to, { x: 0, y: 0 }, p => moveItems(catalog, book, pageId, ids, p, came) !== null)
+  return stepToward(to, { x: 0, y: 0 }, p => moveItems(catalog, page, ids, p, came) !== null)
 }
 
-// 付け替えで形 item を、紙の上の where へ移して形 parent の中へ入れた（null はページへ出した）ブック。入れられなければ null
+// 付け替えで形 item を、紙の上の where へ移して形 parent の中へ入れた（null はページへ出した）ページ。入れられなければ null
 // （action の item-reparent と同じ決まり。抜いて、親の子の領域の左上より左や上なら寄せて入れる）
 export function reparentedAt(
   catalog: CoreCatalog,
-  book: Book,
-  pageId: string,
+  page: ItemPage,
   item: string,
   parent: string | null,
   where: Point,
-): Book | null {
-  const page = findPage(book, pageId)?.page
-  const found = page && findShape(page, item)
-  const out = page && replaceShape(page, item, () => null)
-  if (!page || !found || !out || found.parent === parent) return null
-  const without = putPage(book, out)
+): ItemPage | null {
+  const found = findShape(page, item)
+  const out = replaceShape(page, item, () => null)
+  if (!found || !out || found.parent === parent) return null
   const into = parent === null ? null : findShape(out, parent)
   if (parent !== null && !into) return null
-  if (!into) return placeItem(catalog, without, pageId, { ...found.shape, ...where })
-  return placeChild(catalog, without, pageId, into.shape.id, found.shape, {
+  if (!into) return placeItem(catalog, out, { ...found.shape, ...where })
+  return placeChild(catalog, out, into.shape.id, found.shape, {
     x: where.x - into.at.x,
     y: where.y - into.at.y,
   })
@@ -143,20 +133,18 @@ export function reparentedAt(
 // 最初に入れられる at。無ければ null
 export function nearestReparent(
   catalog: CoreCatalog,
-  book: Book,
-  pageId: string,
+  page: ItemPage,
   item: string,
   parent: string | null,
   at: Point,
 ): Point | null {
-  const page = findPage(book, pageId)?.page
-  const found = page && findShape(page, item)
-  const into = page && parent !== null ? findShape(page, parent) : null
-  if (!page || !found) return null
+  const found = findShape(page, item)
+  const into = parent !== null ? findShape(page, parent) : null
+  if (!found) return null
   const target = into
     ? { x: into.at.x + childOrigin(catalog, into.shape).x, y: into.at.y + childOrigin(catalog, into.shape).y }
     : found.at
-  return stepToward(at, target, p => reparentedAt(catalog, book, pageId, item, parent, p) !== null)
+  return stepToward(at, target, p => reparentedAt(catalog, page, item, parent, p) !== null)
 }
 
 // 点 from から to へ向けて 1px ずつ（大きい方の軸で数えた歩数。400 まで）寄せて、最初に fits を通す点（from から試す）
@@ -249,7 +237,6 @@ export interface PlaceTarget {
 // 置けるか（fits）は、画面と同じに押して置いてみて決める（親が育って紙からはみ出すなら置けない）
 export function placeTarget(
   catalog: CoreCatalog,
-  book: Book,
   page: ItemPage,
   pointer: Point,
   at: Point,
@@ -259,14 +246,14 @@ export function placeTarget(
   if (!size) return null
   const under = innermostAt(catalog, page, pointer)
   if (!under) {
-    const fits = placeItem(catalog, book, page.id, { ...shape, ...at }) !== null
+    const fits = placeItem(catalog, page, { ...shape, ...at }) !== null
     return { parent: null, at, free: false, shown: at, fits }
   }
   if (nests(catalog, under.shape.item)) {
     const inner = { x: at.x - under.at.x, y: at.y - under.at.y }
     const origin = childOrigin(catalog, under.shape)
     const shown = { x: under.at.x + Math.max(inner.x, origin.x), y: under.at.y + Math.max(inner.y, origin.y) }
-    const fits = placeChild(catalog, book, page.id, under.shape.id, shape, inner) !== null
+    const fits = placeChild(catalog, page, under.shape.id, shape, inner) !== null
     return { parent: under.shape.id, at: inner, free: false, shown, fits }
   }
   const spot = freeAt(catalog, page, under.parent, size)

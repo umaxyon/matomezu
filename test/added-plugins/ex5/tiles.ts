@@ -1,7 +1,7 @@
 // ex5 の形「タイル」: 色の札（tiles）を並べる入れ物。文字は持たない（captionProp なし）。
 // 項目に自分の意味の theme（札の色合い）と caption（札の並びの名前。編集はしない）を持ち、中身のフィールドは children でなく tiles
 
-import { findPage, putPage, z } from "matomezu"
+import { findPage, z } from "matomezu"
 import { kit } from "./kit"
 
 const TILES_SIZE = { w: 160, h: 96 }
@@ -32,17 +32,16 @@ export const TILE_ADD = kit.defineAction({
   attach: { items: [kit.name("tiles")] },
   title: "addTile",
   aiDescription: "Add a tile of color (#rrggbb) at the end of the item (an ex5:tiles). Returns the tile's id.",
-  target: "book",
-  args: z.strictObject({ page: z.string().min(1), item: z.string().min(1), color: z.string() }),
-  permissionScope: { page: "page", item: "item" },
-  run: (book, args, ctx) => {
-    const page = findPage(book, args.page)?.page
-    const item = page?.items?.find(i => i.id === args.item)
-    if (!page || item?.item !== TILES.id) return null
+  target: "page",
+  args: z.strictObject({ item: z.string().min(1), color: z.string() }),
+  permissionScope: { item: "item" },
+  run: (page, args, ctx) => {
+    const item = page.items?.find(i => i.id === args.item)
+    if (item?.item !== TILES.id) return null
     const id = ctx.newId()
     const tiles = [...(item.tiles ?? []), { id, color: args.color }]
     const items = page.items?.map(i => (i === item ? { ...item, tiles } : i))
-    return { next: putPage(book, { ...page, items }), result: { tile: id } }
+    return { next: { ...page, items }, result: { tile: id } }
   },
 })
 

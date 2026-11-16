@@ -96,8 +96,8 @@ test("AI の入口からは、最後にフォーカスした窓が見ている�
     headers: ai,
     data: {
       action: "@matomezu/paper:item-place",
-      args: { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x: 40, y: 400 }, props: { caption: "AI の箱" } },
-      on: { book: "e2e-1" },
+      args: { item: "@matomezu/box:shape-nest-box", at: { x: 40, y: 400 }, props: { caption: "AI の箱" } },
+      on: { page: "p1" },
     },
   })
   expect(await done.json()).toMatchObject({ ok: true })
@@ -133,7 +133,7 @@ test("AI が show で頼むと、最後にフォーカスした窓が、分け�
 
 // 線のあるブック: 箱 a・b・c と、a から b（終点に矢印・キャプション）・a から c・b から c の線
 const LINE_BOOK = testBook("e2e-line", "線", [
-  drawingPage("p1", {
+  drawingPage("e2e-line-p1", {
     items: [
       { id: "a", x: 100, y: 100, item: "@matomezu/box:shape-nest-box", w: 100, h: 64, props: { caption: "A" } },
       { id: "b", x: 400, y: 100, item: "@matomezu/box:shape-nest-box", w: 100, h: 64, props: { caption: "B" } },
@@ -315,8 +315,8 @@ test("AI がマークダウンのページの原文を page-update で変える�
   await page.getByRole("toolbar", { name: "ペイン" }).getByRole("button", { name: "左右に並べる" }).click()
   const updated = await perform({
     action: "@matomezu/base:page-update",
-    args: { page: added.result.page, fields: { find: "最初", replace: "AI の見出し" } },
-    on,
+    args: { fields: { find: "最初", replace: "AI の見出し" } },
+    on: { page: added.result.page },
   })
   expect(updated).toMatchObject({ ok: true })
   await expect(preview.getByRole("heading", { level: 1 })).toHaveText("AI の見出し")
@@ -360,8 +360,8 @@ test("伝言を書いている間に AI が付ける先の物を消すと、右�
     (
       await perform({
         action: "@matomezu/paper:item-place",
-        args: { page: added.result.page, item: "@matomezu/box:shape-nest-box", at: { x, y: 100 }, props: { caption } },
-        on,
+        args: { item: "@matomezu/box:shape-nest-box", at: { x, y: 100 }, props: { caption } },
+        on: { page: added.result.page },
       })
     ).result.item as string
   const one = await place(100, "一")
@@ -376,7 +376,7 @@ test("伝言を書いている間に AI が付ける先の物を消すと、右�
   const text = panel.getByLabel("伝言", { exact: true })
   await text.fill("書きかけ")
   const remove = (item: string) =>
-    perform({ action: "@matomezu/paper:item-remove", args: { page: added.result.page, items: [item] }, on })
+    perform({ action: "@matomezu/paper:item-remove", args: { items: [item] }, on: { page: added.result.page } })
   expect(await remove(two)).toMatchObject({ ok: true })
   await expect(panel.getByRole("status")).toHaveText("付ける先の物が消されました")
   await expect(panel.getByRole("button", { name: "二", exact: true })).toHaveCount(0)
@@ -411,13 +411,8 @@ test("付けた伝言を右サイドパネルで開いて文を直している�
   })
   const placed = await perform({
     action: "@matomezu/paper:item-place",
-    args: {
-      page: added.result.page,
-      item: "@matomezu/box:shape-nest-box",
-      at: { x: 100, y: 100 },
-      props: { caption: "一" },
-    },
-    on,
+    args: { item: "@matomezu/box:shape-nest-box", at: { x: 100, y: 100 }, props: { caption: "一" } },
+    on: { page: added.result.page },
   })
   const box = placed.result.item as string
   await page.request.post("/api/ai/show", { headers: ai, data: { book: result.book } })
@@ -478,8 +473,8 @@ test("箱の編集のダイアログを開いている間は、AI がその箱�
     (
       await perform({
         action: "@matomezu/paper:item-place",
-        args: { page: pageId, item: "@matomezu/box:shape-nest-box", at: { x, y: 100 }, props: { caption } },
-        on,
+        args: { item: "@matomezu/box:shape-nest-box", at: { x, y: 100 }, props: { caption } },
+        on: { page: pageId },
       })
     ).result.item as string
   const one = await place(100, "一")
@@ -495,7 +490,7 @@ test("箱の編集のダイアログを開いている間は、AI がその箱�
   await expect(dialog).toBeVisible()
   await locked
   const rename = (item: string, caption: string) =>
-    perform({ action: "@matomezu/paper:item-update", args: { page: pageId, item, props: { caption } }, on })
+    perform({ action: "@matomezu/paper:item-update", args: { item, props: { caption } }, on: { page: pageId } })
   expect(await rename(one, "AI")).toMatchObject({ ok: false, reason: "being-edited" })
   expect(await rename(two, "AI")).toMatchObject({ ok: true })
   await page.keyboard.press("Escape")

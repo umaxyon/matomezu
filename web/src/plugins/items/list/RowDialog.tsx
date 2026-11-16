@@ -20,7 +20,7 @@ export function AddRowDialog({ args, onClose }: DialogProps<{ page: string; list
   const perform = usePerform()
   const add = (props: Text) => {
     if (!book) return
-    if (perform(ROW_ADD.id, { page: args.page, list: args.list, props }).ok) onClose()
+    if (perform(ROW_ADD.id, { list: args.list, props }, { page: args.page }).ok) onClose()
   }
   return (
     <RowDialog
@@ -59,10 +59,10 @@ export function EditRowDialog({ args, onClose }: DialogProps<{ page: string; lis
   )
   if (!book || !start) return null
   const update = (props: Text) => {
-    if (perform(ROW_UPDATE.id, { page: args.page, list: args.list, row: args.row, props }).ok) onClose()
+    if (perform(ROW_UPDATE.id, { list: args.list, row: args.row, props }, { page: args.page }).ok) onClose()
   }
   const remove = () => {
-    if (perform(ROW_REMOVE.id, { page: args.page, list: args.list, rows: [args.row] }).ok) onClose()
+    if (perform(ROW_REMOVE.id, { list: args.list, rows: [args.row] }, { page: args.page }).ok) onClose()
   }
   return (
     <RowDialog

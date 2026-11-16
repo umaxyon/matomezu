@@ -35,7 +35,7 @@ export const FOLDER_TOGGLE = kit.defineCommand({
     const folder = dir && entryOf(dir.root, args.folder)
     if (!dir || !opened || folder?.kind !== "folder") return
     const closed = folder.closed !== true
-    const done = a.perform(FOLDER_CLOSE.id, { page: dir.page.id, folder: folder.id, closed }, { book: opened.book })
+    const done = a.perform(FOLDER_CLOSE.id, { folder: folder.id, closed }, { page: dir.page.id })
     if (!done.ok)
       a.showToast({
         kind: "warn",
@@ -59,11 +59,10 @@ const refused = (ctx: CommandContext, a: CommandActions, done: Parameters<typeof
 // 足す所 at に、名前の空の kind を 1 つ足して選び、その場で名前を書き始める（閉じたフォルダの中なら先に開く。開けない・足せなければトーストで知らせる）
 export function addEntry(ctx: CommandContext, a: CommandActions, at: AddAt, kind: Kind): void {
   const dir = dirAt(ctx)
-  const opened = ctx.stage.opened
-  if (!dir || !opened) return
-  const on = { book: opened.book }
+  if (!dir) return
+  const on = { page: dir.page.id }
   if (at.open) {
-    const open = a.perform(FOLDER_CLOSE.id, { page: dir.page.id, folder: at.open, closed: false }, on)
+    const open = a.perform(FOLDER_CLOSE.id, { folder: at.open, closed: false }, on)
     if (!open.ok) {
       refused(ctx, a, open)
       return
@@ -72,7 +71,6 @@ export function addEntry(ctx: CommandContext, a: CommandActions, at: AddAt, kind
   const done = a.perform(
     ENTRY_ADD.id,
     {
-      page: dir.page.id,
       parent: at.parent,
       ...(at.index === undefined ? {} : { index: at.index }),
       entries: [{ kind, name: "" }],
@@ -116,7 +114,7 @@ export const ENTRY_LEFT = kit.defineCommand({
     if (!s || !opened) return
     const e = entryOf(s.root, s.id)
     if (e?.kind === "folder" && !e.closed && (e.children?.length ?? 0) > 0)
-      a.perform(FOLDER_CLOSE.id, { page: s.page.id, folder: s.id, closed: true }, { book: opened.book })
+      a.perform(FOLDER_CLOSE.id, { folder: s.id, closed: true }, { page: s.page.id })
     else a.select([parentOf(s.root, s.id)])
   },
   when: penciling,
@@ -132,7 +130,7 @@ export const FOLDER_OPEN = kit.defineCommand({
     const s = selected(ctx)
     const opened = ctx.stage.opened
     if (!s || !opened) return
-    const done = a.perform(FOLDER_CLOSE.id, { page: s.page.id, folder: s.id, closed: false }, { book: opened.book })
+    const done = a.perform(FOLDER_CLOSE.id, { folder: s.id, closed: false }, { page: s.page.id })
     if (!done.ok) refused(ctx, a, done)
   },
   when: ctx => {
@@ -251,7 +249,7 @@ function sortCommand<const Id extends string>(id: Id, title: "Sort ascending" | 
     run: (ctx, a) => {
       const s = selected(ctx)
       const opened = ctx.stage.opened
-      if (s && opened) a.perform(FOLDER_SORT.id, { page: s.page.id, folder: s.id, order }, { book: opened.book })
+      if (s && opened) a.perform(FOLDER_SORT.id, { folder: s.id, order }, { page: s.page.id })
     },
     when: ctx => {
       const s = penciling(ctx) ? selected(ctx) : null
@@ -274,7 +272,7 @@ export const ENTRY_DELETE = kit.defineCommand({
     const opened = ctx.stage.opened
     const next = s && afterRemove(s.root, s.id)
     if (!s || !opened || !next) return
-    if (a.perform(ENTRY_REMOVE.id, { page: s.page.id, entry: s.id }, { book: opened.book }).ok) a.select([next])
+    if (a.perform(ENTRY_REMOVE.id, { entry: s.id }, { page: s.page.id }).ok) a.select([next])
   },
   when: ctx => {
     const s = penciling(ctx) ? selected(ctx) : null

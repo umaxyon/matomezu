@@ -1,6 +1,6 @@
 // 置こうとしている間の置き先: ポインタの所で押すと、どこへ置くか（placing/items.ts の placeTarget）。点線の影と、入る先の形の枠が読む
 import type { Point, Size } from "../../../plugin-api"
-import { useBook, useCoreCatalog, usePage, useStage, useToPaper } from "../../../plugin-api/ui"
+import { useCoreCatalog, usePage, useStage, useToPaper } from "../../../plugin-api/ui"
 import { placedSize } from "../../base"
 import { type PlaceTarget, placeAt, placeTarget, placingShape } from "../placing"
 
@@ -15,7 +15,6 @@ export interface Placing {
 export function usePlaceTarget(pointer: Point | null): Placing | null {
   const view = useStage()
   const catalog = useCoreCatalog()
-  const book = useBook()
   const page = usePage()
   const toPaperAt = useToPaper()
   const placing = view?.placing ?? null
@@ -23,6 +22,6 @@ export function usePlaceTarget(pointer: Point | null): Placing | null {
   const point = pointer && toPaperAt(pointer)
   const shape = placing ? placingShape(catalog, placing.item, placing.props) : null
   const size = shape && placedSize(catalog, shape)
-  if (!at || !point || !shape || !size || !book || !page) return null
-  return { at, target: placeTarget(catalog, book, page, point, at, shape), size }
+  if (!at || !point || !shape || !size || !page) return null
+  return { at, target: placeTarget(catalog, page, point, at, shape), size }
 }

@@ -127,12 +127,12 @@ export function EditLineDialog({ args, onClose }: DialogProps<{ page: string; it
   const submit = () => {
     const patch = linePatch(line, { caption, route, dash, startHead, endHead, once }, rects, elbow, linesOf(page))
     if (Object.keys(patch).length === 0) return onClose()
-    const done = perform(LINE_UPDATE.id, { page: page.id, line: line.id, props: patch })
+    const done = perform(LINE_UPDATE.id, { line: line.id, props: patch }, { page: page.id })
     if (done.ok) onClose()
     else setRefused(refusalMessage(catalog, done, kit.message("Does not fit on the paper")))
   }
   const remove = () => {
-    perform("@matomezu/paper:item-remove", { page: page.id, items: [line.id] })
+    perform("@matomezu/paper:item-remove", { items: [line.id] }, { page: page.id })
     onClose()
   }
   const heads = [{ value: "" as const, label: t("None") }, ...HEADS.map(h => ({ value: h, label: t(HEAD_LABELS[h]) }))]
