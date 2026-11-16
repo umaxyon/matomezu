@@ -333,7 +333,7 @@ describe("機能台帳ごとに別の世界", () => {
   })
 })
 
-test("ブックのタイプのテーマキーは、データに置けるアイテム（allowed）のテーマキーと、その持ち主のプラグインが持つテーマキーを含む", () => {
+test("ページのタイプのテーマキーは、データに置けるアイテム（allowed）のテーマキーと、その持ち主のプラグインが持つテーマキーを含む", () => {
   const base = CORE_CATALOG.pageTypes.get("@matomezu/drawing:drawing")!
   // 形を置けるタイプ。形のテーマキーはプラグインが持つ
   const drawing = {
@@ -393,7 +393,7 @@ test("付け替えの道具は図面の道具の組だけにあり、フロー�
   expect(toolsOf("@matomezu/flowchart:flowchart")).toEqual(["@matomezu/base:select", "@matomezu/base:hand"])
 })
 
-test("道具の組に無い道具を並べたら E032、道具の無い組は E033、ブックのタイプが無い組を名指したら E008", () => {
+test("道具の組に無い道具を並べたら E032、道具の無い組は E033、ページのタイプが無い組を名指したら E008", () => {
   const set = BUILTIN_PARTS.toolSets.find(s => s.id === "@matomezu/paper:paper")!
   const unknown = { ...set, tools: [...set.tools, "@matomezu/base:pencil"] }
   const empty = { id: "@matomezu/paper:empty", tools: [] }

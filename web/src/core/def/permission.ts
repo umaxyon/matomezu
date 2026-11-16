@@ -10,7 +10,7 @@ import type { ActionDef, Where } from "./action"
 import type { SubjectDef } from "./subject"
 
 // 行う前の問い: どこに対して・誰が行うか。book はアクションが変えるブック、where はその中の所（分からなければ無い）。
-// 一覧が対象のアクションは、変えるブックごとに問う。作るブックは、そのタイプで作る空のブックで問う（その id と名前は問うためだけの物で、頼らない）
+// 一覧が対象のアクションは、変えるブックごとに問う。作るブックは、空のブックで問う（その id と名前は問うためだけの物で、頼らない）
 export interface BookPermissionQuery {
   kind: "book"
   action: ActionDef

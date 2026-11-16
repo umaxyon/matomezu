@@ -1,4 +1,4 @@
-// ex2 のブックのタイプ「フロー」: 自分の形（判断のひし形）と設定の項目（流れの向き）と自分のアクションを持ち、
+// ex2 のページのタイプ「フロー」: 自分の形（判断のひし形）と設定の項目（流れの向き）と自分のアクションを持ち、
 // ビルトインの見せ方（紙）・箱・線・線の設定を id で選ぶ
 
 import { findPage, putPage, type ShapeAddArgs, type ShapeEditArgs, z } from "matomezu"

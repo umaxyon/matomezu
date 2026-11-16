@@ -1,5 +1,5 @@
 // ex3: ex1・ex2 とは別の作り手の追加プラグイン（React なし）。ほかの見本とは id でだけ関わる。
-// ブックのタイプ・形・紙・設定の項目・テーマ・スキンと、開いているブックをミントにするコマンド
+// ページのタイプ・形・紙・設定の項目・テーマ・スキンと、開いているブックをミントにするコマンド
 import { definePlugin, shownType, themeFits } from "matomezu"
 import { BOARD, GRID, MINT, NIGHT, SQUARE, STAR, STAR_ADD_DIALOG, STAR_EDIT_DIALOG } from "./board"
 import { kit } from "./kit"

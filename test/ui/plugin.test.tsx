@@ -108,7 +108,7 @@ describe("見た目のプラグイン", () => {
     expect(assembleUi(BUILTIN_UI).contextMenuRows.has("@matomezu/base:add-page-menu")).toBe(true)
   })
 
-  test("ブックのタイプのアイコンは自分のタイプにだけ付けられる（ほかのプラグインのタイプなら E313）。名乗らないタイプは表に入らない", () => {
+  test("ページのタイプのアイコンは自分のタイプにだけ付けられる（ほかのプラグインのタイプなら E313）。名乗らないタイプは表に入らない", () => {
     const icons = definePluginUi(definePlugin({ id: "icons" }), {
       pageTypeIcons: { "@matomezu/drawing:drawing": <span /> },
     })

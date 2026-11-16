@@ -20,7 +20,7 @@ test("図のタイプは all と図のテーマを、マークダウンは all �
   expect(themeFits(CORE_CATALOG, "@matomezu/drawing:drawing", "nope")).toBe(false)
 })
 
-test("ブックのテーマの項目の値の形は、ブックのタイプが使えるテーマだけ（利用者の設定の項目として組み立てれば、全部のテーマ）", () => {
+test("ページのテーマの項目の値の形は、ページのタイプが使えるテーマだけ（利用者の設定の項目として組み立てれば、全部のテーマ）", () => {
   const drawing = settingSchema(CORE_CATALOG, PAGE_THEME, { pageType: "@matomezu/drawing:drawing" })
   expect(drawing.safeParse("@matomezu/base:sticky").success).toBe(true)
   expect(drawing.safeParse("@matomezu/markdown:github-like").success).toBe(false)

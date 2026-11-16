@@ -63,7 +63,7 @@ test("リストはキャプション、行は行のキャプションか本文�
   expect(label(book, "n2")).toEqual({ title: "@matomezu/line:Line" })
 })
 
-test("ツリーの節と、ディレクトリの行は、ブックのタイプの labelOf で引く", () => {
+test("ツリーの節と、ディレクトリの行は、ページのタイプの labelOf で引く", () => {
   const tree = testBook("t", "木", [
     testPage(TREE, "p1", {
       title: "1",

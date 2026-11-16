@@ -49,7 +49,7 @@ const ALLOWED: Record<string, (target: string) => boolean> = {
 }
 // プラグインのファイルは役割で見る。見た目（.tsx と ui.ts）は ui と同じもの、ほかは core・store・zod だけ
 const isView = (rel: string) => rel.endsWith(".tsx") || basename(rel) === "ui.ts"
-// プラグインのフォルダ: plugins/名前。ブックのタイプのプラグインは plugins/books/名前、アイテムのプラグインは plugins/items/名前
+// プラグインのフォルダ: plugins/名前。ページのタイプのプラグインは plugins/books/名前、アイテムのプラグインは plugins/items/名前
 const pluginRoot = (rel: string) => {
   const parts = rel.split("/")
   return parts.slice(0, parts[1] === "books" || parts[1] === "items" ? 3 : 2).join("/")
@@ -171,7 +171,7 @@ test("ホストのエンジンが読むプラグインは、ビルトインの�
   expect(bad).toEqual([])
 })
 
-test("ブックのタイプの名前で振る舞いを分けない（使えるかは、タイプが選んだものと宣言で決める）", () => {
+test("ページのタイプの名前で振る舞いを分けない（使えるかは、タイプが選んだものと宣言で決める）", () => {
   const pageTypeIs = /\b(?:book|ctx\.book|opened|stage\.opened)\??\.type\s*[!=]==\s*["']/
   const offenders = sources.filter(f => pageTypeIs.test(f.text)).map(f => f.rel)
   expect(offenders).toEqual([])
