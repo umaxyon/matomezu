@@ -261,7 +261,7 @@ export function openStore(path: string) {
         )
         .all(...f.args) as SessionRow[]
     },
-    // matomezu の道具の呼び出しと、その結果の事実を、結果が現れた順に（同じ呼び出しの結果は、送り直しや切り詰めで何度か現れる）
+    // matomezu の MCP 公開ツールの呼び出しと、その結果の事実を、結果が現れた順に（同じ呼び出しの結果は、送り直しや切り詰めで何度か現れる）
     mcpRows(session?: string, client?: ClientName): McpFactRow[] {
       const f = filter(session, client)
       return db

@@ -83,8 +83,12 @@ const svg = (tag, attrs = {}, ...kids) => {
 }
 const title = text => svg("title", {}, text)
 
-// セッションの色は、最後に動いた順の上から 8 つ。ほかは灰色
-const colorOf = i => i < 8 ? `var(--s${i + 1})` : "var(--other)"
+// セッションの色は、ページを開いている間、初めて出てきた順に 8 つまで決めて変えない。ほかは灰色
+const slots = new Map()
+const colorOf = session => {
+  if (!slots.has(session) && slots.size < 8) slots.set(session, slots.size)
+  return slots.has(session) ? `var(--s${slots.get(session) + 1})` : "var(--other)"
+}
 
 function legend() {
   const box = document.getElementById("legend")
@@ -132,7 +136,7 @@ function drawBands(tl, width, from, to) {
   let y = 24
   const g = svg("g")
   const back = svg("g")
-  tl.sessions.forEach((s, i) => {
+  tl.sessions.forEach(s => {
     s.threads.forEach((t, j) => {
       const h = j === 0 ? MAIN_H : CHILD_H
       const cy = y + h / 2
@@ -140,17 +144,17 @@ function drawBands(tl, width, from, to) {
       if (j === 0) back.append(svg("rect", { x: 0, y, width, height: h, fill: "var(--band)" }))
       else back.append(svg("rect", { x: LEFT, y: y + 2, width: width - LEFT - RIGHT, height: h - 4, fill: "var(--band)", rx: 2 }))
       const name = j === 0 ? s.session : threadName(t)
-      // 名前は帯の左の欄に収まる字数で切る（全部は title に出す）
+      // 名前は、帯の左の名前を書く幅に収まる字数で切る（全部は title に出す）
       const room = Math.floor((LEFT - 24 - t.depth * 14) / 7) - (j === 0 ? 0 : 2)
       const shown = name.length > room ? `${name.slice(0, room - 1)}…` : name
       const label = svg("text", { x: 8 + t.depth * 14, y: cy + 4, class: j === 0 ? "label" : "" }, (j === 0 ? "" : "└ ") + shown)
       label.append(title(j === 0 ? `${s.session}（${s.client}）` : `${name}\n${t.thread}`))
       g.append(label)
-      if (j === 0) g.append(svg("rect", { x: LEFT - 14, y: cy - 5, width: 10, height: 10, rx: 2, fill: colorOf(i) }))
+      if (j === 0) g.append(svg("rect", { x: LEFT - 14, y: cy - 5, width: 10, height: 10, rx: 2, fill: colorOf(s.session) }))
       for (const p of t.points) {
         const dot = svg("circle", {
           class: "dot", cx: x(Date.parse(p.at)), cy, r: j === 0 ? 4 : 3,
-          fill: p.mark === "error" ? "var(--bg)" : p.mark === "probe" ? "var(--other)" : colorOf(i),
+          fill: p.mark === "error" ? "var(--bg)" : p.mark === "probe" ? "var(--other)" : colorOf(s.session),
           stroke: p.mark === "error" ? "var(--err)" : "var(--bg)", "stroke-width": p.mark === "error" ? 2 : 1,
         })
         dot.append(title(`#${p.id} ${new Date(p.at).toLocaleString()}\nコンテキスト ${num(p.context)}${p.mark === "error" ? "\nエラー" : p.mark === "probe" ? "\n枠の確かめ" : ""}`))
@@ -195,14 +199,14 @@ function drawChart(tl, width, from, to) {
     g.append(svg("line", { x1: LEFT, x2: width - RIGHT, y1: y(v), y2: y(v), stroke: "var(--line)" }))
     g.append(svg("text", { x: LEFT - 6, y: y(v) + 4, "text-anchor": "end" }, num(Math.round(v))))
   }
-  tl.sessions.forEach((s, i) => {
+  tl.sessions.forEach(s => {
     for (const t of s.threads) {
       const pts = t.points.filter(p => !p.mark && p.context > 0)
       if (pts.length === 0) continue
       const child = t.thread !== "main"
       const line = svg("polyline", {
         points: pts.map(p => `${x(Date.parse(p.at))},${y(p.context)}`).join(" "),
-        fill: "none", stroke: colorOf(i), "stroke-width": child ? 1 : 2, "stroke-dasharray": child ? "3 2" : "",
+        fill: "none", stroke: colorOf(s.session), "stroke-width": child ? 1 : 2, "stroke-dasharray": child ? "3 2" : "",
         "stroke-linejoin": "round", opacity: child ? 0.7 : 1,
       })
       line.append(title(`${s.session}${child ? ` / ${threadName(t)}` : ""}`))
@@ -219,10 +223,10 @@ function drawChart(tl, width, from, to) {
 }
 
 function drawStats(tl) {
-  document.getElementById("stats").replaceChildren(...tl.sessions.map((s, i) => {
+  document.getElementById("stats").replaceChildren(...tl.sessions.map(s => {
     const t = s.stats
     return el("tr", {},
-      el("td", {}, el("span", { className: "swatch", style: `background:${colorOf(i)}` }), s.session),
+      el("td", {}, el("span", { className: "swatch", style: `background:${colorOf(s.session)}` }), s.session),
       el("td", { textContent: s.client }),
       el("td", { textContent: num(t.requests) }),
       el("td", { textContent: num(t.input + t.cacheRead + t.cacheNew + t.output) }),

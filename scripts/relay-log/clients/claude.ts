@@ -171,7 +171,7 @@ export function threadOf(headers: Headers): string {
 }
 
 // 届く文は、ブロックの頭（cross-session-message・agent-message は「Another Claude session sent a message:」の行のあと）か、
-// 行の頭（task-notification・matomezu の知らせ）にある物だけを見る。道具の結果や返答の中の引用は拾わない
+// 行の頭（task-notification・matomezu の知らせ）にある物だけを見る。tool_result や返答の中の引用は拾わない
 const CROSS_SESSION =
   /^(?:Another Claude session sent a message:\n)?<cross-session-message from="[^"]*" from-name="([^"]*)"[^>]*>\n([\s\S]*?)\n<\/cross-session-message>/
 const AGENT_MESSAGE = /^(?:Another Claude session sent a message:\n)?<agent-message from="([\w-]+)">/

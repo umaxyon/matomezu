@@ -12,9 +12,9 @@ export const FACTS_VERSION = 1
 //   started     呼び出しの結果から分かった子。key は子の id、data は { callId }
 //   return      子の戻り。key は子の id、data は { how }
 //   send        送信。key は呼び出しの id、data は { via, to, text }
-//   receipt     受信。key は送り手の名前、data は { via, text }
-//   mcp-call    matomezu の道具の呼び出し。key は呼び出しの id、data は { tool, input }（tool は前置きを外した名前）
-//   result      道具の結果（どの道具の物でも）。key は呼び出しの id、data は { chars }
+//   receipt     受信。key は送った側のセッションの名前、data は { via, text }
+//   mcp-call    matomezu の MCP 公開ツールの呼び出し。key は呼び出しの id、data は { tool, input }（tool は前置きを外した名前）
+//   result      AI のツールの結果（どのツールの物でも）。key は呼び出しの id、data は { chars }
 export type FactRow = { kind: string; key: string; data: unknown }
 
 export function factRows(client: ClientName, item: unknown): FactRow[] {

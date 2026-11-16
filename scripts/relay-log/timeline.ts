@@ -2,7 +2,7 @@
 // 結んだ結果は保存せず、読むたびにここで作る。期間の外の相手とは結ばない（子の呼び出しの事実だけは、帯の名前と親を決めるために期間の外からも引く）
 //
 // 矢印の両端の時刻:
-//   道具の呼び出し（Agent・SendMessage・send_message）はリクエスト N の返答で生まれ、並びの項目としては N+1 で初めて記録される。
+//   AI のツールの呼び出し（Agent・SendMessage と、MCP 公開ツールの send_message）はリクエスト N の返答で生まれ、並びの項目としては N+1 で初めて記録される。
 //   起点は、その項目が初めて現れたリクエストの、同じスレッドで 1 つ前のリクエスト（無ければ、そのリクエスト）
 //   受け手の側は、受信（戻り・届いた文）が初めて現れたリクエスト。子の呼び出しと再開は、子のスレッドの起点より後の最初のリクエスト
 import type { ClientName, Return, Tokens, Via } from "./types"
@@ -165,9 +165,9 @@ export function timeline({ from, to, requests, context, facts }: TimelineRows): 
     const key = `${f.data.via}\t${f.data.text}`
     sent.set(key, [...(sent.get(key) ?? []), { origin, to: f.data.to, sender: r.session, used: false }])
   }
-  // 受信は文で送信と結ぶ。送り手の名前（from-name・ワークルーム名）が送信のセッションの名前と合う物、宛先が受け手のセッションの
-  // 名前と合う物があれば、そちらに絞る（同じ文を何人かに送ったときと、名前が表示の名前と違うセッション）。絞っても 2 つ以上残る
-  // ときだけ、受信より前の送信のうち早い物から、時刻の順に結ぶ
+  // 受信は、送った側の名前（from-name・ワークルーム名）と文で送信と結ぶ。宛先が受け手のセッションの名前と合う物があれば、そちらに
+  // 絞る（同じ文を何人かに送ったとき）。絞っても 2 つ以上残るときだけ、受信より前の送信のうち早い物から、時刻の順に結ぶ。
+  // 名前の合う送信が無いとき（from-name が表示の名前と違うセッション）は、同じ文の送信が 1 つだけなら結ぶ
   const receipts = of("receipt")
     .map(f => ({ f, r: byId.get(f.id) as TimelineRequest }))
     .sort((a, b) => a.r.at.localeCompare(b.r.at))
@@ -177,10 +177,8 @@ export function timeline({ from, to, requests, context, facts }: TimelineRows): 
   }
   for (const { f, r } of receipts) {
     const all = (sent.get(`${f.data.via}\t${f.data.text}`) ?? []).filter(s => !s.used)
-    let candidates = narrow(
-      narrow(all, s => s.sender === f.key),
-      s => s.to === r.session,
-    )
+    const named = all.filter(s => s.sender === f.key)
+    let candidates = narrow(named.length ? named : all.length === 1 ? all : [], s => s.to === r.session)
     if (candidates.length > 1)
       candidates = candidates.filter(s => s.origin.at <= r.at).sort((a, b) => a.origin.at.localeCompare(b.origin.at))
     const s = candidates[0]

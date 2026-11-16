@@ -182,7 +182,7 @@ test("子の id 宛ての SendMessage は再開として、起点より後の子
   store.close()
 })
 
-test("セッション間のメッセージは送り手の名前と文で結び、同じ文が 2 つあるときは時刻の順に、受信より前の送信から結ぶ", () => {
+test("セッション間のメッセージは送った側の名前と文で結び、同じ文が 2 つあるときは時刻の順に、受信より前の送信から結ぶ", () => {
   const a0 = user("知らせて")
   const a1 = [a0, said(sendMessage("m1", "beta", "済んだ")), results(ok("m1"))]
   const a2 = [...a1, user("もう一度"), said(sendMessage("m2", "beta", "済んだ")), results(ok("m2"))]
@@ -215,7 +215,42 @@ test("セッション間のメッセージは送り手の名前と文で結び�
   store.close()
 })
 
-test("結べない物は結ばない: 送信の無い受信、受信の無い送信、記録に無い子の戻り、道具の結果や返答の中の引用", () => {
+test("同じ文を何人かに送ったときは、宛先と受け手のセッションの名前で結ぶ", () => {
+  const sent = [
+    user("知らせて"),
+    said(sendMessage("m1", "beta", "進んだ"), sendMessage("m2", "gamma", "進んだ")),
+    results(ok("m1"), ok("m2")),
+  ]
+  const { store, ids } = record([
+    { session: "alpha", messages: [sent[0] as Message] },
+    { session: "alpha", messages: sent },
+    { session: "gamma", messages: [crossSession("alpha", "進んだ")] },
+    { session: "beta", messages: [crossSession("alpha", "進んだ")] },
+  ])
+  const [a0, , g, b] = ids
+  expect(all(store).arrows.map((x): unknown => [x.from.session, x.from.id, x.to.session, x.to.id])).toEqual([
+    ["alpha", a0, "gamma", g],
+    ["alpha", a0, "beta", b],
+  ])
+  store.close()
+})
+
+test("送った側の名前が送信のセッションの名前と合わないときは、同じ文の送信が 1 つだけなら結び、2 つ以上なら結ばない", () => {
+  const one = [user("x"), said(sendMessage("m1", "beta", "一つだけ")), results(ok("m1"))]
+  const two = (id: string) => [user("y"), said(sendMessage(id, "beta", "二つある")), results(ok(id))]
+  const { store, ids } = record([
+    { session: "s1", messages: [user("x")] },
+    { session: "s1", messages: one },
+    { session: "s2", messages: two("m2") },
+    { session: "s3", messages: two("m3") },
+    { session: "beta", messages: [crossSession("別名", "一つだけ"), crossSession("別名", "二つある")] },
+  ])
+  const [s1, , , , b] = ids
+  expect(all(store).arrows.map((x): unknown => [x.from.session, x.from.id, x.to.id])).toEqual([["s1", s1, b]])
+  store.close()
+})
+
+test("結べない物は結ばない: 送信の無い受信、受信の無い送信、記録に無い子の戻り、tool_result や返答の中の引用", () => {
   const quoted =
     '<cross-session-message from="uds:x" from-name="alpha" from-mode="prompting">\n済んだ\n</cross-session-message>'
   const { store } = record([
@@ -291,6 +326,9 @@ test("事実は開くときに骨組みから付け直し、版が変われば�
     again.close()
     expect(count()).toBe(facts)
   }
+  // 中継を立て直したあと（覚えが無い）に同じ並びが送られても、事実は増えない
+  record([{ messages: [...a, notified("a1", "t1")] }], path).store.close()
+  expect(count()).toBe(facts)
   expect(before.mcp.byTool).toEqual([
     { key: "read_page", calls: 1, chars: JSON.stringify("x".repeat(40)).length, max: 42 },
   ])
@@ -306,4 +344,40 @@ test("/api/timeline の期間は、指定が無いか読めなければ、終わ
     from: "2026-11-16T00:00:00.000Z",
     to: "2026-11-16T12:00:00.000Z",
   })
+})
+
+// 中継は Bun の fetch と Response で動く。このプロセスでは happy-dom がそれを差し替えているので、子のプロセスで動かす
+const relayScenario = `
+import { startRelay } from ${JSON.stringify(join(import.meta.dir, "../../scripts/relay-log.ts"))}
+import { openStore } from ${JSON.stringify(join(import.meta.dir, "../../scripts/relay-log/store.ts"))}
+const [db] = process.argv.slice(1)
+const up = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch() {
+  return new Response('event: message_stop\\ndata: {"type":"message_stop"}\\n\\n', { headers: { "content-type": "text/event-stream" } })
+} })
+const store = openStore(db)
+const relay = startRelay({ port: 0, store, upstream: { claude: "http://127.0.0.1:" + up.port } })
+const body = text => JSON.stringify({ model: "m", system: [{ type: "text", text: "sys" }], metadata: { user_id: JSON.stringify({ session_id: "sid" }) }, messages: [{ role: "user", content: text }] })
+for (const [agent, text] of [["c1", "A をして"], ["c2", "B をして"], ["", "親"]]) {
+  await fetch("http://127.0.0.1:" + relay.port + "/v1/messages", {
+    method: "POST", headers: { "content-type": "application/json", ...(agent ? { "x-claude-code-agent-id": agent } : {}) }, body: body(text),
+  }).then(r => r.text())
+}
+let entries = []
+for (let i = 0; i < 200 && entries.length < 3; i++) { await Bun.sleep(10); entries = store.entries() }
+const rows = store.timeline("2000-01-01T00:00:00Z", "2100-01-01T00:00:00Z")
+console.log(JSON.stringify({ entries: entries.map(e => [e.stream, e.diverge]), threads: rows.requests.map(r => r.thread), headers: entries.map(e => store.body(e.id).headers["x-claude-code-agent-id"] ?? null) }))
+relay.stop(true); up.stop(true)
+`
+
+test("中継は子の id のヘッダーを残してスレッドにし、同じ流れに並んだ子どうしで食い違いを出さない", async () => {
+  const child = Bun.spawn(["bun", "-e", relayScenario, join(dir, "relay.db")], { stdout: "pipe", stderr: "inherit" })
+  const got = JSON.parse(await new Response(child.stdout).text())
+  const stream = got.entries[0][0]
+  expect(got.entries).toEqual([
+    [stream, "none"],
+    [stream, "none"],
+    [stream, "none"],
+  ])
+  expect(got.threads).toEqual(["c1", "c2", MAIN_THREAD])
+  expect(got.headers).toEqual(["c1", "c2", null])
 })

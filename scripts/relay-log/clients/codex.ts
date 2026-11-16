@@ -152,7 +152,7 @@ export function threadOf(headers: Headers): string {
   return !thread || thread === headers.get("session-id") ? MAIN_THREAD : thread
 }
 
-// Codex のサブエージェント（spawn_agent など）と AI 間メッセージの届き方は、まだ録った記録が無いので取り出さない
+// Codex のサブエージェント（spawn_agent など）と AI 間メッセージの事実は取り出さない（空を返す）
 export const factsOf = (_item: unknown): ItemFacts => ({
   spawns: [],
   started: [],

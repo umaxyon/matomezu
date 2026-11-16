@@ -85,7 +85,7 @@ export type Started = { callId: string; agentId: string }
 export type Return = { agentId: string; how: "result" | "notification" | "handback" }
 // 送信。to は宛先（SendMessage はセッション名・uds: のアドレス・子の id、send_message はワークルーム名）
 export type Send = { callId: string; via: Via; to: string; text: string }
-// 受信。from は送り手の名前（SendMessage は from-name、send_message は送り手のワークルーム名）
+// 受信。from は送った側のセッションの名前（SendMessage は from-name、send_message は送ったワークルームの名前）
 export type Receipt = { via: Via; from: string; text: string }
 export type ItemFacts = { spawns: Spawn[]; started: Started[]; returns: Return[]; sends: Send[]; receipts: Receipt[] }
 
