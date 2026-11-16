@@ -1,6 +1,6 @@
-// 見本のブック（どれも、A4 横の図面のページが 1 つ）
+// 見本のブック（どれも、A4 横の図面のページが 1 つ。ページの id はブックをまたいで重ならない: b1 は p1、ほかは b2-p1 のようにブックの id を頭に付ける）
 import type { Book } from "../web/src/core/schema/book"
-import { testBook } from "./lineup"
+import { drawingPage, testBook } from "./lineup"
 
 const TITLES = [
   "まとめ図の構想",
@@ -13,4 +13,9 @@ const TITLES = [
   "Design Notes",
 ]
 
-export const SAMPLE_BOOKS: Book[] = TITLES.map((title, i) => testBook(`b${i + 1}`, title))
+// 見本のブック book のページの id
+export const samplePage = (book: string): string => (book === "b1" ? "p1" : `${book}-p1`)
+
+export const SAMPLE_BOOKS: Book[] = TITLES.map((title, i) =>
+  testBook(`b${i + 1}`, title, [drawingPage(samplePage(`b${i + 1}`))]),
+)

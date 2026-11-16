@@ -38,13 +38,13 @@ test("ロック中のブックと、ロック中のページを持つブック�
   const { actions } = store
   addPageIn(store, "s1", { type: "@matomezu/drawing:drawing", title: "ページ 2" })
   const page = pagesOf(store.state.getState().books.b1!)[1]?.id as string
-  actions.perform("@matomezu/base:page-lock", { page }, { book: "b1" })
+  actions.perform("@matomezu/base:page-lock", {}, { page })
   expect(actions.perform("@matomezu/base:book-trash", { book: "b1" })).toEqual({
     ok: false,
     reason: "denied",
     permission: "@matomezu/base:lock",
   })
-  actions.perform("@matomezu/base:page-unlock", { page }, { book: "b1" })
+  actions.perform("@matomezu/base:page-unlock", {}, { page })
   actions.perform("@matomezu/base:book-lock", {}, { book: "b1" })
   expect(actions.perform("@matomezu/base:book-trash", { book: "b1" })).toEqual({
     ok: false,
@@ -57,7 +57,7 @@ test("ロック中のページを持つブックのゴミ箱入れは、行う�
   const store = newStore()
   addPageIn(store, "s1", { type: "@matomezu/drawing:drawing", title: "ページ 2" })
   const page = pagesOf(store.state.getState().books.b1!)[1]?.id as string
-  store.actions.perform("@matomezu/base:page-lock", { page }, { book: "b1" })
+  store.actions.perform("@matomezu/base:page-lock", {}, { page })
   const world = worldOf(store.state.getState())
   const ctx = { catalog: store.catalog.core, controlCenter: store.controlCenter, actor: USER }
   expect(permittedIn(world, "@matomezu/base:book-trash", { book: "b1" }, undefined, ctx)).toEqual({

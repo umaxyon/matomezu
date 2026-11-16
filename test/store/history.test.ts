@@ -11,7 +11,7 @@ import { BUILTIN } from "../../web/src/plugins"
 import { isEnabled } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
-import { SAMPLE_BOOKS } from "../sample-books"
+import { SAMPLE_BOOKS, samplePage } from "../sample-books"
 import { newStore, sequence, sizedStore } from "../support"
 
 const BOX = "@matomezu/box:shape-nest-box"
@@ -98,7 +98,7 @@ test("ロック中のページを変えた画面の履歴の段は、元に戻�
   place(store, 40)
   await settled()
   const page = pagesOf(bookOf(store))[0]!.id
-  store.actions.perform("@matomezu/base:page-lock", { page }, { book: "b1" })
+  store.actions.perform("@matomezu/base:page-lock", {}, { page })
   expect(store.actions.command("s1", "@matomezu/base:undo")).toBe(true)
   expect(store.state.getState().toasts.at(-1)).toMatchObject({
     kind: "warn",
@@ -220,7 +220,7 @@ test("continueStep で足すのは、そのブックに最後に入れた画面�
   await settled()
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item: BOX, at: { x: 40, y: 40 }, props: { caption: "箱" } },
+    { page: "b2-p1", item: BOX, at: { x: 40, y: 40 }, props: { caption: "箱" } },
     { book: "b2" },
   )
   await settled()
@@ -238,7 +238,7 @@ test("いくつものブックを変えた画面の履歴の段にも、どち�
     store.actions.perform(
       "@matomezu/paper:item-place",
       {
-        page: book === "b1" ? pagesOf(bookOf(store))[0]!.id : "p1",
+        page: book === "b1" ? pagesOf(bookOf(store))[0]!.id : samplePage(book),
         item: BOX,
         at: { x, y: 40 },
         props: { caption: "箱" },
@@ -260,14 +260,14 @@ test("いくつものブックを変えた画面の履歴の段は、途中の�
   const placeIn = (book: string) =>
     store.actions.perform(
       "@matomezu/paper:item-place",
-      { page: "p1", item: BOX, at: { x: 40, y: 40 }, props: { caption: "箱" } },
+      { page: samplePage(book), item: BOX, at: { x: 40, y: 40 }, props: { caption: "箱" } },
       { book },
     )
   placeIn("b1")
   placeIn("b2")
   await settled()
   expect(Object.keys(historyOf(store)!.undo[0]!.books)).toEqual(["b1", "b2"])
-  store.actions.perform("@matomezu/base:page-lock", { page: "p1" }, { book: "b2" })
+  store.actions.perform("@matomezu/base:page-lock", {}, { page: "b2-p1" })
   expect(store.actions.command("s1", "@matomezu/base:undo")).toBe(true)
   expect(store.state.getState().toasts.at(-1)).toMatchObject({
     kind: "warn",
@@ -310,7 +310,7 @@ test("いくつものブックを変えた画面の履歴の段は、途中の�
   const placeIn = (book: string) =>
     store.actions.perform(
       "@matomezu/paper:item-place",
-      { page: "p1", item: BOX, at: { x: 40, y: 40 }, props: { caption: "箱" } },
+      { page: samplePage(book), item: BOX, at: { x: 40, y: 40 }, props: { caption: "箱" } },
       { book },
     )
   placeIn("b1")

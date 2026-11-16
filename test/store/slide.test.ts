@@ -36,12 +36,12 @@ function setup() {
     page: { type: "@matomezu/slide-book:slide", title: "1", into: { newBinder: "スライド" } },
   })
   const book = Object.keys(instance.state.getState().books).at(-1) as string
-  const perform = (id: string, args: object) =>
+  const perform = (id: string, args: object, on: { book: string } | { page: string } = { book }) =>
     (
       instance.actions as unknown as {
-        perform(id: string, a: object, on: { book: string }): { ok: boolean; result?: unknown }
+        perform(id: string, a: object, on: { book: string } | { page: string }): { ok: boolean; result?: unknown }
       }
-    ).perform(id, args, { book })
+    ).perform(id, args, on)
   const slide = () =>
     pagesOf(instance.state.getState().books[book]!)[0] as { id: string; slide?: Record<string, unknown>[] }
   const page = slide()?.id as string
@@ -191,13 +191,13 @@ test("ロック中のページでは、スライドのアイテムを動かせ�
   const s = setup()
   s.perform("@matomezu/slide:slide-place", { page: s.page, item: TEXT, at: { x: 10, y: 20 }, props: { text: "a" } })
   const item = s.slide()[0]?.id as string
-  expect(s.perform("@matomezu/base:page-lock", { page: s.page }).ok).toBe(true)
+  expect(s.perform("@matomezu/base:page-lock", {}, { page: s.page }).ok).toBe(true)
   for (const [id, args] of [
     ["@matomezu/slide:slide-move", { page: s.page, item, at: { x: 0, y: 0 } }],
     ["@matomezu/slide:slide-remove", { page: s.page, item }],
   ] as const)
     expect(s.perform(id, args)).toMatchObject({ ok: false })
   expect(s.slide()).toHaveLength(1)
-  expect(s.perform("@matomezu/base:page-unlock", { page: s.page }).ok).toBe(true)
+  expect(s.perform("@matomezu/base:page-unlock", {}, { page: s.page }).ok).toBe(true)
   expect(s.perform("@matomezu/slide:slide-move", { page: s.page, item, at: { x: 0, y: 0 } }).ok).toBe(true)
 })

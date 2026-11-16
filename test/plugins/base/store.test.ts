@@ -37,7 +37,7 @@ test("分けたステージは何も開いておらず、ブックを開くと�
   expect(ws.stages[1]!.opened).toMatchObject({
     type: "@matomezu/drawing:drawing",
     book: "b3",
-    page: "p1",
+    page: "b3-p1",
     paper: { status: "known" },
   })
   expect(ws.current).toBe("s2")

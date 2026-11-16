@@ -70,8 +70,8 @@ export function TreePageSettingsDialog({ args, onClose }: DialogProps<PageSettin
     const done = changeWithLock(
       page.locked === true,
       locked,
-      () => perform("@matomezu/base:page-lock", { page: page.id }).ok,
-      () => perform("@matomezu/base:page-unlock", { page: page.id }).ok,
+      () => perform("@matomezu/base:page-lock", {}, { page: page.id }).ok,
+      () => perform("@matomezu/base:page-unlock", {}, { page: page.id }).ok,
       () =>
         perform("@matomezu/base:page-update", {
           page: page.id,

@@ -117,14 +117,13 @@ test("長さの違う置き換えでも、1 つ置換のあとの今の当たり
 test("ページにロックが掛かっていると、そのページを替える置換は押せない（ブック全体の全部置換も）", () => {
   const { store, pages, setQuery } = markdownStore(["cat"])
   const { actions, state } = store
-  const book = screenOf(state.getState().window).stages[0]!.opened!.book
   actions.command("s1", "@matomezu/base:search-open")
   setQuery("cat", { replacement: "dog" })
   actions.command("s1", "@matomezu/base:search-next")
   const enabled = (id: "@matomezu/base:search-replace-one" | "@matomezu/base:search-replace-all") =>
     isEnabled(store, state.getState(), "s1", id)
   expect(enabled("@matomezu/base:search-replace-one")).toBe(true)
-  expect(actions.perform("@matomezu/base:page-lock", { page: pages()[0]! }, { book }).ok).toBe(true)
+  expect(actions.perform("@matomezu/base:page-lock", {}, { page: pages()[0]! }).ok).toBe(true)
   expect(enabled("@matomezu/base:search-replace-one")).toBe(false)
   expect(enabled("@matomezu/base:search-replace-all")).toBe(false)
 })

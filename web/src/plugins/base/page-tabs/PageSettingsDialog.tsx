@@ -57,8 +57,8 @@ export function PageSettingsDialog({ args, onClose }: DialogProps<{ page: string
     const done = changeWithLock(
       page.locked === true,
       locked,
-      () => perform(PAGE_LOCK.id, { page: page.id }).ok,
-      () => perform(PAGE_UNLOCK.id, { page: page.id }).ok,
+      () => perform(PAGE_LOCK.id, {}, { page: page.id }).ok,
+      () => perform(PAGE_UNLOCK.id, {}, { page: page.id }).ok,
       () =>
         perform(PAGE_UPDATE.id, {
           page: page.id,

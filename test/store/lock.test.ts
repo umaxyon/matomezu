@@ -40,7 +40,7 @@ test("ロック中のページは変えられず消せない。ほかのペー�
   const book = () => state.getState().books.b1 as Drawing
   addPageIn(store, "s1", { type: "@matomezu/drawing:drawing", title: "ページ 2" })
   const [first, second] = pagesOf(book()).map(p => p.id) as [string, string]
-  expect(actions.perform("@matomezu/base:page-lock", { page: first }, { book: "b1" }).ok).toBe(true)
+  expect(actions.perform("@matomezu/base:page-lock", {}, { page: first }).ok).toBe(true)
   expect(pagesOf(book())[0]?.locked).toBe(true)
   for (const [id, args] of [
     ["@matomezu/base:page-update", { page: first, title: "x" }],
@@ -52,7 +52,7 @@ test("ロック中のページは変えられず消せない。ほかのペー�
       permission: "@matomezu/base:lock",
     })
   expect(actions.perform("@matomezu/base:page-update", { page: second, title: "y" }, { book: "b1" }).ok).toBe(true)
-  expect(actions.perform("@matomezu/base:page-unlock", { page: first }, { book: "b1" }).ok).toBe(true)
+  expect(actions.perform("@matomezu/base:page-unlock", {}, { page: first }).ok).toBe(true)
   expect(actions.perform("@matomezu/base:page-remove", { page: first }, { book: "b1" }).ok).toBe(true)
 })
 
@@ -114,7 +114,7 @@ test("ロック中は、行うアクションをどれも認可ステップに�
   }
   const first = pagesOf(state.getState().books.b1 as Drawing)[0]!.id
   actions.openPage("s1", first)
-  expect(actions.perform("@matomezu/base:page-lock", { page: first }, { book: "b1" }).ok).toBe(true)
+  expect(actions.perform("@matomezu/base:page-lock", {}, { page: first }).ok).toBe(true)
   // 開いているページのロック: そのページを変えるコマンドは押せず、ブック単位のコマンドは押せる
   placing()
   expect(enabled("@matomezu/paper:paper-place")).toBe(false)

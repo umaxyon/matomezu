@@ -35,7 +35,7 @@ test("無いページ・並びの外の index・今と同じ所は断る。ロ�
   expect(move(0, 3).ok).toBe(false)
   expect(move(1, 1).ok).toBe(false)
   expect(move(2).ok).toBe(false)
-  expect(actions.perform("@matomezu/base:page-lock", { page: ids[0] as string }, { book: "b1" }).ok).toBe(true)
+  expect(actions.perform("@matomezu/base:page-lock", {}, { page: ids[0] as string }).ok).toBe(true)
   expect(move(1, 0).ok).toBe(true)
   expect(order()).toEqual([1, 0, 2])
   expect(actions.perform("@matomezu/base:book-lock", {}, { book: "b1" }).ok).toBe(true)

@@ -603,6 +603,31 @@ func TestSettingsActions(t *testing.T) {
 	}
 }
 
+// ページが宛先のアクションは、そのページを持っているブックで行い、そのブックを書く。ゴミ箱のブックのページは no-page
+func TestPerformOnAPage(t *testing.T) {
+	s := newServer(t, nil)
+	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
+	a := listen(t, s.URL)
+	next(t, a)
+	perform := func(action, args, on string) string {
+		_, got := send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:`+action+`","args":`+args+`,"on":`+on+`,"lang":"ja","now":"2026-10-29T00:00:00.000Z"}`, nil)
+		return got
+	}
+	if got := perform("page-lock", `{}`, `{"page":"p1"}`); got != `{"ok":true,"result":{}}` {
+		t.Fatalf("lock = %s", got)
+	}
+	if got := next(t, a); !strings.HasPrefix(got, "book ") || !strings.Contains(got, `"id":"b1"`) || !strings.Contains(got, `"locked":true`) {
+		t.Fatalf("book after lock = %s", got)
+	}
+	perform("page-unlock", `{}`, `{"page":"p1"}`)
+	if got := perform("book-trash", `{"book":"b1"}`, `null`); got != `{"ok":true,"result":{}}` {
+		t.Fatalf("trash = %s", got)
+	}
+	if got := perform("page-lock", `{}`, `{"page":"p1"}`); !strings.Contains(got, `"reason":"no-page"`) {
+		t.Fatalf("lock a page of a trashed book = %s", got)
+	}
+}
+
 // book-trash はブックに trashed の時刻を付けて知らせ（AI の読む口からは外れる）、/api/data にはゴミ箱に入ったまま出る。book-restore で戻し、trash-empty で消す（removed を知らせる）
 func TestTrashABook(t *testing.T) {
 	s := newServer(t, nil)
@@ -970,6 +995,17 @@ func TestListsWhyABookCannotBeRead(t *testing.T) {
 	page := `{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/drawing:drawing","title":"p"},"on":{"book":"f1"}}`
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", page, ai); got != `{"detail":"W004 ex2: book f1 (Flow): it has a page of type ex2:flow, which is not in the catalog","ok":false,"reason":"unreadable"}` {
 		t.Fatalf("perform on an unreadable book = %s", got)
+	}
+	// 宛先がページでも同じ（そのページを持っているブックが読めない）。どのブックにも無いページは no-page
+	lock := func(page string) string {
+		_, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-lock","args":{},"on":{"page":"`+page+`"}}`, ai)
+		return got
+	}
+	if got := lock("p1"); got != `{"detail":"W004 ex2: book f1 (Flow): it has a page of type ex2:flow, which is not in the catalog","ok":false,"reason":"unreadable"}` {
+		t.Fatalf("perform on a page of an unreadable book = %s", got)
+	}
+	if got := lock("gone"); !strings.Contains(got, `"reason":"no-page"`) || !strings.Contains(got, "there is no page with the id gone") {
+		t.Fatalf("perform on a page that is nowhere = %s", got)
 	}
 	if got := link(t, s, "../../test/added-plugins/ex2"); got != `{"id":"ex2","ok":true}` {
 		t.Fatalf("link again = %s", got)

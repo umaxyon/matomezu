@@ -2,10 +2,11 @@
 // 掛けるのは利用者も AI もでき、外すのは利用者だけ（userOnly）
 import { z } from "zod"
 import { isAI } from "../../../core/actor"
-import { findPage, pagesOf, putPage } from "../../../core/book"
+import { pagesOf } from "../../../core/book"
 import type { CatalogCheckDef } from "../../../core/core-catalog"
 import type { PermissionCheck } from "../../../core/def/permission"
 import { problem } from "../../../core/errors"
+import type { ItemPage } from "../../../core/placed"
 import { sameData } from "../../../core/same"
 import type { Book } from "../../../core/schema/book"
 import { setField } from "../fields"
@@ -33,13 +34,10 @@ export const LOCKABLE_CHECK: CatalogCheckDef = catalog => [
 const lockBook = (book: Book, on: boolean): Book | null =>
   !!book.locked === on ? null : setField(book, ["title"], "locked", on ? true : undefined)
 
-function lockPage(book: Book, page: string, on: boolean): Book | null {
-  const found = findPage(book, page)?.page
-  if (!found || !!found.locked === on) return null
-  return putPage(book, setField(found, ["orientation"], "locked", on ? true : undefined))
-}
+const lockPage = (page: ItemPage, on: boolean): ItemPage | null =>
+  !!page.locked === on ? null : setField(page, ["orientation"], "locked", on ? true : undefined)
 
-const PAGE_ARGS = z.strictObject({ page: z.string().min(1) })
+const PAGE_ARGS = z.strictObject({})
 
 export const BOOK_LOCK = kit.defineAction({
   id: "book-lock",
@@ -77,14 +75,14 @@ export const BOOK_UNLOCK = kit.defineAction({
 export const PAGE_LOCK = kit.defineAction({
   id: "page-lock",
   history: false,
-  attach: { books: true },
+  attach: { pages: true },
   aiDescription: `Lock a page: while locked, the page and everything on it cannot be changed or removed and its book cannot be moved to the trash, by the user or by AI (denied by ${kit.name("lock")}). Only the user can unlock it. Refused if the page does not exist or is already locked.`,
   title: "Lock page",
-  target: "book",
+  target: "page",
   args: PAGE_ARGS,
-  permissionScope: { page: "page" },
-  run: (book, args) => {
-    const next = lockPage(book, args.page, true)
+  permissionScope: "page",
+  run: page => {
+    const next = lockPage(page, true)
     return next ? { next, result: {} } : null
   },
 })
@@ -92,15 +90,15 @@ export const PAGE_LOCK = kit.defineAction({
 export const PAGE_UNLOCK = kit.defineAction({
   id: "page-unlock",
   history: false,
-  attach: { books: true },
+  attach: { pages: true },
   userOnly: true,
   aiDescription: "Unlock a page (only the user can).",
   title: "Unlock page",
-  target: "book",
+  target: "page",
   args: PAGE_ARGS,
-  permissionScope: { page: "page" },
-  run: (book, args) => {
-    const next = lockPage(book, args.page, false)
+  permissionScope: "page",
+  run: page => {
+    const next = lockPage(page, false)
     return next ? { next, result: {} } : null
   },
 })

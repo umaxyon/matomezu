@@ -20,16 +20,16 @@ function slideSetup(newId: () => string = sequence()) {
   })
   createBookIn(instance, "s1", { title: "スライド" })
   const book = Object.keys(instance.state.getState().books).at(-1) as string
-  const perform = (id: string, args: object) =>
+  const perform = (id: string, args: object, on: { book: string } | { page: string } = { book }) =>
     (
       instance.actions as unknown as {
         perform(
           id: string,
           a: object,
-          on: { book: string },
+          on: { book: string } | { page: string },
         ): { ok: boolean; result?: { page?: string; binder?: string } }
       }
-    ).perform(id, args, { book })
+    ).perform(id, args, on)
   const pages = () => pagesOf(instance.state.getState().books[book]!) as unknown as Pages
   // スライドを足す（まだバインダが無ければ、スライドのバインダを作ってその中に）
   let binder: string | undefined
@@ -66,7 +66,7 @@ test("page-duplicate は元のすぐ後ろに写しを足し、中の id を振�
     props: { text: "a" },
   })
   expect(placed.ok).toBe(true)
-  expect(s.perform("@matomezu/base:page-lock", { page: first }).ok).toBe(true)
+  expect(s.perform("@matomezu/base:page-lock", {}, { page: first }).ok).toBe(true)
   const done = s.perform("@matomezu/base:page-duplicate", { page: first, title: "A 写し" })
   expect(done.ok).toBe(true)
   const pages = s.pages()

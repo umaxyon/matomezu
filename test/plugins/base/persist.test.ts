@@ -35,7 +35,7 @@ test("アクションで変わったブックだけを残すように頼む。�
   expect(rec.books).toEqual([])
   store.actions.perform(
     "@matomezu/paper:item-place",
-    { page: "p1", item: "@matomezu/box:shape-nest-box", at: { x: 0, y: 0 } },
+    { page: "b2-p1", item: "@matomezu/box:shape-nest-box", at: { x: 0, y: 0 } },
     { book: "b2" },
   )
   expect(rec.books.map(b => b.id)).toEqual(["b2"])
