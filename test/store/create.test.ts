@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { z } from "zod"
 import { pagesOf } from "../../web/src/core/book"
+import { checkCoreCatalog } from "../../web/src/core/core-catalog"
 import { definePageType } from "../../web/src/core/def/page-type"
 import { type MatomezuError, problemText } from "../../web/src/core/errors"
 import { translate } from "../../web/src/core/i18n/i18n"
@@ -13,6 +14,7 @@ import { createMatomezu } from "../../web/src/store/create"
 import { defineDialog, defineDialogWith, type PageSettingsArgs } from "../../web/src/store/dialogs"
 import { definePlugin } from "../../web/src/store/plugin"
 import type { Actions } from "../../web/src/store/store"
+import { BUILTIN_PARTS } from "../support"
 
 // テストのプラグイン。型（core/catalog.ts）は書き足さない（書き足すと、このプロジェクトの全部のインスタンスに要るものになる）ので、インスタンスは partial で作る
 const NOTE = definePageType({
@@ -170,6 +172,26 @@ describe("インスタンスを作る", () => {
     definePlugin({ id: "notes", pageTypes: [paged({ add: settings })] })
     // @ts-expect-error ページを作るダイアログを、ページの設定のダイアログに名指している
     definePlugin({ id: "notes", pageTypes: [paged({ settings: add })] })
+  })
+
+  test("ページのタイプは、入れ物自身だけを変えるアクション（許可スコープが book）を足せも外せもしない（型の誤り。型の無い書き方は E066）。並びの要素や作るページのアクションは書ける", () => {
+    const acting = <const C>(actions: C) => ({ ...LEAF, actions })
+    definePlugin({
+      id: "notes",
+      pageTypes: [acting({ without: ["@matomezu/base:page-move", "@matomezu/base:page-add"] })],
+    })
+    // @ts-expect-error ブックの名前を変えるアクションは、入れ物自身だけを変える
+    definePlugin({ id: "notes", pageTypes: [acting({ without: ["@matomezu/base:book-update"] })] })
+    // @ts-expect-error まとめて見た目を変えるアクションも、入れ物自身だけを変える
+    definePlugin({ id: "notes", pageTypes: [acting({ add: ["@matomezu/base:pages-update"] })] })
+    const drawing = BUILTIN_PARTS.pageTypes.find(t => t.id === "@matomezu/drawing:drawing")!
+    const wrong = { ...drawing, actions: { without: ["@matomezu/base:book-update"] } }
+    expect(
+      checkCoreCatalog({
+        ...BUILTIN_PARTS,
+        pageTypes: BUILTIN_PARTS.pageTypes.map(t => (t === drawing ? wrong : t)),
+      } as never).map(p => p.code),
+    ).toEqual(["E066"])
   })
 
   test("ページのタイプがページのダイアログを名指すと、ページを作る・ページの設定のコマンドはそのダイアログを開く。ページは base の page-add・page-update で、タイプがページに足したフィールドごと作り変える", () => {

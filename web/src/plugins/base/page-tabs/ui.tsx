@@ -3,7 +3,14 @@ import { defineWidget } from "../../../ui/layout"
 import { kit } from "../kit"
 import { STAGE_SIDE } from "../workspace/slots"
 import { STAGE_SLOTS } from "../workspace/ui"
-import { ADD_PAGE_MENU, NEW_PAGE_DIALOG, PAGE_CONTEXT, PAGE_DELETE_DIALOG, PAGE_SETTINGS_DIALOG } from "."
+import {
+  ADD_PAGE_MENU,
+  NEW_PAGE_DIALOG,
+  PAGE_CONTEXT,
+  PAGE_DELETE_DIALOG,
+  PAGE_LIST_CONTEXT,
+  PAGE_SETTINGS_DIALOG,
+} from "."
 import { NewPageDialog } from "./NewPageDialog"
 import { PageDeleteDialog } from "./PageDeleteDialog"
 import { PageList } from "./PageList"
@@ -17,17 +24,18 @@ export const PAGE_TABS = defineWidget({
   view: PageTabs,
 })
 
-// ページ一覧（ステージの左の列。ページ一覧を選んだタイプのブックだけ描く）。ページの右クリックでメニュー page-context
+// ページ一覧（ステージの左の列。フォルダにまとまるタイプのページを開いている間だけ描く）。ページの右クリックでメニュー page-list-context
 export const PAGE_LIST = defineWidget({
   id: kit.name("page-list"),
   slots: [STAGE_SIDE],
-  contextMenus: [PAGE_CONTEXT],
+  contextMenus: [PAGE_LIST_CONTEXT],
   view: PageList,
 })
 
 declare module "../../../core/catalog" {
   interface ContextMenuTable {
-    "@matomezu/base:page-context": { page: string } // ページ一覧のページ（右クリックしたページの id）
+    "@matomezu/base:page-context": { page: string } // ページタブのページ（右クリックしたページの id）
+    "@matomezu/base:page-list-context": { page: string } // ページ一覧のページ（右クリックしたページの id）
     "@matomezu/base:add-page-menu": { first: string | null } // 先頭に並べるタイプ（開いているページのタイプ。無ければ null）
   }
 }

@@ -51,6 +51,7 @@ export const ERRORS = {
   E063: 'action {id}: its permissionScope is "book" (no page named), so its attach cannot have {attach} (they depend on a page type)',
   E064: "setting {id}: a page or book setting needs holder (page or book)",
   E065: "userSetting {id}: a user setting takes no holder",
+  E066: 'pageType {id}: actions.{field} has {action}, whose permissionScope is "book" (it changes the container itself, so no page type decides it)',
   E048: "subject {id}: lockable needs a locked field in its record (true, optional)",
   E049: "action {id}: lockSwitch is only for an action whose target is a lockable subject",
   E052: "skin {id}: palette has {color} for {role}, which is not #rrggbb",

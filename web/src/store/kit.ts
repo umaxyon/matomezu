@@ -2,7 +2,7 @@
 // 返した定義の id は本当の id（型も）で、自分の物はそれか kit.name(名前) で名指す。ほかのプラグインの物は本当の id で書く。
 // 頭を付けるのは、定義の id・名前（title。自分の文言の短い鍵）・宣言するテーマキーの id・テーマが上書きする自分のテーマキーだけ
 import type { ActionId, DialogExtras, MessageKey } from "../core/catalog"
-import type { ActionAttach, ActionDef, ActionTarget, ScopeRequired } from "../core/def/action"
+import type { ActionAttach, ActionDef, ActionTarget, OnContainer, ScopeRequired } from "../core/def/action"
 import type { AnnotationDef } from "../core/def/annotation"
 import type { ControlCenterDef } from "../core/def/control-center"
 import type { EnumDataOf, EnumDef, EnumValueDef } from "../core/def/enum"
@@ -92,9 +92,10 @@ export interface PluginKit<P extends string, M extends MessageMap> {
     R,
     I,
     const At extends ActionAttach | undefined = undefined,
+    const Sc = unknown,
   >(
-    def: ActionDef<T, A, R, I, keyof M & string, At> & { id: Id } & ScopeRequired<T, A>,
-  ): Omit<ActionDef<T, A, R, I, MessageKey, At>, "id"> & { id: Owned<P, Id> }
+    def: ActionDef<T, A, R, I, keyof M & string, At> & { id: Id } & ScopeRequired<T, A> & { permissionScope?: Sc },
+  ): Omit<ActionDef<T, A, R, I, MessageKey, At>, "id"> & { id: Owned<P, Id> } & OnContainer<Sc>
 
   // 既定を持つ項目は、読むとき（settingValue）に必ず値があると分かるように、default を持つ形で返す
   // 設定の項目。holder（"page" か "book"）を書いた定義はページ・ブックの項目、書かない定義は利用者の設定の項目（型に holder が残り、読む関数が合う項目だけを受ける）

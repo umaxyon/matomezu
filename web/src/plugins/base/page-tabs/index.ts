@@ -37,7 +37,10 @@ export const PAGE_DELETE_DIALOG = kit.defineDialogWith<{ page: string }>()({
 })
 
 // ページ一覧のページの右クリックのメニュー（受け取るのは右クリックしたページの id）
+// ページタブのページの右クリックのメニュー
 export const PAGE_CONTEXT = kit.name("page-context")
+// ページ一覧のページの右クリックのメニュー（ページタブのメニューに、ここにページを足すが加わる）
+export const PAGE_LIST_CONTEXT = kit.name("page-list-context")
 // ページタブの＋が開く、ページのタイプの一覧のメニュー
 export const ADD_PAGE_MENU = kit.name("add-page-menu")
 
@@ -132,7 +135,8 @@ export const PAGE_DUPLICATE_COMMAND = kit.defineCommand({
     const done = a.perform(PAGE_DUPLICATE.id, { page }, { book: ctx.book.id })
     if (done.ok) a.openPage(done.result.page)
   },
-  permissionScope: { entry: "page" },
+  // 画面では、ロックしたページの複製を押せなくする（アクションは、並びの要素として複製する）
+  permissionScope: { page: "page" },
   when: ctx => ctx.book !== null,
 })
 

@@ -1,7 +1,16 @@
 // プラグイン: 1 つの部品の定義の組（定義の種類は core/catalog.ts の PARTS と、store の物（コマンド・ダイアログ・既定のキーバインドなど））。React を使わない部分だけを持つ。
 // インスタンスは渡されたプラグインを assemble で 機能台帳（Assembled の catalog）にし、作った後は変えない
 
-import { type CorePart, type MessageKey, PARTS, type Part, type PartDefTable, partsOf } from "../core/catalog"
+import {
+  type ActionId,
+  type ActionTable,
+  type CorePart,
+  type MessageKey,
+  PARTS,
+  type Part,
+  type PartDefTable,
+  partsOf,
+} from "../core/catalog"
 import { buildCoreCatalog, type CatalogCheckDef, type CoreCatalog, type CoreCatalogParts } from "../core/core-catalog"
 import type { ShapeAddArgs, ShapeEditArgs } from "../core/def/item"
 import type { NormalizeStepDef } from "../core/def/normalize-step"
@@ -108,6 +117,23 @@ type PageDialogCheck<P> = [WrongPageAdd<P> | WrongPageSettings<P>] extends [neve
         string]: "ページを作るダイアログは値を受けないか { type, folder? } を受け、ページの設定のダイアログは PageSettingsArgs を受ける"
     }
 
+// ページのタイプが足す・外すアクション（actions の add・without）のうち、入れ物自身だけを変えるアクション（許可スコープが "book"。どのページのタイプでも決まらないので、書けない）
+type ContainerActionId = {
+  [K in ActionId]: ActionTable[K] extends { permissionScope: "book" } ? K : never
+}[ActionId]
+type TypeActionsOf<P> = P extends { pageTypes?: readonly (infer T)[] }
+  ? T extends { actions: infer C }
+    ? (C extends { add: readonly (infer X)[] } ? X : never) | (C extends { without: readonly (infer Y)[] } ? Y : never)
+    : never
+  : never
+type WrongTypeActions<P> = TypeActionsOf<P> & ContainerActionId
+type TypeActionsCheck<P> = [WrongTypeActions<P>] extends [never]
+  ? unknown
+  : {
+      [id in WrongTypeActions<P> &
+        string]: "入れ物自身だけを変えるアクション（許可スコープが book）は、ページのタイプの actions に書けない"
+    }
+
 // 無効にしたプラグイン: 名乗り（id・名前・概要）と文言だけを残し、定義の部品は全部外した物（組むのは名乗りと文言だけなので、アクション・種類・キーなどは台帳に入らない）。
 // 外す（組み込みから除く）のとは違い、プラグインは組み込まれたまま、設定の「プラグイン」に並ぶ
 export const withoutParts = <P extends Plugin>(p: P): Plugin => ({
@@ -119,7 +145,11 @@ export const withoutParts = <P extends Plugin>(p: P): Plugin => ({
 
 // プラグインを書く入口。id の頭と、形とページのタイプが名指すダイアログの受ける値を型で確かめる（台帳アセンブルでも確かめる）
 export const definePlugin = <const P extends Plugin>(
-  plugin: P & PrefixCheck<P> & ShapeDialogCheck<P> & PageDialogCheck<P> & { checks?: never; normalizeSteps?: never },
+  plugin: P &
+    PrefixCheck<P> &
+    ShapeDialogCheck<P> &
+    PageDialogCheck<P> &
+    TypeActionsCheck<P> & { checks?: never; normalizeSteps?: never },
 ): P => plugin
 
 // ビルトインプラグインが台帳アセンブルのときの確かめ（checks）を書くための型と、問題と warning の作り方、テーマキーに書かれた値の引き方（plugin-api/builtin が出し直す）
@@ -130,7 +160,7 @@ export { problem, warning, writtenValues }
 // 印は symbol の項目に持つ（見た目を結ぶときなど、プラグインを写しても印が残る）
 const BUILTIN_MARK = Symbol("matomezu.builtin")
 export function defineBuiltin<const P extends Plugin>(
-  plugin: P & PrefixCheck<P> & ShapeDialogCheck<P> & PageDialogCheck<P>,
+  plugin: P & PrefixCheck<P> & ShapeDialogCheck<P> & PageDialogCheck<P> & TypeActionsCheck<P>,
 ): P {
   return Object.assign(plugin, { [BUILTIN_MARK]: true })
 }

@@ -399,6 +399,14 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
       const typed = (["items", "presentations", "annotations"] as const).filter(k => a.attach?.[k] !== undefined)
       if (typed.length > 0) problems.push(problem("E063", { id: a.id, attach: typed.join(", ") }))
     }
+  // 入れ物自身だけを変えるアクション（許可スコープが "book"）は、どのページのタイプでも決まらないので、タイプは足せも外せもしない
+  for (const t of parts.pageTypes)
+    for (const field of ["add", "without"] as const)
+      for (const id of t.actions[field] ?? []) {
+        const a = actions.get(id)
+        if (a?.target === "book" && a.permissionScope === "book")
+          problems.push(problem("E066", { id: t.id, field, action: id }))
+      }
   for (const t of parts.pageTypes) {
     for (const id of t.settings ?? []) {
       const def = settings.get(id)

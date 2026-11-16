@@ -1,7 +1,7 @@
 // ステージの左に縦に並べるページ一覧（ウィジェット page-list。スロット stage-side）: フォルダ（スライド）を開いている間だけ出し、開いているフォルダのページを並べる。
 // ページごとに、ページの番号とサムネイルを並べる。サムネイルは、ページのタイプの見せ方の印刷区画 1 つのビュー（printSheet）で描き、一覧の幅に合わせて縮める
 // （ステージの拡大縮小には従わない）。押したページをそのステージで開く（コマンド page-open）。開いているページは枠と太字の番号で示す。
-// ドラッグで並べ替える（useTabDrag の縦。アクション page-move）。ページの右クリックでメニュー（page-context。ここに追加・複製・削除）。
+// ドラッグで並べ替える（useTabDrag の縦。アクション page-move）。ページの右クリックでメニュー（page-list-context。ここに追加・複製・削除）。
 // 一覧の下の＋は、最後にページを足す（コマンド page-add-after。空のフォルダなら、そのフォルダに足して開く）。ロック中のページには鍵の印を付ける
 
 import { useRef, useState } from "react"
@@ -22,7 +22,7 @@ import { pageArea } from "../place/items"
 import { Printing } from "../print-preview/printing"
 import { SheetLayers } from "../print-preview/SheetLayers"
 import { useResize } from "../utils/useResize"
-import { PAGE_ADD_AFTER, PAGE_CONTEXT, PAGE_OPEN } from "."
+import { PAGE_ADD_AFTER, PAGE_LIST_CONTEXT, PAGE_OPEN } from "."
 import styles from "./PageList.module.css"
 import { PAGE_ADD } from "./page-add"
 import { useAddPage } from "./useAddPage"
@@ -79,7 +79,7 @@ export function PageList() {
   const addAfter = useCommand(PAGE_ADD_AFTER.id)
   const addInto = useAddPage()
   const adds = useAllowed(PAGE_ADD.id).ok
-  const openMenu = useContextMenu(PAGE_CONTEXT)
+  const openMenu = useContextMenu(PAGE_LIST_CONTEXT)
   const t = useMessages(kit)
   const list = useRef<HTMLDivElement | null>(null)
   const folder = book && opened ? findFolder(book, folderOf(book, opened) ?? "") : undefined

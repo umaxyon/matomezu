@@ -215,6 +215,9 @@ export type AnyLibraryScope =
   | ((args: never) => LibraryTargets)
 
 // ブックが対象・一覧が対象・利用者の設定が対象のアクションは、許可スコープを必ず書く（defineAction の型が求める）
+// 許可スコープが "book"（入れ物自身だけを変える）と書いたアクションの印: 定義の型に "book" を残す（ページのタイプが足す・外すアクションの id から外すのに使う。core/def/page-type.ts）
+export type OnContainer<Sc> = Sc extends "book" ? { permissionScope: "book" } : unknown
+
 export type ScopeRequired<T extends ActionTarget, A> = T extends "book"
   ? { permissionScope: PermissionScope<A> }
   : T extends "library"
@@ -327,8 +330,9 @@ export function defineAction<
   R,
   I,
   const At extends ActionAttach | undefined = undefined,
+  const Sc = unknown,
 >(
-  def: ActionDef<T, A, R, I, MessageKey, At> & { id: Id } & ScopeRequired<T, A>,
-): ActionDef<T, A, R, I, MessageKey, At> & { id: Id } {
-  return def
+  def: ActionDef<T, A, R, I, MessageKey, At> & { id: Id } & ScopeRequired<T, A> & { permissionScope?: Sc },
+): ActionDef<T, A, R, I, MessageKey, At> & { id: Id } & OnContainer<Sc> {
+  return def as never
 }

@@ -202,6 +202,13 @@ export const DEFAULT_LAYOUT = defineLayout({
     // 行は、メニューが自分で並べる（ページのタイプの一覧）
     "@matomezu/base:add-page-menu": [],
     "@matomezu/base:page-context": [
+      "@matomezu/base:page-duplicate",
+      "@matomezu/base:scrap-cut",
+      "@matomezu/base:background-edit",
+      "-",
+      "@matomezu/base:page-delete",
+    ],
+    "@matomezu/base:page-list-context": [
       "@matomezu/base:page-add-after",
       "@matomezu/base:page-duplicate",
       "@matomezu/base:scrap-cut",
