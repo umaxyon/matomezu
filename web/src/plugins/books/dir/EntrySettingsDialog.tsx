@@ -26,6 +26,7 @@ import { NodeIcon } from "./node-icon"
 export function EntrySettingsDialog({ args, onClose }: DialogProps<{ page: string; entry: string }>) {
   const t = useMessages(kit)
   const form = useId()
+  const iconGroup = useId() // アイコンのラジオの組の名前
   const book = useBook()
   const page = book ? findPage(book, args.page)?.page : undefined
   const root = dirRootOf(page)
@@ -75,24 +76,23 @@ export function EntrySettingsDialog({ args, onClose }: DialogProps<{ page: strin
         </Field>
         <Field label={t("Icon")}>
           {() => (
-            <div className={styles.icons} role="radiogroup" aria-label={t("Icon")}>
+            <fieldset className={styles.icons} aria-label={t("Icon")}>
               {iconsFor(catalog, entry.kind)
                 .sort((x, y) => Number(y.id === DEFAULT_ICON[entry.kind]) - Number(x.id === DEFAULT_ICON[entry.kind]))
                 .map(value => (
-                  <button
-                    key={value.id}
-                    type="button"
-                    role="radio"
-                    className={styles.icon}
-                    aria-checked={(icon ?? DEFAULT_ICON[entry.kind]) === value.id}
-                    aria-label={tr(value.title)}
-                    title={tr(value.title)}
-                    onClick={() => setIcon(value.id === DEFAULT_ICON[entry.kind] ? undefined : value.id)}
-                  >
+                  <label key={value.id} className={styles.icon} title={tr(value.title)}>
+                    <input
+                      type="radio"
+                      className={styles.radio}
+                      name={iconGroup}
+                      aria-label={tr(value.title)}
+                      checked={(icon ?? DEFAULT_ICON[entry.kind]) === value.id}
+                      onChange={() => setIcon(value.id === DEFAULT_ICON[entry.kind] ? undefined : value.id)}
+                    />
                     <NodeIcon kind={entry.kind} icon={value.id} open={false} size={18} />
-                  </button>
+                  </label>
                 ))}
-            </div>
+            </fieldset>
           )}
         </Field>
         {refused && <Problem>{t(refused)}</Problem>}

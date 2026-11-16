@@ -3,7 +3,15 @@
 import type { z } from "zod"
 import { translate } from "../../../plugin-api"
 import { kit } from "../kit"
-import { type CardSize, DONE_LANE_CARD_SIZE, INHERIT_CARD_SIZE, type LANES, type TAGS } from "."
+import {
+  CARD_SHOWS_DEFAULT,
+  type CardShows,
+  type CardSize,
+  DONE_LANE_CARD_SIZE,
+  INHERIT_CARD_SIZE,
+  type LANES,
+  type TAGS,
+} from "."
 
 type Say = (key: Parameters<typeof translate>[2]) => string
 
@@ -19,7 +27,13 @@ export const projectNameOf = (say: Say): string => say(kit.message("template pro
 export function templateOf(
   say: Say,
   newId: () => string,
-): { lanes: z.output<typeof LANES>; tags: z.output<typeof TAGS>; doneLane: string; cardSize: CardSize } {
+): {
+  lanes: z.output<typeof LANES>
+  tags: z.output<typeof TAGS>
+  doneLane: string
+  cardSize: CardSize
+  cardShows: CardShows
+} {
   const done = newId()
   return {
     lanes: [
@@ -64,5 +78,6 @@ export function templateOf(
     ],
     doneLane: done,
     cardSize: "medium",
+    cardShows: CARD_SHOWS_DEFAULT,
   }
 }

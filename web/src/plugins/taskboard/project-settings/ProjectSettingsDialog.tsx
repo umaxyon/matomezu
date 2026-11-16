@@ -1,4 +1,4 @@
-// プロジェクト設定: 左のタブで、画面の見出し「全般」（プロジェクト名・チケットプレフィクス）・「チケットタグ」・「レーン」を切り替える（切り替えても入れた値は残る）。
+// プロジェクト設定: 左のタブで、画面の見出し「全般」（プロジェクト名・チケットプレフィクス・チケットサイズ・優先度を出す）・「チケットタグ」・「レーン」を切り替える（切り替えても入れた値は残る）。
 // プロジェクト名とチケットプレフィクスは必須。チケットプレフィクスは英字 1〜3 字と、最後にハイフン 1 つまでしか打てず、ほかのプロジェクトと重なれば知らせる。
 // 名前が空か、どれかが重なっている間は保存できない。保存はプロジェクトを直すアクション 1 回で、常駐の答えを待ってから閉じる（断られたらダイアログの中に出す）。
 // プロジェクトが無いか、直せなければ（閉じたプロジェクトなど。認可ステップに聞く）、すぐ閉じる
@@ -13,7 +13,7 @@ import {
   useRecords,
 } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
-import { ActionButton, controlClass, Dialog, Field, Form, Problem, SideTabs } from "../../base/ui"
+import { ActionButton, controlClass, Dialog, Field, Form, Problem, SideTabs, Switch } from "../../base/ui"
 import { kit } from "../kit"
 import { NO_DONE_LANE, PREFIX_PATTERN, PROJECT, PROJECT_NAME_MAX, sameName } from "../project"
 import { PROJECT_UPDATE } from "../project/actions"
@@ -68,6 +68,7 @@ function Settings({
   const lanes = useEditableRows<LaneRow>(() => laneRowsOf(project))
   const tags = useEditableRows<TagRow>(() => tagRowsOf(project))
   const [cardSize, setCardSize] = useState(project.cardSize)
+  const [cardShows, setCardShows] = useState(project.cardShows)
   const [doneKey, setDoneKey] = useState(project.doneLane ?? NO_DONE_LANE) // 完了のレーンに選んだ行の鍵（もうあるレーンは id。無ければ none）
   const [refused, setRefused] = useState<string | null>(null)
   const others = useRecords(PROJECT.id, { where: [] }).filter(p => p.id !== project.id)
@@ -91,7 +92,7 @@ function Settings({
   const save = async () => {
     const done = await actions.performConfirmed(
       PROJECT_UPDATE.id,
-      updateArgsOf(name, prefix, lanes.rows, tags.rows, doneKey, cardSize),
+      updateArgsOf(name, prefix, lanes.rows, tags.rows, doneKey, cardSize, cardShows),
       {
         record: project.id,
       },
@@ -160,6 +161,16 @@ function Settings({
               </Field>
               <Field label={t("Ticket size")}>
                 {() => <ProjectCardSizeChoices value={cardSize} onChange={setCardSize} />}
+              </Field>
+              <Field label={t("Show priority")}>
+                {id => (
+                  <Switch
+                    id={id}
+                    label={t("Show priority")}
+                    checked={cardShows.priority}
+                    onChange={priority => setCardShows({ ...cardShows, priority })}
+                  />
+                )}
               </Field>
             </div>
             <div className={styles.fill} hidden={tab !== "tags"}>
