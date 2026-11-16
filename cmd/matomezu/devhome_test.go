@@ -47,3 +47,16 @@ func TestDevRoot(t *testing.T) {
 		t.Errorf("outside a repository = %q", got)
 	}
 }
+
+// Claude Code の monitor には CLAUDE_PROJECT_DIR が渡らないので、今いるフォルダで見る
+func TestClaudeProjectDir(t *testing.T) {
+	t.Setenv("CLAUDE_PROJECT_DIR", "/p")
+	if got := claudeProjectDir(); got != "/p" {
+		t.Errorf("with the env %q", got)
+	}
+	t.Setenv("CLAUDE_PROJECT_DIR", "")
+	wd, _ := os.Getwd()
+	if got := claudeProjectDir(); got != wd {
+		t.Errorf("without the env %q, want %q", got, wd)
+	}
+}

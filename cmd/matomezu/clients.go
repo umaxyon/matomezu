@@ -41,13 +41,23 @@ type claudeCodeCmd struct {
 	Watch claudeWatchCmd `cmd:"" help:"Claude Code's monitor: print one line for each thing that should wake this session."`
 }
 
-// claudeDev は、Claude Code が開いているプロジェクトが matomezu のリポジトリなら、開発の常駐を使い（起動し直すことがある）、その根を返す
+// claudeDev は、Claude Code が開いているプロジェクトが matomezu のリポジトリなら、開発の常駐を使い（起動し直すことがある）、その根を返す。
+// monitor には ProjectDirEnv が渡らないので、無ければ今いるフォルダ（Claude Code はプロジェクトのフォルダで立てる）で見る
 func claudeDev() string {
-	root := devRoot(os.Getenv(claudelaunch.ProjectDirEnv))
+	root := devRoot(claudeProjectDir())
 	if root != "" {
 		useDev(root)
 	}
 	return root
+}
+
+// claudeProjectDir は、Claude Code が開いているプロジェクトのフォルダ（ProjectDirEnv、無ければ今いるフォルダ）
+func claudeProjectDir() string {
+	if d := os.Getenv(claudelaunch.ProjectDirEnv); d != "" {
+		return d
+	}
+	d, _ := os.Getwd()
+	return d
 }
 
 type claudeMCPCmd struct{}
