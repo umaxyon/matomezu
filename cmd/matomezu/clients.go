@@ -96,7 +96,7 @@ type claudePromptCmd struct{}
 // Run は、ターンの始まりを知らせ、待つアノテーションを添える
 func (claudePromptCmd) Run() error {
 	claudeDev()
-	hookPrompt(hookHost(claudelaunch.HooksSendHost))
+	hookPrompt(hookHost(claudelaunch.HooksSendHost), claudelaunch.HookSetsTitle)
 	return nil
 }
 
@@ -175,7 +175,7 @@ type codexPromptCmd struct{}
 // Run は、ターンの始まりを知らせ、待つアノテーションを添える
 func (codexPromptCmd) Run() error {
 	codexDev()
-	hookPrompt(hookHost(codexlaunch.HooksSendHost))
+	hookPrompt(hookHost(codexlaunch.HooksSendHost), codexlaunch.HookSetsTitle)
 	return nil
 }
 
@@ -193,12 +193,14 @@ type opencodeCmd struct {
 	Deliver deliverOpencodeCmd `cmd:"" help:"Hand a wake notice to an opencode conversation through the opencode background server (opencode/service.json under XDG_STATE_HOME, ~/.local/state when unset), as an input that is not the user's (synthetic) marked as a wake notice: the text on stdin, the conversation in MATOMEZU_SESSION. Exits 0 when delivered, 3 when the server does not have that conversation, 1 when it failed."`
 }
 
-// hookPrompt は、話しかけのフック: 待つアノテーションの文を添えて、ターンの始まりを常駐に知らせ、フックの答えを出す（host は AI のプログラムのプロセス id、分からなければ空）
-func hookPrompt(host string) {
+// hookPrompt は、話しかけのフック: 待つアノテーションの文を添えて、ターンの始まりを常駐に知らせ、フックの答えを出す（host は AI のプログラムのプロセス id、分からなければ空。
+// titled は、答えに会話の題名 sessionTitle を書くか）
+func hookPrompt(host string, titled bool) {
 	var notes bytes.Buffer
 	writeAnnotations(&notes)
 	hook := stdinHook()
 	hook.Host = host
+	hook.Titled = titled
 	talked(os.Stdout, hook, notes.String(), formatHook, runningAPI("api/ai/talked"))
 }
 

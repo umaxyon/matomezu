@@ -37,3 +37,6 @@ var Remove = [][]string{
 	{"claude", "plugin", "uninstall", "matomezu@matomezu"},
 	{"claude", "plugin", "marketplace", "remove", "matomezu"},
 }
+
+// HookSetsTitle は、話しかけのフックの答えに会話の題名（sessionTitle）を書くか。Claude Code はそれでセッション名を替える
+const HookSetsTitle = true

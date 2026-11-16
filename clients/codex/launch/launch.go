@@ -94,3 +94,6 @@ var Remove = [][]string{
 
 // NotFoundMessage は、フック（hooks/hooks.json）が matomezu を PATH に見つけられないときに Codex に出させる文
 const NotFoundMessage = "matomezu was not found. Install it again (npm i -g matomezu) or remove this plugin (codex plugin remove matomezu@matomezu)."
+
+// HookSetsTitle は、話しかけのフックの答えに会話の題名（sessionTitle）を書くか。Codex は知らない項目のある答えを「invalid user prompt submit JSON output」として捨てる
+const HookSetsTitle = false
