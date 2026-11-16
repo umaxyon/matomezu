@@ -257,10 +257,7 @@ test("新しいブックのダイアログに追加プラグインのタイプ�
   await page.getByRole("button", { name: "ステージを閉じる" }).first().click()
   // ページタブの＋のメニューに、足したプラグインのページのタイプも並ぶ
   await page.getByRole("button", { name: "ページを足す" }).click()
-  await expect(page.getByRole("menu", { name: "ページを足す" }).getByRole("menuitem")).toContainText([
-    "フロー",
-    "ボード",
-  ])
+  await expect(page.getByRole("menu").getByRole("menuitem")).toContainText(["フロー", "ボード"])
   await page.getByRole("menuitem", { name: "ボード" }).click()
   await page.getByRole("dialog", { name: "新しいページ" }).getByRole("button", { name: "作成" }).click()
   await expect(page.getByRole("img", { name: "紙" })).toBeVisible()

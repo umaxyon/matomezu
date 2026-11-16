@@ -3,6 +3,7 @@
 import type { MouseEvent } from "react"
 import { useShallow } from "zustand/react/shallow"
 import type { ContextMenuId, ContextMenuTable } from "../core/catalog"
+import type { Point } from "../core/geom"
 import { isShown } from "../store/commands"
 import { type AnchorMenuCommandId, type ContextMenuEntry, SEPARATOR, tidySeparators } from "./layout"
 import { useAt } from "./scope"
@@ -43,16 +44,21 @@ export function suppressContextMenu(): void {
 // 向け先のステージで、右クリックされた物 target のメニュー id を、押した位置に開く。ブラウザのメニューは出さない。
 // 右ボタンを押している間なら、離したときに開く。開くコンポーネント（ウィジェットかブックのビュー）は、そのメニューを contextMenus に書く。
 // 向け先が無い所（ステージの外で見るだけに描くページの中）では、開かない（右クリックは外へ渡す）
-export function useContextMenu<M extends ContextMenuId>(
-  id: M,
-): (
-  e: Pick<MouseEvent, "preventDefault" | "stopPropagation" | "clientX" | "clientY">,
-  target: ContextMenuTable[M],
-) => void {
+export function useContextMenu<M extends ContextMenuId>(id: M): (e: MouseEvent, target: ContextMenuTable[M]) => void {
   const at = useAt()
   const open = useOpenContextMenu()
   return (e, target) => {
     if (at !== null) open(e, at, id, target)
+  }
+}
+
+// 向け先のステージで、ボタンを押して開くメニュー id を、画面の位置 at に開く口（右ボタンの押し続けの決まりは通らない）。
+// 向け先が無い所では、開かない
+export function useButtonMenu<M extends ContextMenuId>(id: M): (at: Point, target: ContextMenuTable[M]) => void {
+  const stage = useAt()
+  const { openContextMenu } = useStoreActions()
+  return (at, target) => {
+    if (stage !== null) openContextMenu(stage, id, target, at)
   }
 }
 

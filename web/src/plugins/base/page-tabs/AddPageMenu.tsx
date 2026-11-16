@@ -1,12 +1,13 @@
 // ページタブの＋: 押すとページのタイプの一覧のメニュー（add-page-menu）を＋の上に開く。
 // メニューの行（AddPageRows。右クリックのメニューの置き場が、このメニューの頭に並べる）は、開いているページのタイプを先頭に、ほかは機能台帳の順。
 // 選んだタイプのページを作るダイアログを開く（コマンド page-new）
+import { useRef } from "react"
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { OpenedContextMenu } from "../../../store/context-menus"
 import { useCommand } from "../../../ui/commands"
-import { useContextMenu } from "../../../ui/context-menu"
+import { useButtonMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
-import { useCatalog, useUiCatalog } from "../../../ui/store-context"
+import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { MenuRow } from "../context-menu/MenuRow"
 import { kit } from "../kit"
 import { ADD_PAGE_MENU, PAGE_NEW } from "."
@@ -22,7 +23,10 @@ export function typesToAdd(catalog: CoreCatalog, first: string | null): string[]
 export function AddPageMenu({ first }: { first: string | null }) {
   const t = useMessages(kit)
   const newPage = useCommand(PAGE_NEW.id)
-  const open = useContextMenu(ADD_PAGE_MENU)
+  const open = useButtonMenu(ADD_PAGE_MENU)
+  // 開いている間に＋を押したら、閉じるだけにする（外を押した扱いで先に閉じるので、押し始めに開いていたかを覚える）
+  const opened = useMatomezuState(s => s.contextMenu?.id === ADD_PAGE_MENU)
+  const wasOpened = useRef(false)
   if (!newPage.shown) return null
   return (
     <button
@@ -30,19 +34,16 @@ export function AddPageMenu({ first }: { first: string | null }) {
       className={styles.add}
       aria-label={t("Add page")}
       aria-haspopup="menu"
+      aria-expanded={opened}
+      onPointerDown={() => {
+        wasOpened.current = opened
+      }}
       disabled={!newPage.enabled}
       onClick={e => {
+        if (wasOpened.current) return
         const r = e.currentTarget.getBoundingClientRect()
         // ＋の左上を、メニューの左下にする（右クリックのメニューの置き場が、上へ開く）
-        open(
-          {
-            preventDefault: () => e.preventDefault(),
-            stopPropagation: () => e.stopPropagation(),
-            clientX: r.left,
-            clientY: r.top - 4,
-          },
-          { first },
-        )
+        open({ x: r.left, y: r.top - 4 }, { first })
       }}
     >
       <svg viewBox="0 0 16 16" aria-hidden="true">
