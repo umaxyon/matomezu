@@ -13,7 +13,7 @@ type Skeleton = {
   fixed: Record<string, string>
   list: { name: string; hashes: string[] }
 }
-// Claude Code の本文の決まったキーで持っていた形
+// 名前付きの骨組みでない行の形（Claude Code の本文の system・tools・messages のキー）
 type ClaudeSkeleton = { rest: Record<string, unknown>; system?: string; tools?: string; messages: string[] }
 export type NewEntry = Omit<Entry, "id">
 export type SessionRow = { session: string; n: number; lastAt: string }
@@ -92,7 +92,7 @@ export function openStore(path: string) {
     }
   })
 
-  // probe を付ける前に記録した行に、本文から付け直す（本文を残していない行は付けられない）。枠の確かめは Claude Code だけ
+  // probe の無い行に、本文から付け直す（本文を残していない行は付けられない）。枠の確かめは Claude Code だけ
   const markProbes = () => {
     const rows = db
       .query(

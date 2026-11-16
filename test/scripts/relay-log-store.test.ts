@@ -133,7 +133,7 @@ test("Codex の本文も元の形で読み戻し、input の項目を 1 度だ�
   store.close()
 })
 
-test("古い形の行（AI の列・名前付きの骨組み・そろえた usage が無い）を、開くときに Claude Code の行として移す", () => {
+test("AI の列・名前付きの骨組み・そろえた usage が無い行を、開くときに Claude Code の行として移す", () => {
   const path = join(dir, "old.db")
   const old = new Database(path)
   old.run("CREATE TABLE blobs (hash TEXT PRIMARY KEY, data TEXT NOT NULL)")

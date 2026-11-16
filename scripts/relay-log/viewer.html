@@ -162,8 +162,8 @@ async function load() {
   const next = await get("/api/entries?" + query)
   if (next.length !== entries.length || next.at(-1)?.id !== entries.at(-1)?.id) { entries = next; renderRows() }
 }
-document.getElementById("session").onchange = () => { entries = []; load() }
-document.getElementById("client").onchange = () => { entries = []; load() }
+document.getElementById("session").onchange = () => { entries = []; renderRows(); load() }
+document.getElementById("client").onchange = () => { entries = []; renderRows(); load() }
 load()
 setInterval(load, 3000)
 </script>

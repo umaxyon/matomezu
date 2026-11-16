@@ -97,8 +97,8 @@ export function divergeAt(prev: string[] | undefined, cur: string[]): string {
   return i === "none" ? i : `input${i}`
 }
 
-// join のあとに入る「Workroom name: <名前>」の最後の 1 つ。フックの文が user と developer のどちらの message に入るかは
-// 録った本文で確かめていないので、両方の文から探す（道具の結果に入る join の答えは見ない）
+// join のあとに入る「Workroom name: <名前>」の最後の 1 つ。フックの文は user と developer のどちらの message の文からも探す
+// （道具の結果に入る join の答えは見ない）
 export function workroomNameOf(body: ResponsesBody): string | undefined {
   let name: string | undefined
   for (const i of body.input ?? []) {
