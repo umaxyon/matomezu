@@ -98,7 +98,7 @@
 /* 列の右上の角（ステージの上に浮かぶ。中身のスクロールバーに重ならないよう、その幅だけ内側） */
 .corner {
   position: absolute;
-  top: 7px;
+  top: 3px;
   right: calc(7px + var(--scrollbar-w, 0px));
   z-index: 4;
   display: flex;
