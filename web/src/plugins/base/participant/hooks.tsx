@@ -7,9 +7,17 @@ import { useMatomezuState } from "../../../ui/store-context"
 import { useActions, useCoreCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { refusalMessage } from "../utils/refusal"
-import { ADMIN_MARK, PARTICIPANT, type Participant, WORKROOM, type Workroom } from "."
+import {
+  ADMIN_MARK,
+  ADMIN_SET,
+  PARTICIPANT,
+  PARTICIPANT_REMOVE,
+  type Participant,
+  WORKROOM,
+  WORKROOM_REMOVE,
+  type Workroom,
+} from "."
 import { workroomActivityOf } from "./activity"
-import { type Do, leaveWorkroom, makeAdmin, removeWorkroom } from "./join-flow"
 import { adminRoomOf, type WorkroomRow, workroomRows } from "./rows"
 
 // 参加者のレコード（種類 PARTICIPANT。要求が届いた順）と、ワークルームのレコード（作った順）
@@ -73,8 +81,15 @@ export function useWorkroomRows(): readonly WorkroomRow[] {
   )
 }
 
-// ワークルームを動かす関数（ワークルームを出る・消す・管理者にする）。どれも行って、断られたら断りをトーストで知らせ、行えたかを返す。
-// 消すときは、いる参加者を先に外す（続けて行う。外したあとに消すのが断られたら、空室が残る）
+// アクションを 1 件行う関数（useActions の perform）。成功なら ok が true で result を持ち、断られたら ok が false
+export type Do = (
+  id: string,
+  args: object,
+  on?: { record: string },
+) => { ok: boolean; result?: unknown; reason?: string; permission?: string }
+
+// ワークルームを動かす関数（ワークルームを出る・消す・管理者にする）。どれも 1 つのアクションで行って、断られたら断りをトーストで知らせ、行えたかを返す。
+// 消すときは、いる参加者 occupant も同じアクションで外す
 export interface WorkroomActions {
   leave: (occupant: string) => boolean
   remove: (room: string, occupant?: string) => boolean
@@ -99,9 +114,10 @@ export function useWorkroomActions(): WorkroomActions {
       return done.ok
     }
     return {
-      leave: occupant => settle(leaveWorkroom(doing, occupant)),
-      remove: (room, occupant) => settle(removeWorkroom(doing, room, occupant)),
-      makeAdmin: room => settle(makeAdmin(doing, room)),
+      leave: occupant => settle(doing(PARTICIPANT_REMOVE.id, {}, { record: occupant })),
+      remove: (room, occupant) =>
+        settle(doing(WORKROOM_REMOVE.id, occupant === undefined ? {} : { occupant }, { record: room })),
+      makeAdmin: room => settle(doing(ADMIN_SET.id, { workroom: room })),
     }
   }, [perform, showToast, catalog])
 }

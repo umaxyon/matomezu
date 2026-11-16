@@ -1,7 +1,6 @@
-// ワークルームごとの行（base/participant/rows.ts の workroomRows・adminRoomOf）と、ワークルームを動かす流れ（join-flow.ts の leaveWorkroom・removeWorkroom・makeAdmin）
+// ワークルームごとの行（base/participant/rows.ts の workroomRows・adminRoomOf）
 import { expect, test } from "bun:test"
 import type { Participant, Workroom } from "../../../web/src/plugins/base/participant"
-import { type Do, leaveWorkroom, makeAdmin, removeWorkroom } from "../../../web/src/plugins/base/participant/join-flow"
 import { adminRoomOf, workroomRows } from "../../../web/src/plugins/base/participant/rows"
 
 const room = (id: string, name = id): Workroom => ({ id, name, bird: "inko", createdAt: "t" })
@@ -65,34 +64,6 @@ test("管理者の印が指すワークルームが無い・印が無ければ�
   expect(adminRoomOf({ workroom: "none" }, rooms)).toBeUndefined()
   expect(adminRoomOf({ workroom: "gone" }, rooms)).toBeUndefined()
   expect(adminRoomOf(undefined, rooms)).toBeUndefined()
-})
-
-test("ワークルームを出る・管理者にする・ワークルームを消すは、アクションを 1 件ずつ続けて行い、途中で断られたら止める（空室が残る）", () => {
-  const calls: string[] = []
-  const answers: Record<string, boolean> = {}
-  const perform: Do = (id, _args, on) => {
-    calls.push(`${id}${on ? `:${on.record}` : ""}`)
-    return answers[id] === false ? { ok: false, reason: "declined" } : { ok: true }
-  }
-  expect(leaveWorkroom(perform, "pa").ok).toBe(true)
-  expect(makeAdmin(perform, "a").ok).toBe(true)
-  expect(removeWorkroom(perform, "a", "pa").ok).toBe(true)
-  expect(removeWorkroom(perform, "c").ok).toBe(true)
-  expect(calls).toEqual([
-    "@matomezu/base:participant-remove:pa",
-    "@matomezu/base:admin-set",
-    "@matomezu/base:participant-remove:pa",
-    "@matomezu/base:workroom-remove:a",
-    "@matomezu/base:workroom-remove:c",
-  ])
-  calls.length = 0
-  answers["@matomezu/base:workroom-remove"] = false
-  expect(removeWorkroom(perform, "a", "pa")).toMatchObject({ ok: false, reason: "declined" })
-  expect(calls).toEqual(["@matomezu/base:participant-remove:pa", "@matomezu/base:workroom-remove:a"]) // 外したあとに断られたら、空室が残る
-  calls.length = 0
-  answers["@matomezu/base:participant-remove"] = false
-  expect(removeWorkroom(perform, "a", "pa").ok).toBe(false)
-  expect(calls).toEqual(["@matomezu/base:participant-remove:pa"]) // 外すのが断られたら、消すところまで行かない
 })
 
 test("行は、ワークルームの作業の様子を持ち、知らされていなければ unknown", () => {

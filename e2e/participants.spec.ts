@@ -212,7 +212,7 @@ async function acceptAs(page: Page, name: string) {
   await joinedOnHost(page)
 }
 
-// 受け入れ（部屋を作る→入れるの続けて行うアクション）が、常駐まで届くのを待つ
+// 受け入れのアクションが、常駐まで届くのを待つ
 const joinedOnHost = (page: Page) =>
   expect.poll(async () => (await participants(page)).some(p => p.state === "joined")).toBe(true)
 
@@ -243,7 +243,7 @@ test("生きていない参加者のワークルームの名前で頼むと、�
   await dialog.getByRole("button", { name: "引き継ぐ" }).click()
   await expect(dialog).toHaveCount(0)
 
-  // 続けて行うアクションは、常駐へ順に届くので、揃うまで待つ
+  // アクションが常駐に届くまで待つ
   await expect
     .poll(() => participants(page))
     .toMatchObject([{ id: next.participant, state: "joined", workroom: "ひよこ", sessionName: "新" }])
