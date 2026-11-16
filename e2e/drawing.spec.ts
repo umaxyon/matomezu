@@ -2,7 +2,6 @@ import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./helpers/footer-menu"
 import { addFromTabs } from "./helpers/new-book"
 import { addBox, confirmBox, items, onPaper, zoomOf } from "./helpers/paper"
-import { fromMenu } from "./helpers/stage-menu"
 import { BODY, coreWidthOf } from "./text-widths"
 
 test("箱のツールを押すとポインタに点線の箱が付き、紙の上で押して追加のダイアログで追加すると、そこに置かれて選ばれ、道具は選択に戻る", async ({
@@ -554,12 +553,14 @@ test("ページの設定のダイアログでテーマと紙の色を選ぶと�
   expect(await look()).toEqual({ paper: "rgb(239, 246, 255)", box: "rgb(255, 243, 166)" })
 })
 
-test("ブックの名前のボタンのメニューからブックの設定を開いて名前を変えると、ボタンの名前が変わる。空の間は確定できない", async ({
+test("紙の右クリックの「ブックの設定」で名前を変えると、ブックの名前のボタンの名前が変わる。空の間は確定できない", async ({
   page,
 }) => {
   await page.goto(BOOK_SCREEN_URL)
   const trigger = page.locator('button[aria-haspopup="menu"]').first()
-  await (await fromMenu(page, "ブックの設定")).click()
+  const empty = await onPaper(page, 900, 600)
+  await page.mouse.click(empty.x, empty.y, { button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "ブックの設定" }).click()
   const dialog = page.getByRole("dialog", { name: "ブックの設定" })
   const name = dialog.getByLabel("ブックの名前")
   await expect(name).toHaveValue("まとめ図の構想")

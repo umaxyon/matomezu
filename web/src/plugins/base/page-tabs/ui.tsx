@@ -1,6 +1,8 @@
 // ページの見た目: ページのタブのウィジェットと、ページを作るダイアログ・ページの設定のダイアログ
+
 import { defineWidget } from "../../../ui/layout"
 import { kit } from "../kit"
+import { GEAR_ICON } from "../utils/gear-icon"
 import { STAGE_SIDE } from "../workspace/slots"
 import { STAGE_SLOTS } from "../workspace/ui"
 import {
@@ -47,14 +49,6 @@ declare module "../../../core/catalog" {
     "@matomezu/base:add-page-menu": { first: string | null } // 先頭に並べるタイプ（開いているページのタイプ。無ければ null）
   }
 }
-
-// 設定を開くコマンドのアイコン（歯車）
-export const GEAR_ICON = (
-  <svg viewBox="0 0 24 24" aria-hidden="true">
-    <circle cx="12" cy="12" r="3" />
-    <path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8" />
-  </svg>
-)
 
 // 開いている物（ページかフォルダ）の設定を開くコマンドのアイコン
 export const PAGE_SETTINGS_ICONS = {

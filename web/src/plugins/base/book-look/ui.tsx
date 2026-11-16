@@ -1,6 +1,6 @@
 // ブックの設定の見た目: ブックの設定のダイアログと、それを開くコマンドのアイコン（歯車）と、テーマと紙の色の設定の項目のビュー
 
-import { GEAR_ICON } from "../page-tabs/ui"
+import { GEAR_ICON } from "../utils/gear-icon"
 import { BOOK_SETTINGS, BOOK_SETTINGS_DIALOG } from "."
 import { BookSettingsDialog } from "./BookSettingsDialog"
 import { PaperColorSetting, ThemeSetting } from "./LookSettings"
