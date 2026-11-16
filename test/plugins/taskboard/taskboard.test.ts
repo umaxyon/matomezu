@@ -33,7 +33,8 @@ function ready() {
   const run = (actor: typeof AI | typeof USER, action: string, args: unknown, on?: { record: string }) => {
     const s = store.state.getState()
     const world = {
-      books: {},
+      pages: {},
+      folders: {},
       settings: s.settings,
       annotations: {},
       records: s.records,
@@ -221,7 +222,14 @@ test("閉じたプロジェクトは、行う前の問いでも、開け直す�
   const p = projects()[0] as Project
   user("project-close", {}, { record: p.id })
   const s = store.state.getState()
-  const world = { books: {}, settings: s.settings, annotations: {}, records: s.records, counters: s.counters }
+  const world = {
+    pages: {},
+    folders: {},
+    settings: s.settings,
+    annotations: {},
+    records: s.records,
+    counters: s.counters,
+  }
   const asked = (action: string) =>
     permittedIn(
       world,

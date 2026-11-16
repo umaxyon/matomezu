@@ -80,7 +80,8 @@ test("AI はマークを付けられないが、読んだ印を付けて外せ�
   const book = s.books.b1!
   expect(annotationsForAi(CORE_CATALOG, pagesOf(book)[0]!, marks()).map(m => m.awaits)).toEqual([true])
   let world = {
-    books: s.books,
+    pages: s.pages,
+    folders: s.folders,
     settings: s.settings,
     annotations: s.annotations,
     participants: [],

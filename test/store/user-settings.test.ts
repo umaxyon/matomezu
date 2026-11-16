@@ -41,7 +41,8 @@ const ctx = (catalog = CORE_CATALOG, actor: Actor = USER) => ({
 test("利用者だけが変える項目は、AI には変えさせず、AI が読む設定と AI に見せる引数の形にも出さない", () => {
   const catalog = assemble([...BUILTIN, EX], "@matomezu/control-center:control-center").catalog.core
   const world = {
-    books: {},
+    pages: {},
+    folders: {},
     settings: { "@ex/u:secret": "s" },
     annotations: {},
     participants: [],

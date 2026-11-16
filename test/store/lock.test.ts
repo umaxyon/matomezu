@@ -5,6 +5,7 @@ import { type Actor, AI, USER } from "../../web/src/core/actor"
 import { pagesOf } from "../../web/src/core/book"
 import type { MessageKey } from "../../web/src/core/catalog"
 import { changesOf } from "../../web/src/core/changes"
+import { withChanges } from "../../web/src/core/folders"
 import { type PerformedIn, performIn } from "../../web/src/core/perform"
 import type { Book } from "../../web/src/core/schema/book"
 import { screenOf } from "../../web/src/core/window"
@@ -62,7 +63,8 @@ test("AI はロックを掛けられるが外せない（userOnly のアクシ�
     actor,
   })
   let world = {
-    books: state.getState().books,
+    pages: state.getState().pages,
+    folders: state.getState().folders,
     settings: state.getState().settings,
     annotations: {},
     participants: [],
@@ -71,7 +73,7 @@ test("AI はロックを掛けられるが外せない（userOnly のアクシ�
   }
   const run = (id: string, actor?: Actor): PerformedIn => {
     const done = performIn(world, id, {}, { book: "b1" }, ctx(actor))
-    if (done.ok && done.book) world = { ...world, books: { ...world.books, [done.book.id]: done.book } }
+    if (done.ok && done.changes) world = { ...world, ...withChanges(world, done.changes) }
     return done
   }
   expect(run("@matomezu/base:book-lock", AI).ok).toBe(true)

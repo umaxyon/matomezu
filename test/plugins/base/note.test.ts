@@ -173,7 +173,8 @@ test("AI は伝言を付け・変え・消せない（利用者だけ）が、�
   const id = notes()[0]!.id
   const s = store.state.getState()
   const world = {
-    books: s.books,
+    pages: s.pages,
+    folders: s.folders,
     settings: s.settings,
     annotations: s.annotations,
     participants: [],

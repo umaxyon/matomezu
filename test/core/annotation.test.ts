@@ -11,6 +11,7 @@ import {
   unexpired,
 } from "../../web/src/core/annotation"
 import { findPage } from "../../web/src/core/book"
+import { tablesOf } from "../../web/src/core/folders"
 import { performIn } from "../../web/src/core/perform"
 import { warningText } from "../../web/src/core/warnings"
 import { drawingPage, FLOWCHART, testBook, testPage } from "../lineup"
@@ -45,7 +46,7 @@ test("種類が機能台帳に無い物は W018、形が合わない物は W019 
 
 test("効かないアノテーションがあっても、ほかのアノテーションは変えられ、効かない物はそのまま残る", () => {
   const world = {
-    books: { d: book },
+    ...tablesOf([book]),
     settings: {},
     annotations: { p: [GOOD, BAD, GONE] },
     participants: [],

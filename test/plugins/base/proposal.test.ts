@@ -159,7 +159,8 @@ test("送るときに読むのは、引数 book のブック 1 冊だけ（reads
     ]),
   }
   const world = {
-    books: { ...s.books, other: { ...s.books.b1, id: "other" } },
+    pages: s.pages,
+    folders: s.folders,
     settings: s.settings,
     annotations: s.annotations,
     records: s.records,

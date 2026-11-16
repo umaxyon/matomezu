@@ -211,7 +211,8 @@ describe("アクションの入口", () => {
   })
 
   test("ビルトインプラグインのアクションも同じ入口を通り、ブックを開いているステージを合わせる", () => {
-    const { state, actions } = newStore({ newId: () => "made" })
+    const ids = ["made", "first"]
+    const { state, actions } = newStore({ newId: () => ids.shift() ?? "spare" })
     createBookIn({ state, actions }, "s1", { title: "空" })
     actions.split("s1")
     actions.openBook("s2", "made")
@@ -220,8 +221,8 @@ describe("アクションの入口", () => {
       { type: "@matomezu/drawing:drawing", title: "最初" },
       { book: "made" },
     )
-    expect(done).toEqual({ ok: true, result: { page: "made" } })
-    expect(screenOf(state.getState().window).stages.map(s => shownPageId(s.opened ?? null))).toEqual(["made", "made"])
+    expect(done).toEqual({ ok: true, result: { page: "first" } })
+    expect(screenOf(state.getState().window).stages.map(s => shownPageId(s.opened ?? null))).toEqual(["first", "first"])
   })
 
   test("宛先のブックが無い・名指したページのタイプが許さない・引数の形が違うときは断り、状態を変えない", () => {

@@ -70,7 +70,8 @@ test("ブックを開いていないステージには、ページは足せな�
 })
 
 test("ブックを作ると、振った id で一覧に入り、そのステージでページの無いまま開く。名前が空なら作らない", () => {
-  const { state, actions } = newStore({ newId: () => "made" })
+  const ids = ["made", "first"]
+  const { state, actions } = newStore({ newId: () => ids.shift() ?? "spare" })
   actions.split("s1")
   expect(createBookIn({ state, actions }, "s2", { title: " " })).toBe(false)
   expect(createBookIn({ state, actions }, "s2", { title: "新しい図" })).toBe(true)
@@ -85,7 +86,7 @@ test("ブックを作ると、振った id で一覧に入り、そのステー�
     orientation: "portrait",
   })
   expect(screenOf(state.getState().window).stages[1]!.opened).toMatchObject({
-    page: "made",
+    page: "first",
     paper: { size: { w: 1123, h: 1587 } },
   })
 })

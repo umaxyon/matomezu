@@ -71,7 +71,8 @@ test("AI は手紙を送れるが、見た・行き先を見た・消すはで�
   const id = mails()[0]!.id
   const s = store.state.getState()
   const world = {
-    books: s.books,
+    pages: s.pages,
+    folders: s.folders,
     settings: s.settings,
     annotations: s.annotations,
     records: s.records,
@@ -115,7 +116,14 @@ test("上限を超えたときの送るアクションは、足す 1 通と消�
   for (let i = 0; i < 200; i++) send({ from: "a", title: `t${i}` })
   const s = store.state.getState()
   const done = performIn(
-    { books: s.books, settings: s.settings, annotations: s.annotations, records: s.records, counters: s.counters },
+    {
+      pages: s.pages,
+      folders: s.folders,
+      settings: s.settings,
+      annotations: s.annotations,
+      records: s.records,
+      counters: s.counters,
+    },
     SEND,
     { from: "a", title: "over" },
     undefined,

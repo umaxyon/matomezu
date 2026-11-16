@@ -20,6 +20,7 @@ import { briefLine } from "../core/brief"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, type AIEditTicketChange, stopsOnEditLock } from "../core/def/action"
+import { libraryOf, tablesOf, withChanges } from "../core/folders"
 import { slideIsBackground } from "../core/def/page-type"
 import type { SubjectDef } from "../core/def/subject"
 import { detectLang, translate } from "../core/i18n/i18n"
@@ -211,7 +212,8 @@ function perform(input: Input): Output {
   const counters = restoreCounters(input.counters)
   const actor = actorOfWire(input.actor)
   const source = hostSource(records)
-  const world = { books, settings, annotations, records, counters, ...(source ? { source } : {}) }
+  const tables = tablesOf(Object.values(books))
+  const world = { ...tables, settings, annotations, records, counters, ...(source ? { source } : {}) }
   const done = performIn(world, input.action, input.args, input.on, {
     catalog,
     controlCenter,
@@ -221,9 +223,10 @@ function perform(input: Input): Output {
     actor,
   })
   if (!done.ok) return refusal(catalog, done)
-  const next = done.books
-  const changed = done.book ? [done.book] : Object.values(next ?? {}).filter(b => books[b.id] !== b)
-  const removed = next ? Object.keys(books).filter(id => !(id in next)) : []
+  // 変わったブック（組み直した値）と、無くなったブック
+  const next = done.changes ? libraryOf(withChanges(tables, done.changes)) : books
+  const changed = Object.values(next).filter(b => books[b.id] !== b)
+  const removed = Object.keys(books).filter(id => !(id in next))
   const notice = shiftNotice(books, changed)
   // 行った後のブック（無くなったブックは無い）
   const after = (id: string): Book | undefined =>

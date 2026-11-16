@@ -5,7 +5,7 @@
 import type { z } from "zod"
 import { USER } from "./actor"
 import { type Annotation, type Annotations, annotationsSettle, type PageAnnotations, prune } from "./annotation"
-import { findPage, holds, keepsPageTypes, pageById, pagesOf, putPage } from "./book"
+import { findPage, holds, keepsPageTypes, pagesOf, putPage } from "./book"
 import type { ActionId, ActionTable } from "./catalog"
 import { changesOf } from "./changes"
 import { type CoreCatalog, pageType } from "./core-catalog"
@@ -33,6 +33,16 @@ import {
 } from "./def/action"
 import type { Referred } from "./def/permission"
 import type { SubjectDef } from "./def/subject"
+import {
+  bookIdOf,
+  bookOf,
+  changesBetween,
+  createdIn,
+  libraryOf,
+  noChanges,
+  type TableChanges,
+  type Tables,
+} from "./folders"
 import { idsIn, skipping } from "./ids"
 import { decidedByPlace, deniedBy, type Inspected, inspect, typeAllows, withoutPermissions } from "./inspect"
 import type { Library } from "./library"
@@ -473,9 +483,8 @@ function recordChanges(
   return changes
 }
 
-// アクションが変えるもの全部: ブックの一覧（ゴミ箱のブックも）と、利用者の設定と、ページごとのアノテーションと、対象の定義が足した種類のレコードと番号の表
-export interface World {
-  books: Library
+// アクションが変えるもの全部: ページの表とフォルダの表（ゴミ箱のブックの分も。ブックは、ここから組む。core/folders.ts）と、利用者の設定と、ページごとのアノテーションと、対象の定義が足した種類のレコードと番号の表
+export interface World extends Tables {
   settings: Settings
   annotations: Annotations
   records: Records // 対象の定義が足した種類ごとのレコード（種類の id → id → レコード）
@@ -484,14 +493,13 @@ export interface World {
   source?: RecordSource
 }
 
-// performIn の結果。変わったものだけを持つ（book はブックが対象のアクションで変わったブック、books は一覧が対象のアクションの新しい一覧、
+// performIn の結果。変わったものだけを持つ（changes は変わった・足した・無くなったページとフォルダ。ブック・ページ・一覧が対象のアクションで、何も変わらなければ無い。
 // annotations はアノテーションが変わったページの id → 新しい並び。アノテーションが対象のアクションのほか、ページの物が消えたときと、ページが無くなったときと、ブックが一覧から無くなったときにも変わる）
 export type PerformedIn =
   | {
       ok: true
       result: unknown
-      book?: Book
-      books?: Library
+      changes?: TableChanges
       settings?: Settings
       annotations?: Annotations
       records?: readonly RecordChange[] // レコードが対象のアクションで変わったレコード（宛先の 1 件が先で、ほかは run が返した順。1 つのトランザクションで当てる）
@@ -503,12 +511,11 @@ export type PerformedIn =
   | { ok: false; reason: "no-record"; detail: string }
 
 // ページかアノテーションが対象のアクションの宛先（on のページ）と、そのページを持っているブック（performIn と permittedIn で同じ決まりを使う）。
-// ゴミ箱のブックのページは無いものとし、同じ id のページが 2 冊にあれば、どちらとも決めずに無いとする
+// ゴミ箱のブックのページと、どのブックにも入っていないページは、無いものとする
 function pageIn(world: World, on: ActionOn | undefined): PageInBook | NoPage {
   const page = (on && "page" in on ? on.page : undefined) ?? ""
-  const kept = Object.fromEntries(Object.entries(world.books).filter(([, b]) => b.trashed === undefined))
-  const book = pageById(kept, page)?.book
-  return book ? { book, page } : noPage(page)
+  const book = bookOf(world, bookIdOf(world.folders, page) ?? "")
+  return book && book.trashed === undefined && world.pages[page] ? { book, page } : noPage(page)
 }
 
 // on.record に指した id のレコードが無いときの断り: どの種類のどの id が無いか。AI に見える種類なら、直し方（一覧の引き方）と種類の説明（id が何の id か）も
@@ -551,7 +558,7 @@ export function performIn(
   if (target === "book") {
     const book = bookIn(world, on as { book: string } | undefined)
     if (!book) return { ok: false, reason: "no-book" }
-    return changedBook(book, world.annotations, loose(book, id, args, ctx))
+    return changedBook(world, book, loose(book, id, args, ctx))
   }
   if (target === "annotations") {
     const at = pageIn(world, on)
@@ -567,20 +574,25 @@ export function performIn(
   if (target === "page") {
     const at = pageIn(world, on)
     if ("ok" in at) return at
-    return changedBook(at.book, world.annotations, loose(at, id, args, ctx))
+    return changedBook(world, at.book, loose(at, id, args, ctx))
   }
   if (target === "library") {
-    const done = loose(world.books, id, args, ctx)
+    const library = libraryOf(world)
+    const done = loose(library, id, args, ctx)
     if (!done.ok) return done
     const books = done.next as Library
-    // 一覧から無くなったブックのページのアノテーションは消す
-    const gone = Object.values(world.books)
-      .filter(b => !books[b.id])
-      .flatMap(b => pagesOf(b).map(p => p.id))
-      .filter(p => (world.annotations[p]?.length ?? 0) > 0)
-    return gone.length === 0
-      ? { ok: true, result: done.result, books }
-      : { ok: true, result: done.result, books, annotations: Object.fromEntries(gone.map(p => [p, []])) }
+    const changes = changesBetween(Object.values(library), Object.values(books))
+    if (collides(world, Object.values(library), changes)) return { ok: false, reason: "refused" }
+    // 無くなったページのアノテーションは消す
+    const gone = Object.entries(changes.pages)
+      .filter(([p, v]) => v === REMOVED && (world.annotations[p]?.length ?? 0) > 0)
+      .map(([p]) => p)
+    return {
+      ok: true,
+      result: done.result,
+      ...(noChanges(changes) ? {} : { changes }),
+      ...(gone.length === 0 ? {} : { annotations: Object.fromEntries(gone.map(p => [p, []])) }),
+    }
   }
   const done = loose(world.settings, id, args, ctx)
   if (!done.ok) return done
@@ -589,13 +601,21 @@ export function performIn(
   return same ? { ok: true, result: done.result } : { ok: true, result: done.result, settings: next }
 }
 
-// ブックを変えるアクションの結果 done を、変わった物だけの形にする（book は行う前のブック、annotations はページごとのアノテーション）。
+// 変わり changes が新しく足すページ・フォルダの id が、世界 world にもう在るか（行う前のブック before に無かった物を足すなら、その id は世界のどこにも無いこと。
+// ページもフォルダも、ちょうど 1 つのフォルダに入り、id は世界の中で重ならない）
+const collides = (world: Tables, before: readonly Book[], changes: TableChanges): boolean =>
+  createdIn(before, changes).some(id => id in world.pages || id in world.folders)
+
+// ブックを変えるアクションの結果 done を、変わった物だけの形にする（book は行う前のブック）。
 // ブックの id を変えていたら断り、変わったページでは無くなった物をアノテーションのアンカーから外し、無くなったページのアノテーションは消す
-function changedBook(book: Book, annotations: Annotations, done: ReturnType<typeof perform>): PerformedIn {
+function changedBook(world: World, book: Book, done: ReturnType<typeof perform>): PerformedIn {
   if (!done.ok) return done
   const next = done.next as Book
   if (next.id !== book.id) return { ok: false, reason: "refused" }
   if (next === book) return { ok: true, result: done.result }
+  const changes = changesBetween([book], [next])
+  if (collides(world, [book], changes)) return { ok: false, reason: "refused" }
+  const { annotations } = world
   const now = new Map(pagesOf(next).map(p => [p.id, p]))
   const changed: Record<string, readonly Annotation[]> = {}
   for (const was of pagesOf(book)) {
@@ -605,9 +625,12 @@ function changedBook(book: Book, annotations: Annotations, done: ReturnType<type
     const kept = !page ? [] : page === was ? list : prune(list, page)
     if (kept !== list) changed[was.id] = kept
   }
-  return Object.keys(changed).length === 0
-    ? { ok: true, result: done.result, book: next }
-    : { ok: true, result: done.result, book: next, annotations: changed }
+  return {
+    ok: true,
+    result: done.result,
+    ...(noChanges(changes) ? {} : { changes }),
+    ...(Object.keys(changed).length === 0 ? {} : { annotations: changed }),
+  }
 }
 
 // アクションの対象が、対象の定義が足した種類か
@@ -703,12 +726,17 @@ function booksRead(world: World, action: ActionDef, args: unknown): Library {
   const parsed = action.args.safeParse(args)
   if (!parsed.success || !action.readsBooks) return {}
   const ids = (action.readsBooks as (args: unknown) => readonly string[])(parsed.data)
-  return Object.fromEntries(ids.flatMap(id => (world.books[id] ? [[id, world.books[id]]] : [])))
+  return Object.fromEntries(
+    ids.flatMap(id => {
+      const book = bookOf(world, id)
+      return book ? [[id, book]] : []
+    }),
+  )
 }
 
 // ブックが対象のアクションの宛先のブック（on のブック。無いか、ゴミ箱のブックなら null）。performIn と permittedIn で同じ決まりを使う
 function bookIn(world: World, on: ActionOn | undefined): Book | null {
-  const book = world.books[(on && "book" in on ? on.book : undefined) ?? ""]
+  const book = bookOf(world, (on && "book" in on ? on.book : undefined) ?? "")
   return book && book.trashed === undefined ? book : null
 }
 
@@ -738,5 +766,5 @@ export function permittedIn(
       ? noRecord(ctx.catalog, target, wanted as string)
       : permitted(now, id, args, { ...ctx, [SOURCE]: source, records: {} })
   }
-  return permitted(target === "library" ? world.books : world.settings, id, args, ctx)
+  return permitted(target === "library" ? libraryOf(world) : world.settings, id, args, ctx)
 }
