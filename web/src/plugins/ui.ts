@@ -199,6 +199,8 @@ export const DEFAULT_LAYOUT = defineLayout({
       "-",
       "@matomezu/paper:paper-delete",
     ],
+    // 行は、メニューが自分で並べる（ページのタイプの一覧）
+    "@matomezu/base:add-page-menu": [],
     "@matomezu/base:page-context": [
       "@matomezu/base:page-add-after",
       "@matomezu/base:page-duplicate",

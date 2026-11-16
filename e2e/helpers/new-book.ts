@@ -12,12 +12,14 @@ export async function newBook(page: Page, title: string, type: string) {
   await dialog.getByRole("button", { name: "作成" }).click()
   await page.getByRole("button", { name: "ステージを閉じる" }).first().click()
   await page.getByRole("button", { name: "ページを足す" }).click()
-  await page.getByRole("menu", { name: "ページを足す" }).getByRole("menuitem", { name: type }).click()
+  await page.getByRole("menu").getByRole("menuitem", { name: type, exact: true }).click()
   return page.getByRole("dialog", { name: "新しいページ" })
 }
 
 // scope（画面かステージかタブの列）のページタブの＋を押し、メニューでタイプ type（ページのタイプの名前）を選ぶ
 export async function addFromTabs(scope: Page | Locator, type = "図面") {
   await scope.locator('[aria-haspopup="menu"][aria-label="ページを足す"]').click()
-  await scope.getByRole("menuitem", { name: type, exact: true }).click()
+  // メニューは画面の根（右クリックのメニューの置き場）に出る
+  const root = "page" in scope ? scope.page() : scope
+  await root.getByRole("menu").getByRole("menuitem", { name: type, exact: true }).click()
 }

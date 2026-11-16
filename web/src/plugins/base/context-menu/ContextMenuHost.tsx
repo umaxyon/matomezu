@@ -4,7 +4,7 @@
 // 項目を押すと閉じてから、右クリックされた物を渡してコマンドを呼ぶ。項目の横には、そのコマンドのキーを添える。
 // 中の項目の描いている場所は、メニューを開いた場所（ui/scope.tsx）。
 // 押した物にアンカーが付いていれば、どのメニューにも、区切り線のあとに UI マッピングの anchorMenu のコマンドを足し、押した物のアンカーの id を渡す
-import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { type ComponentType, useEffect, useLayoutEffect, useRef, useState } from "react"
 import type { ContextMenuId } from "../../../core/catalog"
 import type { Point } from "../../../core/geom"
 import type { OpenedContextMenu } from "../../../store/context-menus"
@@ -16,10 +16,20 @@ import { type AnchorMenuCommandId, type ContextMenuCommandId, SEPARATOR } from "
 import { ActsOnScope } from "../../../ui/scope"
 import { useMatomezuState, useStoreActions, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
+import { ADD_PAGE_MENU } from "../page-tabs"
+import { AddPageRows } from "../page-tabs/AddPageMenu"
 import { useAnchorContextMenu } from "./anchor-context"
 import styles from "./ContextMenuHost.module.css"
 import { fitInside } from "./fit"
+import { MenuRow } from "./MenuRow"
 import { pressedAnchor } from "./pressed-anchor"
+
+// メニューが自分で並べる行（UI マッピングのコマンドの並びの前に出す）と、開く向き（above なら、開いた位置を左下にして上へ開く）。
+// 中身がコマンドの並びで言えないメニュー（機能台帳から決まる一覧）が書く
+const OWN_ROWS: { [id: string]: { rows: ComponentType<{ menu: OpenedContextMenu; close(): void }>; above: boolean } } =
+  {
+    [ADD_PAGE_MENU]: { rows: AddPageRows, above: true },
+  }
 
 export function ContextMenuHost() {
   useAnchorContextMenu()
@@ -39,7 +49,8 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
   const [anchor] = useState(() => pressedAnchor(menu.at)) // 開いたときの、押した物のアンカー
   const shown = useAnchorMenuItems(menu.stage)
   const anchored = anchor === undefined ? [] : shown
-  const empty = items.every(i => i === SEPARATOR) && anchored.length === 0
+  const own = OWN_ROWS[menu.id]
+  const empty = !own && items.every(i => i === SEPARATOR) && anchored.length === 0
   useEffect(() => {
     if (empty) closeContextMenu()
   }, [empty, closeContextMenu])
@@ -50,8 +61,9 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
     const el = ref.current
     if (!el) return
     const r = el.getBoundingClientRect()
-    setAt(fitInside(menu.at, { w: r.width, h: r.height }, { w: window.innerWidth, h: window.innerHeight }))
-  }, [menu.at])
+    const from = own?.above ? { x: menu.at.x, y: menu.at.y - r.height } : menu.at
+    setAt(fitInside(from, { w: r.width, h: r.height }, { w: window.innerWidth, h: window.innerHeight }))
+  }, [menu.at, own?.above])
   useEffect(() => {
     const onPointerDown = (e: PointerEvent) => {
       if (!ref.current?.contains(e.target as Node)) closeContextMenu()
@@ -69,6 +81,8 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
   if (empty) return null
   return (
     <div ref={ref} className={styles.menu} role="menu" aria-label={t("Menu")} style={{ left: at.x, top: at.y }}>
+      {own && <own.rows menu={menu} close={closeContextMenu} />}
+      {own && items.length > 0 && <hr className={styles.separator} />}
       {items.map((id, i) =>
         id === SEPARATOR ? (
           // biome-ignore lint/suspicious/noArrayIndexKey: 区切り線は id を持たず、並びの位置で見分ける
@@ -96,21 +110,17 @@ function ContextMenuItem({ menu, id }: { menu: OpenedContextMenu; id: ContextMen
   const { closeContextMenu } = useStoreActions()
   const t = useMessages(kit)
   return (
-    <button
-      type="button"
-      role="menuitem"
-      className={styles.item}
+    <MenuRow
+      icon={icon}
+      label={t(command.title)}
+      keyLabel={key}
       disabled={!command.enabled}
-      onClick={() => {
+      onPick={() => {
         closeContextMenu()
         // 引数を取らないコマンドは、渡した物を使わない
         ;(command.run as (target?: unknown) => void)(menu.target)
       }}
-    >
-      {icon && <span className={styles.icon}>{icon}</span>}
-      <span className={styles.label}>{t(command.title)}</span>
-      {key && <kbd className={styles.key}>{key}</kbd>}
-    </button>
+    />
   )
 }
 
@@ -121,19 +131,15 @@ function AnchorMenuItem({ id, anchor }: { id: AnchorMenuCommandId; anchor: strin
   const { closeContextMenu } = useStoreActions()
   const t = useMessages(kit)
   return (
-    <button
-      type="button"
-      role="menuitem"
-      className={styles.item}
+    <MenuRow
+      icon={icon}
+      label={t(command.title)}
       disabled={!command.enabled}
-      onClick={() => {
+      onPick={() => {
         closeContextMenu()
         // 引数を取らないコマンドは、渡した物を使わない
         ;(command.run as (anchor?: string) => void)(anchor)
       }}
-    >
-      {icon && <span className={styles.icon}>{icon}</span>}
-      <span className={styles.label}>{t(command.title)}</span>
-    </button>
+    />
   )
 }

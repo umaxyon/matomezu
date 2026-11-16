@@ -37,6 +37,8 @@ export const PAGE_DELETE_DIALOG = kit.defineDialogWith<{ page: string }>()({
 
 // ページ一覧のページの右クリックのメニュー（受け取るのは右クリックしたページの id）
 export const PAGE_CONTEXT = kit.name("page-context")
+// ページタブの＋が開く、ページのタイプの一覧のメニュー
+export const ADD_PAGE_MENU = kit.name("add-page-menu")
 
 // ページの設定のダイアログ。開いたステージのブックの、ページ page の設定の項目を変える
 export const PAGE_SETTINGS_DIALOG = kit.defineDialogWith<PageSettingsArgs>()({
