@@ -11,11 +11,8 @@ npm で入れます。node と npm が要ります。
 1. `npm i -g matomezu` を打つ
 2. `matomezu version` を打って、版が出れば入っています
 
-- 更新するときも、`npm i -g matomezu` を打ちます
-- 更新する前に、`matomezu stop` で止めておきます（下の注）
 - Claude Code と Codex のプラグインも一緒に入ります。AI に組み込むのは、別に 1 度だけ行います（16 章「Claude Code のプラグイン」「Codex のプラグイン」）
-
-注: Windows では、動いている matomezu を上書きできません。止めずに入れ直すと失敗します。
+- opencode のプラグインは、別に入れます（16 章「opencode のプラグイン」）
 
 使える OS: Linux・macOS・Windows（64 ビット。Linux と macOS は Arm も）。
 
@@ -37,6 +34,64 @@ npm で入れた matomezu のフォルダの下にあります。場所は `mato
 注: 合わない OS で動かすと、`matomezu: ... is not installed (this OS or CPU is not supported, or optional dependencies were skipped)` と出て、動きません。npm の設定で「optional dependencies」を入れないようにしているときも同じです。
 
 【未確定】公開の npm に出しているか（今は内部のレジストリで試している段階）。
+
+### 更新する
+
+1. `matomezu stop` で止める
+2. `npm i -g matomezu` を打つ
+3. AI に入れたプラグインを、新しい版にする（下の表）
+
+| AI | プラグインを新しくする |
+|---|---|
+| Claude Code | 【未確認】`claude plugin marketplace update matomezu` を打ち、`claude plugin update matomezu@matomezu` を打つ |
+| Codex | `codex plugin remove matomezu@matomezu` を打ち、`codex plugin add matomezu@matomezu` を打つ。そのあと Codex を起動し直す |
+| opencode | matomezu-opencode を、本体と同じ版にそろえる |
+
+注: Codex では、`codex plugin marketplace upgrade` は効きません（`No configured Git marketplaces to upgrade.` と出ます）。Codex はプラグインを自分の所に写して使うので、外して入れ直すと新しい版が写ります。
+注: Windows では、動いている matomezu を上書きできません。2 が `Could not remove directory`（volta なら `Volta error: Could not remove directory`）で失敗します。そのときは、AI（Claude Code・Codex・opencode）を終え、PowerShell で `Get-Process matomezu | Stop-Process` を打って、残っている matomezu を止めます。そのあと、もう一度 2 を打ちます。
+
+### 外す
+
+matomezu を外すときは、npm で消す前に、AI からプラグインを外します。
+
+1. `matomezu plugin-remove` を打つ
+2. Claude Code・Codex・opencode を終える
+3. `npm uninstall -g matomezu` を打つ
+
+1 で行う事:
+
+- matomezu を止める
+- Claude Code・Codex・opencode から、matomezu のプラグインと、その置き場所の登録を外す（下の表のコマンドを順に打ちます）
+- 入っていない AI は、`skipped` と出して飛ばす
+- 最後に、ブック（図のデータ）を置いたフォルダの場所と、2・3 の手順を出す
+
+| AI | 外すコマンド |
+|---|---|
+| Claude Code | `claude plugin uninstall matomezu@matomezu` と `claude plugin marketplace remove matomezu` |
+| Codex | `codex plugin remove matomezu@matomezu` と `codex plugin marketplace remove matomezu` |
+| opencode | `opencode plugin remove matomezu-opencode` |
+
+- ブックは消えません。要らなければ、1 で出たフォルダを自分で消します
+- 一部の AI からだけ外すときは、AI の名前を添えます（例: `matomezu plugin-remove codex`）。名前は `claude-code`・`codex`・`opencode` です
+
+注: Windows では、AI を終えずに 3 を打つと、AI が使っている matomezu を消せず、`Could not remove directory` で失敗します。
+注: npm で消すだけでは、AI のプラグインは残ります。npm は、消すときに matomezu の後片付けをしないからです。
+注: 外すコマンドが失敗した AI には、`failed` と出ます。残りの AI は続けて外し、最後に失敗したコマンドを並べて出します。並んだコマンドは、手で打ち直します。
+注: 知らない名前を添えると、`unknown AI program ... (claude-code, codex or opencode)` と出て、何も外しません。
+
+#### 先に npm で消してしまったとき
+
+上の表のコマンドを、AI ごとに手で打ちます。
+
+- `claude plugin uninstall matomezu@matomezu` は、プラグインの置き場所が消えたあとでも通ります
+
+プラグインが残っていると、次のようになります。
+
+| AI | 起きる事 |
+|---|---|
+| Claude Code | プラグインが読み込まれない。会話には何も出ない（16 章「matomezu が見つからないとき（Claude Code）」） |
+| Codex | 話しかけるたびに、matomezu が見つからないという文が出る（16 章「matomezu が見つからないとき（Codex）」） |
+| opencode | プラグインは何もしない（16 章「opencode のプラグイン」の「matomezu が見つからないとき」） |
 
 ### 起動する
 
@@ -2778,7 +2833,8 @@ Claude Code には、matomezu のプラグインを入れます。入れるだ�
    - Linux・macOS などのシェル: `claude plugin marketplace add "$(matomezu plugin-path claude-code)"`
 3. `claude plugin install matomezu@matomezu` を打つ
 
-- matomezu を npm で更新すると、プラグインも同じ版に新しくなります
+- matomezu を npm で更新したときは、プラグインも新しくします（1 章「更新する」）
+- 外すときは、npm で消す前に `matomezu plugin-remove` を打ちます（1 章「外す」）
 - 入れたあとは、Claude Code から AI に「matomezu に参加して」と頼めば、参加の流れに進めます（下の「AI の参加」）
 
 注: 前に Claude Code へ手で登録した matomezu の MCP は外します。
@@ -2797,24 +2853,29 @@ Claude Code には、matomezu のプラグインを入れます。入れるだ�
 | show（ブックを画面に出す） | 聞く |
 | join（参加を頼む） | 聞く |
 
-matomezu が見つからないとき（`matomezu` のコマンドが使えないとき）:
+#### matomezu が見つからないとき（Claude Code）
 
-- 話しかけたときの知らせ・モデルの知らせ・画面の操作を待つ事は、動きません
-- 話しかけるたびなどに、Claude Code にフックの失敗の知らせが出ます。話しかけた文は、そのまま AI に届きます
+起きる事は、見つからない訳で違います。
 
-注: 知らせは、例えば `UserPromptSubmit hook error` に、シェルの `matomezu: command not found` などの 1 行が添えられた形です。
-【未確認】Windows で出る知らせの文言。
-- MCP はつながりません
+| 訳 | 起きる事 |
+|---|---|
+| npm で matomezu を消した | プラグインが読み込まれない。会話には何も出ない |
+| node の版を切り替えて、matomezu の入っていない node になった | 【未確認】話しかけるたびなどに、フックの失敗の知らせが出る |
 
-例えば、次のときに起きます。
+どちらも、MCP はつながらず、話しかけたときの知らせ・モデルの知らせ・画面の操作を待つ事は動きません。話しかけた文は、そのまま AI に届きます。
 
-- npm の matomezu を消したが、プラグインが残っている
-- node の版を切り替えて、matomezu の入っていない node になった
+npm で消したときに気づけるのは、次の所だけです。
+
+- `claude plugin list` に、`failed to load` と `Marketplace matomezu failed to load: cache-miss` が出る
+- `/plugin` の Errors のタブに出る。黄色の警告が出る
+- 起動したときの `1 more notice hidden` を開くと出る
+
+注: フックの失敗の知らせは、例えば `UserPromptSubmit hook error` に、シェルの `matomezu: command not found` などの 1 行が添えられた形です。
 
 直し方は、次のどちらかです。
 
 - `npm i -g matomezu` で入れ直す
-- プラグインを外す（`claude plugin uninstall matomezu@matomezu`）
+- プラグインを外す（1 章「外す」の「先に npm で消してしまったとき」）
 
 注: matomezu が起動していないだけなら、話しかけたときの知らせとモデルの知らせは何もしません。画面の操作を待つ事は、起動したらつながります。
 
@@ -2841,7 +2902,8 @@ Codex にも、matomezu のプラグインを入れます。入れるだけで�
    - Linux・macOS などのシェル: `codex plugin marketplace add "$(matomezu plugin-path codex)"`
 3. `codex plugin add matomezu@matomezu` を打つ（Codex の中なら `/plugins` から matomezu を選んで入れる）。入れたら Codex を起動し直す
 
-- matomezu を npm で更新すると、プラグインも同じ版に新しくなります
+- matomezu を npm で更新したときは、プラグインを入れ直します（1 章「更新する」）
+- 外すときは、npm で消す前に `matomezu plugin-remove` を打ちます（1 章「外す」）
 - Windows（WSL でない）でも、そのまま使えます
 
 注: matomezu のリポジトリから試すときは、2 の代わりに `codex plugin marketplace add （matomezu のリポジトリ）/clients/codex` を打ちます。AI がつなぐのは、そのリポジトリで動かしている開発用の matomezu です。
@@ -2854,18 +2916,23 @@ Codex にも、matomezu のプラグインを入れます。入れるだけで�
 注: 例えば Orca の端末で `codex` と打つと、Orca が `--no-daemon` を足します。
 注: Windows で、管理者として起動した Codex は、メッセージで動き出しません。メッセージは、次に AI が matomezu を使った時に届きます。
 
-matomezu が見つからないとき（`matomezu` のコマンドが使えないとき）:
+#### matomezu が見つからないとき（Codex）
 
+npm で matomezu を消したときや、matomezu の入っていない node に切り替えたときです。
+
+- 話しかけるたびに、Codex に次の文が出ます。話しかけた文は、そのまま AI に届きます
 - 話しかけたときの知らせとモデルの知らせは、動きません
-- 話しかけるたびと、セッションの始まりに、Codex に `matomezu was not found. Install it again (npm i -g matomezu) or remove this plugin.` と出ます。話しかけた文は、そのまま AI に届きます
+- MCP はつながりません。つながらないという知らせは出ません
 
-【未確認】Windows で、この文が実際に出るか。
-- MCP はつながりません
+> matomezu was not found. Install it again (npm i -g matomezu) or remove this plugin (codex plugin remove matomezu@matomezu).
 
-直し方は、次のどちらかです（起きるときは、上の「Claude Code のプラグイン」と同じです）。
+注: 新しい会話の最初の発言では、2 回出ます（会話を始めたときの分と、話しかけた分）。
+注: npm で消しても出るのは、Codex がプラグインを自分の所に写して使っているからです。
+
+直し方は、次のどちらかです。
 
 - `npm i -g matomezu` で入れ直す
-- プラグインを外す（`codex plugin remove matomezu@matomezu`）
+- プラグインを外す（1 章「外す」の「先に npm で消してしまったとき」）
 
 ### opencode のプラグイン
 
@@ -2892,7 +2959,8 @@ opencode（v2）にも、matomezu のプラグインを入れます。Ollama な
 2. `opencode plugin add matomezu-opencode` を打つ
 
 - matomezu-opencode は、matomezu の本体とは別の npm のパッケージです。版は本体と同じです
-- 本体を更新したら、matomezu-opencode も同じ版にそろえます
+- 本体を更新したら、matomezu-opencode も同じ版にそろえます（1 章「更新する」）
+- 外すときは、npm で本体を消す前に `matomezu plugin-remove` を打ちます（1 章「外す」）
 
 注: matomezu の MCP は、そのフォルダで最初に AI に話しかけたターンから使えます。
 

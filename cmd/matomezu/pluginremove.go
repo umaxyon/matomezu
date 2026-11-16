@@ -55,7 +55,8 @@ func (c *pluginRemoveCmd) Run() error {
 	return err
 }
 
-// remove は、名前 names の AI（空なら全部）のプラグインを外す。AI のプログラムが PATH に無い AI は飛ばし、外すのに失敗しても残りを続ける
+// remove は、名前 names の AI（空なら全部）のプラグインを外す。AI のプログラムが PATH に無い AI は飛ばし、外すのに失敗しても残りを続ける。
+// 入れていないプラグインを外すと、AI の CLI によっては失敗で返る（入れたかは CLI ごとに見分け方が違うので、確かめずに打つ）
 func (r remover) remove(names []string) error {
 	want := map[string]bool{}
 	for _, n := range names {
@@ -83,7 +84,7 @@ func (r remover) remove(names []string) error {
 		}
 	}
 	if len(failed) > 0 {
-		return errors.New("these commands failed: " + strings.Join(failed, "; "))
+		return errors.New("these commands failed (fine if matomezu's plugin was not added to that AI program): " + strings.Join(failed, "; "))
 	}
 	return nil
 }
