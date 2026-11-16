@@ -73,6 +73,11 @@ export const HISTORY = kit.defineSubject({
     released: z.array(z.string().min(1)).optional(), // 完了の行だけが持つ: 完了で担当を外した、ワークルームの id（担当と同じに、消したワークルームの id は書いたまま残し、読む側が外す）
   }),
   refers: h => [{ subject: TICKET.id, id: h.ticket }],
+  // 索引キー: どのチケットの行か・題（read_records の where が受けるのは索引キーだけ）
+  keys: {
+    ticket: { type: "text", of: h => h.ticket },
+    topic: { type: "text", of: h => h.topic },
+  },
   searchTexts: h => ({ body: h.text }),
   aiOrder: h => Date.parse(h.at) || 0,
   aiBrief: h => `${h.topic}: ${h.text}`,
