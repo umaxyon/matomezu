@@ -51,6 +51,16 @@ test("フォルダの設定で紙を変えると、中のページ全部の紙�
   expect(pagesIn(book(), "f1").map(p => p.paper)).toEqual(["@matomezu/base:ratio-16x9", "@matomezu/base:ratio-16x9"])
 })
 
+test("フォルダのタブの右クリックの複製で、写しのフォルダが隣にでき、その写しが開く", () => {
+  const { book } = open()
+  fireEvent.contextMenu(tab("提案"))
+  fireEvent.click(screen.getByRole("menuitem", { name: "複製" }))
+  expect(book().lineup.map(e => e.title)).toEqual(["提案", "提案 2", "図"])
+  const copy = book().lineup[1]!
+  expect(pagesIn(book(), copy.id).map(p => p.title)).toEqual(["一枚目", "二枚目"])
+  expect(tab("提案 2").getAttribute("aria-selected")).toBe("true")
+})
+
 test("空のフォルダの設定では、紙のサイズと向きを押せない", () => {
   const store = renderScreen({ books: [testBook("b1", "ブック", [testFolder("f1", "提案", SLIDE)])] })
   act(() => store.actions.openBook("s1", "b1"))

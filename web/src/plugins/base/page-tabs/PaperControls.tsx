@@ -11,6 +11,7 @@ import { useMessages } from "../../../ui/i18n"
 import { useCatalog } from "../../../ui/store-context"
 import { controlClass, Field, rowClass, Switch } from "../dialog-host/FormParts"
 import { kit } from "../kit"
+import { PaperFields } from "./PaperFields"
 import type { PageProblem } from "./page-problems"
 import {
   canGrow,
@@ -22,12 +23,6 @@ import {
   paperChoicesFor,
   withGrows,
 } from "./pages"
-
-// 向きの名前
-export const ORIENTATION_TITLES = { portrait: "Portrait", landscape: "Landscape" } as const satisfies Record<
-  Orientation,
-  string
->
 
 // 増やす向きの名前
 const GROW_TITLES = {
@@ -88,45 +83,14 @@ export function usePaperControls(
   const controls = (
     <>
       {!shared && (
-        <>
-          <Field label={t("Paper size")}>
-            {id => (
-              <select
-                id={id}
-                className={controlClass}
-                value={value.paper}
-                disabled={papers.length < 2}
-                onChange={e => setValue({ ...value, paper: e.target.value })}
-              >
-                {papers.map(p => {
-                  const def = catalog.papers.get(p)
-                  return (
-                    <option key={p} value={p}>
-                      {def ? t(def.title) : t("Unknown paper")}
-                    </option>
-                  )
-                })}
-              </select>
-            )}
-          </Field>
-          <Field label={t("Orientation")}>
-            {id => (
-              <select
-                id={id}
-                className={controlClass}
-                value={value.orientation}
-                disabled={orientations.length < 2}
-                onChange={e => setValue({ ...value, orientation: e.target.value as Orientation })}
-              >
-                {orientations.map(o => (
-                  <option key={o} value={o}>
-                    {t(ORIENTATION_TITLES[o])}
-                  </option>
-                ))}
-              </select>
-            )}
-          </Field>
-        </>
+        <PaperFields
+          papers={papers}
+          orientations={orientations}
+          paper={value.paper}
+          orientation={value.orientation}
+          onPaper={paper => setValue({ ...value, paper })}
+          onOrientation={orientation => setValue({ ...value, orientation })}
+        />
       )}
       {canGrow(catalog, type) && (
         <div className={rowClass}>

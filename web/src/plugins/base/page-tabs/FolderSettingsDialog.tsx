@@ -16,7 +16,7 @@ import { ActionButton, controlClass, Field, Form, rowClass } from "../dialog-hos
 import { kit } from "../kit"
 import type { FolderSettingsArgs } from "."
 import { FOLDER_REMOVE, FOLDER_UPDATE } from "./folders"
-import { ORIENTATION_TITLES } from "./PaperControls"
+import { PaperFields } from "./PaperFields"
 
 export function FolderSettingsDialog({ args, onClose }: DialogProps<FolderSettingsArgs>) {
   const t = useMessages(kit)
@@ -69,43 +69,15 @@ export function FolderSettingsDialog({ args, onClose }: DialogProps<FolderSettin
         <Field label={t("Name")}>
           {fid => <input id={fid} className={controlClass} value={title} onChange={e => setTitle(e.target.value)} />}
         </Field>
-        <Field label={t("Paper size")}>
-          {fid => (
-            <select
-              id={fid}
-              className={controlClass}
-              value={paper}
-              disabled={!first || papers.length < 2}
-              onChange={e => setPaper(e.target.value)}
-            >
-              {papers.map(p => {
-                const def = catalog.papers.get(p)
-                return (
-                  <option key={p} value={p}>
-                    {def ? t(def.title) : t("Unknown paper")}
-                  </option>
-                )
-              })}
-            </select>
-          )}
-        </Field>
-        <Field label={t("Orientation")}>
-          {fid => (
-            <select
-              id={fid}
-              className={controlClass}
-              value={orientation}
-              disabled={!first}
-              onChange={e => setOrientation(ORIENTATIONS.find(o => o === e.target.value) ?? orientation)}
-            >
-              {ORIENTATIONS.map(o => (
-                <option key={o} value={o}>
-                  {t(ORIENTATION_TITLES[o])}
-                </option>
-              ))}
-            </select>
-          )}
-        </Field>
+        <PaperFields
+          papers={papers}
+          orientations={ORIENTATIONS}
+          paper={paper}
+          orientation={orientation}
+          locked={!first}
+          onPaper={setPaper}
+          onOrientation={setOrientation}
+        />
         <div className={rowClass}>
           <ActionButton danger disabled={!removable} onClick={() => setConfirming(true)}>
             {t("Delete")}

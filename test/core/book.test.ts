@@ -87,6 +87,42 @@ describe("並び", () => {
         testBook("b", "b", [drawingPage("p1"), testFolder("f1", "f", SLIDE, testPage(SLIDE, "s1"))]),
         true,
       ],
+      [
+        "紙をそろえるタイプのフォルダの中で紙が違う",
+        testBook("b", "b", [
+          testFolder(
+            "f1",
+            "f",
+            SLIDE,
+            testPage(SLIDE, "s1", { title: "1" }),
+            testPage(SLIDE, "s2", { title: "2", paper: "@matomezu/base:a3" }),
+          ),
+        ]),
+        false,
+      ],
+      [
+        "紙をそろえるタイプのフォルダの中で向きが違う",
+        testBook("b", "b", [
+          testFolder(
+            "f1",
+            "f",
+            SLIDE,
+            testPage(SLIDE, "s1", { title: "1" }),
+            testPage(SLIDE, "s2", { title: "2", orientation: "portrait" }),
+          ),
+        ]),
+        false,
+      ],
+      [
+        "フォルダが違えば紙が違ってよい。紙をページごとに選ぶタイプは、同じ入れ物でも違ってよい",
+        testBook("b", "b", [
+          drawingPage("p1", { title: "1" }),
+          drawingPage("p2", { title: "2", paper: "@matomezu/base:a3" }),
+          testFolder("f1", "f", SLIDE, testPage(SLIDE, "s1", { title: "1" })),
+          testFolder("f2", "g", SLIDE, testPage(SLIDE, "s2", { title: "1", paper: "@matomezu/base:a3" })),
+        ]),
+        true,
+      ],
     ]
     for (const [name, b, ok] of cases) expect([name, holds(CORE_CATALOG, b)]).toEqual([name, ok])
   })
