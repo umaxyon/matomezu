@@ -16,6 +16,7 @@ export interface WorkroomRow {
   model?: string // 画面に出すモデル（AI のフックが知らせた今のモデルを、参加を頼んだときのモデルより先に）
   branch?: string // git のブランチ（知らされた参加者だけ）
   calledAt?: string // 参加者が最後に呼ばれた時刻（呼ばれていなければ無い）
+  requestedAt?: string // このワークルームの名前で入りたいと頼んでいる要求中の参加者の、頼んだ時刻（いちばん新しいもの。無ければ無い）
   activity: WorkroomActivity | "unknown" // 作業の様子（activity.ts。見せるためだけ。答える種類が無ければ unknown）
 }
 
@@ -37,6 +38,11 @@ export function workroomRows(input: {
     const participant = input.participants.find(p => p.state === "joined" && p.workroom === room.id)
     const live = participant ? input.live[participant.id] : undefined
     const calledAt = participant ? input.calls[participant.id] : undefined
+    const requestedAt = input.participants
+      .filter(p => p.state === "requested" && p.wantedName === room.name)
+      .map(p => p.requestedAt)
+      .sort()
+      .at(-1)
     return {
       room,
       ...(participant ? { participant } : {}),
@@ -45,6 +51,7 @@ export function workroomRows(input: {
       ...(participant ? { model: shownModel(participant, live) } : {}),
       ...(live?.branch ? { branch: live.branch } : {}),
       ...(calledAt ? { calledAt } : {}),
+      ...(requestedAt ? { requestedAt } : {}),
       activity: input.activities[room.id] ?? "unknown",
     }
   })

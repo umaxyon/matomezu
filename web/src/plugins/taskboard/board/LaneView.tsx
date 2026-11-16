@@ -117,6 +117,7 @@ export function LaneView({
           <TicketCardView
             key={ticket.id}
             size={size}
+            shows={project.cardShows}
             ticket={ticket}
             prefix={project.prefix}
             tags={tagsOf(project, ticket)}

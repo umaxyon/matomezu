@@ -3,13 +3,18 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 .icon {
+  position: relative;
   display: grid;
   place-items: center;
   width: 30px;
   height: 30px;
-  padding: 0;
+  box-sizing: border-box;
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
@@ -18,7 +23,17 @@
 .icon:hover {
   background: var(--skin-btn-hover);
 }
-.icon[aria-checked="true"] {
+.icon:has(.radio:checked) {
   border-color: var(--skin-accent);
   background: var(--skin-accent-subtle);
+}
+.icon:has(.radio:focus-visible) {
+  outline: 2px solid var(--skin-accent);
+  outline-offset: 1px;
+}
+/* ラジオそのものは見せず、絵の枠で選びを示す */
+.radio {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
 }

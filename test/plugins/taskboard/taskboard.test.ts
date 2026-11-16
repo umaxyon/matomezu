@@ -18,6 +18,7 @@ type Project = {
   closed: boolean
   lanes: { kind: string; id?: string; name?: string }[]
   tags: { id: string; name: string; enabled: boolean }[]
+  cardShows: { priority: boolean }
 }
 
 function ready() {
@@ -168,6 +169,18 @@ test("プロジェクトを直すと、id の無いレーン・タグは新し�
   expect(q.lanes[2]?.id).toBeString()
   expect(q.tags.map(t => t.name)).toEqual(["仕事", "調べ物"])
   expect(q.tags[0]?.id).toBe(task?.id)
+})
+
+test("新しいプロジェクトのチケットカードは優先度を出す。cardShows の priority を変えられ、省けば今のまま", () => {
+  const { user, projects } = ready()
+  user("project-add", {})
+  const p = projects()[0] as Project
+  expect(p.cardShows).toEqual({ priority: true })
+  expect(user("project-update", { cardShows: { priority: false } }, { record: p.id }).ok).toBe(true)
+  expect((projects()[0] as Project).cardShows).toEqual({ priority: false })
+  expect(user("project-update", { name: "別の名前" }, { record: p.id }).ok).toBe(true)
+  expect(user("project-update", { cardShows: {} }, { record: p.id }).ok).toBe(true)
+  expect((projects()[0] as Project).cardShows).toEqual({ priority: false })
 })
 
 test("プロジェクトを直すとき、無い id・重なる名前（前後の空白を除いて）・未分類が 1 つでない並び・ほかのプロジェクトと重なるプレフィクス（大文字小文字を問わない）は断る", () => {

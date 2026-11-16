@@ -88,6 +88,35 @@ test("列の並びは、組の順に管理者・作業中・空き（準備中�
   ])
 })
 
+test("生きていない参加者の部屋を引き継ぐと、準備中の間も受け入れた時刻で空きの先頭に出て、下へ寄らない", () => {
+  const others = [
+    ready("idle-a", "idle", "2026-11-14T02:00:00.000Z"),
+    ready("idle-b", "idle", "2026-11-14T01:00:00.000Z"),
+  ]
+  const before = [ready("room", "idle", "2026-11-14T01:30:00.000Z"), ...others]
+  expect(orderRows(before).map(r => r.room.id)).toEqual(["idle-a", "room", "idle-b"])
+  const accepted = "2026-11-14T05:00:00.000Z"
+  const preparing: WorkroomRow = { ...ready("room", "unknown", undefined, accepted), state: "preparing" }
+  expect(orderRows([preparing, ...others]).map(r => r.room.id)).toEqual(["room", "idle-a", "idle-b"])
+  const joined = ready("room", "idle", undefined, accepted)
+  expect(orderRows([joined, ...others]).map(r => r.room.id)).toEqual(["room", "idle-a", "idle-b"])
+})
+
+test("同じ名前の join で前の参加者が退室しても、その名前で頼まれている空室は頼まれた時刻で空きの組に並び、空室の組へ下がらない", () => {
+  const others = [
+    ready("idle-a", "idle", "2026-11-14T02:00:00.000Z"),
+    ready("idle-b", "idle", "2026-11-14T01:00:00.000Z"),
+    row("empty", false, "empty"),
+  ]
+  const asked: WorkroomRow = { ...row("empty", false, "room"), requestedAt: "2026-11-14T04:00:00.000Z" }
+  expect(orderRows([asked, ...others]).map(r => r.room.id)).toEqual(["room", "idle-a", "idle-b", "empty"])
+  const accepted = "2026-11-14T05:00:00.000Z"
+  const preparing: WorkroomRow = { ...ready("room", "unknown", undefined, accepted), state: "preparing" }
+  expect(orderRows([preparing, ...others]).map(r => r.room.id)).toEqual(["room", "idle-a", "idle-b", "empty"])
+  const notAsked = [row("empty", false, "room"), ...others]
+  expect(orderRows(notAsked).map(r => r.room.id)).toEqual(["idle-a", "idle-b", "room", "empty"])
+})
+
 test("作業の様子を答える種類が無ければ（unknown）、作業中と空きを分けずに変化の新しい順。準備中と空室はそのあと", () => {
   const rows = [
     row("empty", false, "empty"),

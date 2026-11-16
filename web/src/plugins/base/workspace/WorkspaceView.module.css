@@ -48,11 +48,11 @@
   min-width: 0;
   display: flex;
 }
-/* 幅はステージ（列）の幅の 15%（72px 以上 180px 以下。ステージを分けて狭くなっても読める範囲） */
+/* 幅はステージ（列）の幅の 15%（100px 以上 180px 以下。ステージを分けて狭くなっても読める範囲） */
 .side {
   flex: none;
   box-sizing: border-box;
-  width: clamp(72px, 15%, 180px);
+  width: clamp(100px, 15%, 180px);
   display: flex;
   min-height: 0;
 }
@@ -98,7 +98,7 @@
 /* 列の右上の角（ステージの上に浮かぶ。中身のスクロールバーに重ならないよう、その幅だけ内側） */
 .corner {
   position: absolute;
-  top: 7px;
+  top: 3px;
   right: calc(7px + var(--scrollbar-w, 0px));
   z-index: 4;
   display: flex;

@@ -1,4 +1,4 @@
-/* ステージの左に縦に並べるページ一覧。幅はステージ（列）の幅の 15%（72px 以上 180px 以下）。ページが多ければ縦にスクロールする */
+/* ステージの左に縦に並べるページ一覧。幅はステージ（列）の幅の 15%（100px 以上 180px 以下）。ページが多ければ縦にスクロールする */
 .list {
   position: relative;
   box-sizing: border-box;
@@ -11,13 +11,16 @@
   overflow-y: auto;
   background: var(--skin-surface);
   border-right: 1px solid var(--skin-border);
+  /* 番号の列の幅と、番号と紙の間 */
+  --number-w: 16px;
+  --number-gap: 7px;
 }
 .item {
   position: relative;
   flex: none;
   display: grid;
-  grid-template-columns: 16px minmax(0, 1fr);
-  gap: 4px;
+  grid-template-columns: var(--number-w) minmax(0, 1fr);
+  gap: var(--number-gap);
   align-items: start;
 }
 .item[data-carried="true"] {
@@ -82,9 +85,11 @@
   background: var(--skin-accent);
   pointer-events: none;
 }
+/* 足すボタン: 紙の列の中央（番号の列の分だけ左を空ける） */
 .add {
   flex: none;
   align-self: center;
+  margin-left: calc(var(--number-w) + var(--number-gap));
   display: grid;
   place-items: center;
   width: 28px;

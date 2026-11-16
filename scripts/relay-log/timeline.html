@@ -94,7 +94,7 @@ function legend() {
   const box = document.getElementById("legend")
   box.replaceChildren(...KINDS.map(k => el("span", {},
     svg("svg", { width: 34, height: 10 }, svg("line", { x1: 2, y1: 5, x2: 32, y2: 5, stroke: k.color, "stroke-width": 2, "stroke-dasharray": k.dash, "marker-end": `url(#head-${k.kind})` })),
-    " " + k.label)))
+    ` ${k.label}`)))
 }
 
 function markers() {
@@ -255,7 +255,7 @@ async function load() {
   const endValue = document.getElementById("end").value
   const to = endValue ? new Date(endValue).getTime() : Date.now()
   const query = new URLSearchParams({ from: new Date(to - hours * 3600000).toISOString(), to: new Date(to).toISOString() })
-  last = await (await fetch("/api/timeline?" + query)).json()
+  last = await (await fetch(`/api/timeline?${query}`)).json()
   draw()
 }
 legend()
