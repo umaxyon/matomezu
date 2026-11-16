@@ -14,10 +14,10 @@ export const pickedRow = (rows: readonly WorkroomRow[], picked: string | undefin
 
 // 列の並び: 組の順に、1 管理者 2 作業中 3 空き（準備中も）4 空室。作業の様子を答える種類が無ければ、作業中と空きを分けない（2 に入れる）。
 // 空室は、今のチケットが残っていても 4（引き継いで入り直せば、その様子で 2 か 3 に戻る）。
-// 組の中は、変化のあった順（参加済みの行の、呼ばれた時刻と参加した時刻の新しいほう。新しい順）、そのあとに変化の無い行を受け取った順（作った順）のまま。
+// 組の中は、変化のあった順（いる参加者の、呼ばれた時刻と参加した時刻の新しいほう。新しい順）、そのあとに変化の無い行を受け取った順（作った順）のまま。
+// 準備中の行も、受け入れた時刻で並べる（引き継いで入った行が、準備中の間だけ組の下へ寄らないように）。
 // 同じ時刻の行も受け取った順のまま。並べるだけで、画面の状態は持たない
 const changedAtOf = (row: WorkroomRow): number | undefined => {
-  if (row.state !== "ready") return undefined
   const times = [row.calledAt, row.participant?.joinedAt]
     .flatMap(t => (t ? [Date.parse(t)] : []))
     .filter(Number.isFinite)
