@@ -6,7 +6,7 @@ import { expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
 import type { Book } from "../../web/src/core/schema/book"
 import type { AIEditTicketOutcome } from "../../web/src/store/store"
-import { newStore, sequence } from "../support"
+import { newStore, sequence, worldRows } from "../support"
 
 const BOX = "@matomezu/box:shape-nest-box"
 type Drawing = Book
@@ -19,7 +19,7 @@ const settled = () => Promise.resolve()
 function ready(clock?: () => string, aiEditTicket?: (c: AIEditTicketOutcome) => void) {
   const store = newStore({ ...(clock ? { now: clock } : {}), ...(aiEditTicket ? { aiEditTicket } : {}) })
   store.actions.resizeStage("s1", { w: 1400, h: 1000 })
-  store.receive({ books: [bookOf(store)], settings: {} }, [])
+  store.receive({ ...worldRows([bookOf(store)]), settings: {} }, [])
   return store
 }
 const place = (store: Store, caption: string, x = 40) =>
@@ -28,7 +28,7 @@ const place = (store: Store, caption: string, x = 40) =>
     { item: BOX, at: { x, y: 40 }, props: { caption } },
     { page: pagesOf(bookOf(store))[0]!.id },
   )
-const confirm = (store: Store) => store.receive({ books: [bookOf(store)], settings: {} }, [])
+const confirm = (store: Store) => store.receive({ ...worldRows([bookOf(store)]), settings: {} }, [])
 // よその変更: 確かめた世界のブックを change で変えたものが届く
 const foreign = (
   store: Store,
@@ -36,7 +36,7 @@ const foreign = (
   by: "ai" | "window" | "host" = "ai",
   act = "1",
   action = "@matomezu/paper:item-update",
-) => store.receive({ books: [book], settings: {} }, [], { book: book.id, by, act, action })
+) => store.receive({ ...worldRows([book]), settings: {} }, [], { books: [book.id], by, act, action })
 const renamed = (book: Drawing, i: number, caption: string): Drawing =>
   ({
     ...book,
@@ -169,7 +169,7 @@ test("戻すが消したのでなく、ふつうの操作のあとに戻して A
 test("窓が見えていない間は、見えたとしない。見えるようになって確かめ直したら差し込む", () => {
   let visible = false
   const store = newStore({ now: sequence(), visible: () => visible })
-  store.receive({ books: [bookOf(store)], settings: {} }, [])
+  store.receive({ ...worldRows([bookOf(store)]), settings: {} }, [])
   foreign(store, { ...bookOf(store), title: "AI" })
   expect(historyOf(store)).toBeUndefined()
   visible = true
@@ -178,13 +178,14 @@ test("窓が見えていない間は、見えたとしない。見えるよう�
 })
 
 test("AI の 1 回の操作が何冊も変えたら、見えたブックの画面の履歴にだけ、そのブックの分が入る", () => {
-  const store = ready(sequence())
+  const store = newStore({ now: sequence() })
+  store.actions.resizeStage("s1", { w: 1400, h: 1000 })
   let world = { b1: bookOf(store), b2: store.state.getState().books.b2 as Drawing }
-  store.receive({ books: Object.values(world), settings: {} }, [])
+  store.receive({ ...worldRows(Object.values(world)), settings: {} }, [])
   const change = (book: Drawing) => {
     world = { ...world, [book.id]: book }
-    store.receive({ books: Object.values(world), settings: {} }, [], {
-      book: book.id,
+    store.receive({ ...worldRows(Object.values(world)), settings: {} }, [], {
+      books: [book.id],
       by: "ai",
       act: "9",
       action: "@matomezu/base:book-update",

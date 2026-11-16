@@ -1,4 +1,6 @@
 // テストで使う、ビルトインプラグインだけの表と store
+import { tablesOf } from "../web/src/core/folders"
+import type { Book } from "../web/src/core/schema/book"
 import { recentBookScreen, recentPlainScreen } from "../web/src/core/window"
 import { BUILTIN } from "../web/src/plugins"
 import { assemble } from "../web/src/store/plugin"
@@ -41,4 +43,10 @@ export function showCenter(store: Pick<ReturnType<typeof newStore>, "state" | "a
 // ブックスクリーンを、カレントスクリーンにする
 export function showBooks(store: Pick<ReturnType<typeof newStore>, "state" | "actions">) {
   store.actions.makeScreenCurrent(recentBookScreen(store.state.getState().window).id)
+}
+
+// ブックの並び books を、ホストが知らせる形（置き場所から読んだままのページとフォルダの並び）にした物（instance.receive に渡す世界の pages と folders）
+export function worldRows(books: readonly unknown[]): { pages: unknown[]; folders: unknown[] } {
+  const tables = tablesOf(books as readonly Book[])
+  return { pages: Object.values(tables.pages), folders: Object.values(tables.folders) }
 }

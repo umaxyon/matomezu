@@ -27,7 +27,6 @@ type AIEditTicket struct {
 	Key     string          `json:"key,omitempty"`     // アクションが返した変え方で作った物の見分け（郵便の id など）
 	Subject string          `json:"subject,omitempty"` // アクションが返した変え方で作った物の、アクションの対象の種類（Key はこの種類の中で見分ける。空なら種類を問わない）
 	At      string          `json:"at"`                // 変えた時点
-	Version int64           `json:"version"`           // 変えた後のブックの版
 	Lost    json.RawMessage `json:"lost,omitempty"`    // 見られる前に消えたとき、窓が知らせた消えた所と AI の値
 	Told    bool            `json:"told,omitempty"`    // 消えた・失敗したことを AI に渡した
 	Failed  bool            `json:"failed,omitempty"`  // アクションが返した変え方で失敗にした
@@ -37,11 +36,11 @@ type AIEditTicket struct {
 
 // changedTickets は、対象の種類 subject のアクションが返した変え方 c のとおりに AI 編集チケットの並び list を作り直す（作る・閉じる・失敗にする・消えたと記す。
 // 閉じる・失敗にする・消えたと記すのは、まだ待っている物だけ）。
-// 作るときの変えた後のブックの版は version。変えなければ false
-func changedTickets(list []AIEditTicket, subject string, c engine.AIEditTicketChange, version int64, at string) ([]AIEditTicket, bool) {
+// 変えなければ false
+func changedTickets(list []AIEditTicket, subject string, c engine.AIEditTicketChange, at string) ([]AIEditTicket, bool) {
 	list = slices.Clone(list)
 	if c.Outcome == "open" {
-		return append(list, AIEditTicket{Key: c.Key, Subject: subject, At: at, Version: version}), true
+		return append(list, AIEditTicket{Key: c.Key, Subject: subject, At: at}), true
 	}
 	i := slices.IndexFunc(list, func(t AIEditTicket) bool {
 		return t.Key == c.Key && (t.Subject == "" || t.Subject == subject) && !t.Failed && t.Removed == ""
@@ -63,9 +62,9 @@ func changedTickets(list []AIEditTicket, subject string, c engine.AIEditTicketCh
 	return list, true
 }
 
-// recordedTickets は、AI のアクション act がブックを版 version にしたことを AI 編集チケットの並び list に足す
-func recordedTickets(list []AIEditTicket, act string, version int64, at string) []AIEditTicket {
-	list = append(slices.Clone(list), AIEditTicket{Act: act, At: at, Version: version})
+// recordedTickets は、AI のアクション act がブックを変えたことを AI 編集チケットの並び list に足す
+func recordedTickets(list []AIEditTicket, act string, at string) []AIEditTicket {
+	list = append(slices.Clone(list), AIEditTicket{Act: act, At: at})
 	// 多すぎたら、見られていない物の古い方から捨てる（消えた物は AI に渡すまで残す）。それも無ければ、消えた物の古い方から捨てる。
 	// Key で見分ける物は捨てない（アクションが閉じる・失敗にする・消えたと記すまで残す）
 	for len(list) > aiEditTicketsMax {
@@ -94,7 +93,7 @@ func (h *Hub) putTicketLists(lists map[string][]AIEditTicket) error {
 		}
 		batch.AIEditTickets = append(batch.AIEditTickets, storage.BookBody{Book: book, Body: body})
 	}
-	if _, err := h.store.Apply(batch); err != nil {
+	if err := h.store.Apply(batch); err != nil {
 		return err
 	}
 	for book, list := range lists {

@@ -5,7 +5,7 @@ import { createStore, type StoreApi } from "zustand/vanilla"
 import { USER } from "../core/actor"
 import { type Address, addressOf, keepPlace, placeAt } from "../core/address"
 import { type Annotations, restoreAllAnnotations, withAnnotations } from "../core/annotation"
-import { checkBooks, findPage, pageById } from "../core/book"
+import { checkBooks, distinctBooks, findPage, pageById } from "../core/book"
 import type {
   ActionId,
   ControlCenterId,
@@ -20,6 +20,16 @@ import type { CoreCatalog } from "../core/core-catalog"
 import type { ActionContext, ActionOn, PageTarget } from "../core/def/action"
 import type { PluginStateDef } from "../core/def/plugin-state"
 import { fail } from "../core/errors"
+import {
+  type Folders,
+  libraryOf,
+  type Pages,
+  rawBooksOf,
+  settledOn,
+  type Tables,
+  tablesOf,
+  withChanges,
+} from "../core/folders"
 import { deepFreeze } from "../core/freeze"
 import type { Point, Size } from "../core/geom"
 import {
@@ -32,7 +42,6 @@ import {
   type SeenTest,
 } from "../core/history"
 import { detectLang, type Lang, type Params } from "../core/i18n/i18n"
-import { type Folders, libraryOf, type Pages, settledOn, type Tables, tablesOf, withChanges } from "../core/folders"
 import { type Library, splitTrash } from "../core/library"
 import { type Patch, patchOf, undoneIn, type Written } from "../core/patch"
 import { type ArgsOf, performIn, type Refused, type ResultOf, type TargetOf } from "../core/perform"
@@ -416,7 +425,8 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   // ホストクライアントだけが使う（アクションを通さずに世界を入れ替えるので、プラグインに渡す actions には入れない）
   receive(
     world: {
-      books: readonly unknown[]
+      pages: readonly unknown[] // 置き場所から読んだままのページとフォルダ（ブックは、ここから組んで確かめる）
+      folders: readonly unknown[]
       settings: unknown
       annotations?: unknown
       records?: unknown
@@ -427,7 +437,7 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
       participantLive?: Readonly<Record<string, ParticipantLive>>
     },
     replay: readonly DoneAction[],
-    change?: { book: string; by: "ai" | "window" | "host"; act: string; action: string },
+    change?: { books: readonly string[]; by: "ai" | "window" | "host"; act: string; action: string },
   ): void
   // まだ見ていない画面の履歴の段が見えたかを確かめ直す（窓が見えるようになったとき。ホストクライアントだけが使う。プラグインに渡す actions には入れない）
   checkSeen(): void
@@ -621,7 +631,13 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         if (hit.partial) partial.push(hit.partial)
       } else warnings.push(hit.warning)
     }
-    return { books, warnings, partial }
+    // 1 冊ずつ確かめた後に、ブックどうしで id が重ならないかを確かめる（重なるブックは読めないブックにする）
+    const distinct = distinctBooks(books)
+    return {
+      books: distinct.books,
+      warnings: [...warnings, ...distinct.warnings],
+      partial: partial.filter(p => distinct.books.some(b => b.id === p.params.book)),
+    }
   }
   // キーバインドの表（利用者の変更が変わったときだけ作り直す）
   let keyCache: { settings: Settings; table: KeyTable } | null = null
@@ -1171,16 +1187,19 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     state: store,
     actions,
     receive: (world, replay, change) => {
-      const found = restore(world.books)
+      const found = restore(rawBooksOf(world.pages, world.folders))
       const now = getState()
       // 確かめた世界の表（中身の同じページ・フォルダは、今の値に寄せる。組んだブックも同じ値のままになる）
       let tables = settledOn(tablesOf(found.books), now)
       const library = libraryOf(tables)
-      const was = known[change?.book ?? ""]
-      const to = library[change?.book ?? ""]
       const by = change?.by === "host" ? undefined : change?.by
       const recorded = change && by && catalog.actions.get(change.action)?.history !== false
-      if (change && by && recorded && was && to && !sameData(was, to)) addUnseen({ by, act: change.act }, was, to)
+      // よその変更が変えたブックごとに、まだ見ていない変更に足す
+      for (const id of change?.books ?? []) {
+        const was = known[id]
+        const to = library[id]
+        if (change && by && recorded && was && to && !sameData(was, to)) addUnseen({ by, act: change.act }, was, to)
+      }
       known = library
       let settings = restoreSettings(world.settings)
       let annotations = restoreAllAnnotations(world.annotations)

@@ -13,9 +13,11 @@
 // 常駐が足した追加プラグインは、読むときに見た目の JS を import() して、default で出したものを渡す（CSS も読む）。
 // 追加プラグインが変わったと届いたら（plugins）、画面を読み直す（台帳アセンブルし直すため）。
 // つながりが切れた・読み直せなかった・古い版を捨てたなどは、常駐のログにも書き残す（POST /api/log。切れている間の分は、つながってから送る）
+
 import { z } from "zod"
 import type { CoreCatalog } from "../core/core-catalog"
 import { fail, matomezuError, problem } from "../core/errors"
+import { rawBooksOf } from "../core/folders"
 import { restoreCounters, restoreRecords, withCounters, withRecords } from "../core/records"
 import type { Stage } from "../core/stage"
 import type { Warning } from "../core/warnings"
@@ -194,7 +196,8 @@ export function showIn(instance: MatomezuInstance, show: z.infer<typeof ShowSche
 }
 
 const DataSchema = z.object({
-  books: z.array(z.object({ id: z.string(), book: z.unknown(), version: z.number().int() })),
+  pages: z.array(z.object({ id: z.string(), page: z.unknown(), version: z.number().int() })),
+  folders: z.array(z.object({ id: z.string(), folder: z.unknown(), version: z.number().int() })),
   settings: z.unknown(),
   annotations: z.record(z.string(), z.unknown()).optional(),
   records: z.unknown().optional(),
@@ -211,9 +214,16 @@ const DataSchema = z.object({
 })
 const HelloSchema = z.object({ client: z.string() })
 const Mark = { client: z.string().optional(), seq: z.number().int().optional() }
-const BookSchema = z.object({
-  book: z.object({ id: z.string() }).loose(),
-  version: z.number().int(),
+// 変わったページ・フォルダ 1 つ（消したなら removed が true で、中身と版は無い）
+const rowSchema = <K extends "page" | "folder">(field: K) =>
+  z.object({ id: z.string(), version: z.number().int().optional(), removed: z.literal(true).optional() }).extend({
+    [field]: z.unknown().optional(),
+  } as Record<K, z.ZodOptional<z.ZodUnknown>>)
+// 1 回のアクションが変えた・足した・消したページとフォルダの全部（books は、それらを持つブックの id）
+const ChangedSchema = z.object({
+  pages: z.array(rowSchema("page")),
+  folders: z.array(rowSchema("folder")),
+  books: z.array(z.string()),
   by: z.enum(["ai", "window", "host"]).optional(),
   act: z.string().optional(),
   action: z.string().optional(),
@@ -229,7 +239,6 @@ const ParticipantLiveSchema = z.object({
   branch: z.string().optional(),
 })
 const TouchedSchema = z.object({ book: z.string(), at: z.string() })
-const RemovedSchema = z.object({ book: z.string(), ...Mark })
 const AnnotationsSchema = z.object({ page: z.string(), annotations: z.unknown(), ...Mark })
 // レコードの知らせ: 1 つのアクションが変えたレコードの全部（records。消したなら record は "removed"）と進めた番号（種類 → 区切り → 次の番号）。
 // window は最後にフォーカスされた窓（その窓が、郵便が届いたことをマーキーで知らせる）
@@ -245,7 +254,9 @@ export interface ServerClient extends HostClient {
 }
 
 export function serverClient(net: Net = browserNet): ServerClient {
-  const confirmed = new Map<string, { book: unknown; version: number }>()
+  // 確かめた世界のページとフォルダ（id → 置き場所から読んだままの中身と版）
+  type Rows = Map<string, { row: unknown; version: number }>
+  const confirmed: { pages: Rows; folders: Rows } = { pages: new Map(), folders: new Map() }
   let settings: unknown
   let annotations: Record<string, unknown> = {} // ページの id → アノテーションの並び
   let records: unknown = {} // 対象の定義が足した種類のレコード（種類の id → id → レコード）
@@ -324,10 +335,11 @@ export function serverClient(net: Net = browserNet): ServerClient {
   let events: Events | null = null
 
   // change は、この窓のでない変更の知らせのとき（その変更を、まだ見ていない画面の履歴の段にする）
-  const show = (change?: { book: string; by: "ai" | "window" | "host"; act: string; action: string }) =>
+  const show = (change?: { books: readonly string[]; by: "ai" | "window" | "host"; act: string; action: string }) =>
     instance?.receive(
       {
-        books: [...confirmed.values()].map(e => e.book),
+        pages: [...confirmed.pages.values()].map(e => e.row),
+        folders: [...confirmed.folders.values()].map(e => e.row),
         settings,
         annotations,
         records,
@@ -401,7 +413,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
       sending = false
     }
   }
-  // 読んでいる間に知らせで変わった・消えたブックの id（読むごとに 1 つ）
+  // 読んでいる間に知らせで変わった・消えたページとフォルダの id（読むごとに 1 つ）
   const reading = new Set<Set<string>>()
   const changed = (id: string) => {
     for (const ids of reading) ids.add(id)
@@ -418,21 +430,34 @@ export function serverClient(net: Net = browserNet): ServerClient {
       reading.delete(during)
     }
   }
-  // 読んだ世界を入れる。読んでいる間に届いた知らせの方が新しければ、そちらを残す（during はその間に知らせで変わった・消えたブック）
+  // 読んだ世界を入れる。読んでいる間に届いた知らせの方が新しければ、そちらを残す（during はその間に知らせで変わった・消えたページとフォルダ）
   const take = (data: z.infer<typeof DataSchema>, during: ReadonlySet<string>) => {
-    const have = new Set(data.books.map(b => b.id))
-    for (const id of [...confirmed.keys()])
-      if (!have.has(id) && !during.has(id)) {
-        confirmed.delete(id)
-        logLine(`removed book ${id}; the server does not have it`)
+    const takeRows = (what: string, rows: Rows, read: readonly { id: string; row: unknown; version: number }[]) => {
+      const have = new Set(read.map(r => r.id))
+      for (const id of [...rows.keys()])
+        if (!have.has(id) && !during.has(id)) {
+          rows.delete(id)
+          logLine(`removed ${what} ${id}; the server does not have it`)
+        }
+      for (const r of read) {
+        const now = rows.get(r.id)
+        if (during.has(r.id) && !now) continue
+        if (now && now.version < r.version)
+          logLine(`took ${what} ${r.id} v${r.version}; the window had v${now.version}`)
+        if (!now || now.version < r.version) rows.set(r.id, { row: r.row, version: r.version })
+        else if (now.version > r.version) logLine(`kept ${what} ${r.id} v${now.version}; the server has v${r.version}`)
       }
-    for (const b of data.books) {
-      const now = confirmed.get(b.id)
-      if (during.has(b.id) && !now) continue
-      if (now && now.version < b.version) logLine(`took book ${b.id} v${b.version}; the window had v${now.version}`)
-      if (!now || now.version < b.version) confirmed.set(b.id, { book: b.book, version: b.version })
-      else if (now.version > b.version) logLine(`kept book ${b.id} v${now.version}; the server has v${b.version}`)
     }
+    takeRows(
+      "page",
+      confirmed.pages,
+      data.pages.map(p => ({ id: p.id, row: p.page, version: p.version })),
+    )
+    takeRows(
+      "folder",
+      confirmed.folders,
+      data.folders.map(f => ({ id: f.id, row: f.folder, version: f.version })),
+    )
     settings = data.settings ?? undefined
     annotations = data.annotations ?? {}
     records = data.records ?? {}
@@ -555,24 +580,29 @@ export function serverClient(net: Net = browserNet): ServerClient {
       retell?.()
       reread(link)
     })
-    on("book", data => {
-      const e = BookSchema.parse(JSON.parse(data))
-      const have = confirmed.get(e.book.id)
-      if (!have || have.version < e.version) confirmed.set(e.book.id, { book: e.book, version: e.version })
-      else if (have.version > e.version)
-        logLine(`kept book ${e.book.id} v${have.version}; the notice had v${e.version}`)
-      changed(e.book.id)
+    on("changed", data => {
+      const e = ChangedSchema.parse(JSON.parse(data))
+      const put = (
+        what: string,
+        rows: Rows,
+        id: string,
+        row: unknown,
+        version: number | undefined,
+        removed: boolean,
+      ) => {
+        const have = rows.get(id)
+        if (removed) rows.delete(id)
+        else if (version !== undefined && (!have || have.version < version)) rows.set(id, { row, version })
+        else if (have && version !== undefined && have.version > version)
+          logLine(`kept ${what} ${id} v${have.version}; the notice had v${version}`)
+        changed(id)
+      }
+      for (const p of e.pages) put("page", confirmed.pages, p.id, p.page, p.version, p.removed === true)
+      for (const f of e.folders) put("folder", confirmed.folders, f.id, f.folder, f.version, f.removed === true)
       settle(e)
       const act = e.act
       const foreign = e.client !== client && e.by !== undefined && act !== undefined
-      show(foreign ? { book: e.book.id, by: e.by as "ai" | "window" | "host", act, action: e.action ?? "" } : undefined)
-    })
-    on("removed", data => {
-      const e = RemovedSchema.parse(JSON.parse(data))
-      confirmed.delete(e.book)
-      changed(e.book)
-      settle(e)
-      show()
+      show(foreign ? { books: e.books, by: e.by as "ai" | "window" | "host", act, action: e.action ?? "" } : undefined)
     })
     on("settings", data => {
       const e = SettingsSchema.parse(JSON.parse(data))
@@ -666,7 +696,11 @@ export function serverClient(net: Net = browserNet): ServerClient {
         else failed.push({ id: p.id, error: r?.reason })
       })
       return {
-        books: [...confirmed.values()].map(e => e.book),
+        // 残しておいたブック（ページとフォルダから組んだ物。形は store が確かめる）
+        books: rawBooksOf(
+          [...confirmed.pages.values()].map(e => e.row),
+          [...confirmed.folders.values()].map(e => e.row),
+        ),
         settings,
         plugins: added,
         failed,

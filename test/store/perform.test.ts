@@ -13,7 +13,7 @@ import { createMatomezu } from "../../web/src/store/create"
 import { definePlugin } from "../../web/src/store/plugin"
 import type { Actions, DoneAction } from "../../web/src/store/store"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { newStore, sequence } from "../support"
+import { newStore, sequence, worldRows } from "../support"
 
 // 追加プラグインの見本: 自分のページのタイプと、そのタイプで使えるアクション（core/catalog.ts には書き足さない）。
 // アクションはページを名指し（許可スコープ { page }）、名指したページのタイプが add で足しているときだけ使える
@@ -146,7 +146,7 @@ describe("アクションの入口", () => {
     expect(notePage(instance)).toMatchObject({ title: "2026-10-26T02:00:00.000Z" })
     expect(done.at(-1)).toMatchObject({ action: "notes:stamp", now: "2026-10-26T02:00:00.000Z" })
     // ホストから届いたブックに、まだ確かめられていないアクションを行い直す
-    instance.receive({ books: [receivedBook("メモ")], settings: {} }, [done.at(-1)!])
+    instance.receive({ ...worldRows([receivedBook("メモ")]), settings: {} }, [done.at(-1)!])
     expect(notePage(instance)).toMatchObject({ title: "2026-10-26T02:00:00.000Z" })
   })
 
@@ -172,7 +172,7 @@ describe("アクションの入口", () => {
         },
       },
     } as unknown as DoneAction
-    instance.receive({ books: [receivedBook("メモ")], settings: {} }, [bad, good])
+    instance.receive({ ...worldRows([receivedBook("メモ")]), settings: {} }, [bad, good])
     expect(notePage(instance)).toMatchObject({ title: good.now })
   })
 

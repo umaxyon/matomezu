@@ -105,9 +105,9 @@ func TestAIEditTicketsUndoneBeforeSeen(t *testing.T) {
 
 // 上限（aiEditTicketsMax）を超えても、key で見分ける AI 編集チケットは捨てず、key の無い物の古い方から捨てる
 func TestTicketsWithAKeyAreNotDroppedAtTheLimit(t *testing.T) {
-	list := []AIEditTicket{{Key: "proposal", At: "t", Version: 1}}
+	list := []AIEditTicket{{Key: "proposal", At: "t"}}
 	for i := range aiEditTicketsMax {
-		list = recordedTickets(list, fmt.Sprintf("a%d", i), int64(i+2), "t")
+		list = recordedTickets(list, fmt.Sprintf("a%d", i), "t")
 	}
 	if len(list) != aiEditTicketsMax || list[0].Key != "proposal" || list[1].Act != "a1" {
 		t.Fatalf("list = %d, first %+v, second %+v", len(list), list[0], list[1])
@@ -117,7 +117,7 @@ func TestTicketsWithAKeyAreNotDroppedAtTheLimit(t *testing.T) {
 	for i := range aiEditTicketsMax + 1 {
 		keyed = append(keyed, AIEditTicket{Key: fmt.Sprintf("k%d", i)})
 	}
-	if got := recordedTickets(keyed, "a", 1, "t"); len(got) != aiEditTicketsMax+1 || got[0].Key != "k0" || got[len(got)-1].Key != "k100" {
+	if got := recordedTickets(keyed, "a", "t"); len(got) != aiEditTicketsMax+1 || got[0].Key != "k0" || got[len(got)-1].Key != "k100" {
 		t.Fatalf("keyed = %d", len(got))
 	}
 }
@@ -129,11 +129,11 @@ func TestRemovedProposalIsToldAndForgotten(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.Apply(storage.Batch{
-		Books:         []storage.BookWrite{{ID: "b1", Body: json.RawMessage(boxed)}},
+	putBook(t, store, boxed)
+	if err := store.Apply(storage.Batch{
 		Counters:      []storage.Counter{{Subject: mailKind, Scope: "mail", Next: 2}},
 		Records:       []storage.RecordWrite{{Subject: mailKind, ID: "m1", Body: json.RawMessage(`{"id":"m1","mail":"@matomezu/base:proposal","from":"a","sentAt":"t","props":{"title":"提案","body":"","book":"b1","changes":[{"action":"x","args":{}}],"snapshot":{}},"order":1}`)}},
-		AIEditTickets: []storage.BookBody{{Book: "b1", Body: json.RawMessage(`[{"key":"m1","subject":"` + mailKind + `","at":"t","version":1}]`)}},
+		AIEditTickets: []storage.BookBody{{Book: "b1", Body: json.RawMessage(`[{"key":"m1","subject":"` + mailKind + `","at":"t"}]`)}},
 	}); err != nil {
 		t.Fatal(err)
 	}

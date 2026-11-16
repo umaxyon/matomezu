@@ -1,13 +1,14 @@
 // ページとフォルダの表（core/folders.ts）: ブックを表に分け、表からブックを組み、変わりを表への書き込みに分ける
 import { expect, test } from "bun:test"
 import { USER } from "../../web/src/core/actor"
-import { putBinder, putPage, removePage } from "../../web/src/core/book"
+import { checkBooks, putBinder, putPage, removePage } from "../../web/src/core/book"
 import {
   bookIdOf,
   bookOf,
   changesBetween,
   foldersOver,
   libraryOf,
+  rawBooksOf,
   recordsOf,
   settledOn,
   tablesOf,
@@ -153,4 +154,58 @@ test("新しく足すページの id が、世界のほかのブックにもう�
   if (!done.ok) return
   expect(Object.keys(done.changes?.pages ?? {})).toEqual(["fresh"])
   expect(Object.keys(done.changes?.folders ?? {})).toEqual(["b2"])
+})
+
+test("先のブックがもう使っている id（ページ・バインダ・ブックの id）を持つブックは、読めないブック（W006）にする", () => {
+  const twin = testBook("b3", "重なり", [drawingPage("p1")])
+  const taken = testBook("p2", "ページの id と同じブック", [drawingPage("y1")])
+  const done = checkBooks(CORE_CATALOG, [book, other, twin, taken])
+  expect(done.books.map(b => b.id)).toEqual(["b1", "b2"])
+  expect(done.warnings.map(w => [w.code, w.params.book])).toEqual([
+    ["W006", "b3"],
+    ["W006", "p2"],
+  ])
+})
+
+test("読んだままのページとフォルダから、ブックの本文を組む。id だけのエントリは表の中身に替え、中身ごと残っているエントリ・表に無いエントリ・形の壊れたフォルダは、そのまま返す", () => {
+  const { pages, folders } = tablesOf([book, other])
+  const raw = rawBooksOf(Object.values(pages), Object.values(folders))
+  // 分けた物から組むと、元のブックと同じ中身（バインダは、ブックのエントリになり、1 冊には数えない）
+  expect(raw).toEqual([book, other])
+  const broken = { id: "z1", title: "壊れた", folderRole: "book", lineup: "nope" }
+  const kept = {
+    id: "z2",
+    title: "残り",
+    folderRole: "book",
+    lineup: [
+      { kind: "page", id: "gone" },
+      { kind: "page", id: "x1", title: "中身ごと" },
+      { kind: "memo", id: "m" },
+    ],
+  }
+  expect(rawBooksOf(Object.values(pages), [broken, kept, "text"])).toEqual([
+    { id: "z1", title: "壊れた", lineup: "nope" },
+    {
+      id: "z2",
+      title: "残り",
+      lineup: [
+        { kind: "page", id: "gone" },
+        { kind: "page", id: "x1", title: "中身ごと" },
+        { kind: "memo", id: "m" },
+      ],
+    },
+    "text",
+  ])
+})
+
+test("同じフォルダと同じ中身からは、同じ値のブックの本文を組む。ページが 1 枚変われば、そのブックだけ組み直す", () => {
+  const { pages, folders } = tablesOf([book, other])
+  const rows = (table: Readonly<Record<string, unknown>>) => Object.values(table)
+  const [first, second] = rawBooksOf(rows(pages), rows(folders))
+  const again = rawBooksOf(rows(pages), rows(folders))
+  expect(again[0]).toBe(first)
+  expect(again[1]).toBe(second)
+  const changed = rawBooksOf(rows({ ...pages, x1: { ...pages.x1, title: "改" } }), rows(folders))
+  expect(changed[0]).toBe(first)
+  expect(changed[1]).not.toBe(second)
 })

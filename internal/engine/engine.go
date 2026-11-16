@@ -25,13 +25,15 @@ var source string
 // Input はアクション 1 つの頼み。Books は対象のアクションが要るブック（一覧のアクションなら全部。レコードが対象のアクションなら、読むだけのブック）、
 // IDs は振る id のもと（画面で先に行ったときの値。尽きたら新しく作る）
 type Input struct {
-	Action   string            `json:"action"`
-	Args     json.RawMessage   `json:"args"`
-	On       *On               `json:"on,omitempty"`
-	Lang     string            `json:"lang,omitempty"` // 画面で先に行ったときの言語（空ならエンジンが設定の言語の項目で決める）
-	IDs      []string          `json:"ids,omitempty"`
-	Now      string            `json:"now,omitempty"` // 画面で先に行った時点（無ければエンジンが決める）
-	Books    []json.RawMessage `json:"books"`
+	Action string          `json:"action"`
+	Args   json.RawMessage `json:"args"`
+	On     *On             `json:"on,omitempty"`
+	Lang   string          `json:"lang,omitempty"` // 画面で先に行ったときの言語（空ならエンジンが設定の言語の項目で決める）
+	IDs    []string        `json:"ids,omitempty"`
+	Now    string          `json:"now,omitempty"` // 画面で先に行った時点（無ければエンジンが決める）
+	// Pages と Folders は、対象のアクションが要るブックのページとフォルダ（置き場所から読んだまま。宛先のブックの分か、一覧のアクションなら全部、レコードが対象のアクションなら RecordNeeds の Books の分）
+	Pages    []json.RawMessage `json:"pages"`
+	Folders  []json.RawMessage `json:"folders"`
 	Settings json.RawMessage   `json:"settings"`
 	// Annotations は要るブックのページのアノテーション（ページの id → 並び。宛先のブックのページのか、一覧のアクションなら全部）
 	Annotations map[string]json.RawMessage `json:"annotations,omitempty"`
@@ -116,14 +118,24 @@ type Output struct {
 	Permission    string                      `json:"permission,omitempty"`
 	Detail        string                      `json:"detail,omitempty"`
 	Result        json.RawMessage             `json:"result,omitempty"`
-	Books         []json.RawMessage           `json:"books,omitempty"`
-	Removed       []string                    `json:"removed,omitempty"`
+	Pages         []RowChange                 `json:"pages,omitempty"`    // 変わった・足した・無くなったページ
+	Folders       []RowChange                 `json:"folders,omitempty"`  // 変わった・足した・無くなったフォルダ
+	Created       []string                    `json:"created,omitempty"`  // そのうち新しく足したページ・フォルダの id（世界のどこにも無い id であること）
+	Books         []string                    `json:"books,omitempty"`    // 変わったブックの id（変わったページ・フォルダを持つブック。無くなったブックも）
+	Trashing      []string                    `json:"trashing,omitempty"` // 新しくゴミ箱に入るブックの id
 	Settings      json.RawMessage             `json:"settings,omitempty"`
 	Annotations   map[string]json.RawMessage  `json:"annotations,omitempty"`
 	Records       []RecordChange              `json:"records,omitempty"`       // 変わったレコードの全部（宛先が先）。1 つのトランザクションで書く
 	Counters      map[string]map[string]int64 `json:"counters,omitempty"`      // 番号を進めた種類の id → 区切り → 次の番号（進めた区切りだけ）
 	Notice        string                      `json:"notice,omitempty"`        // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
 	AIEditTickets []AIEditTicketChange        `json:"aiEditTickets,omitempty"` // レコードが対象のアクションが返した、AI 編集チケットの変え方の並び（レコードと同じ 1 回の書き込みで、順に当てる）
+}
+
+// RowChange は、変わったページ・フォルダ 1 つ（Row は新しい本文。無くなったなら Removed）
+type RowChange struct {
+	ID      string          `json:"id"`
+	Row     json.RawMessage `json:"row,omitempty"`
+	Removed bool            `json:"removed,omitempty"`
 }
 
 // AIEditTicketChange は、アクションが返した AI 編集チケットの変え方。Key で 1 つを見分け（郵便の id など）、ブック Book の AI 編集チケットを

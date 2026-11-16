@@ -20,9 +20,9 @@ import { briefLine } from "../core/brief"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, type AIEditTicketChange, stopsOnEditLock } from "../core/def/action"
-import { libraryOf, tablesOf, withChanges } from "../core/folders"
 import { slideIsBackground } from "../core/def/page-type"
 import type { SubjectDef } from "../core/def/subject"
+import { createdIn, libraryOf, NO_CHANGES, rawBooksOf, tablesOf, withChanges } from "../core/folders"
 import { detectLang, translate } from "../core/i18n/i18n"
 import { changedIn } from "../core/ids"
 import { splitId } from "../core/names"
@@ -95,7 +95,8 @@ let lastAdded: readonly Plugin[] = []
     ),
   ])
 
-// 受けるもの。books は対象のアクションが要るブック（一覧のアクションなら全部、レコードが対象のアクションなら readsBooks が答えたブック。matomezuRecordNeeds の books）、ids は振る id のもと（画面で先に行ったときの値。尽きたら randomUUID）
+// 受けるもの。pages と folders は対象のアクションが要るブックのページとフォルダ（置き場所から読んだまま。一覧のアクションなら全部、レコードが対象のアクションなら readsBooks が答えたブックの分。matomezuRecordNeeds の books）、
+// ids は振る id のもと（画面で先に行ったときの値。尽きたら randomUUID）
 interface Input {
   action: string
   args: unknown
@@ -103,7 +104,8 @@ interface Input {
   lang?: string // 画面で先に行ったときの言語。無ければ（AI が頼んだときなど）設定の言語の項目で決める
   ids?: string[]
   now?: string // 画面で先に行った時点。無ければ（AI が頼んだときなど）ここで決める
-  books?: unknown[]
+  pages?: unknown[]
+  folders?: unknown[]
   settings: unknown
   annotations?: Readonly<Record<string, unknown>> // 要るブックのページのアノテーション（ページの id → 並び）
   counters?: unknown // 番号を振る種類の、区切りごとの次の番号（種類の id → 区切り → 次の番号。対象がその種類のアクションのとき）
@@ -113,7 +115,8 @@ interface Input {
   watchedRecords?: Readonly<Record<string, readonly string[]>> // 利用者が直しているレコード（対象の種類の id → レコードの id。編集ロック）
 }
 
-// 返すもの。aiEditTickets はレコードが対象のアクションが返した AI 編集チケットの変え方の並び、books は変わった・足したブック、removed は一覧から無くなったブック、annotations はアノテーションが変わったページの id → 新しい並び（空なら全部無くなった）、
+// 返すもの。aiEditTickets はレコードが対象のアクションが返した AI 編集チケットの変え方の並び、pages と folders は変わった・足した・無くなったページとフォルダ（無くなった物は removed）、
+// created はそのうち新しく足した物の id（常駐が、世界のどこにも無い id かを確かめる）、books は変わったブックの id（変わったページ・フォルダを持つブック。無くなったブックも）、trashing は新しくゴミ箱に入るブックの id、annotations はアノテーションが変わったページの id → 新しい並び（空なら全部無くなった）、
 // records は変わったレコードの並び（1 つのトランザクションで書く）、counters は進めた番号（種類の id → 区切り → 次の番号。進めた区切りだけ）。
 // AI のアクションと lockedForUser のアクションが、受けた watched の物（ページの中の物・そのページのアノテーション・ページそのもの、ブックのバインダ・ブックそのもの）か watchedRecords のレコードを変えるか消すなら、何も変えずに being-edited で断る。
 // 断ったら、detail に AI への説明（MCP 公開ツールが理由に添えて AI に返す）。認可ステップが止めたら（denied）、permission にそのステップの id
@@ -121,8 +124,11 @@ type Output =
   | {
       ok: true
       result: unknown
-      books: Book[]
-      removed: string[]
+      pages: readonly RowChange[]
+      folders: readonly RowChange[]
+      created: readonly string[]
+      books: readonly string[]
+      trashing: readonly string[]
       settings?: unknown
       annotations?: Annotations
       records?: readonly RecordChange[] // 変わったレコード（消したなら record は removed）
@@ -131,6 +137,15 @@ type Output =
       aiEditTickets?: readonly AIEditTicketChange[]
     }
   | { ok: false; reason: string; permission?: string; detail?: string }
+
+// 変わったページ・フォルダ 1 つ（row は新しい値。無くなったなら removed が true で、row は無い）
+interface RowChange {
+  id: string
+  row?: unknown
+  removed?: true
+}
+const rowChanges = (changed: Readonly<Record<string, unknown>>): RowChange[] =>
+  Object.entries(changed).map(([id, row]) => (row === REMOVED ? { id, removed: true as const } : { id, row }))
 
 declare const crypto: { randomUUID(): string }
 
@@ -204,7 +219,8 @@ function perform(input: Input): Output {
   const settings = restoreSettings(input.settings)
   const lang = input.lang ? detectLang([input.lang], [...catalog.languages.keys()]) : langOf(catalog, settings, "en")
   const ids = [...(input.ids ?? [])]
-  const books = Object.fromEntries(restoreBooks(catalog, input.books ?? []).map(b => [b.id, b]))
+  const raw = rawBooksOf(input.pages ?? [], input.folders ?? [])
+  const books = Object.fromEntries(restoreBooks(catalog, raw).map(b => [b.id, b]))
   const annotations = Object.fromEntries(
     Object.entries(input.annotations ?? {}).map(([page, list]) => [page, restoreAnnotations(list)]),
   )
@@ -250,11 +266,15 @@ function perform(input: Input): Output {
   const editedRecord = (done.records ?? []).some(c => (input.watchedRecords?.[c.subject] ?? []).includes(c.id))
   if ((touched.length > 0 || editedRecord) && stopsOnEditLock(catalog.actions.get(input.action), actor))
     return { ok: false, reason: "being-edited" }
+  const changes = done.changes ?? NO_CHANGES
   return {
     ok: true,
     result: done.result,
-    books: changed,
-    removed,
+    pages: rowChanges(changes.pages),
+    folders: rowChanges(changes.folders),
+    created: createdIn(Object.values(books), changes),
+    books: [...changed.map(b => b.id), ...removed],
+    trashing: changed.filter(b => b.trashed !== undefined && books[b.id]?.trashed === undefined).map(b => b.id),
     ...(done.settings ? { settings: done.settings } : {}),
     ...(done.annotations ? { annotations: done.annotations } : {}),
     ...(done.records ? { records: done.records.map(c => withKeys(catalog, c)) } : {}),

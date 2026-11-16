@@ -1,6 +1,6 @@
 package server
 
-// Hub は常駐が持つ今の世界（ブックと設定とアノテーション）と、つながっている窓。
+// Hub は常駐が持つ今の世界（ページとフォルダと設定とアノテーション）と、つながっている窓。
 //
 // アクションは 1 つずつ順に行い（鍵 mu）、変わったものを置き場所に書いてから、つながっている全部の窓に同じ順で知らせる。
 // 窓は自分で先に行ったアクションを、知らせ（client と seq）で確かめる。
@@ -8,8 +8,9 @@ package server
 // /api/events のイベント（data は JSON）:
 //
 //	hello     {"client"} この接続の id。窓はアクションにこの id と、自分で振った順の番号 seq を添えて送る
-//	book      {"book", "version", "client", "seq", "by", "act", "action"} ブックが変わった・足された（client と seq は変えたアクションのもの。窓の外からなら空。
-//	          by は頼んだ物（"ai"・"window"・常駐が自分で行ったなら "host"）、act は 1 回の Perform の印で、同じ Perform が変えたブックは同じ act。action は行ったアクションの id）
+//	changed   {"pages": [{"id", "page"（消したなら "removed": true）, "version"}], "folders": [{"id", "folder"（同じ）, "version"}], "books", "client", "seq", "by", "act", "action"}
+//	          1 回の Perform が変えた・足した・消したページとフォルダの全部（books は、それらを持つブックの id。client と seq は変えたアクションのもの。窓の外からなら空。
+//	          by は頼んだ物（"ai"・"window"・常駐が自分で行ったなら "host"）、act は 1 回の Perform の印、action は行ったアクションの id）
 //	settings  {"settings", "client", "seq"} 設定が変わった
 //	annotations {"page", "annotations", "client", "seq"} ページのアノテーションが変わった（並びが空なら全部無くなった）
 //	ack       {"seq", "ok", "reason"} 送った窓にだけ。そのアクションを行い終えた（断ったなら ok が false）。そのアクションの book・settings・annotations・record のあとに届く
@@ -17,7 +18,6 @@ package server
 //	          （郵便も。records.go）。window は最後にフォーカスされた窓
 //	show      {"book", "page", "stage", "split"} 最後にフォーカスされた窓にだけ。そのブックを出す（Show）
 //	plugins   {"version"} 追加プラグインが変わった（plugins.go）。窓は読み直す
-//	removed   {"book", "client", "seq"} ブックをゴミ箱から消した（trash.go）
 //	participant-calls {"participant", "at"} 参加者の最後に呼ばれた時刻（join.go。30 秒以上あいたときだけ知らせる）
 //	participant-ready {"participant"} 参加者が準備中でなくなった（フックが参加を伝えた、または join で MCP がセッション id を運んだ。join.go）
 //	participant-live {"participant", "model", "branch"} 参加者のモデルかブランチが変わった（そのときの両方。空は省く。join.go・model.go）
@@ -46,11 +46,12 @@ const clientBuffer = 256
 // 覚えておく、行ったアクションの番号（key）の数。窓は答えが届かなかったアクションを同じ番号で送り直すので、同じ番号は二度行わない
 const performedKeys = 1024
 
+// entry は、組んだブック 1 冊（tables.go。本文は、並びにページとバインダの中身ごと持つ形。version はブックのフォルダの版）
 type entry struct {
 	body    json.RawMessage
 	version int64
 	trashed bool     // ゴミ箱のブックか（土台のフィールド trashed があるか。覚えるときに 1 度だけ読む）
-	pages   []string // ブックのページの id（バインダの中も。覚えるときに 1 度だけ読む。宛先のページから持ち主のブックを引くのに使う）
+	pages   []string // ブックのページの id（バインダの中も。覚えるときに 1 度だけ読む）
 }
 
 // newEntry は、ブックの本文 body を覚える形にする
@@ -58,19 +59,16 @@ func newEntry(body json.RawMessage, version int64) entry {
 	return entry{body, version, trashed(body), pageIDs(body)}
 }
 
-// bookOfPage は、ページ page を持っているブックの id（ゴミ箱のブックは見ない。無いか、2 冊にあれば、どちらとも決めずに空。h.mu を持って呼ぶ）
+// bookOfPage は、ページ page を持っているブックの id（ゴミ箱のブックのページ・どのブックにも入っていないページ・無いページなら空。h.mu を持って呼ぶ）
 func (h *Hub) bookOfPage(page string) string {
-	found := ""
-	for id, e := range h.books {
-		if e.trashed || !slices.Contains(e.pages, page) {
-			continue
-		}
-		if found != "" {
-			return ""
-		}
-		found = id
+	if _, ok := h.pages[page]; !ok {
+		return ""
 	}
-	return found
+	book := h.bookOfEntry(page)
+	if h.books[book].trashed {
+		return ""
+	}
+	return book
 }
 
 // bookOn は、宛先 on のアクションを行うブックの id（宛先がページなら、そのページを持っているブック。bookOfPage の決まり。h.mu を持って呼ぶ）
@@ -110,8 +108,11 @@ type Hub struct {
 	mu               sync.Mutex
 	store            storage.Storage
 	engine           *engine.Engine
-	books            map[string]entry
-	order            []string // 置いた順のブックの id（GET /api/data の並び）
+	pages            map[string]row       // ページの id → 本文と版（tables.go）
+	folders          map[string]folderRow // フォルダの id → 本文と版と、エントリの id（tables.go）
+	places           map[string]string    // エントリ（ページかバインダ）の id → それを入れているフォルダの id（tables.go）
+	books            map[string]entry     // ブックの id → 組んだブック（pages と folders から組んだ物。変わったブックだけ組み直す）
+	order            []string             // ブックの id の並び（AI に見せる一覧の順。読んだ順に、足したブックを後ろへ）
 	settings         json.RawMessage
 	annotations      map[string]json.RawMessage        // ページの id → アノテーションの並び（1 つも無いページは持たない）
 	roles            map[string]string                 // 常駐が読む種類の役（participants・workrooms）→ 対象の定義の id（records.go）
@@ -155,10 +156,6 @@ type Hub struct {
 
 // NewHub は置き場所から世界を読む
 func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
-	books, err := store.Books()
-	if err != nil {
-		return nil, err
-	}
 	settings, err := store.Settings(user)
 	if err != nil {
 		return nil, err
@@ -194,9 +191,8 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 		aiEditTickets[id] = list
 	}
 	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, participantNotes: notes, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}, aiEditTickets: aiEditTickets, actPrefix: strconv.FormatInt(time.Now().UnixNano(), 36)}
-	for _, b := range books {
-		h.books[b.ID] = newEntry(b.Body, b.Version)
-		h.order = append(h.order, b.ID)
+	if err := h.loadTables(); err != nil {
+		return nil, err
 	}
 	if err := h.loadRecords(); err != nil {
 		return nil, err
@@ -272,7 +268,7 @@ func (h *Hub) putAnnotationLists(lists map[string]json.RawMessage, client string
 	for _, page := range pages {
 		batch.Annotations = append(batch.Annotations, storage.PageBody{Page: page, Body: lists[page]})
 	}
-	if _, err := h.store.Apply(batch); err != nil {
+	if err := h.store.Apply(batch); err != nil {
 		return err
 	}
 	for _, page := range pages {
@@ -337,30 +333,32 @@ func (h *Hub) BookWarnings() map[string]engine.BookWarning {
 	return out
 }
 
-// Data は全部のブック（ゴミ箱のブックも）と設定とアノテーション（ページの id → 並び）
-func (h *Hub) Data() ([]storage.Book, json.RawMessage, map[string]json.RawMessage) {
+// Data は設定とアノテーション（ページの id → 並び）。ページとフォルダは Tables
+func (h *Hub) Data() (json.RawMessage, map[string]json.RawMessage) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	books := make([]storage.Book, 0, len(h.order))
-	for _, id := range h.order {
-		e := h.books[id]
-		books = append(books, storage.Book{ID: id, Body: e.body, Version: e.version})
-	}
 	annotations := make(map[string]json.RawMessage, len(h.annotations))
 	for id, list := range h.annotations {
 		annotations[id] = list
 	}
-	return books, h.settings, annotations
+	return h.settings, annotations
 }
 
-// AIBooks は、AI の MCP 公開ツールに出すブック（ゴミ箱のブックを除く）を、置いた順に返す
-func (h *Hub) AIBooks() []storage.Book {
+// Book は、組んだブック 1 冊（AI の口などに渡す。Version はブックのフォルダの版）
+type Book struct {
+	ID      string
+	Body    json.RawMessage
+	Version int64
+}
+
+// AIBooks は、AI の MCP 公開ツールに出すブック（ゴミ箱のブックを除く）を、並びの順に返す
+func (h *Hub) AIBooks() []Book {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	books := make([]storage.Book, 0, len(h.order))
+	books := make([]Book, 0, len(h.order))
 	for _, id := range h.order {
 		if e := h.books[id]; !e.trashed {
-			books = append(books, storage.Book{ID: id, Body: e.body, Version: e.version})
+			books = append(books, Book{ID: id, Body: e.body, Version: e.version})
 		}
 	}
 	return books
@@ -411,22 +409,14 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	}
 	if needs.Subject != "" {
 		// レコードが対象のアクションは、アノテーションを読まず、ブックはアクションが引数から答えた読むだけの物だけ
-		for _, id := range needs.Books {
-			if e, ok := h.books[id]; ok {
-				in.Books = append(in.Books, e.body)
-			}
-		}
+		in.Pages, in.Folders = h.rowsOf(needs.Books)
 	} else if p.On != nil {
 		// 宛先がページなら、そのページを持っているブックで行う
 		book := h.bookOn(p.On)
-		if e, ok := h.books[book]; ok {
-			in.Books = []json.RawMessage{e.body}
-		}
+		in.Pages, in.Folders = h.rowsOf([]string{book})
 		in.Annotations = h.annotationsIn(book)
 	} else {
-		for _, id := range h.order {
-			in.Books = append(in.Books, h.books[id].body)
-		}
+		in.Pages, in.Folders = h.rowsOf(h.order)
 		for id, list := range h.annotations {
 			in.Annotations[id] = list
 		}
@@ -440,7 +430,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	}
 	done := Performed{OK: out.OK, Reason: out.Reason, Permission: out.Permission, Detail: out.Detail, Result: out.Result, Notice: out.Notice}
 	// AI のアクションは、窓に出ているブックをゴミ箱に入れない（AI は利用者に聞く）
-	if out.OK && p.By == "ai" && h.trashesShown(out.Books) {
+	if out.OK && p.By == "ai" && h.trashesShown(out.Trashing) {
 		done = Performed{OK: false, Reason: "open-on-screen"}
 		out.OK = false
 	}
@@ -461,8 +451,15 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		if err != nil {
 			return Performed{}, err
 		}
+		if plan == nil {
+			// 新しく足すページ・フォルダの id が、世界にもう在る（エンジンが受けたブックの外に）。何も変えずに断る
+			done = Performed{OK: false, Reason: "refused"}
+			h.remember(p.Key, done)
+			h.ack(p, done)
+			return done, nil
+		}
 		// 変わった物の全部を 1 つのまとまりで書く。書けなければ、置き場所もメモリも窓も何も変わらず、行い直せる
-		if _, err := h.store.Apply(plan.batch); err != nil {
+		if err := h.store.Apply(plan.batch); err != nil {
 			return Performed{}, err
 		}
 		h.acts++
@@ -679,19 +676,19 @@ func (h *Hub) Show(s Show) error {
 }
 
 // Book は 1 冊のブック（無いかゴミ箱のブックなら nil）
-func (h *Hub) Book(id string) *storage.Book {
+func (h *Hub) Book(id string) *Book {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	e, ok := h.books[id]
 	if !ok || e.trashed {
 		return nil
 	}
-	return &storage.Book{ID: id, Body: e.body, Version: e.version}
+	return &Book{ID: id, Body: e.body, Version: e.version}
 }
 
 // AISettings は AI が読む設定（engine.AISettings）
 func (h *Hub) AISettings() (json.RawMessage, error) {
-	_, settings, _ := h.Data()
+	settings, _ := h.Data()
 	return h.engine.AISettings(settings)
 }
 

@@ -17,9 +17,9 @@ type refusing struct {
 	fail bool
 }
 
-func (r *refusing) Apply(b storage.Batch) (*storage.Book, error) {
+func (r *refusing) Apply(b storage.Batch) error {
 	if r.fail {
-		return nil, errors.New("refused")
+		return errors.New("refused")
 	}
 	return r.Storage.Apply(b)
 }
@@ -31,9 +31,7 @@ func TestPerformChangesNothingWhenTheWriteFails(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { store.Close() })
-	if _, _, err := store.PutBook("b1", json.RawMessage(drawing), 0); err != nil {
-		t.Fatal(err)
-	}
+	putBook(t, store, drawing)
 	eng, err := engine.New()
 	if err != nil {
 		t.Fatal(err)
@@ -54,9 +52,19 @@ func TestPerformChangesNothingWhenTheWriteFails(t *testing.T) {
 	if _, err := do(); err == nil || !strings.Contains(err.Error(), "refused") {
 		t.Fatalf("perform = %v; want the refused error", err)
 	}
-	books, _, _ := hub.Data()
-	if len(books) != 1 || books[0].Version != 1 || strings.Contains(string(books[0].Body), "追加") {
-		t.Fatalf("the book changed: %+v", books)
+	entries := func() int {
+		got, err := store.Entries()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return len(got)
+	}
+	pages, folders := hub.Tables()
+	if len(pages) != 1 || pages[0].Version != 1 || len(folders) != 1 || folders[0].Version != 1 || strings.Contains(string(folders[0].Body), "追加") || entries() != 1 {
+		t.Fatalf("the book changed: %+v %+v", pages, folders)
+	}
+	if book := hub.Book("b1"); book == nil || book.Version != 1 || strings.Contains(string(book.Body), "追加") {
+		t.Fatalf("the assembled book changed: %+v", book)
 	}
 	select {
 	case ev := <-c.ch:
@@ -68,8 +76,14 @@ func TestPerformChangesNothingWhenTheWriteFails(t *testing.T) {
 	if err != nil || !done.OK {
 		t.Fatalf("perform again = %+v, %v", done, err)
 	}
-	books, _, _ = hub.Data()
-	if books[0].Version != 2 || !strings.Contains(string(books[0].Body), "追加") {
-		t.Fatalf("the book did not change: %+v", books)
+	pages, folders = hub.Tables()
+	if len(pages) != 2 || len(folders) != 1 || folders[0].Version != 2 || entries() != 2 {
+		t.Fatalf("the book did not change: %+v %+v", pages, folders)
+	}
+	if book := hub.Book("b1"); book == nil || book.Version != 2 || !strings.Contains(string(book.Body), "追加") {
+		t.Fatalf("the assembled book did not change: %+v", book)
+	}
+	if ev := <-c.ch; ev.name != "changed" {
+		t.Fatalf("the window was told %s; want changed", ev.name)
 	}
 }

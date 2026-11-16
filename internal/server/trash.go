@@ -6,8 +6,6 @@ package server
 
 import (
 	"encoding/json"
-	"fmt"
-	"os"
 	"slices"
 )
 
@@ -20,18 +18,11 @@ func trashed(body json.RawMessage) bool {
 	return head.Trashed != ""
 }
 
-// trashesShown は、アクションが返したブック bodies のうち、新しくゴミ箱に入るブックが、どこかの窓に出ているか（h.mu を持って呼ぶ）
-func (h *Hub) trashesShown(bodies []json.RawMessage) bool {
-	for _, body := range bodies {
-		var head struct {
-			ID string `json:"id"`
-		}
-		_ = json.Unmarshal(body, &head)
-		if !trashed(body) || h.books[head.ID].trashed {
-			continue
-		}
+// trashesShown は、新しくゴミ箱に入るブック ids が、どこかの窓に出ているか（h.mu を持って呼ぶ）
+func (h *Hub) trashesShown(ids []string) bool {
+	for _, id := range ids {
 		for _, c := range h.clients {
-			if slices.Contains(c.held, head.ID) {
+			if slices.Contains(c.held, id) {
 				return true
 			}
 		}
@@ -39,37 +30,11 @@ func (h *Hub) trashesShown(bodies []json.RawMessage) bool {
 	return false
 }
 
-// remove は、アクションが一覧から消したブック id を置き場所から消して知らせる（h.mu を持って呼ぶ）
-func (h *Hub) remove(id, client string, seq int64) error {
-	if _, ok := h.books[id]; !ok {
-		return nil
-	}
-	if err := h.store.DeleteBook(id, h.books[id].pages); err != nil {
-		return err
-	}
-	h.dropBook(id, client, seq)
-	return nil
-}
-
-// dropBook は、置き場所から消し終えたブック id をメモリから外して知らせる（h.mu を持って呼ぶ）
-func (h *Hub) dropBook(id, client string, seq int64) {
-	annotated := false
-	for _, page := range h.books[id].pages {
-		if _, ok := h.annotations[page]; ok {
-			annotated = true
-			delete(h.annotations, page)
-		}
-	}
+// dropBook は、置き場所から消し終えたブック id をメモリから外す（ページとフォルダの表と、窓への知らせは、消した側が済ませている。h.mu を持って呼ぶ）
+func (h *Hub) dropBook(id string) {
 	delete(h.books, id)
 	delete(h.aiEditTickets, id)
 	delete(h.bookWarnings, id)
 	delete(h.touched, id)
 	h.order = slices.DeleteFunc(h.order, func(x string) bool { return x == id })
-	// 消したブックのアノテーションの warning も一覧から外す
-	if annotated {
-		if err := h.checkAnnotations(); err != nil {
-			fmt.Fprintln(os.Stderr, "engine: could not check the annotations:", err)
-		}
-	}
-	h.broadcast("removed", map[string]any{"book": id, "client": client, "seq": seq})
 }

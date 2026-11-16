@@ -9,7 +9,6 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/umaxyon/matomezu/internal/engine"
 	"github.com/umaxyon/matomezu/internal/storage"
 )
 
@@ -48,11 +47,9 @@ func booksForTest(o Options) http.HandlerFunc {
 			http.Error(w, "the book must be an object with the id of the path", http.StatusBadRequest)
 			return
 		}
-		version, have, err := o.Hub.putBookForTest(head.ID, req.Book, req.Base)
-		if errors.Is(err, storage.ErrConflict) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusConflict)
-			_ = json.NewEncoder(w).Encode(have)
+		version, conflict, err := o.Hub.putBookForTest(head.ID, req.Book, req.Base)
+		if conflict {
+			http.Error(w, "the book was changed by someone else", http.StatusConflict)
 			return
 		}
 		if err != nil {
@@ -81,26 +78,11 @@ func resetForTest(o Options) http.HandlerFunc {
 	}
 }
 
-// putBookForTest はブックを丸ごと置き、窓に知らせる（置いてある版が base のときだけ書く）。アクションを通さない
-func (h *Hub) putBookForTest(id string, body json.RawMessage, base int64) (int64, *storage.Book, error) {
+// putBookForTest はブックを丸ごと置き、窓に知らせる（置いてある版が base のときだけ書く。違えば conflict）。アクションを通さない
+func (h *Hub) putBookForTest(id string, body json.RawMessage, base int64) (version int64, conflict bool, err error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	found, err := h.engine.CheckBooks([]json.RawMessage{body})
-	if err != nil {
-		return 0, nil, err
-	}
-	version, have, err := h.store.PutBook(id, body, base)
-	if err != nil {
-		return 0, have, err
-	}
-	if _, ok := h.books[id]; !ok {
-		h.order = append(h.order, id)
-	}
-	h.books[id] = newEntry(body, version)
-	h.broadcast("book", map[string]any{"book": body, "version": version})
-	h.touch(id, stamp())
-	h.recordWarnings([]string{id}, found)
-	return version, nil, nil
+	return h.replaceBook(id, body, base)
 }
 
 // resetForTest は、置き場所と世界を空にしてから books を置く（置き場所のブック・開いた時刻・アノテーション・設定・レコード（郵便も）も消す。つないでいる窓と追加プラグインはそのまま。窓には知らせないので、テストは開き直す）
@@ -117,10 +99,8 @@ func (h *Hub) resetForTest(books []json.RawMessage, enabledPlugins []string) err
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	for _, id := range h.order {
-		if err := h.store.DeleteBook(id, h.books[id].pages); err != nil {
-			return err
-		}
+	if err := h.clearBooks(); err != nil {
+		return err
 	}
 	settings := json.RawMessage("null")
 	if len(enabledPlugins) > 0 {
@@ -136,27 +116,18 @@ func (h *Hub) resetForTest(books []json.RawMessage, enabledPlugins []string) err
 	if err := h.store.PutParticipantNotes(user, json.RawMessage("{}")); err != nil {
 		return err
 	}
-	h.books = map[string]entry{}
-	h.order = nil
 	h.settings = nil
 	if len(enabledPlugins) > 0 {
 		h.settings = settings
 	}
 	h.reusePluginsForSettings()
 	h.participantNotes = map[string]participantNote{}
-	h.annotations = map[string]json.RawMessage{}
-	h.touched = map[string]string{}
 	h.performed = map[string]Performed{}
 	h.performedOrder = nil
-	h.bookWarnings = map[string]engine.BookWarning{}
-	h.annotationWarnings = nil
 	for i, body := range books {
-		version, _, err := h.store.PutBook(ids[i], body, 0)
-		if err != nil {
+		if _, _, err := h.replaceBook(ids[i], body, 0); err != nil {
 			return err
 		}
-		h.books[ids[i]] = newEntry(body, version)
-		h.order = append(h.order, ids[i])
 	}
 	return h.checkBooks(h.order)
 }
@@ -186,7 +157,7 @@ func (h *Hub) joinedAIForTest() (string, error) {
 		{Subject: h.roles["workrooms"], ID: "e2e-room", Body: room},
 		{Subject: h.roles["participants"], ID: id, Body: who},
 	}
-	if _, err := h.store.Apply(storage.Batch{Records: writes}); err != nil {
+	if err := h.store.Apply(storage.Batch{Records: writes}); err != nil {
 		return "", err
 	}
 	changes := make([]map[string]any, 0, len(writes))
@@ -218,7 +189,7 @@ func (h *Hub) resetRecordsForTest() error {
 			batch.Counters = append(batch.Counters, storage.Counter{Subject: subject, Scope: scope, Next: 1})
 		}
 	}
-	if _, err := h.store.Apply(batch); err != nil {
+	if err := h.store.Apply(batch); err != nil {
 		return err
 	}
 	h.recordTables = map[string]map[string]recordEntry{}

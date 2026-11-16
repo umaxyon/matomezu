@@ -87,7 +87,7 @@ func TestStartingRebuildsTheSearchTexts(t *testing.T) {
 	}
 	t.Cleanup(func() { store.Close() })
 	const ticket, history = "@matomezu/taskboard:ticket", "@matomezu/taskboard:ticket-history"
-	if _, err := store.Apply(storage.Batch{Records: []storage.RecordWrite{
+	if err := store.Apply(storage.Batch{Records: []storage.RecordWrite{
 		{Subject: ticket, ID: "t1", Body: json.RawMessage(`{"id":"t1","project":"p1","number":3,"name":"Printer","body":"toner is empty","lane":"todo","tags":[],"priority":"medium","assignees":[],"createdAt":"2026-11-12T00:00:00.000Z","createdBy":{"kind":"user"},"updatedAt":"2026-11-12T00:00:00.000Z"}`)},
 		{Subject: history, ID: "h1", Body: json.RawMessage(`{"id":"h1","ticket":"t1","topic":"topic-status","text":"ordered a new cartridge","at":"2026-11-12T00:00:00.000Z","by":{"kind":"user"}}`)},
 	}}); err != nil {

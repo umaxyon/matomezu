@@ -1,15 +1,49 @@
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
+import { recordsOf } from "../../web/src/core/folders"
 import type { Book } from "../../web/src/core/schema/book"
 import { screenOf } from "../../web/src/core/window"
 import { type Events, NoServer, OFFLINE_MS, QUIET_MS, serverClient } from "../../web/src/host-client/server"
+import { drawingPage, testBook } from "../lineup"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { newStore, showCenter } from "../support"
+
+// 常駐が読まれたときに返すページとフォルダ: ブック books を分けた物（版は versions の id ごと。無ければ 1）
+const dataOf = (books: readonly Book[], versions: Readonly<Record<string, number>> = {}) => ({
+  pages: books.flatMap(b => recordsOf(b).pages).map(page => ({ id: page.id, page, version: versions[page.id] ?? 1 })),
+  folders: books
+    .flatMap(b => recordsOf(b).folders)
+    .map(folder => ({ id: folder.id, folder, version: versions[folder.id] ?? 1 })),
+})
+// 知らせに添える、行った窓と順の番号
+type Mark = { client?: string; seq?: number }
+// ブック book のページ id だけが版 version に変わった知らせ（フォルダは変わらない）
+const pageChangedOf = (book: Book, id: string, version: number, mark: Mark = {}) => ({
+  pages: recordsOf(book)
+    .pages.filter(page => page.id === id)
+    .map(page => ({ id, page, version })),
+  folders: [],
+  books: [book.id],
+  ...mark,
+})
+// ブック book のページとフォルダの全部が版 version に変わった知らせ
+const changedOf = (book: Book, version: number, mark: Mark = {}) => ({
+  pages: recordsOf(book).pages.map(page => ({ id: page.id, page, version })),
+  folders: recordsOf(book).folders.map(folder => ({ id: folder.id, folder, version })),
+  books: [book.id],
+  ...mark,
+})
+// ブック book のページとフォルダの全部を消した知らせ
+const removedOf = (book: Book) => ({
+  pages: recordsOf(book).pages.map(page => ({ id: page.id, removed: true })),
+  folders: recordsOf(book).folders.map(folder => ({ id: folder.id, removed: true })),
+  books: [book.id],
+})
 
 // 常駐の代わり: 送られたアクションを覚え、知らせ（emit）を手で送る。perform はアクションを送られたときの答え（null は送れない）、
 // read は読まれたときの答えの status、log はログを送られたときの答えの status、data は読まれたときに返す世界。待ち（later）は tick で進める。
 // 知らせのつながりは、つなぐたびに新しく作り（opened は作った数、closed は閉じた数）、emit と fail は最後に作ったつながりに送る
-function fakeServer(data: unknown = { books: [{ id: "b1", book: SAMPLE_BOOKS[0], version: 1 }], settings: null }) {
+function fakeServer(data: unknown = { ...dataOf([SAMPLE_BOOKS[0]!]), settings: null }) {
   const sent: Record<string, unknown>[] = []
   const answer: {
     perform: () => number | null
@@ -151,16 +185,11 @@ const place = (store: ReturnType<typeof newStore>) =>
     { item: "@matomezu/box:shape-nest-box", at: { x: 0, y: 0 }, crowd: "push" },
     { page: "p1" },
   )
+// アイテムを足した図面のページ p1
+const p1With = (...ids: string[]) =>
+  drawingPage("p1", { items: ids.map(id => ({ id, item: "@matomezu/box:shape-nest-box", x: 0, y: 0, props: {} })) })
 // 常駐が知らせる、アイテムを足した b1
-const b1With = (...ids: string[]) => ({
-  ...SAMPLE_BOOKS[0]!,
-  lineup: [
-    {
-      ...pagesOf(SAMPLE_BOOKS[0]!)[0],
-      items: ids.map(id => ({ id, item: "@matomezu/box:shape-nest-box", x: 0, y: 0, props: {} })),
-    },
-  ],
-})
+const b1With = (...ids: string[]): Book => ({ ...SAMPLE_BOOKS[0]!, lineup: [p1With(...ids)] })
 
 test("知らせにつながらなければ NoServer", async () => {
   const s = fakeServer()
@@ -183,7 +212,7 @@ test("画面 cookie を持たないブラウザは、読めずに、画面 cooki
 })
 
 test("読むと、置いてあるブックと設定を返す", async () => {
-  const s = fakeServer({ books: [{ id: "b1", book: SAMPLE_BOOKS[0], version: 1 }], settings: { lang: "en" } })
+  const s = fakeServer({ ...dataOf([SAMPLE_BOOKS[0]!]), settings: { lang: "en" } })
   const loading = s.host.load()
   s.emit("hello", { client: "c1" })
   expect(await loading).toEqual({
@@ -203,7 +232,8 @@ test("常駐が足した追加プラグインは、見た目の JS を読んで 
     fetch: async () =>
       new Response(
         JSON.stringify({
-          books: [],
+          pages: [],
+          folders: [],
           settings: null,
           plugins: [
             { id: "a", ui: "api/plugins/0/ui.js", css: "api/plugins/0/ui.css" },
@@ -269,34 +299,54 @@ test("ほかから変わったブックの上で、まだ確かめられてい�
   const { store, emit, host } = await connected()
   place(store)
   expect(itemsOf(store)).toEqual(["n1"])
-  emit("book", { book: b1With("o1"), version: 2, client: "c2", seq: 5 })
+  emit("changed", pageChangedOf(b1With("o1"), "p1", 2, { client: "c2", seq: 5 }))
   expect(itemsOf(store)).toEqual(["o1", "n1"])
   expect(host.pending()).toHaveLength(1)
-  emit("book", { book: b1With("o1", "n1"), version: 3, client: "c1", seq: 1 })
+  emit("changed", pageChangedOf(b1With("o1", "n1"), "p1", 3, { client: "c1", seq: 1 }))
   expect(itemsOf(store)).toEqual(["o1", "n1"])
   expect(host.pending()).toEqual([])
 })
 
-test("ゴミ箱に入ったブックはゴミ箱へ分け、消したと届いたブックは一覧から外れる", async () => {
-  const { store, emit } = await connected()
-  emit("book", { book: { ...b1With(), trashed: "2026-10-29T00:00:00.000Z" }, version: 2 })
+test("ゴミ箱に入ったブックはゴミ箱へ分け、消したと届いたブックは一覧から外れる（ほかのブックは同じ値のまま）", async () => {
+  const { store, emit } = await connected(fakeServer({ ...dataOf(SAMPLE_BOOKS.slice(0, 3)), settings: null }))
+  emit("changed", changedOf({ ...b1With(), trashed: "2026-10-29T00:00:00.000Z" }, 2))
   expect("b1" in store.state.getState().books).toBe(false)
   expect(store.state.getState().trash.b1?.trashed).toBe("2026-10-29T00:00:00.000Z")
-  emit("removed", { book: "b1" })
+  emit("changed", removedOf(b1With()))
   expect("b1" in store.state.getState().trash).toBe(false)
+  // ゴミ箱に入っていないブックも、ページとフォルダが消えたと届けば外れる
+  const before = store.state.getState().books
+  emit("changed", removedOf(SAMPLE_BOOKS[1]!))
+  const after = store.state.getState().books
+  expect(Object.keys(after)).toEqual(["b3"])
+  expect(after.b3).toBe(before.b3 as Book)
+  expect(store.state.getState().trash).toEqual({})
+})
+
+test("ページ 1 枚だけが変わった知らせでは、そのページだけが入れ替わり、同じブックのほかのページとほかのブックは同じ値のまま", async () => {
+  const p2 = drawingPage("p2", { title: "ページ 2" })
+  const two = testBook("b1", "2 ページ", [p1With(), p2])
+  const { store, emit } = await connected(fakeServer({ ...dataOf([two, SAMPLE_BOOKS[1]!]), settings: null }))
+  const before = store.state.getState().books
+  emit("changed", pageChangedOf(testBook("b1", "2 ページ", [p1With("x"), p2]), "p1", 2))
+  const after = store.state.getState().books
+  expect(itemsOf(store)).toEqual(["x"])
+  expect(pagesOf(after.b1 as Book)[0]).not.toBe(pagesOf(before.b1 as Book)[0]!)
+  expect(pagesOf(after.b1 as Book)[1]).toBe(pagesOf(before.b1 as Book)[1]!)
+  expect(after.b2).toBe(before.b2 as Book)
 })
 
 test("形の合わない知らせは捨て、あとの知らせは受け続ける", async () => {
   const { store, emit } = await connected()
-  emit("book", { version: 2 })
-  emit("book", { book: b1With("x"), version: 3 })
+  emit("changed", { pages: [{ version: 2 }], folders: [], books: ["b1"] })
+  emit("changed", pageChangedOf(b1With("x"), "p1", 3))
   expect(itemsOf(store)).toEqual(["x"])
 })
 
-test("古い版の知らせは使わない", async () => {
+test("古い版の知らせは使わない（版はページごと。ブックのフォルダの版は進まない）", async () => {
   const { store, emit } = await connected()
-  emit("book", { book: b1With("x"), version: 3 })
-  emit("book", { book: b1With("old"), version: 2 })
+  emit("changed", pageChangedOf(b1With("x"), "p1", 3))
+  emit("changed", pageChangedOf(b1With("old"), "p1", 2))
   expect(itemsOf(store)).toEqual(["x"])
 })
 
@@ -331,7 +381,7 @@ test("行えたアクションの画面の履歴の段は残し、performConfirm
   )
   await Promise.resolve()
   const id = itemsOf(store)[0] as string
-  emit("book", { book: b1With(id), version: 2, client: "c1", seq: 1 })
+  emit("changed", pageChangedOf(b1With(id), "p1", 2, { client: "c1", seq: 1 }))
   emit("ack", { seq: 1, ok: true, reason: "" })
   expect(await answer).toMatchObject({ ok: true })
   expect(store.state.getState().history.b1?.undo).toHaveLength(1)
@@ -376,7 +426,7 @@ test("つなぎ直したときに読めなければ、少し待って読み直�
   expect(s.reads()).toBe(2)
   expect(itemsOf(s.store)).toEqual([])
   s.answer.read = () => 200
-  s.answer.data = { books: [{ id: "b1", book: b1With("later"), version: 5 }], settings: null }
+  s.answer.data = { ...dataOf([b1With("later")], { p1: 5 }), settings: null }
   s.tick()
   await flush()
   expect(s.reads()).toBe(3)
@@ -385,22 +435,23 @@ test("つなぎ直したときに読めなければ、少し待って読み直�
     "lost the connection to the server",
     "reconnected as c2 (was c1): sending 0 actions again",
     "could not read the server again: NoServer",
-    "took book b1 v5; the window had v1",
+    "took page p1 v5; the window had v1",
   ])
 })
 
 test("つなぎ直して読み直すと、常駐に無くなったブックは消える。読んでいる間に届いたブックは残す", async () => {
   const s = await connected()
-  s.answer.data = { books: [], settings: null }
+  s.answer.data = { pages: [], folders: [], settings: null }
   s.fail()
   s.emit("hello", { client: "c2" })
   await flush()
   expect("b1" in s.store.state.getState().books).toBe(false)
-  expect(s.logged().map(l => l[1])).toContain("removed book b1; the server does not have it")
-  s.emit("book", { book: b1With("x"), version: 7 })
+  expect(s.logged().map(l => l[1])).toContain("removed page p1; the server does not have it")
+  expect(s.logged().map(l => l[1])).toContain("removed folder b1; the server does not have it")
+  s.emit("changed", changedOf(b1With("x"), 7))
   s.fail()
   s.emit("hello", { client: "c3" })
-  s.emit("book", { book: b1With("y"), version: 8 })
+  s.emit("changed", changedOf(b1With("y"), 8))
   await flush()
   expect(itemsOf(s.store)).toEqual(["y"])
 })
@@ -540,8 +591,9 @@ test("読んでいる間に届いた新しい版の知らせは、読んだ古�
   const loading = host.load()
   listeners.get("hello")?.(JSON.stringify({ client: "c1" }))
   await Bun.sleep(0)
-  listeners.get("book")?.(JSON.stringify({ book: b1With("new"), version: 3 }))
-  answer(new Response(JSON.stringify({ books: [{ id: "b1", book: b1With("old"), version: 2 }], settings: null })))
+  // ページだけが版 3 に進み、ブックのフォルダは読んだ版のまま
+  listeners.get("changed")?.(JSON.stringify(pageChangedOf(b1With("new"), "p1", 3)))
+  answer(new Response(JSON.stringify({ ...dataOf([b1With("old")], { p1: 2 }), settings: null })))
   expect((await loading).books).toEqual([b1With("new")])
 })
 
@@ -640,7 +692,7 @@ test("画面が見つけた warning は、つながりの id を添えて常駐�
 
 test("ブックに触れた時刻は、読んだ一覧と touched の知らせで持ち、store に入れる（古い知らせでは戻さない）", async () => {
   const server = fakeServer({
-    books: [{ id: "b1", book: SAMPLE_BOOKS[0], version: 1 }],
+    ...dataOf([SAMPLE_BOOKS[0]!]),
     settings: null,
     touched: { b1: "2026-10-27T01:00:00Z" },
   })
@@ -666,10 +718,10 @@ test("切れている間に書き残した事は、つなぎ直してから新�
 test("常駐のログに送れない（5xx）行は、つなぎ直したときに一緒に送る。4xx なら捨てる。読み直した版が画面の版より古ければ画面の版を残す", async () => {
   const s = await connected()
   s.answer.log = () => 400
-  s.emit("book", { book: b1With("x"), version: 3 })
-  s.emit("book", { book: b1With("x"), version: 1 })
+  s.emit("changed", pageChangedOf(b1With("x"), "p1", 3))
+  s.emit("changed", pageChangedOf(b1With("x"), "p1", 1))
   s.answer.log = () => 500
-  s.emit("book", { book: b1With("old"), version: 2 })
+  s.emit("changed", pageChangedOf(b1With("old"), "p1", 2))
   await flush()
   s.answer.log = () => 200
   s.fail()
@@ -677,10 +729,10 @@ test("常駐のログに送れない（5xx）行は、つなぎ直したとき�
   await flush()
   expect(itemsOf(s.store)).toEqual(["x"])
   expect(s.logged().slice(2)).toEqual([
-    ["c2", "kept book b1 v3; the notice had v2"],
+    ["c2", "kept page p1 v3; the notice had v2"],
     ["c2", "lost the connection to the server"],
     ["c2", "reconnected as c2 (was c1): sending 0 actions again"],
-    ["c2", "kept book b1 v3; the server has v1"],
+    ["c2", "kept page p1 v3; the server has v1"],
   ])
 })
 
@@ -690,7 +742,7 @@ test("知らせが QUIET_MS 届かなければ、黙って切れたとみて閉�
   place(s.store)
   await flush()
   s.answer.perform = () => 200
-  s.answer.data = { books: [{ id: "b1", book: b1With("ai"), version: 2 }], settings: null }
+  s.answer.data = { ...dataOf([b1With("ai")], { p1: 2 }), settings: null }
   s.tick(QUIET_MS)
   expect([s.opened(), s.closed()]).toEqual([2, 1])
   // つなぎ直したつながりが hello を返さなければ、また閉じてつなぎ直す（ログは 1 度だけ）
@@ -704,7 +756,7 @@ test("知らせが QUIET_MS 届かなければ、黙って切れたとみて閉�
   expect(s.logged().map(l => l[1])).toEqual([
     "no event for 60s; connecting again",
     "reconnected as c2 (was c1): sending 1 actions again",
-    "took book b1 v2; the window had v1",
+    "took page p1 v2; the window had v1",
   ])
 })
 

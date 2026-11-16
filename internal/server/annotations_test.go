@@ -48,9 +48,7 @@ func TestDroppingAPluginsAnnotations(t *testing.T) {
 	}
 	t.Cleanup(func() { store.Close() })
 	list := `[{"id":"c1","annotation":"@ex/notes:sticky","anchors":["a"],"props":{}},{"id":"c2","annotation":"@ex/notesx:sticky","anchors":["a"],"props":{}}]`
-	if _, _, err := store.PutBook("b1", json.RawMessage(boxed), 0); err != nil {
-		t.Fatal(err)
-	}
+	putBook(t, store, boxed)
 	if err := store.PutAnnotations("p1", json.RawMessage(list)); err != nil {
 		t.Fatal(err)
 	}
@@ -150,9 +148,7 @@ func TestRemovingABookTakesItsAnnotationWarnings(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { store.Close() })
-	if _, _, err := store.PutBook("b1", json.RawMessage(boxed), 0); err != nil {
-		t.Fatal(err)
-	}
+	putBook(t, store, boxed)
 	if err := store.PutAnnotations("p1", json.RawMessage(`[{"id":"c1","annotation":"@ex/notes:sticky","anchors":["a"],"props":{}}]`)); err != nil {
 		t.Fatal(err)
 	}
@@ -167,11 +163,10 @@ func TestRemovingABookTakesItsAnnotationWarnings(t *testing.T) {
 	if got := strings.Join(h.Warnings(), "\n"); !strings.Contains(got, "W018") {
 		t.Fatalf("warnings before = %s", got)
 	}
-	h.mu.Lock()
-	err = h.remove("b1", "", 0)
-	h.mu.Unlock()
-	if err != nil {
-		t.Fatal(err)
+	for _, do := range [][2]string{{"@matomezu/base:book-trash", `{"book":"b1"}`}, {"@matomezu/base:book-purge", `{"books":["b1"]}`}} {
+		if done, err := h.Perform(Perform{Action: do[0], Args: json.RawMessage(do[1])}); err != nil || !done.OK {
+			t.Fatalf("%s = %+v, %v", do[0], done, err)
+		}
 	}
 	if got := strings.Join(h.Warnings(), "\n"); strings.Contains(got, "W018") {
 		t.Fatalf("warnings after removing the book = %s", got)
@@ -186,9 +181,7 @@ func TestTalkStartsNoteExpiry(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { store.Close() })
-	if _, _, err := store.PutBook("b1", json.RawMessage(boxed), 0); err != nil {
-		t.Fatal(err)
-	}
+	putBook(t, store, boxed)
 	const list = `[{"id":"c1","annotation":"@matomezu/base:note","anchors":["a"],"props":{"text":"x","bubble":true,"addedAt":"2026-11-05T00:00:00.000Z","readAt":"2026-11-05T00:01:00.000Z"}},` +
 		`{"id":"c2","annotation":"@matomezu/base:note","anchors":["a"],"props":{"text":"y","bubble":true,"addedAt":"2026-11-05T00:00:00.000Z"}}]`
 	if err := store.PutAnnotations("p1", json.RawMessage(list)); err != nil {

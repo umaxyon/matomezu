@@ -245,3 +245,45 @@ export function createdIn(before: readonly Book[], changes: TableChanges): strin
     ...Object.entries(changes.folders).filter(([id, v]) => v !== REMOVED && !(id in was.folders)),
   ].map(([id]) => id)
 }
+
+// 置き場所から読んだままのページとフォルダ（形を確かめる前の値）から、ブックの本文（並びにページとバインダの中身ごと持つ形）を組む。確かめるのは、組んだ後（core/book.ts の checkBooks）。
+// ブックにするのは、どのフォルダのエントリにもなっていないフォルダ（形の壊れた物も、そのまま 1 冊として返す。読めないブックとして見える）。
+// エントリが id だけの物（kind と id だけを持つ）なら、表から引いて中身に替える（表に無ければ、そのまま残す）。それより多くを持つエントリは、中身ごと残っている物として、そのまま使う。
+// 同じフォルダと同じ中身からは、同じ値を返す（確かめ直しを減らす）
+const rawKept = new WeakMap<object, Kept<unknown>>()
+export function rawBooksOf(pages: readonly unknown[], folders: readonly unknown[]): unknown[] {
+  const isObject = (v: unknown): v is Readonly<Record<string, unknown>> =>
+    typeof v === "object" && v !== null && !Array.isArray(v)
+  const byId = (rows: readonly unknown[]) =>
+    new Map(rows.flatMap(r => (isObject(r) && typeof r.id === "string" ? [[r.id, r] as const] : [])))
+  const page = byId(pages)
+  const folder = byId(folders)
+  // id だけのエントリ（その kind と id）
+  const refOf = (e: unknown): { kind: string; id: string } | undefined =>
+    isObject(e) && Object.keys(e).length === 2 && typeof e.kind === "string" && typeof e.id === "string"
+      ? { kind: e.kind, id: e.id }
+      : undefined
+  const entered = new Set(
+    folders.flatMap(f => (isObject(f) && Array.isArray(f.lineup) ? f.lineup : [])).flatMap(e => refOf(e)?.id ?? []),
+  )
+  // フォルダ f を、エントリを中身に替えて組む（binder なら、並びのエントリの形にする）
+  const made = (f: Readonly<Record<string, unknown>>, as: "book" | "binder"): unknown => {
+    const lineup = Array.isArray(f.lineup) ? f.lineup : undefined
+    const parts = (lineup ?? []).map((e: unknown) => {
+      const r = refOf(e)
+      if (r?.kind === "page") return page.get(r.id) ?? e
+      const inner = r?.kind === "binder" ? folder.get(r.id) : undefined
+      return inner ? made(inner, "binder") : e
+    })
+    const kept = rawKept.get(f)
+    if (kept && sameParts(kept.parts, parts)) return kept.made
+    const { folderRole: _, ...fields } = f
+    const out = { ...(as === "binder" ? { kind: "binder" } : {}), ...fields, ...(lineup ? { lineup: parts } : {}) }
+    rawKept.set(f, { parts, made: out })
+    return out
+  }
+  return folders.flatMap(f => {
+    if (!isObject(f)) return [f]
+    return typeof f.id === "string" && entered.has(f.id) ? [] : [made(f, "book")]
+  })
+}

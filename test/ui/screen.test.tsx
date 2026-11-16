@@ -13,6 +13,7 @@ import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { WindowRoot } from "../../web/src/ui/WindowRoot"
 import { drawingPage, testBook } from "../lineup"
 import { SAMPLE_BOOKS } from "../sample-books"
+import { worldRows } from "../support"
 
 const SKIN = "@matomezu/base:skin"
 
@@ -568,7 +569,7 @@ test("ブックを選ぶ一覧は、触れた（開いたか書いた）時刻�
   act(() =>
     store.receive(
       {
-        books: SAMPLE_BOOKS,
+        ...worldRows(SAMPLE_BOOKS),
         settings: undefined,
         touched: { b4: new Date(now - 5 * 60_000).toISOString(), b2: new Date(now - 3 * 3_600_000).toISOString() },
       },

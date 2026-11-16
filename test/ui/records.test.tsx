@@ -1,3 +1,4 @@
+import { worldRows } from "../support"
 // useRecords・useRecord: 種類のレコードのうち索引キーの条件に合う物を、並びの順に件数まで返し（並びが無ければ id の順）、定義の record に合わない物は返さない。その種類が変わらない間は同じ参照
 
 import { describe, expect, test } from "bun:test"
@@ -64,7 +65,9 @@ describe("レコードを読むフック", () => {
   test("定義の record に合わないレコードは返さない", () => {
     const { store, wrapper } = setup()
     // タスクボードのチケットの形に合わない物（常駐から来た、古い形のレコード）を入れる
-    act(() => store.receive({ books: [], settings: {}, records: { [TICKET]: { old: { id: "old", name: "x" } } } }, []))
+    act(() =>
+      store.receive({ ...worldRows([]), settings: {}, records: { [TICKET]: { old: { id: "old", name: "x" } } } }, []),
+    )
     expect(renderHook(() => useRecords(TICKET, { where: [] }), { wrapper }).result.current).toEqual([])
     expect(renderHook(() => useRecord(TICKET, "old"), { wrapper }).result.current).toBeUndefined()
   })
@@ -72,7 +75,7 @@ describe("レコードを読むフック", () => {
   test("索引キーの条件に合う物を、並びの順に件数まで返す。宣言に無い索引キーを書けば何も返さない", () => {
     const { store, wrapper } = setup()
     const mails = Object.fromEntries([1, 2, 3, 4].map(n => [`m${n}`, letter(n, n === 2)]))
-    act(() => store.receive({ books: [], settings: {}, records: { [MAIL]: mails } }, []))
+    act(() => store.receive({ ...worldRows([]), settings: {}, records: { [MAIL]: mails } }, []))
     const ids = (query: RecordsQuery<typeof MAIL>) =>
       renderHook(() => useRecords(MAIL, query), { wrapper }).result.current.map(m => m.id)
     expect(ids({ where: [] })).toEqual(["m1", "m2", "m3", "m4"])

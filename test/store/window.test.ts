@@ -23,7 +23,7 @@ import { isActive } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { CORE_CATALOG, newStore, sequence, showBooks, showCenter } from "../support"
+import { CORE_CATALOG, newStore, sequence, showBooks, showCenter, worldRows } from "../support"
 
 const CENTER = "@matomezu/base:control-center-toggle"
 
@@ -114,10 +114,10 @@ test("コントロールセンターを前に出している間は、ステー�
 test("コントロールセンターを前に出している間は、後ろのブックスクリーンの変更は見えていない。戻したら見えたとして、画面の履歴に入る", () => {
   const store = newStore({ now: sequence() })
   const book = store.state.getState().books.b1 as never as { title: string; id: string }
-  store.receive({ books: [book], settings: {} }, [])
+  store.receive({ ...worldRows([book]), settings: {} }, [])
   showCenter(store)
-  store.receive({ books: [{ ...book, title: "AI" }], settings: {} }, [], {
-    book: "b1",
+  store.receive({ ...worldRows([{ ...book, title: "AI" }]), settings: {} }, [], {
+    books: ["b1"],
     by: "ai",
     act: "1",
     action: "@matomezu/base:book-update",

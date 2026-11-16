@@ -10,7 +10,8 @@ import { type Warning, warning } from "./warnings"
 
 // 残しておいたブックを確かめる: このインスタンスのブックの形に合うものは books に、読めないものは warning（ページのタイプが無い W004・形が合わない W005・
 // 並びの決まりやアイテムどうしの関係の決まりを守らない W006）にする。読めるが、機能台帳に無いアイテムや設定の項目を持つブックは partial に warning W007 を足す。
-// 残したブックは外から来る値なので、形を確かめてから使う。読めないブックのデータには手を付けない
+// 残したブックは外から来る値なので、形を確かめてから使う。読めないブックのデータには手を付けない。
+// ブックとページとバインダの id は、渡した並びの全部の中で重ならない（ページもフォルダも、ちょうど 1 つのフォルダに入る）。先のブックがもう使っている id を持つブックは、読めないブック（W006）にする
 export function checkBooks(
   catalog: CoreCatalog,
   saved: readonly unknown[],
@@ -37,7 +38,29 @@ export function checkBooks(
       if (first) partial.push(warning("W007", splitId(first).owner ?? "", { ...params, missing: missing.join(", ") }))
     }
   }
-  return { books, warnings, partial }
+  const distinct = distinctBooks(books)
+  return {
+    books: distinct.books,
+    warnings: [...warnings, ...distinct.warnings],
+    partial: partial.filter(p => distinct.books.some(b => b.id === p.params.book)),
+  }
+}
+
+// 読めたブックの並び books のうち、先のブックがもう使っている id（ブック・ページ・バインダの id）を持たないブックと、持つブックの warning（W006。読めないブックにする）。
+// ページもフォルダも、ちょうど 1 つのフォルダに入り、id は全部の中で重ならない
+export function distinctBooks(books: readonly Book[]): { books: Book[]; warnings: Warning[] } {
+  const taken = new Set<string>()
+  const kept: Book[] = []
+  const warnings: Warning[] = []
+  for (const book of books) {
+    const ids = [book.id, ...lineupIds(book)]
+    if (ids.some(id => taken.has(id))) warnings.push(warning("W006", "", { book: book.id, title: book.title }))
+    else {
+      for (const id of ids) taken.add(id)
+      kept.push(book)
+    }
+  }
+  return { books: kept, warnings }
 }
 
 // 形を確かめる前のブックの、ページのタイプの id（並びとバインダの中。形が合わない所は飛ばす）

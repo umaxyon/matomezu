@@ -308,7 +308,7 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 
 // alive は、受け入れ済みの参加者 id が、時点 now で生きているか（最後に呼ばれてから、利用者の設定の参加の有効時間以内）
 func (h *Hub) alive(id string, now time.Time) (bool, error) {
-	_, settings, _ := h.Data()
+	settings, _ := h.Data()
 	h.mu.Lock()
 	called := h.participantNotes[id].Called
 	h.mu.Unlock()

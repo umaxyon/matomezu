@@ -14,7 +14,7 @@ var memoKeys = []KeySpec{{"board", "text"}, {"order", "number"}, {"doneAt", "tex
 func put(t *testing.T, s Storage, subject, id string, base int64, keys map[string]any) {
 	t.Helper()
 	body := json.RawMessage(`{"id":"` + id + `"}`)
-	if _, err := s.Apply(Batch{Records: []RecordWrite{{Subject: subject, ID: id, Body: body, Base: base, Keys: keys}}}); err != nil {
+	if err := s.Apply(Batch{Records: []RecordWrite{{Subject: subject, ID: id, Body: body, Base: base, Keys: keys}}}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -101,7 +101,7 @@ func TestKindTablesFindByKeys(t *testing.T) {
 	if got := ids(find(Query{Where: []Cond{{"board", "eq", "b"}}})); !same(got, []string{"m1", "m3"}) {
 		t.Fatalf("after update: %v", got)
 	}
-	if _, err := s.Apply(Batch{Records: []RecordWrite{{Subject: memo, ID: "m1", Body: json.RawMessage(`{}`), Base: 1}}}); !errors.Is(err, ErrConflict) {
+	if err := s.Apply(Batch{Records: []RecordWrite{{Subject: memo, ID: "m1", Body: json.RawMessage(`{}`), Base: 1}}}); !errors.Is(err, ErrConflict) {
 		t.Fatalf("conflict: %v", err)
 	}
 	all, err := s.Records()
@@ -129,7 +129,7 @@ func TestKindTablesFindByKeys(t *testing.T) {
 		t.Fatalf("after reopen: %v %v", found, err)
 	}
 	// 消す
-	if _, err := s.Apply(Batch{Records: []RecordWrite{{Subject: memo, ID: "m3", Base: 1, Removed: true}}}); err != nil {
+	if err := s.Apply(Batch{Records: []RecordWrite{{Subject: memo, ID: "m3", Base: 1, Removed: true}}}); err != nil {
 		t.Fatal(err)
 	}
 	if r, _ := s.Record(memo, "m3"); r != nil {

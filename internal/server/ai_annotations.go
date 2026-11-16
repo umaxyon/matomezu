@@ -154,7 +154,7 @@ func (o Options) aiPage(w http.ResponseWriter, r *http.Request) {
 	}
 	onPage := pick(list, func(a aiAnnotation) bool { return a.Page != nil && *a.Page == want })
 	if r.URL.Query().Get("outline") != "" {
-		writeJSON(w, map[string]any{"id": b.ID, "page": outlinePage(page), "version": b.Version, "annotations": onPage, "placed": nil})
+		writeJSON(w, map[string]any{"id": b.ID, "page": outlinePage(page), "version": o.Hub.PageVersion(want), "annotations": onPage, "placed": nil})
 		return
 	}
 	all, err := o.Hub.AIPlaced(b.Body)
@@ -190,7 +190,7 @@ func (o Options) aiPage(w http.ResponseWriter, r *http.Request) {
 				inside = append(inside, box)
 			}
 		}
-		writeJSON(w, map[string]any{"id": b.ID, "page": want, "item": found, "version": b.Version, "annotations": onItem, "placed": inside})
+		writeJSON(w, map[string]any{"id": b.ID, "page": want, "item": found, "version": o.Hub.PageVersion(want), "annotations": onItem, "placed": inside})
 		return
 	}
 	shown, err := o.Hub.AIPage(b.Body, page)
@@ -198,7 +198,7 @@ func (o Options) aiPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, map[string]any{"id": b.ID, "page": shown, "version": b.Version, "annotations": onPage, "placed": placed})
+	writeJSON(w, map[string]any{"id": b.ID, "page": shown, "version": o.Hub.PageVersion(want), "annotations": onPage, "placed": placed})
 }
 
 // aiAwaiting は、AI の応えを待っているアノテーションの全部（{"awaiting": [{"book", "title", "annotation", "brief"}]}。ブックを置いた順。

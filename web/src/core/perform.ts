@@ -5,7 +5,7 @@
 import type { z } from "zod"
 import { USER } from "./actor"
 import { type Annotation, type Annotations, annotationsSettle, type PageAnnotations, prune } from "./annotation"
-import { findPage, holds, keepsPageTypes, pagesOf, putPage } from "./book"
+import { distinctBooks, findPage, holds, keepsPageTypes, pagesOf, putPage } from "./book"
 import type { ActionId, ActionTable } from "./catalog"
 import { changesOf } from "./changes"
 import { type CoreCatalog, pageType } from "./core-catalog"
@@ -133,10 +133,12 @@ function settles(catalog: CoreCatalog, book: Book): boolean {
   return catalog.bookSchema.safeParse(book).success && holds(catalog, book)
 }
 
-// 一覧が対象のアクションの結果で、変わったブックが（置いた鍵がブックの id で）形に合っているか
+// 一覧が対象のアクションの結果で、変わったブックが（置いた鍵がブックの id で）形に合っていて、ブックどうしで id（ブック・ページ・バインダ）が重ならないか
+// （ページもフォルダも、ちょうど 1 つのフォルダに入る。作ったブックのページの id が、ほかのブックのページの id と重なれば断る）
 export function librarySettles(catalog: CoreCatalog, before: Library, after: Library): boolean {
   return (
     Object.entries(after).every(([key, b]) => b.id === key) &&
+    distinctBooks(Object.values(after)).warnings.length === 0 &&
     settledAfter(Object.values(before), Object.values(after), b => settles(catalog, b))
   )
 }

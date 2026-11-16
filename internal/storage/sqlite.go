@@ -167,12 +167,32 @@ var migrations = []string{
 	);`,
 	// 変更提案郵便が持つ、当たる物の送った時の値を、物のある所（ページかブック）ごとの表に直す（Go の移し替え。migrate_proposals.go）
 	`SELECT 1;`,
+	// ブックを、ページとフォルダに分けて持つ（表 pages・folders。フォルダは、エントリの id を順に持つ）。エントリの入っているフォルダは表 entries にも持ち、
+	// エントリの id を主キーにして「エントリは、ちょうど 1 つのフォルダに入る」を守る。ブックの表は、Go の移し替え（migrate_books.go）が分けてから捨てる
+	`CREATE TABLE pages (
+		id TEXT PRIMARY KEY,
+		body TEXT NOT NULL,
+		version INTEGER NOT NULL,
+		updated_at TEXT NOT NULL
+	);
+	CREATE TABLE folders (
+		id TEXT PRIMARY KEY,
+		body TEXT NOT NULL,
+		version INTEGER NOT NULL,
+		updated_at TEXT NOT NULL
+	);
+	CREATE TABLE entries (
+		id TEXT PRIMARY KEY,
+		folder TEXT NOT NULL
+	);
+	CREATE INDEX entries_folder ON entries (folder);`,
 }
 
 // goMigrations は、SQL だけでは書けない移し替え（JSON の中をたどる物）。鍵は migrations の番号（0 から）で、その SQL を行ったあと、同じトランザクションの中で行う
 var goMigrations = map[int]func(tx *sql.Tx) error{
 	21: annotationsToPages,
 	22: proposalSnapshotsToPlaces,
+	23: booksToTables,
 }
 
 type sqliteStorage struct {
@@ -247,7 +267,13 @@ func Stamp(t time.Time) string { return t.UTC().Format("2006-01-02T15:04:05.000Z
 func now() string { return Stamp(time.Now()) }
 
 func (s *sqliteStorage) Touched() (map[string]string, error) {
-	rows, err := s.db.Query(`SELECT id, MAX(t) FROM (SELECT id, updated_at AS t FROM books UNION ALL SELECT id, at AS t FROM opened) GROUP BY id`)
+	// フォルダを書いた時刻・その中のページとバインダを書いた時刻・バインダの中のページを書いた時刻・開いた時刻の、いちばん新しい物
+	rows, err := s.db.Query(`SELECT id, MAX(t) FROM (
+		SELECT id, updated_at AS t FROM folders
+		UNION ALL SELECT e.folder, p.updated_at FROM pages p JOIN entries e ON e.id = p.id
+		UNION ALL SELECT e.folder, f.updated_at FROM folders f JOIN entries e ON e.id = f.id
+		UNION ALL SELECT up.folder, p.updated_at FROM pages p JOIN entries e ON e.id = p.id JOIN entries up ON up.id = e.folder
+		UNION ALL SELECT id, at FROM opened) GROUP BY id`)
 	if err != nil {
 		return nil, err
 	}
@@ -268,59 +294,105 @@ func (s *sqliteStorage) Open(id, at string) error {
 	return err
 }
 
-func (s *sqliteStorage) Books() ([]Book, error) {
-	rows, err := s.db.Query(`SELECT id, body, version FROM books ORDER BY id`)
+func (s *sqliteStorage) Pages() ([]Page, error) {
+	rows, err := s.db.Query(`SELECT id, body, version FROM pages ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	books := []Book{}
+	pages := []Page{}
 	for rows.Next() {
-		var b Book
+		var p Page
 		var body string
-		if err := rows.Scan(&b.ID, &body, &b.Version); err != nil {
+		if err := rows.Scan(&p.ID, &body, &p.Version); err != nil {
 			return nil, err
 		}
-		b.Body = json.RawMessage(body)
-		books = append(books, b)
+		p.Body = json.RawMessage(body)
+		pages = append(pages, p)
 	}
-	return books, rows.Err()
+	return pages, rows.Err()
 }
 
-func (s *sqliteStorage) PutBook(id string, body json.RawMessage, base int64) (int64, *Book, error) {
-	var version int64
-	have, err := s.apply(func(tx *sql.Tx) (*Book, error) {
-		v, have, err := txPutBook(tx, id, body, base)
-		version = v
-		return have, err
-	})
-	return version, have, err
-}
-
-// apply は f を 1 つのトランザクションで行う（f が error を返したら巻き戻す。ErrConflict のときの置いてあるブックも返す）
-func (s *sqliteStorage) apply(f func(tx *sql.Tx) (*Book, error)) (*Book, error) {
-	tx, err := s.db.Begin()
+func (s *sqliteStorage) Folders() ([]Folder, error) {
+	rows, err := s.db.Query(`SELECT id, body, version FROM folders ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
-	have, err := f(tx)
-	if err != nil {
-		return have, err
+	defer rows.Close()
+	folders := []Folder{}
+	for rows.Next() {
+		var f Folder
+		var body string
+		if err := rows.Scan(&f.ID, &body, &f.Version); err != nil {
+			return nil, err
+		}
+		f.Body = json.RawMessage(body)
+		folders = append(folders, f)
 	}
-	return nil, tx.Commit()
+	return folders, rows.Err()
 }
 
-func (s *sqliteStorage) Apply(b Batch) (*Book, error) {
-	return s.apply(func(tx *sql.Tx) (*Book, error) {
-		for _, w := range b.Books {
-			if _, have, err := txPutBook(tx, w.ID, w.Body, w.Base); err != nil {
-				return have, err
+func (s *sqliteStorage) Entries() (map[string]string, error) {
+	rows, err := s.db.Query(`SELECT id, folder FROM entries`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]string{}
+	for rows.Next() {
+		var id, folder string
+		if err := rows.Scan(&id, &folder); err != nil {
+			return nil, err
+		}
+		out[id] = folder
+	}
+	return out, rows.Err()
+}
+
+// apply は f を 1 つのトランザクションで行う（f が error を返したら巻き戻す）
+func (s *sqliteStorage) apply(f func(tx *sql.Tx) error) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := f(tx); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (s *sqliteStorage) Apply(b Batch) error {
+	return s.apply(func(tx *sql.Tx) error {
+		for _, w := range b.Pages {
+			if err := txPutRow(tx, "pages", w); err != nil {
+				return err
 			}
 		}
-		for _, id := range b.Removed {
-			if err := txDeleteBook(tx, id); err != nil {
-				return nil, err
+		for _, w := range b.Folders {
+			if err := txPutRow(tx, "folders", w); err != nil {
+				return err
+			}
+		}
+		// 出て行く分（どこにも入らなくなった・入っているフォルダが替わる）を先に消してから、入れる（同じエントリを 2 つのフォルダに入れる書き込みは、主キーが断る）
+		for _, e := range b.Entries {
+			if _, err := tx.Exec(`DELETE FROM entries WHERE id = ?`, e.ID); err != nil {
+				return err
+			}
+		}
+		for _, e := range b.Entries {
+			if e.Folder == "" {
+				continue
+			}
+			if _, err := tx.Exec(`INSERT INTO entries (id, folder) VALUES (?, ?)`, e.ID, e.Folder); err != nil {
+				return err
+			}
+		}
+		for _, id := range b.RemovedBooks {
+			for _, q := range []string{`DELETE FROM opened WHERE id = ?`, `DELETE FROM ai_edit_tickets WHERE book = ?`} {
+				if _, err := tx.Exec(q, id); err != nil {
+					return err
+				}
 			}
 		}
 		for _, u := range []struct {
@@ -331,36 +403,36 @@ func (s *sqliteStorage) Apply(b Batch) (*Book, error) {
 				continue
 			}
 			if err := txPutUser(tx, u.table, u.body.User, u.body.Body); err != nil {
-				return nil, err
+				return err
 			}
 		}
 		for _, a := range b.Annotations {
 			if err := txPutList(tx, "page_annotations", "page", a.Page, a.Body); err != nil {
-				return nil, err
+				return err
 			}
 		}
 		for _, t := range b.AIEditTickets {
 			if err := txPutList(tx, "ai_edit_tickets", "book", t.Book, t.Body); err != nil {
-				return nil, err
+				return err
 			}
 		}
 		for _, r := range b.Records {
 			if err := s.txPutRecord(tx, r); err != nil {
-				return nil, err
+				return err
 			}
 		}
 		for _, t := range b.SearchTexts {
 			if err := txPutSearchText(tx, t); err != nil {
-				return nil, err
+				return err
 			}
 		}
 		for _, c := range b.Counters {
 			if _, err := tx.Exec(`INSERT INTO counters (subject, scope, next) VALUES (?, ?, ?)
 				ON CONFLICT(subject, scope) DO UPDATE SET next = excluded.next`, c.Subject, c.Scope, c.Next); err != nil {
-				return nil, err
+				return err
 			}
 		}
-		return nil, nil
+		return nil
 	})
 }
 
@@ -446,31 +518,27 @@ func (s *sqliteStorage) Counters() ([]Counter, error) {
 	return out, rows.Err()
 }
 
-func txPutBook(tx *sql.Tx, id string, body json.RawMessage, base int64) (int64, *Book, error) {
-	var have Book
-	var haveBody string
-	err := tx.QueryRow(`SELECT id, body, version FROM books WHERE id = ?`, id).Scan(&have.ID, &haveBody, &have.Version)
+// txPutRow は、ページかフォルダの表 table の 1 行を書く（置いてある版が Base のときだけ。作るときは Base 0 で、まだ無いときだけ。消すときも版を確かめる）。
+// 版が違えば ErrConflict
+func txPutRow(tx *sql.Tx, table string, w RowWrite) error {
+	var version int64
+	err := tx.QueryRow(`SELECT version FROM `+table+` WHERE id = ?`, w.ID).Scan(&version)
+	have := !errors.Is(err, sql.ErrNoRows)
+	if err != nil && have {
+		return err
+	}
+	if (have && version != w.Base) || (!have && w.Base != 0) {
+		return ErrConflict
+	}
 	switch {
-	case errors.Is(err, sql.ErrNoRows):
-		if base != 0 {
-			return 0, nil, ErrConflict
-		}
-		if _, err := tx.Exec(`INSERT INTO books (id, body, version, updated_at) VALUES (?, ?, 1, ?)`, id, string(body), now()); err != nil {
-			return 0, nil, err
-		}
-		return 1, nil, nil
-	case err != nil:
-		return 0, nil, err
+	case w.Removed:
+		_, err = tx.Exec(`DELETE FROM `+table+` WHERE id = ?`, w.ID)
+	case !have:
+		_, err = tx.Exec(`INSERT INTO `+table+` (id, body, version, updated_at) VALUES (?, ?, 1, ?)`, w.ID, string(w.Body), now())
+	default:
+		_, err = tx.Exec(`UPDATE `+table+` SET body = ?, version = ?, updated_at = ? WHERE id = ?`, string(w.Body), w.Base+1, now(), w.ID)
 	}
-	if have.Version != base {
-		have.Body = json.RawMessage(haveBody)
-		return 0, &have, ErrConflict
-	}
-	next := base + 1
-	if _, err := tx.Exec(`UPDATE books SET body = ?, version = ?, updated_at = ? WHERE id = ?`, string(body), next, now(), id); err != nil {
-		return 0, nil, err
-	}
-	return next, nil, nil
+	return err
 }
 
 // txPutUser は、利用者ごとの表 table（settings・participant_notes）の user の行を置き換える
@@ -488,28 +556,6 @@ func txPutList(tx *sql.Tx, table, column, key string, body json.RawMessage) erro
 	}
 	_, err := tx.Exec(`INSERT INTO `+table+` (`+column+`, body, updated_at) VALUES (?, ?, ?)
 		ON CONFLICT(`+column+`) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at`, key, string(body), now())
-	return err
-}
-
-// txDeleteBook は、ブック id と、それを開いた時刻と、その AI 編集チケットを消す（ページのアノテーションは、消す側がページを名指して消す）
-func txDeleteBook(tx *sql.Tx, id string) error {
-	for _, q := range []string{`DELETE FROM books WHERE id = ?`, `DELETE FROM opened WHERE id = ?`, `DELETE FROM ai_edit_tickets WHERE book = ?`} {
-		if _, err := tx.Exec(q, id); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *sqliteStorage) DeleteBook(id string, pages []string) error {
-	_, err := s.apply(func(tx *sql.Tx) (*Book, error) {
-		for _, page := range pages {
-			if _, err := tx.Exec(`DELETE FROM page_annotations WHERE page = ?`, page); err != nil {
-				return nil, err
-			}
-		}
-		return nil, txDeleteBook(tx, id)
-	})
 	return err
 }
 
@@ -531,8 +577,7 @@ func (s *sqliteStorage) Annotations() (map[string]json.RawMessage, error) {
 }
 
 func (s *sqliteStorage) PutAnnotations(page string, body json.RawMessage) error {
-	_, err := s.Apply(Batch{Annotations: []PageBody{{page, body}}})
-	return err
+	return s.Apply(Batch{Annotations: []PageBody{{page, body}}})
 }
 
 func (s *sqliteStorage) AIEditTickets() (map[string]json.RawMessage, error) {
@@ -553,8 +598,7 @@ func (s *sqliteStorage) AIEditTickets() (map[string]json.RawMessage, error) {
 }
 
 func (s *sqliteStorage) PutAIEditTickets(book string, body json.RawMessage) error {
-	_, err := s.Apply(Batch{AIEditTickets: []BookBody{{book, body}}})
-	return err
+	return s.Apply(Batch{AIEditTickets: []BookBody{{book, body}}})
 }
 
 // empty は、並びの JSON が空（[] か null）か
@@ -576,8 +620,7 @@ func (s *sqliteStorage) Settings(user string) (json.RawMessage, error) {
 }
 
 func (s *sqliteStorage) PutSettings(user string, body json.RawMessage) error {
-	_, err := s.Apply(Batch{Settings: &UserBody{user, body}})
-	return err
+	return s.Apply(Batch{Settings: &UserBody{user, body}})
 }
 
 func (s *sqliteStorage) ParticipantNotes(user string) (json.RawMessage, error) {
@@ -593,8 +636,7 @@ func (s *sqliteStorage) ParticipantNotes(user string) (json.RawMessage, error) {
 }
 
 func (s *sqliteStorage) PutParticipantNotes(user string, body json.RawMessage) error {
-	_, err := s.apply(func(tx *sql.Tx) (*Book, error) { return nil, txPutUser(tx, "participant_notes", user, body) })
-	return err
+	return s.apply(func(tx *sql.Tx) error { return txPutUser(tx, "participant_notes", user, body) })
 }
 
 func (s *sqliteStorage) Close() error { return s.db.Close() }

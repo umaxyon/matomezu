@@ -12,7 +12,7 @@ import { isEnabled } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { SAMPLE_BOOKS, samplePage } from "../sample-books"
-import { newStore, sequence, sizedStore } from "../support"
+import { newStore, sequence, sizedStore, worldRows } from "../support"
 
 const BOX = "@matomezu/box:shape-nest-box"
 type Drawing = Book
@@ -165,7 +165,10 @@ test("戻すまでの間に AI が変えた所は、画面の履歴の段が変�
     i === all.length - 1 ? { ...x, props: { ...x.props, caption: "AI" } } : x,
   )
   // AI の変更は常駐から知らされる（置いた箱のキャプションと、ブックの名前を変える）
-  store.receive({ books: [{ ...book, title: "AI の名前", lineup: [{ ...page!, items }, ...rest] }], settings: {} }, [])
+  store.receive(
+    { ...worldRows([{ ...book, title: "AI の名前", lineup: [{ ...page!, items }, ...rest] }]), settings: {} },
+    [],
+  )
   await settled()
   expect(historyOf(store)?.undo).toHaveLength(1)
   store.actions.command("s1", "@matomezu/base:undo")

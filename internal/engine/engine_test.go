@@ -13,6 +13,84 @@ import (
 
 const book = `{"id":"b1","title":"T","lineup":[{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"P","paper":"@matomezu/base:a4","orientation":"landscape"}]}`
 
+// rows は、ブックの本文（並びにページとバインダの中身ごと持つ形）を、置き場所と同じ形のページとフォルダの本文に分ける
+func rows(body string) (pages, folders []json.RawMessage) {
+	marshal := func(v any) json.RawMessage {
+		raw, err := json.Marshal(v)
+		if err != nil {
+			panic(err)
+		}
+		return raw
+	}
+	// refs は lineup のエントリを id だけにして返し、ページ（とバインダの中のページ）を pages に、バインダを binders に足す
+	var binders []json.RawMessage
+	var refs func(lineup json.RawMessage) json.RawMessage
+	refs = func(lineup json.RawMessage) json.RawMessage {
+		var entries []json.RawMessage
+		if json.Unmarshal(lineup, &entries) != nil {
+			return json.RawMessage("[]")
+		}
+		out := []map[string]string{}
+		for _, e := range entries {
+			var head struct{ Kind, ID string }
+			if err := json.Unmarshal(e, &head); err != nil {
+				panic(err)
+			}
+			out = append(out, map[string]string{"kind": head.Kind, "id": head.ID})
+			if head.Kind == "page" {
+				pages = append(pages, e)
+				continue
+			}
+			var fields map[string]json.RawMessage
+			if err := json.Unmarshal(e, &fields); err != nil {
+				panic(err)
+			}
+			delete(fields, "kind")
+			fields["folderRole"] = json.RawMessage(`"binder"`)
+			fields["lineup"] = refs(fields["lineup"])
+			binders = append(binders, marshal(fields))
+		}
+		return marshal(out)
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(body), &fields); err != nil {
+		panic(err)
+	}
+	fields["folderRole"] = json.RawMessage(`"book"`)
+	fields["lineup"] = refs(fields["lineup"])
+	return pages, append([]json.RawMessage{marshal(fields)}, binders...)
+}
+
+// onBook は、in に、ブックの本文 body を分けたページとフォルダを持たせる
+func onBook(in Input, body string) Input {
+	in.Pages, in.Folders = rows(body)
+	return in
+}
+
+// rowOf は、変わった行の並びから id の行の本文を返す（無いか、消えていれば空）
+func rowOf(changes []RowChange, id string) string {
+	for _, c := range changes {
+		if c.ID == id && !c.Removed {
+			return string(c.Row)
+		}
+	}
+	return ""
+}
+
+// changed は、rows のうち changes にある id の行を、新しい本文に替えた並び
+func changed(rows []json.RawMessage, changes []RowChange) []json.RawMessage {
+	out := []json.RawMessage{}
+	for _, r := range rows {
+		var head struct{ ID string }
+		_ = json.Unmarshal(r, &head)
+		if to := rowOf(changes, head.ID); to != "" {
+			r = json.RawMessage(to)
+		}
+		out = append(out, r)
+	}
+	return out
+}
+
 func newEngine(t *testing.T) *Engine {
 	t.Helper()
 	e, err := New()
@@ -23,14 +101,13 @@ func newEngine(t *testing.T) *Engine {
 }
 
 func place(ids ...string) Input {
-	return Input{
+	return onBook(Input{
 		Action: "@matomezu/paper:item-place",
 		Args:   json.RawMessage(`{"item":"@matomezu/box:shape-nest-box","at":{"x":10,"y":20},"props":{"caption":"c"}}`),
 		On:     &On{Page: "p1"},
 		Lang:   "ja",
 		IDs:    ids,
-		Books:  []json.RawMessage{json.RawMessage(book)},
-	}
+	}, book)
 }
 
 func TestPerformsTheSameActionAsTheScreen(t *testing.T) {
@@ -39,12 +116,15 @@ func TestPerformsTheSameActionAsTheScreen(t *testing.T) {
 	if err != nil || !out.OK {
 		t.Fatalf("Perform = %+v, %v", out, err)
 	}
-	if string(out.Result) != `{"item":"abc123","at":{"x":10,"y":20}}` || len(out.Books) != 1 || !strings.Contains(string(out.Books[0]), `"id":"abc123","x":10,"y":20,"item":"@matomezu/box:shape-nest-box"`) {
-		t.Fatalf("out = %s %s", out.Result, out.Books)
+	// 変わるのはページ p1 だけで、ブックのフォルダは変わらない
+	page := rowOf(out.Pages, "p1")
+	if string(out.Result) != `{"item":"abc123","at":{"x":10,"y":20}}` || len(out.Books) != 1 || out.Books[0] != "b1" || len(out.Pages) != 1 || len(out.Folders) != 0 ||
+		!strings.Contains(page, `"id":"abc123","x":10,"y":20,"item":"@matomezu/box:shape-nest-box"`) {
+		t.Fatalf("out = %s %v %+v %+v", out.Result, out.Books, out.Pages, out.Folders)
 	}
 	again, _ := e.Perform(place("abc-123"))
-	if string(again.Books[0]) != string(out.Books[0]) {
-		t.Fatalf("the same input gave another book:\n%s\n%s", again.Books[0], out.Books[0])
+	if rowOf(again.Pages, "p1") != page {
+		t.Fatalf("the same input gave another page:\n%s\n%s", rowOf(again.Pages, "p1"), page)
 	}
 }
 
@@ -59,8 +139,8 @@ func TestRefusals(t *testing.T) {
 	e := newEngine(t)
 	cases := map[string]Input{
 		"unknown":  {Action: "nope", Lang: "ja"},
-		"no-page":  {Action: "@matomezu/paper:item-place", Args: place().Args, On: &On{Page: "p9"}, Lang: "ja", Books: place().Books},
-		"bad-args": {Action: "@matomezu/paper:item-place", Args: json.RawMessage(`{}`), On: &On{Page: "p1"}, Lang: "ja", Books: place().Books},
+		"no-page":  {Action: "@matomezu/paper:item-place", Args: place().Args, On: &On{Page: "p9"}, Lang: "ja", Pages: place().Pages, Folders: place().Folders},
+		"bad-args": {Action: "@matomezu/paper:item-place", Args: json.RawMessage(`{}`), On: &On{Page: "p1"}, Lang: "ja", Pages: place().Pages, Folders: place().Folders},
 	}
 	for want, in := range cases {
 		out, err := e.Perform(in)
@@ -78,7 +158,7 @@ func TestARefusalCarriesTheActionsReason(t *testing.T) {
 		t.Fatalf("Perform = %+v, %v", first, err)
 	}
 	in := place("a2")
-	in.Books = first.Books
+	in.Pages = changed(in.Pages, first.Pages)
 	out, err := e.Perform(in)
 	if err != nil || out.OK || out.Reason != "refused" || !strings.HasPrefix(out.Detail, "it would move a1; a1 can hold children") {
 		t.Fatalf("Perform on a1 = %+v, %v", out, err)
@@ -113,15 +193,15 @@ func TestAIPlacedGivesWhereShapesAreDrawn(t *testing.T) {
 
 func TestLibraryAndSettingsActions(t *testing.T) {
 	e := newEngine(t)
-	out, err := e.Perform(Input{
+	out, err := e.Perform(onBook(Input{
 		Action: "@matomezu/base:book-create",
 		Args:   json.RawMessage(`{"title":"New"}`),
 		Lang:   "ja",
 		IDs:    []string{"nb"},
-		Books:  []json.RawMessage{json.RawMessage(book)},
-	})
-	if err != nil || !out.OK || len(out.Books) != 1 || string(out.Books[0]) != `{"id":"nb","title":"New","lineup":[]}` {
-		t.Fatalf("@matomezu/base:book-create = %+v %s, %v", out, out.Books, err)
+	}, book))
+	if err != nil || !out.OK || len(out.Books) != 1 || out.Books[0] != "nb" || len(out.Pages) != 0 || len(out.Folders) != 1 || len(out.Created) != 1 || out.Created[0] != "nb" ||
+		rowOf(out.Folders, "nb") != `{"id":"nb","title":"New","folderRole":"book","lineup":[]}` {
+		t.Fatalf("@matomezu/base:book-create = %+v, %v", out, err)
 	}
 	out, err = e.Perform(Input{Action: "@matomezu/base:settings-set", Args: json.RawMessage(`{"values":{"@matomezu/base:lang":"matomezu:en"}}`), Lang: "ja", Settings: json.RawMessage(`{"@matomezu/base:lang":"matomezu:ja"}`)})
 	if err != nil || !out.OK || string(out.Settings) != `{"@matomezu/base:lang":"matomezu:en"}` {
@@ -268,19 +348,18 @@ func TestConnectsItemsWithALine(t *testing.T) {
 	two := `{"id":"b1","title":"T","lineup":[{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[` +
 		`{"id":"a","x":100,"y":100,"item":"@matomezu/box:shape-nest-box","w":100,"h":64,"props":{}},` +
 		`{"id":"b","x":400,"y":300,"item":"@matomezu/box:shape-nest-box","w":100,"h":64,"props":{}}]}]}`
-	out, err := e.Perform(Input{
+	out, err := e.Perform(onBook(Input{
 		Action: "@matomezu/line:line-connect",
 		Args:   json.RawMessage(`{"from":"a","to":"b","props":{"exitAt":0.4024,"enterAt":0.9024,"via":[300]}}`),
 		On:     &On{Page: "p1"},
 		Lang:   "ja",
 		IDs:    []string{"l1"},
-		Books:  []json.RawMessage{json.RawMessage(two)},
-	})
+	}, two))
 	if err != nil || !out.OK || string(out.Result) != `{"line":"l1"}` {
 		t.Fatalf("Perform = %+v, %v", out, err)
 	}
-	if !strings.Contains(string(out.Books[0]), `{"id":"l1","item":"@matomezu/line:connector-line","from":"a","to":"b","props":{"exitAt":0.4024,"enterAt":0.9024,"via":[300]}}`) {
-		t.Fatalf("book = %s", out.Books[0])
+	if page := rowOf(out.Pages, "p1"); !strings.Contains(page, `{"id":"l1","item":"@matomezu/line:connector-line","from":"a","to":"b","props":{"exitAt":0.4024,"enterAt":0.9024,"via":[300]}}`) {
+		t.Fatalf("page = %s", page)
 	}
 }
 
@@ -343,8 +422,9 @@ func TestUsesAnAddedPlugin(t *testing.T) {
 		Lang:   "ja",
 		IDs:    []string{"fb", "fp"},
 	})
-	if err != nil || !out.OK || len(out.Books) != 1 || !strings.Contains(string(out.Books[0]), `"id":"fp","type":"ex2:flow"`) {
-		t.Fatalf("@matomezu/base:book-create = %+v %s, %v", out, out.Books, err)
+	if err != nil || !out.OK || len(out.Books) != 1 || out.Books[0] != "fb" || !strings.Contains(rowOf(out.Pages, "fp"), `"id":"fp","type":"ex2:flow"`) ||
+		!strings.Contains(rowOf(out.Folders, "fb"), `"lineup":[{"kind":"page","id":"fp"}]`) {
+		t.Fatalf("@matomezu/base:book-create = %+v, %v", out, err)
 	}
 }
 
@@ -393,7 +473,7 @@ module.exports.default = {
 		t.Fatal(err)
 	}
 	args, _ := json.Marshal(map[string]string{"text": "# A &amp; &copy;\n\n| a |\n|-|\n| x |\n\nn[^1]\n\n[^1]: f\n"})
-	out, err := e.Perform(Input{Action: "reader:read", Args: args, On: &On{Book: "b1"}, Lang: "en", Books: []json.RawMessage{json.RawMessage(book)}})
+	out, err := e.Perform(onBook(Input{Action: "reader:read", Args: args, On: &On{Book: "b1"}, Lang: "en"}, book))
 	if err != nil || !out.OK {
 		t.Fatalf("Perform = %+v, %v", out, err)
 	}
@@ -595,7 +675,7 @@ module.exports.default = {
 	if _, err := e.UseAllForTest([]*plugin.Bundle{b}); err != nil {
 		t.Fatal(err)
 	}
-	spin := Input{Action: "stuck:spin", Args: json.RawMessage(`{}`), On: &On{Book: "b1"}, Lang: "en", Books: []json.RawMessage{json.RawMessage(book)}, TimeoutSec: 1}
+	spin := onBook(Input{Action: "stuck:spin", Args: json.RawMessage(`{}`), On: &On{Book: "b1"}, Lang: "en", TimeoutSec: 1}, book)
 	start := time.Now()
 	out, err := e.Perform(spin)
 	if err != nil || out.OK || out.Reason != "refused" || !strings.Contains(out.Detail, "timed out after 1 seconds") {
