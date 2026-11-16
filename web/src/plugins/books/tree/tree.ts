@@ -68,6 +68,7 @@ export const TREE = kit.definePageType({
   id: "tree",
   version: 1,
   title: "Tree",
+  duplicatesPages: true, // ページの中の物は id を指す項目を持たないので、ページを複製できる
   grouping: "none",
   pageFieldsInput, // 根は作るときに子ごと受けて id を振り、直すときは根のキャプション・本文・本文を描くか・色だけ
   // 木が紙に入らないページは問題（base のページ・ブックのアクションは書かない）

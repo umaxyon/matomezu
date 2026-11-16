@@ -256,3 +256,20 @@ test("グラフは、表を入れたときと見た目を変えたときに動�
       .evaluate(e => getComputedStyle(e).animationName),
   ).toBe("none")
 })
+
+test("ページのタブの右クリックの「複製」で図のページを写せる。データのあるページは写せず、トーストで知らせる", async ({
+  page,
+}) => {
+  await page.goto(BOOK_SCREEN_URL)
+  const tabs = page.getByRole("tab")
+  const before = await tabs.count()
+  await tabs.first().click({ button: "right" })
+  await page.getByRole("menuitem", { name: "複製" }).click()
+  await expect(tabs).toHaveCount(before + 1)
+  // 写したページが開いている。そこにデータを置くと、複製できない
+  await addData(page)
+  await page.getByRole("tab", { selected: true }).click({ button: "right" })
+  await page.getByRole("menuitem", { name: "複製" }).click()
+  await expect(page.getByText("コピーできない形があります")).toBeVisible()
+  await expect(tabs).toHaveCount(before + 1)
+})

@@ -35,6 +35,7 @@ export const MARKDOWN = kit.definePageType({
   id: "markdown",
   version: 1,
   title: "Markdown",
+  duplicatesPages: true, // ページの中の物は id を指す項目を持たないので、ページを複製できる
   grouping: "none",
   pageFieldsInput, // 直すときは、原文を丸ごとか、1 か所だけ置き換えて受ける
   grow: { always: { up: false, down: true, left: false, right: false } }, // いつも可変ページで、下へ増やす（base の拡張ポイント）

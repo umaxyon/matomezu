@@ -55,6 +55,7 @@ export const DIR = kit.definePageType({
   id: "dir",
   version: 1,
   title: "Directory",
+  duplicatesPages: true, // ページの中の物は id を指す項目を持たないので、ページを複製できる
   grouping: "none",
   pageFieldsInput, // 根は作るときに中身ごと受けて id を振る。直すときは受けない（中身はディレクトリ構成図のアクションで替える）
   // 行が紙に入らないページは問題

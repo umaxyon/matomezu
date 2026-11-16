@@ -17,6 +17,7 @@ import { ORIENTATIONS } from "../../../core/def/paper"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
 import { renewedIds } from "../utils/ids"
+import { duplicateProblem, HELD_UNRENEWABLE } from "./page-duplicate"
 import { pageProblems } from "./page-problems"
 import { canPaperBinder } from "./pages"
 
@@ -87,7 +88,7 @@ export const BINDER_DUPLICATE = kit.defineAction({
   id: "binder-duplicate",
   attach: { books: true },
   aiDescription:
-    "Duplicate a binder with its pages: a copy is added right after it. title is the copy's name and must differ from the other entries' of the book's lineup; without it the copy is named after the original with a number. The pages and everything on them get new ids; locks, notes and marks are not copied. Returns the new binder's id and its pages' ids, in order. Refused for a binder not in the book or a title already used. Not allowed (not-allowed) for a binder whose page type leaves this action out.",
+    "Duplicate a binder with its pages: a copy is added right after it. title is the copy's name and must differ from the other entries' of the book's lineup; without it the copy is named after the original with a number. The pages and everything on them get new ids; locks, notes and marks are not copied. Returns the new binder's id and its pages' ids, in order. Refused for a binder not in the book, for a page that cannot be duplicated (see page-duplicate), or for a title already used. Not allowed (not-allowed) for a binder whose page type leaves this action out.",
   title: "Duplicate binder",
   target: "book",
   args: z.strictObject({ binder: BINDER, title: z.string().trim().min(1).optional() }),
@@ -108,6 +109,9 @@ export const BINDER_DUPLICATE = kit.defineAction({
     let next: Book = made.book
     const pages: string[] = []
     for (const page of pagesIn(book, source.id)) {
+      const problem = duplicateProblem(ctx.catalog, page)
+      if (problem === "content") return HELD_UNRENEWABLE
+      if (problem) return null
       const { id: _id, locked: _locked, ...content } = page
       const added = addPage(next, renewedIds(page, content, ctx.newId), { binder: made.binder }, ctx.newId)
       if (!added) return null

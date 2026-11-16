@@ -188,6 +188,36 @@ test("ブックが対象のアクションが振る id も、ブックのほか�
   expect((copy as { slide?: { id: string }[] } | undefined)?.slide?.map(i => i.id)).toEqual(["n2"])
 })
 
+test("図のページも複製できる: 中の物の id を振り直し、線の両端は写した形に付け替える。id を振り直すと壊れる形（データ）のあるページは断る", () => {
+  const must = (done: ReturnType<typeof run>) => {
+    if (!done.ok) throw new Error(`refused: ${done.reason}`)
+    return done as { ok: true; next: Book; result: Record<string, string> }
+  }
+  const place = (b: Book, item: string) => must(runOn(b, "p1", "@matomezu/paper:item-place", { item, w: 120, h: 80 }))
+  const a = place(book, "@matomezu/art:shape-pc")
+  const b = place(a.next, "@matomezu/art:shape-db")
+  const line = must(runOn(b.next, "p1", "@matomezu/line:line-connect", { from: a.result.item, to: b.result.item }))
+  const done = must(run(line.next, "@matomezu/base:page-duplicate", { page: "p1" }))
+  const of = (id: string) =>
+    findPage(done.next, id)?.page as unknown as { title: string; items: Record<string, string>[] }
+  const [from, copy] = [of("p1"), of(done.result.page ?? "")]
+  expect(copy.title).toBe(`${from.title} 2`)
+  expect(copy.items.map(i => i.item)).toEqual(from.items.map(i => i.item))
+  // 写しの中の id は元と重ならず、線は写した形どうしを結ぶ
+  const ids = (page: typeof copy) => page.items.map(i => i.id)
+  expect(ids(copy).some(id => ids(from).includes(id))).toBe(false)
+  const ends = (page: typeof copy) => page.items.flatMap(i => (i.from === undefined ? [] : [i.from, i.to]))
+  expect(ends(copy).length).toBe(2)
+  expect(ends(copy).every(id => id !== undefined && ids(copy).includes(id))).toBe(true)
+  // データの形（軸が表の列の id を指す）のあるページは、種類を添えて断る
+  const data = place(line.next, "@matomezu/data:shape-data")
+  expect(run(data.next, "@matomezu/base:page-duplicate", { page: "p1" })).toMatchObject({
+    ok: false,
+    reason: "refused",
+    kind: "@matomezu/base:holds-unrenewable",
+  })
+})
+
 test("スライドのバインダの中は紙と向きがそろう: 足すページ・1 枚だけの変更は今の紙だけ、binder-update は全部のページに 1 回で付ける。別のバインダは別にそろう", () => {
   const A4 = "@matomezu/base:a4"
   const paperOf = (b: Book, id: string) => findPage(b, id)?.page.paper

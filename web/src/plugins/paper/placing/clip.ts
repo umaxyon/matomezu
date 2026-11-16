@@ -18,24 +18,13 @@ import {
   type Size,
   walkShapes,
 } from "../../../plugin-api"
-import { placeChild, placedSize, placeItem, renewedIds, shapeDefOf, shapeThemeFits } from "../../base"
-import { kit } from "../kit"
+import { placeChild, placedSize, placeItem, renewable, renewedIds, shapeDefOf, shapeThemeFits } from "../../base"
 import { ancestorsOf, crowded, movedShapes, NO_FREE_SPOT } from "./crowd"
 import { freeAt, parsePlaced, stepToward, subtreeOf } from "./items"
-
-// 形の定義が書く、コピーできない印（actions.ts の ShapeItemExtras）
-const COPIES = kit.name("copies")
 
 export interface Clip {
   shapes: PlacedShape[] // 写した形。x・y は紙の上の左上
   connectors: PlacedConnector[] // 両端が写した形の中にある線
-}
-
-// 写せない形（copies が false。中の id を指す項目を持つなど、id を振り直すと壊れる形）を子孫に持つか
-function uncopyable(catalog: CoreCatalog, shape: ShapeData): boolean {
-  const def = shapeDefOf(catalog, shape.item)
-  if (def?.[COPIES] === false) return true
-  return (shape.shapes ?? []).some(child => uncopyable(catalog, child))
 }
 
 // 選び selection（ページ page のアイテムの id）から作る写し。写せる形を選んでいなければ null、写せない形が混じれば "uncopyable"。
@@ -46,7 +35,13 @@ export function clipOf(catalog: CoreCatalog, page: ItemPage, selection: readonly
     s => chosen.has(s.shape.id) && !ancestorsOf(page, s.shape.id).some(a => chosen.has(a)),
   )
   if (roots.length === 0) return null
-  if (roots.some(r => uncopyable(catalog, r.shape))) return "uncopyable"
+  if (
+    !renewable(
+      catalog,
+      roots.map(r => r.shape),
+    )
+  )
+    return "uncopyable"
   const inside = new Set(roots.flatMap(r => [...subtreeOf(page, r.shape.id)]))
   return {
     shapes: roots.map(r => ({ ...r.shape, x: r.at.x, y: r.at.y })),
@@ -65,7 +60,7 @@ function parsedTree(catalog: CoreCatalog, page: Pick<ItemPage, "type">, raw: unk
   const value = raw as { item: string; shapes?: unknown; [field: string]: unknown }
   if (!allowedItems(catalog, page).includes(value.item)) return null
   const shape = parsePlaced(catalog, value)
-  if (!shape || !shapeThemeFits(catalog, page.type, shape) || shapeDefOf(catalog, shape.item)?.[COPIES] === false)
+  if (!shape || !shapeThemeFits(catalog, page.type, shape) || shapeDefOf(catalog, shape.item)?.renewsIds === false)
     return null
   const children = Array.isArray(value.shapes) ? value.shapes : []
   return children.every(child => parsedTree(catalog, page, child) !== null) ? shape : null

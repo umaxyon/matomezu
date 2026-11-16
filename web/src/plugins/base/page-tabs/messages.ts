@@ -19,6 +19,8 @@ export const PAGE_MESSAGES = defineMessages({
   "Duplicate page": { en: "Duplicate page", ja: "ページを複製" },
   "Add page here": { en: "Add page here", ja: "ここに追加" },
   Duplicate: { en: "Duplicate", ja: "複製" },
+  "Cannot be duplicated": { en: "Cannot be duplicated", ja: "複製できません" },
+  "Has an item that cannot be copied": { en: "Has an item that cannot be copied", ja: "コピーできない形があります" },
   "Delete page...": { en: "Delete page...", ja: "削除…" },
   "Page list": { en: "Page list", ja: "ページ一覧" },
   "Move page": { en: "Move page", ja: "ページを動かす" },

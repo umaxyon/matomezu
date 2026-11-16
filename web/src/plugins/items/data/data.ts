@@ -231,6 +231,6 @@ export const DATA = kit.defineShape({
   min: DATA_MIN,
   dialogs: { edit: DATA_EDIT_DIALOG.id },
   "@matomezu/paper:settle": data => ({ ...data, props: settleAxes(data.props, data.table) }),
-  "@matomezu/paper:copies": false, // 軸が表の列・行の id を指すので、id を振り直す写しでは参照が切れる
+  renewsIds: false, // 軸が表の列・行の id を指すので、id を振り直す写しでは参照が切れる
   tokens: [],
 })

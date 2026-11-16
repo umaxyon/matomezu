@@ -141,6 +141,7 @@ test("matomezu が出す名前", () => {
     "removeBinder",
     "removeItems",
     "removePage",
+    "renewable",
     "renewedIds",
     "replaceChild",
     "replacePushing",

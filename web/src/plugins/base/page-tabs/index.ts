@@ -2,15 +2,17 @@
 // ページを作るダイアログとページの設定のダイアログは、ページのタイプが自分のものにできる（dialogs。行うアクションは同じ page-add・page-update）
 
 import { findBinder, findPage, siblingsOf } from "../../../core/book"
+import type { MessageKey } from "../../../core/catalog"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import { ANY_PAGE_TYPE } from "../../../core/def/action"
 import { binderOf, editingBackground, openedPage } from "../../../core/stage"
 import type { DialogTaking, PageSettingsArgs } from "../../../store/dialogs"
 import { kit } from "../kit"
 import { PAGE_LOCK, PAGE_UNLOCK } from "../lock"
+import { refusalMessage } from "../utils/refusal"
 import { BINDER_DUPLICATE, BINDER_REMOVE, BINDER_UPDATE } from "./binders"
 import { PAGE_ADD } from "./page-add"
-import { PAGE_DUPLICATE } from "./page-duplicate"
+import { HOLDS_UNRENEWABLE, PAGE_DUPLICATE } from "./page-duplicate"
 import { PAGE_REMOVE } from "./page-remove"
 import { PAGE_UPDATE } from "./page-update"
 
@@ -155,7 +157,16 @@ export const PAGE_ADD_AFTER = kit.defineCommand({
   when: ctx => ctx.book !== null,
 })
 
-// ページ page を複製して、できたページを開く
+// 複製を断られたときに知らせる文（認可ステップが止めたなら、そのステップの名前）
+function duplicateRefusal(
+  catalog: CoreCatalog,
+  done: { reason: string; permission?: string; kind?: string },
+): MessageKey {
+  if (done.kind === HOLDS_UNRENEWABLE) return kit.message("Has an item that cannot be copied")
+  return refusalMessage(catalog, done, kit.message("Cannot be duplicated"))
+}
+
+// ページ page を複製して、できたページを開く（断られたらトーストで知らせる）
 export const PAGE_DUPLICATE_COMMAND = kit.defineCommand({
   id: "page-duplicate",
   performs: [PAGE_DUPLICATE.id],
@@ -164,6 +175,7 @@ export const PAGE_DUPLICATE_COMMAND = kit.defineCommand({
     if (!ctx.book) return
     const done = a.perform(PAGE_DUPLICATE.id, { page }, { book: ctx.book.id })
     if (done.ok) a.openPage(done.result.page)
+    else a.showToast({ kind: "warn", message: duplicateRefusal(ctx.catalog, done) })
   },
   // 画面では、ロックしたページの複製を押せなくする（アクションは、エントリとして複製する）
   permissionScope: { page: "page" },
@@ -218,6 +230,7 @@ export const BINDER_DUPLICATE_COMMAND = kit.defineCommand({
     if (!ctx.book) return
     const done = a.perform(BINDER_DUPLICATE.id, { binder }, { book: ctx.book.id })
     if (done.ok) a.openBinder(done.result.binder)
+    else a.showToast({ kind: "warn", message: duplicateRefusal(ctx.catalog, done) })
   },
   when: ctx => ctx.book !== null,
 })

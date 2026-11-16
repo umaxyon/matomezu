@@ -39,8 +39,6 @@ declare module "../../../core/catalog" {
     // 大きさを変えられる向き: "width" なら幅だけ（高さは中身から決まる形。つかめるのは左右の辺だけで、高さは置いた大きさのまま）。
     // "ratio" なら幅と高さの比を保つ（つかめるのは角だけ。高さは幅から決まる）。無ければ幅も高さも
     "@matomezu/paper:stretch"?: "width" | "ratio"
-    // false なら、コピーして貼る（id を振り直す）と壊れる形で、写さない（中の id を指す項目を持つ形など）。書かなければ写せる
-    "@matomezu/paper:copies"?: false
   }
 }
 
