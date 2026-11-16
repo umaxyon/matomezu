@@ -69,6 +69,7 @@ import {
   PAGE_OPEN,
   PAGE_SETTINGS,
   PAGE_SETTINGS_DIALOG,
+  PAGE_SETTINGS_OF,
 } from "./page-tabs"
 import { BINDER_DUPLICATE, BINDER_MOVE, BINDER_REMOVE, BINDER_UPDATE } from "./page-tabs/binders"
 import { PAGE_DUPLICATE } from "./page-tabs/page-duplicate"
@@ -434,6 +435,7 @@ export const BASE = defineBuiltin(
       PAGE_DUPLICATE_COMMAND,
       PAGE_DELETE,
       PAGE_SETTINGS,
+      PAGE_SETTINGS_OF,
       BOOK_SETTINGS,
       SETTINGS_SET_COMMAND,
       SETTINGS_OPEN,
@@ -665,6 +667,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:page-duplicate": typeof PAGE_DUPLICATE_COMMAND
     "@matomezu/base:page-delete": typeof PAGE_DELETE
     "@matomezu/base:page-settings": typeof PAGE_SETTINGS
+    "@matomezu/base:page-settings-of": typeof PAGE_SETTINGS_OF
     "@matomezu/base:book-settings": typeof BOOK_SETTINGS
     "@matomezu/base:print-preview-open": typeof PRINT_PREVIEW_OPEN
     "@matomezu/base:print-preview-fit": typeof PRINT_PREVIEW_FIT

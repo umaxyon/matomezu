@@ -218,6 +218,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:page-duplicate",
       "@matomezu/base:scrap-cut",
       "@matomezu/base:background-edit",
+      "@matomezu/base:page-settings-of",
       "-",
       "@matomezu/base:page-delete",
     ],

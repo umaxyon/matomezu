@@ -83,10 +83,13 @@ test("フッタメニューの歯車は、スライドを開いていればス�
   expect(screen.getByRole("dialog", { name: "ページの設定" })).toBeTruthy()
 })
 
-test("スライドのページの設定には、紙のサイズと向きが出ない", () => {
+test("ページ一覧のスライドの右クリックの「ページの設定」で、そのスライドの設定が開く。紙のサイズと向きは出ない", () => {
   const { store } = open()
-  act(() => store.actions.openDialog("s1", "@matomezu/base:page-settings", { page: "s-a" }))
+  act(() => store.actions.openPage("s1", "s-a"))
+  fireEvent.contextMenu(screen.getByRole("button", { name: /二枚目/ }))
+  fireEvent.click(screen.getByRole("menuitem", { name: "ページの設定" }))
   const dialog = screen.getByRole("dialog", { name: "ページの設定" })
+  expect((within(dialog).getByLabelText("ページの名前") as HTMLInputElement).value).toBe("二枚目")
   expect(within(dialog).queryByLabelText("紙のサイズ")).toBeNull()
   expect(within(dialog).queryByLabelText("向き")).toBeNull()
 })

@@ -17,6 +17,7 @@ import {
   PAGE_LIST_CONTEXT,
   PAGE_SETTINGS,
   PAGE_SETTINGS_DIALOG,
+  PAGE_SETTINGS_OF,
 } from "."
 import { useAddPageRows } from "./AddPageMenu"
 import { BinderDeleteDialog } from "./BinderDeleteDialog"
@@ -54,6 +55,7 @@ declare module "../../../core/catalog" {
 // 開いている物（ページかバインダ）の設定を開くコマンドのアイコン
 export const PAGE_SETTINGS_ICONS = {
   [PAGE_SETTINGS.id]: GEAR_ICON,
+  [PAGE_SETTINGS_OF.id]: GEAR_ICON,
   [BINDER_SETTINGS_OPENED.id]: GEAR_ICON,
 }
 

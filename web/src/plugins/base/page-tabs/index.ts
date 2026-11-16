@@ -117,6 +117,19 @@ export const PAGE_SETTINGS = kit.defineCommand({
   when: ctx => ctx.book !== null && openedPage(ctx.stage.opened) !== null,
 })
 
+// ページ page（ページ一覧で右クリックしたページなど）の設定のダイアログを開く
+export const PAGE_SETTINGS_OF = kit.defineCommand({
+  id: "page-settings-of",
+  performs: [PAGE_UPDATE.id, PAGE_LOCK.id, PAGE_UNLOCK.id],
+  permissionScope: { page: "page" },
+  title: "Page settings",
+  run: (ctx, a, { page }: { page: string }) => {
+    const found = ctx.book ? findPage(ctx.book, page)?.page : undefined
+    if (found) a.openDialog(pageDialog(ctx.catalog, found.type, "settings"), { page: found.id })
+  },
+  when: ctx => ctx.book !== null,
+})
+
 // ページ page のすぐ後ろ（同じブックかバインダの中）に、同じタイプの新しいページを足して開く（ダイアログ無し。名前と紙はタイプの既定）
 export const PAGE_ADD_AFTER = kit.defineCommand({
   id: "page-add-after",
