@@ -1,40 +1,36 @@
 // matomezu の MCP の結果を大きさで並べる。結果は以後のリクエストで毎回送り直されるので、呼び出し 1 回につき 1 回だけ数える。
-// 字数は classify と同じく、tool_result の content を JSON にした長さ
-import type { Message } from "../relay-log"
+// 呼び出しと結果は、その行の AI の部品が並びの項目から取り出す。字数は部品の classify と同じく、結果を JSON にした長さ
+import { clientOf } from "./clients"
 import { matomezuTool } from "./matomezu"
+import type { StoredItem } from "./store"
 
 export type McpCall = { session: string; at: string; tool: string; key: string; input: unknown; chars: number }
 export type McpToolRank = { key: string; calls: number; chars: number; max: number }
 export type McpRank = { byTool: McpToolRank[]; top: McpCall[] }
 
-// 集計の単位: ツールの名前。perform だけは中で何をしたかで大きさが違うので、action ごとに分ける
+// 集計の単位: ツールの名前。perform だけは中で何をしたかで大きさが違うので、action ごとに分ける。
+// Codex の exec の入力は JavaScript の文（JSON でない）なので action を読まず、perform のまま数える
 export function rankKey(tool: string, input: unknown): string {
   const action = (input as { action?: unknown } | null)?.action
   return tool === "perform" && typeof action === "string" ? `perform ${action}` : tool
 }
 
-export function matomezuCalls(messages: { session: string; at: string; message: Message }[]): McpCall[] {
+export function matomezuCalls(items: StoredItem[]): McpCall[] {
   const uses = new Map<string, { name: string; input: unknown }>()
   const done = new Set<string>()
   const calls: McpCall[] = []
-  for (const { session, at, message } of messages) {
-    if (!Array.isArray(message.content)) continue
-    for (const b of message.content) {
-      const tool = b.type === "tool_use" && typeof b.name === "string" ? matomezuTool(b.name) : undefined
-      if (tool) uses.set(b.id as string, { name: tool, input: b.input })
-      if (b.type !== "tool_result") continue
-      const id = b.tool_use_id as string
+  for (const { session, client, at, item } of items) {
+    const part = clientOf(client)
+    for (const u of part.toolUses(item)) {
+      const tool = matomezuTool(u.name)
+      if (tool) uses.set(`${client}:${u.id}`, { name: tool, input: u.input })
+    }
+    for (const r of part.toolResults(item)) {
+      const id = `${client}:${r.id}`
       const use = uses.get(id)
       if (!use || done.has(id)) continue
       done.add(id)
-      calls.push({
-        session,
-        at,
-        tool: use.name,
-        key: rankKey(use.name, use.input),
-        input: use.input,
-        chars: JSON.stringify(b.content ?? "").length,
-      })
+      calls.push({ session, at, tool: use.name, key: rankKey(use.name, use.input), input: use.input, chars: r.chars })
     }
   }
   return calls

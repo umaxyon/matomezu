@@ -1,259 +1,58 @@
-// Claude Code が API に送るリクエストを記録する中継。何がどれだけ場所を取り、キャッシュがどこで切れたかを見る
+// AI（Claude Code と Codex）が API に送るリクエストを記録する中継。何がどれだけ場所を取り、キャッシュがどこで切れたかを見る
 //   bun scripts/relay-log.ts serve [--db <file>（既定は ~/.local/state/matomezu-relay/central.db）] [--port 18951] [--view-port 18952] [--no-body] [--pid-file <file>]
-//     127.0.0.1 で待ち受け、受けた物をそのまま api.anthropic.com へ渡す。全セッションが 1 つの中継につなぎ、記録は 1 つの SQLite に入る
-//     セッションは、リクエストにある Claude Code の session_id で区別する。表示の名前は matomezu に join したときのワークルーム名
-//     （フックが入れる Workroom name の行を本文から拾う。join し直せば名前も変わる）。join 前は session_id の頭 8 字。
-//     ANTHROPIC_BASE_URL の末尾に /s/<名前> を付けたときは、join 前の名前になる（先頭の /s/<名前> は外して渡す）
-//     scripts/claude-relay.sh [claude の引数...] がこれを立てて claude を起動する
-//     ビューワー（時間順の一覧と詳細、セッションの絞り込み）は --view-port で同じプロセスが配る
+//     127.0.0.1 で待ち受け、受けた物をそのまま AI ごとの上流へ渡す。全セッションが 1 つの中継につなぎ、記録は 1 つの SQLite に入る
+//     AI は道の頭で分ける: /v1/... は Claude Code（上流は api.anthropic.com）、/codex/... は Codex（/codex を外した残りを
+//     ChatGPT の Codex の窓口へ）。本文の読み方は AI ごとの部品（scripts/relay-log/clients/）が受け持つ
+//     セッションは AI のセッション id（Claude Code は本文の metadata、Codex は session-id ヘッダー）で区別する。表示の名前は
+//     matomezu に join したときのワークルーム名（本文に入る Workroom name の行を拾う。join し直せば名前も変わる）。join 前は
+//     session_id の 8 字。道の頭のあとに /s/<名前> を付けたときは、join 前の名前になる（/s/<名前> は外して渡す）
+//     scripts/claude-relay.sh・scripts/codex-relay.sh [AI の引数...] がこれを立てて claude・codex を起動する
+//     ビューワー（時間順の一覧と詳細、セッションと AI の絞り込み）は --view-port で同じプロセスが配る
 //     --pid-file には待ち受けを始めたあとで自分の pid を書く（起こした側の $! は setsid が間に入ると別のプロセスになる）
 //     --no-body のときは本文（会話の全文が入る）を残さず、数字の要約だけにする。認証のヘッダーの値はどちらにも残さない
 //   bun scripts/relay-log.ts report [--db ...] [--session <名前>]   リクエストごとの表と、大きい結果の上位にまとめる
 //   bun scripts/relay-log.ts purge [--db ...] [--before <ISO の日時>]  記録を消す（--before なしは全部）
-// 字数は JSON にしたときの文字の数で、トークンの数ではない。トークンは API が返した usage の列で見る
-import { createHash } from "node:crypto"
+// 字数は JSON にしたときの文字の数で、トークンの数ではない。トークンは API が返した usage を部品が同じ意味にそろえた列で見る
 import { writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
+import { clientOf, clientOfPath } from "./relay-log/clients"
+import { UsageReader, usageFromJson } from "./relay-log/common"
 import { isMatomezuTool } from "./relay-log/matomezu"
-import { probeOf } from "./relay-log/probe"
 import { openStore, type Store } from "./relay-log/store"
+import type { ClientName, Entry } from "./relay-log/types"
 import { startViewer } from "./relay-log/viewer"
 
-const UPSTREAM = "https://api.anthropic.com"
-// 値を記録してよいヘッダー。ほかは名前だけを残す
-const KEEP_HEADERS = new Set(["content-type", "accept", "user-agent", "x-app", "anthropic-version", "anthropic-beta"])
 // 上流へ渡さないヘッダー（つなぎ方は中継が決める。圧縮は外して SSE をそのまま読めるようにする）
 const DROP_UPSTREAM = new Set(["host", "connection", "content-length", "accept-encoding"])
 
-export type Block = { type: string; [key: string]: unknown }
-export type Message = { role: string; content: string | Block[] }
-export type Body = {
-  model?: string
-  system?: unknown
-  tools?: { name: string; defer_loading?: boolean }[]
-  messages?: Message[]
-  metadata?: { user_id?: string }
-}
-
-export type ResultSize = { id: string; tool: string; chars: number }
-export type Summary = {
-  model: string
-  messages: number
-  systemHash: string
-  toolsHash: string
-  systemChars: number
-  toolsN: number
-  toolsChars: number
-  matomezuToolsN: number
-  matomezuToolsChars: number
-  textChars: number
-  resultChars: number
-  matomezuResultChars: number
-  // cache_control の付いた所（tools[i]・system[i]・msg<i>[j]）と、その長さ（5m か 1h）
-  marks: string[]
-  // キャッシュの前置きと同じ順に積んだハッシュ: [tools, +system, +msg0, +msg1, …]
-  prefix: string[]
-  results: ResultSize[]
-}
-export type Usage = Record<string, number>
-export type Entry = {
-  id: number
-  at: string
-  // 中継の URL の /s/<名前> の名前（無ければ unnamed）と、リクエストの metadata にある Claude Code のセッション id
-  session: string
-  sessionId: string
-  status: number
-  ms: number
-  stream: string
-  // 同じ流れの前のリクエストと、前置きが最初に食い違った所（tools・system・msg<i>）。前が無いか、伸びただけなら none
-  diverge: string
-  summary: Omit<Summary, "prefix" | "results">
-  // この中継で初めて見た tool_result（同じ id は毎回送り直されるので、初めの 1 回だけ数える）
-  newResults: ResultSize[]
-  usage: Usage
-  error?: string
-  // Claude Code が起動のときに残りの枠を確かめるリクエスト。429 が返っても作業の失敗ではない
-  probe?: "quota"
-  // 呼び手が返答の途中で接続を切った（usage と返答は切れた所まで）
-  aborted?: true
-}
-
-const chars = (value: unknown) => JSON.stringify(value ?? "").length
-const hash = (...values: unknown[]) => createHash("sha256").update(JSON.stringify(values)).digest("hex").slice(0, 10)
-
-export function headersForLog(headers: Headers): Record<string, string> {
+// keep に無いヘッダーは名前だけを残す
+export function headersForLog(headers: Headers, keep: Set<string>): Record<string, string> {
   const out: Record<string, string> = {}
   headers.forEach((value, name) => {
-    out[name] = KEEP_HEADERS.has(name.toLowerCase()) ? value : "<dropped>"
+    out[name] = keep.has(name.toLowerCase()) ? value : "<dropped>"
   })
   return out
 }
 
-// tool_use の id から、呼んだツールの名前を引く表
-function toolNames(messages: Message[]) {
-  const names = new Map<string, string>()
-  for (const m of messages) {
-    if (typeof m.content === "string") continue
-    for (const b of m.content) if (b.type === "tool_use") names.set(b.id as string, b.name as string)
-  }
-  return names
+// upstream は AI ごとの上流の差し替え（無い AI は部品の上流）
+export type RelayOptions = {
+  port: number
+  store: Store
+  keepBody?: boolean
+  upstream?: Partial<Record<ClientName, string>>
 }
 
-export function summarize(body: Body): Summary {
-  const messages = body.messages ?? []
-  const tools = body.tools ?? []
-  const names = toolNames(messages)
-  const results: ResultSize[] = []
-  let textChars = 0
-  for (const m of messages) {
-    if (typeof m.content === "string") {
-      textChars += m.content.length
-      continue
-    }
-    for (const b of m.content) {
-      if (b.type === "tool_result") {
-        const id = b.tool_use_id as string
-        results.push({ id, tool: names.get(id) ?? "?", chars: chars(b.content) })
-      } else if (b.type === "text") textChars += (b.text as string).length
-    }
-  }
-  const marks: string[] = []
-  const scan = (where: string, list: unknown) => {
-    if (!Array.isArray(list)) return
-    list.forEach((b, i) => {
-      const mark = (b as { cache_control?: { ttl?: string } } | null)?.cache_control
-      if (mark) marks.push(`${where}[${i}]:${mark.ttl ?? "5m"}`)
-    })
-  }
-  scan("tools", tools)
-  scan("system", body.system)
-  messages.forEach((m, i) => {
-    scan(`msg${i}`, m.content)
-  })
-  // キャッシュで同じに扱われる物は同じに積む。cache_control の印は毎回最後のメッセージへ動き、印を付けるときに文字列の本文は
-  // text のブロック 1 つに書き換わる。defer_loading のツールは前置きに入らない
-  const prefix = [hash(withoutMarks(tools.filter(t => !t.defer_loading)))]
-  const push = (...values: unknown[]) => prefix.push(hash(prefix.at(-1), ...values))
-  push(asBlocks(withoutMarks(body.system)))
-  for (const m of messages) push(m.role, asBlocks(withoutMarks(m.content)))
-  const matomezuTools = tools.filter(t => isMatomezuTool(t.name))
-  return {
-    model: body.model ?? "?",
-    messages: messages.length,
-    systemHash: hash(body.system),
-    toolsHash: hash(tools),
-    systemChars: chars(body.system),
-    toolsN: tools.length,
-    toolsChars: chars(tools),
-    matomezuToolsN: matomezuTools.length,
-    matomezuToolsChars: chars(matomezuTools),
-    textChars,
-    resultChars: results.reduce((n, r) => n + r.chars, 0),
-    matomezuResultChars: results.filter(r => isMatomezuTool(r.tool)).reduce((n, r) => n + r.chars, 0),
-    marks,
-    prefix,
-    results,
-  }
+// 道の頭で AI を決め、頭を外した残りの /s/<名前>/... からセッション名を取る。名前は英数字と _ . - の 40 字まで（ほかは unnamed）
+export function routeOf(pathname: string): { client: ClientName; session: string; path: string } {
+  const client = clientOfPath(pathname)
+  const rest = pathname.slice(client.head.length) || "/"
+  const m = rest.match(/^\/s\/([^/]+)(\/.*)?$/)
+  if (!m) return { client: client.name, session: "unnamed", path: rest }
+  return { client: client.name, session: /^[\w.-]{1,40}$/.test(m[1]!) ? m[1]! : "unnamed", path: m[2] ?? "/" }
 }
 
-function withoutMarks(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(withoutMarks)
-  if (!value || typeof value !== "object") return value
-  return Object.fromEntries(
-    Object.entries(value)
-      .filter(([k]) => k !== "cache_control")
-      .map(([k, v]) => [k, withoutMarks(v)]),
-  )
-}
-
-function asBlocks(content: unknown): unknown {
-  return typeof content === "string" ? [{ type: "text", text: content }] : content
-}
-
-// 前置きのハッシュの並びが、最初に食い違った所
-export function divergeAt(prev: string[] | undefined, cur: string[]): string {
-  if (!prev) return "none"
-  const n = Math.min(prev.length, cur.length)
-  for (let i = 0; i < n; i++) if (prev[i] !== cur[i]) return i === 0 ? "tools" : i === 1 ? "system" : `msg${i - 2}`
-  return cur.length < prev.length ? `msg${cur.length - 2}` : "none"
-}
-
-function addUsage(into: Usage, value: unknown, prefix = "") {
-  if (!value || typeof value !== "object") return
-  for (const [k, v] of Object.entries(value)) {
-    if (typeof v === "number") into[prefix + k] = v
-    else if (v && typeof v === "object" && !Array.isArray(v)) addUsage(into, v, `${prefix + k}.`)
-  }
-}
-
-// SSE を届いた順に読み、usage を拾う。入力の側は message_start、出力は message_delta に来る。チャンクは行の途中で切れてよい
-export class UsageReader {
-  private rest = ""
-  readonly usage: Usage = {}
-  feed(chunk: string) {
-    const lines = (this.rest + chunk).split("\n")
-    this.rest = lines.pop() ?? ""
-    for (const line of lines) this.line(line)
-  }
-  end() {
-    if (this.rest) this.line(this.rest)
-    this.rest = ""
-  }
-  private line(line: string) {
-    if (!line.startsWith("data:")) return
-    try {
-      const event = JSON.parse(line.slice(5))
-      if (event.type === "message_start") addUsage(this.usage, event.message?.usage)
-      if (event.type === "message_delta") addUsage(this.usage, event.usage)
-    } catch {}
-  }
-}
-
-export function usageFromJson(text: string): Usage {
-  const usage: Usage = {}
-  try {
-    addUsage(usage, JSON.parse(text).usage)
-  } catch {}
-  return usage
-}
-
-export type RelayOptions = { port: number; store: Store; keepBody?: boolean; upstream?: string }
-
-// /s/<名前>/v1/messages → セッション名と、上流へ渡す道。名前は英数字と _ . - の 40 字まで（ほかは unnamed）
-export function routeOf(pathname: string): { session: string; path: string } {
-  const m = pathname.match(/^\/s\/([^/]+)(\/.*)?$/)
-  if (!m) return { session: "unnamed", path: pathname }
-  return { session: /^[\w.-]{1,40}$/.test(m[1]!) ? m[1]! : "unnamed", path: m[2] ?? "/" }
-}
-
-export function sessionIdOf(body: Body): string {
-  try {
-    return JSON.parse(body.metadata?.user_id ?? "{}").session_id ?? ""
-  } catch {
-    return ""
-  }
-}
-
-// join のあとにフックが入れる「Workroom name: <名前>」の最後の 1 つ（join し直して名前が変われば、新しい名前になる）
-export function workroomNameOf(body: Body): string | undefined {
-  let name: string | undefined
-  for (const m of body.messages ?? []) {
-    if (typeof m.content === "string") continue
-    for (const b of m.content) {
-      if (
-        b.type !== "text" ||
-        typeof b.text !== "string" ||
-        !b.text.startsWith("UserPromptSubmit hook additional context:")
-      )
-        continue
-      name = b.text.match(/Workroom name: (.+)$/m)?.[1]?.trim() ?? name
-    }
-  }
-  return name
-}
-
-export function startRelay({ port, store, keepBody = true, upstream = UPSTREAM }: RelayOptions) {
+export function startRelay({ port, store, keepBody = true, upstream = {} }: RelayOptions) {
   const lastPrefix = new Map<string, string[]>()
   const seen = new Set<string>()
   return Bun.serve({
@@ -264,15 +63,16 @@ export function startRelay({ port, store, keepBody = true, upstream = UPSTREAM }
       const url = new URL(req.url)
       if (url.pathname === "/__relay/health") return new Response("ok")
       const route = routeOf(url.pathname)
+      const client = clientOf(route.client)
       const headers = new Headers()
       req.headers.forEach((value, name) => {
         if (!DROP_UPSTREAM.has(name.toLowerCase())) headers.set(name, value)
       })
       headers.set("accept-encoding", "identity")
       const raw = req.method === "GET" || req.method === "HEAD" ? undefined : await req.arrayBuffer()
-      const recorded = req.method === "POST" && route.path === "/v1/messages"
+      const recorded = client.recorded(req.method, route.path)
       const t0 = Date.now()
-      const res = await fetch(upstream + route.path + url.search, {
+      const res = await fetch((upstream[route.client] ?? client.upstream) + route.path + url.search, {
         method: req.method,
         headers,
         body: raw,
@@ -283,28 +83,32 @@ export function startRelay({ port, store, keepBody = true, upstream = UPSTREAM }
       resHeaders.delete("content-length")
       if (!recorded || !res.body) return new Response(res.body, { status: res.status, headers: resHeaders })
 
-      let body: Body = {}
+      let body: Record<string, unknown> = {}
       try {
         body = JSON.parse(new TextDecoder().decode(raw))
       } catch {}
-      const sessionId = sessionIdOf(body)
-      const workroom = workroomNameOf(body)
+      const sessionId = client.sessionIdOf(body, req.headers)
+      const workroom = client.workroomNameOf(body)
       if (workroom) store.setName(sessionId, workroom)
-      const { prefix, results, ...summary } = summarize(body)
-      const stream = hash(summary.model, summary.systemHash).slice(0, 4)
-      const key = `${sessionId || route.session}:${stream}`
-      const diverge = divergeAt(lastPrefix.get(key), prefix)
+      const full = client.summarize(body)
+      const { prefix, results, ...summary } = full
+      const stream = client.streamOf(body, req.headers, full)
+      const key = `${route.client}:${sessionId || route.session}:${stream}`
+      const diverge = client.divergeAt(lastPrefix.get(key), prefix)
       lastPrefix.set(key, prefix)
-      const newResults = results.filter(r => !seen.has(r.id))
-      for (const r of newResults) seen.add(r.id)
-      const stored = keepBody ? { ...body, headers: headersForLog(req.headers) } : undefined
+      // 道具の結果の id は AI ごとに付くので、AI で分けて覚える
+      const newResults = results.filter(r => !seen.has(`${route.client}:${r.id}`))
+      for (const r of newResults) seen.add(`${route.client}:${r.id}`)
+      const split = keepBody ? client.split(body) : undefined
+      if (split) split.rest = { ...split.rest, headers: headersForLog(req.headers, client.keepHeaders) }
+      const probe = client.probeOf(body)
 
       const sse = (res.headers.get("content-type") ?? "").includes("text/event-stream")
       const [pass, copy] = res.body.tee()
       // 記録は返答を待たせずに走らせる。呼び手が途中で接続を切ると copy の読み取りが AbortError で止まるので、
       // そこまでを中断した呼び出しとして記録する（拒否を放っておくと中継のプロセスごと落ちる）
       ;(async () => {
-        const reader = new UsageReader()
+        const reader = new UsageReader(client)
         const decoder = new TextDecoder()
         let text = ""
         let aborted = false
@@ -319,8 +123,10 @@ export function startRelay({ port, store, keepBody = true, upstream = UPSTREAM }
           aborted = true
         }
         reader.end()
+        const usage = sse ? reader.usage : usageFromJson(text)
         store.add(
           {
+            client: route.client,
             at: new Date(t0).toISOString(),
             session: route.session,
             sessionId,
@@ -330,12 +136,13 @@ export function startRelay({ port, store, keepBody = true, upstream = UPSTREAM }
             diverge,
             summary,
             newResults,
-            usage: sse ? reader.usage : usageFromJson(text),
+            tokens: client.tokens(usage),
+            usage,
             ...(res.status >= 400 ? { error: text.slice(0, 500) } : {}),
-            ...(probeOf(body) ? { probe: probeOf(body) } : {}),
+            ...(probe ? { probe } : {}),
             ...(aborted ? { aborted } : {}),
           },
-          stored,
+          split,
           keepBody ? text : undefined,
         )
       })().catch(e => console.error("relay-log: 記録に失敗した", e))
@@ -349,6 +156,7 @@ const num = (n: number | undefined) => (n === undefined ? "-" : n.toLocaleString
 export function report(entries: Entry[]): string {
   const head = [
     "#",
+    "AI",
     "セッション",
     "時刻",
     "流れ",
@@ -362,20 +170,22 @@ export function report(entries: Entry[]): string {
     "新しい結果(字)",
     "matomezu の結果(字)/結果の全部(字)",
   ]
+  // input・cache_read・cache_new・output は部品がそろえた意味（Entry の tokens）
   const rows = entries.map(e => {
-    const u = e.usage
+    const u = e.tokens
     const s = e.summary
     return [
       String(e.id),
+      e.client,
       e.session,
       e.at.slice(11, 19),
       e.stream,
       s.model,
       String(s.messages),
-      num(u.input_tokens),
-      num(u.cache_read_input_tokens),
-      num(u.cache_creation_input_tokens),
-      num(u.output_tokens),
+      num(u.input),
+      num(u.cacheRead),
+      num(u.cacheNew),
+      num(u.output),
       e.probe
         ? `${e.probe} の確かめ（${e.status}）`
         : e.status >= 400
@@ -418,7 +228,7 @@ export function report(entries: Entry[]): string {
           "## 最後のリクエストの内訳",
           `- system: ${num(last.systemChars)} 字、ツールの説明: ${last.toolsN} 個 ${num(last.toolsChars)} 字（matomezu ${last.matomezuToolsN} 個 ${num(last.matomezuToolsChars)} 字）`,
           `- 会話の文: ${num(last.textChars)} 字、結果: ${num(last.resultChars)} 字（matomezu ${num(last.matomezuResultChars)} 字）`,
-          `- cache_control: ${last.marks.join(" ") || "なし"}`,
+          `- cache_control: ${last.marks === undefined ? "-" : last.marks.join(" ") || "なし"}`,
         ]
       : []),
   ].join("\n")
@@ -445,7 +255,7 @@ if (import.meta.main) {
     startViewer({ store, port: viewPort })
     const pidFile = flag(args, "--pid-file")
     if (pidFile) writeFileSync(pidFile, `${process.pid}\n`)
-    console.log(`relay-log: 127.0.0.1:${port} → ${UPSTREAM}、ビューワー http://127.0.0.1:${viewPort}、記録は ${db}`)
+    console.log(`relay-log: 127.0.0.1:${port} → AI ごとの上流、ビューワー http://127.0.0.1:${viewPort}、記録は ${db}`)
   } else if (args[0] === "report") {
     console.log(report(openStore(db).entries(flag(args, "--session"))))
   } else if (args[0] === "purge") {

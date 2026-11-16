@@ -1,11 +1,12 @@
 // relay-log の記録を、時間順の一覧と詳細で見るページと、matomezu の MCP の結果の大きさのランキング（/mcp）を配る（中継と同じプロセスから startViewer で立てる）
-// 127.0.0.1 だけで待ち受け、CORS は付けない。ページは定期的に読み直す
+// 127.0.0.1 だけで待ち受け、CORS は付けない。ページは定期的に読み直す。中身と返答は、その行の AI の部品が読む
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
-import { classify, HIDDEN_BY_DEFAULT, totals } from "./classify"
+import { clientOf, clients } from "./clients"
+import { HIDDEN_BY_DEFAULT, totals } from "./common"
 import { matomezuCalls, rank } from "./mcp-rank"
-import { parseReply } from "./reply"
 import type { Store } from "./store"
+import type { ClientName } from "./types"
 
 export function startViewer({ store, port }: { store: Store; port: number }) {
   const html = readFileSync(join(import.meta.dir, "viewer.html"), "utf8")
@@ -19,21 +20,25 @@ export function startViewer({ store, port }: { store: Store; port: number }) {
       const path = url.pathname
       if (path === "/") return page(html)
       if (path === "/mcp") return page(mcpHtml)
-      if (path === "/api/sessions") return Response.json(store.sessions())
       const session = url.searchParams.get("session") ?? undefined
-      if (path === "/api/mcp") return Response.json(rank(matomezuCalls(store.uniqueMessages(session))))
-      if (path === "/api/entries") return Response.json(store.entries(session))
+      const asked = url.searchParams.get("client")
+      const client = asked && asked in clients ? (asked as ClientName) : undefined
+      if (path === "/api/sessions") return Response.json(store.sessions(client))
+      if (path === "/api/mcp") return Response.json(rank(matomezuCalls(store.uniqueItems(session, client))))
+      if (path === "/api/entries") return Response.json(store.entries(session, client))
       const m = path.match(/^\/api\/(parts|res)\/(\d+)$/)
       if (!m) return new Response("not found", { status: 404 })
       const id = Number(m[2])
+      const owner = store.clientOf(id)
+      if (!owner) return Response.json(null)
       if (m[1] === "parts") {
         const body = store.body(id)
         if (!body) return Response.json(null)
-        const parts = classify(body)
+        const parts = clientOf(owner).classify(body)
         return Response.json({ hidden: HIDDEN_BY_DEFAULT, totals: totals(parts), parts })
       }
       const text = store.reply(id)
-      return Response.json(text === undefined ? null : parseReply(text))
+      return Response.json(text === undefined ? null : clientOf(owner).parseReply(text))
     },
   })
 }

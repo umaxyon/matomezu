@@ -10,3 +10,6 @@ export function matomezuTool(name: string): string | undefined {
 }
 
 export const isMatomezuTool = (name: string) => matomezuTool(name) !== undefined
+
+// Codex が道具をサーバーごとにまとめる名前空間の名前（mcp__<サーバー>）が matomezu のものか
+export const isMatomezuNamespace = (name: string) => PREFIXES.some(p => `${name}__` === p)
