@@ -98,7 +98,7 @@ type ShapeDialogCheck<P> = [WrongAdd<P> | WrongEdit<P>] extends [never]
     }
 
 // ページのタイプが名指すページを作るダイアログとページの設定のダイアログのうち、受ける値が合わないもの
-// （ページを作るダイアログは、値を受けないか、作るタイプと入れるフォルダ { type, folder? } を受け、ページの設定のダイアログは PageSettingsArgs）
+// （ページを作るダイアログは、値を受けないか、作るタイプと入れるバインダ { type, binder? } を受け、ページの設定のダイアログは PageSettingsArgs）
 type PageDialogsOf<P> = P extends { pageTypes?: readonly (infer T)[] }
   ? T extends { dialogs?: infer G }
     ? NonNullable<G>
@@ -106,7 +106,7 @@ type PageDialogsOf<P> = P extends { pageTypes?: readonly (infer T)[] }
   : never
 type WrongPageAdd<P> = Exclude<
   AddOf<PageDialogsOf<P>>,
-  DialogTaking<undefined> | DialogTaking<{ type: string; folder?: string }> | undefined
+  DialogTaking<undefined> | DialogTaking<{ type: string; binder?: string }> | undefined
 >
 type SettingsDialogOf<G> = G extends { settings: infer S } ? S : never
 type WrongPageSettings<P> = Exclude<SettingsDialogOf<PageDialogsOf<P>>, DialogTaking<PageSettingsArgs> | undefined>
@@ -114,7 +114,7 @@ type PageDialogCheck<P> = [WrongPageAdd<P> | WrongPageSettings<P>] extends [neve
   ? unknown
   : {
       [id in (WrongPageAdd<P> | WrongPageSettings<P>) &
-        string]: "ページを作るダイアログは値を受けないか { type, folder? } を受け、ページの設定のダイアログは PageSettingsArgs を受ける"
+        string]: "ページを作るダイアログは値を受けないか { type, binder? } を受け、ページの設定のダイアログは PageSettingsArgs を受ける"
     }
 
 // ページのタイプが足す・外すアクション（actions の add・without）のうち、入れ物自身だけを変えるアクション（許可スコープが "book"。どのページのタイプでも決まらないので、書けない）

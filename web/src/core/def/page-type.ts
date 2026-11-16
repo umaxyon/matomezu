@@ -30,15 +30,15 @@ export interface PageDialogs {
   settings?: string
 }
 
-// ページのまとまり方: none は 1 枚ずつ並びに入る。own-folder は、このタイプのページだけを入れるフォルダにいつも入る（並びの 1 つになるのはフォルダ。スライド）
-export type PageGrouping = "none" | "own-folder"
+// ページのまとまり方: none は 1 枚ずつ並びに入る。binder は、このタイプのページだけを入れるバインダにいつも入る（並びの 1 つになるのはバインダ。スライド）
+export type PageGrouping = "none" | "binder"
 
 export interface PageTypeDef extends PageTypeExtras {
   id: string // ページのデータの type の値
   version: number // ページのデータの形の版
   title: MessageKey // タイプの名前
   paper: PaperRule
-  // そのタイプのページが土台のフィールドのほかに持つフィールド（ツリーの根など。土台のフィールド kind・id・type・title・paper・orientation・grows・shift・locked・items・slide・settings と、フォルダの lineup とは別の名前）
+  // そのタイプのページが土台のフィールドのほかに持つフィールド（ツリーの根など。土台のフィールド kind・id・type・title・paper・orientation・grows・shift・locked・items・slide・settings と、バインダの lineup とは別の名前）
   fields?: Readonly<Record<string, z.ZodType>>
   dialogs?: PageDialogs
   grouping: PageGrouping

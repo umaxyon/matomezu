@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test"
 import {
   areaOf,
+  binderOf,
   closePrintPreview,
-  folderOf,
   followBook,
   newStage,
+  openBinder,
   openBook,
   openedPage,
-  openFolder,
   openPage,
   openPrintPreview,
   panBy,
@@ -24,7 +24,7 @@ import {
   zoomTo,
 } from "../../web/src/core/stage"
 import { contentSize, MARGIN } from "../../web/src/core/viewport"
-import { drawingPage, SLIDE, testBook, testFolder, testPage } from "../lineup"
+import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { CORE_CATALOG } from "../support"
 
 describe("stage", () => {
@@ -247,49 +247,49 @@ test("開いていたページが無くなって隣のページを開いたと�
   expect(resetView(panBy(openPrintPreview(reached), -10, -10)).pan).toEqual({ x: 0, y: 0 })
 })
 
-describe("フォルダ（スライド）を開く", () => {
+describe("バインダ（スライド）を開く", () => {
   const slide = (id: string) => testPage(SLIDE, id, { title: id, paper: "@matomezu/base:ratio-16x9" })
   const book = testBook("b1", "混ざる", [
     drawingPage("p1"),
-    testFolder("f1", "スライド", SLIDE, slide("s1"), slide("s2"), slide("s3")),
-    testFolder("f2", "空", SLIDE),
+    testBinder("f1", "スライド", SLIDE, slide("s1"), slide("s2"), slide("s3")),
+    testBinder("f2", "空", SLIDE),
   ])
   const at = (page: string) => openPage(CORE_CATALOG, openBook(CORE_CATALOG, newStage("s1"), book), book, page)
 
-  test("フォルダを開くと中の最初のページ、空のフォルダならフォルダを開く", () => {
+  test("バインダを開くと中の最初のページ、空のバインダならバインダを開く", () => {
     const opened = openBook(CORE_CATALOG, newStage("s1"), book)
-    expect(shownPageId(openFolder(CORE_CATALOG, opened, book, "f1").opened ?? null)).toBe("s1")
-    expect(openFolder(CORE_CATALOG, opened, book, "f2").opened).toEqual({
-      kind: "folder",
+    expect(shownPageId(openBinder(CORE_CATALOG, opened, book, "f1").opened ?? null)).toBe("s1")
+    expect(openBinder(CORE_CATALOG, opened, book, "f2").opened).toEqual({
+      kind: "binder",
       book: "b1",
-      folder: "f2",
+      binder: "f2",
       type: SLIDE,
     })
-    expect(folderOf(book, at("s2").opened ?? null)).toBe("f1")
-    expect(folderOf(book, at("p1").opened ?? null)).toBeNull()
-    // 並びの最初がフォルダなら、その最初のページを開く
-    const first = testBook("b2", "スライドだけ", [testFolder("f1", "スライド", SLIDE, slide("s1"))])
+    expect(binderOf(book, at("s2").opened ?? null)).toBe("f1")
+    expect(binderOf(book, at("p1").opened ?? null)).toBeNull()
+    // 並びの最初がバインダなら、その最初のページを開く
+    const first = testBook("b2", "スライドだけ", [testBinder("f1", "スライド", SLIDE, slide("s1"))])
     expect(shownPageId(openBook(CORE_CATALOG, newStage("s1"), first).opened ?? null)).toBe("s1")
   })
 
-  test("フォルダの中のページが無くなれば、同じフォルダの後ろ、無ければ前のページ。全部無くなればフォルダ（空）", () => {
+  test("バインダの中のページが無くなれば、同じバインダの後ろ、無ければ前のページ。全部無くなればバインダ（空）", () => {
     const without = (...ids: string[]) =>
       testBook("b1", "混ざる", [
         drawingPage("p1"),
-        testFolder("f1", "スライド", SLIDE, ...["s1", "s2", "s3"].filter(i => !ids.includes(i)).map(slide)),
-        testFolder("f2", "空", SLIDE),
+        testBinder("f1", "スライド", SLIDE, ...["s1", "s2", "s3"].filter(i => !ids.includes(i)).map(slide)),
+        testBinder("f2", "空", SLIDE),
       ])
     expect(shownPageId(followBook(CORE_CATALOG, at("s2"), without("s2"), book).opened ?? null)).toBe("s3")
     expect(shownPageId(followBook(CORE_CATALOG, at("s3"), without("s3"), book).opened ?? null)).toBe("s2")
     expect(followBook(CORE_CATALOG, at("s1"), without("s1", "s2", "s3"), book).opened).toMatchObject({
-      kind: "folder",
-      folder: "f1",
+      kind: "binder",
+      binder: "f1",
     })
   })
 
-  test("空のフォルダを開いていて、ページが入ればそのページを開く。フォルダが無くなれば並びの最初", () => {
-    const empty = openFolder(CORE_CATALOG, openBook(CORE_CATALOG, newStage("s1"), book), book, "f2")
-    const filled = testBook("b1", "混ざる", [...book.lineup.slice(0, 2), testFolder("f2", "空", SLIDE, slide("s9"))])
+  test("空のバインダを開いていて、ページが入ればそのページを開く。バインダが無くなれば並びの最初", () => {
+    const empty = openBinder(CORE_CATALOG, openBook(CORE_CATALOG, newStage("s1"), book), book, "f2")
+    const filled = testBook("b1", "混ざる", [...book.lineup.slice(0, 2), testBinder("f2", "空", SLIDE, slide("s9"))])
     expect(shownPageId(followBook(CORE_CATALOG, empty, filled, book).opened ?? null)).toBe("s9")
     const gone = testBook("b1", "混ざる", book.lineup.slice(0, 2))
     expect(shownPageId(followBook(CORE_CATALOG, empty, gone, book).opened ?? null)).toBe("p1")

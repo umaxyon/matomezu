@@ -5,7 +5,7 @@
 // 操作はデータを書き換えず、新しい値を返す（変わらなければ同じものを返す）
 
 import { anchorIds } from "./annotation"
-import { findFolder, findPage, lineupOf, pagesOf } from "./book"
+import { findBinder, findPage, lineupOf, pagesOf } from "./book"
 import type { ItemId } from "./catalog"
 import type { CoreCatalog, PageTypeId } from "./core-catalog"
 import { isOnBook } from "./def/action"
@@ -18,22 +18,22 @@ import { clampPan, contentSize, paperOrigin } from "./viewport"
 
 // 開いているブックと、その中で開いているもの。開いているものは 3 通り:
 // - none: 何も開いていない（ページが 1 枚も無いブック）
-// - folder: 空のフォルダ（中のページが 1 枚も無い。type はフォルダが入れるページのタイプ）
+// - binder: 空のバインダ（中のページが 1 枚も無い。type はバインダが入れるページのタイプ）
 // - page: ページ。ページのタイプと、描く紙を写して持つ（開くときと、ブックが変わったときに決め直す）。
 //   area は、見せ方が描く広さ（可変ページで、印刷区画を並べた広さ）。見せ方が知らせるまでと、紙 1 枚で描くページでは持たない。
 //   shift は、開いたページの中身をずらした量（ページの shift を写す。変わったらパンを合わせる）。
 //   origin は、位置をデータに持たない見せ方が、描く中身を右・下へずらした量（印刷区画の数。見せ方が広さと一緒に知らせる。変わったらパンを合わせる）
-// ページが入っているフォルダは持たない（ブックから引く。core/book.ts の findPage）
-export type Opened = OpenedNone | OpenedFolder | OpenedPage
+// ページが入っているバインダは持たない（ブックから引く。core/book.ts の findPage）
+export type Opened = OpenedNone | OpenedBinder | OpenedPage
 interface OpenedBook {
   book: string // ブックの id
 }
 export interface OpenedNone extends OpenedBook {
   kind: "none"
 }
-export interface OpenedFolder extends OpenedBook {
-  kind: "folder"
-  folder: string // フォルダの id
+export interface OpenedBinder extends OpenedBook {
+  kind: "binder"
+  binder: string // バインダの id
   type: PageTypeId
 }
 export interface OpenedPage extends OpenedBook {
@@ -50,7 +50,7 @@ export interface OpenedPage extends OpenedBook {
 export const openedPage = (opened: Opened | null): OpenedPage | null => (opened?.kind === "page" ? opened : null)
 // 開いているページの id（ページを開いていなければ null）
 export const shownPageId = (opened: Opened | null): string | null => openedPage(opened)?.page ?? null
-// 開いているページのタイプ（空のフォルダを開いていれば、フォルダが入れるタイプ。どちらでもなければ null）
+// 開いているページのタイプ（空のバインダを開いていれば、バインダが入れるタイプ。どちらでもなければ null）
 export const shownType = (opened: Opened | null): PageTypeId | null =>
   opened && opened.kind !== "none" ? opened.type : null
 
@@ -251,21 +251,21 @@ export function openedAt(catalog: CoreCatalog, book: Pick<Book, "id">, page: Pag
   }
 }
 
-// ブック book の、並びの最初を開いた形: 最初がページならそのページ、フォルダならその最初のページ（空のフォルダならフォルダ）。並びが空なら何も開かない
+// ブック book の、並びの最初を開いた形: 最初がページならそのページ、バインダならその最初のページ（空のバインダならバインダ）。並びが空なら何も開かない
 function openedFirst(catalog: CoreCatalog, book: Book): Opened {
   const [first] = lineupOf(book)
   if (!first) return { kind: "none", book: book.id }
   return first.kind === "page" ? openedAt(catalog, book, first) : openedIn(catalog, book, first.id)
 }
 
-// ブック book のフォルダ folder を開いた形: 中の最初のページ（空なら、フォルダ。フォルダが無ければ何も開かない）
-function openedIn(catalog: CoreCatalog, book: Book, folder: string): Opened {
-  const found = findFolder(book, folder)
+// ブック book のバインダ binder を開いた形: 中の最初のページ（空なら、バインダ。バインダが無ければ何も開かない）
+function openedIn(catalog: CoreCatalog, book: Book, binder: string): Opened {
+  const found = findBinder(book, binder)
   if (!found) return { kind: "none", book: book.id }
   const [first] = found.lineup
   return first
     ? openedAt(catalog, book, first)
-    : { kind: "folder", book: book.id, folder: found.id, type: found.pageType as PageTypeId }
+    : { kind: "binder", book: book.id, binder: found.id, type: found.pageType as PageTypeId }
 }
 
 // ブックを開く（並びの最初）。ずらす量は紙の左上に戻し（初めの位置 start が届いたらそこへ合わせる。starting）、印刷プレビューは閉じる（開く前の倍率に戻す）
@@ -284,23 +284,23 @@ export function openPage(catalog: CoreCatalog, stage: Stage, book: Book, page: s
   return settle(leave(opening(edited(stage), openedAt(catalog, book, found))), HOME)
 }
 
-// 開いているブックのフォルダを開く（中の最初のページ。空ならフォルダ）。そのフォルダのページか、そのフォルダをもう開いていれば、印刷プレビューを閉じるだけ
-export function openFolder(catalog: CoreCatalog, stage: Stage, book: Book, folder: string): Stage {
+// 開いているブックのバインダを開く（中の最初のページ。空ならバインダ）。そのバインダのページか、そのバインダをもう開いていれば、印刷プレビューを閉じるだけ
+export function openBinder(catalog: CoreCatalog, stage: Stage, book: Book, binder: string): Stage {
   const o = stage.opened
-  if (!o || o.book !== book.id || !findFolder(book, folder)) return stage
-  if (folderOf(book, o) === folder) return closePrintPreview(stage)
+  if (!o || o.book !== book.id || !findBinder(book, binder)) return stage
+  if (binderOf(book, o) === binder) return closePrintPreview(stage)
   if (editingBackground(stage)) return stage
-  return settle(leave(opening(edited(stage), openedIn(catalog, book, folder))), HOME)
+  return settle(leave(opening(edited(stage), openedIn(catalog, book, binder))), HOME)
 }
 
-// 開いているものが入っているフォルダの id（空のフォルダを開いていればそのフォルダ。フォルダの外のページか、何も開いていなければ null）
-export function folderOf(book: Book, opened: Opened | null): string | null {
-  if (opened?.kind === "folder") return opened.folder
-  return opened?.kind === "page" ? (findPage(book, opened.page)?.folder?.id ?? null) : null
+// 開いているものが入っているバインダの id（空のバインダを開いていればそのバインダ。バインダの外のページか、何も開いていなければ null）
+export function binderOf(book: Book, opened: Opened | null): string | null {
+  if (opened?.kind === "binder") return opened.binder
+  return opened?.kind === "page" ? (findPage(book, opened.page)?.binder?.id ?? null) : null
 }
 
 // 開いているブックが変わったときに合わせる。開いていたページが残っていればそのページ（タイプと紙は決め直す）、
-// 無くなっていれば隣（下の neighbourOf）。空のフォルダを開いていて、フォルダにページが入ったら、その最初のページ。
+// 無くなっていれば隣（下の neighbourOf）。空のバインダを開いていて、バインダにページが入ったら、その最初のページ。
 // 開くものが変わったときだけ、ずらす量を紙の左上に戻し（初めの位置が届いたらそこへ合わせる）、選択を捨てる。同じページで紙も同じまま中身をずらした（ページの shift が変わった）なら、
 // 中身が画面の同じ所に見えるよう、ずらした分だけパンを合わせ、見せ方が知らせた広さもその分だけ先に変える（知らせ直す前に範囲に収め直して打ち消さないように）。
 // 選択からは、ブックに無くなった物（AI やほかの画面が消した物、Undo で無くなった物）を外す。
@@ -343,10 +343,10 @@ function followOpened(catalog: CoreCatalog, stage: Stage, book: Book, before?: B
   return sameData(opened, o) ? stage : settle(leave(opening(stage, opened)), HOME)
 }
 
-// 開いていたもの was が無くなった（か、空のフォルダだった）ときに開くもの:
-// - 空のフォルダを開いていた: フォルダが残っていれば、その最初のページ（まだ空ならフォルダのまま）
-// - フォルダの中のページを開いていた: 変わる前のブックで同じフォルダの後ろにあった残りのページ、無ければ前にあった残りのページ、無ければそのフォルダ（空）
-// - ほか（フォルダも無くなった・並びに直に入っていたページ）: 変わる前のブックで後ろにあった残りのページ、無ければ前にあった残りのページ
+// 開いていたもの was が無くなった（か、空のバインダだった）ときに開くもの:
+// - 空のバインダを開いていた: バインダが残っていれば、その最初のページ（まだ空ならバインダのまま）
+// - バインダの中のページを開いていた: 変わる前のブックで同じバインダの後ろにあった残りのページ、無ければ前にあった残りのページ、無ければそのバインダ（空）
+// - ほか（バインダも無くなった・並びに直に入っていたページ）: 変わる前のブックで後ろにあった残りのページ、無ければ前にあった残りのページ
 // どれも無ければ、並びの最初
 function neighbourOf(catalog: CoreCatalog, book: Book, was: Opened, before?: Book): Opened {
   if (was.kind === "none") return openedFirst(catalog, book)
@@ -361,18 +361,18 @@ function neighbourOf(catalog: CoreCatalog, book: Book, was: Opened, before?: Boo
       .find(i => left.has(i))
     return left.get(after ?? prior ?? "")
   }
-  const folder = before ? folderOf(before, was) : was.kind === "folder" ? was.folder : null
-  if (folder !== null && findFolder(book, folder)) {
-    const inFolder = (b: Book) => (findFolder(b, folder)?.lineup ?? []).map(e => e.id)
-    const now = new Set(inFolder(book))
+  const binder = before ? binderOf(before, was) : was.kind === "binder" ? was.binder : null
+  if (binder !== null && findBinder(book, binder)) {
+    const inBinder = (b: Book) => (findBinder(b, binder)?.lineup ?? []).map(e => e.id)
+    const now = new Set(inBinder(book))
     const next =
       was.kind === "page" && before
         ? near(
-            inFolder(before).filter(i => i === was.page || now.has(i)),
+            inBinder(before).filter(i => i === was.page || now.has(i)),
             was.page,
           )
         : undefined
-    return next ? openedAt(catalog, book, next) : openedIn(catalog, book, folder)
+    return next ? openedAt(catalog, book, next) : openedIn(catalog, book, binder)
   }
   const next =
     was.kind === "page" && before

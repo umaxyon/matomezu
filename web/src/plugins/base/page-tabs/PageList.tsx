@@ -1,14 +1,14 @@
-// ステージの左に縦に並べるページ一覧（ウィジェット page-list。スロット stage-side）: フォルダ（スライド）を開いている間だけ出し、開いているフォルダのページを並べる。
+// ステージの左に縦に並べるページ一覧（ウィジェット page-list。スロット stage-side）: バインダ（スライド）を開いている間だけ出し、開いているバインダのページを並べる。
 // ページごとに、ページの番号とサムネイルを並べる。サムネイルは、ページのタイプの見せ方の印刷区画 1 つのビュー（printSheet）で描き、一覧の幅に合わせて縮める
 // （ステージの拡大縮小には従わない）。押したページをそのステージで開く（コマンド page-open）。開いているページは枠と太字の番号で示す。
 // ドラッグで並べ替える（useTabDrag の縦。アクション page-move）。ページの右クリックでメニュー（page-list-context。ここに追加・複製・削除）。
-// 一覧の下の＋は、最後にページを足す（コマンド page-add-after。空のフォルダなら、そのフォルダに足して開く）。ロック中のページには鍵の印を付ける
+// 一覧の下の＋は、最後にページを足す（コマンド page-add-after。空のバインダなら、そのバインダに足して開く）。ロック中のページには鍵の印を付ける
 
 import { useRef, useState } from "react"
-import { findFolder, pagesIn } from "../../../core/book"
+import { findBinder, pagesIn } from "../../../core/book"
 import type { Size } from "../../../core/geom"
 import type { Book, Page } from "../../../core/schema/book"
-import { folderOf, shownPageId } from "../../../core/stage"
+import { binderOf, shownPageId } from "../../../core/stage"
 import { useCommand } from "../../../ui/commands"
 import { useContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
@@ -82,14 +82,14 @@ export function PageList() {
   const openMenu = useContextMenu(PAGE_LIST_CONTEXT)
   const t = useMessages(kit)
   const list = useRef<HTMLDivElement | null>(null)
-  const folder = book && opened ? findFolder(book, folderOf(book, opened) ?? "") : undefined
-  const pages = book && folder ? pagesIn(book, folder.id) : []
+  const binder = book && opened ? findBinder(book, binderOf(book, opened) ?? "") : undefined
+  const pages = book && binder ? pagesIn(book, binder.id) : []
   const drag = useTabDrag(
     list,
     pages.map(p => p.id),
     "y",
   )
-  if (!book || !folder || !openPage.enabled) return null
+  if (!book || !binder || !openPage.enabled) return null
   const shown = shownPageId(opened ?? null)
   const last = pages.at(-1)
   return (
@@ -131,7 +131,7 @@ export function PageList() {
           className={styles.add}
           aria-label={t("Add page")}
           onClick={() =>
-            last ? addAfter.run({ page: last.id }) : addInto({ type: folder.pageType, into: { folder: folder.id } })
+            last ? addAfter.run({ page: last.id }) : addInto({ type: binder.pageType, into: { binder: binder.id } })
           }
         >
           <svg viewBox="0 0 16 16" aria-hidden="true">

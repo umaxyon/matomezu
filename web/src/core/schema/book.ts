@@ -1,4 +1,4 @@
-// ブックとページのデータの型。ブックはタイプを持たず、並び（lineup）にページとフォルダを順に持つ。ページの形はページのタイプ（type）ごとに違い、
+// ブックとページのデータの型。ブックはタイプを持たず、並び（lineup）にページとバインダを順に持つ。ページの形はページのタイプ（type）ごとに違い、
 // 土台のフィールドに、タイプが選んだものから決まるフィールド（置けるアイテム・設定の項目・タイプが足すフィールド）を足す。
 // ここは、core/catalog.ts の PageTypeTable に書き足したタイプの型を 1 つに束ねる。データを検査する形は、core 台帳が同じ決まりで組み立てる（CoreCatalog の schemas と bookSchema）
 import type { z } from "zod"
@@ -33,16 +33,16 @@ export type PageData<T> = Page &
 export type AnyPage = { [K in PageTypeId]: PageData<PageTypeTable[K]> }[PageTypeId]
 export type PageOf<T extends PageTypeId> = PageData<PageTypeTable[T]>
 
-// 並びの 1 つ: ページ（kind: "page"）か、1 つのタイプのページだけを入れるフォルダ（kind: "folder"。中身も同じ並びで、入るのはページだけ）。
+// 並びの 1 つ: ページ（kind: "page"）か、1 つのタイプのページだけを入れるバインダ（kind: "binder"。中身も同じ並びで、入るのはページだけ）。
 // どちらも並びの中で id を持つ（置き直しの Patch が、並びを id ごとにたどる。core/patch.ts）
-export interface FolderEntry {
-  kind: "folder"
+export interface BinderEntry {
+  kind: "binder"
   id: string
   title: string
   pageType: string // 入れるページのタイプの id
   lineup: readonly AnyPage[]
 }
-export type LineupEntry = AnyPage | FolderEntry
+export type LineupEntry = AnyPage | BinderEntry
 
 // ブック（名前 title・ロック locked・ゴミ箱に入れた時刻 trashed・並び lineup・ブックが持つ設定の項目）
 export type Book = {

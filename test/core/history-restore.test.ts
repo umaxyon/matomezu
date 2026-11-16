@@ -18,7 +18,7 @@ const page = (id: string, items: unknown[], fields: Record<string, unknown> = {}
   ...fields,
   items,
 })
-const folder = (id: string, lineup: unknown[], title = id) => ({ kind: "folder", id, title, pageType: "t", lineup })
+const binder = (id: string, lineup: unknown[], title = id) => ({ kind: "binder", id, title, pageType: "t", lineup })
 const patch = (from: Book, to: Book) => patchOf(from, to) as Patch
 
 test("ブックのフィールド・ページ・アイテムを、前の値に戻し、後の値にやり直す", () => {
@@ -54,11 +54,11 @@ test("ページの名前だけの置き直しも、そのページを認可の�
   expect(scope(patch(renamed, before))).toEqual({ page: "p", items: [] })
 })
 
-test("フォルダの中のページは、そのページとアイテムを置き直す。フォルダの名前だけの置き直しは、フォルダの id を返す（ページとして使う側がブックで確かめる）", () => {
-  const before = book({}, [folder("f", [page("s", [item("a")])])])
-  const changed = book({}, [folder("f", [page("s", [item("a", "A")])])])
+test("バインダの中のページは、そのページとアイテムを置き直す。バインダの名前だけの置き直しは、バインダの id を返す（ページとして使う側がブックで確かめる）", () => {
+  const before = book({}, [binder("f", [page("s", [item("a")])])])
+  const changed = book({}, [binder("f", [page("s", [item("a", "A")])])])
   expect(restoredEntries(patch(changed, before))).toEqual([{ id: "s", gone: false, items: ["a"] }])
-  const renamed = book({}, [folder("f", [page("s", [item("a")])], "別")])
+  const renamed = book({}, [binder("f", [page("s", [item("a")])], "別")])
   expect(restoredEntries(patch(renamed, before))).toEqual([{ id: "f", gone: false, items: [] }])
   expect(applyRestore(renamed, patch(renamed, before))).toEqual(before)
 })

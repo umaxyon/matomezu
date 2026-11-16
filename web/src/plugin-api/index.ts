@@ -6,12 +6,12 @@ export { isAI, isUser } from "../core/actor"
 export type { Annotation, BookAnnotations } from "../core/annotation"
 export type { PageInto } from "../core/book"
 export {
-  addFolder,
+  addBinder,
   addPage,
   allowedItems,
-  findFolder,
+  bindersOf,
+  findBinder,
   findPage,
-  foldersOf,
   freeTitle,
   lineupIds,
   lineupOf,
@@ -19,9 +19,9 @@ export {
   newPage,
   pagesIn,
   pagesOf,
-  putFolder,
+  putBinder,
   putPage,
-  removeFolder,
+  removeBinder,
   removePage,
   siblingsOf,
   withSettings,
@@ -88,7 +88,7 @@ export {
 export type { Book } from "../core/schema/book"
 export {
   areaOf,
-  folderOf,
+  binderOf,
   openedPage,
   paperOf,
   placement,

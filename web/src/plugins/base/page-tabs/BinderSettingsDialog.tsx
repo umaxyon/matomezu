@@ -1,9 +1,9 @@
-// フォルダの設定のダイアログ（スライドのフォルダなど、まとまるタイプのページの入れ物）: 名前と、中のページ全部の紙と向き。題はフォルダのページのタイプの名前から作る（「スライドの設定」）。
-// 見出しの行の右にキャンセルと確定のボタン。名前が空の間は確定できない。確定で、変えた項目だけをアクション folder-update に渡す（紙と向きは中のページ全部に 1 回で付く）。断られたらダイアログを開いたままにする。
-// 空のフォルダ（ページ 0 枚）は、紙をそろえる相手が無いので、紙と向きを押せない（タイプの既定を出す）。
-// 左下の赤い削除のボタンは、上に重ねたモーダルで確かめてから folder-remove を行う（中のページごと消える）。認可ステップが止めていれば押せない
+// バインダの設定のダイアログ（スライドのバインダなど、まとまるタイプのページの入れ物）: 名前と、中のページ全部の紙と向き。題はバインダのページのタイプの名前から作る（「スライドの設定」）。
+// 見出しの行の右にキャンセルと確定のボタン。名前が空の間は確定できない。確定で、変えた項目だけをアクション binder-update に渡す（紙と向きは中のページ全部に 1 回で付く）。断られたらダイアログを開いたままにする。
+// 空のバインダ（ページ 0 枚）は、紙をそろえる相手が無いので、紙と向きを押せない（タイプの既定を出す）。
+// 左下の赤い削除のボタンは、上に重ねたモーダルで確かめてから binder-remove を行う（中のページごと消える）。認可ステップが止めていれば押せない
 import { useId, useState } from "react"
-import { findFolder, pagesIn } from "../../../core/book"
+import { findBinder, pagesIn } from "../../../core/book"
 import { pageType } from "../../../core/core-catalog"
 import { ORIENTATIONS, type Orientation } from "../../../core/def/paper"
 import { useMessages } from "../../../ui/i18n"
@@ -14,42 +14,42 @@ import { Confirm } from "../dialog-host/Confirm"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton, controlClass, Field, Form, rowClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import type { FolderSettingsArgs } from "."
-import { FOLDER_REMOVE, FOLDER_UPDATE } from "./folders"
+import type { BinderSettingsArgs } from "."
+import { BINDER_REMOVE, BINDER_UPDATE } from "./binders"
 import { PaperFields } from "./PaperFields"
 
-export function FolderSettingsDialog({ args, onClose }: DialogProps<FolderSettingsArgs>) {
+export function BinderSettingsDialog({ args, onClose }: DialogProps<BinderSettingsArgs>) {
   const t = useMessages(kit)
   const form = useId()
   const catalog = useCatalog().core
   const book = useBook()
-  const folder = book ? findFolder(book, args.folder) : undefined
-  const type = folder ? catalog.pageTypes.get(folder.pageType) : undefined
-  const first = book && folder ? pagesIn(book, folder.id)[0] : undefined
-  const [title, setTitle] = useState(folder?.title ?? "")
+  const binder = book ? findBinder(book, args.binder) : undefined
+  const type = binder ? catalog.pageTypes.get(binder.pageType) : undefined
+  const first = book && binder ? pagesIn(book, binder.id)[0] : undefined
+  const [title, setTitle] = useState(binder?.title ?? "")
   const [paper, setPaper] = useState(first?.paper ?? type?.paper.default ?? "")
   const [orientation, setOrientation] = useState<Orientation>(
     first?.orientation ?? type?.paper.orientation ?? "portrait",
   )
   const on = book ? { book: book.id } : undefined
-  const updatable = useAllowedOn(FOLDER_UPDATE.id, { folder: args.folder }, on).ok
-  const removable = useAllowedOn(FOLDER_REMOVE.id, { folder: args.folder }, on).ok
+  const updatable = useAllowedOn(BINDER_UPDATE.id, { binder: args.binder }, on).ok
+  const removable = useAllowedOn(BINDER_REMOVE.id, { binder: args.binder }, on).ok
   const [confirming, setConfirming] = useState(false)
   const perform = usePerform()
-  if (!book || !folder || !type) return null
-  const papers = pageType(catalog, folder.pageType).paper.allowed
+  if (!book || !binder || !type) return null
+  const papers = pageType(catalog, binder.pageType).paper.allowed
   // 変えた項目（紙と向きは、中にページがあるときだけ）
   const patch = {
-    ...(title !== folder.title ? { title } : {}),
+    ...(title !== binder.title ? { title } : {}),
     ...(first && paper !== first.paper ? { paper } : {}),
     ...(first && orientation !== first.orientation ? { orientation } : {}),
   }
   const ready = title.trim() !== ""
   const submit = () => {
-    if (Object.keys(patch).length === 0 || perform(FOLDER_UPDATE.id, { folder: folder.id, ...patch }).ok) onClose()
+    if (Object.keys(patch).length === 0 || perform(BINDER_UPDATE.id, { binder: binder.id, ...patch }).ok) onClose()
   }
   const remove = () => {
-    if (perform(FOLDER_REMOVE.id, { folder: folder.id }).ok) onClose()
+    if (perform(BINDER_REMOVE.id, { binder: binder.id }).ok) onClose()
     else setConfirming(false)
   }
   return (

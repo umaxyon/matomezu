@@ -230,7 +230,7 @@ func TestAICatalogDescribesPageTypesAndItemKinds(t *testing.T) {
 	for _, i := range c.Items {
 		kinds[i.ID] = i.Kind
 	}
-	if !strings.HasPrefix(types["@matomezu/drawing:drawing"], "none ") || !strings.HasPrefix(types["@matomezu/slide-book:slide"], "own-folder ") || !strings.Contains(types["@matomezu/drawing:drawing"], "@matomezu/box:shape-nest-box") ||
+	if !strings.HasPrefix(types["@matomezu/drawing:drawing"], "none ") || !strings.HasPrefix(types["@matomezu/slide-book:slide"], "binder ") || !strings.Contains(types["@matomezu/drawing:drawing"], "@matomezu/box:shape-nest-box") ||
 		kinds["@matomezu/box:shape-box"] != "shape" || kinds["@matomezu/line:connector-line"] != "connector" {
 		t.Fatalf("book types = %v, item kinds = %v", types, kinds)
 	}

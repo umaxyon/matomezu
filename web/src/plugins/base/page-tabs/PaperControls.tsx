@@ -1,5 +1,5 @@
 // 紙・向き・可変ページかの入力Form（ページを作るダイアログと、ページの設定のダイアログ）。選べる紙と向きはページのタイプの規定で決まり（1 つしか無ければ選べない）、
-// 紙をそろえる規定のタイプ（スライド）は、そろえる相手のいる所（ページの設定と、今あるフォルダに足すページ）では紙と向きを出さない（フォルダの設定でまとめて変える）。
+// 紙をそろえる規定のタイプ（スライド）は、そろえる相手のいる所（ページの設定と、今あるバインダに足すページ）では紙と向きを出さない（バインダの設定でまとめて変える）。
 // 可変ページかは、タイプが増やす向きの決め方を持つときだけ出す（利用者が向きを選ぶタイプなら、可変ページにすると増やす向きも選べる）。ページの設定では、変えた項目だけをアクション page-update に渡し、形が紙に入らなければ問題にする
 
 import { useState } from "react"
@@ -61,7 +61,7 @@ export function usePaperControls(
     ? paperChoicesFor(catalog, book, page)
     : paperChoices(catalog, book, type, place)
   const choices = growChoices(catalog, type)
-  const shared = !pageType(catalog, type).paper.perPage && (page !== null || place !== "new-folder") // 紙と向きを、そろえる相手に任せるか
+  const shared = !pageType(catalog, type).paper.perPage && (page !== null || place !== "new-binder") // 紙と向きを、そろえる相手に任せるか
   const chosen = value.grows === true ? undefined : value.grows // 選んでいる増やす向き
   // 変えた項目（ページを作るなら全部）
   const patch = {

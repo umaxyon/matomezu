@@ -304,7 +304,7 @@ function aiTables(of: Assembled) {
     pageTypes: [...catalog.pageTypes.values()].map(t => ({
       id: t.id,
       title: en(t.title),
-      grouping: t.grouping, // own-folder のタイプのページは、そのタイプのフォルダの中にだけ置ける
+      grouping: t.grouping, // binder のタイプのページは、そのタイプのバインダの中にだけ置ける
       grows: growsOf(t.grow), // 可変ページの決め方
       items: t.items.allowed, // ページに置けるアイテム
       // ページの slide（形だけの並び）に置けるアイテムと、その並びがページの背景か本体か（無ければ null）。read_page には、背景は有無と文字だけが見える（page.background.texts）

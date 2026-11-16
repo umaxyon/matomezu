@@ -13,7 +13,7 @@ import {
 import { resolvePaper } from "../../web/src/core/paper"
 import { PAPER_IDS } from "../../web/src/plugins/base"
 import { choosablePapers, defaultPaper, paperChoices } from "../../web/src/plugins/base/page-tabs/pages"
-import { DRAWING, drawingPage, MARKDOWN, SLIDE, testBook, testFolder, testPage } from "../lineup"
+import { DRAWING, drawingPage, MARKDOWN, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { CORE_CATALOG } from "../support"
 
 const book = testBook("b1", "ブック", [
@@ -42,25 +42,25 @@ test("新しいページは、newId の値そのままの id（uuid）で、決�
 })
 
 describe("並び", () => {
-  const slides = testFolder("f1", "スライド", SLIDE, testPage(SLIDE, "s1"), testPage(SLIDE, "s2", { title: "2" }))
+  const slides = testBinder("f1", "スライド", SLIDE, testPage(SLIDE, "s1"), testPage(SLIDE, "s2", { title: "2" }))
   const mixed = testBook("b2", "混ざる", [drawingPage("p1"), slides, testPage(MARKDOWN, "t1", { title: "文書" })])
 
-  test("フォルダの中のページも並びの順に読め、どのフォルダに入っているかも引ける", () => {
+  test("バインダの中のページも並びの順に読め、どのバインダに入っているかも引ける", () => {
     expect(pagesOf(mixed).map(p => p.id)).toEqual(["p1", "s1", "s2", "t1"])
-    expect(findPage(mixed, "s2")?.folder?.id).toBe("f1")
-    expect(findPage(mixed, "p1")?.folder).toBeNull()
+    expect(findPage(mixed, "s2")?.binder?.id).toBe("f1")
+    expect(findPage(mixed, "p1")?.binder).toBeNull()
     expect(findPage(mixed, "nope")).toBeUndefined()
   })
 
-  test("並べ替えは同じ入れ物の中だけ（ブックの並びならブックの並び、フォルダの中ならそのフォルダの中）", () => {
+  test("並べ替えは同じ入れ物の中だけ（ブックの並びならブックの並び、バインダの中ならそのバインダの中）", () => {
     expect(lineupOf(moveEntry(mixed, "t1", 0)).map(e => e.id)).toEqual(["t1", "p1", "f1"])
     expect(lineupOf(moveEntry(mixed, "f1", 9)).map(e => e.id)).toEqual(["p1", "t1", "f1"])
     expect(pagesOf(moveEntry(mixed, "s2", 0)).map(p => p.id)).toEqual(["p1", "s2", "s1", "t1"])
     expect(moveEntry(mixed, "nope", 0)).toEqual(mixed)
   })
 
-  test("フォルダに足すページは、そのフォルダの中に入る", () => {
-    const next = addPage(mixed, testPage(SLIDE, "s3", { title: "3" }), { folder: "f1", index: 0 })
+  test("バインダに足すページは、そのバインダの中に入る", () => {
+    const next = addPage(mixed, testPage(SLIDE, "s3", { title: "3" }), { binder: "f1", index: 0 })
     expect(pagesOf(next).map(p => p.id)).toEqual(["p1", "s3", "s1", "s2", "t1"])
   })
 
@@ -68,29 +68,29 @@ describe("並び", () => {
     const cases: [string, ReturnType<typeof testBook>, boolean][] = [
       ["守っている", mixed, true],
       ["ページの id が重なる", testBook("b", "b", [drawingPage("p1"), drawingPage("p1", { title: "2" })]), false],
-      ["ページとフォルダの id が重なる", testBook("b", "b", [drawingPage("f1"), slides]), false],
-      ["まとまるタイプのページがフォルダの外", testBook("b", "b", [testPage(SLIDE, "s1")]), false],
+      ["ページとバインダの id が重なる", testBook("b", "b", [drawingPage("f1"), slides]), false],
+      ["まとまるタイプのページがバインダの外", testBook("b", "b", [testPage(SLIDE, "s1")]), false],
       [
-        "まとまらないタイプのページがフォルダの中",
-        testBook("b", "b", [testFolder("f1", "f", SLIDE, drawingPage("p1") as never)]),
+        "まとまらないタイプのページがバインダの中",
+        testBook("b", "b", [testBinder("f1", "f", SLIDE, drawingPage("p1") as never)]),
         false,
       ],
-      ["フォルダの入れるタイプがまとまらないタイプ", testBook("b", "b", [testFolder("f1", "f", DRAWING)]), false],
+      ["バインダの入れるタイプがまとまらないタイプ", testBook("b", "b", [testBinder("f1", "f", DRAWING)]), false],
       ["同じ入れ物で名前が重なる", testBook("b", "b", [drawingPage("p1"), drawingPage("p2")]), false],
       [
-        "フォルダの中で名前が重なる",
-        testBook("b", "b", [testFolder("f1", "f", SLIDE, testPage(SLIDE, "s1"), testPage(SLIDE, "s2"))]),
+        "バインダの中で名前が重なる",
+        testBook("b", "b", [testBinder("f1", "f", SLIDE, testPage(SLIDE, "s1"), testPage(SLIDE, "s2"))]),
         false,
       ],
       [
         "入れ物が違えば同じ名前でよい",
-        testBook("b", "b", [drawingPage("p1"), testFolder("f1", "f", SLIDE, testPage(SLIDE, "s1"))]),
+        testBook("b", "b", [drawingPage("p1"), testBinder("f1", "f", SLIDE, testPage(SLIDE, "s1"))]),
         true,
       ],
       [
-        "紙をそろえるタイプのフォルダの中で紙が違う",
+        "紙をそろえるタイプのバインダの中で紙が違う",
         testBook("b", "b", [
-          testFolder(
+          testBinder(
             "f1",
             "f",
             SLIDE,
@@ -101,9 +101,9 @@ describe("並び", () => {
         false,
       ],
       [
-        "紙をそろえるタイプのフォルダの中で向きが違う",
+        "紙をそろえるタイプのバインダの中で向きが違う",
         testBook("b", "b", [
-          testFolder(
+          testBinder(
             "f1",
             "f",
             SLIDE,
@@ -114,12 +114,12 @@ describe("並び", () => {
         false,
       ],
       [
-        "フォルダが違えば紙が違ってよい。紙をページごとに選ぶタイプは、同じ入れ物でも違ってよい",
+        "バインダが違えば紙が違ってよい。紙をページごとに選ぶタイプは、同じ入れ物でも違ってよい",
         testBook("b", "b", [
           drawingPage("p1", { title: "1" }),
           drawingPage("p2", { title: "2", paper: "@matomezu/base:a3" }),
-          testFolder("f1", "f", SLIDE, testPage(SLIDE, "s1", { title: "1" })),
-          testFolder("f2", "g", SLIDE, testPage(SLIDE, "s2", { title: "1", paper: "@matomezu/base:a3" })),
+          testBinder("f1", "f", SLIDE, testPage(SLIDE, "s1", { title: "1" })),
+          testBinder("f2", "g", SLIDE, testPage(SLIDE, "s2", { title: "1", paper: "@matomezu/base:a3" })),
         ]),
         true,
       ],
@@ -127,18 +127,18 @@ describe("並び", () => {
     for (const [name, b, ok] of cases) expect([name, holds(CORE_CATALOG, b)]).toEqual([name, ok])
   })
 
-  test("機能台帳に無いタイプのページ・空のフォルダのあるブックは W004", () => {
+  test("機能台帳に無いタイプのページ・空のバインダのあるブックは W004", () => {
     const unknownPage = testBook("b", "b", [
       drawingPage("p1"),
       { ...drawingPage("p2", { title: "2" }), type: "@x/y:z" } as never,
     ])
-    const unknownFolder = testBook("c", "c", [testFolder("f1", "f", "@x/y:z" as never)])
-    const { books, warnings } = checkBooks(CORE_CATALOG, [unknownPage, unknownFolder, mixed])
+    const unknownBinder = testBook("c", "c", [testBinder("f1", "f", "@x/y:z" as never)])
+    const { books, warnings } = checkBooks(CORE_CATALOG, [unknownPage, unknownBinder, mixed])
     expect(books.map(b => b.id)).toEqual(["b2"])
     expect(warnings.map(w => w.code)).toEqual(["W004", "W004"])
   })
 
-  test("ページのタイプとフォルダの入れるタイプは、変えた後も同じでなければならない", () => {
+  test("ページのタイプとバインダの入れるタイプは、変えた後も同じでなければならない", () => {
     expect(keepsPageTypes(mixed, moveEntry(mixed, "t1", 0))).toBe(true)
     const retyped = testBook("b2", "混ざる", [{ ...drawingPage("p1"), type: MARKDOWN } as never])
     expect(keepsPageTypes(mixed, retyped)).toBe(false)

@@ -22,7 +22,7 @@ const at = (places: StagePlace[], current = 0, share = 0.5): Address => ({
 test("場所は、開いているスクリーンと前に出した順、ブックスクリーンのステージごとのブック・ページ・倍率・ずらす量と、カレントと境目の割合", () => {
   const { state } = newStore()
   expect(addressOf(state.getState().window)).toEqual(
-    at([{ book: "b1", page: "p1", folder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} }]),
+    at([{ book: "b1", page: "p1", binder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} }]),
   )
 })
 
@@ -35,8 +35,8 @@ test("場所を当てはめると、そのとおりにステージを開いて�
     state.getState().window,
     at(
       [
-        { book: "b3", page: "p1", folder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} },
-        { book: "nothing", page: null, folder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} },
+        { book: "b3", page: "p1", binder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} },
+        { book: "nothing", page: null, binder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} },
       ],
       1,
       0.99,
@@ -60,7 +60,7 @@ test("場所の倍率は、範囲に収める（URL から 0・負・極端な�
         catalog.core,
         state.getState().books,
         state.getState().window,
-        at([{ book: "b1", page: "p1", folder: null, zoom, pan: { x: 0, y: 0 }, states: {} }], 0, 0.5),
+        at([{ book: "b1", page: "p1", binder: null, zoom, pan: { x: 0, y: 0 }, states: {} }], 0, 0.5),
       ),
     ).stages[0]!.zoom
   expect([zoomOf(0), zoomOf(-2), zoomOf(1e9), zoomOf(Number.NaN), zoomOf(1)]).toEqual([
@@ -73,13 +73,13 @@ test("場所の倍率は、範囲に収める（URL から 0・負・極端な�
 })
 
 test("移動は、スクリーン・前に出ている物・ステージの数か、ブック・ページが変わったとき（倍率・ずらす量・カレント・境目だけは移動ではない）", () => {
-  const place = { book: "b1", page: "p1", folder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} }
+  const place = { book: "b1", page: "p1", binder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} }
   const a = at([place])
   expect(moved(a, at([place], 0, 0.3))).toBe(false)
   expect(moved(a, at([{ ...place, zoom: 2, pan: { x: 10, y: 0 } }]))).toBe(false)
   expect(moved(a, at([{ ...place, book: "b2" }]))).toBe(true)
   expect(
-    moved(a, at([place, { book: null, page: null, folder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} }])),
+    moved(a, at([place, { book: null, page: null, binder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} }])),
   ).toBe(true)
   expect(moved(a, { ...a, order: ["c2", "c1"] })).toBe(true)
   const opened = { id: "c3", def: CENTER, props: {}, states: {} }
@@ -88,7 +88,7 @@ test("移動は、スクリーン・前に出ている物・ステージの数�
 
 test("場所のスクリーンを、その id のまま開き、場所に無いスクリーンは閉じる。無い定義と形に合わない値のスクリーンは開かない", () => {
   const { catalog, state } = newStore()
-  const place = { book: "b1", page: "p1", folder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} }
+  const place = { book: "b1", page: "p1", binder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} }
   const base = at([place])
   const more = [
     { id: "c5", def: CENTER, props: {}, states: {} },
@@ -118,7 +118,7 @@ test("場所を当てはめたステージは、ずらす量が 0 でも、あ�
       catalog.core,
       state.getState().books,
       state.getState().window,
-      at([{ book: "b1", page: "p1", folder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} }], 0, 0.5),
+      at([{ book: "b1", page: "p1", binder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} }], 0, 0.5),
     ),
   )
   const stage = { ...ws.stages[0]!, view: { w: 400, h: 300 } }

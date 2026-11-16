@@ -1,7 +1,7 @@
 // テストで使う、ブックとページの手本を組み立てる関数。ブックの並び（lineup）とページの形（kind・type）は、ここで 1 か所に決める
 // （テストごとに形を手で書かない。形が変わったら、ここだけを直す）
 import type { PageTypeId } from "../web/src/core/catalog"
-import type { AnyPage, Book, FolderEntry, LineupEntry, PageOf } from "../web/src/core/schema/book"
+import type { AnyPage, BinderEntry, Book, LineupEntry, PageOf } from "../web/src/core/schema/book"
 
 export const DRAWING = "@matomezu/drawing:drawing"
 export const FLOWCHART = "@matomezu/flowchart:flowchart"
@@ -36,9 +36,9 @@ export function withSlide<P extends AnyPage>(page: P, slide: readonly object[]):
   return { ...page, slide }
 }
 
-// タイプ type のページだけを入れるフォルダ
-export function testFolder(id: string, title: string, type: PageTypeId, ...pages: AnyPage[]): FolderEntry {
-  return { kind: "folder", id, title, pageType: type, lineup: pages }
+// タイプ type のページだけを入れるバインダ
+export function testBinder(id: string, title: string, type: PageTypeId, ...pages: AnyPage[]): BinderEntry {
+  return { kind: "binder", id, title, pageType: type, lineup: pages }
 }
 
 // 並び entries のブック（rest に、ロック・ゴミ箱に入れた時刻・ブックの設定を書く）

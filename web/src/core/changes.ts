@@ -39,7 +39,7 @@ function pageChange(id: string, before: Page | undefined, after: Page | undefine
   }
 }
 
-// 並びの骨組み: 要素の id の順と、フォルダの名前・入れるタイプ・中のページの id の順（ページの中身は入れない）
+// 並びの骨組み: 要素の id の順と、バインダの名前・入れるタイプ・中のページの id の順（ページの中身は入れない）
 const skeleton = (book: Book): unknown =>
   lineupOf(book).map(e =>
     e.kind === "page" ? e.id : { id: e.id, title: e.title, pageType: e.pageType, lineup: e.lineup.map(p => p.id) },

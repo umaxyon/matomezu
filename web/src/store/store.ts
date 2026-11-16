@@ -100,7 +100,7 @@ import {
   mapStage,
   moveDivider,
   setTool,
-  showFolder,
+  showBinder,
   showPage,
   split,
   togglePlacing,
@@ -271,7 +271,7 @@ export interface PlaceActions {
   focusStage(id: string): void
   openBook(stage: string, book: string): void // そのステージでブックを開き（ページを持つブックは最初のページ）、カレントにする
   openPage(stage: string, page: string): void // そのステージで開いているブックのページを開き、カレントにして、そのブックスクリーンをカレントスクリーンにする
-  openFolder(stage: string, folder: string): void // そのステージで開いているブックのフォルダを開く（中の最初のページ。空ならフォルダ）
+  openBinder(stage: string, binder: string): void // そのステージで開いているブックのバインダを開く（中の最初のページ。空ならバインダ）
   openPageById(stage: string, page: string): void // ページ page を持つブックをそのステージで開き、そのページを開く（ページが無ければ何もしない）
   resizeStage(id: string, view: Size): void // 表示領域の大きさが変わった
   // 見せ方が描く広さ（可変ページ。null なら紙 1 枚）と、描く中身を右・下へずらした量（印刷区画の数。位置をデータに持たない見せ方）
@@ -320,7 +320,7 @@ export const PLACE_ACTIONS: { readonly [K in keyof PlaceActions]: true } = {
   focusStage: true,
   openBook: true,
   openPage: true,
-  openFolder: true,
+  openBinder: true,
   openPageById: true,
   resizeStage: true,
   setStageArea: true,
@@ -982,7 +982,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const opener = dialog && dialog.stage !== NO_STAGE ? dialog.stage : undefined
       const stage = contextMenu?.stage ?? picker ?? opener ?? screenOf(window).current
       const menu = contextMenu !== null || picker !== undefined
-      // 見せ方のキーの範囲は、ページを開いているときだけ（空のフォルダでは、見せ方のビューを描かない）
+      // 見せ方のキーの範囲は、ページを開いているときだけ（空のバインダでは、見せ方のビューを描かない）
       const type = openedPage(stageIn(window, stage)?.opened ?? null)?.type
       const presentation = type && catalog.pageTypes.get(type)?.presentation
       const shown = presentation ? catalog.presentations.get(presentation)?.keyScope : undefined
@@ -1074,14 +1074,14 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
           ),
         )
     },
-    openFolder: (stage, folder) => {
+    openBinder: (stage, binder) => {
       const { books, window } = getState()
       const book = books[stageIn(window, stage)?.opened?.book ?? ""]
-      // フォルダを開くと、そのブックスクリーンをカレントスクリーンにする
+      // バインダを開くと、そのブックスクリーンをカレントスクリーンにする
       if (book && inWindow(stage))
         withWindow(win =>
           makeCurrent(
-            mapScreenOfStage(win, stage, ws => showFolder(catalog, focus(ws, stage), stage, book, folder)),
+            mapScreenOfStage(win, stage, ws => showBinder(catalog, focus(ws, stage), stage, book, binder)),
             screenOfStage(win, stage)?.id ?? "",
           ),
         )

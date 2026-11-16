@@ -14,7 +14,7 @@ import {
 import { minimapMarks } from "../../web/src/plugins/base/minimap/marks"
 import { sheetsOfPage } from "../../web/src/plugins/base/print-preview/book-sheets"
 import { placeableIn } from "../../web/src/plugins/base/toolbox/toolbox"
-import { DRAWING, drawingPage, SLIDE, testBook, testFolder, testPage, withSlide } from "../lineup"
+import { DRAWING, drawingPage, SLIDE, testBinder, testBook, testPage, withSlide } from "../lineup"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
 const typeOf = (id: string) => BUILTIN_PARTS.pageTypes.find(t => t.id === id)!
@@ -22,9 +22,9 @@ const ELLIPSE = "@matomezu/slide:slide-ellipse"
 const backdrop = { id: "bg", item: ELLIPSE, x: 10, y: 10, w: 100, h: 60, props: {} }
 const pages = ["p1", "p2"].map(id => withSlide(drawingPage(id, { title: id.slice(1) }), [backdrop]))
 const slides = ["p1", "p2"].map(id => withSlide(testPage(SLIDE, id, { title: id.slice(1) }), [backdrop]))
-// タイプ type のページ p1・p2 のブック（スライドのページはフォルダ 1 つに入れる）
+// タイプ type のページ p1・p2 のブック（スライドのページはバインダ 1 つに入れる）
 const book = (type: typeof DRAWING | typeof SLIDE) =>
-  testBook("b1", "B", type === SLIDE ? [testFolder("b1-slides", "B", SLIDE, ...slides)] : pages)
+  testBook("b1", "B", type === SLIDE ? [testBinder("b1-slides", "B", SLIDE, ...slides)] : pages)
 
 test("slide が背景か本体かは、タイプが slide に background を書いたかで決まる。直している並びで置ける物が変わる", () => {
   expect(slideIsBackground(typeOf(DRAWING))).toBe(true)

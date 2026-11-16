@@ -1,4 +1,4 @@
-// 紙のサイズと向きを選ぶ 2 つの入力Form（ページの設定・新しいページ・フォルダの設定のダイアログで使う）。
+// 紙のサイズと向きを選ぶ 2 つの入力Form（ページの設定・新しいページ・バインダの設定のダイアログで使う）。
 // 選べる紙 papers と向き orientations の中から選ぶ。選べる物が 1 つだけか、locked なら押せない
 import type { Orientation } from "../../../core/def/paper"
 import { useMessages } from "../../../ui/i18n"

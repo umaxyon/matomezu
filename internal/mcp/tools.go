@@ -42,7 +42,7 @@ var tools = []tool{
 	},
 	{
 		"read_book",
-		"Read a book: the book without its pages' contents (title, settings and so on), its lineup as an outline (each entry is a page: kind page, id, title, type and size in characters; or a folder of pages of one type: kind folder, id, title, pageType and its own lineup of pages), its version and its annotations (such as the user's notes and marks: what they are tied to by anchors, the page of the last anchor, and awaiting, whether they wait for your answer). " +
+		"Read a book: the book without its pages' contents (title, settings and so on), its lineup as an outline (each entry is a page: kind page, id, title, type and size in characters; or a binder of pages of one type: kind binder, id, title, pageType and its own lineup of pages), its version and its annotations (such as the user's notes and marks: what they are tied to by anchors, the page of the last anchor, and awaiting, whether they wait for your answer). " +
 			"Read the contents of a page with read_page.",
 		map[string]any{
 			"type":                 "object",
@@ -208,7 +208,7 @@ var tools = []tool{
 		"actions",
 		"List what can be done now (it changes when plugins are added or removed). Without ids, it answers version (changes when the list changes: keep what you read while it stays the same) and index: " +
 			"the actions (id, target and title: target tells what an action is done on), the items (shape or connector), the user settings, " +
-			"the page types (whether pages of the type go in a folder of their own, and which items they place), the kinds of annotations and mail, the subjects (kinds of records that actions work on, with the shape of a record; perform takes on.record for them), the themes, the colors by role, the language packs (the language setting takes a pack id), the skins and the text colors. " +
+			"the page types (whether pages of the type go in a binder of their own, and which items they place), the kinds of annotations and mail, the subjects (kinds of records that actions work on, with the shape of a record; perform takes on.record for them), the themes, the colors by role, the language packs (the language setting takes a pack id), the skins and the text colors. " +
 			"With ids (ids from the index), it answers the whole entry of each: an action's description and args (JSON Schema, for perform), an item's props (JSON Schema) and default size, a setting's schema; unknown lists ids it does not have. " +
 			"warnings (only when there are some, without ids) lists the problems that hold now, one line each with its code (W and 3 digits), found by the host or by the user's screens: " +
 			"definitions that partly do not work, books that cannot be read, added plugins a screen could not set up (W011: their actions still work, but the user does not see what they draw).",

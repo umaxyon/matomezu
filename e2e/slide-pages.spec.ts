@@ -1,5 +1,5 @@
-// スライドのフォルダのページ一覧（ステージの左の縦の列）: サムネイルを並べ、押して開く・ドラッグで並べ替え・右クリックで ここに追加・複製・削除（確認つき）。ページタブには、フォルダが 1 つのタブで出る
-import { SLIDE, testBook, testFolder, testPage, withSlide } from "../test/lineup"
+// スライドのバインダのページ一覧（ステージの左の縦の列）: サムネイルを並べ、押して開く・ドラッグで並べ替え・右クリックで ここに追加・複製・削除（確認つき）。ページタブには、バインダが 1 つのタブで出る
+import { SLIDE, testBinder, testBook, testPage, withSlide } from "../test/lineup"
 import { BOOK_SCREEN_URL, expect, test } from "./fixtures"
 
 const page3 = (id: string, title: string) =>
@@ -18,12 +18,12 @@ const page3 = (id: string, title: string) =>
 test.use({
   books: [
     testBook("b1", "スライド", [
-      testFolder("b1-slides", "スライド", SLIDE, page3("p1", "一枚目"), page3("p2", "二枚目"), page3("p3", "三枚目")),
+      testBinder("b1-slides", "スライド", SLIDE, page3("p1", "一枚目"), page3("p2", "二枚目"), page3("p3", "三枚目")),
     ]),
   ],
 })
 
-test("ページ一覧はサムネイルを縦に並べ、ページタブにはフォルダが 1 つのタブで出る。押したページが開く", async ({
+test("ページ一覧はサムネイルを縦に並べ、ページタブにはバインダが 1 つのタブで出る。押したページが開く", async ({
   page,
 }) => {
   await page.goto(BOOK_SCREEN_URL)
@@ -76,7 +76,7 @@ test.describe("ロック中のページ", () => {
   test.use({
     books: [
       testBook("b1", "スライド", [
-        testFolder("b1-slides", "スライド", SLIDE, page3("p1", "一枚目"), { ...page3("p2", "二枚目"), locked: true }),
+        testBinder("b1-slides", "スライド", SLIDE, page3("p1", "一枚目"), { ...page3("p2", "二枚目"), locked: true }),
       ]),
     ],
   })
@@ -96,13 +96,13 @@ test.describe("ロック中のページ", () => {
   })
 })
 
-test.describe("空のフォルダ", () => {
+test.describe("空のバインダ", () => {
   test.use({
     books: [
       {
         id: "b1",
         title: "スライド",
-        lineup: [{ kind: "folder", id: "f1", title: "スライド", pageType: "@matomezu/slide-book:slide", lineup: [] }],
+        lineup: [{ kind: "binder", id: "f1", title: "スライド", pageType: "@matomezu/slide-book:slide", lineup: [] }],
       },
     ],
   })

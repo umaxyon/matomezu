@@ -13,8 +13,8 @@ import {
   closeBook,
   followBook as followStage,
   newStage,
+  openBinder,
   openBook,
-  openFolder,
   openPage,
   type Placing,
   type Stage,
@@ -171,9 +171,9 @@ export function showPage(catalog: CoreCatalog, ws: Workspace, stage: string, boo
   return mapStage(ws, stage, s => openPage(catalog, s, book, page))
 }
 
-// ステージに、開いているブックのフォルダを開く（中の最初のページ。空ならフォルダ）
-export function showFolder(catalog: CoreCatalog, ws: Workspace, stage: string, book: Book, folder: string): Workspace {
-  return mapStage(ws, stage, s => openFolder(catalog, s, book, folder))
+// ステージに、開いているブックのバインダを開く（中の最初のページ。空ならバインダ）
+export function showBinder(catalog: CoreCatalog, ws: Workspace, stage: string, book: Book, binder: string): Workspace {
+  return mapStage(ws, stage, s => openBinder(catalog, s, book, binder))
 }
 
 // ブックが変わったとき、そのブックを開いている全部のステージを合わせる（stage.ts の followBook。before は変わる前のブック）

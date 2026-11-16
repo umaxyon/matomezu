@@ -1,5 +1,5 @@
 // ページを作るダイアログ: タイプ args.type のページの名前と紙（紙・向き・伸びるか。PaperControls.tsx）を決めて、そのステージのブックに足し（アクション page-add）、そのページを開く。
-// まとまるタイプのページは、args.folder のフォルダに足す。folder が無ければ、名前を聞いて新しいフォルダ（そのページ 1 枚入り）を作る
+// まとまるタイプのページは、args.binder のバインダに足す。binder が無ければ、名前を聞いて新しいバインダ（そのページ 1 枚入り）を作る
 
 import { useState } from "react"
 import { freeTitle, lineupOf, pagesIn } from "../../../core/book"
@@ -35,37 +35,37 @@ function NewPageForm({ book, args, onDone }: { book: Book; args: NewPageDialogAr
   const catalog = useCatalog().core
   const addPage = useAddPage()
   const type = pageType(catalog, args.type)
-  // 新しいフォルダを作るか（まとまるタイプで、入れるフォルダを渡されていない）
-  const newFolder = type.grouping === "own-folder" && args.folder === undefined
+  // 新しいバインダを作るか（まとまるタイプで、入れるバインダを渡されていない）
+  const newBinder = type.grouping === "binder" && args.binder === undefined
   const [title, setTitle] = useState(() =>
-    newFolder
+    newBinder
       ? freeTitle(
           t(type.title),
           lineupOf(book).map(e => e.title),
         )
-      : nextPageTitle(book, t, args.folder === undefined ? undefined : pagesIn(book, args.folder).map(p => p.title)),
+      : nextPageTitle(book, t, args.binder === undefined ? undefined : pagesIn(book, args.binder).map(p => p.title)),
   )
   const paper = usePaperControls(
     book,
     null,
     args.type,
-    newFolder ? "new-folder" : args.folder === undefined ? "lineup" : { folder: args.folder },
+    newBinder ? "new-binder" : args.binder === undefined ? "lineup" : { binder: args.binder },
   )
-  const into = newFolder
-    ? { into: { newFolder: title } }
-    : args.folder === undefined
+  const into = newBinder
+    ? { into: { newBinder: title } }
+    : args.binder === undefined
       ? {}
-      : { into: { folder: args.folder } }
+      : { into: { binder: args.binder } }
   return (
     <Form
       submit={t("Create")}
       ready={title.trim() !== ""}
       onSubmit={() => {
-        const named = newFolder ? { title: nextPageTitle(book, t, []) } : { title }
+        const named = newBinder ? { title: nextPageTitle(book, t, []) } : { title }
         if (addPage({ type: args.type, ...named, ...paper.patch, ...into })) onDone()
       }}
     >
-      <Field label={t(newFolder ? "Name" : "Page name")}>
+      <Field label={t(newBinder ? "Name" : "Page name")}>
         {id => (
           // biome-ignore lint/a11y/noAutofocus: 開いたダイアログの最初の入力Form
           <input id={id} className={controlClass} value={title} autoFocus onChange={e => setTitle(e.target.value)} />

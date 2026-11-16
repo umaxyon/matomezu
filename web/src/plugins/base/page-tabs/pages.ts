@@ -1,6 +1,6 @@
 // 次のページ（と、あとで変えるページ）に選べる紙と向き、可変ページにできるかと、次のページの題名の案（ページを足す・消すのは土台の core/book.ts）
 
-import { findFolder, findPage, lineupOf, pagesIn, putPage } from "../../../core/book"
+import { findBinder, findPage, lineupOf, pagesIn, putPage } from "../../../core/book"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import { type GrowChoice, ORIENTATIONS, type Orientation } from "../../../core/def/paper"
 import type { MessageKey, Params } from "../../../core/i18n/i18n"
@@ -27,13 +27,13 @@ export function choosablePapers(rule: PaperRule, pages: readonly Page[]): PaperO
   return { papers: [first.paper], orientations: [first.orientation] }
 }
 
-// 足すページを入れる所: ブックの並び（lineup）、今あるフォルダ（その id）、これから作るフォルダ（new-folder。そろえる相手がまだ無い）
-export type PaperPlace = "lineup" | "new-folder" | { folder: string }
+// 足すページを入れる所: ブックの並び（lineup）、今あるバインダ（その id）、これから作るバインダ（new-binder。そろえる相手がまだ無い）
+export type PaperPlace = "lineup" | "new-binder" | { binder: string }
 
-// 紙をそろえる相手: 同じ入れ物（ブックの並びか、フォルダの中）の、同じタイプのページ
+// 紙をそろえる相手: 同じ入れ物（ブックの並びか、バインダの中）の、同じタイプのページ
 function mates(book: Book, type: string, place: PaperPlace): readonly Page[] {
-  if (place === "new-folder") return []
-  const inside = place === "lineup" ? lineupOf(book).filter(e => e.kind === "page") : pagesIn(book, place.folder)
+  if (place === "new-binder") return []
+  const inside = place === "lineup" ? lineupOf(book).filter(e => e.kind === "page") : pagesIn(book, place.binder)
   return inside.filter(p => p.type === type)
 }
 
@@ -49,16 +49,16 @@ export function paperChoices(
 
 // ページ page の紙と向きを変えるときに選べるもの（そのページ自身は、紙をそろえる規定の手本にしない）
 export function paperChoicesFor(catalog: CoreCatalog, book: Book, page: Page): PaperOptions {
-  const folder = findPage(book, page.id)?.folder
+  const binder = findPage(book, page.id)?.binder
   return choosablePapers(
     paperRule(catalog, page.type),
-    mates(book, page.type, folder ? { folder: folder.id } : "lineup").filter(p => p.id !== page.id),
+    mates(book, page.type, binder ? { binder: binder.id } : "lineup").filter(p => p.id !== page.id),
   )
 }
 
-// フォルダ folder（id）のページの紙と向きを、まとめて choice にできるか: 紙をそろえる規定のタイプのフォルダで、choice がタイプの規定の紙と向きのとき
-export function canPaperFolder(catalog: CoreCatalog, book: Book, folder: string, choice: PaperChoice): boolean {
-  const type = findFolder(book, folder)?.pageType
+// バインダ binder（id）のページの紙と向きを、まとめて choice にできるか: 紙をそろえる規定のタイプのバインダで、choice がタイプの規定の紙と向きのとき
+export function canPaperBinder(catalog: CoreCatalog, book: Book, binder: string, choice: PaperChoice): boolean {
+  const type = findBinder(book, binder)?.pageType
   if (type === undefined) return false
   const rule = paperRule(catalog, type)
   return !rule.perPage && canChoose({ papers: rule.allowed, orientations: ORIENTATIONS }, choice)

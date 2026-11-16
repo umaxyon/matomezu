@@ -146,7 +146,7 @@ export function attachedTo(def: Pick<ActionDef, "attach">, type: PageTypeDef): b
 export const ANY_PAGE_TYPE = "any"
 
 // 変える所。中身を変える所: page はページの id、ids はそのページの中の id を持つ物（アイテム・形の中身・ページのフィールドの中の物）の id、allPages はどのページも変える。
-// 並びを変える所（ページの中身は変えない）: entries は動かす・複製する・消す・名前を変える並びの要素（ページかフォルダ）の id、creates は作るページのタイプの id（まだ分からなければ ANY_PAGE_TYPE）。
+// 並びを変える所（ページの中身は変えない）: entries は動かす・複製する・消す・名前を変える並びの要素（ページかバインダ）の id、creates は作るページのタイプの id（まだ分からなければ ANY_PAGE_TYPE）。
 // どれも無ければ、入れ物自身（名前・入れ物が持つ設定など）
 export interface Where {
   page?: string
@@ -160,10 +160,10 @@ export interface Where {
 export type ArgsOfType<A, V> = { [K in keyof A & string]-?: NonNullable<A[K]> extends V ? K : never }[keyof A & string]
 
 // 許可スコープ: ブックが対象のアクションが、どこを変えるかの宣言。認可ステップは、行う前にこの所で問い、使えるかを決めるページのタイプも、この所から決まる
-// （ページとその中の物ならそのページのタイプ、並びの要素ならそのページのタイプかフォルダに入るページのタイプ、作るページならそのタイプ）。
+// （ページとその中の物ならそのページのタイプ、並びの要素ならそのページのタイプかバインダに入るページのタイプ、作るページならそのタイプ）。
 // "book" は入れ物自身だけを変える（ページもアイテムも並びも変えない。ページのタイプでは決まらない）。
 // page・item・items には、ページの id・アイテムの id・アイテムの id の並びが入っている引数の名前を書く（ページの中身を変える）。
-// entry には、並びの要素（ページかフォルダ）の id が入っている引数の名前を書く（中身を変えずに、動かす・複製する・消す・名前を変える）。
+// entry には、並びの要素（ページかバインダ）の id が入っている引数の名前を書く（中身を変えずに、動かす・複製する・消す・名前を変える）。
 // creates には、作るページのタイプの id が入っている引数の名前を書く。引数の名前で言えなければ、引数から所を返す関数を書く
 export type PermissionScope<A = unknown> =
   | "book"

@@ -1,14 +1,14 @@
 // ページ: ページを作る・開くコマンドと、ページを作るダイアログ（作るものはダイアログで決める）。ページの設定のダイアログと、それを開くコマンド。
 // ページを作るダイアログとページの設定のダイアログは、ページのタイプが自分のものにできる（dialogs。行うアクションは同じ page-add・page-update）
 
-import { findFolder, findPage, siblingsOf } from "../../../core/book"
+import { findBinder, findPage, siblingsOf } from "../../../core/book"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import { ANY_PAGE_TYPE } from "../../../core/def/action"
-import { editingBackground, folderOf, openedPage } from "../../../core/stage"
+import { binderOf, editingBackground, openedPage } from "../../../core/stage"
 import type { DialogTaking, PageSettingsArgs } from "../../../store/dialogs"
 import { kit } from "../kit"
 import { PAGE_LOCK, PAGE_UNLOCK } from "../lock"
-import { FOLDER_DUPLICATE, FOLDER_REMOVE, FOLDER_UPDATE } from "./folders"
+import { BINDER_DUPLICATE, BINDER_REMOVE, BINDER_UPDATE } from "./binders"
 import { PAGE_ADD } from "./page-add"
 import { PAGE_DUPLICATE } from "./page-duplicate"
 import { PAGE_REMOVE } from "./page-remove"
@@ -23,10 +23,10 @@ declare module "../../../core/catalog" {
   }
 }
 
-// ページを作るダイアログが受ける値: 作るページのタイプと、入れるフォルダ（まとまるタイプのページを、今あるフォルダに足すとき。無ければ新しいフォルダを作る）
+// ページを作るダイアログが受ける値: 作るページのタイプと、入れるバインダ（まとまるタイプのページを、今あるバインダに足すとき。無ければ新しいバインダを作る）
 export interface NewPageDialogArgs {
   type: string
-  folder?: string
+  binder?: string
 }
 
 export const NEW_PAGE_DIALOG = kit.defineDialogWith<NewPageDialogArgs>()({ id: "page-new" })
@@ -37,25 +37,25 @@ export const PAGE_DELETE_DIALOG = kit.defineDialogWith<{ page: string }>()({
   edits: a => [a.page],
 })
 
-// フォルダの設定のダイアログ（名前・紙・向き・削除）と、フォルダを消す前に確かめるダイアログが受ける値: フォルダの id
-export interface FolderSettingsArgs {
-  folder: string
+// バインダの設定のダイアログ（名前・紙・向き・削除）と、バインダを消す前に確かめるダイアログが受ける値: バインダの id
+export interface BinderSettingsArgs {
+  binder: string
 }
 
-export const FOLDER_SETTINGS_DIALOG = kit.defineDialogWith<FolderSettingsArgs>()({
-  id: "folder-settings",
-  edits: a => [a.folder],
+export const BINDER_SETTINGS_DIALOG = kit.defineDialogWith<BinderSettingsArgs>()({
+  id: "binder-settings",
+  edits: a => [a.binder],
 })
 
-export const FOLDER_DELETE_DIALOG = kit.defineDialogWith<FolderSettingsArgs>()({
-  id: "folder-delete",
-  edits: a => [a.folder],
+export const BINDER_DELETE_DIALOG = kit.defineDialogWith<BinderSettingsArgs>()({
+  id: "binder-delete",
+  edits: a => [a.binder],
 })
 
 // ページタブのページの右クリックのメニュー
 export const PAGE_CONTEXT = kit.name("page-context")
-// ページタブのフォルダの右クリックのメニュー
-export const FOLDER_CONTEXT = kit.name("folder-context")
+// ページタブのバインダの右クリックのメニュー
+export const BINDER_CONTEXT = kit.name("binder-context")
 // ページ一覧のページの右クリックのメニュー（ページタブのメニューに、ここにページを足すが加わる）
 export const PAGE_LIST_CONTEXT = kit.name("page-list-context")
 // ページタブの＋が開く、ページのタイプの一覧のメニュー
@@ -75,7 +75,7 @@ export function pageDialog(catalog: CoreCatalog, type: string, of: "add" | "sett
   return pageType(catalog, type).dialogs?.[of] ?? (of === "add" ? NEW_PAGE_DIALOG.id : PAGE_SETTINGS_DIALOG.id)
 }
 
-// タイプ type のページを作るダイアログを開く（folder を書けば、そのフォルダに足す）
+// タイプ type のページを作るダイアログを開く（binder を書けば、そのバインダに足す）
 export const PAGE_NEW = kit.defineCommand({
   id: "page-new",
   performs: [PAGE_ADD.id],
@@ -95,11 +95,11 @@ export const PAGE_OPEN = kit.defineCommand({
   enabled: ctx => !editingBackground(ctx.stage), // 背景編集モードの間は、ページを替えない（ページタブとページ一覧はこれを見て止まる）
 })
 
-// 開いているブックのフォルダを開く（中の最初のページ。空ならフォルダ）
-export const FOLDER_OPEN = kit.defineCommand({
-  id: "folder-open",
-  title: "Open folder",
-  run: (_ctx, a, folder: string) => a.openFolder(folder),
+// 開いているブックのバインダを開く（中の最初のページ。空ならバインダ）
+export const BINDER_OPEN = kit.defineCommand({
+  id: "binder-open",
+  title: "Open binder",
+  run: (_ctx, a, binder: string) => a.openBinder(binder),
   when: ctx => ctx.book !== null,
   enabled: ctx => !editingBackground(ctx.stage),
 })
@@ -134,7 +134,7 @@ export const PAGE_ADD_AFTER = kit.defineCommand({
     const index = siblings.findIndex(e => e.id === page) + 1
     const done = a.perform(
       PAGE_ADD.id,
-      { type: at.page.type, index, ...(at.folder ? { into: { folder: at.folder.id } } : {}) },
+      { type: at.page.type, index, ...(at.binder ? { into: { binder: at.binder.id } } : {}) },
       { book: book.id },
     )
     if (done.ok) a.openPage(done.result.page)
@@ -167,54 +167,54 @@ export const PAGE_DELETE = kit.defineCommand({
   when: ctx => ctx.book !== null,
 })
 
-// フォルダ folder の設定のダイアログを開く
-export const FOLDER_SETTINGS = kit.defineCommand({
-  id: "folder-settings",
-  performs: [FOLDER_UPDATE.id, FOLDER_REMOVE.id],
-  permissionScope: { entry: "folder" },
+// バインダ binder の設定のダイアログを開く
+export const BINDER_SETTINGS = kit.defineCommand({
+  id: "binder-settings",
+  performs: [BINDER_UPDATE.id, BINDER_REMOVE.id],
+  permissionScope: { entry: "binder" },
   title: "Settings...",
-  run: (ctx, a, { folder }: FolderSettingsArgs) => {
-    if (ctx.book && findFolder(ctx.book, folder)) a.openDialog(FOLDER_SETTINGS_DIALOG.id, { folder })
+  run: (ctx, a, { binder }: BinderSettingsArgs) => {
+    if (ctx.book && findBinder(ctx.book, binder)) a.openDialog(BINDER_SETTINGS_DIALOG.id, { binder })
   },
   when: ctx => ctx.book !== null,
 })
 
-// 開いているフォルダ（開いているページが入っているフォルダか、開いている空のフォルダ）の設定のダイアログを開く（フッタメニューの歯車。フォルダの外のページを開いていれば出さない）
-export const FOLDER_SETTINGS_OPENED = kit.defineCommand({
-  id: "folder-settings-opened",
-  performs: [FOLDER_UPDATE.id, FOLDER_REMOVE.id],
+// 開いているバインダ（開いているページが入っているバインダか、開いている空のバインダ）の設定のダイアログを開く（フッタメニューの歯車。バインダの外のページを開いていれば出さない）
+export const BINDER_SETTINGS_OPENED = kit.defineCommand({
+  id: "binder-settings-opened",
+  performs: [BINDER_UPDATE.id, BINDER_REMOVE.id],
   permissionScope: ctx => {
-    const folder = ctx.book ? folderOf(ctx.book, ctx.stage.opened) : null
-    return folder ? { entries: [folder] } : {}
+    const binder = ctx.book ? binderOf(ctx.book, ctx.stage.opened) : null
+    return binder ? { entries: [binder] } : {}
   },
   title: "Settings",
   run: (ctx, a) => {
-    const folder = ctx.book ? folderOf(ctx.book, ctx.stage.opened) : null
-    if (folder) a.openDialog(FOLDER_SETTINGS_DIALOG.id, { folder })
+    const binder = ctx.book ? binderOf(ctx.book, ctx.stage.opened) : null
+    if (binder) a.openDialog(BINDER_SETTINGS_DIALOG.id, { binder })
   },
-  when: ctx => ctx.book !== null && folderOf(ctx.book, ctx.stage.opened) !== null,
+  when: ctx => ctx.book !== null && binderOf(ctx.book, ctx.stage.opened) !== null,
 })
 
-// フォルダ folder を中のページごと複製して、できたフォルダを開く
-export const FOLDER_DUPLICATE_COMMAND = kit.defineCommand({
-  id: "folder-duplicate",
-  performs: [FOLDER_DUPLICATE.id],
-  permissionScope: { entry: "folder" },
+// バインダ binder を中のページごと複製して、できたバインダを開く
+export const BINDER_DUPLICATE_COMMAND = kit.defineCommand({
+  id: "binder-duplicate",
+  performs: [BINDER_DUPLICATE.id],
+  permissionScope: { entry: "binder" },
   title: "Duplicate",
-  run: (ctx, a, { folder }: FolderSettingsArgs) => {
+  run: (ctx, a, { binder }: BinderSettingsArgs) => {
     if (!ctx.book) return
-    const done = a.perform(FOLDER_DUPLICATE.id, { folder }, { book: ctx.book.id })
-    if (done.ok) a.openFolder(done.result.folder)
+    const done = a.perform(BINDER_DUPLICATE.id, { binder }, { book: ctx.book.id })
+    if (done.ok) a.openBinder(done.result.binder)
   },
   when: ctx => ctx.book !== null,
 })
 
-// フォルダ folder を消す前に確かめるダイアログを開く
-export const FOLDER_DELETE = kit.defineCommand({
-  id: "folder-delete",
-  performs: [FOLDER_REMOVE.id],
-  permissionScope: { entry: "folder" },
+// バインダ binder を消す前に確かめるダイアログを開く
+export const BINDER_DELETE = kit.defineCommand({
+  id: "binder-delete",
+  performs: [BINDER_REMOVE.id],
+  permissionScope: { entry: "binder" },
   title: "Delete...",
-  run: (_ctx, a, { folder }: FolderSettingsArgs) => a.openDialog(FOLDER_DELETE_DIALOG.id, { folder }),
+  run: (_ctx, a, { binder }: BinderSettingsArgs) => a.openDialog(BINDER_DELETE_DIALOG.id, { binder }),
   when: ctx => ctx.book !== null,
 })

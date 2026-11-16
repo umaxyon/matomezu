@@ -1,9 +1,9 @@
-// フォルダ（スライド）の設定: ページタブのフォルダの右クリックのメニュー、フォルダの設定のダイアログ（紙と向きは中のページ全部に 1 回で付く）、
+// バインダ（スライド）の設定: ページタブのバインダの右クリックのメニュー、バインダの設定のダイアログ（紙と向きは中のページ全部に 1 回で付く）、
 // フッタメニューの歯車（開いている物の設定）、紙をそろえるタイプのページの設定に紙と向きを出さない
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, screen, within } from "@testing-library/react"
 import { pagesIn } from "../../web/src/core/book"
-import { drawingPage, SLIDE, testBook, testFolder, testPage } from "../lineup"
+import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { renderScreen } from "./support"
 
 afterEach(cleanup)
@@ -11,11 +11,11 @@ afterEach(cleanup)
 const slide = (id: string, title: string) =>
   testPage(SLIDE, id, { title, paper: "@matomezu/base:ratio-16x9", orientation: "landscape" })
 
-// スライドのフォルダ（2 枚）と図面のページを並べたブックを開く
+// スライドのバインダ（2 枚）と図面のページを並べたブックを開く
 function open() {
   const pages = [slide("s-a", "一枚目"), slide("s-b", "二枚目")]
   const store = renderScreen({
-    books: [testBook("b1", "ブック", [testFolder("f1", "提案", SLIDE, ...pages), drawingPage("d1", { title: "図" })])],
+    books: [testBook("b1", "ブック", [testBinder("f1", "提案", SLIDE, ...pages), drawingPage("d1", { title: "図" })])],
   })
   act(() => store.actions.openBook("s1", "b1"))
   const book = () => store.state.getState().books.b1!
@@ -24,7 +24,7 @@ function open() {
 
 const tab = (name: string) => screen.getByRole("tab", { name: new RegExp(name) })
 
-test("フォルダのタブの右クリックで、設定…・複製・削除… が出る", () => {
+test("バインダのタブの右クリックで、設定…・複製・削除… が出る", () => {
   open()
   fireEvent.contextMenu(tab("提案"))
   const menu = screen.getByRole("menu")
@@ -35,7 +35,7 @@ test("フォルダのタブの右クリックで、設定…・複製・削除�
   ).toEqual(["設定…", "複製", "削除…"])
 })
 
-test("フォルダの設定で紙を変えると、中のページ全部の紙が変わり、元に戻す 1 回で戻る", async () => {
+test("バインダの設定で紙を変えると、中のページ全部の紙が変わり、元に戻す 1 回で戻る", async () => {
   const { store, book } = open()
   fireEvent.contextMenu(tab("提案"))
   fireEvent.click(screen.getByRole("menuitem", { name: "設定…" }))
@@ -51,7 +51,7 @@ test("フォルダの設定で紙を変えると、中のページ全部の紙�
   expect(pagesIn(book(), "f1").map(p => p.paper)).toEqual(["@matomezu/base:ratio-16x9", "@matomezu/base:ratio-16x9"])
 })
 
-test("フォルダのタブの右クリックの複製で、写しのフォルダが隣にでき、その写しが開く", () => {
+test("バインダのタブの右クリックの複製で、写しのバインダが隣にでき、その写しが開く", () => {
   const { book } = open()
   fireEvent.contextMenu(tab("提案"))
   fireEvent.click(screen.getByRole("menuitem", { name: "複製" }))
@@ -61,8 +61,8 @@ test("フォルダのタブの右クリックの複製で、写しのフォル�
   expect(tab("提案 2").getAttribute("aria-selected")).toBe("true")
 })
 
-test("空のフォルダの設定では、紙のサイズと向きを押せない", () => {
-  const store = renderScreen({ books: [testBook("b1", "ブック", [testFolder("f1", "提案", SLIDE)])] })
+test("空のバインダの設定では、紙のサイズと向きを押せない", () => {
+  const store = renderScreen({ books: [testBook("b1", "ブック", [testBinder("f1", "提案", SLIDE)])] })
   act(() => store.actions.openBook("s1", "b1"))
   fireEvent.contextMenu(tab("提案"))
   fireEvent.click(screen.getByRole("menuitem", { name: "設定…" }))

@@ -5,7 +5,7 @@ import { pagesOf } from "../../web/src/core/book"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { createMatomezu } from "../../web/src/store/create"
-import { SLIDE, testBook, testFolder, testPage, withSlide } from "../lineup"
+import { SLIDE, testBinder, testBook, testPage, withSlide } from "../lineup"
 import { newStore, sequence } from "../support"
 
 const TEXT = "@matomezu/slide:slide-text"
@@ -13,10 +13,10 @@ const ELLIPSE = "@matomezu/slide:slide-ellipse"
 const LINE = "@matomezu/slide:slide-line"
 const FREE = "@matomezu/slide:slide-free-line"
 
-// 何も置いていないスライドのページ p1 を、フォルダ 1 つに入れたブック b1
+// 何も置いていないスライドのページ p1 を、バインダ 1 つに入れたブック b1
 const slideBook = () =>
   testBook("b1", "スライド", [
-    testFolder(
+    testBinder(
       "b1-slides",
       "スライド",
       SLIDE,
@@ -30,10 +30,10 @@ function setup() {
     controlCenter: "@matomezu/control-center:control-center",
     newId: sequence(),
   })
-  // スライドのフォルダに 1 枚入れたブックを作る
+  // スライドのバインダに 1 枚入れたブックを作る
   createBookIn(instance, "s1", {
     title: "スライド",
-    page: { type: "@matomezu/slide-book:slide", title: "1", into: { newFolder: "スライド" } },
+    page: { type: "@matomezu/slide-book:slide", title: "1", into: { newBinder: "スライド" } },
   })
   const book = Object.keys(instance.state.getState().books).at(-1) as string
   const perform = (id: string, args: object) =>

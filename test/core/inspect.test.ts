@@ -3,7 +3,7 @@ import { USER } from "../../web/src/core/actor"
 import { pagesOf } from "../../web/src/core/book"
 import { ANY_PAGE_TYPE } from "../../web/src/core/def/action"
 import { deniedBy, inspect } from "../../web/src/core/inspect"
-import { DRAWING, drawingPage, MARKDOWN, SLIDE, testBook, testFolder, testPage } from "../lineup"
+import { DRAWING, drawingPage, MARKDOWN, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { CORE_CATALOG } from "../support"
 
@@ -63,7 +63,7 @@ describe("inspect: アクションの許可", () => {
     })
   })
 
-  test("並びの要素と作るページは、そのページのタイプ・フォルダに入るページのタイプ・作るタイプが決める（タイプが外したアクションは、そのタイプでだけ使えない）", () => {
+  test("並びの要素と作るページは、そのページのタイプ・バインダに入るページのタイプ・作るタイプが決める（タイプが外したアクションは、そのタイプでだけ使えない）", () => {
     const markdown = CORE_CATALOG.pageTypes.get(MARKDOWN)!
     const slide = CORE_CATALOG.pageTypes.get(SLIDE)!
     const without = (ids: string[]) => ({ without: ids }) as never
@@ -72,26 +72,26 @@ describe("inspect: アクションの許可", () => {
       pageTypes: new Map([
         ...CORE_CATALOG.pageTypes,
         [MARKDOWN, { ...markdown, actions: without(["@matomezu/base:page-move", "@matomezu/base:page-add"]) }],
-        [SLIDE, { ...slide, actions: without(["@matomezu/base:folder-remove"]) }],
+        [SLIDE, { ...slide, actions: without(["@matomezu/base:binder-remove"]) }],
       ]),
     } as typeof CORE_CATALOG
     const book = testBook("m3", "混ざる", [
       drawingPage("p1"),
       testPage(MARKDOWN, "t1", { title: "文書" }),
-      testFolder("f1", "スライド", SLIDE, testPage(SLIDE, "s1", { title: "1" })),
+      testBinder("f1", "スライド", SLIDE, testPage(SLIDE, "s1", { title: "1" })),
     ])
     const ask = (action: string, where: object) =>
       inspect(catalog, { kind: "action", actor: USER, action: `@matomezu/base:${action}`, book, where }).value
     expect(ask("page-move", { entries: ["p1"] })).toBe(true)
     expect(ask("page-move", { entries: ["t1"] })).toBe(false)
-    expect(ask("folder-remove", { entries: ["f1"] })).toBe(false)
-    expect(ask("folder-move", { entries: ["f1"] })).toBe(true)
+    expect(ask("binder-remove", { entries: ["f1"] })).toBe(false)
+    expect(ask("binder-move", { entries: ["f1"] })).toBe(true)
     expect(ask("page-add", { creates: DRAWING })).toBe(true)
     expect(ask("page-add", { creates: MARKDOWN })).toBe(false)
     // 作るタイプがまだ分からなければ、どれかのタイプで使えるか
     expect(ask("page-add", { creates: ANY_PAGE_TYPE })).toBe(true)
     // 無い並びの要素・無いタイプは、run が断る
-    expect(ask("folder-remove", { entries: ["nope"] })).toBe(true)
+    expect(ask("binder-remove", { entries: ["nope"] })).toBe(true)
     expect(ask("page-add", { creates: "@x:nope" })).toBe(true)
   })
 

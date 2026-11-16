@@ -5,7 +5,7 @@ import type { Orientation } from "./def/paper"
 import type { Size } from "./geom"
 
 // 紙の選び方の規定（紙は機能台帳の紙の id）。ページは allowed の中から選び、選ばなければ default と orientation。
-// perPage が false なら、同じ入れ物（ブックの並びか、フォルダの中）の同じタイプのページの紙と向きは最初のページで決まり、後のページも同じにする。
+// perPage が false なら、同じ入れ物（ブックの並びか、バインダの中）の同じタイプのページの紙と向きは最初のページで決まり、後のページも同じにする。
 export interface PaperRule {
   allowed: readonly string[]
   default: string

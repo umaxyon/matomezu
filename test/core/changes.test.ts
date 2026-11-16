@@ -31,19 +31,19 @@ test("変わったブックのフィールドと、並びが変わったか、�
   })
 })
 
-test("ページの中だけを変えたなら並びは変わらない。順・フォルダの名前・フォルダの中の順が変われば並びが変わった", () => {
-  const folder = (title: string, ids: string[]) => ({
-    kind: "folder",
+test("ページの中だけを変えたなら並びは変わらない。順・バインダの名前・バインダの中の順が変われば並びが変わった", () => {
+  const binder = (title: string, ids: string[]) => ({
+    kind: "binder",
     id: "f1",
     title,
     pageType: "s",
     lineup: ids.map(id => p(id)),
   })
-  const before = book({ lineup: [p("p1"), folder("f", ["s1", "s2"])] })
-  expect(changesOf(before, book({ lineup: [p("p1", { title: "y" }), folder("f", ["s1", "s2"])] })).lineup).toBe(false)
-  expect(changesOf(before, book({ lineup: [folder("f", ["s1", "s2"]), p("p1")] })).lineup).toBe(true)
-  expect(changesOf(before, book({ lineup: [p("p1"), folder("g", ["s1", "s2"])] })).lineup).toBe(true)
-  expect(changesOf(before, book({ lineup: [p("p1"), folder("f", ["s2", "s1"])] })).lineup).toBe(true)
+  const before = book({ lineup: [p("p1"), binder("f", ["s1", "s2"])] })
+  expect(changesOf(before, book({ lineup: [p("p1", { title: "y" }), binder("f", ["s1", "s2"])] })).lineup).toBe(false)
+  expect(changesOf(before, book({ lineup: [binder("f", ["s1", "s2"]), p("p1")] })).lineup).toBe(true)
+  expect(changesOf(before, book({ lineup: [p("p1"), binder("g", ["s1", "s2"])] })).lineup).toBe(true)
+  expect(changesOf(before, book({ lineup: [p("p1"), binder("f", ["s2", "s1"])] })).lineup).toBe(true)
 })
 
 test("同じなら何も変わらず、後が無ければ一覧から無くなった", () => {

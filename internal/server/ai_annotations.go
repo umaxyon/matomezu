@@ -81,7 +81,7 @@ func (h *Hub) AIPage(book, page json.RawMessage) (json.RawMessage, error) {
 	return h.engine.AIPage(book, page)
 }
 
-// AIBook は、AI に見せるブック（本文）: 並びの全部のページ（フォルダの中も）を AIPage に通す（読めない形のブックは、渡したまま返す）
+// AIBook は、AI に見せるブック（本文）: 並びの全部のページ（バインダの中も）を AIPage に通す（読めない形のブックは、渡したまま返す）
 func (h *Hub) AIBook(book json.RawMessage) (json.RawMessage, error) {
 	lineup := lineupOf(book)
 	if lineup == nil {

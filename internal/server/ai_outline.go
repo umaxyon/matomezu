@@ -24,7 +24,7 @@ type outlinedPage struct {
 	Size  int    `json:"size"`
 }
 
-// outlineBook は、ブックの本文の並び（lineup）の、ページを kind・id・title・type・size にした物（フォルダは kind・id・title・pageType と中の並び。ほかの項目はそのまま）
+// outlineBook は、ブックの本文の並び（lineup）の、ページを kind・id・title・type・size にした物（バインダは kind・id・title・pageType と中の並び。ほかの項目はそのまま）
 func outlineBook(body json.RawMessage) json.RawMessage {
 	lineup := lineupOf(body)
 	if lineup == nil {

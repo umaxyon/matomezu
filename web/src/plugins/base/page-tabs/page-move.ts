@@ -1,5 +1,5 @@
 // ページを動かす: アクション page-move（同じ入れ物の中で並びを入れ替える。ページの中身は変わらない）。
-// 並びに直に入っているページはブックの並びの中、フォルダの中のページはそのフォルダの中で動く（入れ物をまたいでは動かさない）
+// 並びに直に入っているページはブックの並びの中、バインダの中のページはそのバインダの中で動く（入れ物をまたいでは動かさない）
 import { z } from "zod"
 import { findPage, moveEntry, siblingsOf } from "../../../core/book"
 import { kit } from "../kit"
@@ -11,7 +11,7 @@ export const PAGE_MOVE = kit.defineAction({
   id: "page-move",
   attach: { books: true },
   aiDescription:
-    "Move a page to index among the entries of the place it is in, counted without the moved page (the end without it): a page outside folders moves in the book's lineup (which reorders the page tabs; a folder counts as one entry), a page in a folder moves inside that folder. Returns nothing. Refused for a page not in the book, an index past the end, or when the page would stay where it is. Not allowed (not-allowed) for a page whose page type leaves this action out.",
+    "Move a page to index among the entries of the place it is in, counted without the moved page (the end without it): a page outside binders moves in the book's lineup (which reorders the page tabs; a binder counts as one entry), a page in a binder moves inside that binder. Returns nothing. Refused for a page not in the book, an index past the end, or when the page would stay where it is. Not allowed (not-allowed) for a page whose page type leaves this action out.",
   title: "Move page",
   target: "book",
   args: ARGS,

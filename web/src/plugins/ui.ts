@@ -125,7 +125,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:control-center-toggle",
       { either: ["@matomezu/base:stage-split", "@matomezu/base:stage-unsplit"] },
       "@matomezu/base:book-open",
-      { either: ["@matomezu/base:folder-settings-opened", "@matomezu/base:page-settings"] },
+      { either: ["@matomezu/base:binder-settings-opened", "@matomezu/base:page-settings"] },
     ],
   },
   // 押した物にアンカーがあれば、どの右クリックのメニューにも末尾に出す
@@ -207,11 +207,11 @@ export const DEFAULT_LAYOUT = defineLayout({
       "-",
       "@matomezu/base:page-delete",
     ],
-    "@matomezu/base:folder-context": [
-      "@matomezu/base:folder-settings",
-      "@matomezu/base:folder-duplicate",
+    "@matomezu/base:binder-context": [
+      "@matomezu/base:binder-settings",
+      "@matomezu/base:binder-duplicate",
       "-",
-      "@matomezu/base:folder-delete",
+      "@matomezu/base:binder-delete",
     ],
     "@matomezu/base:page-list-context": [
       "@matomezu/base:page-add-after",

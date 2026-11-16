@@ -27,16 +27,16 @@ function slideSetup(newId: () => string = sequence()) {
           id: string,
           a: object,
           on: { book: string },
-        ): { ok: boolean; result?: { page?: string; folder?: string } }
+        ): { ok: boolean; result?: { page?: string; binder?: string } }
       }
     ).perform(id, args, { book })
   const pages = () => pagesOf(instance.state.getState().books[book]!) as unknown as Pages
-  // スライドを足す（まだフォルダが無ければ、スライドのフォルダを作ってその中に）
-  let folder: string | undefined
+  // スライドを足す（まだバインダが無ければ、スライドのバインダを作ってその中に）
+  let binder: string | undefined
   const add = (args: object) => {
-    const into = folder === undefined ? { newFolder: "スライド" } : { folder }
+    const into = binder === undefined ? { newBinder: "スライド" } : { binder }
     const done = perform("@matomezu/base:page-add", { type: SLIDE, into, ...args })
-    if (done.ok && folder === undefined) folder = done.result?.folder
+    if (done.ok && binder === undefined) binder = done.result?.binder
     return done
   }
   return { perform, pages, add }

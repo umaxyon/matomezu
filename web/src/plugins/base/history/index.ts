@@ -19,7 +19,7 @@ export const HISTORY_RESTORE = kit.defineAction({
   aiDescription: "The screen's undo and redo: put back what one step of the user's history changed.",
   title: "Undo or redo",
   target: "book",
-  // 置き直す並びの要素が 1 つなら、それをページとして名指す（とアイテム）。フォルダなら無いページを名指すことになり、いくつもなら所は言えない。どちらも、ロックは行った後の keeps が止める
+  // 置き直す並びの要素が 1 つなら、それをページとして名指す（とアイテム）。バインダなら無いページを名指すことになり、いくつもなら所は言えない。どちらも、ロックは行った後の keeps が止める
   permissionScope: (args: Patch) => {
     const entries = restoredEntries(args)
     const page = entries.length === 1 ? entries[0] : undefined

@@ -1,5 +1,5 @@
 // スライドのアイテムの重なり順（右クリックのメニューとキー）・複数選択・線の端点
-import { SLIDE, testBook, testFolder, testPage, withSlide } from "../test/lineup"
+import { SLIDE, testBinder, testBook, testPage, withSlide } from "../test/lineup"
 import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { onPaper, paper } from "./helpers/paper"
 
@@ -16,7 +16,7 @@ const ellipse = (id: string, x: number) => ({
 test.use({
   books: [
     testBook("b1", "スライド", [
-      testFolder(
+      testBinder(
         "b1-slides",
         "スライド",
         SLIDE,
@@ -134,7 +134,7 @@ test.describe("線の端点", () => {
   test.use({
     books: [
       testBook("b1", "スライド", [
-        testFolder(
+        testBinder(
           "b1-slides",
           "スライド",
           SLIDE,

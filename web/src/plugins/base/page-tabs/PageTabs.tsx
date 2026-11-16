@@ -1,12 +1,12 @@
-// ステージのページのタブ（ウィジェット page-tabs）: そのステージのブックの並びを並べる（並びの 1 つが 1 つのタブ。フォルダは 1 つのタブで、名前はフォルダの名前）。
-// 押したページをそのステージで開く（コマンド page-open）。フォルダのタブを押すと、そのフォルダを開く（コマンド folder-open）。＋でタイプを選んでページを作る（AddPageMenu.tsx）。
+// ステージのページのタブ（ウィジェット page-tabs）: そのステージのブックの並びを並べる（並びの 1 つが 1 つのタブ。バインダは 1 つのタブで、名前はバインダの名前）。
+// 押したページをそのステージで開く（コマンド page-open）。バインダのタブを押すと、そのバインダを開く（コマンド binder-open）。＋でタイプを選んでページを作る（AddPageMenu.tsx）。
 // ロック中のページのタブには鍵の印を出す（押せない。外すのはページの設定のダイアログ）。
 // タブが横にあふれているときは、ホイールの縦の回転で横にスクロールする。
-// タブはドラッグで並べ替えられる（useTabDrag。アクション page-move・folder-move）。掴んだタブは元の所で薄くなり、写しがポインタに付き、落とす所に線が出る
+// タブはドラッグで並べ替えられる（useTabDrag。アクション page-move・binder-move）。掴んだタブは元の所で薄くなり、写しがポインタに付き、落とす所に線が出る
 import { useRef } from "react"
 import { lineupOf } from "../../../core/book"
 import type { LineupEntry } from "../../../core/schema/book"
-import { folderOf, shownPageId, shownType } from "../../../core/stage"
+import { binderOf, shownPageId, shownType } from "../../../core/stage"
 import { useCommand } from "../../../ui/commands"
 import { useContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
@@ -14,7 +14,7 @@ import { useStageHere } from "../../../ui/scope"
 import { useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { LockIcon } from "../lock/LockIcon"
-import { FOLDER_CONTEXT, FOLDER_OPEN, PAGE_CONTEXT, PAGE_OPEN } from "."
+import { BINDER_CONTEXT, BINDER_OPEN, PAGE_CONTEXT, PAGE_OPEN } from "."
 import { AddPageMenu } from "./AddPageMenu"
 import { FileIcon } from "./FileIcon"
 import styles from "./PageTabs.module.css"
@@ -33,16 +33,16 @@ function sideways(el: HTMLElement | null): (() => void) | undefined {
   return () => el.removeEventListener("wheel", onWheel)
 }
 
-// 並びの 1 つのタイプ（ページはそのタイプ、フォルダは入れるページのタイプ）
+// 並びの 1 つのタイプ（ページはそのタイプ、バインダは入れるページのタイプ）
 const typeOf = (e: LineupEntry): string => (e.kind === "page" ? e.type : e.pageType)
 
 export function PageTabs() {
   const opened = useStageHere(st => st?.opened)
   const book = useMatomezuState(s => (opened ? s.books[opened.book] : undefined))
   const openPage = useCommand(PAGE_OPEN.id)
-  const openFolder = useCommand(FOLDER_OPEN.id)
+  const openBinder = useCommand(BINDER_OPEN.id)
   const openMenu = useContextMenu(PAGE_CONTEXT)
-  const openFolderMenu = useContextMenu(FOLDER_CONTEXT)
+  const openBinderMenu = useContextMenu(BINDER_CONTEXT)
   const icons = useUiCatalog().pageTypeIcons // タイプのアイコン（名乗らないタイプは通常のファイル）
   const t = useMessages(kit)
   const list = useRef<HTMLDivElement | null>(null)
@@ -51,13 +51,13 @@ export function PageTabs() {
     list,
     lineup.map(e => e.id),
     "x",
-    new Set(lineup.flatMap(e => (e.kind === "folder" ? [e.id] : []))),
+    new Set(lineup.flatMap(e => (e.kind === "binder" ? [e.id] : []))),
   )
   if (!book || !openPage.enabled) return <div className={styles.tabs} data-page-tabs />
   const { drag } = tabDrag
   const grabbed = drag && lineup.find(e => e.id === drag.id)
   const shown = shownPageId(opened ?? null)
-  const folder = folderOf(book, opened ?? null)
+  const binder = binderOf(book, opened ?? null)
   return (
     <div
       className={styles.tabs}
@@ -76,16 +76,16 @@ export function PageTabs() {
             role="tab"
             className={styles.tab}
             data-locked={e.kind === "page" && e.locked === true}
-            data-folder={e.kind === "folder" || undefined}
-            aria-selected={e.kind === "page" ? e.id === shown : e.id === folder}
+            data-binder={e.kind === "binder" || undefined}
+            aria-selected={e.kind === "page" ? e.id === shown : e.id === binder}
             onClick={() => {
               if (tabDrag.swallowClick()) return
               if (e.kind === "page") openPage.run(e.id)
-              else openFolder.run(e.id)
+              else openBinder.run(e.id)
             }}
             onContextMenu={ev => {
               if (e.kind === "page") openMenu(ev, { page: e.id })
-              else openFolderMenu(ev, { folder: e.id })
+              else openBinderMenu(ev, { binder: e.id })
             }}
             {...tabDrag.handlers(e.id)}
           >

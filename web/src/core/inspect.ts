@@ -3,7 +3,7 @@
 // ステップ（steps）は見る順に並べ、最初に値のあったステップで決まる（決まった後のステップも並べる）。ステップの出どころは文ではなくデータで返す
 
 import { type Actor, hasJoined, isAI, USER } from "./actor"
-import { findFolder, findPage, pagesOf } from "./book"
+import { findBinder, findPage, pagesOf } from "./book"
 import type { ActionId, SubjectId } from "./catalog"
 import { type CoreCatalog, pageType } from "./core-catalog"
 import {
@@ -139,7 +139,7 @@ function typesAt(
   if (where?.creates === ANY_PAGE_TYPE) return { types: [...catalog.pageTypes.values()], need: "some" }
   if (where?.creates !== undefined) return every([catalog.pageTypes.get(where.creates)?.id])
   if (where?.entries !== undefined)
-    return every(where.entries.map(id => findPage(book, id)?.page.type ?? findFolder(book, id)?.pageType))
+    return every(where.entries.map(id => findPage(book, id)?.page.type ?? findBinder(book, id)?.pageType))
   const pages = pagesOf(book)
   if (where?.page !== undefined) return every(pages.filter(p => p.id === where.page).map(p => p.type))
   if (where?.ids !== undefined)

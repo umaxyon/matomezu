@@ -1,12 +1,12 @@
 package server
 
-// ブック（本文）の並び（lineup）を歩く口。並びの要素は、ページ（"kind": "page"）か、1 つのタイプのページだけを入れるフォルダ（"kind": "folder"。中の並びも lineup）。
-// サーバーがブックの本文の中のページを読む・替えるのは、ここを通す（フォルダの中のページも、並びの順に歩く）
+// ブック（本文）の並び（lineup）を歩く口。並びの要素は、ページ（"kind": "page"）か、1 つのタイプのページだけを入れるバインダ（"kind": "binder"。中の並びも lineup）。
+// サーバーがブックの本文の中のページを読む・替えるのは、ここを通す（バインダの中のページも、並びの順に歩く）
 
 import "encoding/json"
 
-// folderEntry は、並びのフォルダ（フィールドの順は保存の形と同じ）
-type folderEntry struct {
+// binderEntry は、並びのバインダ（フィールドの順は保存の形と同じ）
+type binderEntry struct {
 	Kind     string            `json:"kind"`
 	ID       string            `json:"id"`
 	Title    string            `json:"title"`
@@ -34,15 +34,15 @@ func lineupOf(body json.RawMessage) []json.RawMessage {
 	return book.Lineup
 }
 
-// pagesOfBook は、ブックの本文のページ（フォルダの中も、並びの順に）
+// pagesOfBook は、ブックの本文のページ（バインダの中も、並びの順に）
 func pagesOfBook(body json.RawMessage) []json.RawMessage {
 	out := []json.RawMessage{}
 	for _, e := range lineupOf(body) {
 		switch kindOf(e) {
 		case "page":
 			out = append(out, e)
-		case "folder":
-			var f folderEntry
+		case "binder":
+			var f binderEntry
 			if json.Unmarshal(e, &f) == nil {
 				out = append(out, f.Lineup...)
 			}
@@ -51,12 +51,12 @@ func pagesOfBook(body json.RawMessage) []json.RawMessage {
 	return out
 }
 
-// mapLineup は、並び entries の要素を替えた並び: ページは page で、フォルダは中の並びのページを page で替えてから folder で替える
-// （folder が nil ならフォルダはそのまま）。読めない要素はそのまま残す
+// mapLineup は、並び entries の要素を替えた並び: ページは page で、バインダは中の並びのページを page で替えてから binder で替える
+// （binder が nil ならバインダはそのまま）。読めない要素はそのまま残す
 func mapLineup(
 	entries []json.RawMessage,
 	page func(json.RawMessage) (json.RawMessage, error),
-	folder func(folderEntry) (json.RawMessage, error),
+	binder func(binderEntry) (json.RawMessage, error),
 ) ([]json.RawMessage, error) {
 	out := make([]json.RawMessage, 0, len(entries))
 	for _, e := range entries {
@@ -67,8 +67,8 @@ func mapLineup(
 				return nil, err
 			}
 			out = append(out, p)
-		case "folder":
-			var f folderEntry
+		case "binder":
+			var f binderEntry
 			if json.Unmarshal(e, &f) != nil {
 				out = append(out, e)
 				continue
@@ -78,8 +78,8 @@ func mapLineup(
 				return nil, err
 			}
 			f.Lineup = inner
-			if folder != nil {
-				made, err := folder(f)
+			if binder != nil {
+				made, err := binder(f)
 				if err != nil {
 					return nil, err
 				}

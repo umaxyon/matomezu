@@ -1,19 +1,19 @@
-// 並びを変えるアクション（base）: ページを足す所（ブックの並び・フォルダ・新しいフォルダ）、フォルダのアクション、まとめて変える pages-update、
+// 並びを変えるアクション（base）: ページを足す所（ブックの並び・バインダ・新しいバインダ）、バインダのアクション、まとめて変える pages-update、
 // 最初のページと一緒にブックを作る book-create、ページのタイプを替える結果を断る perform
 import { describe, expect, test } from "bun:test"
 import { USER } from "../../../web/src/core/actor"
-import { findFolder, findPage, lineupOf, pagesIn, pagesOf, putPage } from "../../../web/src/core/book"
+import { findBinder, findPage, lineupOf, pagesIn, pagesOf, putPage } from "../../../web/src/core/book"
 import { checkCoreCatalog } from "../../../web/src/core/core-catalog"
 import { perform } from "../../../web/src/core/perform"
 import type { Book } from "../../../web/src/core/schema/book"
 import {
-  FOLDER_DUPLICATE,
-  FOLDER_MOVE,
-  FOLDER_REMOVE,
-  FOLDER_UPDATE,
-} from "../../../web/src/plugins/base/page-tabs/folders"
+  BINDER_DUPLICATE,
+  BINDER_MOVE,
+  BINDER_REMOVE,
+  BINDER_UPDATE,
+} from "../../../web/src/plugins/base/page-tabs/binders"
 import { PAGE_ADD } from "../../../web/src/plugins/base/page-tabs/page-add"
-import { DRAWING, drawingPage, MARKDOWN, SLIDE, testBook, testFolder, testPage } from "../../lineup"
+import { DRAWING, drawingPage, MARKDOWN, SLIDE, testBinder, testBook, testPage } from "../../lineup"
 import { BUILTIN_PARTS, CORE_CATALOG, sequence } from "../../support"
 
 const ctx = () => ({
@@ -27,7 +27,7 @@ const ctx = () => ({
 const slide = (id: string) => testPage(SLIDE, id, { title: id, paper: "@matomezu/base:ratio-16x9" })
 const book = testBook("b1", "混ざる", [
   drawingPage("p1"),
-  testFolder("f1", "スライド", SLIDE, slide("s1"), slide("s2")),
+  testBinder("f1", "スライド", SLIDE, slide("s1"), slide("s2")),
 ])
 const run = (b: Book, action: string, args: object) => perform(b as never, action as never, args as never, ctx())
 
@@ -38,44 +38,44 @@ describe("page-add", () => {
     expect(done.ok && lineupOf(done.next).map(e => e.id)).toEqual(["p1", "n1", "f1"])
     expect(done.ok && findPage(done.next, "n1")?.page).toMatchObject({ type: MARKDOWN, title: "（無題）" })
     // まとまらないタイプに入れる所は書けない
-    expect(run(book, PAGE_ADD.id, { type: DRAWING, into: { folder: "f1" } }).ok).toBe(false)
+    expect(run(book, PAGE_ADD.id, { type: DRAWING, into: { binder: "f1" } }).ok).toBe(false)
   })
 
-  test("まとまるタイプは入れる所が要り、今あるフォルダか、新しいフォルダに入れる", () => {
+  test("まとまるタイプは入れる所が要り、今あるバインダか、新しいバインダに入れる", () => {
     expect(run(book, PAGE_ADD.id, { type: SLIDE }).ok).toBe(false)
-    const into = run(book, PAGE_ADD.id, { type: SLIDE, title: "s3", into: { folder: "f1" }, index: 0 })
+    const into = run(book, PAGE_ADD.id, { type: SLIDE, title: "s3", into: { binder: "f1" }, index: 0 })
     expect(into.ok && pagesIn(into.next, "f1").map(p => p.id)).toEqual(["n1", "s1", "s2"])
-    const made = run(book, PAGE_ADD.id, { type: SLIDE, into: { newFolder: "発表" }, index: 0 })
-    expect(made).toMatchObject({ ok: true, result: { page: "n1", folder: "n2" } })
+    const made = run(book, PAGE_ADD.id, { type: SLIDE, into: { newBinder: "発表" }, index: 0 })
+    expect(made).toMatchObject({ ok: true, result: { page: "n1", binder: "n2" } })
     expect(made.ok && lineupOf(made.next).map(e => e.id)).toEqual(["n2", "p1", "f1"])
-    expect(made.ok && findFolder(made.next, "n2")).toMatchObject({ title: "発表", pageType: SLIDE })
+    expect(made.ok && findBinder(made.next, "n2")).toMatchObject({ title: "発表", pageType: SLIDE })
     expect(made.ok && pagesIn(made.next, "n2").map(p => p.id)).toEqual(["n1"])
     // 同じ入れ物の中で同じ名前は付けられない
-    expect(run(book, PAGE_ADD.id, { type: SLIDE, into: { newFolder: "スライド" } }).ok).toBe(false)
-    expect(run(book, PAGE_ADD.id, { type: SLIDE, title: "s1", into: { folder: "f1" } }).ok).toBe(false)
+    expect(run(book, PAGE_ADD.id, { type: SLIDE, into: { newBinder: "スライド" } }).ok).toBe(false)
+    expect(run(book, PAGE_ADD.id, { type: SLIDE, title: "s1", into: { binder: "f1" } }).ok).toBe(false)
   })
 })
 
-describe("フォルダのアクション", () => {
+describe("バインダのアクション", () => {
   test("名前を変える・動かす（同じ並びの中）。ほかと同じ名前は断る", () => {
-    const renamed = run(book, FOLDER_UPDATE.id, { folder: "f1", title: "発表" })
-    expect(renamed.ok && findFolder(renamed.next, "f1")?.title).toBe("発表")
-    expect(run(book, FOLDER_UPDATE.id, { folder: "f1", title: "ページ 1" }).ok).toBe(false)
-    const moved = run(book, FOLDER_MOVE.id, { folder: "f1", index: 0 })
+    const renamed = run(book, BINDER_UPDATE.id, { binder: "f1", title: "発表" })
+    expect(renamed.ok && findBinder(renamed.next, "f1")?.title).toBe("発表")
+    expect(run(book, BINDER_UPDATE.id, { binder: "f1", title: "ページ 1" }).ok).toBe(false)
+    const moved = run(book, BINDER_MOVE.id, { binder: "f1", index: 0 })
     expect(moved.ok && lineupOf(moved.next).map(e => e.id)).toEqual(["f1", "p1"])
   })
 
   test("複製は中のページごと（id を振り直し、名前は「元の名前 2」）、削除は中のページごと", () => {
-    const copied = run(book, FOLDER_DUPLICATE.id, { folder: "f1" })
+    const copied = run(book, BINDER_DUPLICATE.id, { binder: "f1" })
     expect(copied.ok).toBe(true)
     if (!copied.ok) return
     const [, , copy] = lineupOf(copied.next)
-    expect(copy).toMatchObject({ kind: "folder", title: "スライド 2", pageType: SLIDE })
-    const ids = copy?.kind === "folder" ? copy.lineup.map(p => p.id) : []
+    expect(copy).toMatchObject({ kind: "binder", title: "スライド 2", pageType: SLIDE })
+    const ids = copy?.kind === "binder" ? copy.lineup.map(p => p.id) : []
     expect(ids).toHaveLength(2)
     expect(ids.some(id => ["s1", "s2"].includes(id))).toBe(false)
-    expect(copy?.kind === "folder" && copy.lineup.map(p => p.title)).toEqual(["s1", "s2"])
-    const removed = run(book, FOLDER_REMOVE.id, { folder: "f1" })
+    expect(copy?.kind === "binder" && copy.lineup.map(p => p.title)).toEqual(["s1", "s2"])
+    const removed = run(book, BINDER_REMOVE.id, { binder: "f1" })
     expect(removed.ok && pagesOf(removed.next).map(p => p.id)).toEqual(["p1"])
   })
 })
@@ -156,7 +156,7 @@ test('台帳アセンブル: "book" スコープのアクションがタイプ�
   ).toEqual(["E064", "E065"])
 })
 
-test("ロックしたページは、並びの中で動かせる・複製できる（中身は変えない）。無いフォルダを名指せば refused", () => {
+test("ロックしたページは、並びの中で動かせる・複製できる（中身は変えない）。無いバインダを名指せば refused", () => {
   const locked = putPage(book, { ...slide("s1"), locked: true } as never)
   expect(run(locked, "@matomezu/base:page-move", { page: "s1", index: 1 })).toMatchObject({ ok: true })
   expect(run(locked, "@matomezu/base:page-duplicate", { page: "s1" })).toMatchObject({ ok: true })
@@ -164,14 +164,14 @@ test("ロックしたページは、並びの中で動かせる・複製でき�
     ok: false,
     reason: "denied",
   })
-  expect(run(book, FOLDER_REMOVE.id, { folder: "nope" })).toEqual({ ok: false, reason: "refused" })
+  expect(run(book, BINDER_REMOVE.id, { binder: "nope" })).toEqual({ ok: false, reason: "refused" })
 })
 
-test("スライドのフォルダの中は紙と向きがそろう: 足すページ・1 枚だけの変更は今の紙だけ、folder-update は全部のページに 1 回で付ける。別のフォルダは別にそろう", () => {
+test("スライドのバインダの中は紙と向きがそろう: 足すページ・1 枚だけの変更は今の紙だけ、binder-update は全部のページに 1 回で付ける。別のバインダは別にそろう", () => {
   const A4 = "@matomezu/base:a4"
   const paperOf = (b: Book, id: string) => findPage(b, id)?.page.paper
-  // 今のフォルダと違う紙のページは足せず、1 枚だけ別の紙にもできない
-  expect(run(book, PAGE_ADD.id, { type: SLIDE, into: { folder: "f1" }, paper: A4 })).toEqual({
+  // 今のバインダと違う紙のページは足せず、1 枚だけ別の紙にもできない
+  expect(run(book, PAGE_ADD.id, { type: SLIDE, into: { binder: "f1" }, paper: A4 })).toEqual({
     ok: false,
     reason: "refused",
   })
@@ -179,13 +179,13 @@ test("スライドのフォルダの中は紙と向きがそろう: 足すペー
     ok: false,
     reason: "refused",
   })
-  // フォルダごと変える
-  const done = run(book, FOLDER_UPDATE.id, { folder: "f1", paper: A4 })
+  // バインダごと変える
+  const done = run(book, BINDER_UPDATE.id, { binder: "f1", paper: A4 })
   expect(done.ok && pagesIn(done.next, "f1").map(p => p.paper)).toEqual([A4, A4])
-  // 新しいフォルダは、ほかのフォルダの紙に縛られない
-  const other = done.ok && run(done.next, PAGE_ADD.id, { type: SLIDE, into: { newFolder: "別のスライド" } })
+  // 新しいバインダは、ほかのバインダの紙に縛られない
+  const other = done.ok && run(done.next, PAGE_ADD.id, { type: SLIDE, into: { newBinder: "別のスライド" } })
   expect(other && other.ok && paperOf(other.next, "n1")).toBe("@matomezu/base:ratio-16x9")
   // 何も渡さない・タイプに無い紙は断る
-  expect(run(book, FOLDER_UPDATE.id, { folder: "f1" })).toEqual({ ok: false, reason: "refused" })
-  expect(run(book, FOLDER_UPDATE.id, { folder: "f1", paper: "@x:nope" })).toEqual({ ok: false, reason: "refused" })
+  expect(run(book, BINDER_UPDATE.id, { binder: "f1" })).toEqual({ ok: false, reason: "refused" })
+  expect(run(book, BINDER_UPDATE.id, { binder: "f1", paper: "@x:nope" })).toEqual({ ok: false, reason: "refused" })
 })

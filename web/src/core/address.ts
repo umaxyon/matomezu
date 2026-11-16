@@ -9,7 +9,7 @@ import type { CoreCatalog } from "./core-catalog"
 import type { Point } from "./geom"
 import { sameData } from "./same"
 import type { Book } from "./schema/book"
-import { newStage, openBook, openFolder, openPage, panBy, type Stage, shownPageId, stopStart } from "./stage"
+import { newStage, openBinder, openBook, openPage, panBy, type Stage, shownPageId, stopStart } from "./stage"
 import { zoomInRange } from "./viewport"
 import { mapScreens, NO_SCREEN_DEF, type OpenedScreen, type WindowState } from "./window"
 import { MAX_STAGES, MIN_SHARE, newWorkspace, type Workspace } from "./workspace"
@@ -17,7 +17,7 @@ import { MAX_STAGES, MIN_SHARE, newWorkspace, type Workspace } from "./workspace
 export interface StagePlace {
   book: string | null // 開いているブックの id（何も開いていなければ null）
   page: string | null // 開いているページの id
-  folder: string | null // 空のフォルダを開いているときの、フォルダの id（ページを開いていれば null）
+  binder: string | null // 空のバインダを開いているときの、バインダの id（ページを開いていれば null）
   zoom: number
   pan: Point
   states: Readonly<Record<string, unknown>> // 画面の場所に入れる、ステージの範囲のプラグイン状態（宣言の id → 値。store/plugin-state.ts）
@@ -76,7 +76,7 @@ function stagesPlaceOf(ws: Workspace, states: (stage: string) => Readonly<Record
       return {
         book: s.opened?.book ?? null,
         page: shownPageId(s.opened),
-        folder: s.opened?.kind === "folder" ? s.opened.folder : null,
+        binder: s.opened?.kind === "binder" ? s.opened.binder : null,
         zoom: view.zoom,
         pan: view.pan,
         states: states(s.id),
@@ -146,7 +146,7 @@ function placed(catalog: CoreCatalog, books: Readonly<Record<string, Book>>, sta
   if (!book) return fresh
   let next = openBook(catalog, fresh, book)
   if (place.page !== null) next = openPage(catalog, next, book, place.page)
-  else if (place.folder !== null) next = openFolder(catalog, next, book, place.folder)
+  else if (place.binder !== null) next = openBinder(catalog, next, book, place.binder)
   // ずらす量は、ほかの操作と同じく範囲に収める（表示領域を測るまでは収めない）。初めの位置には合わせない（場所のずらす量が 0 のときも）
   const zoomed = { ...stopStart(next), zoom: zoomInRange(place.zoom) }
   return panBy(zoomed, place.pan.x - zoomed.pan.x, place.pan.y - zoomed.pan.y)

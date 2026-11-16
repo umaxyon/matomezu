@@ -52,13 +52,13 @@ import { NOTE_EXPIRY } from "./note/expiry"
 // 拡張ポイントに書き足したフィールド listed の型（outbox/listed.ts の declare module）
 import type {} from "./outbox/listed"
 import {
-  FOLDER_DELETE,
-  FOLDER_DELETE_DIALOG,
-  FOLDER_DUPLICATE_COMMAND,
-  FOLDER_OPEN,
-  FOLDER_SETTINGS,
-  FOLDER_SETTINGS_DIALOG,
-  FOLDER_SETTINGS_OPENED,
+  BINDER_DELETE,
+  BINDER_DELETE_DIALOG,
+  BINDER_DUPLICATE_COMMAND,
+  BINDER_OPEN,
+  BINDER_SETTINGS,
+  BINDER_SETTINGS_DIALOG,
+  BINDER_SETTINGS_OPENED,
   NEW_PAGE_DIALOG,
   PAGE_ADD,
   PAGE_ADD_AFTER,
@@ -70,7 +70,7 @@ import {
   PAGE_SETTINGS,
   PAGE_SETTINGS_DIALOG,
 } from "./page-tabs"
-import { FOLDER_DUPLICATE, FOLDER_MOVE, FOLDER_REMOVE, FOLDER_UPDATE } from "./page-tabs/folders"
+import { BINDER_DUPLICATE, BINDER_MOVE, BINDER_REMOVE, BINDER_UPDATE } from "./page-tabs/binders"
 import { PAGE_DUPLICATE } from "./page-tabs/page-duplicate"
 import { PAGE_MOVE } from "./page-tabs/page-move"
 import { PAGE_REMOVE } from "./page-tabs/page-remove"
@@ -306,10 +306,10 @@ export const BASE = defineBuiltin(
       PAGE_UPDATE,
       PAGE_MOVE,
       PAGE_DUPLICATE,
-      FOLDER_UPDATE,
-      FOLDER_MOVE,
-      FOLDER_DUPLICATE,
-      FOLDER_REMOVE,
+      BINDER_UPDATE,
+      BINDER_MOVE,
+      BINDER_DUPLICATE,
+      BINDER_REMOVE,
       PAGES_UPDATE,
       PAGE_REMOVE,
       PAGE_LOCK,
@@ -424,11 +424,11 @@ export const BASE = defineBuiltin(
       MENU_CLOSE,
       BOOK_OPEN,
       PAGE_NEW,
-      FOLDER_OPEN,
-      FOLDER_SETTINGS,
-      FOLDER_SETTINGS_OPENED,
-      FOLDER_DUPLICATE_COMMAND,
-      FOLDER_DELETE,
+      BINDER_OPEN,
+      BINDER_SETTINGS,
+      BINDER_SETTINGS_OPENED,
+      BINDER_DUPLICATE_COMMAND,
+      BINDER_DELETE,
       PAGE_OPEN,
       PAGE_ADD_AFTER,
       PAGE_DUPLICATE_COMMAND,
@@ -452,8 +452,8 @@ export const BASE = defineBuiltin(
       OPEN_BOOK_DIALOG,
       NEW_PAGE_DIALOG,
       PAGE_DELETE_DIALOG,
-      FOLDER_SETTINGS_DIALOG,
-      FOLDER_DELETE_DIALOG,
+      BINDER_SETTINGS_DIALOG,
+      BINDER_DELETE_DIALOG,
       SCRAP_CUT_DIALOG,
       PAGE_SETTINGS_DIALOG,
       BOOK_SETTINGS_DIALOG,
@@ -526,10 +526,10 @@ declare module "../../core/catalog" {
     "@matomezu/base:page-update": typeof PAGE_UPDATE
     "@matomezu/base:page-move": typeof PAGE_MOVE
     "@matomezu/base:page-duplicate": typeof PAGE_DUPLICATE
-    "@matomezu/base:folder-update": typeof FOLDER_UPDATE
-    "@matomezu/base:folder-move": typeof FOLDER_MOVE
-    "@matomezu/base:folder-duplicate": typeof FOLDER_DUPLICATE
-    "@matomezu/base:folder-remove": typeof FOLDER_REMOVE
+    "@matomezu/base:binder-update": typeof BINDER_UPDATE
+    "@matomezu/base:binder-move": typeof BINDER_MOVE
+    "@matomezu/base:binder-duplicate": typeof BINDER_DUPLICATE
+    "@matomezu/base:binder-remove": typeof BINDER_REMOVE
     "@matomezu/base:pages-update": typeof PAGES_UPDATE
     "@matomezu/base:page-remove": typeof PAGE_REMOVE
     "@matomezu/base:page-lock": typeof PAGE_LOCK
@@ -656,11 +656,11 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-open": typeof BOOK_OPEN
     "@matomezu/base:page-new": typeof PAGE_NEW
     "@matomezu/base:page-open": typeof PAGE_OPEN
-    "@matomezu/base:folder-open": typeof FOLDER_OPEN
-    "@matomezu/base:folder-settings": typeof FOLDER_SETTINGS
-    "@matomezu/base:folder-settings-opened": typeof FOLDER_SETTINGS_OPENED
-    "@matomezu/base:folder-duplicate": typeof FOLDER_DUPLICATE_COMMAND
-    "@matomezu/base:folder-delete": typeof FOLDER_DELETE
+    "@matomezu/base:binder-open": typeof BINDER_OPEN
+    "@matomezu/base:binder-settings": typeof BINDER_SETTINGS
+    "@matomezu/base:binder-settings-opened": typeof BINDER_SETTINGS_OPENED
+    "@matomezu/base:binder-duplicate": typeof BINDER_DUPLICATE_COMMAND
+    "@matomezu/base:binder-delete": typeof BINDER_DELETE
     "@matomezu/base:page-add-after": typeof PAGE_ADD_AFTER
     "@matomezu/base:page-duplicate": typeof PAGE_DUPLICATE_COMMAND
     "@matomezu/base:page-delete": typeof PAGE_DELETE
@@ -715,8 +715,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-open": typeof OPEN_BOOK_DIALOG
     "@matomezu/base:page-new": typeof NEW_PAGE_DIALOG
     "@matomezu/base:page-delete": typeof PAGE_DELETE_DIALOG
-    "@matomezu/base:folder-settings": typeof FOLDER_SETTINGS_DIALOG
-    "@matomezu/base:folder-delete": typeof FOLDER_DELETE_DIALOG
+    "@matomezu/base:binder-settings": typeof BINDER_SETTINGS_DIALOG
+    "@matomezu/base:binder-delete": typeof BINDER_DELETE_DIALOG
     "@matomezu/base:scrap-cut": typeof SCRAP_CUT_DIALOG
     "@matomezu/base:page-settings": typeof PAGE_SETTINGS_DIALOG
     "@matomezu/base:book-settings": typeof BOOK_SETTINGS_DIALOG

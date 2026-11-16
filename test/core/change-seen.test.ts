@@ -14,12 +14,12 @@ const box = (id: string, caption: string, shapes?: unknown[]) => ({
 const page = (id: string, items: unknown[]) => ({ kind: "page", id, type: "t", title: id, items })
 const book = (items: unknown[], title = "本", second: unknown[] = []) =>
   ({ id: "b", title, lineup: [page("p", items), page("q", second)] }) as unknown as Book
-// フォルダ f の中にページ s を入れたブック
+// バインダ f の中にページ s を入れたブック
 const folded = (items: unknown[], other: unknown[] = []) =>
   ({
     id: "b",
     title: "本",
-    lineup: [page("p", other), { kind: "folder", id: "f", title: "f", pageType: "t", lineup: [page("s", items)] }],
+    lineup: [page("p", other), { kind: "binder", id: "f", title: "f", pageType: "t", lineup: [page("s", items)] }],
   }) as unknown as Book
 const asked = (before: Book, after: Book, page: string | null) => {
   const ids: string[] = []
@@ -43,7 +43,7 @@ test("ほかのページの変更は見えていない。ブックのフィー�
   expect(asked(before, book([box("a", "AI")]), null)).toEqual({ seen: true, ids: [] })
 })
 
-test("フォルダの中のページの変更は、そのページを開いていれば聞き、ほかのページを開いていれば見えていない", () => {
+test("バインダの中のページの変更は、そのページを開いていれば聞き、ほかのページを開いていれば見えていない", () => {
   const before = folded([box("a", "a")])
   expect(asked(before, folded([box("a", "AI")]), "s")).toEqual({ seen: false, ids: ["a"] })
   expect(asked(before, folded([box("a", "AI")]), "p")).toEqual({ seen: false, ids: [] })

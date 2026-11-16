@@ -40,8 +40,8 @@ function changedIds(item: string, p: Patch): string[] {
   return own.length + children.length > 0 ? [...own, ...children] : [item]
 }
 
-// 並びの Patch の中の、ページ page の Patch（ページ page に触れていなければ undefined）。フォルダの中のページは、フォルダの要素の中の並び（lineup）をたどる。
-// 中の並び（lineup）のフィールドを持つのはフォルダだけ（ページは lineup という名前のフィールドを持てない。台帳アセンブルの E030）
+// 並びの Patch の中の、ページ page の Patch（ページ page に触れていなければ undefined）。バインダの中のページは、バインダの要素の中の並び（lineup）をたどる。
+// 中の並び（lineup）のフィールドを持つのはバインダだけ（ページは lineup という名前のフィールドを持てない。台帳アセンブルの E030）
 function patchOfPage(list: readonly ListPatch[], page: string): ListPatch | undefined {
   for (const x of list) {
     if (x.id === page) return x

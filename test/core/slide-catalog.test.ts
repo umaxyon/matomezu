@@ -10,13 +10,13 @@ import { warningText } from "../../web/src/core/warnings"
 import { itemMinimapMarks } from "../../web/src/plugins/base/minimap/marks"
 import { filledSheets } from "../../web/src/plugins/base/print-preview/filled"
 import { toolboxOf } from "../../web/src/plugins/base/toolbox/toolbox"
-import { SLIDE, testBook, testFolder, testPage, withSlide } from "../lineup"
+import { SLIDE, testBinder, testBook, testPage, withSlide } from "../lineup"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
 const slideType = BUILTIN_PARTS.pageTypes.find(t => t.id === SLIDE)!
 const TEXT = "@matomezu/slide:slide-text"
 const page = testPage(SLIDE, "p1", { title: "P", paper: "@matomezu/base:ratio-16x9" })
-const bookWith = (slide: object[]) => testBook("s1", "S", [testFolder("s1-slides", "S", SLIDE, withSlide(page, slide))])
+const bookWith = (slide: object[]) => testBook("s1", "S", [testBinder("s1-slides", "S", SLIDE, withSlide(page, slide))])
 
 test("slide に置けるのは形だけ（E042）", () => {
   const withLine = { ...slideType, slide: { allowed: ["@matomezu/line:connector-line"] } }
