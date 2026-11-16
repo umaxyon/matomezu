@@ -70,3 +70,25 @@ test("行は、ワークルームの作業の様子を持ち、知らされて�
   const rows = workroomRows(input({ activities: { a: "working", b: "idle" } }))
   expect(rows.map(r => r.activity)).toEqual(["working", "idle", "unknown"])
 })
+
+test("その名前で入りたいと頼んでいる要求中の参加者がいれば、行はいちばん新しい頼んだ時刻を持つ。名前の違う部屋と、受け入れた参加者は数えない", () => {
+  const asking = (id: string, wantedName: string, requestedAt: string): Participant => {
+    const { workroom: _, joinedAt: __, ...rest } = person(id, "c")
+    return { ...rest, state: "requested", wantedName, requestedAt }
+  }
+  const rows = workroomRows(
+    input({
+      participants: [
+        person("pa", "a"),
+        asking("p1", "c", "2026-11-17T01:00:00.000Z"),
+        asking("p2", "c", "2026-11-17T02:00:00.000Z"),
+        asking("p3", "a", "2026-11-17T03:00:00.000Z"),
+      ],
+    }),
+  )
+  expect(rows.map(r => [r.room.id, r.requestedAt])).toEqual([
+    ["a", "2026-11-17T03:00:00.000Z"],
+    ["b", undefined],
+    ["c", "2026-11-17T02:00:00.000Z"],
+  ])
+})
