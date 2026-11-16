@@ -44,6 +44,38 @@ export function orderRows(rows: readonly WorkroomRow[]): WorkroomRow[] {
   return keyed.map(k => k.row)
 }
 
+// 途中の様子の行: 準備中と、その名前で入りたいと頼まれている空室（受け入れやフックが続けて来れば、すぐ抜ける）。
+// 列は、行がこの様子に入ってから PASSING_WAIT_MS の間、前の並びで止める（useSettledOrder。途中の位置へ動いてからすぐ戻るのを見せない）
+export const PASSING_WAIT_MS = 3000
+
+export const passingRow = (row: WorkroomRow): boolean =>
+  row.state === "preparing" || (row.state === "empty" && row.requestedAt !== undefined)
+
+// 待つための覚え: 行が途中の様子に入った時刻（ワークルームの id → ミリ秒）と、止めていない間の最後の並び（id の列）
+export interface Settling {
+  entered: ReadonlyMap<string, number>
+  settled: readonly string[]
+}
+
+// 時点 now に出す並び（rows）と、次の覚え（next）、待ち終わる時刻（wakeAt。待っていなければ無い）。
+// 途中の様子に入ってから PASSING_WAIT_MS の間の行があれば、覚えた並びで止める（新しく出た行は最後）。無ければ ordered のまま
+export function settleOrder(
+  ordered: readonly WorkroomRow[],
+  prev: Settling | undefined,
+  now: number,
+): { rows: WorkroomRow[]; next: Settling; wakeAt?: number } {
+  const ids = ordered.map(r => r.room.id)
+  const entered = new Map<string, number>()
+  for (const row of ordered) if (passingRow(row)) entered.set(row.room.id, prev?.entered.get(row.room.id) ?? now)
+  const until = [...entered.values()].map(at => at + PASSING_WAIT_MS).filter(t => t > now)
+  if (until.length === 0 || !prev) return { rows: [...ordered], next: { entered, settled: ids } }
+  return {
+    rows: orderHeld(ordered, prev.settled),
+    next: { entered, settled: prev.settled },
+    wakeAt: Math.min(...until),
+  }
+}
+
 // 並びを止めている間（列に触れている間）の並び: 止めた時の並び（id の列）に従い、新しく出た行は最後に
 export function orderHeld(rows: readonly WorkroomRow[], held: readonly string[]): WorkroomRow[] {
   const at = (r: WorkroomRow) => {
