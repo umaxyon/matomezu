@@ -1,12 +1,13 @@
 // インスタンスのコマンドを引き、呼ばれた場所の様子からコマンドを出すか・押せるかを決める操作
 
+import { USER } from "../../core/actor"
 import type { CommandId, CommandTable } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
 import type { Where } from "../../core/def/action"
 import type { PluginStateDef } from "../../core/def/plugin-state"
 import { fail } from "../../core/errors"
 import { NO_HISTORY } from "../../core/history"
-import { actionQuery, inspect, withoutPermissions } from "../../core/inspect"
+import { actionQuery, inspect, type Query, withoutPermissions } from "../../core/inspect"
 import { splitId } from "../../core/names"
 import { shownPageId, stageBlocks } from "../../core/stage"
 import { currentScreen, type OpenedScreen, screenOfStage, stageIn, workspaceOf } from "../../core/window"
@@ -98,6 +99,7 @@ export function commandContext(
     },
     workspace,
     stageId,
+    state.books,
   )
 }
 
@@ -151,10 +153,16 @@ function permitted(c: Called, arg?: unknown): boolean {
   }
   const ctx = c.ctx
   const where = whereOf(c, arg)
+  // 許可スコープを書いたコマンドが行う、一覧が対象のアクション（戻す・やり直すの置き直しなど）は、開いているブックを変えるので、そのブックで認可ステップに問う
+  const onOpened = (action: string): Query | undefined =>
+    c.def.permissionScope !== undefined && ctx.book && ctx.catalog.actions.get(action)?.target === "library"
+      ? { kind: "action", action, actor: USER, book: ctx.book, ...(where ? { where } : {}) }
+      : undefined
   return actions.some(
     action =>
       !stageBlocks(ctx.catalog, ctx.stage.mode, action) &&
-      inspect(ctx.catalog, actionQuery(ctx.catalog, action, ctx.book ?? undefined, where), ctx).value === true,
+      inspect(ctx.catalog, onOpened(action) ?? actionQuery(ctx.catalog, action, ctx.book ?? undefined, where), ctx)
+        .value === true,
   )
 }
 

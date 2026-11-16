@@ -4,8 +4,10 @@
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
 import type { Book } from "../../web/src/core/schema/book"
+import { shownPageId } from "../../web/src/core/stage"
+import { screenOf } from "../../web/src/core/window"
 import type { AIEditTicketOutcome } from "../../web/src/store/store"
-import { SLIDE, testBinder, testBook, testPage, withSlide } from "../lineup"
+import { drawingPage, SLIDE, testBinder, testBook, testPage, withSlide } from "../lineup"
 import { newStore, sequence, worldRows } from "../support"
 
 const TEXT = "@matomezu/slide:slide-text"
@@ -25,8 +27,9 @@ function ready(book: Book, aiEditTicket?: (c: AIEditTicketOutcome) => void) {
   return store
 }
 const confirm = (store: Store) => store.receive({ ...worldRows([bookOf(store)]), settings: {} }, [])
-const foreign = (store: Store, book: Book, action: string, act = "1") =>
-  store.receive({ ...worldRows([book]), settings: {} }, [], { books: [book.id], by: "ai", act, action })
+const foreign = (store: Store, book: Book, action: string, act = "1", by: "ai" | "host" = "ai") =>
+  store.receive({ ...worldRows([book]), settings: {} }, [], { books: [book.id], by, act, action })
+const shown = (store: Store) => shownPageId(screenOf(store.state.getState().window).stages[0]?.opened ?? null)
 
 test("バインダからページを消した画面の履歴の段は、よそでバインダごと無くなっていたら、戻してもページは戻らない", async () => {
   const store = ready(slides("p1", "p2"))
@@ -109,4 +112,33 @@ test("バインダの中のページの AI の変更が、見られる前に戻�
       lost: [{ at: `lineup/bd/lineup/p2/slide/${item}/props/text`, value: "AI" }],
     },
   ])
+})
+
+test("バインダからページを消した画面の履歴の段は、よそでバインダが別のページに替わっていても、断られずに戻り、ページは戻らない", async () => {
+  const store = ready(slides("p1", "p2"))
+  expect(store.actions.perform("@matomezu/base:page-remove", { page: "p2" }, { book: "b1" }).ok).toBe(true)
+  await settled()
+  confirm(store)
+  // よそで、バインダが無くなり、図のページ d1 に替わる（常駐が自分で行った物として届く）
+  foreign(store, testBook("b1", "スライド", [drawingPage("d1")]), "@matomezu/base:page-remove", "1", "host")
+  store.actions.command("s1", "@matomezu/base:undo")
+  expect(store.state.getState().toasts).toEqual([])
+  expect(bookOf(store).lineup.map(e => e.id)).toEqual(["d1"])
+})
+
+test("バインダの中のページを変えた画面の履歴の段を戻すと、そのページを開く", async () => {
+  const store = ready(slides("p1", "p2"))
+  store.actions.openPage("s1", "p1")
+  expect(
+    store.actions.perform(
+      "@matomezu/slide:slide-place",
+      { item: TEXT, at: { x: 10, y: 20 }, props: { text: "自分" } },
+      { page: "p2" },
+    ).ok,
+  ).toBe(true)
+  await settled()
+  confirm(store)
+  expect(shown(store)).toBe("p1")
+  store.actions.command("s1", "@matomezu/base:undo")
+  expect(shown(store)).toBe("p2")
 })

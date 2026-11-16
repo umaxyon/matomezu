@@ -95,7 +95,7 @@ export type Refused =
   | NoPage
   | { ok: false; reason: "refused"; detail?: string; kind?: string }
   | NotAllowed
-  | { ok: false; reason: "denied"; permission: string }
+  | Denied
 // others はレコードが対象のアクションが、宛先のほかに変えたレコード（同じ種類か、writes に書いた種類。確かめ終えた物）
 export type Performed<Id extends ActionId> =
   | {
@@ -189,17 +189,35 @@ function brokenRecord(
   return null
 }
 
-// 一覧が対象のアクションの結果で、変わったブック・無くなったブック・増えたブックのどれかが守っていなければ、守らせたステップの id
-function brokenIn(ctx: ActionContext, action: ActionDef, before: Library, after: Library): string | null {
+// 一覧が対象のアクションの結果で、変わったブック・無くなったブック・増えたブックのどれかが守っていなければ、守らせたステップの id と、そのブックの id（増えたブックなら無い）
+function brokenIn(
+  ctx: ActionContext,
+  action: ActionDef,
+  before: Library,
+  after: Library,
+): { permission: string; book?: string } | null {
   for (const b of Object.values(before)) {
     const id = b === after[b.id] ? null : broken(ctx, action, b, after[b.id])
-    if (id) return id
+    if (id) return { permission: id, book: b.id }
   }
   for (const b of Object.values(after)) {
     const id = b.id in before ? null : broken(ctx, action, undefined, b)
-    if (id) return id
+    if (id) return { permission: id }
   }
   return null
+}
+
+// 一覧が対象のアクションが返した一覧 after の、行う前から在って変わったブックを、ノーマライズステップで整えた一覧（どれかが整えられなければ null）
+function normalizedIn(catalog: CoreCatalog, action: ActionDef, before: Library, after: Library): Library | null {
+  let next: Record<string, Book> | undefined
+  for (const b of Object.values(after)) {
+    const was = before[b.id]
+    if (!was || was === b) continue
+    const tidy = normalized(catalog, action, was, b)
+    if (!tidy) return null
+    if (tidy !== b) next = { ...(next ?? after), [b.id]: tidy }
+  }
+  return next ?? after
 }
 
 // 行う前の問いに要る文脈（機能台帳・コントロールセンター・誰が行うか）
@@ -256,7 +274,7 @@ function permits(
     if (asks.length === 0) return asked(undefined, undefined)
     for (const a of asks) {
       const answer = asked(a.book, a.where)
-      if (!answer.ok) return answer
+      if (!answer.ok) return answer.reason === "denied" && a.book !== NEW_BOOK ? { ...answer, book: a.book.id } : answer
     }
     return { ok: true }
   }
@@ -314,7 +332,10 @@ export function allowedOnBook(catalog: CoreCatalog, book: Book, id: string, args
 const NEW_BOOK: Book = { id: "new-book", title: "new book", lineup: [] }
 
 // 行う前の問いの答え: 使えるか、止めた理由
-export type Permitted = { ok: true } | NotAllowed | { ok: false; reason: "denied"; permission: string }
+export type Permitted = { ok: true } | NotAllowed | Denied
+
+// 認可ステップ permission が止めた断り。一覧が対象のアクションでは、どのブックで止めたかを book に持つ（作るブックで止めたなら無い）
+export type Denied = { ok: false; reason: "denied"; permission: string; book?: string }
 
 function answerOf(answer: Inspected<boolean>): Permitted {
   if (answer.value === true) return { ok: true }
@@ -401,26 +422,40 @@ export function perform<Id extends ActionId>(
   if (!ran) return { ok: false, reason: "refused" }
   if ("declined" in ran)
     return { ok: false, reason: "refused", detail: ran.declined, ...(ran.kind === undefined ? {} : { kind: ran.kind }) }
-  const next = before ? normalized(ctx.catalog, action, before, ran.next as Book) : ran.next
+  const next = before
+    ? normalized(ctx.catalog, action, before, ran.next as Book)
+    : action.target === "library"
+      ? normalizedIn(ctx.catalog, action, subject as Library, ran.next as Library)
+      : ran.next
   if (!next) return { ok: false, reason: "refused" }
   const done = { ...ran, next }
   // アノテーションのアクションはページを変えない（変えたら runAction が断る）。認可ステップの keeps は、変わらないブックで見る
   const pair = subject as unknown as AnnotationsInBook
+  if (action.target === "library") {
+    const kept = brokenIn(ctx, action, subject as Library, done.next as Library)
+    if (kept) return { ok: false, reason: "denied", ...kept }
+  }
   const permission = before
     ? broken(ctx, action, before, done.next as Book)
-    : action.target === "library"
-      ? brokenIn(ctx, action, subject as Library, done.next as Library)
-      : action.target === "annotations"
-        ? broken(ctx, action, pair.book, pair.book)
-        : null
+    : action.target === "annotations"
+      ? broken(ctx, action, pair.book, pair.book)
+      : null
   if (permission) return { ok: false, reason: "denied", permission }
   if (before) {
     // ページのタイプは作ったあと変えない（アクションが替えていたら断る）
     if (!settles(ctx.catalog, done.next as Book) || !keepsPageTypes(before, done.next as Book))
       return { ok: false, reason: "refused" }
   }
-  if (action.target === "library" && !librarySettles(ctx.catalog, subject as Library, done.next as Library))
-    return { ok: false, reason: "refused" }
+  if (action.target === "library") {
+    const was = subject as Library
+    const now = done.next as Library
+    // 行う前から在るブックのページのタイプも、変えない
+    const typesKept = Object.values(now).every(b => {
+      const old = was[b.id]
+      return !old || old === b || keepsPageTypes(old, b)
+    })
+    if (!librarySettles(ctx.catalog, was, now) || !typesKept) return { ok: false, reason: "refused" }
+  }
   if (action.target === "annotations") {
     const { page, annotations: next } = done.next as unknown as PageAnnotations
     if (!annotationsSettle(ctx.catalog, page, pair.annotations, next)) return { ok: false, reason: "refused" }

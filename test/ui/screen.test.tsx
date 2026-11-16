@@ -413,6 +413,7 @@ test("認可ステップがあるブックのゴミ箱入れを止めていれ�
     ok: false,
     reason: "denied",
     permission: "@ex/keep:keep",
+    book: api.id,
   })
 })
 

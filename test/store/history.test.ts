@@ -250,10 +250,10 @@ test("いくつものブックを変えた画面の履歴の段にも、どち�
   placeIn("b1", 200)
   await settled()
   expect(historyOf(store)?.undo).toHaveLength(1)
-  expect(Object.keys(historyOf(store, "b2")!.undo[0]!.books)).toEqual(["b1", "b2"])
+  expect(historyOf(store, "b2")!.undo[0]!.inBooks).toEqual(["b1", "b2"])
 })
 
-test("いくつものブックを変えた画面の履歴の段は、途中のブックが断られたら、置き直したブックも元に戻し、断ったブックの名前をトーストに出し、画面の履歴の段は残る", async () => {
+test("いくつものブックを変えた画面の履歴の段は、どれかのブックが断られたら、どのブックも置き直さず、断ったブックの名前をトーストに出し、画面の履歴の段は残る", async () => {
   const store = ready()
   const placeIn = (book: string) =>
     store.actions.perform(
@@ -264,7 +264,7 @@ test("いくつものブックを変えた画面の履歴の段は、途中の�
   placeIn("b1")
   placeIn("b2")
   await settled()
-  expect(Object.keys(historyOf(store)!.undo[0]!.books)).toEqual(["b1", "b2"])
+  expect(historyOf(store)!.undo[0]!.inBooks).toEqual(["b1", "b2"])
   store.actions.perform("@matomezu/base:page-lock", {}, { page: "b2-p1" })
   expect(store.actions.command("s1", "@matomezu/base:undo")).toBe(true)
   expect(store.state.getState().toasts.at(-1)).toMatchObject({
@@ -280,7 +280,7 @@ test("いくつものブックを変えた画面の履歴の段は、途中の�
   expect(historyOf(store)).toMatchObject({ undo: [{}], redo: [] })
 })
 
-test("いくつものブックを変えた画面の履歴の段は、途中のブックが行った後の確かめで断られても、置き直したブックも元に戻し、トーストで知らせ、画面の履歴の段は残る", async () => {
+test("いくつものブックを変えた画面の履歴の段は、どれかのブックが行った後の確かめで断られても、どのブックも置き直さず、トーストで知らせ、画面の履歴の段は残る", async () => {
   const kit = pluginKit("@ex/keep-b2", defineMessages({ keep: { en: "Keep b2", ja: "b2 を残す" } }))
   const store = createMatomezu({
     plugins: [
@@ -315,7 +315,7 @@ test("いくつものブックを変えた画面の履歴の段は、途中の�
   placeIn("b2")
   await settled()
   const history = () => store.state.getState().history.b1
-  expect(Object.keys(history()!.undo[0]!.books)).toEqual(["b1", "b2"])
+  expect(history()!.undo[0]!.inBooks).toEqual(["b1", "b2"])
   expect(isEnabled(store, store.state.getState(), "s1", "@matomezu/base:undo")).toBe(true)
   expect(store.actions.command("s1", "@matomezu/base:undo")).toBe(true)
   expect(store.state.getState().toasts.at(-1)).toMatchObject({ kind: "warn" })

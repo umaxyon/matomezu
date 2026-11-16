@@ -2,66 +2,81 @@
 // 行ったアクションと、その窓で見えた AI とほかの窓の変更から作る（ロックの掛け外しのように history: false のアクションは入らない）。
 // 戻すのは、カレントのステージで開いているブックの最後の画面の履歴の段。その画面の履歴の段がいくつかのブックを変えていれば、その全部を戻す
 
-import { findPage } from "../../../core/book"
+import { pagesOf } from "../../../core/book"
+import type { LibraryTargets } from "../../../core/def/action"
 import type { HistoryStep } from "../../../core/history"
-import { type Patch, patchOf } from "../../../core/patch"
-import type { Book } from "../../../core/schema/book"
+import type { Library } from "../../../core/library"
+import { patchesToward, restoredLibrary } from "../../../core/restore"
 import { shownPageId } from "../../../core/stage"
-import type { CommandActions, CommandContext } from "../../../store/commands/def"
+import { booksOf, type CommandActions, type CommandContext } from "../../../store/commands/def"
 import { kit } from "../kit"
-import { applyRestore, PatchSchema, restoredEntries } from "./restore"
+import { RevertArgs, restoredPages } from "./restore"
 
 export const HISTORY_RESTORE = kit.defineAction({
   id: "book-revert",
-  attach: { books: true },
   userOnly: true,
   history: false,
   aiDescription: "The screen's undo and redo: put back what one step of the user's history changed.",
   title: "Undo or redo",
-  target: "book",
-  // 置き直すエントリが 1 つなら、それをページとして名指す（とアイテム）。バインダなら無いページを名指すことになり、いくつもなら所は言えない。どちらも、ロックは行った後の keeps が止める
-  permissionScope: (args: Patch) => {
-    const entries = restoredEntries(args)
-    const page = entries.length === 1 ? entries[0] : undefined
-    return page ? { page: page.id, ...(page.items ? { items: [...page.items] } : {}) } : {}
+  target: "library",
+  // 変えるブックが 1 冊で、置き直すページが 1 つなら、そのページとアイテムを名指す。ほかは所を言えず、ロックは行った後の keeps が止める
+  permissionScope: (args: RevertArgs): LibraryTargets => {
+    const pages = restoredPages(args.pages)
+    const [page] = pages
+    const one = args.books.length === 1 && pages.length === 1 ? page : undefined
+    const where = one ? { page: one.id, ...(one.items ? { items: [...one.items] } : {}) } : {}
+    return { books: args.books.map(book => ({ book, where })), creates: false }
   },
-  args: PatchSchema,
-  run: (book, args) => ({ next: applyRestore(book, args), result: {} }),
+  args: RevertArgs,
+  run: (library, args) => {
+    const next = restoredLibrary(library, args.books, args)
+    return next ? { next, result: {} } : null
+  },
 })
 
-// 置き直したあと、開いていたいページ: 画面の履歴の段がそのブックで変えたページのうち、置き直したあとのブック to に在る最初のページ
-const pageOf = (args: Patch, to: Book): string | undefined =>
-  restoredEntries(args).find(p => findPage(to, p.id) !== undefined)?.id
+// 置き直したあと、開いていたいページ: 画面の履歴の段が変えたページのうち、一覧 books を args で置き直したあとの、ブック book に入っている最初のページ
+function pageToOpen(
+  books: Library,
+  step: HistoryStep,
+  to: "before" | "after",
+  book: string,
+  args: RevertArgs,
+): string | undefined {
+  const after = restoredLibrary(books, args.books, args)?.[book]
+  const inBook = new Set(after ? pagesOf(after).map(p => p.id) : [])
+  return Object.entries(step.pages).find(([id, row]) => row[to] !== "none" && inBook.has(id))?.[0]
+}
 
-// 画面の履歴の段 step を、from が undo なら前へ戻し、redo なら後へやり直す。断られたら（ロック中など）トーストで知らせ（認可ステップが止めたなら、2 行目にそのブックの名前と認可ステップの名前）、画面の履歴の段は動かさない。
-// いくつものブックを変えた画面の履歴の段で途中のブックが断られたら、置き直したブックを元に戻す（どのブックも画面の履歴の段のとおりのまま）
+// 画面の履歴の段 step を、from が undo なら前へ戻し、redo なら後へやり直す（変えたブックがいくつ在っても、1 回のアクションで置き直す）。
+// 断られたら（ロック中など）トーストで知らせ（認可ステップが止めたなら、2 行目にそのブックの名前と認可ステップの名前）、画面の履歴の段は動かさない
 function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"): void {
   const step: HistoryStep | undefined = ctx.bookHistory[from].at(-1)
   const opened = ctx.stage.opened
   if (!step || !opened) return
-  const done: { book: string; args: Patch; to: Book; back: Patch }[] = []
-  for (const [book, { before, after }] of Object.entries(step.books)) {
-    const [was, to] = from === "undo" ? [after, before] : [before, after]
-    const args = patchOf(was, to)
-    if (!args) continue
-    const result = a.perform(HISTORY_RESTORE.id, args, { book })
+  const to = from === "undo" ? "before" : "after"
+  const args = {
+    books: [...step.inBooks],
+    pages: patchesToward(step.pages, to),
+    folders: patchesToward(step.folders, to),
+  }
+  const page = pageToOpen(booksOf(ctx), step, to, opened.book, args)
+  if (Object.keys(args.pages).length + Object.keys(args.folders).length > 0) {
+    const result = a.perform(HISTORY_RESTORE.id, args)
     if (!result.ok) {
-      for (const d of done.reverse()) a.perform(HISTORY_RESTORE.id, d.back, { book: d.book })
       const denied = result.reason === "denied" ? ctx.catalog.permissions.get(result.permission) : undefined
+      const book = result.reason === "denied" && result.book ? booksOf(ctx)[result.book] : undefined
       a.showToast({
         kind: "warn",
         message: from === "undo" ? kit.message("Could not undo") : kit.message("Could not redo"),
-        detail: denied && {
-          message: kit.message('{reason}: "{book}"'),
-          params: { book: was.title, reason: { message: denied.title } },
-        },
+        detail: denied &&
+          book && {
+            message: kit.message('{reason}: "{book}"'),
+            params: { book: book.title, reason: { message: denied.title } },
+          },
       })
       return
     }
-    done.push({ book, args, to, back: patchOf(to, was) as Patch })
   }
-  const shown = done.find(d => d.book === opened.book)
-  const page = shown && pageOf(shown.args, shown.to)
   if (page && page !== shownPageId(opened)) a.openPage(page)
   a.moveHistory(opened.book, from)
 }
@@ -73,7 +88,8 @@ export const UNDO = kit.defineCommand({
   permissionScope: "book",
   run: (ctx, a) => restore(ctx, a, "undo"),
   when: ctx => ctx.book !== null,
-  enabled: ctx => ctx.bookHistory.undo.length > 0,
+  // 印刷プレビューの間は、ブックを変えない（置き直しは一覧が対象のアクションなので、ステージが止めない。ここで止める）
+  enabled: ctx => ctx.stage.mode === "edit" && ctx.bookHistory.undo.length > 0,
 })
 
 export const REDO = kit.defineCommand({
@@ -83,7 +99,8 @@ export const REDO = kit.defineCommand({
   permissionScope: "book",
   run: (ctx, a) => restore(ctx, a, "redo"),
   when: ctx => ctx.book !== null,
-  enabled: ctx => ctx.bookHistory.redo.length > 0,
+  // 印刷プレビューの間は、ブックを変えない（置き直しは一覧が対象のアクションなので、ステージが止めない。ここで止める）
+  enabled: ctx => ctx.stage.mode === "edit" && ctx.bookHistory.redo.length > 0,
 })
 
 export const HISTORY_KEYS = [

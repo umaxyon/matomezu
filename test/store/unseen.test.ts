@@ -194,6 +194,6 @@ test("AI の 1 回の操作が何冊も変えたら、見えたブックの画�
   }
   change({ ...world.b2, title: "AI" })
   change({ ...world.b1, title: "AI" })
-  expect(historyOf(store)?.undo.map(s => Object.keys(s.books))).toEqual([["b1"]])
+  expect(historyOf(store)?.undo.map(s => s.inBooks)).toEqual([["b1"]])
   expect(store.state.getState().history.b2).toBeUndefined()
 })
