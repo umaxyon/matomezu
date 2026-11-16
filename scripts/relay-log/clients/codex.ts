@@ -64,7 +64,7 @@ const isMatomezuOf = ({ ns, tool }: { ns?: string; tool: Tool }) =>
 export function summarize(body: ResponsesBody): Summary {
   const input = body.input ?? []
   const toolItems = input.filter(i => i.type === "additional_tools")
-  const developer = input.filter(i => isMessage(i, "developer"))
+  const developer = leadingDeveloper(input)
   const tools = flatTools(input)
   const matomezuTools = tools.filter(isMatomezuOf)
   const results = resultsOf(codex, input)
@@ -89,6 +89,17 @@ export function summarize(body: ResponsesBody): Summary {
     prefix,
     results,
   }
+}
+
+// 先頭の developer の message（Codex の指示）。会話が始まったあとの developer の message はフックの文なので入れない
+function leadingDeveloper(input: Item[]): Item[] {
+  const out: Item[] = []
+  for (const i of input) {
+    if (i.type === "additional_tools") continue
+    if (!isMessage(i, "developer")) break
+    out.push(i)
+  }
+  return out
 }
 
 // 前置きの並びは input の項目の順
@@ -130,7 +141,8 @@ function toolGroup(name: string): Group {
   return name.startsWith("mcp__") ? "他の MCP" : "固定"
 }
 
-// developer の message の文の頭の見出し。無い物は Codex の指示（固定）、ほかの <見出し> は見出しの名前で固定
+// developer の message の文の頭の見出し。無い物は Codex の指示（固定）、ほかの <見出し> は見出しの名前で固定。
+// 利用者の入力より後ろの developer の message は、フックが足した文（話しかけのフックの additionalContext）
 const DEVELOPER: { re: RegExp; label: string; group: Group }[] = [
   { re: /^<skills_instructions>/, label: "スキルの一覧", group: "スキル" },
   { re: /^<tools>/, label: "遅延の道具の名前空間の一覧", group: "他の MCP" },
@@ -143,8 +155,9 @@ const USER: { re: RegExp; label: string; group: Group }[] = [
 
 const tagOf = (text: string) => text.match(/^<([^>\n]{1,60})>/)?.[1]
 
-function textGroup(role: string, text: string): { label: string; group: Group } {
+function textGroup(role: string, text: string, talked: boolean): { label: string; group: Group } {
   if (role === "developer") {
+    if (talked) return { label: "フックの文", group: "フック" }
     const known = DEVELOPER.find(k => k.re.test(text))
     if (known) return known
     const tag = tagOf(text)
@@ -172,6 +185,7 @@ export function classify(body: ResponsesBody): Part[] {
   const input = body.input ?? []
   const names = new Map(input.flatMap(toolUses).map(u => [u.id, u.name]))
   const parts: Part[] = []
+  let talked = false
   input.forEach((item, i) => {
     const where = `input${i}`
     if (item.type === "additional_tools") {
@@ -192,7 +206,9 @@ export function classify(body: ResponsesBody): Part[] {
     } else if (item.type === "message") {
       textsOf(item).forEach((p, j) => {
         const text = p.text ?? asText(p)
-        parts.push({ where: `${where}[${j}]`, ...textGroup(item.role ?? "", text), chars: text.length, text })
+        const g = textGroup(item.role ?? "", text, talked)
+        parts.push({ where: `${where}[${j}]`, ...g, chars: text.length, text })
+        if (g.label === "利用者の入力") talked = true
       })
     } else if (item.type === "custom_tool_call" || item.type === "function_call") {
       const name = toolUses(item)[0]?.name ?? item.name ?? "?"

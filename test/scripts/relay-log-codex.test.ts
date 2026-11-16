@@ -109,6 +109,13 @@ test("中身は場所と確かめた見出しで分け、matomezu の結果は m
   expect(parts.find(p => p.where === "input9")?.text).toBe(`Script completed\nOutput:\n${"x".repeat(40)}`)
 })
 
+test("利用者の入力より後ろの developer の message はフックの文として分け、Codex の指示の大きさに入れない", () => {
+  const joined = body([message("developer", "You joined matomezu. Workroom name: ひよこ")])
+  const last = classify(joined).at(-1)
+  expect([last?.label, last?.group]).toEqual(["フックの文", "フック"])
+  expect(summarize(joined).systemChars).toBe(summarize(body()).systemChars)
+})
+
 test("道具の名前空間に matomezu の道具があれば matomezu、ほかの MCP は他の MCP にする", () => {
   const parts = classify({
     input: [
