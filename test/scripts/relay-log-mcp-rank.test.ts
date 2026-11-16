@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { claude, type Message, type MessagesBody } from "../../scripts/relay-log/clients/claude"
 import { codex } from "../../scripts/relay-log/clients/codex"
-import { mcpCalls, rank } from "../../scripts/relay-log/mcp-rank"
+import { callsOf, mcpCalls, rank } from "../../scripts/relay-log/mcp-rank"
 import { openStore } from "../../scripts/relay-log/store"
 
 const dir = mkdtempSync(join(tmpdir(), "relay-mcp-rank-"))
@@ -108,4 +108,22 @@ test("Codex の exec から呼んだ matomezu の道具も、その exec の結�
     ["cx", "list_books", codex.toolResults(items[1])[0]!.chars],
   ])
   store.close()
+})
+
+test("集計の単位ごとの呼び出しを古い順に並べ、多ければ新しい方の limit 件と全部の数を返す", () => {
+  const call = (tool: string, key: string, at: string, chars = 1) => ({ session: "s", at, tool, key, input: {}, chars })
+  const calls = [
+    call("actions", "actions", "2026-11-16T03:00:00.000Z"),
+    call("perform", "perform page-add", "2026-11-16T01:00:00.000Z"),
+    call("actions", "actions", "2026-11-16T01:00:00.000Z"),
+    call("perform", "perform join", "2026-11-16T02:00:00.000Z"),
+    call("actions", "actions", "2026-11-16T02:00:00.000Z"),
+  ]
+  expect(callsOf(calls, "actions").calls.map(c => c.at.slice(11, 13))).toEqual(["01", "02", "03"])
+  const two = callsOf(calls, "actions", 2)
+  expect([two.total, two.calls.map(c => c.at.slice(11, 13))]).toEqual([3, ["02", "03"]])
+  // perform は action ごとのキーでも、perform の呼び出しすべてでも引ける
+  expect(callsOf(calls, "perform page-add").total).toBe(1)
+  expect(callsOf(calls, "perform").total).toBe(2)
+  expect(callsOf(calls, "read_page")).toEqual({ total: 0, calls: [] })
 })

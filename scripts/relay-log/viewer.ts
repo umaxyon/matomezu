@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import { clientOf, clients } from "./clients"
 import { HIDDEN_BY_DEFAULT, totals } from "./common"
-import { mcpCalls, rank } from "./mcp-rank"
+import { callsOf, mcpCalls, rank } from "./mcp-rank"
 import type { Store } from "./store"
 import { timeline } from "./timeline"
 import type { ClientName } from "./types"
@@ -44,6 +44,11 @@ export function startViewer({ store, port }: { store: Store; port: number }) {
       const client = asked && asked in clients ? (asked as ClientName) : undefined
       if (path === "/api/sessions") return Response.json(store.sessions(client))
       if (path === "/api/mcp") return Response.json(rank(mcpCalls(store.mcpRows(session, client))))
+      if (path === "/api/mcp/calls") {
+        const limit = Number(url.searchParams.get("limit"))
+        const calls = mcpCalls(store.mcpRows(session, client))
+        return Response.json(callsOf(calls, url.searchParams.get("key") ?? "", limit > 0 ? limit : undefined))
+      }
       if (path === "/api/timeline") {
         const { from, to } = spanOf(url.searchParams)
         return Response.json(timeline(store.timeline(from, to)))

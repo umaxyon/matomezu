@@ -53,3 +53,11 @@ export function rank(calls: McpCall[], topN = 20): McpRank {
     top: [...calls].sort((a, b) => b.chars - a.chars).slice(0, topN),
   }
 }
+
+export type McpCallList = { total: number; calls: McpCall[] }
+
+// 集計の単位 key（rankKey の値。perform なら perform の呼び出しすべて）の呼び出しを、古い順に。多ければ新しい方の limit 件
+export function callsOf(calls: McpCall[], key: string, limit = 500): McpCallList {
+  const picked = calls.filter(c => c.key === key || c.tool === key).sort((a, b) => a.at.localeCompare(b.at))
+  return { total: picked.length, calls: picked.slice(Math.max(0, picked.length - limit)) }
+}
