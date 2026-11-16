@@ -22,7 +22,7 @@ const NOTE = definePageType({
   version: 1,
   title: "@matomezu/drawing:Drawing",
   grouping: "none",
-  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
+  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape" },
   items: { allowed: [] },
   actions: {},
   theme: "@matomezu/base:standard",
@@ -53,7 +53,7 @@ const LEAF = definePageType({
   version: 1,
   title: "@matomezu/drawing:Drawing",
   grouping: "none",
-  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
+  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape" },
   fields: { root: z.strictObject({ caption: z.string() }) },
   // core/catalog.ts に書き足していないダイアログは、型では名指せないので言い張る
   dialogs: { add: "notes:leaf-new" as never, settings: "notes:leaf-settings" as never },

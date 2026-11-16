@@ -81,7 +81,7 @@ export const SHELF = kit.definePageType({
   version: 1,
   title: "shelf",
   grouping: "none",
-  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
+  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape" },
   items: {
     allowed: [kit.name("tiles"), "@matomezu/box:shape-box"],
   },

@@ -89,7 +89,6 @@ export const FLOWCHART = kit.definePageType({
     allowed: PAPER_IDS,
     default: "@matomezu/base:a4",
     orientation: "portrait",
-    perPage: true,
   },
   slide: { allowed: BACKGROUND_ITEMS, background: true },
   items: {

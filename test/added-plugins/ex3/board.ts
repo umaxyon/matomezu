@@ -110,7 +110,6 @@ export const BOARD = kit.definePageType({
     allowed: [SQUARE.id, "@matomezu/base:a4"],
     default: SQUARE.id,
     orientation: "portrait",
-    perPage: true,
   },
   items: {
     allowed: [STAR.id, "@matomezu/list:shape-list", "@matomezu/line:connector-line"],

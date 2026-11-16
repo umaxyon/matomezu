@@ -222,7 +222,7 @@ export function withSettings<T extends object>(target: T, patch: Readonly<Record
 // - ページとバインダの id は、ブックの中で重ならない
 // - まとまるタイプ（grouping が binder）のページは、そのタイプのバインダの中にだけある。バインダが入れるタイプは、まとまるタイプ
 // - 同じ入れ物の中（ブックの並び・バインダの中）で、名前（ページとバインダの title）は重ならない
-// - 紙をそろえるタイプ（紙の規定の perPage が false）のページは、同じ入れ物の中の同じタイプどうしで、紙と向きが同じ
+// - バインダの中のページは、紙と向きが同じ
 // - どのページも、タイプの決まり（holds）と、つなぐものの定義の決まりを守る
 export function holds(catalog: CoreCatalog, book: Book): boolean {
   const ids = lineupIds(book)
@@ -235,20 +235,14 @@ export function holds(catalog: CoreCatalog, book: Book): boolean {
       if (grouping(e.type) !== "none") return false
     } else if (grouping(e.pageType) !== "binder" || e.lineup.some(p => p.type !== e.pageType)) return false
   }
-  if (!sharesPaper(catalog, book.lineup) || !bindersOf(book).every(f => sharesPaper(catalog, f.lineup))) return false
+  if (!bindersOf(book).every(sharesPaper)) return false
   return pagesOf(book).every(p => (pageType(catalog, p.type).holds?.(p, catalog) ?? true) && pageHolds(catalog, p))
 }
 
-// 入れ物の中身 entries で、紙をそろえるタイプのページが、同じタイプどうしで紙と向きをそろえているか
-function sharesPaper(catalog: CoreCatalog, entries: readonly LineupEntry[]): boolean {
-  const first = new Map<string, Page>()
-  for (const e of entries) {
-    if (e.kind !== "page" || catalog.pageTypes.get(e.type)?.paper.perPage !== false) continue
-    const lead = first.get(e.type)
-    if (!lead) first.set(e.type, e)
-    else if (lead.paper !== e.paper || lead.orientation !== e.orientation) return false
-  }
-  return true
+// バインダの中のページが、紙と向きをそろえているか
+function sharesPaper(binder: BinderEntry): boolean {
+  const lead = binder.lineup[0]
+  return binder.lineup.every(p => p.paper === lead?.paper && p.orientation === lead.orientation)
 }
 
 // ブックを変えた前と後で、同じ id のページのタイプと、同じ id のバインダが入れるタイプが同じか（どちらも、作ったあと変えない）

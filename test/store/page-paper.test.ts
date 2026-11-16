@@ -64,7 +64,6 @@ const SHEET = definePageType({
     allowed: ["@matomezu/base:a4", "@matomezu/base:a3"],
     default: "@matomezu/base:a4",
     orientation: "portrait",
-    perPage: false,
   },
   grow: { sides: () => ({ up: false, down: true, left: false, right: true }) },
   items: { allowed: [] },
@@ -75,7 +74,7 @@ const SHEET = definePageType({
   tokens: [],
 })
 
-test("伸びられるタイプのページは、作るときもあとからも可変ページにでき、grows は向きの次に並ぶ。1 冊の紙をそろえる規定では、ほかのページがあれば紙を変えられない", () => {
+test("伸びられるタイプのページは、作るときもあとからも可変ページにでき、grows は向きの次に並ぶ。バインダに入らないタイプのページは、ほかのページがあっても紙を変えられる", () => {
   const ids = ["n1", "n2", "n3"]
   const instance = createMatomezu({
     plugins: [...BUILTIN, definePlugin({ id: "notes", pageTypes: [SHEET] })],
@@ -95,14 +94,13 @@ test("伸びられるタイプのページは、作るときもあとからも�
   expect(perform("@matomezu/base:page-update", { page: "n2", grows: "down" }, { book: "n1" }).ok).toBe(false)
   expect(perform("@matomezu/base:page-update", { page: "n2", grows: false }, { book: "n1" }).ok).toBe(true)
   expect("grows" in (pages()[0] ?? {})).toBe(false)
-  // ページが 1 枚なら、紙をそろえる規定でも変えられる
   expect(perform("@matomezu/base:page-update", { page: "n2", paper: "@matomezu/base:a3" }, { book: "n1" }).ok).toBe(
     true,
   )
   expect(perform("@matomezu/base:page-add", { type: "notes:sheet", title: "q" }, { book: "n1" }).ok).toBe(true)
-  expect(pages()[1]).toMatchObject({ paper: "@matomezu/base:a3" })
+  expect(pages()[1]).toMatchObject({ paper: "@matomezu/base:a4" })
   expect(perform("@matomezu/base:page-update", { page: "n2", paper: "@matomezu/base:a4" }, { book: "n1" }).ok).toBe(
-    false,
+    true,
   )
 })
 

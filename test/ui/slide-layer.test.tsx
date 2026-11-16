@@ -24,7 +24,7 @@ const BACK = definePageType({
   version: 1,
   title: "@matomezu/drawing:Drawing",
   grouping: "none",
-  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
+  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape" },
   items: { allowed: [BOX] },
   slide: { allowed: [TEXT], background: true },
   actions: {},

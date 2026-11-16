@@ -45,7 +45,7 @@ test("ページのタイプの id は、プラグインの id と : の頭を付
     version: 1,
     title: "Board",
     grouping: "none",
-    paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
+    paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape" },
     items: { allowed: [] },
     actions: {},
     theme: "@matomezu/base:standard",

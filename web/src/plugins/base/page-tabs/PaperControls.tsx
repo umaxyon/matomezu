@@ -61,7 +61,7 @@ export function usePaperControls(
     ? paperChoicesFor(catalog, book, page)
     : paperChoices(catalog, book, type, place)
   const choices = growChoices(catalog, type)
-  const shared = !pageType(catalog, type).paper.perPage && (page !== null || place !== "new-binder") // 紙と向きを、そろえる相手に任せるか
+  const shared = pageType(catalog, type).grouping === "binder" && (page !== null || place !== "new-binder") // 紙と向きを、そろえる相手に任せるか
   const chosen = value.grows === true ? undefined : value.grows // 選んでいる増やす向き
   // 変えた項目（ページを作るなら全部）
   const patch = {

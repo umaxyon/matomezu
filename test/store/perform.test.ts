@@ -22,7 +22,7 @@ const NOTE = definePageType({
   version: 1,
   title: "@matomezu/drawing:Drawing",
   grouping: "none",
-  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "portrait", perPage: true },
+  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "portrait" },
   items: { allowed: [] },
   actions: { add: ["notes:rename" as never, "notes:break" as never, "notes:stamp" as never] },
   theme: "@matomezu/base:standard",

@@ -56,7 +56,7 @@ export const DECK = kit.definePageType({
   version: 1,
   title: "deck",
   grouping: "none",
-  paper: { allowed: PAPER_IDS, default: "@matomezu/base:a4", orientation: "portrait", perPage: true },
+  paper: { allowed: PAPER_IDS, default: "@matomezu/base:a4", orientation: "portrait" },
   fields: { cards: z.array(z.string()).describe("The cards' words, in order").optional() }, // 無ければカードは無い
   items: { allowed: [] },
   actions: {},

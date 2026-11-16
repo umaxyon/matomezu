@@ -42,7 +42,6 @@ export const MARKDOWN = kit.definePageType({
     allowed: PAPER_IDS,
     default: "@matomezu/base:a4",
     orientation: "portrait",
-    perPage: true,
   },
   fields: { text: z.string().describe("The page's document, in Markdown").optional() }, // 無ければ空の文書
   items: { allowed: [] },

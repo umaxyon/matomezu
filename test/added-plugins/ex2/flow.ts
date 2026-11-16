@@ -60,7 +60,7 @@ export const FLOW = kit.definePageType({
   version: 1,
   title: "flow",
   grouping: "none",
-  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "portrait", perPage: true },
+  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "portrait" },
   items: {
     allowed: [DIAMOND.id, "@matomezu/box:shape-box", "@matomezu/line:connector-line"],
   },

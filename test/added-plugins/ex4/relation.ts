@@ -41,7 +41,7 @@ export const MAP = kit.definePageType({
   version: 1,
   title: "map",
   grouping: "none",
-  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
+  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape" },
   items: {
     allowed: [kit.name("relation"), "@matomezu/box:shape-box", "@matomezu/line:connector-line"],
   },

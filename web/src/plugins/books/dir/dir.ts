@@ -70,7 +70,6 @@ export const DIR = kit.definePageType({
     allowed: PAPER_IDS,
     default: "@matomezu/base:a4",
     orientation: "portrait",
-    perPage: true,
   },
   fields: { root: DirFolderSchema },
   dialogs: { add: NEW_DIR_PAGE_DIALOG.id },

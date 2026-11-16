@@ -23,7 +23,7 @@ export const YARD = kit.definePageType({
   version: 1,
   title: "yard",
   grouping: "none",
-  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
+  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape" },
   items: { allowed: [kit.name("crate")] },
   actions: {},
   theme: "@matomezu/base:standard",

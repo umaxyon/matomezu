@@ -51,7 +51,6 @@ export const DRAWING = kit.definePageType({
     allowed: PAPER_IDS,
     default: "@matomezu/base:a4",
     orientation: "landscape",
-    perPage: true,
   },
   items: {
     allowed: ITEMS,

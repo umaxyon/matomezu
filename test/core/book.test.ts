@@ -88,7 +88,7 @@ describe("並び", () => {
         true,
       ],
       [
-        "紙をそろえるタイプのバインダの中で紙が違う",
+        "バインダの中で紙が違う",
         testBook("b", "b", [
           testBinder(
             "f1",
@@ -101,7 +101,7 @@ describe("並び", () => {
         false,
       ],
       [
-        "紙をそろえるタイプのバインダの中で向きが違う",
+        "バインダの中で向きが違う",
         testBook("b", "b", [
           testBinder(
             "f1",
@@ -114,7 +114,7 @@ describe("並び", () => {
         false,
       ],
       [
-        "バインダが違えば紙が違ってよい。紙をページごとに選ぶタイプは、同じ入れ物でも違ってよい",
+        "バインダが違えば紙が違ってよい。バインダの外のページは、紙が違ってよい",
         testBook("b", "b", [
           drawingPage("p1", { title: "1" }),
           drawingPage("p2", { title: "2", paper: "@matomezu/base:a3" }),
@@ -159,12 +159,11 @@ describe("紙の規定（図面はページごとに選べる）", () => {
     })
   })
 
-  test("1 冊の紙をそろえる規定では、最初のページは規定から選び、後のページは最初のページの紙だけ", () => {
+  test("そろえる相手のページがいなければ規定から選び、いれば最初のページの紙と向きだけ", () => {
     const rule = {
       allowed: ["@matomezu/base:a4", "@matomezu/base:a3"],
       default: "@matomezu/base:a4",
       orientation: "landscape" as const,
-      perPage: false,
     }
     expect(choosablePapers(rule, [])).toEqual({
       papers: ["@matomezu/base:a4", "@matomezu/base:a3"],

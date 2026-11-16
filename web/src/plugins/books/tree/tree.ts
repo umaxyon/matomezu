@@ -86,7 +86,6 @@ export const TREE = kit.definePageType({
     allowed: PAPER_IDS,
     default: "@matomezu/base:a4",
     orientation: "landscape",
-    perPage: true,
   },
   fields: { root: TreeRootSchema },
   dialogs: { add: NEW_TREE_PAGE_DIALOG.id, settings: TREE_PAGE_SETTINGS_DIALOG.id },

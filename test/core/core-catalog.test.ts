@@ -302,7 +302,7 @@ describe("機能台帳ごとに別の世界", () => {
     version: 1,
     title: "@matomezu/drawing:Drawing",
     grouping: "none",
-    paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape", perPage: true },
+    paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "landscape" },
     items: { allowed: [] },
     actions: {},
     theme: "@matomezu/base:standard",

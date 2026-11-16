@@ -14,54 +14,51 @@ import { extentOf, growOf, paddedFor, pageArea } from "../place/items"
 // タイプ type のページの、紙の規定
 const paperRule = (catalog: CoreCatalog, type: string): PaperRule => pageType(catalog, type).paper
 
-// 次のページに選べる紙と向き。1 冊の紙をそろえる規定では、最初のページの紙と向きだけ
+// 次のページに選べる紙と向き。バインダの中では、最初のページの紙と向きだけ
 export interface PaperOptions {
   papers: readonly string[]
   orientations: readonly Orientation[]
 }
 
-// 規定の下で、次のページに選べる紙と向き（pages は、そろえる相手のページ）
-export function choosablePapers(rule: PaperRule, pages: readonly Page[]): PaperOptions {
-  const first = pages[0]
-  if (rule.perPage || !first) return { papers: rule.allowed, orientations: ORIENTATIONS }
+// 規定 rule の下で、次のページに選べる紙と向き（mates は、紙と向きをそろえる相手のページ。いなければ規定から選ぶ）
+export function choosablePapers(rule: PaperRule, mates: readonly Page[]): PaperOptions {
+  const first = mates[0]
+  if (!first) return { papers: rule.allowed, orientations: ORIENTATIONS }
   return { papers: [first.paper], orientations: [first.orientation] }
 }
 
-// 足すページを入れる所: ブックの並び（lineup）、今あるバインダ（その id）、これから作るバインダ（new-binder。そろえる相手がまだ無い）
+// 足すページを入れる所: ブックの並び（lineup）、今あるバインダ（その id）、これから作るバインダ（new-binder）
 export type PaperPlace = "lineup" | "new-binder" | { binder: string }
 
-// 紙をそろえる相手: 同じ入れ物（ブックの並びか、バインダの中）の、同じタイプのページ
-function mates(book: Book, type: string, place: PaperPlace): readonly Page[] {
-  if (place === "new-binder") return []
-  const inside = place === "lineup" ? lineupOf(book).filter(e => e.kind === "page") : pagesIn(book, place.binder)
-  return inside.filter(p => p.type === type)
+// 紙と向きをそろえる相手: 同じバインダの中のページ（バインダの外のページと、これから作るバインダには、相手がいない）
+function mates(book: Book, place: PaperPlace): readonly Page[] {
+  return typeof place === "string" ? [] : pagesIn(book, place.binder)
 }
 
-// ブック book の所 place に足す、タイプ type の次のページに選べる紙と向き（紙をそろえる規定のタイプは、同じ入れ物の同じタイプのページにそろえる）
+// ブック book の所 place に足す、タイプ type の次のページに選べる紙と向き
 export function paperChoices(
   catalog: CoreCatalog,
   book: Book,
   type: string,
   place: PaperPlace = "lineup",
 ): PaperOptions {
-  return choosablePapers(paperRule(catalog, type), mates(book, type, place))
+  return choosablePapers(paperRule(catalog, type), mates(book, place))
 }
 
-// ページ page の紙と向きを変えるときに選べるもの（そのページ自身は、紙をそろえる規定の手本にしない）
+// ページ page の紙と向きを変えるときに選べるもの（そのページ自身は、そろえる相手にしない）
 export function paperChoicesFor(catalog: CoreCatalog, book: Book, page: Page): PaperOptions {
   const binder = findPage(book, page.id)?.binder
   return choosablePapers(
     paperRule(catalog, page.type),
-    mates(book, page.type, binder ? { binder: binder.id } : "lineup").filter(p => p.id !== page.id),
+    mates(book, binder ? { binder: binder.id } : "lineup").filter(p => p.id !== page.id),
   )
 }
 
-// バインダ binder（id）のページの紙と向きを、まとめて choice にできるか: 紙をそろえる規定のタイプのバインダで、choice がタイプの規定の紙と向きのとき
+// バインダ binder（id）のページの紙と向きを、まとめて choice にできるか: choice が、バインダに入るタイプの規定の紙と向きのとき
 export function canPaperBinder(catalog: CoreCatalog, book: Book, binder: string, choice: PaperChoice): boolean {
   const type = findBinder(book, binder)?.pageType
   if (type === undefined) return false
-  const rule = paperRule(catalog, type)
-  return !rule.perPage && canChoose({ papers: rule.allowed, orientations: ORIENTATIONS }, choice)
+  return canChoose({ papers: paperRule(catalog, type).allowed, orientations: ORIENTATIONS }, choice)
 }
 
 // タイプ type のページを、可変ページにする・やめるを選べるか（いつも可変ページのタイプは選べない）
