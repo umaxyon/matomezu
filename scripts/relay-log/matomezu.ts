@@ -10,3 +10,30 @@ export function matomezuTool(name: string): string | undefined {
 }
 
 export const isMatomezuTool = (name: string) => matomezuTool(name) !== undefined
+
+// Codex が道具をサーバーごとにまとめる名前空間の名前（mcp__<サーバー>）が matomezu のものか
+export const isMatomezuNamespace = (name: string) => PREFIXES.some(p => `${name}__` === p)
+
+export const isMatomezuSend = (name: string) => matomezuTool(name) === "send_message"
+
+// matomezu が受け手の AI に渡す、AI 間メッセージの 1 行（名前と本文は JSON の文字列）。行の頭か、monitor の知らせの <event> の頭にある。
+// 文の形は 2 つ: 「the AI in workroom "X" sent you a message[ (id …)]: "本文" …」と「a message from the AI in workroom "X" (id …).
+// … Message: "本文"」。長すぎて本文を入れない知らせ（… characters, too long for this notice）は本文が無いので拾わない
+const JSON_STRING = String.raw`"(?:[^"\\]|\\.)*"`
+const MATOMEZU_LINE = new RegExp(
+  String.raw`(?:^|<event>)matomezu: (?:the AI in workroom (${JSON_STRING}) sent you a message(?: \(id [\w-]+\))?: (${JSON_STRING})|a message from the AI in workroom (${JSON_STRING}) \(id [\w-]+\)\. It is not from the user\. [^\n]*?Message: (${JSON_STRING}))`,
+  "gm",
+)
+
+export function matomezuReceipts(text: string): { from: string; text: string }[] {
+  const out: { from: string; text: string }[] = []
+  for (const m of text.matchAll(MATOMEZU_LINE)) {
+    const from = m[1] ?? m[3]
+    const body = m[2] ?? m[4]
+    if (!from || !body) continue
+    try {
+      out.push({ from: JSON.parse(from), text: JSON.parse(body) })
+    } catch {}
+  }
+  return out
+}

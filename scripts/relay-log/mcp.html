@@ -19,13 +19,18 @@
   .track { display:flex; align-items:center; gap:8px; min-width:0; }
   .bar { height:14px; background:var(--bar); border-radius:2px; flex:none; min-width:2px; }
   .value { white-space:nowrap; } .muted { color:var(--muted); }
+  .pick { cursor:pointer; text-decoration:underline dotted; } .picked { font-weight:bold; }
 </style>
 </head>
 <body>
 <header><a href="/">一覧へ</a><b>matomezu の MCP の結果の大きさ</b><select id="session"><option value="">全セッション</option></select><button type="button" id="reload">読み直す</button><span id="count"></span></header>
 <main>
-  <h3>ツールごとの合計 <span>（perform は action ごと。字数は結果の JSON の長さ、呼び出し 1 回を 1 回だけ数える）</span></h3>
+  <h3>ツールごとの合計 <span>（perform は action ごと。字数は結果の JSON の長さ、呼び出し 1 回を 1 回だけ数える。名前を押すと呼び出しの一覧）</span></h3>
   <div class="chart" id="byTool"></div>
+  <section id="callsBox" hidden>
+    <h3 id="callsTitle">呼び出しの一覧</h3>
+    <div class="chart" id="calls"></div>
+  </section>
   <h3>1 回ずつの上位 20</h3>
   <div class="chart" id="top"></div>
 </main>
@@ -42,8 +47,10 @@ function bars(box, rows) {
   box.replaceChildren()
   const max = Math.max(1, ...rows.map(r => r.value))
   for (const r of rows) {
+    const label = el("div", { className: "label", textContent: r.label, title: r.title ?? r.label })
+    if (r.onclick) Object.assign(label, { onclick: r.onclick, className: `label pick${r.picked ? " picked" : ""}` })
     box.append(
-      el("div", { className: "label", textContent: r.label, title: r.title ?? r.label }),
+      label,
       el("div", { className: "track" },
         el("div", { className: "bar", style: `width:${(r.value / max) * 70}%` }),
         el("span", { className: "value" }, `${num(r.value)} 字 `, el("span", { className: "muted", textContent: r.note }))),
@@ -55,6 +62,25 @@ function bars(box, rows) {
 const args = input => {
   const text = JSON.stringify(input ?? {})
   return text === "{}" ? "" : ` ${text}`
+}
+
+// ツールごとの合計で押したツールの、呼び出しの一覧（古い順）
+let picked = ""
+const sessionQuery = () => {
+  const s = document.getElementById("session").value
+  return s ? `&session=${encodeURIComponent(s)}` : ""
+}
+async function loadCalls() {
+  const box = document.getElementById("callsBox")
+  box.hidden = !picked
+  if (!picked) return
+  const r = await get(`/api/mcp/calls?key=${encodeURIComponent(picked)}${sessionQuery()}`)
+  const shown = r.calls.length < r.total ? `、新しい ${r.calls.length} 回` : ""
+  document.getElementById("callsTitle").textContent = `${picked} の呼び出し（${r.total} 回${shown}、古い順）`
+  bars(document.getElementById("calls"), r.calls.map(c => ({
+    label: c.tool + args(c.input), title: `${c.tool} ${JSON.stringify(c.input ?? {}, null, 1)}`, value: c.chars,
+    note: `${c.session} ${new Date(c.at).toLocaleString()}`,
+  })))
 }
 
 async function load() {
@@ -69,7 +95,10 @@ async function load() {
   const r = await get(`/api/mcp${select.value ? `?session=${encodeURIComponent(select.value)}` : ""}`)
   bars(document.getElementById("byTool"), r.byTool.map(t => ({
     label: t.key, value: t.chars, note: `${t.calls} 回 最大 ${num(t.max)} 字`,
+    picked: t.key === picked,
+    onclick: () => { picked = picked === t.key ? "" : t.key; load() },
   })))
+  await loadCalls()
   bars(document.getElementById("top"), r.top.map(c => ({
     label: c.tool + args(c.input), title: `${c.tool} ${JSON.stringify(c.input ?? {}, null, 1)}`, value: c.chars,
     note: `${c.session} ${new Date(c.at).toLocaleTimeString()}`,

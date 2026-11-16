@@ -2,8 +2,8 @@
 // ワークルームは名前・鳥・配色を持つ独立したデータ（id は振り直さない）。空室は、入っている参加者がいないワークルーム（ワークルームの側には持たない）。
 // 参加者は AI のセッションが入る記録で、要求中（requested）か受け入れ済み（joined。入っているワークルームの id を持つ）。
 // 管理者の印は全体に 1 つ（id は "admin"。ワークルームの id か "none"。どこからも読まない飾り）。指す先のワークルームが無ければ「無い」として読み、書き換えない。
-// 要求する participant-request は AI も行え、ほかは利用者だけ。受け入れるときに、新しいワークルームなら先に workroom-add でワークルームを作り、participant-accept で入れる。
-// 引き継ぎ・ワークルームを出る・ワークルームを消すは、アクションを 1 件ずつ続けて行う（join-flow.ts）
+// 要求する participant-request は AI も行え、ほかは利用者だけ。participant-accept は、入るワークルームを作る・いる参加者を外す・捨てるワークルームを消すまで 1 つのアクションで行う。
+// workroom-remove も、いる参加者を一緒に外す。外す参加者は id で渡し、渡した参加者がそのワークルームにいるときだけ外す（生きているかは、ダイアログが見る）
 import { z } from "zod"
 import type { SubjectId } from "../../../core/catalog"
 import type { ActionContext } from "../../../core/def/action"
@@ -134,25 +134,91 @@ export const PARTICIPANT_REQUEST = kit.defineAction({
   },
 })
 
+// ワークルーム room に入っている参加者の索引キーを読む宣言
+const readsIn = (room: string) => ({
+  subject: PARTICIPANT.id,
+  where: [{ key: "workroom" as const, eq: room }],
+  keysOnly: true as const,
+})
+
+const NEW_WORKROOM = z.strictObject({ name: NAME, ...BIRD_ARGS })
+// 外す参加者の id（いる参加者を外して入れる・消すとき。渡した参加者がそのワークルームにいるときだけ外す）
+const OCCUPANT = z.string().min(1).optional()
+
+// ワークルーム room に入っている参加者のうち、外す参加者 occupant だけなら、外す id の並びを返す（誰もいなければ空。別の参加者がいれば null）
+const leaving = (ctx: Pick<ActionContext, "keys">, room: string, occupant: string | undefined): string[] | null => {
+  const inRoom = keysIn(ctx, PARTICIPANT.id)
+    .filter(p => p.keys.workroom === room)
+    .map(p => p.id)
+  if (inRoom.length === 0) return []
+  return occupant !== undefined && inRoom.length === 1 && inRoom[0] === occupant ? [occupant] : null
+}
+
 export const PARTICIPANT_ACCEPT = kit.defineAction({
   id: "participant-accept",
   aiDescription:
-    "Accept the requested participant named by on.record into a workroom (only the user). Refused unless the participant is requested, the workroom is there and has no participant in it.",
+    "Accept the requested participant named by on.record into a workroom (only the user), in one transaction. Either args.workroom (a workroom that is there; args.occupant, the id of the participant in it, is removed first) or args.newWorkroom (name up to 20 characters not repeated, bird, palette: a new workroom is made; args.discarding {workroom, occupant?} removes that workroom and its participant first, so the new name may be the same). Refused unless the participant is requested, the workroom is there and no participant other than the given occupant is in it; nothing changes then. Returns the workroom's id.",
   title: "Accept a participant",
   target: PARTICIPANT.id,
-  // 入るワークルームと、そこに入っている参加者の索引キー
-  reads: args => [
-    { subject: WORKROOM.id, id: args.workroom },
-    { subject: PARTICIPANT.id, where: [{ key: "workroom", eq: args.workroom }], keysOnly: true },
-  ],
+  writes: [WORKROOM.id],
+  // 入るワークルーム（作るなら、同じ名前の物）と、捨てるワークルームと、そこに入っている参加者の索引キー
+  reads: args =>
+    "newWorkroom" in args
+      ? [
+          { subject: WORKROOM.id, where: [{ key: "name", eq: args.newWorkroom.name }], keysOnly: true },
+          ...(args.discarding === undefined
+            ? []
+            : [{ subject: WORKROOM.id, id: args.discarding.workroom }, readsIn(args.discarding.workroom)]),
+        ]
+      : [{ subject: WORKROOM.id, id: args.workroom }, readsIn(args.workroom)],
   userOnly: true,
-  args: z.strictObject({ workroom: z.string().min(1) }),
+  args: z.union([
+    z.strictObject({ workroom: z.string().min(1), occupant: OCCUPANT }),
+    z.strictObject({
+      newWorkroom: NEW_WORKROOM,
+      discarding: z.strictObject({ workroom: z.string().min(1), occupant: OCCUPANT }).optional(),
+    }),
+  ]),
   run: (now, args, ctx) => {
     if (now === "none" || now.state !== "requested") return null
-    if (ctx.records?.[WORKROOM.id]?.[args.workroom] === undefined) return { declined: "the workroom is not there" }
-    if (keysIn(ctx, PARTICIPANT.id).length > 0) return { declined: "a participant is in the workroom already" }
     const { wantedName: _, ...rest } = now
-    return { next: { ...rest, state: "joined", workroom: args.workroom, joinedAt: ctx.now }, result: {} }
+    const joined = (workroom: string): Participant => ({ ...rest, state: "joined", workroom, joinedAt: ctx.now })
+    if (!("newWorkroom" in args)) {
+      if (ctx.records?.[WORKROOM.id]?.[args.workroom] === undefined) return { declined: "the workroom is not there" }
+      const out = leaving(ctx, args.workroom, args.occupant)
+      if (out === null) return { declined: "a participant is in the workroom already" }
+      return {
+        next: joined(args.workroom),
+        others: out.map(id => ({ id, record: "removed" as const })),
+        result: { workroom: args.workroom },
+      }
+    }
+    const discarding = args.discarding
+    if (discarding !== undefined && ctx.records?.[WORKROOM.id]?.[discarding.workroom] === undefined)
+      return { declined: "the workroom to discard is not there" }
+    const gone = discarding === undefined ? [] : leaving(ctx, discarding.workroom, discarding.occupant)
+    if (gone === null) return { declined: "a participant is in the workroom to discard" }
+    // 同じ名前は、捨てるワークルームだけが持っていてよい
+    if (keysIn(ctx, WORKROOM.id).some(w => w.id !== discarding?.workroom))
+      return { declined: `a workroom named ${args.newWorkroom.name} already exists` }
+    const room: Workroom = {
+      id: ctx.newId(),
+      name: args.newWorkroom.name,
+      bird: args.newWorkroom.bird,
+      ...(args.newWorkroom.palette ? { palette: args.newWorkroom.palette } : {}),
+      createdAt: ctx.now,
+    }
+    return {
+      next: joined(room.id),
+      others: [
+        { subject: WORKROOM.id, id: room.id, record: room },
+        ...(discarding === undefined
+          ? []
+          : [{ subject: WORKROOM.id, id: discarding.workroom, record: "removed" as const }]),
+        ...gone.map(id => ({ id, record: "removed" as const })),
+      ],
+      result: { workroom: room.id },
+    }
   },
 })
 
@@ -231,18 +297,23 @@ export const WORKROOM_UPDATE = kit.defineAction({
 export const WORKROOM_REMOVE = kit.defineAction({
   id: "workroom-remove",
   aiDescription:
-    "Remove the workroom named by on.record (only the user). Refused while a participant is in it: remove the participant first.",
+    "Remove the workroom named by on.record (only the user), in one transaction. args.occupant is the id of the participant in it, removed together. Refused when another participant is in it; nothing changes then.",
   title: "Remove a workroom",
   target: WORKROOM.id,
+  writes: [PARTICIPANT.id],
   // このワークルームに入っている参加者の索引キー
-  reads: (_args, _actor, on) =>
-    on === undefined ? [] : [{ subject: PARTICIPANT.id, where: [{ key: "workroom", eq: on }], keysOnly: true }],
+  reads: (_args, _actor, on) => (on === undefined ? [] : [readsIn(on)]),
   userOnly: true,
-  args: z.strictObject({}),
-  run: (now, _args, ctx) => {
+  args: z.strictObject({ occupant: OCCUPANT }),
+  run: (now, args, ctx) => {
     if (now === "none") return null
-    if (keysIn(ctx, PARTICIPANT.id).length > 0) return { declined: "a participant is in the workroom" }
-    return { next: "removed", result: {} }
+    const out = leaving(ctx, now.id, args.occupant)
+    if (out === null) return { declined: "a participant is in the workroom" }
+    return {
+      next: "removed",
+      others: out.map(id => ({ subject: PARTICIPANT.id, id, record: "removed" as const })),
+      result: {},
+    }
   },
 })
 

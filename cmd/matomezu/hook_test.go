@@ -48,7 +48,7 @@ func TestTalkedBindsTheSessionAndWelcomes(t *testing.T) {
 	}
 	f := &fakeTalk{}
 	var out bytes.Buffer
-	talked(&out, hookInput{SessionID: "S1", TranscriptPath: path}, "NOTE", formatHook, f.api)
+	talked(&out, hookInput{SessionID: "S1", TranscriptPath: path, Titled: true}, "NOTE", formatHook, f.api)
 	var got struct {
 		SystemMessage string `json:"systemMessage"`
 		Special       struct {
@@ -192,6 +192,20 @@ func TestPermissionAllowsOnlyTheToolsThatRead(t *testing.T) {
 		}
 		if !allowed && out.String() != "" {
 			t.Errorf("%s: should say nothing, said %q", tool, out.String())
+		}
+	}
+}
+
+// sessionTitle は、それを読む AI のプログラム（Titled）にだけ書く。Codex は知らない項目のある答えを捨てる
+func TestTalkedWritesTheTitleOnlyWhenTitled(t *testing.T) {
+	welcome := func([]byte) ([]byte, error) {
+		return []byte(`{"welcomes":[{"workroom":"ひよこ","message":"m","forAi":"a"}],"unbound":false}`), nil
+	}
+	for _, titled := range []bool{true, false} {
+		var out bytes.Buffer
+		talked(&out, hookInput{SessionID: "S1", Titled: titled}, "", formatHook, welcome)
+		if got := strings.Contains(out.String(), `"sessionTitle"`); got != titled {
+			t.Errorf("titled %v: %s", titled, out.String())
 		}
 	}
 }

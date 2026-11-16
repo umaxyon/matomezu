@@ -11,6 +11,7 @@ import (
 
 	claudelaunch "github.com/umaxyon/matomezu/clients/claude-code/launch"
 	codexlaunch "github.com/umaxyon/matomezu/clients/codex/launch"
+	codexsessionend "github.com/umaxyon/matomezu/clients/codex/sessionend"
 )
 
 // devAddr は、開発の常駐の待ち受け（scripts/dev.ts）
@@ -40,13 +41,23 @@ type claudeCodeCmd struct {
 	Watch claudeWatchCmd `cmd:"" help:"Claude Code's monitor: print one line for each thing that should wake this session."`
 }
 
-// claudeDev は、Claude Code が開いているプロジェクトが matomezu のリポジトリなら、開発の常駐を使い（起動し直すことがある）、その根を返す
+// claudeDev は、Claude Code が開いているプロジェクトが matomezu のリポジトリなら、開発の常駐を使い（起動し直すことがある）、その根を返す。
+// monitor には ProjectDirEnv が渡らないので、無ければ今いるフォルダ（Claude Code はプロジェクトのフォルダで立てる）で見る
 func claudeDev() string {
-	root := devRoot(os.Getenv(claudelaunch.ProjectDirEnv))
+	root := devRoot(claudeProjectDir())
 	if root != "" {
 		useDev(root)
 	}
 	return root
+}
+
+// claudeProjectDir は、Claude Code が開いているプロジェクトのフォルダ（ProjectDirEnv、無ければ今いるフォルダ）
+func claudeProjectDir() string {
+	if d := os.Getenv(claudelaunch.ProjectDirEnv); d != "" {
+		return d
+	}
+	d, _ := os.Getwd()
+	return d
 }
 
 type claudeMCPCmd struct{}
@@ -85,7 +96,7 @@ type claudePromptCmd struct{}
 // Run は、ターンの始まりを知らせ、待つアノテーションを添える
 func (claudePromptCmd) Run() error {
 	claudeDev()
-	hookPrompt(hookHost(claudelaunch.HooksSendHost))
+	hookPrompt(hookHost(claudelaunch.HooksSendHost), claudelaunch.HookSetsTitle)
 	return nil
 }
 
@@ -137,9 +148,17 @@ func codexDev() string {
 
 type codexMCPCmd struct{}
 
+// codexSessionEndsWith は、codex-session-end の見立て watch を、mcp --session-ends-with の値に読み替える（分からなければ名乗らない）
+func codexSessionEndsWith(watch codexsessionend.Process) string {
+	if watch == codexsessionend.MCPProcess {
+		return "mcp"
+	}
+	return ""
+}
+
 // Run は、Codex の MCP を出し、起こす知らせを Codex の会話に渡す watch も中で動かす
 func (codexMCPCmd) Run() error {
-	c := mcpCmd{serverFlags: serverFlags{Addr: DefaultAddr}, SessionEndsWith: sessionEndsWith(codexlaunch.SessionEndsWith), Deliver: append([]string{selfExecutable()}, codexlaunch.DeliverArgs...)}
+	c := mcpCmd{serverFlags: serverFlags{Addr: DefaultAddr}, SessionEndsWith: codexSessionEndsWith(codexsessionend.Watch()), Deliver: append([]string{selfExecutable()}, codexlaunch.DeliverArgs...)}
 	if root := codexDev(); root != "" {
 		c.serverFlags = devServerFlags(root)
 	}
@@ -156,7 +175,7 @@ type codexPromptCmd struct{}
 // Run は、ターンの始まりを知らせ、待つアノテーションを添える
 func (codexPromptCmd) Run() error {
 	codexDev()
-	hookPrompt(hookHost(codexlaunch.HooksSendHost))
+	hookPrompt(hookHost(codexlaunch.HooksSendHost), codexlaunch.HookSetsTitle)
 	return nil
 }
 
@@ -174,12 +193,14 @@ type opencodeCmd struct {
 	Deliver deliverOpencodeCmd `cmd:"" help:"Hand a wake notice to an opencode conversation through the opencode background server (opencode/service.json under XDG_STATE_HOME, ~/.local/state when unset), as an input that is not the user's (synthetic) marked as a wake notice: the text on stdin, the conversation in MATOMEZU_SESSION. Exits 0 when delivered, 3 when the server does not have that conversation, 1 when it failed."`
 }
 
-// hookPrompt は、話しかけのフック: 待つアノテーションの文を添えて、ターンの始まりを常駐に知らせ、フックの答えを出す（host は AI のプログラムのプロセス id、分からなければ空）
-func hookPrompt(host string) {
+// hookPrompt は、話しかけのフック: 待つアノテーションの文を添えて、ターンの始まりを常駐に知らせ、フックの答えを出す（host は AI のプログラムのプロセス id、分からなければ空。
+// titled は、答えに会話の題名 sessionTitle を書くか）
+func hookPrompt(host string, titled bool) {
 	var notes bytes.Buffer
 	writeAnnotations(&notes)
 	hook := stdinHook()
 	hook.Host = host
+	hook.Titled = titled
 	talked(os.Stdout, hook, notes.String(), formatHook, runningAPI("api/ai/talked"))
 }
 
