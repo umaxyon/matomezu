@@ -15,6 +15,9 @@ import (
 // routesForTest は、テストの用意の HTTP のパスを足す（本番の実行ファイルでは routes_off.go の空の関数）
 func routesForTest(mux *http.ServeMux, o Options) {
 	mux.Handle("PUT /api/books-for-test/{id}", sameOrigin(booksForTest(o)))
+	mux.Handle("GET /api/books-for-test", sameOrigin(func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, map[string]any{"books": o.Hub.assembledBooksForTest()})
+	}))
 	mux.Handle("POST /api/reset-for-test", sameOrigin(resetForTest(o)))
 	mux.Handle("POST /api/enable-plugins-for-test", sameOrigin(enablePluginsForTest(o)))
 	mux.Handle("POST /api/joined-ai-for-test", sameOrigin(func(w http.ResponseWriter, _ *http.Request) {
@@ -78,6 +81,17 @@ func resetForTest(o Options) http.HandlerFunc {
 	}
 }
 
+// assembledBooksForTest は、置いてあるブックの全部（ゴミ箱のブックも）を、並びにページとバインダの中身ごと持つ形に組んで、置いた順に返す（テストが、置いてある物を確かめる入口）
+func (h *Hub) assembledBooksForTest() []json.RawMessage {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	books := make([]json.RawMessage, 0, len(h.order))
+	for _, id := range h.order {
+		books = append(books, h.books[id].body)
+	}
+	return books
+}
+
 // putBookForTest はブックを丸ごと置き、窓に知らせる（置いてある版が base のときだけ書く。違えば conflict）。アクションを通さない
 func (h *Hub) putBookForTest(id string, body json.RawMessage, base int64) (version int64, conflict bool, err error) {
 	h.mu.Lock()
@@ -125,7 +139,7 @@ func (h *Hub) resetForTest(books []json.RawMessage, enabledPlugins []string) err
 	h.performed = map[string]Performed{}
 	h.performedOrder = nil
 	for i, body := range books {
-		if _, _, err := h.replaceBook(ids[i], body, 0); err != nil {
+		if _, _, err := h.replaceBookQuietly(ids[i], body, 0); err != nil {
 			return err
 		}
 	}

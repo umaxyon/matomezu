@@ -34,7 +34,7 @@ var tools = []tool{
 	},
 	{
 		"list_books",
-		"List the books: id, title, version and awaiting (how many annotations, such as the user's notes and marks, wait for your answer; left out when none). A book that cannot be read now (the type of one of its pages is not installed, or it does not fit the rules of a book) has problem, the reason; it cannot be opened or changed until that is fixed. A book with items or settings of plugins that are not installed has warning; it can be read and changed, and those parts are kept as they are.",
+		"List the books: id, title, version (it goes up when the book itself changes: its title, its settings or its lineup; not when the contents of a page change) and awaiting (how many annotations, such as the user's notes and marks, wait for your answer; left out when none). A book that cannot be read now (the type of one of its pages is not installed, or it does not fit the rules of a book) has problem, the reason; it cannot be opened or changed until that is fixed. A book with items or settings of plugins that are not installed has warning; it can be read and changed, and those parts are kept as they are.",
 		noArgs,
 		reading(func(api caller, _ map[string]any) (json.RawMessage, error) {
 			return api.Get("api/ai/books")
@@ -42,7 +42,7 @@ var tools = []tool{
 	},
 	{
 		"read_book",
-		"Read a book: the book without its pages' contents (title, settings and so on), its lineup as an outline (each entry is a page: kind page, id, title, type and size in characters; or a binder of pages of one type: kind binder, id, title, pageType and its own lineup of pages), its version and its annotations (such as the user's notes and marks: page, the page they are on; anchors, the things of that page they are tied to; and awaiting, whether they wait for your answer). " +
+		"Read a book: the book without its pages' contents (title, settings and so on), its lineup as an outline (each entry is a page: kind page, id, title, type, size in characters and version, which goes up each time that page changes; or a binder of pages of one type: kind binder, id, title, pageType and its own lineup of pages), its version (see list_books) and its annotations (such as the user's notes and marks: page, the page they are on; anchors, the things of that page they are tied to; and awaiting, whether they wait for your answer). " +
 			"Read the contents of a page with read_page.",
 		map[string]any{
 			"type":                 "object",
@@ -57,21 +57,19 @@ var tools = []tool{
 	},
 	{
 		"read_page",
-		"Read one page of a book (the page and the items on it), the book's version, placed (where each shape is drawn, when the page type's presentation tells it, otherwise null: {id, x, y, w, h} with the top-left on the paper and the size as drawn, children too; use it to line shapes up, as the items' own x and y are from their parent and their w and h may be missing or smaller than drawn) and the annotations (such as the user's notes and marks) standing on things of that page. " +
+		"Read one page (the page and the items on it), id (the book that holds it), version (the page's own: it goes up each time the page changes), placed (where each shape is drawn, when the page type's presentation tells it, otherwise null: {id, x, y, w, h} with the top-left on the paper and the size as drawn, children too; use it to line shapes up, as the items' own x and y are from their parent and their w and h may be missing or smaller than drawn) and the annotations (such as the user's notes and marks) standing on things of that page. " +
 			"A page too large to be answered at once is refused (too-large): with outline, the page's items are an outline (id, item, size in characters); with item, only that item (and what is inside it), its placed and the annotations on them are answered.",
 		map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"book":    map[string]any{"type": "string", "description": "The book's id."},
 				"page":    map[string]any{"type": "string", "description": "The page's id (see read_book or view)."},
 				"outline": map[string]any{"type": "boolean", "description": "Answer the page's items as an outline (id, item, size in characters) instead of in full."},
 				"item":    map[string]any{"type": "string", "description": "The id of an item on the page (any depth): answer only that item and what is inside it."},
 			},
-			"required":             []string{"book", "page"},
+			"required":             []string{"page"},
 			"additionalProperties": false,
 		},
 		reading(func(api caller, args map[string]any) (json.RawMessage, error) {
-			book, _ := args["book"].(string)
 			page, _ := args["page"].(string)
 			q := url.Values{}
 			if outline, _ := args["outline"].(bool); outline {
@@ -80,7 +78,7 @@ var tools = []tool{
 			if item, _ := args["item"].(string); item != "" {
 				q.Set("item", item)
 			}
-			path := "api/ai/books/" + url.PathEscape(book) + "/pages/" + url.PathEscape(page)
+			path := "api/ai/pages/" + url.PathEscape(page)
 			if len(q) > 0 {
 				path += "?" + q.Encode()
 			}

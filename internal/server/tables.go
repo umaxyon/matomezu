@@ -245,6 +245,15 @@ func (h *Hub) PageVersion(id string) int64 {
 // 置いてあるブックのフォルダの版が base のときだけ（まだ無ければ base は 0）で、違えば conflict。本文は置き場所の決まり（storage.SplitBook）で分け、分けられない本文は、そのままフォルダの 1 行にする。
 // 返すのは、書いた後のブックのフォルダの版（h.mu を持って呼ぶ）
 func (h *Hub) replaceBook(id string, body json.RawMessage, base int64) (version int64, conflict bool, err error) {
+	return h.putWholeBook(id, body, base, false)
+}
+
+// replaceBookQuietly は replaceBook と同じに置き換えるが、窓に知らせず、触れた時刻も残さない（世界を空にして置き直す、テストの用意の入口が使う。h.mu を持って呼ぶ）
+func (h *Hub) replaceBookQuietly(id string, body json.RawMessage, base int64) (version int64, conflict bool, err error) {
+	return h.putWholeBook(id, body, base, true)
+}
+
+func (h *Hub) putWholeBook(id string, body json.RawMessage, base int64, quiet bool) (version int64, conflict bool, err error) {
 	if h.folders[id].version != base {
 		return 0, true, nil
 	}
@@ -298,6 +307,7 @@ func (h *Hub) replaceBook(id string, body json.RawMessage, base int64) (version 
 	if err != nil {
 		return 0, false, err
 	}
+	plan.quiet = quiet
 	if err := h.store.Apply(plan.batch); err != nil {
 		return 0, false, err
 	}

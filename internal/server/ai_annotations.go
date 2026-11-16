@@ -125,15 +125,15 @@ func (o Options) annotationsOf(book string) ([]json.RawMessage, error) {
 	return []json.RawMessage{}, nil
 }
 
-// aiPage は、ブックの 1 ページ（{"id", "page", "version", "annotations", "placed"}。annotations はそのページの物に立つもの、
+// aiPage は、1 ページ（{"id", "page", "version", "annotations", "placed"}。id はそのページを持っているブック、version はそのページの版、annotations はそのページの物に立つもの、
 // placed はそのページの形の描いた位置と大きさ。見せ方が答えなければ null）
 func (o Options) aiPage(w http.ResponseWriter, r *http.Request) {
-	b := o.Hub.Book(r.PathValue("id"))
+	want := r.PathValue("page")
+	b := o.Hub.Book(o.Hub.BookOn(&engine.On{Page: want}))
 	if b == nil {
-		http.Error(w, "no such book", http.StatusNotFound)
+		http.Error(w, "no such page", http.StatusNotFound)
 		return
 	}
-	want := r.PathValue("page")
 	var page json.RawMessage
 	for _, p := range pagesOfBook(b.Body) {
 		var head struct {

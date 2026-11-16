@@ -93,17 +93,17 @@ func TestAIReadsAnnotations(t *testing.T) {
 	if _, got := send(t, "GET", s.URL+"/api/ai/books/b1", "", ai); !strings.Contains(got, `"annotations":[`+waiting+`]`) {
 		t.Fatalf("read_book = %s", got)
 	}
-	if _, got := send(t, "GET", s.URL+"/api/ai/books/b1/pages/p1", "", ai); !strings.HasPrefix(got, `{"annotations":[`+waiting+`],"id":"b1","page":{"kind":"page","id":"p1"`) {
+	if _, got := send(t, "GET", s.URL+"/api/ai/pages/p1", "", ai); !strings.HasPrefix(got, `{"annotations":[`+waiting+`],"id":"b1","page":{"kind":"page","id":"p1"`) {
 		t.Fatalf("read_page = %s", got)
 	}
 	// 形の描いた位置と大きさ（placed）も添える
 	if _, got := send(t, "GET", s.URL+"/api/ai/books/b1", "", ai); !strings.Contains(got, `"placed":{"p1":[{"id":"a","x":40,"y":40,"w":64,"h":64}]}`) {
 		t.Fatalf("read_book placed = %s", got)
 	}
-	if _, got := send(t, "GET", s.URL+"/api/ai/books/b1/pages/p1", "", ai); !strings.HasSuffix(got, `"placed":[{"id":"a","x":40,"y":40,"w":64,"h":64}],"version":1}`) {
+	if _, got := send(t, "GET", s.URL+"/api/ai/pages/p1", "", ai); !strings.HasSuffix(got, `"placed":[{"id":"a","x":40,"y":40,"w":64,"h":64}],"version":1}`) {
 		t.Fatalf("read_page placed = %s", got)
 	}
-	if code, _ := send(t, "GET", s.URL+"/api/ai/books/b1/pages/nothing", "", ai); code != 404 {
+	if code, _ := send(t, "GET", s.URL+"/api/ai/pages/nothing", "", ai); code != 404 {
 		t.Fatalf("read_page of no page = %d", code)
 	}
 	if _, got := send(t, "GET", s.URL+"/api/ai/books", "", ai); !strings.Contains(got, `"version":1,"awaiting":1}`) {

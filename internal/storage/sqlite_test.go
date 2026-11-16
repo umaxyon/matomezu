@@ -162,6 +162,10 @@ func TestTouchedIsTheNewestOfOpenedAndWrittenBelow(t *testing.T) {
 	if err != nil || got["b1"] == "" || got["b2"] == "" {
 		t.Fatalf("touched after writing = %v, %v", got, err)
 	}
+	// バインダは、入っているブックの時刻に数える（それ自身の時刻は返さない）
+	if _, binder := got["f1"]; binder {
+		t.Fatalf("touched = %v; want no time for the binder f1", got)
+	}
 	last, other := got["b1"], got["b2"]
 	for _, step := range []struct {
 		name  string
@@ -945,8 +949,8 @@ func TestBooksBecomePagesAndFolders(t *testing.T) {
 	if entries, err := s.Entries(); err != nil || !maps.Equal(entries, map[string]string{"p1": "a1", "f1": "a1", "p2": "f1", "p3": "b2"}) {
 		t.Fatalf("entries = %v, %v", entries, err)
 	}
-	// 書いた時刻は、ブックの行の時刻を引き継ぐ（バインダとページも）
-	if touched, _ := s.Touched(); !maps.Equal(touched, map[string]string{"a1": "at-a1", "f1": "at-a1", "b2": "at-b2", "c1": "at-c1", "d-broken": "at-d-broken", "e-other": "at-e-other"}) {
+	// 書いた時刻は、ブックの行の時刻を引き継ぐ（バインダとページも、ブックの時刻に数える）
+	if touched, _ := s.Touched(); !maps.Equal(touched, map[string]string{"a1": "at-a1", "b2": "at-b2", "c1": "at-c1", "d-broken": "at-d-broken", "e-other": "at-e-other"}) {
 		t.Fatalf("touched = %v", touched)
 	}
 	var n int

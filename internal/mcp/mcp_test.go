@@ -43,11 +43,11 @@ func (f *fakeAPI) Get(path string, header http.Header) (json.RawMessage, http.He
 		return json.RawMessage(aiCatalogJSON), f.replied, nil
 	case "api/ai/catalog?ids=%40matomezu%2Fpaper%3Aitem-place", "api/ai/catalog?ids=a&ids=b":
 		return json.RawMessage(aiCatalogJSON), f.replied, nil
-	case "api/ai/books/b1?outline=1", "api/ai/books/b1/pages/p1?item=x1", "api/ai/books/b1/pages/p1?outline=1":
+	case "api/ai/books/b1?outline=1", "api/ai/pages/p1?item=x1", "api/ai/pages/p1?outline=1":
 		return json.RawMessage(`{"ok":true}`), f.replied, nil
-	case "api/ai/books/b1/pages/small":
+	case "api/ai/pages/small":
 		return json.RawMessage(`{"page":"small"}`), f.replied, nil
-	case "api/ai/books/b1/pages/p1":
+	case "api/ai/pages/p1":
 		return json.RawMessage(`{"page":"` + strings.Repeat("あ", maxAnswer) + `"}`), f.replied, nil
 	case "api/ai/view":
 		return json.RawMessage(`{"book":"b1","page":"p1","selection":[]}`), f.replied, nil
@@ -366,18 +366,18 @@ func TestReadBookAsksForTheOutlineAndReadPageForAnItem(t *testing.T) {
 	api := &fakeAPI{}
 	talk(t, api,
 		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"read_book","arguments":{"book":"b1"}}}`,
-		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"read_page","arguments":{"book":"b1","page":"p1","item":"x1"}}}`,
-		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"read_page","arguments":{"book":"b1","page":"p1","outline":true}}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"read_page","arguments":{"page":"p1","item":"x1"}}}`,
+		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"read_page","arguments":{"page":"p1","outline":true}}}`,
 	)
-	if strings.Join(api.gets, " ") != "api/ai/books/b1?outline=1 api/ai/books/b1/pages/p1?item=x1 api/ai/books/b1/pages/p1?outline=1" {
+	if strings.Join(api.gets, " ") != "api/ai/books/b1?outline=1 api/ai/pages/p1?item=x1 api/ai/pages/p1?outline=1" {
 		t.Fatalf("gets = %v", api.gets)
 	}
 }
 
 func TestAPageOverTheLimitIsRefusedWithHowToNarrowIt(t *testing.T) {
 	got := talk(t, &fakeAPI{},
-		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"read_page","arguments":{"book":"b1","page":"p1"}}}`,
-		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"read_page","arguments":{"book":"b1","page":"small"}}}`,
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"read_page","arguments":{"page":"p1"}}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"read_page","arguments":{"page":"small"}}}`,
 	)
 	big := got[0]["result"].(map[string]any)
 	text := big["content"].([]any)[0].(map[string]any)["text"].(string)

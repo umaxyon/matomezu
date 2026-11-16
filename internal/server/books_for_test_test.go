@@ -116,7 +116,7 @@ func (h *Hub) resetForTest(books []json.RawMessage, enabledPlugins []string) err
 	h.performed = map[string]Performed{}
 	h.performedOrder = nil
 	for i, body := range books {
-		if _, _, err := h.replaceBook(ids[i], body, 0); err != nil {
+		if _, _, err := h.replaceBookQuietly(ids[i], body, 0); err != nil {
 			return err
 		}
 	}

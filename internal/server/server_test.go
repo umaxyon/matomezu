@@ -1576,21 +1576,21 @@ func TestAIReadsABookAsAnOutlineAndAPageByItem(t *testing.T) {
 	}
 
 	// ページは、物の目次（id・種類・大きさ）
-	_, got = send(t, "GET", s.URL+"/api/ai/books/b1/pages/p1?outline=1", "", ai)
+	_, got = send(t, "GET", s.URL+"/api/ai/pages/p1?outline=1", "", ai)
 	if !strings.Contains(got, `"id":"x1"`) || !strings.Contains(got, `"id":"x3"`) || strings.Contains(got, `"caption"`) || strings.Contains(got, `"id":"x2"`) {
 		t.Fatalf("page outline = %s", got)
 	}
 
 	// 物を指すと、その物と中の物だけ（深さを問わない）。位置は中の物の分も
-	_, got = send(t, "GET", s.URL+"/api/ai/books/b1/pages/p1?item=x1", "", ai)
+	_, got = send(t, "GET", s.URL+"/api/ai/pages/p1?item=x1", "", ai)
 	if !strings.Contains(got, `"caption":"A"`) || !strings.Contains(got, `"caption":"B"`) || strings.Contains(got, `"caption":"C"`) {
 		t.Fatalf("item x1 = %s", got)
 	}
-	_, got = send(t, "GET", s.URL+"/api/ai/books/b1/pages/p1?item=x2", "", ai)
+	_, got = send(t, "GET", s.URL+"/api/ai/pages/p1?item=x2", "", ai)
 	if !strings.Contains(got, `"caption":"B"`) || strings.Contains(got, `"caption":"A"`) {
 		t.Fatalf("nested item x2 = %s", got)
 	}
-	if code, _ := send(t, "GET", s.URL+"/api/ai/books/b1/pages/p1?item=nope", "", ai); code != 404 {
+	if code, _ := send(t, "GET", s.URL+"/api/ai/pages/p1?item=nope", "", ai); code != 404 {
 		t.Fatalf("an item that is not on the page = %d", code)
 	}
 	// 何も付けなければ、ブックの全部を返す

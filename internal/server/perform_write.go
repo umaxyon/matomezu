@@ -30,6 +30,7 @@ type writePlan struct {
 	removed []string                  // 置いてあって消すブック
 	tickets map[string][]AIEditTicket // 書き換えた AI 編集チケットの並び（ブックごと）
 	records []recordPut               // 変えたレコードの全部
+	quiet   bool                      // 窓に知らせず、触れた時刻も残さない（テストの用意で世界を置き直すとき）
 }
 
 // planWrites は out の変えた物を、置き場所に書く形（batch）と、当てる物にする。subject はアクションの対象の種類（ブックが対象なら空）。何も変えない（h.mu を持って呼ぶ）。
@@ -170,12 +171,14 @@ func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act
 		}
 	}
 	h.rebuild(out.Books...)
-	if len(pages) > 0 || len(folders) > 0 {
+	if !plan.quiet && (len(pages) > 0 || len(folders) > 0) {
 		h.broadcast("changed", map[string]any{"pages": pages, "folders": folders, "books": out.Books, "client": p.Client, "seq": p.Seq, "by": by, "act": act, "action": p.Action})
 	}
 	for _, id := range out.Books {
 		if e, ok := h.books[id]; ok {
-			h.touch(id, stamp())
+			if !plan.quiet {
+				h.touch(id, stamp())
+			}
 			h.checkBook(id, e.body)
 		}
 	}

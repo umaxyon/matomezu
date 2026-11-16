@@ -23,7 +23,7 @@ func TestWalksTheLineupWithBinders(t *testing.T) {
 	if strings.Join(ids, ",") != "p1,s1,s2" {
 		t.Fatalf("pages = %v", ids)
 	}
-	outlined := string(outlineBook(json.RawMessage(book)))
+	outlined := string(outlineBook(json.RawMessage(book), func(string) int64 { return 3 }))
 	for _, want := range []string{
 		`{"kind":"page","id":"p1","title":"図","type":"@matomezu/drawing:drawing","size":`,
 		`{"kind":"binder","id":"f1","title":"スライド","pageType":"@matomezu/slide-book:slide","lineup":[{"kind":"page","id":"s1","title":"1","type":"@matomezu/slide-book:slide","size":`,
@@ -32,5 +32,9 @@ func TestWalksTheLineupWithBinders(t *testing.T) {
 		if !strings.Contains(outlined, want) {
 			t.Fatalf("outline = %s; want %s", outlined, want)
 		}
+	}
+	// どのページにも、そのページの版が付く
+	if n := strings.Count(outlined, `,"version":3}`); n != 3 {
+		t.Fatalf("outline = %s; want the version on each of the 3 pages", outlined)
 	}
 }

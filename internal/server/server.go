@@ -25,7 +25,7 @@
 //	                      コントロールセンターを前に出している窓は {"front": "control-center", "hidden": {後ろに隠れているブックスクリーンの book, page, selection, awaiting など}}）
 //	GET  /api/ai/books  {"books": [{"id", "type", "title", "version", "awaiting"}]}（awaiting は AI の応えを待つアノテーションの数）
 //	GET  /api/ai/books/{id}  {"id", "book", "version", "annotations", "placed"}（?outline=1 ならページの目次。ai_outline.go）
-//	GET  /api/ai/books/{id}/pages/{page}  {"id", "page", "version", "annotations", "placed"}（annotations はそのページの物に立つもの。?outline=1 でページの中の物の目次、?item=id でその物だけ。ai_outline.go）
+//	GET  /api/ai/pages/{page}  {"id", "page", "version", "annotations", "placed"}（id はそのページを持っているブック、version はそのページの版、annotations はそのページの物に立つもの。?outline=1 でページの中の物の目次、?item=id でその物だけ。ai_outline.go）
 //	GET  /api/ai/records?kind=K[&id=ID | &ids=a&ids=b | &where.key=value&is.key=absent&limit=N&before=ID]  AI に見せる種類（対象の定義の aiBrief）のレコード（ai_records.go）。
 //	                      id はその 1 件の全文、ids は何件かの全文、どちらも無ければ一覧（索引キーで探す種類は {"kind","records","total","older"}）
 //	GET  /api/ai/awaiting    {"awaiting": [{"book", "title", "annotation", "brief"}], "undone": [{"book", "title", "at", "lost"}], "failed": [{"book", "title", "key", "changed"}], "removed": [{"book", "title", "key", "cause"}]}
@@ -140,7 +140,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("GET /api/ai/view", o.ai(o.aiView))
 	mux.Handle("GET /api/ai/books", o.ai(o.aiBooks))
 	mux.Handle("GET /api/ai/books/{id}", o.ai(o.aiBook))
-	mux.Handle("GET /api/ai/books/{id}/pages/{page}", o.ai(o.aiPage))
+	mux.Handle("GET /api/ai/pages/{page}", o.ai(o.aiPage))
 	mux.Handle("GET /api/ai/awaiting", o.ai(o.aiAwaiting))
 	mux.Handle("GET /api/ai/watch", o.ai(o.aiWatch))
 	mux.Handle("POST /api/ai/watch/ack", o.ai(o.aiWatchAck))
@@ -498,7 +498,7 @@ func (o Options) aiBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.URL.Query().Get("outline") != "" {
-		writeJSON(w, map[string]any{"id": b.ID, "book": outlineBook(b.Body), "version": b.Version, "annotations": list})
+		writeJSON(w, map[string]any{"id": b.ID, "book": outlineBook(b.Body, o.Hub.PageVersion), "version": b.Version, "annotations": list})
 		return
 	}
 	placed, err := o.Hub.AIPlaced(b.Body)

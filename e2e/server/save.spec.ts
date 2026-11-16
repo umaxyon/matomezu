@@ -4,6 +4,7 @@ import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test, urlStages } fro
 import { addBox } from "../helpers/paper"
 import { openGeneral } from "../helpers/settings"
 import { fromMenu } from "../helpers/stage-menu"
+import { storedBook, storedBooks, storedPageVersion } from "../helpers/stored"
 
 // 常駐を空にして始め、テストごとに使うブックを置く
 test.use({ books: [] })
@@ -14,8 +15,7 @@ const E2E_1 = { ...E2E_BOOKS[0]!, id: "e2e-1" }
 // 常駐に置いてあるもの
 const data = async (page: Page) => (await page.request.get("/api/data")).json()
 // 置いてあるブック id のデータ（無ければ undefined）
-const bookIn = async (page: Page, id: string): Promise<{ trashed?: string } | undefined> =>
-  (await data(page)).books.find((b: { id: string }) => b.id === id)?.book
+const bookIn = async (page: Page, id: string): Promise<{ trashed?: string } | undefined> => storedBook(page.request, id)
 // ブックを常駐に置く（テストの用意の口）
 const put = async <B extends { id: string }>(page: Page, book: B) =>
   expect((await page.request.put(`/api/books-for-test/${book.id}`, { data: { book, base: 0 } })).ok()).toBe(true)
@@ -23,7 +23,7 @@ const put = async <B extends { id: string }>(page: Page, book: B) =>
 test("初めて開くと、ブックを持たず、何も開かない", async ({ page }) => {
   await page.goto(BOOK_SCREEN_URL)
   await expect(page.getByText("ブックを選択してください")).toBeVisible()
-  expect((await data(page)).books).toEqual([])
+  expect(await storedBooks(page.request)).toEqual([])
 })
 
 test("設定画面で変えた設定は常駐に残り、読み直しても同じ", async ({ page }) => {
@@ -39,7 +39,7 @@ test("置いた箱は少し待って常駐に残り、読み直しても同じ�
   await put(page, book)
   await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "残る箱")
-  await expect.poll(async () => (await data(page)).books.find((b: { id: string }) => b.id === book.id)?.version).toBe(2)
+  await expect.poll(() => storedPageVersion(page.request, pagesIn<{ id: string }>(book)[0]!.id)).toBe(2)
   const before = (await page.locator("[data-item]").boundingBox())!
   await page.reload()
   const item = page.locator("[data-item]")
@@ -194,8 +194,8 @@ test("線は箱より手前に描かれ、選択の道具で押すと選ばれ�
   await expect(line("l3")).toHaveCount(0)
   await expect
     .poll(async () => {
-      const saved = (await data(page)).books.find((x: { id: string }) => x.id === LINE_BOOK.id)
-      return saved ? pagesIn<{ items: { id: string }[] }>(saved.book)[0]!.items.map(i => i.id) : undefined
+      const saved = await storedBook(page.request, LINE_BOOK.id)
+      return saved ? pagesIn<{ items: { id: string }[] }>(saved)[0]!.items.map(i => i.id) : undefined
     })
     .toEqual(["a", "c"])
 })
@@ -216,7 +216,14 @@ test("ブックを開くダイアログで、行のゴミ箱のボタンでゴ�
   page,
 }) => {
   await put(page, { ...E2E_1, id: "e2e-trash", title: "捨てるブック" })
-  await put(page, { ...E2E_1, id: "e2e-locked", title: "鍵のブック", locked: true })
+  // ページの id は、ほかのブックのページと重ならない
+  await put(page, {
+    ...E2E_1,
+    id: "e2e-locked",
+    title: "鍵のブック",
+    locked: true,
+    lineup: [{ ...pagesIn(E2E_1)[0]!, id: "e2e-locked-p1" }],
+  })
   await page.goto(BOOK_SCREEN_URL)
   const openDialog = async () => {
     await (await fromMenu(page, "ブックを開く")).click()
@@ -282,7 +289,7 @@ test("ロック中のブックの名前とページタブに鍵が出る。鍵�
   await expect(page.getByRole("img", { name: "ロック中" })).toHaveCount(0)
   await expect
     .poll(async () => {
-      const b = (await data(page)).books.find((x: { id: string }) => x.id === "e2e-locked").book
+      const b = await storedBook(page.request, "e2e-locked")
       return [b.locked, pagesIn<{ locked?: true }>(b)[0]?.locked]
     })
     .toEqual([undefined, undefined])
