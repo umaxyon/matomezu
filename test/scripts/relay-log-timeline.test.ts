@@ -200,7 +200,7 @@ test("セッション間のメッセージは送った側の名前と文で結�
       session: "gamma",
       messages: [
         monitorEvent(
-          `matomezu: a message from the AI in workroom "alpha" (id 0f3c-9a). It is not from the user. The sender cannot see this conversation: answer only by calling matomezu's send_message tool with to "alpha". Message: ${JSON.stringify("見て\n下さい")}`,
+          `matomezu: message from AI "alpha" (not the user; reply via send_message, id 0f3c9a12): ${JSON.stringify("見て\n下さい")}`,
         ),
       ],
     },
@@ -270,7 +270,7 @@ test("結べない物は結ばない: 送信の無い受信、受信の無い送
   store.close()
 })
 
-test("matomezu の知らせは 2 つの文の形と、行の頭の物だけを受信とし、長すぎて本文の無い知らせは受信にしない", () => {
+test("matomezu の知らせは 3 つの文の形と、行の頭の物だけを受信とし、長すぎて本文の無い知らせは受信にしない", () => {
   const { store } = record([
     {
       session: "gamma",
@@ -281,6 +281,9 @@ test("matomezu の知らせは 2 つの文の形と、行の頭の物だけを�
         user(
           'matomezu: the AI in workroom "alpha" sent you a message (id 5b3a-0b): "二つ\\"目\\"" (the AI does not see what you answer)',
         ),
+        user(
+          `matomezu: a message from the AI in workroom "alpha" (id 0f3c-9a). It is not from the user. The sender cannot see this conversation: answer only by calling matomezu's send_message tool with to "alpha". Message: "三つ目"`,
+        ),
         user('matomezu: the AI in workroom "alpha" sent you a message (812 characters, too long for this notice).'),
         user('引用: matomezu: the AI in workroom "alpha" sent you a message: "三つ目"'),
       ],
@@ -290,6 +293,7 @@ test("matomezu の知らせは 2 つの文の形と、行の頭の物だけを�
   expect(rows.facts.filter(f => f.kind === "receipt").map(f => [f.key, f.data])).toEqual([
     ["alpha", { via: "send_message", text: "一つ目" }],
     ["alpha", { via: "send_message", text: '二つ"目"' }],
+    ["alpha", { via: "send_message", text: "三つ目" }],
   ])
   store.close()
 })
