@@ -54,14 +54,14 @@ function renderRows() {
   tbody.replaceChildren()
   for (const e of entries) {
     const u = e.tokens, s = e.summary
-    const tr = el("tr", { className: "row" + (open.has(e.id) ? " open" : "") })
+    const tr = el("tr", { className: `row${open.has(e.id) ? " open" : ""}` })
     tr.dataset.id = e.id
     tr.append(
       cell(e.id, "n"), cell(e.client), cell(e.session), cell(new Date(e.at).toLocaleTimeString()), cell(e.stream, "muted"), cell(s.model),
       cell(s.messages, "n"), cell(num(u.input), "n"), cell(num(u.cacheRead), "n"),
       cell(num(u.cacheNew), "n"), cell(num(u.output), "n"),
       e.probe ? cell(`${e.probe} の確かめ（${e.status}）`, "muted")
-        : e.status >= 400 ? cell("status " + e.status, "err")
+        : e.status >= 400 ? cell(`status ${e.status}`, "err")
         : e.aborted ? cell("中断", "warn") : cell(e.diverge, e.diverge === "none" ? "muted" : "warn"),
       cell(num(e.newResults.reduce((n, r) => n + r.chars, 0)), "n"), cell(num(e.ms), "n"),
     )
@@ -69,7 +69,7 @@ function renderRows() {
     tbody.append(tr)
     if (open.has(e.id)) tbody.append(detailRow(e))
   }
-  document.getElementById("count").textContent = entries.length + " 件"
+  document.getElementById("count").textContent = `${entries.length} 件`
 }
 
 function detailRow(e) {
@@ -78,17 +78,17 @@ function detailRow(e) {
   const req = el("div", {}, el("span", { className: "muted", textContent: "読み込み中…" }))
   const res = el("div")
   td.append(req, res)
-  get("/api/parts/" + e.id).then(r => fillRequest(req, r))
-  get("/api/res/" + e.id).then(r => fillReply(res, r))
+  get(`/api/parts/${e.id}`).then(r => fillRequest(req, r))
+  get(`/api/res/${e.id}`).then(r => fillReply(res, r))
   return el("tr", {}, td)
 }
 
 function summary(e) {
   const s = e.summary, dl = el("dl")
   const rows = [
-    ["system", num(s.systemChars) + " 字"],
+    ["system", `${num(s.systemChars)} 字`],
     ["ツールの説明", `${s.toolsN} 個 ${num(s.toolsChars)} 字（matomezu ${s.matomezuToolsN} 個 ${num(s.matomezuToolsChars)} 字）`],
-    ["会話の文", num(s.textChars) + " 字"],
+    ["会話の文", `${num(s.textChars)} 字`],
     ["結果", `${num(s.resultChars)} 字（matomezu ${num(s.matomezuResultChars)} 字）`],
     ["cache_control", s.marks === undefined ? "-" : s.marks.join(" ") || "なし"],
     ["新しい結果", e.newResults.map(r => `${r.tool} ${num(r.chars)} 字`).join("、") || "なし"],
@@ -127,7 +127,7 @@ function fillRequest(box, r) {
     }
   }
   toggle.onchange = () => { saveHide(toggle.checked); draw() }
-  box.append(el("h4", { textContent: "リクエストの中身" }), el("label", {}, toggle, " 直せる所だけ見る（" + r.hidden.join("・") + " を隠す）"), list)
+  box.append(el("h4", { textContent: "リクエストの中身" }), el("label", {}, toggle, ` 直せる所だけ見る（${r.hidden.join("・")} を隠す）`), list)
   draw()
 }
 
@@ -139,7 +139,7 @@ function fillReply(box, blocks) {
   if (!blocks) return
   box.append(el("h4", { textContent: "モデルの返答" }))
   for (const b of blocks) {
-    const d = details(b.type === "tool_use" ? "tool_use " + b.name : b.type, b.type === "tool_use" ? b.input : b.text)
+    const d = details(b.type === "tool_use" ? `tool_use ${b.name}` : b.type, b.type === "tool_use" ? b.input : b.text)
     d.open = true
     box.append(d)
   }
@@ -152,7 +152,7 @@ function details(title, text, tail) {
 async function load() {
   const select = document.getElementById("session")
   const client = document.getElementById("client").value
-  const sessions = await get("/api/sessions" + (client ? "?client=" + client : ""))
+  const sessions = await get(`/api/sessions${client ? `?client=${client}` : ""}`)
   const names = ["", ...sessions.map(s => s.session)]
   if (names.join("\n") !== [...select.options].map(o => o.value).join("\n")) {
     const current = select.value
@@ -160,7 +160,7 @@ async function load() {
     select.value = names.includes(current) ? current : ""
   }
   const query = new URLSearchParams({ ...(select.value ? { session: select.value } : {}), ...(client ? { client } : {}) })
-  const next = await get("/api/entries?" + query)
+  const next = await get(`/api/entries?${query}`)
   if (next.length !== entries.length || next.at(-1)?.id !== entries.at(-1)?.id) { entries = next; renderRows() }
   showAsked()
 }

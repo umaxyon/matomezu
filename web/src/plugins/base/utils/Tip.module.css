@@ -3,9 +3,12 @@
   position: relative;
   display: flex;
 }
-/* 吹き出し: 押す物の下に、右端をそろえて出す。流れの外なので押す物の大きさを変えず、ポインタも受けない */
+/* 吹き出し: 押す物の下に、右端をそろえて出す。流れの外なので押す物の大きさを変えず、ポインタも受けない。題とキーを 1 行に並べる */
 .bubble {
   position: absolute;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
   top: calc(100% + 10px);
   right: 0;
   z-index: 1;
@@ -25,12 +28,6 @@
 .tip:hover .bubble,
 .tip:has(:focus-visible) .bubble {
   visibility: visible;
-}
-/* 題とキーを 1 行に並べる */
-.bubble {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
 }
 /* 題に添えるキー */
 .key {

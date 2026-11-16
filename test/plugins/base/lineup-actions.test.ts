@@ -235,7 +235,7 @@ test("スライドのバインダの中は紙と向きがそろう: 足すペー
   expect(done.ok && pagesIn(done.next, "f1").map(p => p.paper)).toEqual([A4, A4])
   // 新しいバインダは、ほかのバインダの紙に縛られない
   const other = done.ok && run(done.next, PAGE_ADD.id, { type: SLIDE, into: { newBinder: "別のスライド" } })
-  expect(other && other.ok && paperOf(other.next, "n1")).toBe("@matomezu/base:ratio-16x9")
+  expect(other !== false && other.ok && paperOf(other.next, "n1")).toBe("@matomezu/base:ratio-16x9")
   // 何も渡さない・タイプに無い紙は断る
   expect(run(book, BINDER_UPDATE.id, { binder: "f1" })).toEqual({ ok: false, reason: "refused" })
   expect(run(book, BINDER_UPDATE.id, { binder: "f1", paper: "@x:nope" })).toEqual({ ok: false, reason: "refused" })
