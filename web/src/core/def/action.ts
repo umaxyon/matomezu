@@ -170,7 +170,7 @@ export type ArgsOfType<A, V> = { [K in keyof A & string]-?: NonNullable<A[K]> ex
 // 許可スコープ: ブックが対象のアクションが、どこを変えるかの宣言。認可ステップは、行う前にこの所で問い、使えるかを決めるページのタイプも、この所から決まる
 // （ページとその中の物ならそのページのタイプ、エントリならそのページのタイプかバインダに入るページのタイプ、作るページならそのタイプ）。
 // "book" はブック自身だけを変える（ページもアイテムも並びも変えない。ページのタイプでは決まらない）。
-// page・item・items には、ページの id・アイテムの id・アイテムの id の並びが入っている引数の名前を書く（ページの中身を変える）。
+// page には、ページの id が入っている引数の名前を書く（そのページを丸ごと変える・消す。ページの中身を変えるアクションは、ページを対象にして PagePermissionScope で書く）。
 // entry には、エントリ（ページかバインダ）の id が入っている引数の名前を書く（中身を変えずに、動かす・複製する・消す・名前を変える）。
 // creates には、作るページのタイプの id が入っている引数の名前を書く。引数の名前で言えなければ、引数から所を返す関数を書く。
 // pages と denied: "skip" は、いくつものページをまとめて変えるアクションが書く: pages にはページの id の並びか "all"（ブックの全部のページ）が入っている引数の名前を書く。
@@ -178,7 +178,7 @@ export type ArgsOfType<A, V> = { [K in keyof A & string]-?: NonNullable<A[K]> ex
 export type PermissionScope<A = unknown> =
   | "book"
   | { pages: ArgsOfType<A, "all" | readonly string[]>; denied: "skip" }
-  | { page: ArgsOfType<A, string>; item?: ArgsOfType<A, string>; items?: ArgsOfType<A, readonly string[]> }
+  | { page: ArgsOfType<A, string> }
   | { entry: ArgsOfType<A, string> }
   | { creates: ArgsOfType<A, string> }
   | ((args: A) => Where)
@@ -216,7 +216,7 @@ export function pageScopeOf(scope: AnyPagePermissionScope | undefined, page: str
 export type AnyPermissionScope =
   | "book"
   | { pages: string; denied: "skip" }
-  | { page: string; item?: string | undefined; items?: string | undefined }
+  | { page: string }
   | { entry: string }
   | { creates: string }
   | ((args: never) => Where)
@@ -297,9 +297,7 @@ export function scopeOf(scope: AnyPermissionScope | undefined, args: unknown): W
     return creates ? { creates } : {}
   }
   const page = id(scope.page)
-  const item = id(scope.item)
-  const items = scope.items !== undefined && Array.isArray(a[scope.items]) ? (a[scope.items] as string[]) : undefined
-  return { ...(page ? { page } : {}), ...(item ? { ids: [item] } : items ? { ids: items } : {}) }
+  return page ? { page } : {}
 }
 
 // 許可スコープが、ページ 1 枚ごとに問う形（pages と denied）なら、引数 args が名指すページ（id の並びか "all"）。その形でなければ null

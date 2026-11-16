@@ -19,7 +19,7 @@ import { freshPageId } from "../../../core/ids"
 import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
-import { renewedIdsOfBook } from "../utils/ids"
+import { renewedIds } from "../utils/ids"
 import { pageProblems } from "./page-problems"
 import { canPaperBinder } from "./pages"
 
@@ -106,7 +106,7 @@ export const BINDER_DUPLICATE = kit.defineAction({
       taken.push(id)
       return id
     }
-    // 中の物の id は、写したページを足しながら振り直す（写しどうしでも重ならないように、足したブックの上で振る）
+    // 中の物の id は、ページごとに振り直す（ブックのどの id とも、写しどうしでも重ならない。core が run の振る id を重ねない）
     let next: Book = addBinder(
       book,
       { ...source, id: fresh(), title: args.title ?? freeTitle(source.title, titles), lineup: [] },
@@ -117,7 +117,7 @@ export const BINDER_DUPLICATE = kit.defineAction({
     const pages: string[] = []
     for (const page of pagesIn(book, source.id)) {
       const { id: _id, locked: _locked, ...content } = page
-      const copy = { ...renewedIdsOfBook(next, content, ctx.newId), id: fresh() } as ItemPage
+      const copy = { ...renewedIds(page, content, ctx.newId), id: fresh() } as ItemPage
       pages.push(copy.id)
       next = addPage(next, copy, { binder: made.id })
     }

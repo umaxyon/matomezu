@@ -1,10 +1,9 @@
-// アクションの中で振る id（core/ids.ts の idMaker と、base の utils/ids.ts）: ブックの全部のページの中身の、どの深さの id とも重ならず、続けて振った id どうしも重ならない。changedIn は、前後の値で物が変わったか
+// アクションの中で振る id（core/ids.ts の idMaker・skipping と、base の utils/ids.ts）: 使われている id とも、続けて振った id どうしも重ならない。changedIn は、前後の値で物が変わったか
 
 import { expect, test } from "bun:test"
-import { changedIn, idMaker, idsIn } from "../../web/src/core/ids"
+import { changedIn, idMaker, idsIn, skipping } from "../../web/src/core/ids"
 import type { ItemPage } from "../../web/src/core/placed"
-import type { Book } from "../../web/src/core/schema/book"
-import { contentIdMaker, contentIdMakerOfBook, renewedIds } from "../../web/src/plugins/base/utils/ids"
+import { contentIdMaker, renewedIds } from "../../web/src/plugins/base/utils/ids"
 
 // 決めた並びの値を返す newId（尽きたら同じ値を返し続ける）
 const seq = (...values: string[]) => {
@@ -29,18 +28,13 @@ test("idMaker は、使われている id と、前に振った id を避けて�
   expect(make()).toBe("cccc") // aaaa は使われていて、bbbb は前に振った
 })
 
-test("contentIdMakerOfBook は、ほかのページのアイテムの中身やページのフィールドの中の id も避け、ページの id は避けない", () => {
-  const book = {
-    id: "book",
-    title: "b",
-    lineup: [
-      { kind: "page", id: "p1", type: "t", title: "1", items: [{ id: "i1", item: "x", children: [{ id: "row1" }] }] },
-      { kind: "page", id: "p2", type: "t", title: "2", nodes: [{ id: "n1", children: [{ id: "n2" }] }] },
-    ],
-  } as unknown as Book
-  const make = contentIdMakerOfBook(book, seq("i1", "row1", "n1", "n2", "p1", "z"))
-  expect(make()).toBe("p1")
-  expect(make()).toBe("z")
+test("skipping は、そのままでも短い id にしても使われている id と重なる値と、先に返した値を飛ばす（別々に作った id の関数どうしでも重ならない）", () => {
+  const newId = skipping(seq("i1", "n-2", "aaaa", "aaaa", "bbbb", "bbbb", "z"), () => ["i1", "n2"])
+  const one = idMaker(newId, [])
+  const other = idMaker(newId, [])
+  expect(one()).toBe("aaaa") // i1 は使われていて、n-2 は短い id にすると n2 に重なる
+  expect(other()).toBe("bbbb") // aaaa は先に返した
+  expect(one()).toBe("z")
 })
 
 test("contentIdMaker と renewedIds は、渡したページの中身の id だけを避ける（ページの id は避けない）", () => {

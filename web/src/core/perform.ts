@@ -324,7 +324,7 @@ export const noPage = (wanted: string): NoPage => ({
 
 // アクション action の run だけを行う（使えるか・整え・認可ステップ・形の確かめはしない。それは perform がする）。args は引数の形を通した後の値。
 // ページが対象なら、対象 subject（PageInBook）のブックからページを探して run に渡し、返ったページを同じ所へ戻したブックを next にする
-// （ページが無い・run が id の違うページを返したら null）。run が振る id は、そのブックのどの id とも重ならない
+// （ページが無い・run が id の違うページを返したら null）。ブックが対象でもページが対象でも、run が振る id は、そのブックの並びの中のどの id とも重ならず、同じ値を 2 度渡さない
 // （そのままでも短い id にしても重なる newId の値を飛ばす。中身の id がブックの中で重ならないことに、アノテーションのアンカーなどが頼っている）
 export function runAction(
   action: ActionDef,
@@ -333,11 +333,13 @@ export function runAction(
   ctx: ActionContext,
 ): Done<ActionTarget, unknown> | Declined | null {
   const run = action.run as (subject: unknown, args: unknown, ctx: ActionContext) => ReturnType<ActionDef["run"]>
+  if (action.target === "book")
+    return run(subject, args, { ...ctx, newId: skipping(ctx.newId, () => idsIn((subject as Book).lineup)) })
   if (action.target !== "page") return run(subject, args, ctx)
   const { book, page: id } = subject as PageInBook
   const page = findPage(book, id)?.page
   if (!page) return null
-  const ran = run(page, args, { ...ctx, newId: skipping(ctx.newId, () => idsIn(book)) })
+  const ran = run(page, args, { ...ctx, newId: skipping(ctx.newId, () => idsIn(book.lineup)) })
   if (!ran || "declined" in ran) return ran
   const next = ran.next as ItemPage
   if (next.id !== page.id) return null

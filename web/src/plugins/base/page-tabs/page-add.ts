@@ -26,7 +26,7 @@ import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import { settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
 import { kit } from "../kit"
-import { contentIdMakerOfBook } from "../utils/ids"
+import { contentIdMaker } from "../utils/ids"
 import { fieldsArgs, writeFields } from "./page-fields"
 import { pageProblem } from "./page-problems"
 import { canChoose, defaultPaper, growsValue, paperChoices } from "./pages"
@@ -109,7 +109,7 @@ export function withNewPage(
   const into: PageInto = made ? { binder: made.id } : binder ? { binder: binder.id, index: at } : { index: at }
   const based = made ? addBinder(book, made, args.index) : book
   const placed = addPage(based, fresh as ItemPage, clean(into))
-  const written = writeFields(catalog, fresh, args.fields, "add", contentIdMakerOfBook(placed, ctx.newId))
+  const written = writeFields(catalog, fresh, args.fields, "add", contentIdMaker(fresh as ItemPage, ctx.newId))
   if (!written) return null
   const next = settings
     ? settleBook(

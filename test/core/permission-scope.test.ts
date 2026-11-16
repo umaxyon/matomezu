@@ -1,15 +1,22 @@
-// 許可スコープ（core/def/action.ts の scopeOf・libraryScopeOf）: アクションの宣言から、引数での所と、一覧が対象なら変えるブックとブックを作るかを出す
+// 許可スコープ（core/def/action.ts の scopeOf・pageScopeOf・libraryScopeOf）: アクションの宣言から、引数での所と、一覧が対象なら変えるブックとブックを作るかを出す
 import { expect, test } from "bun:test"
-import { libraryScopeOf, scopeOf } from "../../web/src/core/def/action"
+import { libraryScopeOf, pageScopeOf, scopeOf } from "../../web/src/core/def/action"
 
 test("許可スコープから所を出す: book は所なし、引数の名前はその値、関数はその返り値、無ければ分からない", () => {
   const args = { page: "p1", list: "k1", items: ["a", "b"] }
   expect(scopeOf("book", args)).toEqual({})
   expect(scopeOf({ page: "page" }, args)).toEqual({ page: "p1" })
-  expect(scopeOf({ page: "page", item: "list" }, args)).toEqual({ page: "p1", ids: ["k1"] })
-  expect(scopeOf({ page: "page", items: "items" }, args)).toEqual({ page: "p1", ids: ["a", "b"] })
   expect(scopeOf(() => ({ page: "p9" }), args)).toEqual({ page: "p9" })
   expect(scopeOf(undefined, args)).toBeUndefined()
+})
+
+test("ページが対象の許可スコープから所を出す: page は宛先のページ全体、item・items は引数の名前の値、関数はその返り値の物。無ければページ全体", () => {
+  const args = { list: "k1", items: ["a", "b"] }
+  expect(pageScopeOf("page", "p1", args)).toEqual({ page: "p1" })
+  expect(pageScopeOf({ item: "list" }, "p1", args)).toEqual({ page: "p1", ids: ["k1"] })
+  expect(pageScopeOf({ items: "items" }, "p1", args)).toEqual({ page: "p1", ids: ["a", "b"] })
+  expect(pageScopeOf(() => ["z"], "p1", args)).toEqual({ page: "p1", ids: ["z"] })
+  expect(pageScopeOf(undefined, "p1", args)).toEqual({ page: "p1" })
 })
 
 test("エントリ（entry）と作るページのタイプ（creates）は、引数の名前の値を所にする", () => {
