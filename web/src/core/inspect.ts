@@ -31,7 +31,7 @@ export type Source =
   | { source: "action"; id: string; field: "attach.books" | "attach.pages" } // アクションが、どのブック・どのページにも付くか（ページを名指さないとき）
   | { source: "action"; id: string; field: "run" } // 名指した所がブックに無い: ここでは止めず、行う側（run）が断る
   | { source: "action"; id: string; field: "userOnly" } // 利用者だけが行うアクションを、AI が頼んだ
-  | { source: "participation"; id: string } // 参加が確定していない AI が、ブックでない対象のアクションを頼んだ
+  | { source: "participation"; id: string } // 参加が確定していない AI が、ブック・ページ・アノテーションのほかが対象のアクションを頼んだ
   | { source: "userSetting"; id: string; field: "userOnly" } // 利用者だけが変える利用者の設定の項目を、AI が変えようとした
   | { source: "controlCenter"; id: string; field: "actions" } // コントロールセンターが許すアクション
   | { source: "controlCenter"; id: string; field: "fixedUserSettings"; setting: string } // コントロールセンターが変えさせない利用者の設定の項目

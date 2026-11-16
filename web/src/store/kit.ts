@@ -23,7 +23,13 @@ import type { ThemeDef, TokenDef } from "../core/def/theme"
 import type { ToolDef, ToolSetDef } from "../core/def/tool"
 import type { LanguagePackDef, MessageMap } from "../core/i18n/messages"
 import { type Owned, owned } from "../core/names"
-import type { CommandPlace, CommandScopeRequired, ScreenCommandDef, StageCommandDef } from "./commands/def"
+import type {
+  CommandPlace,
+  CommandScopeRequired,
+  ScreenCommandDef,
+  ScreenPerforms,
+  StageCommandDef,
+} from "./commands/def"
 import type { DialogDef } from "./dialogs"
 import type { KeyDef, KeyScopeDef } from "./keys"
 import type { PluginParts } from "./plugin"
@@ -207,10 +213,15 @@ export interface PluginKit<P extends string, M extends MessageMap> {
     } & CommandScopeRequired<Ps, A>,
   ): Omit<StageCommandDef<A>, "id"> & { id: Owned<P, Id> }
 
-  // スクリーンから呼ぶコマンド（ステージを持たないスクリーンからも呼べる。ステージとブックは受け取らず、ブックが対象のアクションは行わない）
-  defineScreenCommand<const Id extends string, A = undefined>(
-    def: Omit<ScreenCommandDef<A, keyof M & string>, "permissionScope" | "from"> & {
+  // スクリーンから呼ぶコマンド（ステージを持たないスクリーンからも呼べる。ステージとブックは受け取らず、ブック・ページ・アノテーションが対象のアクションは行わない）
+  defineScreenCommand<
+    const Id extends string,
+    A = undefined,
+    const Ps extends readonly ActionId[] | undefined = undefined,
+  >(
+    def: Omit<ScreenCommandDef<A, keyof M & string>, "permissionScope" | "from" | "performs"> & {
       id: Id
+      performs?: Ps & ScreenPerforms<Ps>
       place?: CommandPlace<NoInfer<A>>
     },
   ): Omit<ScreenCommandDef<A>, "id"> & { id: Owned<P, Id> }

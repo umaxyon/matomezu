@@ -135,10 +135,10 @@ export interface CommandActions extends WindowActions, BoundPlaceActions {
 interface CommandDefBase<A, Tt extends string> extends CommandExtras {
   id: string // 本当の id。名前は「対象-動き」（例: stage-split）
   title: Tt
-  // 行うアクション。どれかが今のブック（ブックが対象でなければコントロールセンター）で使えなければ、土台はこのコマンドを出さない。
+  // 行うアクション。どれかが、許可スコープの所（ブック・ページ・アノテーションが対象でなければコントロールセンター）で使えなければ、土台はこのコマンドを出さない。
   // どれも認可ステップに止められるなら、土台はこのコマンドを押せなくする（どれか 1 つでも行えれば押せる。設定のダイアログのように、行えるアクションだけを選んで行うコマンドのため）
   performs?: readonly ActionId[]
-  // 許可スコープ: 行うアクションが、呼ばれた場所のブックのどこを変えるか（認可ステップに渡す）。ブックが対象のアクションを行うなら必ず書く
+  // 許可スコープ: 行うアクションが、呼ばれた場所のブックのどこを変えるか（認可ステップに渡す）。ブックかページが対象のアクションを行うなら必ず書く
   permissionScope?: CommandScope<A>
   // 追加プラグインが入れてほしいメニュー。動いている matomezu の画面が、既定の UI マッピングの末尾に足す（placeAdded）。引数と合うかは defineCommand の型（CommandPlace）が確かめる。
   // anchorMenu は、押した物にアンカーがあるときにどの右クリックのメニューにも足す項目（LayoutDef の anchorMenu）
@@ -154,7 +154,7 @@ export interface StageCommandDef<A = undefined, Tt extends string = MessageKey> 
   run(ctx: CommandContext, actions: CommandActions, args: A): void
 }
 
-// スクリーンから呼ぶコマンド（defineScreenCommand）。ステージを持たないスクリーンからも呼べる（ステージ・ブックは受け取らない。ブックが対象のアクションは行わない）
+// スクリーンから呼ぶコマンド（defineScreenCommand）。ステージを持たないスクリーンからも呼べる（ステージ・ブックは受け取らない。ブック・ページ・アノテーションが対象のアクションは行わない）
 export interface ScreenCommandDef<A = undefined, Tt extends string = MessageKey> extends CommandDefBase<A, Tt> {
   from: "screen"
   when(ctx: ScreenCommandContext): boolean
@@ -175,18 +175,36 @@ export interface CommandPlace<A> {
   }[ContextMenuId][]
 }
 
-// 行うアクション P にブックかページが対象のものがあれば、許可スコープを必ず書く（defineCommand の型が求める）。表に無いアクション（W003）は数えない
-export type CommandScopeRequired<P extends readonly ActionId[] | undefined, A = unknown> = true extends {
+// 行うアクション P に、対象が T のものがあるか。表に無いアクション（W003）は数えない
+type Performs<P extends readonly ActionId[] | undefined, T extends string> = true extends {
   [I in keyof P]: [P[I]] extends [never]
     ? false
     : P[I] extends ActionId
-      ? ActionTable[P[I]] extends { target: "book" | "page" }
+      ? ActionTable[P[I]] extends { target: T }
         ? true
         : false
       : false
 }[number & keyof P]
-  ? { permissionScope: CommandScope<A> }
-  : { permissionScope?: CommandScope<A> }
+  ? true
+  : false
+
+// 行うアクション P にブックかページが対象のものがあれば、許可スコープを必ず書く（defineCommand の型が求める）。
+// ページが対象のものがあれば、"book"（ページもアイテムも変えない）は書けない（どのページかを言わないので）
+export type CommandScopeRequired<P extends readonly ActionId[] | undefined, A = unknown> =
+  Performs<P, "page"> extends true
+    ? { permissionScope: Exclude<CommandScope<A>, "book"> }
+    : Performs<P, "book"> extends true
+      ? { permissionScope: CommandScope<A> }
+      : { permissionScope?: CommandScope<A> }
+
+// スクリーンから呼ぶコマンドが行えるアクションの並び: ブック・ページ・アノテーションが対象のものは書けない（defineScreenCommand の型が求める）
+export type ScreenPerforms<P extends readonly ActionId[] | undefined> = {
+  readonly [I in keyof P]: P[I] extends ActionId
+    ? ActionTable[P[I]] extends { target: "book" | "page" | "annotations" }
+      ? never
+      : P[I]
+    : P[I]
+}
 
 // run の 3 つ目の引数の型から A を決め、id は書いた文字のまま残す（引数が無ければ A は undefined）。
 // 型は書いた順に決まるので、run は when より前に書く（後ろに書くと、引数のあるコマンドが型の誤りになる）
@@ -204,9 +222,17 @@ export function defineCommand<
   return def
 }
 
-// スクリーンから呼ぶコマンドを書く（from は付けて返す）。行えるのは、ブックが対象でないアクションだけ（許可スコープは書かない）
-export function defineScreenCommand<const Id extends string, A = undefined>(
-  def: Omit<ScreenCommandDef<A>, "permissionScope" | "from"> & { id: Id; place?: CommandPlace<NoInfer<A>> },
+// スクリーンから呼ぶコマンドを書く（from は付けて返す）。行えるのは、ブック・ページ・アノテーションが対象でないアクションだけ（許可スコープは書かない）
+export function defineScreenCommand<
+  const Id extends string,
+  A = undefined,
+  const P extends readonly ActionId[] | undefined = undefined,
+>(
+  def: Omit<ScreenCommandDef<A>, "permissionScope" | "from" | "performs"> & {
+    id: Id
+    performs?: P & ScreenPerforms<P>
+    place?: CommandPlace<NoInfer<A>>
+  },
 ): ScreenCommandDef<A> & { id: Id } {
   return { ...def, from: "screen" }
 }

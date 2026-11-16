@@ -117,7 +117,7 @@ export function called(defs: Assembled, state: MatomezuState, at: string, id: Co
 const ask = (c: Called, method: "when" | "enabled" | "active"): boolean | undefined =>
   (c.def[method] as ((ctx: ScreenCommandContext) => boolean) | undefined)?.(c.ctx)
 
-// コマンドが行うアクション（performs）を、どれも今のブック（ブックが対象でなければコントロールセンター）で使えるか（認可ステップは見ない）
+// コマンドが行うアクション（performs）を、どれも許可スコープの所（ブック・ページ・アノテーションが対象でなければコントロールセンター）で使えるか（認可ステップは見ない）
 function performable(c: Called, arg?: unknown): boolean {
   const book = "book" in c.ctx ? (c.ctx.book ?? undefined) : undefined
   const where = whereOf(c, arg)
@@ -141,7 +141,7 @@ export function isShown(defs: Assembled, state: MatomezuState, at: string, id: C
 }
 
 // 行うアクションのどれかを、認可ステップと印刷プレビューの間のステージ（stageBlocks）が止めないか（行うアクションが無ければ止められない）。
-// ブックが対象のアクションは、今のブックの許可スコープの所で問う
+// ブック・ページ・アノテーションが対象のアクションは、今のブックの許可スコープの所で問う
 function permitted(c: Called, arg?: unknown): boolean {
   const actions = c.def.performs ?? []
   if (actions.length === 0) return true
