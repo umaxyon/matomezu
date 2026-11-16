@@ -49,7 +49,35 @@ const performedKeys = 1024
 type entry struct {
 	body    json.RawMessage
 	version int64
-	trashed bool // ゴミ箱のブックか（土台のフィールド trashed があるか。覚えるときに 1 度だけ読む）
+	trashed bool     // ゴミ箱のブックか（土台のフィールド trashed があるか。覚えるときに 1 度だけ読む）
+	pages   []string // ブックのページの id（バインダの中も。覚えるときに 1 度だけ読む。宛先のページから持ち主のブックを引くのに使う）
+}
+
+// newEntry は、ブックの本文 body を覚える形にする
+func newEntry(body json.RawMessage, version int64) entry {
+	return entry{body, version, trashed(body), pageIDs(body)}
+}
+
+// bookOfPage は、ページ page を持っているブックの id（ゴミ箱のブックは見ない。無いか、2 冊にあれば、どちらとも決めずに空。h.mu を持って呼ぶ）
+func (h *Hub) bookOfPage(page string) string {
+	found := ""
+	for id, e := range h.books {
+		if e.trashed || !slices.Contains(e.pages, page) {
+			continue
+		}
+		if found != "" {
+			return ""
+		}
+		found = id
+	}
+	return found
+}
+
+// BookOfPage は、ページ page を持っているブックの id（bookOfPage と同じ決まり）
+func (h *Hub) BookOfPage(page string) string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.bookOfPage(page)
 }
 
 type event struct {
@@ -159,7 +187,7 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	}
 	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, participantNotes: notes, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}, aiEditTickets: aiEditTickets, actPrefix: strconv.FormatInt(time.Now().UnixNano(), 36)}
 	for _, b := range books {
-		h.books[b.ID] = entry{b.Body, b.Version, trashed(b.Body)}
+		h.books[b.ID] = newEntry(b.Body, b.Version)
 		h.order = append(h.order, b.ID)
 	}
 	if err := h.loadRecords(); err != nil {
@@ -370,11 +398,16 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 			}
 		}
 	} else if p.On != nil {
-		if e, ok := h.books[p.On.Book]; ok {
+		// 宛先がページなら、そのページを持っているブックで行う
+		book := p.On.Book
+		if p.On.Page != "" {
+			book = h.bookOfPage(p.On.Page)
+		}
+		if e, ok := h.books[book]; ok {
 			in.Books = []json.RawMessage{e.body}
 		}
-		if list, ok := h.annotations[p.On.Book]; ok {
-			in.Annotations[p.On.Book] = list
+		if list, ok := h.annotations[book]; ok {
+			in.Annotations[book] = list
 		}
 	} else {
 		for _, id := range h.order {

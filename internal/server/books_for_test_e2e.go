@@ -96,7 +96,7 @@ func (h *Hub) putBookForTest(id string, body json.RawMessage, base int64) (int64
 	if _, ok := h.books[id]; !ok {
 		h.order = append(h.order, id)
 	}
-	h.books[id] = entry{body, version, trashed(body)}
+	h.books[id] = newEntry(body, version)
 	h.broadcast("book", map[string]any{"book": body, "version": version})
 	h.touch(id, stamp())
 	h.recordWarnings([]string{id}, found)
@@ -155,7 +155,7 @@ func (h *Hub) resetForTest(books []json.RawMessage, enabledPlugins []string) err
 		if err != nil {
 			return err
 		}
-		h.books[ids[i]] = entry{body, version, trashed(body)}
+		h.books[ids[i]] = newEntry(body, version)
 		h.order = append(h.order, ids[i])
 	}
 	return h.checkBooks(h.order)

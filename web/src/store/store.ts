@@ -190,14 +190,16 @@ interface ToastBody {
   detail?: { message: MessageKey; params?: Params } // 2 行目に出す文言（断った原因など）
 }
 
-// アクションの宛先。ブックが対象のアクションは、どのブックかを渡す（一覧と設定は 1 つしかないので渡さない）
+// アクションの宛先。ブックが対象のアクションは、どのブックかを渡し、ページが対象のアクションは、どのページかを渡す（一覧と設定は 1 つしかないので渡さない）
 // （対象の定義が足した種類のアクションは、直す・消すなら 1 件を指し、作るなら指さない）
 export type PerformArgs<Id extends ActionId> =
   TargetOf<Id> extends BookTarget
     ? [args: ArgsOf<Id>, on: { book: string }]
-    : TargetOf<Id> extends SubjectId
-      ? [args: ArgsOf<Id>, on?: { record: string }]
-      : [args: ArgsOf<Id>]
+    : TargetOf<Id> extends "page"
+      ? [args: ArgsOf<Id>, on: { page: string }]
+      : TargetOf<Id> extends SubjectId
+        ? [args: ArgsOf<Id>, on?: { record: string }]
+        : [args: ArgsOf<Id>]
 // 行ったアクションの結果。no-book は宛先のブックが無いとき、denied は認可ステップが止めたとき（permission はそのステップの id）、
 // print-preview は印刷プレビューの間のステージから行おうとしたとき（ui の usePerform。core/stage.ts の stageBlocks）
 export type Performed<Id extends ActionId> =

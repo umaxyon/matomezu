@@ -51,6 +51,20 @@ func pagesOfBook(body json.RawMessage) []json.RawMessage {
 	return out
 }
 
+// pageIDs は、ブックの本文のページの id（バインダの中も、並びの順に。id を読めないページは飛ばす）
+func pageIDs(body json.RawMessage) []string {
+	out := []string{}
+	for _, p := range pagesOfBook(body) {
+		var head struct {
+			ID string `json:"id"`
+		}
+		if json.Unmarshal(p, &head) == nil && head.ID != "" {
+			out = append(out, head.ID)
+		}
+	}
+	return out
+}
+
 // mapLineup は、並び entries の要素を替えた並び: ページは page で、バインダは中の並びのページを page で替えてから binder で替える
 // （binder が nil ならバインダはそのまま）。読めない要素はそのまま残す
 func mapLineup(

@@ -8,7 +8,7 @@ import { anchorIds } from "./annotation"
 import { findBinder, findPage, lineupOf, pagesOf } from "./book"
 import type { ItemId } from "./catalog"
 import type { CoreCatalog, PageTypeId } from "./core-catalog"
-import { isOnBook } from "./def/action"
+import { isInBook } from "./def/action"
 import { type EditList, slideIsBackground } from "./def/page-type"
 import type { Point, Size } from "./geom"
 import { type PaperChoice, type ResolvedPaper, resolvePaper } from "./paper"
@@ -157,7 +157,7 @@ export const previewing = (stage: Pick<Stage, "mode">): boolean => stage.mode.ki
 // inPrintPreview のあるものを除く）。止めるのはそのステージから行う物だけで、AI やほかのステージは止めない
 export function stageBlocks(catalog: CoreCatalog, mode: StageMode["kind"], action: string): boolean {
   const def = catalog.actions.get(action)
-  return mode === "print-preview" && isOnBook(def?.target) && def?.inPrintPreview !== "runs"
+  return mode === "print-preview" && isInBook(def?.target) && def?.inPrintPreview !== "runs"
 }
 
 // 見せ方が描く広さを area に、描く中身をずらした量を origin にする（null なら紙 1 枚に戻し、ずらさない）。origin が変わったら、

@@ -8,13 +8,13 @@ import { USER } from "../core/actor"
 import { findPage, withSettings } from "../core/book"
 import type { ActionId, ItemId, SubjectId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
-import { type ActionOn, isOnBook, type RecordOf, type Where } from "../core/def/action"
+import { type ActionOn, isInBook, type RecordOf, type Where } from "../core/def/action"
 import type { PluginStateDef, PluginStateScope } from "../core/def/plugin-state"
 import { fail } from "../core/errors"
 import type { Point, Size } from "../core/geom"
 import type { Lang } from "../core/i18n/i18n"
 import { actionQuery, deniedBy, inspect } from "../core/inspect"
-import { type ArgsOf, type Permitted, permittedIn } from "../core/perform"
+import { type ArgsOf, noPage, type Permitted, permittedIn, type TargetOf } from "../core/perform"
 import {
   findShape,
   type ItemPage,
@@ -386,25 +386,35 @@ export function useUserSetting(id: string): unknown {
   return useMemo(() => userSetting(catalog, values, id), [catalog, values, id])
 }
 
-// 向け先のステージが開いているブックにアクションを行う関数（ブックかアノテーションが対象でないアクションは、ブックを渡さずに行う）。データを変える入口はこれだけ。
+// 向け先のステージが開いているブックにアクションを行う関数（ブック・ページ・アノテーションが対象でないアクションは、ブックを渡さずに行う）。データを変える入口はこれだけ。
+// ページが対象のアクションは、宛先のページを on に渡す（そのブックのページだけ。そのブックに無いページなら no-page を返す）。
 // 向け先が無い所（ステージの外で見るだけに描くページの中）からは行わず、no-book を返す。
 // 印刷プレビューの間のステージからは、ブックを変えるアクションを行わず print-preview を返す（core/stage.ts の stageBlocks）
-export function usePerform(): <Id extends ActionId>(action: Id, args: ArgsOf<Id>) => Performed<Id> {
+export function usePerform(): <Id extends ActionId>(
+  action: Id,
+  args: ArgsOf<Id>,
+  ...on: TargetOf<Id> extends "page" ? [on: { page: string }] : []
+) => Performed<Id> {
   const at = useAt()
+  const read = useReadState()
   const { perform } = useStoreActions()
   const catalog = useCatalog().core
   const book = useMatomezuState(s => (at === null ? undefined : stageIn(s.window, at)?.opened?.book))
   const mode = useMatomezuState(s => (at === null ? undefined : stageIn(s.window, at)?.mode.kind) ?? "edit")
   return useMemo(
     () =>
-      <Id extends ActionId>(action: Id, args: ArgsOf<Id>): Performed<Id> => {
+      <Id extends ActionId>(action: Id, args: ArgsOf<Id>, ...[on]: [on?: { page: string }]): Performed<Id> => {
         const loose = perform as (id: string, args: unknown, on?: ActionOn) => Performed<Id>
         if (at === null) return { ok: false, reason: "no-book" } // 向け先が無い所からは、何も行わない
         if (stageBlocks(catalog, mode, action)) return { ok: false, reason: "print-preview" }
-        if (!isOnBook(catalog.actions.get(action)?.target)) return loose(action, args)
-        return book === undefined ? { ok: false, reason: "no-book" } : loose(action, args, { book })
+        const target = catalog.actions.get(action)?.target
+        if (!isInBook(target)) return loose(action, args)
+        if (book === undefined) return { ok: false, reason: "no-book" }
+        if (target !== "page") return loose(action, args, { book })
+        const held = read().books[book]
+        return on && held && findPage(held, on.page) ? loose(action, args, on) : noPage(on?.page ?? "")
       },
-    [perform, catalog, book, mode, at],
+    [perform, catalog, book, mode, at, read],
   )
 }
 

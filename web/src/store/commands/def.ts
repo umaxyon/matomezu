@@ -175,12 +175,12 @@ export interface CommandPlace<A> {
   }[ContextMenuId][]
 }
 
-// 行うアクション P にブックが対象のものがあれば、許可スコープを必ず書く（defineCommand の型が求める）。表に無いアクション（W003）は数えない
+// 行うアクション P にブックかページが対象のものがあれば、許可スコープを必ず書く（defineCommand の型が求める）。表に無いアクション（W003）は数えない
 export type CommandScopeRequired<P extends readonly ActionId[] | undefined, A = unknown> = true extends {
   [I in keyof P]: [P[I]] extends [never]
     ? false
     : P[I] extends ActionId
-      ? ActionTable[P[I]] extends { target: "book" }
+      ? ActionTable[P[I]] extends { target: "book" | "page" }
         ? true
         : false
       : false

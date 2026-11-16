@@ -524,8 +524,12 @@ func (o Options) aiPerform(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// 読めないブック（保存はあるが今のプラグインで読めない）は「無い」でなく、その理由で断る
-	if !done.OK && done.Reason == "no-book" && p.On != nil {
-		if n, ok := o.Hub.BookWarnings()[p.On.Book]; ok && n.Unreadable {
+	if !done.OK && (done.Reason == "no-book" || done.Reason == "no-page") && p.On != nil {
+		book := p.On.Book
+		if p.On.Page != "" {
+			book = o.Hub.BookOfPage(p.On.Page)
+		}
+		if n, ok := o.Hub.BookWarnings()[book]; ok && n.Unreadable {
 			writeJSON(w, map[string]any{"ok": false, "reason": "unreadable", "detail": n.Warning})
 			return
 		}

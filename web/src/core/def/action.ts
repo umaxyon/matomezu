@@ -7,6 +7,7 @@ import type { ActionExtras, SubjectId, SubjectTable } from "../catalog"
 import type { CoreCatalog } from "../core-catalog"
 import type { Lang, MessageKey } from "../i18n/i18n"
 import type { Library } from "../library"
+import type { ItemPage } from "../placed"
 import type { Condition, ConditionOf, KeyValuesOf } from "../record-keys"
 import type { Records } from "../records"
 import type { Book } from "../schema/book"
@@ -14,17 +15,18 @@ import type { Settings } from "../settings"
 import { type PageTypeDef, placeableOf } from "./page-type"
 
 // 対象ごとの、アクションが受け取って返すデータ。library はブックの一覧、settings は利用者の設定で、
-// この 2 つのアクションを使えるかはコントロールセンターが決める。annotations はブック 1 冊のアノテーション（core/annotation.ts）で、
-// 使えるかは book と同じくそのページのタイプが決める
+// この 2 つのアクションを使えるかはコントロールセンターが決める。page はページ 1 枚（その中身だけを変える。並びとほかのページは変えない）。
+// annotations はブック 1 冊のアノテーション（core/annotation.ts）で、使えるかは book と同じくそのページのタイプが決める
 export interface Subjects {
   library: Library
   book: Book
+  page: ItemPage
   settings: Settings
   annotations: BookAnnotations
 }
 
 // 土台が持つ対象の名前（対象の定義が足した種類は、その id が対象の名前になる）
-export const BASE_TARGETS: readonly string[] = ["library", "book", "settings", "annotations"]
+export const BASE_TARGETS: readonly string[] = ["library", "book", "page", "settings", "annotations"]
 export type ActionTarget = keyof Subjects | SubjectId
 
 // 対象の定義の種類 T のレコード 1 件（形は定義の record）
@@ -56,12 +58,14 @@ export type RecordRead = {
   [S in SubjectId]: { subject: S; id: string } | { subject: S; where: readonly ConditionOf<S>[]; keysOnly?: true }
 }[SubjectId]
 
-// アクションの宛先: ブックの id か、レコード（対象の定義が足した種類のデータ）の id
-export type ActionOn = { book: string } | { record: string }
+// アクションの宛先: ブックの id か、ページの id か、レコード（対象の定義が足した種類のデータ）の id
+export type ActionOn = { book: string } | { page: string } | { record: string }
 
 // 宛先のブック（on.book）を要る対象か（ブックと、ブックのアノテーション）
 export type BookTarget = "book" | "annotations"
 export const isOnBook = (target: ActionTarget | undefined): boolean => target === "book" || target === "annotations"
+// ブックの中の物を変える対象か（ブック・ページ・ブックのアノテーション。使えるかをページのタイプと認可ステップがブックで決める）
+export const isInBook = (target: ActionTarget | undefined): boolean => target === "page" || isOnBook(target)
 
 export interface ActionContext {
   catalog: CoreCatalog // 使う機能台帳（アクション・ページのタイプ・紙など）
@@ -119,17 +123,18 @@ export interface Declined {
 }
 
 // A は引数の形を通した後の値、I は渡す値（ArgsOf はこちら。省いてよい項目は I で省ける）
-// 付く先: books はどのブックにも（ページのタイプに依らない）。items はそのアイテムを置けるタイプのページ、presentations はその見せ方のタイプのページ、
+// 付く先: books はどのブックにも、pages はどのページにも（どちらもページのタイプに依らない。books はブックが対象のアクション、pages はページが対象のアクションが書く）。items はそのアイテムを置けるタイプのページ、presentations はその見せ方のタイプのページ、
 // annotations はそのアノテーションの種類を使えるタイプのページ。ページのタイプで決まる付く先（items・presentations・annotations）を持つ、ブックが対象のアクションは、
 // 許可スコープでページを名指す（どのページのタイプで決めるかが、そこで決まる。名指さなければ、books の付く先だけで決まる）
 export interface ActionAttach {
   items?: readonly string[]
   presentations?: readonly string[]
   books?: true
+  pages?: true
   annotations?: readonly string[]
 }
 
-// run が受け取る対象: ブックが対象ならブック
+// run が受け取る対象: ブックが対象ならブック、ページが対象ならページ
 export type RunSubject<T extends ActionTarget, _At> = T extends "book" ? Book : SubjectData<T>
 
 // アクションがタイプ type のページに付くか（attach のどれかに当てはまるか）
@@ -138,6 +143,7 @@ export function attachedTo(def: Pick<ActionDef, "attach">, type: PageTypeDef): b
   if (!a) return false
   return (
     a.books === true ||
+    a.pages === true ||
     (a.items?.some(id => placeableOf(type).includes(id)) ?? false) ||
     (a.presentations?.includes(type.presentation) ?? false) ||
     (a.annotations?.some(id => !type.annotations?.without?.includes(id as never)) ?? false)
@@ -176,6 +182,35 @@ export type PermissionScope<A = unknown> =
   | { entry: ArgsOfType<A, string> }
   | { creates: ArgsOfType<A, string> }
   | ((args: A) => Where)
+
+// ページが対象のアクションの許可スコープ: そのページのどこを変えるかの宣言（ページは宛先で決まる）。
+// "page" はページ全体（ページのフィールドや、どの物でも）。item・items には、アイテムの id・アイテムの id の並びが入っている引数の名前を書く。
+// 引数の名前で言えなければ、引数から変える物の id の並びを返す関数を書く
+export type PagePermissionScope<A = unknown> =
+  | "page"
+  | { item: ArgsOfType<A, string> }
+  | { items: ArgsOfType<A, readonly string[]> }
+  | ((args: A) => readonly string[])
+
+// 表に並べたアクションの、ページが対象の許可スコープ（引数の形を問わない形）
+export type AnyPagePermissionScope =
+  | "page"
+  | { item: string }
+  | { items: string }
+  | ((args: never) => readonly string[])
+
+// ページが対象の許可スコープから、宛先のページ page と引数 args での所を出す
+export function pageScopeOf(scope: AnyPagePermissionScope | undefined, page: string, args: unknown): Where {
+  if (scope === undefined || scope === "page") return { page }
+  if (typeof scope === "function") return { page, ids: (scope as (args: unknown) => readonly string[])(args) }
+  const a = args as Record<string, unknown>
+  if ("item" in scope) {
+    const item = a[scope.item]
+    return typeof item === "string" ? { page, ids: [item] } : { page }
+  }
+  const items = a[scope.items]
+  return Array.isArray(items) ? { page, ids: items.filter((id): id is string => typeof id === "string") } : { page }
+}
 
 // 表に並べたアクションの許可スコープ（引数の形を問わない形。書くときの型は PermissionScope<A>）
 export type AnyPermissionScope =
@@ -220,17 +255,19 @@ export type AnyLibraryScope =
   | "create"
   | ((args: never) => LibraryTargets)
 
-// ブックが対象・一覧が対象・利用者の設定が対象のアクションは、許可スコープを必ず書く（defineAction の型が求める）
+// ブックが対象・ページが対象・一覧が対象・利用者の設定が対象のアクションは、許可スコープを必ず書く（defineAction の型が求める）
 // 許可スコープが "book"（ブック自身だけを変える）と書いたアクションの印: 定義の型に "book" を残す（ページのタイプが足す・外すアクションの id から外すのに使う。core/def/page-type.ts）
 export type OnContainer<Sc> = Sc extends "book" ? { permissionScope: "book" } : unknown
 
 export type ScopeRequired<T extends ActionTarget, A> = T extends "book"
   ? { permissionScope: PermissionScope<A> }
-  : T extends "library"
-    ? { permissionScope: LibraryScope<A> }
-    : T extends "settings"
-      ? { permissionScope: SettingsScope<A> }
-      : unknown
+  : T extends "page"
+    ? { permissionScope: PagePermissionScope<A> }
+    : T extends "library"
+      ? { permissionScope: LibraryScope<A> }
+      : T extends "settings"
+        ? { permissionScope: SettingsScope<A> }
+        : unknown
 
 // 一覧の許可スコープから、引数 args で変えるブック（"unknown" なら null）
 export function libraryScopeOf(scope: AnyLibraryScope | undefined, args: unknown): LibraryTargets | null {
@@ -327,11 +364,16 @@ export interface ActionDef<
   args: z.ZodType<A, I> // 引数の形（LLM にもこの形で見せる）
   // LLM に見せる引数の形を、機能台帳から組み立てる（ページのタイプが足す項目など。無ければ args）。受け付けるかは run が確かめる
   describeArgs?(catalog: CoreCatalog): z.ZodType
-  // 許可スコープ（ブックが対象・一覧が対象・利用者の設定が対象のアクションは必ず書く。どの形かは target で決まる）。
-  // ブックと一覧では、守るのは認可ステップが行った後に見る実際の変化（PermissionDef の keeps）
-  permissionScope?: AnyPermissionScope | AnyLibraryScope | AnySettingsScope
+  // 許可スコープ（ブックが対象・ページが対象・一覧が対象・利用者の設定が対象のアクションは必ず書く。どの形かは target で決まる）。
+  // ブックとページと一覧では、守るのは認可ステップが行った後に見る実際の変化（PermissionDef の keeps）
+  permissionScope?: AnyPermissionScope | AnyPagePermissionScope | AnyLibraryScope | AnySettingsScope
   run(subject: RunSubject<T, At>, args: A, ctx: ActionContext): Done<T, R> | Declined | null
 }
+
+// タイプに依らない付く先の書き方は、対象で決まる: ページが対象のアクションは pages、ほかは books（もう一方は型の誤り）
+export type AttachFor<T extends ActionTarget> = T extends "page"
+  ? { attach?: { books?: never } }
+  : { attach?: { pages?: never } }
 
 // 利用者が直している物（編集ロック）を変えるか消すとき、断るアクションか: AI が頼んだアクションと、lockedForUser のアクション（ホストのエンジンが読む）
 export const stopsOnEditLock = (action: Pick<ActionDef, "lockedForUser"> | undefined, actor: Actor): boolean =>
@@ -347,7 +389,9 @@ export function defineAction<
   const At extends ActionAttach | undefined = undefined,
   const Sc = unknown,
 >(
-  def: ActionDef<T, A, R, I, MessageKey, At> & { id: Id } & ScopeRequired<T, A> & { permissionScope?: Sc },
+  def: ActionDef<T, A, R, I, MessageKey, At> & { id: Id } & ScopeRequired<T, A> & {
+      permissionScope?: Sc
+    } & AttachFor<T>,
 ): ActionDef<T, A, R, I, MessageKey, At> & { id: Id } & OnContainer<Sc> {
   return def as never
 }

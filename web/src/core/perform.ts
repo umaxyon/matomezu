@@ -1,11 +1,11 @@
 // アクションを行う、データを変える入口。対象で使えるアクションかと引数の形を確かめてから run する。
-// 使えるかは、book と annotations が対象ならアクションが名指すページのタイプ（名指さなければ、タイプに依らない付く先だけ）、library・settings と対象の定義の種類が対象ならインスタンスのコントロールセンターが決める（コントロールセンターが無ければ断る）。
+// 使えるかは、book・page・annotations が対象ならアクションが名指すページのタイプ（名指さなければ、タイプに依らない付く先だけ）、library・settings と対象の定義の種類が対象ならインスタンスのコントロールセンターが決める（コントロールセンターが無ければ断る）。
 // その前に認可ステップ（core/def/permission.ts）が止められ、run の結果も認可ステップが守らせることを守っていなければ断る（denied）
 
 import type { z } from "zod"
 import { USER } from "./actor"
 import { type Annotations, annotationsSettle, type BookAnnotations, prune } from "./annotation"
-import { holds, keepsPageTypes, pagesOf } from "./book"
+import { findPage, holds, keepsPageTypes, pagesOf, putPage } from "./book"
 import type { ActionId, ActionTable } from "./catalog"
 import { changesOf } from "./changes"
 import { type CoreCatalog, pageType } from "./core-catalog"
@@ -16,10 +16,14 @@ import {
   type ActionTarget,
   type AIEditTicketChange,
   type AnyLibraryScope,
+  type AnyPagePermissionScope,
   type AnyPermissionScope,
   type AnySettingsScope,
+  type Declined,
+  type Done,
   libraryScopeOf,
   type OtherRecord,
+  pageScopeOf,
   pagesScopeOf,
   type SubjectData,
   type Subjects,
@@ -29,8 +33,10 @@ import {
 } from "./def/action"
 import type { Referred } from "./def/permission"
 import type { SubjectDef } from "./def/subject"
+import { idsIn, skipping } from "./ids"
 import { decidedByPlace, deniedBy, type Inspected, inspect, typeAllows, withoutPermissions } from "./inspect"
 import type { Library } from "./library"
+import type { ItemPage } from "./placed"
 import { type RecordSource, readFrom, SOURCE, sourceIn, sourceOf, type WithSource } from "./record-source"
 import { type Counters, NO_RECORD, RECORDS_MAX, REMOVED, type RecordChange, type Records } from "./records"
 import { referredOf } from "./refs"
@@ -41,7 +47,14 @@ import { settledAfter } from "./settle"
 
 type ActionOf<Id extends ActionId> = ActionTable[Id]
 export type TargetOf<Id extends ActionId> = ActionOf<Id>["target"]
-export type SubjectOf<Id extends ActionId> = SubjectData<ActionOf<Id>["target"]>
+// ページが対象のアクションを行うときに渡す対象: ページを持っているブックと、そのページの id（run が受けるのは、そのページだけ）
+export interface PageInBook {
+  book: Book
+  page: string
+}
+export type SubjectOf<Id extends ActionId> = TargetOf<Id> extends "page" ? PageInBook : SubjectData<TargetOf<Id>>
+// 行った後の対象（ページが対象のアクションは、ページを替えたブック）
+export type NextOf<Id extends ActionId> = TargetOf<Id> extends "page" ? Book : SubjectData<TargetOf<Id>>
 export type ArgsOf<Id extends ActionId> = z.input<ActionOf<Id>["args"]>
 export type ResultOf<Id extends ActionId> =
   ActionOf<Id> extends ActionDef<infer _T, infer _A, infer R, infer _I> ? R : never
@@ -55,8 +68,11 @@ export type NotAllowed = {
   setting?: string
   because?: "user-only" | "fixed" | "not-joined"
 }
+// 宛先のページが無い（ブックのどこにも無い・ゴミ箱のブックにある・2 冊にある）。detail は AI への説明に載る英語の文
+export type NoPage = { ok: false; reason: "no-page"; detail: string }
 export type Refused =
   | { ok: false; reason: Exclude<Refusal, "not-allowed" | "refused"> }
+  | NoPage
   | { ok: false; reason: "refused"; detail?: string; kind?: string }
   | NotAllowed
   | { ok: false; reason: "denied"; permission: string }
@@ -64,7 +80,7 @@ export type Refused =
 export type Performed<Id extends ActionId> =
   | {
       ok: true
-      next: SubjectOf<Id>
+      next: NextOf<Id>
       result: ResultOf<Id>
       others?: readonly OtherRecord<never>[]
       aiEditTickets?: readonly AIEditTicketChange[]
@@ -225,9 +241,17 @@ function permits(
   const book =
     action.target === "book"
       ? (subject as Book)
-      : action.target === "annotations"
-        ? (subject as BookAnnotations).book
-        : undefined
+      : action.target === "page"
+        ? (subject as PageInBook).book
+        : action.target === "annotations"
+          ? (subject as BookAnnotations).book
+          : undefined
+  if (action.target === "page") {
+    // 所は、宛先のページと、引数が名指す中の物（引数が形に合わなければ、ページだけ）
+    const scope = args.success ? (action.permissionScope as AnyPagePermissionScope | undefined) : undefined
+    const answer = asking(book, pageScopeOf(scope, (subject as PageInBook).page, args.success ? args.data : undefined))
+    return !args.success && answer.value === false && decidedByPlace(answer) ? { ok: true } : answerOf(answer)
+  }
   if (action.target !== "book") return asked(book, undefined)
   // ページ 1 枚ごとに問う形: 名指したページのうち、止められなかったページを残す。1 枚も残らなければ、最初のページの答えで断る。
   // 名指したページがブックに 1 枚も無ければ、ページでは問わない（無いページは run が断る）
@@ -248,14 +272,18 @@ function permits(
 const placeOf = (action: ActionDef, args: { success: true; data: unknown } | { success: false }): Where | undefined =>
   args.success ? scopeOf(action.permissionScope as AnyPermissionScope | undefined, args.data) : undefined
 
-// ブック book に、ブックが対象のアクション id を引数 args で行えるか、認可ステップを除いて問う（引数が名指すページのタイプと、アクションの付く先だけで決まる）。
-// 引数が形に合わなければ行えない
-export function allowedOnBook(catalog: CoreCatalog, book: Book, id: string, args: unknown): boolean {
+// ブック book に、ブックが対象のアクション id（ページが対象なら、ブックのページ page に）を引数 args で行えるか、認可ステップを除いて問う
+// （宛先のページと引数が名指す所のページのタイプと、アクションの付く先だけで決まる）。引数が形に合わなければ行えない
+export function allowedOnBook(catalog: CoreCatalog, book: Book, id: string, args: unknown, page?: string): boolean {
   const action: ActionDef | undefined = catalog.actions.get(id)
-  if (action?.target !== "book") return false
+  if (action?.target !== "book" && action?.target !== "page") return false
   const parsed = action.args.safeParse(args)
   if (!parsed.success) return false
-  const where = placeOf(action, parsed)
+  if (action.target === "page" && (page === undefined || !findPage(book, page))) return false
+  const where =
+    action.target === "page"
+      ? pageScopeOf(action.permissionScope as AnyPagePermissionScope | undefined, page as string, parsed.data)
+      : placeOf(action, parsed)
   const answer = inspect(catalog, { kind: "action", action: id, book, ...(where ? { where } : {}), actor: USER })
   return withoutPermissions(answer).value === true
 }
@@ -287,6 +315,35 @@ export function permitted(subject: unknown, id: string, args: unknown, ctx: Perm
   return answer.ok ? { ok: true } : answer
 }
 
+// 宛先のページが無いときの断り（直し方も言う）
+export const noPage = (wanted: string): NoPage => ({
+  ok: false,
+  reason: "no-page",
+  detail: `there is no page with the id ${wanted} (on.page is the id of a page; read_book lists a book's pages)`,
+})
+
+// アクション action の run だけを行う（使えるか・整え・認可ステップ・形の確かめはしない。それは perform がする）。args は引数の形を通した後の値。
+// ページが対象なら、対象 subject（PageInBook）のブックからページを探して run に渡し、返ったページを同じ所へ戻したブックを next にする
+// （ページが無い・run が id の違うページを返したら null）。run が振る id は、そのブックのどの id とも重ならない
+// （そのままでも短い id にしても重なる newId の値を飛ばす。中身の id がブックの中で重ならないことに、アノテーションのアンカーなどが頼っている）
+export function runAction(
+  action: ActionDef,
+  subject: unknown,
+  args: unknown,
+  ctx: ActionContext,
+): Done<ActionTarget, unknown> | Declined | null {
+  const run = action.run as (subject: unknown, args: unknown, ctx: ActionContext) => ReturnType<ActionDef["run"]>
+  if (action.target !== "page") return run(subject, args, ctx)
+  const { book, page: id } = subject as PageInBook
+  const page = findPage(book, id)?.page
+  if (!page) return null
+  const ran = run(page, args, { ...ctx, newId: skipping(ctx.newId, () => idsIn(book)) })
+  if (!ran || "declined" in ran) return ran
+  const next = ran.next as ItemPage
+  if (next.id !== page.id) return null
+  return { ...ran, next: next === page ? book : putPage(book, next) }
+}
+
 export function perform<Id extends ActionId>(
   subject: SubjectOf<Id>,
   id: Id,
@@ -295,37 +352,44 @@ export function perform<Id extends ActionId>(
 ): Performed<Id> {
   const action: ActionDef | undefined = ctx.catalog.actions.get(id)
   if (!action) return { ok: false, reason: "unknown" }
+  if (action.target === "page") {
+    const at = subject as PageInBook
+    if (!findPage(at.book, at.page)) return noPage(at.page)
+  }
+  // ブックを変えるアクション（ブックが対象か、ページが対象）の、行う前のブック
+  const before =
+    action.target === "book" ? (subject as Book) : action.target === "page" ? (subject as PageInBook).book : undefined
   const parsed = action.args.safeParse(args)
   const permitted = permits(ctx, action, subject, parsed)
   if (!permitted.ok) return permitted
   if (!parsed.success) return { ok: false, reason: "bad-args" }
-  const ran = action.run(
-    subject as never,
+  const ran = runAction(
+    action,
+    subject,
     parsed.data,
     permitted.pages ? { ...ctx, permittedPages: permitted.pages } : ctx,
   )
   if (!ran) return { ok: false, reason: "refused" }
   if ("declined" in ran)
     return { ok: false, reason: "refused", detail: ran.declined, ...(ran.kind === undefined ? {} : { kind: ran.kind }) }
-  const next = action.target === "book" ? normalized(ctx.catalog, action, subject as Book, ran.next as Book) : ran.next
+  const next = before ? normalized(ctx.catalog, action, before, ran.next as Book) : ran.next
   if (!next) return { ok: false, reason: "refused" }
   const done = { ...ran, next }
   // アノテーションのアクションはブックを変えない（変えたら断る）。認可ステップの keeps は、変わらないブックで見る
   const pair = subject as unknown as BookAnnotations
   if (action.target === "annotations" && (done.next as unknown as BookAnnotations).book !== pair.book)
     return { ok: false, reason: "refused" }
-  const permission =
-    action.target === "book"
-      ? broken(ctx, action, subject as Book, done.next as Book)
-      : action.target === "library"
-        ? brokenIn(ctx, action, subject as Library, done.next as Library)
-        : action.target === "annotations"
-          ? broken(ctx, action, pair.book, pair.book)
-          : null
+  const permission = before
+    ? broken(ctx, action, before, done.next as Book)
+    : action.target === "library"
+      ? brokenIn(ctx, action, subject as Library, done.next as Library)
+      : action.target === "annotations"
+        ? broken(ctx, action, pair.book, pair.book)
+        : null
   if (permission) return { ok: false, reason: "denied", permission }
-  if (action.target === "book") {
+  if (before) {
     // ページのタイプは作ったあと変えない（アクションが替えていたら断る）
-    if (!settles(ctx.catalog, done.next as Book) || !keepsPageTypes(subject as Book, done.next as Book))
+    if (!settles(ctx.catalog, done.next as Book) || !keepsPageTypes(before, done.next as Book))
       return { ok: false, reason: "refused" }
   }
   if (action.target === "library" && !librarySettles(ctx.catalog, subject as Library, done.next as Library))
@@ -423,6 +487,15 @@ export type PerformedIn =
   | { ok: false; reason: "no-book" }
   | { ok: false; reason: "no-record"; detail: string }
 
+// ページが対象のアクションの宛先（on のページ）と、そのページを持っているブック（performIn と permittedIn で同じ決まりを使う）。
+// ゴミ箱のブックのページは無いものとし、同じ id のページが 2 冊にあれば、どちらとも決めずに無いとする
+function pageIn(world: World, on: ActionOn | undefined): PageInBook | NoPage {
+  const page = (on && "page" in on ? on.page : undefined) ?? ""
+  const held = Object.values(world.books).filter(b => b.trashed === undefined && findPage(b, page) !== undefined)
+  const [book] = held
+  return book && held.length === 1 ? { book, page } : noPage(page)
+}
+
 // on.record に指した id のレコードが無いときの断り: どの種類のどの id が無いか。AI に見える種類なら、直し方（一覧の引き方）と種類の説明（id が何の id か）も
 function noRecord(
   catalog: CoreCatalog,
@@ -442,7 +515,7 @@ function noRecord(
 }
 
 // 対象を world から選んでアクションを行う（画面の store・常駐・行い直しで同じ決まりを使う）。
-// ブックとアノテーションが対象なら on のブックで（ゴミ箱のブックは無いものとして断る）、ブックの id を変えたら断る。同じ値の設定は変わらなかったとみなす。
+// ブックとアノテーションが対象なら on のブックで（ゴミ箱のブックは無いものとして断る）、ページが対象なら on のページを持っているブックで行い、ブックの id を変えたら断る。同じ値の設定は変わらなかったとみなす。
 // ブックが変わったら、無くなった物をそのブックのアノテーションのアンカーから外し（core/annotation.ts の prune）、一覧から無くなったブックのアノテーションは消す
 export function performIn(
   world: World,
@@ -472,15 +545,12 @@ export function performIn(
         ? { ok: true, result: done.result }
         : { ok: true, result: done.result, annotations: { [book.id]: next } }
     }
-    const done = loose(book, id, args, ctx)
-    if (!done.ok) return done
-    const next = done.next as Book
-    if (next.id !== book.id) return { ok: false, reason: "refused" }
-    if (next === book) return { ok: true, result: done.result }
-    const kept = prune(annotations, next)
-    return kept === annotations
-      ? { ok: true, result: done.result, book: next }
-      : { ok: true, result: done.result, book: next, annotations: { [book.id]: kept } }
+    return changedBook(book, annotations, loose(book, id, args, ctx))
+  }
+  if (target === "page") {
+    const at = pageIn(world, on)
+    if ("ok" in at) return at
+    return changedBook(at.book, world.annotations[at.book.id] ?? [], loose(at, id, args, ctx))
   }
   if (target === "library") {
     const done = loose(world.books, id, args, ctx)
@@ -496,6 +566,23 @@ export function performIn(
   const next = done.next as Settings
   const same = sameData(next, world.settings)
   return same ? { ok: true, result: done.result } : { ok: true, result: done.result, settings: next }
+}
+
+// ブックを変えるアクションの結果 done を、変わった物だけの形にする（book は行う前のブック、annotations はそのアノテーション）。
+// ブックの id を変えていたら断り、無くなった物をアノテーションのアンカーから外す
+function changedBook(
+  book: Book,
+  annotations: BookAnnotations["annotations"],
+  done: ReturnType<typeof perform>,
+): PerformedIn {
+  if (!done.ok) return done
+  const next = done.next as Book
+  if (next.id !== book.id) return { ok: false, reason: "refused" }
+  if (next === book) return { ok: true, result: done.result }
+  const kept = prune(annotations, next)
+  return kept === annotations
+    ? { ok: true, result: done.result, book: next }
+    : { ok: true, result: done.result, book: next, annotations: { [book.id]: kept } }
 }
 
 // アクションの対象が、対象の定義が足した種類か
@@ -614,6 +701,10 @@ export function permittedIn(
     if (!book) return { ok: false, reason: "no-book" }
     const subject = target === "book" ? book : { book, annotations: world.annotations[book.id] ?? [] }
     return permitted(subject, id, args, ctx)
+  }
+  if (target === "page") {
+    const at = pageIn(world, on)
+    return "ok" in at ? at : permitted(at, id, args, ctx)
   }
   if (target !== undefined && isRecordTarget(ctx.catalog, target)) {
     const wanted = on && "record" in on ? on.record : undefined

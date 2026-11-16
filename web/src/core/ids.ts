@@ -15,7 +15,24 @@ export function freshPageId(newId: () => string, taken: Iterable<string>): strin
 
 // 続けて何個も振る関数: 振った id を使われている id に足しながら振るので、振った id どうしも重ならない
 export function idMaker(newId: () => string, taken: Iterable<string>): () => string {
-  return maker(newId, taken, raw => raw.replace(/-/g, "").slice(0, 10))
+  return maker(newId, taken, shortId)
+}
+
+// newId の値 raw から作る短い id（idMaker が振る形）
+export const shortId = (raw: string): string => raw.replace(/-/g, "").slice(0, 10)
+
+// newId のうち、そのままでも短い id にしても taken と重なる値を飛ばす newId（taken は最初に振るときに 1 度だけ集める）。
+// 同じ newId の並びと同じ taken なら、同じ値を同じ順に返す
+export function skipping(newId: () => string, taken: () => Iterable<string>): () => string {
+  let used: Set<string> | undefined
+  return () => {
+    used ??= new Set(taken())
+    for (let i = 0; i < 100; i++) {
+      const raw = newId()
+      if (!used.has(raw) && !used.has(shortId(raw))) return raw
+    }
+    return fail("E112")
+  }
 }
 
 function maker(newId: () => string, taken: Iterable<string>, form: (raw: string) => string): () => string {

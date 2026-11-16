@@ -54,9 +54,10 @@ type Actor struct {
 	Workroom string `json:"workroom,omitempty"`
 }
 
-// On はアクションの宛先: ブックか、レコード（対象の定義が足した種類のデータ）のどちらか
+// On はアクションの宛先: ブックか、ページか、レコード（対象の定義が足した種類のデータ）のどれか
 type On struct {
 	Book   string `json:"book,omitempty"`
+	Page   string `json:"page,omitempty"`
 	Record string `json:"record,omitempty"`
 }
 

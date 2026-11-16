@@ -142,6 +142,7 @@ const AI_REFUSALS: Record<Exclude<PerformedIn, { ok: true }>["reason"], string> 
   refused: "the action's rules refuse it (for example the page or item does not exist); read_page to check",
   denied: "a permission step stopped it",
   "no-book": "there is no book with that id (see list_books)",
+  "no-page": "there is no page with that id (on.page is the id of a page; read_book lists a book's pages)",
   "no-record": "there is no record with that id (on.record is the id of a record of the action's subject)",
 }
 

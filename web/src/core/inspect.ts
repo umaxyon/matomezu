@@ -12,7 +12,7 @@ import {
   ANY_PAGE_TYPE,
   attachedTo,
   BASE_TARGETS,
-  isOnBook,
+  isInBook,
   type Where,
 } from "./def/action"
 import type { ControlCenterDef } from "./def/control-center"
@@ -82,7 +82,7 @@ export function inspect(
 // アクション action を、開いているブック book の所 where で使えるかの問い。ブックとアノテーションが対象のアクションだけ book と where を渡す
 // （ほかの対象は、コントロールセンターで決まる）
 export function actionQuery(catalog: CoreCatalog, action: string, book: Book | undefined, where?: Where): Query {
-  const onBook = book !== undefined && isOnBook(catalog.actions.get(action)?.target)
+  const onBook = book !== undefined && isInBook(catalog.actions.get(action)?.target)
   return { kind: "action", action, actor: USER, ...(onBook ? { book, ...(where ? { where } : {}) } : {}) }
 }
 
@@ -235,7 +235,7 @@ function action(
   }
   const participation: Step<boolean> = {
     from: { source: "participation", id: def.id },
-    value: !hasJoined(q.actor) && !joinsWithoutParticipation(def) && !isOnBook(def.target) ? false : null,
+    value: !hasJoined(q.actor) && !joinsWithoutParticipation(def) && !isInBook(def.target) ? false : null,
   }
   const { book, settings, where, record } = q
   const permitted = book
@@ -251,7 +251,7 @@ function action(
           actor: q.actor,
         })
       : []
-  if (def.target === "book" || def.target === "annotations")
+  if (isInBook(def.target))
     return book
       ? decide([known, userOnly, ...permitted, ...placeSteps(catalog, def, book, where)])
       : decide([known, userOnly])

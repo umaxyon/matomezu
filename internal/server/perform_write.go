@@ -123,7 +123,7 @@ func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act
 		if _, ok := h.books[put.id]; !ok {
 			h.order = append(h.order, put.id)
 		}
-		h.books[put.id] = entry{put.body, put.version, trashed(put.body)}
+		h.books[put.id] = newEntry(put.body, put.version)
 		h.broadcast("book", map[string]any{"book": put.body, "version": put.version, "client": p.Client, "seq": p.Seq, "by": by, "act": act, "action": p.Action})
 		h.touch(put.id, stamp())
 		h.recordWarnings([]string{put.id}, put.warnings)
