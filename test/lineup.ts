@@ -10,12 +10,13 @@ export const DIR = "@matomezu/dir:dir"
 export const MARKDOWN = "@matomezu/markdown:markdown"
 export const SLIDE = "@matomezu/slide-book:slide"
 
+// ページの手本に書けるフィールド。アイテムは、機能台帳に無い物や一部のフィールドだけの物も置けるよう、形を問わない（読めるかはテストが確かめる）
+type PageRest<T extends PageTypeId> = Partial<Omit<PageOf<T>, "kind" | "type" | "id" | "items">> & {
+  items?: readonly object[]
+}
+
 // タイプ type のページ（id・題・紙は、書かなければ手本の値。rest に、アイテム・設定・タイプのフィールドなどを書く）
-export function testPage<T extends PageTypeId>(
-  type: T,
-  id = "p1",
-  rest: Partial<Omit<PageOf<T>, "kind" | "type" | "id">> = {},
-): PageOf<T> {
+export function testPage<T extends PageTypeId>(type: T, id = "p1", rest: PageRest<T> = {}): PageOf<T> {
   return {
     kind: "page",
     id,
@@ -28,8 +29,7 @@ export function testPage<T extends PageTypeId>(
 }
 
 // 図面のページ（いちばん多く使う手本）
-export const drawingPage = (id = "p1", rest: Partial<Omit<PageOf<typeof DRAWING>, "kind" | "type" | "id">> = {}) =>
-  testPage(DRAWING, id, rest)
+export const drawingPage = (id = "p1", rest: PageRest<typeof DRAWING> = {}) => testPage(DRAWING, id, rest)
 
 // ページ page に、形だけの並び slide を持たせたページ（ページの型は slide を持たないので、テストが置く形をここで足す）
 export function withSlide<P extends AnyPage>(page: P, slide: readonly object[]): P {

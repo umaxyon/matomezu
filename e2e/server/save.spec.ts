@@ -147,7 +147,7 @@ const LINE_BOOK = testBook("e2e-line", "線", [
       },
       { id: "l2", item: "@matomezu/line:connector-line", from: "a", to: "c", props: {} },
       { id: "l3", item: "@matomezu/line:connector-line", from: "b", to: "c", props: {} },
-    ] as never,
+    ],
   }),
 ])
 

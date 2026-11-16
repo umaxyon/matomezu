@@ -32,9 +32,7 @@ export function gridBook(id: string, n: number) {
     to: `b${i + 1}`,
     props: {},
   }))
-  return testBook(id, `箱 ${n}`, [
-    drawingPage(PAGE, { paper: "@matomezu/base:a3", items: [...boxes, ...lines] as never }),
-  ])
+  return testBook(id, `箱 ${n}`, [drawingPage(PAGE, { paper: "@matomezu/base:a3", items: [...boxes, ...lines] })])
 }
 
 // 根の下に 10 の枝、残りの節を枝へ順に配った木（節は根を入れて n 個）

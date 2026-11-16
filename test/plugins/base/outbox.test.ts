@@ -12,8 +12,8 @@ import { CORE_CATALOG } from "../../support"
 
 const box = (id: string) => ({ id, item: "@matomezu/box:shape-nest-box", x: 0, y: 0, props: { caption: id, body: "" } })
 const book = testBook("b1", "見本", [
-  drawingPage("p1", { title: "一", items: [box("a"), box("b")] as never }),
-  drawingPage("p2", { title: "二", items: [box("c")] as never }),
+  drawingPage("p1", { title: "一", items: [box("a"), box("b")] }),
+  drawingPage("p2", { title: "二", items: [box("c")] }),
 ])
 const note = (id: string, anchor: string, addedAt: string): Annotation => ({
   id,

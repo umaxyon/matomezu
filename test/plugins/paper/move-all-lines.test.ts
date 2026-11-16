@@ -98,7 +98,7 @@ const items = [
   L("6b14987870", "c585cfbc31", "e6a849e362", { route: "straight", endHead: "arrow", exitAt: 0.3871, enterAt: 0.7118 }),
 ]
 test("全部を右へ動かしても、via は動いた量だけずれる（動かす量が 1〜170（紙に収まる範囲）のどれでも消えない）", () => {
-  const raw = testBook("b", "t", [drawingPage("p", { title: "現在", items: items as never })])
+  const raw = testBook("b", "t", [drawingPage("p", { title: "現在", items: items })])
   const [book] = restoreBooks(CORE_CATALOG, [raw])
   const ids = [
     "eb78b10e2b",

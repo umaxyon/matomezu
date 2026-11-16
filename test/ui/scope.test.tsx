@@ -53,7 +53,7 @@ const drawing = (id: string, settings?: PageOf<typeof DRAWING>["settings"]) =>
         box("a", 40),
         box("b", 400),
         { id: "l1", item: "@matomezu/line:connector-line", from: "a", to: "b", props: {} },
-      ] as never,
+      ],
     }),
   ])
 

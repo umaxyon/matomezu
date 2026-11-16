@@ -544,7 +544,7 @@ test("読めないブックは、ブックを開くの一覧に押せない行�
 
 test("一部のプラグインが無いブックは開け、知らない形は枠だけで描き、ダブルクリックしても編集のダイアログは出ない。一覧の名前の横に印が付く", () => {
   const book = testBook("u1", "星の残る図", [
-    drawingPage("p1", { title: "P", items: [{ id: "s", item: "@foo/stars:star", x: 40, y: 40, props: {} }] as never }),
+    drawingPage("p1", { title: "P", items: [{ id: "s", item: "@foo/stars:star", x: 40, y: 40, props: {} }] }),
   ])
   const store = renderBooksScreen({ books: [], savedBooks: [book] })
   act(() => store.actions.openBook("s1", "u1"))
@@ -598,7 +598,7 @@ test("内包ボックスの子は親の中に描き、子に付いた線も描�
         box("a", 40, 40, 400, 300, [box("b", 20, 60, 200, 150, [box("c", 10, 50, 100, 60)])]),
         box("d", 600, 40, 100, 60),
         { id: "l1", item: "@matomezu/line:connector-line", from: "d", to: "c", props: {} },
-      ] as never,
+      ],
     }),
   ])
   const store = renderBooksScreen({ books: [], savedBooks: [book] })
@@ -631,7 +631,7 @@ test("本文のある箱を選ぶと本文の列の端につまみが出て（�
     props: { caption: "見出し", body: "本文の幅を縮めるための長い文です。", captionAlign },
   })
   const book = testBook("w1", "幅", [
-    drawingPage("p1", { title: "P", items: [box("c", 40, "center"), box("l", 400, "left")] as never }),
+    drawingPage("p1", { title: "P", items: [box("c", 40, "center"), box("l", 400, "left")] }),
   ])
   const store = renderBooksScreen({ books: [], savedBooks: [book] })
   act(() => store.actions.openBook("s1", "w1"))

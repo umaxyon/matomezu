@@ -6,8 +6,7 @@ import { anchorLabel } from "../../../web/src/plugins/base/label/labels"
 import { DIR, drawingPage, TREE, testBook, testPage } from "../../lineup"
 import { CORE_CATALOG } from "../../support"
 
-const drawing = (items: readonly unknown[]): Book =>
-  testBook("b1", "見本", [drawingPage("p1", { title: "1", items: items as never })])
+const drawing = (items: readonly object[]): Book => testBook("b1", "見本", [drawingPage("p1", { title: "1", items })])
 const label = (book: Book, id: string) => anchorLabel(CORE_CATALOG, book, id)
 
 test("箱はキャプション、無ければ本文の最初の行。どちらも無ければ種類の名前。装飾は外す", () => {

@@ -19,7 +19,7 @@ const bookWith = (print?: "always") =>
     withSlide(
       drawingPage("p1", {
         grows: "right-down",
-        items: [{ id: "n1", item: "@matomezu/box:shape-nest-box", x: 40, y: 40, props: { caption: "箱" } }] as never,
+        items: [{ id: "n1", item: "@matomezu/box:shape-nest-box", x: 40, y: 40, props: { caption: "箱" } }],
         ...(print ? { settings: { "@matomezu/base:background-print": print } } : {}),
       }),
       [farEllipse],

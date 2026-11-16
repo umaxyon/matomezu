@@ -15,7 +15,7 @@ const LINE = "@matomezu/line:connector-line"
 // 図面のブックは内包ボックス（ケイパビリティ nests）・リスト・線を使う
 const nesting = CORE_CATALOG
 
-const book = (items: unknown[]) => testBook("b1", "T", [drawingPage("p1", { title: "P", items: items as never })])
+const book = (items: object[]) => testBook("b1", "T", [drawingPage("p1", { title: "P", items: items })])
 const box = (id: string, x: number, y: number, shapes?: unknown[]) => ({
   id,
   x,
@@ -26,7 +26,7 @@ const box = (id: string, x: number, y: number, shapes?: unknown[]) => ({
 })
 const list = (id: string) => ({ id, x: 0, y: 0, item: LIST, props: {} })
 const line = (id: string, from: string, to: string) => ({ id, item: LINE, from, to, props: {} })
-const reads = (items: unknown[]) => restoreBooks(nesting, [book(items)]).length === 1
+const reads = (items: object[]) => restoreBooks(nesting, [book(items)]).length === 1
 
 describe("子の形を受け付けるブックの形", () => {
   test("ケイパビリティ nests の形は、ブックで使える形を何段でも子に持てる", () => {
