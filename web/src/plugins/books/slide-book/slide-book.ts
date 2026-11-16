@@ -25,7 +25,8 @@ export const SLIDE_BOOK = kit.definePageType({
   title: "Slide",
   grouping: "own-folder", // スライドはいつもスライドのフォルダに入る
   duplicatesPages: true, // スライドのアイテムは id を指す項目を持たないので、ページを複製できる
-  paper: { allowed: PAPER_IDS, default: "@matomezu/base:ratio-16x9", orientation: "landscape", perPage: true },
+  // 1 つのスライド（フォルダ）の中は、紙と向きをそろえる
+  paper: { allowed: PAPER_IDS, default: "@matomezu/base:ratio-16x9", orientation: "landscape", perPage: false },
   items: { allowed: [] },
   slide: { allowed: SLIDE_ITEMS },
   actions: {},

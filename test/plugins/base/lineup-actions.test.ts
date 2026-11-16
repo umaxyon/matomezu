@@ -166,3 +166,26 @@ test("ロックしたページは、並びの中で動かせる・複製でき�
   })
   expect(run(book, FOLDER_REMOVE.id, { folder: "nope" })).toEqual({ ok: false, reason: "refused" })
 })
+
+test("スライドのフォルダの中は紙と向きがそろう: 足すページ・1 枚だけの変更は今の紙だけ、folder-update は全部のページに 1 回で付ける。別のフォルダは別にそろう", () => {
+  const A4 = "@matomezu/base:a4"
+  const paperOf = (b: Book, id: string) => findPage(b, id)?.page.paper
+  // 今のフォルダと違う紙のページは足せず、1 枚だけ別の紙にもできない
+  expect(run(book, PAGE_ADD.id, { type: SLIDE, into: { folder: "f1" }, paper: A4 })).toEqual({
+    ok: false,
+    reason: "refused",
+  })
+  expect(run(book, "@matomezu/base:page-update", { page: "s1", paper: A4 })).toEqual({
+    ok: false,
+    reason: "refused",
+  })
+  // フォルダごと変える
+  const done = run(book, FOLDER_UPDATE.id, { folder: "f1", paper: A4 })
+  expect(done.ok && pagesIn(done.next, "f1").map(p => p.paper)).toEqual([A4, A4])
+  // 新しいフォルダは、ほかのフォルダの紙に縛られない
+  const other = done.ok && run(done.next, PAGE_ADD.id, { type: SLIDE, into: { newFolder: "別のスライド" } })
+  expect(other && other.ok && paperOf(other.next, "n1")).toBe("@matomezu/base:ratio-16x9")
+  // 何も渡さない・タイプに無い紙は断る
+  expect(run(book, FOLDER_UPDATE.id, { folder: "f1" })).toEqual({ ok: false, reason: "refused" })
+  expect(run(book, FOLDER_UPDATE.id, { folder: "f1", paper: "@x:nope" })).toEqual({ ok: false, reason: "refused" })
+})

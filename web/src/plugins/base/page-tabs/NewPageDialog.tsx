@@ -45,7 +45,12 @@ function NewPageForm({ book, args, onDone }: { book: Book; args: NewPageDialogAr
         )
       : nextPageTitle(book, t, args.folder === undefined ? undefined : pagesIn(book, args.folder).map(p => p.title)),
   )
-  const paper = usePaperControls(book, null, args.type)
+  const paper = usePaperControls(
+    book,
+    null,
+    args.type,
+    newFolder ? "new-folder" : args.folder === undefined ? "lineup" : { folder: args.folder },
+  )
   const into = newFolder
     ? { into: { newFolder: title } }
     : args.folder === undefined

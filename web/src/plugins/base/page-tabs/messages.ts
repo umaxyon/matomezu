@@ -23,7 +23,7 @@ export const PAGE_MESSAGES = defineMessages({
   "Page list": { en: "Page list", ja: "ページ一覧" },
   "Move page": { en: "Move page", ja: "ページを動かす" },
   "Open folder": { en: "Open folder", ja: "フォルダを開く" },
-  "Rename folder": { en: "Rename folder", ja: "フォルダの名前を変える" },
+  "Change folder": { en: "Change folder", ja: "フォルダを変える" },
   "Move folder": { en: "Move folder", ja: "フォルダを動かす" },
   "Duplicate folder": { en: "Duplicate folder", ja: "フォルダを複製" },
   "Remove folder": { en: "Remove folder", ja: "フォルダを消す" },

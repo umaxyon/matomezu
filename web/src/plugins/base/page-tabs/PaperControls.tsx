@@ -10,7 +10,16 @@ import { useCatalog } from "../../../ui/store-context"
 import { controlClass, Field, rowClass, Switch } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import type { PageProblem } from "./page-problems"
-import { canGrow, defaultPaper, growChoices, normalizedPage, paperChoices, paperChoicesFor, withGrows } from "./pages"
+import {
+  canGrow,
+  defaultPaper,
+  growChoices,
+  normalizedPage,
+  type PaperPlace,
+  paperChoices,
+  paperChoicesFor,
+  withGrows,
+} from "./pages"
 
 // 向きの名前
 const ORIENTATION_TITLES = { portrait: "Portrait", landscape: "Landscape" } as const satisfies Record<
@@ -34,19 +43,26 @@ export interface PaperValue {
 }
 
 // page はページの設定なら変えるページ、ページを作るなら null（タイプ type の規定の既定から始める。page があれば type はそのページのタイプ）
-export function usePaperControls(book: Book | undefined, page: Page | null, type: string | undefined) {
+export function usePaperControls(
+  book: Book | undefined,
+  page: Page | null,
+  type: string | undefined,
+  place: PaperPlace = "lineup", // ページを作るなら、入れる所（紙をそろえる相手が決まる）
+) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const [value, setValue] = useState<PaperValue | null>(() => {
     if (!book || type === undefined) return null
-    const from = page ?? defaultPaper(catalog, book, type)
+    const from = page ?? defaultPaper(catalog, book, type, place)
     const choices = growChoices(catalog, type)
     const grows = page?.grows === true && choices[0] ? choices[0] : page?.grows
     return { paper: from.paper, orientation: from.orientation, grows }
   })
   if (!book || !value || type === undefined)
     return { controls: null, value: null, patch: {}, draft: (p: Page) => p, problems: [] }
-  const { papers, orientations } = page ? paperChoicesFor(catalog, book, page) : paperChoices(catalog, book, type)
+  const { papers, orientations } = page
+    ? paperChoicesFor(catalog, book, page)
+    : paperChoices(catalog, book, type, place)
   const choices = growChoices(catalog, type)
   const chosen = value.grows === true ? undefined : value.grows // 選んでいる増やす向き
   // 変えた項目（ページを作るなら全部）

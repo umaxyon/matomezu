@@ -1,6 +1,6 @@
 // 次のページ（と、あとで変えるページ）に選べる紙と向き、可変ページにできるかと、次のページの題名の案（ページを足す・消すのは土台の core/book.ts）
 
-import { findPage, lineupOf, pagesOf, putPage } from "../../../core/book"
+import { findFolder, findPage, lineupOf, pagesIn, putPage } from "../../../core/book"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import { type GrowChoice, ORIENTATIONS, type Orientation } from "../../../core/def/paper"
 import type { MessageKey, Params } from "../../../core/i18n/i18n"
@@ -27,20 +27,41 @@ export function choosablePapers(rule: PaperRule, pages: readonly Page[]): PaperO
   return { papers: [first.paper], orientations: [first.orientation] }
 }
 
-// ブック book に足す、タイプ type の次のページに選べる紙と向き（紙をそろえる規定のタイプは、ブックの中の同じタイプのページにそろえる）
-export function paperChoices(catalog: CoreCatalog, book: Book, type: string): PaperOptions {
-  return choosablePapers(
-    paperRule(catalog, type),
-    pagesOf(book).filter(p => p.type === type),
-  )
+// 足すページを入れる所: ブックの並び（lineup）、今あるフォルダ（その id）、これから作るフォルダ（new-folder。そろえる相手がまだ無い）
+export type PaperPlace = "lineup" | "new-folder" | { folder: string }
+
+// 紙をそろえる相手: 同じ入れ物（ブックの並びか、フォルダの中）の、同じタイプのページ
+function mates(book: Book, type: string, place: PaperPlace): readonly Page[] {
+  if (place === "new-folder") return []
+  const inside = place === "lineup" ? lineupOf(book).filter(e => e.kind === "page") : pagesIn(book, place.folder)
+  return inside.filter(p => p.type === type)
+}
+
+// ブック book の所 place に足す、タイプ type の次のページに選べる紙と向き（紙をそろえる規定のタイプは、同じ入れ物の同じタイプのページにそろえる）
+export function paperChoices(
+  catalog: CoreCatalog,
+  book: Book,
+  type: string,
+  place: PaperPlace = "lineup",
+): PaperOptions {
+  return choosablePapers(paperRule(catalog, type), mates(book, type, place))
 }
 
 // ページ page の紙と向きを変えるときに選べるもの（そのページ自身は、紙をそろえる規定の手本にしない）
 export function paperChoicesFor(catalog: CoreCatalog, book: Book, page: Page): PaperOptions {
+  const folder = findPage(book, page.id)?.folder
   return choosablePapers(
     paperRule(catalog, page.type),
-    pagesOf(book).filter(p => p.type === page.type && p.id !== page.id),
+    mates(book, page.type, folder ? { folder: folder.id } : "lineup").filter(p => p.id !== page.id),
   )
+}
+
+// フォルダ folder（id）のページの紙と向きを、まとめて choice にできるか: 紙をそろえる規定のタイプのフォルダで、choice がタイプの規定の紙と向きのとき
+export function canPaperFolder(catalog: CoreCatalog, book: Book, folder: string, choice: PaperChoice): boolean {
+  const type = findFolder(book, folder)?.pageType
+  if (type === undefined) return false
+  const rule = paperRule(catalog, type)
+  return !rule.perPage && canChoose({ papers: rule.allowed, orientations: ORIENTATIONS }, choice)
 }
 
 // タイプ type のページを、可変ページにする・やめるを選べるか（いつも可変ページのタイプは選べない）
@@ -88,10 +109,15 @@ export function canChoose(options: PaperOptions, choice: PaperChoice): boolean {
   return options.papers.includes(choice.paper) && options.orientations.includes(choice.orientation)
 }
 
-// ブック book に足す、タイプ type の次のページの紙の既定（規定の既定を選べなければ、選べるものの最初）
-export function defaultPaper(catalog: CoreCatalog, book: Book, type: string): PaperChoice {
+// ブック book の所 place に足す、タイプ type の次のページの紙の既定（規定の既定を選べなければ、選べるものの最初）
+export function defaultPaper(
+  catalog: CoreCatalog,
+  book: Book,
+  type: string,
+  place: PaperPlace = "lineup",
+): PaperChoice {
   const rule = paperRule(catalog, type)
-  const { papers, orientations } = paperChoices(catalog, book, type)
+  const { papers, orientations } = paperChoices(catalog, book, type, place)
   return {
     paper: papers.includes(rule.default) ? rule.default : (papers[0] ?? rule.default),
     orientation: orientations.includes(rule.orientation) ? rule.orientation : (orientations[0] ?? rule.orientation),

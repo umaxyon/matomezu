@@ -77,9 +77,10 @@ export function withNewPage(
   if (at !== undefined && at > size) return null
   if (args.into && "newFolder" in args.into && args.index !== undefined && args.index > lineupOf(book).length)
     return null
-  const fallback = defaultPaper(catalog, book, type.id)
+  const place = folder ? { folder: folder.id } : args.into ? "new-folder" : "lineup"
+  const fallback = defaultPaper(catalog, book, type.id, place)
   const choice = { paper: args.paper ?? fallback.paper, orientation: args.orientation ?? fallback.orientation }
-  if (!canChoose(paperChoices(catalog, book, type.id), choice)) return null
+  if (!canChoose(paperChoices(catalog, book, type.id, place), choice)) return null
   const grows = growsValue(catalog, type.id, args.grows ?? false)
   if (grows === null) return null
   const settings = args.settings === undefined ? null : settingsPatchOf(catalog, type.id)?.safeParse(args.settings)

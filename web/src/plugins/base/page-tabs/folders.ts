@@ -11,30 +11,58 @@ import {
   moveEntry,
   pagesIn,
   putFolder,
+  putPage,
   removeFolder,
 } from "../../../core/book"
+import { ORIENTATIONS } from "../../../core/def/paper"
 import { freshPageId } from "../../../core/ids"
 import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
 import { renewedIds } from "../utils/ids"
+import { pageProblems } from "./page-problems"
+import { canPaperFolder } from "./pages"
 
 const FOLDER = z.string().min(1)
 
-// フォルダの名前を変える（同じ名前のほかのフォルダがあれば断る）
+// フォルダを変える: 名前（同じ名前のほかの並びの要素があれば断る）と、中のページ全部の紙と向き（紙をそろえる規定のタイプのフォルダだけ。1 回で全部のページに付ける）
 export const FOLDER_UPDATE = kit.defineAction({
   id: "folder-update",
   attach: { books: true },
   aiDescription:
-    "Rename a folder of a book (a folder holds the pages of one page type whose grouping is own-folder, and shows as one page tab named after it). Returns nothing. Refused for a folder not in the book, or a title another entry of the book's lineup (a page outside folders, or a folder) has.",
-  title: "Rename folder",
+    "Change a folder of a book (a folder holds the pages of one page type whose grouping is own-folder, and shows as one page tab named after it): its title, and paper and orientation, which are set on every page in it at once (only for a page type whose pages in a folder share one paper, such as slides; among the page type's papers). Only what is given changes. Returns nothing. Refused for a folder not in the book, a title another entry of the book's lineup (a page outside folders, or a folder) has, a paper or orientation the page type does not take, or when nothing is given.",
+  title: "Change folder",
   target: "book",
-  args: z.strictObject({ folder: FOLDER, title: z.string().trim().min(1) }),
+  args: z.strictObject({
+    folder: FOLDER,
+    title: z.string().trim().min(1).optional(),
+    paper: z.string().min(1).optional(),
+    orientation: z.enum(ORIENTATIONS).optional(),
+  }),
   permissionScope: { entry: "folder" },
-  run: (book, args) => {
-    if (!findFolder(book, args.folder)) return null
-    if (lineupOf(book).some(e => e.id !== args.folder && e.title === args.title)) return null
-    return { next: putFolder(book, args.folder, f => ({ ...f, title: args.title })), result: {} }
+  run: (book, args, ctx) => {
+    const folder = findFolder(book, args.folder)
+    const { title, paper, orientation } = args
+    if (!folder || (title === undefined && paper === undefined && orientation === undefined)) return null
+    if (title !== undefined && lineupOf(book).some(e => e.id !== args.folder && e.title === title)) return null
+    const named = title === undefined ? book : putFolder(book, args.folder, f => ({ ...f, title }))
+    if (paper === undefined && orientation === undefined) return { next: named, result: {} }
+    const pages = pagesIn(book, args.folder)
+    const [first] = pages
+    // 空のフォルダは、紙を持つページが無い（次に足すページが、タイプの既定の紙になる）
+    if (!first) return null
+    const choice = { paper: paper ?? first.paper, orientation: orientation ?? first.orientation }
+    if (!canPaperFolder(ctx.catalog, book, args.folder, choice)) return null
+    const next = pages.reduce<Book>((b, p) => putPage(b, { ...p, ...choice }), named)
+    if (
+      pageProblems(
+        ctx.catalog,
+        next,
+        pages.map(p => p.id),
+      ).length > 0
+    )
+      return null
+    return { next, result: {} }
   },
 })
 
