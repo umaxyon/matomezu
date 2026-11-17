@@ -12,5 +12,18 @@
     "vercel-react-best-practices": "off",
     "vercel-react-native-skills": "off",
     "vercel-react-view-transitions": "off"
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"$CLAUDE_PROJECT_DIR/scripts/read-guard.ts\""
+          }
+        ]
+      }
+    ]
   }
 }

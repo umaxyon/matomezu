@@ -10,11 +10,13 @@ import styles from "./ParticipantListView.module.css"
 import { orderHeld, orderRows, type RowDetail, rowDetail } from "./rows"
 import text from "./text.module.css"
 import { useRowSlide } from "./useRowSlide"
+import { useSettledOrder } from "./useSettledOrder"
 
 export function ParticipantListView() {
   const t = useMessages(kit)
-  // 組（管理者・作業中・空き・空室）ごとに、変化のあった順。列に触れている間は、触れた時の並びで止める（押そうとした行が動かない）
-  const ordered = orderRows(useWorkroomRows())
+  // 組（管理者・作業中・空き・空室）ごとに、変化のあった順。行が途中の様子に入った直後は前の並びで待つ（useSettledOrder）。
+  // 列に触れている間は、触れた時の並びで止める（押そうとした行が動かない）
+  const ordered = useSettledOrder(orderRows(useWorkroomRows()))
   const [held, setHeld] = useState<readonly string[] | null>(null)
   const rows = held ? orderHeld(ordered, held) : ordered
   const hold = () => setHeld(h => h ?? ordered.map(r => r.room.id))
