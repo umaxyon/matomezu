@@ -6,6 +6,7 @@ import {
   type Client,
   type Group,
   type ItemFacts,
+  type ItemTokens,
   MAIN_THREAD,
   type Part,
   type ReplyBlock,
@@ -211,13 +212,30 @@ const outputText = (output: unknown) =>
     ? output.map(p => (p as ContentPart).text).join("")
     : asText(output)
 
-export function classify(body: ResponsesBody): Part[] {
+// usage の attribution.items.<項目の id>.<種類> を、項目の id ごとのトークンに
+export function attributionOf(usage: Usage): Map<string, Omit<ItemTokens, "parts">> {
+  const items = new Map<string, Omit<ItemTokens, "parts">>()
+  for (const [key, value] of Object.entries(usage)) {
+    const m = key.match(/^attribution\.items\.(.+)\.(input_tokens|cached_tokens|cache_write_tokens)$/)
+    if (!m?.[1]) continue
+    const t = items.get(m[1]) ?? { input: 0, cached: 0, written: 0 }
+    if (m[2] === "input_tokens") t.input = value
+    else if (m[2] === "cached_tokens") t.cached = value
+    else t.written = value
+    items.set(m[1], t)
+  }
+  return items
+}
+
+export function classify(body: ResponsesBody, usage: Usage = {}): Part[] {
   const input = body.input ?? []
+  const attribution = attributionOf(usage)
   const names = new Map(input.flatMap(toolUses).map(u => [u.id, u.name]))
   const parts: Part[] = []
   let talked = false
   input.forEach((item, i) => {
     const where = `input${i}`
+    const start = parts.length
     if (item.type === "additional_tools") {
       ;(item.tools ?? []).forEach((t, k) => {
         const inner = t.type === "namespace" ? (t.tools ?? []).map(tool => ({ ns: t.name, tool })) : [{ tool: t }]
@@ -263,6 +281,9 @@ export function classify(body: ResponsesBody): Part[] {
       const text = JSON.stringify(item, null, 1)
       parts.push({ where, label: item.type, group: "不明", chars: JSON.stringify(item).length, text })
     }
+    const t = typeof item.id === "string" ? attribution.get(item.id) : undefined
+    const first = parts[start]
+    if (t && first) first.itemTokens = { ...t, parts: parts.length - start }
   })
   return parts
 }

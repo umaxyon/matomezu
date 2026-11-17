@@ -131,6 +131,40 @@ test("道具の名前空間に matomezu の道具があれば matomezu、ほか�
   expect(parts.map(p => p.group)).toEqual(["matomezu", "他の MCP"])
 })
 
+test("usage の attribution の項目ごとのトークンを、その id の項目の最初の部分に付ける", () => {
+  const parts = classify(
+    {
+      input: [
+        {
+          type: "additional_tools",
+          id: "at_1",
+          tools: [
+            { type: "namespace", name: "mcp__matomezu", tools: [{ name: "list_books" }] },
+            { type: "namespace", name: "mcp__notion", tools: [{ name: "fetch" }] },
+          ],
+        },
+        { type: "message", role: "user", id: "msg_1", content: [{ type: "input_text", text: "hi" }] },
+        { type: "message", role: "assistant", content: [{ type: "output_text", text: "yo" }] },
+      ],
+    },
+    {
+      "attribution.items.at_1.input_tokens": 50,
+      "attribution.items.at_1.cached_tokens": 40,
+      "attribution.items.at_1.cache_write_tokens": 10,
+      "attribution.items.at_1.output_tokens": 0,
+      "attribution.items.msg_1.input_tokens": 3,
+      "attribution.items.msg_1.cached_tokens": 0,
+      "attribution.items.msg_1.cache_write_tokens": 0,
+    },
+  )
+  expect(parts.map(p => p.itemTokens)).toEqual([
+    { input: 50, cached: 40, written: 10, parts: 2 },
+    undefined,
+    { input: 3, cached: 0, written: 0, parts: 1 },
+    undefined,
+  ])
+})
+
 test("SSE の usage を response.completed から、行の途中で切れたチャンクからも拾い、キャッシュの分を input から引く", () => {
   const sse =
     'event: response.created\ndata: {"type":"response.created","response":{"usage":null}}\n\n' +

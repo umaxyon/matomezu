@@ -54,7 +54,10 @@ export type Entry = {
 }
 
 export type Group = "matomezu" | "指示・メモリ" | "スキル" | "他の MCP" | "フック" | "会話" | "固定" | "不明"
-export type Part = { where: string; label: string; group: Group; chars: number; text: string }
+// API が返した、本文の並びの 1 つの項目のトークン（Codex の usage の attribution）。parts はその項目から分けた Part の数
+export type ItemTokens = { input: number; cached: number; written: number; parts: number }
+// itemTokens は、項目の最初の Part だけに付く
+export type Part = { where: string; label: string; group: Group; chars: number; text: string; itemTokens?: ItemTokens }
 
 export type ReplyBlock =
   | { type: "text"; text: string }
@@ -113,7 +116,8 @@ export type Client<B> = {
   workroomNameOf(body: B): string | undefined
   summarize(body: B): Summary
   divergeAt(prev: string[] | undefined, cur: string[]): string
-  classify(body: B): Part[]
+  // usage は、その AI が項目ごとのトークンを返していれば、項目の最初の Part に付けるのに使う
+  classify(body: B, usage?: Usage): Part[]
   // SSE の 1 つのイベントのうち、usage として足す物
   usageOfEvent(event: { type?: string; [key: string]: unknown }): unknown
   // SSE の返答の終わりのイベントの type
