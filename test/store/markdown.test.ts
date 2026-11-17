@@ -20,7 +20,12 @@ import {
   shownPanes,
   swapPanes,
 } from "../../web/src/plugins/page-types/markdown/panes"
-import { MAX_REMEMBERED, positionOf, remember, SCROLL_STATE } from "../../web/src/plugins/page-types/markdown/scroll-memory"
+import {
+  MAX_REMEMBERED,
+  positionOf,
+  remember,
+  SCROLL_STATE,
+} from "../../web/src/plugins/page-types/markdown/scroll-memory"
 import { sourceEdit } from "../../web/src/plugins/page-types/markdown/source-edit"
 import { isActive, isShown } from "../../web/src/store/commands"
 import type { DoneBulk } from "../../web/src/store/store"
