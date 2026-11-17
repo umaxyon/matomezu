@@ -21,7 +21,7 @@ import { briefLine } from "../core/brief"
 import { bulkActionOf, performBulk } from "../core/bulk"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import type { CoreCatalog } from "../core/core-catalog"
-import { type ActionOn, type AIEditTicketChange, stopsOnEditLock } from "../core/def/action"
+import { type ActionOn, type AIEditTicketChange, type AIMessage, stopsOnEditLock } from "../core/def/action"
 import { slideIsBackground } from "../core/def/page-type"
 import type { SubjectDef } from "../core/def/subject"
 import { binnedBetween } from "../core/entries"
@@ -154,8 +154,18 @@ type Output =
       counters?: Counters
       notice?: string
       aiEditTickets?: readonly (AIEditTicketChange & { subject: string })[] // subject は、その変え方を返したアクションの対象の種類
+      aiMessages?: readonly AIMessage[] // 送る AI 間メッセージ（常駐が、宛先に参加の確定した参加者がいるかを確かめ、書き込みと一緒に送る）
     }
-  | { ok: false; reason: string; permission?: string; detail?: string; page?: string; code?: string; at?: number } // page と code は、読めないページの断り（unreadable）のとき。at は断られたアクションが何番目か
+  | {
+      ok: false
+      reason: string
+      permission?: string
+      kind?: string
+      detail?: string
+      page?: string
+      code?: string
+      at?: number
+    } // page と code は、読めないページの断り（unreadable）のとき。at は断られたアクションが何番目か
 
 // 変わったページ・フォルダ 1 つ（row は新しい値。無くなったなら removed が true で、row は無い）
 interface RowChange {
@@ -203,11 +213,14 @@ function refusal(catalog: CoreCatalog, done: Exclude<PerformedIn, { ok: true }>)
         : `the control center keeps the setting ${done.setting} fixed`
     return { ok: false, reason: done.reason, detail }
   }
-  if ("detail" in done && done.detail !== undefined) return { ok: false, reason: done.reason, detail: done.detail }
+  // 断りの種類（run が添えた名前か、土台の種類）は、そのまま添える
+  const kind = "kind" in done && done.kind !== undefined ? { kind: done.kind } : {}
+  if ("detail" in done && done.detail !== undefined)
+    return { ok: false, reason: done.reason, ...kind, detail: done.detail }
   // 読めないページの断りは、そのページの id と理由の番号を添える（常駐は AI に番号だけを返す）
   if (done.reason === "unreadable")
     return { ok: false, reason: done.reason, page: done.page, code: done.code, detail: AI_REFUSALS.unreadable }
-  return { ok: false, reason: done.reason, detail: AI_REFUSALS[done.reason] }
+  return { ok: false, reason: done.reason, ...kind, detail: AI_REFUSALS[done.reason] }
 }
 
 // ホストが置いた、レコードを引く口（常駐が行う間だけ答える。無ければ、受けたレコードだけで行う）: 1 件（無ければ空の文字）と、種類の全部（id → レコードの JSON）
@@ -303,6 +316,7 @@ function perform(input: Input): Output {
     ...(done.aiEditTickets
       ? { aiEditTickets: done.aiEditTickets.map(t => ({ ...t.change, subject: t.subject })) }
       : {}),
+    ...(done.aiMessages ? { aiMessages: done.aiMessages } : {}),
   }
 }
 

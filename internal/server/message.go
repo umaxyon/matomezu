@@ -1,6 +1,7 @@
 package server
 
-// AI 間メッセージ: 参加が確定した AI が、ほかのワークルームの参加者へ、利用者を介さずに送る文。郵便とは別物で、ブックもレコードも変えない（アクションを通さない）。
+// AI 間メッセージ: 参加が確定した AI が、ほかのワークルームの参加者へ、利用者を介さずに送る文。郵便とは別物で、ブックもレコードも変えない。
+// MCP の send_message はアクションを通さずに送り、レコードが対象のアクションの run が返して送ることもある（送り手は行った参加者。アクションバルクが通ったときだけ送る。actionEnvelopes）。
 // 常駐は封筒（Envelope）を宛て先の参加者の、起こす知らせの行列に入れ、受け取られるまで持つ（watch.go）。宛て先は送った時点の参加者で、その参加者が受け入れ済みでなくなったら捨てる（引き継いだ参加者には渡さない）。
 // 送り手は呼び出しの参加の id から決め、引数では受けない（偽れない）。宛て先はワークルームの名前で指す。
 // 封筒の形（id・送り手・宛て先・本文・送った時刻）は、マシンをまたいで運ぶときも変えない。id で重なりを見分け、同じ封筒は二度入れない
@@ -16,6 +17,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/umaxyon/matomezu/internal/engine"
 )
 
 // Address は、AI 間メッセージの送り手か宛て先: どのワークルームの、どの参加者か
@@ -51,6 +54,57 @@ type MessageSent struct {
 // seenEnvelopesMax は、重なりを見分けるために覚えておく封筒の id の数
 const seenEnvelopesMax = 1000
 
+// occupants は、ワークルームの id → 参加が確定した（準備中でない）参加者の id（h.mu を持って呼ぶ）
+func (h *Hub) occupants(records []participantRecord) map[string]string {
+	occupant := map[string]string{}
+	for _, r := range records {
+		if r.State == "joined" && r.Workroom != "" && h.participantNotes[r.ID].ready() {
+			occupant[r.Workroom] = r.ID
+		}
+	}
+	return occupant
+}
+
+// actionEnvelopes は、アクションバルクが返した AI 間メッセージ messages を、行った参加者から送る封筒にする（h.mu を持って呼ぶ）。
+// 行ったのが参加の確定した AI でない、宛先が自分のワークルームか、宛先のワークルームに参加の確定した参加者がいなければ、バルクを断る答えを返す
+func (h *Hub) actionEnvelopes(messages []engine.AIMessage, p Perform, now time.Time) ([]Envelope, *Performed) {
+	if len(messages) == 0 {
+		return nil, nil
+	}
+	records, err := h.participantsHeld()
+	if err != nil {
+		return nil, &Performed{OK: false, Reason: "refused", Detail: err.Error()}
+	}
+	rooms, err := h.workroomsHeld()
+	if err != nil {
+		return nil, &Performed{OK: false, Reason: "refused", Detail: err.Error()}
+	}
+	occupant := h.occupants(records)
+	from := occupant[p.Workroom]
+	if p.By != "ai" || from == "" {
+		return nil, &Performed{OK: false, Reason: "not-joined", Detail: "only an AI whose request to join was accepted sends AI messages"}
+	}
+	envelopes := make([]Envelope, 0, len(messages))
+	for _, m := range messages {
+		to := occupant[m.Workroom]
+		name := roomName(rooms, m.Workroom)
+		if m.Workroom == p.Workroom || to == "" {
+			if name == "" {
+				name = m.Workroom
+			}
+			return nil, &Performed{OK: false, Reason: "no-recipient", Detail: "no other AI has joined the workroom " + name + " now, so the message to it cannot be sent; nothing was changed"}
+		}
+		envelopes = append(envelopes, Envelope{
+			ID:     newEnvelopeID(),
+			From:   Address{Workroom: roomName(rooms, p.Workroom), Participant: from},
+			To:     Address{Workroom: name, Participant: to},
+			Text:   m.Text,
+			SentAt: isoTime(now),
+		})
+	}
+	return envelopes, nil
+}
+
 // SendMessage は、参加者 req.Participant から、ワークルーム req.To の参加者へ AI 間メッセージを送る
 func (h *Hub) SendMessage(req MessageRequest, now time.Time) (MessageSent, error) {
 	records, err := h.records()
@@ -64,13 +118,9 @@ func (h *Hub) SendMessage(req MessageRequest, now time.Time) (MessageSent, error
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	var from *participantRecord
-	occupant := map[string]string{} // ワークルームの id → 参加が確定した（準備中でない）参加者の id
+	occupant := h.occupants(records) // ワークルームの id → 参加が確定した（準備中でない）参加者の id
 	for i, r := range records {
-		if r.State != "joined" || r.Workroom == "" || !h.participantNotes[r.ID].ready() {
-			continue
-		}
-		occupant[r.Workroom] = r.ID
-		if r.ID == req.Participant {
+		if r.Workroom != "" && occupant[r.Workroom] == r.ID && r.ID == req.Participant {
 			from = &records[i]
 		}
 	}

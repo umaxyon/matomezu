@@ -432,6 +432,7 @@ type Performed struct {
 	Reason     string          `json:"reason,omitempty"`
 	Permission string          `json:"permission,omitempty"`
 	Detail     string          `json:"detail,omitempty"`
+	Kind       string          `json:"kind,omitempty"` // 断りの種類（アクションが添えた名前か、土台の種類）
 	Code       string          `json:"code,omitempty"` // 読めないページで断ったとき（reason unreadable）、読めない理由の warning の番号
 	Result     json.RawMessage `json:"result,omitempty"`
 	Notice     string          `json:"notice,omitempty"` // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
@@ -461,7 +462,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	if !out.OK && out.At != nil && *out.At >= 0 && *out.At < len(p.Actions) {
 		fmt.Fprintf(os.Stderr, "%s refused at the action %d of %d (%s): %s\n", stamp(), *out.At, len(p.Actions), p.Actions[*out.At].Action, out.Reason)
 	}
-	done := Performed{OK: out.OK, Reason: out.Reason, Permission: out.Permission, Detail: out.Detail, Code: out.Code, Result: out.Result, Notice: out.Notice}
+	done := Performed{OK: out.OK, Reason: out.Reason, Permission: out.Permission, Detail: out.Detail, Kind: out.Kind, Code: out.Code, Result: out.Result, Notice: out.Notice}
 	// AI のアクションは、窓に出ているブックをゴミ箱に入れない（AI は利用者に聞く）
 	if out.OK && p.By == "ai" && h.trashesShown(out.Trashing) {
 		done = Performed{OK: false, Reason: "open-on-screen"}
@@ -478,6 +479,13 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		var requested map[string]bool
 		if by == "window" {
 			requested = h.requestedParticipants()
+		}
+		// アクションが返した AI 間メッセージは、送り手と全部の宛先に参加の確定した参加者がいるときだけ送る（いなければ、何も変えずにバルクごと断る）
+		envelopes, refused := h.actionEnvelopes(out.AIMessages, p, time.Now())
+		if refused != nil {
+			h.remember(p.Key, *refused)
+			h.ack(p, *refused)
+			return *refused, nil
 		}
 		act := h.actPrefix + "-" + strconv.FormatInt(h.acts+1, 10)
 		plan, err := h.planWrites(out, by, act, stamp())
@@ -497,6 +505,9 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		}
 		h.acts++
 		h.applyWrites(plan, out, p, by, act)
+		for _, e := range envelopes {
+			h.deliver(e)
+		}
 		h.wakeOnParticipants(requested)
 	}
 	h.remember(p.Key, done)
@@ -513,6 +524,7 @@ func (h *Hub) performInputs(in *engine.Input) error {
 	all := false
 	books := []string{}
 	entries := []string{} // 宛先のページがブックに入っていないときの、渡すエントリ（そのページか、それを持つバインダ）
+	named := []string{}   // 宛先がブックそのもののときの、そのブック（名前を変えうるので、隣のエントリの行も渡す）
 	add := func(id string) {
 		if id != "" && !slices.Contains(books, id) {
 			books = append(books, id)
@@ -540,6 +552,9 @@ func (h *Hub) performInputs(in *engine.Input) error {
 			switch {
 			case book != "" && (step.On.Page != "" || h.hasBook(book)):
 				add(book)
+				if step.On.Page == "" && !slices.Contains(named, book) {
+					named = append(named, book)
+				}
 			case step.On.Page != "" && known:
 				if e := h.entryNotInBook(step.On.Page); e != "" && !slices.Contains(entries, e) {
 					entries = append(entries, e)
@@ -560,6 +575,11 @@ func (h *Hub) performInputs(in *engine.Input) error {
 	needed := append(slices.Clone(books), entries...)
 	in.Pages, in.Folders = h.rowsOf(needed)
 	in.Folders = append(in.Folders, h.openRowsAbove(needed)...)
+	// 宛先がブックそのものか、ブックに入っていないページなら、同じフォルダに直に入っている隣のエントリの行も
+	// （名前の重なりを確かめるため。隣のブック・フォルダの中の行は渡さない）
+	nearPages, nearFolders := h.neighborRows(append(slices.Clone(named), entries...), needed)
+	in.Pages = append(in.Pages, nearPages...)
+	in.Folders = append(in.Folders, nearFolders...)
 	for _, id := range books {
 		maps.Copy(in.Annotations, h.annotationsIn(id))
 	}
