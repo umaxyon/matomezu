@@ -53,14 +53,14 @@ function Proposal({ mail, onClose, dock, props }: MailActionsProps & { props: Pr
     show(mail)
     if (!mail.visitedAt) actions.perform(MAIL_VISITED.id, {}, { record: mail.id })
   }
-  // 反映と「反映した」は、待たずに続けて行う（同じアクションバルクなので、常駐は両方を 1 回で書くか、両方を断る）
+  // 反映と「反映した」は、待たずに続けて行う（同じアクションバルクなので、常駐は両方を 1 回で書くか、両方を断る。反映への常駐の答えは「反映した」の performConfirmed で待つ）。
+  // ここはまだ反映も失敗もしていない郵便のときだけ描くので、反映が画面で通れば「反映した」も画面で通る
   const apply = async () => {
     const applied = actions.perform(PROPOSAL_APPLY.id, applyArgs, { book: props.book })
     const done = applied.ok
       ? await actions.performConfirmed(PROPOSAL_SETTLE.id, { outcome: "applied" }, { record: mail.id })
       : applied
-    // 「反映した」だけが画面の上で断られた（郵便が無い・もう残した）なら、反映は書かれるので閉じる
-    if (done.ok || (applied.ok && !("by" in done && done.by === "host"))) {
+    if (done.ok) {
       onClose()
       return
     }
