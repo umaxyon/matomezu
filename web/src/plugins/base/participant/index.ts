@@ -1,12 +1,14 @@
 // 参加者・ワークルーム・管理者の印: 参加者リストのデータ（対象の定義。レコード）。
 // ワークルームは名前・鳥・配色を持つ独立したデータ（id は振り直さない）。空室は、入っている参加者がいないワークルーム（ワークルームの側には持たない）。
 // 参加者は AI のセッションが入る記録で、要求中（requested）か受け入れ済み（joined。入っているワークルームの id を持つ）。
-// 管理者の印は全体に 1 つ（id は "admin"。ワークルームの id か "none"。どこからも読まない飾り）。指す先のワークルームが無ければ「無い」として読み、書き換えない。
+// 管理者の印は全体に 1 つ（id は "admin"。ワークルームの id か "none"）。アクションが、管理者のワークルームの AI にだけ行わせる事を決めるのに読む（READS_ADMIN・isAdminActor）。
+// 指す先のワークルームが無ければ「無い」として読み、書き換えない。
 // 要求する participant-request は AI も行え、ほかは利用者だけ。participant-accept は、入るワークルームを作る・いる参加者を外す・捨てるワークルームを消すまで 1 つのアクションで行う。
 // workroom-remove も、いる参加者を一緒に外す。外す参加者は id で渡し、渡した参加者がそのワークルームにいるときだけ外す（生きているかは、ダイアログが見る）
 import { z } from "zod"
+import { type Actor, isAI } from "../../../core/actor"
 import type { SubjectId } from "../../../core/catalog"
-import type { ActionContext } from "../../../core/def/action"
+import type { ActionContext, RecordRead } from "../../../core/def/action"
 import type { KeyValuesOf } from "../../../core/record-keys"
 import { BIRD_IDS } from "../birds"
 import { BIRD_PALETTES } from "../birds/colors"
@@ -332,6 +334,20 @@ export const ADMIN_SET = kit.defineAction({
     return { next: { id: "admin", workroom: args.workroom }, result: {} }
   },
 })
+// 管理者の印を読むアクションが reads に足す物（印は全体に 1 件）
+export const READS_ADMIN: RecordRead = { subject: ADMIN_MARK.id, where: [] }
+
+// actor が、管理者の印の指すワークルームに入っている AI か（印が無い・none・ほかのワークルームなら false）。ctx は READS_ADMIN を読んだアクションの文脈。
+// 行う AI のワークルームは在るので、その id と比べれば「指す先が無い印は無い」も守れる
+export function isAdminActor(actor: Actor, ctx: Pick<ActionContext, "records">): boolean {
+  if (!isAI(actor) || actor.workroom === "none") return false
+  const id = actor.workroom.id
+  return Object.values(ctx.records?.[ADMIN_MARK.id] ?? {}).some(mark => {
+    const read = ADMIN_MARK.record.safeParse(mark)
+    return read.success && read.data.workroom === id
+  })
+}
+
 export { PARTICIPANT_ALIVE } from "./alive"
 export { PARTICIPANT_JOIN_DIALOG } from "./dialogs"
 export type { WorkroomRow, WorkroomState } from "./rows"
