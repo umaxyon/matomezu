@@ -26,7 +26,7 @@ export const isWithin = (folders: Folders, entry: string, over: string): boolean
   entry === over || foldersOver(folders, entry).some(f => f.id === over)
 
 // フォルダ holder が、種類 kind のエントリを持てるか: 書庫ホーム・ゴミ箱・フォルダは 4 つとも、ブックはページとバインダ、バインダはページ
-export function holds(holder: Folder, kind: EntryKind): boolean {
+export function canHold(holder: Folder, kind: EntryKind): boolean {
   if (isOpenRole(holder.folderRole)) return true
   return kind === "page" || (kind === "binder" && holder.folderRole === "book")
 }
@@ -51,7 +51,7 @@ export function movedEntry(
   if (!to) return "no-folder"
   if (to.folderRole === "trash" || inTrash(folders, entry) || inTrash(folders, into)) return "in-trash"
   if (isWithin(folders, into, entry)) return "into-itself"
-  if (!holds(to, place.ref.kind)) return "kind"
+  if (!canHold(to, place.ref.kind)) return "kind"
   const { holder } = place
   const ref = { kind: place.ref.kind, id: entry } as AnyEntryRef
   const others = to.lineup.filter(r => r.id !== entry)
