@@ -75,6 +75,13 @@ export const BackIcon = () => (
   </Svg>
 )
 
+// 上下に分けた段を閉じる（右へ引っ込める）: 右向きの矢印
+export const CloseRightIcon = () => (
+  <Svg size={16} stroke={2}>
+    <path d="M5 12h14M13 6l6 6-6 6" />
+  </Svg>
+)
+
 export const PencilIcon = () => (
   <Svg size={16} stroke={2}>
     <path d="M4 20l4-1 11-11-3-3L5 16l-1 4z" />
