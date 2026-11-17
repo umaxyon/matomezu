@@ -20,7 +20,7 @@ test("変わったブックのフィールドと、並びが変わったか、�
   })
   expect(changesOf(before, after)).toEqual({
     gone: false,
-    trashed: false,
+    place: "same",
     added: false,
     fields: ["title"],
     lineup: true,
@@ -50,7 +50,7 @@ test("ページの中だけを変えたなら並びは変わらない。順・�
 test("同じなら何も変わらず、後が無ければ一覧から無くなった", () => {
   expect(changesOf(book({}), book({}))).toEqual({
     gone: false,
-    trashed: false,
+    place: "same",
     added: false,
     fields: [],
     lineup: false,
@@ -58,7 +58,7 @@ test("同じなら何も変わらず、後が無ければ一覧から無くな�
   })
   expect(changesOf(book({}), undefined)).toEqual({
     gone: true,
-    trashed: false,
+    place: "same",
     added: false,
     fields: [],
     lineup: false,
@@ -66,10 +66,10 @@ test("同じなら何も変わらず、後が無ければ一覧から無くな�
   })
 })
 
-test("ゴミ箱に入ったと言われたブックは、値が同じでも、その印が付く", () => {
-  expect(changesOf(book({}), book({}), { trashed: true })).toEqual({
+test("置き場所の変化（ゴミ箱に入ったなど）を言われたブックは、値が同じでも、それが付く", () => {
+  expect(changesOf(book({}), book({}), { place: "trashed" })).toEqual({
     gone: false,
-    trashed: true,
+    place: "trashed",
     added: false,
     fields: [],
     lineup: false,
@@ -80,7 +80,7 @@ test("ゴミ箱に入ったと言われたブックは、値が同じでも、�
 test("前が無ければ一覧に新しく増えた: フィールドはどれも変わり、どのページも足した", () => {
   expect(changesOf(undefined, book({ title: "x", lineup: [p("p1", { items: [{ id: "a" }] })] }))).toEqual({
     gone: false,
-    trashed: false,
+    place: "same",
     added: true,
     fields: expect.arrayContaining(["title"]),
     lineup: true,

@@ -57,10 +57,13 @@ export interface RecordPermissionQuery {
 // 認可ステップが受ける問い。core がアクションの対象から kind を決めて渡し、ステップは受け取った kind で、自分が読む物だけを扱う
 export type PermissionQuery = PagePermissionQuery | FolderPermissionQuery | RecordPermissionQuery
 
+// 置き場所の変化: 変わらない（same）・ゴミ箱に入った（trashed）・ゴミ箱から出た（restored）
+export type PlaceChange = "same" | "trashed" | "restored"
+
 // 行う前と後のブックの変化（core が比べて求める）
 export interface Changes {
   gone: boolean // ブックが一覧から無くなった
-  trashed: boolean // ブックがゴミ箱に入った（ブックを中に持つフォルダごと入ったときも）
+  place: PlaceChange // ブックの置き場所の変化（ブックを中に持つフォルダごと変わったときも）
   added: boolean // ブックが一覧に新しく増えた（fields は増えたブックのフィールド全部、pages はどのページも足した）
   fields: readonly string[] // 変わったブックのフィールド（並び lineup を除く）
   lineup: boolean // 並びが変わった（ページやバインダの順・入っているバインダ・バインダの足し引きと名前。ページの中身の変化は pages）

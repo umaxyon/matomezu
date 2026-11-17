@@ -41,7 +41,7 @@ import {
   settingsScopeOf,
   type Where,
 } from "./def/action"
-import type { Referred } from "./def/permission"
+import type { PlaceChange, Referred } from "./def/permission"
 import type { SubjectDef } from "./def/subject"
 import { binnedBetween } from "./entries"
 import {
@@ -171,9 +171,9 @@ function broken(
   action: ActionDef,
   before: Book | undefined,
   after: Book | undefined,
-  trashed = false,
+  place: PlaceChange = "same",
 ): string | null {
-  const changes = changesOf(before, after, { trashed })
+  const changes = changesOf(before, after, { place })
   for (const p of ctx.catalog.permissions.values())
     if (p.keeps && !p.keeps({ kind: "folder", action, before, after, changes, actor: ctx.actor })) return p.id
   return null
@@ -213,7 +213,7 @@ function brokenRecord(
 }
 
 // 書庫が対象のアクションの結果で、変わったブック・無くなったブック・増えたブックのどれかが守っていなければ、守らせたステップの id と、そのブックの id（増えたブックなら無い）
-// was と now は、行う前と後の書庫（ゴミ箱に入ったブックは、値が変わらなくても確かめる。フォルダごと入れたときの、中のブックも）
+// was と now は、行う前と後の書庫（置き場所が変わったブックは、値が変わらなくても確かめる。フォルダごとゴミ箱に出入りしたときの、中のブックも）
 function brokenIn(
   ctx: ActionContext,
   action: ActionDef,
@@ -222,14 +222,17 @@ function brokenIn(
 ): { permission: string; book?: string } | null {
   const before = libraryOf(was)
   const after = libraryOf(now)
-  const { trashed } = binnedBetween(was, now)
+  const { trashed, restored } = binnedBetween(was, now)
+  const placeOf = (id: string): PlaceChange =>
+    trashed.includes(id) ? "trashed" : restored.includes(id) ? "restored" : "same"
   for (const b of Object.values(before)) {
-    const entered = trashed.includes(b.id)
-    const id = b === after[b.id] && !entered ? null : broken(ctx, action, b, after[b.id], entered)
+    const place = placeOf(b.id)
+    const id = b === after[b.id] && place === "same" ? null : broken(ctx, action, b, after[b.id], place)
     if (id) return { permission: id, book: b.id }
   }
   for (const b of Object.values(after)) {
-    const id = b.id in before ? null : broken(ctx, action, undefined, b, inTrash(now.folders, b.id))
+    const made = inTrash(now.folders, b.id) ? "trashed" : "same"
+    const id = b.id in before ? null : broken(ctx, action, undefined, b, made)
     if (id) return { permission: id }
   }
   return null

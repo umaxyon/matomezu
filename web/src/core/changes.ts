@@ -1,6 +1,6 @@
 // ブックの変化: アクションの前と後のブックを比べ、変わったフィールド・ページ・アイテムを求める（認可ステップが行った後に見る）
 import { lineupOf, pagesOf } from "./book"
-import type { Changes, PageChange } from "./def/permission"
+import type { Changes, PageChange, PlaceChange } from "./def/permission"
 import { sameData } from "./same"
 import type { Book } from "./schema/book"
 
@@ -48,13 +48,13 @@ const skeleton = (book: Book): unknown =>
 export function changesOf(
   before: Book | undefined,
   after: Book | undefined,
-  { trashed = false }: { trashed?: boolean } = {},
+  { place = "same" }: { place?: PlaceChange } = {},
 ): Changes {
-  if (!after) return { gone: true, trashed: false, added: false, fields: [], lineup: false, pages: [] }
+  if (!after) return { gone: true, place: "same", added: false, fields: [], lineup: false, pages: [] }
   if (!before)
     return {
       gone: false,
-      trashed,
+      place,
       added: true,
       fields: Object.keys(after).filter(k => k !== "lineup"),
       lineup: lineupOf(after).length > 0,
@@ -65,7 +65,7 @@ export function changesOf(
   const ids = new Set([...was.keys(), ...now.keys()])
   return {
     gone: false,
-    trashed,
+    place,
     added: false,
     fields: changedFields(before as Fields, after as Fields, ["lineup"]),
     lineup: !sameData(skeleton(before), skeleton(after)),

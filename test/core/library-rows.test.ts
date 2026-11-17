@@ -4,7 +4,8 @@ import { z } from "zod"
 import { USER } from "../../web/src/core/actor"
 import { buildCoreCatalog } from "../../web/src/core/core-catalog"
 import { defineAction } from "../../web/src/core/def/action"
-import { isMoveRefusal, trashedEntry } from "../../web/src/core/entries"
+import type { PermissionDef } from "../../web/src/core/def/permission"
+import { isMoveRefusal, restoredEntry, trashedEntry } from "../../web/src/core/entries"
 import {
   type Folder,
   HOME_ID,
@@ -31,6 +32,31 @@ const TRASH = defineAction({
     return isMoveRefusal(next) ? null : { next, result: {} }
   },
 })
+const RESTORE = defineAction({
+  id: "t:entry-restore",
+  title: "@matomezu/base:Restore",
+  aiDescription: "Bring an entry back from the trash to the home.",
+  target: "library",
+  permissionScope: "unknown",
+  args: z.strictObject({ entry: z.string() }),
+  run: (library, args) => {
+    const next = restoredEntry(library, args.entry, HOME_ID)
+    return isMoveRefusal(next) ? null : { next, result: {} }
+  },
+})
+// ゴミ箱から出るブックを止める認可ステップ（受けた置き場所の変化を覚える）
+const places: string[] = []
+const STAY: PermissionDef = {
+  id: "t:stay",
+  title: "@matomezu/base:Restore",
+  aiDescription: "Books stay in the trash.",
+  denies: () => false,
+  keeps: c => {
+    if (c.kind !== "folder") return true
+    places.push(`${c.before?.id}:${c.changes.place}`)
+    return c.changes.place !== "restored"
+  },
+}
 const BREAK = defineAction({
   id: "t:home-break",
   title: "@matomezu/base:Move to trash",
@@ -51,8 +77,9 @@ const CENTER = "@matomezu/control-center:control-center"
 const center = CORE_CATALOG.controlCenters.get(CENTER)!
 const catalog = buildCoreCatalog({
   ...BUILTIN_PARTS,
-  actions: [...BUILTIN_PARTS.actions, TRASH, BREAK],
-  controlCenters: [{ ...center, actions: [...center.actions, TRASH.id, BREAK.id] as never }],
+  actions: [...BUILTIN_PARTS.actions, TRASH, RESTORE, BREAK],
+  permissions: [...BUILTIN_PARTS.permissions, STAY],
+  controlCenters: [{ ...center, actions: [...center.actions, TRASH.id, RESTORE.id, BREAK.id] as never }],
 })
 const ctx = {
   catalog,
@@ -93,6 +120,20 @@ test("フォルダごとゴミ箱に入れると、中のブックも認可ス�
       permission: "@matomezu/base:lock",
       book: "b1",
     })
+})
+
+test("置き場所が変わったブックは、値が変わらなくても認可ステップが確かめる（フォルダごとゴミ箱に入った中のブックは trashed、戻すと restored。変わらないブックは確かめない）", () => {
+  places.length = 0
+  const binned = run(library(b1), TRASH.id, { entry: "a" }, ctx) as { ok: true; next: Library }
+  expect(places).toEqual(["b1:trashed"])
+  places.length = 0
+  expect(run(binned.next, RESTORE.id, { entry: "a" }, ctx)).toEqual({
+    ok: false,
+    reason: "denied",
+    permission: "t:stay",
+    book: "b1",
+  })
+  expect(places).toEqual(["b1:restored"])
 })
 
 test("書庫が対象のアクションが、形に合わない書庫ホームの行を返したら断る", () => {
