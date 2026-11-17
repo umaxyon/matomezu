@@ -41,6 +41,18 @@ export function splitShown(
   return current === undefined ? [] : [current]
 }
 
+// 窓の今のスクリーンアレンジメント（定義の id と値）で、上下に分けて見せている並び（分けて見せていなければ空。カレントスクリーンが並びに無いときも空）
+export function shownSplit(
+  screens: readonly Pick<OpenedScreen, "id">[],
+  order: readonly string[],
+  arrangement: { id: string; value: unknown },
+): readonly string[] {
+  if (arrangement.id !== SPLIT_ROWS.id) return []
+  const current = order[order.length - 1]
+  const split = splitOf(screens, arrangement.value)
+  return current !== undefined && split.includes(current) ? split : []
+}
+
 export const SPLIT_ROWS = kit.defineScreenArrangement({
   id: "split-rows",
   title: "Split into rows",
@@ -90,7 +102,7 @@ export function planClose(split: readonly string[], behind: readonly string[], t
   return { screens: back === undefined ? [] : [back, ...rest], leaving: [target] }
 }
 
-// 分けた並びから here だけを残す（ほかは閉じる）
+// 分けた並びから here だけを残す（ほかは閉じる）。窓が低くなって畳むときは、here がカレントスクリーン
 export const planExpand = (split: readonly string[], here: string): SplitPlan => ({
   screens: [],
   leaving: split.filter(id => id !== here),

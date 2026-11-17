@@ -2,8 +2,9 @@
 // 並びから外れたスクリーンは、ここで閉じる（開く側は閉じない）。窓が低い（SPLIT_MIN_HEIGHT 未満）ときは、分けずに 1 枚で開く
 import { useCallback, useSyncExternalStore } from "react"
 import { useShallow } from "zustand/react/shallow"
+import { sameData } from "../../../core/same"
 import { currentScreen, type WindowState } from "../../../core/window"
-import { SCREEN_REFUSED } from "../../../store/store"
+import { type Actions, type ArrangeOptions, type MatomezuState, SCREEN_REFUSED } from "../../../store/store"
 import { useScreenContext } from "../../../ui/screen-context"
 import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
 import { ONE_SCREEN } from "."
@@ -15,7 +16,7 @@ import {
   SPLIT_MIN_HEIGHT,
   SPLIT_ROWS,
   type SplitPlan,
-  splitOf,
+  shownSplit,
 } from "./split"
 
 const TALL = `(min-height: ${SPLIT_MIN_HEIGHT}px)`
@@ -30,9 +31,29 @@ const tallNow = () => typeof matchMedia === "function" && matchMedia(TALL).match
 // 窓が、分けて並べられる高さか
 export const useTallEnough = (): boolean => useSyncExternalStore(subscribeTall, tallNow, () => false)
 
-// 分けて並べている並び（分けていなければ空）
+// 分けて見せている並び（分けて見せていなければ空）
 export const splitIn = (win: WindowState): readonly string[] =>
-  win.arrangement === SPLIT_ROWS.id ? splitOf(win.screens, win.arrangementValue) : []
+  shownSplit(win.screens, win.order, { id: win.arrangement, value: win.arrangementValue })
+
+// 並びの変わりを行う: 外れた物を閉じ、閉じられずに開いたままの物は behind に覚える（あとで並びが 1 枚になったら戻す）。
+// 並びが 2 枚に満たなければ 1 枚ずつに戻す。history が replace なら、ブラウザの履歴に積まずに書き換える
+export function applySplit(
+  actions: Pick<Actions, "closeScreen" | "setScreenArrangement">,
+  read: () => Pick<MatomezuState, "window">,
+  plan: SplitPlan,
+  options?: ArrangeOptions,
+): void {
+  const before = read().window
+  const was = before.arrangement === SPLIT_ROWS.id ? behindOf(before.screens, before.arrangementValue) : []
+  for (const id of plan.leaving) actions.closeScreen(id)
+  const open = read().window.screens
+  const kept = plan.leaving.filter(id => open.some(s => s.id === id))
+  const behind = [...kept, ...was].filter(
+    (id, i, list) => list.indexOf(id) === i && !plan.screens.includes(id) && open.some(s => s.id === id),
+  )
+  if (plan.screens.length >= 2) actions.setScreenArrangement(SPLIT_ROWS.id, { screens: plan.screens, behind }, options)
+  else actions.setScreenArrangement(ONE_SCREEN.id, undefined, options)
+}
 
 // 開く物（スクリーンの定義と渡す値）
 interface Opening<P> {
@@ -41,6 +62,7 @@ interface Opening<P> {
 }
 
 export interface ScreenSplit {
+  here: { id: string; def: string } // 起点のスクリーン（描いている場所のスクリーン。スクリーンの外ならカレントスクリーン）
   inSplit: boolean // 起点のスクリーンを分けて並べているか
   index: number // 並びの中の位置（上から 0。並べていなければ -1）
   tall: boolean // 窓が、分けて並べられる高さか
@@ -48,47 +70,29 @@ export interface ScreenSplit {
   has<P>(def: { id: string }, props: P): boolean
   // 開く: 分けられるなら起点の後ろ・前・代わりに入れ（max 枚まで）、分けられなければ 1 枚で開く
   open<P>(opening: Opening<P>, how: "after" | "before" | "in-place", max: number): void
-  close(): void // 起点のスクリーンを閉じる（並びが 1 枚になれば、並びに無かった同じ種類の物を上に戻す）
+  close(): void // 起点のスクリーンを閉じる（並びが 1 枚になれば、並びから外していた物を上に戻す）
   closeOf<P>(def: { id: string }, props: P): void // 分けた並びの、定義 def・渡す値 props のスクリーンを閉じる
   expand(): void // 起点のスクリーンだけを 1 枚で見せ、並びのほかの物は閉じる
 }
 
 export function useScreenSplit(): ScreenSplit {
-  const here = useScreenContext()
-  // 窓の全部は、操作するときに読む（描き直すのは、分けた並びと、それに入っている物の定義・渡す値が変わったときだけ）
+  const inside = useScreenContext()
+  // 窓の全部は、操作するときに読む（描き直すのは、分けた並びと、それに入っている物・起点が変わったときだけ）
   const read = useReadState()
-  const current = useMatomezuState(s => currentScreen(s.window).id)
+  const current = useMatomezuState(s => currentScreen(s.window))
   const split = useMatomezuState(useShallow(s => splitIn(s.window)))
-  const members = useMatomezuState(
-    useShallow(s =>
-      split
-        .map(id => s.window.screens.find(x => x.id === id))
-        .map(x => (x ? `${x.def} ${JSON.stringify(x.props)}` : "")),
-    ),
-  )
+  const members = useMatomezuState(useShallow(s => split.map(id => s.window.screens.find(x => x.id === id) ?? null)))
   const tall = useTallEnough()
   const actions = useStoreActions()
-  const self = here?.id ?? current
-  // 並びの変わりを行う: 外れた物を閉じ、閉じられずに開いたままの物は behind に覚える（あとで並びが 1 枚になったら戻す）
+  const here = inside ? { id: inside.id, def: inside.def } : { id: current.id, def: current.def }
   const apply = useCallback(
-    (plan: SplitPlan, options?: { history: "replace" }) => {
-      const before = read().window
-      const was = before.arrangement === SPLIT_ROWS.id ? behindOf(before.screens, before.arrangementValue) : []
-      for (const id of plan.leaving) actions.closeScreen(id)
-      const open = read().window.screens
-      const kept = plan.leaving.filter(id => open.some(s => s.id === id))
-      const behind = [...kept, ...was].filter(
-        (id, i, list) => list.indexOf(id) === i && !plan.screens.includes(id) && open.some(s => s.id === id),
-      )
-      if (plan.screens.length >= 2)
-        actions.setScreenArrangement(SPLIT_ROWS.id, { screens: plan.screens, behind }, options)
-      else actions.setScreenArrangement(ONE_SCREEN.id, undefined, options)
-    },
+    (plan: SplitPlan, options?: ArrangeOptions) => applySplit(actions, read, plan, options),
     [actions, read],
   )
   const find = useCallback(
-    (def: { id: string }, props: unknown) => split[members.indexOf(`${def.id} ${JSON.stringify(props)}`)],
-    [split, members],
+    (def: { id: string }, props: unknown) =>
+      members.find(s => s !== null && s.def === def.id && sameData(s.props, props))?.id,
+    [members],
   )
   const closeOne = useCallback(
     (id: string) => {
@@ -99,22 +103,23 @@ export function useScreenSplit(): ScreenSplit {
     [actions, apply, split, read],
   )
   return {
-    inSplit: split.includes(self),
-    index: split.indexOf(self),
+    here,
+    inSplit: split.includes(here.id),
+    index: split.indexOf(here.id),
     tall,
     has: (def, props) => find(def, props) !== undefined,
     open: ({ def, props }, how, max) => {
       const added = actions.openScreen(def.id, props)
-      if (added !== SCREEN_REFUSED && tallNow()) apply(planOpen(split, self, added, how, max))
+      if (added !== SCREEN_REFUSED && tallNow()) apply(planOpen(split, here.id, added, how, max))
     },
-    close: () => closeOne(self),
+    close: () => closeOne(here.id),
     closeOf: (def, props) => {
       const id = find(def, props)
       if (id !== undefined) closeOne(id)
     },
     expand: () => {
-      apply(planExpand(split, self), { history: "replace" })
-      actions.makeScreenCurrent(self)
+      apply(planExpand(split, here.id), { history: "replace" })
+      actions.makeScreenCurrent(here.id)
     },
   }
 }

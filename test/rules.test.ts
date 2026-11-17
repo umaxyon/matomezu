@@ -218,7 +218,7 @@ const FRAMES = [
   "stage/StageView.tsx",
   "tool-picker/ToolPickerView.tsx",
   "utils/reveal-request.tsx",
-  "window/OneScreenView.tsx",
+  "window/ScreensView.tsx",
   "window/useScreenSplit.tsx",
   "workspace/WorkspaceView.tsx",
 ].map(f => `plugins/base/${f}`)

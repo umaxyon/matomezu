@@ -62,7 +62,7 @@ import type { CornerStatusProps } from "./utils/corner"
 import type { WideSearchModeProps } from "./wide-search/slots"
 import { FULL_TEXT_MODE, WIDE_SEARCH_TAB } from "./wide-search/ui"
 import { WINDOW_ICONS } from "./window/icons"
-import { CONTROL_CENTER_BIRDHOUSE, ONE_SCREEN_WIDGET, WINDOW } from "./window/ui"
+import { CONTROL_CENTER_BIRDHOUSE, SCREENS_WIDGET, WINDOW } from "./window/ui"
 import { WORKSPACE } from "./workspace/ui"
 import { ZOOM_ICONS } from "./zoom/icons"
 
@@ -195,7 +195,7 @@ export const BASE_UI = definePluginUi(BASE, {
   userSettingViews: USER_SETTING_VIEWS,
   widgets: [
     WINDOW,
-    ONE_SCREEN_WIDGET,
+    SCREENS_WIDGET,
     CONTROL_CENTER_BIRDHOUSE,
     WORKSPACE,
     DIALOG_HOST,
@@ -317,7 +317,7 @@ declare module "../../core/catalog" {
   }
   interface WidgetTable {
     "@matomezu/base:window": typeof WINDOW
-    "@matomezu/base:one-screen-view": typeof ONE_SCREEN_WIDGET
+    "@matomezu/base:screens-view": typeof SCREENS_WIDGET
     "@matomezu/base:control-center-birdhouse": typeof CONTROL_CENTER_BIRDHOUSE
     "@matomezu/base:workspace": typeof WORKSPACE
     "@matomezu/base:dialog-host": typeof DIALOG_HOST

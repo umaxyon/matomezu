@@ -11,13 +11,13 @@ import { useShallow } from "zustand/react/shallow"
 import { bookScreenCurrent, type OpenedScreen, recentBookScreen, recentPlainScreen } from "../../../core/window"
 import { ScreenView } from "../../../ui/ScreenView"
 import { Slot } from "../../../ui/Slot"
-import { useMatomezuState, useStoreActions } from "../../../ui/store-context"
+import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
 import footerRow from "../utils/FooterRow.module.css"
-import { ONE_SCREEN } from "."
-import styles from "./OneScreenView.module.css"
+import styles from "./ScreensView.module.css"
 import { SLIDE_MS } from "./slide"
 import { CONTROL_CENTER_FOOTER } from "./slots"
-import { splitIn, useTallEnough } from "./useScreenSplit"
+import { planExpand } from "./split"
+import { applySplit, splitIn, useTallEnough } from "./useScreenSplit"
 
 const reduced = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches
 
@@ -27,7 +27,7 @@ interface Row {
   of: number
 }
 
-export function OneScreenView() {
+export function ScreensView() {
   // カレントスクリーンがブックスクリーンか（CSS が data-front で、どちらを見せるかを決める）
   const front = useMatomezuState(s => bookScreenCurrent(s.window)) ? "book-screen" : "control-center"
   // 見せるブックスクリーン（いちばん最近カレントにした 1 枚）と、見せるステージを並べないスクリーン（同じく。無ければ none）
@@ -41,7 +41,7 @@ export function OneScreenView() {
   const layers = useMatomezuState(useShallow(s => s.window.order.filter(id => plainScreens.includes(id))))
   // 上下に分けた並び（分けていなければ空）。カレントスクリーンが並びに無い間は、分けて見せない
   const split = useMatomezuState(useShallow(s => splitIn(s.window)))
-  const splitting = current !== undefined && split.includes(current)
+  const splitting = split.length > 0
   const rowOf = (id: string): Row | null =>
     splitting && split.includes(id) ? { index: split.indexOf(id), of: split.length } : null
   // 分け始めか（前に描いたときは分けていなかった。新しく入る物は、上の物が縮むのを待ってから滑り込む）
@@ -132,13 +132,12 @@ export function OneScreenView() {
 // 窓が低くなったら、上下に分けるのをやめる: カレントスクリーンだけを残し、並びのほかの物を閉じる（ブラウザの履歴に積まない）
 function useCollapseWhenLow(split: readonly string[], current: string | undefined) {
   const tall = useTallEnough()
-  const { setScreenArrangement, closeScreen } = useStoreActions()
+  const actions = useStoreActions()
+  const read = useReadState()
   const low = !tall && split.length > 0
   useEffect(() => {
-    if (!low) return
-    setScreenArrangement(ONE_SCREEN.id, undefined, { history: "replace" })
-    for (const id of split) if (id !== current) closeScreen(id)
-  }, [low, split, current, setScreenArrangement, closeScreen])
+    if (low && current !== undefined) applySplit(actions, read, planExpand(split, current), { history: "replace" })
+  }, [low, split, current, actions, read])
 }
 
 // ステージを並べないスクリーン 1 枚。slides なら、描いた次のコマで右から滑り込ませる（late なら、上の物が縮むのを待ってから）。

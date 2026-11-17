@@ -61,7 +61,7 @@ describe("UI マッピング", () => {
       id: "bad",
       slots: {
         root: ["@matomezu/base:window"],
-        "@matomezu/base:one-screen": ["@matomezu/base:one-screen-view"],
+        "@matomezu/base:one-screen": ["@matomezu/base:screens-view"],
         "@matomezu/base:book-screen": ["@matomezu/base:workspace"],
         "@matomezu/base:stage-top": ["nope", "@matomezu/base:book-view"],
         "@matomezu/base:stage-bottom": ["@matomezu/base:book-name"],

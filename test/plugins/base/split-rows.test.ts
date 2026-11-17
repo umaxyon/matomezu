@@ -8,6 +8,8 @@ import {
   splitOf,
   splitShown,
 } from "../../../web/src/plugins/base/window/split"
+import { applySplit } from "../../../web/src/plugins/base/window/useScreenSplit"
+import { newStore, showCenter } from "../../support"
 
 const opened = (...ids: string[]) => ids.map(id => ({ id }))
 
@@ -60,4 +62,40 @@ test("値の形に合わなければ並びも外した物も無い。外した�
 
 test("広げる: 起点だけを残し、並びのほかの物は閉じる", () => {
   expect(planExpand(["c4", "c3"], "c3")).toEqual({ screens: [], leaving: ["c4"] })
+})
+
+// コントロールセンターをカレントにし、チケット 1 枚を下に分けた store
+function splitStore() {
+  const store = newStore()
+  showCenter(store)
+  const read = () => store.state.getState()
+  const center = read().window.order.at(-1) ?? ""
+  const ticket = store.actions.openScreen("@matomezu/taskboard:ticket-screen", { ticket: "t1" })
+  applySplit(store.actions, read, planOpen([], center, ticket, "after", 2))
+  return { store, read, center, ticket }
+}
+
+test("並びの変わりを行うと、外れて閉じられなかった物（コントロールセンター）を覚え、並びが 1 枚になったら上に戻す", () => {
+  const { store, read, center, ticket } = splitStore()
+  expect(read().window.arrangementValue).toEqual({ screens: [center, ticket], behind: [] })
+  // 2 枚目がコントロールセンターの代わりに上に入る。コントロールセンターは閉じられないので覚える
+  const second = store.actions.openScreen("@matomezu/taskboard:ticket-screen", { ticket: "t2" })
+  applySplit(store.actions, read, planOpen([center, ticket], center, second, "in-place", 2))
+  expect(read().window.arrangementValue).toEqual({ screens: [second, ticket], behind: [center] })
+  expect(read().window.screens.some(s => s.id === center)).toBe(true)
+  // 上の 2 枚目を閉じると、閉じて、コントロールセンターが上に戻る
+  applySplit(store.actions, read, planClose([second, ticket], [center], second))
+  expect(read().window.screens.some(s => s.id === second)).toBe(false)
+  expect(read().window.arrangementValue).toEqual({ screens: [center, ticket], behind: [] })
+  // 広げると 1 枚ずつに戻る
+  applySplit(store.actions, read, planExpand([center, ticket], ticket))
+  expect(read().window.arrangement).toBe("@matomezu/base:one-screen")
+})
+
+test("分けている間の Esc（コントロールセンターから戻るコマンド）は、ブラウザの履歴を戻すよう頼む", () => {
+  const { store, read, ticket } = splitStore()
+  store.setCanGoBack(true)
+  const before = read().backRequests
+  expect(store.actions.command(ticket, "@matomezu/base:control-center-leave")).toBe(true)
+  expect(read().backRequests).toBe(before + 1)
 })
