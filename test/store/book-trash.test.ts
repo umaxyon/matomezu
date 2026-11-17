@@ -4,10 +4,11 @@
 import { expect, test } from "bun:test"
 import { USER } from "../../web/src/core/actor"
 import { pagesOf } from "../../web/src/core/book"
-import { HOME_ID, TRASH_ID } from "../../web/src/core/folders"
+import { type Folders, HOME_ID, type PlainFolder, TRASH_ID } from "../../web/src/core/folders"
 import { permittedIn } from "../../web/src/core/perform"
 import { screenOf } from "../../web/src/core/window"
 import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
+import { restoreTargetOf } from "../../web/src/plugins/base/book-open/book-trash"
 import { addPageIn } from "../../web/src/plugins/base/page-tabs/add-page"
 import { worldOf } from "../../web/src/store/world"
 import { memoryClient } from "../host-client/memory"
@@ -103,4 +104,30 @@ test("戻す・消す・空にする。ゴミ箱に無いブックは戻さず�
   expect(trash()).toEqual([])
   expect(three in store.state.getState().books || host.books.has(three)).toBe(false)
   expect(host.books.has(one)).toBe(true)
+})
+
+test("戻す先は、元いたフォルダ。無ければ・ゴミ箱の中ならその上のフォルダをたどり、どれも無ければ書庫ホーム", () => {
+  const folder = (id: string, ...lineup: string[]): PlainFolder => ({
+    folderRole: "folder",
+    id,
+    title: id,
+    lineup: lineup.map(l => ({ kind: "folder", id: l })),
+  })
+  // 書庫ホーム > a > c、ゴミ箱 > d
+  const folders: Folders = {
+    [HOME_ID]: { folderRole: "home", id: HOME_ID, lineup: [{ kind: "folder", id: "a" }] },
+    a: folder("a", "c"),
+    c: folder("c"),
+    d: folder("d"),
+    [TRASH_ID]: {
+      folderRole: "trash",
+      id: TRASH_ID,
+      lineup: [{ kind: "folder", id: "d", trashed: NOW, from: ["a", HOME_ID] }],
+    },
+  }
+  expect(restoreTargetOf(folders, ["c", "a", HOME_ID])).toBe("c")
+  expect(restoreTargetOf(folders, ["gone", "c", "a", HOME_ID])).toBe("c")
+  expect(restoreTargetOf(folders, ["d", "a", HOME_ID])).toBe("a")
+  expect(restoreTargetOf(folders, [TRASH_ID, "gone"])).toBe(HOME_ID)
+  expect(restoreTargetOf(folders, [])).toBe(HOME_ID)
 })
