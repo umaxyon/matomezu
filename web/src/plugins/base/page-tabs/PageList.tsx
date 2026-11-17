@@ -84,9 +84,10 @@ export function PageList() {
   const list = useRef<HTMLDivElement | null>(null)
   const binder = book && opened ? findBinder(book, binderOf(book, opened) ?? "") : undefined
   const pages = book && binder ? pagesIn(book, binder.id) : []
+  // 並べ替えの位置は、読めないページも数えた並びで決める（動かすアクションの index と同じ数え方）
   const drag = useTabDrag(
     list,
-    pages.map(p => p.id),
+    (book && binder ? entriesIn(book, binder.id) : []).map(p => p.id),
     "y",
   )
   if (!book || !binder || !openPage.enabled) return null
@@ -98,7 +99,14 @@ export function PageList() {
       {entriesIn(book, binder.id).map((p, i) =>
         p.kind === "unreadable" ? (
           // 読めないページ: 名前だけを出す（開くと、読めないことを見せる。ほかには何もできない）
-          <div key={p.id} className={styles.item} data-selected={unreadable === p.id} data-page={p.id} data-unreadable>
+          <div
+            key={p.id}
+            className={styles.item}
+            ref={drag.slot(p.id)}
+            data-selected={unreadable === p.id}
+            data-page={p.id}
+            data-unreadable
+          >
             <span className={styles.number}>{i + 1}</span>
             <button
               type="button"
