@@ -71,6 +71,8 @@ test("窓が高ければ、カードでチケットを下に分けて開き、2 
   const upper = await boxOf(page, "上下の二枚目")
   expect(upper.y).toBeLessThan(50)
   expect((await boxOf(page, "上下の一枚目")).y).toBe(lower.y)
+  // 2 枚並べている間だけ、帯に巣箱が出る（どちらの帯にも）
+  await expect(tickets(page).getByRole("button", { name: "コントロールセンター" })).toHaveCount(2)
   // 上を広げると、それだけが全画面になり、下の 1 枚は閉じる
   await tickets(page)
     .filter({ has: page.getByRole("heading", { name: "上下の二枚目" }) })
@@ -91,6 +93,8 @@ test("分けている間に窓が低くなると、カレントの 1 枚を残�
   const { a, b } = await twoTickets(page)
   await page.locator(`[data-card="${a}"]`).click()
   await expect(tickets(page)).toHaveCount(1)
+  // コントロールセンターと 1 枚の間は、帯に巣箱は出ない
+  await expect(tickets(page).getByRole("button", { name: "コントロールセンター" })).toHaveCount(0)
   // 開いたカードを押すと閉じ、コントロールセンターだけに戻る
   await page.locator(`[data-card="${a}"]`).click()
   await expect(tickets(page)).toHaveCount(0)
@@ -159,4 +163,18 @@ test("横断検索の当たりは、何も開いていなければ下に開き�
   await expect(page.getByRole("menuitem", { name: "開く", exact: true })).toBeVisible()
   await page.getByRole("menuitem", { name: "分割で開く" }).click()
   await expect(tickets(page)).toHaveCount(2)
+})
+
+test("チケットを 2 枚並べている間の帯の巣箱は、2 枚とも閉じてコントロールセンターへ戻る", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto(CONTROL_CENTER_URL)
+  const { a, b } = await twoTickets(page, "nest")
+  await page.locator(`[data-card="${a}"]`).click()
+  await page.locator(`[data-card="${b}"]`).click()
+  await expect(tickets(page)).toHaveCount(2)
+  await tickets(page).first().getByRole("button", { name: "コントロールセンター" }).click()
+  await expect(tickets(page)).toHaveCount(0)
+  await expect(page.locator(`[data-card="${a}"]`)).toBeVisible()
+  await expect(page.locator(`[data-card="${a}"]`)).toHaveAttribute("data-open", "false")
 })

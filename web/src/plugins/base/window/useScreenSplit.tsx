@@ -76,10 +76,12 @@ export interface ScreenSplit {
   // 分けた並びの index 番目（上から）を、開いたスクリーンに替える（分けていなければ、1 枚で開く）
   openAt<P>(opening: Opening<P>, index: number): void
   count: number // 分けて並べている枚数（分けていなければ 0）
+  defs: readonly string[] // 分けて並べているスクリーンの定義の id（上から。分けていなければ空）
   close(): void // 起点のスクリーンを閉じる（並びが 1 枚になれば、並びから外していた物を上に戻す）
   closeOf<P>(def: { id: string }, props: P): void // 分けた並びの、定義 def・渡す値 props のスクリーンを閉じる
   showOf<P>(def: { id: string }, props: P): void // 分けた並びの、定義 def・渡す値 props のスクリーンをカレントスクリーンにし、枠を一瞬光らせる
   expand(): void // 起点のスクリーンだけを 1 枚で見せ、並びのほかの物は閉じる
+  closeAll(): void // 分けて並べている物を全部閉じて、1 枚ずつに戻す（閉じられない物は残る）
 }
 
 export function useScreenSplit(): ScreenSplit {
@@ -114,6 +116,8 @@ export function useScreenSplit(): ScreenSplit {
     tall,
     has: (def, props) => find(def, props) !== undefined,
     count: split.length,
+    defs: members.map(s => s?.def ?? ""),
+    closeAll: () => apply({ screens: [], leaving: split }),
     openAt: ({ def, props }, index) => {
       const added = actions.openScreen(def.id, props)
       if (added !== SCREEN_REFUSED && split.length > 0) apply(planAt(split, index, added))
