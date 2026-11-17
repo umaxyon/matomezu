@@ -8,6 +8,12 @@ import { z } from "zod"
 import type { OpenedScreen } from "../../../core/window"
 import { kit } from "../kit"
 
+// スクリーンの枠を一瞬光らせる頼み（窓のプラグイン状態。画面の場所に入れない）: 光らせるスクリーンの id と、頼んだ回数（同じスクリーンを続けて頼んでも光り直す）
+export const SCREEN_FLASH = kit.definePluginStateOf<{ screen: string; n: number }>()({
+  id: "screen-flash",
+  scope: "window",
+})
+
 // 分けて並べるのに要る、窓の高さ（px。これより低ければ分けずに開き、分けている間に低くなれば畳む）
 export const SPLIT_MIN_HEIGHT = 800
 

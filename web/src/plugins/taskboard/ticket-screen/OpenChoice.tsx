@@ -3,7 +3,7 @@
 // 吹き出しは base の ChoiceBubble（押したリンクの下に出し、外を押すか Esc で閉じる）
 import { createContext, type ReactNode, useCallback, useContext, useState } from "react"
 import { useMessages } from "../../../plugin-api/ui"
-import { ChoiceBubble } from "../../base/ui"
+import { belowOf, ChoiceBubble } from "../../base/ui"
 import { kit } from "../kit"
 import { useOpenTicket } from "./useOpenTicket"
 
@@ -35,7 +35,7 @@ export function OpenChoiceHost({ children }: { children: ReactNode }) {
       {children}
       {asked ? (
         <ChoiceBubble
-          from={asked.from}
+          at={belowOf(asked.from)}
           onClose={close}
           choices={[
             { label: t("Open"), onPick: () => opener.here(asked.ticket) },

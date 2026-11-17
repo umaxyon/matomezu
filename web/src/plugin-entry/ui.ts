@@ -10,6 +10,7 @@ export {
   BirdWalk,
   BOOK_SCREEN,
   BodyField,
+  belowOf,
   CaptionField,
   type Choice,
   ChoiceBubble,

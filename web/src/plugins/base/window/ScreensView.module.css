@@ -94,3 +94,24 @@
 .plain[data-late="true"] {
   transition-delay: var(--front-slide);
 }
+/* 枠を一瞬光らせる（すでに開いているスクリーンを、もう一度開こうとしたとき）: 縁をアクセントの色にして、0.5 秒で消す。ポインタは通す */
+.flash {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 3px var(--skin-accent);
+  pointer-events: none;
+  opacity: 0;
+  animation-name: screen-flash;
+  animation-duration: 0.5s;
+  animation-timing-function: ease-out;
+}
+@keyframes screen-flash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}

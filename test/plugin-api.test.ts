@@ -285,6 +285,7 @@ test("matomezu/ui が出す名前", () => {
     "WIDE_SEARCH_OPENS",
     "WORKROOM_COLUMNS",
     "WORKROOM_ROW_LINE",
+    "belowOf",
     "controlClass",
     "defineAnnotationIcon",
     "defineCornerStatus",

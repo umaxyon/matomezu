@@ -7,6 +7,8 @@ import { currentScreen, type WindowState } from "../../../core/window"
 import { type Actions, type MatomezuState, SCREEN_REFUSED } from "../../../store/store"
 import { useScreenContext } from "../../../ui/screen-context"
 import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
+import { useUpdatePluginState } from "../../../ui/view-hooks"
+import { kit } from "../kit"
 import { ONE_SCREEN } from "."
 import {
   behindOf,
@@ -14,6 +16,7 @@ import {
   planClose,
   planExpand,
   planOpen,
+  SCREEN_FLASH,
   SPLIT_MIN_HEIGHT,
   SPLIT_ROWS,
   type SplitPlan,
@@ -75,7 +78,7 @@ export interface ScreenSplit {
   count: number // 分けて並べている枚数（分けていなければ 0）
   close(): void // 起点のスクリーンを閉じる（並びが 1 枚になれば、並びから外していた物を上に戻す）
   closeOf<P>(def: { id: string }, props: P): void // 分けた並びの、定義 def・渡す値 props のスクリーンを閉じる
-  showOf<P>(def: { id: string }, props: P): void // 分けた並びの、定義 def・渡す値 props のスクリーンをカレントスクリーンにする
+  showOf<P>(def: { id: string }, props: P): void // 分けた並びの、定義 def・渡す値 props のスクリーンをカレントスクリーンにし、枠を一瞬光らせる
   expand(): void // 起点のスクリーンだけを 1 枚で見せ、並びのほかの物は閉じる
 }
 
@@ -88,6 +91,7 @@ export function useScreenSplit(): ScreenSplit {
   const members = useMatomezuState(useShallow(s => split.map(id => s.window.screens.find(x => x.id === id) ?? null)))
   const tall = useTallEnough()
   const actions = useStoreActions()
+  const flash = useUpdatePluginState(kit, SCREEN_FLASH)
   const here = inside ? { id: inside.id, def: inside.def } : { id: current.id, def: current.def }
   const apply = useCallback((plan: SplitPlan) => applySplit(actions, read, plan), [actions, read])
   const find = useCallback(
@@ -125,7 +129,9 @@ export function useScreenSplit(): ScreenSplit {
     },
     showOf: (def, props) => {
       const id = find(def, props)
-      if (id !== undefined) actions.makeScreenCurrent(id)
+      if (id === undefined) return
+      actions.makeScreenCurrent(id)
+      flash(was => ({ screen: id, n: (was?.n ?? 0) + 1 }))
     },
     expand: () => {
       apply(planExpand(split, here.id))

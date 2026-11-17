@@ -121,7 +121,7 @@ test("本文のチケットの番号を押すと「開く／分割で開く」�
   expect((await boxOf(page, "上下の二枚目")).y).toBeLessThan(50)
 })
 
-test("横断検索の当たりは、何も開いていなければ下に開き、分けている間は「上に開く／下に開く」、全画面のチケットからは「開く／分割で開く」を選ぶ", async ({
+test("横断検索の当たりは、何も開いていなければ下に開き（開いているチケットなら枠を光らせ）、分けている間は「上に開く／下に開く」、全画面のチケットからは「開く／分割で開く」を選ぶ", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -143,6 +143,10 @@ test("横断検索の当たりは、何も開いていなければ下に開き�
   await search(`上下の一枚目${tag}`)
   await expect(tickets(page)).toHaveCount(1)
   expect((await boxOf(page, `上下の一枚目${tag}`)).y).toBeGreaterThan(300)
+  // 開いているチケットに当たると、閉じずに、その枠を一瞬光らせる
+  await search(`上下の一枚目${tag}`)
+  await expect(tickets(page)).toHaveCount(1)
+  await expect(page.locator('[class*="flash"]')).toHaveCount(1)
   // 分けている間は、上か下かを選ぶ。下を選ぶと、下の段が替わる
   await search(`上下の二枚目${tag}`)
   await expect(page.getByRole("menuitem", { name: "上に開く" })).toBeVisible()

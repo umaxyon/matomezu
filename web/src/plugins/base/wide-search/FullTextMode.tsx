@@ -6,7 +6,7 @@ import { useMessages, useT } from "../../../ui/i18n"
 import { useLayout, useUiCatalog } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
-import { type Choice, ChoiceBubble } from "../utils/ChoiceBubble"
+import { belowOf, type Choice, ChoiceBubble } from "../utils/ChoiceBubble"
 import { highlightParts } from "./highlight"
 import { useWideSearch } from "./hooks"
 import { openerOf } from "./openers"
@@ -133,8 +133,8 @@ function OpenableRow({
   children: React.ReactNode
 }) {
   const open = useOpen()
-  // 開き方を選ばせるときの、選ぶ物と押した行
-  const [asked, setAsked] = useState<{ choices: readonly Choice[]; from: Element } | null>(null)
+  // 開き方を選ばせるときの、選ぶ物と出す所（押したマウスの位置。キーで押したなら行の左下）
+  const [asked, setAsked] = useState<{ choices: readonly Choice[]; at: { x: number; y: number } } | null>(null)
   const close = useCallback(() => setAsked(null), [])
   return (
     <>
@@ -143,12 +143,13 @@ function OpenableRow({
         className={styles.row}
         onClick={e => {
           const opened = open(hit)
-          if (opened !== "opened") setAsked({ choices: opened, from: e.currentTarget })
+          if (opened === "opened") return
+          setAsked({ choices: opened, at: e.detail === 0 ? belowOf(e.currentTarget) : { x: e.clientX, y: e.clientY } })
         }}
       >
         {children}
       </button>
-      {asked ? <ChoiceBubble from={asked.from} choices={asked.choices} onClose={close} /> : null}
+      {asked ? <ChoiceBubble at={asked.at} choices={asked.choices} onClose={close} /> : null}
     </>
   )
 }

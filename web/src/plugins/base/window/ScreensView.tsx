@@ -12,11 +12,13 @@ import { bookScreenCurrent, type OpenedScreen, recentBookScreen, recentPlainScre
 import { ScreenView } from "../../../ui/ScreenView"
 import { Slot } from "../../../ui/Slot"
 import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
+import { usePluginState } from "../../../ui/view-hooks"
+import { kit } from "../kit"
 import footerRow from "../utils/FooterRow.module.css"
 import styles from "./ScreensView.module.css"
 import { SLIDE_MS } from "./slide"
 import { CONTROL_CENTER_FOOTER } from "./slots"
-import { planExpand } from "./split"
+import { planExpand, SCREEN_FLASH } from "./split"
 import { applySplit, splitIn, useTallEnough } from "./useScreenSplit"
 
 const reduced = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -52,6 +54,8 @@ export function ScreensView() {
   })
   useCollapseWhenLow(split, current)
   const { makeScreenCurrent } = useStoreActions()
+  // 枠を一瞬光らせる頼み（useScreenSplit の showOf）
+  const flash = usePluginState(kit, SCREEN_FLASH)
   // 最初に描いたときから開いていたスクリーンは、滑り込ませない
   const first = useRef<readonly string[] | null>(null)
   if (first.current === null) first.current = plainScreens
@@ -100,6 +104,7 @@ export function ScreensView() {
                 row={row}
                 slides={!first.current?.includes(id)}
                 layer={layers.indexOf(id) + (row === null ? 0 : layers.length)}
+                flash={flash?.screen === id ? flash.n : 0}
                 late={starting && row !== null && id === current}
                 onPress={() => {
                   if (row !== null && id !== current) makeScreenCurrent(id)
@@ -116,6 +121,7 @@ export function ScreensView() {
               shown={false}
               row={l.row}
               layer={layers.length * 2}
+              flash={0}
               slides
               late={false}
             />
@@ -144,13 +150,15 @@ function useCollapseWhenLow(split: readonly string[], current: string | undefine
 
 // ステージを並べないスクリーン 1 枚。slides なら、描いた次のコマで右から滑り込ませる（late なら、上の物が縮むのを待ってから）。
 // closed を渡すと、閉じたスクリーンを、位置を戻した形で描いた次のコマに右へ滑り出させる（最初から右に描くと、動かずに消える）。
-// row があれば、上下に分けた並びの位置と高さで描く（無ければ、窓いっぱい）。重なりは layer。見えていない物は、操作も読み上げも受けない
+// row があれば、上下に分けた並びの位置と高さで描く（無ければ、窓いっぱい）。重なりは layer。見えていない物は、操作も読み上げも受けない。
+// flash が増えると、枠を一瞬光らせて消す
 function PlainScreen({
   screen,
   top,
   shown,
   row,
   layer,
+  flash,
   slides,
   late,
   closed,
@@ -161,6 +169,7 @@ function PlainScreen({
   shown: boolean
   row: Row | null
   layer: number // 重なりの順（大きい物が上。分けた並びの物は、ほかの物より上）
+  flash: number // 枠を光らせた回数（0 なら光らせない。増えるたびに光り直す）
   slides: boolean
   late: boolean
   closed?: OpenedScreen
@@ -196,6 +205,7 @@ function PlainScreen({
       onPointerDownCapture={onPress}
     >
       <ScreenView screen={screen} {...(closed ? { closed } : {})} />
+      {flash > 0 ? <span key={flash} className={styles.flash} aria-hidden="true" /> : null}
     </div>
   )
 }
