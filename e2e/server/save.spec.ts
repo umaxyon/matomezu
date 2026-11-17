@@ -4,7 +4,7 @@ import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test, urlStages } fro
 import { addBox } from "../helpers/paper"
 import { openGeneral } from "../helpers/settings"
 import { fromMenu } from "../helpers/stage-menu"
-import { storedBook, storedBooks, storedPageVersion } from "../helpers/stored"
+import { storedBook, storedBooks, storedPageVersion, storedTrashedAt } from "../helpers/stored"
 
 // 常駐を空にして始め、テストごとに使うブックを置く
 test.use({ books: [] })
@@ -15,7 +15,7 @@ const E2E_1 = { ...E2E_BOOKS[0]!, id: "e2e-1" }
 // 常駐に置いてあるもの
 const data = async (page: Page) => (await page.request.get("/api/data")).json()
 // 置いてあるブック id のデータ（無ければ undefined）
-const bookIn = async (page: Page, id: string): Promise<{ trashed?: string } | undefined> => storedBook(page.request, id)
+const bookIn = async (page: Page, id: string): Promise<{ id: string } | undefined> => storedBook(page.request, id)
 // ブックを常駐に置く（テストの用意の口）
 const put = async <B extends { id: string }>(page: Page, book: B) =>
   expect((await page.request.put(`/api/books-for-test/${book.id}`, { data: { book, base: 0 } })).ok()).toBe(true)
@@ -236,13 +236,13 @@ test("ブックを開くダイアログで、行のゴミ箱のボタンでゴ�
   await row("捨てるブック").hover()
   await row("捨てるブック").getByRole("button", { name: "ゴミ箱に入れる" }).click()
   await expect(row("捨てるブック")).toHaveCount(0)
-  await expect.poll(async () => (await bookIn(page, "e2e-trash"))?.trashed).toBeTruthy()
+  await expect.poll(async () => await storedTrashedAt(page.request, "e2e-trash")).toBeTruthy()
   await dialog.getByText("ゴミ箱 1").click()
   const trash = dialog.getByRole("list", { name: "ゴミ箱" })
   await expect(trash.getByRole("listitem")).toHaveText([/捨てるブック/])
   await trash.getByRole("button", { name: "戻す" }).click()
   await expect(trash.getByRole("listitem")).toHaveCount(0)
-  await expect.poll(async () => (await bookIn(page, "e2e-trash"))?.trashed).toBeUndefined()
+  await expect.poll(async () => await storedTrashedAt(page.request, "e2e-trash")).toBeUndefined()
   await page.keyboard.press("Escape")
   dialog = await openDialog()
   await row("捨てるブック").hover()

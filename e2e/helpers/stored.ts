@@ -13,3 +13,12 @@ export const storedBook = async (request: APIRequestContext, id: string) =>
 export const storedPageVersion = async (request: APIRequestContext, id: string): Promise<number | undefined> =>
   ((await (await request.get("/api/data")).json()).pages as { id: string; version: number }[]).find(p => p.id === id)
     ?.version
+
+// ゴミ箱の直下の物 id を、ゴミ箱に入れた時刻（ゴミ箱の直下に無ければ undefined）
+export const storedTrashedAt = async (request: APIRequestContext, id: string): Promise<string | undefined> => {
+  const folders = (await (await request.get("/api/data")).json()).folders as {
+    id: string
+    folder: { lineup: { id: string; trashed?: string }[] }
+  }[]
+  return folders.find(f => f.id === "library-trash")?.folder.lineup.find(r => r.id === id)?.trashed
+}
