@@ -381,9 +381,13 @@ export const bookIdOf = (folders: Folders, page: string): string | undefined =>
 // before と after は、1 回のアクションが受けたブックの全部と、返したブックの全部（無くなったブックは after に無い）。ページがブックの間で動いても、
 // どちらかに在れば無くなったとはしない
 export function changesBetween(before: readonly Book[], after: readonly Book[]): TableChanges {
-  const was = tablesOf(before)
-  const now = tablesOf(after)
+  return rowChanges(tablesOf(before), tablesOf(after))
+}
+
+// 表 was を表 now にする変わり: 変わった・足したページとフォルダと、無くなったページとフォルダ（どちらにも在って中身が同じ物は入れない。作り直しただけの行は変わりにしない）
+export function rowChanges(was: Tables, now: Tables): TableChanges {
   const changed = <T>(a: Readonly<Record<string, T>>, b: Readonly<Record<string, T>>) => {
+    if (a === b) return {}
     const out: Record<string, T | typeof REMOVED> = {}
     for (const [id, v] of Object.entries(b)) if (a[id] !== v && !sameData(a[id], v)) out[id] = v
     for (const id of Object.keys(a)) if (!(id in b)) out[id] = REMOVED

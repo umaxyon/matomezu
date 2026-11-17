@@ -16,6 +16,7 @@ import {
   placedChanges,
   rawBooksOf,
   restoredTables,
+  rowChanges,
   rowsHoldTree as rowsHold,
   type Tables,
   TRASH_ID,
@@ -196,6 +197,28 @@ describe("木の決まり", () => {
     expect(rowsHoldTree([...Object.values(withFolders(tables(), holding).folders), broken])).toBe(true)
     expect(rowsHoldTree(rows.map(r => ((r as Folder).id === "old" ? { ...old, title: 3 } : r)))).toBe(false)
     expect(rowsHoldTree(rows.filter(r => (r as Folder).id !== HOME_ID))).toBe(false)
+  })
+})
+
+describe("表の変わり", () => {
+  test("変わった・足した・無くなった行だけを出す。作り直しただけで中身が同じ行は、変わりにしない", () => {
+    const t = tables()
+    expect(rowChanges(t, t)).toEqual(NO_CHANGES)
+    const renamed: PlainFolder = { ...old, title: "新しい名前" }
+    const rebuilt = { ...home, lineup: [...home.lineup] }
+    const next: Tables = {
+      pages: Object.fromEntries(Object.entries(t.pages).filter(([id]) => id !== "p2")),
+      folders: {
+        ...t.folders,
+        old: renamed,
+        [HOME_ID]: rebuilt,
+        y: { folderRole: "folder", id: "y", title: "y", lineup: [] },
+      },
+    }
+    expect(rowChanges(t, next)).toEqual({
+      pages: { p2: REMOVED },
+      folders: { old: renamed, y: { folderRole: "folder", id: "y", title: "y", lineup: [] } },
+    })
   })
 })
 
