@@ -120,7 +120,7 @@ test("コントロールセンターの前に出す画面の宣言は、スク�
   // 開いていないスクリーンには置かない。2 枚目に置いた値は、そのスクリーンを閉じると消える
   instance.setPluginState(id, "c99", "library")
   expect(instance.state.getState().pluginValues.screens.c99).toBeUndefined()
-  const second = instance.actions.openScreen("@matomezu/control-center:screen", {})
+  const second = instance.actions.openScreenId("@matomezu/control-center:screen", {})
   instance.setPluginState(id, second, "library")
   expect(instance.state.getState().pluginValues.screens[second]).toEqual({ [id]: "library" })
   instance.actions.closeScreen(second)
@@ -208,7 +208,7 @@ test("スクリーンに渡す値を替える（積まない）: 開いている
     lang: "ja",
   })
   const def = "@matomezu/taskboard:ticket-screen"
-  const id = instance.actions.openScreen(def, { ticket: "t1" })
+  const id = instance.actions.openScreenId(def, { ticket: "t1" })
   const count = instance.state.getState().window.screens.length
   expect(instance.actions.setScreenProps(id, { ticket: "t2" })).toBe(true)
   const now = instance.state.getState().window

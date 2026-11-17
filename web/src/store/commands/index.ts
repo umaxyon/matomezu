@@ -10,7 +10,14 @@ import { NO_HISTORY } from "../../core/history"
 import { actionQuery, inspect, type Query, withoutPermissions } from "../../core/inspect"
 import { splitId } from "../../core/names"
 import { shownPageId, stageBlocks } from "../../core/stage"
-import { currentScreen, type OpenedScreen, screenOfStage, stageIn, workspaceOf } from "../../core/window"
+import {
+  currentScreen,
+  type OpenedScreen,
+  screenOfStage,
+  stageIn,
+  type WindowState,
+  workspaceOf,
+} from "../../core/window"
 import { stageView, toolOf } from "../../core/workspace"
 import type { Assembled } from "../plugin"
 import { ownedPluginState, pluginValueOf } from "../plugin-state"
@@ -20,9 +27,12 @@ import {
   type CommandContext,
   type CommandDef,
   commandScopeOf,
+  type OpenScreen,
   type ScreenCommandContext,
   type ScreenCommandDef,
+  type ScreenFrame,
   type StageCommandDef,
+  withScreenFrame,
   withWorkspace,
 } from "./def"
 
@@ -42,11 +52,11 @@ export const commandOwner = (command: string): string => splitId(command).owner 
 
 // 窓 win のスクリーンを、コマンドの文脈が持つ形にした物
 const calledScreen = (s: OpenedScreen): CalledScreen => ({
-  id: s.id,
   def: s.def,
   props: s.props,
   stages: s.stages !== undefined,
 })
+const openScreenOf = (s: OpenedScreen): OpenScreen => ({ id: s.id, ...calledScreen(s) })
 
 // コマンド command を at（ステージの id か、開いているスクリーンの id。どちらでもなければ、スクリーンの外から呼んだ物としてカレントスクリーン）から
 // 呼んだときの、スクリーンから呼ぶコマンドの文脈。プラグイン状態は、コマンドを持つプラグインの宣言だけを読める
@@ -60,12 +70,11 @@ export function screenCommandContext(
   const win = state.window
   const screen = screenOfStage(win, at) ?? win.screens.find(s => s.id === at) ?? currentScreen(win)
   const { settings, dialog, contextMenu } = state
-  return {
+  const ctx: ScreenCommandContext = {
     catalog,
     controlCenter,
     screen: calledScreen(screen),
-    screens: win.order.flatMap(id => win.screens.filter(s => s.id === id).map(calledScreen)),
-    arrangement: { id: win.arrangement, value: win.arrangementValue },
+    arrangement: { id: win.arrangement },
     settings,
     dialog,
     contextMenu,
@@ -77,7 +86,15 @@ export function screenCommandContext(
         ownedPluginState(commandOwner(command), def),
       ),
   }
+  return withScreenFrame(ctx, frameOf(win, screen.id))
 }
+
+// 窓 win の、コマンドの文脈に結ぶほかのスクリーンを名指す物（here は呼ばれた場所のスクリーンの id）
+const frameOf = (win: WindowState, here: string): ScreenFrame => ({
+  here,
+  screens: win.order.flatMap(id => win.screens.filter(s => s.id === id).map(openScreenOf)),
+  arrangementValue: win.arrangementValue,
+})
 
 // コマンド command をステージ stageId から呼んだときの、ステージから呼ぶコマンドの文脈。ステージが無ければ null
 export function commandContext(
@@ -91,16 +108,20 @@ export function commandContext(
   if (!stage) return null
   const book = stage.opened ? (state.books[stage.opened.book] ?? null) : null
   const workspace = workspaceOf(state.window, stageId)
-  return withWorkspace(
-    {
-      ...screenCommandContext(catalog, controlCenter, state, stageId, command),
-      stage: stageView(catalog, stage, toolOf(catalog, workspace, stageId, state.books)),
-      book,
-      bookHistory: (book && state.history[book.id]) || NO_HISTORY,
-    },
-    workspace,
-    stageId,
-    state.books,
+  const screen = screenOfStage(state.window, stageId) ?? currentScreen(state.window)
+  return withScreenFrame(
+    withWorkspace(
+      {
+        ...screenCommandContext(catalog, controlCenter, state, stageId, command),
+        stage: stageView(catalog, stage, toolOf(catalog, workspace, stageId, state.books)),
+        book,
+        bookHistory: (book && state.history[book.id]) || NO_HISTORY,
+      },
+      workspace,
+      stageId,
+      state.books,
+    ),
+    frameOf(state.window, screen.id),
   )
 }
 

@@ -264,6 +264,38 @@ func (h *Hub) openRowsAbove(ids []string) []json.RawMessage {
 	return out
 }
 
+// neighborRows は、エントリ ids のそれぞれと同じ書庫ホーム・フォルダに直に入っている、ほかのエントリの行の本文（ページの行と、フォルダの行。
+// 中へは降りない。もう渡す物 passed・passed から書庫の一番上までのフォルダ（openRowsAbove が渡す）と、ゴミ箱に直に入っている物の隣は入れない。重ねない。エンジンが、同じフォルダの中の名前の重なりを確かめるのに使う。
+// h.mu を持って呼ぶ）
+func (h *Hub) neighborRows(ids, passed []string) (pages, folders []json.RawMessage) {
+	pages, folders = []json.RawMessage{}, []json.RawMessage{}
+	seen := map[string]bool{}
+	for _, id := range passed {
+		seen[id] = true
+		for _, above := range h.foldersAbove(id) {
+			seen[above] = true
+		}
+	}
+	for _, id := range ids {
+		holder, ok := h.folders[h.places[id]]
+		if !ok || !holder.isOpen() || h.places[id] == storage.TrashID {
+			continue
+		}
+		for _, e := range holder.entries {
+			if seen[e] {
+				continue
+			}
+			seen[e] = true
+			if p, page := h.pages[e]; page {
+				pages = append(pages, p.body)
+			} else if f, folder := h.folders[e]; folder {
+				folders = append(folders, f.body)
+			}
+		}
+	}
+	return pages, folders
+}
+
 // rowsUnder は、ブック id のフォルダと、その下のページとバインダの id の全部（バインダでないフォルダの中へは降りない。h.mu を持って呼ぶ）
 func (h *Hub) rowsUnder(id string) []string {
 	f, ok := h.folders[id]

@@ -152,9 +152,9 @@ test("AI の show は、ブックを渡すとブックスクリーンを前に�
 test("store の openScreen は、定義の渡す値の形に合えば開いて前に出し、合わない値と無い定義は開かない。closeScreen で閉じると前の物に戻る", () => {
   const { actions, state } = newStore()
   const before = currentScreen(state.getState().window).id
-  expect(actions.openScreen("@ex/none:x", {})).toBe("refused")
-  expect(actions.openScreen("@matomezu/control-center:screen", { extra: 1 })).toBe("refused")
-  const id = actions.openScreen("@matomezu/control-center:screen", {})
+  expect(actions.openScreenId("@ex/none:x", {})).toBe("refused")
+  expect(actions.openScreenId("@matomezu/control-center:screen", { extra: 1 })).toBe("refused")
+  const id = actions.openScreenId("@matomezu/control-center:screen", {})
   expect(currentScreen(state.getState().window)).toMatchObject({ id, def: "@matomezu/control-center:screen" })
   actions.makeScreenCurrent(before)
   expect(currentScreen(state.getState().window).id).toBe(before)
@@ -164,9 +164,26 @@ test("store の openScreen は、定義の渡す値の形に合えば開いて�
   expect(state.getState().window.screens.some(s => s.id === id)).toBe(false)
 })
 
+test("プラグインに渡す openScreen は開けたかだけを返す。closeScreen と setScreenProps は、ステージの id を受ければ、そのステージを並べるスクリーンに向く", () => {
+  const { actions, state } = newStore()
+  expect(actions.openScreen("@matomezu/control-center:screen", { extra: 1 })).toBe(false)
+  expect(actions.openScreen("@matomezu/base:book-screen", {})).toBe(true)
+  const second = currentScreen(state.getState().window)
+  const stage = second.stages!.current
+  expect(actions.setScreenProps(stage, { extra: 1 })).toBe(false)
+  expect(actions.setScreenProps(stage, {})).toBe(true)
+  expect(actions.setScreenProps("nope", {})).toBe(false)
+  actions.closeScreen(stage)
+  expect(state.getState().window.screens.some(s => s.id === second.id)).toBe(false)
+  // どのスクリーンでもステージでもない所は、何も閉じない
+  const count = state.getState().window.screens.length
+  actions.closeScreen("nope")
+  expect(state.getState().window.screens).toHaveLength(count)
+})
+
 test("2 枚目のブックスクリーンのステージにも、ステージの操作が届く（大きさ・ずらす・倍率・フォーカス・ブックを開く・分割）", () => {
   const { actions, state } = newStore()
-  const second = actions.openScreen("@matomezu/base:book-screen", {})
+  const second = actions.openScreenId("@matomezu/base:book-screen", {})
   const stageOf = () => state.getState().window.screens.find(s => s.id === second)!.stages!
   const stage = stageOf().current
   expect(stage).not.toBe("s1")

@@ -15,7 +15,7 @@ import { type Stage, shownPageId, toPaper } from "../../core/stage"
 import type { StageView, Workspace } from "../../core/workspace"
 import type { OpenedContextMenu } from "../context-menus"
 import type { OpenedDialog } from "../dialogs"
-import type { BoundPlaceActions, Settings, WindowActions } from "../store"
+import type { Actions, BoundPlaceActions, Settings, WindowActions } from "../store"
 
 // コマンドの許可スコープ: "book" はページもアイテムも変えない、"opened-page" は開いているページ、"selection" はその選んでいる物（形の中身やページのフィールドの中の物も含む）。
 // { page } には、ページの id が入っている引数の名前を書く（右クリックしたページのように、引数が所を決めるとき）。
@@ -66,9 +66,8 @@ export function commandScopeOf(
   return scope === "opened-page" ? on : { ...on, ids: ctx.stage.selection }
 }
 
-// 開いているスクリーン 1 枚（コマンドの文脈が持つ形）
+// 呼ばれた場所のスクリーン（コマンドの文脈が持つ形。ほかのスクリーンを名指さないよう、id は持たない）
 export interface CalledScreen {
-  id: string // 開いた 1 枚ごとの id
   def: string // スクリーンの定義の id
   props: unknown // 開くときに渡された値
   stages: boolean // ステージを並べるスクリーンか
@@ -79,8 +78,7 @@ export interface ScreenCommandContext {
   catalog: CoreCatalog
   controlCenter: string | null // インスタンスのコントロールセンターの定義の id
   screen: CalledScreen // 呼ばれた場所のスクリーン（スクリーンの外から呼ばれたら、カレントスクリーン）
-  screens: readonly CalledScreen[] // 開いているスクリーンを、カレントにした順に並べた物（最後がカレントスクリーン）
-  arrangement: { id: string; value: unknown } // 窓のスクリーンアレンジメント（定義の id と値）
+  arrangement: { id: string } // 窓のスクリーンアレンジメントの定義の id（値は並べるスクリーンを名指すので持たない）
   settings: Settings
   dialog: OpenedDialog | null // 開いているダイアログ
   contextMenu: OpenedContextMenu | null // 開いている右クリックのメニュー
@@ -96,6 +94,35 @@ export interface CommandContext extends ScreenCommandContext {
   bookHistory: BookHistory // そのステージで開いているブックの、画面の履歴（ブックが無ければ空）
   toPaper(p: Point): Point | null // 表示領域の中の点（左上から）を、そのステージの今の紙の上の点に直す（紙が無ければ null）
 }
+
+// 開いているスクリーン 1 枚（id 付き。base のコマンドが screensOf で読む）
+export interface OpenScreen extends CalledScreen {
+  id: string // 開いた 1 枚ごとの id
+}
+
+// スクリーンから呼ぶコマンドの文脈ごとの、ほかのスクリーンを名指す物（呼ばれた場所のスクリーンの id・開いているスクリーンをカレントにした順に並べた物（最後がカレントスクリーン）・
+// スクリーンアレンジメントの値）。プラグイン API の文脈のフィールドにはしない。base のコマンドが screensOf・arrangementValueIn で読む
+export interface ScreenFrame {
+  here: string
+  screens: readonly OpenScreen[]
+  arrangementValue: unknown
+}
+const frames = new WeakMap<ScreenCommandContext, ScreenFrame>()
+
+// ctx に、ほかのスクリーンを名指す物 frame を結ぶ（ctx を返す）
+export function withScreenFrame<C extends ScreenCommandContext>(ctx: C, frame: ScreenFrame): C {
+  frames.set(ctx, frame)
+  return ctx
+}
+
+// コマンドの文脈 ctx の、開いているスクリーンをカレントにした順に並べた物（最後がカレントスクリーン。withScreenFrame を通した文脈だけが持つ）
+export const screensOf = (ctx: ScreenCommandContext): readonly OpenScreen[] => frames.get(ctx)?.screens ?? []
+
+// コマンドの文脈 ctx の、スクリーンアレンジメントの値
+export const arrangementValueIn = (ctx: ScreenCommandContext): unknown => frames.get(ctx)?.arrangementValue
+
+// コマンドの文脈 ctx の、呼ばれた場所のスクリーンの id（store が、スクリーンごとのプラグイン状態の置き場に使う）
+export const calledScreenIdOf = (ctx: ScreenCommandContext): string => frames.get(ctx)?.here ?? fail("E116")
 
 // コマンドの文脈ごとの、ステージの並びと道具（表示領域の大きさ・道具のアイコンなども持つので、プラグイン API の文脈のフィールドにはしない。base のコマンドが workspaceOf で読む）と、
 // 開けるブックの一覧（base のコマンドが booksOf で読む）
@@ -137,6 +164,12 @@ export interface CommandActions extends WindowActions, BoundPlaceActions {
   // このコマンドを持つプラグインが宣言したプラグイン状態 def の値を、今の値から change が返す値にする（undefined なら消す。ステージごとの宣言は呼ばれた場所のステージの値）。1 回のコマンドで何度書いても、store には 1 回で書く。画面の場所に入れる宣言の形に合わなければ E123
   updatePluginState<S>(def: PluginStateDef<S>, change: (now: S | undefined) => S | undefined): void
 }
+
+// コマンドに渡した操作ごとの、store の素の操作（ほかのスクリーン・ステージを名指す操作も持つ。プラグイン API には出さない。base のコマンドが storeActionsOf で読む）
+export const givenActions = new WeakMap<CommandActions, Actions>()
+
+// コマンドが受け取った操作 a の、store の素の操作（store がコマンドに渡した操作だけが持つ）
+export const storeActionsOf = (a: CommandActions): Actions => givenActions.get(a) ?? fail("E116")
 
 // コマンドの定義の、呼ぶ場所によらない所
 interface CommandDefBase<A, Tt extends string> extends CommandExtras {

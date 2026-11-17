@@ -126,6 +126,7 @@ type Output struct {
 	Reason        string                      `json:"reason,omitempty"`
 	Permission    string                      `json:"permission,omitempty"`
 	Detail        string                      `json:"detail,omitempty"`
+	Kind          string                      `json:"kind,omitempty"`     // 断りの種類（アクションが添えた名前か、土台の種類。title-taken など）
 	Page          string                      `json:"page,omitempty"`     // 読めないページで断ったとき（reason unreadable）、そのページの id
 	Code          string                      `json:"code,omitempty"`     // 読めないページで断ったとき、読めない理由の warning の番号（W027〜W029）
 	At            *int                        `json:"at,omitempty"`       // 断られたアクションが何番目か（常駐のログにだけ使う）

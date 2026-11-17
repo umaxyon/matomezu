@@ -1,6 +1,12 @@
 // 窓のスクリーンの定義（ブックスクリーン）と、窓のコマンド: カレントスクリーン（ステージを並べないスクリーンかブックスクリーン）の切り替え
 import { z } from "zod"
-import type { CalledScreen, ScreenCommandContext } from "../../../store/commands/def"
+import {
+  arrangementValueIn,
+  type OpenScreen,
+  type ScreenCommandContext,
+  screensOf,
+  storeActionsOf,
+} from "../../../store/commands/def"
 import { kit } from "../kit"
 import { shownSplit } from "./split"
 
@@ -25,10 +31,10 @@ export const ONE_SCREEN = kit.defineScreenArrangement({
 })
 
 // カレントスクリーン（呼ばれた文脈の、カレントにした順の最後）
-const current = (ctx: ScreenCommandContext): CalledScreen | undefined => ctx.screens[ctx.screens.length - 1]
+const current = (ctx: ScreenCommandContext): OpenScreen | undefined => screensOf(ctx).at(-1)
 // いちばん最近カレントにした、ステージを並べるスクリーン（stages が true）か、並べないスクリーン（false）
-const recent = (ctx: ScreenCommandContext, stages: boolean): CalledScreen | undefined =>
-  [...ctx.screens].reverse().find(s => s.stages === stages)
+const recent = (ctx: ScreenCommandContext, stages: boolean): OpenScreen | undefined =>
+  [...screensOf(ctx)].reverse().find(s => s.stages === stages)
 
 // 巣箱のボタン。ブックスクリーンと、ステージを並べないスクリーン（コントロールセンターなど）を行き来する: カレントスクリーンと違う種類の、
 // いちばん最近カレントにしたスクリーンをカレントスクリーンにする。ステージを並べないスクリーンがカレントの間は、押された状態
@@ -37,7 +43,7 @@ export const CONTROL_CENTER_TOGGLE = kit.defineScreenCommand({
   title: "Control center",
   run: (ctx, a) => {
     const to = recent(ctx, current(ctx)?.stages !== true)
-    if (to) a.makeScreenCurrent(to.id)
+    if (to) storeActionsOf(a).makeScreenCurrent(to.id)
   },
   when: () => true,
   active: ctx => current(ctx)?.stages === false,
@@ -46,9 +52,9 @@ export const CONTROL_CENTER_TOGGLE = kit.defineScreenCommand({
 // 上下に分けて見せているか（カレントスクリーンが、分けた並びにある）
 const splitting = (ctx: ScreenCommandContext): boolean =>
   shownSplit(
-    ctx.screens,
-    ctx.screens.map(s => s.id),
-    ctx.arrangement,
+    screensOf(ctx),
+    screensOf(ctx).map(s => s.id),
+    { id: ctx.arrangement.id, value: arrangementValueIn(ctx) },
   ).length > 0
 
 // ステージを並べないスクリーンがカレントの間、Esc でブックスクリーンへ戻る。上下に分けている間は、ブラウザの履歴を 1 つ戻す（最後に開いた物を引っ込める）
@@ -58,7 +64,7 @@ export const CONTROL_CENTER_LEAVE = kit.defineScreenCommand({
   run: (ctx, a) => {
     if (splitting(ctx)) return a.requestBack()
     const to = recent(ctx, true)
-    if (to) a.makeScreenCurrent(to.id)
+    if (to) storeActionsOf(a).makeScreenCurrent(to.id)
   },
   when: ctx => current(ctx)?.stages === false,
 })

@@ -6,8 +6,8 @@ import { kit } from "./kit"
 // メモのスクリーン: 渡されたボードの、まだ済んでいないメモを新しい順に 50 件。× で閉じ、+ で隣のボードのスクリーンを開き、✓ で済みにする
 function MemoScreenView() {
   const t = useMessages(kit)
-  const me = useScreen(MEMO_SCREEN) // 自分の 1 枚: id・渡された値・見えているか・カレントスクリーンか
-  const { open, close } = useScreens() // 窓のスクリーンと、開く・カレントにする・閉じる
+  const me = useScreen(MEMO_SCREEN) // 自分の 1 枚: 渡された値・見えているか・カレントスクリーンか
+  const { open, close } = useScreens() // スクリーンを開く・自分の 1 枚を閉じる
   const { perform } = useActions()
   // 読む: このボードの、まだ済んでいないメモを、新しい順に 50 件
   const memos = useRecords(MEMO.id, {
@@ -23,7 +23,7 @@ function MemoScreenView() {
       <h1>
         {t("memos")} {me.props.board}
       </h1>
-      <button type="button" onClick={() => close(me.id)}>
+      <button type="button" onClick={() => close()}>
         ×
       </button>
       <button type="button" onClick={() => open(MEMO_SCREEN, { board: `${me.props.board}-2` })}>

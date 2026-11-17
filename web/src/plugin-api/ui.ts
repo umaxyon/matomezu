@@ -32,6 +32,7 @@ export {
   useActions,
   useAllowed,
   useAllowedOn,
+  useArrangedScreens,
   useBook,
   useBrowserBack,
   useCoreCatalog,

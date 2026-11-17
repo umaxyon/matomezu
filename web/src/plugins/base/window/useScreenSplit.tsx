@@ -1,6 +1,6 @@
 // スクリーンを上下に分けて並べる操作（SPLIT_ROWS）。描いている場所のスクリーン（スクリーンの外ならカレントスクリーン）を起点にし、ほかのスクリーンを id で名指さない。
 // 並びから外れたスクリーンは、ここで閉じる（開く側は閉じない）。窓が低い（SPLIT_MIN_HEIGHT 未満）ときは、分けずに 1 枚で開く
-import { useCallback, useSyncExternalStore } from "react"
+import { useCallback, useMemo, useSyncExternalStore } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { sameData } from "../../../core/same"
 import { currentScreen, type WindowState } from "../../../core/window"
@@ -65,7 +65,7 @@ interface Opening<P> {
 }
 
 export interface ScreenSplit {
-  here: { id: string; def: string } // 起点のスクリーン（描いている場所のスクリーン。スクリーンの外ならカレントスクリーン）
+  here: { def: string } // 起点のスクリーンの定義の id（起点は、描いている場所のスクリーン。スクリーンの外ならカレントスクリーン）
   inSplit: boolean // 起点のスクリーンを分けて並べているか
   index: number // 並びの中の位置（上から 0。並べていなければ -1）
   tall: boolean // 窓が、分けて並べられる高さか
@@ -95,6 +95,7 @@ export function useScreenSplit(): ScreenSplit {
   const actions = useStoreActions()
   const flash = useUpdatePluginState(kit, SCREEN_FLASH)
   const here = inside ? { id: inside.id, def: inside.def } : { id: current.id, def: current.def }
+  const shownHere = useMemo(() => ({ def: here.def }), [here.def])
   const apply = useCallback((plan: SplitPlan) => applySplit(actions, read, plan), [actions, read])
   const find = useCallback(
     (def: { id: string }, props: unknown) =>
@@ -110,7 +111,7 @@ export function useScreenSplit(): ScreenSplit {
     [actions, apply, split, read],
   )
   return {
-    here,
+    here: shownHere,
     inSplit: split.includes(here.id),
     index: split.indexOf(here.id),
     tall,
@@ -119,11 +120,11 @@ export function useScreenSplit(): ScreenSplit {
     defs: members.map(s => s?.def ?? ""),
     closeAll: () => apply({ screens: [], leaving: split }),
     openAt: ({ def, props }, index) => {
-      const added = actions.openScreen(def.id, props)
+      const added = actions.openScreenId(def.id, props)
       if (added !== SCREEN_REFUSED && split.length > 0) apply(planAt(split, index, added))
     },
     open: ({ def, props }, how, max) => {
-      const added = actions.openScreen(def.id, props)
+      const added = actions.openScreenId(def.id, props)
       if (added !== SCREEN_REFUSED && tallNow()) apply(planOpen(split, here.id, added, how, max))
     },
     close: () => closeOne(here.id),

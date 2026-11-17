@@ -18,8 +18,6 @@ export {
   Choices,
   ChoiceText,
   CONTROL_CENTER_FOOTER,
-  CONTROL_CENTER_PROJECTS,
-  CONTROL_CENTER_SIDE,
   type CodeSpan,
   ColorPicker,
   Confirm,
@@ -113,6 +111,7 @@ export {
   useSearchPick,
   useSetRightSidePanelCurrent,
   useSettingControls,
+  useShowControlCenter,
   useSwatches,
   useThemeVars,
   useWideSearch,
@@ -127,8 +126,6 @@ export {
   type WideSearchHit,
   type WideSearchModeProps,
   type WideSearchQuery,
-  WORKROOM_COLUMNS,
-  WORKROOM_ROW_LINE,
   type WorkroomActions,
 } from "../plugins/base/ui"
 // プラグインに公開する共通の処理のうち見た目の物（base の utils/ui に書き出した物は、そのまま出る）

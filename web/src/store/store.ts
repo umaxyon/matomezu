@@ -101,6 +101,7 @@ import {
   mapScreenOfStage,
   mapScreens,
   newWindow,
+  type OpenedScreen,
   openScreen,
   screenOf,
   screenOfStage,
@@ -128,7 +129,7 @@ import {
   type Workspace,
 } from "../core/workspace"
 import { type CommandArgs, type CommandId, called, commandOwner, isEnabled } from "./commands"
-import type { CommandActions } from "./commands/def"
+import { type CommandActions, calledScreenIdOf, givenActions } from "./commands/def"
 import type { MenuOpens, OpenedContextMenu } from "./context-menus"
 import { type DialogArgs, type DialogPreview, NO_STAGE, type OpenedDialog } from "./dialogs"
 import { findKey, type KeyReach, type KeyTable, keyScopes, keyTable } from "./keys"
@@ -259,19 +260,13 @@ export interface WindowActions {
   closeContextMenu(): void
   showToast(toast: ToastInput): string // トーストを出し、その id を返す
   dismissToast(id: string): void // トーストを消す（もう無ければ何もしない）
-  // スクリーンを 1 枚開いてカレントにし、開いた 1 枚の id を返す。def はスクリーンの定義の id、props は渡す値（定義の props の形）。
-  // 機能台帳に無い定義・形に合わない値なら開かず、refused を返す
-  openScreen(def: string, props: unknown): string
-  // 開いているスクリーン id に渡す値を props に替える（スクリーンを積まず、ブラウザの履歴には積む。値は、そのスクリーンの定義の props の形。無いスクリーン・形に合わない値なら替えず false）
-  setScreenProps(id: string, props: unknown): boolean
-  makeScreenCurrent(id: string): void // 開いているスクリーン id をカレントスクリーンにする（見せるかはスクリーンアレンジメントが決める。退いた物の中は残す）
-  // 開いているスクリーン id を閉じる（カレントスクリーンだったなら、1 つ前にカレントだった物がカレントになる）。最初から開いているスクリーンと、最後の 1 枚のブックスクリーンは閉じない
-  closeScreen(id: string): void
+  // スクリーンを 1 枚開いてカレントにし、開けたかを返す。def はスクリーンの定義の id、props は渡す値（定義の props の形）。
+  // 機能台帳に無い定義・形に合わない値なら開かず、false を返す
+  openScreen(def: string, props: unknown): boolean
   // スクリーンアレンジメントを定義 def と値 value に替える（値を渡さなければ、定義の初めの値。機能台帳に無い定義・値が定義の形に合わなければ替えない）
   setScreenArrangement(def: string, value?: unknown): void
   // 同じ同期の処理の中の窓の変わりを、ブラウザの履歴に積まずに書き換えてほしいと頼む（利用者の操作でない変わり。窓の大きさでスクリーンアレンジメントを戻すなど）
   replaceHistory(): void
-  showStage(id: string): void // ステージ id をカレントにし、それを並べているスクリーンをカレントスクリーンにする（そのステージを見せる）
   moveDivider(x: number, width: number): void // 分けている境目を、並べた幅 width の左から x の所へ（ドラッグした位置）
   evenDivider(): void // 分けている境目を真ん中に戻す
   requestPrint(): void // 画面を刷ってほしいと頼む（刷るのはホストクライアント。刷る物は画面が印刷のときだけ出す）
@@ -284,6 +279,14 @@ export interface WindowActions {
   // 足すのは、そのブックに最後に入れた画面の履歴の段が、そのブックの最後の物のときだけ（元に戻す・やり直すのあとは足さずに、別の画面の履歴の段になる）。
   // 足したあと何も変わらなければ（足した物を書かずに消したなど）、その画面の履歴の段ごと無くなる
   continueStep(book: string): void
+}
+
+// 画面の操作のうち、ほかのスクリーン・ステージを id で名指す物と、開いた 1 枚の id を返す開き方。プラグイン API には出さない（土台と base の決まったファイルが、素の操作として使う）
+export interface FrameActions {
+  // スクリーンを 1 枚開いてカレントにし、開いた 1 枚の id を返す（開かなければ SCREEN_REFUSED）。ほかは openScreen と同じ
+  openScreenId(def: string, props: unknown): string
+  makeScreenCurrent(id: string): void // 開いているスクリーン id をカレントスクリーンにする（見せるかはスクリーンアレンジメントが決める。退いた物の中は残す）
+  showStage(id: string): void // ステージ id をカレントにし、それを並べているスクリーンをカレントスクリーンにする（そのステージを見せる）
 }
 
 // 画面の操作のうち、場所（ステージの id。ダイアログとコマンドは、ステージを持たないスクリーンの id も）に向ける物。どれも第 1 引数が向ける場所。
@@ -329,6 +332,11 @@ export interface PlaceActions {
   setEditing(stage: string, editing: boolean | string): void
   // そのステージで道具のアイコンを、画面の座標 at（null なら画面が決める所）に開く（ほかのステージで開いていたものは閉じる）
   openPicker(stage: string, at: Point | null): void
+  // at のスクリーン（スクリーンの id か、そのステージを並べるスクリーン）を閉じる（カレントスクリーンだったなら、1 つ前にカレントだった物がカレントになる）。
+  // 最初から開いているスクリーンと、最後の 1 枚のブックスクリーンは閉じない
+  closeScreen(at: string): void
+  // at のスクリーンに渡す値を props に替える（スクリーンを積まず、ブラウザの履歴には積む。値は、そのスクリーンの定義の props の形。無いスクリーン・形に合わない値なら替えず false）
+  setScreenProps(at: string, props: unknown): boolean
 }
 
 // 場所に向ける操作 A の、場所を決めた形（第 1 引数を外した物）
@@ -370,6 +378,8 @@ export const PLACE_ACTIONS: { readonly [K in keyof PlaceActions]: true } = {
   select: true,
   setEditing: true,
   openPicker: true,
+  closeScreen: true,
+  setScreenProps: true,
 }
 
 // 操作 actions の、場所に向ける物を、場所 at（null なら向ける場所が無い: 何もしない）に向けた形
@@ -383,6 +393,10 @@ export function boundActions(actions: PlaceActions, at: string | null): BoundPla
   ) as unknown as BoundPlaceActions
 }
 
+// 場所 at（スクリーンの id か、ステージの id）のスクリーン
+const screenAt = (win: WindowState, at: string): OpenedScreen | undefined =>
+  win.screens.find(s => s.id === at) ?? screenOfStage(win, at)
+
 // 何も行わない、窓に向ける操作（操作を向ける先が無い所で使う。アクションは no-book で断り、id を返す操作は空の文字を返す）
 const NOTHING = () => {}
 export const REFUSED_WINDOW_ACTIONS: WindowActions = {
@@ -395,13 +409,9 @@ export const REFUSED_WINDOW_ACTIONS: WindowActions = {
   closeContextMenu: NOTHING,
   showToast: () => "",
   dismissToast: NOTHING,
-  openScreen: () => "",
-  setScreenProps: () => false,
-  makeScreenCurrent: NOTHING,
-  closeScreen: NOTHING,
+  openScreen: () => false,
   setScreenArrangement: NOTHING,
   replaceHistory: NOTHING,
-  showStage: NOTHING,
   moveDivider: NOTHING,
   evenDivider: NOTHING,
   requestPrint: NOTHING,
@@ -412,7 +422,36 @@ export const REFUSED_WINDOW_ACTIONS: WindowActions = {
 }
 
 // 画面の操作（store が持つ形。場所に向ける操作は、場所を第 1 引数に取る）
-export interface Actions extends WindowActions, PlaceActions {}
+export interface Actions extends WindowActions, FrameActions, PlaceActions {}
+
+// 窓に向ける操作の名前（WindowActions に操作を足したら、ここにも書く。書き忘れは型の誤り）。プラグインに渡す操作は、store の操作からこれと場所に向ける物だけを選ぶ
+export const WINDOW_ACTIONS: { readonly [K in keyof WindowActions]: true } = {
+  perform: true,
+  performConfirmed: true,
+  closeDialog: true,
+  previewDialog: true,
+  submitDialog: true,
+  pressKey: true,
+  closeContextMenu: true,
+  showToast: true,
+  dismissToast: true,
+  openScreen: true,
+  setScreenArrangement: true,
+  replaceHistory: true,
+  moveDivider: true,
+  evenDivider: true,
+  requestPrint: true,
+  requestBack: true,
+  closePicker: true,
+  moveHistory: true,
+  continueStep: true,
+}
+
+// store の操作 actions の、窓に向ける物だけ（プラグインに渡す形。ほかを名指す操作 FrameActions を含めない）
+export const windowActionsOf = (actions: WindowActions): WindowActions =>
+  Object.fromEntries(
+    Object.keys(WINDOW_ACTIONS).map(k => [k, (actions as unknown as Record<string, unknown>)[k]]),
+  ) as unknown as WindowActions
 
 // 画面で行ったアクション 1 つ（ホストが常駐に送り、行い直しに使う）。ids は行ったときに振った id の順、lang はそのときの言語
 export interface DoneAction {
@@ -1090,7 +1129,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const updatePluginState = <S>(stateDef: PluginStateDef<S>, change: (now: S | undefined) => S | undefined) => {
         const own = ownedPluginState(owner, stateDef)
         // スクリーンごとの宣言は、呼ばれた場所のスクリーンの値
-        const here = own.scope === "screen" ? call.ctx.screen.id : stage
+        const here = own.scope === "screen" ? calledScreenIdOf(call.ctx) : stage
         const at = own.scope === "window" ? null : here
         const next = change(pluginValueOf(working(), here, own))
         withPluginValue(working(), own.id, at, next) // 書く前に、範囲と形を確かめる
@@ -1098,7 +1137,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       }
       const run = call.def.run as (ctx: unknown, actions: CommandActions, args: never) => void
       // 呼ばれた場所（ステージか、スクリーン）に向けた操作
-      run(call.ctx, { ...actions, ...boundActions(actions, stage), updatePluginState }, args[0] as never)
+      const given: CommandActions = { ...windowActionsOf(actions), ...boundActions(actions, stage), updatePluginState }
+      givenActions.set(given, actions)
+      run(call.ctx, given, args[0] as never)
       if (pending.length > 0) {
         const now = getState().pluginValues
         const next = working()
@@ -1166,24 +1207,28 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (now.some(t => t.id === id)) setState({ toasts: now.filter(t => t.id !== id) })
     },
     // 無いステージ（閉じたステージなど）への分割は、カレントへの分割にしない
-    openScreen: (def, props) => {
+    openScreenId: (def, props) => {
       const fits = catalog.screens.get(def)?.props.safeParse(props)
       if (!fits?.success) return SCREEN_REFUSED
       const { win, id } = openScreen(getState().window, catalog, def, fits.data)
       commit({ window: win })
       return id
     },
-    setScreenProps: (id, props) => {
-      const screen = getState().window.screens.find(s => s.id === id)
+    openScreen: (def, props) => actions.openScreenId(def, props) !== SCREEN_REFUSED,
+    setScreenProps: (at, props) => {
+      const screen = screenAt(getState().window, at)
       const fits = screen && catalog.screens.get(screen.def)?.props.safeParse(props)
-      if (!fits?.success) return false
-      withWindow(win => withScreenProps(win, id, fits.data))
+      if (!screen || !fits?.success) return false
+      withWindow(win => withScreenProps(win, screen.id, fits.data))
       return true
     },
     makeScreenCurrent: id => withWindow(win => makeCurrent(win, id)),
     setScreenArrangement: (def, value) => withWindow(win => setArrangement(win, catalog, def, value)),
     replaceHistory: () => setState({ historyReplaces: getState().historyReplaces + 1 }),
-    closeScreen: id => withWindow(win => closeScreen(win, catalog, id)),
+    closeScreen: at => {
+      const screen = screenAt(getState().window, at)
+      if (screen) withWindow(win => closeScreen(win, catalog, screen.id))
+    },
     showStage: id =>
       withWindow(win =>
         makeCurrent(

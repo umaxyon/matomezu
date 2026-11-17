@@ -37,8 +37,10 @@ import {
   type Performed,
   REFUSED_WINDOW_ACTIONS,
   type WindowActions,
+  windowActionsOf,
 } from "../store/store"
 import { worldOf } from "../store/world"
+import { useArranged } from "./arranged-context"
 import {
   type Owner,
   usePluginStateAt,
@@ -357,7 +359,7 @@ export function useActions(): WindowActions & BoundPlaceActions {
   const at = useAt()
   const nowhere = useScope().actsOn.kind === "none"
   return useMemo(
-    () => ({ ...(nowhere ? REFUSED_WINDOW_ACTIONS : actions), ...boundActions(actions, at) }),
+    () => ({ ...(nowhere ? REFUSED_WINDOW_ACTIONS : windowActionsOf(actions)), ...boundActions(actions, at) }),
     [actions, at, nowhere],
   )
 }
@@ -462,17 +464,17 @@ interface PropsShape<P> {
   safeParse(value: unknown): { success: true; data: P } | { success: false }
 }
 
-// 描いている場所のスクリーン（定義 def のスクリーンの中のビューが使う）: 開いた 1 枚の id・渡された値・見えているか・カレントスクリーンか（定義を問わず見えているか・カレントスクリーンかだけを知るなら useScreenHere）。
+// 描いている場所のスクリーン（定義 def のスクリーンの中のビューが使う）: 渡された値・見えているか・カレントスクリーンか（定義を問わず見えているか・カレントスクリーンかだけを知るなら useScreenHere）。
 // スクリーンの外や、ほかの定義のスクリーンの中で呼べば E126
 export function useScreen<P>(def: { id: string; props: PropsShape<P> }): {
-  id: string
   props: P
   shown: boolean
   current: boolean
 } {
   const here = useScreenContext()
-  if (here === null || here.def !== def.id) return fail("E126", { screen: def.id })
-  return here as { id: string; props: P; shown: boolean; current: boolean }
+  if (here === null || here.def !== def.id) fail("E126", { screen: def.id })
+  const { props, shown, current } = here
+  return useMemo(() => ({ props: props as P, shown, current }), [props, shown, current])
 }
 
 // 描いている場所のスクリーンが、見えているか・カレントスクリーンか（定義を問わない。スクリーンの定義を持たないビューが、自分のいるスクリーンを知るのに使う）。
@@ -484,56 +486,79 @@ export function useScreenHere(): { shown: boolean; current: boolean } | null {
   return useMemo(() => (shown === undefined || current === undefined ? null : { shown, current }), [shown, current])
 }
 
-// 窓のスクリーン: 開いているスクリーンの並び（開いた順。1 枚ごとの id・定義の id・渡された値・見えているか・カレントスクリーンか）と、
-// 開く（定義と渡す値。開いた 1 枚の id を返し、カレントスクリーンにする。値が定義の形に合わなければ開かず refused）・カレントスクリーンにする・閉じる
+// スクリーンを開く・描いている場所のスクリーンを閉じる・渡す値を替える。描いている場所のスクリーンは、スクリーンの外（窓の枠のウィジェットなど）ならカレントスクリーン。
+// - open: 定義 def のスクリーンを 1 枚開いてカレントスクリーンにする（値が定義の形に合わなければ開かず false）
+// - setProps: 描いている場所のスクリーンに渡す値を替える（スクリーンは積まず、ブラウザの履歴には積む。そのスクリーンが定義 def の物でないか、値が形に合わなければ替えず false）
+// - close: 描いている場所のスクリーンを閉じる（最初から開いているスクリーンと、最後の 1 枚のブックスクリーンは閉じない）
+// ほかのスクリーンを名指す操作は、スクリーンアレンジメントのウィジェットの中だけ（useArrangedScreens）
 export function useScreens(): {
+  open<P>(def: { id: string; props: PropsShape<P> }, props: P): boolean
+  setProps<P>(def: { id: string; props: PropsShape<P> }, props: P): boolean
+  close(): void
+} {
+  const here = useScreenContext()?.id ?? null
+  const read = useReadState()
+  const { openScreen, setScreenProps, closeScreen } = useStoreActions()
+  return useMemo(() => {
+    const at = () => here ?? currentScreen(read().window).id
+    return {
+      open: <P>(def: { id: string; props: PropsShape<P> }, props: P) => openScreen(def.id, props),
+      setProps: <P>(def: { id: string; props: PropsShape<P> }, props: P) => {
+        const screen = at()
+        if (read().window.screens.find(s => s.id === screen)?.def !== def.id) return false
+        return setScreenProps(screen, props)
+      },
+      close: () => closeScreen(at()),
+    }
+  }, [here, read, openScreen, setScreenProps, closeScreen])
+}
+
+// スクリーンアレンジメントのウィジェットが並べるスクリーン: 開いているスクリーンの並び（開いた順。1 枚ごとの id・定義の id・渡された値・見えているか・カレントスクリーンか）と、
+// スクリーンアレンジメントの値と、カレントスクリーンにする・閉じる（どれもスクリーンを id で名指す）。スクリーンアレンジメントのウィジェットの中でだけ呼べる（外なら E128。
+// その中に描いたスクリーンの中も外）。1 枚を描くのは ScreenView
+export function useArrangedScreens(): {
   screens: readonly { id: string; def: string; props: unknown; shown: boolean; current: boolean }[]
-  open<P>(def: { id: string; props: PropsShape<P> }, props: P): string
-  setProps<P>(id: string, def: { id: string; props: PropsShape<P> }, props: P): boolean // 開いているスクリーン id（定義 def の物）の渡す値を替える（スクリーンは積まず、ブラウザの履歴には積む）
+  value: unknown
   makeCurrent(id: string): void
   close(id: string): void
 } {
+  if (!useArranged()) fail("E128", { name: "useArrangedScreens" })
   const catalog = useCoreCatalog()
   const opened = useMatomezuState(s => s.window.screens)
   const current = useMatomezuState(s => currentScreen(s.window).id)
   const shown = useMatomezuState(useShallow(s => shownScreens(catalog, s.window)))
-  const { openScreen, setScreenProps, makeScreenCurrent, closeScreen } = useStoreActions()
-  const screens = useMemo(
-    () =>
-      opened.map(s => ({
+  const value = useMatomezuState(s => s.window.arrangementValue)
+  const { makeScreenCurrent, closeScreen } = useStoreActions()
+  return useMemo(
+    () => ({
+      screens: opened.map(s => ({
         id: s.id,
         def: s.def,
         props: s.props,
         shown: shown.includes(s.id),
         current: s.id === current,
       })),
-    [opened, current, shown],
+      value,
+      makeCurrent: makeScreenCurrent,
+      close: closeScreen,
+    }),
+    [opened, current, shown, value, makeScreenCurrent, closeScreen],
   )
-  const open = useCallback(
-    <P>(def: { id: string; props: PropsShape<P> }, props: P) => openScreen(def.id, props),
-    [openScreen],
-  )
-  const setProps = useCallback(
-    <P>(id: string, _def: { id: string; props: PropsShape<P> }, props: P) => setScreenProps(id, props),
-    [setScreenProps],
-  )
-  return { screens, open, setProps, makeCurrent: makeScreenCurrent, close: closeScreen }
 }
 
-// 窓のスクリーンアレンジメント: 今の定義の id と値と、替える（定義と値。値を渡さなければ定義の初めの値。値は定義の value の形で、合わなければ替えない）
+// 窓のスクリーンアレンジメント: 今の定義の id と、替える（定義と値。値を渡さなければ定義の初めの値。値は定義の value の形で、合わなければ替えない）。
+// 値は並べるスクリーンを名指すので、読むのはスクリーンアレンジメントのウィジェットだけ（useArrangedScreens）
 export function useScreenArrangement(): {
   id: string
-  value: unknown
   set<V>(def: { id: string; value?: { schema: { parse(v: unknown): V } } }, value?: V): void
 } {
   const id = useMatomezuState(s => s.window.arrangement)
-  const value = useMatomezuState(s => s.window.arrangementValue)
   const { setScreenArrangement } = useStoreActions()
   const set = useCallback(
     <V>(def: { id: string }, value?: V) => setScreenArrangement(def.id, value),
     [setScreenArrangement],
   )
-  return useMemo(() => ({ id, value, set }), [id, value, set])
+  return useMemo(() => ({ id, set }), [id, set])
 }
 
 // 同じ同期の処理の中の窓の変わりを、ブラウザの履歴に積まずに書き換えてほしいと頼む関数（利用者の操作でない変わり。窓の大きさでスクリーンアレンジメントを戻すなど）
