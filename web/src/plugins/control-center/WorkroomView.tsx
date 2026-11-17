@@ -1,13 +1,14 @@
 // 右の下のワークルームの枠: 選んでいる参加者の鳥・名前・管理者の王冠（管理者なら金、ほかは薄い灰色。押すと管理者にする）・情報（最終アクセス・ブランチ（あれば）・model・os）・現在のタスク・履歴。
-// 情報の列の右下に退室のアイコン。情報の列の右には、base のスロット（workroom-columns）に置かれたウィジェットの列（現在のタスク・履歴など）が並ぶ
+// 情報の列の右下に退室のアイコン。情報の列の右には、スロット workroom-columnsに置かれたウィジェットの列（現在のタスク・履歴など）が並ぶ
 import { Slot, useActions, useAllowedOn, useMessages } from "../../plugin-api/ui"
 import type { WorkroomRow } from "../base"
-import { Elapsed, IconButton, Panel, Tip, useWorkroomActions, WORKROOM_COLUMNS } from "../base/ui"
+import { Elapsed, IconButton, Panel, Tip, useWorkroomActions } from "../base/ui"
 import { Bird } from "./Bird"
 import { WORKROOM_LEAVE_DIALOG } from "./control-center"
 import { CrownIcon, LeaveIcon, TrashIcon } from "./icons"
 import { kit } from "./kit"
 import { lastAccessOf } from "./rows"
+import { WORKROOM_COLUMNS } from "./slots"
 import text from "./text.module.css"
 import styles from "./WorkroomView.module.css"
 

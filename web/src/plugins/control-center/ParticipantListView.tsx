@@ -1,13 +1,14 @@
 // 左の列のワークルーム/参加者の一覧。管理者の行は高く、頭に王冠。空室の行は空の丸と（空室）、準備中は鳥を薄くして（準備中）。
-// 下の 1 行は、参加済みでは base のスロット（workroom-row-line）に置かれたウィジェットが出す（今のタスクなど）
+// 下の 1 行は、参加済みではスロット workroom-row-line に置かれたウィジェットが出す（今のタスクなど）
 import { useState } from "react"
 import { Slot, useMessages, usePluginState, useSetPluginState } from "../../plugin-api/ui"
-import { Band, Panel, useWorkroomRows, WORKROOM_ROW_LINE } from "../base/ui"
+import { Band, Panel, useWorkroomRows } from "../base/ui"
 import { Bird } from "./Bird"
 import { PICKED_ROOM } from "./control-center"
 import { kit } from "./kit"
 import styles from "./ParticipantListView.module.css"
 import { orderHeld, orderRows, type RowDetail, rowDetail } from "./rows"
+import { WORKROOM_ROW_LINE } from "./slots"
 import text from "./text.module.css"
 import { useRowSlide } from "./useRowSlide"
 import { useSettledOrder } from "./useSettledOrder"
