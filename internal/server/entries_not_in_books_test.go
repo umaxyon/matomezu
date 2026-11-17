@@ -113,18 +113,19 @@ func TestRowsNotInBooksGoToTheEngine(t *testing.T) {
 	}
 	pages, folders, annotated := inputs(update("h1"))
 	same("pages for h1", pages, []string{"h1"})
-	same("folders for h1", folders, []string{storage.HomeID})
+	// 同じ書庫ホームに直に入っている隣のフォルダ d1 の行も渡る（名前の重なりを確かめるため。d1 の中は渡らない）
+	same("folders for h1", folders, []string{storage.HomeID, "d1"})
 	same("annotations for h1", annotated, []string{"h1"})
 
 	pages, folders, annotated = inputs(update("n1a"))
 	same("pages for n1a", pages, []string{"n1a", "n1b"})
-	same("folders for n1a", folders, []string{"n1", "d1", storage.HomeID})
+	same("folders for n1a", folders, []string{"n1", "d1", storage.HomeID, "b1", "d2"})
 	same("annotations for n1a", annotated, []string{"n1b"})
 
 	// ブックのページと並べても、同じ行は 1 度だけ渡る
 	pages, folders, annotated = inputs(update("g1"), update("p1"), update("n1b"), update("n1a"), update("g1"))
 	same("pages for g1, p1 and n1", pages, []string{"p1", "g1", "n1a", "n1b"})
-	same("folders for g1, p1 and n1", folders, []string{"b1", "n1", "d1", storage.HomeID, "d2"})
+	same("folders for g1, p1 and n1", folders, []string{"b1", "n1", "d1", storage.HomeID, "d2", "b2"})
 	same("annotations for g1, p1 and n1", annotated, []string{"g1", "n1b"})
 
 	for _, page := range []string{"t1", "tn1", "dt1"} {
