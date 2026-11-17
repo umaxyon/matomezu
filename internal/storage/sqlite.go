@@ -188,6 +188,8 @@ var migrations = []string{
 	CREATE INDEX entries_folder ON entries (folder);`,
 	// AI 編集チケットを、ブックごとの並びから、全部で 1 つの並びにする（1 回のアクションに 1 つで、変えたページとフォルダを持つため。Go の移し替え。migrate_tickets.go）
 	`SELECT 1;`,
+	// 書庫ホーム（フォルダの行 library-home）を作り、どのフォルダにも入っていないブックを、書庫ホームの中のフォルダ「旧ブック」に入れる（Go の移し替え。library.go）
+	`SELECT 1;`,
 }
 
 // goMigrations は、SQL だけでは書けない移し替え（JSON の中をたどる物）。鍵は migrations の番号（0 から）で、その SQL を行ったあと、同じトランザクションの中で行う
@@ -196,6 +198,7 @@ var goMigrations = map[int]func(tx *sql.Tx) error{
 	22: proposalSnapshotsToPlaces,
 	23: booksToTables,
 	24: ticketsToOneList,
+	25: placeBooksInLibrary,
 }
 
 type sqliteStorage struct {
@@ -270,14 +273,16 @@ func Stamp(t time.Time) string { return t.UTC().Format("2006-01-02T15:04:05.000Z
 func now() string { return Stamp(time.Now()) }
 
 func (s *sqliteStorage) Touched() (map[string]string, error) {
-	// フォルダを書いた時刻・その中のページとバインダを書いた時刻・バインダの中のページを書いた時刻・開いた時刻の、いちばん新しい物。
-	// ほかのフォルダに入っているフォルダ（バインダ）は、入っているブックの時刻に数えるので、それ自身は返さない
+	// ブックごとの、フォルダを書いた時刻・その中のページとバインダを書いた時刻・バインダの中のページを書いた時刻・開いた時刻の、いちばん新しい物。
+	// 返すのはブック（library.go）と、開いた時刻だけが残る物（フォルダの行もエントリも無い id）。バインダは、入っているブックの時刻に数えるので、それ自身は返さない。
+	// 書庫ホームとフォルダは返さない（ブックの時刻は、入っているフォルダに数えない）
 	rows, err := s.db.Query(`SELECT id, MAX(t) FROM (
 		SELECT id, updated_at AS t FROM folders
 		UNION ALL SELECT e.folder, p.updated_at FROM pages p JOIN entries e ON e.id = p.id
 		UNION ALL SELECT e.folder, f.updated_at FROM folders f JOIN entries e ON e.id = f.id
 		UNION ALL SELECT up.folder, p.updated_at FROM pages p JOIN entries e ON e.id = p.id JOIN entries up ON up.id = e.folder
-		UNION ALL SELECT id, at FROM opened) WHERE id NOT IN (SELECT id FROM entries) GROUP BY id`)
+		UNION ALL SELECT id, at FROM opened)
+		WHERE id NOT IN (` + notBookSQL + `) AND (id IN (SELECT id FROM folders) OR id NOT IN (SELECT id FROM entries)) GROUP BY id`)
 	if err != nil {
 		return nil, err
 	}

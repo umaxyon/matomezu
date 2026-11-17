@@ -25,7 +25,9 @@ import {
   changesBetween,
   type Folder,
   type Folders,
+  homeOver,
   libraryOf,
+  outerFoldersOf,
   type PageRow,
   type Pages,
   rawBooksOf,
@@ -34,6 +36,7 @@ import {
   type Tables,
   tablesOf,
   withChanges,
+  worldTablesOf,
 } from "../core/folders"
 import { deepFreeze } from "../core/freeze"
 import type { Point, Size } from "../core/geom"
@@ -509,7 +512,7 @@ function initialState(
   unreadable: readonly Warning[] = [],
   partial: readonly Warning[] = [],
 ): MatomezuState {
-  const tables = tablesOf(books)
+  const tables = worldTablesOf(books, [homeOver(books)])
   const { books: open, trash } = shelvesOf(tables)
   const first = books.map(b => open[b.id]).find(b => b !== undefined) ?? null
   return {
@@ -1320,7 +1323,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const found = restore(rawBooksOf(world.pages, world.folders))
       const now = getState()
       // 確かめた世界の表（中身の同じページ・フォルダは、今の値に寄せる。組んだブックも同じ値のままになる）
-      let tables = settledOn(tablesOf(found.books), now)
+      let tables = settledOn(worldTablesOf(found.books, outerFoldersOf(world.folders)), now)
       const library = libraryOf(tables)
       const by = change?.by === "host" ? undefined : change?.by
       const recorded = change && by && change.actions.some(a => catalog.actions.get(a)?.history !== false)

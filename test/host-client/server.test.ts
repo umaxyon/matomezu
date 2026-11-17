@@ -523,7 +523,16 @@ test("つながりが長く切れたままなら store に知らせ、つなが�
 })
 
 // ページもフォルダも変えない changed（設定・アノテーション・レコードだけを載せる）
-const quiet = (more: object) => ({ pages: [], folders: [], books: [], actions: [], annotations: {}, records: [], window: "", ...more })
+const quiet = (more: object) => ({
+  pages: [],
+  folders: [],
+  books: [],
+  actions: [],
+  annotations: {},
+  records: [],
+  window: "",
+  ...more,
+})
 
 test("changed に載った設定で設定を入れ替える", async () => {
   const { store, emit } = await connected()

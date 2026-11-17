@@ -96,3 +96,34 @@ test("AiRows は受けた順のまま、郵便の一覧の行（種類が添え�
   expect(rows.some((m: object) => "props" in m)).toBe(false)
   expect(engine.matomezuAiRows("@ex/none:x", "[]")).toBe("null")
 })
+
+test("エンジンはブックを作ると、書庫ホームの行に置き場所を書いて返す（変わったブックと作った物には、書庫ホームを入れない）。書庫ホームの行が無ければ断る", () => {
+  const home = { folderRole: "home", id: "library-home", lineup: [{ kind: "folder", id: "old" }] }
+  const old = { folderRole: "folder", id: "old", title: "旧ブック", lineup: [] }
+  const create = (folders: unknown[]) =>
+    JSON.parse(
+      engine.matomezuPerform(
+        JSON.stringify({
+          actions: [
+            {
+              action: "@matomezu/base:book-create",
+              args: { title: "新" },
+              ids: ["newbook01"],
+              now: "2026-11-12T00:00:00.000Z",
+            },
+          ],
+          settings: {},
+          pages: [],
+          folders,
+          actor: { kind: "user" },
+        }),
+      ),
+    )
+  const out = create([home, old])
+  expect(out).toMatchObject({ ok: true, books: ["newbook01"], created: ["newbook01"] })
+  expect(out.folders).toContainEqual({
+    id: "library-home",
+    row: { ...home, lineup: [...home.lineup, { kind: "book", id: "newbook01" }] },
+  })
+  expect(create([old])).toMatchObject({ ok: false })
+})

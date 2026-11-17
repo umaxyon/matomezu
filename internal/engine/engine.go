@@ -36,7 +36,8 @@ type BulkAction struct {
 type Input struct {
 	Actions []BulkAction `json:"actions"`
 	// Pages と Folders は、アクションの全部が要るブックのページとフォルダ（置き場所から読んだまま。アクションごとの、宛先のブックか、レコードが対象なら RecordNeeds の Books の和。
-	// 一覧のアクションか、宛先が置き場所に無いアクションを含むなら全部）
+	// 一覧のアクションか、宛先が置き場所に無いアクションを含むなら全部）。Folders には、ブックの行の後ろに、それらのブックから書庫ホームまでの書庫ホームとフォルダの行
+	// （ブックごとに近い順。全部のときは、書庫ホームと、ほかのフォルダの全部を id の順に）も入る
 	Pages    []json.RawMessage `json:"pages"`
 	Folders  []json.RawMessage `json:"folders"`
 	Settings json.RawMessage   `json:"settings"`

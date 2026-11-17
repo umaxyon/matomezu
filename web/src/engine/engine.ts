@@ -23,7 +23,17 @@ import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, type AIEditTicketChange, stopsOnEditLock } from "../core/def/action"
 import { slideIsBackground } from "../core/def/page-type"
 import type { SubjectDef } from "../core/def/subject"
-import { bookIdOf, bookOf, createdIn, libraryOf, NO_CHANGES, rawBooksOf, tablesOf, withChanges } from "../core/folders"
+import {
+  bookIdOf,
+  bookOf,
+  createdOn,
+  libraryOf,
+  NO_CHANGES,
+  outerFoldersOf,
+  rawBooksOf,
+  withChanges,
+  worldTablesOf,
+} from "../core/folders"
 import { detectLang, translate } from "../core/i18n/i18n"
 import { changedIn } from "../core/ids"
 import { splitId } from "../core/names"
@@ -238,7 +248,7 @@ function perform(input: Input): Output {
   const counters = restoreCounters(input.counters)
   const actor = actorOfWire(input.actor)
   const source = hostSource(records)
-  const tables = tablesOf(Object.values(books))
+  const tables = worldTablesOf(Object.values(books), outerFoldersOf(input.folders ?? []))
   const world = { ...tables, settings, annotations, records, counters, ...(source ? { source } : {}) }
   const at = new Date().toISOString()
   const steps = input.actions.map(a => bulkActionOf(a, () => crypto.randomUUID(), at, langFor(a.lang)))
@@ -272,7 +282,7 @@ function perform(input: Input): Output {
     result: done.results.at(-1),
     pages: rowChanges(changes.pages),
     folders: rowChanges(changes.folders),
-    created: createdIn(Object.values(books), changes),
+    created: createdOn(tables, changes),
     books: [...changed.map(b => b.id), ...removed],
     trashing: changed.filter(b => b.trashed !== undefined && books[b.id]?.trashed === undefined).map(b => b.id),
     ...(done.settings ? { settings: done.settings } : {}),

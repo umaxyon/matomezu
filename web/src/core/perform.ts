@@ -11,6 +11,7 @@ import {
   findUnreadable,
   holds,
   keepsPageTypes,
+  keepsPageTypesAcross,
   lostUnreadable,
   pagesOf,
   putPage,
@@ -49,8 +50,11 @@ import {
   createdIn,
   libraryOf,
   noChanges,
+  placedChanges,
   type TableChanges,
   type Tables,
+  treeHolds,
+  withChanges,
 } from "./folders"
 import { idsIn, skipping } from "./ids"
 import { decidedByPlace, deniedBy, type Inspected, inspect, typeAllows, withoutPermissions } from "./inspect"
@@ -492,11 +496,8 @@ export function perform<Id extends ActionId>(
       const lost = was[b.id] === b ? null : lostUnreadable(was[b.id], b)
       if (lost) return unreadable(lost)
     }
-    // 行う前から在るブックのページのタイプも、変えない
-    const typesKept = Object.values(now).every(b => {
-      const old = was[b.id]
-      return !old || old === b || keepsPageTypes(old, b)
-    })
+    // 行う前から在るページのタイプも、変えない（ページがブックの間を動いても）
+    const typesKept = keepsPageTypesAcross(Object.values(was), Object.values(now))
     if (!librarySettles(ctx.catalog, was, now) || !typesKept) return { ok: false, reason: "refused" }
   }
   if (action.target === "annotations") {
@@ -670,8 +671,11 @@ export function performIn(
     const done = loose(library, id, args, ctx)
     if (!done.ok) return done
     const books = done.next as Library
-    const changes = changesBetween(Object.values(library), Object.values(books))
-    if (collides(world, Object.values(library), changes)) return { ok: false, reason: "refused" }
+    const made = changesBetween(Object.values(library), Object.values(books))
+    if (collides(world, Object.values(library), made)) return { ok: false, reason: "refused" }
+    // 足したブックと無くなったブックの置き場所を書く。木の決まりを守っていた世界は、行った後も守る
+    const changes = placedChanges(world, made)
+    if (!treeHolds(withChanges(world, changes))) return { ok: false, reason: "refused" }
     // 無くなったページのアノテーションは消す
     const gone = Object.entries(changes.pages)
       .filter(([p, v]) => v === REMOVED && (world.annotations[p]?.length ?? 0) > 0)
