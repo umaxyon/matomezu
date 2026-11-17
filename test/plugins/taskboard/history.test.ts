@@ -127,7 +127,7 @@ test("今のチケットは、AI が自分のワークルームの分を宣言�
   expect(table(CURRENT.id)).toEqual([])
 })
 
-test("管理者のワークルームの AI だけが、ほかのワークルームの今のチケットを決める。記録の無いワークルームは workroom（id か名前）で作り、記録があれば on.record で指す", () => {
+test("管理者のワークルームの AI だけが、ほかのワークルームの今のチケットを決め、そのワークルームの AI に AI 間メッセージを送る。記録の無いワークルームは workroom（id か名前）で作り、記録があれば on.record で指す", () => {
   const { user, act, table, room, ticket } = completing()
   const admin = room("あ")
   const other = room("い")
@@ -138,11 +138,19 @@ test("管理者のワークルームの AI だけが、ほかのワークルー�
   expect(user("@matomezu/base:admin-set", { workroom: admin }).ok).toBe(true)
   // 印がほかのワークルームを指す AI は断られる。自分の分は名前で指してもよい
   expect(declined(set(other, { workroom: admin }))).toContain("administrator")
-  expect(set(other, { workroom: "い" })).toMatchObject({ ok: true, result: { current: other } })
+  const own = set(other, { workroom: "い" })
+  expect(own).toMatchObject({ ok: true, result: { current: other } })
+  // 自分の分では AI 間メッセージを送らない
+  expect((own as { aiMessages?: unknown }).aiMessages).toBeUndefined()
   expect(table(CURRENT.id)).toEqual([{ id: other, ticket, at: "2026-11-12T00:00:00.000Z" }])
   // 管理者は、まだ宣言していないワークルームの分を作り、記録のあるワークルームの分を on.record で変える
   const third = room("う")
-  expect(set(admin, { workroom: "う" })).toMatchObject({ ok: true, result: { current: third } })
+  // ほかのワークルームの分を決めたら、そのワークルームの AI に AI 間メッセージを送る（宛先はワークルームの id）
+  expect(set(admin, { workroom: "う" })).toMatchObject({
+    ok: true,
+    result: { current: third },
+    aiMessages: [{ workroom: third, text: `The administrator set your workroom's current ticket to "t" (${ticket}).` }],
+  })
   expect(set(admin, { ticket: "none" }, { record: other }).ok).toBe(true)
   expect(table(CURRENT.id)).toContainEqual({ id: other, ticket: "none", at: "2026-11-12T00:00:00.000Z" })
   // 管理者でない AI は、ほかのワークルームの記録を on.record で変えられない

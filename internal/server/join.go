@@ -148,8 +148,13 @@ type Joined struct {
 // records は参加者のレコードを要求が届いた順に返す
 func (h *Hub) records() ([]participantRecord, error) {
 	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.participantsHeld()
+}
+
+// participantsHeld は records と同じ（h.mu を持って呼ぶ）
+func (h *Hub) participantsHeld() ([]participantRecord, error) {
 	raw := h.recordsOfRole("participants")
-	h.mu.Unlock()
 	records := make([]participantRecord, 0, len(raw))
 	for _, body := range raw {
 		var r participantRecord
@@ -165,8 +170,13 @@ func (h *Hub) records() ([]participantRecord, error) {
 // workrooms はワークルームのレコードを返す
 func (h *Hub) workrooms() ([]workroomRecord, error) {
 	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.workroomsHeld()
+}
+
+// workroomsHeld は workrooms と同じ（h.mu を持って呼ぶ）
+func (h *Hub) workroomsHeld() ([]workroomRecord, error) {
 	raw := h.recordsOfRole("workrooms")
-	h.mu.Unlock()
 	rooms := make([]workroomRecord, 0, len(raw))
 	for _, body := range raw {
 		var r workroomRecord

@@ -17,7 +17,7 @@ export const CURRENT_TICKET_SET = kit.defineAction({
   id: "current-ticket-set",
   title: "set current ticket",
   aiDescription:
-    "Declare the ticket a workroom is working on now (only to be shown to the user; it decides nothing), or none when it works on none. Only an AI in a workroom: for its own workroom, or, only when its workroom has the administrator's mark, for another workroom. A ticket in the done lane of its project is refused (it is completed); completing a ticket with ticket-complete sets the current ticket of every workroom that pointed at it to none. When the workroom has no record yet, leave on out (for another workroom, give workroom: its id or name); when it has one, set on.record to that workroom's id (the id this action returned as current; not the id of the participant) and leave workroom out. Leaving on out when the workroom's record is already there is refused.",
+    "Declare the ticket a workroom is working on now (only to be shown to the user; it decides nothing), or none when it works on none. Only an AI in a workroom: for its own workroom, or, only when its workroom has the administrator's mark, for another workroom. A ticket in the done lane of its project is refused (it is completed); completing a ticket with ticket-complete sets the current ticket of every workroom that pointed at it to none. Declaring for another workroom sends an AI message to the AI in that workroom (matomezu sends it; you do not), and is refused (no-recipient) when no AI has joined that workroom. When the workroom has no record yet, leave on out (for another workroom, give workroom: its id or name); when it has one, set on.record to that workroom's id (the id this action returned as current; not the id of the participant) and leave workroom out. Leaving on out when the workroom's record is already there is refused.",
   target: CURRENT.id,
   // 宣言するチケットとそのプロジェクト（完了のレーンのチケットは宣言させない）、ワークルームを名前でも指すならワークルームの名前、自分のほかの分なら管理者の印
   reads: (args, actor, on) => {
@@ -45,14 +45,22 @@ export const CURRENT_TICKET_SET = kit.defineAction({
     const id = target.id
     if (id !== ctx.actor.workroom.id && !isAdminActor(ctx.actor, ctx))
       return { declined: "only the AI of the administrator's workroom declares another workroom's current ticket" }
+    const ticket = args.ticket === NO_TICKET ? undefined : ticketOf(ctx, args.ticket)
     if (args.ticket !== NO_TICKET) {
-      const ticket = ticketOf(ctx, args.ticket)
       if (!ticket) return { declined: "the ticket is not there" }
       const project = projectOf(ctx, ticket.project)
       if (project && inDoneLane(project, ticket.lane))
         return { declined: "the ticket is completed: a completed ticket is not a current ticket" }
     }
-    return { next: { id, ticket: args.ticket, at: ctx.now }, result: { current: id } }
+    const next = { id, ticket: args.ticket, at: ctx.now }
+    if (id === ctx.actor.workroom.id) return { next, result: { current: id } }
+    // ほかのワークルームの分を決めたら、そのワークルームの AI に知らせる（宛先に参加の確定した AI がいなければ、常駐がバルクごと断る）
+    const told = ticket ? `"${ticket.name}" (${ticket.id})` : "none"
+    return {
+      next,
+      result: { current: id },
+      aiMessages: [{ workroom: id, text: `The administrator set your workroom's current ticket to ${told}.` }],
+    }
   },
 })
 

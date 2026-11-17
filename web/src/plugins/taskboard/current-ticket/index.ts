@@ -1,4 +1,4 @@
-// ワークルームごとの今のチケット: AI が自分のワークルームで今取り組むチケットを宣言し、画面に出すための物（表示のためだけで、ほかの動きを決めない）。
+// ワークルームごとの今のチケット: AI が自分のワークルームで今取り組むチケットを宣言し（管理者のワークルームの AI は、ほかのワークルームの分も）、画面に出すための物（表示のためだけで、ほかの動きを決めない）。
 // 1 件がワークルーム 1 つ分のレコードで、id はワークルームの id と同じ。ticket は取り組むチケットの id か、取り組んでいないときの none
 import { z } from "zod"
 import { WORKROOM_SUBJECT } from "../by"
@@ -26,7 +26,7 @@ export const CURRENT = kit.defineSubject({
   id: "current-ticket",
   title: "current ticket",
   aiDescription:
-    "The ticket a workroom is working on now, as the AI of that workroom declared it (only to be shown; it decides nothing; completing the ticket sets it to none). The record's id is the workroom's id; ticket is a ticket's id, or none.",
+    "The ticket a workroom is working on now, as the AI of that workroom (or of the administrator's workroom) declared it (only to be shown; it decides nothing; completing the ticket sets it to none). The record's id is the workroom's id; ticket is a ticket's id, or none.",
   record: z.strictObject({
     id: z.string().min(1),
     ticket: z.string().min(1),
