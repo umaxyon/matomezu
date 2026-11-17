@@ -132,14 +132,16 @@ export function workroomNameOf(body: ResponsesBody): string | undefined {
   return name
 }
 
-// Responses API の input_tokens はキャッシュの分（cached_tokens）を含む
+// Responses API の input_tokens は、キャッシュから読んだ分（cached_tokens）と書いた分（cache_write_tokens）を含む
+// （Codex の画面も input_tokens から両方を引いて残りを出す。codex-rs/tui/src/chatwidget/statusline_state/usage.rs）
 export function tokens(u: Usage) {
   const input = u.input_tokens
   const cached = u["input_tokens_details.cached_tokens"]
+  const written = u["input_tokens_details.cache_write_tokens"]
   return {
-    input: input === undefined ? undefined : input - (cached ?? 0),
+    input: input === undefined ? undefined : input - (cached ?? 0) - (written ?? 0),
     cacheRead: cached,
-    cacheNew: u["input_tokens_details.cache_write_tokens"],
+    cacheNew: written,
     output: u.output_tokens,
   }
 }

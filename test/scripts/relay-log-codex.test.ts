@@ -148,6 +148,14 @@ test("SSE の usage を response.completed から、行の途中で切れたチ�
   })
   expect(tokens(r.usage)).toEqual({ input: 100, cacheRead: 900, cacheNew: 0, output: 7 })
   // 中断して response.completed が来なければ、値は無い
+  expect(
+    tokens({
+      input_tokens: 3,
+      "input_tokens_details.cached_tokens": 1,
+      "input_tokens_details.cache_write_tokens": 2,
+      output_tokens: 5,
+    }),
+  ).toEqual({ input: 0, cacheRead: 1, cacheNew: 2, output: 5 })
   expect(tokens({})).toEqual({ input: undefined, cacheRead: undefined, cacheNew: undefined, output: undefined })
 })
 
