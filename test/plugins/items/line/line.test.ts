@@ -7,10 +7,10 @@ import { buildCoreCatalog } from "../../../../web/src/core/core-catalog"
 import { perform } from "../../../../web/src/core/perform"
 import { shapesOf } from "../../../../web/src/core/placed"
 import type { Book } from "../../../../web/src/core/schema/book"
-import { rectsOf } from "../../../../web/src/plugins/base"
+import { portAreasOf, rectsOf } from "../../../../web/src/plugins/base"
 import { ownSettings } from "../../../../web/src/plugins/base/book-settings"
 import { GAP } from "../../../../web/src/plugins/base/place/push"
-import { alignedEndsOf } from "../../../../web/src/plugins/items/line/drawn"
+import { alignedEndsOf, routeInputOf } from "../../../../web/src/plugins/items/line/drawn"
 import { elbowAt, usesLines } from "../../../../web/src/plugins/items/line/line"
 import { CAPTION_GAP, LINK_GAP, linesOf } from "../../../../web/src/plugins/items/line/placed"
 import { BUILTIN_PARTS, CORE_CATALOG, sequence, sizedStore } from "../../../support"
@@ -326,4 +326,25 @@ test("線と線の既定の通り方を選ばないタイプのページでは�
       ok,
     ).ok,
   ).toBe(true)
+})
+
+test("line-connect の説明のとおり、route を書かない線はページの設定 line-route に従い（既定は折れ線）、route を書いた線はそれに従う", () => {
+  const store = ready()
+  place(store, 100, 100)
+  place(store, 400, 300)
+  connect(store, "n1", "n2")
+  connect(store, "n2", "n1", { route: "elbow" })
+  const elbows = () =>
+    lines(store).map(
+      l => routeInputOf(l, portAreasOf(CORE_CATALOG, page(store)), elbowAt(CORE_CATALOG, page(store)))?.elbow,
+    )
+  expect(elbows()).toEqual([true, true])
+  store.actions.perform(
+    "@matomezu/base:page-update",
+    { settings: { "@matomezu/line:line-route": "straight" } },
+    { page: "p1" },
+  )
+  expect(elbows()).toEqual([false, true])
+  const description = CORE_CATALOG.actions.get("@matomezu/line:line-connect")?.aiDescription ?? ""
+  expect(description).toContain("without it, the page's line-route setting, elbow by default")
 })
