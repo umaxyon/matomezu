@@ -2,12 +2,13 @@
 // 鳥のマークは物の上の辺を歩き（付けたときだけ、飛んでくるか物の裏から顔を出す。birds/）、びっくりマークは物の右上の角に止まる
 // （角に出すほかの物〈伝言など〉と一緒に角のスタンドにまとまり、並びの先頭に来る。utils/corner.tsx）。
 // どちらも押すと「外す？」の小さな吹き出しを出し、「はい」で外す。ポインタが離れるか、ほかを押すと隠す。
-// マークの種類を選ぶスタンド（commands.ts の MARK_PICKER）が開いていれば、付ける先のそばに 6 つの種類の絵を並べ、押した種類を付ける。
+// マークの種類を選ぶスタンド（states.ts の MARK_PICKER）が開いていれば、付ける先のそばに 6 つの種類の絵を並べ、押した種類を付ける。
 // 動きを減らす設定（prefers-reduced-motion）では、鳥は降りた所で正面を向いたまま動かない。
 // 付けた物の上の辺が見える所（画面と、物を囲む Revealable〈リストの行の並びなど〉の重なり）の外に出たら、鳥はマークポインタ（鳥の顔の丸い絵）に替わって
 // 見える所の縁（囲む物が画面の外なら画面の縁）を歩き、びっくりマークは縁に寄って薄くなる。どちらも押すと、囲む物の中のスクロールと紙をずらして付けた物を見せる
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
 import { useMessages } from "../../../ui/i18n"
+import { useReadPluginState, useSetPluginState } from "../../../ui/view-hooks"
 import { useAnnotationsOf, usePerformOrToast } from "../annotation-hooks"
 import type { Bird } from "../birds"
 import { BirdWalk, birdClass, FRONT, frameStyle } from "../birds/BirdWalk"
@@ -23,13 +24,10 @@ import { AtCorner, useAtCornerBubble } from "../utils/corner"
 import { StandPointer } from "../utils/StandPointer"
 import { MARK, MARK_ADD, MARK_KINDS, MARK_REMOVE, type MarkKind, type MarkProps } from "."
 import styles from "./MarkLayer.module.css"
-import { MARK_PICKER } from "./states"
+import { MARK_ARRIVING, MARK_PICKER } from "./states"
 
 const PICK_SIZE = 40 // 種類を選ぶスタンドの鳥の大きさ
 const ALERT = 18 // びっくりマークの丸の大きさ
-
-// この画面で付けたばかりのマーク（最初に描くときだけ、飛んでくるか顔を出す）
-const arriving = new Set<string>()
 
 export function MarkLayer() {
   const marks = useAnnotationsOf(MARK.id)
@@ -115,10 +113,16 @@ function MarkBird({
   awayLabel: string
   onRemove: () => void
 }) {
-  const [arrival] = useState<Arrival>(() => {
-    if (!arriving.delete(id)) return "none"
-    return Math.random() < 0.5 ? "fly" : "peek"
-  })
+  const readArriving = useReadPluginState(kit, MARK_ARRIVING)
+  const setArriving = useSetPluginState(kit, MARK_ARRIVING)
+  // この窓で付けたばかりなら、最初に描くときだけ飛んでくるか顔を出し、付けたばかりの印を外す
+  const [arrival] = useState<Arrival>(() =>
+    readArriving()?.includes(id) ? (Math.random() < 0.5 ? "fly" : "peek") : "none",
+  )
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 最初に描いたときに一度だけ
+  useEffect(() => {
+    if (arrival !== "none") setArriving(withoutArriving(readArriving(), id))
+  }, [])
   const [asking, setAsking] = useState(false)
   const ask = useRemoveAsk(onRemove)
   return (
@@ -137,13 +141,15 @@ function PickerStand({ picker }: { picker: AnchorTargets }) {
   const t = useMessages(kit)
   const run = usePerformOrToast("The mark was refused")
   const setPicker = useSetAnchorTargets(MARK_PICKER)
+  const readArriving = useReadPluginState(kit, MARK_ARRIVING)
+  const setArriving = useSetPluginState(kit, MARK_ARRIVING)
   const ref = useRef<HTMLDivElement>(null)
   const end = () => setPicker(null)
   const pick = (kind: MarkKind) => {
     const done = run(MARK_ADD.id, { anchors: [...picker.anchors], kind })
     if (done) {
       const mark = (done as { mark?: string }).mark
-      if (mark) arriving.add(mark)
+      if (mark) setArriving([...(readArriving() ?? []), mark])
       end()
     }
   }
@@ -201,4 +207,10 @@ function PickFrame({ bird }: { bird: Bird }) {
   const sheet = useBirdSheet(bird)
   if (sheet === null) return null
   return <span className={`${birdClass} ${styles.pickFrame}`} style={frameStyle(sheet, FRONT, PICK_SIZE)} />
+}
+
+// 付けたばかりのマークの id の並び now から id を外した物（空になれば無し）
+function withoutArriving(now: readonly string[] | undefined, id: string): readonly string[] | undefined {
+  const rest = now?.filter(m => m !== id) ?? []
+  return rest.length > 0 ? rest : undefined
 }

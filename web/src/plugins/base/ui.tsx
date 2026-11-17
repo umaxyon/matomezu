@@ -139,6 +139,8 @@ export {
 
 import type { PrintSheetProps } from "./print-preview/PrintPreviewView"
 
+// ページとブックの設定の項目のコンポーネントの並び（ページのタイプの設定のダイアログが使う）
+export { type SettingsPatch, useSettingControls } from "./book-settings/SettingControls"
 export {
   useCloseRightSidePanel,
   useFollowsSelection,

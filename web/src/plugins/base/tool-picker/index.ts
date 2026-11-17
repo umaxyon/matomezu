@@ -26,3 +26,4 @@ export const TOOL_PICKER = kit.defineCommand({
 export const TOOL_PICKER_KEYS = [
   kit.defineKey({ id: "tool-picker-space", key: "Space", command: TOOL_PICKER.id, scope: "stage" }),
 ]
+export { TOOL_PICKER_HOLD } from "./hold"

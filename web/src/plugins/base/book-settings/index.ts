@@ -1,20 +1,21 @@
 // ページとブックの設定の項目。
+// 項目のコンポーネントの並び（useSettingControls。SettingControls.tsx）も、このフォルダに置く
 // ページの項目: ページのタイプが設定の定義（core/def/setting.ts。holder が "page"）を id で選び、機能台帳がページの形に settings のフィールド（項目の id → 値）を足す。
 // ブックの項目: holder が "book" の設定の定義で、タイプに依らず、どのブックも持てる。
 // 変える base のアクション（page-update・pages-update・book-update）は、名前などの共通の項目に加えて、項目を settings（項目の id → 値）として受け付ける。書いた項目だけを変え、null は項目を消す（既定に戻す）。
 // 変えたあとはページを整える（settleBook）。値は、値があればその値、無ければ定義の既定（settingValue・bookSettingValue）。ページの項目がブックの値を引き継ぐことは無い。
 // AI には、タイプごとの項目を引数の形に入れて見せる（settingsArgs）
 import { z } from "zod"
-import { pagesOf, putPage } from "../../core/book"
+import { pagesOf, putPage } from "../../../core/book"
 
-import { type CoreCatalog, pageType } from "../../core/core-catalog"
-import type { BookSettingDef, DefaultedSettingDef, PageSettingDef, SettingDef } from "../../core/def/setting"
-import { fail } from "../../core/errors"
-import type { ItemPage } from "../../core/placed"
-import type { Book, Page } from "../../core/schema/book"
-import { settingSchema } from "../../core/settings"
-import { tidyConnectors } from "./place/placed"
-import { PRINT_PREVIEW_SETTINGS } from "./print-preview/settings"
+import { type CoreCatalog, pageType } from "../../../core/core-catalog"
+import type { BookSettingDef, DefaultedSettingDef, PageSettingDef, SettingDef } from "../../../core/def/setting"
+import { fail } from "../../../core/errors"
+import type { ItemPage } from "../../../core/placed"
+import type { Book, Page } from "../../../core/schema/book"
+import { settingSchema } from "../../../core/settings"
+import { tidyConnectors } from "../place/placed"
+import { PRINT_PREVIEW_SETTINGS } from "../print-preview/settings"
 
 // 設定の項目の組: print-preview は印刷プレビューの設定（アクション print-preview-update が変え、印刷プレビューの右サイドパネルに出す）、
 // general はそのほか（page-update・pages-update・book-update が受け、設定のダイアログに並べる）

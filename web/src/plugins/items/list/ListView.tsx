@@ -87,8 +87,8 @@ interface Drop {
 // ポインタの高さと光る線は、行の並びの見えている範囲（スクロールする所）の中に収める（範囲の外の行の間には出さない）
 function dropAt(x: number, pointerY: number, row: string, checked: boolean): Drop | null {
   const under = document.elementsFromPoint(x, pointerY)
-  const item = under.map(el => el.closest("[data-item]")).find(Boolean)
-  const ul = item?.querySelector<HTMLElement>("[data-list-rows]")
+  const frame = under.map(el => el.closest("[data-list-frame]")).find(Boolean)
+  const ul = frame?.querySelector<HTMLElement>("[data-list-rows]")
   const list = ul?.dataset.listRows
   if (!ul || !list) return null
   const box = ul.getBoundingClientRect()
@@ -277,7 +277,7 @@ export function ListView({
     onDoubleClick: (e: { stopPropagation(): void }) => e.stopPropagation(),
   })
   return (
-    <div className={styles.frame} style={vars} data-theme={theme}>
+    <div className={styles.frame} style={vars} data-theme={theme} data-list-frame>
       <div className={styles.list} style={listPaintVars(props.color) as CSSProperties} data-zebra={props.zebra}>
         <div className={styles.head} data-align={props.captionAlign}>
           {props.caption}

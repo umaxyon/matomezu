@@ -203,10 +203,6 @@ export function workspaceOf(win: Pick<WindowState, "screens" | "order">, stage: 
   return screenOfStage(win, stage)?.stages ?? screenOf(win)
 }
 
-// 窓の全部のステージ（どのブックスクリーンのステージも。スクリーンを開いた順・左から）
-export const allStages = (win: Pick<WindowState, "screens">): readonly Stage[] =>
-  win.screens.flatMap(s => s.stages?.stages ?? [])
-
 // 見えているスクリーンの id（スクリーンアレンジメントが答える。描いているスクリーンで、スクロールで画面の外にある物も含む）。
 // 機能台帳に無いアレンジメントなら、カレントスクリーンだけ。開いていない id は除く
 export function shownScreens(catalog: CoreCatalog, win: WindowState): readonly string[] {

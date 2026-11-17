@@ -113,13 +113,12 @@ func TestModelHookSendsTheModel(t *testing.T) {
 	}
 }
 
-// 裏の知らせで始まったターン（--woken を渡したフックか、入力が <task-notification> で始まる）は woken を付けて知らせる。利用者トリガートークには付けない
+// 裏の知らせで始まったターン（--woken を渡したフックか、AI の事情で入力から見分けた物。hookPrompt）は woken を付けて知らせる。利用者トリガートークには付けない
 func TestTalkedTellsWhetherTheTurnWasWoken(t *testing.T) {
 	for _, c := range []struct {
 		hook  hookInput
 		woken bool
 	}{
-		{hookInput{SessionID: "S1", Prompt: "<task-notification>\n<summary>Monitor event: \"matomezu\"</summary>\n</task-notification>"}, true},
 		{hookInput{SessionID: "S1", Prompt: "matomezu: the user accepted your request to join", Woken: true}, true},
 		{hookInput{SessionID: "S1", Prompt: "こんにちは"}, false},
 	} {
@@ -172,7 +171,7 @@ func TestTalkedEchoesTheHookEventName(t *testing.T) {
 	}
 }
 
-// 道具を使う前のフック: 読むだけの matomezu の道具（自分で登録した物もプラグインの物も）は聞かずに通し、変える道具・画面を切り替える道具・参加を頼む道具・ほかの道具には何も言わない
+// ツールを使う前のフック: 読むだけの matomezu の MCP 公開ツール（自分で登録した物もプラグインの物も）は聞かずに通し、変える物・画面を切り替える物・参加を頼む物・ほかのツールには何も言わない
 func TestPermissionAllowsOnlyTheToolsThatRead(t *testing.T) {
 	for tool, allowed := range map[string]bool{
 		"mcp__matomezu__list_books":                true,

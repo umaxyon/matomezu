@@ -9,3 +9,4 @@ export { SIMPLE, STICKY } from "./themes"
 
 export const PAPERS = [A5, A4, A3, LETTER, TABLOID, WIDE] as const
 export const PAPER_IDS = PAPERS.map(p => p.id)
+export type { A3, A4, A5, LETTER, TABLOID, WIDE } from "./papers"

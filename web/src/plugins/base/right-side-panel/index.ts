@@ -29,3 +29,4 @@ export const RIGHT_SIDE_PANEL_KEYS = [
     scope: "global",
   }),
 ]
+export { type RIGHT_SIDE_PANEL_RESTORE_STATE, type RIGHT_SIDE_PANEL_STATE, RIGHT_SIDE_PANEL_STATES } from "./state"

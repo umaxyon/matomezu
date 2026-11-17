@@ -16,3 +16,4 @@ export const TOOL_NEXT = kit.defineCommand({
   },
   when: ctx => paperOf(ctx.stage) !== null && toolSetOf(ctx.catalog, ctx.stage) !== null,
 })
+export { HAND_TOOL, SELECT_TOOL } from "./tools"

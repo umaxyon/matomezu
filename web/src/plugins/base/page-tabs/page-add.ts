@@ -1,6 +1,6 @@
 // ページを足す: ブックの並びに、タイプ・名前・紙を決めたページを足す。紙と向きはタイプの規定（paperChoices）の中から選ぶ。
 // まとまるタイプ（grouping が binder。スライド）のページは、そのタイプのバインダの中に足す: into に、入れるバインダか、新しく作るバインダの名前を書く。
-// タイプがページに足したフィールド（fields。page-fields.ts）と、ページの設定の項目（settings。plugins/base/book-settings.ts）も一緒に決められる
+// タイプがページに足したフィールド（fields。page-fields.ts）と、ページの設定の項目（settings。plugins/base/book-settings）も一緒に決められる
 // （タイプのフィールドで要るものを渡さなければ、ブックのデータの形に合わず断られる）。フィールドの受け方が結果を返せば、結果の fields に入れて返す。
 // 足したページにタイプが問題を知らせれば断る（page-problems.ts）
 import { z } from "zod"

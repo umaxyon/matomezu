@@ -3,7 +3,7 @@
 import { z } from "zod"
 import { kit } from "../kit"
 import { WORKROOM_NAME_MAX } from "../participant"
-import { MAIL, mailAdded, READS_MAILBOX_KEYS } from "."
+import { MAIL, mailAdded, READS_MAILBOX_KEYS } from "./subject"
 
 const JoinRequestSchema = z.strictObject({
   participant: z.string().min(1), // 参加者の id

@@ -17,3 +17,5 @@ export const MENU_KEYS = [
   kit.defineKey({ id: "menu-close-escape", key: "Escape", command: MENU_CLOSE.id, scope: "menu" }),
   kit.defineKey({ id: "menu-close-space", key: "Space", command: MENU_CLOSE.id, scope: "menu" }),
 ]
+
+export { CONTEXT_MENU_STATES, PRESSED_ANCHOR } from "./states"

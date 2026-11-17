@@ -12,7 +12,7 @@ import {
 import { ChoiceText, MultiChoices, useWideSearch, WIDE_SEARCH_LIMIT_MAX, type WideSearchModeProps } from "../../base/ui"
 import { orderedProjects, PRIORITIES, shownProjects } from "../board/shown"
 import { useBoardSettings } from "../board/useBoardSettings"
-import { CONTROL_CENTER_SCREEN } from "../control-center-ids"
+import { CONTROL_CENTER_SCREEN, FRONT_SCREEN_STATE } from "../control-center-ids"
 import { kit } from "../kit"
 import { PROJECT } from "../project"
 import { TICKET } from "../ticket"
@@ -33,8 +33,6 @@ import {
 import styles from "./TicketMode.module.css"
 
 const WAIT_MS = 250
-// コントロールセンターの宣言 front-screen（コンテンツエリアに出す表示。値は projects か library）の id
-const FRONT_SCREEN_STATE = "@matomezu/control-center:front-screen"
 
 export function TicketMode({ term, setTerm }: WideSearchModeProps) {
   const t = useMessages(kit)

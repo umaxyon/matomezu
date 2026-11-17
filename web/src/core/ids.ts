@@ -4,10 +4,6 @@
 import { fail } from "./errors"
 import { sameData } from "./same"
 
-export function freshId(newId: () => string, taken: Iterable<string>): string {
-  return idMaker(newId, taken)()
-}
-
 // ページの id: newId の値をそのまま使う（uuid）。taken と重なれば振り直す
 export function freshPageId(newId: () => string, taken: Iterable<string>): string {
   return maker(newId, taken, raw => raw)()
@@ -56,20 +52,6 @@ export function idsIn(value: unknown): string[] {
   if (Array.isArray(value)) return value.flatMap(idsIn)
   if (typeof value !== "object" || value === null) return []
   return Object.entries(value).flatMap(([k, v]) => (k === "id" ? (typeof v === "string" ? [v] : []) : idsIn(v)))
-}
-
-// 値 value の中の id（どの深さのオブジェクトの id・from・to の文字列）を、表 renamed で新しい id に置き換えた写し（作りは変わらない。つなぐものの端も同じ表で付け替える）
-export function renamedIn<T>(value: T, renamed: ReadonlyMap<string, string>): T {
-  if (Array.isArray(value)) return value.map(v => renamedIn(v, renamed)) as T
-  if (typeof value !== "object" || value === null) return value
-  return Object.fromEntries(
-    Object.entries(value).map(([k, v]) => [
-      k,
-      (k === "id" || k === "from" || k === "to") && typeof v === "string"
-        ? (renamed.get(v) ?? v)
-        : renamedIn(v, renamed),
-    ]),
-  ) as T
 }
 
 // 値の中の、どの深さのオブジェクトも、id（文字列のフィールド id）→ そのオブジェクトの表にする（中の作りを知らずに、物を id で引くのに使う）
