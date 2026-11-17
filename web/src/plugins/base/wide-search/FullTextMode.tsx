@@ -1,15 +1,17 @@
 // 全文のモード: 入力の文字を、打つのを待ってからホストに頼み（前の問い合わせの返りは捨てる）、結果をパネルの中に並べる。
 // 1 回に出すのは PAGE 件で、続きは「ほかに N 件」で次の位置から取り足す。行を押すと、その種類の開き方で横断検索の当たりを開く（パネルは開いたまま）
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import type { WideSearchAnswer, WideSearchHit } from "../../../core/wide-search"
 import { useMessages, useT } from "../../../ui/i18n"
 import { useLayout, useUiCatalog } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
+import { belowOf, type Choice, ChoiceBubble } from "../utils/ChoiceBubble"
 import { highlightParts } from "./highlight"
 import { useWideSearch } from "./hooks"
 import { openerOf } from "./openers"
 import { WIDE_SEARCH_OPENERS, type WideSearchModeProps } from "./slots"
+import type { WideSearchOpened } from "./ui"
 import styles from "./WideSearch.module.css"
 
 const WAIT_MS = 250
@@ -126,15 +128,29 @@ function OpenableRow({
   hit,
   children,
 }: {
-  open: () => (hit: WideSearchHit) => void
+  open: () => (hit: WideSearchHit) => WideSearchOpened
   hit: WideSearchHit
   children: React.ReactNode
 }) {
   const open = useOpen()
+  // 開き方を選ばせるときの、選ぶ物と出す所（押したマウスの位置。キーで押したなら行の左下）
+  const [asked, setAsked] = useState<{ choices: readonly Choice[]; at: { x: number; y: number } } | null>(null)
+  const close = useCallback(() => setAsked(null), [])
   return (
-    <button type="button" className={styles.row} onClick={() => open(hit)}>
-      {children}
-    </button>
+    <>
+      <button
+        type="button"
+        className={styles.row}
+        onClick={e => {
+          const opened = open(hit)
+          if (opened === "opened") return
+          setAsked({ choices: opened, at: e.detail === 0 ? belowOf(e.currentTarget) : { x: e.clientX, y: e.clientY } })
+        }}
+      >
+        {children}
+      </button>
+      {asked ? <ChoiceBubble at={asked.at} choices={asked.choices} onClose={close} /> : null}
+    </>
   )
 }
 

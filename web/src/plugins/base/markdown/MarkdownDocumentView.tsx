@@ -6,7 +6,7 @@
 //   data-markdown-fragment: 飛ぶ先（見出し・脚注）の名前
 //   data-markdown-at: 原文と同じ字の並びの文中の字。値は原文の中の頭の位置で、block と同じく中身が同じなら描き直さないのでずれる（検索の当たりを光らせる側が今の位置との差で直す）
 //   文書の根の直下の section: 脚注の節（印刷の測りが、本文のブロックと分けて測る）
-// 文中の言葉のリンク（wordLinks。原文の位置の一覧と、押したときに行き先を受ける onWordLink。word-links.ts）は、一覧の中の、そのブロックに収まる物の位置が変わったブロックだけを描き直す（data-markdown-word-link: 値は行き先）。
+// 文中の言葉のリンク（wordLinks。原文の位置の一覧と、押したときに行き先と押したリンクの要素を受ける onWordLink。word-links.ts）は、一覧の中の、そのブロックに収まる物の位置が変わったブロックだけを描き直す（data-markdown-word-link: 値は行き先）。
 // いちばん外のブロックは、中身が変わったものだけを描き直す（block-keys.ts）。段落の中の改行 1 つを改行にするか空白にするか（softBreak）は、描き直さずに見た目（CSS）で変える。
 // コードの塊は言語名のとおりに、生の HTML は html として色付けする（highlightCode。色はテーマキー markdown-code-color-<色の種類>。色だけを変え、太字や斜体は付けない。字の幅が変わると印刷で測る位置がずれるため）
 // 色・字の大きさ・字体・余白は、テーマキー（tokens.ts の MARKDOWN_DOCUMENT_TOKENS）の CSS 変数で受ける。ブックの外で描く所は、その CSS 変数を自分で置く
@@ -38,7 +38,7 @@ export const MarkdownDocumentView = memo(function MarkdownDocumentView({
   document: MarkdownDocument
   softBreak: SoftBreak
   wordLinks?: readonly WordLink[]
-  onWordLink?: (target: string) => void
+  onWordLink?: (target: string, from: Element) => void
 }) {
   const keys = blockKeys(document.blocks)
   // 押したときの関数は、描き直さずに最後の物を呼ぶ（ブロックの描き直しの比べに入れない）
@@ -83,7 +83,7 @@ function linksWithin(links: readonly WordLink[], range: { start: number; end: nu
 }
 
 // 押したときの関数（描き直さずに最後の物を呼ぶ）
-type Sink = RefObject<((target: string) => void) | undefined>
+type Sink = RefObject<((target: string, from: Element) => void) | undefined>
 
 // ブロックの中で使う、リンクにする所（範囲の頭を 0 とした位置）と、範囲の頭（原文の位置）、押したときの関数
 const WordLinkContext = createContext<{ links: readonly WordLink[]; start: number; sink: Sink } | null>(null)
@@ -265,7 +265,7 @@ function Inline({ inline }: { inline: MarkdownInline }): ReactNode {
             data-markdown-word-link={piece.target}
             onClick={e => {
               e.preventDefault()
-              words.sink.current?.(piece.target)
+              words.sink.current?.(piece.target, e.currentTarget)
             }}
           >
             {piece.text}

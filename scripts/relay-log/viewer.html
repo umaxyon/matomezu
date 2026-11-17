@@ -116,19 +116,32 @@ function fillRequest(box, r) {
     )
   }
   box.append(dl)
+  const counted = r.parts.filter(p => p.itemTokens)
+  if (counted.length) {
+    const sum = k => counted.reduce((n, p) => n + p.itemTokens[k], 0)
+    box.append(el("h4", { textContent: "項目ごとのトークン（API の内訳）" }),
+      el("div", { textContent: `合計 ${num(sum("input"))}（キャッシュから ${num(sum("cached"))}・キャッシュへ ${num(sum("written"))}）。項目がいくつかの部分に分かれるときは、最初の部分に項目の分を出す` }))
+  }
   const toggle = el("input", { type: "checkbox", checked: loadHide() })
   const list = el("div")
   const draw = () => {
     list.replaceChildren()
     for (const p of r.parts) {
       if (toggle.checked && hidden.has(p.group)) continue
-      const d = details(`${p.where} ${p.label}`, p.text, ` [${p.group}] ${num(p.chars)} 字`)
+      const d = details(`${p.where} ${p.label}`, p.text, ` [${p.group}] ${num(p.chars)} 字${tokensText(p.itemTokens)}`)
       list.append(d)
     }
   }
   toggle.onchange = () => { saveHide(toggle.checked); draw() }
   box.append(el("h4", { textContent: "リクエストの中身" }), el("label", {}, toggle, ` 直せる所だけ見る（${r.hidden.join("・")} を隠す）`), list)
   draw()
+}
+
+// 項目のトークン。いくつかの部分に分かれる項目は、その項目の全体の分だと分かるように書く
+function tokensText(t) {
+  if (!t) return ""
+  const cache = [t.cached && `キャッシュから ${num(t.cached)}`, t.written && `キャッシュへ ${num(t.written)}`].filter(Boolean).join("・")
+  return ` ${t.parts > 1 ? `項目の全体（${t.parts} 部分）で ` : ""}${num(t.input)} トークン${cache ? `（${cache}）` : ""}`
 }
 
 function loadHide() { try { return localStorage.getItem("hideFixed") !== "0" } catch { return true } }

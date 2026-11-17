@@ -16,6 +16,7 @@ const at = (places: StagePlace[], current = 0, share = 0.5): Address => ({
   ],
   order: ["c1", "c2"],
   arrangement: "@matomezu/base:one-screen",
+  arrangementValue: {},
   window: {},
 })
 
@@ -139,4 +140,22 @@ test("今と同じ場所を当てはめる（読み直しで URL が開いた直
   actions.setStageArea("s1", { w: sheet.w * 2, h: sheet.h })
   actions.setStageStart("s1", { x: sheet.w, y: 0 })
   expect(screenOf(state.getState().window).stages[0]!.pan).toEqual({ x: 0, y: 0 })
+})
+
+test("場所はスクリーンアレンジメントの値を持つ。当てはめるとき、定義の形に合わない値は初めの値にする。値が違えば移動", () => {
+  const { catalog, state } = newStore()
+  const place = { book: "b1", page: "p1", binder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} }
+  const split = {
+    ...at([place]),
+    arrangement: "@matomezu/base:split-rows",
+    arrangementValue: { screens: ["c1", "c2"], behind: [] },
+  }
+  const win = placeAt(catalog.core, state.getState().books, state.getState().window, split)
+  expect(win.arrangement).toBe("@matomezu/base:split-rows")
+  expect(win.arrangementValue).toEqual({ screens: ["c1", "c2"], behind: [] })
+  expect(addressOf(win).arrangementValue).toEqual({ screens: ["c1", "c2"], behind: [] })
+  const wrong = placeAt(catalog.core, state.getState().books, win, { ...split, arrangementValue: { screens: 3 } })
+  expect(wrong.arrangementValue).toEqual({ screens: [], behind: [] })
+  expect(moved(split, { ...split, arrangementValue: { screens: ["c2", "c1"], behind: [] } })).toBe(true)
+  expect(moved(split, { ...split, arrangementValue: { screens: ["c1", "c2"], behind: [] } })).toBe(false)
 })

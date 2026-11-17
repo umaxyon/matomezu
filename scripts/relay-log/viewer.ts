@@ -62,7 +62,7 @@ export function startViewer({ store, port }: { store: Store; port: number }) {
       if (m[1] === "parts") {
         const body = store.body(id)
         if (!body) return Response.json(null)
-        const parts = clientOf(owner).classify(body)
+        const parts = clientOf(owner).classify(body, store.usage(id))
         return Response.json({ hidden: HIDDEN_BY_DEFAULT, totals: totals(parts), parts })
       }
       const text = store.reply(id)

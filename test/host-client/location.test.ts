@@ -105,6 +105,7 @@ test("URL の形: 値 1 つ（sc）に、スクリーンの並び・前に出し
     ],
     order: ["c2", "c1", "c3"],
     arrangement: "@x/one",
+    arrangementValue: {},
     window: { "@x/tab": "two" },
   }
   const search = searchOf(address)
@@ -138,6 +139,7 @@ test("URL の形: 値 1 つ（sc）に、スクリーンの並び・前に出し
     screens: [{ id: "c1", def: "@x/home", props: {}, states: {} }],
     order: ["c1"],
     arrangement: "",
+    arrangementValue: {},
     window: {},
   })
 })
@@ -171,6 +173,7 @@ test("前の形の URL（b0・p0・v0・s0…、c・r・w・f）も読み、今�
     ],
     order: ["c1", "c2"],
     arrangement: "@x/one",
+    arrangementValue: {},
     window: {},
   }
   const placed = fromFormer(former as FormerAddress, now)
@@ -344,4 +347,33 @@ test("この窓が積んだ行が無ければ canGoBack は false、積めば tr
   // 戻って、この窓が積む前の最初の行に着けば、もう戻る先は無い
   f.back("")
   expect(store.state.getState().canGoBack).toBe(false)
+})
+
+test("スクリーンアレンジメントと値は URL に入り、替えると履歴に積む。replaceHistory を頼むと、同じ処理の中の替える・閉じるをまとめて、積まずに書き換える", async () => {
+  const store = createMatomezu({
+    plugins: BUILTIN,
+    controlCenter: "@matomezu/control-center:control-center",
+    lang: "ja",
+  })
+  const f = fakePlace()
+  followLocation(store, f.place)
+  const center = store.state.getState().window.order.at(-1) ?? ""
+  const ticket = store.actions.openScreen("@matomezu/taskboard:ticket-screen", { ticket: "t1" })
+  store.actions.setScreenArrangement("@matomezu/base:split-rows", { screens: [center, ticket], behind: [] })
+  await settled()
+  expect(f.pushed).toHaveLength(1)
+  expect(written(f.pushed[0]!).arrangement).toBe("@matomezu/base:split-rows")
+  expect(written(f.pushed[0]!).arrangementValue).toEqual({ screens: [center, ticket], behind: [] })
+  const replacedBefore = f.replaced.length
+  store.actions.replaceHistory()
+  store.actions.setScreenArrangement("@matomezu/base:one-screen")
+  store.actions.closeScreen(ticket)
+  await settled()
+  expect(f.pushed).toHaveLength(1)
+  expect(f.replaced.length).toBe(replacedBefore + 1)
+  expect(written(f.replaced.at(-1)!).arrangement).toBe("@matomezu/base:one-screen")
+  expect(written(f.replaced.at(-1)!).screens.some(s => s.id === ticket)).toBe(false)
+  // 戻ると、分けた形（値ごと）に戻る
+  f.back(f.pushed[0]!)
+  expect(store.state.getState().window.arrangementValue).toEqual({ screens: [center, ticket], behind: [] })
 })

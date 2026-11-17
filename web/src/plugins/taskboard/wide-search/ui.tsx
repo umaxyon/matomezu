@@ -1,6 +1,6 @@
 // 横断検索（タスクボード側）の見た目: 「チケット」のモードと、チケット・チケット履歴の横断検索の当たりの開き方
 import { useRecords } from "../../../plugin-api/ui"
-import { defineWideSearchMode, defineWideSearchOpener, type WideSearchHit } from "../../base/ui"
+import { defineWideSearchMode, defineWideSearchOpener, type WideSearchHit, type WideSearchOpened } from "../../base/ui"
 import { kit } from "../kit"
 import { PROJECT } from "../project"
 import { TICKET } from "../ticket"
@@ -15,12 +15,12 @@ export const TICKET_MODE = defineWideSearchMode({
   view: TicketMode,
 })
 
-// チケットスクリーンでチケットを開く関数を返すフック（当たった物がチケット履歴なら、その親のチケット）
+// チケットスクリーンでチケットを開く関数を返すフック（当たった物がチケット履歴なら、その親のチケット）。開き方は useOpenTicket の hit
 const useOpenHit = (ticketOf: (hit: WideSearchHit) => string | undefined) => {
-  const open = useOpenTicket()
-  return (hit: WideSearchHit) => {
+  const opener = useOpenTicket()
+  return (hit: WideSearchHit): WideSearchOpened => {
     const ticket = ticketOf(hit)
-    if (ticket !== undefined) open(ticket)
+    return ticket === undefined ? "opened" : opener.hit(ticket)
   }
 }
 

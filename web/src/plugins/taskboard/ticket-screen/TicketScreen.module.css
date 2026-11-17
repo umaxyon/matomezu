@@ -135,6 +135,7 @@
   background: var(--skin-surface-strong);
   color: var(--skin-accent);
 }
+/* 低い枠（上下に分けたときなど）で、履歴の一覧の高さが足りなくなれば、中身全体をスクロールする */
 .content {
   display: flex;
   flex: 1;
@@ -142,14 +143,16 @@
   gap: 8px;
   min-height: 0;
   padding: 14px 16px 0;
+  overflow-y: auto;
 }
 .content > * {
   flex: none;
 }
-/* 履歴の一覧だけをスクロールする（名前・日時・担当・優先度・ナレッジと「履歴」の見出しは動かさない） */
+/* 履歴の一覧だけをスクロールする（名前・日時・担当・優先度・ナレッジと「履歴」の見出しは動かさない）。
+   一覧は少なくとも 160px の高さを取り、それより枠が低ければ、中身全体のスクロールに任せる */
 .content > .historyScroll {
-  flex: 1;
-  min-height: 0;
+  flex: 1 1 0;
+  min-height: 160px;
   margin-right: -16px; /* スクロールバーを枠の右端に沿わせる（.content の右の余白と同じ） */
   padding: 0 16px 14px 0;
   overflow: auto;
