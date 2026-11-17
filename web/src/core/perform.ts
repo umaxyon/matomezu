@@ -43,7 +43,7 @@ import {
 } from "./def/action"
 import type { PlaceChange, Referred } from "./def/permission"
 import type { SubjectDef } from "./def/subject"
-import { binnedBetween } from "./entries"
+import { binnedBetween, TITLE_TAKEN, titleClashes } from "./entries"
 import {
   bookIdOf,
   bookOf,
@@ -707,7 +707,9 @@ export function performIn(
     const made = rowChanges(library, done.next as Library)
     // 足したブックと無くなったブックの置き場所を書く。木の決まりを守っていた世界は、行った後も守る
     const changes = placedChanges(world, made)
-    if (!treeHolds(withChanges(world, changes))) return { ok: false, reason: "refused" }
+    const after = withChanges(world, changes)
+    if (!treeHolds(after)) return { ok: false, reason: "refused" }
+    if (titleClashes(world, after).length > 0) return titleTaken
     // 無くなったページのアノテーションは消す
     const gone = Object.entries(changes.pages)
       .filter(([p, v]) => v === REMOVED && (world.annotations[p]?.length ?? 0) > 0)
@@ -726,6 +728,15 @@ export function performIn(
   return same ? { ok: true, result: done.result } : { ok: true, result: done.result, settings: next }
 }
 
+// 同じフォルダ（ゴミ箱の直下を除く）の中で、名前が重なる断り
+const titleTaken = {
+  ok: false,
+  reason: "refused",
+  kind: TITLE_TAKEN,
+  detail:
+    "an entry with the same title is already in the same folder (titles do not repeat within a folder); use another title",
+} as const
+
 // 変わり changes が新しく足すページ・フォルダの id が、世界 world にもう在るか（行う前のブック before に無かった物を足すなら、その id は世界のどこにも無いこと。
 // ページもフォルダも、ちょうど 1 つのフォルダに入り、id は世界の中で重ならない）
 const collides = (world: Library, before: readonly Book[], changes: TableChanges): boolean =>
@@ -740,6 +751,7 @@ function changedBook(world: World, book: Book, done: ReturnType<typeof perform>)
   if (next === book) return { ok: true, result: done.result }
   const changes = changesBetween([book], [next])
   if (collides(world, [book], changes)) return { ok: false, reason: "refused" }
+  if (next.title !== book.title && titleClashes(world, withChanges(world, changes)).length > 0) return titleTaken
   const { annotations } = world
   const now = new Map(pagesOf(next).map(p => [p.id, p]))
   const changed: Record<string, readonly Annotation[]> = {}

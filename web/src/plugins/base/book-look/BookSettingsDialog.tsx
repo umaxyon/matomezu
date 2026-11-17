@@ -16,13 +16,14 @@ import { BOOK_LOCK, BOOK_UNLOCK, LOCK } from "../lock"
 import { LockToggle } from "../lock/LockToggle"
 import { PageProblemsView, usePageProblems } from "../page-tabs/PageProblems"
 import { changeWithLock } from "../utils/lock"
+import { titleTaken } from "../utils/refusal"
 import { BOOK_UPDATE } from "."
 
 export function BookSettingsDialog({ onClose }: DialogProps) {
   const t = useMessages(kit)
   const form = useId()
   const book = useBook() ?? undefined // 確定したブック（このダイアログが下書きを出すので、下書きを重ねたブックは読まない）
-  const { previewDialog } = useActions()
+  const { previewDialog, showToast } = useActions()
   const perform = usePerform()
   const [title, setTitle] = useState(book?.title ?? "")
   const [locked, setLocked] = useState(book?.locked === true)
@@ -44,7 +45,17 @@ export function BookSettingsDialog({ onClose }: DialogProps) {
       locked,
       () => perform(BOOK_LOCK.id, {}).ok,
       () => perform(BOOK_UNLOCK.id, {}).ok,
-      () => perform(BOOK_UPDATE.id, { title, ...(changed ? { settings: settings.patch } : {}) }).ok,
+      () => {
+        const updated = perform(BOOK_UPDATE.id, { title, ...(changed ? { settings: settings.patch } : {}) })
+        // 同じフォルダに同じ名前の物が在れば、トーストで知らせる
+        if (titleTaken(updated))
+          showToast({
+            kind: "warn",
+            message: kit.message("Could not rename"),
+            detail: { message: kit.message("The name is taken") },
+          })
+        return updated.ok
+      },
     )
     if (done) onClose()
   }

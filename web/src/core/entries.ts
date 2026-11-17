@@ -130,3 +130,28 @@ export function binnedBetween(was: Library, now: Library): { trashed: string[]; 
     restored: ids.filter(id => !inTrash(now.folders, id) && inTrash(was.folders, id)),
   }
 }
+
+// 断りの種類: 同じフォルダの中に、同じ名前の物が在る（土台が断るので、プラグインの id の名前空間は付かない）
+export const TITLE_TAKEN = "title-taken"
+
+// フォルダ folder の直下のエントリの名前（並びの順。名前の無い読めないページは入らない）
+function titlesIn({ pages, folders }: Library, folder: Folder): string[] {
+  return folder.lineup.flatMap(r => {
+    const row = (r.kind === "page" ? pages[r.id] : folders[r.id]) as { title?: unknown } | undefined
+    const title = row?.title
+    return typeof title === "string" && title !== "" ? [title] : []
+  })
+}
+
+// 書庫が was から now に変わる間に、直下の名前が変わって、同じ名前が重なった書庫ホーム・フォルダの id（ゴミ箱の直下は、同じ名前を許す。
+// ブックとバインダの中は、ブックの決まりが見る）。前から重なっていて、名前の並びが変わらないフォルダは挙げない
+export function titleClashes(was: Library, now: Library): string[] {
+  return Object.values(now.folders).flatMap(f => {
+    if (f.folderRole !== "home" && f.folderRole !== "folder") return []
+    const titles = titlesIn(now, f)
+    if (new Set(titles).size === titles.length) return []
+    const before = was.folders[f.id]
+    const kept = before ? titlesIn(was, before) : []
+    return kept.length === titles.length && kept.every((t, i) => t === titles[i]) ? [] : [f.id]
+  })
+}
