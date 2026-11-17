@@ -128,7 +128,7 @@ describe("見た目のプラグイン", () => {
 
   test("種類の持ち主のプラグインだけが、その種類の横断検索の開き方を名乗れる（持ち主が違えば E312、同じなら通る）", () => {
     const opener = (id: string, kind: string) =>
-      defineWideSearchOpener({ id: id as never, kind, useOpen: () => () => {} })
+      defineWideSearchOpener({ id: id as never, kind, useOpen: () => () => "opened" as const })
     const other = definePluginUi(definePlugin({ id: "icons" }), {
       widgets: [opener("icons:open-ticket", "@matomezu/taskboard:ticket")],
     })

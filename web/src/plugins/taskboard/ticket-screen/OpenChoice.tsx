@@ -1,4 +1,4 @@
-// チケットスクリーンの中のチケットの番号のリンクを押したときの「開く／分割して開く」の吹き出し。チケットスクリーン 1 枚が OpenChoiceHost で包み、
+// チケットスクリーンの中のチケットの番号のリンクを押したときの「開く／分割で開く」の吹き出し。チケットスクリーン 1 枚が OpenChoiceHost で包み、
 // 中のリンク（本文・履歴の行・質問の文）は useAskOpen で開き方を聞く。窓が低くて分けられないときは、聞かずに開く。
 // 吹き出しは base の ChoiceBubble（押したリンクの下に出し、外を押すか Esc で閉じる）
 import { createContext, type ReactNode, useCallback, useContext, useState } from "react"

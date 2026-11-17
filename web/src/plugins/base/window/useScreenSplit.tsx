@@ -10,6 +10,7 @@ import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/sto
 import { ONE_SCREEN } from "."
 import {
   behindOf,
+  planAt,
   planClose,
   planExpand,
   planOpen,
@@ -69,6 +70,9 @@ export interface ScreenSplit {
   has<P>(def: { id: string }, props: P): boolean
   // 開く: 分けられるなら起点の後ろ・前・代わりに入れ（max 枚まで）、分けられなければ 1 枚で開く
   open<P>(opening: Opening<P>, how: "after" | "before" | "in-place", max: number): void
+  // 分けた並びの index 番目（上から）を、開いたスクリーンに替える（分けていなければ、1 枚で開く）
+  openAt<P>(opening: Opening<P>, index: number): void
+  count: number // 分けて並べている枚数（分けていなければ 0）
   close(): void // 起点のスクリーンを閉じる（並びが 1 枚になれば、並びから外していた物を上に戻す）
   closeOf<P>(def: { id: string }, props: P): void // 分けた並びの、定義 def・渡す値 props のスクリーンを閉じる
   showOf<P>(def: { id: string }, props: P): void // 分けた並びの、定義 def・渡す値 props のスクリーンをカレントスクリーンにする
@@ -105,6 +109,11 @@ export function useScreenSplit(): ScreenSplit {
     index: split.indexOf(here.id),
     tall,
     has: (def, props) => find(def, props) !== undefined,
+    count: split.length,
+    openAt: ({ def, props }, index) => {
+      const added = actions.openScreen(def.id, props)
+      if (added !== SCREEN_REFUSED && split.length > 0) apply(planAt(split, index, added))
+    },
     open: ({ def, props }, how, max) => {
       const added = actions.openScreen(def.id, props)
       if (added !== SCREEN_REFUSED && tallNow()) apply(planOpen(split, here.id, added, how, max))

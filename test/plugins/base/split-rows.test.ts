@@ -2,6 +2,7 @@
 import { expect, test } from "bun:test"
 import {
   behindOf,
+  planAt,
   planClose,
   planExpand,
   planOpen,
@@ -38,9 +39,9 @@ test("開く: 分けていなければ起点と 2 枚で分け、分けていれ
   expect(planOpen([], "c1", "c3", "after", 2)).toEqual({ screens: ["c1", "c3"], leaving: [] })
   // 分けている間にコントロールセンターから開くと、コントロールセンターの代わりに上へ入る（コントロールセンターは外れる）
   expect(planOpen(["c1", "c3"], "c1", "c4", "in-place", 2)).toEqual({ screens: ["c4", "c3"], leaving: ["c1"] })
-  // 下のチケット（c3）から「分割して開く」: 上に入れ、上のコントロールセンターは外れる
+  // 下のチケット（c3）から「分割で開く」: 上に入れ、上のコントロールセンターは外れる
   expect(planOpen(["c1", "c3"], "c3", "c4", "before", 2)).toEqual({ screens: ["c4", "c3"], leaving: ["c1"] })
-  // 上のチケット（c4）から「分割して開く」: 下に入れ、下のチケットは外れる
+  // 上のチケット（c4）から「分割で開く」: 下に入れ、下のチケットは外れる
   expect(planOpen(["c4", "c3"], "c4", "c5", "after", 2)).toEqual({ screens: ["c4", "c5"], leaving: ["c3"] })
   // 上限が大きければ外さない
   expect(planOpen(["c1", "c3"], "c3", "c4", "after", 3)).toEqual({ screens: ["c1", "c3", "c4"], leaving: [] })
@@ -98,4 +99,10 @@ test("分けている間の Esc（コントロールセンターから戻るコ�
   const before = read().backRequests
   expect(store.actions.command(ticket, "@matomezu/base:control-center-leave")).toBe(true)
   expect(read().backRequests).toBe(before + 1)
+})
+
+test("並びの index 番目を開いた物に替え、そこにあった物は外れる", () => {
+  expect(planAt(["c1", "c3"], 0, "c4")).toEqual({ screens: ["c4", "c3"], leaving: ["c1"] })
+  expect(planAt(["c1", "c3"], 1, "c4")).toEqual({ screens: ["c1", "c4"], leaving: ["c3"] })
+  expect(planAt(["c1", "c3"], 5, "c4")).toEqual({ screens: ["c1", "c3"], leaving: [] })
 })

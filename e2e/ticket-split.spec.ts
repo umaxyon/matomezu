@@ -23,13 +23,21 @@ const records = async (page: Page, subject: string) =>
   ) as { id: string; lanes?: { kind: string; id: string }[] }[]
 
 // 最初のプロジェクトに、チケット 2 枚を足す
-async function twoTickets(page: Page) {
+async function twoTickets(page: Page, tag = "") {
   if ((await records(page, "@matomezu/taskboard:project")).length === 0)
     await perform(page, "@matomezu/taskboard:project-add", {})
   const first = (await records(page, "@matomezu/taskboard:project"))[0]!
   const lane = first.lanes!.find(l => l.kind === "lane")!.id
-  const a = await perform(page, "@matomezu/taskboard:ticket-add", { project: first.id, name: "上下の一枚目", lane })
-  const b = await perform(page, "@matomezu/taskboard:ticket-add", { project: first.id, name: "上下の二枚目", lane })
+  const a = await perform(page, "@matomezu/taskboard:ticket-add", {
+    project: first.id,
+    name: `上下の一枚目${tag}`,
+    lane,
+  })
+  const b = await perform(page, "@matomezu/taskboard:ticket-add", {
+    project: first.id,
+    name: `上下の二枚目${tag}`,
+    lane,
+  })
   return { a: a.result?.ticket ?? "", b: b.result?.ticket ?? "" }
 }
 
@@ -95,7 +103,7 @@ test("分けている間に窓が低くなると、カレントの 1 枚を残�
   expect(new URL(page.url()).searchParams.get("sc")).not.toContain("split-rows")
 })
 
-test("本文のチケットの番号を押すと「開く／分割して開く」を聞き、分割して開くと上の段に入る", async ({ page }) => {
+test("本文のチケットの番号を押すと「開く／分割で開く」を聞き、分割で開くと上の段に入る", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.goto(CONTROL_CENTER_URL)
@@ -108,7 +116,43 @@ test("本文のチケットの番号を押すと「開く／分割して開く�
   await expect(tickets(page)).toHaveCount(1)
   await tickets(page).getByRole("link", { name: label }).click()
   await expect(page.getByRole("menuitem", { name: "開く", exact: true })).toBeVisible()
-  await page.getByRole("menuitem", { name: "分割して開く" }).click()
+  await page.getByRole("menuitem", { name: "分割で開く" }).click()
   await expect(tickets(page)).toHaveCount(2)
   expect((await boxOf(page, "上下の二枚目")).y).toBeLessThan(50)
+})
+
+test("横断検索の当たりは、何も開いていなければ下に開き、分けている間は「上に開く／下に開く」、全画面のチケットからは「開く／分割で開く」を選ぶ", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto(CONTROL_CENTER_URL)
+  const tag = `${Date.now()}`
+  await twoTickets(page, tag)
+  const side = page.locator("[data-left-side-panel]")
+  await page.getByRole("button", { name: "横断検索" }).click()
+  await side.getByRole("button", { name: "全文" }).click()
+  const search = async (word: string) => {
+    await side.getByRole("textbox", { name: "検索する言葉" }).fill(word)
+    await side
+      .getByRole("button", { name: new RegExp(word) })
+      .first()
+      .click()
+  }
+  // 何も開いていなければ、聞かずに下に開く
+  await search(`上下の一枚目${tag}`)
+  await expect(tickets(page)).toHaveCount(1)
+  expect((await boxOf(page, `上下の一枚目${tag}`)).y).toBeGreaterThan(300)
+  // 分けている間は、上か下かを選ぶ。下を選ぶと、下の段が替わる
+  await search(`上下の二枚目${tag}`)
+  await expect(page.getByRole("menuitem", { name: "上に開く" })).toBeVisible()
+  await page.getByRole("menuitem", { name: "下に開く" }).click()
+  await expect(tickets(page)).toHaveCount(1)
+  await expect(tickets(page).getByRole("heading", { name: `上下の二枚目${tag}` })).toBeVisible()
+  // 広げて全画面にすると、開き方を選ぶ
+  await tickets(page).getByRole("button", { name: "広げる" }).click()
+  await search(`上下の一枚目${tag}`)
+  await expect(page.getByRole("menuitem", { name: "開く", exact: true })).toBeVisible()
+  await page.getByRole("menuitem", { name: "分割で開く" }).click()
+  await expect(tickets(page)).toHaveCount(2)
 })

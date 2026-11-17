@@ -1,10 +1,12 @@
 // 横断検索の見た目: モードと開き方を名乗る関数、タブ、base が名乗る「全文」のモード
+
 import type { ReactNode } from "react"
 import type { MessageKey } from "../../../core/i18n/i18n"
 import type { WideSearchHit } from "../../../core/wide-search"
 import { defineWidget } from "../../../ui/layout"
 import { kit } from "../kit"
 import { defineLeftSidePanelTab, opensOf } from "../left-side-panel/ui"
+import type { Choice } from "../utils/ChoiceBubble"
 import { type PlaceInSlot, placeIn } from "../utils/place-in"
 import { FullTextMode } from "./FullTextMode"
 import { WIDE_SEARCH_MODES, WIDE_SEARCH_OPENERS, type WideSearchModeProps } from "./slots"
@@ -27,13 +29,16 @@ export const defineWideSearchMode = <const Id extends string>(def: {
     view: def.view,
   })
 
+// 横断検索の当たりを開く関数の答え: 開いた（opened）か、開き方を選ばせる物の並び
+export type WideSearchOpened = "opened" | readonly Choice[]
+
 // 種類 kind（種類の本当の id）の横断検索の当たりの開き方（スロット wide-search-openers に置く）。kind の持ち主のプラグインだけが名乗れる（違えば台帳アセンブルで E312 の error）。同じ種類に持ち主が 2 つ書いたときは、並びの先の物を使う。
-// useOpen は、横断検索の当たりを開く関数を返すフック（開いても、パネルは開いたまま）。useLabel は、横断検索の当たりの名前を画面の持つ物から作る関数を返すフック（返さなければ、ホストが返す label）。開き方を名乗っていない種類の当たりは、押せない行になる
+// useOpen は、横断検索の当たりを開く関数を返すフック（開いても、パネルは開いたまま）。開いたら "opened" を、開き方を利用者に選ばせるなら選ぶ物の並びを返す（押した行の下に吹き出しで出す）。useLabel は、横断検索の当たりの名前を画面の持つ物から作る関数を返すフック（返さなければ、ホストが返す label）。開き方を名乗っていない種類の当たりは、押せない行になる
 export const defineWideSearchOpener = <const Id extends string>(def: {
   id: Id
   kind: string
   place?: PlaceInSlot
-  useOpen: () => (hit: WideSearchHit) => void
+  useOpen: () => (hit: WideSearchHit) => WideSearchOpened
   useLabel?: () => (hit: WideSearchHit) => string | undefined
 }) =>
   defineWidget({

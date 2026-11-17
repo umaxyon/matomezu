@@ -94,6 +94,13 @@ export function planOpen(
   return { screens, leaving }
 }
 
+// 分けた並びの index 番目（上から）を、開いたスクリーン added に替える（そこにあった物は外れる）
+export function planAt(split: readonly string[], index: number, added: string): SplitPlan {
+  const was = split[index]
+  if (was === undefined) return { screens: split, leaving: [] }
+  return { screens: split.map((id, i) => (i === index ? added : id)), leaving: [was] }
+}
+
 // 分けた並びから target を閉じる。残りが 1 枚なら、並びから外したが開いたままの物（behind）のうち、いちばん新しい物を上に戻して分けたままにする（無ければ分けない）
 export function planClose(split: readonly string[], behind: readonly string[], target: string): SplitPlan {
   const rest = split.filter(id => id !== target)
