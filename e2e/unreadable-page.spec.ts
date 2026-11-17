@@ -3,6 +3,7 @@
 import { drawingPage, testBook } from "../test/lineup"
 import { BOOK_SCREEN_URL, expect, test } from "./fixtures"
 import { addBox, items } from "./helpers/paper"
+import { fromMenu } from "./helpers/stage-menu"
 import { storedBook } from "./helpers/stored"
 
 // 機能台帳に無いタイプのページ（外したプラグインのページのつもり。中身はそのタイプだけが読める）
@@ -20,7 +21,7 @@ const book = { ...mixed, lineup: [...mixed.lineup, gone] }
 
 test.use({ books: [book] })
 
-test("読めないページは、ページタブに名前が出て、開くと読めないことと理由だけを見せる。右クリックのメニューは出ず、読み直しても開いたまま", async ({
+test("読めないページは、ページタブに名前が出て、開くと読めないことと理由だけを見せる。右クリックのメニューは出ず、印刷プレビューは開けず、読み直しても開いたまま", async ({
   page,
 }) => {
   await page.goto(BOOK_SCREEN_URL)
@@ -34,6 +35,11 @@ test("読めないページは、ページタブに名前が出て、開くと�
   await expect(notice).toContainText("ページのタイプがありません")
   await tab.click({ button: "right" })
   await expect(page.getByRole("menu")).toHaveCount(0)
+  // 印刷プレビューは開けない（Mod+P でも開かない）
+  await expect(await fromMenu(page, "印刷プレビュー")).toBeDisabled()
+  await page.keyboard.press("Escape")
+  await page.keyboard.press("ControlOrMeta+p")
+  await expect(tab).toBeVisible()
   // 読み直しても、同じ読めないページを開いている
   await page.reload()
   await expect(page.getByRole("tab", { name: "外したタイプ" })).toHaveAttribute("aria-selected", "true")
