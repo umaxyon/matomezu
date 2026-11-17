@@ -457,3 +457,25 @@ test("中身のアイコンは、列挙 entry-icon の値で種類に合う物�
   // 値が無くなった中身は、既定の絵で描く（データは消えない）
   expect(perform("@matomezu/dir:entry-update", { entry: ids.readme, icon: null }, { page: ids.page }).ok).toBe(true)
 })
+
+test("可変ページでは、名前を書いている間も、書いている字の入るだけ印刷区画を並べた広さをステージに知らせる（確定を待たない）", () => {
+  const { store, perform } = setup()
+  const done = perform("@matomezu/base:page-add", {
+    type: "@matomezu/dir:dir",
+    title: "p1",
+    grows: true,
+    fields: { root: { name: "proj", children: [{ kind: "file", name: "a.ts" }] } },
+  })
+  if (!done.ok) throw new Error("page-add refused")
+  const area = () => {
+    const opened = screenOf(store.state.getState().window).stages[0]!.opened as { area?: { w: number; h: number } }
+    return opened.area!
+  }
+  const before = area()
+  press("Enter")
+  writeRich(within(paper()).getByRole("textbox", { name: "名前" }), "長".repeat(150))
+  const writing = area()
+  expect(writing.w * writing.h).toBeGreaterThan(before.w * before.h)
+  fireEvent.keyDown(within(paper()).getByRole("textbox", { name: "名前" }), { key: "Escape" })
+  expect(area()).toEqual(before)
+})
