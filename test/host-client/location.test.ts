@@ -349,7 +349,7 @@ test("この窓が積んだ行が無ければ canGoBack は false、積めば tr
   expect(store.state.getState().canGoBack).toBe(false)
 })
 
-test("スクリーンアレンジメントと値は URL に入り、替えると履歴に積む。history: replace で替えると、同じ処理の中の閉じるのもまとめて、積まずに書き換える", async () => {
+test("スクリーンアレンジメントと値は URL に入り、替えると履歴に積む。replaceHistory を頼むと、同じ処理の中の替える・閉じるをまとめて、積まずに書き換える", async () => {
   const store = createMatomezu({
     plugins: BUILTIN,
     controlCenter: "@matomezu/control-center:control-center",
@@ -365,7 +365,8 @@ test("スクリーンアレンジメントと値は URL に入り、替えると
   expect(written(f.pushed[0]!).arrangement).toBe("@matomezu/base:split-rows")
   expect(written(f.pushed[0]!).arrangementValue).toEqual({ screens: [center, ticket], behind: [] })
   const replacedBefore = f.replaced.length
-  store.actions.setScreenArrangement("@matomezu/base:one-screen", undefined, { history: "replace" })
+  store.actions.replaceHistory()
+  store.actions.setScreenArrangement("@matomezu/base:one-screen")
   store.actions.closeScreen(ticket)
   await settled()
   expect(f.pushed).toHaveLength(1)

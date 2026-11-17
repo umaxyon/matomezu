@@ -136,7 +136,9 @@ function useCollapseWhenLow(split: readonly string[], current: string | undefine
   const read = useReadState()
   const low = !tall && split.length > 0
   useEffect(() => {
-    if (low && current !== undefined) applySplit(actions, read, planExpand(split, current), { history: "replace" })
+    if (!low || current === undefined) return
+    actions.replaceHistory()
+    applySplit(actions, read, planExpand(split, current))
   }, [low, split, current, actions, read])
 }
 

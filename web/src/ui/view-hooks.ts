@@ -32,7 +32,6 @@ import { currentScreen, shownScreens, stageIn } from "../core/window"
 import type { StageView } from "../core/workspace"
 import { ownedPluginState } from "../store/plugin-state"
 import {
-  type ArrangeOptions,
   type BoundPlaceActions,
   boundActions,
   type Performed,
@@ -521,21 +520,25 @@ export function useScreens(): {
   return { screens, open, setProps, makeCurrent: makeScreenCurrent, close: closeScreen }
 }
 
-// 窓のスクリーンアレンジメント: 今の定義の id と値と、替える（定義と値。値を渡さなければ定義の初めの値。値は定義の value の形で、合わなければ替えない。
-// history が "replace" なら、同じ同期の処理の中の窓の変わりをまとめて、ブラウザの履歴に積まずに書き換える）
+// 窓のスクリーンアレンジメント: 今の定義の id と値と、替える（定義と値。値を渡さなければ定義の初めの値。値は定義の value の形で、合わなければ替えない）
 export function useScreenArrangement(): {
   id: string
   value: unknown
-  set<V>(def: { id: string; value?: { schema: { parse(v: unknown): V } } }, value?: V, options?: ArrangeOptions): void
+  set<V>(def: { id: string; value?: { schema: { parse(v: unknown): V } } }, value?: V): void
 } {
   const id = useMatomezuState(s => s.window.arrangement)
   const value = useMatomezuState(s => s.window.arrangementValue)
   const { setScreenArrangement } = useStoreActions()
   const set = useCallback(
-    <V>(def: { id: string }, value?: V, options?: ArrangeOptions) => setScreenArrangement(def.id, value, options),
+    <V>(def: { id: string }, value?: V) => setScreenArrangement(def.id, value),
     [setScreenArrangement],
   )
   return useMemo(() => ({ id, value, set }), [id, value, set])
+}
+
+// 同じ同期の処理の中の窓の変わりを、ブラウザの履歴に積まずに書き換えてほしいと頼む関数（利用者の操作でない変わり。窓の大きさでスクリーンアレンジメントを戻すなど）
+export function useReplaceHistory(): () => void {
+  return useStoreActions().replaceHistory
 }
 
 // ブラウザの履歴を 1 つ戻す（ブラウザの戻るボタンと同じ。ブック・ページ・スクリーンの移動を、積んだ順に戻る）。

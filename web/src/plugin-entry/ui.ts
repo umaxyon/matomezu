@@ -11,6 +11,8 @@ export {
   BOOK_SCREEN,
   BodyField,
   CaptionField,
+  type Choice,
+  ChoiceBubble,
   ChoiceSetting,
   Choices,
   ChoiceText,

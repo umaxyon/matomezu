@@ -43,6 +43,7 @@ export {
   useReadPluginState,
   useRecord,
   useRecords,
+  useReplaceHistory,
   useScreen,
   useScreenArrangement,
   useScreenHere,

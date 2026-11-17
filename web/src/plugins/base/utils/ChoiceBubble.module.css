@@ -1,5 +1,5 @@
-/* 「開く／分割して開く」の吹き出し: 押したリンクの下に、窓の上に重ねて出す。見た目はほかの吹き出しと同じ（スキンの bubble・枠・角丸・影） */
-.choice {
+/* 選ぶ物の吹き出し: 押した要素の下に、窓の上に重ねて出す。見た目はほかの吹き出しと同じ（スキンの bubble・枠・角丸・影） */
+.bubble {
   position: fixed;
   z-index: 1000;
   display: flex;
@@ -13,14 +13,14 @@
   color: var(--skin-text);
   font-size: 12px;
 }
-.item {
+.choice {
   all: unset;
   padding: 4px 10px;
   border-radius: 4px;
   cursor: pointer;
   white-space: nowrap;
 }
-.item:hover,
-.item:focus-visible {
+.choice:hover,
+.choice:focus-visible {
   background: var(--skin-btn-hover);
 }
