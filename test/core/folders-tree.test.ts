@@ -49,11 +49,13 @@ const withFolders = (t: Tables, ...folders: Folder[]): Tables => ({
 
 describe("書庫ホームとフォルダ", () => {
   test("置き場所の行から、書庫ホームとフォルダだけを形を確かめて取り出す（形に合わない行・ブック・バインダは入らない）", () => {
+    const holdsPage = { folderRole: "folder", id: "y", title: "ページ入り", lineup: [{ kind: "page", id: "p1" }] }
+    expect(homeAndFoldersOf([holdsPage])).toEqual([holdsPage as PlainFolder])
     const rows = [
       home,
       old,
       { folderRole: "folder", id: "x", lineup: [] },
-      { folderRole: "folder", id: "y", title: "ページ入り", lineup: [{ kind: "page", id: "p1" }] },
+      { folderRole: "folder", id: "z", title: "知らない種類", lineup: [{ kind: "scrap", id: "p1" }] },
       { folderRole: "home", id: "other", lineup: [] },
       { folderRole: "book", id: "b9", title: "九", lineup: [] },
       { folderRole: "binder", id: "f9", title: "束", pageType: SLIDE, lineup: [] },
@@ -112,6 +114,41 @@ describe("木の決まり", () => {
     expect(treeHolds(withFolders(t, { ...old, lineup: [...old.lineup, { kind: "book", id: "unread" }] }))).toBe(true)
     expect(treeHolds(withFolders(t, { ...old, lineup: [...old.lineup, { kind: "folder", id: "none" }] }))).toBe(false)
     expect(treeHolds(withFolders(t, { ...old, lineup: [{ kind: "folder", id: "b1" }, old.lineup[1]!] }))).toBe(false)
+  })
+
+  test("書庫ホームとフォルダは、ページとバインダも持てる（表に無いページ・バインダでない物を binder で指すと破れる）", () => {
+    const loose = drawingPage("q1")
+    const slide = testPage(SLIDE, "s9")
+    const binder: Folder = {
+      folderRole: "binder",
+      id: "f9",
+      title: "外の束",
+      pageType: SLIDE,
+      lineup: [{ kind: "page", id: "s9" }],
+    }
+    const holding: PlainFolder = {
+      ...old,
+      lineup: [...old.lineup, { kind: "page", id: "q1" }, { kind: "binder", id: "f9" }],
+    }
+    const t = withFolders(tables(), holding, binder)
+    const world: Tables = { pages: { ...t.pages, q1: loose, s9: slide }, folders: t.folders }
+    expect(treeHolds(world)).toBe(true)
+    expect(foldersOver(world.folders, "s9").map(f => f.id)).toEqual(["f9", "old", HOME_ID])
+    expect(bookIdOf(world.folders, "s9")).toBeUndefined()
+    // ページの行が無い
+    expect(treeHolds({ pages: { ...t.pages, s9: slide }, folders: t.folders })).toBe(false)
+    // binder で指した先がブック
+    expect(treeHolds(withFolders(tables(), { ...old, lineup: [{ kind: "binder", id: "b1" }, old.lineup[1]!] }))).toBe(
+      false,
+    )
+    // 置き直しても、ブックの外のページとバインダは残り、中身の無いエントリだけが外れる
+    const restored = restoredTables(world, { pages: { q1: { absent: true } }, folders: {} })
+    expect(restored.folders.old?.lineup).toEqual([...old.lineup, { kind: "binder", id: "f9" }])
+    expect(Object.keys(restored.pages)).toContain("s9")
+    expect(treeHolds(restored)).toBe(true)
+    const gone = restoredTables(world, { pages: {}, folders: { f9: { absent: true } } })
+    expect(gone.folders.old?.lineup).toEqual([...old.lineup, { kind: "page", id: "q1" }])
+    expect(Object.keys(gone.pages)).not.toContain("s9")
   })
 
   test("置き場所の行のまま確かめる: 読めないブックの行も木に入り、どこにも入っていないブックとページ・形に合わないフォルダの行・書庫ホームが無いと破れる", () => {

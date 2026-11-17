@@ -28,9 +28,8 @@ export interface FolderRef {
   kind: "folder"
   id: string
 }
-// 書庫ホームとフォルダが持つエントリ 1 つ: ブックかフォルダの id
-export type BookOrFolderRef = BookRef | FolderRef
-export type AnyEntryRef = EntryRef | BookOrFolderRef
+// 書庫ホームとフォルダが持つエントリ 1 つ: ページ・バインダ・ブック・フォルダのどれかの id
+export type AnyEntryRef = EntryRef | BookRef | FolderRef
 
 // 書庫ホームの id（決まった値。書庫ホームは、この id のフォルダただ 1 つ）
 export const HOME_ID = "library-home"
@@ -49,27 +48,27 @@ export interface BinderFolder {
 export interface HomeFolder {
   folderRole: "home"
   id: typeof HOME_ID
-  lineup: readonly BookOrFolderRef[]
+  lineup: readonly AnyEntryRef[]
 }
 // フォルダ（ブックでもバインダでもない物）: 名前と、エントリの id の並び
 export interface PlainFolder {
   folderRole: "folder"
   id: string
   title: string
-  lineup: readonly BookOrFolderRef[]
+  lineup: readonly AnyEntryRef[]
 }
 // 書庫ホームかフォルダ（ブックを組む値には入らず、表にだけ在る）
 export type HomeOrFolder = HomeFolder | PlainFolder
 export type Folder = BookFolder | BinderFolder | HomeOrFolder
 
-const BookOrFolderRefSchema = z.strictObject({ kind: z.enum(["book", "folder"]), id: z.string().min(1) })
+const AnyEntryRefSchema = z.strictObject({ kind: z.enum(["page", "binder", "book", "folder"]), id: z.string().min(1) })
 const HomeOrFolderSchema = z.discriminatedUnion("folderRole", [
-  z.strictObject({ folderRole: z.literal("home"), id: z.literal(HOME_ID), lineup: z.array(BookOrFolderRefSchema) }),
+  z.strictObject({ folderRole: z.literal("home"), id: z.literal(HOME_ID), lineup: z.array(AnyEntryRefSchema) }),
   z.strictObject({
     folderRole: z.literal("folder"),
     id: z.string().min(1),
     title: z.string().min(1),
-    lineup: z.array(BookOrFolderRefSchema),
+    lineup: z.array(AnyEntryRefSchema),
   }),
 ])
 
@@ -267,9 +266,17 @@ export function foldersOver(folders: Folders, entry: string): Folder[] {
   return over
 }
 
+// 書庫ホームかフォルダのエントリ r の種類が、表の中身と合うか（表に無い book は通す。読めないブックは、表に入らない）
+function refFits(pages: Pages, folders: Folders, r: AnyEntryRef): boolean {
+  if (r.kind === "page") return Object.hasOwn(pages, r.id)
+  const row = folders[r.id]
+  if (r.kind === "book") return !row || row.folderRole === "book"
+  return row?.folderRole === r.kind
+}
+
 // 木の決まり: 書庫ホームが在る／書庫ホームはどのフォルダにも入らない／書庫ホーム以外のフォルダは、ちょうど 1 つのフォルダに入り、上へたどると書庫ホームに着く（輪にならない）／
-// ページは、どれかのフォルダ（ブック・バインダを含む）に入る／書庫ホームとフォルダのエントリは、種類が合う（folder は表に在るフォルダ、book はブック）／
-// ブックとバインダは、ブックもフォルダも持たない（型が決める）
+// ページは、どれかのフォルダ（ブック・バインダを含む）に入る／書庫ホームとフォルダのエントリは、種類が合う（page は表に在るページ、binder はバインダ、
+// folder は表に在るフォルダ、book はブック）／ブックとバインダは、ブックもフォルダも持たない（型が決める）
 export function treeHolds({ pages, folders }: Tables): boolean {
   const home = folders[HOME_ID]
   if (home?.folderRole !== "home") return false
@@ -279,10 +286,7 @@ export function treeHolds({ pages, folders }: Tables): boolean {
       if (holder.has(r.id)) return false
       holder.set(r.id, f.id)
       if (f.folderRole !== "home" && f.folderRole !== "folder") continue
-      // 表に無い book は通す（読めないブックは、表に入らない）
-      const row = folders[r.id]
-      const fits = r.kind === "book" ? !row || row.folderRole === "book" : row?.folderRole === "folder"
-      if (!fits) return false
+      if (!refFits(pages, folders, r)) return false
     }
   }
   if (holder.has(HOME_ID)) return false
@@ -485,39 +489,37 @@ function there<R extends AnyEntryRef>(lineup: readonly R[], has: (r: R) => boole
 }
 
 // 表 tables に、ページとフォルダごとの置き直す値 patches を行った表（何も変わらなければ tables のまま）。ページとフォルダは別々に置き直すので、
-// 行った後に、エントリとその中身が食い違う所を落とす: 中身が表に無いエントリは並びから外し、どのブックの並びからもたどれないページとバインダは表から外す
+// 行った後に、エントリとその中身が食い違う所を落とす: 中身が表に無いエントリは並びから外し、どのフォルダ（ブックを含む）の並びからもたどれないページとバインダは表から外す
 export function restoredTables(tables: Tables, patches: RowPatches): Tables {
   const pages = patched(tables.pages, patches.pages)
   const folders = patched(tables.folders, patches.folders)
   if (pages === tables.pages && folders === tables.folders) return tables
-  // ブックからたどれるエントリだけを残す（中身の無いエントリは、並びから外す）
+  // 書庫ホーム・フォルダ・ブックからたどれるエントリだけを残す（中身の無いエントリは、並びから外す）
   const kept: Record<string, Folder> = {}
   const reached = new Set<string>()
-  const hasPage = (r: EntryRef) => r.kind === "page" && pages[r.id] !== undefined
+  const hasPage = (r: AnyEntryRef) => r.kind === "page" && pages[r.id] !== undefined
+  const hasBinder = (r: AnyEntryRef) => r.kind === "binder" && folders[r.id]?.folderRole === "binder"
+  // 残すエントリ r の中身をたどる: ページはたどれた物にし、バインダは、表に在るページだけの並びにして残す
+  const reach = (r: AnyEntryRef) => {
+    if (r.kind === "page") reached.add(r.id)
+    const binder = r.kind === "binder" ? folders[r.id] : undefined
+    if (binder?.folderRole !== "binder" || !Array.isArray(binder.lineup)) return
+    const inner = there<PageRef>(binder.lineup, hasPage)
+    kept[binder.id] = inner === binder.lineup ? binder : { ...binder, lineup: inner }
+    for (const p of inner) reached.add(p.id)
+  }
   for (const folder of Object.values(folders)) {
-    if (folder.folderRole === "home" || folder.folderRole === "folder") {
-      // 書庫ホームとフォルダは残す（中身が表に無いエントリだけ、並びから外す）
-      const lineup = there<BookOrFolderRef>(
-        folder.lineup,
-        r => r.kind === "book" || folders[r.id]?.folderRole === "folder",
-      )
-      kept[folder.id] = lineup === folder.lineup ? folder : { ...folder, lineup }
-      continue
-    }
-    if (folder.folderRole !== "book" || !Array.isArray(folder.lineup)) continue
-    const lineup = there<EntryRef>(
+    if (folder.folderRole === "binder" || !Array.isArray(folder.lineup)) continue
+    const outside = folder.folderRole === "home" || folder.folderRole === "folder"
+    const lineup = there<AnyEntryRef>(
       folder.lineup,
-      r => hasPage(r) || (r.kind === "binder" && folders[r.id]?.folderRole === "binder"),
+      r =>
+        hasPage(r) ||
+        hasBinder(r) ||
+        (outside && (r.kind === "book" || (r.kind === "folder" && folders[r.id]?.folderRole === "folder"))),
     )
-    kept[folder.id] = lineup === folder.lineup ? folder : { ...folder, lineup }
-    for (const r of lineup) {
-      reached.add(r.id)
-      const binder = r.kind === "binder" ? folders[r.id] : undefined
-      if (binder?.folderRole !== "binder" || !Array.isArray(binder.lineup)) continue
-      const inner = there<PageRef>(binder.lineup, hasPage)
-      kept[binder.id] = inner === binder.lineup ? binder : { ...binder, lineup: inner }
-      for (const p of inner) reached.add(p.id)
-    }
+    kept[folder.id] = lineup === folder.lineup ? folder : ({ ...folder, lineup } as Folder)
+    lineup.forEach(reach)
   }
   const sameFolders =
     Object.keys(kept).length === Object.keys(folders).length &&
