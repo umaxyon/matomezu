@@ -6,6 +6,7 @@ import { USER } from "../core/actor"
 import { type Address, addressOf, keepPlace, placeAt } from "../core/address"
 import { type Annotations, restoreAllAnnotations, withAnnotations } from "../core/annotation"
 import { checkBooks, distinctBooks, findPage, pageById } from "../core/book"
+import { performBulk } from "../core/bulk"
 import type {
   ActionId,
   ControlCenterId,
@@ -50,7 +51,6 @@ import { detectLang, type Lang, type Params } from "../core/i18n/i18n"
 import { type Library, splitTrash } from "../core/library"
 import { type Patch, patchOf, undoneIn, type Written } from "../core/patch"
 import { type ArgsOf, performIn, type Refused, type ResultOf, type TargetOf } from "../core/perform"
-import { performBulk } from "../core/bulk"
 import {
   type Counters,
   REMOVED,
@@ -885,11 +885,11 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     if (!done.ok) return done
     const bulk = opened(c.now)
     bulk.done.push({ action: id, args, ...(on ? { on } : {}), ids, lang: c.lang, now: c.now })
-    const answer = options.observe
-      ? (bulk.answer ??= new Promise<HostAnswer>(settle => {
-          bulk.settle = settle
-        }))
-      : undefined
+    if (options.observe && !bulk.answer)
+      bulk.answer = new Promise<HostAnswer>(settle => {
+        bulk.settle = settle
+      })
+    const answer = bulk.answer
     const next: Partial<MatomezuState> = {}
     if (done.changes) {
       const tables = withChanges({ pages, folders }, done.changes)

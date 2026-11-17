@@ -31,7 +31,8 @@ const place = (caption: string) =>
   )
 const send = (title: string) => step("@matomezu/base:mail-send", { from: "test", title })
 const world = (): World => worldOf(newStore().state.getState())
-const itemsIn = (row: unknown) => ((row as { items?: { props: { caption: string } }[] }).items ?? []).map(i => i.props.caption)
+const itemsIn = (row: unknown) =>
+  ((row as { items?: { props: { caption: string } }[] }).items ?? []).map(i => i.props.caption)
 
 test("ページを変えるアクションとレコードを作るアクションは、順に行い、ページは最後の後、レコードは作った物を 1 つの結果に合わせる", () => {
   const done = performBulk(world(), [place("一"), place("二"), send("届いた")], CTX)
@@ -43,14 +44,21 @@ test("ページを変えるアクションとレコードを作るアクショ�
 })
 
 test("途中の 1 つが断られたら、何番目かと断りを返し、前のアクションの変更も返さない", () => {
-  const done = performBulk(world(), [place("一"), step("@matomezu/base:page-update", { title: "x" }, { page: "无" })], CTX)
+  const done = performBulk(
+    world(),
+    [place("一"), step("@matomezu/base:page-update", { title: "x" }, { page: "无" })],
+    CTX,
+  )
   expect(done).toMatchObject({ ok: false, reason: "no-page", at: 1 })
   expect("changes" in done).toBe(false)
 })
 
 test("バルクの中で作って消したページは、変更に持たない", () => {
   const fixed = (id: string) => () => id
-  const add = { ...step("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing" }, { book: "b1" }), newId: fixed("np") }
+  const add = {
+    ...step("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing" }, { book: "b1" }),
+    newId: fixed("np"),
+  }
   const added = performBulk(world(), [add], CTX)
   if (!added.ok) throw new Error(added.reason)
   const page = (added.results[0] as { page: string }).page

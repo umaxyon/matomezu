@@ -12,7 +12,7 @@ import (
 // windowPerform は、窓 c1 からアクションを行う（窓のアクションだけが AI を起こす）
 func windowPerform(t *testing.T, url, action, args, record string) string {
 	t.Helper()
-	got, _ := call(t, "POST", url+"/api/perform", `{"action":"`+action+`","args":`+args+`,"on":{"record":"`+record+`"},"lang":"ja","now":"2026-11-08T01:00:00.000Z","client":"c1"}`, nil)
+	_, got := postPerform(t, url, `{"action":"`+action+`","args":`+args+`,"on":{"record":"`+record+`"},"lang":"ja","now":"2026-11-08T01:00:00.000Z","client":"c1"}`)
 	return got
 }
 
@@ -48,7 +48,7 @@ func wakes(hub *Hub, l *wakeLine) []string {
 
 func makeRoom(t *testing.T, url, name string) string {
 	t.Helper()
-	made, _ := call(t, "POST", url+"/api/perform", `{"action":"@matomezu/base:workroom-add","args":{"name":"`+name+`","bird":"inko"},"lang":"ja","now":"2026-11-08T00:59:00.000Z"}`, nil)
+	_, made := postPerform(t, url, `{"action":"@matomezu/base:workroom-add","args":{"name":"`+name+`","bird":"inko"},"lang":"ja","now":"2026-11-08T00:59:00.000Z"}`)
 	var out struct{ Result struct{ Workroom string } }
 	if json.Unmarshal([]byte(made), &out) != nil || out.Result.Workroom == "" {
 		t.Fatalf("workroom-add = %s", made)

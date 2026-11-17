@@ -10,7 +10,8 @@
 //	POST /api/plugins        {"dir"} 開発者プロジェクトのフォルダの追加プラグインを足す（同じ id なら入れ替える）。{"ok", "id"} か {"ok": false, "reason"}  … 要合言葉
 //	POST /api/plugins/remove {"id"} 追加プラグインを外す。{"ok"} か {"ok": false, "reason"}                     … 要合言葉
 //	GET  /api/events      SSE。世界の変わり目の知らせ（hub.go）                                    … 画面から
-//	POST /api/perform     {"action", "args", "on", "lang", "ids", "now", "client", "seq", "key"} アクションを行い、{"ok", "reason", "permission", "detail", "result", "notice"}（ok 以外は無ければ省く）を返す。読めないページで断ったら code に理由の warning の番号。
+//	POST /api/perform     {"actions": [{"action", "args", "on", "lang", "ids", "now"}], "client", "seq", "key"} アクションバルクを行い（全部通るか全部断る。actions が空なら 400）、
+//	                      {"ok", "reason", "permission", "detail", "result", "notice"}（ok 以外は無ければ省く。result は最後のアクションの結果）を返す。読めないページで断ったら code に理由の warning の番号。
 //	                      変わったものは /api/events で知らせる                                     … 画面から
 //	POST /api/warnings     {"client", "warnings": [{"code", "plugin", "params"}]} 窓が見つけた warning（その窓の分を入れ替える）。常駐が集めてログと、MCP 公開ツールの actions が返す物に出す
 //	POST /api/log         {"client", "lines": [{"at", "text"}]} 窓が書き残した事（つながりが切れた・読み直せなかったなど。at は窓の時刻）。常駐のログに出す  … 画面から
@@ -68,6 +69,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/umaxyon/matomezu/internal/engine"
 )
 
 // user は設定の持ち主（利用者は 1 人）
@@ -330,6 +333,10 @@ func (o Options) perform(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &p) {
 		return
 	}
+	if len(p.Actions) == 0 {
+		http.Error(w, "actions must have at least one action", http.StatusBadRequest)
+		return
+	}
 	done, err := o.Hub.Perform(p)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -520,11 +527,19 @@ func (o Options) aiBook(w http.ResponseWriter, r *http.Request) {
 }
 
 func (o Options) aiPerform(w http.ResponseWriter, r *http.Request) {
-	var p Perform
+	// AI の頼みはアクション 1 つ（1 アクションのバルクとして行う）
+	var p struct {
+		Action     string          `json:"action"`
+		Args       json.RawMessage `json:"args"`
+		On         *engine.On      `json:"on,omitempty"`
+		TimeoutSec int             `json:"timeoutSec,omitempty"`
+	}
 	if !readJSON(w, r, &p) {
 		return
 	}
-	done, err := o.Hub.Perform(Perform{Action: p.Action, Args: p.Args, On: p.On, By: "ai", Workroom: o.Hub.WorkroomOf(r.Header.Get(ParticipantHeader)), TimeoutSec: p.TimeoutSec})
+	one := performOne(p.Action, p.Args, p.On)
+	one.By, one.Workroom, one.TimeoutSec = "ai", o.Hub.WorkroomOf(r.Header.Get(ParticipantHeader)), p.TimeoutSec
+	done, err := o.Hub.Perform(one)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

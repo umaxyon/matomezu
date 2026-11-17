@@ -617,15 +617,18 @@ export function serverClient(net: Net = browserNet): ServerClient {
       for (const f of e.folders) put("folder", confirmed.folders, f.id, f.folder, f.version, f.removed === true)
       if (e.settings !== undefined) settings = e.settings
       for (const [page, list] of Object.entries(e.annotations ?? {})) annotations = withPageAnnotations(page, list)
-      if (e.records) {
+      // レコードが変わったときだけ、最後にフォーカスされた窓を受ける（郵便が届いたことを、その窓がマーキーで知らせる）
+      if (e.records && e.records.length > 0) {
         records = withRecords(restoreRecords(records), e.records)
-        counters = withCounters(restoreCounters(counters), e.counters ?? undefined)
+        if (e.window !== undefined) instance?.setLastWindow(e.window === client)
       }
-      if (e.window !== undefined) instance?.setLastWindow(e.window === client)
+      if (e.counters) counters = withCounters(restoreCounters(counters), e.counters)
       settle(e)
       const act = e.act
       const foreign = e.client !== client && e.by !== undefined && act !== undefined
-      show(foreign ? { books: e.books, by: e.by as "ai" | "window" | "host", act, actions: e.actions ?? [] } : undefined)
+      show(
+        foreign ? { books: e.books, by: e.by as "ai" | "window" | "host", act, actions: e.actions ?? [] } : undefined,
+      )
     })
     on("settings", data => {
       const e = SettingsSchema.parse(JSON.parse(data))

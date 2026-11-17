@@ -67,13 +67,12 @@ export function performBulk<R extends { ok: false } = never>(
   let counters: Counters | undefined
   const tickets: BulkTicketChange[] = []
   for (const [i, step] of steps.entries()) {
-    const done = performIn(
-      { ...now, source: overlaid(ctx.catalog, base, written) },
-      step.action,
-      step.args,
-      step.on,
-      { ...ctx, ...(step.lang ? { lang: step.lang } : {}), newId: () => step.newId(), now: step.now },
-    )
+    const done = performIn({ ...now, source: overlaid(ctx.catalog, base, written) }, step.action, step.args, step.on, {
+      ...ctx,
+      ...(step.lang ? { lang: step.lang } : {}),
+      newId: () => step.newId(),
+      now: step.now,
+    })
     if (!done.ok) return { ...done, at: i }
     const after: World = {
       ...(done.changes ? withChanges(now, done.changes) : now),
@@ -128,8 +127,7 @@ function overlaid(
 ): RecordSource {
   if (Object.keys(written).length === 0) return base
   const mine = (subject: string) => written[subject] ?? {}
-  const live = (subject: string) =>
-    Object.fromEntries(Object.entries(mine(subject)).filter(([, r]) => r !== REMOVED))
+  const live = (subject: string) => Object.fromEntries(Object.entries(mine(subject)).filter(([, r]) => r !== REMOVED))
   const without = <T>(subject: string, rows: Readonly<Record<string, T>>) =>
     Object.fromEntries(Object.entries(rows).filter(([id]) => !(id in mine(subject))))
   return {

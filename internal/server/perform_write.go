@@ -1,6 +1,6 @@
 package server
 
-// 1 回の Perform が変えた物の書き込み: 組み立て（planWrites。何も変えない）→ 置き場所に 1 つのまとまりで書く（store.Apply）→ メモリと窓に当てる（applyWrites。失敗しない）。
+// 1 回の Perform（アクションバルク）が変えた物の書き込み: 組み立て（planWrites。何も変えない）→ 置き場所に 1 つのまとまりで書く（store.Apply）→ メモリと窓に当てる（applyWrites。失敗しない）。
 // 書けなければ、置き場所もメモリも窓も何も変わらず、行い直せる。
 // Perform は 1 つずつ行う（h.mu）ので、置いてある版と違う書き込みは起きない。版の確かめ（Base）は、置き場所と食い違ったときの守り
 
@@ -33,10 +33,10 @@ type writePlan struct {
 	quiet   bool            // 窓に知らせず、触れた時刻も残さない（テストの用意で世界を置き直すとき）
 }
 
-// planWrites は out の変えた物を、置き場所に書く形（batch）と、当てる物にする。subject はアクションの対象の種類（ブックが対象なら空）。何も変えない（h.mu を持って呼ぶ）。
+// planWrites は out の変えた物を、置き場所に書く形（batch）と、当てる物にする。何も変えない（h.mu を持って呼ぶ）。
 // 新しく足すページ・フォルダの id が、世界にもう在れば nil を返す（エンジンが受けたのは要るブックだけなので、ほかのブックと重なっていないかは、ここで確かめる。
 // ページもフォルダも id は世界の中で重ならず、エントリはちょうど 1 つのフォルダに入る）
-func (h *Hub) planWrites(out engine.Output, subject, by, act, at string) (*writePlan, error) {
+func (h *Hub) planWrites(out engine.Output, by, act, at string) (*writePlan, error) {
 	for _, id := range out.Created {
 		_, page := h.pages[id]
 		_, folder := h.folders[id]
@@ -111,12 +111,12 @@ func (h *Hub) planWrites(out engine.Output, subject, by, act, at string) (*write
 	for page, body := range out.Annotations {
 		plan.batch.Annotations = append(plan.batch.Annotations, storage.PageBody{Page: page, Body: body})
 	}
-	// AI 編集チケットの変え方は順に当てる（同じブックの物は前の結果に重ねる）。消えたブックを指す物は飛ばす
+	// AI 編集チケットの変え方は順に当てる（同じブックの物は前の結果に重ねる。Key は、変え方を返したアクションの対象の種類の中で見分ける）。消えたブックを指す物は飛ばす
 	for _, c := range out.AIEditTickets {
 		if !has[c.Book] {
 			continue
 		}
-		if list, changed := changedTickets(tickets, subject, c, at); changed {
+		if list, changed := changedTickets(tickets, c.Subject, c, at); changed {
 			tickets, ticketsChanged = list, true
 		}
 	}
@@ -168,7 +168,7 @@ func rowNotice(field string, put rowPut) map[string]any {
 	return map[string]any{"id": put.id, field: put.body, "version": put.version}
 }
 
-// applyWrites は、書き終えた物をメモリに当て、窓に知らせる。失敗しない（h.mu を持って呼ぶ）
+// applyWrites は、書き終えた物をメモリに当て、窓に changed の知らせ 1 つで知らせる（何も変わらなければ知らせない）。失敗しない（h.mu を持って呼ぶ）
 func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act string) {
 	pages := make([]map[string]any, 0, len(plan.pages))
 	for _, put := range plan.pages {
@@ -201,8 +201,16 @@ func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act
 		}
 	}
 	h.rebuild(out.Books...)
-	if !plan.quiet && (len(pages) > 0 || len(folders) > 0) {
-		h.broadcast("changed", map[string]any{"pages": pages, "folders": folders, "books": out.Books, "client": p.Client, "seq": p.Seq, "by": by, "act": act, "action": p.Action})
+	if len(out.Settings) > 0 {
+		h.settings = out.Settings
+	}
+	records := h.applyRecords(plan, out)
+	annotations := map[string]json.RawMessage{}
+	for page, body := range out.Annotations {
+		annotations[page] = h.holdAnnotations(page, body)
+	}
+	if !plan.quiet && (len(pages) > 0 || len(folders) > 0 || len(out.Settings) > 0 || len(records) > 0 || len(out.Counters) > 0 || len(annotations) > 0) {
+		h.broadcast("changed", h.changedEvent(pages, folders, records, annotations, out, p, by, act))
 	}
 	for _, id := range out.Books {
 		if e, ok := h.books[id]; ok {
@@ -219,13 +227,7 @@ func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act
 		h.dropBook(id)
 	}
 	if len(out.Settings) > 0 {
-		h.settings = out.Settings
-		h.broadcast("settings", map[string]any{"settings": out.Settings, "client": p.Client, "seq": p.Seq})
 		h.reusePluginsForSettings()
-	}
-	h.applyRecords(plan, out, p)
-	for page, body := range out.Annotations {
-		h.applyAnnotations(page, body, p.Client, p.Seq)
 	}
 	// ブックを消したら、そのページのアノテーションの warning も一覧から外す
 	if len(plan.removed) > 0 {
@@ -233,6 +235,32 @@ func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act
 			fmt.Fprintln(os.Stderr, "engine: could not check the annotations:", err)
 		}
 	}
+}
+
+// changedEvent は、1 回の Perform の changed の知らせ（hub.go の頭。settings と counters は変わったときだけ、ほかはいつも載せる。h.mu を持って呼ぶ）
+func (h *Hub) changedEvent(pages, folders, records []map[string]any, annotations map[string]json.RawMessage, out engine.Output, p Perform, by, act string) map[string]any {
+	books := out.Books
+	if books == nil {
+		books = []string{}
+	}
+	actions := make([]string, 0, len(p.Actions))
+	for _, step := range p.Actions {
+		actions = append(actions, step.Action)
+	}
+	// 最後にフォーカスされた窓も添える（郵便が届いたなら、その窓がマーキーで知らせる）
+	window := ""
+	if w := h.window(); w != nil {
+		window = w.id
+	}
+	event := map[string]any{"pages": pages, "folders": folders, "books": books, "client": p.Client, "seq": p.Seq, "by": by, "act": act, "actions": actions,
+		"annotations": annotations, "records": records, "window": window}
+	if len(out.Settings) > 0 {
+		event["settings"] = out.Settings
+	}
+	if len(out.Counters) > 0 {
+		event["counters"] = out.Counters
+	}
+	return event
 }
 
 // checkBook は、書いたブック id（組んだ本文 body）を今のプラグインで確かめ、warning の一覧を直す（確かめられなければ、ログに書いて一覧はそのまま。h.mu を持って呼ぶ）

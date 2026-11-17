@@ -57,7 +57,7 @@ func (h *Hub) Talked(now time.Time) error {
 	h.mu.Unlock()
 	for _, page := range pages {
 		for _, id := range ids {
-			if _, err := h.Perform(Perform{Action: id, Args: json.RawMessage("{}"), On: &engine.On{Page: page}, Now: isoTime(now)}); err != nil {
+			if _, err := h.Perform(Perform{Actions: []engine.Step{{Action: id, Args: json.RawMessage("{}"), On: &engine.On{Page: page}, Now: isoTime(now)}}}); err != nil {
 				return err
 			}
 		}

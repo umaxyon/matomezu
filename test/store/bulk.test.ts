@@ -4,7 +4,7 @@
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
 import type { DoneBulk, HostAnswer } from "../../web/src/store/store"
-import { newStore, sizedStore, worldRows } from "../support"
+import { type newStore, sizedStore, worldRows } from "../support"
 
 const BOX = "@matomezu/box:shape-nest-box"
 const PLACE = "@matomezu/paper:item-place"
@@ -49,8 +49,16 @@ test("コマンドは走る前に画面の履歴の段を閉じるので、そ�
 
 test("ホストがバルクを断ったら、その画面の履歴の段は外れ、同じバルクの performConfirmed はどれも断りを受ける", async () => {
   const { store } = observed(bulk => (bulk.length > 1 ? { ok: false, reason: "refused" } : { ok: true }))
-  const first = store.actions.performConfirmed(PLACE, { item: BOX, at: { x: 40, y: 40 }, props: { caption: "一" } }, { page: "p1" })
-  const second = store.actions.performConfirmed(PLACE, { item: BOX, at: { x: 300, y: 40 }, props: { caption: "二" } }, { page: "p1" })
+  const first = store.actions.performConfirmed(
+    PLACE,
+    { item: BOX, at: { x: 40, y: 40 }, props: { caption: "一" } },
+    { page: "p1" },
+  )
+  const second = store.actions.performConfirmed(
+    PLACE,
+    { item: BOX, at: { x: 300, y: 40 }, props: { caption: "二" } },
+    { page: "p1" },
+  )
   expect(await first).toMatchObject({ ok: false, reason: "refused", by: "host" })
   expect(await second).toMatchObject({ ok: false, reason: "refused", by: "host" })
   expect(store.state.getState().history.b1?.undo ?? []).toHaveLength(0)

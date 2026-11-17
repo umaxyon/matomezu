@@ -1,10 +1,8 @@
 package server
 
 // レコード: 対象の定義（プラグインが足した、アクションの対象の種類）のデータ。常駐は中を解釈せず、種類・id ごとに 1 件ずつ、版つきで置く（形を確かめるのは engine）。
-// 1 つのアクションが変えたレコードの全部と、番号を振る種類の、区切りごとの次の番号（counters）は、1 回の書き込み（1 つのトランザクション）で書き、1 つの知らせで窓に送る。
-//
-//	record {"records": [{"subject", "id", "record"（消したなら "removed"）, "version"（消したなら 0）}], "counters"?: {種類: {区切り: 次の番号}}, "window", "client", "seq"}
-//	       1 つのアクションが変えたレコード（Hub.broadcast）。counters はそのアクションが進めた区切りだけ。window は最後にフォーカスされた窓の id（無ければ空）
+// 1 回の Perform（アクションバルク）が変えたレコードの全部と、番号を振る種類の、区切りごとの次の番号（counters）は、ページ・フォルダと同じ 1 回の書き込み（1 つのトランザクション）で書き、
+// changed の知らせ 1 つで窓に送る（hub.go の頭）
 
 import (
 	"encoding/json"
@@ -82,22 +80,31 @@ func (h *Hub) Records() (map[string]map[string]json.RawMessage, map[string]map[s
 	return records, counters
 }
 
-// recordInputs は、アクションを行う前にエンジンへ渡すレコードと番号の表を in に入れる: 宛先のレコードと、対象の種類の番号の表（アクションがほかに読むレコードは、エンジンが読み口から引く）（h.mu を持って呼ぶ）
+// recordInputs は、対象の種類 needs.Subject のアクション 1 つが要るレコードと番号の表を、エンジンへ渡す in に足す: 宛先のレコードと、対象の種類の番号の表
+// （バルクのアクションごとに呼び、和を取る。アクションがほかに読むレコードは、エンジンが読み口から引く）（h.mu を持って呼ぶ）
 func (h *Hub) recordInputs(in *engine.Input, needs engine.RecordNeeds, on *engine.On) {
 	if needs.Subject == "" {
 		return
 	}
-	in.Records = map[string]map[string]json.RawMessage{}
+	if in.Records == nil {
+		in.Records = map[string]map[string]json.RawMessage{}
+	}
 	if on != nil && on.Record != "" {
 		if e, ok := h.recordTables[needs.Subject][on.Record]; ok {
-			in.Records[needs.Subject] = map[string]json.RawMessage{on.Record: e.body}
+			if in.Records[needs.Subject] == nil {
+				in.Records[needs.Subject] = map[string]json.RawMessage{}
+			}
+			in.Records[needs.Subject][on.Record] = e.body
 		}
 	}
-	in.Counters = map[string]map[string]int64{needs.Subject: h.counters[needs.Subject]}
+	if in.Counters == nil {
+		in.Counters = map[string]map[string]int64{}
+	}
+	in.Counters[needs.Subject] = h.counters[needs.Subject]
 }
 
 // planRecords は out の変えたレコードの全部と進めた番号を、置き場所に書く形にして plan に足す（何も変えない。h.mu を持って呼ぶ）。
-// 同じアクションの中で同じレコードは 2 度来ないので、版は置いてある版から決める
+// 1 回の Perform の中で同じレコードは 2 度来ない（エンジンはバルクのアクションの全部を重ねた後の物を返す）ので、版は置いてある版から決める
 func (h *Hub) planRecords(plan *writePlan, out engine.Output) {
 	for _, c := range out.Records {
 		base := h.recordTables[c.Subject][c.ID].version
@@ -124,15 +131,15 @@ func (h *Hub) planRecords(plan *writePlan, out engine.Output) {
 	}
 }
 
-// applyRecords は、書き終えたレコードの全部をメモリに当て、変えたレコードだけを確かめ直し、窓に 1 つの知らせで送る（h.mu を持って呼ぶ）
-func (h *Hub) applyRecords(plan *writePlan, out engine.Output, p Perform) {
+// applyRecords は、書き終えたレコードの全部をメモリに当て、変えたレコードだけを確かめ直す。窓に知らせるレコードの並びを返す（changed の知らせの records。h.mu を持って呼ぶ）
+func (h *Hub) applyRecords(plan *writePlan, out engine.Output) []map[string]any {
+	changes := make([]map[string]any, 0, len(plan.records))
 	if len(plan.records) == 0 && len(out.Counters) == 0 {
-		return
+		return changes
 	}
 	if h.recordTables == nil {
 		h.recordTables = map[string]map[string]recordEntry{}
 	}
-	changes := make([]map[string]any, 0, len(plan.records))
 	keys := make([]recordKey, 0, len(plan.records))
 	for _, put := range plan.records {
 		if put.removed {
@@ -158,16 +165,7 @@ func (h *Hub) applyRecords(plan *writePlan, out engine.Output, p Perform) {
 	if err := h.checkRecordsOf(keys); err != nil {
 		fmt.Fprintln(os.Stderr, "engine: could not check the records:", err)
 	}
-	// 最後にフォーカスされた窓も添える（郵便が届いたなら、その窓がマーキーで知らせる）
-	last := ""
-	if w := h.window(); w != nil {
-		last = w.id
-	}
-	event := map[string]any{"records": changes, "window": last, "client": p.Client, "seq": p.Seq}
-	if len(out.Counters) > 0 {
-		event["counters"] = out.Counters
-	}
-	h.broadcast("record", event)
+	return changes
 }
 
 // recordKey はレコード 1 件の見分け（種類の id と、レコードの id）
@@ -282,7 +280,7 @@ func (h *Hub) runOnceActions() {
 		if done[id] {
 			continue
 		}
-		out, err := h.Perform(Perform{Action: id, Args: json.RawMessage("{}")})
+		out, err := h.Perform(performOne(id, json.RawMessage("{}"), nil))
 		if err != nil || !out.OK {
 			fmt.Fprintln(os.Stderr, "the action", id, "could not run at the first start:", err, out.Reason, out.Detail)
 			continue

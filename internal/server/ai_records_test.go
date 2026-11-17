@@ -23,7 +23,7 @@ func TestAIReadsRecords(t *testing.T) {
 	p := list.Records[0].ID
 	for i, name := range []string{"first", "second"} {
 		body := fmt.Sprintf(`{"action":"@matomezu/taskboard:ticket-add","args":{"project":%q,"name":%q},"lang":"ja","ids":["t%d"],"now":"2026-11-12T00:00:00.000Z"}`, p, name, i+1)
-		if _, got := send(t, "POST", s.URL+"/api/perform", body, nil); !strings.Contains(got, `"ok":true`) {
+		if _, got := postPerform(t, s.URL, body); !strings.Contains(got, `"ok":true`) {
 			t.Fatalf("ticket-add = %s", got)
 		}
 	}
@@ -38,7 +38,7 @@ func TestAIReadsRecords(t *testing.T) {
 	// チケット履歴は、どのチケットの行か（ticket）と題（topic）で絞れる。ほかの項目では断る
 	const history = "@matomezu/taskboard:ticket-history"
 	hbody := `{"action":"@matomezu/taskboard:ticket-history-add","args":{"ticket":"t1","topic":"@matomezu/taskboard:topic-status","text":"working"},"lang":"ja","ids":["h1"],"now":"2026-11-12T00:00:00.000Z"}`
-	if _, got = send(t, "POST", s.URL+"/api/perform", hbody, nil); !strings.Contains(got, `"ok":true`) {
+	if _, got = postPerform(t, s.URL, hbody); !strings.Contains(got, `"ok":true`) {
 		t.Fatalf("ticket-history-add = %s", got)
 	}
 	if _, got = send(t, "GET", s.URL+"/api/ai/records?kind="+history+"&where.ticket=t1", "", ai); !strings.Contains(got, `"total":1`) {
@@ -87,12 +87,12 @@ func TestAIListLeavesOutCompletedTickets(t *testing.T) {
 	p := list.Records[0].ID
 	for i, name := range []string{"first", "second"} {
 		body := fmt.Sprintf(`{"action":"@matomezu/taskboard:ticket-add","args":{"project":%q,"name":%q},"lang":"ja","ids":["t%d"],"now":"2026-11-12T00:00:00.000Z"}`, p, name, i+1)
-		if _, got := send(t, "POST", s.URL+"/api/perform", body, nil); !strings.Contains(got, `"ok":true`) {
+		if _, got := postPerform(t, s.URL, body); !strings.Contains(got, `"ok":true`) {
 			t.Fatalf("ticket-add = %s", got)
 		}
 	}
 	done := `{"action":"@matomezu/taskboard:ticket-complete","args":{},"on":{"record":"t1"},"lang":"ja","ids":["h1"],"now":"2026-11-12T00:00:00.000Z"}`
-	if _, got := send(t, "POST", s.URL+"/api/perform", done, nil); !strings.Contains(got, `"ok":true`) {
+	if _, got := postPerform(t, s.URL, done); !strings.Contains(got, `"ok":true`) {
 		t.Fatalf("ticket-complete = %s", got)
 	}
 	query := "/api/ai/records?kind=" + ticket + "&where.project=" + p

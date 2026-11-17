@@ -22,22 +22,30 @@ async function member(page: Page, name: string, bird: string) {
   const made = (await (
     await page.request.post("/api/perform", {
       data: {
-        action: "@matomezu/base:workroom-add",
-        args: { name, bird },
-        lang: "ja",
-        ids: [`room-${name}`],
-        now: NOW,
+        actions: [
+          {
+            action: "@matomezu/base:workroom-add",
+            args: { name, bird },
+            lang: "ja",
+            ids: [`room-${name}`],
+            now: NOW,
+          },
+        ],
       },
     })
   ).json()) as { result?: { workroom: string } }
   const room = made.result?.workroom ?? ""
   await page.request.post("/api/perform", {
     data: {
-      action: "@matomezu/base:participant-accept",
-      args: { workroom: room },
-      on: { record: joined.participant },
-      lang: "ja",
-      now: NOW,
+      actions: [
+        {
+          action: "@matomezu/base:participant-accept",
+          args: { workroom: room },
+          on: { record: joined.participant },
+          lang: "ja",
+          now: NOW,
+        },
+      ],
     },
   })
   return { participant: joined.participant, room }

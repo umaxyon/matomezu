@@ -17,6 +17,7 @@ import {
 } from "../core/annotation"
 import { checkBooks, findPage, pageById, pagesOf, restoreBooks, unreadableOf, warnsOf } from "../core/book"
 import { briefLine } from "../core/brief"
+import { performBulk } from "../core/bulk"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, type AIEditTicketChange, stopsOnEditLock } from "../core/def/action"
@@ -27,7 +28,6 @@ import { detectLang, translate } from "../core/i18n/i18n"
 import { changedIn } from "../core/ids"
 import { splitId } from "../core/names"
 import { endActions, joinActions } from "../core/participant"
-import { performBulk } from "../core/bulk"
 import type { PerformedIn, World } from "../core/perform"
 import { findShape, type ItemPage, pageItemsOf, walkShapes } from "../core/placed"
 import { type Condition, type KeyValues, keyValuesOf } from "../core/record-keys"
@@ -254,14 +254,23 @@ function perform(input: Input): Output {
   })
   // AI のアクションと、利用者でも編集ロックで断るアクションは、利用者が直している物を変えも消しもしない（あとでやり直す）。バルクの中のアクションごとに見る。
   // レコードが対象のアクションは、変えるレコードのどれかを直しているなら、同じように断る（作るレコードは新しい id なので、直してはいない）
-  const done = performBulk(world, steps, { catalog, controlCenter, lang: langFor(input.actions[0]?.lang), actor }, (i, before, after, one) => {
-    if (!stopsOnEditLock(catalog.actions.get(input.actions[i]?.action ?? ""), actor)) return undefined
-    const editedRecord = (one.records ?? []).some(c => (input.watchedRecords?.[c.subject] ?? []).includes(c.id))
-    return editedRecord || touchedIn(before, after, one.annotations, input.watched).length > 0
-      ? { ok: false as const, reason: "being-edited" as const }
-      : undefined
-  })
-  if (!done.ok) return { ...(done.reason === "being-edited" ? { ok: false, reason: done.reason } : refusal(catalog, done)), at: done.at }
+  const done = performBulk(
+    world,
+    steps,
+    { catalog, controlCenter, lang: langFor(input.actions[0]?.lang), actor },
+    (i, before, after, one) => {
+      if (!stopsOnEditLock(catalog.actions.get(input.actions[i]?.action ?? ""), actor)) return undefined
+      const editedRecord = (one.records ?? []).some(c => (input.watchedRecords?.[c.subject] ?? []).includes(c.id))
+      return editedRecord || touchedIn(before, after, one.annotations, input.watched).length > 0
+        ? { ok: false as const, reason: "being-edited" as const }
+        : undefined
+    },
+  )
+  if (!done.ok)
+    return {
+      ...(done.reason === "being-edited" ? { ok: false, reason: done.reason } : refusal(catalog, done)),
+      at: done.at,
+    }
   // 変わったブック（組み直した値）と、無くなったブック
   const next = done.changes ? libraryOf(withChanges(tables, done.changes)) : books
   const changed = Object.values(next).filter(b => books[b.id] !== b)
@@ -281,7 +290,9 @@ function perform(input: Input): Output {
     ...(done.records ? { records: done.records.map(c => withKeys(catalog, c)) } : {}),
     ...(done.counters ? { counters: done.counters } : {}),
     ...(notice ? { notice } : {}),
-    ...(done.aiEditTickets ? { aiEditTickets: done.aiEditTickets.map(t => ({ ...t.change, subject: t.subject })) } : {}),
+    ...(done.aiEditTickets
+      ? { aiEditTickets: done.aiEditTickets.map(t => ({ ...t.change, subject: t.subject })) }
+      : {}),
   }
 }
 

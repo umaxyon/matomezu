@@ -13,7 +13,7 @@ const open = (ticket: string) =>
 
 async function perform(page: Page, action: string, args: object, on?: object) {
   const res = await page.request.post("/api/perform", {
-    data: { action, args, ...(on ? { on } : {}), lang: "ja", now: NOW },
+    data: { actions: [{ action, args, ...(on ? { on } : {}), lang: "ja", now: NOW }] },
   })
   return (await res.json()) as { ok: boolean; result?: Record<string, string> }
 }
@@ -223,7 +223,7 @@ test("ボードのカードを押すとチケットスクリーンが開き、�
   await page.goto(CONTROL_CENTER_URL)
   // レーンに入れたチケットが、ボードのカードになる（未分類のチケットは、レーンには出ない）
   const made = await page.request.post("/api/perform", {
-    data: { action: "@matomezu/taskboard:project-add", args: { prefix: "T-" }, lang: "ja", now: NOW },
+    data: { actions: [{ action: "@matomezu/taskboard:project-add", args: { prefix: "T-" }, lang: "ja", now: NOW }] },
   })
   const { result } = (await made.json()) as { result: { project: string; lanes: { id: string }[] } }
   const added = await perform(page, "@matomezu/taskboard:ticket-add", {
@@ -274,7 +274,7 @@ test("タグは「＋」の一覧から付け、バッヂの × で外す。付�
 test("カードのタグは、M なら 1 行・L なら 3 行に入るだけ並び、入らない分は「+N」になる", async ({ page }) => {
   await page.goto(CONTROL_CENTER_URL)
   const made = await page.request.post("/api/perform", {
-    data: { action: "@matomezu/taskboard:project-add", args: { prefix: "T-" }, lang: "ja", now: NOW },
+    data: { actions: [{ action: "@matomezu/taskboard:project-add", args: { prefix: "T-" }, lang: "ja", now: NOW }] },
   })
   const { result } = (await made.json()) as { result: { project: string; lanes: { id: string }[] } }
   const names = ["調べ物", "見直し", "画面", "サーバー", "急ぎ", "あとで", "相談", "文書"]

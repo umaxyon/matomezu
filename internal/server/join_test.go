@@ -183,7 +183,7 @@ func TestDeclinedParticipantIsToldOnce(t *testing.T) {
 		t.Fatalf("calls = %v", calls)
 	}
 
-	call(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:participant-decline","args":{},"on":{"record":"`+joined.Participant+`"},"lang":"ja","now":"2026-11-08T01:00:00.000Z"}`, nil)
+	postPerform(t, s.URL, `{"action":"@matomezu/base:participant-decline","args":{},"on":{"record":"`+joined.Participant+`"},"lang":"ja","now":"2026-11-08T01:00:00.000Z"}`)
 	_, h := call(t, "GET", s.URL+"/api/ai/books", "", id)
 	if text, _ := url.QueryUnescape(h.Get(NoticeHeader)); !strings.Contains(text, "declined") {
 		t.Fatalf("notice = %q", text)
@@ -231,7 +231,7 @@ func TestCallsAreNotAnnouncedEveryTime(t *testing.T) {
 // acceptRoom は、利用者が要求中の参加者 participant を、名前 room の新しい部屋に受け入れる（部屋を作って入れる）。入れるアクションの答えを返す
 func acceptRoom(t *testing.T, url, participant, room string) string {
 	t.Helper()
-	made, _ := call(t, "POST", url+"/api/perform", `{"action":"@matomezu/base:workroom-add","args":{"name":"`+room+`","bird":"inko"},"lang":"ja","now":"2026-11-08T00:59:00.000Z"}`, nil)
+	_, made := postPerform(t, url, `{"action":"@matomezu/base:workroom-add","args":{"name":"`+room+`","bird":"inko"},"lang":"ja","now":"2026-11-08T00:59:00.000Z"}`)
 	var out struct{ Result struct{ Workroom string } }
 	if json.Unmarshal([]byte(made), &out) != nil || out.Result.Workroom == "" {
 		return made
@@ -242,7 +242,7 @@ func acceptRoom(t *testing.T, url, participant, room string) string {
 // acceptIn は、要求中の参加者 participant を、今ある部屋 room（id）に受け入れる。答えを返す
 func acceptIn(t *testing.T, url, participant, room string) string {
 	t.Helper()
-	got, _ := call(t, "POST", url+"/api/perform", `{"action":"@matomezu/base:participant-accept","args":{"workroom":"`+room+`"},"on":{"record":"`+participant+`"},"lang":"ja","now":"2026-11-08T01:00:00.000Z"}`, nil)
+	_, got := postPerform(t, url, `{"action":"@matomezu/base:participant-accept","args":{"workroom":"`+room+`"},"on":{"record":"`+participant+`"},"lang":"ja","now":"2026-11-08T01:00:00.000Z"}`)
 	return got
 }
 
@@ -508,7 +508,7 @@ func TestJoinWithAWorkroomOfAQuietParticipantCanBeAcceptedByTakingOver(t *testin
 	// 引き継ぎは、前の参加者を外してから、同じ部屋に受け入れる
 	oldRows, _ := table(t, s.URL)
 	room := oldRows[0].Workroom
-	if out, _ := call(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:participant-remove","args":{},"on":{"record":"`+first.Participant+`"},"lang":"ja","now":"2026-11-08T02:00:00.000Z"}`, nil); !strings.Contains(out, `"ok":true`) {
+	if _, out := postPerform(t, s.URL, `{"action":"@matomezu/base:participant-remove","args":{},"on":{"record":"`+first.Participant+`"},"lang":"ja","now":"2026-11-08T02:00:00.000Z"}`); !strings.Contains(out, `"ok":true`) {
 		t.Fatalf("remove = %s", out)
 	}
 	if out := acceptIn(t, s.URL, second.Participant, room); !strings.Contains(out, `"ok":true`) {
@@ -543,7 +543,7 @@ func TestJoinedTextComesFromTheMessageTable(t *testing.T) {
 	if got := hub.userJoinedText("ひよこ"); got != "Joined matomezu. Workroom name: ひよこ" {
 		t.Fatalf("en = %q", got)
 	}
-	call(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:lang":"matomezu:ja"}},"lang":"ja"}`, nil)
+	postPerform(t, s.URL, `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:lang":"matomezu:ja"}},"lang":"ja"}`)
 	if got := hub.userJoinedText("ひよこ"); got != "matomezu に参加しました。ワークルーム名: ひよこ" {
 		t.Fatalf("ja = %q", got)
 	}
