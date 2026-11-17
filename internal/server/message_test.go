@@ -292,3 +292,41 @@ func TestWatchAckOverHTTP(t *testing.T) {
 		t.Fatalf("wakes = %q", got)
 	}
 }
+
+// 管理者のワークルームの AI が、ほかのワークルームの今のチケットを決めると、行った参加者からそのワークルームの AI に AI 間メッセージが届く。
+// 宛先のワークルームに参加の確定した AI がいなければ、何も変えずに no-recipient で断る
+func TestActionSendsAIMessage(t *testing.T) {
+	s, hub := joinWorld(t, joinStore(t))
+	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
+	joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
+	makeRoom(t, s.URL, "からす")
+	noticeOf(t, s.URL, a)
+	ids := map[string]string{}
+	for id, r := range recordsOf(t, s.URL, "@matomezu/base:workroom") {
+		ids[r["name"].(string)] = id
+	}
+	if _, got := postPerform(t, s.URL, `{"action":"@matomezu/base:admin-set","args":{"workroom":"`+ids["ひよこ"]+`"},"lang":"ja","now":"2026-11-08T01:00:00.000Z"}`); !strings.Contains(got, `"ok":true`) {
+		t.Fatalf("admin-set = %s", got)
+	}
+	set := func(room string) string {
+		got, _ := call(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/taskboard:current-ticket-set","args":{"ticket":"none","workroom":"`+room+`"}}`, map[string]string{ParticipantHeader: a})
+		return got
+	}
+	if got := set("からす"); !strings.Contains(got, `"reason":"no-recipient"`) || !strings.Contains(got, "からす") {
+		t.Fatalf("to an empty workroom = %s", got)
+	}
+	if got := recordsOf(t, s.URL, "@matomezu/taskboard:current-ticket"); len(got) != 0 {
+		t.Fatalf("written although refused: %v", got)
+	}
+	if got := set("すずめ"); !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("to a joined workroom = %s", got)
+	}
+	got := wakes(hub, hub.OpenWakesWith("200", "", WakeLimits{}))
+	want := `matomezu: message from AI "ひよこ" (not the user; reply via send_message, id *): "The administrator set your workroom's current ticket to none."`
+	if len(got) != 1 || withoutID(got[0]) != want {
+		t.Fatalf("wakes = %q", got)
+	}
+	if rec := recordsOf(t, s.URL, "@matomezu/taskboard:current-ticket")[ids["すずめ"]]; rec["ticket"] != "none" {
+		t.Fatalf("current ticket = %v", rec)
+	}
+}

@@ -3,7 +3,7 @@
 // その前に認可ステップ（core/def/permission.ts）が止められ、run の結果も認可ステップが守らせることを守っていなければ断る（denied）
 
 import type { z } from "zod"
-import { USER } from "./actor"
+import { isAI, USER } from "./actor"
 import { type Annotation, type Annotations, annotationsSettle, type PageAnnotations, prune } from "./annotation"
 import {
   distinctBooks,
@@ -25,6 +25,7 @@ import {
   type ActionOn,
   type ActionTarget,
   type AIEditTicketChange,
+  type AIMessage,
   type AnyLibraryScope,
   type AnyPagePermissionScope,
   type AnyPermissionScope,
@@ -126,6 +127,7 @@ export type Performed<Id extends ActionId> =
       result: ResultOf<Id>
       others?: readonly OtherRecord<never>[]
       aiEditTickets?: readonly AIEditTicketChange[]
+      aiMessages?: readonly AIMessage[]
     }
   | Refused
 
@@ -539,6 +541,10 @@ export function perform<Id extends ActionId>(
     if (!annotationsSettle(ctx.catalog, page, pair.annotations, next)) return { ok: false, reason: "refused" }
   }
   const others = (ran.others ?? []) as readonly OtherRecord<never>[]
+  // 送る AI 間メッセージは、レコードが対象のアクションで、行う者が参加の確定した AI のときだけ（送り手は行った参加者）
+  const messages = isRecordTarget(ctx.catalog, action.target) ? (ran.aiMessages ?? []) : []
+  if (messages.length > 0 && !(isAI(ctx.actor) && ctx.actor.workroom !== "none"))
+    return { ok: false, reason: "refused", detail: "only an AI in a workroom sends AI messages" }
   if (isRecordTarget(ctx.catalog, action.target)) {
     const changes = recordChanges(ctx, action, subject, done.next, others)
     if (!changes) return { ok: false, reason: "refused" }
@@ -558,6 +564,7 @@ export function perform<Id extends ActionId>(
     ...(isRecordTarget(ctx.catalog, action.target) && ran.aiEditTickets && ran.aiEditTickets.length > 0
       ? { aiEditTickets: ran.aiEditTickets }
       : {}),
+    ...(messages.length > 0 ? { aiMessages: messages } : {}),
   } as Performed<Id>
 }
 
@@ -620,6 +627,7 @@ export type PerformedIn =
       records?: readonly RecordChange[] // レコードが対象のアクションで変わったレコード（宛先の 1 件が先で、ほかは run が返した順。1 つのトランザクションで当てる）
       counters?: Counters // レコードが対象のアクションが進めた番号（種類の id → 区切り → 次の番号。進めた区切りだけ）
       aiEditTickets?: readonly AIEditTicketChange[] // レコードが対象のアクションが返した、AI 編集チケットの変え方の並び（レコードと同じ 1 回の書き込みで当てる）
+      aiMessages?: readonly AIMessage[] // レコードが対象のアクションが返した、送る AI 間メッセージの並び（常駐がバルクの書き込みと一緒に送る）
     }
   | Refused
   | { ok: false; reason: "no-book" }
@@ -855,6 +863,7 @@ function performRecord(
     ...(changes.length > 0 ? { records: changes } : {}),
     ...(changes.length > 0 && Object.keys(used).length > 0 ? { counters: { [target]: used } } : {}),
     ...(done.aiEditTickets ? { aiEditTickets: done.aiEditTickets } : {}),
+    ...(done.aiMessages ? { aiMessages: done.aiMessages } : {}),
   }
 }
 

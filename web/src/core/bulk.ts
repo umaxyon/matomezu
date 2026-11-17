@@ -3,7 +3,7 @@
 
 import { type Annotations, withAnnotations } from "./annotation"
 import type { CoreCatalog } from "./core-catalog"
-import type { ActionContext, ActionOn, AIEditTicketChange } from "./def/action"
+import type { ActionContext, ActionOn, AIEditTicketChange, AIMessage } from "./def/action"
 import { type TableChanges, withChanges } from "./folders"
 import { type PerformedIn, performIn, type World } from "./perform"
 import { keyValuesOf } from "./record-keys"
@@ -65,6 +65,7 @@ export type PerformedBulk<R = never> =
       records?: readonly RecordChange[]
       counters?: Counters
       aiEditTickets?: readonly BulkTicketChange[]
+      aiMessages?: readonly AIMessage[]
     }
   | ((NotDone | R) & { at: number })
 
@@ -90,6 +91,7 @@ export function performBulk<R extends { ok: false } = never>(
   let records: RecordChange[] = []
   let counters: Counters | undefined
   const tickets: BulkTicketChange[] = []
+  const messages: AIMessage[] = []
   for (const [i, step] of steps.entries()) {
     const done = performIn({ ...now, source: overlaid(ctx.catalog, base, written) }, step.action, step.args, step.on, {
       ...ctx,
@@ -123,6 +125,7 @@ export function performBulk<R extends { ok: false } = never>(
     if (done.counters) counters = withCounters(counters ?? {}, done.counters)
     const subject = ctx.catalog.actions.get(step.action)?.target ?? ""
     for (const change of done.aiEditTickets ?? []) tickets.push({ subject, change })
+    messages.push(...(done.aiMessages ?? []))
     now = after
   }
   // 作って消したページ・フォルダ・レコードは、前も後も無いので持たない
@@ -140,6 +143,7 @@ export function performBulk<R extends { ok: false } = never>(
     ...(keptRecords.length > 0 ? { records: keptRecords } : {}),
     ...(counters ? { counters } : {}),
     ...(tickets.length > 0 ? { aiEditTickets: tickets } : {}),
+    ...(messages.length > 0 ? { aiMessages: messages } : {}),
   }
 }
 

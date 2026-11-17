@@ -104,13 +104,14 @@ test("ロック中のチケットは直せず消せない。AI は掛けられ�
   expect(user(A("ticket-update"), { name: "z" }, { record: ticket }).ok).toBe(true)
 })
 
-test("今のチケットは、AI が自分のワークルームの分だけ宣言する。最初は on を省き、あとは on に自分の id。利用者は行えない", () => {
+test("今のチケットは、AI が自分のワークルームの分を宣言する。最初は on を省き、あとは on に自分の id。利用者は行えない", () => {
   const { user, as, table, room, ticket } = ready()
   const id = room("ひよこ")
   const other = room("ぴよ")
   expect(user(A("current-ticket-set"), { ticket }).ok).toBe(false)
   expect(as(ai(id), "current-ticket-set", { ticket: "nothing" }).ok).toBe(false)
-  expect(as(ai(id), "current-ticket-set", { ticket }, { record: other }).ok).toBe(false)
+  // 記録の無いワークルームを on.record で指すと、core が no-record で断る
+  expect(as(ai(id), "current-ticket-set", { ticket }, { record: other })).toMatchObject({ ok: false, reason: "no-record" })
   // ワークルームの id でない id を on.record に付けたら、断りが種類の説明（id はワークルームの id）と一覧の引き方を言う
   const wrong = as(ai(id), "current-ticket-set", { ticket }, { record: "a-participant" }) as { detail?: string }
   expect(wrong).toMatchObject({ ok: false, reason: "no-record" })
@@ -124,6 +125,41 @@ test("今のチケットは、AI が自分のワークルームの分だけ宣�
   })
   expect(as(ai(id), "current-ticket-set", { ticket: "none" }).ok).toBe(true)
   expect(table(CURRENT.id)).toEqual([])
+})
+
+test("管理者のワークルームの AI だけが、ほかのワークルームの今のチケットを決め、そのワークルームの AI に AI 間メッセージを送る。記録の無いワークルームは workroom（id か名前）で作り、記録があれば on.record で指す", () => {
+  const { user, act, table, room, ticket } = completing()
+  const admin = room("あ")
+  const other = room("い")
+  const set = (actor: string, args: object, on?: On) => act(ai(actor), "current-ticket-set", { ticket, ...args }, on)
+  const declined = (done: Done) => (done as { detail?: string }).detail ?? ""
+  // 印がまだ無いとき（admin-set を一度も行っていない）は断る
+  expect(declined(set(admin, { workroom: other }))).toContain("administrator")
+  expect(user("@matomezu/base:admin-set", { workroom: admin }).ok).toBe(true)
+  // 印がほかのワークルームを指す AI は断られる。自分の分は名前で指してもよい
+  expect(declined(set(other, { workroom: admin }))).toContain("administrator")
+  const own = set(other, { workroom: "い" })
+  expect(own).toMatchObject({ ok: true, result: { current: other } })
+  // 自分の分では AI 間メッセージを送らない
+  expect((own as { aiMessages?: unknown }).aiMessages).toBeUndefined()
+  expect(table(CURRENT.id)).toEqual([{ id: other, ticket, at: "2026-11-12T00:00:00.000Z" }])
+  // 管理者は、まだ宣言していないワークルームの分を作り、記録のあるワークルームの分を on.record で変える
+  const third = room("う")
+  // ほかのワークルームの分を決めたら、そのワークルームの AI に AI 間メッセージを送る（宛先はワークルームの id）
+  expect(set(admin, { workroom: "う" })).toMatchObject({
+    ok: true,
+    result: { current: third },
+    aiMessages: [{ workroom: third, text: `The administrator set your workroom's current ticket to "t" (${ticket}).` }],
+  })
+  expect(set(admin, { ticket: "none" }, { record: other }).ok).toBe(true)
+  expect(table(CURRENT.id)).toContainEqual({ id: other, ticket: "none", at: "2026-11-12T00:00:00.000Z" })
+  // 管理者でない AI は、ほかのワークルームの記録を on.record で変えられない
+  expect(declined(set(third, {}, { record: other }))).toContain("administrator")
+  // 無いワークルーム・on と workroom の両方は断る
+  expect(declined(set(admin, { workroom: "え" }))).toContain('the workroom "え" is not there')
+  expect(declined(set(admin, { workroom: other }, { record: other }))).toContain("leave workroom out")
+  // 記録のあるワークルームを、on を省いて作ろうとすると断られる
+  expect(set(admin, { workroom: other }).ok).toBe(false)
 })
 
 test("履歴の題は列挙 history-topic の値（状況・プラン・質問・本文更新・完了）。値の data は色の役割で、質問だけ利用者への質問（asksUser）、本文更新と完了だけ文を持たない（textless）", () => {

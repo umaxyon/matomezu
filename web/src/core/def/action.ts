@@ -101,6 +101,13 @@ export type AIEditTicketChange =
   | { book: string; key: string; outcome: "removed"; cause: AIEditTicketRemovedCause }
 export type AIEditTicketRemovedCause = "limit" | "user"
 
+// レコードが対象のアクションが送る AI 間メッセージ 1 通: 宛先のワークルームの id と文。送り手は行った参加者で、ここには書かない。
+// 返せるのは、行う者が参加の確定した AI のときだけ。常駐は、アクションバルクが通ったときだけ送り、宛先のワークルームに参加の確定した参加者がいなければ、バルクごと断る（no-recipient）
+export interface AIMessage {
+  workroom: string
+  text: string
+}
+
 // レコードが対象のアクションが、宛先の 1 件のほかに変えるレコード 1 件（record は新しいレコードか、消すなら removed）。
 // subject を省けば、対象の種類 T のレコード。別の種類のレコードは subject に種類の id を書く（アクションの定義の writes に書いた種類だけ）
 export type OtherRecord<T extends SubjectId> =
@@ -114,6 +121,8 @@ export interface Done<T extends ActionTarget, R> {
   others?: T extends SubjectId ? readonly OtherRecord<T>[] : never
   // レコードが対象のアクションだけが書ける、AI 編集チケットの変え方の並び（宛先と others の変えたレコードと同じ 1 回の書き込みで、順に当てる）
   aiEditTickets?: T extends SubjectId ? readonly AIEditTicketChange[] : never
+  // レコードが対象のアクションだけが書ける、送る AI 間メッセージの並び（AIMessage）
+  aiMessages?: T extends SubjectId ? readonly AIMessage[] : never
 }
 
 // run が断るときに、断った理由を添える値。declined は AI への説明に載る英語の文（ぶつかった相手や、代わりに入る所など。画面には出さない）。

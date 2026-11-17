@@ -479,6 +479,13 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		if by == "window" {
 			requested = h.requestedParticipants()
 		}
+		// アクションが返した AI 間メッセージは、送り手と全部の宛先に参加の確定した参加者がいるときだけ送る（いなければ、何も変えずにバルクごと断る）
+		envelopes, refused := h.actionEnvelopes(out.AIMessages, p, time.Now())
+		if refused != nil {
+			h.remember(p.Key, *refused)
+			h.ack(p, *refused)
+			return *refused, nil
+		}
 		act := h.actPrefix + "-" + strconv.FormatInt(h.acts+1, 10)
 		plan, err := h.planWrites(out, by, act, stamp())
 		if err != nil {
@@ -497,6 +504,9 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		}
 		h.acts++
 		h.applyWrites(plan, out, p, by, act)
+		for _, e := range envelopes {
+			h.deliver(e)
+		}
 		h.wakeOnParticipants(requested)
 	}
 	h.remember(p.Key, done)
