@@ -1296,6 +1296,19 @@ func TestListsAWarningForAPartlyKnownBook(t *testing.T) {
 	}
 }
 
+// AI のブックの一覧の 1 行は、ブックの本文からブックの名前（title）だけを読む: 本文に problem・warning・awaiting の名前のフィールドがあっても拾わない
+func TestListsOnlyTheTitleFromABooksBody(t *testing.T) {
+	s := newServer(t, nil)
+	broken := `{"id":"z2","title":"Z","lineup":"no","problem":"fake","warning":"fake","awaiting":9}`
+	if code, body := send(t, "PUT", s.URL+"/api/books-for-test/z2", `{"book":`+broken+`,"base":0}`, nil); code != 200 {
+		t.Fatalf("put = %d %s", code, body)
+	}
+	_, body := get(t, s.URL+"/api/ai/books", "secret")
+	if !strings.Contains(body, `"id":"z2","title":"Z","version":`) || !strings.Contains(body, `"problem":"W005 `) || strings.Contains(body, "fake") || strings.Contains(body, `"awaiting":9`) {
+		t.Fatalf("books = %s", body)
+	}
+}
+
 func TestWindowWarningsAreGatheredForAI(t *testing.T) {
 	s := newServer(t, nil)
 	a, b := listen(t, s.URL), listen(t, s.URL)
