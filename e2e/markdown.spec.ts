@@ -123,7 +123,7 @@ test("境目を掴んで動かすとペインの大きさが変わり、ダブ�
   await page.mouse.down()
   await page.mouse.move(mid.x, column.y + column.h * 0.3, { steps: 5 })
   await page.mouse.up()
-  // 上下に並べた時点で場所に並べ方が入るので、入れ替えと境目まで書かれるのを待つ（境目はしばらく待ってまとめて書く）
+  // 上下に並べた時点で画面の場所に並べ方が入るので、入れ替えと境目まで書かれるのを待つ（境目はしばらく待ってまとめて書く）
   const layout = () => urlStages(page)[0]?.s?.["@matomezu/markdown:pane-layout"] as { first?: string; share?: number }
   await expect.poll(() => layout()?.first).toBe("source")
   await expect.poll(() => layout()?.share ?? 0).toBeLessThan(0.4)

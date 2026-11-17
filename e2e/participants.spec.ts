@@ -298,20 +298,6 @@ test("生きている参加者のワークルームは引き継げない。断�
   expect(Object.keys(body.records["@matomezu/base:mail"] ?? {})).toHaveLength(1) // 最初の郵便だけ
 })
 
-// 時計が、常駐に残った参加と呼ばれた時刻の最も新しいものを越えるまで待つ。並びはその時刻で決まるが、マシンの時計は合わせ直しで後ろへ戻ることがある
-// （WSL では 30 秒ごとに 1 秒ほど）。戻った直後に次の時刻を残すと前の時刻より古くなり、並びが逆になる。待ったあとに戻ることもあるので、並びは残った時刻と比べる
-async function clockPast(page: Page) {
-  const body = await (await page.request.get("/api/data", { headers: aiAuth() })).json()
-  const joined = Object.values(body.records?.["@matomezu/base:participant"] ?? {}).map(
-    p => (p as { joinedAt?: string }).joinedAt,
-  )
-  const times = [...joined, ...Object.values(body.participantCalls ?? {})].flatMap(t =>
-    typeof t === "string" ? [Date.parse(t)] : [],
-  )
-  const latest = Math.max(0, ...times)
-  await expect.poll(() => Date.now(), { timeout: 5000 }).toBeGreaterThan(latest)
-}
-
 test("列は、呼ばれた時刻と参加の新しい順に並び、列に触れている間は並びが止まって、離れると並び直す", async ({
   page,
 }) => {
@@ -322,15 +308,14 @@ test("列は、呼ばれた時刻と参加の新しい順に並び、列に触�
   const second = await join(page, "e2e-link-order-2", "order-2", "", "S-order-2")
   const dialog = await openJoinDialog(page)
   await dialog.getByRole("textbox", { name: "ワークルーム名" }).fill("かきく")
-  await clockPast(page)
   await dialog.getByRole("button", { name: "受け入れる" }).click()
   await expect(dialog).toHaveCount(0)
   await expect.poll(async () => (await participants(page)).filter(p => p.state === "joined").length).toBe(2)
   await (await fromMenu(page, "コントロールセンター")).click()
   const names = () => page.locator("[data-workroom]").evaluateAll(els => els.map(e => e.textContent ?? ""))
   const order = async () => (await names()).map(t => (t.includes("あいう") ? "あいう" : "かきく"))
-  // 常駐に残った時刻（呼ばれた時刻と参加した時刻の新しいほう）の新しい順。clockPast で、ふだんはコメントのとおりの並びになる。
-  // 待ったあとに時計が戻ると時刻の前後が入れ替わるので、画面の並びはこの並びと比べる
+  // 常駐に残った時刻（呼ばれた時刻と参加した時刻の新しいほう）の新しい順。マシンの時計は合わせ直しで後ろへ戻ることがあり、
+  // 戻った直後に残った時刻は前の時刻より古くなるので、画面の並びはコメントの並びでなく、この並びと比べる
   const byTimes = async () => {
     const body = await (await page.request.get("/api/data", { headers: aiAuth() })).json()
     const at = (p: { participant: string }) => {
@@ -349,14 +334,12 @@ test("列は、呼ばれた時刻と参加の新しい順に並び、列に触�
   // あとから参加したほうが上
   await expect.poll(followsTimes).toBe("follows")
   // 先に参加したほうが呼ばれると、上へ来る
-  await clockPast(page)
   await call(page, first.participant)
   await expect.poll(() => calledOf(first)).toBeTruthy()
   await expect.poll(followsTimes).toBe("follows")
   // 列に触れている間は、呼ばれても並びが止まる。離れると並び直す
   const top = (await order())[0]!
   await page.locator("[data-workroom]").first().hover()
-  await clockPast(page)
   await call(page, second.participant)
   await expect.poll(() => calledOf(second)).toBeTruthy()
   await expect(page.locator("[data-workroom]").first()).toContainText(top)
