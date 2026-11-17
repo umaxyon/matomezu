@@ -16,7 +16,7 @@ type aiAnnotation struct {
 	Anchors []string `json:"anchors"`
 }
 
-// annotatedBooks は、ブック（ids。nil なら全部）のうち、アノテーションの有る物（ゴミ箱のブックは入れない）の、ブックとアノテーションの並びと、その id
+// annotatedBooks は、ブック（ids。nil なら全部）のうち、アノテーションの有る物（ゴミ箱のブックは入れない）の、ブックとページごとのアノテーションの組と、その id
 func (h *Hub) annotatedBooks(ids []string) ([]engine.AnnotatedBook, []string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -27,11 +27,11 @@ func (h *Hub) annotatedBooks(ids []string) ([]engine.AnnotatedBook, []string) {
 	}
 	for _, id := range ids {
 		e, ok := h.books[id]
-		list, has := h.annotations[id]
-		if !ok || e.trashed || !has {
+		lists := h.annotationsIn(id)
+		if !ok || e.trashed || len(lists) == 0 {
 			continue
 		}
-		pairs = append(pairs, engine.AnnotatedBook{Book: e.body, Annotations: list})
+		pairs = append(pairs, engine.AnnotatedBook{Book: e.body, Annotations: lists})
 		books = append(books, id)
 	}
 	return pairs, books
@@ -59,10 +59,10 @@ func (h *Hub) AIAnnotations(ids []string) (map[string][]json.RawMessage, error) 
 	return out, nil
 }
 
-// AIBriefs は、ブックごとに、待っている物を AI に知らせる 1 行（アノテーションの id → 1 行。engine.AIBriefs）を返す。AIAnnotations と同じブックだけ
-func (h *Hub) AIBriefs() (map[string]map[string]string, error) {
+// AIBriefs は、ブックごとに、待っている物を AI に知らせる 1 行（ページの id → アノテーションの id → 1 行。engine.AIBriefs）を返す。AIAnnotations と同じブックだけ
+func (h *Hub) AIBriefs() (map[string]map[string]map[string]string, error) {
 	pairs, books := h.annotatedBooks(nil)
-	out := map[string]map[string]string{}
+	out := map[string]map[string]map[string]string{}
 	if len(pairs) == 0 {
 		return out, nil
 	}
@@ -81,13 +81,18 @@ func (h *Hub) AIPage(book, page json.RawMessage) (json.RawMessage, error) {
 	return h.engine.AIPage(book, page)
 }
 
-// AIBook は、AI に見せるブック（本文）: 並びの全部のページ（バインダの中も）を AIPage に通す（読めない形のブックは、渡したまま返す）
+// AIBook は、AI に見せるブック（本文）: 並びの全部のページ（バインダの中も）を AIPage に通す。読めないページは unreadableEntry にする（読めない形のブックは、渡したまま返す）
 func (h *Hub) AIBook(book json.RawMessage) (json.RawMessage, error) {
 	lineup := lineupOf(book)
 	if lineup == nil {
 		return book, nil
 	}
-	shown, err := mapLineup(lineup, func(p json.RawMessage) (json.RawMessage, error) { return h.AIPage(book, p) }, nil)
+	shown, err := mapLineup(lineup, func(p json.RawMessage) (json.RawMessage, error) {
+		if code, ok := h.UnreadablePage(pageID(p)); ok {
+			return unreadableEntry(p, code)
+		}
+		return h.AIPage(book, p)
+	}, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -125,15 +130,15 @@ func (o Options) annotationsOf(book string) ([]json.RawMessage, error) {
 	return []json.RawMessage{}, nil
 }
 
-// aiPage は、ブックの 1 ページ（{"id", "page", "version", "annotations", "placed"}。annotations はそのページの物に立つもの、
-// placed はそのページの形の描いた位置と大きさ。見せ方が答えなければ null）
+// aiPage は、1 ページ（{"book", "page", "version", "annotations", "placed"}。book はそのページを持っているブックの id、version はそのページの版、annotations はそのページの物に立つもの、
+// placed はそのページの形の描いた位置と大きさ。見せ方が答えなければ null）。読めないページは {"ok": false, "reason": "unreadable", "code"} で断る
 func (o Options) aiPage(w http.ResponseWriter, r *http.Request) {
-	b := o.Hub.Book(r.PathValue("id"))
+	want := r.PathValue("page")
+	b := o.Hub.Book(o.Hub.BookOn(&engine.On{Page: want}))
 	if b == nil {
-		http.Error(w, "no such book", http.StatusNotFound)
+		http.Error(w, "no such page", http.StatusNotFound)
 		return
 	}
-	want := r.PathValue("page")
 	var page json.RawMessage
 	for _, p := range pagesOfBook(b.Body) {
 		var head struct {
@@ -147,6 +152,10 @@ func (o Options) aiPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "no such page", http.StatusNotFound)
 		return
 	}
+	if code, ok := o.Hub.UnreadablePage(want); ok {
+		writeUnreadable(w, code)
+		return
+	}
 	list, err := o.annotationsOf(b.ID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -154,7 +163,7 @@ func (o Options) aiPage(w http.ResponseWriter, r *http.Request) {
 	}
 	onPage := pick(list, func(a aiAnnotation) bool { return a.Page != nil && *a.Page == want })
 	if r.URL.Query().Get("outline") != "" {
-		writeJSON(w, map[string]any{"id": b.ID, "page": outlinePage(page), "version": b.Version, "annotations": onPage, "placed": nil})
+		writeJSON(w, map[string]any{"book": b.ID, "page": outlinePage(page), "version": o.Hub.PageVersion(want), "annotations": onPage, "placed": nil})
 		return
 	}
 	all, err := o.Hub.AIPlaced(b.Body)
@@ -190,7 +199,7 @@ func (o Options) aiPage(w http.ResponseWriter, r *http.Request) {
 				inside = append(inside, box)
 			}
 		}
-		writeJSON(w, map[string]any{"id": b.ID, "page": want, "item": found, "version": b.Version, "annotations": onItem, "placed": inside})
+		writeJSON(w, map[string]any{"book": b.ID, "page": want, "item": found, "version": o.Hub.PageVersion(want), "annotations": onItem, "placed": inside})
 		return
 	}
 	shown, err := o.Hub.AIPage(b.Body, page)
@@ -198,7 +207,7 @@ func (o Options) aiPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, map[string]any{"id": b.ID, "page": shown, "version": b.Version, "annotations": onPage, "placed": placed})
+	writeJSON(w, map[string]any{"book": b.ID, "page": shown, "version": o.Hub.PageVersion(want), "annotations": onPage, "placed": placed})
 }
 
 // aiAwaiting は、AI の応えを待っているアノテーションの全部（{"awaiting": [{"book", "title", "annotation", "brief"}]}。ブックを置いた順。
@@ -230,10 +239,11 @@ func (o Options) aiAwaiting(w http.ResponseWriter, _ *http.Request) {
 		_ = json.Unmarshal(b.Body, &head)
 		for _, a := range pick(all[b.ID], awaiting) {
 			var id struct {
-				ID string `json:"id"`
+				ID   string `json:"id"`
+				Page string `json:"page"`
 			}
 			_ = json.Unmarshal(a, &id)
-			out = append(out, item{Book: b.ID, Title: head.Title, Annotation: a, Brief: briefs[b.ID][id.ID]})
+			out = append(out, item{Book: b.ID, Title: head.Title, Annotation: a, Brief: briefs[b.ID][id.Page][id.ID]})
 		}
 	}
 	undone, err := o.Hub.TellUndone()

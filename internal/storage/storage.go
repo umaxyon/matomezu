@@ -1,7 +1,9 @@
-// Package storage は、常駐が持つブックと設定とアノテーションの置き場所。
+// Package storage は、常駐が持つページとフォルダと設定とアノテーションの置き場所。
 //
 // 置き場所は Storage の型 1 つにまとめ、SQLite（sqlite.go）はその実装の 1 つ。置き場所を替えても、常駐の API と画面は変わらない。
-// ブックの中身は JSON のまま持ち、中を解釈しない（形を決めるのは画面と同じ core のスキーマ）。
+// ページとフォルダの中身は JSON のまま持ち、中を解釈しない（形を決めるのは画面と同じ core のスキーマ）。
+// ブックは、ブックのフォルダと、その下のバインダとページ（フォルダが、エントリの id を順に持つ）。どのエントリがどのフォルダに入っているかは、
+// 中身とは別の表（Entries）にも持ち、エントリの id を主キーにして「エントリは、ちょうど 1 つのフォルダに入る」を守る
 package storage
 
 import (
@@ -9,10 +11,17 @@ import (
 	"errors"
 )
 
-// Book は、置いたブック 1 冊。Version は書くたびに 1 つ上がる（最初に書いたときが 1）
-type Book struct {
+// Page は、置いたページ 1 枚。Version は書くたびに 1 つ上がる（最初に書いたときが 1）
+type Page struct {
 	ID      string          `json:"id"`
-	Body    json.RawMessage `json:"book"`
+	Body    json.RawMessage `json:"page"`
+	Version int64           `json:"version"`
+}
+
+// Folder は、置いたフォルダ 1 つ（ブックのフォルダか、バインダ）。Version は書くたびに 1 つ上がる（最初に書いたときが 1）
+type Folder struct {
+	ID      string          `json:"id"`
+	Body    json.RawMessage `json:"folder"`
 	Version int64           `json:"version"`
 }
 
@@ -32,13 +41,21 @@ type Counter struct {
 }
 
 // ErrConflict は、書くときに添えた版が、置いてある版と違うこと
-var ErrConflict = errors.New("the book was changed by someone else")
+var ErrConflict = errors.New("it was changed by someone else")
 
-// BookWrite は Batch の、ブック 1 冊の書き込み（PutBook と同じ。base が置いてある版と違えば ErrConflict）
-type BookWrite struct {
-	ID   string
-	Body json.RawMessage
-	Base int64
+// RowWrite は Batch の、ページ 1 枚かフォルダ 1 つの書き込み（base が置いてある版と違えば ErrConflict。作るときの base は 0 で、まだ無いときだけ。Removed なら消す）
+type RowWrite struct {
+	ID      string
+	Body    json.RawMessage
+	Base    int64
+	Removed bool
+}
+
+// EntryPut は Batch の、エントリ（ページかバインダ）の入っているフォルダの書き込み: エントリ ID は、フォルダ Folder に入っている（Folder が空なら、どこにも入っていない = 表から消す）。
+// 同じエントリを 2 つのフォルダに入れる書き込みは、主キーが断る（先に、出て行くフォルダの分を消す）
+type EntryPut struct {
+	ID     string
+	Folder string
 }
 
 // RecordWrite は Batch の、レコード 1 件の書き込み（base が置いてある版と違えば ErrConflict。作るときの base は 0。Removed なら消す）。
@@ -96,9 +113,9 @@ type Found struct {
 // ErrUnknownKey は、種類が宣言していない索引キーを条件か並びに書いたこと
 var ErrUnknownKey = errors.New("the kind has no such index key")
 
-// BookBody は Batch の、ブックごとの並び（アノテーション・AI 編集チケット）の置き換え（空の並びなら消す）
-type BookBody struct {
-	Book string
+// PageBody は Batch の、ページごとの並び（アノテーション）の置き換え（空の並びなら消す）
+type PageBody struct {
+	Page string
 	Body json.RawMessage
 }
 
@@ -116,26 +133,30 @@ type SearchText struct {
 	Removed     bool
 }
 
-// Batch は 1 回の Perform が変える物の全部。Apply が、並びの順（ブック → 消すブック → 設定 → アノテーション → AI 編集チケット → レコード → 探す文字 → 番号の表）に 1 つのまとまりとして書く。
+// Batch は 1 回の Perform が変える物の全部。Apply が、並びの順（ページ → フォルダ → エントリの入っているフォルダ → 消したブック → 設定 → アノテーション → AI 編集チケット → レコード → 探す文字 → 番号の表）に 1 つのまとまりとして書く。
 // 変えない物は nil（nil でない UserBody は置き換える）
 type Batch struct {
-	Books         []BookWrite
-	Removed       []string
+	Pages         []RowWrite
+	Folders       []RowWrite
+	Entries       []EntryPut // 入っているフォルダが変わったエントリ（足した・消した・動かした）。消す分（Folder が空）を先に、入れる分を後に当てる
+	RemovedBooks  []string   // 消したブックの id（そのブックを開いた時刻を消す。ページとフォルダは Pages・Folders に Removed で並べる）
 	Settings      *UserBody
-	Annotations   []BookBody
-	AIEditTickets []BookBody
-	Records       []RecordWrite // 変えるレコード（1 つのアクションが変えた全部）
-	SearchTexts   []SearchText  // 変える探す文字（レコードと同じ 1 回の書き込みで）
-	Counters      []Counter     // 番号を進めた区切り（レコードを書くのと同じ 1 回の書き込みで）
+	Annotations   []PageBody
+	AIEditTickets json.RawMessage // AI 編集チケットの並びの全部（置き換える。空の並びなら消す。変えないなら nil）
+	Records       []RecordWrite   // 変えるレコード（1 つのアクションが変えた全部）
+	SearchTexts   []SearchText    // 変える探す文字（レコードと同じ 1 回の書き込みで）
+	Counters      []Counter       // 番号を進めた区切り（レコードを書くのと同じ 1 回の書き込みで）
 }
 
-// Storage はブックと設定とアノテーションの置き場所。設定は利用者ごとに、アノテーションはブックごとに持つ
+// Storage はページとフォルダと設定とアノテーションの置き場所。設定は利用者ごとに、アノテーションはページごとに持つ
 type Storage interface {
-	// Apply は b の全部を 1 つのまとまりとして書く。途中で 1 つでも失敗（版の違いも）したら、何も書かない。
-	// 版が違うときは、ErrConflict と、そのときの置いてあるブック
-	Apply(b Batch) (*Book, error)
-	// Books は置いてある全部のブック（ゴミ箱のブックも）
-	Books() ([]Book, error)
+	// Apply は b の全部を 1 つのまとまりとして書く。途中で 1 つでも失敗（版の違いも）したら、何も書かない。版が違うときは ErrConflict
+	Apply(b Batch) error
+	// Pages は置いてある全部のページ、Folders は全部のフォルダ（どちらも id の順。ゴミ箱のブックの分も）
+	Pages() ([]Page, error)
+	Folders() ([]Folder, error)
+	// Entries は、エントリ（ページかバインダ）の id → それを入れているフォルダの id
+	Entries() (map[string]string, error)
 	// SetKinds は、今ある種類と索引キーの宣言を伝える。種類ごとに 1 つの表を持ち、宣言した索引キーを中身とは別の列に置く
 	// （宣言が変わった種類は列を作り直す。値は FillKeys で入れ直すまで無い）。伝えられたことの無い種類のレコードは、中を解釈せずに 1 つの表に置いたまま
 	SetKinds(kinds []KindSpec) error
@@ -152,26 +173,22 @@ type Storage interface {
 	SyncSearch(keep []string, texts []SearchText) error
 	// Search は言葉で探す（SearchQuery）
 	Search(q SearchQuery) (SearchResult, error)
-	// DeleteBook はブック id と、それを開いた時刻と、そのアノテーションと AI 編集チケットを消す（戻せない）
-	DeleteBook(id string) error
-	// PutBook は、置いてある版が base のときだけ body で書き換え、新しい版を返す。base が 0 なら、まだ無いときだけ足す。
-	// 違えば ErrConflict と、置いてあるブック
-	PutBook(id string, body json.RawMessage, base int64) (int64, *Book, error)
 	// Settings は利用者の設定（無ければ nil）
 	Settings(user string) (json.RawMessage, error)
 	PutSettings(user string, body json.RawMessage) error
 	// ParticipantNotes は利用者の常駐だけが持つ参加者の記録（参加者の id → セッション id と、参加を伝えたかの印。JSON のまま。無ければ nil）。アクションを通さない記録
 	ParticipantNotes(user string) (json.RawMessage, error)
 	PutParticipantNotes(user string, body json.RawMessage) error
-	// Annotations はブックの id ごとのアノテーションの並び（JSON のまま。1 つも無いブックは無い）
+	// Annotations はページの id ごとのアノテーションの並び（JSON のまま。1 つも無いページは無い）
 	Annotations() (map[string]json.RawMessage, error)
-	// PutAnnotations はブック book のアノテーションの並びを body にする（空の並びなら消す）
-	PutAnnotations(book string, body json.RawMessage) error
-	// AIEditTickets はブックの id ごとの、AI 編集チケットの並び（JSON のまま。1 つも無いブックは無い）
-	AIEditTickets() (map[string]json.RawMessage, error)
-	// PutAIEditTickets はブック book の AI 編集チケットの並びを body にする（空の並びなら消す）
-	PutAIEditTickets(book string, body json.RawMessage) error
-	// Touched はブックの id ごとの、開いたか書いた時刻の新しい方（Stamp の形）。開いた時刻は、DB に無いブックにも残る
+	// PutAnnotations はページ page のアノテーションの並びを body にする（空の並びなら消す）
+	PutAnnotations(page string, body json.RawMessage) error
+	// AIEditTickets は、AI 編集チケットの並びの全部（JSON のまま。1 つも無ければ nil）
+	AIEditTickets() (json.RawMessage, error)
+	// PutAIEditTickets は、AI 編集チケットの並びの全部を body にする（空の並びなら消す）
+	PutAIEditTickets(body json.RawMessage) error
+	// Touched は、フォルダの id ごとの、開いたか書いた時刻の新しい方（Stamp の形）。書いた時刻は、そのフォルダと、その下（バインダの中まで）のページとフォルダを書いた時刻。
+	// 開いた時刻は、置き場所に無い id にも残る
 	Touched() (map[string]string, error)
 	// RanOnce は、初めて起動したときに 1 度だけ行うアクション（runsOnceAtStart）のうち、行ったと記録した物の id、MarkRanOnce は 1 つ記録する
 	RanOnce() (map[string]bool, error)

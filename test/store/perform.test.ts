@@ -13,7 +13,7 @@ import { createMatomezu } from "../../web/src/store/create"
 import { definePlugin } from "../../web/src/store/plugin"
 import type { Actions, DoneAction } from "../../web/src/store/store"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { newStore, sequence } from "../support"
+import { newStore, sequence, worldRows } from "../support"
 
 // 追加プラグインの見本: 自分のページのタイプと、そのタイプで使えるアクション（core/catalog.ts には書き足さない）。
 // アクションはページを名指し（許可スコープ { page }）、名指したページのタイプが add で足しているときだけ使える
@@ -146,7 +146,7 @@ describe("アクションの入口", () => {
     expect(notePage(instance)).toMatchObject({ title: "2026-10-26T02:00:00.000Z" })
     expect(done.at(-1)).toMatchObject({ action: "notes:stamp", now: "2026-10-26T02:00:00.000Z" })
     // ホストから届いたブックに、まだ確かめられていないアクションを行い直す
-    instance.receive({ books: [receivedBook("メモ")], settings: {} }, [done.at(-1)!])
+    instance.receive({ ...worldRows([receivedBook("メモ")]), settings: {} }, [done.at(-1)!])
     expect(notePage(instance)).toMatchObject({ title: "2026-10-26T02:00:00.000Z" })
   })
 
@@ -172,7 +172,7 @@ describe("アクションの入口", () => {
         },
       },
     } as unknown as DoneAction
-    instance.receive({ books: [receivedBook("メモ")], settings: {} }, [bad, good])
+    instance.receive({ ...worldRows([receivedBook("メモ")]), settings: {} }, [bad, good])
     expect(notePage(instance)).toMatchObject({ title: good.now })
   })
 
@@ -192,7 +192,7 @@ describe("アクションの入口", () => {
     act.perform("notes:rename", { page: "n2", title: "通る" }, { book: "n1" })
     await Promise.resolve()
     const first = instance.state.getState().history.n1?.undo.at(-1)
-    expect(first?.books.n1?.after).toMatchObject({ lineup: [{ title: "通る" }] })
+    expect(first?.pages.n2?.after).toMatchObject({ title: "通る" })
     // 続けた画面の履歴の段（continueStep）で別のアクションを行い、ホストが断る
     instance.actions.continueStep("n1")
     act.perform("notes:rename", { page: "n2", title: "断られる" }, { book: "n1" })
@@ -205,13 +205,12 @@ describe("アクションの入口", () => {
     act.perform("notes:rename", { page: "n2", title: "続き" }, { book: "n1" })
     await new Promise(r => setTimeout(r, 0))
     expect(instance.state.getState().history.n1?.undo.length).toBe(1)
-    expect(instance.state.getState().history.n1?.undo.at(-1)?.books.n1?.after).toMatchObject({
-      lineup: [{ title: "続き" }],
-    })
+    expect(instance.state.getState().history.n1?.undo.at(-1)?.pages.n2?.after).toMatchObject({ title: "続き" })
   })
 
   test("ビルトインプラグインのアクションも同じ入口を通り、ブックを開いているステージを合わせる", () => {
-    const { state, actions } = newStore({ newId: () => "made" })
+    const ids = ["made", "first"]
+    const { state, actions } = newStore({ newId: () => ids.shift() ?? "spare" })
     createBookIn({ state, actions }, "s1", { title: "空" })
     actions.split("s1")
     actions.openBook("s2", "made")
@@ -220,8 +219,8 @@ describe("アクションの入口", () => {
       { type: "@matomezu/drawing:drawing", title: "最初" },
       { book: "made" },
     )
-    expect(done).toEqual({ ok: true, result: { page: "made" } })
-    expect(screenOf(state.getState().window).stages.map(s => shownPageId(s.opened ?? null))).toEqual(["made", "made"])
+    expect(done).toEqual({ ok: true, result: { page: "first" } })
+    expect(screenOf(state.getState().window).stages.map(s => shownPageId(s.opened ?? null))).toEqual(["first", "first"])
   })
 
   test("宛先のブックが無い・名指したページのタイプが許さない・引数の形が違うときは断り、状態を変えない", () => {

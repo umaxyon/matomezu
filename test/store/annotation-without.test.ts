@@ -1,5 +1,6 @@
-// タイプが使わせないアノテーションの種類（annotations.without）: 伝言とマークを外したタイプのブックには付けられず、右クリックのコマンドも出さない
+// タイプが使わせないアノテーションの種類（annotations.without）: 伝言とマークを外したタイプのページには付けられず、右クリックのコマンドも出さない
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../web/src/core/book"
 import { definePageType } from "../../web/src/core/def/page-type"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
@@ -22,26 +23,35 @@ const PLAIN = definePageType({
   tokens: [],
 })
 
+// 伝言とマークを外したタイプのページを 1 枚持つブックを開いた store と、そのページの id
 function ready() {
+  let n = 0
   const store = createMatomezu({
     plugins: BUILTIN,
     controlCenter: "@matomezu/control-center:control-center",
-    newId: () => "n1",
+    newId: () => `n${++n}`,
   })
   store.use([definePlugin({ id: "plain", pageTypes: [PLAIN] })])
-  createBookIn(store, "s1", { title: "メモ" })
-  return store
+  createBookIn(store, "s1", { title: "メモ", page: { type: PLAIN.id } })
+  const page = Object.values(store.state.getState().books).flatMap(pagesOf)[0]?.id ?? ""
+  return { store, page }
 }
 
-test("伝言とマークを外したタイプのブックには、伝言もマークも付けられない", () => {
-  const store = ready()
-  const on = { book: "n1" }
-  expect(store.actions.perform("@matomezu/base:note-add", { anchors: ["x"], text: "x" }, on).ok).toBe(false)
-  expect(store.actions.perform("@matomezu/base:mark-add", { anchors: ["x"], kind: "inko" }, on).ok).toBe(false)
+test("伝言とマークを外したタイプのページには、伝言もマークも付けられない", () => {
+  const { store, page } = ready()
+  const on = { page }
+  expect(store.actions.perform("@matomezu/base:note-add", { anchors: ["x"], text: "x" }, on)).toEqual({
+    ok: false,
+    reason: "not-allowed",
+  })
+  expect(store.actions.perform("@matomezu/base:mark-add", { anchors: ["x"], kind: "inko" }, on)).toEqual({
+    ok: false,
+    reason: "not-allowed",
+  })
 })
 
-test("伝言とマークを外したタイプのブックでは、右クリックの「AIに伝言」「AIに示す」を出さない", () => {
-  const store = ready()
+test("伝言とマークを外したタイプのページでは、右クリックの「AIに伝言」「AIに示す」を出さない", () => {
+  const { store } = ready()
   const shown = () =>
     ["@matomezu/base:note-new", "@matomezu/base:mark-new"].map(id =>
       isShown(store, store.state.getState(), "s1", id as never),

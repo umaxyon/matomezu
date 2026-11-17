@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func open(t *testing.T, path string) Storage {
@@ -19,28 +21,78 @@ func open(t *testing.T, path string) Storage {
 	return s
 }
 
-func TestPutBookChecksTheVersion(t *testing.T) {
-	s := open(t, filepath.Join(t.TempDir(), "data.db"))
-	v, _, err := s.PutBook("b1", json.RawMessage(`{"id":"b1"}`), 0)
-	if err != nil || v != 1 {
-		t.Fatalf("first put = %d, %v", v, err)
+// ページかフォルダ 1 つの書き込み
+func row(id string, base int64, body string) RowWrite {
+	return RowWrite{ID: id, Body: json.RawMessage(body), Base: base}
+}
+
+// 置いてあるページとフォルダ（どちらも id → 「版 本文」）
+func stored(t *testing.T, s Storage) (pages, folders map[string]string) {
+	t.Helper()
+	ps, err := s.Pages()
+	if err != nil {
+		t.Fatal(err)
 	}
-	if _, _, err := s.PutBook("b1", json.RawMessage(`{"id":"b1","x":1}`), 0); !errors.Is(err, ErrConflict) {
-		t.Fatalf("adding an existing book = %v; want ErrConflict", err)
+	fs, err := s.Folders()
+	if err != nil {
+		t.Fatal(err)
 	}
-	if v, _, err = s.PutBook("b1", json.RawMessage(`{"id":"b1","x":2}`), 1); err != nil || v != 2 {
-		t.Fatalf("put on version 1 = %d, %v", v, err)
+	pages, folders = map[string]string{}, map[string]string{}
+	for _, p := range ps {
+		pages[p.ID] = fmt.Sprintf("%d %s", p.Version, p.Body)
 	}
-	_, have, err := s.PutBook("b1", json.RawMessage(`{"id":"b1","x":3}`), 1)
-	if !errors.Is(err, ErrConflict) || have == nil || have.Version != 2 || string(have.Body) != `{"id":"b1","x":2}` {
-		t.Fatalf("stale put = %v, %+v; want ErrConflict with version 2", err, have)
+	for _, f := range fs {
+		folders[f.ID] = fmt.Sprintf("%d %s", f.Version, f.Body)
 	}
-	if _, _, err := s.PutBook("b9", json.RawMessage(`{}`), 3); !errors.Is(err, ErrConflict) {
-		t.Fatalf("updating a missing book = %v; want ErrConflict", err)
-	}
-	books, err := s.Books()
-	if err != nil || len(books) != 1 || books[0].Version != 2 || string(books[0].Body) != `{"id":"b1","x":2}` {
-		t.Fatalf("Books() = %+v, %v", books, err)
+	return pages, folders
+}
+
+// ページもフォルダも、書くときに版を確かめる: 作るのは Base 0 でまだ無いときだけ、置いてある版と違えば ErrConflict、消すときも版を確かめる。書くたびに版が 1 上がる
+func TestRowWritesCheckTheVersion(t *testing.T) {
+	for _, table := range []string{"pages", "folders"} {
+		t.Run(table, func(t *testing.T) {
+			s := open(t, filepath.Join(t.TempDir(), "data.db"))
+			write := func(w RowWrite) error {
+				if table == "pages" {
+					return s.Apply(Batch{Pages: []RowWrite{w}})
+				}
+				return s.Apply(Batch{Folders: []RowWrite{w}})
+			}
+			read := func() map[string]string {
+				pages, folders := stored(t, s)
+				if table == "pages" {
+					return pages
+				}
+				return folders
+			}
+			if err := write(row("r1", 0, `{"id":"r1"}`)); err != nil || read()["r1"] != `1 {"id":"r1"}` {
+				t.Fatalf("first write = %v, %v", err, read())
+			}
+			if err := write(row("r1", 0, `{"id":"r1","x":1}`)); !errors.Is(err, ErrConflict) {
+				t.Fatalf("adding an existing row = %v; want ErrConflict", err)
+			}
+			if err := write(row("r1", 1, `{"id":"r1","x":2}`)); err != nil || read()["r1"] != `2 {"id":"r1","x":2}` {
+				t.Fatalf("write on version 1 = %v, %v", err, read())
+			}
+			if err := write(row("r1", 1, `{"id":"r1","x":3}`)); !errors.Is(err, ErrConflict) {
+				t.Fatalf("stale write = %v; want ErrConflict", err)
+			}
+			if err := write(row("r9", 3, `{}`)); !errors.Is(err, ErrConflict) {
+				t.Fatalf("updating a missing row = %v; want ErrConflict", err)
+			}
+			if err := write(RowWrite{ID: "r1", Base: 1, Removed: true}); !errors.Is(err, ErrConflict) {
+				t.Fatalf("stale removal = %v; want ErrConflict", err)
+			}
+			if got := read(); len(got) != 1 || got["r1"] != `2 {"id":"r1","x":2}` {
+				t.Fatalf("after the refused writes = %v", got)
+			}
+			if err := write(RowWrite{ID: "r1", Base: 2, Removed: true}); err != nil || len(read()) != 0 {
+				t.Fatalf("removal on version 2 = %v, %v", err, read())
+			}
+			if err := write(row("r1", 0, `{"id":"r1"}`)); err != nil || read()["r1"] != `1 {"id":"r1"}` {
+				t.Fatalf("adding again after the removal = %v, %v", err, read())
+			}
+		})
 	}
 }
 
@@ -63,12 +115,19 @@ func TestSettingsPerUser(t *testing.T) {
 }
 
 func TestReopenKeepsDataAndRefusesNewerForm(t *testing.T) {
+	batch := Batch{
+		Pages:   []RowWrite{row("p1", 0, `{"id":"p1"}`)},
+		Folders: []RowWrite{row("b1", 0, `{"id":"b1"}`)},
+		Entries: []EntryPut{{"p1", "b1"}},
+	}
 	path := filepath.Join(t.TempDir(), "data.db")
 	s, err := OpenSQLite(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	s.PutBook("b1", json.RawMessage(`{"id":"b1"}`), 0)
+	if err := s.Apply(batch); err != nil {
+		t.Fatal(err)
+	}
 	s.(*sqliteStorage).db.Exec(`PRAGMA user_version = 99`)
 	s.Close()
 	if _, err := OpenSQLite(path); err == nil {
@@ -76,25 +135,57 @@ func TestReopenKeepsDataAndRefusesNewerForm(t *testing.T) {
 	}
 	path2 := filepath.Join(t.TempDir(), "data.db")
 	a := open(t, path2)
-	a.PutBook("b1", json.RawMessage(`{"id":"b1"}`), 0)
+	if err := a.Apply(batch); err != nil {
+		t.Fatal(err)
+	}
 	a.Close()
 	b := open(t, path2)
-	if books, _ := b.Books(); len(books) != 1 {
-		t.Fatalf("books after reopen = %+v", books)
+	pages, folders := stored(t, b)
+	entries, _ := b.Entries()
+	if len(pages) != 1 || len(folders) != 1 || len(entries) != 1 || entries["p1"] != "b1" {
+		t.Fatalf("after reopen: pages %v, folders %v, entries %v", pages, folders, entries)
 	}
 }
 
-func TestTouchedIsTheNewerOfOpenedAndWritten(t *testing.T) {
+// ブックのフォルダの時刻は、フォルダを書いた時刻・その中のページとバインダを書いた時刻・バインダの中のページを書いた時刻・開いた時刻の、いちばん新しい物。
+// ほかのブックの時刻は動かない
+func TestTouchedIsTheNewestOfOpenedAndWrittenBelow(t *testing.T) {
 	s := open(t, filepath.Join(t.TempDir(), "data.db"))
-	if _, _, err := s.PutBook("b1", json.RawMessage(`{"id":"b1"}`), 0); err != nil {
+	if err := s.Apply(Batch{
+		Pages:   []RowWrite{row("p1", 0, `{"id":"p1"}`), row("p2", 0, `{"id":"p2"}`)},
+		Folders: []RowWrite{row("b1", 0, `{"id":"b1"}`), row("f1", 0, `{"id":"f1"}`), row("b2", 0, `{"id":"b2"}`)},
+		Entries: []EntryPut{{"p1", "b1"}, {"f1", "b1"}, {"p2", "f1"}},
+	}); err != nil {
 		t.Fatal(err)
 	}
 	got, err := s.Touched()
-	if err != nil || got["b1"] == "" {
+	if err != nil || got["b1"] == "" || got["b2"] == "" {
 		t.Fatalf("touched after writing = %v, %v", got, err)
 	}
-	written := got["b1"]
-	// 開いた時刻は、DB に無いブックにも残る。書いた時刻より新しければ、そちら
+	// バインダは、入っているブックの時刻に数える（それ自身の時刻は返さない）
+	if _, binder := got["f1"]; binder {
+		t.Fatalf("touched = %v; want no time for the binder f1", got)
+	}
+	last, other := got["b1"], got["b2"]
+	for _, step := range []struct {
+		name  string
+		batch Batch
+	}{
+		{"a page in the book", Batch{Pages: []RowWrite{row("p1", 1, `{"id":"p1","x":1}`)}}},
+		{"a page in the binder", Batch{Pages: []RowWrite{row("p2", 1, `{"id":"p2","x":1}`)}}},
+		{"the binder", Batch{Folders: []RowWrite{row("f1", 1, `{"id":"f1","x":1}`)}}},
+		{"the book's folder", Batch{Folders: []RowWrite{row("b1", 1, `{"id":"b1","x":1}`)}}},
+	} {
+		time.Sleep(2 * time.Millisecond)
+		if err := s.Apply(step.batch); err != nil {
+			t.Fatal(err)
+		}
+		if got, _ = s.Touched(); got["b1"] <= last || got["b2"] != other {
+			t.Fatalf("touched after writing %s = %v; want b1 newer than %s and b2 still %s", step.name, got, last, other)
+		}
+		last = got["b1"]
+	}
+	// 開いた時刻は、置き場所に無い id にも残る。書いた時刻より新しければ、そちら
 	if err := s.Open("unsaved", "2030-01-01T00:00:00Z"); err != nil {
 		t.Fatal(err)
 	}
@@ -108,55 +199,82 @@ func TestTouchedIsTheNewerOfOpenedAndWritten(t *testing.T) {
 	if err := s.Open("b1", "2000-01-01T00:00:00Z"); err != nil {
 		t.Fatal(err)
 	}
-	if got, _ = s.Touched(); got["b1"] != written {
-		t.Fatalf("touched = %v; want the written time %s", got, written)
+	if got, _ = s.Touched(); got["b1"] != last {
+		t.Fatalf("touched = %v; want the written time %s", got, last)
 	}
 }
 
-// DeleteBook はブックと開いた時刻を消す
-func TestDeleteBook(t *testing.T) {
+// 消したブック（RemovedBooks）は、開いた時刻が消える。ほかのブックの物は残る
+func TestRemovedBooksLoseOpened(t *testing.T) {
 	s := open(t, filepath.Join(t.TempDir(), "data.db"))
 	for _, id := range []string{"b1", "b2"} {
-		if _, _, err := s.PutBook(id, json.RawMessage(`{"id":"`+id+`"}`), 0); err != nil {
+		if err := s.Apply(Batch{
+			Folders: []RowWrite{row(id, 0, `{"id":"`+id+`"}`)},
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.Open(id, "2030-01-01T00:00:00.000Z"); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := s.Open("b2", "2026-10-29T00:00:00.000Z"); err != nil {
+	if err := s.Apply(Batch{Folders: []RowWrite{{ID: "b2", Base: 1, Removed: true}}, RemovedBooks: []string{"b2"}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.DeleteBook("b2"); err != nil {
-		t.Fatal(err)
+	if _, folders := stored(t, s); len(folders) != 1 || folders["b1"] == "" {
+		t.Fatalf("folders = %v", folders)
 	}
-	if books, _ := s.Books(); len(books) != 1 || books[0].ID != "b1" {
-		t.Fatalf("books = %+v", books)
-	}
-	if touched, _ := s.Touched(); touched["b2"] != "" {
-		t.Fatalf("touched keeps a deleted book: %v", touched)
+	if touched, _ := s.Touched(); len(touched) != 1 || touched["b1"] != "2030-01-01T00:00:00.000Z" {
+		t.Fatalf("touched = %v; want only b1 at its opened time", touched)
 	}
 }
 
-// アノテーションはブックごとに、ブックとは別に持つ。空の並びを書くと消え、ブックを消すと一緒に消える
-func TestAnnotationsPerBook(t *testing.T) {
+// エントリの入っているフォルダは、エントリ 1 つにつき 1 つ: 同じエントリを 2 つのフォルダに入れる書き込みは失敗して何も書かない。
+// 入っているフォルダを替える書き込みは通り、Folder が空なら表から消える
+func TestEntriesHoldOneFolderPerEntry(t *testing.T) {
 	s := open(t, filepath.Join(t.TempDir(), "data.db"))
-	for _, id := range []string{"b1", "b2"} {
-		if _, _, err := s.PutBook(id, json.RawMessage(`{"id":"`+id+`"}`), 0); err != nil {
-			t.Fatal(err)
-		}
-		if err := s.PutAnnotations(id, json.RawMessage(`[{"id":"c"}]`)); err != nil {
+	if err := s.Apply(Batch{Entries: []EntryPut{{"p1", "a"}}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Apply(Batch{
+		Pages:   []RowWrite{row("p2", 0, `{"id":"p2"}`)},
+		Entries: []EntryPut{{"p1", "b"}, {"p2", "a"}, {"p2", "b"}},
+	}); err == nil {
+		t.Fatal("putting one entry into two folders succeeded")
+	}
+	pages, _ := stored(t, s)
+	if entries, _ := s.Entries(); len(pages) != 0 || len(entries) != 1 || entries["p1"] != "a" {
+		t.Fatalf("something was written: pages %v, entries %v", pages, entries)
+	}
+	if err := s.Apply(Batch{Entries: []EntryPut{{"p1", "b"}, {"p2", "a"}}}); err != nil {
+		t.Fatal(err)
+	}
+	if entries, _ := s.Entries(); len(entries) != 2 || entries["p1"] != "b" || entries["p2"] != "a" {
+		t.Fatalf("entries after moving = %v", entries)
+	}
+	if err := s.Apply(Batch{Entries: []EntryPut{{"p1", ""}}}); err != nil {
+		t.Fatal(err)
+	}
+	if entries, _ := s.Entries(); len(entries) != 1 || entries["p2"] != "a" {
+		t.Fatalf("entries after taking one out = %v", entries)
+	}
+}
+
+// アノテーションはページごとに持つ。空の並びを書くと消える
+func TestAnnotationsPerPage(t *testing.T) {
+	s := open(t, filepath.Join(t.TempDir(), "data.db"))
+	for _, page := range []string{"p1", "p2"} {
+		if err := s.PutAnnotations(page, json.RawMessage(`[{"id":"c"}]`)); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if all, _ := s.Annotations(); len(all) != 2 || string(all["b1"]) != `[{"id":"c"}]` {
+	if all, _ := s.Annotations(); len(all) != 2 || string(all["p1"]) != `[{"id":"c"}]` {
 		t.Fatalf("annotations = %v", all)
 	}
-	if err := s.PutAnnotations("b1", json.RawMessage(`[]`)); err != nil {
+	if err := s.PutAnnotations("p1", json.RawMessage(`[]`)); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.DeleteBook("b2"); err != nil {
-		t.Fatal(err)
-	}
-	if all, _ := s.Annotations(); len(all) != 0 {
-		t.Fatalf("annotations after clearing and deleting = %v", all)
+	if all, _ := s.Annotations(); len(all) != 1 || string(all["p2"]) != `[{"id":"c"}]` {
+		t.Fatalf("annotations after clearing = %v", all)
 	}
 }
 
@@ -177,12 +295,9 @@ func TestTrashedAtMovesIntoTheBook(t *testing.T) {
 	}
 	db.Close()
 	s := open(t, path)
-	books, err := s.Books()
-	if err != nil || len(books) != 2 {
-		t.Fatalf("books = %+v, %v", books, err)
-	}
-	if string(books[0].Body) != `{"id":"b1","trashed":"2026-10-29T01:00:00.000Z"}` || string(books[1].Body) != `{"id":"b2"}` {
-		t.Fatalf("bodies = %s, %s", books[0].Body, books[1].Body)
+	_, books := stored(t, s)
+	if len(books) != 2 || books["b1"] != `1 {"folderRole":"book","id":"b1","trashed":"2026-10-29T01:00:00.000Z"}` || books["b2"] != `1 {"folderRole":"book","id":"b2"}` {
+		t.Fatalf("books' folders = %v", books)
 	}
 }
 
@@ -207,8 +322,8 @@ func TestMasterBookIsRemoved(t *testing.T) {
 	}
 	db.Close()
 	s := open(t, path)
-	if books, err := s.Books(); err != nil || len(books) != 1 || books[0].ID != "b1" {
-		t.Fatalf("books = %+v, %v", books, err)
+	if _, books := stored(t, s); len(books) != 1 || books["b1"] != `1 {"folderRole":"book","id":"b1"}` {
+		t.Fatalf("books' folders = %v", books)
 	}
 	if got, _ := s.Touched(); len(got) != 1 || got["b1"] == "" {
 		t.Fatalf("touched = %v", got)
@@ -237,12 +352,9 @@ func TestProjectFieldsAreRemoved(t *testing.T) {
 	}
 	db.Close()
 	s := open(t, path)
-	books, err := s.Books()
-	if err != nil || len(books) != 2 {
-		t.Fatalf("books = %+v, %v", books, err)
-	}
-	if string(books[0].Body) != `{"id":"b1","title":"x"}` || string(books[1].Body) != `{"id":"b2"}` {
-		t.Fatalf("bodies = %s, %s", books[0].Body, books[1].Body)
+	_, books := stored(t, s)
+	if len(books) != 2 || books["b1"] != `1 {"folderRole":"book","id":"b1","title":"x"}` || books["b2"] != `1 {"folderRole":"book","id":"b2"}` {
+		t.Fatalf("books' folders = %v", books)
 	}
 	mails := recordsOfKind(t, s, mailSubject)
 	if len(mails) != 2 || mails["m1"] != `{"id":"m1","mail":"@matomezu/base:join-request","props":{"a":1},"order":1}` || mails["m2"] != `{"id":"m2","mail":"@x/other","props":{"projects":["keep"]},"order":2}` {
@@ -250,31 +362,53 @@ func TestProjectFieldsAreRemoved(t *testing.T) {
 	}
 }
 
-// 1 つのまとまり（Apply）は、全部書くか、何も書かないか。版が違うブックが 1 つでもあれば、前に並べた物も書かない（ErrConflict と置いてあるブックを返す）
+// 1 つのまとまり（Apply）は、全部書くか、何も書かないか。後ろに並べた物の版が 1 つでも違えば、前に並べたページ・フォルダ・エントリ・設定・アノテーションも書かない（ErrConflict）
 func TestApplyWritesAllOrNothingOnAConflict(t *testing.T) {
 	s := open(t, filepath.Join(t.TempDir(), "data.db"))
-	if _, _, err := s.PutBook("b2", json.RawMessage(`{"id":"b2"}`), 0); err != nil {
+	if err := s.Apply(Batch{Pages: []RowWrite{row("p2", 0, `{"id":"p2"}`)}, Folders: []RowWrite{row("b2", 0, `{"id":"b2"}`)}}); err != nil {
 		t.Fatal(err)
 	}
-	have, err := s.Apply(Batch{
-		Books:         []BookWrite{{"b1", json.RawMessage(`{"id":"b1"}`), 0}, {"b2", json.RawMessage(`{"id":"b2","x":1}`), 7}},
+	whole := Batch{
+		Pages:         []RowWrite{row("p1", 0, `{"id":"p1"}`), row("p2", 1, `{"id":"p2","x":1}`)},
+		Folders:       []RowWrite{row("b1", 0, `{"id":"b1"}`)},
+		Entries:       []EntryPut{{"p1", "b1"}},
 		Settings:      &UserBody{"me", json.RawMessage(`{"a":1}`)},
-		Annotations:   []BookBody{{"b1", json.RawMessage(`[{"id":"n1"}]`)}},
-		AIEditTickets: []BookBody{{"b1", json.RawMessage(`[{"at":"t"}]`)}},
-	})
-	if !errors.Is(err, ErrConflict) || have == nil || have.Version != 1 {
-		t.Fatalf("apply = %+v, %v; want ErrConflict with the stored book", have, err)
+		Annotations:   []PageBody{{"p1", json.RawMessage(`[{"id":"n1"}]`)}},
+		AIEditTickets: json.RawMessage(`[{"at":"t"}]`),
 	}
-	books, _ := s.Books()
-	settings, _ := s.Settings("me")
-	notes, _ := s.Annotations()
-	tickets, _ := s.AIEditTickets()
-	if len(books) != 1 || books[0].ID != "b2" || settings != nil || len(notes) != 0 || len(tickets) != 0 {
-		t.Fatalf("something was written: books %v, settings %s, annotations %v, tickets %v", books, settings, notes, tickets)
+	stale := map[string]Batch{
+		"record": whole,
+		"folder": {Pages: whole.Pages, Folders: []RowWrite{row("b1", 0, `{"id":"b1"}`), row("b2", 7, `{"id":"b2","x":1}`)}},
+		"page":   {Pages: []RowWrite{row("p1", 0, `{"id":"p1"}`), row("p2", 7, `{"id":"p2","x":1}`)}},
+	}
+	record := stale["record"]
+	record.Records = []RecordWrite{{Subject: "x:card", ID: "c1", Body: json.RawMessage(`{"id":"c1"}`), Base: 7}}
+	stale["record"] = record
+	for name, batch := range stale {
+		if err := s.Apply(batch); !errors.Is(err, ErrConflict) {
+			t.Fatalf("apply with a stale %s = %v; want ErrConflict", name, err)
+		}
+		pages, folders := stored(t, s)
+		entries, _ := s.Entries()
+		settings, _ := s.Settings("me")
+		notes, _ := s.Annotations()
+		tickets, _ := s.AIEditTickets()
+		if len(pages) != 1 || pages["p2"] != `1 {"id":"p2"}` || len(folders) != 1 || folders["b2"] != `1 {"id":"b2"}` ||
+			len(entries) != 0 || settings != nil || len(notes) != 0 || len(tickets) != 0 {
+			t.Fatalf("a stale %s left something written: pages %v, folders %v, entries %v, settings %s, annotations %v, tickets %v",
+				name, pages, folders, entries, settings, notes, tickets)
+		}
+	}
+	// 版が合えば、同じまとまりが書ける
+	if err := s.Apply(whole); err != nil {
+		t.Fatal(err)
+	}
+	if pages, _ := stored(t, s); pages["p1"] != `1 {"id":"p1"}` || pages["p2"] != `2 {"id":"p2","x":1}` {
+		t.Fatalf("pages = %v", pages)
 	}
 }
 
-// SQL の失敗（ここではレコードの書き込みが断られる）の途中でも、前に書いた物は巻き戻る。1 つのまとまりは、書く順にブック → 消すブック → 設定 → … → レコード
+// SQL の失敗（ここではレコードの書き込みが断られる）の途中でも、前に書いた物は巻き戻る。1 つのまとまりは、書く順にページ → フォルダ → エントリ → … → 設定 → … → レコード
 func TestApplyRollsBackWhenALaterWriteFails(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data.db")
 	s := open(t, path)
@@ -286,23 +420,27 @@ func TestApplyRollsBackWhenALaterWriteFails(t *testing.T) {
 	if _, err := db.Exec(`CREATE TRIGGER refuse_records BEFORE INSERT ON records BEGIN SELECT RAISE(ABORT, 'refused'); END`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Apply(Batch{
-		Books:    []BookWrite{{"b1", json.RawMessage(`{"id":"b1"}`), 0}},
+	batch := Batch{
+		Pages:    []RowWrite{row("p1", 0, `{"id":"p1"}`)},
+		Folders:  []RowWrite{row("b1", 0, `{"id":"b1"}`)},
+		Entries:  []EntryPut{{"p1", "b1"}},
 		Settings: &UserBody{"me", json.RawMessage(`{"a":1}`)},
 		Records:  []RecordWrite{{Subject: mailSubject, ID: "m1", Body: json.RawMessage(`{"id":"m1"}`)}},
-	}); err == nil {
+	}
+	if err := s.Apply(batch); err == nil {
 		t.Fatal("apply with a refused write succeeded")
 	}
-	books, _ := s.Books()
+	pages, folders := stored(t, s)
+	entries, _ := s.Entries()
 	settings, _ := s.Settings("me")
-	if len(books) != 0 || settings != nil {
-		t.Fatalf("not rolled back: books %v, settings %s", books, settings)
+	if len(pages) != 0 || len(folders) != 0 || len(entries) != 0 || settings != nil {
+		t.Fatalf("not rolled back: pages %v, folders %v, entries %v, settings %s", pages, folders, entries, settings)
 	}
 	// 書けるようになれば、同じまとまりが書ける
 	if _, err := db.Exec(`DROP TRIGGER refuse_records`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Apply(Batch{Books: []BookWrite{{"b1", json.RawMessage(`{"id":"b1"}`), 0}}, Records: []RecordWrite{{Subject: mailSubject, ID: "m1", Body: json.RawMessage(`{"id":"m1"}`)}}}); err != nil {
+	if err := s.Apply(batch); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -340,17 +478,17 @@ func TestLongWorkroomNamesAreShortened(t *testing.T) {
 func TestRecordsAndCountersAreWrittenTogether(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data.db")
 	s := open(t, path)
-	if _, err := s.Apply(Batch{
+	if err := s.Apply(Batch{
 		Records:  []RecordWrite{{Subject: "x:card", ID: "c1", Body: json.RawMessage(`{"id":"c1"}`), Base: 0}},
 		Counters: []Counter{{Subject: "x:card", Scope: "all", Next: 2}},
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Apply(Batch{Records: []RecordWrite{{Subject: "x:card", ID: "c1", Body: json.RawMessage(`{"id":"c1","a":1}`), Base: 1}}}); err != nil {
+	if err := s.Apply(Batch{Records: []RecordWrite{{Subject: "x:card", ID: "c1", Body: json.RawMessage(`{"id":"c1","a":1}`), Base: 1}}}); err != nil {
 		t.Fatal(err)
 	}
 	// 版が違う書き込みは、同じまとまりの番号の表も書かない
-	if _, err := s.Apply(Batch{
+	if err := s.Apply(Batch{
 		Records:  []RecordWrite{{Subject: "x:card", ID: "c1", Body: json.RawMessage(`{"id":"c1","a":2}`), Base: 1}},
 		Counters: []Counter{{Subject: "x:card", Scope: "all", Next: 9}},
 	}); !errors.Is(err, ErrConflict) {
@@ -365,7 +503,7 @@ func TestRecordsAndCountersAreWrittenTogether(t *testing.T) {
 	if counters, _ := s.Counters(); len(counters) != 1 || counters[0].Next != 2 {
 		t.Fatalf("counters = %+v", counters)
 	}
-	if _, err := s.Apply(Batch{Records: []RecordWrite{{Subject: "x:card", ID: "c1", Base: 2, Removed: true}}}); err != nil {
+	if err := s.Apply(Batch{Records: []RecordWrite{{Subject: "x:card", ID: "c1", Base: 2, Removed: true}}}); err != nil {
 		t.Fatal(err)
 	}
 	if records, _ := s.Records(); len(records) != 0 {
@@ -379,13 +517,13 @@ func TestRecordsAndCountersAreWrittenTogether(t *testing.T) {
 // 種類の違うレコードも、1 回の書き込みでまとめて書く（アクションが宛先のほかの種類も変えたとき）。どれかの版が違えば、全部を書かない
 func TestRecordsOfDifferentKindsAreWrittenTogether(t *testing.T) {
 	s := open(t, filepath.Join(t.TempDir(), "data.db"))
-	if _, err := s.Apply(Batch{Records: []RecordWrite{
+	if err := s.Apply(Batch{Records: []RecordWrite{
 		{Subject: "x:card", ID: "c1", Body: json.RawMessage(`{"id":"c1"}`), Base: 0},
 		{Subject: "x:note", ID: "c1", Body: json.RawMessage(`{"id":"c1"}`), Base: 0},
 	}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Apply(Batch{Records: []RecordWrite{
+	if err := s.Apply(Batch{Records: []RecordWrite{
 		{Subject: "x:card", ID: "c1", Body: json.RawMessage(`{"id":"c1","a":2}`), Base: 1},
 		{Subject: "x:note", ID: "c1", Body: json.RawMessage(`{"id":"c1","a":2}`), Base: 9},
 	}}); !errors.Is(err, ErrConflict) {
@@ -394,7 +532,7 @@ func TestRecordsOfDifferentKindsAreWrittenTogether(t *testing.T) {
 	if got := recordsOfKind(t, s, "x:card")["c1"]; got != `{"id":"c1"}` {
 		t.Fatalf("the card was written although the note was stale: %s", got)
 	}
-	if _, err := s.Apply(Batch{Records: []RecordWrite{
+	if err := s.Apply(Batch{Records: []RecordWrite{
 		{Subject: "x:card", ID: "c1", Body: json.RawMessage(`{"id":"c1","a":3}`), Base: 1},
 		{Subject: "x:note", ID: "c1", Base: 1, Removed: true},
 	}}); err != nil {
@@ -622,7 +760,7 @@ func TestEmptyMailboxBecomesNoRecords(t *testing.T) {
 const ticketsMigration = 18
 
 // 閉じる者のいない AI 編集チケット（key があり、失敗にも消えたことにもしておらず、同じ id の郵便のレコードが無い物）は閉じる（AI には渡さない）。
-// key の無い物・郵便が残っている物・失敗にした物・消えたと記した物は並びの順のまま残し、1 つも残らないブックの行は消す。表の形の版は 1 つ進む
+// 郵便が残っている物・失敗にした物・消えたと記した物は残る。そのあとの移し替え（全部で 1 つの並びにする）で、key の無い物は捨てられ、残った物は置いてあったブックの id を持つ
 func TestTicketsOfGoneMailAreClosed(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data.db")
 	db, err := sql.Open("sqlite", path)
@@ -650,20 +788,230 @@ func TestTicketsOfGoneMailAreClosed(t *testing.T) {
 	}
 	var keys []string
 	var list []struct {
-		Act string `json:"act"`
-		Key string `json:"key"`
+		Act  string `json:"act"`
+		Key  string `json:"key"`
+		Book string `json:"book"`
 	}
-	if err := json.Unmarshal(tickets["b1"], &list); err != nil {
+	if err := json.Unmarshal(tickets, &list); err != nil {
 		t.Fatal(err)
 	}
 	for _, c := range list {
-		keys = append(keys, c.Act+c.Key)
+		keys = append(keys, c.Act+c.Key+"@"+c.Book)
 	}
-	if fmt.Sprint(keys) != "[a1 kept failed removed]" || len(tickets) != 1 {
-		t.Fatalf("tickets = %v (%d books)", keys, len(tickets))
+	if fmt.Sprint(keys) != "[kept@b1 failed@b1 removed@b1]" {
+		t.Fatalf("tickets = %v", keys)
 	}
 	var version int
 	if err := s.(*sqliteStorage).db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil || version != len(migrations) {
 		t.Fatalf("user_version = %d, %v; want %d", version, err, len(migrations))
+	}
+}
+
+// ブックごとのアノテーションの並びは、結び付く物の最後のあるページへ振り分ける。そのページに無い物の id は外し、どのページにも当たらない物は捨てる
+func TestAnnotationsMoveToTheirPages(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// ページごとの表を作る前の形まで進める
+	for i, m := range migrations[:21] {
+		if _, err := db.Exec(m); err != nil {
+			t.Fatalf("migration %d: %v", i, err)
+		}
+	}
+	book := `{"id":"b1","title":"t","lineup":[
+		{"kind":"page","id":"p1","items":[{"id":"a"},{"id":"b","shapes":[{"id":"b1"}]}]},
+		{"kind":"binder","id":"f1","lineup":[{"kind":"page","id":"p2","slide":[{"id":"c"}]}]}]}`
+	list := `[{"id":"n1","annotation":"k","anchors":["a","b1"],"props":{}},
+		{"id":"n2","annotation":"k","anchors":["a","c"],"props":{}},
+		{"id":"n3","annotation":"k","anchors":["gone"],"props":{}},
+		{"id":"n4","annotation":"k","anchors":["p1"],"props":{}}]`
+	if _, err := db.Exec(`INSERT INTO books (id, body, version, updated_at) VALUES ('b1', ?, 1, 't')`, book); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO annotations (book, body, updated_at) VALUES ('b1', ?, 't')`, list); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`PRAGMA user_version = 21`); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+	s := open(t, path)
+	all, err := s.Annotations()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(all) != 2 ||
+		string(all["p1"]) != `[{"anchors":["a","b1"],"annotation":"k","id":"n1","props":{}}]` ||
+		string(all["p2"]) != `[{"anchors":["c"],"annotation":"k","id":"n2","props":{}}]` {
+		t.Fatalf("annotations = %v", all)
+	}
+}
+
+// 変更提案郵便の、当たる物の送った時の値は、物のある所（ページ。どのページにも無い物はブック）ごとの表に直す
+func TestProposalSnapshotsMoveToTheirPlaces(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, m := range migrations[:22] {
+		if _, err := db.Exec(m); err != nil {
+			t.Fatalf("migration %d: %v", i, err)
+		}
+	}
+	book := `{"id":"b1","title":"t","lineup":[{"kind":"page","id":"p1","items":[{"id":"a"}]},{"kind":"binder","id":"f1","lineup":[{"kind":"page","id":"p2","items":[{"id":"c"}]}]}]}`
+	mail := `{"id":"m1","mail":"@matomezu/base:proposal","props":{"book":"b1","snapshot":{"a":{"id":"a"},"p2":{"id":"p2"},"f1":{"id":"f1"},"gone":1}}}`
+	letter := `{"id":"m2","mail":"@matomezu/base:letter","props":{"title":"x"}}`
+	if _, err := db.Exec(`INSERT INTO books (id, body, version, updated_at) VALUES ('b1', ?, 1, 't')`, book); err != nil {
+		t.Fatal(err)
+	}
+	for id, body := range map[string]string{"m1": mail, "m2": letter} {
+		if _, err := db.Exec(`INSERT INTO records (subject, id, body, version, updated_at) VALUES ('@matomezu/base:mail', ?, ?, 1, 't')`, id, body); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := db.Exec(`PRAGMA user_version = 22`); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+	s := open(t, path)
+	got, err := s.Record("@matomezu/base:mail", "m1")
+	if err != nil || got == nil {
+		t.Fatalf("record = %v, %v", got, err)
+	}
+	want := `{"id":"m1","mail":"@matomezu/base:proposal","props":{"book":"b1","snapshot":{"b1":{"f1":{"id":"f1"},"gone":1},"p1":{"a":{"id":"a"}},"p2":{"p2":{"id":"p2"}}}}}`
+	if string(got.Body) != want {
+		t.Fatalf("mail = %s", got.Body)
+	}
+	if other, _ := s.Record("@matomezu/base:mail", "m2"); other == nil || string(other.Body) != letter {
+		t.Fatalf("letter = %v", other)
+	}
+}
+
+// ブックの表は、フォルダとページとエントリの表に分かれて無くなる: ブックのフォルダは版と書いた時刻を引き継ぎ、バインダとページの版は 1。
+// 分けられないブック（本文が JSON でない・本文の id が行の id と違う）は、本文そのままのフォルダの 1 行として残る。
+// 先のブックがもう使っている id のページと、ブックの id と同じ id のページは分けず、そのフォルダの並びに中身ごと残る
+func TestBooksBecomePagesAndFolders(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// ページとフォルダの表を作る前の形まで進める
+	for i, m := range migrations[:23] {
+		if _, err := db.Exec(m); err != nil {
+			t.Fatalf("migration %d: %v", i, err)
+		}
+	}
+	other := `{"id":"zz","lineup":[{"kind":"page","id":"p9"}]}`
+	for _, b := range []struct {
+		id, body string
+		version  int
+	}{
+		{"a1", `{"id":"a1","title":"A","lineup":[{"kind":"page","id":"p1",  "items":[ {"id":"i"} ]},{"kind":"binder","id":"f1","title":"B","pageType":"x:slide","lineup":[{"kind":"page","id":"p2"}]},{"kind":"page","id":"c1"}]}`, 5},
+		{"b2", `{"id":"b2","lineup":[{"kind":"page","id":"p1","second":true},{"kind":"page","id":"p3"}]}`, 2},
+		{"c1", `{"id":"c1"}`, 1},
+		{"d-broken", `not json`, 3},
+		{"e-other", other, 4},
+	} {
+		if _, err := db.Exec(`INSERT INTO books (id, body, version, updated_at) VALUES (?, ?, ?, ?)`, b.id, b.body, b.version, "at-"+b.id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := db.Exec(`PRAGMA user_version = 23`); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+	s := open(t, path)
+	pages, folders := stored(t, s)
+	if want := map[string]string{
+		"a1":       `5 {"folderRole":"book","id":"a1","lineup":[{"id":"p1","kind":"page"},{"id":"f1","kind":"binder"},{"kind":"page","id":"c1"}],"title":"A"}`,
+		"f1":       `1 {"folderRole":"binder","id":"f1","lineup":[{"id":"p2","kind":"page"}],"pageType":"x:slide","title":"B"}`,
+		"b2":       `2 {"folderRole":"book","id":"b2","lineup":[{"kind":"page","id":"p1","second":true},{"id":"p3","kind":"page"}]}`,
+		"c1":       `1 {"folderRole":"book","id":"c1"}`,
+		"d-broken": `3 not json`,
+		"e-other":  `4 ` + other,
+	}; !maps.Equal(folders, want) {
+		t.Fatalf("folders = %v", folders)
+	}
+	if want := map[string]string{
+		"p1": `1 {"kind":"page","id":"p1",  "items":[ {"id":"i"} ]}`,
+		"p2": `1 {"kind":"page","id":"p2"}`,
+		"p3": `1 {"kind":"page","id":"p3"}`,
+	}; !maps.Equal(pages, want) {
+		t.Fatalf("pages = %v", pages)
+	}
+	if entries, err := s.Entries(); err != nil || !maps.Equal(entries, map[string]string{"p1": "a1", "f1": "a1", "p2": "f1", "p3": "b2"}) {
+		t.Fatalf("entries = %v, %v", entries, err)
+	}
+	// 書いた時刻は、ブックの行の時刻を引き継ぐ（バインダとページも、ブックの時刻に数える）
+	if touched, _ := s.Touched(); !maps.Equal(touched, map[string]string{"a1": "at-a1", "b2": "at-b2", "c1": "at-c1", "d-broken": "at-d-broken", "e-other": "at-e-other"}) {
+		t.Fatalf("touched = %v", touched)
+	}
+	var n int
+	if err := s.(*sqliteStorage).db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE name = 'books'`).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("the books table is still there (%d, %v)", n, err)
+	}
+}
+
+// ticketsListMigration は、AI 編集チケットを全部で 1 つの並びにする足し方の番号
+const ticketsListMigration = 24
+
+// ブックごとの AI 編集チケットの並びは、全部で 1 つの並びになる。key で見分ける物だけが、置いてあったブックの id を持って残り（変えた時点の古い順）、
+// AI のアクションごとの物（act）は捨てる。読めない行は捨てる。書き直すと置き換わり、空の並びにすると消える
+func TestTicketsBecomeOneList(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := migrations[:ticketsListMigration:ticketsListMigration]
+	for i, q := range before {
+		tx, err := db.Begin()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := tx.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+		if run := goMigrations[i]; run != nil {
+			if err := run(tx); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := tx.Commit(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, q := range []string{
+		fmt.Sprintf(`PRAGMA user_version = %d`, len(before)),
+		`INSERT INTO ai_edit_tickets (book, body, updated_at) VALUES
+			('b2', '[{"act":"a1","at":"t1"},{"key":"m2","subject":"@matomezu/base:mail","at":"t3","failed":true,"changed":["x"]}]', 'x'),
+			('b1', '[{"key":"m1","subject":"@matomezu/base:mail","at":"t2"},{"act":"a2","at":"t4","lost":[{"at":"title"}]}]', 'x'),
+			('b3', 'not json', 'x')`,
+	} {
+		if _, err := db.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	db.Close()
+	s := open(t, path)
+	want := `[{"at":"t2","book":"b1","key":"m1","subject":"@matomezu/base:mail"},{"at":"t3","book":"b2","changed":["x"],"failed":true,"key":"m2","subject":"@matomezu/base:mail"}]`
+	if got, err := s.AIEditTickets(); err != nil || string(got) != want {
+		t.Fatalf("tickets = %s, %v; want %s", got, err, want)
+	}
+	if err := s.PutAIEditTickets(json.RawMessage(`[{"act":"a","at":"t"}]`)); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := s.AIEditTickets(); string(got) != `[{"act":"a","at":"t"}]` {
+		t.Fatalf("tickets after putting = %s", got)
+	}
+	if err := s.PutAIEditTickets(json.RawMessage(`[]`)); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := s.AIEditTickets(); err != nil || got != nil {
+		t.Fatalf("tickets after emptying = %s, %v", got, err)
 	}
 }

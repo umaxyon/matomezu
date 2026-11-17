@@ -25,15 +25,17 @@ var source string
 // Input はアクション 1 つの頼み。Books は対象のアクションが要るブック（一覧のアクションなら全部。レコードが対象のアクションなら、読むだけのブック）、
 // IDs は振る id のもと（画面で先に行ったときの値。尽きたら新しく作る）
 type Input struct {
-	Action   string            `json:"action"`
-	Args     json.RawMessage   `json:"args"`
-	On       *On               `json:"on,omitempty"`
-	Lang     string            `json:"lang,omitempty"` // 画面で先に行ったときの言語（空ならエンジンが設定の言語の項目で決める）
-	IDs      []string          `json:"ids,omitempty"`
-	Now      string            `json:"now,omitempty"` // 画面で先に行った時点（無ければエンジンが決める）
-	Books    []json.RawMessage `json:"books"`
+	Action string          `json:"action"`
+	Args   json.RawMessage `json:"args"`
+	On     *On             `json:"on,omitempty"`
+	Lang   string          `json:"lang,omitempty"` // 画面で先に行ったときの言語（空ならエンジンが設定の言語の項目で決める）
+	IDs    []string        `json:"ids,omitempty"`
+	Now    string          `json:"now,omitempty"` // 画面で先に行った時点（無ければエンジンが決める）
+	// Pages と Folders は、対象のアクションが要るブックのページとフォルダ（置き場所から読んだまま。宛先のブックの分か、一覧のアクションなら全部、レコードが対象のアクションなら RecordNeeds の Books の分）
+	Pages    []json.RawMessage `json:"pages"`
+	Folders  []json.RawMessage `json:"folders"`
 	Settings json.RawMessage   `json:"settings"`
-	// Annotations は要るブックのアノテーション（ブックの id → 並び。宛先のブックのか、一覧のアクションなら全部）
+	// Annotations は要るブックのページのアノテーション（ページの id → 並び。宛先のブックのページのか、一覧のアクションなら全部）
 	Annotations map[string]json.RawMessage `json:"annotations,omitempty"`
 	// Records は対象の定義が足した種類のレコード（種類の id → id → レコード。宛先のレコードと、アクションが読むだけの種類の全部）。Counters は対象の種類の、区切り → 次の番号
 	Records  map[string]map[string]json.RawMessage `json:"records,omitempty"`
@@ -109,21 +111,33 @@ type RecordNeeds struct {
 
 // Output は行った結果。断ったときは OK が false で Reason に理由、Detail に AI への説明（認可ステップが止めた denied なら、Permission にそのステップの id）。
 // Books は変わった・足したブック、Removed は一覧から無くなったブック、Settings は変わった設定（変わらなければ空）、
-// Annotations はアノテーションが変わったブックの id → 新しい並び（空の並びなら全部無くなった）
+// Annotations はアノテーションが変わったページの id → 新しい並び（空の並びなら全部無くなった）
 type Output struct {
 	OK            bool                        `json:"ok"`
 	Reason        string                      `json:"reason,omitempty"`
 	Permission    string                      `json:"permission,omitempty"`
 	Detail        string                      `json:"detail,omitempty"`
+	Page          string                      `json:"page,omitempty"` // 読めないページで断ったとき（reason unreadable）、そのページの id
+	Code          string                      `json:"code,omitempty"` // 読めないページで断ったとき、読めない理由の warning の番号（W027〜W029）
 	Result        json.RawMessage             `json:"result,omitempty"`
-	Books         []json.RawMessage           `json:"books,omitempty"`
-	Removed       []string                    `json:"removed,omitempty"`
+	Pages         []RowChange                 `json:"pages,omitempty"`    // 変わった・足した・無くなったページ
+	Folders       []RowChange                 `json:"folders,omitempty"`  // 変わった・足した・無くなったフォルダ
+	Created       []string                    `json:"created,omitempty"`  // そのうち新しく足したページ・フォルダの id（世界のどこにも無い id であること）
+	Books         []string                    `json:"books,omitempty"`    // 変わったブックの id（変わったページ・フォルダを持つブック。無くなったブックも）
+	Trashing      []string                    `json:"trashing,omitempty"` // 新しくゴミ箱に入るブックの id
 	Settings      json.RawMessage             `json:"settings,omitempty"`
 	Annotations   map[string]json.RawMessage  `json:"annotations,omitempty"`
 	Records       []RecordChange              `json:"records,omitempty"`       // 変わったレコードの全部（宛先が先）。1 つのトランザクションで書く
 	Counters      map[string]map[string]int64 `json:"counters,omitempty"`      // 番号を進めた種類の id → 区切り → 次の番号（進めた区切りだけ）
 	Notice        string                      `json:"notice,omitempty"`        // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
 	AIEditTickets []AIEditTicketChange        `json:"aiEditTickets,omitempty"` // レコードが対象のアクションが返した、AI 編集チケットの変え方の並び（レコードと同じ 1 回の書き込みで、順に当てる）
+}
+
+// RowChange は、変わったページ・フォルダ 1 つ（Row は新しい本文。無くなったなら Removed）
+type RowChange struct {
+	ID      string          `json:"id"`
+	Row     json.RawMessage `json:"row,omitempty"`
+	Removed bool            `json:"removed,omitempty"`
 }
 
 // AIEditTicketChange は、アクションが返した AI 編集チケットの変え方。Key で 1 つを見分け（郵便の id など）、ブック Book の AI 編集チケットを
@@ -587,13 +601,15 @@ func (e *Engine) PerformWith(in Input, src Source) (out Output, err error) {
 	return out, nil
 }
 
-// BookWarning は warning のあるブック: ブックの id・warning の番号・warning の 1 行と、読めないか（エンジンが決める。
-// 読めない W004 タイプが無い・W005 形に合わない・W006 決まりを守らない、読めるが機能台帳に無い物を持つ W007 など）
+// BookWarning は warning のあるブック: ブックの id・warning の番号・warning の 1 行と、ブックごと読めないか（エンジンが決める。
+// ブックごと読めない W005 形に合わない・W006 決まりを守らない、読めるが機能台帳に無い物を持つ W007 など）。
+// 読めるブックの読めないページ（W027 タイプが無い・W028 タイプの形に合わない・W029 タイプの決まりを守らない）の warning は、ページ 1 枚に 1 つで、Page にそのページの id
 type BookWarning struct {
 	Book       string `json:"book"`
 	Code       string `json:"code"`
 	Warning    string `json:"warning"`
 	Unreadable bool   `json:"unreadable"`
+	Page       string `json:"page,omitempty"`
 }
 
 // CheckBooks はブックを今の機能台帳で確かめ、warning のあるものを返す（データには手を付けない）
@@ -859,8 +875,8 @@ func (e *Engine) AnnotationsUnexpired(list, settings json.RawMessage, now string
 	return got.Annotations, got.Changed, nil
 }
 
-// AIAnnotations は、ブックとそのアノテーションの並びごとに、AI に見せる並び（アノテーションに、結び付く物の最後のあるページ page と、
-// AI の応えを待っているか awaits を添えたもの）を返す。並びは pairs と同じ順
+// AIAnnotations は、ブックとそのページごとのアノテーションの組ごとに、AI に見せる並び（アノテーションに、付いているページ page と、
+// AI の応えを待っているか awaits を添えたもの。ブックのページの順）を返す。並びは pairs と同じ順
 func (e *Engine) AIAnnotations(pairs []AnnotatedBook) (out []json.RawMessage, err error) {
 	b, err := json.Marshal(pairs)
 	if err != nil {
@@ -879,9 +895,9 @@ func (e *Engine) AIAnnotations(pairs []AnnotatedBook) (out []json.RawMessage, er
 	return out, nil
 }
 
-// AIBriefs は、ブックとそのアノテーションの並びごとに、待っている物を AI に知らせる 1 行（アノテーションの id → 1 行。
+// AIBriefs は、ブックとそのページごとのアノテーションの組ごとに、待っている物を AI に知らせる 1 行（ページの id → アノテーションの id → 1 行。
 // 種類が 1 行を持たない物・形の合わない物は入れない）を返す。並びは pairs と同じ順
-func (e *Engine) AIBriefs(pairs []AnnotatedBook) (out []map[string]string, err error) {
+func (e *Engine) AIBriefs(pairs []AnnotatedBook) (out []map[string]map[string]string, err error) {
 	b, err := json.Marshal(pairs)
 	if err != nil {
 		return nil, err
@@ -925,10 +941,10 @@ func (e *Engine) AIPage(book, page json.RawMessage) (out json.RawMessage, err er
 	return json.RawMessage(e.aiPage(string(book), string(page))), nil
 }
 
-// AnnotatedBook はブックとそのアノテーションの並び（CheckAnnotations・AIAnnotations に渡す）
+// AnnotatedBook はブックと、そのページごとのアノテーション（ページの id → 並び。CheckAnnotations・AIAnnotations・AIBriefs に渡す）
 type AnnotatedBook struct {
-	Book        json.RawMessage `json:"book"`
-	Annotations json.RawMessage `json:"annotations"`
+	Book        json.RawMessage            `json:"book"`
+	Annotations map[string]json.RawMessage `json:"annotations"`
 }
 
 // WarningLines は、窓が見つけて送ってきた warning（{code, plugin, params} の並び）を、warning の表の 1 行ずつにする。

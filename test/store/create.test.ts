@@ -196,11 +196,13 @@ describe("インスタンスを作る", () => {
 
   test("ページのタイプがページのダイアログを名指すと、ページを作る・ページの設定のコマンドはそのダイアログを開く。ページは base の page-add・page-update で、タイプがページに足したフィールドごと作り変える", () => {
     const plugin = definePlugin({ id: "notes", pageTypes: [LEAF], dialogs: LEAF_DIALOGS })
+    // ブックの id は n1。断られる page-add も id を 1 つずつ使うので、作れたページの id は見て確かめる
+    const ids = ["n1", "x1", "x2", "leaf"]
     const instance = createMatomezu({
       plugins: [...BUILTIN, plugin],
       partial: true,
       controlCenter: "@matomezu/control-center:control-center",
-      newId: () => "n1",
+      newId: () => ids.shift() ?? "spare",
     })
     const perform = instance.actions.perform as (id: string, args: unknown, on: unknown) => { ok: boolean }
     expect(createBookIn(instance, "s1", { title: "葉" })).toBe(true)
@@ -219,12 +221,14 @@ describe("インスタンスを作る", () => {
       ).ok,
     ).toBe(true)
     const page = () => pagesOf(instance.state.getState().books.n1!)[0]
-    expect(page()).toMatchObject({ id: "n1", title: "p", root: { caption: "根" } })
-    expect(perform("@matomezu/base:page-update", { fields: { root: { caption: "幹" } } }, { page: "n1" }).ok).toBe(true)
+    expect(page()).toMatchObject({ title: "p", root: { caption: "根" } })
+    const made = page()?.id ?? ""
+    expect(made).not.toBe("n1")
+    expect(perform("@matomezu/base:page-update", { fields: { root: { caption: "幹" } } }, { page: made }).ok).toBe(true)
     expect(page()).toMatchObject({ title: "p", root: { caption: "幹" } })
-    instance.actions.openPage("s1", "n1")
+    instance.actions.openPage("s1", made)
     expect(untyped(instance.actions).command("s1", "@matomezu/base:page-settings")).toBe(true)
-    expect(instance.state.getState().dialog).toMatchObject({ id: "notes:leaf-settings", args: { page: "n1" } })
+    expect(instance.state.getState().dialog).toMatchObject({ id: "notes:leaf-settings", args: { page: made } })
   })
 
   test("ページのタイプが名指すページのダイアログが無ければ E031 で作らない", () => {

@@ -11,7 +11,7 @@ import (
 
 func putTexts(t *testing.T, s Storage, texts ...SearchText) {
 	t.Helper()
-	if _, err := s.Apply(Batch{SearchTexts: texts}); err != nil {
+	if err := s.Apply(Batch{SearchTexts: texts}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -36,13 +36,13 @@ func search(t *testing.T, s Storage, terms ...string) SearchResult {
 // 版の食い違いで断られた書き込みは、同じまとまりの探す文字も書かない
 func TestSearchTextsAreNotWrittenWhenTheRecordIsRefused(t *testing.T) {
 	s := open(t, filepath.Join(t.TempDir(), "data.db"))
-	if _, err := s.Apply(Batch{
+	if err := s.Apply(Batch{
 		Records:     []RecordWrite{{Subject: "x:card", ID: "c1", Body: json.RawMessage(`{"id":"c1"}`)}},
 		SearchTexts: []SearchText{{Kind: "x:card", Ref: "c1", Title: "first", Body: "before"}},
 	}); err != nil {
 		t.Fatal(err)
 	}
-	_, err := s.Apply(Batch{
+	err := s.Apply(Batch{
 		Records:     []RecordWrite{{Subject: "x:card", ID: "c1", Body: json.RawMessage(`{"id":"c1","a":1}`), Base: 7}},
 		SearchTexts: []SearchText{{Kind: "x:card", Ref: "c1", Title: "first", Body: "after"}},
 	})
@@ -180,7 +180,7 @@ func TestSearchKindFilters(t *testing.T) {
 	if err := s.SetKinds([]KindSpec{{Subject: "a", Keys: []KeySpec{{Name: "lane", Type: "text"}}}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Apply(Batch{
+	if err := s.Apply(Batch{
 		Records: []RecordWrite{
 			{Subject: "a", ID: "1", Body: json.RawMessage(`{"id":"1"}`), Keys: map[string]any{"lane": "todo"}},
 			{Subject: "a", ID: "2", Body: json.RawMessage(`{"id":"2"}`), Keys: map[string]any{"lane": "done"}},

@@ -53,7 +53,7 @@ export interface PageTypeDef extends PageTypeExtras {
   tokens: readonly TokenDef[] // ページの画面を描くのに使うテーマキー
   tools?: string // ステージで使う道具の組の id（core/def/tool.ts。無ければ道具を使わない）
   // データの形の外の決まり（アイテムどうしの関係）。守っていれば true。
-  // アクションの結果と、残しておいたブックを読むときに確かめる（守っていなければ、アクションは断り、残しておいたブックは読めないとして warning W006 にする。データは捨てない）
+  // アクションの結果と、残しておいたブックを読むときに確かめる（守っていなければ、アクションは断り、残しておいたブックのそのページは読めないページとして warning W029 にする。データは捨てない）
   holds?(page: Page, catalog: CoreCatalog): boolean
   // ページに持たせる設定の項目（holder が "page" の設定の定義の id。core/def/setting.ts）。base のアクション page-update が受け付ける
   settings?: readonly string[]

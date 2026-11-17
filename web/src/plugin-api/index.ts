@@ -3,7 +3,7 @@
 
 export type { Actor } from "../core/actor"
 export { isAI, isUser } from "../core/actor"
-export type { Annotation, BookAnnotations } from "../core/annotation"
+export type { Annotation, PageAnnotations } from "../core/annotation"
 export type { PageInto } from "../core/book"
 export {
   addBinder,
@@ -65,6 +65,7 @@ export type { TextColorDef } from "../core/def/text-color"
 export type { ThemeDef } from "../core/def/theme"
 export { themeVar } from "../core/def/theme"
 export { enumValuesOf } from "../core/enum"
+export type { BinderFolder, BookFolder, EntryRef, Folder } from "../core/folders"
 export type { Point, Rect, Size } from "../core/geom"
 export { translate } from "../core/i18n/i18n"
 export { defineMessages } from "../core/i18n/messages"

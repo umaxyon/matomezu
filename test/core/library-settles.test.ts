@@ -15,8 +15,9 @@ test("一覧が対象のアクションの結果は、変わったブックが�
   // 鍵と id が違う
   expect(librarySettles(CORE_CATALOG, before, { ...before, other: book })).toBe(false)
   // 増やしたブックも確かめる
-  expect(librarySettles(CORE_CATALOG, before, { ...before, other: { ...book, id: "other" } })).toBe(true)
-  expect(
-    librarySettles(CORE_CATALOG, before, { ...before, other: { ...book, id: "other", color: "x" } as never }),
-  ).toBe(false)
+  const other = { ...SAMPLE_BOOKS[1]!, id: "other" }
+  expect(librarySettles(CORE_CATALOG, before, { ...before, other })).toBe(true)
+  expect(librarySettles(CORE_CATALOG, before, { ...before, other: { ...other, color: "x" } as never })).toBe(false)
+  // ほかのブックのページと同じ id のページを持つブックは増やせない（ページは、ちょうど 1 つのフォルダに入る）
+  expect(librarySettles(CORE_CATALOG, before, { ...before, other: { ...book, id: "other" } })).toBe(false)
 })

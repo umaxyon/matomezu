@@ -41,11 +41,9 @@ export function BookSearch({
   const found = searchBooks(books, query, touched)
   const broken = unreadable.filter(n => matchesQuery(n.params.title ?? "", query))
   const reason = (n: Warning) =>
-    n.code === "W004"
-      ? t("Cannot open: there is no page type {type}", { type: n.params.type ?? "" })
-      : n.code === "W005"
-        ? t("Cannot open: it does not fit the shape of a book")
-        : t("Cannot open: it breaks the rules of its lineup or of a page type")
+    n.code === "W005"
+      ? t("Cannot open: it does not fit the shape of a book")
+      : t("Cannot open: it breaks the rules of its lineup or of a page type")
   const current = Math.min(active, found.length - 1)
   const optionId = (i: number) => `${listId}-${i}`
 

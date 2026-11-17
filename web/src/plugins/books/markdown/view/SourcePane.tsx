@@ -56,7 +56,7 @@ export function SourcePane({ book, page, text, document, scrollRef, onScroll }: 
   const blanks = useUserSetting(SHOW_WHITESPACE.id) === true
   const [caretLine, setCaretLine] = useState<number | null>(null) // 書く所のある行の番号（テキストFormにフォーカスがある間）
   // 書いている間（テキストFormにフォーカスがある間）は、そのページに編集ロックを掛ける（開いているだけでは掛けない）
-  useEditLock(book, caretLine === null ? NO_LOCK : [page])
+  useEditLock(page, caretLine === null ? NO_LOCK : [page])
   const [draft, setDraft] = useState(text)
   const field = useRef<HTMLTextAreaElement>(null)
   const base = useRef(text) // 書いている物の元にした、ページの原文

@@ -5,7 +5,7 @@
 // 一覧の下の＋は、最後にページを足す（コマンド page-add-after。空のバインダなら、そのバインダに足して開く）。ロック中のページには鍵の印を付ける
 
 import { useRef, useState } from "react"
-import { findBinder, pagesIn } from "../../../core/book"
+import { entriesIn, findBinder, pagesIn } from "../../../core/book"
 import type { Size } from "../../../core/geom"
 import type { Book, Page } from "../../../core/schema/book"
 import { binderOf, shownPageId } from "../../../core/stage"
@@ -84,46 +84,71 @@ export function PageList() {
   const list = useRef<HTMLDivElement | null>(null)
   const binder = book && opened ? findBinder(book, binderOf(book, opened) ?? "") : undefined
   const pages = book && binder ? pagesIn(book, binder.id) : []
+  // 並べ替えの位置は、読めないページも数えた並びで決める（動かすアクションの index と同じ数え方）
   const drag = useTabDrag(
     list,
-    pages.map(p => p.id),
+    (book && binder ? entriesIn(book, binder.id) : []).map(p => p.id),
     "y",
   )
   if (!book || !binder || !openPage.enabled) return null
   const shown = shownPageId(opened ?? null)
+  const unreadable = opened?.kind === "unreadable" ? opened.page : null
   const last = pages.at(-1)
   return (
     <nav className={styles.list} aria-label={t("Page list")} ref={list} data-page-list>
-      {pages.map((p, i) => (
-        <div
-          key={p.id}
-          className={styles.item}
-          ref={drag.slot(p.id)}
-          data-selected={p.id === shown}
-          data-carried={drag.drag?.id === p.id}
-          data-page={p.id}
-        >
-          <span className={styles.number}>{i + 1}</span>
-          {p.locked && (
-            <span className={styles.lock} role="img" aria-label={t("Locked")}>
-              <LockIcon />
-            </span>
-          )}
-          <button
-            type="button"
-            className={styles.page}
-            aria-label={p.title}
-            aria-current={p.id === shown ? "page" : undefined}
-            onClick={() => {
-              if (!drag.swallowClick()) openPage.run(p.id)
-            }}
-            onContextMenu={e => openMenu(e, { page: p.id })}
-            {...drag.handlers(p.id)}
+      {entriesIn(book, binder.id).map((p, i) =>
+        p.kind === "unreadable" ? (
+          // 読めないページ: 名前だけを出す（開くと、読めないことを見せる。ほかには何もできない）
+          <div
+            key={p.id}
+            className={styles.item}
+            ref={drag.slot(p.id)}
+            data-selected={unreadable === p.id}
+            data-page={p.id}
+            data-unreadable
           >
-            <Thumbnail book={book} page={p} />
-          </button>
-        </div>
-      ))}
+            <span className={styles.number}>{i + 1}</span>
+            <button
+              type="button"
+              className={styles.page}
+              aria-current={unreadable === p.id ? "page" : undefined}
+              onClick={() => openPage.run(p.id)}
+              onContextMenu={e => e.preventDefault()}
+            >
+              {p.title}
+            </button>
+          </div>
+        ) : (
+          <div
+            key={p.id}
+            className={styles.item}
+            ref={drag.slot(p.id)}
+            data-selected={p.id === shown}
+            data-carried={drag.drag?.id === p.id}
+            data-page={p.id}
+          >
+            <span className={styles.number}>{i + 1}</span>
+            {p.locked && (
+              <span className={styles.lock} role="img" aria-label={t("Locked")}>
+                <LockIcon />
+              </span>
+            )}
+            <button
+              type="button"
+              className={styles.page}
+              aria-label={p.title}
+              aria-current={p.id === shown ? "page" : undefined}
+              onClick={() => {
+                if (!drag.swallowClick()) openPage.run(p.id)
+              }}
+              onContextMenu={e => openMenu(e, { page: p.id })}
+              {...drag.handlers(p.id)}
+            >
+              <Thumbnail book={book} page={p} />
+            </button>
+          </div>
+        ),
+      )}
       {drag.bar !== null && <div className={styles.dropBar} style={{ top: drag.bar }} />}
       {(last ? addAfter.shown : adds) && (
         <button

@@ -1,12 +1,13 @@
 // インスタンスのコマンドを引き、呼ばれた場所の様子からコマンドを出すか・押せるかを決める操作
 
+import { USER } from "../../core/actor"
 import type { CommandId, CommandTable } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
 import type { Where } from "../../core/def/action"
 import type { PluginStateDef } from "../../core/def/plugin-state"
 import { fail } from "../../core/errors"
 import { NO_HISTORY } from "../../core/history"
-import { actionQuery, inspect, withoutPermissions } from "../../core/inspect"
+import { actionQuery, inspect, type Query, withoutPermissions } from "../../core/inspect"
 import { splitId } from "../../core/names"
 import { shownPageId, stageBlocks } from "../../core/stage"
 import { currentScreen, type OpenedScreen, screenOfStage, stageIn, workspaceOf } from "../../core/window"
@@ -98,6 +99,7 @@ export function commandContext(
     },
     workspace,
     stageId,
+    state.books,
   )
 }
 
@@ -141,7 +143,8 @@ export function isShown(defs: Assembled, state: MatomezuState, at: string, id: C
 }
 
 // 行うアクションのどれかを、認可ステップと印刷プレビューの間のステージ（stageBlocks）が止めないか（行うアクションが無ければ止められない）。
-// ブック・ページ・アノテーションが対象のアクションは、今のブックの許可スコープの所で問う
+// ブック・ページ・アノテーションが対象のアクションは、今のブックの許可スコープの所で問う。
+// 許可スコープを書いたコマンドが行う、一覧が対象のアクション（戻す・やり直すの置き直しなど）は、開いているブックのその所を変える物として扱う
 function permitted(c: Called, arg?: unknown): boolean {
   const actions = c.def.performs ?? []
   if (actions.length === 0) return true
@@ -151,10 +154,17 @@ function permitted(c: Called, arg?: unknown): boolean {
   }
   const ctx = c.ctx
   const where = whereOf(c, arg)
+  const book = ctx.book
+  const onOpened = (action: string): boolean =>
+    c.def.permissionScope !== undefined && book !== null && ctx.catalog.actions.get(action)?.target === "library"
+  const query = (action: string): Query =>
+    book && onOpened(action)
+      ? { kind: "action", action, actor: USER, book, ...(where ? { where } : {}) }
+      : actionQuery(ctx.catalog, action, book ?? undefined, where)
   return actions.some(
     action =>
-      !stageBlocks(ctx.catalog, ctx.stage.mode, action) &&
-      inspect(ctx.catalog, actionQuery(ctx.catalog, action, ctx.book ?? undefined, where), ctx).value === true,
+      !stageBlocks(ctx.catalog, ctx.stage.mode, action, onOpened(action) ? "opened-book" : "target") &&
+      inspect(ctx.catalog, query(action), ctx).value === true,
   )
 }
 

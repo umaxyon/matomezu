@@ -1,16 +1,26 @@
-// 画面の履歴（Undo・Redo）: 利用者の 1 回の操作で変わったブックの前と後を画面の履歴の段 1 つに持つ（store が作り、戻す・やり直すのは base の history）。
+// 画面の履歴（Undo・Redo）: 利用者の 1 回の操作で変わったページとフォルダの前と後を画面の履歴の段 1 つに持つ（store が作り、戻す・やり直すのは base の history）。
 // AI とほかの窓の変更は、まだ見ていない画面の履歴の段として store が溜め、変えた物が見えたら時刻の位置に差し込む
+import type { Folder, PageRow } from "./folders"
 import type { ListPatch, Patch } from "./patch"
 import type { Book } from "./schema/book"
+
+// ページ・フォルダ 1 つの、変わる前と後（無いときは "none"）
+export interface RowChange<T> {
+  before: T | "none"
+  after: T | "none"
+}
 
 // 画面の履歴の段を作った物: この窓の利用者・AI・ほかの窓
 export type HistoryBy = "user" | "ai" | "window"
 
-// 画面の履歴の段: 変えたブックごとの前と後（1 回の操作が、いくつかのブックを変えることがある）。at は始めた時点（この窓の時計）
+// 画面の履歴の段: 変えたページとフォルダごとの前と後（足した物の前と、無くした物の後は "none"）。at は始めた時点（この窓の時計）。
+// books は、変えた物を持つブックの id（この段を入れる履歴。1 回の操作が、いくつかのブックを変えることがある）
 export interface HistoryStep {
   at: string
   by: HistoryBy
-  books: Readonly<Record<string, { before: Book; after: Book }>>
+  books: readonly string[]
+  pages: Readonly<Record<string, RowChange<PageRow>>>
+  folders: Readonly<Record<string, RowChange<Folder>>>
 }
 
 // ブックごとの履歴: 戻せる画面の履歴の段（古い順）と、やり直せる画面の履歴の段（古い順。最後が次にやり直す物）

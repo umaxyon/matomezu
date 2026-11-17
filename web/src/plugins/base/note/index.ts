@@ -29,7 +29,7 @@ export const NOTE = kit.defineAnnotation({
   id: "note",
   title: "Note",
   aiDescription:
-    "A note the user put on things in a book (anchors) to tell AI something: text is what the user wants AI to know. There is no reply: take it in (a note told at the user's talk may be cut short, ending with … and its length: read the page for the whole text before you answer it), then call note-read to tell the user it reached you (it stays, marked read; keep it in mind). addedAt is when the user put it on. readAt is when AI read it (none: unread; the user changing the text or the things it is on makes it unread again). talkedAt is when the user talked to AI after it was read; the note is removed when the user's note expiry has passed since then (unless it is set to never).",
+    "A note the user put on things of a page (anchors, the ids of things on that page) to tell AI something; its actions take on.page, the page it is on (page in read_book, read_page and view). text is what the user wants AI to know. There is no reply: take it in (a note told at the user's talk may be cut short, ending with … and its length: read the page for the whole text before you answer it), then call note-read to tell the user it reached you (it stays, marked read; keep it in mind). addedAt is when the user put it on. readAt is when AI read it (none: unread; the user changing the text or the things it is on makes it unread again). talkedAt is when the user talked to AI after it was read; the note is removed when the user's note expiry has passed since then (unless it is set to never).",
   props: NoteSchema,
   awaits: p => p.readAt === undefined,
   aiBrief: p => p.text, // 利用者の文（長ければ core が切る）
@@ -84,14 +84,14 @@ export const NOTE_ADD = kit.defineAction({
     text: TEXT,
     bubble: z.boolean().optional(),
   }),
-  run: ({ book, annotations }, args, ctx) => {
+  run: ({ page, annotations }, args, ctx) => {
     const id = freshId(
       ctx.newId,
       annotations.map(a => a.id),
     )
     const props: NoteProps = { text: args.text, bubble: args.bubble ?? true, addedAt: ctx.now }
     const note: Annotation = { id, annotation: NOTE.id, anchors: [...new Set(args.anchors)], props }
-    return { next: { book, annotations: [...annotations, note] }, result: { note: id } }
+    return { next: { page, annotations: [...annotations, note] }, result: { note: id } }
   },
 })
 
@@ -109,7 +109,7 @@ export const NOTE_UPDATE = kit.defineAction({
     anchors: z.array(z.string().min(1)).min(1).optional(),
     bubble: z.boolean().optional(),
   }),
-  run: ({ book, annotations }, { note, anchors, ...change }) => {
+  run: ({ page, annotations }, { note, anchors, ...change }) => {
     const found = findNote(annotations, note)
     const moved = anchors ? [...new Set(anchors)] : found?.anchors
     const sameAnchors =
@@ -123,7 +123,7 @@ export const NOTE_UPDATE = kit.defineAction({
     })
     const placed =
       next && moved ? next.map(a => (a.id === note && a.annotation === NOTE.id ? { ...a, anchors: moved } : a)) : next
-    return placed ? { next: { book, annotations: placed }, result: {} } : null
+    return placed ? { next: { page, annotations: placed }, result: {} } : null
   },
 })
 
@@ -134,11 +134,11 @@ export const NOTE_READ = kit.defineAction({
   title: "Mark note read",
   target: "annotations",
   args: ID_ARGS,
-  run: ({ book, annotations }, args, ctx) => {
+  run: ({ page, annotations }, args, ctx) => {
     const props = noteIn(annotations, args.note)
     if (!props || props.readAt) return null
     const next = changeNote(annotations, args.note, p => ({ ...p, readAt: ctx.now }))
-    return next ? { next: { book, annotations: next }, result: {} } : null
+    return next ? { next: { page, annotations: next }, result: {} } : null
   },
 })
 
@@ -152,7 +152,7 @@ export const NOTE_TALKED = kit.defineAction({
   userOnly: true,
   runsWhenUserTalks: true,
   args: z.strictObject({}),
-  run: ({ book, annotations }, _args, ctx) => {
+  run: ({ page, annotations }, _args, ctx) => {
     let changed = false
     const next = annotations.map(a => {
       if (a.annotation !== NOTE.id) return a
@@ -161,7 +161,7 @@ export const NOTE_TALKED = kit.defineAction({
       changed = true
       return { ...a, props: { ...p, talkedAt: ctx.now } }
     })
-    return changed ? { next: { book, annotations: next }, result: {} } : null
+    return changed ? { next: { page, annotations: next }, result: {} } : null
   },
 })
 
@@ -173,8 +173,8 @@ export const NOTE_REMOVE = kit.defineAction({
   target: "annotations",
   userOnly: true,
   args: ID_ARGS,
-  run: ({ book, annotations }, args) => {
+  run: ({ page, annotations }, args) => {
     const next = withoutNote(annotations, args.note)
-    return next ? { next: { book, annotations: next }, result: {} } : null
+    return next ? { next: { page, annotations: next }, result: {} } : null
   },
 })

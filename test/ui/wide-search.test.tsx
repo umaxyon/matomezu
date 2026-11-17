@@ -7,6 +7,7 @@ import { assembleUi } from "../../web/src/ui/plugin"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { WindowRoot } from "../../web/src/ui/WindowRoot"
 import { memoryClient } from "../host-client/memory"
+import { worldRows } from "../support"
 
 afterEach(cleanup)
 
@@ -37,7 +38,7 @@ test("虫メガネで横断検索が開き、全文で打つと当たりが並�
   act(() =>
     store.receive(
       {
-        books: [],
+        ...worldRows([]),
         settings: {},
         records: {
           [TICKET]: {

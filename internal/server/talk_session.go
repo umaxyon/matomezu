@@ -46,7 +46,7 @@ const joinedAllowText = "The user lets you exchange messages with the other AIs 
 
 // userJoinedText は、利用者の言語に合わせた、参加を伝える文（エンジンが作る）
 func (h *Hub) userJoinedText(workroom string) string {
-	_, settings, _ := h.Data()
+	settings, _ := h.Data()
 	text, err := h.engine.JoinedText(settings, workroom)
 	if err != nil {
 		return joinedText(workroom)

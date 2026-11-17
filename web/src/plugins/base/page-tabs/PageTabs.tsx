@@ -33,8 +33,9 @@ function sideways(el: HTMLElement | null): (() => void) | undefined {
   return () => el.removeEventListener("wheel", onWheel)
 }
 
-// エントリ 1 つのタイプ（ページはそのタイプ、バインダは入れるページのタイプ）
-const typeOf = (e: LineupEntry): string => (e.kind === "page" ? e.type : e.pageType)
+// エントリ 1 つのタイプ（ページはそのタイプ、バインダは入れるページのタイプ。読めないページは、タイプが分からないので無い）
+const typeOf = (e: LineupEntry): string | undefined =>
+  e.kind === "page" ? e.type : e.kind === "binder" ? e.pageType : undefined
 
 export function PageTabs() {
   const opened = useStageHere(st => st?.opened)
@@ -77,20 +78,28 @@ export function PageTabs() {
             className={styles.tab}
             data-locked={e.kind === "page" && e.locked === true}
             data-binder={e.kind === "binder" || undefined}
-            aria-selected={e.kind === "page" ? e.id === shown : e.id === binder}
+            data-unreadable={e.kind === "unreadable" || undefined}
+            aria-selected={
+              e.kind === "page"
+                ? e.id === shown
+                : e.kind === "binder"
+                  ? e.id === binder
+                  : opened?.kind === "unreadable" && opened.page === e.id
+            }
             onClick={() => {
               if (tabDrag.swallowClick()) return
-              if (e.kind === "page") openPage.run(e.id)
-              else openBinder.run(e.id)
+              if (e.kind === "binder") openBinder.run(e.id)
+              else openPage.run(e.id)
             }}
             onContextMenu={ev => {
               if (e.kind === "page") openMenu(ev, { page: e.id })
-              else openBinderMenu(ev, { binder: e.id })
+              else if (e.kind === "binder") openBinderMenu(ev, { binder: e.id })
+              else ev.preventDefault() // 読めないページには、何もできない
             }}
-            {...tabDrag.handlers(e.id)}
+            {...(e.kind === "unreadable" ? {} : tabDrag.handlers(e.id))}
           >
             <span className={styles.typeIcon} aria-hidden="true">
-              {icons.get(typeOf(e)) ?? <FileIcon />}
+              {icons.get(typeOf(e) ?? "") ?? <FileIcon />}
             </span>
             {e.title}
           </button>

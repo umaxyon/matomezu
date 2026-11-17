@@ -1,4 +1,4 @@
-// 送信トレイの並び（base/outbox/rows.ts）: ページの順にまとめ、ページの中は付けた時点の新しい順。ページの見つからない物は最後。時刻は同じ日なら時:分
+// 送信トレイの並び（base/outbox/rows.ts）: ページの順にまとめ、ページの中は付けた時点の新しい順。時刻は同じ日なら時:分
 
 import { expect, test } from "bun:test"
 import type { Annotation } from "../../../web/src/core/annotation"
@@ -23,11 +23,10 @@ const note = (id: string, anchor: string, addedAt: string): Annotation => ({
 })
 
 test("ページの順にまとめ、ページの中は付けた時点の新しい順に並べる", () => {
-  const listed = listedPages(CORE_CATALOG, book, [
-    note("n1", "c", "2026-11-05T01:00:00.000Z"),
-    note("n2", "a", "2026-11-05T02:00:00.000Z"),
-    note("n3", "b", "2026-11-05T03:00:00.000Z"),
-  ])
+  const listed = listedPages(CORE_CATALOG, book, {
+    p2: [note("n1", "c", "2026-11-05T01:00:00.000Z")],
+    p1: [note("n2", "a", "2026-11-05T02:00:00.000Z"), note("n3", "b", "2026-11-05T03:00:00.000Z")],
+  })
   expect(listed.map(p => [p.page, p.title, p.rows.map(r => r.id)])).toEqual([
     ["p1", "一", ["n3", "n2"]],
     ["p2", "二", ["n1"]],

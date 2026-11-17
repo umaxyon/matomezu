@@ -28,7 +28,7 @@ const hold: PermissionDef = {
   id: HOLD,
   title: "@matomezu/base:Locked",
   aiDescription: "",
-  denies: q => q.kind === "book" && q.action.id === TOUCH && q.where?.page === "p2",
+  denies: q => q.kind === "folder" && q.action.id === TOUCH && q.where?.page === "p2",
 }
 
 const markdown = CORE_CATALOG.pageTypes.get(MARKDOWN)!

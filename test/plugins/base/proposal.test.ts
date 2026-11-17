@@ -59,7 +59,7 @@ test("送ると、乗せた変更と、当たる物の送った時の値と、�
   const done = send([rename(one, "AI")])
   expect(done).toMatchObject({ ok: true, result: { mail: expect.any(String) } })
   expect(mail()).toMatchObject({ mail: "@matomezu/base:proposal", to: { book: "b1", page: "p1", ids: [one] } })
-  expect(Object.keys(props().snapshot)).toEqual([one])
+  expect(props().snapshot).toEqual({ p1: { [one]: expect.anything() } })
   expect(caption(one)).toBe("一")
 })
 
@@ -159,7 +159,8 @@ test("送るときに読むのは、引数 book のブック 1 冊だけ（reads
     ]),
   }
   const world = {
-    books: { ...s.books, other: { ...s.books.b1, id: "other" } },
+    pages: s.pages,
+    folders: s.folders,
     settings: s.settings,
     annotations: s.annotations,
     records: s.records,

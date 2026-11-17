@@ -6,6 +6,7 @@ import { aiAuth, BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test, urlPlac
 import { footerMenuTool } from "../helpers/footer-menu"
 import { enablePlugins } from "../helpers/settings"
 import { fromMenu } from "../helpers/stage-menu"
+import { storedBook, storedBooks, storedPageVersion } from "../helpers/stored"
 
 // 追加プラグインの見本 ex2 のフォルダを結んで立てた常駐（playwright.config.ts の plugins）を使う。ex1・ex3 などは、使うテストが自分で足し、テストが終われば外す
 
@@ -72,7 +73,7 @@ test("追加プラグインの形を動かすと、常駐のエンジンも同�
   await page.mouse.down()
   await page.mouse.move(before.x + before.width / 2 + 120, before.y + before.height / 2 + 80, { steps: 8 })
   await page.mouse.up()
-  await expect.poll(async () => (await data(page)).books.find((b: { id: string }) => b.id === flow.id)?.version).toBe(2)
+  await expect.poll(() => storedPageVersion(page.request, "flow-p1")).toBe(2)
   const moved = (await diamond.boundingBox())!
   expect(moved.x).toBeGreaterThan(before.x)
   await page.reload()
@@ -191,7 +192,7 @@ const linkOnly = async (page: Page, ...dirs: string[]) => {
     expect((await linked.json()).ok).toBe(true)
   }
 }
-const saved = async (page: Page, id: string) => (await data(page)).books.find((b: { id: string }) => b.id === id)?.book
+const saved = (page: Page, id: string) => storedBook(page.request, id)
 
 test("3 つを読ませると、作り手の違うプラグインのボタンが同じ UI マッピングに並び、ex3 のテーマを ex2 のブックに使える", async ({
   page,
@@ -264,8 +265,7 @@ test("新しいブックのダイアログに追加プラグインのタイプ�
     .getByRole("button", { name: "作成" })
     .click()
   await expect(page.getByRole("img", { name: "紙" })).toBeVisible()
-  const board = async () =>
-    (await data(page)).books.find((b: { book: { title: string } }) => b.book.title === "星のボード")?.book
+  const board = async () => (await storedBooks(page.request)).find((b: { title: string }) => b.title === "星のボード")
   await expect
     .poll(async () => {
       const found = await board()

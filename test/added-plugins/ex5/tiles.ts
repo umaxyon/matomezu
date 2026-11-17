@@ -55,13 +55,10 @@ export const TILE_LIMIT_PERMISSION = kit.definePermission({
   id: "tile-limit",
   title: "tileLimit",
   aiDescription: `a page can hold at most ${TILE_LIMIT} tiles; make a new page for more`,
-  denies: q =>
-    q.kind === "book" &&
-    q.action.id === TILE_ADD.id &&
-    tilesOn(findPage(q.book, q.where?.page ?? "")?.page as TilesPage | undefined) >= TILE_LIMIT,
+  denies: q => q.kind === "page" && q.action.id === TILE_ADD.id && tilesOn(q.page as TilesPage) >= TILE_LIMIT,
   // 札を足すほかのアクションも、行った後の変化で止める（変わったページの札が上限を超えたら守っていない）
   keeps: c => {
-    if (c.kind !== "book" || !c.after) return true
+    if (c.kind !== "folder" || !c.after) return true
     const after = c.after
     return c.changes.pages.every(p => tilesOn(findPage(after, p.id)?.page as TilesPage | undefined) <= TILE_LIMIT)
   },

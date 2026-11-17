@@ -2,8 +2,9 @@
 // 掛けるのは利用者も AI もでき、外すのは利用者だけ（userOnly）
 import { z } from "zod"
 import { isAI } from "../../../core/actor"
-import { pagesOf } from "../../../core/book"
+import { findPage, pagesOf } from "../../../core/book"
 import type { CatalogCheckDef } from "../../../core/core-catalog"
+import type { Where } from "../../../core/def/action"
 import type { PermissionCheck } from "../../../core/def/permission"
 import { problem } from "../../../core/errors"
 import type { ItemPage } from "../../../core/placed"
@@ -127,6 +128,10 @@ function recordKeeps(c: Extract<PermissionCheck, { kind: "record" }>): boolean {
   return !(isAI(c.actor) && !after.locked)
 }
 
+// フォルダで問う問いの所 where が名指すページ（名指さない・そのブックに無ければ undefined）
+const pageAt = (folder: Book, where: Where | undefined) =>
+  where?.page === undefined ? undefined : findPage(folder, where.page)?.page
+
 export const LOCK = kit.definePermission({
   id: "lock",
   title: "Locked",
@@ -142,20 +147,23 @@ export const LOCK = kit.definePermission({
         !!(q.record as { locked?: true }).locked &&
         !q.action.lockSwitch
       )
-    if (q.kind !== "book") return false
-    const { action, book, where } = q
-    if (action.target === "annotations") return false
-    if (book.locked) return !BOOK_SWITCHES.includes(action.id)
-    if (where?.allPages) return pagesOf(book).some(p => p.locked)
-    const page = where?.page
-    const locked = page !== undefined && pagesOf(book).some(p => p.id === page && p.locked)
-    return locked && !PAGE_SWITCHES.includes(action.id)
+    if (q.action.target === "annotations") return false
+    if (q.kind === "page") {
+      // ページを入れているブックがロック中なら、そのページのロックの掛け外しも止める
+      if (q.folders.some(f => f.folderRole === "book" && f.locked)) return true
+      return !!q.page.locked && !PAGE_SWITCHES.includes(q.action.id)
+    }
+    if (q.kind !== "folder") return false
+    const { action, folder, where } = q
+    if (folder.locked) return !BOOK_SWITCHES.includes(action.id)
+    if (where?.allPages) return pagesOf(folder).some(p => p.locked)
+    return pageAt(folder, where)?.locked === true && !PAGE_SWITCHES.includes(action.id)
   },
   // ロック中のブックは、ロックの掛け外しのほかは変えない。ロック中のページは、ロックの掛け外しのほかは変えず、消さず、
   // ブックごとゴミ箱にも入れない。ロックを外せるのは利用者だけ
   keeps: c => {
     if (c.kind === "record") return recordKeeps(c)
-    if (c.kind !== "book") return true
+    if (c.kind !== "folder") return true
     const { before, after, changes, actor } = c
     if (!before) return true // 新しく増えたブックは、ロックを掛けて作ってもよい
     const locked = pagesOf(before).filter(p => p.locked)

@@ -29,22 +29,28 @@ const book = (lineup: unknown[], extra: object = {}) => ({
   lineup,
   ...extra,
 })
+// 台帳 catalog で読んだブック saved の、最初のページ: 読めれば "page"、読めないページなら理由の番号、ブックごと読めなければ "no-book"
+const firstPage = (catalog: Parameters<typeof restoreBooks>[0], saved: unknown) => {
+  const [restored] = restoreBooks(catalog, [saved])
+  const entry = restored?.lineup[0]
+  return !restored ? "no-book" : entry?.kind === "unreadable" ? entry.code : entry?.kind
+}
 const box = { id: "n1", x: 10, y: 10, item: "@matomezu/box:shape-nest-box", props: {} }
 const list = { id: "n2", x: 200, y: 10, item: "@matomezu/list:shape-list", props: {} }
 
 describe("組み立てたブックの形", () => {
-  test("ページに置けるのは、タイプが選んだアイテムだけ", () => {
+  test("ページに置けるのは、タイプが選んだアイテムだけ（ほかを置いたページは、形に合わない読めないページ W028）", () => {
     const boxesOnly = buildCoreCatalog(withDrawing({ items: { allowed: ["@matomezu/box:shape-nest-box"] } }))
-    expect(restoreBooks(CORE_CATALOG, [book([page([box, list])])])).toHaveLength(1)
-    expect(restoreBooks(boxesOnly, [book([page([box, list])])])).toHaveLength(0)
-    expect(restoreBooks(boxesOnly, [book([page([box])])])).toHaveLength(1)
+    expect(firstPage(CORE_CATALOG, book([page([box, list])]))).toBe("page")
+    expect(firstPage(boxesOnly, book([page([box, list])]))).toBe("W028")
+    expect(firstPage(boxesOnly, book([page([box])]))).toBe("page")
   })
 
-  test("設定の項目のフィールドを持てるのは、タイプがその項目を選んだときだけ", () => {
+  test("設定の項目のフィールドを持てるのは、タイプがその項目を選んだときだけ（ページで破れば読めないページ W028、ブックで破ればブックごと読めない）", () => {
     const noRoute = buildCoreCatalog(withDrawing({ settings: [] }))
     const routed = book([page([], { settings: { "@matomezu/line:line-route": "straight" } })])
-    expect(restoreBooks(CORE_CATALOG, [routed])).toHaveLength(1)
-    expect(restoreBooks(noRoute, [routed])).toHaveLength(0)
+    expect(firstPage(CORE_CATALOG, routed)).toBe("page")
+    expect(firstPage(noRoute, routed)).toBe("W028")
     // ページの項目はブックに持てない（ブックが持てるのは、ブックの項目だけ）
     expect(
       restoreBooks(CORE_CATALOG, [book([page([])], { settings: { "@matomezu/line:line-route": "straight" } })]),

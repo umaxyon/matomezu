@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http/httptest"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -37,18 +38,23 @@ func hubAt(t *testing.T, path string) (*Hub, *httptest.Server) {
 	return hub, s
 }
 
-// acts は、ブック b1 の AI 編集チケットの act の並び
+// acts は、AI 編集チケットの act の並び
 func acts(h *Hub) []string {
-	h.mu.Lock()
-	defer h.mu.Unlock()
 	out := []string{}
-	for _, c := range h.aiEditTickets["b1"] {
+	for _, c := range tickets(h) {
 		out = append(out, c.Act)
 	}
 	return out
 }
 
-// AI 編集チケット: AI のアクションが変えたブックに 1 つ残り、窓が見たら消え、見られる前に消えたら AI のフックに渡り、次の利用者トリガートークで消える。
+// tickets は、AI 編集チケットの全部
+func tickets(h *Hub) []AIEditTicket {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return slices.Clone(h.aiEditTickets)
+}
+
+// AI 編集チケット: AI のアクションごとに 1 つ残り（変えたページとフォルダを持つ）、窓が見たら消え、見られる前に消えたら AI のフックに渡り、次の利用者トリガートークで消える。
 // 常駐を起動し直しても残り、起動し直したあとの act は前の物と重ならない
 func TestAIEditTicketsUndoneBeforeSeen(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data.db")
@@ -65,11 +71,11 @@ func TestAIEditTicketsUndoneBeforeSeen(t *testing.T) {
 		return out
 	}
 	a := acts(hub)
-	if len(a) != 2 {
-		t.Fatalf("acts = %v", a)
+	if list := tickets(hub); len(list) != 2 || !slices.Equal(list[0].Unseen, []string{"b1"}) || !slices.Equal(list[1].Unseen, []string{"b1"}) {
+		t.Fatalf("tickets = %+v; want 2, each with the book's folder unseen", list)
 	}
 	settle := func(s *httptest.Server, act, outcome string) {
-		body, _ := json.Marshal(map[string]any{"book": "b1", "act": act, "outcome": outcome, "lost": []any{map[string]any{"at": "title", "value": "AI"}}})
+		body, _ := json.Marshal(map[string]any{"book": "b1", "act": act, "places": []string{"b1"}, "outcome": outcome, "lost": []any{map[string]any{"at": "title", "value": "AI"}}})
 		send(t, "POST", s.URL+"/api/ai-edit-tickets", string(body), nil)
 	}
 	// 1 つめは見えた、2 つめは見られる前に戻された。見えた物には、あとから消えたと知らされても変えない
@@ -103,11 +109,91 @@ func TestAIEditTicketsUndoneBeforeSeen(t *testing.T) {
 	}
 }
 
+// 1 回のアクションが 2 冊を変えた AI 編集チケットは、1 冊が見えても残り、もう 1 冊が見られる前に消えたら AI に渡る。
+// 1 枚のページを変えたアクションは、そのページだけを持つ
+func TestATicketStaysUntilAllItChangedIsSettled(t *testing.T) {
+	hub, s := hubAt(t, filepath.Join(t.TempDir(), "data.db"))
+	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
+	send(t, "PUT", s.URL+"/api/books-for-test/b2", `{"book":{"id":"b2","title":"U","lineup":[]},"base":0}`, nil)
+	ai := map[string]string{"Authorization": "Bearer secret"}
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/paper:item-update","args":{"item":"a","props":{"caption":"AI"}},"on":{"page":"p1"}}`, ai); !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("item-update = %s", got)
+	}
+	if list := tickets(hub); len(list) != 1 || !slices.Equal(list[0].Unseen, []string{"p1"}) {
+		t.Fatalf("tickets after changing a page = %+v; want one with only the page unseen", list)
+	}
+	hub.mu.Lock()
+	err := hub.putTickets([]AIEditTicket{{Act: "two", Unseen: []string{"b1", "p1", "b2"}, At: "t"}})
+	hub.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	settle := func(book, outcome string, places ...string) {
+		body, _ := json.Marshal(map[string]any{"book": book, "act": "two", "places": places, "outcome": outcome, "lost": []any{map[string]any{"at": "title", "value": "AI"}}})
+		send(t, "POST", s.URL+"/api/ai-edit-tickets", string(body), nil)
+	}
+	settle("b1", "seen", "b1", "p1")
+	if list := tickets(hub); len(list) != 1 || !slices.Equal(list[0].Unseen, []string{"b2"}) {
+		t.Fatalf("tickets after one book was seen = %+v; want the other book still unseen", list)
+	}
+	// 見えた物には、あとから消えたと知らされても変えない
+	settle("b1", "lost", "b1")
+	if _, got := send(t, "GET", s.URL+"/api/ai/awaiting", "", ai); !strings.Contains(got, `"undone":[]`) {
+		t.Fatalf("awaiting after a late lost = %s", got)
+	}
+	settle("b2", "lost", "b2")
+	if _, got := send(t, "GET", s.URL+"/api/ai/awaiting", "", ai); !strings.Contains(got, `"undone":[{"book":"b2","title":"U","at":"t","lost":[`) {
+		t.Fatalf("awaiting = %s", got)
+	}
+	send(t, "POST", s.URL+"/api/ai/talked", `{}`, ai)
+	if list := tickets(hub); len(list) != 0 {
+		t.Fatalf("tickets after talked = %+v", list)
+	}
+}
+
+// ブックを消すと、そのブックの AI 編集チケットも消える（ほかのブックの分は残る）。世界を空にしたときも消え、起動し直しても戻らない
+func TestTicketsGoWithTheirBook(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	hub, s := hubAt(t, path)
+	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
+	send(t, "PUT", s.URL+"/api/books-for-test/b2", `{"book":{"id":"b2","title":"U","lineup":[]},"base":0}`, nil)
+	hub.mu.Lock()
+	err := hub.putTickets([]AIEditTicket{
+		{Act: "one", Unseen: []string{"p1"}, At: "t"},
+		{Act: "two", Unseen: []string{"b1", "b2"}, Lost: []LostIn{{Book: "b1", Lost: json.RawMessage(`[]`)}}, At: "t"},
+		{Key: "m1", Book: "b1", At: "t"},
+		{Key: "m2", Book: "b2", At: "t"},
+	})
+	hub.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, do := range [][2]string{{"book-trash", `{"book":"b1"}`}, {"book-purge", `{"books":["b1"]}`}} {
+		if _, got := send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:`+do[0]+`","args":`+do[1]+`,"lang":"ja"}`, nil); !strings.HasPrefix(got, `{"ok":true`) {
+			t.Fatalf("%s = %s", do[0], got)
+		}
+	}
+	want := `[{"act":"two","unseen":["b2"],"at":"t"},{"key":"m2","book":"b2","at":"t"}]`
+	if got, _ := json.Marshal(tickets(hub)); string(got) != want {
+		t.Fatalf("tickets after purging b1 = %s; want %s", got, want)
+	}
+	hub2, s2 := hubAt(t, path)
+	if got, _ := json.Marshal(tickets(hub2)); string(got) != want {
+		t.Fatalf("tickets after restart = %s; want %s", got, want)
+	}
+	if code, got := send(t, "POST", s2.URL+"/api/reset-for-test", `{"books":[]}`, nil); code != 200 {
+		t.Fatalf("reset = %d %s", code, got)
+	}
+	if hub3, _ := hubAt(t, path); len(tickets(hub3)) != 0 {
+		t.Fatalf("tickets after emptying the world and a restart = %+v", tickets(hub3))
+	}
+}
+
 // 上限（aiEditTicketsMax）を超えても、key で見分ける AI 編集チケットは捨てず、key の無い物の古い方から捨てる
 func TestTicketsWithAKeyAreNotDroppedAtTheLimit(t *testing.T) {
-	list := []AIEditTicket{{Key: "proposal", At: "t", Version: 1}}
+	list := []AIEditTicket{{Key: "proposal", At: "t"}}
 	for i := range aiEditTicketsMax {
-		list = recordedTickets(list, fmt.Sprintf("a%d", i), int64(i+2), "t")
+		list = recordedTickets(list, fmt.Sprintf("a%d", i), "t", []string{"p"})
 	}
 	if len(list) != aiEditTicketsMax || list[0].Key != "proposal" || list[1].Act != "a1" {
 		t.Fatalf("list = %d, first %+v, second %+v", len(list), list[0], list[1])
@@ -117,7 +203,7 @@ func TestTicketsWithAKeyAreNotDroppedAtTheLimit(t *testing.T) {
 	for i := range aiEditTicketsMax + 1 {
 		keyed = append(keyed, AIEditTicket{Key: fmt.Sprintf("k%d", i)})
 	}
-	if got := recordedTickets(keyed, "a", 1, "t"); len(got) != aiEditTicketsMax+1 || got[0].Key != "k0" || got[len(got)-1].Key != "k100" {
+	if got := recordedTickets(keyed, "a", "t", []string{"p"}); len(got) != aiEditTicketsMax+1 || got[0].Key != "k0" || got[len(got)-1].Key != "k100" {
 		t.Fatalf("keyed = %d", len(got))
 	}
 }
@@ -129,11 +215,11 @@ func TestRemovedProposalIsToldAndForgotten(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.Apply(storage.Batch{
-		Books:         []storage.BookWrite{{ID: "b1", Body: json.RawMessage(boxed)}},
+	putBook(t, store, boxed)
+	if err := store.Apply(storage.Batch{
 		Counters:      []storage.Counter{{Subject: mailKind, Scope: "mail", Next: 2}},
 		Records:       []storage.RecordWrite{{Subject: mailKind, ID: "m1", Body: json.RawMessage(`{"id":"m1","mail":"@matomezu/base:proposal","from":"a","sentAt":"t","props":{"title":"提案","body":"","book":"b1","changes":[{"action":"x","args":{}}],"snapshot":{}},"order":1}`)}},
-		AIEditTickets: []storage.BookBody{{Book: "b1", Body: json.RawMessage(`[{"key":"m1","subject":"` + mailKind + `","at":"t","version":1}]`)}},
+		AIEditTickets: json.RawMessage(`[{"key":"m1","subject":"` + mailKind + `","book":"b1","at":"t"}]`),
 	}); err != nil {
 		t.Fatal(err)
 	}

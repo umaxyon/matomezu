@@ -20,7 +20,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"$CLAUDE_PROJECT_DIR/scripts/read-guard.ts\""
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && bun scripts/read-guard.ts"
           }
         ]
       }

@@ -24,7 +24,7 @@ import { MAX_REMEMBERED, positionOf, remember, SCROLL_STATE } from "../../web/sr
 import { sourceEdit } from "../../web/src/plugins/books/markdown/source-edit"
 import { isActive, isShown } from "../../web/src/store/commands"
 import type { DoneAction as Done } from "../../web/src/store/store"
-import { newStore } from "../support"
+import { newStore, worldRows } from "../support"
 
 const markdownStore = (options: Parameters<typeof newStore>[0] = {}) => {
   const store = newStore(options)
@@ -314,10 +314,10 @@ test("ソースのペインで書いた所は、ホストで AI の変更のあ�
   const confirmed = (text: string) => ({ ...book(), lineup: [{ ...pagesOf(book())[0]!, text }] })
   // AI が先頭に行を足したホストのブックに、foo の後ろへ書いた物を行い直す
   write("# T\n\nfoo\n", "# T\n\nfoo bar\n")
-  store.receive({ books: [confirmed("AI\n# T\n\nfoo\n")], settings: {} }, [done.at(-1)!])
+  store.receive({ ...worldRows([confirmed("AI\n# T\n\nfoo\n")]), settings: {} }, [done.at(-1)!])
   expect((pagesOf(book())[0] as { text?: string }).text).toBe("AI\n# T\n\nfoo bar\n")
   // AI が foo を消したなら、書いた物は行えずに落ちる
   write("AI\n# T\n\nfoo bar\n", "AI\n# T\n\nfoo bar!\n")
-  store.receive({ books: [confirmed("AI\n# T\n\n")], settings: {} }, [done.at(-1)!])
+  store.receive({ ...worldRows([confirmed("AI\n# T\n\n")]), settings: {} }, [done.at(-1)!])
   expect((pagesOf(book())[0] as { text?: string }).text).toBe("AI\n# T\n\n")
 })
