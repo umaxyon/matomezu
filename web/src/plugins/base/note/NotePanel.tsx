@@ -8,7 +8,7 @@
 import { useEffect, useRef, useState } from "react"
 import { anchorIds } from "../../../core/annotation"
 import { useMessages } from "../../../ui/i18n"
-import { useAllowed, useBook, useUserSetting } from "../../../ui/view-hooks"
+import { useAllowed, usePage, useUserSetting } from "../../../ui/view-hooks"
 import { useAnnotationsOf, usePerformOrToast } from "../annotation-hooks"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
@@ -84,17 +84,17 @@ function Badge({ id, current }: { id: string; current: boolean }) {
   )
 }
 
-// 付ける先の物がブックから消えたら（AI が消したなど）出す知らせ（閉じるまで出したまま）
+// 付ける先の物がページから消えたら（AI が消したなど）出す知らせ（閉じるまで出したまま）
 function Lost({ anchors }: { anchors: readonly string[] }) {
   const t = useMessages(kit)
-  const book = useBook()
+  const page = usePage()
   const [lost, setLost] = useState(false)
   const before = useRef(anchors)
   useEffect(() => {
-    const ids = book ? anchorIds(book) : new Set<string>()
+    const ids = page ? anchorIds(page) : new Set<string>()
     if (before.current.some(id => !anchors.includes(id) && !ids.has(id))) setLost(true)
     before.current = anchors
-  }, [anchors, book])
+  }, [anchors, page])
   return lost ? (
     <p className={styles.lost} role="status">
       {t("A thing the note was on was removed")}
@@ -158,7 +158,7 @@ function NoteEditor({
   useEffect(() => {
     if (editing) setEdited(true)
   }, [editing])
-  useEditLock(open.book, edited || editing ? [id] : [])
+  useEditLock(open.page, edited || editing ? [id] : [])
   const textChanged = NoteTextSchema.safeParse(text).success && text !== props.text
   const changed = updatable && next.length > 0 && (textChanged || moved)
   const save = () => {

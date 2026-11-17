@@ -81,8 +81,8 @@ test("紙から少しでもはみ出す所では置かず、置こうとした�
   expect(screenOf(store.state.getState().window).stages[0]!.placing?.item).toBe("@matomezu/box:shape-nest-box")
 })
 
-test("アイテムの id は振った値から作り、ブックのどのページのアイテムとも重なれば振り直す", () => {
-  const ids = ["p2", "x", "x", "y"]
+test("アイテムの id は振った値から作り、同じページのアイテムと重なれば振り直す（ほかのページのアイテムとは重なってよい）", () => {
+  const ids = ["p2", "x", "x", "x", "y"]
   const store = newStore({ newId: () => ids.shift()! })
   store.actions.resizeStage("s1", { w: 1400, h: 1000 })
   addPageIn(store, "s1", { type: "@matomezu/drawing:drawing", title: "ページ 2" })
@@ -91,12 +91,14 @@ test("アイテムの id は振った値から作り、ブックのどのペー�
     { item: "@matomezu/box:shape-nest-box", at: { x: 0, y: 0 } },
     { page: "p1" },
   )
-  const done = store.actions.perform(
-    "@matomezu/paper:item-place",
-    { item: "@matomezu/box:shape-nest-box", at: { x: 0, y: 0 } },
-    { page: "p2" },
-  )
-  expect(done).toEqual({ ok: true, result: { item: "y", at: { x: 0, y: 0 } } })
+  const place = (x: number) =>
+    store.actions.perform(
+      "@matomezu/paper:item-place",
+      { item: "@matomezu/box:shape-nest-box", at: { x, y: 0 } },
+      { page: "p2" },
+    )
+  expect(place(0)).toMatchObject({ ok: true, result: { item: "x" } })
+  expect(place(400)).toMatchObject({ ok: true, result: { item: "y" } })
 })
 
 test("ブックで使えないアイテムは置けない", () => {

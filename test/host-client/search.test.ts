@@ -2,6 +2,7 @@
 import { expect, test } from "bun:test"
 import { BUILTIN_UI } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
+import { worldRows } from "../support"
 import { memoryClient } from "./memory"
 
 const TICKET = "@matomezu/taskboard:ticket"
@@ -34,7 +35,7 @@ function setup() {
   client.connect(store)
   store.receive(
     {
-      books: [],
+      ...worldRows([]),
       settings: {},
       records: {
         [TICKET]: {

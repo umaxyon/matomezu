@@ -43,6 +43,7 @@ test("ロック中のブックと、ロック中のページを持つブック�
     ok: false,
     reason: "denied",
     permission: "@matomezu/base:lock",
+    book: "b1",
   })
   actions.perform("@matomezu/base:page-unlock", {}, { page })
   actions.perform("@matomezu/base:book-lock", {}, { book: "b1" })
@@ -50,6 +51,7 @@ test("ロック中のブックと、ロック中のページを持つブック�
     ok: false,
     reason: "denied",
     permission: "@matomezu/base:lock",
+    book: "b1",
   })
 })
 
@@ -64,6 +66,7 @@ test("ロック中のページを持つブックのゴミ箱入れは、行う�
     ok: false,
     reason: "denied",
     permission: "@matomezu/base:lock",
+    book: "b1",
   })
 })
 

@@ -111,7 +111,8 @@ test("AI は要求できるが、受け入れる・外す・部屋を作る・�
     now: "2026-11-08T00:00:00.000Z",
   }
   const world = (s = store.state.getState()) => ({
-    books: {},
+    pages: {},
+    folders: {},
     settings: s.settings,
     annotations: {},
     records: s.records,
@@ -139,7 +140,7 @@ test("同じ入力（時刻と id のもと）なら同じ結果", () => {
     const { store } = ready()
     const s = store.state.getState()
     return performIn(
-      { books: {}, settings: s.settings, annotations: {}, records: s.records, counters: s.counters },
+      { pages: {}, folders: {}, settings: s.settings, annotations: {}, records: s.records, counters: s.counters },
       REQUEST,
       WHO,
       undefined,

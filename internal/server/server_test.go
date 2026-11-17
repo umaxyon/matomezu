@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,6 +22,34 @@ import (
 	"github.com/umaxyon/matomezu/internal/engine"
 	"github.com/umaxyon/matomezu/internal/storage"
 )
+
+// bookBatch は、ブックの本文 body（並びにページとバインダの中身ごと持つ形）を分けて置く書き込み
+func bookBatch(t *testing.T, body string) storage.Batch {
+	t.Helper()
+	split, ok := storage.SplitBook(json.RawMessage(body), map[string]bool{})
+	if !ok {
+		t.Fatalf("the book cannot be split: %s", body)
+	}
+	var b storage.Batch
+	for _, p := range split.Pages {
+		b.Pages = append(b.Pages, storage.RowWrite{ID: p.ID, Body: p.Body})
+	}
+	for _, f := range split.Folders {
+		b.Folders = append(b.Folders, storage.RowWrite{ID: f.ID, Body: f.Body})
+	}
+	for _, id := range slices.Sorted(maps.Keys(split.Entries)) {
+		b.Entries = append(b.Entries, storage.EntryPut{ID: id, Folder: split.Entries[id]})
+	}
+	return b
+}
+
+// putBook は、置き場所 store にブックの本文 body を置く（Hub を作る前の用意）
+func putBook(t *testing.T, store storage.Storage, body string) {
+	t.Helper()
+	if err := store.Apply(bookBatch(t, body)); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func newServer(t *testing.T, stop func()) *httptest.Server {
 	return newServerWith(t, Options{Stop: stop})
@@ -287,11 +316,11 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	}
 	var created struct{ Result struct{ Book string } }
 	_ = json.Unmarshal([]byte(made), &created)
-	next(t, screen) // book
+	next(t, screen) // changed
 	if got := perform(`{"action":"@matomezu/base:page-add","args":{"type":"ex2:flow","title":"P"},"on":{"book":"` + created.Result.Book + `"}}`); !strings.Contains(got, `"ok":true`) {
 		t.Fatalf("@matomezu/base:page-add = %s", got)
 	}
-	next(t, screen) // book
+	next(t, screen) // changed
 	_, read := get(t, s.URL+"/api/ai/books/"+created.Result.Book, "secret")
 	var book struct {
 		Book struct {
@@ -305,7 +334,7 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	if got := perform(place); !strings.Contains(got, `"ok":true`) {
 		t.Fatalf("place = %s", got)
 	}
-	next(t, screen) // book
+	next(t, screen) // changed
 
 	// 入れ替える: 同じ id のフォルダを足すと、新しいコードで組み直す
 	changed := copyDir(t, flow, func(name, text string) string {
@@ -323,7 +352,7 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	if got := perform(place); !strings.Contains(got, `"ok":true`) {
 		t.Fatalf("place after replacing = %s", got)
 	}
-	next(t, screen) // book
+	next(t, screen) // changed
 
 	// 台帳アセンブルで食い違うものを足しても、前のまま動き続ける
 	broken := copyDir(t, flow, func(name, text string) string {
@@ -338,17 +367,17 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	if got := perform(place); !strings.Contains(got, `"ok":true`) {
 		t.Fatalf("place after a refused plugin = %s", got)
 	}
-	next(t, screen) // book
+	next(t, screen) // changed
 
-	// 外す: そのタイプのブックではアクションを断り、ほかは動く
+	// 外す: そのタイプのページではアクションを断り、ほかは動く
 	if _, got := send(t, "POST", s.URL+"/api/plugins/remove", `{"id":"ex2"}`, ai); got != `{"ok":true}` {
 		t.Fatalf("remove = %s", got)
 	}
 	if got := next(t, screen); got != `plugins {"version":3}` {
 		t.Fatalf("event = %s", got)
 	}
-	// 定義から消える（読めなくなったブックの warning W004 には ex2 の名前が残る）
-	if c := catalog(); strings.Contains(c, `"id":"ex2:`) || !strings.Contains(c, "W004 ex2") {
+	// 定義から消える（読めなくなったページの warning W027 には ex2 の名前が残る）
+	if c := catalog(); strings.Contains(c, `"id":"ex2:`) || !strings.Contains(c, "W027 ex2") {
 		t.Fatalf("catalog after removing = %s", c)
 	}
 	if got := perform(place); strings.Contains(got, `"ok":true`) {
@@ -366,7 +395,7 @@ func TestBooksAreKeptWithVersions(t *testing.T) {
 	s := newServer(t, nil)
 	// 常駐が初めて起動したときに、最初のプロジェクトを 1 つ作る（runsOnceAtStart）
 	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 ||
-		!strings.HasPrefix(body, `{"annotations":{},"books":[],"counters":{},"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{"@matomezu/taskboard:project":{"`) ||
+		!strings.HasPrefix(body, `{"annotations":{},"counters":{},"folders":[],"pages":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{"@matomezu/taskboard:project":{"`) ||
 		!strings.Contains(body, `},"settings":{"`+enabledPluginsSetting+`":[`) || !strings.HasSuffix(body, `]},"touched":{}}`) {
 		t.Fatalf("empty data = %d %s", code, body)
 	}
@@ -383,7 +412,7 @@ func TestBooksAreKeptWithVersions(t *testing.T) {
 		t.Fatalf("update = %d %s", code, body)
 	}
 	// 触れた時刻（touched）は書いた時刻なので、その前までを比べる
-	want := `{"annotations":{},"books":[{"id":"b1","book":` + book("B") + `,"version":2}],"counters":{},"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{"@matomezu/taskboard:project":`
+	want := `{"annotations":{},"counters":{},"folders":[{"id":"b1","folder":{"folderRole":"book","id":"b1","lineup":[],"title":"B"},"version":2}],"pages":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{"@matomezu/taskboard:project":`
 	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || !strings.HasPrefix(body, want) || !strings.Contains(body, `"touched":{"b1":"`) {
 		t.Fatalf("data = %d %s", code, body)
 	}
@@ -399,9 +428,17 @@ func TestResetForTestLeavesOnlyTheGivenBooks(t *testing.T) {
 	if code, body := send(t, "POST", s.URL+"/api/reset-for-test", `{"books":[`+book("b3")+`,`+book("b2")+`]}`, nil); code != 200 {
 		t.Fatalf("reset = %d %s", code, body)
 	}
-	want := `{"annotations":{},"books":[{"id":"b3","book":` + book("b3") + `,"version":1},{"id":"b2","book":` + book("b2") + `,"version":1}],"counters":{},"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{},"settings":null,"touched":{}}`
-	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || body != want {
+	folder := func(id string) string {
+		return `{"id":"` + id + `","folder":{"folderRole":"book","id":"` + id + `","lineup":[],"title":"t"},"version":1}`
+	}
+	// 触れた時刻（touched）は置いた時刻なので、その前までを比べる
+	want := `{"annotations":{},"counters":{},"folders":[` + folder("b2") + `,` + folder("b3") + `],"pages":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{},"settings":null,"touched":{`
+	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || !strings.HasPrefix(body, want) {
 		t.Fatalf("data = %d %s", code, body)
+	}
+	// AI に見せる並びは、置いた順
+	if _, got := send(t, "GET", s.URL+"/api/ai/books", "", ai); got != `{"books":[{"id":"b3","title":"t","version":1},{"id":"b2","title":"t","version":1}]}` {
+		t.Fatalf("ai books = %s", got)
 	}
 	if code, _ := send(t, "POST", s.URL+"/api/reset-for-test", `{"books":[{"title":"no id"}]}`, nil); code != 400 {
 		t.Fatalf("a book without an id = %d", code)
@@ -525,15 +562,19 @@ func TestPerformTellsEveryScreen(t *testing.T) {
 	}
 	for name, lines := range map[string]<-chan string{"a": a, "b": b} {
 		got := next(t, lines)
-		if !strings.HasPrefix(got, `book {"act":"`) || !strings.Contains(got, `-2","action":"@matomezu/paper:item-place","book":{`) || !strings.Contains(got, `"id":"k1"`) || !strings.HasSuffix(got, `"by":"window","client":"c1","seq":7,"version":2}`) {
-			t.Fatalf("%s book = %s", name, got)
+		// 変わったのはページ p1 だけ: pages にその 1 枚が新しい版で並び、folders は空
+		if !strings.HasPrefix(got, `changed {"act":"`) || !strings.Contains(got, `-2","action":"@matomezu/paper:item-place","books":["b1"],"by":"window","client":"c1","folders":[],"pages":[{"id":"p1","page":{`) ||
+			!strings.Contains(got, `"id":"k1"`) || !strings.HasSuffix(got, `},"version":2}],"seq":7}`) {
+			t.Fatalf("%s changed = %s", name, got)
 		}
 	}
 	if got := next(t, a); got != `ack {"ok":true,"reason":"","seq":7}` {
 		t.Fatalf("a ack = %s", got)
 	}
+	// 版が上がるのはそのページだけで、ブックのフォルダの版は変わらない
 	_, data := send(t, "GET", s.URL+"/api/data", "", nil)
-	if !strings.Contains(data, `"id":"k1"`) || !strings.Contains(data, `"version":2`) {
+	if !strings.Contains(data, `"id":"k1"`) || !strings.Contains(data, `"bodyAlign":"left"}}]},"version":2}],"participantCalls"`) ||
+		!strings.Contains(data, `"folders":[{"id":"b1","folder":{"folderRole":"book","id":"b1","lineup":[{"id":"p1","kind":"page"}],"title":"T"},"version":1}]`) {
 		t.Fatalf("data = %s", data)
 	}
 }
@@ -549,7 +590,7 @@ func TestSameKeyIsPerformedOnce(t *testing.T) {
 		return body
 	}
 	first := place("c1", 1)
-	next(t, a) // book
+	next(t, a) // changed
 	next(t, a) // ack
 	// 答えが届かずつなぎ直した画面が、同じ番号で送り直す: 行わずに前の結果を返し、新しいつながりに ack だけを送る
 	b := listen(t, s.URL)
@@ -603,7 +644,7 @@ func TestSettingsActions(t *testing.T) {
 	}
 }
 
-// ページが宛先のアクションは、そのページを持っているブックで行い、そのブックを書く。ゴミ箱のブックのページと、2 冊にあるページは no-page
+// ページが宛先のアクションは、そのページを持っているブックで行い、そのページを書く。ゴミ箱のブックのページは no-page
 func TestPerformOnAPage(t *testing.T) {
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
@@ -616,8 +657,8 @@ func TestPerformOnAPage(t *testing.T) {
 	if got := perform("page-lock", `{}`, `{"page":"p1"}`); got != `{"ok":true,"result":{}}` {
 		t.Fatalf("lock = %s", got)
 	}
-	if got := next(t, a); !strings.HasPrefix(got, "book ") || !strings.Contains(got, `"id":"b1"`) || !strings.Contains(got, `"locked":true`) {
-		t.Fatalf("book after lock = %s", got)
+	if got := next(t, a); !strings.HasPrefix(got, "changed ") || !strings.Contains(got, `"books":["b1"]`) || !strings.Contains(got, `"folders":[],"pages":[{"id":"p1","page":{`) || !strings.Contains(got, `"locked":true},"version":2}]`) {
+		t.Fatalf("changed after lock = %s", got)
 	}
 	perform("page-unlock", `{}`, `{"page":"p1"}`)
 	if got := perform("book-trash", `{"book":"b1"}`, `null`); got != `{"ok":true,"result":{}}` {
@@ -626,19 +667,158 @@ func TestPerformOnAPage(t *testing.T) {
 	if got := perform("page-lock", `{}`, `{"page":"p1"}`); !strings.Contains(got, `"reason":"no-page"`) {
 		t.Fatalf("lock a page of a trashed book = %s", got)
 	}
-	// 同じ id のページが、ゴミ箱でないブックの 1 冊だけにあれば、そのブックで行う。2 冊にあれば、どちらとも決めずに no-page
-	copyOf := func(id string) string { return strings.Replace(drawing, `"id":"b1"`, `"id":"`+id+`"`, 1) }
-	send(t, "PUT", s.URL+"/api/books-for-test/b2", `{"book":`+copyOf("b2")+`,"base":0}`, nil)
-	if got := perform("page-lock", `{}`, `{"page":"p1"}`); got != `{"ok":true,"result":{}}` {
-		t.Fatalf("lock a page another book has too, in the trash = %s", got)
+}
+
+// ほかのブックにもう在る id のページを足すアクションは refused で断られ、何も変わらない（ページの id は世界の中で重ならない）
+func TestAddingAPageWithAnIdAnotherBookHasIsRefused(t *testing.T) {
+	s := newServer(t, nil)
+	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
+	send(t, "PUT", s.URL+"/api/books-for-test/b2", `{"book":{"id":"b2","title":"U","lineup":[]},"base":0}`, nil)
+	a := listen(t, s.URL)
+	next(t, a)
+	_, before := send(t, "GET", s.URL+"/api/data", "", nil)
+	add := func(id string) string {
+		_, got := send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/drawing:drawing","title":"追加"},"on":{"book":"b2"},"lang":"ja","ids":["`+id+`"],"client":"c1","seq":1}`, nil)
+		return got
 	}
-	send(t, "PUT", s.URL+"/api/books-for-test/b3", `{"book":`+copyOf("b3")+`,"base":0}`, nil)
-	if got := perform("page-unlock", `{}`, `{"page":"p1"}`); !strings.Contains(got, `"reason":"no-page"`) {
-		t.Fatalf("unlock a page two books have = %s", got)
+	if got := add("p1"); !strings.HasPrefix(got, `{"ok":false,"reason":"refused"`) {
+		t.Fatalf("add a page with the id of a page of another book = %s", got)
+	}
+	if got := next(t, a); got != `ack {"ok":false,"reason":"refused","seq":1}` {
+		t.Fatalf("ack = %s", got)
+	}
+	if _, after := send(t, "GET", s.URL+"/api/data", "", nil); after != before {
+		t.Fatalf("data changed:\n%s\n%s", before, after)
+	}
+	// ほかのブックのフォルダの id も同じ。世界に無い id なら足せる
+	if got := add("b1"); !strings.HasPrefix(got, `{"ok":false,"reason":"refused"`) {
+		t.Fatalf("add a page with the id of another book = %s", got)
+	}
+	next(t, a)
+	if got := add("p2"); !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("add a page with a free id = %s", got)
 	}
 }
 
-// book-trash はブックに trashed の時刻を付けて知らせ（AI の読む口からは外れる）、/api/data にはゴミ箱に入ったまま出る。book-restore で戻し、trash-empty で消す（removed を知らせる）
+// ブックを作るアクションが最初のページに振る id も同じ: ほかのブックにもう在るページの id なら、断られて何も変わらない（在るページを書き換えない）
+func TestCreatingABookWithAPageIdAnotherBookHasIsRefused(t *testing.T) {
+	s := newServer(t, nil)
+	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
+	_, before := send(t, "GET", s.URL+"/api/data", "", nil)
+	_, got := send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:book-create","args":{"title":"U","page":{"type":"@matomezu/drawing:drawing"}},"lang":"ja","ids":["b2","p1"]}`, nil)
+	_, after := send(t, "GET", s.URL+"/api/data", "", nil)
+	if !strings.HasPrefix(got, `{"ok":false,"reason":"refused"`) || after != before {
+		t.Fatalf("book-create with the id of a page of another book = %s (the data changed: %v)", got, after != before)
+	}
+}
+
+// ページを足すと、新しいページとブックのフォルダが changed に並び、置き場所のエントリの表にそのページ → ブックが入る。ページを消すと、表から消える
+func TestAddingAndRemovingAPageKeepsTheEntries(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	store, err := storage.OpenSQLite(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	putBook(t, store, drawing)
+	store.Close()
+	h, s := hubAt(t, path)
+	a := listen(t, s.URL)
+	next(t, a)
+	entries := func() string {
+		got, err := h.store.Entries()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return fmt.Sprint(got)
+	}
+	perform := func(action, args, on string, ids string) string {
+		_, got := send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:`+action+`","args":`+args+`,"on":`+on+`,"lang":"ja","ids":`+ids+`}`, nil)
+		return got
+	}
+	if got := perform("page-add", `{"type":"@matomezu/drawing:drawing","title":"追加"}`, `{"book":"b1"}`, `["p2"]`); !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("page-add = %s", got)
+	}
+	got := next(t, a)
+	if !strings.HasPrefix(got, "changed ") || !strings.Contains(got, `"books":["b1"]`) ||
+		!strings.Contains(got, `"folders":[{"folder":{"id":"b1","title":"T","folderRole":"book","lineup":[{"kind":"page","id":"p1"},{"kind":"page","id":"p2"}]},"id":"b1","version":2}]`) ||
+		!strings.Contains(got, `"pages":[{"id":"p2","page":{`) || !strings.Contains(got, `"title":"追加"`) || strings.Contains(got, `"id":"p1","page"`) {
+		t.Fatalf("changed after page-add = %s", got)
+	}
+	if got := entries(); got != "map[p1:b1 p2:b1]" {
+		t.Fatalf("entries after page-add = %s", got)
+	}
+	if h.PageVersion("p1") != 1 || h.PageVersion("p2") != 1 {
+		t.Fatalf("page versions = %d %d", h.PageVersion("p1"), h.PageVersion("p2"))
+	}
+	if got := perform("page-remove", `{"page":"p2"}`, `{"book":"b1"}`, `[]`); !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("page-remove = %s", got)
+	}
+	got = next(t, a)
+	if !strings.HasPrefix(got, "changed ") || !strings.Contains(got, `"lineup":[{"kind":"page","id":"p1"}]},"id":"b1","version":3}]`) || !strings.Contains(got, `"pages":[{"id":"p2","removed":true}]`) {
+		t.Fatalf("changed after page-remove = %s", got)
+	}
+	if got := entries(); got != "map[p1:b1]" {
+		t.Fatalf("entries after page-remove = %s", got)
+	}
+	if pages, _ := h.Tables(); len(pages) != 1 || pages[0].ID != "p1" {
+		t.Fatalf("pages after page-remove = %+v", pages)
+	}
+}
+
+// 常駐を起動し直しても（同じ置き場所から世界を作り直す）、バインダのあるブックは同じ中身に組み直され、ページとフォルダの版も同じ
+func TestABookWithBindersIsAssembledTheSameAfterARestart(t *testing.T) {
+	const book = `{"id":"b1","title":"T","lineup":[` +
+		`{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"図","paper":"@matomezu/base:a4","orientation":"landscape"},` +
+		`{"kind":"binder","id":"f1","title":"スライド","pageType":"@matomezu/slide-book:slide","lineup":[]},` +
+		`{"kind":"binder","id":"f2","title":"空","pageType":"@matomezu/slide-book:slide","lineup":[]}]}`
+	path := filepath.Join(t.TempDir(), "data.db")
+	// read は、AI に見せるブックと、画面に渡すページとフォルダ（触れた時刻の前まで）
+	read := func(s *httptest.Server) (string, string) {
+		code, shown := send(t, "GET", s.URL+"/api/ai/books/b1", "", ai)
+		if code != 200 {
+			t.Fatalf("ai book = %d %s", code, shown)
+		}
+		_, data := send(t, "GET", s.URL+"/api/data", "", nil)
+		tables, _, _ := strings.Cut(data, `"participantCalls"`)
+		return shown, tables
+	}
+	var shown, tables string
+	ok := t.Run("before", func(t *testing.T) {
+		_, s := hubAt(t, path)
+		if code, body := send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+book+`,"base":0}`, nil); code != 200 {
+			t.Fatalf("put = %d %s", code, body)
+		}
+		// バインダにページを足し、版がそろわないように、ページ 1 枚とバインダを変えておく
+		for _, req := range []string{
+			`{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/slide-book:slide","title":"1","into":{"binder":"f1"}},"on":{"book":"b1"},"lang":"ja","ids":["s1"]}`,
+			`{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/slide-book:slide","title":"2","into":{"binder":"f1"}},"on":{"book":"b1"},"lang":"ja","ids":["s2"]}`,
+			`{"action":"@matomezu/base:page-update","args":{"title":"図 2"},"on":{"page":"p1"},"lang":"ja"}`,
+			`{"action":"@matomezu/base:page-remove","args":{"page":"s1"},"on":{"book":"b1"},"lang":"ja"}`,
+		} {
+			if _, got := send(t, "POST", s.URL+"/api/perform", req, nil); !strings.HasPrefix(got, `{"ok":true`) {
+				t.Fatalf("%s = %s", req, got)
+			}
+		}
+		shown, tables = read(s)
+	})
+	if !ok {
+		return
+	}
+	for _, want := range []string{`"title":"図 2"`, `"id":"f1"`, `"id":"s2"`, `"id":"f2"`} {
+		if !strings.Contains(shown, want) {
+			t.Fatalf("ai book = %s; want %s", shown, want)
+		}
+	}
+	if strings.Contains(shown, `"id":"s1"`) || !strings.Contains(tables, `"id":"f1","folder":{`) || !strings.Contains(tables, `"version":4`) {
+		t.Fatalf("ai book = %s\ntables = %s", shown, tables)
+	}
+	_, s := hubAt(t, path)
+	if again, tablesAgain := read(s); again != shown || tablesAgain != tables {
+		t.Fatalf("after a restart:\n%s\n%s\nbefore:\n%s\n%s", again, tablesAgain, shown, tables)
+	}
+}
+
+// book-trash はブックに trashed の時刻を付けて知らせ（AI の読む口からは外れる）、/api/data にはゴミ箱に入ったまま出る。book-restore で戻し、trash-empty で消す（ブックのフォルダとページが removed で並ぶ）
 func TestTrashABook(t *testing.T) {
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
@@ -651,8 +831,9 @@ func TestTrashABook(t *testing.T) {
 	if got := perform("book-trash", `{"book":"b1"}`); got != `{"ok":true,"result":{}}` {
 		t.Fatalf("trash = %s", got)
 	}
-	if got := next(t, a); !strings.Contains(got, `"title":"T","trashed":"2026-10-29T00:00:00.000Z"`) {
-		t.Fatalf("book after trash = %s", got)
+	// 変わるのはブックのフォルダだけ
+	if got := next(t, a); !strings.HasPrefix(got, "changed ") || !strings.Contains(got, `"title":"T","trashed":"2026-10-29T00:00:00.000Z"`) || !strings.Contains(got, `"id":"b1","version":2}],"pages":[]`) {
+		t.Fatalf("changed after trash = %s", got)
 	}
 	if _, data := send(t, "GET", s.URL+"/api/data", "", nil); !strings.Contains(data, `"trashed":"2026-10-29T00:00:00.000Z"`) {
 		t.Fatalf("data = %s", data)
@@ -666,8 +847,8 @@ func TestTrashABook(t *testing.T) {
 	if got := perform("book-restore", `{"book":"b1"}`); got != `{"ok":true,"result":{}}` {
 		t.Fatalf("restore = %s", got)
 	}
-	if got := next(t, a); strings.Contains(got, `"trashed"`) {
-		t.Fatalf("book after restore = %s", got)
+	if got := next(t, a); !strings.HasPrefix(got, "changed ") || strings.Contains(got, `"trashed"`) || !strings.Contains(got, `"id":"b1","version":3}],"pages":[]`) {
+		t.Fatalf("changed after restore = %s", got)
 	}
 	// 戻したブックは、AI の読む口にまた出る
 	if code, _ := send(t, "GET", s.URL+"/api/ai/books/b1", "", ai); code != 200 {
@@ -678,10 +859,10 @@ func TestTrashABook(t *testing.T) {
 	if got := perform("trash-empty", `{}`); got != `{"ok":true,"result":{}}` {
 		t.Fatalf("empty = %s", got)
 	}
-	if got := next(t, a); got != `removed {"book":"b1","client":"","seq":0}` {
-		t.Fatalf("removed = %s", got)
+	if got := next(t, a); !strings.HasPrefix(got, "changed ") || !strings.Contains(got, `"books":["b1"]`) || !strings.Contains(got, `"folders":[{"id":"b1","removed":true}],"pages":[{"id":"p1","removed":true}]`) {
+		t.Fatalf("changed after empty = %s", got)
 	}
-	if _, data := send(t, "GET", s.URL+"/api/data", "", nil); !strings.Contains(data, `"books":[]`) {
+	if _, data := send(t, "GET", s.URL+"/api/data", "", nil); !strings.Contains(data, `"folders":[],"pages":[]`) || !strings.Contains(data, `"touched":{}`) {
 		t.Fatalf("data after empty = %s", data)
 	}
 }
@@ -968,10 +1149,11 @@ func TestShowWithoutAWindowNorABrowser(t *testing.T) {
 	}
 }
 
-// 読めないブックは、AI のブックの一覧に理由が付き、アクションはその理由で断る。プラグインを足せば読めるようになり、外せばまた理由が付く（データはそのまま）
+// タイプの無いページは、読めるブックの中の読めないページになる: AI のブックの一覧では warning、そのページへのアクションは番号だけで断り、ほかのページへのアクションは効く。
+// プラグインを足せば読めるようになり、外せばまた読めなくなる（データはそのまま）。ブックの形が壊れていれば、ブックごと読めず、一覧に理由が付き、アクションはその理由で断る
 func TestListsWhyABookCannotBeRead(t *testing.T) {
 	s := newServer(t, nil)
-	// ex2 を結んでいる間に書いたフローのブックは、ex2 を外すと読めなくなる（読めないブックは書けないので、結んでから書く）
+	// ex2 を結んでいる間に書いたフローのページは、ex2 を外すと読めなくなる
 	flow := `{"id":"f1","title":"Flow","lineup":[{"kind":"page","id":"p1","type":"ex2:flow","title":"P","paper":"@matomezu/base:a4","orientation":"portrait"}]}`
 	if got := link(t, s, "../../test/added-plugins/ex2"); got != `{"id":"ex2","ok":true}` {
 		t.Fatalf("link = %s", got)
@@ -982,52 +1164,67 @@ func TestListsWhyABookCannotBeRead(t *testing.T) {
 	if _, got := send(t, "POST", s.URL+"/api/plugins/remove", `{"id":"ex2"}`, ai); got != `{"ok":true}` {
 		t.Fatalf("unlink = %s", got)
 	}
-	problem := func() string {
+	head := func(id string) (problem, warning string) {
 		_, body := get(t, s.URL+"/api/ai/books", "secret")
 		var got struct {
 			Books []struct {
 				ID      string `json:"id"`
 				Problem string `json:"problem"`
+				Warning string `json:"warning"`
 			} `json:"books"`
 		}
 		_ = json.Unmarshal([]byte(body), &got)
 		for _, b := range got.Books {
-			if b.ID == "f1" {
-				return b.Problem
+			if b.ID == id {
+				return b.Problem, b.Warning
 			}
 		}
-		return "missing"
+		return "missing", ""
 	}
-	if got := problem(); got != "W004 ex2: book f1 (Flow): it has a page of type ex2:flow, which is not in the catalog" {
-		t.Fatalf("after unlinking = %q", got)
+	if problem, warning := head("f1"); problem != "" || !strings.Contains(warning, "1 page(s) are of type ") {
+		t.Fatalf("after unlinking = %q %q", problem, warning)
 	}
-	// 読めないブックへのアクションは「無い」でなく、その理由で断る
-	page := `{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/drawing:drawing","title":"p"},"on":{"book":"f1"}}`
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", page, ai); got != `{"detail":"W004 ex2: book f1 (Flow): it has a page of type ex2:flow, which is not in the catalog","ok":false,"reason":"unreadable"}` {
-		t.Fatalf("perform on an unreadable book = %s", got)
-	}
-	// 宛先がページでも同じ（そのページを持っているブックが読めない）。どのブックにも無いページは no-page
+	// 読めないページへのアクションは「無い」でなく、番号だけで断る。どのブックにも無いページは no-page
 	lock := func(page string) string {
 		_, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-lock","args":{},"on":{"page":"`+page+`"}}`, ai)
 		return got
 	}
-	if got := lock("p1"); got != `{"detail":"W004 ex2: book f1 (Flow): it has a page of type ex2:flow, which is not in the catalog","ok":false,"reason":"unreadable"}` {
-		t.Fatalf("perform on a page of an unreadable book = %s", got)
+	if got := lock("p1"); got != `{"code":"W027","ok":false,"reason":"unreadable"}` {
+		t.Fatalf("perform on an unreadable page = %s", got)
 	}
 	if got := lock("gone"); !strings.Contains(got, `"reason":"no-page"`) || !strings.Contains(got, "there is no page with the id gone") {
 		t.Fatalf("perform on a page that is nowhere = %s", got)
 	}
+	// 読めないページのあるブックにも、ページを足せる
+	page := `{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/drawing:drawing","title":"p"},"on":{"book":"f1"}}`
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", page, ai); !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("page-add to a book with an unreadable page = %s", got)
+	}
 	if got := link(t, s, "../../test/added-plugins/ex2"); got != `{"id":"ex2","ok":true}` {
 		t.Fatalf("link again = %s", got)
 	}
-	if got := problem(); got != "" {
-		t.Fatalf("after linking again = %q", got)
+	if problem, warning := head("f1"); problem != "" || warning != "" {
+		t.Fatalf("after linking again = %q %q", problem, warning)
 	}
 	if _, got := send(t, "POST", s.URL+"/api/plugins/remove", `{"id":"ex2"}`, ai); got != `{"ok":true}` {
 		t.Fatalf("unlink = %s", got)
 	}
-	if got := problem(); !strings.HasPrefix(got, "W004 ex2:") {
-		t.Fatalf("after unlinking again = %q", got)
+	if _, warning := head("f1"); !strings.Contains(warning, "1 page(s) are of type ") {
+		t.Fatalf("after unlinking again = %q", warning)
+	}
+	if got := lock("p1"); got != `{"code":"W027","ok":false,"reason":"unreadable"}` {
+		t.Fatalf("perform on an unreadable page after unlinking again = %s", got)
+	}
+	// 形の壊れたブックは、ブックごと読めない（一覧に理由が付き、アクションはその理由で断る）
+	if code, body := send(t, "PUT", s.URL+"/api/books-for-test/z1", `{"book":{"id":"z1","title":"Z","lineup":"no"},"base":0}`, nil); code != 200 {
+		t.Fatalf("put = %d %s", code, body)
+	}
+	if problem, _ := head("z1"); !strings.HasPrefix(problem, "W005 ") {
+		t.Fatalf("a broken book = %q", problem)
+	}
+	add := `{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/drawing:drawing","title":"p"},"on":{"book":"z1"}}`
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", add, ai); !strings.HasPrefix(got, `{"detail":"W005 `) || !strings.HasSuffix(got, `"ok":false,"reason":"unreadable"}`) {
+		t.Fatalf("perform on an unreadable book = %s", got)
 	}
 }
 
@@ -1395,21 +1592,21 @@ func TestAIReadsABookAsAnOutlineAndAPageByItem(t *testing.T) {
 	}
 
 	// ページは、物の目次（id・種類・大きさ）
-	_, got = send(t, "GET", s.URL+"/api/ai/books/b1/pages/p1?outline=1", "", ai)
+	_, got = send(t, "GET", s.URL+"/api/ai/pages/p1?outline=1", "", ai)
 	if !strings.Contains(got, `"id":"x1"`) || !strings.Contains(got, `"id":"x3"`) || strings.Contains(got, `"caption"`) || strings.Contains(got, `"id":"x2"`) {
 		t.Fatalf("page outline = %s", got)
 	}
 
 	// 物を指すと、その物と中の物だけ（深さを問わない）。位置は中の物の分も
-	_, got = send(t, "GET", s.URL+"/api/ai/books/b1/pages/p1?item=x1", "", ai)
+	_, got = send(t, "GET", s.URL+"/api/ai/pages/p1?item=x1", "", ai)
 	if !strings.Contains(got, `"caption":"A"`) || !strings.Contains(got, `"caption":"B"`) || strings.Contains(got, `"caption":"C"`) {
 		t.Fatalf("item x1 = %s", got)
 	}
-	_, got = send(t, "GET", s.URL+"/api/ai/books/b1/pages/p1?item=x2", "", ai)
+	_, got = send(t, "GET", s.URL+"/api/ai/pages/p1?item=x2", "", ai)
 	if !strings.Contains(got, `"caption":"B"`) || strings.Contains(got, `"caption":"A"`) {
 		t.Fatalf("nested item x2 = %s", got)
 	}
-	if code, _ := send(t, "GET", s.URL+"/api/ai/books/b1/pages/p1?item=nope", "", ai); code != 404 {
+	if code, _ := send(t, "GET", s.URL+"/api/ai/pages/p1?item=nope", "", ai); code != 404 {
 		t.Fatalf("an item that is not on the page = %d", code)
 	}
 	// 何も付けなければ、ブックの全部を返す

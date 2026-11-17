@@ -10,7 +10,7 @@ import { shownPageId } from "../../../core/stage"
 import { useMessages } from "../../../ui/i18n"
 import { useLayout } from "../../../ui/store-context"
 import { useActions, useAllowed, useBook, useCoreCatalog, useStage, useUiCatalog } from "../../../ui/view-hooks"
-import { useAnnotationsIn, usePerformOrToast } from "../annotation-hooks"
+import { useBookAnnotations, usePerformOrToast } from "../annotation-hooks"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
 import rows from "../left-side-panel/PanelRows.module.css"
@@ -29,15 +29,15 @@ export function Outbox() {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
   const book = useBook()
-  const annotations = useAnnotationsIn()
+  const annotations = useBookAnnotations()
   const pages = useMemo(() => (book ? listedPages(catalog, book, annotations) : []), [catalog, book, annotations])
   if (pages.length === 0) return <p className={rows.empty}>{t("No notes")}</p>
   const now = new Date()
   return (
     <div className={rows.list}>
       {pages.map(p => (
-        <section key={p.page ?? ""} aria-label={p.page ? p.title : t("Elsewhere")}>
-          <h3 className={styles.page}>{p.page ? p.title : t("Elsewhere")}</h3>
+        <section key={p.page} aria-label={p.title}>
+          <h3 className={styles.page}>{p.title}</h3>
           <ul className={rows.rows}>
             {p.rows.map(a => (
               <Row key={a.id} annotation={a} now={now} />
@@ -59,8 +59,8 @@ function Row({ annotation: a, now }: { annotation: AiAnnotation; now: Date }) {
   const at = listed?.def.addedAt(listed.props as never) ?? null
   const text = clampChars(listed?.def.text?.(listed.props as never) ?? name, BUBBLE_CHARS)
   const withdraw = listed?.def.withdraw
-  // 取消のアクションを行えなければ（認可ステップが止めたなど）、取消を押せなくする
-  const withdrawable = useAllowed((withdraw?.action ?? "") as ActionId).ok
+  // 取消のアクションを、その物の付いているページで行えなければ（認可ステップが止めたなど）、取消を押せなくする
+  const withdrawable = useAllowed((withdraw?.action ?? "") as ActionId, { page: a.page }).ok
   return (
     <li className={rows.row} data-read={!a.awaits}>
       <button type="button" className={rows.open} onClick={() => go(a, listed?.def.panel)}>
@@ -70,7 +70,11 @@ function Row({ annotation: a, now }: { annotation: AiAnnotation; now: Date }) {
         {at && <time className={rows.time}>{shownTime(at, now)}</time>}
       </button>
       {withdraw && (
-        <Withdraw name={text} allowed={withdrawable} onWithdraw={() => run(withdraw.action, withdraw.args(a.id))} />
+        <Withdraw
+          name={text}
+          allowed={withdrawable}
+          onWithdraw={() => run(withdraw.action, withdraw.args(a.id), a.page)}
+        />
       )}
     </li>
   )

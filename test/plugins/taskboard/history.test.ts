@@ -30,7 +30,8 @@ function ready() {
   const as = (actor: Actor, action: string, args: unknown, on?: On) => {
     const s = store.state.getState()
     const world = {
-      books: {},
+      pages: {},
+      folders: {},
       settings: s.settings,
       annotations: {},
       records: s.records,
@@ -153,7 +154,7 @@ test("本文更新の題は文を持たなくてよい。ほかの題は文が�
 // チケットの完了（ticket-complete）: レーン・担当・今のチケット・チケット履歴が 1 回で、全部そろって変わる。
 // store は利用者だけが行うので、AI としても行うここだけは、世界を自分で持って結果を当てていく
 function completing() {
-  let w: World = { books: {}, settings: {}, annotations: {}, records: {}, counters: {} }
+  let w: World = { pages: {}, folders: {}, settings: {}, annotations: {}, records: {}, counters: {} }
   let n = 0
   const act = (actor: Actor, action: string, args: unknown, on?: On) => {
     const done = performIn(w, action.includes(":") ? action : A(action), args, on, {

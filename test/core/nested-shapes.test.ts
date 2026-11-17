@@ -1,4 +1,4 @@
-// 子の形（ケイパビリティ nests の形が持つ shapes）: ブックの形が受け付ける子と、子までたどる・探す・置き換える関数（core/placed.ts）・子を持つ形の大きさ（base の place/placed.ts）
+// 子の形（ケイパビリティ nests の形が持つ shapes）: ページの形が受け付ける子と、子までたどる・探す・置き換える関数（core/placed.ts）・子を持つ形の大きさ（base の place/placed.ts）
 
 import { describe, expect, test } from "bun:test"
 import { pagesOf, restoreBooks } from "../../web/src/core/book"
@@ -26,24 +26,28 @@ const box = (id: string, x: number, y: number, shapes?: unknown[]) => ({
 })
 const list = (id: string) => ({ id, x: 0, y: 0, item: LIST, props: {} })
 const line = (id: string, from: string, to: string) => ({ id, item: LINE, from, to, props: {} })
-const reads = (items: object[]) => restoreBooks(nesting, [book(items)]).length === 1
+// アイテム items を置いたページが読めるか: 読めれば "page"、読めなければ読めないページの理由の番号（ブックは読めるまま）
+const readAs = (items: object[]) => {
+  const entry = restoreBooks(nesting, [book(items)])[0]?.lineup[0]
+  return entry?.kind === "unreadable" ? entry.code : entry?.kind
+}
 
-describe("子の形を受け付けるブックの形", () => {
+describe("子の形を受け付けるページの形（受け付けない子を持つページは、形に合わない読めないページ W028）", () => {
   test("ケイパビリティ nests の形は、ブックで使える形を何段でも子に持てる", () => {
-    expect(reads([box("a", 10, 10, [box("b", 5, 5, [list("c")])]), line("l1", "a", "c")])).toBe(true)
+    expect(readAs([box("a", 10, 10, [box("b", 5, 5, [list("c")])]), line("l1", "a", "c")])).toBe("page")
   })
 
   test("ケイパビリティ nests の無い形は子を持てない", () => {
-    expect(reads([{ ...list("a"), shapes: [box("b", 0, 0)] }])).toBe(false)
+    expect(readAs([{ ...list("a"), shapes: [box("b", 0, 0)] }])).toBe("W028")
   })
 
   test("子に線は入らない。空の子の並びは持たない", () => {
-    expect(reads([box("a", 0, 0, [box("b", 0, 0), box("c", 0, 0), line("l1", "b", "c")])])).toBe(false)
-    expect(reads([box("a", 0, 0, [])])).toBe(false)
+    expect(readAs([box("a", 0, 0, [box("b", 0, 0), box("c", 0, 0), line("l1", "b", "c")])])).toBe("W028")
+    expect(readAs([box("a", 0, 0, [])])).toBe("W028")
   })
 
   test("子の形もその形の項目で確かめる。機能台帳に無い形は、子でもそのまま残す", () => {
-    expect(reads([box("a", 0, 0, [{ ...box("b", 0, 0), props: { caption: 1 } }])])).toBe(false)
+    expect(readAs([box("a", 0, 0, [{ ...box("b", 0, 0), props: { caption: 1 } }])])).toBe("W028")
     const stray = { id: "s", x: 1, y: 2, item: "@foo/stars:star", props: { n: 5 } }
     const [restored] = restoreBooks(nesting, [book([box("a", 0, 0, [stray])])])
     expect((restored ? pagesOf(restored)[0] : undefined)?.items?.[0]).toMatchObject({ shapes: [stray] })

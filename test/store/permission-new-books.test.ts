@@ -28,7 +28,7 @@ test("keeps だけを書いた認可ステップでも、そのタイプのペ�
             aiDescription: "no book is made with a tree page",
             denies: () => false,
             keeps: c => {
-              if (c.kind !== "book") return true
+              if (c.kind !== "folder") return true
               const { before, after, changes } = c
               if (changes.added) seen.push({ before, added: changes.added })
               return !(changes.added && after && pagesOf(after).some(p => p.type === "@matomezu/tree:tree"))
@@ -75,9 +75,9 @@ test("認可ステップは、作るページのタイプを行う前に見ら�
             id: "no-markdown",
             title: "noMarkdown",
             aiDescription: "no markdown page is made",
-            denies: q => q.kind === "book" && q.where?.creates === MARKDOWN,
+            denies: q => q.kind === "folder" && q.where?.creates === MARKDOWN,
             keeps: c =>
-              c.kind !== "book" ||
+              c.kind !== "folder" ||
               !c.changes.pages.some(p => p.change === "added" && findPage(c.after!, p.id)?.page.type === MARKDOWN),
           }),
         ],

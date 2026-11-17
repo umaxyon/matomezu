@@ -15,13 +15,14 @@ import {
   talkActions,
   unexpired,
 } from "../core/annotation"
-import { checkBooks, findPage, pagesOf, restoreBooks } from "../core/book"
+import { checkBooks, findPage, pageById, pagesOf, restoreBooks, unreadableOf, warnsOf } from "../core/book"
 import { briefLine } from "../core/brief"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, type AIEditTicketChange, stopsOnEditLock } from "../core/def/action"
 import { slideIsBackground } from "../core/def/page-type"
 import type { SubjectDef } from "../core/def/subject"
+import { createdIn, libraryOf, NO_CHANGES, rawBooksOf, tablesOf, withChanges } from "../core/folders"
 import { detectLang, translate } from "../core/i18n/i18n"
 import { changedIn } from "../core/ids"
 import { splitId } from "../core/names"
@@ -38,7 +39,7 @@ import {
   restoreCounters,
   restoreRecords,
 } from "../core/records"
-import type { Book } from "../core/schema/book"
+import { type Book, UNREADABLE_CODES } from "../core/schema/book"
 import {
   aiSettings,
   disabledPluginsOf,
@@ -47,7 +48,7 @@ import {
   restoreSettings,
   settingSchema,
 } from "../core/settings"
-import { WARNINGS, warning, warningText } from "../core/warnings"
+import { WARNINGS, type Warning, warning, warningText } from "../core/warnings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../plugins"
 import { aiPlacedOf, type GrowRule, JOINED_MESSAGE, textColorRef, themesFor } from "../plugins/base"
@@ -94,7 +95,8 @@ let lastAdded: readonly Plugin[] = []
     ),
   ])
 
-// 受けるもの。books は対象のアクションが要るブック（一覧のアクションなら全部、レコードが対象のアクションなら readsBooks が答えたブック。matomezuRecordNeeds の books）、ids は振る id のもと（画面で先に行ったときの値。尽きたら randomUUID）
+// 受けるもの。pages と folders は対象のアクションが要るブックのページとフォルダ（置き場所から読んだまま。一覧のアクションなら全部、レコードが対象のアクションなら readsBooks が答えたブックの分。matomezuRecordNeeds の books）、
+// ids は振る id のもと（画面で先に行ったときの値。尽きたら randomUUID）
 interface Input {
   action: string
   args: unknown
@@ -102,26 +104,31 @@ interface Input {
   lang?: string // 画面で先に行ったときの言語。無ければ（AI が頼んだときなど）設定の言語の項目で決める
   ids?: string[]
   now?: string // 画面で先に行った時点。無ければ（AI が頼んだときなど）ここで決める
-  books?: unknown[]
+  pages?: unknown[]
+  folders?: unknown[]
   settings: unknown
-  annotations?: Readonly<Record<string, unknown>> // 要るブックのアノテーション（ブックの id → 並び）
+  annotations?: Readonly<Record<string, unknown>> // 要るブックのページのアノテーション（ページの id → 並び）
   counters?: unknown // 番号を振る種類の、区切りごとの次の番号（種類の id → 区切り → 次の番号。対象がその種類のアクションのとき）
   records?: unknown // 対象の定義が足した種類のレコード（種類の id → id → レコード。レコードが対象のアクションのとき、宛先と読むだけの種類）
   actor?: WireActor // 頼んだ者（無ければ利用者。AI は入っているワークルームの id を持つ）
-  watched?: Readonly<Record<string, readonly string[]>> // 利用者が直している物（ブックの id → 物の id。編集ロック）
+  watched?: Readonly<Record<string, readonly string[]>> // 利用者が直している物（ページかブックの id → その中の物の id。編集ロック）
   watchedRecords?: Readonly<Record<string, readonly string[]>> // 利用者が直しているレコード（対象の種類の id → レコードの id。編集ロック）
 }
 
-// 返すもの。aiEditTickets はレコードが対象のアクションが返した AI 編集チケットの変え方の並び、books は変わった・足したブック、removed は一覧から無くなったブック、annotations はアノテーションが変わったブックの id → 新しい並び（空なら全部無くなった）、
+// 返すもの。aiEditTickets はレコードが対象のアクションが返した AI 編集チケットの変え方の並び、pages と folders は変わった・足した・無くなったページとフォルダ（無くなった物は removed）、
+// created はそのうち新しく足した物の id（常駐が、世界のどこにも無い id かを確かめる）、books は変わったブックの id（変わったページ・フォルダを持つブック。無くなったブックも）、trashing は新しくゴミ箱に入るブックの id、annotations はアノテーションが変わったページの id → 新しい並び（空なら全部無くなった）、
 // records は変わったレコードの並び（1 つのトランザクションで書く）、counters は進めた番号（種類の id → 区切り → 次の番号。進めた区切りだけ）。
-// AI のアクションと lockedForUser のアクションが、受けた watched の物（ブックの中の物とアノテーションの id）か watchedRecords のレコードを変えるか消すなら、何も変えずに being-edited で断る。
+// AI のアクションと lockedForUser のアクションが、受けた watched の物（ページの中の物・そのページのアノテーション・ページそのもの、ブックのバインダ・ブックそのもの）か watchedRecords のレコードを変えるか消すなら、何も変えずに being-edited で断る。
 // 断ったら、detail に AI への説明（MCP 公開ツールが理由に添えて AI に返す）。認可ステップが止めたら（denied）、permission にそのステップの id
 type Output =
   | {
       ok: true
       result: unknown
-      books: Book[]
-      removed: string[]
+      pages: readonly RowChange[]
+      folders: readonly RowChange[]
+      created: readonly string[]
+      books: readonly string[]
+      trashing: readonly string[]
       settings?: unknown
       annotations?: Annotations
       records?: readonly RecordChange[] // 変わったレコード（消したなら record は removed）
@@ -129,7 +136,16 @@ type Output =
       notice?: string
       aiEditTickets?: readonly AIEditTicketChange[]
     }
-  | { ok: false; reason: string; permission?: string; detail?: string }
+  | { ok: false; reason: string; permission?: string; detail?: string; page?: string; code?: string } // page と code は、読めないページの断り（unreadable）のとき
+
+// 変わったページ・フォルダ 1 つ（row は新しい値。無くなったなら removed が true で、row は無い）
+interface RowChange {
+  id: string
+  row?: unknown
+  removed?: true
+}
+const rowChanges = (changed: Readonly<Record<string, unknown>>): RowChange[] =>
+  Object.entries(changed).map(([id, row]) => (row === REMOVED ? { id, removed: true as const } : { id, row }))
 
 declare const crypto: { randomUUID(): string }
 
@@ -144,6 +160,7 @@ const AI_REFUSALS: Record<Exclude<PerformedIn, { ok: true }>["reason"], string> 
   "no-book": "there is no book with that id (see list_books)",
   "no-page": "there is no page with that id (on.page is the id of a page; read_book lists a book's pages)",
   "no-record": "there is no record with that id (on.record is the id of a record of the action's subject)",
+  unreadable: "that page cannot be read now (code is the reason); nothing can be done to it",
 }
 
 // 断りに、AI への説明を添える
@@ -168,6 +185,9 @@ function refusal(catalog: CoreCatalog, done: Exclude<PerformedIn, { ok: true }>)
     return { ok: false, reason: done.reason, detail }
   }
   if ("detail" in done && done.detail !== undefined) return { ok: false, reason: done.reason, detail: done.detail }
+  // 読めないページの断りは、そのページの id と理由の番号を添える（常駐は AI に番号だけを返す）
+  if (done.reason === "unreadable")
+    return { ok: false, reason: done.reason, page: done.page, code: done.code, detail: AI_REFUSALS.unreadable }
   return { ok: false, reason: done.reason, detail: AI_REFUSALS[done.reason] }
 }
 
@@ -203,15 +223,17 @@ function perform(input: Input): Output {
   const settings = restoreSettings(input.settings)
   const lang = input.lang ? detectLang([input.lang], [...catalog.languages.keys()]) : langOf(catalog, settings, "en")
   const ids = [...(input.ids ?? [])]
-  const books = Object.fromEntries(restoreBooks(catalog, input.books ?? []).map(b => [b.id, b]))
+  const raw = rawBooksOf(input.pages ?? [], input.folders ?? [])
+  const books = Object.fromEntries(restoreBooks(catalog, raw).map(b => [b.id, b]))
   const annotations = Object.fromEntries(
-    Object.entries(input.annotations ?? {}).map(([book, list]) => [book, restoreAnnotations(list)]),
+    Object.entries(input.annotations ?? {}).map(([page, list]) => [page, restoreAnnotations(list)]),
   )
   const records = restoreRecords(input.records)
   const counters = restoreCounters(input.counters)
   const actor = actorOfWire(input.actor)
   const source = hostSource(records)
-  const world = { books, settings, annotations, records, counters, ...(source ? { source } : {}) }
+  const tables = tablesOf(Object.values(books))
+  const world = { ...tables, settings, annotations, records, counters, ...(source ? { source } : {}) }
   const done = performIn(world, input.action, input.args, input.on, {
     catalog,
     controlCenter,
@@ -221,25 +243,42 @@ function perform(input: Input): Output {
     actor,
   })
   if (!done.ok) return refusal(catalog, done)
-  const next = done.books
-  const changed = done.book ? [done.book] : Object.values(next ?? {}).filter(b => books[b.id] !== b)
-  const removed = next ? Object.keys(books).filter(id => !(id in next)) : []
+  // 変わったブック（組み直した値）と、無くなったブック
+  const next = done.changes ? libraryOf(withChanges(tables, done.changes)) : books
+  const changed = Object.values(next).filter(b => books[b.id] !== b)
+  const removed = Object.keys(books).filter(id => !(id in next))
   const notice = shiftNotice(books, changed)
+  // 行った後のブック（無くなったブックは無い）
+  const after = (id: string): Book | undefined =>
+    removed.includes(id) ? undefined : (changed.find(b => b.id === id) ?? books[id])
   const touched = Object.entries(input.watched ?? {}).flatMap(([id, watched]) => {
-    const book = removed.includes(id) ? undefined : (changed.find(b => b.id === id) ?? books[id])
+    // ブックの中の物（バインダ・ブックそのもの）
+    if (books[id]) return changedIn(books[id], after(id), watched)
+    // ページの中の物と、そのページのアノテーション
+    const was = pageById(books, id)
+    if (!was) return []
     const list = done.annotations && id in done.annotations ? done.annotations[id] : annotations[id]
-    return changedIn({ book: books[id], annotations: annotations[id] }, { book, annotations: list }, watched)
+    const book = after(was.book.id)
+    return changedIn(
+      { page: was.page, annotations: annotations[id] },
+      { page: book && findPage(book, id)?.page, annotations: list },
+      watched,
+    )
   })
   // AI のアクションと、利用者でも編集ロックで断るアクションは、利用者が直している物を変えも消しもしない（あとでやり直す）
   // レコードが対象のアクションは、変えるレコードのどれかを直しているなら、同じように断る（作るレコードは新しい id なので、直してはいない）
   const editedRecord = (done.records ?? []).some(c => (input.watchedRecords?.[c.subject] ?? []).includes(c.id))
   if ((touched.length > 0 || editedRecord) && stopsOnEditLock(catalog.actions.get(input.action), actor))
     return { ok: false, reason: "being-edited" }
+  const changes = done.changes ?? NO_CHANGES
   return {
     ok: true,
     result: done.result,
-    books: changed,
-    removed,
+    pages: rowChanges(changes.pages),
+    folders: rowChanges(changes.folders),
+    created: createdIn(Object.values(books), changes),
+    books: [...changed.map(b => b.id), ...removed],
+    trashing: changed.filter(b => b.trashed !== undefined && books[b.id]?.trashed === undefined).map(b => b.id),
     ...(done.settings ? { settings: done.settings } : {}),
     ...(done.annotations ? { annotations: done.annotations } : {}),
     ...(done.records ? { records: done.records.map(c => withKeys(catalog, c)) } : {}),
@@ -381,31 +420,52 @@ function aiTables(of: Assembled) {
 ;(globalThis as { matomezuReadSettings?: (settings: string) => string }).matomezuReadSettings = settings =>
   JSON.stringify(aiSettings(assembled.catalog.core, restoreSettings(JSON.parse(settings))))
 
-// 残したブックを今の機能台帳で確かめ、warning のあるブック（読めない W004〜W006・一部に無い物がある W007）の id・番号・warning の 1 行と、
-// 読めないか（unreadable）を返す（常駐が一覧に持つ）
+// 残したブックを今の機能台帳で確かめ、warning のあるブック（ブックごと読めない W005・W006、読めないページがある W027〜W029、一部に無い物がある W007）の
+// id・番号・warning の 1 行と、ブックごと読めないか（unreadable）を返す（常駐が一覧に持つ）。読めないページの warning は、ページ 1 枚ごとに、
+// そのページの id（page）を添えて返す（1 行は、同じブックの同じ理由のページで同じ）
 ;(globalThis as { matomezuCheckBooks?: (books: string) => string }).matomezuCheckBooks = books => {
-  const { warnings, partial } = checkBooks(assembled.catalog.core, JSON.parse(books) as unknown[])
-  return JSON.stringify(
-    [...warnings.map(n => [n, true] as const), ...partial.map(n => [n, false] as const)].map(([n, unreadable]) => ({
-      book: n.params.book ?? "",
-      code: n.code,
-      warning: warningText(n),
-      unreadable,
-    })),
+  const read = checkBooks(assembled.catalog.core, JSON.parse(books) as unknown[])
+  const line = (n: Warning, unreadable: boolean) => ({
+    book: n.params.book ?? "",
+    code: n.code,
+    warning: warningText(n),
+    unreadable,
+  })
+  const ofPages = (n: Warning): boolean => (UNREADABLE_CODES as readonly string[]).includes(n.code)
+  // 読めないページ 1 枚ごとに、そのページの理由の warning
+  const pages = read.books.flatMap(book =>
+    unreadableOf(book).flatMap(u => {
+      const found = read.partial.find(n => warnsOf(n, book.id, u))
+      return found ? [{ ...line(found, false), page: u.id }] : []
+    }),
   )
+  return JSON.stringify([
+    ...read.warnings.map(n => line(n, true)),
+    ...read.partial.filter(n => !ofPages(n)).map(n => line(n, false)),
+    ...pages,
+  ])
 }
 
 // 残したアノテーションを今の機能台帳で確かめ、効かないもの（種類が無い W018・形が合わない W019）の warning の 1 行ずつを返す（常駐がログに書く）。
-// 読めないブックのアノテーションは確かめない
+// 受けるのは、ブックと、そのページごとのアノテーション（ページの id → 並び）の組。読めないブックのアノテーションは確かめない
 ;(globalThis as { matomezuCheckAnnotations?: (pairs: string) => string }).matomezuCheckAnnotations = pairs => {
   const catalog = assembled.catalog.core
-  const lines = (JSON.parse(pairs) as { book: unknown; annotations: unknown }[]).flatMap(p => {
+  const lines = (JSON.parse(pairs) as AnnotatedBook[]).flatMap(p => {
     const [book] = restoreBooks(catalog, [p.book])
-    return book ? checkAnnotations(catalog, book, restoreAnnotations(p.annotations)).map(warningText) : []
+    return book
+      ? pagesOf(book).flatMap(page =>
+          checkAnnotations(catalog, book, page, restoreAnnotations(p.annotations[page.id])).map(warningText),
+        )
+      : []
   })
   return JSON.stringify(lines)
 }
 
+// ブックと、そのページごとのアノテーション（ページの id → 並び）の組（常駐が渡す）
+interface AnnotatedBook {
+  book: unknown
+  annotations: Readonly<Record<string, unknown>>
+}
 // 常駐が初めて起動したときに 1 度だけ行うアクション（ActionDef の runsOnceAtStart）の id の並び
 ;(globalThis as { matomezuRunOnceActions?: () => string }).matomezuRunOnceActions = () =>
   JSON.stringify([...assembled.catalog.core.actions.values()].filter(a => a.runsOnceAtStart).map(a => a.id))
@@ -577,24 +637,32 @@ function searchTextOf(def: SubjectDef, record: unknown): { title: string; body: 
 ;(globalThis as { matomezuCheckRecords?: (records: string) => string }).matomezuCheckRecords = records =>
   JSON.stringify(checkRecords(assembled.catalog.core, restoreRecords(JSON.parse(records))).map(warningText))
 
-// ブックとそのアノテーションの並びごとに、AI に見せる並び（annotationsForAi。結び付く物の最後のあるページと、AI の応えを待っているか）を返す。
-// 読めないブックのアノテーションは、ページが分からず待たないものとして返す
+// ブックとそのページごとのアノテーションの組ごとに、AI に見せる並び（annotationsForAi。付いているページと、AI の応えを待っているか。ブックのページの順）を返す。
+// 読めないブックのアノテーションは、待たないものとして返す
 ;(globalThis as { matomezuAiAnnotations?: (pairs: string) => string }).matomezuAiAnnotations = pairs => {
   const catalog = assembled.catalog.core
-  const out = (JSON.parse(pairs) as { book: unknown; annotations: unknown }[]).map(p => {
-    const list = restoreAnnotations(p.annotations)
+  const out = (JSON.parse(pairs) as AnnotatedBook[]).map(p => {
     const [book] = restoreBooks(catalog, [p.book])
-    return book ? annotationsForAi(catalog, book, list) : list.map(a => ({ ...a, page: null, awaits: false }))
+    return book
+      ? pagesOf(book).flatMap(page => annotationsForAi(catalog, page, restoreAnnotations(p.annotations[page.id])))
+      : Object.entries(p.annotations).flatMap(([page, list]) =>
+          restoreAnnotations(list).map(a => ({ ...a, page, awaits: false })),
+        )
   })
   return JSON.stringify(out)
 }
 
-// ブックとそのアノテーションの並びごとに、待っている物を AI に知らせる 1 行（annotationBriefs。アノテーションの id → 1 行）を返す。読めないブックは空
+// ブックとそのページごとのアノテーションの組ごとに、待っている物を AI に知らせる 1 行（annotationBriefs。ページの id → アノテーションの id → 1 行）を返す。読めないブックは空
 ;(globalThis as { matomezuAiBriefs?: (pairs: string) => string }).matomezuAiBriefs = pairs => {
   const catalog = assembled.catalog.core
-  const out = (JSON.parse(pairs) as { book: unknown; annotations: unknown }[]).map(p => {
+  const out = (JSON.parse(pairs) as AnnotatedBook[]).map(p => {
     const [book] = restoreBooks(catalog, [p.book])
-    return book ? annotationBriefs(catalog, book, restoreAnnotations(p.annotations)) : {}
+    return Object.fromEntries(
+      (book ? pagesOf(book) : []).map(page => [
+        page.id,
+        annotationBriefs(catalog, page, restoreAnnotations(p.annotations[page.id])),
+      ]),
+    )
   })
   return JSON.stringify(out)
 }
@@ -641,7 +709,7 @@ function searchTextOf(def: SubjectDef, record: unknown): { title: string; body: 
     return JSON.stringify({ annotations: kept, changed: kept.length !== all.length })
   }
 
-// 利用者トリガートークのときに行うアクション（runsWhenUserTalks）の id（常駐が、アノテーションのあるブックごとに行う）
+// 利用者トリガートークのときに行うアクション（runsWhenUserTalks）の id（常駐が、アノテーションのある読めるページごとに行う）
 ;(globalThis as { matomezuTalkActions?: () => string }).matomezuTalkActions = () =>
   JSON.stringify(talkActions(assembled.catalog.core))
 

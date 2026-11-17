@@ -147,7 +147,8 @@ const EX = {
 const catalog = assemble([...BUILTIN, defineBuiltin(EX as never)], CENTER).catalog.core
 
 const empty: World = {
-  books: {},
+  pages: {},
+  folders: {},
   settings: {},
   annotations: {},
   records: {},

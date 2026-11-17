@@ -147,15 +147,35 @@ describe("並び", () => {
     for (const [name, b, ok] of cases) expect([name, holds(CORE_CATALOG, b)]).toEqual([name, ok])
   })
 
-  test("機能台帳に無いタイプのページ・空のバインダのあるブックは W004", () => {
+  test("機能台帳に無いタイプのページは読めないページ（W027）になり、ブックは読める。そのタイプのバインダは、中が読めないページだけなら読める", () => {
     const unknownPage = testBook("b", "b", [
-      drawingPage("p1"),
-      { ...drawingPage("p2", { title: "2" }), type: "@x/y:z" } as never,
+      drawingPage("q1"),
+      { ...drawingPage("q2", { title: "2" }), type: "@x/y:z" } as never,
     ])
+    const unknownBinder = testBook("d", "d", [
+      testBinder("f2", "f", "@x/y:z" as never, { ...drawingPage("q3"), type: "@x/y:z" } as never),
+    ])
+    const { books, warnings, partial } = checkBooks(CORE_CATALOG, [unknownPage, unknownBinder, mixed])
+    expect(books.map(b => b.id)).toEqual(["b", "d", "b2"])
+    expect(warnings).toEqual([])
+    expect(partial.map(w => [w.code, w.params.book, w.params.pages, w.params.type])).toEqual([
+      ["W027", "b", "1", "@x/y:z"],
+      ["W027", "d", "1", "@x/y:z"],
+    ])
+    expect(books[0]?.lineup[1]).toEqual({ kind: "unreadable", id: "q2", title: "2", code: "W027", type: "@x/y:z" })
+    expect(books[1]?.lineup).toEqual([
+      {
+        ...testBinder("f2", "f", "@x/y:z" as never),
+        lineup: [{ kind: "unreadable", id: "q3", title: "ページ 1", code: "W027", type: "@x/y:z" }],
+      },
+    ])
+  })
+
+  test("機能台帳に無いタイプの空のバインダのあるブックは、読めない（開けば、タイプの無いバインダを開くことになる）", () => {
     const unknownBinder = testBook("c", "c", [testBinder("f1", "f", "@x/y:z" as never)])
-    const { books, warnings } = checkBooks(CORE_CATALOG, [unknownPage, unknownBinder, mixed])
-    expect(books.map(b => b.id)).toEqual(["b2"])
-    expect(warnings.map(w => w.code)).toEqual(["W004", "W004"])
+    const { books, warnings } = checkBooks(CORE_CATALOG, [unknownBinder])
+    expect(books).toEqual([])
+    expect(warnings.map(w => w.params.book)).toEqual(["c"])
   })
 
   test("ページのタイプとバインダの入れるタイプは、変えた後も同じでなければならない", () => {

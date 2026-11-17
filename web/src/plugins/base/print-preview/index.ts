@@ -132,11 +132,16 @@ function openPreview(ctx: CommandContext, a: CommandActions) {
 }
 
 // 開いているブックを印刷プレビューで見せる（ページを持つブックを編集している間）
+// 読めないページを開いている間は、印刷プレビューを開けない（並べる物を選ぶ元になる、開いているページが無い）
+const readable = (ctx: { stage: { opened: { kind: string } | null } }): boolean =>
+  ctx.stage.opened?.kind !== "unreadable"
+
 export const PRINT_PREVIEW_OPEN = kit.defineCommand({
   id: "print-preview-open",
   title: "Print preview",
   run: (ctx, a) => openPreview(ctx, a),
   when: ctx => ctx.book !== null && ctx.stage.mode === "edit",
+  enabled: ctx => readable(ctx),
 })
 
 // 印刷: 印刷プレビューの間は、並べた印刷区画を刷る（印刷ダイアログ。測っている途中と、並べる物が無い間は押せない）。
@@ -149,7 +154,7 @@ export const PRINT = kit.defineCommand({
     else if (ctx.pluginState(PRINT_READY_STATE)) a.requestPrint()
   },
   when: ctx => ctx.book !== null,
-  enabled: ctx => ctx.stage.mode === "edit" || ctx.pluginState(PRINT_READY_STATE) === true,
+  enabled: ctx => (ctx.stage.mode === "edit" ? readable(ctx) : ctx.pluginState(PRINT_READY_STATE) === true),
 })
 
 export const PRINT_KEYS = [kit.defineKey({ id: "print-mod-p", key: "Mod+P", command: PRINT.id, scope: "stage" })]

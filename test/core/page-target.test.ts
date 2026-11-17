@@ -4,6 +4,7 @@ import { z } from "zod"
 import { USER } from "../../web/src/core/actor"
 import { bindersOf, findPage, pagesOf } from "../../web/src/core/book"
 import { defineAction } from "../../web/src/core/def/action"
+import { bookOf, NO_CHANGES, tablesOf, withChanges } from "../../web/src/core/folders"
 import { idMaker, idsIn } from "../../web/src/core/ids"
 import { allowedOnBook, perform, performIn, permittedIn, runAction } from "../../web/src/core/perform"
 import type { ItemPage } from "../../web/src/core/placed"
@@ -101,7 +102,7 @@ const ctxOf = (newId: () => string = sequence()) => ({
 const act = (b: Book, page: string, id: string, args: unknown, newId?: () => string) =>
   perform({ book: b, page } as never, id as never, args as never, ctxOf(newId) as never)
 const world = (...books: Book[]) => ({
-  books: Object.fromEntries(books.map(b => [b.id, b])),
+  ...tablesOf(books),
   settings: {},
   annotations: {},
   records: {},
@@ -151,33 +152,32 @@ test("使えるかは宛先のページのタイプで決まり、ロックは�
   expect(allowedOnBook(catalog, book, ADD, {})).toBe(false)
 })
 
-test("run が振る id は、ブックのほかのページの id とも重ならない（重なる値を飛ばす。同じ値の並びなら同じ id）", () => {
-  // 1 つ目の値は p2 の箱の id、2 つ目は短い id にすると p2 の箱の id、3 つ目はページの id と重なる
+test("run が振る id は、そのページの中の id と重ならない（重なる値を飛ばす。同じ値の並びなら同じ id）。ほかのページの id とは重なってよい", () => {
+  // 1 つ目の値は p1 の箱の id、2 つ目は短い id にすると p1 の箱の id、3 つ目は p1 そのものの id と重なる。4 つ目は p2 の箱の id（ほかのページなので使える）
   const values = () => {
-    const list = ["b", "b-", "m1", "fresh"]
+    const list = ["a", "a-", "p1", "b"]
     return () => list.shift() ?? "spare"
   }
   const first = act(book, "p1", ADD, {}, values())
   const again = act(book, "p1", ADD, {}, values())
-  expect(first).toMatchObject({ ok: true, result: { id: "fresh" } })
-  expect(again).toMatchObject({ ok: true, result: { id: "fresh" } })
+  expect(first).toMatchObject({ ok: true, result: { id: "b" } })
+  expect(again).toMatchObject({ ok: true, result: { id: "b" } })
   // run だけを行う口も同じ id を振る
   const ran = runAction(add as never, { book, page: "p1" }, {}, ctxOf(values()) as never)
-  expect(ran).toMatchObject({ result: { id: "fresh" } })
+  expect(ran).toMatchObject({ result: { id: "b" } })
 })
 
-test("performIn は宛先のページを持っているブックで行う。ゴミ箱のブックのページと、2 冊にあるページは no-page。行う前の問いも同じ答え", () => {
+test("performIn は宛先のページを持っているブックで行い、変わったページだけを返す。ゴミ箱のブックのページと、どのブックにも無いページは no-page。行う前の問いも同じ答え", () => {
   const other = testBook("b3", "別", [drawingPage("x1")])
   const done = performIn(world(book, other), ADD, {}, { page: "x1" }, ctxOf())
   if (!done.ok) throw new Error(done.reason)
-  expect(done.book?.id).toBe("b3")
-  expect(itemsOf(done.book as Book, "x1")).toEqual(["n1"])
+  // 書くのは、変えたページ 1 枚だけ（ブックのフォルダも、ほかのページも書かない）
+  expect(Object.keys(done.changes?.pages ?? {})).toEqual(["x1"])
+  expect(done.changes?.folders).toEqual({})
+  const after = bookOf(withChanges(world(book, other), done.changes ?? NO_CHANGES), "b3")
+  expect(itemsOf(after as Book, "x1")).toEqual(["n1"])
   expect(permittedIn(world(book, other), ADD, {}, { page: "x1" }, ctxOf())).toEqual({ ok: true })
-  const cases = [
-    world(book, { ...other, trashed: "2026-01-01T00:00:00.000Z" } as Book),
-    world(other, testBook("b4", "重なり", [drawingPage("x1")])),
-    world(book),
-  ]
+  const cases = [world(book, { ...other, trashed: "2026-01-01T00:00:00.000Z" } as Book), world(book)]
   for (const w of cases) {
     expect(performIn(w, ADD, {}, { page: "x1" }, ctxOf())).toMatchObject({ ok: false, reason: "no-page" })
     expect(permittedIn(w, ADD, {}, { page: "x1" }, ctxOf())).toMatchObject({ ok: false, reason: "no-page" })

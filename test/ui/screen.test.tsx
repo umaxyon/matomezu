@@ -13,6 +13,7 @@ import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { WindowRoot } from "../../web/src/ui/WindowRoot"
 import { drawingPage, testBook } from "../lineup"
 import { SAMPLE_BOOKS } from "../sample-books"
+import { worldRows } from "../support"
 
 const SKIN = "@matomezu/base:skin"
 
@@ -384,7 +385,7 @@ test("認可ステップがあるブックのゴミ箱入れを止めていれ�
           title: "keep",
           aiDescription: "this book stays",
           denies: q =>
-            q.kind === "book" && q.action.id === "@matomezu/base:book-trash" && q.book.title === "API の一覧",
+            q.kind === "folder" && q.action.id === "@matomezu/base:book-trash" && q.folder.title === "API の一覧",
         }),
       ],
     }),
@@ -412,6 +413,7 @@ test("認可ステップがあるブックのゴミ箱入れを止めていれ�
     ok: false,
     reason: "denied",
     permission: "@ex/keep:keep",
+    book: api.id,
   })
 })
 
@@ -425,9 +427,9 @@ test("認可ステップがゴミ箱のブックの戻す・消すを止めて�
           title: "keep",
           aiDescription: "this book stays in the trash",
           denies: q =>
-            q.kind === "book" &&
+            q.kind === "folder" &&
             ["@matomezu/base:book-restore", "@matomezu/base:book-purge"].includes(q.action.id) &&
-            q.book.title === "API の一覧",
+            q.folder.title === "API の一覧",
         }),
       ],
     }),
@@ -505,38 +507,33 @@ test("ステージの上の行と下の行を右クリックしても、ブラ�
   expect(screen.queryByRole("menu")).toBeNull()
 })
 
-test("読めないブックは、ブックを開くの一覧に押せない行として、開けない理由を添えて出る（データには手を付けない）", () => {
-  const gone = {
-    id: "x1",
-    title: "スタンプ帳",
-    lineup: [
-      {
-        kind: "page",
-        id: "p1",
-        type: "@foo/stamps:board",
-        title: "1",
-        paper: "@matomezu/base:a4",
-        orientation: "landscape",
-      },
-    ],
-  }
+test("読めないブックは、ブックを開くの一覧に押せない行として、開けない理由を添えて出る（データには手を付けない）。読めないページだけのブックは読める", () => {
+  // ページのタイプが機能台帳に無いだけなら、ブックは読める（ページが読めないページになる）
+  const gone = testBook("x1", "スタンプ帳", [
+    { ...drawingPage("q1", { title: "1" }), type: "@foo/stamps:board" } as never,
+  ])
+  // 並びに同じ名前のページが 2 つあるブックは、並びの決まりを守らない（W006）
+  const twins = testBook("x3", "双子", [drawingPage("q2", { title: "同じ" }), drawingPage("q3", { title: "同じ" })])
   const broken = { id: "x2", title: "壊れた図面", lineup: "?" }
-  const store = renderBooksScreen({ savedBooks: [gone, broken] })
-  expect(store.state.getState().books.x1).toBeUndefined()
+  const store = renderBooksScreen({ savedBooks: [gone, twins, broken] })
+  expect(store.state.getState().books.x1?.lineup).toEqual([
+    { kind: "unreadable", id: "q1", title: "1", code: "W027", type: "@foo/stamps:board" },
+  ])
+  expect(store.state.getState().books.x3).toBeUndefined()
   fireEvent.click(fromMenu("ブックを開く"))
   const dialog = screen.getByRole("dialog", { name: "ブックを開く" })
   const rows = within(dialog)
     .getAllByRole("option")
     .filter(o => o.getAttribute("aria-disabled") === "true")
   expect(rows.map(r => r.textContent)).toEqual([
-    "スタンプ帳開けません: ページのタイプ @foo/stamps:board がありません",
+    "双子開けません: 並びかページのタイプの決まりを守っていません",
     "壊れた図面開けません: ブックの形に合いません",
   ])
   // 押しても開かない
   fireEvent.click(rows[0]!)
   expect(screen.getByRole("dialog", { name: "ブックを開く" })).toBeTruthy()
   // 名前で絞り込める
-  fireEvent.change(within(dialog).getByRole("combobox", { name: "ブックを探す" }), { target: { value: "スタンプ" } })
+  fireEvent.change(within(dialog).getByRole("combobox", { name: "ブックを探す" }), { target: { value: "双子" } })
   expect(
     within(dialog)
       .getAllByRole("option")
@@ -568,7 +565,7 @@ test("ブックを選ぶ一覧は、触れた（開いたか書いた）時刻�
   act(() =>
     store.receive(
       {
-        books: SAMPLE_BOOKS,
+        ...worldRows(SAMPLE_BOOKS),
         settings: undefined,
         touched: { b4: new Date(now - 5 * 60_000).toISOString(), b2: new Date(now - 3 * 3_600_000).toISOString() },
       },

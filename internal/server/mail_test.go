@@ -80,7 +80,7 @@ func TestUnknownMailIsAWarning(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { store.Close() })
-	if _, err := store.Apply(storage.Batch{Records: []storage.RecordWrite{{Subject: mailKind, ID: "m1", Body: json.RawMessage(`{"id":"m1","mail":"@ex/x:gone","from":"a","sentAt":"t","props":{},"order":1}`)}}}); err != nil {
+	if err := store.Apply(storage.Batch{Records: []storage.RecordWrite{{Subject: mailKind, ID: "m1", Body: json.RawMessage(`{"id":"m1","mail":"@ex/x:gone","from":"a","sentAt":"t","props":{},"order":1}`)}}}); err != nil {
 		t.Fatal(err)
 	}
 	eng, err := engine.New()
@@ -122,7 +122,7 @@ func TestMailLimitDropsTheOldestInOneAction(t *testing.T) {
 		body := fmt.Sprintf(`{"id":%q,"mail":"@matomezu/base:letter","from":"a","sentAt":"2026-11-01T00:00:00.000Z"%s,"props":{"title":"%d","body":""},"order":%d}`, id, seen, i, i)
 		batch.Records = append(batch.Records, storage.RecordWrite{Subject: mailKind, ID: id, Body: json.RawMessage(body)})
 	}
-	if _, err := store.Apply(batch); err != nil {
+	if err := store.Apply(batch); err != nil {
 		t.Fatal(err)
 	}
 	eng, err := engine.New()
@@ -195,18 +195,18 @@ func TestMailLimitDropsTheOldestInOneAction(t *testing.T) {
 
 // 種類と key で引くので、別の種類の同じ key の AI 編集チケットは閉じない。種類を持たないチケットは key だけで合う
 func TestAIEditTicketsAreFoundBySubjectAndKey(t *testing.T) {
-	list, _ := changedTickets(nil, mailKind, engine.AIEditTicketChange{Book: "b1", Key: "k", Outcome: "open"}, 1, "t")
+	list, _ := changedTickets(nil, mailKind, engine.AIEditTicketChange{Book: "b1", Key: "k", Outcome: "open"}, "t")
 	if len(list) != 1 || list[0].Subject != mailKind {
 		t.Fatalf("opened = %+v", list)
 	}
-	if _, changed := changedTickets(list, "ex:other", engine.AIEditTicketChange{Book: "b1", Key: "k", Outcome: "closed"}, 1, "t"); changed {
+	if _, changed := changedTickets(list, "ex:other", engine.AIEditTicketChange{Book: "b1", Key: "k", Outcome: "closed"}, "t"); changed {
 		t.Fatal("a ticket of another subject was closed")
 	}
-	if left, changed := changedTickets(list, mailKind, engine.AIEditTicketChange{Book: "b1", Key: "k", Outcome: "closed"}, 1, "t"); !changed || len(left) != 0 {
+	if left, changed := changedTickets(list, mailKind, engine.AIEditTicketChange{Book: "b1", Key: "k", Outcome: "closed"}, "t"); !changed || len(left) != 0 {
 		t.Fatalf("closed = %+v, %v", left, changed)
 	}
-	old := []AIEditTicket{{Key: "k", At: "t", Version: 1}}
-	if left, changed := changedTickets(old, mailKind, engine.AIEditTicketChange{Book: "b1", Key: "k", Outcome: "closed"}, 1, "t"); !changed || len(left) != 0 {
+	old := []AIEditTicket{{Key: "k", Book: "b1", At: "t"}}
+	if left, changed := changedTickets(old, mailKind, engine.AIEditTicketChange{Book: "b1", Key: "k", Outcome: "closed"}, "t"); !changed || len(left) != 0 {
 		t.Fatalf("closed without a subject = %+v, %v", left, changed)
 	}
 }
@@ -219,11 +219,9 @@ func TestProposalSendOpensAndRemovesTicketsInOneWrite(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { store.Close() })
-	batch := storage.Batch{
-		Books:         []storage.BookWrite{{ID: "b1", Body: json.RawMessage(boxed)}},
-		Counters:      []storage.Counter{{Subject: mailKind, Scope: "mail", Next: 201}},
-		AIEditTickets: []storage.BookBody{{Book: "b1", Body: json.RawMessage(`[{"key":"m001","subject":"` + mailKind + `","at":"t","version":1}]`)}},
-	}
+	batch := bookBatch(t, boxed)
+	batch.Counters, batch.AIEditTickets = []storage.Counter{{Subject: mailKind, Scope: "mail", Next: 201}},
+		json.RawMessage(`[{"key":"m001","subject":"`+mailKind+`","book":"b1","at":"t"}]`)
 	for i := 1; i <= 200; i++ {
 		id := fmt.Sprintf("m%03d", i)
 		body := fmt.Sprintf(`{"id":%q,"mail":"@matomezu/base:letter","from":"a","sentAt":"t","props":{"title":"%d","body":""},"order":%d}`, id, i, i)
@@ -233,7 +231,7 @@ func TestProposalSendOpensAndRemovesTicketsInOneWrite(t *testing.T) {
 		}
 		batch.Records = append(batch.Records, storage.RecordWrite{Subject: mailKind, ID: id, Body: json.RawMessage(body)})
 	}
-	if _, err := store.Apply(batch); err != nil {
+	if err := store.Apply(batch); err != nil {
 		t.Fatal(err)
 	}
 	eng, err := engine.New()
@@ -250,13 +248,13 @@ func TestProposalSendOpensAndRemovesTicketsInOneWrite(t *testing.T) {
 	if err != nil || !done.OK || json.Unmarshal(done.Result, &sent) != nil || sent.Mail == "" {
 		t.Fatalf("proposal-send = %+v, %v", done, err)
 	}
-	want := fmt.Sprintf(`[{"key":"m001","subject":%q,"at":"t","version":1,"removed":"limit"},{"key":%q,"subject":%q,"at":`, mailKind, sent.Mail, mailKind)
+	want := fmt.Sprintf(`[{"key":"m001","subject":%q,"book":"b1","at":"t","removed":"limit"},{"key":%q,"subject":%q,"book":"b1","at":`, mailKind, sent.Mail, mailKind)
 	stored, err := store.AIEditTickets()
-	if err != nil || !strings.HasPrefix(string(stored["b1"]), want) {
-		t.Fatalf("stored tickets = %s, %v; want %s…", stored["b1"], err, want)
+	if err != nil || !strings.HasPrefix(string(stored), want) {
+		t.Fatalf("stored tickets = %s, %v; want %s…", stored, err, want)
 	}
 	h.mu.Lock()
-	list := h.aiEditTickets["b1"]
+	list := h.aiEditTickets
 	h.mu.Unlock()
 	if len(list) != 2 || list[0].Removed != "limit" || list[1].Key != sent.Mail || list[1].Removed != "" {
 		t.Fatalf("tickets = %+v", list)

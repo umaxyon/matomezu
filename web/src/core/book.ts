@@ -5,12 +5,15 @@ import { type CoreCatalog, pageType } from "./core-catalog"
 import { freshPageId } from "./ids"
 import { splitId } from "./names"
 import { type ItemPage, pageHolds, slideOf, walkShapes } from "./placed"
-import type { AnyPage, BinderEntry, Book, LineupEntry, Page } from "./schema/book"
+import { sameData } from "./same"
+import type { AnyPage, BinderEntry, Book, LineupEntry, Page, UnreadableCode, UnreadableEntry } from "./schema/book"
 import { type Warning, warning } from "./warnings"
 
-// 残しておいたブックを確かめる: このインスタンスのブックの形に合うものは books に、読めないものは warning（ページのタイプが無い W004・形が合わない W005・
-// 並びの決まりやアイテムどうしの関係の決まりを守らない W006）にする。読めるが、機能台帳に無いアイテムや設定の項目を持つブックは partial に warning W007 を足す。
-// 残したブックは外から来る値なので、形を確かめてから使う。読めないブックのデータには手を付けない
+// 残しておいたブックを確かめる: このインスタンスのブックの形に合うものは books に、読めないものは warning（形が合わない W005・並びの決まりを守らない W006）にする。
+// 読めないページ（タイプが機能台帳に無い W027・タイプの形に合わない W028・タイプの決まりを守らない W029）は、ブックを読めるまま、読めないページのエントリに替えて partial に warning を足す。
+// 読めるが、機能台帳に無いアイテムや設定の項目を持つブックも partial に warning W007 を足す。
+// 残したブックは外から来る値なので、形を確かめてから使う。読めないブックと読めないページのデータには手を付けない。
+// ブックとページとバインダの id は、渡した並びの全部の中で重ならない（ページもフォルダも、ちょうど 1 つのフォルダに入る）。先のブックがもう使っている id を持つブックは、読めないブック（W006）にする
 export function checkBooks(
   catalog: CoreCatalog,
   saved: readonly unknown[],
@@ -21,37 +24,160 @@ export function checkBooks(
   for (const b of saved) {
     const raw = (typeof b === "object" && b !== null ? b : {}) as { id?: unknown; title?: unknown }
     const params = { book: String(raw.id ?? ""), title: typeof raw.title === "string" ? raw.title : "" }
-    const unknown = rawPageTypes(b).find(t => !catalog.pageTypes.has(t))
-    if (unknown !== undefined) {
-      warnings.push(warning("W004", splitId(unknown).owner ?? "", { ...params, type: unknown }))
-      continue
-    }
-    const parsed = catalog.bookSchema.safeParse(b)
+    // 読めないページの無いブックは、ブックの形で 1 回確かめるだけで済ませる（ページごとには確かめ直さない）
+    const whole = wholeBook(catalog, b)
+    const marked = whole ? { book: whole, found: [] } : withUnreadable(catalog, b)
+    const parsed = whole ? { success: true as const, data: whole } : catalog.bookSchema.safeParse(marked.book)
     if (!parsed.success) warnings.push(warning("W005", "", params))
-    else if (!holds(catalog, parsed.data as Book)) warnings.push(warning("W006", "", params))
+    else if (!lineupHolds(catalog, parsed.data as Book)) warnings.push(warning("W006", "", params))
     else {
       const book = parsed.data as Book
       books.push(book)
+      partial.push(...unreadableWarnings(marked.found, params))
       const missing = missingIn(catalog, book)
       const [first] = missing
       if (first) partial.push(warning("W007", splitId(first).owner ?? "", { ...params, missing: missing.join(", ") }))
     }
   }
-  return { books, warnings, partial }
+  const distinct = distinctBooks(books)
+  return {
+    books: distinct.books,
+    warnings: [...warnings, ...distinct.warnings],
+    partial: partial.filter(p => distinct.books.some(b => b.id === p.params.book)),
+  }
 }
 
-// 形を確かめる前のブックの、ページのタイプの id（並びとバインダの中。形が合わない所は飛ばす）
-function rawPageTypes(book: unknown): string[] {
-  const list = (v: unknown): unknown[] => (Array.isArray(v) ? v : [])
-  const field = (v: unknown, k: string): unknown =>
-    typeof v === "object" && v !== null ? (v as Record<string, unknown>)[k] : undefined
-  const types = (entries: unknown[]): string[] =>
-    entries.flatMap(e => {
-      // ページのタイプと、バインダが入れるタイプ
-      const type = field(e, "kind") === "page" ? field(e, "type") : field(e, "pageType")
-      return [...(typeof type === "string" ? [type] : []), ...types(list(field(e, "lineup")))]
-    })
-  return types(list(field(book, "lineup")))
+// 残したデータにタイプの id（文字列の type）が無いページの、warning に書くタイプ
+const NO_TYPE = "(none)"
+
+// ブック 1 冊の読めないページ found の warning: 番号ごとに 1 つ（タイプが無い W027 は、無いタイプごとに 1 つで、そのタイプの持ち主のプラグインの warning）。
+// 何枚かを pages に持つ（1 枚ごとには出さない）
+function unreadableWarnings(found: readonly UnreadableEntry[], params: { book: string; title: string }): Warning[] {
+  const groups = new Map<string, { code: UnreadableCode; type?: string; pages: number }>()
+  for (const u of found) {
+    const type = u.code === "W027" ? (u.type ?? NO_TYPE) : undefined
+    const key = `${u.code} ${type ?? ""}`
+    const group = groups.get(key) ?? { code: u.code, ...(type === undefined ? {} : { type }), pages: 0 }
+    groups.set(key, { ...group, pages: group.pages + 1 })
+  }
+  return [...groups.values()].map(g =>
+    warning(g.code, g.type === undefined ? "" : (splitId(g.type).owner ?? ""), {
+      ...params,
+      pages: `${g.pages}`,
+      ...(g.type === undefined ? {} : { type: g.type }),
+    }),
+  )
+}
+
+// warning n が、ブック book の読めないページ u の warning か（同じ番号で、W027 なら無いタイプも同じ）
+export const warnsOf = (n: Warning, book: string, u: UnreadableEntry): boolean =>
+  n.params.book === book && n.code === u.code && (u.code !== "W027" || n.params.type === (u.type ?? NO_TYPE))
+
+// 読めたブックの並び books のうち、先のブックがもう使っている id（ブック・ページ・バインダの id）を持たないブックと、持つブックの warning（W006。読めないブックにする）。
+// ページもフォルダも、ちょうど 1 つのフォルダに入り、id は全部の中で重ならない
+export function distinctBooks(books: readonly Book[]): { books: Book[]; warnings: Warning[] } {
+  const taken = new Set<string>()
+  const kept: Book[] = []
+  const warnings: Warning[] = []
+  for (const book of books) {
+    const ids = [book.id, ...lineupIds(book)]
+    if (ids.some(id => taken.has(id))) warnings.push(warning("W006", "", { book: book.id, title: book.title }))
+    else {
+      for (const id of ids) taken.add(id)
+      kept.push(book)
+    }
+  }
+  return { books: kept, warnings }
+}
+
+// 残したページ 1 枚（形を確かめる前）が、今の機能台帳で読めるか: 読めなければ、その理由の warning の番号
+// （同じ値は覚えておき、読めるかの確かめとタイプの決まりの確かめを繰り返さない）
+const pageChecks = new WeakMap<CoreCatalog, WeakMap<object, UnreadableCode | "readable">>()
+function pageChecksOf(catalog: CoreCatalog): WeakMap<object, UnreadableCode | "readable"> {
+  let kept = pageChecks.get(catalog)
+  if (!kept) {
+    kept = new WeakMap()
+    pageChecks.set(catalog, kept)
+  }
+  return kept
+}
+
+// 残したブック（形を確かめる前）が、読めないページを 1 枚も持たずにブックの形に合えば、読んだブック。合わない・読めないページがあるなら null
+// （null のときは、ページごとに確かめて読めないページを分ける）
+function wholeBook(catalog: CoreCatalog, saved: unknown): Book | null {
+  const parsed = catalog.bookSchema.safeParse(saved)
+  if (!parsed.success) return null
+  const book = parsed.data as Book
+  if (unreadableOf(book).length > 0) return null
+  // 形に合ったので、残したページは読んだページと同じ順に並ぶ
+  const raw = (saved as { lineup: readonly { kind: string; lineup?: readonly object[] }[] }).lineup.flatMap(
+    (e): readonly object[] => (e.kind === "binder" ? (e.lineup ?? []) : [e]),
+  )
+  const kept = pageChecksOf(catalog)
+  return pagesOf(book).every((page, i) => {
+    const from = raw[i]
+    if (from && kept.get(from) === "readable") return true
+    const held =
+      (catalog.pageTypes.get(page.type)?.holds?.(page as AnyPage, catalog) ?? true) && pageHolds(catalog, page)
+    if (held && from) kept.set(from, "readable")
+    return held
+  })
+    ? book
+    : null
+}
+
+function pageCheck(catalog: CoreCatalog, page: object): UnreadableCode | "readable" {
+  const kept = pageChecksOf(catalog)
+  const hit = kept.get(page)
+  if (hit) return hit
+  const type = (page as { type?: unknown }).type
+  const def = typeof type === "string" ? catalog.pageTypes.get(type) : undefined
+  const schema = typeof type === "string" ? catalog.pageSchemas.get(type) : undefined
+  const parsed = schema?.safeParse(page)
+  const made: UnreadableCode | "readable" =
+    !def || !parsed
+      ? "W027"
+      : !parsed.success
+        ? "W028"
+        : (def.holds?.(parsed.data as AnyPage, catalog) ?? true) && pageHolds(catalog, parsed.data as ItemPage)
+          ? "readable"
+          : "W029"
+  kept.set(page, made)
+  return made
+}
+
+// 残したブック（形を確かめる前）の並びとバインダの中の、読めないページを、読めないページのエントリに替えたブックと、替えたページ（id・理由の番号・タイプ）。
+// id の無いページ・ページでもバインダでもない物は、そのまま残す（ブックの形に合わず、ブックごと読めない）
+function withUnreadable(catalog: CoreCatalog, book: unknown): { book: unknown; found: UnreadableEntry[] } {
+  const isObject = (v: unknown): v is Readonly<Record<string, unknown>> =>
+    typeof v === "object" && v !== null && !Array.isArray(v)
+  const found: UnreadableEntry[] = []
+  const entry = (e: unknown): unknown => {
+    if (!isObject(e)) return e
+    if (e.kind === "binder" && Array.isArray(e.lineup)) {
+      const inner = e.lineup.map(entry)
+      return inner.every((p, i) => p === (e.lineup as unknown[])[i]) ? e : { ...e, lineup: inner }
+    }
+    // 残したデータに読めないページのエントリの形は無い（組むときにだけ作る）。在れば、形に合わない物に替えてブックごと読めなくする
+    if (e.kind === "unreadable") return { kind: "page" }
+    if (e.kind !== "page" || typeof e.id !== "string" || e.id === "") return e
+    const code = pageCheck(catalog, e)
+    if (code === "readable") return e
+    const made: UnreadableEntry = {
+      kind: "unreadable",
+      id: e.id,
+      title: typeof e.title === "string" ? e.title : "",
+      code,
+      ...(typeof e.type === "string" ? { type: e.type } : {}),
+    }
+    found.push(made)
+    return made
+  }
+  if (!isObject(book) || !Array.isArray(book.lineup)) return { book, found }
+  const lineup = book.lineup.map(entry)
+  return lineup.every((e, i) => e === (book.lineup as unknown[])[i])
+    ? { book, found }
+    : { book: { ...book, lineup }, found }
 }
 
 // ブックが持つ、機能台帳に無いアイテム（どの深さの子の形も）と設定の項目の id（重ねずに、見つけた順）
@@ -77,7 +203,15 @@ export const lineupOf = (book: Book): readonly LineupEntry[] => book.lineup
 
 // このブックが持つページを、並びの順に（バインダの中のページも、バインダの所に続けて）
 export const pagesOf = (book: Book): readonly ItemPage[] =>
-  book.lineup.flatMap((e): readonly ItemPage[] => (e.kind === "page" ? [e] : e.lineup))
+  book.lineup.flatMap((e): readonly ItemPage[] =>
+    e.kind === "page" ? [e] : e.kind === "binder" ? e.lineup.filter(p => p.kind === "page") : [],
+  )
+
+// このブックの読めないページを、並びの順に（バインダの中の物も）
+export const unreadableOf = (book: Book): readonly UnreadableEntry[] =>
+  book.lineup.flatMap((e): readonly UnreadableEntry[] =>
+    e.kind === "unreadable" ? [e] : e.kind === "binder" ? e.lineup.filter(p => p.kind === "unreadable") : [],
+  )
 
 // ブックのバインダを、並びの順に
 export const bindersOf = (book: Book): readonly BinderEntry[] =>
@@ -88,9 +222,29 @@ export function findPage(book: Book, id: string): { page: ItemPage; binder: Bind
   for (const e of book.lineup) {
     if (e.kind === "page") {
       if (e.id === id) return { page: e, binder: null }
-    } else {
+    } else if (e.kind === "binder") {
       const found = e.lineup.find(p => p.id === id)
-      if (found) return { page: found, binder: e }
+      if (found?.kind === "page") return { page: found, binder: e }
+    }
+  }
+  return undefined
+}
+
+// バインダ binder の中のエントリ（ページと読めないページ）を、並びの順に（バインダが無ければ空）
+export const entriesIn = (book: Book, binder: string): readonly (ItemPage | UnreadableEntry)[] =>
+  findBinder(book, binder)?.lineup ?? []
+
+// id の読めないページと、それが入っているバインダ（並びに直に入っていれば binder が null。無ければ undefined）
+export function findUnreadable(
+  book: Book,
+  id: string,
+): { entry: UnreadableEntry; binder: BinderEntry | null } | undefined {
+  for (const e of book.lineup) {
+    if (e.kind === "unreadable") {
+      if (e.id === id) return { entry: e, binder: null }
+    } else if (e.kind === "binder") {
+      const found = e.lineup.find(p => p.id === id)
+      if (found?.kind === "unreadable") return { entry: found, binder: e }
     }
   }
   return undefined
@@ -103,7 +257,8 @@ export function siblingsOf(book: Book, id: string): readonly LineupEntry[] | und
 }
 
 // バインダ binder の中のページを、並びの順に（バインダが無ければ空）
-export const pagesIn = (book: Book, binder: string): readonly ItemPage[] => findBinder(book, binder)?.lineup ?? []
+export const pagesIn = (book: Book, binder: string): readonly ItemPage[] =>
+  findBinder(book, binder)?.lineup.filter(p => p.kind === "page") ?? []
 
 export const findBinder = (book: Book, id: string): BinderEntry | undefined => bindersOf(book).find(f => f.id === id)
 
@@ -111,7 +266,11 @@ export const findBinder = (book: Book, id: string): BinderEntry | undefined => b
 function mapPages<B extends Book>(book: B, f: (page: AnyPage) => AnyPage | undefined): B {
   const lineup = book.lineup.flatMap((e): LineupEntry[] => {
     if (e.kind === "page") return [f(e)].flatMap(x => x ?? [])
-    return [{ ...e, lineup: e.lineup.flatMap(p => f(p) ?? []) }]
+    if (e.kind === "unreadable") return [e]
+    const inner = e.lineup.flatMap((p): (AnyPage | UnreadableEntry)[] =>
+      p.kind === "page" ? [f(p)].flatMap(x => x ?? []) : [p],
+    )
+    return [{ ...e, lineup: inner }]
   })
   return { ...book, lineup }
 }
@@ -205,6 +364,15 @@ export function addBinder<B extends Book>(
   return { book: { ...book, lineup: insertAt<LineupEntry>(book.lineup, made, index) }, binder: made.id }
 }
 
+// ブックの骨組み: ブックとバインダのフィールドはそのままで、ページを id だけにした値（ブックそのものとバインダだけを、中のページの中身と分けて比べるのに使う）
+export function frameOf(book: Book): unknown {
+  const stub = ({ id }: { id: string }) => ({ id })
+  return {
+    ...book,
+    lineup: book.lineup.map(e => (e.kind === "binder" ? { ...e, lineup: e.lineup.map(stub) } : stub(e))),
+  }
+}
+
 // id のバインダを、f の返すバインダに替える（場所は変えない）
 export function putBinder<B extends Book>(book: B, id: string, f: (binder: BinderEntry) => BinderEntry): B {
   return { ...book, lineup: book.lineup.map(e => (e.kind === "binder" && e.id === id ? f(e) : e)) }
@@ -225,7 +393,11 @@ export function freeTitle(title: string, taken: readonly string[]): string {
 }
 
 // ブックの中の id（ページとバインダ）。新しい id を振るときに、重ならないようにする相手
-const lineupIds = (book: Book): string[] => [...pagesOf(book).map(p => p.id), ...bindersOf(book).map(f => f.id)]
+const lineupIds = (book: Book): string[] => [
+  ...pagesOf(book).map(p => p.id),
+  ...unreadableOf(book).map(u => u.id),
+  ...bindersOf(book).map(f => f.id),
+]
 
 // タイプのページで使えるアイテム（タイプの候補。データに置ける・引けるのはこの中だけ）
 export function allowedItems(catalog: CoreCatalog, page: Pick<Page, "type">): readonly string[] {
@@ -251,24 +423,41 @@ export function withSettings<T extends object>(target: T, patch: Readonly<Record
 // - バインダの中のページは、紙と向きが同じ
 // - どのページも、タイプの決まり（holds）と、つなぐものの定義の決まりを守る
 export function holds(catalog: CoreCatalog, book: Book): boolean {
+  if (!lineupHolds(catalog, book)) return false
+  return pagesOf(book).every(p => (pageType(catalog, p.type).holds?.(p, catalog) ?? true) && pageHolds(catalog, p))
+}
+
+// ブックの並びの決まり（ページ 1 枚の中身に依らない決まり。破ればブックごと読めない）を守っているか。読めないページは、id と名前だけを見る
+// （タイプが分からないので、並びに直に入るタイプか・バインダのタイプと同じか・紙と向きがそろうかは見ない。タイプが機能台帳に無いバインダは、中が読めないページだけで、空でなければ守っている）
+function lineupHolds(catalog: CoreCatalog, book: Book): boolean {
   const ids = lineupIds(book)
   if (new Set(ids).size !== ids.length) return false
-  const distinct = (entries: readonly LineupEntry[]) => new Set(entries.map(e => e.title)).size === entries.length
+  // 名前の無い読めないページ（残したデータに title が無い）は、名前の重なりに数えない
+  const distinct = (entries: readonly { title: string }[]) => {
+    const titles = entries.map(e => e.title).filter(t => t !== "")
+    return new Set(titles).size === titles.length
+  }
   if (!distinct(book.lineup) || !bindersOf(book).every(f => distinct(f.lineup))) return false
   const grouping = (type: string) => catalog.pageTypes.get(type)?.grouping
   for (const e of book.lineup) {
     if (e.kind === "page") {
       if (grouping(e.type) !== "none") return false
-    } else if (grouping(e.pageType) !== "binder" || e.lineup.some(p => p.type !== e.pageType)) return false
+    } else if (e.kind === "binder") {
+      const pages = e.lineup.filter(p => p.kind === "page")
+      if (pages.some(p => p.type !== e.pageType)) return false
+      // タイプが機能台帳に無いバインダは、中が読めないページだけ（1 枚以上）のときに限る
+      const lost = !catalog.pageTypes.has(e.pageType) && pages.length === 0 && e.lineup.length > 0
+      if (grouping(e.pageType) !== "binder" && !lost) return false
+    }
   }
-  if (!bindersOf(book).every(sharesPaper)) return false
-  return pagesOf(book).every(p => (pageType(catalog, p.type).holds?.(p, catalog) ?? true) && pageHolds(catalog, p))
+  return bindersOf(book).every(sharesPaper)
 }
 
 // バインダの中のページが、紙と向きをそろえているか
 function sharesPaper(binder: BinderEntry): boolean {
-  const lead = binder.lineup[0]
-  return binder.lineup.every(p => p.paper === lead?.paper && p.orientation === lead.orientation)
+  const pages = binder.lineup.filter(p => p.kind === "page")
+  const lead = pages[0]
+  return pages.every(p => p.paper === lead?.paper && p.orientation === lead.orientation)
 }
 
 // ブックを変えた前と後で、同じ id のページのタイプと、同じ id のバインダが入れるタイプが同じか（どちらも、作ったあと変えない）
@@ -279,6 +468,28 @@ export function keepsPageTypes(before: Book, after: Book): boolean {
   ]
   const was = new Map(typed(before))
   return typed(after).every(([id, type]) => !was.has(id) || was.get(id) === type)
+}
+
+// ブックを変えた前と後で、読めないページがどれも、同じフォルダ（ブックの並びか、同じバインダ）に同じ値・同じ順で残り、増えてもいないか
+// （読めないページには何もできない）。保っていなければ、保たれなかった読めないページ（前に在った物か、後に増えた物）
+export function lostUnreadable(before: Book | undefined, after: Book): UnreadableEntry | null {
+  const held = (book: Book): Map<string, readonly UnreadableEntry[]> =>
+    new Map([
+      [book.id, book.lineup.filter(e => e.kind === "unreadable")],
+      ...bindersOf(book).map(f => [f.id, f.lineup.filter(p => p.kind === "unreadable")] as const),
+    ])
+  const was = before ? held(before) : new Map<string, readonly UnreadableEntry[]>()
+  const now = held(after)
+  for (const [folder, entries] of was) {
+    const kept = now.get(folder) ?? []
+    const lost = entries.find((e, i) => !sameData(e, kept[i]))
+    if (lost) return lost
+  }
+  for (const [folder, entries] of now) {
+    const added = entries[was.get(folder)?.length ?? 0]
+    if (added) return added
+  }
+  return null
 }
 
 // ページの id から、そのページと、今それを持っているブック（ページの id はブックをまたいでも重ならない。同じ id のページが 2 冊にあれば、どちらとも決めずに無いとする）

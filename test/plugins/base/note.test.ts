@@ -13,7 +13,7 @@ import { expiryOutlook } from "../../../web/src/plugins/base/note/expiry"
 import { CORE_CATALOG, newStore } from "../../support"
 
 type Drawing = Book
-const ON = { book: "b1" }
+const ON = { page: "p1" }
 
 // 見本のブック b1 の最初のページに箱を 2 つ置いた store
 function ready() {
@@ -30,7 +30,7 @@ function ready() {
     string,
     string,
   ]
-  const notes = (): readonly Annotation[] => store.state.getState().annotations.b1 ?? []
+  const notes = (): readonly Annotation[] => store.state.getState().annotations.p1 ?? []
   return { store, page, a, b, notes }
 }
 
@@ -67,12 +67,44 @@ test("ブックに無い物や、ページそのものには伝言を付けら�
 
 test("ロック中のブックにも伝言を付け・変え・消せる（ロックはアノテーションを止めない）", () => {
   const { store, a, notes } = ready()
-  expect(store.actions.perform("@matomezu/base:book-lock", {}, ON).ok).toBe(true)
+  expect(store.actions.perform("@matomezu/base:book-lock", {}, { book: "b1" }).ok).toBe(true)
   expect(store.actions.perform(ADD, { anchors: [a], text: "x" }, ON).ok).toBe(true)
   const id = notes()[0]!.id
   expect(store.actions.perform(UPDATE, { note: id, text: "y" }, ON).ok).toBe(true)
   expect(store.actions.perform(REMOVE, { note: id }, ON).ok).toBe(true)
   expect(notes()).toEqual([])
+})
+
+test("ロック中のページにも伝言を付け・変え・消せる（ロックは、宛先のページを渡されても、アノテーションを止めない）", () => {
+  const { store, page, a, notes } = ready()
+  expect(store.actions.perform("@matomezu/base:page-lock", {}, { page }).ok).toBe(true)
+  expect(store.actions.perform(ADD, { anchors: [a], text: "x" }, ON).ok).toBe(true)
+  const id = notes()[0]!.id
+  expect(store.actions.perform(UPDATE, { note: id, text: "y" }, ON).ok).toBe(true)
+  expect(store.actions.perform(REMOVE, { note: id }, ON).ok).toBe(true)
+  expect(notes()).toEqual([])
+})
+
+test("ほかのページの物には伝言を付けられない。ページを消すと、そのページの伝言も消える（ほかのページの伝言は残る）", () => {
+  const { store, page, a, notes } = ready()
+  const added = store.actions.perform(
+    "@matomezu/base:page-add",
+    { type: "@matomezu/drawing:drawing", title: "2" },
+    { book: "b1" },
+  )
+  const second = added.ok ? (added.result as { page: string }).page : ""
+  const placed = store.actions.perform(
+    "@matomezu/paper:item-place",
+    { item: "@matomezu/box:shape-nest-box", at: { x: 40, y: 40 }, props: { caption: "箱" } },
+    { page: second },
+  )
+  const other = placed.ok ? (placed.result as { item: string }).item : ""
+  expect(store.actions.perform(ADD, { anchors: [other], text: "x" }, ON)).toMatchObject({ ok: false })
+  expect(store.actions.perform(ADD, { anchors: [other], text: "二" }, { page: second }).ok).toBe(true)
+  expect(store.actions.perform(ADD, { anchors: [a], text: "一" }, ON).ok).toBe(true)
+  expect(store.actions.perform("@matomezu/base:page-remove", { page: second }, { book: "b1" }).ok).toBe(true)
+  expect(Object.keys(store.state.getState().annotations)).toEqual([page])
+  expect(notes().map(n => (n.props as { text: string }).text)).toEqual(["一"])
 })
 
 test("伝言は画面の履歴に入らない", async () => {
@@ -141,7 +173,8 @@ test("AI は伝言を付け・変え・消せない（利用者だけ）が、�
   const id = notes()[0]!.id
   const s = store.state.getState()
   const world = {
-    books: s.books,
+    pages: s.pages,
+    folders: s.folders,
     settings: s.settings,
     annotations: s.annotations,
     participants: [],

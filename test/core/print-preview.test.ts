@@ -87,7 +87,7 @@ describe("ステージの印刷プレビュー", () => {
 
   test("印刷プレビューの間に止めるのは、ブックが対象で、印刷プレビューの間も行う印の無いアクション", () => {
     expect(stageBlocks(CORE_CATALOG, "print-preview", "@matomezu/paper:item-place")).toBe(true)
-    expect(stageBlocks(CORE_CATALOG, "print-preview", "@matomezu/base:book-revert")).toBe(true)
+    expect(stageBlocks(CORE_CATALOG, "print-preview", "@matomezu/base:page-update")).toBe(true)
     expect(stageBlocks(CORE_CATALOG, "print-preview", "@matomezu/base:print-preview-update")).toBe(false)
     expect(stageBlocks(CORE_CATALOG, "print-preview", "@matomezu/base:book-lock")).toBe(false)
     expect(stageBlocks(CORE_CATALOG, "print-preview", "@matomezu/base:settings-set")).toBe(false)

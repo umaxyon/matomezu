@@ -30,6 +30,7 @@ import type { Messages } from "./i18n/i18n"
 import { CORE_MESSAGES, LANGUAGES, type Lang, type LanguagePackDef, type MessageSetDef } from "./i18n/messages"
 import { splitId } from "./names"
 import { placedSchema } from "./placed"
+import { UNREADABLE_CODES } from "./schema/book"
 import { PageSchema } from "./schema/page"
 import { writtenValues } from "./theme"
 import { type Warning, warning } from "./warnings"
@@ -163,24 +164,32 @@ function buildPageSchema(parts: CoreCatalogParts, t: PageTypeDef): z.ZodObject {
 }
 
 // ブックのデータの形: 名前 title（1 字以上）・ロック locked・ゴミ箱に入れた時刻 trashed・並び lineup・ブックが持つ設定の項目（holder が "book" の項目）。
-// エントリ 1 つは、ページ（kind が "page"。タイプごとの形のどれか）か、1 つのタイプのページだけを入れるバインダ（中身も同じ並びで、入るのはページだけ）
+// エントリ 1 つは、ページ（kind が "page"。タイプごとの形のどれか）か、1 つのタイプのページだけを入れるバインダ（中身も同じ並びで、入るのはページと読めないページ）か、読めないページ
 function buildBookSchema(parts: CoreCatalogParts, pageSchemas: ReadonlyMap<string, z.ZodObject>): z.ZodType {
   const [first, ...rest] = [...pageSchemas.values()]
   if (!first) return fail("E015")
   const page = z.discriminatedUnion("type", [first, ...rest])
+  // 読めないページ: id・名前（残したデータに無ければ空）・読めない理由の warning の番号・タイプの id（残したデータにあれば）だけ
+  const unreadable = z.strictObject({
+    kind: z.literal("unreadable"),
+    id: z.string().min(1),
+    title: z.string(),
+    code: z.enum(UNREADABLE_CODES),
+    type: z.string().optional(),
+  })
   const binderEntry = z.strictObject({
     kind: z.literal("binder"),
     id: z.string().min(1),
     title: z.string().min(1),
     pageType: z.string().min(1),
-    lineup: z.array(page),
+    lineup: z.array(z.union([page, unreadable])),
   })
   return z.strictObject({
     id: z.string().min(1),
     title: z.string().min(1),
     locked: z.literal(true).optional(),
     trashed: z.iso.datetime().optional(),
-    lineup: z.array(z.union([page, binderEntry])),
+    lineup: z.array(z.union([page, binderEntry, unreadable])),
     ...settingsField(
       parts,
       parts.settings.filter(d => d.holder === "book").map(d => d.id),

@@ -39,7 +39,8 @@ test("AI は切り抜くことも消すこともできない", () => {
   perform(CUT, ONE)
   const s = store.state.getState()
   const world = {
-    books: s.books,
+    pages: s.pages,
+    folders: s.folders,
     settings: s.settings,
     annotations: s.annotations,
     records: s.records,

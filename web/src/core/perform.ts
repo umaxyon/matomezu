@@ -4,8 +4,17 @@
 
 import type { z } from "zod"
 import { USER } from "./actor"
-import { type Annotations, annotationsSettle, type BookAnnotations, prune } from "./annotation"
-import { findPage, holds, keepsPageTypes, pageById, pagesOf, putPage } from "./book"
+import { type Annotation, type Annotations, annotationsSettle, type PageAnnotations, prune } from "./annotation"
+import {
+  distinctBooks,
+  findPage,
+  findUnreadable,
+  holds,
+  keepsPageTypes,
+  lostUnreadable,
+  pagesOf,
+  putPage,
+} from "./book"
 import type { ActionId, ActionTable } from "./catalog"
 import { changesOf } from "./changes"
 import { type CoreCatalog, pageType } from "./core-catalog"
@@ -33,6 +42,16 @@ import {
 } from "./def/action"
 import type { Referred } from "./def/permission"
 import type { SubjectDef } from "./def/subject"
+import {
+  bookIdOf,
+  bookOf,
+  changesBetween,
+  createdIn,
+  libraryOf,
+  noChanges,
+  type TableChanges,
+  type Tables,
+} from "./folders"
 import { idsIn, skipping } from "./ids"
 import { decidedByPlace, deniedBy, type Inspected, inspect, typeAllows, withoutPermissions } from "./inspect"
 import type { Library } from "./library"
@@ -41,7 +60,7 @@ import { type RecordSource, readFrom, SOURCE, sourceIn, sourceOf, type WithSourc
 import { type Counters, NO_RECORD, RECORDS_MAX, REMOVED, type RecordChange, type Records } from "./records"
 import { referredOf } from "./refs"
 import { sameData } from "./same"
-import type { Book, Page } from "./schema/book"
+import type { Book, Page, UnreadableCode, UnreadableEntry } from "./schema/book"
 import type { Settings } from "./settings"
 import { settledAfter } from "./settle"
 
@@ -52,7 +71,17 @@ export interface PageInBook {
   book: Book
   page: string
 }
-export type SubjectOf<Id extends ActionId> = TargetOf<Id> extends "page" ? PageInBook : SubjectData<TargetOf<Id>>
+// ページのアノテーションが対象のアクションを行うときに渡す対象: ページを持っているブックと、そのページの id と、そのページのアノテーションの並び
+// （run が受けるのは、そのページと並び）
+export interface AnnotationsInBook extends PageInBook {
+  annotations: readonly Annotation[]
+}
+export type SubjectOf<Id extends ActionId> =
+  TargetOf<Id> extends "page"
+    ? PageInBook
+    : TargetOf<Id> extends "annotations"
+      ? AnnotationsInBook
+      : SubjectData<TargetOf<Id>>
 // 行った後の対象（ページが対象のアクションは、ページを替えたブック）
 export type NextOf<Id extends ActionId> = TargetOf<Id> extends "page" ? Book : SubjectData<TargetOf<Id>>
 export type ArgsOf<Id extends ActionId> = z.input<ActionOf<Id>["args"]>
@@ -70,12 +99,15 @@ export type NotAllowed = {
 }
 // 宛先のページが無い（ブックのどこにも無い・ゴミ箱のブックにある・2 冊にある）。detail は AI への説明に載る英語の文
 export type NoPage = { ok: false; reason: "no-page"; detail: string }
+// 読めないページには何もできない: 宛先が読めないページ page か、アクションが読めないページ page を変えよう（動かす・消す・足す）とした。code は読めない理由の warning の番号
+export type Unreadable = { ok: false; reason: "unreadable"; page: string; code: UnreadableCode }
 export type Refused =
   | { ok: false; reason: Exclude<Refusal, "not-allowed" | "refused"> }
   | NoPage
+  | Unreadable
   | { ok: false; reason: "refused"; detail?: string; kind?: string }
   | NotAllowed
-  | { ok: false; reason: "denied"; permission: string }
+  | Denied
 // others はレコードが対象のアクションが、宛先のほかに変えたレコード（同じ種類か、writes に書いた種類。確かめ終えた物）
 export type Performed<Id extends ActionId> =
   | {
@@ -113,10 +145,12 @@ function settles(catalog: CoreCatalog, book: Book): boolean {
   return catalog.bookSchema.safeParse(book).success && holds(catalog, book)
 }
 
-// 一覧が対象のアクションの結果で、変わったブックが（置いた鍵がブックの id で）形に合っているか
+// 一覧が対象のアクションの結果で、変わったブックが（置いた鍵がブックの id で）形に合っていて、ブックどうしで id（ブック・ページ・バインダ）が重ならないか
+// （ページもフォルダも、ちょうど 1 つのフォルダに入る。作ったブックのページの id が、ほかのブックのページの id と重なれば断る）
 export function librarySettles(catalog: CoreCatalog, before: Library, after: Library): boolean {
   return (
     Object.entries(after).every(([key, b]) => b.id === key) &&
+    distinctBooks(Object.values(after)).warnings.length === 0 &&
     settledAfter(Object.values(before), Object.values(after), b => settles(catalog, b))
   )
 }
@@ -130,7 +164,7 @@ function broken(
 ): string | null {
   const changes = changesOf(before, after)
   for (const p of ctx.catalog.permissions.values())
-    if (p.keeps && !p.keeps({ kind: "book", action, before, after, changes, actor: ctx.actor })) return p.id
+    if (p.keeps && !p.keeps({ kind: "folder", action, before, after, changes, actor: ctx.actor })) return p.id
   return null
 }
 
@@ -167,17 +201,35 @@ function brokenRecord(
   return null
 }
 
-// 一覧が対象のアクションの結果で、変わったブック・無くなったブック・増えたブックのどれかが守っていなければ、守らせたステップの id
-function brokenIn(ctx: ActionContext, action: ActionDef, before: Library, after: Library): string | null {
+// 一覧が対象のアクションの結果で、変わったブック・無くなったブック・増えたブックのどれかが守っていなければ、守らせたステップの id と、そのブックの id（増えたブックなら無い）
+function brokenIn(
+  ctx: ActionContext,
+  action: ActionDef,
+  before: Library,
+  after: Library,
+): { permission: string; book?: string } | null {
   for (const b of Object.values(before)) {
     const id = b === after[b.id] ? null : broken(ctx, action, b, after[b.id])
-    if (id) return id
+    if (id) return { permission: id, book: b.id }
   }
   for (const b of Object.values(after)) {
     const id = b.id in before ? null : broken(ctx, action, undefined, b)
-    if (id) return id
+    if (id) return { permission: id }
   }
   return null
+}
+
+// 一覧が対象のアクションが返した一覧 after の、行う前から在って変わったブックを、ノーマライズステップで整えた一覧（どれかが整えられなければ null）
+function normalizedIn(catalog: CoreCatalog, action: ActionDef, before: Library, after: Library): Library | null {
+  let next: Record<string, Book> | undefined
+  for (const b of Object.values(after)) {
+    const was = before[b.id]
+    if (!was || was === b) continue
+    const tidy = normalized(catalog, action, was, b)
+    if (!tidy) return null
+    if (tidy !== b) next = { ...(next ?? after), [b.id]: tidy }
+  }
+  return next ?? after
 }
 
 // 行う前の問いに要る文脈（機能台帳・コントロールセンター・誰が行うか）
@@ -234,24 +286,24 @@ function permits(
     if (asks.length === 0) return asked(undefined, undefined)
     for (const a of asks) {
       const answer = asked(a.book, a.where)
-      if (!answer.ok) return answer
+      if (!answer.ok) return answer.reason === "denied" && a.book !== NEW_BOOK ? { ...answer, book: a.book.id } : answer
     }
     return { ok: true }
   }
   const book =
     action.target === "book"
       ? (subject as Book)
-      : action.target === "page"
+      : action.target === "page" || action.target === "annotations"
         ? (subject as PageInBook).book
-        : action.target === "annotations"
-          ? (subject as BookAnnotations).book
-          : undefined
+        : undefined
   if (action.target === "page") {
     // 所は、宛先のページと、引数が名指す中の物（引数が形に合わなければ、ページだけ）
     const scope = args.success ? (action.permissionScope as AnyPagePermissionScope | undefined) : undefined
     const answer = asking(book, pageScopeOf(scope, (subject as PageInBook).page, args.success ? args.data : undefined))
     return !args.success && answer.value === false && decidedByPlace(answer) ? { ok: true } : answerOf(answer)
   }
+  // アノテーションが対象なら、所は宛先のページ
+  if (action.target === "annotations") return asked(book, { page: (subject as PageInBook).page })
   if (action.target !== "book") return asked(book, undefined)
   // ページ 1 枚ごとに問う形: 名指したページのうち、止められなかったページを残す。1 枚も残らなければ、最初のページの答えで断る。
   // 名指したページがブックに 1 枚も無ければ、ページでは問わない（無いページは run が断る）
@@ -266,6 +318,20 @@ function permits(
   const answer = asking(book, placeOf(action, args))
   // 引数が形に合わなければ所が出せないので、所のステップ（ページのタイプと付く先）では止めない（行う側が bad-args で断る。認可ステップなどが止めるなら、そちらが先）
   return !args.success && answer.value === false && decidedByPlace(answer) ? { ok: true } : answerOf(answer)
+}
+
+// ブックが対象のアクション action の許可スコープが、引数で名指す所（ページ・エントリ・1 枚ごとに問うページ）のうち、最初の読めないページ（無ければ null）。
+// 読めないページには何もできないので、行う前に断る
+function namedUnreadable(
+  action: ActionDef,
+  book: Book,
+  args: { success: true; data: unknown } | { success: false },
+): UnreadableEntry | null {
+  if (!args.success) return null
+  const where = placeOf(action, args)
+  const each = pagesScopeOf(action.permissionScope as AnyPermissionScope | undefined, args.data)
+  const ids = [...(where?.page ? [where.page] : []), ...(where?.entries ?? []), ...(Array.isArray(each) ? each : [])]
+  return ids.map(id => findUnreadable(book, id)?.entry).find(e => e !== undefined) ?? null
 }
 
 // ブックが対象のアクション action が、引数で名指す所（引数が形に合わなければ、分からない）
@@ -292,7 +358,10 @@ export function allowedOnBook(catalog: CoreCatalog, book: Book, id: string, args
 const NEW_BOOK: Book = { id: "new-book", title: "new book", lineup: [] }
 
 // 行う前の問いの答え: 使えるか、止めた理由
-export type Permitted = { ok: true } | NotAllowed | { ok: false; reason: "denied"; permission: string }
+export type Permitted = { ok: true } | NotAllowed | Denied
+
+// 認可ステップ permission が止めた断り。一覧が対象のアクションでは、どのブックで止めたかを book に持つ（作るブックで止めたなら無い）
+export type Denied = { ok: false; reason: "denied"; permission: string; book?: string }
 
 function answerOf(answer: Inspected<boolean>): Permitted {
   if (answer.value === true) return { ok: true }
@@ -308,10 +377,18 @@ function answerOf(answer: Inspected<boolean>): Permitted {
 }
 
 // 対象 subject に、アクション id を引数 args で行えるかを、行う前に問う（perform の行う前の確かめと同じ答え。run は回さない）
-export function permitted(subject: unknown, id: string, args: unknown, ctx: PermitContext): Permitted | Refused {
+export function permitted(
+  subject: unknown,
+  id: string,
+  args: unknown,
+  ctx: PermitContext,
+): Permitted | Refused | Unreadable {
   const action: ActionDef | undefined = ctx.catalog.actions.get(id)
   if (!action) return { ok: false, reason: "unknown" }
-  const answer = permits(ctx, action, subject as Subjects[keyof Subjects], action.args.safeParse(args))
+  const parsed = action.args.safeParse(args)
+  const named = action.target === "book" ? namedUnreadable(action, subject as Book, parsed) : null
+  if (named) return unreadable(named)
+  const answer = permits(ctx, action, subject as Subjects[keyof Subjects], parsed)
   return answer.ok ? { ok: true } : answer
 }
 
@@ -324,8 +401,9 @@ export const noPage = (wanted: string): NoPage => ({
 
 // アクション action の run だけを行う（使えるか・整え・認可ステップ・形の確かめはしない。それは perform がする）。args は引数の形を通した後の値。
 // ページが対象なら、対象 subject（PageInBook）のブックからページを探して run に渡し、返ったページを同じ所へ戻したブックを next にする
-// （ページが無い・run が id の違うページを返したら null）。ブックが対象でもページが対象でも、run が振る id は、そのブックの並びの中のどの id とも重ならず、同じ値を 2 度渡さない
-// （そのままでも短い id にしても重なる newId の値を飛ばす。中身の id がブックの中で重ならないことに、アノテーションのアンカーなどが頼っている）
+// （ページが無い・run が id の違うページを返したら null）。アノテーションが対象なら、ページとその並びを run に渡す（ページを替えて返したら null）。
+// run が振る id は、ページが対象ならそのページの中のどの id とも、ブックが対象ならそのブックの並びの中のどの id とも重ならず、同じ値を 2 度渡さない
+// （そのままでも短い id にしても重なる newId の値を飛ばす。中身の id がページの中で重ならないことに、アノテーションのアンカーなどが頼っている）
 export function runAction(
   action: ActionDef,
   subject: unknown,
@@ -335,11 +413,15 @@ export function runAction(
   const run = action.run as (subject: unknown, args: unknown, ctx: ActionContext) => ReturnType<ActionDef["run"]>
   if (action.target === "book")
     return run(subject, args, { ...ctx, newId: skipping(ctx.newId, () => idsIn((subject as Book).lineup)) })
-  if (action.target !== "page") return run(subject, args, ctx)
+  if (action.target !== "page" && action.target !== "annotations") return run(subject, args, ctx)
   const { book, page: id } = subject as PageInBook
   const page = findPage(book, id)?.page
   if (!page) return null
-  const ran = run(page, args, { ...ctx, newId: skipping(ctx.newId, () => idsIn(book.lineup)) })
+  if (action.target === "annotations") {
+    const ran = run({ page, annotations: (subject as AnnotationsInBook).annotations }, args, ctx)
+    return ran && !("declined" in ran) && (ran.next as PageAnnotations).page !== page ? null : ran
+  }
+  const ran = run(page, args, { ...ctx, newId: skipping(ctx.newId, () => idsIn(page)) })
   if (!ran || "declined" in ran) return ran
   const next = ran.next as ItemPage
   if (next.id !== page.id) return null
@@ -354,7 +436,7 @@ export function perform<Id extends ActionId>(
 ): Performed<Id> {
   const action: ActionDef | undefined = ctx.catalog.actions.get(id)
   if (!action) return { ok: false, reason: "unknown" }
-  if (action.target === "page") {
+  if (action.target === "page" || action.target === "annotations") {
     const at = subject as PageInBook
     if (!findPage(at.book, at.page)) return noPage(at.page)
   }
@@ -362,6 +444,8 @@ export function perform<Id extends ActionId>(
   const before =
     action.target === "book" ? (subject as Book) : action.target === "page" ? (subject as PageInBook).book : undefined
   const parsed = action.args.safeParse(args)
+  const named = action.target === "book" ? namedUnreadable(action, subject as Book, parsed) : null
+  if (named) return unreadable(named)
   const permitted = permits(ctx, action, subject, parsed)
   if (!permitted.ok) return permitted
   if (!parsed.success) return { ok: false, reason: "bad-args" }
@@ -374,31 +458,50 @@ export function perform<Id extends ActionId>(
   if (!ran) return { ok: false, reason: "refused" }
   if ("declined" in ran)
     return { ok: false, reason: "refused", detail: ran.declined, ...(ran.kind === undefined ? {} : { kind: ran.kind }) }
-  const next = before ? normalized(ctx.catalog, action, before, ran.next as Book) : ran.next
+  const next = before
+    ? normalized(ctx.catalog, action, before, ran.next as Book)
+    : action.target === "library"
+      ? normalizedIn(ctx.catalog, action, subject as Library, ran.next as Library)
+      : ran.next
   if (!next) return { ok: false, reason: "refused" }
   const done = { ...ran, next }
-  // アノテーションのアクションはブックを変えない（変えたら断る）。認可ステップの keeps は、変わらないブックで見る
-  const pair = subject as unknown as BookAnnotations
-  if (action.target === "annotations" && (done.next as unknown as BookAnnotations).book !== pair.book)
-    return { ok: false, reason: "refused" }
+  // アノテーションのアクションはページを変えない（変えたら runAction が断る）。認可ステップの keeps は、変わらないブックで見る
+  const pair = subject as unknown as AnnotationsInBook
+  if (action.target === "library") {
+    const kept = brokenIn(ctx, action, subject as Library, done.next as Library)
+    if (kept) return { ok: false, reason: "denied", ...kept }
+  }
   const permission = before
     ? broken(ctx, action, before, done.next as Book)
-    : action.target === "library"
-      ? brokenIn(ctx, action, subject as Library, done.next as Library)
-      : action.target === "annotations"
-        ? broken(ctx, action, pair.book, pair.book)
-        : null
+    : action.target === "annotations"
+      ? broken(ctx, action, pair.book, pair.book)
+      : null
   if (permission) return { ok: false, reason: "denied", permission }
   if (before) {
+    const lost = lostUnreadable(before, done.next as Book)
+    if (lost) return unreadable(lost)
     // ページのタイプは作ったあと変えない（アクションが替えていたら断る）
     if (!settles(ctx.catalog, done.next as Book) || !keepsPageTypes(before, done.next as Book))
       return { ok: false, reason: "refused" }
   }
-  if (action.target === "library" && !librarySettles(ctx.catalog, subject as Library, done.next as Library))
-    return { ok: false, reason: "refused" }
+  if (action.target === "library") {
+    const was = subject as Library
+    const now = done.next as Library
+    // 残るブックの読めないページは、そのまま（無くなるのは、ブックごと消すときだけ。作るブックには入れられない）
+    for (const b of Object.values(now)) {
+      const lost = was[b.id] === b ? null : lostUnreadable(was[b.id], b)
+      if (lost) return unreadable(lost)
+    }
+    // 行う前から在るブックのページのタイプも、変えない
+    const typesKept = Object.values(now).every(b => {
+      const old = was[b.id]
+      return !old || old === b || keepsPageTypes(old, b)
+    })
+    if (!librarySettles(ctx.catalog, was, now) || !typesKept) return { ok: false, reason: "refused" }
+  }
   if (action.target === "annotations") {
-    const next = (done.next as unknown as BookAnnotations).annotations
-    if (!annotationsSettle(ctx.catalog, pair.book, pair.annotations, next)) return { ok: false, reason: "refused" }
+    const { page, annotations: next } = done.next as unknown as PageAnnotations
+    if (!annotationsSettle(ctx.catalog, page, pair.annotations, next)) return { ok: false, reason: "refused" }
   }
   const others = (ran.others ?? []) as readonly OtherRecord<never>[]
   if (isRecordTarget(ctx.catalog, action.target)) {
@@ -460,9 +563,8 @@ function recordChanges(
   return changes
 }
 
-// アクションが変えるもの全部: ブックの一覧（ゴミ箱のブックも）と、利用者の設定と、ブックごとのアノテーションと、対象の定義が足した種類のレコードと番号の表
-export interface World {
-  books: Library
+// アクションが変えるもの全部: ページの表とフォルダの表（ゴミ箱のブックの分も。ブックは、ここから組む。core/folders.ts）と、利用者の設定と、ページごとのアノテーションと、対象の定義が足した種類のレコードと番号の表
+export interface World extends Tables {
   settings: Settings
   annotations: Annotations
   records: Records // 対象の定義が足した種類ごとのレコード（種類の id → id → レコード）
@@ -471,14 +573,13 @@ export interface World {
   source?: RecordSource
 }
 
-// performIn の結果。変わったものだけを持つ（book はブックが対象のアクションで変わったブック、books は一覧が対象のアクションの新しい一覧、
-// annotations はアノテーションが変わったブックの id → 新しい並び。アノテーションが対象のアクションのほか、ブックの物が消えたときと、ブックが一覧から無くなったときにも変わる）
+// performIn の結果。変わったものだけを持つ（changes は変わった・足した・無くなったページとフォルダ。ブック・ページ・一覧が対象のアクションで、何も変わらなければ無い。
+// annotations はアノテーションが変わったページの id → 新しい並び。アノテーションが対象のアクションのほか、ページの物が消えたときと、ページが無くなったときと、ブックが一覧から無くなったときにも変わる）
 export type PerformedIn =
   | {
       ok: true
       result: unknown
-      book?: Book
-      books?: Library
+      changes?: TableChanges
       settings?: Settings
       annotations?: Annotations
       records?: readonly RecordChange[] // レコードが対象のアクションで変わったレコード（宛先の 1 件が先で、ほかは run が返した順。1 つのトランザクションで当てる）
@@ -489,14 +590,22 @@ export type PerformedIn =
   | { ok: false; reason: "no-book" }
   | { ok: false; reason: "no-record"; detail: string }
 
-// ページが対象のアクションの宛先（on のページ）と、そのページを持っているブック（performIn と permittedIn で同じ決まりを使う）。
-// ゴミ箱のブックのページは無いものとし、同じ id のページが 2 冊にあれば、どちらとも決めずに無いとする
-function pageIn(world: World, on: ActionOn | undefined): PageInBook | NoPage {
+// ページかアノテーションが対象のアクションの宛先（on のページ）と、そのページを持っているブック（performIn と permittedIn で同じ決まりを使う）。
+// ゴミ箱のブックのページと、どのブックにも入っていないページは、無いものとする
+function pageIn(world: World, on: ActionOn | undefined): PageInBook | NoPage | Unreadable {
   const page = (on && "page" in on ? on.page : undefined) ?? ""
-  const kept = Object.fromEntries(Object.entries(world.books).filter(([, b]) => b.trashed === undefined))
-  const book = pageById(kept, page)?.book
-  return book ? { book, page } : noPage(page)
+  const book = bookOf(world, bookIdOf(world.folders, page) ?? "")
+  const row = world.pages[page]
+  if (!book || book.trashed !== undefined || !row) return noPage(page)
+  return row.kind === "unreadable" ? unreadable(row) : { book, page }
 }
+
+const unreadable = (entry: UnreadableEntry): Unreadable => ({
+  ok: false,
+  reason: "unreadable",
+  page: entry.id,
+  code: entry.code,
+})
 
 // on.record に指した id のレコードが無いときの断り: どの種類のどの id が無いか。AI に見える種類なら、直し方（一覧の引き方）と種類の説明（id が何の id か）も
 function noRecord(
@@ -517,8 +626,8 @@ function noRecord(
 }
 
 // 対象を world から選んでアクションを行う（画面の store・常駐・行い直しで同じ決まりを使う）。
-// ブックとアノテーションが対象なら on のブックで（ゴミ箱のブックは無いものとして断る）、ページが対象なら on のページを持っているブックで行い、ブックの id を変えたら断る。同じ値の設定は変わらなかったとみなす。
-// ブックが変わったら、無くなった物をそのブックのアノテーションのアンカーから外し（core/annotation.ts の prune）、一覧から無くなったブックのアノテーションは消す
+// ブックが対象なら on のブックで（ゴミ箱のブックは無いものとして断る）、ページとアノテーションが対象なら on のページを持っているブックで行い、ブックの id を変えたら断る。同じ値の設定は変わらなかったとみなす。
+// ブックが変わったら、無くなった物をそのページのアノテーションのアンカーから外し（core/annotation.ts の prune）、無くなったページと、一覧から無くなったブックのページのアノテーションは消す
 export function performIn(
   world: World,
   id: string,
@@ -535,33 +644,44 @@ export function performIn(
   ) => ReturnType<typeof perform>
   if (target !== undefined && isRecordTarget(ctx.catalog, target))
     return performRecord(world, target, id, args, on, ctx)
-  if (target === "book" || target === "annotations") {
+  if (target === "book") {
     const book = bookIn(world, on as { book: string } | undefined)
     if (!book) return { ok: false, reason: "no-book" }
-    const annotations = world.annotations[book.id] ?? []
-    if (target === "annotations") {
-      const done = loose({ book, annotations }, id, args, ctx)
-      if (!done.ok) return done
-      const next = (done.next as BookAnnotations).annotations
-      return next === annotations
-        ? { ok: true, result: done.result }
-        : { ok: true, result: done.result, annotations: { [book.id]: next } }
-    }
-    return changedBook(book, annotations, loose(book, id, args, ctx))
+    return changedBook(world, book, loose(book, id, args, ctx))
+  }
+  if (target === "annotations") {
+    const at = pageIn(world, on)
+    if ("ok" in at) return at
+    const annotations = world.annotations[at.page] ?? []
+    const done = loose({ ...at, annotations }, id, args, ctx)
+    if (!done.ok) return done
+    const next = (done.next as PageAnnotations).annotations
+    return next === annotations
+      ? { ok: true, result: done.result }
+      : { ok: true, result: done.result, annotations: { [at.page]: next } }
   }
   if (target === "page") {
     const at = pageIn(world, on)
     if ("ok" in at) return at
-    return changedBook(at.book, world.annotations[at.book.id] ?? [], loose(at, id, args, ctx))
+    return changedBook(world, at.book, loose(at, id, args, ctx))
   }
   if (target === "library") {
-    const done = loose(world.books, id, args, ctx)
+    const library = libraryOf(world)
+    const done = loose(library, id, args, ctx)
     if (!done.ok) return done
     const books = done.next as Library
-    const gone = Object.keys(world.annotations).filter(b => !books[b] && (world.annotations[b]?.length ?? 0) > 0)
-    return gone.length === 0
-      ? { ok: true, result: done.result, books }
-      : { ok: true, result: done.result, books, annotations: Object.fromEntries(gone.map(b => [b, []])) }
+    const changes = changesBetween(Object.values(library), Object.values(books))
+    if (collides(world, Object.values(library), changes)) return { ok: false, reason: "refused" }
+    // 無くなったページのアノテーションは消す
+    const gone = Object.entries(changes.pages)
+      .filter(([p, v]) => v === REMOVED && (world.annotations[p]?.length ?? 0) > 0)
+      .map(([p]) => p)
+    return {
+      ok: true,
+      result: done.result,
+      ...(noChanges(changes) ? {} : { changes }),
+      ...(gone.length === 0 ? {} : { annotations: Object.fromEntries(gone.map(p => [p, []])) }),
+    }
   }
   const done = loose(world.settings, id, args, ctx)
   if (!done.ok) return done
@@ -570,21 +690,36 @@ export function performIn(
   return same ? { ok: true, result: done.result } : { ok: true, result: done.result, settings: next }
 }
 
-// ブックを変えるアクションの結果 done を、変わった物だけの形にする（book は行う前のブック、annotations はそのアノテーション）。
-// ブックの id を変えていたら断り、無くなった物をアノテーションのアンカーから外す
-function changedBook(
-  book: Book,
-  annotations: BookAnnotations["annotations"],
-  done: ReturnType<typeof perform>,
-): PerformedIn {
+// 変わり changes が新しく足すページ・フォルダの id が、世界 world にもう在るか（行う前のブック before に無かった物を足すなら、その id は世界のどこにも無いこと。
+// ページもフォルダも、ちょうど 1 つのフォルダに入り、id は世界の中で重ならない）
+const collides = (world: Tables, before: readonly Book[], changes: TableChanges): boolean =>
+  createdIn(before, changes).some(id => id in world.pages || id in world.folders)
+
+// ブックを変えるアクションの結果 done を、変わった物だけの形にする（book は行う前のブック）。
+// ブックの id を変えていたら断り、変わったページでは無くなった物をアノテーションのアンカーから外し、無くなったページのアノテーションは消す
+function changedBook(world: World, book: Book, done: ReturnType<typeof perform>): PerformedIn {
   if (!done.ok) return done
   const next = done.next as Book
   if (next.id !== book.id) return { ok: false, reason: "refused" }
   if (next === book) return { ok: true, result: done.result }
-  const kept = prune(annotations, next)
-  return kept === annotations
-    ? { ok: true, result: done.result, book: next }
-    : { ok: true, result: done.result, book: next, annotations: { [book.id]: kept } }
+  const changes = changesBetween([book], [next])
+  if (collides(world, [book], changes)) return { ok: false, reason: "refused" }
+  const { annotations } = world
+  const now = new Map(pagesOf(next).map(p => [p.id, p]))
+  const changed: Record<string, readonly Annotation[]> = {}
+  for (const was of pagesOf(book)) {
+    const list = annotations[was.id]
+    if (!list || list.length === 0) continue
+    const page = now.get(was.id)
+    const kept = !page ? [] : page === was ? list : prune(list, page)
+    if (kept !== list) changed[was.id] = kept
+  }
+  return {
+    ok: true,
+    result: done.result,
+    ...(noChanges(changes) ? {} : { changes }),
+    ...(Object.keys(changed).length === 0 ? {} : { annotations: changed }),
+  }
 }
 
 // アクションの対象が、対象の定義が足した種類か
@@ -680,12 +815,17 @@ function booksRead(world: World, action: ActionDef, args: unknown): Library {
   const parsed = action.args.safeParse(args)
   if (!parsed.success || !action.readsBooks) return {}
   const ids = (action.readsBooks as (args: unknown) => readonly string[])(parsed.data)
-  return Object.fromEntries(ids.flatMap(id => (world.books[id] ? [[id, world.books[id]]] : [])))
+  return Object.fromEntries(
+    ids.flatMap(id => {
+      const book = bookOf(world, id)
+      return book ? [[id, book]] : []
+    }),
+  )
 }
 
-// ブックかアノテーションが対象のアクションの宛先のブック（on のブック。無いか、ゴミ箱のブックなら null）。performIn と permittedIn で同じ決まりを使う
+// ブックが対象のアクションの宛先のブック（on のブック。無いか、ゴミ箱のブックなら null）。performIn と permittedIn で同じ決まりを使う
 function bookIn(world: World, on: ActionOn | undefined): Book | null {
-  const book = world.books[(on && "book" in on ? on.book : undefined) ?? ""]
+  const book = bookOf(world, (on && "book" in on ? on.book : undefined) ?? "")
   return book && book.trashed === undefined ? book : null
 }
 
@@ -698,15 +838,14 @@ export function permittedIn(
   ctx: PermitContext,
 ): Permitted | Refused | { ok: false; reason: "no-book" } | ReturnType<typeof noRecord> {
   const target: ActionTarget | undefined = ctx.catalog.actions.get(id)?.target
-  if (target === "book" || target === "annotations") {
+  if (target === "book") {
     const book = bookIn(world, on)
-    if (!book) return { ok: false, reason: "no-book" }
-    const subject = target === "book" ? book : { book, annotations: world.annotations[book.id] ?? [] }
-    return permitted(subject, id, args, ctx)
+    return book ? permitted(book, id, args, ctx) : { ok: false, reason: "no-book" }
   }
-  if (target === "page") {
+  if (target === "page" || target === "annotations") {
     const at = pageIn(world, on)
-    return "ok" in at ? at : permitted(at, id, args, ctx)
+    if ("ok" in at) return at
+    return permitted(target === "page" ? at : { ...at, annotations: world.annotations[at.page] ?? [] }, id, args, ctx)
   }
   if (target !== undefined && isRecordTarget(ctx.catalog, target)) {
     const wanted = on && "record" in on ? on.record : undefined
@@ -716,5 +855,5 @@ export function permittedIn(
       ? noRecord(ctx.catalog, target, wanted as string)
       : permitted(now, id, args, { ...ctx, [SOURCE]: source, records: {} })
   }
-  return permitted(target === "library" ? world.books : world.settings, id, args, ctx)
+  return permitted(target === "library" ? libraryOf(world) : world.settings, id, args, ctx)
 }

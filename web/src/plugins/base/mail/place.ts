@@ -1,7 +1,7 @@
 // 郵便の行き先（ブック・ページ・物）が今もあるか（開くときに確かめる。無ければ「行き先がありません」と出す）
 
 import { anchorIds } from "../../../core/annotation"
-import { findPage } from "../../../core/book"
+import { findPage, pagesOf } from "../../../core/book"
 import type { Book } from "../../../core/schema/book"
 import type { Mail } from "./mail"
 
@@ -11,8 +11,12 @@ export function placeExists(m: Mail, books: Readonly<Record<string, Book>>): boo
   if (!to) return null
   const book = books[to.book]
   if (!book) return false
-  if (to.page && !findPage(book, to.page)) return false
+  const page = to.page ? findPage(book, to.page)?.page : undefined
+  if (to.page && !page) return false
   if (!to.ids) return true
-  const ids = anchorIds(book)
-  return to.ids.some(id => ids.has(id))
+  // 物は、行き先のページの中で探す（ページを言わない郵便は、ブックのどのページでも）
+  return (page ? [page] : pagesOf(book)).some(p => {
+    const ids = anchorIds(p)
+    return to.ids?.some(id => ids.has(id))
+  })
 }

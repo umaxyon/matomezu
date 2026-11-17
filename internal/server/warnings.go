@@ -7,6 +7,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"slices"
 )
@@ -33,15 +34,45 @@ func (h *Hub) SetWindowWarnings(clientID string, warnings json.RawMessage) (bool
 	return true, nil
 }
 
-// Warnings は今の warning の 1 行ずつ: 定義の warning、warning のあるブック（ブックの並びの順）、効かないアノテーション、窓が見つけた warning（同じ 1 行は 1 つ）
+// pageWarningLines は、ブック id の読めないページの warning の 1 行ずつ（同じ理由のページは同じ 1 行なので、1 つにする）。
+// pages は、読めないページの id を並べた物（h.mu を持って呼ぶ）
+func (h *Hub) pageWarningLines(id string, pages []string) []string {
+	var out []string
+	for _, page := range pages {
+		if n := h.pageWarnings[page]; n.Book == id && !slices.Contains(out, n.Warning) {
+			out = append(out, n.Warning)
+		}
+	}
+	return out
+}
+
+// UnreadablePageLines は、読めないページを持つブックの id → その warning の 1 行ずつ
+func (h *Hub) UnreadablePageLines() map[string][]string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	pages := slices.Sorted(maps.Keys(h.pageWarnings))
+	out := map[string][]string{}
+	for _, page := range pages {
+		id := h.pageWarnings[page].Book
+		if _, ok := out[id]; !ok {
+			out[id] = h.pageWarningLines(id, pages)
+		}
+	}
+	return out
+}
+
+// Warnings は今の warning の 1 行ずつ: 定義の warning、warning のあるブック（ブックの並びの順に、ブックの warning、読めないページの warning をページの id の順）、
+// 効かないアノテーション、窓が見つけた warning（同じ 1 行は 1 つ）
 func (h *Hub) Warnings() []string {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	out := slices.Clone(h.engine.Warnings())
+	pages := slices.Sorted(maps.Keys(h.pageWarnings))
 	for _, id := range h.order {
 		if n, ok := h.bookWarnings[id]; ok {
 			out = append(out, n.Warning)
 		}
+		out = append(out, h.pageWarningLines(id, pages)...)
 	}
 	out = append(out, h.annotationWarnings...)
 	out = append(out, h.recordWarningLines()...)

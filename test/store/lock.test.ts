@@ -5,6 +5,7 @@ import { type Actor, AI, USER } from "../../web/src/core/actor"
 import { pagesOf } from "../../web/src/core/book"
 import type { MessageKey } from "../../web/src/core/catalog"
 import { changesOf } from "../../web/src/core/changes"
+import { foldersOverIn, withChanges } from "../../web/src/core/folders"
 import { type PerformedIn, performIn } from "../../web/src/core/perform"
 import type { Book } from "../../web/src/core/schema/book"
 import { screenOf } from "../../web/src/core/window"
@@ -13,7 +14,7 @@ import { LOCK } from "../../web/src/plugins/base/lock"
 import { addPageIn } from "../../web/src/plugins/base/page-tabs/add-page"
 import type { CommandId } from "../../web/src/store/commands"
 import { isEnabled } from "../../web/src/store/commands"
-import { drawingPage, testBook } from "../lineup"
+import { DRAWING, drawingPage, testBinder, testBook } from "../lineup"
 import { CORE_CATALOG, newStore } from "../support"
 
 type Drawing = Book
@@ -62,7 +63,8 @@ test("AI はロックを掛けられるが外せない（userOnly のアクシ�
     actor,
   })
   let world = {
-    books: state.getState().books,
+    pages: state.getState().pages,
+    folders: state.getState().folders,
     settings: state.getState().settings,
     annotations: {},
     participants: [],
@@ -71,7 +73,7 @@ test("AI はロックを掛けられるが外せない（userOnly のアクシ�
   }
   const run = (id: string, actor?: Actor): PerformedIn => {
     const done = performIn(world, id, {}, { book: "b1" }, ctx(actor))
-    if (done.ok && done.book) world = { ...world, books: { ...world.books, [done.book.id]: done.book } }
+    if (done.ok && done.changes) world = { ...world, ...withChanges(world, done.changes) }
     return done
   }
   expect(run("@matomezu/base:book-lock", AI).ok).toBe(true)
@@ -83,19 +85,54 @@ test("変える所を言わないアクションは、行う前にはページ�
   const page = drawingPage("p1", { title: "1", locked: true })
   const before = testBook("b1", "b", [page])
   const action = CORE_CATALOG.actions.get("@matomezu/base:page-update")!
-  expect(LOCK.denies({ kind: "book", action, book: before, actor: USER })).toBe(false)
-  expect(LOCK.denies({ kind: "book", action, book: before, where: { page: "p1" }, actor: USER })).toBe(true)
+  expect(LOCK.denies({ kind: "folder", action, folder: before, actor: USER })).toBe(false)
+  expect(LOCK.denies({ kind: "page", action, page, folders: foldersOverIn(before, "p1"), actor: USER })).toBe(true)
   const after = { ...before, lineup: [{ ...page, title: "x" }] }
-  expect(LOCK.keeps!({ kind: "book", action, before, after, changes: changesOf(before, after), actor: USER })).toBe(
+  expect(LOCK.keeps!({ kind: "folder", action, before, after, changes: changesOf(before, after), actor: USER })).toBe(
     false,
   )
   const unlocked = { ...before, lineup: [drawingPage("p1", { title: "1" })] }
   expect(
-    LOCK.keeps!({ kind: "book", action, before, after: unlocked, changes: changesOf(before, unlocked), actor: USER }),
+    LOCK.keeps!({ kind: "folder", action, before, after: unlocked, changes: changesOf(before, unlocked), actor: USER }),
   ).toBe(true)
   expect(
-    LOCK.keeps!({ kind: "book", action, before, after: unlocked, changes: changesOf(before, unlocked), actor: AI }),
+    LOCK.keeps!({ kind: "folder", action, before, after: unlocked, changes: changesOf(before, unlocked), actor: AI }),
   ).toBe(false)
+})
+
+test("ページで問う問い: ロック中のページは、そのページのロックの掛け外しのほかを止める。ほかのページは止めない", () => {
+  const page = drawingPage("p1", { locked: true })
+  const book = testBook("b1", "b", [page, drawingPage("p2", { title: "2" })])
+  const ask = (action: string, id: string) =>
+    LOCK.denies({
+      kind: "page",
+      action: CORE_CATALOG.actions.get(action)!,
+      page: pagesOf(book).find(p => p.id === id)!,
+      folders: foldersOverIn(book, id),
+      actor: USER,
+    })
+  expect(ask("@matomezu/paper:item-place", "p1")).toBe(true)
+  expect(ask("@matomezu/base:page-unlock", "p1")).toBe(false)
+  expect(ask("@matomezu/paper:item-place", "p2")).toBe(false)
+  // アノテーションは図の中身ではないので、ロック中のページでも止めない
+  expect(ask("@matomezu/base:note-add", "p1")).toBe(false)
+})
+
+test("ページで問う問い: ロック中のブックの中のページは、バインダの中でも、ページのロックの掛け外しも止める", () => {
+  const book = testBook("b1", "b", [drawingPage("p1"), testBinder("f1", "束", DRAWING, drawingPage("s1"))], {
+    locked: true,
+  })
+  const ask = (action: string, id: string) =>
+    LOCK.denies({
+      kind: "page",
+      action: CORE_CATALOG.actions.get(action)!,
+      page: pagesOf(book).find(p => p.id === id)!,
+      folders: foldersOverIn(book, id),
+      actor: USER,
+    })
+  expect(ask("@matomezu/paper:item-place", "p1")).toBe(true)
+  expect(ask("@matomezu/paper:item-place", "s1")).toBe(true)
+  expect(ask("@matomezu/base:page-lock", "s1")).toBe(true)
 })
 
 test("ロック中は、行うアクションをどれも認可ステップに止められるコマンドを押せない。設定のダイアログはロックを外すために押せる", () => {

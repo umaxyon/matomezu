@@ -71,18 +71,12 @@ describe("スクラップの中（ScrapView）", () => {
     expect(frame.innerHTML).toContain("translate(-20px, -30px)")
   })
 
-  test("指したページが無いか、同じ id のページが 2 つのブックにあれば、枠だけを描く（無い）", () => {
-    const twin = (id: string) => ({ ...Y, id, lineup: [{ ...pagesOf(Y)[0]!, id: "twin" }] })
-    const { wrap } = setup([twin("t1"), twin("t2")])
+  test("指したページが無ければ、枠だけを描く（無い）", () => {
+    const { wrap } = setup([Y])
     const { container } = render(
-      wrap(
-        <>
-          <ScrapView scrap={{ page: "twin", area: { x: 0, y: 0, w: 100, h: 50 }, scale: 1 }} />
-          <ScrapView scrap={{ page: "nothing", area: { x: 0, y: 0, w: 100, h: 50 }, scale: 1 }} />
-        </>,
-      ),
+      wrap(<ScrapView scrap={{ page: "nothing", area: { x: 0, y: 0, w: 100, h: 50 }, scale: 1 }} />),
     )
-    expect(container.querySelectorAll('[data-scrap="none"]')).toHaveLength(2)
+    expect(container.querySelectorAll('[data-scrap="none"]')).toHaveLength(1)
   })
 
   test("可変ページの中身を右・下へずらしたら、ずらした印刷区画の分だけ先を描く", () => {

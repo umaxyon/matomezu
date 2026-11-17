@@ -34,7 +34,7 @@ var tools = []tool{
 	},
 	{
 		"list_books",
-		"List the books: id, title, version and awaiting (how many annotations, such as the user's notes and marks, wait for your answer; left out when none). A book that cannot be read now (the type of one of its pages is not installed, or it does not fit the rules of a book) has problem, the reason; it cannot be opened or changed until that is fixed. A book with items or settings of plugins that are not installed has warning; it can be read and changed, and those parts are kept as they are.",
+		"List the books: id, title, version (it goes up when the book itself changes: its title, its settings or its lineup; not when the contents of a page change) and awaiting (how many annotations, such as the user's notes and marks, wait for your answer; left out when none). A book that cannot be read now (it does not fit the shape or the rules of a book) has problem, the reason; it cannot be opened or changed until that is fixed. A book with items or settings of plugins that are not installed, or with pages that cannot be read now (see read_book), has warning; it can be read and changed, and those parts are kept as they are.",
 		noArgs,
 		reading(func(api caller, _ map[string]any) (json.RawMessage, error) {
 			return api.Get("api/ai/books")
@@ -42,7 +42,9 @@ var tools = []tool{
 	},
 	{
 		"read_book",
-		"Read a book: the book without its pages' contents (title, settings and so on), its lineup as an outline (each entry is a page: kind page, id, title, type and size in characters; or a binder of pages of one type: kind binder, id, title, pageType and its own lineup of pages), its version and its annotations (such as the user's notes and marks: what they are tied to by anchors, the page of the last anchor, and awaiting, whether they wait for your answer). " +
+		"Read a book: the book without its pages' contents (title, settings and so on), its lineup as an outline (each entry is a page: kind page, id, title, type, size in characters and version, which goes up each time that page changes; or a binder of pages of one type: kind binder, id, title, pageType and its own lineup of pages), its version (see list_books) and its annotations (such as the user's notes and marks: page, the page they are on; anchors, the things of that page they are tied to; and awaiting, whether they wait for your answer). " +
+			"A page that cannot be read now is in the lineup as kind unreadable with id, title, code (the reason: W027 its type is not installed, W028 it does not fit its type, W029 it breaks its type's rules) and type (its page type's id, when it has one). " +
+			"It is kept as it is and nothing can be done to it (read_page on it is refused with unreadable and the code; an action that would change it is refused with unreadable and the code), while the other pages work as usual. " +
 			"Read the contents of a page with read_page.",
 		map[string]any{
 			"type":                 "object",
@@ -57,21 +59,19 @@ var tools = []tool{
 	},
 	{
 		"read_page",
-		"Read one page of a book (the page and the items on it), the book's version, placed (where each shape is drawn, when the page type's presentation tells it, otherwise null: {id, x, y, w, h} with the top-left on the paper and the size as drawn, children too; use it to line shapes up, as the items' own x and y are from their parent and their w and h may be missing or smaller than drawn) and the annotations (such as the user's notes and marks) standing on things of that page. " +
+		"Read one page (the page and the items on it), book (the id of the book that holds it), version (the page's own: it goes up each time the page changes), placed (where each shape is drawn, when the page type's presentation tells it, otherwise null: {id, x, y, w, h} with the top-left on the paper and the size as drawn, children too; use it to line shapes up, as the items' own x and y are from their parent and their w and h may be missing or smaller than drawn) and the annotations (such as the user's notes and marks) standing on things of that page. " +
 			"A page too large to be answered at once is refused (too-large): with outline, the page's items are an outline (id, item, size in characters); with item, only that item (and what is inside it), its placed and the annotations on them are answered.",
 		map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"book":    map[string]any{"type": "string", "description": "The book's id."},
 				"page":    map[string]any{"type": "string", "description": "The page's id (see read_book or view)."},
 				"outline": map[string]any{"type": "boolean", "description": "Answer the page's items as an outline (id, item, size in characters) instead of in full."},
 				"item":    map[string]any{"type": "string", "description": "The id of an item on the page (any depth): answer only that item and what is inside it."},
 			},
-			"required":             []string{"book", "page"},
+			"required":             []string{"page"},
 			"additionalProperties": false,
 		},
 		reading(func(api caller, args map[string]any) (json.RawMessage, error) {
-			book, _ := args["book"].(string)
 			page, _ := args["page"].(string)
 			q := url.Values{}
 			if outline, _ := args["outline"].(bool); outline {
@@ -80,12 +80,12 @@ var tools = []tool{
 			if item, _ := args["item"].(string); item != "" {
 				q.Set("item", item)
 			}
-			path := "api/ai/books/" + url.PathEscape(book) + "/pages/" + url.PathEscape(page)
+			path := "api/ai/pages/" + url.PathEscape(page)
 			if len(q) > 0 {
 				path += "?" + q.Encode()
 			}
 			return api.Get(path)
-		}, narrowPage),
+		}, narrowPage, unreadablePage),
 	},
 	{
 		"read_records",
@@ -224,12 +224,18 @@ var tools = []tool{
 }
 
 // reading は、読む MCP 公開ツールの呼び出しを tools の表の形にする。narrow があれば、上限を超える答えを返さずに絞り方を返す
-// （受け取る側〈AI のクライアント〉に上限があり、超えると途中で切れて AI が気づけないため）
-func reading(read func(api caller, args map[string]any) (json.RawMessage, error), narrow func(args map[string]any) string) func(c *conn, args map[string]any) (string, bool) {
+// （受け取る側〈AI のクライアント〉に上限があり、超えると途中で切れて AI が気づけないため）。
+// refused は、常駐の答えが断りなら、その AI に返す 1 行を答える（読めないページの断りなど）
+func reading(read func(api caller, args map[string]any) (json.RawMessage, error), narrow func(args map[string]any) string, refused ...func(out json.RawMessage) (string, bool)) func(c *conn, args map[string]any) (string, bool) {
 	return func(c *conn, args map[string]any) (string, bool) {
 		out, err := read(c, args)
 		if err != nil {
 			return err.Error(), true
+		}
+		for _, r := range refused {
+			if text, ok := r(out); ok {
+				return text, true
+			}
 		}
 		if narrow != nil {
 			if n := len([]rune(string(out))); n > maxAnswer {
@@ -280,7 +286,7 @@ var performSchema = map[string]any{
 		"args":   map[string]any{"type": "object", "description": "The action's arguments, matching its args in actions."},
 		"on": map[string]any{
 			"type":        "object",
-			"description": "What the action is done on: the book, for an action whose target is book (or annotations); the page, for an action whose target is page (the page's id alone; no book); the record, for an action whose target is a subject listed in actions (subjects). Leave on out to make a new record.",
+			"description": "What the action is done on: the book, for an action whose target is book; the page, for an action whose target is page or annotations (the page's id alone; no book: for annotations, the page the annotation is on); the record, for an action whose target is a subject listed in actions (subjects). Leave on out to make a new record.",
 			"properties": map[string]any{
 				"book":   map[string]any{"type": "string", "description": "The book's id."},
 				"page":   map[string]any{"type": "string", "description": "The page's id (see read_book or view)."},
@@ -295,7 +301,8 @@ var performSchema = map[string]any{
 }
 
 const performDescription = "Perform an action listed by actions, as the user would on the screen: the change appears at once on screens showing that book. " +
-	"Returns the action's result (such as the id of what it made), with a notice on the next line when the action changed something else you should know (such as positions), or why it was refused."
+	"Returns the action's result (such as the id of what it made), with a notice on the next line when the action changed something else you should know (such as positions), or why it was refused. " +
+	"Nothing can be done to a page that cannot be read now: an action on it or one that would change it is refused with unreadable and the code (see read_book)."
 
 // showSchema は show の受ける形
 var showSchema = map[string]any{
@@ -337,6 +344,24 @@ func callTool(c *conn, name string, raw json.RawMessage) (string, bool) {
 		c.notice = ""
 	}
 	return text, failed
+}
+
+// unreadablePage は、read_page の答えが読めないページの断り（{"ok": false, "reason": "unreadable", "code"}）なら、AI に返す 1 行
+func unreadablePage(out json.RawMessage) (string, bool) {
+	var done struct {
+		OK     *bool  `json:"ok"`
+		Reason string `json:"reason"`
+		Code   string `json:"code"`
+	}
+	if json.Unmarshal(out, &done) != nil || done.OK == nil || *done.OK || done.Reason != "unreadable" {
+		return "", false
+	}
+	return unreadablePageText(done.Code), true
+}
+
+// unreadablePageText は、読めないページで断ったときの、AI に返す 1 行（理由は warning の番号 code だけ。番号の意味は read_book の説明にある）
+func unreadablePageText(code string) string {
+	return "unreadable: the page cannot be read now (" + code + "); nothing can be done to it (see read_book)"
 }
 
 // maxAnswer は、読む MCP 公開ツールの 1 つの答えの文字数の上限
@@ -382,11 +407,15 @@ func perform(api caller, args map[string]any) (string, bool) {
 		OK     bool            `json:"ok"`
 		Reason string          `json:"reason"`
 		Detail string          `json:"detail"`
+		Code   string          `json:"code"` // 読めないページで断ったとき、理由の warning の番号
 		Result json.RawMessage `json:"result"`
 		Notice string          `json:"notice"` // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
 	}
 	if err := json.Unmarshal(out, &done); err != nil {
 		return string(out), true
+	}
+	if !done.OK && done.Reason == "unreadable" && done.Code != "" {
+		return unreadablePageText(done.Code), true
 	}
 	if !done.OK {
 		text := refusalText(done.Reason, done.Detail)
