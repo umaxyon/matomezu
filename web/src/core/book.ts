@@ -24,8 +24,10 @@ export function checkBooks(
   for (const b of saved) {
     const raw = (typeof b === "object" && b !== null ? b : {}) as { id?: unknown; title?: unknown }
     const params = { book: String(raw.id ?? ""), title: typeof raw.title === "string" ? raw.title : "" }
-    const marked = withUnreadable(catalog, b)
-    const parsed = catalog.bookSchema.safeParse(marked.book)
+    // 読めないページの無いブックは、ブックの形で 1 回確かめるだけで済ませる（ページごとには確かめ直さない）
+    const whole = wholeBook(catalog, b)
+    const marked = whole ? { book: whole, found: [] } : withUnreadable(catalog, b)
+    const parsed = whole ? { success: true as const, data: whole } : catalog.bookSchema.safeParse(marked.book)
     if (!parsed.success) warnings.push(warning("W005", "", params))
     else if (!lineupHolds(catalog, parsed.data as Book)) warnings.push(warning("W006", "", params))
     else {
@@ -91,12 +93,41 @@ export function distinctBooks(books: readonly Book[]): { books: Book[]; warnings
 // 残したページ 1 枚（形を確かめる前）が、今の機能台帳で読めるか: 読めなければ、その理由の warning の番号
 // （同じ値は覚えておき、読めるかの確かめとタイプの決まりの確かめを繰り返さない）
 const pageChecks = new WeakMap<CoreCatalog, WeakMap<object, UnreadableCode | "readable">>()
-function pageCheck(catalog: CoreCatalog, page: object): UnreadableCode | "readable" {
+function pageChecksOf(catalog: CoreCatalog): WeakMap<object, UnreadableCode | "readable"> {
   let kept = pageChecks.get(catalog)
   if (!kept) {
     kept = new WeakMap()
     pageChecks.set(catalog, kept)
   }
+  return kept
+}
+
+// 残したブック（形を確かめる前）が、読めないページを 1 枚も持たずにブックの形に合えば、読んだブック。合わない・読めないページがあるなら null
+// （null のときは、ページごとに確かめて読めないページを分ける）
+function wholeBook(catalog: CoreCatalog, saved: unknown): Book | null {
+  const parsed = catalog.bookSchema.safeParse(saved)
+  if (!parsed.success) return null
+  const book = parsed.data as Book
+  if (unreadableOf(book).length > 0) return null
+  // 形に合ったので、残したページは読んだページと同じ順に並ぶ
+  const raw = (saved as { lineup: readonly { kind: string; lineup?: readonly object[] }[] }).lineup.flatMap(
+    (e): readonly object[] => (e.kind === "binder" ? (e.lineup ?? []) : [e]),
+  )
+  const kept = pageChecksOf(catalog)
+  return pagesOf(book).every((page, i) => {
+    const from = raw[i]
+    if (from && kept.get(from) === "readable") return true
+    const held =
+      (catalog.pageTypes.get(page.type)?.holds?.(page as AnyPage, catalog) ?? true) && pageHolds(catalog, page)
+    if (held && from) kept.set(from, "readable")
+    return held
+  })
+    ? book
+    : null
+}
+
+function pageCheck(catalog: CoreCatalog, page: object): UnreadableCode | "readable" {
+  const kept = pageChecksOf(catalog)
   const hit = kept.get(page)
   if (hit) return hit
   const type = (page as { type?: unknown }).type

@@ -61,6 +61,11 @@ test("読めないページのあるブックでも、ほかのページは変�
     .toBe(1)
   const stored = await storedBook(page.request, "mixed")
   expect(stored.lineup[1]).toEqual(gone)
+  // 読めるページを開いていれば、印刷プレビューは開けて、Esc で戻れる（並ぶのは読めるページだけ）
+  await (await fromMenu(page, "印刷プレビュー")).click()
+  await expect(page.locator("[data-sheet]")).toHaveCount(1)
+  await page.keyboard.press("Escape")
+  await expect(page.getByRole("tab", { name: "外したタイプ" })).toBeVisible()
   // 読み直しても同じ
   await page.reload()
   await expect(page.getByRole("tab", { name: "外したタイプ" })).toBeVisible()

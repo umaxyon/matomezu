@@ -371,6 +371,34 @@ describe("アクション（performIn）", () => {
     expect(act("all")).toMatchObject({ ok: true, result: { pages: ["p1", "p2", "s1"] } })
   })
 
+  test("ページを動かす先の index は、読めないページも数える（同じ所・並びの外の断りも）", () => {
+    const [book] = checkBooks(CORE_CATALOG, [
+      testBook("b3", "B3", [
+        testBinder(
+          "f3",
+          "スライド",
+          SLIDE,
+          stranger("u3"),
+          testPage(SLIDE, "t1", { title: "1" }),
+          testPage(SLIDE, "t2", { title: "2" }),
+        ),
+      ]),
+    ]).books
+    if (!book) throw new Error("not read")
+    const world = worldOf([book])
+    const move = (index: number) => run(world, "@matomezu/base:page-move", { page: "t2", index }, { book: "b3" })
+    const order = (done: PerformedIn) =>
+      done.ok && done.changes
+        ? bookOf(withChanges(world, done.changes), "b3")?.lineup.flatMap(e =>
+            e.kind === "binder" ? e.lineup.map(p => p.id) : [],
+          )
+        : null
+    expect(order(move(1))).toEqual(["u3", "t2", "t1"])
+    expect(order(move(0))).toEqual(["t2", "u3", "t1"])
+    expect(move(2)).toMatchObject({ ok: false, reason: "refused" }) // 今と同じ所
+    expect(move(3)).toMatchObject({ ok: false, reason: "refused" }) // 並びの外
+  })
+
   test("ほかのページを足す・動かす・ブックの名前を変える・バインダを動かすのは行え、読めないページの行は書かない", () => {
     const world = worldOf([read()])
     const done = [
