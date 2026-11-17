@@ -217,6 +217,13 @@ describe("ブックの値を書庫に置く・外す", () => {
     expect(treeHolds(next)).toBe(true)
   })
 
+  test("1 冊を置き換えても、ほかのブックは、書庫から組むと前と同じ値（perform が、変わったブックだけを確かめるのに頼る）", () => {
+    const t = tables()
+    const next = withBook(t, { ...bookOf(t, "b1")!, title: "改名" })
+    expect(libraryOf(next).old).toBe(libraryOf(t).old)
+    expect(libraryOf(next).b1).not.toBe(libraryOf(t).b1)
+  })
+
   test("新しいブックは、行が足されるだけで、どのフォルダの並びにも入らない。外すと、ブックと中のバインダとページの行が無くなる", () => {
     const t = tables()
     const b3 = testBook("b3", "三", [drawingPage("p3")])
