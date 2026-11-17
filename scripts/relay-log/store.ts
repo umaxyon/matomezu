@@ -9,7 +9,7 @@ import { clientOf } from "./clients"
 import { FACTS_VERSION, type FactRow, factRows } from "./facts"
 import type { McpFactRow } from "./mcp-rank"
 import type { TimelineFact, TimelineRequest, TimelineRows } from "./timeline"
-import { type ClientName, type Entry, MAIN_THREAD, type Split } from "./types"
+import { type ClientName, type Entry, MAIN_THREAD, type Split, type Usage } from "./types"
 
 // fixed と list の名前は本文のキー。読み戻すときに同じキーに戻す
 type Skeleton = {
@@ -337,6 +337,12 @@ export function openStore(path: string) {
     body(id: number): Record<string, unknown> | undefined {
       const row = db.query("SELECT skeleton FROM requests WHERE id = ?").get(id) as { skeleton: string | null } | null
       return row?.skeleton ? assemble(JSON.parse(row.skeleton)) : undefined
+    },
+    usage(id: number): Usage {
+      const row = db.query("SELECT json_extract(entry, '$.usage') AS usage FROM requests WHERE id = ?").get(id) as {
+        usage: string | null
+      } | null
+      return row?.usage ? JSON.parse(row.usage) : {}
     },
     reply(id: number): string | undefined {
       const row = db.query("SELECT reply FROM requests WHERE id = ?").get(id) as { reply: string | null } | null
