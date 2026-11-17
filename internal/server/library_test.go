@@ -258,6 +258,14 @@ func TestABrokenLibraryTreeIsAWarning(t *testing.T) {
 	if has() {
 		t.Fatalf("the warning stays after the tree is whole: %v", hub.Warnings())
 	}
+	// ブックを足す書き込みのあとにも、確かめ直す
+	hub.mu.Lock()
+	hub.libraryWarning = "W030 stale"
+	hub.mu.Unlock()
+	send(t, "PUT", s.URL+"/api/books-for-test/b9", `{"book":`+strings.Replace(strings.Replace(boxed, `"b1"`, `"b9"`, 1), `"p1"`, `"p9"`, 1)+`,"base":0}`, nil)
+	if has() {
+		t.Fatalf("the library is not checked after a write that adds a book: %v", hub.Warnings())
+	}
 }
 
 // between は、s の中の、from から次の to まで（無ければ空）

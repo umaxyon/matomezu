@@ -174,7 +174,7 @@ type Engine struct {
 	perform     func(string) string
 	readAI      func() string
 	check       func(string) string
-	checkTree   func(string) string
+	checkTree   func(string, string) string
 	lines       func(string) string
 	settings    func(string) string
 	notes       func(string) string
@@ -644,10 +644,14 @@ func (e *Engine) CheckBooks(books []json.RawMessage) (out []BookWarning, err err
 	return out, nil
 }
 
-// CheckLibrary は、フォルダの行の全部（書庫ホーム・フォルダ・ブック・バインダ）が木の決まりを守るかを確かめ、破れていれば warning（W030）の 1 行を、守っていれば空の文字列を返す
+// CheckLibrary は、フォルダの行の全部（書庫ホーム・フォルダ・ブック・バインダ）とページの行の id の全部 pages が木の決まりを守るかを確かめ、破れていれば warning（W030）の 1 行を、守っていれば空の文字列を返す
 // （データには手を付けない）
-func (e *Engine) CheckLibrary(folders []json.RawMessage) (line string, err error) {
+func (e *Engine) CheckLibrary(folders []json.RawMessage, pages []string) (line string, err error) {
 	b, err := json.Marshal(folders)
+	if err != nil {
+		return "", err
+	}
+	ids, err := json.Marshal(pages)
 	if err != nil {
 		return "", err
 	}
@@ -658,7 +662,7 @@ func (e *Engine) CheckLibrary(folders []json.RawMessage) (line string, err error
 			err = fmt.Errorf("engine: %v", r)
 		}
 	}()
-	return e.checkTree(string(b)), nil
+	return e.checkTree(string(b), string(ids)), nil
 }
 
 // CheckAnnotations はブックのアノテーションを今の機能台帳で確かめ、効かないもの（種類が無い・形が合わない）の warning の 1 行ずつを返す（データには手を付けない）。

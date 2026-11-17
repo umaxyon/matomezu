@@ -210,8 +210,12 @@ func rowNotice(field string, put rowPut) map[string]any {
 
 // applyWrites は、書き終えた物をメモリに当て、窓に changed の知らせ 1 つで知らせる（何も変わらなければ知らせない）。失敗しない（h.mu を持って呼ぶ）
 func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act string) {
+	// 木が変わりうる書き込み（ページかフォルダの行が増えた・消えた、書庫ホームかフォルダの行を書いた）のあとは、木の決まりを確かめ直す
+	tree := false
 	pages := make([]map[string]any, 0, len(plan.pages))
 	for _, put := range plan.pages {
+		_, known := h.pages[put.id]
+		tree = tree || put.removed || !known
 		if put.removed {
 			delete(h.pages, put.id)
 		} else {
@@ -220,8 +224,6 @@ func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act
 		pages = append(pages, rowNotice("page", put))
 	}
 	folders := make([]map[string]any, 0, len(plan.folders))
-	// 木が変わりうる書き込み（フォルダの行が増えた・消えた、書庫ホームかフォルダの行を書いた）のあとは、木の決まりを確かめ直す
-	tree := false
 	for _, put := range plan.folders {
 		was, known := h.folders[put.id]
 		if put.removed {

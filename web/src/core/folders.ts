@@ -268,9 +268,9 @@ export function foldersOver(folders: Folders, entry: string): Folder[] {
 }
 
 // 木の決まり: 書庫ホームが在る／書庫ホームはどのフォルダにも入らない／書庫ホーム以外のフォルダは、ちょうど 1 つのフォルダに入り、上へたどると書庫ホームに着く（輪にならない）／
-// 書庫ホームとフォルダのエントリは、種類が合う（folder は表に在るフォルダ、book はブック）／
+// ページは、どれかのフォルダ（ブック・バインダを含む）に入る／書庫ホームとフォルダのエントリは、種類が合う（folder は表に在るフォルダ、book はブック）／
 // ブックとバインダは、ブックもフォルダも持たない（型が決める）
-export function treeHolds({ folders }: Tables): boolean {
+export function treeHolds({ pages, folders }: Tables): boolean {
   const home = folders[HOME_ID]
   if (home?.folderRole !== "home") return false
   const holder = new Map<string, string>()
@@ -286,6 +286,7 @@ export function treeHolds({ folders }: Tables): boolean {
     }
   }
   if (holder.has(HOME_ID)) return false
+  if (!Object.keys(pages).every(id => holder.has(id))) return false
   return Object.values(folders).every(f => {
     const passed = new Set<string>()
     let at: string | undefined = f.id
@@ -297,9 +298,9 @@ export function treeHolds({ folders }: Tables): boolean {
   })
 }
 
-// 置き場所から読んだままのフォルダの行の全部 rows（書庫ホーム・フォルダ・ブック・バインダ）が、木の決まり treeHolds を守るか。
+// 置き場所から読んだままのフォルダの行の全部 rows（書庫ホーム・フォルダ・ブック・バインダ）と、ページの行の id の全部 pages が、木の決まり treeHolds を守るか。
 // 書庫ホームとフォルダは形を確かめ（合わない行は入らない）、ブックとバインダは id と並びのエントリの id だけを読む（読めないブックも、行が在れば木に入る）
-export function rowsHoldTree(rows: readonly unknown[]): boolean {
+export function rowsHoldTree(rows: readonly unknown[], pages: readonly string[]): boolean {
   const folders: Record<string, Folder> = {}
   for (const f of homeAndFoldersOf(rows)) folders[f.id] = f
   for (const row of rows) {
@@ -310,7 +311,7 @@ export function rowsHoldTree(rows: readonly unknown[]): boolean {
     const refs = lineup.flatMap(r => (LooseRefSchema.safeParse(r).success ? [r as EntryRef] : []))
     folders[id] = { folderRole: folderRole === "binder" ? "binder" : "book", id, lineup: refs } as unknown as Folder
   }
-  return treeHolds({ pages: {}, folders })
+  return treeHolds({ pages: Object.fromEntries(pages.map(id => [id, undefined])), folders } as unknown as Tables)
 }
 
 // 変わり changes（ブックを足す・消す）に、置き場所の書き込みを足した変わり: 足したブックは書庫ホームの末尾に入れ、無くなったブックは、入っていたフォルダの並びから外す

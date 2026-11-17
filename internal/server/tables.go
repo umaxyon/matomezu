@@ -174,14 +174,14 @@ func (h *Hub) foldersAbove(id string) []string {
 	return out
 }
 
-// checkLibrary は、フォルダの行の全部が木の決まりを守るかを確かめ、warning の一覧を直す。変わった warning は常駐のログに書く
+// checkLibrary は、フォルダとページの行の全部が木の決まりを守るかを確かめ、warning の一覧を直す。変わった warning は常駐のログに書く
 // （確かめられなければ、ログに書いて一覧はそのまま。h.mu を持って呼ぶ）
 func (h *Hub) checkLibrary() {
 	rows := make([]json.RawMessage, 0, len(h.folders))
 	for _, id := range slices.Sorted(maps.Keys(h.folders)) {
 		rows = append(rows, h.folders[id].body)
 	}
-	line, err := h.engine.CheckLibrary(rows)
+	line, err := h.engine.CheckLibrary(rows, slices.Sorted(maps.Keys(h.pages)))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "engine: could not check the library:", err)
 		return

@@ -16,7 +16,7 @@ import {
   placedChanges,
   rawBooksOf,
   restoredTables,
-  rowsHoldTree,
+  rowsHoldTree as rowsHold,
   type Tables,
   treeHolds,
   withChanges,
@@ -114,9 +114,13 @@ describe("木の決まり", () => {
     expect(treeHolds(withFolders(t, { ...old, lineup: [{ kind: "folder", id: "b1" }, old.lineup[1]!] }))).toBe(false)
   })
 
-  test("置き場所の行のまま確かめる: 読めないブックの行も木に入り、どこにも入っていないブック・形に合わないフォルダの行・書庫ホームが無いと破れる", () => {
+  test("置き場所の行のまま確かめる: 読めないブックの行も木に入り、どこにも入っていないブックとページ・形に合わないフォルダの行・書庫ホームが無いと破れる", () => {
     const rows = Object.values(tables().folders) as unknown[]
+    const ids = Object.keys(tables().pages)
+    const rowsHoldTree = (given: readonly unknown[], pages: readonly string[] = ids) => rowsHold(given, pages)
     expect(rowsHoldTree(rows)).toBe(true)
+    // どのフォルダにも入っていないページの行
+    expect(rowsHoldTree(rows, [...ids, "stray"])).toBe(false)
     // 役の無い行は、読めないブックとして木に入る
     const broken = { id: "odd", lineup: "none" }
     expect(rowsHoldTree([...rows, broken])).toBe(false)
