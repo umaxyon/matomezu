@@ -62,7 +62,7 @@ function shapeIds(shape: ShapeData): string[] {
   return [shape.id, ...(shape.shapes ?? []).flatMap(shapeIds)]
 }
 
-// 渡された形 raw を確かめた形。ブックで使えるアイテム・使えるテーマ・写せる形だけ。子の形もたどる。通らなければ null
+// 渡された形 raw を確かめた形。ページのタイプが置けるアイテム・使えるテーマ・写せる形だけ。子の形もたどる。通らなければ null
 function parsedTree(catalog: CoreCatalog, page: Pick<ItemPage, "type">, raw: unknown): PlacedShape | null {
   if (typeof raw !== "object" || raw === null || typeof (raw as { item?: unknown }).item !== "string") return null
   const value = raw as { item: string; shapes?: unknown; [field: string]: unknown }
