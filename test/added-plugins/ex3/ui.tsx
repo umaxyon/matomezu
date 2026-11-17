@@ -1,4 +1,4 @@
-// ex3 の見た目を結ぶ: 星のビュー・ダイアログ・方眼のコンポーネント・ステージの下の行に置いてほしいボタン。紙の見せ方はビルトインプラグインのものを使う
+// ex3 の見た目を結ぶ: 星のビュー・ダイアログ・方眼のコンポーネント・ステージの下の行に置いてほしいボタン。紙のプレゼンテーションはビルトインプラグインのものを使う
 import { definePluginUi, defineWidget } from "matomezu/ui"
 import { EX3 } from "."
 import { GRID, STAR, STAR_ADD_DIALOG, STAR_EDIT_DIALOG } from "./board"

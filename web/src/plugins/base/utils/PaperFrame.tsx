@@ -1,6 +1,6 @@
 // 紙の枠: ステージの紙の置き場所（core/stage.ts の placement）に紙の大きさの箱を置き、中を紙の座標で描く。
 // レイヤー（スロット book-layers）のうち紙の座標で描くレイヤーは、どれもこの枠の中に描くので、パンと倍率が同じに効く。
-// 倍率と、開いたブックのビューが決める移り変わりの値（BookViewDef の motion）が変わったときだけ、なめらかに移す（どのレイヤーの枠も同じ値で動く）。
+// 倍率と、開いたページのプレゼンテーションのビューが決める移り変わりの値（PresentationViewDef の motion）が変わったときだけ、なめらかに移す（どのレイヤーの枠も同じ値で動く）。
 // 中には、紙の倍率を --paper-zoom で渡す（画面の上で同じ大きさに出す物が打ち消すのに使う）。紙が無ければ何も描かない
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react"
 import { pageType } from "../../../core/core-catalog"
@@ -45,13 +45,13 @@ export function PaperFrame({ stage, style, children, ...rest }: Props) {
 }
 
 declare module "../../../core/catalog" {
-  interface BookViewExtras {
+  interface PresentationViewExtras {
     // 倍率のほかに、紙をなめらかに移したい値（変わるたびに、紙の枠がどれもそろってなめらかに動く。無ければ倍率だけ）
     motion?: (stage: StageView) => string
   }
 }
 
-// 開いたブックのビューが決める、紙をなめらかに移す値（決めなければ空）
+// 開いたページのプレゼンテーションのビューが決める、紙をなめらかに移す値（決めなければ空）
 function usePaperMotionKey(stage: StageView): string {
   const catalog = useCatalog().core
   const views = useUiCatalog().presentationViews

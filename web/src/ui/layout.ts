@@ -19,7 +19,7 @@ import type { CommandArgs } from "../store/commands"
 import type { Plugin } from "../store/plugin"
 
 // 置けるスロットと、描くコンポーネント。置けるスロットは、どれも同じ値（props）を渡すものだけにする。
-// スロットとメニューを開けるのはウィジェットとブックのビューだけで、コンポーネントの中で描くスロット（<Slot>）とメニュー（useMenu）、
+// スロットとメニューを開けるのはウィジェットとプレゼンテーションのビューだけで、コンポーネントの中で描くスロット（<Slot>）とメニュー（useMenu）、
 // 開く右クリックのメニュー（useContextMenu）は opens・menus・contextMenus に全部書く
 // （書いたものが、そのスロットとメニューを開ける約束）。ほかのプラグインのスロットを開けてもよい（骨組みの差し替え）
 export interface WidgetDef<S extends SlotId = SlotId> extends WidgetExtras {
@@ -243,7 +243,7 @@ export const menuCommands = (item: MenuItem): readonly MenuCommandId[] =>
 export const ROOT_SLOT = "root" satisfies SlotId
 
 // UI マッピングの食い違い: 知らないウィジェット・置けないスロットに置いたウィジェット・インスタンスに無いコマンド・
-// 中身を書いたのに、置いたウィジェットのどれも開けないスロットとメニュー、置いたウィジェットと見せ方・アイテムのビューのどれも開かない右クリックのメニュー（無ければ空）
+// 中身を書いたのに、置いたウィジェットのどれも開けないスロットとメニュー、置いたウィジェットとプレゼンテーション・アイテムのビューのどれも開かない右クリックのメニュー（無ければ空）
 export function checkLayout(
   layout: LayoutDef,
   views: {

@@ -49,7 +49,7 @@ export function crossingShapes(
   return { crossing, oversized }
 }
 
-// 中身の四角 rects（紙の座標）を並べたページの印刷区画（見せ方の printSheets が返す形）: 可変ページ（増やす向き grow）なら、中身の外枠 extent が
+// 中身の四角 rects（紙の座標）を並べたページの印刷区画（プレゼンテーションの printSheets が返す形）: 可変ページ（増やす向き grow）なら、中身の外枠 extent が
 // 入るだけ印刷区画を並べた数、そうでなければ 1 つ。中身の四角が載る印刷区画（形と同じ決まり。sheetsOfShape）を、載っている印刷区画にする
 export function printSheetsOf(
   paper: Size,

@@ -138,7 +138,7 @@ test("その場で編集中（editing）は、選んでいる物があるとき�
   expect(setEditing(editing, false).editing).toBe(false)
 })
 
-test("見せ方が知らせた広さ（可変ページ）は、紙の枠とずらす量の範囲に効き、紙 1 枚の大きさ（paperOf）は変えない。紙が変われば捨てる", () => {
+test("プレゼンテーションが知らせた広さ（可変ページ）は、紙の枠とずらす量の範囲に効き、紙 1 枚の大きさ（paperOf）は変えない。紙が変われば捨てる", () => {
   const page = drawingPage("p1", { orientation: "portrait" })
   const book = testBook("b1", "見本", [page])
   const opened = resize(openBook(CORE_CATALOG, newStage("s1"), book), { w: 400, h: 300 })
@@ -179,7 +179,7 @@ test("開いているページの中身をずらした（ページの shift が�
   expect(followBook(CORE_CATALOG, back, book)).toBe(back)
 })
 
-test("位置をデータに持たない見せ方が、描く中身をずらした量（origin）を広さと一緒に知らせて変われば、中身が同じ所に見えるようパンを合わせる", () => {
+test("位置をデータに持たないプレゼンテーションが、描く中身をずらした量（origin）を広さと一緒に知らせて変われば、中身が同じ所に見えるようパンを合わせる", () => {
   const page = drawingPage("p1", { orientation: "portrait" })
   const book = testBook("b1", "見本", [page])
   const sheet = paperOf(openBook(CORE_CATALOG, newStage("s1"), book))!

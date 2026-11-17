@@ -305,7 +305,7 @@ export interface PlaceActions {
   openBinder(stage: string, binder: string): void // そのステージで開いているブックのバインダを開く（中の最初のページ。空ならバインダ）
   openPageById(stage: string, page: string): void // ページ page を持つブックをそのステージで開き、そのページを開く（ページが無ければ何もしない）
   resizeStage(id: string, view: Size): void // 表示領域の大きさが変わった
-  // 見せ方が描く広さ（可変ページ。null なら紙 1 枚）と、描く中身を右・下へずらした量（印刷区画の数。位置をデータに持たない見せ方）
+  // プレゼンテーションが描く広さ（可変ページ。null なら紙 1 枚）と、描く中身を右・下へずらした量（印刷区画の数。位置をデータに持たないプレゼンテーション）
   setStageArea(id: string, area: Size | null, origin?: Point | null): void
   // 初めの位置で表示領域の左上に置く紙の点（中身の載った印刷区画の左上。開いたばかりなら、そこへ合わせる）
   setStageStart(id: string, start: Point): void
@@ -318,7 +318,7 @@ export interface PlaceActions {
   closePrintPreview(id: string): void
   startBackground(id: string): void // そのステージを背景編集モードにする（背景を持つタイプのブックのページを開いている編集の間だけ）
   endBackground(id: string): void // そのステージの背景編集モードを終える
-  setPreviewArea(id: string, area: Size): void // 印刷プレビューで並べた広さ（見せ方が知らせる）
+  setPreviewArea(id: string, area: Size): void // 印刷プレビューで並べた広さ（プレゼンテーションが知らせる）
   // そのステージが使う道具の組の道具を替える（同じ組を使うステージが全部替わり、置こうとしていたアイテムは取り消す）
   setTool(stage: string, tool: ToolId): void
   // そのステージでアイテムを置こうとする（同じものなら取り消す）。props は置くときに渡す項目の値（無ければアイテムの既定）
@@ -778,7 +778,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   let unseen: Unseen[] = []
   // 確かめた世界の、最後に知っているブック（よその変更の前の値）
   let known: Library = {}
-  // ステージ st で物が見えているかの答え（見せ方の seen と、ステージの表示領域の紙の上の四角から。見せ方が答えなければ undefined。
+  // ステージ st で物が見えているかの答え（プレゼンテーションの seen と、ステージの表示領域の紙の上の四角から。プレゼンテーションが答えなければ undefined。
   // 印刷プレビューの間と、表示領域を測るまでは、どの物も見えていない）
   const seenTestOf = (st: Stage): SeenTest | undefined => {
     const opened = st.opened
@@ -1135,7 +1135,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const opener = dialog && dialog.stage !== NO_STAGE ? dialog.stage : undefined
       const stage = contextMenu?.stage ?? picker ?? opener ?? screenOf(window).current
       const menu = contextMenu !== null || picker !== undefined
-      // 見せ方のキーの範囲は、ページを開いているときだけ（空のバインダでは、見せ方のビューを描かない）
+      // プレゼンテーションのキーの範囲は、ページを開いているときだけ（空のバインダでは、プレゼンテーションのビューを描かない）
       const type = openedPage(stageIn(window, stage)?.opened ?? null)?.type
       const presentation = type && catalog.pageTypes.get(type)?.presentation
       const shown = presentation ? catalog.presentations.get(presentation)?.keyScope : undefined

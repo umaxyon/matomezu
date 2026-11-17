@@ -70,7 +70,7 @@ export function ScrapView({ scrap, zoom = 1 }: ScrapViewProps) {
 }
 
 // ステージの外で、見るだけに描くページ stage の中身: そのブックの見た目で、印刷区画 1 つのビュー（sheet-layers）を描く。
-// 紙の見せ方などは、ページの広さ size を 1 つの印刷区画として描く。描く前に測る見せ方（printMeasure。マークダウンなど）は、見えない所で測ってから、
+// 紙のプレゼンテーションなどは、ページの広さ size を 1 つの印刷区画として描く。描く前に測るプレゼンテーション（printMeasure。マークダウンなど）は、見えない所で測ってから、
 // 測った数の印刷区画を紙の大きさで縦に並べる（広さは紙の幅 × 印刷区画の数の高さ。onSize で知らせる）
 export function DrawnSheet({
   book,

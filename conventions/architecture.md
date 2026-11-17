@@ -27,7 +27,7 @@
 - 向きは 土台 → `plugin-api` → ビルトインプラグインと `plugin-entry` → `plugin-modules` の一方向。`plugin-api` はプラグインを読まない（base の物を出し直すのは `plugin-entry`）
 - プラグインのファイルは役割で見る。見た目（`.tsx` と `ui.ts`）は `ui` と同じものを読んでよく、ほかは `core`・`store`・zod だけ
 - 表と上の行で読んでよい物（zod・React・zustand）のほかに読んでよい外のライブラリは次だけ: Markdown を読むライブラリ（mdast-util-from-markdown・mdast-util-gfm・micromark-extension-gfm と、その型の mdast）、コードを色付けするライブラリ（refractor と、その型の hast）。ライブラリごとに決めた 1 つのファイルだけが読み、その型をプラグイン API に出さない（matomezu の形に移して出す）
-- 上の 2 行は base だけ。base 以外のビルトインプラグインは、`plugin-api` と base の入口だけを読み、土台を直に読まない。見た目は `plugin-api/ui`・`plugins/base/ui`・React も読み、見た目でないファイルは `plugin-api`・`plugins/base/index`・zod だけ。状態は `plugin-api/ui` のフック（plugins の「プラグインどうしの関係」）で読む。base はプラグイン API を読まない
+- 上の 2 行は base だけ。base 以外のビルトインプラグインは、`plugin-api` と base の入口だけを読み、土台を直に読まない。見た目は `plugin-api/ui`・`plugins/base/ui`・React も読み、見た目でないファイルは `plugin-api`・`plugins/base/index`・zod だけ。状態は `plugin-api/ui` のフック（「プラグイン」の「プラグインどうしの関係」）で読む。base はプラグイン API を読まない
 - 見た目でないファイルは、見た目を読まない
 - `web/src` のファイルどうしも、値で読む輪を作らない（型だけ読むのは除く）
 - これらは `test/rules.test.ts` が見張る
@@ -115,5 +115,5 @@ matomezu が配る AI ごとの部品（Claude Code のプラグインなど）�
 - 読めるが、機能台帳に無いアイテムや設定の項目を持つブックも、warning にする（どのプラグインの warning かは、無い物の持ち主）
 - 画面だけで見つかる warning（UI マッピングで飛ばした物・`place` の `before`・`after` の書き方が合わずに置かなかったウィジェット・画面が組めずに外した追加プラグイン）は、ホストクライアントがホストに知らせる（前に知らせたものと入れ替え、つなぎ直すたびに知らせ直す）。知らせるのは番号と値だけで、文はエンジンが表から作る
 - ホストは、問題を 1 か所にメモリで持つ: 定義の warning・読めないブック・読めないページ・warning のあるブック・画面が知らせた warning（窓ごと。窓が離れたら消す）。起動したときとプラグインが変わったときに全部のブックを、ブックのページかフォルダが保存されたときにそのブックを確かめ直す（読めるかは今のプラグインで決まるので、DB には残さない）
-- ホストは問題を、常駐のログ（変わったときに書く）と、AI の `list_books`（読めないブックに理由を、読めないページのあるブックにその warning を添える）・`read_book`（読めないページに warning の番号とタイプの id を添える）・`actions` に出す。AI が読めないブックにアクションを行うと、「無い」（`no-book`・`no-page`）でなく `unreadable` とその理由で断る。読めないページへのアクション（定義と機能台帳の「ブック」）と `read_page` は、`unreadable` と warning の番号だけで断る（理由の文は返さない）
+- ホストは問題を、常駐のログ（変わったときに書く）と、AI の `list_books`（読めないブックに理由を、読めないページのあるブックにその warning を添える）・`read_book`（読めないページに warning の番号とタイプの id を添える）・`actions` に出す。AI が読めないブックにアクションを行うと、「無い」（`no-book`・`no-page`）でなく `unreadable` とその理由で断る。読めないページへのアクション（「定義と機能台帳」の「ブック」）と `read_page` は、`unreadable` と warning の番号だけで断る（理由の文は返さない）
 - 画面は読めないブックと読めないページを捨てず、データには手を付けない

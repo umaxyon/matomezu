@@ -709,7 +709,7 @@ function searchTextOf(def: SubjectDef, record: unknown): { title: string; body: 
   return JSON.stringify(out)
 }
 
-// ブックのページごとの、形の描いた位置と大きさ（base の aiPlacedOf。AI の read_page に添える）。読めないブックか、見せ方が答えなければ null
+// ブックのページごとの、形の描いた位置と大きさ（base の aiPlacedOf。AI の read_page に添える）。読めないブックか、プレゼンテーションが答えなければ null
 ;(globalThis as { matomezuAiPlaced?: (book: string) => string }).matomezuAiPlaced = book => {
   const catalog = assembled.catalog.core
   const [read] = restoreBooks(catalog, [JSON.parse(book)])

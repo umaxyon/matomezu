@@ -1,5 +1,5 @@
 // ex2 のページのタイプ「フロー」: 自分の形（判断のひし形）と設定の項目（流れの向き）と自分のアクションを持ち、
-// ビルトインの見せ方（紙）・箱・線・線の設定を id で選ぶ
+// ビルトインのプレゼンテーション（紙）・箱・線・線の設定を id で選ぶ
 
 import { type ShapeAddArgs, type ShapeEditArgs, z } from "matomezu"
 import { kit } from "./kit"
@@ -63,7 +63,7 @@ export const FLOW = kit.definePageType({
   items: {
     allowed: [DIAMOND.id, "@matomezu/box:shape-box", "@matomezu/line:connector-line"],
   },
-  actions: {}, // 使うアクションは、選んだアイテム・見せ方・ページについて来る（自分の判断のアクションも、ひし形について来る）
+  actions: {}, // 使うアクションは、選んだアイテム・プレゼンテーション・ページについて来る（自分の判断のアクションも、ひし形について来る）
   theme: "@matomezu/base:standard",
   themeTypes: ["@matomezu/base:diagram"],
   presentation: "@matomezu/paper:paper",

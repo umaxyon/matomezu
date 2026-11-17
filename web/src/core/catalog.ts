@@ -206,4 +206,4 @@ export interface KeyScopeExtras {}
 export interface PluginStateExtras {}
 export interface WidgetExtras {}
 export interface LayoutExtras {}
-export interface BookViewExtras {}
+export interface PresentationViewExtras {}

@@ -182,7 +182,7 @@ func (h *Hub) joinedAIForTest() (string, error) {
 		h.recordTables[w.Subject][w.ID] = recordEntry{w.Body, 1}
 		changes = append(changes, map[string]any{"subject": w.Subject, "id": w.ID, "record": json.RawMessage(w.Body), "version": 1})
 	}
-	h.broadcast("record", map[string]any{"records": changes})
+	h.broadcast("changed", map[string]any{"pages": []any{}, "folders": []any{}, "books": []any{}, "records": changes})
 	h.participantNotes[id] = participantNote{SessionID: id, BoundBy: boundByJoin}
 	if err := h.putParticipantNotes(); err != nil {
 		return "", err

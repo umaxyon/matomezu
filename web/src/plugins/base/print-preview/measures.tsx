@@ -1,4 +1,4 @@
-// 測る見せ方（printMeasure）が知らせた、ページごとの測った結果（base が持つステージのプラグイン状態 print-measures。開いたブックごとに 1 つ）。
+// 測るプレゼンテーション（printMeasure）が知らせた、ページごとの測った結果（base が持つステージのプラグイン状態 print-measures。開いたブックごとに 1 つ）。
 // 印刷プレビューのビューが読んで並べ方（bookSheets）に渡し、印刷区画 1 つのビューに data を渡す。ほかのブックの結果は読まない
 import { useCallback } from "react"
 import { usePluginState, useReadPluginState, useSetPluginState } from "../../../ui/view-hooks"

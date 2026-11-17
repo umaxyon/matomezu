@@ -3,7 +3,7 @@ import { definePluginUi } from "matomezu/ui"
 import { EX8 } from ".."
 import { CARDS } from "../deck"
 
-// @ts-expect-error 自分の見せ方のビューを結んでいない
+// @ts-expect-error 自分のプレゼンテーションのビューを結んでいない
 definePluginUi(EX8, { presentationViews: {} })
 definePluginUi(EX8, {
   presentationViews: {

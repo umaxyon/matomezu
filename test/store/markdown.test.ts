@@ -1,4 +1,4 @@
-// マークダウンのブック: 見せ方はステージに紙を置かない、どのページもいつも可変ページで下へ増やす（可変ページにする・やめるは選べない）、
+// マークダウンのブック: プレゼンテーションはステージに紙を置かない、どのページもいつも可変ページで下へ増やす（可変ページにする・やめるは選べない）、
 // ペインの並べ方はステージごとのプラグイン状態で、ペインの分割のコマンドで変え、画面の場所に入れる（読み直しても戻す）
 
 import { expect, test } from "bun:test"
@@ -19,9 +19,9 @@ import {
   shareAt,
   shownPanes,
   swapPanes,
-} from "../../web/src/plugins/books/markdown/panes"
-import { MAX_REMEMBERED, positionOf, remember, SCROLL_STATE } from "../../web/src/plugins/books/markdown/scroll-memory"
-import { sourceEdit } from "../../web/src/plugins/books/markdown/source-edit"
+} from "../../web/src/plugins/page-types/markdown/panes"
+import { MAX_REMEMBERED, positionOf, remember, SCROLL_STATE } from "../../web/src/plugins/page-types/markdown/scroll-memory"
+import { sourceEdit } from "../../web/src/plugins/page-types/markdown/source-edit"
 import { isActive, isShown } from "../../web/src/store/commands"
 import type { DoneBulk } from "../../web/src/store/store"
 import { newStore, worldRows } from "../support"

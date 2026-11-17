@@ -38,7 +38,7 @@ export function insertStep(was: BookHistory, step: HistoryStep): BookHistory {
   return { ...was, undo: [...was.undo.slice(0, i), step, ...was.undo.slice(i)].slice(-HISTORY_LIMIT) }
 }
 
-// 物が見えているかを答える関数（土台が、見せ方の seen とステージの表示領域から作る）: ブック book のページ page の物 item（最上位のアイテムか子の形）が、見える所にあるか
+// 物が見えているかを答える関数（土台が、プレゼンテーションの seen とステージの表示領域から作る）: ブック book のページ page の物 item（最上位のアイテムか子の形）が、見える所にあるか
 export type SeenTest = (page: string, item: string, book: Book) => boolean
 
 // アイテムの Patch p（id は item）が変えた物の id: そのアイテムのフィールドを変えたならそのアイテム、子の形（shapes）を変えたならその子（子の中も同じ）

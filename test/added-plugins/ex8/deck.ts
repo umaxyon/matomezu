@@ -1,5 +1,5 @@
 // ex8 のページのタイプ「単語帳」: ページ 1 つがカードの束で、カードの文字はページのフィールド cards に持つ（置けるアイテムは無い）。
-// 自分の見せ方（カード）を持ち、ステージに紙を置かずにビューがカードを並べる。ページは紙を持ち、印刷プレビューでは 1 ページを紙 1 枚に描く
+// 自分のプレゼンテーション（カード）を持ち、ステージに紙を置かずにビューがカードを並べる。ページは紙を持ち、印刷プレビューでは 1 ページを紙 1 枚に描く
 
 import { PAGE_THEME, PAPER_IDS, z } from "matomezu"
 import { kit } from "./kit"
@@ -33,7 +33,7 @@ export const CHALK = kit.defineTheme({
   },
 })
 
-// カードの見せ方のステージごとのプラグイン状態: カードの並べ方（書いた順か、並べ替えるか）と、押して選んでいるカード（並びの位置）。
+// カードのプレゼンテーションのステージごとのプラグイン状態: カードの並べ方（書いた順か、並べ替えるか）と、押して選んでいるカード（並びの位置）。
 // 並べ方は画面の場所に入れるプラグイン状態（DECK_ORDER。読み直しても戻す）、選んでいるカードは入れないプラグイン状態（DECK_PICKED）
 export const DECK_ORDERS = ["written", "sorted"] as const
 export type DeckOrder = (typeof DECK_ORDERS)[number]
@@ -48,7 +48,7 @@ export const DECK_ORDER = kit.definePluginState({
 // 選んでいるカード（並びの位置。画面の場所には入れない。選んでいなければ無い）
 export const DECK_PICKED = kit.definePluginStateOf<number>()({ id: "picked", scope: "stage" })
 
-// カードの見せ方: ステージに紙を置かない（ビューが描く広さとスクロールを持つ）
+// カードのプレゼンテーション: ステージに紙を置かない（ビューが描く広さとスクロールを持つ）
 export const CARDS = kit.definePresentation({ id: "cards", paper: false })
 
 export const DECK = kit.definePageType({

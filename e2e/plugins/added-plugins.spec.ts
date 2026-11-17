@@ -336,7 +336,7 @@ test("ex9 と ex14 を読ませると、ex14 のアクションが、ex9 が許�
   expect((await data(page)).records["ex9:shelf"][id].stamps).toBe(2)
 })
 
-test("ex8 を読ませると、自分の見せ方のビューが開いたページのカードを描き、印刷プレビューは印刷区画 1 つのビュー（printSheet）でページごとに紙を描く", async ({
+test("ex8 を読ませると、自分のプレゼンテーションのビューが開いたページのカードを描き、印刷プレビューは印刷区画 1 つのビュー（printSheet）でページごとに紙を描く", async ({
   page,
 }) => {
   await link(page, "test/added-plugins/ex8")

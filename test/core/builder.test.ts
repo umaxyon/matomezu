@@ -1,4 +1,4 @@
-// 機能台帳が組み立てるブックの形: タイプが選んだアイテム・設定の項目・見せ方から作り、選んでいないものは受け付けない
+// 機能台帳が組み立てるブックの形: タイプが選んだアイテム・設定の項目・プレゼンテーションから作り、選んでいないものは受け付けない
 import { describe, expect, test } from "bun:test"
 import { z } from "zod"
 import { restoreBooks } from "../../web/src/core/book"
@@ -94,7 +94,7 @@ describe("台帳アセンブルの食い違い", () => {
     expect(checkCoreCatalog(withDrawing({ fields: { settings: z.object({}) } })).map(p => p.code)).toContain("E030")
   })
 
-  test("表に無い設定の項目・見せ方を選ぶと error", () => {
+  test("表に無い設定の項目・プレゼンテーションを選ぶと error", () => {
     expect(checkCoreCatalog(withDrawing({ settings: ["nope.setting"] })).map(p => p.code)).toContain("E008")
     expect(checkCoreCatalog(withDrawing({ presentation: "nope" })).map(p => p.code)).toContain("E008")
   })

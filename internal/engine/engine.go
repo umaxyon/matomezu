@@ -946,7 +946,7 @@ func (e *Engine) AIBriefs(pairs []AnnotatedBook) (out []map[string]map[string]st
 }
 
 // AIPlaced は、ブックのページの id ごとの、形の描いた位置と大きさ（{id, x, y, w, h} の並び。紙の上の左上から）を返す。
-// 見せ方が答えないブック・読めないブックなら null（JSON の null）
+// プレゼンテーションが答えないブック・読めないブックなら null（JSON の null）
 func (e *Engine) AIPlaced(book json.RawMessage) (out json.RawMessage, err error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()

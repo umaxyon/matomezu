@@ -420,13 +420,23 @@ export function serverClient(net: Net = browserNet): ServerClient {
       sending = false
     }
   }
-  // 読んでいる間に知らせで変わった・消えたページとフォルダの id（読むごとに 1 つ）
-  const reading = new Set<Set<string>>()
+  // 読んでいる間に届いた知らせ（読むごとに 1 つ）: ids は知らせで変わった・消えたページとフォルダの id、
+  // replays は版を比べずに当てる物（設定・アノテーション・レコード・番号）を当てる処理で、読んだ世界の上に届いた順に当て直す
+  interface During {
+    ids: Set<string>
+    replays: (() => void)[]
+  }
+  const reading = new Set<During>()
   const changed = (id: string) => {
-    for (const ids of reading) ids.add(id)
+    for (const d of reading) d.ids.add(id)
+  }
+  // 版を比べずに当てる物の知らせを今当て、読んでいる間なら、読み終えたときにも当て直す
+  const noticed = (apply: () => void) => {
+    apply()
+    for (const d of reading) d.replays.push(apply)
   }
   const read = async () => {
-    const during = new Set<string>()
+    const during: During = { ids: new Set(), replays: [] }
     reading.add(during)
     try {
       const res = await net.fetch("api/data").catch(() => null)
@@ -437,8 +447,8 @@ export function serverClient(net: Net = browserNet): ServerClient {
       reading.delete(during)
     }
   }
-  // 読んだ世界を入れる。読んでいる間に届いた知らせの方が新しければ、そちらを残す（during はその間に知らせで変わった・消えたページとフォルダ）
-  const take = (data: z.infer<typeof DataSchema>, during: ReadonlySet<string>) => {
+  // 読んだ世界を入れる。読んでいる間に届いた知らせの方が新しければ、そちらを残す
+  const take = (data: z.infer<typeof DataSchema>, { ids: during, replays }: During) => {
     const takeRows = (what: string, rows: Rows, read: readonly { id: string; row: unknown; version: number }[]) => {
       const have = new Set(read.map(r => r.id))
       for (const id of [...rows.keys()])
@@ -469,6 +479,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
     annotations = data.annotations ?? {}
     records = data.records ?? {}
     counters = data.counters ?? {}
+    for (const replay of replays) replay()
     plugins = data.plugins ?? []
     // 読んでいる間に届いた知らせの方が新しければ、そちらを残す
     for (const [id, at] of Object.entries(data.touched ?? {}))
@@ -606,14 +617,14 @@ export function serverClient(net: Net = browserNet): ServerClient {
       }
       for (const p of e.pages) put("page", confirmed.pages, p.id, p.page, p.version, p.removed === true)
       for (const f of e.folders) put("folder", confirmed.folders, f.id, f.folder, f.version, f.removed === true)
-      if (e.settings !== undefined) settings = e.settings
-      for (const [page, list] of Object.entries(e.annotations ?? {})) annotations = withPageAnnotations(page, list)
+      noticed(() => {
+        if (e.settings !== undefined) settings = e.settings
+        for (const [page, list] of Object.entries(e.annotations ?? {})) annotations = withPageAnnotations(page, list)
+        if (e.records && e.records.length > 0) records = withRecords(restoreRecords(records), e.records)
+        if (e.counters) counters = withCounters(restoreCounters(counters), e.counters)
+      })
       // レコードが変わったときだけ、最後にフォーカスされた窓を受ける（郵便が届いたことを、その窓がマーキーで知らせる）
-      if (e.records && e.records.length > 0) {
-        records = withRecords(restoreRecords(records), e.records)
-        if (e.window !== undefined) instance?.setLastWindow(e.window === client)
-      }
-      if (e.counters) counters = withCounters(restoreCounters(counters), e.counters)
+      if (e.records && e.records.length > 0 && e.window !== undefined) instance?.setLastWindow(e.window === client)
       settle(e)
       const act = e.act
       const foreign = e.client !== client && e.by !== undefined && act !== undefined
@@ -623,7 +634,9 @@ export function serverClient(net: Net = browserNet): ServerClient {
     })
     on("annotations", data => {
       const e = AnnotationsSchema.parse(JSON.parse(data))
-      annotations = withPageAnnotations(e.page, e.annotations)
+      noticed(() => {
+        annotations = withPageAnnotations(e.page, e.annotations)
+      })
       settle(e)
       show()
     })

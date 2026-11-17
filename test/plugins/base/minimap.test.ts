@@ -119,7 +119,7 @@ describe("ページの絵", () => {
   })
 })
 
-test("アイテムを置かないツリーのページは、見せ方の minimap が節を四角で、線を両端を結ぶ線で描く", () => {
+test("アイテムを置かないツリーのページは、プレゼンテーションの minimap が節を四角で、線を両端を結ぶ線で描く", () => {
   const tree = {
     kind: "page",
     type: "@matomezu/tree:tree",
@@ -149,10 +149,10 @@ const oneBox = (type: string) => {
   return minimapMarks(CORE_CATALOG, page)
 }
 
-test("紙の見せ方は、置いたアイテムを描く", () => {
+test("紙のプレゼンテーションは、置いたアイテムを描く", () => {
   expect(oneBox("@matomezu/drawing:drawing")).toEqual([{ kind: "rect", x: 100, y: 100, w: 100, h: 60 }])
 })
 
-test("minimap の無い見せ方（マークダウン）は、何も描かない", () => {
+test("minimap の無いプレゼンテーション（マークダウン）は、何も描かない", () => {
   expect(oneBox("@matomezu/markdown:markdown")).toEqual([])
 })

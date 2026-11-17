@@ -102,7 +102,7 @@ export function keysOf(table: KeyTable, command: string): KeyEntry[] {
 export type KeyReach = "outward" | "named"
 
 // 押したキーを引く範囲の並び（狭いものから）。右クリックのメニューとダイアログは開いている間ほかを止める。カレントスクリーンがステージを並べないスクリーンの間は、土台の範囲として screen だけを引く。
-// scopes はプラグインの範囲（押した所の要素が名乗ったもの。狭いものから）、shown はカレントのステージの見せ方が名乗った範囲（ステージの範囲の前に探す）
+// scopes はプラグインの範囲（押した所の要素が名乗ったもの。狭いものから）、shown はカレントのステージのプレゼンテーションが名乗った範囲（ステージの範囲の前に探す）
 export function keyScopes(
   open: { menu: boolean; dialog: boolean; center?: boolean },
   scopes: readonly string[] = [],
@@ -112,7 +112,7 @@ export function keyScopes(
   if (reach === "named") return [...scopes]
   if (open.menu) return [...scopes, "menu"]
   if (open.dialog) return [...scopes, "dialog"]
-  // カレントスクリーンがステージを並べないスクリーンの間は、ステージの範囲（stage・global・見せ方の範囲）を引かない
+  // カレントスクリーンがステージを並べないスクリーンの間は、ステージの範囲（stage・global・プレゼンテーションの範囲）を引かない
   if (open.center) return [...scopes, "screen"]
   return [...scopes, ...(shown && !scopes.includes(shown) ? [shown] : []), "stage", "global"]
 }

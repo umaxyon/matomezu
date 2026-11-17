@@ -27,7 +27,7 @@ const NOTE = definePageType({
   actions: { add: ["notes:rename" as never, "notes:break" as never, "notes:stamp" as never] },
   theme: "@matomezu/base:standard",
   themeTypes: ["@matomezu/base:diagram"],
-  presentation: "@matomezu/paper:paper", // 画面に出さないので、見せ方は表にあるものを借りる
+  presentation: "@matomezu/paper:paper", // 画面に出さないので、プレゼンテーションは表にあるものを借りる
   tokens: [],
 })
 const PAGE = z.strictObject({ page: z.string().min(1) })

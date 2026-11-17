@@ -7,7 +7,7 @@ import { defineTheme, THEME_TOKENS, themeVar, tokenVarName } from "../../web/src
 import { splitId } from "../../web/src/core/names"
 import { resolveTokens, shades } from "../../web/src/core/theme"
 import { STANDARD } from "../../web/src/plugins/base/looks/standard"
-import { NODE_FILL } from "../../web/src/plugins/books/tree/tree"
+import { NODE_FILL } from "../../web/src/plugins/page-types/tree/tree"
 import { LIST_FILL } from "../../web/src/plugins/items/list/list"
 import { ownTokenVars, themeVars } from "../../web/src/ui/theme-vars"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
@@ -88,7 +88,7 @@ test("ビルトインプラグインと画面の CSS とビューが書いた --
 // テーマキーの持ち主のビルトインプラグインのフォルダ（アイテムかブックのプラグイン）。知らない持ち主なら落とす（見張る範囲から黙って抜けないように）
 const dirOf = (id: string) => {
   const name = id.split(":")[0]!.replace(/^@matomezu\//, "")
-  const dir = ["items", "books"].map(kind => `web/src/plugins/${kind}/${name}`).find(d => existsSync(d))
+  const dir = ["items", "page-types"].map(kind => `web/src/plugins/${kind}/${name}`).find(d => existsSync(d))
   if (!dir) throw new Error(`テーマキーの持ち主のフォルダが無い: ${id}`)
   return `${dir}/`
 }

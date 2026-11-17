@@ -41,7 +41,7 @@ const flow = (instance: ReturnType<typeof make>) => {
   return { on: { book }, page }
 }
 
-test("フローのブックに判断のひし形とビルトインの箱を置いて線でつなぎ、追加の設定を変え、ビルトインの紙の見せ方で描く", () => {
+test("フローのブックに判断のひし形とビルトインの箱を置いて線でつなぎ、追加の設定を変え、ビルトインの紙のプレゼンテーションで描く", () => {
   const instance = make()
   const { on, page } = flow(instance)
   const place = (item: "ex2:diamond" | "@matomezu/box:shape-box", x: number, caption: string) => {

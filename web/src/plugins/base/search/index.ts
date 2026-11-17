@@ -1,4 +1,4 @@
-// 検索: 探せるブック（見せ方がフィールド search を持つ）で、検索ダイアログを開き、当たりの次・前へ移り、置き換える。
+// 検索: 探せるブック（プレゼンテーションがフィールド search を持つ）で、検索ダイアログを開き、当たりの次・前へ移り、置き換える。
 // 開いている間の検索は base のプラグイン状態（state.ts）。ダイアログは SearchDialog.tsx、探す計算は search.ts・find.ts
 
 import { findPage, pagesOf } from "../../../core/book"

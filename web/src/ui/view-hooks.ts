@@ -84,7 +84,7 @@ export function useItem<Id extends ItemId>(page: string, item: string, id?: Id):
   })
 }
 
-// 描くページのブックに、ダイアログの下書き（ブックの設定の項目の、まだ確定していない値）を重ねたブック。見せ方が描くのに使う
+// 描くページのブックに、ダイアログの下書き（ブックの設定の項目の、まだ確定していない値）を重ねたブック。プレゼンテーションが描くのに使う
 export function useShownBook(): Book | null {
   const book = useBook()
   const preview = useMatomezuState(s => s.dialog?.preview ?? null)
@@ -97,7 +97,7 @@ export function useShownBook(): Book | null {
 
 // 描くページに、ダイアログの下書き（選んでいて、まだ確定していない値。アイテムの項目と、ページの設定の項目）を重ねたページ。
 // ページの設定の項目の下書きは、ページを名指した下書きならそのページにだけ、ページを名指さない下書き（ブックのページをまとめて変えるダイアログ）なら、そのブックのどのページにも重ねる。
-// 見せ方が描くのに使う
+// プレゼンテーションが描くのに使う
 export function useShownPage(): ItemPage | null {
   const page = usePage()
   const scope = useScope()
@@ -300,8 +300,8 @@ export function useUpdatePluginState<S, Sc extends PluginStateScope>(
   )
 }
 
-// 見せ方のビューが、向け先のステージに描く広さ（可変ページで、印刷区画を並べた広さ）を知らせる。null なら紙 1 枚。
-// 位置をデータに持たない見せ方は、描く中身を右・下へずらした量 origin（印刷区画の数）も知らせる（変わったら、ステージがパンを合わせる）。
+// プレゼンテーションのビューが、向け先のステージに描く広さ（可変ページで、印刷区画を並べた広さ）を知らせる。null なら紙 1 枚。
+// 位置をデータに持たないプレゼンテーションは、描く中身を右・下へずらした量 origin（印刷区画の数）も知らせる（変わったら、ステージがパンを合わせる）。
 // 広さかずらした量が変わったときだけ知らせ、ビューが消えたら紙 1 枚に戻す。ずらす量の範囲・紙の枠・全体を収める倍率・ミニマップは、この広さで決まる。
 // 向け先がステージでない所（ステージの外で見るだけに描くページの中）では、何も知らせない
 export function useStageArea(area: Size | null, origin: Point | null = null): void {
@@ -367,7 +367,7 @@ export function useCoreCatalog(): CoreCatalog {
   return useCatalog().core
 }
 
-// 見た目の表（ほかのプラグインのアイテムを描く見せ方が使う。読むだけ）
+// 見た目の表（ほかのプラグインのアイテムを描くプレゼンテーションが使う。読むだけ）
 export function useUiCatalog(): UiCatalog {
   return useUi()
 }
