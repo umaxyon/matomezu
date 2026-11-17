@@ -1,6 +1,6 @@
 // ページとフォルダの表: 世界と保存の単位。ページは 1 枚ずつ、フォルダは 1 つずつ持ち、フォルダが中身（エントリ）の id を順に持つ（ページは、自分の入っているフォルダを持たない）。
-// フォルダは、書庫ホーム（folderRole が "home"。ただ 1 つで、どのフォルダにも入らない）か、フォルダ（"folder"）か、ブック（"book"。エントリはページとバインダ）か、
-// バインダ（"binder"。1 つのタイプのページだけ）。書庫ホーム以外のページとフォルダは、ちょうど 1 つのフォルダに入る。
+// フォルダは、書庫ホーム（folderRole が "home"）か、ゴミ箱（"trash"）か、フォルダ（"folder"）か、ブック（"book"。エントリはページとバインダ）か、
+// バインダ（"binder"。1 つのタイプのページだけ）。書庫ホームとゴミ箱は、ただ 1 つずつで、どのフォルダにも入らない。そのほかのページとフォルダは、ちょうど 1 つのフォルダに入る。
 // ブック（core/schema/book.ts の Book）は、ブックのフォルダと、その下のバインダ・ページの中身をまとめた、読む用の値。ここの関数が表から組み、変えた結果を表への書き込みに分ける
 // （組むのと分けるのは、ここだけ。同じページが 2 つの値に入らないよう、持つのは表の方）
 
@@ -28,7 +28,7 @@ export interface FolderRef {
   kind: "folder"
   id: string
 }
-// 書庫ホームとフォルダが持つエントリ 1 つ: ページ・バインダ・ブック・フォルダのどれかの id
+// 書庫ホーム・ゴミ箱・フォルダが持つエントリ 1 つ: ページ・バインダ・ブック・フォルダのどれかの id
 export type AnyEntryRef = EntryRef | BookRef | FolderRef
 
 // 書庫ホームの id（決まった値。書庫ホームは、この id のフォルダただ 1 つ）
@@ -361,7 +361,7 @@ export function treeHolds({ pages, folders }: Library): boolean {
 export const inTrash = (folders: Folders, entry: string): boolean =>
   foldersOver(folders, entry).some(f => f.folderRole === "trash")
 
-// 置き場所から読んだままのフォルダの行の全部 rows（書庫ホーム・フォルダ・ブック・バインダ）と、ページの行の id の全部 pages が、木の決まり treeHolds を守るか。
+// 置き場所から読んだままのフォルダの行の全部 rows（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダ）と、ページの行の id の全部 pages が、木の決まり treeHolds を守るか。
 // 書庫ホーム・ゴミ箱・フォルダは形を確かめ（合わない行は入らない）、ブックとバインダは id と並びのエントリの id だけを読む（読めないブックも、行が在れば木に入る）
 export function rowsHoldTree(rows: readonly unknown[], pages: readonly string[]): boolean {
   const folders: Record<string, Folder> = {}

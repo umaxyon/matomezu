@@ -53,27 +53,27 @@ export function patchesToward<T>(
   return out
 }
 
-// 一覧 library のブック books を、ページとフォルダごとの置き直す値 patches で置き直した一覧（変わらなかったブックは同じ値のまま）。
+// ブックの全部 all のうちのブック books を、ページとフォルダごとの置き直す値 patches で置き直した全部（変わらなかったブックは同じ値のまま）。
 // books のどれかが無い・ゴミ箱に在る・置き直すと組めなくなるか、books のほかのブックが変わる・ブックが増える・減るなら null
-export function restoredLibrary(library: Books, books: readonly string[], patches: RowPatches): Books | null {
-  if (!restorable(library, books)) return null
-  const next = withRowPatches(Object.values(library), patches)
-  return onlyChanged(library, next, books) ? next : null
+export function restoredBooks(all: Books, books: readonly string[], patches: RowPatches): Books | null {
+  if (!restorable(all, books)) return null
+  const next = withRowPatches(Object.values(all), patches)
+  return onlyChanged(all, next, books) ? next : null
 }
 
-// 書庫 library のブック books を、patches で置き直した書庫（断る場合は、上の restoredLibrary と同じ）
-export function restoredRows(library: Library, books: readonly string[], patches: RowPatches): Library | null {
+// 書庫 library のブック books を、patches で置き直した書庫（断る場合は、上の restoredBooks と同じ）
+export function restoredLibrary(library: Library, books: readonly string[], patches: RowPatches): Library | null {
   const was = libraryOf(library)
   if (!restorable(was, books)) return null
   const next = restoredTables(library, patches)
   return onlyChanged(was, libraryOf(next), books) ? next : null
 }
 
-// ブック books が、どれも一覧 library に在って、ゴミ箱に無いか
-const restorable = (library: Books, books: readonly string[]): boolean =>
-  books.every(id => library[id] !== undefined && library[id]?.trashed === undefined)
+// ブック books が、どれも all に在って、ゴミ箱に無いか
+const restorable = (all: Books, books: readonly string[]): boolean =>
+  books.every(id => all[id] !== undefined && all[id]?.trashed === undefined)
 
-// 一覧 was から next へ、ブックが増えも減りもせず、変わったのがブック books だけか
+// ブックの全部が was から next へ、増えも減りもせず、変わったのがブック books だけか
 function onlyChanged(was: Books, next: Books, books: readonly string[]): boolean {
   if (Object.keys(next).length !== Object.keys(was).length) return false
   return Object.values(was).every(b => {

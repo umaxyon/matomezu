@@ -9,7 +9,7 @@ import type { Books } from "../../../core/library"
 import { shownPageId } from "../../../core/stage"
 import { booksOf, type CommandActions, type CommandContext } from "../../../store/commands/def"
 import { kit } from "../kit"
-import { patchesToward, RevertArgs, restoredLibrary, restoredPages, restoredRows } from "./restore"
+import { patchesToward, RevertArgs, restoredBooks, restoredLibrary, restoredPages } from "./restore"
 
 export const HISTORY_RESTORE = kit.defineAction({
   id: "book-revert",
@@ -28,12 +28,12 @@ export const HISTORY_RESTORE = kit.defineAction({
   },
   args: RevertArgs,
   run: (library, args) => {
-    const next = restoredRows(library, args.books, args)
+    const next = restoredLibrary(library, args.books, args)
     return next ? { next, result: {} } : null
   },
 })
 
-// 置き直したあと、開いていたいページ: 画面の履歴の段が変えたページのうち、一覧 books を args で置き直したあとの、ブック book に入っている最初のページ
+// 置き直したあと、開いていたいページ: 画面の履歴の段が変えたページのうち、ブックの全部 books を args で置き直したあとの、ブック book に入っている最初のページ
 function pageToOpen(
   books: Books,
   step: HistoryStep,
@@ -41,7 +41,7 @@ function pageToOpen(
   book: string,
   args: RevertArgs,
 ): string | undefined {
-  const after = restoredLibrary(books, args.books, args)?.[book]
+  const after = restoredBooks(books, args.books, args)?.[book]
   const inBook = new Set(after ? pagesOf(after).map(p => p.id) : [])
   return Object.entries(step.pages).find(([id, row]) => row[to] !== "none" && inBook.has(id))?.[0]
 }

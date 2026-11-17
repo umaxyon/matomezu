@@ -70,7 +70,7 @@ export const isInBook = (target: ActionTarget | undefined): boolean => target ==
 
 export interface ActionContext {
   catalog: CoreCatalog // 使う機能台帳（アクション・ページのタイプ・紙など）
-  controlCenter: string | null // インスタンスのコントロールセンターの定義の id（一覧と設定のアクションを許すかは、これが決める）。無ければ断る
+  controlCenter: string | null // インスタンスのコントロールセンターの定義の id（書庫と設定が対象のアクションを許すかは、これが決める）。無ければ断る
   lang: Lang
   newId(): string // ブック・ページ・アイテムの id のもとを振る（重ならない値。行い直すときは、先に行ったときと同じ値を同じ順に返す）
   // 行った時点（UTC の ISO 8601。例 2026-10-26T03:04:05.678Z）。最初に行った所（画面、AI ならホスト）が 1 回だけ決め、行い直しでも同じ値。
@@ -231,7 +231,7 @@ export type SettingsScope<A = unknown> =
 // 表に並べたアクションの、利用者の設定の許可スコープ（引数の形を問わない形）
 export type AnySettingsScope = { settings: string } | ((args: never) => readonly string[])
 
-// 一覧が対象のアクションの許可スコープ: どのブックを変えるかの宣言。認可ステップは、行う前に変えるブックごとに問う。
+// 書庫が対象のアクションの許可スコープ: どのブックを変えるかの宣言。認可ステップは、行う前に変えるブックごとに問う。
 // book・books には、ブックの id・ブックの id の並びが入っている引数の名前を書き、where に "all-pages" を書けば、そのブックのページを含む全部を変える。
 // ブックを作るアクションは "create" と書く（認可ステップは、空のブックで問う）。
 // 引数の名前で言えなければ、引数から変えるブックを返す関数を書く。行う前に変えるブックが分からなければ "unknown"（行った後の確かめだけで止める）
@@ -242,13 +242,13 @@ export type LibraryScope<A = unknown> =
   | "create"
   | ((args: A) => LibraryTargets)
 
-// 一覧が対象のアクションが変えるブック: books は今あるブックの id と、その中の所、creates はブックを作るか
+// 書庫が対象のアクションが変えるブック: books は今あるブックの id と、その中の所、creates はブックを作るか
 export interface LibraryTargets {
   books: readonly { book: string; where: Where }[]
   creates: boolean
 }
 
-// 表に並べたアクションの、一覧の許可スコープ（引数の形を問わない形）
+// 表に並べたアクションの、書庫の許可スコープ（引数の形を問わない形）
 export type AnyLibraryScope =
   | "unknown"
   | { book: string; where?: "all-pages" }
@@ -256,7 +256,7 @@ export type AnyLibraryScope =
   | "create"
   | ((args: never) => LibraryTargets)
 
-// ブックが対象・ページが対象・一覧が対象・利用者の設定が対象のアクションは、許可スコープを必ず書く（defineAction の型が求める）
+// ブックが対象・ページが対象・書庫が対象・利用者の設定が対象のアクションは、許可スコープを必ず書く（defineAction の型が求める）
 // 許可スコープが "book"（ブック自身だけを変える）と書いたアクションの印: 定義の型に "book" を残す（ページのタイプが足す・外すアクションの id から外すのに使う。core/def/page-type.ts）
 export type OnContainer<Sc> = Sc extends "book" ? { permissionScope: "book" } : unknown
 
@@ -270,7 +270,7 @@ export type ScopeRequired<T extends ActionTarget, A> = T extends "book"
         ? { permissionScope: SettingsScope<A> }
         : unknown
 
-// 一覧の許可スコープから、引数 args で変えるブック（"unknown" なら null）
+// 書庫の許可スコープから、引数 args で変えるブック（"unknown" なら null）
 export function libraryScopeOf(scope: AnyLibraryScope | undefined, args: unknown): LibraryTargets | null {
   if (scope === undefined || scope === "unknown") return null
   if (typeof scope === "function") return (scope as (args: unknown) => LibraryTargets)(args)
@@ -366,8 +366,8 @@ export interface ActionDef<
   args: z.ZodType<A, I> // 引数の形（LLM にもこの形で見せる）
   // LLM に見せる引数の形を、機能台帳から組み立てる（ページのタイプが足す項目など。無ければ args）。受け付けるかは run が確かめる
   describeArgs?(catalog: CoreCatalog): z.ZodType
-  // 許可スコープ（ブックが対象・ページが対象・一覧が対象・利用者の設定が対象のアクションは必ず書く。どの形かは target で決まる）。
-  // ブックとページと一覧では、守るのは認可ステップが行った後に見る実際の変化（PermissionDef の keeps）
+  // 許可スコープ（ブックが対象・ページが対象・書庫が対象・利用者の設定が対象のアクションは必ず書く。どの形かは target で決まる）。
+  // ブックとページと書庫では、守るのは認可ステップが行った後に見る実際の変化（PermissionDef の keeps）
   permissionScope?: AnyPermissionScope | AnyPagePermissionScope | AnyLibraryScope | AnySettingsScope
   run(subject: RunSubject<T, At>, args: A, ctx: ActionContext): Done<T, R> | Declined | null
 }

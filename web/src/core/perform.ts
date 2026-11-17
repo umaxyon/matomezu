@@ -151,7 +151,7 @@ function settles(catalog: CoreCatalog, book: Book): boolean {
   return catalog.bookSchema.safeParse(book).success && holds(catalog, book)
 }
 
-// 一覧が対象のアクションの結果で、変わったブックが（置いた鍵がブックの id で）形に合っていて、ブックどうしで id（ブック・ページ・バインダ）が重ならないか
+// 書庫が対象のアクションの結果で、変わったブックが（置いた鍵がブックの id で）形に合っていて、ブックどうしで id（ブック・ページ・バインダ）が重ならないか
 // （ページもフォルダも、ちょうど 1 つのフォルダに入る。作ったブックのページの id が、ほかのブックのページの id と重なれば断る）
 export function librarySettles(catalog: CoreCatalog, before: Books, after: Books): boolean {
   return (
@@ -207,7 +207,7 @@ function brokenRecord(
   return null
 }
 
-// 一覧が対象のアクションの結果で、変わったブック・無くなったブック・増えたブックのどれかが守っていなければ、守らせたステップの id と、そのブックの id（増えたブックなら無い）
+// 書庫が対象のアクションの結果で、変わったブック・無くなったブック・増えたブックのどれかが守っていなければ、守らせたステップの id と、そのブックの id（増えたブックなら無い）
 function brokenIn(
   ctx: ActionContext,
   action: ActionDef,
@@ -245,8 +245,8 @@ export type PermitContext = Pick<ActionContext, "catalog" | "controlCenter" | "a
 
 // 使えるかは inspect と同じ決まりで決める（問い合わせの答えと、実際に行えるかを食い違わせない）。利用者の設定が対象なら、許可スコープで引数から出した変える項目の id も渡す。
 // 認可ステップに渡すのは、ブックが対象ならそのブックと、アクションの許可スコープ（permissionScope）で引数から出す所（無ければ分からないとして渡す）。
-// 一覧が対象なら、許可スコープで引数から出した変えるブックごとに、そのブックとその中の所（作るブックは、空のブック）を渡し、どれかで止められれば止める。
-// 一覧の許可スコープが "unknown" なら、認可ステップは行った後の keeps だけで見る
+// 書庫が対象なら、許可スコープで引数から出した変えるブックごとに、そのブックとその中の所（作るブックは、空のブック）を渡し、どれかで止められれば止める。
+// 書庫の許可スコープが "unknown" なら、認可ステップは行った後の keeps だけで見る
 function permits(
   ctx: PermitContext,
   action: ActionDef,
@@ -367,7 +367,7 @@ const NEW_BOOK: Book = { id: "new-book", title: "new book", lineup: [] }
 // 行う前の問いの答え: 使えるか、止めた理由
 export type Permitted = { ok: true } | NotAllowed | Denied
 
-// 認可ステップ permission が止めた断り。一覧が対象のアクションでは、どのブックで止めたかを book に持つ（作るブックで止めたなら無い）
+// 認可ステップ permission が止めた断り。書庫が対象のアクションでは、どのブックで止めたかを book に持つ（作るブックで止めたなら無い）
 export type Denied = { ok: false; reason: "denied"; permission: string; book?: string }
 
 function answerOf(answer: Inspected<boolean>): Permitted {
@@ -406,13 +406,14 @@ export const noPage = (wanted: string): NoPage => ({
   detail: `there is no page with the id ${wanted} (on.page is the id of a page; read_book lists a book's pages)`,
 })
 
+// 書庫 library の、ページとフォルダの行の id
+const rowIdsIn = (library: Library): string[] => [...Object.keys(library.pages), ...Object.keys(library.folders)]
+
 // アクション action の run だけを行う（使えるか・整え・認可ステップ・形の確かめはしない。それは perform がする）。args は引数の形を通した後の値。
 // ページが対象なら、対象 subject（PageInBook）のブックからページを探して run に渡し、返ったページを同じ所へ戻したブックを next にする
 // （ページが無い・run が id の違うページを返したら null）。アノテーションが対象なら、ページとその並びを run に渡す（ページを替えて返したら null）。
-// run が振る id は、ページが対象ならそのページの中のどの id とも、ブックが対象ならそのブックの並びの中のどの id とも、一覧が対象ならどのブック・バインダ・ページの id とも重ならず、同じ値を 2 度渡さない
+// run が振る id は、ページが対象ならそのページの中のどの id とも、ブックが対象ならそのブックの並びの中のどの id とも、書庫が対象なら書庫のどのページ・フォルダの行の id とも重ならず、同じ値を 2 度渡さない
 // （そのままでも短い id にしても重なる newId の値を飛ばす。中身の id がページの中で重ならないことに、アノテーションのアンカーなどが頼っている）
-// 書庫 library の、ページとフォルダの行の id
-const rowIdsIn = (library: Library): string[] => [...Object.keys(library.pages), ...Object.keys(library.folders)]
 
 export function runAction(
   action: ActionDef,
@@ -588,7 +589,7 @@ export interface World extends Library {
   source?: RecordSource
 }
 
-// performIn の結果。変わったものだけを持つ（changes は変わった・足した・無くなったページとフォルダ。ブック・ページ・一覧が対象のアクションで、何も変わらなければ無い。
+// performIn の結果。変わったものだけを持つ（changes は変わった・足した・無くなったページとフォルダ。ブック・ページ・書庫が対象のアクションで、何も変わらなければ無い。
 // annotations はアノテーションが変わったページの id → 新しい並び。アノテーションが対象のアクションのほか、ページの物が消えたときと、ページが無くなったときと、ブックが一覧から無くなったときにも変わる）
 export type PerformedIn =
   | {

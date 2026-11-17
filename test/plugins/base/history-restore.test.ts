@@ -1,5 +1,5 @@
 // 画面の履歴の段の置き直し（base の history と、core/folders.ts の restoredTables）: 変えたページとフォルダごとの前後から、片方の値にする値（patchesToward）を作り、
-// 今の表・一覧の上で行う（restoredTables・restoredLibrary）。行った後に、中身の無いエントリと、どの並びからもたどれないページ・フォルダを落とす。
+// 今の表・一覧の上で行う（restoredTables・restoredBooks）。行った後に、中身の無いエントリと、どの並びからもたどれないページ・フォルダを落とす。
 // 置き直すページと最上位のアイテム（restoredPages）が、認可の所（permissionScope）を決める（値の置き直しそのものは core/patch.test.ts）
 import { expect, test } from "bun:test"
 import {
@@ -17,7 +17,7 @@ import { HISTORY_RESTORE } from "../../../web/src/plugins/base/history"
 import {
   patchesToward,
   type RevertArgs,
-  restoredLibrary,
+  restoredBooks,
   restoredPages,
 } from "../../../web/src/plugins/base/history/restore"
 
@@ -103,15 +103,15 @@ test("一覧の置き直しは、名指したブックだけを変え、ほか�
   const after = book({}, [page("p", [item("a", "A")])])
   const other = book({}, [page("o", [])], "c")
   const patches = toward(before, after, "before")
-  const next = restoredLibrary({ b: after, c: other }, ["b"], patches)
+  const next = restoredBooks({ b: after, c: other }, ["b"], patches)
   expect(next?.b).toEqual(before)
   expect(next?.c).toBe(other)
-  expect(restoredLibrary({ c: other }, ["b"], patches)).toBeNull()
+  expect(restoredBooks({ c: other }, ["b"], patches)).toBeNull()
   expect(
-    restoredLibrary({ b: { ...after, trashed: "2026-01-01T00:00:00Z" } as Book, c: other }, ["b"], patches),
+    restoredBooks({ b: { ...after, trashed: "2026-01-01T00:00:00Z" } as Book, c: other }, ["b"], patches),
   ).toBeNull()
   // 名指していないブックの物を変える置き直しは断る
-  expect(restoredLibrary({ b: after, c: other }, ["c"], patches)).toBeNull()
+  expect(restoredBooks({ b: after, c: other }, ["c"], patches)).toBeNull()
 })
 
 test("2 冊のブックを 1 回で置き直す", () => {
@@ -122,7 +122,7 @@ test("2 冊のブックを 1 回で置き直す", () => {
   const one = toward(b0, b1, "before")
   const two = toward(c0, c1, "before")
   const patches = { pages: { ...one.pages, ...two.pages }, folders: { ...one.folders, ...two.folders } }
-  expect(restoredLibrary({ b: b1, c: c1 }, ["b", "c"], patches)).toEqual({ b: b0, c: c0 })
+  expect(restoredBooks({ b: b1, c: c1 }, ["b", "c"], patches)).toEqual({ b: b0, c: c0 })
 })
 
 test("置き直すページと最上位のアイテム: ページの中だけを変えたならそのアイテム、ページを足した・消したなら丸ごと", () => {
