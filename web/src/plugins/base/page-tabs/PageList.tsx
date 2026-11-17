@@ -5,7 +5,7 @@
 // 一覧の下の＋は、最後にページを足す（コマンド page-add-after。空のバインダなら、そのバインダに足して開く）。ロック中のページには鍵の印を付ける
 
 import { useRef, useState } from "react"
-import { findBinder, pagesIn } from "../../../core/book"
+import { entriesIn, findBinder, pagesIn } from "../../../core/book"
 import type { Size } from "../../../core/geom"
 import type { Book, Page } from "../../../core/schema/book"
 import { binderOf, shownPageId } from "../../../core/stage"
@@ -95,7 +95,7 @@ export function PageList() {
   const last = pages.at(-1)
   return (
     <nav className={styles.list} aria-label={t("Page list")} ref={list} data-page-list>
-      {binder.lineup.map((p, i) =>
+      {entriesIn(book, binder.id).map((p, i) =>
         p.kind === "unreadable" ? (
           // 読めないページ: 名前だけを出す（開くと、読めないことを見せる。ほかには何もできない）
           <div key={p.id} className={styles.item} data-selected={unreadable === p.id} data-page={p.id} data-unreadable>

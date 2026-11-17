@@ -698,7 +698,7 @@ function searchTextOf(def: SubjectDef, record: unknown): { title: string; body: 
     return JSON.stringify({ annotations: kept, changed: kept.length !== all.length })
   }
 
-// 利用者トリガートークのときに行うアクション（runsWhenUserTalks）の id（常駐が、アノテーションのあるブックごとに行う）
+// 利用者トリガートークのときに行うアクション（runsWhenUserTalks）の id（常駐が、アノテーションのある読めるページごとに行う）
 ;(globalThis as { matomezuTalkActions?: () => string }).matomezuTalkActions = () =>
   JSON.stringify(talkActions(assembled.catalog.core))
 

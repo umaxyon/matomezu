@@ -182,6 +182,10 @@ export function findPage(book: Book, id: string): { page: ItemPage; binder: Bind
   return undefined
 }
 
+// バインダ binder の中のエントリ（ページと読めないページ）を、並びの順に（バインダが無ければ空）
+export const entriesIn = (book: Book, binder: string): readonly (ItemPage | UnreadableEntry)[] =>
+  findBinder(book, binder)?.lineup ?? []
+
 // id の読めないページと、それが入っているバインダ（並びに直に入っていれば binder が null。無ければ undefined）
 export function findUnreadable(
   book: Book,

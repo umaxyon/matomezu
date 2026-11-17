@@ -337,7 +337,7 @@ export interface ActionDef<
   history?: false // 画面の履歴（Undo）に入れない（図の内容でなくブックの扱いを変えるアクション。ロックの掛け外しや、戻す・やり直すの置き直しなど）
   // 利用者が行っても編集ロックで断る（ほかは AI のアクションだけを断る）。行うと、どこかの窓が編集ロックを掛けた物を変えるか消すなら being-edited で断る（stopsOnEditLock）
   lockedForUser?: true
-  // 利用者トリガートークのときに、matomezu がアノテーションのあるブックごとに、利用者として行う（引数は {}。アノテーションが対象のアクションだけが書ける）
+  // 利用者トリガートークのときに、matomezu がアノテーションのある読めるページごとに、利用者として行う（引数は {}。アノテーションが対象のアクションだけが書ける）
   runsWhenUserTalks?: T extends "annotations" ? true : never
   // AI が参加を頼むとき（MCP の join）に、matomezu が行う役。"make-participant" は参加者を作り（参加者の id を result の participant で返す）、
   // "notify-user" は利用者に知らせる郵便を、利用者として送る（参加者の id などを受ける。利用者だけが行うアクション）。役ごとに 1 つのアクションだけが名乗る。どちらも対象の定義の種類が対象のアクションだけが書ける
