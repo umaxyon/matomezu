@@ -1,4 +1,4 @@
-// Package launch は、Claude Code のプラグインの外し方と、プラグインが matomezu を起動するときの、Claude Code の事情（matomezu claude-code の中身のうち、Claude Code に依る所）。
+// Package launch は、Claude Code のプラグインの外し方と、プラグインが matomezu を起動するとき・フックに答えるときの、Claude Code の事情（matomezu claude-code の中身のうち、Claude Code に依る所）。
 package launch
 
 import "time"

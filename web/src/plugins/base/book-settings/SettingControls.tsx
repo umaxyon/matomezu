@@ -5,8 +5,8 @@ import { withSettings } from "../../../core/book"
 import type { Book, Page } from "../../../core/schema/book"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useUiCatalog } from "../../../ui/store-context"
-import { bookSettingDefs, ownSettings, settingDefs } from "../book-settings"
 import { kit } from "../kit"
+import { bookSettingDefs, ownSettings, settingDefs } from "."
 
 // 変えた項目（項目の id → 値。消すなら null）
 export type SettingsPatch = Readonly<Record<string, unknown>>

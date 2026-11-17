@@ -184,3 +184,5 @@ export const SEARCH_KEYS = [
   }),
   kit.defineKey({ id: "search-close-escape", key: "Escape", command: SEARCH_CLOSE.id, scope: SEARCH_KEY_SCOPE.id }),
 ]
+export type { SearchableDef } from "./search"
+export { type SEARCH_AT_STATE, type SEARCH_PICK_STATE, type SEARCH_STATE, SEARCH_STATES } from "./state"

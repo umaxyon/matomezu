@@ -23,3 +23,4 @@ export const LEFT_SIDE_PANEL_KEYS = [
     scope: LEFT_SIDE_PANEL,
   }),
 ]
+export { type LEFT_SIDE_PANEL_STATE, LEFT_SIDE_PANEL_STATES } from "./state"

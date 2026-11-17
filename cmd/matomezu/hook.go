@@ -19,6 +19,9 @@ import (
 	"os"
 	"regexp"
 	"strings"
+
+	claudelaunch "github.com/umaxyon/matomezu/clients/claude-code/launch"
+	"github.com/umaxyon/matomezu/internal/mcp"
 )
 
 // hookInput はフックの標準入力の JSON のうち、使う所
@@ -29,9 +32,9 @@ type hookInput struct {
 	Model          string `json:"model"`           // SessionStart のモデル
 	ToModel        string `json:"to_model"`        // PostModelSwitch の、切り替えた先のモデル
 	Prompt         string `json:"prompt"`          // 話しかけのフックの、ターンを始めた入力
-	ToolName       string `json:"tool_name"`       // 道具を使う前のフックの、使う道具の名前
+	ToolName       string `json:"tool_name"`       // ツールを使う前のフックの、使うツールの名前
 	Host           string `json:"-"`               // AI のプログラムのプロセス id（フックが --host で渡す）
-	Woken          bool   `json:"-"`               // 起こす知らせで始まったターン（フックが --woken で渡す）
+	Woken          bool   `json:"-"`               // 起こす知らせで始まったターン（フックが --woken で渡す。渡せない AI のプログラムは、その AI の事情で入力から見分ける。hookPrompt）
 	Titled         bool   `json:"-"`               // formatHook の答えに sessionTitle を書くか（それを読む AI のプログラムだけ。知らない項目のある JSON を断る AI がある）
 }
 
@@ -41,12 +44,6 @@ func (in hookInput) eventName() string {
 		return in.HookEventName
 	}
 	return "UserPromptSubmit"
-}
-
-// woken は、ターンが利用者トリガートークでなく、裏の知らせ（plugin の monitor の 1 行・裏で走らせた物の終わりなど）で始まったか。
-// フックが --woken で渡していればそれ。渡さないフック（Claude Code）は、入力が <task-notification> で包まれているかで見分ける
-func (in hookInput) woken() bool {
-	return in.Woken || strings.HasPrefix(strings.TrimSpace(in.Prompt), "<task-notification>")
 }
 
 // model は、フックが知らせるモデル（切り替えた先があればそれ。どちらも無ければ空）
@@ -145,7 +142,7 @@ func talked(out io.Writer, hook hookInput, context, format string, api hookAPI) 
 // askTalked は、ターンの始まりを知らせ、結ばれていない参加者がいるなら会話の記録を後ろから調べて結ばせる。常駐の答えが読めなければ空を返す
 func askTalked(hook hookInput, api hookAPI) talkReply {
 	var reply talkReply
-	body, _ := json.Marshal(map[string]any{"sessionId": hook.SessionID, "host": hook.Host, "woken": hook.woken()})
+	body, _ := json.Marshal(map[string]any{"sessionId": hook.SessionID, "host": hook.Host, "woken": hook.Woken})
 	out, err := api(body)
 	if err != nil || json.Unmarshal(out, &reply) != nil {
 		return talkReply{}
@@ -208,26 +205,10 @@ func sendModel(hook hookInput, api hookAPI) {
 	_, _ = api(body)
 }
 
-// readOnlyTools は、AI が聞かずに使ってよい matomezu の道具（ブックや画面の状態を読むだけで、何も変えない）。
-// 変える道具（perform）、利用者の画面を切り替える道具（show）、参加を頼む道具（join）は、利用者に聞く
-var readOnlyTools = map[string]bool{
-	"actions": true, "list_books": true, "read_book": true, "read_page": true,
-	"read_records": true, "read_settings": true, "search": true, "view": true,
-}
-
-// matomezuToolPrefixes は、matomezu の MCP の道具の名前の前置き（Claude Code は、自分で登録した物と、プラグインが持つ物で名前が違う）
-var matomezuToolPrefixes = []string{"mcp__matomezu__", "mcp__plugin_matomezu_matomezu__"}
-
-// permission は、道具を使う前のフックの出力。読むだけの matomezu の道具なら、聞かずに使ってよいと答える。ほかの道具には何も言わず、利用者に聞く
+// permission は、ツールを使う前のフックの出力。読むだけの matomezu の MCP 公開ツール（MCP 公開ツールの表の印）なら、聞かずに使ってよいと答える。ほかのツールには何も言わず、利用者に聞く。
+// ツールの名前と答えの形は Claude Code の物（clients/claude-code）
 func permission(out io.Writer, hook hookInput) {
-	for _, prefix := range matomezuToolPrefixes {
-		if name, ok := strings.CutPrefix(hook.ToolName, prefix); ok && readOnlyTools[name] {
-			_ = json.NewEncoder(out).Encode(map[string]any{"hookSpecificOutput": map[string]any{
-				"hookEventName":            "PreToolUse",
-				"permissionDecision":       "allow",
-				"permissionDecisionReason": "matomezu tool that only reads",
-			}})
-			return
-		}
+	if name, ok := claudelaunch.MatomezuTool(hook.ToolName); ok && mcp.ReadOnly(name) {
+		claudelaunch.AllowTool(out, "matomezu tool that only reads")
 	}
 }

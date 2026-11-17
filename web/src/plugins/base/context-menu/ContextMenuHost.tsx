@@ -16,14 +16,17 @@ import { type AnchorMenuCommandId, type ContextMenuCommandId, SEPARATOR } from "
 import type { ContextMenuRow } from "../../../ui/plugin"
 import { ActsOnScope } from "../../../ui/scope"
 import { useMatomezuState, useStoreActions, useUiCatalog } from "../../../ui/store-context"
+import { useReadPluginState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { useAnchorContextMenu } from "./anchor-context"
 import styles from "./ContextMenuHost.module.css"
 import { fitInside } from "./fit"
 import { MenuRow } from "./MenuRow"
-import { pressedAnchor } from "./pressed-anchor"
+import { pressedAnchorAt, useRememberPressedAnchor } from "./pressed-anchor"
+import { PRESSED_ANCHOR } from "./states"
 
 export function ContextMenuHost() {
+  useRememberPressedAnchor()
   useAnchorContextMenu()
   const menu = useMatomezuState(s => s.contextMenu)
   if (!menu) return null
@@ -38,7 +41,8 @@ function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
   const { closeContextMenu } = useStoreActions()
   const items = useContextMenuItems(menu.stage, menu.id as ContextMenuId)
   const t = useMessages(kit)
-  const [anchor] = useState(() => pressedAnchor(menu.at)) // 開いたときの、押した物のアンカー
+  const readPressed = useReadPluginState(kit, PRESSED_ANCHOR)
+  const [anchor] = useState(() => pressedAnchorAt(readPressed(), menu.at)) // 開いたときの、押した物のアンカー
   const shown = useAnchorMenuItems(menu.stage)
   const anchored = anchor === undefined ? [] : shown
   const own = useUiCatalog().contextMenuRows.get(menu.id) // メニューが自分で出す行（あれば、UI マッピングのコマンドの並びの前に出す）

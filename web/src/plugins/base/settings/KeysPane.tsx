@@ -1,5 +1,5 @@
 // 設定画面のキーバインドの設定カテゴリの中身（画面ではショートカットキー）: 上にインクリメンタルサーチ、その下のスクロールする枠に、範囲の題名の見出しごとに行を並べる。
-// 行は範囲・コマンド・args ごと（store/keys.ts の keyRows）で、キーを札で出し、× で外し、+ で押したキーを覚えて足す。
+// 行は範囲・コマンド・args ごと（key-rows.ts の keyRows）で、キーを札で出し、× で外し、+ で押したキーを覚えて足す。
 // 足すキーを同じ範囲のほかの行が使っていれば、付ける前に確かめる（利用者の行が先になり、向こうは効かなくなる）。
 // ほかの行が先に使っていて効いていないキーは、行の下に添える。変えた行は既定に戻せ、探す入力Form の横のボタンで全部を既定に戻せる（確かめてから）。
 // 変えるとコマンド settings-set でキーバインドの項目を書く（コマンドが押せないか、コントロールセンターがこの項目を変えさせなければ、どれも押せない）
@@ -14,14 +14,7 @@ import {
   pressedKey,
   readKeyChanges,
 } from "../../../core/keys"
-import {
-  BASE_KEY_SCOPE_TITLES,
-  type KeyRow,
-  keyRows,
-  withKeyAdded,
-  withKeyRemoved,
-  withRowReset,
-} from "../../../store/keys"
+import { BASE_KEY_SCOPE_TITLES } from "../../../store/keys"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { isMac } from "../../../ui/keys"
@@ -33,6 +26,7 @@ import { kit } from "../kit"
 import { SETTINGS_SET } from "./actions"
 import { SETTINGS_SET_COMMAND } from "./commands"
 import styles from "./KeysPane.module.css"
+import { type KeyRow, keyRows, withKeyAdded, withKeyRemoved, withRowReset } from "./key-rows"
 import { KEYS } from "./user-settings"
 
 // 覚えている行（rowId）と、付ける前に確かめているキーバインド（ほかの行 other が使っている）

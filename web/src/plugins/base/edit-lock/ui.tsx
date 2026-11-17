@@ -3,10 +3,10 @@
 
 import { useShallow } from "zustand/react/shallow"
 import { shownPageId } from "../../../core/stage"
-import { allStages } from "../../../core/window"
 import { defineWidget } from "../../../ui/layout"
 import { useMatomezuState } from "../../../ui/store-context"
 import { kit } from "../kit"
+import { allStages } from "../utils/stages"
 import { useEditLock } from "../utils/useEditLock"
 
 function EditLock() {

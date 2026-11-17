@@ -1,11 +1,14 @@
 // マーク: 利用者がブックの物に付ける、文の無い印のアノテーション（core/def/annotation.ts）。付けるのは利用者だけ（userOnly）で、利用者も AI も外せる。
 // 種類（kind）は 5 羽の鳥と、びっくりマークの丸。1 つの物にマークは 1 つで、別のマークを付けると置き換わる。
 // AI が読んだかは readAt で持ち、読まれていないマークは AI の応えを待つ物に数える（フックが知らせる）。会話で用が済んだら AI が外す
+// 右クリックのメニューのコマンド mark-new（押した物のそばに種類を選ぶスタンドを出す）もここ
 import { z } from "zod"
 import type { Annotation } from "../../../core/annotation"
-import { freshId } from "../../../core/ids"
 import type { Bird } from "../birds"
+import { startAnchorTarget } from "../context-menu/anchor-targets"
 import { kit } from "../kit"
+import { freshId } from "../utils/ids"
+import { MARK_PICKER } from "./states"
 
 // マークの種類。title は画面で見せる名前（文言の鍵）、ai は AI に伝える呼び方（利用者が旗の色や鳥の色・名前で呼ぶので、どれも書く）
 export const MARK_KINDS = [
@@ -101,4 +104,14 @@ export const MARK_REMOVE = kit.defineAction({
     const next = annotations.filter(a => !(a.id === args.mark && isMark(a)))
     return next.length === annotations.length ? null : { next: { page, annotations: next }, result: {} }
   },
+})
+export { type MARK_ARRIVING, type MARK_PICKER, MARK_STATES } from "./states"
+
+// マークのコマンド: 右クリックで押した物（アンカーの付いた物）のそばに、マークの種類を選ぶスタンドを出す。UI マッピングの anchorMenu に置く
+export const MARK_NEW = kit.defineCommand({
+  id: "mark-new",
+  title: "Show to AI",
+  performs: [MARK_ADD.id],
+  run: startAnchorTarget(MARK_PICKER),
+  when: ctx => ctx.book !== null,
 })

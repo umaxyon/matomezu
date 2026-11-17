@@ -112,7 +112,7 @@ declare module "../../../core/catalog" {
 // ページの、2 つの形の組の間隔の下限（線でつながった組は広い。つなぐものの定義が決める）
 export const gapOf = (catalog: CoreCatalog, page: ItemPage): Gap => connectorGaps(catalog, page, evenGap)
 
-// 形が変わったあとのページの整え（book-settings.ts の tidyPage）
+// 形が変わったあとのページの整え（book-settings の tidyPage）
 export { tidyPage }
 
 // ページ page に次に置くアイテムの id（newId から振る。そのページの中身の、どの深さの id とも重ならない）

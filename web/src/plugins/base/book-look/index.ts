@@ -1,4 +1,4 @@
-// ブックを変える: ブックの設定のダイアログと、それを開くコマンド。アクション book-update（ブックの名前と、ブックが持つ設定の項目 settings。plugins/base/book-settings.ts）と、
+// ブックを変える: ブックの設定のダイアログと、それを開くコマンド。アクション book-update（ブックの名前と、ブックが持つ設定の項目 settings。plugins/base/book-settings）と、
 // アクション pages-update（ブックのページの設定の項目を、まとめて変える）。テーマと紙の色はページの設定の項目（look.ts）で、選んだタイプのページだけが持つ
 
 import { z } from "zod"
@@ -102,3 +102,4 @@ export const BOOK_SETTINGS = kit.defineCommand({
   run: (_ctx, a) => a.openDialog(BOOK_SETTINGS_DIALOG.id),
   when: () => true,
 })
+export { DIAGRAM_THEME_TYPE, DOCUMENT_THEME_TYPE, THEME_TYPES_CHECK, themeFits, themesFor } from "./theme-types"

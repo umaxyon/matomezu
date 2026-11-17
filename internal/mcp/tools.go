@@ -14,12 +14,14 @@ const instructions = "matomezu shows books (such as diagrams) to the user in a b
 	"The user may put notes and marks on things in a book; view and list_books tell you which wait for your answer (awaiting), and actions describes each kind of annotation and how to answer it. " +
 	"Changes appear at once on screens showing that book; use show to put a book on the user's screen. "
 
-// tool は MCP 公開ツール 1 つ: 名前・説明・受ける引数の形（inputSchema）と、確かめた引数で呼ぶ所（AI に返す文と、失敗したか）
+// tool は MCP 公開ツール 1 つ: 名前・説明・受ける引数の形（inputSchema）と、確かめた引数で呼ぶ所（AI に返す文と、失敗したか）と、
+// 読むだけか（ブックや画面の状態を読むだけで、何も変えない。AI のプログラムに、利用者に聞かずに使ってよいと答えてよい）
 type tool struct {
 	name        string
 	description string
 	schema      map[string]any
 	call        func(c *conn, args map[string]any) (string, bool)
+	readOnly    bool
 }
 
 var noArgs = map[string]any{"type": "object", "properties": map[string]any{}, "additionalProperties": false}
@@ -31,6 +33,7 @@ var tools = []tool{
 		"What the user is looking at now: the book, page, mode (edit, or print-preview: all its pages laid out as the sheets they print on, arranged by the book's print preview settings) and selected items of the matomezu window focused last, and awaiting, the annotations on that book (such as the user's notes and marks) that wait for your answer, each with its page. front tells what the window brings to front: book-screen, or control-center, which covers the book screen; then the book, page, mode, selection and awaiting of the book screen kept behind it are under hidden (the user does not see them now). null when no window is open.",
 		noArgs,
 		reading(func(api caller, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/view") }, nil),
+		true,
 	},
 	{
 		"list_books",
@@ -39,6 +42,7 @@ var tools = []tool{
 		reading(func(api caller, _ map[string]any) (json.RawMessage, error) {
 			return api.Get("api/ai/books")
 		}, nil),
+		true,
 	},
 	{
 		"read_book",
@@ -56,6 +60,7 @@ var tools = []tool{
 			id, _ := args["book"].(string)
 			return api.Get("api/ai/books/" + url.PathEscape(id) + "?outline=1") // 1 冊だけのブックの id は / を含む
 		}, nil),
+		true,
 	},
 	{
 		"read_page",
@@ -86,6 +91,7 @@ var tools = []tool{
 			}
 			return api.Get(path)
 		}, narrowPage, unreadablePage),
+		true,
 	},
 	{
 		"read_records",
@@ -159,6 +165,7 @@ var tools = []tool{
 			}
 			return api.Get("api/ai/records?" + q.Encode())
 		}, nil),
+		true,
 	},
 	{
 		"search",
@@ -197,12 +204,14 @@ var tools = []tool{
 			"additionalProperties": false,
 		},
 		reading(searchTool, nil),
+		true,
 	},
 	{
 		"read_settings",
 		"Read the user's settings: the value of each setting in actions, keyed by the setting's id (a setting the user has not changed has its default, or is left out when it has none).",
 		noArgs,
 		reading(func(api caller, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/settings") }, nil),
+		true,
 	},
 	{
 		"actions",
@@ -216,11 +225,12 @@ var tools = []tool{
 		reading(func(api caller, args map[string]any) (json.RawMessage, error) {
 			return api.Get("api/ai/catalog" + idsQuery(args))
 		}, nil),
+		true,
 	},
-	{"show", showDescription, showSchema, func(c *conn, args map[string]any) (string, bool) { return show(c, args) }},
-	{"perform", performDescription, performSchema, func(c *conn, args map[string]any) (string, bool) { return perform(c, args) }},
-	{"join", joinDescription, joinSchema, join},
-	{"send_message", sendMessageDescription, sendMessageSchema, sendMessage},
+	{"show", showDescription, showSchema, func(c *conn, args map[string]any) (string, bool) { return show(c, args) }, false},
+	{"perform", performDescription, performSchema, func(c *conn, args map[string]any) (string, bool) { return perform(c, args) }, false},
+	{"join", joinDescription, joinSchema, join, false},
+	{"send_message", sendMessageDescription, sendMessageSchema, sendMessage, false},
 }
 
 // reading は、読む MCP 公開ツールの呼び出しを tools の表の形にする。narrow があれば、上限を超える答えを返さずに絞り方を返す
@@ -324,6 +334,16 @@ var showSchema = map[string]any{
 
 const showDescription = "Show a book on the user's screen: in the matomezu window focused last, open it on a stage, which becomes current, and the book screen comes to front if the control center was in front. " +
 	"When no window is open, a browser opens matomezu first (this can take some seconds)."
+
+// ReadOnly は、名前 name の MCP 公開ツールが読むだけか（無い名前なら false）
+func ReadOnly(name string) bool {
+	for _, t := range tools {
+		if t.name == name {
+			return t.readOnly
+		}
+	}
+	return false
+}
 
 // listTools は MCP 公開ツールの一覧。追加プラグインを足しても変わらない
 func listTools() []map[string]any {

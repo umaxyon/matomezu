@@ -3,7 +3,7 @@
 
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { ShapeData } from "../../../core/def/item"
-import { idMaker, idsIn, renamedIn } from "../../../core/ids"
+import { idMaker, idsIn } from "../../../core/ids"
 import type { ItemPage } from "../../../core/placed"
 
 declare module "../../../core/catalog" {
@@ -35,4 +35,23 @@ export function renewedIds<T>(page: ItemPage, value: T, newId: () => string): T 
   const { id: _page, ...content } = page
   const make = idMaker(newId, idsIn(content))
   return renamedIn(value, new Map(idsIn(value).map(id => [id, make()])))
+}
+
+// 短い id を 1 つ振る: newId（アクションの文脈が振る値）から作り、taken と重なれば振り直す（core の idMaker の 1 つ目）
+export function freshId(newId: () => string, taken: Iterable<string>): string {
+  return idMaker(newId, taken)()
+}
+
+// 値 value の中の id（どの深さのオブジェクトの id・from・to の文字列）を、表 renamed で新しい id に置き換えた写し（作りは変わらない。つなぐものの端も同じ表で付け替える）
+export function renamedIn<T>(value: T, renamed: ReadonlyMap<string, string>): T {
+  if (Array.isArray(value)) return value.map(v => renamedIn(v, renamed)) as T
+  if (typeof value !== "object" || value === null) return value
+  return Object.fromEntries(
+    Object.entries(value).map(([k, v]) => [
+      k,
+      (k === "id" || k === "from" || k === "to") && typeof v === "string"
+        ? (renamed.get(v) ?? v)
+        : renamedIn(v, renamed),
+    ]),
+  ) as T
 }

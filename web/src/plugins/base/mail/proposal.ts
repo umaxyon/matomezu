@@ -13,9 +13,9 @@ import { allowedOnBook, perform, runAction } from "../../../core/perform"
 import { sameData } from "../../../core/same"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
-import { MAIL, mailAdded, READS_MAILBOX_KEYS } from "."
 import type { Mail } from "./mail"
 import { ownChangedIn, ownValuesIn } from "./own-values"
+import { MAIL, mailAdded, READS_MAILBOX_KEYS } from "./subject"
 
 // 乗せた変更 1 つ: アクションと引数と、ページが対象のアクションなら宛先のページ（perform の on と同じ形。ブックが対象のアクションには書かない）
 const ChangeSchema = z.strictObject({

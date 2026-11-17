@@ -26,3 +26,11 @@ export const STAGE_CLOSE = kit.defineCommand({
   run: (_ctx, a) => a.closeStage(),
   when: isSplit,
 })
+export {
+  BACKGROUND_EDIT,
+  BACKGROUND_END,
+  BACKGROUND_HIDE_CONTENT,
+  BACKGROUND_PRINT_SET,
+  BACKGROUND_TOGGLE,
+} from "./background"
+export { type CONTENT_HIDDEN, type PRINT_AREAS_HIDDEN, STAGE_STATES } from "./states"

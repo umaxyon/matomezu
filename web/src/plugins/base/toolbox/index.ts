@@ -12,3 +12,5 @@ export const TOOLBOX_CANCEL = kit.defineCommand({
 export const TOOLBOX_KEYS = [
   kit.defineKey({ id: "toolbox-cancel-escape", key: "Escape", command: TOOLBOX_CANCEL.id, scope: "stage" }),
 ]
+
+import type {} from "./toolbox"

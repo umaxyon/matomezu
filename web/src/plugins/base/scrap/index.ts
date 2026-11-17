@@ -85,3 +85,4 @@ export const SCRAP_OPEN_ORIGINAL = kit.defineCommand({
     return item === undefined || scrapOf(ctx, item) !== null
   },
 })
+export { SCRAP, SCRAP_CUT, SCRAP_REMOVE, type Scrap, ScrapSchema, scrapSize } from "./scrap"

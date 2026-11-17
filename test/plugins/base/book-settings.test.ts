@@ -1,4 +1,4 @@
-// ページのタイプが選ぶ設定の項目（plugins/base/book-settings.ts）と、それを受け付ける base のアクション pages-update・page-update・page-add
+// ページのタイプが選ぶ設定の項目（plugins/base/book-settings）と、それを受け付ける base のアクション pages-update・page-update・page-add
 import { expect, test } from "bun:test"
 import { z } from "zod"
 import { pagesOf, withSettings } from "../../../web/src/core/book"

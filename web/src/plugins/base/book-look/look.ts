@@ -3,8 +3,11 @@
 import { z } from "zod"
 import { HEX } from "../../../core/color"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
+import { type PageTypeDef, placeableOf } from "../../../core/def/page-type"
+import type { TokenDef } from "../../../core/def/theme"
+import { splitId } from "../../../core/names"
 import type { Page } from "../../../core/schema/book"
-import { resolveTokens, type Shades, shades, tokenDefsOf } from "../../../core/theme"
+import { resolveTokens, type Shades, shades } from "../../../core/theme"
 import { settingValue } from "../book-settings"
 import { kit } from "../kit"
 import { themeFits, themesFor } from "./theme-types"
@@ -35,10 +38,23 @@ export function pageTheme(catalog: CoreCatalog, page: Pick<Page, "type">): strin
   return own !== undefined && themeFits(catalog, page.type, own) ? own : pageType(catalog, page.type).theme
 }
 
-// ページを描くのに使うテーマの値（ページのタイプのテーマキー。core の tokenDefsOf）。紙の色があれば紙のテーマキーをその色にする
+// ページを描くのに使うテーマの値（ページのタイプのテーマキー。tokenDefsOf）。紙の色があれば紙のテーマキーをその色にする
 export function pageTokens(catalog: CoreCatalog, page: Pick<Page, "type">): Record<string, Shades> {
   const type = pageType(catalog, page.type)
   const values = resolveTokens(catalog, pageTheme(catalog, page), tokenDefsOf(catalog, type))
   const paper = settingValue(catalog, page, PAGE_PAPER_COLOR)
   return paper === undefined ? values : { ...values, paper: shades(paper) }
+}
+
+// ページのタイプ type のブックを描くのに使うテーマキーの宣言: タイプのテーマキーと、タイプが置けるアイテム（allowed）のテーマキー、
+// そのアイテムの持ち主のプラグインが持つテーマキー（いくつものアイテムが共に使うもの）。同じ id は 1 つにまとめる
+export function tokenDefsOf(catalog: CoreCatalog, type: PageTypeDef): TokenDef[] {
+  const items = placeableOf(type).flatMap(id => catalog.items.get(id) ?? [])
+  const owners = new Set(items.map(i => splitId(i.id).owner))
+  const defs = [
+    ...type.tokens,
+    ...items.flatMap(i => i.tokens),
+    ...[...catalog.tokens.values()].filter(t => owners.has(splitId(t.id).owner)),
+  ]
+  return [...new Map(defs.map(d => [d.id, d])).values()]
 }

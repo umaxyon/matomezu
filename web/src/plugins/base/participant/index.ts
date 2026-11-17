@@ -332,3 +332,6 @@ export const ADMIN_SET = kit.defineAction({
     return { next: { id: "admin", workroom: args.workroom }, result: {} }
   },
 })
+export { PARTICIPANT_ALIVE } from "./alive"
+export { PARTICIPANT_JOIN_DIALOG } from "./dialogs"
+export type { WorkroomRow, WorkroomState } from "./rows"

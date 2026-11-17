@@ -1,4 +1,4 @@
-// ページを変える: アクション page-update（ページの名前と、紙・向き・可変ページか、タイプが選んだページの設定の項目（plugins/base/book-settings.ts）と、タイプがページに足したフィールド（page-fields.ts））
+// ページを変える: アクション page-update（ページの名前と、紙・向き・可変ページか、タイプが選んだページの設定の項目（plugins/base/book-settings）と、タイプがページに足したフィールド（page-fields.ts））
 
 import { z } from "zod"
 import type { CoreCatalog } from "../../../core/core-catalog"

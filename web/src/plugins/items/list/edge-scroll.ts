@@ -4,11 +4,11 @@ import { edgeSpeed } from "../../base"
 
 // ポインタ（画面の座標）の下のリストの、行の並びのスクロールする要素
 function rowsUnder(x: number, y: number): HTMLElement | null {
-  const item = document
+  const frame = document
     .elementsFromPoint(x, y)
-    .map(el => el.closest("[data-item]"))
+    .map(el => el.closest("[data-list-frame]"))
     .find(Boolean)
-  return item?.querySelector<HTMLElement>("[data-list-rows]")?.parentElement ?? null
+  return frame?.querySelector<HTMLElement>("[data-list-rows]")?.parentElement ?? null
 }
 
 export function edgeScroller() {

@@ -96,7 +96,7 @@ type claudePromptCmd struct{}
 // Run は、ターンの始まりを知らせ、待つアノテーションを添える
 func (claudePromptCmd) Run() error {
 	claudeDev()
-	hookPrompt(hookHost(claudelaunch.HooksSendHost), claudelaunch.HookSetsTitle)
+	hookPrompt(hookHost(claudelaunch.HooksSendHost), claudelaunch.HookSetsTitle, claudelaunch.Woken)
 	return nil
 }
 
@@ -111,7 +111,7 @@ func (claudeModelCmd) Run() error {
 
 type claudePermissionCmd struct{}
 
-// Run は、読むだけの matomezu の道具を、聞かずに使ってよいと答える（常駐を使わない）
+// Run は、読むだけの matomezu の MCP 公開ツールを、聞かずに使ってよいと答える（常駐を使わない）
 func (claudePermissionCmd) Run() error {
 	permission(os.Stdout, stdinHook())
 	return nil
@@ -175,7 +175,7 @@ type codexPromptCmd struct{}
 // Run は、ターンの始まりを知らせ、待つアノテーションを添える
 func (codexPromptCmd) Run() error {
 	codexDev()
-	hookPrompt(hookHost(codexlaunch.HooksSendHost), codexlaunch.HookSetsTitle)
+	hookPrompt(hookHost(codexlaunch.HooksSendHost), codexlaunch.HookSetsTitle, nil)
 	return nil
 }
 
@@ -194,13 +194,14 @@ type opencodeCmd struct {
 }
 
 // hookPrompt は、話しかけのフック: 待つアノテーションの文を添えて、ターンの始まりを常駐に知らせ、フックの答えを出す（host は AI のプログラムのプロセス id、分からなければ空。
-// titled は、答えに会話の題名 sessionTitle を書くか）
-func hookPrompt(host string, titled bool) {
+// titled は、答えに会話の題名 sessionTitle を書くか。woken は、フックが --woken を渡せない AI のプログラムが、裏の知らせで始まったターンを入力から見分ける物。渡せるなら nil）
+func hookPrompt(host string, titled bool, woken func(prompt string) bool) {
 	var notes bytes.Buffer
 	writeAnnotations(&notes)
 	hook := stdinHook()
 	hook.Host = host
 	hook.Titled = titled
+	hook.Woken = hook.Woken || (woken != nil && woken(hook.Prompt))
 	talked(os.Stdout, hook, notes.String(), formatHook, runningAPI("api/ai/talked"))
 }
 

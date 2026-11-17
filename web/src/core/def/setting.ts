@@ -1,6 +1,6 @@
 // 設定の項目の定義: ページかブックに持たせる 1 つの値（線の既定の通り方など）。持つ所は holder で決まる: "page" の項目は、ページのタイプが自分のページに持たせる項目として id で選ぶ。
 // "book" の項目は、タイプに依らず、どのブックも持てる（ブックのページを並べて刷るときの決まりなど）。
-// 値はページ（ブック）のデータの settings のフィールドに、項目の id を鍵にして入れ、どれも書かなくてよい（例: settings: { "@matomezu/line:line-route": "elbow" }）。読むときは、値があればその値、無ければ既定（default）（plugins/base/book-settings.ts の settingValue・bookSettingValue）。ページの項目がブックの値を引き継ぐことは無い。
+// 値はページ（ブック）のデータの settings のフィールドに、項目の id を鍵にして入れ、どれも書かなくてよい（例: settings: { "@matomezu/line:line-route": "elbow" }）。読むときは、値があればその値、無ければ既定（default）（plugins/base/book-settings の settingValue・bookSettingValue）。ページの項目がブックの値を引き継ぐことは無い。
 // 既定を持たない項目は、値が無ければ undefined で、読む側が決める（base のテーマはページのタイプのテーマ、紙の色はテーマの紙の色）。
 // 同じ定義で、プラグインの userSettings に入れれば利用者の設定の項目になる（holder は書かない）。値は利用者の設定（core/settings.ts）に、項目の id を鍵にして入れる。1 つの項目をページ・ブックと利用者の両方には使わない
 import type { z } from "zod"
