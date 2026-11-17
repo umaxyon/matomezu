@@ -88,7 +88,7 @@ export const BINDER_DUPLICATE = kit.defineAction({
   id: "binder-duplicate",
   attach: { books: true },
   aiDescription:
-    "Duplicate a binder with its pages: a copy is added right after it. title is the copy's name and must differ from the other entries' of the book's lineup; without it the copy is named after the original with a number. The pages and everything on them get new ids; locks, notes and marks are not copied. Returns the new binder's id and its pages' ids, in order. Refused for a binder not in the book, for a page that cannot be duplicated (see page-duplicate), or for a title already used. Not allowed (not-allowed) for a binder whose page type leaves this action out.",
+    "Duplicate a binder with its pages: a copy is added right after it. title is the copy's name and must differ from the other entries' of the book's lineup; without it the copy is named after the original with a number. The pages and everything on them get new ids; locks, notes and marks are not copied. Returns the new binder's id and its pages' ids, in order. Refused for a binder not in the book, for a page that cannot be duplicated (see page-duplicate) or read, or for a title already used. Not allowed (not-allowed) for a binder whose page type leaves this action out.",
   title: "Duplicate binder",
   target: "book",
   args: z.strictObject({ binder: BINDER, title: z.string().trim().min(1).optional() }),
@@ -96,6 +96,8 @@ export const BINDER_DUPLICATE = kit.defineAction({
   run: (book, args, ctx) => {
     const source = findBinder(book, args.binder)
     if (!source) return null
+    // 読めないページは複製できないので、それを持つバインダも複製しない（黙って落とした写しを作らない）
+    if (source.lineup.some(p => p.kind === "unreadable")) return null
     const titles = lineupOf(book).map(e => e.title)
     if (args.title !== undefined && titles.includes(args.title)) return null
     // 中の物の id は、ページごとに振り直す（ブックのどの id とも、写しどうしでも重ならない。core が run の振る id を重ねない）

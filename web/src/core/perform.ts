@@ -5,7 +5,7 @@
 import type { z } from "zod"
 import { USER } from "./actor"
 import { type Annotation, type Annotations, annotationsSettle, type PageAnnotations, prune } from "./annotation"
-import { distinctBooks, findPage, holds, keepsPageTypes, pagesOf, putPage } from "./book"
+import { distinctBooks, findPage, holds, keepsPageTypes, lostUnreadable, pagesOf, putPage } from "./book"
 import type { ActionId, ActionTable } from "./catalog"
 import { changesOf } from "./changes"
 import { type CoreCatalog, pageType } from "./core-catalog"
@@ -51,7 +51,7 @@ import { type RecordSource, readFrom, SOURCE, sourceIn, sourceOf, type WithSourc
 import { type Counters, NO_RECORD, RECORDS_MAX, REMOVED, type RecordChange, type Records } from "./records"
 import { referredOf } from "./refs"
 import { sameData } from "./same"
-import type { Book, Page } from "./schema/book"
+import type { Book, Page, UnreadableCode, UnreadableEntry } from "./schema/book"
 import type { Settings } from "./settings"
 import { settledAfter } from "./settle"
 
@@ -90,9 +90,12 @@ export type NotAllowed = {
 }
 // 宛先のページが無い（ブックのどこにも無い・ゴミ箱のブックにある・2 冊にある）。detail は AI への説明に載る英語の文
 export type NoPage = { ok: false; reason: "no-page"; detail: string }
+// 読めないページには何もできない: 宛先が読めないページ page か、アクションが読めないページ page を変えよう（動かす・消す・足す）とした。code は読めない理由の warning の番号
+export type Unreadable = { ok: false; reason: "unreadable"; page: string; code: UnreadableCode }
 export type Refused =
   | { ok: false; reason: Exclude<Refusal, "not-allowed" | "refused"> }
   | NoPage
+  | Unreadable
   | { ok: false; reason: "refused"; detail?: string; kind?: string }
   | NotAllowed
   | Denied
@@ -442,6 +445,8 @@ export function perform<Id extends ActionId>(
       : null
   if (permission) return { ok: false, reason: "denied", permission }
   if (before) {
+    const lost = lostUnreadable(before, done.next as Book)
+    if (lost) return unreadable(lost)
     // ページのタイプは作ったあと変えない（アクションが替えていたら断る）
     if (!settles(ctx.catalog, done.next as Book) || !keepsPageTypes(before, done.next as Book))
       return { ok: false, reason: "refused" }
@@ -449,6 +454,11 @@ export function perform<Id extends ActionId>(
   if (action.target === "library") {
     const was = subject as Library
     const now = done.next as Library
+    // 残るブックの読めないページは、そのまま（無くなるのは、ブックごと消すときだけ。作るブックには入れられない）
+    for (const b of Object.values(now)) {
+      const lost = was[b.id] === b ? null : lostUnreadable(was[b.id], b)
+      if (lost) return unreadable(lost)
+    }
     // 行う前から在るブックのページのタイプも、変えない
     const typesKept = Object.values(now).every(b => {
       const old = was[b.id]
@@ -549,11 +559,20 @@ export type PerformedIn =
 
 // ページかアノテーションが対象のアクションの宛先（on のページ）と、そのページを持っているブック（performIn と permittedIn で同じ決まりを使う）。
 // ゴミ箱のブックのページと、どのブックにも入っていないページは、無いものとする
-function pageIn(world: World, on: ActionOn | undefined): PageInBook | NoPage {
+function pageIn(world: World, on: ActionOn | undefined): PageInBook | NoPage | Unreadable {
   const page = (on && "page" in on ? on.page : undefined) ?? ""
   const book = bookOf(world, bookIdOf(world.folders, page) ?? "")
-  return book && book.trashed === undefined && world.pages[page] ? { book, page } : noPage(page)
+  const row = world.pages[page]
+  if (!book || book.trashed !== undefined || !row) return noPage(page)
+  return row.kind === "unreadable" ? unreadable(row) : { book, page }
 }
+
+const unreadable = (entry: UnreadableEntry): Unreadable => ({
+  ok: false,
+  reason: "unreadable",
+  page: entry.id,
+  code: entry.code,
+})
 
 // on.record に指した id のレコードが無いときの断り: どの種類のどの id が無いか。AI に見える種類なら、直し方（一覧の引き方）と種類の説明（id が何の id か）も
 function noRecord(

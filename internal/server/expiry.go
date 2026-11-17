@@ -19,7 +19,7 @@ const ExpireEvery = time.Minute
 // isoTime は、アクションの時点と同じ書き方の時刻（UTC、ミリ秒まで）
 func isoTime(t time.Time) string { return t.UTC().Format("2006-01-02T15:04:05.000Z") }
 
-// Expire は、時点 now で期限の過ぎたアノテーションを消して知らせる
+// Expire は、時点 now で期限の過ぎたアノテーションを消して知らせる（読めないページの物は消さない）
 func (h *Hub) Expire(now time.Time) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -27,6 +27,10 @@ func (h *Hub) Expire(now time.Time) error {
 	at := isoTime(now)
 	live := map[string]json.RawMessage{}
 	for page, body := range h.annotations {
+		// 読めないページのアノテーションは、そのまま残す
+		if _, unreadable := h.pageWarnings[page]; unreadable {
+			continue
+		}
 		kept, changed, err := h.engine.AnnotationsUnexpired(body, h.settings, at, watched[page])
 		if err != nil {
 			return err
@@ -38,7 +42,7 @@ func (h *Hub) Expire(now time.Time) error {
 	return h.putAnnotationLists(live, "", 0)
 }
 
-// Talked は、利用者トリガートークのときに行うアクションを、アノテーションのあるページごとに行う（変える物の無いページは、断られるだけで何もしない）
+// Talked は、利用者トリガートークのときに行うアクションを、アノテーションのある読めるページごとに行う（変える物の無いページは、断られるだけで何もしない）
 func (h *Hub) Talked(now time.Time) error {
 	ids, err := h.engine.TalkActions()
 	if err != nil {
@@ -49,7 +53,11 @@ func (h *Hub) Talked(now time.Time) error {
 		h.mu.Unlock()
 		return err
 	}
-	pages := slices.Sorted(maps.Keys(h.annotations))
+	// 読めないページには行わない（エンジンが断るだけ）
+	pages := slices.DeleteFunc(slices.Sorted(maps.Keys(h.annotations)), func(page string) bool {
+		_, unreadable := h.pageWarnings[page]
+		return unreadable
+	})
 	h.mu.Unlock()
 	for _, page := range pages {
 		for _, id := range ids {

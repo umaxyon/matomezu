@@ -7,6 +7,8 @@
 // Ctrl+ホイール（Mac は Cmd も。ピンチも）は、回した量とポインタの位置をそのままコマンド zoom-wheel に渡す（倍率はコマンドが決める。
 // コマンドが出ているステージならブラウザの拡大は止める）
 import { memo, type PointerEvent, useEffect, useRef, useState, type WheelEvent } from "react"
+import { findUnreadable } from "../../../core/book"
+import type { UnreadableCode } from "../../../core/schema/book"
 import { paperOf } from "../../../core/stage"
 import { workspaceOf } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
@@ -128,7 +130,9 @@ export const StageView = memo(function StageView() {
       onPointerCancel={endDrag}
       onWheel={onWheel}
     >
-      {stage.opened && book ? (
+      {stage.opened && book && stage.opened.kind === "unreadable" ? (
+        <UnreadablePage code={findUnreadable(book, stage.opened.page)?.entry.code} />
+      ) : stage.opened && book ? (
         <BookContent stage={id} previewing={inPreview} />
       ) : (
         <EmptyStage stage={id} onSelect={book => openBook(id, book)} />
@@ -152,6 +156,23 @@ function EmptyStage({ onSelect }: { stage: string; onSelect: (book: string) => v
       )}
       <p className={styles.prompt}>{t("Select a book")}</p>
       <BookSearch onSelect={onSelect} />
+    </div>
+  )
+}
+
+// 読めないページを開いたステージの中身: 読めないことと、その理由（中身は描かない）
+const UNREADABLE_REASONS = {
+  W027: "Its page type is not installed",
+  W028: "It does not fit its page type",
+  W029: "It breaks the rules of its page type",
+} as const satisfies Record<UnreadableCode, string>
+
+function UnreadablePage({ code }: { code: UnreadableCode | undefined }) {
+  const t = useMessages(kit)
+  return (
+    <div className={styles.empty} data-unreadable-page>
+      <p className={styles.prompt}>{t("This page cannot be read")}</p>
+      {code && <p className={styles.prompt}>{t(UNREADABLE_REASONS[code])}</p>}
     </div>
   )
 }

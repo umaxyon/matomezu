@@ -25,6 +25,7 @@ import {
   type Folder,
   type Folders,
   libraryOf,
+  type PageRow,
   type Pages,
   rawBooksOf,
   settledOn,
@@ -59,7 +60,7 @@ import {
   withRecords,
 } from "../core/records"
 import { sameData } from "../core/same"
-import type { AnyPage, Book } from "../core/schema/book"
+import type { Book } from "../core/schema/book"
 import { keyChangesOf, langOf, restoreSettings, type Settings } from "../core/settings"
 import {
   closePicker,
@@ -151,8 +152,8 @@ export interface MatomezuState {
   pages: Pages
   folders: Folders
   books: Readonly<Record<string, Book>> // ブックの id ごと（ゴミ箱のブックは除く。表から組んだ値）
-  unreadable: readonly Warning[] // 残したブックのうち読めないもの（warning W004〜W006。データには手を付けず、開けない）
-  partial: readonly Warning[] // 読めるが、機能台帳に無いアイテムや設定の項目を持つブック（warning W007。無い物はそのまま残す）
+  unreadable: readonly Warning[] // 残したブックのうち、ブックごと読めないもの（warning W005・W006。データには手を付けず、開けない）
+  partial: readonly Warning[] // 読めるブックの、読めないページ（warning W027〜W029）と、機能台帳に無いアイテムや設定の項目（W007）。無い物はそのまま残す
   window: WindowState // 窓の、開いているスクリーンとカレントにした順・スクリーンアレンジメント（core/window.ts）
   settings: Settings
   annotations: Annotations // ページの id → そのページのアノテーション（core/annotation.ts。1 つも無いページは持たない）
@@ -559,7 +560,7 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
 interface OpenStep {
   at: string
   books: string[]
-  pages: Record<string, RowChange<AnyPage>>
+  pages: Record<string, RowChange<PageRow>>
   folders: Record<string, RowChange<Folder>>
   continued?: true
   prior?: HistoryStep
@@ -629,7 +630,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   const { getState, setState } = store
   const ctx = (): ActionContext => ({ catalog, controlCenter, lang: getState().lang, newId, now: clock(), actor: USER })
   // 残した・知らされたブックを確かめた値（読めたブックか、読めない warning。同じ値は確かめ直さない）
-  let checked = new WeakMap<object, { book: Book; partial?: Warning } | { warning: Warning }>()
+  let checked = new WeakMap<object, { book: Book; partial: readonly Warning[] } | { warning: Warning }>()
   const restore = (saved: readonly unknown[]): { books: Book[]; warnings: Warning[]; partial: Warning[] } => {
     const books: Book[] = []
     const warnings: Warning[] = []
@@ -641,14 +642,13 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         const done = checkBooks(catalog, [b])
         const [book] = done.books
         const [warning] = done.warnings
-        const [part] = done.partial
-        hit = book ? { book, ...(part ? { partial: part } : {}) } : warning ? { warning } : undefined
+        hit = book ? { book, partial: done.partial } : warning ? { warning } : undefined
         if (!hit) continue
         checked.set(b, hit)
       }
       if ("book" in hit) {
         books.push(hit.book)
-        if (hit.partial) partial.push(hit.partial)
+        partial.push(...hit.partial)
       } else warnings.push(hit.warning)
     }
     // 1 冊ずつ確かめた後に、ブックどうしで id が重ならないかを確かめる（重なるブックは読めないブックにする）

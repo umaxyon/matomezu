@@ -158,7 +158,7 @@ test("手で直した区間（via）は、両端が固定で引けるときだ�
   expect(lines(store)[0]!.props.exitAt).toBe(132 / 328)
 })
 
-test("関係の決まりを守らないブック（線の端が無い・行につながる・同じ向きに 2 本）は、restoreBooks が読み込まず、一覧から外す（線だけを捨てるのではなく、ブックごと）", () => {
+test("関係の決まりを守らないページ（線の端が無い・行につながる・同じ向きに 2 本）は、restoreBooks がタイプの決まりを守らない読めないページ（W029）にする（線だけを捨てるのではなく、ページごと。ブックは読める）", () => {
   const store = ready()
   place(store, 100, 100)
   place(store, 400, 100)
@@ -175,11 +175,16 @@ test("関係の決まりを守らないブック（線の端が無い・行に�
     to,
     props: {},
   })
-  expect(restoreBooks(CORE_CATALOG, [good])).toHaveLength(1)
-  expect(restoreBooks(CORE_CATALOG, [withLines([line("l1", "n1", "zz")])])).toHaveLength(0)
-  expect(restoreBooks(CORE_CATALOG, [withLines([line("l1", "n1", "n2"), line("l2", "n1", "n2")])])).toHaveLength(0)
-  expect(restoreBooks(CORE_CATALOG, [withLines([line("l1", "n1", "n2"), line("l2", "n2", "n1")])])).toHaveLength(1)
-  expect(restoreBooks(CORE_CATALOG, [withLines([line("l1", "n1", "n1"), line("l2", "n1", "n1")])])).toHaveLength(1)
+  // 読んだブックの最初のページ: 読めれば "page"、読めないページなら理由の番号（ブックごと読めなければ undefined）
+  const readAs = (saved: unknown) => {
+    const entry = restoreBooks(CORE_CATALOG, [saved])[0]?.lineup[0]
+    return entry?.kind === "unreadable" ? entry.code : entry?.kind
+  }
+  expect(readAs(good)).toBe("page")
+  expect(readAs(withLines([line("l1", "n1", "zz")]))).toBe("W029")
+  expect(readAs(withLines([line("l1", "n1", "n2"), line("l2", "n1", "n2")]))).toBe("W029")
+  expect(readAs(withLines([line("l1", "n1", "n2"), line("l2", "n2", "n1")]))).toBe("page")
+  expect(readAs(withLines([line("l1", "n1", "n1"), line("l2", "n1", "n1")]))).toBe("page")
 })
 
 test("@matomezu/line:line-update: via を持つ線を直線にする・端を自由に戻すと、引けなくなった via を消す（断らない）。via を書いて引けなければ断る", () => {

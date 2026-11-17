@@ -136,9 +136,12 @@ type Hub struct {
 	plugins          []*plugin.Bundle // 足した追加プラグイン（plugins.go）
 	pluginsVersion   int64            // 追加プラグインが変わるたびに進む
 	disabled         []string         // 利用者が有効にしていない追加プラグインの id（エンジンが無効で組んだ物）
-	// warning のあるブックの id → その warning（読めない W004〜W006・一部に無い物がある W007）。読めるかは今のプラグインで決まる値なので DB には残さず、
+	// warning のあるブックの id → そのブックの warning（ブックごと読めない W005・W006・一部に無い物がある W007）。読めるかは今のプラグインで決まる値なので DB には残さず、
 	// 起動したときとプラグインが変わったときに全部、ブックを書いたときにその 1 冊を確かめ直す
 	bookWarnings map[string]engine.BookWarning
+	// 読めるブックの読めないページの id → その warning（W027〜W029。Book に持ち主のブック）。bookWarnings と同じときに、ブックごとに確かめ直す。
+	// 読めないページの行はそのまま残し、書き換えない（perform_write.go の unreadableWrite）
+	pageWarnings map[string]engine.BookWarning
 	// 効かないアノテーション（種類が無い W018・形が合わない W019）の warning の 1 行ずつ。起動したとき・プラグインが変わったとき・アノテーションを消したときに確かめ直す
 	annotationWarnings []string
 	// 効かないレコード（種類が無い W024・形が合わない W025。郵便は種類が無い W022・形が合わない W023）の warning の 1 行ずつ（レコードごと）。
@@ -188,7 +191,7 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 			return nil, fmt.Errorf("the AI edit tickets cannot be read: %w", err)
 		}
 	}
-	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, participantNotes: notes, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}, aiEditTickets: aiEditTickets, actPrefix: strconv.FormatInt(time.Now().UnixNano(), 36)}
+	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, participantNotes: notes, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, pageWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}, aiEditTickets: aiEditTickets, actPrefix: strconv.FormatInt(time.Now().UnixNano(), 36)}
 	if err := h.loadTables(); err != nil {
 		return nil, err
 	}
@@ -303,32 +306,62 @@ func (h *Hub) checkBooks(ids []string) error {
 	return nil
 }
 
-// recordWarnings は、ブック ids を確かめた結果 found を一覧に持つ（変わった warning はログに書く。h.mu を持って呼ぶ）
+// recordWarnings は、ブック ids を確かめた結果 found を一覧に持つ（ブックの warning と、読めないページの warning。変わった warning はログに書く。h.mu を持って呼ぶ）
 func (h *Hub) recordWarnings(ids []string, found []engine.BookWarning) {
-	before := map[string]string{}
+	before := map[string]bool{}
 	for _, id := range ids {
 		if n, ok := h.bookWarnings[id]; ok {
-			before[id] = n.Warning
+			before[n.Warning] = true
 		}
 		delete(h.bookWarnings, id)
 	}
+	for _, n := range h.pageWarnings {
+		if slices.Contains(ids, n.Book) {
+			before[n.Warning] = true
+		}
+	}
+	h.dropPageWarnings(ids...)
 	for _, n := range found {
-		h.bookWarnings[n.Book] = n
-		if before[n.Book] != n.Warning {
+		if n.Page != "" {
+			h.pageWarnings[n.Page] = n
+		} else {
+			h.bookWarnings[n.Book] = n
+		}
+		if !before[n.Warning] {
 			fmt.Fprintln(os.Stderr, "warning:", n.Warning)
 		}
 	}
 }
 
-// BookWarnings は warning のあるブックの id → その warning
+// dropPageWarnings は、ブック ids の読めないページの warning を一覧から外す（h.mu を持って呼ぶ）
+func (h *Hub) dropPageWarnings(ids ...string) {
+	for page, n := range h.pageWarnings {
+		if slices.Contains(ids, n.Book) {
+			delete(h.pageWarnings, page)
+		}
+	}
+}
+
+// BookWarnings は warning のあるブックの id → そのブックの warning（読めないページの warning は PageWarnings）
 func (h *Hub) BookWarnings() map[string]engine.BookWarning {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	out := make(map[string]engine.BookWarning, len(h.bookWarnings))
-	for id, n := range h.bookWarnings {
-		out[id] = n
-	}
-	return out
+	return maps.Clone(h.bookWarnings)
+}
+
+// PageWarnings は、読めるブックの読めないページの id → その warning
+func (h *Hub) PageWarnings() map[string]engine.BookWarning {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return maps.Clone(h.pageWarnings)
+}
+
+// UnreadablePage は、ページ id が読めないページなら、その理由の warning の番号（W027〜W029）
+func (h *Hub) UnreadablePage(id string) (code string, ok bool) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	n, ok := h.pageWarnings[id]
+	return n.Code, ok
 }
 
 // Data は設定とアノテーション（ページの id → 並び）。ページとフォルダは Tables
@@ -387,6 +420,7 @@ type Performed struct {
 	Reason     string          `json:"reason,omitempty"`
 	Permission string          `json:"permission,omitempty"`
 	Detail     string          `json:"detail,omitempty"`
+	Code       string          `json:"code,omitempty"` // 読めないページで断ったとき（reason unreadable）、読めない理由の warning の番号
 	Result     json.RawMessage `json:"result,omitempty"`
 	Notice     string          `json:"notice,omitempty"` // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
 }
@@ -426,7 +460,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	if err != nil {
 		return Performed{}, err
 	}
-	done := Performed{OK: out.OK, Reason: out.Reason, Permission: out.Permission, Detail: out.Detail, Result: out.Result, Notice: out.Notice}
+	done := Performed{OK: out.OK, Reason: out.Reason, Permission: out.Permission, Detail: out.Detail, Code: out.Code, Result: out.Result, Notice: out.Notice}
 	// AI のアクションは、窓に出ているブックをゴミ箱に入れない（AI は利用者に聞く）
 	if out.OK && p.By == "ai" && h.trashesShown(out.Trashing) {
 		done = Performed{OK: false, Reason: "open-on-screen"}
@@ -449,8 +483,8 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		if err != nil {
 			return Performed{}, err
 		}
-		if plan == nil {
-			// 新しく足すページ・フォルダの id が、世界にもう在る（エンジンが受けたブックの外に）。何も変えずに断る
+		if plan == nil || h.unreadableWrite(out) {
+			// 新しく足すページ・フォルダの id が、世界にもう在る（エンジンが受けたブックの外に）か、読めないページの行を書き換える。何も変えずに断る
 			done = Performed{OK: false, Reason: "refused"}
 			h.remember(p.Key, done)
 			h.ack(p, done)

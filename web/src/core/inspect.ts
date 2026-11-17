@@ -149,7 +149,12 @@ function typesAt(
   if (where?.creates === ANY_PAGE_TYPE) return { types: [...catalog.pageTypes.values()], need: "some" }
   if (where?.creates !== undefined) return every([catalog.pageTypes.get(where.creates)?.id])
   if (where?.entries !== undefined)
-    return every(where.entries.map(id => findPage(book, id)?.page.type ?? findBinder(book, id)?.pageType))
+    // 読めないページと、タイプが機能台帳に無いバインダは、タイプが分からないので使えない
+    return every(
+      where.entries
+        .map(id => findPage(book, id)?.page.type ?? findBinder(book, id)?.pageType)
+        .map(type => (type !== undefined && catalog.pageTypes.has(type) ? type : undefined)),
+    )
   const pages = pagesOf(book)
   if (where?.page !== undefined) return every(pages.filter(p => p.id === where.page).map(p => p.type))
   if (where?.ids !== undefined)

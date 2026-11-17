@@ -1,8 +1,8 @@
 // 画面の履歴（Undo・Redo）: 利用者の 1 回の操作で変わったページとフォルダの前と後を画面の履歴の段 1 つに持つ（store が作り、戻す・やり直すのは base の history）。
 // AI とほかの窓の変更は、まだ見ていない画面の履歴の段として store が溜め、変えた物が見えたら時刻の位置に差し込む
-import type { Folder } from "./folders"
+import type { Folder, PageRow } from "./folders"
 import type { ListPatch, Patch } from "./patch"
-import type { AnyPage, Book } from "./schema/book"
+import type { Book } from "./schema/book"
 
 // ページ・フォルダ 1 つの、変わる前と後（無いときは "none"）
 export interface RowChange<T> {
@@ -19,7 +19,7 @@ export interface HistoryStep {
   at: string
   by: HistoryBy
   books: readonly string[]
-  pages: Readonly<Record<string, RowChange<AnyPage>>>
+  pages: Readonly<Record<string, RowChange<PageRow>>>
   folders: Readonly<Record<string, RowChange<Folder>>>
 }
 

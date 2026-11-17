@@ -117,6 +117,8 @@ type Output struct {
 	Reason        string                      `json:"reason,omitempty"`
 	Permission    string                      `json:"permission,omitempty"`
 	Detail        string                      `json:"detail,omitempty"`
+	Page          string                      `json:"page,omitempty"` // 読めないページで断ったとき（reason unreadable）、そのページの id
+	Code          string                      `json:"code,omitempty"` // 読めないページで断ったとき、読めない理由の warning の番号（W027〜W029）
 	Result        json.RawMessage             `json:"result,omitempty"`
 	Pages         []RowChange                 `json:"pages,omitempty"`    // 変わった・足した・無くなったページ
 	Folders       []RowChange                 `json:"folders,omitempty"`  // 変わった・足した・無くなったフォルダ
@@ -599,13 +601,15 @@ func (e *Engine) PerformWith(in Input, src Source) (out Output, err error) {
 	return out, nil
 }
 
-// BookWarning は warning のあるブック: ブックの id・warning の番号・warning の 1 行と、読めないか（エンジンが決める。
-// 読めない W004 タイプが無い・W005 形に合わない・W006 決まりを守らない、読めるが機能台帳に無い物を持つ W007 など）
+// BookWarning は warning のあるブック: ブックの id・warning の番号・warning の 1 行と、ブックごと読めないか（エンジンが決める。
+// ブックごと読めない W005 形に合わない・W006 決まりを守らない、読めるが機能台帳に無い物を持つ W007 など）。
+// 読めるブックの読めないページ（W027 タイプが無い・W028 タイプの形に合わない・W029 タイプの決まりを守らない）の warning は、ページ 1 枚に 1 つで、Page にそのページの id
 type BookWarning struct {
 	Book       string `json:"book"`
 	Code       string `json:"code"`
 	Warning    string `json:"warning"`
 	Unreadable bool   `json:"unreadable"`
+	Page       string `json:"page,omitempty"`
 }
 
 // CheckBooks はブックを今の機能台帳で確かめ、warning のあるものを返す（データには手を付けない）

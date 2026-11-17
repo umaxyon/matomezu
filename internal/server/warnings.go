@@ -7,6 +7,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"slices"
 )
@@ -33,14 +34,21 @@ func (h *Hub) SetWindowWarnings(clientID string, warnings json.RawMessage) (bool
 	return true, nil
 }
 
-// Warnings は今の warning の 1 行ずつ: 定義の warning、warning のあるブック（ブックの並びの順）、効かないアノテーション、窓が見つけた warning（同じ 1 行は 1 つ）
+// Warnings は今の warning の 1 行ずつ: 定義の warning、warning のあるブック（ブックの並びの順に、ブックの warning、読めないページの warning をページの id の順）、
+// 効かないアノテーション、窓が見つけた warning（同じ 1 行は 1 つ）
 func (h *Hub) Warnings() []string {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	out := slices.Clone(h.engine.Warnings())
+	pages := slices.Sorted(maps.Keys(h.pageWarnings))
 	for _, id := range h.order {
 		if n, ok := h.bookWarnings[id]; ok {
 			out = append(out, n.Warning)
+		}
+		for _, page := range pages {
+			if n := h.pageWarnings[page]; n.Book == id {
+				out = append(out, n.Warning)
+			}
 		}
 	}
 	out = append(out, h.annotationWarnings...)

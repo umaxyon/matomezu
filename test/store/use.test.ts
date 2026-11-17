@@ -3,6 +3,7 @@ import { z } from "zod"
 import { findPage, putPage } from "../../web/src/core/book"
 import { defineAction } from "../../web/src/core/def/action"
 import { definePageType } from "../../web/src/core/def/page-type"
+import { stageIn } from "../../web/src/core/window"
 import { BUILTIN } from "../../web/src/plugins"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
@@ -45,27 +46,38 @@ const saved = {
   ],
 }
 
+// 機能台帳にタイプの無い間の、saved のページ（読めないページ W027。ブックは読める）
+const unreadableNote = { kind: "unreadable", id: "p1", title: "メモ", code: "W027" }
+
+const openedOf = (instance: ReturnType<typeof make>) => stageIn(instance.state.getState().window, "s1")?.opened
+
 const make = () =>
   createMatomezu({ plugins: BUILTIN, controlCenter: "@matomezu/control-center:control-center", savedBooks: [saved] })
 
-test("取り込んだ追加プラグインを use で足すと組み直し、作ったときに渡したブックを新しい台帳で読み直す", () => {
+test("取り込んだ追加プラグインを use で足すと組み直し、作ったときに渡したブックを新しい台帳で読み直す（足す前は読めないページだったページが、読めるページになり、開いていたステージもそのページを開く）", () => {
   const instance = make()
-  expect(instance.state.getState().books.n1).toBeUndefined() // 足す前は読めない
+  expect(instance.state.getState().books.n1?.lineup as unknown).toEqual([unreadableNote])
+  expect(openedOf(instance)).toEqual({ kind: "unreadable", book: "n1", page: "p1" }) // 足す前は、ページが読めない
+  expect(instance.state.getState().partial.map(w => w.code)).toEqual(["W027"])
+  expect(openedOf(instance)).toEqual({ kind: "unreadable", book: "n1", page: "p1" })
   expect(instance.use([notes])).toEqual({ failed: [] })
   expect(instance.catalog.core.actions.has("notes:rename")).toBe(true)
   expect(instance.plugins.at(-1) as unknown).toBe(notes)
   expect(instance.state.getState().books.n1 as unknown).toEqual(saved)
+  expect(instance.state.getState().partial).toEqual([])
+  expect(openedOf(instance)).toMatchObject({ kind: "page", book: "n1", page: "p1", type: "notes:note" })
   const perform = instance.actions.perform as unknown as (id: string, args: unknown, on: { book: string }) => unknown
   expect(perform("notes:rename", { page: "p1", title: "新" }, { book: "n1" })).toEqual({ ok: true, result: {} })
 })
 
-test("台帳アセンブルで食い違う追加プラグインは外して、ほかは足す。use は前に足したものと置き換える", () => {
+test("台帳アセンブルで食い違う追加プラグインは外して、ほかは足す。use は前に足したものと置き換える（外したプラグインのタイプのページは、また読めないページになり、開いていたステージも読めないページを開く）", () => {
   const instance = make()
   instance.use([notes])
   const { failed } = instance.use([broken])
   expect(failed.map(f => f.id)).toEqual(["bad"])
   expect(instance.catalog.core.actions.has("notes:rename")).toBe(false)
-  expect(instance.state.getState().books.n1).toBeUndefined()
+  expect(instance.state.getState().books.n1?.lineup as unknown).toEqual([unreadableNote])
+  expect(openedOf(instance)).toEqual({ kind: "unreadable", book: "n1", page: "p1" })
   expect(instance.use([broken, notes]).failed.map(f => f.id)).toEqual(["bad"])
   expect(instance.catalog.core.actions.has("notes:rename")).toBe(true)
 })

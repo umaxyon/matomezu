@@ -65,6 +65,7 @@ export type { TextColorDef } from "../core/def/text-color"
 export type { ThemeDef } from "../core/def/theme"
 export { themeVar } from "../core/def/theme"
 export { enumValuesOf } from "../core/enum"
+export type { BinderFolder, BookFolder, EntryRef, Folder } from "../core/folders"
 export type { Point, Rect, Size } from "../core/geom"
 export { translate } from "../core/i18n/i18n"
 export { defineMessages } from "../core/i18n/messages"
@@ -83,7 +84,6 @@ export {
   slideOf,
   walkShapes,
 } from "../core/placed"
-export type { BinderFolder, BookFolder, EntryRef, Folder } from "../core/folders"
 export type { Book } from "../core/schema/book"
 export {
   areaOf,

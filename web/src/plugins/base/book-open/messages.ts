@@ -3,10 +3,6 @@ import { defineMessages } from "../../../core/i18n/messages"
 
 export const BOOK_OPEN_MESSAGES = defineMessages({
   "Open book": { en: "Open book", ja: "ブックを開く" },
-  "Cannot open: there is no page type {type}": {
-    en: "Cannot open: there is no page type {type}",
-    ja: "開けません: ページのタイプ {type} がありません",
-  },
   "Cannot open: it does not fit the shape of a book": {
     en: "Cannot open: it does not fit the shape of a book",
     ja: "開けません: ブックの形に合いません",

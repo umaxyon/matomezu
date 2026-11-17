@@ -369,15 +369,15 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	}
 	next(t, screen) // changed
 
-	// 外す: そのタイプのブックではアクションを断り、ほかは動く
+	// 外す: そのタイプのページではアクションを断り、ほかは動く
 	if _, got := send(t, "POST", s.URL+"/api/plugins/remove", `{"id":"ex2"}`, ai); got != `{"ok":true}` {
 		t.Fatalf("remove = %s", got)
 	}
 	if got := next(t, screen); got != `plugins {"version":3}` {
 		t.Fatalf("event = %s", got)
 	}
-	// 定義から消える（読めなくなったブックの warning W004 には ex2 の名前が残る）
-	if c := catalog(); strings.Contains(c, `"id":"ex2:`) || !strings.Contains(c, "W004 ex2") {
+	// 定義から消える（読めなくなったページの warning W027 には ex2 の名前が残る）
+	if c := catalog(); strings.Contains(c, `"id":"ex2:`) || !strings.Contains(c, "W027 ex2") {
 		t.Fatalf("catalog after removing = %s", c)
 	}
 	if got := perform(place); strings.Contains(got, `"ok":true`) {
@@ -1149,10 +1149,11 @@ func TestShowWithoutAWindowNorABrowser(t *testing.T) {
 	}
 }
 
-// 読めないブックは、AI のブックの一覧に理由が付き、アクションはその理由で断る。プラグインを足せば読めるようになり、外せばまた理由が付く（データはそのまま）
+// タイプの無いページは、読めるブックの中の読めないページになる: AI のブックの一覧では warning、そのページへのアクションは番号だけで断り、ほかのページへのアクションは効く。
+// プラグインを足せば読めるようになり、外せばまた読めなくなる（データはそのまま）。ブックの形が壊れていれば、ブックごと読めず、一覧に理由が付き、アクションはその理由で断る
 func TestListsWhyABookCannotBeRead(t *testing.T) {
 	s := newServer(t, nil)
-	// ex2 を結んでいる間に書いたフローのブックは、ex2 を外すと読めなくなる（読めないブックは書けないので、結んでから書く）
+	// ex2 を結んでいる間に書いたフローのページは、ex2 を外すと読めなくなる
 	flow := `{"id":"f1","title":"Flow","lineup":[{"kind":"page","id":"p1","type":"ex2:flow","title":"P","paper":"@matomezu/base:a4","orientation":"portrait"}]}`
 	if got := link(t, s, "../../test/added-plugins/ex2"); got != `{"id":"ex2","ok":true}` {
 		t.Fatalf("link = %s", got)
@@ -1163,52 +1164,67 @@ func TestListsWhyABookCannotBeRead(t *testing.T) {
 	if _, got := send(t, "POST", s.URL+"/api/plugins/remove", `{"id":"ex2"}`, ai); got != `{"ok":true}` {
 		t.Fatalf("unlink = %s", got)
 	}
-	problem := func() string {
+	head := func(id string) (problem, warning string) {
 		_, body := get(t, s.URL+"/api/ai/books", "secret")
 		var got struct {
 			Books []struct {
 				ID      string `json:"id"`
 				Problem string `json:"problem"`
+				Warning string `json:"warning"`
 			} `json:"books"`
 		}
 		_ = json.Unmarshal([]byte(body), &got)
 		for _, b := range got.Books {
-			if b.ID == "f1" {
-				return b.Problem
+			if b.ID == id {
+				return b.Problem, b.Warning
 			}
 		}
-		return "missing"
+		return "missing", ""
 	}
-	if got := problem(); got != "W004 ex2: book f1 (Flow): it has a page of type ex2:flow, which is not in the catalog" {
-		t.Fatalf("after unlinking = %q", got)
+	if problem, warning := head("f1"); problem != "" || warning != unreadablePages {
+		t.Fatalf("after unlinking = %q %q", problem, warning)
 	}
-	// 読めないブックへのアクションは「無い」でなく、その理由で断る
-	page := `{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/drawing:drawing","title":"p"},"on":{"book":"f1"}}`
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", page, ai); got != `{"detail":"W004 ex2: book f1 (Flow): it has a page of type ex2:flow, which is not in the catalog","ok":false,"reason":"unreadable"}` {
-		t.Fatalf("perform on an unreadable book = %s", got)
-	}
-	// 宛先がページでも同じ（そのページを持っているブックが読めない）。どのブックにも無いページは no-page
+	// 読めないページへのアクションは「無い」でなく、番号だけで断る。どのブックにも無いページは no-page
 	lock := func(page string) string {
 		_, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-lock","args":{},"on":{"page":"`+page+`"}}`, ai)
 		return got
 	}
-	if got := lock("p1"); got != `{"detail":"W004 ex2: book f1 (Flow): it has a page of type ex2:flow, which is not in the catalog","ok":false,"reason":"unreadable"}` {
-		t.Fatalf("perform on a page of an unreadable book = %s", got)
+	if got := lock("p1"); got != `{"code":"W027","ok":false,"reason":"unreadable"}` {
+		t.Fatalf("perform on an unreadable page = %s", got)
 	}
 	if got := lock("gone"); !strings.Contains(got, `"reason":"no-page"`) || !strings.Contains(got, "there is no page with the id gone") {
 		t.Fatalf("perform on a page that is nowhere = %s", got)
 	}
+	// 読めないページのあるブックにも、ページを足せる
+	page := `{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/drawing:drawing","title":"p"},"on":{"book":"f1"}}`
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", page, ai); !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("page-add to a book with an unreadable page = %s", got)
+	}
 	if got := link(t, s, "../../test/added-plugins/ex2"); got != `{"id":"ex2","ok":true}` {
 		t.Fatalf("link again = %s", got)
 	}
-	if got := problem(); got != "" {
-		t.Fatalf("after linking again = %q", got)
+	if problem, warning := head("f1"); problem != "" || warning != "" {
+		t.Fatalf("after linking again = %q %q", problem, warning)
 	}
 	if _, got := send(t, "POST", s.URL+"/api/plugins/remove", `{"id":"ex2"}`, ai); got != `{"ok":true}` {
 		t.Fatalf("unlink = %s", got)
 	}
-	if got := problem(); !strings.HasPrefix(got, "W004 ex2:") {
-		t.Fatalf("after unlinking again = %q", got)
+	if _, warning := head("f1"); warning != unreadablePages {
+		t.Fatalf("after unlinking again = %q", warning)
+	}
+	if got := lock("p1"); got != `{"code":"W027","ok":false,"reason":"unreadable"}` {
+		t.Fatalf("perform on an unreadable page after unlinking again = %s", got)
+	}
+	// 形の壊れたブックは、ブックごと読めない（一覧に理由が付き、アクションはその理由で断る）
+	if code, body := send(t, "PUT", s.URL+"/api/books-for-test/z1", `{"book":{"id":"z1","title":"Z","lineup":"no"},"base":0}`, nil); code != 200 {
+		t.Fatalf("put = %d %s", code, body)
+	}
+	if problem, _ := head("z1"); !strings.HasPrefix(problem, "W005 ") {
+		t.Fatalf("a broken book = %q", problem)
+	}
+	add := `{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/drawing:drawing","title":"p"},"on":{"book":"z1"}}`
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", add, ai); !strings.HasPrefix(got, `{"detail":"W005 `) || !strings.HasSuffix(got, `"ok":false,"reason":"unreadable"}`) {
+		t.Fatalf("perform on an unreadable book = %s", got)
 	}
 }
 

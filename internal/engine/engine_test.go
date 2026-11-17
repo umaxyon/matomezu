@@ -532,20 +532,33 @@ func TestWarningLinesUseTheTable(t *testing.T) {
 	}
 }
 
+// ブックごと読めないのは、ブックの形が壊れた物（W005）だけ。タイプの無いページ（W027）は読めるブックの中の読めないページで、warning にそのページの id が付く
 func TestCheckBooksSaysWhetherABookIsUnreadable(t *testing.T) {
 	e := newEngine(t)
-	noType := json.RawMessage(`{"id":"x1","title":"S","lineup":[{"kind":"page","id":"p1","type":"@foo/stamps:board","title":"P","paper":"@matomezu/base:a4","orientation":"landscape"}]}`)
-	star := json.RawMessage(`{"id":"y1","title":"T","lineup":[{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[{"id":"s","item":"@foo/stars:star","x":1,"y":1,"props":{}}]}]}`)
-	found, err := e.CheckBooks([]json.RawMessage{noType, star})
+	noType := json.RawMessage(`{"id":"x1","title":"S","lineup":[{"kind":"page","id":"p1","type":"@foo/stamps:board","title":"P","paper":"@matomezu/base:a4","orientation":"landscape"},{"kind":"page","id":"p3","type":"@matomezu/drawing:drawing","title":"Q","paper":"@matomezu/base:a4","orientation":"landscape","items":[]}]}`)
+	star := json.RawMessage(`{"id":"y1","title":"T","lineup":[{"kind":"page","id":"p2","type":"@matomezu/drawing:drawing","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[{"id":"s","item":"@foo/stars:star","x":1,"y":1,"props":{}}]}]}`)
+	broken := json.RawMessage(`{"id":"z1","title":"U","lineup":"no"}`)
+	found, err := e.CheckBooks([]json.RawMessage{noType, star, broken})
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := map[string]bool{}
+	got := map[string]BookWarning{}
 	for _, n := range found {
-		got[n.Code] = n.Unreadable
+		n.Warning = ""
+		got[n.Code] = n
 	}
-	if len(got) != 2 || !got["W004"] || got["W007"] {
+	want := map[string]BookWarning{
+		"W027": {Book: "x1", Code: "W027", Page: "p1"},
+		"W007": {Book: "y1", Code: "W007"},
+		"W005": {Book: "z1", Code: "W005", Unreadable: true},
+	}
+	if len(got) != len(want) {
 		t.Fatalf("CheckBooks = %+v", found)
+	}
+	for code, w := range want {
+		if got[code] != w {
+			t.Fatalf("CheckBooks = %+v; want %+v", found, w)
+		}
 	}
 }
 

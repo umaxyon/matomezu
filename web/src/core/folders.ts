@@ -6,7 +6,7 @@
 import { applyPatch, type Patch } from "./patch"
 import { REMOVED } from "./records"
 import { sameData } from "./same"
-import type { AnyPage, BinderEntry, Book, LineupEntry } from "./schema/book"
+import type { AnyPage, BinderEntry, Book, LineupEntry, UnreadableEntry } from "./schema/book"
 
 // フォルダが持つエントリ 1 つ: ページかバインダの id
 export interface PageRef {
@@ -31,7 +31,10 @@ export interface BinderFolder {
 }
 export type Folder = BookFolder | BinderFolder
 
-export type Pages = Readonly<Record<string, AnyPage>>
+// ページの表の 1 行: ページか、読めないページ（今の機能台帳では読めないページ。id・名前・理由の番号だけで、残したデータは置き場所に残る。
+// フォルダのエントリは、どちらも kind が "page" の id で指す）
+export type PageRow = AnyPage | UnreadableEntry
+export type Pages = Readonly<Record<string, PageRow>>
 export type Folders = Readonly<Record<string, Folder>>
 // ページの表とフォルダの表
 export interface Tables {
@@ -41,7 +44,7 @@ export interface Tables {
 
 // 1 回のアクションが変えたページとフォルダ（id → 新しい値。無くなった物は removed）
 export interface TableChanges {
-  pages: Readonly<Record<string, AnyPage | typeof REMOVED>>
+  pages: Readonly<Record<string, PageRow | typeof REMOVED>>
   folders: Readonly<Record<string, Folder | typeof REMOVED>>
 }
 export const NO_CHANGES: TableChanges = { pages: {}, folders: {} }
@@ -49,10 +52,10 @@ export const NO_CHANGES: TableChanges = { pages: {}, folders: {} }
 const ref = (e: { id: string }): PageRef => ({ kind: "page", id: e.id })
 
 // 分けた物の覚え: 同じブックは、同じフォルダの値に分ける（分けて組み直すと、元のブックの値に戻る。読み直しのたびに、変わっていないブックを作り直さない）
-const recordsKept = new WeakMap<Book, { folders: Folder[]; pages: AnyPage[] }>()
+const recordsKept = new WeakMap<Book, { folders: Folder[]; pages: PageRow[] }>()
 
 // ブック book を、フォルダ（ブックのフォルダと、その下のバインダ）とページに分けた物
-export function recordsOf(book: Book): { folders: Folder[]; pages: AnyPage[] } {
+export function recordsOf(book: Book): { folders: Folder[]; pages: PageRow[] } {
   const kept = recordsKept.get(book)
   if (kept) return kept
   const made = split(book)
@@ -60,13 +63,13 @@ export function recordsOf(book: Book): { folders: Folder[]; pages: AnyPage[] } {
   return made
 }
 
-function split(book: Book): { folders: Folder[]; pages: AnyPage[] } {
+function split(book: Book): { folders: Folder[]; pages: PageRow[] } {
   const { lineup, ...fields } = book
   const binders = lineup.flatMap(e => (e.kind === "binder" ? [e] : []))
   const own: BookFolder = {
     ...fields,
     folderRole: "book",
-    lineup: lineup.map((e): EntryRef => (e.kind === "page" ? ref(e) : { kind: "binder", id: e.id })),
+    lineup: lineup.map((e): EntryRef => (e.kind === "binder" ? { kind: "binder", id: e.id } : ref(e))),
   } as BookFolder
   // 分けたフォルダから組み直すと、元のブックとバインダの値になるよう覚えておく
   bookKept.set(own, { parts: lineup, made: book })
@@ -85,13 +88,13 @@ function split(book: Book): { folders: Folder[]; pages: AnyPage[] } {
         return folder
       }),
     ],
-    pages: lineup.flatMap(e => (e.kind === "page" ? [e] : e.lineup)),
+    pages: lineup.flatMap((e): readonly PageRow[] => (e.kind === "binder" ? e.lineup : [e])),
   }
 }
 
 // ブックの並び books を、ページの表とフォルダの表にした物
 export function tablesOf(books: readonly Book[]): Tables {
-  const pages: Record<string, AnyPage> = {}
+  const pages: Record<string, PageRow> = {}
   const folders: Record<string, Folder> = {}
   for (const book of books) {
     const records = recordsOf(book)
@@ -122,7 +125,7 @@ function binderOf(pages: Pages, folder: BinderFolder): BinderEntry | undefined {
     id: folder.id,
     title: folder.title,
     pageType: folder.pageType,
-    lineup: parts as AnyPage[],
+    lineup: parts as PageRow[],
   }
   binderKept.set(folder, { parts, made })
   return made

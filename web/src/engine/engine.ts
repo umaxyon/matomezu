@@ -136,7 +136,7 @@ type Output =
       notice?: string
       aiEditTickets?: readonly AIEditTicketChange[]
     }
-  | { ok: false; reason: string; permission?: string; detail?: string }
+  | { ok: false; reason: string; permission?: string; detail?: string; page?: string; code?: string } // page と code は、読めないページの断り（unreadable）のとき
 
 // 変わったページ・フォルダ 1 つ（row は新しい値。無くなったなら removed が true で、row は無い）
 interface RowChange {
@@ -160,6 +160,7 @@ const AI_REFUSALS: Record<Exclude<PerformedIn, { ok: true }>["reason"], string> 
   "no-book": "there is no book with that id (see list_books)",
   "no-page": "there is no page with that id (on.page is the id of a page; read_book lists a book's pages)",
   "no-record": "there is no record with that id (on.record is the id of a record of the action's subject)",
+  unreadable: "that page cannot be read now (code is the reason); nothing can be done to it",
 }
 
 // 断りに、AI への説明を添える
@@ -184,6 +185,9 @@ function refusal(catalog: CoreCatalog, done: Exclude<PerformedIn, { ok: true }>)
     return { ok: false, reason: done.reason, detail }
   }
   if ("detail" in done && done.detail !== undefined) return { ok: false, reason: done.reason, detail: done.detail }
+  // 読めないページの断りは、そのページの id と理由の番号を添える（常駐は AI に番号だけを返す）
+  if (done.reason === "unreadable")
+    return { ok: false, reason: done.reason, page: done.page, code: done.code, detail: AI_REFUSALS.unreadable }
   return { ok: false, reason: done.reason, detail: AI_REFUSALS[done.reason] }
 }
 
@@ -416,8 +420,8 @@ function aiTables(of: Assembled) {
 ;(globalThis as { matomezuReadSettings?: (settings: string) => string }).matomezuReadSettings = settings =>
   JSON.stringify(aiSettings(assembled.catalog.core, restoreSettings(JSON.parse(settings))))
 
-// 残したブックを今の機能台帳で確かめ、warning のあるブック（読めない W004〜W006・一部に無い物がある W007）の id・番号・warning の 1 行と、
-// 読めないか（unreadable）を返す（常駐が一覧に持つ）
+// 残したブックを今の機能台帳で確かめ、warning のあるブック（ブックごと読めない W005・W006、読めないページがある W027〜W029、一部に無い物がある W007）の
+// id・番号・warning の 1 行と、ブックごと読めないか（unreadable）を返す（常駐が一覧に持つ）。読めないページの warning には、そのページの id（page）を添える
 ;(globalThis as { matomezuCheckBooks?: (books: string) => string }).matomezuCheckBooks = books => {
   const { warnings, partial } = checkBooks(assembled.catalog.core, JSON.parse(books) as unknown[])
   return JSON.stringify(
@@ -426,6 +430,7 @@ function aiTables(of: Assembled) {
       code: n.code,
       warning: warningText(n),
       unreadable,
+      ...(n.params.page === undefined ? {} : { page: n.params.page }),
     })),
   )
 }

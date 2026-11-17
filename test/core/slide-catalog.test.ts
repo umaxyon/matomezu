@@ -1,4 +1,4 @@
-// ページの slide（形だけの並び）の土台の扱い: 台帳アセンブルの誤り（E042・E043）、読み込み（W005・W007）、置けるアイテムの一本化（attach・テーマキー・ツールボックス）
+// ページの slide（形だけの並び）の土台の扱い: 台帳アセンブルの誤り（E042・E043）、読み込み（W007・W028）、置けるアイテムの一本化（attach・テーマキー・ツールボックス）
 
 import { expect, test } from "bun:test"
 import { checkBooks } from "../../web/src/core/book"
@@ -27,7 +27,7 @@ test("slide に置けるのは形だけ（E042）", () => {
   expect(checkCoreCatalog(parts(withLine)).map(p => p.code)).toContain("E042")
 })
 
-test("slide のアイテムは、機能台帳に無ければ W007 で残し、allowed に無い形は読めない（W005）", () => {
+test("slide のアイテムは、機能台帳に無ければ W007 で残し、allowed に無い形を持つページは形に合わない読めないページ（W028。バインダの中に残る）", () => {
   const text = { id: "t", item: TEXT, x: 0, y: 0, w: 100, h: 40, props: { text: "a" } }
   const star = { id: "s", item: "@foo/stars:star", x: 0, y: 0, props: {} }
   expect(checkCoreCatalog(BUILTIN_PARTS)).toEqual([])
@@ -37,7 +37,12 @@ test("slide のアイテムは、機能台帳に無ければ W007 で残し、al
     "W007 @foo/stars: book s1 (S): it has @foo/stars:star, not in the catalog (kept as they are)",
   ])
   const box = { id: "b", item: "@matomezu/box:shape-nest-box", x: 0, y: 0, props: {} }
-  expect(checkBooks(CORE_CATALOG, [bookWith([box])]).warnings.map(w => w.code)).toEqual(["W005"])
+  const misfit = checkBooks(CORE_CATALOG, [bookWith([box])])
+  expect(misfit.warnings).toEqual([])
+  expect(misfit.partial.map(w => w.code)).toEqual(["W028"])
+  expect(misfit.books[0]?.lineup).toEqual([
+    testBinder("s1-slides", "S", SLIDE, { kind: "unreadable", id: "p1", title: "P", code: "W028" } as never),
+  ])
 })
 
 test("置けるアイテムは items.allowed と slide.allowed の合わせ: アクションの attach・テーマキー・ツールボックスが同じ物を見る", () => {

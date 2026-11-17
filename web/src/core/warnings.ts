@@ -27,6 +27,9 @@ export const WARNINGS = {
   W024: "record {id} is a {subject}, which is not in the catalog (kept as it is, not used)",
   W025: "record {id} does not fit {subject} (kept as it is, not used)",
   W026: "enum value {id}: its enum {enum} is not in the catalog (not used)",
+  W027: "book {book} ({title}): page {page} is of type {type}, which is not in the catalog (kept as it is, not readable)",
+  W028: "book {book} ({title}): page {page} does not fit the shape of its type (kept as it is, not readable)",
+  W029: "book {book} ({title}): page {page} breaks the rules of its type (kept as it is, not readable)",
 } as const
 
 export type WarningCode = keyof typeof WARNINGS

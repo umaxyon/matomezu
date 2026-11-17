@@ -10,7 +10,7 @@
 //	POST /api/plugins        {"dir"} 開発者プロジェクトのフォルダの追加プラグインを足す（同じ id なら入れ替える）。{"ok", "id"} か {"ok": false, "reason"}  … 要合言葉
 //	POST /api/plugins/remove {"id"} 追加プラグインを外す。{"ok"} か {"ok": false, "reason"}                     … 要合言葉
 //	GET  /api/events      SSE。世界の変わり目の知らせ（hub.go）                                    … 画面から
-//	POST /api/perform     {"action", "args", "on", "lang", "ids", "now", "client", "seq", "key"} アクションを行い、{"ok", "reason", "permission", "detail", "result", "notice"}（ok 以外は無ければ省く）を返す。
+//	POST /api/perform     {"action", "args", "on", "lang", "ids", "now", "client", "seq", "key"} アクションを行い、{"ok", "reason", "permission", "detail", "result", "notice"}（ok 以外は無ければ省く）を返す。読めないページで断ったら code に理由の warning の番号。
 //	                      変わったものは /api/events で知らせる                                     … 画面から
 //	POST /api/warnings     {"client", "warnings": [{"code", "plugin", "params"}]} 窓が見つけた warning（その窓の分を入れ替える）。常駐が集めてログと、MCP 公開ツールの actions が返す物に出す
 //	POST /api/log         {"client", "lines": [{"at", "text"}]} 窓が書き残した事（つながりが切れた・読み直せなかったなど。at は窓の時刻）。常駐のログに出す  … 画面から
@@ -25,7 +25,7 @@
 //	                      コントロールセンターを前に出している窓は {"front": "control-center", "hidden": {後ろに隠れているブックスクリーンの book, page, selection, awaiting など}}）
 //	GET  /api/ai/books  {"books": [{"id", "type", "title", "version", "awaiting"}]}（awaiting は AI の応えを待つアノテーションの数）
 //	GET  /api/ai/books/{id}  {"id", "book", "version", "annotations", "placed"}（?outline=1 ならページの目次。ai_outline.go）
-//	GET  /api/ai/pages/{page}  {"book", "page", "version", "annotations", "placed"}（book はそのページを持っているブックの id、version はそのページの版、annotations はそのページの物に立つもの。?outline=1 でページの中の物の目次、?item=id でその物だけ。ai_outline.go）
+//	GET  /api/ai/pages/{page}  {"book", "page", "version", "annotations", "placed"}（book はそのページを持っているブックの id、version はそのページの版、annotations はそのページの物に立つもの。?outline=1 でページの中の物の目次、?item=id でその物だけ。ai_outline.go）。読めないページは {"ok": false, "reason": "unreadable", "code"}（code は読めない理由の warning の番号）
 //	GET  /api/ai/records?kind=K[&id=ID | &ids=a&ids=b | &where.key=value&is.key=absent&limit=N&before=ID]  AI に見せる種類（対象の定義の aiBrief）のレコード（ai_records.go）。
 //	                      id はその 1 件の全文、ids は何件かの全文、どちらも無ければ一覧（索引キーで探す種類は {"kind","records","total","older"}）
 //	GET  /api/ai/awaiting    {"awaiting": [{"book", "title", "annotation", "brief"}], "undone": [{"book", "title", "at", "lost"}], "failed": [{"book", "title", "key", "changed"}], "removed": [{"book", "title", "key", "cause"}]}
@@ -40,7 +40,7 @@
 //	POST /api/ai/model       {"sessionId", "model", "host"} AI のフックがセッションのモデルを知らせる（model.go）。{} を返す
 //	GET  /api/ai/settings    AI が読む利用者の設定（項目の id → 値。engine.AISettings）
 //	GET  /api/ai/catalog?ids=a&ids=b  MCP 公開ツールの actions が返す物。ids が無ければ {"version", "index", "warnings"}（一覧の版と目次。warnings は今あるときだけ）、あれば ids の物の全文 {"version", 表の名前: [全文]..., "unknown"}
-//	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "permission", "detail", "result", "notice"}（ok 以外は無ければ省く）を返す
+//	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "permission", "detail", "result", "notice"}（ok 以外は無ければ省く）を返す。宛先か動かす物が読めないページなら {"ok": false, "reason": "unreadable", "code"}（理由の文は添えない）
 //	POST /api/ai/join        {"ai", "model", "env", "sessionName", "link", "sessionId"} 参加を頼む（参加者を作り、利用者に知らせる郵便を送る）。{"ok", "participant"} か弾いた理由（join.go）
 //	POST /api/ai/message     {"to", "text"} AI 間メッセージを、ワークルーム to の参加者に送る（受け取られるまで常駐が持つ）。{"ok", "queued"} か断った理由（message.go）
 //	POST /api/ai/show        {"book", "page", "stage", "split"} 最後にフォーカスされた窓にブックを出す（Hub.Show）。
@@ -458,6 +458,10 @@ func (o Options) aiView(w http.ResponseWriter, _ *http.Request) {
 func (o Options) aiBooks(w http.ResponseWriter, r *http.Request) {
 	books := o.Hub.AIBooks()
 	warnings := o.Hub.BookWarnings()
+	hasUnreadable := map[string]bool{} // 読めないページを持つブック
+	for _, n := range o.Hub.PageWarnings() {
+		hasUnreadable[n.Book] = true
+	}
 	annotations, err := o.Hub.AIAnnotations(nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -468,7 +472,7 @@ func (o Options) aiBooks(w http.ResponseWriter, r *http.Request) {
 		Title   string `json:"title"`
 		Version int64  `json:"version"`
 		Problem string `json:"problem,omitempty"`  // 読めないブックの理由（warning の 1 行。開けず、アクションも行えない）
-		Warning string `json:"warning,omitempty"`  // 読めるが、機能台帳に無いアイテムや設定の項目を持つ（そのまま残っている）
+		Warning string `json:"warning,omitempty"`  // 読めるが、機能台帳に無いアイテムや設定の項目（W007 の 1 行）か、読めないページ（unreadablePages）を持つ（そのまま残っている）
 		Awaits  int    `json:"awaiting,omitempty"` // AI の応えを待つアノテーションの数
 	}
 	heads := make([]head, 0, len(books))
@@ -480,6 +484,8 @@ func (o Options) aiBooks(w http.ResponseWriter, r *http.Request) {
 			h.Problem = n.Warning
 		} else if ok {
 			h.Warning = n.Warning
+		} else if hasUnreadable[b.ID] {
+			h.Warning = unreadablePages
 		}
 		heads = append(heads, h)
 	}
@@ -498,7 +504,7 @@ func (o Options) aiBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.URL.Query().Get("outline") != "" {
-		writeJSON(w, map[string]any{"id": b.ID, "book": outlineBook(b.Body, o.Hub.PageVersion), "version": b.Version, "annotations": list})
+		writeJSON(w, map[string]any{"id": b.ID, "book": outlineBook(b.Body, o.Hub.PageVersion, o.Hub.UnreadablePage), "version": b.Version, "annotations": list})
 		return
 	}
 	placed, err := o.Hub.AIPlaced(b.Body)
@@ -519,9 +525,21 @@ func (o Options) aiPerform(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &p) {
 		return
 	}
+	// 宛先が読めないページなら、エンジンに渡さずに断る（ゴミ箱のブックのページは、無いページとしてエンジンが断る）
+	if p.On != nil && p.On.Page != "" && o.Hub.BookOn(p.On) != "" {
+		if code, ok := o.Hub.UnreadablePage(p.On.Page); ok {
+			writeUnreadable(w, code)
+			return
+		}
+	}
 	done, err := o.Hub.Perform(Perform{Action: p.Action, Args: p.Args, On: p.On, By: "ai", Workroom: o.Hub.WorkroomOf(r.Header.Get(ParticipantHeader)), TimeoutSec: p.TimeoutSec})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	// エンジンが読めないページで断った（読めないページを動かす・消すなど）なら、理由の番号だけを返す
+	if !done.OK && done.Reason == "unreadable" && done.Code != "" {
+		writeUnreadable(w, done.Code)
 		return
 	}
 	// 読めないブック（保存はあるが今のプラグインで読めない）は「無い」でなく、その理由で断る
@@ -561,6 +579,14 @@ func (o Options) aiShow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]any{"ok": true, "opened": opened})
+}
+
+// unreadablePages は、AI のブックの一覧で、読めないページを持つブックに付ける warning（機能台帳に無い物の W007 の 1 行が無いとき）
+const unreadablePages = "it has pages that cannot be read (see read_book)"
+
+// writeUnreadable は、読めないページへの読み・アクションを断る答え（理由の warning の番号 code だけ。理由の文は AI のコンテキストを食うので添えない）
+func writeUnreadable(w http.ResponseWriter, code string) {
+	writeJSON(w, map[string]any{"ok": false, "reason": "unreadable", "code": code})
 }
 
 // readJSON は本文を v に読む。読めなければ 400 を返して false

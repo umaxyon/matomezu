@@ -34,6 +34,7 @@ func (h *Hub) trashesShown(ids []string) bool {
 func (h *Hub) dropBook(id string) {
 	delete(h.books, id)
 	delete(h.bookWarnings, id)
+	h.dropPageWarnings(id)
 	delete(h.touched, id)
 	h.order = slices.DeleteFunc(h.order, func(x string) bool { return x == id })
 }
