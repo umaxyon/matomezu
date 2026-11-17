@@ -75,14 +75,14 @@ func drained(c *client) []event {
 }
 
 // step は、アクションバルクの中のアクション 1 つ
-func step(action, args string, on *engine.On, ids ...string) engine.Step {
-	return engine.Step{Action: action, Args: json.RawMessage(args), On: on, Lang: "ja", IDs: ids}
+func step(action, args string, on *engine.On, ids ...string) engine.BulkAction {
+	return engine.BulkAction{Action: action, Args: json.RawMessage(args), On: on, Lang: "ja", IDs: ids}
 }
 
 // ページの物を変え、郵便（レコード）を送り、設定を変えるバルクは、1 回の書き込みで、窓への知らせは changed 1 つ（settings・records も載る）と ack
 func TestABulkIsOneWriteAndOneChanged(t *testing.T) {
 	hub, store, c := bulkHub(t)
-	done, err := hub.Perform(Perform{Actions: []engine.Step{
+	done, err := hub.Perform(Perform{Actions: []engine.BulkAction{
 		step("@matomezu/paper:item-place", `{"item":"@matomezu/box:shape-nest-box","at":{"x":1,"y":2}}`, &engine.On{Page: "p1"}, "k1"),
 		step("@matomezu/base:mail-send", `{"from":"x","title":"t"}`, nil),
 		step("@matomezu/base:settings-set", `{"values":{"@matomezu/base:skin":"@matomezu/base:dark"}}`, nil),
@@ -120,7 +120,7 @@ func TestABulkIsOneWriteAndOneChanged(t *testing.T) {
 // バルクの 2 つ目のアクションが断られたら、1 つ目の分も書かず、窓には changed を送らず ack（ok が false）だけ
 func TestABulkRefusedAtTheSecondActionChangesNothing(t *testing.T) {
 	hub, store, c := bulkHub(t)
-	done, err := hub.Perform(Perform{Actions: []engine.Step{
+	done, err := hub.Perform(Perform{Actions: []engine.BulkAction{
 		step("@matomezu/paper:item-place", `{"item":"@matomezu/box:shape-nest-box","at":{"x":1,"y":2}}`, &engine.On{Page: "p1"}, "k1"),
 		step("@matomezu/paper:item-update", `{"item":"gone","props":{}}`, &engine.On{Page: "p1"}),
 	}, Client: c.id, Seq: 1})
@@ -138,7 +138,7 @@ func TestABulkRefusedAtTheSecondActionChangesNothing(t *testing.T) {
 // 同じ番号（Key）のバルクは二度行わない: 前の結果を返し、書かず、ack だけを送る
 func TestABulkKeyIsPerformedOnce(t *testing.T) {
 	hub, store, c := bulkHub(t)
-	bulk := Perform{Actions: []engine.Step{
+	bulk := Perform{Actions: []engine.BulkAction{
 		step("@matomezu/paper:item-place", `{"item":"@matomezu/box:shape-nest-box","at":{"x":1,"y":2}}`, &engine.On{Page: "p1"}, "k1"),
 		step("@matomezu/paper:item-place", `{"item":"@matomezu/box:shape-nest-box","at":{"x":100,"y":2}}`, &engine.On{Page: "p1"}, "k2"),
 	}, Client: c.id, Seq: 1, Key: "x1"}
@@ -159,7 +159,7 @@ func TestABulkKeyIsPerformedOnce(t *testing.T) {
 // 前のアクションが足したページを宛先にしたアクションも通る（置き場所に無いページが宛先なら、エンジンに全部のブックを渡す）
 func TestABulkActsOnAPageItAdded(t *testing.T) {
 	hub, _, c := bulkHub(t)
-	done, err := hub.Perform(Perform{Actions: []engine.Step{
+	done, err := hub.Perform(Perform{Actions: []engine.BulkAction{
 		step("@matomezu/base:page-add", `{"type":"@matomezu/drawing:drawing","title":"追加"}`, &engine.On{Book: "b1"}, "p2"),
 		step("@matomezu/paper:item-place", `{"item":"@matomezu/box:shape-nest-box","at":{"x":1,"y":2}}`, &engine.On{Page: "p2"}, "k1"),
 	}, Client: c.id, Seq: 1})
@@ -219,7 +219,7 @@ func TestPerformChangesNothingWhenTheWriteFails(t *testing.T) {
 	<-c.ch // hello
 
 	do := func() (Performed, error) {
-		return hub.Perform(Perform{Actions: []engine.Step{{Action: "@matomezu/base:page-add", Args: json.RawMessage(`{"type":"@matomezu/drawing:drawing","title":"追加"}`), On: &engine.On{Book: "b1"}}}, Client: c.id, Seq: 1, Key: "k1"})
+		return hub.Perform(Perform{Actions: []engine.BulkAction{{Action: "@matomezu/base:page-add", Args: json.RawMessage(`{"type":"@matomezu/drawing:drawing","title":"追加"}`), On: &engine.On{Book: "b1"}}}, Client: c.id, Seq: 1, Key: "k1"})
 	}
 	if _, err := do(); err == nil || !strings.Contains(err.Error(), "refused") {
 		t.Fatalf("perform = %v; want the refused error", err)
@@ -287,7 +287,7 @@ func TestRevertOfTwoBooksIsOneWrite(t *testing.T) {
 	do := func(action, args string, on *engine.On) Performed {
 		t.Helper()
 		seq++
-		done, err := hub.Perform(Perform{Actions: []engine.Step{{Action: action, Args: json.RawMessage(args), On: on}}, Client: c.id, Seq: seq})
+		done, err := hub.Perform(Perform{Actions: []engine.BulkAction{{Action: action, Args: json.RawMessage(args), On: on}}, Client: c.id, Seq: seq})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -366,7 +366,7 @@ func TestABulkActsOnARecordItAdded(t *testing.T) {
 	for id := range records["@matomezu/taskboard:project"] {
 		project = id
 	}
-	done, err := hub.Perform(Perform{Actions: []engine.Step{
+	done, err := hub.Perform(Perform{Actions: []engine.BulkAction{
 		step("@matomezu/taskboard:ticket-add", `{"project":"`+project+`","name":"widget"}`, nil, "t1"),
 		step("@matomezu/taskboard:ticket-complete", `{}`, &engine.On{Record: "t1"}, "h1"),
 	}, Client: c.id, Seq: 1})
@@ -385,10 +385,10 @@ func TestBulkInputsAreTheUnionOfTheActions(t *testing.T) {
 	hub, _, _ := bulkHub(t, other)
 	hub.mu.Lock()
 	defer hub.mu.Unlock()
-	update := func(page string) engine.Step {
+	update := func(page string) engine.BulkAction {
 		return step("@matomezu/base:page-update", `{"title":"x"}`, &engine.On{Page: page})
 	}
-	folders := func(steps ...engine.Step) []string {
+	folders := func(steps ...engine.BulkAction) []string {
 		t.Helper()
 		in := engine.Input{Actions: steps}
 		if err := hub.performInputs(&in); err != nil {
@@ -413,8 +413,11 @@ func TestBulkInputsAreTheUnionOfTheActions(t *testing.T) {
 	if got := folders(added, update("p3")); !slices.Equal(got, []string{"b1", "b2"}) {
 		t.Fatalf("a page the bulk adds = %v", got)
 	}
+	if got := folders(update("p9"), update("p1")); !slices.Equal(got, []string{"b1"}) {
+		t.Fatalf("a page that is nowhere, at the first action = %v", got)
+	}
 	hub.recordTables[mailKind] = map[string]recordEntry{"m1": {json.RawMessage(`{"id":"m1"}`), 1}, "m2": {json.RawMessage(`{"id":"m2"}`), 1}}
-	in := engine.Input{Actions: []engine.Step{
+	in := engine.Input{Actions: []engine.BulkAction{
 		step("@matomezu/base:mail-seen", `{}`, &engine.On{Record: "m1"}),
 		step("@matomezu/base:mail-seen", `{}`, &engine.On{Record: "m2"}),
 	}}
@@ -423,5 +426,52 @@ func TestBulkInputsAreTheUnionOfTheActions(t *testing.T) {
 	}
 	if len(in.Records[mailKind]) != 2 || in.Records[mailKind]["m1"] == nil || in.Records[mailKind]["m2"] == nil {
 		t.Fatalf("records = %v", in.Records)
+	}
+}
+
+// ゴミ箱のブックのページを宛先にしたアクションは、それだけのバルクでも、宛先の無いアクションと混ぜたバルクでも、同じ no-page で断られ、何も書かれない
+func TestABulkOnATrashedPageIsRefusedAlike(t *testing.T) {
+	hub, store, c := bulkHub(t)
+	if done, err := hub.Perform(Perform{Actions: []engine.BulkAction{step("@matomezu/base:book-trash", `{"book":"b1"}`, nil)}}); err != nil || !done.OK {
+		t.Fatalf("book-trash = %+v, %v", done, err)
+	}
+	drained(c)
+	store.applied = 0
+	update := step("@matomezu/base:page-update", `{"title":"x"}`, &engine.On{Page: "p1"})
+	settings := step("@matomezu/base:settings-set", `{"values":{"@matomezu/base:skin":"@matomezu/base:dark"}}`, nil)
+	for name, actions := range map[string][]engine.BulkAction{"alone": {update}, "after settings-set": {settings, update}} {
+		done, err := hub.Perform(Perform{Actions: actions, Client: c.id, Seq: 1})
+		if err != nil || done.OK || done.Reason != "no-page" {
+			t.Errorf("%s = %+v, %v; want no-page", name, done, err)
+		}
+		if got := drained(c); len(got) != 1 || got[0].name != "ack" {
+			t.Errorf("%s: events = %v", name, got)
+		}
+	}
+	if store.applied != 0 {
+		t.Fatalf("writes = %d; want 0", store.applied)
+	}
+}
+
+// エンジンの返した物に、同じページ・フォルダ・レコードが 2 つあれば、書く前に、それを名指す error で止める
+func TestPlanWritesStopsOnARepeatedChange(t *testing.T) {
+	hub, _, _ := bulkHub(t)
+	hub.mu.Lock()
+	defer hub.mu.Unlock()
+	row := json.RawMessage(`{}`)
+	cases := map[string]engine.Output{
+		"pages p1":       {OK: true, Pages: []engine.RowChange{{ID: "p1", Row: row}, {ID: "p1", Row: row}}},
+		"folders b1":     {OK: true, Folders: []engine.RowChange{{ID: "b1", Row: row}, {ID: "b1", Removed: true}}},
+		"record ex:a r1": {OK: true, Records: []engine.RecordChange{{Subject: "ex:a", ID: "r1", Record: row}, {Subject: "ex:a", ID: "r1", Record: row}}},
+	}
+	for want, out := range cases {
+		if plan, err := hub.planWrites(out, "window", "", "t"); err == nil || plan != nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%s: plan = %v, %v", want, plan, err)
+		}
+	}
+	// 種類の違う同じ id は別のレコード
+	other := engine.Output{OK: true, Records: []engine.RecordChange{{Subject: "ex:a", ID: "r1", Record: row}, {Subject: "ex:b", ID: "r1", Record: row}}}
+	if _, err := hub.planWrites(other, "window", "", "t"); err != nil {
+		t.Fatalf("two subjects = %v", err)
 	}
 }

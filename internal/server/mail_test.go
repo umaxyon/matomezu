@@ -96,7 +96,7 @@ func TestUnknownMailIsAWarning(t *testing.T) {
 		t.Fatalf("warnings = %s, records = %v", got, records)
 	}
 	// 書くたびに確かめ直すのは変えたレコードだけ。ほかの郵便が届いても、m1 の warning は残る
-	if done, err := h.Perform(Perform{Actions: []engine.Step{{Action: "@matomezu/base:mail-send", Args: json.RawMessage(`{"from":"x","title":"t"}`)}}}); err != nil || !done.OK {
+	if done, err := h.Perform(Perform{Actions: []engine.BulkAction{{Action: "@matomezu/base:mail-send", Args: json.RawMessage(`{"from":"x","title":"t"}`)}}}); err != nil || !done.OK {
 		t.Fatalf("mail-send = %+v, %v", done, err)
 	}
 	if got := strings.Join(h.Warnings(), "\n"); strings.Count(got, "W022") != 1 || !strings.Contains(got, "mail m1") {
@@ -136,7 +136,7 @@ func TestMailLimitDropsTheOldestInOneAction(t *testing.T) {
 	c := h.Join()
 	<-c.ch // hello
 	h.SetView(c.id, json.RawMessage(window), nil, nil, true, 1)
-	done, err := h.Perform(Perform{Actions: []engine.Step{{Action: "@matomezu/base:mail-send", Args: json.RawMessage(`{"from":"x","title":"new"}`)}}, Client: c.id, Seq: 1})
+	done, err := h.Perform(Perform{Actions: []engine.BulkAction{{Action: "@matomezu/base:mail-send", Args: json.RawMessage(`{"from":"x","title":"new"}`)}}, Client: c.id, Seq: 1})
 	var sent struct{ Mail string }
 	if err != nil || !done.OK || json.Unmarshal(done.Result, &sent) != nil || sent.Mail == "" {
 		t.Fatalf("mail-send = %+v, %v", done, err)
@@ -243,7 +243,7 @@ func TestProposalSendOpensAndRemovesTicketsInOneWrite(t *testing.T) {
 		t.Fatal(err)
 	}
 	change := `[{"action":"@matomezu/paper:item-update","args":{"item":"a","props":{"caption":"AI"}},"on":{"page":"p1"}}]`
-	done, err := h.Perform(Perform{Actions: []engine.Step{{Action: "@matomezu/base:proposal-send", Args: json.RawMessage(`{"from":"E94","title":"名前","book":"b1","page":"p1","changes":` + change + `}`)}}})
+	done, err := h.Perform(Perform{Actions: []engine.BulkAction{{Action: "@matomezu/base:proposal-send", Args: json.RawMessage(`{"from":"E94","title":"名前","book":"b1","page":"p1","changes":` + change + `}`)}}})
 	var sent struct{ Mail string }
 	if err != nil || !done.OK || json.Unmarshal(done.Result, &sent) != nil || sent.Mail == "" {
 		t.Fatalf("proposal-send = %+v, %v", done, err)

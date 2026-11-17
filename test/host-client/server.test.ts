@@ -522,9 +522,12 @@ test("つながりが長く切れたままなら store に知らせ、つなが�
   expect(s.store.state.getState().offline).toBe(false)
 })
 
-test("設定の知らせで設定を入れ替える", async () => {
+// ページもフォルダも変えない changed（設定・アノテーション・レコードだけを載せる）
+const quiet = (more: object) => ({ pages: [], folders: [], books: [], actions: [], annotations: {}, records: [], window: "", ...more })
+
+test("changed に載った設定で設定を入れ替える", async () => {
   const { store, emit } = await connected()
-  emit("settings", { settings: { lang: "en", skin: "@matomezu/base:dark" } })
+  emit("changed", quiet({ settings: { lang: "en", skin: "@matomezu/base:dark" } }))
   expect(store.state.getState().settings).toMatchObject({ lang: "en", skin: "@matomezu/base:dark" })
 })
 
@@ -537,7 +540,7 @@ test("アノテーションの知らせで、そのページのアノテーシ�
   expect(store.state.getState().annotations).toEqual({})
 })
 
-test("レコードの知らせは、1 つのアクションが変えたレコードの全部と進めた番号を当て、添えた窓がこの窓かで最後にフォーカスされた窓かを入れる", async () => {
+test("changed に載ったレコードと進めた番号を当て、レコードが変わったときだけ、添えた窓がこの窓かで最後にフォーカスされた窓かを入れる", async () => {
   const { store, emit } = await connected()
   const MAIL = "@matomezu/base:mail"
   const mail = (id: string, order: number) => ({
@@ -548,25 +551,34 @@ test("レコードの知らせは、1 つのアクションが変えたレコー
     props: { title: id, body: "" },
     order,
   })
-  emit("record", {
-    records: [
-      { subject: MAIL, id: "m1", record: mail("m1", 1), version: 1 },
-      { subject: MAIL, id: "m2", record: mail("m2", 2), version: 1 },
-    ],
-    counters: { [MAIL]: { mail: 3 } },
-    window: "c1",
-  })
+  emit(
+    "changed",
+    quiet({
+      records: [
+        { subject: MAIL, id: "m1", record: mail("m1", 1), version: 1 },
+        { subject: MAIL, id: "m2", record: mail("m2", 2), version: 1 },
+      ],
+      counters: { [MAIL]: { mail: 3 } },
+      window: "c1",
+    }),
+  )
   expect(Object.keys(store.state.getState().records[MAIL] ?? {})).toEqual(["m1", "m2"])
   expect(store.state.getState().counters).toEqual({ [MAIL]: { mail: 3 } })
   expect(store.state.getState().lastWindow).toBe(true)
-  emit("record", {
-    records: [
-      { subject: MAIL, id: "m3", record: mail("m3", 3), version: 1 },
-      { subject: MAIL, id: "m1", record: "removed", version: 0 },
-    ],
-    counters: { [MAIL]: { mail: 4 } },
-    window: "c2",
-  })
+  // レコードの変わらない知らせは、最後にフォーカスされた窓を変えない
+  emit("changed", quiet({ settings: {}, window: "c2" }))
+  expect(store.state.getState().lastWindow).toBe(true)
+  emit(
+    "changed",
+    quiet({
+      records: [
+        { subject: MAIL, id: "m3", record: mail("m3", 3), version: 1 },
+        { subject: MAIL, id: "m1", record: "removed", version: 0 },
+      ],
+      counters: { [MAIL]: { mail: 4 } },
+      window: "c2",
+    }),
+  )
   expect(Object.keys(store.state.getState().records[MAIL] ?? {})).toEqual(["m2", "m3"])
   expect(store.state.getState().counters).toEqual({ [MAIL]: { mail: 4 } })
   expect(store.state.getState().lastWindow).toBe(false)

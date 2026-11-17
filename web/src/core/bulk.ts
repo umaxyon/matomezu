@@ -12,13 +12,37 @@ import { type Counters, REMOVED, type RecordChange, withCounters, withRecords } 
 import type { Settings } from "./settings"
 
 // バルクの中のアクション 1 つ: アクションと引数と宛先、そのアクションの id の振り方・時点・言語
-export interface BulkStep {
+export interface BulkAction {
   action: string
   args: unknown
   on?: ActionOn
   newId(): string
   now: string
   lang?: ActionContext["lang"]
+}
+
+// 送られたアクション 1 つ（行ったときに振った id の並び ids と時点 now を持つ）を、行う形にする。id が尽きたら spareId で振り、時点が無ければ now
+export function bulkActionOf(
+  sent: {
+    action: string
+    args: unknown
+    on?: ActionOn | undefined
+    ids?: readonly string[] | undefined
+    now?: string | undefined
+  },
+  spareId: () => string,
+  now: string,
+  lang?: ActionContext["lang"],
+): BulkAction {
+  const ids = [...(sent.ids ?? [])]
+  return {
+    action: sent.action,
+    args: sent.args,
+    ...(sent.on ? { on: sent.on } : {}),
+    newId: () => ids.shift() ?? spareId(),
+    now: sent.now ?? now,
+    ...(lang ? { lang } : {}),
+  }
 }
 
 type Done = Extract<PerformedIn, { ok: true }>
@@ -51,7 +75,7 @@ export type BulkCheck<R> = (i: number, before: World, after: World, done: Done) 
 // どれかが断られたら（check が断っても）、何番目か（at）と断りを返し、何も変えない
 export function performBulk<R extends { ok: false } = never>(
   world: World,
-  steps: readonly BulkStep[],
+  steps: readonly BulkAction[],
   ctx: Omit<ActionContext, "newId" | "now">,
   check?: BulkCheck<R>,
 ): PerformedBulk<R> {

@@ -6,7 +6,7 @@ import { USER } from "../core/actor"
 import { type Address, addressOf, keepPlace, placeAt } from "../core/address"
 import { type Annotations, restoreAllAnnotations, withAnnotations } from "../core/annotation"
 import { checkBooks, distinctBooks, findPage, pageById } from "../core/book"
-import { performBulk } from "../core/bulk"
+import { bulkActionOf, performBulk } from "../core/bulk"
 import type {
   ActionId,
   ControlCenterId,
@@ -1310,17 +1310,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
           try {
             return performBulk(
               { ...tables, settings, annotations, records, counters },
-              bulk.map(done => {
-                const ids = [...done.ids]
-                return {
-                  action: done.action,
-                  args: done.args,
-                  ...(done.on ? { on: done.on } : {}),
-                  lang: done.lang,
-                  newId: () => ids.shift() ?? newId(),
-                  now: done.now,
-                }
-              }),
+              bulk.map(done => bulkActionOf(done, newId, done.now, done.lang)),
               { catalog, controlCenter, lang: bulk[0]?.lang ?? getState().lang, actor: USER },
             )
           } catch {

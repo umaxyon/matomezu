@@ -17,7 +17,7 @@ import {
 } from "../core/annotation"
 import { checkBooks, findPage, pageById, pagesOf, restoreBooks, unreadableOf, warnsOf } from "../core/book"
 import { briefLine } from "../core/brief"
-import { performBulk } from "../core/bulk"
+import { bulkActionOf, performBulk } from "../core/bulk"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, type AIEditTicketChange, stopsOnEditLock } from "../core/def/action"
@@ -99,7 +99,7 @@ let lastAdded: readonly Plugin[] = []
 // 受けるもの。pages と folders は対象のアクションが要るブックのページとフォルダ（置き場所から読んだまま。一覧のアクションなら全部、レコードが対象のアクションなら readsBooks が答えたブックの分。matomezuRecordNeeds の books）、
 // ids は振る id のもと（画面で先に行ったときの値。尽きたら randomUUID）
 // アクションバルクの中のアクション 1 つ
-interface Step {
+interface WireBulkAction {
   action: string
   args: unknown
   on?: ActionOn
@@ -109,7 +109,7 @@ interface Step {
 }
 
 interface Input {
-  actions: readonly Step[] // アクションバルク（順に行い、全部通るか全部断る。AI の頼みは 1 つ）
+  actions: readonly WireBulkAction[] // アクションバルク（順に行い、全部通るか全部断る。AI の頼みは 1 つ）
   pages?: unknown[]
   folders?: unknown[]
   settings: unknown
@@ -241,17 +241,7 @@ function perform(input: Input): Output {
   const tables = tablesOf(Object.values(books))
   const world = { ...tables, settings, annotations, records, counters, ...(source ? { source } : {}) }
   const at = new Date().toISOString()
-  const steps = input.actions.map(step => {
-    const ids = [...(step.ids ?? [])]
-    return {
-      action: step.action,
-      args: step.args,
-      ...(step.on ? { on: step.on } : {}),
-      lang: langFor(step.lang),
-      newId: () => ids.shift() ?? crypto.randomUUID(),
-      now: step.now ?? at,
-    }
-  })
+  const steps = input.actions.map(a => bulkActionOf(a, () => crypto.randomUUID(), at, langFor(a.lang)))
   // AI のアクションと、利用者でも編集ロックで断るアクションは、利用者が直している物を変えも消しもしない（あとでやり直す）。バルクの中のアクションごとに見る。
   // レコードが対象のアクションは、変えるレコードのどれかを直しているなら、同じように断る（作るレコードは新しい id なので、直してはいない）
   const done = performBulk(

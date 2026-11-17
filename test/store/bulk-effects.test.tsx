@@ -1,4 +1,5 @@
-// アクションバルクと React の描き直し: クリックで行ったアクションのあと、同じクリックの描き直しの useEffect が行うアクションは、同じバルクに入るか
+// アクションバルクと React の描き直し: クリックで行ったアクションのあと、同じクリックの描き直しで useEffect が行うアクションは、
+// React が同じ同期の処理の中で走らせるので、同じアクションバルクに入る
 import { expect, test } from "bun:test"
 import { useEffect, useSyncExternalStore } from "react"
 import { flushSync } from "react-dom"
@@ -9,8 +10,11 @@ import { sizedStore } from "../support"
 
 const BOX = "@matomezu/box:shape-nest-box"
 
-test("クリックの描き直しで useEffect が行うアクションが、クリックのアクションと同じバルクに入るかを確かめる", async () => {
-  ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = false
+test("クリックの描き直しで useEffect が行うアクションは、クリックのアクションと同じバルクに入る", async () => {
+  // act で包むと効果を act が流すので、包まずにブラウザのクリックと同じ道で確かめる
+  const env = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  const was = env.IS_REACT_ACT_ENVIRONMENT
+  env.IS_REACT_ACT_ENVIRONMENT = false
   const sent: DoneBulk[] = []
   const store = sizedStore({
     observe: bulk => {
@@ -38,10 +42,14 @@ test("クリックの描き直しで useEffect が行うアクションが、ク
   const host = document.createElement("div")
   document.body.append(host)
   const root = createRoot(host)
-  flushSync(() => root.render(<View />))
-  host.querySelector("button")!.dispatchEvent(new MouseEvent("click", { bubbles: true }))
-  await new Promise(r => setTimeout(r, 20))
-  console.log("bulks:", JSON.stringify(sent.map(b => b.map(d => d.action))))
-  expect(sent.length).toBeGreaterThan(0)
-  root.unmount()
+  try {
+    flushSync(() => root.render(<View />))
+    host.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }))
+    await new Promise(r => setTimeout(r, 20))
+    expect(sent.map(b => b.map(d => d.action))).toEqual([["@matomezu/paper:item-place", "@matomezu/base:page-update"]])
+  } finally {
+    root.unmount()
+    host.remove()
+    env.IS_REACT_ACT_ENVIRONMENT = was
+  }
 })

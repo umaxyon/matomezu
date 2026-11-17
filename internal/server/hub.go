@@ -404,10 +404,10 @@ func (h *Hub) AIBooks() []Book {
 // Perform の頼み: アクションバルク（Actions を順に行い、全部通るか全部断る）。Client と Seq は送った窓とその番号（窓の外からなら空）。
 // Key は窓がバルクごとに振る一意の番号（つなぎ直しても変えない）。同じ番号のバルクは二度行わない
 type Perform struct {
-	Actions []engine.Step `json:"actions"`
-	Client  string        `json:"client,omitempty"`
-	Seq     int64         `json:"seq,omitempty"`
-	Key     string        `json:"key,omitempty"`
+	Actions []engine.BulkAction `json:"actions"`
+	Client  string              `json:"client,omitempty"`
+	Seq     int64               `json:"seq,omitempty"`
+	Key     string              `json:"key,omitempty"`
 	// TimeoutSec は、バルクを待つ秒数（省略は 5、上限 60）
 	TimeoutSec int    `json:"timeoutSec,omitempty"`
 	By         string `json:"-"` // 頼んだのが AI なら "ai"（AI の口だけが入れる。窓からは受けない）
@@ -417,7 +417,7 @@ type Perform struct {
 
 // performOne は、アクション 1 つのバルクの頼み
 func performOne(action string, args json.RawMessage, on *engine.On) Perform {
-	return Perform{Actions: []engine.Step{{Action: action, Args: args, On: on}}}
+	return Perform{Actions: []engine.BulkAction{{Action: action, Args: args, On: on}}}
 }
 
 // ErrNoActions は、アクションが 1 つも無いバルク
@@ -503,7 +503,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 
 // performInputs は、バルク in.Actions を行う前に、エンジンへ渡すページ・フォルダ・アノテーション・レコード・番号の表を in に入れる（h.mu を持って呼ぶ）。
 // アクションごとに要るブック（レコードが対象なら引数から答えた読むだけのブック、宛先があればそのブック）の和と、そのアノテーションを渡す。
-// 一覧のアクション（宛先が無く、レコードが対象でない）か、宛先が置き場所に無い（バルクの前のアクションが作ったページなど）アクションを含むなら、全部のブックとアノテーション
+// 一覧のアクション（宛先が無く、レコードが対象でない）か、0 番目でなく宛先が置き場所に無い（バルクの前のアクションが作ったページなど）アクションを含むなら、全部のブックとアノテーション
 func (h *Hub) performInputs(in *engine.Input) error {
 	all := false
 	books := []string{}
@@ -512,7 +512,7 @@ func (h *Hub) performInputs(in *engine.Input) error {
 			books = append(books, id)
 		}
 	}
-	for _, step := range in.Actions {
+	for i, step := range in.Actions {
 		needs, err := h.engine.RecordNeeds(step.Action, step.Args)
 		if err != nil {
 			return err
@@ -526,13 +526,15 @@ func (h *Hub) performInputs(in *engine.Input) error {
 		case step.On == nil:
 			all = true
 		default:
-			// 宛先がページなら、そのページを持っているブック。置き場所にあるが読めるブックに入っていないページ（ゴミ箱のブックのページなど）は、何も足さない
+			// 宛先がページなら、そのページを持っているブック。置き場所にあるが読めるブックに入っていないページ（ゴミ箱のブックのページなど）は、何も足さない。
+			// 置き場所に無い宛先は、前のアクションが作った物でありうるので全部のブック。0 番目のアクションの宛先は前のアクションが作った物ではないので、何も足さない
 			book := h.bookOn(step.On)
 			_, known := h.pages[step.On.Page]
 			switch {
 			case book != "" && (step.On.Page != "" || h.hasBook(book)):
 				add(book)
 			case step.On.Page != "" && known:
+			case i == 0:
 			default:
 				all = true
 			}

@@ -168,7 +168,7 @@ func TestRemovingABookTakesItsAnnotationWarnings(t *testing.T) {
 		t.Fatalf("warnings before = %s", got)
 	}
 	for _, do := range [][2]string{{"@matomezu/base:book-trash", `{"book":"b1"}`}, {"@matomezu/base:book-purge", `{"books":["b1"]}`}} {
-		if done, err := h.Perform(Perform{Actions: []engine.Step{{Action: do[0], Args: json.RawMessage(do[1])}}}); err != nil || !done.OK {
+		if done, err := h.Perform(Perform{Actions: []engine.BulkAction{{Action: do[0], Args: json.RawMessage(do[1])}}}); err != nil || !done.OK {
 			t.Fatalf("%s = %+v, %v", do[0], done, err)
 		}
 	}

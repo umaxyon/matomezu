@@ -22,8 +22,8 @@ import (
 //go:embed engine.js
 var source string
 
-// Step は、アクションバルクの中のアクション 1 つ。IDs は振る id のもと（画面で先に行ったときの値。尽きたら新しく作る）
-type Step struct {
+// BulkAction は、アクションバルクの中のアクション 1 つ。IDs は振る id のもと（画面で先に行ったときの値。尽きたら新しく作る）
+type BulkAction struct {
 	Action string          `json:"action"`
 	Args   json.RawMessage `json:"args"`
 	On     *On             `json:"on,omitempty"`
@@ -34,7 +34,7 @@ type Step struct {
 
 // Input はアクションバルク 1 つの頼み。Actions を順に行い、全部通るか全部断る
 type Input struct {
-	Actions []Step `json:"actions"`
+	Actions []BulkAction `json:"actions"`
 	// Pages と Folders は、アクションの全部が要るブックのページとフォルダ（置き場所から読んだまま。アクションごとの、宛先のブックか、レコードが対象なら RecordNeeds の Books の和。
 	// 一覧のアクションか、宛先が置き場所に無いアクションを含むなら全部）
 	Pages    []json.RawMessage `json:"pages"`

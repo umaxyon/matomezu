@@ -59,7 +59,8 @@ function Proposal({ mail, onClose, dock, props }: MailActionsProps & { props: Pr
     const done = applied.ok
       ? await actions.performConfirmed(PROPOSAL_SETTLE.id, { outcome: "applied" }, { record: mail.id })
       : applied
-    if (done.ok) {
+    // 「反映した」だけが画面の上で断られた（郵便が無い・もう残した）なら、反映は書かれるので閉じる
+    if (done.ok || (applied.ok && !("by" in done && done.by === "host"))) {
       onClose()
       return
     }

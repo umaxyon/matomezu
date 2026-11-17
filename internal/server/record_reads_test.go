@@ -54,7 +54,7 @@ func TestMailSendOpensNoBodies(t *testing.T) {
 	sendMail := func(i int) {
 		t.Helper()
 		args := json.RawMessage(fmt.Sprintf(`{"from":"t","title":"mail %d","body":"body"}`, i))
-		done, err := hub.Perform(Perform{Actions: []engine.Step{{Action: "@matomezu/base:mail-send", Args: args, Lang: "en"}}})
+		done, err := hub.Perform(Perform{Actions: []engine.BulkAction{{Action: "@matomezu/base:mail-send", Args: args, Lang: "en"}}})
 		if err != nil || !done.OK {
 			t.Fatalf("send %d: %+v %v", i, done, err)
 		}

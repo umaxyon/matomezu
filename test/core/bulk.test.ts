@@ -1,7 +1,7 @@
 // アクションバルク（core/bulk.ts の performBulk）: 順に行い、変わった物を 1 つに合わせる。どれかが断られたら何も変えない。前のアクションが書いたレコードは、あとのアクションから見える
 import { expect, test } from "bun:test"
 import { USER } from "../../web/src/core/actor"
-import { type BulkStep, performBulk } from "../../web/src/core/bulk"
+import { type BulkAction, performBulk } from "../../web/src/core/bulk"
 import type { World } from "../../web/src/core/perform"
 import { sourceOf } from "../../web/src/core/record-source"
 import { MAIL } from "../../web/src/plugins/base/mail"
@@ -15,7 +15,7 @@ const CTX = {
   actor: USER,
 }
 const ids = sequence("n")
-const step = (action: string, args: unknown, on?: BulkStep["on"]): BulkStep => ({
+const step = (action: string, args: unknown, on?: BulkAction["on"]): BulkAction => ({
   action,
   args,
   ...(on ? { on } : {}),
@@ -75,7 +75,7 @@ test("前のアクションが作ったレコード・消したレコードは�
   if (!sent.ok) throw new Error(sent.reason)
   const mail = (sent.results[0] as { mail: string }).mail
   // 同じ id の振り方で作り直し、続けて既読にする
-  const again = (more: BulkStep[]) => {
+  const again = (more: BulkAction[]) => {
     const fixed = [mail]
     return performBulk(host, [{ ...send("一"), newId: () => fixed.shift() ?? ids() }, ...more], CTX)
   }

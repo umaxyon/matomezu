@@ -34,9 +34,13 @@ type writePlan struct {
 }
 
 // planWrites は out の変えた物を、置き場所に書く形（batch）と、当てる物にする。何も変えない（h.mu を持って呼ぶ）。
+// out に同じページ・フォルダ・レコードが 2 つあれば error（版は置いてある版から決めるので、書く前に止める。repeatedChanges）。
 // 新しく足すページ・フォルダの id が、世界にもう在れば nil を返す（エンジンが受けたのは要るブックだけなので、ほかのブックと重なっていないかは、ここで確かめる。
 // ページもフォルダも id は世界の中で重ならず、エントリはちょうど 1 つのフォルダに入る）
 func (h *Hub) planWrites(out engine.Output, by, act, at string) (*writePlan, error) {
+	if err := repeatedChanges(out); err != nil {
+		return nil, err
+	}
 	for _, id := range out.Created {
 		_, page := h.pages[id]
 		_, folder := h.folders[id]
@@ -128,6 +132,29 @@ func (h *Hub) planWrites(out engine.Output, by, act, at string) (*writePlan, err
 		plan.tickets, plan.batch.AIEditTickets = &tickets, body
 	}
 	return plan, nil
+}
+
+// repeatedChanges は、out の pages・folders に同じ id が、records に同じ種類と id が 2 つあれば、それを名指す error を返す
+// （エンジンはアクションバルクの全部を重ねた後の物を、同じ物は 1 つで返す決まり）
+func repeatedChanges(out engine.Output) error {
+	for field, changes := range map[string][]engine.RowChange{"pages": out.Pages, "folders": out.Folders} {
+		seen := map[string]bool{}
+		for _, c := range changes {
+			if seen[c.ID] {
+				return fmt.Errorf("engine: the output has %s %s twice; one perform gives one change for each", field, c.ID)
+			}
+			seen[c.ID] = true
+		}
+	}
+	seen := map[recordKey]bool{}
+	for _, c := range out.Records {
+		k := recordKey{c.Subject, c.ID}
+		if seen[k] {
+			return fmt.Errorf("engine: the output has the record %s %s twice; one perform gives one change for each", c.Subject, c.ID)
+		}
+		seen[k] = true
+	}
+	return nil
 }
 
 // unreadableWrite は、out が読めないページの行に触れるか: 読めないページの行を変える、読めないページの行を、それを持つブックのフォルダを消さずに消す、
