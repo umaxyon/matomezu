@@ -5,12 +5,12 @@
 
 import type { ComponentType, ReactNode } from "react"
 import type {
-  PresentationViewExtras,
   CommandId,
   ContextMenuId,
   ContextMenuTable,
   DialogId,
   PresentationId,
+  PresentationViewExtras,
   WidgetId,
   WidgetTable,
 } from "../core/catalog"

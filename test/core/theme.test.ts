@@ -7,8 +7,8 @@ import { defineTheme, THEME_TOKENS, themeVar, tokenVarName } from "../../web/src
 import { splitId } from "../../web/src/core/names"
 import { resolveTokens, shades } from "../../web/src/core/theme"
 import { STANDARD } from "../../web/src/plugins/base/looks/standard"
-import { NODE_FILL } from "../../web/src/plugins/page-types/tree/tree"
 import { LIST_FILL } from "../../web/src/plugins/items/list/list"
+import { NODE_FILL } from "../../web/src/plugins/page-types/tree/tree"
 import { ownTokenVars, themeVars } from "../../web/src/ui/theme-vars"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 

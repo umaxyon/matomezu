@@ -10,14 +10,14 @@ export type { ContextMenuEntry, LayoutDef, MenuItem, WidgetDef, WidgetPlace } fr
 export { defineLayout, defineWidget } from "../ui/layout"
 export { useMenu, useMenuCommand } from "../ui/menu"
 export type {
-  PresentationViewDef,
-  PresentationViewProps,
   ContextMenuRow,
   ContextMenuRows,
   DialogProps,
   EnumValueIcon,
   ItemUi,
   ItemViewProps,
+  PresentationViewDef,
+  PresentationViewProps,
   SettingControlProps,
   UserSettingControlProps,
 } from "../ui/plugin"
