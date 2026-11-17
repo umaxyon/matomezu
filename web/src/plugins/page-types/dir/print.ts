@@ -12,17 +12,18 @@ import {
   type SettingReader,
   type SheetPurpose,
 } from "../../base"
-import { dirRootOf } from "./entry"
+import { type DirFolder, dirRootOf } from "./entry"
 import { type DirLayout, laidBottom, laidRight, layoutDir, MARGIN } from "./layout"
 import { NOTES } from "./notes"
 
-// ページ page の行と説明を並べたもの（描けない紙と根の無いページは null）。setting はそのページで効いている設定の値、grow はページの増やす向き
+// ページ page の行と説明を並べたもの（描けない紙と根の無いページは null）。setting はそのページで効いている設定の値、grow はページの増やす向き。
+// root は並べる根（書く画面が、書いている字を重ねた根を渡す。無ければページの根）
 export function laidPage(
   catalog: CoreCatalog,
   page: ItemPage,
   { setting, grow }: { setting: SettingReader; grow: GrowSides | undefined },
+  root: DirFolder | undefined = dirRootOf(page),
 ): DirLayout | null {
-  const root = dirRootOf(page)
   const paper = paperSize(catalog, page)
   return root && paper ? layoutDir(root, paper, setting(NOTES), grow !== undefined) : null
 }

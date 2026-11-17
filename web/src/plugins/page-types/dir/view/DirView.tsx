@@ -38,7 +38,7 @@ import {
   useStage,
   useStageArea,
 } from "../../../../plugin-api/ui"
-import { growOf, pageContext, refusalMessage, settingValue } from "../../../base"
+import { growOf, pageContext, refusalMessage } from "../../../base"
 import {
   PaperFrame,
   RichBar,
@@ -55,12 +55,11 @@ import { ADDED_EDIT, FILE_ADD, FOLDER_ADD, FOLDER_TOGGLE, KIND_PICK } from "../c
 import { DIR_CONTEXT, ENTRY_CONTEXT } from "../dir"
 import { dropAt, subtreeIds } from "../drag"
 import { afterRemove, changeEntry, editEnd, entryOf, noteEnd, selectedIn } from "../edit"
-import { type DirFolder, dirRootOf } from "../entry"
+import { dirRootOf } from "../entry"
 import { kit } from "../kit"
-import { editorWidth, ICON, type LaidRow, layoutDir, nameLeft } from "../layout"
+import { editorWidth, ICON, type LaidRow, nameLeft } from "../layout"
 import { NodeIcon } from "../node-icon"
 import { FileIcon, FolderIcon } from "../node-icons"
-import { NOTES } from "../notes"
 import { laidArea, laidPage } from "../print"
 import { PENCIL_TOOL } from "../tools"
 import styles from "./DirView.module.css"
@@ -132,26 +131,26 @@ const Rows = memo(function Rows({
   const follows = useFollowsSelection()
   const movable = useAllowed(ENTRY_MOVE.id, page ? { page: page.id } : undefined).ok && !follows // ドラッグで動かし始められるか
   const root = dirRootOf(page)
-  // 可変ページなら、行と説明が入るだけ右と下へ並べた印刷区画に空きを足した広さを、ステージに知らせる
-  const growing = book && page ? growOf(catalog, page) : undefined // ページの増やす向き
-  const variable = growing !== undefined
-  // 印刷と同じ並べ方（print.ts の laidPage）で並べた広さ
-  const wide =
-    growing && book && page
-      ? laidPage(catalog, page, { setting: pageContext(catalog, page).setting, grow: growing })
-      : null
-  useStageArea(growing && wide ? laidArea(paper, growing, wide, true).size : null)
-  if (!page || !root) return null
-  const dir = root
   const usingPencil = stage.tool === PENCIL_TOOL.id
-  const selected = selectedIn(dir, stage.selection)
+  const selected = root ? selectedIn(root, stage.selection) : undefined
   // 背景編集モードの間の文字枠の書き換え（slide のもの。stage.editing は同じ true）は、行の書き換えにしない
   const writing = usingPencil && stage.edits === "items" && (stage.editing === true || stage.editing === ADDED_EDIT)
   const picking = usingPencil && stage.editing === KIND_PICK
-  const text = writing && draft?.entry === selected ? draft.text : null
-  const shown: DirFolder = text === null ? dir : (changeEntry(dir, selected, { name: text }) ?? dir)
-  const look = settingValue(catalog, page, NOTES)
-  const { rows, lines, notes, divider } = layoutDir(shown, paper, look, variable)
+  const text = writing && draft && draft.entry === selected ? draft.text : null
+  // 書いている字を重ねた根
+  const shown =
+    root && text !== null && selected !== undefined ? (changeEntry(root, selected, { name: text }) ?? root) : root
+  const growing = book && page ? growOf(catalog, page) : undefined // ページの増やす向き（可変ページでなければ undefined）
+  // 印刷と同じ並べ方（print.ts の laidPage）で、書いている字を重ねた根を 1 度だけ並べる
+  const laid =
+    book && page && shown
+      ? laidPage(catalog, page, { setting: pageContext(catalog, page).setting, grow: growing }, shown)
+      : null
+  // 可変ページなら、行と説明が入るだけ右と下へ並べた印刷区画に空きを足した広さを、ステージに知らせる
+  useStageArea(growing && laid ? laidArea(paper, growing, laid, true).size : null)
+  if (!page || !root || !shown || !laid || selected === undefined) return null
+  const dir = root
+  const { rows, lines, notes, divider } = laid
   const at = rows.find(r => r.id === selected)
   const noting = usingPencil && stage.editing === NOTE_EDIT && notes !== null
   const noteText = noting && noteDraft?.entry === selected ? noteDraft.text : null
