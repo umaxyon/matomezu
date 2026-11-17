@@ -25,9 +25,9 @@ import {
   changesBetween,
   type Folder,
   type Folders,
+  homeAndFoldersOf,
   homeOver,
   libraryOf,
-  outerFoldersOf,
   type PageRow,
   type Pages,
   rawBooksOf,
@@ -1323,7 +1323,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const found = restore(rawBooksOf(world.pages, world.folders))
       const now = getState()
       // 確かめた世界の表（中身の同じページ・フォルダは、今の値に寄せる。組んだブックも同じ値のままになる）
-      let tables = settledOn(worldTablesOf(found.books, outerFoldersOf(world.folders)), now)
+      let tables = settledOn(worldTablesOf(found.books, homeAndFoldersOf(world.folders)), now)
       const library = libraryOf(tables)
       const by = change?.by === "host" ? undefined : change?.by
       const recorded = change && by && change.actions.some(a => catalog.actions.get(a)?.history !== false)

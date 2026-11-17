@@ -1,4 +1,4 @@
-// 書庫の木: 書庫ホーム・フォルダ（ブックの外のフォルダ）と、木の決まり、ブックを足す・消すときの置き場所の書き込み
+// 書庫の木: 書庫ホームとフォルダと、木の決まり、ブックを足す・消すときの置き場所の書き込み
 
 import { describe, expect, test } from "bun:test"
 import { USER } from "../../web/src/core/actor"
@@ -8,10 +8,10 @@ import {
   type Folder,
   foldersOver,
   HOME_ID,
+  homeAndFoldersOf,
   homeOver,
   libraryOf,
   NO_CHANGES,
-  outerFoldersOf,
   type PlainFolder,
   placedChanges,
   rawBooksOf,
@@ -46,18 +46,19 @@ const withFolders = (t: Tables, ...folders: Folder[]): Tables => ({
   folders: { ...t.folders, ...Object.fromEntries(folders.map(f => [f.id, f])) },
 })
 
-describe("ブックの外のフォルダ", () => {
+describe("書庫ホームとフォルダ", () => {
   test("置き場所の行から、書庫ホームとフォルダだけを形を確かめて取り出す（形に合わない行・ブック・バインダは入らない）", () => {
     const rows = [
       home,
       old,
       { folderRole: "folder", id: "x", lineup: [] },
+      { folderRole: "folder", id: "y", title: "ページ入り", lineup: [{ kind: "page", id: "p1" }] },
       { folderRole: "home", id: "other", lineup: [] },
       { folderRole: "book", id: "b9", title: "九", lineup: [] },
       { folderRole: "binder", id: "f9", title: "束", pageType: SLIDE, lineup: [] },
       null,
     ]
-    expect(outerFoldersOf(rows)).toEqual([home, old])
+    expect(homeAndFoldersOf(rows)).toEqual([home, old])
   })
 
   test("ブックにするのは、役が書庫ホーム・フォルダ・バインダでないフォルダ（フォルダに入っていてもブック。役の無い行は、そのまま 1 冊として返す）", () => {
@@ -105,11 +106,10 @@ describe("木の決まり", () => {
     )
   })
 
-  test("ブックの外のフォルダのエントリは、表に在って種類が合う（表に無い book は、読めないブックとして通す）", () => {
+  test("書庫ホームとフォルダのエントリは、ブックかフォルダで、種類が合う（表に無い book は、読めないブックとして通す）", () => {
     const t = tables()
     expect(treeHolds(withFolders(t, { ...old, lineup: [...old.lineup, { kind: "book", id: "unread" }] }))).toBe(true)
     expect(treeHolds(withFolders(t, { ...old, lineup: [...old.lineup, { kind: "folder", id: "none" }] }))).toBe(false)
-    expect(treeHolds(withFolders(t, { ...old, lineup: [...old.lineup, { kind: "page", id: "none" }] }))).toBe(false)
     expect(treeHolds(withFolders(t, { ...old, lineup: [{ kind: "folder", id: "b1" }, old.lineup[1]!] }))).toBe(false)
   })
 })
@@ -167,7 +167,7 @@ describe("ブックを足す・消すときの置き場所", () => {
 })
 
 describe("置き直し（元に戻す）", () => {
-  test("ブックのページを置き直しても、ブックの外のフォルダは残る", () => {
+  test("ブックのページを置き直しても、書庫ホームとフォルダは残る", () => {
     const t = tables()
     const next = restoredTables(t, { pages: { p2: { absent: true } as never }, folders: {} })
     expect(next.folders[HOME_ID]).toBe(t.folders[HOME_ID]!)

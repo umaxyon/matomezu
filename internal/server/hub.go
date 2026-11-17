@@ -545,12 +545,12 @@ func (h *Hub) performInputs(in *engine.Input) error {
 	in.Annotations = map[string]json.RawMessage{}
 	if all {
 		in.Pages, in.Folders = h.rowsOf(h.order)
-		in.Folders = append(in.Folders, h.outerRows()...)
+		in.Folders = append(in.Folders, h.homeAndFolderRows()...)
 		maps.Copy(in.Annotations, h.annotations)
 		return nil
 	}
 	in.Pages, in.Folders = h.rowsOf(books)
-	in.Folders = append(in.Folders, h.outerRowsAbove(books)...)
+	in.Folders = append(in.Folders, h.homeAndFoldersAbove(books)...)
 	for _, id := range books {
 		maps.Copy(in.Annotations, h.annotationsIn(id))
 	}

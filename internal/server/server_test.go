@@ -749,15 +749,21 @@ func TestAddingAPageWithAnIdAnotherBookHasIsRefused(t *testing.T) {
 	}
 }
 
-// ブックを作るアクションが最初のページに振る id も同じ: ほかのブックにもう在るページの id なら、断られて何も変わらない（在るページを書き換えない）
-func TestCreatingABookWithAPageIdAnotherBookHasIsRefused(t *testing.T) {
-	s := newServer(t, nil)
+// ブックを作るアクションが最初のページに振る id は、ほかのブックにもう在るページの id を飛ばす（在るページを書き換えない）
+func TestCreatingABookSkipsAPageIdAnotherBookHas(t *testing.T) {
+	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, hub := newServerOn(t, Options{}, store)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
-	_, before := send(t, "GET", s.URL+"/api/data", "", nil)
+	before := hub.PageVersion("p1")
 	_, got := postPerform(t, s.URL, `{"action":"@matomezu/base:book-create","args":{"title":"U","page":{"type":"@matomezu/drawing:drawing"}},"lang":"ja","ids":["b2","p1"]}`)
-	_, after := send(t, "GET", s.URL+"/api/data", "", nil)
-	if !strings.HasPrefix(got, `{"ok":false,"reason":"refused"`) || after != before {
-		t.Fatalf("book-create with the id of a page of another book = %s (the data changed: %v)", got, after != before)
+	if !strings.HasPrefix(got, `{"ok":true,"result":{"book":"b2","page":{"page":"`) || strings.Contains(got, `"page":"p1"`) {
+		t.Fatalf("book-create with the id of a page of another book = %s", got)
+	}
+	if hub.PageVersion("p1") != before {
+		t.Fatalf("the page another book has was written: version %d -> %d", before, hub.PageVersion("p1"))
 	}
 }
 

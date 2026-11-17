@@ -47,7 +47,7 @@ const roleSQL = `CASE WHEN json_valid(body) THEN json_extract(body, '$.folderRol
 const notBookSQL = `SELECT id FROM folders WHERE ` + roleSQL + ` IN ('home', 'folder', 'binder')`
 
 // placeBooksInLibrary は、書庫ホームを作り、どのフォルダにも入っていないフォルダ（ブック。読めない物も）が在れば、
-// 書庫ホームの中のフォルダ「旧ブック」（新しい uuid）を作って、それらを id の順に入れる（entries も）。1 つも無ければ「旧ブック」は作らない。
+// 書庫ホームの中のフォルダ「旧ブック」（作った uuid）を作って、それらを id の順に入れる（entries も）。1 つも無ければ「旧ブック」は作らない。
 // ブック・バインダ・ページの行は書き換えない
 func placeBooksInLibrary(tx *sql.Tx) error {
 	rows, err := tx.Query(`SELECT id FROM folders WHERE id != ? AND id NOT IN (SELECT id FROM entries) ORDER BY id`, HomeID)

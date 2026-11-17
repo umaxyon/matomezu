@@ -6,6 +6,7 @@ import type { z } from "zod"
 import { USER } from "./actor"
 import { type Annotation, type Annotations, annotationsSettle, type PageAnnotations, prune } from "./annotation"
 import {
+  bindersOf,
   distinctBooks,
   findPage,
   findUnreadable,
@@ -406,8 +407,12 @@ export const noPage = (wanted: string): NoPage => ({
 // アクション action の run だけを行う（使えるか・整え・認可ステップ・形の確かめはしない。それは perform がする）。args は引数の形を通した後の値。
 // ページが対象なら、対象 subject（PageInBook）のブックからページを探して run に渡し、返ったページを同じ所へ戻したブックを next にする
 // （ページが無い・run が id の違うページを返したら null）。アノテーションが対象なら、ページとその並びを run に渡す（ページを替えて返したら null）。
-// run が振る id は、ページが対象ならそのページの中のどの id とも、ブックが対象ならそのブックの並びの中のどの id とも重ならず、同じ値を 2 度渡さない
+// run が振る id は、ページが対象ならそのページの中のどの id とも、ブックが対象ならそのブックの並びの中のどの id とも、一覧が対象ならどのブック・バインダ・ページの id とも重ならず、同じ値を 2 度渡さない
 // （そのままでも短い id にしても重なる newId の値を飛ばす。中身の id がページの中で重ならないことに、アノテーションのアンカーなどが頼っている）
+// 一覧 library のブックと、その中のバインダとページの id
+const rowIdsIn = (library: Library): string[] =>
+  Object.values(library).flatMap(b => [b.id, ...bindersOf(b).map(f => f.id), ...pagesOf(b).map(p => p.id)])
+
 export function runAction(
   action: ActionDef,
   subject: unknown,
@@ -417,6 +422,8 @@ export function runAction(
   const run = action.run as (subject: unknown, args: unknown, ctx: ActionContext) => ReturnType<ActionDef["run"]>
   if (action.target === "book")
     return run(subject, args, { ...ctx, newId: skipping(ctx.newId, () => idsIn((subject as Book).lineup)) })
+  if (action.target === "library")
+    return run(subject, args, { ...ctx, newId: skipping(ctx.newId, () => rowIdsIn(subject as Library)) })
   if (action.target !== "page" && action.target !== "annotations") return run(subject, args, ctx)
   const { book, page: id } = subject as PageInBook
   const page = findPage(book, id)?.page

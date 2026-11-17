@@ -32,8 +32,8 @@ type folderRow struct {
 // isBook は、フォルダの行がブックか（storage.IsBookRole）
 func (f folderRow) isBook() bool { return storage.IsBookRole(f.role) }
 
-// isOuter は、フォルダの行が書庫ホームかフォルダか（ブックとバインダを入れる側）
-func (f folderRow) isOuter() bool { return f.role == "home" || f.role == "folder" }
+// isHomeOrFolder は、フォルダの行が書庫ホームかフォルダか（ブックとバインダを入れる側）
+func (f folderRow) isHomeOrFolder() bool { return f.role == "home" || f.role == "folder" }
 
 // entryRef は、lineup の要素が id だけのエントリなら、その kind と id（そうでなければ ok が false）
 func entryRef(entry json.RawMessage) (kind, id string, ok bool) {
@@ -172,27 +172,27 @@ func (h *Hub) foldersAbove(id string) []string {
 	return out
 }
 
-// outerRows は、書庫ホームとフォルダの行の全部（書庫ホームを先に、ほかは id の順。エンジンに渡す。h.mu を持って呼ぶ）
-func (h *Hub) outerRows() []json.RawMessage {
+// homeAndFolderRows は、書庫ホームとフォルダの行の全部（書庫ホームを先に、ほかは id の順。エンジンに渡す。h.mu を持って呼ぶ）
+func (h *Hub) homeAndFolderRows() []json.RawMessage {
 	out := []json.RawMessage{}
-	if f, ok := h.folders[storage.HomeID]; ok && f.isOuter() {
+	if f, ok := h.folders[storage.HomeID]; ok && f.isHomeOrFolder() {
 		out = append(out, f.body)
 	}
 	for _, id := range slices.Sorted(maps.Keys(h.folders)) {
-		if f := h.folders[id]; id != storage.HomeID && f.isOuter() {
+		if f := h.folders[id]; id != storage.HomeID && f.isHomeOrFolder() {
 			out = append(out, f.body)
 		}
 	}
 	return out
 }
 
-// outerRowsAbove は、ブック ids から書庫ホームまでの、書庫ホームとフォルダの行（ブックごとに近い順。重ねない。エンジンに渡す。h.mu を持って呼ぶ）
-func (h *Hub) outerRowsAbove(ids []string) []json.RawMessage {
+// homeAndFoldersAbove は、ブック ids から書庫ホームまでの、書庫ホームとフォルダの行（ブックごとに近い順。重ねない。エンジンに渡す。h.mu を持って呼ぶ）
+func (h *Hub) homeAndFoldersAbove(ids []string) []json.RawMessage {
 	out := []json.RawMessage{}
 	seen := map[string]bool{}
 	for _, id := range ids {
 		for _, at := range h.foldersAbove(id) {
-			if f := h.folders[at]; f.isOuter() && !seen[at] {
+			if f := h.folders[at]; f.isHomeOrFolder() && !seen[at] {
 				seen[at] = true
 				out = append(out, f.body)
 			}

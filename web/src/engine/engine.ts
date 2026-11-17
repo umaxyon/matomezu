@@ -27,9 +27,9 @@ import {
   bookIdOf,
   bookOf,
   createdOn,
+  homeAndFoldersOf,
   libraryOf,
   NO_CHANGES,
-  outerFoldersOf,
   rawBooksOf,
   withChanges,
   worldTablesOf,
@@ -248,7 +248,7 @@ function perform(input: Input): Output {
   const counters = restoreCounters(input.counters)
   const actor = actorOfWire(input.actor)
   const source = hostSource(records)
-  const tables = worldTablesOf(Object.values(books), outerFoldersOf(input.folders ?? []))
+  const tables = worldTablesOf(Object.values(books), homeAndFoldersOf(input.folders ?? []))
   const world = { ...tables, settings, annotations, records, counters, ...(source ? { source } : {}) }
   const at = new Date().toISOString()
   const steps = input.actions.map(a => bulkActionOf(a, () => crypto.randomUUID(), at, langFor(a.lang)))

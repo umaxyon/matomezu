@@ -28,8 +28,9 @@ export interface FolderRef {
   kind: "folder"
   id: string
 }
-// 書庫ホームとフォルダが持つエントリ 1 つ: ページ・バインダ・ブック・フォルダの id
-export type AnyEntryRef = EntryRef | BookRef | FolderRef
+// 書庫ホームとフォルダが持つエントリ 1 つ: ブックかフォルダの id
+export type BookOrFolderRef = BookRef | FolderRef
+export type AnyEntryRef = EntryRef | BookOrFolderRef
 
 // 書庫ホームの id（決まった値。書庫ホームは、この id のフォルダただ 1 つ）
 export const HOME_ID = "library-home"
@@ -48,41 +49,41 @@ export interface BinderFolder {
 export interface HomeFolder {
   folderRole: "home"
   id: typeof HOME_ID
-  lineup: readonly AnyEntryRef[]
+  lineup: readonly BookOrFolderRef[]
 }
 // フォルダ（ブックでもバインダでもない物）: 名前と、エントリの id の並び
 export interface PlainFolder {
   folderRole: "folder"
   id: string
   title: string
-  lineup: readonly AnyEntryRef[]
+  lineup: readonly BookOrFolderRef[]
 }
-// ブックの外のフォルダ（書庫ホームとフォルダ。ブックを組む値には入らず、表にだけ在る）
-export type OuterFolder = HomeFolder | PlainFolder
-export type Folder = BookFolder | BinderFolder | OuterFolder
+// 書庫ホームかフォルダ（ブックを組む値には入らず、表にだけ在る）
+export type HomeOrFolder = HomeFolder | PlainFolder
+export type Folder = BookFolder | BinderFolder | HomeOrFolder
 
-const AnyEntryRefSchema = z.strictObject({ kind: z.enum(["page", "binder", "book", "folder"]), id: z.string().min(1) })
-const OuterFolderSchema = z.discriminatedUnion("folderRole", [
-  z.strictObject({ folderRole: z.literal("home"), id: z.literal(HOME_ID), lineup: z.array(AnyEntryRefSchema) }),
+const BookOrFolderRefSchema = z.strictObject({ kind: z.enum(["book", "folder"]), id: z.string().min(1) })
+const HomeOrFolderSchema = z.discriminatedUnion("folderRole", [
+  z.strictObject({ folderRole: z.literal("home"), id: z.literal(HOME_ID), lineup: z.array(BookOrFolderRefSchema) }),
   z.strictObject({
     folderRole: z.literal("folder"),
     id: z.string().min(1),
     title: z.string().min(1),
-    lineup: z.array(AnyEntryRefSchema),
+    lineup: z.array(BookOrFolderRefSchema),
   }),
 ])
 
-// フォルダの行がブックの外のフォルダの役（"home"・"folder"）を名乗るか（形は確かめない）
-const namesOuter = (row: unknown): boolean =>
+// フォルダの行が書庫ホームかフォルダの役（"home"・"folder"）を名乗るか（形は確かめない）
+const namesHomeOrFolder = (row: unknown): boolean =>
   typeof row === "object" &&
   row !== null &&
   ["home", "folder"].includes((row as { folderRole?: unknown }).folderRole as string)
 
-// 置き場所から読んだままのフォルダ folders のうち、ブックの外のフォルダ（形に合う物だけ。合わない物は入らず、木の決まり treeHolds が破れて見える）
-export function outerFoldersOf(folders: readonly unknown[]): OuterFolder[] {
+// 置き場所から読んだままのフォルダ folders のうち、書庫ホームとフォルダ（形に合う物だけ。合わない物は入らず、木の決まり treeHolds が破れて見える）
+export function homeAndFoldersOf(folders: readonly unknown[]): HomeOrFolder[] {
   return folders.flatMap(f => {
-    const parsed = namesOuter(f) ? OuterFolderSchema.safeParse(f) : undefined
-    return parsed?.success ? [parsed.data as OuterFolder] : []
+    const parsed = namesHomeOrFolder(f) ? HomeOrFolderSchema.safeParse(f) : undefined
+    return parsed?.success ? [parsed.data as HomeOrFolder] : []
   })
 }
 
@@ -93,11 +94,11 @@ export const homeOver = (books: readonly { id: string }[]): HomeFolder => ({
   lineup: books.map(b => ({ kind: "book", id: b.id })),
 })
 
-// 世界の表: ブック books を分けた表に、ブックの外のフォルダ outer を足した物
-export function worldTablesOf(books: readonly Book[], outer: readonly OuterFolder[]): Tables {
+// 世界の表: ブック books を分けた表に、書庫ホームとフォルダ others を足した物
+export function worldTablesOf(books: readonly Book[], others: readonly HomeOrFolder[]): Tables {
   const tables = tablesOf(books)
-  if (outer.length === 0) return tables
-  return { pages: tables.pages, folders: { ...tables.folders, ...Object.fromEntries(outer.map(f => [f.id, f])) } }
+  if (others.length === 0) return tables
+  return { pages: tables.pages, folders: { ...tables.folders, ...Object.fromEntries(others.map(f => [f.id, f])) } }
 }
 
 // ページの表の 1 行: ページか、読めないページ（今の機能台帳では読めないページ。id・名前・理由の番号だけで、残したデータは置き場所に残る。
@@ -259,9 +260,9 @@ export function foldersOver(folders: Folders, entry: string): Folder[] {
 }
 
 // 木の決まり: 書庫ホームが在る／書庫ホームはどのフォルダにも入らない／書庫ホーム以外のフォルダは、ちょうど 1 つのフォルダに入り、上へたどると書庫ホームに着く（輪にならない）／
-// ブックの外のフォルダのエントリは、表に在り、種類が合う（folder はフォルダ、binder はバインダ、book はブック。読めないブックは表に入らないので、表に無い book は通す）／
+// 書庫ホームとフォルダのエントリは、種類が合う（folder は表に在るフォルダ、book はブック）／
 // ブックとバインダは、ブックもフォルダも持たない（型が決める）
-export function treeHolds({ pages, folders }: Tables): boolean {
+export function treeHolds({ folders }: Tables): boolean {
   const home = folders[HOME_ID]
   if (home?.folderRole !== "home") return false
   const holder = new Map<string, string>()
@@ -270,13 +271,9 @@ export function treeHolds({ pages, folders }: Tables): boolean {
       if (holder.has(r.id)) return false
       holder.set(r.id, f.id)
       if (f.folderRole !== "home" && f.folderRole !== "folder") continue
+      // 表に無い book は通す（読めないブックは、表に入らない）
       const row = folders[r.id]
-      const fits =
-        r.kind === "page"
-          ? pages[r.id] !== undefined
-          : r.kind === "book"
-            ? !row || row.folderRole === "book"
-            : row?.folderRole === r.kind
+      const fits = r.kind === "book" ? !row || row.folderRole === "book" : row?.folderRole === "folder"
       if (!fits) return false
     }
   }
@@ -463,7 +460,7 @@ function there<R extends AnyEntryRef>(lineup: readonly R[], has: (r: R) => boole
 }
 
 // 表 tables に、ページとフォルダごとの置き直す値 patches を行った表（何も変わらなければ tables のまま）。ページとフォルダは別々に置き直すので、
-// 行った後に、エントリとその中身が食い違う所を落とす: 中身が表に無いエントリは並びから外し、ブックの外のフォルダの並びからも、どのブックの並びからもたどれないページと、どのブックの並びからもたどれないバインダは表から外す
+// 行った後に、エントリとその中身が食い違う所を落とす: 中身が表に無いエントリは並びから外し、どのブックの並びからもたどれないページとバインダは表から外す
 export function restoredTables(tables: Tables, patches: RowPatches): Tables {
   const pages = patched(tables.pages, patches.pages)
   const folders = patched(tables.folders, patches.folders)
@@ -474,12 +471,12 @@ export function restoredTables(tables: Tables, patches: RowPatches): Tables {
   const hasPage = (r: EntryRef) => r.kind === "page" && pages[r.id] !== undefined
   for (const folder of Object.values(folders)) {
     if (folder.folderRole === "home" || folder.folderRole === "folder") {
-      // ブックの外のフォルダは残す（中身が表に無いエントリだけ、並びから外す）
-      const lineup = there<AnyEntryRef>(folder.lineup, r =>
-        r.kind === "page" ? pages[r.id] !== undefined : r.kind === "book" || folders[r.id]?.folderRole === r.kind,
+      // 書庫ホームとフォルダは残す（中身が表に無いエントリだけ、並びから外す）
+      const lineup = there<BookOrFolderRef>(
+        folder.lineup,
+        r => r.kind === "book" || folders[r.id]?.folderRole === "folder",
       )
       kept[folder.id] = lineup === folder.lineup ? folder : { ...folder, lineup }
-      for (const r of lineup) if (r.kind === "page") reached.add(r.id)
       continue
     }
     if (folder.folderRole !== "book" || !Array.isArray(folder.lineup)) continue

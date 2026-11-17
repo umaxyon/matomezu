@@ -105,7 +105,7 @@ func (h *Hub) planWrites(out engine.Output, by, act, at string) (*writePlan, err
 			}
 		}
 		for _, c := range out.Folders {
-			if !goneRows[c.ID] && !h.outerChange(c) {
+			if !goneRows[c.ID] && !h.homeOrFolderChange(c) {
 				unseen = append(unseen, c.ID)
 			}
 		}
@@ -139,12 +139,12 @@ func (h *Hub) planWrites(out engine.Output, by, act, at string) (*writePlan, err
 	return plan, nil
 }
 
-// outerChange は、フォルダの変わり c が、書庫ホームかフォルダの行のものか（消すなら置いてある行の役で、書くなら新しい本文の役で見る。h.mu を持って呼ぶ）
-func (h *Hub) outerChange(c engine.RowChange) bool {
+// homeOrFolderChange は、フォルダの変わり c が、書庫ホームかフォルダの行のものか（消すなら置いてある行の役で、書くなら新しい本文の役で見る。h.mu を持って呼ぶ）
+func (h *Hub) homeOrFolderChange(c engine.RowChange) bool {
 	if c.Removed {
-		return h.folders[c.ID].isOuter()
+		return h.folders[c.ID].isHomeOrFolder()
 	}
-	return newFolderRow(c.Row, 0).isOuter()
+	return newFolderRow(c.Row, 0).isHomeOrFolder()
 }
 
 // repeatedChanges は、out の pages・folders に同じ id が、records に同じ種類と id が 2 つあれば、それを名指す error を返す
