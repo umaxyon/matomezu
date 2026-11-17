@@ -3,7 +3,7 @@
 // 置けるアイテムが slide だけのタイプでは何も無い所も（選びを外す）。それ以外はステージ（と下のレイヤー）へ通す。
 // アイテムは書いた位置と大きさ（紙の左上から。負でも、紙より大きくてもよい）に置き、角度（rotation）は枠の中心でかける。紙の外にはみ出た部分は切る（切るのはアイテムを描く所だけで、選んだ物のつまみは切らない）。
 // 置こうとしている間は、紙の上でドラッグした四角（直線は線、自由な線はなぞった跡）に置く。押しただけなら、そのアイテムの置くときの大きさで押した所に置く。文字枠を置いたら、そのまま文字を打てる。
-// アイテムを押すと選び、ドラッグで動かす。何も無い所からのドラッグ枠と、Shift・Ctrl・Commandを押しながらの押しで複数を選び、選んだ物は全体を囲む点線の枠で一緒に動かす（大きさ・回すつまみは 1 つを選んだときだけ）。右クリックでメニュー（@matomezu/slide:item-context）を開く。選んだアイテムは 8 つのつまみで大きさを変え（角は枠と文字を一緒に、辺は幅か高さだけ）、
+// アイテムを押すと選び、ドラッグで動かす。何も無い所からのドラッグ枠と、Ctrl（Mac は Command）を押しながらの押しで複数を選び、選んだ物は全体を囲む点線の枠で一緒に動かす（大きさ・回すつまみは 1 つを選んだときだけ）。右クリックでメニュー（@matomezu/slide:item-context）を開く。選んだアイテムは 8 つのつまみで大きさを変え（角は枠と文字を一緒に、辺は幅か高さだけ）、
 // 右上の角の斜め外のつまみで回す（Shift で 15 度ずつ）。文字枠はダブルクリックで文字を書き換える（外を押すと決め、Escape でやめる）。
 // ドラッグの途中の様子はビューに持ち、離したときに 1 回だけコマンドを呼ぶ（元に戻すのも 1 回）
 import { type PointerEvent, useEffect, useRef, useState } from "react"
@@ -29,7 +29,7 @@ import {
   useToPaper,
 } from "../../../../plugin-api/ui"
 import { slideOffsetOf } from "../../../base"
-import { PaperFrame, useFollowsSelection } from "../../../base/ui"
+import { modPressed, PaperFrame, useFollowsSelection } from "../../../base/ui"
 import { SLIDE_DELETE, SLIDE_MOVE_TO, SLIDE_PUT, SLIDE_RESHAPE, SLIDE_SET } from "../commands"
 import {
   boundsOf,
@@ -268,11 +268,11 @@ function SlidePageView({
       }
       return
     }
-    const additive = e.shiftKey || e.ctrlKey || e.metaKey
+    const additive = modPressed(e)
     const itemEl = target.closest<HTMLElement>("[data-item]")
     const shape = itemEl && shapes.find(s => s.id === itemEl.dataset.item)
     if (shape && additive) {
-      // Shift・Ctrl（Mac は Command）を押しながら押すと、選びに足す・外す
+      // Ctrl（Mac は Command）を押しながら押すと、選びに足す・外す（図のページの選び方と同じ。base の modPressed）
       select(
         stage.selection.includes(shape.id)
           ? stage.selection.filter(i => i !== shape.id)
@@ -298,7 +298,7 @@ function SlidePageView({
       }
       return
     }
-    // 何も無い所からドラッグ枠（Shift・Ctrl を押していれば、今の選びに足す）
+    // 何も無い所からドラッグ枠（Ctrl〈Mac は Command〉を押していれば、今の選びに足す）
     if (!additive) select([])
     capture()
     drag.current = { kind: "dragFrame", pointer: e.pointerId, start: at, base: additive ? stage.selection : [] }

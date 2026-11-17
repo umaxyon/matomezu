@@ -10,7 +10,7 @@ import (
 
 // instructions は、つないだ AI に渡す matomezu の説明
 const instructions = "matomezu shows books (such as diagrams) to the user in a browser. " +
-	"Use view to see what the user is looking at, list_books, read_book and read_page to read, read_records for the records plugins keep (such as the task board), actions to see what can be done, and perform to do it. " +
+	"Use view to see what the user is looking at, list_books, read_folder, read_book and read_page to read, read_records for the records plugins keep (such as the task board), actions to see what can be done, and perform to do it. " +
 	"The user may put notes and marks on things in a book; view and list_books tell you which wait for your answer (awaiting), and actions describes each kind of annotation and how to answer it. " +
 	"Changes appear at once on screens showing that book; use show to put a book on the user's screen. "
 
@@ -45,6 +45,27 @@ var tools = []tool{
 		true,
 	},
 	{
+		"read_folder",
+		"Read a folder of the library, one level deep. The library keeps books in folders under the library home, its top folder; a folder can also hold pages and binders that are in no book. " +
+			"It answers the folder's id, kind (home for the library home, folder for a folder), title (the library home has none), path (the folders from the library home down to this one, each with id and title) " +
+			"and lineup, its entries in order: a folder (kind folder, id, title), a book (kind book, id, title; one that cannot be read now also has problem, the reason, as in list_books), " +
+			"a page (kind page, id, title, type), a binder of pages of one type (kind binder, id, title, pageType) or a page that cannot be read now (kind unreadable, id, title, code and type, as in read_book). " +
+			"Read a folder in the lineup with read_folder and a book with read_book. What is in the trash is not answered.",
+		map[string]any{
+			"type":                 "object",
+			"properties":           map[string]any{"folder": map[string]any{"type": "string", "description": "The folder's id (from the lineup or the path of read_folder). Without it, the library home."}},
+			"additionalProperties": false,
+		},
+		reading(func(api caller, args map[string]any) (json.RawMessage, error) {
+			path := "api/ai/folder"
+			if id, _ := args["folder"].(string); id != "" {
+				path += "?" + url.Values{"folder": {id}}.Encode()
+			}
+			return api.Get(path)
+		}, nil),
+		true,
+	},
+	{
 		"read_book",
 		"Read a book: the book without its pages' contents (title, settings and so on), its lineup as an outline (each entry is a page: kind page, id, title, type, size in characters and version, which goes up each time that page changes; or a binder of pages of one type: kind binder, id, title, pageType and its own lineup of pages), its version (see list_books) and its annotations (such as the user's notes and marks: page, the page they are on; anchors, the things of that page they are tied to; and awaiting, whether they wait for your answer). " +
 			"A page that cannot be read now is in the lineup as kind unreadable with id, title, code (the reason: W027 its type is not installed, W028 it does not fit its type, W029 it breaks its type's rules) and type (its page type's id, when it has one). " +
@@ -64,7 +85,7 @@ var tools = []tool{
 	},
 	{
 		"read_page",
-		"Read one page (the page and the items on it), book (the id of the book that holds it), version (the page's own: it goes up each time the page changes), placed (where each shape is drawn, when the page type's presentation tells it, otherwise null: {id, x, y, w, h} with the top-left on the paper and the size as drawn, children too; use it to line shapes up, as the items' own x and y are from their parent and their w and h may be missing or smaller than drawn) and the annotations (such as the user's notes and marks) standing on things of that page. " +
+		"Read one page (the page and the items on it), book (the id of the book that holds it), folder (the id of what holds it directly: that book, or the binder for a page in a binder), version (the page's own: it goes up each time the page changes), placed (where each shape is drawn, when the page type's presentation tells it, otherwise null: {id, x, y, w, h} with the top-left on the paper and the size as drawn, children too; use it to line shapes up, as the items' own x and y are from their parent and their w and h may be missing or smaller than drawn) and the annotations (such as the user's notes and marks) standing on things of that page. " +
 			"A page too large to be answered at once is refused (too-large): with outline, the page's items are an outline (id, item, size in characters); with item, only that item (and what is inside it), its placed and the annotations on them are answered.",
 		map[string]any{
 			"type": "object",

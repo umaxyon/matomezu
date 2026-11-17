@@ -8,6 +8,7 @@ import {
   movedEntry,
   placeOf,
   restoredEntry,
+  titleClashes,
   trashedEntry,
   trashRefOf,
 } from "../../web/src/core/entries"
@@ -183,5 +184,47 @@ describe("ゴミ箱", () => {
     expect(restoredEntry(t, "d", "none")).toBe("no-folder")
     expect(restoredEntry(t, "d", TRASH_ID)).toBe("in-trash")
     expect(restoredEntry(t, "d", "b1")).toBe("kind")
+  })
+})
+
+describe("同じ名前", () => {
+  const named = (id: string, title: string, lineup: PlainFolder["lineup"] = []): PlainFolder => ({
+    folderRole: "folder",
+    id,
+    title,
+    lineup,
+  })
+  const withRows = (t: Library, ...rows: Folder[]): Library => ({
+    pages: t.pages,
+    folders: { ...t.folders, ...Object.fromEntries(rows.map(r => [r.id, r])) },
+  })
+
+  test("書庫ホームとフォルダの直下で、種類をまたいで名前が重なったフォルダを挙げる。重ならなければ挙げない", () => {
+    const t = world()
+    expect(titleClashes(t, t)).toEqual([])
+    // フォルダ d の名前を、同じ書庫ホームの直下のフォルダ a と同じにする
+    expect(titleClashes(t, withRows(t, { ...d, title: "a" }))).toEqual([HOME_ID])
+    // ブック b1（名前「一」）と同じフォルダ a の直下のフォルダ c を、同じ名前にする
+    expect(titleClashes(t, withRows(t, { ...c, title: "一" }))).toEqual(["a"])
+    // 別のフォルダの物とは重ならない
+    expect(titleClashes(t, withRows(t, { ...d, title: "c" }))).toEqual([])
+  })
+
+  test("前から重なっていて、名前の並びが変わらないフォルダは挙げない。並びが変われば挙げる", () => {
+    const kept = withRows(world(), { ...d, title: "a" })
+    expect(titleClashes(kept, kept)).toEqual([])
+    expect(titleClashes(kept, withRows(kept, { ...c, title: "別" }))).toEqual([])
+    const e = named("e", "a")
+    const more = withRows(kept, e, { ...home, lineup: [...home.lineup, { kind: "folder", id: "e" }] })
+    expect(titleClashes(kept, more)).toEqual([HOME_ID])
+  })
+
+  test("ゴミ箱の直下は同じ名前を許し、ブックの中は見ない", () => {
+    const t = world()
+    const at = "2026-11-18T00:00:00.000Z"
+    const binned = trashedEntry(trashedEntry(withRows(t, { ...d, title: "a" }), "a", at) as Library, "d", at) as Library
+    expect(titleClashes(t, binned)).toEqual([])
+    const inBook = moved(t, "p2", "b1")
+    expect(titleClashes(t, inBook)).toEqual([])
   })
 })

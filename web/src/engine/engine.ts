@@ -21,7 +21,7 @@ import { briefLine } from "../core/brief"
 import { bulkActionOf, performBulk } from "../core/bulk"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import type { CoreCatalog } from "../core/core-catalog"
-import { type ActionOn, type AIEditTicketChange, stopsOnEditLock } from "../core/def/action"
+import { type ActionOn, type AIEditTicketChange, type AIMessage, stopsOnEditLock } from "../core/def/action"
 import { slideIsBackground } from "../core/def/page-type"
 import type { SubjectDef } from "../core/def/subject"
 import { binnedBetween } from "../core/entries"
@@ -154,6 +154,7 @@ type Output =
       counters?: Counters
       notice?: string
       aiEditTickets?: readonly (AIEditTicketChange & { subject: string })[] // subject は、その変え方を返したアクションの対象の種類
+      aiMessages?: readonly AIMessage[] // 送る AI 間メッセージ（常駐が、宛先に参加の確定した参加者がいるかを確かめ、書き込みと一緒に送る）
     }
   | { ok: false; reason: string; permission?: string; detail?: string; page?: string; code?: string; at?: number } // page と code は、読めないページの断り（unreadable）のとき。at は断られたアクションが何番目か
 
@@ -280,7 +281,9 @@ function perform(input: Input): Output {
   const changed = Object.values(next).filter(b => books[b.id] !== b)
   const removed = Object.keys(books).filter(id => !(id in next))
   // ゴミ箱に入ったブックと、ゴミ箱から出たブック（ブックを中に持つフォルダごと出入りしたときの、中のブックも。ブックの値は変わらない）
-  const binned = binnedBetween(tables, after)
+  // フォルダの行が変わらなければ、置き場所は変わらない
+  const moved = Object.keys(done.changes?.folders ?? {}).length > 0
+  const binned = moved ? binnedBetween(tables, after) : { trashed: [], restored: [] }
   const trashing = binned.trashed.filter(id => id in next)
   const restoring = binned.restored.filter(id => id in next)
   const notice = shiftNotice(books, changed)
@@ -301,6 +304,7 @@ function perform(input: Input): Output {
     ...(done.aiEditTickets
       ? { aiEditTickets: done.aiEditTickets.map(t => ({ ...t.change, subject: t.subject })) }
       : {}),
+    ...(done.aiMessages ? { aiMessages: done.aiMessages } : {}),
   }
 }
 

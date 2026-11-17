@@ -172,7 +172,9 @@ function permitted(c: Called, arg?: unknown): boolean {
 // 押せるか: 出していて、行うアクションのどれかを認可ステップが止めず、enabled が押せるとするとき
 export function isEnabled(defs: Assembled, state: MatomezuState, at: string, id: CommandId, arg?: unknown): boolean {
   const c = called(defs, state, at, id)
-  return c !== null && performable(c) && ask(c, "when") === true && permitted(c, arg) && (ask(c, "enabled") ?? true)
+  return (
+    c !== null && performable(c, arg) && ask(c, "when") === true && permitted(c, arg) && (ask(c, "enabled") ?? true)
+  )
 }
 
 export function isActive(defs: Assembled, state: MatomezuState, at: string, id: CommandId): boolean {

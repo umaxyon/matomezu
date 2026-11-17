@@ -10,12 +10,13 @@ import type { DialogProps } from "../../../ui/plugin"
 import { useActions, useAllowed, useBook, usePerform } from "../../../ui/view-hooks"
 import { useSettingControls } from "../book-settings/SettingControls"
 import { Dialog } from "../dialog-host/Dialog"
-import { ActionButton, controlClass, Field, Form } from "../dialog-host/FormParts"
+import { ActionButton, controlClass, Field, Form, Problem } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { BOOK_LOCK, BOOK_UNLOCK, LOCK } from "../lock"
 import { LockToggle } from "../lock/LockToggle"
 import { PageProblemsView, usePageProblems } from "../page-tabs/PageProblems"
 import { changeWithLock } from "../utils/lock"
+import { titleTaken } from "../utils/refusal"
 import { BOOK_UPDATE } from "."
 
 export function BookSettingsDialog({ onClose }: DialogProps) {
@@ -26,6 +27,7 @@ export function BookSettingsDialog({ onClose }: DialogProps) {
   const perform = usePerform()
   const [title, setTitle] = useState(book?.title ?? "")
   const [locked, setLocked] = useState(book?.locked === true)
+  const [taken, setTaken] = useState(false) // 同じ名前の物が在って、断られた
   // 認可ステップが止めていれば項目を押せない（ロックが止めているなら、鍵で外す方にすれば押せる）
   const update = useAllowed(BOOK_UPDATE.id)
   const blocked = !update.ok && update.permission !== null && !(update.permission === LOCK.id && !locked)
@@ -44,7 +46,11 @@ export function BookSettingsDialog({ onClose }: DialogProps) {
       locked,
       () => perform(BOOK_LOCK.id, {}).ok,
       () => perform(BOOK_UNLOCK.id, {}).ok,
-      () => perform(BOOK_UPDATE.id, { title, ...(changed ? { settings: settings.patch } : {}) }).ok,
+      () => {
+        const updated = perform(BOOK_UPDATE.id, { title, ...(changed ? { settings: settings.patch } : {}) })
+        setTaken(titleTaken(updated))
+        return updated.ok
+      },
     )
     if (done) onClose()
   }
@@ -66,6 +72,7 @@ export function BookSettingsDialog({ onClose }: DialogProps) {
         <Field label={t("Book name")}>
           {fid => <input id={fid} className={controlClass} value={title} onChange={e => setTitle(e.target.value)} />}
         </Field>
+        {taken && <Problem>{t("The name is taken")}</Problem>}
         {settings.controls}
         <PageProblemsView problems={problems} />
       </Form>

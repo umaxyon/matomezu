@@ -1,8 +1,9 @@
-// 経った時間（「〜前」）と、問いの吹き出し（Ask.tsx）と、物の角に出す物（corner.tsx）の文言
+// 経った時間（「〜前」）と、同じ名前で断られた原因と、問いの吹き出し（Ask.tsx）と、物の角に出す物（corner.tsx）の文言
 import { defineMessages } from "../../../core/i18n/messages"
 
 export const ELAPSED_MESSAGES = defineMessages({
   "Just now": { en: "Just now", ja: "たった今" },
+  "The name is taken": { en: "The name is taken", ja: "同じ名前があります" },
   "{n} min ago": { en: "{n} min ago", ja: "{n} 分前" },
   "{n} h ago": { en: "{n} h ago", ja: "{n} 時間前" },
   Yesterday: { en: "Yesterday", ja: "昨日" },

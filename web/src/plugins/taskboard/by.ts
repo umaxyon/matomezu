@@ -38,6 +38,13 @@ export const readsBy = (actor: Actor): RecordRead[] =>
 // ワークルームを名前でも指せるアクションが読む物: 全部のワークルームの索引キー（名前と作った時点）だけ
 export const READS_WORKROOM_NAMES: RecordRead = { subject: WORKROOM_SUBJECT, where: [], keysOnly: true }
 
+// ワークルームの候補（id と名前）: 読んだ索引キー（READS_WORKROOM_NAMES）から。作った順
+export const workroomsOf = (ctx: Records): { id: string; name: string }[] =>
+  Object.entries(ctx.keys?.[WORKROOM_SUBJECT] ?? {})
+    .map(([id, keys]) => ({ id, name: String(keys.name ?? ""), createdAt: String(keys.createdAt ?? "") }))
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))
+    .map(w => ({ id: w.id, name: w.name }))
+
 // 行った者を写す。入っているワークルームを確かめられない AI は null（参加が確定していない AI は、ブックでない対象のアクションを断られるので来ない）
 export function byOf(actor: Actor, ctx: Records): By | null {
   if (!isAI(actor)) return { kind: "user" }

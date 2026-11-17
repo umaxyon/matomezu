@@ -45,6 +45,8 @@ func (f *fakeAPI) Get(path string, header http.Header) (json.RawMessage, http.He
 		return json.RawMessage(aiCatalogJSON), f.replied, nil
 	case "api/ai/books/b1?outline=1", "api/ai/pages/p1?item=x1", "api/ai/pages/p1?outline=1":
 		return json.RawMessage(`{"ok":true}`), f.replied, nil
+	case "api/ai/folder", "api/ai/folder?folder=d+1":
+		return json.RawMessage(`{"id":"library-home"}`), f.replied, nil
 	case "api/ai/pages/broken":
 		return json.RawMessage(`{"code":"W027","ok":false,"reason":"unreadable"}`), f.replied, nil
 	case "api/ai/pages/small":
@@ -119,7 +121,7 @@ func TestToolsDoNotDependOnTheCatalog(t *testing.T) {
 	for _, x := range got[0]["result"].(map[string]any)["tools"].([]any) {
 		names = append(names, x.(map[string]any)["name"].(string))
 	}
-	if strings.Join(names, ",") != "view,list_books,read_book,read_page,read_records,search,read_settings,actions,show,perform,join,send_message" {
+	if strings.Join(names, ",") != "view,list_books,read_folder,read_book,read_page,read_records,search,read_settings,actions,show,perform,join,send_message" {
 		t.Fatalf("tools = %v", names)
 	}
 }
@@ -386,6 +388,28 @@ func TestReadBookAsksForTheOutlineAndReadPageForAnItem(t *testing.T) {
 	)
 	if strings.Join(api.gets, " ") != "api/ai/books/b1?outline=1 api/ai/pages/p1?item=x1 api/ai/pages/p1?outline=1" {
 		t.Fatalf("gets = %v", api.gets)
+	}
+}
+
+// read_folder は、folder が無ければ書庫ホームを、あればそのフォルダを常駐に聞く（書庫ホームの id は常駐が決める）
+func TestReadFolderAsksForTheLibraryHomeOrAFolder(t *testing.T) {
+	api := &fakeAPI{}
+	got := talk(t, api,
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"read_folder","arguments":{}}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"read_folder","arguments":{"folder":"d 1"}}}`,
+		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"read_folder","arguments":{"book":"b1"}}}`,
+	)
+	if strings.Join(api.gets, " ") != "api/ai/folder api/ai/folder?folder=d+1" {
+		t.Fatalf("gets = %v", api.gets)
+	}
+	if r := got[0]["result"].(map[string]any); r["isError"] != false || textOf(got[0]) != `{"id":"library-home"}` {
+		t.Fatalf("read_folder = %v", r)
+	}
+	if r := got[2]["result"].(map[string]any); r["isError"] != true || !strings.HasPrefix(textOf(got[2]), "bad-args: ") {
+		t.Fatalf("read_folder with an argument it does not take = %v", r)
+	}
+	if !ReadOnly("read_folder") {
+		t.Fatal("read_folder is not a tool that only reads")
 	}
 }
 

@@ -36,12 +36,14 @@ type BulkAction struct {
 type Input struct {
 	Actions []BulkAction `json:"actions"`
 	// Pages と Folders は、アクションの全部が要るブックのページとフォルダ（置き場所から読んだまま。アクションごとの、宛先のブックか、レコードが対象なら RecordNeeds の Books の和。
-	// 一覧のアクションか、宛先が置き場所に無いアクションを含むなら全部）。Folders には、ブックの行の後ろに、それらのブックから書庫の一番上（書庫ホームか、ゴミ箱の中のブックならゴミ箱）までの、書庫ホーム・ゴミ箱・フォルダの行
+	// 宛先がブックに入っていないページなら、そのページの行か、それを持つバインダの行と中のページの行。
+	// 一覧のアクションか、宛先が置き場所に無いアクションを含むなら、全部のブックと、ブックに入っていないページとバインダの全部）。
+	// Folders には、ブックとバインダの行の後ろに、それらから書庫の一番上（書庫ホームか、ゴミ箱の中のブックならゴミ箱）までの、書庫ホーム・ゴミ箱・フォルダの行
 	// （ブックごとに近い順。全部のときは、書庫ホーム・ゴミ箱と、ほかのフォルダの全部を id の順に）も入る
 	Pages    []json.RawMessage `json:"pages"`
 	Folders  []json.RawMessage `json:"folders"`
 	Settings json.RawMessage   `json:"settings"`
-	// Annotations は要るブックのページのアノテーション（ページの id → 並び。Pages と同じブックのページの分）
+	// Annotations は Pages のページのアノテーション（ページの id → 並び。アノテーションの有るページの分）
 	Annotations map[string]json.RawMessage `json:"annotations,omitempty"`
 	// Records は対象の定義が足した種類のレコード（種類の id → id → レコード。アクションごとの宛先のレコードの和）。Counters は対象の種類の、区切り → 次の番号（アクションごとの対象の種類の和）
 	Records  map[string]map[string]json.RawMessage `json:"records,omitempty"`
@@ -139,6 +141,13 @@ type Output struct {
 	Counters      map[string]map[string]int64 `json:"counters,omitempty"`      // 番号を進めた種類の id → 区切り → 次の番号（進めた区切りだけ）
 	Notice        string                      `json:"notice,omitempty"`        // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
 	AIEditTickets []AIEditTicketChange        `json:"aiEditTickets,omitempty"` // レコードが対象のアクションが返した、AI 編集チケットの変え方の並び（レコードと同じ 1 回の書き込みで、順に当てる）
+	AIMessages    []AIMessage                 `json:"aiMessages,omitempty"`    // レコードが対象のアクションが返した、送る AI 間メッセージ（行ったのは参加の確定した AI。常駐が書き込みと一緒に送る）
+}
+
+// AIMessage は、アクションが送る AI 間メッセージ 1 通（Workroom は宛先のワークルームの id。送り手は行った参加者）
+type AIMessage struct {
+	Workroom string `json:"workroom"`
+	Text     string `json:"text"`
 }
 
 // RowChange は、変わったページ・フォルダ 1 つ（Row は新しい本文。無くなったなら Removed）

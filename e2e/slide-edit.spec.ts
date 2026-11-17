@@ -65,7 +65,7 @@ test("キーで重なり順を変えられ、元に戻せる", async ({ page }) 
 
 const topOf = async (page: Page, id: string) => (await page.locator(`[data-item="${id}"]`).boundingBox())!.y
 
-test("ドラッグ枠と Shift+クリックで複数を選び、全体の枠の縁やアイテムで一緒に動かし、重なり順も全部に効き（元に戻すは 1 回）、Delete で全部消せる", async ({
+test("ドラッグ枠と Ctrl+クリック（Mac は Command）で複数を選び、全体の枠の縁やアイテムで一緒に動かし、重なり順も全部に効き（元に戻すは 1 回）、Delete で全部消せる", async ({
   page,
 }) => {
   await page.goto(BOOK_SCREEN_URL)
@@ -108,15 +108,20 @@ test("ドラッグ枠と Shift+クリックで複数を選び、全体の枠の�
   await page.mouse.click(only.x, only.y)
   await expect(page.locator("[data-group-edge]")).toHaveCount(0)
   await expect(page.locator("[data-grip]")).toHaveCount(8)
-  // Shift+クリックで足す・外す
+  // Ctrl+クリック（Mac は Command）で足す・外す。Shift+クリックは足さない
   const third = await at(page, 850, 300)
   await page.keyboard.down("Shift")
   await page.mouse.click(third.x, third.y)
   await page.keyboard.up("Shift")
-  await expect(page.locator("[data-group-edge]")).toHaveCount(4)
-  await page.keyboard.down("Shift")
+  await expect(page.locator("[data-group-edge]")).toHaveCount(0) // Shift では足さず、押した物だけを選ぶ
   await page.mouse.click(only.x, only.y)
-  await page.keyboard.up("Shift")
+  await page.keyboard.down("ControlOrMeta")
+  await page.mouse.click(third.x, third.y)
+  await page.keyboard.up("ControlOrMeta")
+  await expect(page.locator("[data-group-edge]")).toHaveCount(4)
+  await page.keyboard.down("ControlOrMeta")
+  await page.mouse.click(only.x, only.y)
+  await page.keyboard.up("ControlOrMeta")
   await page.keyboard.press("Delete")
   await expect.poll(() => order(page)).toEqual(["e1", "e2"]) // e1 を足して外したので、選んでいた e3 だけが消える
 })

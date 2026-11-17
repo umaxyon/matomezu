@@ -3,7 +3,7 @@
 // その前に認可ステップ（core/def/permission.ts）が止められ、run の結果も認可ステップが守らせることを守っていなければ断る（denied）
 
 import type { z } from "zod"
-import { USER } from "./actor"
+import { isAI, USER } from "./actor"
 import { type Annotation, type Annotations, annotationsSettle, type PageAnnotations, prune } from "./annotation"
 import {
   distinctBooks,
@@ -25,6 +25,7 @@ import {
   type ActionOn,
   type ActionTarget,
   type AIEditTicketChange,
+  type AIMessage,
   type AnyLibraryScope,
   type AnyPagePermissionScope,
   type AnyPermissionScope,
@@ -43,7 +44,7 @@ import {
 } from "./def/action"
 import type { PlaceChange, Referred } from "./def/permission"
 import type { SubjectDef } from "./def/subject"
-import { binnedBetween } from "./entries"
+import { binnedBetween, TITLE_TAKEN, titleClashes } from "./entries"
 import {
   bookIdOf,
   bookOf,
@@ -115,7 +116,7 @@ export type Refused =
   | { ok: false; reason: Exclude<Refusal, "not-allowed" | "refused"> }
   | NoPage
   | Unreadable
-  | { ok: false; reason: "refused"; detail?: string; kind?: string }
+  | { ok: false; reason: "refused"; detail?: string; kind?: string } // kind は断りの種類（run が添えた名前か、土台の種類。土台の種類は名前空間が付かない）
   | NotAllowed
   | Denied
 // others はレコードが対象のアクションが、宛先のほかに変えたレコード（同じ種類か、writes に書いた種類。確かめ終えた物）
@@ -126,6 +127,7 @@ export type Performed<Id extends ActionId> =
       result: ResultOf<Id>
       others?: readonly OtherRecord<never>[]
       aiEditTickets?: readonly AIEditTicketChange[]
+      aiMessages?: readonly AIMessage[]
     }
   | Refused
 
@@ -539,6 +541,10 @@ export function perform<Id extends ActionId>(
     if (!annotationsSettle(ctx.catalog, page, pair.annotations, next)) return { ok: false, reason: "refused" }
   }
   const others = (ran.others ?? []) as readonly OtherRecord<never>[]
+  // 送る AI 間メッセージは、レコードが対象のアクションで、行う者が参加の確定した AI のときだけ（送り手は行った参加者）
+  const messages = isRecordTarget(ctx.catalog, action.target) ? (ran.aiMessages ?? []) : []
+  if (messages.length > 0 && !(isAI(ctx.actor) && ctx.actor.workroom !== "none"))
+    return { ok: false, reason: "refused", detail: "only an AI in a workroom sends AI messages" }
   if (isRecordTarget(ctx.catalog, action.target)) {
     const changes = recordChanges(ctx, action, subject, done.next, others)
     if (!changes) return { ok: false, reason: "refused" }
@@ -558,6 +564,7 @@ export function perform<Id extends ActionId>(
     ...(isRecordTarget(ctx.catalog, action.target) && ran.aiEditTickets && ran.aiEditTickets.length > 0
       ? { aiEditTickets: ran.aiEditTickets }
       : {}),
+    ...(messages.length > 0 ? { aiMessages: messages } : {}),
   } as Performed<Id>
 }
 
@@ -620,6 +627,7 @@ export type PerformedIn =
       records?: readonly RecordChange[] // レコードが対象のアクションで変わったレコード（宛先の 1 件が先で、ほかは run が返した順。1 つのトランザクションで当てる）
       counters?: Counters // レコードが対象のアクションが進めた番号（種類の id → 区切り → 次の番号。進めた区切りだけ）
       aiEditTickets?: readonly AIEditTicketChange[] // レコードが対象のアクションが返した、AI 編集チケットの変え方の並び（レコードと同じ 1 回の書き込みで当てる）
+      aiMessages?: readonly AIMessage[] // レコードが対象のアクションが返した、送る AI 間メッセージの並び（常駐がバルクの書き込みと一緒に送る）
     }
   | Refused
   | { ok: false; reason: "no-book" }
@@ -707,7 +715,9 @@ export function performIn(
     const made = rowChanges(library, done.next as Library)
     // 足したブックと無くなったブックの置き場所を書く。木の決まりを守っていた世界は、行った後も守る
     const changes = placedChanges(world, made)
-    if (!treeHolds(withChanges(world, changes))) return { ok: false, reason: "refused" }
+    const after = withChanges(world, changes)
+    if (!treeHolds(after)) return { ok: false, reason: "refused" }
+    if (titleClashes(world, after).length > 0) return titleTaken
     // 無くなったページのアノテーションは消す
     const gone = Object.entries(changes.pages)
       .filter(([p, v]) => v === REMOVED && (world.annotations[p]?.length ?? 0) > 0)
@@ -726,6 +736,15 @@ export function performIn(
   return same ? { ok: true, result: done.result } : { ok: true, result: done.result, settings: next }
 }
 
+// 同じフォルダ（ゴミ箱の直下を除く）の中で、名前が重なる断り
+const titleTaken = {
+  ok: false,
+  reason: "refused",
+  kind: TITLE_TAKEN,
+  detail:
+    "an entry with the same title is already in the same folder (titles do not repeat within a folder); use another title",
+} as const
+
 // 変わり changes が新しく足すページ・フォルダの id が、世界 world にもう在るか（行う前のブック before に無かった物を足すなら、その id は世界のどこにも無いこと。
 // ページもフォルダも、ちょうど 1 つのフォルダに入り、id は世界の中で重ならない）
 const collides = (world: Library, before: readonly Book[], changes: TableChanges): boolean =>
@@ -740,6 +759,7 @@ function changedBook(world: World, book: Book, done: ReturnType<typeof perform>)
   if (next === book) return { ok: true, result: done.result }
   const changes = changesBetween([book], [next])
   if (collides(world, [book], changes)) return { ok: false, reason: "refused" }
+  if (next.title !== book.title && titleClashes(world, withChanges(world, changes)).length > 0) return titleTaken
   const { annotations } = world
   const now = new Map(pagesOf(next).map(p => [p.id, p]))
   const changed: Record<string, readonly Annotation[]> = {}
@@ -843,6 +863,7 @@ function performRecord(
     ...(changes.length > 0 ? { records: changes } : {}),
     ...(changes.length > 0 && Object.keys(used).length > 0 ? { counters: { [target]: used } } : {}),
     ...(done.aiEditTickets ? { aiEditTickets: done.aiEditTickets } : {}),
+    ...(done.aiMessages ? { aiMessages: done.aiMessages } : {}),
   }
 }
 
