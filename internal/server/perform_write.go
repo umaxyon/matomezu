@@ -220,13 +220,20 @@ func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act
 		pages = append(pages, rowNotice("page", put))
 	}
 	folders := make([]map[string]any, 0, len(plan.folders))
+	// 木が変わりうる書き込み（フォルダの行が増えた・消えた、書庫ホームかフォルダの行を書いた）のあとは、木の決まりを確かめ直す
+	tree := false
 	for _, put := range plan.folders {
+		was, known := h.folders[put.id]
 		if put.removed {
 			delete(h.folders, put.id)
 		} else {
 			h.folders[put.id] = newFolderRow(put.body, put.version)
 		}
+		tree = tree || put.removed || !known || was.isHomeOrFolder() || h.folders[put.id].isHomeOrFolder()
 		folders = append(folders, rowNotice("folder", put))
+	}
+	if tree {
+		h.checkLibrary()
 	}
 	for _, e := range plan.batch.Entries {
 		if e.Folder == "" {

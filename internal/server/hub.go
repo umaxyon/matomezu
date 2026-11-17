@@ -145,6 +145,8 @@ type Hub struct {
 	pageWarnings map[string]engine.BookWarning
 	// 効かないアノテーション（種類が無い W018・形が合わない W019）の warning の 1 行ずつ。起動したとき・プラグインが変わったとき・アノテーションを消したときに確かめ直す
 	annotationWarnings []string
+	// 書庫の木の決まりが破れているときの warning の 1 行（W030。守っていれば空。tables.go の checkLibrary）
+	libraryWarning string
 	// 効かないレコード（種類が無い W024・形が合わない W025。郵便は種類が無い W022・形が合わない W023）の warning の 1 行ずつ（レコードごと）。
 	// 起動したとき・プラグインが変わったときに全部、アクションがレコードを変えたときに変えたレコードだけを確かめ直す（records.go）
 	recordLines map[recordKey][]string
@@ -209,6 +211,7 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	if err := h.checkBooks(h.order); err != nil {
 		return nil, err
 	}
+	h.checkLibrary()
 	if err := h.checkAnnotations(); err != nil {
 		return nil, err
 	}

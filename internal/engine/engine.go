@@ -174,6 +174,7 @@ type Engine struct {
 	perform     func(string) string
 	readAI      func() string
 	check       func(string) string
+	checkTree   func(string) string
 	lines       func(string) string
 	settings    func(string) string
 	notes       func(string) string
@@ -263,6 +264,9 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuCheckBooks"), &e.check); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuCheckBooks: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuCheckLibrary"), &e.checkTree); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuCheckLibrary: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuWarningLines"), &e.lines); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuWarningLines: %w", err)
@@ -638,6 +642,23 @@ func (e *Engine) CheckBooks(books []json.RawMessage) (out []BookWarning, err err
 		return nil, err
 	}
 	return out, nil
+}
+
+// CheckLibrary は、フォルダの行の全部（書庫ホーム・フォルダ・ブック・バインダ）が木の決まりを守るかを確かめ、破れていれば warning（W030）の 1 行を、守っていれば空の文字列を返す
+// （データには手を付けない）
+func (e *Engine) CheckLibrary(folders []json.RawMessage) (line string, err error) {
+	b, err := json.Marshal(folders)
+	if err != nil {
+		return "", err
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	return e.checkTree(string(b)), nil
 }
 
 // CheckAnnotations はブックのアノテーションを今の機能台帳で確かめ、効かないもの（種類が無い・形が合わない）の warning の 1 行ずつを返す（データには手を付けない）。

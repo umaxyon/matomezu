@@ -73,6 +73,14 @@ const HomeOrFolderSchema = z.discriminatedUnion("folderRole", [
   }),
 ])
 
+// ブックとバインダの行から、木の決まりに要る所だけを読む形
+const LooseFolderSchema = z.looseObject({
+  id: z.string().min(1),
+  folderRole: z.unknown().optional(),
+  lineup: z.array(z.unknown()).catch([]),
+})
+const LooseRefSchema = z.looseObject({ kind: z.string(), id: z.string().min(1) })
+
 // フォルダの行が書庫ホームかフォルダの役（"home"・"folder"）を名乗るか（形は確かめない）
 const namesHomeOrFolder = (row: unknown): boolean =>
   typeof row === "object" &&
@@ -287,6 +295,22 @@ export function treeHolds({ folders }: Tables): boolean {
     }
     return at === HOME_ID
   })
+}
+
+// 置き場所から読んだままのフォルダの行の全部 rows（書庫ホーム・フォルダ・ブック・バインダ）が、木の決まり treeHolds を守るか。
+// 書庫ホームとフォルダは形を確かめ（合わない行は入らない）、ブックとバインダは id と並びのエントリの id だけを読む（読めないブックも、行が在れば木に入る）
+export function rowsHoldTree(rows: readonly unknown[]): boolean {
+  const folders: Record<string, Folder> = {}
+  for (const f of homeAndFoldersOf(rows)) folders[f.id] = f
+  for (const row of rows) {
+    if (namesHomeOrFolder(row)) continue
+    const parsed = LooseFolderSchema.safeParse(row)
+    if (!parsed.success) continue
+    const { id, folderRole, lineup } = parsed.data
+    const refs = lineup.flatMap(r => (LooseRefSchema.safeParse(r).success ? [r as EntryRef] : []))
+    folders[id] = { folderRole: folderRole === "binder" ? "binder" : "book", id, lineup: refs } as unknown as Folder
+  }
+  return treeHolds({ pages: {}, folders })
 }
 
 // 変わり changes（ブックを足す・消す）に、置き場所の書き込みを足した変わり: 足したブックは書庫ホームの末尾に入れ、無くなったブックは、入っていたフォルダの並びから外す

@@ -16,6 +16,7 @@ import {
   placedChanges,
   rawBooksOf,
   restoredTables,
+  rowsHoldTree,
   type Tables,
   treeHolds,
   withChanges,
@@ -111,6 +112,18 @@ describe("木の決まり", () => {
     expect(treeHolds(withFolders(t, { ...old, lineup: [...old.lineup, { kind: "book", id: "unread" }] }))).toBe(true)
     expect(treeHolds(withFolders(t, { ...old, lineup: [...old.lineup, { kind: "folder", id: "none" }] }))).toBe(false)
     expect(treeHolds(withFolders(t, { ...old, lineup: [{ kind: "folder", id: "b1" }, old.lineup[1]!] }))).toBe(false)
+  })
+
+  test("置き場所の行のまま確かめる: 読めないブックの行も木に入り、どこにも入っていないブック・形に合わないフォルダの行・書庫ホームが無いと破れる", () => {
+    const rows = Object.values(tables().folders) as unknown[]
+    expect(rowsHoldTree(rows)).toBe(true)
+    // 役の無い行は、読めないブックとして木に入る
+    const broken = { id: "odd", lineup: "none" }
+    expect(rowsHoldTree([...rows, broken])).toBe(false)
+    const holding: PlainFolder = { ...old, lineup: [...old.lineup, { kind: "book", id: "odd" }] }
+    expect(rowsHoldTree([...Object.values(withFolders(tables(), holding).folders), broken])).toBe(true)
+    expect(rowsHoldTree(rows.map(r => ((r as Folder).id === "old" ? { ...old, title: 3 } : r)))).toBe(false)
+    expect(rowsHoldTree(rows.filter(r => (r as Folder).id !== HOME_ID))).toBe(false)
   })
 })
 

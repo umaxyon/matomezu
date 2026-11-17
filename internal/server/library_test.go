@@ -218,6 +218,48 @@ func TestAIEditTicketsLeaveOutTheLibrary(t *testing.T) {
 	}
 }
 
+// 読み込みの時点で書庫の木の決まりが破れている（ブック b2 がどのフォルダにも入っていない）と、warning（W030）が一覧に出て、
+// 書庫が対象のアクションは断られる。ブックは読めるまま。木が直ると、warning は消える
+func TestABrokenLibraryTreeIsAWarning(t *testing.T) {
+	store := libraryStore(t, false)
+	ref := storage.RefOf
+	alone := storage.Batch{Folders: []storage.RowWrite{{ID: storage.HomeID, Base: 3, Body: storage.HomeBody([]json.RawMessage{ref("book", "b1")})}}}
+	if err := store.Apply(alone); err != nil {
+		t.Fatal(err)
+	}
+	s, hub := newServerOn(t, Options{}, store)
+	has := func() bool {
+		return slices.ContainsFunc(hub.Warnings(), func(l string) bool { return strings.HasPrefix(l, "W030") })
+	}
+	if !has() {
+		t.Fatalf("the warnings have no W030: %v", hub.Warnings())
+	}
+	if _, list := send(t, "GET", s.URL+"/api/data", "", nil); !strings.Contains(list, `"id":"b1"`) || !strings.Contains(list, `"id":"b2"`) {
+		t.Fatalf("the books are not both readable: %s", list)
+	}
+	_, got := postPerform(t, s.URL, `{"action":"@matomezu/base:book-create","args":{"title":"U"},"lang":"ja","ids":["b3"]}`)
+	if !strings.HasPrefix(got, `{"ok":false,"reason":"refused"`) {
+		t.Fatalf("book-create on a broken tree = %s", got)
+	}
+	hub.mu.Lock()
+	home, err := hub.homeWith(func(lineup []json.RawMessage) []json.RawMessage { return append(lineup, ref("book", "b2")) })
+	version := hub.folders[storage.HomeID].version
+	hub.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Apply(storage.Batch{Folders: []storage.RowWrite{{ID: storage.HomeID, Base: version, Body: home}}, Entries: []storage.EntryPut{{ID: "b2", Folder: storage.HomeID}}}); err != nil {
+		t.Fatal(err)
+	}
+	hub.mu.Lock()
+	hub.folders[storage.HomeID] = newFolderRow(home, version+1)
+	hub.checkLibrary()
+	hub.mu.Unlock()
+	if has() {
+		t.Fatalf("the warning stays after the tree is whole: %v", hub.Warnings())
+	}
+}
+
 // between は、s の中の、from から次の to まで（無ければ空）
 func between(s, from, to string) string {
 	i := strings.Index(s, from)

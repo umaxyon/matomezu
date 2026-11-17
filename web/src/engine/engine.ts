@@ -31,6 +31,7 @@ import {
   libraryOf,
   NO_CHANGES,
   rawBooksOf,
+  rowsHoldTree,
   withChanges,
   worldTablesOf,
 } from "../core/folders"
@@ -481,6 +482,11 @@ function aiTables(of: Assembled) {
     ...pages,
   ])
 }
+
+// 残したフォルダの行の全部（書庫ホーム・フォルダ・ブック・バインダ）が木の決まりを守るかを確かめ、破れていれば warning（W030）の 1 行を、守っていれば空の文字列を返す
+// （常駐が一覧に持つ。データには手を付けない）
+;(globalThis as { matomezuCheckLibrary?: (folders: string) => string }).matomezuCheckLibrary = folders =>
+  rowsHoldTree(JSON.parse(folders) as unknown[]) ? "" : warningText(warning("W030", "", {}))
 
 // 残したアノテーションを今の機能台帳で確かめ、効かないもの（種類が無い W018・形が合わない W019）の warning の 1 行ずつを返す（常駐がログに書く）。
 // 受けるのは、ブックと、そのページごとのアノテーション（ページの id → 並び）の組。読めないブックのアノテーションは確かめない

@@ -9,7 +9,9 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"maps"
+	"os"
 	"slices"
 
 	"github.com/umaxyon/matomezu/internal/engine"
@@ -170,6 +172,24 @@ func (h *Hub) foldersAbove(id string) []string {
 		out = append(out, at)
 	}
 	return out
+}
+
+// checkLibrary は、フォルダの行の全部が木の決まりを守るかを確かめ、warning の一覧を直す。変わった warning は常駐のログに書く
+// （確かめられなければ、ログに書いて一覧はそのまま。h.mu を持って呼ぶ）
+func (h *Hub) checkLibrary() {
+	rows := make([]json.RawMessage, 0, len(h.folders))
+	for _, id := range slices.Sorted(maps.Keys(h.folders)) {
+		rows = append(rows, h.folders[id].body)
+	}
+	line, err := h.engine.CheckLibrary(rows)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "engine: could not check the library:", err)
+		return
+	}
+	if line != "" && line != h.libraryWarning {
+		fmt.Fprintln(os.Stderr, "warning:", line)
+	}
+	h.libraryWarning = line
 }
 
 // homeAndFolderRows は、書庫ホームとフォルダの行の全部（書庫ホームを先に、ほかは id の順。エンジンに渡す。h.mu を持って呼ぶ）
