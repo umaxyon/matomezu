@@ -632,8 +632,9 @@ test("アクションは同じ入力なら同じ結果: アクションと、ア
 
 // 土台に、プラグインしか使わない処理を置かない（プラグインだけが使う物は base が持つ）。プラグイン API が出し直すだけの物も、土台の中で使っていなければ当たる。
 // ui はプラグインが使う画面の口なので、プラグインからだけ読まれてよい
-// フォルダ（ブック・バインダを含む）の中身の並びを変える土台の関数は、プラグインだけが呼んでも土台に置く（プラグインは中身を直に組み直さず、土台の関数を通す）
-const LINEUP_FUNCTIONS = ["core/entries"]
+// フォルダ（ブック・バインダを含む）の中身の並びを読む・変える土台の関数は、プラグインだけが呼んでも土台に置く（プラグインは中身を直にたどらず組み直さず、土台の関数を通す）。
+// それだけを置くモジュール
+const LINEUP_MODULES = ["core/entries"]
 test("core と store のモジュールで、プラグインとプラグイン API しか読んでいない物は無い", () => {
   const readers = new Map<string, Set<string>>()
   for (const f of sources)
@@ -644,7 +645,7 @@ test("core と store のモジュールで、プラグインとプラグイン A
   const pluginsOnly = sources
     .filter(f => crateOf(f.rel) === "core" || crateOf(f.rel) === "store")
     .map(f => f.rel.replace(/\.tsx?$/, ""))
-    .filter(m => !LINEUP_FUNCTIONS.includes(m))
+    .filter(m => !LINEUP_MODULES.includes(m))
     .filter(m => {
       const by = [...(readers.get(m) ?? [])]
       return by.length > 0 && by.every(l => l === "plugins" || l === "plugin-api" || l === "plugin-entry")

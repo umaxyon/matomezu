@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"maps"
 	"slices"
-	"strconv"
 )
 
 // trashToFolder は、ゴミ箱をフォルダの役にする:
@@ -16,9 +15,7 @@ import (
 //   - 土台のフィールド trashed（入れた時刻の文字列）を持つブックを、入っていたフォルダの並びから外し、ゴミ箱の並びへ入れる（入れた時刻の古い順。同じ時刻なら id の順）。
 //     from は、その時にいたフォルダから書庫ホームまでの id（近い順。たどって書庫ホームに着かなければ、末尾に書庫ホームを足す）。表 entries の folder はゴミ箱にする。
 //     ブックの行は trashed のキーだけを外し、ほかのキーの順と値・版・書いた時刻は変えない
-//   - ゴミ箱の直下を除く、書庫ホームとフォルダの直下のエントリの名前（title）を重ならないようにする: 並びの後ろに在る方を「<名前> 2」にする（そのフォルダに在れば 3、4…）。
-//     名前を読めない行（title が文字でない・本文が読めない）は数えず、触らない
-//   - 並びか名前を変えた行（ブックの行の trashed を外したのを除く）は、版を 1 上げる。書いた時刻は変えない（ブックの触れた時刻 Touched を動かさない）
+//   - 並びを変えた行（ブックの行の trashed を外したのを除く）は、版を 1 上げる。書いた時刻は変えない（ブックの触れた時刻 Touched を動かさない）
 func trashToFolder(tx *sql.Tx) error {
 	folders, err := folderBodies(tx)
 	if err != nil {
@@ -62,7 +59,7 @@ func trashToFolder(tx *sql.Tx) error {
 		}
 	}
 	slices.SortStableFunc(books, func(a, b trashedBook) int { return cmp.Compare(a.at, b.at) })
-	bumped := map[string]bool{} // 並びか名前を変えて、版を上げる行（フォルダの表）
+	bumped := map[string]bool{} // 並びを変えて、版を上げる行（フォルダの表）
 	for _, b := range books {
 		from := []string{}
 		seen := map[string]bool{b.id: true}
@@ -95,64 +92,8 @@ func trashToFolder(tx *sql.Tx) error {
 			return err
 		}
 	}
-	renamedPages := map[string]json.RawMessage{}
-	for _, id := range slices.Sorted(maps.Keys(folders)) {
-		if role := RoleOf(folders[id]); role != "home" && role != "folder" {
-			continue
-		}
-		type named struct {
-			kind, id, title string
-		}
-		var direct []named
-		taken := map[string]bool{}
-		for _, e := range lineupIn(folders[id]) {
-			var ref struct{ Kind, ID string }
-			if json.Unmarshal(e, &ref) != nil || ref.ID == "" {
-				continue
-			}
-			var body []byte
-			if ref.Kind == "page" {
-				if err := tx.QueryRow(`SELECT body FROM pages WHERE id = ?`, ref.ID).Scan(&body); err != nil && err != sql.ErrNoRows {
-					return err
-				}
-			} else {
-				body = folders[ref.ID]
-			}
-			if title, ok := titleIn(body); ok {
-				direct = append(direct, named{ref.Kind, ref.ID, title})
-				taken[title] = true
-			}
-		}
-		seen := map[string]bool{}
-		for _, d := range direct {
-			if !seen[d.title] {
-				seen[d.title] = true
-				continue
-			}
-			made := d.title
-			for n := 2; taken[made]; n++ {
-				made = d.title + " " + strconv.Itoa(n)
-			}
-			taken[made], seen[made] = true, true
-			if d.kind == "page" {
-				var body []byte
-				if err := tx.QueryRow(`SELECT body FROM pages WHERE id = ?`, d.id).Scan(&body); err != nil {
-					return err
-				}
-				renamedPages[d.id], _ = withField(body, "title", jsonString(made))
-				continue
-			}
-			folders[d.id], _ = withField(folders[d.id], "title", jsonString(made))
-			bumped[d.id] = true
-		}
-	}
 	for _, id := range slices.Sorted(maps.Keys(bumped)) {
 		if _, err := tx.Exec(`UPDATE folders SET body = ?, version = version + 1 WHERE id = ?`, string(folders[id]), id); err != nil {
-			return err
-		}
-	}
-	for _, id := range slices.Sorted(maps.Keys(renamedPages)) {
-		if _, err := tx.Exec(`UPDATE pages SET body = ?, version = version + 1 WHERE id = ?`, string(renamedPages[id]), id); err != nil {
 			return err
 		}
 	}
@@ -202,17 +143,6 @@ func refID(e json.RawMessage) string {
 	}
 	_ = json.Unmarshal(e, &ref)
 	return ref.ID
-}
-
-// titleIn は、行の本文 body の名前（title が空でない文字でなければ ok が false）
-func titleIn(body json.RawMessage) (string, bool) {
-	var head struct {
-		Title *string `json:"title"`
-	}
-	if body == nil || json.Unmarshal(body, &head) != nil || head.Title == nil || *head.Title == "" {
-		return "", false
-	}
-	return *head.Title, true
 }
 
 // jsonString は、文字 s の JSON（< > & を書き替えない）

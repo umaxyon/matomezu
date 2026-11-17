@@ -2,12 +2,12 @@
 
 import { describe, expect, test } from "bun:test"
 import {
+  binnedBetween,
   isMoveRefusal,
   isWithin,
   movedEntry,
   placeOf,
   restoredEntry,
-  restoreTargetOf,
   trashedEntry,
   trashRefOf,
 } from "../../web/src/core/entries"
@@ -48,9 +48,9 @@ const home: HomeFolder = {
 }
 const world = (): Library => worldTablesOf([b1, b2], [home, a, c, d])
 const moved = (t: Library, entry: string, into: string, index?: number): Library => {
-  const puts = movedEntry(t, entry, into, index)
-  if (isMoveRefusal(puts)) throw new Error(puts)
-  return { pages: t.pages, folders: { ...t.folders, ...puts } }
+  const next = movedEntry(t, entry, into, index)
+  if (isMoveRefusal(next)) throw new Error(next)
+  return next
 }
 const ids = (f: Folder | undefined) => f?.lineup.map(r => r.id)
 
@@ -151,16 +151,6 @@ describe("ゴミ箱", () => {
     expect(movedEntry(t, "b1", TRASH_ID)).toBe("in-trash")
   })
 
-  test("戻す先は、元いたフォルダ。無ければ・ゴミ箱の中ならその親をたどり、どれも無ければ書庫ホーム", () => {
-    const t = trashed()
-    expect(restoreTargetOf(t.folders, ["a", HOME_ID])).toBe("a")
-    expect(restoreTargetOf(t.folders, ["gone", "c", "a", HOME_ID])).toBe("c")
-    // b2 は、ゴミ箱に入れた d の中
-    expect(restoreTargetOf(t.folders, ["b2", "d", "a", HOME_ID])).toBe("a")
-    expect(restoreTargetOf(t.folders, ["gone", "more"])).toBe(HOME_ID)
-    expect(restoreTargetOf(t.folders, [])).toBe(HOME_ID)
-  })
-
   test("ゴミ箱に入れると、入っていたフォルダから外れ、ゴミ箱の末尾に、入れた時刻と元いたフォルダから上への列を持って入る（ゴミ箱の行が無ければ作る）", () => {
     const at = "2026-11-18T01:00:00.000Z"
     const t = trashedEntry(world(), "b2", at) as Library
@@ -175,6 +165,10 @@ describe("ゴミ箱", () => {
     expect(trashedEntry(t, "none", at)).toBe("no-entry")
     expect(trashedEntry(t, "b2", at)).toBe("in-trash")
     expect(trashedEntry(more, "b1", at)).toBe("in-trash")
+    // フォルダごと入れると、中の物も、ゴミ箱に入った物に数える（戻すと、出た物に）
+    expect(binnedBetween(t, more).trashed.sort()).toEqual(["a", "b1", "c", "f1", "p1", "s1"])
+    expect(binnedBetween(more, t).restored.sort()).toEqual(["a", "b1", "c", "f1", "p1", "s1"])
+    expect(binnedBetween(t, t)).toEqual({ trashed: [], restored: [] })
   })
 
   test("ゴミ箱の直下の物を、フォルダの末尾へ戻す。ゴミ箱の直下に無い物・無い先・ゴミ箱の中の先・持てない先へは戻せない", () => {

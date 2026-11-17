@@ -2,23 +2,25 @@
 // 無ければ、その上のフォルダをたどる）、消す book-purge と、ゴミ箱を空にする trash-empty（書庫から消す。戻せない）。戻す・消す・空にするのは利用者だけ（userOnly）。
 // 無いブック・入れ済みのブックは入れない。ロック中のブック・ロック中のページを持つブックは、認可ステップ lock が止める
 import { z } from "zod"
-import { isMoveRefusal, restoredEntry, restoreTargetOf, trashedEntry, trashRefOf } from "../../../core/entries"
-import { bookOf, type Folders, type Library, libraryOf, TRASH_ID, withoutBook } from "../../../core/folders"
+import { isMoveRefusal, restoredEntry, trashedEntry, trashRefOf, trashRefsOf } from "../../../core/entries"
+import { bookOf, type Folders, HOME_ID, inTrash, type Library, libraryOf, withoutBook } from "../../../core/folders"
 import type { Books } from "../../../core/library"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
 
 // ゴミ箱の直下のブックと、入れた時刻（新しい順）。trash はゴミ箱かその中のブック、folders は書庫のフォルダの行
 export function trashOrder(trash: Books, folders: Folders): { book: Book; trashed: string }[] {
-  const bin = folders[TRASH_ID]
-  const refs = bin?.folderRole === "trash" ? bin.lineup : []
-  return refs
+  return trashRefsOf(folders)
     .flatMap(r => {
       const book = trash[r.id]
       return book ? [{ book, trashed: r.trashed }] : []
     })
     .sort((a, b) => (a.trashed < b.trashed ? 1 : -1))
 }
+
+// ゴミ箱から戻す先のフォルダの id: 元いたフォルダから上への列 from（近い順）のうち、今も在ってゴミ箱でもその中でもない最初のフォルダ。どれも無ければ書庫ホーム
+export const restoreTargetOf = (folders: Folders, from: readonly string[]): string =>
+  from.find(id => folders[id] !== undefined && folders[id].folderRole !== "trash" && !inTrash(folders, id)) ?? HOME_ID
 
 // 書庫 library の、ゴミ箱の直下のブック id（ゴミ箱の直下に無ければ undefined）
 const trashedBook = (library: Library, id: string): Book | undefined =>

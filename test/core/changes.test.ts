@@ -66,6 +66,17 @@ test("同じなら何も変わらず、後が無ければ一覧から無くな�
   })
 })
 
+test("ゴミ箱に入ったと言われたブックは、値が同じでも、その印が付く", () => {
+  expect(changesOf(book({}), book({}), { trashed: true })).toEqual({
+    gone: false,
+    trashed: true,
+    added: false,
+    fields: [],
+    lineup: false,
+    pages: [],
+  })
+})
+
 test("前が無ければ一覧に新しく増えた: フィールドはどれも変わり、どのページも足した", () => {
   expect(changesOf(undefined, book({ title: "x", lineup: [p("p1", { items: [{ id: "a" }] })] }))).toEqual({
     gone: false,

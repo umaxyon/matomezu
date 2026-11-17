@@ -45,7 +45,11 @@ const skeleton = (book: Book): unknown =>
     e.kind === "binder" ? { id: e.id, title: e.title, pageType: e.pageType, lineup: e.lineup.map(p => p.id) } : e.id,
   )
 
-export function changesOf(before: Book | undefined, after: Book | undefined, trashed = false): Changes {
+export function changesOf(
+  before: Book | undefined,
+  after: Book | undefined,
+  { trashed = false }: { trashed?: boolean } = {},
+): Changes {
   if (!after) return { gone: true, trashed: false, added: false, fields: [], lineup: false, pages: [] }
   if (!before)
     return {

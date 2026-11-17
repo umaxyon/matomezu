@@ -3,6 +3,7 @@
 // 追加プラグインは、常駐が変換した JS を同じ goja で動かして受け取り、matomezuUse でビルトインプラグインに足して組み直す。
 // 追加プラグインが借りる実物（plugin-modules）は、読み込んだときに globalThis.__matomezuModules に置く（変換した JS はここから取り出す）
 // 画面と同じ performIn を使うので、画面で先に行ったアクションを常駐で行い直すと同じ結果になる（振る id は ids で受ける）
+
 import { z } from "zod"
 import { actorOfWire, type WireActor } from "../core/actor"
 import { isAIListed, listAIRecords, recordContext, UNLISTED_MODES } from "../core/ai-list"
@@ -23,12 +24,12 @@ import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, type AIEditTicketChange, stopsOnEditLock } from "../core/def/action"
 import { slideIsBackground } from "../core/def/page-type"
 import type { SubjectDef } from "../core/def/subject"
+import { binnedBetween } from "../core/entries"
 import {
   bookIdOf,
   bookOf,
   createdOn,
   homeAndFoldersOf,
-  inTrash,
   libraryOf,
   NO_CHANGES,
   rawBooksOf,
@@ -279,9 +280,9 @@ function perform(input: Input): Output {
   const changed = Object.values(next).filter(b => books[b.id] !== b)
   const removed = Object.keys(books).filter(id => !(id in next))
   // ゴミ箱に入ったブックと、ゴミ箱から出たブック（ブックを中に持つフォルダごと出入りしたときの、中のブックも。ブックの値は変わらない）
-  const binned = (id: string) => inTrash(after.folders, id)
-  const trashing = Object.keys(next).filter(id => binned(id) && !inTrash(tables.folders, id))
-  const restoring = Object.keys(next).filter(id => !binned(id) && inTrash(tables.folders, id))
+  const binned = binnedBetween(tables, after)
+  const trashing = binned.trashed.filter(id => id in next)
+  const restoring = binned.restored.filter(id => id in next)
   const notice = shiftNotice(books, changed)
   const changes = done.changes ?? NO_CHANGES
   return {

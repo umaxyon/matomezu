@@ -43,6 +43,7 @@ import {
 } from "./def/action"
 import type { Referred } from "./def/permission"
 import type { SubjectDef } from "./def/subject"
+import { binnedBetween } from "./entries"
 import {
   bookIdOf,
   bookOf,
@@ -172,7 +173,7 @@ function broken(
   after: Book | undefined,
   trashed = false,
 ): string | null {
-  const changes = changesOf(before, after, trashed)
+  const changes = changesOf(before, after, { trashed })
   for (const p of ctx.catalog.permissions.values())
     if (p.keeps && !p.keeps({ kind: "folder", action, before, after, changes, actor: ctx.actor })) return p.id
   return null
@@ -221,9 +222,9 @@ function brokenIn(
 ): { permission: string; book?: string } | null {
   const before = libraryOf(was)
   const after = libraryOf(now)
-  const trashed = (id: string) => inTrash(now.folders, id) && !inTrash(was.folders, id)
+  const { trashed } = binnedBetween(was, now)
   for (const b of Object.values(before)) {
-    const entered = trashed(b.id)
+    const entered = trashed.includes(b.id)
     const id = b === after[b.id] && !entered ? null : broken(ctx, action, b, after[b.id], entered)
     if (id) return { permission: id, book: b.id }
   }
