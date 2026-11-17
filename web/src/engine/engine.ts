@@ -280,7 +280,9 @@ function perform(input: Input): Output {
   const changed = Object.values(next).filter(b => books[b.id] !== b)
   const removed = Object.keys(books).filter(id => !(id in next))
   // ゴミ箱に入ったブックと、ゴミ箱から出たブック（ブックを中に持つフォルダごと出入りしたときの、中のブックも。ブックの値は変わらない）
-  const binned = binnedBetween(tables, after)
+  // フォルダの行が変わらなければ、置き場所は変わらない
+  const moved = Object.keys(done.changes?.folders ?? {}).length > 0
+  const binned = moved ? binnedBetween(tables, after) : { trashed: [], restored: [] }
   const trashing = binned.trashed.filter(id => id in next)
   const restoring = binned.restored.filter(id => id in next)
   const notice = shiftNotice(books, changed)
