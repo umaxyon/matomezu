@@ -194,20 +194,58 @@ func (h *Hub) checkLibrary() {
 	h.libraryWarning = line
 }
 
-// openRows は、書庫ホーム・ゴミ箱・フォルダの行の全部（書庫ホームを先に、ゴミ箱を次に、ほかは id の順。エンジンに渡す。h.mu を持って呼ぶ）
-func (h *Hub) openRows() []json.RawMessage {
-	out := []json.RawMessage{}
+// openIDs は、書庫ホーム・ゴミ箱・フォルダの id の全部（書庫ホームを先に、ゴミ箱を次に、ほかは id の順。h.mu を持って呼ぶ）
+func (h *Hub) openIDs() []string {
+	out := []string{}
 	for _, id := range []string{storage.HomeID, storage.TrashID} {
 		if f, ok := h.folders[id]; ok && f.isOpen() {
-			out = append(out, f.body)
+			out = append(out, id)
 		}
 	}
 	for _, id := range slices.Sorted(maps.Keys(h.folders)) {
-		if f := h.folders[id]; id != storage.HomeID && id != storage.TrashID && f.isOpen() {
-			out = append(out, f.body)
+		if id != storage.HomeID && id != storage.TrashID && h.folders[id].isOpen() {
+			out = append(out, id)
 		}
 	}
 	return out
+}
+
+// openRows は、書庫ホーム・ゴミ箱・フォルダの行の全部（openIDs の順。エンジンに渡す。h.mu を持って呼ぶ）
+func (h *Hub) openRows() []json.RawMessage {
+	out := []json.RawMessage{}
+	for _, id := range h.openIDs() {
+		out = append(out, h.folders[id].body)
+	}
+	return out
+}
+
+// entriesNotInBooks は、書庫ホーム・ゴミ箱・フォルダの直下に在るページとバインダの id の全部（ブックに入っていない物。openIDs の順、その中は並びの順。h.mu を持って呼ぶ）
+func (h *Hub) entriesNotInBooks() []string {
+	out := []string{}
+	for _, id := range h.openIDs() {
+		for _, e := range h.folders[id].entries {
+			if _, page := h.pages[e]; page || h.folders[e].role == "binder" {
+				out = append(out, e)
+			}
+		}
+	}
+	return out
+}
+
+// entryNotInBook は、ブックに入っていないページ page の行をエンジンへ渡すときの、渡すエントリの id: 書庫ホームかフォルダの直下のページならそのページ、
+// その直下のバインダの中のページならそのバインダ。ブックの中・ゴミ箱の中・どのフォルダにも入っていない・無いページなら空（h.mu を持って呼ぶ）
+func (h *Hub) entryNotInBook(page string) string {
+	if _, ok := h.pages[page]; !ok || h.inTrash(page) || h.bookOfEntry(page) != "" {
+		return ""
+	}
+	holder, ok := h.folders[h.places[page]]
+	switch {
+	case ok && holder.role == "binder":
+		return h.places[page]
+	case ok && holder.isOpen():
+		return page
+	}
+	return ""
 }
 
 // openRowsAbove は、ブック ids から書庫の一番上（書庫ホームか、ゴミ箱の中のブックならゴミ箱）までの、書庫ホーム・ゴミ箱・フォルダの行
@@ -243,20 +281,23 @@ func (h *Hub) rowsUnder(id string) []string {
 	return out
 }
 
-// rowsOf は、ブック ids のページとフォルダの本文（エンジンに渡す。ブックのフォルダ・その下のバインダ・その中のページ。バインダでないフォルダの中へは降りない。h.mu を持って呼ぶ）
+// rowsOf は、ブック・バインダ・ページ ids のページとフォルダの本文（エンジンに渡す。ページならその行。ブックとバインダなら、そのフォルダ・その下のバインダ・その中のページ。
+// バインダでないフォルダの中へは降りない。h.mu を持って呼ぶ）
 func (h *Hub) rowsOf(ids []string) (pages, folders []json.RawMessage) {
 	pages, folders = []json.RawMessage{}, []json.RawMessage{}
 	var walk func(id string)
 	walk = func(id string) {
+		if p, ok := h.pages[id]; ok {
+			pages = append(pages, p.body)
+			return
+		}
 		f, ok := h.folders[id]
 		if !ok {
 			return
 		}
 		folders = append(folders, f.body)
 		for _, e := range f.entries {
-			if p, ok := h.pages[e]; ok {
-				pages = append(pages, p.body)
-			} else if h.folders[e].role == "binder" {
+			if _, page := h.pages[e]; page || h.folders[e].role == "binder" {
 				walk(e)
 			}
 		}

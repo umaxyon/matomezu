@@ -26,7 +26,8 @@
 //	                      コントロールセンターを前に出している窓は {"front": "control-center", "hidden": {後ろに隠れているブックスクリーンの book, page, selection, awaiting など}}）
 //	GET  /api/ai/books  {"books": [{"id", "type", "title", "version", "awaiting"}]}（awaiting は AI の応えを待つアノテーションの数）
 //	GET  /api/ai/books/{id}  {"id", "book", "version", "annotations", "placed"}（?outline=1 ならページの目次。ai_outline.go）
-//	GET  /api/ai/pages/{page}  {"book", "page", "version", "annotations", "placed"}（book はそのページを持っているブックの id、version はそのページの版、annotations はそのページの物に立つもの。?outline=1 でページの中の物の目次、?item=id でその物だけ。ai_outline.go）。読めないページは {"ok": false, "reason": "unreadable", "code"}（code は読めない理由の warning の番号）
+//	GET  /api/ai/pages/{page}  {"book", "folder", "page", "version", "annotations", "placed"}（book はそのページを持っているブックの id、folder はそのページが入っているフォルダ（ブックの直下ならブック、バインダの中ならバインダ）の id、version はそのページの版、annotations はそのページの物に立つもの。?outline=1 でページの中の物の目次、?item=id でその物だけ。ai_outline.go）。読めないページは {"ok": false, "reason": "unreadable", "code"}（code は読めない理由の warning の番号）
+//	GET  /api/ai/folder[?folder=ID]  書庫ホーム（folder が無いとき）かフォルダ 1 つの {"id", "kind", "title", "path", "lineup"}（書庫ホームからの道筋と、直下のエントリを 1 段だけ。ai_folder.go）
 //	GET  /api/ai/records?kind=K[&id=ID | &ids=a&ids=b | &where.key=value&is.key=absent&limit=N&before=ID]  AI に見せる種類（対象の定義の aiBrief）のレコード（ai_records.go）。
 //	                      id はその 1 件の全文、ids は何件かの全文、どちらも無ければ一覧（索引キーで探す種類は {"kind","records","total","older"}）
 //	GET  /api/ai/awaiting    {"awaiting": [{"book", "title", "annotation", "brief"}], "undone": [{"book", "title", "at", "lost"}], "failed": [{"book", "title", "key", "changed"}], "removed": [{"book", "title", "key", "cause"}]}
@@ -144,6 +145,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("GET /api/ai/books", o.ai(o.aiBooks))
 	mux.Handle("GET /api/ai/books/{id}", o.ai(o.aiBook))
 	mux.Handle("GET /api/ai/pages/{page}", o.ai(o.aiPage))
+	mux.Handle("GET /api/ai/folder", o.ai(o.aiFolder))
 	mux.Handle("GET /api/ai/awaiting", o.ai(o.aiAwaiting))
 	mux.Handle("GET /api/ai/watch", o.ai(o.aiWatch))
 	mux.Handle("POST /api/ai/watch/ack", o.ai(o.aiWatchAck))

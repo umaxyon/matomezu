@@ -506,11 +506,13 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 
 // performInputs は、バルク in.Actions を行う前に、エンジンへ渡すページ・フォルダ・アノテーション・レコード・番号の表を in に入れる（h.mu を持って呼ぶ）。
 // アクションごとに要るブック（レコードが対象なら引数から答えた読むだけのブック、宛先があればそのブック）の和と、そのアノテーションと、それらのブックから書庫の一番上までのフォルダを渡す。
+// 宛先がブックに入っていないページなら、そのページ（バインダの中なら、そのバインダと中のページの全部）と、そのアノテーションと、そこから書庫ホームまでのフォルダを渡す。
 // 一覧のアクション（宛先が無く、レコードが対象でない）か、0 番目でなく宛先が置き場所に無い（バルクの前のアクションが作ったページなど）アクションを含むなら、
-// 全部のブックとアノテーションと、書庫ホーム・ゴミ箱・フォルダの全部
+// 全部のブックと、ブックに入っていないページとバインダの全部（ゴミ箱の中の物も）と、アノテーションの全部と、書庫ホーム・ゴミ箱・フォルダの全部
 func (h *Hub) performInputs(in *engine.Input) error {
 	all := false
 	books := []string{}
+	entries := []string{} // 宛先のページがブックに入っていないときの、渡すエントリ（そのページか、それを持つバインダ）
 	add := func(id string) {
 		if id != "" && !slices.Contains(books, id) {
 			books = append(books, id)
@@ -530,7 +532,8 @@ func (h *Hub) performInputs(in *engine.Input) error {
 		case step.On == nil:
 			all = true
 		default:
-			// 宛先がページなら、そのページを持っているブック。置き場所にあるが読めるブックに入っていないページ（ゴミ箱の中のブックのページなど）は、何も足さない。
+			// 宛先がページなら、そのページを持っているブック。ブックに入っていないページなら、そのページか、それを持つバインダ（entryNotInBook）。
+			// 置き場所にあるが、ゴミ箱の中に在るページ（ゴミ箱の中のブックのページも）は、何も足さない。
 			// 置き場所に無い宛先は、前のアクションが作った物でありうるので全部のブック。0 番目のアクションの宛先は前のアクションが作った物ではないので、何も足さない
 			book := h.bookOn(step.On)
 			_, known := h.pages[step.On.Page]
@@ -538,6 +541,9 @@ func (h *Hub) performInputs(in *engine.Input) error {
 			case book != "" && (step.On.Page != "" || h.hasBook(book)):
 				add(book)
 			case step.On.Page != "" && known:
+				if e := h.entryNotInBook(step.On.Page); e != "" && !slices.Contains(entries, e) {
+					entries = append(entries, e)
+				}
 			case i == 0:
 			default:
 				all = true
@@ -546,15 +552,27 @@ func (h *Hub) performInputs(in *engine.Input) error {
 	}
 	in.Annotations = map[string]json.RawMessage{}
 	if all {
-		in.Pages, in.Folders = h.rowsOf(h.order)
+		in.Pages, in.Folders = h.rowsOf(append(slices.Clone(h.order), h.entriesNotInBooks()...))
 		in.Folders = append(in.Folders, h.openRows()...)
 		maps.Copy(in.Annotations, h.annotations)
 		return nil
 	}
-	in.Pages, in.Folders = h.rowsOf(books)
-	in.Folders = append(in.Folders, h.openRowsAbove(books)...)
+	needed := append(slices.Clone(books), entries...)
+	in.Pages, in.Folders = h.rowsOf(needed)
+	in.Folders = append(in.Folders, h.openRowsAbove(needed)...)
 	for _, id := range books {
 		maps.Copy(in.Annotations, h.annotationsIn(id))
+	}
+	for _, id := range entries {
+		pages := []string{id}
+		if binder, ok := h.folders[id]; ok {
+			pages = binder.entries
+		}
+		for _, page := range pages {
+			if list, ok := h.annotations[page]; ok {
+				in.Annotations[page] = list
+			}
+		}
 	}
 	return nil
 }
