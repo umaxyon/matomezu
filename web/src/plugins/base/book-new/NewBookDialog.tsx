@@ -5,8 +5,9 @@ import { useState } from "react"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
 import { Dialog } from "../dialog-host/Dialog"
-import { controlClass, Field, Form } from "../dialog-host/FormParts"
+import { controlClass, Field, Form, Problem } from "../dialog-host/FormParts"
 import { kit } from "../kit"
+import { titleTaken } from "../utils/refusal"
 import { useCreateBook } from "./useCreateBook"
 
 export function NewBookDialog({ onClose }: DialogProps) {
@@ -22,12 +23,15 @@ function NewBookForm({ onDone }: { onDone: () => void }) {
   const t = useMessages(kit)
   const createAndOpen = useCreateBook()
   const [title, setTitle] = useState("")
+  const [taken, setTaken] = useState(false) // 同じ名前の物が在って、断られた
   return (
     <Form
       submit={t("Create")}
       ready={title.trim() !== ""}
       onSubmit={() => {
-        if (createAndOpen({ title })) onDone()
+        const done = createAndOpen({ title })
+        if (done?.ok) onDone()
+        else setTaken(done !== null && titleTaken(done))
       }}
     >
       <Field label={t("Book name")}>
@@ -36,6 +40,7 @@ function NewBookForm({ onDone }: { onDone: () => void }) {
           <input id={id} className={controlClass} value={title} autoFocus onChange={e => setTitle(e.target.value)} />
         )}
       </Field>
+      {taken && <Problem>{t("The name is taken")}</Problem>}
     </Form>
   )
 }

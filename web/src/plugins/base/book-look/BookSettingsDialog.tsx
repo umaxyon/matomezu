@@ -10,7 +10,7 @@ import type { DialogProps } from "../../../ui/plugin"
 import { useActions, useAllowed, useBook, usePerform } from "../../../ui/view-hooks"
 import { useSettingControls } from "../book-settings/SettingControls"
 import { Dialog } from "../dialog-host/Dialog"
-import { ActionButton, controlClass, Field, Form } from "../dialog-host/FormParts"
+import { ActionButton, controlClass, Field, Form, Problem } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { BOOK_LOCK, BOOK_UNLOCK, LOCK } from "../lock"
 import { LockToggle } from "../lock/LockToggle"
@@ -23,10 +23,11 @@ export function BookSettingsDialog({ onClose }: DialogProps) {
   const t = useMessages(kit)
   const form = useId()
   const book = useBook() ?? undefined // 確定したブック（このダイアログが下書きを出すので、下書きを重ねたブックは読まない）
-  const { previewDialog, showToast } = useActions()
+  const { previewDialog } = useActions()
   const perform = usePerform()
   const [title, setTitle] = useState(book?.title ?? "")
   const [locked, setLocked] = useState(book?.locked === true)
+  const [taken, setTaken] = useState(false) // 同じ名前の物が在って、断られた
   // 認可ステップが止めていれば項目を押せない（ロックが止めているなら、鍵で外す方にすれば押せる）
   const update = useAllowed(BOOK_UPDATE.id)
   const blocked = !update.ok && update.permission !== null && !(update.permission === LOCK.id && !locked)
@@ -47,13 +48,7 @@ export function BookSettingsDialog({ onClose }: DialogProps) {
       () => perform(BOOK_UNLOCK.id, {}).ok,
       () => {
         const updated = perform(BOOK_UPDATE.id, { title, ...(changed ? { settings: settings.patch } : {}) })
-        // 同じフォルダに同じ名前の物が在れば、トーストで知らせる
-        if (titleTaken(updated))
-          showToast({
-            kind: "warn",
-            message: kit.message("Could not rename"),
-            detail: { message: kit.message("The name is taken") },
-          })
+        setTaken(titleTaken(updated))
         return updated.ok
       },
     )
@@ -77,6 +72,7 @@ export function BookSettingsDialog({ onClose }: DialogProps) {
         <Field label={t("Book name")}>
           {fid => <input id={fid} className={controlClass} value={title} onChange={e => setTitle(e.target.value)} />}
         </Field>
+        {taken && <Problem>{t("The name is taken")}</Problem>}
         {settings.controls}
         <PageProblemsView problems={problems} />
       </Form>

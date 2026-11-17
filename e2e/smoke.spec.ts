@@ -199,6 +199,29 @@ test("分割して右で同じブックを開くと右にもタブがあり、�
   expect(bar.x).toBeLessThan(stage.x + 180)
 })
 
+test("在るブックと同じ名前では作れず、ダイアログの中に「同じ名前があります」が出て、名前を変えると作れる", async ({
+  page,
+}) => {
+  await page.goto(BOOK_SCREEN_URL)
+  await (await fromMenu(page, "画面を分割")).click()
+  const right = page.getByRole("region", { name: "ステージ" }).nth(1)
+  const dialog = page.getByRole("dialog", { name: "新しいブック" })
+  await right.getByRole("button", { name: "新しいブック" }).click()
+  await page.keyboard.type("重なる名前")
+  await page.keyboard.press("Enter")
+  await expect(dialog).toBeHidden()
+  await page.getByRole("button", { name: "ステージを閉じる" }).nth(1).click()
+  await (await fromMenu(page, "画面を分割")).click()
+  await page.getByRole("region", { name: "ステージ" }).nth(1).getByRole("button", { name: "新しいブック" }).click()
+  await page.keyboard.type("重なる名前")
+  await page.keyboard.press("Enter")
+  await expect(dialog.getByText("同じ名前があります")).toBeVisible()
+  await page.keyboard.type(" 2")
+  await page.keyboard.press("Enter")
+  await expect(dialog).toBeHidden()
+  await expect(page.getByRole("tablist").nth(1)).toHaveAttribute("aria-label", "重なる名前 2")
+})
+
 test("右のステージの新しいブックで作ると空のブックが開き、ページを作ると最初のタブと紙が出る", async ({ page }) => {
   await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "画面を分割")).click()

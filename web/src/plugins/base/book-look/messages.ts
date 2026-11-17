@@ -5,7 +5,6 @@ export const BOOK_LOOK_MESSAGES = defineMessages({
   "Change book": { en: "Change book", ja: "ブックを変える" },
   "Change pages": { en: "Change pages", ja: "ページをまとめて変える" },
   "Book settings": { en: "Book settings", ja: "ブックの設定" },
-  "Could not rename": { en: "Could not rename", ja: "名前を変えられませんでした" },
   "Book name": { en: "Book name", ja: "ブックの名前" },
   "Paper color": { en: "Paper color", ja: "紙の色" },
   Cancel: { en: "Cancel", ja: "キャンセル" },

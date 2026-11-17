@@ -41,6 +41,7 @@ test("matomezu が出す名前", () => {
     "SOFT_BREAK",
     "ScrapSchema",
     "TEXT_LOOK",
+    "TITLE_TAKEN",
     "actionsOfPage",
     "adaptPage",
     "addBinder",
