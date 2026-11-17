@@ -565,6 +565,7 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
 interface OpenStep {
   at: string
   done: DoneAction[]
+  after: (() => void)[] // このアクションバルクを送った後ろで送る、自分だけのアクションバルク（bulk: "alone"）
   answer?: Promise<HostAnswer>
   settle?: (a: HostAnswer) => void
   books: string[]
@@ -694,6 +695,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     const was = open
     open = null
     sendBulk(was)
+    for (const send of was.after) send()
     putStep(was)
   }
   // 閉じたアクションバルクを observe に渡し、答えを待っている所に返す（断られたら画面の履歴の段を捨てる）
@@ -839,10 +841,34 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       into.folders[id] = { before: into.folders[id]?.before ?? r.before, after: r.after }
     return into
   }
+  // 行ったアクション sent を、開いているアクションバルクに足し、そのアクションバルクへのホストの答えを返す
+  const joinBulk = (sent: DoneAction, at: string): Promise<HostAnswer> | undefined => {
+    const bulk = opened(at)
+    bulk.done.push(sent)
+    if (options.observe && !bulk.answer)
+      bulk.answer = new Promise<HostAnswer>(settle => {
+        bulk.settle = settle
+      })
+    return bulk.answer
+  }
+  // bulk: "alone" のアクション sent を、自分だけのアクションバルクで送り、ホストの答えを返す（開いているアクションバルクがあれば、それを送った後ろに回す。
+  // 同じ処理の中で前に行ったアクションが作った物を、このアクションが変えることがあるため）。種類が対象のアクションだけなので、画面の履歴の段は無い
+  const sendAlone = (sent: DoneAction): Promise<HostAnswer> | undefined => {
+    if (!options.observe) return undefined
+    const behind = open
+    if (!behind) return options.observe([sent])
+    return new Promise<HostAnswer>(settle => {
+      behind.after.push(() => {
+        const answer = options.observe?.([sent])
+        if (answer) void answer.then(settle)
+        else settle({ ok: true })
+      })
+    })
+  }
   // 開いている段とアクションバルク（無ければ開き、同期の流れが終わったら閉じる）
   const opened = (at: string): OpenStep => {
     if (!open) {
-      open = { at, done: [], books: [], pages: {}, folders: {} }
+      open = { at, done: [], after: [], books: [], pages: {}, folders: {} }
       queueMicrotask(closeStep)
     }
     return open
@@ -883,13 +909,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       },
     })
     if (!done.ok) return done
-    const bulk = opened(c.now)
-    bulk.done.push({ action: id, args, ...(on ? { on } : {}), ids, lang: c.lang, now: c.now })
-    if (options.observe && !bulk.answer)
-      bulk.answer = new Promise<HostAnswer>(settle => {
-        bulk.settle = settle
-      })
-    const answer = bulk.answer
+    const sent: DoneAction = { action: id, args, ...(on ? { on } : {}), ids, lang: c.lang, now: c.now }
+    const answer = catalog.actions.get(id)?.bulk === "alone" ? sendAlone(sent) : joinBulk(sent, c.now)
     const next: Partial<MatomezuState> = {}
     if (done.changes) {
       const tables = withChanges({ pages, folders }, done.changes)
@@ -1257,6 +1278,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       open = {
         at: step.at,
         done: [],
+        after: [],
         books: [...step.books],
         pages: { ...step.pages },
         folders: { ...step.folders },

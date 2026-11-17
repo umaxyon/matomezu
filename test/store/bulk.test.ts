@@ -79,3 +79,46 @@ test("行い直しは、バルクの中の 1 つが行えなければ、その�
   expect(captionsOf(store)).toEqual(["一"])
   expect(store.state.getState().books.b1?.lineup[0]).not.toMatchObject({ title: "改" })
 })
+
+// 郵便を 1 通置いた store（送るのは前の処理で済ませておく）
+async function withMail(answer: (bulk: DoneBulk) => HostAnswer = () => ({ ok: true })) {
+  const ready = observed(answer)
+  const sent = ready.store.actions.perform("@matomezu/base:mail-send", {
+    from: "test",
+    title: "届いた",
+    to: { book: "b1" },
+  })
+  if (!sent.ok) throw new Error(sent.reason)
+  await settled()
+  ready.sent.length = 0
+  return { ...ready, mail: (sent.result as { mail: string }).mail }
+}
+const SEEN = "@matomezu/base:mail-seen"
+
+test('bulk: "alone" のアクションは、同じ流れで行っても自分だけのバルクになり、開いているバルクの後ろで送る', async () => {
+  const { store, sent, mail } = await withMail()
+  place(store, 40, "一")
+  store.actions.perform(SEEN, {}, { record: mail })
+  place(store, 300, "二")
+  await settled()
+  expect(sent.map(b => b.map(d => d.action))).toEqual([[PLACE, PLACE], [SEEN]])
+  // 開いているバルクが無ければ、その場で送る
+  store.actions.perform("@matomezu/base:mail-visited", {}, { record: mail })
+  expect(sent.length).toBe(3)
+})
+
+test('bulk: "alone" のアクションの成否は、同じ流れのほかのアクションの成否と別に決まる', async () => {
+  const placeOf = (caption: string, x: number) =>
+    [PLACE, { item: BOX, at: { x, y: 40 }, props: { caption } }, { page: "p1" }] as const
+  // ほかのアクションのバルクが断られても、既読は通り、既読のバルクが断られても、ほかのアクションの画面の履歴の段は残る
+  for (const refused of [PLACE, SEEN]) {
+    const { store, mail } = await withMail(bulk =>
+      bulk.some(d => d.action === refused) ? { ok: false, reason: "refused" } : { ok: true },
+    )
+    const placed = store.actions.performConfirmed(...placeOf("一", 40))
+    const seen = store.actions.performConfirmed(SEEN, {}, { record: mail })
+    expect((await placed).ok).toBe(refused !== PLACE)
+    expect((await seen).ok).toBe(refused !== SEEN)
+    expect(store.state.getState().history.b1?.undo ?? []).toHaveLength(refused === PLACE ? 0 : 1)
+  }
+})
