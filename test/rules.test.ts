@@ -224,7 +224,7 @@ const FRAMES = [
 ].map(f => `plugins/base/${f}`)
 
 test("場所（ステージ・スクリーン）を id で名指すのは土台と base の骨組みだけ（場所を置く物・id を取るフック・場所を引数に取る素の操作・向け先のステージの id を、ほかは使わない）", () => {
-  const names = /\b(StageScope|PageScope|ActsOnScope|useStoreActions|useStageId)\b|ui\/at-hooks"/
+  const names = /\b(StageScope|PageScope|ActsOnScope|useStoreActions|useStageId)\b|\buseScreenArrangement\(|ui\/at-hooks"/
   const users = sources
     .filter(f => crateOf(f.rel) !== "ui" && names.test(f.text))
     .map(f => f.rel)
