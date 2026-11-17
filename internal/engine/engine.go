@@ -651,7 +651,8 @@ func (e *Engine) CheckLibrary(folders []json.RawMessage, pages []string) (line s
 	if err != nil {
 		return "", err
 	}
-	ids, err := json.Marshal(pages)
+	// ページが 1 枚も無いときも、空の並びとして渡す（nil のままだと JSON の null になる）
+	ids, err := json.Marshal(append([]string{}, pages...))
 	if err != nil {
 		return "", err
 	}

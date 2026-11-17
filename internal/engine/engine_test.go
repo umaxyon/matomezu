@@ -765,3 +765,16 @@ func TestEndActionsAreNamedByTheDefinition(t *testing.T) {
 		t.Fatalf("end actions = %+v, %v", ids, err)
 	}
 }
+
+// ページが 1 枚も無い書庫（書庫ホームだけ）でも、木の決まりを確かめられる
+func TestChecksALibraryWithNoPages(t *testing.T) {
+	e := newEngine(t)
+	home := json.RawMessage(`{"folderRole":"home","id":"library-home","lineup":[]}`)
+	line, err := e.CheckLibrary([]json.RawMessage{home}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if line != "" {
+		t.Fatalf("a library of the home alone has a warning: %q", line)
+	}
+}
