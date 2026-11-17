@@ -90,7 +90,7 @@ test("範囲は狭いものから引き、メニューとダイアログが開�
   expect(keyScopes({ menu: false, dialog: false }, ["a:panel"])).toEqual(["a:panel", "stage", "global"])
   expect(keyScopes({ menu: false, dialog: true })).toEqual(["dialog"])
   expect(keyScopes({ menu: true, dialog: true })).toEqual(["menu"])
-  // カレントのステージの見せ方が名乗った範囲は、押した所の範囲のあと、ステージの範囲の前（ダイアログ・メニューの間は探さない）
+  // カレントのステージのプレゼンテーションが名乗った範囲は、押した所の範囲のあと、ステージの範囲の前（ダイアログ・メニューの間は探さない）
   expect(keyScopes({ menu: false, dialog: false }, ["a:panel"], "b:view")).toEqual([
     "a:panel",
     "b:view",
@@ -98,7 +98,7 @@ test("範囲は狭いものから引き、メニューとダイアログが開�
     "global",
   ])
   expect(keyScopes({ menu: false, dialog: true }, [], "b:view")).toEqual(["dialog"])
-  // カレントスクリーンがステージを並べないスクリーンの間は、ステージの範囲・global・見せ方の範囲を引かず、screen を引く（ダイアログとメニューは先）
+  // カレントスクリーンがステージを並べないスクリーンの間は、ステージの範囲・global・プレゼンテーションの範囲を引かず、screen を引く（ダイアログとメニューは先）
   expect(keyScopes({ menu: false, dialog: false, center: true }, ["a:panel"], "b:view")).toEqual(["a:panel", "screen"])
   expect(keyScopes({ menu: false, dialog: true, center: true })).toEqual(["dialog"])
   // テキストFormが名乗った範囲だけで引くときは、ほかの範囲を見ない

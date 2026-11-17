@@ -1,4 +1,4 @@
-// ex2 の見た目を結ぶ: ひし形のビュー・ダイアログ・流れの向きのコンポーネント。紙の見せ方はビルトインプラグインのものを使う
+// ex2 の見た目を結ぶ: ひし形のビュー・ダイアログ・流れの向きのコンポーネント。紙のプレゼンテーションはビルトインプラグインのものを使う
 import { definePluginUi } from "matomezu/ui"
 import { EX2 } from "."
 import { DIAMOND, DIAMOND_ADD_DIALOG, DIAMOND_EDIT_DIALOG, FLOW_DIRECTION } from "./flow"

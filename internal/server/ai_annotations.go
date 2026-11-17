@@ -99,7 +99,7 @@ func (h *Hub) AIBook(book json.RawMessage) (json.RawMessage, error) {
 	return withLineup(book, shown)
 }
 
-// AIPlaced は、ブック（本文）のページの id ごとの、形の描いた位置と大きさ（engine.AIPlaced。見せ方が答えなければ null）
+// AIPlaced は、ブック（本文）のページの id ごとの、形の描いた位置と大きさ（engine.AIPlaced。プレゼンテーションが答えなければ null）
 func (h *Hub) AIPlaced(book json.RawMessage) (json.RawMessage, error) {
 	return h.engine.AIPlaced(book)
 }
@@ -131,7 +131,7 @@ func (o Options) annotationsOf(book string) ([]json.RawMessage, error) {
 }
 
 // aiPage は、1 ページ（{"book", "page", "version", "annotations", "placed"}。book はそのページを持っているブックの id、version はそのページの版、annotations はそのページの物に立つもの、
-// placed はそのページの形の描いた位置と大きさ。見せ方が答えなければ null）。読めないページは {"ok": false, "reason": "unreadable", "code"} で断る
+// placed はそのページの形の描いた位置と大きさ。プレゼンテーションが答えなければ null）。読めないページは {"ok": false, "reason": "unreadable", "code"} で断る
 func (o Options) aiPage(w http.ResponseWriter, r *http.Request) {
 	want := r.PathValue("page")
 	b := o.Hub.Book(o.Hub.BookOn(&engine.On{Page: want}))

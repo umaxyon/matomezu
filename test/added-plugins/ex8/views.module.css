@@ -16,7 +16,7 @@
 .card[data-picked="true"] {
   border-color: var(--theme-accent);
 }
-/* 見せ方のビュー: 紙を置かないので、描く広さとスクロールを自分で持つ */
+/* プレゼンテーションのビュー: 紙を置かないので、描く広さとスクロールを自分で持つ */
 .deck {
   height: 100%;
   overflow: auto;

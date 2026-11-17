@@ -1,4 +1,4 @@
-// ex3 のページのタイプ「ボード」: 自分の形（星）・紙（正方形）・設定の項目（方眼）・テーマ（ミント）を持ち、ビルトインの見せ方（紙）・リスト・線を id で選ぶ。
+// ex3 のページのタイプ「ボード」: 自分の形（星）・紙（正方形）・設定の項目（方眼）・テーマ（ミント）を持ち、ビルトインのプレゼンテーション（紙）・リスト・線を id で選ぶ。
 // テーマはほかのタイプのページにも id で選べ、スキンは利用者が設定で選ぶ
 
 import { type ShapeAddArgs, type ShapeEditArgs, z } from "matomezu"
@@ -114,7 +114,7 @@ export const BOARD = kit.definePageType({
   items: {
     allowed: [STAR.id, "@matomezu/list:shape-list", "@matomezu/line:connector-line"],
   },
-  actions: {}, // 使うアクションは、選んだアイテム・見せ方・ページについて来る
+  actions: {}, // 使うアクションは、選んだアイテム・プレゼンテーション・ページについて来る
   theme: MINT.id,
   themeTypes: ["@matomezu/base:diagram"],
   presentation: "@matomezu/paper:paper",

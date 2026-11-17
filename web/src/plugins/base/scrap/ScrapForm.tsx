@@ -56,7 +56,7 @@ export function ScrapForm({
   )
   const { book, page } = found
   const area = book && page ? pageArea(catalog, page)?.size : undefined
-  // 測ってから描く見せ方は、描いてみて分かった広さ（DrawnSheet が知らせる）
+  // 測ってから描くプレゼンテーションは、描いてみて分かった広さ（DrawnSheet が知らせる）
   const [drawn, setDrawn] = useState<Size | null>(null)
   const size = drawn ?? area
   // ページの絵の上の位置 = 範囲 + ずらした量

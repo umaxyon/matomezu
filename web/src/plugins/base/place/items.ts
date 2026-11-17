@@ -265,14 +265,14 @@ export function growOf(catalog: CoreCatalog, page: ItemPage): GrowSides | undefi
 
 declare module "../../../core/catalog" {
   interface PageTypeExtras {
-    // 位置をデータに持たない見せ方が、可変ページで描く中身を右・下へずらした印刷区画の数（ページの slide の形も、同じだけずらして描く。無ければ 0）。
+    // 位置をデータに持たないプレゼンテーションが、可変ページで描く中身を右・下へずらした印刷区画の数（ページの slide の形も、同じだけずらして描く。無ければ 0）。
     // page で効いている設定の値は setting、ページの増やす向きは grow（可変ページでなければ undefined。growOf）
     contentOrigin?(catalog: CoreCatalog, page: ItemPage, setting: SettingReader, grow: GrowSides | undefined): Point
   }
 }
 
 // ページ page の slide の形を、描くときにずらす量（紙の上。ページのタイプの contentOrigin の印刷区画の数に、紙の大きさを掛ける）。
-// 位置をデータに持つ見せ方は、データの slide の座標をずらすので、ここでは 0
+// 位置をデータに持つプレゼンテーションは、データの slide の座標をずらすので、ここでは 0
 export function slideOffsetOf(catalog: CoreCatalog, page: ItemPage): Point {
   const paper = paperSize(catalog, page)
   const origin = pageType(catalog, page.type).contentOrigin?.(

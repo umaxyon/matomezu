@@ -11,7 +11,7 @@ import { pluginKit } from "../../web/src/store/kit"
 import { definePlugin, warningsOf } from "../../web/src/store/plugin"
 import { CORE_CATALOG, newStore } from "../support"
 
-test("アクションは、タイプが選んだアイテム・見せ方と、どのブックにも付くアクションが付いて来る。アノテーションのアクションは、その種類を使えるタイプに付いて来る。ブックが対象でないアクションは、どのタイプにも付かない", () => {
+test("アクションは、タイプが選んだアイテム・プレゼンテーションと、どのブックにも付くアクションが付いて来る。アノテーションのアクションは、その種類を使えるタイプに付いて来る。ブックが対象でないアクションは、どのタイプにも付かない", () => {
   const ids = actionsOfPage(CORE_CATALOG, { type: "@matomezu/drawing:drawing" })
   for (const id of [
     "@matomezu/base:page-add",

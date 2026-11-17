@@ -1,5 +1,5 @@
-// ミニマップに描くページの絵（紙の座標）: ページのタイプの見せ方の minimap が決める（無ければ何も描かない）。
-// 置いたアイテムで描く見せ方（紙など）は itemMinimapMarks を使う: 形は定義の minimap（無ければ置いた四角）、つなぐものは種類ごとに定義の minimap（無ければ描かない）。
+// ミニマップに描くページの絵（紙の座標）: ページのタイプのプレゼンテーションの minimap が決める（無ければ何も描かない）。
+// 置いたアイテムで描くプレゼンテーション（紙など）は itemMinimapMarks を使う: 形は定義の minimap（無ければ置いた四角）、つなぐものは種類ごとに定義の minimap（無ければ描かない）。
 // つなぐものを先に（下に）、形をあとに（上に）並べる。機能台帳に無い形は、置いた四角。
 // つなぐものは、紙が描いた絵（drawn.tsx）があればそれを使う
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
@@ -36,7 +36,7 @@ declare module "../../../core/catalog" {
   }
 }
 
-// 見せ方の minimap が受ける、ページの様子: page で効いている設定の値を読む setting、ページの増やす向き grow（可変ページでなければ undefined）、
+// プレゼンテーションの minimap が受ける、ページの様子: page で効いている設定の値を読む setting、ページの増やす向き grow（可変ページでなければ undefined）、
 // 紙が描いたつなぐものの絵 drawn（種類の id ごと。無ければ undefined）
 interface MinimapOn {
   readonly setting: SettingReader
@@ -60,7 +60,7 @@ export function minimapMarks(
   return minimap(catalog, shown, { setting: settingsAt(catalog, page), grow: growOf(catalog, page), drawn })
 }
 
-// 置いたアイテムの絵（ページの slide の形も含む。背景は minimapMarks が外す。見せ方の minimap に、そのまま書ける）
+// 置いたアイテムの絵（ページの slide の形も含む。背景は minimapMarks が外す。プレゼンテーションの minimap に、そのまま書ける）
 export function itemMinimapMarks(catalog: CoreCatalog, page: ItemPage, { setting, drawn }: MinimapOn): MinimapMark[] {
   const rects = rectsOf(catalog, page)
   const areas = portAreasOf(catalog, page, rects)

@@ -48,7 +48,7 @@ declare module "../../../core/catalog" {
     printCrossing?: "ask"
   }
   interface PresentationExtras {
-    // ページ page の印刷区画。並べ方を描くときに決める見せ方（ツリーなど）が、ビューがステージに知らせる広さと同じ座標で返す。
+    // ページ page の印刷区画。並べ方を描くときに決めるプレゼンテーション（ツリーなど）が、ビューがステージに知らせる広さと同じ座標で返す。
     // setting はそのページで効いている設定の値、grow は増やす向き（可変ページでなければ undefined）。purpose は数える物: print は印刷プレビューと
     // 印刷に並べる並べ方（改ページなど印刷のときだけの並べ直しのあと）、screen は書く画面の並べ方（何も載っていない印刷区画を暗くするのに使う）。
     // 無ければ、形の位置から決める（base の pageArea と filledSheets）

@@ -10,7 +10,7 @@ import type { Book } from "../../web/src/core/schema/book"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { normalizedPage, withGrows } from "../../web/src/plugins/base/page-tabs/pages"
-import { DRAWING } from "../../web/src/plugins/books/drawing/drawing"
+import { DRAWING } from "../../web/src/plugins/page-types/drawing/drawing"
 import { createMatomezu } from "../../web/src/store/create"
 import { definePlugin } from "../../web/src/store/plugin"
 import { CORE_CATALOG, newStore, sequence } from "../support"
@@ -70,7 +70,7 @@ const SHEET = definePageType({
   actions: {},
   theme: "@matomezu/base:standard",
   themeTypes: ["@matomezu/base:diagram"],
-  presentation: "@matomezu/paper:paper", // 画面に出さないので、見せ方は表にあるものを借りる
+  presentation: "@matomezu/paper:paper", // 画面に出さないので、プレゼンテーションは表にあるものを借りる
   tokens: [],
 })
 

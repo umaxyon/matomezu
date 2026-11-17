@@ -1,11 +1,11 @@
-// 見た目のプラグイン: React を使わないプラグイン（store/plugin.ts）に、そのプラグインの見せ方・アイテム・設定の項目・ダイアログのビューを結び、
+// 見た目のプラグイン: React を使わないプラグイン（store/plugin.ts）に、そのプラグインのプレゼンテーション・アイテム・設定の項目・ダイアログのビューを結び、
 // ウィジェット（スロットに置けるコンポーネント）とコマンドのアイコンを足す。
 // ビューは、そのプラグインの id を全部持たないと型の誤り（利用者の設定の項目のビューは書かなくてよい）。ほかのプラグインのビューを差し替えるのは overrides に書いたときだけ。
 // 画面に置くインスタンスは、見た目を結んだプラグインだけで作る（MatomezuProvider が型と台帳アセンブルで確かめる）
 
 import type { ComponentType, ReactNode } from "react"
 import type {
-  BookViewExtras,
+  PresentationViewExtras,
   CommandId,
   ContextMenuId,
   ContextMenuTable,
@@ -23,12 +23,12 @@ import { type IdsOf, type Plugin, withoutParts } from "../store/plugin"
 import type { ConnectorUi } from "./connector"
 import type { AnyWidgetDef } from "./layout"
 
-// ブックのビューが受け取る物は無い（描くページと操作は、フックが描いている場所から引く。ui/scope.tsx）
-export type BookViewProps = Record<string, never>
-// ブックのビュー: 開いたページのタイプが選んだ見せ方（core/def/presentation.ts）のコンポーネント（見せ方の id で結び、UI マッピングには書かない）。
+// プレゼンテーションのビューが受け取る物は無い（描くページと操作は、フックが描いている場所から引く。ui/scope.tsx）
+export type PresentationViewProps = Record<string, never>
+// プレゼンテーションのビュー: 開いたページのタイプが選んだプレゼンテーション（core/def/presentation.ts）のコンポーネント（プレゼンテーションの id で結び、UI マッピングには書かない）。
 // ウィジェットと同じく、開く右クリックのメニュー（useContextMenu）を contextMenus に全部書く
-export interface BookViewDef extends BookViewExtras {
-  view: ComponentType<BookViewProps>
+export interface PresentationViewDef extends PresentationViewExtras {
+  view: ComponentType<PresentationViewProps>
   contextMenus?: readonly ContextMenuId[]
 }
 // A は開くときに渡された値の型（値を渡さないダイアログは undefined）
@@ -87,7 +87,7 @@ export interface UserSettingUi {
   control: ComponentType<UserSettingControlProps<any>>
 }
 
-// 画面に置く形（kind が shape）のアイテムの id。線（connector）はブックのビューが描くので、アイテムのビューを持たない
+// 画面に置く形（kind が shape）のアイテムの id。線（connector）はプレゼンテーションのビューが描くので、アイテムのビューを持たない
 type ShapeIdsOf<P> = P extends { items?: readonly (infer D)[] }
   ? D extends { id: infer I; kind: "shape" }
     ? I
@@ -126,7 +126,7 @@ type Field<Ids, Name extends string, V> = [Ids] extends [never] ? { [n in Name]?
 export type PluginViews<P> = Field<
   IdsOf<P, "presentations">,
   "presentationViews",
-  { [id in IdsOf<P, "presentations">]: BookViewDef }
+  { [id in IdsOf<P, "presentations">]: PresentationViewDef }
 > &
   Field<ShapeIdsOf<P>, "items", { [id in ShapeIdsOf<P>]: ItemUi<ItemPropsOf<P, id>, ItemContentOf<P, id>> }> &
   Field<ConnectorIdsOf<P>, "connectors", { [id in ConnectorIdsOf<P>]: ConnectorUi }> &
@@ -144,7 +144,7 @@ type WidgetProps<W extends WidgetId> = WidgetTable[W] extends { view: (props: in
 
 // ほかのプラグインのビューとウィジェットの差し替え。core/catalog.ts にある id だけ（ウィジェットは置けるスロットを変えず、描くコンポーネントだけを替える）
 export interface Overrides {
-  presentationViews?: { [id in PresentationId]?: BookViewDef }
+  presentationViews?: { [id in PresentationId]?: PresentationViewDef }
   dialogViews?: { [id in DialogId]?: ComponentType<DialogProps<DialogArgsOf<id>>> }
   widgets?: { [id in WidgetId]?: (props: WidgetProps<id>) => ReactNode }
 }
@@ -192,7 +192,7 @@ export const definePluginUi = <const P extends Plugin>(plugin: P, ui: UiParts<P>
 
 // インスタンスの見た目の表
 export interface UiCatalog {
-  presentationViews: ReadonlyMap<string, BookViewDef>
+  presentationViews: ReadonlyMap<string, PresentationViewDef>
   items: ReadonlyMap<string, ItemUi>
   connectors: ReadonlyMap<string, ConnectorUi>
   settingViews: ReadonlyMap<string, SettingUi>
@@ -207,7 +207,7 @@ export interface UiCatalog {
 }
 
 interface LooseUi {
-  presentationViews?: Record<string, BookViewDef>
+  presentationViews?: Record<string, PresentationViewDef>
   items?: Record<string, ItemUi>
   connectors?: Record<string, ConnectorUi>
   settingViews?: Record<string, SettingUi>
@@ -220,7 +220,7 @@ interface LooseUi {
   enumValueIcons?: Record<string, EnumValueIcon>
   contextMenuRows?: Record<string, (target: never) => readonly ContextMenuRow[]>
   overrides?: {
-    presentationViews?: Record<string, BookViewDef>
+    presentationViews?: Record<string, PresentationViewDef>
     dialogViews?: Record<string, AnyDialogView>
     widgets?: Record<string, (props: never) => ReactNode>
   }
@@ -238,7 +238,7 @@ export function assembleUi(plugins: readonly Plugin[]): UiCatalog {
 }
 
 function buildUi(plugins: readonly Plugin[]): UiCatalog {
-  const presentationViews = new Map<string, BookViewDef>()
+  const presentationViews = new Map<string, PresentationViewDef>()
   const items = new Map<string, ItemUi>()
   const connectors = new Map<string, ConnectorUi>()
   const settingViews = new Map<string, SettingUi>()

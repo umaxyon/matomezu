@@ -1,6 +1,6 @@
-// AI に見せる、形の描いた位置と大きさ（read_page に添える placed）: ページのタイプの見せ方の aiPlaced が決める（無ければ添えない）。
+// AI に見せる、形の描いた位置と大きさ（read_page に添える placed）: ページのタイプのプレゼンテーションの aiPlaced が決める（無ければ添えない）。
 // データの位置（子は親の左上から）や w・h（書いていない形、子で大きく描く形がある）と違い、紙の上の左上と、描いた幅・高さ。
-// 置いたアイテムで描く見せ方（紙など）は itemAiPlaced を使う: どの深さの形も、置いた順に
+// 置いたアイテムで描くプレゼンテーション（紙など）は itemAiPlaced を使う: どの深さの形も、置いた順に
 
 import { pagesOf } from "../../../core/book"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
@@ -29,7 +29,7 @@ declare module "../../../core/catalog" {
 export const itemAiPlaced = (catalog: CoreCatalog, page: ItemPage): AiPlaced[] =>
   [...allRectsOf(catalog, page)].map(([id, r]) => ({ id, x: r.x, y: r.y, w: r.w, h: r.h }))
 
-// ブック book のページごとの、描いた位置と大きさ（ページの id ごと。ページのタイプの見せ方が aiPlaced を持たないページは null）
+// ブック book のページごとの、描いた位置と大きさ（ページの id ごと。ページのタイプのプレゼンテーションが aiPlaced を持たないページは null）
 export function aiPlacedOf(catalog: CoreCatalog, book: Book): Record<string, readonly AiPlaced[] | null> {
   return Object.fromEntries(
     pagesOf(book).map(p => {

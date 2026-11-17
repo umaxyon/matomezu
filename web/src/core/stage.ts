@@ -20,9 +20,9 @@ import { clampPan, contentSize, paperOrigin } from "./viewport"
 // - none: 何も開いていない（ページが 1 枚も無いブック）
 // - binder: 空のバインダ（中のページが 1 枚も無い。type はバインダが入れるページのタイプ）
 // - page: ページ。ページのタイプと、描く紙を写して持つ（開くときと、ブックが変わったときに決め直す）。
-//   area は、見せ方が描く広さ（可変ページで、印刷区画を並べた広さ）。見せ方が知らせるまでと、紙 1 枚で描くページでは持たない。
+//   area は、プレゼンテーションが描く広さ（可変ページで、印刷区画を並べた広さ）。プレゼンテーションが知らせるまでと、紙 1 枚で描くページでは持たない。
 //   shift は、開いたページの中身をずらした量（ページの shift を写す。変わったらパンを合わせる）。
-//   origin は、位置をデータに持たない見せ方が、描く中身を右・下へずらした量（印刷区画の数。見せ方が広さと一緒に知らせる。変わったらパンを合わせる）
+//   origin は、位置をデータに持たないプレゼンテーションが、描く中身を右・下へずらした量（印刷区画の数。プレゼンテーションが広さと一緒に知らせる。変わったらパンを合わせる）
 // - unreadable: 読めないページ（中身は描かず、読めないことだけを見せる。タイプも紙も持たない）
 // ページが入っているバインダは持たない（ブックから引く。core/book.ts の findPage）
 export type Opened = OpenedNone | OpenedBinder | OpenedPage | OpenedUnreadable
@@ -45,7 +45,7 @@ export interface OpenedPage extends OpenedBook {
   kind: "page"
   page: string // 開いているページの id
   type: PageTypeId
-  paper: ResolvedPaper | null // 描く紙（見せ方が紙を置かなければ null）
+  paper: ResolvedPaper | null // 描く紙（プレゼンテーションが紙を置かなければ null）
   area?: Size
   shift?: Point
   origin?: Point
@@ -59,7 +59,7 @@ export const shownPageId = (opened: Opened | null): string | null => openedPage(
 export const shownType = (opened: Opened | null): PageTypeId | null =>
   opened?.kind === "page" || opened?.kind === "binder" ? opened.type : null
 
-// ページ page の紙を、ステージに置く紙に決める（タイプ type の見せ方が紙を置かなければ null）
+// ページ page の紙を、ステージに置く紙に決める（タイプ type のプレゼンテーションが紙を置かなければ null）
 function stagePaper(catalog: CoreCatalog, page: PaperChoice & Pick<Page, "type">): ResolvedPaper | null {
   const presentation = catalog.presentations.get(catalog.pageTypes.get(page.type)?.presentation ?? "")
   return presentation?.paper === false ? null : resolvePaper(catalog, page)
@@ -69,7 +69,7 @@ function stagePaper(catalog: CoreCatalog, page: PaperChoice & Pick<Page, "type">
 const shiftOf = (page: Page | undefined): { shift?: Point } => (page?.shift ? { shift: page.shift } : {})
 
 // ステージの見え方: 開いたページを編集するか、印刷プレビュー（開いたブックの全ページの印刷区画を並べて、見るだけ）か。
-// 印刷プレビューの間、ずらす量と倍率は並べた広さ area（見せ方が知らせるまでは持たない）で決め、開く前の倍率とずらす量 back を閉じたときに戻す。
+// 印刷プレビューの間、ずらす量と倍率は並べた広さ area（プレゼンテーションが知らせるまでは持たない）で決め、開く前の倍率とずらす量 back を閉じたときに戻す。
 // 開いたページはそのまま持つ（閉じたらそのページの編集に戻る）
 export type StageMode = { kind: "edit" } | { kind: "print-preview"; area?: Size; back: { zoom: number; pan: Point } }
 
@@ -101,7 +101,7 @@ export interface Stage {
   starting: boolean
 }
 
-// 紙を置く位置（表示領域の左上から）と、倍率をかける前の大きさ（可変ページは、見せ方が知らせた広さ。areaOf）
+// 紙を置く位置（表示領域の左上から）と、倍率をかける前の大きさ（可変ページは、プレゼンテーションが知らせた広さ。areaOf）
 export interface Placement {
   x: number
   y: number
@@ -138,13 +138,13 @@ function leave(stage: Stage): Stage {
   return { ...stage, placing: null, selection: NONE, editing: false, picker: null }
 }
 
-// ステージに出す紙の大きさ（ページを開いていないか、描けない紙か、見せ方が紙を置かないなら null）
+// ステージに出す紙の大きさ（ページを開いていないか、描けない紙か、プレゼンテーションが紙を置かないなら null）
 export function paperOf(stage: Pick<Stage, "opened">): Size | null {
   const paper = openedPage(stage.opened)?.paper
   return paper && paper.status !== "unshowable" ? paper.size : null
 }
 
-// ステージに描く広さ（見せ方が知らせた広さ。無ければ紙 1 枚。紙が無ければ null）。ずらす量の範囲・紙の枠の大きさ・全体を収める倍率は、これで決める
+// ステージに描く広さ（プレゼンテーションが知らせた広さ。無ければ紙 1 枚。紙が無ければ null）。ずらす量の範囲・紙の枠の大きさ・全体を収める倍率は、これで決める
 export function areaOf(stage: Pick<Stage, "opened">): Size | null {
   const paper = paperOf(stage)
   return paper && (openedPage(stage.opened)?.area ?? paper)
@@ -173,7 +173,7 @@ export function stageBlocks(
   return mode === "print-preview" && inBook && def?.inPrintPreview !== "runs"
 }
 
-// 見せ方が描く広さを area に、描く中身をずらした量を origin にする（null なら紙 1 枚に戻し、ずらさない）。origin が変わったら、
+// プレゼンテーションが描く広さを area に、描く中身をずらした量を origin にする（null なら紙 1 枚に戻し、ずらさない）。origin が変わったら、
 // 中身が画面の同じ所に見えるよう、変わった分だけパンを合わせる。ずらす量は範囲に収め直す
 export function setArea(stage: Stage, area: Size | null, origin: Point | null = null): Stage {
   const o = openedPage(stage.opened)
@@ -208,7 +208,7 @@ function startPan(stage: Stage, zoom: number): Point {
   return { x: 0 - s.x * zoom, y: 0 - s.y * zoom }
 }
 
-// 開いたばかり（starting）で start が届いていれば、初めの位置に合わせて印を下ろす。紙の左上でない start は、見せ方の広さが届くまで待つ
+// 開いたばかり（starting）で start が届いていれば、初めの位置に合わせて印を下ろす。紙の左上でない start は、プレゼンテーションの広さが届くまで待つ
 // （届く前は紙 1 枚の範囲に収めてしまう）
 function reachStart(stage: Stage): Stage {
   const s = stage.start
@@ -320,7 +320,7 @@ export function binderOf(book: Book, opened: Opened | null): string | null {
 // 開いているブックが変わったときに合わせる。開いていたページが残っていればそのページ（タイプと紙は決め直す）、
 // 無くなっていれば隣（下の neighbourOf）。空のバインダを開いていて、バインダにページが入ったら、その最初のページ。
 // 開くものが変わったときだけ、ずらす量を紙の左上に戻し（初めの位置が届いたらそこへ合わせる）、選択を捨てる。同じページで紙も同じまま中身をずらした（ページの shift が変わった）なら、
-// 中身が画面の同じ所に見えるよう、ずらした分だけパンを合わせ、見せ方が知らせた広さもその分だけ先に変える（知らせ直す前に範囲に収め直して打ち消さないように）。
+// 中身が画面の同じ所に見えるよう、ずらした分だけパンを合わせ、プレゼンテーションが知らせた広さもその分だけ先に変える（知らせ直す前に範囲に収め直して打ち消さないように）。
 // 選択からは、開いているページに無くなった物（AI やほかの画面が消した物、Undo で無くなった物）を外す。
 // そのブックを開いていなければ、同じ値を返す
 export function followBook(catalog: CoreCatalog, stage: Stage, book: Book, before?: Book): Stage {
@@ -356,7 +356,7 @@ function followOpened(catalog: CoreCatalog, stage: Stage, book: Book, before?: B
       }
       return settle({ ...stage, opened }, { x: stage.pan.x - dx * stage.zoom, y: stage.pan.y - dy * stage.zoom })
     }
-    // 紙が変われば、見せ方が知らせた広さは捨てる（知らせ直すまで紙 1 枚）
+    // 紙が変われば、プレゼンテーションが知らせた広さは捨てる（知らせ直すまで紙 1 枚）
     return settle({ ...stage, opened: openedAt(catalog, book, found) }, stage.pan)
   }
   const opened = neighbourOf(catalog, book, o, before)
@@ -445,7 +445,7 @@ export function endBackground(stage: Stage): Stage {
 }
 
 // 印刷プレビューを開く（ブックを開いていて、編集の間だけ）。置こうとしているアイテム・選択・その場の編集・道具のアイコンは捨てる。
-// 並べた広さを見せ方が知らせるまで、ずらす量は収めない
+// 並べた広さをプレゼンテーションが知らせるまで、ずらす量は収めない
 export function openPrintPreview(stage: Stage): Stage {
   if (!stage.opened || previewing(stage)) return stage
   return { ...leave(stopStart(stage)), mode: { kind: "print-preview", back: { zoom: stage.zoom, pan: stage.pan } } }
@@ -463,7 +463,7 @@ function edited(stage: Stage): Stage {
   return stage.mode.kind === "print-preview" ? { ...stage, mode: EDIT, zoom: stage.mode.back.zoom } : stage
 }
 
-// 印刷プレビューで並べた広さを area にする（見せ方が知らせる。印刷プレビューの間でなければ、同じ値を返す）。ずらす量は範囲に収め直す
+// 印刷プレビューで並べた広さを area にする（プレゼンテーションが知らせる。印刷プレビューの間でなければ、同じ値を返す）。ずらす量は範囲に収め直す
 export function setPreviewArea(stage: Stage, area: Size): Stage {
   const mode = stage.mode
   if (mode.kind !== "print-preview") return stage

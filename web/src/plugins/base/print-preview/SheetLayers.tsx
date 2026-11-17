@@ -1,4 +1,4 @@
-// 印刷区画 1 つの中身: レイヤー（スロット sheet-layers）を下から重ねて描く。ブックの中身（ページのタイプの見せ方の printSheet）は、ウィジェット sheet-content が描く。
+// 印刷区画 1 つの中身: レイヤー（スロット sheet-layers）を下から重ねて描く。ブックの中身（ページのタイプのプレゼンテーションの printSheet）は、ウィジェット sheet-content が描く。
 // 印刷プレビューと印刷と、ページ一覧のサムネイルが使う（描く物が同じになる）
 import { pageType } from "../../../core/core-catalog"
 import { Slot } from "../../../ui/Slot"
@@ -13,7 +13,7 @@ export function SheetLayers(props: Omit<PrintSheetProps, "zoom">) {
   return <Slot name={SHEET_LAYERS} props={{ ...props, zoom }} />
 }
 
-// ページの中身のレイヤー: ページのタイプの見せ方の印刷区画 1 つのビュー（無ければ白紙）
+// ページの中身のレイヤー: ページのタイプのプレゼンテーションの印刷区画 1 つのビュー（無ければ白紙）
 export function SheetContent(props: PrintSheetProps) {
   const catalog = useCatalog().core
   const views = useUiCatalog().presentationViews

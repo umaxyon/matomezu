@@ -49,7 +49,7 @@ export interface PageTypeDef extends PageTypeExtras {
   // 使えるアクションは、タイプが選んだ物に付いて来る（アクションの attach）。add はそのタイプだけのアクション、without は使わせないアクション
   actions: ActionChoice
   theme: string // 既定のテーマ
-  presentation: string // 見せ方（core/def/presentation.ts。描くビューは見せ方の id で結ぶ）
+  presentation: string // プレゼンテーション（core/def/presentation.ts。描くビューはプレゼンテーションの id で結ぶ）
   tokens: readonly TokenDef[] // ページの画面を描くのに使うテーマキー
   tools?: string // ステージで使う道具の組の id（core/def/tool.ts。無ければ道具を使わない）
   // データの形の外の決まり（アイテムどうしの関係）。守っていれば true。

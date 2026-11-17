@@ -1,4 +1,4 @@
-// ex8（自分の見せ方を持つ）で、見せ方のビューが開いたページのカードを描き、ページのフィールド cards を base の page-update で変えると描き直すのを確かめる
+// ex8（自分のプレゼンテーションを持つ）で、プレゼンテーションのビューが開いたページのカードを描き、ページのフィールド cards を base の page-update で変えると描き直すのを確かめる
 
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
@@ -18,7 +18,7 @@ import EX8_UI from "../ui"
 
 afterEach(cleanup)
 
-test("単語帳を開くと、カードの見せ方のビューがページのカードを並べる（カードが無ければ無いと出す）", () => {
+test("単語帳を開くと、カードのプレゼンテーションのビューがページのカードを並べる（カードが無ければ無いと出す）", () => {
   const instance = createMatomezu({
     plugins: [...BUILTIN_UI, EX8_UI],
     controlCenter: "@matomezu/control-center:control-center",

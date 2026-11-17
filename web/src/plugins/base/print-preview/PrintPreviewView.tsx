@@ -38,7 +38,7 @@ import { Printing } from "./printing"
 import { SheetFrame } from "./SheetFrame"
 import { PRINT_PREVIEW_BOOK_NAME, PRINT_PREVIEW_PAGE_NAME, PRINT_PREVIEW_SHEET_NUMBERS } from "./settings"
 
-// 印刷区画 1 つのビュー（ブックのビューの定義の printSheet）が受け取る物: ブック・ページと、
+// 印刷区画 1 つのビュー（プレゼンテーションのビューの定義の printSheet）が受け取る物: ブック・ページと、
 // そのページを紙の大きさ paper で区切った column 列目・row 行目の印刷区画（0 から）。ビューはページの中身を、ページの原点で描く
 // （印刷区画の左上が原点になるようずらし、はみ出した所を切るのは印刷プレビュー）。描く物を、その印刷区画に載る物に絞ってよい。入力は受けない
 export interface PrintSheetProps {
@@ -48,10 +48,10 @@ export interface PrintSheetProps {
   column: number
   row: number
   paper: Size
-  measured?: unknown // 測るだけのビュー（printMeasure）が知らせたデータ（測る見せ方だけ）
+  measured?: unknown // 測るだけのビュー（printMeasure）が知らせたデータ（測るプレゼンテーションだけ）
 }
 
-// 測るだけのビュー（ブックのビューの定義の printMeasure）が受け取る物: ブック・ページと、紙の大きさ paper、測った結果を知らせる report。
+// 測るだけのビュー（プレゼンテーションのビューの定義の printMeasure）が受け取る物: ブック・ページと、紙の大きさ paper、測った結果を知らせる report。
 // ページの中身を見えない所に描いて測り、印刷区画の数（rows。1 列に並べる）と、各印刷区画のビューに渡すデータ（data。印刷区画 1 つのビューの
 // measured に届く）を知らせる。測り直すたびに知らせてよい（同じ結果なら並べ直さない）。入力は受けない
 export interface PrintMeasureProps {
@@ -64,10 +64,10 @@ export interface PrintMeasureProps {
 export type { PrintMeasured } from "./measures-state"
 
 declare module "../../../core/catalog" {
-  interface BookViewExtras {
+  interface PresentationViewExtras {
     // 印刷プレビューと印刷で、印刷区画 1 つの中身を描くビュー。無ければ白紙
     printSheet?: ComponentType<PrintSheetProps>
-    // 印刷区画の数と切り方を、描いて測ってから決める見せ方（マークダウンなど）が、ページごとに測るだけのビュー。印刷プレビューが見えない所に
+    // 印刷区画の数と切り方を、描いて測ってから決めるプレゼンテーション（マークダウンなど）が、ページごとに測るだけのビュー。印刷プレビューが見えない所に
     // ページ 1 つに 1 回描き、測り終えるまで、そのページの印刷区画は並べない
     printMeasure?: ComponentType<PrintMeasureProps>
   }
@@ -100,7 +100,7 @@ export function PrintPreviewView() {
   const panel = useRightSidePanelAt(id)
   const { setPreviewArea, closePrintPreview, openPage } = useStoreActions()
   const read = useReadState()
-  // 測る見せ方のページの、測った結果（ページの id → 結果。base が持つステージごとのプラグイン状態。measures.tsx）
+  // 測るプレゼンテーションのページの、測った結果（ページの id → 結果。base が持つステージごとのプラグイン状態。measures.tsx）
   const bookId = book?.id
   const measures = useMeasures(bookId)
   const report = useReportMeasure(bookId)
@@ -120,7 +120,7 @@ export function PrintPreviewView() {
     return made
   }
   const pages = useMemo(() => (book ? pagesOf(book) : []), [book])
-  // 測るページ（タイプの見せ方が測るビューを持ち、紙のあるページ）と、その紙の大きさと測るビュー
+  // 測るページ（タイプのプレゼンテーションが測るビューを持ち、紙のあるページ）と、その紙の大きさと測るビュー
   const measuring = useMemo(
     () =>
       pages.flatMap(p => {

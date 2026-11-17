@@ -1,4 +1,4 @@
-// 紙の見せ方の、物が見えているかの答え（seenOnPaper）: 形は頭（上から 24）が表示領域に入れば見えている（子の形も）。つなぐものは、どちらかの端の形が見えていれば
+// 紙のプレゼンテーションの、物が見えているかの答え（seenOnPaper）: 形は頭（上から 24）が表示領域に入れば見えている（子の形も）。つなぐものは、どちらかの端の形が見えていれば
 import { expect, test } from "bun:test"
 import type { ItemPage } from "../../../web/src/core/placed"
 import { seenOnPaper } from "../../../web/src/plugins/paper/seen"

@@ -12,7 +12,7 @@ import { crossingShapes, filledSheets, sheetKey } from "./filled"
 import { BACKGROUND_PRINT, PRINT_PREVIEW_FLOW, PRINT_PREVIEW_ORDER } from "./settings"
 import { arrangeSheets, type PageSheets, type SheetLayout } from "./sheets"
 
-// ページ page の印刷区画（purpose は数える物。印刷に並べる並べ方か、書く画面の並べ方か）: 見せ方の printSheets があればそれ、無ければ形の位置から（中身が入るだけ並べた数。base の pageArea と filledSheets。
+// ページ page の印刷区画（purpose は数える物。印刷に並べる並べ方か、書く画面の並べ方か）: プレゼンテーションの printSheets があればそれ、無ければ形の位置から（中身が入るだけ並べた数。base の pageArea と filledSheets。
 // 載っている印刷区画を判定できないタイプは filled が null で、どの印刷区画も載っているとして扱う）
 export function sheetsOfPage(
   catalog: CoreCatalog,
@@ -51,7 +51,7 @@ function backgroundCovered<S extends Omit<PrintSheets, "filled">>(catalog: CoreC
 }
 
 // 描いて測ってから決める印刷区画の数: ページの id → 測った行の数（測っている途中なら pending。そのページはまだ並べない）。
-// 測る見せ方（ブックのビューの printMeasure）のページだけが入る
+// 測るプレゼンテーション（プレゼンテーションのビューの printMeasure）のページだけが入る
 export type MeasuredSheets = ReadonlyMap<string, number | "pending">
 
 // ブック book の各ページの印刷区画（描けない紙のページは並べない）。measured にあるページは、測った数（1 列）

@@ -1,4 +1,4 @@
-// 見せ方が描くページ（useShownPage）: ダイアログの下書きを、ページのアイテムにも、どの深さの子の形にも重ねる
+// プレゼンテーションが描くページ（useShownPage）: ダイアログの下書きを、ページのアイテムにも、どの深さの子の形にも重ねる
 
 import { afterEach, expect, test } from "bun:test"
 import { cleanup, render } from "@testing-library/react"

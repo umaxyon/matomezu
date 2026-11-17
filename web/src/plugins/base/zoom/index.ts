@@ -35,10 +35,10 @@ export const fitZoom = (size: Size, view: Size, pad: number, max = ZOOM_MAX): nu
     Math.min(max, Math.max(ZOOM_MIN, Math.min((view.w - 2 * pad) / size.w, (view.h - 2 * pad) / size.h))) * 100,
   ) / 100
 
-// 倍率を変えられるステージか: 紙を置いているか、印刷プレビューの間（紙を置かない見せ方のブックでも、並べた印刷区画をずらし、倍率を変える）
+// 倍率を変えられるステージか: 紙を置いているか、印刷プレビューの間（紙を置かないプレゼンテーションのページでも、並べた印刷区画をずらし、倍率を変える）
 const zoomable = (ctx: CommandContext): boolean => paperOf(ctx.stage) !== null || ctx.stage.mode === "print-preview"
 
-// ページの紙全体（可変ページは、見せ方が知らせた広さ全体。印刷プレビューは並べた印刷区画の全体）を表示領域に収めた見え方: 収まる倍率（ZOOM_MIN～ZOOM_MAX）にして、紙を真ん中に置く。紙か表示領域が無ければそのまま
+// ページの紙全体（可変ページは、プレゼンテーションが知らせた広さ全体。印刷プレビューは並べた印刷区画の全体）を表示領域に収めた見え方: 収まる倍率（ZOOM_MIN～ZOOM_MAX）にして、紙を真ん中に置く。紙か表示領域が無ければそのまま
 export function fitView(stage: Stage): Stage {
   const paper = extentOf(stage)
   const view = stage.view

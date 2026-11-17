@@ -19,7 +19,7 @@ const PLAIN = definePageType({
   annotations: { without: ["@matomezu/base:note", "@matomezu/base:mark"] },
   theme: "@matomezu/base:standard",
   themeTypes: ["@matomezu/base:diagram"],
-  presentation: "@matomezu/paper:paper", // 画面に出さないので、見せ方は表にあるものを借りる
+  presentation: "@matomezu/paper:paper", // 画面に出さないので、プレゼンテーションは表にあるものを借りる
   tokens: [],
 })
 

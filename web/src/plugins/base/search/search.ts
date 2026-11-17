@@ -5,7 +5,7 @@ import type { Book, Page } from "../../../core/schema/book"
 import { findAll, replaceAll, replaceOne, type SearchHit, type SearchQuery } from "./find"
 import type { SearchOpen, SearchSpot } from "./state"
 
-// 見せ方のフィールド search の値（base が拡張ポイントに書き足す）: ページの探す原文と、原文 before を after にする page-update の fields
+// プレゼンテーションのフィールド search の値（base が拡張ポイントに書き足す）: ページの探す原文と、原文 before を after にする page-update の fields
 export interface SearchableDef {
   textOf(page: Page): string
   edit(page: Page, before: string, after: string): Readonly<Record<string, unknown>>
@@ -13,12 +13,12 @@ export interface SearchableDef {
 
 declare module "../../../core/catalog" {
   interface PresentationExtras {
-    // ページの原文を探せる見せ方の、探し方と替え方（無ければ、その見せ方のページは探せない）
+    // ページの原文を探せるプレゼンテーションの、探し方と替え方（無ければ、そのプレゼンテーションのページは探せない）
     search?: SearchableDef
   }
 }
 
-// ページ page が探せるなら、そのタイプの見せ方の search（探せなければ none）
+// ページ page が探せるなら、そのタイプのプレゼンテーションの search（探せなければ none）
 export function searchableOf(
   catalog: CoreCatalog,
   page: Pick<Page, "type"> | null | undefined,

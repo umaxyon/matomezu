@@ -10,8 +10,8 @@ export type { ContextMenuEntry, LayoutDef, MenuItem, WidgetDef, WidgetPlace } fr
 export { defineLayout, defineWidget } from "../ui/layout"
 export { useMenu, useMenuCommand } from "../ui/menu"
 export type {
-  BookViewDef,
-  BookViewProps,
+  PresentationViewDef,
+  PresentationViewProps,
   ContextMenuRow,
   ContextMenuRows,
   DialogProps,

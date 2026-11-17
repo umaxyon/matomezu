@@ -1,4 +1,4 @@
-// 印刷区画の区切りの線のレイヤー（base の stage/layers.tsx の PrintAreaLayer）: 見せ方が知らせた広さが紙 1 枚より大きいときだけ、紙 1 枚ごとの境目に線を引く
+// 印刷区画の区切りの線のレイヤー（base の stage/layers.tsx の PrintAreaLayer）: プレゼンテーションが知らせた広さが紙 1 枚より大きいときだけ、紙 1 枚ごとの境目に線を引く
 
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"

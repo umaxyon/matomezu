@@ -54,7 +54,7 @@ describe("スライドのレイヤー", () => {
     act(() => {
       createBookIn(instance, "s1", { title: "背景" })
     })
-    expect(screen.queryByText("back view")).toBeNull() // ページが無い間は、見せ方も slide のレイヤーも描かない
+    expect(screen.queryByText("back view")).toBeNull() // ページが無い間は、プレゼンテーションも slide のレイヤーも描かない
     expect(layer()).toBeNull()
     const stage = screenOf(instance.state.getState().window).current as string
     act(() => {

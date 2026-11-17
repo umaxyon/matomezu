@@ -49,10 +49,10 @@ const ALLOWED: Record<string, (target: string) => boolean> = {
 }
 // プラグインのファイルは役割で見る。見た目（.tsx と ui.ts）は ui と同じもの、ほかは core・store・zod だけ
 const isView = (rel: string) => rel.endsWith(".tsx") || basename(rel) === "ui.ts"
-// プラグインのフォルダ: plugins/名前。ページのタイプのプラグインは plugins/books/名前、アイテムのプラグインは plugins/items/名前
+// プラグインのフォルダ: plugins/名前。ページのタイプのプラグインは plugins/page-types/名前、アイテムのプラグインは plugins/items/名前
 const pluginRoot = (rel: string) => {
   const parts = rel.split("/")
-  return parts.slice(0, parts[1] === "books" || parts[1] === "items" ? 3 : 2).join("/")
+  return parts.slice(0, parts[1] === "page-types" || parts[1] === "items" ? 3 : 2).join("/")
 }
 // base は土台を直に読む（プラグイン API の部品を作る側）。プラグイン API は読まない（plugin-api が base を読まないのと合わせて、輪を作らない）
 // 土台の表で読んでよい物のほかの外のライブラリは、ライブラリごとに決めた 1 つのファイルだけが読む（mdast・hast は型だけ。@types/mdast・@types/hast）

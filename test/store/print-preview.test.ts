@@ -8,8 +8,8 @@ import { placedSize } from "../../web/src/plugins/base/place/placed"
 import { bookCrossings, bookSheets, sheetsOfPage } from "../../web/src/plugins/base/print-preview/book-sheets"
 import { filledSheets, sheetsOfShape } from "../../web/src/plugins/base/print-preview/filled"
 import { PRINT_READY_STATE } from "../../web/src/plugins/base/print-preview/print-state"
-import { printLaid as printDir } from "../../web/src/plugins/books/dir/print"
-import { printLaid as printTree } from "../../web/src/plugins/books/tree/print"
+import { printLaid as printDir } from "../../web/src/plugins/page-types/dir/print"
+import { printLaid as printTree } from "../../web/src/plugins/page-types/tree/print"
 import { isEnabled, isShown } from "../../web/src/store/commands"
 import { FLOWCHART, TREE, testBook, testPage } from "../lineup"
 import { newStore } from "../support"
@@ -134,7 +134,7 @@ test("印刷区画に載っているか: 手で直した線の角がある印刷
   expect(sheetsOfShape({ x: 50, y: paper.h - 64, w: 100, h: 64 }, paper)).toEqual([{ column: 0, row: 0 }])
 })
 
-test("ツリーのように並べ方を描くときに決めるタイプは、見せ方の printSheets が印刷区画と載っている印刷区画を返す（形の位置からは判定しない）", () => {
+test("ツリーのように並べ方を描くときに決めるタイプは、プレゼンテーションの printSheets が印刷区画と載っている印刷区画を返す（形の位置からは判定しない）", () => {
   const store = newStore()
   const page = testPage(TREE, "p1", { title: "1", root: { id: "r", caption: "根", children: [] } })
   const tree = testBook("t1", "木", [page])

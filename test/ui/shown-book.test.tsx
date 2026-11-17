@@ -1,4 +1,4 @@
-// 見せ方が描くブック（useShownBook）: ブックの設定のダイアログの下書き（アイテムもページも指さないもの）だけを、そのブックの設定の項目に重ねる
+// プレゼンテーションが描くブック（useShownBook）: ブックの設定のダイアログの下書き（アイテムもページも指さないもの）だけを、そのブックの設定の項目に重ねる
 
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"

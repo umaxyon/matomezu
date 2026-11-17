@@ -65,7 +65,7 @@ export function LineView({ scene, children }: { scene: ShapeScene; children: Rea
       .filter(l => scene.released.has(l.from) || scene.released.has(l.to))
       .map(l => l.id),
   )
-  // ダイアログの下書きは、見せ方が渡すページ（下書きを重ねたページ）にもう入っている。じかに直しているドラッグの線は、その途中の項目で描く
+  // ダイアログの下書きは、プレゼンテーションが渡すページ（下書きを重ねたページ）にもう入っている。じかに直しているドラッグの線は、その途中の項目で描く
   const drafted = linesOf(scene.page).map(l =>
     lineDrag.draft?.id === l.id ? { ...l, props: lineDrag.draft.props } : l,
   )

@@ -123,7 +123,7 @@ export interface Declined {
 }
 
 // A は引数の形を通した後の値、I は渡す値（ArgsOf はこちら。省いてよい項目は I で省ける）
-// 付く先: books はどのブックにも、pages はどのページにも（どちらもページのタイプに依らない。books はブックが対象のアクション、pages はページが対象のアクションが書く）。items はそのアイテムを置けるタイプのページ、presentations はその見せ方のタイプのページ、
+// 付く先: books はどのブックにも、pages はどのページにも（どちらもページのタイプに依らない。books はブックが対象のアクション、pages はページが対象のアクションが書く）。items はそのアイテムを置けるタイプのページ、presentations はそのプレゼンテーションのタイプのページ、
 // annotations はそのアノテーションの種類を使えるタイプのページ。ページのタイプで決まる付く先（items・presentations・annotations）を持つ、ブックが対象のアクションは、
 // 許可スコープでページを名指す（どのページのタイプで決めるかが、そこで決まる。名指さなければ、books の付く先だけで決まる）
 export interface ActionAttach {
