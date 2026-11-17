@@ -523,7 +523,16 @@ test("つながりが長く切れたままなら store に知らせ、つなが�
 })
 
 // ページもフォルダも変えない changed（設定・アノテーション・レコードだけを載せる）
-const quiet = (more: object) => ({ pages: [], folders: [], books: [], actions: [], annotations: {}, records: [], window: "", ...more })
+const quiet = (more: object) => ({
+  pages: [],
+  folders: [],
+  books: [],
+  actions: [],
+  annotations: {},
+  records: [],
+  window: "",
+  ...more,
+})
 
 test("changed に載った設定で設定を入れ替える", async () => {
   const { store, emit } = await connected()
@@ -608,6 +617,47 @@ test("読んでいる間に届いた新しい版の知らせは、読んだ古�
   listeners.get("changed")?.(JSON.stringify(pageChangedOf(b1With("new"), "p1", 3)))
   answer(new Response(JSON.stringify({ ...dataOf([b1With("old")], { p1: 2 }), settings: null })))
   expect((await loading).books).toEqual([b1With("new")])
+})
+
+test("読んでいる間に届いたレコード・番号・設定・アノテーションの知らせは、読んだ世界の上に当て直し、消さない", async () => {
+  let answer = (_: Response) => {}
+  const listeners = new Map<string, (data: string) => void>()
+  const host = serverClient({
+    fetch: () => new Promise<Response>(r => (answer = r)),
+    events: () => ({ on: (name, l) => listeners.set(name, l), onError: () => {}, close: () => {} }),
+    focused: () => false,
+    onFocus: () => () => {},
+    visible: () => true,
+    onVisible: () => () => {},
+    importModule: async () => ({}),
+    addStyle: () => {},
+    reload: () => {},
+    later: () => () => {},
+    newKey: () => "k",
+    now: () => 0,
+  })
+  const ROOM = "@matomezu/base:workroom"
+  const loading = host.load()
+  listeners.get("hello")?.(JSON.stringify({ client: "c1" }))
+  await Bun.sleep(0)
+  // 読んだ世界より後に足されたレコード（読んだ世界には無い）
+  listeners.get("changed")?.(
+    JSON.stringify(
+      quiet({
+        records: [{ subject: ROOM, id: "r1", record: { id: "r1" }, version: 1 }],
+        counters: { [ROOM]: { room: 2 } },
+        settings: { a: 1 },
+      }),
+    ),
+  )
+  listeners.get("annotations")?.(JSON.stringify({ page: "p1", annotations: [] }))
+  answer(new Response(JSON.stringify({ ...dataOf([b1With()]), settings: null, records: {}, counters: {} })))
+  const saved = await loading
+  expect(saved.settings).toEqual({ a: 1 })
+  const store = newStore({ books: [], savedBooks: saved.books, observe: bulk => host.observe(bulk) })
+  host.connect(store)
+  expect(Object.keys(store.state.getState().records[ROOM] ?? {})).toEqual(["r1"])
+  expect(store.state.getState().counters).toEqual({ [ROOM]: { room: 2 } })
 })
 
 test("窓が見ているものと、窓がフォーカスされたことを、増やす番号を付けて知らせる。変わらなければ知らせない", async () => {
