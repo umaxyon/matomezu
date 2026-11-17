@@ -71,7 +71,7 @@ function splitStore() {
   showCenter(store)
   const read = () => store.state.getState()
   const center = read().window.order.at(-1) ?? ""
-  const ticket = store.actions.openScreen("@matomezu/taskboard:ticket-screen", { ticket: "t1" })
+  const ticket = store.actions.openScreenId("@matomezu/taskboard:ticket-screen", { ticket: "t1" })
   applySplit(store.actions, read, planOpen([], center, ticket, "after", 2))
   return { store, read, center, ticket }
 }
@@ -80,7 +80,7 @@ test("並びの変わりを行うと、外れて閉じられなかった物（�
   const { store, read, center, ticket } = splitStore()
   expect(read().window.arrangementValue).toEqual({ screens: [center, ticket], behind: [] })
   // 2 枚目がコントロールセンターの代わりに上に入る。コントロールセンターは閉じられないので覚える
-  const second = store.actions.openScreen("@matomezu/taskboard:ticket-screen", { ticket: "t2" })
+  const second = store.actions.openScreenId("@matomezu/taskboard:ticket-screen", { ticket: "t2" })
   applySplit(store.actions, read, planOpen([center, ticket], center, second, "in-place", 2))
   expect(read().window.arrangementValue).toEqual({ screens: [second, ticket], behind: [center] })
   expect(read().window.screens.some(s => s.id === center)).toBe(true)

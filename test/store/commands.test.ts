@@ -3,6 +3,7 @@ import { defineMessages } from "../../web/src/core/i18n/messages"
 import { screenOf } from "../../web/src/core/window"
 import { BUILTIN } from "../../web/src/plugins"
 import { isActive, isShown, screenCommandContext } from "../../web/src/store/commands"
+import { screensOf } from "../../web/src/store/commands/def"
 import { pluginKit } from "../../web/src/store/kit"
 import { definePlugin } from "../../web/src/store/plugin"
 import { createMatomezuInstance } from "../../web/src/store/store"
@@ -56,8 +57,11 @@ describe("コマンドを出すかは、呼んだ場所の様子で決まる", (
       center,
       "@matomezu/base:settings-open",
     )
-    expect(ctx.screen).toMatchObject({ id: center, def: "@matomezu/control-center:screen", stages: false })
-    expect(ctx.screens.at(-1)).toMatchObject({ def: "@matomezu/base:book-screen", stages: true })
+    // 呼ばれた場所のスクリーンは id を持たない。開いているスクリーンの並びは、base だけが screensOf で読む
+    expect(ctx.screen).toEqual({ def: "@matomezu/control-center:screen", props: {}, stages: false })
+    expect("screens" in ctx).toBe(false)
+    expect(screensOf(ctx).at(-1)).toMatchObject({ def: "@matomezu/base:book-screen", stages: true })
+    expect(screensOf(ctx).some(s => s.id === center)).toBe(true)
     expect("stage" in ctx || "book" in ctx).toBe(false)
     // ステージから呼べば、そのステージを並べているスクリーン
     expect(
@@ -79,7 +83,7 @@ describe("コマンドを出すかは、呼んだ場所の様子で決まる", (
     actions.closeDialog()
     actions.openDialog("nope", "@matomezu/base:settings")
     expect(state.getState().dialog).toBeNull()
-    const second = actions.openScreen("@matomezu/control-center:screen", {})
+    const second = actions.openScreenId("@matomezu/control-center:screen", {})
     actions.openDialog(second, "@matomezu/base:settings")
     expect(state.getState().dialog).toMatchObject({ stage: "none", screen: second })
     actions.closeScreen(second)

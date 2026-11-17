@@ -4,30 +4,29 @@
 // チケットを 2 枚並べている（コントロールセンターが隠れている）間は、「広げる」の右に巣箱も出す（2 枚とも閉じて、コントロールセンターへ戻る）。
 // 左の枠を畳んでいる間（folded）は、細い列に収まるよう、戻るを絵だけにして、縦棒を外し、2 つを縦に並べる
 import { useBrowserBack, useMessages, useScreens, useUiCatalog } from "../../../plugin-api/ui"
-import { IconButton, useScreenSplit } from "../../base/ui"
-import { BIRDHOUSE_COMMAND, CONTROL_CENTER_SCREEN } from "../control-center-ids"
+import { IconButton, useScreenSplit, useShowControlCenter } from "../../base/ui"
+import { BIRDHOUSE_COMMAND } from "../control-center-ids"
 import { BackIcon, CloseRightIcon, ExpandIcon } from "../icons"
 import { kit } from "../kit"
 import { TICKET_SCREEN } from "."
 import styles from "./BackBar.module.css"
 
-export function BackBar({ screen, folded = false }: { screen: string; folded?: boolean }) {
+export function BackBar({ folded = false }: { folded?: boolean }) {
   const t = useMessages(kit)
   const { canGoBack, goBack } = useBrowserBack()
-  const { screens, close, makeCurrent } = useScreens()
+  const { close } = useScreens()
+  const showCenter = useShowControlCenter()
   const icon = useUiCatalog().commandIcons.get(BIRDHOUSE_COMMAND)
   const split = useScreenSplit()
   const toCenter = () => {
-    const center = screens.find(s => s.def === CONTROL_CENTER_SCREEN)
-    close(screen)
-    if (center) makeCurrent(center.id)
+    close()
+    showCenter()
   }
   const back = split.inSplit ? t("Close") : t("Back")
   const pair = split.inSplit && split.defs.filter(d => d === TICKET_SCREEN.id).length >= 2
   const allToCenter = () => {
-    const center = screens.find(s => s.def === CONTROL_CENTER_SCREEN)
     split.closeAll()
-    if (center) makeCurrent(center.id)
+    showCenter()
   }
   return (
     <span className={styles.bar} data-folded={folded}>

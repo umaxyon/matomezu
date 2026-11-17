@@ -176,6 +176,7 @@ export {
 } from "./text/ui"
 export * from "./utils/ui"
 export { useControlCenterMaximize, useControlCenterMaximized } from "./window/maximize"
+export { useShowControlCenter } from "./window/show-control-center"
 export { BOOK_SCREEN, CONTROL_CENTER_FOOTER } from "./window/slots"
 export { type ScreenSplit, useScreenSplit } from "./window/useScreenSplit"
 export { defineWorkspace, STAGE_BASE_SLOTS } from "./workspace/ui"

@@ -83,7 +83,7 @@ export function TicketScreen() {
       <section className={styles.screen} aria-label={t("ticket screen")}>
         <div className={`${styles.ticket} ${styles.alone}`}>
           <div className={styles.band}>
-            <BackBar screen={me.id} />
+            <BackBar />
           </div>
           <p className={styles.empty}>{t("The ticket is not there")}</p>
         </div>
@@ -102,7 +102,7 @@ export function TicketScreen() {
       <section className={styles.screen} aria-label={t("ticket screen")}>
         <div className={styles.ticket} data-folded={view.maximized} data-locked={locked}>
           <div className={styles.band}>
-            <BackBar screen={me.id} folded={view.maximized} />
+            <BackBar folded={view.maximized} />
             <span className={styles.bandEnd}>
               <LockToggle
                 locked={locked}

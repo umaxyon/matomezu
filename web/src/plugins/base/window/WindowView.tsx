@@ -2,6 +2,7 @@
 // 左サイドパネルを開けば、右を押し縮める。どのスクリーンを・どこに・どの大きさで出すか、下の行を出すかは、スクリーンアレンジメントが決める（窓の根は決めない）
 import type { CSSProperties } from "react"
 import type { ScreenArrangementId } from "../../../core/catalog"
+import { ArrangedProvider } from "../../../ui/arranged-context"
 import { Slot } from "../../../ui/Slot"
 import { useMatomezuState } from "../../../ui/store-context"
 import { LeftSidePanel } from "../left-side-panel/LeftSidePanel"
@@ -22,7 +23,9 @@ export function WindowView() {
     >
       <LeftSidePanel />
       <div className={styles.screens}>
-        <Slot name={arrangement as ScreenArrangementId} props={{}} />
+        <ArrangedProvider arranged>
+          <Slot name={arrangement as ScreenArrangementId} props={{}} />
+        </ArrangedProvider>
       </div>
     </div>
   )

@@ -2,21 +2,23 @@
 import {
   ScreenView,
   useActions,
+  useArrangedScreens,
   useMessages,
   usePluginState,
   useScreen,
   useScreens,
   useSetPluginState,
 } from "matomezu/ui"
-import { EX12_DEFAULT_HEIGHT, EX12_HEIGHT, EX12_PANEL, EX12_STACK } from "."
+import { EX12_ADDED, EX12_DEFAULT_HEIGHT, EX12_HEIGHT, EX12_PANEL, EX12_STACK } from "."
 import { kit } from "./kit"
 
 const ONE_SCREEN = "@matomezu/base:one-screen"
 const BOOK_SCREEN = "@matomezu/base:book-screen"
 
-// 開いているスクリーンを、開いた順に上から並べる。高さはスクリーンごとの値で、入りきらなければこの中でスクロールする
+// 開いているスクリーンを、開いた順に上から並べる。高さはスクリーンごとの値で、入りきらなければこの中でスクロールする。
+// スクリーンアレンジメントのウィジェットなので、並べるスクリーンを id で名指せる（useArrangedScreens）
 export function Ex12Stack() {
-  const { screens } = useScreens()
+  const { screens } = useArrangedScreens()
   return (
     <div data-ex12-stack style={{ position: "absolute", inset: 0, overflow: "auto" }}>
       {screens.map(s => (
@@ -31,7 +33,7 @@ function Ex12Row({ screen, current, closable }: { screen: string; current: boole
   const t = useMessages(kit)
   const height = usePluginState(kit, EX12_HEIGHT, screen) ?? EX12_DEFAULT_HEIGHT
   const setHeight = useSetPluginState(kit, EX12_HEIGHT)
-  const { close } = useScreens()
+  const { close } = useArrangedScreens()
   return (
     <section data-ex12-row={screen} data-current={current} style={{ borderBottom: "1px solid gray" }}>
       <div>
@@ -59,7 +61,7 @@ function Ex12Row({ screen, current, closable }: { screen: string; current: boole
 export function Ex12Panel() {
   const me = useScreen(EX12_PANEL)
   return (
-    <button type="button" data-ex12-panel={me.id} data-current={me.current} data-shown={me.shown}>
+    <button type="button" data-ex12-panel data-current={me.current} data-shown={me.shown}>
       {me.props.label}
     </button>
   )
@@ -69,7 +71,13 @@ export function Ex12Panel() {
 export function Ex12Switch() {
   const t = useMessages(kit)
   const { setScreenArrangement, openScreen } = useActions()
-  const { screens, open } = useScreens()
+  const { open } = useScreens()
+  const added = usePluginState(kit, EX12_ADDED) ?? 0
+  const setAdded = useSetPluginState(kit, EX12_ADDED)
+  const addPanel = () => {
+    setAdded(added + 1)
+    open(EX12_PANEL, { label: `${t("panel")} ${added + 1}` })
+  }
   return (
     <div data-ex12-switch>
       <button type="button" onClick={() => setScreenArrangement(EX12_STACK.id)}>
@@ -78,7 +86,7 @@ export function Ex12Switch() {
       <button type="button" onClick={() => setScreenArrangement(ONE_SCREEN)}>
         {t("showOne")}
       </button>
-      <button type="button" onClick={() => open(EX12_PANEL, { label: `${t("panel")} ${screens.length}` })}>
+      <button type="button" onClick={addPanel}>
         {t("addPanel")}
       </button>
       <button type="button" onClick={() => openScreen(BOOK_SCREEN, {})}>

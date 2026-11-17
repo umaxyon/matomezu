@@ -192,8 +192,9 @@ test("状態を変えるのは store の中だけ（画面は setState を使わ
   expect(offenders).toEqual([])
 })
 
-// 骨組み: ステージ・ダイアログ・パネルなど、描いている場所（ui/scope.tsx）を置く側のファイルと、場所を名指す操作を、描いている場所に向けたフックにして出すファイル。
-// ここに無いファイルは、場所を id で名指さない
+// 骨組み: ステージ・ダイアログ・パネル・スクリーンアレンジメントなど、描いている場所（ui/scope.tsx）を置く側のファイルと、場所を名指す操作を、描いている場所に向けたフックにして出すファイル、
+// ほかのスクリーン・ステージを名指す base の物（コマンドの screensOf・storeActionsOf と、useShowControlCenter など）。ここに無いファイルは、場所を id で名指さない
+// （プラグイン API で名指せるのは、スクリーンアレンジメントのウィジェットの中の useArrangedScreens・ScreenView だけで、外では E128）
 const FRAMES = [
   "book-new/useCreateBook.tsx",
   "context-menu/ContextMenuHost.tsx",
@@ -219,15 +220,18 @@ const FRAMES = [
   "tool-picker/ToolPickerView.tsx",
   "utils/reveal-request.tsx",
   "window/ScreensView.tsx",
+  "window/WindowView.tsx",
+  "window/index.ts",
+  "window/show-control-center.tsx",
   "window/useScreenSplit.tsx",
   "workspace/WorkspaceView.tsx",
 ].map(f => `plugins/base/${f}`)
 
-test("場所（ステージ・スクリーン）を id で名指すのは土台と base の骨組みだけ（場所を置く物・id を取るフック・場所を引数に取る素の操作・向け先のステージの id を、ほかは使わない）", () => {
+test("場所（ステージ・スクリーン）を id で名指すのは土台と base の骨組みだけ（場所を置く物・id を取るフック・場所を引数に取る素の操作・向け先のステージの id・ほかのスクリーンの並びを、ほかは使わない）", () => {
   const names =
-    /\b(StageScope|PageScope|ActsOnScope|useStoreActions|useStageId)\b|\buseScreenArrangement\(|ui\/at-hooks"/
+    /\b(StageScope|PageScope|ActsOnScope|ArrangedProvider|useStoreActions|useStageId|screensOf|arrangementValueIn|storeActionsOf)\b|ui\/at-hooks"/
   const users = sources
-    .filter(f => crateOf(f.rel) !== "ui" && names.test(f.text))
+    .filter(f => !["ui", "store"].includes(crateOf(f.rel)) && names.test(f.text))
     .map(f => f.rel)
     .sort()
   expect(users).toEqual([...FRAMES].sort())

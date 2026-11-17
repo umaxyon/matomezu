@@ -53,7 +53,7 @@ export function useOpenTicket(): TicketOpener {
   const split = useScreenSplit()
   const opening = (ticket: string) => ({ def: TICKET_SCREEN, props: { ticket } })
   const replace = (ticket: string) => {
-    if (split.here.def === TICKET_SCREEN.id) setProps(split.here.id, TICKET_SCREEN, { ticket })
+    if (split.here.def === TICKET_SCREEN.id) setProps(TICKET_SCREEN, { ticket })
     else open(TICKET_SCREEN, { ticket })
   }
   const beside = (ticket: string) => split.open(opening(ticket), besideWay(split.inSplit, split.index), PAIR)

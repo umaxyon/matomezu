@@ -9,6 +9,7 @@ import * as ui from "../web/src/plugin-entry/ui"
 import * as plugin from "../web/src/plugins/base"
 import * as pluginUi from "../web/src/plugins/base/ui"
 import { commandContext, commandDef } from "../web/src/store/commands"
+import { boundActions, windowActionsOf } from "../web/src/store/store"
 import * as testing from "../web/src/testing"
 import { CORE_CATALOG, newStore } from "./support"
 
@@ -314,6 +315,7 @@ test("matomezu/ui が出す名前", () => {
     "useAllowedOn",
     "useAnchorRef",
     "useAnchorShapeRef",
+    "useArrangedScreens",
     "useAtCornerBubble",
     "useBodyGrips",
     "useBook",
@@ -372,6 +374,7 @@ test("matomezu/ui が出す名前", () => {
     "useSettingControls",
     "useSettings",
     "useShapeMarks",
+    "useShowControlCenter",
     "useShownBook",
     "useShownPage",
     "useStage",
@@ -448,7 +451,6 @@ test("コマンドが受け取る文脈（CommandContext）のフィールド（
     "dialog",
     "pluginState",
     "screen",
-    "screens",
     "settings",
     "stage",
     "toPaper",
@@ -481,7 +483,6 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
     "endBackground",
     "evenDivider",
     "focusStage",
-    "makeScreenCurrent",
     "moveDivider",
     "moveHistory",
     "openBinder",
@@ -511,7 +512,6 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
     "setStageArea",
     "setStageStart",
     "setTool",
-    "showStage",
     "showToast",
     "split",
     "startBackground",
@@ -522,8 +522,14 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
     "updatePluginState",
     "zoomStage",
   ])
-  // useActions の操作は、そこから updatePluginState を除いた物
-  expect(names(store.actions)).toEqual(names(got).filter(n => n !== "updatePluginState"))
+  // useActions の操作は、そこから updatePluginState を除いた物（store の素の操作のうち、ほかのスクリーン・ステージを名指す FrameActions は渡さない）
+  const given = { ...windowActionsOf(store.actions), ...boundActions(store.actions, "s1") }
+  expect(names(given)).toEqual(names(got).filter(n => n !== "updatePluginState"))
+  expect(names(store.actions).filter(n => !names(given).includes(n))).toEqual([
+    "makeScreenCurrent",
+    "openScreenId",
+    "showStage",
+  ])
 })
 
 test("base の入口が出す名前は、どれもプラグイン API からも出る（ビルトインと追加プラグインが同じ名前を使えるように。base のプラグインそのものは除く）", () => {

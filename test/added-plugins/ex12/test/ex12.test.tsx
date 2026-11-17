@@ -21,6 +21,7 @@ const make = () => {
 
 const rows = () => [...document.querySelectorAll("[data-ex12-row]")].map(e => e.getAttribute("data-ex12-row"))
 const current = () => document.querySelector('[data-ex12-row][data-current="true"]')?.getAttribute("data-ex12-row")
+const panel = (row: string) => document.querySelector(`[data-ex12-row="${row}"] [data-ex12-panel]`)
 const heightOf = (id: string) =>
   (document.querySelector(`[data-ex12-row="${id}"] [data-ex12-screen]`) as HTMLElement).style.height
 
@@ -47,15 +48,15 @@ test("同じ定義のスクリーンを何枚でも開いて並べ、スクリ�
   fireEvent.click(screen.getByRole("button", { name: "パネルを足す" }))
   expect(rows()).toHaveLength(4)
   const [first, second] = rows().slice(2) as [string, string]
-  expect(document.querySelector(`[data-ex12-panel="${first}"]`)?.textContent).toBe("パネル 2")
-  expect(document.querySelector(`[data-ex12-panel="${second}"]`)?.textContent).toBe("パネル 3")
+  expect(panel(first)?.textContent).toBe("パネル 1")
+  expect(panel(second)?.textContent).toBe("パネル 2")
   // 高さはスクリーンごと（既定 240px）。変えた値は、そのスクリーンの値として画面の場所に入る
   expect(heightOf(first)).toBe("240px")
   fireEvent.click(document.querySelector(`[data-ex12-row="${first}"] button`) as HTMLElement)
   expect(heightOf(first)).toBe("340px")
   expect(heightOf(second)).toBe("240px")
   expect(instance.address().screens.find(s => s.id === first)?.states).toEqual({ "ex12:height": 340 })
-  expect(instance.address().screens.find(s => s.id === first)?.props).toEqual({ label: "パネル 2" })
+  expect(instance.address().screens.find(s => s.id === first)?.props).toEqual({ label: "パネル 1" })
   // 閉じる
   fireEvent.click(document.querySelectorAll(`[data-ex12-row="${first}"] button`)[1] as HTMLElement)
   expect(rows()).toHaveLength(3)
@@ -69,11 +70,11 @@ test("並んだスクリーンのうち、押した 1 枚がカレントスク�
   fireEvent.click(screen.getByRole("button", { name: "パネルを足す" }))
   const [first, second] = rows().slice(2) as [string, string]
   expect(current()).toBe(second)
-  fireEvent.pointerDown(document.querySelector(`[data-ex12-panel="${first}"]`) as HTMLElement)
+  fireEvent.pointerDown(panel(first) as HTMLElement)
   expect(current()).toBe(first)
-  expect(document.querySelector(`[data-ex12-panel="${first}"]`)?.getAttribute("data-current")).toBe("true")
-  expect(document.querySelector(`[data-ex12-panel="${second}"]`)?.getAttribute("data-current")).toBe("false")
-  expect(document.querySelector(`[data-ex12-panel="${second}"]`)?.getAttribute("data-shown")).toBe("true")
+  expect(panel(first)?.getAttribute("data-current")).toBe("true")
+  expect(panel(second)?.getAttribute("data-current")).toBe("false")
+  expect(panel(second)?.getAttribute("data-shown")).toBe("true")
 })
 
 test("ブックスクリーンを 2 枚並べると、どちらもステージを描き、2 枚目のステージにも操作が届く", () => {

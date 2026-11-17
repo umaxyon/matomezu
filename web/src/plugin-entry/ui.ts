@@ -111,6 +111,7 @@ export {
   useSearchPick,
   useSetRightSidePanelCurrent,
   useSettingControls,
+  useShowControlCenter,
   useSwatches,
   useThemeVars,
   useWideSearch,
