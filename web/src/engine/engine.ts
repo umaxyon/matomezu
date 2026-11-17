@@ -28,6 +28,7 @@ import {
   bookOf,
   createdOn,
   homeAndFoldersOf,
+  inTrash,
   libraryOf,
   NO_CHANGES,
   rawBooksOf,
@@ -133,7 +134,7 @@ interface Input {
 }
 
 // 返すもの。aiEditTickets はレコードが対象のアクションが返した AI 編集チケットの変え方の並び、pages と folders は変わった・足した・無くなったページとフォルダ（無くなった物は removed）、
-// created はそのうち新しく足した物の id（常駐が、世界のどこにも無い id かを確かめる）、books は変わったブックの id（変わったページ・フォルダを持つブック。無くなったブックも）、trashing は新しくゴミ箱に入るブックの id、annotations はアノテーションが変わったページの id → 新しい並び（空なら全部無くなった）、
+// created はそのうち新しく足した物の id（常駐が、世界のどこにも無い id かを確かめる）、books は変わったブックの id（変わったページ・フォルダを持つブック。無くなったブックと、ゴミ箱に出入りしたブックも）、trashing は新しくゴミ箱に入るブックの id、annotations はアノテーションが変わったページの id → 新しい並び（空なら全部無くなった）、
 // records は変わったレコードの並び（1 つのトランザクションで書く）、counters は進めた番号（種類の id → 区切り → 次の番号。進めた区切りだけ）。
 // AI のアクションと lockedForUser のアクションが、受けた watched の物（ページの中の物・そのページのアノテーション・ページそのもの、ブックのバインダ・ブックそのもの）か watchedRecords のレコードを変えるか消すなら、何も変えずに being-edited で断る。
 // 断ったら、detail に AI への説明（MCP 公開ツールが理由に添えて AI に返す）。認可ステップが止めたら（denied）、permission にそのステップの id
@@ -273,9 +274,14 @@ function perform(input: Input): Output {
       at: done.at,
     }
   // 変わったブック（組み直した値）と、無くなったブック
-  const next = done.changes ? libraryOf(withChanges(tables, done.changes)) : books
+  const after = done.changes ? withChanges(tables, done.changes) : tables
+  const next = done.changes ? libraryOf(after) : books
   const changed = Object.values(next).filter(b => books[b.id] !== b)
   const removed = Object.keys(books).filter(id => !(id in next))
+  // ゴミ箱に入ったブックと、ゴミ箱から出たブック（ブックを中に持つフォルダごと出入りしたときの、中のブックも。ブックの値は変わらない）
+  const binned = (id: string) => inTrash(after.folders, id)
+  const trashing = Object.keys(next).filter(id => binned(id) && !inTrash(tables.folders, id))
+  const restoring = Object.keys(next).filter(id => !binned(id) && inTrash(tables.folders, id))
   const notice = shiftNotice(books, changed)
   const changes = done.changes ?? NO_CHANGES
   return {
@@ -284,8 +290,8 @@ function perform(input: Input): Output {
     pages: rowChanges(changes.pages),
     folders: rowChanges(changes.folders),
     created: createdOn(tables, changes),
-    books: [...changed.map(b => b.id), ...removed],
-    trashing: changed.filter(b => b.trashed !== undefined && books[b.id]?.trashed === undefined).map(b => b.id),
+    books: [...new Set([...changed.map(b => b.id), ...removed, ...trashing, ...restoring])],
+    trashing,
     ...(done.settings ? { settings: done.settings } : {}),
     ...(done.annotations ? { annotations: done.annotations } : {}),
     ...(done.records ? { records: done.records.map(c => withKeys(catalog, c)) } : {}),

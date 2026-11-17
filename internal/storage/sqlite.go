@@ -190,6 +190,8 @@ var migrations = []string{
 	`SELECT 1;`,
 	// 書庫ホーム（フォルダの行 library-home）を作り、どのフォルダにも入っていないブックを、書庫ホームの中のフォルダ「旧ブック」に入れる（Go の移し替え。library.go）
 	`SELECT 1;`,
+	// ゴミ箱を、ブックの土台のフィールド trashed から、フォルダの役 trash の行（library-trash）にする。書庫ホームとフォルダの直下の同じ名前を付け直す（Go の移し替え。migrate_trash.go）
+	`SELECT 1;`,
 }
 
 // goMigrations は、SQL だけでは書けない移し替え（JSON の中をたどる物）。鍵は migrations の番号（0 から）で、その SQL を行ったあと、同じトランザクションの中で行う
@@ -199,6 +201,7 @@ var goMigrations = map[int]func(tx *sql.Tx) error{
 	23: booksToTables,
 	24: ticketsToOneList,
 	25: placeBooksInLibrary,
+	26: trashToFolder,
 }
 
 type sqliteStorage struct {

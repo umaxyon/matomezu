@@ -36,8 +36,8 @@ type BulkAction struct {
 type Input struct {
 	Actions []BulkAction `json:"actions"`
 	// Pages と Folders は、アクションの全部が要るブックのページとフォルダ（置き場所から読んだまま。アクションごとの、宛先のブックか、レコードが対象なら RecordNeeds の Books の和。
-	// 一覧のアクションか、宛先が置き場所に無いアクションを含むなら全部）。Folders には、ブックの行の後ろに、それらのブックから書庫ホームまでの書庫ホームとフォルダの行
-	// （ブックごとに近い順。全部のときは、書庫ホームと、ほかのフォルダの全部を id の順に）も入る
+	// 一覧のアクションか、宛先が置き場所に無いアクションを含むなら全部）。Folders には、ブックの行の後ろに、それらのブックから書庫の一番上（書庫ホームか、ゴミ箱の中のブックならゴミ箱）までの、書庫ホーム・ゴミ箱・フォルダの行
+	// （ブックごとに近い順。全部のときは、書庫ホーム・ゴミ箱と、ほかのフォルダの全部を id の順に）も入る
 	Pages    []json.RawMessage `json:"pages"`
 	Folders  []json.RawMessage `json:"folders"`
 	Settings json.RawMessage   `json:"settings"`
@@ -644,7 +644,7 @@ func (e *Engine) CheckBooks(books []json.RawMessage) (out []BookWarning, err err
 	return out, nil
 }
 
-// CheckLibrary は、フォルダの行の全部（書庫ホーム・フォルダ・ブック・バインダ）とページの行の id の全部 pages が木の決まりを守るかを確かめ、破れていれば warning（W030）の 1 行を、守っていれば空の文字列を返す
+// CheckLibrary は、フォルダの行の全部（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダ）とページの行の id の全部 pages が木の決まりを守るかを確かめ、破れていれば warning（W030）の 1 行を、守っていれば空の文字列を返す
 // （データには手を付けない）
 func (e *Engine) CheckLibrary(folders []json.RawMessage, pages []string) (line string, err error) {
 	b, err := json.Marshal(folders)

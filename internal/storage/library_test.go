@@ -35,12 +35,18 @@ func rawRows(t *testing.T, db *sql.DB, table string) map[string]string {
 // beforeLibrary は、書庫ホームを作る前の形の置き場所を path に作り、qs を行う
 func beforeLibrary(t *testing.T, path string, qs ...string) {
 	t.Helper()
+	beforeMigration(t, path, libraryMigration, qs...)
+}
+
+// beforeMigration は、足し方 n を行う前の形の置き場所を path に作り、qs を行う
+func beforeMigration(t *testing.T, path string, n int, qs ...string) {
+	t.Helper()
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	for i, q := range migrations[:libraryMigration] {
+	for i, q := range migrations[:n] {
 		tx, err := db.Begin()
 		if err != nil {
 			t.Fatal(err)
@@ -57,19 +63,20 @@ func beforeLibrary(t *testing.T, path string, qs ...string) {
 			t.Fatal(err)
 		}
 	}
-	for _, q := range append([]string{fmt.Sprintf(`PRAGMA user_version = %d`, libraryMigration)}, qs...) {
+	for _, q := range append([]string{fmt.Sprintf(`PRAGMA user_version = %d`, n)}, qs...) {
 		if _, err := db.Exec(q); err != nil {
 			t.Fatal(err)
 		}
 	}
 }
 
-// 空の置き場所を開くと、書庫ホームだけが出来る（フォルダ「旧ブック」は作らない）
-func TestEmptyStorageGetsOnlyTheLibraryHome(t *testing.T) {
+// 空の置き場所を開くと、書庫ホームとゴミ箱だけが出来る（フォルダ「旧ブック」は作らない）
+func TestEmptyStorageGetsOnlyTheLibraryHomeAndTheTrash(t *testing.T) {
 	s := open(t, filepath.Join(t.TempDir(), "data.db"))
 	folders, err := s.Folders()
-	if err != nil || len(folders) != 1 || folders[0].ID != HomeID || folders[0].Version != 1 ||
-		string(folders[0].Body) != `{"folderRole":"home","id":"library-home","lineup":[]}` {
+	if err != nil || len(folders) != 2 || folders[0].ID != HomeID || folders[0].Version != 1 ||
+		string(folders[0].Body) != `{"folderRole":"home","id":"library-home","lineup":[]}` ||
+		folders[1].ID != TrashID || folders[1].Version != 1 || string(folders[1].Body) != `{"folderRole":"trash","id":"library-trash","lineup":[]}` {
 		t.Fatalf("folders = %+v, %v", folders, err)
 	}
 	if entries, err := s.Entries(); err != nil || len(entries) != 0 {
@@ -118,7 +125,7 @@ func TestBooksMoveIntoTheOldBooksFolder(t *testing.T) {
 		t.Fatal(err)
 	}
 	old := entries["a1"]
-	if old == "" || len(afterFolders) != len(beforeFolders)+2 || !maps.Equal(entries, map[string]string{
+	if old == "" || len(afterFolders) != len(beforeFolders)+3 || !maps.Equal(entries, map[string]string{
 		"p1": "b2", "f1": "b2", "p2": "f1", "a1": old, "b2": old, "c-broken": old, old: HomeID,
 	}) {
 		t.Fatalf("folders %v, entries %v", afterFolders, entries)

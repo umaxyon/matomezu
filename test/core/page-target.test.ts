@@ -4,7 +4,7 @@ import { z } from "zod"
 import { USER } from "../../web/src/core/actor"
 import { bindersOf, findPage, pagesOf } from "../../web/src/core/book"
 import { defineAction } from "../../web/src/core/def/action"
-import { bookOf, NO_CHANGES, tablesOf, withChanges } from "../../web/src/core/folders"
+import { bookOf, NO_CHANGES, TRASH_ID, tablesOf, withChanges } from "../../web/src/core/folders"
 import { idMaker, idsIn } from "../../web/src/core/ids"
 import { allowedOnBook, perform, performIn, permittedIn, runAction } from "../../web/src/core/perform"
 import type { ItemPage } from "../../web/src/core/placed"
@@ -177,7 +177,14 @@ test("performIn は宛先のページを持っているブックで行い、変�
   const after = bookOf(withChanges(world(book, other), done.changes ?? NO_CHANGES), "b3")
   expect(itemsOf(after as Book, "x1")).toEqual(["n1"])
   expect(permittedIn(world(book, other), ADD, {}, { page: "x1" }, ctxOf())).toEqual({ ok: true })
-  const cases = [world(book, { ...other, trashed: "2026-01-01T00:00:00.000Z" } as Book), world(book)]
+  // ゴミ箱の並びに入れたブック
+  const bin = {
+    folderRole: "trash",
+    id: TRASH_ID,
+    lineup: [{ kind: "book", id: "b3", trashed: "2026-01-01T00:00:00.000Z", from: [] }],
+  } as const
+  const binned = { ...world(book, other), folders: { ...world(book, other).folders, [TRASH_ID]: bin } }
+  const cases = [binned, world(book)]
   for (const w of cases) {
     expect(performIn(w, ADD, {}, { page: "x1" }, ctxOf())).toMatchObject({ ok: false, reason: "no-page" })
     expect(permittedIn(w, ADD, {}, { page: "x1" }, ctxOf())).toMatchObject({ ok: false, reason: "no-page" })

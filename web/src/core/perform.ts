@@ -48,6 +48,9 @@ import {
   bookOf,
   changesBetween,
   createdIn,
+  homeOrFolderHolds,
+  inTrash,
+  isOpenRole,
   type Library,
   libraryOf,
   noChanges,
@@ -167,8 +170,9 @@ function broken(
   action: ActionDef,
   before: Book | undefined,
   after: Book | undefined,
+  trashed = false,
 ): string | null {
-  const changes = changesOf(before, after)
+  const changes = changesOf(before, after, trashed)
   for (const p of ctx.catalog.permissions.values())
     if (p.keeps && !p.keeps({ kind: "folder", action, before, after, changes, actor: ctx.actor })) return p.id
   return null
@@ -208,18 +212,23 @@ function brokenRecord(
 }
 
 // 書庫が対象のアクションの結果で、変わったブック・無くなったブック・増えたブックのどれかが守っていなければ、守らせたステップの id と、そのブックの id（増えたブックなら無い）
+// was と now は、行う前と後の書庫（ゴミ箱に入ったブックは、値が変わらなくても確かめる。フォルダごと入れたときの、中のブックも）
 function brokenIn(
   ctx: ActionContext,
   action: ActionDef,
-  before: Books,
-  after: Books,
+  was: Library,
+  now: Library,
 ): { permission: string; book?: string } | null {
+  const before = libraryOf(was)
+  const after = libraryOf(now)
+  const trashed = (id: string) => inTrash(now.folders, id) && !inTrash(was.folders, id)
   for (const b of Object.values(before)) {
-    const id = b === after[b.id] ? null : broken(ctx, action, b, after[b.id])
+    const entered = trashed(b.id)
+    const id = b === after[b.id] && !entered ? null : broken(ctx, action, b, after[b.id], entered)
     if (id) return { permission: id, book: b.id }
   }
   for (const b of Object.values(after)) {
-    const id = b.id in before ? null : broken(ctx, action, undefined, b)
+    const id = b.id in before ? null : broken(ctx, action, undefined, b, inTrash(now.folders, b.id))
     if (id) return { permission: id }
   }
   return null
@@ -484,7 +493,7 @@ export function perform<Id extends ActionId>(
   // アノテーションのアクションはページを変えない（変えたら runAction が断る）。認可ステップの keeps は、変わらないブックで見る
   const pair = subject as unknown as AnnotationsInBook
   if (wasBooks && nowBooks) {
-    const kept = brokenIn(ctx, action, wasBooks, nowBooks)
+    const kept = brokenIn(ctx, action, subject as Library, next as Library)
     if (kept) return { ok: false, reason: "denied", ...kept }
   }
   const permission = before
@@ -506,6 +515,12 @@ export function perform<Id extends ActionId>(
     // ブックのフォルダは、どれもブックに組める（並びのエントリの中身が、書庫に在る）
     const built = Object.values((next as Library).folders).every(f => f.folderRole !== "book" || f.id in now)
     if (!built) return { ok: false, reason: "refused" }
+    // 変わった書庫ホーム・ゴミ箱・フォルダの行は、形に合う
+    const rows = (subject as Library).folders
+    const shaped = Object.values((next as Library).folders).every(
+      f => !isOpenRole(f.folderRole) || rows[f.id] === f || homeOrFolderHolds(f),
+    )
+    if (!shaped) return { ok: false, reason: "refused" }
     // 残るブックの読めないページは、そのまま（無くなるのは、ブックごと消すときだけ。作るブックには入れられない）
     for (const b of Object.values(now)) {
       const lost = was[b.id] === b ? null : lostUnreadable(was[b.id], b)
@@ -612,7 +627,7 @@ function pageIn(world: World, on: ActionOn | undefined): PageInBook | NoPage | U
   const page = (on && "page" in on ? on.page : undefined) ?? ""
   const book = bookOf(world, bookIdOf(world.folders, page) ?? "")
   const row = world.pages[page]
-  if (!book || book.trashed !== undefined || !row) return noPage(page)
+  if (!book || inTrash(world.folders, book.id) || !row) return noPage(page)
   return row.kind === "unreadable" ? unreadable(row) : { book, page }
 }
 
@@ -843,7 +858,7 @@ function booksRead(world: World, action: ActionDef, args: unknown): Books {
 // ブックが対象のアクションの宛先のブック（on のブック。無いか、ゴミ箱のブックなら null）。performIn と permittedIn で同じ決まりを使う
 function bookIn(world: World, on: ActionOn | undefined): Book | null {
   const book = bookOf(world, (on && "book" in on ? on.book : undefined) ?? "")
-  return book && book.trashed === undefined ? book : null
+  return book && !inTrash(world.folders, book.id) ? book : null
 }
 
 // world でアクション id を引数 args で行えるかを、行う前に問う（対象の選び方は performIn と同じ。run は回さない）

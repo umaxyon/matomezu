@@ -1,9 +1,10 @@
-// ゴミ箱: book-trash はブックに入れた時刻を付けて一覧から外し（開いていたステージは何も開かない）、book-restore は戻し、
+// ゴミ箱: book-trash はブックを入っていたフォルダから外してゴミ箱の並びへ入れ（入れた時刻と、元いたフォルダを並びのエントリが持つ）（開いていたステージは何も開かない）、book-restore は戻し、
 // book-purge と trash-empty はゴミ箱から消す。ロック中は入れない。ゴミ箱のブックはブックが対象のアクションで変えられない
 
 import { expect, test } from "bun:test"
 import { USER } from "../../web/src/core/actor"
 import { pagesOf } from "../../web/src/core/book"
+import { HOME_ID, TRASH_ID } from "../../web/src/core/folders"
 import { permittedIn } from "../../web/src/core/perform"
 import { screenOf } from "../../web/src/core/window"
 import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
@@ -14,12 +15,15 @@ import { newStore } from "../support"
 
 const NOW = "2026-10-29T01:00:00.000Z"
 
-test("book-trash はブックに時刻を付けてゴミ箱へ移し、開いていたステージは何も開かない。無いブックは断る", () => {
+test("book-trash はブックをゴミ箱の並びへ移し、開いていたステージは何も開かない。無いブックは断る", () => {
   const { state, actions } = newStore({ now: () => NOW })
   expect(actions.perform("@matomezu/base:book-trash", { book: "b1" }).ok).toBe(true)
   expect("b1" in state.getState().books).toBe(false)
-  expect(state.getState().trash.b1?.trashed).toBe(NOW)
-  expect(Object.keys(state.getState().trash.b1 ?? {}).slice(0, 4)).toEqual(["id", "title", "trashed", "lineup"])
+  expect(state.getState().trash.b1?.id).toBe("b1")
+  expect(state.getState().folders[TRASH_ID]?.lineup).toEqual([
+    { kind: "book", id: "b1", trashed: NOW, from: [HOME_ID] },
+  ])
+  expect(state.getState().folders[HOME_ID]?.lineup.some(r => r.id === "b1")).toBe(false)
   expect(screenOf(state.getState().window).stages[0]?.opened).toBeNull()
   expect(actions.perform("@matomezu/base:book-trash", { book: "b1" }).ok).toBe(false)
 })
@@ -90,8 +94,8 @@ test("戻す・消す・空にする。ゴミ箱に無いブックは戻さず�
   expect(trash()).toEqual(["一", "三", "二"])
   expect(perform("@matomezu/base:book-restore", { book: one }).ok).toBe(true)
   expect(trash()).toEqual(["三", "二"])
-  expect(store.state.getState().books[one]?.trashed).toBeUndefined()
-  expect(host.books.get(one)?.trashed).toBeUndefined()
+  expect(store.state.getState().books[one]?.title).toBe("一")
+  expect(store.state.getState().folders[HOME_ID]?.lineup.at(-1)).toEqual({ kind: "book", id: one })
   expect(perform("@matomezu/base:book-purge", { books: [two] }).ok).toBe(true)
   expect(trash()).toEqual(["三"])
   expect(host.books.has(two)).toBe(false)

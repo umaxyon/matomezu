@@ -51,22 +51,21 @@ const performedKeys = 1024
 type entry struct {
 	body    json.RawMessage
 	version int64
-	trashed bool     // ゴミ箱のブックか（土台のフィールド trashed があるか。覚えるときに 1 度だけ読む）
 	pages   []string // ブックのページの id（バインダの中も。覚えるときに 1 度だけ読む）
 }
 
 // newEntry は、ブックの本文 body を覚える形にする
 func newEntry(body json.RawMessage, version int64) entry {
-	return entry{body, version, trashed(body), pageIDs(body)}
+	return entry{body, version, pageIDs(body)}
 }
 
-// bookOfPage は、ページ page を持っているブックの id（ゴミ箱のブックのページ・どのブックにも入っていないページ・無いページなら空。h.mu を持って呼ぶ）
+// bookOfPage は、ページ page を持っているブックの id（ゴミ箱の中のブックのページ・どのブックにも入っていないページ・無いページなら空。h.mu を持って呼ぶ）
 func (h *Hub) bookOfPage(page string) string {
 	if _, ok := h.pages[page]; !ok {
 		return ""
 	}
 	book := h.bookOfEntry(page)
-	if h.books[book].trashed {
+	if h.inTrash(book) {
 		return ""
 	}
 	return book
@@ -392,13 +391,13 @@ type Book struct {
 	Version int64
 }
 
-// AIBooks は、AI の MCP 公開ツールに出すブック（ゴミ箱のブックを除く）を、並びの順に返す
+// AIBooks は、AI の MCP 公開ツールに出すブック（ゴミ箱の中のブックを除く）を、並びの順に返す
 func (h *Hub) AIBooks() []Book {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	books := make([]Book, 0, len(h.order))
 	for _, id := range h.order {
-		if e := h.books[id]; !e.trashed {
+		if e := h.books[id]; !h.inTrash(id) {
 			books = append(books, Book{ID: id, Body: e.body, Version: e.version})
 		}
 	}
@@ -506,9 +505,9 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 }
 
 // performInputs は、バルク in.Actions を行う前に、エンジンへ渡すページ・フォルダ・アノテーション・レコード・番号の表を in に入れる（h.mu を持って呼ぶ）。
-// アクションごとに要るブック（レコードが対象なら引数から答えた読むだけのブック、宛先があればそのブック）の和と、そのアノテーションと、それらのブックから書庫ホームまでのフォルダを渡す。
+// アクションごとに要るブック（レコードが対象なら引数から答えた読むだけのブック、宛先があればそのブック）の和と、そのアノテーションと、それらのブックから書庫の一番上までのフォルダを渡す。
 // 一覧のアクション（宛先が無く、レコードが対象でない）か、0 番目でなく宛先が置き場所に無い（バルクの前のアクションが作ったページなど）アクションを含むなら、
-// 全部のブックとアノテーションと、書庫ホームとフォルダの全部
+// 全部のブックとアノテーションと、書庫ホーム・ゴミ箱・フォルダの全部
 func (h *Hub) performInputs(in *engine.Input) error {
 	all := false
 	books := []string{}
@@ -531,7 +530,7 @@ func (h *Hub) performInputs(in *engine.Input) error {
 		case step.On == nil:
 			all = true
 		default:
-			// 宛先がページなら、そのページを持っているブック。置き場所にあるが読めるブックに入っていないページ（ゴミ箱のブックのページなど）は、何も足さない。
+			// 宛先がページなら、そのページを持っているブック。置き場所にあるが読めるブックに入っていないページ（ゴミ箱の中のブックのページなど）は、何も足さない。
 			// 置き場所に無い宛先は、前のアクションが作った物でありうるので全部のブック。0 番目のアクションの宛先は前のアクションが作った物ではないので、何も足さない
 			book := h.bookOn(step.On)
 			_, known := h.pages[step.On.Page]
@@ -548,19 +547,19 @@ func (h *Hub) performInputs(in *engine.Input) error {
 	in.Annotations = map[string]json.RawMessage{}
 	if all {
 		in.Pages, in.Folders = h.rowsOf(h.order)
-		in.Folders = append(in.Folders, h.homeAndFolderRows()...)
+		in.Folders = append(in.Folders, h.openRows()...)
 		maps.Copy(in.Annotations, h.annotations)
 		return nil
 	}
 	in.Pages, in.Folders = h.rowsOf(books)
-	in.Folders = append(in.Folders, h.homeAndFoldersAbove(books)...)
+	in.Folders = append(in.Folders, h.openRowsAbove(books)...)
 	for _, id := range books {
 		maps.Copy(in.Annotations, h.annotationsIn(id))
 	}
 	return nil
 }
 
-// hasBook は、ブック id が置き場所にあるか（ゴミ箱のブックも。h.mu を持って呼ぶ）
+// hasBook は、ブック id が置き場所にあるか（ゴミ箱の中のブックも。h.mu を持って呼ぶ）
 func (h *Hub) hasBook(id string) bool {
 	_, ok := h.books[id]
 	return ok
@@ -739,7 +738,7 @@ var (
 func (h *Hub) Show(s Show) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if e, ok := h.books[s.Book]; !ok || e.trashed {
+	if _, ok := h.books[s.Book]; !ok || h.inTrash(s.Book) {
 		return ErrNoBook
 	}
 	c := h.window()
@@ -770,12 +769,12 @@ func (h *Hub) Show(s Show) error {
 	return nil
 }
 
-// Book は 1 冊のブック（無いかゴミ箱のブックなら nil）
+// Book は 1 冊のブック（無いかゴミ箱の中のブックなら nil）
 func (h *Hub) Book(id string) *Book {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	e, ok := h.books[id]
-	if !ok || e.trashed {
+	if !ok || h.inTrash(id) {
 		return nil
 	}
 	return &Book{ID: id, Body: e.body, Version: e.version}

@@ -2,7 +2,14 @@
 // 前か後の値に置き直す。置き直す値（Patch）は画面の履歴の段だけから決まり、今の表の上で行う（その間にほかで変わった所は、画面の履歴の段が変えた所に重なれば上書きし、
 // 重ならなければ残す。core/restore.ts）
 import { z } from "zod"
-import { type Library, libraryOf, type RowPatches, restoredTables, withRowPatches } from "../../../core/folders"
+import {
+  inTrash,
+  type Library,
+  libraryOf,
+  type RowPatches,
+  restoredTables,
+  withRowPatches,
+} from "../../../core/folders"
 import type { RowChange } from "../../../core/history"
 import type { Books } from "../../../core/library"
 import { type ListPatch, type Patch, patchOf } from "../../../core/patch"
@@ -54,24 +61,20 @@ export function patchesToward<T>(
 }
 
 // ブックの全部 all のうちのブック books を、ページとフォルダごとの置き直す値 patches で置き直した全部（変わらなかったブックは同じ値のまま）。
-// books のどれかが無い・ゴミ箱に在る・置き直すと組めなくなるか、books のほかのブックが変わる・ブックが増える・減るなら null
+// books のどれかが無い・置き直すと組めなくなるか、books のほかのブックが変わる・ブックが増える・減るなら null
 export function restoredBooks(all: Books, books: readonly string[], patches: RowPatches): Books | null {
-  if (!restorable(all, books)) return null
+  if (!books.every(id => all[id] !== undefined)) return null
   const next = withRowPatches(Object.values(all), patches)
   return onlyChanged(all, next, books) ? next : null
 }
 
-// 書庫 library のブック books を、patches で置き直した書庫（断る場合は、上の restoredBooks と同じ）
+// 書庫 library のブック books を、patches で置き直した書庫（断る場合は、上の restoredBooks と同じ。books のどれかがゴミ箱かその中に在るときも断る）
 export function restoredLibrary(library: Library, books: readonly string[], patches: RowPatches): Library | null {
   const was = libraryOf(library)
-  if (!restorable(was, books)) return null
+  if (!books.every(id => was[id] !== undefined && !inTrash(library.folders, id))) return null
   const next = restoredTables(library, patches)
   return onlyChanged(was, libraryOf(next), books) ? next : null
 }
-
-// ブック books が、どれも all に在って、ゴミ箱に無いか
-const restorable = (all: Books, books: readonly string[]): boolean =>
-  books.every(id => all[id] !== undefined && all[id]?.trashed === undefined)
 
 // ブックの全部が was から next へ、増えも減りもせず、変わったのがブック books だけか
 function onlyChanged(was: Books, next: Books, books: readonly string[]): boolean {

@@ -3,6 +3,7 @@
 import { describe, expect, test } from "bun:test"
 import { USER } from "../../web/src/core/actor"
 import { keepsPageTypesAcross } from "../../web/src/core/book"
+import { trashedEntry } from "../../web/src/core/entries"
 import {
   bookIdOf,
   bookOf,
@@ -293,15 +294,15 @@ describe("ブックを足す・消すときの置き場所", () => {
     expect(Object.keys(libraryOf(after))).toContain(id)
   })
 
-  test("完全に消したブックは、入っていたフォルダの並びから外れる", () => {
-    const trashed: Book = { ...b2, trashed: "2026-01-01T00:00:00.000Z" }
-    const world = worldOf(worldTablesOf([b1, trashed], [home, old]))
+  test("完全に消したブックは、ゴミ箱の並びから外れる", () => {
+    const binned = trashedEntry(worldTablesOf([b1, b2], [home, old]), "b2", "2026-01-01T00:00:00.000Z")
+    const world = worldOf(binned as Library)
     const done = performIn(world, "@matomezu/base:book-purge", { books: ["b2"] }, undefined, ctx as never)
     expect(done.ok).toBe(true)
     if (!done.ok || !done.changes) throw new Error("no changes")
     expect(done.changes.folders.b2).toBe(REMOVED)
-    expect(done.changes.folders.old).toEqual({ ...old, lineup: [{ kind: "book", id: "b1" }] })
-    expect(HOME_ID in done.changes.folders).toBe(false)
+    expect(done.changes.folders[TRASH_ID]).toEqual({ folderRole: "trash", id: TRASH_ID, lineup: [] })
+    expect(HOME_ID in done.changes.folders || "old" in done.changes.folders).toBe(false)
     expect(treeHolds(withChanges(world, done.changes))).toBe(true)
   })
 

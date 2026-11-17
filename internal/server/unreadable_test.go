@@ -153,7 +153,7 @@ func TestUnreadablePagesStayInAReadableBook(t *testing.T) {
 	ids := func(folder string) []string {
 		out := []string{}
 		for _, e := range lineupOf(rowOf(h, folder)) {
-			_, id, _ := entryRef(e)
+			_, id, _ := entryRef("", e)
 			out = append(out, id)
 		}
 		return out

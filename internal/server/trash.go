@@ -1,21 +1,19 @@
 package server
 
-// ゴミ箱: ゴミ箱のブックは、土台のフィールド trashed（入れた時刻）を持つブック。入れる・戻す・消すはアクションで行い、置き場所にはほかのブックと同じに残す。
-// ゴミ箱のブックは、AI の MCP 公開ツール（list_books・read_book・show）には出さない。
+// ゴミ箱: 書庫の一番上のフォルダの 1 つ（フォルダの行 library-trash。storage/library.go）。ゴミ箱の中の物は、上へたどってゴミ箱に着くエントリ
+// （フォルダごと入れたなら、その中のブックとページも中）。入れる・戻す・消すはアクションで行う。
+// ゴミ箱の中のブックは、AI の MCP 公開ツール（list_books・read_book・read_page・view・show など）と、AI に見せるアノテーションには出さない。
 // AI のアクションが、どこかの窓に出ているブック（コントロールセンターの後ろに隠れているブックスクリーンが開いているブックも）をゴミ箱に入れるなら、何も変えずに断る（open-on-screen）
 
 import (
-	"encoding/json"
 	"slices"
+
+	"github.com/umaxyon/matomezu/internal/storage"
 )
 
-// trashed は、ブックのデータ body がゴミ箱のブックか
-func trashed(body json.RawMessage) bool {
-	var head struct {
-		Trashed string `json:"trashed"`
-	}
-	_ = json.Unmarshal(body, &head)
-	return head.Trashed != ""
+// inTrash は、エントリ id が、ゴミ箱の中（何段下でも）に在るか。ゴミ箱そのものは中でない（h.mu を持って呼ぶ）
+func (h *Hub) inTrash(id string) bool {
+	return slices.Contains(h.foldersAbove(id), storage.TrashID)
 }
 
 // trashesShown は、新しくゴミ箱に入るブック ids が、どこかの窓に出ているか（h.mu を持って呼ぶ）

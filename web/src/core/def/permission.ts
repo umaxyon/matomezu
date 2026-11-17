@@ -60,6 +60,7 @@ export type PermissionQuery = PagePermissionQuery | FolderPermissionQuery | Reco
 // 行う前と後のブックの変化（core が比べて求める）
 export interface Changes {
   gone: boolean // ブックが一覧から無くなった
+  trashed: boolean // ブックがゴミ箱に入った（ブックを中に持つフォルダごと入ったときも）
   added: boolean // ブックが一覧に新しく増えた（fields は増えたブックのフィールド全部、pages はどのページも足した）
   fields: readonly string[] // 変わったブックのフィールド（並び lineup を除く）
   lineup: boolean // 並びが変わった（ページやバインダの順・入っているバインダ・バインダの足し引きと名前。ページの中身の変化は pages）

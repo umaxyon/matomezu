@@ -173,7 +173,7 @@ export interface MatomezuState {
   participantReady: readonly string[] // 準備中でない参加者の id（常駐だけが持つ参加者の記録。ホストが知らせる。受け入れ済みの参加者の準備中を見分けるのに使う）
   // 参加者の id → AI のフックが知らせたモデルと、MCP が添えた git のブランチ（常駐だけが持つ参加者の記録。ホストが知らせる。どちらも無い参加者は持たない）
   participantLive: Readonly<Record<string, ParticipantLive>>
-  trash: Readonly<Record<string, Book>> // ゴミ箱のブック（trashed のあるブック）の id ごと
+  trash: Readonly<Record<string, Book>> // ゴミ箱かその中のブックの id ごと
   offline: boolean // 常駐とのつながりが、しばらく切れたままか（ホストクライアントが知らせる）
   lastWindow: boolean // この窓が、最後にフォーカスされた窓か（ホストクライアントが、常駐のレコードの知らせに添えられた値で入れる）
   // ブックの id → 画面の履歴（この画面で利用者が行ったアクションだけ。読み直すと消える）。画面の履歴の段がいくつかのブックを変えたら、その全部のブックに同じ画面の履歴の段が入る
@@ -591,7 +591,7 @@ interface OpenStep {
 // 表 tables から組んだ、開けるブックとゴミ箱のブック（中のブックが前に組んだ物と全部同じなら、前と同じ値を返す）
 let lastShelves: { books: Books; trash: Books } = { books: {}, trash: {} }
 function shelvesOf(tables: Library): { books: Books; trash: Books } {
-  const split = splitTrash(libraryOf(tables))
+  const split = splitTrash(tables)
   const same = (a: Books, b: Books) =>
     Object.keys(a).length === Object.keys(b).length && Object.entries(a).every(([id, book]) => b[id] === book)
   lastShelves = {

@@ -1,7 +1,16 @@
 // 書庫の木を変える計算: エントリを別のフォルダへ動かす・並べ替える
 
 import { describe, expect, test } from "bun:test"
-import { isMoveRefusal, isWithin, movedEntry, placeOf, restoreTargetOf } from "../../web/src/core/entries"
+import {
+  isMoveRefusal,
+  isWithin,
+  movedEntry,
+  placeOf,
+  restoredEntry,
+  restoreTargetOf,
+  trashedEntry,
+  trashRefOf,
+} from "../../web/src/core/entries"
 import {
   type Folder,
   HOME_ID,
@@ -150,5 +159,35 @@ describe("ゴミ箱", () => {
     expect(restoreTargetOf(t.folders, ["b2", "d", "a", HOME_ID])).toBe("a")
     expect(restoreTargetOf(t.folders, ["gone", "more"])).toBe(HOME_ID)
     expect(restoreTargetOf(t.folders, [])).toBe(HOME_ID)
+  })
+
+  test("ゴミ箱に入れると、入っていたフォルダから外れ、ゴミ箱の末尾に、入れた時刻と元いたフォルダから上への列を持って入る（ゴミ箱の行が無ければ作る）", () => {
+    const at = "2026-11-18T01:00:00.000Z"
+    const t = trashedEntry(world(), "b2", at) as Library
+    expect(ids(t.folders.c)).toEqual([])
+    expect(t.folders[TRASH_ID]?.lineup).toEqual([{ kind: "book", id: "b2", trashed: at, from: ["c", "a", HOME_ID] }])
+    expect(t.folders.b2).toBe(world().folders.b2)
+    expect(treeHolds(t)).toBe(true)
+    const more = trashedEntry(t, "a", at) as Library
+    expect(ids(more.folders[TRASH_ID])).toEqual(["b2", "a"])
+    expect(trashRefOf(more.folders, "a")?.from).toEqual([HOME_ID])
+    // 無い物・ゴミ箱の中の物は入れられない
+    expect(trashedEntry(t, "none", at)).toBe("no-entry")
+    expect(trashedEntry(t, "b2", at)).toBe("in-trash")
+    expect(trashedEntry(more, "b1", at)).toBe("in-trash")
+  })
+
+  test("ゴミ箱の直下の物を、フォルダの末尾へ戻す。ゴミ箱の直下に無い物・無い先・ゴミ箱の中の先・持てない先へは戻せない", () => {
+    const t = trashed()
+    const back = restoredEntry(t, "d", "a") as Library
+    expect(ids(back.folders.a)).toEqual(["b1", "c", "d"])
+    expect(back.folders.a?.lineup.at(-1)).toEqual({ kind: "folder", id: "d" })
+    expect(ids(back.folders[TRASH_ID])).toEqual([])
+    expect(treeHolds(back)).toBe(true)
+    expect(restoredEntry(t, "b2", "a")).toBe("no-entry")
+    expect(restoredEntry(t, "b1", "a")).toBe("no-entry")
+    expect(restoredEntry(t, "d", "none")).toBe("no-folder")
+    expect(restoredEntry(t, "d", TRASH_ID)).toBe("in-trash")
+    expect(restoredEntry(t, "d", "b1")).toBe("kind")
   })
 })

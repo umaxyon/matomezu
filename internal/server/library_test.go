@@ -111,8 +111,8 @@ func TestBooksInFoldersAreBooksOfTheHub(t *testing.T) {
 	if got := folders(update("s1"), update("p1")); !slices.Equal(got, []string{"b2", "f1", "b1", "d2", "d1", storage.HomeID}) {
 		t.Fatalf("pages in two books = %v", got)
 	}
-	// 一覧が対象なら、全部のブックと、書庫ホームを先にした書庫ホームとフォルダの全部
-	if got := folders(step("@matomezu/base:book-create", `{"title":"N"}`, nil)); !slices.Equal(got, []string{"b1", "b2", "f1", storage.HomeID, "d1", "d2"}) {
+	// 一覧が対象なら、全部のブックと、書庫ホーム・ゴミ箱を先にした、書庫ホーム・ゴミ箱・フォルダの全部
+	if got := folders(step("@matomezu/base:book-create", `{"title":"N"}`, nil)); !slices.Equal(got, []string{"b1", "b2", "f1", storage.HomeID, storage.TrashID, "d1", "d2"}) {
 		t.Fatalf("a list action = %v", got)
 	}
 }
@@ -173,8 +173,9 @@ func TestWholeBooksGoIntoTheLibraryHome(t *testing.T) {
 		t.Fatal(err)
 	}
 	stored, _ := hub.store.Folders()
-	if folders := slices.Collect(maps.Keys(hub.folders)); len(hub.pages) != 0 || !slices.Equal(folders, []string{storage.HomeID}) || len(stored) != 1 ||
-		home() != `{"folderRole":"home","id":"library-home","lineup":[]}` || len(entries()) != 0 || len(hub.order) != 0 {
+	if folders := slices.Sorted(maps.Keys(hub.folders)); len(hub.pages) != 0 || !slices.Equal(folders, []string{storage.HomeID, storage.TrashID}) || len(stored) != 2 ||
+		home() != `{"folderRole":"home","id":"library-home","lineup":[]}` || string(hub.folders[storage.TrashID].body) != `{"folderRole":"trash","id":"library-trash","lineup":[]}` ||
+		len(entries()) != 0 || len(hub.order) != 0 {
 		t.Fatalf("after clearing: pages %v, folders %v, stored %+v, entries %v", hub.pages, folders, stored, entries())
 	}
 	// 空にした後も、新しいブックは書庫ホームに入る

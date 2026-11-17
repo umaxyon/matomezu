@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
-import { recordsOf } from "../../web/src/core/folders"
+import { HOME_ID, recordsOf, TRASH_ID } from "../../web/src/core/folders"
 import type { Book } from "../../web/src/core/schema/book"
 import { screenOf } from "../../web/src/core/window"
 import { type Events, NoServer, OFFLINE_MS, QUIET_MS, serverClient } from "../../web/src/host-client/server"
@@ -318,9 +318,14 @@ test("ほかから変わったブックの上で、まだ確かめられてい�
 
 test("ゴミ箱に入ったブックはゴミ箱へ分け、消したと届いたブックは一覧から外れる（ほかのブックは同じ値のまま）", async () => {
   const { store, emit } = await connected(fakeServer({ ...dataOf(SAMPLE_BOOKS.slice(0, 3)), settings: null }))
-  emit("changed", changedOf({ ...b1With(), trashed: "2026-10-29T00:00:00.000Z" }, 2))
+  const bin = {
+    folderRole: "trash",
+    id: TRASH_ID,
+    lineup: [{ kind: "book", id: "b1", trashed: "2026-10-29T00:00:00.000Z", from: [HOME_ID] }],
+  }
+  emit("changed", { pages: [], folders: [{ id: TRASH_ID, folder: bin, version: 1 }], books: ["b1"] })
   expect("b1" in store.state.getState().books).toBe(false)
-  expect(store.state.getState().trash.b1?.trashed).toBe("2026-10-29T00:00:00.000Z")
+  expect(store.state.getState().trash.b1?.id).toBe("b1")
   emit("changed", removedOf(b1With()))
   expect("b1" in store.state.getState().trash).toBe(false)
   // ゴミ箱に入っていないブックも、ページとフォルダが消えたと届けば外れる

@@ -58,12 +58,11 @@ export interface BinderEntry {
 }
 export type LineupEntry = AnyPage | BinderEntry | UnreadableEntry
 
-// ブック（名前 title・ロック locked・ゴミ箱に入れた時刻 trashed・並び lineup・ブックが持つ設定の項目）
+// ブック（名前 title・ロック locked・並び lineup・ブックが持つ設定の項目）
 export type Book = {
   id: string
   title: string
   locked?: true
-  trashed?: string
   lineup: readonly LineupEntry[]
 } & SettingFields<BookSettingId>
 

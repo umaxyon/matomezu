@@ -26,7 +26,7 @@ func row(id string, base int64, body string) RowWrite {
 	return RowWrite{ID: id, Body: json.RawMessage(body), Base: base}
 }
 
-// 置いてあるページとフォルダ（どちらも id → 「版 本文」）。フォルダは、書庫ホームと、その下のフォルダ（役 folder）を除く（library_test.go が確かめる）
+// 置いてあるページとフォルダ（どちらも id → 「版 本文」）。フォルダは、書庫ホーム・ゴミ箱・フォルダ（役 folder）を除く（library_test.go が確かめる）
 func stored(t *testing.T, s Storage) (pages, folders map[string]string) {
 	t.Helper()
 	ps, err := s.Pages()
@@ -281,8 +281,8 @@ func TestAnnotationsPerPage(t *testing.T) {
 	}
 }
 
-// ゴミ箱に入れた時刻の列（trashed_at）を持っていた置き場所は、時刻をブックのデータの trashed に移す
-func TestTrashedAtMovesIntoTheBook(t *testing.T) {
+// ゴミ箱に入れた時刻の列（trashed_at）を持っていた置き場所は、そのブックを、その時刻でゴミ箱の並びに入れる
+func TestTrashedAtMovesIntoTheTrash(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data.db")
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
@@ -299,9 +299,33 @@ func TestTrashedAtMovesIntoTheBook(t *testing.T) {
 	db.Close()
 	s := open(t, path)
 	_, books := stored(t, s)
-	if len(books) != 2 || books["b1"] != `1 {"folderRole":"book","id":"b1","trashed":"2026-10-29T01:00:00.000Z"}` || books["b2"] != `1 {"folderRole":"book","id":"b2"}` {
+	if len(books) != 2 || books["b1"] != `1 {"folderRole":"book","id":"b1"}` || books["b2"] != `1 {"folderRole":"book","id":"b2"}` {
 		t.Fatalf("books' folders = %v", books)
 	}
+	entries, err := s.Entries()
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := entries["b2"]
+	if trash := folderBody(t, s, TrashID); entries["b1"] != TrashID || old == "" ||
+		trash != `{"folderRole":"trash","id":"library-trash","lineup":[{"kind":"book","id":"b1","trashed":"2026-10-29T01:00:00.000Z","from":["`+old+`","library-home"]}]}` {
+		t.Fatalf("trash = %s, entries %v", trash, entries)
+	}
+}
+
+// folderBody は、置いてあるフォルダ id の本文（無ければ空）
+func folderBody(t *testing.T, s Storage, id string) string {
+	t.Helper()
+	folders, err := s.Folders()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range folders {
+		if f.ID == id {
+			return string(f.Body)
+		}
+	}
+	return ""
 }
 
 // 1 冊だけのタイプのブック（id は master）が残っていた置き場所は、その行を消し、ほかのブックは残す

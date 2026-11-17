@@ -1,12 +1,13 @@
-// ブックを id ごとに持つ値（書庫から組んだブックの全部。ゴミ箱のブックも入る）
+// ブックを id ごとに持つ値（書庫から組んだブック）
+import { inTrash, type Library, libraryOf } from "./folders"
 import type { Book } from "./schema/book"
 
 export type Books = Readonly<Record<string, Book>>
 
-// ブック all を、開けるブックとゴミ箱のブックに分ける
-export function splitTrash(all: Books): { books: Books; trash: Books } {
+// 書庫 library のブックを、開けるブックと、ゴミ箱かその中のブックに分ける
+export function splitTrash(library: Library): { books: Books; trash: Books } {
   const books: Record<string, Book> = {}
   const trash: Record<string, Book> = {}
-  for (const b of Object.values(all)) (b.trashed === undefined ? books : trash)[b.id] = b
+  for (const b of Object.values(libraryOf(library))) (inTrash(library.folders, b.id) ? trash : books)[b.id] = b
   return { books, trash }
 }

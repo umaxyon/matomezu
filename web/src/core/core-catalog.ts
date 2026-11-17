@@ -163,7 +163,7 @@ function buildPageSchema(parts: CoreCatalogParts, t: PageTypeDef): z.ZodObject {
   })
 }
 
-// ブックのデータの形: 名前 title（1 字以上）・ロック locked・ゴミ箱に入れた時刻 trashed・並び lineup・ブックが持つ設定の項目（holder が "book" の項目）。
+// ブックのデータの形: 名前 title（1 字以上）・ロック locked・並び lineup・ブックが持つ設定の項目（holder が "book" の項目）。
 // エントリ 1 つは、ページ（kind が "page"。タイプごとの形のどれか）か、1 つのタイプのページだけを入れるバインダ（中身も同じ並びで、入るのはページと読めないページ）か、読めないページ
 function buildBookSchema(parts: CoreCatalogParts, pageSchemas: ReadonlyMap<string, z.ZodObject>): z.ZodType {
   const [first, ...rest] = [...pageSchemas.values()]
@@ -188,7 +188,6 @@ function buildBookSchema(parts: CoreCatalogParts, pageSchemas: ReadonlyMap<strin
     id: z.string().min(1),
     title: z.string().min(1),
     locked: z.literal(true).optional(),
-    trashed: z.iso.datetime().optional(),
     lineup: z.array(z.union([page, binderEntry, unreadable])),
     ...settingsField(
       parts,

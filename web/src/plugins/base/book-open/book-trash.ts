@@ -1,29 +1,32 @@
-// ゴミ箱: ブックをゴミ箱に入れる book-trash（入れた時刻 trashed を付ける）、戻す book-restore（trashed を外す）、
-// 消す book-purge と、ゴミ箱を空にする trash-empty（書庫から消す。戻せない）。戻す・消す・空にするのは利用者だけ（userOnly）。
+// ゴミ箱: ブックをゴミ箱に入れる book-trash（入っていたフォルダから外し、ゴミ箱の並びへ入れる）、戻す book-restore（元いたフォルダへ。
+// 無ければ、その上のフォルダをたどる）、消す book-purge と、ゴミ箱を空にする trash-empty（書庫から消す。戻せない）。戻す・消す・空にするのは利用者だけ（userOnly）。
 // 無いブック・入れ済みのブックは入れない。ロック中のブック・ロック中のページを持つブックは、認可ステップ lock が止める
 import { z } from "zod"
-import { bookOf, type Library, libraryOf, withBook, withoutBook } from "../../../core/folders"
+import { isMoveRefusal, restoredEntry, restoreTargetOf, trashedEntry, trashRefOf } from "../../../core/entries"
+import { bookOf, type Folders, type Library, libraryOf, TRASH_ID, withoutBook } from "../../../core/folders"
 import type { Books } from "../../../core/library"
 import type { Book } from "../../../core/schema/book"
-import { setField } from "../fields"
 import { kit } from "../kit"
 
-// ゴミ箱に入れる物か: まだ入れていないブック（行えるかは、ほかに認可ステップなどが決める）
-export const isTrashCandidate = (book: Book): boolean => book.trashed === undefined
-
-// ゴミ箱のブックを、入れた時刻の新しい順に
-export const trashOrder = (trash: Books): Book[] =>
-  Object.values(trash).sort((a, b) => ((a.trashed ?? "") < (b.trashed ?? "") ? 1 : -1))
-
-// ブック id の trashed を at にする（undefined なら外す）
-function markTrashed(library: Library, id: string, at: string | undefined): Library {
-  const book = bookOf(library, id)
-  return book ? withBook(library, setField(book, ["title", "locked"], "trashed", at)) : library
+// ゴミ箱の直下のブックと、入れた時刻（新しい順）。trash はゴミ箱かその中のブック、folders は書庫のフォルダの行
+export function trashOrder(trash: Books, folders: Folders): { book: Book; trashed: string }[] {
+  const bin = folders[TRASH_ID]
+  const refs = bin?.folderRole === "trash" ? bin.lineup : []
+  return refs
+    .flatMap(r => {
+      const book = trash[r.id]
+      return book ? [{ book, trashed: r.trashed }] : []
+    })
+    .sort((a, b) => (a.trashed < b.trashed ? 1 : -1))
 }
 
-// ゴミ箱のブック ids を書庫から消す（ゴミ箱に無いブックは残す）
+// 書庫 library の、ゴミ箱の直下のブック id（ゴミ箱の直下に無ければ undefined）
+const trashedBook = (library: Library, id: string): Book | undefined =>
+  trashRefOf(library.folders, id)?.kind === "book" ? bookOf(library, id) : undefined
+
+// ゴミ箱の直下のブック ids を書庫から消す（ゴミ箱の直下に無いブックは残す）
 function purge(library: Library, ids: readonly string[]): Library {
-  return ids.reduce((l, id) => (bookOf(l, id)?.trashed === undefined ? l : withoutBook(l, id)), library)
+  return ids.reduce((l, id) => (trashedBook(l, id) ? withoutBook(l, id) : l), library)
 }
 
 export const BOOK_TRASH = kit.defineAction({
@@ -35,9 +38,9 @@ export const BOOK_TRASH = kit.defineAction({
   permissionScope: { book: "book", where: "all-pages" },
   args: z.strictObject({ book: z.string().min(1) }),
   run: (library, args, ctx) => {
-    const book = bookOf(library, args.book)
-    if (!book || !isTrashCandidate(book)) return null
-    return { next: markTrashed(library, args.book, ctx.now), result: {} }
+    if (!bookOf(library, args.book)) return null
+    const next = trashedEntry(library, args.book, ctx.now)
+    return isMoveRefusal(next) ? null : { next, result: {} }
   },
 })
 
@@ -50,8 +53,10 @@ export const BOOK_RESTORE = kit.defineAction({
   permissionScope: { book: "book", where: "all-pages" },
   args: z.strictObject({ book: z.string().min(1) }),
   run: (library, args) => {
-    if (bookOf(library, args.book)?.trashed === undefined) return null
-    return { next: markTrashed(library, args.book, undefined), result: {} }
+    const from = trashedBook(library, args.book) ? trashRefOf(library.folders, args.book)?.from : undefined
+    if (!from) return null
+    const next = restoredEntry(library, args.book, restoreTargetOf(library.folders, from))
+    return isMoveRefusal(next) ? null : { next, result: {} }
   },
 })
 
@@ -64,7 +69,7 @@ export const BOOK_PURGE = kit.defineAction({
   permissionScope: { books: "books", where: "all-pages" },
   args: z.strictObject({ books: z.array(z.string().min(1)).min(1) }),
   run: (library, args) => {
-    if (!args.books.every(id => bookOf(library, id)?.trashed !== undefined)) return null
+    if (!args.books.every(id => trashedBook(library, id))) return null
     return { next: purge(library, args.books), result: {} }
   },
 })

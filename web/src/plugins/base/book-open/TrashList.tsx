@@ -15,7 +15,9 @@ import styles from "./BookSearch.module.css"
 import { BOOK_PURGE, BOOK_RESTORE, TRASH_EMPTY, trashOrder } from "./book-trash"
 
 export function TrashList() {
-  const trash = trashOrder(useMatomezuState(s => s.trash))
+  const books = useMatomezuState(s => s.trash)
+  const folders = useMatomezuState(s => s.folders)
+  const trash = trashOrder(books, folders)
   const run = useLibraryPerform()
   const t = useMessages(kit)
   const emptiable = useAllowedOn(TRASH_EMPTY.id, {}).ok
@@ -30,10 +32,11 @@ export function TrashList() {
       </div>
       <div className={styles.results}>
         <ul className={styles.list} aria-label={t("Trash")}>
-          {trash.map(b => (
+          {trash.map(({ book: b, trashed }) => (
             <TrashRow
               key={b.id}
               book={b}
+              trashed={trashed}
               onRestore={() => run(BOOK_RESTORE.id, { book: b.id }, "Could not restore")}
               onDelete={() => setConfirming({ book: b.id })}
             />
@@ -62,8 +65,18 @@ export function TrashList() {
   )
 }
 
-// ゴミ箱の 1 行: 戻すボタンと消すボタンは、そのブックに行えるときだけ押せる
-function TrashRow({ book, onRestore, onDelete }: { book: Book; onRestore: () => void; onDelete: () => void }) {
+// ゴミ箱の 1 行（trashed は入れた時刻）: 戻すボタンと消すボタンは、そのブックに行えるときだけ押せる
+function TrashRow({
+  book,
+  trashed,
+  onRestore,
+  onDelete,
+}: {
+  book: Book
+  trashed: string
+  onRestore: () => void
+  onDelete: () => void
+}) {
   const elapsed = useElapsed()
   const t = useMessages(kit)
   const restorable = useAllowedOn(BOOK_RESTORE.id, { book: book.id }).ok
@@ -71,7 +84,7 @@ function TrashRow({ book, onRestore, onDelete }: { book: Book; onRestore: () => 
   return (
     <li className={styles.trashed}>
       <span className={styles.title}>{book.title}</span>
-      <span className={styles.when}>{elapsed(book.trashed ?? "")}</span>
+      <span className={styles.when}>{elapsed(trashed)}</span>
       <ActionButton disabled={!restorable} onClick={onRestore}>
         {t("Restore")}
       </ActionButton>

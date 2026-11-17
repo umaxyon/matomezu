@@ -1,11 +1,11 @@
 package server
 
 // ページとフォルダの表: 常駐が持つブックのデータは、ページ 1 枚ずつとフォルダ 1 つずつ（置き場所と同じ単位。版もそれぞれが持つ）。
-// フォルダは、書庫ホーム・フォルダ・ブック・バインダ（storage/library.go）。どれもエントリ（ページ・バインダ・ブック・フォルダ）の id を順に持つ。
+// フォルダは、書庫ホーム・ゴミ箱・フォルダ・ブック・バインダ（storage/library.go）。どれもエントリ（ページ・バインダ・ブック・フォルダ）の id を順に持つ。
 // エントリの入っているフォルダは places にも持つ（ページから持ち主のブックを引くのに使う）。
 // ブックの本文（並びにページとバインダの中身ごと持つ形）が要る所（AI に見せる・エンジンに確かめさせる）には、ここで組んだ物を渡す（books。変わったブックだけ組み直す）。
 // 組むのは形だけ: フォルダの lineup のうち、id だけのエントリ（kind と id だけを持つ）を、表の中身に替える（core/folders.ts の rawBooksOf と同じ決まり）。
-// ブックは、役（folderRole）が home・folder・binder のどれでもないフォルダ（形の壊れた物も、読めないブックとして 1 冊に数える）
+// ブックは、役（folderRole）が home・trash・folder・binder のどれでもないフォルダ（形の壊れた物も、読めないブックとして 1 冊に数える）
 
 import (
 	"encoding/json"
@@ -34,13 +34,15 @@ type folderRow struct {
 // isBook は、フォルダの行がブックか（storage.IsBookRole）
 func (f folderRow) isBook() bool { return storage.IsBookRole(f.role) }
 
-// isHomeOrFolder は、フォルダの行が書庫ホームかフォルダか（ブックとバインダを入れる側）
-func (f folderRow) isHomeOrFolder() bool { return f.role == "home" || f.role == "folder" }
+// isOpen は、フォルダの行が、ページ・バインダ・ブック・フォルダの 4 つとも持てる役（書庫ホーム・ゴミ箱・フォルダ。storage.IsOpenRole）か
+func (f folderRow) isOpen() bool { return storage.IsOpenRole(f.role) }
 
-// entryRef は、lineup の要素が id だけのエントリなら、その kind と id（そうでなければ ok が false）
-func entryRef(entry json.RawMessage) (kind, id string, ok bool) {
+// entryRef は、役 role のフォルダの lineup の要素 entry が指すエントリの kind と id（指していなければ ok が false）。
+// ゴミ箱の要素は、kind と id を読み、ほかのキー（trashed・from）は読まない。ほかの役の要素は、id だけのエントリ（kind と id だけを持つ）だけが指す
+// （それより多くを持つ要素は、中身ごと残っている物）
+func entryRef(role string, entry json.RawMessage) (kind, id string, ok bool) {
 	var fields map[string]json.RawMessage
-	if json.Unmarshal(entry, &fields) != nil || len(fields) != 2 {
+	if json.Unmarshal(entry, &fields) != nil || (role != "trash" && len(fields) != 2) {
 		return "", "", false
 	}
 	if json.Unmarshal(fields["kind"], &kind) != nil || json.Unmarshal(fields["id"], &id) != nil || id == "" {
@@ -53,7 +55,7 @@ func entryRef(entry json.RawMessage) (kind, id string, ok bool) {
 func newFolderRow(body json.RawMessage, version int64) folderRow {
 	f := folderRow{row: row{body, version}, role: storage.RoleOf(body)}
 	for _, e := range lineupOf(body) {
-		if _, id, ok := entryRef(e); ok {
+		if _, id, ok := entryRef(f.role, e); ok {
 			f.entries = append(f.entries, id)
 		}
 	}
@@ -112,7 +114,7 @@ func (h *Hub) assemble(id string, binder bool) json.RawMessage {
 	if raw, has := fields["lineup"]; has && json.Unmarshal(raw, &lineup) == nil {
 		parts := make([]json.RawMessage, 0, len(lineup))
 		for _, e := range lineup {
-			kind, entry, isRef := entryRef(e)
+			kind, entry, isRef := entryRef(f.role, e)
 			switch {
 			case isRef && kind == "page":
 				if p, ok := h.pages[entry]; ok {
@@ -160,7 +162,7 @@ func (h *Hub) bookOfEntry(id string) string {
 	return ""
 }
 
-// foldersAbove は、エントリ id が入っているフォルダから上へ、書庫ホームまでの id（近い順。表に無いフォルダで止める。輪になっていれば、通ったフォルダで止める。h.mu を持って呼ぶ）
+// foldersAbove は、エントリ id が入っているフォルダから上へ、書庫の一番上（書庫ホームかゴミ箱）までの id（近い順。表に無いフォルダで止める。輪になっていれば、通ったフォルダで止める。h.mu を持って呼ぶ）
 func (h *Hub) foldersAbove(id string) []string {
 	out := []string{}
 	seen := map[string]bool{id: true}
@@ -192,27 +194,30 @@ func (h *Hub) checkLibrary() {
 	h.libraryWarning = line
 }
 
-// homeAndFolderRows は、書庫ホームとフォルダの行の全部（書庫ホームを先に、ほかは id の順。エンジンに渡す。h.mu を持って呼ぶ）
-func (h *Hub) homeAndFolderRows() []json.RawMessage {
+// openRows は、書庫ホーム・ゴミ箱・フォルダの行の全部（書庫ホームを先に、ゴミ箱を次に、ほかは id の順。エンジンに渡す。h.mu を持って呼ぶ）
+func (h *Hub) openRows() []json.RawMessage {
 	out := []json.RawMessage{}
-	if f, ok := h.folders[storage.HomeID]; ok && f.isHomeOrFolder() {
-		out = append(out, f.body)
+	for _, id := range []string{storage.HomeID, storage.TrashID} {
+		if f, ok := h.folders[id]; ok && f.isOpen() {
+			out = append(out, f.body)
+		}
 	}
 	for _, id := range slices.Sorted(maps.Keys(h.folders)) {
-		if f := h.folders[id]; id != storage.HomeID && f.isHomeOrFolder() {
+		if f := h.folders[id]; id != storage.HomeID && id != storage.TrashID && f.isOpen() {
 			out = append(out, f.body)
 		}
 	}
 	return out
 }
 
-// homeAndFoldersAbove は、ブック ids から書庫ホームまでの、書庫ホームとフォルダの行（ブックごとに近い順。重ねない。エンジンに渡す。h.mu を持って呼ぶ）
-func (h *Hub) homeAndFoldersAbove(ids []string) []json.RawMessage {
+// openRowsAbove は、ブック ids から書庫の一番上（書庫ホームか、ゴミ箱の中のブックならゴミ箱）までの、書庫ホーム・ゴミ箱・フォルダの行
+// （ブックごとに近い順。重ねない。エンジンに渡す。h.mu を持って呼ぶ）
+func (h *Hub) openRowsAbove(ids []string) []json.RawMessage {
 	out := []json.RawMessage{}
 	seen := map[string]bool{}
 	for _, id := range ids {
 		for _, at := range h.foldersAbove(id) {
-			if f := h.folders[at]; f.isHomeOrFolder() && !seen[at] {
+			if f := h.folders[at]; f.isOpen() && !seen[at] {
 				seen[at] = true
 				out = append(out, f.body)
 			}
@@ -304,7 +309,7 @@ func (h *Hub) entryPuts(changed map[string]json.RawMessage, gone []string) []sto
 	return puts
 }
 
-// Tables は、全部のページとフォルダ（版つき。ゴミ箱のブックの分も。id の順）
+// Tables は、全部のページとフォルダ（版つき。ゴミ箱の中の分も。id の順）
 func (h *Hub) Tables() ([]storage.Page, []storage.Folder) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -409,20 +414,21 @@ func (h *Hub) homeWith(change func([]json.RawMessage) []json.RawMessage) (json.R
 }
 
 // clearBooks は、全部のブック（ページとフォルダとエントリ、開いた時刻、AI 編集チケット、ページのアノテーション）を、置き場所とメモリから消す。
-// 書庫ホームは残して、並びを空にする（窓には知らせない。テストの用意が使う。h.mu を持って呼ぶ）
+// 書庫ホームとゴミ箱は残して、並びを空にする（窓には知らせない。テストの用意が使う。h.mu を持って呼ぶ）
 func (h *Hub) clearBooks() error {
 	var batch storage.Batch
 	for id, p := range h.pages {
 		batch.Pages = append(batch.Pages, storage.RowWrite{ID: id, Base: p.version, Removed: true})
 	}
 	for id, f := range h.folders {
-		if id != storage.HomeID {
+		if id != storage.HomeID && id != storage.TrashID {
 			batch.Folders = append(batch.Folders, storage.RowWrite{ID: id, Base: f.version, Removed: true})
 		}
 	}
-	home := storage.HomeBody(nil)
-	homeVersion := h.folders[storage.HomeID].version
-	batch.Folders = append(batch.Folders, storage.RowWrite{ID: storage.HomeID, Body: home, Base: homeVersion})
+	home, trash := storage.HomeBody(nil), storage.TrashBody(nil)
+	homeVersion, trashVersion := h.folders[storage.HomeID].version, h.folders[storage.TrashID].version
+	batch.Folders = append(batch.Folders, storage.RowWrite{ID: storage.HomeID, Body: home, Base: homeVersion},
+		storage.RowWrite{ID: storage.TrashID, Body: trash, Base: trashVersion})
 	for id := range h.places {
 		batch.Entries = append(batch.Entries, storage.EntryPut{ID: id})
 	}
@@ -435,7 +441,7 @@ func (h *Hub) clearBooks() error {
 		return err
 	}
 	h.pages = map[string]row{}
-	h.folders = map[string]folderRow{storage.HomeID: newFolderRow(home, homeVersion+1)}
+	h.folders = map[string]folderRow{storage.HomeID: newFolderRow(home, homeVersion+1), storage.TrashID: newFolderRow(trash, trashVersion+1)}
 	h.places = map[string]string{}
 	h.books = map[string]entry{}
 	h.order = nil

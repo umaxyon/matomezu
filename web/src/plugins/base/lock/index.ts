@@ -168,7 +168,7 @@ export const LOCK = kit.definePermission({
     if (!before) return true // 新しく増えたブックは、ロックを掛けて作ってもよい
     const locked = pagesOf(before).filter(p => p.locked)
     if (!before.locked && locked.length === 0) return true
-    if (changes.gone || changes.fields.includes("trashed")) return false
+    if (changes.gone || changes.trashed) return false
     // ロックしたブックは、ページの中身も、並び（順・バインダの足し引きと名前）も変えない
     if (before.locked && (changes.pages.length > 0 || changes.lineup || !onlySwitched(changes.fields, after, actor)))
       return false

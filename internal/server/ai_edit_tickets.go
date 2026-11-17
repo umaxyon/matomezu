@@ -167,10 +167,10 @@ func (h *Hub) SettleAIEditTicket(act, book string, places []string, lost json.Ra
 	return h.putTickets(list)
 }
 
-// titleOfTold は、AI に渡す物のブック id の名前（置いていないブックとゴミ箱のブックの物は渡さないので false。h.mu を持って呼ぶ）
+// titleOfTold は、AI に渡す物のブック id の名前（置いていないブックとゴミ箱の中のブックの物は渡さないので false。h.mu を持って呼ぶ）
 func (h *Hub) titleOfTold(id string) (string, bool) {
 	e, ok := h.books[id]
-	if !ok || e.trashed {
+	if !ok || h.inTrash(id) {
 		return "", false
 	}
 	var head struct {
@@ -204,7 +204,7 @@ type UndoneAIEditTicket struct {
 	Lost  json.RawMessage `json:"lost"`
 }
 
-// TellUndone は、見られる前に消えた AI の変更の全部（ゴミ箱のブックの物は除く。変えた順）を返し、AI に渡した印を付ける
+// TellUndone は、見られる前に消えた AI の変更の全部（ゴミ箱の中のブックの物は除く。変えた順）を返し、AI に渡した印を付ける
 func (h *Hub) TellUndone() ([]UndoneAIEditTicket, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -236,7 +236,7 @@ type FailedAIEditTicket struct {
 	Changed []string `json:"changed"`
 }
 
-// TellFailed は、アクションが返した変え方で失敗にした AI 編集チケットの全部（ゴミ箱のブックの物は除く。変えた順）を返し、AI に渡した印を付ける
+// TellFailed は、アクションが返した変え方で失敗にした AI 編集チケットの全部（ゴミ箱の中のブックの物は除く。変えた順）を返し、AI に渡した印を付ける
 func (h *Hub) TellFailed() ([]FailedAIEditTicket, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -263,7 +263,7 @@ type RemovedAIEditTicket struct {
 	Cause string `json:"cause"`
 }
 
-// TellRemoved は、アクションが返した変え方で消えたと記した AI 編集チケットの全部（ゴミ箱のブックの物は除く。変えた順）を返し、AI に渡した印を付ける
+// TellRemoved は、アクションが返した変え方で消えたと記した AI 編集チケットの全部（ゴミ箱の中のブックの物は除く。変えた順）を返し、AI に渡した印を付ける
 func (h *Hub) TellRemoved() ([]RemovedAIEditTicket, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()

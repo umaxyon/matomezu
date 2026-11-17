@@ -45,11 +45,12 @@ const skeleton = (book: Book): unknown =>
     e.kind === "binder" ? { id: e.id, title: e.title, pageType: e.pageType, lineup: e.lineup.map(p => p.id) } : e.id,
   )
 
-export function changesOf(before: Book | undefined, after: Book | undefined): Changes {
-  if (!after) return { gone: true, added: false, fields: [], lineup: false, pages: [] }
+export function changesOf(before: Book | undefined, after: Book | undefined, trashed = false): Changes {
+  if (!after) return { gone: true, trashed: false, added: false, fields: [], lineup: false, pages: [] }
   if (!before)
     return {
       gone: false,
+      trashed,
       added: true,
       fields: Object.keys(after).filter(k => k !== "lineup"),
       lineup: lineupOf(after).length > 0,
@@ -60,6 +61,7 @@ export function changesOf(before: Book | undefined, after: Book | undefined): Ch
   const ids = new Set([...was.keys(), ...now.keys()])
   return {
     gone: false,
+    trashed,
     added: false,
     fields: changedFields(before as Fields, after as Fields, ["lineup"]),
     lineup: !sameData(skeleton(before), skeleton(after)),

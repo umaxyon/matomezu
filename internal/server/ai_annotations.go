@@ -16,7 +16,7 @@ type aiAnnotation struct {
 	Anchors []string `json:"anchors"`
 }
 
-// annotatedBooks は、ブック（ids。nil なら全部）のうち、アノテーションの有る物（ゴミ箱のブックは入れない）の、ブックとページごとのアノテーションの組と、その id
+// annotatedBooks は、ブック（ids。nil なら全部）のうち、アノテーションの有る物（ゴミ箱の中のブックは入れない）の、ブックとページごとのアノテーションの組と、その id
 func (h *Hub) annotatedBooks(ids []string) ([]engine.AnnotatedBook, []string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -28,7 +28,7 @@ func (h *Hub) annotatedBooks(ids []string) ([]engine.AnnotatedBook, []string) {
 	for _, id := range ids {
 		e, ok := h.books[id]
 		lists := h.annotationsIn(id)
-		if !ok || e.trashed || len(lists) == 0 {
+		if !ok || h.inTrash(id) || len(lists) == 0 {
 			continue
 		}
 		pairs = append(pairs, engine.AnnotatedBook{Book: e.body, Annotations: lists})
@@ -38,7 +38,7 @@ func (h *Hub) annotatedBooks(ids []string) ([]engine.AnnotatedBook, []string) {
 }
 
 // AIAnnotations は、ブック（ids。nil なら全部）ごとに、AI に見せるアノテーションの並び（engine.AIAnnotations）を返す。
-// ゴミ箱のブックと、アノテーションの無いブックは入れない
+// ゴミ箱の中のブックと、アノテーションの無いブックは入れない
 func (h *Hub) AIAnnotations(ids []string) (map[string][]json.RawMessage, error) {
 	pairs, books := h.annotatedBooks(ids)
 	out := map[string][]json.RawMessage{}

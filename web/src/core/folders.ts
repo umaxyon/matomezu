@@ -38,7 +38,7 @@ export const TRASH_ID = "library-trash"
 // ゴミ箱の並びのエントリ 1 つ: 入れた物の id と、入れた時刻 trashed と、元いたフォルダから上への id の列 from（近い順。戻す先を決めるのに使う）
 export type TrashRef = AnyEntryRef & { trashed: string; from: readonly string[] }
 
-// ブックのフォルダ: ブックのフィールド（名前・ロック・ゴミ箱に入れた時刻・ブックが持つ設定の項目）と、エントリの id の並び
+// ブックのフォルダ: ブックのフィールド（名前・ロック・ブックが持つ設定の項目）と、エントリの id の並び
 export type BookFolder = Omit<Book, "lineup"> & { folderRole: "book"; lineup: readonly EntryRef[] }
 // バインダ: 名前と、入れるページのタイプと、ページの id の並び
 export interface BinderFolder {
@@ -88,6 +88,9 @@ const HomeOrFolderSchema = z.discriminatedUnion("folderRole", [
     lineup: z.array(AnyEntryRefSchema),
   }),
 ])
+
+// 書庫ホーム・ゴミ箱・フォルダの行 row が、形に合うか
+export const homeOrFolderHolds = (row: unknown): boolean => HomeOrFolderSchema.safeParse(row).success
 
 // ブックとバインダの行から、木の決まりに要る所だけを読む形
 const LooseFolderSchema = z.looseObject({
