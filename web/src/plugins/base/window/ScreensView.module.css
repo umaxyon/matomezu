@@ -51,17 +51,24 @@
   flex: 1;
   min-height: 0;
 }
-/* ステージを並べないスクリーン 1 枚。カレントにした順に重なり（z-index はビューが決める）、上の 1 枚が下の物を覆う。あとから開いた物は右から滑り込み、閉じると右へ滑り出る */
+/* ステージを並べないスクリーン 1 枚。カレントにした順に重なり（z-index はビューが決める）、上の 1 枚が下の物を覆う。あとから開いた物は右から滑り込み、閉じると右へ滑り出る。
+   上端と高さは決まった値で持ち（窓いっぱいは 0 と 100%）、上下に分ける・広げるときに、滑るのと同じ時間で動かす */
 .plain {
   position: absolute;
-  inset: 0;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 100%;
   /* 中のスクリーンを、高さいっぱいに伸ばす */
   display: flex;
   flex-direction: column;
   overflow: auto;
   background: var(--skin-stage);
   transform: translateX(0);
-  transition: transform var(--front-slide) ease;
+  transition:
+    transform var(--front-slide) ease,
+    top var(--front-slide) ease,
+    height var(--front-slide) ease;
 }
 .plain[data-in="false"] {
   transform: translateX(100%);
@@ -78,22 +85,12 @@
   padding: 0 6px;
   user-select: none;
 }
-/* 上下に分けた並びの 1 枚: 並びの位置と高さ（--row-top・--row-height）に置く（重なりはビューが z-index で決める）。位置と高さは、滑るのと同じ時間で動かす */
+/* 上下に分けた並びの 1 枚: 並びの位置と高さ（--row-top・--row-height）に置く（重なりはビューが z-index で決める） */
 .plain[data-row="true"] {
-  inset: auto 0;
   top: var(--row-top);
   height: var(--row-height);
-  transition:
-    transform var(--front-slide) ease,
-    top var(--front-slide) ease,
-    height var(--front-slide) ease;
 }
 /* 分け始めに入る物は、上の物が縮み終えてから滑り込む */
 .plain[data-late="true"] {
   transition-delay: var(--front-slide);
-}
-@media (prefers-reduced-motion: reduce) {
-  .plain[data-row="true"] {
-    transition: none;
-  }
 }
