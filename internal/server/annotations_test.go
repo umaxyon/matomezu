@@ -21,13 +21,13 @@ func TestAnnotationsAreKeptApartFromTheBook(t *testing.T) {
 	a := listen(t, s.URL)
 	next(t, a)
 	perform := func(action, args, on string) string {
-		_, got := send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:`+action+`","args":`+args+on+`,"lang":"ja","ids":["c1"],"now":"2026-11-01T00:00:00.000Z"}`, nil)
+		_, got := postPerform(t, s.URL, `{"action":"@matomezu/base:`+action+`","args":`+args+on+`,"lang":"ja","ids":["c1"],"now":"2026-11-01T00:00:00.000Z"}`)
 		return got
 	}
 	if got := perform("note-add", `{"anchors":["a"],"text":"x"}`, `,"on":{"page":"p1"}`); got != `{"ok":true,"result":{"note":"c1"}}` {
 		t.Fatalf("note-add = %s", got)
 	}
-	if got := next(t, a); !strings.HasPrefix(got, `annotations {"annotations":[{"id":"c1","annotation":"@matomezu/base:note","anchors":["a"]`) || !strings.Contains(got, `"page":"p1"`) {
+	if got := next(t, a); !strings.HasPrefix(got, `changed {`) || !strings.Contains(got, `"annotations":{"p1":[{"id":"c1","annotation":"@matomezu/base:note","anchors":["a"]`) {
 		t.Fatalf("event = %s", got)
 	}
 	if _, data := send(t, "GET", s.URL+"/api/data", "", nil); !strings.Contains(data, `"annotations":{"p1":[{"id":"c1"`) {
@@ -92,7 +92,7 @@ func TestAIReadsAnnotations(t *testing.T) {
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
 	ai := map[string]string{"Authorization": "Bearer secret"}
-	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:note-add","args":{"anchors":["a"],"text":"x"},"on":{"page":"p1"},"lang":"ja","ids":["c1"],"now":"2026-11-02T00:00:00.000Z"}`, nil)
+	postPerform(t, s.URL, `{"action":"@matomezu/base:note-add","args":{"anchors":["a"],"text":"x"},"on":{"page":"p1"},"lang":"ja","ids":["c1"],"now":"2026-11-02T00:00:00.000Z"}`)
 	const waiting = `{"id":"c1","annotation":"@matomezu/base:note","anchors":["a"],"props":{"text":"x","bubble":true,"addedAt":"2026-11-02T00:00:00.000Z"},"page":"p1","awaits":true}`
 	if _, got := send(t, "GET", s.URL+"/api/ai/books/b1", "", ai); !strings.Contains(got, `"annotations":[`+waiting+`]`) {
 		t.Fatalf("read_book = %s", got)
@@ -129,7 +129,7 @@ func TestAICannotReadANoteTheUserIsEditing(t *testing.T) {
 	ai := map[string]string{"Authorization": "Bearer secret"}
 	a := listen(t, s.URL)
 	next(t, a)
-	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:note-add","args":{"anchors":["a"],"text":"x"},"on":{"page":"p1"},"lang":"ja","ids":["c1"],"now":"2026-11-02T00:00:00.000Z"}`, nil)
+	postPerform(t, s.URL, `{"action":"@matomezu/base:note-add","args":{"anchors":["a"],"text":"x"},"on":{"page":"p1"},"lang":"ja","ids":["c1"],"now":"2026-11-02T00:00:00.000Z"}`)
 	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"editLocks":{"p1":["c1"]},"seq":1}`, nil)
 	read := `{"action":"@matomezu/base:note-read","args":{"note":"c1"},"on":{"page":"p1"}}`
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", read, ai); got != `{"ok":false,"reason":"being-edited"}` {
@@ -168,7 +168,7 @@ func TestRemovingABookTakesItsAnnotationWarnings(t *testing.T) {
 		t.Fatalf("warnings before = %s", got)
 	}
 	for _, do := range [][2]string{{"@matomezu/base:book-trash", `{"book":"b1"}`}, {"@matomezu/base:book-purge", `{"books":["b1"]}`}} {
-		if done, err := h.Perform(Perform{Action: do[0], Args: json.RawMessage(do[1])}); err != nil || !done.OK {
+		if done, err := h.Perform(Perform{Actions: []engine.BulkAction{{Action: do[0], Args: json.RawMessage(do[1])}}}); err != nil || !done.OK {
 			t.Fatalf("%s = %+v, %v", do[0], done, err)
 		}
 	}

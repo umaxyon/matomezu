@@ -6,7 +6,9 @@
 // 操作はデータを書き換えず、新しい値を返す（変わらなければ同じものを使い回す）
 
 import type { CoreCatalog } from "./core-catalog"
+import { arrangementValueOf, NO_ARRANGEMENT_VALUE } from "./def/screen-arrangement"
 import { fail } from "./errors"
+import { sameData } from "./same"
 import type { Book } from "./schema/book"
 import type { Stage } from "./stage"
 import { newWorkspace, type Workspace } from "./workspace"
@@ -29,6 +31,7 @@ export interface WindowState {
   screens: readonly OpenedScreen[] // 開いているスクリーン（開いた順。1 枚以上で、ステージを並べるスクリーンを 1 枚以上持つ）
   order: readonly string[] // スクリーンの id を、カレントにした順に並べた物（最後がカレントスクリーン）
   arrangement: string // スクリーンアレンジメントの定義の id（開いているスクリーンの見せ方）
+  arrangementValue: unknown // スクリーンアレンジメントの値（定義の value の形。値を持たない定義なら NO_ARRANGEMENT_VALUE）
   issued: number // 最後に振ったステージの番号
   issuedScreens: number // 最後に振ったスクリーンの番号
 }
@@ -47,8 +50,10 @@ export function newWindow(catalog: CoreCatalog, book: Book | null): WindowState 
   const defs = [...catalog.screens.values()]
   const stages = defs.find(d => d.stages)?.id ?? NO_SCREEN_DEF
   const arrangements = [...catalog.screenArrangements.values()]
-  const arrangement = (arrangements.find(a => a.atStart) ?? arrangements[0])?.id ?? NO_ARRANGEMENT
-  let win: WindowState = { screens: [], order: [], arrangement, issued: 0, issuedScreens: 0 }
+  const first = arrangements.find(a => a.atStart) ?? arrangements[0]
+  const arrangement = first?.id ?? NO_ARRANGEMENT
+  const arrangementValue = first?.value?.initial ?? NO_ARRANGEMENT_VALUE
+  let win: WindowState = { screens: [], order: [], arrangement, arrangementValue, issued: 0, issuedScreens: 0 }
   for (const d of defs) if (d.atStart && !d.stages) win = openScreen(win, catalog, d.id, {}).win
   return openScreen(win, catalog, stages, {}, book).win
 }
@@ -207,7 +212,7 @@ export const allStages = (win: Pick<WindowState, "screens">): readonly Stage[] =
 export function shownScreens(catalog: CoreCatalog, win: WindowState): readonly string[] {
   const def = catalog.screenArrangements.get(win.arrangement)
   if (!def) return [currentScreen(win).id]
-  return def.shown(win.screens, win.order).filter(id => win.screens.some(s => s.id === id))
+  return def.shown(win.screens, win.order, win.arrangementValue).filter(id => win.screens.some(s => s.id === id))
 }
 
 // 見えているブックスクリーン（開いた順）
@@ -216,7 +221,15 @@ export function shownBookScreens(catalog: CoreCatalog, win: WindowState): readon
   return win.screens.filter((s): s is BookScreen => holdsStages(s) && shown.includes(s.id))
 }
 
-// スクリーンアレンジメントを替える（機能台帳に無い定義・今と同じなら同じ窓を返す）
-export function setArrangement(win: WindowState, catalog: CoreCatalog, def: string): WindowState {
-  return win.arrangement === def || !catalog.screenArrangements.has(def) ? win : { ...win, arrangement: def }
+// スクリーンアレンジメントを定義 def と値 value に替える（値を渡さなければ、定義の初めの値。機能台帳に無い定義・値が定義の形に合わない・今と同じなら同じ窓を返す）
+export function setArrangement(win: WindowState, catalog: CoreCatalog, def: string, value?: unknown): WindowState {
+  const found = catalog.screenArrangements.get(def)
+  if (!found) return win
+  const given = value === undefined ? found.value?.initial : value
+  const fits = found.value
+    ? found.value.schema.safeParse(given)
+    : { success: true as const, data: NO_ARRANGEMENT_VALUE }
+  if (!fits.success) return win
+  if (win.arrangement === def && sameData(win.arrangementValue, fits.data)) return win
+  return { ...win, arrangement: def, arrangementValue: arrangementValueOf(found, fits.data) }
 }

@@ -173,7 +173,7 @@ async function connected(server = fakeServer()) {
   const loading = server.host.load()
   server.emit("hello", { client: "c1" })
   const saved = await loading
-  const store = newStore({ books: [], savedBooks: saved.books, observe: d => server.host.observe(d) })
+  const store = newStore({ books: [], savedBooks: saved.books, observe: bulk => server.host.observe(bulk) })
   const stop = server.host.connect(store)
   return { ...server, store, stop }
 }
@@ -275,29 +275,30 @@ test("追加プラグインが変わったと届いたら、画面を読み直�
   expect(reloads()).toBe(1)
 })
 
-test("画面で行ったアクションは、振った id と、つながりの id と順の番号を添えて常駐に送る", async () => {
+test("同じ流れで行ったアクションは、振った id と並べて、1 つのアクションバルクとして、つながりの id と順の番号を添えて常駐に送る", async () => {
   const { store, sent } = await connected()
   sent.length = 0
   place(store)
   place(store)
   await flush()
+  place(store)
+  await flush()
+  const item = { action: "@matomezu/paper:item-place", on: { page: "p1" }, lang: "ja" }
   expect(sent.filter(x => x.url === "api/perform")).toEqual([
     expect.objectContaining({
-      action: "@matomezu/paper:item-place",
-      on: { page: "p1" },
-      ids: ["n1"],
-      lang: "ja",
+      actions: [expect.objectContaining({ ...item, ids: ["n1"] }), expect.objectContaining({ ...item, ids: ["n2"] })],
       client: "c1",
       seq: 1,
       key: "k1",
     }),
-    expect.objectContaining({ ids: ["n2"], seq: 2, key: "k2" }),
+    expect.objectContaining({ actions: [expect.objectContaining({ ids: ["n3"] })], seq: 2, key: "k2" }),
   ])
 })
 
 test("ほかから変わったブックの上で、まだ確かめられていない自分のアクションを行い直す。自分の番号が返ると確かめ終わり", async () => {
   const { store, emit, host } = await connected()
   place(store)
+  await Promise.resolve()
   expect(itemsOf(store)).toEqual(["n1"])
   emit("changed", pageChangedOf(b1With("o1"), "p1", 2, { client: "c2", seq: 5 }))
   expect(itemsOf(store)).toEqual(["o1", "n1"])
@@ -521,9 +522,12 @@ test("つながりが長く切れたままなら store に知らせ、つなが�
   expect(s.store.state.getState().offline).toBe(false)
 })
 
-test("設定の知らせで設定を入れ替える", async () => {
+// ページもフォルダも変えない changed（設定・アノテーション・レコードだけを載せる）
+const quiet = (more: object) => ({ pages: [], folders: [], books: [], actions: [], annotations: {}, records: [], window: "", ...more })
+
+test("changed に載った設定で設定を入れ替える", async () => {
   const { store, emit } = await connected()
-  emit("settings", { settings: { lang: "en", skin: "@matomezu/base:dark" } })
+  emit("changed", quiet({ settings: { lang: "en", skin: "@matomezu/base:dark" } }))
   expect(store.state.getState().settings).toMatchObject({ lang: "en", skin: "@matomezu/base:dark" })
 })
 
@@ -536,7 +540,7 @@ test("アノテーションの知らせで、そのページのアノテーシ�
   expect(store.state.getState().annotations).toEqual({})
 })
 
-test("レコードの知らせは、1 つのアクションが変えたレコードの全部と進めた番号を当て、添えた窓がこの窓かで最後にフォーカスされた窓かを入れる", async () => {
+test("changed に載ったレコードと進めた番号を当て、レコードが変わったときだけ、添えた窓がこの窓かで最後にフォーカスされた窓かを入れる", async () => {
   const { store, emit } = await connected()
   const MAIL = "@matomezu/base:mail"
   const mail = (id: string, order: number) => ({
@@ -547,25 +551,34 @@ test("レコードの知らせは、1 つのアクションが変えたレコー
     props: { title: id, body: "" },
     order,
   })
-  emit("record", {
-    records: [
-      { subject: MAIL, id: "m1", record: mail("m1", 1), version: 1 },
-      { subject: MAIL, id: "m2", record: mail("m2", 2), version: 1 },
-    ],
-    counters: { [MAIL]: { mail: 3 } },
-    window: "c1",
-  })
+  emit(
+    "changed",
+    quiet({
+      records: [
+        { subject: MAIL, id: "m1", record: mail("m1", 1), version: 1 },
+        { subject: MAIL, id: "m2", record: mail("m2", 2), version: 1 },
+      ],
+      counters: { [MAIL]: { mail: 3 } },
+      window: "c1",
+    }),
+  )
   expect(Object.keys(store.state.getState().records[MAIL] ?? {})).toEqual(["m1", "m2"])
   expect(store.state.getState().counters).toEqual({ [MAIL]: { mail: 3 } })
   expect(store.state.getState().lastWindow).toBe(true)
-  emit("record", {
-    records: [
-      { subject: MAIL, id: "m3", record: mail("m3", 3), version: 1 },
-      { subject: MAIL, id: "m1", record: "removed", version: 0 },
-    ],
-    counters: { [MAIL]: { mail: 4 } },
-    window: "c2",
-  })
+  // レコードの変わらない知らせは、最後にフォーカスされた窓を変えない
+  emit("changed", quiet({ settings: {}, window: "c2" }))
+  expect(store.state.getState().lastWindow).toBe(true)
+  emit(
+    "changed",
+    quiet({
+      records: [
+        { subject: MAIL, id: "m3", record: mail("m3", 3), version: 1 },
+        { subject: MAIL, id: "m1", record: "removed", version: 0 },
+      ],
+      counters: { [MAIL]: { mail: 4 } },
+      window: "c2",
+    }),
+  )
   expect(Object.keys(store.state.getState().records[MAIL] ?? {})).toEqual(["m2", "m3"])
   expect(store.state.getState().counters).toEqual({ [MAIL]: { mail: 4 } })
   expect(store.state.getState().lastWindow).toBe(false)

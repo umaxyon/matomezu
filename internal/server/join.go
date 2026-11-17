@@ -297,7 +297,7 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 	if err != nil {
 		return Joined{}, err
 	}
-	told, err := h.Perform(Perform{Action: ids.Notice, Args: nb})
+	told, err := h.Perform(performOne(ids.Notice, nb, nil))
 	if err != nil || !told.OK {
 		return refused(told), err
 	}
@@ -329,7 +329,9 @@ func (h *Hub) performAs(action string, args map[string]any) (Performed, error) {
 	if err != nil {
 		return Performed{}, err
 	}
-	return h.Perform(Perform{Action: action, Args: b, By: "ai"})
+	p := performOne(action, b, nil)
+	p.By = "ai"
+	return h.Perform(p)
 }
 
 // noteJoinHost は参加者 id の常駐だけが持つ参加者の記録に、join の頼みに MCP が添えた AI のプログラムのプロセス id と、それが MCP を立てたときのセッション id を、
@@ -653,7 +655,7 @@ func (h *Hub) leaveEnded(id string) error {
 		return nil
 	}
 	fmt.Fprintln(os.Stderr, "participant", id, "left: its session ended")
-	done, err := h.Perform(Perform{Action: ids.Leave, Args: json.RawMessage("{}"), On: &engine.On{Record: id}})
+	done, err := h.Perform(performOne(ids.Leave, json.RawMessage("{}"), &engine.On{Record: id}))
 	if err != nil {
 		return err
 	}

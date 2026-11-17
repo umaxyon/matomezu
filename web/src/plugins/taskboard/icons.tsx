@@ -49,6 +49,13 @@ export const RestoreIcon = () => (
   </Svg>
 )
 
+// 広げる（上下に分けた 1 枚を全画面に）: 外へ向かう 2 本の矢
+export const ExpandIcon = () => (
+  <Svg size={16}>
+    <path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7" />
+  </Svg>
+)
+
 export const ChevronIcon = ({ className }: { className?: string }) => (
   <Svg size={14} stroke={1.8} className={className}>
     <path d="M9 6l6 6-6 6" />
@@ -65,6 +72,13 @@ export const SortIcon = () => (
 export const BackIcon = () => (
   <Svg size={16} stroke={2}>
     <path d="M19 12H5M11 6l-6 6 6 6" />
+  </Svg>
+)
+
+// 上下に分けた段を閉じる（右へ引っ込める）: 右向きの矢印
+export const CloseRightIcon = () => (
+  <Svg size={16} stroke={2}>
+    <path d="M5 12h14M13 6l6 6-6 6" />
   </Svg>
 )
 

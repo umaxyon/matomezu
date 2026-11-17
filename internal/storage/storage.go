@@ -143,7 +143,7 @@ type Batch struct {
 	Settings      *UserBody
 	Annotations   []PageBody
 	AIEditTickets json.RawMessage // AI 編集チケットの並びの全部（置き換える。空の並びなら消す。変えないなら nil）
-	Records       []RecordWrite   // 変えるレコード（1 つのアクションが変えた全部）
+	Records       []RecordWrite   // 変えるレコード（1 回の Perform が変えた全部）
 	SearchTexts   []SearchText    // 変える探す文字（レコードと同じ 1 回の書き込みで）
 	Counters      []Counter       // 番号を進めた区切り（レコードを書くのと同じ 1 回の書き込みで）
 }

@@ -34,7 +34,7 @@ func TestAISearchesTickets(t *testing.T) {
 	p := list.Records[0].ID
 	for i, name := range []string{"login page", "logout button", "other"} {
 		body := fmt.Sprintf(`{"action":"@matomezu/taskboard:ticket-add","args":{"project":%q,"name":%q,"body":"the user taps %s"},"lang":"ja","ids":["t%d"],"now":"2026-11-12T00:00:00.000Z"}`, p, name, strings.ToUpper(name[:3]), i+1)
-		if _, got := send(t, "POST", s.URL+"/api/perform", body, nil); !strings.Contains(got, `"ok":true`) {
+		if _, got := postPerform(t, s.URL, body); !strings.Contains(got, `"ok":true`) {
 			t.Fatalf("ticket-add = %s", got)
 		}
 	}
@@ -153,7 +153,7 @@ func TestSearchLeavesOutCompletedTicketsAndTheirHistory(t *testing.T) {
 	p := list.Records[0].ID
 	perform := func(body string) {
 		t.Helper()
-		if _, got := send(t, "POST", s.URL+"/api/perform", body, nil); !strings.Contains(got, `"ok":true`) {
+		if _, got := postPerform(t, s.URL, body); !strings.Contains(got, `"ok":true`) {
 			t.Fatalf("%s = %s", body, got)
 		}
 	}

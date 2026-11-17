@@ -60,9 +60,10 @@ import { TOOL_SWITCH } from "./tool-switch/ui"
 import { TOOLBOX } from "./toolbox/ui"
 import type { CornerStatusProps } from "./utils/corner"
 import type { WideSearchModeProps } from "./wide-search/slots"
+import type { WideSearchOpened } from "./wide-search/ui"
 import { FULL_TEXT_MODE, WIDE_SEARCH_TAB } from "./wide-search/ui"
 import { WINDOW_ICONS } from "./window/icons"
-import { CONTROL_CENTER_BIRDHOUSE, ONE_SCREEN_WIDGET, WINDOW } from "./window/ui"
+import { CONTROL_CENTER_BIRDHOUSE, SCREENS_WIDGET, WINDOW } from "./window/ui"
 import { WORKSPACE } from "./workspace/ui"
 import { ZOOM_ICONS } from "./zoom/icons"
 
@@ -129,7 +130,12 @@ export { ScrapView, type ScrapViewProps } from "./scrap/ScrapView"
 export { ChoiceSetting } from "./settings/ChoiceSetting"
 export { useWideSearch, useWideSearchPanel, WIDE_SEARCH_LIMIT_MAX } from "./wide-search/hooks"
 export { WIDE_SEARCH_MODES, WIDE_SEARCH_OPENERS, type WideSearchModeProps } from "./wide-search/slots"
-export { defineWideSearchMode, defineWideSearchOpener, WIDE_SEARCH_OPENS } from "./wide-search/ui"
+export {
+  defineWideSearchMode,
+  defineWideSearchOpener,
+  WIDE_SEARCH_OPENS,
+  type WideSearchOpened,
+} from "./wide-search/ui"
 
 import type { PrintSheetProps } from "./print-preview/PrintPreviewView"
 
@@ -176,6 +182,7 @@ export {
   WORKROOM_COLUMNS,
   WORKROOM_ROW_LINE,
 } from "./window/slots"
+export { type ScreenSplit, useScreenSplit } from "./window/useScreenSplit"
 export { defineWorkspace, STAGE_BASE_SLOTS } from "./workspace/ui"
 
 import { SCRAP_DIALOG_VIEWS, SCRAP_TRAY_BUTTON, SCRAP_TRAY_TAB } from "./scrap/ui"
@@ -194,7 +201,7 @@ export const BASE_UI = definePluginUi(BASE, {
   userSettingViews: USER_SETTING_VIEWS,
   widgets: [
     WINDOW,
-    ONE_SCREEN_WIDGET,
+    SCREENS_WIDGET,
     CONTROL_CENTER_BIRDHOUSE,
     WORKSPACE,
     DIALOG_HOST,
@@ -308,7 +315,7 @@ declare module "../../core/catalog" {
     wideSearchMode?: { title: MessageKey }
     // 横断検索の当たりの開き方のスロットに置く物の、その当たりを開く関数を返すフックと、その名前を画面の物から作る関数を返すフック（任意）。開く種類は、ウィジェットの forKind（種類の持ち主だけが書ける）で引く
     wideSearchOpener?: {
-      useOpen: () => (hit: WideSearchHit) => void
+      useOpen: () => (hit: WideSearchHit) => WideSearchOpened
       useLabel?: () => (hit: WideSearchHit) => string | undefined
     }
     // コーナーステータスのスロットに置く物の名前（文言の鍵。設定画面の「コーナーステータスの並び」に出す）
@@ -316,7 +323,7 @@ declare module "../../core/catalog" {
   }
   interface WidgetTable {
     "@matomezu/base:window": typeof WINDOW
-    "@matomezu/base:one-screen-view": typeof ONE_SCREEN_WIDGET
+    "@matomezu/base:screens-view": typeof SCREENS_WIDGET
     "@matomezu/base:control-center-birdhouse": typeof CONTROL_CENTER_BIRDHOUSE
     "@matomezu/base:workspace": typeof WORKSPACE
     "@matomezu/base:dialog-host": typeof DIALOG_HOST

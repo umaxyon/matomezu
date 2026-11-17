@@ -22,22 +22,27 @@ import (
 //go:embed engine.js
 var source string
 
-// Input はアクション 1 つの頼み。Books は対象のアクションが要るブック（一覧のアクションなら全部。レコードが対象のアクションなら、読むだけのブック）、
-// IDs は振る id のもと（画面で先に行ったときの値。尽きたら新しく作る）
-type Input struct {
+// BulkAction は、アクションバルクの中のアクション 1 つ。IDs は振る id のもと（画面で先に行ったときの値。尽きたら新しく作る）
+type BulkAction struct {
 	Action string          `json:"action"`
 	Args   json.RawMessage `json:"args"`
 	On     *On             `json:"on,omitempty"`
 	Lang   string          `json:"lang,omitempty"` // 画面で先に行ったときの言語（空ならエンジンが設定の言語の項目で決める）
 	IDs    []string        `json:"ids,omitempty"`
 	Now    string          `json:"now,omitempty"` // 画面で先に行った時点（無ければエンジンが決める）
-	// Pages と Folders は、対象のアクションが要るブックのページとフォルダ（置き場所から読んだまま。宛先のブックの分か、一覧のアクションなら全部、レコードが対象のアクションなら RecordNeeds の Books の分）
+}
+
+// Input はアクションバルク 1 つの頼み。Actions を順に行い、全部通るか全部断る
+type Input struct {
+	Actions []BulkAction `json:"actions"`
+	// Pages と Folders は、アクションの全部が要るブックのページとフォルダ（置き場所から読んだまま。アクションごとの、宛先のブックか、レコードが対象なら RecordNeeds の Books の和。
+	// 一覧のアクションか、宛先が置き場所に無いアクションを含むなら全部）
 	Pages    []json.RawMessage `json:"pages"`
 	Folders  []json.RawMessage `json:"folders"`
 	Settings json.RawMessage   `json:"settings"`
-	// Annotations は要るブックのページのアノテーション（ページの id → 並び。宛先のブックのページのか、一覧のアクションなら全部）
+	// Annotations は要るブックのページのアノテーション（ページの id → 並び。Pages と同じブックのページの分）
 	Annotations map[string]json.RawMessage `json:"annotations,omitempty"`
-	// Records は対象の定義が足した種類のレコード（種類の id → id → レコード。宛先のレコードと、アクションが読むだけの種類の全部）。Counters は対象の種類の、区切り → 次の番号
+	// Records は対象の定義が足した種類のレコード（種類の id → id → レコード。アクションごとの宛先のレコードの和）。Counters は対象の種類の、区切り → 次の番号（アクションごとの対象の種類の和）
 	Records  map[string]map[string]json.RawMessage `json:"records,omitempty"`
 	Counters map[string]map[string]int64           `json:"counters,omitempty"`
 	// Actor は頼んだ者（無ければ利用者）。AI は入っているワークルームの id を Workroom に持つ（空なら参加が確定していない）
@@ -109,7 +114,8 @@ type RecordNeeds struct {
 	Books   []string `json:"books"`
 }
 
-// Output は行った結果。断ったときは OK が false で Reason に理由、Detail に AI への説明（認可ステップが止めた denied なら、Permission にそのステップの id）。
+// Output はアクションバルクを行った結果。断ったときは OK が false で Reason に理由、Detail に AI への説明（認可ステップが止めた denied なら、Permission にそのステップの id）、
+// At に断られたアクションが何番目か（0 から）。変えた物は、アクションの全部を重ねた後の物（同じページ・フォルダ・レコードは 1 つ）。
 // Books は変わった・足したブック、Removed は一覧から無くなったブック、Settings は変わった設定（変わらなければ空）、
 // Annotations はアノテーションが変わったページの id → 新しい並び（空の並びなら全部無くなった）
 type Output struct {
@@ -117,9 +123,10 @@ type Output struct {
 	Reason        string                      `json:"reason,omitempty"`
 	Permission    string                      `json:"permission,omitempty"`
 	Detail        string                      `json:"detail,omitempty"`
-	Page          string                      `json:"page,omitempty"` // 読めないページで断ったとき（reason unreadable）、そのページの id
-	Code          string                      `json:"code,omitempty"` // 読めないページで断ったとき、読めない理由の warning の番号（W027〜W029）
-	Result        json.RawMessage             `json:"result,omitempty"`
+	Page          string                      `json:"page,omitempty"`     // 読めないページで断ったとき（reason unreadable）、そのページの id
+	Code          string                      `json:"code,omitempty"`     // 読めないページで断ったとき、読めない理由の warning の番号（W027〜W029）
+	At            *int                        `json:"at,omitempty"`       // 断られたアクションが何番目か（常駐のログにだけ使う）
+	Result        json.RawMessage             `json:"result,omitempty"`   // 最後のアクションの結果
 	Pages         []RowChange                 `json:"pages,omitempty"`    // 変わった・足した・無くなったページ
 	Folders       []RowChange                 `json:"folders,omitempty"`  // 変わった・足した・無くなったフォルダ
 	Created       []string                    `json:"created,omitempty"`  // そのうち新しく足したページ・フォルダの id（世界のどこにも無い id であること）
@@ -140,10 +147,11 @@ type RowChange struct {
 	Removed bool            `json:"removed,omitempty"`
 }
 
-// AIEditTicketChange は、アクションが返した AI 編集チケットの変え方。Key で 1 つを見分け（郵便の id など）、ブック Book の AI 編集チケットを
+// AIEditTicketChange は、アクションが返した AI 編集チケットの変え方。Subject はそれを返したアクションの対象の種類で、Key でその種類の中の 1 つを見分け（郵便の id など）、ブック Book の AI 編集チケットを
 // 作る（open）・閉じる（closed）・失敗にする（failed。Changed は変わった・無くなった物の id）・郵便が消えたと記す（removed。
 // Cause は消えたわけで、上限で消えた limit か、利用者が消した user）
 type AIEditTicketChange struct {
+	Subject string   `json:"subject"`
 	Book    string   `json:"book"`
 	Key     string   `json:"key"`
 	Outcome string   `json:"outcome"`

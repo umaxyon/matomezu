@@ -20,7 +20,7 @@ func TestParticipantsAreKeptAndTold(t *testing.T) {
 		t.Fatalf("participant-request = %s", got)
 	}
 	id := strings.TrimSuffix(strings.TrimPrefix(got, head), `"}}`)
-	if ev := next(t, screen); !strings.HasPrefix(ev, "record ") || !strings.Contains(ev, `"subject":"@matomezu/base:participant"`) || !strings.Contains(ev, `"state":"requested"`) {
+	if ev := next(t, screen); !strings.HasPrefix(ev, "changed ") || !strings.Contains(ev, `"subject":"@matomezu/base:participant"`) || !strings.Contains(ev, `"state":"requested"`) {
 		t.Fatalf("event = %s", ev)
 	}
 	if _, again := send(t, "POST", s.URL+"/api/ai/perform", request, ai); !strings.Contains(again, `"ok":false`) {
@@ -30,7 +30,7 @@ func TestParticipantsAreKeptAndTold(t *testing.T) {
 	if strings.Count(data, `"link":"L1"`) != 1 {
 		t.Fatalf("data = %s", data)
 	}
-	_, made := send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:workroom-add","args":{"name":"A","bird":"inko"},"lang":"ja","now":"2026-11-08T00:59:00.000Z"}`, nil)
+	_, made := postPerform(t, s.URL, `{"action":"@matomezu/base:workroom-add","args":{"name":"A","bird":"inko"},"lang":"ja","now":"2026-11-08T00:59:00.000Z"}`)
 	var room struct{ Result struct{ Workroom string } }
 	if json.Unmarshal([]byte(made), &room) != nil || room.Result.Workroom == "" {
 		t.Fatalf("workroom-add = %s", made)
@@ -40,7 +40,7 @@ func TestParticipantsAreKeptAndTold(t *testing.T) {
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", accept, ai); strings.Contains(got, `"ok":true`) {
 		t.Fatalf("the AI accepted: %s", got)
 	}
-	send(t, "POST", s.URL+"/api/perform", accept, nil)
+	postPerform(t, s.URL, accept)
 	if ev := next(t, screen); !strings.Contains(ev, `"state":"joined"`) || !strings.Contains(ev, `"workroom":"`+room.Result.Workroom+`"`) || !strings.Contains(ev, `"joinedAt":"2026-11-08T01:00:00.000Z"`) {
 		t.Fatalf("event after accept = %s", ev)
 	}

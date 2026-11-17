@@ -169,7 +169,7 @@ func TestTicketsGoWithTheirBook(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, do := range [][2]string{{"book-trash", `{"book":"b1"}`}, {"book-purge", `{"books":["b1"]}`}} {
-		if _, got := send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:`+do[0]+`","args":`+do[1]+`,"lang":"ja"}`, nil); !strings.HasPrefix(got, `{"ok":true`) {
+		if _, got := postPerform(t, s.URL, `{"action":"@matomezu/base:`+do[0]+`","args":`+do[1]+`,"lang":"ja"}`); !strings.HasPrefix(got, `{"ok":true`) {
 			t.Fatalf("%s = %s", do[0], got)
 		}
 	}
@@ -226,7 +226,7 @@ func TestRemovedProposalIsToldAndForgotten(t *testing.T) {
 	store.Close()
 	_, s := hubAt(t, path)
 	ai := map[string]string{"Authorization": "Bearer secret"}
-	if _, got := send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:mail-remove","args":{},"on":{"record":"m1"},"lang":"ja"}`, nil); !strings.HasPrefix(got, `{"ok":true`) {
+	if _, got := postPerform(t, s.URL, `{"action":"@matomezu/base:mail-remove","args":{},"on":{"record":"m1"},"lang":"ja"}`); !strings.HasPrefix(got, `{"ok":true`) {
 		t.Fatalf("mail-remove = %s", got)
 	}
 	want := `"removed":[{"book":"b1","title":"T","key":"m1","cause":"user"}]`

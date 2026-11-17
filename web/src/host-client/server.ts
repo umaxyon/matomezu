@@ -26,7 +26,7 @@ import { recentBookScreen, screenOf, shownScreens, viewFrontOf } from "../core/w
 import { currentStage, MAX_STAGES } from "../core/workspace"
 import type {
   AIEditTicketOutcome,
-  DoneAction,
+  DoneBulk,
   HostAnswer,
   MatomezuInstance,
   MatomezuState,
@@ -103,11 +103,11 @@ export const OFFLINE_MS = 10_000 // つながりがこれより長く切れた�
 export const QUIET_MS = 60_000 // 知らせ（keep も）がこれより長く届かなければ、つながりが黙って切れたとみてつなぎ直す（常駐は 25 秒ごとに keep を送る）
 const MAX_LOG_LINES = 50 // 常駐に送れずに溜めておく、ログの行の数（超えたら古い方を捨てる。常駐が一度に受ける行の数と同じ）
 
-// まだ確かめられていない自分のアクション。sentTo は送り届けたつながりの番号（まだなら 0）、tries は常駐が 5xx を返した回数
+// まだ確かめられていない自分のアクションバルク。sentTo は送り届けたつながりの番号（まだなら 0）、tries は常駐が 5xx を返した回数
 interface Pending {
   seq: number
   key: string
-  done: DoneAction
+  done: DoneBulk
   sentTo: number
   tries: number
   answer: (a: HostAnswer) => void // 常駐の答えを observe に返す
@@ -219,17 +219,22 @@ const rowSchema = <K extends "page" | "folder">(field: K) =>
   z.object({ id: z.string(), version: z.number().int().optional(), removed: z.literal(true).optional() }).extend({
     [field]: z.unknown().optional(),
   } as Record<K, z.ZodOptional<z.ZodUnknown>>)
-// 1 回のアクションが変えた・足した・消したページとフォルダの全部（books は、それらを持つブックの id）
+// 1 回の perform（アクションバルク）が変えた物の全部: ページとフォルダ（books は、それらを持つブックの id）と、変わったときだけ設定・アノテーション（ページの id → 並び）・
+// レコードと進めた番号（window は最後にフォーカスされた窓）。actions は行ったアクションの id の並び
 const ChangedSchema = z.object({
   pages: z.array(rowSchema("page")),
   folders: z.array(rowSchema("folder")),
   books: z.array(z.string()),
   by: z.enum(["ai", "window", "host"]).optional(),
   act: z.string().optional(),
-  action: z.string().optional(),
+  actions: z.array(z.string()).optional(),
+  settings: z.unknown().optional(),
+  annotations: z.record(z.string(), z.unknown()).optional(),
+  records: z.array(z.object({ subject: z.string(), id: z.string(), record: z.unknown() })).optional(),
+  counters: z.record(z.string(), z.record(z.string(), z.number())).nullish(),
+  window: z.string().optional(),
   ...Mark,
 })
-const SettingsSchema = z.object({ settings: z.unknown(), ...Mark })
 const AckSchema = z.object({ seq: z.number().int(), ok: z.boolean(), reason: z.string() })
 const ParticipantCallSchema = z.object({ participant: z.string(), at: z.string() })
 const ParticipantReadySchema = z.object({ participant: z.string() })
@@ -240,17 +245,9 @@ const ParticipantLiveSchema = z.object({
 })
 const TouchedSchema = z.object({ book: z.string(), at: z.string() })
 const AnnotationsSchema = z.object({ page: z.string(), annotations: z.unknown(), ...Mark })
-// レコードの知らせ: 1 つのアクションが変えたレコードの全部（records。消したなら record は "removed"）と進めた番号（種類 → 区切り → 次の番号）。
-// window は最後にフォーカスされた窓（その窓が、郵便が届いたことをマーキーで知らせる）
-const RecordsSchema = z.object({
-  records: z.array(z.object({ subject: z.string(), id: z.string(), record: z.unknown() })),
-  counters: z.record(z.string(), z.record(z.string(), z.number())).nullish(),
-  window: z.string().optional(),
-  ...Mark,
-})
 
 export interface ServerClient extends HostClient {
-  pending(): readonly DoneAction[] // まだ確かめられていない自分のアクション
+  pending(): readonly DoneBulk[] // まだ確かめられていない自分のアクションバルク
 }
 
 export function serverClient(net: Net = browserNet): ServerClient {
@@ -335,7 +332,12 @@ export function serverClient(net: Net = browserNet): ServerClient {
   let events: Events | null = null
 
   // change は、この窓のでない変更の知らせのとき（その変更を、まだ見ていない画面の履歴の段にする）
-  const show = (change?: { books: readonly string[]; by: "ai" | "window" | "host"; act: string; action: string }) =>
+  const show = (change?: {
+    books: readonly string[]
+    by: "ai" | "window" | "host"
+    act: string
+    actions: readonly string[]
+  }) =>
     instance?.receive(
       {
         pages: [...confirmed.pages.values()].map(e => e.row),
@@ -352,6 +354,11 @@ export function serverClient(net: Net = browserNet): ServerClient {
       pending.map(p => p.done),
       change,
     )
+  // ページ page のアノテーションを list にした、ページごとのアノテーション（空の並びなら、そのページを持たない）
+  const withPageAnnotations = (page: string, list: unknown) => {
+    const { [page]: _, ...rest } = annotations
+    return Array.isArray(list) && list.length === 0 ? rest : { ...rest, [page]: list }
+  }
   // 番号 mark.seq までの自分のアクションを確かめ終える。ack なら、その番号のアクションに常駐の答え said を返す（ほかは行えた）
   const settle = (mark: { client?: string; seq?: number }, said?: HostAnswer) => {
     if (mark.client !== client || mark.seq === undefined) return
@@ -359,9 +366,9 @@ export function serverClient(net: Net = browserNet): ServerClient {
     for (const p of pending) if (p.seq <= upTo) p.answer(p.seq === upTo && said ? said : { ok: true })
     pending = pending.filter(p => p.seq > upTo)
   }
-  // 送り直しても届かなかったアクションを外し、トーストで知らせる
+  // 送り直しても届かなかったアクションバルクを外し、トーストで知らせる
   const drop = (p: Pending, why: string) => {
-    logLine(`action ${p.done.action} is not saved:`, why)
+    logLine(`actions ${p.done.map(d => d.action).join(", ")} are not saved:`, why)
     pending = pending.filter(q => q !== p)
     p.answer({ ok: false, reason: "not-saved" })
     show()
@@ -388,7 +395,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
           .fetch("api/perform", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...next.done, client: to, seq: next.seq, key: next.key }),
+            body: JSON.stringify({ actions: next.done, client: to, seq: next.seq, key: next.key }),
           })
           .catch(() => null)
         if (!pending.includes(next)) continue // 送っている間に確かめ終わった
@@ -599,30 +606,24 @@ export function serverClient(net: Net = browserNet): ServerClient {
       }
       for (const p of e.pages) put("page", confirmed.pages, p.id, p.page, p.version, p.removed === true)
       for (const f of e.folders) put("folder", confirmed.folders, f.id, f.folder, f.version, f.removed === true)
+      if (e.settings !== undefined) settings = e.settings
+      for (const [page, list] of Object.entries(e.annotations ?? {})) annotations = withPageAnnotations(page, list)
+      // レコードが変わったときだけ、最後にフォーカスされた窓を受ける（郵便が届いたことを、その窓がマーキーで知らせる）
+      if (e.records && e.records.length > 0) {
+        records = withRecords(restoreRecords(records), e.records)
+        if (e.window !== undefined) instance?.setLastWindow(e.window === client)
+      }
+      if (e.counters) counters = withCounters(restoreCounters(counters), e.counters)
       settle(e)
       const act = e.act
       const foreign = e.client !== client && e.by !== undefined && act !== undefined
-      show(foreign ? { books: e.books, by: e.by as "ai" | "window" | "host", act, action: e.action ?? "" } : undefined)
-    })
-    on("settings", data => {
-      const e = SettingsSchema.parse(JSON.parse(data))
-      settings = e.settings
-      settle(e)
-      show()
+      show(
+        foreign ? { books: e.books, by: e.by as "ai" | "window" | "host", act, actions: e.actions ?? [] } : undefined,
+      )
     })
     on("annotations", data => {
       const e = AnnotationsSchema.parse(JSON.parse(data))
-      const { [e.page]: _, ...rest } = annotations
-      annotations =
-        Array.isArray(e.annotations) && e.annotations.length === 0 ? rest : { ...rest, [e.page]: e.annotations }
-      settle(e)
-      show()
-    })
-    on("record", data => {
-      const e = RecordsSchema.parse(JSON.parse(data))
-      records = withRecords(restoreRecords(records), e.records)
-      counters = withCounters(restoreCounters(counters), e.counters ?? undefined)
-      if (e.window !== undefined) instance?.setLastWindow(e.window === client)
+      annotations = withPageAnnotations(e.page, e.annotations)
       settle(e)
       show()
     })

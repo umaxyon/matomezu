@@ -30,7 +30,7 @@ func TestAISendsMail(t *testing.T) {
 	}
 	id := got[strings.Index(got, `"id":"`)+6:]
 	id = id[:strings.Index(id, `"`)]
-	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:mail-seen","args":{},"on":{"record":"`+id+`"},"lang":"ja","now":"2026-11-06T00:00:00.000Z"}`, nil)
+	postPerform(t, s.URL, `{"action":"@matomezu/base:mail-seen","args":{},"on":{"record":"`+id+`"},"lang":"ja","now":"2026-11-06T00:00:00.000Z"}`)
 	if _, got := send(t, "GET", s.URL+mailRecords, "", ai); !strings.Contains(got, `"seenAt":"2026-11-06T00:00:00.000Z"`) {
 		t.Fatalf("ai mail after seen = %s", got)
 	}
@@ -64,7 +64,7 @@ func TestAIMailQuery(t *testing.T) {
 		}
 	}
 	// 利用者が開いていない郵便だけ（見た時点が無い）と、届いた順の番号で 1 通
-	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:mail-seen","args":{},"on":{"record":"`+id+`"},"lang":"ja","now":"2026-11-06T00:00:00.000Z"}`, nil)
+	postPerform(t, s.URL, `{"action":"@matomezu/base:mail-seen","args":{},"on":{"record":"`+id+`"},"lang":"ja","now":"2026-11-06T00:00:00.000Z"}`)
 	if _, unseen := send(t, "GET", s.URL+mailRecords+"&is.seenAt=absent", "", ai); strings.Contains(unseen, `"brief":"二"`) || !strings.Contains(unseen, `"brief":"三"`) || !strings.Contains(unseen, `"total":3`) {
 		t.Fatalf("unseen = %s", unseen)
 	}
@@ -96,7 +96,7 @@ func TestUnknownMailIsAWarning(t *testing.T) {
 		t.Fatalf("warnings = %s, records = %v", got, records)
 	}
 	// 書くたびに確かめ直すのは変えたレコードだけ。ほかの郵便が届いても、m1 の warning は残る
-	if done, err := h.Perform(Perform{Action: "@matomezu/base:mail-send", Args: json.RawMessage(`{"from":"x","title":"t"}`)}); err != nil || !done.OK {
+	if done, err := h.Perform(Perform{Actions: []engine.BulkAction{{Action: "@matomezu/base:mail-send", Args: json.RawMessage(`{"from":"x","title":"t"}`)}}}); err != nil || !done.OK {
 		t.Fatalf("mail-send = %+v, %v", done, err)
 	}
 	if got := strings.Join(h.Warnings(), "\n"); strings.Count(got, "W022") != 1 || !strings.Contains(got, "mail m1") {
@@ -105,7 +105,7 @@ func TestUnknownMailIsAWarning(t *testing.T) {
 }
 
 // 郵便箱が上限（200 通）なら、1 通足すアクションは、既読の古い郵便を消すのと一緒に 1 つのトランザクションで書き、
-// 窓には 1 つの record の知らせ（足した郵便と消した郵便、進めた番号、最後にフォーカスされた窓）で送る
+// 窓には 1 つの changed の知らせ（足した郵便と消した郵便、進めた番号、最後にフォーカスされた窓）で送る
 func TestMailLimitDropsTheOldestInOneAction(t *testing.T) {
 	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
 	if err != nil {
@@ -136,7 +136,7 @@ func TestMailLimitDropsTheOldestInOneAction(t *testing.T) {
 	c := h.Join()
 	<-c.ch // hello
 	h.SetView(c.id, json.RawMessage(window), nil, nil, true, 1)
-	done, err := h.Perform(Perform{Action: "@matomezu/base:mail-send", Args: json.RawMessage(`{"from":"x","title":"new"}`), Client: c.id, Seq: 1})
+	done, err := h.Perform(Perform{Actions: []engine.BulkAction{{Action: "@matomezu/base:mail-send", Args: json.RawMessage(`{"from":"x","title":"new"}`)}}, Client: c.id, Seq: 1})
 	var sent struct{ Mail string }
 	if err != nil || !done.OK || json.Unmarshal(done.Result, &sent) != nil || sent.Mail == "" {
 		t.Fatalf("mail-send = %+v, %v", done, err)
@@ -151,7 +151,7 @@ func TestMailLimitDropsTheOldestInOneAction(t *testing.T) {
 			break
 		}
 	}
-	if len(got) != 2 || got[0].name != "record" {
+	if len(got) != 2 || got[0].name != "changed" {
 		t.Fatalf("events = %v", got)
 	}
 	var change struct {
@@ -172,7 +172,7 @@ func TestMailLimitDropsTheOldestInOneAction(t *testing.T) {
 	if len(change.Records) != 2 || change.Records[0].ID != sent.Mail || change.Records[0].Version != 1 || !strings.Contains(string(change.Records[0].Record), `"order":201`) ||
 		change.Records[1].ID != "m002" || string(change.Records[1].Record) != `"removed"` || change.Records[1].Version != 0 ||
 		change.Counters[mailKind]["mail"] != 202 || change.Window != c.id || change.Client != c.id || change.Seq != 1 {
-		t.Fatalf("record event = %s", got[0].data)
+		t.Fatalf("changed event = %s", got[0].data)
 	}
 	records, counters := h.Records()
 	if len(records[mailKind]) != 200 || records[mailKind]["m002"] != nil || records[mailKind]["m001"] == nil || records[mailKind][sent.Mail] == nil || counters[mailKind]["mail"] != 202 {
@@ -243,7 +243,7 @@ func TestProposalSendOpensAndRemovesTicketsInOneWrite(t *testing.T) {
 		t.Fatal(err)
 	}
 	change := `[{"action":"@matomezu/paper:item-update","args":{"item":"a","props":{"caption":"AI"}},"on":{"page":"p1"}}]`
-	done, err := h.Perform(Perform{Action: "@matomezu/base:proposal-send", Args: json.RawMessage(`{"from":"E94","title":"名前","book":"b1","page":"p1","changes":` + change + `}`)})
+	done, err := h.Perform(Perform{Actions: []engine.BulkAction{{Action: "@matomezu/base:proposal-send", Args: json.RawMessage(`{"from":"E94","title":"名前","book":"b1","page":"p1","changes":` + change + `}`)}}})
 	var sent struct{ Mail string }
 	if err != nil || !done.OK || json.Unmarshal(done.Result, &sent) != nil || sent.Mail == "" {
 		t.Fatalf("proposal-send = %+v, %v", done, err)

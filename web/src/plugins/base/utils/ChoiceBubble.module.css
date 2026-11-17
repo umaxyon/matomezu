@@ -1,0 +1,26 @@
+/* 選ぶ物の吹き出し: 押した要素の下に、窓の上に重ねて出す。見た目はほかの吹き出しと同じ（スキンの bubble・枠・角丸・影） */
+.bubble {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  margin-top: 4px;
+  padding: 4px;
+  border: 1px solid var(--skin-border);
+  border-radius: 6px;
+  background: var(--skin-bubble);
+  box-shadow: var(--skin-shadow-2);
+  color: var(--skin-text);
+  font-size: 12px;
+}
+.choice {
+  all: unset;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.choice:hover,
+.choice:focus-visible {
+  background: var(--skin-btn-hover);
+}

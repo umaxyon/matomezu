@@ -183,6 +183,30 @@ func testCookie(url string) (cookie string) {
 }
 
 // send は画面からの頼みを送る（headers の Origin などはそのまま付ける）
+// postPerform は、/api/perform にアクションバルクを送り、答えの状態と本文を返す。steps はアクション 1 つずつの JSON の object（action・args・on・lang・ids・now）。
+// バルクに 1 つの項目（client・seq・key）は steps のどれに書いてもよく、バルクの項目として送る
+func postPerform(t *testing.T, url string, steps ...string) (int, string) {
+	t.Helper()
+	bulk := map[string]json.RawMessage{}
+	actions := make([]map[string]json.RawMessage, 0, len(steps))
+	for _, s := range steps {
+		var step map[string]json.RawMessage
+		if err := json.Unmarshal([]byte(s), &step); err != nil {
+			t.Fatalf("a step that is not JSON: %s", s)
+		}
+		for _, k := range []string{"client", "seq", "key"} {
+			if v, ok := step[k]; ok {
+				bulk[k] = v
+				delete(step, k)
+			}
+		}
+		actions = append(actions, step)
+	}
+	bulk["actions"], _ = json.Marshal(actions)
+	body, _ := json.Marshal(bulk)
+	return send(t, "POST", url+"/api/perform", string(body), nil)
+}
+
 func send(t *testing.T, method, url, body string, headers map[string]string) (int, string) {
 	t.Helper()
 	if _, own := headers["Cookie"]; !own {
@@ -424,7 +448,7 @@ func TestResetForTestLeavesOnlyTheGivenBooks(t *testing.T) {
 		return `{"id":"` + id + `","title":"t","lineup":[]}`
 	}
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+book("b1")+`,"base":0}`, nil)
-	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:skin":"@matomezu/base:dark"}},"lang":"ja"}`, nil)
+	postPerform(t, s.URL, `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:skin":"@matomezu/base:dark"}},"lang":"ja"}`)
 	if code, body := send(t, "POST", s.URL+"/api/reset-for-test", `{"books":[`+book("b3")+`,`+book("b2")+`]}`, nil); code != 200 {
 		t.Fatalf("reset = %d %s", code, body)
 	}
@@ -458,7 +482,7 @@ func TestScreenAPIOnlyFromItsOwnPage(t *testing.T) {
 		{"a name pointed at this machine", map[string]string{"Host": "evil.example:" + strings.Split(host, ":")[1]}, 403},
 	}
 	for _, c := range cases {
-		req, _ := http.NewRequest("POST", s.URL+"/api/perform", strings.NewReader(`{"action":"nope"}`))
+		req, _ := http.NewRequest("POST", s.URL+"/api/perform", strings.NewReader(`{"actions":[{"action":"nope"}]}`))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Cookie", testCookie(s.URL))
 		for k, v := range c.headers {
@@ -555,16 +579,15 @@ func TestPerformTellsEveryScreen(t *testing.T) {
 		t.Fatalf("a hello = %s", got)
 	}
 	next(t, b)
-	code, body := send(t, "POST", s.URL+"/api/perform",
-		`{"action":"@matomezu/paper:item-place","args":{"item":"@matomezu/box:shape-nest-box","at":{"x":1,"y":2}},"on":{"page":"p1"},"lang":"ja","ids":["k1"],"client":"c1","seq":7}`, nil)
+	code, body := postPerform(t, s.URL, `{"action":"@matomezu/paper:item-place","args":{"item":"@matomezu/box:shape-nest-box","at":{"x":1,"y":2}},"on":{"page":"p1"},"lang":"ja","ids":["k1"],"client":"c1","seq":7}`)
 	if code != 200 || body != `{"ok":true,"result":{"item":"k1","at":{"x":1,"y":2}}}` {
 		t.Fatalf("perform = %d %s", code, body)
 	}
 	for name, lines := range map[string]<-chan string{"a": a, "b": b} {
 		got := next(t, lines)
 		// 変わったのはページ p1 だけ: pages にその 1 枚が新しい版で並び、folders は空
-		if !strings.HasPrefix(got, `changed {"act":"`) || !strings.Contains(got, `-2","action":"@matomezu/paper:item-place","books":["b1"],"by":"window","client":"c1","folders":[],"pages":[{"id":"p1","page":{`) ||
-			!strings.Contains(got, `"id":"k1"`) || !strings.HasSuffix(got, `},"version":2}],"seq":7}`) {
+		if !strings.HasPrefix(got, `changed {"act":"`) || !strings.Contains(got, `-2","actions":["@matomezu/paper:item-place"],"annotations":{},"books":["b1"],"by":"window","client":"c1","folders":[],"pages":[{"id":"p1","page":{`) ||
+			!strings.Contains(got, `"id":"k1"`) || !strings.HasSuffix(got, `},"version":2}],"records":[],"seq":7,"window":""}`) {
 			t.Fatalf("%s changed = %s", name, got)
 		}
 	}
@@ -585,8 +608,7 @@ func TestSameKeyIsPerformedOnce(t *testing.T) {
 	a := listen(t, s.URL)
 	next(t, a)
 	place := func(client string, seq int) string {
-		_, body := send(t, "POST", s.URL+"/api/perform",
-			fmt.Sprintf(`{"action":"@matomezu/paper:item-place","args":{"item":"@matomezu/box:shape-nest-box","at":{"x":1,"y":2}},"on":{"page":"p1"},"lang":"ja","ids":["k1"],"client":%q,"seq":%d,"key":"x1"}`, client, seq), nil)
+		_, body := postPerform(t, s.URL, fmt.Sprintf(`{"action":"@matomezu/paper:item-place","args":{"item":"@matomezu/box:shape-nest-box","at":{"x":1,"y":2}},"on":{"page":"p1"},"lang":"ja","ids":["k1"],"client":%q,"seq":%d,"key":"x1"}`, client, seq))
 		return body
 	}
 	first := place("c1", 1)
@@ -612,8 +634,7 @@ func TestRefusedActionChangesNothing(t *testing.T) {
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	a := listen(t, s.URL)
 	next(t, a)
-	code, body := send(t, "POST", s.URL+"/api/perform",
-		`{"action":"@matomezu/paper:item-update","args":{"item":"gone","props":{}},"on":{"page":"p1"},"lang":"ja","client":"c1","seq":1}`, nil)
+	code, body := postPerform(t, s.URL, `{"action":"@matomezu/paper:item-update","args":{"item":"gone","props":{}},"on":{"page":"p1"},"lang":"ja","client":"c1","seq":1}`)
 	if code != 200 || !strings.HasPrefix(body, `{"ok":false,"reason":"refused","detail":`) {
 		t.Fatalf("perform = %d %s", code, body)
 	}
@@ -627,8 +648,8 @@ func TestSettingsActions(t *testing.T) {
 	ai := joinedAI(t, s)
 	a := listen(t, s.URL)
 	next(t, a)
-	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:skin":"@matomezu/base:dark"}},"lang":"ja"}`, nil)
-	if got := next(t, a); !strings.HasPrefix(got, `settings {`) || !strings.Contains(got, `"@matomezu/base:skin":"@matomezu/base:dark"`) {
+	postPerform(t, s.URL, `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:skin":"@matomezu/base:dark"}},"lang":"ja"}`)
+	if got := next(t, a); !strings.HasPrefix(got, `changed {`) || !strings.Contains(got, `"settings":{`) || !strings.Contains(got, `"@matomezu/base:skin":"@matomezu/base:dark"`) {
 		t.Fatalf("settings = %s", got)
 	}
 	_, data := send(t, "GET", s.URL+"/api/data", "", nil)
@@ -651,7 +672,7 @@ func TestPerformOnAPage(t *testing.T) {
 	a := listen(t, s.URL)
 	next(t, a)
 	perform := func(action, args, on string) string {
-		_, got := send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:`+action+`","args":`+args+`,"on":`+on+`,"lang":"ja","now":"2026-10-29T00:00:00.000Z"}`, nil)
+		_, got := postPerform(t, s.URL, `{"action":"@matomezu/base:`+action+`","args":`+args+`,"on":`+on+`,"lang":"ja","now":"2026-10-29T00:00:00.000Z"}`)
 		return got
 	}
 	if got := perform("page-lock", `{}`, `{"page":"p1"}`); got != `{"ok":true,"result":{}}` {
@@ -678,7 +699,7 @@ func TestAddingAPageWithAnIdAnotherBookHasIsRefused(t *testing.T) {
 	next(t, a)
 	_, before := send(t, "GET", s.URL+"/api/data", "", nil)
 	add := func(id string) string {
-		_, got := send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/drawing:drawing","title":"追加"},"on":{"book":"b2"},"lang":"ja","ids":["`+id+`"],"client":"c1","seq":1}`, nil)
+		_, got := postPerform(t, s.URL, `{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/drawing:drawing","title":"追加"},"on":{"book":"b2"},"lang":"ja","ids":["`+id+`"],"client":"c1","seq":1}`)
 		return got
 	}
 	if got := add("p1"); !strings.HasPrefix(got, `{"ok":false,"reason":"refused"`) {
@@ -705,7 +726,7 @@ func TestCreatingABookWithAPageIdAnotherBookHasIsRefused(t *testing.T) {
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
 	_, before := send(t, "GET", s.URL+"/api/data", "", nil)
-	_, got := send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:book-create","args":{"title":"U","page":{"type":"@matomezu/drawing:drawing"}},"lang":"ja","ids":["b2","p1"]}`, nil)
+	_, got := postPerform(t, s.URL, `{"action":"@matomezu/base:book-create","args":{"title":"U","page":{"type":"@matomezu/drawing:drawing"}},"lang":"ja","ids":["b2","p1"]}`)
 	_, after := send(t, "GET", s.URL+"/api/data", "", nil)
 	if !strings.HasPrefix(got, `{"ok":false,"reason":"refused"`) || after != before {
 		t.Fatalf("book-create with the id of a page of another book = %s (the data changed: %v)", got, after != before)
@@ -732,7 +753,7 @@ func TestAddingAndRemovingAPageKeepsTheEntries(t *testing.T) {
 		return fmt.Sprint(got)
 	}
 	perform := func(action, args, on string, ids string) string {
-		_, got := send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:`+action+`","args":`+args+`,"on":`+on+`,"lang":"ja","ids":`+ids+`}`, nil)
+		_, got := postPerform(t, s.URL, `{"action":"@matomezu/base:`+action+`","args":`+args+`,"on":`+on+`,"lang":"ja","ids":`+ids+`}`)
 		return got
 	}
 	if got := perform("page-add", `{"type":"@matomezu/drawing:drawing","title":"追加"}`, `{"book":"b1"}`, `["p2"]`); !strings.HasPrefix(got, `{"ok":true`) {
@@ -795,7 +816,7 @@ func TestABookWithBindersIsAssembledTheSameAfterARestart(t *testing.T) {
 			`{"action":"@matomezu/base:page-update","args":{"title":"図 2"},"on":{"page":"p1"},"lang":"ja"}`,
 			`{"action":"@matomezu/base:page-remove","args":{"page":"s1"},"on":{"book":"b1"},"lang":"ja"}`,
 		} {
-			if _, got := send(t, "POST", s.URL+"/api/perform", req, nil); !strings.HasPrefix(got, `{"ok":true`) {
+			if _, got := postPerform(t, s.URL, req); !strings.HasPrefix(got, `{"ok":true`) {
 				t.Fatalf("%s = %s", req, got)
 			}
 		}
@@ -825,7 +846,7 @@ func TestTrashABook(t *testing.T) {
 	a := listen(t, s.URL)
 	next(t, a)
 	perform := func(action, args string) string {
-		_, got := send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:`+action+`","args":`+args+`,"lang":"ja","now":"2026-10-29T00:00:00.000Z"}`, nil)
+		_, got := postPerform(t, s.URL, `{"action":"@matomezu/base:`+action+`","args":`+args+`,"lang":"ja","now":"2026-10-29T00:00:00.000Z"}`)
 		return got
 	}
 	if got := perform("book-trash", `{"book":"b1"}`); got != `{"ok":true,"result":{}}` {
@@ -978,7 +999,7 @@ func TestAICanLockButNotUnlock(t *testing.T) {
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-unlock"`+on, ai); !strings.HasPrefix(got, `{"ok":false,"reason":"not-allowed","detail":`) {
 		t.Fatalf("ai unlock = %s", got)
 	}
-	if _, got := send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:book-unlock","lang":"ja"`+on, nil); got != `{"ok":true,"result":{}}` {
+	if _, got := postPerform(t, s.URL, `{"action":"@matomezu/base:book-unlock","lang":"ja"`+on); got != `{"ok":true,"result":{}}` {
 		t.Fatalf("unlock = %s", got)
 	}
 	// 外すアクションは AI の actions に出さない
@@ -1362,7 +1383,7 @@ func TestAICannotChangeWhatTheUserIsEditing(t *testing.T) {
 		t.Fatalf("ai update of another thing = %s", got)
 	}
 	user := `{"action":"@matomezu/paper:item-update","args":{"item":"` + k1 + `","props":{"caption":"人"}},"on":{"page":"p1"},"lang":"ja","client":"c1","seq":1}`
-	if _, got := send(t, "POST", s.URL+"/api/perform", user, nil); !strings.HasPrefix(got, `{"ok":true`) {
+	if _, got := postPerform(t, s.URL, user); !strings.HasPrefix(got, `{"ok":true`) {
 		t.Fatalf("user update of a locked thing = %s", got)
 	}
 	// 古い番号の知らせでは編集ロックは変わらない。新しい番号で外せば通る
@@ -1550,16 +1571,16 @@ func TestChangeProposal(t *testing.T) {
 		t.Fatalf("mail = %s", data)
 	}
 	apply := `{"action":"@matomezu/base:proposal-apply","args":{"page":"p1","changes":` + change + `,"snapshot":` + string(world.Records[mailKind][sent.Result.Mail].Props.Snapshot) + `},"on":{"book":"b1"},"lang":"ja","client":"c1","seq":1}`
-	if _, got := send(t, "POST", s.URL+"/api/perform", apply, nil); got != `{"ok":false,"reason":"being-edited"}` {
+	if _, got := postPerform(t, s.URL, apply); got != `{"ok":false,"reason":"being-edited"}` {
 		t.Fatalf("apply while the thing is being edited = %s", got)
 	}
 	// 編集ロックの無いアクションは、利用者なら通る
 	user := `{"action":"@matomezu/paper:item-update","args":{"item":"` + k1 + `","props":{"caption":"人"}},"on":{"page":"p1"},"lang":"ja","client":"c1","seq":2}`
-	if _, got := send(t, "POST", s.URL+"/api/perform", user, nil); !strings.HasPrefix(got, `{"ok":true`) {
+	if _, got := postPerform(t, s.URL, user); !strings.HasPrefix(got, `{"ok":true`) {
 		t.Fatalf("user update of a locked thing = %s", got)
 	}
 	settle := `{"action":"@matomezu/base:proposal-settle","args":{"outcome":"failed","changed":["` + k1 + `"]},"on":{"record":"` + sent.Result.Mail + `"},"lang":"ja","client":"c1","seq":3}`
-	if _, got := send(t, "POST", s.URL+"/api/perform", settle, nil); !strings.HasPrefix(got, `{"ok":true`) {
+	if _, got := postPerform(t, s.URL, settle); !strings.HasPrefix(got, `{"ok":true`) {
 		t.Fatalf("proposal-settle = %s", got)
 	}
 	want := `"failed":[{"book":"b1","title":"T","key":"` + sent.Result.Mail + `","changed":["` + k1 + `"]}]`
@@ -1616,7 +1637,7 @@ func TestAIReadsABookAsAnOutlineAndAPageByItem(t *testing.T) {
 	}
 }
 
-// 追加プラグインが足した対象の種類（ex9 のカード）のレコードを、AI が作る・直す・消す。窓には record の知らせが届き、/api/data にレコードと番号の表が載る
+// 追加プラグインが足した対象の種類（ex9 のカード）のレコードを、AI が作る・直す・消す。窓には changed の知らせが届き、/api/data にレコードと番号の表が載る
 func TestRecordsOfAnAddedSubject(t *testing.T) {
 	s := newServer(t, nil)
 	ai := joinedAI(t, s)
@@ -1635,7 +1656,7 @@ func TestRecordsOfAnAddedSubject(t *testing.T) {
 	if !strings.Contains(made, `"ok":true`) || json.Unmarshal([]byte(made), &created) != nil || created.Result.Card == "" || !strings.Contains(made, `"no":1`) {
 		t.Fatalf("card-add = %s", made)
 	}
-	if got := next(t, screen); !strings.HasPrefix(got, "record ") || !strings.Contains(got, `"counters":{"ex9:card":{"all":2}}`) || !strings.Contains(got, `"id":"`+created.Result.Card+`"`) || !strings.Contains(got, `"subject":"ex9:card"`) {
+	if got := next(t, screen); !strings.HasPrefix(got, "changed ") || !strings.Contains(got, `"counters":{"ex9:card":{"all":2}}`) || !strings.Contains(got, `"id":"`+created.Result.Card+`"`) || !strings.Contains(got, `"subject":"ex9:card"`) {
 		t.Fatalf("event = %s", got)
 	}
 	if got := perform(`{"action":"ex9:card-add","args":{"name":"apple"}}`); !strings.Contains(got, `"ok":false`) {
@@ -1820,7 +1841,7 @@ func TestAddedPluginsAreOffUntilEnabled(t *testing.T) {
 	}
 	// 有効にすると、組み直して窓に知らせる
 	set := func(ids string) {
-		send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:settings-set","args":{"values":{"`+enabledPluginsSetting+`":`+ids+`}},"lang":"ja","client":"c1","seq":1}`, nil)
+		postPerform(t, s.URL, `{"action":"@matomezu/base:settings-set","args":{"values":{"`+enabledPluginsSetting+`":`+ids+`}},"lang":"ja","client":"c1","seq":1}`)
 	}
 	set(`["ex2"]`)
 	next(t, screen) // settings
@@ -1835,7 +1856,7 @@ func TestAddedPluginsAreOffUntilEnabled(t *testing.T) {
 		t.Fatalf("an enabled plugin is marked off: %s", body)
 	}
 	// 設定がほかの項目だけ変わっても、組み直さない
-	send(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:skin":"@matomezu/base:dark"}},"lang":"ja","client":"c1","seq":2}`, nil)
+	postPerform(t, s.URL, `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:skin":"@matomezu/base:dark"}},"lang":"ja","client":"c1","seq":2}`)
 	next(t, screen) // settings
 	next(t, screen) // ack
 	// 無効に戻すと、また組み直す

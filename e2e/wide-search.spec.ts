@@ -2,6 +2,9 @@
 // チケットモードは、パネルを開いたままボードを絞り（書庫が前なら引っ込めてボードを出し）、閉じても絞ったままにして、ボードの上の印の × で戻す
 import { CONTROL_CENTER_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
 
+// 窓が低い（800px 未満）ときの、チケットスクリーンを全画面で開く動きを確かめる（上下に分ける動きは ticket-split.spec.ts）
+test.use({ viewport: { width: 1280, height: 720 } })
+
 const perform = async (page: Page, data: object) =>
   (await page.request.post("/api/ai/perform", { headers: await joinedAiAuth(), data })).json() as Promise<{
     ok: boolean

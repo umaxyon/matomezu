@@ -174,6 +174,7 @@ export const MAIL_SEEN = kit.defineAction({
   title: "Mark mail seen",
   target: MAIL.id,
   userOnly: true,
+  bulk: "alone", // 見た事は、同じ処理のほかのアクションが断られても変わらない
   args: NO_ARGS,
   run: (now, _, ctx) => (now === "none" || now.seenAt ? null : { next: { ...now, seenAt: ctx.now }, result: {} }),
 })
@@ -185,6 +186,7 @@ export const MAIL_VISITED = kit.defineAction({
   title: "Mark mail place seen",
   target: MAIL.id,
   userOnly: true,
+  bulk: "alone", // 見た事は、同じ処理のほかのアクションが断られても変わらない
   args: NO_ARGS,
   run: (now, _, ctx) =>
     now === "none" || !now.to || now.visitedAt ? null : { next: { ...now, visitedAt: ctx.now }, result: {} },

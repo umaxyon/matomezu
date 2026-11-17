@@ -179,7 +179,7 @@ func TestUnreadablePagesStayInAReadableBook(t *testing.T) {
 		`{"action":"@matomezu/base:book-trash","args":{"book":"f1"},"lang":"ja","now":"2026-11-01T00:00:00.000Z"}`,
 		`{"action":"@matomezu/base:book-purge","args":{"books":["f1"]},"lang":"ja","now":"2026-11-01T00:00:00.000Z"}`,
 	} {
-		if _, got := send(t, "POST", s2.URL+"/api/perform", body, nil); !strings.HasPrefix(got, `{"ok":true`) {
+		if _, got := postPerform(t, s2.URL, body); !strings.HasPrefix(got, `{"ok":true`) {
 			t.Fatalf("%s = %s", body, got)
 		}
 	}

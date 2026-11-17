@@ -120,7 +120,7 @@ test("コントロールセンターを前に出している間は、後ろの�
     books: ["b1"],
     by: "ai",
     act: "1",
-    action: "@matomezu/base:book-update",
+    actions: ["@matomezu/base:book-update"],
   })
   expect(store.state.getState().history.b1).toBeUndefined()
   showBooks(store)

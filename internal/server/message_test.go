@@ -126,7 +126,7 @@ func TestMessagesToARemovedParticipantAreDropped(t *testing.T) {
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
 	sendMessage(t, s.URL, a, "すずめ", "hello")
-	if out, _ := call(t, "POST", s.URL+"/api/perform", `{"action":"@matomezu/base:participant-remove","args":{},"on":{"record":"`+b+`"},"lang":"ja","now":"2026-11-08T02:00:00.000Z"}`, nil); !strings.Contains(out, `"ok":true`) {
+	if _, out := postPerform(t, s.URL, `{"action":"@matomezu/base:participant-remove","args":{},"on":{"record":"`+b+`"},"lang":"ja","now":"2026-11-08T02:00:00.000Z"}`); !strings.Contains(out, `"ok":true`) {
 		t.Fatalf("remove = %s", out)
 	}
 	if got := wakes(hub, hub.OpenWakesWith("200", "", WakeLimits{})); len(got) != 0 {

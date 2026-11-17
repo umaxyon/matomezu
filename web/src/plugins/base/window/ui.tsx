@@ -3,8 +3,9 @@ import { defineWidget } from "../../../ui/layout"
 import { kit } from "../kit"
 import { ONE_SCREEN } from "."
 import { BirdhouseButton } from "./BirdhouseButton"
-import { OneScreenView } from "./OneScreenView"
+import { ScreensView } from "./ScreensView"
 import { CONTROL_CENTER_FOOTER } from "./slots"
+import { SPLIT_ROWS } from "./split"
 import { WindowView } from "./WindowView"
 
 export const WINDOW = defineWidget({
@@ -14,13 +15,14 @@ export const WINDOW = defineWidget({
   view: WindowView,
 })
 
-// スクリーンアレンジメント「1 枚ずつ」のウィジェット。その定義（ONE_SCREEN）の id と同じ名前のスロットに置き、スクリーンを描く所と下の行のスロットを開ける
-export const ONE_SCREEN_WIDGET = defineWidget({
-  id: kit.name("one-screen-view"),
-  slots: [ONE_SCREEN.id],
+// スクリーンアレンジメント「1 枚ずつ」と「上下に分ける」のウィジェット。その定義（ONE_SCREEN・SPLIT_ROWS）の id と同じ名前のスロットに置き、スクリーンを描く所と下の行のスロットを開ける
+// （同じウィジェットなので、見せ方を替えても描き直さず、中のスクリーンの状態が残る）
+export const SCREENS_WIDGET = defineWidget({
+  id: kit.name("screens-view"),
+  slots: [ONE_SCREEN.id, SPLIT_ROWS.id],
   opens: [CONTROL_CENTER_FOOTER],
   screens: true,
-  view: OneScreenView,
+  view: ScreensView,
 })
 
 export const CONTROL_CENTER_BIRDHOUSE = defineWidget({

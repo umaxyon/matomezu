@@ -310,7 +310,7 @@ func (h *Hub) putWholeBook(id string, body json.RawMessage, base int64, quiet bo
 			out.Folders = append(out.Folders, engine.RowChange{ID: gone, Removed: true})
 		}
 	}
-	plan, err := h.planWrites(out, "", "host", "", stamp())
+	plan, err := h.planWrites(out, "host", "", stamp())
 	if err != nil {
 		return 0, false, err
 	}

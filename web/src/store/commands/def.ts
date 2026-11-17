@@ -80,6 +80,7 @@ export interface ScreenCommandContext {
   controlCenter: string | null // インスタンスのコントロールセンターの定義の id
   screen: CalledScreen // 呼ばれた場所のスクリーン（スクリーンの外から呼ばれたら、カレントスクリーン）
   screens: readonly CalledScreen[] // 開いているスクリーンを、カレントにした順に並べた物（最後がカレントスクリーン）
+  arrangement: { id: string; value: unknown } // 窓のスクリーンアレンジメント（定義の id と値）
   settings: Settings
   dialog: OpenedDialog | null // 開いているダイアログ
   contextMenu: OpenedContextMenu | null // 開いている右クリックのメニュー

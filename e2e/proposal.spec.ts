@@ -1,5 +1,5 @@
 // 変更提案郵便: 利用者が直している箱を AI が変えようとして断られ（being-edited）、変更を郵便で送る。利用者は郵便を開き、「場所を示す」で郵便を閉じずに
-// 窓の右の端に寄せて箱を見て、「反映」を押すと箱が変わり、郵便箱の行に「反映済み」が出る。ほかの窓でその箱を直している間は、反映を断ってトーストで知らせる
+// 窓の右の端に寄せて箱を見て、「反映」を押すと箱が変わり、郵便箱の行に「反映済み」が出る（読み直しても両方が残る）。ほかの窓でその箱を直している間は、反映を断ってトーストで知らせる
 import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
 import { addBox, items } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
@@ -85,6 +85,11 @@ test("断られた変更を変更提案郵便で送り、場所を示すで郵�
   await expect(items(page).filter({ hasText: "一" })).toHaveCount(1)
   await mail.getByRole("button", { name: "反映" }).click()
   await expect(mail).toHaveCount(0)
+  await expect(items(page).filter({ hasText: "AI" })).toHaveCount(1)
+  await (await fromMenu(page, "左サイドパネルを開く")).click()
+  await expect(page.getByRole("complementary", { name: "左サイドパネル" })).toContainText("反映済み")
+  // 反映と「反映した」は 1 回で書かれているので、読み直しても両方が残る
+  await page.reload()
   await expect(items(page).filter({ hasText: "AI" })).toHaveCount(1)
   await (await fromMenu(page, "左サイドパネルを開く")).click()
   await expect(page.getByRole("complementary", { name: "左サイドパネル" })).toContainText("反映済み")

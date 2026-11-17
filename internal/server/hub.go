@@ -2,20 +2,20 @@ package server
 
 // Hub は常駐が持つ今の世界（ページとフォルダと設定とアノテーション）と、つながっている窓。
 //
-// アクションは 1 つずつ順に行い（鍵 mu）、変わったものを置き場所に書いてから、つながっている全部の窓に同じ順で知らせる。
+// アクションバルク（1 回の Perform）は 1 つずつ順に行い（鍵 mu）、変わったものを置き場所に 1 回で書いてから、つながっている全部の窓に同じ順で知らせる。
 // 窓は自分で先に行ったアクションを、知らせ（client と seq）で確かめる。
 //
 // /api/events のイベント（data は JSON）:
 //
-//	hello     {"client"} この接続の id。窓はアクションにこの id と、自分で振った順の番号 seq を添えて送る
-//	changed   {"pages": [{"id", "page"（消したなら "removed": true）, "version"}], "folders": [{"id", "folder"（同じ）, "version"}], "books", "client", "seq", "by", "act", "action"}
-//	          1 回の Perform が変えた・足した・消したページとフォルダの全部（books は、それらを持つブックの id。client と seq は変えたアクションのもの。窓の外からなら空。
-//	          by は頼んだ物（"ai"・"window"・常駐が自分で行ったなら "host"）、act は 1 回の Perform の印、action は行ったアクションの id）
-//	settings  {"settings", "client", "seq"} 設定が変わった
-//	annotations {"page", "annotations", "client", "seq"} ページのアノテーションが変わった（並びが空なら全部無くなった）
-//	ack       {"seq", "ok", "reason"} 送った窓にだけ。そのアクションを行い終えた（断ったなら ok が false）。そのアクションの book・settings・annotations・record のあとに届く
-//	record    {"records": [{"subject", "id", "record"（消したなら "removed"）, "version"}], "counters"?, "window", "client", "seq"} 1 つのアクションが変えた、対象の定義が足した種類のレコード
-//	          （郵便も。records.go）。window は最後にフォーカスされた窓
+//	hello     {"client"} この接続の id。窓はアクションバルクにこの id と、自分で振った順の番号 seq を添えて送る
+//	changed   {"pages": [{"id", "page"（消したなら "removed": true）, "version"}], "folders": [{"id", "folder"（同じ）, "version"}], "books", "client", "seq", "by", "act", "actions",
+//	          "settings"?, "annotations", "records": [{"subject", "id", "record"（消したなら "removed"）, "version"（消したなら 0）}], "counters"?, "window"}
+//	          1 回の Perform が変えた物の全部（何か変わったときだけ 1 つ）。pages・folders は変えた・足した・消したページとフォルダ、books はそれらを持つブックの id。
+//	          client と seq は頼んだ窓とその番号（窓の外からなら空）。by は頼んだ物（"ai"・"window"・常駐が自分で行ったなら "host"）、act は 1 回の Perform の印、actions は行ったアクションの id の並び。
+//	          settings は変わったときだけ、新しい設定。annotations はアノテーションが変わったページの id → 新しい並び（空の並びなら全部無くなった）。
+//	          records は変えたレコード（郵便も。records.go）、counters は進めた番号の区切り（種類 → 区切り → 次の番号。進めたときだけ）。window は最後にフォーカスされた窓（無ければ空）
+//	annotations {"page", "annotations", "client", "seq"} Perform の外でページのアノテーションが変わった（並びが空なら全部無くなった）
+//	ack       {"seq", "ok", "reason"} 送った窓にだけ。そのアクションバルクを行い終えた（断ったなら ok が false）。そのバルクの changed のあとに届く
 //	show      {"book", "page", "stage", "split"} 最後にフォーカスされた窓にだけ。そのブックを出す（Show）
 //	plugins   {"version"} 追加プラグインが変わった（plugins.go）。窓は読み直す
 //	participant-calls {"participant", "at"} 参加者の最後に呼ばれた時刻（join.go。30 秒以上あいたときだけ知らせる）
@@ -43,7 +43,7 @@ import (
 // 窓へ知らせを貯めておける数。超えた窓は切る（つなぎ直して読み直す）
 const clientBuffer = 256
 
-// 覚えておく、行ったアクションの番号（key）の数。窓は答えが届かなかったアクションを同じ番号で送り直すので、同じ番号は二度行わない
+// 覚えておく、行ったアクションバルクの番号（key）の数。窓は答えが届かなかったバルクを同じ番号で送り直すので、同じ番号は二度行わない
 const performedKeys = 1024
 
 // entry は、組んだブック 1 冊（tables.go。本文は、並びにページとバインダの中身ごと持つ形。version はブックのフォルダの版）
@@ -150,7 +150,7 @@ type Hub struct {
 	// 窓が見つけて知らせた warning（窓のつながりの id → warning の 1 行ずつ。warnings.go）。窓が離れたら消す
 	windowWarnings map[string][]string
 	touched        map[string]string    // ブックの id → 触れた時刻（touched.go）
-	performed      map[string]Performed // 最近行ったアクションの番号（Perform の Key）→ その結果
+	performed      map[string]Performed // 最近行ったアクションバルクの番号（Perform の Key）→ その結果
 	performedOrder []string             // performed の番号を行った順に（古いものから忘れる）
 	acts           int64                // 行ったアクションの数（changed の知らせの act の後ろ。1 回の Perform に 1 つの印）
 	actPrefix      string               // changed の知らせの act の前（起動ごとに違う値。起動し直しても、前の act と重ならない）
@@ -280,14 +280,19 @@ func (h *Hub) putAnnotationLists(lists map[string]json.RawMessage, client string
 
 // applyAnnotations は、書き終えたページ page のアノテーションの並びを持ち、窓に知らせる（h.mu を持って呼ぶ）
 func (h *Hub) applyAnnotations(page string, body json.RawMessage, client string, seq int64) {
+	body = h.holdAnnotations(page, body)
+	h.broadcast("annotations", map[string]any{"page": page, "annotations": body, "client": client, "seq": seq})
+}
+
+// holdAnnotations は、書き終えたページ page のアノテーションの並びを持ち、窓に知らせる並びを返す（空の並びなら消して "[]"。h.mu を持って呼ぶ）
+func (h *Hub) holdAnnotations(page string, body json.RawMessage) json.RawMessage {
 	var list []json.RawMessage
 	if json.Unmarshal(body, &list) == nil && len(list) == 0 {
 		delete(h.annotations, page)
-		body = json.RawMessage("[]")
-	} else {
-		h.annotations[page] = body
+		return json.RawMessage("[]")
 	}
-	h.broadcast("annotations", map[string]any{"page": page, "annotations": body, "client": client, "seq": seq})
+	h.annotations[page] = body
+	return body
 }
 
 // checkBooks は ids のブックを今のプラグインで確かめ、warning のあるブックの一覧を直す。新しい warning は常駐のログに書く（h.mu を持って呼ぶ）
@@ -396,24 +401,27 @@ func (h *Hub) AIBooks() []Book {
 	return books
 }
 
-// Perform の頼み。Client と Seq は送った窓とその番号（窓の外からなら空）。
-// Key は窓がアクションごとに振る一意の番号（つなぎ直しても変えない）。同じ番号のアクションは二度行わない
+// Perform の頼み: アクションバルク（Actions を順に行い、全部通るか全部断る）。Client と Seq は送った窓とその番号（窓の外からなら空）。
+// Key は窓がバルクごとに振る一意の番号（つなぎ直しても変えない）。同じ番号のバルクは二度行わない
 type Perform struct {
-	Action string          `json:"action"`
-	Args   json.RawMessage `json:"args"`
-	On     *engine.On      `json:"on,omitempty"`
-	Lang   string          `json:"lang"`
-	IDs    []string        `json:"ids,omitempty"`
-	Now    string          `json:"now,omitempty"`
-	Client string          `json:"client,omitempty"`
-	Seq    int64           `json:"seq,omitempty"`
-	Key    string          `json:"key,omitempty"`
-	// TimeoutSec は、アクションを待つ秒数（省略は 5、上限 60）
+	Actions []engine.BulkAction `json:"actions"`
+	Client  string              `json:"client,omitempty"`
+	Seq     int64               `json:"seq,omitempty"`
+	Key     string              `json:"key,omitempty"`
+	// TimeoutSec は、バルクを待つ秒数（省略は 5、上限 60）
 	TimeoutSec int    `json:"timeoutSec,omitempty"`
 	By         string `json:"-"` // 頼んだのが AI なら "ai"（AI の口だけが入れる。窓からは受けない）
 	// Workroom は、頼んだのが AI のとき、入っているワークルームの id（参加が確定していなければ空。AI の口だけが入れる。窓からは受けない）
 	Workroom string `json:"-"`
 }
+
+// performOne は、アクション 1 つのバルクの頼み
+func performOne(action string, args json.RawMessage, on *engine.On) Perform {
+	return Perform{Actions: []engine.BulkAction{{Action: action, Args: args, On: on}}}
+}
+
+// ErrNoActions は、アクションが 1 つも無いバルク
+var ErrNoActions = errors.New("a perform needs at least one action")
 
 // Performed は行った結果（断ったら Detail に AI への説明。認可ステップが止めたら Permission にそのステップの id）
 type Performed struct {
@@ -426,40 +434,29 @@ type Performed struct {
 	Notice     string          `json:"notice,omitempty"` // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
 }
 
-// Perform はアクションを行い、変わったものを書いて知らせる。行い終えた番号（Key）がまた届いたら、行わずに前の結果を返す（ack も送る）
+// Perform はアクションバルクを行い、変わったものを 1 回で書いて知らせる。行い終えた番号（Key）がまた届いたら、行わずに前の結果を返す（ack も送る）
 func (h *Hub) Perform(p Perform) (Performed, error) {
+	if len(p.Actions) == 0 {
+		return Performed{}, ErrNoActions
+	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if done, ok := h.performed[p.Key]; ok && p.Key != "" {
 		h.ack(p, done)
 		return done, nil
 	}
-	in := engine.Input{Action: p.Action, Args: p.Args, On: p.On, Lang: p.Lang, IDs: p.IDs, Now: p.Now, Settings: h.settings, Actor: actorOf(p), TimeoutSec: p.TimeoutSec}
-	in.Annotations = map[string]json.RawMessage{}
-	needs, err := h.engine.RecordNeeds(p.Action, p.Args)
-	if err != nil {
+	in := engine.Input{Actions: p.Actions, Settings: h.settings, Actor: actorOf(p), TimeoutSec: p.TimeoutSec}
+	if err := h.performInputs(&in); err != nil {
 		return Performed{}, err
 	}
-	if needs.Subject != "" {
-		// レコードが対象のアクションは、アノテーションを読まず、ブックはアクションが引数から答えた読むだけの物だけ
-		in.Pages, in.Folders = h.rowsOf(needs.Books)
-	} else if p.On != nil {
-		// 宛先がページなら、そのページを持っているブックで行う
-		book := h.bookOn(p.On)
-		in.Pages, in.Folders = h.rowsOf([]string{book})
-		in.Annotations = h.annotationsIn(book)
-	} else {
-		in.Pages, in.Folders = h.rowsOf(h.order)
-		for id, list := range h.annotations {
-			in.Annotations[id] = list
-		}
-	}
-	h.recordInputs(&in, needs, p.On)
 	in.Watched = h.watched()
 	in.WatchedRecords = h.watchedRecords()
 	out, err := h.engine.PerformWith(in, recordSource{h})
 	if err != nil {
 		return Performed{}, err
+	}
+	if !out.OK && out.At != nil && *out.At >= 0 && *out.At < len(p.Actions) {
+		fmt.Fprintf(os.Stderr, "%s refused at the action %d of %d (%s): %s\n", stamp(), *out.At, len(p.Actions), p.Actions[*out.At].Action, out.Reason)
 	}
 	done := Performed{OK: out.OK, Reason: out.Reason, Permission: out.Permission, Detail: out.Detail, Code: out.Code, Result: out.Result, Notice: out.Notice}
 	// AI のアクションは、窓に出ているブックをゴミ箱に入れない（AI は利用者に聞く）
@@ -480,7 +477,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 			requested = h.requestedParticipants()
 		}
 		act := h.actPrefix + "-" + strconv.FormatInt(h.acts+1, 10)
-		plan, err := h.planWrites(out, needs.Subject, by, act, stamp())
+		plan, err := h.planWrites(out, by, act, stamp())
 		if err != nil {
 			return Performed{}, err
 		}
@@ -504,7 +501,65 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	return done, nil
 }
 
-// ack は、アクションを送った窓に行い終えたことを知らせる（h.mu を持って呼ぶ）
+// performInputs は、バルク in.Actions を行う前に、エンジンへ渡すページ・フォルダ・アノテーション・レコード・番号の表を in に入れる（h.mu を持って呼ぶ）。
+// アクションごとに要るブック（レコードが対象なら引数から答えた読むだけのブック、宛先があればそのブック）の和と、そのアノテーションを渡す。
+// 一覧のアクション（宛先が無く、レコードが対象でない）か、0 番目でなく宛先が置き場所に無い（バルクの前のアクションが作ったページなど）アクションを含むなら、全部のブックとアノテーション
+func (h *Hub) performInputs(in *engine.Input) error {
+	all := false
+	books := []string{}
+	add := func(id string) {
+		if id != "" && !slices.Contains(books, id) {
+			books = append(books, id)
+		}
+	}
+	for i, step := range in.Actions {
+		needs, err := h.engine.RecordNeeds(step.Action, step.Args)
+		if err != nil {
+			return err
+		}
+		switch {
+		case needs.Subject != "":
+			for _, id := range needs.Books {
+				add(id)
+			}
+			h.recordInputs(in, needs, step.On)
+		case step.On == nil:
+			all = true
+		default:
+			// 宛先がページなら、そのページを持っているブック。置き場所にあるが読めるブックに入っていないページ（ゴミ箱のブックのページなど）は、何も足さない。
+			// 置き場所に無い宛先は、前のアクションが作った物でありうるので全部のブック。0 番目のアクションの宛先は前のアクションが作った物ではないので、何も足さない
+			book := h.bookOn(step.On)
+			_, known := h.pages[step.On.Page]
+			switch {
+			case book != "" && (step.On.Page != "" || h.hasBook(book)):
+				add(book)
+			case step.On.Page != "" && known:
+			case i == 0:
+			default:
+				all = true
+			}
+		}
+	}
+	in.Annotations = map[string]json.RawMessage{}
+	if all {
+		in.Pages, in.Folders = h.rowsOf(h.order)
+		maps.Copy(in.Annotations, h.annotations)
+		return nil
+	}
+	in.Pages, in.Folders = h.rowsOf(books)
+	for _, id := range books {
+		maps.Copy(in.Annotations, h.annotationsIn(id))
+	}
+	return nil
+}
+
+// hasBook は、ブック id が置き場所にあるか（ゴミ箱のブックも。h.mu を持って呼ぶ）
+func (h *Hub) hasBook(id string) bool {
+	_, ok := h.books[id]
+	return ok
+}
+
+// ack は、アクションバルクを送った窓に行い終えたことを知らせる（h.mu を持って呼ぶ）
 func (h *Hub) ack(p Perform, done Performed) {
 	if c, ok := h.clients[p.Client]; ok {
 		h.send(c, "ack", map[string]any{"seq": p.Seq, "ok": done.OK, "reason": done.Reason})

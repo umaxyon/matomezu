@@ -101,13 +101,13 @@ func newEngine(t *testing.T) *Engine {
 }
 
 func place(ids ...string) Input {
-	return onBook(Input{
+	return onBook(Input{Actions: []BulkAction{{
 		Action: "@matomezu/paper:item-place",
 		Args:   json.RawMessage(`{"item":"@matomezu/box:shape-nest-box","at":{"x":10,"y":20},"props":{"caption":"c"}}`),
 		On:     &On{Page: "p1"},
 		Lang:   "ja",
 		IDs:    ids,
-	}, book)
+	}}}, book)
 }
 
 func TestPerformsTheSameActionAsTheScreen(t *testing.T) {
@@ -138,9 +138,9 @@ func TestMakesIdsWhenNoneAreGiven(t *testing.T) {
 func TestRefusals(t *testing.T) {
 	e := newEngine(t)
 	cases := map[string]Input{
-		"unknown":  {Action: "nope", Lang: "ja"},
-		"no-page":  {Action: "@matomezu/paper:item-place", Args: place().Args, On: &On{Page: "p9"}, Lang: "ja", Pages: place().Pages, Folders: place().Folders},
-		"bad-args": {Action: "@matomezu/paper:item-place", Args: json.RawMessage(`{}`), On: &On{Page: "p1"}, Lang: "ja", Pages: place().Pages, Folders: place().Folders},
+		"unknown":  {Actions: []BulkAction{{Action: "nope", Lang: "ja"}}},
+		"no-page":  {Actions: []BulkAction{{Action: "@matomezu/paper:item-place", Args: place().Actions[0].Args, On: &On{Page: "p9"}, Lang: "ja"}}, Pages: place().Pages, Folders: place().Folders},
+		"bad-args": {Actions: []BulkAction{{Action: "@matomezu/paper:item-place", Args: json.RawMessage(`{}`), On: &On{Page: "p1"}, Lang: "ja"}}, Pages: place().Pages, Folders: place().Folders},
 	}
 	for want, in := range cases {
 		out, err := e.Perform(in)
@@ -193,17 +193,17 @@ func TestAIPlacedGivesWhereShapesAreDrawn(t *testing.T) {
 
 func TestLibraryAndSettingsActions(t *testing.T) {
 	e := newEngine(t)
-	out, err := e.Perform(onBook(Input{
+	out, err := e.Perform(onBook(Input{Actions: []BulkAction{{
 		Action: "@matomezu/base:book-create",
 		Args:   json.RawMessage(`{"title":"New"}`),
 		Lang:   "ja",
 		IDs:    []string{"nb"},
-	}, book))
+	}}}, book))
 	if err != nil || !out.OK || len(out.Books) != 1 || out.Books[0] != "nb" || len(out.Pages) != 0 || len(out.Folders) != 1 || len(out.Created) != 1 || out.Created[0] != "nb" ||
 		rowOf(out.Folders, "nb") != `{"id":"nb","title":"New","folderRole":"book","lineup":[]}` {
 		t.Fatalf("@matomezu/base:book-create = %+v, %v", out, err)
 	}
-	out, err = e.Perform(Input{Action: "@matomezu/base:settings-set", Args: json.RawMessage(`{"values":{"@matomezu/base:lang":"matomezu:en"}}`), Lang: "ja", Settings: json.RawMessage(`{"@matomezu/base:lang":"matomezu:ja"}`)})
+	out, err = e.Perform(Input{Actions: []BulkAction{{Action: "@matomezu/base:settings-set", Args: json.RawMessage(`{"values":{"@matomezu/base:lang":"matomezu:en"}}`), Lang: "ja"}}, Settings: json.RawMessage(`{"@matomezu/base:lang":"matomezu:ja"}`)})
 	if err != nil || !out.OK || string(out.Settings) != `{"@matomezu/base:lang":"matomezu:en"}` {
 		t.Fatalf("@matomezu/base:settings-set = %+v %s, %v", out, out.Settings, err)
 	}
@@ -348,13 +348,13 @@ func TestConnectsItemsWithALine(t *testing.T) {
 	two := `{"id":"b1","title":"T","lineup":[{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[` +
 		`{"id":"a","x":100,"y":100,"item":"@matomezu/box:shape-nest-box","w":100,"h":64,"props":{}},` +
 		`{"id":"b","x":400,"y":300,"item":"@matomezu/box:shape-nest-box","w":100,"h":64,"props":{}}]}]}`
-	out, err := e.Perform(onBook(Input{
+	out, err := e.Perform(onBook(Input{Actions: []BulkAction{{
 		Action: "@matomezu/line:line-connect",
 		Args:   json.RawMessage(`{"from":"a","to":"b","props":{"exitAt":0.4024,"enterAt":0.9024,"via":[300]}}`),
 		On:     &On{Page: "p1"},
 		Lang:   "ja",
 		IDs:    []string{"l1"},
-	}, two))
+	}}}, two))
 	if err != nil || !out.OK || string(out.Result) != `{"line":"l1"}` {
 		t.Fatalf("Perform = %+v, %v", out, err)
 	}
@@ -416,12 +416,12 @@ func TestUsesAnAddedPlugin(t *testing.T) {
 	if c := string(e.AICatalogForTest()); !strings.Contains(c, `"id":"ex2:diamond"`) || !strings.Contains(c, `"ex2:flow"`) {
 		t.Fatalf("the AI catalog lacks the added plugin: %s", c)
 	}
-	out, err := e.Perform(Input{
+	out, err := e.Perform(Input{Actions: []BulkAction{{
 		Action: "@matomezu/base:book-create",
 		Args:   json.RawMessage(`{"title":"Flow","page":{"type":"ex2:flow"}}`),
 		Lang:   "ja",
 		IDs:    []string{"fb", "fp"},
-	})
+	}}})
 	if err != nil || !out.OK || len(out.Books) != 1 || out.Books[0] != "fb" || !strings.Contains(rowOf(out.Pages, "fp"), `"id":"fp","type":"ex2:flow"`) ||
 		!strings.Contains(rowOf(out.Folders, "fb"), `"lineup":[{"kind":"page","id":"fp"}]`) {
 		t.Fatalf("@matomezu/base:book-create = %+v, %v", out, err)
@@ -473,7 +473,7 @@ module.exports.default = {
 		t.Fatal(err)
 	}
 	args, _ := json.Marshal(map[string]string{"text": "# A &amp; &copy;\n\n| a |\n|-|\n| x |\n\nn[^1]\n\n[^1]: f\n"})
-	out, err := e.Perform(onBook(Input{Action: "reader:read", Args: args, On: &On{Book: "b1"}, Lang: "en"}, book))
+	out, err := e.Perform(onBook(Input{Actions: []BulkAction{{Action: "reader:read", Args: args, On: &On{Book: "b1"}, Lang: "en"}}}, book))
 	if err != nil || !out.OK {
 		t.Fatalf("Perform = %+v, %v", out, err)
 	}
@@ -504,7 +504,7 @@ module.exports.default = {
 	if got := string(e.AICatalogForTest()); got != before {
 		t.Fatalf("the AI catalog changed: %s", got)
 	}
-	out, err := e.Perform(Input{Action: "thrower:boom", Args: json.RawMessage(`{}`), On: &On{Book: "b1"}, Lang: "en"})
+	out, err := e.Perform(Input{Actions: []BulkAction{{Action: "thrower:boom", Args: json.RawMessage(`{}`), On: &On{Book: "b1"}, Lang: "en"}}})
 	if err != nil || out.OK || out.Reason != "unknown" {
 		t.Fatalf("the failed plugin's action = %+v, %v; want unknown", out, err)
 	}
@@ -688,7 +688,7 @@ module.exports.default = {
 	if _, err := e.UseAllForTest([]*plugin.Bundle{b}); err != nil {
 		t.Fatal(err)
 	}
-	spin := onBook(Input{Action: "stuck:spin", Args: json.RawMessage(`{}`), On: &On{Book: "b1"}, Lang: "en", TimeoutSec: 1}, book)
+	spin := onBook(Input{Actions: []BulkAction{{Action: "stuck:spin", Args: json.RawMessage(`{}`), On: &On{Book: "b1"}, Lang: "en"}}, TimeoutSec: 1}, book)
 	start := time.Now()
 	out, err := e.Perform(spin)
 	if err != nil || out.OK || out.Reason != "refused" || !strings.Contains(out.Detail, "timed out after 1 seconds") {
