@@ -129,16 +129,14 @@ export function sessionIdOf(body: MessagesBody): string {
 export function workroomNameOf(body: MessagesBody): string | undefined {
   let name: string | undefined
   for (const m of body.messages ?? []) {
-    if (typeof m.content === "string") continue
-    for (const b of m.content) {
-      if (
-        b.type !== "text" ||
-        typeof b.text !== "string" ||
-        !b.text.startsWith("UserPromptSubmit hook additional context:")
-      )
-        continue
-      name = b.text.match(/Workroom name: (.+)$/m)?.[1]?.trim() ?? name
-    }
+    // フックの文は、利用者の message の text のブロックか、会話の途中の system の message の文字列に入る
+    const texts =
+      typeof m.content === "string"
+        ? [m.content]
+        : m.content.flatMap(b => (b.type === "text" && typeof b.text === "string" ? [b.text] : []))
+    for (const text of texts)
+      for (const hit of text.matchAll(/^UserPromptSubmit hook additional context:[^\n]*?Workroom name: (.+)$/gm))
+        name = hit[1]?.trim() || name
   }
   return name
 }
