@@ -292,7 +292,7 @@ test("いくつものブックを変えた画面の履歴の段は、どれか�
             title: "keep",
             aiDescription: "b2 is not put back",
             denies: () => false,
-            keeps: c => c.kind !== "book" || !(c.action.id === "@matomezu/base:book-revert" && c.before?.id === "b2"),
+            keeps: c => c.kind !== "folder" || !(c.action.id === "@matomezu/base:book-revert" && c.before?.id === "b2"),
           }),
         ],
       }),

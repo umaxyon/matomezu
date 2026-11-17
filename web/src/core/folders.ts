@@ -184,6 +184,19 @@ export function foldersOver(folders: Folders, page: string): Folder[] {
   return over
 }
 
+// ブック book を分けたフォルダの表（同じブックには同じ表を返す）
+const foldersKept = new WeakMap<Book, Folders>()
+function foldersIn(book: Book): Folders {
+  const kept = foldersKept.get(book)
+  if (kept) return kept
+  const made = Object.fromEntries(recordsOf(book).folders.map(f => [f.id, f]))
+  foldersKept.set(book, made)
+  return made
+}
+
+// ブック book の中のページ page を入れているフォルダの列（近い順）
+export const foldersOverIn = (book: Book, page: string): Folder[] => foldersOver(foldersIn(book), page)
+
 // ページ page を持っているブックの id（どのブックにも入っていなければ undefined）
 export const bookIdOf = (folders: Folders, page: string): string | undefined =>
   foldersOver(folders, page).find(f => f.folderRole === "book")?.id

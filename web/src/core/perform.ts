@@ -152,7 +152,7 @@ function broken(
 ): string | null {
   const changes = changesOf(before, after)
   for (const p of ctx.catalog.permissions.values())
-    if (p.keeps && !p.keeps({ kind: "book", action, before, after, changes, actor: ctx.actor })) return p.id
+    if (p.keeps && !p.keeps({ kind: "folder", action, before, after, changes, actor: ctx.actor })) return p.id
   return null
 }
 

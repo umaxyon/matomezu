@@ -385,7 +385,7 @@ test("認可ステップがあるブックのゴミ箱入れを止めていれ�
           title: "keep",
           aiDescription: "this book stays",
           denies: q =>
-            q.kind === "book" && q.action.id === "@matomezu/base:book-trash" && q.book.title === "API の一覧",
+            q.kind === "folder" && q.action.id === "@matomezu/base:book-trash" && q.folder.title === "API の一覧",
         }),
       ],
     }),
@@ -427,9 +427,9 @@ test("認可ステップがゴミ箱のブックの戻す・消すを止めて�
           title: "keep",
           aiDescription: "this book stays in the trash",
           denies: q =>
-            q.kind === "book" &&
+            q.kind === "folder" &&
             ["@matomezu/base:book-restore", "@matomezu/base:book-purge"].includes(q.action.id) &&
-            q.book.title === "API の一覧",
+            q.folder.title === "API の一覧",
         }),
       ],
     }),

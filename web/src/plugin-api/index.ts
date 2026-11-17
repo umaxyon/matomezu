@@ -83,6 +83,7 @@ export {
   slideOf,
   walkShapes,
 } from "../core/placed"
+export type { BinderFolder, BookFolder, EntryRef, Folder } from "../core/folders"
 export type { Book } from "../core/schema/book"
 export {
   areaOf,

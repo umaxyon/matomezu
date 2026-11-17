@@ -13,12 +13,14 @@ import {
   attachedTo,
   BASE_TARGETS,
   isInBook,
+  isOnPage,
   type Where,
 } from "./def/action"
 import type { ControlCenterDef } from "./def/control-center"
 import type { PageTypeDef } from "./def/page-type"
 import type { PermissionQuery, Referred } from "./def/permission"
 import type { SubjectDef } from "./def/subject"
+import { foldersOverIn } from "./folders"
 import { idsIn } from "./ids"
 import type { KeyBinding } from "./keys"
 import type { Book } from "./schema/book"
@@ -182,6 +184,22 @@ function permissionSteps(catalog: CoreCatalog, q: PermissionQuery): Step<boolean
   }))
 }
 
+// 認可ステップへの行う前の問い: ページ・アノテーションが対象で、宛先のページが分かっていれば、そのページと、入れているフォルダの列で問う。
+// ほかは、ブックで問う
+function permissionQuery(def: ActionDef, book: Book, where: Where | undefined, actor: Actor): PermissionQuery {
+  const page = isOnPage(def.target) && where?.page !== undefined ? findPage(book, where.page)?.page : undefined
+  if (!page) return { kind: "folder", action: def, folder: book, actor, ...(where ? { where } : {}) }
+  const ids = where?.ids
+  return {
+    kind: "page",
+    action: def,
+    page,
+    folders: foldersOverIn(book, page.id),
+    actor,
+    ...(ids ? { where: { ids } } : {}),
+  }
+}
+
 // 参加を頼む役（AI が参加を頼むときに matomezu が行うアクション）は、参加が確定する前にも行える
 const joinsWithoutParticipation = (def: ActionDef): boolean => def.runsWhenAIJoins !== undefined
 
@@ -248,7 +266,7 @@ function action(
   }
   const { book, settings, where, record } = q
   const permitted = book
-    ? permissionSteps(catalog, { kind: "book", action: def, book, actor: q.actor, ...(where ? { where } : {}) })
+    ? permissionSteps(catalog, permissionQuery(def, book, where, q.actor))
     : record && catalog.subjects.has(def.target)
       ? permissionSteps(catalog, {
           kind: "record",
