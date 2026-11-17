@@ -1,12 +1,14 @@
 // 設定画面: コントロールセンターの「全体設定」で開いたダイアログと、その「全体」の中身
 import { expect, type Page } from "@playwright/test"
-import { fromMenu, menuOf } from "./stage-menu"
+import { fromMenu, menuOf, menuTrigger } from "./stage-menu"
 
 export const settingsDialog = (page: Page) => page.getByRole("dialog", { name: "設定" })
 
-// コントロールセンターの「全体設定」で設定画面を開く（ブックスクリーンにいれば、フッタメニューの巣箱でコントロールセンターへ移ってから）
+// コントロールセンターの「全体設定」で設定画面を開く（ブックスクリーンにいれば、フッタメニューの巣箱でコントロールセンターへ移ってから）。
+// 画面が描かれるまで待ってから、どちらにいるかを見る（読み直した直後は、コントロールセンターでも歯車がまだ無い）
 export async function openSettings(page: Page) {
   const gear = page.getByRole("button", { name: "全体設定" })
+  await expect(gear.or(menuTrigger(page)).first()).toBeAttached()
   if (!(await gear.isVisible())) await (await fromMenu(page, "コントロールセンター")).click()
   await gear.click()
 }
