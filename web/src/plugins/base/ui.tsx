@@ -176,6 +176,7 @@ export {
   WORKROOM_COLUMNS,
   WORKROOM_ROW_LINE,
 } from "./window/slots"
+export { type ScreenSplit, useScreenSplit } from "./window/useScreenSplit"
 export { defineWorkspace, STAGE_BASE_SLOTS } from "./workspace/ui"
 
 import { SCRAP_DIALOG_VIEWS, SCRAP_TRAY_BUTTON, SCRAP_TRAY_TAB } from "./scrap/ui"

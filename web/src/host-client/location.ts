@@ -1,7 +1,7 @@
 // ブラウザの URL と画面の場所（core/address.ts）の行き来（ルーターは入れない。開いている場所は store が持ち、URL はそれを映す）。
 // 開いたときは URL の場所を当てはめ（store の locate）、見ているものが変わったら URL に書く。移動（ステージの数か、ブック・ページが変わった。積むと宣言した画面の状態の値が変わった）
 // ならブラウザの履歴に積み（pushState。行の番号を {i} に持ち、戻る先があるかを store に知らせる）、倍率・ずらす量・カレント・境目だけなら、しばらく待ってまとめて書き換える（replaceState）。同じ同期の処理の中の
-// 変わりは、終わってから 1 つにまとめて書く（分割してブックとページを開いても、ブラウザの履歴に積むのは 1 つ）。ブラウザの戻る・進む（popstate）は、その URL の場所を当てはめる。
+// 変わりは、終わってから 1 つにまとめて書く（分割してブックとページを開いても、ブラウザの履歴に積むのは 1 つ）。その中で書き換えを頼まれた（store の historyReplaces が増えた）なら、積まずにすぐ書き換える。ブラウザの戻る・進む（popstate）は、その URL の場所を当てはめる。
 // URL の形: 値 1 つ（sc）に、場所を短い名前の JSON で書く（searchOf）。前の形（b0・p0・v0・s0…、c・r・w・f）は読むだけで、書かない。
 // URL が無ければ、開いた直後はステージを並べないスクリーン（コントロールセンター）をカレントスクリーンにする。プラグイン状態の中身は読まない（形を確かめるのは store の locate）
 import { type Address, moved, recentStagesIn, type ScreenPlace, type StagePlace } from "../core/address"
@@ -88,6 +88,7 @@ export function searchOf(address: Address): string {
     })),
     o: [...address.order],
     a: address.arrangement,
+    ...(emptyProps(address.arrangementValue) ? {} : { av: address.arrangementValue }),
     ...(some(address.window) ? { w: { ...address.window } } : {}),
   }
   const q = new URLSearchParams()
@@ -154,7 +155,7 @@ function writtenAddress(text: string): Address | null {
   })
   const order = Array.isArray(value.o) ? value.o.filter((x: unknown): x is string => typeof x === "string") : []
   const arrangement = typeof value.a === "string" ? value.a : ""
-  return { screens, order, arrangement, window: isObject(value.w) ? value.w : {} }
+  return { screens, order, arrangement, arrangementValue: value.av ?? {}, window: isObject(value.w) ? value.w : {} }
 }
 
 // 前の形の URL を読む（matomezu の場所でなければ null）
@@ -205,11 +206,17 @@ export function fromFormer(former: FormerAddress, now: Address): Address {
   // 前の形では、重ねて開いたスクリーン（チケットスクリーンなど）を窓の範囲の値 1 つに書いていた。開いているスクリーンの 1 枚に直す
   const { [FORMER_OPENED]: opened, ...window } = former.window
   if (!isObject(opened) || typeof opened.screen !== "string")
-    return { screens, order, arrangement: now.arrangement, window }
+    return { screens, order, arrangement: now.arrangement, arrangementValue: now.arrangementValue, window }
   const id = `c${Math.max(0, ...now.screens.map(s => Number(s.id.slice(1)) || 0)) + 1}`
   const added: ScreenPlace = { id, def: opened.screen, props: opened.props ?? {}, states: {} }
   const front = former.front === "book-screen" ? [id, ...order] : [...order, id]
-  return { screens: [...screens, added], order: front, arrangement: now.arrangement, window }
+  return {
+    screens: [...screens, added],
+    order: front,
+    arrangement: now.arrangement,
+    arrangementValue: now.arrangementValue,
+    window,
+  }
 }
 
 // URL の値を、画面の場所に入れるプラグイン状態にする（JSON のオブジェクトでなければ空）
@@ -253,15 +260,20 @@ export function followLocation(
   let popping = false // 戻る・進むの場所を当てはめている間（URL に書き戻さない）
   let queued = false // 処理が終わってから書くのを待っている
   let stopped = false
+  let replaces = instance.state.getState().historyReplaces // 書き換えてほしいと頼まれた回数（増えていれば、積まずに書き換える）
   const write = () => {
     queued = false
     if (stopped || popping) return
+    const asked = instance.state.getState().historyReplaces
+    const replacing = asked !== replaces
+    replaces = asked
     const now = instance.address()
     const search = searchOf(now)
     if (search === searchOf(shown)) return
     pending?.()
     pending = null
-    if (moved(shown, now, instance.pushing?.())) {
+    if (replacing) place.replace(search)
+    else if (moved(shown, now, instance.pushing?.())) {
       place.push(search, place.index() + 1)
       knowBack()
     } else pending = place.later(() => place.replace(search))

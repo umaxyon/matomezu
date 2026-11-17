@@ -65,6 +65,7 @@ export function screenCommandContext(
     controlCenter,
     screen: calledScreen(screen),
     screens: win.order.flatMap(id => win.screens.filter(s => s.id === id).map(calledScreen)),
+    arrangement: { id: win.arrangement, value: win.arrangementValue },
     settings,
     dialog,
     contextMenu,

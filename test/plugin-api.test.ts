@@ -357,7 +357,9 @@ test("matomezu/ui が出す名前", () => {
     "useRevealable",
     "useRightSidePanel",
     "useScreen",
+    "useScreenArrangement",
     "useScreenHere",
+    "useScreenSplit",
     "useScreens",
     "useSearchHits",
     "useSearchPick",
@@ -435,6 +437,7 @@ test("コマンドが受け取る文脈（CommandContext）のフィールド（
   expect(
     names(commandContext(store.catalog.core, null, store.state.getState(), "s1", "@matomezu/base:stage-split")!),
   ).toEqual([
+    "arrangement",
     "book",
     "bookHistory",
     "catalog",

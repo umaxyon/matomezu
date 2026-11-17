@@ -15,12 +15,12 @@ export const TICKET_MODE = defineWideSearchMode({
   view: TicketMode,
 })
 
-// チケットスクリーンでチケットを開く関数を返すフック（当たった物がチケット履歴なら、その親のチケット）
+// チケットスクリーンでチケットを開く関数を返すフック（当たった物がチケット履歴なら、その親のチケット）。開き方はチケットカードと同じ
 const useOpenHit = (ticketOf: (hit: WideSearchHit) => string | undefined) => {
-  const open = useOpenTicket()
+  const opener = useOpenTicket()
   return (hit: WideSearchHit) => {
     const ticket = ticketOf(hit)
-    if (ticket !== undefined) open(ticket)
+    if (ticket !== undefined) opener.card(ticket)
   }
 }
 

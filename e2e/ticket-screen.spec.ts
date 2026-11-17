@@ -2,6 +2,9 @@
 // 読み直しても残り、巣箱で閉じる。ロック中は直せず、AI の上書きは直している間だけ断られる
 import { aiAuth, CONTROL_CENTER_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
 
+// 窓が低い（800px 未満）ときの、チケットスクリーンを全画面で開く動きを確かめる（上下に分ける動きは ticket-split.spec.ts）
+test.use({ viewport: { width: 1280, height: 720 } })
+
 const NOW = "2026-11-12T00:00:00.000Z"
 const TICKET = "@matomezu/taskboard:ticket"
 const open = (ticket: string) =>

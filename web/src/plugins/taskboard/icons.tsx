@@ -49,6 +49,13 @@ export const RestoreIcon = () => (
   </Svg>
 )
 
+// 広げる（上下に分けた 1 枚を全画面に）: 外へ向かう 2 本の矢
+export const ExpandIcon = () => (
+  <Svg size={16}>
+    <path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7" />
+  </Svg>
+)
+
 export const ChevronIcon = ({ className }: { className?: string }) => (
   <Svg size={14} stroke={1.8} className={className}>
     <path d="M9 6l6 6-6 6" />

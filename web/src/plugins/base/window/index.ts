@@ -2,6 +2,7 @@
 import { z } from "zod"
 import type { CalledScreen, ScreenCommandContext } from "../../../store/commands/def"
 import { kit } from "../kit"
+import { SPLIT_ROWS, splitShown } from "./split"
 
 // ブックスクリーン: ステージを並べて、ブックを見る・直すスクリーン。渡す値は無い
 export const BOOK_SCREEN_DEF = kit.defineScreen({
@@ -42,11 +43,21 @@ export const CONTROL_CENTER_TOGGLE = kit.defineScreenCommand({
   active: ctx => current(ctx)?.stages === false,
 })
 
-// ステージを並べないスクリーンがカレントの間、Esc でブックスクリーンへ戻る
+// 上下に分けて見せているか（カレントスクリーンが、分けた並びにある）
+const splitting = (ctx: ScreenCommandContext): boolean =>
+  ctx.arrangement.id === SPLIT_ROWS.id &&
+  splitShown(
+    ctx.screens,
+    ctx.screens.map(s => s.id),
+    ctx.arrangement.value,
+  ).length > 1
+
+// ステージを並べないスクリーンがカレントの間、Esc でブックスクリーンへ戻る。上下に分けている間は、ブラウザの履歴を 1 つ戻す（最後に開いた物を引っ込める）
 export const CONTROL_CENTER_LEAVE = kit.defineScreenCommand({
   id: "control-center-leave",
   title: "Back to the book screen",
   run: (ctx, a) => {
+    if (splitting(ctx)) return a.requestBack()
     const to = recent(ctx, true)
     if (to) a.makeScreenCurrent(to.id)
   },

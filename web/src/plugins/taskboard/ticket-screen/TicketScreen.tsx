@@ -39,6 +39,7 @@ import { TICKET_SCREEN, TICKET_SCREEN_STATE, type TicketScreenState, viewOf } fr
 import { AssigneeBirds } from "./AssigneeBirds"
 import { BackBar } from "./BackBar"
 import { LinkedText } from "./LinkedText"
+import { OpenChoiceHost } from "./OpenChoice"
 import { TagPicker } from "./TagPicker"
 import { TicketHistoryTimeline } from "./TicketHistoryTimeline"
 import styles from "./TicketScreen.module.css"
@@ -97,82 +98,84 @@ export function TicketScreen() {
   const question = rows.find(r => r.id === view.question)
   const assignees = assigneesOf(ticket, workrooms)
   return (
-    <section className={styles.screen} aria-label={t("ticket screen")}>
-      <div className={styles.ticket} data-folded={view.maximized} data-locked={locked}>
-        <div className={styles.band}>
-          <BackBar screen={me.id} folded={view.maximized} />
-          <span className={styles.bandEnd}>
-            <LockToggle
-              locked={locked}
-              label={locked ? t("Unlock the ticket") : t("Lock the ticket")}
-              onChange={next => perform(next ? TICKET_LOCK.id : TICKET_UNLOCK.id, {}, { record: id })}
-            />
-          </span>
-        </div>
-        <div className={styles.content} inert={view.maximized}>
-          <div className={styles.head}>
-            <span className={styles.id}>{ticketLabel(project?.prefix ?? "", ticket.number)}</span>
-            <TagPicker tags={tags} choices={tagChoices} canEdit={canEdit} onChange={next => edit({ tags: next })} />
-          </div>
-          <NameField name={ticket.name} canEdit={canEdit} onEditing={setEditing} onRename={name => edit({ name })} />
-          <div className={styles.dates}>
-            <Fact name={t("Filed at")}>{whenOf(ticket.createdAt)}</Fact>
-            <Fact name={t("Last changed")}>{whenOf(ticket.updatedAt)}</Fact>
-          </div>
-          <div className={styles.assignees}>
-            <span className={styles.factName}>{t("Assignees")}</span>
-            <span className={styles.assigneeList}>
-              {assignees.length > 0 ? <AssigneeBirds workrooms={assignees} /> : t("No assignees")}
+    <OpenChoiceHost>
+      <section className={styles.screen} aria-label={t("ticket screen")}>
+        <div className={styles.ticket} data-folded={view.maximized} data-locked={locked}>
+          <div className={styles.band}>
+            <BackBar screen={me.id} folded={view.maximized} />
+            <span className={styles.bandEnd}>
+              <LockToggle
+                locked={locked}
+                label={locked ? t("Unlock the ticket") : t("Lock the ticket")}
+                onChange={next => perform(next ? TICKET_LOCK.id : TICKET_UNLOCK.id, {}, { record: id })}
+              />
             </span>
           </div>
-          <PriorityField priority={ticket.priority} canEdit={canEdit} onChange={priority => edit({ priority })} />
-          <div className={styles.sectionHead}>{t("Knowledge")}</div>
-          <div className={styles.knowledge}>
-            <button
-              type="button"
-              className={styles.item}
-              aria-pressed={view.body}
-              onClick={() => set({ body: !view.body, maximized: false })}
-            >
-              <span className={styles.itemIcon}>
-                <BookIcon />
+          <div className={styles.content} inert={view.maximized}>
+            <div className={styles.head}>
+              <span className={styles.id}>{ticketLabel(project?.prefix ?? "", ticket.number)}</span>
+              <TagPicker tags={tags} choices={tagChoices} canEdit={canEdit} onChange={next => edit({ tags: next })} />
+            </div>
+            <NameField name={ticket.name} canEdit={canEdit} onEditing={setEditing} onRename={name => edit({ name })} />
+            <div className={styles.dates}>
+              <Fact name={t("Filed at")}>{whenOf(ticket.createdAt)}</Fact>
+              <Fact name={t("Last changed")}>{whenOf(ticket.updatedAt)}</Fact>
+            </div>
+            <div className={styles.assignees}>
+              <span className={styles.factName}>{t("Assignees")}</span>
+              <span className={styles.assigneeList}>
+                {assignees.length > 0 ? <AssigneeBirds workrooms={assignees} /> : t("No assignees")}
               </span>
-              <span className={styles.itemName}>{t("Body")}</span>
-            </button>
-          </div>
-          <div className={styles.sectionHead}>{t("History")}</div>
-          <div className={`${styles.historyScroll} ${scroll.thin}`}>
-            <TicketHistoryTimeline
-              ticket={id}
-              rows={rows}
-              openQuestion={view.question}
-              onOpenQuestion={(row: HistoryRow) => set({ question: row.id })}
-              workroomNames={workroomNames}
-            />
+            </div>
+            <PriorityField priority={ticket.priority} canEdit={canEdit} onChange={priority => edit({ priority })} />
+            <div className={styles.sectionHead}>{t("Knowledge")}</div>
+            <div className={styles.knowledge}>
+              <button
+                type="button"
+                className={styles.item}
+                aria-pressed={view.body}
+                onClick={() => set({ body: !view.body, maximized: false })}
+              >
+                <span className={styles.itemIcon}>
+                  <BookIcon />
+                </span>
+                <span className={styles.itemName}>{t("Body")}</span>
+              </button>
+            </div>
+            <div className={styles.sectionHead}>{t("History")}</div>
+            <div className={`${styles.historyScroll} ${scroll.thin}`}>
+              <TicketHistoryTimeline
+                ticket={id}
+                rows={rows}
+                openQuestion={view.question}
+                onOpenQuestion={(row: HistoryRow) => set({ question: row.id })}
+                workroomNames={workroomNames}
+              />
+            </div>
           </div>
         </div>
-      </div>
-      <div className={styles.right}>
-        <Side open={view.body} title={t("Body")}>
-          <BodyPanes
-            ticket={id}
-            body={ticket.body}
-            mode={view.mode}
-            maximized={view.maximized}
-            canEdit={canEdit}
-            onMode={mode => set({ mode })}
-            onMaximize={() => set({ maximized: !view.maximized })}
-            onEditing={setEditing}
-            onBody={body => {
-              if (edit({ body }).ok) markBodyEdited()
-            }}
-          />
-        </Side>
-        <Side open={question !== undefined} title={t("Question")} className={styles.question}>
-          {question ? <QuestionView ticket={id} row={question} onClose={() => set({ question: undefined })} /> : null}
-        </Side>
-      </div>
-    </section>
+        <div className={styles.right}>
+          <Side open={view.body} title={t("Body")}>
+            <BodyPanes
+              ticket={id}
+              body={ticket.body}
+              mode={view.mode}
+              maximized={view.maximized}
+              canEdit={canEdit}
+              onMode={mode => set({ mode })}
+              onMaximize={() => set({ maximized: !view.maximized })}
+              onEditing={setEditing}
+              onBody={body => {
+                if (edit({ body }).ok) markBodyEdited()
+              }}
+            />
+          </Side>
+          <Side open={question !== undefined} title={t("Question")} className={styles.question}>
+            {question ? <QuestionView ticket={id} row={question} onClose={() => set({ question: undefined })} /> : null}
+          </Side>
+        </div>
+      </section>
+    </OpenChoiceHost>
   )
 }
 

@@ -92,6 +92,7 @@ describe("UI マッピング", () => {
       "E211 layout no-stages: slot @matomezu/base:workroom-columns is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:workroom-row-line is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:one-screen is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:split-rows is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:control-center-footer is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:stage-top is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:stage-side is not opened by any placed widget",

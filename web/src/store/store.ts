@@ -183,6 +183,9 @@ export interface MatomezuState {
   // ブラウザの履歴を 1 つ戻してほしいと頼んだ回数（requestBack で増える。ホストクライアントが、増えたら戻す）と、この窓の中に戻る先があるか（ホストクライアントが入れる）
   backRequests: number
   canGoBack: boolean
+  // 窓の変わりをブラウザの履歴に積まずに書き換えてほしいと頼んだ回数（setScreenArrangement の history: "replace" で増える。ホストクライアントが、
+  // 増えたら、その同期の処理の中の変わりをまとめて書き換える）
+  historyReplaces: number
 }
 
 // 参加者 1 人の様子: AI のフックが知らせたモデルと、MCP が添えた git のブランチ（知らされていない物は持たない）
@@ -234,6 +237,11 @@ export interface HostRefused {
 }
 
 // 画面の操作のうち、窓に向ける物（呼ぶ場所によらない）
+// スクリーンアレンジメントを替えるときの指定: history が "replace" なら、ブラウザの履歴に積まずに書き換える（無ければ、ほかの移動と同じく積む）
+export interface ArrangeOptions {
+  history?: "push" | "replace"
+}
+
 export interface WindowActions {
   // アクションを行い、結果を状態に入れる（ビルトインプラグインのアクションも追加プラグインのアクションも、画面と AI から同じ入口を通る）。
   // ブックが変われば、そのブックを開いている全部のステージを合わせ、一覧が変われば、無くなったブックを開いていたステージは何も開かない
@@ -260,7 +268,9 @@ export interface WindowActions {
   makeScreenCurrent(id: string): void // 開いているスクリーン id をカレントスクリーンにする（見せるかはスクリーンアレンジメントが決める。退いた物の中は残す）
   // 開いているスクリーン id を閉じる（カレントスクリーンだったなら、1 つ前にカレントだった物がカレントになる）。最初から開いているスクリーンと、最後の 1 枚のブックスクリーンは閉じない
   closeScreen(id: string): void
-  setScreenArrangement(def: string): void // スクリーンアレンジメントを、定義 def に替える（機能台帳に無ければ替えない）
+  // スクリーンアレンジメントを定義 def と値 value に替える（値を渡さなければ、定義の初めの値。機能台帳に無い定義・値が定義の形に合わなければ替えない）。
+  // history が "replace" なら、同じ同期の処理の中の窓の変わり（スクリーンを閉じるのも）をまとめて、ブラウザの履歴に積まずに書き換える（利用者の操作でない変わり。窓の大きさで畳むなど）
+  setScreenArrangement(def: string, value?: unknown, options?: ArrangeOptions): void
   showStage(id: string): void // ステージ id をカレントにし、それを並べているスクリーンをカレントスクリーンにする（そのステージを見せる）
   moveDivider(x: number, width: number): void // 分けている境目を、並べた幅 width の左から x の所へ（ドラッグした位置）
   evenDivider(): void // 分けている境目を真ん中に戻す
@@ -528,6 +538,7 @@ function initialState(
     printRequests: 0,
     backRequests: 0,
     canGoBack: false,
+    historyReplaces: 0,
   }
 }
 
@@ -1116,7 +1127,12 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       return true
     },
     makeScreenCurrent: id => withWindow(win => makeCurrent(win, id)),
-    setScreenArrangement: def => withWindow(win => setArrangement(win, catalog, def)),
+    setScreenArrangement: (def, value, options) => {
+      const was = getState().window
+      withWindow(win => setArrangement(win, catalog, def, value))
+      if (options?.history === "replace" && getState().window !== was)
+        setState({ historyReplaces: getState().historyReplaces + 1 })
+    },
     closeScreen: id => withWindow(win => closeScreen(win, catalog, id)),
     showStage: id =>
       withWindow(win =>

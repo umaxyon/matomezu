@@ -163,6 +163,7 @@ import { REVEAL_REQUEST_STATES, type REVEALING_STATE } from "./utils/reveal-stat
 import { WIDE_SEARCH_MODE } from "./wide-search/state"
 import { BOOK_SCREEN_DEF, CONTROL_CENTER_KEYS, CONTROL_CENTER_LEAVE, CONTROL_CENTER_TOGGLE, ONE_SCREEN } from "./window"
 import { MAXIMIZERS } from "./window/maximize-state"
+import { SPLIT_ROWS } from "./window/split"
 import { ZOOM_FIT, ZOOM_IN, ZOOM_KEYS, ZOOM_OUT, ZOOM_RESET, ZOOM_WHEEL } from "./zoom"
 
 export { PAGE_PAPER_COLOR, PAGE_THEME } from "./book-look"
@@ -386,7 +387,7 @@ export const BASE = defineBuiltin(
     mails: [MAIL_LETTER, MAIL_JOIN_REQUEST, MAIL_PROPOSAL],
     subjects: [WORKROOM, PARTICIPANT, ADMIN_MARK, MAIL, SCRAP],
     screens: [BOOK_SCREEN_DEF],
-    screenArrangements: [ONE_SCREEN],
+    screenArrangements: [ONE_SCREEN, SPLIT_ROWS],
     checks: [
       PROP_NAMES_CHECK,
       SCRAP_FRAME_CHECK,
@@ -590,6 +591,7 @@ declare module "../../core/catalog" {
   }
   interface ScreenArrangementTable {
     "@matomezu/base:one-screen": typeof ONE_SCREEN
+    "@matomezu/base:split-rows": typeof SPLIT_ROWS
   }
   interface SubjectTable {
     "@matomezu/base:workroom": typeof WORKROOM

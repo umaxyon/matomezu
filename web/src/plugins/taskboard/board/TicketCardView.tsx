@@ -1,12 +1,13 @@
 // チケットのチケットカード（レーンの中の 1 枚）: 番号（プレフィクス＋番号）・名前・タグのバッヂ・優先度の印（プロジェクトの cardShows が出すときだけ）・右上に担当の鳥。
 // 大きさ（チケットサイズ）で形が変わる: large は名前とタグを折り返し（タグは 3 行まで）、medium は名前を 1 行で … で切りタグも 1 行、small は番号と名前の 1 行だけ（… で切る）。
 // タグはプロジェクトの順で、入らない分は「+N」
-// 押すとチケットスクリーンを開く。チケットカードには data-card（チケットの id）を付ける
-import { useMessages, usePluginState, useScreens } from "../../../plugin-api/ui"
+// 押すとチケットスクリーンを開く（上下に分けて見せていれば閉じる。開き方は useOpenTicket の card）。上下に分けて見せているチケットのカードは色を付ける（data-open）。
+// チケットカードには data-card（チケットの id）を付ける
+import { useMessages, usePluginState } from "../../../plugin-api/ui"
 import { kit } from "../kit"
 import type { CardShows, CardSize } from "../project"
 import { ticketLabel } from "../ticket/label"
-import { TICKET_SCREEN } from "../ticket-screen"
+import { useOpenTicket } from "../ticket-screen/useOpenTicket"
 import { CARD_VISIT } from "."
 import { AssigneeStack } from "./AssigneeStack"
 import { CardTags } from "./CardTags"
@@ -34,10 +35,10 @@ export function TicketCardView({
   tags: readonly TagRecord[]
   assignees: readonly WorkroomRecord[]
 }) {
-  const { open } = useScreens()
+  const opener = useOpenTicket()
   const visit = usePluginState(kit, CARD_VISIT)
   const lit = visit?.phase === "visiting" && visit.ticket === ticket.id
-  const show = () => open(TICKET_SCREEN, { ticket: ticket.id })
+  const show = () => opener.card(ticket.id)
   return (
     // biome-ignore lint/a11y/useSemanticElements: 中に担当の鳥など押せる物を持つので、button にはできない
     <div
@@ -45,6 +46,8 @@ export function TicketCardView({
       data-card={ticket.id}
       data-size={size}
       data-lit={lit}
+      data-open={opener.shown(ticket.id)}
+      aria-pressed={opener.shown(ticket.id)}
       role="button"
       tabIndex={0}
       onClick={show}

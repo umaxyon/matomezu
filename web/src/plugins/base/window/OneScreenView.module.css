@@ -1,4 +1,4 @@
-/* スクリーンアレンジメント「1 枚ずつ」: ブックスクリーンを下に敷き、ステージを並べないスクリーンを前に出すときは右から滑り込ませ、ブックスクリーンへ戻すときは右へ滑り出す。その間は下の行を出す */
+/* スクリーンアレンジメント「1 枚ずつ」と「上下に分ける」: ブックスクリーンを下に敷き、ステージを並べないスクリーンを前に出すときは右から滑り込ませ、ブックスクリーンへ戻すときは右へ滑り出す。その間は下の行を出す */
 .bookScreen {
   position: absolute;
   inset: 0;
@@ -51,7 +51,7 @@
   flex: 1;
   min-height: 0;
 }
-/* ステージを並べないスクリーン 1 枚。並べた順に重なり、上の 1 枚が下の物を覆う。あとから開いた物は右から滑り込み、閉じると右へ滑り出る */
+/* ステージを並べないスクリーン 1 枚。カレントにした順に重なり（z-index はビューが決める）、上の 1 枚が下の物を覆う。あとから開いた物は右から滑り込み、閉じると右へ滑り出る */
 .plain {
   position: absolute;
   inset: 0;
@@ -77,4 +77,23 @@
   align-items: center;
   padding: 0 6px;
   user-select: none;
+}
+/* 上下に分けた並びの 1 枚: 並びの位置と高さ（--row-top・--row-height）に置く（重なりはビューが z-index で決める）。位置と高さは、滑るのと同じ時間で動かす */
+.plain[data-row="true"] {
+  inset: auto 0;
+  top: var(--row-top);
+  height: var(--row-height);
+  transition:
+    transform var(--front-slide) ease,
+    top var(--front-slide) ease,
+    height var(--front-slide) ease;
+}
+/* 分け始めに入る物は、上の物が縮み終えてから滑り込む */
+.plain[data-late="true"] {
+  transition-delay: var(--front-slide);
+}
+@media (prefers-reduced-motion: reduce) {
+  .plain[data-row="true"] {
+    transition: none;
+  }
 }

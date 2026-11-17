@@ -165,9 +165,9 @@ export interface PluginKit<P extends string, M extends MessageMap> {
   ): Omit<ScreenDef<Pr>, "id"> & { id: Owned<P, Id> }
 
   // スクリーンアレンジメントの定義（窓の、開いているスクリーンの見せ方。見えているスクリーンを shown が答える）
-  defineScreenArrangement<const Id extends string>(
-    def: ScreenArrangementDef<keyof M & string> & { id: Id },
-  ): Omit<ScreenArrangementDef, "id"> & { id: Owned<P, Id> }
+  defineScreenArrangement<const Id extends string, V = unknown>(
+    def: ScreenArrangementDef<keyof M & string, V> & { id: Id },
+  ): Omit<ScreenArrangementDef<MessageKey, V>, "id"> & { id: Owned<P, Id> }
 
   // 列挙の宣言（値の組。値が持つフィールドの形を value に書く）と、列挙の値（宣言した列挙 enum に足す。data は宣言の value の形）
   defineEnum<const Id extends string, V extends EnumDef["value"]>(
