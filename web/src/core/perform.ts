@@ -115,7 +115,7 @@ export type Refused =
   | { ok: false; reason: Exclude<Refusal, "not-allowed" | "refused"> }
   | NoPage
   | Unreadable
-  | { ok: false; reason: "refused"; detail?: string; kind?: string }
+  | { ok: false; reason: "refused"; detail?: string; kind?: string } // kind は断りの種類（run が添えた名前か、土台の種類。土台の種類は名前空間が付かない）
   | NotAllowed
   | Denied
 // others はレコードが対象のアクションが、宛先のほかに変えたレコード（同じ種類か、writes に書いた種類。確かめ終えた物）
