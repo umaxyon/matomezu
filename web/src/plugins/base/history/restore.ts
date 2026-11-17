@@ -2,9 +2,9 @@
 // 前か後の値に置き直す。置き直す値（Patch）は画面の履歴の段だけから決まり、今の表の上で行う（その間にほかで変わった所は、画面の履歴の段が変えた所に重なれば上書きし、
 // 重ならなければ残す。core/restore.ts）
 import { z } from "zod"
-import { type RowPatches, withRowPatches } from "../../../core/folders"
+import { type Library, libraryOf, type RowPatches, restoredTables, withRowPatches } from "../../../core/folders"
 import type { RowChange } from "../../../core/history"
-import type { Library } from "../../../core/library"
+import type { Books } from "../../../core/library"
 import { type ListPatch, type Patch, patchOf } from "../../../core/patch"
 
 export const PatchSchema: z.ZodType<Patch> = z.lazy(() =>
@@ -55,13 +55,29 @@ export function patchesToward<T>(
 
 // 一覧 library のブック books を、ページとフォルダごとの置き直す値 patches で置き直した一覧（変わらなかったブックは同じ値のまま）。
 // books のどれかが無い・ゴミ箱に在る・置き直すと組めなくなるか、books のほかのブックが変わる・ブックが増える・減るなら null
-export function restoredLibrary(library: Library, books: readonly string[], patches: RowPatches): Library | null {
-  if (books.some(id => library[id] === undefined || library[id]?.trashed !== undefined)) return null
+export function restoredLibrary(library: Books, books: readonly string[], patches: RowPatches): Books | null {
+  if (!restorable(library, books)) return null
   const next = withRowPatches(Object.values(library), patches)
-  if (Object.keys(next).length !== Object.keys(library).length) return null
-  for (const was of Object.values(library)) {
-    const now = next[was.id]
-    if (!now || (now !== was && !books.includes(was.id))) return null
-  }
-  return next
+  return onlyChanged(library, next, books) ? next : null
+}
+
+// 書庫 library のブック books を、patches で置き直した書庫（断る場合は、上の restoredLibrary と同じ）
+export function restoredRows(library: Library, books: readonly string[], patches: RowPatches): Library | null {
+  const was = libraryOf(library)
+  if (!restorable(was, books)) return null
+  const next = restoredTables(library, patches)
+  return onlyChanged(was, libraryOf(next), books) ? next : null
+}
+
+// ブック books が、どれも一覧 library に在って、ゴミ箱に無いか
+const restorable = (library: Books, books: readonly string[]): boolean =>
+  books.every(id => library[id] !== undefined && library[id]?.trashed === undefined)
+
+// 一覧 was から next へ、ブックが増えも減りもせず、変わったのがブック books だけか
+function onlyChanged(was: Books, next: Books, books: readonly string[]): boolean {
+  if (Object.keys(next).length !== Object.keys(was).length) return false
+  return Object.values(was).every(b => {
+    const now = next[b.id]
+    return now !== undefined && (now === b || books.includes(b.id))
+  })
 }

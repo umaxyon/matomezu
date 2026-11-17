@@ -2,7 +2,8 @@
 // 消す book-purge と、ゴミ箱を空にする trash-empty（一覧から消す。戻せない）。戻す・消す・空にするのは利用者だけ（userOnly）。
 // 無いブック・入れ済みのブックは入れない。ロック中のブック・ロック中のページを持つブックは、認可ステップ lock が止める
 import { z } from "zod"
-import type { Library } from "../../../core/library"
+import { bookOf, type Library, libraryOf, withBook, withoutBook } from "../../../core/folders"
+import type { Books } from "../../../core/library"
 import type { Book } from "../../../core/schema/book"
 import { setField } from "../fields"
 import { kit } from "../kit"
@@ -11,18 +12,18 @@ import { kit } from "../kit"
 export const isTrashCandidate = (book: Book): boolean => book.trashed === undefined
 
 // ゴミ箱のブックを、入れた時刻の新しい順に
-export const trashOrder = (trash: Library): Book[] =>
+export const trashOrder = (trash: Books): Book[] =>
   Object.values(trash).sort((a, b) => ((a.trashed ?? "") < (b.trashed ?? "") ? 1 : -1))
 
 // ブック id の trashed を at にする（undefined なら外す）
 function markTrashed(library: Library, id: string, at: string | undefined): Library {
-  const book = library[id]
-  return book ? { ...library, [id]: setField(book, ["title", "locked"], "trashed", at) } : library
+  const book = bookOf(library, id)
+  return book ? withBook(library, setField(book, ["title", "locked"], "trashed", at)) : library
 }
 
-// ゴミ箱のブック ids を一覧から消す（ゴミ箱に無いブックは残す）
+// ゴミ箱のブック ids を書庫から消す（ゴミ箱に無いブックは残す）
 function purge(library: Library, ids: readonly string[]): Library {
-  return Object.fromEntries(Object.entries(library).filter(([id, b]) => !(ids.includes(id) && b.trashed !== undefined)))
+  return ids.reduce((l, id) => (bookOf(l, id)?.trashed === undefined ? l : withoutBook(l, id)), library)
 }
 
 export const BOOK_TRASH = kit.defineAction({
@@ -34,7 +35,7 @@ export const BOOK_TRASH = kit.defineAction({
   permissionScope: { book: "book", where: "all-pages" },
   args: z.strictObject({ book: z.string().min(1) }),
   run: (library, args, ctx) => {
-    const book = library[args.book]
+    const book = bookOf(library, args.book)
     if (!book || !isTrashCandidate(book)) return null
     return { next: markTrashed(library, args.book, ctx.now), result: {} }
   },
@@ -49,7 +50,7 @@ export const BOOK_RESTORE = kit.defineAction({
   permissionScope: { book: "book", where: "all-pages" },
   args: z.strictObject({ book: z.string().min(1) }),
   run: (library, args) => {
-    if (library[args.book]?.trashed === undefined) return null
+    if (bookOf(library, args.book)?.trashed === undefined) return null
     return { next: markTrashed(library, args.book, undefined), result: {} }
   },
 })
@@ -63,7 +64,7 @@ export const BOOK_PURGE = kit.defineAction({
   permissionScope: { books: "books", where: "all-pages" },
   args: z.strictObject({ books: z.array(z.string().min(1)).min(1) }),
   run: (library, args) => {
-    if (!args.books.every(id => library[id]?.trashed !== undefined)) return null
+    if (!args.books.every(id => bookOf(library, id)?.trashed !== undefined)) return null
     return { next: purge(library, args.books), result: {} }
   },
 })
@@ -76,5 +77,5 @@ export const TRASH_EMPTY = kit.defineAction({
   userOnly: true,
   permissionScope: "unknown", // どのブックを消すかは、行う前の引数からは言えない
   args: z.strictObject({}),
-  run: library => ({ next: purge(library, Object.keys(library)), result: {} }),
+  run: library => ({ next: purge(library, Object.keys(libraryOf(library))), result: {} }),
 })

@@ -7,7 +7,7 @@
 import type { ItemId, ToolId } from "./catalog"
 import type { CoreCatalog } from "./core-catalog"
 import { fail } from "./errors"
-import type { Library } from "./library"
+import type { Books } from "./library"
 import type { Book } from "./schema/book"
 import {
   closeBook,
@@ -118,7 +118,7 @@ export function focus(ws: Workspace, id: string): Workspace {
 
 // ステージの今の道具（無いステージや、道具を使わないステージは null）。覚えている道具を、開いているブック（books のもの）のページで使えなければ、
 // 組の回す順で次の使える道具（どれも使えなければ null）
-export function toolOf(catalog: CoreCatalog, ws: Workspace, id: string, books: Library): ToolId | null {
+export function toolOf(catalog: CoreCatalog, ws: Workspace, id: string, books: Books): ToolId | null {
   const stage = ws.stages.find(s => s.id === id)
   const set = stage ? toolSetOf(catalog, stage) : null
   if (!stage || !set) return null
@@ -130,7 +130,7 @@ export function toolOf(catalog: CoreCatalog, ws: Workspace, id: string, books: L
 }
 
 // ステージで道具を使えるか（開いているブックのページで、行うアクションのどれかを認可ステップが止めない）
-export function usableIn(catalog: CoreCatalog, stage: Stage, books: Library): (tool: string) => boolean {
+export function usableIn(catalog: CoreCatalog, stage: Stage, books: Books): (tool: string) => boolean {
   const book = stage.opened ? (books[stage.opened.book] ?? null) : null
   return tool => toolUsable(catalog, tool, book, shownPageId(stage.opened))
 }

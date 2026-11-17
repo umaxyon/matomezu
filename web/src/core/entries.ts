@@ -9,7 +9,7 @@ import {
   HOME_ID,
   inTrash,
   isOpenRole,
-  type Tables,
+  type Library,
 } from "./folders"
 
 export type EntryKind = AnyEntryRef["kind"]
@@ -40,7 +40,7 @@ export const isMoveRefusal = (v: Readonly<Record<string, Folder>> | MoveRefusal)
 // エントリ entry を、フォルダ into の index 番目（動かす物を除いて数える。言わなければ末尾）へ動かしたときの、変わるフォルダ（id → 新しい値）。
 // 同じフォルダの中の並べ替えも。動かせなければ、その訳
 export function movedEntry(
-  { folders }: Tables,
+  { folders }: Library,
   entry: string,
   into: string,
   index?: number,

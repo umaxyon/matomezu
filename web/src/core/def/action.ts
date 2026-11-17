@@ -5,8 +5,9 @@ import { type Actor, isAI } from "../actor"
 import type { PageAnnotations } from "../annotation"
 import type { ActionExtras, SubjectId, SubjectTable } from "../catalog"
 import type { CoreCatalog } from "../core-catalog"
+import type { Library } from "../folders"
 import type { Lang, MessageKey } from "../i18n/i18n"
-import type { Library } from "../library"
+import type { Books } from "../library"
 import type { ItemPage } from "../placed"
 import type { Condition, ConditionOf, KeyValuesOf } from "../record-keys"
 import type { Records } from "../records"
@@ -14,7 +15,7 @@ import type { Book } from "../schema/book"
 import type { Settings } from "../settings"
 import { type PageTypeDef, placeableOf } from "./page-type"
 
-// 対象ごとの、アクションが受け取って返すデータ。library はブックの一覧、settings は利用者の設定で、
+// 対象ごとの、アクションが受け取って返すデータ。library は書庫（ページの行と、フォルダの行。core/folders.ts）、settings は利用者の設定で、
 // この 2 つのアクションを使えるかはコントロールセンターが決める。page はページ 1 枚（その中身だけを変える。並びとほかのページは変えない）。
 // annotations はページ 1 枚のアノテーション（core/annotation.ts）で、使えるかは page と同じくそのページのタイプが決める
 export interface Subjects {
@@ -79,7 +80,7 @@ export interface ActionContext {
   permittedPages?: readonly string[]
   actor: Actor // 行った者（利用者か AI か。AI には userOnly のアクションとロックを外すことを断る）
   // レコードが対象のアクションが読むだけのブック（アクションの readsBooks が引数から答えた id のブックだけ。ほかのアクションには無い。郵便に乗せる変更を確かめるのに使う）
-  books?: Readonly<Library>
+  books?: Readonly<Books>
   // レコードが対象のアクションが読むだけの、アクションの reads が答えたレコード（種類の id → id → レコード。ほかの対象のアクションには無い）
   records?: Readonly<Records>
   // レコードが対象のアクションが、索引キーだけ読むと宣言した物（reads の keysOnly。種類の id → id → 索引キーの値。中身は読まない）

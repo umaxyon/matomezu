@@ -4,10 +4,10 @@
 import { expect, test } from "bun:test"
 import {
   changesBetween,
+  type Library,
   type RowPatches,
   restoredTables,
   type TableChanges,
-  type Tables,
   tablesOf,
 } from "../../../web/src/core/folders"
 import type { RowChange } from "../../../web/src/core/history"
@@ -52,7 +52,7 @@ const toward = (from: Book, to: Book, side: "before" | "after"): RowPatches => {
   const r = rows(from, to)
   return { pages: patchesToward(r.pages, side), folders: patchesToward(r.folders, side) }
 }
-const applied = (now: Book, patches: RowPatches): Tables => restoredTables(tablesOf([now]), patches)
+const applied = (now: Book, patches: RowPatches): Library => restoredTables(tablesOf([now]), patches)
 
 test("ブックのフィールド・ページ・アイテムを、前の値に戻し、後の値にやり直す", () => {
   const before = book({ locked: true }, [page("p", [item("a"), item("b")]), page("q", [])])

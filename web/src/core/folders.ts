@@ -117,7 +117,7 @@ export const homeOver = (books: readonly { id: string }[]): HomeFolder => ({
 })
 
 // 世界の表: ブック books を分けた表に、書庫ホームとフォルダ others を足した物
-export function worldTablesOf(books: readonly Book[], others: readonly HomeOrFolder[]): Tables {
+export function worldTablesOf(books: readonly Book[], others: readonly HomeOrFolder[]): Library {
   const tables = tablesOf(books)
   if (others.length === 0) return tables
   return { pages: tables.pages, folders: { ...tables.folders, ...Object.fromEntries(others.map(f => [f.id, f])) } }
@@ -129,7 +129,7 @@ export type PageRow = AnyPage | UnreadableEntry
 export type Pages = Readonly<Record<string, PageRow>>
 export type Folders = Readonly<Record<string, Folder>>
 // ページの表とフォルダの表
-export interface Tables {
+export interface Library {
   pages: Pages
   folders: Folders
 }
@@ -185,7 +185,7 @@ function split(book: Book): { folders: Folder[]; pages: PageRow[] } {
 }
 
 // ブックの並び books を、ページの表とフォルダの表にした物
-export function tablesOf(books: readonly Book[]): Tables {
+export function tablesOf(books: readonly Book[]): Library {
   const pages: Record<string, PageRow> = {}
   const folders: Record<string, Folder> = {}
   for (const book of books) {
@@ -224,7 +224,7 @@ function binderOf(pages: Pages, folder: BinderFolder): BinderEntry | undefined {
 }
 
 // id のブックを、表から組んだ値（ブックのフォルダが無い・バインダ・エントリが表に無ければ undefined）
-export function bookOf({ pages, folders }: Tables, id: string): Book | undefined {
+export function bookOf({ pages, folders }: Library, id: string): Book | undefined {
   const folder = folders[id]
   if (folder?.folderRole !== "book") return undefined
   const parts: (LineupEntry | undefined)[] = folder.lineup.map(r => {
@@ -243,7 +243,7 @@ export function bookOf({ pages, folders }: Tables, id: string): Book | undefined
 
 // 表のブックを全部組んだ一覧（ブックの id → ブック。ゴミ箱のブックも）。前に組んだ一覧と中身が同じなら、同じ値を返す
 let lastLibrary: Readonly<Record<string, Book>> = {}
-export function libraryOf(tables: Tables): Readonly<Record<string, Book>> {
+export function libraryOf(tables: Library): Readonly<Record<string, Book>> {
   const next: Record<string, Book> = {}
   for (const f of Object.values(tables.folders)) {
     const book = f.folderRole === "book" ? bookOf(tables, f.id) : undefined
@@ -254,6 +254,45 @@ export function libraryOf(tables: Tables): Readonly<Record<string, Book>> {
     return lastLibrary
   lastLibrary = next
   return next
+}
+
+// ブックのフォルダ folder の下の、バインダとページの id（表に無い物の id も）
+function rowIdsUnder(folders: Folders, folder: Folder): { folders: string[]; pages: string[] } {
+  const out = { folders: [] as string[], pages: [] as string[] }
+  for (const r of folder.lineup) {
+    if (r.kind === "page") out.pages.push(r.id)
+    if (r.kind !== "binder") continue
+    out.folders.push(r.id)
+    const binder = folders[r.id]
+    if (binder?.folderRole === "binder") out.pages.push(...binder.lineup.map(p => p.id))
+  }
+  return out
+}
+
+// 書庫 library から、id のブックのフォルダと、その下のバインダとページを外した書庫（ブックのフォルダが無ければ library のまま。入れているフォルダの並びは変えない）
+export function withoutBook(library: Library, id: string): Library {
+  const folder = library.folders[id]
+  if (folder?.folderRole !== "book") return library
+  const under = rowIdsUnder(library.folders, folder)
+  const gone = new Set([id, ...under.folders])
+  const pages = new Set(under.pages)
+  return {
+    pages: Object.fromEntries(Object.entries(library.pages).filter(([p]) => !pages.has(p))),
+    folders: Object.fromEntries(Object.entries(library.folders).filter(([f]) => !gone.has(f))),
+  }
+}
+
+// 書庫 library に、ブックの値 book を置いた書庫: 同じ id のブックが在れば置き換え（前に持っていて book に無いバインダとページは外す）、無ければ足す
+// （入れるフォルダの並びには足さない）。中身の同じ行は、前の値のまま残す
+export function withBook(library: Library, book: Book): Library {
+  const rows = recordsOf(book)
+  const base = withoutBook(library, book.id)
+  const kept = <T>(was: T | undefined, now: T): T => (was !== undefined && sameData(was, now) ? was : now)
+  const pages = { ...base.pages }
+  for (const p of rows.pages) pages[p.id] = kept(library.pages[p.id], p)
+  const folders = { ...base.folders }
+  for (const f of rows.folders) folders[f.id] = kept(library.folders[f.id], f)
+  return { pages, folders }
 }
 
 // エントリ（ページかバインダ）の id → それを入れているフォルダの id
@@ -292,7 +331,7 @@ function refFits(pages: Pages, folders: Folders, r: AnyEntryRef): boolean {
 // 木の決まり: 書庫ホームが在る（ゴミ箱は、在れば 1 つ）／書庫ホームとゴミ箱はどのフォルダにも入らない／そのほかのフォルダは、ちょうど 1 つのフォルダに入り、
 // 上へたどると書庫ホームかゴミ箱に着く（輪にならない）／ページは、どれかのフォルダ（ブック・バインダを含む）に入る／書庫ホーム・ゴミ箱・フォルダのエントリは、
 // 種類が合う（page は表に在るページ、binder はバインダ、folder は表に在るフォルダ、book はブック）／ブックとバインダは、ブックもフォルダも持たない（型が決める）
-export function treeHolds({ pages, folders }: Tables): boolean {
+export function treeHolds({ pages, folders }: Library): boolean {
   if (folders[HOME_ID]?.folderRole !== "home") return false
   const trash = folders[TRASH_ID]
   if (trash && trash.folderRole !== "trash") return false
@@ -335,11 +374,11 @@ export function rowsHoldTree(rows: readonly unknown[], pages: readonly string[])
     const refs = lineup.flatMap(r => (LooseRefSchema.safeParse(r).success ? [r as EntryRef] : []))
     folders[id] = { folderRole: folderRole === "binder" ? "binder" : "book", id, lineup: refs } as unknown as Folder
   }
-  return treeHolds({ pages: Object.fromEntries(pages.map(id => [id, undefined])), folders } as unknown as Tables)
+  return treeHolds({ pages: Object.fromEntries(pages.map(id => [id, undefined])), folders } as unknown as Library)
 }
 
 // 変わり changes（ブックを足す・消す）に、置き場所の書き込みを足した変わり: 足したブックは書庫ホームの末尾に入れ、無くなったブックは、入っていたフォルダの並びから外す
-export function placedChanges(tables: Tables, changes: TableChanges): TableChanges {
+export function placedChanges(tables: Library, changes: TableChanges): TableChanges {
   const added = Object.entries(changes.folders).flatMap(([id, f]) =>
     f !== REMOVED && f.folderRole === "book" && !(id in tables.folders) ? [id] : [],
   )
@@ -385,7 +424,7 @@ export function changesBetween(before: readonly Book[], after: readonly Book[]):
 }
 
 // 表 was を表 now にする変わり: 変わった・足したページとフォルダと、無くなったページとフォルダ（どちらにも在って中身が同じ物は入れない。作り直しただけの行は変わりにしない）
-export function rowChanges(was: Tables, now: Tables): TableChanges {
+export function rowChanges(was: Library, now: Library): TableChanges {
   const changed = <T>(a: Readonly<Record<string, T>>, b: Readonly<Record<string, T>>) => {
     if (a === b) return {}
     const out: Record<string, T | typeof REMOVED> = {}
@@ -397,7 +436,7 @@ export function rowChanges(was: Tables, now: Tables): TableChanges {
 }
 
 // 表 next を、今の表 now に寄せる: 中身の同じページ・フォルダは今の値を使い（組んだブックも同じ値のままになり、描き直しを減らす）、全部同じなら now を返す
-export function settledOn(next: Tables, now: Tables): Tables {
+export function settledOn(next: Library, now: Library): Library {
   const settled = <T>(a: Readonly<Record<string, T>>, b: Readonly<Record<string, T>>) => {
     const kept: Record<string, T> = {}
     for (const [id, v] of Object.entries(a)) {
@@ -418,7 +457,7 @@ export const noChanges = (changes: TableChanges): boolean =>
   Object.keys(changes.pages).length === 0 && Object.keys(changes.folders).length === 0
 
 // 表 tables に変わり changes を当てた表（変わらない表は、同じ値のまま）
-export function withChanges(tables: Tables, changes: TableChanges): Tables {
+export function withChanges(tables: Library, changes: TableChanges): Library {
   const applied = <T>(table: Readonly<Record<string, T>>, puts: Readonly<Record<string, T | typeof REMOVED>>) => {
     if (Object.keys(puts).length === 0) return table
     const next: Record<string, T> = { ...table }
@@ -436,7 +475,7 @@ export const createdIn = (before: readonly Book[], changes: TableChanges): strin
   createdOn(tablesOf(before), changes)
 
 // 変わり changes が新しく足すページ・フォルダ（表 was に無かった物）の id
-export function createdOn(was: Tables, changes: TableChanges): string[] {
+export function createdOn(was: Library, changes: TableChanges): string[] {
   return [
     ...Object.entries(changes.pages).filter(([id, v]) => v !== REMOVED && !(id in was.pages)),
     ...Object.entries(changes.folders).filter(([id, v]) => v !== REMOVED && !(id in was.folders)),
@@ -514,7 +553,7 @@ function there<R extends AnyEntryRef>(lineup: readonly R[], has: (r: R) => boole
 
 // 表 tables に、ページとフォルダごとの置き直す値 patches を行った表（何も変わらなければ tables のまま）。ページとフォルダは別々に置き直すので、
 // 行った後に、エントリとその中身が食い違う所を落とす: 中身が表に無いエントリは並びから外し、どのフォルダ（ブックを含む）の並びからもたどれないページとバインダは表から外す
-export function restoredTables(tables: Tables, patches: RowPatches): Tables {
+export function restoredTables(tables: Library, patches: RowPatches): Library {
   const pages = patched(tables.pages, patches.pages)
   const folders = patched(tables.folders, patches.folders)
   if (pages === tables.pages && folders === tables.folders) return tables

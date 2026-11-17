@@ -5,11 +5,11 @@
 import { pagesOf } from "../../../core/book"
 import type { LibraryTargets } from "../../../core/def/action"
 import type { HistoryStep } from "../../../core/history"
-import type { Library } from "../../../core/library"
+import type { Books } from "../../../core/library"
 import { shownPageId } from "../../../core/stage"
 import { booksOf, type CommandActions, type CommandContext } from "../../../store/commands/def"
 import { kit } from "../kit"
-import { patchesToward, RevertArgs, restoredLibrary, restoredPages } from "./restore"
+import { patchesToward, RevertArgs, restoredLibrary, restoredPages, restoredRows } from "./restore"
 
 export const HISTORY_RESTORE = kit.defineAction({
   id: "book-revert",
@@ -28,14 +28,14 @@ export const HISTORY_RESTORE = kit.defineAction({
   },
   args: RevertArgs,
   run: (library, args) => {
-    const next = restoredLibrary(library, args.books, args)
+    const next = restoredRows(library, args.books, args)
     return next ? { next, result: {} } : null
   },
 })
 
 // 置き直したあと、開いていたいページ: 画面の履歴の段が変えたページのうち、一覧 books を args で置き直したあとの、ブック book に入っている最初のページ
 function pageToOpen(
-  books: Library,
+  books: Books,
   step: HistoryStep,
   to: "before" | "after",
   book: string,

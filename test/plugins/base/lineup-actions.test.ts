@@ -4,6 +4,7 @@ import { describe, expect, test } from "bun:test"
 import { USER } from "../../../web/src/core/actor"
 import { findBinder, findPage, lineupOf, pagesIn, pagesOf, putPage } from "../../../web/src/core/book"
 import { checkCoreCatalog } from "../../../web/src/core/core-catalog"
+import { bookOf, tablesOf } from "../../../web/src/core/folders"
 import { perform } from "../../../web/src/core/perform"
 import type { ItemPage } from "../../../web/src/core/placed"
 import type { Book } from "../../../web/src/core/schema/book"
@@ -116,11 +117,13 @@ describe("pages-update", () => {
 })
 
 test("book-create は、名前だけの空のブックか、最初のページと一緒に作る", () => {
-  const made = perform({}, "@matomezu/base:book-create", { title: "新しい", page: { type: DRAWING } }, ctx())
+  const made = perform(tablesOf([]), "@matomezu/base:book-create", { title: "新しい", page: { type: DRAWING } }, ctx())
   expect(made).toMatchObject({ ok: true, result: { book: "n1", page: { page: "n2" } } })
-  expect(made.ok && pagesOf(made.next.n1!).map(p => [p.id, p.type])).toEqual([["n2", DRAWING]])
+  expect(made.ok && pagesOf(bookOf(made.next, "n1")!).map(p => [p.id, p.type])).toEqual([["n2", DRAWING]])
   // 最初のページを作れなければ、ブックも作らない
-  expect(perform({}, "@matomezu/base:book-create", { title: "x", page: { type: SLIDE } }, ctx()).ok).toBe(false)
+  expect(perform(tablesOf([]), "@matomezu/base:book-create", { title: "x", page: { type: SLIDE } }, ctx()).ok).toBe(
+    false,
+  )
 })
 
 test("アクションの結果でページのタイプが替わっていたら、perform は断る", () => {

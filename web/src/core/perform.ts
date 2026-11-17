@@ -6,7 +6,6 @@ import type { z } from "zod"
 import { USER } from "./actor"
 import { type Annotation, type Annotations, annotationsSettle, type PageAnnotations, prune } from "./annotation"
 import {
-  bindersOf,
   distinctBooks,
   findPage,
   findUnreadable,
@@ -49,17 +48,19 @@ import {
   bookOf,
   changesBetween,
   createdIn,
+  type Library,
   libraryOf,
   noChanges,
   placedChanges,
+  rowChanges,
   type TableChanges,
-  type Tables,
   treeHolds,
+  withBook,
   withChanges,
 } from "./folders"
 import { idsIn, skipping } from "./ids"
 import { decidedByPlace, deniedBy, type Inspected, inspect, typeAllows, withoutPermissions } from "./inspect"
-import type { Library } from "./library"
+import type { Books } from "./library"
 import type { ItemPage } from "./placed"
 import { type RecordSource, readFrom, SOURCE, sourceIn, sourceOf, type WithSource } from "./record-source"
 import { type Counters, NO_RECORD, RECORDS_MAX, REMOVED, type RecordChange, type Records } from "./records"
@@ -152,7 +153,7 @@ function settles(catalog: CoreCatalog, book: Book): boolean {
 
 // 一覧が対象のアクションの結果で、変わったブックが（置いた鍵がブックの id で）形に合っていて、ブックどうしで id（ブック・ページ・バインダ）が重ならないか
 // （ページもフォルダも、ちょうど 1 つのフォルダに入る。作ったブックのページの id が、ほかのブックのページの id と重なれば断る）
-export function librarySettles(catalog: CoreCatalog, before: Library, after: Library): boolean {
+export function librarySettles(catalog: CoreCatalog, before: Books, after: Books): boolean {
   return (
     Object.entries(after).every(([key, b]) => b.id === key) &&
     distinctBooks(Object.values(after)).warnings.length === 0 &&
@@ -210,8 +211,8 @@ function brokenRecord(
 function brokenIn(
   ctx: ActionContext,
   action: ActionDef,
-  before: Library,
-  after: Library,
+  before: Books,
+  after: Books,
 ): { permission: string; book?: string } | null {
   for (const b of Object.values(before)) {
     const id = b === after[b.id] ? null : broken(ctx, action, b, after[b.id])
@@ -224,17 +225,18 @@ function brokenIn(
   return null
 }
 
-// 一覧が対象のアクションが返した一覧 after の、行う前から在って変わったブックを、ノーマライズステップで整えた一覧（どれかが整えられなければ null）
-function normalizedIn(catalog: CoreCatalog, action: ActionDef, before: Library, after: Library): Library | null {
-  let next: Record<string, Book> | undefined
-  for (const b of Object.values(after)) {
+// 書庫が対象のアクションが返した書庫 after の、行う前から在って変わったブックを、ノーマライズステップで整えた書庫（どれかが整えられなければ null）。
+// before は、行う前の書庫から組んだブック
+function normalizedLibrary(catalog: CoreCatalog, action: ActionDef, before: Books, after: Library): Library | null {
+  let next = after
+  for (const b of Object.values(libraryOf(after))) {
     const was = before[b.id]
     if (!was || was === b) continue
     const tidy = normalized(catalog, action, was, b)
     if (!tidy) return null
-    if (tidy !== b) next = { ...(next ?? after), [b.id]: tidy }
+    if (tidy !== b) next = withBook(next, tidy)
   }
-  return next ?? after
+  return next
 }
 
 // 行う前の問いに要る文脈（機能台帳・コントロールセンター・誰が行うか）
@@ -281,7 +283,7 @@ function permits(
   }
   if (action.target === "library") {
     const targets = args.success ? libraryScopeOf(action.permissionScope as AnyLibraryScope, args.data) : null
-    const library = subject as Library
+    const library = libraryOf(subject as Library)
     const books = (targets?.books ?? []).flatMap(t => {
       const book = library[t.book]
       return book ? [{ book, where: t.where }] : []
@@ -409,9 +411,8 @@ export const noPage = (wanted: string): NoPage => ({
 // （ページが無い・run が id の違うページを返したら null）。アノテーションが対象なら、ページとその並びを run に渡す（ページを替えて返したら null）。
 // run が振る id は、ページが対象ならそのページの中のどの id とも、ブックが対象ならそのブックの並びの中のどの id とも、一覧が対象ならどのブック・バインダ・ページの id とも重ならず、同じ値を 2 度渡さない
 // （そのままでも短い id にしても重なる newId の値を飛ばす。中身の id がページの中で重ならないことに、アノテーションのアンカーなどが頼っている）
-// 一覧 library のブックと、その中のバインダとページの id
-const rowIdsIn = (library: Library): string[] =>
-  Object.values(library).flatMap(b => [b.id, ...bindersOf(b).map(f => f.id), ...pagesOf(b).map(p => p.id)])
+// 書庫 library の、ページとフォルダの行の id
+const rowIdsIn = (library: Library): string[] => [...Object.keys(library.pages), ...Object.keys(library.folders)]
 
 export function runAction(
   action: ActionDef,
@@ -469,17 +470,20 @@ export function perform<Id extends ActionId>(
   if (!ran) return { ok: false, reason: "refused" }
   if ("declined" in ran)
     return { ok: false, reason: "refused", detail: ran.declined, ...(ran.kind === undefined ? {} : { kind: ran.kind }) }
+  // 書庫が対象なら、行う前と後の書庫から組んだブック（確かめは、ブックの値で行う）
+  const wasBooks = action.target === "library" ? libraryOf(subject as Library) : undefined
   const next = before
     ? normalized(ctx.catalog, action, before, ran.next as Book)
-    : action.target === "library"
-      ? normalizedIn(ctx.catalog, action, subject as Library, ran.next as Library)
+    : wasBooks
+      ? normalizedLibrary(ctx.catalog, action, wasBooks, ran.next as Library)
       : ran.next
   if (!next) return { ok: false, reason: "refused" }
   const done = { ...ran, next }
+  const nowBooks = wasBooks ? libraryOf(next as Library) : undefined
   // アノテーションのアクションはページを変えない（変えたら runAction が断る）。認可ステップの keeps は、変わらないブックで見る
   const pair = subject as unknown as AnnotationsInBook
-  if (action.target === "library") {
-    const kept = brokenIn(ctx, action, subject as Library, done.next as Library)
+  if (wasBooks && nowBooks) {
+    const kept = brokenIn(ctx, action, wasBooks, nowBooks)
     if (kept) return { ok: false, reason: "denied", ...kept }
   }
   const permission = before
@@ -495,9 +499,12 @@ export function perform<Id extends ActionId>(
     if (!settles(ctx.catalog, done.next as Book) || !keepsPageTypes(before, done.next as Book))
       return { ok: false, reason: "refused" }
   }
-  if (action.target === "library") {
-    const was = subject as Library
-    const now = done.next as Library
+  if (wasBooks && nowBooks) {
+    const was = wasBooks
+    const now = nowBooks
+    // ブックのフォルダは、どれもブックに組める（並びのエントリの中身が、書庫に在る）
+    const built = Object.values((next as Library).folders).every(f => f.folderRole !== "book" || f.id in now)
+    if (!built) return { ok: false, reason: "refused" }
     // 残るブックの読めないページは、そのまま（無くなるのは、ブックごと消すときだけ。作るブックには入れられない）
     for (const b of Object.values(now)) {
       const lost = was[b.id] === b ? null : lostUnreadable(was[b.id], b)
@@ -572,7 +579,7 @@ function recordChanges(
 }
 
 // アクションが変えるもの全部: ページの表とフォルダの表（ゴミ箱のブックの分も。ブックは、ここから組む。core/folders.ts）と、利用者の設定と、ページごとのアノテーションと、対象の定義が足した種類のレコードと番号の表
-export interface World extends Tables {
+export interface World extends Library {
   settings: Settings
   annotations: Annotations
   records: Records // 対象の定義が足した種類ごとのレコード（種類の id → id → レコード）
@@ -674,12 +681,10 @@ export function performIn(
     return changedBook(world, at.book, loose(at, id, args, ctx))
   }
   if (target === "library") {
-    const library = libraryOf(world)
+    const library: Library = { pages: world.pages, folders: world.folders }
     const done = loose(library, id, args, ctx)
     if (!done.ok) return done
-    const books = done.next as Library
-    const made = changesBetween(Object.values(library), Object.values(books))
-    if (collides(world, Object.values(library), made)) return { ok: false, reason: "refused" }
+    const made = rowChanges(library, done.next as Library)
     // 足したブックと無くなったブックの置き場所を書く。木の決まりを守っていた世界は、行った後も守る
     const changes = placedChanges(world, made)
     if (!treeHolds(withChanges(world, changes))) return { ok: false, reason: "refused" }
@@ -703,7 +708,7 @@ export function performIn(
 
 // 変わり changes が新しく足すページ・フォルダの id が、世界 world にもう在るか（行う前のブック before に無かった物を足すなら、その id は世界のどこにも無いこと。
 // ページもフォルダも、ちょうど 1 つのフォルダに入り、id は世界の中で重ならない）
-const collides = (world: Tables, before: readonly Book[], changes: TableChanges): boolean =>
+const collides = (world: Library, before: readonly Book[], changes: TableChanges): boolean =>
   createdIn(before, changes).some(id => id in world.pages || id in world.folders)
 
 // ブックを変えるアクションの結果 done を、変わった物だけの形にする（book は行う前のブック）。
@@ -822,7 +827,7 @@ function performRecord(
 }
 
 // アクション action が引数 args から答えた、読むだけのブック（world にあるブックだけ。引数が形に合わなければ無し）
-function booksRead(world: World, action: ActionDef, args: unknown): Library {
+function booksRead(world: World, action: ActionDef, args: unknown): Books {
   const parsed = action.args.safeParse(args)
   if (!parsed.success || !action.readsBooks) return {}
   const ids = (action.readsBooks as (args: unknown) => readonly string[])(parsed.data)
@@ -866,5 +871,10 @@ export function permittedIn(
       ? noRecord(ctx.catalog, target, wanted as string)
       : permitted(now, id, args, { ...ctx, [SOURCE]: source, records: {} })
   }
-  return permitted(target === "library" ? libraryOf(world) : world.settings, id, args, ctx)
+  return permitted(
+    target === "library" ? { pages: world.pages, folders: world.folders } : world.settings,
+    id,
+    args,
+    ctx,
+  )
 }

@@ -9,7 +9,7 @@ import { fail } from "../../core/errors"
 import type { Point } from "../../core/geom"
 import type { BookHistory } from "../../core/history"
 import type { MessageKey } from "../../core/i18n/i18n"
-import type { Library } from "../../core/library"
+import type { Books } from "../../core/library"
 import type { Book } from "../../core/schema/book"
 import { type Stage, shownPageId, toPaper } from "../../core/stage"
 import type { StageView, Workspace } from "../../core/workspace"
@@ -99,14 +99,14 @@ export interface CommandContext extends ScreenCommandContext {
 
 // コマンドの文脈ごとの、ステージの並びと道具（表示領域の大きさ・道具のアイコンなども持つので、プラグイン API の文脈のフィールドにはしない。base のコマンドが workspaceOf で読む）と、
 // 開けるブックの一覧（base のコマンドが booksOf で読む）
-const workspaces = new WeakMap<CommandContext, { workspace: Workspace; stage: string; books: Library }>()
+const workspaces = new WeakMap<CommandContext, { workspace: Workspace; stage: string; books: Books }>()
 
 // ctx に、ステージの並び workspace から紙の上の点を求める toPaper を足した、コマンドの文脈（books は、開けるブックの一覧）
 export function withWorkspace(
   ctx: Omit<CommandContext, "toPaper">,
   workspace: Workspace,
   stageId: string,
-  books: Library,
+  books: Books,
 ): CommandContext {
   const full: CommandContext = {
     ...ctx,
@@ -123,7 +123,7 @@ export function withWorkspace(
 export const workspaceOf = (ctx: CommandContext): Workspace => workspaces.get(ctx)?.workspace ?? fail("E116")
 
 // コマンドの文脈 ctx の、開けるブックの一覧（プラグイン API の文脈には出さない。base のコマンドが、開いていないブックの名前を読む）
-export const booksOf = (ctx: CommandContext): Library => workspaces.get(ctx)?.books ?? {}
+export const booksOf = (ctx: CommandContext): Books => workspaces.get(ctx)?.books ?? {}
 
 // コマンドの文脈 ctx の、呼ばれたステージの中の状態（表示領域の大きさ・ずらす量など。プラグイン API の文脈には出さない。base のコマンドが読む）
 export function calledStageOf(ctx: CommandContext): Stage | undefined {

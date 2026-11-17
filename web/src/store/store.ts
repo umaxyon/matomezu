@@ -27,13 +27,13 @@ import {
   type Folders,
   homeAndFoldersOf,
   homeOver,
+  type Library,
   libraryOf,
   type PageRow,
   type Pages,
   rawBooksOf,
   settledOn,
   type TableChanges,
-  type Tables,
   tablesOf,
   withChanges,
   worldTablesOf,
@@ -51,7 +51,7 @@ import {
   type SeenTest,
 } from "../core/history"
 import { detectLang, type Lang, type Params } from "../core/i18n/i18n"
-import { type Library, splitTrash } from "../core/library"
+import { type Books, splitTrash } from "../core/library"
 import { type Patch, patchOf, undoneIn, type Written } from "../core/patch"
 import { type ArgsOf, performIn, type Refused, type ResultOf, type TargetOf } from "../core/perform"
 import {
@@ -589,10 +589,10 @@ interface OpenStep {
 }
 
 // 表 tables から組んだ、開けるブックとゴミ箱のブック（中のブックが前に組んだ物と全部同じなら、前と同じ値を返す）
-let lastShelves: { books: Library; trash: Library } = { books: {}, trash: {} }
-function shelvesOf(tables: Tables): { books: Library; trash: Library } {
+let lastShelves: { books: Books; trash: Books } = { books: {}, trash: {} }
+function shelvesOf(tables: Library): { books: Books; trash: Books } {
   const split = splitTrash(libraryOf(tables))
-  const same = (a: Library, b: Library) =>
+  const same = (a: Books, b: Books) =>
     Object.keys(a).length === Object.keys(b).length && Object.entries(a).every(([id, book]) => b[id] === book)
   lastShelves = {
     books: same(split.books, lastShelves.books) ? lastShelves.books : split.books,
@@ -602,7 +602,7 @@ function shelvesOf(tables: Tables): { books: Library; trash: Library } {
 }
 
 // 表 was を changes のとおりに変えた、ページとフォルダごとの前と後（画面の履歴の段が持つ形）
-function rowChanges(was: Tables, changes: TableChanges): Pick<HistoryStep, "pages" | "folders"> {
+function rowChanges(was: Library, changes: TableChanges): Pick<HistoryStep, "pages" | "folders"> {
   const rows = <T>(table: Readonly<Record<string, T>>, to: Readonly<Record<string, T | typeof REMOVED>>) =>
     Object.fromEntries(
       Object.entries(to).map(([id, v]): [string, RowChange<T>] => [
@@ -777,7 +777,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   }
   let unseen: Unseen[] = []
   // 確かめた世界の、最後に知っているブック（よその変更の前の値）
-  let known: Library = {}
+  let known: Books = {}
   // ステージ st で物が見えているかの答え（プレゼンテーションの seen と、ステージの表示領域の紙の上の四角から。プレゼンテーションが答えなければ undefined。
   // 印刷プレビューの間と、表示領域を測るまでは、どの物も見えていない）
   const seenTestOf = (st: Stage): SeenTest | undefined => {
@@ -842,7 +842,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     unseen = [...unseen.filter(u => u !== over), { step, act: change.act, book: after.id, before, after, made, places }]
   }
   // ブック book の物を、表 was から changes のとおりに変えたことを、開いている画面の履歴の段に足す（同じ物を続けて変えたら、最初の前と最後の後を持つ）
-  const record = (book: string, was: Tables, changes: TableChanges, at: string): OpenStep => {
+  const record = (book: string, was: Library, changes: TableChanges, at: string): OpenStep => {
     const into = opened(at)
     if (!into.books.includes(book)) into.books.push(book)
     const rows = rowChanges(was, changes)

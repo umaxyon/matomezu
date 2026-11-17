@@ -5,11 +5,13 @@ import { USER } from "../../web/src/core/actor"
 import { keepsPageTypesAcross } from "../../web/src/core/book"
 import {
   bookIdOf,
+  bookOf,
   type Folder,
   foldersOver,
   HOME_ID,
   homeAndFoldersOf,
   homeOver,
+  type Library,
   libraryOf,
   NO_CHANGES,
   type PlainFolder,
@@ -18,11 +20,12 @@ import {
   restoredTables,
   rowChanges,
   rowsHoldTree as rowsHold,
-  type Tables,
   TRASH_ID,
   type TrashFolder,
   treeHolds,
+  withBook,
   withChanges,
+  withoutBook,
   worldTablesOf,
 } from "../../web/src/core/folders"
 import { performIn, type World } from "../../web/src/core/perform"
@@ -44,8 +47,8 @@ const old: PlainFolder = {
   ],
 }
 const home = { folderRole: "home", id: HOME_ID, lineup: [{ kind: "folder", id: "old" }] } as const
-const tables = (): Tables => worldTablesOf([b1, b2], [home, old])
-const withFolders = (t: Tables, ...folders: Folder[]): Tables => ({
+const tables = (): Library => worldTablesOf([b1, b2], [home, old])
+const withFolders = (t: Library, ...folders: Folder[]): Library => ({
   pages: t.pages,
   folders: { ...t.folders, ...Object.fromEntries(folders.map(f => [f.id, f])) },
 })
@@ -134,7 +137,7 @@ describe("木の決まり", () => {
       lineup: [...old.lineup, { kind: "page", id: "q1" }, { kind: "binder", id: "f9" }],
     }
     const t = withFolders(tables(), holding, binder)
-    const world: Tables = { pages: { ...t.pages, q1: loose, s9: slide }, folders: t.folders }
+    const world: Library = { pages: { ...t.pages, q1: loose, s9: slide }, folders: t.folders }
     expect(treeHolds(world)).toBe(true)
     expect(foldersOver(world.folders, "s9").map(f => f.id)).toEqual(["f9", "old", HOME_ID])
     expect(bookIdOf(world.folders, "s9")).toBeUndefined()
@@ -200,13 +203,41 @@ describe("木の決まり", () => {
   })
 })
 
+describe("ブックの値を書庫に置く・外す", () => {
+  test("置き換えると、ブックに無くなったバインダとページは外れ、変わらない行は前の値のまま。ほかのブックと、入れているフォルダの並びは変わらない", () => {
+    const t = tables()
+    const kept = bookOf(t, "b1")!
+    expect(withBook(t, kept).pages.p1).toBe(t.pages.p1)
+    expect(rowChanges(t, withBook(t, kept))).toEqual(NO_CHANGES)
+    const next = withBook(t, { ...kept, title: "改名", lineup: [kept.lineup[0]!] })
+    expect(bookOf(next, "b1")).toEqual({ ...kept, title: "改名", lineup: [kept.lineup[0]!] })
+    expect(Object.keys(rowChanges(t, next).pages)).toEqual(["s1"])
+    expect(Object.keys(rowChanges(t, next).folders).sort()).toEqual(["b1", "f1"])
+    expect(next.folders.old).toBe(t.folders.old)
+    expect(treeHolds(next)).toBe(true)
+  })
+
+  test("新しいブックは、行が足されるだけで、どのフォルダの並びにも入らない。外すと、ブックと中のバインダとページの行が無くなる", () => {
+    const t = tables()
+    const b3 = testBook("b3", "三", [drawingPage("p3")])
+    const added = withBook(t, b3)
+    expect(bookOf(added, "b3")).toEqual(b3)
+    expect(added.folders.old).toBe(t.folders.old)
+    const gone = withoutBook(t, "b1")
+    expect(Object.keys(rowChanges(t, gone).pages).sort()).toEqual(["p1", "s1"])
+    expect(rowChanges(t, gone).folders).toEqual({ b1: REMOVED, f1: REMOVED })
+    expect(withoutBook(t, "old")).toBe(t)
+    expect(withoutBook(t, "none")).toBe(t)
+  })
+})
+
 describe("表の変わり", () => {
   test("変わった・足した・無くなった行だけを出す。作り直しただけで中身が同じ行は、変わりにしない", () => {
     const t = tables()
     expect(rowChanges(t, t)).toEqual(NO_CHANGES)
     const renamed: PlainFolder = { ...old, title: "新しい名前" }
     const rebuilt = { ...home, lineup: [...home.lineup] }
-    const next: Tables = {
+    const next: Library = {
       pages: Object.fromEntries(Object.entries(t.pages).filter(([id]) => id !== "p2")),
       folders: {
         ...t.folders,
@@ -231,7 +262,7 @@ describe("ブックを足す・消すときの置き場所", () => {
     now: "2026-01-01T00:00:00.000Z",
     actor: USER,
   }
-  const worldOf = (t: Tables): World => ({ ...t, settings: {}, annotations: {}, records: {}, counters: {} })
+  const worldOf = (t: Library): World => ({ ...t, settings: {}, annotations: {}, records: {}, counters: {} })
 
   test("何も足さず消さない変わりは、そのまま返す", () => {
     expect(placedChanges(tables(), NO_CHANGES)).toBe(NO_CHANGES)

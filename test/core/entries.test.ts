@@ -6,8 +6,8 @@ import {
   type Folder,
   HOME_ID,
   type HomeFolder,
+  type Library,
   type PlainFolder,
-  type Tables,
   TRASH_ID,
   type TrashFolder,
   treeHolds,
@@ -37,8 +37,8 @@ const home: HomeFolder = {
     { kind: "folder", id: "d" },
   ],
 }
-const world = (): Tables => worldTablesOf([b1, b2], [home, a, c, d])
-const moved = (t: Tables, entry: string, into: string, index?: number): Tables => {
+const world = (): Library => worldTablesOf([b1, b2], [home, a, c, d])
+const moved = (t: Library, entry: string, into: string, index?: number): Library => {
   const puts = movedEntry(t, entry, into, index)
   if (isMoveRefusal(puts)) throw new Error(puts)
   return { pages: t.pages, folders: { ...t.folders, ...puts } }
@@ -118,7 +118,7 @@ describe("ゴミ箱", () => {
     id: TRASH_ID,
     lineup: [{ kind: "folder", id: "d", trashed: "2026-11-18T00:00:00.000Z", from: ["a", HOME_ID] }],
   }
-  const trashed = (): Tables => {
+  const trashed = (): Library => {
     const t = world()
     const inD = moved(t, "b2", "d")
     return {
