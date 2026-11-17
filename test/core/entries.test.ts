@@ -1,13 +1,15 @@
 // 書庫の木を変える計算: エントリを別のフォルダへ動かす・並べ替える
 
 import { describe, expect, test } from "bun:test"
-import { isMoveRefusal, isWithin, movedEntry, placeOf } from "../../web/src/core/entries"
+import { isMoveRefusal, isWithin, movedEntry, placeOf, restoreTargetOf } from "../../web/src/core/entries"
 import {
   type Folder,
   HOME_ID,
   type HomeFolder,
   type PlainFolder,
   type Tables,
+  TRASH_ID,
+  type TrashFolder,
   treeHolds,
   worldTablesOf,
 } from "../../web/src/core/folders"
@@ -106,5 +108,47 @@ describe("エントリを動かす", () => {
     expect(movedEntry(t, "f1", "f1")).toBe("into-itself")
     expect(movedEntry(moved(t, "f1", "d"), "f1", "b2")).not.toBe("kind")
     expect(movedEntry(t, "b2", "f1")).toBe("kind")
+  })
+})
+
+describe("ゴミ箱", () => {
+  // d をゴミ箱に入れた世界（d は a の中に在った物として、元いた所を a から上へ持つ）
+  const trash: TrashFolder = {
+    folderRole: "trash",
+    id: TRASH_ID,
+    lineup: [{ kind: "folder", id: "d", trashed: "2026-11-18T00:00:00.000Z", from: ["a", HOME_ID] }],
+  }
+  const trashed = (): Tables => {
+    const t = world()
+    const inD = moved(t, "b2", "d")
+    return {
+      pages: inD.pages,
+      folders: { ...inD.folders, [HOME_ID]: { ...home, lineup: [{ kind: "folder", id: "a" }] }, [TRASH_ID]: trash },
+    }
+  }
+
+  test("ゴミ箱は書庫ホームと並ぶ一番上で、中の物も木の決まりを守る", () => {
+    expect(treeHolds(trashed())).toBe(true)
+    expect(
+      treeHolds({ pages: world().pages, folders: { ...world().folders, [TRASH_ID]: { ...trash, lineup: [] } } }),
+    ).toBe(true)
+  })
+
+  test("ゴミ箱の中の物・ゴミ箱の中へ・ゴミ箱そのものへは、動かせない（入れる・戻すでだけ出入りする）", () => {
+    const t = trashed()
+    expect(movedEntry(t, "d", HOME_ID)).toBe("in-trash")
+    expect(movedEntry(t, "b2", "a")).toBe("in-trash")
+    expect(movedEntry(t, "b1", "d")).toBe("in-trash")
+    expect(movedEntry(t, "b1", TRASH_ID)).toBe("in-trash")
+  })
+
+  test("戻す先は、元いたフォルダ。無ければ・ゴミ箱の中ならその親をたどり、どれも無ければ書庫ホーム", () => {
+    const t = trashed()
+    expect(restoreTargetOf(t.folders, ["a", HOME_ID])).toBe("a")
+    expect(restoreTargetOf(t.folders, ["gone", "c", "a", HOME_ID])).toBe("c")
+    // b2 は、ゴミ箱に入れた d の中
+    expect(restoreTargetOf(t.folders, ["b2", "d", "a", HOME_ID])).toBe("a")
+    expect(restoreTargetOf(t.folders, ["gone", "more"])).toBe(HOME_ID)
+    expect(restoreTargetOf(t.folders, [])).toBe(HOME_ID)
   })
 })

@@ -33,6 +33,10 @@ export type AnyEntryRef = EntryRef | BookRef | FolderRef
 
 // 書庫ホームの id（決まった値。書庫ホームは、この id のフォルダただ 1 つ）
 export const HOME_ID = "library-home"
+// ゴミ箱の id（決まった値。ゴミ箱は、この id のフォルダただ 1 つ）
+export const TRASH_ID = "library-trash"
+// ゴミ箱の並びのエントリ 1 つ: 入れた物の id と、入れた時刻 trashed と、元いたフォルダから上への id の列 from（近い順。戻す先を決めるのに使う）
+export type TrashRef = AnyEntryRef & { trashed: string; from: readonly string[] }
 
 // ブックのフォルダ: ブックのフィールド（名前・ロック・ゴミ箱に入れた時刻・ブックが持つ設定の項目）と、エントリの id の並び
 export type BookFolder = Omit<Book, "lineup"> & { folderRole: "book"; lineup: readonly EntryRef[] }
@@ -57,13 +61,26 @@ export interface PlainFolder {
   title: string
   lineup: readonly AnyEntryRef[]
 }
-// 書庫ホームかフォルダ（ブックを組む値には入らず、表にだけ在る）
-export type HomeOrFolder = HomeFolder | PlainFolder
+// ゴミ箱: 書庫ホームと並ぶ、書庫の一番上のフォルダ。名前は持たない
+export interface TrashFolder {
+  folderRole: "trash"
+  id: typeof TRASH_ID
+  lineup: readonly TrashRef[]
+}
+// 書庫ホームかゴミ箱かフォルダ（ブックを組む値には入らず、表にだけ在る）
+export type HomeOrFolder = HomeFolder | TrashFolder | PlainFolder
 export type Folder = BookFolder | BinderFolder | HomeOrFolder
 
+// 書庫の一番上のフォルダ（どのフォルダにも入らない）の役か: 書庫ホームとゴミ箱
+export const isTopRole = (role: unknown): role is "home" | "trash" => role === "home" || role === "trash"
+// ページ・バインダ・ブック・フォルダの 4 つとも持てる役か: 書庫ホーム・ゴミ箱・フォルダ（ブックにもバインダにもならない役）
+export const isOpenRole = (role: unknown): role is HomeOrFolder["folderRole"] => isTopRole(role) || role === "folder"
+
 const AnyEntryRefSchema = z.strictObject({ kind: z.enum(["page", "binder", "book", "folder"]), id: z.string().min(1) })
+const TrashRefSchema = AnyEntryRefSchema.extend({ trashed: z.string().min(1), from: z.array(z.string().min(1)) })
 const HomeOrFolderSchema = z.discriminatedUnion("folderRole", [
   z.strictObject({ folderRole: z.literal("home"), id: z.literal(HOME_ID), lineup: z.array(AnyEntryRefSchema) }),
+  z.strictObject({ folderRole: z.literal("trash"), id: z.literal(TRASH_ID), lineup: z.array(TrashRefSchema) }),
   z.strictObject({
     folderRole: z.literal("folder"),
     id: z.string().min(1),
@@ -80,13 +97,11 @@ const LooseFolderSchema = z.looseObject({
 })
 const LooseRefSchema = z.looseObject({ kind: z.string(), id: z.string().min(1) })
 
-// フォルダの行が書庫ホームかフォルダの役（"home"・"folder"）を名乗るか（形は確かめない）
+// フォルダの行が書庫ホーム・ゴミ箱・フォルダの役を名乗るか（形は確かめない）
 const namesHomeOrFolder = (row: unknown): boolean =>
-  typeof row === "object" &&
-  row !== null &&
-  ["home", "folder"].includes((row as { folderRole?: unknown }).folderRole as string)
+  typeof row === "object" && row !== null && isOpenRole((row as { folderRole?: unknown }).folderRole)
 
-// 置き場所から読んだままのフォルダ folders のうち、書庫ホームとフォルダ（形に合う物だけ。合わない物は入らず、木の決まり treeHolds が破れて見える）
+// 置き場所から読んだままのフォルダ folders のうち、書庫ホーム・ゴミ箱・フォルダ（形に合う物だけ。合わない物は入らず、木の決まり treeHolds が破れて見える）
 export function homeAndFoldersOf(folders: readonly unknown[]): HomeOrFolder[] {
   return folders.flatMap(f => {
     const parsed = namesHomeOrFolder(f) ? HomeOrFolderSchema.safeParse(f) : undefined
@@ -266,7 +281,7 @@ export function foldersOver(folders: Folders, entry: string): Folder[] {
   return over
 }
 
-// 書庫ホームかフォルダのエントリ r の種類が、表の中身と合うか（表に無い book は通す。読めないブックは、表に入らない）
+// 書庫ホーム・ゴミ箱・フォルダのエントリ r の種類が、表の中身と合うか（表に無い book は通す。読めないブックは、表に入らない）
 function refFits(pages: Pages, folders: Folders, r: AnyEntryRef): boolean {
   if (r.kind === "page") return Object.hasOwn(pages, r.id)
   const row = folders[r.id]
@@ -274,36 +289,41 @@ function refFits(pages: Pages, folders: Folders, r: AnyEntryRef): boolean {
   return row?.folderRole === r.kind
 }
 
-// 木の決まり: 書庫ホームが在る／書庫ホームはどのフォルダにも入らない／書庫ホーム以外のフォルダは、ちょうど 1 つのフォルダに入り、上へたどると書庫ホームに着く（輪にならない）／
-// ページは、どれかのフォルダ（ブック・バインダを含む）に入る／書庫ホームとフォルダのエントリは、種類が合う（page は表に在るページ、binder はバインダ、
-// folder は表に在るフォルダ、book はブック）／ブックとバインダは、ブックもフォルダも持たない（型が決める）
+// 木の決まり: 書庫ホームが在る（ゴミ箱は、在れば 1 つ）／書庫ホームとゴミ箱はどのフォルダにも入らない／そのほかのフォルダは、ちょうど 1 つのフォルダに入り、
+// 上へたどると書庫ホームかゴミ箱に着く（輪にならない）／ページは、どれかのフォルダ（ブック・バインダを含む）に入る／書庫ホーム・ゴミ箱・フォルダのエントリは、
+// 種類が合う（page は表に在るページ、binder はバインダ、folder は表に在るフォルダ、book はブック）／ブックとバインダは、ブックもフォルダも持たない（型が決める）
 export function treeHolds({ pages, folders }: Tables): boolean {
-  const home = folders[HOME_ID]
-  if (home?.folderRole !== "home") return false
+  if (folders[HOME_ID]?.folderRole !== "home") return false
+  const trash = folders[TRASH_ID]
+  if (trash && trash.folderRole !== "trash") return false
   const holder = new Map<string, string>()
   for (const f of Object.values(folders)) {
     for (const r of f.lineup) {
       if (holder.has(r.id)) return false
       holder.set(r.id, f.id)
-      if (f.folderRole !== "home" && f.folderRole !== "folder") continue
-      if (!refFits(pages, folders, r)) return false
+      if (isOpenRole(f.folderRole) && !refFits(pages, folders, r)) return false
     }
   }
-  if (holder.has(HOME_ID)) return false
+  const isTop = (id: string | undefined) => id === HOME_ID || id === TRASH_ID
+  if (holder.has(HOME_ID) || holder.has(TRASH_ID)) return false
   if (!Object.keys(pages).every(id => holder.has(id))) return false
   return Object.values(folders).every(f => {
     const passed = new Set<string>()
     let at: string | undefined = f.id
-    while (at !== undefined && at !== HOME_ID && !passed.has(at)) {
+    while (at !== undefined && !isTop(at) && !passed.has(at)) {
       passed.add(at)
       at = holder.get(at)
     }
-    return at === HOME_ID
+    return isTop(at)
   })
 }
 
+// エントリ entry が、ゴミ箱の中（何段下でも）に在るか。ゴミ箱そのものは中でない
+export const inTrash = (folders: Folders, entry: string): boolean =>
+  foldersOver(folders, entry).some(f => f.folderRole === "trash")
+
 // 置き場所から読んだままのフォルダの行の全部 rows（書庫ホーム・フォルダ・ブック・バインダ）と、ページの行の id の全部 pages が、木の決まり treeHolds を守るか。
-// 書庫ホームとフォルダは形を確かめ（合わない行は入らない）、ブックとバインダは id と並びのエントリの id だけを読む（読めないブックも、行が在れば木に入る）
+// 書庫ホーム・ゴミ箱・フォルダは形を確かめ（合わない行は入らない）、ブックとバインダは id と並びのエントリの id だけを読む（読めないブックも、行が在れば木に入る）
 export function rowsHoldTree(rows: readonly unknown[], pages: readonly string[]): boolean {
   const folders: Record<string, Folder> = {}
   for (const f of homeAndFoldersOf(rows)) folders[f.id] = f
@@ -331,10 +351,11 @@ export function placedChanges(tables: Tables, changes: TableChanges): TableChang
   if (added.length === 0 && gone.size === 0) return changes
   const puts: Record<string, Folder> = {}
   for (const f of Object.values(tables.folders)) {
-    if (f.folderRole !== "home" && f.folderRole !== "folder") continue
+    if (!isOpenRole(f.folderRole)) continue
     const kept = f.lineup.filter(r => !gone.has(r.id))
     const fresh = f.folderRole === "home" ? added.map((id): BookRef => ({ kind: "book", id })) : []
-    if (kept.length !== f.lineup.length || fresh.length > 0) puts[f.id] = { ...f, lineup: [...kept, ...fresh] }
+    if (kept.length !== f.lineup.length || fresh.length > 0)
+      puts[f.id] = { ...f, lineup: [...kept, ...fresh] } as Folder
   }
   return { pages: changes.pages, folders: { ...changes.folders, ...puts } }
 }
@@ -419,7 +440,7 @@ export function createdOn(was: Tables, changes: TableChanges): string[] {
 }
 
 // 置き場所から読んだままのページとフォルダ（形を確かめる前の値）から、ブックの本文（並びにページとバインダの中身ごと持つ形）を組む。確かめるのは、組んだ後（core/book.ts の checkBooks）。
-// ブックにするのは、役（folderRole）が書庫ホーム・フォルダ・バインダのどれでもないフォルダ（形の壊れた物も、そのまま 1 冊として返す。読めないブックとして見える）。
+// ブックにするのは、役（folderRole）が書庫ホーム・ゴミ箱・フォルダ・バインダのどれでもないフォルダ（形の壊れた物も、そのまま 1 冊として返す。読めないブックとして見える）。
 // エントリが id だけの物（kind と id だけを持つ）なら、表から引いて中身に替える（表に無ければ、そのまま残す）。それより多くを持つエントリは、中身ごと残っている物として、そのまま使う。
 // 同じフォルダと同じ中身からは、同じ値を返す（確かめ直しを減らす）
 const rawKept = new WeakMap<object, Kept<unknown>>()
@@ -435,8 +456,7 @@ export function rawBooksOf(pages: readonly unknown[], folders: readonly unknown[
     isObject(e) && Object.keys(e).length === 2 && typeof e.kind === "string" && typeof e.id === "string"
       ? { kind: e.kind, id: e.id }
       : undefined
-  const notBook = (f: Readonly<Record<string, unknown>>) =>
-    f.folderRole === "home" || f.folderRole === "folder" || f.folderRole === "binder"
+  const notBook = (f: Readonly<Record<string, unknown>>) => isOpenRole(f.folderRole) || f.folderRole === "binder"
   // フォルダ f を、エントリを中身に替えて組む（binder なら、並びのエントリの形にする）
   const made = (f: Readonly<Record<string, unknown>>, as: "book" | "binder"): unknown => {
     const lineup = Array.isArray(f.lineup) ? f.lineup : undefined
@@ -510,7 +530,7 @@ export function restoredTables(tables: Tables, patches: RowPatches): Tables {
   }
   for (const folder of Object.values(folders)) {
     if (folder.folderRole === "binder" || !Array.isArray(folder.lineup)) continue
-    const outside = folder.folderRole === "home" || folder.folderRole === "folder"
+    const outside = isOpenRole(folder.folderRole)
     const lineup = there<AnyEntryRef>(
       folder.lineup,
       r =>

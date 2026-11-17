@@ -18,6 +18,8 @@ import {
   restoredTables,
   rowsHoldTree as rowsHold,
   type Tables,
+  TRASH_ID,
+  type TrashFolder,
   treeHolds,
   withChanges,
   worldTablesOf,
@@ -149,6 +151,35 @@ describe("木の決まり", () => {
     const gone = restoredTables(world, { pages: {}, folders: { f9: { absent: true } } })
     expect(gone.folders.old?.lineup).toEqual([...old.lineup, { kind: "page", id: "q1" }])
     expect(Object.keys(gone.pages)).not.toContain("s9")
+  })
+
+  test("ゴミ箱: 行から形を確かめて取り出し、ブックにはしない。ゴミ箱に着く物も木に入り、ゴミ箱がフォルダに入る・形が合わないと破れる。置き直してもゴミ箱の並びは残る", () => {
+    // b2 をゴミ箱に入れた世界
+    const trash: TrashFolder = {
+      folderRole: "trash",
+      id: TRASH_ID,
+      lineup: [{ kind: "book", id: "b2", trashed: "2026-11-18T00:00:00.000Z", from: ["old", HOME_ID] }],
+    }
+    const kept: PlainFolder = { ...old, lineup: [old.lineup[0]!] }
+    const t = withFolders(tables(), kept, trash)
+    expect(homeAndFoldersOf([trash, { folderRole: "trash", id: "other", lineup: [] }])).toEqual([trash])
+    expect(homeAndFoldersOf([{ ...trash, lineup: [{ kind: "book", id: "b2" }] }])).toEqual([])
+    expect(rawBooksOf(Object.values(t.pages), Object.values(t.folders)).map(b => (b as { id: string }).id)).toEqual([
+      "b1",
+      "b2",
+    ])
+    expect(treeHolds(t)).toBe(true)
+    expect(rowsHold(Object.values(t.folders), Object.keys(t.pages))).toBe(true)
+    expect(foldersOver(t.folders, "p2").map(f => f.id)).toEqual(["b2", TRASH_ID])
+    expect(treeHolds(withFolders(t, { ...kept, lineup: [...kept.lineup, { kind: "folder", id: TRASH_ID }] }))).toBe(
+      false,
+    )
+    const restored = restoredTables(t, { pages: { p1: { absent: true } }, folders: {} })
+    expect(restored.folders[TRASH_ID]).toBe(trash)
+    // 完全に消したブックは、ゴミ箱の並びからも外れる
+    const purged = placedChanges(t, { pages: { p2: REMOVED }, folders: { b2: REMOVED } })
+    expect(withChanges(t, purged).folders[TRASH_ID]?.lineup).toEqual([])
+    expect(treeHolds(withChanges(t, purged))).toBe(true)
   })
 
   test("置き場所の行のまま確かめる: 読めないブックの行も木に入り、どこにも入っていないブックとページ・形に合わないフォルダの行・書庫ホームが無いと破れる", () => {
