@@ -111,7 +111,7 @@ export function TicketScreen() {
               />
             </span>
           </div>
-          <div className={styles.content} inert={view.maximized}>
+          <div className={`${styles.content} ${scroll.thin}`} inert={view.maximized}>
             <div className={styles.head}>
               <span className={styles.id}>{ticketLabel(project?.prefix ?? "", ticket.number)}</span>
               <TagPicker tags={tags} choices={tagChoices} canEdit={canEdit} onChange={next => edit({ tags: next })} />
