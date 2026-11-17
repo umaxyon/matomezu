@@ -111,7 +111,10 @@ test("今のチケットは、AI が自分のワークルームの分を宣言�
   expect(user(A("current-ticket-set"), { ticket }).ok).toBe(false)
   expect(as(ai(id), "current-ticket-set", { ticket: "nothing" }).ok).toBe(false)
   // 記録の無いワークルームを on.record で指すと、core が no-record で断る
-  expect(as(ai(id), "current-ticket-set", { ticket }, { record: other })).toMatchObject({ ok: false, reason: "no-record" })
+  expect(as(ai(id), "current-ticket-set", { ticket }, { record: other })).toMatchObject({
+    ok: false,
+    reason: "no-record",
+  })
   // ワークルームの id でない id を on.record に付けたら、断りが種類の説明（id はワークルームの id）と一覧の引き方を言う
   const wrong = as(ai(id), "current-ticket-set", { ticket }, { record: "a-participant" }) as { detail?: string }
   expect(wrong).toMatchObject({ ok: false, reason: "no-record" })
