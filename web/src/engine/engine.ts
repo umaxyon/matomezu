@@ -27,7 +27,8 @@ import { detectLang, translate } from "../core/i18n/i18n"
 import { changedIn } from "../core/ids"
 import { splitId } from "../core/names"
 import { endActions, joinActions } from "../core/participant"
-import { type PerformedIn, performIn } from "../core/perform"
+import { performBulk } from "../core/bulk"
+import type { PerformedIn, World } from "../core/perform"
 import { findShape, type ItemPage, pageItemsOf, walkShapes } from "../core/placed"
 import { type Condition, type KeyValues, keyValuesOf } from "../core/record-keys"
 import type { RecordSource } from "../core/record-source"
@@ -97,13 +98,18 @@ let lastAdded: readonly Plugin[] = []
 
 // 受けるもの。pages と folders は対象のアクションが要るブックのページとフォルダ（置き場所から読んだまま。一覧のアクションなら全部、レコードが対象のアクションなら readsBooks が答えたブックの分。matomezuRecordNeeds の books）、
 // ids は振る id のもと（画面で先に行ったときの値。尽きたら randomUUID）
-interface Input {
+// アクションバルクの中のアクション 1 つ
+interface Step {
   action: string
   args: unknown
   on?: ActionOn
   lang?: string // 画面で先に行ったときの言語。無ければ（AI が頼んだときなど）設定の言語の項目で決める
   ids?: string[]
   now?: string // 画面で先に行った時点。無ければ（AI が頼んだときなど）ここで決める
+}
+
+interface Input {
+  actions: readonly Step[] // アクションバルク（順に行い、全部通るか全部断る。AI の頼みは 1 つ）
   pages?: unknown[]
   folders?: unknown[]
   settings: unknown
@@ -134,9 +140,9 @@ type Output =
       records?: readonly RecordChange[] // 変わったレコード（消したなら record は removed）
       counters?: Counters
       notice?: string
-      aiEditTickets?: readonly AIEditTicketChange[]
+      aiEditTickets?: readonly (AIEditTicketChange & { subject: string })[] // subject は、その変え方を返したアクションの対象の種類
     }
-  | { ok: false; reason: string; permission?: string; detail?: string; page?: string; code?: string } // page と code は、読めないページの断り（unreadable）のとき
+  | { ok: false; reason: string; permission?: string; detail?: string; page?: string; code?: string; at?: number } // page と code は、読めないページの断り（unreadable）のとき。at は断られたアクションが何番目か
 
 // 変わったページ・フォルダ 1 つ（row は新しい値。無くなったなら removed が true で、row は無い）
 interface RowChange {
@@ -164,7 +170,7 @@ const AI_REFUSALS: Record<Exclude<PerformedIn, { ok: true }>["reason"], string> 
 }
 
 // 断りに、AI への説明を添える
-function refusal(catalog: CoreCatalog, done: Exclude<PerformedIn, { ok: true }>): Output {
+function refusal(catalog: CoreCatalog, done: Exclude<PerformedIn, { ok: true }>): Extract<Output, { ok: false }> {
   if ("permission" in done)
     return {
       ...done,
@@ -221,8 +227,8 @@ function perform(input: Input): Output {
   const { controlCenter } = assembled
   const catalog = assembled.catalog.core
   const settings = restoreSettings(input.settings)
-  const lang = input.lang ? detectLang([input.lang], [...catalog.languages.keys()]) : langOf(catalog, settings, "en")
-  const ids = [...(input.ids ?? [])]
+  const langFor = (l: string | undefined) =>
+    l ? detectLang([l], [...catalog.languages.keys()]) : langOf(catalog, settings, "en")
   const raw = rawBooksOf(input.pages ?? [], input.folders ?? [])
   const books = Object.fromEntries(restoreBooks(catalog, raw).map(b => [b.id, b]))
   const annotations = Object.fromEntries(
@@ -234,46 +240,37 @@ function perform(input: Input): Output {
   const source = hostSource(records)
   const tables = tablesOf(Object.values(books))
   const world = { ...tables, settings, annotations, records, counters, ...(source ? { source } : {}) }
-  const done = performIn(world, input.action, input.args, input.on, {
-    catalog,
-    controlCenter,
-    lang,
-    newId: () => ids.shift() ?? crypto.randomUUID(),
-    now: input.now ?? new Date().toISOString(),
-    actor,
+  const at = new Date().toISOString()
+  const steps = input.actions.map(step => {
+    const ids = [...(step.ids ?? [])]
+    return {
+      action: step.action,
+      args: step.args,
+      ...(step.on ? { on: step.on } : {}),
+      lang: langFor(step.lang),
+      newId: () => ids.shift() ?? crypto.randomUUID(),
+      now: step.now ?? at,
+    }
   })
-  if (!done.ok) return refusal(catalog, done)
+  // AI のアクションと、利用者でも編集ロックで断るアクションは、利用者が直している物を変えも消しもしない（あとでやり直す）。バルクの中のアクションごとに見る。
+  // レコードが対象のアクションは、変えるレコードのどれかを直しているなら、同じように断る（作るレコードは新しい id なので、直してはいない）
+  const done = performBulk(world, steps, { catalog, controlCenter, lang: langFor(input.actions[0]?.lang), actor }, (i, before, after, one) => {
+    if (!stopsOnEditLock(catalog.actions.get(input.actions[i]?.action ?? ""), actor)) return undefined
+    const editedRecord = (one.records ?? []).some(c => (input.watchedRecords?.[c.subject] ?? []).includes(c.id))
+    return editedRecord || touchedIn(before, after, one.annotations, input.watched).length > 0
+      ? { ok: false as const, reason: "being-edited" as const }
+      : undefined
+  })
+  if (!done.ok) return { ...(done.reason === "being-edited" ? { ok: false, reason: done.reason } : refusal(catalog, done)), at: done.at }
   // 変わったブック（組み直した値）と、無くなったブック
   const next = done.changes ? libraryOf(withChanges(tables, done.changes)) : books
   const changed = Object.values(next).filter(b => books[b.id] !== b)
   const removed = Object.keys(books).filter(id => !(id in next))
   const notice = shiftNotice(books, changed)
-  // 行った後のブック（無くなったブックは無い）
-  const after = (id: string): Book | undefined =>
-    removed.includes(id) ? undefined : (changed.find(b => b.id === id) ?? books[id])
-  const touched = Object.entries(input.watched ?? {}).flatMap(([id, watched]) => {
-    // ブックの中の物（バインダ・ブックそのもの）
-    if (books[id]) return changedIn(books[id], after(id), watched)
-    // ページの中の物と、そのページのアノテーション
-    const was = pageById(books, id)
-    if (!was) return []
-    const list = done.annotations && id in done.annotations ? done.annotations[id] : annotations[id]
-    const book = after(was.book.id)
-    return changedIn(
-      { page: was.page, annotations: annotations[id] },
-      { page: book && findPage(book, id)?.page, annotations: list },
-      watched,
-    )
-  })
-  // AI のアクションと、利用者でも編集ロックで断るアクションは、利用者が直している物を変えも消しもしない（あとでやり直す）
-  // レコードが対象のアクションは、変えるレコードのどれかを直しているなら、同じように断る（作るレコードは新しい id なので、直してはいない）
-  const editedRecord = (done.records ?? []).some(c => (input.watchedRecords?.[c.subject] ?? []).includes(c.id))
-  if ((touched.length > 0 || editedRecord) && stopsOnEditLock(catalog.actions.get(input.action), actor))
-    return { ok: false, reason: "being-edited" }
   const changes = done.changes ?? NO_CHANGES
   return {
     ok: true,
-    result: done.result,
+    result: done.results.at(-1),
     pages: rowChanges(changes.pages),
     folders: rowChanges(changes.folders),
     created: createdIn(Object.values(books), changes),
@@ -284,8 +281,35 @@ function perform(input: Input): Output {
     ...(done.records ? { records: done.records.map(c => withKeys(catalog, c)) } : {}),
     ...(done.counters ? { counters: done.counters } : {}),
     ...(notice ? { notice } : {}),
-    ...(done.aiEditTickets ? { aiEditTickets: done.aiEditTickets } : {}),
+    ...(done.aiEditTickets ? { aiEditTickets: done.aiEditTickets.map(t => ({ ...t.change, subject: t.subject })) } : {}),
   }
+}
+
+// アクション 1 つが、利用者が直している物 watched（ブックの中の物・ページの中の物とそのページのアノテーション）を変えたか消した所（before と after はそのアクションの前と後の世界、changedAnnotations はそのアクションが変えたアノテーション）
+function touchedIn(
+  before: World,
+  after: World,
+  changedAnnotations: Annotations | undefined,
+  watched: Input["watched"],
+): readonly unknown[] {
+  if (!watched || Object.keys(watched).length === 0) return []
+  const was = libraryOf(before)
+  const now = libraryOf(after)
+  return Object.entries(watched).flatMap(([id, list]) => {
+    // ブックの中の物（バインダ・ブックそのもの）
+    if (was[id]) return changedIn(was[id], now[id], list)
+    // ページの中の物と、そのページのアノテーション
+    const at = pageById(was, id)
+    if (!at) return []
+    const annotationsNow =
+      changedAnnotations && id in changedAnnotations ? changedAnnotations[id] : before.annotations[id]
+    const book = now[at.book.id]
+    return changedIn(
+      { page: at.page, annotations: before.annotations[id] },
+      { page: book && findPage(book, id)?.page, annotations: annotationsNow },
+      list,
+    )
+  })
 }
 
 // 中身をずらした可変ページ（ページの shift が変わった）があれば、AI への知らせ（位置が変わったので読み直す）

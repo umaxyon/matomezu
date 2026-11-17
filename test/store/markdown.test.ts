@@ -23,8 +23,10 @@ import {
 import { MAX_REMEMBERED, positionOf, remember, SCROLL_STATE } from "../../web/src/plugins/books/markdown/scroll-memory"
 import { sourceEdit } from "../../web/src/plugins/books/markdown/source-edit"
 import { isActive, isShown } from "../../web/src/store/commands"
-import type { DoneAction as Done } from "../../web/src/store/store"
+import type { DoneBulk } from "../../web/src/store/store"
 import { newStore, worldRows } from "../support"
+
+const settled = () => Promise.resolve()
 
 const markdownStore = (options: Parameters<typeof newStore>[0] = {}) => {
   const store = newStore(options)
@@ -297,11 +299,11 @@ test("ページを切り替えても、紙を変えても、ステージに紙�
     expect(isShown(store, state.getState(), "s1", c)).toBe(false)
 })
 
-test("ソースのペインで書いた所は、ホストで AI の変更のあとに行い直しても、重ならなければ残り、重なって 1 か所にならなければ落ちる", () => {
-  const done: Done[] = []
+test("ソースのペインで書いた所は、ホストで AI の変更のあとに行い直しても、重ならなければ残り、重なって 1 か所にならなければ落ちる", async () => {
+  const done: DoneBulk[] = []
   const { store, book } = markdownStore({
-    observe: d => {
-      done.push(d)
+    observe: bulk => {
+      done.push(bulk)
     },
   })
   const page = pagesOf(book())[0]!.id
@@ -311,13 +313,16 @@ test("ソースのペインで書いた所は、ホストで AI の変更のあ�
     return store.actions.perform("@matomezu/base:page-update", { fields: edit.fields }, { page })
   }
   store.actions.perform("@matomezu/base:page-update", { fields: { text: "# T\n\nfoo\n" } }, { page })
+  await settled()
   const confirmed = (text: string) => ({ ...book(), lineup: [{ ...pagesOf(book())[0]!, text }] })
   // AI が先頭に行を足したホストのブックに、foo の後ろへ書いた物を行い直す
   write("# T\n\nfoo\n", "# T\n\nfoo bar\n")
+  await settled()
   store.receive({ ...worldRows([confirmed("AI\n# T\n\nfoo\n")]), settings: {} }, [done.at(-1)!])
   expect((pagesOf(book())[0] as { text?: string }).text).toBe("AI\n# T\n\nfoo bar\n")
   // AI が foo を消したなら、書いた物は行えずに落ちる
   write("AI\n# T\n\nfoo bar\n", "AI\n# T\n\nfoo bar!\n")
+  await settled()
   store.receive({ ...worldRows([confirmed("AI\n# T\n\n")]), settings: {} }, [done.at(-1)!])
   expect((pagesOf(book())[0] as { text?: string }).text).toBe("AI\n# T\n\n")
 })

@@ -478,8 +478,8 @@ describe("store", () => {
     const store = newStore({
       books: [],
       savedBooks: [saved],
-      observe: d => {
-        sent.push({ action: d.action, args: d.args })
+      observe: bulk => {
+        for (const d of bulk) sent.push({ action: d.action, args: d.args })
         return undefined
       },
     })

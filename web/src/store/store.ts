@@ -50,6 +50,7 @@ import { detectLang, type Lang, type Params } from "../core/i18n/i18n"
 import { type Library, splitTrash } from "../core/library"
 import { type Patch, patchOf, undoneIn, type Written } from "../core/patch"
 import { type ArgsOf, performIn, type Refused, type ResultOf, type TargetOf } from "../core/perform"
+import { performBulk } from "../core/bulk"
 import {
   type Counters,
   REMOVED,
@@ -413,7 +414,10 @@ export interface DoneAction {
   now: string // 行った時点（ActionContext の now）
 }
 
-// ホストが、画面で行ったアクションを確かめた答え（断ったなら reason。届けられなかったものは not-saved）
+// アクションバルク: 同期の 1 回の流れで行ったアクションの並び（画面の履歴の段と同じ区切り）。ホストは 1 回で書き、全部通すか全部断る
+export type DoneBulk = readonly DoneAction[]
+
+// ホストが、画面で行ったアクションバルクを確かめた答え（断ったなら reason。届けられなかったものは not-saved）
 export type HostAnswer = { ok: true } | { ok: false; reason: string }
 
 export type ReadonlyStore = Pick<StoreApi<MatomezuState>, "getState" | "getInitialState" | "subscribe">
@@ -423,11 +427,11 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   plugins: Ps
   state: ReadonlyStore
   actions: Actions
-  // 外で決まったブックと設定（常駐が知らせたもの）に入れ替え、まだ確かめられていない自分のアクション replay をその上で行い直す。
-  // 形に合わないブックは使わない。行い直しは observe に知らせず、断られたものは飛ばす。
+  // 外で決まったブックと設定（常駐が知らせたもの）に入れ替え、まだ確かめられていない自分のアクションバルク replay をその上で行い直す。
+  // 形に合わないブックは使わない。行い直しは observe に知らせず、断られたアクションバルクは丸ごと飛ばす。
   // change は、この知らせが、この窓のでない変更でブック book を変えたこと（by は変えた物。host は常駐が自分で行った物で、画面の履歴に入れない。
-  // act は常駐が 1 回の perform に振った印、action は行ったアクションの id）。AI とほかの窓の変更は、まだ見ていない画面の履歴の段にし、見えたら画面の履歴に差し込む
-  // （history: false のアクションの変更は入れない）。
+  // act は常駐が 1 回の perform に振った印、actions は行ったアクションの id の並び）。AI とほかの窓の変更は、まだ見ていない画面の履歴の段にし、見えたら画面の履歴に差し込む
+  // （並びの全部が history: false のアクションなら入れない）。
   // ホストクライアントだけが使う（アクションを通さずに世界を入れ替えるので、プラグインに渡す actions には入れない）
   receive(
     world: {
@@ -442,8 +446,8 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
       participantReady?: readonly string[]
       participantLive?: Readonly<Record<string, ParticipantLive>>
     },
-    replay: readonly DoneAction[],
-    change?: { books: readonly string[]; by: "ai" | "window" | "host"; act: string; action: string },
+    replay: readonly DoneBulk[],
+    change?: { books: readonly string[]; by: "ai" | "window" | "host"; act: string; actions: readonly string[] },
   ): void
   // まだ見ていない画面の履歴の段が見えたかを確かめ直す（窓が見えるようになったとき。ホストクライアントだけが使う。プラグインに渡す actions には入れない）
   checkSeen(): void
@@ -548,17 +552,21 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   initial?: MatomezuState // 最初の状態をそのまま渡す（books と lang より優先する）
   newId?: () => string // ブック・ページ・アイテムの id のもとを振る。無ければ、どの世界でも重ならない uuid
   now?: () => string // アクションを行う時点（UTC の ISO 8601）を決める。無ければ今の時刻
-  // アクションを行えたときに知らせる（行い直しは知らせない）。ホストが確かめた答えを返せば、断られたアクションを入れた画面の履歴の段を捨てる
-  observe?: (done: DoneAction) => Promise<HostAnswer> | undefined
+  // アクションバルクを閉じたときに、行えたアクションの並びを知らせる（行い直しは知らせない）。ホストが確かめた答えを返せば、断られたアクションバルクの画面の履歴の段を捨てる
+  observe?: (bulk: DoneBulk) => Promise<HostAnswer> | undefined
   aiEditTicket?: (change: AIEditTicketOutcome) => void // まだ見ていない AI の変更が、この窓で見えたか、見られる前に戻す・やり直すで消えたときに知らせる
   visible?: () => boolean // 窓が見えているか（裏のタブなどで見えていない間は、まだ見ていない変更を見えたとしない。無ければいつも見えている）
   search?: (query: WideSearchQuery) => Promise<WideSearchAnswer> // ホストの言葉の検索（横断検索）。無ければ、どの言葉にも横断検索の当たりなし
 }
 
-// 開いている画面の履歴の段。step は閉じて画面の履歴に入れた段、refused はホストが中のアクションを断ったこと。
-// continued は続けた画面の履歴の段（continueStep）で、prior は続ける前の画面の履歴の段（断られたらこの段に戻す。続ける前に通っていた変更は元に戻せるまま残す）
+// 開いている画面の履歴の段と、そのアクションバルク（同じ区切りなので 1 つで持つ）。step は閉じて画面の履歴に入れた段、refused はホストがアクションバルクを断ったこと。
+// continued は続けた画面の履歴の段（continueStep）で、prior は続ける前の画面の履歴の段（断られたらこの段に戻す。続ける前に通っていた変更は元に戻せるまま残す）。
+// books が空なら、画面の履歴に入れる変更が無い（アクションバルクだけ）。done は行ったアクションの並び、answer はホストの答え（settle で返す）
 interface OpenStep {
   at: string
+  done: DoneAction[]
+  answer?: Promise<HostAnswer>
+  settle?: (a: HostAnswer) => void
   books: string[]
   pages: Record<string, RowChange<PageRow>>
   folders: Record<string, RowChange<Folder>>
@@ -684,6 +692,26 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   const closeStep = () => {
     if (!open) return
     const was = open
+    open = null
+    sendBulk(was)
+    putStep(was)
+  }
+  // 閉じたアクションバルクを observe に渡し、答えを待っている所に返す（断られたら画面の履歴の段を捨てる）
+  const sendBulk = (was: OpenStep) => {
+    if (was.done.length === 0) return
+    const answer = options.observe?.(was.done)
+    if (!answer) {
+      was.settle?.({ ok: true })
+      return
+    }
+    void answer.then(a => {
+      was.settle?.(a)
+      if (!a.ok) dropRefused(was)
+    })
+  }
+  // 閉じた段を画面の履歴に入れる
+  const putStep = (was: OpenStep) => {
+    if (was.books.length === 0 && !was.continued) return
     const { at, continued } = was
     // 同じ段の中で足して無くした物は、前も後も無いので持たない
     const kept = <T>(rows: Record<string, RowChange<T>>) =>
@@ -695,7 +723,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       pages: kept(was.pages),
       folders: kept(was.folders),
     }
-    open = null
     // 入れる前にホストが断ったなら入れない（続けた画面の履歴の段なら、続ける前の画面の履歴の段に戻す）
     if (was.refused) {
       if (was.prior) putBack(was.prior)
@@ -803,11 +830,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   }
   // ブック book の物を、表 was から changes のとおりに変えたことを、開いている画面の履歴の段に足す（同じ物を続けて変えたら、最初の前と最後の後を持つ）
   const record = (book: string, was: Tables, changes: TableChanges, at: string): OpenStep => {
-    if (!open) {
-      open = { at, books: [], pages: {}, folders: {} }
-      queueMicrotask(closeStep)
-    }
-    const into = open
+    const into = opened(at)
     if (!into.books.includes(book)) into.books.push(book)
     const rows = rowChanges(was, changes)
     for (const [id, r] of Object.entries(rows.pages))
@@ -815,6 +838,14 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     for (const [id, r] of Object.entries(rows.folders))
       into.folders[id] = { before: into.folders[id]?.before ?? r.before, after: r.after }
     return into
+  }
+  // 開いている段とアクションバルク（無ければ開き、同期の流れが終わったら閉じる）
+  const opened = (at: string): OpenStep => {
+    if (!open) {
+      open = { at, done: [], books: [], pages: {}, folders: {} }
+      queueMicrotask(closeStep)
+    }
+    return open
   }
   // ホストが断ったアクションを入れた画面の履歴の段 at を捨てる（その段は、断られた変更を戻そうとして、その間のほかの変更を消してしまうため。
   // 同じ段のほかのアクションの変更も、元に戻すで戻せなくなる。ただし続けた画面の履歴の段なら、続ける前の画面の履歴の段は戻し、その変更は元に戻せるまま残す）
@@ -852,8 +883,13 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       },
     })
     if (!done.ok) return done
-    const answer =
-      options.observe?.({ action: id, args, ...(on ? { on } : {}), ids, lang: c.lang, now: c.now }) ?? undefined
+    const bulk = opened(c.now)
+    bulk.done.push({ action: id, args, ...(on ? { on } : {}), ids, lang: c.lang, now: c.now })
+    const answer = options.observe
+      ? (bulk.answer ??= new Promise<HostAnswer>(settle => {
+          bulk.settle = settle
+        }))
+      : undefined
     const next: Partial<MatomezuState> = {}
     if (done.changes) {
       const tables = withChanges({ pages, folders }, done.changes)
@@ -875,10 +911,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         const after = Object.values(shelves.books).find(b => books[b.id] !== b)
         const before = after && books[after.id]
         const recorded = catalog.actions.get(id)?.history !== false
-        if (after && before && recorded) {
-          const at = record(after.id, { pages, folders }, done.changes, c.now)
-          void answer?.then(a => a.ok || dropRefused(at))
-        }
+        if (after && before && recorded) record(after.id, { pages, folders }, done.changes, c.now)
         // 画面の履歴に入れないアクション（ロックの掛け外しなど）が上書きした物は、その前の値を画面の履歴の段に残さないので捨てる
         if (after && before && !recorded) dropOverwritten(before, after)
         if (after) next.window = mapScreens(window, ws => followBook(catalog, ws, after, before))
@@ -1223,6 +1256,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       setState({ history: next })
       open = {
         at: step.at,
+        done: [],
         books: [...step.books],
         pages: { ...step.pages },
         folders: { ...step.folders },
@@ -1258,7 +1292,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       let tables = settledOn(tablesOf(found.books), now)
       const library = libraryOf(tables)
       const by = change?.by === "host" ? undefined : change?.by
-      const recorded = change && by && catalog.actions.get(change.action)?.history !== false
+      const recorded = change && by && change.actions.some(a => catalog.actions.get(a)?.history !== false)
       // よその変更が変えたブックごとに、まだ見ていない変更に足す
       for (const id of change?.books ?? []) {
         const was = known[id]
@@ -1270,19 +1304,25 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       let annotations = restoreAllAnnotations(world.annotations)
       let records = world.records === undefined ? getState().records : restoreRecords(world.records)
       let counters = world.counters === undefined ? getState().counters : restoreCounters(world.counters)
-      for (const done of replay) {
-        const ids = [...done.ids]
-        // 読み直した世界の上で行い直して投げるアクションは、断られたものと同じに落とし、あとの行い直しを続ける
+      for (const bulk of replay) {
+        // 読み直した世界の上で行い直して投げるアクションバルクは、断られたものと同じに落とし、あとの行い直しを続ける
         const next = (() => {
           try {
-            return performIn({ ...tables, settings, annotations, records, counters }, done.action, done.args, done.on, {
-              catalog,
-              controlCenter,
-              lang: done.lang,
-              newId: () => ids.shift() ?? newId(),
-              now: done.now,
-              actor: USER,
-            })
+            return performBulk(
+              { ...tables, settings, annotations, records, counters },
+              bulk.map(done => {
+                const ids = [...done.ids]
+                return {
+                  action: done.action,
+                  args: done.args,
+                  ...(done.on ? { on: done.on } : {}),
+                  lang: done.lang,
+                  newId: () => ids.shift() ?? newId(),
+                  now: done.now,
+                }
+              }),
+              { catalog, controlCenter, lang: bulk[0]?.lang ?? getState().lang, actor: USER },
+            )
           } catch {
             return null
           }

@@ -43,10 +43,14 @@ const send = (watchedRecords?: Record<string, string[]>) =>
   JSON.parse(
     engine.matomezuPerform(
       JSON.stringify({
-        action: "@matomezu/base:mail-send",
-        args: { from: "a", title: "new" },
-        ids: ["newmail001"],
-        now: "2026-11-12T00:00:00.000Z",
+        actions: [
+          {
+            action: "@matomezu/base:mail-send",
+            args: { from: "a", title: "new" },
+            ids: ["newmail001"],
+            now: "2026-11-12T00:00:00.000Z",
+          },
+        ],
         settings: {},
         records: { [MAIL]: full() },
         counters: { [MAIL]: { mail: 201 } },
@@ -69,7 +73,7 @@ test("エンジンは 1 回のアクションで変えたレコードの全部�
 })
 
 test("エンジンの編集ロックは、変えるレコードの全部にかかる（宛先でない、消す郵便を利用者が直していても being-edited）", () => {
-  expect(send({ [MAIL]: ["m1"] })).toEqual({ ok: false, reason: "being-edited" })
+  expect(send({ [MAIL]: ["m1"] })).toEqual({ ok: false, reason: "being-edited", at: 0 })
   expect(send({ [MAIL]: ["m2"] })).toMatchObject({ ok: true })
 })
 

@@ -53,10 +53,13 @@ function Proposal({ mail, onClose, dock, props }: MailActionsProps & { props: Pr
     show(mail)
     if (!mail.visitedAt) actions.perform(MAIL_VISITED.id, {}, { record: mail.id })
   }
+  // 反映と「反映した」は、待たずに続けて行う（同じアクションバルクなので、常駐は両方を 1 回で書くか、両方を断る）
   const apply = async () => {
-    const done = await actions.performConfirmed(PROPOSAL_APPLY.id, applyArgs, { book: props.book })
+    const applied = actions.perform(PROPOSAL_APPLY.id, applyArgs, { book: props.book })
+    const done = applied.ok
+      ? await actions.performConfirmed(PROPOSAL_SETTLE.id, { outcome: "applied" }, { record: mail.id })
+      : applied
     if (done.ok) {
-      actions.perform(PROPOSAL_SETTLE.id, { outcome: "applied" }, { record: mail.id })
       onClose()
       return
     }

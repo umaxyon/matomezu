@@ -11,7 +11,7 @@ import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { createMatomezu } from "../../web/src/store/create"
 import { definePlugin } from "../../web/src/store/plugin"
-import type { Actions, DoneAction } from "../../web/src/store/store"
+import type { Actions, DoneAction, DoneBulk } from "../../web/src/store/store"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { newStore, sequence, worldRows } from "../support"
 
@@ -128,8 +128,8 @@ describe("アクションの入口", () => {
     expect(instance.state.getState().books.n1).toBe(before)
   })
 
-  test("アクションは行った時点を ctx.now で受け取り、知らせにも載り、行い直しでも同じ時点を使う", () => {
-    const done: DoneAction[] = []
+  test("アクションは行った時点を ctx.now で受け取り、知らせにも載り、行い直しでも同じ時点を使う", async () => {
+    const done: DoneBulk[] = []
     const times = ["2026-10-26T01:00:00.000Z", "2026-10-26T02:00:00.000Z"]
     const instance = createMatomezu({
       plugins: BUILTIN,
@@ -142,16 +142,18 @@ describe("アクションの入口", () => {
     })
     instance.use([notes])
     notesBook(instance)
+    await Promise.resolve()
     untyped(instance.actions).perform("notes:stamp", { page: "n2" }, { book: "n1" })
     expect(notePage(instance)).toMatchObject({ title: "2026-10-26T02:00:00.000Z" })
-    expect(done.at(-1)).toMatchObject({ action: "notes:stamp", now: "2026-10-26T02:00:00.000Z" })
+    await Promise.resolve()
+    expect(done.at(-1)).toMatchObject([{ action: "notes:stamp", now: "2026-10-26T02:00:00.000Z" }])
     // ホストから届いたブックに、まだ確かめられていないアクションを行い直す
     instance.receive({ ...worldRows([receivedBook("メモ")]), settings: {} }, [done.at(-1)!])
     expect(notePage(instance)).toMatchObject({ title: "2026-10-26T02:00:00.000Z" })
   })
 
-  test("行い直しの 1 つが投げても、受け取りは止まらず、あとの行い直しを続ける", () => {
-    const done: DoneAction[] = []
+  test("行い直しの 1 つが投げても、受け取りは止まらず、あとの行い直しを続ける", async () => {
+    const done: DoneBulk[] = []
     const instance = createMatomezu({
       plugins: BUILTIN,
       controlCenter: "@matomezu/control-center:control-center",
@@ -162,8 +164,10 @@ describe("アクションの入口", () => {
     })
     instance.use([notes])
     notesBook(instance)
+    await Promise.resolve()
     untyped(instance.actions).perform("notes:stamp", { page: "n2" }, { book: "n1" })
-    const good = done.at(-1)!
+    await Promise.resolve()
+    const good = done.at(-1)![0]!
     const bad = {
       ...good,
       on: {
@@ -172,7 +176,7 @@ describe("アクションの入口", () => {
         },
       },
     } as unknown as DoneAction
-    instance.receive({ ...worldRows([receivedBook("メモ")]), settings: {} }, [bad, good])
+    instance.receive({ ...worldRows([receivedBook("メモ")]), settings: {} }, [[bad], [good]])
     expect(notePage(instance)).toMatchObject({ title: good.now })
   })
 
@@ -181,9 +185,11 @@ describe("アクションの入口", () => {
       plugins: BUILTIN,
       controlCenter: "@matomezu/control-center:control-center",
       newId: sequence("n"),
-      observe: d =>
+      observe: bulk =>
         Promise.resolve(
-          (d.args as { title?: string }).title === "断られる" ? { ok: false, reason: "refused" } : { ok: true },
+          bulk.some(d => (d.args as { title?: string }).title === "断られる")
+            ? { ok: false, reason: "refused" }
+            : { ok: true },
         ),
     })
     instance.use([notes])
