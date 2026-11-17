@@ -23,7 +23,7 @@ import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, type AIEditTicketChange, stopsOnEditLock } from "../core/def/action"
 import { slideIsBackground } from "../core/def/page-type"
 import type { SubjectDef } from "../core/def/subject"
-import { createdIn, libraryOf, NO_CHANGES, rawBooksOf, tablesOf, withChanges } from "../core/folders"
+import { bookIdOf, bookOf, createdIn, libraryOf, NO_CHANGES, rawBooksOf, tablesOf, withChanges } from "../core/folders"
 import { detectLang, translate } from "../core/i18n/i18n"
 import { changedIn } from "../core/ids"
 import { splitId } from "../core/names"
@@ -304,17 +304,18 @@ function touchedIn(
   watched: Input["watched"],
 ): readonly unknown[] {
   if (!watched || Object.keys(watched).length === 0) return []
-  const was = libraryOf(before)
-  const now = libraryOf(after)
   return Object.entries(watched).flatMap(([id, list]) => {
     // ブックの中の物（バインダ・ブックそのもの）
-    if (was[id]) return changedIn(was[id], now[id], list)
-    // ページの中の物と、そのページのアノテーション
-    const at = pageById(was, id)
+    const was = bookOf(before, id)
+    if (was) return changedIn(was, bookOf(after, id), list)
+    // ページの中の物と、そのページのアノテーション（そのページを持っているブックだけを組む）
+    const holder = bookIdOf(before.folders, id)
+    const held = holder ? bookOf(before, holder) : undefined
+    const at = held ? pageById({ [held.id]: held }, id) : undefined
     if (!at) return []
     const annotationsNow =
       changedAnnotations && id in changedAnnotations ? changedAnnotations[id] : before.annotations[id]
-    const book = now[at.book.id]
+    const book = bookOf(after, at.book.id)
     return changedIn(
       { page: at.page, annotations: before.annotations[id] },
       { page: book && findPage(book, id)?.page, annotations: annotationsNow },
