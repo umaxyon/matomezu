@@ -224,7 +224,7 @@ test("読むと、置いてあるブックと設定を返す", async () => {
   })
 })
 
-test("常駐が足した追加プラグインは、見た目の JS を読んで default で出したものを返し、CSS を読む。読み込めない物は外して理由を返す", async () => {
+test("常駐が足した追加プラグインは、見た目の JS を読んで default で出したものを返し、CSS を読む。読み込めない物と、default で同じ id のプラグインを出さない物は外して理由を返す", async () => {
   const styles: string[] = []
   const imported: string[] = []
   const listeners = new Map<string, (data: string) => void>()
@@ -239,6 +239,7 @@ test("常駐が足した追加プラグインは、見た目の JS を読んで 
             { id: "a", ui: "api/plugins/0/ui.js", css: "api/plugins/0/ui.css" },
             { id: "b", ui: "api/plugins/1/ui.js" },
             { id: "c", ui: "api/plugins/2/ui.js", css: "api/plugins/2/ui.css" },
+            { id: "d", ui: "api/plugins/3/ui.js", css: "api/plugins/3/ui.css" },
           ],
         }),
       ),
@@ -250,7 +251,10 @@ test("常駐が足した追加プラグインは、見た目の JS を読んで 
     importModule: async url => {
       imported.push(url)
       if (url === "api/plugins/2/ui.js") throw new Error("broken")
-      return { default: { id: url } }
+      // b は default を出さず、d は manifest と違う id を出す
+      if (url === "api/plugins/1/ui.js") return {}
+      if (url === "api/plugins/3/ui.js") return { default: { id: "other" } }
+      return { default: { id: "a" } }
     },
     addStyle: url => styles.push(url),
     reload: () => {},
@@ -261,10 +265,14 @@ test("常駐が足した追加プラグインは、見た目の JS を読んで 
   const loading = host.load()
   listeners.get("hello")?.(JSON.stringify({ client: "c1" }))
   const loaded = await loading
-  // 読み込めない c は外して理由を返し、ほかは読む（c の CSS は足さない）
-  expect(loaded.plugins).toEqual([{ id: "api/plugins/0/ui.js" }, { id: "api/plugins/1/ui.js" }])
-  expect(loaded.failed).toMatchObject([{ id: "c", error: { message: "broken" } }])
-  expect(imported).toEqual(["api/plugins/0/ui.js", "api/plugins/1/ui.js", "api/plugins/2/ui.js"])
+  // 読み込めない c と、default で同じ id のプラグインを出さない b・d は外して理由を返し、ほかは読む（外した物の CSS は足さない）
+  expect(loaded.plugins).toEqual([{ id: "a" }])
+  expect(loaded.failed).toMatchObject([
+    { id: "b", error: { code: "E316" } },
+    { id: "c", error: { message: "broken" } },
+    { id: "d", error: { code: "E316" } },
+  ])
+  expect(imported).toEqual(["api/plugins/0/ui.js", "api/plugins/1/ui.js", "api/plugins/2/ui.js", "api/plugins/3/ui.js"])
   expect(styles).toEqual(["api/plugins/0/ui.css"])
 })
 

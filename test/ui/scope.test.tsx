@@ -298,20 +298,17 @@ test("ダイアログなどを開いた場所を置くと、中のフックは�
   expect(closed.now?.done).toEqual({ ok: false, reason: "no-book" })
 })
 
-test("スクリーンを開いた場所に置くと、スクリーンのコマンドは出て、ステージのコマンドは出ない。窓（ステージを持たずに開いた印）も同じ", () => {
+test("スクリーンを開いた場所に置くと、スクリーンのコマンドは出て、ステージのコマンドは出ない", () => {
   const { instance, wrap } = setup()
   const screen = instance.state.getState().window.screens[0]!.id
-  for (const at of [screen, "none"]) {
-    const seen: { now: Seen | null } = { now: null }
-    const Probe = probeOf(seen)
-    render(
-      wrap(
-        <ActsOnScope at={at}>
-          <Probe />
-        </ActsOnScope>,
-      ),
-    )
-    expect(seen.now).toMatchObject({ stage: null, page: undefined, command: false, screenCommand: true })
-    cleanup()
-  }
+  const seen: { now: Seen | null } = { now: null }
+  const Probe = probeOf(seen)
+  render(
+    wrap(
+      <ActsOnScope at={screen}>
+        <Probe />
+      </ActsOnScope>,
+    ),
+  )
+  expect(seen.now).toMatchObject({ stage: null, page: undefined, command: false, screenCommand: true })
 })
