@@ -483,9 +483,12 @@ func (o Options) aiBooks(w http.ResponseWriter, r *http.Request) {
 	}
 	heads := make([]head, 0, len(books))
 	for _, b := range books {
-		h := head{ID: b.ID, Version: b.Version}
-		_ = json.Unmarshal(b.Body, &h)
-		h.ID, h.Version, h.Awaits = b.ID, b.Version, len(pick(annotations[b.ID], awaiting))
+		// ブックの本文から読むのはブックの名前（title）だけ（ほかの項目は常駐が組む。本文に同じ名前のフィールドがあっても拾わない）
+		var body struct {
+			Title string `json:"title"`
+		}
+		_ = json.Unmarshal(b.Body, &body)
+		h := head{ID: b.ID, Title: body.Title, Version: b.Version, Awaits: len(pick(annotations[b.ID], awaiting))}
 		if n, ok := warnings[b.ID]; ok && n.Unreadable {
 			h.Problem = n.Warning
 		} else {
