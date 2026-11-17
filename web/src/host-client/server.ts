@@ -697,7 +697,9 @@ export function serverClient(net: Net = browserNet): ServerClient {
       // 1 つが読み込めなくても、ほかのプラグインとブックは読む（読み込めた物だけ CSS も足す）
       const settled = await Promise.allSettled(
         plugins.map(async p => {
-          const ui = (await net.importModule(p.ui)).default
+          const ui: unknown = (await net.importModule(p.ui)).default
+          // default で、manifest と同じ id のプラグインを出していなければ、その追加プラグインだけを外す（ホストのエンジンと同じ確かめ）
+          if (typeof ui !== "object" || ui === null || (ui as { id?: unknown }).id !== p.id) fail("E316", { plugin: p.id })
           if (p.css) net.addStyle(p.css)
           return ui
         }),

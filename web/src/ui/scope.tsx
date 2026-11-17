@@ -60,17 +60,15 @@ export function PageScope({
   return <ScopeContext.Provider value={scope}>{children}</ScopeContext.Provider>
 }
 
-// 開いた場所 at（ステージの id か、スクリーンの id。store のダイアログ・右クリックのメニューが持つ値）の中: 開いているスクリーンの id ならそのスクリーン、
-// ステージを持たずに開いた印（NO_STAGE）なら窓、ほかはステージを向け先にする（もう無いステージなら、中からは何も行えない。useStageId・useAt が見る）
+// 開いた場所 at（ステージの id か、スクリーンの id。ダイアログを開いた所・右クリックのメニューが持つ値）の中: 開いているスクリーンの id ならそのスクリーン、
+// ほかはステージを向け先にする（もう無いステージなら、中からは何も行えない。useStageId・useAt が見る）
 export function ActsOnScope({ at, children }: { at: string; children: ReactNode }) {
   const isScreen = useMatomezuState(s => s.window.screens.some(x => x.id === at))
   const scope = useMemo<Scope>(
     () =>
-      at === NO_STAGE
-        ? { page: null, actsOn: WINDOW }
-        : isScreen
-          ? { page: null, actsOn: { kind: "screen", screen: at } }
-          : { page: { from: "stage", stage: at }, actsOn: { kind: "stage", stage: at } },
+      isScreen
+        ? { page: null, actsOn: { kind: "screen", screen: at } }
+        : { page: { from: "stage", stage: at }, actsOn: { kind: "stage", stage: at } },
     [at, isScreen],
   )
   return <ScopeContext.Provider value={scope}>{children}</ScopeContext.Provider>
