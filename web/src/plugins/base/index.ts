@@ -268,7 +268,7 @@ export { itemMinimapMarks, type MinimapMark } from "./minimap"
 export type { PageProblem } from "./page-tabs"
 export { addPageIn, nextPageTitle, type PageFieldsWay, pageFieldsWay } from "./page-tabs"
 export type { WorkroomRow, WorkroomState } from "./participant"
-export { JOINED_MESSAGE } from "./participant"
+export { isAdminActor, JOINED_MESSAGE, READS_ADMIN } from "./participant"
 // 置く計算と文字（ほかのプラグインが使う。追加プラグインには matomezu から出す）
 export type { Axis, Edges, Frame, Gap, GrowFrom, PortArea, Ports } from "./place"
 export {

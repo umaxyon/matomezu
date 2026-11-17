@@ -21,7 +21,7 @@ import { briefLine } from "../core/brief"
 import { bulkActionOf, performBulk } from "../core/bulk"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import type { CoreCatalog } from "../core/core-catalog"
-import { type ActionOn, type AIEditTicketChange, stopsOnEditLock } from "../core/def/action"
+import { type ActionOn, type AIEditTicketChange, type AIMessage, stopsOnEditLock } from "../core/def/action"
 import { slideIsBackground } from "../core/def/page-type"
 import type { SubjectDef } from "../core/def/subject"
 import { binnedBetween } from "../core/entries"
@@ -154,6 +154,7 @@ type Output =
       counters?: Counters
       notice?: string
       aiEditTickets?: readonly (AIEditTicketChange & { subject: string })[] // subject は、その変え方を返したアクションの対象の種類
+      aiMessages?: readonly AIMessage[] // 送る AI 間メッセージ（常駐が、宛先に参加の確定した参加者がいるかを確かめ、書き込みと一緒に送る）
     }
   | {
       ok: false
@@ -315,6 +316,7 @@ function perform(input: Input): Output {
     ...(done.aiEditTickets
       ? { aiEditTickets: done.aiEditTickets.map(t => ({ ...t.change, subject: t.subject })) }
       : {}),
+    ...(done.aiMessages ? { aiMessages: done.aiMessages } : {}),
   }
 }
 

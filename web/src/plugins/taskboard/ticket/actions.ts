@@ -1,6 +1,6 @@
 // チケットのアクション。チケットを足す・直すは AI も行え、チケットを消す・ロックを外すは利用者だけ
 import { type z, z as zod } from "zod"
-import { byOf, READS_WORKROOM_NAMES, type Records, readsBy, recordIn, WORKROOM_SUBJECT } from "../by"
+import { byOf, READS_WORKROOM_NAMES, type Records, readsBy, recordIn, workroomsOf } from "../by"
 import { kit } from "../kit"
 import { inDoneLane, PROJECT, UNSORTED } from "../project"
 import { type Project, projectOf } from "../project/actions"
@@ -14,16 +14,10 @@ export type Ticket = z.output<typeof TICKET.record>
 export const ticketOf = (ctx: Records, id: string): Ticket | undefined =>
   recordIn(ctx, TICKET.id, id) as Ticket | undefined
 
-// プロジェクトのレーン（未分類の行は除く）・チケットタグ・ワークルームの候補（id と名前）
+// プロジェクトのレーン（未分類の行は除く）・チケットタグの候補（id と名前）
 const lanesOf = (project: Project): Candidate[] =>
   project.lanes.flatMap(l => (l.kind === "lane" ? [{ id: l.id, name: l.name }] : []))
 const tagCandidates = (project: Project): Candidate[] => project.tags.map(t => ({ id: t.id, name: t.name }))
-// 読んだ索引キー（READS_WORKROOM_NAMES）から。作った順
-const workroomsOf = (ctx: Records): Candidate[] =>
-  Object.entries(ctx.keys?.[WORKROOM_SUBJECT] ?? {})
-    .map(([id, keys]) => ({ id, name: String(keys.name ?? ""), createdAt: String(keys.createdAt ?? "") }))
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))
-    .map(w => ({ id: w.id, name: w.name }))
 
 // レーン ref（id か名前。未分類は予約の unsorted）を id に決める。今のレーン current と同じ id ならそのまま通す（消したレーンのままでもよい）
 const pickLane = (project: Project, ref: string, current?: string): Resolved =>
