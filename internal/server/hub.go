@@ -10,7 +10,8 @@ package server
 //	hello     {"client"} この接続の id。窓はアクションバルクにこの id と、自分で振った順の番号 seq を添えて送る
 //	changed   {"pages": [{"id", "page"（消したなら "removed": true）, "version"}], "folders": [{"id", "folder"（同じ）, "version"}], "books", "client", "seq", "by", "act", "actions",
 //	          "settings"?, "annotations", "records": [{"subject", "id", "record"（消したなら "removed"）, "version"（消したなら 0）}], "counters"?, "window"}
-//	          1 回の Perform が変えた物の全部（何か変わったときだけ 1 つ）。pages・folders は変えた・足した・消したページとフォルダ、books はそれらを持つブックの id。
+//	          1 回の Perform が変えた物の全部（何か変わったときだけ 1 つ）。pages・folders は変えた・足した・消したページとフォルダ（書庫ホームとフォルダも）、
+//	          books はそれらを持つブックの id（書庫ホームとフォルダは入らない）。
 //	          client と seq は頼んだ窓とその番号（窓の外からなら空）。by は頼んだ物（"ai"・"window"・常駐が自分で行ったなら "host"）、act は 1 回の Perform の印、actions は行ったアクションの id の並び。
 //	          settings は変わったときだけ、新しい設定。annotations はアノテーションが変わったページの id → 新しい並び（空の並びなら全部無くなった）。
 //	          records は変えたレコード（郵便も。records.go）、counters は進めた番号の区切り（種類 → 区切り → 次の番号。進めたときだけ）。window は最後にフォーカスされた窓（無ければ空）
@@ -144,6 +145,8 @@ type Hub struct {
 	pageWarnings map[string]engine.BookWarning
 	// 効かないアノテーション（種類が無い W018・形が合わない W019）の warning の 1 行ずつ。起動したとき・プラグインが変わったとき・アノテーションを消したときに確かめ直す
 	annotationWarnings []string
+	// 書庫の木の決まりが破れているときの warning の 1 行（W030。守っていれば空。tables.go の checkLibrary）
+	libraryWarning string
 	// 効かないレコード（種類が無い W024・形が合わない W025。郵便は種類が無い W022・形が合わない W023）の warning の 1 行ずつ（レコードごと）。
 	// 起動したとき・プラグインが変わったときに全部、アクションがレコードを変えたときに変えたレコードだけを確かめ直す（records.go）
 	recordLines map[recordKey][]string
@@ -208,6 +211,7 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	if err := h.checkBooks(h.order); err != nil {
 		return nil, err
 	}
+	h.checkLibrary()
 	if err := h.checkAnnotations(); err != nil {
 		return nil, err
 	}
@@ -502,8 +506,9 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 }
 
 // performInputs は、バルク in.Actions を行う前に、エンジンへ渡すページ・フォルダ・アノテーション・レコード・番号の表を in に入れる（h.mu を持って呼ぶ）。
-// アクションごとに要るブック（レコードが対象なら引数から答えた読むだけのブック、宛先があればそのブック）の和と、そのアノテーションを渡す。
-// 一覧のアクション（宛先が無く、レコードが対象でない）か、0 番目でなく宛先が置き場所に無い（バルクの前のアクションが作ったページなど）アクションを含むなら、全部のブックとアノテーション
+// アクションごとに要るブック（レコードが対象なら引数から答えた読むだけのブック、宛先があればそのブック）の和と、そのアノテーションと、それらのブックから書庫ホームまでのフォルダを渡す。
+// 一覧のアクション（宛先が無く、レコードが対象でない）か、0 番目でなく宛先が置き場所に無い（バルクの前のアクションが作ったページなど）アクションを含むなら、
+// 全部のブックとアノテーションと、書庫ホームとフォルダの全部
 func (h *Hub) performInputs(in *engine.Input) error {
 	all := false
 	books := []string{}
@@ -543,10 +548,12 @@ func (h *Hub) performInputs(in *engine.Input) error {
 	in.Annotations = map[string]json.RawMessage{}
 	if all {
 		in.Pages, in.Folders = h.rowsOf(h.order)
+		in.Folders = append(in.Folders, h.homeAndFolderRows()...)
 		maps.Copy(in.Annotations, h.annotations)
 		return nil
 	}
 	in.Pages, in.Folders = h.rowsOf(books)
+	in.Folders = append(in.Folders, h.homeAndFoldersAbove(books)...)
 	for _, id := range books {
 		maps.Copy(in.Annotations, h.annotationsIn(id))
 	}

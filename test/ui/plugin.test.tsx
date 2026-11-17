@@ -60,12 +60,14 @@ const thrown = (run: () => unknown) => {
 
 describe("見た目のプラグイン", () => {
   test("追加プラグインのビューで描き、差し替えたダイアログをビルトインプラグインのコマンドが開く", () => {
+    // id は n1、n2、… と振る（ブックとその最初のページの id は、重ならない）
+    let made = 0
     const instance = createMatomezu({
       plugins: [...BUILTIN_UI, notesUi],
       partial: true,
       controlCenter: "@matomezu/control-center:control-center",
       lang: "ja",
-      newId: () => "n1",
+      newId: () => `n${++made}`,
     })
     render(
       <MatomezuProvider instance={instance} layout={DEFAULT_LAYOUT}>

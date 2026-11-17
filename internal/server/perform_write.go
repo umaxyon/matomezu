@@ -85,7 +85,7 @@ func (h *Hub) planWrites(out engine.Output, by, act, at string) (*writePlan, err
 		has[id] = true
 	}
 	plan.batch.RemovedBooks = plan.removed
-	// AI 編集チケット: 消すブックの分を外し、AI のアクションなら 1 つ開く（変えたページとフォルダ。消すブックの物は入れない）
+	// AI 編集チケット: 消すブックの分を外し、AI のアクションなら 1 つ開く（変えたページとフォルダ。消すブックの物と、書庫ホームとフォルダは入れない）
 	tickets, ticketsChanged := h.aiEditTickets, false
 	removedBooks, goneRows := map[string]bool{}, map[string]bool{}
 	for _, id := range plan.removed {
@@ -99,8 +99,13 @@ func (h *Hub) planWrites(out engine.Output, by, act, at string) (*writePlan, err
 	}
 	if by == "ai" {
 		unseen := []string{}
-		for _, c := range slices.Concat(out.Pages, out.Folders) {
+		for _, c := range out.Pages {
 			if !goneRows[c.ID] {
+				unseen = append(unseen, c.ID)
+			}
+		}
+		for _, c := range out.Folders {
+			if !goneRows[c.ID] && !h.homeOrFolderChange(c) {
 				unseen = append(unseen, c.ID)
 			}
 		}
@@ -132,6 +137,14 @@ func (h *Hub) planWrites(out engine.Output, by, act, at string) (*writePlan, err
 		plan.tickets, plan.batch.AIEditTickets = &tickets, body
 	}
 	return plan, nil
+}
+
+// homeOrFolderChange は、フォルダの変わり c が、書庫ホームかフォルダの行のものか（消すなら置いてある行の役で、書くなら新しい本文の役で見る。h.mu を持って呼ぶ）
+func (h *Hub) homeOrFolderChange(c engine.RowChange) bool {
+	if c.Removed {
+		return h.folders[c.ID].isHomeOrFolder()
+	}
+	return newFolderRow(c.Row, 0).isHomeOrFolder()
 }
 
 // repeatedChanges は、out の pages・folders に同じ id が、records に同じ種類と id が 2 つあれば、それを名指す error を返す
@@ -197,8 +210,12 @@ func rowNotice(field string, put rowPut) map[string]any {
 
 // applyWrites は、書き終えた物をメモリに当て、窓に changed の知らせ 1 つで知らせる（何も変わらなければ知らせない）。失敗しない（h.mu を持って呼ぶ）
 func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act string) {
+	// 木が変わりうる書き込み（ページかフォルダの行が増えた・消えた、書庫ホームかフォルダの行を書いた）のあとは、木の決まりを確かめ直す
+	tree := false
 	pages := make([]map[string]any, 0, len(plan.pages))
 	for _, put := range plan.pages {
+		_, known := h.pages[put.id]
+		tree = tree || put.removed || !known
 		if put.removed {
 			delete(h.pages, put.id)
 		} else {
@@ -208,12 +225,17 @@ func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act
 	}
 	folders := make([]map[string]any, 0, len(plan.folders))
 	for _, put := range plan.folders {
+		was, known := h.folders[put.id]
 		if put.removed {
 			delete(h.folders, put.id)
 		} else {
 			h.folders[put.id] = newFolderRow(put.body, put.version)
 		}
+		tree = tree || put.removed || !known || was.isHomeOrFolder() || h.folders[put.id].isHomeOrFolder()
 		folders = append(folders, rowNotice("folder", put))
+	}
+	if tree {
+		h.checkLibrary()
 	}
 	for _, e := range plan.batch.Entries {
 		if e.Folder == "" {
@@ -223,7 +245,7 @@ func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act
 		}
 	}
 	for _, id := range out.Books {
-		if _, ok := h.folders[id]; ok && !slices.Contains(h.order, id) {
+		if f, ok := h.folders[id]; ok && f.isBook() && !slices.Contains(h.order, id) {
 			h.order = append(h.order, id)
 		}
 	}

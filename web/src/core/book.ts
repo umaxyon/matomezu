@@ -461,13 +461,16 @@ function sharesPaper(binder: BinderEntry): boolean {
 }
 
 // ブックを変えた前と後で、同じ id のページのタイプと、同じ id のバインダが入れるタイプが同じか（どちらも、作ったあと変えない）
-export function keepsPageTypes(before: Book, after: Book): boolean {
+export const keepsPageTypes = (before: Book, after: Book): boolean => keepsPageTypesAcross([before], [after])
+
+// ブックの並びを変えた前と後で、同じ id のページのタイプと、同じ id のバインダが入れるタイプが同じか（ページやバインダが、ブックの間を動いていても）
+export function keepsPageTypesAcross(before: readonly Book[], after: readonly Book[]): boolean {
   const typed = (book: Book) => [
     ...pagesOf(book).map(p => [p.id, p.type] as const),
     ...bindersOf(book).map(f => [f.id, f.pageType] as const),
   ]
-  const was = new Map(typed(before))
-  return typed(after).every(([id, type]) => !was.has(id) || was.get(id) === type)
+  const was = new Map(before.flatMap(typed))
+  return after.flatMap(typed).every(([id, type]) => !was.has(id) || was.get(id) === type)
 }
 
 // ブックを変えた前と後で、読めないページがどれも、同じフォルダ（ブックの並びか、同じバインダ）に同じ値・同じ順で残り、増えてもいないか

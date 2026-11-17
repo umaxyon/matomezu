@@ -6,7 +6,15 @@ import { z } from "zod"
 import { USER } from "../../web/src/core/actor"
 import { checkBooks, findUnreadable, lostUnreadable, pagesOf, unreadableOf } from "../../web/src/core/book"
 import { defineAction } from "../../web/src/core/def/action"
-import { bookOf, changesBetween, recordsOf, tablesOf, withChanges } from "../../web/src/core/folders"
+import {
+  bookOf,
+  changesBetween,
+  homeOver,
+  recordsOf,
+  tablesOf,
+  withChanges,
+  worldTablesOf,
+} from "../../web/src/core/folders"
 import { type PerformedIn, perform, performIn, permittedIn, type World } from "../../web/src/core/perform"
 import type { Book, UnreadableEntry } from "../../web/src/core/schema/book"
 import { shownPageId } from "../../web/src/core/stage"
@@ -283,7 +291,7 @@ describe("アクション（performIn）", () => {
     actor: USER,
   }
   const worldOf = (books: readonly Book[]): World => ({
-    ...tablesOf(books),
+    ...worldTablesOf(books, [homeOver(books)]),
     settings: {},
     annotations: {},
     records: {},

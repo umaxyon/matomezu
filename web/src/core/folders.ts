@@ -1,8 +1,10 @@
 // ページとフォルダの表: 世界と保存の単位。ページは 1 枚ずつ、フォルダは 1 つずつ持ち、フォルダが中身（エントリ）の id を順に持つ（ページは、自分の入っているフォルダを持たない）。
-// フォルダは、ブック（folderRole が "book"。エントリはページとバインダ）か、バインダ（"binder"。1 つのタイプのページだけ）。
+// フォルダは、書庫ホーム（folderRole が "home"。ただ 1 つで、どのフォルダにも入らない）か、フォルダ（"folder"）か、ブック（"book"。エントリはページとバインダ）か、
+// バインダ（"binder"。1 つのタイプのページだけ）。書庫ホーム以外のページとフォルダは、ちょうど 1 つのフォルダに入る。
 // ブック（core/schema/book.ts の Book）は、ブックのフォルダと、その下のバインダ・ページの中身をまとめた、読む用の値。ここの関数が表から組み、変えた結果を表への書き込みに分ける
 // （組むのと分けるのは、ここだけ。同じページが 2 つの値に入らないよう、持つのは表の方）
 
+import { z } from "zod"
 import { applyPatch, type Patch } from "./patch"
 import { REMOVED } from "./records"
 import { sameData } from "./same"
@@ -18,6 +20,20 @@ export interface BinderRef {
   id: string
 }
 export type EntryRef = PageRef | BinderRef
+export interface BookRef {
+  kind: "book"
+  id: string
+}
+export interface FolderRef {
+  kind: "folder"
+  id: string
+}
+// 書庫ホームとフォルダが持つエントリ 1 つ: ブックかフォルダの id
+export type BookOrFolderRef = BookRef | FolderRef
+export type AnyEntryRef = EntryRef | BookOrFolderRef
+
+// 書庫ホームの id（決まった値。書庫ホームは、この id のフォルダただ 1 つ）
+export const HOME_ID = "library-home"
 
 // ブックのフォルダ: ブックのフィールド（名前・ロック・ゴミ箱に入れた時刻・ブックが持つ設定の項目）と、エントリの id の並び
 export type BookFolder = Omit<Book, "lineup"> & { folderRole: "book"; lineup: readonly EntryRef[] }
@@ -29,7 +45,69 @@ export interface BinderFolder {
   pageType: string
   lineup: readonly PageRef[]
 }
-export type Folder = BookFolder | BinderFolder
+// 書庫ホーム: 書庫の一番上のフォルダ。名前は持たない
+export interface HomeFolder {
+  folderRole: "home"
+  id: typeof HOME_ID
+  lineup: readonly BookOrFolderRef[]
+}
+// フォルダ（ブックでもバインダでもない物）: 名前と、エントリの id の並び
+export interface PlainFolder {
+  folderRole: "folder"
+  id: string
+  title: string
+  lineup: readonly BookOrFolderRef[]
+}
+// 書庫ホームかフォルダ（ブックを組む値には入らず、表にだけ在る）
+export type HomeOrFolder = HomeFolder | PlainFolder
+export type Folder = BookFolder | BinderFolder | HomeOrFolder
+
+const BookOrFolderRefSchema = z.strictObject({ kind: z.enum(["book", "folder"]), id: z.string().min(1) })
+const HomeOrFolderSchema = z.discriminatedUnion("folderRole", [
+  z.strictObject({ folderRole: z.literal("home"), id: z.literal(HOME_ID), lineup: z.array(BookOrFolderRefSchema) }),
+  z.strictObject({
+    folderRole: z.literal("folder"),
+    id: z.string().min(1),
+    title: z.string().min(1),
+    lineup: z.array(BookOrFolderRefSchema),
+  }),
+])
+
+// ブックとバインダの行から、木の決まりに要る所だけを読む形
+const LooseFolderSchema = z.looseObject({
+  id: z.string().min(1),
+  folderRole: z.unknown().optional(),
+  lineup: z.array(z.unknown()).catch([]),
+})
+const LooseRefSchema = z.looseObject({ kind: z.string(), id: z.string().min(1) })
+
+// フォルダの行が書庫ホームかフォルダの役（"home"・"folder"）を名乗るか（形は確かめない）
+const namesHomeOrFolder = (row: unknown): boolean =>
+  typeof row === "object" &&
+  row !== null &&
+  ["home", "folder"].includes((row as { folderRole?: unknown }).folderRole as string)
+
+// 置き場所から読んだままのフォルダ folders のうち、書庫ホームとフォルダ（形に合う物だけ。合わない物は入らず、木の決まり treeHolds が破れて見える）
+export function homeAndFoldersOf(folders: readonly unknown[]): HomeOrFolder[] {
+  return folders.flatMap(f => {
+    const parsed = namesHomeOrFolder(f) ? HomeOrFolderSchema.safeParse(f) : undefined
+    return parsed?.success ? [parsed.data as HomeOrFolder] : []
+  })
+}
+
+// ブック books だけを直下に持つ書庫ホーム（ブックの並びから世界を作るときの、置き場所）
+export const homeOver = (books: readonly { id: string }[]): HomeFolder => ({
+  folderRole: "home",
+  id: HOME_ID,
+  lineup: books.map(b => ({ kind: "book", id: b.id })),
+})
+
+// 世界の表: ブック books を分けた表に、書庫ホームとフォルダ others を足した物
+export function worldTablesOf(books: readonly Book[], others: readonly HomeOrFolder[]): Tables {
+  const tables = tablesOf(books)
+  if (others.length === 0) return tables
+  return { pages: tables.pages, folders: { ...tables.folders, ...Object.fromEntries(others.map(f => [f.id, f])) } }
+}
 
 // ページの表の 1 行: ページか、読めないページ（今の機能台帳では読めないページ。id・名前・理由の番号だけで、残したデータは置き場所に残る。
 // フォルダのエントリは、どちらも kind が "page" の id で指す）
@@ -175,16 +253,86 @@ function placesOf(folders: Folders): ReadonlyMap<string, string> {
   return places
 }
 
-// ページ page を入れているフォルダの列（近い順。バインダの中のページなら、バインダ → ブック。どこにも入っていなければ空）
-export function foldersOver(folders: Folders, page: string): Folder[] {
+// エントリ entry を入れているフォルダの列（近い順。バインダの中のページなら、バインダ → ブック → … → 書庫ホーム。どこにも入っていなければ空。輪になっていたら、そこで止める）
+export function foldersOver(folders: Folders, entry: string): Folder[] {
   const places = placesOf(folders)
   const over: Folder[] = []
-  for (let at = places.get(page); at !== undefined && over.length < 8; at = places.get(at)) {
+  const passed = new Set<string>()
+  for (let at = places.get(entry); at !== undefined && !passed.has(at); at = places.get(at)) {
     const folder = folders[at]
     if (!folder) break
+    passed.add(at)
     over.push(folder)
   }
   return over
+}
+
+// 木の決まり: 書庫ホームが在る／書庫ホームはどのフォルダにも入らない／書庫ホーム以外のフォルダは、ちょうど 1 つのフォルダに入り、上へたどると書庫ホームに着く（輪にならない）／
+// ページは、どれかのフォルダ（ブック・バインダを含む）に入る／書庫ホームとフォルダのエントリは、種類が合う（folder は表に在るフォルダ、book はブック）／
+// ブックとバインダは、ブックもフォルダも持たない（型が決める）
+export function treeHolds({ pages, folders }: Tables): boolean {
+  const home = folders[HOME_ID]
+  if (home?.folderRole !== "home") return false
+  const holder = new Map<string, string>()
+  for (const f of Object.values(folders)) {
+    for (const r of f.lineup) {
+      if (holder.has(r.id)) return false
+      holder.set(r.id, f.id)
+      if (f.folderRole !== "home" && f.folderRole !== "folder") continue
+      // 表に無い book は通す（読めないブックは、表に入らない）
+      const row = folders[r.id]
+      const fits = r.kind === "book" ? !row || row.folderRole === "book" : row?.folderRole === "folder"
+      if (!fits) return false
+    }
+  }
+  if (holder.has(HOME_ID)) return false
+  if (!Object.keys(pages).every(id => holder.has(id))) return false
+  return Object.values(folders).every(f => {
+    const passed = new Set<string>()
+    let at: string | undefined = f.id
+    while (at !== undefined && at !== HOME_ID && !passed.has(at)) {
+      passed.add(at)
+      at = holder.get(at)
+    }
+    return at === HOME_ID
+  })
+}
+
+// 置き場所から読んだままのフォルダの行の全部 rows（書庫ホーム・フォルダ・ブック・バインダ）と、ページの行の id の全部 pages が、木の決まり treeHolds を守るか。
+// 書庫ホームとフォルダは形を確かめ（合わない行は入らない）、ブックとバインダは id と並びのエントリの id だけを読む（読めないブックも、行が在れば木に入る）
+export function rowsHoldTree(rows: readonly unknown[], pages: readonly string[]): boolean {
+  const folders: Record<string, Folder> = {}
+  for (const f of homeAndFoldersOf(rows)) folders[f.id] = f
+  for (const row of rows) {
+    if (namesHomeOrFolder(row)) continue
+    const parsed = LooseFolderSchema.safeParse(row)
+    if (!parsed.success) continue
+    const { id, folderRole, lineup } = parsed.data
+    const refs = lineup.flatMap(r => (LooseRefSchema.safeParse(r).success ? [r as EntryRef] : []))
+    folders[id] = { folderRole: folderRole === "binder" ? "binder" : "book", id, lineup: refs } as unknown as Folder
+  }
+  return treeHolds({ pages: Object.fromEntries(pages.map(id => [id, undefined])), folders } as unknown as Tables)
+}
+
+// 変わり changes（ブックを足す・消す）に、置き場所の書き込みを足した変わり: 足したブックは書庫ホームの末尾に入れ、無くなったブックは、入っていたフォルダの並びから外す
+export function placedChanges(tables: Tables, changes: TableChanges): TableChanges {
+  const added = Object.entries(changes.folders).flatMap(([id, f]) =>
+    f !== REMOVED && f.folderRole === "book" && !(id in tables.folders) ? [id] : [],
+  )
+  const gone = new Set(
+    Object.entries(changes.folders).flatMap(([id, f]) =>
+      f === REMOVED && tables.folders[id]?.folderRole === "book" ? [id] : [],
+    ),
+  )
+  if (added.length === 0 && gone.size === 0) return changes
+  const puts: Record<string, Folder> = {}
+  for (const f of Object.values(tables.folders)) {
+    if (f.folderRole !== "home" && f.folderRole !== "folder") continue
+    const kept = f.lineup.filter(r => !gone.has(r.id))
+    const fresh = f.folderRole === "home" ? added.map((id): BookRef => ({ kind: "book", id })) : []
+    if (kept.length !== f.lineup.length || fresh.length > 0) puts[f.id] = { ...f, lineup: [...kept, ...fresh] }
+  }
+  return { pages: changes.pages, folders: { ...changes.folders, ...puts } }
 }
 
 // ブック book を分けたフォルダの表（同じブックには同じ表を返す）
@@ -255,8 +403,11 @@ export function withChanges(tables: Tables, changes: TableChanges): Tables {
 }
 
 // 変わり changes が新しく足すページ・フォルダ（行う前のブック before に無かった物）の id
-export function createdIn(before: readonly Book[], changes: TableChanges): string[] {
-  const was = tablesOf(before)
+export const createdIn = (before: readonly Book[], changes: TableChanges): string[] =>
+  createdOn(tablesOf(before), changes)
+
+// 変わり changes が新しく足すページ・フォルダ（表 was に無かった物）の id
+export function createdOn(was: Tables, changes: TableChanges): string[] {
   return [
     ...Object.entries(changes.pages).filter(([id, v]) => v !== REMOVED && !(id in was.pages)),
     ...Object.entries(changes.folders).filter(([id, v]) => v !== REMOVED && !(id in was.folders)),
@@ -264,7 +415,7 @@ export function createdIn(before: readonly Book[], changes: TableChanges): strin
 }
 
 // 置き場所から読んだままのページとフォルダ（形を確かめる前の値）から、ブックの本文（並びにページとバインダの中身ごと持つ形）を組む。確かめるのは、組んだ後（core/book.ts の checkBooks）。
-// ブックにするのは、どのフォルダのエントリにもなっていないフォルダ（形の壊れた物も、そのまま 1 冊として返す。読めないブックとして見える）。
+// ブックにするのは、役（folderRole）が書庫ホーム・フォルダ・バインダのどれでもないフォルダ（形の壊れた物も、そのまま 1 冊として返す。読めないブックとして見える）。
 // エントリが id だけの物（kind と id だけを持つ）なら、表から引いて中身に替える（表に無ければ、そのまま残す）。それより多くを持つエントリは、中身ごと残っている物として、そのまま使う。
 // 同じフォルダと同じ中身からは、同じ値を返す（確かめ直しを減らす）
 const rawKept = new WeakMap<object, Kept<unknown>>()
@@ -280,9 +431,8 @@ export function rawBooksOf(pages: readonly unknown[], folders: readonly unknown[
     isObject(e) && Object.keys(e).length === 2 && typeof e.kind === "string" && typeof e.id === "string"
       ? { kind: e.kind, id: e.id }
       : undefined
-  const entered = new Set(
-    folders.flatMap(f => (isObject(f) && Array.isArray(f.lineup) ? f.lineup : [])).flatMap(e => refOf(e)?.id ?? []),
-  )
+  const notBook = (f: Readonly<Record<string, unknown>>) =>
+    f.folderRole === "home" || f.folderRole === "folder" || f.folderRole === "binder"
   // フォルダ f を、エントリを中身に替えて組む（binder なら、並びのエントリの形にする）
   const made = (f: Readonly<Record<string, unknown>>, as: "book" | "binder"): unknown => {
     const lineup = Array.isArray(f.lineup) ? f.lineup : undefined
@@ -301,7 +451,7 @@ export function rawBooksOf(pages: readonly unknown[], folders: readonly unknown[
   }
   return folders.flatMap(f => {
     if (!isObject(f)) return [f]
-    return typeof f.id === "string" && entered.has(f.id) ? [] : [made(f, "book")]
+    return notBook(f) ? [] : [made(f, "book")]
   })
 }
 
@@ -329,13 +479,13 @@ function patched<T>(
 }
 
 // 並び lineup の、has が在ると答えたエントリだけの並び（全部在れば lineup のまま）
-function there<R extends EntryRef>(lineup: readonly R[], has: (r: R) => boolean): readonly R[] {
+function there<R extends AnyEntryRef>(lineup: readonly R[], has: (r: R) => boolean): readonly R[] {
   const kept = lineup.filter(has)
   return kept.length === lineup.length ? lineup : kept
 }
 
 // 表 tables に、ページとフォルダごとの置き直す値 patches を行った表（何も変わらなければ tables のまま）。ページとフォルダは別々に置き直すので、
-// 行った後に、エントリとその中身が食い違う所を落とす: 中身（ページ・バインダ）が表に無いエントリは並びから外し、どのブックの並びからもたどれないページとフォルダは表から外す
+// 行った後に、エントリとその中身が食い違う所を落とす: 中身が表に無いエントリは並びから外し、どのブックの並びからもたどれないページとバインダは表から外す
 export function restoredTables(tables: Tables, patches: RowPatches): Tables {
   const pages = patched(tables.pages, patches.pages)
   const folders = patched(tables.folders, patches.folders)
@@ -345,6 +495,15 @@ export function restoredTables(tables: Tables, patches: RowPatches): Tables {
   const reached = new Set<string>()
   const hasPage = (r: EntryRef) => r.kind === "page" && pages[r.id] !== undefined
   for (const folder of Object.values(folders)) {
+    if (folder.folderRole === "home" || folder.folderRole === "folder") {
+      // 書庫ホームとフォルダは残す（中身が表に無いエントリだけ、並びから外す）
+      const lineup = there<BookOrFolderRef>(
+        folder.lineup,
+        r => r.kind === "book" || folders[r.id]?.folderRole === "folder",
+      )
+      kept[folder.id] = lineup === folder.lineup ? folder : { ...folder, lineup }
+      continue
+    }
     if (folder.folderRole !== "book" || !Array.isArray(folder.lineup)) continue
     const lineup = there<EntryRef>(
       folder.lineup,

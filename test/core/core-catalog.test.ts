@@ -223,12 +223,14 @@ describe("アクションを行う", () => {
     })
   })
 
-  test("ブックを作ると、振った id で一覧に入り、その id を返す。同じ id があれば断る", () => {
+  test("ブックを作ると、振った id で一覧に入り、その id を返す。もう在る id は飛ばして、次の id を振る", () => {
     const done = perform(library, "@matomezu/base:book-create", { title: "新しい図" }, ctx)
     expect(done).toMatchObject({ ok: true, result: { book: "new" } })
     expect(done.ok && done.next.new).toEqual({ id: "new", title: "新しい図", lineup: [] })
-    const again = done.ok ? perform(done.next, "@matomezu/base:book-create", { title: "もう一つ" }, ctx) : null
-    expect(again).toEqual({ ok: false, reason: "refused" })
+    const ids = ["new", "new2"]
+    const next = { ...ctx, newId: () => ids.shift() ?? "none" }
+    const again = done.ok ? perform(done.next, "@matomezu/base:book-create", { title: "もう一つ" }, next) : null
+    expect(again).toMatchObject({ ok: true, result: { book: "new2" } })
   })
 
   test("ブックの一覧と設定を変えるアクションは、コントロールセンターが許すときだけ。コントロールセンターが無ければ断る", () => {

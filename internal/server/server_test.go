@@ -23,14 +23,36 @@ import (
 	"github.com/umaxyon/matomezu/internal/storage"
 )
 
-// bookBatch は、ブックの本文 body（並びにページとバインダの中身ごと持つ形）を分けて置く書き込み
-func bookBatch(t *testing.T, body string) storage.Batch {
+// bookBatch は、ブックの本文 body（並びにページとバインダの中身ごと持つ形）を分けて、置き場所 store の書庫ホームに入れて置く書き込み
+func bookBatch(t *testing.T, store storage.Storage, body string) storage.Batch {
 	t.Helper()
 	split, ok := storage.SplitBook(json.RawMessage(body), map[string]bool{})
 	if !ok {
 		t.Fatalf("the book cannot be split: %s", body)
 	}
 	var b storage.Batch
+	// ブックは、置いてある書庫ホームの並びの末尾に入れる
+	folders, err := store.Folders()
+	if err != nil {
+		t.Fatal(err)
+	}
+	book := split.Folders[0].ID
+	for _, f := range folders {
+		if f.ID != storage.HomeID {
+			continue
+		}
+		var home map[string]any
+		if err := json.Unmarshal(f.Body, &home); err != nil {
+			t.Fatal(err)
+		}
+		home["lineup"] = append(home["lineup"].([]any), map[string]string{"kind": "book", "id": book})
+		raw, err := json.Marshal(home)
+		if err != nil {
+			t.Fatal(err)
+		}
+		b.Folders = append(b.Folders, storage.RowWrite{ID: f.ID, Body: raw, Base: f.Version})
+		b.Entries = append(b.Entries, storage.EntryPut{ID: book, Folder: f.ID})
+	}
 	for _, p := range split.Pages {
 		b.Pages = append(b.Pages, storage.RowWrite{ID: p.ID, Body: p.Body})
 	}
@@ -46,7 +68,7 @@ func bookBatch(t *testing.T, body string) storage.Batch {
 // putBook は、置き場所 store にブックの本文 body を置く（Hub を作る前の用意）
 func putBook(t *testing.T, store storage.Storage, body string) {
 	t.Helper()
-	if err := store.Apply(bookBatch(t, body)); err != nil {
+	if err := store.Apply(bookBatch(t, store, body)); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -57,15 +79,21 @@ func newServer(t *testing.T, stop func()) *httptest.Server {
 
 // newServerWith は、o に画面のファイル・合言葉・版・世界を足した常駐
 func newServerWith(t *testing.T, o Options) *httptest.Server {
-	web := fstest.MapFS{
-		"index.html": {Data: []byte("<!doctype html>top")},
-		"app.js":     {Data: []byte("js")},
-	}
 	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { store.Close() })
+	s, _ := newServerOn(t, o, store)
+	return s
+}
+
+// newServerOn は、newServerWith と同じ常駐を、置き場所 store の世界で作る（その Hub も返す）
+func newServerOn(t *testing.T, o Options, store storage.Storage) (*httptest.Server, *Hub) {
+	web := fstest.MapFS{
+		"index.html": {Data: []byte("<!doctype html>top")},
+		"app.js":     {Data: []byte("js")},
+	}
 	eng, err := engine.New()
 	if err != nil {
 		t.Fatal(err)
@@ -88,7 +116,7 @@ func newServerWith(t *testing.T, o Options) *httptest.Server {
 	cookieTestBrowser(t, s, o.Cookies)
 	t.Cleanup(hub.CloseAll)
 	t.Cleanup(s.Close)
-	return s
+	return s, hub
 }
 
 func get(t *testing.T, url, token string) (int, string) {
@@ -419,7 +447,7 @@ func TestBooksAreKeptWithVersions(t *testing.T) {
 	s := newServer(t, nil)
 	// 常駐が初めて起動したときに、最初のプロジェクトを 1 つ作る（runsOnceAtStart）
 	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 ||
-		!strings.HasPrefix(body, `{"annotations":{},"counters":{},"folders":[],"pages":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{"@matomezu/taskboard:project":{"`) ||
+		!strings.HasPrefix(body, `{"annotations":{},"counters":{},"folders":[{"id":"library-home","folder":{"folderRole":"home","id":"library-home","lineup":[]},"version":1}],"pages":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{"@matomezu/taskboard:project":{"`) ||
 		!strings.Contains(body, `},"settings":{"`+enabledPluginsSetting+`":[`) || !strings.HasSuffix(body, `]},"touched":{}}`) {
 		t.Fatalf("empty data = %d %s", code, body)
 	}
@@ -436,7 +464,7 @@ func TestBooksAreKeptWithVersions(t *testing.T) {
 		t.Fatalf("update = %d %s", code, body)
 	}
 	// 触れた時刻（touched）は書いた時刻なので、その前までを比べる
-	want := `{"annotations":{},"counters":{},"folders":[{"id":"b1","folder":{"folderRole":"book","id":"b1","lineup":[],"title":"B"},"version":2}],"pages":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{"@matomezu/taskboard:project":`
+	want := `{"annotations":{},"counters":{},"folders":[{"id":"b1","folder":{"folderRole":"book","id":"b1","lineup":[],"title":"B"},"version":2},{"id":"library-home","folder":{"folderRole":"home","id":"library-home","lineup":[{"id":"b1","kind":"book"}]},"version":2}],"pages":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{"@matomezu/taskboard:project":`
 	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || !strings.HasPrefix(body, want) || !strings.Contains(body, `"touched":{"b1":"`) {
 		t.Fatalf("data = %d %s", code, body)
 	}
@@ -456,7 +484,7 @@ func TestResetForTestLeavesOnlyTheGivenBooks(t *testing.T) {
 		return `{"id":"` + id + `","folder":{"folderRole":"book","id":"` + id + `","lineup":[],"title":"t"},"version":1}`
 	}
 	// 触れた時刻（touched）は置いた時刻なので、その前までを比べる
-	want := `{"annotations":{},"counters":{},"folders":[` + folder("b2") + `,` + folder("b3") + `],"pages":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{},"settings":null,"touched":{`
+	want := `{"annotations":{},"counters":{},"folders":[` + folder("b2") + `,` + folder("b3") + `,{"id":"library-home","folder":{"folderRole":"home","id":"library-home","lineup":[{"id":"b3","kind":"book"},{"id":"b2","kind":"book"}]},"version":5}],"pages":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{},"settings":null,"touched":{`
 	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || !strings.HasPrefix(body, want) {
 		t.Fatalf("data = %d %s", code, body)
 	}
@@ -597,7 +625,7 @@ func TestPerformTellsEveryScreen(t *testing.T) {
 	// 版が上がるのはそのページだけで、ブックのフォルダの版は変わらない
 	_, data := send(t, "GET", s.URL+"/api/data", "", nil)
 	if !strings.Contains(data, `"id":"k1"`) || !strings.Contains(data, `"bodyAlign":"left"}}]},"version":2}],"participantCalls"`) ||
-		!strings.Contains(data, `"folders":[{"id":"b1","folder":{"folderRole":"book","id":"b1","lineup":[{"id":"p1","kind":"page"}],"title":"T"},"version":1}]`) {
+		!strings.Contains(data, `"folders":[{"id":"b1","folder":{"folderRole":"book","id":"b1","lineup":[{"id":"p1","kind":"page"}],"title":"T"},"version":1},{"id":"library-home",`) {
 		t.Fatalf("data = %s", data)
 	}
 }
@@ -721,15 +749,21 @@ func TestAddingAPageWithAnIdAnotherBookHasIsRefused(t *testing.T) {
 	}
 }
 
-// ブックを作るアクションが最初のページに振る id も同じ: ほかのブックにもう在るページの id なら、断られて何も変わらない（在るページを書き換えない）
-func TestCreatingABookWithAPageIdAnotherBookHasIsRefused(t *testing.T) {
-	s := newServer(t, nil)
+// ブックを作るアクションが最初のページに振る id は、ほかのブックにもう在るページの id を飛ばす（在るページを書き換えない）
+func TestCreatingABookSkipsAPageIdAnotherBookHas(t *testing.T) {
+	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, hub := newServerOn(t, Options{}, store)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
-	_, before := send(t, "GET", s.URL+"/api/data", "", nil)
+	before := hub.PageVersion("p1")
 	_, got := postPerform(t, s.URL, `{"action":"@matomezu/base:book-create","args":{"title":"U","page":{"type":"@matomezu/drawing:drawing"}},"lang":"ja","ids":["b2","p1"]}`)
-	_, after := send(t, "GET", s.URL+"/api/data", "", nil)
-	if !strings.HasPrefix(got, `{"ok":false,"reason":"refused"`) || after != before {
-		t.Fatalf("book-create with the id of a page of another book = %s (the data changed: %v)", got, after != before)
+	if !strings.HasPrefix(got, `{"ok":true,"result":{"book":"b2","page":{"page":"`) || strings.Contains(got, `"page":"p1"`) {
+		t.Fatalf("book-create with the id of a page of another book = %s", got)
+	}
+	if hub.PageVersion("p1") != before {
+		t.Fatalf("the page another book has was written: version %d -> %d", before, hub.PageVersion("p1"))
 	}
 }
 
@@ -765,7 +799,7 @@ func TestAddingAndRemovingAPageKeepsTheEntries(t *testing.T) {
 		!strings.Contains(got, `"pages":[{"id":"p2","page":{`) || !strings.Contains(got, `"title":"追加"`) || strings.Contains(got, `"id":"p1","page"`) {
 		t.Fatalf("changed after page-add = %s", got)
 	}
-	if got := entries(); got != "map[p1:b1 p2:b1]" {
+	if got := entries(); got != "map[b1:library-home p1:b1 p2:b1]" {
 		t.Fatalf("entries after page-add = %s", got)
 	}
 	if h.PageVersion("p1") != 1 || h.PageVersion("p2") != 1 {
@@ -778,7 +812,7 @@ func TestAddingAndRemovingAPageKeepsTheEntries(t *testing.T) {
 	if !strings.HasPrefix(got, "changed ") || !strings.Contains(got, `"lineup":[{"kind":"page","id":"p1"}]},"id":"b1","version":3}]`) || !strings.Contains(got, `"pages":[{"id":"p2","removed":true}]`) {
 		t.Fatalf("changed after page-remove = %s", got)
 	}
-	if got := entries(); got != "map[p1:b1]" {
+	if got := entries(); got != "map[b1:library-home p1:b1]" {
 		t.Fatalf("entries after page-remove = %s", got)
 	}
 	if pages, _ := h.Tables(); len(pages) != 1 || pages[0].ID != "p1" {
@@ -880,10 +914,10 @@ func TestTrashABook(t *testing.T) {
 	if got := perform("trash-empty", `{}`); got != `{"ok":true,"result":{}}` {
 		t.Fatalf("empty = %s", got)
 	}
-	if got := next(t, a); !strings.HasPrefix(got, "changed ") || !strings.Contains(got, `"books":["b1"]`) || !strings.Contains(got, `"folders":[{"id":"b1","removed":true}],"pages":[{"id":"p1","removed":true}]`) {
+	if got := next(t, a); !strings.HasPrefix(got, "changed ") || !strings.Contains(got, `"books":["b1"]`) || !strings.Contains(got, `"folders":[{"id":"b1","removed":true},{"folder":{"folderRole":"home","id":"library-home","lineup":[]},"id":"library-home","version":3}],"pages":[{"id":"p1","removed":true}]`) {
 		t.Fatalf("changed after empty = %s", got)
 	}
-	if _, data := send(t, "GET", s.URL+"/api/data", "", nil); !strings.Contains(data, `"folders":[],"pages":[]`) || !strings.Contains(data, `"touched":{}`) {
+	if _, data := send(t, "GET", s.URL+"/api/data", "", nil); !strings.Contains(data, `"folders":[{"id":"library-home","folder":{"folderRole":"home","id":"library-home","lineup":[]},"version":3}],"pages":[]`) || !strings.Contains(data, `"touched":{}`) {
 		t.Fatalf("data after empty = %s", data)
 	}
 }

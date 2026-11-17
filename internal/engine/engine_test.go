@@ -67,6 +67,16 @@ func onBook(in Input, body string) Input {
 	return in
 }
 
+// inLibrary は、in の Folders に、ブック books を順に入れた書庫ホームの行を足す（一覧が対象のアクションに、ホストが渡す形）
+func inLibrary(in Input, books ...string) Input {
+	refs := []string{}
+	for _, id := range books {
+		refs = append(refs, `{"kind":"book","id":"`+id+`"}`)
+	}
+	in.Folders = append(in.Folders, json.RawMessage(`{"folderRole":"home","id":"library-home","lineup":[`+strings.Join(refs, ",")+`]}`))
+	return in
+}
+
 // rowOf は、変わった行の並びから id の行の本文を返す（無いか、消えていれば空）
 func rowOf(changes []RowChange, id string) string {
 	for _, c := range changes {
@@ -193,14 +203,16 @@ func TestAIPlacedGivesWhereShapesAreDrawn(t *testing.T) {
 
 func TestLibraryAndSettingsActions(t *testing.T) {
 	e := newEngine(t)
-	out, err := e.Perform(onBook(Input{Actions: []BulkAction{{
+	out, err := e.Perform(inLibrary(onBook(Input{Actions: []BulkAction{{
 		Action: "@matomezu/base:book-create",
 		Args:   json.RawMessage(`{"title":"New"}`),
 		Lang:   "ja",
 		IDs:    []string{"nb"},
-	}}}, book))
-	if err != nil || !out.OK || len(out.Books) != 1 || out.Books[0] != "nb" || len(out.Pages) != 0 || len(out.Folders) != 1 || len(out.Created) != 1 || out.Created[0] != "nb" ||
-		rowOf(out.Folders, "nb") != `{"id":"nb","title":"New","folderRole":"book","lineup":[]}` {
+	}}}, book), "b1"))
+	// 新しいブックは、書庫ホームの並びの末尾に入る
+	if err != nil || !out.OK || len(out.Books) != 1 || out.Books[0] != "nb" || len(out.Pages) != 0 || len(out.Folders) != 2 || len(out.Created) != 1 || out.Created[0] != "nb" ||
+		rowOf(out.Folders, "nb") != `{"id":"nb","title":"New","folderRole":"book","lineup":[]}` ||
+		!regexp.MustCompile(`"lineup":\[\{[^}]*"b1"[^}]*\},\{[^}]*"nb"[^}]*\}\]`).MatchString(rowOf(out.Folders, "library-home")) {
 		t.Fatalf("@matomezu/base:book-create = %+v, %v", out, err)
 	}
 	out, err = e.Perform(Input{Actions: []BulkAction{{Action: "@matomezu/base:settings-set", Args: json.RawMessage(`{"values":{"@matomezu/base:lang":"matomezu:en"}}`), Lang: "ja"}}, Settings: json.RawMessage(`{"@matomezu/base:lang":"matomezu:ja"}`)})
@@ -416,12 +428,12 @@ func TestUsesAnAddedPlugin(t *testing.T) {
 	if c := string(e.AICatalogForTest()); !strings.Contains(c, `"id":"ex2:diamond"`) || !strings.Contains(c, `"ex2:flow"`) {
 		t.Fatalf("the AI catalog lacks the added plugin: %s", c)
 	}
-	out, err := e.Perform(Input{Actions: []BulkAction{{
+	out, err := e.Perform(inLibrary(Input{Actions: []BulkAction{{
 		Action: "@matomezu/base:book-create",
 		Args:   json.RawMessage(`{"title":"Flow","page":{"type":"ex2:flow"}}`),
 		Lang:   "ja",
 		IDs:    []string{"fb", "fp"},
-	}}})
+	}}}))
 	if err != nil || !out.OK || len(out.Books) != 1 || out.Books[0] != "fb" || !strings.Contains(rowOf(out.Pages, "fp"), `"id":"fp","type":"ex2:flow"`) ||
 		!strings.Contains(rowOf(out.Folders, "fb"), `"lineup":[{"kind":"page","id":"fp"}]`) {
 		t.Fatalf("@matomezu/base:book-create = %+v, %v", out, err)

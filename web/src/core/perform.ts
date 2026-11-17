@@ -6,11 +6,13 @@ import type { z } from "zod"
 import { USER } from "./actor"
 import { type Annotation, type Annotations, annotationsSettle, type PageAnnotations, prune } from "./annotation"
 import {
+  bindersOf,
   distinctBooks,
   findPage,
   findUnreadable,
   holds,
   keepsPageTypes,
+  keepsPageTypesAcross,
   lostUnreadable,
   pagesOf,
   putPage,
@@ -49,8 +51,11 @@ import {
   createdIn,
   libraryOf,
   noChanges,
+  placedChanges,
   type TableChanges,
   type Tables,
+  treeHolds,
+  withChanges,
 } from "./folders"
 import { idsIn, skipping } from "./ids"
 import { decidedByPlace, deniedBy, type Inspected, inspect, typeAllows, withoutPermissions } from "./inspect"
@@ -402,8 +407,12 @@ export const noPage = (wanted: string): NoPage => ({
 // アクション action の run だけを行う（使えるか・整え・認可ステップ・形の確かめはしない。それは perform がする）。args は引数の形を通した後の値。
 // ページが対象なら、対象 subject（PageInBook）のブックからページを探して run に渡し、返ったページを同じ所へ戻したブックを next にする
 // （ページが無い・run が id の違うページを返したら null）。アノテーションが対象なら、ページとその並びを run に渡す（ページを替えて返したら null）。
-// run が振る id は、ページが対象ならそのページの中のどの id とも、ブックが対象ならそのブックの並びの中のどの id とも重ならず、同じ値を 2 度渡さない
+// run が振る id は、ページが対象ならそのページの中のどの id とも、ブックが対象ならそのブックの並びの中のどの id とも、一覧が対象ならどのブック・バインダ・ページの id とも重ならず、同じ値を 2 度渡さない
 // （そのままでも短い id にしても重なる newId の値を飛ばす。中身の id がページの中で重ならないことに、アノテーションのアンカーなどが頼っている）
+// 一覧 library のブックと、その中のバインダとページの id
+const rowIdsIn = (library: Library): string[] =>
+  Object.values(library).flatMap(b => [b.id, ...bindersOf(b).map(f => f.id), ...pagesOf(b).map(p => p.id)])
+
 export function runAction(
   action: ActionDef,
   subject: unknown,
@@ -413,6 +422,8 @@ export function runAction(
   const run = action.run as (subject: unknown, args: unknown, ctx: ActionContext) => ReturnType<ActionDef["run"]>
   if (action.target === "book")
     return run(subject, args, { ...ctx, newId: skipping(ctx.newId, () => idsIn((subject as Book).lineup)) })
+  if (action.target === "library")
+    return run(subject, args, { ...ctx, newId: skipping(ctx.newId, () => rowIdsIn(subject as Library)) })
   if (action.target !== "page" && action.target !== "annotations") return run(subject, args, ctx)
   const { book, page: id } = subject as PageInBook
   const page = findPage(book, id)?.page
@@ -492,11 +503,8 @@ export function perform<Id extends ActionId>(
       const lost = was[b.id] === b ? null : lostUnreadable(was[b.id], b)
       if (lost) return unreadable(lost)
     }
-    // 行う前から在るブックのページのタイプも、変えない
-    const typesKept = Object.values(now).every(b => {
-      const old = was[b.id]
-      return !old || old === b || keepsPageTypes(old, b)
-    })
+    // 行う前から在るページのタイプも、変えない（ページがブックの間を動いても）
+    const typesKept = keepsPageTypesAcross(Object.values(was), Object.values(now))
     if (!librarySettles(ctx.catalog, was, now) || !typesKept) return { ok: false, reason: "refused" }
   }
   if (action.target === "annotations") {
@@ -670,8 +678,11 @@ export function performIn(
     const done = loose(library, id, args, ctx)
     if (!done.ok) return done
     const books = done.next as Library
-    const changes = changesBetween(Object.values(library), Object.values(books))
-    if (collides(world, Object.values(library), changes)) return { ok: false, reason: "refused" }
+    const made = changesBetween(Object.values(library), Object.values(books))
+    if (collides(world, Object.values(library), made)) return { ok: false, reason: "refused" }
+    // 足したブックと無くなったブックの置き場所を書く。木の決まりを守っていた世界は、行った後も守る
+    const changes = placedChanges(world, made)
+    if (!treeHolds(withChanges(world, changes))) return { ok: false, reason: "refused" }
     // 無くなったページのアノテーションは消す
     const gone = Object.entries(changes.pages)
       .filter(([p, v]) => v === REMOVED && (world.annotations[p]?.length ?? 0) > 0)

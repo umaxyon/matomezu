@@ -219,7 +219,7 @@ func TestProposalSendOpensAndRemovesTicketsInOneWrite(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { store.Close() })
-	batch := bookBatch(t, boxed)
+	batch := bookBatch(t, store, boxed)
 	batch.Counters, batch.AIEditTickets = []storage.Counter{{Subject: mailKind, Scope: "mail", Next: 201}},
 		json.RawMessage(`[{"key":"m001","subject":"`+mailKind+`","book":"b1","at":"t"}]`)
 	for i := 1; i <= 200; i++ {

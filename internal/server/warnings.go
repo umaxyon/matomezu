@@ -61,12 +61,15 @@ func (h *Hub) UnreadablePageLines() map[string][]string {
 	return out
 }
 
-// Warnings は今の warning の 1 行ずつ: 定義の warning、warning のあるブック（ブックの並びの順に、ブックの warning、読めないページの warning をページの id の順）、
+// Warnings は今の warning の 1 行ずつ: 定義の warning、書庫の木の決まりが破れている warning、warning のあるブック（ブックの並びの順に、ブックの warning、読めないページの warning をページの id の順）、
 // 効かないアノテーション、窓が見つけた warning（同じ 1 行は 1 つ）
 func (h *Hub) Warnings() []string {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	out := slices.Clone(h.engine.Warnings())
+	if h.libraryWarning != "" {
+		out = append(out, h.libraryWarning)
+	}
 	pages := slices.Sorted(maps.Keys(h.pageWarnings))
 	for _, id := range h.order {
 		if n, ok := h.bookWarnings[id]; ok {

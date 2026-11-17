@@ -26,7 +26,7 @@ func row(id string, base int64, body string) RowWrite {
 	return RowWrite{ID: id, Body: json.RawMessage(body), Base: base}
 }
 
-// 置いてあるページとフォルダ（どちらも id → 「版 本文」）
+// 置いてあるページとフォルダ（どちらも id → 「版 本文」）。フォルダは、書庫ホームと、その下のフォルダ（役 folder）を除く（library_test.go が確かめる）
 func stored(t *testing.T, s Storage) (pages, folders map[string]string) {
 	t.Helper()
 	ps, err := s.Pages()
@@ -42,6 +42,9 @@ func stored(t *testing.T, s Storage) (pages, folders map[string]string) {
 		pages[p.ID] = fmt.Sprintf("%d %s", p.Version, p.Body)
 	}
 	for _, f := range fs {
+		if !IsBookRole(RoleOf(f.Body)) && RoleOf(f.Body) != "binder" {
+			continue
+		}
 		folders[f.ID] = fmt.Sprintf("%d %s", f.Version, f.Body)
 	}
 	return pages, folders
@@ -153,7 +156,7 @@ func TestTouchedIsTheNewestOfOpenedAndWrittenBelow(t *testing.T) {
 	s := open(t, filepath.Join(t.TempDir(), "data.db"))
 	if err := s.Apply(Batch{
 		Pages:   []RowWrite{row("p1", 0, `{"id":"p1"}`), row("p2", 0, `{"id":"p2"}`)},
-		Folders: []RowWrite{row("b1", 0, `{"id":"b1"}`), row("f1", 0, `{"id":"f1"}`), row("b2", 0, `{"id":"b2"}`)},
+		Folders: []RowWrite{row("b1", 0, `{"id":"b1"}`), row("f1", 0, `{"folderRole":"binder","id":"f1"}`), row("b2", 0, `{"id":"b2"}`)},
 		Entries: []EntryPut{{"p1", "b1"}, {"f1", "b1"}, {"p2", "f1"}},
 	}); err != nil {
 		t.Fatal(err)
@@ -173,7 +176,7 @@ func TestTouchedIsTheNewestOfOpenedAndWrittenBelow(t *testing.T) {
 	}{
 		{"a page in the book", Batch{Pages: []RowWrite{row("p1", 1, `{"id":"p1","x":1}`)}}},
 		{"a page in the binder", Batch{Pages: []RowWrite{row("p2", 1, `{"id":"p2","x":1}`)}}},
-		{"the binder", Batch{Folders: []RowWrite{row("f1", 1, `{"id":"f1","x":1}`)}}},
+		{"the binder", Batch{Folders: []RowWrite{row("f1", 1, `{"folderRole":"binder","id":"f1","x":1}`)}}},
 		{"the book's folder", Batch{Folders: []RowWrite{row("b1", 1, `{"id":"b1","x":1}`)}}},
 	} {
 		time.Sleep(2 * time.Millisecond)
@@ -943,7 +946,10 @@ func TestBooksBecomePagesAndFolders(t *testing.T) {
 	}; !maps.Equal(pages, want) {
 		t.Fatalf("pages = %v", pages)
 	}
-	if entries, err := s.Entries(); err != nil || !maps.Equal(entries, map[string]string{"p1": "a1", "f1": "a1", "p2": "f1", "p3": "b2"}) {
+	entries, err := s.Entries()
+	old := entries["a1"]
+	if err != nil || old == "" || entries[old] != HomeID || !maps.Equal(entries, map[string]string{"p1": "a1", "f1": "a1", "p2": "f1", "p3": "b2",
+		"a1": old, "b2": old, "c1": old, "d-broken": old, "e-other": old, old: HomeID}) {
 		t.Fatalf("entries = %v, %v", entries, err)
 	}
 	// 書いた時刻は、ブックの行の時刻を引き継ぐ（バインダとページも、ブックの時刻に数える）

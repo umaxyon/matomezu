@@ -1,5 +1,5 @@
 // テストで使う、ビルトインプラグインだけの表と store
-import { tablesOf } from "../web/src/core/folders"
+import { homeOver, worldTablesOf } from "../web/src/core/folders"
 import type { Book } from "../web/src/core/schema/book"
 import { recentBookScreen, recentPlainScreen } from "../web/src/core/window"
 import { BUILTIN } from "../web/src/plugins"
@@ -45,8 +45,9 @@ export function showBooks(store: Pick<ReturnType<typeof newStore>, "state" | "ac
   store.actions.makeScreenCurrent(recentBookScreen(store.state.getState().window).id)
 }
 
-// ブックの並び books を、ホストが知らせる形（置き場所から読んだままのページとフォルダの並び）にした物（instance.receive に渡す世界の pages と folders）
+// ブックの並び books を、ホストが知らせる形（置き場所から読んだままのページとフォルダの並び）にした物（instance.receive に渡す世界の pages と folders）。
+// ブックは、書庫ホームの直下に置く
 export function worldRows(books: readonly unknown[]): { pages: unknown[]; folders: unknown[] } {
-  const tables = tablesOf(books as readonly Book[])
+  const tables = worldTablesOf(books as readonly Book[], [homeOver(books as readonly Book[])])
   return { pages: Object.values(tables.pages), folders: Object.values(tables.folders) }
 }

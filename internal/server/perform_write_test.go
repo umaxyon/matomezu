@@ -232,7 +232,7 @@ func TestPerformChangesNothingWhenTheWriteFails(t *testing.T) {
 		return len(got)
 	}
 	pages, folders := hub.Tables()
-	if len(pages) != 1 || pages[0].Version != 1 || len(folders) != 1 || folders[0].Version != 1 || strings.Contains(string(folders[0].Body), "追加") || entries() != 1 {
+	if len(pages) != 1 || pages[0].Version != 1 || len(folders) != 2 || folders[0].Version != 1 || strings.Contains(string(folders[0].Body), "追加") || entries() != 2 {
 		t.Fatalf("the book changed: %+v %+v", pages, folders)
 	}
 	if book := hub.Book("b1"); book == nil || book.Version != 1 || strings.Contains(string(book.Body), "追加") {
@@ -249,7 +249,7 @@ func TestPerformChangesNothingWhenTheWriteFails(t *testing.T) {
 		t.Fatalf("perform again = %+v, %v", done, err)
 	}
 	pages, folders = hub.Tables()
-	if len(pages) != 2 || len(folders) != 1 || folders[0].Version != 2 || entries() != 2 {
+	if len(pages) != 2 || len(folders) != 2 || folders[0].Version != 2 || entries() != 3 {
 		t.Fatalf("the book did not change: %+v %+v", pages, folders)
 	}
 	if book := hub.Book("b1"); book == nil || book.Version != 2 || !strings.Contains(string(book.Body), "追加") {
@@ -379,7 +379,7 @@ func TestABulkActsOnARecordItAdded(t *testing.T) {
 	}
 }
 
-// エンジンへ渡すブックは、アクションごとの宛先のブックの和。置き場所に無いページが宛先なら全部のブック。宛先のレコードも和
+// エンジンへ渡すブックは、アクションごとの宛先のブックの和（その後ろに、ブックから書庫ホームまでのフォルダ）。置き場所に無いページが宛先なら全部のブックと、書庫ホームとフォルダの全部。宛先のレコードも和
 func TestBulkInputsAreTheUnionOfTheActions(t *testing.T) {
 	const other = `{"id":"b2","title":"U","lineup":[{"kind":"page","id":"p2","type":"@matomezu/drawing:drawing","title":"Q","paper":"@matomezu/base:a4","orientation":"landscape"}]}`
 	hub, _, _ := bulkHub(t, other)
@@ -400,20 +400,19 @@ func TestBulkInputsAreTheUnionOfTheActions(t *testing.T) {
 			_ = json.Unmarshal(f, &head)
 			ids = append(ids, head.ID)
 		}
-		slices.Sort(ids)
 		return ids
 	}
-	if got := folders(update("p1")); !slices.Equal(got, []string{"b1"}) {
+	if got := folders(update("p1")); !slices.Equal(got, []string{"b1", storage.HomeID}) {
 		t.Fatalf("one page = %v", got)
 	}
-	if got := folders(update("p1"), update("p2")); !slices.Equal(got, []string{"b1", "b2"}) {
+	if got := folders(update("p2"), update("p1")); !slices.Equal(got, []string{"b2", "b1", storage.HomeID}) {
 		t.Fatalf("two pages = %v", got)
 	}
 	added := step("@matomezu/base:page-add", `{"type":"@matomezu/drawing:drawing","title":"追加"}`, &engine.On{Book: "b1"}, "p3")
-	if got := folders(added, update("p3")); !slices.Equal(got, []string{"b1", "b2"}) {
+	if got := folders(added, update("p3")); !slices.Equal(got, []string{"b1", "b2", storage.HomeID}) {
 		t.Fatalf("a page the bulk adds = %v", got)
 	}
-	if got := folders(update("p9"), update("p1")); !slices.Equal(got, []string{"b1"}) {
+	if got := folders(update("p9"), update("p1")); !slices.Equal(got, []string{"b1", storage.HomeID}) {
 		t.Fatalf("a page that is nowhere, at the first action = %v", got)
 	}
 	hub.recordTables[mailKind] = map[string]recordEntry{"m1": {json.RawMessage(`{"id":"m1"}`), 1}, "m2": {json.RawMessage(`{"id":"m2"}`), 1}}

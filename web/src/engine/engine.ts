@@ -23,7 +23,18 @@ import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, type AIEditTicketChange, stopsOnEditLock } from "../core/def/action"
 import { slideIsBackground } from "../core/def/page-type"
 import type { SubjectDef } from "../core/def/subject"
-import { bookIdOf, bookOf, createdIn, libraryOf, NO_CHANGES, rawBooksOf, tablesOf, withChanges } from "../core/folders"
+import {
+  bookIdOf,
+  bookOf,
+  createdOn,
+  homeAndFoldersOf,
+  libraryOf,
+  NO_CHANGES,
+  rawBooksOf,
+  rowsHoldTree,
+  withChanges,
+  worldTablesOf,
+} from "../core/folders"
 import { detectLang, translate } from "../core/i18n/i18n"
 import { changedIn } from "../core/ids"
 import { splitId } from "../core/names"
@@ -238,7 +249,7 @@ function perform(input: Input): Output {
   const counters = restoreCounters(input.counters)
   const actor = actorOfWire(input.actor)
   const source = hostSource(records)
-  const tables = tablesOf(Object.values(books))
+  const tables = worldTablesOf(Object.values(books), homeAndFoldersOf(input.folders ?? []))
   const world = { ...tables, settings, annotations, records, counters, ...(source ? { source } : {}) }
   const at = new Date().toISOString()
   const steps = input.actions.map(a => bulkActionOf(a, () => crypto.randomUUID(), at, langFor(a.lang)))
@@ -272,7 +283,7 @@ function perform(input: Input): Output {
     result: done.results.at(-1),
     pages: rowChanges(changes.pages),
     folders: rowChanges(changes.folders),
-    created: createdIn(Object.values(books), changes),
+    created: createdOn(tables, changes),
     books: [...changed.map(b => b.id), ...removed],
     trashing: changed.filter(b => b.trashed !== undefined && books[b.id]?.trashed === undefined).map(b => b.id),
     ...(done.settings ? { settings: done.settings } : {}),
@@ -471,6 +482,16 @@ function aiTables(of: Assembled) {
     ...pages,
   ])
 }
+
+// 残したフォルダの行の全部（書庫ホーム・フォルダ・ブック・バインダ）とページの行の id の全部が木の決まりを守るかを確かめ、破れていれば warning（W030）の 1 行を、守っていれば空の文字列を返す
+// （常駐が一覧に持つ。データには手を付けない）
+;(globalThis as { matomezuCheckLibrary?: (folders: string, pages: string) => string }).matomezuCheckLibrary = (
+  folders,
+  pages,
+) =>
+  rowsHoldTree(JSON.parse(folders) as unknown[], JSON.parse(pages) as string[])
+    ? ""
+    : warningText(warning("W030", "", {}))
 
 // 残したアノテーションを今の機能台帳で確かめ、効かないもの（種類が無い W018・形が合わない W019）の warning の 1 行ずつを返す（常駐がログに書く）。
 // 受けるのは、ブックと、そのページごとのアノテーション（ページの id → 並び）の組。読めないブックのアノテーションは確かめない
