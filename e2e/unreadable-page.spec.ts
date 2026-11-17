@@ -20,7 +20,7 @@ const book = { ...mixed, lineup: [...mixed.lineup, gone] }
 
 test.use({ books: [book] })
 
-test("読めないページは、ページタブに名前が出て、開くと読めないことと理由だけを見せる。右クリックのメニューは出ない", async ({
+test("読めないページは、ページタブに名前が出て、開くと読めないことと理由だけを見せる。右クリックのメニューは出ず、読み直しても開いたまま", async ({
   page,
 }) => {
   await page.goto(BOOK_SCREEN_URL)
@@ -34,6 +34,10 @@ test("読めないページは、ページタブに名前が出て、開くと�
   await expect(notice).toContainText("ページのタイプがありません")
   await tab.click({ button: "right" })
   await expect(page.getByRole("menu")).toHaveCount(0)
+  // 読み直しても、同じ読めないページを開いている
+  await page.reload()
+  await expect(page.getByRole("tab", { name: "外したタイプ" })).toHaveAttribute("aria-selected", "true")
+  await expect(page.locator("[data-unreadable-page]")).toContainText("このページは読めません")
 })
 
 test("読めないページのあるブックでも、ほかのページは変えられる。読めないページの残したデータと並びの位置は変わらない", async ({

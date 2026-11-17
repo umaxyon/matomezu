@@ -130,14 +130,25 @@ func (h *Hub) planWrites(out engine.Output, subject, by, act, at string) (*write
 	return plan, nil
 }
 
-// unreadableWrite は、out が読めないページの行に触れるか: 読めないページの行を変える（消すのはよい）、kind が unreadable のページの行を書く、
-// 並びに kind が unreadable の要素を持つフォルダの行を書く。読めないページの行はそのまま残す決まりの、エンジンの後ろの守り（Perform が断る。h.mu を持って呼ぶ）
+// unreadableWrite は、out が読めないページの行に触れるか: 読めないページの行を変える、読めないページの行を、それを持つブックのフォルダを消さずに消す、
+// kind が unreadable のページの行を書く、並びに kind が unreadable の要素を持つフォルダの行を書く。読めないページの行はそのまま残す決まりの、エンジンの後ろの守り（Perform が断る。h.mu を持って呼ぶ）
 func (h *Hub) unreadableWrite(out engine.Output) bool {
-	for _, c := range out.Pages {
+	removedFolders := map[string]bool{}
+	for _, c := range out.Folders {
 		if c.Removed {
+			removedFolders[c.ID] = true
+		}
+	}
+	for _, c := range out.Pages {
+		_, unreadable := h.pageWarnings[c.ID]
+		if c.Removed {
+			// 読めないページの行を消してよいのは、それを持つブックごと消すときだけ
+			if book := h.bookOfEntry(c.ID); unreadable && (book == "" || !removedFolders[book]) {
+				return true
+			}
 			continue
 		}
-		if _, unreadable := h.pageWarnings[c.ID]; unreadable || kindOf(c.Row) == "unreadable" {
+		if unreadable || kindOf(c.Row) == "unreadable" {
 			return true
 		}
 	}

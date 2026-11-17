@@ -525,19 +525,12 @@ func (o Options) aiPerform(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &p) {
 		return
 	}
-	// 宛先が読めないページなら、エンジンに渡さずに断る（ゴミ箱のブックのページは、無いページとしてエンジンが断る）
-	if p.On != nil && p.On.Page != "" && o.Hub.BookOn(p.On) != "" {
-		if code, ok := o.Hub.UnreadablePage(p.On.Page); ok {
-			writeUnreadable(w, code)
-			return
-		}
-	}
 	done, err := o.Hub.Perform(Perform{Action: p.Action, Args: p.Args, On: p.On, By: "ai", Workroom: o.Hub.WorkroomOf(r.Header.Get(ParticipantHeader)), TimeoutSec: p.TimeoutSec})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	// エンジンが読めないページで断った（読めないページを動かす・消すなど）なら、理由の番号だけを返す
+	// エンジンが読めないページで断った（宛先が読めないページ・読めないページを動かす・消すなど）なら、理由の番号だけを返す
 	if !done.OK && done.Reason == "unreadable" && done.Code != "" {
 		writeUnreadable(w, done.Code)
 		return

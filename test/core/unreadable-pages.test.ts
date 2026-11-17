@@ -55,6 +55,19 @@ describe("残したブックを読む（checkBooks）", () => {
     ])
   })
 
+  test("名前の無い読めないページが同じ並びに 2 枚あっても、ブックは読める（名前の無い物は、名前の重なりに数えない）", () => {
+    const done = checkBooks(CORE_CATALOG, [testBook("x1", "名無し 2 枚", [stranger("q1", 3), stranger("q2", null)])])
+    expect(done.warnings).toEqual([])
+    expect(done.books.map(b => b.lineup)).toEqual([[unreadable("q1", ""), unreadable("q2", "")]])
+  })
+
+  test("残したデータに読めないページのエントリの形があれば、ブックごと読めない（W005。組むときにだけ作る形）", () => {
+    const forged = { ...testBook("x1", "作った形", []), lineup: [unreadable("q1", "表紙")] }
+    const done = checkBooks(CORE_CATALOG, [forged])
+    expect(done.books).toEqual([])
+    expect(done.warnings.map(w => w.code)).toEqual(["W005"])
+  })
+
   test("タイプの形に合わないページは W028、タイプの決まりを守らないページ（線の端が無い）は W029。warning の持ち主はページのタイプのプラグイン", () => {
     const done = checkBooks(CORE_CATALOG, [
       testBook("x1", "形", [drawingPage("q1", { settings: { "@matomezu/tree:grow": "down" } } as never)]),
@@ -245,17 +258,12 @@ describe("アクション（performIn）", () => {
     expect(run(world, "@matomezu/base:page-duplicate", { page: "p1", title: "U" }, { book: "b1" })).toEqual(refused)
   })
 
-  test("読めないページを中に持つバインダを複製しても、写しに読めないページは入らず、元の読めないページは同じ所に残り、どのフォルダの id にも行がある", () => {
+  test("読めないページを中に持つバインダは、複製できない（読めないページを落とした写しを作らない）", () => {
     const world = worldOf([read()])
-    const done = run(world, "@matomezu/base:binder-duplicate", { binder: "f1" }, { book: "b1" })
-    if (!done.ok || !done.changes) return
-    const tables = withChanges(world, done.changes)
-    const book = bookOf(tables, "b1")!
-    expect(unreadableOf(book)).toEqual([unreadable("u1", "U"), unreadable("u2", "u2")])
-    expect(findUnreadable(book, "u2")?.binder?.id).toBe("f1")
-    for (const folder of Object.values(tables.folders))
-      for (const e of folder.lineup)
-        expect([e.id, e.kind === "page" ? tables.pages[e.id] !== undefined : true]).toEqual([e.id, true])
+    expect(run(world, "@matomezu/base:binder-duplicate", { binder: "f1" }, { book: "b1" })).toEqual({
+      ok: false,
+      reason: "refused",
+    })
   })
 
   test("ゴミ箱に入れる・戻すは読めないページの行を書かず、ゴミ箱から消すと読めないページの行も removed", () => {

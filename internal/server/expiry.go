@@ -19,7 +19,7 @@ const ExpireEvery = time.Minute
 // isoTime は、アクションの時点と同じ書き方の時刻（UTC、ミリ秒まで）
 func isoTime(t time.Time) string { return t.UTC().Format("2006-01-02T15:04:05.000Z") }
 
-// Expire は、時点 now で期限の過ぎたアノテーションを消して知らせる（読めないページの物は消さない）
+// Expire は、時点 now で期限の過ぎたアノテーションを消して知らせる
 func (h *Hub) Expire(now time.Time) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -27,10 +27,6 @@ func (h *Hub) Expire(now time.Time) error {
 	at := isoTime(now)
 	live := map[string]json.RawMessage{}
 	for page, body := range h.annotations {
-		// 読めないページのアノテーションは、そのまま残す
-		if _, unreadable := h.pageWarnings[page]; unreadable {
-			continue
-		}
 		kept, changed, err := h.engine.AnnotationsUnexpired(body, h.settings, at, watched[page])
 		if err != nil {
 			return err

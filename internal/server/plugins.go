@@ -56,14 +56,10 @@ func (h *Hub) UnlinkPlugin(id string) error {
 	return h.dropAnnotationsOf(id)
 }
 
-// dropAnnotationsOf は、プラグイン id が足した種類のアノテーションを消して知らせる（どの種類がそのプラグインの物かはエンジンが決める。読めないページの物は消さない。h.mu を持って呼ぶ）
+// dropAnnotationsOf は、プラグイン id が足した種類のアノテーションを消して知らせる（どの種類がそのプラグインの物かはエンジンが決める。h.mu を持って呼ぶ）
 func (h *Hub) dropAnnotationsOf(id string) error {
 	kept := map[string]json.RawMessage{}
 	for page, body := range h.annotations {
-		// 読めないページのアノテーションは、そのまま残す
-		if _, unreadable := h.pageWarnings[page]; unreadable {
-			continue
-		}
 		without, changed, err := h.engine.AnnotationsWithout(id, body)
 		if err != nil {
 			return err

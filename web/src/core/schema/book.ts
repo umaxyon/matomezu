@@ -4,6 +4,7 @@
 import type { z } from "zod"
 import type { PageTypeId, PageTypeTable, SettingTable } from "../catalog"
 import type { PlacedOf } from "../placed"
+import type { WarningCode } from "../warnings"
 import type { Page } from "./page"
 
 // 選んだ設定の項目のフィールド: settings の中に、項目の id を鍵にして値を持つ（どれも書かなくてよい）
@@ -36,7 +37,7 @@ export type PageOf<T extends PageTypeId> = PageData<PageTypeTable[T]>
 // 読めないページ: 今の機能台帳では読めないページ（タイプが機能台帳に無い・タイプの形に合わない・タイプの決まりを守らない）のエントリ。
 // 持つのは id・名前（残したデータの title。無ければ空）・読めない理由の warning の番号だけで、中身は持たない（残したデータには手を付けない）。
 // 何もできない（変える・消す・動かすアクションは断る）。消えるのは、ブックごと消すときだけ
-export const UNREADABLE_CODES = ["W027", "W028", "W029"] as const
+export const UNREADABLE_CODES = ["W027", "W028", "W029"] as const satisfies readonly WarningCode[]
 export type UnreadableCode = (typeof UNREADABLE_CODES)[number]
 export interface UnreadableEntry {
   kind: "unreadable"
@@ -45,7 +46,7 @@ export interface UnreadableEntry {
   code: UnreadableCode
 }
 
-// エントリ 1 つ: ページ（kind: "page"）か、1 つのタイプのページだけを入れるバインダ（kind: "binder"。中身も同じ並びで、入るのはページだけ）か、読めないページ（kind: "unreadable"）。
+// エントリ 1 つ: ページ（kind: "page"）か、1 つのタイプのページだけを入れるバインダ（kind: "binder"。中身も同じ並びで、入るのはページと読めないページ）か、読めないページ（kind: "unreadable"）。
 // どれも並びの中で id を持つ（置き直しの Patch が、並びを id ごとにたどる。core/patch.ts）
 export interface BinderEntry {
   kind: "binder"

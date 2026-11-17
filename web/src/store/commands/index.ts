@@ -163,7 +163,7 @@ function permitted(c: Called, arg?: unknown): boolean {
       : actionQuery(ctx.catalog, action, book ?? undefined, where)
   return actions.some(
     action =>
-      !stageBlocks(ctx.catalog, ctx.stage.mode, action, onOpened(action)) &&
+      !stageBlocks(ctx.catalog, ctx.stage.mode, action, onOpened(action) ? "opened-book" : "target") &&
       inspect(ctx.catalog, query(action), ctx).value === true,
   )
 }

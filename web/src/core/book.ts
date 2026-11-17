@@ -380,7 +380,11 @@ export function holds(catalog: CoreCatalog, book: Book): boolean {
 function lineupHolds(catalog: CoreCatalog, book: Book): boolean {
   const ids = lineupIds(book)
   if (new Set(ids).size !== ids.length) return false
-  const distinct = (entries: readonly { title: string }[]) => new Set(entries.map(e => e.title)).size === entries.length
+  // 名前の無い読めないページ（残したデータに title が無い）は、名前の重なりに数えない
+  const distinct = (entries: readonly { title: string }[]) => {
+    const titles = entries.map(e => e.title).filter(t => t !== "")
+    return new Set(titles).size === titles.length
+  }
   if (!distinct(book.lineup) || !bindersOf(book).every(f => distinct(f.lineup))) return false
   const grouping = (type: string) => catalog.pageTypes.get(type)?.grouping
   for (const e of book.lineup) {
