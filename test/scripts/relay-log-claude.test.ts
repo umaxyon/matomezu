@@ -248,6 +248,11 @@ test("join のあとのフックの文から、最後のワークルーム名を
   // フックの文でない本文に同じ言い回しがあっても拾わない
   expect(workroomNameOf(msgs({ type: "text", text: "Workroom name: fake" }))).toBeUndefined()
   expect(workroomNameOf({ messages: [{ role: "user", content: "x" }] })).toBeUndefined()
+  // 会話の途中の system の message（文字列）に、ほかの知らせと並んで入るフックの文も拾う
+  const notice =
+    "[SYSTEM NOTIFICATION]\nevent\n\nUserPromptSubmit hook additional context: You joined matomezu. Workroom name: sub6_work\nThe user lets you"
+  expect(workroomNameOf({ messages: [{ role: "system", content: notice }] })).toBe("sub6_work")
+  expect(workroomNameOf({ messages: [{ role: "system", content: "Workroom name: fake" }] })).toBeUndefined()
 })
 
 test("セッション id は本文の metadata の user_id から取る", () => {
