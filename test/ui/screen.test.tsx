@@ -516,7 +516,9 @@ test("読めないブックは、ブックを開くの一覧に押せない行�
   const twins = testBook("x3", "双子", [drawingPage("q2", { title: "同じ" }), drawingPage("q3", { title: "同じ" })])
   const broken = { id: "x2", title: "壊れた図面", lineup: "?" }
   const store = renderBooksScreen({ savedBooks: [gone, twins, broken] })
-  expect(store.state.getState().books.x1?.lineup).toEqual([{ kind: "unreadable", id: "q1", title: "1", code: "W027" }])
+  expect(store.state.getState().books.x1?.lineup).toEqual([
+    { kind: "unreadable", id: "q1", title: "1", code: "W027", type: "@foo/stamps:board" },
+  ])
   expect(store.state.getState().books.x3).toBeUndefined()
   fireEvent.click(fromMenu("ブックを開く"))
   const dialog = screen.getByRole("dialog", { name: "ブックを開く" })

@@ -329,6 +329,7 @@ func (h *Hub) recordWarnings(ids []string, found []engine.BookWarning) {
 		}
 		if !before[n.Warning] {
 			fmt.Fprintln(os.Stderr, "warning:", n.Warning)
+			before[n.Warning] = true // 同じ理由の読めないページは同じ 1 行なので、1 回だけ書く
 		}
 	}
 }

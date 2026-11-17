@@ -50,12 +50,12 @@ test("機能台帳に無いアイテムと設定の項目は、ブックを読�
   const read = checkBooks(CORE_CATALOG, [unselected, misfit])
   expect(read.warnings).toEqual([])
   expect(read.books.map(b => b.lineup)).toEqual([
-    [{ kind: "unreadable", id: "p2", title: "P", code: "W028" }],
-    [{ kind: "unreadable", id: "p3", title: "P", code: "W028" }],
+    [{ kind: "unreadable", id: "p2", title: "P", code: "W028", type: page.type }],
+    [{ kind: "unreadable", id: "p3", title: "P", code: "W028", type: page.type }],
   ])
-  expect(read.partial.map(n => [n.code, n.params.book, n.params.page])).toEqual([
-    ["W028", "y2", "p2"],
-    ["W028", "y3", "p3"],
+  expect(read.partial.map(n => [n.code, n.params.book, n.params.pages])).toEqual([
+    ["W028", "y2", "1"],
+    ["W028", "y3", "1"],
   ])
 })
 

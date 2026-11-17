@@ -35,7 +35,7 @@ export type AnyPage = { [K in PageTypeId]: PageData<PageTypeTable[K]> }[PageType
 export type PageOf<T extends PageTypeId> = PageData<PageTypeTable[T]>
 
 // 読めないページ: 今の機能台帳では読めないページ（タイプが機能台帳に無い・タイプの形に合わない・タイプの決まりを守らない）のエントリ。
-// 持つのは id・名前（残したデータの title。無ければ空）・読めない理由の warning の番号だけで、中身は持たない（残したデータには手を付けない）。
+// 持つのは id・名前（残したデータの title。無ければ空）・読めない理由の warning の番号・タイプの id（残したデータの type が文字列のときだけ）で、中身は持たない（残したデータには手を付けない）。
 // 何もできない（変える・消す・動かすアクションは断る）。消えるのは、ブックごと消すときだけ
 export const UNREADABLE_CODES = ["W027", "W028", "W029"] as const satisfies readonly WarningCode[]
 export type UnreadableCode = (typeof UNREADABLE_CODES)[number]
@@ -44,6 +44,7 @@ export interface UnreadableEntry {
   id: string
   title: string
   code: UnreadableCode
+  type?: string
 }
 
 // エントリ 1 つ: ページ（kind: "page"）か、1 つのタイプのページだけを入れるバインダ（kind: "binder"。中身も同じ並びで、入るのはページと読めないページ）か、読めないページ（kind: "unreadable"）。

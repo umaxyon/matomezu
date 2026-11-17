@@ -1181,7 +1181,7 @@ func TestListsWhyABookCannotBeRead(t *testing.T) {
 		}
 		return "missing", ""
 	}
-	if problem, warning := head("f1"); problem != "" || warning != unreadablePages {
+	if problem, warning := head("f1"); problem != "" || !strings.Contains(warning, "1 page(s) are of type ") {
 		t.Fatalf("after unlinking = %q %q", problem, warning)
 	}
 	// 読めないページへのアクションは「無い」でなく、番号だけで断る。どのブックにも無いページは no-page
@@ -1209,7 +1209,7 @@ func TestListsWhyABookCannotBeRead(t *testing.T) {
 	if _, got := send(t, "POST", s.URL+"/api/plugins/remove", `{"id":"ex2"}`, ai); got != `{"ok":true}` {
 		t.Fatalf("unlink = %s", got)
 	}
-	if _, warning := head("f1"); warning != unreadablePages {
+	if _, warning := head("f1"); !strings.Contains(warning, "1 page(s) are of type ") {
 		t.Fatalf("after unlinking again = %q", warning)
 	}
 	if got := lock("p1"); got != `{"code":"W027","ok":false,"reason":"unreadable"}` {

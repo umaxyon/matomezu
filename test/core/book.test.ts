@@ -158,15 +158,15 @@ describe("並び", () => {
     const { books, warnings, partial } = checkBooks(CORE_CATALOG, [unknownPage, unknownBinder, mixed])
     expect(books.map(b => b.id)).toEqual(["b", "d", "b2"])
     expect(warnings).toEqual([])
-    expect(partial.map(w => [w.code, w.params.page, w.params.type])).toEqual([
-      ["W027", "q2", "@x/y:z"],
-      ["W027", "q3", "@x/y:z"],
+    expect(partial.map(w => [w.code, w.params.book, w.params.pages, w.params.type])).toEqual([
+      ["W027", "b", "1", "@x/y:z"],
+      ["W027", "d", "1", "@x/y:z"],
     ])
-    expect(books[0]?.lineup[1]).toEqual({ kind: "unreadable", id: "q2", title: "2", code: "W027" })
+    expect(books[0]?.lineup[1]).toEqual({ kind: "unreadable", id: "q2", title: "2", code: "W027", type: "@x/y:z" })
     expect(books[1]?.lineup).toEqual([
       {
         ...testBinder("f2", "f", "@x/y:z" as never),
-        lineup: [{ kind: "unreadable", id: "q3", title: "ページ 1", code: "W027" }],
+        lineup: [{ kind: "unreadable", id: "q3", title: "ページ 1", code: "W027", type: "@x/y:z" }],
       },
     ])
   })

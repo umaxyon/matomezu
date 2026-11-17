@@ -30,15 +30,17 @@ type outlinedPage struct {
 func unreadableEntry(p json.RawMessage, code string) (json.RawMessage, error) {
 	var row map[string]json.RawMessage
 	_ = json.Unmarshal(p, &row)
-	var id, title string
+	var id, title, kind string
 	_ = json.Unmarshal(row["id"], &id)
 	_ = json.Unmarshal(row["title"], &title)
+	_ = json.Unmarshal(row["type"], &kind)
 	return json.Marshal(struct {
 		Kind  string `json:"kind"`
 		ID    string `json:"id"`
 		Title string `json:"title"`
 		Code  string `json:"code"`
-	}{"unreadable", id, title, code})
+		Type  string `json:"type,omitempty"`
+	}{"unreadable", id, title, code, kind})
 }
 
 // unreadableOf は、ページの id から、読めないページならその理由の warning の番号を答える（Hub.UnreadablePage）

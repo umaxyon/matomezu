@@ -43,8 +43,8 @@ var tools = []tool{
 	{
 		"read_book",
 		"Read a book: the book without its pages' contents (title, settings and so on), its lineup as an outline (each entry is a page: kind page, id, title, type, size in characters and version, which goes up each time that page changes; or a binder of pages of one type: kind binder, id, title, pageType and its own lineup of pages), its version (see list_books) and its annotations (such as the user's notes and marks: page, the page they are on; anchors, the things of that page they are tied to; and awaiting, whether they wait for your answer). " +
-			"A page that cannot be read now is in the lineup as kind unreadable with id, title and code, the reason: W027 its type is not installed, W028 it does not fit its type, W029 it breaks its type's rules. " +
-			"It is kept as it is and nothing can be done to it (read_page on it is refused with unreadable and the code; an action that would change it is refused with unreadable and the code, or with refused), while the other pages work as usual. " +
+			"A page that cannot be read now is in the lineup as kind unreadable with id, title, code (the reason: W027 its type is not installed, W028 it does not fit its type, W029 it breaks its type's rules) and type (its page type's id, when it has one). " +
+			"It is kept as it is and nothing can be done to it (read_page on it is refused with unreadable and the code; an action that would change it is refused with unreadable and the code), while the other pages work as usual. " +
 			"Read the contents of a page with read_page.",
 		map[string]any{
 			"type":                 "object",
@@ -302,7 +302,7 @@ var performSchema = map[string]any{
 
 const performDescription = "Perform an action listed by actions, as the user would on the screen: the change appears at once on screens showing that book. " +
 	"Returns the action's result (such as the id of what it made), with a notice on the next line when the action changed something else you should know (such as positions), or why it was refused. " +
-	"Nothing can be done to a page that cannot be read now: an action on it or one that would change it is refused with unreadable and the code (see read_book), or with refused."
+	"Nothing can be done to a page that cannot be read now: an action on it or one that would change it is refused with unreadable and the code (see read_book)."
 
 // showSchema は show の受ける形
 var showSchema = map[string]any{

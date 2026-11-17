@@ -169,12 +169,13 @@ function buildBookSchema(parts: CoreCatalogParts, pageSchemas: ReadonlyMap<strin
   const [first, ...rest] = [...pageSchemas.values()]
   if (!first) return fail("E015")
   const page = z.discriminatedUnion("type", [first, ...rest])
-  // 読めないページ: id・名前（残したデータに無ければ空）・読めない理由の warning の番号だけ
+  // 読めないページ: id・名前（残したデータに無ければ空）・読めない理由の warning の番号・タイプの id（残したデータにあれば）だけ
   const unreadable = z.strictObject({
     kind: z.literal("unreadable"),
     id: z.string().min(1),
     title: z.string(),
     code: z.enum(UNREADABLE_CODES),
+    type: z.string().optional(),
   })
   const binderEntry = z.strictObject({
     kind: z.literal("binder"),

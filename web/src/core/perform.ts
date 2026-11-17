@@ -5,7 +5,16 @@
 import type { z } from "zod"
 import { USER } from "./actor"
 import { type Annotation, type Annotations, annotationsSettle, type PageAnnotations, prune } from "./annotation"
-import { distinctBooks, findPage, holds, keepsPageTypes, lostUnreadable, pagesOf, putPage } from "./book"
+import {
+  distinctBooks,
+  findPage,
+  findUnreadable,
+  holds,
+  keepsPageTypes,
+  lostUnreadable,
+  pagesOf,
+  putPage,
+} from "./book"
 import type { ActionId, ActionTable } from "./catalog"
 import { changesOf } from "./changes"
 import { type CoreCatalog, pageType } from "./core-catalog"
@@ -311,6 +320,20 @@ function permits(
   return !args.success && answer.value === false && decidedByPlace(answer) ? { ok: true } : answerOf(answer)
 }
 
+// ブックが対象のアクション action の許可スコープが、引数で名指す所（ページ・エントリ・1 枚ごとに問うページ）のうち、最初の読めないページ（無ければ null）。
+// 読めないページには何もできないので、行う前に断る
+function namedUnreadable(
+  action: ActionDef,
+  book: Book,
+  args: { success: true; data: unknown } | { success: false },
+): UnreadableEntry | null {
+  if (!args.success) return null
+  const where = placeOf(action, args)
+  const each = pagesScopeOf(action.permissionScope as AnyPermissionScope | undefined, args.data)
+  const ids = [...(where?.page ? [where.page] : []), ...(where?.entries ?? []), ...(Array.isArray(each) ? each : [])]
+  return ids.map(id => findUnreadable(book, id)?.entry).find(e => e !== undefined) ?? null
+}
+
 // ブックが対象のアクション action が、引数で名指す所（引数が形に合わなければ、分からない）
 const placeOf = (action: ActionDef, args: { success: true; data: unknown } | { success: false }): Where | undefined =>
   args.success ? scopeOf(action.permissionScope as AnyPermissionScope | undefined, args.data) : undefined
@@ -354,10 +377,18 @@ function answerOf(answer: Inspected<boolean>): Permitted {
 }
 
 // 対象 subject に、アクション id を引数 args で行えるかを、行う前に問う（perform の行う前の確かめと同じ答え。run は回さない）
-export function permitted(subject: unknown, id: string, args: unknown, ctx: PermitContext): Permitted | Refused {
+export function permitted(
+  subject: unknown,
+  id: string,
+  args: unknown,
+  ctx: PermitContext,
+): Permitted | Refused | Unreadable {
   const action: ActionDef | undefined = ctx.catalog.actions.get(id)
   if (!action) return { ok: false, reason: "unknown" }
-  const answer = permits(ctx, action, subject as Subjects[keyof Subjects], action.args.safeParse(args))
+  const parsed = action.args.safeParse(args)
+  const named = action.target === "book" ? namedUnreadable(action, subject as Book, parsed) : null
+  if (named) return unreadable(named)
+  const answer = permits(ctx, action, subject as Subjects[keyof Subjects], parsed)
   return answer.ok ? { ok: true } : answer
 }
 
@@ -413,6 +444,8 @@ export function perform<Id extends ActionId>(
   const before =
     action.target === "book" ? (subject as Book) : action.target === "page" ? (subject as PageInBook).book : undefined
   const parsed = action.args.safeParse(args)
+  const named = action.target === "book" ? namedUnreadable(action, subject as Book, parsed) : null
+  if (named) return unreadable(named)
   const permitted = permits(ctx, action, subject, parsed)
   if (!permitted.ok) return permitted
   if (!parsed.success) return { ok: false, reason: "bad-args" }

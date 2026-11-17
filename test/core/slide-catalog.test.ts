@@ -41,7 +41,13 @@ test("slide のアイテムは、機能台帳に無ければ W007 で残し、al
   expect(misfit.warnings).toEqual([])
   expect(misfit.partial.map(w => w.code)).toEqual(["W028"])
   expect(misfit.books[0]?.lineup).toEqual([
-    testBinder("s1-slides", "S", SLIDE, { kind: "unreadable", id: "p1", title: "P", code: "W028" } as never),
+    testBinder("s1-slides", "S", SLIDE, {
+      kind: "unreadable",
+      id: "p1",
+      title: "P",
+      code: "W028",
+      type: SLIDE,
+    } as never),
   ])
 })
 

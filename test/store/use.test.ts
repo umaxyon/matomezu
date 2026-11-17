@@ -47,7 +47,7 @@ const saved = {
 }
 
 // 機能台帳にタイプの無い間の、saved のページ（読めないページ W027。ブックは読める）
-const unreadableNote = { kind: "unreadable", id: "p1", title: "メモ", code: "W027" }
+const unreadableNote = { kind: "unreadable", id: "p1", title: "メモ", code: "W027", type: "notes:note" }
 
 const openedOf = (instance: ReturnType<typeof make>) => stageIn(instance.state.getState().window, "s1")?.opened
 

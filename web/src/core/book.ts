@@ -31,14 +31,7 @@ export function checkBooks(
     else {
       const book = parsed.data as Book
       books.push(book)
-      for (const u of marked.found)
-        partial.push(
-          warning(u.code, u.type === undefined ? "" : (splitId(u.type).owner ?? ""), {
-            ...params,
-            page: u.id,
-            ...(u.code === "W027" ? { type: u.type ?? "" } : {}),
-          }),
-        )
+      partial.push(...unreadableWarnings(marked.found, params))
       const missing = missingIn(catalog, book)
       const [first] = missing
       if (first) partial.push(warning("W007", splitId(first).owner ?? "", { ...params, missing: missing.join(", ") }))
@@ -51,6 +44,32 @@ export function checkBooks(
     partial: partial.filter(p => distinct.books.some(b => b.id === p.params.book)),
   }
 }
+
+// 残したデータにタイプの id（文字列の type）が無いページの、warning に書くタイプ
+const NO_TYPE = "(none)"
+
+// ブック 1 冊の読めないページ found の warning: 番号ごとに 1 つ（タイプが無い W027 は、無いタイプごとに 1 つで、そのタイプの持ち主のプラグインの warning）。
+// 何枚かを pages に持つ（1 枚ごとには出さない）
+function unreadableWarnings(found: readonly UnreadableEntry[], params: { book: string; title: string }): Warning[] {
+  const groups = new Map<string, { code: UnreadableCode; type?: string; pages: number }>()
+  for (const u of found) {
+    const type = u.code === "W027" ? (u.type ?? NO_TYPE) : undefined
+    const key = `${u.code} ${type ?? ""}`
+    const group = groups.get(key) ?? { code: u.code, ...(type === undefined ? {} : { type }), pages: 0 }
+    groups.set(key, { ...group, pages: group.pages + 1 })
+  }
+  return [...groups.values()].map(g =>
+    warning(g.code, g.type === undefined ? "" : (splitId(g.type).owner ?? ""), {
+      ...params,
+      pages: `${g.pages}`,
+      ...(g.type === undefined ? {} : { type: g.type }),
+    }),
+  )
+}
+
+// warning n が、ブック book の読めないページ u の warning か（同じ番号で、W027 なら無いタイプも同じ）
+export const warnsOf = (n: Warning, book: string, u: UnreadableEntry): boolean =>
+  n.params.book === book && n.code === u.code && (u.code !== "W027" || n.params.type === (u.type ?? NO_TYPE))
 
 // 読めたブックの並び books のうち、先のブックがもう使っている id（ブック・ページ・バインダの id）を持たないブックと、持つブックの warning（W006。読めないブックにする）。
 // ページもフォルダも、ちょうど 1 つのフォルダに入り、id は全部の中で重ならない
@@ -98,13 +117,10 @@ function pageCheck(catalog: CoreCatalog, page: object): UnreadableCode | "readab
 
 // 残したブック（形を確かめる前）の並びとバインダの中の、読めないページを、読めないページのエントリに替えたブックと、替えたページ（id・理由の番号・タイプ）。
 // id の無いページ・ページでもバインダでもない物は、そのまま残す（ブックの形に合わず、ブックごと読めない）
-function withUnreadable(
-  catalog: CoreCatalog,
-  book: unknown,
-): { book: unknown; found: { id: string; code: UnreadableCode; type?: string }[] } {
+function withUnreadable(catalog: CoreCatalog, book: unknown): { book: unknown; found: UnreadableEntry[] } {
   const isObject = (v: unknown): v is Readonly<Record<string, unknown>> =>
     typeof v === "object" && v !== null && !Array.isArray(v)
-  const found: { id: string; code: UnreadableCode; type?: string }[] = []
+  const found: UnreadableEntry[] = []
   const entry = (e: unknown): unknown => {
     if (!isObject(e)) return e
     if (e.kind === "binder" && Array.isArray(e.lineup)) {
@@ -116,13 +132,14 @@ function withUnreadable(
     if (e.kind !== "page" || typeof e.id !== "string" || e.id === "") return e
     const code = pageCheck(catalog, e)
     if (code === "readable") return e
-    found.push({ id: e.id, code, ...(typeof e.type === "string" ? { type: e.type } : {}) })
     const made: UnreadableEntry = {
       kind: "unreadable",
       id: e.id,
       title: typeof e.title === "string" ? e.title : "",
       code,
+      ...(typeof e.type === "string" ? { type: e.type } : {}),
     }
+    found.push(made)
     return made
   }
   if (!isObject(book) || !Array.isArray(book.lineup)) return { book, found }

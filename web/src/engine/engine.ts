@@ -15,7 +15,7 @@ import {
   talkActions,
   unexpired,
 } from "../core/annotation"
-import { checkBooks, findPage, pageById, pagesOf, restoreBooks } from "../core/book"
+import { checkBooks, findPage, pageById, pagesOf, restoreBooks, unreadableOf, warnsOf } from "../core/book"
 import { briefLine } from "../core/brief"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import type { CoreCatalog } from "../core/core-catalog"
@@ -39,7 +39,7 @@ import {
   restoreCounters,
   restoreRecords,
 } from "../core/records"
-import type { Book } from "../core/schema/book"
+import { type Book, UNREADABLE_CODES } from "../core/schema/book"
 import {
   aiSettings,
   disabledPluginsOf,
@@ -48,7 +48,7 @@ import {
   restoreSettings,
   settingSchema,
 } from "../core/settings"
-import { WARNINGS, warning, warningText } from "../core/warnings"
+import { WARNINGS, type Warning, warning, warningText } from "../core/warnings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../plugins"
 import { aiPlacedOf, type GrowRule, JOINED_MESSAGE, textColorRef, themesFor } from "../plugins/base"
@@ -421,18 +421,29 @@ function aiTables(of: Assembled) {
   JSON.stringify(aiSettings(assembled.catalog.core, restoreSettings(JSON.parse(settings))))
 
 // 残したブックを今の機能台帳で確かめ、warning のあるブック（ブックごと読めない W005・W006、読めないページがある W027〜W029、一部に無い物がある W007）の
-// id・番号・warning の 1 行と、ブックごと読めないか（unreadable）を返す（常駐が一覧に持つ）。読めないページの warning には、そのページの id（page）を添える
+// id・番号・warning の 1 行と、ブックごと読めないか（unreadable）を返す（常駐が一覧に持つ）。読めないページの warning は、ページ 1 枚ごとに、
+// そのページの id（page）を添えて返す（1 行は、同じブックの同じ理由のページで同じ）
 ;(globalThis as { matomezuCheckBooks?: (books: string) => string }).matomezuCheckBooks = books => {
-  const { warnings, partial } = checkBooks(assembled.catalog.core, JSON.parse(books) as unknown[])
-  return JSON.stringify(
-    [...warnings.map(n => [n, true] as const), ...partial.map(n => [n, false] as const)].map(([n, unreadable]) => ({
-      book: n.params.book ?? "",
-      code: n.code,
-      warning: warningText(n),
-      unreadable,
-      ...(n.params.page === undefined ? {} : { page: n.params.page }),
-    })),
+  const read = checkBooks(assembled.catalog.core, JSON.parse(books) as unknown[])
+  const line = (n: Warning, unreadable: boolean) => ({
+    book: n.params.book ?? "",
+    code: n.code,
+    warning: warningText(n),
+    unreadable,
+  })
+  const ofPages = (n: Warning): boolean => (UNREADABLE_CODES as readonly string[]).includes(n.code)
+  // 読めないページ 1 枚ごとに、そのページの理由の warning
+  const pages = read.books.flatMap(book =>
+    unreadableOf(book).flatMap(u => {
+      const found = read.partial.find(n => warnsOf(n, book.id, u))
+      return found ? [{ ...line(found, false), page: u.id }] : []
+    }),
   )
+  return JSON.stringify([
+    ...read.warnings.map(n => line(n, true)),
+    ...read.partial.filter(n => !ofPages(n)).map(n => line(n, false)),
+    ...pages,
+  ])
 }
 
 // 残したアノテーションを今の機能台帳で確かめ、効かないもの（種類が無い W018・形が合わない W019）の warning の 1 行ずつを返す（常駐がログに書く）。

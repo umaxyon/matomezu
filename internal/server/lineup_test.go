@@ -29,7 +29,7 @@ func TestWalksTheLineupWithBinders(t *testing.T) {
 	for _, want := range []string{
 		`{"kind":"page","id":"p1","title":"図","type":"@matomezu/drawing:drawing","size":`,
 		`{"kind":"binder","id":"f1","title":"スライド","pageType":"@matomezu/slide-book:slide","lineup":[{"kind":"page","id":"s1","title":"1","type":"@matomezu/slide-book:slide","size":`,
-		`{"kind":"unreadable","id":"s2","title":"2","code":"W028"}]}`,
+		`{"kind":"unreadable","id":"s2","title":"2","code":"W028","type":"@matomezu/slide-book:slide"}]}`,
 		`{"kind":"binder","id":"f2","title":"空","pageType":"@matomezu/slide-book:slide","lineup":[]}`,
 	} {
 		if !strings.Contains(outlined, want) {

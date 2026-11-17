@@ -83,7 +83,7 @@ func TestUnreadablePagesStayInAReadableBook(t *testing.T) {
 	check := func(s *httptest.Server) {
 		t.Helper()
 		_, body := get(t, s.URL+"/api/ai/books", "secret")
-		if !strings.Contains(body, `"id":"f1","title":"Flow","version":`) || !strings.Contains(body, `"warning":"`+unreadablePages+`"`) || strings.Contains(body, `"problem"`) {
+		if !strings.Contains(body, `"id":"f1","title":"Flow","version":`) || !strings.Contains(body, `1 page(s) are of type `) || !strings.Contains(body, `; W028 : book f1 (Flow): 1 page(s) do not fit the shape of their type`) || strings.Contains(body, `"problem"`) {
 			t.Fatalf("list_books = %s", body)
 		}
 		_, body = get(t, s.URL+"/api/ai/books/f1?outline=1", "secret")
@@ -95,13 +95,13 @@ func TestUnreadablePagesStayInAReadableBook(t *testing.T) {
 		if err := json.Unmarshal([]byte(body), &got); err != nil || len(got.Book.Lineup) < 1 {
 			t.Fatalf("read_book = %s", body)
 		}
-		if first := string(got.Book.Lineup[0]); first != `{"kind":"unreadable","id":"p1","title":"Stamps","code":"W027"}` {
+		if first := string(got.Book.Lineup[0]); first != `{"kind":"unreadable","id":"p1","title":"Stamps","code":"W027","type":"@foo/stamps:board"}` {
 			t.Fatalf("read_book's first entry = %s", first)
 		}
-		if !strings.Contains(body, `"lineup":[{"kind":"unreadable","id":"q1","title":"Q1","code":"W028"},{"kind":"page","id":"q2"`) {
+		if !strings.Contains(body, `"lineup":[{"kind":"unreadable","id":"q1","title":"Q1","code":"W028","type":"@matomezu/slide-book:slide"},{"kind":"page","id":"q2"`) {
 			t.Fatalf("read_book's binder = %s", body)
 		}
-		if strings.Contains(body, "stamps") || strings.Contains(body, "bad") {
+		if strings.Contains(body, `"stamps"`) || strings.Contains(body, "bad") {
 			t.Fatalf("read_book shows the contents of an unreadable page: %s", body)
 		}
 		for page, code := range map[string]string{"p1": "W027", "q1": "W028"} {
@@ -110,8 +110,8 @@ func TestUnreadablePagesStayInAReadableBook(t *testing.T) {
 			}
 		}
 		// 目次でない読み方でも、読めないページは中身を見せない
-		if _, body := get(t, s.URL+"/api/ai/books/f1", "secret"); !strings.Contains(body, `{"kind":"unreadable","id":"p1","title":"Stamps","code":"W027"}`) ||
-			!strings.Contains(body, `{"kind":"unreadable","id":"q1","title":"Q1","code":"W028"}`) || strings.Contains(body, "stamps") || strings.Contains(body, "bad") {
+		if _, body := get(t, s.URL+"/api/ai/books/f1", "secret"); !strings.Contains(body, `{"kind":"unreadable","id":"p1","title":"Stamps","code":"W027","type":"@foo/stamps:board"}`) ||
+			!strings.Contains(body, `{"kind":"unreadable","id":"q1","title":"Q1","code":"W028","type":"@matomezu/slide-book:slide"}`) || strings.Contains(body, `"stamps"`) || strings.Contains(body, "bad") {
 			t.Fatalf("read_book without outline = %s", body)
 		}
 		if _, body := get(t, s.URL+"/api/ai/pages/p2", "secret"); !strings.Contains(body, `"book":"f1"`) {
@@ -129,7 +129,7 @@ func TestUnreadablePagesStayInAReadableBook(t *testing.T) {
 	if got := perform(`{"action":"@matomezu/base:page-lock","args":{},"on":{"page":"p1"}}`); got != `{"code":"W027","ok":false,"reason":"unreadable"}` {
 		t.Fatalf("page-lock on p1 = %s", got)
 	}
-	if got := perform(`{"action":"@matomezu/base:page-move","args":{"page":"p1","index":2},"on":{"book":"f1"}}`); !strings.HasPrefix(got, `{"ok":false`) && !strings.HasPrefix(got, `{"code":"W027","ok":false`) {
+	if got := perform(`{"action":"@matomezu/base:page-move","args":{"page":"p1","index":2},"on":{"book":"f1"}}`); got != `{"code":"W027","ok":false,"reason":"unreadable"}` {
 		t.Fatalf("page-move of p1 = %s", got)
 	}
 	// 読めないページを持つバインダを消すアクションは、エンジンが unreadable で断り、その読めないページの番号を返す

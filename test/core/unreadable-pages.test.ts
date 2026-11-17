@@ -1,11 +1,13 @@
 // 読めないページ: 機能台帳で読めないページ（タイプが無い W027・タイプの形に合わない W028・タイプの決まりを守らない W029）は、ブックを読めるまま
-// 読めないページのエントリ（id・名前・理由の番号だけ）になる。何もできず、同じフォルダに同じ値・同じ順で残り、無くなるのはブックごと消すときだけ
+// 読めないページのエントリ（id・名前・理由の番号と、残したデータのタイプが文字列ならタイプの id だけ）になる。何もできず、同じフォルダに同じ値・同じ順で残り、無くなるのはブックごと消すときだけ
 
 import { describe, expect, test } from "bun:test"
+import { z } from "zod"
 import { USER } from "../../web/src/core/actor"
 import { checkBooks, findUnreadable, lostUnreadable, pagesOf, unreadableOf } from "../../web/src/core/book"
+import { defineAction } from "../../web/src/core/def/action"
 import { bookOf, changesBetween, recordsOf, tablesOf, withChanges } from "../../web/src/core/folders"
-import { type PerformedIn, performIn, type World } from "../../web/src/core/perform"
+import { type PerformedIn, perform, performIn, permittedIn, type World } from "../../web/src/core/perform"
 import type { Book, UnreadableEntry } from "../../web/src/core/schema/book"
 import { shownPageId } from "../../web/src/core/stage"
 import { warningText } from "../../web/src/core/warnings"
@@ -17,11 +19,18 @@ import { CORE_CATALOG, newStore, sequence, worldRows } from "../support"
 const UNKNOWN = "@foo/stamps:board"
 // タイプが機能台帳に無いページ（残したデータの形）
 const stranger = (id: string, title: unknown = id) => ({ ...drawingPage(id), type: UNKNOWN, title }) as never
-const unreadable = (id: string, title: string, code: UnreadableEntry["code"] = "W027"): UnreadableEntry => ({
+// 読めないページのエントリ（type は残したデータのタイプの id。null なら持たない）
+const unreadable = (
+  id: string,
+  title: string,
+  code: UnreadableEntry["code"] = "W027",
+  type: string | null = UNKNOWN,
+): UnreadableEntry => ({
   kind: "unreadable",
   id,
   title,
   code,
+  ...(type === null ? {} : { type }),
 })
 const connector = { id: "l", item: "@matomezu/line:connector-line", from: "a", to: "b", props: {} }
 
@@ -50,8 +59,8 @@ describe("残したブックを読む（checkBooks）", () => {
       [unreadable("q2", "")],
     ])
     expect(done.partial.map(warningText)).toEqual([
-      "W027 @foo/stamps: book x1 (スタンプ帳): page q1 is of type @foo/stamps:board, which is not in the catalog (kept as it is, not readable)",
-      "W027 @foo/stamps: book x2 (名無し): page q2 is of type @foo/stamps:board, which is not in the catalog (kept as it is, not readable)",
+      "W027 @foo/stamps: book x1 (スタンプ帳): 1 page(s) are of type @foo/stamps:board, which is not in the catalog (kept as they are, not readable)",
+      "W027 @foo/stamps: book x2 (名無し): 1 page(s) are of type @foo/stamps:board, which is not in the catalog (kept as they are, not readable)",
     ])
   })
 
@@ -61,6 +70,29 @@ describe("残したブックを読む（checkBooks）", () => {
     expect(done.books.map(b => b.lineup)).toEqual([[unreadable("q1", ""), unreadable("q2", "")]])
   })
 
+  test("読めないページのエントリは、残したデータのタイプが文字列ならその id を type に持ち、文字列でない・無いなら type を持たない", () => {
+    const { type: _type, ...typeless } = drawingPage("q3", { title: "無い" })
+    const done = checkBooks(CORE_CATALOG, [
+      testBook("x1", "タイプ", [
+        stranger("q1", "文字列"),
+        { ...drawingPage("q2", { title: "数" }), type: 3 } as never,
+        typeless as never,
+        drawingPage("q4", { title: "線", items: [connector] }),
+        testBinder("g1", "g", SLIDE, { ...testPage(SLIDE, "q5", { title: "中" }), type: null } as never),
+      ]),
+    ])
+    expect(done.warnings).toEqual([])
+    const [book] = done.books
+    expect(unreadableOf(book!)).toStrictEqual([
+      unreadable("q1", "文字列"),
+      unreadable("q2", "数", "W027", null),
+      unreadable("q3", "無い", "W027", null),
+      unreadable("q4", "線", "W029", DRAWING),
+      unreadable("q5", "中", "W027", null),
+    ])
+    for (const id of ["q2", "q3", "q5"]) expect(findUnreadable(book!, id)?.entry).not.toHaveProperty("type")
+  })
+
   test("残したデータに読めないページのエントリの形があれば、ブックごと読めない（W005。組むときにだけ作る形）", () => {
     const forged = { ...testBook("x1", "作った形", []), lineup: [unreadable("q1", "表紙")] }
     const done = checkBooks(CORE_CATALOG, [forged])
@@ -68,26 +100,26 @@ describe("残したブックを読む（checkBooks）", () => {
     expect(done.warnings.map(w => w.code)).toEqual(["W005"])
   })
 
-  test("タイプの形に合わないページは W028、タイプの決まりを守らないページ（線の端が無い）は W029。warning の持ち主はページのタイプのプラグイン", () => {
+  test("タイプの形に合わないページは W028、タイプの決まりを守らないページ（線の端が無い）は W029。warning に持ち主のプラグインは無い", () => {
     const done = checkBooks(CORE_CATALOG, [
       testBook("x1", "形", [drawingPage("q1", { settings: { "@matomezu/tree:grow": "down" } } as never)]),
       testBook("x2", "線", [drawingPage("q2", { title: "P", items: [connector] })]),
     ])
     expect(done.books.map(b => b.lineup)).toEqual([
-      [unreadable("q1", "ページ 1", "W028")],
-      [unreadable("q2", "P", "W029")],
+      [unreadable("q1", "ページ 1", "W028", DRAWING)],
+      [unreadable("q2", "P", "W029", DRAWING)],
     ])
+    expect(done.partial.map(w => w.plugin)).toEqual(["", ""])
     expect(done.partial.map(warningText)).toEqual([
-      "W028 @matomezu/drawing: book x1 (形): page q1 does not fit the shape of its type (kept as it is, not readable)",
-      "W029 @matomezu/drawing: book x2 (線): page q2 breaks the rules of its type (kept as it is, not readable)",
+      "W028 : book x1 (形): 1 page(s) do not fit the shape of their type (kept as they are, not readable)",
+      "W029 : book x2 (線): 1 page(s) break the rules of their type (kept as they are, not readable)",
     ])
   })
 
-  test("1 冊に読めないページがいくつあっても、ページごとに 1 つの warning を並びの順に出す（バインダの中の物も）", () => {
+  test("1 冊に同じタイプの無い読めないページがいくつあっても、warning は 1 つで、枚数を pages に持つ（バインダの中の物も数える）", () => {
     const done = checkBooks(CORE_CATALOG, [saved])
-    expect(done.partial.map(w => [w.code, w.params.book, w.params.page])).toEqual([
-      ["W027", "b1", "u1"],
-      ["W027", "b1", "u2"],
+    expect(done.partial).toEqual([
+      { code: "W027", plugin: "@foo/stamps", params: { book: "b1", title: "B", pages: "2", type: UNKNOWN } },
     ])
     const [book] = done.books
     expect(book?.lineup[3]).toEqual(
@@ -98,6 +130,55 @@ describe("残したブックを読む（checkBooks）", () => {
     expect(findUnreadable(book!, "u2")?.binder?.id).toBe("f1")
     expect(findUnreadable(book!, "u1")?.binder).toBeNull()
     expect(findUnreadable(book!, "p1")).toBeUndefined()
+  })
+
+  test("読めないページの warning は、ブックごと・番号ごと（W027 は無いタイプごと）に 1 つを、最初の 1 枚が並ぶ順に出す。W027 の持ち主は無いタイプのプラグインで、W028・W029 に持ち主は無い", () => {
+    const OTHER = "@bar/cards:deck"
+    const misfit = (id: string) => drawingPage(id, { title: id, settings: { "@matomezu/tree:grow": "down" } } as never)
+    const broken = (id: string) => drawingPage(id, { title: id, items: [connector] })
+    const other = (id: string) => ({ ...drawingPage(id, { title: id }), type: OTHER }) as never
+    const done = checkBooks(CORE_CATALOG, [
+      testBook("x1", "混ざる", [
+        stranger("a1"),
+        misfit("c1"),
+        other("b1"),
+        drawingPage("ok", { title: "読める" }),
+        broken("d1"),
+        stranger("a2"),
+        misfit("c2"),
+        testBinder("g1", "g", SLIDE, testPage(SLIDE, "s1", { title: "s" }), stranger("a3"), other("b2")),
+        broken("d2"),
+        broken("d3"),
+      ]),
+      testBook("x2", "別の本", [stranger("a4"), misfit("c3")]),
+    ])
+    expect(done.warnings).toEqual([])
+    const x1 = { book: "x1", title: "混ざる" }
+    const x2 = { book: "x2", title: "別の本" }
+    expect(done.partial).toEqual([
+      { code: "W027", plugin: "@foo/stamps", params: { ...x1, pages: "3", type: UNKNOWN } },
+      { code: "W028", plugin: "", params: { ...x1, pages: "2" } },
+      { code: "W027", plugin: "@bar/cards", params: { ...x1, pages: "2", type: OTHER } },
+      { code: "W029", plugin: "", params: { ...x1, pages: "3" } },
+      { code: "W027", plugin: "@foo/stamps", params: { ...x2, pages: "1", type: UNKNOWN } },
+      { code: "W028", plugin: "", params: { ...x2, pages: "1" } },
+    ])
+    expect(done.partial.slice(0, 2).map(warningText)).toEqual([
+      "W027 @foo/stamps: book x1 (混ざる): 3 page(s) are of type @foo/stamps:board, which is not in the catalog (kept as they are, not readable)",
+      "W028 : book x1 (混ざる): 2 page(s) do not fit the shape of their type (kept as they are, not readable)",
+    ])
+    expect(unreadableOf(done.books[0]!).map(u => u.id)).toEqual([
+      "a1",
+      "c1",
+      "b1",
+      "d1",
+      "a2",
+      "c2",
+      "a3",
+      "b2",
+      "d2",
+      "d3",
+    ])
   })
 
   test("タイプが機能台帳に無いバインダは、中が読めないページだけなら読める。読めるページが入っていれば読めない（W006）", () => {
@@ -221,19 +302,73 @@ describe("アクション（performIn）", () => {
     expect(run(world, "@matomezu/base:page-update", { title: "x" }, { page: "u2" })).toEqual({ ...refused, page: "u2" })
   })
 
-  test("読めないページを消す・動かす・複製するアクションは断る（ページとして見つからない）。読めないページを中に持つバインダを消すのは、読めないページを挙げて断る", () => {
+  test("読めないページを名指して消す・動かす・複製するアクションは、読めない理由の番号を添えて断る（バインダの中の読めないページも）。読めないページを中に持つバインダを消すのは、読めないページを挙げて断る", () => {
     const world = worldOf([read()])
-    const refused = { ok: false, reason: "refused" } as const
+    const refused = { ok: false, reason: "unreadable", page: "u1", code: "W027" } as const
+    const inBinder = { ...refused, page: "u2" }
     expect(run(world, "@matomezu/base:page-remove", { page: "u1" }, { book: "b1" })).toEqual(refused)
-    expect(run(world, "@matomezu/base:page-remove", { page: "u2" }, { book: "b1" })).toEqual(refused)
+    // 行う前の問いも同じ答え
+    const ask = (id: string, args: unknown) => permittedIn(world, id, args, { book: "b1" }, ctx as never)
+    expect(ask("@matomezu/base:page-remove", { page: "u1" })).toEqual(refused)
+    expect(ask("@matomezu/base:page-move", { page: "u2", index: 0 })).toEqual(inBinder)
+    expect(ask("@matomezu/base:page-duplicate", { page: "u1" })).toEqual(refused)
+    expect(run(world, "@matomezu/base:page-remove", { page: "u2" }, { book: "b1" })).toEqual(inBinder)
     expect(run(world, "@matomezu/base:page-move", { page: "u1", index: 2 }, { book: "b1" })).toEqual(refused)
+    expect(run(world, "@matomezu/base:page-move", { page: "u2", index: 0 }, { book: "b1" })).toEqual(inBinder)
     expect(run(world, "@matomezu/base:page-duplicate", { page: "u1" }, { book: "b1" })).toEqual(refused)
-    expect(run(world, "@matomezu/base:binder-remove", { binder: "f1" }, { book: "b1" })).toEqual({
+    expect(run(world, "@matomezu/base:page-duplicate", { page: "u2", title: "写し" }, { book: "b1" })).toEqual(inBinder)
+    expect(run(world, "@matomezu/base:binder-remove", { binder: "f1" }, { book: "b1" })).toEqual(inBinder)
+  })
+
+  test("理由の番号は、名指した読めないページの物（形に合わない W028・決まりを守らない W029）", () => {
+    const [book] = checkBooks(CORE_CATALOG, [
+      testBook("b2", "理由", [
+        drawingPage("ok", { title: "読める" }),
+        drawingPage("w28", { title: "形", settings: { "@matomezu/tree:grow": "down" } } as never),
+        drawingPage("w29", { title: "線", items: [connector] }),
+      ]),
+    ]).books
+    const world = worldOf([book!])
+    expect(run(world, "@matomezu/base:page-remove", { page: "w28" }, { book: "b2" })).toEqual({
       ok: false,
       reason: "unreadable",
-      page: "u2",
-      code: "W027",
+      page: "w28",
+      code: "W028",
     })
+    expect(run(world, "@matomezu/base:page-move", { page: "w29", index: 0 }, { book: "b2" })).toEqual({
+      ok: false,
+      reason: "unreadable",
+      page: "w29",
+      code: "W029",
+    })
+  })
+
+  test('ページ 1 枚ごとに問う許可スコープ（{ pages, denied: "skip" }）のアクションは、id の並びで読めないページを名指すと、読めるページと一緒でも、最初の読めないページを挙げて断る。all は読めるページだけを渡す', () => {
+    const TOUCH = "test:touch"
+    // 名指したページのうち、渡されたページの id を返すだけのアクション
+    const touch = defineAction({
+      id: TOUCH,
+      title: "@matomezu/base:Change pages",
+      aiDescription: "",
+      target: "book",
+      attach: { books: true },
+      permissionScope: { pages: "pages", denied: "skip" },
+      args: z.object({ pages: z.union([z.literal("all"), z.array(z.string())]) }),
+      run: (book, _args, ctx) => ({ next: book, result: { pages: ctx.permittedPages } }),
+    })
+    const catalog = {
+      ...CORE_CATALOG,
+      actions: new Map<string, unknown>([...CORE_CATALOG.actions, [TOUCH, touch]]),
+    } as unknown as typeof CORE_CATALOG
+    const book = read()
+    const act = (pages: "all" | string[]) =>
+      perform(book as never, TOUCH as never, { pages } as never, { ...ctx, catalog } as never)
+    const refused = { ok: false, reason: "unreadable", page: "u1", code: "W027" } as const
+    expect(act(["u1"])).toEqual(refused)
+    expect(act(["p1", "u1", "p2"])).toEqual(refused)
+    expect(act(["p1", "u2", "u1"])).toEqual({ ...refused, page: "u2" })
+    expect(act(["p2", "p1"])).toMatchObject({ ok: true, result: { pages: ["p1", "p2"] } })
+    expect(act("all")).toMatchObject({ ok: true, result: { pages: ["p1", "p2", "s1"] } })
   })
 
   test("ほかのページを足す・動かす・ブックの名前を変える・バインダを動かすのは行え、読めないページの行は書かない", () => {
@@ -324,7 +459,7 @@ describe("store", () => {
     const rows = () => [state.getState().pages.u1, state.getState().pages.u2]
     const before = rows()
     expect(before).toEqual([unreadable("u1", "U"), unreadable("u2", "u2")])
-    expect(state.getState().partial.map(w => w.code)).toEqual(["W027", "W027"])
+    expect(state.getState().partial.map(w => [w.code, w.params.pages])).toEqual([["W027", "2"]])
     expect(actions.perform("@matomezu/base:page-update", { title: "改" }, { page: "p1" }).ok).toBe(true)
     await settled()
     expect(actions.perform("@matomezu/base:page-move", { page: "p2", index: 0 }, { book: "b1" }).ok).toBe(true)
@@ -348,9 +483,8 @@ describe("store", () => {
     store.receive({ ...worldRows([saved]), settings: {} }, [])
     expect(store.state.getState().pages.u1).toEqual(unreadable("u1", "U"))
     expect(store.state.getState().unreadable).toEqual([])
-    expect(store.state.getState().partial.map(w => [w.code, w.params.page])).toEqual([
-      ["W027", "u1"],
-      ["W027", "u2"],
+    expect(store.state.getState().partial.map(w => [w.code, w.params.book, w.params.pages])).toEqual([
+      ["W027", "b1", "2"],
     ])
   })
 })

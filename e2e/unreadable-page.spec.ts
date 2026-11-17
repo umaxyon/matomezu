@@ -32,7 +32,7 @@ test("読めないページは、ページタブに名前が出て、開くと�
   await expect(tab).toHaveAttribute("aria-selected", "true")
   const notice = page.locator("[data-unreadable-page]")
   await expect(notice).toContainText("このページは読めません")
-  await expect(notice).toContainText("ページのタイプがありません")
+  await expect(notice).toContainText("ページのタイプ @gone/plugin:sheet がありません")
   await tab.click({ button: "right" })
   await expect(page.getByRole("menu")).toHaveCount(0)
   // 印刷プレビューは開けない（Mod+P でも開かない）

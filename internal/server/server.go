@@ -458,10 +458,7 @@ func (o Options) aiView(w http.ResponseWriter, _ *http.Request) {
 func (o Options) aiBooks(w http.ResponseWriter, r *http.Request) {
 	books := o.Hub.AIBooks()
 	warnings := o.Hub.BookWarnings()
-	hasUnreadable := map[string]bool{} // 読めないページを持つブック
-	for _, n := range o.Hub.PageWarnings() {
-		hasUnreadable[n.Book] = true
-	}
+	unreadablePages := o.Hub.UnreadablePageLines() // 読めないページを持つブックの、その warning の 1 行ずつ
 	annotations, err := o.Hub.AIAnnotations(nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -472,7 +469,7 @@ func (o Options) aiBooks(w http.ResponseWriter, r *http.Request) {
 		Title   string `json:"title"`
 		Version int64  `json:"version"`
 		Problem string `json:"problem,omitempty"`  // 読めないブックの理由（warning の 1 行。開けず、アクションも行えない）
-		Warning string `json:"warning,omitempty"`  // 読めるが、機能台帳に無いアイテムや設定の項目（W007 の 1 行）か、読めないページ（unreadablePages）を持つ（そのまま残っている）
+		Warning string `json:"warning,omitempty"`  // 読めるが、機能台帳に無いアイテムや設定の項目（W007 の 1 行）と、読めないページの warning の 1 行ずつ（"; " でつなぐ）（そのまま残っている）
 		Awaits  int    `json:"awaiting,omitempty"` // AI の応えを待つアノテーションの数
 	}
 	heads := make([]head, 0, len(books))
@@ -482,10 +479,12 @@ func (o Options) aiBooks(w http.ResponseWriter, r *http.Request) {
 		h.ID, h.Version, h.Awaits = b.ID, b.Version, len(pick(annotations[b.ID], awaiting))
 		if n, ok := warnings[b.ID]; ok && n.Unreadable {
 			h.Problem = n.Warning
-		} else if ok {
-			h.Warning = n.Warning
-		} else if hasUnreadable[b.ID] {
-			h.Warning = unreadablePages
+		} else {
+			lines := unreadablePages[b.ID]
+			if ok {
+				lines = append([]string{n.Warning}, lines...)
+			}
+			h.Warning = strings.Join(lines, "; ")
 		}
 		heads = append(heads, h)
 	}
@@ -573,9 +572,6 @@ func (o Options) aiShow(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, map[string]any{"ok": true, "opened": opened})
 }
-
-// unreadablePages は、AI のブックの一覧で、読めないページを持つブックに付ける warning（機能台帳に無い物の W007 の 1 行が無いとき）
-const unreadablePages = "it has pages that cannot be read (see read_book)"
 
 // writeUnreadable は、読めないページへの読み・アクションを断る答え（理由の warning の番号 code だけ。理由の文は AI のコンテキストを食うので添えない）
 func writeUnreadable(w http.ResponseWriter, code string) {
