@@ -190,7 +190,7 @@ var migrations = []string{
 	`SELECT 1;`,
 	// 書庫ホーム（フォルダの行 library-home）を作り、どのフォルダにも入っていないブックを、書庫ホームの中のフォルダ「旧ブック」に入れる（Go の移し替え。library.go）
 	`SELECT 1;`,
-	// ゴミ箱を、ブックの土台のフィールド trashed から、フォルダの役 trash の行（library-trash）にする。書庫ホームとフォルダの直下の同じ名前を付け直す（Go の移し替え。migrate_trash.go）
+	// ゴミ箱を、ブックの土台のフィールド trashed から、フォルダの役 trash の行（library-trash）にする（Go の移し替え。migrate_trash.go）
 	`SELECT 1;`,
 }
 
