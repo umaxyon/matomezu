@@ -558,7 +558,7 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
 // continued は続けた画面の履歴の段（continueStep）で、prior は続ける前の画面の履歴の段（断られたらこの段に戻す。続ける前に通っていた変更は元に戻せるまま残す）
 interface OpenStep {
   at: string
-  inBooks: string[]
+  books: string[]
   pages: Record<string, RowChange<AnyPage>>
   folders: Record<string, RowChange<Folder>>
   continued?: true
@@ -691,7 +691,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     const step: HistoryStep = {
       at,
       by: "user",
-      inBooks: was.inBooks,
+      books: was.books,
       pages: kept(was.pages),
       folders: kept(was.folders),
     }
@@ -709,18 +709,18 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       return
     was.step = step
     const history = { ...getState().history }
-    for (const id of step.inBooks)
+    for (const id of step.books)
       history[id] = { undo: [...(history[id] ?? NO_HISTORY).undo, step].slice(-HISTORY_LIMIT), redo: [] }
     setState({ history })
-    lastPut = { ...lastPut, ...Object.fromEntries(step.inBooks.map(id => [id, step])) }
+    lastPut = { ...lastPut, ...Object.fromEntries(step.books.map(id => [id, step])) }
   }
   // 続ける前の画面の履歴の段 prior を、画面の履歴の最後に戻す（続けた画面の履歴の段が断られたとき）
   const putBack = (prior: HistoryStep) => {
     const history = { ...getState().history }
-    for (const id of prior.inBooks)
+    for (const id of prior.books)
       history[id] = { undo: [...(history[id] ?? NO_HISTORY).undo, prior].slice(-HISTORY_LIMIT), redo: [] }
     setState({ history })
-    lastPut = { ...lastPut, ...Object.fromEntries(prior.inBooks.map(id => [id, prior])) }
+    lastPut = { ...lastPut, ...Object.fromEntries(prior.books.map(id => [id, prior])) }
   }
   // まだ見ていない、AI とほかの窓の変更（古い順。ブックごとに 1 つの画面の履歴の段で、見えたらそのブックの画面の履歴に入る）。act は常駐が 1 回の perform に振った印。
   // book は変えたブック、before と after はその前と後（組んだ値。見えたかを、物の場所で確かめるのに使う）、
@@ -795,7 +795,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     const step: HistoryStep = {
       at: clock(),
       by: change.by,
-      inBooks: [after.id],
+      books: [after.id],
       ...rowChanges(tablesOf([before]), changes),
     }
     const places = [...Object.keys(changes.pages), ...Object.keys(changes.folders)]
@@ -804,11 +804,11 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   // ブック book の物を、表 was から changes のとおりに変えたことを、開いている画面の履歴の段に足す（同じ物を続けて変えたら、最初の前と最後の後を持つ）
   const record = (book: string, was: Tables, changes: TableChanges, at: string): OpenStep => {
     if (!open) {
-      open = { at, inBooks: [], pages: {}, folders: {} }
+      open = { at, books: [], pages: {}, folders: {} }
       queueMicrotask(closeStep)
     }
     const into = open
-    if (!into.inBooks.includes(book)) into.inBooks.push(book)
+    if (!into.books.includes(book)) into.books.push(book)
     const rows = rowChanges(was, changes)
     for (const [id, r] of Object.entries(rows.pages))
       into.pages[id] = { before: into.pages[id]?.before ?? r.before, after: r.after }
@@ -823,7 +823,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     const step = at.step
     if (!step) return
     const history = { ...getState().history }
-    for (const id of step.inBooks) {
+    for (const id of step.books) {
       const was = history[id] ?? NO_HISTORY
       history[id] = { undo: was.undo.filter(s => s !== step), redo: was.redo.filter(s => s !== step) }
     }
@@ -1216,14 +1216,14 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const step = history[book]?.undo.at(-1)
       if (!step || step !== lastPut[book]) return
       const next = { ...history }
-      for (const id of step.inBooks) {
+      for (const id of step.books) {
         const was = next[id] ?? NO_HISTORY
         next[id] = { ...was, undo: was.undo.filter(s => s !== step) }
       }
       setState({ history: next })
       open = {
         at: step.at,
-        inBooks: [...step.inBooks],
+        books: [...step.books],
         pages: { ...step.pages },
         folders: { ...step.folders },
         continued: true,
@@ -1237,9 +1237,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const { history } = getState()
       const step = (history[book] ?? NO_HISTORY)[from].at(-1)
       if (!step) return
-      lastPut = Object.fromEntries(Object.entries(lastPut).filter(([id]) => !step.inBooks.includes(id)))
+      lastPut = Object.fromEntries(Object.entries(lastPut).filter(([id]) => !step.books.includes(id)))
       const next = { ...history }
-      for (const id of step.inBooks) {
+      for (const id of step.books) {
         const was = next[id] ?? NO_HISTORY
         next[id] = { ...was, [from]: was[from].filter(s => s !== step), [to]: [...was[to], step] } as BookHistory
       }

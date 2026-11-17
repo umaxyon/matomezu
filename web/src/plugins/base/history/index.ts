@@ -54,7 +54,7 @@ function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"):
   if (!step || !opened) return
   const to = from === "undo" ? "before" : "after"
   const args = {
-    books: [...step.inBooks],
+    books: [...step.books],
     pages: patchesToward(step.pages, to),
     folders: patchesToward(step.folders, to),
   }
@@ -87,8 +87,7 @@ export const UNDO = kit.defineCommand({
   permissionScope: "book",
   run: (ctx, a) => restore(ctx, a, "undo"),
   when: ctx => ctx.book !== null,
-  // 印刷プレビューの間は、ブックを変えない（置き直しは一覧が対象のアクションなので、ステージが止めない。ここで止める）
-  enabled: ctx => ctx.stage.mode === "edit" && ctx.bookHistory.undo.length > 0,
+  enabled: ctx => ctx.bookHistory.undo.length > 0,
 })
 
 export const REDO = kit.defineCommand({
@@ -98,8 +97,7 @@ export const REDO = kit.defineCommand({
   permissionScope: "book",
   run: (ctx, a) => restore(ctx, a, "redo"),
   when: ctx => ctx.book !== null,
-  // 印刷プレビューの間は、ブックを変えない（置き直しは一覧が対象のアクションなので、ステージが止めない。ここで止める）
-  enabled: ctx => ctx.stage.mode === "edit" && ctx.bookHistory.redo.length > 0,
+  enabled: ctx => ctx.bookHistory.redo.length > 0,
 })
 
 export const HISTORY_KEYS = [

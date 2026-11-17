@@ -154,10 +154,11 @@ export function extentOf(stage: Pick<Stage, "opened" | "mode">): Size | null {
 export const previewing = (stage: Pick<Stage, "mode">): boolean => stage.mode.kind === "print-preview"
 
 // 見え方が mode のステージから行うと止めるアクションか: 印刷プレビューの間の、ブックが対象のアクション（印刷プレビューの間も行う印
-// inPrintPreview のあるものを除く）。止めるのはそのステージから行う物だけで、AI やほかのステージは止めない
-export function stageBlocks(catalog: CoreCatalog, mode: StageMode["kind"], action: string): boolean {
+// inPrintPreview のあるものを除く）。止めるのはそのステージから行う物だけで、AI やほかのステージは止めない。
+// onOpened は、一覧が対象のアクションを、開いているブックを変える物として扱うとき（許可スコープを書いたコマンドが行うとき）
+export function stageBlocks(catalog: CoreCatalog, mode: StageMode["kind"], action: string, onOpened = false): boolean {
   const def = catalog.actions.get(action)
-  return mode === "print-preview" && isInBook(def?.target) && def?.inPrintPreview !== "runs"
+  return mode === "print-preview" && (isInBook(def?.target) || onOpened) && def?.inPrintPreview !== "runs"
 }
 
 // 見せ方が描く広さを area に、描く中身をずらした量を origin にする（null なら紙 1 枚に戻し、ずらさない）。origin が変わったら、

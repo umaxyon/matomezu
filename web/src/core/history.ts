@@ -14,11 +14,11 @@ export interface RowChange<T> {
 export type HistoryBy = "user" | "ai" | "window"
 
 // 画面の履歴の段: 変えたページとフォルダごとの前と後（足した物の前と、無くした物の後は "none"）。at は始めた時点（この窓の時計）。
-// inBooks は、変えた物を持つブックの id（この段を入れる履歴。1 回の操作が、いくつかのブックを変えることがある）
+// books は、変えた物を持つブックの id（この段を入れる履歴。1 回の操作が、いくつかのブックを変えることがある）
 export interface HistoryStep {
   at: string
   by: HistoryBy
-  inBooks: readonly string[]
+  books: readonly string[]
   pages: Readonly<Record<string, RowChange<AnyPage>>>
   folders: Readonly<Record<string, RowChange<Folder>>>
 }
