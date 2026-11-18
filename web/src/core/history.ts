@@ -29,6 +29,8 @@ export interface BookHistory {
   redo: readonly HistoryStep[]
 }
 export const NO_HISTORY: BookHistory = { undo: [], redo: [] }
+// 書庫の画面の履歴の鍵（ブックごとの履歴と同じ表に、この鍵で持つ）: 書庫が対象のアクションが変えたページとフォルダの段。ブックが対象・ページが対象のアクションの段は、ブックの履歴に入る
+export const LIBRARY_HISTORY = "library"
 export const HISTORY_LIMIT = 100 // ブックごとに覚える画面の履歴の段の数（まだ見ていない画面の履歴の段も、ブックごとにこの数まで）
 
 // 履歴 was の戻せる画面の履歴の段に、step を時刻の位置で差し込む（後ろから見て、at の大きい物の前。やり直せる画面の履歴の段は消さない）

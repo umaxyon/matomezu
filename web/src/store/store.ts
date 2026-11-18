@@ -46,6 +46,7 @@ import {
   HISTORY_LIMIT,
   type HistoryStep,
   insertStep,
+  LIBRARY_HISTORY,
   NO_HISTORY,
   type RowChange,
   type SeenTest,
@@ -621,6 +622,9 @@ interface OpenStep {
   books: string[]
   pages: Record<string, RowChange<PageRow>>
   folders: Record<string, RowChange<Folder>>
+  // 書庫が対象のアクションが変えたページとフォルダ（書庫の画面の履歴に、別の段として入れる）と、閉じて入れたその段
+  library?: { pages: Record<string, RowChange<PageRow>>; folders: Record<string, RowChange<Folder>> }
+  libraryStep?: HistoryStep
   continued?: true
   prior?: HistoryStep
   step?: HistoryStep
@@ -761,13 +765,34 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (!a.ok) dropRefused(was)
     })
   }
+  // 同じ段の中で足して無くした物は、前も後も無いので持たない
+  const keptRows = <T>(rows: Record<string, RowChange<T>>) =>
+    Object.fromEntries(Object.entries(rows).filter(([, r]) => r.before !== "none" || r.after !== "none"))
+  // 閉じた段のうち、書庫が対象のアクションが変えた分を、書庫の画面の履歴に入れる（入れる前にホストが断ったなら入れない）
+  const putLibraryStep = (was: OpenStep) => {
+    if (!was.library || was.refused) return
+    const step: HistoryStep = {
+      at: was.at,
+      by: "user",
+      books: [LIBRARY_HISTORY],
+      pages: keptRows(was.library.pages),
+      folders: keptRows(was.library.folders),
+    }
+    if ([...Object.values(step.pages), ...Object.values(step.folders)].every(r => sameData(r.before, r.after))) return
+    was.libraryStep = step
+    const history = { ...getState().history }
+    history[LIBRARY_HISTORY] = {
+      undo: [...(history[LIBRARY_HISTORY] ?? NO_HISTORY).undo, step].slice(-HISTORY_LIMIT),
+      redo: [],
+    }
+    setState({ history })
+  }
   // 閉じた段を画面の履歴に入れる
   const putStep = (was: OpenStep) => {
+    putLibraryStep(was)
     if (was.books.length === 0 && !was.continued) return
     const { at, continued } = was
-    // 同じ段の中で足して無くした物は、前も後も無いので持たない
-    const kept = <T>(rows: Record<string, RowChange<T>>) =>
-      Object.fromEntries(Object.entries(rows).filter(([, r]) => r.before !== "none" || r.after !== "none"))
+    const kept = keptRows
     const step: HistoryStep = {
       at,
       by: "user",
@@ -891,6 +916,16 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       into.folders[id] = { before: into.folders[id]?.before ?? r.before, after: r.after }
     return into
   }
+  // 書庫が対象のアクションが、表 was を changes のとおりに変えたことを、開いている画面の履歴の段の、書庫の分に足す
+  const recordLibrary = (was: Library, changes: TableChanges, at: string) => {
+    const into = opened(at)
+    const mine = (into.library ??= { pages: {}, folders: {} })
+    const rows = rowChanges(was, changes)
+    for (const [id, r] of Object.entries(rows.pages))
+      mine.pages[id] = { before: mine.pages[id]?.before ?? r.before, after: r.after }
+    for (const [id, r] of Object.entries(rows.folders))
+      mine.folders[id] = { before: mine.folders[id]?.before ?? r.before, after: r.after }
+  }
   // 行ったアクション sent を、開いているアクションバルクに足し、そのアクションバルクへのホストの答えを返す
   const joinBulk = (sent: DoneAction, at: string): Promise<HostAnswer> | undefined => {
     const bulk = opened(at)
@@ -927,6 +962,19 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   // 同じ段のほかのアクションの変更も、元に戻すで戻せなくなる。ただし続けた画面の履歴の段なら、続ける前の画面の履歴の段は戻し、その変更は元に戻せるまま残す）
   const dropRefused = (at: OpenStep) => {
     at.refused = true
+    const inLibrary = at.libraryStep
+    if (inLibrary) {
+      const was = getState().history[LIBRARY_HISTORY] ?? NO_HISTORY
+      setState({
+        history: {
+          ...getState().history,
+          [LIBRARY_HISTORY]: {
+            undo: was.undo.filter(s => s !== inLibrary),
+            redo: was.redo.filter(s => s !== inLibrary),
+          },
+        },
+      })
+    }
     const step = at.step
     if (!step) return
     const history = { ...getState().history }
@@ -977,6 +1025,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
             const before = books[after.id]
             if (before && before !== after) dropOverwritten(before, after)
           }
+        else recordLibrary({ pages, folders }, done.changes, c.now)
       } else {
         // ブックかページが対象のアクションが変えるのは、開けるブック 1 冊
         const after = Object.values(shelves.books).find(b => books[b.id] !== b)

@@ -76,6 +76,7 @@ export const ENTRY_RESTORE = kit.defineAction({
 
 export const ENTRY_PURGE = kit.defineAction({
   id: "entry-purge",
+  history: false, // 戻せない
   aiDescription: "Delete entries in the trash for good, with everything in them. Only the user can do this.",
   title: "Delete",
   target: "library",
@@ -90,6 +91,7 @@ export const ENTRY_PURGE = kit.defineAction({
 
 export const TRASH_EMPTY = kit.defineAction({
   id: "trash-empty",
+  history: false, // 戻せない
   aiDescription: "Delete everything in the trash for good. Only the user can do this.",
   title: "Empty trash",
   target: "library",

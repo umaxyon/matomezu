@@ -27,6 +27,7 @@ import {
 } from "./left-side-panel"
 import { ENTRY_MOVE, ENTRY_RENAME, FOLDER_CREATE } from "./library/entry-move"
 import { ENTRY_PURGE, ENTRY_RESTORE, ENTRY_TRASH, TRASH_EMPTY } from "./library/entry-trash"
+import { LIBRARY_REVERT } from "./library/revert"
 import { BOOK_LOCK, BOOK_UNLOCK, LOCK, LOCKABLE_CHECK, PAGE_LOCK, PAGE_UNLOCK } from "./lock"
 import type { A3, A4, A5, LETTER, TABLOID, WIDE } from "./looks"
 import {
@@ -404,6 +405,7 @@ export const BASE = defineBuiltin(
       ENTRY_RESTORE,
       ENTRY_PURGE,
       TRASH_EMPTY,
+      LIBRARY_REVERT,
       SETTINGS_SET,
       HISTORY_RESTORE,
       NOTE_ADD,
@@ -627,6 +629,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:entry-trash": typeof ENTRY_TRASH
     "@matomezu/base:entry-restore": typeof ENTRY_RESTORE
     "@matomezu/base:entry-purge": typeof ENTRY_PURGE
+    "@matomezu/base:library-revert": typeof LIBRARY_REVERT
     "@matomezu/base:trash-empty": typeof TRASH_EMPTY
     "@matomezu/base:settings-set": typeof SETTINGS_SET
     "@matomezu/base:book-revert": typeof HISTORY_RESTORE
