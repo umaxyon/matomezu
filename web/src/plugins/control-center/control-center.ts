@@ -30,6 +30,9 @@ export const CONTROL_CENTER_SCREEN = kit.defineScreen({
     "The control center: the user's one entry that is not a book (the user panel, the workrooms and participants, the projects and the library).",
   props: z.strictObject({}),
   atStart: true,
+  // 書庫の画面を出している間だけ、base の書庫（LibraryView）を見せている（プロジェクトの画面の間は、描いたまま隠している）
+  libraryAppearances: ["@matomezu/base:library"],
+  shownLibraryAppearances: read => (frontScreenOf(read(FRONT_SCREEN)) === "library" ? ["@matomezu/base:library"] : []),
 })
 
 // コントロールセンターの中で前に出す画面（画面の場所に入れるプラグイン状態。コントロールセンターのスクリーン 1 枚ごとの値で、変えるたびにブラウザの履歴に積む）。

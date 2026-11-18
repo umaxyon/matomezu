@@ -9,7 +9,7 @@ import { NO_STAGE } from "../../../store/dialogs"
 import type { MatomezuState } from "../../../store/store"
 import { useMessages } from "../../../ui/i18n"
 import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
-import { useActions, usePluginState, useSetPluginState, useShownFolders } from "../../../ui/view-hooks"
+import { useActions, usePluginState, useSetPluginState } from "../../../ui/view-hooks"
 import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { LIBRARY_SCOPE } from "./commands"
@@ -28,7 +28,6 @@ import {
   openTargetOf,
   pathTo,
   rowsIn,
-  shownFoldersOf,
   unfoldedOf,
 } from "./outline"
 import { LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_UNFOLDED } from "./state"
@@ -80,7 +79,6 @@ export function LibraryView() {
   const unfolded = unfoldedOf(usePluginState(kit, LIBRARY_UNFOLDED))
   const setUnfolded = useSetPluginState(kit, LIBRARY_UNFOLDED)
   const shown = new Set(unfolded)
-  useShownFolders(useMatomezuState(useShallow(s => shownFoldersOf(s.folders, opened, unfolded))))
   const enter = (folder: string) => {
     if (folder !== opened) setFolder(folder)
     setPicked(undefined)

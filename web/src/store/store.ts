@@ -19,7 +19,7 @@ import type {
 } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
 import type { ActionContext, ActionOn, PageTarget } from "../core/def/action"
-import type { PluginStateDef } from "../core/def/plugin-state"
+import type { PluginStateDef, PluginStateRead } from "../core/def/plugin-state"
 import { fail } from "../core/errors"
 import {
   bookIdOf,
@@ -59,6 +59,7 @@ import {
 } from "../core/history"
 import { detectLang, type Lang, type Params } from "../core/i18n/i18n"
 import { type Books, splitTrash } from "../core/library"
+import { splitId } from "../core/names"
 import { type Patch, patchOf, undoneIn, type Written } from "../core/patch"
 import { type ArgsOf, performIn, type Refused, type ResultOf, type TargetOf } from "../core/perform"
 import {
@@ -533,9 +534,6 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   ): void
   // まだ見ていない画面の履歴の段が見えたかを確かめ直す（窓が見えるようになったとき。ホストクライアントだけが使う。プラグインに渡す actions には入れない）
   checkSeen(): void
-  // 書庫を見せているビュー key（ビューごとの名前）が、スクリーン screen で、フォルダ folders の中身を見せている（null なら、見せるのをやめた）。
-  // まだ見ていない書庫の変更が見えたかは、これで決まる。ui のフック useShownFolders を通して使う（プラグインに渡す actions には入れない）
-  setShownFolders(key: string, screen: string, folders: readonly string[] | null): void
   // ホストの言葉の検索（横断検索）。base のフック useWideSearch を通して使う（プラグインに渡す actions には入れない）。
   // ホストが無いか、頼めなければ、投げる（検索の見た目が受ける）
   search(query: WideSearchQuery): Promise<WideSearchAnswer>
@@ -710,9 +708,15 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   // 状態は書き換えさせない（前の状態と変わらない所を共有しているので、その場で書き換えると前の状態まで変わる）。入れるたびに変わった所を凍らせる
   const store = createStore<MatomezuState>()(() => deepFreeze(initial))
   store.subscribe(deepFreeze)
-  // ステージで開いている物が替わったら、まだ見ていない画面の履歴の段が見えたかを確かめ直す（下で作る checkSeen）
+  // ステージで開いている物・書庫の表・プラグイン状態（書庫アピアランスが見せているフォルダの材料）が替わったら、まだ見ていない画面の履歴の段が見えたかを確かめ直す（下で作る checkSeen）
   store.subscribe((now, was) => {
-    if (now.window !== was.window || now.books !== was.books) checkSeen()
+    if (
+      now.window !== was.window ||
+      now.books !== was.books ||
+      now.folders !== was.folders ||
+      now.pluginValues !== was.pluginValues
+    )
+      checkSeen()
   })
   const { getState, setState } = store
   const ctx = (): ActionContext => ({ catalog, controlCenter, lang: getState().lang, newId, now: clock(), actor: USER })
@@ -927,16 +931,33 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       rows: { pages: Object.keys(patches.pages), folders: Object.keys(patches.folders) },
     }
   }
-  // 書庫を見せているビューごとの、いるスクリーンと、見せているフォルダ（ビューが setShownFolders で知らせる）
-  const shownFolders = new Map<string, { screen: string; folders: readonly string[] }>()
-  // 見えているスクリーンのビューが見せているフォルダ
+  // 見えているスクリーンが、今見せているフォルダ: スクリーンの定義が今見せていると答えた書庫アピアランス（libraryAppearances に並べた物だけ）に、見せているフォルダを聞く。
+  // どちらも、聞かれたスクリーンの、持ち主のプラグイン状態だけを読む
   const foldersShownNow = (): ReadonlySet<string> => {
-    const screens = shownScreens(catalog, getState().window)
-    return new Set([...shownFolders.values()].filter(v => screens.includes(v.screen)).flatMap(v => v.folders))
+    const { window: win, pluginValues, folders } = getState()
+    const shown = new Set<string>()
+    const readFor =
+      (owner: string | null, screen: string): PluginStateRead =>
+      def =>
+        pluginValueOf(pluginValues, screen, ownedPluginState(owner ?? "", def))
+    for (const id of shownScreens(catalog, win)) {
+      const def = catalog.screens.get(win.screens.find(s => s.id === id)?.def ?? "")
+      const named = def?.libraryAppearances ?? []
+      if (!def || named.length === 0) continue
+      const now = def.shownLibraryAppearances?.(readFor(splitId(def.id).owner, id)) ?? named
+      for (const appearance of now) {
+        const display = (named as readonly string[]).includes(appearance)
+          ? defs.catalog.store.libraryAppearances.get(appearance)
+          : undefined
+        for (const folder of display?.shownFolders(folders, readFor(splitId(display.id).owner, id)) ?? [])
+          shown.add(folder)
+      }
+    }
+    return shown
   }
   // まだ見ていない書庫の変更のうち、近くのフォルダを書庫の画面が見せている物を、書庫の画面の履歴に時刻の位置で差し込む（窓が見えていない間は差し込まない）
   const checkSeenInLibrary = () => {
-    if (unseenInLibrary.length === 0 || shownFolders.size === 0 || options.visible?.() === false) return
+    if (unseenInLibrary.length === 0 || options.visible?.() === false) return
     const shown = foldersShownNow()
     const now = unseenInLibrary.filter(u => u.near.some(id => shown.has(id)))
     if (now.length === 0) return
@@ -1636,11 +1657,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       checkSeen()
     },
     checkSeen,
-    setShownFolders: (key, screen, folders) => {
-      if (folders) shownFolders.set(key, { screen, folders })
-      else shownFolders.delete(key)
-      checkSeenInLibrary()
-    },
     search: query => options.search?.(query) ?? Promise.resolve(NO_WIDE_SEARCH_HITS),
     address: () => addressNow(),
     locate: address => {

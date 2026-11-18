@@ -52,6 +52,8 @@ export type BaseKeyScope = "global" | "stage" | "dialog" | "menu" | "screen"
 export interface KeyScopeTable {}
 // プラグイン状態の id → 定義（PluginStateDef）。プラグインは自分の id を頭に付けて宣言し、書き足す
 export interface PluginStateTable {}
+// 書庫アピアランスの id → 定義（LibraryAppearanceDef）。プラグインは自分の id を頭に付けて定義し、書き足す
+export interface LibraryAppearanceTable {}
 
 // 画面の UI マッピングの分。スロットは「id → そこに置くウィジェットが受け取る値」。スロットを描くウィジェットを持つプラグインが、そのスロットを書き足す
 export interface SlotTable {
@@ -90,6 +92,7 @@ export const PARTS = {
   dialogs: { catalog: "store", label: "dialog" },
   keyScopes: { catalog: "store", label: "keyScope" },
   pluginStates: { catalog: "store", label: "pluginState" },
+  libraryAppearances: { catalog: "store", label: "libraryAppearance" },
 } as const
 export type Part = keyof typeof PARTS
 export type CorePart = { [K in Part]: (typeof PARTS)[K]["catalog"] extends "core" ? K : never }[Part]
@@ -124,6 +127,7 @@ export interface PartTables {
   dialogs: DialogTable
   keyScopes: KeyScopeTable
   pluginStates: PluginStateTable
+  libraryAppearances: LibraryAppearanceTable
 }
 // 種類ごとの定義の型。その台帳のクレートが書き足す（ここは空。書き足し忘れは、種類ごとに引く所 PartDefTable[Part] が型の誤りになる）
 export interface PartDefTable {}
@@ -152,6 +156,7 @@ export type MessageKey = keyof MessageTable & string
 export type CommandId = keyof CommandTable & string
 export type KeyScopeId = BaseKeyScope | (keyof KeyScopeTable & string)
 export type PluginStateId = keyof PluginStateTable & string
+export type LibraryAppearanceId = keyof LibraryAppearanceTable & string
 export type DialogId = keyof DialogTable & string
 // スクリーンとスクリーンアレンジメントの定義の id は、それだけで同じ名前のスロットになる（何も受け取らない。SlotTable に書かなくてよい）
 export type SlotId = (keyof SlotTable | ScreenId | ScreenArrangementId) & string
@@ -204,6 +209,7 @@ export interface DialogExtras<A = undefined> {
 export interface KeyExtras {}
 export interface KeyScopeExtras {}
 export interface PluginStateExtras {}
+export interface LibraryAppearanceExtras {}
 export interface WidgetExtras {}
 export interface LayoutExtras {}
 export interface PresentationViewExtras {}

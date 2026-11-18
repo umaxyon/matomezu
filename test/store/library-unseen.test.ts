@@ -3,12 +3,12 @@
 // 書庫の画面の履歴に時刻の位置で差し込む。置き直しが上書きした、まだ見ていない変更は捨てる
 
 import { expect, test } from "bun:test"
-import { HOME_ID, TRASH_ID } from "../../web/src/core/folders"
+import { HOME_ID } from "../../web/src/core/folders"
 import { LIBRARY_HISTORY } from "../../web/src/core/history"
 import { applyPatch, patchOf } from "../../web/src/core/patch"
-import { shownScreens } from "../../web/src/core/window"
+import { LIBRARY_FOLDER, LIBRARY_UNFOLDED } from "../../web/src/plugins/base/library/state"
 import type { AIEditTicketOutcome } from "../../web/src/store/store"
-import { CORE_CATALOG, newStore, sequence } from "../support"
+import { newStore, sequence } from "../support"
 
 type Store = ReturnType<typeof newStore>
 type Step = { run: () => void; library?: true }
@@ -20,6 +20,8 @@ const rowsOf = (store: Store) => {
 const libraryHistory = (store: Store) => store.state.getState().history[LIBRARY_HISTORY] ?? { undo: [], redo: [] }
 const titleOf = (store: Store, id: string) => (store.state.getState().folders[id] as { title?: string }).title
 const RENAME = "@matomezu/base:entry-rename"
+const CENTER = "@matomezu/control-center:screen"
+const FRONT = "@matomezu/control-center:front-screen"
 // よそが、ブック b1 の名前を書庫のアクションで title に変える
 const renamed = (there: Store, title: string): Step => ({
   run: () => void there.actions.perform(RENAME, { entry: "b1", title }),
@@ -71,9 +73,22 @@ function pair(visible: () => boolean = () => true) {
     const some = Object.keys(library.pages).length + Object.keys(library.folders).length > 0
     here.receive(rowsOf(there), [], { books: ["b1"], ...change, ...(some ? { library } : {}) })
   }
-  const show = (folders: readonly string[] | null) =>
-    here.setShownFolders("view", shownScreens(CORE_CATALOG, here.state.getState().window)[0] as string, folders)
-  return { here, there, told, foreign, show }
+  // コントロールセンターのスクリーン（base の書庫を見せるスクリーン）
+  const center = here.state.getState().window.screens.find(s => s.def === CENTER)?.id as string
+  // コントロールセンターの書庫の画面で、フォルダ folders を見せる（最初の物を右の枠で開き、全部をツリーで開く）。null なら、プロジェクトの画面に替える
+  // （書庫は、描いたまま隠れる）。current が false なら、コントロールセンターのスクリーンを見えているスクリーンにしない
+  const show = (folders: readonly string[] | null, current = true) => {
+    if (current) here.actions.makeScreenCurrent(center)
+    if (folders) {
+      here.setPluginState(LIBRARY_FOLDER.id, center, folders[0])
+      here.setPluginState(LIBRARY_UNFOLDED.id, center, folders)
+    }
+    here.setPluginState(FRONT, center, folders ? "library" : "projects")
+  }
+  // ブックスクリーンを、見えているスクリーンに戻す
+  const showBook = () =>
+    here.actions.makeScreenCurrent(here.state.getState().window.screens.find(s => s.def !== CENTER)?.id as string)
+  return { here, there, told, foreign, show, showBook }
 }
 
 test("AI が書庫のアクションで変えたブックの名前は、ブックの画面の履歴に入らず、入れ物のフォルダを書庫の画面が見せたら、書庫の画面の履歴に入る", async () => {
@@ -82,8 +97,8 @@ test("AI が書庫のアクションで変えたブックの名前は、ブッ�
   expect(titleOf(here, "b1")).toBe("AI の名前")
   expect(here.state.getState().history.b1?.undo ?? []).toEqual([])
   expect(libraryHistory(here).undo).toEqual([])
-  // ゴミ箱だけを見せていても、見えない
-  show([TRASH_ID])
+  // ほかのブックの中身だけを見せていても、見えない
+  show(["b2"])
   expect(libraryHistory(here).undo).toEqual([])
   expect(told).toEqual([])
   show([HOME_ID])
@@ -94,7 +109,7 @@ test("AI が書庫のアクションで変えたブックの名前は、ブッ�
   expect(titleOf(here, "b1")).not.toBe("AI の名前")
 })
 
-test("見せているビューが在る間に届いた変更は、すぐ入る。ビューが消えたら、入らない", async () => {
+test("書庫の画面を出している間に届いた変更は、すぐ入る。プロジェクトの画面に替えたら（書庫は描いたまま隠れる）、入らない", async () => {
   const { here, there, foreign, show } = pair()
   show([HOME_ID])
   await foreign({ by: "window", act: "1", actions: [RENAME] }, renamed(there, "一回目"))
@@ -104,15 +119,17 @@ test("見せているビューが在る間に届いた変更は、すぐ入る�
   expect(libraryHistory(here).undo).toHaveLength(1)
 })
 
-test("見えていないスクリーンのビューが見せているフォルダでは、見えたとしない", async () => {
-  const { here, there, foreign } = pair()
-  here.setShownFolders("view", "no-such-screen", [HOME_ID])
+test("見えていないスクリーンの書庫が見せているフォルダでは、見えたとしない。そのスクリーンが見えたら入る", async () => {
+  const { here, there, foreign, show } = pair()
+  show([HOME_ID], false)
   await foreign({ by: "ai", act: "1", actions: [RENAME] }, renamed(there, "AI の名前"))
   expect(libraryHistory(here).undo).toEqual([])
+  show([HOME_ID])
+  expect(libraryHistory(here).undo).toMatchObject([{ by: "ai" }])
 })
 
 test("ほかの窓のアクションバルクにブックの変更と書庫の変更が混ざっていたら、ブックの分はブックの画面の履歴に、書庫の分は書庫の画面の履歴に分かれる", async () => {
-  const { here, there, foreign, show } = pair()
+  const { here, there, foreign, show, showBook } = pair()
   show([HOME_ID])
   const page = Object.keys(there.state.getState().pages)[0] as string
   const PLACE = "@matomezu/paper:item-place"
@@ -128,6 +145,9 @@ test("ほかの窓のアクションバルクにブックの変更と書庫の�
     },
     renamed(there, "混ぜた名前"),
   )
+  expect(libraryHistory(here).undo).toMatchObject([{ by: "window", pages: {}, folders: { b1: {} } }])
+  // ブックの分は、ブックスクリーンでそのページが見えたら入る
+  showBook()
   const inBook = here.state.getState().history.b1?.undo ?? []
   expect(inBook).toHaveLength(1)
   expect(Object.keys(inBook[0]?.pages ?? {})).toEqual([page])

@@ -54,7 +54,6 @@ export {
   useSetPluginStates,
   useSettings,
   useShownBook,
-  useShownFolders,
   useShownPage,
   useStage,
   useStageArea,

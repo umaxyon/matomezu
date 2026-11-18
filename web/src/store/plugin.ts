@@ -13,6 +13,7 @@ import {
 } from "../core/catalog"
 import { buildCoreCatalog, type CatalogCheckDef, type CoreCatalog, type CoreCatalogParts } from "../core/core-catalog"
 import type { ShapeAddArgs, ShapeEditArgs } from "../core/def/item"
+import type { LibraryAppearanceDef } from "../core/def/library-appearance"
 import type { NormalizeStepDef } from "../core/def/normalize-step"
 import type { PluginStateDef } from "../core/def/plugin-state"
 import type { Scheme } from "../core/def/skin"
@@ -43,6 +44,7 @@ declare module "../core/catalog" {
     dialogs: DialogDef<unknown>
     keyScopes: KeyScopeDef
     pluginStates: PluginStateDef
+    libraryAppearances: LibraryAppearanceDef
   }
 }
 
@@ -180,6 +182,7 @@ export interface StoreCatalog {
   dialogs: ReadonlyMap<string, DialogDef<unknown>>
   keyScopes: ReadonlyMap<string, KeyScopeDef> // プラグインのキーの範囲（土台の範囲は入らない。題名と呼ぶコマンドは store/keys.ts の BASE_KEY_SCOPES）
   keys: ReadonlyMap<string, DefaultKey> // キーの既定のキーバインド（id → キーバインド。キーはそろえた書き方）
+  libraryAppearances: ReadonlyMap<string, LibraryAppearanceDef> // 書庫アピアランス（id → 定義）
   pluginStates: ReadonlyMap<string, PluginStateDef> // プラグイン状態の宣言（id → 定義。store/plugin-state.ts）
   warnings: readonly Warning[] // 台帳アセンブルで見つけた、止めるほどではない間違い（コマンドの performs・キー・ビルトインプラグインの checks。core/warnings.ts）
 }
@@ -250,6 +253,10 @@ export function assemble(
   for (const t of all("pageTypes"))
     for (const dialog of [t.dialogs?.add, t.dialogs?.settings])
       if (dialog !== undefined && !dialogIds.has(dialog)) problems.push(problem("E031", { id: t.id, dialog }))
+  const appearanceIds = new Set(all("libraryAppearances").map(d => d.id))
+  for (const s of all("screens"))
+    for (const appearance of s.libraryAppearances ?? [])
+      if (!appearanceIds.has(appearance)) problems.push(problem("E075", { id: s.id, appearance }))
   // 範囲の宣言は型で書かせるが、動的に取り込む追加プラグインは型を通らないので値も確かめる
   for (const s of keyScopes)
     if (s.commandsFrom !== "stage" && s.commandsFrom !== "screen")
@@ -292,6 +299,7 @@ export function assemble(
         dialogs: new Map(dialogs.map(d => [d.id, d])),
         keyScopes: new Map(keyScopes.map(s => [s.id, s])),
         keys: new Map(keys.map(k => [k.id, k])),
+        libraryAppearances: new Map(all("libraryAppearances").map(d => [d.id, d])),
         pluginStates: new Map(all("pluginStates").map(d => [d.id, d])),
         warnings: [
           ...performsWarnings(plugins, catalog),

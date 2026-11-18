@@ -2,7 +2,7 @@
 // 読む物（ブック・ページ・アイテム）は描くページから、操作（アクション・ステージごとのプラグイン状態・紙をずらす量など）は向け先から引く。
 // ステージは読むだけの StageView（プラグインが持つ状態は usePluginState・useSetPluginState）、ほかに機能台帳と利用者の設定。データを変える入口は usePerform（アクション）だけ。
 
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo } from "react"
+import { useCallback, useLayoutEffect, useMemo } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { USER } from "../core/actor"
 import { findPage, withSettings } from "../core/book"
@@ -572,23 +572,4 @@ export function useBrowserBack(): { canGoBack: boolean; goBack(): void } {
   const canGoBack = useMatomezuState(s => s.canGoBack)
   const { requestBack } = useStoreActions()
   return { canGoBack, goBack: requestBack }
-}
-
-// 書庫のエントリを見せるビューが、中身を並べて見せているフォルダ folders（フォルダ・書庫ホーム・ゴミ箱の id）を知らせる。AI とほかの窓が書庫に行った変更は、
-// 変わった物か、それを入れているフォルダを、見えているスクリーンのビューが見せている間に、見えたとして書庫の画面の履歴に入る。
-// 並びが変わったときだけ知らせ、ビューが消えたら、見せるのをやめたと知らせる。スクリーンの外のビューは、何も知らせない
-export function useShownFolders(folders: readonly string[]): void {
-  const key = useId()
-  const screen = useScreenContext()?.id
-  const { setShownFolders } = useInstance()
-  const joined = folders.join("\n")
-  useEffect(() => {
-    if (screen !== undefined) setShownFolders(key, screen, joined === "" ? [] : joined.split("\n"))
-  }, [setShownFolders, key, screen, joined])
-  useEffect(
-    () => () => {
-      if (screen !== undefined) setShownFolders(key, screen, null)
-    },
-    [setShownFolders, key, screen],
-  )
 }

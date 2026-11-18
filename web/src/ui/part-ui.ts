@@ -40,6 +40,7 @@ export const PART_UI = {
   dialogs: { views: ["dialogViews"], define: ["defineDialog", "defineDialogWith"] },
   keyScopes: { views: [], define: ["defineKeyScope"] },
   pluginStates: { views: [], define: ["definePluginState", "definePluginStateOf"] },
+  libraryAppearances: { views: [], define: ["defineLibraryAppearance"] },
 } as const satisfies Record<Part, PartUi>
 
 // 定義の種類（PARTS）に入らない定義オブジェクトを書く関数の名前（既定のキーバインド・言語パック。プラグインの keys・languages に渡す。見た目は無い）。

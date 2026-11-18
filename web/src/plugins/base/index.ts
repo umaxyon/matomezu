@@ -30,7 +30,7 @@ import { LIBRARY_NEW_BOOK_DIALOG } from "./library/dialog"
 import { ENTRY_MOVE, ENTRY_MOVE_OVER, ENTRY_RENAME, FOLDER_CREATE } from "./library/entry-move"
 import { ENTRY_PURGE, ENTRY_RESTORE, ENTRY_TRASH, TRASH_EMPTY } from "./library/entry-trash"
 import { LIBRARY_REVERT } from "./library/revert"
-import { LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_UNFOLDED } from "./library/state"
+import { LIBRARY_APPEARANCE, LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_UNFOLDED } from "./library/state"
 import { BOOK_LOCK, BOOK_UNLOCK, LOCK, LOCKABLE_CHECK, PAGE_LOCK, PAGE_UNLOCK } from "./lock"
 import type { A3, A4, A5, LETTER, TABLOID, WIDE } from "./looks"
 import {
@@ -554,6 +554,7 @@ export const BASE = defineBuiltin(
       MAIL_DIALOG,
       PARTICIPANT_JOIN_DIALOG,
     ],
+    libraryAppearances: [LIBRARY_APPEARANCE],
     pluginStates: [
       ...SEARCH_STATES,
       ...RIGHT_SIDE_PANEL_STATES,
@@ -790,6 +791,9 @@ declare module "../../core/catalog" {
     "@matomezu/base:search-replace-one": typeof SEARCH_REPLACE_ONE
     "@matomezu/base:search-replace-all": typeof SEARCH_REPLACE_ALL
     "@matomezu/base:left-side-panel-close": typeof LEFT_SIDE_PANEL_CLOSE
+  }
+  interface LibraryAppearanceTable {
+    "@matomezu/base:library": typeof LIBRARY_APPEARANCE
   }
   interface PluginStateTable {
     "@matomezu/base:search": typeof SEARCH_STATE

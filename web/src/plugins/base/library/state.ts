@@ -1,6 +1,7 @@
 // 書庫の画面のプラグイン状態（描いているスクリーン 1 枚ごと）
 import { z } from "zod"
 import { kit } from "../kit"
+import { openedFolderOf, shownFoldersOf, unfoldedOf } from "./outline"
 
 // 開いているフォルダの id（右の枠に中身を出しているフォルダ）。画面の場所に入り、替えるたびにブラウザの履歴に積む（値が無ければ書庫ホーム）
 export const LIBRARY_FOLDER = kit.definePluginState({
@@ -17,4 +18,12 @@ export const LIBRARY_PICKED = kit.definePluginStateOf<string>()({ id: "library-p
 export const LIBRARY_UNFOLDED = kit.definePluginStateOf<readonly string[]>()({
   id: "library-unfolded",
   scope: "screen",
+})
+
+// 書庫の画面（LibraryView）の書庫アピアランス: 右の枠で開いているフォルダと、ツリーで中を出しているフォルダを見せている。
+// LibraryView を置くスクリーンの定義が、libraryAppearances で名指す
+export const LIBRARY_APPEARANCE = kit.defineLibraryAppearance({
+  id: "library",
+  shownFolders: (folders, read) =>
+    shownFoldersOf(folders, openedFolderOf(folders, read(LIBRARY_FOLDER)), unfoldedOf(read(LIBRARY_UNFOLDED))),
 })

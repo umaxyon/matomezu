@@ -7,6 +7,7 @@ import type { AnnotationDef } from "../core/def/annotation"
 import type { ControlCenterDef } from "../core/def/control-center"
 import type { EnumDataOf, EnumDef, EnumValueDef } from "../core/def/enum"
 import type { ConnectorDataOf, ConnectorItemDef, ShapeDataOf, ShapeItemDef } from "../core/def/item"
+import type { LibraryAppearanceDef } from "../core/def/library-appearance"
 import type { MailDef } from "../core/def/mail"
 import type { PageTypeDef } from "../core/def/page-type"
 import type { PaperDef } from "../core/def/paper"
@@ -248,6 +249,11 @@ export interface PluginKit<P extends string, M extends MessageMap> {
     },
   ): PluginStateDef<S> & { id: Owned<P, Id>; scope: Sc; address: Ad }
 
+  // 書庫アピアランスの定義（スクリーンの中で書庫を見せる所の種類。見せているフォルダを shownFolders が答える）
+  defineLibraryAppearance<const Id extends string>(
+    def: LibraryAppearanceDef & { id: Id },
+  ): Omit<LibraryAppearanceDef, "id"> & { id: Owned<P, Id> }
+
   // 画面の場所に入れない（none）プラグイン状態の宣言（読み直すと消える。値の型だけを持つ。kit.definePluginStateOf<値の型>()({ id, scope })）
   definePluginStateOf<S>(): <const Id extends string, const Sc extends PluginStateScope>(
     def: Omit<PluginStateDef<S>, "id" | "scope" | "address" | "schema"> & { id: Id; scope: Sc },
@@ -329,6 +335,7 @@ export function pluginKit<const P extends string, const M extends MessageMap = R
     defineDialogWith: () => place,
     defineKeyScope: place,
     definePluginState: place,
+    defineLibraryAppearance: place,
     definePluginStateOf: () => (def: { id: string }) => ({ ...place(def), address: "none" as const }),
     defineKey: place,
     defineLanguagePack: (def: { lang: string }) => ({ ...def, id: owned(plugin, def.lang) }),
