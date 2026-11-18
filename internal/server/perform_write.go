@@ -306,6 +306,9 @@ func (h *Hub) changedEvent(pages, folders, records []map[string]any, annotations
 	if len(out.Settings) > 0 {
 		event["settings"] = out.Settings
 	}
+	if len(out.Library) > 0 {
+		event["library"] = out.Library
+	}
 	if len(out.Counters) > 0 {
 		event["counters"] = out.Counters
 	}

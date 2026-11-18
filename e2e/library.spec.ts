@@ -209,3 +209,43 @@ test("ゴミ箱から上書きで戻すと、前から在った物が消える�
   await expect(taken.getByRole("button", { name: "上書き" })).toBeDisabled()
   await taken.getByRole("button", { name: "キャンセル" }).click()
 })
+
+test("AI が書庫で変えた名前は、その入れ物のフォルダを見せている間に見えたら、書庫の Ctrl+Z で戻せる。見せていないフォルダの中の変更は、開くまで戻らない", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await page.bringToFront()
+  const made = async (action: string, args: object) => {
+    const done = await perform(page, action, args)
+    expect(done).toMatchObject({ ok: true })
+    return done.result as { folder: string; book: string }
+  }
+  const shown = (await made("@matomezu/base:folder-create", { title: "見せる所" })).folder
+  const hidden = (await made("@matomezu/base:folder-create", { title: "見せない所" })).folder
+  const seen = (await made("@matomezu/base:book-create", { title: "見える前の名前", into: shown })).book
+  const unseen = (await made("@matomezu/base:book-create", { title: "見えない前の名前", into: hidden })).book
+
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  const home = page.getByRole("list", { name: "書庫 の中身" })
+  await home.getByRole("button", { name: "見せる所" }).dblclick()
+  const inside = page.getByRole("list", { name: "見せる所 の中身" })
+  await expect(inside.getByRole("button", { name: "見える前の名前" })).toBeVisible()
+  // AI が、見せているフォルダの中と、見せていないフォルダの中で、名前を変える
+  await made("@matomezu/base:entry-rename", { entry: unseen, title: "AI が見えない所で付けた名前" })
+  await made("@matomezu/base:entry-rename", { entry: seen, title: "AI が付けた名前" })
+  await expect(inside.getByRole("button", { name: "AI が付けた名前" })).toBeVisible()
+  // 書庫の中に焦点を置いて Ctrl+Z: 見えた方が戻る。見せていないフォルダの中の変更は、戻らない
+  await inside.getByRole("button", { name: "AI が付けた名前" }).click()
+  await page.keyboard.press("Control+z")
+  await expect(inside.getByRole("button", { name: "見える前の名前" })).toBeVisible()
+  await expect.poll(async () => (await storedBook(page.request, seen))?.title).toBe("見える前の名前")
+  expect((await storedBook(page.request, unseen))?.title).toBe("AI が見えない所で付けた名前")
+  // 見せていなかったフォルダを開くと見えたことになり、Ctrl+Z で戻せる
+  await page.getByRole("navigation", { name: "場所" }).getByRole("button", { name: "書庫" }).click()
+  await home.getByRole("button", { name: "見せない所" }).dblclick()
+  const other = page.getByRole("list", { name: "見せない所 の中身" })
+  await other.getByRole("button", { name: "AI が見えない所で付けた名前" }).click()
+  await page.keyboard.press("Control+z")
+  await expect(other.getByRole("button", { name: "見えない前の名前" })).toBeVisible()
+  await expect.poll(async () => (await storedBook(page.request, unseen))?.title).toBe("見えない前の名前")
+})

@@ -118,3 +118,13 @@ export function openTargetOf({ folders }: Library, row: LibraryRow): OpenTarget 
     ? { to: "book", book: book.id, page: row.id }
     : { to: "book", book: book.id, binder: row.id }
 }
+
+// 書庫の画面が、中身を並べて見せているフォルダ: 右の枠で開いているフォルダ opened（ゴミ箱を開いていればゴミ箱）と、ツリーで中を出しているフォルダ
+// （unfolded のうち、上のフォルダが全部 unfolded に在る物。ゴミ箱の中は、ツリーに出さない）
+export function shownFoldersOf(folders: Folders, opened: string, unfolded: readonly string[]): string[] {
+  const open = new Set(unfolded)
+  const inTree = unfolded.filter(
+    id => id !== TRASH_ID && folders[id] !== undefined && foldersOver(folders, id).every(f => open.has(f.id)),
+  )
+  return [...new Set([opened, ...inTree])]
+}

@@ -8,8 +8,8 @@ package server
 // 次の利用者トリガートークで消す。Key で見分ける物は、上限でも捨てない（閉じる・失敗にする・消えたと記すまで残す）。
 // 並びは全部で 1 つ（古い順）で、ブックを消すと、そのブックの物も一緒に消す。
 //
-//	POST /api/ai-edit-tickets   {"book", "act", "places", "outcome": "seen" | "lost", "lost"} 窓が、AI の変更（act は changed の知らせの印）のうち、
-//	                            ブック book のページとフォルダ places を見た・見られる前に消えた
+//	POST /api/ai-edit-tickets   {"act", "places", "outcome": "seen" | "lost", "book", "lost"} 窓が、AI の変更（act は changed の知らせの印）のうち、
+//	                            ページとフォルダ places を見た・見られる前に消えた（消えたときだけ、消えた物を持つブック book と、消えた所と AI の値 lost）
 
 import (
 	"encoding/json"
@@ -300,8 +300,8 @@ func (o Options) aiEditTicket(w http.ResponseWriter, r *http.Request) {
 		Outcome string          `json:"outcome"`
 		Lost    json.RawMessage `json:"lost"`
 	}
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBody)).Decode(&in); err != nil || in.Book == "" || in.Act == "" ||
-		(in.Outcome != "seen" && in.Outcome != "lost") || (in.Outcome == "lost" && len(in.Lost) == 0) {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBody)).Decode(&in); err != nil || in.Act == "" ||
+		(in.Outcome != "seen" && in.Outcome != "lost") || (in.Outcome == "lost" && (in.Book == "" || len(in.Lost) == 0)) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}

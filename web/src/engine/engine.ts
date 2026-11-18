@@ -18,7 +18,7 @@ import {
 } from "../core/annotation"
 import { checkBooks, findPage, pageById, pagesOf, restoreBooks, unreadableOf, warnsOf } from "../core/book"
 import { briefLine } from "../core/brief"
-import { bulkActionOf, performBulk } from "../core/bulk"
+import { bulkActionOf, type LibraryRows, performBulk } from "../core/bulk"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, type AIEditTicketChange, type AIMessage, stopsOnEditLock } from "../core/def/action"
@@ -147,6 +147,7 @@ type Output =
       folders: readonly RowChange[]
       created: readonly string[]
       books: readonly string[]
+      library?: LibraryRows // pages と folders のうち、書庫の画面の履歴に入るアクションが変えた物の id
       trashing: readonly string[]
       settings?: unknown
       annotations?: Annotations
@@ -308,6 +309,7 @@ function perform(input: Input): Output {
     created: createdOn(tables, changes),
     books: [...new Set([...changed.map(b => b.id), ...removed, ...trashing, ...restoring])],
     trashing,
+    ...(done.library ? { library: done.library } : {}),
     ...(done.settings ? { settings: done.settings } : {}),
     ...(done.annotations ? { annotations: done.annotations } : {}),
     ...(done.records ? { records: done.records.map(c => withKeys(catalog, c)) } : {}),

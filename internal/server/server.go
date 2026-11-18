@@ -15,7 +15,7 @@
 //	                      変わったものは /api/events で知らせる                                     … 画面から
 //	POST /api/warnings     {"client", "warnings": [{"code", "plugin", "params"}]} 窓が見つけた warning（その窓の分を入れ替える）。常駐が集めてログと、MCP 公開ツールの actions が返す物に出す
 //	POST /api/log         {"client", "lines": [{"at", "text"}]} 窓が書き残した事（つながりが切れた・読み直せなかったなど。at は窓の時刻）。常駐のログに出す  … 画面から
-//	POST /api/ai-edit-tickets  {"book", "act", "places", "outcome", "lost"} 窓が、AI の変更のうちブック book のページとフォルダ places を見た（seen）・見られる前に消えた（lost。消えた所と AI の値）（ai_edit_tickets.go）  … 画面から
+//	POST /api/ai-edit-tickets  {"act", "places", "outcome", "book", "lost"} 窓が、AI の変更のうちページとフォルダ places を見た（seen）・見られる前に消えた（lost。ブック book の、消えた所と AI の値）（ai_edit_tickets.go）  … 画面から
 //	POST /api/view        {"client", "view", "editLocks", "recordLocks", "focused", "seq"} 窓のカレントのステージが見ているもの（view）と、利用者が直している物（editLocks。
 //	                      ブックの id → 物の id の並び。AI のアクションがそれを変えるか消すなら断る。editlock.go）と、その窓がフォーカスされたか。
 //	                      seq は窓ごとに増やす番号で、受けたものより古い番号の view と editLocks は捨てる（届く順が入れ替わるため）  … 画面から

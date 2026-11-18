@@ -1,7 +1,8 @@
 // 画面の履歴（Undo・Redo）: 利用者の 1 回の操作で変わったページとフォルダの前と後を画面の履歴の段 1 つに持つ（store が作り、戻す・やり直すのは base の history）。
 // AI とほかの窓の変更は、まだ見ていない画面の履歴の段として store が溜め、変えた物が見えたら時刻の位置に差し込む
-import type { Folder, PageRow } from "./folders"
+import { type Folder, type Folders, foldersOver, type PageRow } from "./folders"
 import type { ListPatch, Patch } from "./patch"
+import { sameData } from "./same"
 import type { Book } from "./schema/book"
 
 // ページ・フォルダ 1 つの、変わる前と後（無いときは "none"）
@@ -53,6 +54,31 @@ export function putBackStep(was: History, step: HistoryStep, from: "undo" | "red
     [to]: was[to].filter(s => s !== step),
     [from]: [...was[from].slice(0, at), step, ...was[from].slice(at)],
   } as History
+}
+
+// 書庫の変更（ページとフォルダの行 rows を、フォルダの表 before から after にした）の、近くのフォルダ。このどれかの中身を書庫の画面が並べて見せていれば、
+// その変更は見えたとする: 並びの変わったフォルダは、そのフォルダ（入った・出た・順が変わったエントリは、そこで見える）。並びのほかが変わった物（名前など）と、
+// 足した・無くした物は、それを前か後に入れていたフォルダ（そのエントリは、入れ物の中身として見える）
+export function foldersNear(rows: Pick<HistoryStep, "pages" | "folders">, before: Folders, after: Folders): string[] {
+  const near = new Set<string>()
+  const holders = (id: string) => {
+    for (const folders of [before, after]) {
+      const holder = foldersOver(folders, id)[0]
+      if (holder) near.add(holder.id)
+    }
+  }
+  for (const id of Object.keys(rows.pages)) holders(id)
+  for (const [id, row] of Object.entries(rows.folders)) {
+    if (row.before === "none" || row.after === "none") {
+      holders(id)
+      continue
+    }
+    const { lineup: was, ...head } = row.before
+    const { lineup: now, ...next } = row.after
+    if (!sameData(was, now)) near.add(id)
+    if (!sameData(head, next)) holders(id)
+  }
+  return [...near]
 }
 
 // 物が見えているかを答える関数（土台が、プレゼンテーションの seen とステージの表示領域から作る）: ブック book のページ page の物 item（最上位のアイテムか子の形）が、見える所にあるか

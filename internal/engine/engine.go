@@ -136,6 +136,7 @@ type Output struct {
 	Created       []string                    `json:"created,omitempty"`  // そのうち新しく足したページ・フォルダの id（世界のどこにも無い id であること）
 	Books         []string                    `json:"books,omitempty"`    // 変わったブックの id（変わったページ・フォルダを持つブック。無くなったブックも）
 	Trashing      []string                    `json:"trashing,omitempty"` // 新しくゴミ箱に入るブックの id
+	Library       json.RawMessage             `json:"library,omitempty"`  // Pages と Folders のうち、書庫の画面の履歴に入るアクションが変えた物の id（{"pages", "folders"}。画面にそのまま知らせる）
 	Settings      json.RawMessage             `json:"settings,omitempty"`
 	Annotations   map[string]json.RawMessage  `json:"annotations,omitempty"`
 	Records       []RecordChange              `json:"records,omitempty"`       // 変わったレコードの全部（宛先が先）。1 つのトランザクションで書く

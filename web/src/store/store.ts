@@ -6,7 +6,7 @@ import { USER } from "../core/actor"
 import { type Address, addressOf, keepPlace, placeAt } from "../core/address"
 import { type Annotations, restoreAllAnnotations, withAnnotations } from "../core/annotation"
 import { checkBooks, distinctBooks, findPage, pageById } from "../core/book"
-import { bulkActionOf, performBulk } from "../core/bulk"
+import { bulkActionOf, entersLibraryHistory, type LibraryRows, NO_LIBRARY_ROWS, performBulk } from "../core/bulk"
 import type {
   ActionId,
   ControlCenterId,
@@ -22,11 +22,13 @@ import type { ActionContext, ActionOn, PageTarget } from "../core/def/action"
 import type { PluginStateDef } from "../core/def/plugin-state"
 import { fail } from "../core/errors"
 import {
+  bookIdOf,
   changesBetween,
   type Folder,
   type Folders,
   homeAndFoldersOf,
   homeOver,
+  isOpenRole,
   type Library,
   libraryOf,
   type PageRow,
@@ -36,12 +38,14 @@ import {
   type TableChanges,
   tablesOf,
   withChanges,
+  withRowsOf,
   worldTablesOf,
 } from "../core/folders"
 import { deepFreeze } from "../core/freeze"
 import type { Point, Size } from "../core/geom"
 import {
   changeSeen,
+  foldersNear,
   HISTORY_LIMIT,
   type History,
   type HistoryStep,
@@ -112,6 +116,7 @@ import {
   setArrangement,
   shownBook,
   shownBookScreens,
+  shownScreens,
   stageIn,
   type WindowState,
   withinLimits,
@@ -465,6 +470,16 @@ export const windowActionsOf = (actions: WindowActions): WindowActions =>
     Object.keys(WINDOW_ACTIONS).map(k => [k, (actions as unknown as Record<string, unknown>)[k]]),
   ) as unknown as WindowActions
 
+// この窓のでない変更（AI・ほかの窓・ホスト）の知らせ: books は変わったブック、act は常駐がその 1 回に振った印、actions は行ったアクションの id、
+// library は変わったページとフォルダのうち、書庫の画面の履歴に入るアクションが変えた物（無ければ持たない）
+export interface ForeignChange {
+  books: readonly string[]
+  by: "ai" | "window" | "host"
+  act: string
+  actions: readonly string[]
+  library?: LibraryRows
+}
+
 // 画面で行ったアクション 1 つ（ホストが常駐に送り、行い直しに使う）。ids は行ったときに振った id の順、lang はそのときの言語
 export interface DoneAction {
   action: string
@@ -508,10 +523,13 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
       participantLive?: Readonly<Record<string, ParticipantLive>>
     },
     replay: readonly DoneBulk[],
-    change?: { books: readonly string[]; by: "ai" | "window" | "host"; act: string; actions: readonly string[] },
+    change?: ForeignChange,
   ): void
   // まだ見ていない画面の履歴の段が見えたかを確かめ直す（窓が見えるようになったとき。ホストクライアントだけが使う。プラグインに渡す actions には入れない）
   checkSeen(): void
+  // 書庫を見せているビュー key（ビューごとの名前）が、スクリーン screen で、フォルダ folders の中身を見せている（null なら、見せるのをやめた）。
+  // まだ見ていない書庫の変更が見えたかは、これで決まる。ui のフック useShownFolders を通して使う（プラグインに渡す actions には入れない）
+  setShownFolders(key: string, screen: string, folders: readonly string[] | null): void
   // ホストの言葉の検索（横断検索）。base のフック useWideSearch を通して使う（プラグインに渡す actions には入れない）。
   // ホストが無いか、頼めなければ、投げる（検索の見た目が受ける）
   search(query: WideSearchQuery): Promise<WideSearchAnswer>
@@ -599,7 +617,7 @@ function initialState(
 // まだ見ていない AI の変更（act は常駐の changed の知らせの印）のうち、ブック book の分（places は、その変更が変えた・足した・無くしたページとフォルダの id）が、
 // この窓で見えた（seen）か、見られる前に消えた（lost。消えた所と AI が書いた値）
 export type AIEditTicketOutcome =
-  | { book: string; act: string; places: readonly string[]; outcome: "seen" }
+  | { act: string; places: readonly string[]; outcome: "seen" }
   | { book: string; act: string; places: readonly string[]; outcome: "lost"; lost: readonly Written[] }
 
 export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> {
@@ -880,6 +898,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       )
   // まだ見ていない変更のうち、どこかのステージで見えた物を、そのブックの画面の履歴に時刻の位置で差し込む（窓が見えていない間は差し込まない）
   const checkSeen = () => {
+    checkSeenInLibrary()
     if (unseen.length === 0 || options.visible?.() === false) return
     const now = unseen.filter(seenIn)
     if (now.length === 0) return
@@ -887,9 +906,87 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     const history = { ...getState().history }
     for (const { step, act, book, places } of now) {
       history[book] = insertStep(history[book] ?? NO_HISTORY, step)
-      if (step.by === "ai") options.aiEditTicket?.({ book, act, places, outcome: "seen" })
+      if (step.by === "ai") options.aiEditTicket?.({ act, places, outcome: "seen" })
     }
     setState({ history })
+  }
+  // まだ見ていない、AI とほかの窓の書庫の変更（古い順。1 回の変更で 1 つの画面の履歴の段で、見えたら書庫の画面の履歴に入る）。near はその変更の近くのフォルダ
+  // （foldersNear が出す。どれかを書庫の画面が見せたら見えた）、places は常駐に見えた・消えたと知らせる範囲（変えたページと、ブック・バインダ）
+  type UnseenInLibrary = { step: HistoryStep; act: string; near: readonly string[]; places: readonly string[] }
+  let unseenInLibrary: UnseenInLibrary[] = []
+  // 確かめた世界の、最後に知っている表（よその変更の前の値）
+  let knownTables: Library = { pages: {}, folders: {} }
+  // 書庫を見せているビューごとの、いるスクリーンと、見せているフォルダ（ビューが setShownFolders で知らせる）
+  const shownFolders = new Map<string, { screen: string; folders: readonly string[] }>()
+  // 見えているスクリーンのビューが見せているフォルダ
+  const foldersShownNow = (): ReadonlySet<string> => {
+    const screens = shownScreens(catalog, getState().window)
+    return new Set([...shownFolders.values()].filter(v => screens.includes(v.screen)).flatMap(v => v.folders))
+  }
+  // まだ見ていない書庫の変更のうち、近くのフォルダを書庫の画面が見せている物を、書庫の画面の履歴に時刻の位置で差し込む（窓が見えていない間は差し込まない）
+  const checkSeenInLibrary = () => {
+    if (unseenInLibrary.length === 0 || shownFolders.size === 0 || options.visible?.() === false) return
+    const shown = foldersShownNow()
+    const now = unseenInLibrary.filter(u => u.near.some(id => shown.has(id)))
+    if (now.length === 0) return
+    unseenInLibrary = unseenInLibrary.filter(u => !now.includes(u))
+    let history = getState().history[LIBRARY_HISTORY] ?? NO_HISTORY
+    for (const { step, act, places } of now) {
+      history = insertStep(history, step)
+      if (step.by === "ai" && places.length > 0) options.aiEditTicket?.({ act, places, outcome: "seen" })
+    }
+    setState({ history: { ...getState().history, [LIBRARY_HISTORY]: history } })
+  }
+  // よその変更 change のうち、書庫の画面の履歴に入るアクションが変えたページとフォルダ rows を、まだ見ていない書庫の変更に足す（HISTORY_LIMIT まで。古い物から捨てる）
+  const addUnseenInLibrary = (
+    change: { by: "ai" | "window"; act: string },
+    rows: LibraryRows,
+    was: Library,
+    to: Library,
+  ) => {
+    const of = <T>(ids: readonly string[], before: Readonly<Record<string, T>>, after: Readonly<Record<string, T>>) =>
+      Object.fromEntries(
+        ids
+          .map(id => [id, { before: before[id] ?? "none", after: after[id] ?? "none" }] as const)
+          .filter(([, r]) => !sameData(r.before, r.after)),
+      ) as Record<string, RowChange<T>>
+    const step: HistoryStep = {
+      at: clock(),
+      by: change.by,
+      books: [LIBRARY_HISTORY],
+      pages: of(rows.pages, was.pages, to.pages),
+      folders: of(rows.folders, was.folders, to.folders),
+    }
+    if (Object.keys(step.pages).length + Object.keys(step.folders).length === 0) return
+    // 常駐が AI 編集チケットに入れるのは、変えたページと、ブック・バインダ（書庫ホーム・ゴミ箱・フォルダは入れない）
+    const ticketed = (id: string) => !isOpenRole((to.folders[id] ?? was.folders[id])?.folderRole ?? "folder")
+    const places = [...Object.keys(step.pages), ...Object.keys(step.folders).filter(ticketed)]
+    const near = foldersNear(step, was.folders, to.folders)
+    unseenInLibrary = [...unseenInLibrary, { step, act: change.act, near, places }].slice(-HISTORY_LIMIT)
+  }
+  // この窓の利用者の、画面の履歴に入れない書庫の変更（表を was から now にした。消す・空にする・置き直し）が、まだ見ていない書庫の変更が書いた値を消したら、
+  // それを捨てる（あとで見えても差し込まない。AI の物は、消えた所と値を、その物を持つブックの名前で知らせる）
+  const dropOverwrittenInLibrary = (was: Library, now: Library) => {
+    unseenInLibrary = unseenInLibrary.filter(u => {
+      const lostIn = <T>(
+        rows: Readonly<Record<string, RowChange<T>>>,
+        before: Readonly<Record<string, T>>,
+        after: Readonly<Record<string, T>>,
+      ) =>
+        Object.entries(rows).flatMap(([id, r]) => {
+          const made = patchOf(r.before === "none" ? undefined : r.before, r.after === "none" ? undefined : r.after)
+          const lost = made ? undoneIn(made, before[id], after[id]) : []
+          return lost.length > 0 ? [{ id, lost }] : []
+        })
+      const lost = [...lostIn(u.step.pages, was.pages, now.pages), ...lostIn(u.step.folders, was.folders, now.folders)]
+      if (lost.length === 0) return true
+      const book = lost
+        .map(l => (was.folders[l.id]?.folderRole === "book" ? l.id : bookIdOf(was.folders, l.id)))
+        .find(b => b !== undefined)
+      if (u.step.by === "ai" && u.places.length > 0 && book !== undefined)
+        options.aiEditTicket?.({ book, act: u.act, places: u.places, outcome: "lost", lost: lost.flatMap(l => l.lost) })
+      return false
+    })
   }
   // この窓の利用者の、画面の履歴に入れない変更（ブックを before から after にした）が、まだ見ていない変更が書いた値を消したら、それを捨てる
   // （あとで見えても差し込まない。AI の物は、消えた所と値を知らせる）。画面の履歴に入れる操作が上書きした物は捨てない（その画面の履歴の段の前に値が残り、見えたら差し込まれ、戻せば戻る）
@@ -1039,12 +1136,13 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (catalog.actions.get(id)?.target === "library") {
         next.window = followLibraryIn(window, catalog, shelves.books, books)
         // 画面の履歴に入れないアクション（戻す・やり直す）が上書きした物は、その前の値を画面の履歴の段に残さないので捨てる
-        if (catalog.actions.get(id)?.history === false)
+        if (!entersLibraryHistory(catalog.actions.get(id))) {
           for (const after of Object.values(shelves.books)) {
             const before = books[after.id]
             if (before && before !== after) dropOverwritten(before, after)
           }
-        else recordLibrary({ pages, folders }, done.changes, c.now)
+          dropOverwrittenInLibrary({ pages, folders }, tables)
+        } else recordLibrary({ pages, folders }, done.changes, c.now)
       } else {
         // ブックかページが対象のアクションが変えるのは、開けるブック 1 冊
         const after = Object.values(shelves.books).find(b => books[b.id] !== b)
@@ -1452,13 +1550,20 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const library = libraryOf(tables)
       const by = change?.by === "host" ? undefined : change?.by
       const recorded = change && by && change.actions.some(a => catalog.actions.get(a)?.history !== false)
+      // よその変更のうち、書庫の画面の履歴に入るアクションが変えた行は、まだ見ていない書庫の変更に足す。ブックごとのまだ見ていない変更は、その行を変えた後の表から比べる
+      // （書庫の分を、ブックの画面の履歴に入れない）
+      const inLibrary = change?.library ?? NO_LIBRARY_ROWS
+      const split = inLibrary.pages.length + inLibrary.folders.length > 0
+      if (change && by && split) addUnseenInLibrary({ by, act: change.act }, inLibrary, knownTables, tables)
+      const before = split ? libraryOf(withRowsOf(knownTables, tables, inLibrary)) : known
       // よその変更が変えたブックごとに、まだ見ていない変更に足す
       for (const id of change?.books ?? []) {
-        const was = known[id]
+        const was = before[id]
         const to = library[id]
         if (change && by && recorded && was && to && !sameData(was, to)) addUnseen({ by, act: change.act }, was, to)
       }
       known = library
+      knownTables = tables
       let settings = restoreSettings(world.settings)
       let annotations = restoreAllAnnotations(world.annotations)
       let records = world.records === undefined ? getState().records : restoreRecords(world.records)
@@ -1516,6 +1621,11 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       checkSeen()
     },
     checkSeen,
+    setShownFolders: (key, screen, folders) => {
+      if (folders) shownFolders.set(key, { screen, folders })
+      else shownFolders.delete(key)
+      checkSeenInLibrary()
+    },
     search: query => options.search?.(query) ?? Promise.resolve(NO_WIDE_SEARCH_HITS),
     address: () => addressNow(),
     locate: address => {

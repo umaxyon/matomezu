@@ -377,6 +377,7 @@ test("matomezu/ui が出す名前", () => {
     "useShapeMarks",
     "useShowControlCenter",
     "useShownBook",
+    "useShownFolders",
     "useShownPage",
     "useStage",
     "useStageArea",

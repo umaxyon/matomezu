@@ -28,6 +28,7 @@ import { NO_STAGE } from "../store/dialogs"
 import type {
   AIEditTicketOutcome,
   DoneBulk,
+  ForeignChange,
   HostAnswer,
   MatomezuInstance,
   MatomezuState,
@@ -240,11 +241,12 @@ const rowSchema = <K extends "page" | "folder">(field: K) =>
     [field]: z.unknown().optional(),
   } as Record<K, z.ZodOptional<z.ZodUnknown>>)
 // 1 回の perform（アクションバルク）が変えた物の全部: ページとフォルダ（books は、それらを持つブックの id）と、変わったときだけ設定・アノテーション（ページの id → 並び）・
-// レコードと進めた番号（window は最後にフォーカスされた窓）。actions は行ったアクションの id の並び
+// レコードと進めた番号（window は最後にフォーカスされた窓）。actions は行ったアクションの id の並び、library は pages と folders のうち、書庫の画面の履歴に入るアクションが変えた物の id
 const ChangedSchema = z.object({
   pages: z.array(rowSchema("page")),
   folders: z.array(rowSchema("folder")),
   books: z.array(z.string()),
+  library: z.object({ pages: z.array(z.string()), folders: z.array(z.string()) }).optional(),
   by: z.enum(["ai", "window", "host"]).optional(),
   act: z.string().optional(),
   actions: z.array(z.string()).optional(),
@@ -352,12 +354,7 @@ export function serverClient(net: Net = browserNet): ServerClient {
   let events: Events | null = null
 
   // change は、この窓のでない変更の知らせのとき（その変更を、まだ見ていない画面の履歴の段にする）
-  const show = (change?: {
-    books: readonly string[]
-    by: "ai" | "window" | "host"
-    act: string
-    actions: readonly string[]
-  }) =>
+  const show = (change?: ForeignChange) =>
     instance?.receive(
       {
         pages: [...confirmed.pages.values()].map(e => e.row),
@@ -649,7 +646,15 @@ export function serverClient(net: Net = browserNet): ServerClient {
       const act = e.act
       const foreign = e.client !== client && e.by !== undefined && act !== undefined
       show(
-        foreign ? { books: e.books, by: e.by as "ai" | "window" | "host", act, actions: e.actions ?? [] } : undefined,
+        foreign
+          ? {
+              books: e.books,
+              by: e.by as "ai" | "window" | "host",
+              act,
+              actions: e.actions ?? [],
+              ...(e.library ? { library: e.library } : {}),
+            }
+          : undefined,
       )
     })
     on("annotations", data => {

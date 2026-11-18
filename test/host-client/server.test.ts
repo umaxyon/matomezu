@@ -894,7 +894,7 @@ test("コントロールセンターを前に出している間は、見てい�
 
 test("AI の変更を見た・見られず消えた知らせは、1 つずつ常駐に送る。送れない・5xx なら溜めて次に送るときに順に送り直し、4xx なら捨てる", async () => {
   const s = await connected()
-  const seen = (act: string) => ({ book: "b1", act, places: ["p1"], outcome: "seen" }) as const
+  const seen = (act: string) => ({ act, places: ["p1"], outcome: "seen" }) as const
   s.host.reportAIEditTicket(seen("a1"))
   await flush()
   expect(s.tickets()).toEqual([seen("a1")])

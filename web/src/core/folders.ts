@@ -558,6 +558,28 @@ function there<R extends AnyEntryRef>(lineup: readonly R[], has: (r: R) => boole
   return kept.length === lineup.length ? lineup : kept
 }
 
+// 表 was の、rows に挙げたページとフォルダだけを、表 to の値にした表（to に無い物は外す）
+export function withRowsOf(
+  was: Library,
+  to: Library,
+  rows: { pages: readonly string[]; folders: readonly string[] },
+): Library {
+  const taken = <T>(
+    ids: readonly string[],
+    before: Readonly<Record<string, T>>,
+    after: Readonly<Record<string, T>>,
+  ) => {
+    const next = { ...before }
+    for (const id of ids) {
+      const row = after[id]
+      if (row === undefined) delete next[id]
+      else next[id] = row
+    }
+    return next
+  }
+  return { pages: taken(rows.pages, was.pages, to.pages), folders: taken(rows.folders, was.folders, to.folders) }
+}
+
 // 置き直す値 patches のうち、行を丸ごと置く値（行が無かった側へ戻す値）が、表 table に今在る行に向いているか
 const putsOverRow = (table: Readonly<Record<string, unknown>>, patches: Readonly<Record<string, Patch>>) =>
   Object.entries(patches).some(([id, p]) => "set" in p && table[id] !== undefined)

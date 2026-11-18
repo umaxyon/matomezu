@@ -54,12 +54,25 @@ export interface BulkTicketChange {
   change: AIEditTicketChange
 }
 
-// performBulk の結果。通れば、アクションごとの結果と、合わせた変更（ページとフォルダは最初の前から最後の後へ。バルクの中で作って消した物は持たない）
+// 書庫の画面の履歴に入るアクションか（書庫が対象で、画面の履歴に入れない印 history: false の無いアクション。ほかのアクションの変更は、ブックの画面の履歴に入る）
+export const entersLibraryHistory = (action: { target: string; history?: false } | undefined): boolean =>
+  action?.target === "library" && action.history !== false
+
+// アクションバルクの変えたページとフォルダのうち、書庫の画面の履歴に入るアクションが変えた物の id（同じ物をほかのアクションも変えていたら、その物はこちらに入る）
+export interface LibraryRows {
+  pages: readonly string[]
+  folders: readonly string[]
+}
+
+export const NO_LIBRARY_ROWS: LibraryRows = { pages: [], folders: [] }
+
+// performBulk の結果。library は、changes のうち書庫の画面の履歴に入るアクションが変えた物（無ければ持たない）。通れば、アクションごとの結果と、合わせた変更（ページとフォルダは最初の前から最後の後へ。バルクの中で作って消した物は持たない）
 export type PerformedBulk<R = never> =
   | {
       ok: true
       results: readonly unknown[]
       changes?: TableChanges
+      library?: LibraryRows
       settings?: Settings
       annotations?: Annotations
       records?: readonly RecordChange[]
@@ -92,6 +105,8 @@ export function performBulk<R extends { ok: false } = never>(
   let counters: Counters | undefined
   const tickets: BulkTicketChange[] = []
   const messages: AIMessage[] = []
+  const libraryPages = new Set<string>()
+  const libraryFolders = new Set<string>()
   for (const [i, step] of steps.entries()) {
     const done = performIn({ ...now, source: overlaid(ctx.catalog, base, written) }, step.action, step.args, step.on, {
       ...ctx,
@@ -113,6 +128,10 @@ export function performBulk<R extends { ok: false } = never>(
     if (done.changes) {
       pages = { ...pages, ...done.changes.pages }
       folders = { ...folders, ...done.changes.folders }
+      if (entersLibraryHistory(ctx.catalog.actions.get(step.action))) {
+        for (const id of Object.keys(done.changes.pages)) libraryPages.add(id)
+        for (const id of Object.keys(done.changes.folders)) libraryFolders.add(id)
+      }
     }
     if (done.settings) settings = done.settings
     if (done.annotations) annotations = { ...annotations, ...done.annotations }
@@ -134,10 +153,15 @@ export function performBulk<R extends { ok: false } = never>(
   const changes = { pages: kept(pages, world.pages), folders: kept(folders, world.folders) }
   const keptRecords = records.filter(c => c.record !== REMOVED || base.byId(c.subject, c.id) !== undefined)
   const changed = Object.keys(changes.pages).length > 0 || Object.keys(changes.folders).length > 0
+  const library = {
+    pages: Object.keys(changes.pages).filter(id => libraryPages.has(id)),
+    folders: Object.keys(changes.folders).filter(id => libraryFolders.has(id)),
+  }
   return {
     ok: true,
     results,
     ...(changed ? { changes } : {}),
+    ...(library.pages.length + library.folders.length > 0 ? { library } : {}),
     ...(settings ? { settings } : {}),
     ...(annotations ? { annotations } : {}),
     ...(keptRecords.length > 0 ? { records: keptRecords } : {}),
