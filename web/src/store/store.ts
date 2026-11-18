@@ -993,12 +993,13 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         })
       const lost = [...lostIn(u.step.pages, was.pages, now.pages), ...lostIn(u.step.folders, was.folders, now.folders)]
       if (lost.length === 0) return true
-      // AI の物は、消えた物を持つブックごとに、そのブックの分だけを知らせる
+      // AI の物は、段ごと捨てるので、変えたページとフォルダ places を持つブックごとに、消えたと知らせる（消えた所と値は、そのブックの分だけ。
+      // 消えたのがブックの外の並びだけなら、値は空）
       if (u.step.by === "ai")
-        for (const book of new Set(lost.flatMap(l => bookOver(l.id) ?? []))) {
+        for (const book of new Set(u.places.flatMap(id => bookOver(id) ?? []))) {
           const places = u.places.filter(id => bookOver(id) === book)
           const values = lost.filter(l => bookOver(l.id) === book).flatMap(l => l.lost)
-          if (places.length > 0) options.aiEditTicket?.({ book, act: u.act, places, outcome: "lost", lost: values })
+          options.aiEditTicket?.({ book, act: u.act, places, outcome: "lost", lost: values })
         }
       return false
     })

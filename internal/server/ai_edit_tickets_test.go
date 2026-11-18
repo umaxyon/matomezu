@@ -111,6 +111,10 @@ func TestAIEditTicketsUndoneBeforeSeen(t *testing.T) {
 	if code, _ := send(t, "POST", s2.URL+"/api/ai-edit-tickets", `{"act":"x","places":["b1"],"outcome":"lost","lost":[{"at":"title","value":"AI"}]}`, nil); code != 400 {
 		t.Fatalf("lost without a book = %d", code)
 	}
+	// 消えた所と値が空でも受ける（消えたのがブックの外のフォルダだけで、その AI の変更を段ごと捨てたとき）
+	if code, body := send(t, "POST", s2.URL+"/api/ai-edit-tickets", `{"book":"b1","act":"x","places":["b1"],"outcome":"lost","lost":[]}`, nil); code >= 300 {
+		t.Fatalf("lost with no values = %d %s", code, body)
+	}
 }
 
 // 1 回のアクションが 2 冊を変えた AI 編集チケットは、1 冊が見えても残り、もう 1 冊が見られる前に消えたら AI に渡る。

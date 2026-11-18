@@ -9,7 +9,7 @@ package server
 // 並びは全部で 1 つ（古い順）で、ブックを消すと、そのブックの物も一緒に消す。
 //
 //	POST /api/ai-edit-tickets   {"act", "places", "outcome": "seen" | "lost", "book", "lost"} 窓が、AI の変更（act は changed の知らせの印）のうち、
-//	                            ページとフォルダ places を見た・見られる前に消えた（消えたときだけ、消えた物を持つブック book と、消えた所と AI の値 lost）
+//	                            ページとフォルダ places を見た・見られる前に消えた（消えたときだけ、変えた物を持つブック book と、消えた所と AI の値 lost。消えたのがブックの外の物だけなら、lost は空の並び）
 
 import (
 	"encoding/json"

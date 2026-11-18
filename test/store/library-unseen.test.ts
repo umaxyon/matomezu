@@ -248,3 +248,32 @@ test("AI の 1 回の変更が 2 冊のブックを変え、利用者の書庫�
     { book: "b2", act: "7", places: ["b2"], outcome: "lost", lost: [{ at: "title", value: "AI の名前 2" }] },
   ])
 })
+
+test("利用者の書庫の元に戻すが上書きしたのが、ブックの外のフォルダだけでも、その段の AI が変えたブックに、消えたと知らせる（値は空）", async () => {
+  const { here, there, told, foreign, show } = pair()
+  // 利用者がフォルダを作り、その名前を変える（よそも同じ所まで進める）
+  const made = here.actions.perform("@matomezu/base:folder-create", { title: "箱" })
+  await settled()
+  const box = (made as { result: { folder: string } }).result.folder
+  here.actions.perform(RENAME, { entry: box, title: "利用者の名前" })
+  await settled()
+  there.receive(rowsOf(here), [])
+  here.receive(rowsOf(there), [])
+  // AI が 1 回で、フォルダとブック b2 の名前を変える（常駐が AI 編集チケットに入れるのは b2 だけ）
+  await foreign(
+    { by: "ai", act: "9", actions: [RENAME, RENAME] },
+    {
+      run: () => {
+        there.actions.perform(RENAME, { entry: box, title: "AI の箱" })
+        there.actions.perform(RENAME, { entry: "b2", title: "AI の名前" })
+      },
+      library: true,
+    },
+  )
+  // 利用者の元に戻すが、AI の付けたフォルダの名前を上書きする。段ごと捨てるので、b2 に消えたと知らせる
+  expect(here.actions.command("s1", "@matomezu/base:library-undo")).toBe(true)
+  expect(titleOf(here, box)).toBe("箱")
+  expect(told).toEqual([{ book: "b2", act: "9", places: ["b2"], outcome: "lost", lost: [] }])
+  show([HOME_ID])
+  expect(libraryHistory(here).undo.filter(s => s.by === "ai")).toEqual([])
+})
