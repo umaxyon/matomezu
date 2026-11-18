@@ -67,32 +67,40 @@ export function TrashView({ picked, onPick }: { picked: string | undefined; onPi
       {rows.length === 0 ? (
         <p className={styles.empty}>{t("The trash is empty")}</p>
       ) : (
-        <ul className={styles.trash} aria-label={t("Trash")}>
-          {rows.map(row => (
-            <li key={row.id} className={styles.trashed} data-picked={row.id === picked}>
-              <button
-                type="button"
-                className={styles.trashedRow}
-                aria-pressed={row.id === picked}
-                onClick={() => onPick(row.id)}
-              >
-                <span className={styles.icon}>{iconOf(row.kind)}</span>
-                <span className={row.readable ? styles.label : `${styles.label} ${styles.unreadable}`}>
-                  {nameOf(row)}
-                </span>
-                <span className={styles.place} title={t("Returns to")}>
-                  {nameOf({ id: row.into, title: row.place })}
-                </span>
-                <time className={styles.when} title={t("Moved to trash")}>
-                  {shownDateTime(row.trashed)}
-                </time>
-              </button>
-              {row.id === picked && (
-                <TrashActions row={row} onRestore={() => ask(row)} onPurge={() => setAsking({ about: "purge", row })} />
-              )}
-            </li>
-          ))}
-        </ul>
+        <div className={styles.trash}>
+          <div className={styles.trashHead}>
+            <span />
+            <span>{t("Name")}</span>
+            <span>{t("Returns to")}</span>
+            <span>{t("Moved to trash")}</span>
+          </div>
+          <ul className={styles.trashRows} aria-label={t("Trash")}>
+            {rows.map(row => (
+              <li key={row.id} className={styles.trashed} data-picked={row.id === picked}>
+                <button
+                  type="button"
+                  className={styles.trashedRow}
+                  aria-pressed={row.id === picked}
+                  onClick={() => onPick(row.id)}
+                >
+                  <span className={styles.icon}>{iconOf(row.kind)}</span>
+                  <span className={row.readable ? styles.label : `${styles.label} ${styles.unreadable}`}>
+                    {nameOf(row)}
+                  </span>
+                  <span className={styles.place}>{nameOf({ id: row.into, title: row.place })}</span>
+                  <time className={styles.when}>{shownDateTime(row.trashed)}</time>
+                </button>
+                {row.id === picked && (
+                  <TrashActions
+                    row={row}
+                    onRestore={() => ask(row)}
+                    onPurge={() => setAsking({ about: "purge", row })}
+                  />
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
       {asking?.about === "empty" && (
         <Confirm

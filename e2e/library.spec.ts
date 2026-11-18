@@ -97,6 +97,8 @@ test("書庫のゴミ箱に、捨てたフォルダも並ぶ。選んだ行を�
   await expect(tree.getByRole("button", { name: "ゴミ箱 の中を出す" })).toHaveCount(0)
   const list = page.getByRole("list", { name: "ゴミ箱" })
   const row = (name: string) => list.getByRole("listitem").filter({ hasText: name })
+  // 列の見出しは一覧の上に出て、行には数えない
+  await expect(page.getByText("名前元の場所捨てた日時")).toBeVisible()
   // 元の場所（戻ると入るフォルダ）を出す。元いた「下書き」が無い「メモ箱」は、その上のフォルダ
   await expect(row("メモ箱")).toContainText("ゴミ箱の試しの企画")
   // 選ぶまで、ボタンは出ない

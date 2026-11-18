@@ -25,6 +25,7 @@ export const LIBRARY_MESSAGES = defineMessages({
   "Empty trash": { en: "Empty trash", ja: "ゴミ箱を空にする" },
   "The trash is empty": { en: "The trash is empty", ja: "ゴミ箱は空です" },
   "Delete for good": { en: "Delete for good", ja: "完全に消す" },
+  Name: { en: "Name", ja: "名前" },
   "Returns to": { en: "Returns to", ja: "元の場所" },
   "Moved to trash": { en: "Moved to trash", ja: "捨てた日時" },
   '"{name}" will be deleted for good': { en: '"{name}" will be deleted for good', ja: "「{name}」が完全に消えます" },
