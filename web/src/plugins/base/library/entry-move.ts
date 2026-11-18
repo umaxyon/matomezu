@@ -5,7 +5,7 @@ import { z } from "zod"
 import { isMoveRefusal, movedEntry, placedEntry, titleOf } from "../../../core/entries"
 import { HOME_ID, type PlainFolder } from "../../../core/folders"
 import { kit } from "../kit"
-import { holdsEntries, numbered, overwritten, placedInFolder, retitled } from "./entries"
+import { holdsEntries, isNotOverwritten, numbered, overwritten, placedInFolder, retitled } from "./entries"
 
 export const FOLDER_CREATE = kit.defineAction({
   id: "folder-create",
@@ -70,7 +70,7 @@ export const ENTRY_MOVE_OVER = kit.defineAction({
     const place = placedInFolder(library.folders, args.entry)
     if (!place || place.holder.id === args.into || !holdsEntries(library.folders, args.into)) return null
     const cleared = overwritten(library, place.ref.kind, args.entry, args.into)
-    if (!cleared) return null
+    if (isNotOverwritten(cleared)) return null
     const next = movedEntry(cleared, args.entry, args.into, args.index)
     return isMoveRefusal(next) ? null : { next, result: {} }
   },

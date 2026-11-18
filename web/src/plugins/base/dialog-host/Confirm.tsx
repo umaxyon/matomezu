@@ -1,6 +1,6 @@
 // 確かめるモーダル: ダイアログかスクリーンの上に重ねて出し、文（message。detail が在れば、その下に訳などの行）と、する・やめるのボタンで答えを受ける
 // （store のダイアログは 1 つだけなので、使う側のビューの中に置く）。
-// 開くと「やめる」に焦点を当てる。Escape と外側を押すとやめる、Enter は焦点のあるボタン。下のダイアログのキー（閉じる・決める）には渡さない
+// 開くと「やめる」に焦点を当てる。Escape と外側を押すとやめる、Enter は焦点のあるボタン。出している間、どのキーも下のダイアログとスクリーンのキーバインドには渡さない
 import { type KeyboardEvent, useLayoutEffect, useRef } from "react"
 import styles from "./Dialog.module.css"
 
@@ -31,7 +31,7 @@ export function Confirm({
     return () => d.close()
   }, [])
   const onKey = (e: KeyboardEvent) => {
-    if (e.key !== "Escape" && e.key !== "Enter") return
+    // 後ろのスクリーンのキーバインドには、どのキーも渡さない
     e.stopPropagation()
     if (e.key === "Escape") {
       e.preventDefault()

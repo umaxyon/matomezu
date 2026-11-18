@@ -14,7 +14,7 @@ import type { Folders, Library } from "../../../core/folders"
 import type { Books } from "../../../core/library"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
-import { numbered, overwritten, placedInFolder, restoreTargetOf } from "./entries"
+import { isNotOverwritten, numbered, overwritten, placedInFolder, restoreTargetOf } from "./entries"
 
 // ゴミ箱の直下のブックと、入れた時刻（新しい順）。trash はゴミ箱かその中のブック、folders は書庫のフォルダの行
 export function trashOrder(trash: Books, folders: Folders): { book: Book; trashed: string }[] {
@@ -78,7 +78,7 @@ export const ENTRY_RESTORE = kit.defineAction({
         : args.onConflict === "replace"
           ? overwritten(back, ref.kind, args.entry, into)
           : back
-    return next ? { next, result: { into } } : null
+    return next && !isNotOverwritten(next) ? { next, result: { into } } : null
   },
 })
 
