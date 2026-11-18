@@ -112,3 +112,48 @@ test("ブックが対象のアクションと同じ処理の中で行っても�
   expect(inBook?.undo[0]?.books).toEqual(["b1"])
   expect(Object.keys(inBook!.undo[0]!.folders)).toEqual(["b1"])
 })
+
+test("上書きの移動は、先の同じ名前の物を中身ごと消して入れ、1 回戻すと両方戻る。種類が違う・ロックした物・動かす物を中に持つ物には上書きできない", async () => {
+  const { store, perform, lineup, move, made } = setup()
+  const a = await made("folder-create", { title: "仕事" })
+  const old = await made("book-create", { title: "議事録", into: a })
+  const fresh = await made("book-create", { title: "議事録" })
+  expect(perform("@matomezu/base:entry-move-over", { entry: fresh, into: a }).ok).toBe(true)
+  await settled()
+  expect(lineup(a)).toEqual([fresh])
+  const now = store.state.getState()
+  expect(old in now.folders || old in now.books || old in now.trash).toBe(false)
+  expect(move("undo").ok).toBe(true)
+  expect(lineup(a)).toEqual([old])
+  expect(store.state.getState().books[old]?.title).toBe("議事録")
+  expect(lineup(HOME_ID)).toContain(fresh)
+  // 種類が違う
+  const other = await made("folder-create", { title: "別" })
+  const folder = await made("folder-create", { title: "議事録", into: other })
+  expect(perform("@matomezu/base:entry-move-over", { entry: folder, into: a }).ok).toBe(false)
+  // ロックした物
+  perform("@matomezu/base:book-lock", {}, { book: old })
+  expect(perform("@matomezu/base:entry-move-over", { entry: fresh, into: a })).toMatchObject({
+    ok: false,
+    reason: "denied",
+    permission: "@matomezu/base:lock",
+  })
+  // 前から在った方の中に、動かす物が在る
+  const inner = await made("folder-create", { title: "仕事", into: a })
+  expect(perform("@matomezu/base:entry-move-over", { entry: inner, into: HOME_ID }).ok).toBe(false)
+})
+
+test("ゴミ箱から戻すときの上書きも、在った物を消して戻し、1 回戻すと両方戻る", async () => {
+  const { store, perform, lineup, move, made } = setup()
+  const old = await made("book-create", { title: "議事録" })
+  perform("@matomezu/base:entry-trash", { entry: old })
+  await settled()
+  const fresh = await made("book-create", { title: "議事録" })
+  expect(perform("@matomezu/base:entry-restore", { entry: old, onConflict: "replace" }).ok).toBe(true)
+  await settled()
+  expect(lineup(HOME_ID)).toContain(old)
+  expect(fresh in store.state.getState().folders).toBe(false)
+  expect(move("undo").ok).toBe(true)
+  expect(store.state.getState().books[fresh]?.title).toBe("議事録")
+  expect(old in store.state.getState().trash).toBe(true)
+})

@@ -25,7 +25,7 @@ import {
   type LEFT_SIDE_PANEL_STATE,
   LEFT_SIDE_PANEL_STATES,
 } from "./left-side-panel"
-import { ENTRY_MOVE, ENTRY_RENAME, FOLDER_CREATE } from "./library/entry-move"
+import { ENTRY_MOVE, ENTRY_MOVE_OVER, ENTRY_RENAME, FOLDER_CREATE } from "./library/entry-move"
 import { ENTRY_PURGE, ENTRY_RESTORE, ENTRY_TRASH, TRASH_EMPTY } from "./library/entry-trash"
 import { LIBRARY_REVERT } from "./library/revert"
 import { BOOK_LOCK, BOOK_UNLOCK, LOCK, LOCKABLE_CHECK, PAGE_LOCK, PAGE_UNLOCK } from "./lock"
@@ -400,6 +400,7 @@ export const BASE = defineBuiltin(
       BOOK_CREATE,
       FOLDER_CREATE,
       ENTRY_MOVE,
+      ENTRY_MOVE_OVER,
       ENTRY_RENAME,
       ENTRY_TRASH,
       ENTRY_RESTORE,
@@ -625,6 +626,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-unlock": typeof BOOK_UNLOCK
     "@matomezu/base:folder-create": typeof FOLDER_CREATE
     "@matomezu/base:entry-move": typeof ENTRY_MOVE
+    "@matomezu/base:entry-move-over": typeof ENTRY_MOVE_OVER
     "@matomezu/base:entry-rename": typeof ENTRY_RENAME
     "@matomezu/base:entry-trash": typeof ENTRY_TRASH
     "@matomezu/base:entry-restore": typeof ENTRY_RESTORE

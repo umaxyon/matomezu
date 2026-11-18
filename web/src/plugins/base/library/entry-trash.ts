@@ -14,7 +14,7 @@ import type { Folders, Library } from "../../../core/folders"
 import type { Books } from "../../../core/library"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
-import { numbered, placedInFolder, restoreTargetOf } from "./entries"
+import { numbered, overwritten, placedInFolder, restoreTargetOf } from "./entries"
 
 // ゴミ箱の直下のブックと、入れた時刻（新しい順）。trash はゴミ箱かその中のブック、folders は書庫のフォルダの行
 export function trashOrder(trash: Books, folders: Folders): { book: Book; trashed: string }[] {
@@ -61,15 +61,23 @@ export const ENTRY_RESTORE = kit.defineAction({
   target: "library",
   userOnly: true,
   permissionScope: { entry: "entry", where: "all-pages" },
-  // onConflict: 戻す先に同じ名前の物が在るとき、断る（refuse）か、番号を付けた名前で戻す（number）
-  args: z.strictObject({ entry: z.string().min(1), onConflict: z.enum(["refuse", "number"]).default("refuse") }),
+  // onConflict: 戻す先に同じ名前の物が在るとき、断る（refuse）か、番号を付けた名前で戻す（number）か、在った物を中身ごと消して戻す（replace。ゴミ箱には入らない）
+  args: z.strictObject({
+    entry: z.string().min(1),
+    onConflict: z.enum(["refuse", "number", "replace"]).default("refuse"),
+  }),
   run: (library, args) => {
     const ref = trashRefOf(library.folders, args.entry)
     if (!ref) return null
     const into = restoreTargetOf(library.folders, ref.from)
     const back = restoredEntry(library, args.entry, into)
     if (isMoveRefusal(back)) return null
-    const next = args.onConflict === "number" ? numbered(back, ref.kind, args.entry, into) : back
+    const next =
+      args.onConflict === "number"
+        ? numbered(back, ref.kind, args.entry, into)
+        : args.onConflict === "replace"
+          ? overwritten(back, ref.kind, args.entry, into)
+          : back
     return next ? { next, result: { into } } : null
   },
 })

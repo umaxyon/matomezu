@@ -5,7 +5,7 @@ import { z } from "zod"
 import { isMoveRefusal, movedEntry, placedEntry } from "../../../core/entries"
 import { HOME_ID, type PlainFolder } from "../../../core/folders"
 import { kit } from "../kit"
-import { holdsEntries, numbered, placedInFolder, retitled, titleOf } from "./entries"
+import { holdsEntries, numbered, overwritten, placedInFolder, retitled, titleOf } from "./entries"
 
 export const FOLDER_CREATE = kit.defineAction({
   id: "folder-create",
@@ -29,7 +29,7 @@ export const FOLDER_CREATE = kit.defineAction({
 export const ENTRY_MOVE = kit.defineAction({
   id: "entry-move",
   aiDescription:
-    'Move an entry of the library (a book or a folder, with everything in it; or a page or a binder that is not in a book) to another folder, or to another position in the same folder: entry is its id (it must be directly in the library home or a folder), into the id of the folder to move it to (the library home or a folder, not inside the entry itself), index the position there (counted without the entry; at the end without it). Nothing in the entry changes. When the folder already has an entry with the same title, onConflict "refuse" (the default) refuses with title-taken, and "number" moves it with a number added to its title (returned as title). Only the user can replace the entry that is there.',
+    'Move an entry of the library (a book or a folder, with everything in it; or a page or a binder that is not in a book) to another folder, or to another position in the same folder: entry is its id (it must be directly in the library home or a folder), into the id of the folder to move it to (the library home or a folder, not inside the entry itself), index the position there (counted without the entry; at the end without it). Nothing in the entry changes. When the folder already has an entry with the same title, onConflict "refuse" (the default) refuses with title-taken, and "number" moves it with a number added to its title (returned as title). Only the user can replace the entry that is there (entry-move-over).',
   title: "Move",
   target: "library",
   permissionScope: { entry: "entry", where: "place" },
@@ -49,6 +49,30 @@ export const ENTRY_MOVE = kit.defineAction({
     if (!next) return null
     const title = titleOf(next, place.ref.kind, args.entry)
     return { next, result: next === moved || title === undefined ? {} : { title } }
+  },
+})
+
+// 上書きの移動: 先のフォルダに同じ名前の物（同じ種類）が在れば、それを中身ごと消してから動かす（消えた物はゴミ箱に入らない。書庫の画面の履歴の 1 段で、両方戻る）。利用者だけ
+export const ENTRY_MOVE_OVER = kit.defineAction({
+  id: "entry-move-over",
+  userOnly: true,
+  aiDescription:
+    "Move an entry of the library like entry-move, replacing the entry with the same title in that folder: that entry is deleted with everything in it (it does not go to the trash). Only the user can do this.",
+  title: "Move and replace",
+  target: "library",
+  permissionScope: { entry: "entry", where: "place" },
+  args: z.strictObject({
+    entry: z.string().min(1),
+    into: z.string().min(1),
+    index: z.number().int().min(0).optional(), // 同じ名前の物を消したあとの並びで数える
+  }),
+  run: (library, args) => {
+    const place = placedInFolder(library.folders, args.entry)
+    if (!place || place.holder.id === args.into || !holdsEntries(library.folders, args.into)) return null
+    const cleared = overwritten(library, place.ref.kind, args.entry, args.into)
+    if (!cleared) return null
+    const next = movedEntry(cleared, args.entry, args.into, args.index)
+    return isMoveRefusal(next) ? null : { next, result: {} }
   },
 })
 

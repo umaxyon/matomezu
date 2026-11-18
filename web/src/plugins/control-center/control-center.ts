@@ -9,6 +9,7 @@ export const CONTROL_CENTER = kit.defineControlCenter({
     "@matomezu/base:book-create",
     "@matomezu/base:folder-create",
     "@matomezu/base:entry-move",
+    "@matomezu/base:entry-move-over",
     "@matomezu/base:entry-rename",
     "@matomezu/base:entry-trash",
     "@matomezu/base:entry-restore",
