@@ -170,6 +170,21 @@ export function closeScreen(win: WindowState, catalog: CoreCatalog, id: string):
   return { ...win, screens: win.screens.filter(s => s.id !== id), order: win.order.filter(x => x !== id) }
 }
 
+// 定義 def のスクリーンを max 枚まで開いたままにするとき、閉じる物（カレントにしたのが古い順に、超えた枚数だけ。超えなければ空）
+export function overLimit(win: Pick<WindowState, "screens" | "order">, def: string, max: number): readonly string[] {
+  const opened = win.order.filter(id => win.screens.some(s => s.id === id && s.def === def))
+  return opened.slice(0, Math.max(0, opened.length - max))
+}
+
+// ブック book をステージに開いているブックスクリーン（いくつも在れば、いちばん最近カレントにした物。無ければ undefined）
+export function bookScreenShowing(win: Pick<WindowState, "screens" | "order">, book: string): BookScreen | undefined {
+  for (let i = win.order.length - 1; i >= 0; i--) {
+    const s = win.screens.find(x => x.id === win.order[i])
+    if (s && holdsStages(s) && s.stages.stages.some(st => st.opened?.book === book)) return s
+  }
+  return undefined
+}
+
 // 次のステージの番号を振る（窓で一意）
 export function issueStage(win: WindowState): { win: WindowState; id: string } {
   const issued = win.issued + 1
