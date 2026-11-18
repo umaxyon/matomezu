@@ -13,6 +13,7 @@ import { defineWidget } from "../../web/src/ui/layout"
 import { assembleUi, type DialogProps, definePluginUi } from "../../web/src/ui/plugin"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { WindowRoot } from "../../web/src/ui/WindowRoot"
+import { showFirstBook } from "../support"
 
 afterEach(cleanup)
 
@@ -69,6 +70,7 @@ describe("見た目のプラグイン", () => {
       lang: "ja",
       newId: () => `n${++made}`,
     })
+    showFirstBook(instance)
     render(
       <MatomezuProvider instance={instance} layout={DEFAULT_LAYOUT}>
         <WindowRoot />
@@ -171,6 +173,7 @@ describe("見た目のプラグイン", () => {
 
   test("見た目を結んでいないプラグインのインスタンスは、画面に置けない（型の誤り）", () => {
     const instance = createMatomezu({ plugins: BUILTIN })
+    showFirstBook(instance)
     const typeOnly = () => (
       // @ts-expect-error 見た目を結んでいない
       <MatomezuProvider instance={instance} layout={DEFAULT_LAYOUT}>

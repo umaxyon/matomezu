@@ -4,7 +4,6 @@ import {
   BOOK_SCREEN_DEF,
   BOOK_SCREEN_URL,
   CONTROL_CENTER_SCREEN_DEF,
-  CONTROL_CENTER_URL,
   expect,
   joinedAiAuth,
   type Page,
@@ -57,8 +56,9 @@ test("前に出す物を替えるのはブラウザの履歴に 1 つ積み、�
 
 // コントロールセンターから始め、後ろのブックスクリーンが開いているブックの id を返す
 async function startOnCenter(page: Page): Promise<string> {
-  await page.goto(CONTROL_CENTER_URL)
+  await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
+  await (await fromMenu(page, "コントロールセンター")).click()
   await expect(center(page)).toBeVisible()
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: await joinedAiAuth() })).json())
@@ -91,7 +91,7 @@ test("コントロールセンターの間は、行き先のブックが後ろ�
   await send(page, { title: "後ろのブック", to: { book } })
   await expect(page.getByRole("button", { name: "後ろのブック" })).toBeVisible()
   expect(await visitedAt(page)).toBeUndefined()
-  await page.getByRole("button", { name: "コントロールセンター" }).click()
+  await page.locator("footer").getByRole("button", { name: "コントロールセンター" }).click()
   await expect(center(page)).toBeHidden()
   await expect.poll(() => visitedAt(page)).toBeTruthy()
 })
@@ -118,9 +118,22 @@ test("コントロールセンターの間でも、しおりが 4 通以上の�
 })
 
 test("コントロールセンターを前に出している間、Esc でブックスクリーンへ戻る", async ({ page }) => {
-  await page.goto(CONTROL_CENTER_URL)
+  await page.goto(BOOK_SCREEN_URL)
+  await (await fromMenu(page, "コントロールセンター")).click()
   await expect(center(page)).toBeVisible()
   await page.keyboard.press("Escape")
   await expect(center(page)).toBeHidden()
   await expect.poll(() => urlFront(page)).toBe(BOOK_SCREEN_DEF)
+})
+
+test("宛先なしで開いた窓は、コントロールセンターだけで、ブックスクリーンは無い。AI の view は bookScreen が none", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await page.bringToFront()
+  await expect(center(page)).toBeVisible()
+  await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(0)
+  await expect
+    .poll(async () => (await page.request.get("/api/ai/view", { headers: await joinedAiAuth() })).json())
+    .toMatchObject({ front: "control-center", bookScreen: "none" })
 })

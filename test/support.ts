@@ -1,7 +1,7 @@
 // テストで使う、ビルトインプラグインだけの表と store
 import { homeOver, worldTablesOf } from "../web/src/core/folders"
 import type { Book } from "../web/src/core/schema/book"
-import { recentBookScreen, recentPlainScreen } from "../web/src/core/window"
+import { recentBookScreen, recentPlainScreen, stagesDefOf } from "../web/src/core/window"
 import { BUILTIN } from "../web/src/plugins"
 import { assemble } from "../web/src/store/plugin"
 import { createMatomezuInstance, type StoreOptions } from "../web/src/store/store"
@@ -16,16 +16,37 @@ export function sequence(prefix = "n"): () => string {
   return () => `${prefix}${++n}`
 }
 
-// 見本のブックを持ち、最初の 1 冊を開いた store。id は n1, n2, … の順に振る
-export const newStore = (options: Omit<StoreOptions, "plugins"> = {}) =>
-  createMatomezuInstance({
+// ブックスクリーンを開かない窓で始める、newStore の bookScreen の値
+export const NO_BOOK_SCREEN = "none"
+
+// 見本のブックを持ち、最初の 1 冊をブックスクリーン（c2 のステージ s1）に出した store（ブックが無ければ、何も開かないステージ s1）。
+// bookScreen に NO_BOOK_SCREEN を渡すと、窓を開いたままの状態（ブックスクリーンは 0 枚）。id は n1, n2, … の順に振る
+export function newStore(options: Omit<StoreOptions, "plugins"> & { bookScreen?: typeof NO_BOOK_SCREEN } = {}) {
+  const { bookScreen, ...rest } = options
+  const store = createMatomezuInstance({
     plugins: BUILTIN,
     controlCenter: "@matomezu/control-center:control-center",
     books: SAMPLE_BOOKS,
     lang: "ja",
     newId: sequence(),
-    ...options,
+    ...rest,
   })
+  if (bookScreen !== NO_BOOK_SCREEN) showFirstBook(store)
+  return store
+}
+
+// 最初のブックを窓に出す（ブックが無ければ、何も開かないステージのブックスクリーンを開く）
+export function showFirstBook(store: Pick<ReturnType<typeof createMatomezuInstance>, "state" | "actions" | "catalog">) {
+  const first = Object.keys(store.state.getState().books)[0]
+  if (first === undefined || !store.actions.showBook(first))
+    store.actions.openScreen(stagesDefOf(store.catalog.core), {})
+}
+
+// store に最初のブックを窓に出させて、その store を返す（showFirstBook）
+export function shown<S extends Parameters<typeof showFirstBook>[0]>(store: S): S {
+  showFirstBook(store)
+  return store
+}
 
 // 画面の大きさを決めた store（ステージ s1 が 1400×1000。紙に形を置くテストの準備）
 export function sizedStore(options: Omit<StoreOptions, "plugins"> = {}) {
@@ -42,7 +63,8 @@ export function showCenter(store: Pick<ReturnType<typeof newStore>, "state" | "a
 
 // ブックスクリーンを、カレントスクリーンにする
 export function showBooks(store: Pick<ReturnType<typeof newStore>, "state" | "actions">) {
-  store.actions.makeScreenCurrent(recentBookScreen(store.state.getState().window).id)
+  const to = recentBookScreen(store.state.getState().window)
+  if (to) store.actions.makeScreenCurrent(to.id)
 }
 
 // ブックの並び books を、ホストが知らせる形（置き場所から読んだままのページとフォルダの並び）にした物（instance.receive に渡す世界の pages と folders）。

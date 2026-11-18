@@ -13,6 +13,7 @@ import { definePlugin } from "../../web/src/store/plugin"
 import { definePluginUi } from "../../web/src/ui/plugin"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { WindowRoot } from "../../web/src/ui/WindowRoot"
+import { showFirstBook } from "../support"
 
 afterEach(cleanup)
 
@@ -46,6 +47,7 @@ describe("スライドのレイヤー", () => {
       controlCenter: "@matomezu/control-center:control-center",
       lang: "ja",
     })
+    showFirstBook(instance)
     render(
       <MatomezuProvider instance={instance} layout={DEFAULT_LAYOUT}>
         <WindowRoot />

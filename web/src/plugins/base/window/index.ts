@@ -18,6 +18,7 @@ export const BOOK_SCREEN_DEF = kit.defineScreen({
     "The screen that shows books in stages (one, or two side by side), where the user reads and edits them.",
   props: z.strictObject({}),
   stages: true,
+  maxOpen: 2,
 })
 
 // スクリーンアレンジメント「1 枚ずつ」: 見えているのは、カレントスクリーンの 1 枚だけ。窓を開いたときのスクリーンアレンジメント。

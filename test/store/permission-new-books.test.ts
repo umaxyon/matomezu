@@ -9,6 +9,7 @@ import { isEnabled, isShown } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { SAMPLE_BOOKS } from "../sample-books"
+import { showFirstBook } from "../support"
 
 test("keeps だけを書いた認可ステップでも、そのタイプのページを入れたブックを作るのを止められる。ほかのタイプは作れる", () => {
   const kit = pluginKit("@ex/no-tree", defineMessages({ noTree: { en: "No tree", ja: "ツリーは作らない" } }))
@@ -38,6 +39,7 @@ test("keeps だけを書いた認可ステップでも、そのタイプのペ�
       }),
     ],
   })
+  showFirstBook(store)
   const count = () => Object.keys(store.state.getState().books).length
   const was = count()
   expect(
@@ -84,6 +86,7 @@ test("認可ステップは、作るページのタイプを行う前に見ら�
       }),
     ],
   })
+  showFirstBook(store)
   const book = SAMPLE_BOOKS[0]!.id
   store.actions.openBook("s1", book)
   const command = (arg?: { type: string }) => {

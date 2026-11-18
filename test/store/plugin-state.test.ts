@@ -12,6 +12,7 @@ import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { readPlaced, withPluginState } from "../../web/src/store/plugin-state"
 import { SAMPLE_BOOKS } from "../sample-books"
+import { showFirstBook, shown } from "../support"
 
 const kit = pluginKit("k", defineMessages({}))
 const TAB = kit.definePluginState({ id: "tab", scope: "window", schema: z.enum(["one", "two"]), address: "push" })
@@ -21,13 +22,15 @@ const NOTE = kit.definePluginStateOf<string>()({ id: "note", scope: "window" })
 const PICK = kit.definePluginStateOf<number>()({ id: "pick", scope: "stage" })
 
 const make = () =>
-  createMatomezu({
-    plugins: [...BUILTIN, kit.plugin({ pluginStates: [TAB, MODE, NOTE, PICK] })],
-    controlCenter: "@matomezu/control-center:control-center",
-    books: SAMPLE_BOOKS,
-    lang: "ja",
-    partial: true,
-  })
+  shown(
+    createMatomezu({
+      plugins: [...BUILTIN, kit.plugin({ pluginStates: [TAB, MODE, NOTE, PICK] })],
+      controlCenter: "@matomezu/control-center:control-center",
+      books: SAMPLE_BOOKS,
+      lang: "ja",
+      partial: true,
+    }),
+  )
 
 const code = (run: () => void): string | undefined => {
   try {
@@ -45,7 +48,7 @@ test("宣言は id を持ち、kit が頭を付ける。積むと宣言した宣
   expect(instance.pushing().has("k:mode")).toBe(false)
   expect(instance.catalog.store.pluginStates.get("k:mode")?.scope).toBe("stage")
   expect(() =>
-    createMatomezu({ plugins: [...BUILTIN, kit.plugin({ pluginStates: [TAB, TAB] })], partial: true }),
+    shown(createMatomezu({ plugins: [...BUILTIN, kit.plugin({ pluginStates: [TAB, TAB] })], partial: true })),
   ).toThrow("E001")
 })
 
@@ -109,6 +112,7 @@ test("コントロールセンターの前に出す画面の宣言は、スク�
     controlCenter: "@matomezu/control-center:control-center",
     lang: "ja",
   })
+  showFirstBook(instance)
   const id = "@matomezu/control-center:front-screen"
   expect(instance.catalog.store.pluginStates.get(id)).toMatchObject({ scope: "screen", address: "push" })
   expect(instance.pushing().has(id)).toBe(true)
@@ -207,6 +211,7 @@ test("スクリーンに渡す値を替える（積まない）: 開いている
     controlCenter: "@matomezu/control-center:control-center",
     lang: "ja",
   })
+  showFirstBook(instance)
   const def = "@matomezu/taskboard:ticket-screen"
   const id = instance.actions.openScreenId(def, { ticket: "t1" })
   const count = instance.state.getState().window.screens.length

@@ -22,16 +22,19 @@ import { assembleUi, definePluginUi } from "../../web/src/ui/plugin"
 import { MatomezuProvider, shownLayout, useLayoutWarnings } from "../../web/src/ui/store-context"
 import { WindowRoot } from "../../web/src/ui/WindowRoot"
 import { SAMPLE_BOOKS } from "../sample-books"
+import { showFirstBook, shown } from "../support"
 
 afterEach(cleanup)
 
 const instance = () =>
-  createMatomezu({
-    plugins: BUILTIN_UI,
-    controlCenter: "@matomezu/control-center:control-center",
-    books: SAMPLE_BOOKS,
-    lang: "ja",
-  })
+  shown(
+    createMatomezu({
+      plugins: BUILTIN_UI,
+      controlCenter: "@matomezu/control-center:control-center",
+      books: SAMPLE_BOOKS,
+      lang: "ja",
+    }),
+  )
 const ui = assembleUi(BUILTIN_UI)
 const commands = new Set(instance().catalog.store.commands.keys())
 const screens = {
@@ -497,6 +500,7 @@ describe("取り込むときの UI マッピングの確かめ", () => {
 
   test("UI マッピングが食い違うプラグインは取り込むときに外し、ほかのプラグインで画面を描く", () => {
     const instance = createMatomezu({ plugins: BUILTIN_UI, controlCenter: "@matomezu/control-center:control-center" })
+    showFirstBook(instance)
     const { failed } = instance.use([nowhere, fine], all => {
       shownLayout(placeAdded(DEFAULT_LAYOUT, all), all, assembleUi(all))
     })

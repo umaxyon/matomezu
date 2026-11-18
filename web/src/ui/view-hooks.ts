@@ -489,7 +489,7 @@ export function useScreenHere(): { shown: boolean; current: boolean } | null {
 // スクリーンを開く・描いている場所のスクリーンを閉じる・渡す値を替える。描いている場所のスクリーンは、スクリーンの外（窓の枠のウィジェットなど）ならカレントスクリーン。
 // - open: 定義 def のスクリーンを 1 枚開いてカレントスクリーンにする（値が定義の形に合わなければ開かず false）
 // - setProps: 描いている場所のスクリーンに渡す値を替える（スクリーンは積まず、ブラウザの履歴には積む。そのスクリーンが定義 def の物でないか、値が形に合わなければ替えず false）
-// - close: 描いている場所のスクリーンを閉じる（最初から開いているスクリーンと、最後の 1 枚のブックスクリーンは閉じない）
+// - close: 描いている場所のスクリーンを閉じる（最初から開いているスクリーンの最後の 1 枚は閉じない）
 // ほかのスクリーンを名指す操作は、スクリーンアレンジメントのウィジェットの中だけ（useArrangedScreens）
 export function useScreens(): {
   open<P>(def: { id: string; props: PropsShape<P> }, props: P): boolean

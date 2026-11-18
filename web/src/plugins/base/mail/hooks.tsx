@@ -1,7 +1,8 @@
 // 郵便箱を読み、郵便を開くフック
 import { useCallback } from "react"
 import { useShallow } from "zustand/react/shallow"
-import { screenOf, stageIn } from "../../../core/window"
+import { recentBookScreen, stageIn } from "../../../core/window"
+import { NO_STAGE } from "../../../store/dialogs"
 import { useStageId } from "../../../ui/scope"
 import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
 import { useLeftSidePanelShowsAt, useToggleLeftSidePanelAt } from "../left-side-panel/hooks"
@@ -18,12 +19,12 @@ export const useMailbox = (): readonly Mail[] => useMatomezuState(useShallow(s =
 // まだ見ていない郵便の数
 export const useUnreadMail = (): number => useMailbox().filter(m => !m.seenAt).length
 
-// 前に出せるブックスクリーンのカレントのステージで、郵便 id のダイアログを開く関数（前に出している物は替えない）
+// 前に出せるブックスクリーンのカレントのステージで（ブックスクリーンが無ければ、ステージを持たずに）、郵便 id のダイアログを開く関数（前に出している物は替えない）
 export function useOpenMail(): (id: string) => void {
   const { openDialog } = useStoreActions()
   const read = useReadState()
   return useCallback(
-    id => openDialog(screenOf(read().window).current, MAIL_DIALOG.id, { mail: id }),
+    id => openDialog(recentBookScreen(read().window)?.stages.current ?? NO_STAGE, MAIL_DIALOG.id, { mail: id }),
     [openDialog, read],
   )
 }
@@ -34,7 +35,7 @@ export function useOpenMail(): (id: string) => void {
 export function useMailboxPanel(): { open: boolean; toggle: () => void } {
   const toggle = useToggleLeftSidePanelAt()
   const here = useStageId()
-  const recent = useMatomezuState(s => screenOf(s.window).current)
+  const recent = useMatomezuState(s => recentBookScreen(s.window)?.stages.current ?? NO_STAGE)
   const stage = here ?? recent
   const open = useLeftSidePanelShowsAt(stage, mailboxEntries)
   return { open, toggle: () => toggle(stage, mailboxEntries) }

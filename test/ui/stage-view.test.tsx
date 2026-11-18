@@ -13,7 +13,7 @@ import { definePluginUi } from "../../web/src/ui/plugin"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { WindowRoot } from "../../web/src/ui/WindowRoot"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { sequence } from "../support"
+import { sequence, showFirstBook } from "../support"
 
 afterEach(cleanup)
 
@@ -34,6 +34,7 @@ test("パンしても、book-layers のレイヤーは描き直さない", () =>
     lang: "ja",
     newId: sequence(),
   })
+  showFirstBook(instance)
   render(
     <MatomezuProvider instance={instance} layout={placeAdded(DEFAULT_LAYOUT, [counter])}>
       <WindowRoot />

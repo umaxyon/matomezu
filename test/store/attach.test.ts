@@ -9,7 +9,7 @@ import { isShown } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { definePlugin, warningsOf } from "../../web/src/store/plugin"
-import { CORE_CATALOG, newStore } from "../support"
+import { CORE_CATALOG, newStore, showFirstBook } from "../support"
 
 test("アクションは、タイプが選んだアイテム・プレゼンテーションと、どのブックにも付くアクションが付いて来る。アノテーションのアクションは、その種類を使えるタイプに付いて来る。ブックが対象でないアクションは、どのタイプにも付かない", () => {
   const ids = actionsOfPage(CORE_CATALOG, { type: "@matomezu/drawing:drawing" })
@@ -63,6 +63,7 @@ test("without・add・performs の間違いは warning（W001〜W003・W012）�
     partial: true,
     controlCenter: "@matomezu/control-center:control-center",
   })
+  showFirstBook(instance)
   expect(warningsOf(instance.catalog).map(warningText)).toEqual([
     "W012 notes: tool notes:scribble: performs notes:nothing, which is not in the catalog",
     "W001 notes: pageType notes:note: without names @matomezu/list:row-add, which is not attached to it",
@@ -79,6 +80,7 @@ test("コマンドは、行うアクションが今のブックで使えなけ�
   const shown = (id: string) => isShown(store, store.state.getState(), "s1", id as never)
   expect(shown("@matomezu/base:book-settings")).toBe(true)
   const empty = createMatomezu({ plugins: BUILTIN, controlCenter: "@matomezu/control-center:control-center" })
+  showFirstBook(empty)
   const emptyShown = (id: string) => isShown(empty, empty.state.getState(), "s1", id as never)
   expect(emptyShown("@matomezu/base:book-settings")).toBe(false)
   expect(emptyShown("@matomezu/base:page-new")).toBe(false)
@@ -107,6 +109,7 @@ test("線を置けないタイプが line-connect を足していても、線を
     partial: true,
     controlCenter: "@matomezu/control-center:control-center",
   })
+  showFirstBook(instance)
   expect(createBookIn(instance, "s1", { title: "B" })).toBe(true)
   const id = screenOf(instance.state.getState().window).stages[0]!.opened!.book
   expect(

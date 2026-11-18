@@ -11,6 +11,7 @@ import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { WindowRoot } from "../../web/src/ui/WindowRoot"
+import { showFirstBook } from "../support"
 
 afterEach(() => {
   cleanup()
@@ -24,6 +25,7 @@ function setup() {
     plugins: BUILTIN_UI,
     partial: true,
   })
+  showFirstBook(store)
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <WindowRoot />
@@ -154,6 +156,7 @@ test("設定画面の「マークダウン」の「Tabキー」: 押している
     plugins: BUILTIN_UI,
     partial: true,
   })
+  showFirstBook(store)
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <WindowRoot />

@@ -30,7 +30,7 @@ var noArgs = map[string]any{"type": "object", "properties": map[string]any{}, "a
 var tools = []tool{
 	{
 		"view",
-		"What the user is looking at now: the book, page, mode (edit, or print-preview: all its pages laid out as the sheets they print on, arranged by the book's print preview settings) and selected items of the matomezu window focused last, and awaiting, the annotations on that book (such as the user's notes and marks) that wait for your answer, each with its page. front tells what the window brings to front: book-screen, or control-center, which covers the book screen; then the book, page, mode, selection and awaiting of the book screen kept behind it are under hidden (the user does not see them now). null when no window is open.",
+		"What the user is looking at now: the book, page, mode (edit, or print-preview: all its pages laid out as the sheets they print on, arranged by the book's print preview settings) and selected items of the matomezu window focused last, and awaiting, the annotations on that book (such as the user's notes and marks) that wait for your answer, each with its page. front tells what the window brings to front: book-screen, or control-center, which covers the book screen; then the book, page, mode, selection and awaiting of the book screen kept behind it are under hidden (the user does not see them now). A window that has no book screen open answers only front and bookScreen: \"none\". null when no window is open.",
 		noArgs,
 		reading(func(api caller, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/view") }, nil),
 		true,
@@ -353,7 +353,7 @@ var showSchema = map[string]any{
 	"additionalProperties": false,
 }
 
-const showDescription = "Show a book on the user's screen: in the matomezu window focused last, open it on a stage, which becomes current, and the book screen comes to front if the control center was in front. " +
+const showDescription = "Show a book on the user's screen, in the matomezu window focused last: a book screen that already shows the book comes to front; otherwise the book opens in a new book screen, which comes to front (a window keeps two book screens: opening a third closes the one brought to front longest ago, with its zoom, position and selection). With stage or split, the book opens on that stage instead, replacing what is open there. " +
 	"When no window is open, a browser opens matomezu first (this can take some seconds)."
 
 // ReadOnly は、名前 name の MCP 公開ツールが読むだけか（無い名前なら false）

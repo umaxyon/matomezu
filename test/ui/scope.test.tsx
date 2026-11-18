@@ -31,6 +31,7 @@ import {
   useStagePan,
 } from "../../web/src/ui/view-hooks"
 import { type DRAWING, drawingPage, testBook } from "../lineup"
+import { showFirstBook } from "../support"
 
 afterEach(cleanup)
 
@@ -69,6 +70,7 @@ function setup(extra: readonly object[] = []) {
     savedBooks: [X, Y, ...extra],
     lang: "ja",
   })
+  showFirstBook(instance)
   instance.actions.resizeStage("s1", { w: 1400, h: 1000 })
   const wrap = (node: React.ReactNode) => (
     <MatomezuProvider instance={instance} layout={DEFAULT_LAYOUT}>

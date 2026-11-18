@@ -3,7 +3,8 @@
 // 行き先に物があれば倍率そのままで真ん中に見せて、鳥を連れてきて枠を光らせる（bird-visit.tsx）。郵便箱のタブが開いているときは、ダイアログと郵便箱を一緒に閉じるボタンも出す。
 // 決めるキー（Enter）は、ダイアログを出したステージで開くボタン（開いたら、そのボタンに焦点を当てる）。行き先が無い・無くなっていれば（「行き先がありません」と出す）、閉じるボタンだけを出す
 import { type FormEvent, type ReactNode, useEffect, useId, useRef, useState } from "react"
-import { screenOf } from "../../../core/window"
+import type { Stage } from "../../../core/stage"
+import { bookScreenShowing, screenOfStage } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
 import { useLayout, useMatomezuState, useReadState, useStoreActions, useUiCatalog } from "../../../ui/store-context"
@@ -15,7 +16,7 @@ import { useCloseLeftSidePanel, useLeftSidePanel } from "../left-side-panel/hook
 import { MAIL_SEEN, MAIL_VISITED } from "."
 import { useMailbox, useShowMailPlaceAt } from "./hooks"
 import own from "./Mail.module.css"
-import { type OpenChoice, openChoices, openStageOf } from "./open-choices"
+import { type OpenChoice, type OpenChoices, openChoices, openStageOf } from "./open-choices"
 import { placeExists } from "./place"
 import { shownOf } from "./shown"
 import { MAIL_ACTIONS, type MailActionsProps } from "./slots"
@@ -30,6 +31,9 @@ const CHOICE_TITLES = {
 
 // ボタンが 4 つ並んでも（英語の「Close the mailbox too」「Open on the left」「Open on the right」を含め）1 行に収まる幅。ダイアログの既定の幅 360 には収まらない
 const DIALOG_WIDTH = 620
+const NO_STAGES: Stage[] = []
+// ステージを持たずに出したダイアログの開くボタン（ブックを窓に出す 1 つ）
+const WINDOW_CHOICES: OpenChoices = { opens: ["here"], primary: "here" }
 
 export function MailDialog({ args, onClose }: DialogProps<{ mail: string }>) {
   // 開いた場所（ステージか、ステージを持たないスクリーン）。行き先を開くステージを、ここから決める
@@ -40,7 +44,8 @@ export function MailDialog({ args, onClose }: DialogProps<{ mail: string }>) {
   const catalog = useCoreCatalog()
   const mail = useMailbox().find(m => m.id === args.mail) ?? null
   const books = useMatomezuState(s => s.books)
-  const stages = useMatomezuState(s => screenOf(s.window).stages)
+  // ダイアログを出したステージを並べているブックスクリーンのステージ（ステージを持たずに出したなら、無い）
+  const stages = useMatomezuState(s => screenOfStage(s.window, stage)?.stages.stages ?? NO_STAGES)
   const read = useReadState()
   const actions = useStoreActions()
   const closeLeft = useCloseLeftSidePanel()
@@ -72,12 +77,17 @@ export function MailDialog({ args, onClose }: DialogProps<{ mail: string }>) {
     if (!to) return
     onClose()
     if (choice === "split") actions.split(stage)
-    const target = openStageOf(screenOf(read().window), stage, choice)
+    const ws = screenOfStage(read().window, stage)?.stages
+    // ステージを持たずに出したダイアログからは、ブックを窓に出す
+    if (!ws && !actions.showBook(to.book)) return
+    const target = ws
+      ? openStageOf(ws, stage, choice)
+      : (bookScreenShowing(read().window, to.book)?.stages.current ?? null)
     if (!target) return
     showPlace(target, mail)
     actions.perform(MAIL_VISITED.id, {}, { record: mail.id })
   }
-  const opens = to && !Actions ? openChoices({ stages }, stage) : null
+  const opens = to && !Actions ? (openChoices({ stages }, stage) ?? WINDOW_CHOICES) : null
   const submit = (e: FormEvent) => {
     e.preventDefault()
     if (opens) open(opens.primary)

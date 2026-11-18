@@ -17,7 +17,7 @@ import { BUILTIN } from "../../web/src/plugins"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { newStore, showBooks, showCenter } from "../support"
+import { newStore, showBooks, showCenter, showFirstBook } from "../support"
 
 // 書いた URL を覚える偽の Place（later はすぐには呼ばず、flush で呼ぶ）
 function fakePlace(start = "") {
@@ -284,6 +284,7 @@ test("積むと宣言したステージに結ばない値は変わるたびに�
     lang: "ja",
     partial: true,
   })
+  showFirstBook(store)
   const f = fakePlace("?b0=b1&p0=p1&v0=1,0,0&c=0&r=0.5")
   followLocation(store, f.place)
   expect(store.pushing().has("k:tab")).toBe(true)
@@ -314,6 +315,7 @@ test("スクリーンを開くのも、開いているスクリーンの渡す�
     controlCenter: "@matomezu/control-center:control-center",
     lang: "ja",
   })
+  showFirstBook(store)
   const f = fakePlace()
   followLocation(store, f.place)
   const id = store.actions.openScreenId("@matomezu/taskboard:ticket-screen", { ticket: "t1" })
@@ -334,6 +336,7 @@ test("この窓が積んだ行が無ければ canGoBack は false、積めば tr
     controlCenter: "@matomezu/control-center:control-center",
     lang: "ja",
   })
+  showFirstBook(store)
   const f = fakePlace()
   followLocation(store, f.place)
   expect(store.state.getState().canGoBack).toBe(false)
@@ -355,6 +358,7 @@ test("スクリーンアレンジメントと値は URL に入り、替えると
     controlCenter: "@matomezu/control-center:control-center",
     lang: "ja",
   })
+  showFirstBook(store)
   const f = fakePlace()
   followLocation(store, f.place)
   const center = store.state.getState().window.order.at(-1) ?? ""

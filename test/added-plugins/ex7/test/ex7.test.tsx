@@ -14,6 +14,9 @@ test("ex6 のページの重さは、ex7 の木箱が ex6:weight で答えた重
     controlCenter: "@matomezu/control-center:control-center",
     lang: "ja",
   })
+  // 最初のブックを窓に出す（ブックが無ければ、何も開かないステージのブックスクリーンを開く）
+  if (!instance.actions.showBook(Object.keys(instance.state.getState().books)[0] ?? ""))
+    instance.actions.openScreen("@matomezu/base:book-screen", {})
   act(() => {
     expect(createBookIn(instance, "s1", { title: "置き場" })).toBe(true)
   })

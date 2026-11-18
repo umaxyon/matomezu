@@ -512,6 +512,7 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
     "setStageArea",
     "setStageStart",
     "setTool",
+    "showBook",
     "showToast",
     "split",
     "startBackground",

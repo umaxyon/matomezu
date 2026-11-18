@@ -13,7 +13,7 @@ import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { WindowRoot } from "../../web/src/ui/WindowRoot"
 import { drawingPage, testBook } from "../lineup"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { worldRows } from "../support"
+import { showFirstBook, worldRows } from "../support"
 
 const SKIN = "@matomezu/base:skin"
 
@@ -27,6 +27,7 @@ function renderBooksScreen(options: Omit<StoreOptions, "plugins"> = {}) {
     ...options,
     plugins: BUILTIN_UI,
   })
+  showFirstBook(store)
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <WindowRoot />
@@ -256,6 +257,7 @@ test("メニューのボタンは、コマンドが押せないとき押せな�
     lang: "ja",
     plugins: [locked, ...rest],
   })
+  showFirstBook(store)
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <WindowRoot />
@@ -280,6 +282,7 @@ test("StrictMode で描いても、開いたダイアログは閉じない", asy
     lang: "ja",
     plugins: BUILTIN_UI,
   })
+  showFirstBook(store)
   render(
     <StrictMode>
       <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
@@ -365,6 +368,7 @@ test("認可ステップがページの削除を止めていれば、ページ�
     plugins: [...BUILTIN_UI, keep],
     partial: true,
   })
+  showFirstBook(store)
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <WindowRoot />
@@ -398,6 +402,7 @@ test("認可ステップがあるブックのゴミ箱入れを止めていれ�
     plugins: [...BUILTIN_UI, keep],
     partial: true,
   })
+  showFirstBook(store)
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <WindowRoot />
@@ -442,6 +447,7 @@ test("認可ステップがゴミ箱のブックの戻す・消すを止めて�
     plugins: [...BUILTIN_UI, keep],
     partial: true,
   })
+  showFirstBook(store)
   const books = Object.values(store.state.getState().books)
   for (const title of ["API の一覧", "データの形"])
     expect(
@@ -481,6 +487,7 @@ test("右クリックのメニューに出るコマンドが無ければ、メ�
     lang: "ja",
     plugins: BUILTIN_UI,
   })
+  showFirstBook(store)
   // 分割をやめるは、分割していないと出ない
   const layout = {
     ...DEFAULT_LAYOUT,

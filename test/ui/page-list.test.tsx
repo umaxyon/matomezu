@@ -6,6 +6,7 @@ import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { WindowRoot } from "../../web/src/ui/WindowRoot"
+import { showFirstBook } from "../support"
 
 afterEach(cleanup)
 
@@ -20,6 +21,7 @@ function open(type: string) {
     controlCenter: "@matomezu/control-center:control-center",
     lang: "ja",
   })
+  showFirstBook(instance)
   render(
     <MatomezuProvider instance={instance} layout={DEFAULT_LAYOUT}>
       <WindowRoot />

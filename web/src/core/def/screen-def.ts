@@ -12,4 +12,5 @@ export interface ScreenDef<P extends z.ZodObject = z.ZodObject, Tt extends strin
   props: P // 開くときに渡す値の形（渡す値の無いスクリーンは、空のオブジェクトの形）
   stages?: true // ステージを並べるスクリーン
   atStart?: true // 窓を開いたときから開いているスクリーン（閉じられない）
+  maxOpen?: number // 開いたままにする枚数（1 以上。超えた分は、土台がカレントにしたのが古い物から閉じる。無ければ何枚でも）
 }

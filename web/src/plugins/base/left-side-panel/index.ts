@@ -5,7 +5,7 @@ import { LEFT_SIDE_PANEL } from "./slots"
 import { LEFT_SIDE_PANEL_STATE } from "./state"
 
 // 開いている左サイドパネルを閉じる（Esc。左サイドパネルの中にフォーカスがあるとき）
-export const LEFT_SIDE_PANEL_CLOSE = kit.defineCommand({
+export const LEFT_SIDE_PANEL_CLOSE = kit.defineScreenCommand({
   id: "left-side-panel-close",
   title: "Close the left side panel",
   run: (_ctx, a) => a.updatePluginState(LEFT_SIDE_PANEL_STATE, () => undefined),

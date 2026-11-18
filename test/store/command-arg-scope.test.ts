@@ -7,6 +7,7 @@ import { isEnabled, isShown } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { SAMPLE_BOOKS } from "../sample-books"
+import { showFirstBook } from "../support"
 
 const kit = pluginKit("@ex/scope", defineMessages({ add: { en: "Add", ja: "足す" } }))
 
@@ -28,6 +29,7 @@ test("引数のページのタイプで使えるアクションなら、開い�
     partial: true,
     plugins: [...BUILTIN, kit.plugin({ commands: [ADD_ENTRY] })],
   })
+  showFirstBook(store)
   const added = store.actions.perform(
     "@matomezu/base:page-add",
     { type: "@matomezu/dir:dir", title: "構成", fields: { root: { name: "proj" } } },

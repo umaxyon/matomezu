@@ -95,7 +95,9 @@ import type { Warning } from "../core/warnings"
 import { NO_WIDE_SEARCH_HITS, type WideSearchAnswer, type WideSearchQuery } from "../core/wide-search"
 import {
   bookScreenCurrent,
+  bookScreenShowing,
   closeScreen,
+  currentScreen,
   issueStage,
   makeCurrent,
   mapScreen,
@@ -104,12 +106,14 @@ import {
   newWindow,
   type OpenedScreen,
   openScreen,
-  screenOf,
+  recentBookScreen,
   screenOfStage,
   setArrangement,
   shownBookScreens,
   stageIn,
+  stagesDefOf,
   type WindowState,
+  withinLimits,
   withScreenProps,
 } from "../core/window"
 import {
@@ -264,6 +268,9 @@ export interface WindowActions {
   // スクリーンを 1 枚開いてカレントにし、開けたかを返す。def はスクリーンの定義の id、props は渡す値（定義の props の形）。
   // 機能台帳に無い定義・形に合わない値なら開かず、false を返す
   openScreen(def: string, props: unknown): boolean
+  // ブックを窓に出す: もう開いているブックスクリーンが在れば、それをカレントスクリーンにする。無ければ、新しいブックスクリーンで開く
+  // （開いたままにする枚数を超えた分は、土台がカレントにしたのが古い物から閉じる）。page を言えば、そのページを開く。無いブックなら何もせず false
+  showBook(book: string, page?: string): boolean
   // スクリーンアレンジメントを定義 def と値 value に替える（値を渡さなければ、定義の初めの値。機能台帳に無い定義・値が定義の形に合わなければ替えない）
   setScreenArrangement(def: string, value?: unknown): void
   // 同じ同期の処理の中の窓の変わりを、ブラウザの履歴に積まずに書き換えてほしいと頼む（利用者の操作でない変わり。窓の大きさでスクリーンアレンジメントを戻すなど）
@@ -411,6 +418,7 @@ export const REFUSED_WINDOW_ACTIONS: WindowActions = {
   showToast: () => "",
   dismissToast: NOTHING,
   openScreen: () => false,
+  showBook: () => false,
   setScreenArrangement: NOTHING,
   replaceHistory: NOTHING,
   moveDivider: NOTHING,
@@ -437,6 +445,7 @@ export const WINDOW_ACTIONS: { readonly [K in keyof WindowActions]: true } = {
   showToast: true,
   dismissToast: true,
   openScreen: true,
+  showBook: true,
   setScreenArrangement: true,
   replaceHistory: true,
   moveDivider: true,
@@ -543,7 +552,7 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   ): { failed: { id: string; error: unknown }[] }
 }
 
-// 最初のブック（無ければ何も開かない）を開いた状態
+// 最初の状態（ブックスクリーンは開かない）
 function initialState(
   catalog: CoreCatalog,
   books: readonly Book[],
@@ -554,13 +563,12 @@ function initialState(
 ): MatomezuState {
   const tables = worldTablesOf(books, [homeOver(books)])
   const { books: open, trash } = shelvesOf(tables)
-  const first = books.map(b => open[b.id]).find(b => b !== undefined) ?? null
   return {
     ...tables,
     books: open,
     unreadable,
     partial,
-    window: newWindow(catalog, first),
+    window: newWindow(catalog),
     settings,
     annotations: {},
     records: {},
@@ -595,7 +603,7 @@ export type AIEditTicketOutcome =
 export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> {
   plugins: Ps
   controlCenter?: ControlCenterId // コントロールセンターの定義の id。ブックの一覧・利用者の設定・対象の定義の種類を変えるアクションを許すかはこれが決める。無ければ、それらは断る
-  books?: readonly Book[] // 最初に持つブック（最初の 1 冊を開く）。無ければ持たず、空のステージ
+  books?: readonly Book[] // 最初に持つブック（開かない）
   autoSkin?: { light?: SkinId; dark?: SkinId } // 自動のスキン（OS の明暗に合わせる）で使うスキン。無ければ、表で最初に出てくるその明暗のスキン
   lang?: Lang | readonly string[] // 言語か、好む言語の並び（ブラウザの言語など）。インスタンスにある最初の言語を使い、無ければ英語
   savedBooks?: readonly unknown[] // 残しておいたブック（ホストが読んだもの）。このインスタンスのブックの形に合うものだけを、books のあとに持つ
@@ -1224,7 +1232,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const picker = window.screens.flatMap(x => x.stages?.stages ?? []).find(st => st.picker !== null)?.id
       // キーの宛先: 右クリックのメニュー・長押しの道具・ダイアログを開いたステージ。無ければ（ステージを持たずに開いたダイアログも）、いちばん最近カレントにしたブックスクリーンのカレントのステージ
       const opener = dialog && dialog.stage !== NO_STAGE ? dialog.stage : undefined
-      const stage = contextMenu?.stage ?? picker ?? opener ?? screenOf(window).current
+      const stage =
+        contextMenu?.stage ?? picker ?? opener ?? recentBookScreen(window)?.stages.current ?? currentScreen(window).id
       const menu = contextMenu !== null || picker !== undefined
       // プレゼンテーションのキーの範囲は、ページを開いているときだけ（空のバインダでは、プレゼンテーションのビューを描かない）
       const type = openedPage(stageIn(window, stage)?.opened ?? null)?.type
@@ -1261,10 +1270,24 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const fits = catalog.screens.get(def)?.props.safeParse(props)
       if (!fits?.success) return SCREEN_REFUSED
       const { win, id } = openScreen(getState().window, catalog, def, fits.data)
-      commit({ window: win })
+      commit({ window: withinLimits(win, catalog) })
       return id
     },
     openScreen: (def, props) => actions.openScreenId(def, props) !== SCREEN_REFUSED,
+    showBook: (bookId, page) => {
+      const book = getState().books[bookId]
+      if (!book) return false
+      const was = getState().window
+      const showing = bookScreenShowing(was, bookId)
+      if (showing) {
+        // そのブックを開いているステージ（カレントのステージが開いていれば、それ）を見せる
+        const stages = showing.stages.stages.filter(st => st.opened?.book === bookId)
+        actions.showStage((stages.find(st => st.id === showing.stages.current) ?? stages[0])?.id ?? "")
+      } else commit({ window: withinLimits(openScreen(was, catalog, stagesDefOf(catalog), {}, book).win, catalog) })
+      const stage = bookScreenShowing(getState().window, bookId)?.stages.current
+      if (page !== undefined && stage !== undefined) actions.openPage(stage, page)
+      return true
+    },
     setScreenProps: (at, props) => {
       const screen = screenAt(getState().window, at)
       const fits = screen && catalog.screens.get(screen.def)?.props.safeParse(props)
@@ -1577,6 +1600,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
           failed.push({ id: p.id, error })
         }
       }
+      // 開いていたスクリーンは、組み直したあとに同じ場所へ当てはめ直す
+      const at = addressNow()
       defs = next
       controlCenter = next.controlCenter
       catalog = next.catalog.core
@@ -1599,6 +1624,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         ),
         true,
       )
+      instance.locate(at)
       return { failed }
     },
   }

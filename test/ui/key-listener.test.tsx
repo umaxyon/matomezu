@@ -9,6 +9,7 @@ import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { KeyListener } from "../../web/src/ui/keys"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
+import { showFirstBook } from "../support"
 
 afterEach(cleanup)
 
@@ -19,6 +20,7 @@ test("親の要素だけが範囲を名乗るテキストFormでは Mod+Z をテ
     plugins: BUILTIN_UI,
     partial: true,
   })
+  showFirstBook(store)
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
       <KeyListener />

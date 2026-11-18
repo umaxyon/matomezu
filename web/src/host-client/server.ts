@@ -22,7 +22,7 @@ import { restoreCounters, restoreRecords, withCounters, withRecords } from "../c
 import type { Stage } from "../core/stage"
 import type { Warning } from "../core/warnings"
 import { WIDE_SEARCH_ANSWER, wideSearchParams } from "../core/wide-search"
-import { recentBookScreen, screenOf, shownScreens, viewFrontOf } from "../core/window"
+import { bookScreenShowing, recentBookScreen, screenOfStage, shownScreens, viewFrontOf } from "../core/window"
 import { currentStage, MAX_STAGES } from "../core/workspace"
 import type {
   AIEditTicketOutcome,
@@ -130,9 +130,13 @@ const openedOf = (stage: Stage) => {
 
 // 窓が見ているもの。front はカレントスクリーンの種類（ステージを並べるスクリーンなら book-screen、そうでなければ control-center）。
 // book・page・mode（編集か印刷プレビューか）・selection は、いちばん最近カレントにしたブックスクリーンの、カレントのステージのもの（何も開いていなければ book は null）。
-// そのブックスクリーンが見えているスクリーンでなければ、それらを hidden に分けて添える（見えていない物として、常駐は開いたことにしない）
+// そのブックスクリーンが見えているスクリーンでなければ、それらを hidden に分けて添える（見えていない物として、常駐は開いたことにしない）。
+// ブックスクリーンが 1 枚も無ければ、bookScreen が NO_BOOK_SCREEN
+export const NO_BOOK_SCREEN = "none"
 export function viewOf(catalog: CoreCatalog, state: MatomezuState) {
+  const front = viewFrontOf(state.window)
   const book = recentBookScreen(state.window)
+  if (!book) return { front, bookScreen: NO_BOOK_SCREEN }
   const ws = book.stages
   const stage = currentStage(ws)
   const screen = {
@@ -142,7 +146,6 @@ export function viewOf(catalog: CoreCatalog, state: MatomezuState) {
     stages: ws.stages.map(s => ({ id: s.id, ...openedOf(s) })),
     canSplit: ws.stages.length < MAX_STAGES,
   }
-  const front = viewFrontOf(state.window)
   // そのブックスクリーンが見えていなければ、見えていない物として分ける
   return shownScreens(catalog, state.window).includes(book.id) ? { front, ...screen } : { front, hidden: screen }
 }
@@ -177,22 +180,38 @@ const ShowSchema = z.object({
   mode: z.enum(["edit", "print-preview"]).optional(),
 })
 
-// 常駐が頼んだブックを出す。ステージが無ければカレント、split なら分けて右にできたステージに出す。
-// mode が print-preview なら、印刷プレビューで出す
+// 常駐が頼んだブックを出す。ステージも split も言わなければ、窓に出す（showBook: もう開いていれば前に出し、無ければ新しいブックスクリーン）。
+// ステージを言えばそのステージに、split なら分けて右にできたステージに出す。mode が print-preview なら、印刷プレビューで出す
 export function showIn(instance: MatomezuInstance, show: z.infer<typeof ShowSchema>) {
   const { actions, state } = instance
-  let stage = show.stage ?? screenOf(state.getState().window).current
-  if (show.split) {
-    const before = screenOf(state.getState().window).stages.map(s => s.id)
-    actions.split(stage)
-    const added = screenOf(state.getState().window).stages.find(s => !before.includes(s.id))
-    if (!added) return
-    stage = added.id
-  }
-  actions.openBook(stage, show.book)
-  if (show.page) actions.openPage(stage, show.page)
+  const stage = show.stage === undefined && !show.split ? shownStage(instance, show) : placedStage(instance, show)
+  if (stage === undefined) return
   const book = state.getState().books[show.book]
   if (show.mode === "print-preview" && book) actions.openPrintPreview(stage)
+}
+
+// ブックを窓に出して、出したステージを答える
+function shownStage({ actions, state }: MatomezuInstance, show: z.infer<typeof ShowSchema>): string | undefined {
+  if (!actions.showBook(show.book, show.page)) return undefined
+  return bookScreenShowing(state.getState().window, show.book)?.stages.current
+}
+
+// ブックを、言われたステージ（split なら、分けて右にできたステージ）に出して、出したステージを答える
+function placedStage({ actions, state }: MatomezuInstance, show: z.infer<typeof ShowSchema>): string | undefined {
+  let stage = show.stage ?? recentBookScreen(state.getState().window)?.stages.current
+  if (stage === undefined) return undefined
+  if (show.split) {
+    const before = (screenOfStage(state.getState().window, stage)?.stages.stages ?? []).map(s => s.id)
+    const from = stage
+    actions.split(from)
+    const added = screenOfStage(state.getState().window, from)?.stages.stages.find(s => !before.includes(s.id))
+    if (!added) return undefined
+    stage = added.id
+  }
+  const to = stage
+  actions.openBook(to, show.book)
+  if (show.page) actions.openPage(to, show.page)
+  return to
 }
 
 const DataSchema = z.object({

@@ -1,6 +1,6 @@
 // 変更提案郵便: 利用者が直している箱を AI が変えようとして断られ（being-edited）、変更を郵便で送る。利用者は郵便を開き、「場所を示す」で郵便を閉じずに
 // 窓の右の端に寄せて箱を見て、「反映」を押すと箱が変わり、郵便箱の行に「反映済み」が出る（読み直しても両方が残る）。ほかの窓でその箱を直している間は、反映を断ってトーストで知らせる
-import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
+import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, startingAtFirstBook, test } from "./fixtures"
 import { addBox, items } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
 
@@ -61,7 +61,7 @@ test("断られた変更を変更提案郵便で送り、場所を示すで郵�
   const dialogBox = (await mail.boundingBox())!
   expect(dialogBox.x + dialogBox.width).toBeGreaterThan((page.viewportSize()?.width ?? 0) - 40)
   // ほかの窓でその箱を直している間は、反映を断ってトーストで知らせ、郵便は残す
-  const other = await context.newPage()
+  const other = startingAtFirstBook(await context.newPage())
   await other.goto(BOOK_SCREEN_URL)
   const otherEditing = other.getByRole("dialog", { name: "ボックスの編集" })
   await items(other).filter({ hasText: "一" }).dblclick()

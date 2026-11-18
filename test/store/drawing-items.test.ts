@@ -13,7 +13,7 @@ import { isShown } from "../../web/src/store/commands"
 import type { Plugin } from "../../web/src/store/plugin"
 import { createMatomezuInstance } from "../../web/src/store/store"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { newStore, sequence, sizedStore } from "../support"
+import { newStore, sequence, showFirstBook, sizedStore } from "../support"
 
 // 紙の上の点 at に箱の左上が来るポインタの位置（表示領域の左上から）
 function pointerFor(store: ReturnType<typeof newStore>, at: Point): Point {
@@ -217,6 +217,7 @@ test("追加と編集のダイアログを持たない形は、押した所に�
     lang: "ja",
     newId: sequence(),
   })
+  showFirstBook(store)
   store.actions.resizeStage("s1", { w: 1400, h: 1000 })
   store.actions.togglePlacing("s1", "@matomezu/box:shape-nest-box")
   store.actions.command("s1", "@matomezu/paper:paper-place", pointerFor(store as never, { x: 100, y: 50 }))

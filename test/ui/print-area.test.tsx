@@ -10,6 +10,7 @@ import { createMatomezu } from "../../web/src/store/create"
 import { StageScope } from "../../web/src/ui/scope"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { SAMPLE_BOOKS } from "../sample-books"
+import { showFirstBook } from "../support"
 
 afterEach(cleanup)
 
@@ -20,6 +21,7 @@ test("紙 1 枚で描くページには線を引かず、広さが右に 2 枚�
     books: SAMPLE_BOOKS,
     lang: "ja",
   })
+  showFirstBook(instance)
   instance.actions.resizeStage("s1", { w: 1400, h: 1000 })
   const { container } = render(
     <MatomezuProvider instance={instance} layout={DEFAULT_LAYOUT}>

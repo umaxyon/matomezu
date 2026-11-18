@@ -12,6 +12,9 @@ test("答える形の無いページの重さは 0", () => {
     controlCenter: "@matomezu/control-center:control-center",
     lang: "ja",
   })
+  // 最初のブックを窓に出す（ブックが無ければ、何も開かないステージのブックスクリーンを開く）
+  if (!instance.actions.showBook(Object.keys(instance.state.getState().books)[0] ?? ""))
+    instance.actions.openScreen("@matomezu/base:book-screen", {})
   act(() => {
     expect(createBookIn(instance, "s1", { title: "図" })).toBe(true)
   })

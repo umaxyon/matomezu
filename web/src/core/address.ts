@@ -12,7 +12,7 @@ import { sameData } from "./same"
 import type { Book } from "./schema/book"
 import { newStage, openBinder, openBook, openPage, panBy, type Stage, shownPageId, stopStart } from "./stage"
 import { zoomInRange } from "./viewport"
-import { mapScreens, NO_SCREEN_DEF, type OpenedScreen, type WindowState } from "./window"
+import { mapScreens, NO_SCREEN_DEF, type OpenedScreen, type WindowState, withinLimits } from "./window"
 import { MAX_STAGES, MIN_SHARE, newWorkspace, type Workspace } from "./workspace"
 
 export interface StagePlace {
@@ -209,14 +209,13 @@ export function placeAt(
     if (needed) kept.push(s)
   }
   const all = [...kept, ...screens]
-  if (!all.some(s => s.stages)) return win
   const given = address.order.filter((id, i, list) => all.some(s => s.id === id) && list.indexOf(id) === i)
   const order = [...all.filter(s => !given.includes(s.id)).map(s => s.id), ...given]
   // 機能台帳に無いスクリーンアレンジメントなら、今のまま。値が定義の形に合わなければ、定義の初めの値
   const def = catalog.screenArrangements.get(address.arrangement)
   const arrangement = def ? address.arrangement : win.arrangement
   const arrangementValue = def ? arrangementValueOf(def, address.arrangementValue) : win.arrangementValue
-  return { screens: all, order, arrangement, arrangementValue, issued, issuedScreens }
+  return withinLimits({ screens: all, order, arrangement, arrangementValue, issued, issuedScreens }, catalog)
 }
 
 // 場所が今のままで当てはめを省くときの窓 win: 当てはめたときと同じく、どのステージも初めの位置に合わせない（変わらなければ win のまま）

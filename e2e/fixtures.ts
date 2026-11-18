@@ -6,6 +6,7 @@ import { readFileSync, rmSync } from "node:fs"
 import { resolve } from "node:path"
 import { type BrowserContext, test as base, type Page } from "@playwright/test"
 import { E2E_BOOKS } from "./books"
+import { storedBooks } from "./helpers/stored"
 
 // test のほか（expect・Page など）は Playwright のまま
 export * from "@playwright/test"
@@ -51,6 +52,29 @@ export type TestOptions = { enabledPlugins: readonly string[] }
 
 // 開いた直後（URL が無いとき）はコントロールセンターが前に出る。ブックスクリーンから始めるテストは BOOK_SCREEN_URL、コントロールセンターから始めるテストは CONTROL_CENTER_URL を開く
 export const BOOK_SCREEN_URL = "/?f=book"
+
+// ブック book（無ければ、何も開かないステージ）を開いたブックスクリーンが前に出ている場所の URL（コントロールセンター c1 の後ろに、ブックスクリーン c2）
+export const bookScreenUrl = (book: string | null): string =>
+  `/?sc=${encodeURIComponent(
+    JSON.stringify({
+      s: [
+        { i: "c1", d: "@matomezu/control-center:screen" },
+        { i: "c2", d: "@matomezu/base:book-screen", g: { l: [{ b: book, v: [1, 0, 0] }], c: 0, r: 0.5 } },
+      ],
+      o: ["c1", "c2"],
+    }),
+  )}`
+
+// page.goto(BOOK_SCREEN_URL) を、そのとき常駐に在る最初のブックを開いたブックスクリーンの URL へ行かせる（窓はブックスクリーン 0 枚で始まるため）
+export function startingAtFirstBook<P extends Page>(page: P): P {
+  const goto = page.goto.bind(page)
+  page.goto = (async (url, options) => {
+    if (url !== BOOK_SCREEN_URL) return goto(url, options)
+    const first = (await storedBooks(page.request))[0] as { id: string } | undefined
+    return goto(bookScreenUrl(first?.id ?? null), options)
+  }) as Page["goto"]
+  return page
+}
 export const CONTROL_CENTER_URL = "/?f=center"
 
 // URL に書かれた画面の場所（host-client/location.ts の sc の値。無ければ null）
@@ -72,8 +96,12 @@ export const urlFront = (page: { url(): string }): string | undefined => {
   const place = urlPlace(page)
   return place?.s.find(x => x.i === place.o.at(-1))?.d
 }
-// URL の、ブックスクリーンのステージの並び（左から）
-export const urlStages = (page: { url(): string }): UrlStage[] => urlPlace(page)?.s.find(x => x.g)?.g?.l ?? []
+// URL の、いちばん最近カレントにしたブックスクリーンのステージの並び（左から）
+export const urlStages = (page: { url(): string }): UrlStage[] => {
+  const place = urlPlace(page)
+  const recent = [...(place?.o ?? [])].reverse().find(id => place?.s.find(x => x.i === id)?.g)
+  return place?.s.find(x => x.i === recent)?.g?.l ?? []
+}
 export const CONTROL_CENTER_SCREEN_DEF = "@matomezu/control-center:screen"
 export const BOOK_SCREEN_DEF = "@matomezu/base:book-screen"
 
@@ -153,9 +181,10 @@ export const test = base.extend<
     await use(async () => {
       const context = await browser.newContext()
       await giveCookie(host, context)
-      return context.newPage()
+      return startingAtFirstBook(await context.newPage())
     })
   },
+  page: async ({ page }, use) => use(startingAtFirstBook(page)),
   reset: [
     async ({ host, books, enabledPlugins }, use) => {
       const done = await fetch(`${host.url}/api/reset-for-test`, {

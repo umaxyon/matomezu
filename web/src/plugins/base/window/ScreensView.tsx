@@ -33,7 +33,7 @@ export function ScreensView() {
   // カレントスクリーンがブックスクリーンか（CSS が data-front で、どちらを見せるかを決める）
   const front = useMatomezuState(s => bookScreenCurrent(s.window)) ? "book-screen" : "control-center"
   // 見せるブックスクリーン（いちばん最近カレントにした 1 枚）と、見せるステージを並べないスクリーン（同じく。無ければ none）
-  const book = useMatomezuState(s => recentBookScreen(s.window).id)
+  const book = useMatomezuState(s => recentBookScreen(s.window)?.id)
   const top = useMatomezuState(s => recentPlainScreen(s.window))
   const current = useMatomezuState(s => s.window.order[s.window.order.length - 1])
   const stageScreens = useMatomezuState(useShallow(s => s.window.screens.filter(x => x.stages).map(x => x.id)))

@@ -10,7 +10,7 @@ import { StageScope } from "../../web/src/ui/scope"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { useShownPage } from "../../web/src/ui/view-hooks"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { sequence } from "../support"
+import { sequence, showFirstBook } from "../support"
 
 afterEach(cleanup)
 
@@ -25,6 +25,7 @@ test("内包ボックスの中のリストの設定ダイアログの下書き�
     lang: "ja",
     newId: sequence(),
   })
+  showFirstBook(instance)
   instance.actions.resizeStage("s1", { w: 1400, h: 1000 })
   const place = (args: object) => {
     const done = instance.actions.perform("@matomezu/paper:item-place", { w: 200, h: 100, ...args } as never, {

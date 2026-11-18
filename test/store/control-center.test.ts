@@ -8,13 +8,14 @@ import { isShown } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
 import { warningsOf } from "../../web/src/store/plugin"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { BUILTIN_PARTS, newStore } from "../support"
+import { BUILTIN_PARTS, newStore, showFirstBook } from "../support"
 
 const CENTER = "@matomezu/control-center:control-center"
 
 describe("コントロールセンター", () => {
   test("コントロールセンターはブックでないので、ブックを持たないインスタンスは何も開かない", () => {
     const instance = createMatomezu({ plugins: BUILTIN, controlCenter: CENTER })
+    showFirstBook(instance)
     expect(instance.controlCenter).toBe(CENTER)
     expect(Object.keys(instance.state.getState().books)).toEqual([])
     expect(screenOf(instance.state.getState().window).stages[0]!.opened).toBeNull()
@@ -28,6 +29,7 @@ describe("コントロールセンター", () => {
 
   test("コントロールセンターの無いインスタンスは、ブックの一覧を変えるアクションを断り、そのコマンドを出さない", () => {
     const instance = createMatomezu({ plugins: BUILTIN, books: SAMPLE_BOOKS })
+    showFirstBook(instance)
     expect(instance.controlCenter).toBeNull()
     expect(createBookIn(instance, "s1", { title: "新しい図" })).toBe(false)
     expect(isShown(instance, instance.state.getState(), "s1", "@matomezu/base:book-new")).toBe(false)
@@ -36,6 +38,7 @@ describe("コントロールセンター", () => {
   test("コントロールセンターのプラグインが無くても、base と図面（と図面が選ぶもの）でインスタンスを作れる", () => {
     const plugins = BUILTIN.filter(p => p.id !== "@matomezu/control-center")
     const instance = createMatomezu({ plugins, partial: true, books: SAMPLE_BOOKS })
+    showFirstBook(instance)
     expect(instance.catalog.core.controlCenters.size).toBe(0)
     expect(instance.actions.command("s1", "@matomezu/base:stage-split")).toBe(true)
   })

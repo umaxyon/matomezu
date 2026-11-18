@@ -7,6 +7,7 @@ import { isEnabled } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { SAMPLE_BOOKS } from "../sample-books"
+import { showFirstBook } from "../support"
 
 const kit = pluginKit("@ex/bin", defineMessages({ bin: { en: "Bin", ja: "捨てる" } }))
 
@@ -23,6 +24,7 @@ function ready() {
     partial: true,
     plugins: [...BUILTIN, kit.plugin({ commands: [ON_OPENED, ANYWHERE] })],
   })
+  showFirstBook(store)
   const enabled = (id: string) => isEnabled(store, store.state.getState(), "s1", id as never)
   return { store, enabled }
 }

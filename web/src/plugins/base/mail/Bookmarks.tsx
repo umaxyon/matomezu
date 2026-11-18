@@ -1,7 +1,8 @@
 // しおり（ウィジェット mail-bookmarks。根に置く）: まだ見ていない郵便を、画面の上の右寄りから、しおりのようにぶら下げる（マーキーは消えるが、しおりは見るまで残る）。
 // しおりは細く、郵便の絵だけを描く（題はボタンの名前）。3 通までは 1 通に 1 つずつ、色を変えて新しい順に並べ、押すとその郵便のダイアログを開く。3 通を超えたら 1 つにまとめて数を付け、押すとブックスクリーンを前に出して、左サイドパネルに郵便箱と送信トレイを渡して開く
 
-import { screenOf } from "../../../core/window"
+import { recentBookScreen } from "../../../core/window"
+import { NO_STAGE } from "../../../store/dialogs"
 import { useMessages } from "../../../ui/i18n"
 import { useMatomezuState, useStoreActions } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
@@ -29,7 +30,7 @@ export function MailBookmarks() {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
   const unread = useMailbox().filter(m => !m.seenAt)
-  const stage = useMatomezuState(s => screenOf(s.window).current)
+  const stage = useMatomezuState(s => recentBookScreen(s.window)?.stages.current ?? NO_STAGE)
   const open = useOpenMail()
   const openPanel = useOpenLeftSidePanelAt()
   const actions = useStoreActions()

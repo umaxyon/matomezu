@@ -7,7 +7,7 @@ import { type PointerEvent, useEffect, useRef } from "react"
 import { findPage } from "../../../core/book"
 import type { Point } from "../../../core/geom"
 import { shownPageId } from "../../../core/stage"
-import { screenOf } from "../../../core/window"
+import { recentBookScreen } from "../../../core/window"
 import { pluginValueOf } from "../../../store/plugin-state"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
@@ -42,7 +42,8 @@ const FIRST_AT = { right: 24, top: 64 }
 export function SearchDialogHost() {
   const stage = useMatomezuState(s => {
     const open = (id: string) => pluginValueOf(s.pluginValues, id, SEARCH_STATE) !== undefined
-    const ws = screenOf(s.window)
+    const ws = recentBookScreen(s.window)?.stages
+    if (!ws) return null
     if (open(ws.current)) return ws.current
     return ws.stages.find(st => open(st.id))?.id ?? null
   })

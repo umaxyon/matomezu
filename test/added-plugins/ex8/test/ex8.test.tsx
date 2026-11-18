@@ -24,6 +24,9 @@ test("単語帳を開くと、カードのプレゼンテーションのビュ�
     controlCenter: "@matomezu/control-center:control-center",
     lang: "ja",
   })
+  // 最初のブックを窓に出す（ブックが無ければ、何も開かないステージのブックスクリーンを開く）
+  if (!instance.actions.showBook(Object.keys(instance.state.getState().books)[0] ?? ""))
+    instance.actions.openScreen("@matomezu/base:book-screen", {})
   render(
     <MatomezuProvider instance={instance} layout={placeAdded(DEFAULT_LAYOUT, instance.plugins)}>
       <WindowRoot />
@@ -52,6 +55,9 @@ test("自分で足したテーマタイプのテーマ（黒板）は、それ�
     controlCenter: "@matomezu/control-center:control-center",
     lang: "ja",
   })
+  // 最初のブックを窓に出す（ブックが無ければ、何も開かないステージのブックスクリーンを開く）
+  if (!instance.actions.showBook(Object.keys(instance.state.getState().books)[0] ?? ""))
+    instance.actions.openScreen("@matomezu/base:book-screen", {})
   const catalog = instance.catalog.core
   expect(themesFor(catalog, "ex8:deck").map(t => t.id)).toEqual(["@matomezu/base:standard", "ex8:chalk"])
   expect(themeFits(catalog, "@matomezu/drawing:drawing", "ex8:chalk")).toBe(false)
@@ -63,6 +69,9 @@ test("カードの並べ方は画面の場所に入り（読み直しても戻�
     controlCenter: "@matomezu/control-center:control-center",
     lang: "ja",
   })
+  // 最初のブックを窓に出す（ブックが無ければ、何も開かないステージのブックスクリーンを開く）
+  if (!instance.actions.showBook(Object.keys(instance.state.getState().books)[0] ?? ""))
+    instance.actions.openScreen("@matomezu/base:book-screen", {})
   render(
     <MatomezuProvider instance={instance} layout={placeAdded(DEFAULT_LAYOUT, instance.plugins)}>
       <WindowRoot />

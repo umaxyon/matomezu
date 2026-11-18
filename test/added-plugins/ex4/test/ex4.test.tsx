@@ -22,6 +22,9 @@ const make = () => {
     controlCenter: "@matomezu/control-center:control-center",
     lang: "ja",
   })
+  // 最初のブックを窓に出す（ブックが無ければ、何も開かないステージのブックスクリーンを開く）
+  if (!instance.actions.showBook(Object.keys(instance.state.getState().books)[0] ?? ""))
+    instance.actions.openScreen("@matomezu/base:book-screen", {})
   render(
     <MatomezuProvider instance={instance} layout={placeAdded(DEFAULT_LAYOUT, instance.plugins)}>
       <WindowRoot />
@@ -106,6 +109,9 @@ test("ビルトインの線（と線を選ぶ図面・フローチャート）�
     ui => !["@matomezu/line", "@matomezu/drawing", "@matomezu/flowchart"].includes(ui.id),
   )
   const instance = createMatomezu({ plugins, controlCenter: "@matomezu/control-center:control-center", partial: true })
+  // 最初のブックを窓に出す（ブックが無ければ、何も開かないステージのブックスクリーンを開く）
+  if (!instance.actions.showBook(Object.keys(instance.state.getState().books)[0] ?? ""))
+    instance.actions.openScreen("@matomezu/base:book-screen", {})
   expect(() =>
     render(
       <MatomezuProvider instance={instance} layout={placeAdded(DEFAULT_LAYOUT, instance.plugins)}>

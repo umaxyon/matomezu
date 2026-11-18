@@ -28,7 +28,7 @@ export type BookScreen = OpenedScreen & { stages: Workspace }
 export type ViewFront = "control-center" | "book-screen"
 
 export interface WindowState {
-  screens: readonly OpenedScreen[] // 開いているスクリーン（開いた順。1 枚以上で、ステージを並べるスクリーンを 1 枚以上持つ）
+  screens: readonly OpenedScreen[] // 開いているスクリーン（開いた順。1 枚以上。ステージを並べるスクリーンは 0 枚でもよい）
   order: readonly string[] // スクリーンの id を、カレントにした順に並べた物（最後がカレントスクリーン）
   arrangement: string // スクリーンアレンジメントの定義の id（開いているスクリーンの見せ方）
   arrangementValue: unknown // スクリーンアレンジメントの値（定義の value の形。値を持たない定義なら NO_ARRANGEMENT_VALUE）
@@ -44,19 +44,22 @@ export const NO_SCREEN_DEF = "none"
 
 const holdsStages = (s: OpenedScreen): s is BookScreen => s.stages !== undefined
 
-// 窓を開いたときの状態: 機能台帳の、最初から開いているスクリーン（定義が atStart を名乗る）と、ステージを並べるスクリーン 1 枚（ブックを渡せばそれを開き、無ければ何も開かない）。
-// カレントスクリーンは、ステージを並べるスクリーン
-export function newWindow(catalog: CoreCatalog, book: Book | null): WindowState {
+// 窓を開いたときの状態: 機能台帳の、最初から開いているスクリーン（定義が atStart を名乗る）だけを開く（ステージを並べるスクリーンは開かない）。
+// 最初から開いているスクリーンが 1 枚も無い機能台帳なら、ステージを並べるスクリーンを 1 枚（何も開かないステージ 1 つ）開く（窓はスクリーンを 1 枚以上持つ）
+export function newWindow(catalog: CoreCatalog): WindowState {
   const defs = [...catalog.screens.values()]
-  const stages = defs.find(d => d.stages)?.id ?? NO_SCREEN_DEF
   const arrangements = [...catalog.screenArrangements.values()]
   const first = arrangements.find(a => a.atStart) ?? arrangements[0]
   const arrangement = first?.id ?? NO_ARRANGEMENT
   const arrangementValue = first?.value?.initial ?? NO_ARRANGEMENT_VALUE
   let win: WindowState = { screens: [], order: [], arrangement, arrangementValue, issued: 0, issuedScreens: 0 }
   for (const d of defs) if (d.atStart && !d.stages) win = openScreen(win, catalog, d.id, {}).win
-  return openScreen(win, catalog, stages, {}, book).win
+  return win.screens.length > 0 ? win : openScreen(win, catalog, stagesDefOf(catalog), {}).win
 }
+
+// ステージを並べるスクリーンの定義の id（機能台帳に無ければ NO_SCREEN_DEF）
+export const stagesDefOf = (catalog: CoreCatalog): string =>
+  [...catalog.screens.values()].find(d => d.stages)?.id ?? NO_SCREEN_DEF
 
 // スクリーンを 1 枚開いてカレントにする（ステージを並べるスクリーンなら、ステージ 1 つの並びを持たせ、ブックを渡せばそれを開く）。開いた 1 枚の id も返す
 export function openScreen(
@@ -104,23 +107,23 @@ function recent(win: Pick<WindowState, "screens" | "order">, kind: "stages" | "p
   return undefined
 }
 
-// いちばん最近カレントにした、ステージを並べるスクリーン（ほかのスクリーンがカレントの間も、残っている物）
-export function recentBookScreen(win: Pick<WindowState, "screens" | "order">): BookScreen {
-  return (recent(win, "stages") as BookScreen | undefined) ?? fail("E117", { index: "none" })
-}
+// いちばん最近カレントにした、ステージを並べるスクリーン（ほかのスクリーンがカレントの間も、残っている物。1 枚も無ければ undefined）
+export const recentBookScreen = (win: Pick<WindowState, "screens" | "order">): BookScreen | undefined =>
+  recent(win, "stages") as BookScreen | undefined
 
 // いちばん最近カレントにした、ステージを並べないスクリーン（無ければ undefined）
 export const recentPlainScreen = (win: Pick<WindowState, "screens" | "order">): OpenedScreen | undefined =>
   recent(win, "plain")
 
-// いちばん最近カレントにしたブックスクリーンの中（ステージの並び）
+// いちばん最近カレントにしたブックスクリーンの中（ステージの並び）。ブックスクリーンが 1 枚も無い窓では呼ばない（E117）
 export function screenOf(win: Pick<WindowState, "screens" | "order">): Workspace {
-  return recentBookScreen(win).stages
+  return (recentBookScreen(win) ?? fail("E117", { index: "none" })).stages
 }
 
-// いちばん最近カレントにしたブックスクリーンに操作をかける。変わらなければ同じ窓を返す
+// いちばん最近カレントにしたブックスクリーンに操作をかける。ブックスクリーンが無ければ・変わらなければ同じ窓を返す
 export function mapScreen(win: WindowState, change: (ws: Workspace) => Workspace): WindowState {
   const was = recentBookScreen(win)
+  if (!was) return win
   const next = change(was.stages)
   return next === was.stages
     ? win
@@ -159,15 +162,23 @@ export function makeCurrentKind(win: WindowState, front: ViewFront): WindowState
   return to ? makeCurrent(win, to.id) : win
 }
 
-// スクリーン id を閉じる。最初から開いているスクリーン（定義が atStart を名乗る）の最後の 1 枚と、最後の 1 枚のブックスクリーンは閉じない（同じ窓を返す）。
+// スクリーン id を閉じる。最初から開いているスクリーン（定義が atStart を名乗る）の最後の 1 枚と、窓の最後の 1 枚は閉じない（同じ窓を返す）。
 // カレントスクリーンを閉じたら、その 1 つ前にカレントだった物がカレントになる
 export function closeScreen(win: WindowState, catalog: CoreCatalog, id: string): WindowState {
   const target = win.screens.find(s => s.id === id)
-  if (!target) return win
+  if (!target || win.screens.length === 1) return win
   const only = win.screens.filter(s => s.def === target.def).length === 1
   if (only && catalog.screens.get(target.def)?.atStart) return win
-  if (holdsStages(target) && win.screens.filter(holdsStages).length === 1) return win
   return { ...win, screens: win.screens.filter(s => s.id !== id), order: win.order.filter(x => x !== id) }
+}
+
+// 開いたままにする枚数（定義の maxOpen）を超えたスクリーンを閉じる（カレントにしたのが古い物から。超えていなければ同じ窓を返す）
+export function withinLimits(win: WindowState, catalog: CoreCatalog): WindowState {
+  let next = win
+  for (const d of catalog.screens.values())
+    if (d.maxOpen !== undefined)
+      for (const id of overLimit(next, d.id, d.maxOpen)) next = closeScreen(next, catalog, id)
+  return next
 }
 
 // 定義 def のスクリーンを max 枚まで開いたままにするとき、閉じる物（カレントにしたのが古い順に、超えた枚数だけ。超えなければ空）

@@ -8,7 +8,7 @@ import { pluginKit } from "../../web/src/store/kit"
 import { definePlugin } from "../../web/src/store/plugin"
 import { createMatomezuInstance } from "../../web/src/store/store"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { newStore, sequence } from "../support"
+import { newStore, sequence, showFirstBook, shown } from "../support"
 
 describe("コマンドを出すかは、呼んだ場所の様子で決まる", () => {
   test("分割していなければ分割を出し、分割していれば、やめると閉じるを出す", () => {
@@ -164,13 +164,15 @@ describe("コマンドは、自分のプラグインのプラグイン状態を�
     when: () => true,
   })
   const make = (plugin = kit.plugin({ pluginStates: [MODE, FLIPPED], commands: [TOGGLE, BOTH] })) =>
-    createMatomezuInstance({
-      plugins: [...BUILTIN, definePlugin(plugin)],
-      controlCenter: "@matomezu/control-center:control-center",
-      books: SAMPLE_BOOKS,
-      lang: "ja",
-      newId: sequence(),
-    })
+    shown(
+      createMatomezuInstance({
+        plugins: [...BUILTIN, definePlugin(plugin)],
+        controlCenter: "@matomezu/control-center:control-center",
+        books: SAMPLE_BOOKS,
+        lang: "ja",
+        newId: sequence(),
+      }),
+    )
   // 表に無い id（型に書き足していない追加プラグインのコマンド）を呼ぶ
   const call = (store: ReturnType<typeof make>, stage: string, id: string) =>
     (store.actions.command as (stage: string, id: string) => boolean)(stage, `@x/pane:${id}`)
@@ -227,6 +229,7 @@ describe("コマンドは、自分のプラグインのプラグイン状態を�
       lang: "ja",
       newId: sequence(),
     })
+    showFirstBook(store)
     expect(() => (store.actions.command as (stage: string, id: string) => boolean)("s1", "@x/other:steal")).toThrow(
       "E125",
     )

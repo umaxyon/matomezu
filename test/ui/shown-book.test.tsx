@@ -9,7 +9,7 @@ import { StageScope } from "../../web/src/ui/scope"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { useShownBook } from "../../web/src/ui/view-hooks"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { sequence } from "../support"
+import { sequence, showFirstBook } from "../support"
 
 afterEach(cleanup)
 
@@ -23,6 +23,7 @@ test("ブックを指す下書きは重なり、アイテムやページを指�
     lang: "ja",
     newId: sequence(),
   })
+  showFirstBook(instance)
   instance.actions.openDialog("s1", "@matomezu/base:book-settings" as never, undefined as never)
   let shown: Book | null = null
   function Probe() {

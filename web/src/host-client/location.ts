@@ -5,6 +5,7 @@
 // URL の形: 値 1 つ（sc）に、場所を短い名前の JSON で書く（searchOf）。前の形（b0・p0・v0・s0…、c・r・w・f）は読むだけで、書かない。
 // URL が無ければ、開いた直後はステージを並べないスクリーン（コントロールセンター）をカレントスクリーンにする。プラグイン状態の中身は読まない（形を確かめるのは store の locate）
 import { type Address, moved, recentStagesIn, type ScreenPlace, type StagePlace } from "../core/address"
+import { stagesDefOf } from "../core/window"
 import type { MatomezuInstance } from "../store/store"
 
 // URL とのやり取り（テストでは差し替える）
@@ -192,29 +193,42 @@ const FORMER_OPENED = "@matomezu/base:open-screen"
 
 // 前の形の場所 former を、今の場所 now（開いているスクリーンの id を持つ）に重ねて、今の形にする: いちばん最近カレントにしたステージを並べるスクリーンに
 // ステージの並びを当て（ステージが無ければ今のまま）、カレントスクリーンにするのは、その種類のいちばん最近カレントにしたスクリーン
-export function fromFormer(former: FormerAddress, now: Address): Address {
-  const book = recentStagesIn(now)
-  const screens = now.screens.map(s =>
+export function fromFormer(former: FormerAddress, now: Address, stagesDef?: string): Address {
+  // ステージの並びを持つ場所なのに、ステージを並べるスクリーンが 1 枚も開いていなければ、1 枚足す（定義 stagesDef）
+  const lacks = former.stages.length > 0 && stagesDef !== undefined && !recentStagesIn(now)
+  const made = `c${Math.max(0, ...now.screens.map(s => Number(s.id.slice(1)) || 0)) + 1}`
+  const at: Address = lacks
+    ? {
+        ...now,
+        screens: [
+          ...now.screens,
+          { id: made, def: stagesDef, props: {}, states: {}, stages: { places: [], current: 0, share: 0.5 } },
+        ],
+        order: [...now.order, made],
+      }
+    : now
+  const book = recentStagesIn(at)
+  const screens = at.screens.map(s =>
     s.id === book?.id && former.stages.length > 0
       ? { ...s, stages: { places: former.stages, current: former.current, share: former.share } }
       : s,
   )
   const recent = (stages: boolean) =>
-    [...now.order].reverse().find(id => (now.screens.find(s => s.id === id)?.stages !== undefined) === stages)
+    [...at.order].reverse().find(id => (at.screens.find(s => s.id === id)?.stages !== undefined) === stages)
   const to = recent(former.front === "book-screen")
-  const order = to === undefined ? now.order : [...now.order.filter(id => id !== to), to]
+  const order = to === undefined ? at.order : [...at.order.filter(id => id !== to), to]
   // 前の形では、重ねて開いたスクリーン（チケットスクリーンなど）を窓の範囲の値 1 つに書いていた。開いているスクリーンの 1 枚に直す
   const { [FORMER_OPENED]: opened, ...window } = former.window
   if (!isObject(opened) || typeof opened.screen !== "string")
-    return { screens, order, arrangement: now.arrangement, arrangementValue: now.arrangementValue, window }
-  const id = `c${Math.max(0, ...now.screens.map(s => Number(s.id.slice(1)) || 0)) + 1}`
+    return { screens, order, arrangement: at.arrangement, arrangementValue: at.arrangementValue, window }
+  const id = `c${Math.max(0, ...at.screens.map(s => Number(s.id.slice(1)) || 0)) + 1}`
   const added: ScreenPlace = { id, def: opened.screen, props: opened.props ?? {}, states: {} }
   const front = former.front === "book-screen" ? [id, ...order] : [...order, id]
   return {
     screens: [...screens, added],
     order: front,
-    arrangement: now.arrangement,
-    arrangementValue: now.arrangementValue,
+    arrangement: at.arrangement,
+    arrangementValue: at.arrangementValue,
     window,
   }
 }
@@ -232,7 +246,7 @@ function statesOf(text: string | null): Readonly<Record<string, unknown>> {
 
 // インスタンスの画面の場所を URL と行き来させる。止める関数を返す
 export function followLocation(
-  instance: Pick<MatomezuInstance, "state" | "address" | "locate"> & {
+  instance: Pick<MatomezuInstance, "state" | "address" | "locate" | "catalog"> & {
     pushing?(): ReadonlySet<string>
     setCanGoBack?(can: boolean): void
   },
@@ -240,7 +254,7 @@ export function followLocation(
 ) {
   // 読んだ場所を、今の形の場所にする（前の形の URL は、今開いているスクリーンに重ねる）
   const read = (found: Address | FormerAddress): Address =>
-    "former" in found ? fromFormer(found, instance.address()) : found
+    "former" in found ? fromFormer(found, instance.address(), stagesDefOf(instance.catalog.core)) : found
   // URL が無い（開いた直後）なら、ステージを並べないスクリーン（コントロールセンター）をカレントスクリーンにする
   const start: Address | FormerAddress = parseSearch(place.search()) ?? {
     former: true,

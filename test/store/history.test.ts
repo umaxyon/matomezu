@@ -12,7 +12,7 @@ import { isEnabled } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { SAMPLE_BOOKS, samplePage } from "../sample-books"
-import { newStore, sequence, sizedStore, worldRows } from "../support"
+import { newStore, sequence, showFirstBook, sizedStore, worldRows } from "../support"
 
 const BOX = "@matomezu/box:shape-nest-box"
 type Drawing = Book
@@ -303,6 +303,7 @@ test("いくつものブックを変えた画面の履歴の段は、どれか�
     newId: sequence(),
     partial: true,
   })
+  showFirstBook(store)
   store.actions.resizeStage("s1", { w: 1400, h: 1000 })
   const boxes = (book: string) => (pagesOf(store.state.getState().books[book] as Drawing)[0]?.items ?? []).length
   const placeIn = (book: string) =>

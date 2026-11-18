@@ -14,7 +14,7 @@ import { createMatomezu } from "../../web/src/store/create"
 import { defineDialog, defineDialogWith, type PageSettingsArgs } from "../../web/src/store/dialogs"
 import { definePlugin } from "../../web/src/store/plugin"
 import type { Actions } from "../../web/src/store/store"
-import { BUILTIN_PARTS } from "../support"
+import { BUILTIN_PARTS, showFirstBook } from "../support"
 
 // テストのプラグイン。型（core/catalog.ts）は書き足さない（書き足すと、このプロジェクトの全部のインスタンスに要るものになる）ので、インスタンスは partial で作る
 const NOTE = definePageType({
@@ -90,6 +90,7 @@ describe("インスタンスを作る", () => {
       controlCenter: "@matomezu/control-center:control-center",
       newId: () => `n${++made}`,
     })
+    showFirstBook(instance)
     expect(instance.catalog.core.pageTypes.has("notes:note")).toBe(true)
     expect(createBookIn(instance, "s1", { title: "メモ", page: { type: "notes:note" } as never })).toBe(true)
     expect(screenOf(instance.state.getState().window).stages[0]!.opened).toMatchObject({
@@ -100,6 +101,7 @@ describe("インスタンスを作る", () => {
     expect(instance.state.getState().dialog).toMatchObject({ id: "notes:shot", stage: "s1" })
 
     const plain = createMatomezu({ plugins: BUILTIN })
+    showFirstBook(plain)
     expect(createBookIn(plain, "s1", { title: "メモ", page: { type: "notes:note" } as never })).toBe(false)
     expect(thrown(() => untyped(plain.actions).command("s1", "notes:shoot"))).toMatchObject({ code: "E107" })
     expect(thrown(() => untyped(plain.actions).openDialog("s1", "notes:shot"))).toMatchObject({ code: "E108" })
@@ -119,6 +121,7 @@ describe("インスタンスを作る", () => {
       messages: { id: "greet:messages", messages: { "greet:hi": { en: "Hi", ja: "やあ" } } },
     })
     const instance = createMatomezu({ plugins: [...BUILTIN, greet], partial: true })
+    showFirstBook(instance)
     expect(instance.catalog.core.messages.get("greet:hi")).toEqual({ en: "Hi", ja: "やあ" })
     // 訳の無い言語では英語の文を出す
     expect(translate(instance.catalog.core.messages, "fr", "greet:hi" as never)).toBe("Hi")
@@ -206,6 +209,7 @@ describe("インスタンスを作る", () => {
       controlCenter: "@matomezu/control-center:control-center",
       newId: () => ids.shift() ?? "spare",
     })
+    showFirstBook(instance)
     const perform = instance.actions.perform as (id: string, args: unknown, on: unknown) => { ok: boolean }
     expect(createBookIn(instance, "s1", { title: "葉" })).toBe(true)
     expect(untyped(instance.actions).command("s1", "@matomezu/base:page-new", { type: "notes:leaf" })).toBe(true)
