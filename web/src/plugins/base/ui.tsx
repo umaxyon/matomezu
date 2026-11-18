@@ -299,10 +299,6 @@ declare module "../../core/catalog" {
     leftSidePanel?: { title: MessageKey; useCount?: () => number; scope: "stage" | "window" }
     // 設定カテゴリのスロットに置く物の、左の一覧に出す題名（文言の鍵）と、並べる利用者の設定の項目の id（無ければ中身はウィジェットのビューが描く）
     settingsCategory?: { title: MessageKey; settings?: readonly string[] }
-    // 送信トレイの行の絵のスロットに置く物が描く、アノテーションの種類の id
-    annotationIcon?: { annotation: string }
-    // 郵便のダイアログの下の行のスロットに置く物が描く、郵便の種類の本当の id
-    mailActions?: { mail: string }
     // 横断検索のモードのスロットに置く物の、切り替えに出す名前（文言の鍵）
     wideSearchMode?: { title: MessageKey }
     // 横断検索の当たりの開き方のスロットに置く物の、その当たりを開く関数を返すフックと、その名前を画面の物から作る関数を返すフック（任意）。開く種類は、ウィジェットの forKind（種類の持ち主だけが書ける）で引く

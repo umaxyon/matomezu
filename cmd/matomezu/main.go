@@ -50,10 +50,9 @@ type cli struct {
 	Talked       talkedCmd       `cmd:"" help:"Tell the server the user talked to AI, for an AI's hook that passes the hook's JSON on stdin (the notes AI has read start their expiry; the session is tied to the participant who joined from it, and a participant who just joined is welcomed in the hook's JSON). Prints --context when there is nothing else to say, and does nothing when the server is not running."`
 	Watch        watchCmd        `cmd:"" help:"Print one line for each thing the user did on the screen that should wake AI (such as accepting AI's request to join), for an AI's background monitor. Waits for the server and reconnects; prints nothing else."`
 	Model        modelCmd        `cmd:"" help:"Tell the server the model of AI's session, for an AI's hook (SessionStart or PostModelSwitch) that passes the hook's JSON on stdin (model or to_model). Does nothing when the JSON has no model or the server is not running."`
-	Permission   permissionCmd   `cmd:"" help:"Answer, for an AI's hook that runs before a tool is used (the hook's JSON is on stdin), that the matomezu tools that only read may be used without asking the user. Prints nothing for any other tool."`
 	ClaudeCode   claudeCodeCmd   `cmd:"" name:"claude-code" help:"Commands that matomezu's Claude Code plugin runs (its MCP, hooks and monitor)."`
 	Codex        codexCmd        `cmd:"" help:"Commands that matomezu's Codex plugin runs (its MCP, hooks, and the command that hands wake notices to a Codex conversation)."`
-	Opencode     opencodeCmd     `cmd:"" help:"Commands that matomezu's opencode plugin runs (the command that hands wake notices to an opencode conversation)."`
+	Opencode     opencodeCmd     `cmd:"" help:"Commands that matomezu's opencode plugin runs (its MCP, and the command that hands wake notices to an opencode conversation)."`
 	PluginPath   pluginPathCmd   `cmd:"" name:"plugin-path" help:"Print the folder of matomezu's plugin for an AI program, to add it from (such as claude plugin marketplace add)."`
 	PluginRemove pluginRemoveCmd `cmd:"" name:"plugin-remove" help:"Before removing matomezu (npm uninstall -g matomezu): stop the server and remove matomezu's plugin from the AI programs (Claude Code, Codex and opencode). Your books are kept."`
 	Version      versionCmd      `cmd:"" help:"Print the version."`
@@ -93,6 +92,8 @@ type mcpCmd struct {
 	serverFlags
 	Resident        bool     `help:"With a deliver command: start it once and keep it running (as watch --resident)."`
 	SessionEndsWith string   `enum:"program,mcp," default:"" help:"Say which process lives as long as this session, so that when it is gone the session has ended and matomezu may remove the participant: program is the AI's program (when it runs this one session only), mcp is this MCP's own process (or the entry that started it). Leave it out when neither can be said."`
+	MetaSession     []string `name:"meta-session" help:"Where in a tool call's _meta the AI program puts its session id (a JSON Pointer such as /ai.opencode~1sessionID), looked at after /sessionId and /threadId. Repeat for more."`
+	MetaModel       string   `name:"meta-model" help:"Where in a tool call's _meta the AI program puts its model (a JSON Pointer such as /x-codex-turn-metadata/model)."`
 	Deliver         []string `arg:"" optional:"" passthrough:"" help:"A command (after --) that hands each wake notice to the AI, as watch does with it. The MCP then also watches for the notices of its host program while it runs (for an AI program that has no background monitor)."`
 }
 
@@ -118,8 +119,6 @@ type watchCmd struct {
 	Resident  bool          `help:"Start the command after -- once and keep it running: write one JSON line {id, session, text} to its stdin for each notice, and read one JSON line {id, result} (delivered, absent or failed) from its stdout."`
 	Deliver   []string      `arg:"" optional:"" passthrough:"" help:"A command (after --) that hands each notice to the AI, instead of printing it: started for each notice with the text on stdin, the session id of the conversation in MATOMEZU_SESSION and the notice id in MATOMEZU_WAKE_ID; exit 0 when delivered, 3 when the AI's program does not have that conversation, anything else when it failed."`
 }
-
-type permissionCmd struct{}
 
 type versionCmd struct{}
 
@@ -287,7 +286,7 @@ func (c *mcpCmd) Run() error {
 			}
 		}()
 	}
-	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version, envName(), gitBranch, host, session, sessionPid(c.SessionEndsWith, host), sessionPidSpace(c.SessionEndsWith))
+	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version, envName(), gitBranch, host, session, sessionPid(c.SessionEndsWith, host), sessionPidSpace(c.SessionEndsWith), mcp.Meta{Session: c.MetaSession, Model: c.MetaModel})
 }
 
 // sessionPid は、--session-ends-with の値 endsWith が指す、セッションと同じだけ生きるプロセスの id（空なら名乗らない）。
@@ -457,12 +456,6 @@ func (c *modelCmd) Run() error {
 	hook := stdinHook()
 	hook.Host = c.Host
 	sendModel(hook, runningAPI("api/ai/model"))
-	return nil
-}
-
-// Run は、ツールを使う前のフックの答えを出す（フックの JSON が標準入力に来る）
-func (c *permissionCmd) Run() error {
-	permission(os.Stdout, stdinHook())
 	return nil
 }
 

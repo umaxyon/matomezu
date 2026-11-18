@@ -78,11 +78,14 @@ func talk(t *testing.T, api API, lines ...string) []map[string]any {
 	return talkOn(t, api, func() string { return "" }, lines...)
 }
 
+// testMeta は、テストの MCP が _meta を読む置き場所（AI のプログラムの部品が渡す物の代わり。鍵の / は ~1 で書く）
+var testMeta = Meta{Session: []string{"/x.ai~1session"}, Model: "/x-turn/model"}
+
 // talkOn は、git のブランチを branch で読む MCP に、頼みを 1 行ずつ送り、答えを返す
 func talkOn(t *testing.T, api API, branch func() string, lines ...string) []map[string]any {
 	t.Helper()
 	var out bytes.Buffer
-	if err := Serve(strings.NewReader(strings.Join(lines, "\n")+"\n"), &out, api, "v1", "wsl-linux", branch, "4242", "HS1", "", ""); err != nil {
+	if err := Serve(strings.NewReader(strings.Join(lines, "\n")+"\n"), &out, api, "v1", "wsl-linux", branch, "4242", "HS1", "", "", testMeta); err != nil {
 		t.Fatal(err)
 	}
 	var answers []map[string]any
@@ -211,16 +214,16 @@ func textOf(a map[string]any) string {
 	return a["result"].(map[string]any)["content"].([]any)[0].(map[string]any)["text"].(string)
 }
 
-// 参加の id を添える呼び出しには、呼び出しのたびに読んだブランチ（URL エンコード。空でも）を添え、その呼び出しの _meta にモデルがあれば（Codex）、モデルも添える（URL エンコード）。
+// 参加の id を添える呼び出しには、呼び出しのたびに読んだブランチ（URL エンコード。空でも）を添え、その呼び出しの _meta の、渡された置き場所にモデルがあれば、モデルも添える（URL エンコード）。
 // 参加の id が無ければ、どちらも添えない。AI のプログラムのプロセス id と、それが MCP を立てたときのセッション id は、join も含めていつも添える（起こす知らせの宛て先）
 func TestBranchAndModelGoWithTheParticipantAndHostAlways(t *testing.T) {
 	api := &fakeAPI{answer: `{"ok":true,"participant":"p7"}`}
 	branches := []string{"feat/d110", "", ""}
 	read := 0
 	talkOn(t, api, func() string { b := branches[read]; read++; return b },
-		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"join","arguments":{"model":"m","link":"L1"},"_meta":{"x-codex-turn-metadata":{"model":"gpt-6"}}}}`,
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"join","arguments":{"model":"m","link":"L1"},"_meta":{"x-turn":{"model":"gpt-6"}}}}`,
 		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"view","arguments":{}}}`,
-		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"view","arguments":{},"_meta":{"sessionId":"S1","x-codex-turn-metadata":{"model":"gpt 6/luna"}}}}`,
+		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"view","arguments":{},"_meta":{"sessionId":"S1","x-turn":{"model":"gpt 6/luna"}}}}`,
 	)
 	if len(api.headers) != 3 {
 		t.Fatalf("calls = %d", len(api.headers))
@@ -236,21 +239,27 @@ func TestBranchAndModelGoWithTheParticipantAndHostAlways(t *testing.T) {
 	}
 }
 
-// _meta のセッション id は sessionId（無ければ threadId、無ければ opencode の ai.opencode/sessionID）、モデルは AI ごとの置き場所から読む
+// _meta のセッション id は sessionId（無ければ threadId、無ければ渡された置き場所を順に）、モデルは渡された置き場所から読む
 func TestFromMeta(t *testing.T) {
+	keys := testMeta
 	for _, c := range []struct{ meta, session, model string }{
 		{``, "", ""},
 		{`{}`, "", ""},
 		{`{"sessionId":"S1","threadId":"T1"}`, "S1", ""},
 		{`{"threadId":"T1"}`, "T1", ""},
-		{`{"ai.opencode/sessionID":"O1"}`, "O1", ""},
-		{`{"sessionId":"S1","ai.opencode/sessionID":"O1"}`, "S1", ""},
-		{`{"sessionId":"S1","x-codex-turn-metadata":{"model":"gpt-6-luna","session_id":"S1"}}`, "S1", "gpt-6-luna"},
+		{`{"x.ai/session":"O1"}`, "O1", ""},
+		{`{"sessionId":"S1","x.ai/session":"O1"}`, "S1", ""},
+		{`{"sessionId":"S1","x-turn":{"model":"gpt-6-luna","session_id":"S1"}}`, "S1", "gpt-6-luna"},
+		{`{"x-turn":{"model":7}}`, "", ""},
 		{`"broken"`, "", ""},
 	} {
-		if s, m := fromMeta(json.RawMessage(c.meta)); s != c.session || m != c.model {
+		if s, m := fromMeta(json.RawMessage(c.meta), keys); s != c.session || m != c.model {
 			t.Errorf("fromMeta(%s) = %q, %q", c.meta, s, m)
 		}
+	}
+	// 置き場所を渡さなければ、AI のプログラムごとの置き場所は読まない
+	if s, m := fromMeta(json.RawMessage(`{"x.ai/session":"O1","x-turn":{"model":"m"}}`), Meta{}); s != "" || m != "" {
+		t.Errorf("fromMeta without keys = %q, %q", s, m)
 	}
 }
 
@@ -280,15 +289,15 @@ func TestJoinFillsWhoAndAttachesTheParticipantToLaterCalls(t *testing.T) {
 	}
 }
 
-// 1 つの MCP のプロセスをいくつものセッションが使い回す AI（opencode）: 参加の id は join したセッションの呼び出しにだけ付き、
+// 1 つの MCP のプロセスをいくつものセッションが使い回す AI のプログラム: 参加の id は join したセッションの呼び出しにだけ付き、
 // ほかのセッションの呼び出しには付かない。セッションごとに join すれば、それぞれの参加の id が付く
 func TestTheParticipantGoesOnlyWithTheSessionThatJoined(t *testing.T) {
 	api := &fakeAPI{answers: []string{`{"ok":true,"participant":"p1"}`, `{"ok":true,"participant":"p2"}`}}
 	call := func(id int, session string) string {
-		return fmt.Sprintf(`{"jsonrpc":"2.0","id":%d,"method":"tools/call","params":{"name":"view","arguments":{},"_meta":{"ai.opencode/sessionID":"%s"}}}`, id, session)
+		return fmt.Sprintf(`{"jsonrpc":"2.0","id":%d,"method":"tools/call","params":{"name":"view","arguments":{},"_meta":{"x.ai/session":"%s"}}}`, id, session)
 	}
 	join := func(id int, session string) string {
-		return fmt.Sprintf(`{"jsonrpc":"2.0","id":%d,"method":"tools/call","params":{"name":"join","arguments":{"model":"m","link":"L-%s"},"_meta":{"ai.opencode/sessionID":"%s"}}}`, id, session, session)
+		return fmt.Sprintf(`{"jsonrpc":"2.0","id":%d,"method":"tools/call","params":{"name":"join","arguments":{"model":"m","link":"L-%s"},"_meta":{"x.ai/session":"%s"}}}`, id, session, session)
 	}
 	talk(t, api, join(1, "ses_A"), call(2, "ses_A"), call(3, "ses_B"), join(4, "ses_B"), call(5, "ses_B"), call(6, "ses_A"),
 		`{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"view","arguments":{}}}`)
@@ -554,7 +563,7 @@ func TestTheSessionPidAndSpaceGoWhenSaid(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			api := &fakeAPI{answer: `{"ok":true,"participant":"p7"}`}
 			var out bytes.Buffer
-			if err := Serve(strings.NewReader(line+"\n"), &out, api, "v1", "wsl-linux", func() string { return "" }, "4242", "HS1", c.pid, c.space); err != nil {
+			if err := Serve(strings.NewReader(line+"\n"), &out, api, "v1", "wsl-linux", func() string { return "" }, "4242", "HS1", c.pid, c.space, Meta{}); err != nil {
 				t.Fatal(err)
 			}
 			if h := api.headers[0]; h.Get("X-Matomezu-Session-Pid") != c.pid || h.Get("X-Matomezu-Session-Pid-Space") != c.space || h.Get("X-Matomezu-Host") != "4242" {
