@@ -10,6 +10,7 @@ import {
   openTargetOf,
   pathTo,
   rowsIn,
+  shownFoldersOf,
   trashRowsOf,
 } from "../../../web/src/plugins/base/library/outline"
 import { newStore } from "../../support"
@@ -143,4 +144,18 @@ test("戻すときに確かめる事: 元いたフォルダが無いか、入る
     replaces: "",
     overwrite: "ok",
   })
+})
+
+test("見せているフォルダは、右の枠で開いているフォルダと、ツリーで中を出しているフォルダ（上のフォルダが閉じていれば入らず、ゴミ箱の中はツリーに出さない）", () => {
+  const { library, folder } = setup()
+  const folders = library().folders
+  // 右の枠で開いているフォルダは、ツリーで閉じていても入る
+  expect(shownFoldersOf(folders, folder, [])).toEqual([folder])
+  expect(shownFoldersOf(folders, TRASH_ID, [])).toEqual([TRASH_ID])
+  // フォルダの中のブック b2 は、上のフォルダ（書庫ホームとそのフォルダ）も全部開いているときだけ
+  expect(shownFoldersOf(folders, HOME_ID, [HOME_ID, "b2"])).toEqual([HOME_ID])
+  expect(shownFoldersOf(folders, HOME_ID, [folder, "b2"])).toEqual([HOME_ID])
+  expect(shownFoldersOf(folders, HOME_ID, [HOME_ID, folder, "b2"]).sort()).toEqual([HOME_ID, folder, "b2"].sort())
+  // ゴミ箱と、無いフォルダは、ツリーで開いた印が在っても入らない
+  expect(shownFoldersOf(folders, HOME_ID, [HOME_ID, TRASH_ID, "no-such-folder"])).toEqual([HOME_ID])
 })

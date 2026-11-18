@@ -6,6 +6,7 @@ import type { CoreCatalog } from "./core-catalog"
 import type { ActionContext, ActionOn, AIEditTicketChange, AIMessage } from "./def/action"
 import { type Folder, type PageRow, type TableChanges, withChanges } from "./folders"
 import { type HistoryStep, type RowChange, rowChangesOf } from "./history"
+import { applyPatch, patchOf } from "./patch"
 import { type PerformedIn, performIn, type World } from "./perform"
 import { keyValuesOf } from "./record-keys"
 import { type RecordSource, sourceOf } from "./record-source"
@@ -59,11 +60,21 @@ export interface BulkTicketChange {
 export const entersLibraryHistory = (action: { target: string; history?: false } | undefined): boolean =>
   action?.target === "library" && action.history !== false
 
-// アクションバルクのうち、書庫の画面の履歴に入るアクションが変えたページとフォルダごとの、前と後（そのアクションの前の値から、最後のそのアクションの後の値へ。
-// 同じ物をほかのアクションも変えていたら、その分は入らない）
+// アクションバルクのうち、書庫の画面の履歴に入るアクションが変えたページとフォルダごとの、前と後（最初のそのアクションの前の値と、それに、そのアクションたちの変えた分だけを
+// 行った値。同じ物をほかのアクションも変えていたら、その分は後の値に入らない）
 export type LibraryRows = Pick<HistoryStep, "pages" | "folders">
 
 export const NO_LIBRARY_ROWS: LibraryRows = { pages: {}, folders: {} }
+
+// 書庫の画面の履歴に入るアクションが、同じ物をもう一度変えた分 next を、それまでの分 had に重ねた前と後。後の値は、それまでの後の値に、今回の違い（Patch）だけを当てた物
+// （その間にほかのアクションが変えた分を、入れない）
+function joined<T>(had: RowChange<T> | undefined, next: RowChange<T>): RowChange<T> {
+  if (!had) return next
+  const side = (v: T | "none") => (v === "none" ? undefined : v)
+  const made = patchOf(side(next.before), side(next.after))
+  const after = made ? (applyPatch(side(had.after), made) as T | undefined) : side(had.after)
+  return { before: had.before, after: after ?? "none" }
+}
 
 // performBulk の結果。library は、changes のうち書庫の画面の履歴に入るアクションが変えた物（無ければ持たない）。通れば、アクションごとの結果と、合わせた変更（ページとフォルダは最初の前から最後の後へ。バルクの中で作って消した物は持たない）
 export type PerformedBulk<R = never> =
@@ -129,10 +140,8 @@ export function performBulk<R extends { ok: false } = never>(
       folders = { ...folders, ...done.changes.folders }
       if (entersLibraryHistory(ctx.catalog.actions.get(step.action))) {
         const rows = rowChangesOf(now, done.changes)
-        for (const [id, r] of Object.entries(rows.pages))
-          libraryPages[id] = { before: libraryPages[id]?.before ?? r.before, after: r.after }
-        for (const [id, r] of Object.entries(rows.folders))
-          libraryFolders[id] = { before: libraryFolders[id]?.before ?? r.before, after: r.after }
+        for (const [id, r] of Object.entries(rows.pages)) libraryPages[id] = joined(libraryPages[id], r)
+        for (const [id, r] of Object.entries(rows.folders)) libraryFolders[id] = joined(libraryFolders[id], r)
       }
     }
     if (done.settings) settings = done.settings

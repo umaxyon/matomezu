@@ -130,3 +130,21 @@ test("書庫の画面の履歴に入るアクションが変えたページと�
   expect(Object.keys(reverted.changes?.folders ?? {})).toEqual(["b1"])
   expect(reverted.library).toBeUndefined()
 })
+
+test("書庫が対象・ブックが対象・書庫が対象の順に同じブックを変えても、library の後の値に、間のブックが対象のアクションの分は入らない", () => {
+  const add = step(
+    "@matomezu/base:page-add",
+    { type: "@matomezu/drawing:drawing", title: "足したページ" },
+    { book: "b1" },
+  )
+  const rename = (title: string) => step("@matomezu/base:entry-rename", { entry: "b1", title })
+  const done = performBulk(world(), [rename("一回目"), add, rename("二回目")], CTX)
+  if (!done.ok) throw new Error(done.reason)
+  const lineupOf = (row: unknown) => (row as { lineup: unknown[] }).lineup
+  const sides = done.library?.folders.b1
+  if (!sides) throw new Error("no library rows")
+  expect((sides.after as { title?: string }).title).toBe("二回目")
+  expect(lineupOf(sides.after)).toEqual(lineupOf(sides.before))
+  // バルクの全部の後の値には、足したページが入っている
+  expect(lineupOf(done.changes?.folders.b1)).toHaveLength(lineupOf(sides.before).length + 1)
+})

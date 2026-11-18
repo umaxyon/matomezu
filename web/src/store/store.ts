@@ -38,6 +38,7 @@ import {
   type TableChanges,
   tablesOf,
   withChanges,
+  withRowsPatched,
   worldTablesOf,
 } from "../core/folders"
 import { deepFreeze } from "../core/freeze"
@@ -58,7 +59,7 @@ import {
 } from "../core/history"
 import { detectLang, type Lang, type Params } from "../core/i18n/i18n"
 import { type Books, splitTrash } from "../core/library"
-import { applyPatch, type Patch, patchOf, undoneIn, type Written } from "../core/patch"
+import { type Patch, patchOf, undoneIn, type Written } from "../core/patch"
 import { type ArgsOf, performIn, type Refused, type ResultOf, type TargetOf } from "../core/perform"
 import {
   type Counters,
@@ -478,7 +479,8 @@ export interface ForeignChange {
   actions: readonly string[]
   library?: ForeignLibraryRows
 }
-type RowSides = { before?: unknown; after?: unknown }
+// ページ・フォルダ 1 つの、前と後（常駐が知らせた値。無い側は none）
+export type RowSides = { before?: unknown; after?: unknown }
 export interface ForeignLibraryRows {
   pages: Readonly<Record<string, RowSides>>
   folders: Readonly<Record<string, RowSides>>
@@ -677,9 +679,6 @@ function shelvesOf(tables: Library): { books: Books; trash: Books } {
   }
   return lastShelves
 }
-
-const hasId = (row: unknown): row is { id: string } =>
-  typeof row === "object" && row !== null && typeof (row as { id?: unknown }).id === "string"
 
 function startLang(catalog: CoreCatalog, lang: Lang | readonly string[] = []): Lang {
   return detectLang(typeof lang === "string" ? [lang] : lang, [...catalog.languages.keys()])
@@ -911,30 +910,22 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   let unseenInLibrary: UnseenInLibrary[] = []
   // 確かめた世界の、最後に知っている表（よその変更の前の値）
   let knownTables: Library = { pages: {}, folders: {} }
-  // 確かめた世界の、最後に知らされたページとフォルダ（置き場所の形のまま）
-  let knownRaw: { pages: readonly unknown[]; folders: readonly unknown[] } = { pages: [], folders: [] }
-  // 最後に知っている世界に、よその変更のうち書庫の画面の履歴に入るアクションの分 rows だけを行った表と、その分が変えたページとフォルダの id。
-  // 知らせの前と後は置き場所の形なので、その違い（Patch）を最後に知らされた行に当ててから、この窓の形に組む（同じ物をほかのアクションも変えていても、その分は入らない）
+  // 最後に知っている表に、よその変更のうち書庫の画面の履歴に入るアクションの分 rows だけを行った表と、その分が変えたページとフォルダの id
+  // （知らせの前と後の違いを、最後に知っている行に当てる。同じ物をほかのアクションも変えていても、その分は入らない）
   const afterLibraryActions = (rows: ForeignLibraryRows) => {
     const side = (v: unknown) => (v === "none" ? undefined : v)
-    const applied = (known: readonly unknown[], changed: Readonly<Record<string, RowSides>>) => {
-      const patches = Object.entries(changed).flatMap(([id, r]) => {
-        const p = patchOf(side(r.before), side(r.after))
-        return p ? [[id, p] as const] : []
-      })
-      const byId = new Map(known.flatMap(r => (hasId(r) ? [[r.id, r as unknown] as const] : [])))
-      for (const [id, p] of patches) {
-        const next = applyPatch(byId.get(id), p)
-        if (next === undefined) byId.delete(id)
-        else byId.set(id, next)
-      }
-      return { rows: [...byId.values()], ids: patches.map(([id]) => id) }
+    const patchesOf = (changed: Readonly<Record<string, RowSides>>) =>
+      Object.fromEntries(
+        Object.entries(changed).flatMap(([id, r]) => {
+          const p = patchOf(side(r.before), side(r.after))
+          return p ? [[id, p] as const] : []
+        }),
+      )
+    const patches = { pages: patchesOf(rows.pages), folders: patchesOf(rows.folders) }
+    return {
+      tables: withRowsPatched(knownTables, patches),
+      rows: { pages: Object.keys(patches.pages), folders: Object.keys(patches.folders) },
     }
-    const pages = applied(knownRaw.pages, rows.pages)
-    const folders = applied(knownRaw.folders, rows.folders)
-    const found = restore(rawBooksOf(pages.rows, folders.rows))
-    const tables = settledOn(worldTablesOf(found.books, homeAndFoldersOf(folders.rows)), knownTables)
-    return { tables, rows: { pages: pages.ids, folders: folders.ids } }
   }
   // 書庫を見せているビューごとの、いるスクリーンと、見せているフォルダ（ビューが setShownFolders で知らせる）
   const shownFolders = new Map<string, { screen: string; folders: readonly string[] }>()
@@ -987,6 +978,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   // この窓の利用者の、画面の履歴に入れない書庫の変更（表を was から now にした。消す・空にする・置き直し）が、まだ見ていない書庫の変更が書いた値を消したら、
   // それを捨てる（あとで見えても差し込まない。AI の物は、消えた所と値を、その物を持つブックの名前で知らせる）
   const dropOverwrittenInLibrary = (was: Library, now: Library) => {
+    // 物 id を持つブック（ブックそのものなら、そのブック。ブックの外の物は undefined）
+    const bookOver = (id: string) => (was.folders[id]?.folderRole === "book" ? id : bookIdOf(was.folders, id))
     unseenInLibrary = unseenInLibrary.filter(u => {
       const lostIn = <T>(
         rows: Readonly<Record<string, RowChange<T>>>,
@@ -1000,11 +993,13 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         })
       const lost = [...lostIn(u.step.pages, was.pages, now.pages), ...lostIn(u.step.folders, was.folders, now.folders)]
       if (lost.length === 0) return true
-      const book = lost
-        .map(l => (was.folders[l.id]?.folderRole === "book" ? l.id : bookIdOf(was.folders, l.id)))
-        .find(b => b !== undefined)
-      if (u.step.by === "ai" && u.places.length > 0 && book !== undefined)
-        options.aiEditTicket?.({ book, act: u.act, places: u.places, outcome: "lost", lost: lost.flatMap(l => l.lost) })
+      // AI の物は、消えた物を持つブックごとに、そのブックの分だけを知らせる
+      if (u.step.by === "ai")
+        for (const book of new Set(lost.flatMap(l => bookOver(l.id) ?? []))) {
+          const places = u.places.filter(id => bookOver(id) === book)
+          const values = lost.filter(l => bookOver(l.id) === book).flatMap(l => l.lost)
+          if (places.length > 0) options.aiEditTicket?.({ book, act: u.act, places, outcome: "lost", lost: values })
+        }
       return false
     })
   }
@@ -1583,7 +1578,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       }
       known = library
       knownTables = tables
-      knownRaw = { pages: world.pages, folders: world.folders }
       let settings = restoreSettings(world.settings)
       let annotations = restoreAllAnnotations(world.annotations)
       let records = world.records === undefined ? getState().records : restoreRecords(world.records)
@@ -1748,7 +1742,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       unseenInLibrary = []
       known = {}
       knownTables = { pages: {}, folders: {} }
-      knownRaw = { pages: [], folders: [] }
       const { settings } = getState()
       const again = checkBooks(catalog, options.savedBooks ?? [])
       setState(

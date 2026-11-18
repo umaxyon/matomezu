@@ -902,12 +902,15 @@ func TestTrashABook(t *testing.T) {
 	if got := perform("entry-restore", `{"entry":"b1"}`); got != `{"ok":true,"result":{"into":"library-home"}}` {
 		t.Fatalf("restore = %s", got)
 	}
-	// 変わった後の行（library の前と後を除いた所）に、ゴミ箱に入れた印は残らない
+	// 知らせ event の、変わった後のフォルダの行（library の前と後は入らない）。ここに、ゴミ箱に入れた印は残らない
 	after := func(event string) string {
-		if i := strings.Index(event, `,"library":`); i >= 0 {
-			return event[:i]
+		var body struct {
+			Folders json.RawMessage `json:"folders"`
 		}
-		return event
+		if err := json.Unmarshal([]byte(strings.TrimPrefix(event, "changed ")), &body); err != nil {
+			t.Fatalf("changed event = %s: %v", event, err)
+		}
+		return string(body.Folders)
 	}
 	if got := next(t, a); !strings.HasPrefix(got, "changed ") || strings.Contains(after(got), `"trashed"`) || !strings.Contains(got, `"books":["b1"]`) || !strings.Contains(got, `{"folderRole":"home","id":"library-home","lineup":[{"kind":"book","id":"b1"}]}`) || !strings.Contains(got, `{"folderRole":"trash","id":"library-trash","lineup":[]}`) {
 		t.Fatalf("changed after restore = %s", got)

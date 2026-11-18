@@ -552,6 +552,12 @@ function patched<T>(
   return next ?? table
 }
 
+// 表 tables の、patches に挙げたページとフォルダだけを置き直した表（行ごとに当てるだけで、エントリとその中身の食い違いは直さない）
+export const withRowsPatched = (tables: Library, patches: RowPatches): Library => ({
+  pages: patched(tables.pages, patches.pages),
+  folders: patched(tables.folders, patches.folders),
+})
+
 // 並び lineup の、has が在ると答えたエントリだけの並び（全部在れば lineup のまま）
 function there<R extends AnyEntryRef>(lineup: readonly R[], has: (r: R) => boolean): readonly R[] {
   const kept = lineup.filter(has)
