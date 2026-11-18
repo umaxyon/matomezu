@@ -4,7 +4,7 @@
 import { z } from "zod"
 import { kit } from "../kit"
 import { ticketsOnRemoved } from "./removed"
-import { MAIL, mailAdded, READS_MAILBOX_KEYS } from "./subject"
+import { MAIL, mailAdded, readsMailSender } from "./subject"
 
 export { MAIL, MAILBOX_LIMIT, mailAdded, mailboxOf, READS_MAILBOX_KEYS } from "./subject"
 
@@ -40,7 +40,7 @@ export const MAIL_SEND = kit.defineAction({
     "Send a letter to the user's mailbox (it shows at once on the user's screen, wherever the user is). from is a short name telling who sends it (use the same name all through your session, such as your task or work name). title (80 characters at most) and body (optional) are the letter. to points at a place: a book, and optionally a page of it and things (ids) on that page; the user can move there from the letter. The place is not checked now (if it is gone when the user opens the letter, the user is told). The mailbox keeps the newest 200 letters (seen ones go first). Returns the letter's id; read_records (kind @matomezu/base:mail) tells later whether the user saw it and the place.",
   title: "Send mail",
   target: MAIL.id,
-  reads: READS_MAILBOX_KEYS,
+  reads: (_, actor) => readsMailSender(actor),
   args: z.strictObject({
     from: z.string().trim().min(1).max(40),
     title: LetterSchema.shape.title,

@@ -1,6 +1,8 @@
 // しおり（ウィジェット mail-bookmarks。根に置く）: まだ見ていない郵便を、画面の上の右寄りから、しおりのようにぶら下げる（マーキーは消えるが、しおりは見るまで残る）。
-// しおりは細く、郵便の絵だけを描く（題はボタンの名前）。3 通までは 1 通に 1 つずつ、色を変えて新しい順に並べ、押すとその郵便のダイアログを開く。3 通を超えたら 1 つにまとめて数を付け、押すとブックスクリーンを前に出して、左サイドパネルに郵便箱と送信トレイを渡して開く
+// 3 通までは 1 通に 1 つずつ、送り手の鳥の顔か封筒を描く。押すとその郵便のダイアログを開く。
+// 3 通を超えたら 1 つにまとめて数を付け、押すとブックスクリーンを前に出して、左サイドパネルに郵便箱と送信トレイを渡して開く。
 
+import type { CSSProperties } from "react"
 import { recentBookScreen } from "../../../core/window"
 import { NO_STAGE } from "../../../store/dialogs"
 import { useMessages } from "../../../ui/i18n"
@@ -9,14 +11,15 @@ import { useCoreCatalog } from "../../../ui/view-hooks"
 import { icon } from "../icon"
 import { kit } from "../kit"
 import { useOpenLeftSidePanelAt } from "../left-side-panel/hooks"
+import { BirdFaceView } from "../participant/BirdFaceView"
+import { useParticipants } from "../participant/hooks"
 import { Tip } from "../utils/Tip"
 import styles from "./Bookmarks.module.css"
+import { MAX_MAIL_BOOKMARKS, mailBookmarksOf } from "./bookmark-display"
 import { mailboxEntries } from "./entries"
 import { useMailbox, useOpenMail } from "./hooks"
 import { shownOf } from "./shown"
 import { MAILBOX_TAB_ID } from "./tab-id"
-
-const MAX_EACH = 3 // 1 通に 1 つずつぶら下げる、いちばん多い数
 
 // 郵便の絵（封筒）
 const LETTER_ICON = icon(
@@ -30,12 +33,13 @@ export function MailBookmarks() {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
   const unread = useMailbox().filter(m => !m.seenAt)
+  const participants = useParticipants()
   const stage = useMatomezuState(s => recentBookScreen(s.window)?.stages.current ?? NO_STAGE)
   const open = useOpenMail()
   const openPanel = useOpenLeftSidePanelAt()
   const actions = useStoreActions()
   if (unread.length === 0) return null
-  if (unread.length > MAX_EACH)
+  if (unread.length > MAX_MAIL_BOOKMARKS)
     return (
       <div className={styles.bookmarks}>
         <button
@@ -55,19 +59,23 @@ export function MailBookmarks() {
     )
   return (
     <div className={styles.bookmarks}>
-      {[...unread].reverse().map((m, i) => (
-        <Tip key={m.id} text={shownOf(catalog, m, t)?.title ?? t("Mail")}>
-          <button
-            type="button"
-            className={styles.bookmark}
-            data-tone={i}
-            aria-label={shownOf(catalog, m, t)?.title ?? t("Mail")}
-            onClick={() => open(m.id)}
-          >
-            {LETTER_ICON}
-          </button>
-        </Tip>
-      ))}
+      {mailBookmarksOf(unread, participants).map(({ mail, bird, tone, color, ink }) => {
+        const title = shownOf(catalog, mail, t)?.title ?? t("Mail")
+        return (
+          <Tip key={mail.id} text={title}>
+            <button
+              type="button"
+              className={styles.bookmark}
+              data-tone={tone}
+              style={color ? ({ "--bookmark-tone": color, "--bookmark-ink": ink } as CSSProperties) : undefined}
+              aria-label={title}
+              onClick={() => open(mail.id)}
+            >
+              {bird ? <BirdFaceView bird={bird.bird} palette={bird.palette} size={18} /> : LETTER_ICON}
+            </button>
+          </Tip>
+        )
+      })}
     </div>
   )
 }

@@ -43,6 +43,8 @@ export const BIRD_PALETTES: readonly BirdPalette[] = [
   palette("charcoal", "#3A3C44", "#DCE3EB", "#454852"),
 ]
 
+export const BIRD_PALETTE_IDS = BIRD_PALETTES.map(p => p.id) as [string, ...string[]]
+
 // 鳥ごとの元の配色
 export const BIRD_ORIGINAL = Object.fromEntries(
   BIRD_PALETTES.flatMap(p => (p.bird ? [[p.bird, p.colors]] : [])),

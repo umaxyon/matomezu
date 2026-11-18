@@ -11,15 +11,13 @@ import type { SubjectId } from "../../../core/catalog"
 import type { ActionContext, RecordRead } from "../../../core/def/action"
 import type { KeyValuesOf } from "../../../core/record-keys"
 import { BIRD_IDS } from "../birds"
-import { BIRD_PALETTES } from "../birds/colors"
+import { BIRD_PALETTE_IDS } from "../birds/colors"
 import { kit } from "../kit"
 
 export const WORKROOM_NAME_MAX = 20 // ワークルームの名前の長さの上限（字）
 
 // 受け入れていない要求の、いちばん多い数。超えたら、要求を断る
 export const PARTICIPANTS_LIMIT = 100
-
-const PALETTE_IDS = BIRD_PALETTES.map(p => p.id) as [string, ...string[]]
 
 export const WORKROOM = kit.defineSubject({
   id: "workroom",
@@ -31,7 +29,7 @@ export const WORKROOM = kit.defineSubject({
     id: z.string().min(1),
     name: z.string().trim().min(1).max(WORKROOM_NAME_MAX),
     bird: z.enum(BIRD_IDS),
-    palette: z.enum(PALETTE_IDS).optional(),
+    palette: z.enum(BIRD_PALETTE_IDS).optional(),
     createdAt: z.string(),
   }),
   keys: {
@@ -92,7 +90,7 @@ export type Workroom = z.output<typeof WORKROOM.record>
 const keysIn = <S extends SubjectId>(ctx: Pick<ActionContext, "keys">, subject: S) =>
   Object.entries<KeyValuesOf<S>>(ctx.keys?.[subject] ?? {}).map(([id, keys]) => ({ id, keys }))
 
-const BIRD_ARGS = { bird: z.enum(BIRD_IDS), palette: z.enum(PALETTE_IDS).optional() }
+const BIRD_ARGS = { bird: z.enum(BIRD_IDS), palette: z.enum(BIRD_PALETTE_IDS).optional() }
 const NAME = z.string().trim().min(1).max(WORKROOM_NAME_MAX)
 
 export const PARTICIPANT_REQUEST = kit.defineAction({
@@ -137,7 +135,7 @@ export const PARTICIPANT_REQUEST = kit.defineAction({
 })
 
 // ワークルーム room に入っている参加者の索引キーを読む宣言
-const readsIn = (room: string) => ({
+export const readsParticipantsIn = (room: string) => ({
   subject: PARTICIPANT.id,
   where: [{ key: "workroom" as const, eq: room }],
   keysOnly: true as const,
@@ -170,9 +168,9 @@ export const PARTICIPANT_ACCEPT = kit.defineAction({
           { subject: WORKROOM.id, where: [{ key: "name", eq: args.newWorkroom.name }], keysOnly: true },
           ...(args.discarding === undefined
             ? []
-            : [{ subject: WORKROOM.id, id: args.discarding.workroom }, readsIn(args.discarding.workroom)]),
+            : [{ subject: WORKROOM.id, id: args.discarding.workroom }, readsParticipantsIn(args.discarding.workroom)]),
         ]
-      : [{ subject: WORKROOM.id, id: args.workroom }, readsIn(args.workroom)],
+      : [{ subject: WORKROOM.id, id: args.workroom }, readsParticipantsIn(args.workroom)],
   userOnly: true,
   args: z.union([
     z.strictObject({ workroom: z.string().min(1), occupant: OCCUPANT }),
@@ -304,7 +302,7 @@ export const WORKROOM_REMOVE = kit.defineAction({
   target: WORKROOM.id,
   writes: [PARTICIPANT.id],
   // このワークルームに入っている参加者の索引キー
-  reads: (_args, _actor, on) => (on === undefined ? [] : [readsIn(on)]),
+  reads: (_args, _actor, on) => (on === undefined ? [] : [readsParticipantsIn(on)]),
   userOnly: true,
   args: z.strictObject({ occupant: OCCUPANT }),
   run: (now, args, ctx) => {

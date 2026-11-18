@@ -6,6 +6,8 @@ import { z } from "zod"
 import type { CoreCatalog } from "../../../core/core-catalog"
 import { splitId } from "../../../core/names"
 import { type Warning, warning } from "../../../core/warnings"
+import { BIRD_IDS } from "../birds"
+import { BIRD_PALETTE_IDS } from "../birds/colors"
 
 export const MailSchema = z.object({
   id: z.string().min(1),
@@ -23,6 +25,13 @@ export const MailSchema = z.object({
   visitedAt: z.string().optional(), // 利用者が行き先を見た時点（無ければまだ）
   props: z.unknown(), // 種類ごとの形（種類の props で確かめる）
   order: z.number().int().min(1), // 届いた順の番号（AI には見せない）
+  sender: z
+    .object({
+      participant: z.string().min(1),
+      bird: z.enum(BIRD_IDS),
+      palette: z.enum(BIRD_PALETTE_IDS).optional(),
+    })
+    .optional(), // 送信時に参加済みだった送り手と、その時の鳥と配色
 })
 export type Mail = z.output<typeof MailSchema>
 
