@@ -1,9 +1,10 @@
 // 郵便: AI が手紙を送ると、フォーカスのある窓にマーキーが流れ、画面の上からしおりがぶら下がる。左サイドパネルを開くボタンと郵便箱のタブに未読の数が出る。
 // しおりか郵便箱の行を押すとダイアログで本文が見え（見たことになる）、下の行の「開く」などで行き先へ移る（行き先を見たことになる）。行き先の物には鳥が来て枠が光る。
 // 行き先が無ければ「行き先がありません」と「閉じる」だけ
-import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
+import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test, urlPlace, urlStages } from "./fixtures"
 import { addBox, items } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
+import { storedBooks } from "./helpers/stored"
 
 const leftPanel = (page: Page) => page.getByRole("complementary", { name: "左サイドパネル" })
 const perform = async (page: Page, data: object) =>
@@ -243,4 +244,26 @@ test("郵便箱から開いたダイアログは、「閉じる」でも「開�
   await dialog.getByRole("button", { name: "郵便箱も閉じる" }).click()
   await expect(dialog).toHaveCount(0)
   await expect(leftPanel(page)).toHaveCount(0)
+})
+
+test("「開く」は、行き先のブックを新しいブックスクリーンで開き、見ていたブックのスクリーンは後ろに残る", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  const book = await ready(page)
+  const other = ((await storedBooks(page.request)) as { id: string }[]).find(b => b.id !== book)?.id
+  expect(other).toBeDefined()
+  await perform(page, {
+    action: "@matomezu/base:mail-send",
+    args: { from: "a", title: "別のブック", to: { book: other } },
+  })
+  await page.getByRole("button", { name: "別のブック" }).click()
+  await page.getByRole("dialog", { name: "別のブック" }).getByRole("button", { name: "開く", exact: true }).click()
+  // 見ていたブックのスクリーンは閉じずに残り、行き先のブックのスクリーンが前に出る
+  await expect.poll(() => urlStages(page)[0]?.b).toBe(other)
+  expect(
+    urlPlace(page)
+      ?.s.filter(x => x.g)
+      .map(x => x.g?.l[0]?.b),
+  ).toEqual([book, other])
 })
