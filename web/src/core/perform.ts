@@ -219,7 +219,7 @@ function brokenRecord(
 // 書庫が対象のアクションが名指したエントリ entry を where のとおりに変えるとき、行う前に問うブックと、その中の所:
 // ブックならそのブック、フォルダなら中のブックの全部（名前だけなら、どれにも問わない）、ブックの中のページ・バインダなら、そのブックのそのエントリ
 function booksOfEntry(library: Library, entry: string, how: EntryWhere): { book: string; where: Where }[] {
-  const where: Where = how === "all-pages" ? { allPages: true } : { only: how }
+  const where: Where = how === "all-pages" ? { allPages: true } : how === "place" ? { place: true } : {}
   const row = library.folders[entry]
   if (row?.folderRole === "book") return [{ book: entry, where }]
   if (row && isOpenRole(row.folderRole)) {

@@ -5,7 +5,7 @@ import { z } from "zod"
 import { isMoveRefusal, movedEntry, placedEntry } from "../../../core/entries"
 import { HOME_ID, type PlainFolder } from "../../../core/folders"
 import { kit } from "../kit"
-import { holdsEntries, numbered, placedInFolder, retitled } from "./entries"
+import { holdsEntries, numbered, placedInFolder, retitled, titleOf } from "./entries"
 
 export const FOLDER_CREATE = kit.defineAction({
   id: "folder-create",
@@ -29,7 +29,7 @@ export const FOLDER_CREATE = kit.defineAction({
 export const ENTRY_MOVE = kit.defineAction({
   id: "entry-move",
   aiDescription:
-    'Move an entry of the library (a book or a folder, with everything in it) to another folder, or to another position in the same folder: entry is its id (it must be directly in the library home or a folder), into the id of the folder to move it to (the library home or a folder, not inside the entry itself), index the position there (counted without the entry; at the end without it). Nothing in the entry changes. When the folder already has an entry with the same title, onConflict "refuse" (the default) refuses with title-taken, and "number" moves it with a number added to its title (returned as title). Only the user can replace the entry that is there.',
+    'Move an entry of the library (a book or a folder, with everything in it; or a page or a binder that is not in a book) to another folder, or to another position in the same folder: entry is its id (it must be directly in the library home or a folder), into the id of the folder to move it to (the library home or a folder, not inside the entry itself), index the position there (counted without the entry; at the end without it). Nothing in the entry changes. When the folder already has an entry with the same title, onConflict "refuse" (the default) refuses with title-taken, and "number" moves it with a number added to its title (returned as title). Only the user can replace the entry that is there.',
   title: "Move",
   target: "library",
   permissionScope: { entry: "entry", where: "place" },
@@ -47,15 +47,15 @@ export const ENTRY_MOVE = kit.defineAction({
     if (args.onConflict !== "number" || place.holder.id === args.into) return { next: moved, result: {} }
     const next = numbered(moved, place.ref.kind, args.entry, args.into)
     if (!next) return null
-    const row = next.folders[args.entry] as { title?: string } | undefined
-    return { next, result: next === moved || row?.title === undefined ? {} : { title: row.title } }
+    const title = titleOf(next, place.ref.kind, args.entry)
+    return { next, result: next === moved || title === undefined ? {} : { title } }
   },
 })
 
 export const ENTRY_RENAME = kit.defineAction({
   id: "entry-rename",
   aiDescription:
-    "Rename an entry of the library (a book or a folder): entry is its id (it must be directly in the library home or a folder), title the new name. Refused (title-taken) when its folder already has an entry with that title, and for a locked book.",
+    "Rename an entry of the library (a book, a folder, or a page or a binder that is not in a book): entry is its id (it must be directly in the library home or a folder), title the new name. Refused (title-taken) when its folder already has an entry with that title, and for a locked book.",
   title: "Rename",
   target: "library",
   permissionScope: { entry: "entry", where: "title" },

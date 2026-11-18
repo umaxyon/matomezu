@@ -103,6 +103,8 @@ test("ロックしたブックは動かせる。名前は変えられず、入�
   const denied = { ok: false, reason: "denied", permission: "@matomezu/base:lock", book: "b1" } as const
   expect(perform("@matomezu/base:entry-rename", { entry: "b1", title: "x" })).toEqual(denied)
   expect(perform("@matomezu/base:entry-trash", { entry: a })).toEqual(denied)
+  // フォルダの名前だけを変えるときは、どのブックにも問わない
+  expect(perform("@matomezu/base:entry-rename", { entry: a, title: "しごと" }).ok).toBe(true)
   const b = folder("私用")
   expect(perform("@matomezu/base:entry-move", { entry: a, into: b }).ok).toBe(true)
 })

@@ -139,3 +139,25 @@ test("置き場所が変わったブックは、値が変わらなくても認�
 test("書庫が対象のアクションが、形に合わない書庫ホームの行を返したら断る", () => {
   expect(run(library(b1), BREAK.id, {}, ctx)).toEqual({ ok: false, reason: "refused" })
 })
+
+test("ゴミ箱の外で動いたブックは、値が変わらなくても認可ステップが moved を受ける（フォルダごと動かした中のブックも。動かなかったブックには問わない）", () => {
+  const b: PlainFolder = { folderRole: "folder", id: "b", title: "b", lineup: [] }
+  const was = library(b1)
+  const start: Library = {
+    pages: was.pages,
+    folders: {
+      ...was.folders,
+      b,
+      [HOME_ID]: {
+        ...was.folders[HOME_ID],
+        lineup: [...was.folders[HOME_ID]!.lineup, { kind: "folder", id: "b" }],
+      } as Folder,
+    },
+  }
+  places.length = 0
+  expect(run(start, "@matomezu/base:entry-move", { entry: "a", into: "b" }, ctx)).toMatchObject({ ok: true })
+  expect(places).toEqual(["b1:moved"])
+  places.length = 0
+  expect(run(start, "@matomezu/base:entry-move", { entry: "b2", into: "b" }, ctx)).toMatchObject({ ok: true })
+  expect(places).toEqual(["b2:moved"])
+})
