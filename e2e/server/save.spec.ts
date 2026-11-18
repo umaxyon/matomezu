@@ -1,6 +1,6 @@
 import { drawingPage, testBook } from "../../test/lineup"
 import { E2E_BOOKS, pagesIn } from "../books"
-import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test, urlStages } from "../fixtures"
+import { BOOK_SCREEN_URL, bookScreenUrl, expect, joinedAiAuth, type Page, test, urlStages } from "../fixtures"
 import { addBox } from "../helpers/paper"
 import { openGeneral } from "../helpers/settings"
 import { fromMenu } from "../helpers/stage-menu"
@@ -224,7 +224,8 @@ test("ブックを開くダイアログで、行のゴミ箱のボタンでゴ�
     locked: true,
     lineup: [{ ...pagesIn(E2E_1)[0]!, id: "e2e-locked-p1" }],
   })
-  await page.goto(BOOK_SCREEN_URL)
+  // ゴミ箱に入れるブックでない方を開いておく（開いているブックが無くなると、そのブックスクリーンは閉じる）
+  await page.goto(bookScreenUrl("e2e-locked"))
   const openDialog = async () => {
     await (await fromMenu(page, "ブックを開く")).click()
     return page.getByRole("dialog", { name: "ブックを開く" })

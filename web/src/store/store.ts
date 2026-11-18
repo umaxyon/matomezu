@@ -98,6 +98,7 @@ import {
   bookScreenShowing,
   closeScreen,
   currentScreen,
+  followLibraryIn,
   issueStage,
   makeCurrent,
   mapScreen,
@@ -121,7 +122,6 @@ import {
   evenDivider,
   focus,
   followBook,
-  followLibrary,
   MAX_STAGES,
   mapStage,
   moveDivider,
@@ -1027,7 +1027,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       next.books = shelves.books
       next.trash = shelves.trash
       if (catalog.actions.get(id)?.target === "library") {
-        next.window = mapScreens(window, ws => followLibrary(catalog, ws, shelves.books, books))
+        next.window = followLibraryIn(window, catalog, shelves.books, books)
         // 画面の履歴に入れないアクション（戻す・やり直す）が上書きした物は、その前の値を画面の履歴の段に残さないので捨てる
         if (catalog.actions.get(id)?.history === false)
           for (const after of Object.values(shelves.books)) {
@@ -1498,9 +1498,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         ...(tables.pages === now.pages ? {} : { pages: tables.pages }),
         ...(tables.folders === now.folders ? {} : { folders: tables.folders }),
         ...(trash === now.trash ? {} : { trash }),
-        ...(books === now.books
-          ? {}
-          : { books, window: mapScreens(now.window, ws => followLibrary(catalog, ws, books, now.books)) }),
+        ...(books === now.books ? {} : { books, window: followLibraryIn(now.window, catalog, books, now.books) }),
         ...(settings === now.settings ? {} : { settings, lang: langOf(catalog, settings, fallback) }),
         ...(annotations === now.annotations ? {} : { annotations }),
         ...(records === now.records ? {} : { records }),

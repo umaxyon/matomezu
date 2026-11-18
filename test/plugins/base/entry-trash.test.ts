@@ -5,7 +5,7 @@ import { USER } from "../../../web/src/core/actor"
 import { pagesOf } from "../../../web/src/core/book"
 import { type Folders, HOME_ID, type PlainFolder, TRASH_ID } from "../../../web/src/core/folders"
 import { permittedIn } from "../../../web/src/core/perform"
-import { screenOf } from "../../../web/src/core/window"
+import { recentBookScreen, screenOf } from "../../../web/src/core/window"
 import { createBookIn } from "../../../web/src/plugins/base/book-new/create-book"
 import { restoreTargetOf } from "../../../web/src/plugins/base/library/entries"
 import { addPageIn } from "../../../web/src/plugins/base/page-tabs/add-page"
@@ -41,7 +41,7 @@ test("戻す先は、元いたフォルダ。無ければ・ゴミ箱の中な�
   expect(restoreTargetOf(folders, [])).toBe(HOME_ID)
 })
 
-test("entry-trash はブックをゴミ箱の並びへ移し、開いていたステージは何も開かない。無いブックは断る", () => {
+test("entry-trash はブックをゴミ箱の並びへ移し、開いていたブックスクリーンは閉じる。無いブックは断る", () => {
   const { state, actions } = newStore({ now: () => NOW })
   expect(actions.perform("@matomezu/base:entry-trash", { entry: "b1" }).ok).toBe(true)
   expect("b1" in state.getState().books).toBe(false)
@@ -50,8 +50,19 @@ test("entry-trash はブックをゴミ箱の並びへ移し、開いていた�
     { kind: "book", id: "b1", trashed: NOW, from: [HOME_ID] },
   ])
   expect(state.getState().folders[HOME_ID]?.lineup.some(r => r.id === "b1")).toBe(false)
-  expect(screenOf(state.getState().window).stages[0]?.opened).toBeNull()
+  expect(recentBookScreen(state.getState().window)).toBeUndefined()
   expect(actions.perform("@matomezu/base:entry-trash", { entry: "b1" }).ok).toBe(false)
+})
+
+test("分けたステージの片方のブックが無くなると、そのステージだけ閉じる。戻しても開き直さない", () => {
+  const { state, actions } = newStore({ now: () => NOW })
+  actions.split("s1")
+  const right = screenOf(state.getState().window).stages[1]?.id ?? ""
+  actions.openBook(right, "b2")
+  expect(actions.perform("@matomezu/base:entry-trash", { entry: "b2" }).ok).toBe(true)
+  expect(screenOf(state.getState().window).stages.map(s => s.opened?.book)).toEqual(["b1"])
+  expect(actions.perform("@matomezu/base:entry-restore", { entry: "b2" }).ok).toBe(true)
+  expect(screenOf(state.getState().window).stages.map(s => s.opened?.book)).toEqual(["b1"])
 })
 
 test("ゴミ箱のブックは、ブックが対象のアクションでは無いものとして断る", () => {

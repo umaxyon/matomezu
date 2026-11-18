@@ -11,7 +11,7 @@ import { fail } from "./errors"
 import { sameData } from "./same"
 import type { Book } from "./schema/book"
 import type { Stage } from "./stage"
-import { newWorkspace, type Workspace } from "./workspace"
+import { close, followLibrary, newWorkspace, type Workspace } from "./workspace"
 
 // 開いているスクリーン 1 枚
 export interface OpenedScreen {
@@ -170,6 +170,25 @@ export function closeScreen(win: WindowState, catalog: CoreCatalog, id: string):
   const only = win.screens.filter(s => s.def === target.def).length === 1
   if (only && catalog.screens.get(target.def)?.atStart) return win
   return { ...win, screens: win.screens.filter(s => s.id !== id), order: win.order.filter(x => x !== id) }
+}
+
+// ブックの一覧が books に変わったときの窓（before は変わる前の一覧）: 残ったブックにはステージを合わせ、無くなったブックを開いていたステージは閉じる。
+// ステージが全部無くなったブックスクリーンは閉じる（窓の最後の 1 枚なら、何も開いていないステージ 1 つで残す）
+export function followLibraryIn(
+  win: WindowState,
+  catalog: CoreCatalog,
+  books: Readonly<Record<string, Book>>,
+  before?: Readonly<Record<string, Book>>,
+): WindowState {
+  let next = mapScreens(win, ws => followLibrary(catalog, ws, books, before))
+  for (const s of win.screens) {
+    if (!s.stages) continue
+    const gone = s.stages.stages.filter(st => st.opened && !books[st.opened.book]).map(st => st.id)
+    if (gone.length === 0) continue
+    if (gone.length === s.stages.stages.length) next = closeScreen(next, catalog, s.id)
+    else for (const id of gone) next = mapScreenOfStage(next, id, ws => close(ws, id))
+  }
+  return next
 }
 
 // 開いたままにする枚数（定義の maxOpen）を超えたスクリーンを閉じる（カレントにしたのが古い物から。超えていなければ同じ窓を返す）
