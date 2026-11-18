@@ -52,7 +52,7 @@ export function MailDialog({ args, onClose }: DialogProps<{ mail: string }>) {
   // この種類のボタンのウィジェット（あれば、開くボタンの代わりにそのボタンを並べる）
   const placed: readonly string[] = useLayout().slots[MAIL_ACTIONS] ?? []
   const uiWidgets = useUiCatalog().widgets
-  const actionsId = mail ? placed.find(w => uiWidgets.get(w)?.mailActions?.mail === mail.mail) : undefined
+  const actionsId = mail ? placed.find(w => uiWidgets.get(w)?.forKind === mail.mail) : undefined
   const Actions = actionsId
     ? (uiWidgets.get(actionsId)?.view as ((props: MailActionsProps) => ReactNode) | undefined)
     : undefined

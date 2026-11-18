@@ -84,7 +84,7 @@ function Row({ annotation: a, now }: { annotation: AiAnnotation; now: Date }) {
 function Icon({ annotation: a }: { annotation: Annotation }) {
   const placed: readonly string[] = useLayout().slots[ANNOTATION_ICON] ?? []
   const widgets = useUiCatalog().widgets
-  const id = placed.find(w => widgets.get(w)?.annotationIcon?.annotation === a.annotation)
+  const id = placed.find(w => widgets.get(w)?.forKind === a.annotation)
   const View = id ? (widgets.get(id)?.view as ((props: AnnotationIconProps) => ReactNode) | undefined) : undefined
   return <span className={styles.icon}>{View ? <View annotation={a} /> : <span className={styles.dot} />}</span>
 }

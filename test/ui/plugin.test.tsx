@@ -4,7 +4,7 @@ import { definePageType } from "../../web/src/core/def/page-type"
 import { definePresentation } from "../../web/src/core/def/presentation"
 import { BUILTIN } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
-import { BASE_UI, defineWideSearchOpener } from "../../web/src/plugins/base/ui"
+import { BASE_UI, defineAnnotationIcon, defineMailActions, defineWideSearchOpener } from "../../web/src/plugins/base/ui"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { defineDialog } from "../../web/src/store/dialogs"
@@ -149,6 +149,25 @@ describe("見た目のプラグイン", () => {
     expect(thrown(() => assembleUi([...BUILTIN_UI, raw]))).toMatchObject({ code: "E312" })
     const own = definePluginUi(definePlugin({ id: "icons" }), { widgets: [opener("icons:open-note", "icons:note")] })
     expect(() => assembleUi([...BUILTIN_UI, own])).not.toThrow()
+  })
+
+  test("郵便のダイアログのボタンと送信トレイの行の絵も、種類の持ち主のプラグインだけが名乗れる（持ち主が違えば E312、同じなら通る）", () => {
+    const actions = (id: string, mail: string) => defineMailActions({ id: id as never, mail, view: () => null })
+    const icon = (id: string, annotation: string) =>
+      defineAnnotationIcon({ id: id as never, annotation, view: () => null })
+    const ui = (widgets: (ReturnType<typeof actions> | ReturnType<typeof icon>)[]) =>
+      definePluginUi(definePlugin({ id: "icons" }), { widgets })
+    expect(
+      thrown(() => assembleUi([...BUILTIN_UI, ui([actions("icons:proposal", "@matomezu/base:proposal")])])),
+    ).toMatchObject({
+      code: "E312",
+    })
+    expect(thrown(() => assembleUi([...BUILTIN_UI, ui([icon("icons:note", "@matomezu/base:note")])]))).toMatchObject({
+      code: "E312",
+    })
+    expect(() =>
+      assembleUi([...BUILTIN_UI, ui([actions("icons:mine", "icons:mail"), icon("icons:mine-icon", "icons:mark")])]),
+    ).not.toThrow()
   })
 
   test("見た目を結んでいないプラグイン・ビューの無い id・知らない id の差し替え・2 つの差し替えは error", () => {

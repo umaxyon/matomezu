@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import {
   type Matomezu,
+  mcpServer,
   type Processes,
   type PromptEvent,
   type SessionApi,
@@ -205,4 +206,10 @@ describe("モデル", () => {
       [["model"], { session_id: id, model: "opencode/other" }],
     ])
   })
+})
+
+// MCP は matomezu opencode mcp で立てる（opencode が _meta に添えるセッション id の置き場所は、そのコマンドが知る）
+test("the MCP is started with matomezu opencode mcp", () => {
+  expect(mcpServer({ bin: "mz" }).command).toEqual(["mz", "opencode", "mcp"])
+  expect(mcpServer({ bin: "mz", root: "/nowhere" }).command.slice(0, 3)).toEqual(["mz", "opencode", "mcp"])
 })
