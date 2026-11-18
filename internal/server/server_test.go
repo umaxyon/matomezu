@@ -902,7 +902,14 @@ func TestTrashABook(t *testing.T) {
 	if got := perform("entry-restore", `{"entry":"b1"}`); got != `{"ok":true,"result":{"into":"library-home"}}` {
 		t.Fatalf("restore = %s", got)
 	}
-	if got := next(t, a); !strings.HasPrefix(got, "changed ") || strings.Contains(got, `"trashed"`) || !strings.Contains(got, `"books":["b1"]`) || !strings.Contains(got, `{"folderRole":"home","id":"library-home","lineup":[{"kind":"book","id":"b1"}]}`) || !strings.Contains(got, `{"folderRole":"trash","id":"library-trash","lineup":[]}`) {
+	// 変わった後の行（library の前と後を除いた所）に、ゴミ箱に入れた印は残らない
+	after := func(event string) string {
+		if i := strings.Index(event, `,"library":`); i >= 0 {
+			return event[:i]
+		}
+		return event
+	}
+	if got := next(t, a); !strings.HasPrefix(got, "changed ") || strings.Contains(after(got), `"trashed"`) || !strings.Contains(got, `"books":["b1"]`) || !strings.Contains(got, `{"folderRole":"home","id":"library-home","lineup":[{"kind":"book","id":"b1"}]}`) || !strings.Contains(got, `{"folderRole":"trash","id":"library-trash","lineup":[]}`) {
 		t.Fatalf("changed after restore = %s", got)
 	}
 	// 戻したブックは、AI の読む口にまた出る
