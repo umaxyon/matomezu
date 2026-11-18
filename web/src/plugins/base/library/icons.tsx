@@ -1,6 +1,8 @@
-// 書庫の行のアイコン（種類ごと）と、ツリーの開閉の印
+// 書庫の行のアイコン（種類ごと）と、ツリーの開閉の印、書庫の画面の履歴のコマンドのアイコン（ブックの画面の履歴のコマンドと同じ絵）
 import type { EntryKind } from "../../../core/entries"
+import { REDO_ICON, UNDO_ICON } from "../history/icons"
 import { icon } from "../icon"
+import { LIBRARY_REDO, LIBRARY_UNDO } from "./commands"
 
 const FOLDER = icon(<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />)
 const BOOK = icon(
@@ -27,3 +29,8 @@ export const CHEVRON = icon(<path d="M9 6l6 6-6 6" />)
 const ICONS = { folder: FOLDER, book: BOOK, binder: BINDER, page: PAGE } as const satisfies Record<EntryKind, unknown>
 
 export const iconOf = (kind: EntryKind) => ICONS[kind]
+
+export const LIBRARY_COMMAND_ICONS = {
+  [LIBRARY_UNDO.id]: UNDO_ICON,
+  [LIBRARY_REDO.id]: REDO_ICON,
+}

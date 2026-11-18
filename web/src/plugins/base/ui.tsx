@@ -12,6 +12,7 @@ import { DIALOG_HOST } from "./dialog-host/ui"
 import { EDIT_LOCK } from "./edit-lock/ui"
 import { HISTORY_ICONS } from "./history/icons"
 import { LIBRARY_NEW_BOOK_DIALOG } from "./library/dialog"
+import { LIBRARY_COMMAND_ICONS } from "./library/icons"
 import { LibraryNewBookDialog } from "./library/LibraryNewBookDialog"
 import type { MailActionsProps } from "./mail/slots"
 import {
@@ -267,6 +268,7 @@ export const BASE_UI = definePluginUi(BASE, {
     ...BOOK_LOOK_ICONS,
     ...PAGE_SETTINGS_ICONS,
     ...HISTORY_ICONS,
+    ...LIBRARY_COMMAND_ICONS,
     ...SETTINGS_ICONS,
     ...WINDOW_ICONS,
   },
