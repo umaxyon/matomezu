@@ -6,10 +6,12 @@ import {
   isWithin,
   placeOf,
   removedEntry,
+  restoredEntry,
   rowsWithin,
   titledIn,
   titleOf,
   titlesIn,
+  trashRefOf,
 } from "../../../core/entries"
 import {
   type AnyEntryRef,
@@ -57,17 +59,46 @@ export function retitled(library: Library, kind: EntryKind, entry: string, title
   }
 }
 
-// フォルダ into の直下に在るエントリ entry（種類 kind）の名前が、同じフォルダのほかの物と重なっていれば、番号を付けた名前（「名前 2」から）にした書庫。重ならなければ library のまま
-export function numbered(library: Library, kind: EntryKind, entry: string, into: string): Library | null {
+// フォルダ into の直下に在るエントリ entry（種類 kind）の、同じフォルダのほかの物と重ならない名前（重なっていれば「名前 2」から番号を付ける。重ならなければ今の名前）。
+// 名前を持たない物・フォルダが無いときは undefined
+function freeTitleIn(library: Library, kind: EntryKind, entry: string, into: string): string | undefined {
   const holder = library.folders[into]
   const title = titleOf(library, kind, entry)
-  if (!holder || title === undefined) return null
-  return retitled(library, kind, entry, freeTitle(title, titlesIn(library, holder, entry)))
+  return !holder || title === undefined ? undefined : freeTitle(title, titlesIn(library, holder, entry))
+}
+
+// フォルダ into の直下に在るエントリ entry（種類 kind）の名前が、同じフォルダのほかの物と重なっていれば、番号を付けた名前（「名前 2」から）にした書庫。重ならなければ library のまま
+export function numbered(library: Library, kind: EntryKind, entry: string, into: string): Library | null {
+  const title = freeTitleIn(library, kind, entry, into)
+  return title === undefined ? null : retitled(library, kind, entry, title)
 }
 
 // ゴミ箱から戻す先のフォルダの id: 元いたフォルダから上への列 from（近い順）のうち、今も在ってゴミ箱でもその中でもない最初のフォルダ。どれも無ければ書庫ホーム
 export const restoreTargetOf = (folders: Folders, from: readonly string[]): string =>
   from.find(id => folders[id] !== undefined && folders[id].folderRole !== "trash" && !inTrash(folders, id)) ?? HOME_ID
+
+// ゴミ箱の直下のエントリ entry を戻すときに、利用者に確かめる事（entry-restore と同じ読み方で出す）: 戻すと入るフォルダの id into、元いたフォルダがもう無いか fromGone、
+// 入る先に同じ名前の物が在るときに番号を付けた名前 numbered（重ならなければ SAME_TITLE）
+export interface RestorePlan {
+  into: string
+  fromGone: boolean
+  numbered: string
+}
+export const SAME_TITLE = ""
+
+// ゴミ箱の直下に無ければ undefined
+export function restorePlanOf(library: Library, entry: string): RestorePlan | undefined {
+  const ref = trashRefOf(library.folders, entry)
+  if (!ref) return undefined
+  const into = restoreTargetOf(library.folders, ref.from)
+  const back = restoredEntry(library, entry, into)
+  const free = isMoveRefusal(back) ? undefined : freeTitleIn(back, ref.kind, entry, into)
+  return {
+    into,
+    fromGone: into !== ref.from[0],
+    numbered: free === undefined || free === titleOf(library, ref.kind, entry) ? SAME_TITLE : free,
+  }
+}
 
 // フォルダ into の直下で、エントリ entry（種類 kind）と同じ名前を持つ、ほかのエントリ（無ければ undefined）
 export function sameTitled(library: Library, kind: EntryKind, entry: string, into: string): AnyEntryRef | undefined {

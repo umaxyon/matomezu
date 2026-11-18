@@ -1,6 +1,15 @@
-// 書庫の画面が描く物を、書庫の表（ページの行とフォルダの行）から出す: フォルダの直下の行・パンくず・行を開いたときの行き先
-import { type EntryKind, entriesIn } from "../../../core/entries"
-import { type Folders, foldersOver, HOME_ID, inTrash, type Library, TRASH_ID } from "../../../core/folders"
+// 書庫の画面が描く物を、書庫の表（ページの行とフォルダの行）から出す: フォルダの直下の行・ゴミ箱の行・パンくず・行を開いたときの行き先
+import { type EntryKind, entriesIn, trashRefsOf } from "../../../core/entries"
+import {
+  type AnyEntryRef,
+  type Folders,
+  foldersOver,
+  HOME_ID,
+  inTrash,
+  type Library,
+  TRASH_ID,
+} from "../../../core/folders"
+import { restoreTargetOf } from "./entries"
 
 // 行 1 つ（描くのに要る物だけ）。title は名前（名前の無い物は NO_TITLE）、type はページのタイプの id（バインダなら入れるページのタイプ。無ければ NO_TYPE）、
 // readable は読めるか（読めないページ・表に無いブックは false）
@@ -16,39 +25,59 @@ export const NO_TYPE = ""
 
 const NO_ROWS: readonly LibraryRow[] = []
 
-// フォルダ folder（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダ）の直下の行（並びの順。フォルダが無ければ空）
-export function rowsIn({ pages, folders }: Library, folder: string): readonly LibraryRow[] {
-  const entries = entriesIn(folders, folder)
-  if (entries.length === 0) return NO_ROWS
-  return entries.map((r): LibraryRow => {
-    if (r.kind === "page") {
-      const page = pages[r.id]
-      return {
-        kind: "page",
-        id: r.id,
-        title: page?.title ?? NO_TITLE,
-        type: page?.type ?? NO_TYPE,
-        readable: page !== undefined && page.kind !== "unreadable",
-      }
-    }
-    const row = folders[r.id]
-    const title = row && "title" in row ? row.title : NO_TITLE
+// 並びのエントリ r の行
+function rowOf({ pages, folders }: Library, r: AnyEntryRef): LibraryRow {
+  if (r.kind === "page") {
+    const page = pages[r.id]
     return {
-      kind: r.kind,
+      kind: "page",
       id: r.id,
-      title,
-      type: row?.folderRole === "binder" ? row.pageType : NO_TYPE,
-      readable: row !== undefined,
+      title: page?.title ?? NO_TITLE,
+      type: page?.type ?? NO_TYPE,
+      readable: page !== undefined && page.kind !== "unreadable",
     }
-  })
+  }
+  const row = folders[r.id]
+  const title = row && "title" in row ? row.title : NO_TITLE
+  return {
+    kind: r.kind,
+    id: r.id,
+    title,
+    type: row?.folderRole === "binder" ? row.pageType : NO_TYPE,
+    readable: row !== undefined,
+  }
+}
+
+// フォルダ folder（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダ）の直下の行（並びの順。フォルダが無ければ空）
+export function rowsIn(library: Library, folder: string): readonly LibraryRow[] {
+  const entries = entriesIn(library.folders, folder)
+  return entries.length === 0 ? NO_ROWS : entries.map(r => rowOf(library, r))
+}
+
+// ゴミ箱の行 1 つ: 行と、入れた時刻 trashed と、戻すと入るフォルダの id into（元いたフォルダ。もう無ければ、その上の今も在るフォルダ）
+export interface TrashRow extends LibraryRow {
+  trashed: string
+  into: string
+}
+
+const NO_TRASH: readonly TrashRow[] = []
+
+// ゴミ箱の直下の行（入れた時刻の新しい順。同じ時刻なら、後から入れた物が先）
+export function trashRowsOf(library: Library): readonly TrashRow[] {
+  const refs = trashRefsOf(library.folders)
+  if (refs.length === 0) return NO_TRASH
+  return refs
+    .map(r => ({ ...rowOf(library, r), trashed: r.trashed, into: restoreTargetOf(library.folders, r.from) }))
+    .reverse()
+    .sort((a, b) => (a.trashed === b.trashed ? 0 : a.trashed < b.trashed ? 1 : -1))
 }
 
 // 行の中へ入れるか（右の枠にその中身を出せるか）: フォルダ・ブック・バインダで、表に在る物
 export const holdsRows = (row: LibraryRow): boolean => row.kind !== "page" && row.readable
 
-// 書庫の画面で開いているフォルダ: 値 folder のフォルダが在ればそれ、無ければ（値が無いときも）書庫ホーム
+// 書庫の画面で開いているフォルダ: 値 folder のフォルダが在ればそれ、無ければ（値が無いときも）書庫ホーム。ゴミ箱の中のフォルダは開けないので、ゴミ箱
 export const openedFolderOf = (folders: Folders, folder: string | undefined): string =>
-  folder !== undefined && folders[folder] ? folder : HOME_ID
+  folder === undefined || !folders[folder] ? HOME_ID : inTrash(folders, folder) ? TRASH_ID : folder
 
 // パンくず: 一番上（書庫ホームかゴミ箱）からフォルダ folder までの、フォルダの id の列
 export function pathTo(folders: Folders, folder: string): string[] {

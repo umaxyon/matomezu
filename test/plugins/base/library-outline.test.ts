@@ -1,6 +1,7 @@
 // 書庫の画面が描く物（base/library/outline.ts）: フォルダの直下の行・パンくず・行を開いたときの行き先
 import { expect, test } from "bun:test"
 import { HOME_ID, TRASH_ID } from "../../../web/src/core/folders"
+import { restorePlanOf, SAME_TITLE } from "../../../web/src/plugins/base/library/entries"
 import { FOLDER_CREATE } from "../../../web/src/plugins/base/library/entry-move"
 import {
   NO_TYPE,
@@ -9,6 +10,7 @@ import {
   openTargetOf,
   pathTo,
   rowsIn,
+  trashRowsOf,
 } from "../../../web/src/plugins/base/library/outline"
 import { newStore } from "../../support"
 
@@ -61,4 +63,51 @@ test("行を開くと、フォルダは中へ入り、ブックとその中の�
   expect(pathTo(library().folders, "b1")).toEqual([TRASH_ID, "b1"])
   expect(openTargetOf(library(), row(TRASH_ID, "b1"))).toBe(NOT_OPENED)
   expect(openTargetOf(library(), row("b1", "p1"))).toBe(NOT_OPENED)
+})
+
+test("ゴミ箱の中のフォルダは開けないので、開いているフォルダはゴミ箱になる", () => {
+  const { library, folder, perform } = setup()
+  expect(perform("@matomezu/base:entry-trash", { entry: folder }).ok).toBe(true)
+  expect(openedFolderOf(library().folders, folder)).toBe(TRASH_ID)
+  expect(openedFolderOf(library().folders, TRASH_ID)).toBe(TRASH_ID)
+})
+
+test("ゴミ箱の行は、入れた時刻の新しい順に、どの種類の物も並び、戻すと入るフォルダを持つ", () => {
+  let now = "2026-11-18T01:00:00.000Z"
+  const store = newStore({ now: () => now })
+  const perform = store.actions.perform as (id: string, args: unknown) => { ok: boolean; result?: unknown }
+  const library = () => store.state.getState()
+  const folder = (perform(FOLDER_CREATE.id, { title: "仕事" }).result as { folder: string }).folder
+  const inner = (perform(FOLDER_CREATE.id, { title: "下書き", into: folder }).result as { folder: string }).folder
+  expect(perform("@matomezu/base:entry-move", { entry: "b2", into: inner }).ok).toBe(true)
+  expect(trashRowsOf(library())).toEqual([])
+  expect(perform("@matomezu/base:entry-trash", { entry: "b2" }).ok).toBe(true)
+  now = "2026-11-18T02:00:00.000Z"
+  expect(perform("@matomezu/base:entry-trash", { entry: inner }).ok).toBe(true)
+  expect(perform("@matomezu/base:entry-trash", { entry: "b1" }).ok).toBe(true)
+  // 同じ時刻なら後から入れた物が先。元いたフォルダ（下書き）がゴミ箱に在る b2 は、その上の今も在るフォルダへ戻る
+  expect(trashRowsOf(library()).map(r => [r.kind, r.id, r.trashed, r.into])).toEqual([
+    ["book", "b1", "2026-11-18T02:00:00.000Z", HOME_ID],
+    ["folder", inner, "2026-11-18T02:00:00.000Z", folder],
+    ["book", "b2", "2026-11-18T01:00:00.000Z", folder],
+  ])
+  expect(trashRowsOf(library())[1]).toMatchObject({ title: "下書き", readable: true })
+})
+
+test("戻すときに確かめる事: 元いたフォルダが無いか、入る先に同じ名前の物が在るときの番号を付けた名前", () => {
+  const { library, folder, perform } = setup()
+  const title = rowsIn(library(), folder).find(r => r.id === "b2")!.title
+  expect(restorePlanOf(library(), "b2")).toBeUndefined()
+  // 書庫ホームから捨てた物は、書庫ホームへ戻る（元いたフォルダは在る）
+  expect(perform("@matomezu/base:entry-trash", { entry: "b1" }).ok).toBe(true)
+  expect(restorePlanOf(library(), "b1")).toEqual({ into: HOME_ID, fromGone: false, numbered: SAME_TITLE })
+  expect(perform("@matomezu/base:entry-trash", { entry: "b2" }).ok).toBe(true)
+  // 元いたフォルダが在り、同じ名前の物も無い
+  expect(restorePlanOf(library(), "b2")).toEqual({ into: folder, fromGone: false, numbered: SAME_TITLE })
+  // 同じ名前の物を元いたフォルダに作ると、番号を付けた名前を言う
+  expect(perform(FOLDER_CREATE.id, { title, into: folder }).ok).toBe(true)
+  expect(restorePlanOf(library(), "b2")).toEqual({ into: folder, fromGone: false, numbered: `${title} 2` })
+  // 元いたフォルダがゴミ箱に入ると、その上のフォルダ（書庫ホーム）へ戻る
+  expect(perform("@matomezu/base:entry-trash", { entry: folder }).ok).toBe(true)
+  expect(restorePlanOf(library(), "b2")).toEqual({ into: HOME_ID, fromGone: true, numbered: SAME_TITLE })
 })

@@ -1,11 +1,9 @@
 // 書庫の画面: 左にツリー（書庫ホームとゴミ箱が一番上に並ぶ）、右にパンくずと、開いているフォルダの中身。
 // 1 回押すと選び（ツリーのフォルダ・ブック・バインダは、右の枠にその中身を出す）、2 回押すと開く（フォルダは中へ入り、ブックとその中のページ・バインダは窓に出す）。
-// ゴミ箱の中の物・読めない物は、選べるだけ。開いているフォルダは画面の場所に入り、選んでいる行は入らない（state.ts）
-import { useRef } from "react"
+// ゴミ箱は、ツリーでは中を出さず、右の枠に捨てた物の一覧を出す（TrashPane.tsx）。読めない物は、選べるだけ。開いているフォルダは画面の場所に入り、選んでいる行は入らない（state.ts）
 import { useShallow } from "zustand/react/shallow"
 import { titleOf } from "../../../core/entries"
 import { HOME_ID, TRASH_ID } from "../../../core/folders"
-import { sameData } from "../../../core/same"
 import { NO_STAGE } from "../../../store/dialogs"
 import type { MatomezuState } from "../../../store/store"
 import { useMessages } from "../../../ui/i18n"
@@ -15,6 +13,7 @@ import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { LIBRARY_NEW_BOOK_DIALOG } from "./dialog"
 import { holdsEntries } from "./entries"
+import { useLibraryRows, useNameOf } from "./hooks"
 import { CHEVRON, iconOf, TRASH } from "./icons"
 import styles from "./LibraryView.module.css"
 import {
@@ -29,6 +28,7 @@ import {
   rowsIn,
 } from "./outline"
 import { LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_UNFOLDED } from "./state"
+import { TrashPane } from "./TrashPane"
 
 // 一番上に並ぶフォルダの行（書庫ホームとゴミ箱。名前は画面が付ける）
 const TOPS: readonly LibraryRow[] = [HOME_ID, TRASH_ID].map(id => ({
@@ -42,31 +42,8 @@ const TOPS: readonly LibraryRow[] = [HOME_ID, TRASH_ID].map(id => ({
 // 最初に中を出しているフォルダ
 const AT_FIRST: readonly string[] = [HOME_ID]
 
-// フォルダ folder の直下の行。書庫の表が変わっても、行の中身が同じなら同じ値のまま（ページの中身が変わるたびに描き直さない）
-function useRowsIn(folder: string): readonly LibraryRow[] {
-  const kept = useRef<{ folder: string; pages: unknown; folders: unknown; rows: readonly LibraryRow[] } | null>(null)
-  return useMatomezuState(s => {
-    const was = kept.current?.folder === folder ? kept.current : null
-    if (was && was.pages === s.pages && was.folders === s.folders) return was.rows
-    const next = rowsIn(s, folder)
-    const rows = was && sameData(was.rows, next) ? was.rows : next
-    kept.current = { folder, pages: s.pages, folders: s.folders, rows }
-    return rows
-  })
-}
-
-// 行の名前: 一番上の 2 つは画面の言葉、名前の無い物は id を添える
-function useNameOf(): (row: Pick<LibraryRow, "id" | "title">) => string {
-  const t = useMessages(kit)
-  return row =>
-    row.id === HOME_ID
-      ? t("Library")
-      : row.id === TRASH_ID
-        ? t("Trash")
-        : row.title !== NO_TITLE
-          ? row.title
-          : t("Untitled ({id})", { id: row.id })
-}
+// フォルダ folder の直下の行
+const useRowsIn = (folder: string): readonly LibraryRow[] => useLibraryRows(folder, s => rowsIn(s, folder))
 
 interface Handlers {
   opened: string
@@ -155,7 +132,9 @@ export function LibraryView() {
             </ActionButton>
           </div>
         )}
-        {rows.length === 0 ? (
+        {opened === TRASH_ID ? (
+          <TrashPane picked={picked} onPick={setPicked} />
+        ) : rows.length === 0 ? (
           <p className={styles.empty}>{t("Nothing inside")}</p>
         ) : (
           <ul className={styles.contents} aria-label={t("Contents of {name}", { name: here })}>
@@ -202,11 +181,13 @@ function TreeNode({
   const nameOf = useNameOf()
   const name = nameOf(row)
   const holds = holdsRows(row)
-  const open = holds && handlers.shown.has(row.id)
+  // ゴミ箱の中は、ツリーに出さない
+  const unfolds = holds && row.id !== TRASH_ID
+  const open = unfolds && handlers.shown.has(row.id)
   return (
     <li>
       <div className={styles.node} style={{ paddingLeft: depth * 14 }}>
-        {holds ? (
+        {unfolds ? (
           <button
             type="button"
             className={styles.toggle}

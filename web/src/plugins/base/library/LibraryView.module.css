@@ -184,3 +184,54 @@
   padding: 16px;
   color: var(--skin-text-muted);
 }
+/* ゴミ箱の一覧: 1 行に、種類のアイコン・名前・元の場所・捨てた日時。選んだ行は、その下にボタンを出す */
+.trash {
+  flex: 1;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  list-style: none;
+}
+.trashed {
+  border-radius: 6px;
+}
+.trashed[data-picked="true"] {
+  background: var(--skin-btn);
+  outline: 1px solid var(--skin-accent);
+}
+.trashedRow {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 2fr) minmax(0, 1fr) max-content;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.trashedRow:hover {
+  background: var(--skin-btn-hover);
+}
+.place {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--skin-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.when {
+  color: var(--skin-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.trashedActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 0 8px 8px;
+  font-size: 13px;
+}

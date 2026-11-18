@@ -285,6 +285,11 @@ textarea.control {
 .confirmText {
   margin: 0;
 }
+/* 文の下の訳などの行（行の間は詰める） */
+.confirmDetail {
+  margin: -8px 0 0;
+  color: var(--skin-text-muted);
+}
 /* セレクトFormとボタンをつなげたコンポーネント: 1 つの枠の中に、左にセレクトForm、仕切りの線、右にボタン */
 .selectButton {
   display: inline-flex;

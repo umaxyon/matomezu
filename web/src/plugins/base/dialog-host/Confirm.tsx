@@ -1,16 +1,19 @@
-// 確かめるモーダル: 開いているダイアログの上に重ねて出し、文と、する・やめるのボタンで答えを受ける（store のダイアログは 1 つだけなので、使う側のダイアログの中に置く）。
+// 確かめるモーダル: ダイアログかスクリーンの上に重ねて出し、文（message。detail が在れば、その下に訳などの行）と、する・やめるのボタンで答えを受ける
+// （store のダイアログは 1 つだけなので、使う側のビューの中に置く）。
 // 開くと「やめる」に焦点を当てる。Escape と外側を押すとやめる、Enter は焦点のあるボタン。下のダイアログのキー（閉じる・決める）には渡さない
 import { type KeyboardEvent, useLayoutEffect, useRef } from "react"
 import styles from "./Dialog.module.css"
 
 export function Confirm({
   message,
+  detail,
   ok,
   cancel,
   onOk,
   onCancel,
 }: {
   message: string
+  detail?: readonly string[] // 文の下に、1 つずつ行にして出す
   ok: string // する（ボタンの名前）
   cancel: string // やめる（ボタンの名前）
   onOk: () => void
@@ -53,6 +56,12 @@ export function Confirm({
     >
       <div className={styles.confirmBody}>
         <p className={styles.confirmText}>{message}</p>
+        {detail?.map((line, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: 行は並びが変わらない
+          <p key={i} className={styles.confirmDetail}>
+            {line}
+          </p>
+        ))}
         <div className={styles.headActions}>
           <button ref={keep} type="button" className={styles.plain} onClick={onCancel}>
             {cancel}
