@@ -15,6 +15,9 @@ export type PluginStateAddress = "push" | "replace" | "none"
 // 値の型 S を、型だけで持たせる印
 declare const stateType: unique symbol
 
+// プラグイン状態の今の値を読む関数: 宣言 def の値（無ければ undefined）。渡す側が、読める宣言（持ち主のプラグインの物）と、どのスクリーン・ステージの値かを決める
+export type PluginStateRead = <S>(def: PluginStateDef<S>) => S | undefined
+
 export interface PluginStateDef<S = unknown> extends PluginStateExtras {
   readonly [stateType]?: S
   id: string // 本当の id（例: @matomezu/markdown:pane-layout）

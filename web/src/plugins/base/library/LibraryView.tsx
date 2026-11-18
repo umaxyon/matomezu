@@ -29,6 +29,7 @@ import {
   pathTo,
   rowsIn,
   shownFoldersOf,
+  unfoldedOf,
 } from "./outline"
 import { LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_UNFOLDED } from "./state"
 import { TrashView } from "./TrashView"
@@ -43,7 +44,6 @@ const TOPS: readonly LibraryRow[] = [HOME_ID, TRASH_ID].map(id => ({
 }))
 
 // 最初に中を出しているフォルダ
-const AT_FIRST: readonly string[] = [HOME_ID]
 
 // フォルダ folder の直下の行
 const useRowsIn = (folder: string): readonly LibraryRow[] => useLibraryRows(folder, s => rowsIn(s, folder))
@@ -77,7 +77,7 @@ export function LibraryView() {
   // ブックを作れるフォルダ（書庫ホームかフォルダで、ゴミ箱の中でない）を開いているか
   const creatable = useMatomezuState(s => holdsEntries(s.folders, opened))
   const { openDialog } = useActions()
-  const unfolded = usePluginState(kit, LIBRARY_UNFOLDED) ?? AT_FIRST
+  const unfolded = unfoldedOf(usePluginState(kit, LIBRARY_UNFOLDED))
   const setUnfolded = useSetPluginState(kit, LIBRARY_UNFOLDED)
   const shown = new Set(unfolded)
   useShownFolders(useMatomezuState(useShallow(s => shownFoldersOf(s.folders, opened, unfolded))))

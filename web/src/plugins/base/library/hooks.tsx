@@ -1,11 +1,12 @@
 // 書庫の画面のビューが共に使うフック: 書庫の表から出した行を同じ値のまま保つ・行の名前・焦点を中に保つ
 import { type RefObject, useEffect, useRef } from "react"
+import type { EntryKind } from "../../../core/entries"
 import { HOME_ID, type Library, TRASH_ID } from "../../../core/folders"
 import { sameData } from "../../../core/same"
 import { useMessages } from "../../../ui/i18n"
 import { useMatomezuState } from "../../../ui/store-context"
 import { kit } from "../kit"
-import { type LibraryRow, NO_TITLE } from "./outline"
+import { type LibraryRow, NO_TITLE, rowsIn } from "./outline"
 
 // 書庫の表から rowsOf で出した行。表が変わっても、行の中身が同じなら同じ値のまま（ページの中身が変わるたびに描き直さない）。
 // key は、rowsOf が何の行を出すかを分ける値（フォルダの id など。変わったら出し直す）
@@ -19,6 +20,21 @@ export function useLibraryRows<R>(key: string, rowsOf: (library: Library) => rea
     kept.current = { key, pages: s.pages, folders: s.folders, rows }
     return rows
   })
+}
+
+// フォルダの直下のエントリ 1 つ: id・種類・名前（名前の無い物は空の文字列）
+export interface FolderEntry {
+  id: string
+  kind: EntryKind
+  name: string
+}
+
+// フォルダ folder（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダ）の直下のエントリ（並びの順）。フォルダが無ければ undefined
+export function useFolderEntries(folder: string): readonly FolderEntry[] | undefined {
+  const entries = useLibraryRows(folder, s =>
+    rowsIn(s, folder).map((r): FolderEntry => ({ id: r.id, kind: r.kind, name: r.title })),
+  )
+  return useMatomezuState(s => s.folders[folder] !== undefined) ? entries : undefined
 }
 
 // 行の名前: 書庫ホームとゴミ箱は画面の言葉、名前の無い物は id を添える

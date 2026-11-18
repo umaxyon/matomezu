@@ -90,6 +90,10 @@ export const holdsRows = (row: LibraryRow): boolean => row.kind !== "page" && ro
 export const openedFolderOf = (folders: Folders, folder: string | undefined): string =>
   folder === undefined || !folders[folder] ? HOME_ID : inTrash(folders, folder) ? TRASH_ID : folder
 
+// ツリーで中を出しているフォルダ: 値 unfolded が無ければ、書庫ホームだけ
+const AT_FIRST: readonly string[] = [HOME_ID]
+export const unfoldedOf = (unfolded: readonly string[] | undefined): readonly string[] => unfolded ?? AT_FIRST
+
 // パンくず: 一番上（書庫ホームかゴミ箱）からフォルダ folder までの、フォルダの id の列
 export function pathTo(folders: Folders, folder: string): string[] {
   return [

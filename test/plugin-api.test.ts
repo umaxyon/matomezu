@@ -332,6 +332,7 @@ test("matomezu/ui が出す名前", () => {
     "useDrawnMinimap",
     "useEditLock",
     "useElapsed",
+    "useFolderEntries",
     "useFollowsSelection",
     "useHighlightRanges",
     "useItem",
