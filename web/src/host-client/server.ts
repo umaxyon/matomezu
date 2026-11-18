@@ -241,12 +241,14 @@ const rowSchema = <K extends "page" | "folder">(field: K) =>
     [field]: z.unknown().optional(),
   } as Record<K, z.ZodOptional<z.ZodUnknown>>)
 // 1 回の perform（アクションバルク）が変えた物の全部: ページとフォルダ（books は、それらを持つブックの id）と、変わったときだけ設定・アノテーション（ページの id → 並び）・
-// レコードと進めた番号（window は最後にフォーカスされた窓）。actions は行ったアクションの id の並び、library は pages と folders のうち、書庫の画面の履歴に入るアクションが変えた物の id
+// レコードと進めた番号（window は最後にフォーカスされた窓）。actions は行ったアクションの id の並び、library は、書庫の画面の履歴に入るアクションが変えたページとフォルダごとの前と後（無い側は none）
+// ページ・フォルダ 1 つの、前と後（置き場所の形のまま。無い側は none）
+const RowSides = z.object({ before: z.unknown(), after: z.unknown() })
 const ChangedSchema = z.object({
   pages: z.array(rowSchema("page")),
   folders: z.array(rowSchema("folder")),
   books: z.array(z.string()),
-  library: z.object({ pages: z.array(z.string()), folders: z.array(z.string()) }).optional(),
+  library: z.object({ pages: z.record(z.string(), RowSides), folders: z.record(z.string(), RowSides) }).optional(),
   by: z.enum(["ai", "window", "host"]).optional(),
   act: z.string().optional(),
   actions: z.array(z.string()).optional(),

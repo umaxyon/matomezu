@@ -111,7 +111,12 @@ test("書庫の画面の履歴に入るアクションが変えたページと�
   const mixed = performBulk(world(), [place("一"), rename], CTX)
   if (!mixed.ok) throw new Error(mixed.reason)
   expect(Object.keys(mixed.changes?.pages ?? {})).toEqual(["p1"])
-  expect(mixed.library).toEqual({ pages: [], folders: ["b1"] })
+  // 前と後は、名前を変えたアクションの前と後（ページを足した分は入らない）
+  expect(mixed.library?.pages).toEqual({})
+  expect(Object.keys(mixed.library?.folders ?? {})).toEqual(["b1"])
+  const sides = mixed.library?.folders.b1 as { before: { title: string }; after: { title: string } }
+  expect(sides.after.title).toBe("別の名前")
+  expect({ ...sides.after, title: sides.before.title }).toEqual(sides.before)
   // ブックが対象のアクションだけなら、持たない
   const inBook = performBulk(world(), [place("一")], CTX)
   expect(inBook.ok && inBook.library).toBeUndefined()

@@ -1,7 +1,8 @@
 // 画面の履歴（Undo・Redo）: 利用者の 1 回の操作で変わったページとフォルダの前と後を画面の履歴の段 1 つに持つ（store が作り、戻す・やり直すのは base の history）。
 // AI とほかの窓の変更は、まだ見ていない画面の履歴の段として store が溜め、変えた物が見えたら時刻の位置に差し込む
-import { type Folder, type Folders, foldersOver, type PageRow } from "./folders"
+import { type Folder, type Folders, foldersOver, type Library, type PageRow, type TableChanges } from "./folders"
 import type { ListPatch, Patch } from "./patch"
+import { REMOVED } from "./records"
 import { sameData } from "./same"
 import type { Book } from "./schema/book"
 
@@ -22,6 +23,18 @@ export interface HistoryStep {
   books: readonly string[]
   pages: Readonly<Record<string, RowChange<PageRow>>>
   folders: Readonly<Record<string, RowChange<Folder>>>
+}
+
+// 表 was を changes のとおりに変えた、ページとフォルダごとの前と後（画面の履歴の段が持つ形）
+export function rowChangesOf(was: Library, changes: TableChanges): Pick<HistoryStep, "pages" | "folders"> {
+  const rows = <T>(table: Readonly<Record<string, T>>, to: Readonly<Record<string, T | typeof REMOVED>>) =>
+    Object.fromEntries(
+      Object.entries(to).map(([id, v]): [string, RowChange<T>] => [
+        id,
+        { before: table[id] ?? "none", after: v === REMOVED ? "none" : (v as T) },
+      ]),
+    )
+  return { pages: rows(was.pages, changes.pages), folders: rows(was.folders, changes.folders) }
 }
 
 // 画面の履歴（ブックごとと、書庫に 1 つ）: 戻せる画面の履歴の段（古い順）と、やり直せる画面の履歴の段（古い順。最後が次にやり直す物）

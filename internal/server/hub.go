@@ -11,7 +11,7 @@ package server
 //	changed   {"pages": [{"id", "page"（消したなら "removed": true）, "version"}], "folders": [{"id", "folder"（同じ）, "version"}], "books", "library"?, "client", "seq", "by", "act", "actions",
 //	          "settings"?, "annotations", "records": [{"subject", "id", "record"（消したなら "removed"）, "version"（消したなら 0）}], "counters"?, "window"}
 //	          1 回の Perform が変えた物の全部（何か変わったときだけ 1 つ）。pages・folders は変えた・足した・消したページとフォルダ（書庫ホームとフォルダも）、
-//	          books はそれらを持つブックの id（書庫ホームとフォルダは入らない）。library は pages・folders のうち、書庫の画面の履歴に入るアクションが変えた物の id（{"pages", "folders"}）。
+//	          books はそれらを持つブックの id（書庫ホームとフォルダは入らない）。library は、書庫の画面の履歴に入るアクションが変えたページとフォルダごとの前と後（{"pages": {id: {"before", "after"}}, "folders": 同じ}。無い側は "none"）。
 //	          client と seq は頼んだ窓とその番号（窓の外からなら空）。by は頼んだ物（"ai"・"window"・常駐が自分で行ったなら "host"）、act は 1 回の Perform の印、actions は行ったアクションの id の並び。
 //	          settings は変わったときだけ、新しい設定。annotations はアノテーションが変わったページの id → 新しい並び（空の並びなら全部無くなった）。
 //	          records は変えたレコード（郵便も。records.go）、counters は進めた番号の区切り（種類 → 区切り → 次の番号。進めたときだけ）。window は最後にフォーカスされた窓（無ければ空）

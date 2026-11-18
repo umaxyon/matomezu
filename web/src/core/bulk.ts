@@ -4,7 +4,8 @@
 import { type Annotations, withAnnotations } from "./annotation"
 import type { CoreCatalog } from "./core-catalog"
 import type { ActionContext, ActionOn, AIEditTicketChange, AIMessage } from "./def/action"
-import { type TableChanges, withChanges } from "./folders"
+import { type Folder, type PageRow, type TableChanges, withChanges } from "./folders"
+import { type HistoryStep, type RowChange, rowChangesOf } from "./history"
 import { type PerformedIn, performIn, type World } from "./perform"
 import { keyValuesOf } from "./record-keys"
 import { type RecordSource, sourceOf } from "./record-source"
@@ -58,13 +59,11 @@ export interface BulkTicketChange {
 export const entersLibraryHistory = (action: { target: string; history?: false } | undefined): boolean =>
   action?.target === "library" && action.history !== false
 
-// アクションバルクの変えたページとフォルダのうち、書庫の画面の履歴に入るアクションが変えた物の id（同じ物をほかのアクションも変えていたら、その物はこちらに入る）
-export interface LibraryRows {
-  pages: readonly string[]
-  folders: readonly string[]
-}
+// アクションバルクのうち、書庫の画面の履歴に入るアクションが変えたページとフォルダごとの、前と後（そのアクションの前の値から、最後のそのアクションの後の値へ。
+// 同じ物をほかのアクションも変えていたら、その分は入らない）
+export type LibraryRows = Pick<HistoryStep, "pages" | "folders">
 
-export const NO_LIBRARY_ROWS: LibraryRows = { pages: [], folders: [] }
+export const NO_LIBRARY_ROWS: LibraryRows = { pages: {}, folders: {} }
 
 // performBulk の結果。library は、changes のうち書庫の画面の履歴に入るアクションが変えた物（無ければ持たない）。通れば、アクションごとの結果と、合わせた変更（ページとフォルダは最初の前から最後の後へ。バルクの中で作って消した物は持たない）
 export type PerformedBulk<R = never> =
@@ -105,8 +104,8 @@ export function performBulk<R extends { ok: false } = never>(
   let counters: Counters | undefined
   const tickets: BulkTicketChange[] = []
   const messages: AIMessage[] = []
-  const libraryPages = new Set<string>()
-  const libraryFolders = new Set<string>()
+  const libraryPages: Record<string, RowChange<PageRow>> = {}
+  const libraryFolders: Record<string, RowChange<Folder>> = {}
   for (const [i, step] of steps.entries()) {
     const done = performIn({ ...now, source: overlaid(ctx.catalog, base, written) }, step.action, step.args, step.on, {
       ...ctx,
@@ -129,8 +128,11 @@ export function performBulk<R extends { ok: false } = never>(
       pages = { ...pages, ...done.changes.pages }
       folders = { ...folders, ...done.changes.folders }
       if (entersLibraryHistory(ctx.catalog.actions.get(step.action))) {
-        for (const id of Object.keys(done.changes.pages)) libraryPages.add(id)
-        for (const id of Object.keys(done.changes.folders)) libraryFolders.add(id)
+        const rows = rowChangesOf(now, done.changes)
+        for (const [id, r] of Object.entries(rows.pages))
+          libraryPages[id] = { before: libraryPages[id]?.before ?? r.before, after: r.after }
+        for (const [id, r] of Object.entries(rows.folders))
+          libraryFolders[id] = { before: libraryFolders[id]?.before ?? r.before, after: r.after }
       }
     }
     if (done.settings) settings = done.settings
@@ -153,15 +155,15 @@ export function performBulk<R extends { ok: false } = never>(
   const changes = { pages: kept(pages, world.pages), folders: kept(folders, world.folders) }
   const keptRecords = records.filter(c => c.record !== REMOVED || base.byId(c.subject, c.id) !== undefined)
   const changed = Object.keys(changes.pages).length > 0 || Object.keys(changes.folders).length > 0
-  const library = {
-    pages: Object.keys(changes.pages).filter(id => libraryPages.has(id)),
-    folders: Object.keys(changes.folders).filter(id => libraryFolders.has(id)),
-  }
+  // 書庫の画面の履歴に入るアクションが作って消した物は、前も後も無いので持たない
+  const changedRows = <T>(rows: Record<string, RowChange<T>>) =>
+    Object.fromEntries(Object.entries(rows).filter(([, r]) => r.before !== "none" || r.after !== "none"))
+  const library = { pages: changedRows(libraryPages), folders: changedRows(libraryFolders) }
   return {
     ok: true,
     results,
     ...(changed ? { changes } : {}),
-    ...(library.pages.length + library.folders.length > 0 ? { library } : {}),
+    ...(Object.keys(library.pages).length + Object.keys(library.folders).length > 0 ? { library } : {}),
     ...(settings ? { settings } : {}),
     ...(annotations ? { annotations } : {}),
     ...(keptRecords.length > 0 ? { records: keptRecords } : {}),
