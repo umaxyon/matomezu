@@ -68,6 +68,8 @@ export { themeVar } from "../core/def/theme"
 export { TITLE_TAKEN } from "../core/entries"
 export { enumValuesOf } from "../core/enum"
 export type { BinderFolder, BookFolder, EntryRef, Folder } from "../core/folders"
+// 書庫ホームとゴミ箱の id（どのマシンでも同じ）
+export { HOME_ID, TRASH_ID } from "../core/folders"
 export type { Point, Rect, Size } from "../core/geom"
 export { translate } from "../core/i18n/i18n"
 export { defineMessages } from "../core/i18n/messages"

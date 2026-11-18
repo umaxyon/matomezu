@@ -41,6 +41,7 @@
 | プラグイン状態（`PluginStateDef`） | プラグインが画面の中で持つ状態 1 つの宣言 | `core/def/plugin-state.ts` |
 | スクリーンの定義（`ScreenDef`） | 窓が見せる画面 1 枚の種類。開くときに渡す値の形（Zod）と、ステージを並べるか | `core/def/screen-def.ts` |
 | スクリーンアレンジメント（`ScreenArrangementDef`） | 窓の、開いているスクリーンの見せ方。値の形と初めの値（持たなくてもよい）を持ち、見えているスクリーンを答える | `core/def/screen-arrangement.ts` |
+| 書庫アピアランス（`LibraryAppearanceDef`） | スクリーンの中で書庫を見せる所の種類。持ち主のプラグイン状態から、今中身を見せているフォルダを答える | `core/def/library-appearance.ts` |
 
 - 定義の種類（文言の組・言語パック・テーマキー・既定のキーバインド・ノーマライズステップ・台帳アセンブルのときの確かめを除く上の表）の一覧は `core/catalog.ts` の `PARTS` と `PartTables` だけに書き、定義の型は、その台帳のクレートが `PartDefTable` に書き足す。種類ごとの見た目のフィールド（`definePluginUi`）と定義を書く関数（`pluginKit` の `define…`）は、`ui/part-ui.ts` の `PART_UI` に種類ごとに書く
 - 文言の組・言語パック・テーマキー・既定のキーバインドは、プラグインの `messages`・`languages`・`tokens`・`keys`（テーマキーはアイテムとページのタイプの `tokens` にも）に書き、`PARTS` に入れない。どれも id を持ち、機能台帳が id ごとに 1 つ並べる（アイテムとページのタイプのテーマキーは、機能台帳には並ばず、その定義オブジェクトの中にある）。同じ id は error。定義を書く関数（`kit.defineKey`・`kit.defineLanguagePack`）は `ui/part-ui.ts` の `NON_PART_DEFINES` に書く。文言の組は `pluginKit` が作る
@@ -52,7 +53,7 @@
 ## 拡張ポイント
 
 - どの定義オブジェクトの型も、種類ごとの拡張ポイントを含む。土台のファイルの定義オブジェクトの型に書くのは、土台が読むフィールド・メソッドだけ。ほかのプラグインが読むものは、読む側のプラグインが拡張ポイントに書き足す。いくつものプラグインが使う見込みのものは base が書き足す
-- 拡張ポイントは `core/catalog.ts`（追加プラグインからは `matomezu/catalog`）の `PageTypeExtras`・`ShapeItemExtras<D>`・`ConnectorItemExtras<D>`・`ActionExtras`・`ThemeExtras`・`TokenExtras`・`PaperExtras`・`TextColorExtras`・`SkinExtras`・`SettingExtras`・`PresentationExtras`・`ToolExtras`・`ToolSetExtras`・`PermissionExtras`・`AnnotationExtras`・`MailExtras`・`SubjectExtras`・`EnumExtras`・`EnumValueExtras`・`ControlCenterExtras`・`MessageSetExtras`・`LanguagePackExtras`・`CommandExtras`・`DialogExtras`・`KeyExtras`・`KeyScopeExtras`・`PluginStateExtras`・`WidgetExtras`・`LayoutExtras`・`PresentationViewExtras`。形とつなぐものの拡張ポイントは、置いたデータの型 `D` を、ダイアログの拡張ポイントは開くときの値の型 `A` を受ける（書き足すときも同じ型引数で書く）
+- 拡張ポイントは `core/catalog.ts`（追加プラグインからは `matomezu/catalog`）の `PageTypeExtras`・`ShapeItemExtras<D>`・`ConnectorItemExtras<D>`・`ActionExtras`・`ThemeExtras`・`TokenExtras`・`PaperExtras`・`TextColorExtras`・`SkinExtras`・`SettingExtras`・`PresentationExtras`・`ToolExtras`・`ToolSetExtras`・`PermissionExtras`・`AnnotationExtras`・`MailExtras`・`SubjectExtras`・`ScreenExtras`・`ScreenArrangementExtras`・`EnumExtras`・`EnumValueExtras`・`ControlCenterExtras`・`MessageSetExtras`・`LanguagePackExtras`・`CommandExtras`・`DialogExtras`・`KeyExtras`・`KeyScopeExtras`・`PluginStateExtras`・`LibraryAppearanceExtras`・`WidgetExtras`・`LayoutExtras`・`PresentationViewExtras`。形とつなぐものの拡張ポイントは、置いたデータの型 `D` を、ダイアログの拡張ポイントは開くときの値の型 `A` を受ける（書き足すときも同じ型引数で書く）
 - base が書き足す名前は短い名前。base 以外は `"<プラグインの id>:<名前>"`。書き足したプラグインは、自分の名前を `kit.name` で引く
 - 追加プラグインが、ほかのプラグインに答えてもらう書き足しは、そのプラグインのコードとは別の連携ポイントに置く。書き足したプラグインも、答えるプラグインも、それを `import type` で読む（型だけなので変換で消える。値で読むと error）
 - ビルトインプラグインどうしは、連携ポイントを作らない。同じプログラムの中で、読む側が書き足した型を共に使う
@@ -172,7 +173,7 @@
 - 書庫（`library`）が対象のアクションも、変えるブックを許可スコープに書く（無ければ型の誤り）。`{ book: 自分の引数の名前 }`（ブックの id）か `{ books: … }`（id の並び）で、ブックのページを含む全部を変えるなら `where: "all-pages"`（書かなければページもアイテムも変えない）。作るなら `"create"`。名前で言えなければ、引数から変えるブックと作るかを返す関数。行う前に変えるブックが分からなければ `"unknown"`
 - 書庫のエントリ（どの種類でも）を変えるアクションは、ブックの代わりに `{ entry: 自分の引数の名前 }`（エントリの id）か `{ entries: … }`（id の並び）に、変え方の `where` を添える: `"all-pages"`（中の物ごと変える。ゴミ箱に入れる・消す）・`"place"`（入れるフォルダだけを変える）・`"title"`（名前だけを変える）。どのブックのどの所で問うかは、core がエントリから出す
 - ブックかページが対象のアクションのうち、ページの中身でなくブックやページの扱いを変える物（ロックの掛け外しなど）には `history: false` を書く。書いたアクションは画面の履歴に入らない。ただし、ほかの窓のアクションバルクは、どれか 1 つが画面の履歴に入るアクションなら、まだ見ていない画面の履歴の段にする（その段には `history: false` のアクションの変更も入る）
-- 書庫が対象のアクションの変更は、ブックの画面の履歴に入らず、書庫の画面の履歴に入る（AI とほかの窓の変更を書庫の画面の履歴に入れる事は【未実装】）。戻せないアクション（ゴミ箱から消すなど）と、元に戻す・やり直すで行うアクションには `history: false` を書く
+- 書庫が対象のアクションの変更は、ブックの画面の履歴に入らず、書庫の画面の履歴に入る（AI とほかの窓の変更も、見えたら入る）。同じアクションバルクの中でも、書庫の画面の履歴に入るアクション（書庫が対象で `history: false` の無い物）の変更は書庫の画面の履歴の段に、ほかの変更はブックの画面の履歴の段に分ける。戻せないアクション（ゴミ箱から消すなど）と、元に戻す・やり直すで行うアクションには `history: false` を書く
 - 利用者が行っても、どこかの窓の編集ロックの物を変える・消すなら `being-edited` で断るアクションには `lockedForUser` を書く。断るのは常駐だけで、画面の `perform` では断られない。断りを利用者に知らせるなら、`performConfirmed` で常駐の答えを待つ
 - アクションバルクは、常駐が 1 トランザクションで書き、全部通るか全部断られる。編集ロックと認可ステップはアクションごとにかかる。AI の `perform` の 1 回は、1 アクションだけのアクションバルク。`performConfirmed` は、同じアクションバルクのほかのアクションが断られても断りを返す
 - 郵便の既読（`seenAt`・`visitedAt`）のように、ほかのアクションの成否と一緒に決めないレコードの変更を行う、種類が対象のアクションには `bulk: "alone"` を書く。同じ同期の処理の中で行っても、自分だけのアクションバルクになる。成否を共にすべき物（変更提案郵便の反映と、反映したと郵便に残すアクションなど）には書かない
@@ -255,6 +256,7 @@
 - 見えているスクリーンを決めるのに要る値（分けて並べるスクリーンの並びなど）は、スクリーンアレンジメントの値にする。窓が持ち、画面の場所に入る。描き方にだけ使う値（高さの割合など）は、プラグイン状態にする
 - ステージを並べるスクリーンの定義は 1 つだけ（2 つなら error）。窓を開いたときのスクリーンアレンジメントを名乗れるのも 1 つだけ（2 つなら error）
 - スクリーンの定義は、開いたままにする枚数を名乗れる（`maxOpen`。ブックスクリーンは 2）。土台は、超えた分を、カレントにしたのが古い物から閉じる。AI が画面に出すとき（show）も同じ決まりを通す
+- 書庫を見せるスクリーンの定義は、見せることのある書庫アピアランスを `libraryAppearances` に id で並べ、そのうち今見せている物を `shownLibraryAppearances` で答える（無ければ、並べた物を全部いつも見せている）。描いたまま隠している物は答えに含めない。書庫アピアランスの `shownFolders` は、描いている物と同じに、今中身を見せているフォルダを答える。どちらも、聞かれたスクリーンの、自分のプラグイン状態だけを読んで答える。AI とほかの窓の書庫の変更は、見えているスクリーンが今見せているフォルダの中で変わった物なら、見えたとする
 
 ## 列挙
 

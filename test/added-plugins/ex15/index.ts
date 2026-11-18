@@ -1,15 +1,13 @@
 // ex15: 自分のスクリーンで書庫のフォルダの中身を並べる追加プラグインの見本（たな）。自分の書庫アピアランスを持ち、見せているフォルダを
 // 自分のプラグイン状態から答える（AI とほかの窓の書庫の変更は、ここで見せているフォルダの物なら、見えたとして書庫の画面の履歴に入る）
-import { definePlugin, z } from "matomezu"
+import { definePlugin, HOME_ID, z } from "matomezu"
 import { kit } from "./kit"
 
 // たたんでいるか（スクリーン 1 枚ごと。読み直すと消える。値が無ければ、ひらいている）
 export const SHELF_FOLDED = kit.definePluginStateOf<true>()({ id: "shelf-folded", scope: "screen" })
 // 見せているフォルダの id（スクリーン 1 枚ごと。読み直すと消える。値が無ければ、書庫ホーム）
 export const SHELF_FOLDER = kit.definePluginStateOf<string>()({ id: "shelf-folder", scope: "screen" })
-// 書庫ホームの id
-const HOME = "library-home"
-export const shelfFolderOf = (folder: string | undefined): string => folder ?? HOME
+export const shelfFolderOf = (folder: string | undefined): string => folder ?? HOME_ID
 
 // たなの書庫アピアランス: フォルダ 1 つの中身を見せている。答えは、ビューが描く物と同じ所（shelfFolderOf）から出す
 export const SHELF = kit.defineLibraryAppearance({
