@@ -543,7 +543,7 @@ func (o Options) aiPerform(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	one := performOne(p.Action, p.Args, p.On)
-	one.By, one.Workroom, one.TimeoutSec = "ai", o.Hub.WorkroomOf(r.Header.Get(ParticipantHeader)), p.TimeoutSec
+	one.By, one.Participant, one.TimeoutSec = "ai", r.Header.Get(ParticipantHeader), p.TimeoutSec
 	done, err := o.Hub.Perform(one)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

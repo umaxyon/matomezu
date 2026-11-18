@@ -1,7 +1,7 @@
 // 郵便: AI が手紙を送ると、フォーカスのある窓にマーキーが流れ、画面の上からしおりがぶら下がる。左サイドパネルを開くボタンと郵便箱のタブに未読の数が出る。
 // しおりか郵便箱の行を押すとダイアログで本文が見え（見たことになる）、下の行の「開く」などで行き先へ移る（行き先を見たことになる）。行き先の物には鳥が来て枠が光る。
 // 行き先が無ければ「行き先がありません」と「閉じる」だけ
-import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
+import { aiAuth, BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
 import { addBox, items } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
 
@@ -148,6 +148,61 @@ test("未読が 3 通まではしおりを 1 通に 1 つずつ、4 通になる
   await leftPanel(page).getByRole("button", { name: "題1を取り消す" }).click()
   await leftPanel(page).getByRole("group", { name: "取り消しますか？" }).getByRole("button", { name: "取消" }).click()
   await expect(rows).toHaveCount(3)
+})
+
+test("参加済みの送り手の鳥を郵便ごとに表示し、受信や退室でもしおりの色を保つ", async ({ page }) => {
+  await page.goto(BOOK_SCREEN_URL)
+  const userAction = async (action: string, args: object, on?: object) => {
+    const response = await page.request.post("/api/perform", { data: { actions: [{ action, args, on }] } })
+    expect(await response.json()).toMatchObject({ ok: true })
+  }
+  const joined = await page.request.post("/api/ai/join", {
+    headers: aiAuth(),
+    data: { ai: "claude", model: "e2e", env: "e2e", link: crypto.randomUUID(), sessionId: crypto.randomUUID() },
+  })
+  const { participant } = (await joined.json()) as { participant: string }
+  expect(participant).toBeTruthy()
+  const request = page.getByRole("button", { name: "AI エージェントから参加要求が届きました" })
+  await expect(request.locator("svg")).toBeVisible()
+  await request.click()
+  await expect(request).toHaveCount(0)
+  await page.keyboard.press("Escape")
+  await userAction(
+    "@matomezu/base:participant-accept",
+    { newWorkroom: { name: "郵便を送る部屋", bird: "inko", palette: "orange" } },
+    { record: participant },
+  )
+  const ai = { ...aiAuth(), "X-Matomezu-Participant": participant }
+  const send = async (title: string) => {
+    const response = await page.request.post("/api/ai/perform", {
+      headers: ai,
+      data: { action: "@matomezu/base:mail-send", args: { from: "同じ表示名", title } },
+    })
+    expect(await response.json()).toMatchObject({ ok: true })
+  }
+  await userAction("@matomezu/base:mail-send", { from: "同じ表示名", title: "封筒の郵便" })
+  const envelope = page.getByRole("button", { name: "封筒の郵便" })
+  await expect(envelope.locator("svg")).toBeVisible()
+  const background = "background-color"
+  const envelopeColor = await envelope.evaluate(node => getComputedStyle(node).backgroundColor)
+
+  await send("鳥の郵便")
+  const bird = page.getByRole("button", { name: "鳥の郵便", exact: true })
+  await expect(bird.locator("img")).toBeVisible()
+  const birdColor = "rgb(239, 138, 50)" // 送り手が選んだ配色の旗の色
+  await expect(bird).toHaveCSS(background, birdColor)
+  await send("もう一通の鳥の郵便")
+  await expect(page.getByRole("button", { name: "もう一通の鳥の郵便" }).locator("img")).toBeVisible()
+  await expect(envelope).toHaveCSS(background, envelopeColor)
+  await expect(bird).toHaveCSS(background, birdColor)
+
+  await userAction("@matomezu/base:participant-remove", {}, { record: participant })
+  await expect(bird.locator("svg")).toBeVisible()
+  await expect(bird).toHaveCSS(background, birdColor)
+  await page.reload()
+  await expect(bird.locator("svg")).toBeVisible()
+  await expect(bird).toHaveCSS(background, birdColor)
+  await expect(envelope).toHaveCSS(background, envelopeColor)
 })
 
 test("行き先の無くなった手紙は、ダイアログに「行き先がありません」と出て、ボタンは閉じるだけ", async ({ page }) => {

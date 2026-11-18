@@ -1,8 +1,10 @@
 // 郵便箱: 郵便のレコードの種類（対象の定義 mail）と、郵便を 1 通足すアクションが使う処理（上限を守って古い郵便を消す）
-import type { ActionContext, AIEditTicketChange } from "../../../core/def/action"
+import { type Actor, isAI } from "../../../core/actor"
+import type { ActionContext, AIEditTicketChange, RecordRead } from "../../../core/def/action"
 import { inOrder } from "../../../core/record-keys"
 import { NO_RECORD, RECORDS_MAX, type Records } from "../../../core/records"
 import { kit } from "../kit"
+import { PARTICIPANT, readsParticipantsIn, WORKROOM } from "../participant"
 import { freshId } from "../utils/ids"
 import { checkMail, MAIL_ORDER_SCOPE, type Mail, MailSchema, mailsInOrder } from "./mail"
 import { ticketsOnRemoved } from "./removed"
@@ -43,6 +45,27 @@ export const MAIL = kit.defineSubject({
 // 郵便を 1 通足すアクションが読む物: 今ある郵便全部の、索引キーだけ（上限で消す古い郵便と、重ならない id を決めるのに使う。本文は読まない）
 export const READS_MAILBOX_KEYS = () => [{ subject: MAIL.id, where: [], keysOnly: true as const }]
 
+// 参加済みの AI から送るときは、送り手と鳥の配色をワークルームから引く
+export function readsMailSender(actor: Actor): readonly RecordRead[] {
+  const mailbox = READS_MAILBOX_KEYS()
+  if (!isAI(actor) || actor.workroom === "none") return mailbox
+  return [...mailbox, readsParticipantsIn(actor.workroom.id), { subject: WORKROOM.id, id: actor.workroom.id }]
+}
+
+function mailSender(ctx: ActionContext): Mail["sender"] {
+  const { actor } = ctx
+  if (!isAI(actor) || actor.workroom === "none") return undefined
+  const roomId = actor.workroom.id
+  const participants = Object.entries(ctx.keys?.[PARTICIPANT.id] ?? {}).filter(
+    ([, keys]) => keys.workroom === roomId && keys.state === "joined",
+  )
+  const room = WORKROOM.record.safeParse(ctx.records?.[WORKROOM.id]?.[roomId])
+  const participant = participants[0]?.[0]
+  if (!participant || participants.length !== 1 || !room.success) return undefined
+  const { bird, palette } = room.data
+  return { participant, bird, ...(palette ? { palette } : {}) }
+}
+
 // 郵便箱の 1 通の、索引キーから分かる所（届いた順に並べた物）
 interface MailKeys {
   id: string
@@ -77,7 +100,7 @@ function overLimit(mailbox: readonly MailKeys[]): readonly string[] {
 // 今ある郵便は、索引キーだけを ctx.keys から読み（アクションの reads に READS_MAILBOX_KEYS を書く）、消す郵便だけ中身を ctx.record で読む。番号を受け取れなければ null
 export function mailAdded(
   ctx: ActionContext,
-  mail: Omit<Mail, "id" | "order">,
+  mail: Omit<Mail, "id" | "order" | "sender">,
 ): {
   next: Mail
   others: readonly { id: string; record: "removed" }[]
@@ -92,7 +115,8 @@ export function mailAdded(
     ctx.newId,
     mailbox.map(m => m.id),
   )
-  const next: Mail = { ...mail, id, order: ctx.number(MAIL_ORDER_SCOPE) }
+  const sender = mailSender(ctx)
+  const next: Mail = { ...mail, id, order: ctx.number(MAIL_ORDER_SCOPE), ...(sender ? { sender } : {}) }
   const dropped = overLimit([...mailbox, { id, seen: false }])
   const gone = dropped.flatMap(id => {
     const mail = ctx.record?.(MAIL.id, id)

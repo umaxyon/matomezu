@@ -20,8 +20,8 @@
   margin-top: -8px;
   padding: 14px 0 14px;
   border: 0;
-  background: var(--tone);
-  color: var(--skin-on-accent);
+  background: var(--bookmark-tone, var(--tone));
+  color: var(--bookmark-ink, var(--skin-on-accent));
   font: inherit;
   font-size: 10px;
   clip-path: polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 10px), 0 100%);

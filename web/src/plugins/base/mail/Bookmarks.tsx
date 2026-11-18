@@ -1,13 +1,19 @@
 // しおり（ウィジェット mail-bookmarks。根に置く）: まだ見ていない郵便を、画面の上の右寄りから、しおりのようにぶら下げる（マーキーは消えるが、しおりは見るまで残る）。
-// しおりは細く、郵便の絵だけを描く（題はボタンの名前）。3 通までは 1 通に 1 つずつ、色を変えて新しい順に並べ、押すとその郵便のダイアログを開く。3 通を超えたら 1 つにまとめて数を付け、押すとブックスクリーンを前に出して、左サイドパネルに郵便箱と送信トレイを渡して開く
+// 3 通までは 1 通に 1 つずつ、送り手の鳥の顔か封筒を描く。押すとその郵便のダイアログを開く。
+// 3 通を超えたら 1 つにまとめて数を付け、押すとブックスクリーンを前に出して、左サイドパネルに郵便箱と送信トレイを渡して開く。
 
+import type { CSSProperties } from "react"
+import { isLight } from "../../../core/color"
 import { screenOf } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import { useMatomezuState, useStoreActions } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
+import { birdColors } from "../birds/colors"
 import { icon } from "../icon"
 import { kit } from "../kit"
 import { useOpenLeftSidePanelAt } from "../left-side-panel/hooks"
+import { BirdFaceView } from "../participant/BirdFaceView"
+import { useParticipants } from "../participant/hooks"
 import { Tip } from "../utils/Tip"
 import styles from "./Bookmarks.module.css"
 import { mailboxEntries } from "./entries"
@@ -29,6 +35,7 @@ export function MailBookmarks() {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
   const unread = useMailbox().filter(m => !m.seenAt)
+  const participants = useParticipants()
   const stage = useMatomezuState(s => screenOf(s.window).current)
   const open = useOpenMail()
   const openPanel = useOpenLeftSidePanelAt()
@@ -54,19 +61,33 @@ export function MailBookmarks() {
     )
   return (
     <div className={styles.bookmarks}>
-      {[...unread].reverse().map((m, i) => (
-        <Tip key={m.id} text={shownOf(catalog, m, t)?.title ?? t("Mail")}>
-          <button
-            type="button"
-            className={styles.bookmark}
-            data-tone={i}
-            aria-label={shownOf(catalog, m, t)?.title ?? t("Mail")}
-            onClick={() => open(m.id)}
-          >
-            {LETTER_ICON}
-          </button>
-        </Tip>
-      ))}
+      {unread.reverse().map(m => {
+        const title = shownOf(catalog, m, t)?.title ?? t("Mail")
+        const sender = m.sender
+        const joined = sender && participants.some(p => p.id === sender.participant && p.state === "joined")
+        const color = sender ? birdColors(sender.bird, sender.palette)?.flag : undefined
+        return (
+          <Tip key={m.id} text={title}>
+            <button
+              type="button"
+              className={styles.bookmark}
+              data-tone={Number.isSafeInteger(m.order) ? (m.order - 1) % MAX_EACH : 0}
+              style={
+                color
+                  ? ({
+                      "--bookmark-tone": color,
+                      "--bookmark-ink": isLight(color) ? "black" : "white",
+                    } as CSSProperties)
+                  : undefined
+              }
+              aria-label={title}
+              onClick={() => open(m.id)}
+            >
+              {joined ? <BirdFaceView bird={sender.bird} palette={sender.palette} size={18} /> : LETTER_ICON}
+            </button>
+          </Tip>
+        )
+      })}
     </div>
   )
 }

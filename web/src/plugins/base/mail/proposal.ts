@@ -15,7 +15,7 @@ import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
 import type { Mail } from "./mail"
 import { ownChangedIn, ownValuesIn } from "./own-values"
-import { MAIL, mailAdded, READS_MAILBOX_KEYS } from "./subject"
+import { MAIL, mailAdded, readsMailSender } from "./subject"
 
 // 乗せた変更 1 つ: アクションと引数と、ページが対象のアクションなら宛先のページ（perform の on と同じ形。ブックが対象のアクションには書かない）
 const ChangeSchema = z.strictObject({
@@ -151,7 +151,7 @@ export const PROPOSAL_SEND = kit.defineAction({
     "Send a change proposal mail: when an action of yours on a book was refused with being-edited (the user is editing what it changes), put the actions here and the user applies them with one press when done. from your short name (as in mail-send), title (80 characters at most) and body (optional) tell the user what it changes and why. book is the book, page the page they change (leave it out if they change several pages), changes the actions in order, each {action, args, on} as you would perform it: for an action whose target is page, on is {page} (a page of that book); for an action whose target is book, leave on out (it is done on that book). Only actions that change things there now can be carried: no actions that add things, and only one book per mail. They are tried now without changing the book: if one cannot be done, nothing is sent and why is returned. When the user applies it, it fails if what it changes was changed or removed after you sent it; then nothing is changed and you are told the next time the user talks to you (think again from the book as it is then). If the mail is removed before it is applied (the mailbox keeps the newest 200 mails, or the user removes it), you are told that too, the next time the user talks to you. Returns the mail's id.",
   title: "Send a change proposal",
   target: MAIL.id,
-  reads: READS_MAILBOX_KEYS,
+  reads: (_, actor) => readsMailSender(actor),
   // 読むのは、変えるブック 1 冊だけ
   readsBooks: args => [args.book],
   args: z.strictObject({

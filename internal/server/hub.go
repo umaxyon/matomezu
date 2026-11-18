@@ -414,8 +414,8 @@ type Perform struct {
 	// TimeoutSec は、バルクを待つ秒数（省略は 5、上限 60）
 	TimeoutSec int    `json:"timeoutSec,omitempty"`
 	By         string `json:"-"` // 頼んだのが AI なら "ai"（AI の口だけが入れる。窓からは受けない）
-	// Workroom は、頼んだのが AI のとき、入っているワークルームの id（参加が確定していなければ空。AI の口だけが入れる。窓からは受けない）
-	Workroom string `json:"-"`
+	// Participant は、AI の口が受け取った参加者の id（窓からは受けない）
+	Participant string `json:"-"`
 }
 
 // performOne は、アクション 1 つのバルクの頼み
@@ -449,7 +449,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		h.ack(p, done)
 		return done, nil
 	}
-	in := engine.Input{Actions: p.Actions, Settings: h.settings, Actor: actorOf(p), TimeoutSec: p.TimeoutSec}
+	in := engine.Input{Actions: p.Actions, Settings: h.settings, Actor: h.actorOfHeld(p), TimeoutSec: p.TimeoutSec}
 	if err := h.performInputs(&in); err != nil {
 		return Performed{}, err
 	}
@@ -481,7 +481,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 			requested = h.requestedParticipants()
 		}
 		// アクションが返した AI 間メッセージは、送り手と全部の宛先に参加の確定した参加者がいるときだけ送る（いなければ、何も変えずにバルクごと断る）
-		envelopes, refused := h.actionEnvelopes(out.AIMessages, p, time.Now())
+		envelopes, refused := h.actionEnvelopes(out.AIMessages, in.Actor, time.Now())
 		if refused != nil {
 			h.remember(p.Key, *refused)
 			h.ack(p, *refused)
@@ -867,10 +867,10 @@ func (h *Hub) send(c *client, name string, v any) {
 	}
 }
 
-// actorOf は、Perform を頼んだ者を engine に渡す形にする（AI の口が入れた By と、入っているワークルームの id）
-func actorOf(p Perform) *engine.Actor {
+// actorOfHeld は、ワークルームをアクションと同じロックの中で引く。引いてからアクションを行うまでに参加者が入れ替わらない
+func (h *Hub) actorOfHeld(p Perform) *engine.Actor {
 	if p.By == "ai" {
-		return &engine.Actor{Kind: "ai", Workroom: p.Workroom}
+		return &engine.Actor{Kind: "ai", Workroom: h.workroomOfHeld(p.Participant)}
 	}
 	return nil
 }

@@ -137,7 +137,7 @@ export const PARTICIPANT_REQUEST = kit.defineAction({
 })
 
 // ワークルーム room に入っている参加者の索引キーを読む宣言
-const readsIn = (room: string) => ({
+export const readsParticipantsIn = (room: string) => ({
   subject: PARTICIPANT.id,
   where: [{ key: "workroom" as const, eq: room }],
   keysOnly: true as const,
@@ -170,9 +170,9 @@ export const PARTICIPANT_ACCEPT = kit.defineAction({
           { subject: WORKROOM.id, where: [{ key: "name", eq: args.newWorkroom.name }], keysOnly: true },
           ...(args.discarding === undefined
             ? []
-            : [{ subject: WORKROOM.id, id: args.discarding.workroom }, readsIn(args.discarding.workroom)]),
+            : [{ subject: WORKROOM.id, id: args.discarding.workroom }, readsParticipantsIn(args.discarding.workroom)]),
         ]
-      : [{ subject: WORKROOM.id, id: args.workroom }, readsIn(args.workroom)],
+      : [{ subject: WORKROOM.id, id: args.workroom }, readsParticipantsIn(args.workroom)],
   userOnly: true,
   args: z.union([
     z.strictObject({ workroom: z.string().min(1), occupant: OCCUPANT }),
@@ -304,7 +304,7 @@ export const WORKROOM_REMOVE = kit.defineAction({
   target: WORKROOM.id,
   writes: [PARTICIPANT.id],
   // このワークルームに入っている参加者の索引キー
-  reads: (_args, _actor, on) => (on === undefined ? [] : [readsIn(on)]),
+  reads: (_args, _actor, on) => (on === undefined ? [] : [readsParticipantsIn(on)]),
   userOnly: true,
   args: z.strictObject({ occupant: OCCUPANT }),
   run: (now, args, ctx) => {

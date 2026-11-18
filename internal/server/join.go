@@ -627,21 +627,15 @@ func (o Options) aiJoin(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, done)
 }
 
-// WorkroomOf は、参加の id が指す参加者が参加が確定している（受け入れ済みで準備中でない）なら、入っているワークルームの id（参加の id が無い・要求中・準備中・表に無いなら空）
-func (h *Hub) WorkroomOf(id string) string {
-	if id == "" {
+// workroomOfHeld は、参加が確定した参加者が入っているワークルームの id を返す。h.mu を持って呼ぶ
+func (h *Hub) workroomOfHeld(id string) string {
+	if id == "" || !h.participantNotes[id].ready() {
 		return ""
 	}
-	records, err := h.records()
-	if err != nil {
-		return ""
-	}
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	for _, s := range records {
-		if s.ID == id && s.State == "joined" && s.Workroom != "" && h.participantNotes[id].ready() {
-			return s.Workroom
-		}
+	var participant participantRecord
+	entry, ok := h.recordTables[h.roles["participants"]][id]
+	if ok && json.Unmarshal(entry.body, &participant) == nil && participant.State == "joined" {
+		return participant.Workroom
 	}
 	return ""
 }

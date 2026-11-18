@@ -67,9 +67,12 @@ func (h *Hub) occupants(records []participantRecord) map[string]string {
 
 // actionEnvelopes は、アクションバルクが返した AI 間メッセージ messages を、行った参加者から送る封筒にする（h.mu を持って呼ぶ）。
 // 行ったのが参加の確定した AI でない、宛先が自分のワークルームか、宛先のワークルームに参加の確定した参加者がいなければ、バルクを断る答えを返す
-func (h *Hub) actionEnvelopes(messages []engine.AIMessage, p Perform, now time.Time) ([]Envelope, *Performed) {
+func (h *Hub) actionEnvelopes(messages []engine.AIMessage, actor *engine.Actor, now time.Time) ([]Envelope, *Performed) {
 	if len(messages) == 0 {
 		return nil, nil
+	}
+	if actor == nil || actor.Kind != "ai" || actor.Workroom == "" {
+		return nil, &Performed{OK: false, Reason: "not-joined", Detail: "only an AI whose request to join was accepted sends AI messages"}
 	}
 	records, err := h.participantsHeld()
 	if err != nil {
@@ -80,15 +83,15 @@ func (h *Hub) actionEnvelopes(messages []engine.AIMessage, p Perform, now time.T
 		return nil, &Performed{OK: false, Reason: "refused", Detail: err.Error()}
 	}
 	occupant := h.occupants(records)
-	from := occupant[p.Workroom]
-	if p.By != "ai" || from == "" {
+	from := occupant[actor.Workroom]
+	if from == "" {
 		return nil, &Performed{OK: false, Reason: "not-joined", Detail: "only an AI whose request to join was accepted sends AI messages"}
 	}
 	envelopes := make([]Envelope, 0, len(messages))
 	for _, m := range messages {
 		to := occupant[m.Workroom]
 		name := roomName(rooms, m.Workroom)
-		if m.Workroom == p.Workroom || to == "" {
+		if m.Workroom == actor.Workroom || to == "" {
 			if name == "" {
 				name = m.Workroom
 			}
@@ -96,7 +99,7 @@ func (h *Hub) actionEnvelopes(messages []engine.AIMessage, p Perform, now time.T
 		}
 		envelopes = append(envelopes, Envelope{
 			ID:     newEnvelopeID(),
-			From:   Address{Workroom: roomName(rooms, p.Workroom), Participant: from},
+			From:   Address{Workroom: roomName(rooms, actor.Workroom), Participant: from},
 			To:     Address{Workroom: name, Participant: to},
 			Text:   m.Text,
 			SentAt: isoTime(now),
