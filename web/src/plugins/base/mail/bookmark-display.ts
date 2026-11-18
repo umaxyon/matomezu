@@ -7,7 +7,7 @@ export const MAX_MAIL_BOOKMARKS = 3
 
 // 1 通ごとのしおりは届いた時の色を使い、送り手が退室したら絵だけ封筒に替える
 export function mailBookmarksOf(unread: readonly Mail[], participants: readonly Participant[]) {
-  return unread.toReversed().map(mail => {
+  return [...unread].reverse().map(mail => {
     const parsed = MailSchema.shape.sender.safeParse(mail.sender)
     const sender = parsed.success ? parsed.data : undefined
     const bird = sender && participants.some(p => p.id === sender.participant && p.state === "joined") ? sender : null
