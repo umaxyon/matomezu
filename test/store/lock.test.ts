@@ -91,13 +91,14 @@ test("変える所を言わないアクションは、行う前にはページ�
   expect(LOCK.keeps!({ kind: "folder", action, before, after, changes: changesOf(before, after), actor: USER })).toBe(
     false,
   )
+  // ロックの印を外せるのは、利用者の、掛け外しのアクションだけ
   const unlocked = { ...before, lineup: [drawingPage("p1", { title: "1" })] }
-  expect(
-    LOCK.keeps!({ kind: "folder", action, before, after: unlocked, changes: changesOf(before, unlocked), actor: USER }),
-  ).toBe(true)
-  expect(
-    LOCK.keeps!({ kind: "folder", action, before, after: unlocked, changes: changesOf(before, unlocked), actor: AI }),
-  ).toBe(false)
+  const unlock = CORE_CATALOG.actions.get("@matomezu/base:page-unlock")!
+  const kept = (by: typeof action, actor: typeof USER | typeof AI) =>
+    LOCK.keeps!({ kind: "folder", action: by, before, after: unlocked, changes: changesOf(before, unlocked), actor })
+  expect(kept(unlock, USER)).toBe(true)
+  expect(kept(unlock, AI)).toBe(false)
+  expect(kept(action, USER)).toBe(false)
 })
 
 test("ページで問う問い: ロック中のページは、そのページのロックの掛け外しのほかを止める。ほかのページは止めない", () => {

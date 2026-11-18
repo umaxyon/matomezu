@@ -108,12 +108,17 @@ export const PAGE_UNLOCK = kit.defineAction({
 const BOOK_SWITCHES: readonly string[] = [BOOK_LOCK.id, BOOK_UNLOCK.id]
 const PAGE_SWITCHES: readonly string[] = [PAGE_LOCK.id, PAGE_UNLOCK.id]
 
-// 変わったのがロックの印だけで、AI がロックを外していないか（next は変わった後のブックかページ）
+// ロック中のブックかページの変わったフィールド fields が、ロックの印だけで、印を外したのが利用者の、掛け外しのアクション switches か
+// （next は変わった後のブックかページ。置き直しのように、変える所を前もって言えないアクションも、印を外せない）
 const onlySwitched = (
   fields: readonly string[],
   next: { locked?: true } | undefined,
   actor: PermissionCheck["actor"],
-) => fields.every(f => f === "locked") && !(isAI(actor) && fields.includes("locked") && !next?.locked)
+  action: string,
+  switches: readonly string[],
+) =>
+  fields.every(f => f === "locked") &&
+  !(fields.includes("locked") && !next?.locked && (isAI(actor) || !switches.includes(action)))
 
 // ロック中のレコードは、ロックの印を掛け外すほかは変えず、消さない。外せるのは利用者だけ（印を掛け外すアクションかは、印でなく実際の変化で見る）。作るレコードは、ロックを掛けて作ってもよい
 function recordKeeps(c: Extract<PermissionCheck, { kind: "record" }>): boolean {
@@ -165,18 +170,28 @@ export const LOCK = kit.definePermission({
   keeps: c => {
     if (c.kind === "record") return recordKeeps(c)
     if (c.kind !== "folder") return true
-    const { before, after, changes, actor } = c
+    const { before, after, changes, actor, action } = c
     if (!before) return true // 新しく増えたブックは、ロックを掛けて作ってもよい
     const locked = pagesOf(before).filter(p => p.locked)
     if (!before.locked && locked.length === 0) return true
     if (changes.gone || changes.place === "trashed") return false
     // ロックしたブックは、ページの中身も、並び（順・バインダの足し引きと名前）も変えない
-    if (before.locked && (changes.pages.length > 0 || changes.lineup || !onlySwitched(changes.fields, after, actor)))
+    if (
+      before.locked &&
+      (changes.pages.length > 0 ||
+        changes.lineup ||
+        !onlySwitched(changes.fields, after, actor, action.id, BOOK_SWITCHES))
+    )
       return false
     const next = new Map((after ? pagesOf(after) : []).map(p => [p.id, p]))
     return locked.every(p => {
       const c = changes.pages.find(x => x.id === p.id)
-      return !c || (c.change === "changed" && c.items.length === 0 && onlySwitched(c.fields, next.get(p.id), actor))
+      return (
+        !c ||
+        (c.change === "changed" &&
+          c.items.length === 0 &&
+          onlySwitched(c.fields, next.get(p.id), actor, action.id, PAGE_SWITCHES))
+      )
     })
   },
 })

@@ -218,3 +218,22 @@ test("ホストが戻す・やり直すを断ったら、動かした段を元�
   expect(history().undo).toEqual([first!, second!])
   expect(history().redo).toEqual([])
 })
+
+test("置き直しは、ロックの印を外せない（外せるのは、掛け外しのアクションだけ）", async () => {
+  const { store, perform, made } = setup()
+  const book = await made("book-create", { title: "議事録" })
+  expect(perform("@matomezu/base:book-lock", {}, { book }).ok).toBe(true)
+  await settled()
+  const unlock = { pages: {}, folders: { [book]: { fields: { locked: { absent: true as const } } } } }
+  expect(perform("@matomezu/base:library-revert", unlock)).toMatchObject({
+    ok: false,
+    reason: "denied",
+    permission: "@matomezu/base:lock",
+  })
+  expect(perform("@matomezu/base:book-revert", { books: [book], ...unlock })).toMatchObject({
+    ok: false,
+    reason: "denied",
+  })
+  expect((store.state.getState().folders[book] as { locked?: boolean }).locked).toBe(true)
+  expect(perform("@matomezu/base:book-unlock", {}, { book }).ok).toBe(true)
+})
