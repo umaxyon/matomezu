@@ -100,14 +100,17 @@ test("戻すときに確かめる事: 元いたフォルダが無いか、入る
   expect(restorePlanOf(library(), "b2")).toBeUndefined()
   // 書庫ホームから捨てた物は、書庫ホームへ戻る（元いたフォルダは在る）
   expect(perform("@matomezu/base:entry-trash", { entry: "b1" }).ok).toBe(true)
-  expect(restorePlanOf(library(), "b1")).toEqual({ into: HOME_ID, fromGone: false, numbered: SAME_TITLE })
+  expect(restorePlanOf(library(), "b1")).toEqual({ into: HOME_ID, from: "here", numbered: SAME_TITLE })
   expect(perform("@matomezu/base:entry-trash", { entry: "b2" }).ok).toBe(true)
   // 元いたフォルダが在り、同じ名前の物も無い
-  expect(restorePlanOf(library(), "b2")).toEqual({ into: folder, fromGone: false, numbered: SAME_TITLE })
+  expect(restorePlanOf(library(), "b2")).toEqual({ into: folder, from: "here", numbered: SAME_TITLE })
   // 同じ名前の物を元いたフォルダに作ると、番号を付けた名前を言う
   expect(perform(FOLDER_CREATE.id, { title, into: folder }).ok).toBe(true)
-  expect(restorePlanOf(library(), "b2")).toEqual({ into: folder, fromGone: false, numbered: `${title} 2` })
+  expect(restorePlanOf(library(), "b2")).toEqual({ into: folder, from: "here", numbered: `${title} 2` })
   // 元いたフォルダがゴミ箱に入ると、その上のフォルダ（書庫ホーム）へ戻る
   expect(perform("@matomezu/base:entry-trash", { entry: folder }).ok).toBe(true)
-  expect(restorePlanOf(library(), "b2")).toEqual({ into: HOME_ID, fromGone: true, numbered: SAME_TITLE })
+  expect(restorePlanOf(library(), "b2")).toEqual({ into: HOME_ID, from: "trashed", numbered: SAME_TITLE })
+  // 元いたフォルダが書庫から消えても、同じ所へ戻る
+  expect(perform("@matomezu/base:entry-purge", { entries: [folder] }).ok).toBe(true)
+  expect(restorePlanOf(library(), "b2")).toEqual({ into: HOME_ID, from: "gone", numbered: SAME_TITLE })
 })

@@ -35,9 +35,12 @@ export const LIBRARY_MESSAGES = defineMessages({
     ja: "ゴミ箱の物が全部、完全に消えます",
   },
   "The folder it was in is gone": { en: "The folder it was in is gone", ja: "元いたフォルダがありません" },
+  "The folder it was in is in the trash": {
+    en: "The folder it was in is in the trash",
+    ja: "元いたフォルダはゴミ箱の中です",
+  },
   'It will go to "{folder}"': { en: 'It will go to "{folder}"', ja: "「{folder}」に移動します" },
   '"{folder}" has "{name}"': { en: '"{folder}" has "{name}"', ja: "「{folder}」に「{name}」があります" },
   'It will be "{name}"': { en: 'It will be "{name}"', ja: "「{name}」になります" },
   "Add a number": { en: "Add a number", ja: "番号を付ける" },
-  "Leave it": { en: "Cancel", ja: "やめる" },
 })

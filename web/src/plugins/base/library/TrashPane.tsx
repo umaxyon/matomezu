@@ -18,11 +18,11 @@ import styles from "./LibraryView.module.css"
 import { NO_TITLE, type TrashRow, trashRowsOf } from "./outline"
 import { useLibraryPerform } from "./useLibraryPerform"
 
-// 確かめている事: ゴミ箱を空にする・行を消す・戻す先（元いたフォルダが無い）・戻す名前（同じ名前の物が在る）
+// 確かめている事: ゴミ箱を空にする・行を消す・戻す先（元いたフォルダへ戻れない）・戻す名前（同じ名前の物が在る）
 type Asking =
   | { about: "empty" }
   | { about: "purge"; row: TrashRow }
-  | { about: "gone"; row: TrashRow; plan: RestorePlan }
+  | { about: "into"; row: TrashRow; plan: RestorePlan }
   | { about: "taken"; row: TrashRow; plan: RestorePlan }
 
 // 時刻 at（ISO）を、利用者の時刻の「2026-11-17 18:05」の形にする
@@ -52,10 +52,10 @@ export function TrashPane({ picked, onPick }: { picked: string | undefined; onPi
     if (run(ENTRY_RESTORE.id, { entry: row.id, onConflict }, "Could not restore")) onPick(undefined)
   }
   // 戻す前に確かめる事を、順に問う（after は、もう確かめた事）
-  const ask = (row: TrashRow, after?: "gone") => {
+  const ask = (row: TrashRow, after?: "into") => {
     const plan = restorePlanOf(read(), row.id)
     if (!plan) return
-    if (plan.fromGone && after !== "gone") return setAsking({ about: "gone", row, plan })
+    if (plan.from !== "here" && after !== "into") return setAsking({ about: "into", row, plan })
     if (plan.numbered !== SAME_TITLE) return setAsking({ about: "taken", row, plan })
     setAsking(null)
     restore(row, false)
@@ -125,14 +125,16 @@ export function TrashPane({ picked, onPick }: { picked: string | undefined; onPi
           onCancel={() => setAsking(null)}
         />
       )}
-      {asking?.about === "gone" && (
+      {asking?.about === "into" && (
         <Confirm
-          key="gone"
-          message={t("The folder it was in is gone")}
+          key="into"
+          message={t(
+            asking.plan.from === "trashed" ? "The folder it was in is in the trash" : "The folder it was in is gone",
+          )}
           detail={[t('It will go to "{folder}"', { folder: folderName(asking.plan) })]}
           ok={t("Restore")}
-          cancel={t("Leave it")}
-          onOk={() => ask(asking.row, "gone")}
+          cancel={t("Cancel")}
+          onOk={() => ask(asking.row, "into")}
           onCancel={() => setAsking(null)}
         />
       )}
@@ -145,7 +147,7 @@ export function TrashPane({ picked, onPick }: { picked: string | undefined; onPi
             t('It will be "{name}"', { name: asking.plan.numbered }),
           ]}
           ok={t("Add a number")}
-          cancel={t("Leave it")}
+          cancel={t("Cancel")}
           onOk={() => {
             const { row } = asking
             setAsking(null)

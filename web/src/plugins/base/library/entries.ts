@@ -77,11 +77,12 @@ export function numbered(library: Library, kind: EntryKind, entry: string, into:
 export const restoreTargetOf = (folders: Folders, from: readonly string[]): string =>
   from.find(id => folders[id] !== undefined && folders[id].folderRole !== "trash" && !inTrash(folders, id)) ?? HOME_ID
 
-// ゴミ箱の直下のエントリ entry を戻すときに、利用者に確かめる事（entry-restore と同じ読み方で出す）: 戻すと入るフォルダの id into、元いたフォルダがもう無いか fromGone、
+// ゴミ箱の直下のエントリ entry を戻すときに、利用者に確かめる事（entry-restore と同じ読み方で出す）: 戻すと入るフォルダの id into、元いたフォルダが今どうなっているか from
+// （"here" は在って、そこへ戻る。"trashed" はゴミ箱かその中に在る、"gone" は書庫から消えた。どちらも、その上の今も在るフォルダへ戻る）、
 // 入る先に同じ名前の物が在るときに番号を付けた名前 numbered（重ならなければ SAME_TITLE）
 export interface RestorePlan {
   into: string
-  fromGone: boolean
+  from: "here" | "trashed" | "gone"
   numbered: string
 }
 export const SAME_TITLE = ""
@@ -91,11 +92,12 @@ export function restorePlanOf(library: Library, entry: string): RestorePlan | un
   const ref = trashRefOf(library.folders, entry)
   if (!ref) return undefined
   const into = restoreTargetOf(library.folders, ref.from)
+  const was = ref.from[0]
   const back = restoredEntry(library, entry, into)
   const free = isMoveRefusal(back) ? undefined : freeTitleIn(back, ref.kind, entry, into)
   return {
     into,
-    fromGone: into !== ref.from[0],
+    from: into === was ? "here" : was !== undefined && library.folders[was] ? "trashed" : "gone",
     numbered: free === undefined || free === titleOf(library, ref.kind, entry) ? SAME_TITLE : free,
   }
 }

@@ -108,8 +108,8 @@ test("書庫のゴミ箱に、捨てたフォルダも並ぶ。選んだ行を�
   const taken = page.getByRole("alertdialog", { name: "同じ名前があります" })
   await expect(taken).toContainText("「ゴミ箱の試しの企画」に「古い案」があります")
   await expect(taken).toContainText("「古い案 2」になります")
-  // やめると、戻さない
-  await taken.getByRole("button", { name: "やめる" }).click()
+  // キャンセルすると、戻さない
+  await taken.getByRole("button", { name: "キャンセル" }).click()
   await expect(row("古い案")).toHaveCount(1)
   await row("古い案").getByRole("button", { name: "戻す" }).click()
   await taken.getByRole("button", { name: "番号を付ける" }).click()
@@ -118,7 +118,7 @@ test("書庫のゴミ箱に、捨てたフォルダも並ぶ。選んだ行を�
   // 元いたフォルダが無い物を戻す: 入る先を確かめる
   await row("メモ箱").getByRole("button").first().click()
   await row("メモ箱").getByRole("button", { name: "戻す" }).click()
-  const gone = page.getByRole("alertdialog", { name: "元いたフォルダがありません" })
+  const gone = page.getByRole("alertdialog", { name: "元いたフォルダはゴミ箱の中です" })
   await expect(gone).toContainText("「ゴミ箱の試しの企画」に移動します")
   await gone.getByRole("button", { name: "戻す" }).click()
   await expect(row("メモ箱")).toHaveCount(0)
