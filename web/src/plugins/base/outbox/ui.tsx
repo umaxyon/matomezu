@@ -8,7 +8,7 @@ import { Outbox } from "./Outbox"
 import { ANNOTATION_ICON, type AnnotationIconProps } from "./slots"
 import { OUTBOX_TAB_ID } from "./tab-id"
 
-// 種類 annotation の、送信トレイの行の絵のウィジェット（スロット annotation-icon に置く。20px 四方に収める）。
+// 種類 annotation の、送信トレイの行の絵のウィジェット（スロット annotation-icon に置く。20px 四方に収める）。annotation の持ち主のプラグインだけが名乗れる（ウィジェットの forKind に入れ、台帳アセンブルが確かめる。違えば E312 の error）。
 // place は、追加プラグインが既定の UI マッピングに足してほしいとき（true なら末尾）
 export const defineAnnotationIcon = <const Id extends string>(def: {
   id: Id
@@ -20,7 +20,7 @@ export const defineAnnotationIcon = <const Id extends string>(def: {
     id: def.id,
     slots: [ANNOTATION_ICON],
     ...(def.place ? { place: placeIn(ANNOTATION_ICON, def.place) } : {}),
-    annotationIcon: { annotation: def.annotation },
+    forKind: def.annotation,
     view: def.view,
   })
 

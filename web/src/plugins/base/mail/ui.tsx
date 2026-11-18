@@ -22,7 +22,7 @@ import { MAIL_ACTIONS, type MailActionsProps } from "./slots"
 import { MAILBOX_TAB_ID } from "./tab-id"
 
 // 郵便の種類 mail（種類の本当の id）のダイアログの下の行のウィジェット（スロット mail-actions に置く）。
-// 置いた種類のダイアログは、閉じるの横にこのウィジェットを描く（種類のボタンなどを置く。何も描かなければ、閉じるだけ）。
+// 置いた種類のダイアログは、閉じるの横にこのウィジェットを描く（種類のボタンなどを置く。何も描かなければ、閉じるだけ）。mail の持ち主のプラグインだけが名乗れる（ウィジェットの forKind に入れ、台帳アセンブルが確かめる。違えば E312 の error）。
 // place は、追加プラグインが既定の UI マッピングに足してほしいとき（true なら末尾）
 export const defineMailActions = <const Id extends string>(def: {
   id: Id
@@ -34,7 +34,7 @@ export const defineMailActions = <const Id extends string>(def: {
     id: def.id,
     slots: [MAIL_ACTIONS],
     ...(def.place ? { place: placeIn(MAIL_ACTIONS, def.place) } : {}),
-    mailActions: { mail: def.mail },
+    forKind: def.mail,
     view: def.view,
   })
 
