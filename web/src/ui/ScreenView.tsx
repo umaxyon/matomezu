@@ -14,8 +14,10 @@ import { useInstance, useMatomezuState, useStoreActions } from "./store-context"
 // closed を渡すと、もう閉じたスクリーンを、閉じたときの値で描く（閉じる動きの間だけ描き続けるのに使う。カレントスクリーンにはしない）
 export function ScreenView({ screen, closed }: { screen: string; closed?: OpenedScreen }) {
   const catalog = useInstance().catalog.core
-  const live = useMatomezuState(s => s.window.screens.find(x => x.id === screen))
-  const opened = live ?? closed
+  const liveDef = useMatomezuState(s => s.window.screens.find(x => x.id === screen)?.def)
+  const liveProps = useMatomezuState(s => s.window.screens.find(x => x.id === screen)?.props)
+  const live = liveDef !== undefined
+  const opened = liveDef !== undefined ? { id: screen, def: liveDef, props: liveProps } : closed
   const current = useMatomezuState(s => currentScreen(s.window).id === screen)
   const shown = useMatomezuState(s => shownScreens(catalog, s.window).includes(screen))
   const { makeScreenCurrent } = useStoreActions()

@@ -88,13 +88,14 @@ export function useScreenSplit(): ScreenSplit {
   const inside = useScreenContext()
   // 窓の全部は、操作するときに読む（描き直すのは、分けた並びと、それに入っている物・起点が変わったときだけ）
   const read = useReadState()
-  const current = useMatomezuState(s => currentScreen(s.window))
+  const currentId = useMatomezuState(s => currentScreen(s.window).id)
+  const currentDef = useMatomezuState(s => currentScreen(s.window).def)
   const split = useMatomezuState(useShallow(s => splitIn(s.window)))
   const members = useMatomezuState(useShallow(s => split.map(id => s.window.screens.find(x => x.id === id) ?? null)))
   const tall = useTallEnough()
   const actions = useStoreActions()
   const flash = useUpdatePluginState(kit, SCREEN_FLASH)
-  const here = inside ? { id: inside.id, def: inside.def } : { id: current.id, def: current.def }
+  const here = inside ? { id: inside.id, def: inside.def } : { id: currentId, def: currentDef }
   const shownHere = useMemo(() => ({ def: here.def }), [here.def])
   const apply = useCallback((plan: SplitPlan) => applySplit(actions, read, plan), [actions, read])
   const find = useCallback(

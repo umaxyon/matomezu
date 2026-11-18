@@ -64,7 +64,7 @@ export function ScreensView() {
     screens: [],
     rows: new Map(),
   })
-  const opened = useMatomezuState(s => s.window.screens)
+  const opened = useMatomezuState(useShallow(s => s.window.screens.filter(x => !x.stages)))
   const [leaving, setLeaving] = useState<readonly { screen: OpenedScreen; row: Row | null }[]>([])
   const gone = last.current.screens.filter(
     s => !s.stages && !opened.some(x => x.id === s.id) && !leaving.some(l => l.screen.id === s.id),
