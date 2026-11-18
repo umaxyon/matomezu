@@ -19,7 +19,7 @@ export const useMailbox = (): readonly Mail[] => useMatomezuState(useShallow(s =
 // まだ見ていない郵便の数
 export const useUnreadMail = (): number => useMailbox().filter(m => !m.seenAt).length
 
-// 前に出せるブックスクリーンのカレントのステージで（ブックスクリーンが無ければ、ステージを持たずに）、郵便 id のダイアログを開く関数（前に出している物は替えない）
+// いちばん最近カレントにしたブックスクリーンのカレントのステージで（ブックスクリーンが無ければ、カレントスクリーンから、ステージを持たずに）、郵便 id のダイアログを開く関数（カレントスクリーンは替えない）
 export function useOpenMail(): (id: string) => void {
   const { openDialog } = useStoreActions()
   const read = useReadState()

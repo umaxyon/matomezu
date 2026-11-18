@@ -28,7 +28,7 @@ import {
 import { ENTRY_MOVE, ENTRY_MOVE_OVER, ENTRY_RENAME, FOLDER_CREATE } from "./library/entry-move"
 import { ENTRY_PURGE, ENTRY_RESTORE, ENTRY_TRASH, TRASH_EMPTY } from "./library/entry-trash"
 import { LIBRARY_REVERT } from "./library/revert"
-import { LIBRARY_FOLDER, LIBRARY_PICKED } from "./library/state"
+import { LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_UNFOLDED } from "./library/state"
 import { BOOK_LOCK, BOOK_UNLOCK, LOCK, LOCKABLE_CHECK, PAGE_LOCK, PAGE_UNLOCK } from "./lock"
 import type { A3, A4, A5, LETTER, TABLOID, WIDE } from "./looks"
 import {
@@ -557,6 +557,7 @@ export const BASE = defineBuiltin(
       SCREEN_FLASH,
       LIBRARY_FOLDER,
       LIBRARY_PICKED,
+      LIBRARY_UNFOLDED,
       ...REVEAL_REQUEST_STATES,
       ...PRINT_PREVIEW_STATES,
       ...MEASURES_STATES,
@@ -794,6 +795,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:screen-flash": typeof SCREEN_FLASH
     "@matomezu/base:library-folder": typeof LIBRARY_FOLDER
     "@matomezu/base:library-picked": typeof LIBRARY_PICKED
+    "@matomezu/base:library-unfolded": typeof LIBRARY_UNFOLDED
     "@matomezu/base:revealing": typeof REVEALING_STATE
     "@matomezu/base:print-ready": typeof PRINT_READY_STATE
     "@matomezu/base:print-measures": typeof PRINT_MEASURES

@@ -197,6 +197,12 @@ export function titleOf({ pages, folders }: Library, kind: EntryKind, entry: str
   return typeof row?.title === "string" && row.title !== "" ? row.title : undefined
 }
 
+const NO_ENTRIES: readonly AnyEntryRef[] = []
+
+// フォルダ folder（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダ）の直下のエントリ（並びの順。フォルダが無ければ空）
+export const entriesIn = (folders: Folders, folder: string): readonly AnyEntryRef[] =>
+  folders[folder]?.lineup ?? NO_ENTRIES
+
 // フォルダ folder の直下のエントリの名前（並びの順。名前の無い読めないページは入らない。except のエントリは除く）
 export function titlesIn(library: Library, folder: Folder, except?: string): string[] {
   return folder.lineup.flatMap(r => {

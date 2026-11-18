@@ -1,7 +1,7 @@
 // 書庫の画面: 左にツリー（書庫ホームとゴミ箱が一番上に並ぶ）、右にパンくずと、開いているフォルダの中身。
 // 1 回押すと選び（ツリーのフォルダ・ブック・バインダは、右の枠にその中身を出す）、2 回押すと開く（フォルダは中へ入り、ブックとその中のページ・バインダは窓に出す）。
 // ゴミ箱の中の物・読めない物は、選べるだけ。開いているフォルダは画面の場所に入り、選んでいる行は入らない（state.ts）
-import { useRef, useState } from "react"
+import { useRef } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { titleOf } from "../../../core/entries"
 import { HOME_ID, TRASH_ID } from "../../../core/folders"
@@ -25,7 +25,7 @@ import {
   pathTo,
   rowsIn,
 } from "./outline"
-import { LIBRARY_FOLDER, LIBRARY_PICKED } from "./state"
+import { LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_UNFOLDED } from "./state"
 
 // 一番上に並ぶフォルダの行（書庫ホームとゴミ箱。名前は画面が付ける）
 const TOPS: readonly LibraryRow[] = [HOME_ID, TRASH_ID].map(id => ({
@@ -35,6 +35,9 @@ const TOPS: readonly LibraryRow[] = [HOME_ID, TRASH_ID].map(id => ({
   type: NO_TYPE,
   readable: true,
 }))
+
+// 最初に中を出しているフォルダ
+const AT_FIRST: readonly string[] = [HOME_ID]
 
 // フォルダ folder の直下の行。書庫の表が変わっても、行の中身が同じなら同じ値のまま（ページの中身が変わるたびに描き直さない）
 function useRowsIn(folder: string): readonly LibraryRow[] {
@@ -85,25 +88,21 @@ export function LibraryView() {
   const path = useMatomezuState(useShallow(s => pathTo(s.folders, opened)))
   const titles = useMatomezuState(useShallow(s => path.map(id => folderTitle(s, id))))
   const rows = useRowsIn(opened)
-  // 中を出しているフォルダ: 利用者が出した物と、開いているフォルダまでの道
-  const [unfolded, setUnfolded] = useState<ReadonlySet<string>>(() => new Set([HOME_ID]))
-  const [folded, setFolded] = useState<ReadonlySet<string>>(() => new Set())
-  const shown = new Set([...unfolded, ...path.slice(0, -1)].filter(id => !folded.has(id)))
+  const unfolded = usePluginState(kit, LIBRARY_UNFOLDED) ?? AT_FIRST
+  const setUnfolded = useSetPluginState(kit, LIBRARY_UNFOLDED)
+  const shown = new Set(unfolded)
   const enter = (folder: string) => {
     if (folder !== opened) setFolder(folder)
     setPicked(undefined)
-    // 入ったフォルダまでの道は、しまっていても出す
-    setFolded(was => new Set([...was].filter(id => !pathTo(read().folders, folder).includes(id))))
+    // 入ったフォルダまでの道は、ツリーの中を出す
+    const over = pathTo(read().folders, folder).slice(0, -1)
+    if (over.some(id => !shown.has(id))) setUnfolded([...new Set([...unfolded, ...over])])
   }
   const handlers: Handlers = {
     opened,
     picked,
     shown,
-    toggle: id => {
-      const on = shown.has(id)
-      setUnfolded(was => new Set(on ? [...was].filter(x => x !== id) : [...was, id]))
-      setFolded(was => new Set(on ? [...was, id] : [...was].filter(x => x !== id)))
-    },
+    toggle: id => setUnfolded(shown.has(id) ? unfolded.filter(x => x !== id) : [...unfolded, id]),
     enter,
     pick: (row, holder) => {
       if (holder !== opened) setFolder(holder)

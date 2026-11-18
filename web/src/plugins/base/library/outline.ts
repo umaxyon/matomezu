@@ -1,8 +1,8 @@
-// 書庫の画面が描く物を、書庫の表（ページの行とフォルダの行）から出す: フォルダの直下の行の輪郭・パンくず・行を開いたときの行き先
-import type { EntryKind } from "../../../core/entries"
+// 書庫の画面が描く物を、書庫の表（ページの行とフォルダの行）から出す: フォルダの直下の行・パンくず・行を開いたときの行き先
+import { type EntryKind, entriesIn } from "../../../core/entries"
 import { type Folders, foldersOver, HOME_ID, inTrash, type Library, TRASH_ID } from "../../../core/folders"
 
-// 行 1 つの輪郭。title は名前（名前の無い物は NO_TITLE）、type はページのタイプの id（バインダなら入れるページのタイプ。無ければ NO_TYPE）、
+// 行 1 つ（描くのに要る物だけ）。title は名前（名前の無い物は NO_TITLE）、type はページのタイプの id（バインダなら入れるページのタイプ。無ければ NO_TYPE）、
 // readable は読めるか（読めないページ・表に無いブックは false）
 export interface LibraryRow {
   kind: EntryKind
@@ -18,9 +18,9 @@ const NO_ROWS: readonly LibraryRow[] = []
 
 // フォルダ folder（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダ）の直下の行（並びの順。フォルダが無ければ空）
 export function rowsIn({ pages, folders }: Library, folder: string): readonly LibraryRow[] {
-  const holder = folders[folder]
-  if (!holder) return NO_ROWS
-  return holder.lineup.map((r): LibraryRow => {
+  const entries = entriesIn(folders, folder)
+  if (entries.length === 0) return NO_ROWS
+  return entries.map((r): LibraryRow => {
     if (r.kind === "page") {
       const page = pages[r.id]
       return {
