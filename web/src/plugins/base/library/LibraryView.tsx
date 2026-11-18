@@ -1,6 +1,6 @@
 // 書庫の画面: 左にツリー（書庫ホームとゴミ箱が一番上に並ぶ）、右にパンくずと、開いているフォルダの中身。
 // 1 回押すと選び（ツリーのフォルダ・ブック・バインダは、右の枠にその中身を出す）、2 回押すと開く（フォルダは中へ入り、ブックとその中のページ・バインダは窓に出す）。
-// ゴミ箱は、ツリーでは中を出さず、右の枠に捨てた物の一覧を出す（TrashPane.tsx）。読めない物は、選べるだけ。開いているフォルダは画面の場所に入り、選んでいる行は入らない（state.ts）
+// ゴミ箱は、ツリーでは中を出さず、右の枠に捨てた物の一覧を出す（TrashView.tsx）。読めない物は、選べるだけ。開いているフォルダは画面の場所に入り、選んでいる行は入らない（state.ts）
 import { useRef } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { titleOf } from "../../../core/entries"
@@ -30,7 +30,7 @@ import {
   rowsIn,
 } from "./outline"
 import { LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_UNFOLDED } from "./state"
-import { TrashPane } from "./TrashPane"
+import { TrashView } from "./TrashView"
 
 // 一番上に並ぶフォルダの行（書庫ホームとゴミ箱。名前は画面が付ける）
 const TOPS: readonly LibraryRow[] = [HOME_ID, TRASH_ID].map(id => ({
@@ -137,7 +137,7 @@ export function LibraryView() {
           </div>
         )}
         {opened === TRASH_ID ? (
-          <TrashPane picked={picked} onPick={setPicked} onSettled={() => root.current?.focus()} />
+          <TrashView picked={picked} onPick={setPicked} onSettled={() => root.current?.focus()} />
         ) : rows.length === 0 ? (
           <p className={styles.empty}>{t("Nothing inside")}</p>
         ) : (

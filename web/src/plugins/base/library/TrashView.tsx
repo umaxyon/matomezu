@@ -28,7 +28,7 @@ type Asking =
 // useLibraryRows の鍵（ゴミ箱の行）
 const TRASH_ROWS = "trash"
 
-export function TrashPane({
+export function TrashView({
   picked,
   onPick,
   onSettled,

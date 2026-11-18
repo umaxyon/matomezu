@@ -14,10 +14,6 @@ export const BOOK_OPEN_MESSAGES = defineMessages({
   "Move to trash": { en: "Move to trash", ja: "ゴミ箱に入れる" },
   "Trash {count}": { en: "Trash {count}", ja: "ゴミ箱 {count}" },
   "The book will be deleted for good": { en: "The book will be deleted for good", ja: "ブックが完全に消えます" },
-  "Every book in the trash will be deleted for good": {
-    en: "Every book in the trash will be deleted for good",
-    ja: "ゴミ箱のブックが全部、完全に消えます",
-  },
   "Some parts cannot be shown": { en: "Some parts cannot be shown", ja: "一部表示できない物があります" },
   "Search books": { en: "Search books", ja: "ブックを探す" },
   "Search by book name": { en: "Search by book name", ja: "ブックの名前で探す" },

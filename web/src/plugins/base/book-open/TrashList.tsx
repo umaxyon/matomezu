@@ -48,7 +48,7 @@ export function TrashList() {
         <Confirm
           message={
             confirming === "all"
-              ? t("Every book in the trash will be deleted for good")
+              ? t("Everything in the trash will be deleted for good")
               : t("The book will be deleted for good")
           }
           ok={t("Delete")}
