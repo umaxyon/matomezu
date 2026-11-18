@@ -118,7 +118,10 @@ test("上書きの移動は、先の同じ名前の物を中身ごと消して�
   const a = await made("folder-create", { title: "仕事" })
   const old = await made("book-create", { title: "議事録", into: a })
   const fresh = await made("book-create", { title: "議事録" })
-  expect(perform("@matomezu/base:entry-move-over", { entry: fresh, into: a }).ok).toBe(true)
+  // 消えると確かめた物を言わない・違う物を言うと、上書きしない
+  expect(perform("@matomezu/base:entry-move-over", { entry: fresh, into: a }).ok).toBe(false)
+  expect(perform("@matomezu/base:entry-move-over", { entry: fresh, into: a, replaces: a }).ok).toBe(false)
+  expect(perform("@matomezu/base:entry-move-over", { entry: fresh, into: a, replaces: old }).ok).toBe(true)
   await settled()
   expect(lineup(a)).toEqual([fresh])
   const now = store.state.getState()
@@ -130,17 +133,17 @@ test("上書きの移動は、先の同じ名前の物を中身ごと消して�
   // 種類が違う
   const other = await made("folder-create", { title: "別" })
   const folder = await made("folder-create", { title: "議事録", into: other })
-  expect(perform("@matomezu/base:entry-move-over", { entry: folder, into: a }).ok).toBe(false)
+  expect(perform("@matomezu/base:entry-move-over", { entry: folder, into: a, replaces: old }).ok).toBe(false)
   // ロックした物
   perform("@matomezu/base:book-lock", {}, { book: old })
-  expect(perform("@matomezu/base:entry-move-over", { entry: fresh, into: a })).toMatchObject({
+  expect(perform("@matomezu/base:entry-move-over", { entry: fresh, into: a, replaces: old })).toMatchObject({
     ok: false,
     reason: "denied",
     permission: "@matomezu/base:lock",
   })
   // 前から在った方の中に、動かす物が在る
   const inner = await made("folder-create", { title: "仕事", into: a })
-  expect(perform("@matomezu/base:entry-move-over", { entry: inner, into: HOME_ID }).ok).toBe(false)
+  expect(perform("@matomezu/base:entry-move-over", { entry: inner, into: HOME_ID, replaces: a }).ok).toBe(false)
 })
 
 test("ゴミ箱から戻すときの上書きも、在った物を消して戻し、1 回戻すと両方戻る", async () => {
@@ -149,7 +152,8 @@ test("ゴミ箱から戻すときの上書きも、在った物を消して戻�
   perform("@matomezu/base:entry-trash", { entry: old })
   await settled()
   const fresh = await made("book-create", { title: "議事録" })
-  expect(perform("@matomezu/base:entry-restore", { entry: old, onConflict: "replace" }).ok).toBe(true)
+  expect(perform("@matomezu/base:entry-restore", { entry: old, onConflict: "replace" }).ok).toBe(false)
+  expect(perform("@matomezu/base:entry-restore", { entry: old, onConflict: "replace", replaces: fresh }).ok).toBe(true)
   await settled()
   expect(lineup(HOME_ID)).toContain(old)
   expect(fresh in store.state.getState().folders).toBe(false)

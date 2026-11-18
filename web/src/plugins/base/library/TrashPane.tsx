@@ -1,7 +1,7 @@
 // 書庫の画面でゴミ箱を開いている間の右の枠: 上に「ゴミ箱を空にする」、下にゴミ箱の直下の物の一覧（種類のアイコン・名前・元の場所・捨てた日時。新しい順）。
 // 選んだ行に、戻すボタン（entry-restore）と完全に消すボタン（entry-purge）を出す。捨てたフォルダ・ブックの中身は開けない（戻してから見る）。
 // 戻すとき、元いたフォルダがもう無ければ入る先を確かめ、入る先に同じ名前の物が在れば、番号を付けるかを確かめる。消すのは、戻せないので確かめてから
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { titleOf } from "../../../core/entries"
 import type { Library } from "../../../core/folders"
 import { useMessages } from "../../../ui/i18n"
@@ -16,6 +16,7 @@ import { useLibraryRows, useNameOf } from "./hooks"
 import { iconOf } from "./icons"
 import styles from "./LibraryView.module.css"
 import { NO_TITLE, type TrashRow, trashRowsOf } from "./outline"
+import { type ReplaceBlocked, TitleClashConfirm } from "./TitleClashConfirm"
 import { useLibraryPerform } from "./useLibraryPerform"
 
 // 確かめている事: ゴミ箱を空にする・行を消す・戻す先（元いたフォルダへ戻れない）・戻す名前（同じ名前の物が在る）
@@ -38,7 +39,15 @@ const TRASH_ROWS = "trash"
 const placedRows = (library: Library): readonly PlacedRow[] =>
   trashRowsOf(library).map(row => ({ ...row, place: titleOf(library, "folder", row.into) ?? NO_TITLE }))
 
-export function TrashPane({ picked, onPick }: { picked: string | undefined; onPick(id: string | undefined): void }) {
+export function TrashPane({
+  picked,
+  onPick,
+  onSettled,
+}: {
+  picked: string | undefined
+  onPick(id: string | undefined): void
+  onSettled(): void // 選んでいた行に行えて、その行が消えたあと（焦点を置き直す所）
+}) {
   const t = useMessages(kit)
   const rows = useLibraryRows(TRASH_ROWS, placedRows)
   const read = useReadState()
@@ -46,10 +55,23 @@ export function TrashPane({ picked, onPick }: { picked: string | undefined; onPi
   const emptiable = useAllowedOn(TRASH_EMPTY.id, {}).ok
   const [asking, setAsking] = useState<Asking | null>(null)
   const nameOf = useNameOf()
-  // 行 row を戻す（番号を付けるなら number）。戻せたら、選んでいる行を外す
-  const restore = (row: TrashRow, number: boolean) => {
-    const onConflict = number ? "number" : "refuse"
-    if (run(ENTRY_RESTORE.id, { entry: row.id, onConflict }, "Could not restore")) onPick(undefined)
+  // 選んでいた行に行えたあと: 選んでいる行を外し、行と一緒に消えたボタンの代わりに、焦点を置き直してもらう
+  const [settled, setSettled] = useState(0)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 行えた回ごとに 1 度だけ呼ぶ
+  useEffect(() => {
+    if (settled > 0) onSettled()
+  }, [settled])
+  const settle = () => {
+    onPick(undefined)
+    setSettled(n => n + 1)
+  }
+  // 行 row を戻す。how は、同じ名前の物が在るときの戻し方: 断らせる（refuse）・番号を付ける（number）・確かめた plan のとおりに上書きする
+  const restore = (row: TrashRow, how: "refuse" | "number" | RestorePlan) => {
+    const args =
+      typeof how === "string"
+        ? { entry: row.id, onConflict: how }
+        : { entry: row.id, onConflict: "replace", replaces: how.replaces }
+    if (run(ENTRY_RESTORE.id, args, "Could not restore")) settle()
   }
   // 戻す前に確かめる事を、順に問う（after は、もう確かめた事）
   const ask = (row: TrashRow, after?: "into") => {
@@ -58,7 +80,7 @@ export function TrashPane({ picked, onPick }: { picked: string | undefined; onPi
     if (plan.from !== "here" && after !== "into") return setAsking({ about: "into", row, plan })
     if (plan.numbered !== SAME_TITLE) return setAsking({ about: "taken", row, plan })
     setAsking(null)
-    restore(row, false)
+    restore(row, "refuse")
   }
   const folderName = (plan: RestorePlan) =>
     nameOf({ id: plan.into, title: titleOf(read(), "folder", plan.into) ?? NO_TITLE })
@@ -106,7 +128,7 @@ export function TrashPane({ picked, onPick }: { picked: string | undefined; onPi
           cancel={t("Cancel")}
           onOk={() => {
             setAsking(null)
-            if (run(TRASH_EMPTY.id, {}, "Could not delete")) onPick(undefined)
+            if (run(TRASH_EMPTY.id, {}, "Could not delete")) settle()
           }}
           onCancel={() => setAsking(null)}
         />
@@ -120,7 +142,7 @@ export function TrashPane({ picked, onPick }: { picked: string | undefined; onPi
           onOk={() => {
             const { row } = asking
             setAsking(null)
-            if (run(ENTRY_PURGE.id, { entries: [row.id] }, "Could not delete")) onPick(undefined)
+            if (run(ENTRY_PURGE.id, { entries: [row.id] }, "Could not delete")) settle()
           }}
           onCancel={() => setAsking(null)}
         />
@@ -139,24 +161,53 @@ export function TrashPane({ picked, onPick }: { picked: string | undefined; onPi
         />
       )}
       {asking?.about === "taken" && (
-        <Confirm
-          key="taken"
-          message={t("The name is taken")}
-          detail={[
-            t('"{folder}" has "{name}"', { folder: folderName(asking.plan), name: nameOf(asking.row) }),
-            t('It will be "{name}"', { name: asking.plan.numbered }),
-          ]}
-          ok={t("Add a number")}
-          cancel={t("Cancel")}
-          onOk={() => {
-            const { row } = asking
+        <RestoreClash
+          row={asking.row}
+          plan={asking.plan}
+          folder={folderName(asking.plan)}
+          name={nameOf(asking.row)}
+          onChoose={how => {
+            const { row, plan } = asking
             setAsking(null)
-            restore(row, true)
+            if (how !== "cancel") restore(row, how === "number" ? "number" : plan)
           }}
-          onCancel={() => setAsking(null)}
         />
       )}
     </>
+  )
+}
+
+// 戻す先に同じ名前の物が在るときの確かめ（上書きできるかは、確かめた plan の訳と、上書きのアクションを止める認可ステップから出す）
+function RestoreClash({
+  row,
+  plan,
+  folder,
+  name,
+  onChoose,
+}: {
+  row: TrashRow
+  plan: RestorePlan
+  folder: string
+  name: string
+  onChoose(how: "number" | "replace" | "cancel"): void
+}) {
+  const allowed = useAllowedOn(ENTRY_RESTORE.id, { entry: row.id, onConflict: "replace", replaces: plan.replaces })
+  const blocked: ReplaceBlocked | null =
+    plan.overwrite !== "ok"
+      ? { by: "rule", why: plan.overwrite }
+      : allowed.ok
+        ? null
+        : { by: "permission", permission: allowed.permission }
+  return (
+    <TitleClashConfirm
+      folder={folder}
+      name={name}
+      numbered={plan.numbered}
+      blocked={blocked}
+      onNumber={() => onChoose("number")}
+      onReplace={() => onChoose("replace")}
+      onCancel={() => onChoose("cancel")}
+    />
   )
 }
 

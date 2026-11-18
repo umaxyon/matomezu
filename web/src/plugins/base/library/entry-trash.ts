@@ -2,6 +2,7 @@
 // 戻す entry-restore（元いたフォルダへ。無ければ、その上のフォルダをたどる）、消す entry-purge と、ゴミ箱を空にする trash-empty（書庫から消す。戻せない）。
 // 戻す・消す・空にするのは利用者だけ（userOnly）。ロック中のブック・ロック中のページを持つブックは（フォルダごとでも）、認可ステップ lock が止める
 import { z } from "zod"
+import type { LibraryTargets } from "../../../core/def/action"
 import {
   isMoveRefusal,
   removedEntry,
@@ -14,7 +15,7 @@ import type { Folders, Library } from "../../../core/folders"
 import type { Books } from "../../../core/library"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
-import { isNotOverwritten, numbered, overwritten, placedInFolder, restoreTargetOf } from "./entries"
+import { isNotOverwritten, numbered, overwritten, placedInFolder, REPLACES_NOTHING, restoreTargetOf } from "./entries"
 
 // ゴミ箱の直下のブックと、入れた時刻（新しい順）。trash はゴミ箱かその中のブック、folders は書庫のフォルダの行
 export function trashOrder(trash: Books, folders: Folders): { book: Book; trashed: string }[] {
@@ -60,11 +61,21 @@ export const ENTRY_RESTORE = kit.defineAction({
   title: "Restore",
   target: "library",
   userOnly: true,
-  permissionScope: { entry: "entry", where: "all-pages" },
-  // onConflict: 戻す先に同じ名前の物が在るとき、断る（refuse）か、番号を付けた名前で戻す（number）か、在った物を中身ごと消して戻す（replace。ゴミ箱には入らない）
+  // 上書きで消える物も、中身ごと変える物として名乗る（ロック中なら、行う前に分かる）
+  permissionScope: (args: { entry: string; replaces?: string }): LibraryTargets => ({
+    books: [],
+    entries: [args.entry, ...(args.replaces === undefined ? [] : [args.replaces])].map(entry => ({
+      entry,
+      where: "all-pages",
+    })),
+    creates: false,
+  }),
+  // onConflict: 戻す先に同じ名前の物が在るとき、断る（refuse）か、番号を付けた名前で戻す（number）か、在った物を中身ごと消して戻す（replace。ゴミ箱には入らない）。
+  // replaces: replace のとき、消えると利用者が確かめた物の id（今 同じ名前で在る物がそれと違えば断る）
   args: z.strictObject({
     entry: z.string().min(1),
     onConflict: z.enum(["refuse", "number", "replace"]).default("refuse"),
+    replaces: z.string().min(1).optional(),
   }),
   run: (library, args) => {
     const ref = trashRefOf(library.folders, args.entry)
@@ -76,7 +87,7 @@ export const ENTRY_RESTORE = kit.defineAction({
       args.onConflict === "number"
         ? numbered(back, ref.kind, args.entry, into)
         : args.onConflict === "replace"
-          ? overwritten(back, ref.kind, args.entry, into)
+          ? overwritten(back, ref.kind, args.entry, into, args.replaces ?? REPLACES_NOTHING)
           : back
     return next && !isNotOverwritten(next) ? { next, result: { into } } : null
   },

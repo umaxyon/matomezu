@@ -1,6 +1,7 @@
 // 書庫の画面: 左にツリー（書庫ホームとゴミ箱が一番上に並ぶ）、右にパンくずと、開いているフォルダの中身。
 // 1 回押すと選び（ツリーのフォルダ・ブック・バインダは、右の枠にその中身を出す）、2 回押すと開く（フォルダは中へ入り、ブックとその中のページ・バインダは窓に出す）。
 // ゴミ箱は、ツリーでは中を出さず、右の枠に捨てた物の一覧を出す（TrashPane.tsx）。読めない物は、選べるだけ。開いているフォルダは画面の場所に入り、選んでいる行は入らない（state.ts）
+import { useRef } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { titleOf } from "../../../core/entries"
 import { HOME_ID, TRASH_ID } from "../../../core/folders"
@@ -11,6 +12,7 @@ import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/sto
 import { useActions, usePluginState, useSetPluginState } from "../../../ui/view-hooks"
 import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
+import { LIBRARY_SCOPE } from "./commands"
 import { LIBRARY_NEW_BOOK_DIALOG } from "./dialog"
 import { holdsEntries } from "./entries"
 import { useLibraryRows, useNameOf } from "./hooks"
@@ -56,6 +58,8 @@ interface Handlers {
 }
 
 export function LibraryView() {
+  // 根の要素: 行った行が消えて焦点の行き場が無くなったとき、ここへ戻す（書庫のキーが効き続けるように）
+  const root = useRef<HTMLDivElement>(null)
   const t = useMessages(kit)
   const nameOf = useNameOf()
   const read = useReadState()
@@ -101,7 +105,7 @@ export function LibraryView() {
   }
   const here = nameOf({ id: opened, title: titles[titles.length - 1] ?? NO_TITLE })
   return (
-    <div className={styles.library}>
+    <div ref={root} className={styles.library} data-key-scope={LIBRARY_SCOPE} tabIndex={-1}>
       <nav className={styles.tree} aria-label={t("Folders")}>
         <ul className={styles.rows}>
           {TOPS.map(top => (
@@ -133,7 +137,7 @@ export function LibraryView() {
           </div>
         )}
         {opened === TRASH_ID ? (
-          <TrashPane picked={picked} onPick={setPicked} />
+          <TrashPane picked={picked} onPick={setPicked} onSettled={() => root.current?.focus()} />
         ) : rows.length === 0 ? (
           <p className={styles.empty}>{t("Nothing inside")}</p>
         ) : (

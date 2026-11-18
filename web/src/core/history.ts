@@ -23,18 +23,18 @@ export interface HistoryStep {
   folders: Readonly<Record<string, RowChange<Folder>>>
 }
 
-// ブックごとの履歴: 戻せる画面の履歴の段（古い順）と、やり直せる画面の履歴の段（古い順。最後が次にやり直す物）
-export interface BookHistory {
+// 画面の履歴（ブックごとと、書庫に 1 つ）: 戻せる画面の履歴の段（古い順）と、やり直せる画面の履歴の段（古い順。最後が次にやり直す物）
+export interface History {
   undo: readonly HistoryStep[]
   redo: readonly HistoryStep[]
 }
-export const NO_HISTORY: BookHistory = { undo: [], redo: [] }
+export const NO_HISTORY: History = { undo: [], redo: [] }
 // 書庫の画面の履歴の鍵（ブックごとの履歴と同じ表に、この鍵で持つ）: 書庫が対象のアクションが変えたページとフォルダの段。ブックが対象・ページが対象のアクションの段は、ブックの履歴に入る
 export const LIBRARY_HISTORY = "library"
 export const HISTORY_LIMIT = 100 // ブックごとに覚える画面の履歴の段の数（まだ見ていない画面の履歴の段も、ブックごとにこの数まで）
 
 // 履歴 was の戻せる画面の履歴の段に、step を時刻の位置で差し込む（後ろから見て、at の大きい物の前。やり直せる画面の履歴の段は消さない）
-export function insertStep(was: BookHistory, step: HistoryStep): BookHistory {
+export function insertStep(was: History, step: HistoryStep): History {
   let i = was.undo.length
   while (i > 0 && (was.undo[i - 1] as HistoryStep).at > step.at) i--
   return { ...was, undo: [...was.undo.slice(0, i), step, ...was.undo.slice(i)].slice(-HISTORY_LIMIT) }

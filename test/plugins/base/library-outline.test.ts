@@ -94,22 +94,35 @@ test("ゴミ箱の行は、入れた時刻の新しい順に、どの種類の�
   expect(trashRowsOf(library())[1]).toMatchObject({ title: "下書き", readable: true })
 })
 
-test("戻すときに確かめる事: 元いたフォルダが無いか、入る先に同じ名前の物が在るときの番号を付けた名前", () => {
+test("戻すときに確かめる事: 元いたフォルダが無いか、入る先に同じ名前の物が在るときの番号を付けた名前と、上書きで消える物", () => {
   const { library, folder, perform } = setup()
   const title = rowsIn(library(), folder).find(r => r.id === "b2")!.title
   expect(restorePlanOf(library(), "b2")).toBeUndefined()
   // 書庫ホームから捨てた物は、書庫ホームへ戻る（元いたフォルダは在る）
   expect(perform("@matomezu/base:entry-trash", { entry: "b1" }).ok).toBe(true)
-  expect(restorePlanOf(library(), "b1")).toEqual({ into: HOME_ID, from: "here", numbered: SAME_TITLE, overwrite: "ok" })
+  expect(restorePlanOf(library(), "b1")).toEqual({
+    into: HOME_ID,
+    from: "here",
+    numbered: SAME_TITLE,
+    replaces: "",
+    overwrite: "ok",
+  })
   expect(perform("@matomezu/base:entry-trash", { entry: "b2" }).ok).toBe(true)
   // 元いたフォルダが在り、同じ名前の物も無い
-  expect(restorePlanOf(library(), "b2")).toEqual({ into: folder, from: "here", numbered: SAME_TITLE, overwrite: "ok" })
+  expect(restorePlanOf(library(), "b2")).toEqual({
+    into: folder,
+    from: "here",
+    numbered: SAME_TITLE,
+    replaces: "",
+    overwrite: "ok",
+  })
   // 同じ名前の物を元いたフォルダに作ると、番号を付けた名前を言う
-  expect(perform(FOLDER_CREATE.id, { title, into: folder }).ok).toBe(true)
+  const same = (perform(FOLDER_CREATE.id, { title, into: folder }).result as { folder: string }).folder
   expect(restorePlanOf(library(), "b2")).toEqual({
     into: folder,
     from: "here",
     numbered: `${title} 2`,
+    replaces: same,
     overwrite: "kind",
   })
   // 元いたフォルダがゴミ箱に入ると、その上のフォルダ（書庫ホーム）へ戻る
@@ -118,9 +131,16 @@ test("戻すときに確かめる事: 元いたフォルダが無いか、入る
     into: HOME_ID,
     from: "trashed",
     numbered: SAME_TITLE,
+    replaces: "",
     overwrite: "ok",
   })
   // 元いたフォルダが書庫から消えても、同じ所へ戻る
   expect(perform("@matomezu/base:entry-purge", { entries: [folder] }).ok).toBe(true)
-  expect(restorePlanOf(library(), "b2")).toEqual({ into: HOME_ID, from: "gone", numbered: SAME_TITLE, overwrite: "ok" })
+  expect(restorePlanOf(library(), "b2")).toEqual({
+    into: HOME_ID,
+    from: "gone",
+    numbered: SAME_TITLE,
+    replaces: "",
+    overwrite: "ok",
+  })
 })

@@ -6,7 +6,7 @@ import type { CoreCatalog } from "../../core/core-catalog"
 import type { Where } from "../../core/def/action"
 import type { PluginStateDef } from "../../core/def/plugin-state"
 import { fail } from "../../core/errors"
-import { NO_HISTORY } from "../../core/history"
+import { LIBRARY_HISTORY, NO_HISTORY } from "../../core/history"
 import { actionQuery, inspect, type Query, withoutPermissions } from "../../core/inspect"
 import { splitId } from "../../core/names"
 import { shownPageId, stageBlocks } from "../../core/stage"
@@ -78,6 +78,7 @@ export function screenCommandContext(
     settings,
     dialog,
     contextMenu,
+    libraryHistory: state.history[LIBRARY_HISTORY] ?? NO_HISTORY,
     // スクリーンごとの宣言は呼ばれた場所のスクリーンの値、ステージごとの宣言は呼ばれた場所のステージの値
     pluginState: <S>(def: PluginStateDef<S>) =>
       pluginValueOf(

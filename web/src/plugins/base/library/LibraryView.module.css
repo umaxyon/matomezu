@@ -5,6 +5,7 @@
   min-height: 0;
   font-size: 13px;
   color: var(--skin-text);
+  outline: none;
 }
 .tree {
   flex: none;

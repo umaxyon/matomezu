@@ -25,6 +25,7 @@ import {
   type LEFT_SIDE_PANEL_STATE,
   LEFT_SIDE_PANEL_STATES,
 } from "./left-side-panel"
+import { LIBRARY_KEY_SCOPE, LIBRARY_KEYS, LIBRARY_REDO, LIBRARY_UNDO } from "./library/commands"
 import { LIBRARY_NEW_BOOK_DIALOG } from "./library/dialog"
 import { ENTRY_MOVE, ENTRY_MOVE_OVER, ENTRY_RENAME, FOLDER_CREATE } from "./library/entry-move"
 import { ENTRY_PURGE, ENTRY_RESTORE, ENTRY_TRASH, TRASH_EMPTY } from "./library/entry-trash"
@@ -527,6 +528,8 @@ export const BASE = defineBuiltin(
       SETTINGS_OPEN,
       UNDO,
       REDO,
+      LIBRARY_UNDO,
+      LIBRARY_REDO,
       NOTE_NEW,
       MARK_NEW,
       RIGHT_SIDE_PANEL_CLOSE,
@@ -571,7 +574,7 @@ export const BASE = defineBuiltin(
       ...CONTEXT_MENU_STATES,
       WIDE_SEARCH_MODE,
     ],
-    keyScopes: [RIGHT_SIDE_PANEL_KEY_SCOPE, LEFT_SIDE_PANEL_KEY_SCOPE, SEARCH_KEY_SCOPE],
+    keyScopes: [RIGHT_SIDE_PANEL_KEY_SCOPE, LEFT_SIDE_PANEL_KEY_SCOPE, SEARCH_KEY_SCOPE, LIBRARY_KEY_SCOPE],
     keys: [
       ...TOOLBOX_KEYS,
       ...TOOL_PICKER_KEYS,
@@ -579,6 +582,7 @@ export const BASE = defineBuiltin(
       ...DIALOG_KEYS,
       ...MENU_KEYS,
       ...HISTORY_KEYS,
+      ...LIBRARY_KEYS,
       ...RIGHT_SIDE_PANEL_KEYS,
       ...LEFT_SIDE_PANEL_KEYS,
       ...CONTROL_CENTER_KEYS,
@@ -731,6 +735,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:scrap-open-original": typeof SCRAP_OPEN_ORIGINAL
     "@matomezu/base:undo": typeof UNDO
     "@matomezu/base:redo": typeof REDO
+    "@matomezu/base:library-undo": typeof LIBRARY_UNDO
+    "@matomezu/base:library-redo": typeof LIBRARY_REDO
     "@matomezu/base:control-center-toggle": typeof CONTROL_CENTER_TOGGLE
     "@matomezu/base:control-center-leave": typeof CONTROL_CENTER_LEAVE
     "@matomezu/base:stage-split": typeof STAGE_SPLIT
@@ -814,6 +820,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:right-side-panel": typeof RIGHT_SIDE_PANEL_KEY_SCOPE // 右サイドパネルの中にフォーカスがある間のキー
     "@matomezu/base:left-side-panel": typeof LEFT_SIDE_PANEL_KEY_SCOPE // 左サイドパネルの中にフォーカスがある間のキー
     "@matomezu/base:search": typeof SEARCH_KEY_SCOPE // 検索ダイアログの入力Formの中のキー
+    "@matomezu/base:library": typeof LIBRARY_KEY_SCOPE // 書庫の画面の中にフォーカスがある間のキー
   }
   interface DialogTable {
     "@matomezu/base:mail": typeof MAIL_DIALOG

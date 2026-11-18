@@ -450,6 +450,7 @@ test("コマンドが受け取る文脈（CommandContext）のフィールド（
     "contextMenu",
     "controlCenter",
     "dialog",
+    "libraryHistory",
     "pluginState",
     "screen",
     "settings",

@@ -1,6 +1,6 @@
 // 書庫の画面（コントロールセンターの中）: 左のツリーと右の枠で書庫を見て、フォルダへ入り、ブックを 2 回押して開く
 import { BOOK_SCREEN_DEF, expect, joinedAiAuth, type Page, test, urlFront, urlStages } from "./fixtures"
-import { storedBooks } from "./helpers/stored"
+import { storedBook, storedBooks } from "./helpers/stored"
 
 const perform = async (page: Page, action: string, args: object) =>
   (await page.request.post("/api/ai/perform", { headers: await joinedAiAuth(), data: { action, args } })).json()
@@ -107,7 +107,7 @@ test("書庫のゴミ箱に、捨てたフォルダも並ぶ。選んだ行を�
   await row("古い案").getByRole("button", { name: "戻す" }).click()
   const taken = page.getByRole("alertdialog", { name: "同じ名前があります" })
   await expect(taken).toContainText("「ゴミ箱の試しの企画」に「古い案」があります")
-  await expect(taken).toContainText("「古い案 2」になります")
+  await expect(taken).toContainText("番号を付けると「古い案 2」になります")
   // キャンセルすると、戻さない
   await taken.getByRole("button", { name: "キャンセル" }).click()
   await expect(row("古い案")).toHaveCount(1)
@@ -151,4 +151,59 @@ test("書庫のゴミ箱に、捨てたフォルダも並ぶ。選んだ行を�
     "古い案 2",
     "メモ箱",
   ])
+})
+
+test("ゴミ箱から上書きで戻すと、前から在った物が消える。そのまま Ctrl+Z で両方が元どおりになり、Ctrl+Shift+Z でやり直せる。ロック中の物には上書きを選べない", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await page.bringToFront()
+  const made = async (action: string, args: object) => {
+    const done = await perform(page, action, args)
+    expect(done).toMatchObject({ ok: true })
+    return done.result as { folder: string; book: string }
+  }
+  const plan = (await made("@matomezu/base:folder-create", { title: "上書きの試しの企画" })).folder
+  // 捨てた「議事録」と、同じ所にあとから作った「議事録」
+  const old = (await made("@matomezu/base:book-create", { title: "議事録", into: plan })).book
+  await made("@matomezu/base:entry-trash", { entry: old })
+  const fresh = (await made("@matomezu/base:book-create", { title: "議事録", into: plan })).book
+
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  await page.getByRole("navigation", { name: "フォルダ" }).getByRole("button", { name: "ゴミ箱", exact: true }).click()
+  const list = page.getByRole("list", { name: "ゴミ箱" })
+  const row = list.getByRole("listitem").filter({ hasText: "議事録" }).filter({ hasText: "上書きの試しの企画" })
+  await row.getByRole("button").first().click()
+  await row.getByRole("button", { name: "戻す" }).click()
+  const taken = page.getByRole("alertdialog", { name: "同じ名前があります" })
+  await expect(taken).toContainText("上書きすると、元の物とその中身は削除されます")
+  await expect(taken).toContainText("（ゴミ箱には入りません）")
+  await taken.getByRole("button", { name: "上書き" }).click()
+  await expect(row).toHaveCount(0)
+  // クリックせずに、そのまま Ctrl+Z: 戻した物はゴミ箱へ、消えた物は元の所へ
+  await page.keyboard.press("Control+z")
+  await expect(row).toHaveCount(1)
+  // やり直すと、もう一度上書きの後
+  await page.keyboard.press("Control+Shift+z")
+  await expect(row).toHaveCount(0)
+  await expect.poll(async () => await storedBook(page.request, fresh)).toBeUndefined()
+  await page.keyboard.press("Control+z")
+  await expect(row).toHaveCount(1)
+  // 常駐にも届いてから、次へ（届く前に AI が変えると、あとから届いた元に戻すがその変更を置き直す）
+  await expect.poll(async () => (await storedBook(page.request, fresh))?.id).toBe(fresh)
+
+  // 前から在った方をロックすると、上書きは選べず、訳が出る
+  expect(
+    await (
+      await page.request.post("/api/ai/perform", {
+        headers: await joinedAiAuth(),
+        data: { action: "@matomezu/base:book-lock", args: {}, on: { book: fresh } },
+      })
+    ).json(),
+  ).toMatchObject({ ok: true })
+  await row.getByRole("button").first().click()
+  await row.getByRole("button", { name: "戻す" }).click()
+  await expect(taken).toContainText("上書きできません: ロック中")
+  await expect(taken.getByRole("button", { name: "上書き" })).toBeDisabled()
+  await taken.getByRole("button", { name: "キャンセル" }).click()
 })

@@ -80,11 +80,12 @@ export const restoreTargetOf = (folders: Folders, from: readonly string[]): stri
 
 // ゴミ箱の直下のエントリ entry を戻すときに、利用者に確かめる事（entry-restore と同じ読み方で出す）: 戻すと入るフォルダの id into、元いたフォルダが今どうなっているか from
 // （"here" は在って、そこへ戻る。"trashed" はゴミ箱かその中に在る、"gone" は書庫から消えた。どちらも、その上の今も在るフォルダへ戻る）、
-// 入る先に同じ名前の物が在るときに番号を付けた名前 numbered（重ならなければ SAME_TITLE）と、そのとき上書きできるか overwrite（できなければ、その訳）
+// 入る先に同じ名前の物が在るときに番号を付けた名前 numbered（重ならなければ SAME_TITLE）と、そのとき上書きすると消える物の id replaces（無ければ REPLACES_NOTHING）と、上書きできるか overwrite（できなければ、その訳）
 export interface RestorePlan {
   into: string
   from: "here" | "trashed" | "gone"
   numbered: string
+  replaces: string
   overwrite: "ok" | NotOverwritten
 }
 export const SAME_TITLE = ""
@@ -97,11 +98,13 @@ export function restorePlanOf(library: Library, entry: string): RestorePlan | un
   const was = ref.from[0]
   const back = restoredEntry(library, entry, into)
   const free = isMoveRefusal(back) ? undefined : freeTitleIn(back, ref.kind, entry, into)
-  const over = isMoveRefusal(back) ? back : overwritten(back, ref.kind, entry, into)
+  const replaces = (isMoveRefusal(back) ? undefined : sameTitled(back, ref.kind, entry, into)?.id) ?? REPLACES_NOTHING
+  const over = isMoveRefusal(back) ? back : overwritten(back, ref.kind, entry, into, replaces)
   return {
     into,
     from: into === was ? "here" : was !== undefined && library.folders[was] ? "trashed" : "gone",
     numbered: free === undefined || free === titleOf(library, ref.kind, entry) ? SAME_TITLE : free,
+    replaces,
     overwrite: isNotOverwritten(over) ? over : "ok",
   }
 }
@@ -113,14 +116,24 @@ export function sameTitled(library: Library, kind: EntryKind, entry: string, int
   return title === undefined || !holder ? undefined : titledIn(library, holder, title, entry)
 }
 
-// 上書きできない訳: 種類が違う（kind）・前から在った方の中に上書きする物が在る（within）・前から在った方かその中に読めないページが在る（unreadable）
-export type NotOverwritten = "kind" | "within" | "unreadable" | MoveRefusal
+// 上書きできない訳: 種類が違う（kind）・前から在った方の中に上書きする物が在る（within）・前から在った方かその中に読めないページが在る（unreadable）・
+// 同じ名前で在る物が、確かめた物と違う（changed）
+export type NotOverwritten = "kind" | "within" | "unreadable" | "changed" | MoveRefusal
+export const REPLACES_NOTHING = ""
 export const isNotOverwritten = (v: Library | NotOverwritten): v is NotOverwritten => typeof v === "string"
 
 // 上書き: フォルダ into の直下の、エントリ entry（種類 kind）と同じ名前の物を、中身ごと書庫から消した書庫（ゴミ箱には入れない。同じ名前の物が無ければ library のまま）。
 // 上書きできなければ、その訳（ロックした物は、認可ステップが行った後の確かめで止める）
-export function overwritten(library: Library, kind: EntryKind, entry: string, into: string): Library | NotOverwritten {
+// replaces は、利用者が消えると確かめた物の id（無ければ REPLACES_NOTHING）: 今 同じ名前で在る物がそれと違えば、上書きしない（changed）
+export function overwritten(
+  library: Library,
+  kind: EntryKind,
+  entry: string,
+  into: string,
+  replaces: string,
+): Library | NotOverwritten {
   const there = sameTitled(library, kind, entry, into)
+  if ((there?.id ?? REPLACES_NOTHING) !== replaces) return "changed"
   if (!there) return library
   if (there.kind !== kind) return "kind"
   if (isWithin(library.folders, entry, there.id)) return "within"

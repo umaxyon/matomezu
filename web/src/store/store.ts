@@ -41,9 +41,9 @@ import {
 import { deepFreeze } from "../core/freeze"
 import type { Point, Size } from "../core/geom"
 import {
-  type BookHistory,
   changeSeen,
   HISTORY_LIMIT,
+  type History,
   type HistoryStep,
   insertStep,
   LIBRARY_HISTORY,
@@ -182,7 +182,7 @@ export interface MatomezuState {
   offline: boolean // 常駐とのつながりが、しばらく切れたままか（ホストクライアントが知らせる）
   lastWindow: boolean // この窓が、最後にフォーカスされた窓か（ホストクライアントが、常駐のレコードの知らせに添えられた値で入れる）
   // ブックの id → 画面の履歴（この画面で利用者が行ったアクションだけ。読み直すと消える）。画面の履歴の段がいくつかのブックを変えたら、その全部のブックに同じ画面の履歴の段が入る
-  history: Readonly<Record<string, BookHistory>>
+  history: Readonly<Record<string, History>>
   // プラグイン状態の宣言（core/def/plugin-state.ts）の値: ステージに結ばない物は宣言の id → 値、ステージごとの物は ステージの id → 宣言の id → 値。画面の場所に入れる宣言の値は画面の場所に入る（アクションのデータとは別で、アクションでは変えない）
   pluginValues: PluginValues
   // 編集ロック: 掛けた所の鍵 → 利用者が直している物（ブックの id と物の id）。ホストクライアントが常駐に知らせ、常駐はそれを変える AI のアクションを断る
@@ -279,7 +279,7 @@ export interface WindowActions {
   requestPrint(): void // 画面を刷ってほしいと頼む（刷るのはホストクライアント。刷る物は画面が印刷のときだけ出す）
   requestBack(): void // ブラウザの履歴を 1 つ戻してほしいと頼む（戻すのはホストクライアント。戻る先が無い canGoBack が false のときは、頼んでも何も起きない）
   closePicker(): void
-  // ブック book の画面の履歴の、戻せる（from が undo）かやり直せる（redo）最後の画面の履歴の段を、反対の側へ移す。それが変えたほかのブックの画面の履歴でも移す。
+  // ブック book の画面の履歴（book が LIBRARY_HISTORY なら、書庫の画面の履歴）の、戻せる（from が undo）かやり直せる（redo）最後の画面の履歴の段を、反対の側へ移す。それが変えたほかのブックの画面の履歴でも移す。
   // 画面の履歴の段を戻す・やり直すアクションを行えたあとに呼ぶ
   moveHistory(book: string, from: "undo" | "redo"): void
   // 同じ処理の中でこのあと行うアクションを、ブック book の最後の画面の履歴の段に足す（足して始めたその場の編集を確定するとき。足すのと書くのを 1 つの画面の履歴の段にする）。
@@ -1423,7 +1423,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const next = { ...history }
       for (const id of step.books) {
         const was = next[id] ?? NO_HISTORY
-        next[id] = { ...was, [from]: was[from].filter(s => s !== step), [to]: [...was[to], step] } as BookHistory
+        next[id] = { ...was, [from]: was[from].filter(s => s !== step), [to]: [...was[to], step] } as History
       }
       setState({ history: next })
     },

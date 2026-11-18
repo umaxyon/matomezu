@@ -7,7 +7,7 @@ import { ANY_PAGE_TYPE, type ArgsOfType, type Where } from "../../core/def/actio
 import type { PluginStateDef } from "../../core/def/plugin-state"
 import { fail } from "../../core/errors"
 import type { Point } from "../../core/geom"
-import type { BookHistory } from "../../core/history"
+import type { History } from "../../core/history"
 import type { MessageKey } from "../../core/i18n/i18n"
 import type { Books } from "../../core/library"
 import type { Book } from "../../core/schema/book"
@@ -82,6 +82,7 @@ export interface ScreenCommandContext {
   settings: Settings
   dialog: OpenedDialog | null // 開いているダイアログ
   contextMenu: OpenedContextMenu | null // 開いている右クリックのメニュー
+  libraryHistory: History // 書庫の画面の履歴
   // コマンドを持つプラグインが宣言したプラグイン状態 def の今の値（スクリーンごとの宣言は呼ばれた場所のスクリーンの値、ステージごとの宣言は呼ばれた場所のステージの値。
   // 無ければ undefined。ほかのプラグインの宣言は E125。変えるのは run が受け取る updatePluginState）
   pluginState<S>(def: PluginStateDef<S>): S | undefined
@@ -91,7 +92,7 @@ export interface ScreenCommandContext {
 export interface CommandContext extends ScreenCommandContext {
   stage: StageView // 呼ばれた場所のステージ（読むだけ。見た目の useStage と同じ）
   book: Book | null // そのステージで開いているブック
-  bookHistory: BookHistory // そのステージで開いているブックの、画面の履歴（ブックが無ければ空）
+  bookHistory: History // そのステージで開いているブックの、画面の履歴（ブックが無ければ空）
   toPaper(p: Point): Point | null // 表示領域の中の点（左上から）を、そのステージの今の紙の上の点に直す（紙が無ければ null）
 }
 

@@ -4,11 +4,20 @@
 import { type KeyboardEvent, useLayoutEffect, useRef } from "react"
 import styles from "./Dialog.module.css"
 
+// する・やめるのほかの選び方 1 つ（danger は取り消せない操作、disabled は選べない）
+export interface ConfirmChoice {
+  label: string
+  danger?: boolean
+  disabled?: boolean
+  onClick: () => void
+}
+
 export function Confirm({
   message,
   detail,
   ok,
   cancel,
+  others,
   onOk,
   onCancel,
 }: {
@@ -16,6 +25,7 @@ export function Confirm({
   detail?: readonly string[] // 文の下に、1 つずつ行にして出す
   ok: string // する（ボタンの名前）
   cancel: string // やめる（ボタンの名前）
+  others?: readonly ConfirmChoice[] // する・やめるのほかの選び方（やめるとするの間に並べる）
   onOk: () => void
   onCancel: () => void
 }) {
@@ -66,6 +76,18 @@ export function Confirm({
           <button ref={keep} type="button" className={styles.plain} onClick={onCancel}>
             {cancel}
           </button>
+          {others?.map(o => (
+            <button
+              key={o.label}
+              type="button"
+              className={styles.plain}
+              data-danger={o.danger ? "" : undefined}
+              disabled={o.disabled}
+              onClick={o.onClick}
+            >
+              {o.label}
+            </button>
+          ))}
           <button type="button" className={styles.submit} onClick={onOk}>
             {ok}
           </button>

@@ -7,7 +7,12 @@ import type { LibraryTargets } from "../../../core/def/action"
 import type { HistoryStep } from "../../../core/history"
 import type { Books } from "../../../core/library"
 import { shownPageId } from "../../../core/stage"
-import { booksOf, type CommandActions, type CommandContext } from "../../../store/commands/def"
+import {
+  booksOf,
+  type CommandActions,
+  type CommandContext,
+  type ScreenCommandContext,
+} from "../../../store/commands/def"
 import { kit } from "../kit"
 import { patchesToward, RevertArgs, restoredBooks, restoredLibrary, restoredPages } from "./restore"
 
@@ -46,6 +51,27 @@ function pageToOpen(
   return Object.entries(step.pages).find(([id, row]) => row[to] !== "none" && inBook.has(id))?.[0]
 }
 
+// 戻す・やり直すが断られたことをトーストで知らせる（認可ステップが止めたなら、2 行目にその名前。止めたブックの名前 book が分かれば添える）
+export function showNotRestored(
+  ctx: ScreenCommandContext,
+  a: Pick<CommandActions, "showToast">,
+  from: "undo" | "redo",
+  refused: { reason: string; permission?: string },
+  book?: string,
+): void {
+  const denied =
+    refused.reason === "denied" && refused.permission ? ctx.catalog.permissions.get(refused.permission) : undefined
+  a.showToast({
+    kind: "warn",
+    message: from === "undo" ? kit.message("Could not undo") : kit.message("Could not redo"),
+    detail:
+      denied &&
+      (book === undefined
+        ? { message: denied.title }
+        : { message: kit.message('{reason}: "{book}"'), params: { book, reason: { message: denied.title } } }),
+  })
+}
+
 // 画面の履歴の段 step を、from が undo なら前へ戻し、redo なら後へやり直す（変えたブックがいくつ在っても、1 回のアクションで置き直す）。
 // 断られたら（ロック中など）トーストで知らせ（認可ステップが止めたなら、2 行目にそのブックの名前と認可ステップの名前）、画面の履歴の段は動かさない
 function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"): void {
@@ -62,17 +88,8 @@ function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"):
   if (Object.keys(args.pages).length + Object.keys(args.folders).length > 0) {
     const result = a.perform(HISTORY_RESTORE.id, args)
     if (!result.ok) {
-      const denied = result.reason === "denied" ? ctx.catalog.permissions.get(result.permission) : undefined
       const book = result.reason === "denied" && result.book ? booksOf(ctx)[result.book] : undefined
-      a.showToast({
-        kind: "warn",
-        message: from === "undo" ? kit.message("Could not undo") : kit.message("Could not redo"),
-        detail: denied &&
-          book && {
-            message: kit.message('{reason}: "{book}"'),
-            params: { book: book.title, reason: { message: denied.title } },
-          },
-      })
+      showNotRestored(ctx, a, from, result, book?.title)
       return
     }
   }

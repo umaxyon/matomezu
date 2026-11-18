@@ -2,10 +2,19 @@
 // entry-rename は、その名前を変える。folder-create は、フォルダを作る。どれも、エントリの中身は変えない。
 // 同じフォルダの中に同じ名前は置けない（土台が title-taken で断る）。entry-move の onConflict が number なら、番号を付けた名前にして入れる
 import { z } from "zod"
+import type { LibraryTargets } from "../../../core/def/action"
 import { isMoveRefusal, movedEntry, placedEntry, titleOf } from "../../../core/entries"
 import { HOME_ID, type PlainFolder } from "../../../core/folders"
 import { kit } from "../kit"
-import { holdsEntries, isNotOverwritten, numbered, overwritten, placedInFolder, retitled } from "./entries"
+import {
+  holdsEntries,
+  isNotOverwritten,
+  numbered,
+  overwritten,
+  placedInFolder,
+  REPLACES_NOTHING,
+  retitled,
+} from "./entries"
 
 export const FOLDER_CREATE = kit.defineAction({
   id: "folder-create",
@@ -60,16 +69,25 @@ export const ENTRY_MOVE_OVER = kit.defineAction({
     "Move an entry of the library like entry-move, replacing the entry with the same title in that folder: that entry is deleted with everything in it (it does not go to the trash). Only the user can do this.",
   title: "Move and replace",
   target: "library",
-  permissionScope: { entry: "entry", where: "place" },
+  // 上書きで消える物も、中身ごと変える物として名乗る（ロック中なら、行う前に分かる）
+  permissionScope: (args: { entry: string; replaces?: string }): LibraryTargets => ({
+    books: [],
+    entries: [
+      { entry: args.entry, where: "place" },
+      ...(args.replaces === undefined ? [] : [{ entry: args.replaces, where: "all-pages" as const }]),
+    ],
+    creates: false,
+  }),
   args: z.strictObject({
     entry: z.string().min(1),
     into: z.string().min(1),
     index: z.number().int().min(0).optional(), // 同じ名前の物を消したあとの並びで数える
+    replaces: z.string().min(1).optional(), // 消えると利用者が確かめた物の id（今 同じ名前で在る物がそれと違えば断る）
   }),
   run: (library, args) => {
     const place = placedInFolder(library.folders, args.entry)
     if (!place || place.holder.id === args.into || !holdsEntries(library.folders, args.into)) return null
-    const cleared = overwritten(library, place.ref.kind, args.entry, args.into)
+    const cleared = overwritten(library, place.ref.kind, args.entry, args.into, args.replaces ?? REPLACES_NOTHING)
     if (isNotOverwritten(cleared)) return null
     const next = movedEntry(cleared, args.entry, args.into, args.index)
     return isMoveRefusal(next) ? null : { next, result: {} }
