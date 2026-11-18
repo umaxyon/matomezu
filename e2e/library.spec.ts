@@ -184,6 +184,8 @@ test("ゴミ箱から上書きで戻すと、前から在った物が消える�
   await page.keyboard.press("Control+z")
   await expect(row).toHaveCount(1)
   // やり直すと、もう一度上書きの後
+  // 選んでいた行がやり直しで消えても、キーは効き続ける
+  await row.getByRole("button").first().click()
   await page.keyboard.press("Control+Shift+z")
   await expect(row).toHaveCount(0)
   await expect.poll(async () => await storedBook(page.request, fresh)).toBeUndefined()

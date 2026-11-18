@@ -15,7 +15,7 @@ import { kit } from "../kit"
 import { LIBRARY_SCOPE } from "./commands"
 import { LIBRARY_NEW_BOOK_DIALOG } from "./dialog"
 import { holdsEntries } from "./entries"
-import { useLibraryRows, useNameOf } from "./hooks"
+import { useKeepFocusIn, useLibraryRows, useNameOf } from "./hooks"
 import { CHEVRON, iconOf, TRASH } from "./icons"
 import styles from "./LibraryView.module.css"
 import {
@@ -58,8 +58,9 @@ interface Handlers {
 }
 
 export function LibraryView() {
-  // 根の要素: 行った行が消えて焦点の行き場が無くなったとき、ここへ戻す（書庫のキーが効き続けるように）
+  // 根の要素: 焦点のある行が消えたとき、ここへ焦点を置き直す（書庫のキーが効き続けるように）
   const root = useRef<HTMLDivElement>(null)
+  useKeepFocusIn(root)
   const t = useMessages(kit)
   const nameOf = useNameOf()
   const read = useReadState()
@@ -137,7 +138,7 @@ export function LibraryView() {
           </div>
         )}
         {opened === TRASH_ID ? (
-          <TrashView picked={picked} onPick={setPicked} onSettled={() => root.current?.focus()} />
+          <TrashView picked={picked} onPick={setPicked} />
         ) : rows.length === 0 ? (
           <p className={styles.empty}>{t("Nothing inside")}</p>
         ) : (

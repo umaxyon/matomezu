@@ -1,7 +1,7 @@
 // 書庫の画面でゴミ箱を開いている間の右の枠: 上に「ゴミ箱を空にする」、下にゴミ箱の直下の物の一覧（種類のアイコン・名前・元の場所・捨てた日時。新しい順）。
 // 選んだ行に、戻すボタン（entry-restore）と完全に消すボタン（entry-purge）を出す。捨てたフォルダ・ブックの中身は開けない（戻してから見る）。
 // 戻すとき、元いたフォルダへ戻れなければ（無い・ゴミ箱の中）入る先を確かめ、入る先に同じ名前の物が在れば、番号を付けるかを確かめる。消すのは、戻せないので確かめてから
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { titleOf } from "../../../core/entries"
 import { useMessages } from "../../../ui/i18n"
 import { useReadState } from "../../../ui/store-context"
@@ -28,15 +28,7 @@ type Asking =
 // useLibraryRows の鍵（ゴミ箱の行）
 const TRASH_ROWS = "trash"
 
-export function TrashView({
-  picked,
-  onPick,
-  onSettled,
-}: {
-  picked: string | undefined
-  onPick(id: string | undefined): void
-  onSettled(): void // 選んでいた行に行えて、その行が消えたあと（焦点を置き直す所）
-}) {
+export function TrashView({ picked, onPick }: { picked: string | undefined; onPick(id: string | undefined): void }) {
   const t = useMessages(kit)
   const rows = useLibraryRows(TRASH_ROWS, trashRowsOf)
   const read = useReadState()
@@ -44,16 +36,8 @@ export function TrashView({
   const emptiable = useAllowedOn(TRASH_EMPTY.id, {}).ok
   const [asking, setAsking] = useState<Asking | null>(null)
   const nameOf = useNameOf()
-  // 選んでいた行に行えたあと: 選んでいる行を外し、行と一緒に消えたボタンの代わりに、焦点を置き直してもらう
-  const [settled, setSettled] = useState(0)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: 行えた回ごとに 1 度だけ呼ぶ
-  useEffect(() => {
-    if (settled > 0) onSettled()
-  }, [settled])
-  const settle = () => {
-    onPick(undefined)
-    setSettled(n => n + 1)
-  }
+  // 選んでいた行に行えたあと: 選んでいる行を外す
+  const settle = () => onPick(undefined)
   // 行 row を戻す。how は、同じ名前の物が在るときの戻し方: 断らせる（refuse）・番号を付ける（number）・確かめた plan のとおりに上書きする
   const restore = (row: TrashRow, how: "refuse" | "number" | RestorePlan) => {
     const args =
