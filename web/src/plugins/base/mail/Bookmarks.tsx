@@ -3,25 +3,22 @@
 // 3 通を超えたら 1 つにまとめて数を付け、押すとブックスクリーンを前に出して、左サイドパネルに郵便箱と送信トレイを渡して開く。
 
 import type { CSSProperties } from "react"
-import { isLight } from "../../../core/color"
 import { screenOf } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import { useMatomezuState, useStoreActions } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
-import { birdColors } from "../birds/colors"
 import { icon } from "../icon"
 import { kit } from "../kit"
 import { useOpenLeftSidePanelAt } from "../left-side-panel/hooks"
 import { BirdFaceView } from "../participant/BirdFaceView"
 import { useParticipants } from "../participant/hooks"
 import { Tip } from "../utils/Tip"
+import { mailBookmarksOf, MAX_MAIL_BOOKMARKS } from "./bookmark-display"
 import styles from "./Bookmarks.module.css"
 import { mailboxEntries } from "./entries"
 import { useMailbox, useOpenMail } from "./hooks"
 import { shownOf } from "./shown"
 import { MAILBOX_TAB_ID } from "./tab-id"
-
-const MAX_EACH = 3 // 1 通に 1 つずつぶら下げる、いちばん多い数
 
 // 郵便の絵（封筒）
 const LETTER_ICON = icon(
@@ -41,7 +38,7 @@ export function MailBookmarks() {
   const openPanel = useOpenLeftSidePanelAt()
   const actions = useStoreActions()
   if (unread.length === 0) return null
-  if (unread.length > MAX_EACH)
+  if (unread.length > MAX_MAIL_BOOKMARKS)
     return (
       <div className={styles.bookmarks}>
         <button
@@ -61,29 +58,19 @@ export function MailBookmarks() {
     )
   return (
     <div className={styles.bookmarks}>
-      {unread.reverse().map(m => {
-        const title = shownOf(catalog, m, t)?.title ?? t("Mail")
-        const sender = m.sender
-        const joined = sender && participants.some(p => p.id === sender.participant && p.state === "joined")
-        const color = sender ? birdColors(sender.bird, sender.palette)?.flag : undefined
+      {mailBookmarksOf(unread, participants).map(({ mail, bird, tone, color, ink }) => {
+        const title = shownOf(catalog, mail, t)?.title ?? t("Mail")
         return (
-          <Tip key={m.id} text={title}>
+          <Tip key={mail.id} text={title}>
             <button
               type="button"
               className={styles.bookmark}
-              data-tone={Number.isSafeInteger(m.order) ? (m.order - 1) % MAX_EACH : 0}
-              style={
-                color
-                  ? ({
-                      "--bookmark-tone": color,
-                      "--bookmark-ink": isLight(color) ? "black" : "white",
-                    } as CSSProperties)
-                  : undefined
-              }
+              data-tone={tone}
+              style={color ? ({ "--bookmark-tone": color, "--bookmark-ink": ink } as CSSProperties) : undefined}
               aria-label={title}
-              onClick={() => open(m.id)}
+              onClick={() => open(mail.id)}
             >
-              {joined ? <BirdFaceView bird={sender.bird} palette={sender.palette} size={18} /> : LETTER_ICON}
+              {bird ? <BirdFaceView bird={bird.bird} palette={bird.palette} size={18} /> : LETTER_ICON}
             </button>
           </Tip>
         )
