@@ -148,6 +148,20 @@ AI には MCP でつなぎます。つなぐコマンドは `matomezu mcp` で�
 - opencode も、matomezu のプラグインを入れてつなぎます（16 章「opencode のプラグイン」）
 - matomezu を起動し直したら、Claude Code では /mcp でつなぎ直します
 
+ほかの AI をつなぐ人へ: AI のプログラムが、道具を呼ぶたびにセッション id やモデルを添えるなら、`matomezu mcp` にその置き場所を渡します。
+
+| 渡す物 | 付ける物 |
+|---|---|
+| セッション id の置き場所 | `--meta-session`（例: `--meta-session /ai.opencode~1sessionID`） |
+| モデルの置き場所 | `--meta-model`（例: `--meta-model /x-codex-turn-metadata/model`） |
+
+- 置き場所は、道具の呼び出しに添えられた `_meta` の中の場所を、JSON Pointer で書きます
+- `--meta-session` は、いくつも付けられます。前の物から順に見ます
+- セッション id は、`sessionId` と `threadId` を先に見ます。そこに無いときだけ、渡した置き場所を見ます
+- モデルを知らせると、ワークルームの枠にそのモデルが出ます（16 章「モデルとブランチ」）
+
+注: Claude Code・Codex・opencode は、プラグインが渡します。
+
 【未確定】Claude Code・Codex・opencode のほかの AI への登録の書き方。
 
 ## 2. 画面の作り
@@ -3580,7 +3594,7 @@ AI が動き出す操作:
 |---|---|
 | Claude Code | `matomezu claude-code mcp`・`matomezu claude-code hook prompt`・`matomezu claude-code hook model`・`matomezu claude-code hook permission`・`matomezu claude-code watch` |
 | Codex | `matomezu codex mcp`・`matomezu codex hook prompt`・`matomezu codex hook model`・`matomezu codex deliver`（渡すコマンド） |
-| opencode | `matomezu opencode deliver`（渡すコマンド） |
+| opencode | `matomezu opencode mcp`・`matomezu opencode deliver`（渡すコマンド） |
 
 注: 前の `matomezu deliver codex`・`matomezu deliver opencode` は、`matomezu codex deliver`・`matomezu opencode deliver` に替わりました。
 

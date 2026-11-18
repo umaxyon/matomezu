@@ -12,6 +12,7 @@ import (
 	claudelaunch "github.com/umaxyon/matomezu/clients/claude-code/launch"
 	codexlaunch "github.com/umaxyon/matomezu/clients/codex/launch"
 	codexsessionend "github.com/umaxyon/matomezu/clients/codex/sessionend"
+	opencodelaunch "github.com/umaxyon/matomezu/clients/opencode/launch"
 )
 
 // devAddr は、開発の常駐の待ち受け（scripts/dev.ts）
@@ -158,7 +159,7 @@ func codexSessionEndsWith(watch codexsessionend.Process) string {
 
 // Run は、Codex の MCP を出し、起こす知らせを Codex の会話に渡す watch も中で動かす
 func (codexMCPCmd) Run() error {
-	c := mcpCmd{serverFlags: serverFlags{Addr: DefaultAddr}, SessionEndsWith: codexSessionEndsWith(codexsessionend.Watch()), Deliver: append([]string{selfExecutable()}, codexlaunch.DeliverArgs...)}
+	c := mcpCmd{serverFlags: serverFlags{Addr: DefaultAddr}, SessionEndsWith: codexSessionEndsWith(codexsessionend.Watch()), MetaModel: codexlaunch.MetaModel, Deliver: append([]string{selfExecutable()}, codexlaunch.DeliverArgs...)}
 	if root := codexDev(); root != "" {
 		c.serverFlags = devServerFlags(root)
 	}
@@ -190,7 +191,19 @@ func (codexModelCmd) Run() error {
 
 // opencodeCmd は、opencode のプラグインが呼ぶコマンドの組
 type opencodeCmd struct {
+	MCP     opencodeMCPCmd     `cmd:"" name:"mcp" help:"Serve the MCP tools for opencode."`
 	Deliver deliverOpencodeCmd `cmd:"" help:"Hand a wake notice to an opencode conversation through the opencode background server (opencode/service.json under XDG_STATE_HOME, ~/.local/state when unset), as an input that is not the user's (synthetic) marked as a wake notice: the text on stdin, the conversation in MATOMEZU_SESSION. Exits 0 when delivered, 3 when the server does not have that conversation, 1 when it failed."`
+}
+
+// opencodeMCPCmd は、opencode の MCP。常駐の立て方は opencode のプラグインが渡す（開発の常駐かを、プラグインが見分ける）
+type opencodeMCPCmd struct {
+	serverFlags
+}
+
+// Run は、opencode の MCP を出す
+func (c opencodeMCPCmd) Run() error {
+	m := mcpCmd{serverFlags: c.serverFlags, MetaSession: opencodelaunch.MetaSession}
+	return m.Run()
 }
 
 // hookPrompt は、話しかけのフック: 待つアノテーションの文を添えて、ターンの始まりを常駐に知らせ、フックの答えを出す（host は AI のプログラムのプロセス id、分からなければ空。

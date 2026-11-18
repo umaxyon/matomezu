@@ -15,6 +15,9 @@ import (
 // HooksSendHost は、フックが AI のプログラムのプロセス id を添えるか
 const HooksSendHost = false
 
+// MetaModel は、Codex が MCP のツールの呼び出しの _meta に添えるモデルの置き場所（matomezu mcp --meta-model の値。JSON Pointer）
+const MetaModel = "/x-codex-turn-metadata/model"
+
 // DeliverArgs は、起こす知らせを Codex の会話に渡すコマンドの、matomezu の実行ファイルに続く引数（Codex には裏で動かし続ける仕組みが無いので、MCP の中の watch が渡す）
 var DeliverArgs = []string{"codex", "deliver"}
 

@@ -167,9 +167,9 @@ export type Say = (sessionID: string, message: string) => Promise<unknown>
 // mcpServer は、matomezu m の MCP の起動のしかた。開発の常駐なら、開発の画面を配る web/dist（あれば）と開発の常駐の待ち受けを渡す。
 // 起こす知らせを渡すコマンド（-- opencode deliver）は付けない: 同じプロセスの watch が渡し、MCP はフォルダごとに立つので、付けると watch が増える
 export const mcpServer = (m: Matomezu): McpServer => {
-  if (m.root === undefined) return { type: "local", command: [m.bin, "mcp"] }
+  if (m.root === undefined) return { type: "local", command: [m.bin, "opencode", "mcp"] }
   const web = join(m.root, "web", "dist")
-  const command = [m.bin, "mcp", ...(existsSync(web) ? ["--web", web] : []), "--addr", DEV_ADDR]
+  const command = [m.bin, "opencode", "mcp", ...(existsSync(web) ? ["--web", web] : []), "--addr", DEV_ADDR]
   return { type: "local", command, environment: m.home ? { MATOMEZU_HOME: m.home } : {} }
 }
 

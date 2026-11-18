@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 )
 
@@ -39,7 +40,7 @@ type caller interface {
 }
 
 // conn は 1 つの接続の状態。join で受けた参加の id を、その呼び出しのセッション id に結んで持ち、以後の呼び出しに添える。返事のヘッダの知らせは 1 回の呼び出しの間だけ持つ。
-// 1 つの MCP のプロセスを、いくつものセッションが使い回す AI（opencode）があるので、参加の id はセッション id ごとに持つ
+// 1 つの MCP のプロセスを、いくつものセッションが使い回す AI のプログラムがあるので、参加の id はセッション id ごとに持つ
 type conn struct {
 	api          API
 	version      string
@@ -50,6 +51,7 @@ type conn struct {
 	hostSession  string            // AI のプログラムが MCP を立てたときのセッション id（分からなければ空）
 	sessionPid   string            // セッションと同じだけ生きるプロセスの id（空は名乗らない）
 	pidSpace     string            // sessionPid が通じる範囲の印（sessionPid を名乗るとき）
+	meta         Meta              // _meta のセッション id とモデルの置き場所
 	participants map[string]string // join の返事で受けた参加の id。join の呼び出しのセッション id（無ければ空）ごと
 	sessionID    string            // いま処理している呼び出しの _meta にあったセッション id
 	model        string            // いま処理している呼び出しの _meta にあったモデル（無ければ空）
@@ -141,9 +143,10 @@ type response struct {
 // Serve は in から頼みを読み、out に答えを書く。in が終わると戻る
 // env は環境名（join で常駐に渡す）。branch は git のブランチを読む関数（参加の id と一緒に常駐に添える）、host は AI のプログラムのプロセス id、
 // hostSession は AI のプログラムが MCP を立てたときのセッション id（どちらもいつも添える。起こす知らせの宛て先）。
-// sessionPid が空でなければ、それがセッションと同じだけ生きるプロセスだと名乗り（pidSpace はその印）、居なくなったら、常駐が退室させる
-func Serve(in io.Reader, out io.Writer, api API, version, env string, branch func() string, host, hostSession, sessionPid, pidSpace string) error {
-	c := &conn{api: api, version: version, ai: "unknown", env: env, branch: branch, host: host, hostSession: hostSession, sessionPid: sessionPid, pidSpace: pidSpace, participants: map[string]string{}}
+// sessionPid が空でなければ、それがセッションと同じだけ生きるプロセスだと名乗り（pidSpace はその印）、居なくなったら、常駐が退室させる。
+// meta は、呼び出しの _meta のどこにセッション id とモデルがあるか
+func Serve(in io.Reader, out io.Writer, api API, version, env string, branch func() string, host, hostSession, sessionPid, pidSpace string, meta Meta) error {
+	c := &conn{api: api, version: version, ai: "unknown", env: env, branch: branch, host: host, hostSession: hostSession, sessionPid: sessionPid, pidSpace: pidSpace, meta: meta, participants: map[string]string{}}
 	var mu sync.Mutex
 	enc := json.NewEncoder(out)
 	write := func(r response) {
@@ -207,7 +210,7 @@ func handle(req request, c *conn) (any, *rpcError) {
 		if err := json.Unmarshal(req.Params, &p); err != nil {
 			return nil, &rpcError{-32602, "invalid params"}
 		}
-		c.sessionID, c.model = fromMeta(p.Meta)
+		c.sessionID, c.model = fromMeta(p.Meta, c.meta)
 		text, failed := callTool(c, p.Name, p.Arguments)
 		return map[string]any{"content": []map[string]any{{"type": "text", "text": text}}, "isError": failed}, nil
 	default:
@@ -215,28 +218,48 @@ func handle(req request, c *conn) (any, *rpcError) {
 	}
 }
 
-// fromMeta は、tools/call の _meta から、AI が添えたセッション id とモデルを読む（無ければ空）。
-// セッション id は sessionId（無ければ threadId、無ければ opencode の ai.opencode/sessionID）。モデルは AI ごとの置き場所（Codex は x-codex-turn-metadata の model）
-func fromMeta(meta json.RawMessage) (sessionID, model string) {
-	var m struct {
-		SessionID string `json:"sessionId"`
-		ThreadID  string `json:"threadId"`
-		OpenCode  string `json:"ai.opencode/sessionID"`
-		Codex     struct {
-			Model string `json:"model"`
-		} `json:"x-codex-turn-metadata"`
-	}
+// Meta は、tools/call の _meta のどこに、AI が添えたセッション id とモデルがあるか（JSON Pointer。AI のプログラムごとの置き場所は、そのプログラムの部品が渡す）
+type Meta struct {
+	Session []string // セッション id の置き場所。前の物から順に見て、空でない最初の物
+	Model   string   // モデルの置き場所（空なら読まない）
+}
+
+// commonMetaSession は、AI のプログラムを問わず見るセッション id の置き場所（AI の名前の付かない鍵。Meta.Session の前に見る）
+var commonMetaSession = []string{"/sessionId", "/threadId"}
+
+// fromMeta は、tools/call の _meta から、AI が添えたセッション id とモデルを keys の置き場所で読む（無ければ空）
+func fromMeta(meta json.RawMessage, keys Meta) (sessionID, model string) {
+	var m any
 	if len(meta) == 0 || json.Unmarshal(meta, &m) != nil {
 		return "", ""
 	}
-	sessionID = m.SessionID
-	if sessionID == "" {
-		sessionID = m.ThreadID
+	for _, at := range append(append([]string{}, commonMetaSession...), keys.Session...) {
+		if sessionID = stringAt(m, at); sessionID != "" {
+			break
+		}
 	}
-	if sessionID == "" {
-		sessionID = m.OpenCode
+	if keys.Model != "" {
+		model = stringAt(m, keys.Model)
 	}
-	return sessionID, m.Codex.Model
+	return sessionID, model
+}
+
+// stringAt は、v の中の JSON Pointer pointer の所にある文字（無いか文字でなければ空）
+func stringAt(v any, pointer string) string {
+	if !strings.HasPrefix(pointer, "/") {
+		return ""
+	}
+	for _, token := range strings.Split(pointer[1:], "/") {
+		obj, ok := v.(map[string]any)
+		if !ok {
+			return ""
+		}
+		if v, ok = obj[strings.NewReplacer("~1", "/", "~0", "~").Replace(token)]; !ok {
+			return ""
+		}
+	}
+	str, _ := v.(string)
+	return str
 }
 
 // aiName は clientInfo の名前と版から、参加者の表に載せる AI の名前（40 字まで）を作る
