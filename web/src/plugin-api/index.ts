@@ -53,10 +53,11 @@ export type {
   ShapeData,
   ShapeEditArgs,
 } from "../core/def/item"
+export type { LibraryAppearanceDef } from "../core/def/library-appearance"
 export type { PageTypeDef } from "../core/def/page-type"
 export { slideIsBackground } from "../core/def/page-type"
 export type { PaperDef } from "../core/def/paper"
-export type { PluginStateDef } from "../core/def/plugin-state"
+export type { PluginStateDef, PluginStateRead } from "../core/def/plugin-state"
 export type { PresentationDef } from "../core/def/presentation"
 export type { SettingDef } from "../core/def/setting"
 export type { SkinDef } from "../core/def/skin"
