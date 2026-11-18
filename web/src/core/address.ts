@@ -12,7 +12,14 @@ import { sameData } from "./same"
 import type { Book } from "./schema/book"
 import { newStage, openBinder, openBook, openPage, panBy, type Stage, shownPageId, stopStart } from "./stage"
 import { zoomInRange } from "./viewport"
-import { mapScreens, NO_SCREEN_DEF, type OpenedScreen, type WindowState, withinLimits } from "./window"
+import {
+  mapScreens,
+  NO_SCREEN_DEF,
+  type OpenedScreen,
+  recentBookScreen,
+  type WindowState,
+  withinLimits,
+} from "./window"
 import { MAX_STAGES, MIN_SHARE, newWorkspace, type Workspace } from "./workspace"
 
 export interface StagePlace {
@@ -159,7 +166,7 @@ function placed(catalog: CoreCatalog, books: Readonly<Record<string, Book>>, sta
 
 // 窓 win に場所 address を当てはめる。場所のスクリーンを、その id のまま開く（同じ id・同じ定義のスクリーンが開いていれば、その中を使い回す。
 // 機能台帳に無い定義・形に合わない渡す値・c と番号でない id のスクリーンは開かない）。場所に無いスクリーンは閉じる（最初から開いているスクリーンと、
-// ステージを並べるスクリーンが 1 枚も残らなくなるなら、今の物を残す）。カレントにした順は場所のとおり。
+// ステージを並べるスクリーンが場所に 1 枚も無ければ、今のうちいちばん最近カレントにした 1 枚を、後ろに残す）。カレントにした順は場所のとおり。
 // ステージを並べるスクリーンのステージは、左から同じ番号のものを使い回し、足りなければ足す（MAX_STAGES まで）。無いブックを名指すステージは開かず（全部がそうなら、そのスクリーンも開かない）。
 // 場所にステージが無ければ、そのスクリーンのステージは今のまま。場所にスクリーンが無ければ、窓は今のまま。プラグイン状態は当てはめない（store の locate が当てはめる）
 export function placeAt(
@@ -202,13 +209,15 @@ export function placeAt(
       : { stages, current: current.id, arrangement: { direction: "row", share }, tools: {} }
     screens.push({ id: place.id, def: place.def, props: props.data, stages: ws })
   }
-  // 場所に無くても残すスクリーン: 最初から開いているスクリーンの定義の物が 1 枚も無い・ステージを並べるスクリーンが 1 枚も無いなら、今の物
+  // 場所に無くても残すスクリーン: 最初から開いているスクリーンの定義の物が場所に 1 枚も無ければ今の物を、ステージを並べるスクリーンが場所に 1 枚も無ければ今の 1 枚を（開いていたブックを後ろに残す）
   const kept: OpenedScreen[] = []
+  // ステージを並べるスクリーンは、いちばん最近カレントにした物を残す
+  const recent = recentBookScreen(win)
   for (const s of win.screens) {
     if (screens.some(x => x.id === s.id)) continue
     const have = [...kept, ...screens]
     const needed = s.stages
-      ? !have.some(x => x.stages)
+      ? s.id === recent?.id && !have.some(x => x.stages)
       : catalog.screens.get(s.def)?.atStart === true && !have.some(x => x.def === s.def)
     if (needed) kept.push(s)
   }

@@ -95,7 +95,6 @@ import type { Warning } from "../core/warnings"
 import { NO_WIDE_SEARCH_HITS, type WideSearchAnswer, type WideSearchQuery } from "../core/wide-search"
 import {
   bookScreenCurrent,
-  bookScreenShowing,
   closeScreen,
   currentScreen,
   followLibraryIn,
@@ -110,9 +109,9 @@ import {
   recentBookScreen,
   screenOfStage,
   setArrangement,
+  shownBook,
   shownBookScreens,
   stageIn,
-  stagesDefOf,
   type WindowState,
   withinLimits,
   withScreenProps,
@@ -293,6 +292,8 @@ export interface WindowActions {
 export interface FrameActions {
   // スクリーンを 1 枚開いてカレントにし、開いた 1 枚の id を返す（開かなければ SCREEN_REFUSED）。ほかは openScreen と同じ
   openScreenId(def: string, props: unknown): string
+  // ブックを窓に出し、出したステージの id を返す（無いブックなら何もせず NO_STAGE）。ほかは showBook と同じ
+  showBookStage(book: string, page?: string): string
   makeScreenCurrent(id: string): void // 開いているスクリーン id をカレントスクリーンにする（見せるかはスクリーンアレンジメントが決める。退いた物の中は残す）
   showStage(id: string): void // ステージ id をカレントにし、それを並べているスクリーンをカレントスクリーンにする（そのステージを見せる）
 }
@@ -1274,20 +1275,15 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       return id
     },
     openScreen: (def, props) => actions.openScreenId(def, props) !== SCREEN_REFUSED,
-    showBook: (bookId, page) => {
+    showBookStage: (bookId, page) => {
       const book = getState().books[bookId]
-      if (!book) return false
-      const was = getState().window
-      const showing = bookScreenShowing(was, bookId)
-      if (showing) {
-        // そのブックを開いているステージ（カレントのステージが開いていれば、それ）を見せる
-        const stages = showing.stages.stages.filter(st => st.opened?.book === bookId)
-        actions.showStage((stages.find(st => st.id === showing.stages.current) ?? stages[0])?.id ?? "")
-      } else commit({ window: withinLimits(openScreen(was, catalog, stagesDefOf(catalog), {}, book).win, catalog) })
-      const stage = bookScreenShowing(getState().window, bookId)?.stages.current
-      if (page !== undefined && stage !== undefined) actions.openPage(stage, page)
-      return true
+      if (!book) return NO_STAGE
+      const { win, stage } = shownBook(getState().window, catalog, book)
+      if (win !== getState().window) commit({ window: win })
+      if (page !== undefined) actions.openPage(stage, page)
+      return stage
     },
+    showBook: (bookId, page) => actions.showBookStage(bookId, page) !== NO_STAGE,
     setScreenProps: (at, props) => {
       const screen = screenAt(getState().window, at)
       const fits = screen && catalog.screens.get(screen.def)?.props.safeParse(props)

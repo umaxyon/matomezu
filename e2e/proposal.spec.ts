@@ -94,3 +94,37 @@ test("断られた変更を変更提案郵便で送り、場所を示すで郵�
   await (await fromMenu(page, "左サイドパネルを開く")).click()
   await expect(page.getByRole("complementary", { name: "左サイドパネル" })).toContainText("反映済み")
 })
+
+test("ブックスクリーンが無い窓で開いた変更提案郵便の「場所を示す」は、行き先のブックを新しいブックスクリーンで開き、郵便は右の端に寄って残る", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  const at = await ready(page)
+  await addBox(page, 300, 300, "一")
+  const box = (await items(page).filter({ hasText: "一" }).getAttribute("data-item"))!
+  const change = {
+    action: "@matomezu/paper:item-update",
+    args: { item: box, props: { caption: "AI" } },
+    on: { page: at.page },
+  }
+  const sent = await perform(page, {
+    action: "@matomezu/base:proposal-send",
+    args: {
+      from: "E51",
+      title: "名前を直す",
+      body: "箱の名前を AI に",
+      book: at.book,
+      page: at.page,
+      changes: [change],
+    },
+  })
+  expect(sent).toMatchObject({ ok: true })
+  await page.goto("/")
+  await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(0)
+  await page.getByRole("button", { name: "名前を直す" }).click()
+  const mail = page.getByRole("dialog", { name: "名前を直す" })
+  await mail.getByRole("button", { name: "場所を示す" }).click()
+  await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(1)
+  await expect(mail).toHaveAttribute("data-docked", "true")
+  await expect(page.locator("[data-mail-bird]")).toBeVisible()
+})

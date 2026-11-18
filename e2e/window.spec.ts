@@ -160,3 +160,30 @@ test("別の窓が、開いているブックをゴミ箱に入れると、そ�
   await expect.poll(() => urlFront(page)).toBe(CONTROL_CENTER_SCREEN_DEF)
   await expect.poll(() => page.url()).not.toContain(`%22${mine}%22`)
 })
+
+test("ブックスクリーンが無い窓でも、郵便のダイアログは Esc で閉じ、Enter で行き先のブックを新しいブックスクリーンで開く", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await page.bringToFront()
+  const book = ((await storedBooks(page.request)) as { id: string }[])[0]?.id ?? ""
+  const open = async (title: string) => {
+    const sent = await page.request.post("/api/ai/perform", {
+      headers: await joinedAiAuth(),
+      data: { action: "@matomezu/base:mail-send", args: { from: "a", title, to: { book } } },
+    })
+    expect(sent.ok()).toBe(true)
+    await page.getByRole("button", { name: title }).click()
+    const dialog = page.getByRole("dialog", { name: title })
+    await expect(dialog).toBeVisible()
+    return dialog
+  }
+  const first = await open("閉じる手紙")
+  await page.keyboard.press("Escape")
+  await expect(first).toHaveCount(0)
+  await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(0)
+  await open("開く手紙")
+  await page.keyboard.press("Enter")
+  await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(1)
+  await expect.poll(() => urlFront(page)).toBe(BOOK_SCREEN_DEF)
+})

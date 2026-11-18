@@ -11,7 +11,7 @@ import { fail } from "./errors"
 import { sameData } from "./same"
 import type { Book } from "./schema/book"
 import type { Stage } from "./stage"
-import { close, followLibrary, newWorkspace, type Workspace } from "./workspace"
+import { emptied, focus, followLibrary, NO_STAGES_LEFT, newWorkspace, type Workspace } from "./workspace"
 
 // 開いているスクリーン 1 枚
 export interface OpenedScreen {
@@ -172,21 +172,28 @@ export function closeScreen(win: WindowState, catalog: CoreCatalog, id: string):
   return { ...win, screens: win.screens.filter(s => s.id !== id), order: win.order.filter(x => x !== id) }
 }
 
-// ブックの一覧が books に変わったときの窓（before は変わる前の一覧）: 残ったブックにはステージを合わせ、無くなったブックを開いていたステージは閉じる。
-// ステージが全部無くなったブックスクリーンは閉じる（窓の最後の 1 枚なら、何も開いていないステージ 1 つで残す）
+// ブックの一覧が books に変わったときの窓（before は変わる前の一覧）: ブックスクリーンごとにステージを合わせ（workspace の followLibrary）、
+// ステージが 1 つも残らないブックスクリーンは閉じる（窓の最後の 1 枚なら、何も開いていないステージ 1 つで残す）
 export function followLibraryIn(
   win: WindowState,
   catalog: CoreCatalog,
   books: Readonly<Record<string, Book>>,
   before?: Readonly<Record<string, Book>>,
 ): WindowState {
-  let next = mapScreens(win, ws => followLibrary(catalog, ws, books, before))
+  let next = win
+  const put = (id: string, ws: Workspace): WindowState => ({
+    ...next,
+    screens: next.screens.map(x => (x.id === id && x.stages !== ws ? { ...x, stages: ws } : x)),
+  })
   for (const s of win.screens) {
     if (!s.stages) continue
-    const gone = s.stages.stages.filter(st => st.opened && !books[st.opened.book]).map(st => st.id)
-    if (gone.length === 0) continue
-    if (gone.length === s.stages.stages.length) next = closeScreen(next, catalog, s.id)
-    else for (const id of gone) next = mapScreenOfStage(next, id, ws => close(ws, id))
+    const ws = followLibrary(catalog, s.stages, books, before)
+    if (ws === s.stages) continue
+    if (ws !== NO_STAGES_LEFT) next = put(s.id, ws)
+    else {
+      const closed = closeScreen(next, catalog, s.id)
+      next = closed === next ? put(s.id, emptied(s.stages)) : closed
+    }
   }
   return next
 }
@@ -213,6 +220,28 @@ export function bookScreenShowing(win: Pick<WindowState, "screens" | "order">, b
     if (s && holdsStages(s) && s.stages.stages.some(st => st.opened?.book === book)) return s
   }
   return undefined
+}
+
+// ブック book を窓に出した窓と、出したステージの id: book を開いているブックスクリーンが在れば、それをカレントスクリーンにする
+// （book を開いているステージをカレントに。カレントのステージが開いていれば、それ）。無ければ、新しいブックスクリーンで開き、開いたままにする枚数を超えた分を閉じる
+export function shownBook(win: WindowState, catalog: CoreCatalog, book: Book): { win: WindowState; stage: string } {
+  const showing = bookScreenShowing(win, book.id)
+  if (!showing) {
+    const opened = openScreen(win, catalog, stagesDefOf(catalog), {}, book)
+    return {
+      win: withinLimits(opened.win, catalog),
+      stage: opened.win.screens.find(s => s.id === opened.id)?.stages?.current ?? "",
+    }
+  }
+  const stages = showing.stages.stages.filter(st => st.opened?.book === book.id)
+  const stage = (stages.find(st => st.id === showing.stages.current) ?? stages[0])?.id ?? ""
+  return {
+    win: makeCurrent(
+      mapScreenOfStage(win, stage, ws => focus(ws, stage)),
+      showing.id,
+    ),
+    stage,
+  }
 }
 
 // 次のステージの番号を振る（窓で一意）

@@ -182,19 +182,29 @@ export function followBook(catalog: CoreCatalog, ws: Workspace, book: Book, befo
   return stages.every((s, i) => s === ws.stages[i]) ? ws : { ...ws, stages }
 }
 
-// ブックの一覧が変わったとき: 無くなったブックを開いていたステージは何も開いていない状態にし（そのステージを閉じるのは窓の followLibraryIn）、残ったブックには合わせる（before は変わる前の一覧）
+// followLibrary の答え: 開いていたブックが全部無くなり、ステージが 1 つも残らない
+export const NO_STAGES_LEFT = "no-stages-left"
+
+// ブックの一覧が変わったとき: 無くなったブックを開いていたステージは閉じ（1 つも残らなければ NO_STAGES_LEFT）、残ったブックには合わせる（before は変わる前の一覧）
 export function followLibrary(
   catalog: CoreCatalog,
   ws: Workspace,
   books: Readonly<Record<string, Book>>,
   before?: Readonly<Record<string, Book>>,
-): Workspace {
-  const stages = ws.stages.map(s => {
+): Workspace | typeof NO_STAGES_LEFT {
+  const gone = ws.stages.filter(s => s.opened && !books[s.opened.book]).map(s => s.id)
+  if (gone.length === ws.stages.length) return NO_STAGES_LEFT
+  const left = gone.reduce(close, ws)
+  const stages = left.stages.map(s => {
     const book = s.opened ? books[s.opened.book] : undefined
-    if (!s.opened) return s
-    return book ? followStage(catalog, s, book, before?.[s.opened.book]) : closeBook(s)
+    return s.opened && book ? followStage(catalog, s, book, before?.[s.opened.book]) : s
   })
-  return stages.every((s, i) => s === ws.stages[i]) ? ws : { ...ws, stages }
+  return stages.every((s, i) => s === left.stages[i]) ? left : { ...left, stages }
+}
+
+// 何も開いていないステージ 1 つにした並び（カレントのステージを残す）
+export function emptied(ws: Workspace): Workspace {
+  return { ...ws, stages: [closeBook(currentStage(ws))] }
 }
 
 // プラグインの見た目に見せるステージ（読むだけ）: 開いているもの・倍率・選んでいる物とその場の編集中か・置こうとしているアイテム・今の道具と、

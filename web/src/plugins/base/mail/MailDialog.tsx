@@ -2,9 +2,11 @@
 // 開くと、ダイアログを閉じてそのステージで行き先のブック・ページを開き（左サイドパネルは開いていれば、そのまま残す）、
 // 行き先に物があれば倍率そのままで真ん中に見せて、鳥を連れてきて枠を光らせる（bird-visit.tsx）。郵便箱のタブが開いているときは、ダイアログと郵便箱を一緒に閉じるボタンも出す。
 // 決めるキー（Enter）は、ダイアログを出したステージで開くボタン（開いたら、そのボタンに焦点を当てる）。行き先が無い・無くなっていれば（「行き先がありません」と出す）、閉じるボタンだけを出す
+
 import { type FormEvent, type ReactNode, useEffect, useId, useRef, useState } from "react"
 import type { Stage } from "../../../core/stage"
-import { bookScreenShowing, screenOfStage } from "../../../core/window"
+import { screenOfStage } from "../../../core/window"
+import { NO_STAGE } from "../../../store/dialogs"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
 import { useLayout, useMatomezuState, useReadState, useStoreActions, useUiCatalog } from "../../../ui/store-context"
@@ -81,11 +83,8 @@ export function MailDialog({ args, onClose }: DialogProps<{ mail: string }>) {
     // 「開く」は、ブックを窓に出す（もう開いていれば前に出し、無ければ新しいブックスクリーン。見ていたブックは差し替えない）。
     // 分けて開く・左右に開くは、ダイアログを出したステージの並びの、そのステージに開く
     const inWindow = choice === "here" || !ws
-    if (inWindow && !actions.showBook(to.book)) return
-    const target = inWindow
-      ? (bookScreenShowing(read().window, to.book)?.stages.current ?? null)
-      : openStageOf(ws, stage, choice)
-    if (!target) return
+    const target = inWindow ? actions.showBookStage(to.book) : openStageOf(ws, stage, choice)
+    if (!target || target === NO_STAGE) return
     showPlace(target, mail)
     actions.perform(MAIL_VISITED.id, {}, { record: mail.id })
   }

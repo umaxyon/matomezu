@@ -378,3 +378,14 @@ test("場所を当てはめても、ブックスクリーンは 2 枚まで。�
   expect(bookScreens(store).length).toBe(1)
   expect(viewFrontOf(store.state.getState().window)).toBe("control-center")
 })
+
+test("2 枚のブックスクリーンから、ブックスクリーンの無い場所へ戻ると、いちばん最近カレントにした 1 枚が残る", () => {
+  const store = newStore({ bookScreen: "none" })
+  const none = store.address()
+  store.actions.showBook("b1")
+  store.actions.showBook("b2")
+  // 先に開いた b1 を前に出してから戻る: 残るのは b1 のスクリーン
+  store.actions.showBook("b1")
+  store.locate(none)
+  expect(bookScreens(store).map(s => s.books)).toEqual([["b1"]])
+})

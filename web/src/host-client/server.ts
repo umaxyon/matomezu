@@ -22,8 +22,9 @@ import { restoreCounters, restoreRecords, withCounters, withRecords } from "../c
 import type { Stage } from "../core/stage"
 import type { Warning } from "../core/warnings"
 import { WIDE_SEARCH_ANSWER, wideSearchParams } from "../core/wide-search"
-import { bookScreenShowing, recentBookScreen, screenOfStage, shownScreens, viewFrontOf } from "../core/window"
+import { recentBookScreen, screenOfStage, shownScreens, viewFrontOf } from "../core/window"
 import { currentStage, MAX_STAGES } from "../core/workspace"
+import { NO_STAGE } from "../store/dialogs"
 import type {
   AIEditTicketOutcome,
   DoneBulk,
@@ -191,9 +192,9 @@ export function showIn(instance: MatomezuInstance, show: z.infer<typeof ShowSche
 }
 
 // ブックを窓に出して、出したステージを答える
-function shownStage({ actions, state }: MatomezuInstance, show: z.infer<typeof ShowSchema>): string | undefined {
-  if (!actions.showBook(show.book, show.page)) return undefined
-  return bookScreenShowing(state.getState().window, show.book)?.stages.current
+function shownStage({ actions }: MatomezuInstance, show: z.infer<typeof ShowSchema>): string | undefined {
+  const stage = actions.showBookStage(show.book, show.page)
+  return stage === NO_STAGE ? undefined : stage
 }
 
 // ブックを、言われたステージ（split なら、分けて右にできたステージ）に出して、出したステージを答える

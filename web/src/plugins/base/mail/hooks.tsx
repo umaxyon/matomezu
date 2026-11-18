@@ -1,7 +1,7 @@
 // 郵便箱を読み、郵便を開くフック
 import { useCallback } from "react"
 import { useShallow } from "zustand/react/shallow"
-import { recentBookScreen, stageIn } from "../../../core/window"
+import { currentScreen, recentBookScreen, stageIn } from "../../../core/window"
 import { NO_STAGE } from "../../../store/dialogs"
 import { useStageId } from "../../../ui/scope"
 import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
@@ -24,7 +24,11 @@ export function useOpenMail(): (id: string) => void {
   const { openDialog } = useStoreActions()
   const read = useReadState()
   return useCallback(
-    id => openDialog(recentBookScreen(read().window)?.stages.current ?? NO_STAGE, MAIL_DIALOG.id, { mail: id }),
+    id => {
+      // ブックスクリーンが無ければ、カレントスクリーンから出す（ダイアログはステージを持たない）
+      const win = read().window
+      openDialog(recentBookScreen(win)?.stages.current ?? currentScreen(win).id, MAIL_DIALOG.id, { mail: id })
+    },
     [openDialog, read],
   )
 }
@@ -66,14 +70,18 @@ export function useShowMailPlaceAt(): (target: string, mail: Mail) => void {
   )
 }
 
-// 描いている場所のステージに、郵便 mail の行き先を開く関数（描いている場所がステージでなければ、何もしない）
+// 郵便 mail の行き先を開く関数: 描いている場所がステージなら、そのステージに開く。ステージでなければ、行き先のブックを窓に出して（showBook）、そこに開く
 export function useShowMailPlace(): (mail: Mail) => void {
   const stage = useStageId()
   const show = useShowMailPlaceAt()
+  const actions = useStoreActions()
   return useCallback(
     mail => {
-      if (stage !== null) show(stage, mail)
+      if (stage !== null) return show(stage, mail)
+      if (!mail.to) return
+      const shown = actions.showBookStage(mail.to.book)
+      if (shown !== NO_STAGE) show(shown, mail)
     },
-    [stage, show],
+    [stage, show, actions],
   )
 }

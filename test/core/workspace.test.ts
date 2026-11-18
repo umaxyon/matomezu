@@ -12,6 +12,7 @@ import {
   MIN_SHARE,
   mapStage,
   moveDivider,
+  NO_STAGES_LEFT,
   newWorkspace,
   showPage,
   split,
@@ -104,9 +105,11 @@ describe("workspace", () => {
     ).toBeNull()
   })
 
-  test("ブックの一覧が変わると、無くなったブックを開いていたステージは何も開かない", () => {
+  test("ブックの一覧が変わると、無くなったブックを開いていたステージは閉じる。1 つも残らなければ NO_STAGES_LEFT", () => {
     const two = split(ws, "s2")
-    expect(followLibrary(CORE_CATALOG, two, {}).stages.map(s => s.opened)).toEqual([null, null])
+    const left = followLibrary(CORE_CATALOG, two, {})
+    expect(left === NO_STAGES_LEFT ? left : left.stages.map(s => s.opened)).toEqual([null])
+    expect(followLibrary(CORE_CATALOG, ws, {})).toBe(NO_STAGES_LEFT)
     expect(followLibrary(CORE_CATALOG, two, { b1: book })).toBe(two)
   })
 
