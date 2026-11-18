@@ -7,6 +7,17 @@ import { defineMessages } from "../../web/src/core/i18n/messages"
 import { BUILTIN } from "../../web/src/plugins"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
+import { createMatomezuInstance } from "../../web/src/store/store"
+
+// run が投げた error の番号（投げなければ null）
+const codeThrown = (run: () => unknown) => {
+  try {
+    run()
+  } catch (e) {
+    return (e as MatomezuError).code
+  }
+  return null
+}
 
 const thrown = (run: () => unknown) => {
   try {
@@ -39,4 +50,50 @@ test("書庫アピアランスは、kit が id に頭を付けて store 台帳�
   expect(instance.catalog.store.libraryAppearances.has("@matomezu/base:library")).toBe(true)
   expect(thrown(make([], ["k:shelf"]))).toEqual(["E075"])
   expect(thrown(make([appearance, appearance], ["k:shelf"]))).toEqual(["E001"])
+})
+
+test("書庫アピアランスとスクリーンの定義のメソッドが受け取る read は、自分のプラグイン状態だけを読める（ほかのプラグインの宣言は E125）", () => {
+  const kit = pluginKit("k", defineMessages({ Shelf: { en: "Shelf", ja: "たな" } }))
+  const other = pluginKit("o", defineMessages({}))
+  const theirs = other.definePluginStateOf<string>()({ id: "theirs", scope: "screen" })
+  const appearance = kit.defineLibraryAppearance({ id: "shelf", shownFolders: (_, read) => [read(theirs) ?? HOME_ID] })
+  const screen = kit.defineScreen({
+    id: "shelf-screen",
+    title: "Shelf",
+    aiDescription: "A shelf.",
+    props: z.strictObject({}),
+    libraryAppearances: [appearance.id] as never,
+  })
+  const m = createMatomezuInstance({
+    plugins: [
+      ...BUILTIN,
+      other.plugin({ pluginStates: [theirs] }),
+      kit.plugin({ libraryAppearances: [appearance], screens: [screen] }),
+    ],
+    controlCenter: "@matomezu/control-center:control-center",
+    lang: "ja",
+  })
+  // 見えたかを確かめるのは、まだ見ていない書庫の変更が在るときだけ。フォルダを作り、その名前を AI が変えたと知らせて、read の断りを見る
+  const made = m.actions.perform("@matomezu/base:folder-create", { title: "箱" })
+  const box = (made as { result: { folder: string } }).result.folder
+  const rows = (folders: readonly unknown[]) => ({
+    pages: Object.values(m.state.getState().pages),
+    folders,
+    settings: {},
+  })
+  const before = m.state.getState().folders[box]
+  const after = { ...before, title: "別の名前" }
+  m.receive(rows(Object.values(m.state.getState().folders)), [])
+  m.actions.openScreen("k:shelf-screen" as never, {} as never)
+  expect(
+    codeThrown(() =>
+      m.receive(rows(Object.values(m.state.getState().folders).map(f => (f === before ? after : f))), [], {
+        books: [],
+        by: "ai",
+        act: "1",
+        actions: ["@matomezu/base:entry-rename"],
+        library: { pages: {}, folders: { [box]: { before, after } } },
+      }),
+    ),
+  ).toBe("E125")
 })

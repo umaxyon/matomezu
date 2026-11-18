@@ -7,6 +7,7 @@ import { HOME_ID } from "../../web/src/core/folders"
 import { LIBRARY_HISTORY } from "../../web/src/core/history"
 import { applyPatch, patchOf } from "../../web/src/core/patch"
 import { LIBRARY_FOLDER, LIBRARY_UNFOLDED } from "../../web/src/plugins/base/library/state"
+import { definePlugin } from "../../web/src/store/plugin"
 import type { AIEditTicketOutcome } from "../../web/src/store/store"
 import { newStore, sequence } from "../support"
 
@@ -88,7 +89,7 @@ function pair(visible: () => boolean = () => true) {
   // ブックスクリーンを、見えているスクリーンに戻す
   const showBook = () =>
     here.actions.makeScreenCurrent(here.state.getState().window.screens.find(s => s.def !== CENTER)?.id as string)
-  return { here, there, told, foreign, show, showBook }
+  return { here, there, told, foreign, show, showBook, center }
 }
 
 test("AI が書庫のアクションで変えたブックの名前は、ブックの画面の履歴に入らず、入れ物のフォルダを書庫の画面が見せたら、書庫の画面の履歴に入る", async () => {
@@ -296,4 +297,24 @@ test("利用者の書庫の元に戻すが上書きしたのが、ブックの�
   expect(told).toEqual([{ book: "b2", act: "9", places: ["b2"], outcome: "lost", lost: [] }])
   show([HOME_ID])
   expect(libraryHistory(here).undo.filter(s => s.by === "ai")).toEqual([])
+})
+
+test("書庫を出す事と、開くフォルダを替える事を 1 度に行ったら、替えた後の組み合わせだけで見えたかを決める（途中の、書庫ホームを開いた組み合わせでは見えたとしない）", async () => {
+  const { here, there, foreign, center } = pair()
+  here.actions.makeScreenCurrent(center)
+  await foreign({ by: "ai", act: "1", actions: [RENAME] }, renamed(there, "AI の名前"))
+  here.setPluginStates([
+    [FRONT, center, "library"],
+    [LIBRARY_FOLDER.id, center, "b2"],
+    [LIBRARY_UNFOLDED.id, center, []],
+  ])
+  expect(libraryHistory(here).undo).toEqual([])
+})
+
+test("プラグインを組み直したら、まだ見ていない書庫の変更は忘れる（あとで見えても、書庫の画面の履歴に入らない）", async () => {
+  const { here, there, foreign, show } = pair()
+  await foreign({ by: "ai", act: "1", actions: [RENAME] }, renamed(there, "AI の名前"))
+  here.use([definePlugin({ id: "plain" })])
+  show([HOME_ID])
+  expect(libraryHistory(here).undo).toEqual([])
 })
