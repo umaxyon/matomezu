@@ -31,6 +31,7 @@ export const WARNINGS = {
   W028: "book {book} ({title}): {pages} page(s) do not fit the shape of their type (kept as they are, not readable)",
   W029: "book {book} ({title}): {pages} page(s) break the rules of their type (kept as they are, not readable)",
   W030: "the library: its home and folders break the rules of the tree (kept as they are; actions on the library are refused)",
+  W031: "key {key} in {scope} for {command}: the key scope is not in the catalog (not used)",
 } as const
 
 export type WarningCode = keyof typeof WARNINGS

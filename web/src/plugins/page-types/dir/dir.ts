@@ -27,7 +27,7 @@ const BACKGROUND_ITEMS = [
   "@matomezu/slide:slide-ellipse",
 ] as const
 
-export const DIR_KEY_SCOPE = kit.defineKeyScope({ id: "dir", title: "Directory" })
+export const DIR_KEY_SCOPE = kit.defineKeyScope({ id: "dir", title: "Directory", commandsFrom: "stage" })
 export const DIR_KEYS_SCOPE = DIR_KEY_SCOPE.id
 
 // ディレクトリ構成図のプレゼンテーション: 紙の上に、根のフォルダから下の中身を並べて描く。カレントのステージがこれで描いている間は、自分のキーの範囲を探す

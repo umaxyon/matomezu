@@ -150,7 +150,7 @@ export const SEARCH_COMMANDS = [
 ] as const
 
 // 検索ダイアログの入力Formが名乗るキーの範囲（Enter・Shift+Enter で次・前、Escape で閉じる）
-export const SEARCH_KEY_SCOPE = kit.defineKeyScope({ id: "search", title: "Search" })
+export const SEARCH_KEY_SCOPE = kit.defineKeyScope({ id: "search", title: "Search", commandsFrom: "stage" })
 
 export const SEARCH_KEYS = [
   kit.defineKey({ id: "search-open-mod-f", key: "Mod+F", command: SEARCH_OPEN.id, scope: "stage" }),

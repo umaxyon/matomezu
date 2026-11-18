@@ -14,7 +14,7 @@ import {
   pressedKey,
   readKeyChanges,
 } from "../../../core/keys"
-import { BASE_KEY_SCOPE_TITLES } from "../../../store/keys"
+import { BASE_KEY_SCOPES } from "../../../store/keys"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { isMac } from "../../../ui/keys"
@@ -51,7 +51,7 @@ export function KeysPane() {
   const write = (next: KeyChanges) => set.run({ [KEYS.id]: next })
   const scopeTitle = (scope: string) =>
     t(
-      (BASE_KEY_SCOPE_TITLES[scope as BaseKeyScope] ??
+      (BASE_KEY_SCOPES[scope as BaseKeyScope]?.title ??
         catalog.store.keyScopes.get(scope)?.title ??
         scope) as MessageKey,
     )

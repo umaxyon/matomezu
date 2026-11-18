@@ -29,7 +29,7 @@ const BACKGROUND_ITEMS = [
   "@matomezu/slide:slide-ellipse",
 ] as const
 
-export const TREE_KEY_SCOPE = kit.defineKeyScope({ id: "tree", title: "Tree" })
+export const TREE_KEY_SCOPE = kit.defineKeyScope({ id: "tree", title: "Tree", commandsFrom: "stage" })
 export const TREE_KEYS_SCOPE = TREE_KEY_SCOPE.id
 
 // ツリーのプレゼンテーション: 紙の上に、根から伸びる木を描く。カレントのステージがこれで描いている間は、ツリーのキーの範囲を探す
