@@ -10,6 +10,7 @@ export const LIBRARY_MESSAGES = defineMessages({
   Library: { en: "Library", ja: "書庫" },
   "Undo in the library": { en: "Undo in the library", ja: "書庫で元に戻す" },
   "Redo in the library": { en: "Redo in the library", ja: "書庫でやり直す" },
+  "Clashes with other changes": { en: "Clashes with other changes", ja: "ほかの変更とぶつかります" },
   Folders: { en: "Folders", ja: "フォルダ" },
   "Where it is": { en: "Where it is", ja: "場所" },
   "Contents of {name}": { en: "Contents of {name}", ja: "{name} の中身" },

@@ -5,6 +5,7 @@
 import { pagesOf } from "../../../core/book"
 import type { LibraryTargets } from "../../../core/def/action"
 import type { HistoryStep } from "../../../core/history"
+import type { MessageKey } from "../../../core/i18n/i18n"
 import type { Books } from "../../../core/library"
 import { shownPageId } from "../../../core/stage"
 import {
@@ -61,24 +62,27 @@ function pageToOpen(
   return Object.entries(step.pages).find(([id, row]) => row[to] !== "none" && inBook.has(id))?.[0]
 }
 
-// 戻す・やり直すが断られたことをトーストで知らせる（認可ステップが止めたなら、2 行目にその名前。止めたブックの名前 book が分かれば添える）
+// 戻す・やり直すが断られたことをトーストで知らせる（認可ステップが止めたなら、2 行目にその名前。止めたブックの名前 book が分かれば添える。
+// 土台かアクションが断ったなら、2 行目に clash を出す）
 export function showNotRestored(
   ctx: ScreenCommandContext,
   a: Pick<CommandActions, "showToast">,
   from: "undo" | "redo",
   refused: { reason: string; permission?: string },
-  book?: string,
+  { book, clash }: { book?: string; clash?: MessageKey } = {},
 ): void {
   const denied =
     refused.reason === "denied" && refused.permission ? ctx.catalog.permissions.get(refused.permission) : undefined
   a.showToast({
     kind: "warn",
     message: from === "undo" ? kit.message("Could not undo") : kit.message("Could not redo"),
-    detail:
-      denied &&
-      (book === undefined
+    detail: denied
+      ? book === undefined
         ? { message: denied.title }
-        : { message: kit.message('{reason}: "{book}"'), params: { book, reason: { message: denied.title } } }),
+        : { message: kit.message('{reason}: "{book}"'), params: { book, reason: { message: denied.title } } }
+      : refused.reason === "refused"
+        ? clash && { message: clash }
+        : undefined,
   })
 }
 
@@ -100,7 +104,7 @@ function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"):
     const result = changes ? a.perform(HISTORY_RESTORE.id, args) : undefined
     if (result && !result.ok && !isRevertUnchanged(result)) {
       const book = result.reason === "denied" && result.book ? booksOf(ctx)[result.book] : undefined
-      showNotRestored(ctx, a, from, result, book?.title)
+      showNotRestored(ctx, a, from, result, { book: book?.title })
       return
     }
     a.moveHistory(opened.book, from)

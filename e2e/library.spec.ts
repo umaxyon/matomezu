@@ -251,3 +251,47 @@ test("AI が書庫で変えた名前は、その入れ物のフォルダを見�
   await expect(other.getByRole("button", { name: "見えない前の名前" })).toBeVisible()
   await expect.poll(async () => (await storedBook(page.request, unseen))?.title).toBe("見えない前の名前")
 })
+
+test("書庫の右の枠の上のボタンで、元に戻す・やり直すができる。戻す先がほかの変更とぶつかると、トーストの 2 行目に訳が出る", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await page.bringToFront()
+  const made = async (action: string, args: object) => {
+    const done = await perform(page, action, args)
+    expect(done).toMatchObject({ ok: true })
+    return done.result as { folder: string; book: string }
+  }
+  const folder = (await made("@matomezu/base:folder-create", { title: "ボタンの試しの所" })).folder
+  const book = (await made("@matomezu/base:book-create", { title: "ボタンの前の名前", into: folder })).book
+
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  const undo = page.getByRole("button", { name: "書庫で元に戻す" })
+  const redo = page.getByRole("button", { name: "書庫でやり直す" })
+  await page.getByRole("list", { name: "書庫 の中身" }).getByRole("button", { name: "ボタンの試しの所" }).dblclick()
+  const inside = page.getByRole("list", { name: "ボタンの試しの所 の中身" })
+  await made("@matomezu/base:entry-rename", { entry: book, title: "ボタンの後の名前" })
+  await expect(inside.getByRole("button", { name: "ボタンの後の名前" })).toBeVisible()
+  await expect(redo).toHaveAttribute("aria-disabled", "true")
+  await undo.click()
+  await expect(inside.getByRole("button", { name: "ボタンの前の名前" })).toBeVisible()
+  await redo.click()
+  await expect(inside.getByRole("button", { name: "ボタンの後の名前" })).toBeVisible()
+  // 押せなくなったボタンに焦点が残っていても、キーは効き続ける
+  await expect(redo).toHaveAttribute("aria-disabled", "true")
+  await page.keyboard.press("Control+z")
+  await expect(inside.getByRole("button", { name: "ボタンの前の名前" })).toBeVisible()
+  await redo.click()
+  await expect(inside.getByRole("button", { name: "ボタンの後の名前" })).toBeVisible()
+  await expect.poll(async () => (await storedBook(page.request, book))?.title).toBe("ボタンの後の名前")
+
+  // フォルダを見せていない間に、AI が元の名前のブックを同じ所に作る。元に戻すと名前が重なるので断られる
+  await page.getByRole("navigation", { name: "場所" }).getByRole("button", { name: "書庫" }).click()
+  await made("@matomezu/base:book-create", { title: "ボタンの前の名前", into: folder })
+  await undo.click()
+  const toast = page.getByRole("alert").filter({ hasText: "元に戻せません" })
+  await expect(toast).toContainText("ほかの変更とぶつかります")
+  // ゴミ箱を開いている間も、同じボタンが出る
+  await page.getByRole("navigation", { name: "フォルダ" }).getByRole("button", { name: "ゴミ箱", exact: true }).click()
+  await expect(undo).toBeVisible()
+})

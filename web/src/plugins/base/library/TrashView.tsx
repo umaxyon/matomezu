@@ -1,6 +1,7 @@
 // 書庫の画面でゴミ箱を開いている間の右の枠: 上に「ゴミ箱を空にする」、下にゴミ箱の直下の物の一覧（種類のアイコン・名前・元の場所・捨てた日時。新しい順）。
 // 選んだ行に、戻すボタン（entry-restore）と完全に消すボタン（entry-purge）を出す。捨てたフォルダ・ブックの中身は開けない（戻してから見る）。
 // 戻すとき、元いたフォルダへ戻れなければ（無い・ゴミ箱の中）入る先を確かめ、入る先に同じ名前の物が在れば、番号を付けるかを確かめる。消すのは、戻せないので確かめてから
+
 import { useState } from "react"
 import { titleOf } from "../../../core/entries"
 import { useMessages } from "../../../ui/i18n"
@@ -11,6 +12,7 @@ import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { type RestorePlan, replaceBlockedOf, restorePlanOf, SAME_TITLE } from "./entries"
 import { ENTRY_PURGE, ENTRY_RESTORE, TRASH_EMPTY } from "./entry-trash"
+import { HistoryButtons } from "./HistoryButtons"
 import { useLibraryRows, useNameOf } from "./hooks"
 import { iconOf } from "./icons"
 import styles from "./LibraryView.module.css"
@@ -63,6 +65,7 @@ export function TrashView({ picked, onPick }: { picked: string | undefined; onPi
         <ActionButton danger disabled={rows.length === 0 || !emptiable} onClick={() => setAsking({ about: "empty" })}>
           {t("Empty trash")}
         </ActionButton>
+        <HistoryButtons />
       </div>
       {rows.length === 0 ? (
         <p className={styles.empty}>{t("The trash is empty")}</p>

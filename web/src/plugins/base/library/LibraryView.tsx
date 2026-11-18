@@ -15,6 +15,7 @@ import { kit } from "../kit"
 import { LIBRARY_SCOPE } from "./commands"
 import { LIBRARY_NEW_BOOK_DIALOG } from "./dialog"
 import { holdsEntries } from "./entries"
+import { HistoryButtons } from "./HistoryButtons"
 import { useKeepFocusIn, useLibraryRows, useNameOf } from "./hooks"
 import { CHEVRON, iconOf, TRASH } from "./icons"
 import styles from "./LibraryView.module.css"
@@ -128,11 +129,14 @@ export function LibraryView() {
             </span>
           ))}
         </nav>
-        {creatable && (
+        {opened !== TRASH_ID && (
           <div className={styles.tools}>
-            <ActionButton onClick={() => openDialog(LIBRARY_NEW_BOOK_DIALOG.id, { into: opened })}>
-              {t("Create book")}
-            </ActionButton>
+            {creatable && (
+              <ActionButton onClick={() => openDialog(LIBRARY_NEW_BOOK_DIALOG.id, { into: opened })}>
+                {t("Create book")}
+              </ActionButton>
+            )}
+            <HistoryButtons />
           </div>
         )}
         {opened === TRASH_ID ? (
