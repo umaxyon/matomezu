@@ -558,9 +558,15 @@ function there<R extends AnyEntryRef>(lineup: readonly R[], has: (r: R) => boole
   return kept.length === lineup.length ? lineup : kept
 }
 
-// 表 tables に、ページとフォルダごとの置き直す値 patches を行った表（何も変わらなければ tables のまま）。ページとフォルダは別々に置き直すので、
-// 行った後に、エントリとその中身が食い違う所を落とす: 中身が表に無いエントリは並びから外し、どのフォルダ（ブックを含む）の並びからもたどれないページとバインダは表から外す
-export function restoredTables(tables: Library, patches: RowPatches): Library {
+// 置き直す値 patches のうち、行を丸ごと置く値（行が無かった側へ戻す値）が、表 table に今在る行に向いているか
+const putsOverRow = (table: Readonly<Record<string, unknown>>, patches: Readonly<Record<string, Patch>>) =>
+  Object.entries(patches).some(([id, p]) => "set" in p && table[id] !== undefined)
+
+// 表 tables に、ページとフォルダごとの置き直す値 patches を行った表（中身が何も変わらなければ tables のまま）。ページとフォルダは別々に置き直すので、
+// 行った後に、エントリとその中身が食い違う所を落とす: 中身が表に無いエントリは並びから外し、どのフォルダ（ブックを含む）の並びからもたどれないページとバインダは表から外す。
+// 行を丸ごと置く値が、今在る行に向いていたら null（無かったはずの行が在るのは、ほかの変更が先に置いたか、その間に変えたとき。上から置くと、その変更を行ごと消す）
+export function restoredTables(tables: Library, patches: RowPatches): Library | null {
+  if (putsOverRow(tables.pages, patches.pages) || putsOverRow(tables.folders, patches.folders)) return null
   const pages = patched(tables.pages, patches.pages)
   const folders = patched(tables.folders, patches.folders)
   if (pages === tables.pages && folders === tables.folders) return tables
@@ -595,13 +601,22 @@ export function restoredTables(tables: Library, patches: RowPatches): Library {
     Object.keys(kept).length === Object.keys(folders).length &&
     Object.entries(kept).every(([id, f]) => folders[id] === f)
   const left = Object.entries(pages).filter(([id]) => reached.has(id))
-  return {
+  const next = {
     pages: left.length === Object.keys(pages).length ? pages : Object.fromEntries(left),
     folders: sameFolders ? folders : kept,
   }
+  return sameRows(tables.pages, next.pages) && sameRows(tables.folders, next.folders) ? tables : next
+}
+
+// 表 was と now が、同じ id の行を、同じ中身で持つか
+function sameRows(was: Readonly<Record<string, unknown>>, now: Readonly<Record<string, unknown>>): boolean {
+  if (was === now) return true
+  const ids = Object.keys(now)
+  return ids.length === Object.keys(was).length && ids.every(id => was[id] === now[id] || sameData(was[id], now[id]))
 }
 
 // ブック books の表に、ページとフォルダごとの置き直す値 patches を行って組み直した一覧（変わらなかったブックは同じ値のまま。組めないブックは入らない）
-export function withRowPatches(books: readonly Book[], patches: RowPatches): Readonly<Record<string, Book>> {
-  return libraryOf(restoredTables(tablesOf(books), patches))
+export function withRowPatches(books: readonly Book[], patches: RowPatches): Readonly<Record<string, Book>> | null {
+  const next = restoredTables(tablesOf(books), patches)
+  return next && libraryOf(next)
 }

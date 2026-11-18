@@ -1,6 +1,6 @@
 // 画面の履歴の段の置き直し: 画面の履歴の段が変えたページとフォルダごとに、変えた所（フィールドごと・id の並びは id ごと・改行を含む文字列は行ごと。core/patch.ts）だけを、
 // 前か後の値に置き直す。置き直す値（Patch）は画面の履歴の段だけから決まり、今の表の上で行う（その間にほかで変わった所は、画面の履歴の段が変えた所に重なれば上書きし、
-// 重ならなければ残す。core/restore.ts）
+// 重ならなければ残す。core/patch.ts）。ただし、無かった行を丸ごと置く値は、その行が今在れば断る（core/folders.ts の restoredTables）
 import { z } from "zod"
 import {
   inTrash,
@@ -13,6 +13,15 @@ import {
 import type { RowChange } from "../../../core/history"
 import type { Books } from "../../../core/library"
 import { type ListPatch, type Patch, patchOf } from "../../../core/patch"
+import { kit } from "../kit"
+
+// 置き直しても何も変わらないこと（もう、置き直す側の値になっている）: 置き直す関数が返す値と、置き直しのアクションが断るときの断りの種類
+export const UNCHANGED = "unchanged"
+export const REVERT_UNCHANGED = kit.name("revert-unchanged")
+export const DECLINED_UNCHANGED = { declined: "there is nothing to put back", kind: REVERT_UNCHANGED }
+// アクションの答え result が、置き直しても何も変わらないという断りか
+export const isRevertUnchanged = (result: { ok: boolean; reason?: string; kind?: string }): boolean =>
+  !result.ok && result.reason === "refused" && result.kind === REVERT_UNCHANGED
 
 export const PatchSchema: z.ZodType<Patch> = z.lazy(() =>
   z.union([
@@ -61,19 +70,25 @@ export function patchesToward<T>(
 }
 
 // ブックの全部 all のうちのブック books を、ページとフォルダごとの置き直す値 patches で置き直した全部（変わらなかったブックは同じ値のまま）。
-// books のどれかが無い・置き直すと組めなくなるか、books のほかのブックが変わる・ブックが増える・減るなら null
+// books のどれかが無い・無かった行を丸ごと置く値がその行の在る所に向いている・置き直すと組めなくなるか、books のほかのブックが変わる・ブックが増える・減るなら null
 export function restoredBooks(all: Books, books: readonly string[], patches: RowPatches): Books | null {
   if (!books.every(id => all[id] !== undefined)) return null
   const next = withRowPatches(Object.values(all), patches)
-  return onlyChanged(all, next, books) ? next : null
+  return next && onlyChanged(all, next, books) ? next : null
 }
 
-// 書庫 library のブック books を、patches で置き直した書庫（断る場合は、上の restoredBooks と同じ。books のどれかがゴミ箱かその中に在るときも断る）
-export function restoredLibrary(library: Library, books: readonly string[], patches: RowPatches): Library | null {
+// 書庫 library のブック books を、patches で置き直した書庫（断る場合は、上の restoredBooks と同じ。books のどれかがゴミ箱かその中に在るときも断る）。
+// 置き直しても何も変わらなければ UNCHANGED
+export function restoredLibrary(
+  library: Library,
+  books: readonly string[],
+  patches: RowPatches,
+): Library | typeof UNCHANGED | null {
   const was = libraryOf(library)
   if (!books.every(id => was[id] !== undefined && !inTrash(library.folders, id))) return null
   const next = restoredTables(library, patches)
-  return onlyChanged(was, libraryOf(next), books) ? next : null
+  if (next === library) return UNCHANGED
+  return next && onlyChanged(was, libraryOf(next), books) ? next : null
 }
 
 // ブックの全部が was から next へ、増えも減りもせず、変わったのがブック books だけか

@@ -161,3 +161,60 @@ test("ゴミ箱から戻すときの上書きも、在った物を消して戻�
   expect(store.state.getState().books[fresh]?.title).toBe("議事録")
   expect(old in store.state.getState().trash).toBe(true)
 })
+
+test("何も変えない段（完全に消した物をゴミ箱に入れた段など）は飛ばし、同じ 1 回でその次の段を戻す", async () => {
+  const { store, perform, history, lineup, made } = setup()
+  const kept = await made("folder-create", { title: "残す物" })
+  const gone = await made("folder-create", { title: "消す物" })
+  perform("@matomezu/base:entry-trash", { entry: kept })
+  await settled()
+  perform("@matomezu/base:entry-trash", { entry: gone })
+  await settled()
+  perform("@matomezu/base:entry-purge", { entries: [gone] })
+  await settled()
+  // 最後の段（消す物をゴミ箱に入れた）は、消す物がもう無いので何も変えない。その前の段（残す物をゴミ箱に入れた）が戻る
+  expect(history().undo).toHaveLength(4)
+  expect(store.actions.command("s1", "@matomezu/base:library-undo")).toBe(true)
+  expect(lineup(HOME_ID)).toContain(kept)
+  expect(history()).toMatchObject({ undo: [{}, {}], redo: [{}, {}] })
+  // やり直すと、残す物がまたゴミ箱に入る
+  expect(store.actions.command("s1", "@matomezu/base:library-redo")).toBe(true)
+  expect(lineup(TRASH_ID)).toEqual([kept])
+})
+
+test("無かった行を置く置き直しは、その行が在れば断り、その間のロックを外さない", async () => {
+  const { store, perform, history, move, made } = setup()
+  const fresh = await made("book-create", { title: "議事録" })
+  const step = history().undo.at(-1)!
+  expect(move("undo").ok).toBe(true)
+  expect(move("redo").ok).toBe(true)
+  expect(perform("@matomezu/base:book-lock", {}, { book: fresh }).ok).toBe(true)
+  await settled()
+  expect(perform("@matomezu/base:library-revert", libraryRevertArgs(step, "after"))).toMatchObject({ ok: false })
+  expect((store.state.getState().folders[fresh] as { locked?: boolean }).locked).toBe(true)
+})
+
+test("ホストが戻す・やり直すを断ったら、動かした段を元の側へ戻す（並びは時刻の順のまま）", async () => {
+  let at = 0
+  const store = newStore({
+    now: () => `2026-11-18T01:00:0${at++}.000Z`,
+    observe: bulk =>
+      Promise.resolve(
+        bulk.some(d => d.action === "@matomezu/base:library-revert") ? { ok: false, reason: "refused" } : { ok: true },
+      ),
+  })
+  const history = () => store.state.getState().history[LIBRARY_HISTORY] ?? { undo: [], redo: [] }
+  for (const title of ["一", "二"]) {
+    store.actions.perform("@matomezu/base:folder-create", { title })
+    await settled()
+  }
+  const [first, second] = history().undo
+  // 続けて 2 回戻す（どちらも、答えが届く前に行う）
+  store.actions.command("s1", "@matomezu/base:library-undo")
+  store.actions.command("s1", "@matomezu/base:library-undo")
+  expect(history()).toMatchObject({ undo: [], redo: [second, first] })
+  await settled()
+  await settled()
+  expect(history().undo).toEqual([first!, second!])
+  expect(history().redo).toEqual([])
+})

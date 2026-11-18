@@ -40,6 +40,21 @@ export function insertStep(was: History, step: HistoryStep): History {
   return { ...was, undo: [...was.undo.slice(0, i), step, ...was.undo.slice(i)].slice(-HISTORY_LIMIT) }
 }
 
+// 履歴 was の、戻す・やり直すで動かした段 step を、動かす前に在った側 from へ戻した履歴（動かした先に無ければ was のまま）。
+// 戻す所は時刻の位置（戻せる側は古い順、やり直せる側は新しい順。その間にほかの段を動かしていても、並びを保つ）
+export function putBackStep(was: History, step: HistoryStep, from: "undo" | "redo"): History {
+  const to = from === "undo" ? "redo" : "undo"
+  if (!was[to].includes(step)) return was
+  const later = (s: HistoryStep) => (from === "undo" ? s.at > step.at : s.at < step.at)
+  const i = was[from].findIndex(later)
+  const at = i < 0 ? was[from].length : i
+  return {
+    ...was,
+    [to]: was[to].filter(s => s !== step),
+    [from]: [...was[from].slice(0, at), step, ...was[from].slice(at)],
+  } as History
+}
+
 // 物が見えているかを答える関数（土台が、プレゼンテーションの seen とステージの表示領域から作る）: ブック book のページ page の物 item（最上位のアイテムか子の形）が、見える所にあるか
 export type SeenTest = (page: string, item: string, book: Book) => boolean
 

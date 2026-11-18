@@ -14,7 +14,16 @@ import {
   type ScreenCommandContext,
 } from "../../../store/commands/def"
 import { kit } from "../kit"
-import { patchesToward, RevertArgs, restoredBooks, restoredLibrary, restoredPages } from "./restore"
+import {
+  DECLINED_UNCHANGED,
+  isRevertUnchanged,
+  patchesToward,
+  RevertArgs,
+  restoredBooks,
+  restoredLibrary,
+  restoredPages,
+  UNCHANGED,
+} from "./restore"
 
 export const HISTORY_RESTORE = kit.defineAction({
   id: "book-revert",
@@ -34,7 +43,8 @@ export const HISTORY_RESTORE = kit.defineAction({
   args: RevertArgs,
   run: (library, args) => {
     const next = restoredLibrary(library, args.books, args)
-    return next ? { next, result: {} } : null
+    if (next === UNCHANGED) return DECLINED_UNCHANGED
+    return next && { next, result: {} }
   },
 })
 
@@ -72,29 +82,32 @@ export function showNotRestored(
   })
 }
 
-// 画面の履歴の段 step を、from が undo なら前へ戻し、redo なら後へやり直す（変えたブックがいくつ在っても、1 回のアクションで置き直す）。
-// 断られたら（ロック中など）トーストで知らせ（認可ステップが止めたなら、2 行目にそのブックの名前と認可ステップの名前）、画面の履歴の段は動かさない
+// 最後の画面の履歴の段を、from が undo なら前へ戻し、redo なら後へやり直す（変えたブックがいくつ在っても、1 回のアクションで置き直す）。
+// 置き直しても何も変わらない段（もうその側の値になっている）は、動かして飛ばし、その次の段を置き直す。
+// 断られたら（ロック中など）トーストで知らせ（認可ステップが止めたなら、2 行目にそのブックの名前と認可ステップの名前）、その画面の履歴の段は動かさない
 function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"): void {
-  const step: HistoryStep | undefined = ctx.bookHistory[from].at(-1)
   const opened = ctx.stage.opened
-  if (!step || !opened) return
+  if (!opened) return
   const to = from === "undo" ? "before" : "after"
-  const args = {
-    books: [...step.books],
-    pages: patchesToward(step.pages, to),
-    folders: patchesToward(step.folders, to),
-  }
-  const page = pageToOpen(booksOf(ctx), step, to, opened.book, args)
-  if (Object.keys(args.pages).length + Object.keys(args.folders).length > 0) {
-    const result = a.perform(HISTORY_RESTORE.id, args)
-    if (!result.ok) {
+  for (const step of [...ctx.bookHistory[from]].reverse()) {
+    const args = {
+      books: [...step.books],
+      pages: patchesToward(step.pages, to),
+      folders: patchesToward(step.folders, to),
+    }
+    const page = pageToOpen(booksOf(ctx), step, to, opened.book, args)
+    const changes = Object.keys(args.pages).length + Object.keys(args.folders).length > 0
+    const result = changes ? a.perform(HISTORY_RESTORE.id, args) : undefined
+    if (result && !result.ok && !isRevertUnchanged(result)) {
       const book = result.reason === "denied" && result.book ? booksOf(ctx)[result.book] : undefined
       showNotRestored(ctx, a, from, result, book?.title)
       return
     }
+    a.moveHistory(opened.book, from)
+    if (!result?.ok) continue
+    if (page && page !== shownPageId(opened)) a.openPage(page)
+    return
   }
-  if (page && page !== shownPageId(opened)) a.openPage(page)
-  a.moveHistory(opened.book, from)
 }
 
 export const UNDO = kit.defineCommand({

@@ -48,6 +48,7 @@ import {
   insertStep,
   LIBRARY_HISTORY,
   NO_HISTORY,
+  putBackStep,
   type RowChange,
   type SeenTest,
 } from "../core/history"
@@ -637,6 +638,8 @@ interface OpenStep {
   continued?: true
   prior?: HistoryStep
   step?: HistoryStep
+  // このアクションバルク（戻す・やり直す）を行って動かした画面の履歴の段と、動かす前に在った側（ホストが断ったら、その側へ戻す）
+  moved?: { step: HistoryStep; from: "undo" | "redo" }
   refused?: true
 }
 
@@ -972,6 +975,12 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   // 同じ段のほかのアクションの変更も、元に戻すで戻せなくなる。ただし続けた画面の履歴の段なら、続ける前の画面の履歴の段は戻し、その変更は元に戻せるまま残す）
   const dropRefused = (at: OpenStep) => {
     at.refused = true
+    if (at.moved) {
+      const { step: moved, from } = at.moved
+      const history = { ...getState().history }
+      for (const id of moved.books) history[id] = putBackStep(history[id] ?? NO_HISTORY, moved, from)
+      setState({ history })
+    }
     const inLibrary = at.libraryStep
     if (inLibrary) {
       const was = getState().history[LIBRARY_HISTORY] ?? NO_HISTORY
@@ -1414,11 +1423,13 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       queueMicrotask(closeStep)
     },
     moveHistory: (book, from) => {
+      const bulk = open
       closeStep()
       const to = from === "undo" ? "redo" : "undo"
       const { history } = getState()
       const step = (history[book] ?? NO_HISTORY)[from].at(-1)
       if (!step) return
+      if (bulk) bulk.moved = { step, from }
       lastPut = Object.fromEntries(Object.entries(lastPut).filter(([id]) => !step.books.includes(id)))
       const next = { ...history }
       for (const id of step.books) {
