@@ -42,8 +42,6 @@ const TOPS: readonly LibraryRow[] = [HOME_ID, TRASH_ID].map(id => ({
   readable: true,
 }))
 
-// 最初に中を出しているフォルダ
-
 // フォルダ folder の直下の行
 const useRowsIn = (folder: string): readonly LibraryRow[] => useLibraryRows(folder, s => rowsIn(s, folder))
 

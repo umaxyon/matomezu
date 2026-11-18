@@ -69,7 +69,7 @@ export function putBackStep(was: History, step: HistoryStep, from: "undo" | "red
   } as History
 }
 
-// 書庫の変更（ページとフォルダの行 rows を、フォルダの表 before から after にした）の、近くのフォルダ。このどれかの中身を書庫の画面が並べて見せていれば、
+// 書庫の変更（ページとフォルダの行 rows を、フォルダの表 before から after にした）の、近くのフォルダ。このどれかの中身を、見えているスクリーンの書庫アピアランスが並べて見せていれば、
 // その変更は見えたとする: 並びの変わったフォルダは、そのフォルダ（入った・出た・順が変わったエントリは、そこで見える）。並びのほかが変わった物（名前など）と、
 // 足した・無くした物は、それを前か後に入れていたフォルダ（そのエントリは、入れ物の中身として見える）
 export function foldersNear(rows: Pick<HistoryStep, "pages" | "folders">, before: Folders, after: Folders): string[] {

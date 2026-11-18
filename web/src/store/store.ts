@@ -909,7 +909,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     setState({ history })
   }
   // まだ見ていない、AI とほかの窓の書庫の変更（古い順。1 回の変更で 1 つの画面の履歴の段で、見えたら書庫の画面の履歴に入る）。near はその変更の近くのフォルダ
-  // （foldersNear が出す。どれかを書庫の画面が見せたら見えた）、places は常駐に見えた・消えたと知らせる範囲（変えたページと、ブック・バインダ）
+  // （foldersNear が出す。どれかを、見えているスクリーンの書庫アピアランスが見せたら見えた）、places は常駐に見えた・消えたと知らせる範囲（変えたページと、ブック・バインダ）
   type UnseenInLibrary = { step: HistoryStep; act: string; near: readonly string[]; places: readonly string[] }
   let unseenInLibrary: UnseenInLibrary[] = []
   // 確かめた世界の、最後に知っている表（よその変更の前の値）
@@ -955,7 +955,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     }
     return shown
   }
-  // まだ見ていない書庫の変更のうち、近くのフォルダを書庫の画面が見せている物を、書庫の画面の履歴に時刻の位置で差し込む（窓が見えていない間は差し込まない）
+  // まだ見ていない書庫の変更のうち、近くのフォルダを、見えているスクリーンの書庫アピアランスが見せている物を、書庫の画面の履歴に時刻の位置で差し込む（窓が見えていない間は差し込まない）
   const checkSeenInLibrary = () => {
     if (unseenInLibrary.length === 0 || options.visible?.() === false) return
     const shown = foldersShownNow()
