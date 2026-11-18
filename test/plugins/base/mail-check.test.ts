@@ -37,6 +37,16 @@ test("残した郵便のレコードの効かない物は、郵便の warning �
   ])
 })
 
+test("郵便の送り手の鳥は、登録された配色か鳥の既定の配色を使う", () => {
+  const mail = letter("m1", { title: "題", body: "" })
+  const sender = { participant: "p1", bird: "inko" as const }
+  expect(checkMail(CORE_CATALOG, { ...mail, sender })).toEqual([])
+  expect(checkMail(CORE_CATALOG, { ...mail, sender: { ...sender, palette: "orange" } })).toEqual([])
+  expect(checkMail(CORE_CATALOG, { ...mail, sender: { ...sender, palette: "unknown" } }).map(w => w.code)).toEqual([
+    "W023",
+  ])
+})
+
 test("郵便のレコードは order の順に並ぶ。order が数でない郵便はいちばん古い所に置く（同じ順は id の順）", () => {
   const a = { ...letter("a", {}), order: 3 }
   const b = { ...letter("b", {}), order: 1 }

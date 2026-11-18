@@ -11,15 +11,13 @@ import type { SubjectId } from "../../../core/catalog"
 import type { ActionContext, RecordRead } from "../../../core/def/action"
 import type { KeyValuesOf } from "../../../core/record-keys"
 import { BIRD_IDS } from "../birds"
-import { BIRD_PALETTES } from "../birds/colors"
+import { BIRD_PALETTE_IDS } from "../birds/colors"
 import { kit } from "../kit"
 
 export const WORKROOM_NAME_MAX = 20 // ワークルームの名前の長さの上限（字）
 
 // 受け入れていない要求の、いちばん多い数。超えたら、要求を断る
 export const PARTICIPANTS_LIMIT = 100
-
-const PALETTE_IDS = BIRD_PALETTES.map(p => p.id) as [string, ...string[]]
 
 export const WORKROOM = kit.defineSubject({
   id: "workroom",
@@ -31,7 +29,7 @@ export const WORKROOM = kit.defineSubject({
     id: z.string().min(1),
     name: z.string().trim().min(1).max(WORKROOM_NAME_MAX),
     bird: z.enum(BIRD_IDS),
-    palette: z.enum(PALETTE_IDS).optional(),
+    palette: z.enum(BIRD_PALETTE_IDS).optional(),
     createdAt: z.string(),
   }),
   keys: {
@@ -92,7 +90,7 @@ export type Workroom = z.output<typeof WORKROOM.record>
 const keysIn = <S extends SubjectId>(ctx: Pick<ActionContext, "keys">, subject: S) =>
   Object.entries<KeyValuesOf<S>>(ctx.keys?.[subject] ?? {}).map(([id, keys]) => ({ id, keys }))
 
-const BIRD_ARGS = { bird: z.enum(BIRD_IDS), palette: z.enum(PALETTE_IDS).optional() }
+const BIRD_ARGS = { bird: z.enum(BIRD_IDS), palette: z.enum(BIRD_PALETTE_IDS).optional() }
 const NAME = z.string().trim().min(1).max(WORKROOM_NAME_MAX)
 
 export const PARTICIPANT_REQUEST = kit.defineAction({

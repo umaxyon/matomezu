@@ -7,6 +7,7 @@ import type { CoreCatalog } from "../../../core/core-catalog"
 import { splitId } from "../../../core/names"
 import { type Warning, warning } from "../../../core/warnings"
 import { BIRD_IDS } from "../birds"
+import { BIRD_PALETTE_IDS } from "../birds/colors"
 
 export const MailSchema = z.object({
   id: z.string().min(1),
@@ -28,7 +29,7 @@ export const MailSchema = z.object({
     .object({
       participant: z.string().min(1),
       bird: z.enum(BIRD_IDS),
-      palette: z.string().optional(),
+      palette: z.enum(BIRD_PALETTE_IDS).optional(),
     })
     .optional(), // 送信時に参加済みだった送り手と、その時の鳥と配色
 })
