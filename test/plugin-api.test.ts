@@ -244,6 +244,7 @@ test("matomezu/ui が出す名前", () => {
     "InheritChoices",
     "LEFT_SIDE_PANEL",
     "LeftSidePanelOpenButton",
+    "LibraryView",
     "LockToggle",
     "MAILBOX_OPENS",
     "MAIL_ACTIONS",

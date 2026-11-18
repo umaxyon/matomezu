@@ -1,0 +1,179 @@
+/* 書庫の画面: 左にツリー、右にパンくずと、開いているフォルダの中身 */
+.library {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  font-size: 13px;
+  color: var(--skin-text);
+}
+.tree {
+  flex: none;
+  width: 260px;
+  padding: 6px;
+  overflow: auto;
+  border-right: 1px solid var(--skin-border-strong);
+}
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.node {
+  display: flex;
+  align-items: center;
+}
+/* 開閉の印（中へ入れない行は、同じ幅だけ空ける） */
+.toggle {
+  flex: none;
+  width: 18px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--skin-text-muted);
+  cursor: pointer;
+}
+.toggle[data-open="true"] {
+  transform: rotate(90deg);
+}
+/* アイコンの置き場（線で描く）: ツリーの開閉の印・ツリーの行・右の枠の行 */
+.mark,
+.icon,
+.bigIcon {
+  display: flex;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.mark {
+  width: 12px;
+  height: 12px;
+  margin: auto;
+}
+.icon {
+  width: 16px;
+  height: 16px;
+}
+.bigIcon {
+  width: 40px;
+  height: 40px;
+  stroke-width: 1.2;
+}
+.name {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.name:hover,
+.entry:hover {
+  background: var(--skin-btn-hover);
+}
+/* 右の枠に中身を出しているフォルダ */
+.name[aria-current="true"] {
+  font-weight: 700;
+}
+.name[aria-pressed="true"],
+.entry[aria-pressed="true"] {
+  background: var(--skin-btn);
+  outline: 1px solid var(--skin-accent);
+}
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.unreadable {
+  color: var(--skin-text-muted);
+}
+.right {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.path {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--skin-border-strong);
+}
+.crumb {
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.crumb:hover {
+  background: var(--skin-btn-hover);
+}
+.crumb[aria-current="true"] {
+  font-weight: 700;
+}
+.sep {
+  color: var(--skin-text-muted);
+}
+.contents {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(auto-fill, 112px);
+  grid-auto-rows: min-content;
+  gap: 8px;
+  align-content: start;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  list-style: none;
+}
+.entry {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 8px 4px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+/* 右の枠の行の名前は 2 行まで（収まらない分は … で切る） */
+.caption {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  text-align: center;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.note {
+  color: var(--skin-text-muted);
+  font-size: 11px;
+}
+.empty {
+  margin: 0;
+  padding: 16px;
+  color: var(--skin-text-muted);
+}

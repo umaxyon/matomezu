@@ -22,7 +22,8 @@ test("メモのスクリーン: このボードの済んでいないメモを新
   act(() => {
     m.actions.openScreen("ex13:memo-screen", { board: "a" })
   })
-  const items = () => [...document.querySelectorAll("li")].map(li => li.firstChild?.textContent)
+  // メモの行は、✓ のボタンを持つ行（後ろのコントロールセンターの一覧は数えない）
+  const items = () => screen.getAllByRole("button", { name: "✓" }).map(b => b.closest("li")?.firstChild?.textContent)
   expect(items()).toEqual(["a3", "a2", "a1"])
   fireEvent.click(screen.getAllByRole("button", { name: "✓" })[0] as HTMLElement)
   expect(items()).toEqual(["a2", "a1"])

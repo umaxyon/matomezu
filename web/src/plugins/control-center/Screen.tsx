@@ -7,7 +7,7 @@ import { Slot, usePluginState, useSetPluginState } from "../../plugin-api/ui"
 import { Panel, useControlCenterMaximized, useWorkroomRows } from "../base/ui"
 import { FRONT_SCREEN, type FrontScreen, frontScreenOf, LIBRARY_MAXIMIZED, PICKED_ROOM } from "./control-center"
 import { kit } from "./kit"
-import { LibraryScreen } from "./LibraryScreen"
+import { LibraryArea } from "./LibraryArea"
 import { ParticipantListView } from "./ParticipantListView"
 import { pickedRow, retreatOf } from "./rows"
 import styles from "./Screen.module.css"
@@ -50,7 +50,7 @@ export function ControlCenterScreen() {
             </div>
           </ScreenPane>
           <ScreenPane front={screen === "library"} slideIn={switched}>
-            <LibraryScreen maximized={maximized} onToggleMaximize={() => setMaximized(!maximized)} />
+            <LibraryArea maximized={maximized} onToggleMaximize={() => setMaximized(!maximized)} />
           </ScreenPane>
         </div>
       </div>

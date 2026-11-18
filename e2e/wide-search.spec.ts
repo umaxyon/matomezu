@@ -128,8 +128,9 @@ test("書庫が前に出ていても、チケットモードで絞るとボー�
   const word = `ばんごう${Date.now()}`
   const { hit, label } = await setup(page, word)
   expect(label).toMatch(/\d{4}$/)
-  await page.getByRole("button", { name: "書庫" }).click()
-  await expect(page.getByRole("button", { name: "書庫" })).toHaveAttribute("aria-pressed", "true")
+  // 利用者パネルの「書庫」のボタン（書庫の画面の中にも、同じ名前のツリーの行とパンくずが在る。利用者パネルが先）
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  await expect(page.getByRole("button", { name: "書庫", exact: true }).first()).toHaveAttribute("aria-pressed", "true")
   await page.getByRole("button", { name: "横断検索" }).click()
   await panel(page).getByRole("textbox", { name: "検索する言葉" }).fill(label)
   // コンテンツエリアの書庫の表示が引っ込み、プロジェクトの表示が出て、番号に当たったチケットのカードが見える

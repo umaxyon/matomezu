@@ -42,6 +42,7 @@ export {
   type LeftSidePanelEntry,
   type LeftSidePanelOpen,
   LeftSidePanelOpenButton,
+  LibraryView,
   LockToggle,
   MAIL_ACTIONS,
   MAILBOX_OPENS,

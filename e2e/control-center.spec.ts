@@ -70,7 +70,8 @@ test("前に出す画面は、書庫とプロジェクトを替えるたびに�
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto(CONTROL_CENTER_URL)
   const projects = page.locator('button[aria-label="プロジェクト"]')
-  const library = page.getByRole("button", { name: "書庫", exact: true })
+  // 利用者パネルの「書庫」のボタン（書庫の画面の中にも、同じ名前のツリーの行とパンくずが在る。利用者パネルが先）
+  const library = page.getByRole("button", { name: "書庫", exact: true }).first()
   await expect(projects).toHaveAttribute("aria-pressed", "true")
   await library.click()
   await expect(library).toHaveAttribute("aria-pressed", "true")
@@ -85,7 +86,7 @@ test("前に出す画面は、書庫とプロジェクトを替えるたびに�
 test("書庫は最大化でき、最大化の間は左の列が出ていく。戻すと左の列も戻る", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto(CONTROL_CENTER_URL)
-  await page.getByRole("button", { name: "書庫", exact: true }).click()
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
   await page.getByRole("button", { name: "最大化" }).click()
   await expect(page.getByRole("heading", { name: "ワークルーム/参加者" })).toBeHidden()
   await page.getByRole("button", { name: "元に戻す" }).click()
