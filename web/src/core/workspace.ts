@@ -182,7 +182,7 @@ export function followBook(catalog: CoreCatalog, ws: Workspace, book: Book, befo
   return stages.every((s, i) => s === ws.stages[i]) ? ws : { ...ws, stages }
 }
 
-// ブックの一覧が変わったとき: 無くなったブックを開いていたステージは何も開いていない状態にし、残ったブックには合わせる（before は変わる前の一覧）
+// ブックの一覧が変わったとき: 無くなったブックを開いていたステージは何も開いていない状態にし（そのステージを閉じるのは窓の followLibraryIn）、残ったブックには合わせる（before は変わる前の一覧）
 export function followLibrary(
   catalog: CoreCatalog,
   ws: Workspace,

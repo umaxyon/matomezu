@@ -143,7 +143,7 @@ export function moved(a: Address, b: Address, pushes: ReadonlySet<string> = new 
   })
 }
 
-// ステージ stage に、場所 place を当てはめる（無いブック・ページは開かず、開けたものに倍率とずらす量を戻す）
+// ステージ stage に、場所 place を当てはめる（ブックを名指さない場所は何も開かず、無いページは開かず、開けたものに倍率とずらす量を戻す）
 function placed(catalog: CoreCatalog, books: Readonly<Record<string, Book>>, stage: Stage, place: StagePlace): Stage {
   const book = place.book === null ? undefined : books[place.book]
   // 表示領域の大きさ（URL には書かない）はステージのまま
@@ -160,7 +160,7 @@ function placed(catalog: CoreCatalog, books: Readonly<Record<string, Book>>, sta
 // 窓 win に場所 address を当てはめる。場所のスクリーンを、その id のまま開く（同じ id・同じ定義のスクリーンが開いていれば、その中を使い回す。
 // 機能台帳に無い定義・形に合わない渡す値・c と番号でない id のスクリーンは開かない）。場所に無いスクリーンは閉じる（最初から開いているスクリーンと、
 // ステージを並べるスクリーンが 1 枚も残らなくなるなら、今の物を残す）。カレントにした順は場所のとおり。
-// ステージを並べるスクリーンのステージは、左から同じ番号のものを使い回し、足りなければ足す（MAX_STAGES まで）。開けないブック・ページのステージは何も開かない。
+// ステージを並べるスクリーンのステージは、左から同じ番号のものを使い回し、足りなければ足す（MAX_STAGES まで）。無いブックを名指すステージは開かず（全部がそうなら、そのスクリーンも開かない）。
 // 場所にステージが無ければ、そのスクリーンのステージは今のまま。場所にスクリーンが無ければ、窓は今のまま。プラグイン状態は当てはめない（store の locate が当てはめる）
 export function placeAt(
   catalog: CoreCatalog,
@@ -183,7 +183,10 @@ export function placeAt(
       screens.push({ id: place.id, def: place.def, props: props.data })
       continue
     }
-    const places = (place.stages?.places ?? []).slice(0, MAX_STAGES)
+    // 無いブックを名指すステージは開かない（開いていたブックが無くなったときと同じ）。全部がそうなら、そのスクリーンも開かない
+    const named = (place.stages?.places ?? []).slice(0, MAX_STAGES)
+    const places = named.filter(p => p.book === null || books[p.book] !== undefined)
+    if (named.length > 0 && places.length === 0) continue
     if (places.length === 0) {
       const kept = was?.stages ?? newWorkspace(catalog, null, `s${++issued}`)
       screens.push({ id: place.id, def: place.def, props: props.data, stages: kept })
@@ -191,7 +194,8 @@ export function placeAt(
     }
     const base = was?.stages
     const stages = places.map((p, i) => placed(catalog, books, base?.stages[i] ?? newStage(`s${++issued}`), p))
-    const current = stages[Math.min(Math.max(0, place.stages?.current ?? 0), stages.length - 1)] as Stage
+    const wanted = named[Math.min(Math.max(0, place.stages?.current ?? 0), named.length - 1)]
+    const current = stages[Math.max(0, wanted ? places.indexOf(wanted) : 0)] as Stage
     const share = Math.min(1 - MIN_SHARE, Math.max(MIN_SHARE, place.stages?.share ?? 0.5))
     const ws: Workspace = base
       ? { ...base, stages, current: current.id, arrangement: { ...base.arrangement, share } }

@@ -3,7 +3,7 @@ import { expect, test } from "bun:test"
 import { type Address, addressOf, moved, placeAt, type StagePlace } from "../../web/src/core/address"
 import { paperOf, setArea, setStart } from "../../web/src/core/stage"
 import { ZOOM_MAX, ZOOM_MIN } from "../../web/src/core/viewport"
-import { screenOf } from "../../web/src/core/window"
+import { recentBookScreen, screenOf } from "../../web/src/core/window"
 import { newStore } from "../support"
 
 const CENTER = "@matomezu/control-center:screen"
@@ -27,7 +27,7 @@ test("場所は、開いているスクリーンと前に出した順、ブッ�
   )
 })
 
-test("場所を当てはめると、そのとおりにステージを開いて分ける。無いブックのステージは何も開かず、境目の割合は範囲に収める", () => {
+test("場所を当てはめると、そのとおりにステージを開いて分ける。ブックを名指さないステージは何も開かず、境目の割合は範囲に収める", () => {
   const store = newStore()
   const { catalog, state } = store
   const win = placeAt(
@@ -37,7 +37,7 @@ test("場所を当てはめると、そのとおりにステージを開いて�
     at(
       [
         { book: "b3", page: "p1", binder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} },
-        { book: "nothing", page: null, binder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} },
+        { book: null, page: null, binder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} },
       ],
       1,
       0.99,
@@ -50,6 +50,15 @@ test("場所を当てはめると、そのとおりにステージを開いて�
   // ステージの番号は使い回さず、足したステージには新しい番号
   expect(ws.stages[0]!.id).toBe("s1")
   expect(ws.stages[1]!.id).toBe("s2")
+})
+
+test("無いブックを名指すステージは開かない。全部がそうなら、そのブックスクリーンも開かない", () => {
+  const { catalog, state } = newStore({ bookScreen: "none" })
+  const place = (book: string) => ({ book, page: null, binder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} })
+  const on = (address: Address) => placeAt(catalog.core, state.getState().books, state.getState().window, address)
+  const one = on(at([place("gone"), place("b3")], 0))
+  expect(screenOf(one).stages.map(s => s.opened?.book)).toEqual(["b3"])
+  expect(recentBookScreen(on(at([place("gone")])))).toBeUndefined()
 })
 
 test("場所の倍率は、範囲に収める（URL から 0・負・極端な値・数でない値が来ても）", () => {

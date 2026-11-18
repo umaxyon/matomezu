@@ -3,6 +3,7 @@
 import {
   BOOK_SCREEN_DEF,
   BOOK_SCREEN_URL,
+  bookScreenUrl,
   CONTROL_CENTER_SCREEN_DEF,
   expect,
   joinedAiAuth,
@@ -11,6 +12,7 @@ import {
   urlFront,
 } from "./fixtures"
 import { fromMenu } from "./helpers/stage-menu"
+import { storedBooks, storedTrashedAt } from "./helpers/stored"
 
 const center = (page: Page) => page.getByRole("heading", { name: "コントロールセンター" })
 
@@ -136,4 +138,25 @@ test("宛先なしで開いた窓は、コントロールセンターだけで�
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: await joinedAiAuth() })).json())
     .toMatchObject({ front: "control-center", bookScreen: "none" })
+})
+
+test("別の窓が、開いているブックをゴミ箱に入れると、そのブックスクリーンは閉じてコントロールセンターが前に出る。URL にもブックスクリーンは残らない", async ({
+  page,
+  newPage,
+}) => {
+  const books = (await storedBooks(page.request)) as { id: string; title: string }[]
+  const [mine, other] = [books[0]?.id ?? "", books[1]?.id ?? ""]
+  await page.goto(bookScreenUrl(mine))
+  await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(1)
+  const second = await newPage()
+  await second.goto(bookScreenUrl(other))
+  await (await fromMenu(second, "ブックを開く")).click()
+  const row = second.getByRole("dialog", { name: "ブックを開く" }).getByRole("option", { name: books[0]?.title ?? "" })
+  await row.hover()
+  await row.getByRole("button", { name: "ゴミ箱に入れる" }).click()
+  await expect.poll(async () => await storedTrashedAt(page.request, mine)).toBeTruthy()
+  await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(0)
+  await expect(center(page)).toBeVisible()
+  await expect.poll(() => urlFront(page)).toBe(CONTROL_CENTER_SCREEN_DEF)
+  await expect.poll(() => page.url()).not.toContain(`%22${mine}%22`)
 })
