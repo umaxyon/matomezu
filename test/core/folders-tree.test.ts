@@ -297,7 +297,7 @@ describe("ブックを足す・消すときの置き場所", () => {
   test("完全に消したブックは、ゴミ箱の並びから外れる", () => {
     const binned = trashedEntry(worldTablesOf([b1, b2], [home, old]), "b2", "2026-01-01T00:00:00.000Z")
     const world = worldOf(binned as Library)
-    const done = performIn(world, "@matomezu/base:book-purge", { books: ["b2"] }, undefined, ctx as never)
+    const done = performIn(world, "@matomezu/base:entry-purge", { entries: ["b2"] }, undefined, ctx as never)
     expect(done.ok).toBe(true)
     if (!done.ok || !done.changes) throw new Error("no changes")
     expect(done.changes.folders.b2).toBe(REMOVED)

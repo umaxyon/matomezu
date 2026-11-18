@@ -161,9 +161,9 @@ test("文を変えると未読に戻る。吹き出しだけを変えても既�
 test("ブックを消すと、そのブックの伝言も消える", () => {
   const { store, a, notes } = ready()
   store.actions.perform(ADD, { anchors: [a], text: "x" }, ON)
-  expect(store.actions.perform("@matomezu/base:book-trash", { book: "b1" }).ok).toBe(true)
+  expect(store.actions.perform("@matomezu/base:entry-trash", { entry: "b1" }).ok).toBe(true)
   expect(notes()).toHaveLength(1)
-  expect(store.actions.perform("@matomezu/base:book-purge", { books: ["b1"] }).ok).toBe(true)
+  expect(store.actions.perform("@matomezu/base:entry-purge", { entries: ["b1"] }).ok).toBe(true)
   expect(store.state.getState().annotations).toEqual({})
 })
 

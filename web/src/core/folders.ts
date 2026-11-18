@@ -380,9 +380,10 @@ export function rowsHoldTree(rows: readonly unknown[], pages: readonly string[])
   return treeHolds({ pages: Object.fromEntries(pages.map(id => [id, undefined])), folders } as unknown as Library)
 }
 
-// 変わり changes（ブックを足す・消す）に、置き場所の書き込みを足した変わり: 足したブックは書庫ホームの末尾に入れ、無くなったブックは、入っていたフォルダの並びから外す
+// 変わり changes（ブックを足す・消す）に、置き場所の書き込みを足した変わり: 足したブックのうち、変わりがどのフォルダにも入れていない物は書庫ホームの末尾に入れ、
+// 無くなったブックは、入っていたフォルダの並びから外す
 export function placedChanges(tables: Library, changes: TableChanges): TableChanges {
-  const added = Object.entries(changes.folders).flatMap(([id, f]) =>
+  const made = Object.entries(changes.folders).flatMap(([id, f]) =>
     f !== REMOVED && f.folderRole === "book" && !(id in tables.folders) ? [id] : [],
   )
   const gone = new Set(
@@ -390,9 +391,12 @@ export function placedChanges(tables: Library, changes: TableChanges): TableChan
       f === REMOVED && tables.folders[id]?.folderRole === "book" ? [id] : [],
     ),
   )
-  if (added.length === 0 && gone.size === 0) return changes
+  if (made.length === 0 && gone.size === 0) return changes
+  const after = withChanges(tables, changes).folders
+  const held = new Set(Object.values(after).flatMap(f => (isOpenRole(f.folderRole) ? f.lineup.map(r => r.id) : [])))
+  const added = made.filter(id => !held.has(id))
   const puts: Record<string, Folder> = {}
-  for (const f of Object.values(tables.folders)) {
+  for (const f of Object.values(after)) {
     if (!isOpenRole(f.folderRole)) continue
     const kept = f.lineup.filter(r => !gone.has(r.id))
     const fresh = f.folderRole === "home" ? added.map((id): BookRef => ({ kind: "book", id })) : []

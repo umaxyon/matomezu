@@ -155,6 +155,7 @@ export const LOCK = kit.definePermission({
     }
     if (q.kind !== "folder") return false
     const { action, folder, where } = q
+    if (where?.only === "place") return false // 置き場所だけを変える（ロックした物も、動かせる）
     if (folder.locked) return !BOOK_SWITCHES.includes(action.id)
     if (where?.allPages) return pagesOf(folder).some(p => p.locked)
     return pageAt(folder, where)?.locked === true && !PAGE_SWITCHES.includes(action.id)

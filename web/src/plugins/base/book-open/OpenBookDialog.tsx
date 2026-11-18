@@ -1,5 +1,5 @@
 // ブックを開くダイアログ: 探して選んだブックを、そのステージで開く。上の切り替えでゴミ箱の一覧に替えられる（切り替えのボタンにゴミ箱の冊数）。
-// ブックの一覧では、ゴミ箱に入れられるブック（アクション book-trash を行えるブック）の行から、book-trash でゴミ箱に入れる
+// ブックの一覧では、ゴミ箱に入れられるブック（アクション entry-trash を行えるブック）の行から、entry-trash でゴミ箱に入れる
 
 import { useState } from "react"
 import { useMessages } from "../../../ui/i18n"
@@ -9,8 +9,8 @@ import { useActions } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
 import { Choices, ChoiceText } from "../dialog-host/FormParts"
 import { kit } from "../kit"
+import { ENTRY_TRASH } from "../library/entry-trash"
 import { BookSearch } from "./BookSearch"
-import { BOOK_TRASH } from "./book-trash"
 import { TrashList } from "./TrashList"
 
 export function OpenBookDialog({ onClose }: DialogProps) {
@@ -42,7 +42,7 @@ export function OpenBookDialog({ onClose }: DialogProps) {
             openBook(book)
             onClose()
           }}
-          onTrash={book => perform(BOOK_TRASH.id, { book })}
+          onTrash={book => perform(ENTRY_TRASH.id, { entry: book })}
         />
       ) : (
         <TrashList />

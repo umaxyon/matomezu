@@ -710,7 +710,7 @@ func TestPerformOnAPage(t *testing.T) {
 		t.Fatalf("changed after lock = %s", got)
 	}
 	perform("page-unlock", `{}`, `{"page":"p1"}`)
-	if got := perform("book-trash", `{"book":"b1"}`, `null`); got != `{"ok":true,"result":{}}` {
+	if got := perform("entry-trash", `{"entry":"b1"}`, `null`); got != `{"ok":true,"result":{}}` {
 		t.Fatalf("trash = %s", got)
 	}
 	if got := perform("page-lock", `{}`, `{"page":"p1"}`); !strings.Contains(got, `"reason":"no-page"`) {
@@ -873,7 +873,7 @@ func TestABookWithBindersIsAssembledTheSameAfterARestart(t *testing.T) {
 	}
 }
 
-// book-trash はブックに trashed の時刻を付けて知らせ（AI の読む口からは外れる）、/api/data にはゴミ箱に入ったまま出る。book-restore で戻し、trash-empty で消す（ブックのフォルダとページが removed で並ぶ）
+// entry-trash はブックに trashed の時刻を付けて知らせ（AI の読む口からは外れる）、/api/data にはゴミ箱に入ったまま出る。entry-restore で戻し、trash-empty で消す（ブックのフォルダとページが removed で並ぶ）
 func TestTrashABook(t *testing.T) {
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
@@ -883,7 +883,7 @@ func TestTrashABook(t *testing.T) {
 		_, got := postPerform(t, s.URL, `{"action":"@matomezu/base:`+action+`","args":`+args+`,"lang":"ja","now":"2026-10-29T00:00:00.000Z"}`)
 		return got
 	}
-	if got := perform("book-trash", `{"book":"b1"}`); got != `{"ok":true,"result":{}}` {
+	if got := perform("entry-trash", `{"entry":"b1"}`); got != `{"ok":true,"result":{}}` {
 		t.Fatalf("trash = %s", got)
 	}
 	// 変わるのは書庫ホームとゴミ箱の並びだけ（ブックのフォルダは変わらない）。知らせの books には、ゴミ箱に入ったブックが入る
@@ -899,7 +899,7 @@ func TestTrashABook(t *testing.T) {
 	if code, _ := send(t, "GET", s.URL+"/api/ai/books/b1", "", ai); code != 404 {
 		t.Fatalf("ai book = %d", code)
 	}
-	if got := perform("book-restore", `{"book":"b1"}`); got != `{"ok":true,"result":{}}` {
+	if got := perform("entry-restore", `{"entry":"b1"}`); got != `{"ok":true,"result":{"into":"library-home"}}` {
 		t.Fatalf("restore = %s", got)
 	}
 	if got := next(t, a); !strings.HasPrefix(got, "changed ") || strings.Contains(got, `"trashed"`) || !strings.Contains(got, `"books":["b1"]`) || !strings.Contains(got, `{"folderRole":"home","id":"library-home","lineup":[{"kind":"book","id":"b1"}]}`) || !strings.Contains(got, `{"folderRole":"trash","id":"library-trash","lineup":[]}`) {
@@ -909,12 +909,12 @@ func TestTrashABook(t *testing.T) {
 	if code, _ := send(t, "GET", s.URL+"/api/ai/books/b1", "", ai); code != 200 {
 		t.Fatalf("ai book after restore = %d", code)
 	}
-	perform("book-trash", `{"book":"b1"}`)
+	perform("entry-trash", `{"entry":"b1"}`)
 	next(t, a)
 	if got := perform("trash-empty", `{}`); got != `{"ok":true,"result":{}}` {
 		t.Fatalf("empty = %s", got)
 	}
-	if got := next(t, a); !strings.HasPrefix(got, "changed ") || !strings.Contains(got, `"books":["b1"]`) || !strings.Contains(got, `"folders":[{"id":"b1","removed":true},{"folder":{"folderRole":"trash","id":"library-trash","lineup":[]},"id":"library-trash","version":5}],"pages":[{"id":"p1","removed":true}]`) {
+	if got := next(t, a); !strings.HasPrefix(got, "changed ") || !strings.Contains(got, `"books":["b1"]`) || !strings.Contains(got, `"folders":[{"folder":{"folderRole":"trash","id":"library-trash","lineup":[]},"id":"library-trash","version":5},{"id":"b1","removed":true}],"pages":[{"id":"p1","removed":true}]`) {
 		t.Fatalf("changed after empty = %s", got)
 	}
 	if _, data := send(t, "GET", s.URL+"/api/data", "", nil); !strings.Contains(data, `"folders":[{"id":"library-home","folder":{"folderRole":"home","id":"library-home","lineup":[]},"version":5},{"id":"library-trash","folder":{"folderRole":"trash","id":"library-trash","lineup":[]},"version":5}],"pages":[]`) || !strings.Contains(data, `"touched":{}`) {
@@ -926,10 +926,10 @@ func TestTrashABook(t *testing.T) {
 func TestAICannotRestoreOrPurge(t *testing.T) {
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
-	send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-trash","args":{"book":"b1"}}`, ai)
+	send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:entry-trash","args":{"entry":"b1"}}`, ai)
 	for _, req := range []string{
-		`{"action":"@matomezu/base:book-restore","args":{"book":"b1"}}`,
-		`{"action":"@matomezu/base:book-purge","args":{"books":["b1"]}}`,
+		`{"action":"@matomezu/base:entry-restore","args":{"entry":"b1"}}`,
+		`{"action":"@matomezu/base:entry-purge","args":{"entries":["b1"]}}`,
 		`{"action":"@matomezu/base:trash-empty","args":{}}`,
 	} {
 		if _, got := send(t, "POST", s.URL+"/api/ai/perform", req, ai); !strings.HasPrefix(got, `{"ok":false,"reason":"not-allowed","detail":`) {
@@ -946,7 +946,7 @@ func TestAICannotTrashABookOnAScreen(t *testing.T) {
 	a := listen(t, s.URL)
 	next(t, a)
 	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"focused":true}`, nil)
-	trash := `{"action":"@matomezu/base:book-trash","args":{"book":"b1"}}`
+	trash := `{"action":"@matomezu/base:entry-trash","args":{"entry":"b1"}}`
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", trash, ai); got != `{"ok":false,"reason":"open-on-screen"}` {
 		t.Fatalf("ai trash on a screen = %s", got)
 	}
@@ -959,6 +959,55 @@ func TestAICannotTrashABookOnAScreen(t *testing.T) {
 	}
 }
 
+// AI は書庫にフォルダを作り、ブックを入れ、名前を変えられる。窓に出ているブックを中に持つフォルダは、ゴミ箱に入れられない（open-on-screen）。
+// 出ていなければ中身ごと入り、AI の読む口から外れる。同じ名前は断り（title-taken）、number なら番号を付ける
+func TestAIWorksOnLibraryEntries(t *testing.T) {
+	s := newServer(t, nil)
+	ai := joinedAI(t, s)
+	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
+	a := listen(t, s.URL)
+	next(t, a)
+	do := func(action, args string) string {
+		t.Helper()
+		_, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:`+action+`","args":`+args+`}`, ai)
+		return got
+	}
+	made := do("folder-create", `{"title":"仕事"}`)
+	var out struct {
+		OK     bool `json:"ok"`
+		Result struct {
+			Folder string `json:"folder"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal([]byte(made), &out); err != nil || !out.OK || out.Result.Folder == "" {
+		t.Fatalf("folder-create = %s", made)
+	}
+	f := out.Result.Folder
+	if got := do("folder-create", `{"title":"仕事"}`); !strings.Contains(got, `"kind":"title-taken"`) {
+		t.Fatalf("the same title = %s", got)
+	}
+	if got := do("entry-move", `{"entry":"b1","into":"`+f+`"}`); got != `{"ok":true,"result":{}}` {
+		t.Fatalf("entry-move = %s", got)
+	}
+	if got := do("entry-rename", `{"entry":"`+f+`","title":"しごと"}`); got != `{"ok":true,"result":{}}` {
+		t.Fatalf("entry-rename = %s", got)
+	}
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"focused":true}`, nil)
+	if got := do("entry-trash", `{"entry":"`+f+`"}`); got != `{"ok":false,"reason":"open-on-screen"}` {
+		t.Fatalf("ai trash of a folder holding a book on a screen = %s", got)
+	}
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"book":null,"stages":[{"id":"s1","book":null}]}}`, nil)
+	if got := do("entry-trash", `{"entry":"`+f+`"}`); got != `{"ok":true,"result":{}}` {
+		t.Fatalf("ai trash of a folder = %s", got)
+	}
+	if _, got := send(t, "GET", s.URL+"/api/ai/books", "", ai); strings.Contains(got, `"id":"b1"`) {
+		t.Fatalf("the book in the trashed folder is still listed: %s", got)
+	}
+	if got := do("entry-restore", `{"entry":"`+f+`"}`); !strings.Contains(got, `"ok":false`) {
+		t.Fatalf("ai restore = %s", got)
+	}
+}
+
 // コントロールセンターを前に出している窓の後ろに、ブックスクリーンが開いているブックも、AI はゴミ箱に入れられない（open-on-screen）
 func TestAICannotTrashABookBehindTheControlCenter(t *testing.T) {
 	s := newServer(t, nil)
@@ -967,7 +1016,7 @@ func TestAICannotTrashABookBehindTheControlCenter(t *testing.T) {
 	a := listen(t, s.URL)
 	next(t, a)
 	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"front":"control-center","hidden":{"book":"b1","stages":[{"id":"s1","book":"b1"}],"canSplit":true}},"focused":true}`, nil)
-	trash := `{"action":"@matomezu/base:book-trash","args":{"book":"b1"}}`
+	trash := `{"action":"@matomezu/base:entry-trash","args":{"entry":"b1"}}`
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", trash, ai); got != `{"ok":false,"reason":"open-on-screen"}` {
 		t.Fatalf("ai trash behind the control center = %s", got)
 	}

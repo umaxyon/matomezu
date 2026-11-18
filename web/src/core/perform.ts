@@ -32,6 +32,7 @@ import {
   type AnySettingsScope,
   type Declined,
   type Done,
+  type EntryWhere,
   libraryScopeOf,
   type OtherRecord,
   pageScopeOf,
@@ -44,12 +45,13 @@ import {
 } from "./def/action"
 import type { PlaceChange, Referred } from "./def/permission"
 import type { SubjectDef } from "./def/subject"
-import { binnedBetween, TITLE_TAKEN, titleClashes } from "./entries"
+import { binnedBetween, isWithin, TITLE_TAKEN, titleClashes } from "./entries"
 import {
   bookIdOf,
   bookOf,
   changesBetween,
   createdIn,
+  foldersOver,
   homeOrFolderHolds,
   inTrash,
   isOpenRole,
@@ -214,6 +216,31 @@ function brokenRecord(
   return null
 }
 
+// 書庫が対象のアクションが名指したエントリ entry を where のとおりに変えるとき、行う前に問うブックと、その中の所:
+// ブックならそのブック、フォルダなら中のブックの全部（名前だけなら、どれにも問わない）、ブックの中のページ・バインダなら、そのブックのそのエントリ
+function booksOfEntry(library: Library, entry: string, how: EntryWhere): { book: string; where: Where }[] {
+  const where: Where = how === "all-pages" ? { allPages: true } : { only: how }
+  const row = library.folders[entry]
+  if (row?.folderRole === "book") return [{ book: entry, where }]
+  if (row && isOpenRole(row.folderRole)) {
+    if (how === "title") return []
+    return Object.values(library.folders).flatMap(f =>
+      f.folderRole === "book" && isWithin(library.folders, f.id, entry) ? [{ book: f.id, where }] : [],
+    )
+  }
+  const book = bookIdOf(library.folders, entry)
+  return book === undefined ? [] : [{ book, where: { entries: [entry] } }]
+}
+
+// 書庫が was から now に変わる間の、エントリ id の置き場所の変化
+function placeChangeOf(was: Library, now: Library, id: string, binned: ReturnType<typeof binnedBetween>): PlaceChange {
+  if (binned.trashed.includes(id)) return "trashed"
+  if (binned.restored.includes(id)) return "restored"
+  const before = foldersOver(was.folders, id)
+  const after = foldersOver(now.folders, id)
+  return before.length === after.length && before.every((f, i) => f.id === after[i]?.id) ? "same" : "moved"
+}
+
 // 書庫が対象のアクションの結果で、変わったブック・無くなったブック・増えたブックのどれかが守っていなければ、守らせたステップの id と、そのブックの id（増えたブックなら無い）
 // was と now は、行う前と後の書庫（置き場所が変わったブックは、値が変わらなくても確かめる。フォルダごとゴミ箱に出入りしたときの、中のブックも）
 function brokenIn(
@@ -224,11 +251,9 @@ function brokenIn(
 ): { permission: string; book?: string } | null {
   const before = libraryOf(was)
   const after = libraryOf(now)
-  const { trashed, restored } = binnedBetween(was, now)
-  const placeOf = (id: string): PlaceChange =>
-    trashed.includes(id) ? "trashed" : restored.includes(id) ? "restored" : "same"
+  const binned = binnedBetween(was, now)
   for (const b of Object.values(before)) {
-    const place = placeOf(b.id)
+    const place = after[b.id] ? placeChangeOf(was, now, b.id, binned) : "same"
     const id = b === after[b.id] && place === "same" ? null : broken(ctx, action, b, after[b.id], place)
     if (id) return { permission: id, book: b.id }
   }
@@ -299,7 +324,11 @@ function permits(
   if (action.target === "library") {
     const targets = args.success ? libraryScopeOf(action.permissionScope as AnyLibraryScope, args.data) : null
     const library = libraryOf(subject as Library)
-    const books = (targets?.books ?? []).flatMap(t => {
+    const named = [
+      ...(targets?.books ?? []),
+      ...(targets?.entries ?? []).flatMap(e => booksOfEntry(subject as Library, e.entry, e.where)),
+    ]
+    const books = named.flatMap(t => {
       const book = library[t.book]
       return book ? [{ book, where: t.where }] : []
     })

@@ -11,7 +11,7 @@ import {
   THEME_TYPES_CHECK,
 } from "./book-look"
 import { BOOK_CREATE, BOOK_NEW, NEW_BOOK_DIALOG } from "./book-new"
-import { BOOK_OPEN, BOOK_PURGE, BOOK_RESTORE, BOOK_TRASH, OPEN_BOOK_DIALOG, TRASH_EMPTY } from "./book-open"
+import { BOOK_OPEN, OPEN_BOOK_DIALOG } from "./book-open"
 import { CONTEXT_MENU_STATES, MENU_CLOSE, MENU_KEYS, type PRESSED_ANCHOR } from "./context-menu"
 import { DIALOG_CLOSE, DIALOG_KEYS, DIALOG_SUBMIT } from "./dialog-host"
 import { HISTORY_KEYS, HISTORY_RESTORE, REDO, UNDO } from "./history"
@@ -25,6 +25,8 @@ import {
   type LEFT_SIDE_PANEL_STATE,
   LEFT_SIDE_PANEL_STATES,
 } from "./left-side-panel"
+import { ENTRY_MOVE, ENTRY_RENAME, FOLDER_CREATE } from "./library/entry-move"
+import { ENTRY_PURGE, ENTRY_RESTORE, ENTRY_TRASH, TRASH_EMPTY } from "./library/entry-trash"
 import { BOOK_LOCK, BOOK_UNLOCK, LOCK, LOCKABLE_CHECK, PAGE_LOCK, PAGE_UNLOCK } from "./lock"
 import type { A3, A4, A5, LETTER, TABLOID, WIDE } from "./looks"
 import {
@@ -395,9 +397,12 @@ export const BASE = defineBuiltin(
       BOOK_LOCK,
       BOOK_UNLOCK,
       BOOK_CREATE,
-      BOOK_TRASH,
-      BOOK_RESTORE,
-      BOOK_PURGE,
+      FOLDER_CREATE,
+      ENTRY_MOVE,
+      ENTRY_RENAME,
+      ENTRY_TRASH,
+      ENTRY_RESTORE,
+      ENTRY_PURGE,
       TRASH_EMPTY,
       SETTINGS_SET,
       HISTORY_RESTORE,
@@ -616,9 +621,12 @@ declare module "../../core/catalog" {
     "@matomezu/base:page-unlock": typeof PAGE_UNLOCK
     "@matomezu/base:book-lock": typeof BOOK_LOCK
     "@matomezu/base:book-unlock": typeof BOOK_UNLOCK
-    "@matomezu/base:book-trash": typeof BOOK_TRASH
-    "@matomezu/base:book-restore": typeof BOOK_RESTORE
-    "@matomezu/base:book-purge": typeof BOOK_PURGE
+    "@matomezu/base:folder-create": typeof FOLDER_CREATE
+    "@matomezu/base:entry-move": typeof ENTRY_MOVE
+    "@matomezu/base:entry-rename": typeof ENTRY_RENAME
+    "@matomezu/base:entry-trash": typeof ENTRY_TRASH
+    "@matomezu/base:entry-restore": typeof ENTRY_RESTORE
+    "@matomezu/base:entry-purge": typeof ENTRY_PURGE
     "@matomezu/base:trash-empty": typeof TRASH_EMPTY
     "@matomezu/base:settings-set": typeof SETTINGS_SET
     "@matomezu/base:book-revert": typeof HISTORY_RESTORE

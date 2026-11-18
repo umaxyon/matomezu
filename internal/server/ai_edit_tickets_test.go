@@ -168,7 +168,7 @@ func TestTicketsGoWithTheirBook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, do := range [][2]string{{"book-trash", `{"book":"b1"}`}, {"book-purge", `{"books":["b1"]}`}} {
+	for _, do := range [][2]string{{"entry-trash", `{"entry":"b1"}`}, {"entry-purge", `{"entries":["b1"]}`}} {
 		if _, got := postPerform(t, s.URL, `{"action":"@matomezu/base:`+do[0]+`","args":`+do[1]+`,"lang":"ja"}`); !strings.HasPrefix(got, `{"ok":true`) {
 			t.Fatalf("%s = %s", do[0], got)
 		}

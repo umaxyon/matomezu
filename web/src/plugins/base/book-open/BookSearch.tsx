@@ -3,7 +3,7 @@
 // 読めないブック（プラグインが無いなど）も名前で絞り込んで後ろに並べ、押せない行として開けない理由を添える。
 // 読めるが一部のプラグインが無いブックは、名前の横に印を付ける。
 // 並びは触れた（開いたか書いた）時刻の新しい順で、右の列にその時刻を「〜前」で出す（時刻を知らないブックは出さない）。
-// onTrash を渡すと、ゴミ箱に入れられるブック（ゴミ箱に入れる物で、アクション book-trash を行える）の行にポインタを乗せている間、ゴミ箱のボタンを出す
+// onTrash を渡すと、ゴミ箱に入れられるブック（ゴミ箱に入れる物で、アクション entry-trash を行える）の行にポインタを乗せている間、ゴミ箱のボタンを出す
 // （入れられない行も同じ幅を空け、時刻の列をそろえる）
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
@@ -13,10 +13,10 @@ import { useMessages } from "../../../ui/i18n"
 import { useMatomezuState } from "../../../ui/store-context"
 import { useAllowedOn } from "../../../ui/view-hooks"
 import { kit } from "../kit"
+import { ENTRY_TRASH } from "../library/entry-trash"
 import { useElapsed } from "../utils/ui"
 import styles from "./BookSearch.module.css"
 import { matchesQuery, searchBooks } from "./book-search"
-import { BOOK_TRASH } from "./book-trash"
 import { TrashIcon } from "./TrashIcon"
 
 export function BookSearch({
@@ -136,7 +136,7 @@ export function BookSearch({
 // 行のゴミ箱のボタン: ゴミ箱に入れられなければ、同じ幅を空けるだけ
 function TrashButton({ book, onTrash }: { book: Book; onTrash: (book: string) => void }) {
   const t = useMessages(kit)
-  const allowed = useAllowedOn(BOOK_TRASH.id, { book: book.id }).ok
+  const allowed = useAllowedOn(ENTRY_TRASH.id, { entry: book.id }).ok
   if (!allowed) return <span className={styles.trash} />
   return (
     <button

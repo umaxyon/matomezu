@@ -7,6 +7,7 @@ import { DIALOG_MESSAGES } from "./dialog-host/messages"
 import { HISTORY_MESSAGES } from "./history/messages"
 import { ITEM_PARTS_MESSAGES } from "./item-parts/messages"
 import { LEFT_SIDE_PANEL_MESSAGES } from "./left-side-panel/messages"
+import { LIBRARY_MESSAGES } from "./library/messages"
 import { LOCK_MESSAGES } from "./lock/messages"
 import { LOOKS_MESSAGES } from "./looks/messages"
 import { MAIL_MESSAGES } from "./mail/messages"
@@ -47,6 +48,7 @@ export const BASE_MESSAGES = joinMessages(
   BOOK_OPEN_MESSAGES,
   BOOK_LOOK_MESSAGES,
   BOOK_NEW_MESSAGES,
+  LIBRARY_MESSAGES,
   PAGE_MESSAGES,
   LOCK_MESSAGES,
   PRINT_PREVIEW_MESSAGES,

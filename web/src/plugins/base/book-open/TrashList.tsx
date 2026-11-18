@@ -1,5 +1,5 @@
 // ゴミ箱の一覧: ゴミ箱のブックを入れた時刻の新しい順に並べ、右の列にその時刻を「〜前」で出す。
-// 行ごとに戻すボタン（book-restore）と消すボタン（book-purge。上に重ねたモーダルで確かめてから。戻せないため）、
+// 行ごとに戻すボタン（entry-restore）と消すボタン（entry-purge。上に重ねたモーダルで確かめてから。戻せないため）、
 // 上の行にゴミ箱を空にするボタン（trash-empty。同じく確かめる）。行えないボタンは押せず、断られたらトーストで知らせる
 import { useState } from "react"
 import type { Book } from "../../../core/schema/book"
@@ -9,11 +9,11 @@ import { useActions, useAllowedOn } from "../../../ui/view-hooks"
 import { Confirm } from "../dialog-host/Confirm"
 import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
+import { ENTRY_PURGE, ENTRY_RESTORE, TRASH_EMPTY, trashOrder } from "../library/entry-trash"
 import { refusalMessage } from "../utils"
 import { titleTaken } from "../utils/refusal"
 import { useElapsed } from "../utils/ui"
 import styles from "./BookSearch.module.css"
-import { BOOK_PURGE, BOOK_RESTORE, TRASH_EMPTY, trashOrder } from "./book-trash"
 
 export function TrashList() {
   const books = useMatomezuState(s => s.trash)
@@ -38,7 +38,7 @@ export function TrashList() {
               key={b.id}
               book={b}
               trashed={trashed}
-              onRestore={() => run(BOOK_RESTORE.id, { book: b.id }, "Could not restore")}
+              onRestore={() => run(ENTRY_RESTORE.id, { entry: b.id }, "Could not restore")}
               onDelete={() => setConfirming({ book: b.id })}
             />
           ))}
@@ -56,7 +56,7 @@ export function TrashList() {
           cancel={t("Cancel")}
           onOk={() => {
             if (confirming === "all") run(TRASH_EMPTY.id, {}, "Could not delete")
-            else run(BOOK_PURGE.id, { books: [confirming.book] }, "Could not delete")
+            else run(ENTRY_PURGE.id, { entries: [confirming.book] }, "Could not delete")
             setConfirming(null)
           }}
           onCancel={() => setConfirming(null)}
@@ -80,8 +80,8 @@ function TrashRow({
 }) {
   const elapsed = useElapsed()
   const t = useMessages(kit)
-  const restorable = useAllowedOn(BOOK_RESTORE.id, { book: book.id }).ok
-  const deletable = useAllowedOn(BOOK_PURGE.id, { books: [book.id] }).ok
+  const restorable = useAllowedOn(ENTRY_RESTORE.id, { entry: book.id }).ok
+  const deletable = useAllowedOn(ENTRY_PURGE.id, { entries: [book.id] }).ok
   return (
     <li className={styles.trashed}>
       <span className={styles.title}>{book.title}</span>

@@ -343,7 +343,7 @@ test("上下左右へ増やす可変ページで、左の空きへ置いて中�
 test("ゴミ箱に別のブックが在っても、開いているブックを元に戻せ、ゴミ箱のブックは残る", async () => {
   const store = ready()
   const other = Object.keys(store.state.getState().books).find(id => id !== "b1") as string
-  expect(store.actions.perform("@matomezu/base:book-trash", { book: other }).ok).toBe(true)
+  expect(store.actions.perform("@matomezu/base:entry-trash", { entry: other }).ok).toBe(true)
   const before = itemsOf(store)
   expect(place(store, 40).ok).toBe(true)
   await settled()

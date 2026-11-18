@@ -33,12 +33,12 @@ func TestAnnotationsAreKeptApartFromTheBook(t *testing.T) {
 	if _, data := send(t, "GET", s.URL+"/api/data", "", nil); !strings.Contains(data, `"annotations":{"p1":[{"id":"c1"`) {
 		t.Fatalf("data = %s", data)
 	}
-	perform("book-trash", `{"book":"b1"}`, "")
+	perform("entry-trash", `{"entry":"b1"}`, "")
 	// ゴミ箱のブックのページは、AI に見せない（ページの id だけで読んでも）
 	if code, _ := send(t, "GET", s.URL+"/api/ai/pages/p1", "", map[string]string{"Authorization": "Bearer secret"}); code != 404 {
 		t.Fatalf("read_page of a page in the trash = %d", code)
 	}
-	perform("book-purge", `{"books":["b1"]}`, "")
+	perform("entry-purge", `{"entries":["b1"]}`, "")
 	if _, data := send(t, "GET", s.URL+"/api/data", "", nil); !strings.Contains(data, `"annotations":{}`) {
 		t.Fatalf("data after purge = %s", data)
 	}
@@ -167,7 +167,7 @@ func TestRemovingABookTakesItsAnnotationWarnings(t *testing.T) {
 	if got := strings.Join(h.Warnings(), "\n"); !strings.Contains(got, "W018") {
 		t.Fatalf("warnings before = %s", got)
 	}
-	for _, do := range [][2]string{{"@matomezu/base:book-trash", `{"book":"b1"}`}, {"@matomezu/base:book-purge", `{"books":["b1"]}`}} {
+	for _, do := range [][2]string{{"@matomezu/base:entry-trash", `{"entry":"b1"}`}, {"@matomezu/base:entry-purge", `{"entries":["b1"]}`}} {
 		if done, err := h.Perform(Perform{Actions: []engine.BulkAction{{Action: do[0], Args: json.RawMessage(do[1])}}}); err != nil || !done.OK {
 			t.Fatalf("%s = %+v, %v", do[0], done, err)
 		}

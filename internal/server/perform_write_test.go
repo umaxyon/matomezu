@@ -431,8 +431,8 @@ func TestBulkInputsAreTheUnionOfTheActions(t *testing.T) {
 // ゴミ箱のブックのページを宛先にしたアクションは、それだけのバルクでも、宛先の無いアクションと混ぜたバルクでも、同じ no-page で断られ、何も書かれない
 func TestABulkOnATrashedPageIsRefusedAlike(t *testing.T) {
 	hub, store, c := bulkHub(t)
-	if done, err := hub.Perform(Perform{Actions: []engine.BulkAction{step("@matomezu/base:book-trash", `{"book":"b1"}`, nil)}}); err != nil || !done.OK {
-		t.Fatalf("book-trash = %+v, %v", done, err)
+	if done, err := hub.Perform(Perform{Actions: []engine.BulkAction{step("@matomezu/base:entry-trash", `{"entry":"b1"}`, nil)}}); err != nil || !done.OK {
+		t.Fatalf("entry-trash = %+v, %v", done, err)
 	}
 	drained(c)
 	store.applied = 0

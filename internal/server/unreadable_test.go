@@ -176,8 +176,8 @@ func TestUnreadablePagesStayInAReadableBook(t *testing.T) {
 	// ブックごと消せば、読めないページの行も消える（鍵は利用者だけが外せるので、画面の口から外してから）
 	for _, body := range []string{
 		`{"action":"@matomezu/base:page-unlock","args":{},"on":{"page":"p2"},"lang":"ja","now":"2026-11-01T00:00:00.000Z"}`,
-		`{"action":"@matomezu/base:book-trash","args":{"book":"f1"},"lang":"ja","now":"2026-11-01T00:00:00.000Z"}`,
-		`{"action":"@matomezu/base:book-purge","args":{"books":["f1"]},"lang":"ja","now":"2026-11-01T00:00:00.000Z"}`,
+		`{"action":"@matomezu/base:entry-trash","args":{"entry":"f1"},"lang":"ja","now":"2026-11-01T00:00:00.000Z"}`,
+		`{"action":"@matomezu/base:entry-purge","args":{"entries":["f1"]},"lang":"ja","now":"2026-11-01T00:00:00.000Z"}`,
 	} {
 		if _, got := postPerform(t, s2.URL, body); !strings.HasPrefix(got, `{"ok":true`) {
 			t.Fatalf("%s = %s", body, got)

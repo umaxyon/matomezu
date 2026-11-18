@@ -1,5 +1,5 @@
 // フォルダ（ブック・バインダを含む）の中身の並びを読む・変える計算（ここには、それだけを置く）: エントリ（ページ・バインダ・ブック・フォルダ）を、
-// 別のフォルダの何番目かへ動かす・ゴミ箱に入れる・ゴミ箱から戻す。プラグインは、並びを直に組み直さず、これを通す。
+// フォルダに置く・別のフォルダの何番目かへ動かす・ゴミ箱に入れる・ゴミ箱から戻す・ゴミ箱から消す。プラグインは、並びを直に組み直さず、これを通す。
 // 見るのは木の形（どのフォルダが何を持てるか・自分の中へは動かせない）だけ。名前の重なり・タイプごとの決まり・ロックは、ここでは見ない
 
 import {
@@ -70,6 +70,23 @@ export function movedEntry(library: Library, entry: string, into: string, index?
   })
 }
 
+// どのフォルダにも入っていないエントリ ref（行は書庫にもう在る）を、フォルダ into の index 番目（言わなければ末尾）に置いた書庫。
+// もうどこかに入っている（no-entry）・先のフォルダが無い（no-folder）・先がゴミ箱かその中（in-trash）・先のフォルダが持てない種類（kind）・index が末尾より先（past-end）なら、その訳
+export function placedEntry(library: Library, ref: AnyEntryRef, into: string, index?: number): Library | MoveRefusal {
+  const { folders } = library
+  if (placeOf(folders, ref.id)) return "no-entry"
+  const to = folders[into]
+  if (!to) return "no-folder"
+  if (to.folderRole === "trash" || inTrash(folders, into)) return "in-trash"
+  if (!canHold(to, ref.kind)) return "kind"
+  const at = index ?? to.lineup.length
+  if (at > to.lineup.length) return "past-end"
+  const placed = { kind: ref.kind, id: ref.id } as AnyEntryRef
+  return withFolders(library, {
+    [to.id]: { ...to, lineup: [...to.lineup.slice(0, at), placed, ...to.lineup.slice(at)] } as Folder,
+  })
+}
+
 // エントリ entry を、入れているフォルダから外して、ゴミ箱の末尾へ入れた書庫（入れた時刻 at と、元いたフォルダから上への id の列を、ゴミ箱の並びのエントリが持つ。
 // 入れた物の行は変えない。ゴミ箱の行が無ければ作る）。エントリが無い（no-entry）か、もうゴミ箱かその中に在れば（in-trash）、その訳
 export function trashedEntry(library: Library, entry: string, at: string): Library | MoveRefusal {
@@ -110,6 +127,46 @@ export function restoredEntry(library: Library, entry: string, into: string): Li
   })
 }
 
+// エントリ entry と、その中の物（何段下でも）の、ページの行の id とフォルダの行の id（表に無い物の id も）
+export function rowsWithin(folders: Folders, entry: string): { pages: string[]; folders: string[] } {
+  const out = { pages: [] as string[], folders: [] as string[] }
+  const passed = new Set<string>()
+  const walk = (id: string) => {
+    if (passed.has(id)) return
+    passed.add(id)
+    out.folders.push(id)
+    for (const r of folders[id]?.lineup ?? []) {
+      if (r.kind === "page") out.pages.push(r.id)
+      else walk(r.id)
+    }
+  }
+  walk(entry)
+  return out
+}
+
+// エントリ entry を、入れているフォルダの並びから外し、その行と中の物の行を書庫から消した書庫（エントリがどこにも入っていなければ、その訳 no-entry）
+export function removedEntry(library: Library, entry: string): Library | MoveRefusal {
+  const place = placeOf(library.folders, entry)
+  if (!place) return "no-entry"
+  const { holder, ref } = place
+  const under = ref.kind === "page" ? { pages: [entry], folders: [] } : rowsWithin(library.folders, entry)
+  const pages = new Set(under.pages)
+  const gone = new Set(under.folders)
+  const emptied = { ...holder, lineup: holder.lineup.filter(r => r.id !== entry) } as Folder
+  const folders = Object.fromEntries(
+    Object.entries(library.folders).flatMap(([id, f]): [string, Folder][] =>
+      gone.has(id) ? [] : [[id, id === holder.id ? emptied : f]],
+    ),
+  )
+  return {
+    pages:
+      pages.size === 0
+        ? library.pages
+        : Object.fromEntries(Object.entries(library.pages).filter(([p]) => !pages.has(p))),
+    folders,
+  }
+}
+
 // ゴミ箱の並びのエントリ（入れた時刻と、元いたフォルダの列を持つ。入れた順）
 export function trashRefsOf(folders: Folders): readonly TrashRef[] {
   const trash = folders[TRASH_ID]
@@ -135,7 +192,7 @@ export function binnedBetween(was: Library, now: Library): { trashed: string[]; 
 export const TITLE_TAKEN = "title-taken"
 
 // フォルダ folder の直下のエントリの名前（並びの順。名前の無い読めないページは入らない）
-function titlesIn({ pages, folders }: Library, folder: Folder): string[] {
+export function titlesIn({ pages, folders }: Library, folder: Folder): string[] {
   return folder.lineup.flatMap(r => {
     const row = (r.kind === "page" ? pages[r.id] : folders[r.id]) as { title?: unknown } | undefined
     const title = row?.title

@@ -57,8 +57,8 @@ export interface RecordPermissionQuery {
 // 認可ステップが受ける問い。core がアクションの対象から kind を決めて渡し、ステップは受け取った kind で、自分が読む物だけを扱う
 export type PermissionQuery = PagePermissionQuery | FolderPermissionQuery | RecordPermissionQuery
 
-// 置き場所の変化: 変わらない（same）・ゴミ箱に入った（trashed）・ゴミ箱から出た（restored）
-export type PlaceChange = "same" | "trashed" | "restored"
+// 置き場所の変化: 変わらない（same）・ゴミ箱に入った（trashed）・ゴミ箱から出た（restored）・ゴミ箱の外で、入っているフォルダ（上のどれか）が変わった（moved）
+export type PlaceChange = "same" | "trashed" | "restored" | "moved"
 
 // 行う前と後のブックの変化（core が比べて求める）
 export interface Changes {

@@ -385,7 +385,7 @@ test("認可ステップがあるブックのゴミ箱入れを止めていれ�
           title: "keep",
           aiDescription: "this book stays",
           denies: q =>
-            q.kind === "folder" && q.action.id === "@matomezu/base:book-trash" && q.folder.title === "API の一覧",
+            q.kind === "folder" && q.action.id === "@matomezu/base:entry-trash" && q.folder.title === "API の一覧",
         }),
       ],
     }),
@@ -409,7 +409,7 @@ test("認可ステップがあるブックのゴミ箱入れを止めていれ�
   expect(within(row("API の一覧")).queryByRole("button", { name: "ゴミ箱に入れる" })).toBeNull()
   expect(within(row("データの形")).getByRole("button", { name: "ゴミ箱に入れる" })).toBeTruthy()
   const api = Object.values(store.state.getState().books).find(b => b.title === "API の一覧")!
-  expect(store.actions.perform("@matomezu/base:book-trash", { book: api.id })).toEqual({
+  expect(store.actions.perform("@matomezu/base:entry-trash", { entry: api.id })).toEqual({
     ok: false,
     reason: "denied",
     permission: "@ex/keep:keep",
@@ -428,7 +428,7 @@ test("認可ステップがゴミ箱のブックの戻す・消すを止めて�
           aiDescription: "this book stays in the trash",
           denies: q =>
             q.kind === "folder" &&
-            ["@matomezu/base:book-restore", "@matomezu/base:book-purge"].includes(q.action.id) &&
+            ["@matomezu/base:entry-restore", "@matomezu/base:entry-purge"].includes(q.action.id) &&
             q.folder.title === "API の一覧",
         }),
       ],
@@ -445,7 +445,7 @@ test("認可ステップがゴミ箱のブックの戻す・消すを止めて�
   const books = Object.values(store.state.getState().books)
   for (const title of ["API の一覧", "データの形"])
     expect(
-      store.actions.perform("@matomezu/base:book-trash", { book: books.find(b => b.title === title)!.id }).ok,
+      store.actions.perform("@matomezu/base:entry-trash", { entry: books.find(b => b.title === title)!.id }).ok,
     ).toBe(true)
   render(
     <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>

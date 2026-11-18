@@ -1,5 +1,5 @@
-// ゴミ箱: book-trash はブックを入っていたフォルダから外してゴミ箱の並びへ入れ（入れた時刻と、元いたフォルダを並びのエントリが持つ）（開いていたステージは何も開かない）、book-restore は戻し、
-// book-purge と trash-empty はゴミ箱から消す。ロック中は入れない。ゴミ箱のブックはブックが対象のアクションで変えられない
+// ゴミ箱: entry-trash はブックを入っていたフォルダから外してゴミ箱の並びへ入れ（入れた時刻と、元いたフォルダを並びのエントリが持つ）（開いていたステージは何も開かない）、entry-restore は戻し、
+// entry-purge と trash-empty はゴミ箱から消す。ロック中は入れない。ゴミ箱のブックはブックが対象のアクションで変えられない
 
 import { expect, test } from "bun:test"
 import { USER } from "../../web/src/core/actor"
@@ -15,9 +15,9 @@ import { newStore } from "../support"
 
 const NOW = "2026-10-29T01:00:00.000Z"
 
-test("book-trash はブックをゴミ箱の並びへ移し、開いていたステージは何も開かない。無いブックは断る", () => {
+test("entry-trash はブックをゴミ箱の並びへ移し、開いていたステージは何も開かない。無いブックは断る", () => {
   const { state, actions } = newStore({ now: () => NOW })
-  expect(actions.perform("@matomezu/base:book-trash", { book: "b1" }).ok).toBe(true)
+  expect(actions.perform("@matomezu/base:entry-trash", { entry: "b1" }).ok).toBe(true)
   expect("b1" in state.getState().books).toBe(false)
   expect(state.getState().trash.b1?.id).toBe("b1")
   expect(state.getState().folders[TRASH_ID]?.lineup).toEqual([
@@ -25,12 +25,12 @@ test("book-trash はブックをゴミ箱の並びへ移し、開いていたス
   ])
   expect(state.getState().folders[HOME_ID]?.lineup.some(r => r.id === "b1")).toBe(false)
   expect(screenOf(state.getState().window).stages[0]?.opened).toBeNull()
-  expect(actions.perform("@matomezu/base:book-trash", { book: "b1" }).ok).toBe(false)
+  expect(actions.perform("@matomezu/base:entry-trash", { entry: "b1" }).ok).toBe(false)
 })
 
 test("ゴミ箱のブックは、ブックが対象のアクションでは無いものとして断る", () => {
   const { actions } = newStore()
-  actions.perform("@matomezu/base:book-trash", { book: "b1" })
+  actions.perform("@matomezu/base:entry-trash", { entry: "b1" })
   expect(actions.perform("@matomezu/base:book-update", { title: "x" }, { book: "b1" })).toEqual({
     ok: false,
     reason: "no-book",
@@ -43,7 +43,7 @@ test("ロック中のブックと、ロック中のページを持つブック�
   addPageIn(store, "s1", { type: "@matomezu/drawing:drawing", title: "ページ 2" })
   const page = pagesOf(store.state.getState().books.b1!)[1]?.id as string
   actions.perform("@matomezu/base:page-lock", {}, { page })
-  expect(actions.perform("@matomezu/base:book-trash", { book: "b1" })).toEqual({
+  expect(actions.perform("@matomezu/base:entry-trash", { entry: "b1" })).toEqual({
     ok: false,
     reason: "denied",
     permission: "@matomezu/base:lock",
@@ -51,7 +51,7 @@ test("ロック中のブックと、ロック中のページを持つブック�
   })
   actions.perform("@matomezu/base:page-unlock", {}, { page })
   actions.perform("@matomezu/base:book-lock", {}, { book: "b1" })
-  expect(actions.perform("@matomezu/base:book-trash", { book: "b1" })).toEqual({
+  expect(actions.perform("@matomezu/base:entry-trash", { entry: "b1" })).toEqual({
     ok: false,
     reason: "denied",
     permission: "@matomezu/base:lock",
@@ -66,7 +66,7 @@ test("ロック中のページを持つブックのゴミ箱入れは、行う�
   store.actions.perform("@matomezu/base:page-lock", {}, { page })
   const world = worldOf(store.state.getState())
   const ctx = { catalog: store.catalog.core, controlCenter: store.controlCenter, actor: USER }
-  expect(permittedIn(world, "@matomezu/base:book-trash", { book: "b1" }, undefined, ctx)).toEqual({
+  expect(permittedIn(world, "@matomezu/base:entry-trash", { entry: "b1" }, undefined, ctx)).toEqual({
     ok: false,
     reason: "denied",
     permission: "@matomezu/base:lock",
@@ -84,19 +84,19 @@ test("戻す・消す・空にする。ゴミ箱に無いブックは戻さず�
   })
   const [one, two, three] = made as [string, string, string]
   const { perform } = store.actions
-  expect(perform("@matomezu/base:book-restore", { book: one }).ok).toBe(false)
-  expect(perform("@matomezu/base:book-purge", { books: [one] }).ok).toBe(false)
-  for (const id of made) perform("@matomezu/base:book-trash", { book: id })
+  expect(perform("@matomezu/base:entry-restore", { entry: one }).ok).toBe(false)
+  expect(perform("@matomezu/base:entry-purge", { entries: [one] }).ok).toBe(false)
+  for (const id of made) perform("@matomezu/base:entry-trash", { entry: id })
   const trash = () =>
     Object.values(store.state.getState().trash)
       .map(b => b.title)
       .sort()
   expect(trash()).toEqual(["一", "三", "二"])
-  expect(perform("@matomezu/base:book-restore", { book: one }).ok).toBe(true)
+  expect(perform("@matomezu/base:entry-restore", { entry: one }).ok).toBe(true)
   expect(trash()).toEqual(["三", "二"])
   expect(store.state.getState().books[one]?.title).toBe("一")
   expect(store.state.getState().folders[HOME_ID]?.lineup.at(-1)).toEqual({ kind: "book", id: one })
-  expect(perform("@matomezu/base:book-purge", { books: [two] }).ok).toBe(true)
+  expect(perform("@matomezu/base:entry-purge", { entries: [two] }).ok).toBe(true)
   expect(trash()).toEqual(["三"])
   expect(host.books.has(two)).toBe(false)
   expect(perform("@matomezu/base:trash-empty", {}).ok).toBe(true)

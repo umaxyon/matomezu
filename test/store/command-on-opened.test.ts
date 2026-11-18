@@ -11,7 +11,7 @@ import { SAMPLE_BOOKS } from "../sample-books"
 const kit = pluginKit("@ex/bin", defineMessages({ bin: { en: "Bin", ja: "捨てる" } }))
 
 // 一覧が対象のアクション（ブックをゴミ箱に入れる）を行う、追加プラグインのコマンド。許可スコープを書いた物と、書かない物
-const base = { title: "bin", performs: ["@matomezu/base:book-trash"], run: () => {}, when: () => true } as const
+const base = { title: "bin", performs: ["@matomezu/base:entry-trash"], run: () => {}, when: () => true } as const
 const ON_OPENED = kit.defineCommand({ ...base, id: "bin-opened", permissionScope: "book" })
 const ANYWHERE = kit.defineCommand({ ...base, id: "bin-anywhere" })
 

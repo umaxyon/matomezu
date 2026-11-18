@@ -1,7 +1,7 @@
 // ゴミ箱から戻す先の選び
 import { expect, test } from "bun:test"
 import { type Folders, HOME_ID, type PlainFolder, TRASH_ID } from "../../../web/src/core/folders"
-import { restoreTargetOf } from "../../../web/src/plugins/base/book-open/book-trash"
+import { restoreTargetOf } from "../../../web/src/plugins/base/library/entries"
 
 const NOW = "2026-10-29T01:00:00.000Z"
 

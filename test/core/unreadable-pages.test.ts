@@ -439,15 +439,15 @@ describe("アクション（performIn）", () => {
 
   test("ゴミ箱に入れる・戻すは読めないページの行を書かず、ゴミ箱から消すと読めないページの行も removed", () => {
     let world = worldOf([read()])
-    const trashed = run(world, "@matomezu/base:book-trash", { book: "b1" })
+    const trashed = run(world, "@matomezu/base:entry-trash", { entry: "b1" })
     expect(trashed.ok).toBe(true)
     expect(writtenRows(trashed)).toEqual({})
     if (!trashed.ok || !trashed.changes) return
     world = { ...world, ...withChanges(world, trashed.changes) }
-    const restored = run(world, "@matomezu/base:book-restore", { book: "b1" })
+    const restored = run(world, "@matomezu/base:entry-restore", { entry: "b1" })
     expect(restored.ok).toBe(true)
     expect(writtenRows(restored)).toEqual({})
-    const purged = run(world, "@matomezu/base:book-purge", { books: ["b1"] })
+    const purged = run(world, "@matomezu/base:entry-purge", { entries: ["b1"] })
     expect(writtenRows(purged)).toMatchObject({ u1: "removed", u2: "removed" })
   })
 })

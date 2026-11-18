@@ -31,12 +31,12 @@ test("同じフォルダに同じ名前のブックは作れず、名前も変�
 
 test("ゴミ箱の直下は同じ名前を許す。戻す先に同じ名前の物が出来ていれば、戻せない", () => {
   const { state, actions, first } = ready()
-  expect(actions.perform("@matomezu/base:book-trash", { book: first }).ok).toBe(true)
+  expect(actions.perform("@matomezu/base:entry-trash", { entry: first }).ok).toBe(true)
   const again = actions.perform(CREATE, { title: "同じ" })
   if (!again.ok) throw new Error(again.reason)
-  expect(actions.perform("@matomezu/base:book-trash", { book: again.result.book }).ok).toBe(true)
+  expect(actions.perform("@matomezu/base:entry-trash", { entry: again.result.book }).ok).toBe(true)
   expect(state.getState().folders[TRASH_ID]?.lineup.map(r => r.id)).toEqual([first, again.result.book])
-  expect(actions.perform("@matomezu/base:book-restore", { book: first }).ok).toBe(true)
-  expect(actions.perform("@matomezu/base:book-restore", { book: again.result.book })).toMatchObject(taken)
+  expect(actions.perform("@matomezu/base:entry-restore", { entry: first }).ok).toBe(true)
+  expect(actions.perform("@matomezu/base:entry-restore", { entry: again.result.book })).toMatchObject(taken)
   expect(again.result.book in state.getState().trash).toBe(true)
 })
