@@ -25,6 +25,7 @@ import {
   type LEFT_SIDE_PANEL_STATE,
   LEFT_SIDE_PANEL_STATES,
 } from "./left-side-panel"
+import { LIBRARY_NEW_BOOK_DIALOG } from "./library/dialog"
 import { ENTRY_MOVE, ENTRY_MOVE_OVER, ENTRY_RENAME, FOLDER_CREATE } from "./library/entry-move"
 import { ENTRY_PURGE, ENTRY_RESTORE, ENTRY_TRASH, TRASH_EMPTY } from "./library/entry-trash"
 import { LIBRARY_REVERT } from "./library/revert"
@@ -545,6 +546,7 @@ export const BASE = defineBuiltin(
       PAGE_SETTINGS_DIALOG,
       BOOK_SETTINGS_DIALOG,
       NEW_BOOK_DIALOG,
+      LIBRARY_NEW_BOOK_DIALOG,
       SETTINGS_DIALOG,
       MAIL_DIALOG,
       PARTICIPANT_JOIN_DIALOG,
@@ -817,6 +819,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:mail": typeof MAIL_DIALOG
     "@matomezu/base:participant-join": typeof PARTICIPANT_JOIN_DIALOG
     "@matomezu/base:book-new": typeof NEW_BOOK_DIALOG
+    "@matomezu/base:library-book-new": typeof LIBRARY_NEW_BOOK_DIALOG
     "@matomezu/base:book-open": typeof OPEN_BOOK_DIALOG
     "@matomezu/base:page-new": typeof NEW_PAGE_DIALOG
     "@matomezu/base:page-delete": typeof PAGE_DELETE_DIALOG

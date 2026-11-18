@@ -11,6 +11,8 @@ import { MENU_HOST } from "./context-menu/ui"
 import { DIALOG_HOST } from "./dialog-host/ui"
 import { EDIT_LOCK } from "./edit-lock/ui"
 import { HISTORY_ICONS } from "./history/icons"
+import { LIBRARY_NEW_BOOK_DIALOG } from "./library/dialog"
+import { LibraryNewBookDialog } from "./library/LibraryNewBookDialog"
 import type { MailActionsProps } from "./mail/slots"
 import {
   MAIL_BOOKMARKS,
@@ -189,6 +191,7 @@ export const BASE_UI = definePluginUi(BASE, {
     ...PAGE_DIALOG_VIEWS,
     ...BOOK_LOOK_DIALOG_VIEWS,
     ...BOOK_NEW_DIALOG_VIEWS,
+    [LIBRARY_NEW_BOOK_DIALOG.id]: LibraryNewBookDialog,
     ...SETTINGS_DIALOG_VIEWS,
     ...MAIL_DIALOG_VIEWS,
     ...PARTICIPANT_DIALOG_VIEWS,

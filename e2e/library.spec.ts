@@ -47,3 +47,24 @@ test("書庫でフォルダへ入るとパンくずが伸び、ブラウザの�
   await expect.poll(() => urlFront(page)).toBe(BOOK_SCREEN_DEF)
   await expect.poll(() => urlStages(page)[0]?.b).toBe(book.id)
 })
+
+test("ブックスクリーンが無い窓でも、書庫の「ブック新規作成」で開いているフォルダにブックを作れて、新しいブックスクリーンで開く", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await page.bringToFront()
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  await page.getByRole("button", { name: "ブック新規作成" }).click()
+  const dialog = page.getByRole("dialog", { name: "新しいブック" })
+  await dialog.getByLabel("ブックの名前").fill("書庫から作ったブック")
+  await page.keyboard.press("Enter")
+  await expect(dialog).toHaveCount(0)
+  await expect.poll(() => urlFront(page)).toBe(BOOK_SCREEN_DEF)
+  await expect
+    .poll(async () => ((await storedBooks(page.request)) as { title: string }[]).map(b => b.title))
+    .toContain("書庫から作ったブック")
+  // ゴミ箱を開いている間は、作るボタンを出さない
+  await page.goBack()
+  await page.getByRole("navigation", { name: "フォルダ" }).getByRole("button", { name: "ゴミ箱", exact: true }).click()
+  await expect(page.getByRole("button", { name: "ブック新規作成" })).toHaveCount(0)
+})

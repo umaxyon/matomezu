@@ -10,8 +10,11 @@ import { NO_STAGE } from "../../../store/dialogs"
 import type { MatomezuState } from "../../../store/store"
 import { useMessages } from "../../../ui/i18n"
 import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
-import { usePluginState, useSetPluginState } from "../../../ui/view-hooks"
+import { useActions, usePluginState, useSetPluginState } from "../../../ui/view-hooks"
+import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
+import { LIBRARY_NEW_BOOK_DIALOG } from "./dialog"
+import { holdsEntries } from "./entries"
 import { CHEVRON, iconOf, TRASH } from "./icons"
 import styles from "./LibraryView.module.css"
 import {
@@ -88,6 +91,9 @@ export function LibraryView() {
   const path = useMatomezuState(useShallow(s => pathTo(s.folders, opened)))
   const titles = useMatomezuState(useShallow(s => path.map(id => folderTitle(s, id))))
   const rows = useRowsIn(opened)
+  // ブックを作れるフォルダ（書庫ホームかフォルダで、ゴミ箱の中でない）を開いているか
+  const creatable = useMatomezuState(s => holdsEntries(s.folders, opened))
+  const { openDialog } = useActions()
   const unfolded = usePluginState(kit, LIBRARY_UNFOLDED) ?? AT_FIRST
   const setUnfolded = useSetPluginState(kit, LIBRARY_UNFOLDED)
   const shown = new Set(unfolded)
@@ -142,6 +148,13 @@ export function LibraryView() {
             </span>
           ))}
         </nav>
+        {creatable && (
+          <div className={styles.tools}>
+            <ActionButton onClick={() => openDialog(LIBRARY_NEW_BOOK_DIALOG.id, { into: opened })}>
+              {t("Create book")}
+            </ActionButton>
+          </div>
+        )}
         {rows.length === 0 ? (
           <p className={styles.empty}>{t("Nothing inside")}</p>
         ) : (

@@ -2,6 +2,7 @@
 import { defineMessages } from "../../../core/i18n/messages"
 
 export const LIBRARY_MESSAGES = defineMessages({
+  "Create book": { en: "New book", ja: "ブック新規作成" },
   "New folder": { en: "New folder", ja: "フォルダ新規作成" },
   Move: { en: "Move", ja: "移動" },
   "Move and replace": { en: "Move and replace", ja: "上書きして移動" },

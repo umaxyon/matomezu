@@ -132,6 +132,13 @@
 .sep {
   color: var(--skin-text-muted);
 }
+/* パンくずの下の、作るボタンの行 */
+.tools {
+  display: flex;
+  flex: none;
+  gap: 8px;
+  padding: 8px 12px 0;
+}
 .contents {
   display: grid;
   flex: 1;
