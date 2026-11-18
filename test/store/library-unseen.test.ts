@@ -4,7 +4,7 @@
 
 import { expect, test } from "bun:test"
 import { HOME_ID } from "../../web/src/core/folders"
-import { LIBRARY_HISTORY } from "../../web/src/core/history"
+import { HISTORY_LIMIT, LIBRARY_HISTORY } from "../../web/src/core/history"
 import { applyPatch, patchOf } from "../../web/src/core/patch"
 import { LIBRARY_FOLDER, LIBRARY_UNFOLDED } from "../../web/src/plugins/base/library/state"
 import { definePlugin } from "../../web/src/store/plugin"
@@ -317,4 +317,15 @@ test("プラグインを組み直したら、まだ見ていない書庫の変�
   here.use([definePlugin({ id: "plain" })])
   show([HOME_ID])
   expect(libraryHistory(here).undo).toEqual([])
+})
+
+test("まだ見ていない書庫の変更が HISTORY_LIMIT を超えたら、古い物から捨てる（見えても、捨てた分は書庫の画面の履歴に入らず、見えたとも知らせない）", async () => {
+  const { here, there, told, foreign, show } = pair()
+  for (let i = 0; i <= HISTORY_LIMIT; i++)
+    await foreign({ by: "ai", act: String(i), actions: [RENAME] }, renamed(there, `AI の名前 ${i}`))
+  show([HOME_ID])
+  expect(libraryHistory(here).undo).toHaveLength(HISTORY_LIMIT)
+  expect(told.map(t => t.act)).toEqual(Array.from({ length: HISTORY_LIMIT }, (_, i) => String(i + 1)))
+  // いちばん古い段は、2 回目の変更（1 回目の後の名前から）
+  expect(libraryHistory(here).undo[0]).toMatchObject({ folders: { b1: { before: { title: "AI の名前 0" } } } })
 })
