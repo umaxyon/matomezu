@@ -26,7 +26,15 @@ import { writtenValues } from "../core/theme"
 import { type Warning, warning } from "../core/warnings"
 import type { CommandDef } from "./commands/def"
 import type { DialogDef, DialogTaking, PageSettingsArgs } from "./dialogs"
-import { type DefaultKey, findKey, type KeyDef, type KeyScopeDef, keyTable } from "./keys"
+import {
+  BASE_KEY_SCOPES,
+  type DefaultKey,
+  findKey,
+  type KeyDef,
+  type KeyScopeCommandsFrom,
+  type KeyScopeDef,
+  keyTable,
+} from "./keys"
 
 // store 台帳の定義の種類の、定義の型（ダイアログを開くときに渡す値の型は、ダイアログごとに違う）
 declare module "../core/catalog" {
@@ -170,7 +178,7 @@ export const isBuiltin = (p: Plugin) => (p as { [BUILTIN_MARK]?: boolean })[BUIL
 export interface StoreCatalog {
   commands: ReadonlyMap<string, CommandDef<never>>
   dialogs: ReadonlyMap<string, DialogDef<unknown>>
-  keyScopes: ReadonlyMap<string, KeyScopeDef> // プラグインのキーの範囲（土台の範囲は入らない。題名は store/keys.ts の BASE_KEY_SCOPE_TITLES）
+  keyScopes: ReadonlyMap<string, KeyScopeDef> // プラグインのキーの範囲（土台の範囲は入らない。題名と呼ぶコマンドは store/keys.ts の BASE_KEY_SCOPES）
   keys: ReadonlyMap<string, DefaultKey> // キーの既定のキーバインド（id → キーバインド。キーはそろえた書き方）
   pluginStates: ReadonlyMap<string, PluginStateDef> // プラグイン状態の宣言（id → 定義。store/plugin-state.ts）
   warnings: readonly Warning[] // 台帳アセンブルで見つけた、止めるほどではない間違い（コマンドの performs・キー・ビルトインプラグインの checks。core/warnings.ts）
@@ -242,6 +250,15 @@ export function assemble(
   for (const t of all("pageTypes"))
     for (const dialog of [t.dialogs?.add, t.dialogs?.settings])
       if (dialog !== undefined && !dialogIds.has(dialog)) problems.push(problem("E031", { id: t.id, dialog }))
+  // 範囲の宣言は型で書かせるが、動的に取り込む追加プラグインは型を通らないので値も確かめる
+  for (const s of keyScopes)
+    if (s.commandsFrom !== "stage" && s.commandsFrom !== "screen")
+      problems.push(problem("E074", { id: s.id, value: String(s.commandsFrom) }))
+  // プレゼンテーションの範囲はステージを描いている間だけ探すので、スクリーンから呼ぶコマンドの範囲は名乗れない
+  const scopeCommands = keyScopeCommands(keyScopes)
+  for (const pr of all("presentations"))
+    if (pr.keyScope !== undefined && scopeCommands.get(pr.keyScope) === "screen")
+      problems.push(problem("E072", { id: pr.id, scope: pr.keyScope }))
   if (problems.length > 0) throw matomezuError(problem("E016", { count: problems.length }), problems)
   const catalog = buildCoreCatalog({
     ...(Object.fromEntries(partsOf("core").map(k => [k, all(k)])) as unknown as Pick<CoreCatalogParts, CorePart>),
@@ -265,7 +282,7 @@ export function assemble(
     ...checked.filter((c): c is Problem => !c.code.startsWith("W")),
   ]
   if (untitled.length > 0) throw matomezuError(problem("E016", { count: untitled.length }), untitled)
-  const keys = defaultKeys(plugins, new Set(commands.map(c => c.id)))
+  const { keys, warnings: unscoped } = defaultKeys(plugins, new Map(commands.map(c => [c.id, c])), scopeCommands)
   if (controlCenter !== null && !catalog.controlCenters.has(controlCenter)) fail("E110", { id: controlCenter })
   return {
     catalog: {
@@ -278,6 +295,7 @@ export function assemble(
         pluginStates: new Map(all("pluginStates").map(d => [d.id, d])),
         warnings: [
           ...performsWarnings(plugins, catalog),
+          ...unscoped,
           ...keyWarnings(keys),
           ...checked.filter((c): c is Warning => c.code.startsWith("W")),
         ],
@@ -288,18 +306,40 @@ export function assemble(
   }
 }
 
-// プラグインの既定のキーバインドを集める。読めないキー・無いコマンド・追加プラグインがほかのコマンドに結んだ行・ビルトインプラグインどうしで同じ範囲の同じキーは error
-function defaultKeys(plugins: readonly Plugin[], commands: ReadonlySet<string>): DefaultKey[] {
+// キーの範囲の id → そこに置くキーバインドが呼ぶコマンド（土台の範囲とプラグインの範囲）
+function keyScopeCommands(scopes: readonly KeyScopeDef[]): ReadonlyMap<string, KeyScopeCommandsFrom> {
+  return new Map([
+    ...Object.entries(BASE_KEY_SCOPES).map(([id, s]) => [id, s.commandsFrom] as const),
+    ...scopes.map(s => [s.id, s.commandsFrom] as const),
+  ])
+}
+
+// プラグインの既定のキーバインドを集める。読めないキー・無いコマンド・追加プラグインがほかのコマンドに結んだ行・ビルトインプラグインどうしで同じ範囲の同じキー・
+// 自分の無い範囲か土台に無い名前（: の無い名前）に置いた行・スクリーンから呼ぶコマンドの範囲にステージで呼ぶコマンドを置いた行は error。
+// よそのプラグインの範囲が無ければ（そのプラグインがいないか、その範囲を持たない）、その行だけ使わず warning（W031）
+function defaultKeys(
+  plugins: readonly Plugin[],
+  commands: ReadonlyMap<string, Pick<CommandDef, "from">>,
+  scopes: ReadonlyMap<string, KeyScopeCommandsFrom>,
+): { keys: DefaultKey[]; warnings: Warning[] } {
   const keys: DefaultKey[] = []
+  const warnings: Warning[] = []
   const problems = []
   for (const p of plugins) {
     const own = new Set((p.commands ?? []).map(c => c.id))
     for (const k of p.keys ?? []) {
       const key = normalizeKey(k.key)
+      const command = commands.get(k.command)
+      const from = scopes.get(k.scope)
       if (!key) problems.push(problem("E022", { key: k.key, command: k.command }))
-      else if (!commands.has(k.command)) problems.push(problem("E024", { key: k.key, command: k.command }))
+      else if (!command) problems.push(problem("E024", { key: k.key, command: k.command }))
       else if (!isBuiltin(p) && !own.has(k.command))
         problems.push(problem("E302", { plugin: p.id, key: k.key, command: k.command }))
+      else if (!from && (isOwnedBy(p.id, k.scope) || !k.scope.includes(":")))
+        problems.push(problem("E071", { key: k.key, scope: k.scope, command: k.command }))
+      else if (!from) warnings.push(warning("W031", p.id, { key: k.key, scope: k.scope, command: k.command }))
+      else if (from === "screen" && command.from !== "screen")
+        problems.push(problem("E073", { key: k.key, scope: k.scope, command: k.command }))
       else {
         const { id, title, ...binding } = k
         keys.push({
@@ -319,7 +359,7 @@ function defaultKeys(plugins: readonly Plugin[], commands: ReadonlySet<string>):
     seen.add(at)
   }
   if (problems.length > 0) throw matomezuError(problem("E016", { count: problems.length }), problems)
-  return keys
+  return { keys, warnings }
 }
 
 // コマンドの performs に書いた、表に無いアクション（W003。その行のコマンドは出ない）

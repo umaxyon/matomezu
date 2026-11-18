@@ -4,10 +4,10 @@ import { defineMessages } from "../../web/src/core/i18n/messages"
 import { NO_KEY_CHANGES, readKeyChanges } from "../../web/src/core/keys"
 import { warningText } from "../../web/src/core/warnings"
 import { BUILTIN } from "../../web/src/plugins"
-import { defineCommand } from "../../web/src/store/commands/def"
+import { defineCommand, defineScreenCommand } from "../../web/src/store/commands/def"
 import { createMatomezu } from "../../web/src/store/create"
 import {
-  BASE_KEY_SCOPE_TITLES,
+  BASE_KEY_SCOPES,
   type DefaultKey,
   inspectKey,
   keyScopes,
@@ -162,16 +162,51 @@ const thrown = (run: () => unknown) => {
   return null
 }
 
-test("台帳アセンブルは、読めないキー・無いコマンド・追加プラグインがほかのコマンドに結んだ行を error にする", () => {
+test("台帳アセンブルは、読めないキー・無いコマンド・追加プラグインがほかのコマンドに結んだ行・自分の無い範囲か土台に無い名前に置いた行・スクリーンから呼ぶコマンドの範囲に置いたステージで呼ぶコマンドを error にし、よその無い範囲に置いた行は W031 で使わない", () => {
   const own = defineCommand({ id: "k:own", title: "@matomezu/drawing:Drawing", run: () => {}, when: () => true })
-  const plugin = (keys: unknown) => definePlugin({ id: "k", commands: [own], keys: keys as never })
+  const screen = defineScreenCommand({
+    id: "k:screen",
+    title: "@matomezu/drawing:Drawing",
+    run: () => {},
+    when: () => true,
+  })
+  const plugin = (keys: unknown) => definePlugin({ id: "k", commands: [own, screen], keys: keys as never })
   const make = (keys: unknown) => () => createMatomezu({ plugins: [...BUILTIN, plugin(keys)], partial: true })
   expect(thrown(make([{ id: "k:a", key: "Hyper+K", command: "k:own", scope: "stage" }]))).toEqual(["E022"])
   expect(thrown(make([{ id: "k:a", key: "K", command: "k:none", scope: "stage" }]))).toEqual(["E024"])
   expect(thrown(make([{ id: "k:a", key: "K", command: "@matomezu/paper:paper-delete", scope: "stage" }]))).toEqual([
     "E302",
   ])
+  expect(thrown(make([{ id: "k:a", key: "K", command: "k:own", scope: "k:none" }]))).toEqual(["E071"])
+  expect(thrown(make([{ id: "k:a", key: "K", command: "k:own", scope: "none" }]))).toEqual(["E071"])
+  expect(thrown(make([{ id: "k:a", key: "K", command: "k:own", scope: "dialog" }]))).toEqual(["E073"])
+  expect(thrown(make([{ id: "k:a", key: "K", command: "k:own", scope: "@matomezu/base:left-side-panel" }]))).toEqual([
+    "E073",
+  ])
+  expect(thrown(make([{ id: "k:a", key: "K", command: "k:screen", scope: "dialog" }]))).toBeNull()
   expect(thrown(make([{ id: "k:a", key: "Delete", command: "k:own", scope: "stage" }]))).toBeNull()
+  const elsewhere = make([{ id: "k:a", key: "K", command: "k:own", scope: "@z/other:panel" }])() as ReturnType<
+    typeof createMatomezu
+  >
+  expect(elsewhere.catalog.store.keys.has("k:a")).toBe(false)
+  expect(warningsOf(elsewhere.catalog).map(warningText)).toContain(
+    "W031 k: key K in @z/other:panel for k:own: the key scope is not in the catalog (not used)",
+  )
+})
+
+test("スクリーンから呼ぶコマンドの範囲（dialog・左サイドパネルなど）に置けるのはスクリーンから呼ぶコマンドだけ（型でも誤り）。プレゼンテーションはその範囲を名乗れない（E072）", () => {
+  const kit = pluginKit("@matomezu/base", defineMessages({}))
+  // @ts-expect-error menu-close はステージで呼ぶコマンド
+  kit.defineKey({ id: "x", key: "K", command: "@matomezu/base:menu-close", scope: "dialog" })
+  // @ts-expect-error 左サイドパネルの範囲もスクリーンから呼ぶコマンドの範囲
+  kit.defineKey({ id: "y", key: "K", command: "@matomezu/base:menu-close", scope: "@matomezu/base:left-side-panel" })
+  kit.defineKey({ id: "z", key: "K", command: "@matomezu/base:dialog-close", scope: "stage" })
+  const plugin = definePlugin({
+    id: "k",
+    keyScopes: [{ id: "k:panel", title: "@matomezu/drawing:Drawing", commandsFrom: "screen" }],
+    presentations: [{ id: "k:shown", keyScope: "k:panel" }],
+  } as never)
+  expect(thrown(() => createMatomezu({ plugins: [...BUILTIN, plugin], partial: true }))).toEqual(["E072"])
 })
 
 test("追加プラグインの既定のキーバインドがビルトインの行に負けたら W008、id の順で先の追加プラグインの行に負けたら W021 の warning を残す（負けた行は効かない）", () => {
@@ -206,17 +241,18 @@ test("既定の割り当ては id で機能台帳に並び、同じ id は error
   expect(instance.catalog.store.keys.get("@matomezu/paper:paper-delete-delete")?.binding.key).toBe("Delete")
 })
 
-test("キーの範囲は定義（KeyScopeDef）で機能台帳に並び、題名を持つ。kit が id と題名に頭を付け、同じ id は error。土台の範囲の題名は土台が持つ", () => {
+test("キーの範囲は定義（KeyScopeDef）で機能台帳に並び、題名と呼ぶコマンドの種類を持つ。kit が id と題名に頭を付け、同じ id と呼ぶコマンドの種類の無い範囲は error。土台の範囲の題名は土台が持つ", () => {
   const kit = pluginKit("k", defineMessages({ Panel: { en: "Panel", ja: "パネル" } }))
-  const scope = kit.defineKeyScope({ id: "panel", title: "Panel" })
-  expect(scope).toEqual({ id: "k:panel", title: "k:Panel" })
+  const scope = kit.defineKeyScope({ id: "panel", title: "Panel", commandsFrom: "stage" })
+  expect(scope).toEqual({ id: "k:panel", title: "k:Panel", commandsFrom: "stage" })
   const make = (scopes: readonly unknown[]) => () =>
     createMatomezu({ plugins: [...BUILTIN, kit.plugin({ keyScopes: scopes as never })], partial: true })
   const instance = make([scope])()
   expect(instance.catalog.store.keyScopes.get("k:panel")?.title).toBe("k:Panel")
   expect(instance.catalog.store.keyScopes.get("@matomezu/tree:tree")?.title).toBe("@matomezu/tree:Tree")
   expect(thrown(make([scope, scope]))).toEqual(["E001"])
-  expect(Object.keys(BASE_KEY_SCOPE_TITLES)).toEqual(["global", "stage", "dialog", "menu", "screen"])
+  expect(thrown(make([{ id: "k:panel", title: "k:Panel" }]))).toEqual(["E074"])
+  expect(Object.keys(BASE_KEY_SCOPES)).toEqual(["global", "stage", "dialog", "menu", "screen"])
 })
 
 test("利用者の変更に残った前の範囲の名前 control-center は、screen として読む", () => {

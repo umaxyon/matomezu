@@ -13,7 +13,11 @@ export const RIGHT_SIDE_PANEL_CLOSE = kit.defineCommand({
 })
 
 // 右サイドパネルの中にフォーカスがある間のキーの範囲（名前はスロットと同じ）
-export const RIGHT_SIDE_PANEL_KEY_SCOPE = kit.defineKeyScope({ id: "right-side-panel", title: "Right side panel" })
+export const RIGHT_SIDE_PANEL_KEY_SCOPE = kit.defineKeyScope({
+  id: "right-side-panel",
+  title: "Right side panel",
+  commandsFrom: "stage",
+})
 
 export const RIGHT_SIDE_PANEL_KEYS = [
   kit.defineKey({

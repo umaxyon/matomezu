@@ -13,7 +13,11 @@ export const LEFT_SIDE_PANEL_CLOSE = kit.defineScreenCommand({
 })
 
 // 左サイドパネルの中にフォーカスがある間のキーの範囲（名前は LEFT_SIDE_PANEL と同じ）
-export const LEFT_SIDE_PANEL_KEY_SCOPE = kit.defineKeyScope({ id: "left-side-panel", title: "Left side panel" })
+export const LEFT_SIDE_PANEL_KEY_SCOPE = kit.defineKeyScope({
+  id: "left-side-panel",
+  title: "Left side panel",
+  commandsFrom: "screen",
+})
 
 export const LEFT_SIDE_PANEL_KEYS = [
   kit.defineKey({

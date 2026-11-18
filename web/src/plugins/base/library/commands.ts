@@ -34,7 +34,7 @@ export const LIBRARY_REDO = kit.defineScreenCommand({
 
 // 書庫の画面の中に焦点がある間のキーの範囲（LibraryView の根の要素が名乗る）
 export const LIBRARY_SCOPE = kit.name("library")
-export const LIBRARY_KEY_SCOPE = kit.defineKeyScope({ id: "library", title: "Library" })
+export const LIBRARY_KEY_SCOPE = kit.defineKeyScope({ id: "library", title: "Library", commandsFrom: "screen" })
 
 export const LIBRARY_KEYS = [
   kit.defineKey({ id: "library-undo-mod-z", key: "Mod+Z", command: LIBRARY_UNDO.id, scope: LIBRARY_SCOPE }),

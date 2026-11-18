@@ -2,39 +2,72 @@
 // 同じ範囲・同じキーのキーバインドは並べ（利用者 → ビルトインプラグイン → 追加プラグインの id の順）、効くのは先頭の 1 つだけ（先勝ち）。
 // 範囲が違えば狭いほうが先（引く側が決める）
 
-import type { BaseKeyScope, CommandId, KeyExtras, KeyScopeExtras, KeyScopeId, MessageKey } from "../core/catalog"
+import type {
+  BaseKeyScope,
+  CommandId,
+  CommandTable,
+  KeyExtras,
+  KeyScopeExtras,
+  KeyScopeId,
+  KeyScopeTable,
+  MessageKey,
+} from "../core/catalog"
 import type { Inspected, Source, Step } from "../core/inspect"
 import { type KeyBinding, type KeyChanges, normalizeKey, sameBinding } from "../core/keys"
 import type { CommandArgs } from "./commands"
 
+// キーの範囲が、そこに置くキーバインドに呼ばせるコマンド: ステージで呼ぶコマンド（stage）か、スクリーンから呼ぶコマンド（screen）か。
+// ステージに属さない要素（ダイアログ・左サイドパネルなど、ステージを並べないスクリーンでも出る物）が名乗る範囲は screen。
+// stage の範囲にはスクリーンから呼ぶコマンドも置ける（スクリーンから呼ぶコマンドはステージからも呼べる）
+export type KeyScopeCommandsFrom = "stage" | "screen"
+
+// 土台のキーの範囲: 題名と、そこに置くキーバインドが呼ぶコマンド
+export const BASE_KEY_SCOPES = {
+  global: { title: "Whole screen", commandsFrom: "stage" },
+  stage: { title: "Stage", commandsFrom: "stage" },
+  dialog: { title: "While a dialog is open", commandsFrom: "screen" },
+  menu: { title: "While a menu is open", commandsFrom: "stage" },
+  screen: { title: "Screens without stages", commandsFrom: "screen" },
+} as const satisfies Readonly<Record<BaseKeyScope, { title: MessageKey; commandsFrom: KeyScopeCommandsFrom }>>
+
+// 範囲 S に置くキーバインドが呼ぶコマンド（プラグインの範囲は KeyScopeTable の定義の型から）
+type CommandsFromOf<S extends KeyScopeId> = S extends BaseKeyScope
+  ? (typeof BASE_KEY_SCOPES)[S]["commandsFrom"]
+  : S extends keyof KeyScopeTable
+    ? KeyScopeTable[S] extends { commandsFrom: infer F }
+      ? F
+      : never
+    : never
+
+// コマンド C を置ける範囲: スクリーンから呼ぶコマンドはどの範囲にも、ステージで呼ぶコマンドは stage の範囲だけ
+type ScopeFor<C extends CommandId> = CommandTable[C] extends { from: "screen" }
+  ? KeyScopeId
+  : { [S in KeyScopeId]: CommandsFromOf<S> extends "stage" ? S : never }[KeyScopeId]
+
 // プラグインが書く既定のキーバインド 1 つ（kit.defineKey で書き、id と題名に頭が付く）。コマンドの引数の型が、args の型になる（引数の無いコマンドには書かない）。
-// title は、設定画面で行を見分ける題名（無ければコマンドの題名）。args を書くキーバインドは、同じコマンドを args で分けるので title が要る
+// title は、設定画面で行を見分ける題名（無ければコマンドの題名）。args を書くキーバインドは、同じコマンドを args で分けるので title が要る。
+// scope は、コマンドを置ける範囲（ScopeFor）だけ
 export type KeyDef = {
   [C in CommandId]: {
     id: string
     key: string
     command: C
-    scope: KeyScopeId
+    scope: ScopeFor<C>
   } & (CommandArgs<C> extends [] ? { args?: undefined; title?: string } : { args: CommandArgs<C>[0]; title: string }) &
     KeyExtras
 }[CommandId]
 
-// プラグインのキーの範囲: id と、画面に出す題名（設定画面の見出しなど。kit.defineKeyScope で書き、id と題名に頭が付く）
+// プラグインのキーの範囲: id と、画面に出す題名（設定画面の見出しなど。kit.defineKeyScope で書き、id と題名に頭が付く）と、
+// そこに置くキーバインドが呼ぶコマンド（KeyScopeCommandsFrom）
 export interface KeyScopeDef extends KeyScopeExtras {
   id: string
   title: string
+  commandsFrom: KeyScopeCommandsFrom
 }
 
-export const defineKeyScope = <const Id extends string>(def: KeyScopeDef & { id: Id }): KeyScopeDef & { id: Id } => def
-
-// 土台のキーの範囲の題名
-export const BASE_KEY_SCOPE_TITLES: Readonly<Record<BaseKeyScope, MessageKey>> = {
-  global: "Whole screen",
-  stage: "Stage",
-  dialog: "While a dialog is open",
-  menu: "While a menu is open",
-  screen: "Screens without stages",
-}
+export const defineKeyScope = <const Id extends string, const F extends KeyScopeCommandsFrom>(
+  def: KeyScopeDef & { id: Id; commandsFrom: F },
+): KeyScopeDef & { id: Id; commandsFrom: F } => def
 
 // 既定の 1 行と、それを書いたプラグイン（キーはそろえた書き方）
 export interface DefaultKey {

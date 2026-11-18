@@ -27,7 +27,7 @@ export const ListRowSchema = z.strictObject({ id: z.string().min(1), item: z.lit
 export type ListRow = z.infer<typeof ListRowSchema>
 
 // リストの行の並びのキーの範囲（行を押すと行の並びに焦点が入り、選んだ行へのキーはここで受ける）
-export const LIST_ROWS_KEY_SCOPE = kit.defineKeyScope({ id: "rows", title: "List" })
+export const LIST_ROWS_KEY_SCOPE = kit.defineKeyScope({ id: "rows", title: "List", commandsFrom: "stage" })
 export const LIST_ROWS_SCOPE = LIST_ROWS_KEY_SCOPE.id
 
 // リストの塗りのテーマキー（行のカードの地。色の見本の「なし」もこの色）

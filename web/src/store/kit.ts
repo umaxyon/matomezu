@@ -31,7 +31,7 @@ import type {
   StageCommandDef,
 } from "./commands/def"
 import type { DialogDef } from "./dialogs"
-import type { KeyDef, KeyScopeDef } from "./keys"
+import type { KeyDef, KeyScopeCommandsFrom, KeyScopeDef } from "./keys"
 import type { PluginParts } from "./plugin"
 
 // 頭を付けた文言の表
@@ -229,9 +229,9 @@ export interface PluginKit<P extends string, M extends MessageMap> {
   defineDialog<const Id extends string>(def: { id: Id } & DialogExtras): DialogDef & { id: Owned<P, Id> }
 
   // キーの範囲（title は自分の文言の短い鍵）
-  defineKeyScope<const Id extends string>(
-    def: Omit<KeyScopeDef, "id" | "title"> & { id: Id; title: keyof M & string },
-  ): KeyScopeDef & { id: Owned<P, Id> }
+  defineKeyScope<const Id extends string, const F extends KeyScopeCommandsFrom>(
+    def: Omit<KeyScopeDef, "id" | "title" | "commandsFrom"> & { id: Id; title: keyof M & string; commandsFrom: F },
+  ): KeyScopeDef & { id: Owned<P, Id>; commandsFrom: F }
 
   // プラグイン状態の宣言（プラグインが画面の中で持つ状態。id は頭が付く）。address が push か replace なら、値を画面の場所（URL）に入れ、読み直しても戻す。値の形 schema を持つ
   definePluginState<
