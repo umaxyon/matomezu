@@ -109,6 +109,20 @@ export function restorePlanOf(library: Library, entry: string): RestorePlan | un
   }
 }
 
+// 上書きを選べない訳: 上書きの決まりが断る（NotOverwritten）か、認可ステップ permission が止める（ロック中など。null は、認可ステップでない訳）
+export type ReplaceBlocked = { by: "rule"; why: NotOverwritten } | { by: "permission"; permission: string | null }
+
+// 確かめた plan の上書きを選べない訳（選べれば null）。allowed は、上書きのアクションを行えるかの答え
+export const replaceBlockedOf = (
+  plan: Pick<RestorePlan, "overwrite">,
+  allowed: { ok: true } | { ok: false; permission: string | null },
+): ReplaceBlocked | null =>
+  plan.overwrite !== "ok"
+    ? { by: "rule", why: plan.overwrite }
+    : allowed.ok
+      ? null
+      : { by: "permission", permission: allowed.permission }
+
 // フォルダ into の直下で、エントリ entry（種類 kind）と同じ名前を持つ、ほかのエントリ（無ければ undefined）
 export function sameTitled(library: Library, kind: EntryKind, entry: string, into: string): AnyEntryRef | undefined {
   const title = titleOf(library, kind, entry)

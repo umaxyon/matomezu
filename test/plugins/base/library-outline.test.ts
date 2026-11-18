@@ -91,7 +91,7 @@ test("ゴミ箱の行は、入れた時刻の新しい順に、どの種類の�
     ["folder", inner, "2026-11-18T02:00:00.000Z", folder],
     ["book", "b2", "2026-11-18T01:00:00.000Z", folder],
   ])
-  expect(trashRowsOf(library())[1]).toMatchObject({ title: "下書き", readable: true })
+  expect(trashRowsOf(library())[1]).toMatchObject({ title: "下書き", readable: true, place: "仕事" })
 })
 
 test("戻すときに確かめる事: 元いたフォルダが無いか、入る先に同じ名前の物が在るときの番号を付けた名前と、上書きで消える物", () => {

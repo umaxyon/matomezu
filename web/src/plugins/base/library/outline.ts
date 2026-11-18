@@ -1,5 +1,5 @@
 // 書庫の画面が描く物を、書庫の表（ページの行とフォルダの行）から出す: フォルダの直下の行・ゴミ箱の行・パンくず・行を開いたときの行き先
-import { type EntryKind, entriesIn, trashRefsOf } from "../../../core/entries"
+import { type EntryKind, entriesIn, titleOf, trashRefsOf } from "../../../core/entries"
 import {
   type AnyEntryRef,
   type Folders,
@@ -54,10 +54,18 @@ export function rowsIn(library: Library, folder: string): readonly LibraryRow[] 
   return entries.length === 0 ? NO_ROWS : entries.map(r => rowOf(library, r))
 }
 
-// ゴミ箱の行 1 つ: 行と、入れた時刻 trashed と、戻すと入るフォルダの id into（元いたフォルダ。もう無ければ、その上の今も在るフォルダ）
+// ゴミ箱の行 1 つ: 行と、入れた時刻 trashed と、戻すと入るフォルダの id into（元いたフォルダ。戻れなければ、その上の今も在るフォルダ）と、その名前 place（名前の無い物は NO_TITLE）
 export interface TrashRow extends LibraryRow {
   trashed: string
   into: string
+  place: string
+}
+
+// 時刻 at（ISO）を、その環境の時刻の「2026-11-17 18:05」の形にする
+export function shownDateTime(at: string): string {
+  const d = new Date(at)
+  const two = (n: number) => String(n).padStart(2, "0")
+  return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())} ${two(d.getHours())}:${two(d.getMinutes())}`
 }
 
 const NO_TRASH: readonly TrashRow[] = []
@@ -67,7 +75,10 @@ export function trashRowsOf(library: Library): readonly TrashRow[] {
   const refs = trashRefsOf(library.folders)
   if (refs.length === 0) return NO_TRASH
   return refs
-    .map(r => ({ ...rowOf(library, r), trashed: r.trashed, into: restoreTargetOf(library.folders, r.from) }))
+    .map(r => {
+      const into = restoreTargetOf(library.folders, r.from)
+      return { ...rowOf(library, r), trashed: r.trashed, into, place: titleOf(library, "folder", into) ?? NO_TITLE }
+    })
     .reverse()
     .sort((a, b) => (a.trashed === b.trashed ? 0 : a.trashed < b.trashed ? 1 : -1))
 }

@@ -1,22 +1,21 @@
 // 書庫の画面でゴミ箱を開いている間の右の枠: 上に「ゴミ箱を空にする」、下にゴミ箱の直下の物の一覧（種類のアイコン・名前・元の場所・捨てた日時。新しい順）。
 // 選んだ行に、戻すボタン（entry-restore）と完全に消すボタン（entry-purge）を出す。捨てたフォルダ・ブックの中身は開けない（戻してから見る）。
-// 戻すとき、元いたフォルダがもう無ければ入る先を確かめ、入る先に同じ名前の物が在れば、番号を付けるかを確かめる。消すのは、戻せないので確かめてから
+// 戻すとき、元いたフォルダへ戻れなければ（無い・ゴミ箱の中）入る先を確かめ、入る先に同じ名前の物が在れば、番号を付けるかを確かめる。消すのは、戻せないので確かめてから
 import { useEffect, useState } from "react"
 import { titleOf } from "../../../core/entries"
-import type { Library } from "../../../core/folders"
 import { useMessages } from "../../../ui/i18n"
 import { useReadState } from "../../../ui/store-context"
 import { useAllowedOn } from "../../../ui/view-hooks"
 import { Confirm } from "../dialog-host/Confirm"
 import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import { type RestorePlan, restorePlanOf, SAME_TITLE } from "./entries"
+import { type RestorePlan, replaceBlockedOf, restorePlanOf, SAME_TITLE } from "./entries"
 import { ENTRY_PURGE, ENTRY_RESTORE, TRASH_EMPTY } from "./entry-trash"
 import { useLibraryRows, useNameOf } from "./hooks"
 import { iconOf } from "./icons"
 import styles from "./LibraryView.module.css"
-import { NO_TITLE, type TrashRow, trashRowsOf } from "./outline"
-import { type ReplaceBlocked, TitleClashConfirm } from "./TitleClashConfirm"
+import { NO_TITLE, shownDateTime, type TrashRow, trashRowsOf } from "./outline"
+import { TitleClashConfirm } from "./TitleClashConfirm"
 import { useLibraryPerform } from "./useLibraryPerform"
 
 // 確かめている事: ゴミ箱を空にする・行を消す・戻す先（元いたフォルダへ戻れない）・戻す名前（同じ名前の物が在る）
@@ -26,18 +25,8 @@ type Asking =
   | { about: "into"; row: TrashRow; plan: RestorePlan }
   | { about: "taken"; row: TrashRow; plan: RestorePlan }
 
-// 時刻 at（ISO）を、利用者の時刻の「2026-11-17 18:05」の形にする
-function stamp(at: string): string {
-  const d = new Date(at)
-  const two = (n: number) => String(n).padStart(2, "0")
-  return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())} ${two(d.getHours())}:${two(d.getMinutes())}`
-}
-
-// ゴミ箱の行と、戻すと入るフォルダの名前 place（名前の無い物は NO_TITLE）
-type PlacedRow = TrashRow & { place: string }
+// useLibraryRows の鍵（ゴミ箱の行）
 const TRASH_ROWS = "trash"
-const placedRows = (library: Library): readonly PlacedRow[] =>
-  trashRowsOf(library).map(row => ({ ...row, place: titleOf(library, "folder", row.into) ?? NO_TITLE }))
 
 export function TrashPane({
   picked,
@@ -49,7 +38,7 @@ export function TrashPane({
   onSettled(): void // 選んでいた行に行えて、その行が消えたあと（焦点を置き直す所）
 }) {
   const t = useMessages(kit)
-  const rows = useLibraryRows(TRASH_ROWS, placedRows)
+  const rows = useLibraryRows(TRASH_ROWS, trashRowsOf)
   const read = useReadState()
   const run = useLibraryPerform()
   const emptiable = useAllowedOn(TRASH_EMPTY.id, {}).ok
@@ -111,7 +100,7 @@ export function TrashPane({
                   {nameOf({ id: row.into, title: row.place })}
                 </span>
                 <time className={styles.when} title={t("Moved to trash")}>
-                  {stamp(row.trashed)}
+                  {shownDateTime(row.trashed)}
                 </time>
               </button>
               {row.id === picked && (
@@ -192,18 +181,12 @@ function RestoreClash({
   onChoose(how: "number" | "replace" | "cancel"): void
 }) {
   const allowed = useAllowedOn(ENTRY_RESTORE.id, { entry: row.id, onConflict: "replace", replaces: plan.replaces })
-  const blocked: ReplaceBlocked | null =
-    plan.overwrite !== "ok"
-      ? { by: "rule", why: plan.overwrite }
-      : allowed.ok
-        ? null
-        : { by: "permission", permission: allowed.permission }
   return (
     <TitleClashConfirm
       folder={folder}
       name={name}
       numbered={plan.numbered}
-      blocked={blocked}
+      blocked={replaceBlockedOf(plan, allowed)}
       onNumber={() => onChoose("number")}
       onReplace={() => onChoose("replace")}
       onCancel={() => onChoose("cancel")}

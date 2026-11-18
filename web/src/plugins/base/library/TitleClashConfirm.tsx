@@ -5,10 +5,7 @@ import { useMessages } from "../../../ui/i18n"
 import { useCatalog } from "../../../ui/store-context"
 import { Confirm } from "../dialog-host/Confirm"
 import { kit } from "../kit"
-import type { NotOverwritten } from "./entries"
-
-// 上書きできない訳: 上書きの決まりが断る（NotOverwritten）か、認可ステップ permission が止める（ロック中など）
-export type ReplaceBlocked = { by: "rule"; why: NotOverwritten } | { by: "permission"; permission: string | null }
+import type { ReplaceBlocked } from "./entries"
 
 export function TitleClashConfirm({
   folder,
