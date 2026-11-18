@@ -919,7 +919,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   // 書庫が対象のアクションが、表 was を changes のとおりに変えたことを、開いている画面の履歴の段の、書庫の分に足す
   const recordLibrary = (was: Library, changes: TableChanges, at: string) => {
     const into = opened(at)
-    const mine = (into.library ??= { pages: {}, folders: {} })
+    const mine = into.library ?? { pages: {}, folders: {} }
+    into.library = mine
     const rows = rowChanges(was, changes)
     for (const [id, r] of Object.entries(rows.pages))
       mine.pages[id] = { before: mine.pages[id]?.before ?? r.before, after: r.after }

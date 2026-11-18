@@ -2,10 +2,10 @@
 // entry-rename は、その名前を変える。folder-create は、フォルダを作る。どれも、エントリの中身は変えない。
 // 同じフォルダの中に同じ名前は置けない（土台が title-taken で断る）。entry-move の onConflict が number なら、番号を付けた名前にして入れる
 import { z } from "zod"
-import { isMoveRefusal, movedEntry, placedEntry } from "../../../core/entries"
+import { isMoveRefusal, movedEntry, placedEntry, titleOf } from "../../../core/entries"
 import { HOME_ID, type PlainFolder } from "../../../core/folders"
 import { kit } from "../kit"
-import { holdsEntries, numbered, overwritten, placedInFolder, retitled, titleOf } from "./entries"
+import { holdsEntries, numbered, overwritten, placedInFolder, retitled } from "./entries"
 
 export const FOLDER_CREATE = kit.defineAction({
   id: "folder-create",

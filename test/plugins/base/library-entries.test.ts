@@ -2,8 +2,9 @@
 // book-create の into は置くフォルダを決める。フォルダは、中身ごとゴミ箱に出入りし、消える。ロックした物は動かせるが、名前は変えられず、フォルダごとでもゴミ箱に入らない
 
 import { expect, test } from "bun:test"
-import { HOME_ID, TRASH_ID } from "../../web/src/core/folders"
-import { newStore } from "../support"
+import { HOME_ID, TRASH_ID } from "../../../web/src/core/folders"
+import { FOLDER_CREATE } from "../../../web/src/plugins/base/library/entry-move"
+import { newStore } from "../../support"
 
 const NOW = "2026-11-18T01:00:00.000Z"
 const taken = { ok: false, reason: "refused", kind: "title-taken" }
@@ -14,7 +15,7 @@ function setup() {
   const lineup = (id: string) => store.state.getState().folders[id]?.lineup.map(r => r.id)
   const title = (id: string) => (store.state.getState().folders[id] as { title?: string } | undefined)?.title
   const folder = (name: string, into?: string) => {
-    const done = perform("@matomezu/base:folder-create", { title: name, ...(into ? { into } : {}) })
+    const done = perform(FOLDER_CREATE.id, { title: name, ...(into ? { into } : {}) })
     if (!done.ok) throw new Error(`folder-create ${name}: ${JSON.stringify(done)}`)
     return (done.result as { folder: string }).folder
   }

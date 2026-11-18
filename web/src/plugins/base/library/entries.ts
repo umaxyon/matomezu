@@ -7,6 +7,8 @@ import {
   placeOf,
   removedEntry,
   rowsWithin,
+  titledIn,
+  titleOf,
   titlesIn,
 } from "../../../core/entries"
 import {
@@ -39,12 +41,6 @@ export const holdsEntries = (folders: Folders, id: string): boolean => {
   return (f?.folderRole === "home" || f?.folderRole === "folder") && !inTrash(folders, id)
 }
 
-// エントリ entry（種類 kind）の名前（名前の無い物・書庫に無い物は undefined）
-export function titleOf(library: Library, kind: EntryKind, entry: string): string | undefined {
-  const row = (kind === "page" ? library.pages[entry] : library.folders[entry]) as { title?: unknown } | undefined
-  return typeof row?.title === "string" && row.title !== "" ? row.title : undefined
-}
-
 // エントリ entry（種類 kind）の名前を title にした書庫（名前を持たない物・書庫に無い物は null。同じ名前なら library のまま）
 export function retitled(library: Library, kind: EntryKind, entry: string, title: string): Library | null {
   const now = titleOf(library, kind, entry)
@@ -66,8 +62,7 @@ export function numbered(library: Library, kind: EntryKind, entry: string, into:
   const holder = library.folders[into]
   const title = titleOf(library, kind, entry)
   if (!holder || title === undefined) return null
-  const others = titlesIn(library, { ...holder, lineup: holder.lineup.filter(r => r.id !== entry) } as Folder)
-  return retitled(library, kind, entry, freeTitle(title, others))
+  return retitled(library, kind, entry, freeTitle(title, titlesIn(library, holder, entry)))
 }
 
 // ゴミ箱から戻す先のフォルダの id: 元いたフォルダから上への列 from（近い順）のうち、今も在ってゴミ箱でもその中でもない最初のフォルダ。どれも無ければ書庫ホーム
@@ -77,8 +72,8 @@ export const restoreTargetOf = (folders: Folders, from: readonly string[]): stri
 // フォルダ into の直下で、エントリ entry（種類 kind）と同じ名前を持つ、ほかのエントリ（無ければ undefined）
 export function sameTitled(library: Library, kind: EntryKind, entry: string, into: string): AnyEntryRef | undefined {
   const title = titleOf(library, kind, entry)
-  if (title === undefined) return undefined
-  return library.folders[into]?.lineup.find(r => r.id !== entry && titleOf(library, r.kind, r.id) === title)
+  const holder = library.folders[into]
+  return title === undefined || !holder ? undefined : titledIn(library, holder, title, entry)
 }
 
 // 上書き: フォルダ into の直下の、エントリ entry（種類 kind）と同じ名前の物を、中身ごと書庫から消した書庫（ゴミ箱には入れない。同じ名前の物が無ければ library のまま）。
