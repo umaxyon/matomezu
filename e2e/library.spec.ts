@@ -191,7 +191,7 @@ test("ゴミ箱から上書きで戻すと、前から在った物が消える�
   await expect.poll(async () => await storedBook(page.request, fresh)).toBeUndefined()
   await page.keyboard.press("Control+z")
   await expect(row).toHaveCount(1)
-  // 常駐にも届いてから、次へ（届く前に AI が変えると、あとから届いた元に戻すがその変更を置き直す）
+  // AI がロックできるように、前から在った方が常駐に戻るのを待つ（上の、常駐から消えるのを待つ所と合わせて、順を決める）
   await expect.poll(async () => (await storedBook(page.request, fresh))?.id).toBe(fresh)
 
   // 前から在った方をロックすると、上書きは選べず、訳が出る
