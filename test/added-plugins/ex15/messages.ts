@@ -3,7 +3,7 @@ import { defineMessages } from "matomezu"
 
 export const SHELF_MESSAGES = defineMessages({
   shelf: { en: "Shelf", ja: "たな" },
-  shelfBox: { en: "Shelf box", ja: "たなの箱" },
+  shelfKeep: { en: "Shelf folder", ja: "たなのフォルダ" },
   fold: { en: "Fold", ja: "たたむ" },
   unfold: { en: "Unfold", ja: "ひらく" },
 })

@@ -1,5 +1,5 @@
 // ex15 のたな: フォルダの直下のエントリを並べる。AI の書庫の変更は、たなが見せているフォルダの物なら見えたとして書庫の履歴に入り、
-// たたんでいる間（描いたまま隠している間）は入らない。システムフォルダ（たなの箱）は、base の system-folder-add が書庫ホームの先頭に足す
+// たたんでいる間（描いたまま隠している間）は入らない。システムフォルダ（たなのフォルダ）は、base の system-folder-add が書庫ホームの先頭に足す
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { BUILTIN_UI, createMatomezu, DEFAULT_LAYOUT, MatomezuProvider, placeAdded, WindowRoot } from "matomezu/testing"
@@ -76,7 +76,7 @@ test("AI の書庫の変更は、たなが見せているフォルダの物な�
   expect(libraryUndo(here)).toHaveLength(2)
 })
 
-test("たなの箱は、base の system-folder-add が書庫ホームの先頭（印の順）に足し、名前は利用者の設定の言語で引く", async () => {
+test("たなのフォルダは、base の system-folder-add が書庫ホームの先頭（印の順）に足し、名前は利用者の設定の言語で引く", async () => {
   const here = make()
   here.actions.perform("@matomezu/base:settings-set", { values: { "@matomezu/base:lang": "matomezu:ja" } })
   here.actions.perform("@matomezu/base:system-folder-add", {})
@@ -90,5 +90,5 @@ test("たなの箱は、base の system-folder-add が書庫ホームの先頭�
     here.actions.openScreen("ex15:shelf-screen", {})
   })
   const shelf = screen.getByRole("heading", { name: "たな" }).closest("section") as HTMLElement
-  expect([...shelf.querySelectorAll("li")].slice(0, 2).map(li => li.textContent)).toEqual(["ドキュメント", "たなの箱"])
+  expect([...shelf.querySelectorAll("li")].slice(0, 2).map(li => li.textContent)).toEqual(["ドキュメント", "たなのフォルダ"])
 })

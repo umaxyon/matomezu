@@ -1,18 +1,18 @@
 // ex15: 自分のスクリーンで書庫のフォルダの中身を並べる追加プラグインの見本（たな）。自分の書庫アピアランスを持ち、見せているフォルダを
 // 自分のプラグイン状態から答える（AI とほかの窓の書庫の変更は、ここで見せているフォルダの物なら、見えたとして書庫の履歴に入る）。
-// 書庫ホームの直下にいつも在るフォルダの種類（システムフォルダ「たなの箱」）も足す（行は base が足すので、定義を足すだけ）
+// 書庫ホームの直下にいつも在るフォルダの種類（システムフォルダ「たなのフォルダ」）も足す（行は base が足すので、定義を足すだけ）
 import { definePlugin, HOME_ID, z } from "matomezu"
 import { kit } from "./kit"
 
-// たたんでいるか（スクリーン 1 枚ごと。読み直すと消える。値が無ければ、ひらいている）
-// たなの箱: 書庫ホームの直下にいつも在るシステムフォルダ（名前は利用者の設定の言語で引く）
-export const SHELF_BOX = kit.defineSystemFolder({
-  id: "shelf-box",
-  title: "shelfBox",
+// たなのフォルダ: 書庫ホームの直下にいつも在るシステムフォルダ（名前は利用者の設定の言語で引く）
+export const SHELF_KEEP = kit.defineSystemFolder({
+  id: "shelf-keep",
+  title: "shelfKeep",
   aiDescription:
-    "The shelf box: a folder that is always at the top of the library home, for the things to keep on the shelf.",
+    "The shelf folder: a folder that is always at the top of the library home, for the things to keep on the shelf.",
 })
 
+// たたんでいるか（スクリーン 1 枚ごと。読み直すと消える。値が無ければ、ひらいている）
 export const SHELF_FOLDED = kit.definePluginStateOf<true>()({ id: "shelf-folded", scope: "screen" })
 // 見せているフォルダの id（スクリーン 1 枚ごと。読み直すと消える。値が無ければ、書庫ホーム）
 export const SHELF_FOLDER = kit.definePluginStateOf<string>()({ id: "shelf-folder", scope: "screen" })
@@ -39,7 +39,7 @@ export const EX15 = definePlugin(
     screens: [SHELF_SCREEN],
     libraryAppearances: [SHELF],
     pluginStates: [SHELF_FOLDED, SHELF_FOLDER],
-    systemFolders: [SHELF_BOX],
+    systemFolders: [SHELF_KEEP],
   }),
 )
 export default EX15
@@ -53,7 +53,7 @@ declare module "matomezu/catalog" {
     "ex15:shelf": typeof SHELF
   }
   interface SystemFolderTable {
-    "ex15:shelf-box": typeof SHELF_BOX
+    "ex15:shelf-keep": typeof SHELF_KEEP
   }
   interface PluginStateTable {
     "ex15:shelf-folded": typeof SHELF_FOLDED
