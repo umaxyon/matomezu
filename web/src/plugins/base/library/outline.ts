@@ -19,6 +19,7 @@ export interface LibraryRow {
   title: string
   type: string
   readable: boolean
+  locked: boolean // ロック中のページかブック
 }
 export const NO_TITLE = ""
 export const NO_TYPE = ""
@@ -37,6 +38,7 @@ function rowOf(library: Library, r: AnyEntryRef, naming: Naming): LibraryRow {
       title,
       type: page?.type ?? NO_TYPE,
       readable: page !== undefined && page.kind !== "unreadable",
+      locked: page !== undefined && page.kind !== "unreadable" && page.locked === true,
     }
   }
   const row = folders[r.id]
@@ -46,6 +48,7 @@ function rowOf(library: Library, r: AnyEntryRef, naming: Naming): LibraryRow {
     title,
     type: row?.folderRole === "binder" ? row.pageType : NO_TYPE,
     readable: row !== undefined,
+    locked: row?.folderRole === "book" && row.locked === true,
   }
 }
 

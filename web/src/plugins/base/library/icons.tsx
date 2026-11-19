@@ -3,6 +3,7 @@ import type { EntryKind } from "../../../core/entries"
 import { useUiCatalog } from "../../../ui/store-context"
 import { REDO_ICON, UNDO_ICON } from "../history/icons"
 import { icon } from "../icon"
+import { LockIcon } from "../lock/LockIcon"
 import { BookIcon, BookOpenIcon } from "../utils/book-icons"
 import { FolderIcon, FolderOpenIcon } from "../utils/folder-icons"
 import { LIBRARY_REDO, LIBRARY_UNDO } from "./commands"
@@ -36,26 +37,43 @@ const ICONS = { folder: <FolderIcon />, book: <BookIcon />, binder: BINDER, page
 
 export const iconOf = (kind: EntryKind) => ICONS[kind]
 
-// 行 row のアイコンを、className（styles.icon か styles.bigIcon）の枠に描く。ページは、タイプが pageTypeIcons で名乗ったアイコン（ページタブと同じ絵。
+// 行 row のアイコンを、className（styles.icon か styles.bigIcon）の枠に描く。ロック中のページ・ブックは、右上に小さな鍵を重ねる。ページは、タイプが pageTypeIcons で名乗ったアイコン（ページタブと同じ絵。
 // 枠いっぱいに広げ、絵が決めていない線は引かない）。ブックは固定色の本の絵（base の BookIcon）、フォルダは固定色のフォルダの絵（FolderIcon）で、open（ツリーで中を見せている）なら開いた本・開いたフォルダ。名乗らないタイプ・バインダは、種類の絵
 export function RowIcon({
   row,
   className,
   open = false,
 }: {
-  row: Pick<LibraryRow, "kind" | "type">
+  row: Pick<LibraryRow, "kind" | "type"> & { locked?: boolean }
   className: string | undefined
   open?: boolean
 }) {
   const typed = useUiCatalog().pageTypeIcons.get(row.type)
-  if (row.kind === "book")
-    return <span className={`${className} ${styles.typed}`}>{open ? <BookOpenIcon /> : <BookIcon />}</span>
-  if (row.kind === "folder")
-    return <span className={`${className} ${styles.typed}`}>{open ? <FolderOpenIcon /> : <FolderIcon />}</span>
-  return row.kind === "page" && typed !== undefined ? (
-    <span className={`${className} ${styles.typed}`}>{typed}</span>
-  ) : (
-    <span className={className}>{iconOf(row.kind)}</span>
+  const picture =
+    row.kind === "book" ? (
+      open ? (
+        <BookOpenIcon />
+      ) : (
+        <BookIcon />
+      )
+    ) : row.kind === "folder" ? (
+      open ? (
+        <FolderOpenIcon />
+      ) : (
+        <FolderIcon />
+      )
+    ) : row.kind === "page" && typed !== undefined ? (
+      typed
+    ) : undefined
+  return (
+    <span className={picture === undefined ? className : `${className} ${styles.typed}`}>
+      {picture ?? iconOf(row.kind)}
+      {row.locked && (
+        <span className={styles.lock}>
+          <LockIcon />
+        </span>
+      )}
+    </span>
   )
 }
 
