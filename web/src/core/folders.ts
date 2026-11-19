@@ -586,7 +586,7 @@ function toPutBackRows(
 // （もう置き直す側の値の所は飛ばす）。どちらの値でもない所が 1 つでも在れば null（ほかの変更とぶつかった。上から置くと、その変更を消す）。
 // 行を丸ごと置く値が、今在る行に向いていても null（無かったはずの行が在るのは、ほかの変更が先に置いたか、その間に変えたとき）。
 // ページとフォルダは別々に置き直すので、行った後に、エントリとその中身が食い違う所を落とす: 中身が表に無いエントリは並びから外し、
-// どのフォルダ（ブックを含む）の並びからもたどれないページとバインダは表から外す
+// どのフォルダ（ブックを含む）の並びからもたどれないページとバインダは表から外す。落とすのは patches の挙げた行の中だけで、ほかの行に及ぶなら null
 export function restoredTables(tables: Library, patches: RowPatches): Library | null {
   if (putsOverRow(tables.pages, patches.pages) || putsOverRow(tables.folders, patches.folders)) return null
   const pagesBack = toPutBackRows(tables.pages, patches.pages)
@@ -630,8 +630,18 @@ export function restoredTables(tables: Library, patches: RowPatches): Library | 
     pages: left.length === Object.keys(pages).length ? pages : Object.fromEntries(left),
     folders: sameFolders ? folders : kept,
   }
+  // 落とすのが、置き直す値の挙げていない行（ほかの変更が動かした先の並びなど）に及ぶなら、ぶつかった
+  if (touchesOthers(pages, next.pages, patches.pages) || touchesOthers(folders, next.folders, patches.folders))
+    return null
   return sameRows(tables.pages, next.pages) && sameRows(tables.folders, next.folders) ? tables : next
 }
+
+// 表 was から now へ変わった行に、置き直す値 patches の挙げていない行が在るか
+const touchesOthers = (
+  was: Readonly<Record<string, unknown>>,
+  now: Readonly<Record<string, unknown>>,
+  patches: Readonly<Record<string, Patch>>,
+) => Object.keys(was).some(id => was[id] !== now[id] && !(id in patches))
 
 // 表 was と now が、同じ id の行を、同じ中身で持つか
 function sameRows(was: Readonly<Record<string, unknown>>, now: Readonly<Record<string, unknown>>): boolean {

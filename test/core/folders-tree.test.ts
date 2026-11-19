@@ -149,11 +149,23 @@ describe("木の決まり", () => {
       false,
     )
     // 置き直しても、ブックの外のページとバインダは残り、中身の無いエントリだけが外れる
-    const restored = restoredTables(world, { pages: { q1: { absent: true, was: loose } }, folders: {} }) as Library
+    const without = (id: string) => ({
+      fields: { lineup: { set: holding.lineup.filter(r => r.id !== id), was: holding.lineup } },
+    })
+    // 片付けが、置き直す値の挙げていない行（入れていた並び）に及ぶなら断る
+    expect(restoredTables(world, { pages: { q1: { absent: true, was: loose } }, folders: {} })).toBeNull()
+    const restored = restoredTables(world, {
+      pages: { q1: { absent: true, was: loose } },
+      folders: { old: without("q1") },
+    }) as Library
     expect(restored.folders.old?.lineup).toEqual([...old.lineup, { kind: "binder", id: "f9" }])
     expect(Object.keys(restored.pages)).toContain("s9")
     expect(treeHolds(restored)).toBe(true)
-    const gone = restoredTables(world, { pages: {}, folders: { f9: { absent: true, was: binder } } }) as Library
+    expect(restoredTables(world, { pages: {}, folders: { f9: { absent: true, was: binder } } })).toBeNull()
+    const gone = restoredTables(world, {
+      pages: { s9: { absent: true, was: slide } },
+      folders: { f9: { absent: true, was: binder }, old: without("f9") },
+    }) as Library
     expect(gone.folders.old?.lineup).toEqual([...old.lineup, { kind: "page", id: "q1" }])
     expect(Object.keys(gone.pages)).not.toContain("s9")
   })
@@ -179,7 +191,11 @@ describe("木の決まり", () => {
     expect(treeHolds(withFolders(t, { ...kept, lineup: [...kept.lineup, { kind: "folder", id: TRASH_ID }] }))).toBe(
       false,
     )
-    const restored = restoredTables(t, { pages: { p1: { absent: true, was: t.pages.p1 } }, folders: {} }) as Library
+    const b1Lineup = (t.folders.b1 as Folder).lineup
+    const restored = restoredTables(t, {
+      pages: { p1: { absent: true, was: t.pages.p1 } },
+      folders: { b1: { fields: { lineup: { set: b1Lineup.filter(r => r.id !== "p1"), was: b1Lineup } } } },
+    }) as Library
     expect(restored.folders[TRASH_ID]).toBe(trash)
     // 完全に消したブックは、ゴミ箱の並びからも外れる
     const purged = placedChanges(t, { pages: { p2: REMOVED }, folders: { b2: REMOVED } })
@@ -350,7 +366,11 @@ describe("置き直し（元に戻す）", () => {
 
   test("ブックのページを置き直しても、書庫ホームとフォルダは残る", () => {
     const t = tables()
-    const next = restoredTables(t, { pages: { p2: { absent: true, was: t.pages.p2 } }, folders: {} }) as Library
+    const b2Lineup = (t.folders.b2 as Folder).lineup
+    const next = restoredTables(t, {
+      pages: { p2: { absent: true, was: t.pages.p2 } },
+      folders: { b2: { fields: { lineup: { set: b2Lineup.filter(r => r.id !== "p2"), was: b2Lineup } } } },
+    }) as Library
     expect(next.folders[HOME_ID]).toBe(t.folders[HOME_ID]!)
     expect(next.folders.old).toBe(t.folders.old!)
     expect(treeHolds(next)).toBe(true)

@@ -331,3 +331,26 @@ test("まだ見ていない書庫の変更が HISTORY_LIMIT を超えたら、�
   // いちばん古い段は、2 回目の変更（1 回目の後の名前から）
   expect(libraryHistory(here).undo[0]).toMatchObject({ folders: { b1: { before: { title: "AI の名前 0" } } } })
 })
+
+test("書庫で足したページを、まだ見ていない AI がほかのブックへ動かしていたら、足したのを戻すと断る（動かした先のブックの並びを変えない）。ページは残り、消えたと知らせない", async () => {
+  const { here, there, told, foreign } = pair()
+  const made = here.actions.perform("@matomezu/base:page-create", {
+    folder: "b1",
+    type: "@matomezu/drawing:drawing",
+    title: "新",
+  })
+  await settled()
+  const page = (made as { result: { page: string } }).result.page
+  there.receive(rowsOf(here), [])
+  here.receive(rowsOf(there), [])
+  await foreign(
+    { by: "ai", act: "3", actions: ["@matomezu/base:entry-move"] },
+    { run: () => void there.actions.perform("@matomezu/base:entry-move", { entry: page, into: "b2" }), library: true },
+  )
+  expect(here.state.getState().folders.b2?.lineup.map(r => r.id)).toContain(page)
+  expect(here.actions.command("s1", "@matomezu/base:library-undo")).toBe(true)
+  expect(here.state.getState().toasts.at(-1)).toMatchObject({ kind: "warn" })
+  expect(page in here.state.getState().pages).toBe(true)
+  expect(here.state.getState().folders.b2?.lineup.map(r => r.id)).toContain(page)
+  expect(told.filter(t => t.outcome === "lost")).toEqual([])
+})
