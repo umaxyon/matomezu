@@ -35,7 +35,6 @@ test("書庫でフォルダへ入るとパンくずが伸び、ブラウザの�
   await expect(tree.getByRole("button", { name: "仕事", exact: true })).toHaveAttribute("aria-current", "true")
   await tree.getByRole("button", { name: "仕事 の中を出す" }).click()
   await expect(tree.getByRole("button", { name: book.title, exact: true })).toBeVisible()
-  await page.screenshot({ path: "/tmp/m0126/library.png" })
   // ブラウザの戻るで書庫ホームへ、進むでフォルダへ
   await page.goBack()
   await expect(path.getByRole("button")).toHaveText(["書庫"])
@@ -473,7 +472,6 @@ test("書庫の行をドラッグして、行の間（その位置へ）・フ�
   await dragTo(icon("ドラッグ イ"), icon("ドラッグの箱"), { x: 0.1, y: 0.5 })
   await expect(icon("ドラッグ イ")).toHaveAttribute("data-dragging", "true")
   await expect(icon("ドラッグの箱")).toHaveAttribute("data-drop", "before")
-  await page.screenshot({ path: "/tmp/m0126-drag-between.png" })
   await page.mouse.up()
   expect(await names()).toEqual(["ドラッグ イ", "ドラッグの箱", "ドラッグ ア"])
   // 落としたあとの click で、落とした先の行を選んだり開いたりしない（選んでいた イ のまま）
@@ -497,7 +495,6 @@ test("書庫の行をドラッグして、行の間（その位置へ）・フ�
   // フォルダの上（中へ）: イ を箱の中へ。行に色が付く
   await dragTo(icon("ドラッグ イ"), icon("ドラッグの箱"), { x: 0.5, y: 0.5 })
   await expect(icon("ドラッグの箱")).toHaveAttribute("data-drop", "into")
-  await page.screenshot({ path: "/tmp/m0126-drag-into.png" })
   await page.mouse.up()
   expect(await names()).toEqual(["ドラッグの箱", "ドラッグ ア"])
 
@@ -538,4 +535,48 @@ test("書庫の行をドラッグして、行の間（その位置へ）・フ�
   await inside.getByRole("button", { name: "ドラッグ ア", exact: true }).click()
   await page.keyboard.press("Control+z")
   await expect(inside.getByRole("button")).toHaveText(["ドラッグ ア", "ドラッグ ア 2", "ドラッグ イ"])
+})
+
+test("書庫の検索は、名前に言葉を含む物を右の枠に並べる。行を押すとツリーのその行へ移り、2 回押すと開く。欄を空にすると元の表示に戻る", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await page.bringToFront()
+  const made = await perform(page, "@matomezu/base:folder-create", { title: "検索の試しの所" })
+  const folder = (made.result as { folder: string }).folder
+  expect(await perform(page, "@matomezu/base:book-create", { title: "検索の試しの帳面", into: folder })).toMatchObject({
+    ok: true,
+  })
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  const field = page.getByRole("textbox", { name: "名前で検索" })
+  const found = page.getByRole("list", { name: "見つかった物" })
+  await field.fill("検索の試し")
+  await page.keyboard.press("Enter")
+  await expect(page.getByRole("status")).toHaveText("「検索の試し」を含む名前: 2 件")
+  await expect(found.getByRole("button")).toHaveText([/検索の試しの所/, /検索の試しの帳面.*検索の試しの所/])
+  // 行を押すと、ツリーのその行が出て、今いる行になる
+  await found.getByRole("button", { name: /検索の試しの帳面/ }).click()
+  const tree = page.getByRole("navigation", { name: "フォルダ" })
+  await expect(tree.getByRole("button", { name: "検索の試しの帳面", exact: true })).toHaveAttribute(
+    "aria-current",
+    "true",
+  )
+  await expect(found.getByRole("button", { name: /検索の試しの帳面/ })).toHaveAttribute("aria-pressed", "true")
+  // 見つからない言葉
+  await field.fill("どこにも無い名前")
+  await page.getByRole("button", { name: "検索", exact: true }).click()
+  await expect(page.getByRole("status")).toHaveText("「どこにも無い名前」を含む名前はありません")
+  // 欄を空にすると、元の表示（開いているフォルダの中身）に戻る
+  await field.fill("")
+  await expect(found).toHaveCount(0)
+  await expect(page.getByRole("navigation", { name: "場所" }).getByRole("button")).toHaveText([
+    "書庫",
+    "検索の試しの所",
+    "検索の試しの帳面",
+  ])
+  // 2 回押すと開く
+  await field.fill("検索の試しの帳面")
+  await page.keyboard.press("Enter")
+  await found.getByRole("button", { name: /検索の試しの帳面/ }).dblclick()
+  await expect.poll(() => urlFront(page)).toBe(BOOK_SCREEN_DEF)
 })

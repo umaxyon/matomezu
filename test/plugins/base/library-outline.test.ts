@@ -16,6 +16,7 @@ import {
   treeCurrentOf,
   treeRowsOf,
 } from "../../../web/src/plugins/base/library/outline"
+import { foundRowsOf } from "../../../web/src/plugins/base/library/search"
 import { newStore } from "../../support"
 
 const NOW = "2026-11-18T01:00:00.000Z"
@@ -188,4 +189,24 @@ test("ツリーに出ている行は、一番上の行と、中を出してい�
   expect(treeCurrentOf(library().folders, "b1", "p1")).toBe("p1")
   expect(treeCurrentOf(library().folders, HOME_ID, "b1")).toBe(HOME_ID)
   expect(treeCurrentOf(library().folders, folder, undefined)).toBe(folder)
+})
+
+test("検索は、名前に言葉を含む物を書庫ホームから下へ並びの順に出す（大文字と小文字は分けない。前後の空白は除く）。置き場所は上のフォルダの名前の列。ゴミ箱の物は出ない", () => {
+  const { library, folder, perform } = setup()
+  expect(foundRowsOf(library(), undefined)).toEqual([])
+  expect(foundRowsOf(library(), "  ")).toEqual([])
+  const b2 = library().books.b2?.title as string
+  const found = foundRowsOf(library(), ` ${b2.toUpperCase()} `)
+  expect(found.find(r => r.id === "b2")).toMatchObject({ kind: "book", holder: folder, place: ["仕事"] })
+  // フォルダも、ブックの中のページも出る
+  expect(foundRowsOf(library(), "仕事").map(r => r.id)).toEqual([folder])
+  const p1 = rowsIn(library(), "b1").find(r => r.id === "p1")?.title as string
+  expect(foundRowsOf(library(), p1).find(r => r.id === "p1")).toMatchObject({
+    kind: "page",
+    holder: "b1",
+    place: [library().books.b1?.title],
+  })
+  expect(perform("@matomezu/base:entry-trash", { entry: folder }).ok).toBe(true)
+  expect(foundRowsOf(library(), "仕事")).toEqual([])
+  expect(foundRowsOf(library(), b2).some(r => r.id === "b2")).toBe(false)
 })

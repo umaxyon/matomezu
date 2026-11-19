@@ -1,7 +1,7 @@
 // 書庫の画面: 左にツリー（書庫ホームとゴミ箱が一番上に並ぶ）、右にパンくずと、開いているフォルダの中身。
 // 1 回押すと選び（ツリーのフォルダ・ブック・バインダは、右の枠にその中身を出す）、2 回押すと開く（フォルダは中へ入り、ブックとその中のページ・バインダは窓に出す）。
 // ゴミ箱は、ツリーでは中を出さず、右の枠に捨てた物の一覧を出す（TrashView.tsx）。読めない物は、選べるだけ。開いているフォルダは画面の場所に入り、選んでいる行は入らない（state.ts）
-import { type KeyboardEvent, type MouseEvent, useEffect, useRef } from "react"
+import { type KeyboardEvent, type MouseEvent, useEffect, useId, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { titleOf } from "../../../core/entries"
 import { HOME_ID, TRASH_ID } from "../../../core/folders"
@@ -11,7 +11,7 @@ import { useContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
 import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
 import { useActions, usePluginState, useReadPluginState, useSetPluginState } from "../../../ui/view-hooks"
-import { ActionButton } from "../dialog-host/FormParts"
+import { ActionButton, controlClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { rowAboveOrBelow } from "./arrows"
 import {
@@ -23,6 +23,7 @@ import {
 } from "./commands"
 import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG } from "./dialog"
 import { holderForNew } from "./entries"
+import { FoundView } from "./FoundView"
 import { HistoryButtons } from "./HistoryButtons"
 import { useKeepFocusIn, useLibraryRows, useNameOf } from "./hooks"
 import { CHEVRON, iconOf, TRASH } from "./icons"
@@ -41,7 +42,8 @@ import {
   treeCurrentOf,
   unfoldedOf,
 } from "./outline"
-import { LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_UNFOLDED } from "./state"
+import { type FoundRow, NO_SEARCH, searchWord } from "./search"
+import { LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_QUERY, LIBRARY_UNFOLDED } from "./state"
 import { TrashView } from "./TrashView"
 import { type LibraryDrag, useLibraryDrag } from "./useLibraryDrag"
 
@@ -99,6 +101,19 @@ export function LibraryView() {
     const over = pathTo(read().folders, folder).slice(0, -1)
     if (over.some(id => !shown.has(id))) setUnfolded([...new Set([...unfolded, ...over])])
   }
+  // 検索: 欄に打っている途中の言葉 typed と、「検索」を押して探している言葉 query
+  const query = usePluginState(kit, LIBRARY_QUERY)
+  const setQuery = useSetPluginState(kit, LIBRARY_QUERY)
+  const [typed, setTyped] = useState(query ?? "")
+  const searchForm = useId()
+  // 見つかった行 row へ、ツリーで移る: 中へ入れる行なら、その中身を出す。入れない行（ページなど）なら、それを持つフォルダの中身を出して、その行を選ぶ
+  const reveal = (row: FoundRow) => {
+    if (holdsRows(row)) return enter(row.id)
+    if (row.holder !== opened) setFolder(row.holder)
+    setPicked(row.id)
+    const over = pathTo(read().folders, row.holder)
+    if (over.some(id => !shown.has(id))) setUnfolded([...new Set([...unfolded, ...over])])
+  }
   const openEntryMenu = useContextMenu(LIBRARY_ENTRY_CONTEXT)
   const openFolderMenu = useContextMenu(LIBRARY_FOLDER_CONTEXT)
   const { drag, asking, onPointerDown, answered } = useLibraryDrag(root, id => {
@@ -145,84 +160,124 @@ export function LibraryView() {
       tabIndex={-1}
       onPointerDown={onPointerDown}
     >
-      <nav className={styles.tree} aria-label={t("Folders")} data-key-scope={LIBRARY_TREE_SCOPE}>
-        <ul className={styles.rows}>
-          {TOPS.map(top => (
-            <TreeNode key={top.id} row={top} holder={top.id} depth={0} handlers={handlers} />
-          ))}
-        </ul>
-      </nav>
-      <div className={styles.right}>
-        <nav className={styles.path} aria-label={t("Where it is")}>
-          {path.map((id, i) => (
-            <span key={id}>
-              {i > 0 && <span className={styles.sep}> › </span>}
-              <button
-                type="button"
-                className={styles.crumb}
-                aria-current={id === opened ? "true" : undefined}
-                onClick={() => enter(id)}
-              >
-                {nameOf({ id, title: titles[i] ?? NO_TITLE })}
-              </button>
-            </span>
-          ))}
-        </nav>
-        {opened !== TRASH_ID && (
-          <div className={styles.tools}>
-            {into !== undefined && (
-              <>
-                <ActionButton onClick={() => openDialog(LIBRARY_NEW_BOOK_DIALOG.id, { into })}>
-                  {t("Create book")}
-                </ActionButton>
-                <ActionButton onClick={() => openDialog(LIBRARY_NEW_FOLDER_DIALOG.id, { into })}>
-                  {t("New folder")}
-                </ActionButton>
-              </>
-            )}
-            <HistoryButtons />
-          </div>
-        )}
-        {opened === TRASH_ID ? (
-          <TrashView picked={picked} onPick={setPicked} />
-        ) : rows.length === 0 ? (
-          <p className={styles.blank} onContextMenu={e => openFolderMenu(e, { folder: opened })}>
-            {t("Nothing inside")}
-          </p>
-        ) : (
-          <ul
-            className={styles.contents}
-            aria-label={t("Contents of {name}", { name: here })}
-            onContextMenu={e => openFolderMenu(e, { folder: opened })}
-            data-key-scope={LIBRARY_CONTENTS_SCOPE}
-            onKeyDown={rowAboveOrBelow}
+      <div className={styles.left}>
+        <search>
+          <form
+            id={searchForm}
+            className={styles.search}
+            onSubmit={e => {
+              e.preventDefault()
+              setQuery(searchWord(typed) === NO_SEARCH ? undefined : typed.trim())
+            }}
           >
-            {rows.map(row => (
-              <li key={row.id}>
-                <button
-                  type="button"
-                  className={styles.entry}
-                  data-library-row={row.id}
-                  data-holder={opened}
-                  {...dragMarks(drag, LIBRARY_CONTENTS_SCOPE, row.id)}
-                  aria-pressed={row.id === picked}
-                  onClick={() => setPicked(row.id)}
-                  onDoubleClick={() => handlers.open(row)}
-                  onKeyDown={e => openOnEnter(e, () => handlers.open(row))}
-                  onContextMenu={e => {
-                    setPicked(row.id)
-                    handlers.menu(e, row)
-                  }}
-                >
-                  <span className={styles.bigIcon}>{iconOf(row.kind)}</span>
-                  <span className={row.readable ? styles.caption : `${styles.caption} ${styles.unreadable}`}>
-                    {nameOf(row)}
-                  </span>
-                  {!row.readable && <span className={styles.note}>{t("Cannot be read")}</span>}
-                </button>
-              </li>
+            <input
+              className={controlClass}
+              aria-label={t("Search by name")}
+              placeholder={t("Search by name")}
+              value={typed}
+              onChange={e => {
+                setTyped(e.target.value)
+                // 欄を空にしたら、元の表示に戻す
+                if (e.target.value === "") setQuery(undefined)
+              }}
+            />
+            <ActionButton form={searchForm}>{t("Search")}</ActionButton>
+          </form>
+        </search>
+        <nav className={styles.tree} aria-label={t("Folders")} data-key-scope={LIBRARY_TREE_SCOPE}>
+          <ul className={styles.rows}>
+            {TOPS.map(top => (
+              <TreeNode key={top.id} row={top} holder={top.id} depth={0} handlers={handlers} />
             ))}
           </ul>
+        </nav>
+      </div>
+      <div className={styles.right}>
+        {query !== undefined ? (
+          <FoundView
+            query={query}
+            current={current}
+            onPick={reveal}
+            onOpen={handlers.open}
+            onMenu={(e, row) => {
+              reveal(row)
+              handlers.menu(e, row)
+            }}
+          />
+        ) : (
+          <>
+            <nav className={styles.path} aria-label={t("Where it is")}>
+              {path.map((id, i) => (
+                <span key={id}>
+                  {i > 0 && <span className={styles.sep}> › </span>}
+                  <button
+                    type="button"
+                    className={styles.crumb}
+                    aria-current={id === opened ? "true" : undefined}
+                    onClick={() => enter(id)}
+                  >
+                    {nameOf({ id, title: titles[i] ?? NO_TITLE })}
+                  </button>
+                </span>
+              ))}
+            </nav>
+            {opened !== TRASH_ID && (
+              <div className={styles.tools}>
+                {into !== undefined && (
+                  <>
+                    <ActionButton onClick={() => openDialog(LIBRARY_NEW_BOOK_DIALOG.id, { into })}>
+                      {t("Create book")}
+                    </ActionButton>
+                    <ActionButton onClick={() => openDialog(LIBRARY_NEW_FOLDER_DIALOG.id, { into })}>
+                      {t("New folder")}
+                    </ActionButton>
+                  </>
+                )}
+                <HistoryButtons />
+              </div>
+            )}
+            {opened === TRASH_ID ? (
+              <TrashView picked={picked} onPick={setPicked} />
+            ) : rows.length === 0 ? (
+              <p className={styles.blank} onContextMenu={e => openFolderMenu(e, { folder: opened })}>
+                {t("Nothing inside")}
+              </p>
+            ) : (
+              <ul
+                className={styles.contents}
+                aria-label={t("Contents of {name}", { name: here })}
+                onContextMenu={e => openFolderMenu(e, { folder: opened })}
+                data-key-scope={LIBRARY_CONTENTS_SCOPE}
+                onKeyDown={rowAboveOrBelow}
+              >
+                {rows.map(row => (
+                  <li key={row.id}>
+                    <button
+                      type="button"
+                      className={styles.entry}
+                      data-library-row={row.id}
+                      data-holder={opened}
+                      {...dragMarks(drag, LIBRARY_CONTENTS_SCOPE, row.id)}
+                      aria-pressed={row.id === picked}
+                      onClick={() => setPicked(row.id)}
+                      onDoubleClick={() => handlers.open(row)}
+                      onKeyDown={e => openOnEnter(e, () => handlers.open(row))}
+                      onContextMenu={e => {
+                        setPicked(row.id)
+                        handlers.menu(e, row)
+                      }}
+                    >
+                      <span className={styles.bigIcon}>{iconOf(row.kind)}</span>
+                      <span className={row.readable ? styles.caption : `${styles.caption} ${styles.unreadable}`}>
+                        {nameOf(row)}
+                      </span>
+                      {!row.readable && <span className={styles.note}>{t("Cannot be read")}</span>}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
         )}
       </div>
       {asking && <MoveClashConfirm asking={asking} onDone={answered} />}

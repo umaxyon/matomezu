@@ -7,12 +7,71 @@
   color: var(--skin-text);
   outline: none;
 }
-.tree {
+/* 左: 検索の欄と、その下にツリー */
+.left {
+  display: flex;
   flex: none;
+  flex-direction: column;
   width: 260px;
+  border-right: 1px solid var(--skin-border-strong);
+}
+.search {
+  display: flex;
+  flex: none;
+  gap: 6px;
+  align-items: center;
+  padding: 8px 6px 2px;
+}
+.search input {
+  flex: 1;
+  min-width: 0;
+}
+.tree {
+  flex: 1;
+  min-height: 0;
   padding: 6px;
   overflow: auto;
-  border-right: 1px solid var(--skin-border-strong);
+}
+/* 検索の結果: 1 行に、種類のアイコン・名前・置き場所 */
+.found {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: 12px;
+  overflow: auto;
+}
+.foundHead {
+  margin: 0 0 8px;
+  padding: 0 8px;
+  color: var(--skin-text-muted);
+}
+.foundRows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.foundRow {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.foundRow:hover {
+  background: var(--skin-btn-hover);
+}
+.foundRow[aria-pressed="true"] {
+  background: var(--skin-btn);
+  outline: 1px solid var(--skin-accent);
 }
 .rows {
   margin: 0;
