@@ -61,6 +61,7 @@ func rowHead(body json.RawMessage) (title, pageType, binderType string) {
 }
 
 // folderTitle は、フォルダの行の本文 body の、AI に見せる名前と、システムフォルダならその印。システムフォルダの名前は、定義の英語の名前（定義が無ければ空）
+// 名前の読み方は、web/src/core/entries.ts の rowTitle（言語を英語にしたとき）と同じ決まり
 func (h *Hub) folderTitle(body json.RawMessage) (title, systemFolder string) {
 	var row struct {
 		Title        string `json:"title"`
