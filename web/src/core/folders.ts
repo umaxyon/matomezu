@@ -54,13 +54,13 @@ export interface HomeFolder {
   id: typeof HOME_ID
   lineup: readonly AnyEntryRef[]
 }
-// フォルダ（ブックでもバインダでもない物）: 名前と、エントリの id の並び
-export interface PlainFolder {
+// フォルダ（ブックでもバインダでもない物）: 名前と、エントリの id の並び。システムフォルダ（core/def/system-folder.ts）は、名前の代わりに
+// 印 systemFolder（システムフォルダの定義の id）を持つ（名前は定義から引く。core/entries.ts の rowTitle）
+export type PlainFolder = {
   folderRole: "folder"
   id: string
-  title: string
   lineup: readonly AnyEntryRef[]
-}
+} & ({ title: string; systemFolder?: never } | { systemFolder: string; title?: never })
 // ゴミ箱: 書庫ホームと並ぶ、書庫の一番上のフォルダ。名前は持たない
 export interface TrashFolder {
   folderRole: "trash"
@@ -78,13 +78,20 @@ export const isOpenRole = (role: unknown): role is HomeOrFolder["folderRole"] =>
 
 const AnyEntryRefSchema = z.strictObject({ kind: z.enum(["page", "binder", "book", "folder"]), id: z.string().min(1) })
 const TrashRefSchema = AnyEntryRefSchema.extend({ trashed: z.string().min(1), from: z.array(z.string().min(1)) })
-const HomeOrFolderSchema = z.discriminatedUnion("folderRole", [
+const HomeOrFolderSchema = z.union([
   z.strictObject({ folderRole: z.literal("home"), id: z.literal(HOME_ID), lineup: z.array(AnyEntryRefSchema) }),
   z.strictObject({ folderRole: z.literal("trash"), id: z.literal(TRASH_ID), lineup: z.array(TrashRefSchema) }),
+  // フォルダは名前を持ち、システムフォルダは名前の代わりに印を持つ（両方は持たない）
   z.strictObject({
     folderRole: z.literal("folder"),
     id: z.string().min(1),
     title: z.string().min(1),
+    lineup: z.array(AnyEntryRefSchema),
+  }),
+  z.strictObject({
+    folderRole: z.literal("folder"),
+    id: z.string().min(1),
+    systemFolder: z.string().min(1),
     lineup: z.array(AnyEntryRefSchema),
   }),
 ])
@@ -331,9 +338,43 @@ function refFits(pages: Pages, folders: Folders, r: AnyEntryRef): boolean {
   return row?.folderRole === r.kind
 }
 
+// フォルダ f がシステムフォルダなら、その印（システムフォルダの定義の id）。ほかは undefined
+export const systemFolderOf = (f: Folder | undefined): string | undefined =>
+  f?.folderRole === "folder" && typeof f.systemFolder === "string" ? f.systemFolder : undefined
+
+// システムフォルダの決まり: システムフォルダは、書庫ホームかゴミ箱の直下だけに在る。書庫ホームの直下では、並びの先頭に、印の順に並ぶ
+// （同じ印は、ゴミ箱の外に 1 つだけ）
+function systemFoldersHold(folders: Folders, holder: ReadonlyMap<string, string>): boolean {
+  for (const f of Object.values(folders)) {
+    if (systemFolderOf(f) === undefined) continue
+    const at = holder.get(f.id)
+    if (at !== HOME_ID && at !== TRASH_ID) return false
+  }
+  let last: string | undefined
+  let pinned = true
+  for (const r of folders[HOME_ID]?.lineup ?? []) {
+    const mark = r.kind === "folder" ? systemFolderOf(folders[r.id]) : undefined
+    if (mark === undefined) {
+      pinned = false
+      continue
+    }
+    if (!pinned || (last !== undefined && mark <= last)) return false
+    last = mark
+  }
+  return true
+}
+
+// 書庫ホームの直下の、先頭に並ぶシステムフォルダの数（ほかのエントリは、この数より前に置けない）
+export const pinnedCount = (folders: Folders): number => {
+  const lineup = folders[HOME_ID]?.lineup ?? []
+  const at = lineup.findIndex(r => r.kind !== "folder" || systemFolderOf(folders[r.id]) === undefined)
+  return at < 0 ? lineup.length : at
+}
+
 // 木の決まり: 書庫ホームが在る（ゴミ箱は、在れば 1 つ）／書庫ホームとゴミ箱はどのフォルダにも入らない／そのほかのフォルダは、ちょうど 1 つのフォルダに入り、
 // 上へたどると書庫ホームかゴミ箱に着く（輪にならない）／ページは、どれかのフォルダ（ブック・バインダを含む）に入る／書庫ホーム・ゴミ箱・フォルダのエントリは、
-// 種類が合う（page は表に在るページ、binder はバインダ、folder は表に在るフォルダ、book はブック）／ブックとバインダは、ブックもフォルダも持たない（型が決める）
+// 種類が合う（page は表に在るページ、binder はバインダ、folder は表に在るフォルダ、book はブック）／ブックとバインダは、ブックもフォルダも持たない（型が決める）／
+// システムフォルダは書庫ホームかゴミ箱の直下だけに在り、書庫ホームでは先頭に印の順に並ぶ（同じ印はゴミ箱の外に 1 つ）
 export function treeHolds({ pages, folders }: Library): boolean {
   if (folders[HOME_ID]?.folderRole !== "home") return false
   const trash = folders[TRASH_ID]
@@ -349,6 +390,7 @@ export function treeHolds({ pages, folders }: Library): boolean {
   const isTop = (id: string | undefined) => id === HOME_ID || id === TRASH_ID
   if (holder.has(HOME_ID) || holder.has(TRASH_ID)) return false
   if (!Object.keys(pages).every(id => holder.has(id))) return false
+  if (!systemFoldersHold(folders, holder)) return false
   return Object.values(folders).every(f => {
     const passed = new Set<string>()
     let at: string | undefined = f.id

@@ -24,7 +24,7 @@ export function FoundView({
 }) {
   const t = useMessages(kit)
   const nameOf = useNameOf()
-  const rows = useLibraryRows(`found:${query}`, s => foundRowsOf(s, query))
+  const rows = useLibraryRows(`found:${query}`, (s, naming) => foundRowsOf(s, query, naming))
   // Tab で止まる行（ツリーで今いる行。一覧に無ければ最初の行）
   const tabbable = tabStopOf(
     rows.map(r => r.id),

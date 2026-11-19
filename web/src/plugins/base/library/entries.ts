@@ -5,6 +5,7 @@ import {
   isMoveRefusal,
   isWithin,
   type MoveRefusal,
+  type Naming,
   placeOf,
   removedEntry,
   restoredEntry,
@@ -77,8 +78,14 @@ export const holderForNew = (folders: Folders, opened: string): string | undefin
   holdsEntries(folders, opened) ? opened : foldersOver(folders, opened).find(f => holdsEntries(folders, f.id))?.id
 
 // エントリ entry（種類 kind）の名前を title にした書庫（名前を持たない物・書庫に無い物は null。同じ名前なら library のまま）
-export function retitled(library: Library, kind: EntryKind, entry: string, title: string): Library | null {
-  const now = titleOf(library, kind, entry)
+export function retitled(
+  library: Library,
+  kind: EntryKind,
+  entry: string,
+  title: string,
+  naming: Naming,
+): Library | null {
+  const now = titleOf(library, kind, entry, naming)
   if (now === undefined) return null
   if (now === title) return library
   if (kind === "page")
@@ -94,16 +101,28 @@ export function retitled(library: Library, kind: EntryKind, entry: string, title
 
 // フォルダ into の直下に在る（か、そこへ入れる）エントリ entry（種類 kind）の、そのフォルダのほかの物と重ならない名前（重なっていれば「名前 2」から番号を付ける。重ならなければ今の名前）。
 // 名前を持たない物・フォルダが無いときは undefined
-export function freeTitleIn(library: Library, kind: EntryKind, entry: string, into: string): string | undefined {
+export function freeTitleIn(
+  library: Library,
+  kind: EntryKind,
+  entry: string,
+  into: string,
+  naming: Naming,
+): string | undefined {
   const holder = library.folders[into]
-  const title = titleOf(library, kind, entry)
-  return !holder || title === undefined ? undefined : freeTitle(title, titlesIn(library, holder, entry))
+  const title = titleOf(library, kind, entry, naming)
+  return !holder || title === undefined ? undefined : freeTitle(title, titlesIn(library, holder, naming, entry))
 }
 
 // フォルダ into の直下に在るエントリ entry（種類 kind）の名前が、同じフォルダのほかの物と重なっていれば、番号を付けた名前（「名前 2」から）にした書庫。重ならなければ library のまま
-export function numbered(library: Library, kind: EntryKind, entry: string, into: string): Library | null {
-  const title = freeTitleIn(library, kind, entry, into)
-  return title === undefined ? null : retitled(library, kind, entry, title)
+export function numbered(
+  library: Library,
+  kind: EntryKind,
+  entry: string,
+  into: string,
+  naming: Naming,
+): Library | null {
+  const title = freeTitleIn(library, kind, entry, into, naming)
+  return title === undefined ? null : retitled(library, kind, entry, title, naming)
 }
 
 // ゴミ箱から戻す先のフォルダの id: 元いたフォルダから上への列 from（近い順）のうち、今も在ってゴミ箱でもその中でもない最初のフォルダ。どれも無ければ書庫ホーム
@@ -123,19 +142,20 @@ export interface RestorePlan {
 export const SAME_TITLE = ""
 
 // ゴミ箱の直下に無ければ undefined
-export function restorePlanOf(library: Library, entry: string): RestorePlan | undefined {
+export function restorePlanOf(library: Library, entry: string, naming: Naming): RestorePlan | undefined {
   const ref = trashRefOf(library.folders, entry)
   if (!ref) return undefined
   const into = restoreTargetOf(library.folders, ref.from)
   const was = ref.from[0]
   const back = restoredEntry(library, entry, into)
-  const free = isMoveRefusal(back) ? undefined : freeTitleIn(back, ref.kind, entry, into)
-  const replaces = (isMoveRefusal(back) ? undefined : sameTitled(back, ref.kind, entry, into)?.id) ?? REPLACES_NOTHING
-  const over = isMoveRefusal(back) ? back : overwritten(back, ref.kind, entry, into, replaces)
+  const free = isMoveRefusal(back) ? undefined : freeTitleIn(back, ref.kind, entry, into, naming)
+  const replaces =
+    (isMoveRefusal(back) ? undefined : sameTitled(back, ref.kind, entry, into, naming)?.id) ?? REPLACES_NOTHING
+  const over = isMoveRefusal(back) ? back : overwritten(back, ref.kind, entry, into, replaces, naming)
   return {
     into,
     from: into === was ? "here" : was !== undefined && library.folders[was] ? "trashed" : "gone",
-    numbered: free === undefined || free === titleOf(library, ref.kind, entry) ? SAME_TITLE : free,
+    numbered: free === undefined || free === titleOf(library, ref.kind, entry, naming) ? SAME_TITLE : free,
     replaces,
     overwrite: isNotOverwritten(over) ? over : "ok",
   }
@@ -156,10 +176,16 @@ export const replaceBlockedOf = (
       : { by: "permission", permission: allowed.permission }
 
 // フォルダ into の直下で、エントリ entry（種類 kind）と同じ名前を持つ、ほかのエントリ（無ければ undefined）
-export function sameTitled(library: Library, kind: EntryKind, entry: string, into: string): AnyEntryRef | undefined {
-  const title = titleOf(library, kind, entry)
+export function sameTitled(
+  library: Library,
+  kind: EntryKind,
+  entry: string,
+  into: string,
+  naming: Naming,
+): AnyEntryRef | undefined {
+  const title = titleOf(library, kind, entry, naming)
   const holder = library.folders[into]
-  return title === undefined || !holder ? undefined : titledIn(library, holder, title, entry)
+  return title === undefined || !holder ? undefined : titledIn(library, holder, title, naming, entry)
 }
 
 // 上書きできない訳: 種類が違う（kind）・前から在った方の中に上書きする物が在る（within）・前から在った方かその中に読めないページが在る（unreadable）・
@@ -177,8 +203,9 @@ export function overwritten(
   entry: string,
   into: string,
   replaces: string,
+  naming: Naming,
 ): Library | NotOverwritten {
-  const there = sameTitled(library, kind, entry, into)
+  const there = sameTitled(library, kind, entry, into, naming)
   if ((there?.id ?? REPLACES_NOTHING) !== replaces) return "changed"
   if (!there) return library
   if (there.kind !== kind) return "kind"

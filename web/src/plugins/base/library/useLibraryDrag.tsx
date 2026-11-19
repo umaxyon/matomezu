@@ -12,6 +12,7 @@ import { LIBRARY_ENTRY_MOVE, LIBRARY_TREE_SCOPE } from "./commands"
 import { type Drop, draggable, droppable, indexBefore, type MoveClash, moveClashOf } from "./drop"
 import { ENTRY_MOVE } from "./entry-move"
 import { ENTRY_TRASH } from "./entry-trash"
+import { useReadNaming } from "./hooks"
 
 const ROW = "[data-library-row]"
 const NO_ENTRY = "-" // ドラッグしていない間に問う、無いエントリ
@@ -71,6 +72,7 @@ const sameAim = (a: Aim | null, b: Aim | null): boolean =>
 // root は書庫の画面の根の要素。unfold は、ツリーの行 id の中を出す（もう出していれば何もしない）
 export function useLibraryDrag(root: RefObject<HTMLElement | null>, unfold: (id: string) => void) {
   const read = useReadState()
+  const naming = useReadNaming()
   const move = useCommand(LIBRARY_ENTRY_MOVE.id).run
   const [drag, setDrag] = useState<LibraryDrag | null>(null)
   const [asking, setAsking] = useState<AskingMove | null>(null)
@@ -93,7 +95,7 @@ export function useLibraryDrag(root: RefObject<HTMLElement | null>, unfold: (id:
 
   const drop = (entry: string, to: Drop) => {
     // 離した時点の書庫で、名前の重なりを読み直す
-    const clash = moveClashOf(read(), entry, to)
+    const clash = moveClashOf(read(), entry, to, naming())
     if (clash && to.to === "folder") setAsking({ entry, into: to.into, index: to.index, clash })
     else live.current.move({ entry, to })
   }

@@ -5,7 +5,7 @@ import { HOME_ID, type HomeFolder, type Library, type PlainFolder, worldTablesOf
 import { type Drop, draggable, droppable, indexBefore, moveClashOf } from "../../../web/src/plugins/base/library/drop"
 import { movesInto } from "../../../web/src/plugins/base/library/entries"
 import { DRAWING, drawingPage, testBinder, testBook } from "../../lineup"
-import { newStore } from "../../support"
+import { NAMING, newStore } from "../../support"
 
 function setup() {
   const store = newStore()
@@ -78,17 +78,17 @@ test("別のフォルダに同じ名前の物が在れば、番号を付けた�
   const mine = folder("同じ")
   expect(ids(a)).toEqual([x, y])
   // 重ならない物・同じフォルダの中の並べ替えは、確かめない
-  expect(moveClashOf(library(), "b1", { to: "folder", into: a })).toBeUndefined()
-  expect(moveClashOf(library(), x, { to: "folder", into: a, index: 1 })).toBeUndefined()
-  expect(moveClashOf(library(), mine, { to: "trash" })).toBeUndefined()
+  expect(moveClashOf(library(), "b1", { to: "folder", into: a }, NAMING)).toBeUndefined()
+  expect(moveClashOf(library(), x, { to: "folder", into: a, index: 1 }, NAMING)).toBeUndefined()
+  expect(moveClashOf(library(), mine, { to: "trash" }, NAMING)).toBeUndefined()
   // y の前（消える x の後ろ）へ: 上書きの位置は 1 つ前へずれる
   const index = indexBefore(library().folders, a, mine, y)
   expect(index).toBe(1)
-  const clash = moveClashOf(library(), mine, { to: "folder", into: a, index })
+  const clash = moveClashOf(library(), mine, { to: "folder", into: a, index }, NAMING)
   expect(clash).toEqual({ numbered: "同じ 2", replaces: x, overwrite: "ok", indexOver: 0 })
   // x の前へ・末尾へ
-  expect(moveClashOf(library(), mine, { to: "folder", into: a, index: 0 })?.indexOver).toBe(0)
-  expect(moveClashOf(library(), mine, { to: "folder", into: a })?.indexOver).toBeUndefined()
+  expect(moveClashOf(library(), mine, { to: "folder", into: a, index: 0 }, NAMING)?.indexOver).toBe(0)
+  expect(moveClashOf(library(), mine, { to: "folder", into: a }, NAMING)?.indexOver).toBeUndefined()
   expect(
     perform("@matomezu/base:entry-move-over", { entry: mine, into: a, index: clash?.indexOver, replaces: x }).ok,
   ).toBe(true)
@@ -101,7 +101,10 @@ test("上書きできない訳を出す（種類が違う）", () => {
   const book = (perform("@matomezu/base:book-create", { title: "同じ", into: a }).result as { book: string }).book
   expect(book).toBeDefined()
   const mine = folder("同じ")
-  expect(moveClashOf(library(), mine, { to: "folder", into: a })).toMatchObject({ replaces: book, overwrite: "kind" })
+  expect(moveClashOf(library(), mine, { to: "folder", into: a }, NAMING)).toMatchObject({
+    replaces: book,
+    overwrite: "kind",
+  })
 })
 
 test("ブックの外のページ・バインダは、ブックの中（ブック・バインダ）へは入れない（ドラッグも entry-move も）。ブックの外の間では動かせる", () => {

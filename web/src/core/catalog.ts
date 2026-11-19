@@ -19,6 +19,7 @@ export interface ToolTable {}
 export interface ToolSetTable {}
 export interface PermissionTable {}
 export interface AnnotationTable {}
+export interface SystemFolderTable {} // システムフォルダの定義の id → 定義
 export interface MailTable {} // 郵便の種類の id → 定義
 export interface SubjectTable {} // 対象の定義（レコードの種類）の id → 定義
 export interface ScreenTable {} // スクリーンの定義の id → 定義
@@ -78,6 +79,7 @@ export const PARTS = {
   toolSets: { catalog: "core", label: "toolSet" },
   permissions: { catalog: "core", label: "permission" },
   annotations: { catalog: "core", label: "annotation" },
+  systemFolders: { catalog: "core", label: "systemFolder" },
   mails: { catalog: "core", label: "mail" },
   subjects: { catalog: "core", label: "subject" },
   screens: { catalog: "core", label: "screen" },
@@ -113,6 +115,7 @@ export interface PartTables {
   toolSets: ToolSetTable
   permissions: PermissionTable
   annotations: AnnotationTable
+  systemFolders: SystemFolderTable
   mails: MailTable
   subjects: SubjectTable
   screens: ScreenTable
@@ -143,6 +146,7 @@ export type SkinId = keyof SkinTable & string
 export type SettingId = keyof SettingTable & string
 export type UserSettingId = keyof UserSettingTable & string
 export type AnnotationId = keyof AnnotationTable & string
+export type SystemFolderId = keyof SystemFolderTable & string
 export type MailId = keyof MailTable & string
 export type SubjectId = keyof SubjectTable & string
 export type ScreenId = keyof ScreenTable & string
@@ -191,6 +195,7 @@ export interface ToolExtras {}
 export interface ToolSetExtras {}
 export interface PermissionExtras {}
 export interface AnnotationExtras {}
+export interface SystemFolderExtras {}
 export interface MailExtras {}
 export interface SubjectExtras {}
 export interface ScreenExtras {}

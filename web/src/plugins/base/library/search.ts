@@ -1,5 +1,5 @@
 // 書庫の画面の検索: 名前に言葉 query を含む物（フォルダ・ブック・バインダ・ページ）を、書庫ホームから下へ並びの順に探す。ゴミ箱の物は出ない
-import { entriesIn, titleOf } from "../../../core/entries"
+import { entriesIn, type Naming, titleOf } from "../../../core/entries"
 import { HOME_ID, type Library } from "../../../core/folders"
 import { type LibraryRow, NO_TITLE, rowsIn } from "./outline"
 
@@ -15,15 +15,15 @@ export const NO_SEARCH = ""
 
 const NOTHING: readonly FoundRow[] = []
 
-export function foundRowsOf(library: Library, query: string | undefined): readonly FoundRow[] {
+export function foundRowsOf(library: Library, query: string | undefined, naming: Naming): readonly FoundRow[] {
   const word = searchWord(query)
   if (word === NO_SEARCH) return NOTHING
   const found: FoundRow[] = []
   const under = (holder: string, place: readonly string[]) => {
     if (entriesIn(library.folders, holder).length === 0) return
-    for (const row of rowsIn(library, holder)) {
+    for (const row of rowsIn(library, holder, naming)) {
       if (row.title.toLocaleLowerCase().includes(word)) found.push({ ...row, holder, place })
-      if (row.kind !== "page") under(row.id, [...place, titleOf(library, "folder", row.id) ?? NO_TITLE])
+      if (row.kind !== "page") under(row.id, [...place, titleOf(library, "folder", row.id, naming) ?? NO_TITLE])
     }
   }
   under(HOME_ID, [])

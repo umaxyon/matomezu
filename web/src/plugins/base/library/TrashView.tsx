@@ -13,7 +13,7 @@ import { kit } from "../kit"
 import { type RestorePlan, replaceBlockedOf, restorePlanOf, SAME_TITLE } from "./entries"
 import { ENTRY_PURGE, ENTRY_RESTORE, TRASH_EMPTY } from "./entry-trash"
 import { HistoryButtons } from "./HistoryButtons"
-import { useLibraryRows, useNameOf } from "./hooks"
+import { useLibraryRows, useNameOf, useReadNaming } from "./hooks"
 import { RowIcon } from "./icons"
 import styles from "./LibraryView.module.css"
 import { NO_TITLE, shownDateTime, type TrashRow, trashRowsOf } from "./outline"
@@ -38,6 +38,7 @@ export function TrashView({ picked, onPick }: { picked: string | undefined; onPi
   const emptiable = useAllowedOn(TRASH_EMPTY.id, {}).ok
   const [asking, setAsking] = useState<Asking | null>(null)
   const nameOf = useNameOf()
+  const naming = useReadNaming()
   // 選んでいた行に行えたあと: 選んでいる行を外す
   const settle = () => onPick(undefined)
   // 行 row を戻す。how は、同じ名前の物が在るときの戻し方: 断らせる（refuse）・番号を付ける（number）・確かめた plan のとおりに上書きする
@@ -50,7 +51,7 @@ export function TrashView({ picked, onPick }: { picked: string | undefined; onPi
   }
   // 戻す前に確かめる事を、順に問う（after は、もう確かめた事）
   const ask = (row: TrashRow, after?: "into") => {
-    const plan = restorePlanOf(read(), row.id)
+    const plan = restorePlanOf(read(), row.id, naming())
     if (!plan) return
     if (plan.from !== "here" && after !== "into") return setAsking({ about: "into", row, plan })
     if (plan.numbered !== SAME_TITLE) return setAsking({ about: "taken", row, plan })
@@ -58,7 +59,7 @@ export function TrashView({ picked, onPick }: { picked: string | undefined; onPi
     restore(row, "refuse")
   }
   const folderName = (plan: RestorePlan) =>
-    nameOf({ id: plan.into, title: titleOf(read(), "folder", plan.into) ?? NO_TITLE })
+    nameOf({ id: plan.into, title: titleOf(read(), "folder", plan.into, naming()) ?? NO_TITLE })
   return (
     <>
       <div className={styles.tools}>

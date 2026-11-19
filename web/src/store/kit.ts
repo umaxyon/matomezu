@@ -19,6 +19,7 @@ import type { ScreenDef } from "../core/def/screen-def"
 import type { DefaultedSettingDef, SettingDef, SettingHolder } from "../core/def/setting"
 import type { SkinDef } from "../core/def/skin"
 import type { KeysOfTypes, RecordKeyDef, SubjectDef } from "../core/def/subject"
+import type { SystemFolderDef } from "../core/def/system-folder"
 import type { TextColorDef } from "../core/def/text-color"
 import type { ThemeDef, TokenDef } from "../core/def/theme"
 import type { ToolDef, ToolSetDef } from "../core/def/tool"
@@ -142,6 +143,10 @@ export interface PluginKit<P extends string, M extends MessageMap> {
   defineAnnotation<const Id extends string, Pr extends AnnotationDef["props"]>(
     def: AnnotationDef<Pr, keyof M & string> & { id: Id },
   ): Omit<AnnotationDef<Pr>, "id"> & { id: Owned<P, Id> }
+
+  defineSystemFolder<const Id extends string>(
+    def: SystemFolderDef<keyof M & string> & { id: Id },
+  ): Omit<SystemFolderDef, "id"> & { id: Owned<P, Id> }
 
   defineMail<const Id extends string, Pr extends MailDef["props"]>(
     def: MailDef<Pr, keyof M & string> & { id: Id },
@@ -312,6 +317,7 @@ export function pluginKit<const P extends string, const M extends MessageMap = R
     defineToolSet: place,
     definePermission: place,
     defineAnnotation: place,
+    defineSystemFolder: place,
     defineMail: place,
     defineSubject: place,
     defineScreen: place,

@@ -18,7 +18,7 @@ import {
   treeRowsOf,
 } from "../../../web/src/plugins/base/library/outline"
 import { foundRowsOf } from "../../../web/src/plugins/base/library/search"
-import { newStore } from "../../support"
+import { NAMING, newStore } from "../../support"
 
 const NOW = "2026-11-18T01:00:00.000Z"
 
@@ -33,7 +33,7 @@ function setup() {
 
 test("フォルダの直下の行は、並びの順に、種類・名前・ページのタイプを持つ。無いフォルダは空", () => {
   const { library, folder } = setup()
-  const home = rowsIn(library(), HOME_ID)
+  const home = rowsIn(library(), HOME_ID, NAMING)
   expect(home.map(r => r.kind)).toContain("folder")
   expect(home.find(r => r.id === folder)).toEqual({
     kind: "folder",
@@ -43,11 +43,11 @@ test("フォルダの直下の行は、並びの順に、種類・名前・ペ�
     readable: true,
   })
   expect(home.some(r => r.id === "b2")).toBe(false)
-  expect(rowsIn(library(), folder).map(r => [r.kind, r.id])).toEqual([["book", "b2"]])
-  const pages = rowsIn(library(), "b1")
+  expect(rowsIn(library(), folder, NAMING).map(r => [r.kind, r.id])).toEqual([["book", "b2"]])
+  const pages = rowsIn(library(), "b1", NAMING)
   expect(pages[0]).toMatchObject({ kind: "page", id: "p1", readable: true })
   expect(pages[0]?.type).not.toBe(NO_TYPE)
-  expect(rowsIn(library(), "nothing")).toEqual([])
+  expect(rowsIn(library(), "nothing", NAMING)).toEqual([])
 })
 
 test("パンくずは、一番上のフォルダからそのフォルダまで。開いているフォルダは、無くなっていれば書庫ホーム", () => {
@@ -61,7 +61,7 @@ test("パンくずは、一番上のフォルダからそのフォルダまで�
 
 test("行を開くと、フォルダは中へ入り、ブックとその中のページはブックを窓に出す。ゴミ箱の中の物は開かない", () => {
   const { library, folder, perform } = setup()
-  const row = (holder: string, id: string) => rowsIn(library(), holder).find(r => r.id === id)!
+  const row = (holder: string, id: string) => rowsIn(library(), holder, NAMING).find(r => r.id === id)!
   expect(openTargetOf(library().folders, row(HOME_ID, folder))).toEqual({ to: "folder", folder })
   expect(openTargetOf(library().folders, row(folder, "b2"))).toEqual({ to: "book", book: "b2" })
   expect(openTargetOf(library().folders, row("b1", "p1"))).toEqual({ to: "book", book: "b1", page: "p1" })
@@ -86,27 +86,27 @@ test("ゴミ箱の行は、入れた時刻の新しい順に、どの種類の�
   const folder = (perform(FOLDER_CREATE.id, { title: "仕事" }).result as { folder: string }).folder
   const inner = (perform(FOLDER_CREATE.id, { title: "下書き", into: folder }).result as { folder: string }).folder
   expect(perform("@matomezu/base:entry-move", { entry: "b2", into: inner }).ok).toBe(true)
-  expect(trashRowsOf(library())).toEqual([])
+  expect(trashRowsOf(library(), NAMING)).toEqual([])
   expect(perform("@matomezu/base:entry-trash", { entry: "b2" }).ok).toBe(true)
   now = "2026-11-18T02:00:00.000Z"
   expect(perform("@matomezu/base:entry-trash", { entry: inner }).ok).toBe(true)
   expect(perform("@matomezu/base:entry-trash", { entry: "b1" }).ok).toBe(true)
   // 同じ時刻なら後から入れた物が先。元いたフォルダ（下書き）がゴミ箱に在る b2 は、その上の今も在るフォルダへ戻る
-  expect(trashRowsOf(library()).map(r => [r.kind, r.id, r.trashed, r.into])).toEqual([
+  expect(trashRowsOf(library(), NAMING).map(r => [r.kind, r.id, r.trashed, r.into])).toEqual([
     ["book", "b1", "2026-11-18T02:00:00.000Z", HOME_ID],
     ["folder", inner, "2026-11-18T02:00:00.000Z", folder],
     ["book", "b2", "2026-11-18T01:00:00.000Z", folder],
   ])
-  expect(trashRowsOf(library())[1]).toMatchObject({ title: "下書き", readable: true, place: "仕事" })
+  expect(trashRowsOf(library(), NAMING)[1]).toMatchObject({ title: "下書き", readable: true, place: "仕事" })
 })
 
 test("戻すときに確かめる事: 元いたフォルダが無いか、入る先に同じ名前の物が在るときの番号を付けた名前と、上書きで消える物", () => {
   const { library, folder, perform } = setup()
-  const title = rowsIn(library(), folder).find(r => r.id === "b2")!.title
-  expect(restorePlanOf(library(), "b2")).toBeUndefined()
+  const title = rowsIn(library(), folder, NAMING).find(r => r.id === "b2")!.title
+  expect(restorePlanOf(library(), "b2", NAMING)).toBeUndefined()
   // 書庫ホームから捨てた物は、書庫ホームへ戻る（元いたフォルダは在る）
   expect(perform("@matomezu/base:entry-trash", { entry: "b1" }).ok).toBe(true)
-  expect(restorePlanOf(library(), "b1")).toEqual({
+  expect(restorePlanOf(library(), "b1", NAMING)).toEqual({
     into: HOME_ID,
     from: "here",
     numbered: SAME_TITLE,
@@ -115,7 +115,7 @@ test("戻すときに確かめる事: 元いたフォルダが無いか、入る
   })
   expect(perform("@matomezu/base:entry-trash", { entry: "b2" }).ok).toBe(true)
   // 元いたフォルダが在り、同じ名前の物も無い
-  expect(restorePlanOf(library(), "b2")).toEqual({
+  expect(restorePlanOf(library(), "b2", NAMING)).toEqual({
     into: folder,
     from: "here",
     numbered: SAME_TITLE,
@@ -124,7 +124,7 @@ test("戻すときに確かめる事: 元いたフォルダが無いか、入る
   })
   // 同じ名前の物を元いたフォルダに作ると、番号を付けた名前を言う
   const same = (perform(FOLDER_CREATE.id, { title, into: folder }).result as { folder: string }).folder
-  expect(restorePlanOf(library(), "b2")).toEqual({
+  expect(restorePlanOf(library(), "b2", NAMING)).toEqual({
     into: folder,
     from: "here",
     numbered: `${title} 2`,
@@ -133,7 +133,7 @@ test("戻すときに確かめる事: 元いたフォルダが無いか、入る
   })
   // 元いたフォルダがゴミ箱に入ると、その上のフォルダ（書庫ホーム）へ戻る
   expect(perform("@matomezu/base:entry-trash", { entry: folder }).ok).toBe(true)
-  expect(restorePlanOf(library(), "b2")).toEqual({
+  expect(restorePlanOf(library(), "b2", NAMING)).toEqual({
     into: HOME_ID,
     from: "trashed",
     numbered: SAME_TITLE,
@@ -142,7 +142,7 @@ test("戻すときに確かめる事: 元いたフォルダが無いか、入る
   })
   // 元いたフォルダが書庫から消えても、同じ所へ戻る
   expect(perform("@matomezu/base:entry-purge", { entries: [folder] }).ok).toBe(true)
-  expect(restorePlanOf(library(), "b2")).toEqual({
+  expect(restorePlanOf(library(), "b2", NAMING)).toEqual({
     into: HOME_ID,
     from: "gone",
     numbered: SAME_TITLE,
@@ -194,22 +194,22 @@ test("ツリーに出ている行は、一番上の行と、中を出してい�
 
 test("検索は、名前に言葉を含む物を書庫ホームから下へ並びの順に出す（大文字と小文字は分けない。前後の空白は除く）。置き場所は上のフォルダの名前の列。ゴミ箱の物は出ない", () => {
   const { library, folder, perform } = setup()
-  expect(foundRowsOf(library(), undefined)).toEqual([])
-  expect(foundRowsOf(library(), "  ")).toEqual([])
+  expect(foundRowsOf(library(), undefined, NAMING)).toEqual([])
+  expect(foundRowsOf(library(), "  ", NAMING)).toEqual([])
   const b2 = library().books.b2?.title as string
-  const found = foundRowsOf(library(), ` ${b2.toUpperCase()} `)
+  const found = foundRowsOf(library(), ` ${b2.toUpperCase()} `, NAMING)
   expect(found.find(r => r.id === "b2")).toMatchObject({ kind: "book", holder: folder, place: ["仕事"] })
   // フォルダも、ブックの中のページも出る
-  expect(foundRowsOf(library(), "仕事").map(r => r.id)).toEqual([folder])
-  const p1 = rowsIn(library(), "b1").find(r => r.id === "p1")?.title as string
-  expect(foundRowsOf(library(), p1).find(r => r.id === "p1")).toMatchObject({
+  expect(foundRowsOf(library(), "仕事", NAMING).map(r => r.id)).toEqual([folder])
+  const p1 = rowsIn(library(), "b1", NAMING).find(r => r.id === "p1")?.title as string
+  expect(foundRowsOf(library(), p1, NAMING).find(r => r.id === "p1")).toMatchObject({
     kind: "page",
     holder: "b1",
     place: [library().books.b1?.title],
   })
   expect(perform("@matomezu/base:entry-trash", { entry: folder }).ok).toBe(true)
-  expect(foundRowsOf(library(), "仕事")).toEqual([])
-  expect(foundRowsOf(library(), b2).some(r => r.id === "b2")).toBe(false)
+  expect(foundRowsOf(library(), "仕事", NAMING)).toEqual([])
+  expect(foundRowsOf(library(), b2, NAMING).some(r => r.id === "b2")).toBe(false)
 })
 
 test("Tab で止まる行: 止めたい行が並びに在ればそれ、無ければ言った行か最初の行。並びが空なら無い", () => {

@@ -2,6 +2,7 @@
 // フォルダに置く・別のフォルダの何番目かへ動かす・ゴミ箱に入れる・ゴミ箱から戻す・ゴミ箱から消す。プラグインは、並びを直に組み直さず、これを通す。
 // 見るのは木の形（どのフォルダが何を持てるか・自分の中へは動かせない）だけ。名前の重なり・タイプごとの決まり・ロックは、ここでは見ない
 
+import type { CoreCatalog } from "./core-catalog"
 import {
   type AnyEntryRef,
   type Folder,
@@ -14,6 +15,8 @@ import {
   type TrashFolder,
   type TrashRef,
 } from "./folders"
+import { type Lang, translate } from "./i18n/i18n"
+import { langOf, NO_SETTINGS, type Settings } from "./settings"
 
 export type EntryKind = AnyEntryRef["kind"]
 
@@ -191,11 +194,39 @@ export function binnedBetween(was: Library, now: Library): { trashed: string[]; 
 // 断りの種類: 同じフォルダの中に、同じ名前の物が在る（土台が断るので、プラグインの id の名前空間は付かない）
 export const TITLE_TAKEN = "title-taken"
 
-// エントリ entry（種類 kind）の名前（名前の無い物・書庫に無い物は undefined）
-export function titleOf({ pages, folders }: Library, kind: EntryKind, entry: string): string | undefined {
-  const row = (kind === "page" ? pages[entry] : folders[entry]) as { title?: unknown } | undefined
-  return typeof row?.title === "string" && row.title !== "" ? row.title : undefined
+// 名前を引く決まり: 機能台帳と、名前を引く言語（システムフォルダの名前は、定義の文言をこの言語で引く）
+export interface Naming {
+  catalog: CoreCatalog
+  lang: Lang
 }
+// 言語 lang で名前を引く決まり（AI に見せる名前は英語 "en"）
+export const namingIn = (catalog: CoreCatalog, lang: Lang): Naming => ({ catalog, lang })
+// 利用者の設定 settings の言語で名前を引く決まり（言語を選んでいない・使えなければ英語）。画面も常駐も、名前の決まりはこれで引く
+export const namingOf = (catalog: CoreCatalog, settings: Settings): Naming =>
+  namingIn(catalog, langOf(catalog, settings, "en"))
+// アクションの文脈 ctx の、名前を引く決まり（performIn が世界の利用者の設定から入れる。入っていなければ、設定の無いときと同じ英語）
+export const namingFor = (ctx: { catalog: CoreCatalog; naming?: Naming }): Naming =>
+  ctx.naming ?? namingOf(ctx.catalog, NO_SETTINGS)
+
+// ページかフォルダの行 row（種類 kind）の名前（名前の無い物・行が無ければ undefined）。名前を引くのは、ここだけ:
+// システムフォルダは、印の定義の title を naming の言語で引く（定義が機能台帳に無ければ名前の無い物）。ほかは行の title
+export function rowTitle(row: unknown, kind: EntryKind, naming: Naming): string | undefined {
+  if (typeof row !== "object" || row === null) return undefined
+  const { title, systemFolder } = row as { title?: unknown; systemFolder?: unknown }
+  if (kind !== "page" && typeof systemFolder === "string") {
+    const def = naming.catalog.systemFolders.get(systemFolder)
+    return def ? translate(naming.catalog.messages, naming.lang, def.title) : undefined
+  }
+  return typeof title === "string" && title !== "" ? title : undefined
+}
+
+// エントリ entry（種類 kind）の名前（名前の無い物・書庫に無い物は undefined）
+export const titleOf = (
+  { pages, folders }: Library,
+  kind: EntryKind,
+  entry: string,
+  naming: Naming,
+): string | undefined => rowTitle(kind === "page" ? pages[entry] : folders[entry], kind, naming)
 
 const NO_ENTRIES: readonly AnyEntryRef[] = []
 
@@ -203,27 +234,33 @@ const NO_ENTRIES: readonly AnyEntryRef[] = []
 export const entriesIn = (folders: Folders, folder: string): readonly AnyEntryRef[] =>
   folders[folder]?.lineup ?? NO_ENTRIES
 
-// フォルダ folder の直下のエントリの名前（並びの順。名前の無い読めないページは入らない。except のエントリは除く）
-export function titlesIn(library: Library, folder: Folder, except?: string): string[] {
+// フォルダ folder の直下のエントリの名前（並びの順。名前の無い物は入らない。except のエントリは除く）
+export function titlesIn(library: Library, folder: Folder, naming: Naming, except?: string): string[] {
   return folder.lineup.flatMap(r => {
-    const title = r.id === except ? undefined : titleOf(library, r.kind, r.id)
+    const title = r.id === except ? undefined : titleOf(library, r.kind, r.id, naming)
     return title === undefined ? [] : [title]
   })
 }
 
 // フォルダ folder の直下で、名前が title のエントリ（except のエントリは除く。無ければ undefined）
-export const titledIn = (library: Library, folder: Folder, title: string, except?: string): AnyEntryRef | undefined =>
-  folder.lineup.find(r => r.id !== except && titleOf(library, r.kind, r.id) === title)
+export const titledIn = (
+  library: Library,
+  folder: Folder,
+  title: string,
+  naming: Naming,
+  except?: string,
+): AnyEntryRef | undefined =>
+  folder.lineup.find(r => r.id !== except && titleOf(library, r.kind, r.id, naming) === title)
 
 // 書庫が was から now に変わる間に、直下の名前が変わって、同じ名前が重なった書庫ホーム・フォルダ・ブック・バインダの id（ゴミ箱の直下は、同じ名前を許す）。
-// 前から重なっていて、名前の並びが変わらないフォルダは挙げない
-export function titleClashes(was: Library, now: Library): string[] {
+// 前から重なっていて、名前の並びが変わらないフォルダは挙げない。名前は was を naming で、now を nowNaming（言わなければ naming）で引く（言語が変わるときは、言語の前と後）
+export function titleClashes(was: Library, now: Library, naming: Naming, nowNaming: Naming = naming): string[] {
   return Object.values(now.folders).flatMap(f => {
     if (f.folderRole === "trash") return []
-    const titles = titlesIn(now, f)
+    const titles = titlesIn(now, f, nowNaming)
     if (new Set(titles).size === titles.length) return []
     const before = was.folders[f.id]
-    const kept = before ? titlesIn(was, before) : []
+    const kept = before ? titlesIn(was, before, naming) : []
     return kept.length === titles.length && kept.every((t, i) => t === titles[i]) ? [] : [f.id]
   })
 }

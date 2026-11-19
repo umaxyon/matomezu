@@ -45,7 +45,7 @@ import {
 } from "./def/action"
 import type { PlaceChange, Referred } from "./def/permission"
 import type { SubjectDef } from "./def/subject"
-import { binnedBetween, isWithin, TITLE_TAKEN, titleClashes } from "./entries"
+import { binnedBetween, isWithin, namingFor, namingOf, TITLE_TAKEN, titleClashes } from "./entries"
 import {
   bookIdOf,
   bookOf,
@@ -592,7 +592,7 @@ export function perform<Id extends ActionId>(
     // 行う前から在るページのタイプも、変えない（ページがブックの間を動いても）
     const typesKept = keepsPageTypesAcross(Object.values(was), Object.values(now))
     // 同じ入れ物の中の名前の重なりは、ブックの決まりで断る前に、名前が重なる断りにする
-    if (titleClashes(subject as Library, next as Library).length > 0) return titleTaken
+    if (titleClashes(subject as Library, next as Library, namingFor(ctx)).length > 0) return titleTaken
     if (!librarySettles(ctx.catalog, was, now) || !typesKept) return { ok: false, reason: "refused" }
   }
   if (action.target === "annotations") {
@@ -749,7 +749,7 @@ export function performIn(
   if (target === "book") {
     const book = bookIn(world, on as { book: string } | undefined)
     if (!book) return { ok: false, reason: "no-book" }
-    return changedBook(world, book, loose(book, id, args, ctx))
+    return changedBook(ctx.catalog, world, book, loose(book, id, args, ctx))
   }
   if (target === "annotations") {
     const at = pageIn(world, on)
@@ -765,18 +765,19 @@ export function performIn(
   if (target === "page") {
     const at = pageIn(world, on)
     if ("ok" in at) return at
-    return changedBook(world, at.book, loose(at, id, args, ctx))
+    return changedBook(ctx.catalog, world, at.book, loose(at, id, args, ctx))
   }
   if (target === "library") {
     const library: Library = { pages: world.pages, folders: world.folders }
-    const done = loose(library, id, args, ctx)
+    const naming = namingOf(ctx.catalog, world.settings)
+    const done = loose(library, id, args, { ...ctx, naming })
     if (!done.ok) return done
     const made = rowChanges(library, done.next as Library)
     // 足したブックと無くなったブックの置き場所を書く。木の決まりを守っていた世界は、行った後も守る
     const changes = placedChanges(world, made)
     const after = withChanges(world, changes)
     if (!treeHolds(after)) return { ok: false, reason: "refused" }
-    if (titleClashes(world, after).length > 0) return titleTaken
+    if (titleClashes(world, after, naming).length > 0) return titleTaken
     // 無くなったページのアノテーションは消す
     const gone = Object.entries(changes.pages)
       .filter(([p, v]) => v === REMOVED && (world.annotations[p]?.length ?? 0) > 0)
@@ -811,14 +812,18 @@ const collides = (world: Library, before: readonly Book[], changes: TableChanges
 
 // ブックを変えるアクションの結果 done を、変わった物だけの形にする（book は行う前のブック）。
 // ブックの id を変えていたら断り、変わったページでは無くなった物をアノテーションのアンカーから外し、無くなったページのアノテーションは消す
-function changedBook(world: World, book: Book, done: ReturnType<typeof perform>): PerformedIn {
+function changedBook(catalog: CoreCatalog, world: World, book: Book, done: ReturnType<typeof perform>): PerformedIn {
   if (!done.ok) return done
   const next = done.next as Book
   if (next.id !== book.id) return { ok: false, reason: "refused" }
   if (next === book) return { ok: true, result: done.result }
   const changes = changesBetween([book], [next])
   if (collides(world, [book], changes)) return { ok: false, reason: "refused" }
-  if (next.title !== book.title && titleClashes(world, withChanges(world, changes)).length > 0) return titleTaken
+  if (
+    next.title !== book.title &&
+    titleClashes(world, withChanges(world, changes), namingOf(catalog, world.settings)).length > 0
+  )
+    return titleTaken
   const { annotations } = world
   const now = new Map(pagesOf(next).map(p => [p.id, p]))
   const changed: Record<string, readonly Annotation[]> = {}

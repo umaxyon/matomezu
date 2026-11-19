@@ -1,5 +1,5 @@
 // 書庫の画面のドラッグで落とす先: 落とせるか・行の間へ落とすときの位置・名前が重なるときに確かめる事を、動かすアクション（entry-move・entry-move-over）と同じ読み方で出す
-import { entriesIn, isMoveRefusal, movedEntry, titleOf } from "../../../core/entries"
+import { entriesIn, isMoveRefusal, movedEntry, type Naming, titleOf } from "../../../core/entries"
 import type { Folders, Library } from "../../../core/folders"
 import {
   freeTitleIn,
@@ -45,16 +45,16 @@ export interface MoveClash {
 }
 
 // 重ならなければ（同じフォルダの中の並べ替えも）undefined
-export function moveClashOf(library: Library, entry: string, drop: Drop): MoveClash | undefined {
+export function moveClashOf(library: Library, entry: string, drop: Drop, naming: Naming): MoveClash | undefined {
   const place = placedOutsideTrash(library.folders, entry)
   if (!place || drop.to !== "folder" || place.holder.id === drop.into) return undefined
   const kind = place.ref.kind
-  const there = sameTitled(library, kind, entry, drop.into)
+  const there = sameTitled(library, kind, entry, drop.into, naming)
   if (!there) return undefined
-  const over = overwritten(library, kind, entry, drop.into, there.id)
+  const over = overwritten(library, kind, entry, drop.into, there.id, naming)
   const at = entriesIn(library.folders, drop.into).findIndex(r => r.id === there.id)
   return {
-    numbered: freeTitleIn(library, kind, entry, drop.into) ?? titleOf(library, kind, entry) ?? "",
+    numbered: freeTitleIn(library, kind, entry, drop.into, naming) ?? titleOf(library, kind, entry, naming) ?? "",
     replaces: there.id,
     overwrite: isNotOverwritten(over) ? over : "ok",
     indexOver: drop.index === undefined ? undefined : drop.index > at ? drop.index - 1 : drop.index,

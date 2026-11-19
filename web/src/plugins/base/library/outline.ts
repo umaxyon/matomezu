@@ -1,5 +1,5 @@
 // 書庫の画面が描く物を、書庫の表（ページの行とフォルダの行）から出す: フォルダの直下の行・ゴミ箱の行・パンくず・行を開いたときの行き先
-import { type EntryKind, entriesIn, titleOf, trashRefsOf } from "../../../core/entries"
+import { type EntryKind, entriesIn, type Naming, titleOf, trashRefsOf } from "../../../core/entries"
 import {
   type AnyEntryRef,
   type Folders,
@@ -25,20 +25,21 @@ export const NO_TYPE = ""
 
 const NO_ROWS: readonly LibraryRow[] = []
 
-// 並びのエントリ r の行
-function rowOf({ pages, folders }: Library, r: AnyEntryRef): LibraryRow {
+// 並びのエントリ r の行（名前は naming で引く）
+function rowOf(library: Library, r: AnyEntryRef, naming: Naming): LibraryRow {
+  const { pages, folders } = library
+  const title = titleOf(library, r.kind, r.id, naming) ?? NO_TITLE
   if (r.kind === "page") {
     const page = pages[r.id]
     return {
       kind: "page",
       id: r.id,
-      title: page?.title ?? NO_TITLE,
+      title,
       type: page?.type ?? NO_TYPE,
       readable: page !== undefined && page.kind !== "unreadable",
     }
   }
   const row = folders[r.id]
-  const title = row && "title" in row ? row.title : NO_TITLE
   return {
     kind: r.kind,
     id: r.id,
@@ -49,9 +50,9 @@ function rowOf({ pages, folders }: Library, r: AnyEntryRef): LibraryRow {
 }
 
 // フォルダ folder（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダ）の直下の行（並びの順。フォルダが無ければ空）
-export function rowsIn(library: Library, folder: string): readonly LibraryRow[] {
+export function rowsIn(library: Library, folder: string, naming: Naming): readonly LibraryRow[] {
   const entries = entriesIn(library.folders, folder)
-  return entries.length === 0 ? NO_ROWS : entries.map(r => rowOf(library, r))
+  return entries.length === 0 ? NO_ROWS : entries.map(r => rowOf(library, r, naming))
 }
 
 // ゴミ箱の行 1 つ: 行と、入れた時刻 trashed と、戻すと入るフォルダの id into（元いたフォルダ。戻れなければ、その上の今も在るフォルダ）と、その名前 place（名前の無い物は NO_TITLE）
@@ -71,13 +72,14 @@ export function shownDateTime(at: string): string {
 const NO_TRASH: readonly TrashRow[] = []
 
 // ゴミ箱の直下の行（入れた時刻の新しい順。同じ時刻なら、後から入れた物が先）
-export function trashRowsOf(library: Library): readonly TrashRow[] {
+export function trashRowsOf(library: Library, naming: Naming): readonly TrashRow[] {
   const refs = trashRefsOf(library.folders)
   if (refs.length === 0) return NO_TRASH
   return refs
     .map(r => {
       const into = restoreTargetOf(library.folders, r.from)
-      return { ...rowOf(library, r), trashed: r.trashed, into, place: titleOf(library, "folder", into) ?? NO_TITLE }
+      const place = titleOf(library, "folder", into, naming) ?? NO_TITLE
+      return { ...rowOf(library, r, naming), trashed: r.trashed, into, place }
     })
     .reverse()
     .sort((a, b) => (a.trashed === b.trashed ? 0 : a.trashed < b.trashed ? 1 : -1))

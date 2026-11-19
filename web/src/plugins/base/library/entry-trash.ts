@@ -5,6 +5,7 @@ import { z } from "zod"
 import type { LibraryTargets } from "../../../core/def/action"
 import {
   isMoveRefusal,
+  namingFor,
   removedEntry,
   restoredEntry,
   trashedEntry,
@@ -84,7 +85,8 @@ export const ENTRY_RESTORE = kit.defineAction({
     onConflict: z.enum(["refuse", "number", "replace"]).default("refuse"),
     replaces: z.string().min(1).optional(),
   }),
-  run: (library, args) => {
+  run: (library, args, ctx) => {
+    const naming = namingFor(ctx)
     const ref = trashRefOf(library.folders, args.entry)
     if (!ref) return null
     const into = restoreTargetOf(library.folders, ref.from)
@@ -92,9 +94,9 @@ export const ENTRY_RESTORE = kit.defineAction({
     if (isMoveRefusal(back)) return null
     const next =
       args.onConflict === "number"
-        ? numbered(back, ref.kind, args.entry, into)
+        ? numbered(back, ref.kind, args.entry, into, naming)
         : args.onConflict === "replace"
-          ? overwritten(back, ref.kind, args.entry, into, args.replaces ?? REPLACES_NOTHING)
+          ? overwritten(back, ref.kind, args.entry, into, args.replaces ?? REPLACES_NOTHING, naming)
           : back
     return next && !isNotOverwritten(next) ? { next, result: { into } } : null
   },

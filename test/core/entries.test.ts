@@ -24,6 +24,7 @@ import {
   worldTablesOf,
 } from "../../web/src/core/folders"
 import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"
+import { NAMING } from "../support"
 
 const b1 = testBook("b1", "一", [drawingPage("p1"), testBinder("f1", "束", SLIDE, testPage(SLIDE, "s1"))])
 const b2 = testBook("b2", "二", [drawingPage("p2")])
@@ -201,30 +202,30 @@ describe("同じ名前", () => {
 
   test("書庫ホームとフォルダの直下で、種類をまたいで名前が重なったフォルダを挙げる。重ならなければ挙げない", () => {
     const t = world()
-    expect(titleClashes(t, t)).toEqual([])
+    expect(titleClashes(t, t, NAMING)).toEqual([])
     // フォルダ d の名前を、同じ書庫ホームの直下のフォルダ a と同じにする
-    expect(titleClashes(t, withRows(t, { ...d, title: "a" }))).toEqual([HOME_ID])
+    expect(titleClashes(t, withRows(t, { ...d, title: "a" }), NAMING)).toEqual([HOME_ID])
     // ブック b1（名前「一」）と同じフォルダ a の直下のフォルダ c を、同じ名前にする
-    expect(titleClashes(t, withRows(t, { ...c, title: "一" }))).toEqual(["a"])
+    expect(titleClashes(t, withRows(t, { ...c, title: "一" }), NAMING)).toEqual(["a"])
     // 別のフォルダの物とは重ならない
-    expect(titleClashes(t, withRows(t, { ...d, title: "c" }))).toEqual([])
+    expect(titleClashes(t, withRows(t, { ...d, title: "c" }), NAMING)).toEqual([])
   })
 
   test("前から重なっていて、名前の並びが変わらないフォルダは挙げない。並びが変われば挙げる", () => {
     const kept = withRows(world(), { ...d, title: "a" })
-    expect(titleClashes(kept, kept)).toEqual([])
-    expect(titleClashes(kept, withRows(kept, { ...c, title: "別" }))).toEqual([])
+    expect(titleClashes(kept, kept, NAMING)).toEqual([])
+    expect(titleClashes(kept, withRows(kept, { ...c, title: "別" }), NAMING)).toEqual([])
     const e = named("e", "a")
     const more = withRows(kept, e, { ...home, lineup: [...home.lineup, { kind: "folder", id: "e" }] })
-    expect(titleClashes(kept, more)).toEqual([HOME_ID])
+    expect(titleClashes(kept, more, NAMING)).toEqual([HOME_ID])
   })
 
   test("ゴミ箱の直下は同じ名前を許す。ブックの中で重なれば、そのブックを挙げる", () => {
     const t = world()
     const at = "2026-11-18T00:00:00.000Z"
     const binned = trashedEntry(trashedEntry(withRows(t, { ...d, title: "a" }), "a", at) as Library, "d", at) as Library
-    expect(titleClashes(t, binned)).toEqual([])
+    expect(titleClashes(t, binned, NAMING)).toEqual([])
     const inBook = moved(t, "p2", "b1")
-    expect(titleClashes(t, inBook)).toEqual(["b1"])
+    expect(titleClashes(t, inBook, NAMING)).toEqual(["b1"])
   })
 })

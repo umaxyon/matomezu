@@ -3,7 +3,7 @@
 // 同じフォルダの中に同じ名前は置けない（土台が title-taken で断る）。entry-move の onConflict が number なら、番号を付けた名前にして入れる
 import { z } from "zod"
 import type { LibraryTargets } from "../../../core/def/action"
-import { isMoveRefusal, movedEntry, placedEntry, titleOf } from "../../../core/entries"
+import { isMoveRefusal, movedEntry, namingFor, placedEntry, titleOf } from "../../../core/entries"
 import { HOME_ID, type PlainFolder } from "../../../core/folders"
 import { kit } from "../kit"
 import {
@@ -49,15 +49,16 @@ export const ENTRY_MOVE = kit.defineAction({
     index: z.number().int().min(0).optional(),
     onConflict: z.enum(["refuse", "number"]).default("refuse"),
   }),
-  run: (library, args) => {
+  run: (library, args, ctx) => {
+    const naming = namingFor(ctx)
     const place = placedOutsideTrash(library.folders, args.entry)
     if (!place || !movesInto(library.folders, args.entry, args.into)) return null
     const moved = movedEntry(library, args.entry, args.into, args.index)
     if (isMoveRefusal(moved)) return null
     if (args.onConflict !== "number" || place.holder.id === args.into) return { next: moved, result: {} }
-    const next = numbered(moved, place.ref.kind, args.entry, args.into)
+    const next = numbered(moved, place.ref.kind, args.entry, args.into, naming)
     if (!next) return null
-    const title = titleOf(next, place.ref.kind, args.entry)
+    const title = titleOf(next, place.ref.kind, args.entry, naming)
     return { next, result: next === moved || title === undefined ? {} : { title } }
   },
 })
@@ -85,10 +86,17 @@ export const ENTRY_MOVE_OVER = kit.defineAction({
     index: z.number().int().min(0).optional(), // 同じ名前の物を消したあとの並びで数える
     replaces: z.string().min(1).optional(), // 消えると利用者が確かめた物の id（今 同じ名前で在る物がそれと違えば断る）
   }),
-  run: (library, args) => {
+  run: (library, args, ctx) => {
     const place = placedOutsideTrash(library.folders, args.entry)
     if (!place || place.holder.id === args.into || !movesInto(library.folders, args.entry, args.into)) return null
-    const cleared = overwritten(library, place.ref.kind, args.entry, args.into, args.replaces ?? REPLACES_NOTHING)
+    const cleared = overwritten(
+      library,
+      place.ref.kind,
+      args.entry,
+      args.into,
+      args.replaces ?? REPLACES_NOTHING,
+      namingFor(ctx),
+    )
     if (isNotOverwritten(cleared)) return null
     const next = movedEntry(cleared, args.entry, args.into, args.index)
     return isMoveRefusal(next) ? null : { next, result: {} }
@@ -103,10 +111,10 @@ export const ENTRY_RENAME = kit.defineAction({
   target: "library",
   permissionScope: { entry: "entry", where: "title" },
   args: z.strictObject({ entry: z.string().min(1), title: z.string().trim().min(1) }),
-  run: (library, args) => {
+  run: (library, args, ctx) => {
     const place = placedOutsideTrash(library.folders, args.entry)
     if (!place) return null
-    const next = retitled(library, place.ref.kind, args.entry, args.title)
+    const next = retitled(library, place.ref.kind, args.entry, args.title, namingFor(ctx))
     return !next || next === library ? null : { next, result: {} }
   },
 })

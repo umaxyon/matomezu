@@ -1,6 +1,8 @@
 // テストで使う、ビルトインプラグインだけの表と store
+import { namingOf } from "../web/src/core/entries"
 import { homeOver, worldTablesOf } from "../web/src/core/folders"
 import type { Book } from "../web/src/core/schema/book"
+import { NO_SETTINGS } from "../web/src/core/settings"
 import { recentBookScreen, recentPlainScreen, stagesDefOf } from "../web/src/core/window"
 import { BUILTIN } from "../web/src/plugins"
 import { assemble } from "../web/src/store/plugin"
@@ -73,3 +75,6 @@ export function worldRows(books: readonly unknown[]): { pages: unknown[]; folder
   const tables = worldTablesOf(books as readonly Book[], [homeOver(books as readonly Book[])])
   return { pages: Object.values(tables.pages), folders: Object.values(tables.folders) }
 }
+
+// 利用者の設定の無いとき（英語）の、ビルトインプラグインの名前を引く決まり
+export const NAMING = namingOf(CORE_CATALOG, NO_SETTINGS)

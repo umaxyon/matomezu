@@ -6,7 +6,7 @@ import { useAllowedOn } from "../../../ui/view-hooks"
 import { LIBRARY_ENTRY_MOVE } from "./commands"
 import { replaceBlockedOf } from "./entries"
 import { ENTRY_MOVE_OVER } from "./entry-move"
-import { useNameOf } from "./hooks"
+import { useNameOf, useReadNaming } from "./hooks"
 import { NO_TITLE } from "./outline"
 import { TitleClashConfirm } from "./TitleClashConfirm"
 import type { AskingMove } from "./useLibraryDrag"
@@ -15,14 +15,15 @@ export function MoveClashConfirm({ asking, onDone }: { asking: AskingMove; onDon
   const { entry, into, index, clash } = asking
   const read = useReadState()
   const nameOf = useNameOf()
+  const naming = useReadNaming()
   const move = useCommand(LIBRARY_ENTRY_MOVE.id).run
   const over = { entry, into, index: clash.indexOver, replaces: clash.replaces }
   const allowed = useAllowedOn(ENTRY_MOVE_OVER.id, over)
   const kind = placeOf(read().folders, entry)?.ref.kind ?? "folder"
   return (
     <TitleClashConfirm
-      folder={nameOf({ id: into, title: titleOf(read(), "folder", into) ?? NO_TITLE })}
-      name={nameOf({ id: entry, title: titleOf(read(), kind, entry) ?? NO_TITLE })}
+      folder={nameOf({ id: into, title: titleOf(read(), "folder", into, naming()) ?? NO_TITLE })}
+      name={nameOf({ id: entry, title: titleOf(read(), kind, entry, naming()) ?? NO_TITLE })}
       numbered={clash.numbered}
       blocked={replaceBlockedOf(clash, allowed)}
       onNumber={() => {

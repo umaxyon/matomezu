@@ -26,6 +26,7 @@ export const PART_UI = {
   toolSets: { views: [], define: ["defineToolSet"] },
   permissions: { views: [], define: ["definePermission"] },
   annotations: { views: [], define: ["defineAnnotation"] },
+  systemFolders: { views: [], define: ["defineSystemFolder"] },
   mails: { views: [], define: ["defineMail"] },
   subjects: { views: [], define: ["defineSubject"] },
   screens: { views: [], define: ["defineScreen"] },

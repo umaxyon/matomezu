@@ -21,6 +21,7 @@ import type { ScreenDef } from "./def/screen-def"
 import type { HeldSettingDef, SettingDef, SettingRole, UserSettingDef } from "./def/setting"
 import type { SkinDef } from "./def/skin"
 import { SUBJECT_ROLE_FIELDS, type SubjectDef } from "./def/subject"
+import type { SystemFolderDef } from "./def/system-folder"
 import type { TextColorDef } from "./def/text-color"
 import { THEME_TOKENS, type ThemeDef, type TokenDef } from "./def/theme"
 import type { ToolDef, ToolSetDef } from "./def/tool"
@@ -58,6 +59,7 @@ declare module "./catalog" {
     toolSets: ToolSetDef
     permissions: PermissionDef
     annotations: AnnotationDef
+    systemFolders: SystemFolderDef
     mails: MailDef
     subjects: SubjectDef
     screens: ScreenDef

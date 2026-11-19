@@ -11,6 +11,7 @@ import { kit } from "../kit"
 import { refusalMessage } from "../utils"
 import { titleTaken } from "../utils/refusal"
 import { ENTRY_RENAME, FOLDER_CREATE } from "./entry-move"
+import { useReadNaming } from "./hooks"
 
 type Refused = { ok: false; reason: string; permission?: string; kind?: string }
 
@@ -91,11 +92,12 @@ export function LibraryRenameDialog({ args, onClose }: DialogProps<{ entry: stri
   const t = useMessages(kit)
   const { perform } = useActions()
   const read = useReadState()
+  const naming = useReadNaming()
   // 開いたときの名前（無ければ空）
   const [was] = useState(() => {
     const s = read()
     const kind = placeOf(s.folders, args.entry)?.ref.kind
-    return (kind && titleOf(s, kind, args.entry)) ?? ""
+    return (kind && titleOf(s, kind, args.entry, naming())) ?? ""
   })
   return (
     <Dialog title={t("Rename")} onClose={onClose}>

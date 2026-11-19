@@ -3,13 +3,13 @@
 // ゴミ箱は、ツリーでは中を出さず、右の枠に捨てた物の一覧を出す（TrashView.tsx）。読めない物は、選べるだけ。開いているフォルダは画面の場所に入り、選んでいる行は入らない（state.ts）
 import { type MouseEvent, useEffect, useId, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
-import { titleOf } from "../../../core/entries"
+import { type Naming, namingOf, titleOf } from "../../../core/entries"
 import { HOME_ID, TRASH_ID } from "../../../core/folders"
 import type { MatomezuState } from "../../../store/store"
 import { useCommand } from "../../../ui/commands"
 import { useContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
-import { useMatomezuState, useReadState } from "../../../ui/store-context"
+import { useCatalog, useMatomezuState, useReadState } from "../../../ui/store-context"
 import { useActions, usePluginState, useReadPluginState, useSetPluginState } from "../../../ui/view-hooks"
 import { ActionButton, controlClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
@@ -61,7 +61,8 @@ const TOPS: readonly LibraryRow[] = [HOME_ID, TRASH_ID].map(id => ({
 }))
 
 // フォルダ folder の直下の行
-const useRowsIn = (folder: string): readonly LibraryRow[] => useLibraryRows(folder, s => rowsIn(s, folder))
+const useRowsIn = (folder: string): readonly LibraryRow[] =>
+  useLibraryRows(folder, (s, naming) => rowsIn(s, folder, naming))
 
 interface Handlers {
   opened: string
@@ -91,7 +92,8 @@ export function LibraryView({ className }: { className?: string } = {}) {
   const setPicked = useSetPluginState(kit, LIBRARY_PICKED)
   const opened = useMatomezuState(s => openedFolderOf(s.folders, value))
   const path = useMatomezuState(useShallow(s => pathTo(s.folders, opened)))
-  const titles = useMatomezuState(useShallow(s => path.map(id => folderTitle(s, id))))
+  const catalog = useCatalog().core
+  const titles = useMatomezuState(useShallow(s => path.map(id => folderTitle(s, id, namingOf(catalog, s.settings)))))
   const rows = useRowsIn(opened)
   const measureColumns = useColumnsMeasure(rows.length)
   // 新しいブック・フォルダを作る先（開いているのがブック・バインダなら、それを入れているフォルダ。ゴミ箱なら無い）
@@ -307,7 +309,8 @@ const dragMarks = (drag: LibraryDrag | null, zone: string, row: string) => ({
 })
 
 // フォルダ id の名前（名前を持たない物・無い物は NO_TITLE）
-const folderTitle = (s: MatomezuState, id: string): string => titleOf(s, "folder", id) ?? NO_TITLE
+const folderTitle = (s: MatomezuState, id: string, naming: Naming): string =>
+  titleOf(s, "folder", id, naming) ?? NO_TITLE
 
 // ツリーの 1 行と、中を出していればその下の行
 function TreeNode({
