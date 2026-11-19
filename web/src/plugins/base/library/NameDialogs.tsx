@@ -94,7 +94,8 @@ export function LibraryRenameDialog({ args, onClose }: DialogProps<{ entry: stri
   // 開いたときの名前（無ければ空）
   const [was] = useState(() => {
     const s = read()
-    return titleOf(s, placeOf(s.folders, args.entry)?.ref.kind ?? "folder", args.entry) ?? ""
+    const kind = placeOf(s.folders, args.entry)?.ref.kind
+    return (kind && titleOf(s, kind, args.entry)) ?? ""
   })
   return (
     <Dialog title={t("Rename")} onClose={onClose}>

@@ -14,7 +14,7 @@ import { type RestorePlan, replaceBlockedOf, restorePlanOf, SAME_TITLE } from ".
 import { ENTRY_PURGE, ENTRY_RESTORE, TRASH_EMPTY } from "./entry-trash"
 import { HistoryButtons } from "./HistoryButtons"
 import { useLibraryRows, useNameOf } from "./hooks"
-import { iconOf } from "./icons"
+import { RowIcon } from "./icons"
 import styles from "./LibraryView.module.css"
 import { NO_TITLE, shownDateTime, type TrashRow, trashRowsOf } from "./outline"
 import { TitleClashConfirm } from "./TitleClashConfirm"
@@ -86,7 +86,7 @@ export function TrashView({ picked, onPick }: { picked: string | undefined; onPi
                   aria-pressed={row.id === picked}
                   onClick={() => onPick(row.id)}
                 >
-                  <span className={styles.icon}>{iconOf(row.kind)}</span>
+                  <RowIcon row={row} className={styles.icon} />
                   <span className={row.readable ? styles.label : `${styles.label} ${styles.unreadable}`}>
                     {nameOf(row)}
                   </span>

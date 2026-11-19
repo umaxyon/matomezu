@@ -1,8 +1,11 @@
-// 書庫の行のアイコン（種類ごと）と、ツリーの開閉の印、書庫の画面の履歴のコマンドのアイコン（ブックの画面の履歴のコマンドと同じ絵）
+// 書庫の行のアイコン（種類ごと。ページは、そのタイプのプラグインが名乗ったアイコン）と、ツリーの開閉の印、書庫の画面の履歴のコマンドのアイコン（ブックの画面の履歴のコマンドと同じ絵）
 import type { EntryKind } from "../../../core/entries"
+import { useUiCatalog } from "../../../ui/store-context"
 import { REDO_ICON, UNDO_ICON } from "../history/icons"
 import { icon } from "../icon"
 import { LIBRARY_REDO, LIBRARY_UNDO } from "./commands"
+import styles from "./LibraryView.module.css"
+import type { LibraryRow } from "./outline"
 
 const FOLDER = icon(<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />)
 const BOOK = icon(
@@ -29,6 +32,17 @@ export const CHEVRON = icon(<path d="M9 6l6 6-6 6" />)
 const ICONS = { folder: FOLDER, book: BOOK, binder: BINDER, page: PAGE } as const satisfies Record<EntryKind, unknown>
 
 export const iconOf = (kind: EntryKind) => ICONS[kind]
+
+// 行 row のアイコンを、className（styles.icon か styles.bigIcon）の枠に描く。ページは、タイプが pageTypeIcons で名乗ったアイコン（ページタブと同じ絵。
+// 枠いっぱいに広げ、絵が決めていない線は引かない）。名乗らないタイプ・バインダは、種類の絵
+export function RowIcon({ row, className }: { row: Pick<LibraryRow, "kind" | "type">; className: string | undefined }) {
+  const typed = useUiCatalog().pageTypeIcons.get(row.type)
+  return row.kind === "page" && typed !== undefined ? (
+    <span className={`${className} ${styles.typed}`}>{typed}</span>
+  ) : (
+    <span className={className}>{iconOf(row.kind)}</span>
+  )
+}
 
 export const LIBRARY_COMMAND_ICONS = {
   [LIBRARY_UNDO.id]: UNDO_ICON,

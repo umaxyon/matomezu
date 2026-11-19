@@ -27,7 +27,7 @@ import { holderForNew } from "./entries"
 import { FoundView } from "./FoundView"
 import { HistoryButtons } from "./HistoryButtons"
 import { useKeepFocusIn, useLibraryRows, useNameOf } from "./hooks"
-import { CHEVRON, iconOf, TRASH } from "./icons"
+import { CHEVRON, RowIcon, TRASH } from "./icons"
 import styles from "./LibraryView.module.css"
 import { MoveClashConfirm } from "./MoveClashConfirm"
 import {
@@ -262,7 +262,7 @@ export function LibraryView() {
                         handlers.menu(e, row)
                       }}
                     >
-                      <span className={styles.bigIcon}>{iconOf(row.kind)}</span>
+                      <RowIcon row={row} className={styles.bigIcon} />
                       <span className={row.readable ? styles.caption : `${styles.caption} ${styles.unreadable}`}>
                         {nameOf(row)}
                       </span>
@@ -340,7 +340,11 @@ function TreeNode({
             if (row.id !== TRASH_ID) handlers.menu(e, row)
           }}
         >
-          <span className={styles.icon}>{row.id === TRASH_ID ? TRASH : iconOf(row.kind)}</span>
+          {row.id === TRASH_ID ? (
+            <span className={styles.icon}>{TRASH}</span>
+          ) : (
+            <RowIcon row={row} className={styles.icon} />
+          )}
           <span className={row.readable ? styles.label : `${styles.label} ${styles.unreadable}`}>{name}</span>
         </button>
       </div>

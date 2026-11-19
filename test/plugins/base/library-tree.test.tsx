@@ -1,11 +1,11 @@
 // 書庫の画面のツリー: 描いた行の並びが、キーの矢印が使う並び（outline.ts の treeRowsOf）と同じ
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, screen, within } from "@testing-library/react"
-import { treeRowsOf } from "../../web/src/plugins/base/library/outline"
-import { LIBRARY_UNFOLDED } from "../../web/src/plugins/base/library/state"
-import { pluginValueOf } from "../../web/src/store/plugin-state"
-import { SAMPLE_BOOKS } from "../sample-books"
-import { renderScreen } from "./support"
+import { treeRowsOf } from "../../../web/src/plugins/base/library/outline"
+import { LIBRARY_UNFOLDED } from "../../../web/src/plugins/base/library/state"
+import { pluginValueOf } from "../../../web/src/store/plugin-state"
+import { SAMPLE_BOOKS } from "../../sample-books"
+import { renderScreen } from "../../ui/support"
 
 afterEach(cleanup)
 
