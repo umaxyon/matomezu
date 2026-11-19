@@ -6,6 +6,6 @@ export const WINDOW_MESSAGES = defineMessages({
   "Split into rows": { en: "Split into rows", ja: "上下に分ける" },
   "Book screen": { en: "Book screen", ja: "ブックスクリーン" },
   "Close screen": { en: "Close screen", ja: "スクリーンを閉じる" },
-  "Back to the book screen": { en: "Back to the book screen", ja: "ブックスクリーンへ戻る" },
+  "Close the last opened screen": { en: "Close the last opened screen", ja: "最後に開いたスクリーンを閉じる" },
   "Control center": { en: "Control center", ja: "コントロールセンター" },
 })

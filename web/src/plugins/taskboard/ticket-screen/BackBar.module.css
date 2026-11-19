@@ -42,7 +42,7 @@
   padding: 0;
   justify-content: center;
 }
-/* 巣箱の絵は線だけで描く絵（塗らず、線は文字の色）。フッターの巣箱のボタンと同じ描き方にする */
+/* 巣箱の絵は線だけで描く絵（塗らず、線は文字の色） */
 .birdhouse svg {
   width: 18px;
   height: 18px;

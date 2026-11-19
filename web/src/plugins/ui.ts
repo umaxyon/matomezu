@@ -66,7 +66,6 @@ export const DEFAULT_LAYOUT = defineLayout({
     "@matomezu/control-center:workroom-row-line": ["@matomezu/taskboard:workroom-current-line"],
     "@matomezu/base:one-screen": ["@matomezu/base:screens-view"],
     "@matomezu/base:split-rows": ["@matomezu/base:screens-view"],
-    "@matomezu/base:control-center-footer": ["@matomezu/base:control-center-birdhouse"],
     "@matomezu/base:stage-top": ["@matomezu/base:tool-switch"],
     "@matomezu/base:stage-side": ["@matomezu/base:page-list"],
     "@matomezu/base:stage-body": ["@matomezu/base:book-view", "@matomezu/base:print-preview-scrollbars"],
@@ -126,7 +125,7 @@ export const DEFAULT_LAYOUT = defineLayout({
     "@matomezu/base:stage-menu": [
       "@matomezu/base:control-center-toggle",
       { either: ["@matomezu/base:stage-split", "@matomezu/base:stage-unsplit"] },
-      "@matomezu/base:book-open",
+      "@matomezu/base:library-open",
       { either: ["@matomezu/base:binder-settings-opened", "@matomezu/base:page-settings"] },
     ],
   },

@@ -15,7 +15,7 @@ async function split(page: Page) {
   await expect(stageNames(page)).toHaveCount(2)
 }
 
-test("「画面を分割」で下に出た書庫のスクリーンのスクリーンでブックを 2 回押すと、右の空のステージに開き、書庫のスクリーンは引っ込む", async ({
+test("「画面を分割」で下に出た書庫のスクリーンでブックを 2 回押すと、右の空のステージに開き、書庫のスクリーンは引っ込む", async ({
   page,
 }) => {
   await split(page)
@@ -103,4 +103,12 @@ test("何も開いていないステージ 1 つなら、真ん中に「書庫�
   await stage.getByRole("button", { name: "スクリーンを閉じる" }).click()
   await expect(page.getByRole("heading", { name: "コントロールセンター" })).toBeVisible()
   await expect(stage).toHaveCount(0)
+})
+
+test("下に出した書庫のスクリーンでも、行のキーが効く（Delete でゴミ箱に入れる）", async ({ page }) => {
+  await split(page)
+  const row = library(page).getByRole("button", { name: "残課題", exact: true })
+  await row.click()
+  await page.keyboard.press("Delete")
+  await expect(row).toHaveCount(0)
 })

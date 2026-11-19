@@ -1,4 +1,4 @@
-// 窓: コントロールセンターかブックスクリーンを前に出す。開いた直後はコントロールセンター、巣箱のボタンで行き来し、戻ってもブックスクリーンの中は残る。
+// 窓: コントロールセンターかブックスクリーンを前に出す。開いた直後はコントロールセンター。ブックスクリーンからはメニューで行き、書庫で開いているブックを開くと戻る。戻ってもブックスクリーンの中は残る。
 // 前に出す物を替えるのはブラウザの履歴に 1 つ積み、戻る・進むで戻る
 import {
   BOOK_SCREEN_DEF,
@@ -11,7 +11,7 @@ import {
   test,
   urlFront,
 } from "./fixtures"
-import { splitWith } from "./helpers/split"
+import { lowerLibrary, splitWith } from "./helpers/split"
 import { fromMenu } from "./helpers/stage-menu"
 import { storedBooks, storedTrashedAt } from "./helpers/stored"
 
@@ -27,7 +27,7 @@ test("開いた直後（URL が無いとき）はコントロールセンター�
   await expect.poll(() => urlFront(page)).toBe(CONTROL_CENTER_SCREEN_DEF)
 })
 
-test("巣箱のボタンでコントロールセンターへ行き、押すとブックスクリーンへ戻る。戻ってもステージの中は残る", async ({
+test("コントロールセンターへ行き、書庫で開いているブックを開くと、同じブックスクリーンへ戻る。戻ってもステージの中は残る", async ({
   page,
 }) => {
   await page.goto(BOOK_SCREEN_URL)
@@ -37,12 +37,16 @@ test("巣箱のボタンでコントロールセンターへ行き、押すと�
   await (await fromMenu(page, "コントロールセンター")).click()
   await expect(center(page)).toBeVisible()
   await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(0)
-  // センターの下の行の巣箱のボタンは押された状態で、押すと戻る
-  const birdhouse = page.getByRole("button", { name: "コントロールセンター" })
-  await expect(birdhouse).toHaveAttribute("aria-pressed", "true")
-  await birdhouse.click()
+  // センターの下の行（巣箱）は無い。書庫で、開いているブックを 2 回押すと、同じブックスクリーンが分けたまま前に出る
+  await expect(page.locator("footer").getByRole("button", { name: "コントロールセンター" })).toHaveCount(0)
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  await page
+    .getByRole("list", { name: "書庫 の中身" })
+    .getByRole("button", { name: "画面の構成", exact: true })
+    .dblclick()
   await expect(center(page)).toBeHidden()
   await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(2)
+  await expect(page.getByRole("tablist").nth(1)).toHaveAttribute("aria-label", "画面の構成")
 })
 
 test("前に出す物を替えるのはブラウザの履歴に 1 つ積み、戻る・進むで戻る", async ({ page }) => {
@@ -94,7 +98,8 @@ test("コントロールセンターの間は、行き先のブックが後ろ�
   await send(page, { title: "後ろのブック", to: { book } })
   await expect(page.getByRole("button", { name: "後ろのブック" })).toBeVisible()
   expect(await visitedAt(page)).toBeUndefined()
-  await page.locator("footer").getByRole("button", { name: "コントロールセンター" }).click()
+  // ブラウザの戻るでブックスクリーンへ戻る
+  await page.goBack()
   await expect(center(page)).toBeHidden()
   await expect.poll(() => visitedAt(page)).toBeTruthy()
 })
@@ -120,13 +125,13 @@ test("コントロールセンターの間でも、しおりが 4 通以上の�
   await expect(page.getByRole("complementary", { name: "左サイドパネル" })).toBeVisible()
 })
 
-test("コントロールセンターを前に出している間、Esc でブックスクリーンへ戻る", async ({ page }) => {
+test("コントロールセンターを前に出している間の Esc では、ブックスクリーンへ戻らない", async ({ page }) => {
   await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "コントロールセンター")).click()
   await expect(center(page)).toBeVisible()
   await page.keyboard.press("Escape")
-  await expect(center(page)).toBeHidden()
-  await expect.poll(() => urlFront(page)).toBe(BOOK_SCREEN_DEF)
+  await expect(center(page)).toBeVisible()
+  await expect.poll(() => urlFront(page)).toBe(CONTROL_CENTER_SCREEN_DEF)
 })
 
 test("宛先なしで開いた窓は、コントロールセンターだけで、ブックスクリーンは無い。AI の view は bookScreen が none", async ({
@@ -151,10 +156,11 @@ test("別の窓が、開いているブックをゴミ箱に入れると、そ�
   await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(1)
   const second = await newPage()
   await second.goto(bookScreenUrl(other))
-  await (await fromMenu(second, "ブックを開く")).click()
-  const row = second.getByRole("dialog", { name: "ブックを開く" }).getByRole("option", { name: books[0]?.title ?? "" })
-  await row.hover()
-  await row.getByRole("button", { name: "ゴミ箱に入れる" }).click()
+  await (await fromMenu(second, "書庫を開く")).click()
+  await lowerLibrary(second)
+    .getByRole("button", { name: books[0]?.title ?? "", exact: true })
+    .click()
+  await second.keyboard.press("Delete")
   await expect.poll(async () => await storedTrashedAt(page.request, mine)).toBeTruthy()
   await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(0)
   await expect(center(page)).toBeVisible()

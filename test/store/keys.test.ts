@@ -264,3 +264,13 @@ test("利用者の変更に残った前の範囲の名前 control-center は、s
     removed: [{ ...former, scope: "screen" }],
   })
 })
+
+test("ステージを持たないスクリーンがカレントなら、キーはそのスクリーンに向く（ブックスクリーンが後ろにあっても）", () => {
+  const store = newStore()
+  const libraryOpen = () => store.state.getState().window.screens.some(s => s.def === "@matomezu/base:library-screen")
+  store.actions.command("s1", "@matomezu/base:stage-split")
+  expect(libraryOpen()).toBe(true)
+  // 下に出した書庫のスクリーンがカレント。その中の Esc は、書庫のスクリーンを閉じる
+  expect(store.actions.pressKey("Escape", ["@matomezu/base:library"])).toBe(true)
+  expect(libraryOpen()).toBe(false)
+})

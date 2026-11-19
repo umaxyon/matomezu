@@ -17,7 +17,7 @@ export function UserPanel({ screen, onShow }: { screen: FrontScreen; onShow: (to
   const mailbox = useMailboxPanel()
   const wideSearch = useWideSearchPanel()
   const settings = useCommand("@matomezu/base:settings-open")
-  // 題の左の巣箱の絵（見た目だけ。帯やフッターの巣箱のボタンと同じ絵を、そのコマンドの id で引く）
+  // 題の左の巣箱の絵（見た目だけ。チケットの帯の巣箱のボタンと同じ絵を、そのコマンドの id で引く）
   const birdhouse = useUiCatalog().commandIcons.get(BIRDHOUSE_COMMAND)
   const tiles: Tile[] = [
     { label: t("Mailbox"), icon: <MailIcon />, onClick: mailbox.toggle, pressed: mailbox.open },

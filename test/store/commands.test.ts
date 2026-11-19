@@ -109,8 +109,8 @@ describe("コマンドを行う", () => {
   test("ダイアログのコマンドは、呼んだステージから開いたダイアログにする", () => {
     const { state, actions } = newStore()
     actions.command("s1", "@matomezu/base:stage-split")
-    actions.command("s2", "@matomezu/base:book-open")
-    expect(state.getState().dialog).toMatchObject({ id: "@matomezu/base:book-open", stage: "s2" })
+    actions.command("s2", "@matomezu/base:book-new")
+    expect(state.getState().dialog).toMatchObject({ id: "@matomezu/base:book-new", stage: "s2" })
     actions.closeDialog()
     expect(state.getState().dialog).toBeNull()
   })
@@ -118,12 +118,12 @@ describe("コマンドを行う", () => {
   test("開いたステージが閉じたらダイアログも閉じ、ほかのステージが閉じても残る", () => {
     const { state, actions } = newStore()
     actions.command("s1", "@matomezu/base:stage-split")
-    actions.command("s2", "@matomezu/base:book-open")
+    actions.command("s2", "@matomezu/base:book-new")
     actions.command("s1", "@matomezu/base:stage-close")
-    expect(state.getState().dialog).toMatchObject({ id: "@matomezu/base:book-open", stage: "s2" })
+    expect(state.getState().dialog).toMatchObject({ id: "@matomezu/base:book-new", stage: "s2" })
     actions.command("s2", "@matomezu/base:stage-split")
     const added = screenOf(state.getState().window).stages[1]!.id
-    actions.command(added, "@matomezu/base:book-open")
+    actions.command(added, "@matomezu/base:book-new")
     actions.command(added, "@matomezu/base:stage-close")
     expect(state.getState().dialog).toBeNull()
   })

@@ -54,11 +54,11 @@ test("URL でチケットを開くと、チケットの枠と本文が右から�
   await expect(screen.getByRole("heading", { name: "ログイン画面を直す" })).toBeVisible()
   await expect(screen.getByText("T-0001")).toBeVisible()
   await expect(screen.getByText("起票日時")).toBeVisible()
-  // チケットスクリーンは、下の行（巣箱のボタン）を残して、窓の高さいっぱいに広がる
+  // チケットスクリーンは、窓の高さいっぱいに広がる（下の行は、置いた物が無いので描かない）
   const box = await screen.boundingBox()
   const size = page.viewportSize()
   expect(box?.height ?? 0).toBeGreaterThan((size?.height ?? 0) - 60)
-  await expect(page.locator("footer").getByRole("button", { name: "コントロールセンター" })).toBeVisible()
+  await expect(page.locator("footer").getByRole("button", { name: "コントロールセンター" })).toHaveCount(0)
   // 閉じて右へ出ている質問の枠が、チケットスクリーンを包むスクロールの枠に横スクロールを作らない
   const wide = await screen.evaluate(el => {
     for (let e = el.parentElement; e; e = e.parentElement) {

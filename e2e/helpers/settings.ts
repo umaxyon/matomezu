@@ -13,10 +13,10 @@ export async function openSettings(page: Page) {
   await gear.click()
 }
 
-// 設定画面を閉じたあと、コントロールセンターからブックスクリーンへ戻る（Esc）
+// 設定画面を閉じたあと、コントロールセンターからブックスクリーンへ戻る（ブラウザの戻る）
 export async function backToBook(page: Page) {
   await expect(settingsDialog(page)).toBeHidden()
-  await page.keyboard.press("Escape")
+  await page.goBack()
   await expect(page.getByRole("heading", { name: "コントロールセンター" })).toBeHidden()
 }
 
