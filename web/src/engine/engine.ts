@@ -555,7 +555,7 @@ interface AnnotatedBook {
 ;(globalThis as { matomezuRunOnceActions?: () => string }).matomezuRunOnceActions = () =>
   JSON.stringify([...assembled.catalog.core.actions.values()].filter(a => a.runsOnceAtStart).map(a => a.id))
 
-// 機能台帳に合わせてデータを足すアクション（ActionDef の runAndKeepsWithCatalog。常駐が、起動したとき・機能台帳が変わったとき・データを書いたあとに行う）の id の並び
+// 機能台帳に合わせてデータを足すアクション（ActionDef の runAndKeepsWithCatalog。常駐が、起動したときと機能台帳が変わったときと、データを書いて書庫のシステムフォルダが機能台帳に合わなくなったときに行う）の id の並び
 ;(globalThis as { matomezuCatalogActions?: () => string }).matomezuCatalogActions = () =>
   JSON.stringify([...assembled.catalog.core.actions.values()].filter(a => a.runAndKeepsWithCatalog).map(a => a.id))
 
