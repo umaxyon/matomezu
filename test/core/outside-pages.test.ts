@@ -96,6 +96,7 @@ const CENTER = "@matomezu/control-center:control-center"
 const RENAME = "@matomezu/base:entry-rename"
 const TRASH = "@matomezu/base:entry-trash"
 const PAGE_CREATE = "@matomezu/base:page-create"
+const DUPLICATE = "@matomezu/base:entry-duplicate"
 const SNEAK = "test:sneak-rename"
 
 // 行う前に問わず（許可スコープ "unknown"）、ブックの外のページ x1 の名前を変える書庫のアクション（行った後の確かめだけが止める）
@@ -242,6 +243,10 @@ test("ロックしたブックの外のページは、動かせるが、名前�
   // 行う前に問わないアクションでも、行った後の確かめで止まる
   expect(permittedIn(w, SNEAK, {}, undefined, libraryCtx("test:center"))).toEqual({ ok: true })
   expect(performIn(w, SNEAK, {}, undefined, libraryCtx("test:center"))).toEqual(denied)
+})
+
+test("ロックしたブックの外のページの複製の問いを、ロックは止めない", () => {
+  expect(permittedIn(outsideWorld(), DUPLICATE, { entry: "x1" }, undefined, libraryCtx())).toEqual({ ok: true })
 })
 
 const PLACE = "@matomezu/paper:item-place"
