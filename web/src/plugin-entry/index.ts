@@ -130,6 +130,7 @@ export {
   replacePushing,
   replaceShapePushing,
   resizedBy,
+  resolveTokens,
   richWidth,
   roomOf,
   ScrapSchema,

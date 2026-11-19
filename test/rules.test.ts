@@ -179,10 +179,12 @@ test("ページのタイプの名前で振る舞いを分けない（使える�
 })
 
 test("テーマの値を引く関数（resolveTokens・bookTokens）を読むのは見た目のファイルだけ（データを変える処理と並べ方の計算は、テーマで変わる値を使わない）。機能台帳のテーマを直に読む所は見張れない", () => {
-  // 関数を書く所（core/theme.ts と base の book-look/look.ts）のほかは、どのクレートも見る。出し直し（export … from）は読んだことにしない
+  // 関数を書く所（base の book-look/tokens.ts と look.ts）のほかは、どのクレートも見る。出し直し（export … from）は読んだことにしない
   const readsTheme = /\bimport\s*\{[^}]*\b(?:resolveTokens|bookTokens)\b[^}]*\}/
   const offenders = sources
-    .filter(f => !isView(f.rel) && !["core/theme.ts", "plugins/base/book-look/look.ts"].includes(f.rel))
+    .filter(
+      f => !isView(f.rel) && !["plugins/base/book-look/tokens.ts", "plugins/base/book-look/look.ts"].includes(f.rel),
+    )
     .filter(f => readsTheme.test(f.text))
     .map(f => f.rel)
   expect(offenders).toEqual([])

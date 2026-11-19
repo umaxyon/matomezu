@@ -267,6 +267,7 @@ export {
   DOCUMENT_THEME_TYPE,
   PAGE_PAPER_COLOR,
   PAGE_THEME,
+  resolveTokens,
   themeFits,
   themesFor,
 } from "./book-look"

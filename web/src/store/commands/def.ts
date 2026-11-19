@@ -131,7 +131,8 @@ export const arrangementValueIn = (ctx: ScreenCommandContext): unknown => frames
 export const calledScreenIdOf = (ctx: ScreenCommandContext): string => frames.get(ctx)?.here ?? fail("E116")
 
 // コマンドの文脈ごとの、ステージの並びと道具（表示領域の大きさ・道具のアイコンなども持つので、プラグイン API の文脈のフィールドにはしない。base のコマンドが workspaceOf で読む）と、
-// 開けるブックの一覧（base のコマンドが booksOf で読む）
+// 開けるブックの一覧（base のコマンドが booksOf で読む）。
+// これを読む workspaceOf・booksOf・calledStageOf は、使うのが base だけでも土台に置く（store の外に出さない workspaces を読むので、base からは書けない）
 const workspaces = new WeakMap<CommandContext, { workspace: Workspace; stage: string; books: Books }>()
 
 // ctx に、ステージの並び workspace から紙の上の点を求める toPaper を足した、コマンドの文脈（books は、開けるブックの一覧）

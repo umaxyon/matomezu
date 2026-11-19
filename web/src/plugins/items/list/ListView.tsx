@@ -16,7 +16,7 @@
 // 行は台紙の上の 1 枚ずつのカードで、カードの地・角・影・折り返しはテーマが決める（付箋紙のテーマでは付箋）。色はリストの台紙と見出しに塗る（paint.ts）
 
 import { type CSSProperties, type PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { type ItemProps, resolveTokens, toPaperDelta } from "../../../plugin-api"
+import { type ItemProps, toPaperDelta } from "../../../plugin-api"
 import {
   type ItemViewProps,
   themeVars,
@@ -27,7 +27,7 @@ import {
   useMessages,
   useStage,
 } from "../../../plugin-api/ui"
-import { DRAG_START } from "../../base"
+import { DRAG_START, resolveTokens } from "../../base"
 import {
   GhostArea,
   modPressed,
