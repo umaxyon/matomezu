@@ -2,7 +2,7 @@
 // ブックスクリーンと上下に並べている間（「画面を分割」で下に出したとき）は、帯に「→ 閉じる」と「広げる」を出し（チケットスクリーンと同じ）、
 // 書庫の外を押す・焦点が書庫の外へ移ると閉じる（ブックスクリーンの編集と、書庫から開く操作を同時にさせない。書庫が開いたダイアログ・メニュー・トーストは書庫の内に数える。
 // 窓ごと焦点を失ったときは閉じない）。窓いっぱいのときは、帯に名前と閉じるボタン。閉じる・広げるは screen.ts の関数を通る
-import { type FocusEvent, useEffect, useRef } from "react"
+import { useEffect, useRef } from "react"
 import { openScreensOf } from "../../../store/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useScreenContext } from "../../../ui/screen-context"
@@ -33,25 +33,29 @@ export function LibraryScreen() {
     const win = read().window
     expandLibrary(store, openScreensOf(win), win.arrangementValue, here)
   }
-  // 書庫の外の物か（書庫が開いたダイアログ・メニュー・トーストは外に数えない）
-  const outside = (at: Element) => !root.current?.contains(at) && !at.closest(POPUP_KEEPS)
-  // 並べている間は、書庫の外を押したら閉じる
+  // 並べている間は、書庫の外を押したら・焦点が書庫の外の物へ移ったら閉じる（書庫が開いたダイアログ・メニュー・トーストは外に数えない。
+  // 窓ごと焦点を失ったときは、移った先が無いので閉じない）
   const closeRef = useRef(close)
   closeRef.current = close
   useEffect(() => {
-    if (!below) return
-    const away = (e: PointerEvent) => {
-      if (e.target instanceof Element && outside(e.target)) closeRef.current()
+    const el = root.current
+    if (!below || !el) return
+    const outside = (at: EventTarget | null) => at instanceof Element && !el.contains(at) && !at.closest(POPUP_KEEPS)
+    const pressed = (e: PointerEvent) => {
+      if (outside(e.target)) closeRef.current()
     }
-    document.addEventListener("pointerdown", away, true)
-    return () => document.removeEventListener("pointerdown", away, true)
+    const left = (e: FocusEvent) => {
+      if (outside(e.relatedTarget)) closeRef.current()
+    }
+    document.addEventListener("pointerdown", pressed, true)
+    el.addEventListener("focusout", left)
+    return () => {
+      document.removeEventListener("pointerdown", pressed, true)
+      el.removeEventListener("focusout", left)
+    }
   }, [below])
-  // 並べている間は、焦点が書庫の外の物へ移ったら閉じる（窓ごと焦点を失ったときは、移った先が無いので閉じない）
-  const onBlur = (e: FocusEvent) => {
-    if (below && e.relatedTarget instanceof Element && outside(e.relatedTarget)) close()
-  }
   return (
-    <div ref={root} className={styles.screen} onBlur={onBlur}>
+    <div ref={root} className={styles.screen}>
       <div className={styles.band}>
         {below ? (
           <>
