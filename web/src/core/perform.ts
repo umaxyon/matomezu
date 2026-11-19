@@ -84,7 +84,7 @@ import { type Counters, NO_RECORD, RECORDS_MAX, REMOVED, type RecordChange, type
 import { referredOf } from "./refs"
 import { sameData } from "./same"
 import type { Book, Page, UnreadableCode, UnreadableEntry } from "./schema/book"
-import type { Settings } from "./settings"
+import { langChosen, type Settings } from "./settings"
 import { settledAfter } from "./settle"
 
 type ActionOf<Id extends ActionId> = ActionTable[Id]
@@ -826,10 +826,12 @@ export function performIn(
   const next = done.next as Settings
   const same = sameData(next, world.settings)
   if (same) return { ok: true, result: done.result }
-  // 言語が変わって、名前を設定の言語で引く物（システムフォルダ）の名前が、同じフォルダのほかの物と重なるなら断る（書庫の行は変えない）
+  // 選んでいた言語を変えて、名前を設定の言語で引く物（システムフォルダ）の名前が、同じフォルダのほかの物と重なるなら断る（書庫の行は変えない）。
+  // 言語を選んでいない所から初めて選ぶのは、変えるのでないので断らない（名前の重なりは、機能台帳が変わったときのアクションが番号を付けて解く。ActionDef の runsAtWindowStart）
   const library: Library = { pages: world.pages, folders: world.folders }
   const nextNaming = namingOf(ctx.catalog, next)
-  const clashes = nextNaming.lang === naming.lang ? [] : titleClashes(library, library, naming, nextNaming)
+  const changes = langChosen(ctx.catalog, world.settings) && nextNaming.lang !== naming.lang
+  const clashes = changes ? titleClashes(library, library, naming, nextNaming) : []
   if (clashes.length > 0) return languageTitleTaken(library, clashes, nextNaming)
   return { ok: true, result: done.result, settings: next }
 }

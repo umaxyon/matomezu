@@ -24,6 +24,7 @@ const DOCUMENTS = DOCUMENTS_DEF.id
 const GONE = "@x/gone:folder" // 定義が機能台帳に無いシステムフォルダ（プラグインを外した間）
 const SYSTEM_FOLDER_ADD_NAME = SYSTEM_FOLDER_ADD.id.slice("@matomezu/base:".length)
 const JA = { "@matomezu/base:lang": "matomezu:ja" }
+const EN = { "@matomezu/base:lang": "matomezu:en" }
 
 const ctxOf = (): Omit<ActionContext, "naming"> => ({
   catalog: CORE_CATALOG,
@@ -129,14 +130,27 @@ test("名前は利用者の設定の言語で引く: 日本語ならドキュメ
     added: [{ folder: "sf1", systemFolder: DOCUMENTS }],
     renamed: [{ entry: book, kind: "book", from: "ドキュメント", to: "ドキュメント 2" }],
   })
-  // 英語なら当たらない。そのあと日本語にするのは断る
-  const en = after(named, run(named, SYSTEM_FOLDER_ADD_NAME))
+  // 英語を選んでいれば当たらない。そのあと日本語に変えるのは断る
+  const en = after({ ...named, settings: EN }, run({ ...named, settings: EN }, SYSTEM_FOLDER_ADD_NAME))
   expect((en.folders[book] as { title?: string }).title).toBe("ドキュメント")
   const switched = run(en, "settings-set", { values: JA })
   expect(!switched.ok && "kind" in switched ? switched.kind : "ok").toBe("title-taken")
   // 当たる物の名前を変えれば、日本語にできる
   const renamed = after(en, run(en, "entry-rename", { entry: book, title: "本" }))
   expect(run(renamed, "settings-set", { values: JA }).ok).toBe(true)
+})
+
+test("窓が初めて言語を書くと、システムフォルダと名前の当たる利用者の物に番号を付ける（断らない）", () => {
+  const store = newStore({ now: () => NOW })
+  const { actions, state } = store
+  expect(actions.perform("@matomezu/base:system-folder-add", {}).ok).toBe(true)
+  const book = homeOf(worldOf(state.getState())).find(r => r.kind === "book")!.id
+  // 言語を選んでいない間（英語で引く）は、ドキュメントと当たらない
+  expect(actions.perform("@matomezu/base:entry-rename", { entry: book, title: "ドキュメント" }).ok).toBe(true)
+  store.startWindow()
+  const now = state.getState()
+  expect(now.settings).toEqual(JA)
+  expect((now.folders[book] as { title?: string }).title).toBe("ドキュメント 2")
 })
 
 test("プラグインが戻ってシステムフォルダの名前がまた引けると、当たる物に番号を付ける（行は足さない）", () => {

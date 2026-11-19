@@ -52,6 +52,8 @@ const reasonOf = (error: unknown): string => (error instanceof Error ? error.mes
 const screenWarnings = [...placed.warnings, ...failed.map(f => warning("W011", f.id, { reason: reasonOf(f.error) }))]
 client.reportWarnings([...screenWarnings, ...shownLayout(layout, store.plugins, assembleUi(store.plugins)).warnings])
 client.connect(store)
+// 窓を開いたときのアクション（窓の言語を、まだ選ばれていなければ設定に書くなど）を行う
+store.startWindow()
 // 画面の場所を URL と行き来させる（読み直しても同じ所が開き、ブラウザの戻る・進むで移動を戻る）
 followLocation(store)
 // 画面が頼んだら、ブラウザの印刷ダイアログで刷る

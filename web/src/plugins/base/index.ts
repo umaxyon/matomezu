@@ -219,6 +219,7 @@ import {
   ENABLED_PLUGINS,
   KEYS,
   LANG,
+  LANG_ADOPT,
   OPTION_TITLES_CHECK,
   SETTINGS_DIALOG,
   SETTINGS_OPEN,
@@ -444,6 +445,7 @@ export const BASE = defineBuiltin(
       TRASH_EMPTY,
       LIBRARY_REVERT,
       SETTINGS_SET,
+      LANG_ADOPT,
       HISTORY_RESTORE,
       NOTE_ADD,
       NOTE_UPDATE,
@@ -710,6 +712,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-revert": typeof LIBRARY_REVERT
     "@matomezu/base:trash-empty": typeof TRASH_EMPTY
     "@matomezu/base:settings-set": typeof SETTINGS_SET
+    "@matomezu/base:lang-adopt": typeof LANG_ADOPT
     "@matomezu/base:book-revert": typeof HISTORY_RESTORE
     "@matomezu/base:note-add": typeof NOTE_ADD
     "@matomezu/base:note-update": typeof NOTE_UPDATE

@@ -1,8 +1,9 @@
 // 利用者の設定のアクション: 書いた項目の値だけを丸ごと置き換える。使えるか（コントロールセンターが変えさせない項目・AI に利用者だけの項目）は、
 // 許可スコープの項目ごとに土台が問う（core/inspect.ts）
 import { z } from "zod"
-import { settingSchema } from "../../../core/settings"
+import { langChosen, settingSchema } from "../../../core/settings"
 import { kit } from "../kit"
+import { LANG } from "./user-settings"
 
 export const SETTINGS_SET = kit.defineAction({
   id: "settings-set",
@@ -38,5 +39,25 @@ export const SETTINGS_SET = kit.defineAction({
       next[id] = parsed.data
     }
     return { next, result: {} }
+  },
+})
+
+// 窓の言語を、言語の項目（LANG）がまだ選ばれていないときだけ、利用者の設定に書く（窓の言語の言語パックが無ければ書かない）。
+// 窓を開いたときに、窓が行う。言語の違う窓が 2 つ開いても、後の窓は先に書いた言語を変えない
+export const LANG_ADOPT = kit.defineAction({
+  id: "lang-adopt",
+  title: "Language", // 言語の項目と同じ名前
+  aiDescription:
+    "Set the language setting to the language of the user's window, only while no language is chosen. matomezu does this by itself when a window opens; only the user can do this.",
+  target: "settings",
+  userOnly: true,
+  history: false, // 利用者の操作でなく、窓を開いたときに書く
+  runsAtWindowStart: true,
+  permissionScope: () => [LANG.id],
+  args: z.strictObject({}),
+  run: (settings, _args, ctx) => {
+    const pack = [...ctx.catalog.languagePacks.values()].find(p => p.lang === ctx.lang)?.id
+    if (langChosen(ctx.catalog, settings) || pack === undefined) return { next: settings, result: {} }
+    return { next: { ...settings, [LANG.id]: pack }, result: {} }
   },
 })
