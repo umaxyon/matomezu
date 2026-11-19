@@ -9,7 +9,7 @@ import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import { shownPageId } from "../../../core/stage"
 import type { CommandActions, CommandContext } from "../../../store/commands/def"
-import { calledStageOf } from "../../../store/commands/def"
+import { calledStageOf, NO_BOOK } from "../../../store/commands/def"
 import { withBookSettings } from "../book-look"
 import type { SettingReader } from "../book-settings"
 import { bookSettingsPatch, bookSettingValue } from "../book-settings"
@@ -104,7 +104,7 @@ export const PRINT_PREVIEW_FIT = kit.defineCommand({
 export function fitSide(catalog: CoreCatalog, book: Book | null): "width" | "height" {
   return book && bookSettingValue(catalog, book, PRINT_PREVIEW_FLOW) === "row" ? "height" : "width"
 }
-const sideOf = (ctx: CommandContext) => fitSide(ctx.catalog, ctx.book)
+const sideOf = (ctx: CommandContext) => fitSide(ctx.catalog, ctx.book === NO_BOOK ? null : ctx.book)
 
 // 開いているブックを、ステージ ctx.stage で印刷プレビューで見せる。右サイドパネルは印刷プレビューのビューが開く。
 // 印刷区画の境目をまたいだ形を直してもらうタイプで、またいだ形があれば、印刷プレビューは開かず、それを知らせる右サイドパネルを開く
@@ -112,7 +112,7 @@ function openPreview(ctx: CommandContext, a: CommandActions) {
   const book = ctx.book
   const now = calledStageOf(ctx)
   const opened = now?.opened
-  if (book && now && opened && hasCrossing(ctx.catalog, book)) {
+  if (book !== NO_BOOK && now && opened && hasCrossing(ctx.catalog, book)) {
     const open = { ...printCheckOpen(book.id), book: opened.book, page: shownPageId(opened) }
     a.updatePluginState(RIGHT_SIDE_PANEL_STATE, () => open)
     a.updatePluginState(RIGHT_SIDE_PANEL_RESTORE_STATE, kept => openedRestore(kept, open, now))
@@ -130,7 +130,7 @@ export const PRINT_PREVIEW_OPEN = kit.defineCommand({
   id: "print-preview-open",
   title: "Print preview",
   run: (ctx, a) => openPreview(ctx, a),
-  when: ctx => ctx.book !== null && ctx.stage.mode === "edit",
+  when: ctx => ctx.book !== NO_BOOK && ctx.stage.mode === "edit",
   enabled: ctx => readable(ctx),
 })
 
@@ -143,7 +143,7 @@ export const PRINT = kit.defineCommand({
     if (ctx.stage.mode === "edit") openPreview(ctx, a)
     else if (ctx.pluginState(PRINT_READY_STATE)) a.requestPrint()
   },
-  when: ctx => ctx.book !== null,
+  when: ctx => ctx.book !== NO_BOOK,
   enabled: ctx => (ctx.stage.mode === "edit" ? readable(ctx) : ctx.pluginState(PRINT_READY_STATE) === true),
 })
 

@@ -1,8 +1,8 @@
 // リストの行のコマンド: 行の追加・編集のダイアログを開く、行を消す（選んでいる行を Delete で消すのも）、チェックを入れ切りする、行を動かす、行の下の端をドラッグして高さを変える（リストのビューと、行の右クリックのメニューから呼ぶ）
 import {
   type CommandContext,
-  findPage,
   type ItemPage,
+  NO_PAGE,
   openedPage,
   type Point,
   shownPageId,
@@ -58,9 +58,8 @@ export const LIST_DELETE_ROW = kit.defineCommand({
 
 // 選んでいる物が、開いているページの 1 つのリストの行だけなら、そのリストと行（でなければ null）
 function selectedRows(ctx: CommandContext): { page: string; list: string; rows: readonly string[] } | null {
-  const opened = openedPage(ctx.stage.opened ?? null)
   const { selection } = ctx.stage
-  const page = opened && ctx.book ? findPage(ctx.book, opened.page)?.page : undefined
+  const page = ctx.page === NO_PAGE ? undefined : ctx.page
   if (!page || selection.length === 0) return null
   const list = walkLists(page).find(l => selection.every(id => l.rows.includes(id)))
   return list ? { page: page.id, list: list.id, rows: selection } : null

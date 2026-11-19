@@ -12,6 +12,7 @@ import type { History } from "../../core/history"
 import type { MessageKey } from "../../core/i18n/i18n"
 import type { Books } from "../../core/library"
 import type { ArgsOf } from "../../core/perform"
+import type { ItemPage } from "../../core/placed"
 import type { Book } from "../../core/schema/book"
 import { type Stage, shownPageId, toPaper } from "../../core/stage"
 import type { StageListed } from "../../core/window"
@@ -93,10 +94,16 @@ export interface ScreenCommandContext {
   pluginState: PluginStateRead
 }
 
+// CommandContext の book の、開いている物がブックでないとき（何も開いていないか、ブックの外のページ）の値
+export const NO_BOOK = "none"
+// CommandContext の page の、ページを開いていないときの値
+export const NO_PAGE = "none"
+
 // ステージから呼ぶコマンド（defineCommand）が受け取る、呼ばれた場所の様子
 export interface CommandContext extends ScreenCommandContext {
   stage: StageView // 呼ばれた場所のステージ（読むだけ。見た目の useStage と同じ）
-  book: Book | null // そのステージで開いているブック
+  book: Book | typeof NO_BOOK // そのステージで開いているブック（開いている物がブックでなければ NO_BOOK）
+  page: ItemPage | typeof NO_PAGE // そのステージで開いているページ（ブックの中でも外でも。ページを開いていなければ NO_PAGE）
   bookHistory: History // そのステージで開いているブックの、画面の履歴（ブックが無ければ空）
   toPaper(p: Point): Point | null // 表示領域の中の点（左上から）を、そのステージの今の紙の上の点に直す（紙が無ければ null）
 }

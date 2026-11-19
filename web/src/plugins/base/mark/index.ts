@@ -4,6 +4,7 @@
 // 右クリックのメニューのコマンド mark-new（押した物のそばに種類を選ぶスタンドを出す）もここ
 import { z } from "zod"
 import type { Annotation } from "../../../core/annotation"
+import { NO_BOOK } from "../../../store/commands/def"
 import type { Bird } from "../birds"
 import { startAnchorTarget } from "../context-menu/anchor-targets"
 import { kit } from "../kit"
@@ -113,5 +114,5 @@ export const MARK_NEW = kit.defineCommand({
   title: "Show to AI",
   performs: [MARK_ADD.id],
   run: startAnchorTarget(MARK_PICKER),
-  when: ctx => ctx.book !== null,
+  when: ctx => ctx.book !== NO_BOOK,
 })

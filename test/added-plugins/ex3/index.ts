@@ -1,6 +1,6 @@
 // ex3: ex1・ex2 とは別の作り手の追加プラグイン（React なし）。ほかの見本とは id でだけ関わる。
 // ページのタイプ・形・紙・設定の項目・テーマ・スキンと、開いているブックをミントにするコマンド
-import { definePlugin, shownType, themeFits } from "matomezu"
+import { definePlugin, NO_BOOK, shownType, themeFits } from "matomezu"
 import { BOARD, GRID, MINT, NIGHT, SQUARE, STAR, STAR_ADD_DIALOG, STAR_EDIT_DIALOG } from "./board"
 import { kit } from "./kit"
 
@@ -11,7 +11,7 @@ export const USE_MINT = kit.defineCommand({
   permissionScope: "book",
   title: "useMint",
   run: (ctx, a) => {
-    if (ctx.book)
+    if (ctx.book !== NO_BOOK)
       a.perform(
         "@matomezu/base:pages-update",
         { pages: "all", settings: { "@matomezu/base:page-theme": MINT.id } },
@@ -21,7 +21,7 @@ export const USE_MINT = kit.defineCommand({
   // 開いているページのタイプがミントのテーマを使えるときだけ
   when: ctx => {
     const type = shownType(ctx.stage.opened ?? null)
-    return ctx.book !== null && type !== null && themeFits(ctx.catalog, type, MINT.id)
+    return ctx.book !== NO_BOOK && type !== null && themeFits(ctx.catalog, type, MINT.id)
   },
 })
 

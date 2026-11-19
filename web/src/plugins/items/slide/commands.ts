@@ -1,6 +1,6 @@
 // スライドのコマンド: 画面の操作（置く・動かす・大きさを変える・項目を変える・消す）から、スライドのアクション（slide プラグイン）を呼ぶ。
 // 位置と大きさは、プレゼンテーションが決めた紙の上の px で受け取る。置けたら置くのをやめ、置いたアイテムを選ぶ
-import { findPage, type ItemId, type ItemPage, openedPage, type Rect, shownPageId, slideOf } from "../../../plugin-api"
+import { type ItemId, type ItemPage, NO_PAGE, openedPage, type Rect, shownPageId, slideOf } from "../../../plugin-api"
 
 import { SLIDE_MOVE, SLIDE_PLACE, SLIDE_REMOVE, SLIDE_REORDER, SLIDE_RESIZE, SLIDE_UPDATE } from "./actions"
 import { kit } from "./kit"
@@ -23,9 +23,7 @@ const onPage = (ctx: Ctx): boolean => shownPageId(ctx.stage.opened ?? null) != n
 
 // 開いているページの slide のアイテムの id（後ろから前への並び）
 function slideIds(ctx: Ctx): string[] {
-  const opened = openedPage(ctx.stage.opened ?? null)
-  const page = opened && ctx.book ? findPage(ctx.book, opened.page)?.page : undefined
-  return page ? slideOf(page as ItemPage).map(s => s.id) : []
+  return ctx.page === NO_PAGE ? [] : slideOf(ctx.page as ItemPage).map(s => s.id)
 }
 
 // 選んでいる物のうち、開いているページの slide にあるアイテムの id（選択には、自分の扱わない id が混じる）

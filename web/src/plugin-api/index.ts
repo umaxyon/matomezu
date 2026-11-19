@@ -102,6 +102,7 @@ export {
 export type { WideSearchAnswer, WideSearchHit, WideSearchQuery } from "../core/wide-search"
 export type { StageView } from "../core/workspace"
 export type { CalledScreen, CommandContext, ScreenCommandContext } from "../store/commands/def"
+export { NO_BOOK, NO_PAGE } from "../store/commands/def"
 export type { PageSettingsArgs } from "../store/dialogs"
 export { shapeDialogs } from "../store/dialogs"
 export type { OwnedMessages } from "../store/kit"

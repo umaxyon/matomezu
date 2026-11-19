@@ -4,9 +4,9 @@ import {
   areaOf,
   type CommandContext,
   connectorsOf,
-  findPage,
   findShape,
   type MessageKey,
+  NO_PAGE,
   openedPage,
   type Point,
   type ShapeAddArgs,
@@ -25,11 +25,8 @@ import { nearestMove, nearestReparent, PLACE_OFFSET, placeTarget, placingShape }
 // ページを開いているか（ページの無いブックと、ページが 1 枚も無いブックでは開いていない）
 export const onOpenedPage = (ctx: CommandContext) => shownPageId(ctx.stage.opened ?? null) != null
 
-// 開いているページ（ブックに無ければ undefined）
-export function pageOpenedIn(ctx: CommandContext) {
-  const id = shownPageId(ctx.stage.opened ?? null)
-  return ctx.book && id !== null ? findPage(ctx.book, id)?.page : undefined
-}
+// 開いているページ（ページを開いていなければ undefined）
+export const pageOpenedIn = (ctx: CommandContext) => (ctx.page === NO_PAGE ? undefined : ctx.page)
 
 // 置こうとしているアイテムの左上（紙の上）。ポインタ（表示領域の左上から）を PLACE_OFFSET だけ戻した所を、toPaperAt で紙の上の点に直す
 export function placeAt(toPaperAt: (p: Point) => Point | null, pointer: Point): Point | null {
