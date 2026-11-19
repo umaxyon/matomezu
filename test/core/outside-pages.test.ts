@@ -12,8 +12,11 @@ import {
   HOME_ID,
   type HomeFolder,
   type Library,
+  NO_CHANGES,
   type PlainFolder,
+  TRASH_ID,
   tablesOf,
+  withChanges,
 } from "../../web/src/core/folders"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import {
@@ -24,6 +27,7 @@ import {
   permittedIn,
   type World,
 } from "../../web/src/core/perform"
+import type { ItemPage } from "../../web/src/core/placed"
 import type { AnyPage, Book } from "../../web/src/core/schema/book"
 import { pluginKit } from "../../web/src/store/kit"
 import { DRAWING, drawingPage, SLIDE, testBook, testPage } from "../lineup"
@@ -238,4 +242,90 @@ test("ロックしたブックの外のページは、動かせるが、名前�
   // 行う前に問わないアクションでも、行った後の確かめで止まる
   expect(permittedIn(w, SNEAK, {}, undefined, libraryCtx("test:center"))).toEqual({ ok: true })
   expect(performIn(w, SNEAK, {}, undefined, libraryCtx("test:center"))).toEqual(denied)
+})
+
+const PLACE = "@matomezu/paper:item-place"
+const BOX = "@matomezu/box:shape-nest-box"
+const UPDATE = "@matomezu/base:page-update"
+
+// 書庫ホームの直下に、ブック b1 と、ブックの外のページ x1・ロックした x2 を置いた世界
+function pagesWorld(): World {
+  return {
+    ...libraryWith(
+      [testBook("b1", "ブック", [drawingPage("p1")])],
+      [
+        drawingPage("x1", { title: "外" }),
+        drawingPage("x2", {
+          title: "鍵",
+          locked: true,
+          items: [{ id: "a", item: BOX, x: 0, y: 0, props: { caption: "a", body: "" } }],
+        }),
+      ],
+    ),
+    settings: {},
+    annotations: {},
+    records: {},
+    counters: {},
+  }
+}
+const pageOf = (w: World, done: ReturnType<typeof performIn>, id: string) =>
+  (done.ok ? withChanges(w, done.changes ?? NO_CHANGES) : w).pages[id] as ItemPage
+
+test("ブックの外のページに、ページが対象のアクションでアイテムを置ける。変わるのはそのページの行だけ。行う前の問いも同じ答え", () => {
+  const w = pagesWorld()
+  const args = { item: BOX, at: { x: 100, y: 100 } }
+  expect(permittedIn(w, PLACE, args, { page: "x1" }, libraryCtx())).toEqual({ ok: true })
+  const done = performIn(w, PLACE, args, { page: "x1" }, libraryCtx())
+  if (!done.ok) throw new Error(done.reason)
+  expect(Object.keys(done.changes?.pages ?? {})).toEqual(["x1"])
+  expect(done.changes?.folders).toEqual({})
+  expect(pageOf(w, done, "x1").items?.map(i => i.item)).toEqual([BOX])
+  // ゴミ箱の中のページは無いものとする
+  const binned = {
+    ...w,
+    folders: {
+      ...w.folders,
+      [HOME_ID]: { ...(w.folders[HOME_ID] as HomeFolder), lineup: [{ kind: "book", id: "b1" }] },
+      [TRASH_ID]: {
+        folderRole: "trash",
+        id: TRASH_ID,
+        lineup: [{ kind: "page", id: "x1", trashed: "2026-01-01T00:00:00.000Z", from: [HOME_ID] }],
+      },
+    },
+  } as World
+  expect(performIn(binned, PLACE, args, { page: "x1" }, libraryCtx())).toMatchObject({ ok: false, reason: "no-page" })
+})
+
+test("ブックの外の可変ページにも、ページ 1 枚ずつのノーマライズステップがかかる（左・上へも伸びるなら、空きの印刷区画を持つよう中身をずらす）", () => {
+  let w = pagesWorld()
+  const step = (id: string, args: unknown) => {
+    const done = performIn(w, id, args, { page: "x1" }, libraryCtx())
+    if (!done.ok) throw new Error(done.reason)
+    w = { ...w, ...withChanges(w, done.changes ?? NO_CHANGES) }
+  }
+  step(PLACE, { item: BOX, at: { x: 100, y: 100 } })
+  step(UPDATE, { grows: "all" })
+  const x1 = w.pages.x1 as ItemPage
+  expect(x1.shift).toEqual({ x: 1, y: 1 })
+  expect(x1.items?.[0]).toMatchObject({ x: 1223, y: 894 })
+})
+
+test("ロックしたブックの外のページは、ページが対象のアクションで中身も名前も変えられない（行う前の問いで止まる）。伝言は付けられる", () => {
+  const w = pagesWorld()
+  const denied = { ok: false, reason: "denied", permission: LOCK } as const
+  expect(performIn(w, PLACE, { item: BOX, at: { x: 100, y: 100 } }, { page: "x2" }, libraryCtx())).toEqual(denied)
+  expect(permittedIn(w, UPDATE, { title: "改" }, { page: "x2" }, libraryCtx())).toEqual(denied)
+  const noted = performIn(w, "@matomezu/base:note-add", { anchors: ["a"], text: "見て" }, { page: "x2" }, libraryCtx())
+  expect(noted.ok && noted.annotations?.x2?.length).toBe(1)
+})
+
+test("ブックの外のバインダの中のページも、紙と向きをほかのページとそろえたままにする（変えれば断る）", () => {
+  const w = outsideWorld()
+  expect(performIn(w, UPDATE, { orientation: "portrait" }, { page: "y1" }, libraryCtx())).toEqual({
+    ok: false,
+    reason: "refused",
+  })
+  expect(performIn(w, UPDATE, { title: "改" }, { page: "y1" }, libraryCtx()).ok).toBe(true)
+  // バインダに入っていないページは、向きを変えられる
+  expect(performIn(pagesWorld(), UPDATE, { orientation: "portrait" }, { page: "x1" }, libraryCtx()).ok).toBe(true)
 })
