@@ -202,6 +202,7 @@ const FRAMES = [
   "left-side-panel/LeftSidePanel.tsx",
   "left-side-panel/hooks.tsx",
   "library/LibraryView.tsx",
+  "library/commands.ts",
   "mail/Bookmarks.tsx",
   "mail/MailDialog.tsx",
   "mail/MailWatch.tsx",

@@ -57,13 +57,13 @@ test("パンくずは、一番上のフォルダからそのフォルダまで�
 test("行を開くと、フォルダは中へ入り、ブックとその中のページはブックを窓に出す。ゴミ箱の中の物は開かない", () => {
   const { library, folder, perform } = setup()
   const row = (holder: string, id: string) => rowsIn(library(), holder).find(r => r.id === id)!
-  expect(openTargetOf(library(), row(HOME_ID, folder))).toEqual({ to: "folder", folder })
-  expect(openTargetOf(library(), row(folder, "b2"))).toEqual({ to: "book", book: "b2" })
-  expect(openTargetOf(library(), row("b1", "p1"))).toEqual({ to: "book", book: "b1", page: "p1" })
+  expect(openTargetOf(library().folders, row(HOME_ID, folder))).toEqual({ to: "folder", folder })
+  expect(openTargetOf(library().folders, row(folder, "b2"))).toEqual({ to: "book", book: "b2" })
+  expect(openTargetOf(library().folders, row("b1", "p1"))).toEqual({ to: "book", book: "b1", page: "p1" })
   expect(perform("@matomezu/base:entry-trash", { entry: "b1" }).ok).toBe(true)
   expect(pathTo(library().folders, "b1")).toEqual([TRASH_ID, "b1"])
-  expect(openTargetOf(library(), row(TRASH_ID, "b1"))).toBe(NOT_OPENED)
-  expect(openTargetOf(library(), row("b1", "p1"))).toBe(NOT_OPENED)
+  expect(openTargetOf(library().folders, row(TRASH_ID, "b1"))).toBe(NOT_OPENED)
+  expect(openTargetOf(library().folders, row("b1", "p1"))).toBe(NOT_OPENED)
 })
 
 test("ゴミ箱の中のフォルダは開けないので、開いているフォルダはゴミ箱になる", () => {

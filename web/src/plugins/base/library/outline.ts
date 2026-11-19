@@ -112,7 +112,7 @@ export type OpenTarget =
   | typeof NOT_OPENED
 export const NOT_OPENED = "not-opened"
 
-export function openTargetOf({ folders }: Library, row: LibraryRow): OpenTarget {
+export function openTargetOf(folders: Folders, row: Pick<LibraryRow, "id" | "kind" | "readable">): OpenTarget {
   if (!row.readable || row.id === TRASH_ID || inTrash(folders, row.id)) return NOT_OPENED
   if (row.kind === "folder") return { to: "folder", folder: row.id }
   if (row.kind === "book") return { to: "book", book: row.id }

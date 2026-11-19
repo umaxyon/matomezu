@@ -212,10 +212,15 @@
   color: var(--skin-text-muted);
   font-size: 11px;
 }
-.empty {
+.empty,
+.blank {
   margin: 0;
   padding: 16px;
   color: var(--skin-text-muted);
+}
+/* 空のフォルダ: 何も無い所の右クリックを、枠の残り全部で受ける */
+.blank {
+  flex: 1;
 }
 /* ゴミ箱の一覧: 1 行に、種類のアイコン・名前・元の場所・捨てた日時。選んだ行は、その下にボタンを出す */
 .trash {

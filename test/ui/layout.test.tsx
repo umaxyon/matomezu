@@ -115,6 +115,8 @@ describe("UI マッピング", () => {
       "E211 layout no-stages: slot @matomezu/base:annotation-icon is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:corner-statuses is not opened by any placed widget",
       "E212 layout no-stages: menu @matomezu/base:stage-menu is not shown by any placed widget",
+      "E213 layout no-stages: context menu @matomezu/base:library-entry-context is not opened by any placed widget or book view",
+      "E213 layout no-stages: context menu @matomezu/base:library-folder-context is not opened by any placed widget or book view",
       "E213 layout no-stages: context menu @matomezu/base:page-context is not opened by any placed widget or book view",
       "E213 layout no-stages: context menu @matomezu/base:binder-context is not opened by any placed widget or book view",
       "E213 layout no-stages: context menu @matomezu/base:page-list-context is not opened by any placed widget or book view",

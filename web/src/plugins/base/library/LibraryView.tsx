@@ -1,18 +1,19 @@
 // 書庫の画面: 左にツリー（書庫ホームとゴミ箱が一番上に並ぶ）、右にパンくずと、開いているフォルダの中身。
 // 1 回押すと選び（ツリーのフォルダ・ブック・バインダは、右の枠にその中身を出す）、2 回押すと開く（フォルダは中へ入り、ブックとその中のページ・バインダは窓に出す）。
 // ゴミ箱は、ツリーでは中を出さず、右の枠に捨てた物の一覧を出す（TrashView.tsx）。読めない物は、選べるだけ。開いているフォルダは画面の場所に入り、選んでいる行は入らない（state.ts）
-import { type KeyboardEvent, useRef } from "react"
+import { type KeyboardEvent, type MouseEvent, useRef } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { titleOf } from "../../../core/entries"
 import { HOME_ID, TRASH_ID } from "../../../core/folders"
 import { NO_STAGE } from "../../../store/dialogs"
 import type { MatomezuState } from "../../../store/store"
+import { useContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
 import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
 import { useActions, usePluginState, useSetPluginState } from "../../../ui/view-hooks"
 import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import { LIBRARY_SCOPE } from "./commands"
+import { LIBRARY_ENTRY_CONTEXT, LIBRARY_FOLDER_CONTEXT, LIBRARY_SCOPE } from "./commands"
 import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG } from "./dialog"
 import { holderForNew } from "./entries"
 import { HistoryButtons } from "./HistoryButtons"
@@ -54,6 +55,7 @@ interface Handlers {
   enter(folder: string): void // フォルダの中身を右の枠に出す
   pick(row: LibraryRow, holder: string): void
   open(row: LibraryRow): void
+  menu(e: MouseEvent, row: LibraryRow): void // 行の右クリックのメニューを開く
 }
 
 export function LibraryView() {
@@ -85,7 +87,10 @@ export function LibraryView() {
     const over = pathTo(read().folders, folder).slice(0, -1)
     if (over.some(id => !shown.has(id))) setUnfolded([...new Set([...unfolded, ...over])])
   }
+  const openEntryMenu = useContextMenu(LIBRARY_ENTRY_CONTEXT)
+  const openFolderMenu = useContextMenu(LIBRARY_FOLDER_CONTEXT)
   const handlers: Handlers = {
+    menu: (e, row) => openEntryMenu(e, { entry: row.id }),
     opened,
     picked,
     shown,
@@ -96,7 +101,7 @@ export function LibraryView() {
       setPicked(row.id)
     },
     open: row => {
-      const target = openTargetOf(read(), row)
+      const target = openTargetOf(read().folders, row)
       if (target === NOT_OPENED) return
       if (target.to === "folder") return enter(target.folder)
       const stage = actions.showBookStage(target.book, target.page)
@@ -147,9 +152,15 @@ export function LibraryView() {
         {opened === TRASH_ID ? (
           <TrashView picked={picked} onPick={setPicked} />
         ) : rows.length === 0 ? (
-          <p className={styles.empty}>{t("Nothing inside")}</p>
+          <p className={styles.blank} onContextMenu={e => openFolderMenu(e, { entry: opened })}>
+            {t("Nothing inside")}
+          </p>
         ) : (
-          <ul className={styles.contents} aria-label={t("Contents of {name}", { name: here })}>
+          <ul
+            className={styles.contents}
+            aria-label={t("Contents of {name}", { name: here })}
+            onContextMenu={e => openFolderMenu(e, { entry: opened })}
+          >
             {rows.map(row => (
               <li key={row.id}>
                 <button
@@ -159,6 +170,10 @@ export function LibraryView() {
                   onClick={() => setPicked(row.id)}
                   onDoubleClick={() => handlers.open(row)}
                   onKeyDown={e => openOnEnter(e, () => handlers.open(row))}
+                  onContextMenu={e => {
+                    setPicked(row.id)
+                    handlers.menu(e, row)
+                  }}
                 >
                   <span className={styles.bigIcon}>{iconOf(row.kind)}</span>
                   <span className={row.readable ? styles.caption : `${styles.caption} ${styles.unreadable}`}>
@@ -229,6 +244,9 @@ function TreeNode({
           onClick={() => (holds ? handlers.enter(row.id) : handlers.pick(row, holder))}
           onDoubleClick={() => handlers.open(row)}
           onKeyDown={e => openOnEnter(e, () => handlers.open(row))}
+          onContextMenu={e => {
+            if (row.id !== TRASH_ID) handlers.menu(e, row)
+          }}
         >
           <span className={styles.icon}>{row.id === TRASH_ID ? TRASH : iconOf(row.kind)}</span>
           <span className={row.readable ? styles.label : `${styles.label} ${styles.unreadable}`}>{name}</span>

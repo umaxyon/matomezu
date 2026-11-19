@@ -26,8 +26,11 @@ import {
   LEFT_SIDE_PANEL_STATES,
 } from "./left-side-panel"
 import {
+  LIBRARY_BOOK_NEW,
+  LIBRARY_ENTRY_OPEN,
   LIBRARY_ENTRY_RENAME,
   LIBRARY_ENTRY_TRASH,
+  LIBRARY_FOLDER_NEW,
   LIBRARY_KEY_SCOPE,
   LIBRARY_KEYS,
   LIBRARY_REDO,
@@ -537,6 +540,9 @@ export const BASE = defineBuiltin(
       REDO,
       LIBRARY_UNDO,
       LIBRARY_REDO,
+      LIBRARY_ENTRY_OPEN,
+      LIBRARY_BOOK_NEW,
+      LIBRARY_FOLDER_NEW,
       LIBRARY_ENTRY_RENAME,
       LIBRARY_ENTRY_TRASH,
       NOTE_NEW,
@@ -749,6 +755,9 @@ declare module "../../core/catalog" {
     "@matomezu/base:redo": typeof REDO
     "@matomezu/base:library-undo": typeof LIBRARY_UNDO
     "@matomezu/base:library-redo": typeof LIBRARY_REDO
+    "@matomezu/base:library-entry-open": typeof LIBRARY_ENTRY_OPEN
+    "@matomezu/base:library-book-new": typeof LIBRARY_BOOK_NEW
+    "@matomezu/base:library-folder-new": typeof LIBRARY_FOLDER_NEW
     "@matomezu/base:library-entry-rename": typeof LIBRARY_ENTRY_RENAME
     "@matomezu/base:library-entry-trash": typeof LIBRARY_ENTRY_TRASH
     "@matomezu/base:control-center-toggle": typeof CONTROL_CENTER_TOGGLE

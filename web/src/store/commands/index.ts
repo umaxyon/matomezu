@@ -79,6 +79,7 @@ export function screenCommandContext(
     dialog,
     contextMenu,
     libraryHistory: state.history[LIBRARY_HISTORY] ?? NO_HISTORY,
+    folders: state.folders,
     // スクリーンごとの宣言は呼ばれた場所のスクリーンの値、ステージごとの宣言は呼ばれた場所のステージの値
     pluginState: <S>(def: PluginStateDef<S>) =>
       pluginValueOf(

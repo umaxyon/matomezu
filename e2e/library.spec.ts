@@ -343,3 +343,65 @@ test("書庫の「フォルダ新規作成」で開いているフォルダに�
   await page.keyboard.press("Control+z")
   await expect(inside.getByRole("button", { name: "ブックの隣" })).toBeVisible()
 })
+
+test("書庫の行の右クリックのメニューから、名前の変更・ゴミ箱に入れる・開く・中に作る、ができる。ブックの中のページは「開く」だけ。何も無い所では、作るだけ。Escape で閉じる", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await page.bringToFront()
+  const made = async (action: string, args: object) => {
+    const done = await perform(page, action, args)
+    expect(done).toMatchObject({ ok: true })
+    return done.result as { folder: string; book: string }
+  }
+  const folder = (await made("@matomezu/base:folder-create", { title: "メニューの試しの所" })).folder
+  await made("@matomezu/base:book-create", { title: "メニューの試しのブック", into: folder })
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  const home = page.getByRole("list", { name: "書庫 の中身" })
+  const menu = page.getByRole("menu")
+  // フォルダの行: 中に作る・名前の変更・ゴミ箱（開くは無い）
+  await home.getByRole("button", { name: "メニューの試しの所" }).click({ button: "right" })
+  await expect(menu.getByRole("menuitem")).toHaveText([
+    "新しいブック…",
+    "新しいフォルダ…",
+    "名前の変更…F2",
+    "ゴミ箱に入れるDelete",
+  ])
+  // Escape で閉じる
+  await page.keyboard.press("Escape")
+  await expect(menu).toHaveCount(0)
+  // 中にフォルダを作る
+  await home.getByRole("button", { name: "メニューの試しの所" }).click({ button: "right" })
+  await menu.getByRole("menuitem", { name: "新しいフォルダ…" }).click()
+  await page.getByRole("dialog").getByRole("textbox").fill("メニューで作った所")
+  await page.keyboard.press("Enter")
+  await home.getByRole("button", { name: "メニューの試しの所" }).dblclick()
+  const inside = page.getByRole("list", { name: "メニューの試しの所 の中身" })
+  await expect(inside.getByRole("button", { name: "メニューで作った所" })).toBeVisible()
+  // ブックの行: 開く・名前の変更・ゴミ箱。名前を変える
+  await inside.getByRole("button", { name: "メニューの試しのブック" }).click({ button: "right" })
+  await expect(menu.getByRole("menuitem")).toHaveText(["開く", "名前の変更…F2", "ゴミ箱に入れるDelete"])
+  await menu.getByRole("menuitem", { name: "名前の変更…" }).click()
+  await page.getByRole("dialog").getByRole("textbox").fill("メニューで変えた名前")
+  await page.keyboard.press("Enter")
+  await expect(inside.getByRole("button", { name: "メニューで変えた名前" })).toBeVisible()
+  // 何も無い所: 作るだけ
+  await inside.click({ button: "right", position: { x: 400, y: 300 } })
+  await expect(menu.getByRole("menuitem")).toHaveText(["新しいブック…", "新しいフォルダ…"])
+  await page.keyboard.press("Escape")
+  // ツリーの行からも同じメニュー。ゴミ箱に入れる
+  const tree = page.getByRole("navigation", { name: "フォルダ" })
+  await tree.getByRole("button", { name: "メニューの試しの所 の中を出す" }).click()
+  await tree.getByRole("button", { name: "メニューで作った所", exact: true }).click({ button: "right" })
+  await menu.getByRole("menuitem", { name: "ゴミ箱に入れる" }).click()
+  await expect(tree.getByRole("button", { name: "メニューで作った所", exact: true })).toHaveCount(0)
+  // ブックの中のページは「開く」だけ（ページの在るブックで確かめる）
+  const books = (await storedBooks(page.request)) as { id: string; title: string }[]
+  const first = books[0]!
+  await tree.getByRole("button", { name: `${first.title} の中を出す` }).click()
+  const pageRow = tree.getByRole("button", { name: "ページ 1", exact: true }).first()
+  await pageRow.click({ button: "right" })
+  await expect(menu.getByRole("menuitem")).toHaveText(["開く"])
+  await menu.getByRole("menuitem", { name: "開く" }).click()
+  await expect.poll(() => urlFront(page)).toBe(BOOK_SCREEN_DEF)
+})

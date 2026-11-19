@@ -110,6 +110,7 @@ export { LeftSidePanelOpenButton } from "./left-side-panel/OpenButton"
 export { LEFT_SIDE_PANEL } from "./left-side-panel/slots"
 export type { LeftSidePanelEntry, LeftSidePanelOpen } from "./left-side-panel/state"
 export { defineLeftSidePanelTab, opensOf, tabEntry } from "./left-side-panel/ui"
+export { LIBRARY_CONTEXT_MENUS } from "./library/commands"
 export { type FolderEntry, useFolderEntries } from "./library/hooks"
 export { LibraryView } from "./library/LibraryView"
 export { LockToggle } from "./lock/LockToggle"
@@ -279,6 +280,10 @@ export const BASE_UI = definePluginUi(BASE, {
 })
 
 declare module "../../core/catalog" {
+  interface ContextMenuTable {
+    "@matomezu/base:library-entry-context": { entry: string } // 書庫の画面の行（右クリックしたエントリの id）
+    "@matomezu/base:library-folder-context": { entry: string } // 書庫の画面の右の枠の何も無い所（開いているフォルダの id）
+  }
   interface SlotTable {
     "@matomezu/base:control-center-footer": Record<string, never> // コントロールセンターの下の行（何も受け取らない）
     "@matomezu/base:mail-actions": MailActionsProps // 郵便のダイアログの下の行に並べる、その種類のボタンなど
