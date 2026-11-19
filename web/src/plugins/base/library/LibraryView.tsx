@@ -167,6 +167,13 @@ export function LibraryView({ className }: { className?: string } = {}) {
     ].find(r => r.dataset.libraryRow === id)
     if (to && to !== at) to.focus()
   }, [current, picked])
+  // ツリーで今いる行が変わったら（検索の結果を押した・パンくずで移ったなど）、その行が見える所までツリーを送る（見えていれば動かさない）
+  useEffect(() => {
+    const row = root.current?.querySelector<HTMLElement>(
+      `[data-library-row="${CSS.escape(current)}"][data-key-scope="${LIBRARY_TREE_SCOPE}"]`,
+    )
+    row?.scrollIntoView({ block: "nearest" })
+  }, [current])
   const here = nameOf({ id: opened, title: titles[titles.length - 1] ?? NO_TITLE })
   return (
     <div
