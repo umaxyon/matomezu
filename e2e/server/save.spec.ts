@@ -22,7 +22,9 @@ const put = async <B extends { id: string }>(page: Page, book: B) =>
 
 test("初めて開くと、ブックを持たず、何も開かない", async ({ page }) => {
   await page.goto(BOOK_SCREEN_URL)
-  await expect(page.getByText("ブックを選択してください")).toBeVisible()
+  await expect(page.getByRole("region", { name: "ステージ" })).toBeVisible()
+  await expect(page.getByRole("img", { name: "紙" })).toHaveCount(0)
+  await expect(page.getByRole("tablist")).toHaveCount(0)
   expect(await storedBooks(page.request)).toEqual([])
 })
 

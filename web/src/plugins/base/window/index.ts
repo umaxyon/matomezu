@@ -2,6 +2,7 @@
 import { z } from "zod"
 import {
   arrangementValueIn,
+  calledScreenIdOf,
   type OpenScreen,
   type ScreenCommandContext,
   screensOf,
@@ -68,6 +69,15 @@ export const CONTROL_CENTER_LEAVE = kit.defineScreenCommand({
     if (to) storeActionsOf(a).makeScreenCurrent(to.id)
   },
   when: ctx => current(ctx)?.stages === false,
+})
+
+// ブックスクリーンを閉じる（何も開いていないステージ 1 つだけのとき、ステージの真ん中のボタン）。前にカレントだったスクリーンへ戻る。
+// 窓の最後の 1 枚は土台が閉じないので、出さない（ブックスクリーンは最初から開いているスクリーンでないので、ほかにスクリーンがあれば閉じられる）
+export const BOOK_SCREEN_CLOSE = kit.defineScreenCommand({
+  id: "book-screen-close",
+  title: "Close screen",
+  run: (ctx, a) => storeActionsOf(a).closeScreen(calledScreenIdOf(ctx)),
+  when: ctx => ctx.screen.def === BOOK_SCREEN_DEF.id && screensOf(ctx).length > 1,
 })
 
 export const CONTROL_CENTER_KEYS = [

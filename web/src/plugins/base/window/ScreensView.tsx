@@ -5,6 +5,8 @@
 // ステージを並べないスクリーンどうしは、カレントにした順に重ねる（あとからカレントにした物が上）。あとから開いたスクリーンは右から滑り込み、閉じると右へ滑り出る（滑り出る間は描き続ける）。
 // 上下に分けている間は、分けた並びのスクリーンを上から等分の高さで並べる。分け始めは、上の物が縮んでから、新しい物が下に滑り込む。押したスクリーンをカレントスクリーンにする。
 // 窓が低く（SPLIT_MIN_HEIGHT 未満）なったら、カレントスクリーンだけを残して 1 枚ずつに戻す（ほかの並びの物は閉じる。利用者の操作でないので、ブラウザの履歴に積まない）。
+// ブックスクリーンを入れた並び（「画面を分割」で下に書庫のスクリーンを出した物）は畳まず、低い間はカレントスクリーンだけを窓いっぱいに見せる。
+// 並びに入れたブックスクリーンは上の行に描き、押せばカレントスクリーンにする。その間、並びに入っていないステージを並べないスクリーンは見せない。
 // ステージを並べないスクリーンが出ている間の下の行は、スロット control-center-footer に置いたウィジェットを並べる（巣箱のボタンは UI マッピングが置く）
 import { type CSSProperties, useEffect, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
@@ -18,10 +20,12 @@ import footerRow from "../utils/FooterRow.module.css"
 import styles from "./ScreensView.module.css"
 import { SLIDE_MS } from "./slide"
 import { CONTROL_CENTER_FOOTER } from "./slots"
-import { planExpand, SCREEN_FLASH } from "./split"
+import { planExpand, SCREEN_FLASH, SPLIT_ROWS } from "./split"
 import { applySplit, splitIn, useTallEnough } from "./useScreenSplit"
 
 const reduced = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches
+
+const NO_ROWS: readonly string[] = []
 
 // 上下に分けた並びの中の位置（上から何番目・何枚のうち）
 interface Row {
@@ -33,7 +37,7 @@ export function ScreensView() {
   // カレントスクリーンがブックスクリーンか（CSS が data-front で、どちらを見せるかを決める）
   const front = useMatomezuState(s => bookScreenCurrent(s.window)) ? "book-screen" : "control-center"
   // 見せるブックスクリーン（いちばん最近カレントにした 1 枚）と、見せるステージを並べないスクリーン（同じく。無ければ none）
-  const book = useMatomezuState(s => recentBookScreen(s.window)?.id)
+  const recentBook = useMatomezuState(s => recentBookScreen(s.window)?.id)
   const top = useMatomezuState(s => recentPlainScreen(s.window))
   const current = useMatomezuState(s => s.window.order[s.window.order.length - 1])
   const stageScreens = useMatomezuState(useShallow(s => s.window.screens.filter(x => x.stages).map(x => x.id)))
@@ -42,8 +46,16 @@ export function ScreensView() {
   const plainScreens = useMatomezuState(useShallow(s => s.window.screens.filter(x => !x.stages).map(x => x.id)))
   const layers = useMatomezuState(useShallow(s => s.window.order.filter(id => plainScreens.includes(id))))
   // 上下に分けた並び（分けていなければ空）。カレントスクリーンが並びに無い間は、分けて見せない
-  const split = useMatomezuState(useShallow(s => splitIn(s.window)))
+  const arranged = useMatomezuState(useShallow(s => splitIn(s.window)))
+  // 並びに入れたブックスクリーン（ステージを分けて、下に書庫のスクリーンを出しているときなど）。居れば、それを上の行に描き、コントロールセンターの側は並びの行だけを出す。
+  // 窓が低い間は、その並びを畳まずに（書庫のスクリーンから開く先が、置かれた所で決まるように）、カレントスクリーンだけを窓いっぱいに見せる
+  const tall = useTallEnough()
+  const lowMixed = !tall && arranged.some(id => stageScreens.includes(id))
+  const split = lowMixed ? NO_ROWS : arranged
   const splitting = split.length > 0
+  const splitBook = split.find(id => stageScreens.includes(id))
+  const mixed = splitBook !== undefined
+  const book = splitBook ?? recentBook
   const rowOf = (id: string): Row | null =>
     splitting && split.includes(id) ? { index: split.indexOf(id), of: split.length } : null
   // 分け始めか（前に描いたときは分けていなかった。新しく入る物は、上の物が縮むのを待ってから滑り込む）
@@ -52,7 +64,8 @@ export function ScreensView() {
   useEffect(() => {
     wasSplitting.current = splitting
   })
-  useCollapseWhenLow(split, current)
+  useCollapseWhenLow(lowMixed ? NO_ROWS : arranged, current)
+  useMarkFits(arranged.length > 0 && arranged.some(id => stageScreens.includes(id)), lowMixed)
   const { makeScreenCurrent } = useStoreActions()
   // 枠を一瞬光らせる頼み（useScreenSplit の showOf）
   const flash = usePluginState(kit, SCREEN_FLASH)
@@ -79,18 +92,31 @@ export function ScreensView() {
   }, [leaving])
   return (
     <>
-      {stageScreens.map(id => (
-        <div
-          key={id}
-          className={styles.bookScreen}
-          data-front={front}
-          data-shown={id === book}
-          inert={front !== "book-screen" || id !== book}
-        >
-          <ScreenView screen={id} />
-        </div>
-      ))}
-      <section className={styles.center} data-front={front} inert={front !== "control-center"}>
+      {stageScreens.map(id => {
+        const row = rowOf(id)
+        return (
+          <div
+            key={id}
+            className={styles.bookScreen}
+            data-front={mixed ? "book-screen" : front}
+            data-shown={id === book}
+            data-row={row !== null}
+            style={row ? ({ "--row-index": row.index, "--row-of": row.of } as CSSProperties) : undefined}
+            inert={mixed ? id !== splitBook : front !== "book-screen" || id !== book}
+            onPointerDownCapture={() => {
+              if (row !== null && id !== current) makeScreenCurrent(id)
+            }}
+          >
+            <ScreenView screen={id} />
+          </div>
+        )
+      })}
+      <section
+        className={styles.center}
+        data-front={mixed ? "control-center" : front}
+        data-mixed={mixed}
+        inert={!mixed && front !== "control-center"}
+      >
         <div className={styles.body}>
           {plainScreens.map(id => {
             const row = rowOf(id)
@@ -135,7 +161,8 @@ export function ScreensView() {
   )
 }
 
-// 窓が低くなったら、上下に分けるのをやめる: カレントスクリーンだけを残し、並びのほかの物を閉じる（ブラウザの履歴に積まない）
+// 窓が低くなったら、上下に分けるのをやめる: カレントスクリーンだけを残し、並びのほかの物を閉じる（ブラウザの履歴に積まない）。
+// ブックスクリーンを入れた並びは畳まない（見せ方だけを 1 枚にする）
 function useCollapseWhenLow(split: readonly string[], current: string | undefined) {
   const tall = useTallEnough()
   const actions = useStoreActions()
@@ -146,6 +173,22 @@ function useCollapseWhenLow(split: readonly string[], current: string | undefine
     actions.replaceHistory()
     applySplit(actions, read, planExpand(split, current))
   }, [low, split, current, actions, read])
+}
+
+// ブックスクリーンを入れた並びの値に、低くてカレントスクリーンだけを見せているか（fits）を書く（スクリーンアレンジメントが答える見えているスクリーンを、描いている物に合わせる。
+// 利用者の操作でないので、ブラウザの履歴に積まない）
+function useMarkFits(mixed: boolean, low: boolean) {
+  const actions = useStoreActions()
+  const read = useReadState()
+  useEffect(() => {
+    if (!mixed) return
+    const win = read().window
+    const value = win.arrangementValue as { fits?: string } | undefined
+    const fits = low ? "current" : "split"
+    if ((value?.fits ?? "split") === fits) return
+    actions.replaceHistory()
+    actions.setScreenArrangement(SPLIT_ROWS.id, { ...(win.arrangementValue as object), fits })
+  }, [mixed, low, actions, read])
 }
 
 // ステージを並べないスクリーン 1 枚。slides なら、描いた次のコマで右から滑り込ませる（late なら、上の物が縮むのを待ってから）。

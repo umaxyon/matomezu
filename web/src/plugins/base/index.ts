@@ -50,6 +50,8 @@ import { ENTRY_DUPLICATE, PAGE_CREATE } from "./library/entry-duplicate"
 import { ENTRY_MOVE, ENTRY_MOVE_OVER, ENTRY_RENAME, FOLDER_CREATE } from "./library/entry-move"
 import { ENTRY_PURGE, ENTRY_RESTORE, ENTRY_TRASH, TRASH_EMPTY } from "./library/entry-trash"
 import { LIBRARY_REVERT } from "./library/revert"
+import { LIBRARY_OPEN, LIBRARY_SCREEN, LIBRARY_SCREEN_CLOSE, LIBRARY_SCREEN_EXPAND } from "./library/screen"
+import { LIBRARY_SCREEN_KEYS } from "./library/screen-keys"
 import {
   LIBRARY_APPEARANCE,
   LIBRARY_COLUMNS,
@@ -248,6 +250,7 @@ import { CORNER_STATUS_ORDER } from "./utils/corner-order"
 import { REVEAL_REQUEST_STATES, type REVEALING_STATE } from "./utils/reveal-state"
 import { WIDE_SEARCH_MODE } from "./wide-search"
 import {
+  BOOK_SCREEN_CLOSE,
   BOOK_SCREEN_DEF,
   CONTROL_CENTER_KEYS,
   CONTROL_CENTER_LEAVE,
@@ -501,7 +504,7 @@ export const BASE = defineBuiltin(
     annotations: [NOTE, MARK],
     mails: [MAIL_LETTER, MAIL_JOIN_REQUEST, MAIL_PROPOSAL],
     subjects: [WORKROOM, PARTICIPANT, ADMIN_MARK, MAIL, SCRAP],
-    screens: [BOOK_SCREEN_DEF],
+    screens: [BOOK_SCREEN_DEF, LIBRARY_SCREEN],
     screenArrangements: [ONE_SCREEN, SPLIT_ROWS],
     checks: [
       PROP_NAMES_CHECK,
@@ -519,6 +522,7 @@ export const BASE = defineBuiltin(
       SCRAP_OPEN_ORIGINAL,
       BOOK_NEW,
       CONTROL_CENTER_TOGGLE,
+      BOOK_SCREEN_CLOSE,
       CONTROL_CENTER_LEAVE,
       STAGE_SPLIT,
       STAGE_UNSPLIT,
@@ -563,6 +567,9 @@ export const BASE = defineBuiltin(
       LIBRARY_REDO,
       LIBRARY_ENTRY_OPEN,
       LIBRARY_BOOK_NEW,
+      LIBRARY_OPEN,
+      LIBRARY_SCREEN_CLOSE,
+      LIBRARY_SCREEN_EXPAND,
       LIBRARY_FOLDER_NEW,
       LIBRARY_ENTRY_RENAME,
       LIBRARY_ENTRY_TRASH,
@@ -638,6 +645,7 @@ export const BASE = defineBuiltin(
       ...MENU_KEYS,
       ...HISTORY_KEYS,
       ...LIBRARY_KEYS,
+      ...LIBRARY_SCREEN_KEYS,
       ...RIGHT_SIDE_PANEL_KEYS,
       ...LEFT_SIDE_PANEL_KEYS,
       ...CONTROL_CENTER_KEYS,
@@ -745,6 +753,7 @@ declare module "../../core/catalog" {
   }
   interface ScreenTable {
     "@matomezu/base:book-screen": typeof BOOK_SCREEN_DEF
+    "@matomezu/base:library-screen": typeof LIBRARY_SCREEN
   }
   interface ScreenArrangementTable {
     "@matomezu/base:one-screen": typeof ONE_SCREEN
@@ -796,6 +805,9 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-redo": typeof LIBRARY_REDO
     "@matomezu/base:library-entry-open": typeof LIBRARY_ENTRY_OPEN
     "@matomezu/base:library-book-new": typeof LIBRARY_BOOK_NEW
+    "@matomezu/base:library-open": typeof LIBRARY_OPEN
+    "@matomezu/base:library-screen-close": typeof LIBRARY_SCREEN_CLOSE
+    "@matomezu/base:library-screen-expand": typeof LIBRARY_SCREEN_EXPAND
     "@matomezu/base:library-folder-new": typeof LIBRARY_FOLDER_NEW
     "@matomezu/base:library-entry-rename": typeof LIBRARY_ENTRY_RENAME
     "@matomezu/base:library-entry-move": typeof LIBRARY_ENTRY_MOVE
@@ -806,6 +818,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-entry-trash": typeof LIBRARY_ENTRY_TRASH
     "@matomezu/base:library-entry-duplicate": typeof LIBRARY_ENTRY_DUPLICATE
     "@matomezu/base:control-center-toggle": typeof CONTROL_CENTER_TOGGLE
+    "@matomezu/base:book-screen-close": typeof BOOK_SCREEN_CLOSE
     "@matomezu/base:control-center-leave": typeof CONTROL_CENTER_LEAVE
     "@matomezu/base:stage-split": typeof STAGE_SPLIT
     "@matomezu/base:stage-unsplit": typeof STAGE_UNSPLIT

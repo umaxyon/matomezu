@@ -1,5 +1,6 @@
 /* スクリーンアレンジメント「1 枚ずつ」と「上下に分ける」（ScreensView）: ブックスクリーンを下に敷き、ステージを並べないスクリーンを前に出すときは右から滑り込ませ、ブックスクリーンへ戻すときは右へ滑り出す。その間は下の行を出す */
 .bookScreen {
+  --footer-row-height: 30px; /* 下の行の高さ（utils/FooterRow と同じ） */
   position: absolute;
   inset: 0;
   display: flex;
@@ -89,6 +90,36 @@
 .plain[data-row="true"] {
   top: var(--row-top);
   height: var(--row-height);
+}
+/* 上下に分けた並びに入ったブックスクリーン: 下の行の上の残りを、並びの枚数で等分した位置と高さに置く（ステージを並べないスクリーンの行と同じ動き） */
+.bookScreen {
+  transition:
+    top var(--front-slide) ease,
+    height var(--front-slide) ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bookScreen {
+    transition: none;
+  }
+}
+.bookScreen[data-row="true"] {
+  --rows-height: calc(100% - var(--footer-row-height));
+  inset: auto 0;
+  top: calc(var(--rows-height) * var(--row-index) / var(--row-of));
+  height: calc(var(--rows-height) / var(--row-of));
+}
+/* ブックスクリーンを並びに入れている間のコントロールセンターの側: 地を敷かず、ポインタは並びの行と下の行だけが受ける（上の行のブックスクリーンを覆わない） */
+.center[data-mixed="true"] {
+  background: transparent;
+  pointer-events: none;
+}
+.center[data-mixed="true"] .plain,
+.center[data-mixed="true"] .footer {
+  pointer-events: auto;
+}
+/* 並びに入っていないステージを並べないスクリーン（コントロールセンターなど）は、上の行のブックスクリーンを覆わないよう見せない */
+.center[data-mixed="true"] .plain[data-row="false"] {
+  visibility: hidden;
 }
 /* 分け始めに入る物は、上の物が縮み終えてから滑り込む */
 .plain[data-late="true"] {

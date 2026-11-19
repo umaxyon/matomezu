@@ -1,5 +1,5 @@
 // ステージのビュー（ウィジェット book-view）: ステージ（core/stage.ts）を読んで、与えられた枠の中に開いたブックを、レイヤー（スロット book-layers。
-// 紙の面のレイヤー・そのタイプのビューを描くレイヤーなど）を並べた順に下から重ねて描く。ブックの中はブックのテーマの値と文字の色の値（CSS 変数）で描く。ブックの設定のダイアログの下書き（アイテムを指さないもの）があれば、ブックの項目に重ねて決める。何も開いていなければ、ブックを作るボタン（コマンド book-new）とブックを探すコンポーネントを真ん中に出す。
+// 紙の面のレイヤー・そのタイプのビューを描くレイヤーなど）を並べた順に下から重ねて描く。ブックの中はブックのテーマの値と文字の色の値（CSS 変数）で描く。ブックの設定のダイアログの下書き（アイテムを指さないもの）があれば、ブックの項目に重ねて決める。何も開いていなければ、ステージがそれ 1 つのときだけ「書庫を開く」と「スクリーンを閉じる」のボタンを真ん中に出す。
 // 紙をずらす道具（pans）の間は、ステージの中のどこでもポインタを手にする（中のアイテムのカーソルより強い。ドラッグ中は握った手）。
 // 測った大きさと、ドラッグ（ハンドの道具のとき）・ホイール（紙をずらさない道具のときは除く）で動いた量を、そのまま store の操作に渡す（ずらす量の計算はステージの側）。
 // ホイールは、ポインタの下にその向きへまだスクロールできる物（リストの行の並び・データの表など）があればその物が受け、紙はずらさない。一続きの回しは始めに決めた物が受け、
@@ -18,14 +18,14 @@ import { useStageId } from "../../../ui/scope"
 import { useCatalog, useMatomezuState, useStoreActions } from "../../../ui/store-context"
 import { useBook, useStage } from "../../../ui/view-hooks"
 import { usePageLookStyle } from "../book-look/use-page-look-style"
-import { BOOK_NEW } from "../book-new"
-import { BookSearch } from "../book-open/BookSearch"
 import { kit } from "../kit"
+import { LIBRARY_OPEN } from "../library/screen"
 import { PrintPreviewView } from "../print-preview/PrintPreviewView"
 import { keepsPan } from "../tool-switch/tools"
 import { AnchorsProvider } from "../utils/anchors"
 import { CornersProvider } from "../utils/corner"
 import { useResize } from "../utils/useResize"
+import { BOOK_SCREEN_CLOSE } from "../window"
 import { BOOK_LAYERS } from "../workspace/slots"
 import { ZOOM_WHEEL } from "../zoom"
 import styles from "./StageView.module.css"
@@ -48,7 +48,7 @@ export const StageView = memo(function StageView() {
   const pans = stage?.pans ?? false // ドラッグで紙をずらすか（紙をずらす道具の間と、印刷プレビューの間）
   const inPreview = stage?.mode === "print-preview"
   const keeps = !inPreview && keepsPan(catalog, tool) // 紙をずらさない道具か
-  const { focusStage, resizeStage, panStageBy, openBook } = useStoreActions()
+  const { focusStage, resizeStage, panStageBy } = useStoreActions()
   const wheelZoom = useCommand(ZOOM_WHEEL.id)
   const t = useMessages(kit)
   const ref = useRef<HTMLElement>(null)
@@ -135,27 +135,32 @@ export const StageView = memo(function StageView() {
       ) : stage.opened && book ? (
         <BookContent stage={id} previewing={inPreview} />
       ) : (
-        <EmptyStage stage={id} onSelect={book => openBook(id, book)} />
+        <EmptyStage stage={id} />
       )}
     </section>
   )
 })
 
-// 何も開いていないステージの中身: ブックを作るボタンと、ブックを探すコンポーネント
-function EmptyStage({ onSelect }: { stage: string; onSelect: (book: string) => void }) {
+// 何も開いていないステージの中身: ブックスクリーンのステージがそれ 1 つなら、真ん中に「書庫を開く」と「スクリーンを閉じる」（閉じられるときだけ）を縦に並べる。
+// ステージを分けている間（「画面を分割」で足したステージ。開く物は、下に出る書庫のスクリーンで選ぶ）は何も描かない
+function EmptyStage({ stage }: { stage: string }) {
+  const alone = useMatomezuState(s => workspaceOf(s.window, stage).stages.length === 1)
+  const library = useCommand(LIBRARY_OPEN.id)
+  const close = useCommand(BOOK_SCREEN_CLOSE.id)
   const t = useMessages(kit)
-  const newBook = useCommand(BOOK_NEW.id)
+  if (!alone) return null
   return (
-    <div className={styles.empty}>
-      {newBook.shown && (
-        <div>
-          <button type="button" className={styles.newBook} disabled={!newBook.enabled} onClick={() => newBook.run()}>
-            {t(newBook.title)}
-          </button>
-        </div>
+    <div className={styles.choices}>
+      {library.shown && (
+        <button type="button" className={styles.choice} onClick={() => library.run()}>
+          {t(library.title)}
+        </button>
       )}
-      <p className={styles.prompt}>{t("Select a book")}</p>
-      <BookSearch onSelect={onSelect} />
+      {close.shown && (
+        <button type="button" className={styles.choice} onClick={() => close.run()}>
+          {t(close.title)}
+        </button>
+      )}
     </div>
   )
 }

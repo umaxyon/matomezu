@@ -14,6 +14,7 @@ import { useStageHere } from "../../../ui/scope"
 import { useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { LockIcon } from "../lock/LockIcon"
+import { GhostArea } from "../utils/GhostArea"
 import { BINDER_CONTEXT, BINDER_OPEN, PAGE_CONTEXT, PAGE_OPEN } from "."
 import { AddPageMenu } from "./AddPageMenu"
 import { FileIcon } from "./FileIcon"
@@ -112,9 +113,11 @@ export function PageTabs() {
       ))}
       {tabDrag.bar !== null && <div className={styles.dropBar} style={{ left: tabDrag.bar }} />}
       {drag && grabbed && (
-        <div className={styles.ghost} style={{ left: drag.x - drag.grab, top: drag.y - 12 }}>
-          {grabbed.title}
-        </div>
+        <GhostArea>
+          <div className={styles.ghost} style={{ left: drag.x - drag.grab, top: drag.y - 12 }}>
+            {grabbed.title}
+          </div>
+        </GhostArea>
       )}
       <AddPageMenu first={shownType(opened ?? null)} />
     </div>

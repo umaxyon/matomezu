@@ -25,7 +25,7 @@
 .book {
   display: contents;
 }
-/* 何も開いていないとき: 真ん中にブックを探すコンポーネント */
+/* 読めないページを開いたとき: 真ん中に読めないことと、その理由 */
 .empty {
   position: absolute;
   top: 50%;
@@ -47,8 +47,19 @@
   font-size: 14px;
   color: var(--skin-text);
 }
-/* ブックを作るボタン */
-.newBook {
+/* 何も開いていないステージ 1 つのとき: 真ん中に縦に並べるボタン */
+.choices {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  cursor: default;
+}
+.choice {
   padding: 6px 14px;
   border: 0;
   border-radius: 6px;
@@ -58,11 +69,7 @@
   font-weight: 600;
   cursor: pointer;
 }
-.newBook:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-.newBook:focus-visible {
+.choice:focus-visible {
   outline: 2px solid var(--skin-accent);
   outline-offset: 1px;
 }

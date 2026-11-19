@@ -15,6 +15,7 @@ import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG, LIBRARY_RENAME_DIAL
 import { LIBRARY_COMMAND_ICONS } from "./library/icons"
 import { LibraryNewBookDialog } from "./library/LibraryNewBookDialog"
 import { LibraryNewFolderDialog, LibraryRenameDialog } from "./library/NameDialogs"
+import { LIBRARY_SCREEN_VIEW } from "./library/screen-ui"
 import type { MailActionsProps } from "./mail/slots"
 import {
   MAIL_BOOKMARKS,
@@ -208,6 +209,7 @@ export const BASE_UI = definePluginUi(BASE, {
   widgets: [
     WINDOW,
     SCREENS_WIDGET,
+    LIBRARY_SCREEN_VIEW,
     CONTROL_CENTER_BIRDHOUSE,
     WORKSPACE,
     DIALOG_HOST,
@@ -329,6 +331,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:screens-view": typeof SCREENS_WIDGET
     "@matomezu/base:control-center-birdhouse": typeof CONTROL_CENTER_BIRDHOUSE
     "@matomezu/base:workspace": typeof WORKSPACE
+    "@matomezu/base:library-screen-view": typeof LIBRARY_SCREEN_VIEW
     "@matomezu/base:dialog-host": typeof DIALOG_HOST
     "@matomezu/base:menu-host": typeof MENU_HOST
     "@matomezu/base:toast-host": typeof TOAST_HOST

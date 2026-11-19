@@ -34,6 +34,12 @@ test("見えているのは、カレントスクリーンが並びにあれば�
   expect(splitShown(opened("c1", "c2"), ["c2", "c1"], value)).toEqual(["c1"])
 })
 
+test("低くてカレントスクリーンだけを見せている並び（fits が current）は、並びにあってもカレントスクリーンだけ", () => {
+  const screens = opened("c1", "c2")
+  expect(splitShown(screens, ["c1", "c2"], { screens: ["c1", "c2"], behind: [], fits: "current" })).toEqual(["c2"])
+  expect(splitShown(screens, ["c1", "c2"], { screens: ["c1", "c2"], behind: [], fits: "split" })).toEqual(["c1", "c2"])
+})
+
 test("開く: 分けていなければ起点と 2 枚で分け、分けていれば起点の後ろ・前・代わりに入れる。max を超えたら起点から遠い物を外す", () => {
   // コントロールセンター（c1）から、下に開く
   expect(planOpen([], "c1", "c3", "after", 2)).toEqual({ screens: ["c1", "c3"], leaving: [] })
@@ -105,4 +111,20 @@ test("並びの index 番目を開いた物に替え、そこにあった物は�
   expect(planAt(["c1", "c3"], 0, "c4")).toEqual({ screens: ["c4", "c3"], leaving: ["c1"] })
   expect(planAt(["c1", "c3"], 1, "c4")).toEqual({ screens: ["c1", "c4"], leaving: ["c3"] })
   expect(planAt(["c1", "c3"], 5, "c4")).toEqual({ screens: ["c1", "c3"], leaving: [] })
+})
+
+test("ステージを並べるスクリーンが並びに居るとき: 閉じると 1 枚ずつに戻り（behind を戻さない）、外れても閉じない", () => {
+  // 計画: 残りの 1 枚がブックスクリーンなら、behind を上に戻さない
+  expect(planClose(["b1", "lib"], ["c1"], "lib", ["b1"])).toEqual({ screens: [], leaving: ["lib"] })
+  expect(planClose(["c1", "lib"], ["c9"], "lib", ["b1"])).toEqual({ screens: ["c9", "c1"], leaving: ["lib"] })
+  // 行う: ブックスクリーンを上、チケットを下に分け、ブックスクリーンを外す計画でも閉じない
+  const store = newStore()
+  const read = () => store.state.getState()
+  const book = read().window.screens.find(s => s.stages)?.id ?? ""
+  const ticket = store.actions.openScreenId("@matomezu/taskboard:ticket-screen", { ticket: "t1" })
+  applySplit(store.actions, read, planOpen([], book, ticket, "after", 2))
+  expect(read().window.arrangementValue).toEqual({ screens: [book, ticket], behind: [] })
+  applySplit(store.actions, read, planExpand([book, ticket], ticket))
+  expect(read().window.screens.some(s => s.id === book)).toBe(true)
+  expect(read().window.arrangement).toBe("@matomezu/base:one-screen")
 })

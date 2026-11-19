@@ -1,5 +1,5 @@
 // 書庫の画面のコマンド: 選んでいる物（右クリックのメニューからは右クリックした物、ツリーのキーからはツリーで今いる行）を開く・名前を変える・ゴミ箱に入れる、中にブック・フォルダを作る、
-// ドラッグで落とした物を動かす、矢印キーでツリーの行・右の枠の隣の行へ移る、書庫の画面の履歴を元に戻す・やり直す（library-revert で、最後の画面の履歴の段が変えた所を置き直す）。
+// ドラッグで落とした物を動かす、矢印キーでツリーの行・右の枠の隣の行へ移る、書庫の履歴を元に戻す・やり直す（library-revert で、最後の画面の履歴の段が変えた所を置き直す）。
 // キーは、書庫の画面（LibraryView）の中に焦点がある間だけ効く（キーの範囲 library。矢印は、ツリーの中 library-tree と、右の枠の中身の中 library-contents）。
 // 置き直しても何も変わらない段は、動かして飛ばし、その次の段を置き直す。断られたらトーストで知らせる。その間のほかの変更とぶつかって断られた（土台かアクションが断った）なら、
 // 2 行目にそう出し、その画面の履歴の段を捨てる（次はその前の段を置き直す）。認可ステップが止めた（ロック中など）なら、その画面の履歴の段は動かさない
@@ -7,13 +7,7 @@
 import { entriesIn, placeOf } from "../../../core/entries"
 import type { Folders } from "../../../core/folders"
 import { LIBRARY_HISTORY } from "../../../core/history"
-import {
-  type CommandActions,
-  type ScreenCommandContext,
-  storeActionsOf,
-  tryPerformOf,
-} from "../../../store/commands/def"
-import { NO_STAGE } from "../../../store/dialogs"
+import { type CommandActions, type ScreenCommandContext, tryPerformOf } from "../../../store/commands/def"
 import { BOOK_CREATE } from "../book-new/book-create"
 import { dropClashing, notRestored } from "../history"
 import { isRevertUnchanged } from "../history/restore"
@@ -25,6 +19,7 @@ import { holderForNew, holdsEntries, placedInBook, placedOutsideBooks, placedOut
 import { ENTRY_DUPLICATE } from "./entry-duplicate"
 import { ENTRY_MOVE, ENTRY_MOVE_OVER, ENTRY_RENAME, FOLDER_CREATE } from "./entry-move"
 import { ENTRY_TRASH } from "./entry-trash"
+import { openFromLibrary } from "./open-from"
 import {
   arrivedAt,
   NOT_OPENED,
@@ -39,7 +34,7 @@ import {
 import { LIBRARY_REVERT, libraryRevertArgs } from "./revert"
 import { LIBRARY_COLUMNS, LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_UNFOLDED } from "./state"
 
-// 書庫の画面の履歴の最後の段を、from の向きに置き直す（ブックの画面の履歴の restore と同じ決まり。plugins/base/history/index.ts）
+// 書庫の履歴の最後の段を、from の向きに置き直す（ブックの画面の履歴の restore と同じ決まり。plugins/base/history/index.ts）
 function restore(ctx: ScreenCommandContext, a: CommandActions, from: "undo" | "redo"): void {
   const to = from === "undo" ? "before" : "after"
   const steps = [...ctx.libraryHistory[from]].reverse()
@@ -147,9 +142,7 @@ export const LIBRARY_ENTRY_OPEN = kit.defineScreenCommand({
     const target = opening(ctx, named)
     if (!target) return
     if (target.to === "folder") return goTo(ctx, a, { id: target.folder, holder: target.folder, holds: true })
-    const store = storeActionsOf(a)
-    const stage = store.showBookStage(target.book, target.page)
-    if (stage !== NO_STAGE && target.binder !== undefined) store.openBinder(stage, target.binder)
+    openFromLibrary(ctx, a, target)
   },
   when: ctx => {
     if (given(ctx, undefined) === undefined) return true

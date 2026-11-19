@@ -1,4 +1,4 @@
-// 書庫の画面の履歴: 書庫が対象のアクション（フォルダを作る・動かす・名前を変える・ゴミ箱に入れる・戻す・ブックを作る）は、ブックの履歴とは別の、書庫の画面の履歴の段に入る。
+// 書庫の履歴: 書庫が対象のアクション（フォルダを作る・動かす・名前を変える・ゴミ箱に入れる・戻す・ブックを作る）は、ブックの履歴とは別の、書庫の履歴の段に入る。
 // library-revert は、その段を前へ戻し、後へやり直す。消す・空にするは入らない。戻すと決まりを破るなら断る
 
 import { expect, test } from "bun:test"
@@ -32,7 +32,7 @@ function setup() {
   return { store, perform, history, lineup, title, move, made }
 }
 
-test("フォルダを作る・動かす・名前を変えるは、書庫の画面の履歴に 1 段ずつ入り、ブックの履歴には入らない。戻すと前の形に、やり直すと後の形になる", async () => {
+test("フォルダを作る・動かす・名前を変えるは、書庫の履歴に 1 段ずつ入り、ブックの履歴には入らない。戻すと前の形に、やり直すと後の形になる", async () => {
   const { store, perform, history, lineup, title, move, made } = setup()
   const home = lineup(HOME_ID)
   const a = await made("folder-create", { title: "仕事" })
@@ -74,7 +74,7 @@ test("ゴミ箱に入れる・戻すも戻せる。ブックを作ったのを�
   expect(store.state.getState().books[book]?.title).toBe("議事録")
 })
 
-test("完全に消す・ゴミ箱を空にするは、書庫の画面の履歴に入らない", async () => {
+test("完全に消す・ゴミ箱を空にするは、書庫の履歴に入らない", async () => {
   const { perform, history, made } = setup()
   const a = await made("folder-create", { title: "仕事" })
   perform("@matomezu/base:entry-trash", { entry: a })
@@ -100,7 +100,7 @@ test("名前を戻すと同じ名前が重なるなら、断る（title-taken）
   expect(move("undo").ok).toBe(true)
 })
 
-test("ブックが対象のアクションと同じ処理の中で行っても、書庫の分は書庫の画面の履歴に、ブックの分はブックの履歴に分かれる", async () => {
+test("ブックが対象のアクションと同じ処理の中で行っても、書庫の分は書庫の履歴に、ブックの分はブックの履歴に分かれる", async () => {
   const { store, perform, history } = setup()
   perform("@matomezu/base:folder-create", { title: "仕事" })
   perform("@matomezu/base:book-update", { title: "改名" }, { book: "b1" })
@@ -374,7 +374,7 @@ test("書庫の元に戻すがぶつかったら、続けてぶつかる画面�
   }
   const [created] = history().undo
   expect(history().undo).toHaveLength(3)
-  // ブックの画面の名前の変更は、書庫の画面の履歴に入らず、書庫で変えた名前の段とぶつかる
+  // ブックの画面の名前の変更は、書庫の履歴に入らず、書庫で変えた名前の段とぶつかる
   expect(perform("@matomezu/base:book-update", { title: "タブで" }, { book: "b1" }).ok).toBe(true)
   await settled()
   const was = store.state.getState()

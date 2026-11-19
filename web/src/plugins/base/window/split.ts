@@ -1,5 +1,6 @@
 // スクリーンアレンジメント「上下に分ける」（SPLIT_ROWS）と、分けて並べるスクリーンの並びを決める純粋な関数。
 // 値は、分けて並べるスクリーンの id の並び（上から）と、並びから外したが閉じられずに開いたままの物（behind。新しい順。コントロールセンターなど）。
+// ステージを並べるスクリーン（ブックスクリーン）も並びに入る（ステージを分けて、下に書庫のスクリーンを出すとき）。並びから外れても閉じない（applySplit）。
 // 見えているのは、カレントスクリーンがその並びにあれば並び全部、無ければカレントスクリーンだけ
 // （分けている間に巣箱でブックスクリーンへ行けば、ブックスクリーンだけ。戻れば、また分けて見せる）。生きている物が 2 枚に満たない並びは、分けていない物として扱う。
 // 並びから外れたスクリーンは閉じる（閉じられない物は土台が残す: 最初から開いているスクリーンの最後の 1 枚）。
@@ -17,7 +18,12 @@ export const SCREEN_FLASH = kit.definePluginStateOf<{ screen: string; n: number 
 // 分けて並べるのに要る、窓の高さ（px。これより低ければ分けずに開き、分けている間に低くなれば畳む）
 export const SPLIT_MIN_HEIGHT = 800
 
-const SPLIT_VALUE = z.strictObject({ screens: z.array(z.string()), behind: z.array(z.string()) })
+// fits は、窓の高さで並べて見せられるか（"split" か、低くてカレントスクリーンだけを見せている "current"。ブックスクリーンを入れた並びは、低くても畳まずに "current" にする）
+const SPLIT_VALUE = z.strictObject({
+  screens: z.array(z.string()),
+  behind: z.array(z.string()),
+  fits: z.enum(["split", "current"]).optional(),
+})
 export type SplitValue = z.output<typeof SPLIT_VALUE>
 export const NO_SPLIT: SplitValue = { screens: [], behind: [] }
 
@@ -43,7 +49,8 @@ export function splitShown(
 ): readonly string[] {
   const current = order[order.length - 1]
   const split = splitOf(screens, value)
-  if (current !== undefined && split.includes(current)) return split
+  const fits = SPLIT_VALUE.safeParse(value)
+  if (current !== undefined && split.includes(current) && fits.data?.fits !== "current") return split
   return current === undefined ? [] : [current]
 }
 
@@ -107,10 +114,18 @@ export function planAt(split: readonly string[], index: number, added: string): 
   return { screens: split.map((id, i) => (i === index ? added : id)), leaving: [was] }
 }
 
-// 分けた並びから target を閉じる。残りが 1 枚なら、並びから外したが開いたままの物（behind）のうち、いちばん新しい物を上に戻して分けたままにする（無ければ分けない）
-export function planClose(split: readonly string[], behind: readonly string[], target: string): SplitPlan {
+// 分けた並びから target を閉じる。残りが 1 枚なら、並びから外したが開いたままの物（behind）のうち、いちばん新しい物を上に戻して分けたままにする（無ければ分けない）。
+// 残りの 1 枚がステージを並べるスクリーン（stages に在る物）なら、そのスクリーンを並びから外す。behind が 2 枚以上なら（ステージを分ける前の並び）それに戻し、無ければ分けるのをやめる
+export function planClose(
+  split: readonly string[],
+  behind: readonly string[],
+  target: string,
+  stages: readonly string[] = [],
+): SplitPlan {
   const rest = split.filter(id => id !== target)
   if (rest.length !== 1) return { screens: rest, leaving: [target] }
+  if (rest[0] !== undefined && stages.includes(rest[0]))
+    return { screens: behind.length >= 2 ? behind : [], leaving: [target] }
   const back = behind.find(id => id !== target)
   return { screens: back === undefined ? [] : [back, ...rest], leaving: [target] }
 }

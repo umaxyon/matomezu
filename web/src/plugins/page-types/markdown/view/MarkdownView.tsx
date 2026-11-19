@@ -22,6 +22,7 @@ import {
 } from "../../../../plugin-api/ui"
 import { type MarkdownDocument, paperSize, SOFT_BREAK, softBreakOf } from "../../../base"
 import {
+  GhostArea,
   MarkdownDocumentView,
   SEARCH_CURRENT_HIGHLIGHT,
   SEARCH_HIGHLIGHT,
@@ -172,9 +173,11 @@ export function MarkdownView() {
         )}
       </div>
       {drag && (
-        <div className={styles.ghost} style={{ left: drag.x - drag.grab.x, top: drag.y - drag.grab.y }}>
-          {t(TITLES[drag.pane])}
-        </div>
+        <GhostArea>
+          <div className={styles.ghost} style={{ left: drag.x - drag.grab.x, top: drag.y - drag.grab.y }}>
+            {t(TITLES[drag.pane])}
+          </div>
+        </GhostArea>
       )}
     </div>
   )
