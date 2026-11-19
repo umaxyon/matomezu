@@ -18,8 +18,6 @@ import { useStageId } from "../../../ui/scope"
 import { useCatalog, useMatomezuState, useStoreActions } from "../../../ui/store-context"
 import { useBook, useStage } from "../../../ui/view-hooks"
 import { usePageLookStyle } from "../book-look/use-page-look-style"
-import { BOOK_NEW } from "../book-new"
-import { BookSearch } from "../book-open/BookSearch"
 import { kit } from "../kit"
 import { PrintPreviewView } from "../print-preview/PrintPreviewView"
 import { keepsPan } from "../tool-switch/tools"
@@ -48,7 +46,7 @@ export const StageView = memo(function StageView() {
   const pans = stage?.pans ?? false // ドラッグで紙をずらすか（紙をずらす道具の間と、印刷プレビューの間）
   const inPreview = stage?.mode === "print-preview"
   const keeps = !inPreview && keepsPan(catalog, tool) // 紙をずらさない道具か
-  const { focusStage, resizeStage, panStageBy, openBook } = useStoreActions()
+  const { focusStage, resizeStage, panStageBy } = useStoreActions()
   const wheelZoom = useCommand(ZOOM_WHEEL.id)
   const t = useMessages(kit)
   const ref = useRef<HTMLElement>(null)
@@ -135,30 +133,13 @@ export const StageView = memo(function StageView() {
       ) : stage.opened && book ? (
         <BookContent stage={id} previewing={inPreview} />
       ) : (
-        <EmptyStage stage={id} onSelect={book => openBook(id, book)} />
+        <div className={styles.empty} />
       )}
     </section>
   )
 })
 
-// 何も開いていないステージの中身: ブックを作るボタンと、ブックを探すコンポーネント
-function EmptyStage({ onSelect }: { stage: string; onSelect: (book: string) => void }) {
-  const t = useMessages(kit)
-  const newBook = useCommand(BOOK_NEW.id)
-  return (
-    <div className={styles.empty}>
-      {newBook.shown && (
-        <div>
-          <button type="button" className={styles.newBook} disabled={!newBook.enabled} onClick={() => newBook.run()}>
-            {t(newBook.title)}
-          </button>
-        </div>
-      )}
-      <p className={styles.prompt}>{t("Select a book")}</p>
-      <BookSearch onSelect={onSelect} />
-    </div>
-  )
-}
+// 何も開いていないステージは何も描かない（「画面を分割」で足したステージ。開く物は、下に出る書庫で選ぶ）
 
 // 読めないページを開いたステージの中身: 読めないことと、その理由（中身は描かない）。タイプが無いときは、無いタイプの id も出す
 const UNREADABLE_REASONS = {

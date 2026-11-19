@@ -75,3 +75,11 @@ test("下に出した書庫から開いたダイアログ（フォルダ新規�
   await expect(library(page).getByRole("button", { name: "下で作った所" })).toBeVisible()
   await expect(stageNames(page)).toHaveCount(2)
 })
+
+test("下に出した書庫は Esc で閉じ、空のステージも閉じる", async ({ page }) => {
+  await split(page)
+  await library(page).getByRole("button", { name: "残課題" }).click()
+  await page.keyboard.press("Escape")
+  await expect(library(page)).toHaveCount(0)
+  await expect(stageNames(page)).toHaveCount(1)
+})

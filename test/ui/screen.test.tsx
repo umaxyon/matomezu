@@ -61,7 +61,10 @@ test("ステージに紙が 1 枚あり、下の行のフッタメニューに�
   expect(screen.getByRole("button", { name: "まとめ図の構想" }).getAttribute("aria-expanded")).toBe("false")
 })
 
-test("分割すると、右のステージは何も開いておらず、真ん中でブックを選べる。もう一度押すと 1 つに戻る", () => {
+// 下に出た書庫のスクリーンの、右の枠の中身
+const lowerLibrary = () => screen.getAllByRole("list", { name: "書庫 の中身", hidden: true }).at(-1)!
+
+test("分割すると、右のステージは何も開いておらず、下に書庫のスクリーンが出る。もう一度押すと 1 つに戻る", () => {
   renderBooksScreen()
   expect(screen.queryByRole("button", { name: "画面を分割" })).toBeNull()
   fireEvent.click(fromMenu("画面を分割"))
@@ -69,46 +72,34 @@ test("分割すると、右のステージは何も開いておらず、真ん�
   expect(fromMenu("分割をやめる").getAttribute("aria-pressed")).toBe("true")
   expect(stages()).toHaveLength(2)
   expect(screen.getAllByRole("img", { name: "紙" })).toHaveLength(1)
-  const right = stages()[1]!
-  expect(within(right).getByText("ブックを選択してください")).toBeTruthy()
-  expect(within(right).getByRole("combobox", { name: "ブックを探す" })).toBeTruthy()
+  expect(within(stages()[1]!).queryByRole("combobox")).toBeNull()
+  expect(screen.getAllByRole("list", { name: "書庫 の中身", hidden: true })).toHaveLength(2)
   fireEvent.click(fromMenu("分割をやめる"))
   expect(stages()).toHaveLength(1)
 })
 
-test("右のステージで探して選んだブックを右で開き、右にそのブックのタブが出る", () => {
+test("下に出た書庫で 2 回押したブックを右で開き、右にそのブックのタブが出る", () => {
   renderBooksScreen()
   fireEvent.click(fromMenu("画面を分割"))
-  const right = stages()[1]!
-  const input = within(right).getByRole("combobox", { name: "ブックを探す" })
-  fireEvent.change(input, { target: { value: "残課題" } })
-  expect(
-    within(right)
-      .getAllByRole("option")
-      .map(o => o.textContent),
-  ).toEqual(["残課題"])
-  fireEvent.keyDown(input, { key: "Enter" })
+  fireEvent.doubleClick(within(lowerLibrary()).getByRole("button", { name: "残課題", hidden: true }))
   expect(screen.getAllByRole("img", { name: "紙" })).toHaveLength(2)
   expect(screen.getAllByRole("tablist").map(l => l.getAttribute("aria-label"))).toEqual(["まとめ図の構想", "残課題"])
 })
 
-test("↑↓で選ぶ候補が動き、クリックでも選べる", () => {
+test("ブックを開くダイアログで、↑↓で選ぶ候補が動き、クリックでも選べる", () => {
   renderBooksScreen()
-  fireEvent.click(fromMenu("画面を分割"))
-  const right = stages()[1]!
-  const input = within(right).getByRole("combobox", { name: "ブックを探す" })
-  const selected = () => within(right).getByRole("option", { selected: true }).textContent
+  fireEvent.click(fromMenu("ブックを開く"))
+  const dialog = screen.getByRole("dialog", { name: "ブックを開く" })
+  const input = within(dialog).getByRole("combobox", { name: "ブックを探す" })
+  const selected = () => within(dialog).getByRole("option", { selected: true }).textContent
   expect(selected()).toBe("まとめ図の構想")
   fireEvent.keyDown(input, { key: "ArrowDown" })
   expect(selected()).toBe("画面の構成")
   fireEvent.keyDown(input, { key: "ArrowUp" })
   fireEvent.keyDown(input, { key: "ArrowUp" })
   expect(selected()).toBe("Design Notes")
-  fireEvent.click(within(right).getByRole("option", { name: "データの形" }))
-  expect(screen.getAllByRole("tablist").map(l => l.getAttribute("aria-label"))).toEqual([
-    "まとめ図の構想",
-    "データの形",
-  ])
+  fireEvent.click(within(dialog).getByRole("option", { name: "データの形" }))
+  expect(screen.getByRole("tablist").getAttribute("aria-label")).toBe("データの形")
 })
 
 test("タブの左のボタンでダイアログを開き、選んだブックをそのステージで開く", () => {
@@ -165,7 +156,7 @@ test("言語を英語にすると、画面の文言が英語になり、＋で�
   fireEvent.click(within(dialog).getByRole("button", { name: "Create" }))
   expect(screen.getAllByRole("tab").map(t => t.textContent)).toEqual(["ページ 1", "Page 2"])
   fireEvent.click(fromMenu("Split screen"))
-  expect(screen.getByText("Select a book")).toBeTruthy()
+  expect(screen.getAllByRole("list", { name: "Contents of Library", hidden: true }).length).toBeGreaterThan(0)
   expect(document.documentElement.lang).toBe("en")
 })
 
@@ -177,7 +168,7 @@ test("分割すると、それぞれのステージに閉じるボタンが出�
   expect(closes).toHaveLength(2)
   fireEvent.click(closes[0]!)
   expect(stages()).toHaveLength(1)
-  expect(within(stages()[0]!).getByText("ブックを選択してください")).toBeTruthy()
+  expect(screen.queryByRole("img", { name: "紙" })).toBeNull()
   expect(screen.queryByRole("button", { name: "ステージを閉じる" })).toBeNull()
   expect(fromMenu("画面を分割").getAttribute("aria-pressed")).toBe("false")
 })
@@ -579,9 +570,8 @@ test("ブックを選ぶ一覧は、触れた（開いたか書いた）時刻�
       [],
     ),
   )
-  fireEvent.click(fromMenu("画面を分割"))
-  const right = stages()[1]!
-  const options = within(right).getAllByRole("option")
+  fireEvent.click(fromMenu("ブックを開く"))
+  const options = within(screen.getByRole("dialog", { name: "ブックを開く" })).getAllByRole("option")
   expect(options.slice(0, 2).map(o => o.textContent)).toEqual(["週次の振り返り5 分前", "画面の構成3 時間前"])
   expect(options[2]!.textContent).not.toMatch(/前$/)
 })

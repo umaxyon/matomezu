@@ -11,6 +11,7 @@ import {
   test,
   urlFront,
 } from "./fixtures"
+import { splitWith } from "./helpers/split"
 import { fromMenu } from "./helpers/stage-menu"
 import { storedBooks, storedTrashedAt } from "./helpers/stored"
 
@@ -31,7 +32,7 @@ test("巣箱のボタンでコントロールセンターへ行き、押すと�
 }) => {
   await page.goto(BOOK_SCREEN_URL)
   await expect(center(page)).toBeHidden()
-  await (await fromMenu(page, "画面を分割")).click()
+  await splitWith(page, "画面の構成")
   await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(2)
   await (await fromMenu(page, "コントロールセンター")).click()
   await expect(center(page)).toBeVisible()

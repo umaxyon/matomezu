@@ -21,6 +21,8 @@ export function LibraryScreen() {
   const t = useMessages(kit)
   const split = useScreenSplit()
   const below = split.inSplit && split.defs.includes(BOOK_SCREEN_DEF.id)
+  // 窓が低くて、下に出す代わりに窓いっぱいに出している間は、広げる物が無い
+  const low = !split.tall
   const here = useScreenContext()?.id ?? ""
   const read = useReadState()
   const store = useStoreActions()
@@ -41,8 +43,17 @@ export function LibraryScreen() {
     const el = root.current
     if (!below || !el) return
     const outside = (at: EventTarget | null) => at instanceof Element && !el.contains(at) && !at.closest(POPUP_KEEPS)
+    // 閉じる押しは、そこで止める（下の物には届けない。続く click も止める）
+    const swallow = (e: MouseEvent) => {
+      e.stopPropagation()
+      e.preventDefault()
+    }
     const pressed = (e: PointerEvent) => {
-      if (outside(e.target)) closeRef.current()
+      if (!outside(e.target)) return
+      swallow(e)
+      window.addEventListener("click", swallow, { capture: true, once: true })
+      window.addEventListener("pointerdown", () => window.removeEventListener("click", swallow, true), { once: true })
+      closeRef.current()
     }
     const left = (e: FocusEvent) => {
       if (outside(e.relatedTarget)) closeRef.current()
@@ -63,10 +74,14 @@ export function LibraryScreen() {
               {CLOSE_RIGHT}
               {t("Close library")}
             </button>
-            <span className={styles.divider} aria-hidden="true" />
-            <IconButton label={t("Expand library")} onClick={expand}>
-              {EXPAND}
-            </IconButton>
+            {low ? null : (
+              <>
+                <span className={styles.divider} aria-hidden="true" />
+                <IconButton label={t("Expand library")} onClick={expand}>
+                  {EXPAND}
+                </IconButton>
+              </>
+            )}
           </>
         ) : (
           <>

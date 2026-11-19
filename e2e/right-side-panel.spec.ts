@@ -4,6 +4,7 @@ import { addFromTabs } from "./helpers/new-book"
 import { panel, writeNote } from "./helpers/note"
 import { leftPanel, openOutbox } from "./helpers/outbox"
 import { addBox, settled } from "./helpers/paper"
+import { splitWith } from "./helpers/split"
 import { fromMenu } from "./helpers/stage-menu"
 
 const items = (page: Page) => page.locator("[data-item]")
@@ -36,7 +37,7 @@ test("伝言の絵を押すと、窓の右から 320px の右サイドパネル�
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto(BOOK_SCREEN_URL)
   await foldedNote(page, 200, "一", "見てほしい")
-  await (await fromMenu(page, "画面を分割")).click()
+  await splitWith(page, "画面の構成")
   const split = await widths(page)
   expect(split[1]).toBeGreaterThan(100)
   await page.getByRole("button", { name: "伝言を開く" }).click()

@@ -2,7 +2,13 @@
 // 開く先は、置かれた所で決める（渡す値は無い）: ブックスクリーンと上下に並んでいれば、そのブックスクリーンの空のステージ（vacantStageBeside）、並んでいなければ新しいブックスクリーン。
 // 書庫のスクリーンを閉じる・広げる道（帯のボタン・書庫の外の操作・「書庫を開く」・選んで開いたあと）は、どれもここの関数を通り、ステージを分けて足した空のステージを閉じる
 import { z } from "zod"
-import { arrangementValueIn, type OpenScreen, screensOf, storeActionsOf } from "../../../store/commands/def"
+import {
+  arrangementValueIn,
+  calledScreenIdOf,
+  type OpenScreen,
+  screensOf,
+  storeActionsOf,
+} from "../../../store/commands/def"
 import { NO_STAGE } from "../../../store/dialogs"
 import type { Actions } from "../../../store/store"
 import { kit } from "../kit"
@@ -33,6 +39,14 @@ export const LIBRARY_OPEN = kit.defineScreenCommand({
     store.openScreenId(LIBRARY_SCREEN.id, {})
   },
   when: () => true,
+})
+
+// 書庫のスクリーンを閉じる（帯の閉じるボタンと同じ。書庫の画面の中で Esc。コントロールセンターの書庫の画面からは出さない）
+export const LIBRARY_SCREEN_CLOSE = kit.defineScreenCommand({
+  id: "library-screen-close",
+  title: "Close library",
+  run: (ctx, a) => closeLibrary(storeActionsOf(a), screensOf(ctx), arrangementValueIn(ctx), calledScreenIdOf(ctx)),
+  when: ctx => ctx.screen.def === LIBRARY_SCREEN.id,
 })
 
 type Arranged = Pick<OpenScreen, "id" | "stages" | "vacant">

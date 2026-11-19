@@ -18,7 +18,12 @@ export const SCREEN_FLASH = kit.definePluginStateOf<{ screen: string; n: number 
 // 分けて並べるのに要る、窓の高さ（px。これより低ければ分けずに開き、分けている間に低くなれば畳む）
 export const SPLIT_MIN_HEIGHT = 800
 
-const SPLIT_VALUE = z.strictObject({ screens: z.array(z.string()), behind: z.array(z.string()) })
+// fits は、窓の高さで並べて見せられるか（"split" か、低くてカレントスクリーンだけを見せている "current"。ブックスクリーンを入れた並びは、低くても畳まずに "current" にする）
+const SPLIT_VALUE = z.strictObject({
+  screens: z.array(z.string()),
+  behind: z.array(z.string()),
+  fits: z.enum(["split", "current"]).optional(),
+})
 export type SplitValue = z.output<typeof SPLIT_VALUE>
 export const NO_SPLIT: SplitValue = { screens: [], behind: [] }
 
@@ -44,7 +49,8 @@ export function splitShown(
 ): readonly string[] {
   const current = order[order.length - 1]
   const split = splitOf(screens, value)
-  if (current !== undefined && split.includes(current)) return split
+  const fits = SPLIT_VALUE.safeParse(value)
+  if (current !== undefined && split.includes(current) && fits.data?.fits !== "current") return split
   return current === undefined ? [] : [current]
 }
 

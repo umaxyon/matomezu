@@ -48,7 +48,8 @@ import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG, LIBRARY_RENAME_DIAL
 import { ENTRY_MOVE, ENTRY_MOVE_OVER, ENTRY_RENAME, FOLDER_CREATE } from "./library/entry-move"
 import { ENTRY_PURGE, ENTRY_RESTORE, ENTRY_TRASH, TRASH_EMPTY } from "./library/entry-trash"
 import { LIBRARY_REVERT } from "./library/revert"
-import { LIBRARY_OPEN, LIBRARY_SCREEN } from "./library/screen"
+import { LIBRARY_OPEN, LIBRARY_SCREEN, LIBRARY_SCREEN_CLOSE } from "./library/screen"
+import { LIBRARY_SCREEN_KEYS } from "./library/screen-keys"
 import {
   LIBRARY_APPEARANCE,
   LIBRARY_COLUMNS,
@@ -561,6 +562,7 @@ export const BASE = defineBuiltin(
       LIBRARY_ENTRY_OPEN,
       LIBRARY_BOOK_NEW,
       LIBRARY_OPEN,
+      LIBRARY_SCREEN_CLOSE,
       LIBRARY_FOLDER_NEW,
       LIBRARY_ENTRY_RENAME,
       LIBRARY_ENTRY_TRASH,
@@ -635,6 +637,7 @@ export const BASE = defineBuiltin(
       ...MENU_KEYS,
       ...HISTORY_KEYS,
       ...LIBRARY_KEYS,
+      ...LIBRARY_SCREEN_KEYS,
       ...RIGHT_SIDE_PANEL_KEYS,
       ...LEFT_SIDE_PANEL_KEYS,
       ...CONTROL_CENTER_KEYS,
@@ -793,6 +796,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-entry-open": typeof LIBRARY_ENTRY_OPEN
     "@matomezu/base:library-book-new": typeof LIBRARY_BOOK_NEW
     "@matomezu/base:library-open": typeof LIBRARY_OPEN
+    "@matomezu/base:library-screen-close": typeof LIBRARY_SCREEN_CLOSE
     "@matomezu/base:library-folder-new": typeof LIBRARY_FOLDER_NEW
     "@matomezu/base:library-entry-rename": typeof LIBRARY_ENTRY_RENAME
     "@matomezu/base:library-entry-move": typeof LIBRARY_ENTRY_MOVE

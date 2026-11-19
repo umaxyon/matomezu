@@ -2,6 +2,7 @@ import { BOOK_SCREEN_URL, expect, test } from "./fixtures"
 import { browserMenuStopped } from "./helpers/browser-menu"
 import { addFromTabs } from "./helpers/new-book"
 import { openGeneral } from "./helpers/settings"
+import { lowerLibrary, splitWith } from "./helpers/split"
 import { fromMenu, menuOf } from "./helpers/stage-menu"
 
 test("下の行のどこに乗せても、ブックの名前のメニューがせり上がり、下の行から離れると下がる", async ({ page }) => {
@@ -21,19 +22,15 @@ test("下の行のどこに乗せても、ブックの名前のメニューが�
   await expect(trigger).toHaveAttribute("aria-expanded", "false")
 })
 
-test("分割すると、右のステージは何も開かず真ん中でブックを選べ、選ぶと右に紙が出る", async ({ page }) => {
+test("分割すると、右のステージは何も開かず、下に出た書庫でブックを選ぶと右に紙が出る", async ({ page }) => {
   await page.goto(BOOK_SCREEN_URL)
   const papers = page.getByRole("img", { name: "紙" })
   await expect(papers).toHaveCount(1)
   await (await fromMenu(page, "画面を分割")).click()
   const right = page.getByRole("region", { name: "ステージ" }).nth(1)
-  await expect(right.getByText("ブックを選択してください")).toBeVisible()
+  await expect(right.getByRole("combobox")).toHaveCount(0)
   await expect(papers).toHaveCount(1)
-  const input = right.getByRole("combobox", { name: "ブックを探す" })
-  await input.click()
-  await input.pressSequentially("振り返り")
-  await expect(right.getByRole("option")).toHaveText(["週次の振り返り"])
-  await input.press("Enter")
+  await lowerLibrary(page).getByRole("button", { name: "週次の振り返り" }).dblclick()
   await expect(papers).toHaveCount(2)
   const [left, r] = [await papers.nth(0).boundingBox(), await papers.nth(1).boundingBox()]
   expect(r!.x).toBeGreaterThan(left!.x)
@@ -68,25 +65,18 @@ test("ダイアログの中で押し始めて外で離しても閉じず、外�
   await expect(dialog).toBeHidden()
 })
 
-test("絞り込んで候補が減っても、探すテキストFormの位置は変わらない（ステージの真ん中とダイアログ）", async ({
-  page,
-}) => {
+test("絞り込んで候補が減っても、ダイアログの探すテキストFormの位置は変わらない", async ({ page }) => {
   await page.goto(BOOK_SCREEN_URL)
-  await (await fromMenu(page, "画面を分割")).click()
-  const stage = page.getByRole("region", { name: "ステージ" }).nth(1)
   await (await fromMenu(page, "ブックを開く")).click()
   const dialog = page.getByRole("dialog", { name: "ブックを開く" })
-  for (const place of [dialog, stage]) {
-    const input = place.getByRole("combobox", { name: "ブックを探す" })
-    const before = await input.boundingBox()
-    await input.fill("振り返り")
-    await expect(place.getByRole("option")).toHaveText(["週次の振り返り"])
-    expect(await input.boundingBox()).toEqual(before)
-    await input.fill("当てはまらない言葉")
-    await expect(place.getByText("当てはまるブックはありません")).toBeVisible()
-    expect(await input.boundingBox()).toEqual(before)
-    if (place === dialog) await page.keyboard.press("Escape")
-  }
+  const input = dialog.getByRole("combobox", { name: "ブックを探す" })
+  const before = await input.boundingBox()
+  await input.fill("振り返り")
+  await expect(dialog.getByRole("option")).toHaveText(["週次の振り返り"])
+  expect(await input.boundingBox()).toEqual(before)
+  await input.fill("当てはまらない言葉")
+  await expect(dialog.getByText("当てはまるブックはありません")).toBeVisible()
+  expect(await input.boundingBox()).toEqual(before)
 })
 
 test("ダイアログは Esc で閉じ、ブックは変わらない", async ({ page }) => {
@@ -99,13 +89,10 @@ test("ダイアログは Esc で閉じ、ブックは変わらない", async ({ 
   await expect(page.getByRole("tablist")).toHaveAttribute("aria-label", "まとめ図の構想")
 })
 
-test("分割した右のステージ（ブックを開いていない）の「新しいブック」で作ると、右のステージにそのブックが開く", async ({
-  page,
-}) => {
+test("分割して下に出た書庫の「ブック新規作成」で作ると、右のステージにそのブックが開く", async ({ page }) => {
   await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "画面を分割")).click()
-  const right = page.getByRole("region", { name: "ステージ" }).nth(1)
-  await right.getByRole("button", { name: "新しいブック" }).click()
+  await page.getByRole("button", { name: "ブック新規作成" }).locator("visible=true").click()
   await page.keyboard.type("右で作った図")
   await page.keyboard.press("Enter")
   await expect(page.getByRole("dialog", { name: "新しいブック" })).toBeHidden()
@@ -179,9 +166,8 @@ test("ページが多くてタブが横にあふれているとき、タブの�
 
 test("分割して右で同じブックを開くと右にもタブがあり、右で足したページは右だけで開く", async ({ page }) => {
   await page.goto(BOOK_SCREEN_URL)
-  await (await fromMenu(page, "画面を分割")).click()
+  await splitWith(page, "まとめ図の構想")
   const right = page.getByRole("region", { name: "ステージ" }).nth(1)
-  await right.getByRole("option", { name: "まとめ図の構想" }).click()
   const lists = page.getByRole("tablist")
   await expect(lists).toHaveCount(2)
   await addFromTabs(lists.nth(1))
@@ -204,28 +190,23 @@ test("在るブックと同じ名前では作れず、ダイアログの中に�
 }) => {
   await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "画面を分割")).click()
-  const right = page.getByRole("region", { name: "ステージ" }).nth(1)
   const dialog = page.getByRole("dialog", { name: "新しいブック" })
-  await right.getByRole("button", { name: "新しいブック" }).click()
-  await page.keyboard.type("重なる名前")
-  await page.keyboard.press("Enter")
-  await expect(dialog).toBeHidden()
-  await page.getByRole("button", { name: "ステージを閉じる" }).nth(1).click()
-  await (await fromMenu(page, "画面を分割")).click()
-  await page.getByRole("region", { name: "ステージ" }).nth(1).getByRole("button", { name: "新しいブック" }).click()
-  await page.keyboard.type("重なる名前")
+  await page.getByRole("button", { name: "ブック新規作成" }).locator("visible=true").click()
+  await page.keyboard.type("まとめ図の構想")
   await page.keyboard.press("Enter")
   await expect(dialog.getByText("同じ名前があります")).toBeVisible()
   await page.keyboard.type(" 2")
   await page.keyboard.press("Enter")
   await expect(dialog).toBeHidden()
-  await expect(page.getByRole("tablist").nth(1)).toHaveAttribute("aria-label", "重なる名前 2")
+  await expect(page.getByRole("tablist").nth(1)).toHaveAttribute("aria-label", "まとめ図の構想 2")
 })
 
-test("右のステージの新しいブックで作ると空のブックが開き、ページを作ると最初のタブと紙が出る", async ({ page }) => {
+test("下に出た書庫の「ブック新規作成」で作ると空のブックが開き、ページを作ると最初のタブと紙が出る", async ({
+  page,
+}) => {
   await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "画面を分割")).click()
-  await page.getByRole("region", { name: "ステージ" }).nth(1).getByRole("button", { name: "新しいブック" }).click()
+  await page.getByRole("button", { name: "ブック新規作成" }).locator("visible=true").click()
   const dialog = page.getByRole("dialog", { name: "新しいブック" })
   await expect(dialog.getByRole("button", { name: "作成" })).toBeDisabled()
   await page.keyboard.type("新しい図")
@@ -295,7 +276,9 @@ test.describe("ブラウザの言語が英語のとき", () => {
     await page.goto(BOOK_SCREEN_URL)
     await expect(page.locator("html")).toHaveAttribute("lang", "en")
     await (await fromMenu(page, "Split screen")).click()
-    await expect(page.getByText("Select a book")).toBeVisible()
+    await expect(page.getByRole("list", { name: "Contents of Library" }).locator("visible=true")).toBeVisible()
+    await page.keyboard.press("Escape")
+    await (await fromMenu(page, "Open book")).click()
     await expect(page.getByRole("combobox", { name: "Search books" })).toHaveAttribute(
       "placeholder",
       "Search by book name",
@@ -343,7 +326,7 @@ test("分割の境目をドラッグすると左右の幅が変わり、分割�
   await page.goto(BOOK_SCREEN_URL)
   const stages = page.getByRole("region", { name: "ステージ" })
   const full = (await stages.boundingBox())!
-  await (await fromMenu(page, "画面を分割")).click()
+  await splitWith(page, "画面の構成")
   await expect(stages).toHaveCount(2)
   const leftWidth = async () => (await stages.nth(0).boundingBox())!.width
   expect(Math.abs((await leftWidth()) - full.width / 2)).toBeLessThan(2)
@@ -359,7 +342,7 @@ test("分割の境目をドラッグすると左右の幅が変わり、分割�
   expect(Math.abs((await leftWidth()) - full.width * 0.3)).toBeLessThan(3)
   await page.getByRole("button", { name: "ステージを閉じる" }).nth(1).click()
   await expect(stages).toHaveCount(1)
-  await (await fromMenu(page, "画面を分割")).click()
+  await splitWith(page, "画面の構成")
   await expect(stages).toHaveCount(2)
   expect(Math.abs((await leftWidth()) - full.width * 0.3)).toBeLessThan(3)
   await divider.dblclick()
@@ -368,14 +351,15 @@ test("分割の境目をドラッグすると左右の幅が変わり、分割�
 
 test("分割すると、カレントのステージの下の行だけ色が少し変わり、もう片方を押すとそちらに移る", async ({ page }) => {
   await page.goto(BOOK_SCREEN_URL)
-  await (await fromMenu(page, "画面を分割")).click()
+  await splitWith(page, "画面の構成")
   const stages = page.getByRole("region", { name: "ステージ" })
   await expect(stages).toHaveCount(2)
   const bottoms = page.locator("main > [data-current]")
   const current = () => bottoms.evaluateAll(cols => cols.map(c => c.getAttribute("data-current")))
-  expect(await current()).toEqual(["true", "false"])
-  await stages.nth(1).click({ position: { x: 20, y: 20 } })
+  // 右に開いたので、右がカレント。左を押すと左へ移る
   expect(await current()).toEqual(["false", "true"])
+  await stages.nth(0).click({ position: { x: 40, y: 120 } })
+  expect(await current()).toEqual(["true", "false"])
   const bg = (i: number) =>
     bottoms
       .nth(i)
@@ -384,24 +368,19 @@ test("分割すると、カレントのステージの下の行だけ色が少�
       .evaluate(el => getComputedStyle(el).backgroundColor)
   expect(await bg(0)).not.toBe(await bg(1))
   const accent = (i: number) =>
-    page
-      .getByRole("button", { name: /まとめ図の構想|ブックのメニュー/ })
+    bottoms
       .nth(i)
+      .locator('button[aria-haspopup="menu"]')
+      .first()
       .evaluate(el => getComputedStyle(el).boxShadow)
-  expect(await accent(0)).toBe("none")
-  expect(await accent(1)).not.toBe("none")
+  expect(await accent(0)).not.toBe("none")
+  expect(await accent(1)).toBe("none")
 })
 
-test("ブックを選ぶ画面と、ブックを開くダイアログ（幕も）の右クリックではブラウザのメニューを出さず、テキストFormの中では出す", async ({
+test("ブックを開くダイアログ（幕も）の右クリックではブラウザのメニューを出さず、テキストFormの中では出す", async ({
   page,
 }) => {
   await page.goto(BOOK_SCREEN_URL)
-  await (await fromMenu(page, "画面を分割")).click()
-  const stage = page.getByRole("region", { name: "ステージ" }).nth(1)
-  await expect(stage.getByText("ブックを選択してください")).toBeVisible()
-  expect(await browserMenuStopped(stage)).toBe(true)
-  expect(await browserMenuStopped(stage.getByRole("option").first())).toBe(true)
-  expect(await browserMenuStopped(stage.getByRole("combobox", { name: "ブックを探す" }))).toBe(false)
   await (await fromMenu(page, "ブックを開く")).click()
   const dialog = page.getByRole("dialog", { name: "ブックを開く" })
   await expect(dialog).toBeVisible()

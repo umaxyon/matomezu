@@ -20,7 +20,7 @@ import footerRow from "../utils/FooterRow.module.css"
 import styles from "./ScreensView.module.css"
 import { SLIDE_MS } from "./slide"
 import { CONTROL_CENTER_FOOTER } from "./slots"
-import { planExpand, SCREEN_FLASH } from "./split"
+import { planExpand, SCREEN_FLASH, SPLIT_ROWS } from "./split"
 import { applySplit, splitIn, useTallEnough } from "./useScreenSplit"
 
 const reduced = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -65,6 +65,7 @@ export function ScreensView() {
     wasSplitting.current = splitting
   })
   useCollapseWhenLow(lowMixed ? NO_ROWS : arranged, current)
+  useMarkFits(arranged.length > 0 && arranged.some(id => stageScreens.includes(id)), lowMixed)
   const { makeScreenCurrent } = useStoreActions()
   // 枠を一瞬光らせる頼み（useScreenSplit の showOf）
   const flash = usePluginState(kit, SCREEN_FLASH)
@@ -172,6 +173,22 @@ function useCollapseWhenLow(split: readonly string[], current: string | undefine
     actions.replaceHistory()
     applySplit(actions, read, planExpand(split, current))
   }, [low, split, current, actions, read])
+}
+
+// ブックスクリーンを入れた並びの値に、低くてカレントスクリーンだけを見せているか（fits）を書く（スクリーンアレンジメントが答える見えているスクリーンを、描いている物に合わせる。
+// 利用者の操作でないので、ブラウザの履歴に積まない）
+function useMarkFits(mixed: boolean, low: boolean) {
+  const actions = useStoreActions()
+  const read = useReadState()
+  useEffect(() => {
+    if (!mixed) return
+    const win = read().window
+    const value = win.arrangementValue as { fits?: string } | undefined
+    const fits = low ? "current" : "split"
+    if ((value?.fits ?? "split") === fits) return
+    actions.replaceHistory()
+    actions.setScreenArrangement(SPLIT_ROWS.id, { ...(win.arrangementValue as object), fits })
+  }, [mixed, low, actions, read])
 }
 
 // ステージを並べないスクリーン 1 枚。slides なら、描いた次のコマで右から滑り込ませる（late なら、上の物が縮むのを待ってから）。
