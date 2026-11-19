@@ -508,6 +508,14 @@ function foldersIn(book: Book): Folders {
 // ブック book の中のページ page を入れているフォルダの列（近い順）
 export const foldersOverIn = (book: Book, page: string): Folder[] => foldersOver(foldersIn(book), page)
 
+// エントリ entry を入れているフォルダのうち、認可ステップに見せる列（近い順）: バインダとブックまで（書庫ホーム・ゴミ箱・ほかのフォルダの手前で止める。
+// ブックの外のページなら、入れているバインダだけか空）
+export function permissionFoldersOf(folders: Folders, entry: string): Folder[] {
+  const over = foldersOver(folders, entry)
+  const open = over.findIndex(f => isOpenRole(f.folderRole))
+  return open < 0 ? over : over.slice(0, open)
+}
+
 // ページ page を持っているブックの id（どのブックにも入っていなければ undefined）
 export const bookIdOf = (folders: Folders, page: string): string | undefined =>
   foldersOver(folders, page).find(f => f.folderRole === "book")?.id

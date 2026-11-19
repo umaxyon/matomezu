@@ -133,6 +133,14 @@ function recordKeeps(c: Extract<PermissionCheck, { kind: "record" }>): boolean {
   return !(isAI(c.actor) && !after.locked)
 }
 
+// ブックの外で変わったページと、ブックとの間を出入りしたページ（kind "page"）: ロック中のページは、動かせるが、消さず、ゴミ箱に入れず、ロックの掛け外しのほかは変えない
+// （ブックの中のページと同じ決まり。ロックを外せるのは利用者だけ）
+function pageKeeps(c: Extract<PermissionCheck, { kind: "page" }>): boolean {
+  if (!c.before?.locked) return true
+  if (!c.after || c.place === "trashed") return false
+  return c.change.items.length === 0 && onlySwitched(c.change.fields, c.after, c.actor, c.action.id, PAGE_SWITCHES)
+}
+
 // フォルダで問う問いの所 where が名指すページ（名指さない・そのブックに無ければ undefined）
 const pageAt = (folder: Book, where: Where | undefined) =>
   where?.page === undefined ? undefined : findPage(folder, where.page)?.page
@@ -171,6 +179,7 @@ export const LOCK = kit.definePermission({
   // ブックごとゴミ箱にも入れない（中身を変えずに、ほかのブックへ動かすのはよい）。ロックを外せるのは利用者だけ
   keeps: c => {
     if (c.kind === "record") return recordKeeps(c)
+    if (c.kind === "page") return pageKeeps(c)
     if (c.kind !== "folder") return true
     const { before, after, changes, actor, action } = c
     if (!before) return true // 新しく増えたブックは、ロックを掛けて作ってもよい

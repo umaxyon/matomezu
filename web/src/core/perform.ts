@@ -43,7 +43,7 @@ import {
   settingsScopeOf,
   type Where,
 } from "./def/action"
-import type { PlaceChange, Referred } from "./def/permission"
+import type { PagePermissionCheck, PlaceChange, Referred } from "./def/permission"
 import type { SubjectDef } from "./def/subject"
 import {
   binnedBetween,
@@ -68,6 +68,7 @@ import {
   libraryOf,
   noChanges,
   type PageRow,
+  permissionFoldersOf,
   placedChanges,
   rowChanges,
   systemFolderOf,
@@ -202,6 +203,53 @@ function broken(
   return null
 }
 
+// ページの変化 page（PagePermissionCheck の、アクションと行う者を除いた物）が、認可ステップの守らせること（keeps）を守っているか。守っていなければ、守らせたステップの id
+function brokenPage(ctx: ActionContext, action: ActionDef, page: PageCheck): string | null {
+  for (const p of ctx.catalog.permissions.values())
+    if (p.keeps && !p.keeps({ kind: "page", action, ...page, actor: ctx.actor })) return p.id
+  return null
+}
+
+type PageCheck = Omit<PagePermissionCheck, "kind" | "action" | "actor">
+
+// 書庫 library の中のページ id の居場所: ブックの中か、ブックの外か（表に無ければ undefined）
+const pagePlaceIn = (library: Library, id: string): "book" | "outside" | undefined =>
+  !(id in library.pages) ? undefined : bookIdOf(library.folders, id) === undefined ? "outside" : "book"
+
+// 書庫 library のページ id の、認可ステップに見せる値（読めないページと、ゴミ箱の中のページは無い物）
+function checkedPage(library: Library, id: string): ItemPage | undefined {
+  const row = library.pages[id]
+  return row?.kind === "page" && !inTrash(library.folders, id) ? row : undefined
+}
+
+// 書庫が was から now に変わる間の、ブックの外で変わったページと、ブックとの間を出入りしたページの確かめ（ブックの中だけに在ったページは入れない）。
+// 値も置き場所も変わらないページは入れない
+export function pageChecksBetween(was: Library, now: Library): PageCheck[] {
+  const binned = binnedBetween(was, now)
+  const ids = new Set([...Object.keys(was.pages), ...Object.keys(now.pages)])
+  return [...ids].flatMap(id => {
+    const from = pagePlaceIn(was, id)
+    const to = pagePlaceIn(now, id)
+    if (from !== "outside" && to !== "outside") return []
+    const before = checkedPage(was, id)
+    const after = checkedPage(now, id)
+    const place = from && to ? placeChangeOf(was, now, id, binned) : "same"
+    if ((!before && !after) || (before === after && place === "same")) return []
+    return [
+      {
+        before,
+        after,
+        folders: {
+          before: from ? permissionFoldersOf(was.folders, id) : [],
+          after: to ? permissionFoldersOf(now.folders, id) : [],
+        },
+        change: pageChangeOf(id, before, after),
+        place,
+      },
+    ]
+  })
+}
+
 // レコードが対象のアクションの結果が、認可ステップの守らせること（keeps）を守っているか。前後のレコードが指すほかのレコードを、読み口から引いて渡す。
 // 守っていなければ、守らせたステップの id。引けなければ "unreadable"
 function brokenRecord(
@@ -285,9 +333,10 @@ function placeChangeOf(was: Library, now: Library, id: string, binned: ReturnTyp
 const pagesOutsideTrash = (library: Library): Library["pages"] =>
   Object.fromEntries(Object.entries(library.pages).filter(([id]) => !inTrash(library.folders, id)))
 
-// 書庫が対象のアクションの結果で、変わったブック・無くなったブック・増えたブックのどれかが守っていなければ、守らせたステップの id と、そのブックの id（増えたブックなら無い）
+// 書庫が対象のアクションの結果で、変わったブック・無くなったブック・増えたブックと、ブックの外で変わったページ・ブックとの間を出入りしたページ（pageChecksBetween）の
+// どれかが守っていなければ、守らせたステップの id と、そのブックの id（増えたブックとページなら無い）
 // was と now は、行う前と後の書庫（置き場所が変わったブックは、値が変わらなくても確かめる。フォルダごとゴミ箱に出入りしたときの、中のブックも）
-function brokenIn(
+export function brokenIn(
   ctx: ActionContext,
   action: ActionDef,
   was: Library,
@@ -306,6 +355,10 @@ function brokenIn(
   for (const b of Object.values(after)) {
     const made = inTrash(now.folders, b.id) ? "trashed" : "same"
     const id = b.id in before ? null : broken(ctx, action, undefined, b, made, rows)
+    if (id) return { permission: id }
+  }
+  for (const page of pageChecksBetween(was, now)) {
+    const id = brokenPage(ctx, action, page)
     if (id) return { permission: id }
   }
   return null

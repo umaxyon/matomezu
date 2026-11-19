@@ -102,7 +102,23 @@ export interface RecordPermissionCheck {
   actor: Actor
 }
 
-export type PermissionCheck = FolderPermissionCheck | RecordPermissionCheck
+// ページの確かめ（行った後）: ブックの外で変わったページと、ブックとの間を出入りしたページごとに確かめる（ブックの中だけで変わったページは、そのブックの "folder" で確かめる。
+// 出入りしたページは、ブックの側の "folder"（PageChange の movedIn・movedOut）と、こちらの両方で確かめる）。
+// before・after は前と後のページ（無ければ、足した・無くなった。ゴミ箱の中のページは無い物）、folders はそのページを入れているフォルダの列の前と後
+// （近い順。ブックの中ならバインダとブック、ブックの外ならバインダだけで、書庫ホーム・ゴミ箱・ほかのフォルダは入れない）、
+// change は前と後のページを比べた変化（足した・消した・変わった。ブックの間を動いたかは place で見る）、place は置き場所の変化
+export interface PagePermissionCheck {
+  kind: "page"
+  action: ActionDef
+  before: ItemPage | undefined
+  after: ItemPage | undefined
+  folders: { before: readonly Folder[]; after: readonly Folder[] }
+  change: PageChange
+  place: PlaceChange
+  actor: Actor
+}
+
+export type PermissionCheck = FolderPermissionCheck | PagePermissionCheck | RecordPermissionCheck
 
 export interface PermissionDef<Tt extends string = MessageKey> extends PermissionExtras {
   id: string
