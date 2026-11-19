@@ -38,7 +38,7 @@ const current = (ctx: ScreenCommandContext): OpenScreen | undefined => screensOf
 const recent = (ctx: ScreenCommandContext, stages: boolean): OpenScreen | undefined =>
   [...screensOf(ctx)].reverse().find(s => s.stages === stages)
 
-// 巣箱のボタン。ブックスクリーンと、ステージを並べないスクリーン（コントロールセンターなど）を行き来する: カレントスクリーンと違う種類の、
+// 巣箱のコマンド（ステージのメニューの「コントロールセンター」）。ブックスクリーンと、ステージを並べないスクリーン（コントロールセンターなど）を行き来する: カレントスクリーンと違う種類の、
 // いちばん最近カレントにしたスクリーンをカレントスクリーンにする。ステージを並べないスクリーンがカレントの間は、押された状態
 export const CONTROL_CENTER_TOGGLE = kit.defineScreenCommand({
   id: "control-center-toggle",
