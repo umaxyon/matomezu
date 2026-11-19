@@ -89,6 +89,7 @@ export {
   frameOf,
   freeSpotIn,
   gapOf,
+  growKindOf,
   grownArea,
   growOf,
   inPaper,
