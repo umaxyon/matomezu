@@ -17,7 +17,7 @@ test("上下に並んだブックスクリーンに空のステージがあれ�
   expect(vacantStageBeside(screens, undefined, "lib")).toBe(NO_STAGE)
 })
 
-test("「画面を分割」で下に出した書庫: 選ぶと空のステージに開いて書庫のスクリーンを閉じ、「書庫を開く」は空のステージを閉じて広げる", () => {
+test("書庫のスクリーンから選ぶ: 「画面を分割」なら空のステージ、「書庫を開く」ならカレントのステージ、コントロールセンターから開いた書庫なら新しいブックスクリーンに開き、書庫のスクリーンを閉じる", () => {
   const open = () => store.state.getState().window
   const store = newStore()
   const libs = () => open().screens.filter(s => s.def === "@matomezu/base:library-screen")
@@ -30,15 +30,18 @@ test("「画面を分割」で下に出した書庫: 選ぶと空のステージ
   expect(libs()).toHaveLength(0)
   expect(stages().map(st => st.opened !== null && "book" in st.opened && st.opened.book)).toEqual(["b1", "b3"])
   expect(open().arrangement).toBe("@matomezu/base:one-screen")
-  // もう一度分けて「書庫を開く」: 空のステージは閉じ、書庫は 1 枚ずつで前に出る
-  store.actions.closeStage(stages()[1]?.id ?? "")
-  store.actions.command("s1", "@matomezu/base:stage-split")
-  expect(stages()).toHaveLength(2)
-  store.actions.command("s1", "@matomezu/base:library-open")
-  expect(stages()).toHaveLength(1)
-  expect(open().order.at(-1)).toBe(libs()[0]?.id)
-  expect(open().arrangement).toBe("@matomezu/base:one-screen")
-  // 窓いっぱいの書庫から開くと、新しいブックスクリーンに開いて書庫のスクリーンを閉じる
+  // 分けずに「書庫を開く」: 下に出て、選ぶとカレントのステージ（右の b3）のブックを替え、書庫は閉じる
+  store.actions.command(stages()[1]?.id ?? "", "@matomezu/base:library-open")
+  expect(open().arrangementValue).toMatchObject({ screens: [expect.any(String), libs()[0]?.id] })
   store.actions.command(libs()[0]?.id ?? "", "@matomezu/base:library-entry-open", { entry: "b4" })
+  expect(libs()).toHaveLength(0)
+  expect(stages().map(st => st.opened !== null && "book" in st.opened && st.opened.book)).toEqual(["b1", "b4"])
+  // コントロールセンターから「書庫を開く」: 窓いっぱい。選ぶと新しいブックスクリーンに開いて書庫のスクリーンを閉じる
+  const center = open().screens.find(s => s.stages === undefined)?.id ?? ""
+  store.actions.makeScreenCurrent(center)
+  store.actions.command(center, "@matomezu/base:library-open")
+  expect(open().arrangement).toBe("@matomezu/base:one-screen")
+  expect(open().order.at(-1)).toBe(libs()[0]?.id)
+  store.actions.command(libs()[0]?.id ?? "", "@matomezu/base:library-entry-open", { entry: "b5" })
   expect(libs()).toHaveLength(0)
 })

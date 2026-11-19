@@ -102,6 +102,7 @@ export interface CommandContext extends ScreenCommandContext {
 export interface OpenScreen extends CalledScreen {
   id: string // 開いた 1 枚ごとの id
   vacant: readonly string[] // ステージを分けている間の、何も開いていないステージの id（分けていなければ空）
+  stage: string | null // カレントのステージの id（ステージを並べないスクリーンなら null）
 }
 
 // スクリーンから呼ぶコマンドの文脈ごとの、ほかのスクリーンを名指す物（呼ばれた場所のスクリーンの id・開いているスクリーンをカレントにした順に並べた物（最後がカレントスクリーン）・

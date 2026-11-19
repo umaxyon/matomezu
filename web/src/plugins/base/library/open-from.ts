@@ -1,5 +1,6 @@
 // 書庫の画面から、ブック・ページ・バインダを窓に出す（開く先は、呼ばれた書庫の置かれた所で決める）。
-// 呼ばれたのが、ブックスクリーンと上下に並んだ書庫のスクリーン（「画面を分割」で下に出した物）なら、そのブックスクリーンの何も開いていないステージに開く。ほかは新しいブックスクリーン（showBookStage）。
+// 呼ばれたのが、ブックスクリーンと上下に並んだ書庫のスクリーンなら、そのブックスクリーンに開く（「画面を分割」で足した空のステージ、無ければカレントのステージのブックを替える）。
+// ほかは新しいブックスクリーン（showBookStage）。
 // 書庫のスクリーンから開いたら、書庫のスクリーンは閉じる（コントロールセンターの書庫の画面から開いたときは、そのまま）
 import {
   arrangementValueIn,
@@ -10,7 +11,7 @@ import {
   storeActionsOf,
 } from "../../../store/commands/def"
 import { NO_STAGE } from "../../../store/dialogs"
-import { closeLibrary, LIBRARY_SCREEN, vacantStageBeside } from "./screen"
+import { closeLibrary, LIBRARY_SCREEN, stageBeside } from "./screen"
 
 export interface OpenTo {
   book: string
@@ -23,10 +24,10 @@ export function openFromLibrary(ctx: ScreenCommandContext, a: CommandActions, to
   const here = calledScreenIdOf(ctx)
   const screens = screensOf(ctx)
   const value = arrangementValueIn(ctx)
-  const vacant = vacantStageBeside(screens, value, here)
-  const stage = vacant === NO_STAGE ? store.showBookStage(to.book, to.page) : vacant
+  const beside = stageBeside(screens, value, here)
+  const stage = beside === NO_STAGE ? store.showBookStage(to.book, to.page) : beside
   if (stage === NO_STAGE) return
-  if (vacant !== NO_STAGE) {
+  if (beside !== NO_STAGE) {
     store.openBook(stage, to.book)
     if (to.page !== undefined) store.openPage(stage, to.page)
   }

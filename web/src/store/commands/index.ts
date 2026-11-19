@@ -12,6 +12,7 @@ import { splitId } from "../../core/names"
 import { shownPageId, stageBlocks } from "../../core/stage"
 import {
   currentScreen,
+  currentStageOf,
   type OpenedScreen,
   screenOfStage,
   stageIn,
@@ -57,7 +58,12 @@ const calledScreen = (s: OpenedScreen): CalledScreen => ({
   props: s.props,
   stages: s.stages !== undefined,
 })
-const openScreenOf = (s: OpenedScreen): OpenScreen => ({ id: s.id, ...calledScreen(s), vacant: vacantStagesOf(s) })
+const openScreenOf = (s: OpenedScreen): OpenScreen => ({
+  id: s.id,
+  ...calledScreen(s),
+  vacant: vacantStagesOf(s),
+  stage: currentStageOf(s),
+})
 
 // 窓 win の開いているスクリーン（カレントにした順。最後がカレントスクリーン）を、コマンドの文脈の screensOf と同じ形で（base の見た目が、コマンドと同じ関数に渡す）
 export const openScreensOf = (win: WindowState): readonly OpenScreen[] =>

@@ -205,6 +205,9 @@ export const vacantStagesOf = (screen: Pick<OpenedScreen, "stages">): readonly s
     : NO_VACANT
 const NO_VACANT: readonly string[] = []
 
+// スクリーン screen のカレントのステージの id（ステージを並べないスクリーンなら null）
+export const currentStageOf = (screen: Pick<OpenedScreen, "stages">): string | null => screen.stages?.current ?? null
+
 // 開いたままにする枚数（定義の maxOpen）を超えたスクリーンを閉じる（カレントにしたのが古い物から。超えていなければ同じ窓を返す）
 export function withinLimits(win: WindowState, catalog: CoreCatalog): WindowState {
   let next = win
