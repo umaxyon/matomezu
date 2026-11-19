@@ -197,7 +197,9 @@ export function LibraryView({ className }: { className?: string } = {}) {
                 if (e.target.value === "") setQuery(undefined)
               }}
             />
-            <ActionButton form={searchForm}>{t("Search")}</ActionButton>
+            <ActionButton form={searchForm} raised>
+              {t("Search")}
+            </ActionButton>
           </form>
         </search>
         <nav className={styles.tree} aria-label={t("Folders")} data-key-scope={LIBRARY_TREE_SCOPE}>
@@ -241,10 +243,10 @@ export function LibraryView({ className }: { className?: string } = {}) {
               <div className={styles.tools}>
                 {into !== undefined && (
                   <>
-                    <ActionButton onClick={() => openDialog(LIBRARY_NEW_BOOK_DIALOG.id, { into })}>
+                    <ActionButton raised onClick={() => openDialog(LIBRARY_NEW_BOOK_DIALOG.id, { into })}>
                       {t("Create book")}
                     </ActionButton>
-                    <ActionButton onClick={() => openDialog(LIBRARY_NEW_FOLDER_DIALOG.id, { into })}>
+                    <ActionButton raised onClick={() => openDialog(LIBRARY_NEW_FOLDER_DIALOG.id, { into })}>
                       {t("New folder")}
                     </ActionButton>
                   </>
