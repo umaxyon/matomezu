@@ -98,8 +98,8 @@ export function LaneView({
         <button
           type="button"
           className={styles.max}
-          aria-label={maximized ? t("Restore") : t("Maximize")}
-          title={maximized ? t("Restore") : t("Maximize")}
+          aria-label={maximized ? t("Restore size") : t("Maximize")}
+          title={maximized ? t("Restore size") : t("Maximize")}
           onClick={onToggleMaximize}
         >
           {maximized ? <RestoreIcon /> : <MaximizeIcon />}

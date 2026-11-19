@@ -5,7 +5,7 @@ export const BOARD_MESSAGES = defineMessages({
   "project order": { en: "Project order", ja: "プロジェクトの並び" },
   "No projects": { en: "No projects", ja: "プロジェクトはありません" },
   Maximize: { en: "Maximize", ja: "最大化" },
-  Restore: { en: "Restore", ja: "元に戻す" },
+  "Restore size": { en: "Restore size", ja: "元の大きさに戻す" },
   "Sort cards": { en: "Sort cards", ja: "並べ方" },
   "sort id": { en: "id", ja: "id" },
   "sort priority": { en: "Priority", ja: "優先度" },
