@@ -82,10 +82,12 @@ test("キーを変えるのは、既定の行を外して新しい行を足す�
   expect(table.dropped).toMatchObject([{ reason: "removed", entry: { binding: { key: "Delete" } } }])
 })
 
-test("範囲は狭いものから引き、メニューとダイアログが開いている間はほかを見ない。global の範囲のキーが、ステージの範囲のキーに隠れるかを返す", () => {
+test("範囲は狭いものから引き、右クリックのメニュー・道具のアイコン・ダイアログが開いている間はほかを見ない。global の範囲のキーが、ステージの範囲のキーに隠れるかを返す", () => {
   expect(keyScopes({ menu: false, dialog: false }, ["a:panel"])).toEqual(["a:panel", "stage", "global"])
   expect(keyScopes({ menu: false, dialog: true })).toEqual(["dialog"])
   expect(keyScopes({ menu: true, dialog: true })).toEqual(["menu"])
+  // 道具のアイコンが開いている間は picker だけ（プレゼンテーションの範囲・stage・global は見ない）
+  expect(keyScopes({ menu: false, picker: true, dialog: false }, ["a:panel"], "b:view")).toEqual(["a:panel", "picker"])
   // カレントのステージのプレゼンテーションが名乗った範囲は、押した所の範囲のあと、ステージの範囲の前（ダイアログ・メニューの間は探さない）
   expect(keyScopes({ menu: false, dialog: false }, ["a:panel"], "b:view")).toEqual([
     "a:panel",
@@ -252,7 +254,7 @@ test("キーの範囲は定義（KeyScopeDef）で機能台帳に並び、題名
   expect(instance.catalog.store.keyScopes.get("@matomezu/tree:tree")?.title).toBe("@matomezu/tree:Tree")
   expect(thrown(make([scope, scope]))).toEqual(["E001"])
   expect(thrown(make([{ id: "k:panel", title: "k:Panel" }]))).toEqual(["E074"])
-  expect(Object.keys(BASE_KEY_SCOPES)).toEqual(["global", "stage", "dialog", "menu", "screen"])
+  expect(Object.keys(BASE_KEY_SCOPES)).toEqual(["global", "stage", "dialog", "menu", "picker", "screen"])
 })
 
 test("利用者の変更に残った前の範囲の名前 control-center は、screen として読む", () => {

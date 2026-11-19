@@ -767,6 +767,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   // ステージ stage を並べているブックスクリーンのステージの並びに操作をかける（どのブックスクリーンのステージでも届く）
   const withStageScreen = (stage: string, change: (ws: Workspace) => Workspace) =>
     withWindow(win => mapScreenOfStage(win, stage, change))
+  // どのステージの道具のアイコンも閉じた窓
+  const pickersClosed = (win: WindowState) =>
+    mapScreens(win, ws => ws.stages.reduce((w, s) => mapStage(w, s.id, closePicker), ws))
   const withWindow = (change: (win: WindowState) => WindowState) => {
     const { window: win } = getState()
     const next = change(win)
@@ -1392,13 +1395,17 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         opener ??
         recentBookScreen(window)?.stages.current ??
         currentScreen(window).id
-      const menu = contextMenu !== null || picker !== undefined
       // プレゼンテーションのキーの範囲は、ページを開いているときだけ（空のバインダでは、プレゼンテーションのビューを描かない）
       const type = openedPage(stageIn(window, stage)?.opened ?? null)?.type
       const presentation = type && catalog.pageTypes.get(type)?.presentation
       const shown = presentation ? catalog.presentations.get(presentation)?.keyScope : undefined
-      const center = !bookScreenCurrent(window)
-      for (const scope of keyScopes({ menu, dialog: dialog !== null, center }, scopes, shown, reach)) {
+      const openNow = {
+        menu: contextMenu !== null,
+        picker: picker !== undefined,
+        dialog: dialog !== null,
+        center: !bookScreenCurrent(window),
+      }
+      for (const scope of keyScopes(openNow, scopes, shown, reach)) {
         const hit = findKey(table, scope, key)
         if (!hit) continue
         const { command, args } = hit.binding
@@ -1408,9 +1415,13 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       }
       return false
     },
+    // 右クリックのメニューと道具のアイコンは同時に開かない（開くと、道具のアイコンを閉じる）
     openContextMenu: (from, id, target, at, opens = "down") => {
       const place = placeOpenedFrom(from)
-      if (place) setState({ contextMenu: { id, ...place, target, at, opens } })
+      if (!place) return
+      const { window: win } = getState()
+      const closed = pickersClosed(win)
+      commit({ contextMenu: { id, ...place, target, at, opens }, ...(closed === win ? {} : { window: closed }) })
     },
     closeContextMenu: () => {
       if (getState().contextMenu) setState({ contextMenu: null })
@@ -1538,16 +1549,15 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     stopPlacing: id => withStageScreen(id, ws => mapStage(ws, id, s => stopPlacing(s))),
     select: (id, ids) => withStageScreen(id, ws => mapStage(ws, id, s => select(s, ids))),
     setEditing: (id, editing) => withStageScreen(id, ws => mapStage(ws, id, s => setEditing(s, editing))),
-    openPicker: (id, at) =>
-      withWindow(win =>
-        mapScreenOfStage(
-          mapScreens(win, ws => ws.stages.reduce((w, s) => mapStage(w, s.id, closePicker), ws)),
-          id,
-          ws => mapStage(ws, id, s => openPicker(s, at)),
-        ),
-      ),
-    closePicker: () =>
-      withWindow(win => mapScreens(win, ws => ws.stages.reduce((w, s) => mapStage(w, s.id, closePicker), ws))),
+    // 道具のアイコンを開けたら、右クリックのメニューを閉じる（同時に開かない）
+    openPicker: (id, at) => {
+      const { window: win, contextMenu } = getState()
+      const next = mapScreenOfStage(pickersClosed(win), id, ws => mapStage(ws, id, s => openPicker(s, at)))
+      if (next === win) return
+      const opened = (stageIn(next, id)?.picker ?? null) !== null
+      commit({ window: next, ...(opened && contextMenu ? { contextMenu: null } : {}) })
+    },
+    closePicker: () => withWindow(pickersClosed),
     continueStep: book => {
       closeStep()
       const { history } = getState()

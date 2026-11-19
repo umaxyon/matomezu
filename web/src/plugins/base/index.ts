@@ -234,7 +234,7 @@ import {
   STAGE_UNSPLIT,
 } from "./stage"
 import { PAGE_TEXT_COLORS, TEXT_COLORS, THEME_TEXT_COLORS_CHECK, USER_TEXT_COLORS } from "./text"
-import { TOOL_PICKER, TOOL_PICKER_HOLD, TOOL_PICKER_KEYS, TOOL_SET } from "./tool-picker"
+import { TOOL_PICKER, TOOL_PICKER_CLOSE, TOOL_PICKER_HOLD, TOOL_PICKER_KEYS, TOOL_SET } from "./tool-picker"
 import { HAND_TOOL, SELECT_TOOL, TOOL_NEXT } from "./tool-switch"
 // 拡張ポイントに書き足したフィールド toolbox の型（toolbox.ts の declare module）
 import type {} from "./toolbox"
@@ -525,6 +525,7 @@ export const BASE = defineBuiltin(
       TOOL_NEXT,
       TOOL_SET,
       TOOL_PICKER,
+      TOOL_PICKER_CLOSE,
       ZOOM_IN,
       ZOOM_OUT,
       ZOOM_RESET,
@@ -806,6 +807,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:tool-next": typeof TOOL_NEXT
     "@matomezu/base:tool-set": typeof TOOL_SET
     "@matomezu/base:tool-picker": typeof TOOL_PICKER
+    "@matomezu/base:tool-picker-close": typeof TOOL_PICKER_CLOSE
     "@matomezu/base:zoom-in": typeof ZOOM_IN
     "@matomezu/base:zoom-out": typeof ZOOM_OUT
     "@matomezu/base:zoom-reset": typeof ZOOM_RESET

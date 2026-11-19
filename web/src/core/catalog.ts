@@ -47,7 +47,7 @@ export interface ThemeTypeTable {}
 
 // 土台のキーの範囲（キーバインドが効く所）: global（ダイアログもメニューも開いていないとき、ステージに結び付かない画面全体のキー）・stage（カレントのステージ）・
 // dialog・menu（開いているメニュー: 右クリックのメニューと道具のアイコン）。題名は土台が持つ（store/keys.ts）
-export type BaseKeyScope = "global" | "stage" | "dialog" | "menu" | "screen"
+export type BaseKeyScope = "global" | "stage" | "dialog" | "menu" | "picker" | "screen"
 // プラグインのキーの範囲の id → 定義（KeyScopeDef）。プラグインは自分の id を頭に付けた範囲を定義して書き足し、自分のウィジェットの要素に data-key-scope で名乗らせる
 export interface KeyScopeTable {}
 // プラグイン状態の id → 定義（PluginStateDef）。プラグインは自分の id を頭に付けて宣言し、書き足す

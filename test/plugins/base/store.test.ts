@@ -6,7 +6,7 @@ import { currentStage } from "../../../web/src/core/workspace"
 import { addPageIn, createBookIn } from "../../../web/src/plugins/base"
 import { isShown } from "../../../web/src/store/commands"
 import { NO_STAGE } from "../../../web/src/store/dialogs"
-import { newStore } from "../../support"
+import { newStore, sizedStore } from "../../support"
 
 test("ページを足すと、そのステージのブックに入り、そのステージで開いてカレントになる", () => {
   const { state, actions } = newStore()
@@ -167,6 +167,32 @@ test("右クリックのメニューは 1 つだけ出し、開いたステー�
   expect(state.getState().contextMenu).toMatchObject({ stage: NO_STAGE, screen: center })
   expect(actions.pressKey("Escape")).toBe(true)
   expect(state.getState().contextMenu).toBeNull()
+})
+
+test("右クリックのメニューと道具のアイコンは同時に開かない。Escape と Space は、開いている方を閉じる", () => {
+  const { state, actions } = sizedStore()
+  const picking = () => currentStage(screenOf(state.getState().window)).picker
+  actions.openPicker("s1", null)
+  expect(picking()).not.toBeNull()
+  actions.openContextMenu("s1", "@matomezu/paper:paper-context", {}, { x: 10, y: 20 })
+  expect(state.getState().contextMenu).not.toBeNull()
+  expect(picking()).toBeNull()
+  actions.openPicker("s1", null)
+  expect(picking()).not.toBeNull()
+  expect(state.getState().contextMenu).toBeNull()
+  // 道具のアイコンが開いている間は、範囲 picker の tool-picker-close が受ける
+  expect(actions.pressKey("Escape")).toBe(true)
+  expect(picking()).toBeNull()
+  actions.openPicker("s1", null)
+  expect(actions.pressKey("Space")).toBe(true)
+  expect(picking()).toBeNull()
+  // 右クリックのメニューが開いている間は、範囲 menu の menu-close が受ける
+  actions.openContextMenu("s1", "@matomezu/paper:paper-context", {}, { x: 10, y: 20 })
+  expect(actions.pressKey("Space")).toBe(true)
+  expect(state.getState().contextMenu).toBeNull()
+  // どちらも開いていなければ、どちらのコマンドも使えない
+  expect(actions.command("s1", "@matomezu/base:menu-close")).toBe(false)
+  expect(actions.command("s1", "@matomezu/base:tool-picker-close")).toBe(false)
 })
 
 test("ステージを持たないスクリーンで開いたメニューには、スクリーンから呼ぶコマンドの行だけ出る（ステージで呼ぶコマンドの行は出ない）", () => {

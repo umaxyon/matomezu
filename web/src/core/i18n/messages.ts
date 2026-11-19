@@ -45,7 +45,8 @@ export const MESSAGES = defineMessages({
   "Screens without stages": { ja: "ブックスクリーン以外の画面" },
   Stage: { ja: "ステージ" },
   "While a dialog is open": { ja: "ダイアログが開いている間" },
-  "While a menu is open": { ja: "メニューが開いている間" },
+  "While a context menu is open": { ja: "右クリックのメニューが開いている間" },
+  "While the tool icons are open": { ja: "道具のアイコンが開いている間" },
 })
 
 // 土台の文言の組

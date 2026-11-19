@@ -8,4 +8,5 @@ export const TOOL_PICKER_MESSAGES = defineMessages({
     ja: "ツールの切り替えを出す長押しの時間（ミリ秒）",
   },
   "Tool picker": { en: "Tool picker", ja: "ツールの切り替え" },
+  "Close tool picker": { en: "Close tool picker", ja: "ツールの切り替えを閉じる" },
 })
