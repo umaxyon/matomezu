@@ -86,6 +86,26 @@ test("下に出た書庫で 2 回押したブックを右で開き、右にそ�
   expect(screen.getAllByRole("tablist").map(l => l.getAttribute("aria-label"))).toEqual(["まとめ図の構想", "残課題"])
 })
 
+test("書庫の右クリックのメニューで、ロックしたブックの行の「名前の変更…」「ゴミ箱に入れる」は、出たまま押せない。ロックしていないブックの行は押せる", () => {
+  const store = renderBooksScreen()
+  const perform = store.actions.perform as (id: string, args: unknown, on?: unknown) => { ok: boolean }
+  act(() => {
+    expect(perform("@matomezu/base:book-lock", {}, { book: "b3" }).ok).toBe(true)
+  })
+  fireEvent.click(fromMenu("画面を分割"))
+  const rows = (book: string) => {
+    fireEvent.contextMenu(within(lowerLibrary()).getByRole("button", { name: book, hidden: true }))
+    const menu = screen.getByRole("menu")
+    const disabled = ["名前の変更…", "ゴミ箱に入れる"].map(
+      name => (within(menu).getByRole("menuitem", { name: new RegExp(`^${name}`) }) as HTMLButtonElement).disabled,
+    )
+    fireEvent.keyDown(document, { key: "Escape" })
+    return disabled
+  }
+  expect(rows("残課題")).toEqual([true, true])
+  expect(rows("データの形")).toEqual([false, false])
+})
+
 test("＋でページを作るダイアログが開き（紙は A 判とレター・タブロイド・16:9）、名前と紙を決めて作ると、そのタブが選ばれる。名前が空なら作れない", () => {
   renderBooksScreen()
   fireEvent.click(screen.getByRole("button", { name: "ページを足す" }))

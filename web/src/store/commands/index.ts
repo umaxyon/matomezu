@@ -9,6 +9,7 @@ import { fail } from "../../core/errors"
 import { LIBRARY_HISTORY, NO_HISTORY } from "../../core/history"
 import { actionQuery, inspect, type Query, withoutPermissions } from "../../core/inspect"
 import { splitId } from "../../core/names"
+import { permittedIn } from "../../core/perform"
 import { shownPageId, stageBlocks } from "../../core/stage"
 import {
   currentScreen,
@@ -24,6 +25,7 @@ import { stageView, toolOf } from "../../core/workspace"
 import type { Assembled } from "../plugin"
 import { ownedPluginState, pluginValueOf } from "../plugin-state"
 import type { MatomezuState } from "../store"
+import { worldOf } from "../world"
 import {
   type CalledScreen,
   type CommandContext,
@@ -34,6 +36,7 @@ import {
   type ScreenCommandDef,
   type ScreenFrame,
   type StageCommandDef,
+  UNKNOWN_PERFORMED,
   withScreenFrame,
   withWorkspace,
 } from "./def"
@@ -180,11 +183,18 @@ export function isShown(defs: Assembled, state: MatomezuState, at: string, id: C
 // 行うアクションのどれかを、認可ステップと印刷プレビューの間のステージ（stageBlocks）が止めないか（行うアクションが無ければ止められない）。
 // ブック・ページ・アノテーションが対象のアクションは、今のブックの許可スコープの所で問う。
 // 許可スコープを書いたコマンドが行う、一覧が対象のアクション（戻す・やり直すの置き直しなど）は、開いているブックのその所を変える物として扱う
-function permitted(c: Called, arg?: unknown): boolean {
+// スクリーンから呼ぶコマンドが行うアクションと引数を名乗れば（performsWith）、その引数で行うときと同じに問い、名乗ったどれかが止められれば押せない
+function permitted(c: Called, state: MatomezuState, arg?: unknown): boolean {
   const actions = c.def.performs ?? []
   if (actions.length === 0) return true
   if (!("stage" in c.ctx)) {
     const ctx = c.ctx
+    const named = (c.def.from === "screen" && c.def.performsWith?.(ctx, arg as never)) || UNKNOWN_PERFORMED
+    if (named !== UNKNOWN_PERFORMED) {
+      const world = worldOf(state)
+      const asked = { catalog: ctx.catalog, controlCenter: ctx.controlCenter, actor: USER }
+      return named.every(n => permittedIn(world, n.action, n.args, undefined, asked).ok)
+    }
     return actions.some(action => inspect(ctx.catalog, actionQuery(ctx.catalog, action, undefined), ctx).value === true)
   }
   const ctx = c.ctx
@@ -207,7 +217,11 @@ function permitted(c: Called, arg?: unknown): boolean {
 export function isEnabled(defs: Assembled, state: MatomezuState, at: string, id: CommandId, arg?: unknown): boolean {
   const c = called(defs, state, at, id)
   return (
-    c !== null && performable(c, arg) && ask(c, "when") === true && permitted(c, arg) && (ask(c, "enabled") ?? true)
+    c !== null &&
+    performable(c, arg) &&
+    ask(c, "when") === true &&
+    permitted(c, state, arg) &&
+    (ask(c, "enabled") ?? true)
   )
 }
 

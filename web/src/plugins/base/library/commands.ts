@@ -6,7 +6,7 @@
 // 2 行目にそう出し、その画面の履歴の段を捨てる（次はその前の段を置き直す）。認可ステップが止めた（ロック中など）なら、その画面の履歴の段は動かさない
 
 import type { CoreCatalog } from "../../../core/core-catalog"
-import { entriesIn, placeOf } from "../../../core/entries"
+import { entriesIn, namingOf, placeOf, rowTitle } from "../../../core/entries"
 import { type Folders, isKeptSystemFolder, systemFolderOf } from "../../../core/folders"
 import { LIBRARY_HISTORY } from "../../../core/history"
 import { type CommandActions, type ScreenCommandContext, tryPerformOf } from "../../../store/commands/def"
@@ -190,6 +190,17 @@ export const LIBRARY_ENTRY_RENAME = kit.defineScreenCommand({
     const entry = handled(ctx, renames, named)
     if (entry !== undefined) a.openDialog(LIBRARY_RENAME_DIALOG.id, { entry })
   },
+  // 今の名前のままにするとして問う（ページの名前は文脈に無いので、ページと、名前の無い物は分からない）
+  performsWith: (ctx, named) => {
+    const entry = handled(ctx, renames, named)
+    if (entry === undefined) return []
+    const kind = placeOf(ctx.folders, entry)?.ref.kind
+    const title =
+      kind === undefined || kind === "page"
+        ? undefined
+        : rowTitle(ctx.folders[entry], kind, namingOf(ctx.catalog, ctx.settings))
+    return title === undefined ? "unknown" : [{ action: ENTRY_RENAME.id, args: { entry, title } }]
+  },
   when: inMenuHandled(renames),
 })
 
@@ -204,6 +215,10 @@ export const LIBRARY_ENTRY_DUPLICATE = kit.defineScreenCommand({
     const done = a.perform(ENTRY_DUPLICATE.id, { entry })
     if (!done.ok)
       a.showToast({ kind: "warn", message: refusalMessage(ctx.catalog, done, kit.message("Cannot be duplicated")) })
+  },
+  performsWith: (ctx, named) => {
+    const entry = handled(ctx, placedInBook, named)
+    return entry === undefined ? [] : [{ action: ENTRY_DUPLICATE.id, args: { entry } }]
   },
   when: inMenuHandled(placedInBook),
 })
@@ -222,6 +237,10 @@ export const LIBRARY_ENTRY_TRASH = kit.defineScreenCommand({
   run: (ctx, a, named: Named | undefined) => {
     const entry = handled(ctx, trashes, named)
     if (entry !== undefined) trash(ctx, a, entry)
+  },
+  performsWith: (ctx, named) => {
+    const entry = handled(ctx, trashes, named)
+    return entry === undefined ? [] : [{ action: ENTRY_TRASH.id, args: { entry } }]
   },
   when: inMenuHandled(trashes),
 })

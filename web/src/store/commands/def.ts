@@ -11,6 +11,7 @@ import type { Point } from "../../core/geom"
 import type { History } from "../../core/history"
 import type { MessageKey } from "../../core/i18n/i18n"
 import type { Books } from "../../core/library"
+import type { ArgsOf } from "../../core/perform"
 import type { Book } from "../../core/schema/book"
 import { type Stage, shownPageId, toPaper } from "../../core/stage"
 import type { StageListed } from "../../core/window"
@@ -211,7 +212,16 @@ export interface ScreenCommandDef<A = undefined, Tt extends string = MessageKey>
   enabled?(ctx: ScreenCommandContext): boolean
   active?(ctx: ScreenCommandContext): boolean
   run(ctx: ScreenCommandContext, actions: CommandActions, args: A): void
+  // 引数 args で押したら行うアクションと、その引数（performs の中の物。何も行わないなら空）。引数がまだ分からないなら "unknown"。
+  // 名乗れば、土台は押す前にその引数で問う（書庫が対象のアクションなら、許可スコープが引数から出すブックの認可ステップにも）。名乗ったアクションのどれかが止められれば押せない。
+  // 名乗らないか "unknown" なら、コントロールセンターにだけ問う
+  performsWith?(ctx: ScreenCommandContext, args: A): readonly PerformedWith[] | typeof UNKNOWN_PERFORMED
 }
+
+// スクリーンから呼ぶコマンドが名乗る、行うアクション 1 つとその引数
+export type PerformedWith<Id extends ActionId = ActionId> = { [K in Id]: { action: K; args: ArgsOf<K> } }[Id]
+// performsWith の、引数がまだ分からないときの答え
+export const UNKNOWN_PERFORMED = "unknown"
 
 export type CommandDef<A = undefined, Tt extends string = MessageKey> = StageCommandDef<A, Tt> | ScreenCommandDef<A, Tt>
 
@@ -256,6 +266,14 @@ export type ScreenPerforms<P extends readonly ActionId[] | undefined> = {
     : P[I]
 }
 
+// スクリーンから呼ぶコマンドの performsWith が名乗れるのは、performs に書いたアクションだけ（defineScreenCommand の型が求める）
+export type ScreenPerformsWith<P extends readonly ActionId[] | undefined, A> = {
+  performsWith?(
+    ctx: ScreenCommandContext,
+    args: A,
+  ): readonly PerformedWith<P extends readonly ActionId[] ? P[number] : never>[] | typeof UNKNOWN_PERFORMED
+}
+
 // run の 3 つ目の引数の型から A を決め、id は書いた文字のまま残す（引数が無ければ A は undefined）。
 // 型は書いた順に決まるので、run は when より前に書く（後ろに書くと、引数のあるコマンドが型の誤りになる）
 export function defineCommand<
@@ -278,11 +296,12 @@ export function defineScreenCommand<
   A = undefined,
   const P extends readonly ActionId[] | undefined = undefined,
 >(
-  def: Omit<ScreenCommandDef<A>, "permissionScope" | "from" | "performs"> & {
+  def: Omit<ScreenCommandDef<A>, "permissionScope" | "from" | "performs" | "performsWith"> & {
     id: Id
     performs?: P & ScreenPerforms<P>
     place?: CommandPlace<NoInfer<A>>
-  },
+  } & ScreenPerformsWith<P, A>,
 ): ScreenCommandDef<A> & { id: Id } {
-  return { ...def, from: "screen" }
+  // performsWith が名乗るのは performs の中の物なので、どのアクションでもよい形に広げてよい（P のままでは、型が P を決めずに比べられない）
+  return { ...def, from: "screen" } as ScreenCommandDef<A> & { id: Id }
 }

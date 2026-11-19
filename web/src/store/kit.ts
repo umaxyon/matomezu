@@ -30,6 +30,7 @@ import type {
   CommandScopeRequired,
   ScreenCommandDef,
   ScreenPerforms,
+  ScreenPerformsWith,
   StageCommandDef,
 } from "./commands/def"
 import type { DialogDef } from "./dialogs"
@@ -225,11 +226,11 @@ export interface PluginKit<P extends string, M extends MessageMap> {
     A = undefined,
     const Ps extends readonly ActionId[] | undefined = undefined,
   >(
-    def: Omit<ScreenCommandDef<A, keyof M & string>, "permissionScope" | "from" | "performs"> & {
+    def: Omit<ScreenCommandDef<A, keyof M & string>, "permissionScope" | "from" | "performs" | "performsWith"> & {
       id: Id
       performs?: Ps & ScreenPerforms<Ps>
       place?: CommandPlace<NoInfer<A>>
-    },
+    } & ScreenPerformsWith<Ps, A>,
   ): Omit<ScreenCommandDef<A>, "id"> & { id: Owned<P, Id> }
 
   defineDialog<const Id extends string>(def: { id: Id } & DialogExtras): DialogDef & { id: Owned<P, Id> }

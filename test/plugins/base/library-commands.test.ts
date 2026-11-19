@@ -244,3 +244,24 @@ test("書庫を開く: 書庫のスクリーンを 1 枚ずつの並べ方でカ
   expect(current()).toBe(screens()[0]?.id)
   expect(store.state.getState().window.arrangement).toBe("@matomezu/base:one-screen")
 })
+
+test("ツリーで今いる行のゴミ箱入れをロックが止めていれば、Delete を押しても、右の枠で選んでいる別のブックはゴミ箱に入らない。右の枠の Delete は、選んでいる行に効く。ロックしたブックの F2 は何もしない", () => {
+  const { store, center, folder, ids, set, dialog } = setup()
+  const perform = store.actions.perform as (id: string, args: unknown, on?: unknown) => { ok: boolean }
+  const box = folder("箱")
+  perform("@matomezu/base:entry-move", { entry: "b1", into: box })
+  perform("@matomezu/base:entry-move", { entry: "b2", into: box })
+  expect(perform("@matomezu/base:book-lock", {}, { book: "b1" }).ok).toBe(true)
+  set(LIBRARY_FOLDER.id, center, box)
+  set(LIBRARY_PICKED.id, center, "b2")
+  const scope = (id: string) => `@matomezu/base:${id}`
+  // ツリーで今いる行は、開いている「箱」（ロックしたブックを入れている）
+  expect(store.actions.pressKey("Delete", [scope("library-tree"), scope("library")])).toBe(false)
+  expect(ids(box)).toEqual(["b1", "b2"])
+  expect(store.actions.pressKey("Delete", [scope("library-contents"), scope("library")])).toBe(true)
+  expect(ids(box)).toEqual(["b1"])
+  // ロックしたブックを選んで F2 を押しても、名前の変更のダイアログは開かない
+  set(LIBRARY_PICKED.id, center, "b1")
+  expect(store.actions.pressKey("F2", [scope("library-contents"), scope("library")])).toBe(false)
+  expect(dialog()).toBeNull()
+})
