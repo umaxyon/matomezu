@@ -1,7 +1,9 @@
 // プラグイン API の入口と、テストで組む入口 matomezu/testing が出す名前（値）の一覧と、プラグインに見せるステージ（StageView）とコマンドの run が受け取る文脈と操作（CommandActions）のフィールドの一覧と、base の入口の名前がプラグイン API にもあること。
 // 追加プラグインとの約束なので、足す・消すときはここも直して、わざと変えたと分かるようにする
 import { expect, test } from "bun:test"
-import { newStage } from "../web/src/core/stage"
+import { findPage } from "../web/src/core/book"
+import type { Book } from "../web/src/core/schema/book"
+import { newStage, shownPageId } from "../web/src/core/stage"
 import { screenOf } from "../web/src/core/window"
 import { stageView, toolOf } from "../web/src/core/workspace"
 import * as api from "../web/src/plugin-entry/index"
@@ -9,6 +11,7 @@ import * as ui from "../web/src/plugin-entry/ui"
 import * as plugin from "../web/src/plugins/base"
 import * as pluginUi from "../web/src/plugins/base/ui"
 import { commandContext, commandDef } from "../web/src/store/commands"
+import { NO_BOOK, NO_PAGE } from "../web/src/store/commands/def"
 import { boundActions, windowActionsOf } from "../web/src/store/store"
 import * as testing from "../web/src/testing"
 import { CORE_CATALOG, newStore } from "./support"
@@ -471,6 +474,27 @@ test("コマンドが受け取る文脈（CommandContext）のフィールド（
     "stage",
     "toPaper",
   ])
+})
+
+test("コマンドの文脈の page は、開いているページ（ブックの並びの中のページと同じ物）", () => {
+  const state = newStore().state.getState()
+  const ctx = commandContext(CORE_CATALOG, null, state, "s1", "@matomezu/base:stage-split")!
+  const page = shownPageId(ctx.stage.opened)
+  expect(page).not.toBeNull()
+  expect(ctx.book).not.toBe(NO_BOOK)
+  expect(ctx.page).toBe(findPage(ctx.book as Book, page!)!.page)
+})
+
+test("何も開いていないステージのコマンドの文脈は、book も page も none", () => {
+  const ctx = commandContext(
+    CORE_CATALOG,
+    null,
+    newStore({ books: [] }).state.getState(),
+    "s1",
+    "@matomezu/base:stage-split",
+  )!
+  expect(ctx.stage.opened).toBeNull()
+  expect([ctx.book, ctx.page]).toEqual([NO_BOOK, NO_PAGE])
 })
 
 test("コマンドの run が受け取る操作（CommandActions）は、useActions の操作と、自分のプラグイン状態を変える updatePluginState（インスタンスだけが持つ receive・locate・setOffline・setLastWindow・setCanGoBack・setPluginState・setPluginStates は渡さない）", () => {
