@@ -6,8 +6,7 @@
 
 import { entriesIn, placeOf } from "../../../core/entries"
 import { LIBRARY_HISTORY } from "../../../core/history"
-import { type CommandActions, type ScreenCommandContext, storeActionsOf } from "../../../store/commands/def"
-import { NO_STAGE } from "../../../store/dialogs"
+import type { CommandActions, ScreenCommandContext } from "../../../store/commands/def"
 import { BOOK_CREATE } from "../book-new/book-create"
 import { notRestored } from "../history"
 import { isRevertUnchanged } from "../history/restore"
@@ -18,6 +17,7 @@ import type { Drop } from "./drop"
 import { holderForNew, holdsEntries, placedInFolder } from "./entries"
 import { ENTRY_MOVE, ENTRY_MOVE_OVER, ENTRY_RENAME, FOLDER_CREATE } from "./entry-move"
 import { ENTRY_TRASH } from "./entry-trash"
+import { openFromLibrary } from "./open-into"
 import {
   arrivedAt,
   NOT_OPENED,
@@ -130,9 +130,7 @@ export const LIBRARY_ENTRY_OPEN = kit.defineScreenCommand({
     const target = opening(ctx, named)
     if (!target) return
     if (target.to === "folder") return goTo(ctx, a, { id: target.folder, holder: target.folder, holds: true })
-    const store = storeActionsOf(a)
-    const stage = store.showBookStage(target.book, target.page)
-    if (stage !== NO_STAGE && target.binder !== undefined) store.openBinder(stage, target.binder)
+    openFromLibrary(ctx, a, target)
   },
   when: ctx => {
     if (given(ctx, undefined) === undefined) return true
