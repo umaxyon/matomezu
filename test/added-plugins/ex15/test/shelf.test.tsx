@@ -90,5 +90,8 @@ test("たなのフォルダは、base の system-folder-add が書庫ホーム�
     here.actions.openScreen("ex15:shelf-screen", {})
   })
   const shelf = screen.getByRole("heading", { name: "たな" }).closest("section") as HTMLElement
-  expect([...shelf.querySelectorAll("li")].slice(0, 2).map(li => li.textContent)).toEqual(["ドキュメント", "たなのフォルダ"])
+  expect([...shelf.querySelectorAll("li")].slice(0, 2).map(li => li.textContent)).toEqual([
+    "ドキュメント",
+    "たなのフォルダ",
+  ])
 })
