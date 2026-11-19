@@ -120,7 +120,6 @@
 }
 .ghost {
   position: fixed;
-  z-index: 40;
   padding: 2px 12px;
   border: 1px solid var(--skin-border);
   border-radius: 6px;
