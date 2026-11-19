@@ -13,7 +13,8 @@ import { NO_STAGE } from "../../../store/dialogs"
 import { type Actions, SCREEN_REFUSED } from "../../../store/store"
 import { kit } from "../kit"
 import { ONE_SCREEN } from "../window"
-import { behindOf, planClose, SPLIT_ROWS, splitOf } from "../window/split"
+import { behindOf, planClose, planExpand, SPLIT_ROWS, splitOf } from "../window/split"
+import { applySplitFrom } from "../window/useScreenSplit"
 import { LIBRARY_APPEARANCE } from "./state"
 
 export const LIBRARY_SCREEN = kit.defineScreen({
@@ -52,11 +53,19 @@ export const LIBRARY_OPEN = kit.defineScreenCommand({
   when: () => true,
 })
 
-// 書庫のスクリーンを閉じる（帯の閉じるボタンと同じ。書庫の画面の中で Esc。コントロールセンターの書庫の画面からは出さない）
+// 書庫のスクリーンを閉じる（帯の閉じるボタン・書庫の外の操作。書庫の画面の中で Esc。コントロールセンターの書庫の画面からは出さない）
 export const LIBRARY_SCREEN_CLOSE = kit.defineScreenCommand({
   id: "library-screen-close",
   title: "Close library",
   run: (ctx, a) => closeLibrary(storeActionsOf(a), screensOf(ctx), arrangementValueIn(ctx), calledScreenIdOf(ctx)),
+  when: ctx => ctx.screen.def === LIBRARY_SCREEN.id,
+})
+
+// ブックスクリーンと上下に並べている書庫のスクリーンを、窓いっぱいに広げる（帯の広げるボタン）
+export const LIBRARY_SCREEN_EXPAND = kit.defineScreenCommand({
+  id: "library-screen-expand",
+  title: "Expand library",
+  run: (ctx, a) => expandLibrary(storeActionsOf(a), screensOf(ctx), arrangementValueIn(ctx), calledScreenIdOf(ctx)),
   when: ctx => ctx.screen.def === LIBRARY_SCREEN.id,
 })
 
@@ -103,18 +112,18 @@ export function closeLibrary(store: Store, screens: readonly Arranged[], value: 
   const vacant = vacantStageBeside(screens, value, library)
   if (vacant !== NO_STAGE) store.closeStage(vacant)
   const rows = splitOf(screens, value)
-  store.closeScreen(library)
-  if (!rows.includes(library)) return
+  if (!rows.includes(library)) {
+    store.closeScreen(library)
+    return
+  }
   const stages = screens.filter(s => s.stages).map(s => s.id)
-  const next = planClose(rows, behindOf(screens, value), library, stages)
-  if (next.screens.length >= 2) store.setScreenArrangement(SPLIT_ROWS.id, { screens: next.screens, behind: [] })
-  else store.setScreenArrangement(ONE_SCREEN.id)
+  applySplitFrom(store, screens, value, planClose(rows, behindOf(screens, value), library, stages))
 }
 
 // 書庫のスクリーン library を窓いっぱいに広げる（同じスクリーンのまま。空のステージは閉じ、並べていたブックスクリーンは開いたまま後ろへ）
-export function expandLibrary(store: Store, screens: readonly Arranged[], value: unknown, library: string): void {
+function expandLibrary(store: Store, screens: readonly Arranged[], value: unknown, library: string): void {
   const vacant = vacantStageBeside(screens, value, library)
   if (vacant !== NO_STAGE) store.closeStage(vacant)
-  store.setScreenArrangement(ONE_SCREEN.id)
+  applySplitFrom(store, screens, value, planExpand(splitOf(screens, value), library))
   store.makeScreenCurrent(library)
 }
