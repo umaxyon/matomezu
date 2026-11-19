@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { checkCoreCatalog } from "../../web/src/core/core-catalog"
 import { screenOf } from "../../web/src/core/window"
-import { BUILTIN } from "../../web/src/plugins"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { CONTROL_CENTER } from "../../web/src/plugins/control-center"
 import { isShown } from "../../web/src/store/commands"
@@ -10,7 +10,7 @@ import { warningsOf } from "../../web/src/store/plugin"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { BUILTIN_PARTS, newStore, showFirstBook } from "../support"
 
-const CENTER = "@matomezu/control-center:control-center"
+const CENTER = BUILTIN_CONTROL_CENTER
 
 describe("コントロールセンター", () => {
   test("コントロールセンターはブックでないので、ブックを持たないインスタンスは何も開かない", () => {

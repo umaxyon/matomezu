@@ -19,7 +19,7 @@ import {
   viewFrontOf,
 } from "../../web/src/core/window"
 import { showIn, viewOf } from "../../web/src/host-client/server"
-import { BUILTIN } from "../../web/src/plugins"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { isActive } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
 import { NO_STAGE } from "../../web/src/store/dialogs"
@@ -237,7 +237,7 @@ function withAllShown(atStart = false) {
   return shown(
     createMatomezu({
       plugins: [...BUILTIN, kit.plugin({ screenArrangements: [ALL] })],
-      controlCenter: "@matomezu/control-center:control-center",
+      controlCenter: BUILTIN_CONTROL_CENTER,
       books: SAMPLE_BOOKS,
       lang: "ja",
       partial: true,
@@ -297,7 +297,7 @@ test("ステージを並べるスクリーンの定義を 2 つが名乗ると�
   try {
     createMatomezu({
       plugins: [...BUILTIN, kit.plugin({ screens: [OTHER] })],
-      controlCenter: "@matomezu/control-center:control-center",
+      controlCenter: BUILTIN_CONTROL_CENTER,
       books: SAMPLE_BOOKS,
       lang: "ja",
       partial: true,
@@ -318,7 +318,7 @@ const bookScreens = (store: ReturnType<typeof newStore>) =>
 test("宛先なしで作った窓は、ブックスクリーンが 0 枚。AI の view は bookScreen が none で、キーを押しても落ちない", () => {
   const store = createMatomezu({
     plugins: BUILTIN,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     books: SAMPLE_BOOKS,
   })
   const { state } = store

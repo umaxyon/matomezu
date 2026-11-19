@@ -7,6 +7,7 @@ import { pagesOf } from "../../web/src/core/book"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { toolsIn } from "../../web/src/core/tools"
 import { screenOf } from "../../web/src/core/window"
+import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { addPageIn, createBookIn } from "../../web/src/plugins/base"
 import { fieldsArgs } from "../../web/src/plugins/base/page-tabs/page-fields"
 import { keepsPan } from "../../web/src/plugins/base/tool-switch/tools"
@@ -215,7 +216,7 @@ test("ツリーの受け方は同じ入力なら同じ結果: 同じ id のも�
   const make = () => {
     let n = 0
     const store = createMatomezu({
-      controlCenter: "@matomezu/control-center:control-center",
+      controlCenter: BUILTIN_CONTROL_CENTER,
       lang: "ja",
       plugins: BUILTIN_UI,
       newId: () => `id${String(n++).padStart(8, "0")}`,

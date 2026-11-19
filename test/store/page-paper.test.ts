@@ -7,7 +7,7 @@ import { defineAction } from "../../web/src/core/def/action"
 import { definePageType } from "../../web/src/core/def/page-type"
 import type { ItemPage } from "../../web/src/core/placed"
 import type { Book } from "../../web/src/core/schema/book"
-import { BUILTIN } from "../../web/src/plugins"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { normalizedPage, withGrows } from "../../web/src/plugins/base/page-tabs/pages"
 import { DRAWING } from "../../web/src/plugins/page-types/drawing/drawing"
@@ -79,7 +79,7 @@ test("伸びられるタイプのページは、作るときもあとからも�
   const instance = createMatomezu({
     plugins: [...BUILTIN, definePlugin({ id: "notes", pageTypes: [SHEET] })],
     partial: true,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     newId: () => ids.shift() ?? "nx",
   })
   const perform = instance.actions.perform as (id: string, args: unknown, on: unknown) => { ok: boolean }
@@ -111,7 +111,7 @@ test("可変ページは、伸びない向き（下へだけ伸びるなら横�
   const instance = createMatomezu({
     plugins: [...BUILTIN, definePlugin({ id: "notes", pageTypes: [SCROLL] })],
     partial: true,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     newId: sequence(),
   })
   const perform = instance.actions.perform as (id: string, args: unknown, on: unknown) => { ok: boolean }
@@ -211,7 +211,7 @@ test("ページの shift は可変ページを整えるステップだけが書�
   const instance = createMatomezu({
     plugins: [...BUILTIN, definePlugin({ id: "notes", actions: [SHIFTER] })],
     partial: true,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     newId: sequence(),
   })
   const perform = instance.actions.perform as (

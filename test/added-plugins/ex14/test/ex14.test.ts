@@ -2,7 +2,7 @@
 // 持ち主（ex9）のコードは読まないので、持ち主の代わりに、ex14 に許す棚だけを持つ小さなプラグインをここで作る（持ち主との確かめは e2e/plugins）
 import { expect, test } from "bun:test"
 import { definePlugin, z } from "matomezu"
-import { BUILTIN, createMatomezu } from "matomezu/testing"
+import { BUILTIN, BUILTIN_CONTROL_CENTER, createMatomezu } from "matomezu/testing"
 import EX14 from ".."
 
 // 持ち主の代わり: 棚の種類（ex14 に許す）と、棚を足すアクションだけを持つ（型は付けない）
@@ -29,7 +29,7 @@ const OWNER = definePlugin({ id: "ex9", subjects: [SHELF], actions: [SHELF_ADD] 
 const make = () =>
   createMatomezu({
     plugins: [...BUILTIN, OWNER, EX14] as never,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
     partial: true,
   })

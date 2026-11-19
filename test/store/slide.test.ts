@@ -2,7 +2,7 @@
 
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
-import { BUILTIN } from "../../web/src/plugins"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { createMatomezu } from "../../web/src/store/create"
 import { SLIDE, testBinder, testBook, testPage, withSlide } from "../lineup"
@@ -27,7 +27,7 @@ const slideBook = () =>
 function setup() {
   const instance = createMatomezu({
     plugins: BUILTIN,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     newId: sequence(),
   })
   // スライドのバインダに 1 枚入れたブックを作る

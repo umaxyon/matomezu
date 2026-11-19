@@ -1,12 +1,12 @@
 // ex13 のアクション: ボードごとに上限まで残し、別のボードのメモは消さない。済みにするのは 1 度だけ（索引キーの型の確かめは types.ts）
 import { expect, test } from "bun:test"
-import { BUILTIN, createMatomezu } from "matomezu/testing"
+import { BUILTIN, BUILTIN_CONTROL_CENTER, createMatomezu } from "matomezu/testing"
 import EX13 from ".."
 
 test("ボードに 100 件を超えて足すと古い物から消え、別のボードのメモは残る。済みにできるのは 1 度だけ", () => {
   const m = createMatomezu({
     plugins: [...BUILTIN, EX13],
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
   })
   const { perform } = m.actions

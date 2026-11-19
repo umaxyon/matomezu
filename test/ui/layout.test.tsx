@@ -3,6 +3,7 @@ import { cleanup, render, screen, within } from "@testing-library/react"
 import { z } from "zod"
 import { problemText } from "../../web/src/core/errors"
 import { type Warning, warning, warningText } from "../../web/src/core/warnings"
+import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { defineWorkspace, STAGE_BASE_SLOTS } from "../../web/src/plugins/base/ui"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { defineCommand } from "../../web/src/store/commands/def"
@@ -30,7 +31,7 @@ const instance = () =>
   shown(
     createMatomezu({
       plugins: BUILTIN_UI,
-      controlCenter: "@matomezu/control-center:control-center",
+      controlCenter: BUILTIN_CONTROL_CENTER,
       books: SAMPLE_BOOKS,
       lang: "ja",
     }),
@@ -501,7 +502,7 @@ describe("取り込むときの UI マッピングの確かめ", () => {
   })
 
   test("UI マッピングが食い違うプラグインは取り込むときに外し、ほかのプラグインで画面を描く", () => {
-    const instance = createMatomezu({ plugins: BUILTIN_UI, controlCenter: "@matomezu/control-center:control-center" })
+    const instance = createMatomezu({ plugins: BUILTIN_UI, controlCenter: BUILTIN_CONTROL_CENTER })
     showFirstBook(instance)
     const { failed } = instance.use([nowhere, fine], all => {
       shownLayout(placeAdded(DEFAULT_LAYOUT, all), all, assembleUi(all))

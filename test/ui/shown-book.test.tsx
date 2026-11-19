@@ -3,6 +3,7 @@
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
 import type { Book } from "../../web/src/core/schema/book"
+import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { StageScope } from "../../web/src/ui/scope"
@@ -18,7 +19,7 @@ const PAPER = "@matomezu/base:page-paper-color"
 test("ブックを指す下書きは重なり、アイテムやページを指す下書きと、ほかのブックの下書きは重ならない（データは変えない）", () => {
   const instance = createMatomezu({
     plugins: BUILTIN_UI,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     books: SAMPLE_BOOKS,
     lang: "ja",
     newId: sequence(),

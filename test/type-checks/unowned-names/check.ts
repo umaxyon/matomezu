@@ -2,11 +2,12 @@
 // createMatomezu の型が誤りにする（@ts-expect-error の行が誤りにならなければ、確かめが落ちる）
 import { definePlugin } from "matomezu"
 import { BUILTIN_UI, createMatomezu } from "matomezu/testing"
+import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 
 const NAMES = definePlugin({ id: "names" })
 
 // @ts-expect-error 頭の無いキーの範囲とケイパビリティとテーマタイプ・別のプラグインの頭のメニュー
-createMatomezu({ plugins: [...BUILTIN_UI, NAMES], controlCenter: "@matomezu/control-center:control-center" })
+createMatomezu({ plugins: [...BUILTIN_UI, NAMES], controlCenter: BUILTIN_CONTROL_CENTER })
 
 declare module "matomezu/catalog" {
   interface KeyScopeTable {

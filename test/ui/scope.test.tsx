@@ -6,6 +6,7 @@ import { act, cleanup, render } from "@testing-library/react"
 import { pagesOf } from "../../web/src/core/book"
 import type { Book, PageOf } from "../../web/src/core/schema/book"
 import { screenOf } from "../../web/src/core/window"
+import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { usePageLookStyle } from "../../web/src/plugins/base/book-look/use-page-look-style"
 import { kit as baseKit } from "../../web/src/plugins/base/kit"
 import { PRINT_MEASURES } from "../../web/src/plugins/base/print-preview/measures-state"
@@ -65,7 +66,7 @@ const Y = drawing("y")
 function setup(extra: readonly object[] = []) {
   const instance = createMatomezu({
     plugins: BUILTIN_UI,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     books: [],
     savedBooks: [X, Y, ...extra],
     lang: "ja",

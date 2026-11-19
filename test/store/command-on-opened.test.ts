@@ -2,7 +2,7 @@
 // ロック中のブックでは押せず、印刷プレビューの間も押せない。許可スコープを書かないコマンドは、止められない
 import { expect, test } from "bun:test"
 import { defineMessages } from "../../web/src/core/i18n/messages"
-import { BUILTIN } from "../../web/src/plugins"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { isEnabled } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
@@ -18,7 +18,7 @@ const ANYWHERE = kit.defineCommand({ ...base, id: "bin-anywhere" })
 
 function ready() {
   const store = createMatomezu({
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     books: SAMPLE_BOOKS,
     lang: "ja",
     partial: true,

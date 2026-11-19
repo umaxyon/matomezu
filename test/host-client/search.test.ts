@@ -1,5 +1,6 @@
 // メモリのホストクライアントの言葉の検索: つながっているインスタンスのレコードを、searchTexts を書いた種類だけ、部分一致で探す
 import { expect, test } from "bun:test"
+import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { BUILTIN_UI } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { worldRows } from "../support"
@@ -27,7 +28,7 @@ const ticket = (id: string, number: number, name: string, body = "") => ({
 function setup() {
   const client = memoryClient()
   const store = createMatomezu({
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
     plugins: BUILTIN_UI,
     search: q => client.search(q),

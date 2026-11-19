@@ -11,6 +11,7 @@ import { bookOf, tablesOf } from "../../web/src/core/folders"
 import { translate } from "../../web/src/core/i18n/i18n"
 import type { LanguagePackDef } from "../../web/src/core/i18n/messages"
 import { perform } from "../../web/src/core/perform"
+import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { pageTokens, tokenDefsOf } from "../../web/src/plugins/base/book-look/look"
 import { resolveTokens } from "../../web/src/plugins/base/book-look/tokens"
 import { DRAWING, drawingPage, testBook } from "../lineup"
@@ -181,7 +182,7 @@ describe("アクションを行う", () => {
   const book = SAMPLE_BOOKS[0]!
   const ctx = {
     catalog: CORE_CATALOG,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja" as const,
     newId: () => "new",
     now: "2026-10-26T00:00:00.000Z",
@@ -260,7 +261,7 @@ describe("アクションを行う", () => {
   })
 
   test("コントロールセンターが許していないアクションと、知らないアクションは断る", () => {
-    const center = CORE_CATALOG.controlCenters.get("@matomezu/control-center:control-center")!
+    const center = CORE_CATALOG.controlCenters.get(BUILTIN_CONTROL_CENTER)!
     const narrow = buildCoreCatalog({
       ...BUILTIN_PARTS,
       controlCenters: [{ ...center, actions: center.actions.filter(a => a !== "@matomezu/base:book-create") }],
@@ -319,7 +320,7 @@ describe("機能台帳ごとに別の世界", () => {
   const book = testBook("b1", "メモ", [])
   const ctxOf = (c: typeof catalog) => ({
     catalog: c,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja" as const,
     newId: () => "n1",
     now: "2026-10-26T00:00:00.000Z",

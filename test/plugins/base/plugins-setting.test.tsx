@@ -3,6 +3,7 @@ import { afterEach, expect, test } from "bun:test"
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { defineMessages } from "../../../web/src/core/i18n/messages"
 import { userSetting } from "../../../web/src/core/settings"
+import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { ENABLED_PLUGINS } from "../../../web/src/plugins/base/settings/enabled-plugins"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../../web/src/plugins/ui"
 import { createMatomezu } from "../../../web/src/store/create"
@@ -19,7 +20,7 @@ const EX = definePluginUi(kit.plugin({}), {})
 
 test("設定の「プラグイン」に、足した追加プラグインがスイッチ付きで並び、入れると有効の設定に残る", () => {
   const store = createMatomezu({
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
     plugins: [...BUILTIN_UI, EX],
   })

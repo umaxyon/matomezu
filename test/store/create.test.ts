@@ -6,7 +6,7 @@ import { definePageType } from "../../web/src/core/def/page-type"
 import { type MatomezuError, problemText } from "../../web/src/core/errors"
 import { translate } from "../../web/src/core/i18n/i18n"
 import { screenOf } from "../../web/src/core/window"
-import { BUILTIN } from "../../web/src/plugins"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { BASE, createBookIn } from "../../web/src/plugins/base"
 import { BOX } from "../../web/src/plugins/items/box/box"
 import { defineCommand } from "../../web/src/store/commands/def"
@@ -87,7 +87,7 @@ describe("インスタンスを作る", () => {
     const instance = createMatomezu({
       plugins: [...BUILTIN, notes],
       partial: true,
-      controlCenter: "@matomezu/control-center:control-center",
+      controlCenter: BUILTIN_CONTROL_CENTER,
       newId: () => `n${++made}`,
     })
     showFirstBook(instance)
@@ -206,7 +206,7 @@ describe("インスタンスを作る", () => {
     const instance = createMatomezu({
       plugins: [...BUILTIN, plugin],
       partial: true,
-      controlCenter: "@matomezu/control-center:control-center",
+      controlCenter: BUILTIN_CONTROL_CENTER,
       newId: () => ids.shift() ?? "spare",
     })
     showFirstBook(instance)

@@ -7,7 +7,7 @@ import type { ItemPage } from "../../web/src/core/placed"
 import type { Book } from "../../web/src/core/schema/book"
 import { shownPageId } from "../../web/src/core/stage"
 import { screenOf } from "../../web/src/core/window"
-import { BUILTIN } from "../../web/src/plugins"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { createMatomezu } from "../../web/src/store/create"
 import { definePlugin } from "../../web/src/store/plugin"
@@ -107,7 +107,7 @@ describe("アクションの入口", () => {
   test("プラグインのアクションを行い、結果を状態に入れる", () => {
     const instance = createMatomezu({
       plugins: BUILTIN,
-      controlCenter: "@matomezu/control-center:control-center",
+      controlCenter: BUILTIN_CONTROL_CENTER,
       books: SAMPLE_BOOKS,
       newId: sequence("n"),
     })
@@ -128,7 +128,7 @@ describe("アクションの入口", () => {
   test("アクションが返したページがタイプの形に合わなければ断り、ブックは変わらない", () => {
     const instance = createMatomezu({
       plugins: BUILTIN,
-      controlCenter: "@matomezu/control-center:control-center",
+      controlCenter: BUILTIN_CONTROL_CENTER,
       newId: sequence("n"),
     })
     instance.use([notes])
@@ -146,7 +146,7 @@ describe("アクションの入口", () => {
     const times = ["2026-10-26T01:00:00.000Z", "2026-10-26T02:00:00.000Z"]
     const instance = createMatomezu({
       plugins: BUILTIN,
-      controlCenter: "@matomezu/control-center:control-center",
+      controlCenter: BUILTIN_CONTROL_CENTER,
       newId: sequence("n"),
       now: () => times.shift() ?? "later",
       observe: d => {
@@ -174,7 +174,7 @@ describe("アクションの入口", () => {
       const times = ["2026-10-26T01:00:00.000Z", "2026-11-18T23:30:00.000Z"]
       const instance = createMatomezu({
         plugins: BUILTIN,
-        controlCenter: "@matomezu/control-center:control-center",
+        controlCenter: BUILTIN_CONTROL_CENTER,
         newId: sequence("n"),
         now: () => times.shift() ?? "later",
         observe: d => {
@@ -204,7 +204,7 @@ describe("アクションの入口", () => {
     const done: DoneBulk[] = []
     const instance = createMatomezu({
       plugins: BUILTIN,
-      controlCenter: "@matomezu/control-center:control-center",
+      controlCenter: BUILTIN_CONTROL_CENTER,
       newId: sequence("n"),
       observe: d => {
         done.push(d)
@@ -231,7 +231,7 @@ describe("アクションの入口", () => {
   test("ホストが断ったアクションを続けた画面の履歴の段に入れていたら、続ける前の画面の履歴の段は元に戻せるまま残る", async () => {
     const instance = createMatomezu({
       plugins: BUILTIN,
-      controlCenter: "@matomezu/control-center:control-center",
+      controlCenter: BUILTIN_CONTROL_CENTER,
       newId: sequence("n"),
       observe: bulk =>
         Promise.resolve(

@@ -3,6 +3,7 @@
 import { afterEach, expect, test } from "bun:test"
 import { cleanup, render } from "@testing-library/react"
 import { defineMessages } from "../../../web/src/core/i18n/messages"
+import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { PLUGIN_FRAMES } from "../../../web/src/plugins/taskboard/board/slots"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../../web/src/plugins/ui"
 import { createMatomezu } from "../../../web/src/store/create"
@@ -25,7 +26,7 @@ const EX = definePluginUi(kit.plugin({}), { widgets: [FRAME] })
 
 function renderBoard(added: typeof EX | ReturnType<typeof withoutUi>) {
   const store = createMatomezu({
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
     plugins: [...BUILTIN_UI, added as typeof EX],
   })

@@ -7,7 +7,7 @@ import { defineMessages } from "../../web/src/core/i18n/messages"
 import type { Book } from "../../web/src/core/schema/book"
 import { shownPageId } from "../../web/src/core/stage"
 import { screenOf } from "../../web/src/core/window"
-import { BUILTIN } from "../../web/src/plugins"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { isEnabled } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
@@ -308,7 +308,7 @@ test("いくつものブックを変えた画面の履歴の段は、どれか�
         ],
       }),
     ],
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     books: SAMPLE_BOOKS,
     lang: "ja",
     newId: sequence(),

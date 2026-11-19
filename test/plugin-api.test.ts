@@ -421,6 +421,7 @@ test("matomezu/ui が出す名前", () => {
 test("matomezu/testing が出す名前", () => {
   expect(names(testing)).toEqual([
     "BUILTIN",
+    "BUILTIN_CONTROL_CENTER",
     "BUILTIN_UI",
     "DEFAULT_LAYOUT",
     "MatomezuProvider",

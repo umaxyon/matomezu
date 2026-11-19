@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { screenOf } from "../../web/src/core/window"
-import { BUILTIN } from "../../web/src/plugins"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { isActive, isShown, screenCommandContext } from "../../web/src/store/commands"
 import { screensOf } from "../../web/src/store/commands/def"
 import { pluginKit } from "../../web/src/store/kit"
@@ -167,7 +167,7 @@ describe("コマンドは、自分のプラグインのプラグイン状態を�
     shown(
       createMatomezuInstance({
         plugins: [...BUILTIN, definePlugin(plugin)],
-        controlCenter: "@matomezu/control-center:control-center",
+        controlCenter: BUILTIN_CONTROL_CENTER,
         books: SAMPLE_BOOKS,
         lang: "ja",
         newId: sequence(),
@@ -224,7 +224,7 @@ describe("コマンドは、自分のプラグインのプラグイン状態を�
         definePlugin(kit.plugin({ pluginStates: [MODE, FLIPPED], commands: [TOGGLE, BOTH] })),
         definePlugin(other.plugin({ commands: [STEAL] })),
       ],
-      controlCenter: "@matomezu/control-center:control-center",
+      controlCenter: BUILTIN_CONTROL_CENTER,
       books: SAMPLE_BOOKS,
       lang: "ja",
       newId: sequence(),

@@ -14,7 +14,7 @@ import {
   participantAliveMs,
   userSetting,
 } from "../../web/src/core/settings"
-import { BUILTIN } from "../../web/src/plugins"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { assemble, type Plugin } from "../../web/src/store/plugin"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
@@ -31,7 +31,7 @@ const EX: Plugin = { id: "@ex/u", userSettings: [SECRET, OPEN] }
 
 const ctx = (catalog = CORE_CATALOG, actor: Actor = USER) => ({
   catalog,
-  controlCenter: "@matomezu/control-center:control-center",
+  controlCenter: BUILTIN_CONTROL_CENTER,
   lang: "en",
   newId: () => "x",
   now: "2026-10-29T00:00:00.000Z",
@@ -40,7 +40,7 @@ const ctx = (catalog = CORE_CATALOG, actor: Actor = USER) => ({
 })
 
 test("利用者だけが変える項目は、AI には変えさせず、AI が読む設定と AI に見せる引数の形にも出さない", () => {
-  const catalog = assemble([...BUILTIN, EX], "@matomezu/control-center:control-center").catalog.core
+  const catalog = assemble([...BUILTIN, EX], BUILTIN_CONTROL_CENTER).catalog.core
   const world = {
     pages: {},
     folders: {},

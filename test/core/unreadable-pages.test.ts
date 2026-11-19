@@ -20,6 +20,7 @@ import type { Book, UnreadableEntry } from "../../web/src/core/schema/book"
 import { shownPageId } from "../../web/src/core/stage"
 import { warningText } from "../../web/src/core/warnings"
 import { stageIn } from "../../web/src/core/window"
+import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { isShown } from "../../web/src/store/commands"
 import { DRAWING, drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { CORE_CATALOG, newStore, sequence, worldRows } from "../support"
@@ -284,7 +285,7 @@ describe("表に分ける・組む（core/folders.ts）", () => {
 describe("アクション（performIn）", () => {
   const ctx = {
     catalog: CORE_CATALOG,
-    controlCenter: "@matomezu/control-center:control-center" as const,
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "en" as const,
     newId: sequence("n"),
     now: "2026-01-01T00:00:00.000Z",

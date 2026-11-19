@@ -6,6 +6,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { pagesOf } from "../../web/src/core/book"
 import type { Book } from "../../web/src/core/schema/book"
 import { screenOf } from "../../web/src/core/window"
+import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { addPageIn, createBookIn } from "../../web/src/plugins/base"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
@@ -20,7 +21,7 @@ afterEach(() => {
 
 function setup() {
   const store = createMatomezu({
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
     plugins: BUILTIN_UI,
     partial: true,
@@ -151,7 +152,7 @@ test("Tab キーは、利用者の設定の項目で選んだ字を書く（既�
 
 test("設定画面の「マークダウン」の「Tabキー」: 押している方を見せ、Tab を選んでいる間に選び替えた数は、半角スペースに戻したときに使う", () => {
   const store = createMatomezu({
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
     plugins: BUILTIN_UI,
     partial: true,

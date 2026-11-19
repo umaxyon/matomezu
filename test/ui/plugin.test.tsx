@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { act, cleanup, render, screen } from "@testing-library/react"
 import { definePageType } from "../../web/src/core/def/page-type"
 import { definePresentation } from "../../web/src/core/def/presentation"
-import { BUILTIN } from "../../web/src/plugins"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { BASE_UI, defineAnnotationIcon, defineMailActions, defineWideSearchOpener } from "../../web/src/plugins/base/ui"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
@@ -66,7 +66,7 @@ describe("見た目のプラグイン", () => {
     const instance = createMatomezu({
       plugins: [...BUILTIN_UI, notesUi],
       partial: true,
-      controlCenter: "@matomezu/control-center:control-center",
+      controlCenter: BUILTIN_CONTROL_CENTER,
       lang: "ja",
       newId: () => `n${++made}`,
     })

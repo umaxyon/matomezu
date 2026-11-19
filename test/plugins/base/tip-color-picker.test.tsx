@@ -2,6 +2,7 @@
 // ColorPicker は none を渡したときだけ「なし」を選べ、渡さなければ「なし」を出さず、値が無いときは見本の最初の色を見せる
 import { afterEach, expect, test } from "bun:test"
 import { cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { ColorPicker } from "../../../web/src/plugins/base/dialog-host/ColorPicker"
 import { Tip } from "../../../web/src/plugins/base/utils/Tip"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../../web/src/plugins/ui"
@@ -14,7 +15,7 @@ afterEach(cleanup)
 const inContext = (children: React.ReactNode) => {
   const instance = createMatomezu({
     plugins: BUILTIN_UI,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "en",
   })
   return render(

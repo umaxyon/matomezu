@@ -4,6 +4,7 @@ import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
 import { paperOf } from "../../web/src/core/stage"
 import { screenOf } from "../../web/src/core/window"
+import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { PrintAreaLayer } from "../../web/src/plugins/base/stage/layers"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
@@ -17,7 +18,7 @@ afterEach(cleanup)
 test("紙 1 枚で描くページには線を引かず、広さが右に 2 枚・下に 3 枚なら、縦の線 1 本と横の線 2 本を引く", () => {
   const instance = createMatomezu({
     plugins: BUILTIN_UI,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     books: SAMPLE_BOOKS,
     lang: "ja",
   })

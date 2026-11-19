@@ -1,6 +1,7 @@
 // 横断検索: モードと開き方はスロットに置いたウィジェットから引ける。コントロールセンターの虫メガネで左サイドパネルに横断検索が開き、全文で打つと横断検索の当たりが並び、押すとチケットスクリーンが開く
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { assembleUi } from "../../web/src/ui/plugin"
@@ -29,7 +30,7 @@ test("モードと種類ごとの開き方は、スロットに置いたウィ�
 test("虫メガネで横断検索が開き、全文で打つと当たりが並び、履歴の当たりを押すと親のチケットのスクリーンが開く", async () => {
   const client = memoryClient()
   const store = createMatomezu({
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
     plugins: BUILTIN_UI,
     search: q => client.search(q),

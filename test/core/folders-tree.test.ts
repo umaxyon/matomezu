@@ -32,6 +32,7 @@ import {
 import { performIn, type World } from "../../web/src/core/perform"
 import { REMOVED } from "../../web/src/core/records"
 import type { Book } from "../../web/src/core/schema/book"
+import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { drawingPage, MARKDOWN, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { CORE_CATALOG, sequence } from "../support"
 
@@ -280,7 +281,7 @@ describe("表の変わり", () => {
 describe("ブックを足す・消すときの置き場所", () => {
   const ctx = {
     catalog: CORE_CATALOG,
-    controlCenter: "@matomezu/control-center:control-center" as const,
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "en" as const,
     newId: sequence("n"),
     now: "2026-01-01T00:00:00.000Z",

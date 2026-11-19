@@ -1,11 +1,11 @@
 // 型が誤りにする場面（tsc -p でこのプロジェクトを確かめる。@ts-expect-error の行が誤りにならなければ、確かめが落ちる）
-import { BUILTIN_UI, createMatomezu } from "matomezu/testing"
+import { BUILTIN_CONTROL_CENTER, BUILTIN_UI, createMatomezu } from "matomezu/testing"
 import { kit } from "../kit"
 import EX1_UI from "../ui"
 
 const instance = createMatomezu({
   plugins: [...BUILTIN_UI, EX1_UI],
-  controlCenter: "@matomezu/control-center:control-center",
+  controlCenter: BUILTIN_CONTROL_CENTER,
 })
 instance.actions.command("s1", "ex1:lang", "ja")
 // @ts-expect-error 引数の要るコマンドに渡していない
@@ -15,7 +15,7 @@ instance.actions.command("s1", "ex1:lang", "de")
 // @ts-expect-error 知らないコマンド
 instance.actions.command("s1", "ex1:nope")
 // @ts-expect-error 型を書き足した ex1 を渡し忘れた
-createMatomezu({ plugins: BUILTIN_UI, controlCenter: "@matomezu/control-center:control-center" })
+createMatomezu({ plugins: BUILTIN_UI, controlCenter: BUILTIN_CONTROL_CENTER })
 // @ts-expect-error 引数の型が違う既定のキー
 kit.defineKey({
   id: "bad-key",

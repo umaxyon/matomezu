@@ -1,7 +1,7 @@
 // 印刷プレビューの設定の組（設定の定義の printPreview。plugins/base/print-preview/settings.ts）と、それを変える print-preview-update・book-update
 import { expect, test } from "bun:test"
 import { z } from "zod"
-import { BUILTIN } from "../../../web/src/plugins"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { bookSettingDefs } from "../../../web/src/plugins/base/book-settings"
 import { createMatomezu } from "../../../web/src/store/create"
 import { pluginKit } from "../../../web/src/store/kit"
@@ -24,7 +24,7 @@ const PLUGIN = definePlugin(ex.plugin({ settings: [MARGIN] }))
 const storeWith = () =>
   createMatomezuInstance({
     plugins: [...BUILTIN, PLUGIN],
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     books: SAMPLE_BOOKS,
     lang: "ja",
     newId: sequence(),

@@ -2,6 +2,7 @@
 import { expect, test } from "bun:test"
 import { AI } from "../../../web/src/core/actor"
 import { performIn } from "../../../web/src/core/perform"
+import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { scrapFrameIn } from "../../../web/src/plugins/base/scrap"
 import { SCRAP, scrapSize, scrapToPlace } from "../../../web/src/plugins/base/scrap/scrap"
 import { CORE_CATALOG, newStore } from "../../support"
@@ -48,7 +49,7 @@ test("AI は切り抜くことも消すこともできない", () => {
   }
   const ctx = {
     catalog: CORE_CATALOG,
-    controlCenter: "@matomezu/control-center:control-center" as never,
+    controlCenter: BUILTIN_CONTROL_CENTER as never,
     lang: "en" as const,
     newId: () => "n",
     now: "t",

@@ -2,7 +2,15 @@
 // たたんでいる間（描いたまま隠している間）は入らない。システムフォルダ（たなのフォルダ）は、base の system-folder-add が書庫ホームの先頭に足す
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
-import { BUILTIN_UI, createMatomezu, DEFAULT_LAYOUT, MatomezuProvider, placeAdded, WindowRoot } from "matomezu/testing"
+import {
+  BUILTIN_CONTROL_CENTER,
+  BUILTIN_UI,
+  createMatomezu,
+  DEFAULT_LAYOUT,
+  MatomezuProvider,
+  placeAdded,
+  WindowRoot,
+} from "matomezu/testing"
 import EX15_UI from "../ui"
 
 afterEach(cleanup)
@@ -11,7 +19,7 @@ const settled = () => Promise.resolve()
 const make = () =>
   createMatomezu({
     plugins: [...BUILTIN_UI, EX15_UI],
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
   })
 type M = ReturnType<typeof make>

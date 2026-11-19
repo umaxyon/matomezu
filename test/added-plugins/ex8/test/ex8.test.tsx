@@ -4,6 +4,7 @@ import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
 import { addPageIn, createBookIn, pagesOf, themeFits, themesFor } from "matomezu"
 import {
+  BUILTIN_CONTROL_CENTER,
   BUILTIN_UI,
   createMatomezu,
   DEFAULT_LAYOUT,
@@ -21,7 +22,7 @@ afterEach(cleanup)
 test("単語帳を開くと、カードのプレゼンテーションのビューがページのカードを並べる（カードが無ければ無いと出す）", () => {
   const instance = createMatomezu({
     plugins: [...BUILTIN_UI, EX8_UI],
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
   })
   // 最初のブックを窓に出す（ブックが無ければ、何も開かないステージのブックスクリーンを開く）
@@ -52,7 +53,7 @@ test("単語帳を開くと、カードのプレゼンテーションのビュ�
 test("自分で足したテーマタイプのテーマ（黒板）は、それを使う単語帳のブックでだけ使え、図面のブックでは使えない", () => {
   const instance = createMatomezu({
     plugins: [...BUILTIN_UI, EX8_UI],
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
   })
   // 最初のブックを窓に出す（ブックが無ければ、何も開かないステージのブックスクリーンを開く）
@@ -66,7 +67,7 @@ test("自分で足したテーマタイプのテーマ（黒板）は、それ�
 test("カードの並べ方は画面の場所に入り（読み直しても戻る）、押して選んだカードは入らない", () => {
   const instance = createMatomezu({
     plugins: [...BUILTIN_UI, EX8_UI],
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
   })
   // 最初のブックを窓に出す（ブックが無ければ、何も開かないステージのブックスクリーンを開く）

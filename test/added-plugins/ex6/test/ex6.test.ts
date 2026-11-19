@@ -3,13 +3,13 @@
 import { expect, test } from "bun:test"
 import { act } from "@testing-library/react"
 import { addPageIn, createBookIn, pagesOf } from "matomezu"
-import { BUILTIN_UI, createMatomezu, openedIn } from "matomezu/testing"
+import { BUILTIN_CONTROL_CENTER, BUILTIN_UI, createMatomezu, openedIn } from "matomezu/testing"
 import EX6_UI from "../ui"
 
 test("答える形の無いページの重さは 0", () => {
   const instance = createMatomezu({
     plugins: [...BUILTIN_UI, EX6_UI],
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
   })
   // 最初のブックを窓に出す（ブックが無ければ、何も開かないステージのブックスクリーンを開く）

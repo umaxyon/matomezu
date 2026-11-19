@@ -8,6 +8,7 @@ import { checkCoreCatalog } from "../../../web/src/core/core-catalog"
 import { translate } from "../../../web/src/core/i18n/i18n"
 import { joinActions } from "../../../web/src/core/participant"
 import { performIn } from "../../../web/src/core/perform"
+import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { mailboxOf } from "../../../web/src/plugins/base/mail"
 import type { Mail } from "../../../web/src/plugins/base/mail/mail"
 import { type MailT, shownOf } from "../../../web/src/plugins/base/mail/shown"
@@ -106,7 +107,7 @@ test("AI は要求できるが、受け入れる・外す・部屋を作る・�
   const room = addRoom("A").result.workroom
   const ctx = {
     catalog: CORE_CATALOG,
-    controlCenter: "@matomezu/control-center:control-center" as never,
+    controlCenter: BUILTIN_CONTROL_CENTER as never,
     lang: "en" as const,
     newId: () => `n${Math.random()}`,
     now: "2026-11-08T00:00:00.000Z",
@@ -148,7 +149,7 @@ test("同じ入力（時刻と id のもと）なら同じ結果", () => {
       undefined,
       {
         catalog: CORE_CATALOG,
-        controlCenter: "@matomezu/control-center:control-center" as never,
+        controlCenter: BUILTIN_CONTROL_CENTER as never,
         lang: "en",
         newId: () => "0123456789abcdef",
         now: "2026-11-08T00:00:00.000Z",

@@ -4,13 +4,14 @@ import { USER } from "../../web/src/core/actor"
 import { type BulkAction, bulkActionOf, localDateOf, performBulk } from "../../web/src/core/bulk"
 import type { World } from "../../web/src/core/perform"
 import { sourceOf } from "../../web/src/core/record-source"
+import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { MAIL } from "../../web/src/plugins/base/mail"
 import { worldOf } from "../../web/src/store/world"
 import { CORE_CATALOG, newStore, sequence } from "../support"
 
 const CTX = {
   catalog: CORE_CATALOG,
-  controlCenter: "@matomezu/control-center:control-center",
+  controlCenter: BUILTIN_CONTROL_CENTER,
   lang: "ja" as const,
   actor: USER,
 }

@@ -2,6 +2,7 @@
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { defineMessages } from "../../../web/src/core/i18n/messages"
+import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { DialogHost } from "../../../web/src/plugins/base/dialog-host/DialogHost"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../../web/src/plugins/ui"
 import { createMatomezu } from "../../../web/src/store/create"
@@ -35,7 +36,7 @@ test("ステージを持たずにスクリーンから開いたダイアログ�
   const instance = createMatomezu({
     plugins: [...BUILTIN_UI, probe],
     partial: true,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
   })
   render(

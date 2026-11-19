@@ -1,12 +1,12 @@
 // ex9（自分の対象の種類を足す）で、アクションがカード（レコード）を 1 件ずつ作る・直す・消し、番号は使い回さず、名前の重なりは断るのを確かめる
 import { expect, test } from "bun:test"
-import { BUILTIN, createMatomezu } from "matomezu/testing"
+import { BUILTIN, BUILTIN_CONTROL_CENTER, createMatomezu } from "matomezu/testing"
 import EX9 from ".."
 
 const make = () =>
   createMatomezu({
     plugins: [...BUILTIN, EX9],
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
   })
 

@@ -2,7 +2,7 @@
 
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
-import { BUILTIN } from "../../web/src/plugins"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { createMatomezu } from "../../web/src/store/create"
 import { newStore, sequence } from "../support"
@@ -15,7 +15,7 @@ type Pages = { id: string; title: string; locked?: boolean; slide?: { id: string
 function slideSetup(newId: () => string = sequence()) {
   const instance = createMatomezu({
     plugins: BUILTIN,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     newId,
   })
   createBookIn(instance, "s1", { title: "スライド" })

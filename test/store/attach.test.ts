@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import { shownPageId } from "../../web/src/core/stage"
 import { warningText } from "../../web/src/core/warnings"
 import { screenOf } from "../../web/src/core/window"
-import { BUILTIN } from "../../web/src/plugins"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { actionsOfPage } from "../../web/src/plugins/base/utils/page-actions"
 import { isShown } from "../../web/src/store/commands"
@@ -61,7 +61,7 @@ test("without・add・performs の間違いは warning（W001〜W003・W012）�
   const instance = createMatomezu({
     plugins: [...BUILTIN, PLUGIN],
     partial: true,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
   })
   showFirstBook(instance)
   expect(warningsOf(instance.catalog).map(warningText)).toEqual([
@@ -79,7 +79,7 @@ test("コマンドは、行うアクションが今のブックで使えなけ�
   const store = newStore()
   const shown = (id: string) => isShown(store, store.state.getState(), "s1", id as never)
   expect(shown("@matomezu/base:book-settings")).toBe(true)
-  const empty = createMatomezu({ plugins: BUILTIN, controlCenter: "@matomezu/control-center:control-center" })
+  const empty = createMatomezu({ plugins: BUILTIN, controlCenter: BUILTIN_CONTROL_CENTER })
   showFirstBook(empty)
   const emptyShown = (id: string) => isShown(empty, empty.state.getState(), "s1", id as never)
   expect(emptyShown("@matomezu/base:book-settings")).toBe(false)
@@ -107,7 +107,7 @@ test("線を置けないタイプが line-connect を足していても、線を
   const instance = createMatomezu({
     plugins: [...BUILTIN, definePlugin(boards.plugin({ pageTypes: [BOARD] }))],
     partial: true,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
   })
   showFirstBook(instance)
   expect(createBookIn(instance, "s1", { title: "B" })).toBe(true)

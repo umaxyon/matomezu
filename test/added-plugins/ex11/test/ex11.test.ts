@@ -1,11 +1,11 @@
 // ex11（ほかのプラグインの列挙に値を足す）で、タスクボードの履歴の題に足した値で履歴に書け、AI に見せる引数にも並ぶことを確かめる
 import { expect, test } from "bun:test"
 import { enumValuesOf, z } from "matomezu"
-import { BUILTIN, createMatomezu } from "matomezu/testing"
+import { BUILTIN, BUILTIN_CONTROL_CENTER, createMatomezu } from "matomezu/testing"
 import EX11 from ".."
 
 const make = (plugins = [...BUILTIN, EX11]) =>
-  createMatomezu({ plugins, controlCenter: "@matomezu/control-center:control-center", lang: "ja" })
+  createMatomezu({ plugins, controlCenter: BUILTIN_CONTROL_CENTER, lang: "ja" })
 
 test("足した題でチケットの履歴に書ける。足さなければ、その題は断る", () => {
   for (const [plugins, ok] of [

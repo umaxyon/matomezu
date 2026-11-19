@@ -1,6 +1,7 @@
 import { afterEach, expect, test } from "bun:test"
 import { cleanup, render, renderHook } from "@testing-library/react"
 import type { ReactNode } from "react"
+import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { ArrangedProvider } from "../../web/src/ui/arranged-context"
@@ -10,8 +11,7 @@ import { useArrangedScreens } from "../../web/src/ui/view-hooks"
 
 afterEach(cleanup)
 
-const instance = () =>
-  createMatomezu({ controlCenter: "@matomezu/control-center:control-center", lang: "ja", plugins: BUILTIN_UI })
+const instance = () => createMatomezu({ controlCenter: BUILTIN_CONTROL_CENTER, lang: "ja", plugins: BUILTIN_UI })
 
 test("並べるスクリーンを id で名指す useArrangedScreens と ScreenView は、スクリーンアレンジメントのウィジェットの外では E128", () => {
   expect(() => renderHook(() => useArrangedScreens())).toThrow("E128")

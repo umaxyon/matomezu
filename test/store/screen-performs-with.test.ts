@@ -3,7 +3,7 @@
 import { expect, test } from "bun:test"
 import type { CommandId } from "../../web/src/core/catalog"
 import { defineMessages } from "../../web/src/core/i18n/messages"
-import { BUILTIN } from "../../web/src/plugins"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { isEnabled } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
@@ -18,7 +18,7 @@ function setup() {
     defineMessages({ keep: { en: "Keep", ja: "残す" }, trash: { en: "Trash", ja: "捨てる" } }),
   )
   const store = createMatomezu({
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     books: SAMPLE_BOOKS,
     lang: "ja",
     partial: true,
