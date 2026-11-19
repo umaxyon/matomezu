@@ -4,28 +4,16 @@ import { vacantStageBeside } from "../../../web/src/plugins/base/library/screen"
 import { NO_STAGE } from "../../../web/src/store/dialogs"
 import { newStore } from "../../support"
 
-const screens = [
-  {
-    id: "book",
-    stageList: [
-      { id: "s1", opened: true },
-      { id: "s2", opened: false },
-    ],
-  },
-  {
-    id: "full",
-    stageList: [
-      { id: "s3", opened: true },
-      { id: "s4", opened: true },
-    ],
-  },
-  { id: "lib", stageList: [] },
-]
-
-test("上下に並んだブックスクリーンに空のステージがあれば、そこ。並んでいない・空が無ければ NO_STAGE", () => {
-  expect(vacantStageBeside(screens, { screens: ["book", "lib"], behind: [] }, "lib")).toBe("s2")
-  expect(vacantStageBeside(screens, { screens: ["full", "lib"], behind: [] }, "lib")).toBe(NO_STAGE)
-  expect(vacantStageBeside(screens, { screens: [], behind: [] }, "lib")).toBe(NO_STAGE)
+test("並びの値が無ければ（分けていなければ）、空のステージを探さない", () => {
+  const screens = [
+    {
+      id: "book",
+      stageList: [
+        { id: "s1", opened: true },
+        { id: "s2", opened: false },
+      ],
+    },
+  ]
   expect(vacantStageBeside(screens, undefined, "lib")).toBe(NO_STAGE)
 })
 

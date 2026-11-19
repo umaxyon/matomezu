@@ -62,7 +62,7 @@ const openScreenOf = (s: OpenedScreen): OpenScreen => ({
   id: s.id,
   ...calledScreen(s),
   stageList: stageListOf(s),
-  stage: currentStageOf(s),
+  currentStage: currentStageOf(s),
 })
 
 // 窓 win の開いているスクリーン（カレントにした順。最後がカレントスクリーン）を、コマンドの文脈の screensOf の形で

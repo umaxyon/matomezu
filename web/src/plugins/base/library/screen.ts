@@ -69,7 +69,7 @@ export const LIBRARY_SCREEN_EXPAND = kit.defineScreenCommand({
   when: ctx => ctx.screen.def === LIBRARY_SCREEN.id,
 })
 
-type Arranged = Pick<OpenScreen, "id" | "stages" | "stageList" | "stage">
+type Arranged = Pick<OpenScreen, "id" | "stages" | "stageList" | "currentStage">
 
 // ステージを分けている間の、何も開いていないステージの id（分けていなければ空。「画面を分割」で足して、まだ何も開いていない物）
 const vacantOf = (s: Pick<OpenScreen, "stageList">): readonly string[] =>
@@ -78,7 +78,7 @@ const vacantOf = (s: Pick<OpenScreen, "stageList">): readonly string[] =>
 // 書庫のスクリーン library から開く先のステージ: 上下に並んでいるブックスクリーンの何も開いていないステージ（「画面を分割」で足した物）、無ければそのカレントのステージ。
 // 並んでいなければ NO_STAGE（新しいブックスクリーンに開く）
 export function stageBeside(
-  screens: readonly Pick<Arranged, "id" | "stageList" | "stage">[],
+  screens: readonly Pick<Arranged, "id" | "stageList" | "currentStage">[],
   value: unknown,
   library: string,
 ): string {
@@ -87,7 +87,7 @@ export function stageBeside(
   const vacant = vacantStageBeside(screens, value, library)
   if (vacant !== NO_STAGE) return vacant
   for (const id of rows) {
-    const stage = id === library ? null : screens.find(s => s.id === id)?.stage
+    const stage = id === library ? null : screens.find(s => s.id === id)?.currentStage
     if (stage) return stage
   }
   return NO_STAGE
@@ -116,6 +116,11 @@ type Store = Pick<Actions, "closeStage" | "closeScreen" | "setScreenArrangement"
 export function closeLibrary(store: Store, screens: readonly Arranged[], value: unknown, library: string): void {
   const vacant = vacantStageBeside(screens, value, library)
   if (vacant !== NO_STAGE) store.closeStage(vacant)
+  leaveLibrary(store, screens, value, library)
+}
+
+// 書庫のスクリーン library を閉じて並びから外す（ステージは閉じない。書庫のスクリーンから開いたあと、開いたステージを残して閉じるとき）
+export function leaveLibrary(store: Store, screens: readonly Arranged[], value: unknown, library: string): void {
   const rows = splitOf(screens, value)
   if (!rows.includes(library)) {
     store.closeScreen(library)

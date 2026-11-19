@@ -34,6 +34,12 @@ test("見えているのは、カレントスクリーンが並びにあれば�
   expect(splitShown(opened("c1", "c2"), ["c2", "c1"], value)).toEqual(["c1"])
 })
 
+test("低くてカレントスクリーンだけを見せている並び（fits が current）は、並びにあってもカレントスクリーンだけ", () => {
+  const screens = opened("c1", "c2")
+  expect(splitShown(screens, ["c1", "c2"], { screens: ["c1", "c2"], behind: [], fits: "current" })).toEqual(["c2"])
+  expect(splitShown(screens, ["c1", "c2"], { screens: ["c1", "c2"], behind: [], fits: "split" })).toEqual(["c1", "c2"])
+})
+
 test("開く: 分けていなければ起点と 2 枚で分け、分けていれば起点の後ろ・前・代わりに入れる。max を超えたら起点から遠い物を外す", () => {
   // コントロールセンター（c1）から、下に開く
   expect(planOpen([], "c1", "c3", "after", 2)).toEqual({ screens: ["c1", "c3"], leaving: [] })
