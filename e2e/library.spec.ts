@@ -295,3 +295,51 @@ test("書庫の右の枠の上のボタンで、元に戻す・やり直すが�
   await page.getByRole("navigation", { name: "フォルダ" }).getByRole("button", { name: "ゴミ箱", exact: true }).click()
   await expect(undo).toBeVisible()
 })
+
+test("書庫の「フォルダ新規作成」で開いているフォルダにフォルダを作り、F2 で名前を変え、Enter で中へ入り、Delete でゴミ箱に入れる", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await page.bringToFront()
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  const home = page.getByRole("list", { name: "書庫 の中身" })
+  const name = page.getByRole("dialog").getByRole("textbox")
+  await page.getByRole("button", { name: "フォルダ新規作成" }).click()
+  await name.fill("キーの試しの所")
+  await page.getByRole("dialog").getByRole("button", { name: "作成" }).click()
+  const made = home.getByRole("button", { name: "キーの試しの所" })
+  await expect(made).toBeVisible()
+  // 同じ名前では作れず、訳が出る
+  await page.getByRole("button", { name: "フォルダ新規作成" }).click()
+  await name.fill("キーの試しの所")
+  await page.getByRole("dialog").getByRole("button", { name: "作成" }).click()
+  await expect(page.getByRole("dialog").getByRole("alert")).toHaveText("同じ名前があります")
+  await page.keyboard.press("Escape")
+
+  // 選んで F2: 今の名前が入ったダイアログが出る
+  await made.click()
+  await page.keyboard.press("F2")
+  await expect(name).toHaveValue("キーの試しの所")
+  await name.fill("キーで変えた名前")
+  await page.keyboard.press("Enter")
+  const renamed = home.getByRole("button", { name: "キーで変えた名前" })
+  await expect(renamed).toBeVisible()
+
+  // Enter で中へ入る。「フォルダ新規作成」は、開いているフォルダに作る
+  await renamed.click()
+  await page.keyboard.press("Enter")
+  const path = page.getByRole("navigation", { name: "場所" })
+  await expect(path.getByRole("button")).toHaveText(["書庫", "キーで変えた名前"])
+  const inside = page.getByRole("list", { name: "キーで変えた名前 の中身" })
+  await page.getByRole("button", { name: "フォルダ新規作成" }).click()
+  await name.fill("ブックの隣")
+  await page.keyboard.press("Enter")
+  await expect(inside.getByRole("button", { name: "ブックの隣" })).toBeVisible()
+
+  // Delete でゴミ箱に入れ、Ctrl+Z で戻る
+  await inside.getByRole("button", { name: "ブックの隣" }).click()
+  await page.keyboard.press("Delete")
+  await expect(inside.getByRole("button", { name: "ブックの隣" })).toHaveCount(0)
+  await page.keyboard.press("Control+z")
+  await expect(inside.getByRole("button", { name: "ブックの隣" })).toBeVisible()
+})

@@ -1,7 +1,7 @@
 // 書庫の画面: 左にツリー（書庫ホームとゴミ箱が一番上に並ぶ）、右にパンくずと、開いているフォルダの中身。
 // 1 回押すと選び（ツリーのフォルダ・ブック・バインダは、右の枠にその中身を出す）、2 回押すと開く（フォルダは中へ入り、ブックとその中のページ・バインダは窓に出す）。
 // ゴミ箱は、ツリーでは中を出さず、右の枠に捨てた物の一覧を出す（TrashView.tsx）。読めない物は、選べるだけ。開いているフォルダは画面の場所に入り、選んでいる行は入らない（state.ts）
-import { useRef } from "react"
+import { type KeyboardEvent, useRef } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { titleOf } from "../../../core/entries"
 import { HOME_ID, TRASH_ID } from "../../../core/folders"
@@ -13,8 +13,8 @@ import { useActions, usePluginState, useSetPluginState } from "../../../ui/view-
 import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { LIBRARY_SCOPE } from "./commands"
-import { LIBRARY_NEW_BOOK_DIALOG } from "./dialog"
-import { holdsEntries } from "./entries"
+import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG } from "./dialog"
+import { holderForNew } from "./entries"
 import { HistoryButtons } from "./HistoryButtons"
 import { useKeepFocusIn, useLibraryRows, useNameOf } from "./hooks"
 import { CHEVRON, iconOf, TRASH } from "./icons"
@@ -72,8 +72,8 @@ export function LibraryView() {
   const path = useMatomezuState(useShallow(s => pathTo(s.folders, opened)))
   const titles = useMatomezuState(useShallow(s => path.map(id => folderTitle(s, id))))
   const rows = useRowsIn(opened)
-  // ブックを作れるフォルダ（書庫ホームかフォルダで、ゴミ箱の中でない）を開いているか
-  const creatable = useMatomezuState(s => holdsEntries(s.folders, opened))
+  // 新しいブック・フォルダを作る先（開いているのがブック・バインダなら、それを入れているフォルダ。ゴミ箱なら無い）
+  const into = useMatomezuState(s => holderForNew(s.folders, opened))
   const { openDialog } = useActions()
   const unfolded = unfoldedOf(usePluginState(kit, LIBRARY_UNFOLDED))
   const setUnfolded = useSetPluginState(kit, LIBRARY_UNFOLDED)
@@ -131,10 +131,15 @@ export function LibraryView() {
         </nav>
         {opened !== TRASH_ID && (
           <div className={styles.tools}>
-            {creatable && (
-              <ActionButton onClick={() => openDialog(LIBRARY_NEW_BOOK_DIALOG.id, { into: opened })}>
-                {t("Create book")}
-              </ActionButton>
+            {into !== undefined && (
+              <>
+                <ActionButton onClick={() => openDialog(LIBRARY_NEW_BOOK_DIALOG.id, { into })}>
+                  {t("Create book")}
+                </ActionButton>
+                <ActionButton onClick={() => openDialog(LIBRARY_NEW_FOLDER_DIALOG.id, { into })}>
+                  {t("New folder")}
+                </ActionButton>
+              </>
             )}
             <HistoryButtons />
           </div>
@@ -153,6 +158,7 @@ export function LibraryView() {
                   aria-pressed={row.id === picked}
                   onClick={() => setPicked(row.id)}
                   onDoubleClick={() => handlers.open(row)}
+                  onKeyDown={e => openOnEnter(e, () => handlers.open(row))}
                 >
                   <span className={styles.bigIcon}>{iconOf(row.kind)}</span>
                   <span className={row.readable ? styles.caption : `${styles.caption} ${styles.unreadable}`}>
@@ -167,6 +173,13 @@ export function LibraryView() {
       </div>
     </div>
   )
+}
+
+// 行のボタンの上の Enter は、押す（選ぶ）代わりに開く（2 回押すのと同じ）
+const openOnEnter = (e: KeyboardEvent, open: () => void) => {
+  if (e.key !== "Enter" || e.nativeEvent.isComposing) return
+  e.preventDefault()
+  open()
 }
 
 // フォルダ id の名前（名前を持たない物・無い物は NO_TITLE）
@@ -215,6 +228,7 @@ function TreeNode({
           aria-pressed={!holds && row.id === handlers.picked}
           onClick={() => (holds ? handlers.enter(row.id) : handlers.pick(row, holder))}
           onDoubleClick={() => handlers.open(row)}
+          onKeyDown={e => openOnEnter(e, () => handlers.open(row))}
         >
           <span className={styles.icon}>{row.id === TRASH_ID ? TRASH : iconOf(row.kind)}</span>
           <span className={row.readable ? styles.label : `${styles.label} ${styles.unreadable}`}>{name}</span>

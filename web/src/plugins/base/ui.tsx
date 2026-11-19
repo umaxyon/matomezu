@@ -11,9 +11,10 @@ import { MENU_HOST } from "./context-menu/ui"
 import { DIALOG_HOST } from "./dialog-host/ui"
 import { EDIT_LOCK } from "./edit-lock/ui"
 import { HISTORY_ICONS } from "./history/icons"
-import { LIBRARY_NEW_BOOK_DIALOG } from "./library/dialog"
+import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG, LIBRARY_RENAME_DIALOG } from "./library/dialog"
 import { LIBRARY_COMMAND_ICONS } from "./library/icons"
 import { LibraryNewBookDialog } from "./library/LibraryNewBookDialog"
+import { LibraryNewFolderDialog, LibraryRenameDialog } from "./library/NameDialogs"
 import type { MailActionsProps } from "./mail/slots"
 import {
   MAIL_BOOKMARKS,
@@ -194,6 +195,8 @@ export const BASE_UI = definePluginUi(BASE, {
     ...BOOK_LOOK_DIALOG_VIEWS,
     ...BOOK_NEW_DIALOG_VIEWS,
     [LIBRARY_NEW_BOOK_DIALOG.id]: LibraryNewBookDialog,
+    [LIBRARY_NEW_FOLDER_DIALOG.id]: LibraryNewFolderDialog,
+    [LIBRARY_RENAME_DIALOG.id]: LibraryRenameDialog,
     ...SETTINGS_DIALOG_VIEWS,
     ...MAIL_DIALOG_VIEWS,
     ...PARTICIPANT_DIALOG_VIEWS,

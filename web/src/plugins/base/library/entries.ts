@@ -18,6 +18,7 @@ import {
   type AnyEntryRef,
   type Folder,
   type Folders,
+  foldersOver,
   HOME_ID,
   type HomeOrFolder,
   inTrash,
@@ -43,6 +44,11 @@ export const holdsEntries = (folders: Folders, id: string): boolean => {
   const f = folders[id]
   return (f?.folderRole === "home" || f?.folderRole === "folder") && !inTrash(folders, id)
 }
+
+// 新しいブック・フォルダを作る先: フォルダ opened がエントリを入れられれば、そこ。入れられなければ（ブック・バインダ）、それを入れている一番近い書庫ホームかフォルダ。
+// ゴミ箱とその中なら undefined
+export const holderForNew = (folders: Folders, opened: string): string | undefined =>
+  holdsEntries(folders, opened) ? opened : foldersOver(folders, opened).find(f => holdsEntries(folders, f.id))?.id
 
 // エントリ entry（種類 kind）の名前を title にした書庫（名前を持たない物・書庫に無い物は null。同じ名前なら library のまま）
 export function retitled(library: Library, kind: EntryKind, entry: string, title: string): Library | null {
