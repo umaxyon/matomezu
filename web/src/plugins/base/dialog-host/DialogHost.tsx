@@ -47,5 +47,3 @@ function Lock({ within, ids }: { within: string; ids: readonly string[] }) {
   useEditLock(within, ids)
   return null
 }
-
-// ダイアログの操作の向け先: 開いたステージ。ステージを持たずに開いたなら、開いたスクリーン

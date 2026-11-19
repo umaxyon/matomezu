@@ -313,8 +313,7 @@ export interface PlaceActions {
   // そのステージから開くダイアログを出す（出ていたものは閉じる）。値を渡すダイアログには、その値を渡す
   // ダイアログを開く。at は、開く場所: ステージの id か、開いているスクリーンの id（ステージを持たないスクリーンから開くとき）。どちらでもなければ開かない
   openDialog<Id extends DialogId>(at: string, id: Id, ...args: DialogArgs<Id>): void
-  // そのステージで右クリックされた物 target のメニュー id を、画面の座標 at に出す（出ていたものは閉じる）
-  // 場所 from（ステージの id か、開いているスクリーンの id）で、右クリックのメニューを開く
+  // 場所 from（ステージの id か、開いているスクリーンの id）で右クリックされた物 target のメニュー id を、画面の座標 at に出す（出ていたものは閉じる）
   openContextMenu(from: string, id: string, target: unknown, at: Point, opens?: MenuOpens): void
   split(stage: string): void // そのステージをカレントにして、右に何も開いていないステージを足す
   unsplit(stage: string): void // そのステージだけを残す
