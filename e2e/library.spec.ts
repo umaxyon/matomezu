@@ -448,7 +448,7 @@ test("書庫の行をドラッグして、行の間（その位置へ）・フ�
   const icon = (name: string) => home.getByRole("button", { name, exact: true })
   const names = async () => (await home.getByRole("button").allInnerTexts()).filter(n => n.startsWith("ドラッグ"))
   // 行 from を掴んで、行 to の、幅（高さ）の at の所へ落とす
-  const dragTo = async (from: Locator, to: Locator, at: { x: number; y: number }, hold = 0) => {
+  const dragTo = async (from: Locator, to: Locator, at: { x: number; y: number }) => {
     await from.hover() // 開く動きが止まるまで待つ
     const a = (await from.boundingBox())!
     const b = (await to.boundingBox())!
@@ -456,7 +456,6 @@ test("書庫の行をドラッグして、行の間（その位置へ）・フ�
     await page.mouse.down()
     await page.mouse.move(a.x + a.width / 2 + 10, a.y + a.height / 2 + 10, { steps: 2 })
     await page.mouse.move(b.x + b.width * at.x, b.y + b.height * at.y, { steps: 4 })
-    if (hold > 0) await page.waitForTimeout(hold)
   }
   expect(await names()).toEqual(["ドラッグの箱", "ドラッグ ア", "ドラッグ イ"])
 
@@ -519,7 +518,6 @@ test("書庫の行をドラッグして、行の間（その位置へ）・フ�
     inside.getByRole("button", { name: "ドラッグ ア 2" }),
     tree.getByRole("button", { name: "ドラッグの箱", exact: true }),
     { x: 0.5, y: 0.5 },
-    900,
   )
   const row = tree.getByRole("button", { name: "ドラッグ イ", exact: true })
   await expect(row).toBeVisible()
