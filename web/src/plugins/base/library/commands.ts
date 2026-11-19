@@ -126,6 +126,8 @@ function opening(
   return target === NOT_OPENED || target.to === "folder" ? undefined : target
 }
 
+// ブック・ページ・バインダを窓に出す（書庫の画面で行を 2 回押す・Enter も、行を名指してこれを呼ぶ）。
+// 右クリックのメニューでは、受け取った物を開けるときだけ出す。名指して呼ぶときは when が引数を受けないので、メニューの外ではいつも出す
 export const LIBRARY_ENTRY_OPEN = kit.defineScreenCommand({
   id: "library-entry-open",
   title: "Open",
@@ -136,7 +138,7 @@ export const LIBRARY_ENTRY_OPEN = kit.defineScreenCommand({
     const stage = store.showBookStage(target.book, target.page)
     if (stage !== NO_STAGE && target.binder !== undefined) store.openBinder(stage, target.binder)
   },
-  when: ctx => opening(ctx) !== undefined,
+  when: ctx => given(ctx, undefined) === undefined || opening(ctx) !== undefined,
 })
 
 export const LIBRARY_BOOK_NEW = kit.defineScreenCommand({

@@ -202,3 +202,15 @@ test("落とした物を動かす: フォルダの位置へ・ゴミ箱へ。何
   expect(ids(a)).toEqual([b])
   expect(at().picked).toBeUndefined()
 })
+
+test("開く: メニューの外で名指せば、何も選んでいなくても窓に出す（行を 2 回押す・Enter と同じ道）。読めないと受け取ったページは出さない", () => {
+  const { store, run, at } = setup()
+  const opened = () =>
+    store.state.getState().window.screens.flatMap(s => s.stages?.stages.map(st => st.opened) ?? [])
+  const shows = (book: string) => opened().some(o => o !== null && "book" in o && o.book === book)
+  expect(at().picked).toBeUndefined()
+  run("library-entry-open", { entry: "p1", readable: false })
+  expect(opened()).toHaveLength(1)
+  run("library-entry-open", { entry: "b3", readable: true })
+  expect(shows("b3")).toBe(true)
+})

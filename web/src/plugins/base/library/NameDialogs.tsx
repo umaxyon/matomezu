@@ -1,5 +1,6 @@
 // 書庫の画面から、名前を決めるダイアログ: フォルダを作る（アクション folder-create）と、エントリの名前を変える（アクション entry-rename）
 import { type ReactNode, useState } from "react"
+import { placeOf, titleOf } from "../../../core/entries"
 import { useMessages, useT } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
 import { useCatalog, useReadState } from "../../../ui/store-context"
@@ -90,11 +91,10 @@ export function LibraryRenameDialog({ args, onClose }: DialogProps<{ entry: stri
   const t = useMessages(kit)
   const { perform } = useActions()
   const read = useReadState()
-  // 開いたときの名前（ページでもフォルダでも、id は 1 つの物だけを指す）
+  // 開いたときの名前（無ければ空）
   const [was] = useState(() => {
-    const { pages, folders } = read()
-    const row = (folders[args.entry] ?? pages[args.entry]) as { title?: unknown } | undefined
-    return typeof row?.title === "string" ? row.title : ""
+    const s = read()
+    return titleOf(s, placeOf(s.folders, args.entry)?.ref.kind ?? "folder", args.entry) ?? ""
   })
   return (
     <Dialog title={t("Rename")} onClose={onClose}>

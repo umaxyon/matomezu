@@ -337,25 +337,17 @@ test("書庫の「フォルダ新規作成」で開いているフォルダに�
   await page.keyboard.press("Enter")
   await expect(inside.getByRole("button", { name: "ブックの隣" })).toBeVisible()
 
-  // 矢印キー: 右の枠は左右で隣のアイコンを選び、ツリーは上下で前後の行、左右で中をしまう・出す
+  // 矢印キーが右の枠とツリーに届く（動きの細かな所は library-commands.test.ts）
   await page.getByRole("button", { name: "フォルダ新規作成" }).click()
   await name.fill("ブックの隣 2")
   await page.keyboard.press("Enter")
   await inside.getByRole("button", { name: "ブックの隣", exact: true }).click()
   await page.keyboard.press("ArrowRight")
   await expect(inside.getByRole("button", { name: "ブックの隣 2" })).toHaveAttribute("aria-pressed", "true")
-  await page.keyboard.press("ArrowLeft")
-  await expect(inside.getByRole("button", { name: "ブックの隣", exact: true })).toHaveAttribute("aria-pressed", "true")
   const tree = page.getByRole("navigation", { name: "フォルダ" })
   await tree.getByRole("button", { name: "キーで変えた名前", exact: true }).click()
   await page.keyboard.press("ArrowRight")
   await expect(tree.getByRole("button", { name: "ブックの隣", exact: true })).toBeVisible()
-  await page.keyboard.press("ArrowRight")
-  await expect(path.getByRole("button")).toHaveText(["書庫", "キーで変えた名前", "ブックの隣"])
-  await page.keyboard.press("ArrowUp")
-  await expect(path.getByRole("button")).toHaveText(["書庫", "キーで変えた名前"])
-  await page.keyboard.press("ArrowLeft")
-  await expect(tree.getByRole("button", { name: "ブックの隣", exact: true })).toHaveCount(0)
 
   // Delete でゴミ箱に入れ、Ctrl+Z で戻る
   await inside.getByRole("button", { name: "ブックの隣", exact: true }).click()
