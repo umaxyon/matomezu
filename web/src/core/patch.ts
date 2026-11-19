@@ -6,13 +6,14 @@ import { sameData } from "./same"
 type Fields = Readonly<Record<string, unknown>>
 type Keyed = { id: string } & Fields
 
-// 置き直す値: set はその値にする（absent ならフィールドを外す）。fields はフィールドごと、list は id ごと（index は to の並びでの位置、
-// order は並びに今ある物のうち挙げた id の物の場所に挙げた順に並べ直す）、text は from から to への行の違いを今の文字列に当てる（行ごとの 3 方向のマージ）
+// 置き直す値: set はその値にする（absent ならフィールドを外す）。fields はフィールドごと、list は id ごと（index は to の並びでの位置。
+// order は from と to の両方に在る物の to での順、moved はそのうち from から to で動かした物。今の並びで、moved の物だけを置き直す: reorder）、
+// text は from から to への行の違いを今の文字列に当てる（行ごとの 3 方向のマージ）
 export type Patch =
   | { set: unknown }
   | { absent: true }
   | { fields: Readonly<Record<string, Patch>> }
-  | { list: readonly ListPatch[]; order?: readonly string[] }
+  | { list: readonly ListPatch[]; order?: readonly string[]; moved?: readonly string[] }
   | { text: { from: string; to: string } }
 export interface ListPatch {
   id: string
@@ -39,13 +40,19 @@ function isKeyed(v: unknown): v is readonly Keyed[] {
   return true
 }
 
-// 並び from を並び to の順に直す id の順（両方にある物の相対順が同じなら無し）
-function orderPatch(from: readonly { id: string }[], to: readonly { id: string }[]): string[] | undefined {
+// 並び from を並び to の順に直す値: 両方にある物の to での順 order と、そのうち動かした物 moved（両方にある物の、from と to の共通の部分列が
+// 最長になる組に入らない物。相対順が同じなら無し）
+function orderPatch(
+  from: readonly { id: string }[],
+  to: readonly { id: string }[],
+): { order: string[]; moved: string[] } | undefined {
   const inFrom = new Set(from.map(x => x.id))
   const inTo = new Set(to.map(x => x.id))
   const a = from.filter(x => inTo.has(x.id)).map(x => x.id)
   const b = to.filter(x => inFrom.has(x.id)).map(x => x.id)
-  return a.some((id, i) => id !== b[i]) ? b : undefined
+  if (a.every((id, i) => id === b[i])) return undefined
+  const kept = new Set([...matchLines(a, b).values()].map(j => b[j]))
+  return { order: b, moved: b.filter(id => !kept.has(id)) }
 }
 
 // 値 from を to にする Patch（同じなら undefined）
@@ -70,7 +77,7 @@ export function patchOf(from: unknown, to: unknown): Patch | undefined {
       if (p) list.push({ id, index: i, patch: p })
     }
     const order = orderPatch(from, to)
-    return { list, ...(order ? { order } : {}) }
+    return { list, ...(order ?? {}) }
   }
   if (typeof from === "string" && typeof to === "string" && (from.includes("\n") || to.includes("\n")))
     return { text: { from, to } }
@@ -93,8 +100,12 @@ export function applyPatch(now: unknown, p: Patch): unknown {
   }
   if ("list" in p) {
     if (!Array.isArray(now)) return now
-    const items = p.list.reduce((list: Keyed[], q) => putIn(list, q), [...(now as Keyed[])])
-    return p.order ? reorder(items, p.order) : items
+    // 外す・たどる → 動かした物を置き直す → 無い物を足す（足す位置 index は to の並びでの位置なので、並べ直した後に入れる）
+    const adds = (q: ListPatch) => "set" in q.patch
+    const kept = p.list.filter(q => !adds(q)).reduce((list: Keyed[], q) => putIn(list, q), [...(now as Keyed[])])
+    // moved の無い order は、挙げた物を全部動かした物として置き直す
+    const ordered = p.order ? reorder(kept, p.order, p.moved ?? p.order) : kept
+    return p.list.filter(adds).reduce((list: Keyed[], q) => putIn(list, q), ordered)
   }
   return typeof now === "string"
     ? mergeText(p.text.from.split("\n"), p.text.to.split("\n"), now.split("\n")).join("\n")
@@ -110,13 +121,31 @@ function putIn(list: Keyed[], q: ListPatch): Keyed[] {
   return [...list.slice(0, q.index), q.patch.set as Keyed, ...list.slice(q.index)]
 }
 
-// 並び list の、order に挙げた id の物（list に無い id は飛ばす）の場所に、その物を order の順に並べ直す。ほかの物は動かさない
-function reorder<T extends { id: string }>(list: readonly T[], order: readonly string[]): T[] {
+// 並び list の、moved に挙げた物だけを置き直す（ほかの物は、今の順のまま動かさない）。決まり: 動かした物は、order（to の順）で前と後にある、
+// 動かしていない物（と、先に置き直した動かした物）との順を、今の並びでも守る。order の順に 1 つずつ、前にあるべき物のうち今の並びで一番後ろの物の
+// すぐ後ろに置く。前にあるべき物が今の並びに無ければ、後ろにあるべき物のうち一番前の物のすぐ前に、どちらも無ければ元の場所に置く。
+// 前と後の決まりがぶつかる（ほかの変更で、前にあるべき物が後ろにあるべき物より後ろに来ている）ときは、前にあるべき物との順を取る
+function reorder<T extends { id: string }>(
+  list: readonly T[],
+  order: readonly string[],
+  moved: readonly string[],
+): T[] {
+  const moving = new Set(moved)
   const byId = new Map(list.map(x => [x.id, x]))
-  const moved = order.flatMap(id => byId.get(id) ?? [])
-  const slots = new Set(moved.map(x => x.id))
-  let at = 0
-  return list.map(x => (slots.has(x.id) ? (moved[at++] as T) : x))
+  const out = list.filter(x => !moving.has(x.id))
+  const anchors = new Set(order.filter(id => !moving.has(id)))
+  order.forEach((id, i) => {
+    const item = byId.get(id)
+    if (!moving.has(id) || !item) return
+    const before = new Set(order.slice(0, i).filter(x => anchors.has(x)))
+    const after = new Set(order.slice(i + 1).filter(x => anchors.has(x)))
+    const last = out.reduce((at, x, j) => (before.has(x.id) ? j : at), -1)
+    const next = out.findIndex(x => after.has(x.id))
+    const at = last >= 0 ? last + 1 : next >= 0 ? next : Math.min(list.indexOf(item), out.length)
+    out.splice(at, 0, item)
+    anchors.add(id)
+  })
+  return out
 }
 
 // 2 つの行の並びの、同じ行の組（a の行番号 → b の行番号。共通の部分列が最長になる組。前と後ろの同じ行は先に除く）

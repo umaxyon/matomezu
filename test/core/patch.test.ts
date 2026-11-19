@@ -45,11 +45,27 @@ test("id の並び: 消した物は元の位置に、足した物は外し、中
   })
 })
 
-test("並び順だけの違いも戻す。ほかで足した物の場所は崩さない", () => {
+test("並び順だけの違いも戻す。動かした物（c）だけを置き直し、ほかで足した物の場所は崩さない", () => {
   const before = { items: [{ id: "a" }, { id: "b" }, { id: "c" }] }
   const after = { items: [{ id: "c" }, { id: "a" }, { id: "b" }] }
   const now = { items: [{ id: "c" }, { id: "a" }, { id: "x" }, { id: "b" }] }
-  expect(back(after, before, now)).toEqual({ items: [{ id: "a" }, { id: "b" }, { id: "x" }, { id: "c" }] })
+  expect(back(after, before, now)).toEqual({ items: [{ id: "a" }, { id: "x" }, { id: "b" }, { id: "c" }] })
+})
+
+test("並び順: 動かしていない物の順は、ほかで変えた順のまま残す。動かした物は、前後の動かしていない物との順を守る所へ置く", () => {
+  const ids = (v: unknown) => (v as { items: { id: string }[] }).items.map(x => x.id)
+  const items = (...xs: string[]) => ({ items: xs.map(id => ({ id })) })
+  // 段は c を末尾から先頭へ動かした。その後ほかで a と b を入れ替えた。戻すと c だけが a・b の後ろへ戻る
+  expect(ids(back(items("c", "a", "b"), items("a", "b", "c"), items("c", "b", "a")))).toEqual(["b", "a", "c"])
+  // 前後の決まりがぶつかる（m は a の後・b の前に戻るはずが、ほかで b が a の前に来た）ときは、前にあるべき a との順を取る
+  expect(ids(back(items("m", "a", "b"), items("a", "m", "b"), items("b", "m", "a")))).toEqual(["b", "a", "m"])
+})
+
+test("並び順: 1 本の履歴の中（今の値が from のまま）なら、足す・外す・並べ替えが混ざっても to になる", () => {
+  const items = (...xs: string[]) => ({ items: xs.map(id => ({ id })) })
+  const from = items("a", "b", "c", "d", "e")
+  for (const to of [items("e", "d", "c", "b", "a"), items("x", "c", "a", "y", "e"), items("b", "z", "a", "d")])
+    expect(back(from, to, from)).toEqual(to)
 })
 
 test("行ごと: 自分が変えた行だけを戻し、ほかで書いた行は残す", () => {

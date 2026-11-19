@@ -31,6 +31,7 @@ export const PatchSchema: z.ZodType<Patch> = z.lazy(() =>
     z.strictObject({
       list: z.array(z.strictObject({ id: z.string().min(1), index: z.number().int(), patch: PatchSchema })),
       order: z.array(z.string().min(1)).optional(),
+      moved: z.array(z.string().min(1)).optional(),
     }),
     z.strictObject({ text: z.strictObject({ from: z.string(), to: z.string() }) }),
   ]),
