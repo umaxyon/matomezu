@@ -3,10 +3,11 @@
 import { definePluginUi, defineWidget } from "../../plugin-api/ui"
 import { LIBRARY_CONTEXT_MENUS, MAILBOX_OPENS, WIDE_SEARCH_OPENS } from "../base/ui"
 import { CONTROL_CENTER_PLUGIN } from "."
-import { CONTROL_CENTER_SCREEN, WORKROOM_LEAVE_DIALOG } from "./control-center"
+import { CONTROL_CENTER_SCREEN, VISITOR_LEAVE_DIALOG, WORKROOM_LEAVE_DIALOG } from "./control-center"
 import { kit } from "./kit"
 import { ControlCenterScreen } from "./Screen"
 import { PROJECTS, SIDE, WORKROOM_COLUMNS, WORKROOM_ROW_LINE } from "./slots"
+import { VisitorLeaveDialog } from "./VisitorLeaveDialog"
 import { WorkroomLeaveDialog } from "./WorkroomLeaveDialog"
 
 export const CONTROL_CENTER_SCREEN_WIDGET = defineWidget({
@@ -19,7 +20,7 @@ export const CONTROL_CENTER_SCREEN_WIDGET = defineWidget({
 
 export const CONTROL_CENTER_UI = definePluginUi(CONTROL_CENTER_PLUGIN, {
   widgets: [CONTROL_CENTER_SCREEN_WIDGET],
-  dialogViews: { [WORKROOM_LEAVE_DIALOG.id]: WorkroomLeaveDialog },
+  dialogViews: { [WORKROOM_LEAVE_DIALOG.id]: WorkroomLeaveDialog, [VISITOR_LEAVE_DIALOG.id]: VisitorLeaveDialog },
 })
 
 declare module "../../core/catalog" {

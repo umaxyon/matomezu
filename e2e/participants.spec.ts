@@ -367,7 +367,7 @@ test("列は、呼ばれた時刻と参加の新しい順に並び、列に触�
   await expect.poll(followsTimes).toBe("follows")
 })
 
-test("ビジター: as visitor で頼むと受け入れのダイアログは区分を選ばせず、受け入れると、ようこそに区分が出て、センターのビジターの節に並ぶ。ビジターはブックも変えられず、外すと消える", async ({
+test("ビジター: as visitor で頼むと受け入れのダイアログは区分を選ばせず、受け入れると、ようこそに区分が出て、センターのビジターの節に並ぶ。ビジターはブックも変えられず、確かめて外すと消える", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -417,6 +417,14 @@ test("ビジター: as visitor で頼むと受け入れのダイアログは区�
   await expect(panel).toContainText("ビジター（読むだけ）")
   await expect(panel).toContainText("opus-5")
   await panel.getByRole("button", { name: "ビジターを外す" }).click()
+  // 確かめのダイアログ: キャンセルは何も変えず、外すで外れる
+  const confirm = page.getByRole("dialog", { name: "ビジターを外す" })
+  await expect(confirm).toContainText("claude / 見学")
+  await confirm.getByRole("button", { name: "キャンセル" }).click()
+  await expect(row).toHaveCount(1)
+  await panel.getByRole("button", { name: "ビジターを外す" }).click()
+  await confirm.getByRole("button", { name: "外す", exact: true }).click()
+  await expect(confirm).toHaveCount(0)
   await expect(row).toHaveCount(0)
   await expect.poll(() => participants(page)).toHaveLength(0)
 })

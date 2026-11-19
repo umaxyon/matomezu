@@ -61,3 +61,6 @@ export const LIBRARY_MAXIMIZED = kit.definePluginStateOf<boolean>()({ id: "libra
 
 // 退室の確認のダイアログ（部屋を出る・部屋を削除する）。退室するワークルームの id を受け取る
 export const WORKROOM_LEAVE_DIALOG = kit.defineDialogWith<{ workroom: string }>()({ id: "workroom-leave" })
+
+// ビジターを外す確認のダイアログ。外すビジターの参加者の id を受け取る
+export const VISITOR_LEAVE_DIALOG = kit.defineDialogWith<{ participant: string }>()({ id: "visitor-leave" })

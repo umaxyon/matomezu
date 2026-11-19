@@ -1,11 +1,11 @@
 // 右の下のワークルームの枠: 選んでいる参加者の鳥・名前・管理者の王冠（管理者なら金、ほかは薄い灰色。押すと管理者にする）・情報（最終アクセス・ブランチ（あれば）・model・os）・現在のタスク・履歴。
 // 情報の列の右下に退室のアイコン。情報の列の右には、スロット workroom-columnsに置かれたウィジェットの列（現在のタスク・履歴など）が並ぶ。
-// ビジターを選んでいれば、ビジターの印・呼び名・（ビジター（読むだけ））・情報と、右下に外すアイコン（ワークルームが無いので、確かめずにすぐ外す）
+// ビジターを選んでいれば、ビジターの印・呼び名・（ビジター（読むだけ））・情報と、右下に外すアイコン（確かめのダイアログを開く）
 import { Slot, useActions, useAllowedOn, useMessages } from "../../plugin-api/ui"
 import { type VisitorRow, visitorName, type WorkroomRow } from "../base"
 import { Elapsed, IconButton, Panel, Tip, useWorkroomActions, VisitorIcon } from "../base/ui"
 import { BIRD_SIZE, Bird } from "./Bird"
-import { WORKROOM_LEAVE_DIALOG } from "./control-center"
+import { VISITOR_LEAVE_DIALOG, WORKROOM_LEAVE_DIALOG } from "./control-center"
 import { CrownIcon, LeaveIcon, TrashIcon } from "./icons"
 import { kit } from "./kit"
 import { lastAccessOf } from "./rows"
@@ -140,7 +140,7 @@ function Occupied({ row }: { row: WorkroomRow }) {
 // ビジター: 印・呼び名・（ビジター（読むだけ））・情報（最終アクセス・ブランチ（あれば）・model・os）、右下に外すアイコン
 function Visitor({ row }: { row: VisitorRow }) {
   const t = useMessages(kit)
-  const rooms = useWorkroomActions()
+  const { openDialog } = useActions()
   const participant = row.participant
   const access = lastAccessOf(row)
   const canLeave = useAllowedOn("@matomezu/base:participant-remove", {}, { record: participant.id }).ok
@@ -181,7 +181,7 @@ function Visitor({ row }: { row: VisitorRow }) {
               label={t("Remove the visitor")}
               title={undefined}
               disabled={!canLeave}
-              onClick={() => rooms.leave(participant.id)}
+              onClick={() => openDialog(VISITOR_LEAVE_DIALOG.id, { participant: participant.id })}
             >
               <LeaveIcon />
             </IconButton>

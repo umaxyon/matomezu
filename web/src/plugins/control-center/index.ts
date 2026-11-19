@@ -8,6 +8,7 @@ import {
   LIBRARY_MAXIMIZED,
   PICKED_ROOM,
   PICKED_VISITOR,
+  VISITOR_LEAVE_DIALOG,
   WORKROOM_LEAVE_DIALOG,
 } from "./control-center"
 import { kit } from "./kit"
@@ -19,6 +20,7 @@ export {
   LIBRARY_MAXIMIZED,
   PICKED_ROOM,
   PICKED_VISITOR,
+  VISITOR_LEAVE_DIALOG,
   WORKROOM_LEAVE_DIALOG,
 } from "./control-center"
 
@@ -27,7 +29,7 @@ export const CONTROL_CENTER_PLUGIN = defineBuiltin(
     controlCenters: [CONTROL_CENTER],
     screens: [CONTROL_CENTER_SCREEN],
     pluginStates: [FRONT_SCREEN, PICKED_ROOM, PICKED_VISITOR, LIBRARY_MAXIMIZED],
-    dialogs: [WORKROOM_LEAVE_DIALOG],
+    dialogs: [WORKROOM_LEAVE_DIALOG, VISITOR_LEAVE_DIALOG],
   }),
 )
 
@@ -46,6 +48,7 @@ declare module "../../core/catalog" {
   }
   interface DialogTable {
     "@matomezu/control-center:workroom-leave": typeof WORKROOM_LEAVE_DIALOG
+    "@matomezu/control-center:visitor-leave": typeof VISITOR_LEAVE_DIALOG
   }
   interface MessageTable extends Readonly<typeof kit.messages> {}
 }
