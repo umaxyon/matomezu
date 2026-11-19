@@ -684,6 +684,29 @@ test("書庫の検索は、名前に言葉を含む物を右の枠に並べる�
   await expect.poll(() => urlFront(page)).toBe(BOOK_SCREEN_DEF)
 })
 
+test("書庫の検索の結果を押すと、ツリーがはみ出していても、その行が見える所までツリーを送る", async ({ page }) => {
+  await page.goto("/")
+  await page.bringToFront()
+  // ツリーの高さを超える数のフォルダを作り、最後のフォルダの中にブックを置く
+  let last = ""
+  for (let i = 0; i < 40; i++) {
+    const made = await perform(page, "@matomezu/base:folder-create", { title: `送りの試し ${i}` })
+    last = (made.result as { folder: string }).folder
+  }
+  await perform(page, "@matomezu/base:book-create", { title: "一番下の帳面", into: last })
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  const tree = page.getByRole("navigation", { name: "フォルダ" })
+  const row = tree.getByRole("button", { name: "一番下の帳面", exact: true })
+  await page.getByRole("textbox", { name: "名前で検索" }).fill("一番下の帳面")
+  await page.keyboard.press("Enter")
+  await page
+    .getByRole("list", { name: "見つかった物" })
+    .getByRole("button", { name: /一番下の帳面/ })
+    .click()
+  await expect(row).toHaveAttribute("aria-current", "true")
+  await expect(row).toBeInViewport()
+})
+
 test.describe("ブックごと読めないブック", () => {
   // 並びが並びの形でない（W005）ブック。書庫の表に行が無く、名前は読めない訳に残る
   test.use({ books: [{ id: "broken-1", title: "壊れたブック", lineup: "no" }] })
