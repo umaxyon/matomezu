@@ -1,8 +1,8 @@
-// 書庫の画面の行のボタンが、ビューで直に受けるキー: Enter（開く）と、右の枠の上下の矢印（焦点のある行から、上・下の並びのいちばん近い行を選んで、焦点を移す）。
-// 上・下の並びは描いた後の幅で決まるので、ビューが受ける（左右の矢印・ツリーの矢印は、コマンドとキーバインド）。行は data-library-row を名乗るボタン
-import type { KeyboardEvent } from "react"
-
-const ROW = "[data-library-row]"
+// 書庫の画面の行のボタンが、ビューで直に受けるキー Enter（開く）と、右の枠の中身の列の数を測るフック（上下の矢印のコマンドが読む）
+import { type KeyboardEvent, useLayoutEffect, useState } from "react"
+import { useReadPluginState, useSetPluginState } from "../../../ui/view-hooks"
+import { kit } from "../kit"
+import { LIBRARY_COLUMNS } from "./state"
 
 // 行のボタンの上の Enter は、押す（選ぶ）代わりに開く（2 回押すのと同じ）
 export function openOnEnter(e: KeyboardEvent, open: () => void): void {
@@ -11,24 +11,24 @@ export function openOnEnter(e: KeyboardEvent, open: () => void): void {
   open()
 }
 
-// pick は、行 id を選ぶ
-export function rowAboveOrBelow(e: KeyboardEvent<HTMLElement>, pick: (id: string) => void): void {
-  if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return
-  const at = e.target instanceof HTMLElement ? e.target.closest<HTMLElement>(ROW) : null
-  if (!at) return
-  e.preventDefault()
-  const here = at.getBoundingClientRect()
-  const down = e.key === "ArrowDown"
-  // 上（下）に在る行のうち、いちばん近い並び
-  const beyond = [...e.currentTarget.querySelectorAll<HTMLElement>(ROW)]
-    .map(row => ({ row, box: row.getBoundingClientRect() }))
-    .filter(({ box }) => (down ? box.top > here.top + 1 : box.top < here.top - 1))
-  const edge = down ? Math.min(...beyond.map(b => b.box.top)) : Math.max(...beyond.map(b => b.box.top))
-  const near = beyond
-    .filter(b => Math.abs(b.box.top - edge) < 1)
-    .sort((a, b) => Math.abs(a.box.left - here.left) - Math.abs(b.box.left - here.left))[0]
-  const id = near?.row.dataset.libraryRow
-  if (!near || id === undefined) return
-  near.row.focus()
-  pick(id)
+// 右の枠の中身の要素に付ける ref。その要素の大きさか、行の数 count が変わるたびに、最初の段に並ぶ行の数を測って LIBRARY_COLUMNS に置く（同じ数なら置き直さない）
+export function useColumnsMeasure(count: number): (el: HTMLElement | null) => void {
+  const [el, setEl] = useState<HTMLElement | null>(null)
+  const read = useReadPluginState(kit, LIBRARY_COLUMNS)
+  const set = useSetPluginState(kit, LIBRARY_COLUMNS)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: count は測り直す合図
+  useLayoutEffect(() => {
+    if (!el) return
+    const measure = () => {
+      const items = [...el.children] as HTMLElement[]
+      const top = items[0]?.offsetTop
+      const n = Math.max(1, items.filter(i => i.offsetTop === top).length)
+      if (read() !== n) set(n)
+    }
+    measure()
+    const watch = new ResizeObserver(measure)
+    watch.observe(el)
+    return () => watch.disconnect()
+  }, [el, count, read, set])
+  return setEl
 }

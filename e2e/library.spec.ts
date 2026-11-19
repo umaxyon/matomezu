@@ -365,6 +365,33 @@ test("書庫の「フォルダ新規作成」で開いているフォルダに�
   await expect(inside.getByRole("button", { name: "ブックの隣", exact: true })).toBeVisible()
 })
 
+test("書庫の右の枠の上下の矢印は、描いた段の真上・真下の行を選ぶ。窓の幅が変わると段の列の数を測り直す", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await page.bringToFront()
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  const home = page.getByRole("list", { name: "書庫 の中身" })
+  const rows = home.locator("[data-library-row]")
+  // 最初の行の真下に描かれている行（同じ左の位置で、次の段）の名前
+  const below = () =>
+    home.evaluate(list => {
+      const items = [...list.querySelectorAll<HTMLElement>("[data-library-row]")]
+      const first = items[0]
+      return items.find(i => i.offsetTop > (first?.offsetTop ?? 0) && i.offsetLeft === first?.offsetLeft)?.textContent
+    })
+  for (const width of [1280, 700]) {
+    await page.setViewportSize({ width, height: 800 })
+    const name = await below()
+    expect(name).toBeTruthy()
+    await rows.first().click()
+    await page.keyboard.press("ArrowDown")
+    await expect(home.locator("[aria-pressed=true]")).toHaveText(name as string)
+    await page.keyboard.press("ArrowUp")
+    await expect(rows.first()).toHaveAttribute("aria-pressed", "true")
+  }
+})
+
 test("書庫の行の右クリックのメニューから、名前の変更・ゴミ箱に入れる・開く・中に作る、ができる。ブックの中のページは「開く」だけ。何も無い所では、作るだけ。Escape で閉じる", async ({
   page,
 }) => {

@@ -13,7 +13,7 @@ import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/sto
 import { useActions, usePluginState, useReadPluginState, useSetPluginState } from "../../../ui/view-hooks"
 import { ActionButton, controlClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import { openOnEnter, rowAboveOrBelow } from "./arrows"
+import { openOnEnter, useColumnsMeasure } from "./arrows"
 import {
   LIBRARY_CONTENTS_SCOPE,
   LIBRARY_ENTRY_CONTEXT,
@@ -89,6 +89,7 @@ export function LibraryView() {
   const path = useMatomezuState(useShallow(s => pathTo(s.folders, opened)))
   const titles = useMatomezuState(useShallow(s => path.map(id => folderTitle(s, id))))
   const rows = useRowsIn(opened)
+  const measureColumns = useColumnsMeasure(rows.length)
   // 新しいブック・フォルダを作る先（開いているのがブック・バインダなら、それを入れているフォルダ。ゴミ箱なら無い）
   const into = useMatomezuState(s => holderForNew(s.folders, opened))
   const { openDialog } = useActions()
@@ -240,8 +241,8 @@ export function LibraryView() {
                 className={styles.contents}
                 aria-label={t("Contents of {name}", { name: here })}
                 onContextMenu={e => openFolderMenu(e, { folder: opened })}
+                ref={measureColumns}
                 data-key-scope={LIBRARY_CONTENTS_SCOPE}
-                onKeyDown={e => rowAboveOrBelow(e, setPicked)}
               >
                 {rows.map(row => (
                   <li key={row.id}>
