@@ -202,7 +202,6 @@ const FRAMES = [
   "dialog-host/DialogHost.tsx",
   "left-side-panel/LeftSidePanel.tsx",
   "left-side-panel/hooks.tsx",
-  "library/LibraryScreen.tsx",
   "library/open-from.ts",
   "library/screen.ts",
   "mail/Bookmarks.tsx",
@@ -234,7 +233,7 @@ const FRAMES = [
 
 test("場所（ステージ・スクリーン）を id で名指すのは土台と base の骨組みだけ（場所を置く物・id を取るフック・場所を引数に取る素の操作・向け先のステージの id・ほかのスクリーンの並びを、ほかは使わない）", () => {
   const names =
-    /\b(StageScope|PageScope|ActsOnScope|ArrangedProvider|useStoreActions|useStageId|screensOf|arrangementValueIn|storeActionsOf)\b|ui\/at-hooks"/
+    /\b(StageScope|PageScope|ActsOnScope|ArrangedProvider|useStoreActions|useStageId|screensOf|openScreensOf|arrangementValueIn|storeActionsOf)\b|ui\/at-hooks"/
   const users = sources
     .filter(f => !["ui", "store"].includes(crateOf(f.rel)) && names.test(f.text))
     .map(f => f.rel)

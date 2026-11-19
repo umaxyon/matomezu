@@ -3,13 +3,13 @@
 import { useCallback, useMemo, useSyncExternalStore } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { sameData } from "../../../core/same"
-import { currentScreen, type OpenedScreen, type WindowState } from "../../../core/window"
+import { currentScreen, type WindowState } from "../../../core/window"
 import { type Actions, type MatomezuState, SCREEN_REFUSED } from "../../../store/store"
 import { useScreenContext } from "../../../ui/screen-context"
 import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
 import { useUpdatePluginState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
-import { ONE_SCREEN } from "."
+import { applySplitFrom } from "./apply-split"
 import {
   behindOf,
   planAt,
@@ -54,28 +54,6 @@ export function applySplit(
   const before = read().window
   const value = before.arrangement === SPLIT_ROWS.id ? before.arrangementValue : undefined
   applySplitFrom(actions, before.screens, value, plan, () => read().window.screens)
-}
-
-// applySplit の中身（状態を読めないコマンドからも呼ぶ）: screens は変わる前に開いているスクリーン、value は変わる前の上下に分ける値（分けていなければ undefined）。
-// openAfter は、外れた物を閉じたあとに開いているスクリーン（渡さなければ、閉じた物がみな閉じたとみなす）
-export function applySplitFrom(
-  actions: Pick<Actions, "closeScreen" | "setScreenArrangement">,
-  screens: readonly { id: string; stages?: unknown }[], // stages は、ステージを並べるスクリーンなら真
-  value: unknown,
-  plan: SplitPlan,
-  openAfter?: () => readonly Pick<OpenedScreen, "id">[],
-): void {
-  const was = behindOf(screens, value)
-  const staged = new Set(screens.filter(s => s.stages).map(s => s.id))
-  const closing = plan.leaving.filter(id => !staged.has(id))
-  for (const id of closing) actions.closeScreen(id)
-  const open = openAfter?.() ?? screens.filter(s => !closing.includes(s.id))
-  const kept = closing.filter(id => open.some(s => s.id === id))
-  const behind = [...kept, ...was].filter(
-    (id, i, list) => list.indexOf(id) === i && !plan.screens.includes(id) && open.some(s => s.id === id),
-  )
-  if (plan.screens.length >= 2) actions.setScreenArrangement(SPLIT_ROWS.id, { screens: plan.screens, behind })
-  else actions.setScreenArrangement(ONE_SCREEN.id)
 }
 
 // 開く物（スクリーンの定義と渡す値）
