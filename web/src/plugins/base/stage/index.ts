@@ -1,13 +1,32 @@
 // ステージのコマンド: 分割する・分割をやめる・閉じる
-import { type CommandContext, workspaceOf } from "../../../store/commands/def"
+import {
+  type CommandContext,
+  calledScreenIdOf,
+  calledStageOf,
+  storeActionsOf,
+  workspaceOf,
+} from "../../../store/commands/def"
+import { NO_STAGE } from "../../../store/dialogs"
+import { SCREEN_REFUSED } from "../../../store/store"
 import { kit } from "../kit"
+import { LIBRARY_SCREEN } from "../library/screen"
+import { SPLIT_ROWS } from "../window/split"
 
 const isSplit = (ctx: CommandContext) => workspaceOf(ctx).stages.length > 1
 
+// 画面を分割: 右に何も開いていないステージを足し、窓の下半分に書庫のスクリーンを出す（書庫で選んだ物が、足したステージに開く）。
+// 窓が低ければ、分けて並べる窓の決まり（ScreensView）が、書庫だけを窓いっぱいに残す
 export const STAGE_SPLIT = kit.defineCommand({
   id: "stage-split",
   title: "Split screen",
-  run: (_ctx, a) => a.split(),
+  run: (ctx, a) => {
+    const store = storeActionsOf(a)
+    const here = calledStageOf(ctx)
+    if (!here || store.splitStage(here.id) === NO_STAGE) return
+    const book = calledScreenIdOf(ctx)
+    const library = store.openScreenId(LIBRARY_SCREEN.id, {})
+    if (library !== SCREEN_REFUSED) store.setScreenArrangement(SPLIT_ROWS.id, { screens: [book, library], behind: [] })
+  },
   when: ctx => !isSplit(ctx),
   active: isSplit,
 })

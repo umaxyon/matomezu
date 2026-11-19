@@ -5,6 +5,8 @@
 // ステージを並べないスクリーンどうしは、カレントにした順に重ねる（あとからカレントにした物が上）。あとから開いたスクリーンは右から滑り込み、閉じると右へ滑り出る（滑り出る間は描き続ける）。
 // 上下に分けている間は、分けた並びのスクリーンを上から等分の高さで並べる。分け始めは、上の物が縮んでから、新しい物が下に滑り込む。押したスクリーンをカレントスクリーンにする。
 // 窓が低く（SPLIT_MIN_HEIGHT 未満）なったら、カレントスクリーンだけを残して 1 枚ずつに戻す（ほかの並びの物は閉じる。利用者の操作でないので、ブラウザの履歴に積まない）。
+// ブックスクリーンを入れた並び（「画面を分割」で下に書庫を出した物）は畳まず、低い間はカレントスクリーンだけを窓いっぱいに見せる。
+// 並びに入れたブックスクリーンは上の行に描き、押せばカレントスクリーンにする。その間、並びに入っていないステージを並べないスクリーンは見せない。
 // ステージを並べないスクリーンが出ている間の下の行は、スロット control-center-footer に置いたウィジェットを並べる（巣箱のボタンは UI マッピングが置く）
 import { type CSSProperties, useEffect, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
@@ -22,6 +24,8 @@ import { planExpand, SCREEN_FLASH } from "./split"
 import { applySplit, splitIn, useTallEnough } from "./useScreenSplit"
 
 const reduced = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches
+
+const NO_ROWS: readonly string[] = []
 
 // 上下に分けた並びの中の位置（上から何番目・何枚のうち）
 interface Row {
@@ -42,9 +46,13 @@ export function ScreensView() {
   const plainScreens = useMatomezuState(useShallow(s => s.window.screens.filter(x => !x.stages).map(x => x.id)))
   const layers = useMatomezuState(useShallow(s => s.window.order.filter(id => plainScreens.includes(id))))
   // 上下に分けた並び（分けていなければ空）。カレントスクリーンが並びに無い間は、分けて見せない
-  const split = useMatomezuState(useShallow(s => splitIn(s.window)))
+  const arranged = useMatomezuState(useShallow(s => splitIn(s.window)))
+  // 並びに入れたブックスクリーン（ステージを分けて、下に書庫を出しているときなど）。居れば、それを上の行に描き、コントロールセンターの側は並びの行だけを出す。
+  // 窓が低い間は、その並びを畳まずに（書庫の開く先が、置かれた所で決まるように）、カレントスクリーンだけを窓いっぱいに見せる
+  const tall = useTallEnough()
+  const lowMixed = !tall && arranged.some(id => stageScreens.includes(id))
+  const split = lowMixed ? NO_ROWS : arranged
   const splitting = split.length > 0
-  // 並びに入れたブックスクリーン（ステージを分けて、下に書庫を出しているときなど）。居れば、それを上の行に描き、コントロールセンターの側は並びの行だけを出す
   const splitBook = split.find(id => stageScreens.includes(id))
   const mixed = splitBook !== undefined
   const book = splitBook ?? recentBook
@@ -56,7 +64,7 @@ export function ScreensView() {
   useEffect(() => {
     wasSplitting.current = splitting
   })
-  useCollapseWhenLow(split, current)
+  useCollapseWhenLow(lowMixed ? NO_ROWS : arranged, current)
   const { makeScreenCurrent } = useStoreActions()
   // 枠を一瞬光らせる頼み（useScreenSplit の showOf）
   const flash = usePluginState(kit, SCREEN_FLASH)
@@ -152,7 +160,8 @@ export function ScreensView() {
   )
 }
 
-// 窓が低くなったら、上下に分けるのをやめる: カレントスクリーンだけを残し、並びのほかの物を閉じる（ブラウザの履歴に積まない）
+// 窓が低くなったら、上下に分けるのをやめる: カレントスクリーンだけを残し、並びのほかの物を閉じる（ブラウザの履歴に積まない）。
+// ブックスクリーンを入れた並びは畳まない（見せ方だけを 1 枚にする）
 function useCollapseWhenLow(split: readonly string[], current: string | undefined) {
   const tall = useTallEnough()
   const actions = useStoreActions()

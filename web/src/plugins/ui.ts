@@ -57,6 +57,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:search-dialog",
     ],
     "@matomezu/base:book-screen": ["@matomezu/base:workspace"],
+    "@matomezu/base:library-screen": ["@matomezu/base:library-screen-view"],
     "@matomezu/control-center:screen": ["@matomezu/control-center:screen"],
     "@matomezu/taskboard:ticket-screen": ["@matomezu/taskboard:ticket-screen-view"],
     "@matomezu/control-center:side": ["@matomezu/taskboard:project-list"],
@@ -125,7 +126,7 @@ export const DEFAULT_LAYOUT = defineLayout({
     "@matomezu/base:stage-menu": [
       "@matomezu/base:control-center-toggle",
       { either: ["@matomezu/base:stage-split", "@matomezu/base:stage-unsplit"] },
-      "@matomezu/base:book-open",
+      "@matomezu/base:library-open",
       { either: ["@matomezu/base:binder-settings-opened", "@matomezu/base:page-settings"] },
     ],
   },

@@ -48,6 +48,7 @@ import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG, LIBRARY_RENAME_DIAL
 import { ENTRY_MOVE, ENTRY_MOVE_OVER, ENTRY_RENAME, FOLDER_CREATE } from "./library/entry-move"
 import { ENTRY_PURGE, ENTRY_RESTORE, ENTRY_TRASH, TRASH_EMPTY } from "./library/entry-trash"
 import { LIBRARY_REVERT } from "./library/revert"
+import { LIBRARY_OPEN, LIBRARY_SCREEN } from "./library/screen"
 import {
   LIBRARY_APPEARANCE,
   LIBRARY_COLUMNS,
@@ -497,7 +498,7 @@ export const BASE = defineBuiltin(
     annotations: [NOTE, MARK],
     mails: [MAIL_LETTER, MAIL_JOIN_REQUEST, MAIL_PROPOSAL],
     subjects: [WORKROOM, PARTICIPANT, ADMIN_MARK, MAIL, SCRAP],
-    screens: [BOOK_SCREEN_DEF],
+    screens: [BOOK_SCREEN_DEF, LIBRARY_SCREEN],
     screenArrangements: [ONE_SCREEN, SPLIT_ROWS],
     checks: [
       PROP_NAMES_CHECK,
@@ -559,6 +560,7 @@ export const BASE = defineBuiltin(
       LIBRARY_REDO,
       LIBRARY_ENTRY_OPEN,
       LIBRARY_BOOK_NEW,
+      LIBRARY_OPEN,
       LIBRARY_FOLDER_NEW,
       LIBRARY_ENTRY_RENAME,
       LIBRARY_ENTRY_TRASH,
@@ -738,6 +740,7 @@ declare module "../../core/catalog" {
   }
   interface ScreenTable {
     "@matomezu/base:book-screen": typeof BOOK_SCREEN_DEF
+    "@matomezu/base:library-screen": typeof LIBRARY_SCREEN
   }
   interface ScreenArrangementTable {
     "@matomezu/base:one-screen": typeof ONE_SCREEN
@@ -789,6 +792,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-redo": typeof LIBRARY_REDO
     "@matomezu/base:library-entry-open": typeof LIBRARY_ENTRY_OPEN
     "@matomezu/base:library-book-new": typeof LIBRARY_BOOK_NEW
+    "@matomezu/base:library-open": typeof LIBRARY_OPEN
     "@matomezu/base:library-folder-new": typeof LIBRARY_FOLDER_NEW
     "@matomezu/base:library-entry-rename": typeof LIBRARY_ENTRY_RENAME
     "@matomezu/base:library-entry-move": typeof LIBRARY_ENTRY_MOVE

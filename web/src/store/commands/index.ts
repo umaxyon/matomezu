@@ -15,6 +15,7 @@ import {
   type OpenedScreen,
   screenOfStage,
   stageIn,
+  vacantStagesOf,
   type WindowState,
   workspaceOf,
 } from "../../core/window"
@@ -56,7 +57,7 @@ const calledScreen = (s: OpenedScreen): CalledScreen => ({
   props: s.props,
   stages: s.stages !== undefined,
 })
-const openScreenOf = (s: OpenedScreen): OpenScreen => ({ id: s.id, ...calledScreen(s) })
+const openScreenOf = (s: OpenedScreen): OpenScreen => ({ id: s.id, ...calledScreen(s), vacant: vacantStagesOf(s) })
 
 // コマンド command を at（ステージの id か、開いているスクリーンの id。どちらでもなければ、スクリーンの外から呼んだ物としてカレントスクリーン）から
 // 呼んだときの、スクリーンから呼ぶコマンドの文脈。プラグイン状態は、コマンドを持つプラグインの宣言だけを読める

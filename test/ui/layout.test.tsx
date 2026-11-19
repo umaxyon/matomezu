@@ -88,6 +88,7 @@ describe("UI マッピング", () => {
     })
     expect(checkLayout(noStages, ui, commands, screens).map(problemText)).toEqual([
       "E211 layout no-stages: slot @matomezu/base:book-screen is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:library-screen is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/control-center:screen is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/taskboard:ticket-screen is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/control-center:side is not opened by any placed widget",

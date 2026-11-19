@@ -23,6 +23,10 @@ const PAGE = icon(
 )
 export const TRASH = icon(<path d="M4 7h16M10 7V4h4v3M6 7l1 13h10l1-13M10 11v6M14 11v6" />)
 export const CHEVRON = icon(<path d="M9 6l6 6-6 6" />)
+// 書庫のスクリーンの帯: 閉じる（窓いっぱいのとき）・右へ引っ込む（並べているとき）・広げる
+export const CLOSE = icon(<path d="M6 6l12 12M18 6L6 18" />)
+export const CLOSE_RIGHT = icon(<path d="M5 12h14M13 6l6 6-6 6" />)
+export const EXPAND = icon(<path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7" />)
 
 const ICONS = { folder: FOLDER, book: <BookIcon />, binder: BINDER, page: PAGE } as const satisfies Record<
   EntryKind,

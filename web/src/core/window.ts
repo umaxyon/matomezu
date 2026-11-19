@@ -198,6 +198,13 @@ export function followLibraryIn(
   return next
 }
 
+// スクリーン screen がステージを分けている間の、何も開いていないステージの id（ステージを並べないスクリーン・分けていなければ空）
+export const vacantStagesOf = (screen: Pick<OpenedScreen, "stages">): readonly string[] =>
+  screen.stages && screen.stages.stages.length >= 2
+    ? screen.stages.stages.filter(st => st.opened === null).map(st => st.id)
+    : NO_VACANT
+const NO_VACANT: readonly string[] = []
+
 // 開いたままにする枚数（定義の maxOpen）を超えたスクリーンを閉じる（カレントにしたのが古い物から。超えていなければ同じ窓を返す）
 export function withinLimits(win: WindowState, catalog: CoreCatalog): WindowState {
   let next = win
