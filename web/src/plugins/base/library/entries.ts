@@ -23,6 +23,7 @@ import {
   HOME_ID,
   type HomeOrFolder,
   inTrash,
+  isKeptSystemFolder,
   type Library,
   type PageRow,
 } from "../../../core/folders"
@@ -189,8 +190,8 @@ export function sameTitled(
 }
 
 // 上書きできない訳: 種類が違う（kind）・前から在った方の中に上書きする物が在る（within）・前から在った方かその中に読めないページが在る（unreadable）・
-// 同じ名前で在る物が、確かめた物と違う（changed）
-export type NotOverwritten = "kind" | "within" | "unreadable" | "changed" | MoveRefusal
+// 前から在った方が、定義が機能台帳に在るシステムフォルダ（system-folder）・同じ名前で在る物が、確かめた物と違う（changed）
+export type NotOverwritten = "kind" | "within" | "unreadable" | "system-folder" | "changed" | MoveRefusal
 export const REPLACES_NOTHING = ""
 export const isNotOverwritten = (v: Library | NotOverwritten): v is NotOverwritten => typeof v === "string"
 
@@ -210,6 +211,7 @@ export function overwritten(
   if (!there) return library
   if (there.kind !== kind) return "kind"
   if (isWithin(library.folders, entry, there.id)) return "within"
+  if (isKeptSystemFolder(library.folders, there.id, naming.catalog.systemFolders)) return "system-folder"
   const pages = there.kind === "page" ? [there.id] : rowsWithin(library.folders, there.id).pages
   if (pages.some(p => library.pages[p]?.kind === "unreadable")) return "unreadable"
   return removedEntry(library, there.id)

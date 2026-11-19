@@ -3,6 +3,7 @@
 import { expect, test } from "bun:test"
 import { USER } from "../../../web/src/core/actor"
 import type { ActionContext } from "../../../web/src/core/def/action"
+import { namingOf } from "../../../web/src/core/entries"
 import {
   type Folder,
   HOME_ID,
@@ -12,7 +13,8 @@ import {
   withChanges,
 } from "../../../web/src/core/folders"
 import { type PerformedIn, performIn, type World } from "../../../web/src/core/perform"
-import { draggable, droppable } from "../../../web/src/plugins/base/library/drop"
+import { draggable, droppable, moveClashOf } from "../../../web/src/plugins/base/library/drop"
+import { replaceBlockedOf, restorePlanOf } from "../../../web/src/plugins/base/library/entries"
 import { DOCUMENTS as DOCUMENTS_DEF, SYSTEM_FOLDER_ADD } from "../../../web/src/plugins/base/library/system-folders"
 import { worldOf } from "../../../web/src/store/world"
 import { CORE_CATALOG, newStore, sequence } from "../../support"
@@ -159,4 +161,22 @@ test("書庫の画面: システムフォルダは掴めず、書庫ホームの
   expect(droppable(world, "f", { to: "folder", into: HOME_ID, index: 0 })).toBe(false)
   expect(droppable(world, "f", { to: "folder", into: HOME_ID, index: 2 })).toBe(true)
   expect(droppable(world, "f", { to: "folder", into: "sf1" })).toBe(true)
+})
+
+test("名前の当たる物がシステムフォルダなら、上書きできない訳を返し、上書きのダイアログは上書きを押せない形になる", () => {
+  const world = prepared()
+  const f = world.folders.f!
+  // f の中の「Documents」を書庫ホームへ動かす／ゴミ箱に入れてから f もゴミ箱に入れ、書庫ホームへ戻す
+  const inF = withRows(world, { folderRole: "folder", id: "d", title: "Documents", lineup: [] }, {
+    ...f,
+    lineup: [{ kind: "folder", id: "d" }],
+  } as Folder)
+  const dTrashed = after(inF, run(inF, "entry-trash", { entry: "d" }))
+  const trashed = after(dTrashed, run(dTrashed, "entry-trash", { entry: "f" }))
+  const naming = namingOf(CORE_CATALOG, world.settings)
+  const clash = moveClashOf(inF, "d", { to: "folder", into: HOME_ID }, naming)
+  expect(clash?.overwrite).toBe("system-folder")
+  expect(replaceBlockedOf(clash!, { ok: true })).toEqual({ by: "rule", why: "system-folder" })
+  expect(restorePlanOf(trashed, "d", naming)?.overwrite).toBe("system-folder")
+  expect(run(inF, "entry-move-over", { entry: "d", into: HOME_ID, replaces: "sf1" }).ok).toBe(false)
 })
