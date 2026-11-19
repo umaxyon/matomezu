@@ -5,9 +5,21 @@ import { NO_STAGE } from "../../../web/src/store/dialogs"
 import { newStore } from "../../support"
 
 const screens = [
-  { id: "book", vacant: ["s2"] },
-  { id: "full", vacant: [] },
-  { id: "lib", vacant: [] },
+  {
+    id: "book",
+    stageList: [
+      { id: "s1", opened: true },
+      { id: "s2", opened: false },
+    ],
+  },
+  {
+    id: "full",
+    stageList: [
+      { id: "s3", opened: true },
+      { id: "s4", opened: true },
+    ],
+  },
+  { id: "lib", stageList: [] },
 ]
 
 test("上下に並んだブックスクリーンに空のステージがあれば、そこ。並んでいない・空が無ければ NO_STAGE", () => {
@@ -22,7 +34,7 @@ test("書庫のスクリーンから選ぶ: 「画面を分割」なら空のス
   const store = newStore()
   const libs = () => open().screens.filter(s => s.def === "@matomezu/base:library-screen")
   const stages = () => open().screens.flatMap(s => s.stages?.stages ?? [])
-  // 分けて、下の書庫から b3 を開く
+  // 分けて、下の書庫のスクリーンから b3 を開く
   expect(store.actions.command("s1", "@matomezu/base:stage-split")).toBe(true)
   expect(stages()).toHaveLength(2)
   const lib = libs()[0]?.id ?? ""
@@ -30,7 +42,7 @@ test("書庫のスクリーンから選ぶ: 「画面を分割」なら空のス
   expect(libs()).toHaveLength(0)
   expect(stages().map(st => st.opened !== null && "book" in st.opened && st.opened.book)).toEqual(["b1", "b3"])
   expect(open().arrangement).toBe("@matomezu/base:one-screen")
-  // 分けずに「書庫を開く」: 下に出て、選ぶとカレントのステージ（右の b3）のブックを替え、書庫は閉じる
+  // 分けずに「書庫を開く」: 下に出て、選ぶとカレントのステージ（右の b3）のブックを替え、書庫のスクリーンは閉じる
   store.actions.command(stages()[1]?.id ?? "", "@matomezu/base:library-open")
   expect(open().arrangementValue).toMatchObject({ screens: [expect.any(String), libs()[0]?.id] })
   store.actions.command(libs()[0]?.id ?? "", "@matomezu/base:library-entry-open", { entry: "b4" })

@@ -16,7 +16,7 @@ import {
   type OpenedScreen,
   screenOfStage,
   stageIn,
-  vacantStagesOf,
+  stageListOf,
   type WindowState,
   workspaceOf,
 } from "../../core/window"
@@ -61,12 +61,12 @@ const calledScreen = (s: OpenedScreen): CalledScreen => ({
 const openScreenOf = (s: OpenedScreen): OpenScreen => ({
   id: s.id,
   ...calledScreen(s),
-  vacant: vacantStagesOf(s),
+  stageList: stageListOf(s),
   stage: currentStageOf(s),
 })
 
-// 窓 win の開いているスクリーン（カレントにした順。最後がカレントスクリーン）を、コマンドの文脈の screensOf と同じ形で（base の見た目が、コマンドと同じ関数に渡す）
-export const openScreensOf = (win: WindowState): readonly OpenScreen[] =>
+// 窓 win の開いているスクリーン（カレントにした順。最後がカレントスクリーン）を、コマンドの文脈の screensOf の形で
+const openScreensOf = (win: WindowState): readonly OpenScreen[] =>
   win.order.flatMap(id => win.screens.filter(s => s.id === id).map(openScreenOf))
 
 // コマンド command を at（ステージの id か、開いているスクリーンの id。どちらでもなければ、スクリーンの外から呼んだ物としてカレントスクリーン）から

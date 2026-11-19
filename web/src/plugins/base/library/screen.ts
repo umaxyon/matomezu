@@ -1,6 +1,6 @@
 // 書庫のスクリーン（書庫の画面だけを見せる、ステージを並べないスクリーン）と、それを窓いっぱいに出すコマンド「書庫を開く」と、書庫のスクリーンを閉じる・広げる操作。
 // 開く先は、置かれた所で決める（渡す値は無い）: ブックスクリーンと上下に並んでいれば、そのブックスクリーンの空のステージ（vacantStageBeside）、並んでいなければ新しいブックスクリーン。
-// 書庫のスクリーンを閉じる・広げる道（帯のボタン・書庫の外の操作・「書庫を開く」・選んで開いたあと）は、どれもここの関数を通り、ステージを分けて足した空のステージを閉じる
+// 書庫のスクリーンを閉じる・広げる道（帯のボタン・書庫のスクリーンの外の操作・「書庫を開く」・選んで開いたあと）は、どれもここの関数を通り、ステージを分けて足した空のステージを閉じる
 import { z } from "zod"
 import {
   arrangementValueIn,
@@ -53,7 +53,7 @@ export const LIBRARY_OPEN = kit.defineScreenCommand({
   when: () => true,
 })
 
-// 書庫のスクリーンを閉じる（帯の閉じるボタン・書庫の外の操作。書庫の画面の中で Esc。コントロールセンターの書庫の画面からは出さない）
+// 書庫のスクリーンを閉じる（帯の閉じるボタン・書庫のスクリーンの外の操作。書庫の画面の中で Esc。コントロールセンターの書庫の画面からは出さない）
 export const LIBRARY_SCREEN_CLOSE = kit.defineScreenCommand({
   id: "library-screen-close",
   title: "Close library",
@@ -69,12 +69,16 @@ export const LIBRARY_SCREEN_EXPAND = kit.defineScreenCommand({
   when: ctx => ctx.screen.def === LIBRARY_SCREEN.id,
 })
 
-type Arranged = Pick<OpenScreen, "id" | "stages" | "vacant" | "stage">
+type Arranged = Pick<OpenScreen, "id" | "stages" | "stageList" | "stage">
+
+// ステージを分けている間の、何も開いていないステージの id（分けていなければ空。「画面を分割」で足して、まだ何も開いていない物）
+const vacantOf = (s: Pick<OpenScreen, "stageList">): readonly string[] =>
+  s.stageList.length >= 2 ? s.stageList.filter(st => !st.opened).map(st => st.id) : []
 
 // 書庫のスクリーン library から開く先のステージ: 上下に並んでいるブックスクリーンの何も開いていないステージ（「画面を分割」で足した物）、無ければそのカレントのステージ。
 // 並んでいなければ NO_STAGE（新しいブックスクリーンに開く）
 export function stageBeside(
-  screens: readonly Pick<Arranged, "id" | "vacant" | "stage">[],
+  screens: readonly Pick<Arranged, "id" | "stageList" | "stage">[],
   value: unknown,
   library: string,
 ): string {
@@ -92,14 +96,15 @@ export function stageBeside(
 // 書庫のスクリーン library と上下に並んでいるブックスクリーンの、何も開いていないステージ（ステージを分けて足した物）。並んでいない・空のステージが無ければ NO_STAGE。
 // 書庫のスクリーンはいつも並びの下に置くので、並びの中を探せば上のブックスクリーンの物になる。screens は開いているスクリーン、value はスクリーンアレンジメントの値
 export function vacantStageBeside(
-  screens: readonly Pick<Arranged, "id" | "vacant">[],
+  screens: readonly Pick<Arranged, "id" | "stageList">[],
   value: unknown,
   library: string,
 ): string {
   const rows = splitOf(screens, value)
   if (!rows.includes(library)) return NO_STAGE
   for (const id of rows) {
-    const vacant = screens.find(s => s.id === id)?.vacant[0]
+    const screen = screens.find(s => s.id === id)
+    const vacant = screen && vacantOf(screen)[0]
     if (vacant !== undefined) return vacant
   }
   return NO_STAGE

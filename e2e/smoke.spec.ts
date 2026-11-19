@@ -22,7 +22,9 @@ test("下の行のどこに乗せても、ブックの名前のメニューが�
   await expect(trigger).toHaveAttribute("aria-expanded", "false")
 })
 
-test("分割すると、右のステージは何も開かず、下に出た書庫でブックを選ぶと右に紙が出る", async ({ page }) => {
+test("分割すると、右のステージは何も開かず、下に出た書庫のスクリーンのスクリーンでブックを選ぶと右に紙が出る", async ({
+  page,
+}) => {
   await page.goto(BOOK_SCREEN_URL)
   const papers = page.getByRole("img", { name: "紙" })
   await expect(papers).toHaveCount(1)
@@ -89,7 +91,9 @@ test("ダイアログは Esc で閉じ、ブックは変わらない", async ({ 
   await expect(page.getByRole("tablist")).toHaveAttribute("aria-label", "まとめ図の構想")
 })
 
-test("分割して下に出た書庫の「ブック新規作成」で作ると、右のステージにそのブックが開く", async ({ page }) => {
+test("分割して下に出た書庫のスクリーンの「ブック新規作成」で作ると、右のステージにそのブックが開く", async ({
+  page,
+}) => {
   await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "画面を分割")).click()
   await page.getByRole("button", { name: "ブック新規作成" }).locator("visible=true").click()
@@ -201,7 +205,7 @@ test("在るブックと同じ名前では作れず、ダイアログの中に�
   await expect(page.getByRole("tablist").nth(1)).toHaveAttribute("aria-label", "まとめ図の構想 2")
 })
 
-test("下に出た書庫の「ブック新規作成」で作ると空のブックが開き、ページを作ると最初のタブと紙が出る", async ({
+test("下に出た書庫のスクリーンの「ブック新規作成」で作ると空のブックが開き、ページを作ると最初のタブと紙が出る", async ({
   page,
 }) => {
   await page.goto(BOOK_SCREEN_URL)

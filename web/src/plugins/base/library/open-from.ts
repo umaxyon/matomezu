@@ -36,7 +36,7 @@ export function openFromLibrary(ctx: ScreenCommandContext, a: CommandActions, to
   // 開いたステージはもう空でないので、閉じる物に数えない
   closeLibrary(
     store,
-    screens.map(s => ({ ...s, vacant: [] })),
+    screens.map(s => ({ ...s, stageList: s.stageList.map(st => ({ ...st, opened: true })) })),
     value,
     here,
   )

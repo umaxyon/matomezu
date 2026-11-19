@@ -198,12 +198,14 @@ export function followLibraryIn(
   return next
 }
 
-// スクリーン screen がステージを分けている間の、何も開いていないステージの id（ステージを並べないスクリーン・分けていなければ空）
-export const vacantStagesOf = (screen: Pick<OpenedScreen, "stages">): readonly string[] =>
-  screen.stages && screen.stages.stages.length >= 2
-    ? screen.stages.stages.filter(st => st.opened === null).map(st => st.id)
-    : NO_VACANT
-const NO_VACANT: readonly string[] = []
+// スクリーン screen のステージの並び（左から。何かを開いているか付き。ステージを並べないスクリーンなら空）
+export const stageListOf = (screen: Pick<OpenedScreen, "stages">): readonly StageListed[] =>
+  screen.stages?.stages.map(st => ({ id: st.id, opened: st.opened !== null })) ?? NO_STAGE_LIST
+export interface StageListed {
+  id: string
+  opened: boolean // 何かを開いているか
+}
+const NO_STAGE_LIST: readonly StageListed[] = []
 
 // スクリーン screen のカレントのステージの id（ステージを並べないスクリーンなら null）
 export const currentStageOf = (screen: Pick<OpenedScreen, "stages">): string | null => screen.stages?.current ?? null

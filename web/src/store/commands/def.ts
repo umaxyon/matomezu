@@ -13,6 +13,7 @@ import type { MessageKey } from "../../core/i18n/i18n"
 import type { Books } from "../../core/library"
 import type { Book } from "../../core/schema/book"
 import { type Stage, shownPageId, toPaper } from "../../core/stage"
+import type { StageListed } from "../../core/window"
 import type { StageView, Workspace } from "../../core/workspace"
 import type { OpenedContextMenu } from "../context-menus"
 import type { OpenedDialog } from "../dialogs"
@@ -101,7 +102,7 @@ export interface CommandContext extends ScreenCommandContext {
 // 開いているスクリーン 1 枚（id 付き。base のコマンドが screensOf で読む）
 export interface OpenScreen extends CalledScreen {
   id: string // 開いた 1 枚ごとの id
-  vacant: readonly string[] // ステージを分けている間の、何も開いていないステージの id（分けていなければ空）
+  stageList: readonly StageListed[] // ステージの並び（左から。何かを開いているか付き。ステージを並べないスクリーンなら空）
   stage: string | null // カレントのステージの id（ステージを並べないスクリーンなら null）
 }
 

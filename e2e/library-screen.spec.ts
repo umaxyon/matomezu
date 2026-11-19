@@ -1,5 +1,5 @@
 // 書庫のスクリーン: 「画面を分割」で、ブックスクリーンを左右に分けつつ窓の下半分に書庫のスクリーンを出し、選んだブックを右の空のステージに開く。
-// 選ばずに閉じる・書庫の外を押すと、空のステージも閉じて分割をやめる。ブラウザの戻る 1 回で、分ける前に戻る。窓が低いときは書庫だけを窓いっぱいに出す。
+// 選ばずに閉じる・書庫のスクリーンの外を押すと、空のステージも閉じて分割をやめる。ブラウザの戻る 1 回で、分ける前に戻る。窓が低いときは書庫のスクリーンだけを窓いっぱいに出す。
 import { BOOK_SCREEN_URL, bookScreenUrl, expect, type Page, test } from "./fixtures"
 import { fromMenu } from "./helpers/stage-menu"
 
@@ -15,14 +15,16 @@ async function split(page: Page) {
   await expect(stageNames(page)).toHaveCount(2)
 }
 
-test("「画面を分割」で下に出た書庫でブックを 2 回押すと、右の空のステージに開き、書庫は引っ込む", async ({ page }) => {
+test("「画面を分割」で下に出た書庫のスクリーンのスクリーンでブックを 2 回押すと、右の空のステージに開き、書庫のスクリーンは引っ込む", async ({
+  page,
+}) => {
   await split(page)
   await library(page).getByRole("button", { name: "残課題" }).dblclick()
   await expect(library(page)).toHaveCount(0)
   await expect(stageNames(page)).toHaveText([/まとめ図の構想/, /残課題/])
 })
 
-test("選ばずに「閉じる」・書庫の外を押すと、空のステージも閉じて分割をやめる", async ({ page }) => {
+test("選ばずに「閉じる」・書庫のスクリーンの外を押すと、空のステージも閉じて分割をやめる", async ({ page }) => {
   await split(page)
   await page.getByRole("button", { name: "閉じる", exact: true }).click()
   await expect(library(page)).toHaveCount(0)
@@ -35,7 +37,7 @@ test("選ばずに「閉じる」・書庫の外を押すと、空のステー�
   await expect(stageNames(page)).toHaveCount(1)
 })
 
-test("「広げる」で書庫が窓いっぱいになり、空のステージは閉じる。そのあと選ぶと新しいブックスクリーンに開く", async ({
+test("「広げる」で書庫のスクリーンが窓いっぱいになり、空のステージは閉じる。そのあと選ぶと新しいブックスクリーンに開く", async ({
   page,
 }) => {
   await split(page)
@@ -54,7 +56,7 @@ test("ブラウザの戻る 1 回で、分ける前に戻る", async ({ page }) 
   await expect(stageNames(page)).toHaveCount(1)
 })
 
-test("窓が低いときは、書庫だけを窓いっぱいに出し、選ぶと右のステージに開く", async ({ page }) => {
+test("窓が低いときは、書庫のスクリーンだけを窓いっぱいに出し、選ぶと右のステージに開く", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 700 })
   await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
@@ -65,7 +67,9 @@ test("窓が低いときは、書庫だけを窓いっぱいに出し、選ぶ�
   await expect(stageNames(page)).toHaveText([/まとめ図の構想/, /残課題/])
 })
 
-test("下に出した書庫から開いたダイアログ（フォルダ新規作成）の中を押しても、書庫は引っ込まない", async ({ page }) => {
+test("下に出した書庫のスクリーンから開いたダイアログ（フォルダ新規作成）の中を押しても、書庫のスクリーンは引っ込まない", async ({
+  page,
+}) => {
   await split(page)
   await page.getByRole("button", { name: "フォルダ新規作成" }).locator("visible=true").click()
   const dialog = page.getByRole("dialog")
@@ -76,7 +80,7 @@ test("下に出した書庫から開いたダイアログ（フォルダ新規�
   await expect(stageNames(page)).toHaveCount(2)
 })
 
-test("下に出した書庫は Esc で閉じ、空のステージも閉じる", async ({ page }) => {
+test("下に出した書庫のスクリーンは Esc で閉じ、空のステージも閉じる", async ({ page }) => {
   await split(page)
   await library(page).getByRole("button", { name: "残課題" }).click()
   await page.keyboard.press("Escape")
