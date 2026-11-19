@@ -1,4 +1,4 @@
-// テーマの値（core/theme.ts）を CSS 変数にする。変数の名前は tokenVarName（core/def/theme.ts）。
+// テーマの値（base の book-look/tokens.ts の resolveTokens が決める、明暗ごとの色 Shades）を CSS 変数にする。変数の名前は tokenVarName（core/def/theme.ts）。
 // 明暗で違う色は light-dark() にし、ブックの中身の明暗は利用者の OS の明暗に合わせる（color-scheme: light dark。スキンの明暗には従わない）
 import { type CSSProperties, createElement, type ReactNode, useMemo } from "react"
 import { ownTokenVarName, tokenVarName } from "../core/def/theme"

@@ -7,10 +7,11 @@ import { type PageTypeDef, placeableOf } from "../../../core/def/page-type"
 import type { TokenDef } from "../../../core/def/theme"
 import { splitId } from "../../../core/names"
 import type { Page } from "../../../core/schema/book"
-import { resolveTokens, type Shades, shades } from "../../../core/theme"
+import type { Shades } from "../../../core/theme"
 import { settingValue } from "../book-settings"
 import { kit } from "../kit"
 import { themeFits, themesFor } from "./theme-types"
+import { resolveTokens, shades } from "./tokens"
 
 // ページのテーマ（テーマの id。変えるときはページのタイプが使えるテーマのどれかで、残っていても使えなければ使わない。theme-types.ts）
 export const PAGE_THEME = kit.defineSetting({

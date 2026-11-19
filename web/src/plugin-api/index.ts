@@ -100,7 +100,6 @@ export {
   toPaper,
   toPaperDelta,
 } from "../core/stage"
-export { resolveTokens } from "../core/theme"
 export type { WideSearchAnswer, WideSearchHit, WideSearchQuery } from "../core/wide-search"
 export type { StageView } from "../core/workspace"
 export type { CalledScreen, CommandContext, ScreenCommandContext } from "../store/commands/def"
