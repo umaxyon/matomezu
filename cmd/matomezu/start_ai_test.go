@@ -17,6 +17,7 @@ func TestStartCommandRouting(t *testing.T) {
 		{args: []string{"start"}, legacy: true},
 		{args: []string{"start", "--addr=127.0.0.1:9050"}, legacy: true},
 		{args: []string{"start", "--web", "web/dist"}, legacy: true},
+		{args: []string{"start", "--open"}, legacy: true},
 		{args: []string{"open"}, route: "open"},
 		{args: []string{"server", "start", "--open"}, route: "server start"},
 		{args: []string{"server", "run"}, route: "server run"},
@@ -24,6 +25,9 @@ func TestStartCommandRouting(t *testing.T) {
 		{args: []string{"plugin", "disable"}, route: "plugin disable"},
 		{args: []string{"start", "codex"}, route: "start <ai>"},
 		{args: []string{"start", "claude", "--", "--model", "sonnet"}, route: "start <ai> <args>", aiArgs: []string{"--model", "sonnet"}},
+		{args: []string{"start", "claude", "--", "--resume", "session"}, route: "start <ai> <args>", aiArgs: []string{"--resume", "session"}},
+		{args: []string{"start", "claude", "--", "-p", "Fix this"}, route: "start <ai> <args>", aiArgs: []string{"-p", "Fix this"}},
+		{args: []string{"start", "claude", "--", "Fix this"}, route: "start <ai> <args>", aiArgs: []string{"Fix this"}},
 	}
 	for _, tc := range tests {
 		if got := legacyStart(tc.args); got != tc.legacy {
@@ -46,7 +50,10 @@ func TestStartCommandRouting(t *testing.T) {
 			t.Errorf("parse %q = %q, want %q", tc.args, got, tc.route)
 		}
 		if tc.args[0] == "start" {
-			want := append(tc.aiArgs, "--", startPrompt)
+			want := tc.aiArgs
+			if len(want) == 0 {
+				want = []string{"--", startPrompt}
+			}
 			if got := commands.Start.launchArgs(); !slices.Equal(got, want) {
 				t.Errorf("parse %q forwarded %q, want %q", tc.args, got, want)
 			}

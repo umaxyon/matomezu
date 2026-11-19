@@ -79,6 +79,7 @@ func (c pluginTarget) change(enabled bool) error {
 }
 
 type aiPlugin struct {
+	devRoot                                 func() string
 	name, program, manifest                 string
 	list, listMarketplaces, install, update []string
 	status                                  func([]byte) (string, bool, error)
@@ -89,7 +90,7 @@ type aiPlugin struct {
 func aiPluginFor(name string) aiPlugin {
 	if name == "codex" {
 		return aiPlugin{
-			name: "codex", program: "codex", manifest: codexlaunch.ManifestDir,
+			devRoot: codexDevRoot, name: "codex", program: "codex", manifest: codexlaunch.ManifestDir,
 			list: codexlaunch.ListPlugins, listMarketplaces: codexlaunch.ListMarketplaces,
 			install: codexlaunch.InstallPlugin, update: codexlaunch.InstallPlugin,
 			status: codexlaunch.PluginStatus, marketplacePath: codexlaunch.MarketplacePath,
@@ -99,7 +100,7 @@ func aiPluginFor(name string) aiPlugin {
 		}
 	}
 	return aiPlugin{
-		name: "claude-code", program: "claude", manifest: claudelaunch.ManifestDir,
+		devRoot: claudeDevRoot, name: "claude-code", program: "claude", manifest: claudelaunch.ManifestDir,
 		list: claudelaunch.ListPlugins, listMarketplaces: claudelaunch.ListMarketplaces,
 		install: claudelaunch.InstallPlugin, update: claudelaunch.UpdatePlugin,
 		status: claudelaunch.PluginStatus, marketplacePath: claudelaunch.MarketplacePath,
@@ -184,7 +185,7 @@ func (p aiPlugin) prepare(executable string) error {
 	if err != nil {
 		return err
 	}
-	if found && !samePluginFolder(source, dir) {
+	if found && !sameFile(source, dir) {
 		return fmt.Errorf("%s has a matomezu marketplace registered from another source. To switch to the bundled plugin, remove that registration first", p.program)
 	}
 	args := p.update
@@ -227,15 +228,6 @@ func pluginVersion(path string) (string, error) {
 		return "", fmt.Errorf("%s does not specify a plugin version", path)
 	}
 	return manifest.Version, nil
-}
-
-func samePluginFolder(source, bundled string) bool {
-	a, err := os.Stat(source)
-	if err != nil {
-		return false
-	}
-	b, err := os.Stat(bundled)
-	return err == nil && os.SameFile(a, b)
 }
 
 func pluginOutput(executable string, args ...string) ([]byte, error) {

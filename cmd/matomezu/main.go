@@ -513,6 +513,7 @@ func ensure(h *home.Home, f serverFlags) (*home.Server, error) {
 	}
 	defer log.Close()
 	cmd := exec.Command(exe, append([]string{"server", "run"}, f.args()...)...)
+	cmd.Env = append(os.Environ(), home.EnvHome+"="+h.Dir)
 	cmd.Stdout, cmd.Stderr = log, log
 	cmd.SysProcAttr = detached()
 	if err := cmd.Start(); err != nil {
