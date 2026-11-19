@@ -15,8 +15,8 @@ import {
   worldTablesOf,
 } from "../../web/src/core/folders"
 import { perform } from "../../web/src/core/perform"
-import type { Book } from "../../web/src/core/schema/book"
-import { drawingPage, testBook } from "../lineup"
+import type { AnyPage, Book } from "../../web/src/core/schema/book"
+import { DRAWING, drawingPage, testBinder, testBook } from "../lineup"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
 // どのエントリもゴミ箱に入れるアクションと、書庫ホームの行を形に合わない物に替えるアクション
@@ -160,4 +160,18 @@ test("ゴミ箱の外で動いたブックは、値が変わらなくても認�
   places.length = 0
   expect(run(start, "@matomezu/base:entry-move", { entry: "b2", into: "b" }, ctx)).toMatchObject({ ok: true })
   expect(places).toEqual(["b2:moved"])
+})
+
+test("ブックの中のロックしたページ・ロックしたページを持つバインダをゴミ箱へ入れるのは、許可スコープが unknown でも行った後の確かめで断る（ゴミ箱へ出たページは消えた物）", () => {
+  const binder = testBinder("bd", "束", DRAWING, { ...drawingPage("p3"), locked: true } as AnyPage)
+  const locked = testBook("b1", "一", [{ ...drawingPage("p1"), locked: true } as AnyPage, binder])
+  for (const entry of ["p1", "bd"])
+    expect(run(library(locked), TRASH.id, { entry }, ctx)).toEqual({
+      ok: false,
+      reason: "denied",
+      permission: "@matomezu/base:lock",
+      book: "b1",
+    })
+  // ロックしていないページは入れられる
+  expect(run(library(b1), TRASH.id, { entry: "p1" }, ctx)).toMatchObject({ ok: true })
 })

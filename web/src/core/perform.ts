@@ -17,7 +17,7 @@ import {
   putPage,
 } from "./book"
 import type { ActionId, ActionTable } from "./catalog"
-import { changesOf } from "./changes"
+import { changesOf, type LibraryPageRows } from "./changes"
 import { type CoreCatalog, pageType } from "./core-catalog"
 import {
   type ActionContext,
@@ -176,8 +176,9 @@ function broken(
   before: Book | undefined,
   after: Book | undefined,
   place: PlaceChange = "same",
+  rows?: LibraryPageRows,
 ): string | null {
-  const changes = changesOf(before, after, { place })
+  const changes = changesOf(before, after, { place, ...(rows ? { rows } : {}) })
   for (const p of ctx.catalog.permissions.values())
     if (p.keeps && !p.keeps({ kind: "folder", action, before, after, changes, actor: ctx.actor })) return p.id
   return null
@@ -217,19 +218,40 @@ function brokenRecord(
 }
 
 // 書庫が対象のアクションが名指したエントリ entry を where のとおりに変えるとき、行う前に問うブックと、その中の所:
-// ブックならそのブック、フォルダなら中のブックの全部（名前だけなら、どれにも問わない）、ブックの中のページ・バインダなら、そのブックのそのエントリ
-function booksOfEntry(library: Library, entry: string, how: EntryWhere): { book: string; where: Where }[] {
+// ブックならそのブック、フォルダなら中のブックの全部（名前だけ・写すだけなら、どれにも問わない）、ブックの中のページ・バインダなら、そのブックのそのエントリ
+// （動かす・名前を変えるなら、その印 entriesChange を添える）。into（動かす先のフォルダ）がほかのブックかその中なら、そのブックにも、入るエントリとして問う
+function booksOfEntry(
+  library: Library,
+  entry: string,
+  how: EntryWhere,
+  into?: string,
+): { book: string; where: Where }[] {
   const where: Where = how === "all-pages" ? { allPages: true } : how === "place" ? { place: true } : {}
   const row = library.folders[entry]
-  if (row?.folderRole === "book") return [{ book: entry, where }]
+  const from = row?.folderRole === "book" ? entry : bookIdOf(library.folders, entry)
+  const to =
+    into === undefined
+      ? undefined
+      : library.folders[into]?.folderRole === "book"
+        ? into
+        : bookIdOf(library.folders, into)
+  // 中身ごと変えるページは、そのページを丸ごと変える所で問う
+  const whole = how === "all-pages" && library.pages[entry] !== undefined
+  const asked = (book: string) => ({
+    book,
+    where: whole
+      ? ({ page: entry } as Where)
+      : ({ entries: [entry], ...(how === "place" || how === "title" ? { entriesChange: how } : {}) } as Where),
+  })
+  const enters = to !== undefined && to !== from && row?.folderRole !== "book" ? [asked(to)] : []
+  if (row?.folderRole === "book") return how === "copy" ? [] : [{ book: entry, where }]
   if (row && isOpenRole(row.folderRole)) {
-    if (how === "title") return []
+    if (how === "title" || how === "copy") return []
     return Object.values(library.folders).flatMap(f =>
       f.folderRole === "book" && isWithin(library.folders, f.id, entry) ? [{ book: f.id, where }] : [],
     )
   }
-  const book = bookIdOf(library.folders, entry)
-  return book === undefined ? [] : [{ book, where: { entries: [entry] } }]
+  return [...(from === undefined ? [] : [asked(from)]), ...enters]
 }
 
 // 書庫が was から now に変わる間の、エントリ id の置き場所の変化
@@ -240,6 +262,10 @@ function placeChangeOf(was: Library, now: Library, id: string, binned: ReturnTyp
   const after = foldersOver(now.folders, id)
   return before.length === after.length && before.every((f, i) => f.id === after[i]?.id) ? "same" : "moved"
 }
+
+// 書庫 library の、ゴミ箱かその中に無いページの行
+const pagesOutsideTrash = (library: Library): Library["pages"] =>
+  Object.fromEntries(Object.entries(library.pages).filter(([id]) => !inTrash(library.folders, id)))
 
 // 書庫が対象のアクションの結果で、変わったブック・無くなったブック・増えたブックのどれかが守っていなければ、守らせたステップの id と、そのブックの id（増えたブックなら無い）
 // was と now は、行う前と後の書庫（置き場所が変わったブックは、値が変わらなくても確かめる。フォルダごとゴミ箱に出入りしたときの、中のブックも）
@@ -252,14 +278,16 @@ function brokenIn(
   const before = libraryOf(was)
   const after = libraryOf(now)
   const binned = binnedBetween(was, now)
+  // ブックの間か外と動いたページを、足した・消したでなく、動いた物として渡す（ゴミ箱との出し入れは、足した・消した物のまま）
+  const rows: LibraryPageRows = { was: pagesOutsideTrash(was), now: pagesOutsideTrash(now) }
   for (const b of Object.values(before)) {
     const place = after[b.id] ? placeChangeOf(was, now, b.id, binned) : "same"
-    const id = b === after[b.id] && place === "same" ? null : broken(ctx, action, b, after[b.id], place)
+    const id = b === after[b.id] && place === "same" ? null : broken(ctx, action, b, after[b.id], place, rows)
     if (id) return { permission: id, book: b.id }
   }
   for (const b of Object.values(after)) {
     const made = inTrash(now.folders, b.id) ? "trashed" : "same"
-    const id = b.id in before ? null : broken(ctx, action, undefined, b, made)
+    const id = b.id in before ? null : broken(ctx, action, undefined, b, made, rows)
     if (id) return { permission: id }
   }
   return null
@@ -326,7 +354,7 @@ function permits(
     const library = libraryOf(subject as Library)
     const named = [
       ...(targets?.books ?? []),
-      ...(targets?.entries ?? []).flatMap(e => booksOfEntry(subject as Library, e.entry, e.where)),
+      ...(targets?.entries ?? []).flatMap(e => booksOfEntry(subject as Library, e.entry, e.where, e.into)),
     ]
     const books = named.flatMap(t => {
       const book = library[t.book]
@@ -563,6 +591,8 @@ export function perform<Id extends ActionId>(
     }
     // 行う前から在るページのタイプも、変えない（ページがブックの間を動いても）
     const typesKept = keepsPageTypesAcross(Object.values(was), Object.values(now))
+    // 同じ入れ物の中の名前の重なりは、ブックの決まりで断る前に、名前が重なる断りにする
+    if (titleClashes(subject as Library, next as Library).length > 0) return titleTaken
     if (!librarySettles(ctx.catalog, was, now) || !typesKept) return { ok: false, reason: "refused" }
   }
   if (action.target === "annotations") {

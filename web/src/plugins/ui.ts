@@ -207,6 +207,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:library-folder-new",
       "-",
       "@matomezu/base:library-entry-rename",
+      "@matomezu/base:library-entry-duplicate",
       "-",
       "@matomezu/base:library-entry-trash",
     ],

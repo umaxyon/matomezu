@@ -190,7 +190,7 @@ test("見える所の外で AI が書き換えた箱は、見えるまで Ctrl+Z
   expect(await undone()).toEqual([])
 })
 
-test("見える所の外で AI が書き換えた箱を、見る前に Ctrl+Z で消したら、AI に「見られる前に消えた」と渡る", async ({
+test("見える所の外で AI が書き換えた箱を、見る前に Ctrl+Z で消そうとすると、ぶつかって断られ（トースト）、AI の変更は残る", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 900, height: 480 })
@@ -201,6 +201,8 @@ test("見える所の外で AI が書き換えた箱を、見る前に Ctrl+Z �
   await rename("AI")
   await expect(items(page)).toHaveText("AI")
   await page.keyboard.press("Control+z")
-  await expect(items(page)).toHaveCount(0)
-  await expect.poll(async () => (await undone()).length).toBe(1)
+  const toast = page.getByRole("alert").filter({ hasText: "元に戻せません" })
+  await expect(toast).toContainText("ほかの変更とぶつかります")
+  await expect(items(page)).toHaveText("AI")
+  expect(await undone()).toEqual([])
 })

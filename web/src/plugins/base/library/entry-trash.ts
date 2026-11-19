@@ -15,7 +15,14 @@ import type { Folders, Library } from "../../../core/folders"
 import type { Books } from "../../../core/library"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
-import { isNotOverwritten, numbered, overwritten, placedInFolder, REPLACES_NOTHING, restoreTargetOf } from "./entries"
+import {
+  isNotOverwritten,
+  numbered,
+  overwritten,
+  placedOutsideBooks,
+  REPLACES_NOTHING,
+  restoreTargetOf,
+} from "./entries"
 
 // ゴミ箱の直下のブックと、入れた時刻（新しい順）。trash はゴミ箱かその中のブック、folders は書庫のフォルダの行
 export function trashOrder(trash: Books, folders: Folders): { book: Book; trashed: string }[] {
@@ -48,7 +55,7 @@ export const ENTRY_TRASH = kit.defineAction({
   permissionScope: { entry: "entry", where: "all-pages" },
   args: z.strictObject({ entry: z.string().min(1) }),
   run: (library, args, ctx) => {
-    if (!placedInFolder(library.folders, args.entry)) return null
+    if (!placedOutsideBooks(library.folders, args.entry)) return null
     const next = trashedEntry(library, args.entry, ctx.now)
     return isMoveRefusal(next) ? null : { next, result: {} }
   },

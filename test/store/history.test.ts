@@ -155,25 +155,36 @@ test("ブックの名前を変えた画面の履歴の段を戻すと、前の�
   expect(bookOf(store).title).toBe(title)
 })
 
-test("戻すまでの間に AI が変えた所は、画面の履歴の段が変えた所なら上書きし、そうでなければ残す。AI の変更は画面の履歴に入らない", async () => {
-  const store = ready()
-  place(store, 40, "1")
-  await settled()
-  const book = bookOf(store)
-  const [page, ...rest] = pagesOf(book)
-  const items = page!.items!.map((x, i, all) =>
-    i === all.length - 1 ? { ...x, props: { ...x.props, caption: "AI" } } : x,
-  )
-  // AI の変更は常駐から知らされる（置いた箱のキャプションと、ブックの名前を変える）
-  store.receive(
-    { ...worldRows([{ ...book, title: "AI の名前", lineup: [{ ...page!, items }, ...rest] }]), settings: {} },
-    [],
-  )
-  await settled()
-  expect(historyOf(store)?.undo).toHaveLength(1)
-  store.actions.command("s1", "@matomezu/base:undo")
-  expect(itemsOf(store)).toEqual(itemsOf(newStore()))
-  expect(bookOf(store).title).toBe("AI の名前")
+test("戻すまでの間に AI が変えた所は、画面の履歴の段が変えた所に重ならなければ残して戻し、重なれば断って段を捨てる（AI の変更は残る）。AI の変更は画面の履歴に入らない", async () => {
+  // AI が置いた箱のキャプションを変えたか（true）、ブックの名前だけを変えたか
+  const run = async (overCaption: boolean) => {
+    const store = ready()
+    place(store, 40, "1")
+    await settled()
+    const book = bookOf(store)
+    const [page, ...rest] = pagesOf(book)
+    const items = page!.items!.map((x, i, all) =>
+      overCaption && i === all.length - 1 ? { ...x, props: { ...x.props, caption: "AI" } } : x,
+    )
+    // AI の変更は常駐から知らされる
+    store.receive(
+      { ...worldRows([{ ...book, title: "AI の名前", lineup: [{ ...page!, items }, ...rest] }]), settings: {} },
+      [],
+    )
+    await settled()
+    expect(historyOf(store)?.undo).toHaveLength(1)
+    store.actions.command("s1", "@matomezu/base:undo")
+    expect(bookOf(store).title).toBe("AI の名前")
+    return store
+  }
+  const apart = await run(false)
+  expect(itemsOf(apart)).toEqual(itemsOf(newStore()))
+  expect(apart.state.getState().toasts).toEqual([])
+  const over = await run(true)
+  expect(itemsOf(over)).toHaveLength(itemsOf(newStore()).length + 1)
+  expect(pagesOf(bookOf(over))[0]?.items?.at(-1)?.props).toMatchObject({ caption: "AI" })
+  expect(over.state.getState().toasts.at(-1)).toMatchObject({ kind: "warn" })
+  expect(historyOf(over)?.undo).toEqual([])
 })
 
 test("continueStep のあとに同じ処理で行ったアクションは、そのブックの最後の画面の履歴の段に足される。続けて何も変わらなければ画面の履歴の段ごと無くなる", async () => {

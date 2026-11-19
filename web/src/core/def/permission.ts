@@ -72,7 +72,9 @@ export interface Changes {
 
 export interface PageChange {
   id: string
-  change: "added" | "removed" | "changed"
+  // 足した・消した・変わった、ほかのブックかブックの外から入った（movedIn）・ほかのブックかブックの外へ出た（movedOut）。ゴミ箱から出た・ゴミ箱へ入ったページは、足した・消した物。
+  // 動いたページの fields と items は、動く前と後のページを比べた物
+  change: "added" | "removed" | "changed" | "movedIn" | "movedOut"
   fields: readonly string[] // 変わったページのフィールド（items と slide を除く。足した・消したページは空）
   items: readonly string[] // 足した・消した・変わったアイテム（ページに直に置いたものと、ページの slide に置いたもの。子の形の変化は、それを持つアイテムの変化）
 }

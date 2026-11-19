@@ -219,12 +219,12 @@ describe("同じ名前", () => {
     expect(titleClashes(kept, more)).toEqual([HOME_ID])
   })
 
-  test("ゴミ箱の直下は同じ名前を許し、ブックの中は見ない", () => {
+  test("ゴミ箱の直下は同じ名前を許す。ブックの中で重なれば、そのブックを挙げる", () => {
     const t = world()
     const at = "2026-11-18T00:00:00.000Z"
     const binned = trashedEntry(trashedEntry(withRows(t, { ...d, title: "a" }), "a", at) as Library, "d", at) as Library
     expect(titleClashes(t, binned)).toEqual([])
     const inBook = moved(t, "p2", "b1")
-    expect(titleClashes(t, inBook)).toEqual([])
+    expect(titleClashes(t, inBook)).toEqual(["b1"])
   })
 })

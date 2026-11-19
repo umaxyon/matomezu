@@ -1,5 +1,6 @@
 // 画面の履歴の段の置き直し（base の history と、core/folders.ts の restoredTables）: 変えたページとフォルダごとの前後から、片方の値にする値（patchesToward）を作り、
-// 今の表・一覧の上で行う（restoredTables・restoredBooks）。行った後に、中身の無いエントリと、どの並びからもたどれないページ・フォルダを落とす。
+// 今の表・一覧の上で行う（restoredTables・restoredBooks）。段が書いた所がその間に変わっていれば断る。行った後に、中身の無いエントリと、
+// どの並びからもたどれないページ・フォルダを落とす。
 // 置き直すページと最上位のアイテム（restoredPages）が、認可の所（permissionScope）を決める（値の置き直しそのものは core/patch.test.ts）
 import { expect, test } from "bun:test"
 import { trashedEntry } from "../../../web/src/core/entries"
@@ -78,18 +79,27 @@ test("バインダの中のページと、バインダの名前を置き直す",
   expect(applied(changed, toward(before, changed, "before"))).toEqual(tablesOf([before]))
 })
 
-test("ページを戻す先のバインダが、その間に無くなっていたら、ページは戻さない（どの並びからもたどれないページは落とす）", () => {
+test("ページを戻す先のバインダが、その間に無くなっていたら、ぶつかって断る", () => {
   const before = book({}, [page("p", []), binder("f", [page("s", []), page("t", [])])])
   const after = book({}, [page("p", []), binder("f", [page("s", [])])])
   const now = book({}, [page("p", [])])
-  expect(applied(now, toward(before, after, "before"))).toEqual(tablesOf([now]))
+  expect(restoredTables(tablesOf([now]), toward(before, after, "before"))).toBeNull()
 })
 
-test("バインダを無くす置き直しは、その間にそのバインダに足されたページも無くす", () => {
+test("バインダを無くす置き直しは、その間にそのバインダにページが足されていたら、ぶつかって断る", () => {
   const before = book({}, [page("p", [])])
   const after = book({}, [page("p", []), binder("f", [page("s", [])])])
   const now = book({}, [page("p", []), binder("f", [page("s", []), page("x", [])])])
-  expect(applied(now, toward(before, after, "before"))).toEqual(tablesOf([before]))
+  expect(restoredTables(tablesOf([now]), toward(before, after, "before"))).toBeNull()
+})
+
+test("段が書いた所のうち、もう置き直す側の値の所は飛ばし、反対側の値のままの所だけを置き直す。全部もう置き直す側なら、同じ表を返す", () => {
+  const before = book({ title: "前" }, [page("p", [item("a")])])
+  const after = book({ title: "後" }, [page("p", [item("a", "A")])])
+  const half = book({ title: "前" }, [page("p", [item("a", "A")])])
+  expect(applied(half, toward(before, after, "before"))).toEqual(tablesOf([before]))
+  const tables = tablesOf([before])
+  expect(restoredTables(tables, toward(before, after, "before"))).toBe(tables)
 })
 
 test("中身のページが表に無いエントリは、並びから外す", () => {

@@ -123,7 +123,7 @@ test("書庫の画面の履歴に入るアクションが変えたページと�
   // 置き直し（書庫が対象で、画面の履歴に入れない）の分も、挙げない
   const revert = step("@matomezu/base:library-revert", {
     pages: {},
-    folders: { b1: { fields: { title: { set: "置き直した名前" } } } },
+    folders: { b1: { fields: { title: { set: "置き直した名前", was: newStore().state.getState().books.b1?.title } } } },
   })
   const reverted = performBulk(world(), [revert], CTX)
   if (!reverted.ok) throw new Error(reverted.reason)

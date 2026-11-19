@@ -16,7 +16,7 @@ import { type Stage, shownPageId, toPaper } from "../../core/stage"
 import type { StageView, Workspace } from "../../core/workspace"
 import type { OpenedContextMenu } from "../context-menus"
 import type { OpenedDialog } from "../dialogs"
-import type { Actions, BoundPlaceActions, Settings, WindowActions } from "../store"
+import type { Actions, BoundPlaceActions, ProbeActions, Settings, WindowActions } from "../store"
 
 // コマンドの許可スコープ: "book" はページもアイテムも変えない、"opened-page" は開いているページ、"selection" はその選んでいる物（形の中身やページのフィールドの中の物も含む）。
 // { page } には、ページの id が入っている引数の名前を書く（右クリックしたページのように、引数が所を決めるとき）。
@@ -175,6 +175,9 @@ export const givenActions = new WeakMap<CommandActions, Actions>()
 
 // コマンドが受け取った操作 a の、store の素の操作（store がコマンドに渡した操作だけが持つ）
 export const storeActionsOf = (a: CommandActions): Actions => givenActions.get(a) ?? fail("E116")
+
+// コマンドが受け取った操作 a の、アクションを行わずに確かめる操作（store がコマンドに渡した操作だけが持つ。プラグイン API には出さない）
+export const tryPerformOf = (a: CommandActions): ProbeActions["tryPerform"] => storeActionsOf(a).tryPerform
 
 // コマンドの定義の、呼ぶ場所によらない所
 interface CommandDefBase<A, Tt extends string> extends CommandExtras {

@@ -43,7 +43,8 @@ test("一覧が対象のアクションのあとにも、ノーマライズス�
   expect(at().shift).toEqual({ x: 2, y: 1 })
   const others = Object.values(state.getState().books).filter(b => b.id !== "b1")
   // 左の箱を無くす置き直し（ずらした量 shift は置き直さない。ノーマライズステップが詰める）
-  const pages = { [page]: { fields: { items: { list: [{ id: left, index: 1, patch: { absent: true } }] } } } }
+  const was = at().items.find(i => i.id === left)
+  const pages = { [page]: { fields: { items: { list: [{ id: left, index: 1, patch: { absent: true, was } }] } } } }
   expect(actions.perform(REVERT, { books: ["b1"], pages, folders: {} }).ok).toBe(true)
   expect(at().shift).toEqual({ x: 1, y: 1 })
   expect(at().items.find(i => i.id === first)).toMatchObject({ x: 1223, y: 894 })
@@ -52,7 +53,7 @@ test("一覧が対象のアクションのあとにも、ノーマライズス�
 
 test("一覧が対象のアクションでも、ページのタイプは作ったあと変えられない（refused）", () => {
   const { actions, page, at } = ready()
-  const pages = { [page]: { fields: { type: { set: "@matomezu/flowchart:flowchart" } } } }
+  const pages = { [page]: { fields: { type: { set: "@matomezu/flowchart:flowchart", was: at().type } } } }
   expect(actions.perform(REVERT, { books: ["b1"], pages, folders: {} })).toEqual({ ok: false, reason: "refused" })
   expect(at().type).toBe("@matomezu/drawing:drawing")
 })
