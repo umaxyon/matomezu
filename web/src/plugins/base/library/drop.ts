@@ -18,7 +18,7 @@ export type Drop = { to: "folder"; into: string; index?: number } | { to: "trash
 // 掴める物か: 動かすアクションが扱う物（ゴミ箱の外に在る物。ブックの中のページ・バインダも）
 export const draggable = (folders: Folders, entry: string): boolean => placedOutsideTrash(folders, entry) !== undefined
 
-// エントリ entry を drop へ落とせるか（動かしても同じ場所になる所・自分の中・持てない種類の所・ブックの中の物をブックの外へは落とせない。
+// エントリ entry を drop へ落とせるか（動かしても同じ場所になる所・自分の中・持てない種類の所・ブックの中の物をブックの外へ、ブックの外の物をブックの中へは落とせない。
 // ゴミ箱へは、書庫ホームかフォルダの直下に在る物だけ）
 export function droppable(library: Library, entry: string, drop: Drop): boolean {
   if (!draggable(library.folders, entry)) return false

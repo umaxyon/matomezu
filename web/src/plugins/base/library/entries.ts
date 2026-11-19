@@ -60,14 +60,15 @@ export const holdsEntries = (folders: Folders, id: string): boolean => {
 
 // エントリ entry を、フォルダ into へ動かす（同じフォルダの中の並べ替えも）のを、書庫が対象のアクションが扱うか: entry がゴミ箱の外に在り、into がゴミ箱の外のフォルダ・ブック・バインダで、
 // ブックの中の物（ページ・バインダ）なら、ブックかバインダの中へだけ（ブックの外へは出さない）、バインダの中のページなら、バインダの中へだけ（バインダの外へ 1 枚ずつは出さない）。
-// 持てる種類か・自分の中へでないかは、土台（core/entries.ts の movedEntry）が見る
+// ブックの外の物なら、ブックの外へだけ（ブックかバインダの中へは入れない）。持てる種類か・自分の中へでないかは、土台（core/entries.ts の movedEntry）が見る
 export function movesInto(folders: Folders, entry: string, into: string): boolean {
   const place = placedOutsideTrash(folders, entry)
   const to = folders[into]
   if (!place || !to || to.folderRole === "trash" || inTrash(folders, into)) return false
+  const toBook = to.folderRole === "book" || to.folderRole === "binder"
   if (place.holder.folderRole === "binder") return to.folderRole === "binder"
-  if (place.holder.folderRole === "book") return to.folderRole === "book" || to.folderRole === "binder"
-  return true
+  if (place.holder.folderRole === "book") return toBook
+  return !toBook
 }
 
 // 新しいブック・フォルダを作る先: フォルダ opened がエントリを入れられれば、そこ。入れられなければ（ブック・バインダ）、それを入れている一番近い書庫ホームかフォルダ。
