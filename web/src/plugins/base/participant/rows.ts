@@ -74,7 +74,7 @@ export function visitorRows(input: {
   calls: Readonly<Record<string, string>>
 }): VisitorRow[] {
   return input.participants
-    .filter(p => p.state === "visitor")
+    .filter(p => participantCategory(p, undefined) === "visitor")
     .sort((a, b) => (a.joinedAt ?? "").localeCompare(b.joinedAt ?? "") || a.id.localeCompare(b.id))
     .map(participant => {
       const live = input.live[participant.id]
