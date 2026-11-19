@@ -356,15 +356,22 @@ test("ゴミ箱に別のブックが在っても、開いているブックを�
   expect(other in store.state.getState().trash).toBe(true)
 })
 
-test("名前を変えたあと、元の名前で別のブックが出来ていれば、名前の変更を元に戻せない（同じ名前が重ならない）", async () => {
+test("名前を変えたあと、元の名前で別のブックが出来ていれば、名前の変更を元に戻せない（同じ名前が重ならない）。断られた段は捨て、次の元に戻すはその前の段を戻す", async () => {
   const store = ready()
   const was = bookOf(store).title
+  place(store, 40)
+  await settled()
+  const [placed] = historyOf(store)!.undo
   expect(store.actions.perform("@matomezu/base:book-update", { title: "変えた名前" }, { book: "b1" }).ok).toBe(true)
   await settled()
   expect(store.actions.perform("@matomezu/base:book-create", { title: was }).ok).toBe(true)
   await settled()
-  store.actions.command("s1", "@matomezu/base:undo")
+  expect(store.actions.command("s1", "@matomezu/base:undo")).toBe(true)
   const titles = Object.values(store.state.getState().books).map(b => b.title)
   expect(new Set(titles).size).toBe(titles.length)
   expect(bookOf(store).title).toBe("変えた名前")
+  expect(store.state.getState().toasts.at(-1)).toMatchObject({ kind: "warn" })
+  expect(historyOf(store)).toEqual({ undo: [placed!], redo: [] })
+  expect(store.actions.command("s1", "@matomezu/base:undo")).toBe(true)
+  expect(itemsOf(store)).toEqual([])
 })

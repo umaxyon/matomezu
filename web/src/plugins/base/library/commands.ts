@@ -9,7 +9,7 @@ import { LIBRARY_HISTORY } from "../../../core/history"
 import { type CommandActions, type ScreenCommandContext, storeActionsOf } from "../../../store/commands/def"
 import { NO_STAGE } from "../../../store/dialogs"
 import { BOOK_CREATE } from "../book-new/book-create"
-import { showNotRestored } from "../history"
+import { notRestored } from "../history"
 import { isRevertUnchanged } from "../history/restore"
 import { kit } from "../kit"
 import { refusalMessage } from "../utils/refusal"
@@ -36,8 +36,7 @@ function restore(ctx: ScreenCommandContext, a: CommandActions, from: "undo" | "r
   for (const step of [...ctx.libraryHistory[from]].reverse()) {
     const result = a.perform(LIBRARY_REVERT.id, libraryRevertArgs(step, from === "undo" ? "before" : "after"))
     if (!result.ok && !isRevertUnchanged(result)) {
-      showNotRestored(ctx, a, from, result, { clash: kit.message("Clashes with other changes") })
-      if (result.reason === "refused") a.dropHistory(LIBRARY_HISTORY, from)
+      notRestored(ctx, a, LIBRARY_HISTORY, from, result, { clash: kit.message("Clashes with other changes") })
       return
     }
     a.moveHistory(LIBRARY_HISTORY, from)
