@@ -7,13 +7,13 @@
 // 窓が低く（SPLIT_MIN_HEIGHT 未満）なったら、カレントスクリーンだけを残して 1 枚ずつに戻す（ほかの並びの物は閉じる。利用者の操作でないので、ブラウザの履歴に積まない）。
 // ブックスクリーンを入れた並び（「画面を分割」で下に書庫のスクリーンを出した物）は畳まず、低い間はカレントスクリーンだけを窓いっぱいに見せる。
 // 並びに入れたブックスクリーンは上の行に描き、押せばカレントスクリーンにする。その間、並びに入っていないステージを並べないスクリーンは見せない。
-// ステージを並べないスクリーンが出ている間の下の行は、スロット control-center-footer に置いたウィジェットを並べる（巣箱のボタンは UI マッピングが置く）
+// ステージを並べないスクリーンが出ている間の下の行は、スロット control-center-footer に置いたウィジェットを並べる（置いた物が無ければ、下の行を描かない）
 import { type CSSProperties, useEffect, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { bookScreenCurrent, type OpenedScreen, recentBookScreen, recentPlainScreen } from "../../../core/window"
 import { ScreenView } from "../../../ui/ScreenView"
 import { Slot } from "../../../ui/Slot"
-import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
+import { useLayout, useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
 import { usePluginState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import footerRow from "../utils/FooterRow.module.css"
@@ -67,6 +67,8 @@ export function ScreensView() {
   useCollapseWhenLow(lowMixed ? NO_ROWS : arranged, current)
   useMarkFits(arranged.length > 0 && arranged.some(id => stageScreens.includes(id)), lowMixed)
   const { makeScreenCurrent } = useStoreActions()
+  // 下の行に置いたウィジェットがあるか（無ければ、下の行を描かない）
+  const footer = (useLayout().slots[CONTROL_CENTER_FOOTER]?.length ?? 0) > 0
   // 枠を一瞬光らせる頼み（useScreenSplit の showOf）
   const flash = usePluginState(kit, SCREEN_FLASH)
   // 最初に描いたときから開いていたスクリーンは、滑り込ませない
@@ -101,6 +103,7 @@ export function ScreensView() {
             data-front={mixed ? "book-screen" : front}
             data-shown={id === book}
             data-row={row !== null}
+            data-footer={footer}
             style={row ? ({ "--row-index": row.index, "--row-of": row.of } as CSSProperties) : undefined}
             inert={mixed ? id !== splitBook : front !== "book-screen" || id !== book}
             onPointerDownCapture={() => {
@@ -153,9 +156,11 @@ export function ScreensView() {
             />
           ))}
         </div>
-        <footer className={`${footerRow.row} ${styles.footer}`}>
-          <Slot name={CONTROL_CENTER_FOOTER} props={{}} />
-        </footer>
+        {footer && (
+          <footer className={`${footerRow.row} ${styles.footer}`}>
+            <Slot name={CONTROL_CENTER_FOOTER} props={{}} />
+          </footer>
+        )}
       </section>
     </>
   )

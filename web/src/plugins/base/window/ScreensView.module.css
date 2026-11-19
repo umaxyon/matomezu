@@ -1,4 +1,4 @@
-/* スクリーンアレンジメント「1 枚ずつ」と「上下に分ける」（ScreensView）: ブックスクリーンを下に敷き、ステージを並べないスクリーンを前に出すときは右から滑り込ませ、ブックスクリーンへ戻すときは右へ滑り出す。その間は下の行を出す */
+/* スクリーンアレンジメント「1 枚ずつ」と「上下に分ける」（ScreensView）: ブックスクリーンを下に敷き、ステージを並べないスクリーンを前に出すときは右から滑り込ませ、ブックスクリーンへ戻すときは右へ滑り出す。その間は下の行（置いた物があれば）を出す */
 .bookScreen {
   --footer-row-height: 30px; /* 下の行の高さ（utils/FooterRow と同じ） */
   position: absolute;
@@ -101,6 +101,10 @@
   .bookScreen {
     transition: none;
   }
+}
+/* 下の行を描かないとき（置いたウィジェットが無い）は、下の行の高さを数えない */
+.bookScreen[data-footer="false"] {
+  --footer-row-height: 0px;
 }
 .bookScreen[data-row="true"] {
   --rows-height: calc(100% - var(--footer-row-height));

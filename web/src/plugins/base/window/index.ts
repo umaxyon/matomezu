@@ -23,7 +23,7 @@ export const BOOK_SCREEN_DEF = kit.defineScreen({
 })
 
 // スクリーンアレンジメント「1 枚ずつ」: 見えているのは、カレントスクリーンの 1 枚だけ。窓を開いたときのスクリーンアレンジメント。
-// ブックスクリーンは動かさず、ステージを並べないスクリーンは右から滑り込み、その間は下の行（巣箱のボタン）を出す（描き方は WindowView）
+// ブックスクリーンは動かさず、ステージを並べないスクリーンは右から滑り込み、その間は下の行（スロット control-center-footer に置いた物があれば）を出す（描き方は WindowView）
 export const ONE_SCREEN = kit.defineScreenArrangement({
   id: "one-screen",
   title: "One screen at a time",
@@ -59,16 +59,12 @@ const splitting = (ctx: ScreenCommandContext): boolean =>
     { id: ctx.arrangement.id, value: arrangementValueIn(ctx) },
   ).length > 0
 
-// ステージを並べないスクリーンがカレントの間、Esc でブックスクリーンへ戻る。上下に分けている間は、ブラウザの履歴を 1 つ戻す（最後に開いた物を引っ込める）
-export const CONTROL_CENTER_LEAVE = kit.defineScreenCommand({
-  id: "control-center-leave",
-  title: "Back to the book screen",
-  run: (ctx, a) => {
-    if (splitting(ctx)) return a.requestBack()
-    const to = recent(ctx, true)
-    if (to) storeActionsOf(a).makeScreenCurrent(to.id)
-  },
-  when: ctx => current(ctx)?.stages === false,
+// 上下に分けている間、ステージを並べないスクリーンがカレントなら、Esc でブラウザの履歴を 1 つ戻す（最後に開いたスクリーンを引っ込める）
+export const SPLIT_BACK = kit.defineScreenCommand({
+  id: "split-back",
+  title: "Close the last opened screen",
+  run: (_ctx, a) => a.requestBack(),
+  when: ctx => current(ctx)?.stages === false && splitting(ctx),
 })
 
 // ブックスクリーンを閉じる（何も開いていないステージ 1 つだけのとき、ステージの真ん中のボタン）。前にカレントだったスクリーンへ戻る。
@@ -80,11 +76,11 @@ export const BOOK_SCREEN_CLOSE = kit.defineScreenCommand({
   when: ctx => ctx.screen.def === BOOK_SCREEN_DEF.id && screensOf(ctx).length > 1,
 })
 
-export const CONTROL_CENTER_KEYS = [
+export const SPLIT_KEYS = [
   kit.defineKey({
-    id: "control-center-leave-escape",
+    id: "split-back-escape",
     key: "Escape",
-    command: CONTROL_CENTER_LEAVE.id,
+    command: SPLIT_BACK.id,
     scope: "screen",
   }),
 ]

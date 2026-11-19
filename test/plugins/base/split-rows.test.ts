@@ -99,11 +99,11 @@ test("並びの変わりを行うと、外れて閉じられなかった物（�
   expect(read().window.arrangement).toBe("@matomezu/base:one-screen")
 })
 
-test("分けている間の Esc（コントロールセンターから戻るコマンド）は、ブラウザの履歴を戻すよう頼む", () => {
+test("分けている間の Esc（最後に開いたスクリーンを閉じるコマンド）は、ブラウザの履歴を戻すよう頼む", () => {
   const { store, read, ticket } = splitStore()
   store.setCanGoBack(true)
   const before = read().backRequests
-  expect(store.actions.command(ticket, "@matomezu/base:control-center-leave")).toBe(true)
+  expect(store.actions.command(ticket, "@matomezu/base:split-back")).toBe(true)
   expect(read().backRequests).toBe(before + 1)
 })
 

@@ -251,12 +251,12 @@ import { WIDE_SEARCH_MODE } from "./wide-search"
 import {
   BOOK_SCREEN_CLOSE,
   BOOK_SCREEN_DEF,
-  CONTROL_CENTER_KEYS,
-  CONTROL_CENTER_LEAVE,
   CONTROL_CENTER_TOGGLE,
   MAXIMIZERS,
   ONE_SCREEN,
   SCREEN_FLASH,
+  SPLIT_BACK,
+  SPLIT_KEYS,
   SPLIT_ROWS,
 } from "./window"
 import { ZOOM_FIT, ZOOM_IN, ZOOM_KEYS, ZOOM_OUT, ZOOM_RESET, ZOOM_WHEEL } from "./zoom"
@@ -522,7 +522,7 @@ export const BASE = defineBuiltin(
       BOOK_NEW,
       CONTROL_CENTER_TOGGLE,
       BOOK_SCREEN_CLOSE,
-      CONTROL_CENTER_LEAVE,
+      SPLIT_BACK,
       STAGE_SPLIT,
       STAGE_UNSPLIT,
       STAGE_CLOSE,
@@ -645,7 +645,7 @@ export const BASE = defineBuiltin(
       ...LIBRARY_SCREEN_KEYS,
       ...RIGHT_SIDE_PANEL_KEYS,
       ...LEFT_SIDE_PANEL_KEYS,
-      ...CONTROL_CENTER_KEYS,
+      ...SPLIT_KEYS,
       ...PRINT_KEYS,
       ...SEARCH_KEYS,
     ],
@@ -816,7 +816,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-entry-duplicate": typeof LIBRARY_ENTRY_DUPLICATE
     "@matomezu/base:control-center-toggle": typeof CONTROL_CENTER_TOGGLE
     "@matomezu/base:book-screen-close": typeof BOOK_SCREEN_CLOSE
-    "@matomezu/base:control-center-leave": typeof CONTROL_CENTER_LEAVE
+    "@matomezu/base:split-back": typeof SPLIT_BACK
     "@matomezu/base:stage-split": typeof STAGE_SPLIT
     "@matomezu/base:stage-unsplit": typeof STAGE_UNSPLIT
     "@matomezu/base:stage-close": typeof STAGE_CLOSE

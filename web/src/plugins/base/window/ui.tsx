@@ -1,8 +1,7 @@
-// 窓の見た目: 根に置いて、ブックスクリーンとコントロールセンターのスロットを開けるウィジェット window と、巣箱のボタン
+// 窓の見た目: 根に置いて、ブックスクリーンとコントロールセンターのスロットを開けるウィジェット window
 import { defineWidget } from "../../../ui/layout"
 import { kit } from "../kit"
 import { ONE_SCREEN } from "."
-import { BirdhouseButton } from "./BirdhouseButton"
 import { ScreensView } from "./ScreensView"
 import { CONTROL_CENTER_FOOTER } from "./slots"
 import { SPLIT_ROWS } from "./split"
@@ -23,10 +22,4 @@ export const SCREENS_WIDGET = defineWidget({
   opens: [CONTROL_CENTER_FOOTER],
   screens: true,
   view: ScreensView,
-})
-
-export const CONTROL_CENTER_BIRDHOUSE = defineWidget({
-  id: kit.name("control-center-birdhouse"),
-  slots: [CONTROL_CENTER_FOOTER],
-  view: BirdhouseButton,
 })
