@@ -1,6 +1,6 @@
 // 書庫の画面のドラッグで落とす先: 落とせるか・行の間へ落とすときの位置・名前が重なるときに確かめる事を、動かすアクション（entry-move・entry-move-over）と同じ読み方で出す
 import { entriesIn, isMoveRefusal, movedEntry, type Naming, titleOf } from "../../../core/entries"
-import type { Folders, Library } from "../../../core/folders"
+import { type Folders, HOME_ID, type Library, pinnedCount, systemFolderOf } from "../../../core/folders"
 import {
   freeTitleIn,
   isNotOverwritten,
@@ -15,14 +15,16 @@ import {
 // 落とす先: フォルダ into の index 番目（掴んだ物を除いて数える。言わなければ末尾）か、ゴミ箱
 export type Drop = { to: "folder"; into: string; index?: number } | { to: "trash" }
 
-// 掴める物か: 動かすアクションが扱う物（ゴミ箱の外に在る物。ブックの中のページ・バインダも）
-export const draggable = (folders: Folders, entry: string): boolean => placedOutsideTrash(folders, entry) !== undefined
+// 掴める物か: 動かすアクションが扱う物（ゴミ箱の外に在る物。ブックの中のページ・バインダも）。システムフォルダは動かせないので掴めない
+export const draggable = (folders: Folders, entry: string): boolean =>
+  placedOutsideTrash(folders, entry) !== undefined && systemFolderOf(folders[entry]) === undefined
 
 // エントリ entry を drop へ落とせるか（動かしても同じ場所になる所・自分の中・持てない種類の所・ブックの中の物をブックの外へ、ブックの外の物をブックの中へは落とせない。
-// ゴミ箱へは、書庫ホームかフォルダの直下に在る物だけ）
+// ゴミ箱へは、書庫ホームかフォルダの直下に在る物だけ。書庫ホームの先頭のシステムフォルダより前へも落とせない）
 export function droppable(library: Library, entry: string, drop: Drop): boolean {
   if (!draggable(library.folders, entry)) return false
   if (drop.to === "trash") return placedOutsideBooks(library.folders, entry) !== undefined
+  if (drop.into === HOME_ID && drop.index !== undefined && drop.index < pinnedCount(library.folders)) return false
   return (
     movesInto(library.folders, entry, drop.into) && !isMoveRefusal(movedEntry(library, entry, drop.into, drop.index))
   )

@@ -12,6 +12,7 @@ import {
   withChanges,
 } from "../../../web/src/core/folders"
 import { type PerformedIn, performIn, type World } from "../../../web/src/core/perform"
+import { draggable, droppable } from "../../../web/src/plugins/base/library/drop"
 import { DOCUMENTS as DOCUMENTS_DEF, SYSTEM_FOLDER_ADD } from "../../../web/src/plugins/base/library/system-folders"
 import { worldOf } from "../../../web/src/store/world"
 import { CORE_CATALOG, newStore, sequence } from "../../support"
@@ -149,4 +150,13 @@ test("プラグインが戻ってシステムフォルダの名前がまた引�
     added: [],
     renamed: [{ entry: "u", kind: "folder", from: "Documents", to: "Documents 2" }],
   })
+})
+
+test("書庫の画面: システムフォルダは掴めず、書庫ホームの先頭のシステムフォルダより前へは落とせない", () => {
+  const world = prepared()
+  expect(draggable(world.folders, "sf1")).toBe(false)
+  expect(draggable(world.folders, "gone")).toBe(false)
+  expect(droppable(world, "f", { to: "folder", into: HOME_ID, index: 0 })).toBe(false)
+  expect(droppable(world, "f", { to: "folder", into: HOME_ID, index: 2 })).toBe(true)
+  expect(droppable(world, "f", { to: "folder", into: "sf1" })).toBe(true)
 })

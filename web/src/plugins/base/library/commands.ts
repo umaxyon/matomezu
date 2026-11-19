@@ -4,8 +4,9 @@
 // 置き直しても何も変わらない段は、動かして飛ばし、その次の段を置き直す。断られたらトーストで知らせる。その間のほかの変更とぶつかって断られた（土台かアクションが断った）なら、
 // 2 行目にそう出し、その画面の履歴の段を捨てる（次はその前の段を置き直す）。認可ステップが止めた（ロック中など）なら、その画面の履歴の段は動かさない
 
+import type { CoreCatalog } from "../../../core/core-catalog"
 import { entriesIn, placeOf } from "../../../core/entries"
-import type { Folders } from "../../../core/folders"
+import { type Folders, systemFolderOf } from "../../../core/folders"
 import { LIBRARY_HISTORY } from "../../../core/history"
 import { type CommandActions, type ScreenCommandContext, tryPerformOf } from "../../../store/commands/def"
 import { BOOK_CREATE } from "../book-new/book-create"
@@ -101,11 +102,20 @@ function entryOf(ctx: ScreenCommandContext, named?: Named): string | undefined {
 // コマンドが扱う、受け取ったエントリ（フォルダを受け取ったとき（何も無い所のメニュー）は、扱わない。そのフォルダは、右クリックした物でない）のうち、
 // in が扱うと答えた物: 名前を変える物はゴミ箱の外のどこに在っても（placedOutsideTrash）、ゴミ箱に入れる物は書庫ホームかフォルダの直下に在る物（placedOutsideBooks）、
 // 写す物はブックの中のページ・バインダ（placedInBook）
-type Handles = (folders: Folders, entry: string) => unknown
+type Handles = (folders: Folders, entry: string, catalog: CoreCatalog) => unknown
 const handled = (ctx: ScreenCommandContext, handles: Handles, named?: Named): string | undefined => {
   const to = given(ctx, named)
   const entry = to && "folder" in to ? undefined : entryOf(ctx, named)
-  return entry !== undefined && handles(ctx.folders, entry) ? entry : undefined
+  return entry !== undefined && handles(ctx.folders, entry, ctx.catalog) ? entry : undefined
+}
+
+// 名前を変える物: ゴミ箱の外のどこかに在る物（システムフォルダは名前を変えられない）
+const renames: Handles = (folders, entry) =>
+  placedOutsideTrash(folders, entry) !== undefined && systemFolderOf(folders[entry]) === undefined
+// ゴミ箱に入れる物: 書庫ホームかフォルダの直下に在る物（システムフォルダは、定義が機能台帳に無い間だけ）
+const trashes: Handles = (folders, entry, catalog) => {
+  const mark = systemFolderOf(folders[entry])
+  return placedOutsideBooks(folders, entry) !== undefined && (mark === undefined || !catalog.systemFolders.has(mark))
 }
 
 // 右クリックのメニューの行を出すか: 受け取った物を handles が扱うときだけ。キーからは、押してから扱う物を決める（ツリーのキーは、ツリーで今いる行を名指す）ので、いつも出す
@@ -178,10 +188,10 @@ export const LIBRARY_ENTRY_RENAME = kit.defineScreenCommand({
   title: "Rename…",
   performs: [ENTRY_RENAME.id], // 開いたダイアログが行う
   run: (ctx, a, named: Named | undefined) => {
-    const entry = handled(ctx, placedOutsideTrash, named)
+    const entry = handled(ctx, renames, named)
     if (entry !== undefined) a.openDialog(LIBRARY_RENAME_DIALOG.id, { entry })
   },
-  when: inMenuHandled(placedOutsideTrash),
+  when: inMenuHandled(renames),
 })
 
 // 写す: ブックの中のページ・バインダを、すぐ後ろに番号付きの名前で写す。断られたらトーストで知らせる
@@ -211,10 +221,10 @@ export const LIBRARY_ENTRY_TRASH = kit.defineScreenCommand({
   title: "Move to trash",
   performs: [ENTRY_TRASH.id],
   run: (ctx, a, named: Named | undefined) => {
-    const entry = handled(ctx, placedOutsideBooks, named)
+    const entry = handled(ctx, trashes, named)
     if (entry !== undefined) trash(ctx, a, entry)
   },
-  when: inMenuHandled(placedOutsideBooks),
+  when: inMenuHandled(trashes),
 })
 
 // 動かす（ドラッグで落としたとき）: エントリ entry を、落とす先 to（フォルダの index 番目か、ゴミ箱）へ。how は、先に同じ名前の物が在るときに利用者が選んだ手
