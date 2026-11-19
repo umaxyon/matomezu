@@ -3,12 +3,12 @@
 // タイプがページに足したフィールド（fields。page-fields.ts）と、ページの設定の項目（settings。plugins/base/book-settings）も一緒に決められる
 // （タイプのフィールドで要るものを渡さなければ、ブックのデータの形に合わず断られる）。フィールドの受け方が結果を返せば、結果の fields に入れて返す。
 // 足したページにタイプが問題を知らせれば断る（page-problems.ts）
+
 import { z } from "zod"
 import {
   addPage,
   findBinder,
   findPage,
-  freeTitle,
   lineupOf,
   type NewPage,
   type NewPageInto,
@@ -24,6 +24,7 @@ import type { Book } from "../../../core/schema/book"
 import { settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
 import { kit } from "../kit"
 import { contentIdMaker } from "../utils/ids"
+import { freeTitle } from "../utils/titles"
 import { fieldsArgs, writeFields } from "./page-fields"
 import { pageProblem } from "./page-problems"
 import { canChoose, defaultPaper, growsValue, paperChoices } from "./pages"

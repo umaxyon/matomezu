@@ -1,5 +1,5 @@
 // 書庫が対象のアクションが使う、エントリの読み方と変え方: ゴミ箱の外に在るエントリ・動かせる先・名前を変える・重ならない名前にする・ゴミ箱から戻す先
-import { freeTitle } from "../../../core/book"
+
 import {
   type EntryKind,
   isMoveRefusal,
@@ -27,6 +27,7 @@ import {
   type Library,
   type PageRow,
 } from "../../../core/folders"
+import { freeTitle } from "../utils/titles"
 
 // ゴミ箱の外のどこか（書庫ホーム・フォルダ・ブック・バインダ）に入っているエントリ entry の、入れているフォルダと並びのエントリ。
 // ゴミ箱かその中の物、どこにも入っていない物（書庫ホーム・ゴミ箱）は undefined

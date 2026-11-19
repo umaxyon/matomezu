@@ -2,7 +2,7 @@
 // まとまるタイプのページは、args.binder のバインダに足す。binder が無ければ、名前を聞いて新しいバインダ（そのページ 1 枚入り）を作る
 
 import { useState } from "react"
-import { freeTitle, lineupOf, pagesIn } from "../../../core/book"
+import { lineupOf, pagesIn } from "../../../core/book"
 import { pageType } from "../../../core/core-catalog"
 import type { Book } from "../../../core/schema/book"
 import { useMessages } from "../../../ui/i18n"
@@ -12,6 +12,7 @@ import { useBook } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
 import { controlClass, Field, Form } from "../dialog-host/FormParts"
 import { kit } from "../kit"
+import { freeTitle } from "../utils/titles"
 import type { NewPageDialogArgs } from "."
 import { usePaperControls } from "./PaperControls"
 import { nextPageTitle } from "./pages"

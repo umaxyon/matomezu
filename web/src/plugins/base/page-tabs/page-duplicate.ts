@@ -2,14 +2,16 @@
 // 中の物の id（ページの中のどの深さのオブジェクトの id）は、ブック全体で重ならないよう振り直し、つなぐものが指す相手（from・to）も新しい id に付け替える。
 // ロックは写さない。伝言・マークなど物に付けた物は写さない。使えるのは、タイプが宣言した（duplicatesPages）ページだけ（宣言の無いタイプは、中の id を指す別のフィールドを持ちうるので断る）。id を振り直すと壊れる形（定義の survivesRenewedIds が false）のあるページも断る。
 // 写しの名前は、同じブックかバインダのほかのページと重ならない名前にする（渡した名前が重なれば断る。渡さなければ、元の名前に番号を付ける）
+
 import { z } from "zod"
-import { addPage, findPage, freeTitle, siblingsOf } from "../../../core/book"
+import { addPage, findPage, siblingsOf } from "../../../core/book"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import type { Declined } from "../../../core/def/action"
 import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
 import { renewedIds, survivesRenewedIds } from "../utils/ids"
+import { freeTitle } from "../utils/titles"
 
 // 複製を断る種類: id を振り直すと壊れる形がページにある（画面は、この種類で知らせる）
 export const UNRENEWABLE_SHAPE = kit.name("unrenewable-shape")

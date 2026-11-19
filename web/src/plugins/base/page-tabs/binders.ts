@@ -1,12 +1,12 @@
 // バインダのアクション: ブックの中の、1 つのタイプのページだけを入れるバインダ（スライドなど）の名前を変える・動かす・複製する・消す。
 // バインダを作るのは page-add（into の newBinder）。中のページを足す・動かす・消すのは、ページのアクション
+
 import { z } from "zod"
 import {
   addBinder,
   addPage,
   entriesIn,
   findBinder,
-  freeTitle,
   lineupOf,
   moveEntry,
   pagesIn,
@@ -20,6 +20,7 @@ import { ORIENTATIONS } from "../../../core/def/paper"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
 import { renewedIds } from "../utils/ids"
+import { freeTitle } from "../utils/titles"
 import { duplicateProblem, UNRENEWABLE_DECLINED } from "./page-duplicate"
 import { pageProblems } from "./page-problems"
 import { canPaperBinder } from "./pages"

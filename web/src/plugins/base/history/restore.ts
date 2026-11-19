@@ -2,18 +2,18 @@
 // 前か後の値に置き直す。置き直す値（Patch）は画面の履歴の段だけから決まり、所ごとに反対側の値も持つ。今の表の上で行い、画面の履歴の段が書いた値のままの所だけを置き直す
 // （その間にほかで変わった所は、画面の履歴の段が変えた所に重ならなければ残し、重なれば断る。無かった行を丸ごと置く値は、同じ中身の行が今在れば飛ばし、違えば断る。core/folders.ts の restoredTables）
 import { z } from "zod"
-import {
-  inTrash,
-  type Library,
-  libraryOf,
-  type RowPatches,
-  restoredTables,
-  withRowPatches,
-} from "../../../core/folders"
+import { inTrash, type Library, libraryOf, type RowPatches, restoredTables, tablesOf } from "../../../core/folders"
 import type { RowChange } from "../../../core/history"
 import type { Books } from "../../../core/library"
 import { type ListPatch, type Patch, patchOf } from "../../../core/patch"
+import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
+
+// ブック books の表に、ページとフォルダごとの置き直す値 patches を行って組み直した一覧（変わらなかったブックは同じ値のまま。組めないブックは入らない）
+function withRowPatches(books: readonly Book[], patches: RowPatches): Readonly<Record<string, Book>> | null {
+  const next = restoredTables(tablesOf(books), patches)
+  return next && libraryOf(next)
+}
 
 // 置き直しても何も変わらないこと（もう、置き直す側の値になっている）: 置き直す関数が返す値と、置き直しのアクションが断るときの断りの種類
 export const UNCHANGED = "unchanged"

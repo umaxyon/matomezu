@@ -18,7 +18,7 @@ import {
 } from "./book"
 import type { ActionId, ActionTable } from "./catalog"
 import { changesOf, type LibraryPageRows } from "./changes"
-import { type CoreCatalog, pageType } from "./core-catalog"
+import type { CoreCatalog } from "./core-catalog"
 import {
   type ActionContext,
   type ActionDef,
@@ -76,14 +76,14 @@ import {
   withChanges,
 } from "./folders"
 import { idsIn, skipping } from "./ids"
-import { decidedByPlace, deniedBy, type Inspected, inspect, typeAllows, withoutPermissions } from "./inspect"
+import { decidedByPlace, deniedBy, type Inspected, inspect, withoutPermissions } from "./inspect"
 import type { Books } from "./library"
 import type { ItemPage } from "./placed"
 import { type RecordSource, readFrom, SOURCE, sourceIn, sourceOf, type WithSource } from "./record-source"
 import { type Counters, NO_RECORD, RECORDS_MAX, REMOVED, type RecordChange, type Records } from "./records"
 import { referredOf } from "./refs"
 import { sameData } from "./same"
-import type { Book, Page, UnreadableCode, UnreadableEntry } from "./schema/book"
+import type { Book, UnreadableCode, UnreadableEntry } from "./schema/book"
 import { langChosen, type Settings } from "./settings"
 import { settledAfter } from "./settle"
 
@@ -143,15 +143,6 @@ export type Performed<Id extends ActionId> =
       aiMessages?: readonly AIMessage[]
     }
   | Refused
-
-// タイプ type のページで使えるアクション（表の並び）: タイプが選んだ物に付くアクションとタイプが足すアクションから、タイプが外すアクションを除く（inspect と同じ決まり）。
-// ブック自身だけを変えるアクション（許可スコープが "book"）は、タイプでは決まらないので、タイプに依らない付く先（attach の books）だけで並べる
-export function actionsOfPage(catalog: CoreCatalog, page: Pick<Page, "type">): readonly string[] {
-  const t = pageType(catalog, page.type)
-  return [...catalog.actions.values()]
-    .filter(a => (a.target === "book" && a.permissionScope === "book" ? a.attach?.books === true : typeAllows(a, t)))
-    .map(a => a.id)
-}
 
 // アクションが返したブック after を、ノーマライズステップ（core/def/normalize-step.ts）を順にかけて整えたもの。
 // run がステップだけが書くページのフィールドを変えていたら（前の状態に戻すアクションを除く）、または整えられなければ null

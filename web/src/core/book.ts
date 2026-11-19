@@ -378,15 +378,6 @@ export function removeBinder<B extends Book>(book: B, id: string): B {
   return { ...book, lineup: book.lineup.filter(e => !(e.kind === "binder" && e.id === id)) }
 }
 
-// 名前 title を、同じブックかバインダの名前 taken と重ならない名前にする（重ならなければそのまま。重なれば「名前 2」から番号を付ける）
-export function freeTitle(title: string, taken: readonly string[]): string {
-  if (!taken.includes(title)) return title
-  for (let n = 2; ; n++) {
-    const made = `${title} ${n}`
-    if (!taken.includes(made)) return made
-  }
-}
-
 // ブックの中の id（ページとバインダ）。新しい id を振るときに、重ならないようにする相手
 const lineupIds = (book: Book): string[] => [
   ...pagesOf(book).map(p => p.id),

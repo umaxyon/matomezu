@@ -743,9 +743,3 @@ function sameRows(was: Readonly<Record<string, unknown>>, now: Readonly<Record<s
   const ids = Object.keys(now)
   return ids.length === Object.keys(was).length && ids.every(id => was[id] === now[id] || sameData(was[id], now[id]))
 }
-
-// ブック books の表に、ページとフォルダごとの置き直す値 patches を行って組み直した一覧（変わらなかったブックは同じ値のまま。組めないブックは入らない）
-export function withRowPatches(books: readonly Book[], patches: RowPatches): Readonly<Record<string, Book>> | null {
-  const next = restoredTables(tablesOf(books), patches)
-  return next && libraryOf(next)
-}

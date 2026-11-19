@@ -12,7 +12,6 @@ export {
   bindersOf,
   findBinder,
   findPage,
-  freeTitle,
   lineupOf,
   moveEntry,
   pagesIn,
@@ -75,7 +74,6 @@ export type { Point, Rect, Size } from "../core/geom"
 export { translate } from "../core/i18n/i18n"
 export { defineMessages } from "../core/i18n/messages"
 export type { Owned } from "../core/names"
-export { actionsOfPage } from "../core/perform"
 export type { ItemPage, PlacedConnector, PlacedOf, PlacedShape, ShapeOnPage } from "../core/placed"
 export {
   connectableShape,
