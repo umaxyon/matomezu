@@ -1,6 +1,8 @@
 // 横断検索（タスクボード側）の見た目: 「チケット」のモードと、チケット・チケット履歴の横断検索の当たりの開き方
+
+import type { WideSearchHit } from "../../../plugin-api"
 import { useRecords } from "../../../plugin-api/ui"
-import { defineWideSearchMode, defineWideSearchOpener, type WideSearchHit, type WideSearchOpened } from "../../base/ui"
+import { defineWideSearchMode, defineWideSearchOpener, type WideSearchOpened } from "../../base/ui"
 import { kit } from "../kit"
 import { PROJECT } from "../project"
 import { TICKET } from "../ticket"

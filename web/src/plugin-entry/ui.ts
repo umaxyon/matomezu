@@ -126,10 +126,7 @@ export {
   WIDE_SEARCH_MODES,
   WIDE_SEARCH_OPENERS,
   WIDE_SEARCH_OPENS,
-  type WideSearchAnswer,
-  type WideSearchHit,
   type WideSearchModeProps,
-  type WideSearchQuery,
   type WorkroomActions,
 } from "../plugins/base/ui"
 // プラグインに公開する共通の処理のうち見た目の物（base の utils/ui に書き出した物は、そのまま出る）
