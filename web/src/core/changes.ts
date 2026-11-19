@@ -48,6 +48,10 @@ function pageChange(
   }
 }
 
+// ページ id の 1 枚だけの変化: 前 before・後 after のどちらかが無ければ、足した・消した物（ブックの間か外と動いたかは見ない）
+export const pageChangeOf = (id: string, before: Page | undefined, after: Page | undefined): PageChange =>
+  pageChange(id, before, after, undefined)
+
 // 書庫の、ゴミ箱の外のページの行の表（行う前 was と後 now。ブックの外か、ほかのブックに在るページを引く。ゴミ箱の中のページは入れない）
 export interface LibraryPageRows {
   was: Readonly<Record<string, unknown>>

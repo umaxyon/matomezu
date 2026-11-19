@@ -1,10 +1,11 @@
 // 次のページ（と、あとで変えるページ）に選べる紙と向き、可変ページにできるかと、次のページの題名の案（ページを足す・消すのは土台の core/book.ts）
 
-import { findBinder, findPage, lineupOf, pagesIn, putPage } from "../../../core/book"
+import { findBinder, findPage, lineupOf, pagesIn } from "../../../core/book"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import { type GrowChoice, ORIENTATIONS, type Orientation } from "../../../core/def/paper"
 import type { MessageKey, Params } from "../../../core/i18n/i18n"
 import type { PaperChoice, PaperRule } from "../../../core/paper"
+import type { ItemPage } from "../../../core/placed"
 import type { Book, Page } from "../../../core/schema/book"
 import { settingsAt } from "../book-settings"
 import { setField } from "../fields"
@@ -92,18 +93,21 @@ export function growsValue(catalog: CoreCatalog, type: string, grows: boolean | 
 export const withGrows = <P extends Page>(page: P, grows: Page["grows"]): P =>
   setField(page, ["orientation"], "grows", grows)
 
-// アクションのあとのブック after のページ page を、増やす向きに合わせて整えたもの: 左・上へ増やすなら空きの印刷区画を持たせ、前のブック before では
-// 増やしていたが増やさなくなった向きは空きを詰める（中身を印刷区画の単位でずらし、ページの shift に足す）。紙・向き・可変ページかを変えたか、
-// 中身をずらしたページの形が、増やさない向きで紙からはみ出すなら null（ノーマライズステップ variable-pages.ts と、ページの設定のダイアログが使う）
-export function normalizedPage(catalog: CoreCatalog, before: Book, after: Book, page: Page): Page | null {
-  const prev = findPage(before, page.id)?.page
-  const was = prev && growOf(catalog, prev)
+// アクションのあとのページ page を、増やす向きに合わせて整えたもの: 左・上へ増やすなら空きの印刷区画を持たせ、アクションの前のページ before では
+// 増やしていたが増やさなくなった向きは空きを詰める（中身を印刷区画の単位でずらし、ページの shift に足す。作ったページなら before は undefined）。
+// 紙・向き・可変ページかを変えたか、中身をずらしたページの形が、増やさない向きで紙からはみ出すなら null（ノーマライズステップ variable-pages.ts と、ページの設定のダイアログが使う）
+export function normalizedPage<P extends ItemPage>(
+  catalog: CoreCatalog,
+  before: ItemPage | undefined,
+  page: P,
+): P | null {
+  const was = before && growOf(catalog, before)
   const padded = paddedFor(catalog, page, growOf(catalog, page), was)
   const papered =
-    prev !== undefined &&
-    (prev.paper !== page.paper || prev.orientation !== page.orientation || prev.grows !== page.grows)
+    before !== undefined &&
+    (before.paper !== page.paper || before.orientation !== page.orientation || before.grows !== page.grows)
   if (padded === page && !papered) return page
-  return shapesFit(catalog, padded === page ? after : putPage(after, padded), page.id) ? padded : null
+  return shapesFit(catalog, padded) ? padded : null
 }
 
 // 選べるものに入るか
@@ -138,12 +142,10 @@ export function nextPageTitle(
   }
 }
 
-// ブック book のページ page の形が、ページの広さに収まるか（可変ページは伸びる向きには印刷区画を増やして広がるので、伸びない向きだけ紙 1 枚に収める）
-export function shapesFit(catalog: CoreCatalog, book: Book, page: string): boolean {
-  const found = findPage(book, page)?.page
-  if (!found) return true
-  const area = pageArea(catalog, found)?.size
-  const extent = extentOf(catalog, found, settingsAt(catalog, found))
+// ページ page の形が、ページの広さに収まるか（可変ページは伸びる向きには印刷区画を増やして広がるので、伸びない向きだけ紙 1 枚に収める）
+export function shapesFit(catalog: CoreCatalog, page: ItemPage): boolean {
+  const area = pageArea(catalog, page)?.size
+  const extent = extentOf(catalog, page, settingsAt(catalog, page))
   return (
     !extent ||
     (!!area && extent.x >= 0 && extent.y >= 0 && extent.x + extent.w <= area.w && extent.y + extent.h <= area.h)

@@ -17,7 +17,7 @@ import {
   putPage,
 } from "./book"
 import type { ActionId, ActionTable } from "./catalog"
-import { changesOf, type LibraryPageRows } from "./changes"
+import { changesOf, type LibraryPageRows, pageChangeOf } from "./changes"
 import type { CoreCatalog } from "./core-catalog"
 import {
   type ActionContext,
@@ -67,12 +67,12 @@ import {
   type Library,
   libraryOf,
   noChanges,
+  type PageRow,
   placedChanges,
   rowChanges,
   systemFolderOf,
   type TableChanges,
   treeHolds,
-  withBook,
   withChanges,
 } from "./folders"
 import { idsIn, skipping } from "./ids"
@@ -144,14 +144,30 @@ export type Performed<Id extends ActionId> =
     }
   | Refused
 
-// アクションが返したブック after を、ノーマライズステップ（core/def/normalize-step.ts）を順にかけて整えたもの。
+// アクションの前のページ before（作ったページなら undefined）と run が返したページ after を、ノーマライズステップ（core/def/normalize-step.ts）を順にかけて整えたもの。
 // run がステップだけが書くページのフィールドを変えていたら（前の状態に戻すアクションを除く）、または整えられなければ null
-function normalized(catalog: CoreCatalog, action: ActionDef, before: Book, after: Book): Book | null {
-  const changed = new Set(changesOf(before, after).pages.flatMap(p => p.fields))
-  let next: Book | null = after
+function normalizedPage(
+  catalog: CoreCatalog,
+  action: ActionDef,
+  before: ItemPage | undefined,
+  after: ItemPage,
+): ItemPage | null {
+  const changed = new Set(pageChangeOf(after.id, before, after).fields)
+  let next: ItemPage | null = after
   for (const step of catalog.normalizeSteps) {
     if (!step.restoring?.includes(action.id) && step.pageFields.some(f => changed.has(f))) return null
     next = next && step.normalize(before, next, catalog)
+  }
+  return next
+}
+
+// アクションが返したブック after のページを 1 枚ずつ、行う前のブック before の同じページと比べて整えたブック（どれかが整えられなければ null）
+function normalized(catalog: CoreCatalog, action: ActionDef, before: Book, after: Book): Book | null {
+  let next = after
+  for (const page of pagesOf(after)) {
+    const done = normalizedPage(catalog, action, findPage(before, page.id)?.page, page)
+    if (!done) return null
+    if (done !== page) next = putPage(next, done)
   }
   return next
 }
@@ -295,18 +311,18 @@ function brokenIn(
   return null
 }
 
-// 書庫が対象のアクションが返した書庫 after の、行う前から在って変わったブックを、ノーマライズステップで整えた書庫（どれかが整えられなければ null）。
-// before は、行う前の書庫から組んだブック
-function normalizedLibrary(catalog: CoreCatalog, action: ActionDef, before: Books, after: Library): Library | null {
-  let next = after
-  for (const b of Object.values(libraryOf(after))) {
-    const was = before[b.id]
-    if (!was || was === b) continue
-    const tidy = normalized(catalog, action, was, b)
-    if (!tidy) return null
-    if (tidy !== b) next = withBook(next, tidy)
+// 書庫が対象のアクションが返した書庫 after の、変わったページ（ブックの中でも外でも）を 1 枚ずつ、行う前の書庫 was の同じページと比べて整えた書庫
+// （どれかが整えられなければ null）。読めないページの行は整えない
+function normalizedLibrary(catalog: CoreCatalog, action: ActionDef, was: Library, after: Library): Library | null {
+  const tidied: Record<string, PageRow> = {}
+  for (const [id, row] of Object.entries(after.pages)) {
+    const prev = was.pages[id]
+    if (row === prev || row.kind !== "page") continue
+    const done = normalizedPage(catalog, action, prev?.kind === "page" ? prev : undefined, row)
+    if (!done) return null
+    if (done !== row) tidied[id] = done as PageRow
   }
-  return next
+  return Object.keys(tidied).length === 0 ? after : { ...after, pages: { ...after.pages, ...tidied } }
 }
 
 // 書庫が was から now に変わる間に、システムフォルダの決まりを守るか: 行う前から在るフォルダの行の印（systemFolder）は変わらない（付けも外しもしない）。
@@ -566,7 +582,7 @@ export function perform<Id extends ActionId>(
   const next = before
     ? normalized(ctx.catalog, action, before, ran.next as Book)
     : wasBooks
-      ? normalizedLibrary(ctx.catalog, action, wasBooks, ran.next as Library)
+      ? normalizedLibrary(ctx.catalog, action, subject as Library, ran.next as Library)
       : ran.next
   if (!next) return { ok: false, reason: "refused" }
   const done = { ...ran, next }
