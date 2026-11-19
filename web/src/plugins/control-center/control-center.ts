@@ -21,7 +21,6 @@ export const CONTROL_CENTER = kit.defineControlCenter({
     "@matomezu/base:book-revert",
     "@matomezu/base:library-revert",
     "@matomezu/base:settings-set",
-    "@matomezu/base:lang-adopt",
   ],
   subjects: "all",
 })

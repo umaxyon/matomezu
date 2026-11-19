@@ -556,7 +556,7 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   // 画面の場所を address にする（core/address.ts の placeAt と、画面の場所に入れるプラグイン状態）。
   // ホストクライアントだけが使う（ブラウザの URL などの外から戻すとき。プラグインに渡す actions には入れない）
   locate(address: Address): void
-  // 窓を開いて常駐につながったときに 1 度、窓を開いたときのアクション（ActionDef の runsAtWindowStart）を利用者として行う
+  // 窓を開いて常駐につながったときに 1 度、窓を開いたときのアクション（ActionDef の runsAtWindowStart）を、それが窓から決まる事で答えた引数で、利用者として行う
   // （それで変わったデータに合わせて足す物は、常駐が足す）。画面の入口が、ホストクライアントの connect のあとに呼ぶ（プラグインに渡す actions には入れない）
   startWindow(): void
   // 常駐とのつながりが、しばらく切れたままか（offline）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
@@ -1786,7 +1786,11 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     startWindow: () => {
       const perform = actions.perform as (id: string, args: unknown) => unknown
-      for (const a of catalog.actions.values()) if (a.runsAtWindowStart) perform(a.id, {})
+      const opened = { lang: getState().lang }
+      for (const a of catalog.actions.values()) {
+        const args = a.runsAtWindowStart?.(opened, catalog)
+        if (args != null) perform(a.id, args)
+      }
     },
     setOffline: offline => {
       if (getState().offline !== offline) setState({ offline })

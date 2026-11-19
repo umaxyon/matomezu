@@ -360,6 +360,9 @@ export function settingsScopeOf(scope: AnySettingsScope | undefined, args: unkno
   return typeof values === "object" && values !== null ? Object.keys(values) : undefined
 }
 
+// 窓を開いたときのアクション（ActionDef の runsAtWindowStart）が受ける、窓から決まる事。lang は窓の言語（その窓の ctx.lang と同じ値）
+export type WindowStart = { lang: Lang }
+
 // 引数から読むブックの id を答える関数（表に並べるとき、引数の型を問わずに並べられるよう、メソッドの形で書く）
 type BooksOfArgs<A> = { booksOf(args: A): readonly string[] }["booksOf"]
 // 引数・行う者・宛先のレコードの id（作るときは undefined）から読む物を答える関数（同じく、メソッドの形で書く）
@@ -395,12 +398,12 @@ export interface ActionDef<
   // 常駐が初めて起動したとき（その行ったという記録がまだ無いとき）に、利用者として 1 度だけ行う（引数は {}。最初の 1 件を作るなど。行えたら記録し、
   // 利用者があとで消しても作り直さない。行えなければ記録せず、次の起動でまた行う）
   runsOnceAtStart?: true
-  // 機能台帳に合わせてデータを足す（引数は {}）。常駐が、起動したとき・機能台帳が変わったとき（追加プラグインを足す・入れ替える・外す・有効にする・無効にする）・
-  // データを書いたあとに、matomezu として利用者の立場で行う。何度行っても足りない物だけを足し、足りていれば何も変えない作りにする。断られたら、次にまた行う
+  // 機能台帳に合わせてデータを足す（引数は {}）。常駐が、起動したときと機能台帳が変わったとき（追加プラグインを足す・入れ替える・外す・有効にする・無効にする）に、
+  // matomezu として利用者の立場で行う。データを書いたあとは、システムフォルダが機能台帳に合っていない（足りない・名前が重なる）ときだけ行う。何度行っても足りない物だけを足し、足りていれば何も変えない作りにする。断られたら、次にまた行う
   runAndKeepsWithCatalog?: true
-  // 画面の窓を開いて常駐につながったときに、その窓が利用者として 1 度行う（引数は {}。窓から決まる値〈窓の言語など〉を、まだ無いときだけ書くなど。
-  // 窓がいくつ開いても、行う前に在る物は変えない作りにする。行うかの条件は run の中で確かめる）
-  runsAtWindowStart?: true
+  // 画面の窓を開いて常駐につながったときに、その窓が利用者として 1 度行う。窓から決まる事（WindowStart）と機能台帳を受けて、行う引数を答える（行わないなら null）。
+  // 窓から決まる値〈窓の言語など〉を、まだ無いときだけ書くなど。窓がいくつ開いても、行う前に在る物は変えない作りにする（行うかの条件は run の中で確かめる）
+  runsAtWindowStart?(window: WindowStart, catalog: CoreCatalog): I | null
   // "runs" なら、印刷プレビューの間のステージからも行える（印刷プレビューの見せ方の設定を変えるアクションなど。無ければ、ブック・ページ・アノテーションが対象なら止める。core/stage.ts の stageBlocks）
   inPrintPreview?: "runs"
   aiDescription: string // AI 向けの説明（英語。MCP の actions で見せる。どう変わるか・何を返すか・断る場合）
