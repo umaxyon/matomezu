@@ -123,10 +123,11 @@
     0 1px 4px rgba(0, 0, 0, 0.4);
   pointer-events: none;
 }
+/* 掴んだタブの写し: ゴーストエリア（document.body）に描くので、タブと同じ字の大きさをここに書く */
 .ghost {
   position: fixed;
-  z-index: 40;
   max-width: 200px;
+  font-size: 12px;
   height: 25px;
   padding: 0 12px;
   border: 1px solid var(--skin-border);
