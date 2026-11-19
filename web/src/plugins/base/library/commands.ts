@@ -1,6 +1,7 @@
 // 書庫の画面のコマンド: 選んでいる物（右クリックのメニューからは右クリックした物、ツリーのキーからはツリーで今いる行）を開く・名前を変える・ゴミ箱に入れる、中にブック・フォルダを作る、
 // ドラッグで落とした物を動かす、矢印キーでツリーの行・右の枠の隣の行へ移る、書庫の履歴を元に戻す・やり直す（library-revert で、最後の画面の履歴の段が変えた所を置き直す）。
-// キーは、書庫の画面（LibraryView）の中に焦点がある間だけ効く（キーの範囲 library。矢印は、ツリーの中 library-tree と、右の枠の中身の中 library-contents）。
+// キーは、書庫の画面（LibraryView）の中に焦点がある間だけ効く（キーの範囲 library。矢印・F2・Delete は、ツリーの中 library-tree と、右の枠の中身の中 library-contents。
+// F2・Delete をツリーと重ならない範囲に置くのは、ツリーで止められたキーが外の範囲へ落ちて、右の枠で選んでいる別の行に効かないように）。
 // 置き直しても何も変わらない段は、動かして飛ばし、その次の段を置き直す。断られたらトーストで知らせる。その間のほかの変更とぶつかって断られた（土台かアクションが断った）なら、
 // 2 行目にそう出し、その画面の履歴の段を捨てる（次はその前の段を置き直す）。認可ステップが止めた（ロック中など）なら、その画面の履歴の段は動かさない
 
@@ -475,7 +476,7 @@ export const LIBRARY_KEYS = [
     key: "F2",
     command: LIBRARY_ENTRY_RENAME.id,
     args: undefined,
-    scope: LIBRARY_SCOPE,
+    scope: LIBRARY_CONTENTS_SCOPE,
   }),
   kit.defineKey({
     id: "library-entry-trash-delete",
@@ -483,6 +484,6 @@ export const LIBRARY_KEYS = [
     key: "Delete",
     command: LIBRARY_ENTRY_TRASH.id,
     args: undefined,
-    scope: LIBRARY_SCOPE,
+    scope: LIBRARY_CONTENTS_SCOPE,
   }),
 ]
