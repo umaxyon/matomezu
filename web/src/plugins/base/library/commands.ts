@@ -7,10 +7,15 @@
 import { entriesIn, placeOf } from "../../../core/entries"
 import type { Folders } from "../../../core/folders"
 import { LIBRARY_HISTORY } from "../../../core/history"
-import { type CommandActions, type ScreenCommandContext, storeActionsOf } from "../../../store/commands/def"
+import {
+  type CommandActions,
+  type ScreenCommandContext,
+  storeActionsOf,
+  tryPerformOf,
+} from "../../../store/commands/def"
 import { NO_STAGE } from "../../../store/dialogs"
 import { BOOK_CREATE } from "../book-new/book-create"
-import { notRestored } from "../history"
+import { dropClashing, notRestored } from "../history"
 import { isRevertUnchanged } from "../history/restore"
 import { kit } from "../kit"
 import { refusalMessage } from "../utils/refusal"
@@ -34,11 +39,18 @@ import {
 import { LIBRARY_REVERT, libraryRevertArgs } from "./revert"
 import { LIBRARY_COLUMNS, LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_UNFOLDED } from "./state"
 
+// 書庫の画面の履歴の最後の段を、from の向きに置き直す（ブックの画面の履歴の restore と同じ決まり。plugins/base/history/index.ts）
 function restore(ctx: ScreenCommandContext, a: CommandActions, from: "undo" | "redo"): void {
-  for (const step of [...ctx.libraryHistory[from]].reverse()) {
-    const result = a.perform(LIBRARY_REVERT.id, libraryRevertArgs(step, from === "undo" ? "before" : "after"))
+  const to = from === "undo" ? "before" : "after"
+  const steps = [...ctx.libraryHistory[from]].reverse()
+  for (const [i, step] of steps.entries()) {
+    const result = a.perform(LIBRARY_REVERT.id, libraryRevertArgs(step, to))
     if (!result.ok && !isRevertUnchanged(result)) {
       notRestored(ctx, a, LIBRARY_HISTORY, from, result, { clash: kit.message("Clashes with other changes") })
+      if (result.reason === "refused")
+        dropClashing(a, LIBRARY_HISTORY, from, steps.slice(i + 1), s =>
+          tryPerformOf(a)(LIBRARY_REVERT.id, libraryRevertArgs(s, to)),
+        )
       return
     }
     a.moveHistory(LIBRARY_HISTORY, from)

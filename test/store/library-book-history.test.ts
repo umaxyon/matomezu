@@ -190,7 +190,7 @@ test("書庫でページを並べ替える → タブで同じページを別の
   expect(steps(LIBRARY_HISTORY).undo).toEqual([])
 })
 
-test("書庫で写す・作る → タブでそのページの名前を変える → 書庫で戻す: ぶつかって断り、写した・作ったページは名前を変えたまま残る", async () => {
+test("書庫で写す・作る → タブでそのページの名前を変える → 書庫で戻す: ぶつかって断り（続けてぶつかる段もまとめて捨てる）、写した・作ったページは名前を変えたまま残る", async () => {
   const { store, state, perform, steps, lib } = setup()
   const made = await lib("page-create", { folder: "b2", type: DRAWING, title: "新" })
   const fresh = (made.ok && (made.result as { page: string }).page) as string
@@ -200,12 +200,10 @@ test("書庫で写す・作る → タブでそのページの名前を変える
     expect(perform("@matomezu/base:page-update", { title: `直した ${page}` }, { page }).ok).toBe(true)
     await settled()
   }
-  // 写した段を戻す: 写したページが写したときの値でないので断り、段を捨てる。次の 1 回は作った段で、これも断る
-  for (const page of [copy, fresh]) {
-    expect(store.actions.command("s1", "@matomezu/base:library-undo")).toBe(true)
-    expect(state().pages[page]?.title).toBe(`直した ${page}`)
-  }
-  expect(state().toasts.filter(t => t.kind === "warn")).toHaveLength(2)
+  // 写した段を戻す: 写したページが写したときの値でないので断り、段を捨てる。続く作った段もぶつかるので、まとめて捨てる（トーストは 1 つ）
+  expect(store.actions.command("s1", "@matomezu/base:library-undo")).toBe(true)
+  for (const page of [copy, fresh]) expect(state().pages[page]?.title).toBe(`直した ${page}`)
+  expect(state().toasts.filter(t => t.kind === "warn")).toHaveLength(1)
   expect(steps(LIBRARY_HISTORY).undo).toEqual([])
 })
 
@@ -238,4 +236,27 @@ test("タブでページを足す → 書庫で写す・作る → タブで戻�
   expect(lineup("b2")).toEqual(["b2-p1", fresh])
   expect(lineup("b1")).not.toContain(a)
   expect(lineup("b2")).not.toContain(b)
+})
+
+test("タブで続けてブックの名前を変える → 書庫でブックの名前を変える → タブで戻す: 続けてぶつかる段をまとめて捨て（トーストは 1 つ）、置き直せる段（ページを足した）は置き直さずに残す", async () => {
+  const { store, state, perform, steps, lib, add } = setup()
+  const page = await add("b1", "足した")
+  for (const title of ["一", "二"]) {
+    expect(perform("@matomezu/base:book-update", { title }, { book: "b1" }).ok).toBe(true)
+    await settled()
+  }
+  const [added] = steps("b1").undo
+  expect(steps("b1").undo).toHaveLength(3)
+  expect((await lib("entry-rename", { entry: "b1", title: "書庫で" })).ok).toBe(true)
+  const was = state()
+  expect(store.actions.command("s1", "@matomezu/base:undo")).toBe(true)
+  expect(state().toasts).toHaveLength(was.toasts.length + 1)
+  expect(state().toasts.at(-1)).toMatchObject({ kind: "warn", detail: { message: expect.stringContaining("Clashes") } })
+  expect(state().pages).toBe(was.pages)
+  expect(state().folders).toBe(was.folders)
+  expect(steps("b1")).toEqual({ undo: [added!], redo: [] })
+  // 次に押すと、残した段を戻す
+  expect(store.actions.command("s1", "@matomezu/base:undo")).toBe(true)
+  expect(page in state().pages).toBe(false)
+  expect(state().books.b1?.title).toBe("書庫で")
 })
