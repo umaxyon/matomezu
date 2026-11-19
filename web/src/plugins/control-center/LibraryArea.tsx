@@ -14,7 +14,7 @@ export function LibraryArea({ maximized, onToggleMaximize }: { maximized: boolea
         maximized={maximized}
         onToggleMaximize={onToggleMaximize}
       >
-        <LibraryView />
+        <LibraryView className={styles.library} />
       </TitledArea>
     </Panel>
   )

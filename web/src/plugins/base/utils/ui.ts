@@ -4,6 +4,7 @@ import { isMac } from "../../../ui/keys"
 
 export { Stand, type StandAway, useAnchorRef, useAnchorShapeRef, useStandAway } from "./anchors"
 export { Band } from "./Band"
+export { BookIcon, BookOpenIcon } from "./book-icons"
 export { belowOf, type Choice, ChoiceBubble } from "./ChoiceBubble"
 export { AtCorner, CORNER_STATUSES, type CornerStatusProps, defineCornerStatus, useAtCornerBubble } from "./corner"
 export { Elapsed } from "./ElapsedText"

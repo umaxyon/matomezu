@@ -3,17 +3,12 @@ import type { EntryKind } from "../../../core/entries"
 import { useUiCatalog } from "../../../ui/store-context"
 import { REDO_ICON, UNDO_ICON } from "../history/icons"
 import { icon } from "../icon"
+import { BookIcon, BookOpenIcon } from "../utils/book-icons"
 import { LIBRARY_REDO, LIBRARY_UNDO } from "./commands"
 import styles from "./LibraryView.module.css"
 import type { LibraryRow } from "./outline"
 
 const FOLDER = icon(<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />)
-const BOOK = icon(
-  <>
-    <path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z" />
-    <path d="M5 17a3 3 0 0 1 3-3h11" />
-  </>,
-)
 const BINDER = icon(
   <>
     <rect x="5" y="4" width="14" height="16" rx="2" />
@@ -29,14 +24,27 @@ const PAGE = icon(
 export const TRASH = icon(<path d="M4 7h16M10 7V4h4v3M6 7l1 13h10l1-13M10 11v6M14 11v6" />)
 export const CHEVRON = icon(<path d="M9 6l6 6-6 6" />)
 
-const ICONS = { folder: FOLDER, book: BOOK, binder: BINDER, page: PAGE } as const satisfies Record<EntryKind, unknown>
+const ICONS = { folder: FOLDER, book: <BookIcon />, binder: BINDER, page: PAGE } as const satisfies Record<
+  EntryKind,
+  unknown
+>
 
 export const iconOf = (kind: EntryKind) => ICONS[kind]
 
 // 行 row のアイコンを、className（styles.icon か styles.bigIcon）の枠に描く。ページは、タイプが pageTypeIcons で名乗ったアイコン（ページタブと同じ絵。
-// 枠いっぱいに広げ、絵が決めていない線は引かない）。名乗らないタイプ・バインダは、種類の絵
-export function RowIcon({ row, className }: { row: Pick<LibraryRow, "kind" | "type">; className: string | undefined }) {
+// 枠いっぱいに広げ、絵が決めていない線は引かない）。ブックは固定色の本の絵（base の BookIcon）で、open（ツリーで中を見せている）なら開いた本。名乗らないタイプ・バインダは、種類の絵
+export function RowIcon({
+  row,
+  className,
+  open = false,
+}: {
+  row: Pick<LibraryRow, "kind" | "type">
+  className: string | undefined
+  open?: boolean
+}) {
   const typed = useUiCatalog().pageTypeIcons.get(row.type)
+  if (row.kind === "book")
+    return <span className={`${className} ${styles.typed}`}>{open ? <BookOpenIcon /> : <BookIcon />}</span>
   return row.kind === "page" && typed !== undefined ? (
     <span className={`${className} ${styles.typed}`}>{typed}</span>
   ) : (

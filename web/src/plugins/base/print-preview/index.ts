@@ -12,7 +12,7 @@ import type { CommandActions, CommandContext } from "../../../store/commands/def
 import { calledStageOf } from "../../../store/commands/def"
 import { withBookSettings } from "../book-look"
 import type { SettingReader } from "../book-settings"
-import { bookSettingValue } from "../book-settings"
+import { bookSettingsPatch, bookSettingValue } from "../book-settings"
 import { kit } from "../kit"
 import type { GrowSides } from "../place/grow"
 import { openedRestore, RIGHT_SIDE_PANEL_RESTORE_STATE, RIGHT_SIDE_PANEL_STATE } from "../right-side-panel/state"
@@ -20,16 +20,7 @@ import { fitSideView, moveHere, stageOf } from "../zoom"
 import { hasCrossing } from "./book-sheets"
 import { printCheckOpen } from "./panel-id"
 import { PRINT_READY_STATE } from "./print-state"
-import {
-  PRINT_PREVIEW_BOOK_NAME,
-  PRINT_PREVIEW_FLOW,
-  PRINT_PREVIEW_ORDER,
-  PRINT_PREVIEW_PAGE_NAME,
-  PRINT_PREVIEW_SHEET_NUMBERS,
-  SheetFlowSchema,
-  SheetOrderSchema,
-  ShownSchema,
-} from "./settings"
+import { PRINT_PREVIEW_FLOW } from "./settings"
 
 // 印刷区画を数える物: print は印刷プレビューと印刷に並べる並べ方、screen は書く画面の並べ方
 export type SheetPurpose = "print" | "screen"
@@ -66,32 +57,31 @@ export {
   PRINT_PREVIEW_FLOW,
   PRINT_PREVIEW_ORDER,
   PRINT_PREVIEW_PAGE_NAME,
-  PRINT_PREVIEW_SETTINGS,
+  PRINT_PREVIEW_SETTING_CHECK,
   PRINT_PREVIEW_SHEET_NUMBERS,
 } from "./settings"
 
-const SETTINGS = z.strictObject({
-  [PRINT_PREVIEW_FLOW.id]: SheetFlowSchema.nullable().optional(),
-  [PRINT_PREVIEW_ORDER.id]: SheetOrderSchema.nullable().optional(),
-  [PRINT_PREVIEW_SHEET_NUMBERS.id]: ShownSchema.nullable().optional(),
-  [PRINT_PREVIEW_BOOK_NAME.id]: ShownSchema.nullable().optional(),
-  [PRINT_PREVIEW_PAGE_NAME.id]: ShownSchema.nullable().optional(),
+const ARGS = z.strictObject({
+  settings: z.record(z.string(), z.unknown()), // 印刷プレビューの設定の項目（printPreview。形は機能台帳で決まるので AI には describeArgs で見せる）
 })
 
-// 印刷プレビューの設定の項目を変える（渡した項目だけ。null は既定に戻す）。印刷プレビューの設定を選んでいないタイプのブックには断る
+// 印刷プレビューの設定の項目を変える（渡した項目だけ。null は既定に戻す）。印刷プレビューの組に無い項目や形に合わない値は、どの項目かを添えて断る
 export const PRINT_PREVIEW_UPDATE = kit.defineAction({
   id: "print-preview-update",
   history: false,
   inPrintPreview: "runs",
   attach: { books: true },
-  aiDescription: `Change how the print preview arranges a book's print areas: ${PRINT_PREVIEW_FLOW.id} column (top to bottom, the default) or row (left to right); ${PRINT_PREVIEW_ORDER.id}, the order of a variable page's print areas, across (left to right, then the next row; the default) or down (top to bottom, then the next column); ${PRINT_PREVIEW_SHEET_NUMBERS.id}, ${PRINT_PREVIEW_BOOK_NAME.id} and ${PRINT_PREVIEW_PAGE_NAME.id}, shown or hidden (the default) on each sheet (with both names, "book - page" at the top left). Only what is given changes; null goes back to the default. The user's undo does not take it back.`,
+  aiDescription:
+    "Change a book's print preview settings (how the print preview arranges and labels the print areas), keyed by the setting's id; the settings and their values are in args. Only what is given changes; null goes back to the default. The other settings of a book are changed by @matomezu/base:book-update (refused here). The user's undo does not take it back.",
   title: "Change print preview",
   target: "book",
   permissionScope: "book",
-  args: z.strictObject({ settings: SETTINGS }),
+  args: ARGS,
+  describeArgs: catalog =>
+    z.strictObject({ settings: bookSettingsPatch(catalog, "print-preview") ?? z.strictObject({}) }),
   run: (book, args, ctx) => {
     const next = withBookSettings(ctx.catalog, book, args.settings, "print-preview")
-    return next && { next, result: null }
+    return "declined" in next ? next : { next, result: null }
   },
 })
 

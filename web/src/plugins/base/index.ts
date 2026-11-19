@@ -171,6 +171,7 @@ import {
   PRINT_PREVIEW_OPEN,
   PRINT_PREVIEW_ORDER,
   PRINT_PREVIEW_PAGE_NAME,
+  PRINT_PREVIEW_SETTING_CHECK,
   PRINT_PREVIEW_SHEET_NUMBERS,
   PRINT_PREVIEW_STATES,
   PRINT_PREVIEW_UPDATE,
@@ -360,7 +361,6 @@ export type { PrintSheets, SheetPurpose } from "./print-preview"
 export {
   BACKGROUND_PRINT,
   breakShift,
-  PRINT_PREVIEW_SETTINGS,
   printSheetsOf,
   sheetShapes,
   sheetsOfShape,
@@ -504,6 +504,7 @@ export const BASE = defineBuiltin(
       SCRAP_FRAME_CHECK,
       FAMILY_TITLE_CHECK,
       LOCKABLE_CHECK,
+      PRINT_PREVIEW_SETTING_CHECK,
       OPTION_TITLES_CHECK,
       THEME_TEXT_COLORS_CHECK,
       THEME_TYPES_CHECK,

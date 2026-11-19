@@ -4,8 +4,9 @@
 import { z } from "zod"
 import { findPage, pagesOf, putPage, withSettings } from "../../../core/book"
 import type { CoreCatalog } from "../../../core/core-catalog"
+import type { Declined } from "../../../core/def/action"
 import type { Book } from "../../../core/schema/book"
-import { bookSettingsPatch, type SettingGroup, settingsArgs, settleBook } from "../book-settings"
+import { bookSettingsPatch, groupOf, type SettingGroup, settingsArgs, settleBook } from "../book-settings"
 import { kit } from "../kit"
 import { BOOK_LOCK, BOOK_UNLOCK } from "../lock"
 import { pageProblems } from "../page-tabs/page-problems"
@@ -16,37 +17,51 @@ export { withPageSettings } from "./page-settings"
 
 const ARGS = z.strictObject({
   title: z.string().trim().min(1).optional(),
-  settings: z.record(z.string(), z.unknown()).optional(), // ブックが持つ設定の項目（印刷プレビューの組を除く）
+  settings: z.record(z.string(), z.unknown()).optional(), // ブックが持つ設定の項目（印刷プレビューの組を除く。形は機能台帳で決まるので AI には describeArgs で見せる）
 })
 
-// ブック book に、ブックが持つ設定の項目 settings（組 group の項目だけ。null は消す）を当てたブック。形に合わない・項目が無ければ null（book-update と print-preview-update が使う）
+// ブック book に、ブックが持つ設定の項目 settings（組 group の項目だけ。null は消す）を当てたブック（book-update と print-preview-update が使う）。
+// 組に無い項目や形に合わない値があれば、どの項目かを添えて断る
 export function withBookSettings(
   catalog: CoreCatalog,
   book: Book,
   settings: unknown,
   group: SettingGroup = "general",
-): Book | null {
-  const patch = bookSettingsPatch(catalog, group)?.safeParse(settings)
-  if (!patch?.success) return null
-  return withSettings<Book>(book, patch.data as Record<string, unknown>)
+): Book | Declined {
+  const parsed = (bookSettingsPatch(catalog, group) ?? z.strictObject({})).safeParse(settings)
+  if (parsed.success) return withSettings<Book>(book, parsed.data as Record<string, unknown>)
+  const reasons = parsed.error.issues.map(issue =>
+    issue.code === "unrecognized_keys"
+      ? issue.keys.map(key => `${key} is not a setting this action changes${elsewhere(catalog, key, group)}`).join("; ")
+      : `${issue.path.map(String).join(".")}: ${issue.message}`,
+  )
+  return { declined: reasons.join("; ") }
+}
+
+// 項目 id が、組 group でないブックの設定の項目なら、どちらの組かの添え書き
+function elsewhere(catalog: CoreCatalog, id: string, group: SettingGroup): string {
+  const def = catalog.settings.get(id)
+  if (def?.holder !== "book" || groupOf(def) === group) return ""
+  return def.printPreview ? " (it is a print preview setting)" : " (it is not a print preview setting)"
 }
 
 // 渡した項目だけを変える。名前は前後の空白を除いて 1 字以上（空にはできない）。
-// settings はブックが持つ設定の項目だけ（形に合わない・印刷プレビューの設定の項目なら断る。印刷プレビューの設定は print-preview-update が変える。null は消す）
+// settings はブックが持つ設定の項目だけ（形に合わない・印刷プレビューの設定の項目（printPreview）なら、どの項目かを添えて断る。印刷プレビューの設定は print-preview-update が変える。null は消す）
 export const BOOK_UPDATE = kit.defineAction({
   id: "book-update",
   attach: { books: true },
   aiDescription:
-    "Change a book: title (not empty) and settings, the ones a book holds, keyed by the setting's id. Only what is given changes; null removes a setting (back to its default). The look of pages (theme, paper color and so on) belongs to each page: change it with page-update, or for many pages at once with pages-update. The print preview settings (@matomezu/base:print-preview-*) are changed by @matomezu/base:print-preview-update, not here (refused).",
+    "Change a book: title (not empty) and settings, the ones a book holds, keyed by the setting's id. Only what is given changes; null removes a setting (back to its default). The look of pages (theme, paper color and so on) belongs to each page: change it with page-update, or for many pages at once with pages-update. The print preview settings are changed by @matomezu/base:print-preview-update, not here (refused).",
   title: "Change book",
   target: "book",
   permissionScope: "book",
   args: ARGS,
+  describeArgs: catalog => ARGS.extend({ settings: (bookSettingsPatch(catalog) ?? z.strictObject({})).optional() }),
   run: (book, args, ctx) => {
     const next: Book = args.title === undefined ? book : { ...book, title: args.title }
     if (args.settings === undefined) return { next, result: null }
     const settled = withBookSettings(ctx.catalog, next, args.settings)
-    return settled && { next: settled, result: null }
+    return "declined" in settled ? settled : { next: settled, result: null }
   },
 })
 

@@ -2,11 +2,13 @@
   --panel-pad-y: 8px;
   --panel-pad-x: 8px;
   --band-pad-right: 32px;
+  --area-pad-x: 8px; /* 左右と下の詰め（中に置く物が、詰めの分だけ外へ広げるときに読む） */
+  --area-pad-bottom: 6px;
   position: relative;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 8px 8px 6px;
+  padding: 8px var(--area-pad-x) var(--area-pad-bottom);
   box-sizing: border-box;
 }
 .title {
