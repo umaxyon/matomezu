@@ -109,7 +109,7 @@ export function planAt(split: readonly string[], index: number, added: string): 
 }
 
 // 分けた並びから target を閉じる。残りが 1 枚なら、並びから外したが開いたままの物（behind）のうち、いちばん新しい物を上に戻して分けたままにする（無ければ分けない）。
-// 残りの 1 枚がステージを並べるスクリーン（stages に在る物）なら、戻さずに分けるのをやめる（ブックスクリーンだけの 1 枚ずつに戻る）
+// 残りの 1 枚がステージを並べるスクリーン（stages に在る物）なら、そのスクリーンを並びから外す。behind が 2 枚以上なら（ステージを分ける前の並び）それに戻し、無ければ分けるのをやめる
 export function planClose(
   split: readonly string[],
   behind: readonly string[],
@@ -118,7 +118,8 @@ export function planClose(
 ): SplitPlan {
   const rest = split.filter(id => id !== target)
   if (rest.length !== 1) return { screens: rest, leaving: [target] }
-  if (rest[0] !== undefined && stages.includes(rest[0])) return { screens: [], leaving: [target] }
+  if (rest[0] !== undefined && stages.includes(rest[0]))
+    return { screens: behind.length >= 2 ? behind : [], leaving: [target] }
   const back = behind.find(id => id !== target)
   return { screens: back === undefined ? [] : [back, ...rest], leaving: [target] }
 }

@@ -17,7 +17,7 @@ import type { Drop } from "./drop"
 import { holderForNew, holdsEntries, placedInFolder } from "./entries"
 import { ENTRY_MOVE, ENTRY_MOVE_OVER, ENTRY_RENAME, FOLDER_CREATE } from "./entry-move"
 import { ENTRY_TRASH } from "./entry-trash"
-import { openFromLibrary } from "./open-into"
+import { openFromLibrary } from "./open-from"
 import {
   arrivedAt,
   NOT_OPENED,

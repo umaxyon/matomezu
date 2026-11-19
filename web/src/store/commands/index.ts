@@ -59,6 +59,10 @@ const calledScreen = (s: OpenedScreen): CalledScreen => ({
 })
 const openScreenOf = (s: OpenedScreen): OpenScreen => ({ id: s.id, ...calledScreen(s), vacant: vacantStagesOf(s) })
 
+// 窓 win の開いているスクリーン（カレントにした順。最後がカレントスクリーン）を、コマンドの文脈の screensOf と同じ形で（base の見た目が、コマンドと同じ関数に渡す）
+export const openScreensOf = (win: WindowState): readonly OpenScreen[] =>
+  win.order.flatMap(id => win.screens.filter(s => s.id === id).map(openScreenOf))
+
 // コマンド command を at（ステージの id か、開いているスクリーンの id。どちらでもなければ、スクリーンの外から呼んだ物としてカレントスクリーン）から
 // 呼んだときの、スクリーンから呼ぶコマンドの文脈。プラグイン状態は、コマンドを持つプラグインの宣言だけを読める
 export function screenCommandContext(
@@ -95,7 +99,7 @@ export function screenCommandContext(
 // 窓 win の、コマンドの文脈に結ぶほかのスクリーンを名指す物（here は呼ばれた場所のスクリーンの id）
 const frameOf = (win: WindowState, here: string): ScreenFrame => ({
   here,
-  screens: win.order.flatMap(id => win.screens.filter(s => s.id === id).map(openScreenOf)),
+  screens: openScreensOf(win),
   arrangementValue: win.arrangementValue,
 })
 

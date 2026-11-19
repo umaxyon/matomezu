@@ -64,3 +64,14 @@ test("窓が低いときは、書庫だけを窓いっぱいに出し、選ぶ�
   await library(page).getByRole("button", { name: "残課題" }).dblclick()
   await expect(stageNames(page)).toHaveText([/まとめ図の構想/, /残課題/])
 })
+
+test("下に出した書庫から開いたダイアログ（フォルダ新規作成）の中を押しても、書庫は引っ込まない", async ({ page }) => {
+  await split(page)
+  await page.getByRole("button", { name: "フォルダ新規作成" }).locator("visible=true").click()
+  const dialog = page.getByRole("dialog")
+  await dialog.getByRole("textbox").click()
+  await page.keyboard.type("下で作った所")
+  await dialog.getByRole("button", { name: "作成" }).click()
+  await expect(library(page).getByRole("button", { name: "下で作った所" })).toBeVisible()
+  await expect(stageNames(page)).toHaveCount(2)
+})
