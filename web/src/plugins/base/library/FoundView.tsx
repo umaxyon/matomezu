@@ -4,7 +4,7 @@ import { useMessages } from "../../../ui/i18n"
 import { kit } from "../kit"
 import { openOnEnter } from "./arrows"
 import { useLibraryRows, useNameOf } from "./hooks"
-import { iconOf } from "./icons"
+import { RowIcon } from "./icons"
 import styles from "./LibraryView.module.css"
 import { type FoundRow, foundRowsOf } from "./search"
 
@@ -43,7 +43,7 @@ export function FoundView({
               onKeyDown={e => openOnEnter(e, () => onOpen(row))}
               onContextMenu={e => onMenu(e, row)}
             >
-              <span className={styles.icon}>{iconOf(row.kind)}</span>
+              <RowIcon row={row} className={styles.icon} />
               <span className={row.readable ? styles.label : `${styles.label} ${styles.unreadable}`}>
                 {nameOf(row)}
               </span>

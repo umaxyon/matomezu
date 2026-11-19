@@ -37,17 +37,18 @@ export function useFolderEntries(folder: string): readonly FolderEntry[] | undef
   return useMatomezuState(s => s.folders[folder] !== undefined) ? entries : undefined
 }
 
-// 行の名前: 書庫ホームとゴミ箱は画面の言葉、名前の無い物は id を添える
+// 行の名前: 書庫ホームとゴミ箱は画面の言葉、ブックごと読めないブックは読めない訳に残った名前、名前の無い物は id を添える
 export function useNameOf(): (row: Pick<LibraryRow, "id" | "title">) => string {
   const t = useMessages(kit)
-  return row =>
-    row.id === HOME_ID
-      ? t("Library")
-      : row.id === TRASH_ID
-        ? t("Trash")
-        : row.title !== NO_TITLE
-          ? row.title
-          : t("Untitled ({id})", { id: row.id })
+  const unreadable = useMatomezuState(s => s.unreadable)
+  return row => {
+    if (row.id === HOME_ID) return t("Library")
+    if (row.id === TRASH_ID) return t("Trash")
+    if (row.title !== NO_TITLE) return row.title
+    // ブックごと読めないブックは書庫の表に行が無いので、読めない訳（warning）に残った名前
+    const title = unreadable.find(w => w.params.book === row.id)?.params.title
+    return title !== undefined && title !== NO_TITLE ? title : t("Untitled ({id})", { id: row.id })
+  }
 }
 
 // 要素 root の中に焦点があるうちに、焦点のある要素が消えたら（行えて行が消えた・元に戻すで行が消えた、など）、焦点を root に置き直す

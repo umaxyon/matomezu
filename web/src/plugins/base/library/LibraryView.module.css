@@ -122,6 +122,14 @@
   height: 40px;
   stroke-width: 1.2;
 }
+/* タイプが名乗ったページのアイコン: 絵が決めた色と線のまま、枠いっぱいに広げる */
+.typed {
+  stroke: none;
+}
+.typed > svg {
+  width: 100%;
+  height: 100%;
+}
 .name {
   display: flex;
   flex: 1;

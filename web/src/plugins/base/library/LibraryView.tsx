@@ -5,18 +5,19 @@ import { type MouseEvent, useEffect, useId, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { titleOf } from "../../../core/entries"
 import { HOME_ID, TRASH_ID } from "../../../core/folders"
-import { NO_STAGE } from "../../../store/dialogs"
 import type { MatomezuState } from "../../../store/store"
+import { useCommand } from "../../../ui/commands"
 import { useContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
-import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
+import { useMatomezuState, useReadState } from "../../../ui/store-context"
 import { useActions, usePluginState, useReadPluginState, useSetPluginState } from "../../../ui/view-hooks"
 import { ActionButton, controlClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import { openOnEnter, rowAboveOrBelow } from "./arrows"
+import { openOnEnter, useColumnsMeasure } from "./arrows"
 import {
   LIBRARY_CONTENTS_SCOPE,
   LIBRARY_ENTRY_CONTEXT,
+  LIBRARY_ENTRY_OPEN,
   LIBRARY_FOLDER_CONTEXT,
   LIBRARY_SCOPE,
   LIBRARY_TREE_SCOPE,
@@ -26,7 +27,7 @@ import { holderForNew } from "./entries"
 import { FoundView } from "./FoundView"
 import { HistoryButtons } from "./HistoryButtons"
 import { useKeepFocusIn, useLibraryRows, useNameOf } from "./hooks"
-import { CHEVRON, iconOf, TRASH } from "./icons"
+import { CHEVRON, RowIcon, TRASH } from "./icons"
 import styles from "./LibraryView.module.css"
 import { MoveClashConfirm } from "./MoveClashConfirm"
 import {
@@ -80,7 +81,7 @@ export function LibraryView() {
   const t = useMessages(kit)
   const nameOf = useNameOf()
   const read = useReadState()
-  const actions = useStoreActions()
+  const openEntry = useCommand(LIBRARY_ENTRY_OPEN.id).run
   const value = usePluginState(kit, LIBRARY_FOLDER)
   const setFolder = useSetPluginState(kit, LIBRARY_FOLDER)
   const picked = usePluginState(kit, LIBRARY_PICKED)
@@ -89,6 +90,7 @@ export function LibraryView() {
   const path = useMatomezuState(useShallow(s => pathTo(s.folders, opened)))
   const titles = useMatomezuState(useShallow(s => path.map(id => folderTitle(s, id))))
   const rows = useRowsIn(opened)
+  const measureColumns = useColumnsMeasure(rows.length)
   // 新しいブック・フォルダを作る先（開いているのがブック・バインダなら、それを入れているフォルダ。ゴミ箱なら無い）
   const into = useMatomezuState(s => holderForNew(s.folders, opened))
   const { openDialog } = useActions()
@@ -125,12 +127,12 @@ export function LibraryView() {
     toggle: id => setUnfolded(shown.has(id) ? unfolded.filter(x => x !== id) : [...unfolded, id]),
     enter,
     pick: (row, holder) => arrive({ id: row.id, holder, holds: false }),
+    // フォルダは中へ入り、ほかはコマンド library-entry-open で窓に出す
     open: row => {
       const target = openTargetOf(read().folders, row)
       if (target === NOT_OPENED) return
-      if (target.to === "folder") return enter(target.folder)
-      const stage = actions.showBookStage(target.book, target.page)
-      if (stage !== NO_STAGE && target.binder !== undefined) actions.openBinder(stage, target.binder)
+      if (target.to === "folder") enter(target.folder)
+      else openEntry({ entry: row.id, readable: row.readable })
     },
   }
   // キーで選ぶ行が変わったら、焦点もその行へ移す（ツリーの中に焦点があればツリーの今いる行へ、右の枠の中身の中に在れば選んでいる行へ）
@@ -240,8 +242,8 @@ export function LibraryView() {
                 className={styles.contents}
                 aria-label={t("Contents of {name}", { name: here })}
                 onContextMenu={e => openFolderMenu(e, { folder: opened })}
+                ref={measureColumns}
                 data-key-scope={LIBRARY_CONTENTS_SCOPE}
-                onKeyDown={e => rowAboveOrBelow(e, setPicked)}
               >
                 {rows.map(row => (
                   <li key={row.id}>
@@ -260,7 +262,7 @@ export function LibraryView() {
                         handlers.menu(e, row)
                       }}
                     >
-                      <span className={styles.bigIcon}>{iconOf(row.kind)}</span>
+                      <RowIcon row={row} className={styles.bigIcon} />
                       <span className={row.readable ? styles.caption : `${styles.caption} ${styles.unreadable}`}>
                         {nameOf(row)}
                       </span>
@@ -338,7 +340,11 @@ function TreeNode({
             if (row.id !== TRASH_ID) handlers.menu(e, row)
           }}
         >
-          <span className={styles.icon}>{row.id === TRASH_ID ? TRASH : iconOf(row.kind)}</span>
+          {row.id === TRASH_ID ? (
+            <span className={styles.icon}>{TRASH}</span>
+          ) : (
+            <RowIcon row={row} className={styles.icon} />
+          )}
           <span className={row.readable ? styles.label : `${styles.label} ${styles.unreadable}`}>{name}</span>
         </button>
       </div>

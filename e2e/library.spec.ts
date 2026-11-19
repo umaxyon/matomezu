@@ -337,25 +337,17 @@ test("書庫の「フォルダ新規作成」で開いているフォルダに�
   await page.keyboard.press("Enter")
   await expect(inside.getByRole("button", { name: "ブックの隣" })).toBeVisible()
 
-  // 矢印キー: 右の枠は左右で隣のアイコンを選び、ツリーは上下で前後の行、左右で中をしまう・出す
+  // 矢印キーが右の枠とツリーに届く（動きの細かな所は library-commands.test.ts）
   await page.getByRole("button", { name: "フォルダ新規作成" }).click()
   await name.fill("ブックの隣 2")
   await page.keyboard.press("Enter")
   await inside.getByRole("button", { name: "ブックの隣", exact: true }).click()
   await page.keyboard.press("ArrowRight")
   await expect(inside.getByRole("button", { name: "ブックの隣 2" })).toHaveAttribute("aria-pressed", "true")
-  await page.keyboard.press("ArrowLeft")
-  await expect(inside.getByRole("button", { name: "ブックの隣", exact: true })).toHaveAttribute("aria-pressed", "true")
   const tree = page.getByRole("navigation", { name: "フォルダ" })
   await tree.getByRole("button", { name: "キーで変えた名前", exact: true }).click()
   await page.keyboard.press("ArrowRight")
   await expect(tree.getByRole("button", { name: "ブックの隣", exact: true })).toBeVisible()
-  await page.keyboard.press("ArrowRight")
-  await expect(path.getByRole("button")).toHaveText(["書庫", "キーで変えた名前", "ブックの隣"])
-  await page.keyboard.press("ArrowUp")
-  await expect(path.getByRole("button")).toHaveText(["書庫", "キーで変えた名前"])
-  await page.keyboard.press("ArrowLeft")
-  await expect(tree.getByRole("button", { name: "ブックの隣", exact: true })).toHaveCount(0)
 
   // Delete でゴミ箱に入れ、Ctrl+Z で戻る
   await inside.getByRole("button", { name: "ブックの隣", exact: true }).click()
@@ -363,6 +355,33 @@ test("書庫の「フォルダ新規作成」で開いているフォルダに�
   await expect(inside.getByRole("button", { name: "ブックの隣", exact: true })).toHaveCount(0)
   await page.keyboard.press("Control+z")
   await expect(inside.getByRole("button", { name: "ブックの隣", exact: true })).toBeVisible()
+})
+
+test("書庫の右の枠の上下の矢印は、描いた段の真上・真下の行を選ぶ。窓の幅が変わると段の列の数を測り直す", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await page.bringToFront()
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  const home = page.getByRole("list", { name: "書庫 の中身" })
+  const rows = home.locator("[data-library-row]")
+  // 最初の行の真下に描かれている行（同じ左の位置で、次の段）の名前
+  const below = () =>
+    home.evaluate(list => {
+      const items = [...list.querySelectorAll<HTMLElement>("[data-library-row]")]
+      const first = items[0]
+      return items.find(i => i.offsetTop > (first?.offsetTop ?? 0) && i.offsetLeft === first?.offsetLeft)?.textContent
+    })
+  for (const width of [1280, 700]) {
+    await page.setViewportSize({ width, height: 800 })
+    const name = await below()
+    expect(name).toBeTruthy()
+    await rows.first().click()
+    await page.keyboard.press("ArrowDown")
+    await expect(home.locator("[aria-pressed=true]")).toHaveText(name as string)
+    await page.keyboard.press("ArrowUp")
+    await expect(rows.first()).toHaveAttribute("aria-pressed", "true")
+  }
 })
 
 test("書庫の行の右クリックのメニューから、名前の変更・ゴミ箱に入れる・開く・中に作る、ができる。ブックの中のページは「開く」だけ。何も無い所では、作るだけ。Escape で閉じる", async ({
@@ -586,4 +605,20 @@ test("書庫の検索は、名前に言葉を含む物を右の枠に並べる�
   await page.keyboard.press("Enter")
   await found.getByRole("button", { name: /検索の試しの帳面/ }).dblclick()
   await expect.poll(() => urlFront(page)).toBe(BOOK_SCREEN_DEF)
+})
+
+test.describe("ブックごと読めないブック", () => {
+  // 並びが並びの形でない（W005）ブック。書庫の表に行が無く、名前は読めない訳に残る
+  test.use({ books: [{ id: "broken-1", title: "壊れたブック", lineup: "no" }] })
+
+  test("書庫の右の枠とツリーに、読めない訳に残った名前と「読めません」が出る", async ({ page }) => {
+    await page.goto("/")
+    await page.bringToFront()
+    await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+    const row = page.getByRole("list", { name: "書庫 の中身" }).getByRole("button", { name: /壊れたブック/ })
+    await expect(row).toContainText("読めません")
+    await expect(
+      page.getByRole("navigation", { name: "フォルダ" }).getByRole("button", { name: /壊れたブック/ }),
+    ).toBeVisible()
+  })
 })

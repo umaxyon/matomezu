@@ -3,7 +3,12 @@ import { expect, test } from "bun:test"
 import type { CommandId } from "../../../web/src/core/catalog"
 import { entriesIn } from "../../../web/src/core/entries"
 import { HOME_ID, TRASH_ID } from "../../../web/src/core/folders"
-import { LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_UNFOLDED } from "../../../web/src/plugins/base/library/state"
+import {
+  LIBRARY_COLUMNS,
+  LIBRARY_FOLDER,
+  LIBRARY_PICKED,
+  LIBRARY_UNFOLDED,
+} from "../../../web/src/plugins/base/library/state"
 import { isShown } from "../../../web/src/store/commands"
 import { pluginValueOf } from "../../../web/src/store/plugin-state"
 import { newStore } from "../../support"
@@ -96,6 +101,33 @@ test("右の枠の矢印: 選んでいる行の前・次を選ぶ。選んでい
   expect(at().picked).toBe(home[1])
 })
 
+test("右の枠の上下の矢印: ビューが測った列の数だけ前・後ろの行を選ぶ。真下に行が無ければ下の段の最後の行。測っていなければ 1 列", () => {
+  const { center, run, at, ids, set } = setup()
+  const home = ids(HOME_ID)
+  // 3 列で 8 行: 0 1 2 / 3 4 5 / 6 7
+  expect(home).toHaveLength(8)
+  run("library-pick-move", { to: "down" })
+  expect(at().picked).toBe(home[0])
+  run("library-pick-move", { to: "down" })
+  expect(at().picked).toBe(home[1])
+  set(LIBRARY_COLUMNS.id, center, 3)
+  run("library-pick-move", { to: "down" })
+  expect(at().picked).toBe(home[4])
+  run("library-pick-move", { to: "down" })
+  expect(at().picked).toBe(home[7])
+  run("library-pick-move", { to: "down" })
+  expect(at().picked).toBe(home[7])
+  run("library-pick-move", { to: "up" })
+  expect(at().picked).toBe(home[4])
+  run("library-pick-move", { to: "next" })
+  run("library-pick-move", { to: "down" })
+  expect(at().picked).toBe(home[7])
+  run("library-pick-move", { to: "up" })
+  run("library-pick-move", { to: "up" })
+  run("library-pick-move", { to: "up" })
+  expect(at().picked).toBe(home[1])
+})
+
 test("扱う物: 何も受け取らなければ選んでいる行（無ければ何もしない）。ツリーのキーからは、ツリーで今いる行。名指せば、その物", () => {
   const { center, folder, run, ids, set, dialog } = setup()
   const a = folder("あ")
@@ -169,4 +201,15 @@ test("落とした物を動かす: フォルダの位置へ・ゴミ箱へ。何
   run("library-entry-move", { entry: b, to: { to: "folder", into: a } })
   expect(ids(a)).toEqual([b])
   expect(at().picked).toBeUndefined()
+})
+
+test("開く: メニューの外で名指せば、何も選んでいなくても窓に出す（行を 2 回押す・Enter と同じ道）。読めないと受け取ったページは出さない", () => {
+  const { store, run, at } = setup()
+  const opened = () => store.state.getState().window.screens.flatMap(s => s.stages?.stages.map(st => st.opened) ?? [])
+  const shows = (book: string) => opened().some(o => o !== null && "book" in o && o.book === book)
+  expect(at().picked).toBeUndefined()
+  run("library-entry-open", { entry: "p1", readable: false })
+  expect(opened()).toHaveLength(1)
+  run("library-entry-open", { entry: "b3", readable: true })
+  expect(shows("b3")).toBe(true)
 })

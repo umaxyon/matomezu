@@ -30,7 +30,7 @@ import {
   unfoldedOf,
 } from "./outline"
 import { LIBRARY_REVERT, libraryRevertArgs } from "./revert"
-import { LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_UNFOLDED } from "./state"
+import { LIBRARY_COLUMNS, LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_UNFOLDED } from "./state"
 
 function restore(ctx: ScreenCommandContext, a: CommandActions, from: "undo" | "redo"): void {
   for (const step of [...ctx.libraryHistory[from]].reverse()) {
@@ -128,6 +128,8 @@ function opening(
   return target === NOT_OPENED || target.to === "folder" ? undefined : target
 }
 
+// ブック・ページ・バインダを窓に出す（書庫の画面で行を 2 回押す・Enter も、行を名指してこれを呼ぶ）。
+// 右クリックのメニューでは、受け取った物を開けるときだけ出す。名指して呼ぶときは when が引数を受けないので、メニューの外ではいつも出す
 export const LIBRARY_ENTRY_OPEN = kit.defineScreenCommand({
   id: "library-entry-open",
   title: "Open",
@@ -138,7 +140,7 @@ export const LIBRARY_ENTRY_OPEN = kit.defineScreenCommand({
     const stage = store.showBookStage(target.book, target.page)
     if (stage !== NO_STAGE && target.binder !== undefined) store.openBinder(stage, target.binder)
   },
-  when: ctx => opening(ctx) !== undefined,
+  when: ctx => given(ctx, undefined) === undefined || opening(ctx) !== undefined,
 })
 
 export const LIBRARY_BOOK_NEW = kit.defineScreenCommand({
@@ -275,18 +277,31 @@ export const LIBRARY_TREE_UNFOLD_OR_NEXT = kit.defineScreenCommand({
   when: () => true,
 })
 
-// 右の枠で、選んでいる行の前・次の行を選ぶ（選んでいなければ、最初の行）
+// 右の枠で、選んでいる行の前・次の行か、上・下の段の行を選ぶ（選んでいなければ、最初の行）。段の列の数は、ビューが測った LIBRARY_COLUMNS
 export const LIBRARY_PICK_MOVE = kit.defineScreenCommand({
   id: "library-pick-move",
   title: "Pick the neighbour",
-  run: (ctx, a, { to }: { to: "previous" | "next" }) => {
+  run: (ctx, a, { to }: { to: PickTo }) => {
     const rows = entriesIn(ctx.folders, openedIn(ctx))
     const i = rows.findIndex(r => r.id === ctx.pluginState(LIBRARY_PICKED))
-    const next = i < 0 ? rows[0] : rows[to === "next" ? i + 1 : i - 1]
+    const next = i < 0 ? rows[0] : rows[pickedAfter(to, i, rows.length, ctx.pluginState(LIBRARY_COLUMNS) ?? 1)]
     if (next) a.updatePluginState(LIBRARY_PICKED, () => next.id)
   },
   when: () => true,
 })
+
+type PickTo = "previous" | "next" | "up" | "down"
+
+// 行 count 個を columns 列で並べたとき、i 番目の行から to へ動いた先の番号（範囲の外なら、無い番号のまま返す）。
+// 下の段が短くて真下に行が無いときは、下の段の最後の行
+function pickedAfter(to: PickTo, i: number, count: number, columns: number): number {
+  if (to === "previous") return i - 1
+  if (to === "next") return i + 1
+  if (to === "up") return i - columns
+  const below = i + columns
+  const lastRow = Math.floor((count - 1) / columns)
+  return below < count || Math.floor(i / columns) === lastRow ? below : count - 1
+}
 
 // 書庫の画面の中に焦点がある間のキーの範囲（LibraryView の根の要素が名乗る）
 export const LIBRARY_SCOPE = kit.name("library")
@@ -365,6 +380,22 @@ export const LIBRARY_KEYS = [
     key: "ArrowRight",
     command: LIBRARY_PICK_MOVE.id,
     args: { to: "next" },
+    scope: LIBRARY_CONTENTS_SCOPE,
+  }),
+  kit.defineKey({
+    id: "library-pick-up",
+    title: "Row above",
+    key: "ArrowUp",
+    command: LIBRARY_PICK_MOVE.id,
+    args: { to: "up" },
+    scope: LIBRARY_CONTENTS_SCOPE,
+  }),
+  kit.defineKey({
+    id: "library-pick-down",
+    title: "Row below",
+    key: "ArrowDown",
+    command: LIBRARY_PICK_MOVE.id,
+    args: { to: "down" },
     scope: LIBRARY_CONTENTS_SCOPE,
   }),
   kit.defineKey({ id: "library-undo-mod-z", key: "Mod+Z", command: LIBRARY_UNDO.id, scope: LIBRARY_SCOPE }),

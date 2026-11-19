@@ -17,6 +17,10 @@ export const LIBRARY_PICKED = kit.definePluginStateOf<string>()({ id: "library-p
 // 検索している言葉（「検索」を押したときの入力Formの中身。読み直すと消える。値が無ければ、検索していない）
 export const LIBRARY_QUERY = kit.definePluginStateOf<string>()({ id: "library-query", scope: "screen" })
 
+// 右の枠の中身が 1 行に並べている列の数（ビューが描いた後に測り、窓や中身が変わったら測り直す。値が無ければ 1 列と見る）。
+// 右の枠の上下の矢印のコマンド library-pick-move が、列の数だけ前・後ろの行を選ぶ
+export const LIBRARY_COLUMNS = kit.definePluginStateOf<number>()({ id: "library-columns", scope: "screen" })
+
 // ツリーで中を出しているフォルダの id（読み直すと消える。値が無ければ、書庫ホームだけ）
 export const LIBRARY_UNFOLDED = kit.definePluginStateOf<readonly string[]>()({
   id: "library-unfolded",
