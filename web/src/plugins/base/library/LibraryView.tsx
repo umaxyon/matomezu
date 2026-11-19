@@ -76,7 +76,8 @@ interface Handlers {
   tabbable: string // ツリーで Tab で止まる行（今いる行。ツリーに出ていなければ書庫ホーム）
 }
 
-export function LibraryView() {
+// className: 置く側が足す見た目（置き場所の余白に合わせた広げ方など）
+export function LibraryView({ className }: { className?: string } = {}) {
   // 根の要素: 焦点のある行が消えたとき、ここへ焦点を置き直す（書庫のキーが効き続けるように）
   const root = useRef<HTMLDivElement>(null)
   useKeepFocusIn(root)
@@ -168,7 +169,7 @@ export function LibraryView() {
   return (
     <div
       ref={root}
-      className={styles.library}
+      className={className === undefined ? styles.library : `${styles.library} ${className}`}
       data-key-scope={LIBRARY_SCOPE}
       tabIndex={-1}
       onPointerDown={onPointerDown}
@@ -222,7 +223,7 @@ export function LibraryView() {
             <nav className={styles.path} aria-label={t("Where it is")}>
               {path.map((id, i) => (
                 <span key={id}>
-                  {i > 0 && <span className={styles.sep}> › </span>}
+                  {i > 0 && <span className={styles.sep}>›</span>}
                   <button
                     type="button"
                     className={styles.crumb}
@@ -363,7 +364,7 @@ function TreeNode({
           {row.id === TRASH_ID ? (
             <span className={styles.icon}>{TRASH}</span>
           ) : (
-            <RowIcon row={row} className={styles.icon} />
+            <RowIcon row={row} className={styles.icon} open={open} />
           )}
           <span className={row.readable ? styles.label : `${styles.label} ${styles.unreadable}`}>{name}</span>
         </button>
