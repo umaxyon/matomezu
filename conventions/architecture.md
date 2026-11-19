@@ -14,7 +14,7 @@
 | `plugins` | 画面に出る物と、足していく定義の全部（ビルトインプラグイン） | 下の行（プラグインのファイルと、base 以外のビルトインプラグイン） |
 | `plugin-api` | プラグイン API: 追加プラグインとビルトインプラグインが使ってよい名前を、土台から出し直すだけのクレート（`index.ts` は React なし、`ui.ts` は見た目、`builtin.ts` はビルトインだけが使うビルトインの印 `defineBuiltin`（キーバインドでビルトインを先に扱う）と、台帳アセンブルのときの確かめ（`checks`）を書く `CatalogCheckDef`・`problem`・`warning`、テーマキーに書かれた値の引き方 `writtenValues`） | `index.ts` は `core`・`store`、`ui.ts` は `ui`、`builtin.ts` は `store` |
 | `plugin-entry` | プラグイン API の入口（`index.ts` が `matomezu`、`ui.ts` が `matomezu/ui`） | `index.ts` は `plugin-api`・zod（`z` を出し直す）・`plugins/base`（base の入口の名前を、一つずつ書いて出し直す）・`plugins/base/utils`（丸ごと出し直す）、`ui.ts` は `plugin-api/ui`・`plugins/base/ui`・`plugins/base/utils/ui`（丸ごと出し直す）。どちらもビルトインプラグインの一覧（`plugins`・`plugins/ui`）を型だけ読み、ビルトインが `core/catalog.ts` に書き足した物をいつも含める |
-| `testing` | テストで組む入口（`matomezu/testing`）。テストのプロセスの中で組み、ホストは使わない。プラグイン API に含めない | `store`・`ui`・`plugins`（ビルトインプラグインの一覧） |
+| `testing` | テストで組む入口（`matomezu/testing`）。テストのプロセスの中で組み、ホストは使わない。プラグイン API に含めない | `core`・`store`・`ui`・`plugins`（ビルトインプラグインの一覧） |
 | `plugin-modules` | 追加プラグインが借りる、名前から実物を引く表（`index.ts` はホストのエンジン用、`ui.ts` は画面用） | `plugin-entry`・React |
 
 - 土台（`core`・`store`・`ui`）は、プラグインを受け取って動かす枠と、その枠が決める言葉（スクリーン・ステージ・ページ・置いたアイテムの外枠など）を持ち、具体的な機能は持たない。プラグインを読まない
