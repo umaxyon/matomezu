@@ -1587,11 +1587,14 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       }
       setState({ history: next })
     },
+    // moveHistory と同じく、先に開いている段を閉じて画面の履歴に入れ（同じ処理の中で行ったアクションの段も、最後の段として捨てられるように）、
+    // 段が触ったブックの最後に入れた段を忘れる（元に戻す・やり直すのあとは、continueStep で前の段に足さない）
     dropHistory: (book, from) => {
+      closeStep()
       const { history } = getState()
       const step = (history[book] ?? NO_HISTORY)[from].at(-1)
       if (!step) return
-      lastPut = Object.fromEntries(Object.entries(lastPut).filter(([, s]) => s !== step))
+      lastPut = Object.fromEntries(Object.entries(lastPut).filter(([id]) => !step.books.includes(id)))
       const next = { ...history }
       for (const id of step.books) {
         const was = next[id] ?? NO_HISTORY

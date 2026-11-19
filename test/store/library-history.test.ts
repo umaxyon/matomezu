@@ -204,6 +204,43 @@ test("書庫の元に戻す・やり直すが、ほかの変更とぶつかっ�
   expect(a in store.state.getState().folders).toBe(false)
 })
 
+test("置き直しても変わらない段を飛ばした直後に、ぶつかって断られたら、飛ばした段はやり直す側に、断られた段は捨てる", async () => {
+  const { store, perform, history, title, made } = setup()
+  const b = await made("folder-create", { title: "メモ" })
+  const a = await made("folder-create", { title: "仕事" })
+  perform("@matomezu/base:entry-rename", { entry: a, title: "しごと" })
+  await settled()
+  perform("@matomezu/base:entry-rename", { entry: b, title: "仕事" })
+  await settled()
+  const renamedB = history().undo.at(-1)!
+  expect(store.actions.command("s1", "@matomezu/base:library-undo")).toBe(true)
+  // 画面の履歴に入らない置き直しで、B をまた「仕事」にする
+  expect(perform("@matomezu/base:library-revert", libraryRevertArgs(renamedB, "after")).ok).toBe(true)
+  await settled()
+  const c = await made("folder-create", { title: "消す物" })
+  const [createdB, createdA, renamedA, createdC] = history().undo
+  // 画面の履歴に入らない置き直しで、C を作った段を戻しておく（その段は、置き直しても変わらない）
+  expect(perform("@matomezu/base:library-revert", libraryRevertArgs(createdC!, "before")).ok).toBe(true)
+  await settled()
+  expect(c in store.state.getState().folders).toBe(false)
+  expect(store.actions.command("s1", "@matomezu/base:library-undo")).toBe(true)
+  expect(title(a)).toBe("しごと")
+  expect(history()).toEqual({ undo: [createdB!, createdA!], redo: [createdC!] })
+  expect(history().undo).not.toContain(renamedA!)
+  expect(store.actions.command("s1", "@matomezu/base:library-undo")).toBe(true)
+  expect(a in store.state.getState().folders).toBe(false)
+})
+
+test("同じ処理の中で行ったアクションの段は、すぐあとの dropHistory で捨てられる", async () => {
+  const { store, perform, history, made } = setup()
+  await made("folder-create", { title: "一" })
+  const [first] = history().undo
+  expect(perform("@matomezu/base:folder-create", { title: "二" }).ok).toBe(true)
+  store.actions.dropHistory(LIBRARY_HISTORY, "undo")
+  await settled()
+  expect(history().undo).toEqual([first!])
+})
+
 test("書庫のやり直すが断られても、その段を捨て、次の 1 回はその前の段をやり直す", async () => {
   const { store, perform, history, title, move, made } = setup()
   const a = await made("folder-create", { title: "仕事" })
