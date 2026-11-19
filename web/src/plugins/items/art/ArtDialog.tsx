@@ -1,7 +1,7 @@
 // シェイプのダイアログ: 追加と編集で同じ並び（キャプション・色）。絵は聞かない（置く絵はツールボックスで決まっている）。
 // 色は色を選ぶポップアップで、ブックのテーマの代表色か、好きな色を選ぶ。編集では、選んだ色を決める前から絵に重ねて見せる（ダイアログの下書き）。
 // 置けない（紙からはみ出すなど）ときは閉じずに理由を出す。
-// 追加は開いたときに渡された置く所（ShapeAddArgs）を、そのままアクション item-place に渡して絵を置き（ほかの形は画面と同じに押す）、置いた絵を選ぶ。編集は絵の項目を書き換える（アクション item-update）
+// 追加は決めた項目の値を、開いた側が渡した置き方（ShapeAddArgs の place）に渡す（置く・選ぶ・断りの文は開いた側が持つ）。編集は絵の項目を書き換える（アクション item-update）
 import { useCallback, useEffect, useId, useState } from "react"
 import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
 import { type DialogProps, useActions, useCoreCatalog, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
@@ -22,42 +22,32 @@ import {
 import { ART_FILL, type PERSON } from "./art"
 import { kit } from "./kit"
 
-// 紙のプラグインの item-place が、空きを探して見つからなかった断りの種類（断りの kind）
-const NO_FREE_SPOT = "@matomezu/paper:no-free-spot"
-
 type ArtProps = ItemProps<typeof PERSON.item.id>
 
-// 絵 item を置く追加のダイアログ
-export function addArtDialog(item: string) {
-  return function AddArtDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
-    const book = useBookOf()
-    const bookTheme = usePageTheme()
-    const { select } = useActions()
-    const perform = usePerform()
-    const add = (props: ArtProps) => {
-      if (!book) return { reason: "no-book" }
-      const { page, ...where } = args
-      const done = perform("@matomezu/paper:item-place", { ...where, item, props, crowd: "push" }, { page })
-      if (!done.ok) return done
-      select([done.result.item])
-      onClose()
-      return null
-    }
-    return (
-      <ArtDialog
-        title={kit.message("Add picture")}
-        submit={kit.message("Add")}
-        start={{ caption: "" }}
-        bookTheme={bookTheme}
-        ready={book !== undefined}
-        onSubmit={add}
-        onClose={onClose}
-      />
-    )
+// 絵を置く追加のダイアログ（どの絵を置くかは、開いた側が place に閉じ込める）
+export function AddArtDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
+  const book = useBookOf()
+  const bookTheme = usePageTheme()
+  const add = (props: ArtProps) => {
+    const no = args.place(props)
+    if (no === null) onClose()
+    return no
   }
+  return (
+    <ArtDialog
+      title={kit.message("Add picture")}
+      submit={kit.message("Add")}
+      start={{ caption: "" }}
+      bookTheme={bookTheme}
+      ready={book !== undefined}
+      onSubmit={add}
+      onClose={onClose}
+    />
+  )
 }
 
 export function EditArtDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
+  const catalog = useCoreCatalog()
   const book = useBookOf()
   const bookTheme = usePageTheme()
   const placed = useItem(args.page, args.item)
@@ -81,7 +71,7 @@ export function EditArtDialog({ args, onClose }: DialogProps<{ page: string; ite
       { page: args.page },
     )
     if (done.ok) onClose()
-    return done.ok ? null : done
+    return done.ok ? null : refusalMessage(catalog, done, kit.message("Does not fit on the paper"))
   }
   return (
     <ArtDialog
@@ -112,7 +102,7 @@ function ArtDialog({
   start: ArtProps
   bookTheme: string | undefined // ブックのテーマの id（色の見本に使う）
   ready: boolean
-  onSubmit: (props: ArtProps) => { reason: string; permission?: string; kind?: string } | null // 断られたわけ（決められたら null。kind は断りの種類）
+  onSubmit: (props: ArtProps) => MessageKey | null // 断られたわけの文言（決められたら null）
   onPreview?: (color: ArtProps["color"] | null) => void // 色を選んだ（元の値に戻せば null。無ければ見せない）
   onClose: () => void
 }) {
@@ -125,7 +115,6 @@ function ArtDialog({
   useEffect(() => {
     onPreview?.(color !== start.color ? color : null)
   }, [color, start.color, onPreview])
-  const catalog = useCoreCatalog()
   const [refused, setRefused] = useState<MessageKey | null>(null) // 断られたわけの文言
   return (
     <Dialog
@@ -145,14 +134,7 @@ function ArtDialog({
         ready={ready}
         onSubmit={() => {
           const no = onSubmit({ caption, ...(color ? { color } : {}) })
-          setRefused(
-            no &&
-              refusalMessage(
-                catalog,
-                no,
-                kit.message(no.kind === NO_FREE_SPOT ? "No free spot" : "Does not fit on the paper"),
-              ),
-          )
+          setRefused(no)
         }}
       >
         <Field label={t("Caption")}>

@@ -38,6 +38,5 @@ export const LIST_MESSAGES = defineMessages({
   Theme: { en: "Theme", ja: "テーマ" },
   Color: { en: "Color", ja: "色" },
   "Does not fit on the paper": { en: "Does not fit on the paper", ja: "紙に収まりません" },
-  "No free spot": { en: "No free spot", ja: "空きがありません" },
   "Page's theme": { en: "Page's theme", ja: "ページのテーマ" },
 })

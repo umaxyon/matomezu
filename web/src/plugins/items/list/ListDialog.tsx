@@ -5,7 +5,7 @@
 // 編集には「行の高さ」（どれも高さの書き換え。決まりではない）: 「中身が見える高さにそろえる」は行ごとにその行の本文が全部見える高さに（行ごとに違う）、
 // 「行にそろえる」は選んだ行数（「最大行」なら本文の一番長い行が全部見える行数）に、本文の量によらず全部の行を同じ高さにする。
 // これも下書きで見せ、確定で行の行数を書き換える（row-lines）。
-// 追加は開いたときに渡された置く所（ShapeAddArgs）を、そのまま item-place に渡してリストを置き（ほかの形は画面と同じに押す）、置いたリストを選ぶ。編集はリストの項目を書き換える（item-update）
+// 追加は決めた項目の値を、開いた側が渡した置き方（ShapeAddArgs の place）に渡す（置く・選ぶ・断りの文は開いた側が持つ）。編集はリストの項目を書き換える（item-update）
 
 import { useCallback, useEffect, useId, useState } from "react"
 import type { ItemProps, MessageKey, ShapeAddArgs } from "../../../plugin-api"
@@ -39,9 +39,6 @@ import { LIST, LIST_FILL, type ListRow } from "./list"
 import { withRowLines } from "./rows"
 import type { RowsLines } from "./size"
 
-// 紙のプラグインの item-place が、空きを探して見つからなかった断りの種類（断りの kind）
-const NO_FREE_SPOT = "@matomezu/paper:no-free-spot"
-
 // ダイアログの高さ（全部の入力Formが出たときの高さ。チェックリストなどで入力Formが増えても大きさを変えない）
 const DIALOG_HEIGHT = 480
 // ダイアログの幅（行の高さの 2 つの操作が 1 行に並ぶ幅）
@@ -67,16 +64,10 @@ const EMPTY: ListProps = {
 export function AddListDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
   const book = useBookOf()
   const bookTheme = usePageTheme()
-  const { select } = useActions()
-  const perform = usePerform()
   const add = (props: ListProps) => {
-    if (!book) return { reason: "no-book" }
-    const { page, ...where } = args
-    const done = perform("@matomezu/paper:item-place", { ...where, item: LIST.id, props, crowd: "push" }, { page })
-    if (!done.ok) return done
-    select([done.result.item])
-    onClose()
-    return null
+    const no = args.place(props)
+    if (no === null) onClose()
+    return no
   }
   return (
     <ListDialog
@@ -93,6 +84,7 @@ export function AddListDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
 }
 
 export function EditListDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
+  const catalog = useCoreCatalog()
   const book = useBookOf()
   const bookTheme = usePageTheme()
   const found = useItem(args.page, args.item, LIST.id)
@@ -130,7 +122,7 @@ export function EditListDialog({ args, onClose }: DialogProps<{ page: string; it
     if (done.ok && rowLines !== undefined && rows.length > 0)
       perform(ROW_LINES.id, { list: args.item, lines: rowLines }, { page: args.page })
     if (done.ok) onClose()
-    return done.ok ? null : done
+    return done.ok ? null : refusalMessage(catalog, done, kit.message("Does not fit on the paper"))
   }
   return (
     <ListDialog
@@ -167,13 +159,12 @@ function ListDialog({
   hasRows?: boolean // 行があるか（あれば「行の高さ」を出す）
   bookTheme: string | undefined
   ready: boolean
-  onSubmit: (props: ListProps, rowLines?: RowsLines) => { reason: string; permission?: string; kind?: string } | null // 断られたわけ（決められたら null。kind は断りの種類）
+  onSubmit: (props: ListProps, rowLines?: RowsLines) => MessageKey | null // 断られたわけの文言（決められたら null）
   onPreview?: (look: Look | null, rowLines?: RowsLines) => void // テーマ・色・チェックリスト・行の色分け・行の高さを選んだ（元の値に戻せば null）
   onClose: () => void
 }) {
   const t = useMessages(kit)
   const form = useId()
-  const catalog = useCoreCatalog()
   const [head, setHead] = useState({ caption: start.caption, captionAlign: start.captionAlign }) // キャプションと寄せ
   const { caption, captionAlign } = head
   const themes = usePageThemes() // ページのタイプが使えるテーマ
@@ -252,14 +243,7 @@ function ListDialog({
             },
             rowLines,
           )
-          setRefused(
-            no &&
-              refusalMessage(
-                catalog,
-                no,
-                kit.message(no.kind === NO_FREE_SPOT ? "No free spot" : "Does not fit on the paper"),
-              ),
-          )
+          setRefused(no)
         }}
       >
         <CaptionField text={head} onChange={setHead} />

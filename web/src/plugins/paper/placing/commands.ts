@@ -6,6 +6,7 @@ import {
   connectorsOf,
   findPage,
   findShape,
+  type MessageKey,
   openedPage,
   type Point,
   type ShapeAddArgs,
@@ -17,6 +18,7 @@ import {
 import { amongSelected, type Edges, refusalMessage, resizedBy, shapeDefOf } from "../../base"
 import { kit } from "../kit"
 import { ITEM_MOVE, ITEM_PLACE, ITEM_REMOVE, ITEM_REPARENT, ITEM_RESIZE, ITEM_UPDATE } from "./actions"
+import { NO_FREE_SPOT } from "./crowd"
 import type { Came } from "./drag"
 import { nearestMove, nearestReparent, PLACE_OFFSET, placeTarget, placingShape } from "./items"
 
@@ -35,8 +37,9 @@ export function placeAt(toPaperAt: (p: Point) => Point | null, pointer: Point): 
 }
 
 // 置こうとしているアイテムを、ポインタの所に置く（置く先は items.ts の placeTarget: 子を持てる形の上ならその中、子を持てない形の上ならその親の中の空き）。
-// ほかの形とぶつかれば押す（crowd: push。追加のダイアログも同じに渡す）。置けたら置くのをやめ、置いたアイテムを選ぶ。空きが無い・置けない（紙からはみ出す。押しても収まらない）ならトーストで知らせる（空きが無いのと、紙に収まらないのは別の文）。
-// 追加のダイアログのあるアイテム（箱・リスト）は、置くのをやめて追加のダイアログを開き（置く所を ShapeAddArgs で渡す）、中身を決めてから置く
+// ほかの形とぶつかれば押す（crowd: push）。置けたら置くのをやめ、置いたアイテムを選ぶ。空きが無い・置けない（紙からはみ出す。押しても収まらない）ならトーストで知らせる（空きが無いのと、紙に収まらないのは別の文）。
+// 追加のダイアログのあるアイテム（箱・リスト）は、置くのをやめて追加のダイアログを開き、置き方（ShapeAddArgs の place。置く所を閉じ込める）を渡す。
+// ダイアログは中身を決めて place を呼び、断られれば閉じずにその文を出す
 export const PAPER_PLACE = kit.defineCommand({
   id: "paper-place",
   performs: [ITEM_PLACE.id],
@@ -51,41 +54,49 @@ export const PAPER_PLACE = kit.defineCommand({
     const shape = placing && placingShape(ctx.catalog, placing.item, placing.props)
     if (!at || !point || !page || !placing || !shape) return
     const target = placeTarget(ctx.catalog, page, point, at, shape)
-    const warn = (done: { reason: string; permission?: string }) =>
-      a.showToast({
-        kind: "warn",
-        message: refusalMessage(ctx.catalog, done, kit.message("Does not fit on the paper")),
-      })
     if (!target) {
       a.showToast({ kind: "warn", message: kit.message("No free spot") })
       return
     }
     if (!target.fits) {
-      warn({ reason: "refused" })
+      a.showToast({ kind: "warn", message: kit.message("Does not fit on the paper") })
       return
     }
     // 空きに置くなら座標を渡さず、中身を決めた大きさで item-place が空きを選ぶ
-    const place = {
+    const where = {
       ...(target.free ? {} : { at: target.at }),
       ...(target.parent === null ? {} : { parent: target.parent }),
     }
-    const where: ShapeAddArgs = { page: page.id, ...place }
+    // 項目の値 props で置いて選ぶ。断られたら断りの文
+    const place = (props: Readonly<Record<string, unknown>> | undefined): MessageKey | null => {
+      const given = props ? { props } : {}
+      const done = a.perform(
+        ITEM_PLACE.id,
+        { ...where, item: placing.item, ...given, crowd: "push" },
+        { page: page.id },
+      )
+      if (!done.ok) {
+        const fallback = "kind" in done && done.kind === NO_FREE_SPOT ? "No free spot" : "Does not fit on the paper"
+        return refusalMessage(ctx.catalog, done, kit.message(fallback))
+      }
+      a.select([done.result.item])
+      return null
+    }
     // 形の定義が名指す追加のダイアログ（無ければそのまま置く。置こうとしている物が項目の値を持っていれば、聞かずにその値で置く）
     const def = shapeDefOf(ctx.catalog, placing.item)
     const dialog = def && shapeDialogs(def).add
     if (dialog && !placing.props) {
       a.stopPlacing()
-      a.openDialog(dialog, where)
+      const args: ShapeAddArgs = { page: page.id, place }
+      a.openDialog(dialog, args)
       return
     }
-    const given = placing.props ? { props: placing.props } : {}
-    const done = a.perform(ITEM_PLACE.id, { ...place, item: placing.item, ...given, crowd: "push" }, { page: page.id })
-    if (!done.ok) {
-      warn(done)
+    const refused = place(placing.props)
+    if (refused) {
+      a.showToast({ kind: "warn", message: refused })
       return
     }
     a.stopPlacing()
-    a.select([done.result.item])
   },
   when: ctx => onOpenedPage(ctx) && ctx.stage.placing !== null,
 })

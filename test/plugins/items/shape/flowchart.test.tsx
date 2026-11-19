@@ -87,9 +87,34 @@ test("8 つの形を置け、形ごとの輪郭で描く。置いたときの幅
   expect(placedWidth("diamond", "判断する")).toBeGreaterThan(placedWidth("rounded", "判断する"))
 })
 
+test("形の追加のダイアログは、置き方が断りの文を返せば閉じずにその文を出す", () => {
+  const { store, page } = flowchart()
+  const tried: object[] = []
+  const place = (props: object) => {
+    tried.push(props)
+    return "@matomezu/paper:No free spot" as never
+  }
+  act(() => store.actions.openDialog("s1", "@matomezu/shape:hexagon-add", { page: page().id, place }))
+  const add = screen.getByRole("dialog", { name: "形の追加" })
+  fireEvent.change(within(add).getByLabelText("キャプション", { exact: true }), { target: { value: "準備" } })
+  fireEvent.click(screen.getByRole("button", { name: "追加" }))
+  expect(tried).toEqual([expect.objectContaining({ caption: "準備" })])
+  expect(screen.getByRole("dialog", { name: "形の追加" })).toBeTruthy()
+  expect(within(add).getByText("空きがありません")).toBeTruthy()
+})
+
 test("形の追加のダイアログでキャプションを決めて置き、編集のダイアログで変える", () => {
   const { store, page } = flowchart()
-  act(() => store.actions.openDialog("s1", "@matomezu/shape:hexagon-add", { page: page().id, at: { x: 40, y: 40 } }))
+  // 置き方は開いた側（紙）が渡す。ここでは渡された項目の値でそのまま置く
+  const place = (props: object) => {
+    const done = store.actions.perform(
+      "@matomezu/paper:item-place",
+      { item: "@matomezu/shape:shape-hexagon", at: { x: 40, y: 40 }, props } as never,
+      { page: page().id },
+    )
+    return done.ok ? null : ("Does not fit on the paper" as never)
+  }
+  act(() => store.actions.openDialog("s1", "@matomezu/shape:hexagon-add", { page: page().id, place }))
   const add = screen.getByRole("dialog", { name: "形の追加" })
   fireEvent.change(within(add).getByLabelText("キャプション", { exact: true }), { target: { value: "準備" } })
   fireEvent.click(screen.getByRole("button", { name: "追加" }))
@@ -393,7 +418,7 @@ test("自動で整列: つながっていないチャートは、上をそろえ
 
 test("形は個別のテーマを持たない: 追加と編集のダイアログにテーマの入力Formは無く、テーマを書いて置くと断る", () => {
   const { store, page } = flowchart()
-  act(() => store.actions.openDialog("s1", "@matomezu/shape:diamond-add", { page: page().id, at: { x: 40, y: 40 } }))
+  act(() => store.actions.openDialog("s1", "@matomezu/shape:diamond-add", { page: page().id, place: () => null }))
   const add = screen.getByRole("dialog", { name: "形の追加" })
   expect(within(add).queryByLabelText("テーマ")).toBeNull()
   fireEvent.click(within(add).getByRole("button", { name: "キャンセル" }))
@@ -496,9 +521,7 @@ test("台形の編集のダイアログで向きを切り替えると、幅と�
       on,
     )
   })
-  act(() =>
-    store.actions.openDialog("s1", "@matomezu/shape:trapezoid-add", { page: page().id, at: { x: 400, y: 300 } }),
-  )
+  act(() => store.actions.openDialog("s1", "@matomezu/shape:trapezoid-add", { page: page().id, place: () => null }))
   const add = screen.getByRole("dialog", { name: "形の追加" })
   expect(within(add).getByRole("switch", { name: "90 度回転" }).getAttribute("aria-checked")).toBe("true")
 })
