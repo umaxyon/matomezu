@@ -330,13 +330,28 @@ describe("ブックを足す・消すときの置き場所", () => {
 })
 
 describe("置き直し（元に戻す）", () => {
-  test("無かった行を丸ごと置く値は、その行が今在れば断る（その間の変更を、行ごと消さない）。行が無ければ置く", () => {
+  test("無かった行を丸ごと置く値は、違う中身の行が今在れば断る（その間の変更を、行ごと消さない）。同じ中身の行が在れば済んでいるとして飛ばす。行が無ければ置く", () => {
     const t = tables()
     const row = t.folders.b2 as Folder
     const locked = withFolders(t, { ...row, locked: true } as Folder)
     expect(restoredTables(locked, { pages: {}, folders: { b2: { set: row } } })).toBeNull()
     const page = t.pages.p2!
-    expect(restoredTables(t, { pages: { p2: { set: page } }, folders: {} })).toBeNull()
+    expect(restoredTables(t, { pages: { p2: { set: { ...page, title: "別" } } }, folders: {} })).toBeNull()
+    expect(restoredTables(t, { pages: { p2: { set: page } }, folders: {} })).toBe(t)
+    // 同じ中身の行が、置き直す並びとは別の所に在れば、2 か所に置かずに断る
+    const b1 = t.folders.b1 as Folder
+    expect(
+      restoredTables(t, {
+        pages: { p2: { set: page } },
+        folders: {
+          b1: {
+            fields: {
+              lineup: { list: [{ id: "p2", index: b1.lineup.length, patch: { set: { kind: "page", id: "p2" } } }] },
+            },
+          },
+        },
+      }),
+    ).toBeNull()
     // 行が無ければ置く（入れ先の並びも一緒に置き直す）
     const gone = restoredTables(t, {
       pages: { p2: { absent: true, was: page } },

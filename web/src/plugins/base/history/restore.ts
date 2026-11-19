@@ -1,6 +1,6 @@
 // 画面の履歴の段の置き直し: 画面の履歴の段が変えたページとフォルダごとに、変えた所（フィールドごと・id の並びは id ごと・改行を含む文字列は行ごと。core/patch.ts）だけを、
 // 前か後の値に置き直す。置き直す値（Patch）は画面の履歴の段だけから決まり、所ごとに反対側の値も持つ。今の表の上で行い、段が書いた値のままの所だけを置き直す
-// （その間にほかで変わった所は、段が変えた所に重ならなければ残し、重なれば断る。無かった行を丸ごと置く値が、今在る行に向いていても断る。core/folders.ts の restoredTables）
+// （その間にほかで変わった所は、段が変えた所に重ならなければ残し、重なれば断る。無かった行を丸ごと置く値は、同じ中身の行が今在れば飛ばし、違えば断る。core/folders.ts の restoredTables）
 import { z } from "zod"
 import {
   inTrash,
@@ -70,7 +70,7 @@ export function patchesToward<T>(
 }
 
 // ブックの全部 all のうちのブック books を、ページとフォルダごとの置き直す値 patches で置き直した全部（変わらなかったブックは同じ値のまま）。
-// books のどれかが無い・無かった行を丸ごと置く値がその行の在る所に向いている・置き直すと組めなくなるか、books のほかのブックが変わる・ブックが増える・減るなら null
+// books のどれかが無い・置き直す所がほかの変更とぶつかる・置き直すと組めなくなるか、books のほかのブックが変わる・ブックが増える・減るなら null
 export function restoredBooks(all: Books, books: readonly string[], patches: RowPatches): Books | null {
   if (!books.every(id => all[id] !== undefined)) return null
   const next = withRowPatches(Object.values(all), patches)

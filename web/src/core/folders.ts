@@ -564,10 +564,6 @@ function there<R extends AnyEntryRef>(lineup: readonly R[], has: (r: R) => boole
   return kept.length === lineup.length ? lineup : kept
 }
 
-// 置き直す値 patches のうち、行を丸ごと置く値（行が無かった側へ戻す値）が、表 table に今在る行に向いているか
-const putsOverRow = (table: Readonly<Record<string, unknown>>, patches: Readonly<Record<string, Patch>>) =>
-  Object.entries(patches).some(([id, p]) => "set" in p && table[id] !== undefined)
-
 // 表 table の行ごとに、置き直す値を今の行で確かめた、置き直す所だけの値（core/patch.ts の toPutBack）。どれかの行がぶつかれば CLASH
 function toPutBackRows(
   table: Readonly<Record<string, unknown>>,
@@ -584,17 +580,17 @@ function toPutBackRows(
 
 // 表 tables に、ページとフォルダごとの置き直す値 patches を行った表（中身が何も変わらなければ tables のまま）。置き直すのは、反対側の値のままの所だけ
 // （もう置き直す側の値の所は飛ばす）。どちらの値でもない所が 1 つでも在れば null（ほかの変更とぶつかった。上から置くと、その変更を消す）。
-// 行を丸ごと置く値が、今在る行に向いていても null（無かったはずの行が在るのは、ほかの変更が先に置いたか、その間に変えたとき）。
+// 無かった行を丸ごと置く値は、今 同じ中身の行が在れば済んでいるとして飛ばし、違う中身の行が在れば null。
 // ページとフォルダは別々に置き直すので、行った後に、エントリとその中身が食い違う所を落とす: 中身が表に無いエントリは並びから外し、
 // どのフォルダ（ブックを含む）の並びからもたどれないページとバインダは表から外す。落とすのは patches の挙げた行の中だけで、ほかの行に及ぶなら null
 export function restoredTables(tables: Library, patches: RowPatches): Library | null {
-  if (putsOverRow(tables.pages, patches.pages) || putsOverRow(tables.folders, patches.folders)) return null
   const pagesBack = toPutBackRows(tables.pages, patches.pages)
   const foldersBack = toPutBackRows(tables.folders, patches.folders)
   if (pagesBack === CLASH || foldersBack === CLASH) return null
   const pages = patched(tables.pages, pagesBack)
   const folders = patched(tables.folders, foldersBack)
   if (pages === tables.pages && folders === tables.folders) return tables
+  if (placedTwice(folders, Object.keys(foldersBack))) return null
   // 書庫ホーム・フォルダ・ブックからたどれるエントリだけを残す（中身の無いエントリは、並びから外す）
   const kept: Record<string, Folder> = {}
   const reached = new Set<string>()
@@ -634,6 +630,23 @@ export function restoredTables(tables: Library, patches: RowPatches): Library | 
   if (touchesOthers(pages, next.pages, patches.pages) || touchesOthers(folders, next.folders, patches.folders))
     return null
   return sameRows(tables.pages, next.pages) && sameRows(tables.folders, next.folders) ? tables : next
+}
+
+// フォルダ touched の並びのエントリのどれかが、表 folders のほかのフォルダの並びにも在るか（置き直した並びが、ほかの変更が動かした先と同じエントリを持つ）
+function placedTwice(folders: Folders, touched: readonly string[]): boolean {
+  const lineupOf = (id: string) => {
+    const lineup = folders[id]?.lineup
+    return Array.isArray(lineup) ? lineup : []
+  }
+  const ids = new Set(touched.flatMap(id => lineupOf(id).map(r => r.id)))
+  const seen = new Set<string>()
+  for (const id of Object.keys(folders))
+    for (const r of lineupOf(id)) {
+      if (!ids.has(r.id)) continue
+      if (seen.has(r.id)) return true
+      seen.add(r.id)
+    }
+  return false
 }
 
 // 表 was から now へ変わった行に、置き直す値 patches の挙げていない行が在るか

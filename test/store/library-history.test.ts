@@ -245,7 +245,7 @@ test("同じ処理の中で行ったアクションの段は、すぐあとの d
   expect(history().undo).toEqual([first!])
 })
 
-test("書庫のやり直すが断られても、その段を捨て、次の 1 回はその前の段をやり直す", async () => {
+test("書庫のやり直す: 無かった行を置く段は、同じ中身の行がもう在れば済んでいるとして飛ばし、次の段をやり直す", async () => {
   const { store, perform, history, title, move, made } = setup()
   const a = await made("folder-create", { title: "仕事" })
   perform("@matomezu/base:entry-rename", { entry: a, title: "しごと" })
@@ -253,15 +253,13 @@ test("書庫のやり直すが断られても、その段を捨て、次の 1 �
   const [created, renamed] = history().undo
   expect(move("undo").ok).toBe(true)
   expect(move("undo").ok).toBe(true)
-  // 画面の履歴に入らない置き直しで、作ったフォルダをまた置く（作ったのをやり直すと、在る行を置くので断られる）
+  // 画面の履歴に入らない置き直しで、作ったフォルダをまた置く（作ったのをやり直す段は、もう済んでいる）
   expect(perform("@matomezu/base:library-revert", libraryRevertArgs(created!, "after")).ok).toBe(true)
   await settled()
   expect(history().redo).toEqual([renamed!, created!])
   expect(store.actions.command("s1", "@matomezu/base:library-redo")).toBe(true)
-  expect(history().redo).toEqual([renamed!])
-  expect(store.actions.command("s1", "@matomezu/base:library-redo")).toBe(true)
   expect(title(a)).toBe("しごと")
-  expect(history()).toMatchObject({ undo: [renamed], redo: [] })
+  expect(history()).toMatchObject({ undo: [created, renamed], redo: [] })
 })
 
 test("書庫の元に戻すを認可ステップが止めたら（ロック中など）、トーストで知らせ、段は動かさない", async () => {
