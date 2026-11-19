@@ -170,7 +170,7 @@ test("右サイドパネルを開いているステージで左サイドパネ�
   await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "一")
   await writeNote(page, items(page).filter({ hasText: "一" }), "見て")
-  await (await fromMenu(page, "画面を分割")).click()
+  await splitWith(page, "画面の構成")
   await page.getByRole("button", { name: "伝言を開く" }).first().click()
   await expect(panel(page)).toBeVisible()
   await (await fromMenu(page, "左サイドパネルを開く", 0)).click()
