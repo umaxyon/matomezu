@@ -1,4 +1,5 @@
-// システムフォルダ: 常駐が書庫ホームの先頭にドキュメントを足し、名前は利用者の設定の言語で引く（窓を初めて開くと、窓の言語が設定に書かれる）。
+// システムフォルダ: 常駐が書庫ホームの先頭にドキュメントを足し、名前は利用者の設定の言語で引く（窓を初めて開くと、窓の言語が設定に書かれ、
+// 名前の当たる物には、そのあと常駐が番号を付ける）。
 // 書庫の画面では名前の変更とゴミ箱をメニューに出さない。言語を変えて名前が当たるなら断り、当たる名前へは変えられない
 import { expect, joinedAiAuth, type Page, test } from "./fixtures"
 import { storedBooks } from "./helpers/stored"
@@ -53,4 +54,21 @@ test("AI は、ドキュメントと同じ名前へブックの名前を変え�
   expect(
     await perform(page, "@matomezu/base:settings-set", { values: { "@matomezu/base:lang": "matomezu:en" } }),
   ).toMatchObject({ ok: false, kind: "title-taken" })
+})
+
+test("日本語のブラウザで初めて開くと、先に在った利用者の「ドキュメント」は、常駐が番号を付けて「ドキュメント 2」になる", async ({
+  page,
+}) => {
+  // 言語を選んでいない間（英語で引く）は、ドキュメントと当たらない
+  const book = ((await storedBooks(page.request)) as { id: string }[])[0]!.id
+  expect(await perform(page, "@matomezu/base:entry-rename", { entry: book, title: "ドキュメント" })).toMatchObject({
+    ok: true,
+  })
+  await page.goto("/")
+  await page.bringToFront()
+  await langWritten(page, "matomezu:ja")
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  const home = page.getByRole("list", { name: "書庫 の中身" })
+  await expect(home.getByRole("button", { name: "ドキュメント 2" })).toBeVisible()
+  await expect(home.getByRole("button", { name: "ドキュメント", exact: true })).toHaveCount(1)
 })

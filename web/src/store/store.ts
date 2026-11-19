@@ -556,9 +556,8 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   // 画面の場所を address にする（core/address.ts の placeAt と、画面の場所に入れるプラグイン状態）。
   // ホストクライアントだけが使う（ブラウザの URL などの外から戻すとき。プラグインに渡す actions には入れない）
   locate(address: Address): void
-  // 窓を開いて常駐につながったときに 1 度、窓を開いたときのアクション（ActionDef の runsAtWindowStart）を利用者として行う。それで利用者の設定が変われば、
-  // 続けて機能台帳が変わったときのアクション（runAndKeepsWithCatalog）も、同じアクションバルクで行う（設定の言語で引くシステムフォルダの名前が変わるため）。
-  // 画面の入口が、ホストクライアントの connect のあとに呼ぶ（プラグインに渡す actions には入れない）
+  // 窓を開いて常駐につながったときに 1 度、窓を開いたときのアクション（ActionDef の runsAtWindowStart）を利用者として行う
+  // （それで変わったデータに合わせて足す物は、常駐が足す）。画面の入口が、ホストクライアントの connect のあとに呼ぶ（プラグインに渡す actions には入れない）
   startWindow(): void
   // 常駐とのつながりが、しばらく切れたままか（offline）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
   setOffline(offline: boolean): void
@@ -1787,11 +1786,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     startWindow: () => {
       const perform = actions.perform as (id: string, args: unknown) => unknown
-      const named = (runs: "runsAtWindowStart" | "runAndKeepsWithCatalog") =>
-        [...catalog.actions.values()].filter(a => a[runs]).map(a => a.id)
-      const before = getState().settings
-      for (const id of named("runsAtWindowStart")) perform(id, {})
-      if (getState().settings !== before) for (const id of named("runAndKeepsWithCatalog")) perform(id, {})
+      for (const a of catalog.actions.values()) if (a.runsAtWindowStart) perform(a.id, {})
     },
     setOffline: offline => {
       if (getState().offline !== offline) setState({ offline })
