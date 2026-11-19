@@ -11,6 +11,7 @@ import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, isInBook, isOnPage, type PageTarget, type RecordOf, type Where } from "../core/def/action"
 import type { PluginStateDef, PluginStateScope } from "../core/def/plugin-state"
 import { fail } from "../core/errors"
+import { pageIn } from "../core/folders"
 import type { Point, Size } from "../core/geom"
 import type { Lang } from "../core/i18n/i18n"
 import { actionQuery, deniedBy, inspect } from "../core/inspect"
@@ -78,8 +79,7 @@ export function usePage(): ItemPage | null {
 export function useItem<Id extends ItemId>(page: string, item: string, id?: Id): PlacedOf<Id> | undefined {
   const scope = useScope()
   return useMatomezuState(s => {
-    const book = bookOf(s, scope)
-    const p = book ? findPage(book, page)?.page : undefined
+    const p = openedOf(s, scope) ? pageIn(s.pages, page) : undefined
     // ページのアイテムか、どの深さの子の形も
     const found = p && (p.items?.find(i => i.id === item) ?? findShape(p, item)?.shape)
     return found && (id === undefined || found.item === id) ? (found as unknown as PlacedOf<Id>) : undefined

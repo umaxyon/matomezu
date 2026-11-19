@@ -1,7 +1,7 @@
 // 道具の切り替え: そのステージの道具を、道具の組の回す順（core/def/tool.ts の ToolSetDef）で次の使える道具へ替えるコマンド。紙のあるステージだけに出す
 import { paperOf, shownPageId } from "../../../core/stage"
 import { nextTool, toolIn, toolSetOf, toolUsable } from "../../../core/tools"
-import { workspaceOf } from "../../../store/commands/def"
+import { NO_BOOK, workspaceOf } from "../../../store/commands/def"
 import { kit } from "../kit"
 
 export const TOOL_NEXT = kit.defineCommand({
@@ -10,7 +10,12 @@ export const TOOL_NEXT = kit.defineCommand({
   run: (ctx, a) => {
     const set = toolSetOf(ctx.catalog, ctx.stage)
     const usable = (tool: string) =>
-      toolUsable(ctx.catalog, tool, ctx.book, shownPageId(ctx.stage.opened ?? null) ?? null)
+      toolUsable(
+        ctx.catalog,
+        tool,
+        ctx.book === NO_BOOK ? null : ctx.book,
+        shownPageId(ctx.stage.opened ?? null) ?? null,
+      )
     if (set)
       a.setTool(nextTool(ctx.catalog, set, ctx.stage.tool ?? toolIn(ctx.catalog, workspaceOf(ctx).tools, set), usable))
   },

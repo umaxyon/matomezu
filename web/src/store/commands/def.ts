@@ -11,6 +11,8 @@ import type { Point } from "../../core/geom"
 import type { History } from "../../core/history"
 import type { MessageKey } from "../../core/i18n/i18n"
 import type { Books } from "../../core/library"
+import type { ArgsOf } from "../../core/perform"
+import type { ItemPage } from "../../core/placed"
 import type { Book } from "../../core/schema/book"
 import { type Stage, shownPageId, toPaper } from "../../core/stage"
 import type { StageListed } from "../../core/window"
@@ -86,15 +88,22 @@ export interface ScreenCommandContext {
   contextMenu: OpenedContextMenu | null // 開いている右クリックのメニュー
   libraryHistory: History // 書庫の履歴
   folders: Folders // 書庫のフォルダの表（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダの行と並び。読むだけ。ページの中身は持たない）
+  pageTitle(page: string): string | undefined // ページ page の名前（名前の無いページ・表に無い物は undefined。ページの中身は渡さない）
   // コマンドを持つプラグインが宣言したプラグイン状態 def の今の値（スクリーンごとの宣言は呼ばれた場所のスクリーンの値、ステージごとの宣言は呼ばれた場所のステージの値。
   // 無ければ undefined。ほかのプラグインの宣言は E125。変えるのは run が受け取る updatePluginState）
   pluginState: PluginStateRead
 }
 
+// CommandContext の book の、開いている物がブックでないとき（何も開いていないか、ブックの外のページ）の値
+export const NO_BOOK = "none"
+// CommandContext の page の、ページを開いていないときの値
+export const NO_PAGE = "none"
+
 // ステージから呼ぶコマンド（defineCommand）が受け取る、呼ばれた場所の様子
 export interface CommandContext extends ScreenCommandContext {
   stage: StageView // 呼ばれた場所のステージ（読むだけ。見た目の useStage と同じ）
-  book: Book | null // そのステージで開いているブック
+  book: Book | typeof NO_BOOK // そのステージで開いているブック（開いている物がブックでなければ NO_BOOK）
+  page: ItemPage | typeof NO_PAGE // そのステージで開いているページ（ブックの中でも外でも。ページを開いていなければ NO_PAGE）
   bookHistory: History // そのステージで開いているブックの、画面の履歴（ブックが無ければ空）
   toPaper(p: Point): Point | null // 表示領域の中の点（左上から）を、そのステージの今の紙の上の点に直す（紙が無ければ null）
 }
@@ -211,7 +220,22 @@ export interface ScreenCommandDef<A = undefined, Tt extends string = MessageKey>
   enabled?(ctx: ScreenCommandContext): boolean
   active?(ctx: ScreenCommandContext): boolean
   run(ctx: ScreenCommandContext, actions: CommandActions, args: A): void
+  // 引数 args で押したら行うアクションと、その引数（performs の中の、書庫か利用者の設定が対象の物。何も行わないなら空）。引数がまだ分からないなら "unknown"。
+  // 名乗れば、土台は押す前にその引数で問う（書庫が対象のアクションなら、許可スコープが引数から出すブックの認可ステップにも）。名乗ったアクションのどれかが止められれば押せない。
+  // 名乗らないか "unknown" なら、コントロールセンターにだけ問う
+  performsWith?(ctx: ScreenCommandContext, args: A): readonly PerformedWith[] | typeof UNKNOWN_PERFORMED
 }
+
+// スクリーンから呼ぶコマンドが名乗れるアクション: 書庫か利用者の設定が対象のもの（Id の中の。ほかは、引数だけでは問う所が決まらない）
+type NamedTarget<Id extends ActionId> = {
+  [K in Id]: ActionTable[K] extends { target: "library" | "settings" } ? K : never
+}[Id]
+// スクリーンから呼ぶコマンドが名乗る、行うアクション 1 つとその引数
+export type PerformedWith<Id extends ActionId = ActionId> = {
+  [K in NamedTarget<Id>]: { action: K; args: ArgsOf<K> }
+}[NamedTarget<Id>]
+// performsWith の、引数がまだ分からないときの答え
+export const UNKNOWN_PERFORMED = "unknown"
 
 export type CommandDef<A = undefined, Tt extends string = MessageKey> = StageCommandDef<A, Tt> | ScreenCommandDef<A, Tt>
 
@@ -256,6 +280,14 @@ export type ScreenPerforms<P extends readonly ActionId[] | undefined> = {
     : P[I]
 }
 
+// スクリーンから呼ぶコマンドの performsWith が名乗れるのは、performs に書いたアクションのうち、書庫か利用者の設定が対象のものだけ（defineScreenCommand の型が求める）
+export type ScreenPerformsWith<P extends readonly ActionId[] | undefined, A> = {
+  performsWith?(
+    ctx: ScreenCommandContext,
+    args: A,
+  ): readonly PerformedWith<P extends readonly ActionId[] ? P[number] : never>[] | typeof UNKNOWN_PERFORMED
+}
+
 // run の 3 つ目の引数の型から A を決め、id は書いた文字のまま残す（引数が無ければ A は undefined）。
 // 型は書いた順に決まるので、run は when より前に書く（後ろに書くと、引数のあるコマンドが型の誤りになる）
 export function defineCommand<
@@ -278,11 +310,12 @@ export function defineScreenCommand<
   A = undefined,
   const P extends readonly ActionId[] | undefined = undefined,
 >(
-  def: Omit<ScreenCommandDef<A>, "permissionScope" | "from" | "performs"> & {
+  def: Omit<ScreenCommandDef<A>, "permissionScope" | "from" | "performs" | "performsWith"> & {
     id: Id
     performs?: P & ScreenPerforms<P>
     place?: CommandPlace<NoInfer<A>>
-  },
+  } & ScreenPerformsWith<P, A>,
 ): ScreenCommandDef<A> & { id: Id } {
-  return { ...def, from: "screen" }
+  // performsWith が名乗るのは performs の中の物なので、どのアクションでもよい形に広げてよい（P のままでは、型が P を決めずに比べられない）
+  return { ...def, from: "screen" } as ScreenCommandDef<A> & { id: Id }
 }

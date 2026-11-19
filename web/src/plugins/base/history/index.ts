@@ -12,6 +12,7 @@ import {
   booksOf,
   type CommandActions,
   type CommandContext,
+  NO_BOOK,
   type ScreenCommandContext,
   tryPerformOf,
 } from "../../../store/commands/def"
@@ -157,7 +158,7 @@ export const UNDO = kit.defineCommand({
   performs: [HISTORY_RESTORE.id],
   permissionScope: "book",
   run: (ctx, a) => restore(ctx, a, "undo"),
-  when: ctx => ctx.book !== null,
+  when: ctx => ctx.book !== NO_BOOK,
   enabled: ctx => ctx.bookHistory.undo.length > 0,
 })
 
@@ -167,7 +168,7 @@ export const REDO = kit.defineCommand({
   performs: [HISTORY_RESTORE.id],
   permissionScope: "book",
   run: (ctx, a) => restore(ctx, a, "redo"),
-  when: ctx => ctx.book !== null,
+  when: ctx => ctx.book !== NO_BOOK,
   enabled: ctx => ctx.bookHistory.redo.length > 0,
 })
 

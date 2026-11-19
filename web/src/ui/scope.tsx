@@ -7,8 +7,8 @@
 // フック（ui/view-hooks.ts など）は、読む物を描くページから、操作を向け先から引く。向け先が無い所からは、何も行えない。
 // コンテキストの値は id と数だけで、同じ場所の間は同じ参照（ブックやページの中身・選択・紙をずらす量は入れない。変わるたびに中の全部を描き直さないため）
 import { createContext, type ReactNode, useCallback, useContext, useMemo } from "react"
-import { findPage } from "../core/book"
 import type { PageTypeId } from "../core/catalog"
+import { pageIn } from "../core/folders"
 import type { ItemPage } from "../core/placed"
 import type { Book } from "../core/schema/book"
 import { type Stage, shownPageId } from "../core/stage"
@@ -119,9 +119,8 @@ export function bookOf(s: MatomezuState, scope: Scope): Book | null {
 
 // 描くページ（ページを開いていなければ null）
 export function pageOf(s: MatomezuState, scope: Scope): ItemPage | null {
-  const o = openedOf(s, scope)
-  const book = o ? s.books[o.book] : undefined
-  return (book && o?.page ? findPage(book, o.page)?.page : undefined) ?? null
+  const page = openedOf(s, scope)?.page
+  return (page && pageIn(s.pages, page)) || null
 }
 
 // 描くページのタイプ（描くページが無ければ undefined）

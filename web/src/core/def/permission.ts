@@ -8,19 +8,27 @@ import type { Folder } from "../folders"
 import type { MessageKey } from "../i18n/i18n"
 import type { ItemPage } from "../placed"
 import type { Book } from "../schema/book"
-import type { ActionDef, Where } from "./action"
+import type { ActionDef, EntryWhere, Where } from "./action"
 import type { SubjectDef } from "./subject"
 
-// ページで問う（行う前）: ページ・アノテーションが対象のアクションを、宛先のページ page に行ってよいか。
-// folders は、そのページを入れているフォルダの列（近い順。バインダが在ればバインダ、次にブック。フォルダの中身は id の並びで、ページの中身は入っていない）。
-// where は、引数が名指す、ページの中の物の id（分からなければ無い）
+// ページで問う（行う前）: ページ・アノテーションが対象のアクションを、宛先のページ page に行ってよいか。書庫が対象のアクションが、ブックの外のエントリ（ページ）を変えるときと、
+// ブックの外にページを作るときも、これで問う（作るページは、そのタイプの空のページで問う。その id と名前は問うためだけの物で、頼らない）。
+// folders は、そのページを入れているフォルダの列（近い順。バインダが在ればバインダ、次にブック。ブックの外のページはバインダだけか空で、作るページは空。
+// 書庫ホーム・ゴミ箱・ほかのフォルダは入れない。フォルダの中身は id の並びで、ページの中身は入っていない）。
+// where の ids は、引数が名指す、ページの中の物の id（分からなければ無い）。entry は、書庫が対象のアクションが、そのページをエントリとしてどう変えるか（書庫の許可スコープの where）
 export interface PagePermissionQuery {
   kind: "page"
   action: ActionDef
   page: ItemPage
   folders: readonly Folder[]
-  where?: { ids: readonly string[] }
+  where?: PageWhere
   actor: Actor // 問う者
+}
+
+// ページで問う問いの所
+export interface PageWhere {
+  ids?: readonly string[]
+  entry?: EntryWhere
 }
 
 // フォルダで問う（行う前）: ブックが対象・一覧が対象のアクションを、ブック folder に行ってよいか。folder はアクションが変えるブック（ページとバインダの中身ごと組んだ値）、
@@ -102,7 +110,23 @@ export interface RecordPermissionCheck {
   actor: Actor
 }
 
-export type PermissionCheck = FolderPermissionCheck | RecordPermissionCheck
+// ページの確かめ（行った後）: ブックの外で変わったページと、ブックとの間を出入りしたページごとに確かめる（ブックの中だけで変わったページは、そのブックの "folder" で確かめる。
+// 出入りしたページは、ブックの側の "folder"（PageChange の movedIn・movedOut）と、こちらの両方で確かめる）。
+// before・after は前と後のページ（無ければ、足した・無くなった。ゴミ箱の中のページは無い物）、folders はそのページを入れているフォルダの列の前と後
+// （近い順。ブックの中ならバインダとブック、ブックの外ならバインダだけで、書庫ホーム・ゴミ箱・ほかのフォルダは入れない）、
+// change は前と後のページを比べた変化（足した・消した・変わった。ブックの間を動いたかは place で見る）、place は置き場所の変化
+export interface PagePermissionCheck {
+  kind: "page"
+  action: ActionDef
+  before: ItemPage | undefined
+  after: ItemPage | undefined
+  folders: { before: readonly Folder[]; after: readonly Folder[] }
+  change: PageChange
+  place: PlaceChange
+  actor: Actor
+}
+
+export type PermissionCheck = FolderPermissionCheck | PagePermissionCheck | RecordPermissionCheck
 
 export interface PermissionDef<Tt extends string = MessageKey> extends PermissionExtras {
   id: string

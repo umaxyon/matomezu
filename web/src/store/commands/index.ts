@@ -5,10 +5,13 @@ import type { CommandId, CommandTable } from "../../core/catalog"
 import type { CoreCatalog } from "../../core/core-catalog"
 import type { Where } from "../../core/def/action"
 import type { PluginStateDef } from "../../core/def/plugin-state"
+import { namingOf, titleOf } from "../../core/entries"
 import { fail } from "../../core/errors"
+import { pageIn } from "../../core/folders"
 import { LIBRARY_HISTORY, NO_HISTORY } from "../../core/history"
 import { actionQuery, inspect, type Query, withoutPermissions } from "../../core/inspect"
 import { splitId } from "../../core/names"
+import { permittedIn } from "../../core/perform"
 import { shownPageId, stageBlocks } from "../../core/stage"
 import {
   currentScreen,
@@ -24,16 +27,20 @@ import { stageView, toolOf } from "../../core/workspace"
 import type { Assembled } from "../plugin"
 import { ownedPluginState, pluginValueOf } from "../plugin-state"
 import type { MatomezuState } from "../store"
+import { worldOf } from "../world"
 import {
   type CalledScreen,
   type CommandContext,
   type CommandDef,
   commandScopeOf,
+  NO_BOOK,
+  NO_PAGE,
   type OpenScreen,
   type ScreenCommandContext,
   type ScreenCommandDef,
   type ScreenFrame,
   type StageCommandDef,
+  UNKNOWN_PERFORMED,
   withScreenFrame,
   withWorkspace,
 } from "./def"
@@ -91,6 +98,7 @@ export function screenCommandContext(
     contextMenu,
     libraryHistory: state.history[LIBRARY_HISTORY] ?? NO_HISTORY,
     folders: state.folders,
+    pageTitle: page => titleOf(state, "page", page, namingOf(catalog, settings)),
     // スクリーンごとの宣言は呼ばれた場所のスクリーンの値、ステージごとの宣言は呼ばれた場所のステージの値
     pluginState: <S>(def: PluginStateDef<S>) =>
       pluginValueOf(
@@ -119,7 +127,8 @@ export function commandContext(
 ): CommandContext | null {
   const stage = stageIn(state.window, stageId)
   if (!stage) return null
-  const book = stage.opened ? (state.books[stage.opened.book] ?? null) : null
+  const book = (stage.opened && state.books[stage.opened.book]) || NO_BOOK
+  const page = shownPageId(stage.opened)
   const workspace = workspaceOf(state.window, stageId)
   const screen = screenOfStage(state.window, stageId) ?? currentScreen(state.window)
   return withScreenFrame(
@@ -128,7 +137,8 @@ export function commandContext(
         ...screenCommandContext(catalog, controlCenter, state, stageId, command),
         stage: stageView(catalog, stage, toolOf(catalog, workspace, stageId, state.books)),
         book,
-        bookHistory: (book && state.history[book.id]) || NO_HISTORY,
+        page: (page !== null && pageIn(state.pages, page)) || NO_PAGE,
+        bookHistory: (book !== NO_BOOK && state.history[book.id]) || NO_HISTORY,
       },
       workspace,
       stageId,
@@ -156,7 +166,7 @@ const ask = (c: Called, method: "when" | "enabled" | "active"): boolean | undefi
 
 // コマンドが行うアクション（performs）を、どれも許可スコープの所（ブック・ページ・アノテーションが対象でなければコントロールセンター）で使えるか（認可ステップは見ない）
 function performable(c: Called, arg?: unknown): boolean {
-  const book = "book" in c.ctx ? (c.ctx.book ?? undefined) : undefined
+  const book = "book" in c.ctx && c.ctx.book !== NO_BOOK ? c.ctx.book : undefined
   const where = whereOf(c, arg)
   return (c.def.performs ?? []).every(
     action =>
@@ -180,22 +190,29 @@ export function isShown(defs: Assembled, state: MatomezuState, at: string, id: C
 // 行うアクションのどれかを、認可ステップと印刷プレビューの間のステージ（stageBlocks）が止めないか（行うアクションが無ければ止められない）。
 // ブック・ページ・アノテーションが対象のアクションは、今のブックの許可スコープの所で問う。
 // 許可スコープを書いたコマンドが行う、一覧が対象のアクション（戻す・やり直すの置き直しなど）は、開いているブックのその所を変える物として扱う
-function permitted(c: Called, arg?: unknown): boolean {
+// スクリーンから呼ぶコマンドが行うアクションと引数を名乗れば（performsWith）、その引数で行うときと同じに問い、名乗ったどれかが止められれば押せない
+function permitted(c: Called, state: MatomezuState, arg?: unknown): boolean {
   const actions = c.def.performs ?? []
   if (actions.length === 0) return true
   if (!("stage" in c.ctx)) {
     const ctx = c.ctx
+    const named = (c.def.from === "screen" && c.def.performsWith?.(ctx, arg as never)) || UNKNOWN_PERFORMED
+    if (named !== UNKNOWN_PERFORMED) {
+      const world = worldOf(state)
+      const asked = { catalog: ctx.catalog, controlCenter: ctx.controlCenter, actor: USER }
+      return named.every(n => permittedIn(world, n.action, n.args, undefined, asked).ok)
+    }
     return actions.some(action => inspect(ctx.catalog, actionQuery(ctx.catalog, action, undefined), ctx).value === true)
   }
   const ctx = c.ctx
   const where = whereOf(c, arg)
-  const book = ctx.book
+  const book = ctx.book === NO_BOOK ? undefined : ctx.book
   const onOpened = (action: string): boolean =>
-    c.def.permissionScope !== undefined && book !== null && ctx.catalog.actions.get(action)?.target === "library"
+    c.def.permissionScope !== undefined && book !== undefined && ctx.catalog.actions.get(action)?.target === "library"
   const query = (action: string): Query =>
     book && onOpened(action)
       ? { kind: "action", action, actor: USER, book, ...(where ? { where } : {}) }
-      : actionQuery(ctx.catalog, action, book ?? undefined, where)
+      : actionQuery(ctx.catalog, action, book, where)
   return actions.some(
     action =>
       !stageBlocks(ctx.catalog, ctx.stage.mode, action, onOpened(action) ? "opened-book" : "target") &&
@@ -207,7 +224,11 @@ function permitted(c: Called, arg?: unknown): boolean {
 export function isEnabled(defs: Assembled, state: MatomezuState, at: string, id: CommandId, arg?: unknown): boolean {
   const c = called(defs, state, at, id)
   return (
-    c !== null && performable(c, arg) && ask(c, "when") === true && permitted(c, arg) && (ask(c, "enabled") ?? true)
+    c !== null &&
+    performable(c, arg) &&
+    ask(c, "when") === true &&
+    permitted(c, state, arg) &&
+    (ask(c, "enabled") ?? true)
   )
 }
 

@@ -1,6 +1,6 @@
 // 線のコマンド: 形の〇から引いて離したときに線を引く（ラインビューから呼ぶ）、線の編集のダイアログを開く（線のダブルクリックと右クリックのメニュー）、線の端をほかの形の上で離したときにつなぎ替える
 
-import { type CommandContext, findPage, openedPage, type Point, shownPageId } from "../../../plugin-api"
+import { type CommandContext, NO_PAGE, type Point, shownPageId } from "../../../plugin-api"
 import { amongSelected, portAreasOf } from "../../base"
 import { LINE_CONNECT, LINE_RECONNECT, LINE_UPDATE } from "./actions"
 import { drawnLineProps, loopEndsNear, nearestEnd } from "./connect"
@@ -20,11 +20,9 @@ export const LINE_DRAW = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Connect items",
   run: (ctx, a, args: { from: string; side: Side; to: string; at: Point }) => {
-    const opened = openedPage(ctx.stage.opened ?? null)
-    const book = ctx.book
-    const page = opened && book ? findPage(book, opened.page)?.page : undefined
+    const page = ctx.page === NO_PAGE ? undefined : ctx.page
     const drop = ctx.toPaper(args.at)
-    if (!opened || !book || !page || !drop) return
+    if (!page || !drop) return
     const rects = portAreasOf(ctx.catalog, page)
     const props = drawnLineProps(page, rects, elbowAt(ctx.catalog, page), args.from, args.side, args.to, drop)
     if (props) a.perform(LINE_CONNECT.id, { from: args.from, to: args.to, props }, { page: page.id })
@@ -56,12 +54,10 @@ export const LINE_RECONNECT_DROP = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Reconnect line",
   run: (ctx, a, args: { line: string; end: "from" | "to"; item: string; at: Point }) => {
-    const opened = openedPage(ctx.stage.opened ?? null)
-    const book = ctx.book
-    const page = opened && book ? findPage(book, opened.page)?.page : undefined
+    const page = ctx.page === NO_PAGE ? undefined : ctx.page
     const line = page && linesOf(page).find(l => l.id === args.line)
     const drop = ctx.toPaper(args.at)
-    if (!opened || !book || !page || !line || !drop) return
+    if (!page || !line || !drop) return
     const rects = portAreasOf(ctx.catalog, page)
     const to = rects.get(args.item)
     const other = args.end === "from" ? line.to : line.from

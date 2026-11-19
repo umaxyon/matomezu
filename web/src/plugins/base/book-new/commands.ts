@@ -1,4 +1,5 @@
 // ブックを作るコマンド（作るものはダイアログで決める）
+import { NO_BOOK } from "../../../store/commands/def"
 import { kit } from "../kit"
 import { BOOK_CREATE } from "./book-create"
 import { NEW_BOOK_DIALOG } from "./dialog"
@@ -9,5 +10,5 @@ export const BOOK_NEW = kit.defineCommand({
   performs: [BOOK_CREATE.id],
   title: "New book",
   run: (_ctx, a) => a.openDialog(NEW_BOOK_DIALOG.id),
-  when: ctx => ctx.book === null,
+  when: ctx => ctx.book === NO_BOOK,
 })

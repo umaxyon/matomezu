@@ -21,7 +21,6 @@ import { rawBooksOf } from "../core/folders"
 import { restoreCounters, restoreRecords, withCounters, withRecords } from "../core/records"
 import type { Stage } from "../core/stage"
 import type { Warning } from "../core/warnings"
-import { WIDE_SEARCH_ANSWER, wideSearchParams } from "../core/wide-search"
 import { recentBookScreen, screenOfStage, shownScreens, viewFrontOf } from "../core/window"
 import { currentStage, MAX_STAGES } from "../core/workspace"
 import { NO_STAGE } from "../store/dialogs"
@@ -35,6 +34,7 @@ import type {
   ParticipantLive,
 } from "../store/store"
 import type { HostClient, Loaded } from "./client"
+import { WIDE_SEARCH_ANSWER, wideSearchParams } from "./search"
 
 // 常駐が答えなかった（常駐から開いていない）
 export class NoServer {}

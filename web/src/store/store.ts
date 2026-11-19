@@ -1858,6 +1858,3 @@ export const openedIn = (
   const opened = stageIn(instance.state.getState().window, stage)?.opened
   return opened ? { book: opened.book, page: shownPageId(opened) } : null
 }
-
-// 画面の場所の中の、ブックスクリーンのステージの並びを読む・差し替える関数（core/address.ts。テストが、場所を作って当てはめるのに使う）
-export { stagePlacesOf, withStagePlaces } from "../core/address"

@@ -58,6 +58,7 @@ const TOPS: readonly LibraryRow[] = [HOME_ID, TRASH_ID].map(id => ({
   title: NO_TITLE,
   type: NO_TYPE,
   readable: true,
+  locked: false,
 }))
 
 // フォルダ folder の直下の行
@@ -268,10 +269,16 @@ export function LibraryView({ className }: { className?: string } = {}) {
                 {t("Nothing inside")}
               </p>
             ) : (
+              // biome-ignore lint/a11y/useKeyWithClickEvents: 何も無い所を押して選択を外すのはポインタの操作で、キーでは行の間を動く
               <ul
                 className={styles.contents}
                 aria-label={t("Contents of {name}", { name: here })}
                 onContextMenu={e => openFolderMenu(e, { folder: opened })}
+                // 何も無い所（行の外）を押すと、選んでいる行を外す（パンくずで今のフォルダを押したときと同じ）。ドラッグのあとの click は、useLibraryDrag が止める
+                onClick={e => {
+                  if (e.target instanceof Element && e.target.closest("[data-library-row]") === null)
+                    setPicked(undefined)
+                }}
                 ref={measureColumns}
                 data-key-scope={LIBRARY_CONTENTS_SCOPE}
               >

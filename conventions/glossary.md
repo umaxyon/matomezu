@@ -38,7 +38,7 @@
 | 機能台帳（catalog） | プラグインが足せる定義の種類ごとに、足された定義を並べた全体（core 台帳と store 台帳）。ui 台帳は含めない。利用者に価値を届ける最小の単位の全部 |
 | 台帳アセンブル | プラグインの定義を集めて core・store・ui の台帳を作り、食い違いを確かめること。コードでは `assemble`・`assembleUi` |
 | core 台帳 | `CoreCatalog`（`core/core-catalog.ts`）。画面とホストが共に使う定義の台帳 |
-| ノーマライズステップ | アクションの run のあとに、perform が変わったブックにかける処理（可変ページの中身のずらしなど）。コードでは `NormalizeStepDef` |
+| ノーマライズステップ | アクションの run のあとに、perform が変わったページにかける処理（可変ページの中身のずらしなど）。コードでは `NormalizeStepDef` |
 | store 台帳 | `StoreCatalog`。画面だけが使う、React の無い定義の台帳 |
 | ui 台帳 | `UiCatalog`。画面だけが使う、React の定義（ビューなど）の台帳 |
 | MCP 公開ツール | AI が MCP で呼べる処理（`actions`・`perform` など）。いつも「MCP 公開ツール」と呼び、「道具」とは呼ばない |

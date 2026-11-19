@@ -6,6 +6,7 @@
 
 import { z } from "zod"
 import { applyPatch, CLASH, type Patch, toPutBack } from "./patch"
+import type { ItemPage } from "./placed"
 import { REMOVED } from "./records"
 import { sameData } from "./same"
 import type { AnyPage, BinderEntry, Book, LineupEntry, UnreadableEntry } from "./schema/book"
@@ -138,6 +139,13 @@ export function worldTablesOf(books: readonly Book[], others: readonly HomeOrFol
 export type PageRow = AnyPage | UnreadableEntry
 export type Pages = Readonly<Record<string, PageRow>>
 export type Folders = Readonly<Record<string, Folder>>
+
+// ページの表 pages の、id のページ（ブックの中でも外でも。読めないページ・表に無い id は undefined）
+export function pageIn(pages: Pages, id: string): ItemPage | undefined {
+  const row = pages[id]
+  return row?.kind === "page" ? row : undefined
+}
+
 // ページの表とフォルダの表
 export interface Library {
   pages: Pages
@@ -499,6 +507,14 @@ function foldersIn(book: Book): Folders {
 
 // ブック book の中のページ page を入れているフォルダの列（近い順）
 export const foldersOverIn = (book: Book, page: string): Folder[] => foldersOver(foldersIn(book), page)
+
+// エントリ entry を入れているフォルダのうち、認可ステップに見せる列（近い順）: バインダとブックまで（書庫ホーム・ゴミ箱・ほかのフォルダの手前で止める。
+// ブックの外のページなら、入れているバインダだけか空）
+export function permissionFoldersOf(folders: Folders, entry: string): Folder[] {
+  const over = foldersOver(folders, entry)
+  const open = over.findIndex(f => isOpenRole(f.folderRole))
+  return open < 0 ? over : over.slice(0, open)
+}
 
 // ページ page を持っているブックの id（どのブックにも入っていなければ undefined）
 export const bookIdOf = (folders: Folders, page: string): string | undefined =>

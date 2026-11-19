@@ -7,7 +7,7 @@
 import { z } from "zod"
 import type { Annotation } from "../../../core/annotation"
 import { shownPageId } from "../../../core/stage"
-import { calledStageOf } from "../../../store/commands/def"
+import { calledStageOf, NO_BOOK } from "../../../store/commands/def"
 import { anchorsFor } from "../context-menu/anchor-targets"
 import { kit } from "../kit"
 import { openedRestore, RIGHT_SIDE_PANEL_RESTORE_STATE, RIGHT_SIDE_PANEL_STATE } from "../right-side-panel/state"
@@ -210,5 +210,5 @@ export const NOTE_NEW = kit.defineCommand({
     a.updatePluginState(RIGHT_SIDE_PANEL_STATE, () => panel)
     a.updatePluginState(RIGHT_SIDE_PANEL_RESTORE_STATE, kept => openedRestore(kept, panel, now))
   },
-  when: ctx => ctx.book !== null,
+  when: ctx => ctx.book !== NO_BOOK,
 })

@@ -128,6 +128,9 @@ function wholeBook(catalog: CoreCatalog, saved: unknown): Book | null {
     : null
 }
 
+// ページ 1 枚 page が、機能台帳のそのタイプのページの形に合い、タイプの決まりと、つなぐものの定義の決まりを守っているか（ブックに入っていないページの確かめ）
+export const pageSettles = (catalog: CoreCatalog, page: object): boolean => pageCheck(catalog, page) === "readable"
+
 function pageCheck(catalog: CoreCatalog, page: object): UnreadableCode | "readable" {
   const kept = pageChecksOf(catalog)
   const hit = kept.get(page)

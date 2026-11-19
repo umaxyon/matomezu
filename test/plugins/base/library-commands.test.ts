@@ -9,7 +9,7 @@ import {
   LIBRARY_PICKED,
   LIBRARY_UNFOLDED,
 } from "../../../web/src/plugins/base/library/state"
-import { isShown } from "../../../web/src/store/commands"
+import { isEnabled, isShown } from "../../../web/src/store/commands"
 import { pluginValueOf } from "../../../web/src/store/plugin-state"
 import { newStore } from "../../support"
 
@@ -243,4 +243,59 @@ test("書庫を開く: 書庫のスクリーンを 1 枚ずつの並べ方でカ
   expect(screens()).toHaveLength(1)
   expect(current()).toBe(screens()[0]?.id)
   expect(store.state.getState().window.arrangement).toBe("@matomezu/base:one-screen")
+})
+
+test("ツリーで今いる行のゴミ箱入れをロックが止めていれば、Delete を押しても、右の枠で選んでいる別のブックはゴミ箱に入らない。右の枠の Delete は、選んでいる行に効く。ロックしたブックの F2 は何もしない", () => {
+  const { store, center, folder, ids, set, dialog } = setup()
+  const perform = store.actions.perform as (id: string, args: unknown, on?: unknown) => { ok: boolean }
+  const box = folder("箱")
+  perform("@matomezu/base:entry-move", { entry: "b1", into: box })
+  perform("@matomezu/base:entry-move", { entry: "b2", into: box })
+  expect(perform("@matomezu/base:book-lock", {}, { book: "b1" }).ok).toBe(true)
+  set(LIBRARY_FOLDER.id, center, box)
+  set(LIBRARY_PICKED.id, center, "b2")
+  const scope = (id: string) => `@matomezu/base:${id}`
+  // ツリーで今いる行は、開いている「箱」（ロックしたブックを入れている）
+  expect(store.actions.pressKey("Delete", [scope("library-tree"), scope("library")])).toBe(false)
+  expect(ids(box)).toEqual(["b1", "b2"])
+  expect(store.actions.pressKey("Delete", [scope("library-contents"), scope("library")])).toBe(true)
+  expect(ids(box)).toEqual(["b1"])
+  // ロックしたブックを選んで F2 を押しても、名前の変更のダイアログは開かない
+  set(LIBRARY_PICKED.id, center, "b1")
+  expect(store.actions.pressKey("F2", [scope("library-contents"), scope("library")])).toBe(false)
+  expect(dialog()).toBeNull()
+})
+
+test("ロックしたページ・ロックしたブックの中のページの「名前の変更」は、押す前に止められて押せず、F2 も何もしない。ロックしていないページは押せる", () => {
+  const { store, center, set, dialog } = setup()
+  const perform = store.actions.perform as (id: string, args: unknown, on?: unknown) => { ok: boolean }
+  const enabled = (entry: string) =>
+    isEnabled(store, store.state.getState(), center, "@matomezu/base:library-entry-rename" as CommandId, { entry })
+  expect(enabled("p1")).toBe(true)
+  expect(perform("@matomezu/base:page-lock", {}, { page: "p1" }).ok).toBe(true)
+  expect(perform("@matomezu/base:book-lock", {}, { book: "b2" }).ok).toBe(true)
+  expect(enabled("p1")).toBe(false)
+  expect(enabled("b2-p1")).toBe(false)
+  expect(enabled("b3-p1")).toBe(true)
+  // ロックしたページを選んで F2 を押しても、名前の変更のダイアログは開かない
+  const scope = (id: string) => `@matomezu/base:${id}`
+  set(LIBRARY_FOLDER.id, center, "b1")
+  set(LIBRARY_PICKED.id, center, "p1")
+  expect(store.actions.pressKey("F2", [scope("library-contents"), scope("library")])).toBe(false)
+  expect(dialog()).toBeNull()
+})
+
+test("落とした物を動かすコマンドは、行うアクションを引数で名乗る: ロックしたブックをゴミ箱へ落としても、押す前に止められて何もせず、トーストも出さない", () => {
+  const { store, center, run, ids } = setup()
+  const perform = store.actions.perform as (id: string, args: unknown, on?: unknown) => { ok: boolean }
+  expect(perform("@matomezu/base:book-lock", {}, { book: "b1" }).ok).toBe(true)
+  const enabled = (args: unknown) =>
+    isEnabled(store, store.state.getState(), center, "@matomezu/base:library-entry-move" as CommandId, args)
+  // 引数が無ければ分からないので、押せる
+  expect(enabled(undefined)).toBe(true)
+  expect(enabled({ entry: "b1", to: { to: "trash" } })).toBe(false)
+  expect(enabled({ entry: "b2", to: { to: "trash" } })).toBe(true)
+  expect(run("library-entry-move", { entry: "b1", to: { to: "trash" } })).toBe(false)
+  expect(ids(HOME_ID)).toContain("b1")
+  expect(store.state.getState().toasts).toEqual([])
 })

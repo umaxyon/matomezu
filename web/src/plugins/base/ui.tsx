@@ -71,7 +71,6 @@ import { SCREENS_WIDGET, WINDOW } from "./window/ui"
 import { WORKSPACE } from "./workspace/ui"
 import { ZOOM_ICONS } from "./zoom/icons"
 
-export type { WideSearchAnswer, WideSearchHit, WideSearchQuery } from "../../core/wide-search"
 export { BirdWalk } from "./birds/BirdWalk"
 export { type CodeSpan, highlightCode } from "./code-highlight/highlight"
 export { ColorPicker, type Swatch } from "./dialog-host/ColorPicker"
