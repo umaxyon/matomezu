@@ -39,7 +39,6 @@ test("matomezu が出す名前", () => {
     "PALETTE",
     "PAPER_IDS",
     "PLACE_LINES",
-    "PRINT_PREVIEW_SETTINGS",
     "READS_ADMIN",
     "SOFT_BREAK",
     "ScrapSchema",

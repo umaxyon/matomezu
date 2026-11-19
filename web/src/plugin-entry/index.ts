@@ -110,7 +110,6 @@ export {
   PAGE_THEME,
   PAPER_IDS,
   PLACE_LINES,
-  PRINT_PREVIEW_SETTINGS,
   pageContext,
   pageFieldsWay,
   paperSize,
