@@ -35,11 +35,16 @@ const tallNow = () => typeof matchMedia === "function" && matchMedia(TALL).match
 // 窓が、分けて並べられる高さか
 export const useTallEnough = (): boolean => useSyncExternalStore(subscribeTall, tallNow, () => false)
 
+// ステージを並べるスクリーンの id（planClose に渡す）
+export const stageScreensOf = (win: Pick<WindowState, "screens">): readonly string[] =>
+  win.screens.filter(s => s.stages).map(s => s.id)
+
 // 分けて見せている並び（分けて見せていなければ空）
 export const splitIn = (win: WindowState): readonly string[] =>
   shownSplit(win.screens, win.order, { id: win.arrangement, value: win.arrangementValue })
 
 // 並びの変わりを行う: 外れた物を閉じ、閉じられずに開いたままの物は behind に覚える（あとで並びが 1 枚になったら戻す）。
+// ステージを並べるスクリーンは、外れても閉じず（倍率・選択などを失わない）、behind にも入れない（いつも下に敷いてある）。
 // 並びが 2 枚に満たなければ 1 枚ずつに戻す
 export function applySplit(
   actions: Pick<Actions, "closeScreen" | "setScreenArrangement">,
@@ -48,9 +53,10 @@ export function applySplit(
 ): void {
   const before = read().window
   const was = before.arrangement === SPLIT_ROWS.id ? behindOf(before.screens, before.arrangementValue) : []
-  for (const id of plan.leaving) actions.closeScreen(id)
+  const staged = new Set(stageScreensOf(before))
+  for (const id of plan.leaving) if (!staged.has(id)) actions.closeScreen(id)
   const open = read().window.screens
-  const kept = plan.leaving.filter(id => open.some(s => s.id === id))
+  const kept = plan.leaving.filter(id => !staged.has(id) && open.some(s => s.id === id))
   const behind = [...kept, ...was].filter(
     (id, i, list) => list.indexOf(id) === i && !plan.screens.includes(id) && open.some(s => s.id === id),
   )
@@ -107,7 +113,7 @@ export function useScreenSplit(): ScreenSplit {
     (id: string) => {
       if (!split.includes(id)) return actions.closeScreen(id)
       const win = read().window
-      apply(planClose(split, behindOf(win.screens, win.arrangementValue), id))
+      apply(planClose(split, behindOf(win.screens, win.arrangementValue), id, stageScreensOf(win)))
     },
     [actions, apply, split, read],
   )

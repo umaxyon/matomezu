@@ -1,5 +1,6 @@
 // スクリーンアレンジメント「上下に分ける」（SPLIT_ROWS）と、分けて並べるスクリーンの並びを決める純粋な関数。
 // 値は、分けて並べるスクリーンの id の並び（上から）と、並びから外したが閉じられずに開いたままの物（behind。新しい順。コントロールセンターなど）。
+// ステージを並べるスクリーン（ブックスクリーン）も並びに入る（ステージを分けて、下に書庫を出すとき）。並びから外れても閉じない（applySplit）。
 // 見えているのは、カレントスクリーンがその並びにあれば並び全部、無ければカレントスクリーンだけ
 // （分けている間に巣箱でブックスクリーンへ行けば、ブックスクリーンだけ。戻れば、また分けて見せる）。生きている物が 2 枚に満たない並びは、分けていない物として扱う。
 // 並びから外れたスクリーンは閉じる（閉じられない物は土台が残す: 最初から開いているスクリーンの最後の 1 枚）。
@@ -107,10 +108,17 @@ export function planAt(split: readonly string[], index: number, added: string): 
   return { screens: split.map((id, i) => (i === index ? added : id)), leaving: [was] }
 }
 
-// 分けた並びから target を閉じる。残りが 1 枚なら、並びから外したが開いたままの物（behind）のうち、いちばん新しい物を上に戻して分けたままにする（無ければ分けない）
-export function planClose(split: readonly string[], behind: readonly string[], target: string): SplitPlan {
+// 分けた並びから target を閉じる。残りが 1 枚なら、並びから外したが開いたままの物（behind）のうち、いちばん新しい物を上に戻して分けたままにする（無ければ分けない）。
+// 残りの 1 枚がステージを並べるスクリーン（stages に在る物）なら、戻さずに分けるのをやめる（ブックスクリーンだけの 1 枚ずつに戻る）
+export function planClose(
+  split: readonly string[],
+  behind: readonly string[],
+  target: string,
+  stages: readonly string[] = [],
+): SplitPlan {
   const rest = split.filter(id => id !== target)
   if (rest.length !== 1) return { screens: rest, leaving: [target] }
+  if (rest[0] !== undefined && stages.includes(rest[0])) return { screens: [], leaving: [target] }
   const back = behind.find(id => id !== target)
   return { screens: back === undefined ? [] : [back, ...rest], leaving: [target] }
 }

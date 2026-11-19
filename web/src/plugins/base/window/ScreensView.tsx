@@ -33,7 +33,7 @@ export function ScreensView() {
   // カレントスクリーンがブックスクリーンか（CSS が data-front で、どちらを見せるかを決める）
   const front = useMatomezuState(s => bookScreenCurrent(s.window)) ? "book-screen" : "control-center"
   // 見せるブックスクリーン（いちばん最近カレントにした 1 枚）と、見せるステージを並べないスクリーン（同じく。無ければ none）
-  const book = useMatomezuState(s => recentBookScreen(s.window)?.id)
+  const recentBook = useMatomezuState(s => recentBookScreen(s.window)?.id)
   const top = useMatomezuState(s => recentPlainScreen(s.window))
   const current = useMatomezuState(s => s.window.order[s.window.order.length - 1])
   const stageScreens = useMatomezuState(useShallow(s => s.window.screens.filter(x => x.stages).map(x => x.id)))
@@ -44,6 +44,10 @@ export function ScreensView() {
   // 上下に分けた並び（分けていなければ空）。カレントスクリーンが並びに無い間は、分けて見せない
   const split = useMatomezuState(useShallow(s => splitIn(s.window)))
   const splitting = split.length > 0
+  // 並びに入れたブックスクリーン（ステージを分けて、下に書庫を出しているときなど）。居れば、それを上の行に描き、コントロールセンターの側は並びの行だけを出す
+  const splitBook = split.find(id => stageScreens.includes(id))
+  const mixed = splitBook !== undefined
+  const book = splitBook ?? recentBook
   const rowOf = (id: string): Row | null =>
     splitting && split.includes(id) ? { index: split.indexOf(id), of: split.length } : null
   // 分け始めか（前に描いたときは分けていなかった。新しく入る物は、上の物が縮むのを待ってから滑り込む）
@@ -79,18 +83,31 @@ export function ScreensView() {
   }, [leaving])
   return (
     <>
-      {stageScreens.map(id => (
-        <div
-          key={id}
-          className={styles.bookScreen}
-          data-front={front}
-          data-shown={id === book}
-          inert={front !== "book-screen" || id !== book}
-        >
-          <ScreenView screen={id} />
-        </div>
-      ))}
-      <section className={styles.center} data-front={front} inert={front !== "control-center"}>
+      {stageScreens.map(id => {
+        const row = rowOf(id)
+        return (
+          <div
+            key={id}
+            className={styles.bookScreen}
+            data-front={mixed ? "book-screen" : front}
+            data-shown={id === book}
+            data-row={row !== null}
+            style={row ? ({ "--row-index": row.index, "--row-of": row.of } as CSSProperties) : undefined}
+            inert={mixed ? id !== splitBook : front !== "book-screen" || id !== book}
+            onPointerDownCapture={() => {
+              if (row !== null && id !== current) makeScreenCurrent(id)
+            }}
+          >
+            <ScreenView screen={id} />
+          </div>
+        )
+      })}
+      <section
+        className={styles.center}
+        data-front={mixed ? "control-center" : front}
+        data-mixed={mixed}
+        inert={!mixed && front !== "control-center"}
+      >
         <div className={styles.body}>
           {plainScreens.map(id => {
             const row = rowOf(id)

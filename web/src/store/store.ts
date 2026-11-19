@@ -306,6 +306,8 @@ export interface FrameActions {
   showBookStage(book: string, page?: string): string
   makeScreenCurrent(id: string): void // 開いているスクリーン id をカレントスクリーンにする（見せるかはスクリーンアレンジメントが決める。退いた物の中は残す）
   showStage(id: string): void // ステージ id をカレントにし、それを並べているスクリーンをカレントスクリーンにする（そのステージを見せる）
+  // ステージ stage をカレントにして右に何も開いていないステージを足し、足したステージの id を返す（足せなければ NO_STAGE）。ほかは split と同じ
+  splitStage(stage: string): string
 }
 
 // 画面の操作のうち、場所（ステージの id。ダイアログとコマンドは、ステージを持たないスクリーンの id も）に向ける物。どれも第 1 引数が向ける場所。
@@ -1474,15 +1476,22 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
           screenOfStage(win, id)?.id ?? "",
         ),
       ),
-    split: stage =>
+    splitStage: stage => {
+      let added = NO_STAGE
       withWindow(win => {
         const ws = screenOfStage(win, stage)?.stages
         if (!ws) return win
         const focused = focus(ws, stage)
         if (focused.stages.length >= MAX_STAGES) return mapScreenOfStage(win, stage, () => focused)
         const { win: issued, id } = issueStage(win)
+        added = id
         return mapScreenOfStage(issued, stage, () => split(focused, id))
-      }),
+      })
+      return added
+    },
+    split: stage => {
+      actions.splitStage(stage)
+    },
     unsplit: stage => withStageScreen(stage, ws => unsplit(focus(ws, stage))),
     moveDivider: (x, width) => withWorkspace(ws => moveDivider(ws, x, width)),
     evenDivider: () => withWorkspace(evenDivider),

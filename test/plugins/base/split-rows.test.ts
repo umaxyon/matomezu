@@ -106,3 +106,19 @@ test("並びの index 番目を開いた物に替え、そこにあった物は�
   expect(planAt(["c1", "c3"], 1, "c4")).toEqual({ screens: ["c1", "c4"], leaving: ["c3"] })
   expect(planAt(["c1", "c3"], 5, "c4")).toEqual({ screens: ["c1", "c3"], leaving: [] })
 })
+
+test("ステージを並べるスクリーンが並びに居るとき: 閉じると 1 枚ずつに戻り（behind を戻さない）、外れても閉じない", () => {
+  // 計画: 残りの 1 枚がブックスクリーンなら、behind を上に戻さない
+  expect(planClose(["b1", "lib"], ["c1"], "lib", ["b1"])).toEqual({ screens: [], leaving: ["lib"] })
+  expect(planClose(["c1", "lib"], ["c9"], "lib", ["b1"])).toEqual({ screens: ["c9", "c1"], leaving: ["lib"] })
+  // 行う: ブックスクリーンを上、チケットを下に分け、ブックスクリーンを外す計画でも閉じない
+  const store = newStore()
+  const read = () => store.state.getState()
+  const book = read().window.screens.find(s => s.stages)?.id ?? ""
+  const ticket = store.actions.openScreenId("@matomezu/taskboard:ticket-screen", { ticket: "t1" })
+  applySplit(store.actions, read, planOpen([], book, ticket, "after", 2))
+  expect(read().window.arrangementValue).toEqual({ screens: [book, ticket], behind: [] })
+  applySplit(store.actions, read, planExpand([book, ticket], ticket))
+  expect(read().window.screens.some(s => s.id === book)).toBe(true)
+  expect(read().window.arrangement).toBe("@matomezu/base:one-screen")
+})

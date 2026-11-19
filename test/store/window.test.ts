@@ -22,6 +22,7 @@ import { showIn, viewOf } from "../../web/src/host-client/server"
 import { BUILTIN } from "../../web/src/plugins"
 import { isActive } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
+import { NO_STAGE } from "../../web/src/store/dialogs"
 import { pluginKit } from "../../web/src/store/kit"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { CORE_CATALOG, newStore, sequence, showBooks, showCenter, shown, worldRows } from "../support"
@@ -35,6 +36,13 @@ test("ステージの番号は窓で振り、閉じたステージの番号も�
   actions.split("s2")
   expect(screenOf(state.getState().window).stages.map(s => s.id)).toEqual(["s2", "s3"])
   expect(state.getState().window.issued).toBe(3)
+})
+
+test("splitStage は足したステージの id を返し、もう足せなければ NO_STAGE", () => {
+  const { actions } = newStore()
+  expect(actions.splitStage("s1")).toBe("s2")
+  expect(actions.splitStage("s1")).toBe(NO_STAGE)
+  expect(actions.splitStage("no-such")).toBe(NO_STAGE)
 })
 
 // ブックスクリーンを 1 枚（何も開かないステージ s1）開いた窓（c1 がコントロールセンター、c2 がブックスクリーン）
