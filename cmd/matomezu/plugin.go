@@ -79,7 +79,6 @@ func (c pluginTarget) change(enabled bool) error {
 }
 
 type aiPlugin struct {
-	devRoot                                 func() string
 	name, program, manifest                 string
 	list, listMarketplaces, install, update []string
 	status                                  func([]byte) (string, bool, error)
@@ -90,7 +89,7 @@ type aiPlugin struct {
 func aiPluginFor(name string) aiPlugin {
 	if name == "codex" {
 		return aiPlugin{
-			devRoot: codexDevRoot, name: "codex", program: "codex", manifest: codexlaunch.ManifestDir,
+			name: "codex", program: "codex", manifest: codexlaunch.ManifestDir,
 			list: codexlaunch.ListPlugins, listMarketplaces: codexlaunch.ListMarketplaces,
 			install: codexlaunch.InstallPlugin, update: codexlaunch.InstallPlugin,
 			status: codexlaunch.PluginStatus, marketplacePath: codexlaunch.MarketplacePath,
@@ -100,7 +99,7 @@ func aiPluginFor(name string) aiPlugin {
 		}
 	}
 	return aiPlugin{
-		devRoot: claudeDevRoot, name: "claude-code", program: "claude", manifest: claudelaunch.ManifestDir,
+		name: "claude-code", program: "claude", manifest: claudelaunch.ManifestDir,
 		list: claudelaunch.ListPlugins, listMarketplaces: claudelaunch.ListMarketplaces,
 		install: claudelaunch.InstallPlugin, update: claudelaunch.UpdatePlugin,
 		status: claudelaunch.PluginStatus, marketplacePath: claudelaunch.MarketplacePath,

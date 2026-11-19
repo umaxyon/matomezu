@@ -41,11 +41,10 @@ const DefaultAddr = "127.0.0.1:7230"
 const startWait = 10 * time.Second
 
 type cli struct {
-	Serve        serveCmd        `cmd:"" help:"Alias for matomezu server run."`
-	Start        startAICmd      `cmd:"" help:"Start an AI session with matomezu."`
-	Server       serverCmd       `cmd:"" help:"Manage the matomezu server."`
-	Stop         stopCmd         `cmd:"" help:"Alias for matomezu server stop."`
-	Open         openCmd         `cmd:"" help:"Alias for matomezu server start --open."`
+	Serve        serveCmd        `cmd:"" help:"Run the server in the foreground."`
+	Start        startCmd        `cmd:"" help:"Start the server in the background unless it is running, and print its URL (a browser opens the screen through the open command)."`
+	Stop         stopCmd         `cmd:"" help:"Stop the background server."`
+	Open         openCmd         `cmd:"" help:"Open the screen in your browser and give it the server's screen cookie (for a browser that has none). Nothing is printed."`
 	MCP          mcpCmd          `cmd:"" name:"mcp" help:"Serve the MCP tools for an AI on stdin and stdout (starts the server unless it is running)."`
 	Annotations  annotationsCmd  `cmd:"" help:"Print the annotations (such as the user's notes and marks) that wait for AI's answer, and AI's changes the user undid before seeing them, for an AI's hook. Prints nothing when there are none or the server is not running."`
 	Talked       talkedCmd       `cmd:"" help:"Tell the server the user talked to AI, for an AI's hook that passes the hook's JSON on stdin (the notes AI has read start their expiry; the session is tied to the participant who joined from it, and a participant who just joined is welcomed in the hook's JSON). Prints --context when there is nothing else to say, and does nothing when the server is not running."`
@@ -55,8 +54,7 @@ type cli struct {
 	Codex        codexCmd        `cmd:"" help:"Commands that matomezu's Codex plugin runs (its MCP, hooks, and the command that hands wake notices to a Codex conversation)."`
 	Opencode     opencodeCmd     `cmd:"" help:"Commands that matomezu's opencode plugin runs (its MCP, and the command that hands wake notices to an opencode conversation)."`
 	PluginPath   pluginPathCmd   `cmd:"" name:"plugin-path" help:"Print the folder of matomezu's plugin for an AI program, to add it from (such as claude plugin marketplace add)."`
-	Plugin       pluginCmd       `cmd:"" help:"Manage matomezu plugins for AI clients."`
-	PluginRemove pluginRemoveCmd `cmd:"" name:"plugin-remove" help:"Alias for matomezu plugin remove."`
+	PluginRemove pluginRemoveCmd `cmd:"" name:"plugin-remove" help:"Before removing matomezu (npm uninstall -g matomezu): stop the server and remove matomezu's plugin from the AI programs (Claude Code, Codex and opencode). Your books are kept."`
 	Version      versionCmd      `cmd:"" help:"Print the version."`
 }
 
@@ -82,14 +80,8 @@ type serveCmd struct {
 	serverFlags
 }
 
-type serverCmd struct {
-	Start serverStartCmd `cmd:"" help:"Start the server in the background and print its URL."`
-	Stop  stopCmd        `cmd:"" help:"Stop the background server."`
-	Run   serveCmd       `cmd:"" help:"Run the server in the foreground."`
-}
-type serverStartCmd struct {
+type startCmd struct {
 	serverFlags
-	Open bool `help:"Open the screen in your browser."`
 }
 
 type stopCmd struct{}
@@ -131,10 +123,6 @@ type watchCmd struct {
 type versionCmd struct{}
 
 func main() {
-	if legacyStart(os.Args[1:]) {
-		fmt.Fprintln(os.Stderr, "matomezu: server startup moved to matomezu server start (add --open to open the browser)")
-		os.Exit(2)
-	}
 	ctx := kong.Parse(&cli{}, kong.Name("matomezu"), kong.Description("Diagrams you and your AI read and edit together."), kong.Vars{"addr": DefaultAddr})
 	if err := ctx.Run(); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
@@ -263,7 +251,7 @@ func screen(dir string) (fs.FS, error) {
 	return nil, errors.New("this build has no screen built in: pass --web <folder>")
 }
 
-func (c *serverStartCmd) Run() error {
+func (c *startCmd) Run() error {
 	h, err := openHome()
 	if err != nil {
 		return err
@@ -274,10 +262,7 @@ func (c *serverStartCmd) Run() error {
 	}
 	fmt.Println(s.URL)
 	// 画面 cookie の無いブラウザは、この URL を開いても断られる（URL は標準出力のまま、案内は標準エラーへ）
-	if c.Open {
-		return openBrowser(s)
-	}
-	fmt.Fprintln(os.Stderr, "Run matomezu server start --open to give your browser access to the screen.")
+	fmt.Fprintln(os.Stderr, "A browser that has not opened the screen through matomezu open is refused: run matomezu open to open it.")
 	return nil
 }
 
@@ -512,8 +497,7 @@ func ensure(h *home.Home, f serverFlags) (*home.Server, error) {
 		return nil, err
 	}
 	defer log.Close()
-	cmd := exec.Command(exe, append([]string{"server", "run"}, f.args()...)...)
-	cmd.Env = append(os.Environ(), home.EnvHome+"="+h.Dir)
+	cmd := exec.Command(exe, append([]string{"serve"}, f.args()...)...)
 	cmd.Stdout, cmd.Stderr = log, log
 	cmd.SysProcAttr = detached()
 	if err := cmd.Start(); err != nil {
@@ -675,10 +659,6 @@ func (c *openCmd) Run() error {
 	if err != nil {
 		return err
 	}
-	return openBrowser(s)
-}
-
-func openBrowser(s *home.Server) error {
 	out, _, _, err := send(s, http.MethodPost, "api/open", nil, nil)
 	if err != nil {
 		return err

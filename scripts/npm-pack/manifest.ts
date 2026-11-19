@@ -73,10 +73,6 @@ try {
   console.error(\`matomezu: \${pkg} is not installed (this OS or CPU is not supported, or optional dependencies were skipped)\`)
   process.exit(1)
 }
-const args = process.argv.slice(2)
-if (args[0] === "start" && ["codex", "claude", "claude-code"].includes(args[1])) {
-  process.on("SIGINT", () => {})
-}
-const r = spawnSync(bin, args, { stdio: "inherit", env: { ...process.env, MATOMEZU_ENTRY_PID: String(process.pid), MATOMEZU_PACKAGE_DIR: require("node:path").join(__dirname, "..") } })
+const r = spawnSync(bin, process.argv.slice(2), { stdio: "inherit", env: { ...process.env, MATOMEZU_ENTRY_PID: String(process.pid), MATOMEZU_PACKAGE_DIR: require("node:path").join(__dirname, "..") } })
 process.exit(r.status ?? 1)
 `

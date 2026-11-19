@@ -53,7 +53,7 @@
 // 画面 cookie は、ブラウザを開くときの URL の使い捨てのコードで渡す:
 //
 //	GET  /cookie?code=…  コードを 1 度だけ受け付け、鍵を cookie（HttpOnly）に置いて / へ戻す
-//	POST /api/open     （合言葉つき）cookie のコード付きでブラウザを開く。コードは返さない（matomezu server start --open）
+//	POST /api/open     （合言葉つき）cookie のコード付きでブラウザを開く。コードは返さない（matomezu open）
 package server
 
 import (

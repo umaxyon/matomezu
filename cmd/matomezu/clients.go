@@ -45,15 +45,11 @@ type claudeCodeCmd struct {
 // claudeDev は、Claude Code が開いているプロジェクトが matomezu のリポジトリなら、開発の常駐を使い（起動し直すことがある）、その根を返す。
 // monitor には ProjectDirEnv が渡らないので、無ければ今いるフォルダ（Claude Code はプロジェクトのフォルダで立てる）で見る
 func claudeDev() string {
-	root := claudeDevRoot()
+	root := devRoot(claudeProjectDir())
 	if root != "" {
 		useDev(root)
 	}
 	return root
-}
-
-func claudeDevRoot() string {
-	return devRoot(claudeProjectDir())
 }
 
 // claudeProjectDir は、Claude Code が開いているプロジェクトのフォルダ（ProjectDirEnv、無ければ今いるフォルダ）
@@ -144,15 +140,11 @@ type codexCmd struct {
 
 // codexDev は、Codex のプラグインを matomezu のリポジトリから入れたなら、開発の常駐を使い（起動し直すことがある）、その根を返す
 func codexDev() string {
-	root := codexDevRoot()
+	root := devRoot(codexlaunch.InstalledFrom(codexlaunch.Home()))
 	if root != "" {
 		useDev(root)
 	}
 	return root
-}
-
-func codexDevRoot() string {
-	return devRoot(codexlaunch.InstalledFrom(codexlaunch.Home()))
 }
 
 type codexMCPCmd struct{}
