@@ -9,6 +9,7 @@ import type { Book, Page } from "../../../core/schema/book"
 import { settingsAt } from "../book-settings"
 import { setField } from "../fields"
 import { kit } from "../kit"
+import { growKindOf } from "../place/grow"
 import { extentOf, growOf, paddedFor, pageArea } from "../place/items"
 
 // タイプ type のページの、紙の規定
@@ -67,14 +68,14 @@ export function canPaperBinder(catalog: CoreCatalog, book: Book, binder: string,
 
 // タイプ type のページを、可変ページにする・やめるを選べるか（いつも可変ページのタイプは選べない）
 export function canGrow(catalog: CoreCatalog, type: string): boolean {
-  const rule = pageType(catalog, type).grow
-  return rule !== undefined && !("always" in rule)
+  const kind = growKindOf(pageType(catalog, type).grow)
+  return kind !== "none" && kind !== "always"
 }
 
 // タイプ type で利用者が選べる増やす向き（最初のものが既定）。タイプが決めるなら空
 export function growChoices(catalog: CoreCatalog, type: string): readonly GrowChoice[] {
-  const rule = pageType(catalog, type).grow
-  return rule && "choices" in rule ? rule.choices : []
+  const kind = growKindOf(pageType(catalog, type).grow)
+  return typeof kind === "string" ? [] : kind
 }
 
 // 可変ページにするか（true・false）か、選んだ増やす向き grows を、タイプ type のページの grows の値にしたもの。作れない・選べない向きなら null。

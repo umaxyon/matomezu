@@ -328,6 +328,7 @@ export {
   type GrowRule,
   type GrowSides,
   gapOf,
+  growKindOf,
   grownArea,
   growOf,
   inPaper,

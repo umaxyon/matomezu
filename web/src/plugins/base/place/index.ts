@@ -14,7 +14,7 @@ export {
   settleChildren,
   toData,
 } from "./frame"
-export { type GrowRule, type GrowSides, grownArea } from "./grow"
+export { type GrowRule, type GrowSides, growKindOf, grownArea } from "./grow"
 export type { Edges, GrowFrom } from "./items"
 export {
   adaptPage,

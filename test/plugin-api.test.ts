@@ -99,6 +99,7 @@ test("matomezu が出す名前", () => {
     "freeSpotIn",
     "freeTitle",
     "gapOf",
+    "growKindOf",
     "growOf",
     "grownArea",
     "inPaper",
