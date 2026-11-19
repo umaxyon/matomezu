@@ -107,7 +107,10 @@ function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"):
     const result = changes ? a.perform(HISTORY_RESTORE.id, args) : undefined
     if (result && !result.ok && !isRevertUnchanged(result)) {
       const book = result.reason === "denied" && result.book ? booksOf(ctx)[result.book] : undefined
-      notRestored(ctx, a, opened.book, from, result, { book: book?.title })
+      notRestored(ctx, a, opened.book, from, result, {
+        book: book?.title,
+        clash: kit.message("Clashes with other changes"),
+      })
       return
     }
     a.moveHistory(opened.book, from)

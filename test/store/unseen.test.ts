@@ -1,6 +1,6 @@
 // まだ見ていない、AI とほかの窓の変更: 常駐の知らせ（receive の change）のうち、この窓のでない物は、まだ見ていない画面の履歴の段として溜め、
 // 変えた物がどこかのステージで見えたら、そのブックの画面の履歴に時刻の位置で差し込む（やり直せる画面の履歴の段は消さない）。
-// ビューが物の見え方を知らせなければ、開いているページの変更は見えたとする。戻す・やり直すが上書きした、まだ見ていない変更は捨てる
+// ビューが物の見え方を知らせなければ、開いているページの変更は見えたとする。まだ見ていない変更と同じ所を置き直す戻す・やり直すは断り、その変更は残る
 
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
@@ -97,7 +97,7 @@ test("開いていないページの変更は、そのページを開いたら�
   expect(historyOf(store)?.undo.map(s => s.by)).toEqual(["user", "ai"])
 })
 
-test("戻すが上書きした、まだ見ていない変更は捨てる（あとで見えても差し込まない）。ほかの所の変更は残る", async () => {
+test("まだ見ていない変更と同じ所を戻すと断り、自分の段を捨てる。その変更は残り、見えたら差し込む", async () => {
   const store = ready(sequence())
   hide(store)
   place(store, "自分")
@@ -106,8 +106,10 @@ test("戻すが上書きした、まだ見ていない変更は捨てる（あ�
   const last = (pagesOf(bookOf(store))[0]?.items?.length ?? 0) - 1
   foreign(store, renamed(bookOf(store), last, "AI"))
   store.actions.command("s1", "@matomezu/base:undo")
+  expect(store.state.getState().toasts.at(-1)).toMatchObject({ kind: "warn" })
+  expect(pagesOf(bookOf(store))[0]?.items?.[last]?.props).toMatchObject({ caption: "AI" })
   show(store)
-  expect(historyOf(store)?.undo ?? []).toEqual([])
+  expect(historyOf(store)?.undo.map(s => s.by)).toEqual(["ai"])
 })
 
 test("常駐が自分で行った変更と、画面の履歴に入れないアクションの変更は入れない。ほかの窓の変更は AI の変更と同じに扱う", () => {
@@ -119,7 +121,7 @@ test("常駐が自分で行った変更と、画面の履歴に入れないア�
   expect(historyOf(store)?.undo.map(s => s.by)).toEqual(["window"])
 })
 
-test("AI の変更が見えたら seen を、見られる前に戻すが上書きしたら、AI が書いた所と値を添えて lost を知らせる。ほかの窓の変更は知らせない", async () => {
+test("AI の変更が見えたら seen を知らせる。見られる前の AI の変更と同じ所を戻すと断るので、lost は知らせない。ほかの窓の変更は知らせない", async () => {
   const told: AIEditTicketOutcome[] = []
   const store = ready(sequence(), c => told.push(c))
   hide(store)
@@ -136,15 +138,10 @@ test("AI の変更が見えたら seen を、見られる前に戻すが上書�
   foreign(store, { ...bookOf(store), title: "AI の題" }, "ai", "7")
   const page = pagesOf(bookOf(store))[0]!.id
   expect(told).toEqual([
-    {
-      book: "b1",
-      act: "5",
-      places: [page],
-      outcome: "lost",
-      lost: [{ at: `lineup/${page}/items/${item}/props/caption`, value: "AI" }],
-    },
+    { act: "5", places: [page], outcome: "seen" },
     { act: "7", places: ["b1"], outcome: "seen" },
   ])
+  expect(pagesOf(bookOf(store))[0]?.items?.find(i => i.id === item)).toBeDefined()
 })
 
 test("戻すが消したのでなく、ふつうの操作のあとに戻して AI の値に戻ったなら、捨てずに知らせない", async () => {

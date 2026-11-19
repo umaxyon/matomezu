@@ -642,7 +642,7 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   now?: () => string // アクションを行う時点（UTC の ISO 8601）を決める。無ければ今の時刻
   // アクションバルクを閉じたときに、行えたアクションの並びを知らせる（行い直しは知らせない）。ホストが確かめた答えを返せば、断られたアクションバルクの画面の履歴の段を捨てる
   observe?: (bulk: DoneBulk) => Promise<HostAnswer> | undefined
-  aiEditTicket?: (change: AIEditTicketOutcome) => void // まだ見ていない AI の変更が、この窓で見えたか、見られる前に戻す・やり直すで消えたときに知らせる
+  aiEditTicket?: (change: AIEditTicketOutcome) => void // まだ見ていない AI の変更が、この窓で見えたか、見られる前に画面の履歴に入らない変更（ゴミ箱から消す・戻す・やり直すなど）で消えたときに知らせる
   visible?: () => boolean // 窓が見えているか（裏のタブなどで見えていない間は、まだ見ていない変更を見えたとしない。無ければいつも見えている）
   search?: (query: WideSearchQuery) => Promise<WideSearchAnswer> // ホストの言葉の検索（横断検索）。無ければ、どの言葉にも横断検索の当たりなし
 }
@@ -1180,7 +1180,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       next.trash = shelves.trash
       if (catalog.actions.get(id)?.target === "library") {
         next.window = followLibraryIn(window, catalog, shelves.books, books)
-        // 画面の履歴に入れないアクション（戻す・やり直す）が上書きした物は、その前の値を画面の履歴の段に残さないので捨てる
+        // 画面の履歴に入れないアクション（戻す・やり直す・ゴミ箱から消すなど）が消した物は、その前の値を画面の履歴の段に残さないので捨てる
         if (!entersLibraryHistory(catalog.actions.get(id))) {
           for (const after of Object.values(shelves.books)) {
             const before = books[after.id]

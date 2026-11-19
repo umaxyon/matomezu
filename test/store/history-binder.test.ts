@@ -1,5 +1,5 @@
-// 画面の履歴と、バインダの中のページ: 画面の履歴の段を戻すあいだに、よそでバインダごと変わっていたときの置き直しと、
-// バインダの中のページの、見られる前に消えた AI の変更の知らせ
+// 画面の履歴と、バインダの中のページ: 画面の履歴の段を戻すあいだに、よそでバインダごと変わっていたときの置き直し（段が書いた所が変わっていれば断る）と、
+// バインダの中のページの AI の変更と重なる置き直し
 
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
@@ -44,7 +44,7 @@ test("バインダからページを消した画面の履歴の段は、よそ�
   expect(bookOf(store).lineup.map(e => e.kind)).toEqual(["page"])
 })
 
-test("バインダを作った画面の履歴の段を戻すと、よそがそのバインダに足したページごと無くなる", async () => {
+test("バインダを作った画面の履歴の段は、よそがそのバインダにページを足していたら、ぶつかって戻せず、足したページは残る", async () => {
   const store = ready(testBook("b1", "スライド"))
   expect(
     store.actions.perform(
@@ -69,11 +69,13 @@ test("バインダを作った画面の履歴の段を戻すと、よそがそ�
   )
   expect(pageIds(store)).toContain("p9")
   store.actions.command("s1", "@matomezu/base:undo")
-  expect(bookOf(store).lineup.map(e => e.kind)).toEqual(["page"])
-  expect(pageIds(store)).not.toContain("p9")
+  expect(store.state.getState().toasts.at(-1)).toMatchObject({ kind: "warn" })
+  expect(bookOf(store).lineup.map(e => e.kind)).toEqual(["page", "binder"])
+  expect(pageIds(store)).toContain("p9")
+  expect(store.state.getState().history.b1?.undo ?? []).toEqual([])
 })
 
-test("バインダの中のページの AI の変更が、見られる前に戻すで消えたら、バインダをたどった道で知らせる", async () => {
+test("バインダの中のページで、自分が置いた物を AI が見られる前に書き換えていたら、置いたのを戻せず、AI の変更は残る（消えたと知らせない）", async () => {
   const told: AIEditTicketOutcome[] = []
   const store = ready(slides("p1", "p2"), c => told.push(c))
   store.actions.openPage("s1", "p1")
@@ -103,18 +105,13 @@ test("バインダの中のページの AI の変更が、見られる前に戻�
     "5",
   )
   store.actions.command("s1", "@matomezu/base:undo")
-  expect(told).toEqual([
-    {
-      book: "b1",
-      act: "5",
-      places: ["p2"],
-      outcome: "lost",
-      lost: [{ at: `lineup/bd/lineup/p2/slide/${item}/props/text`, value: "AI" }],
-    },
-  ])
+  expect(store.state.getState().toasts.at(-1)).toMatchObject({ kind: "warn" })
+  const slide = (pagesOf(bookOf(store))[1] as { slide?: { id: string; props?: { text?: string } }[] }).slide ?? []
+  expect(slide.find(x => x.id === item)?.props?.text).toBe("AI")
+  expect(told.filter(t => t.outcome === "lost")).toEqual([])
 })
 
-test("バインダからページを消した画面の履歴の段は、よそでバインダが別のページに替わっていても、断られずに戻り、ページは戻らない", async () => {
+test("バインダからページを消した画面の履歴の段は、よそでバインダが別のページに替わっていたら、ぶつかって戻せず、ページは戻らない", async () => {
   const store = ready(slides("p1", "p2"))
   expect(store.actions.perform("@matomezu/base:page-remove", { page: "p2" }, { book: "b1" }).ok).toBe(true)
   await settled()
@@ -122,7 +119,7 @@ test("バインダからページを消した画面の履歴の段は、よそ�
   // よそで、バインダが無くなり、図のページ d1 に替わる（常駐が自分で行った物として届く）
   foreign(store, testBook("b1", "スライド", [drawingPage("d1")]), "@matomezu/base:page-remove", "1", "host")
   store.actions.command("s1", "@matomezu/base:undo")
-  expect(store.state.getState().toasts).toEqual([])
+  expect(store.state.getState().toasts.at(-1)).toMatchObject({ kind: "warn" })
   expect(bookOf(store).lineup.map(e => e.id)).toEqual(["d1"])
 })
 

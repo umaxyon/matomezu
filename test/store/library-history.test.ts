@@ -200,8 +200,10 @@ test("書庫の元に戻す・やり直すが、ほかの変更とぶつかっ�
   expect(store.state.getState().toasts.at(-1)).toMatchObject({ kind: "warn" })
   expect(history().undo).toEqual([history().undo[0]!, made2!])
   expect(history().undo).not.toContain(renamedA!)
+  // A を作った段は、A の名前が作ったときの名前でない（捨てた段の名前のまま）ので、これもぶつかって断られ、捨てられる
   expect(store.actions.command("s1", "@matomezu/base:library-undo")).toBe(true)
-  expect(a in store.state.getState().folders).toBe(false)
+  expect(a in store.state.getState().folders).toBe(true)
+  expect(history().undo).not.toContain(made2!)
 })
 
 test("置き直しても変わらない段を飛ばした直後に、ぶつかって断られたら、飛ばした段はやり直す側に、断られた段は捨てる", async () => {
@@ -227,8 +229,10 @@ test("置き直しても変わらない段を飛ばした直後に、ぶつか�
   expect(title(a)).toBe("しごと")
   expect(history()).toEqual({ undo: [createdB!, createdA!], redo: [createdC!] })
   expect(history().undo).not.toContain(renamedA!)
+  // A を作った段は、A の名前が作ったときの名前でないので、これもぶつかって断られ、捨てられる
   expect(store.actions.command("s1", "@matomezu/base:library-undo")).toBe(true)
-  expect(a in store.state.getState().folders).toBe(false)
+  expect(a in store.state.getState().folders).toBe(true)
+  expect(history()).toEqual({ undo: [createdB!], redo: [createdC!] })
 })
 
 test("同じ処理の中で行ったアクションの段は、すぐあとの dropHistory で捨てられる", async () => {
@@ -315,12 +319,44 @@ test("ホストが戻す・やり直すを断ったら、動かした段を元�
   expect(history().redo).toEqual([])
 })
 
+test("ホストがぶつかりで断った段は元の側へ戻り、ぶつかった変更が届いたあとの次の 1 回は、窓でぶつかって断られ（トースト）、その段を捨てる", async () => {
+  const store = newStore({
+    now: () => "2026-11-18T01:00:00.000Z",
+    observe: bulk =>
+      Promise.resolve(
+        bulk.some(d => d.action === "@matomezu/base:library-revert") ? { ok: false, reason: "refused" } : { ok: true },
+      ),
+  })
+  const history = () => store.state.getState().history[LIBRARY_HISTORY] ?? { undo: [], redo: [] }
+  const done = store.actions.perform("@matomezu/base:folder-create", { title: "一" })
+  await settled()
+  const folder = (done as { result: { folder: string } }).result.folder
+  store.actions.perform("@matomezu/base:entry-rename", { entry: folder, title: "二" })
+  await settled()
+  const [created, renamed] = history().undo
+  expect(store.actions.command("s1", "@matomezu/base:library-undo")).toBe(true)
+  await settled()
+  await settled()
+  expect(history().undo).toEqual([created!, renamed!])
+  // ホストに先に届いていた、ほかの窓の名前の変更が、この窓に届く
+  const { pages, folders } = store.state.getState()
+  const other = { ...folders[folder], title: "三" }
+  store.receive(
+    { pages: Object.values(pages), folders: Object.values({ ...folders, [folder]: other }), settings: {} },
+    [],
+  )
+  expect(store.actions.command("s1", "@matomezu/base:library-undo")).toBe(true)
+  expect((store.state.getState().folders[folder] as { title?: string }).title).toBe("三")
+  expect(store.state.getState().toasts.at(-1)).toMatchObject({ kind: "warn" })
+  expect(history().undo).not.toContain(renamed!)
+})
+
 test("置き直しは、ロックの印を外せない（外せるのは、掛け外しのアクションだけ）", async () => {
   const { store, perform, made } = setup()
   const book = await made("book-create", { title: "議事録" })
   expect(perform("@matomezu/base:book-lock", {}, { book }).ok).toBe(true)
   await settled()
-  const unlock = { pages: {}, folders: { [book]: { fields: { locked: { absent: true as const } } } } }
+  const unlock = { pages: {}, folders: { [book]: { fields: { locked: { absent: true as const, was: true } } } } }
   expect(perform("@matomezu/base:library-revert", unlock)).toMatchObject({
     ok: false,
     reason: "denied",

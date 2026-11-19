@@ -1,7 +1,8 @@
 // データの置き直し（core/patch.ts）: patchOf は 2 つの値の違う所だけを置き直す値を作り、applyPatch が今の値の上で行う。
-// オブジェクトはフィールドごと、id の並びは id ごと、改行を含む文字列は行ごと（ほかで変わった所は、重ならなければ残す）
+// オブジェクトはフィールドごと、id の並びは id ごと、改行を含む文字列は行ごと（ほかで変わった所は、重ならなければ残す）。
+// toPutBack は、今の値で所ごとに反対側の値のままかを確かめ、置き直す所だけにする（どちらの値でもない所が在れば CLASH）
 import { expect, test } from "bun:test"
-import { applyPatch, type Patch, patchOf, undoneIn } from "../../web/src/core/patch"
+import { applyPatch, CLASH, type Patch, patchOf, toPutBack, undoneIn } from "../../web/src/core/patch"
 
 const back = (from: unknown, to: unknown, now: unknown) => applyPatch(now, patchOf(from, to) ?? { set: now })
 
@@ -130,4 +131,49 @@ test("消えたか: 行は、AI が書いた行が前の文字列にあって後
   expect(lostIn("一\n消す\n二", "一\n二", "一\n二", "一\n消す\n二")).toEqual([
     { at: "", lines: [], removedLines: ["消す"] },
   ])
+})
+
+// from を to にした段を置き直す（to の側から from の側へ）ときの、今の値 now での置き直す所
+const putBack = (from: unknown, to: unknown, now: unknown) => toPutBack(now, patchOf(to, from) as Patch)
+
+test("置き直す所: フィールドは、反対側の値のままなら置き直し、もう置き直す側なら飛ばし、どちらでもなければ CLASH。混ざれば反対側の所だけ", () => {
+  const before = { title: "前", color: "red", gone: 1 }
+  const after = { title: "後", color: "blue" }
+  expect(putBack(before, after, after)).toEqual(patchOf(after, before))
+  expect(putBack(before, after, before)).toBeUndefined()
+  expect(putBack(before, after, { ...after, title: "ほか" })).toBe(CLASH)
+  // title だけもう前の値: color と gone だけを置き直す
+  const half = putBack(before, after, { title: "前", color: "blue" })
+  expect(half).toEqual({ fields: { color: { set: "red", was: "blue" }, gone: { set: 1 } } })
+  // 無かったフィールドを足す所に、ほかの値が在れば CLASH
+  expect(putBack(before, after, { ...after, gone: 2 })).toBe(CLASH)
+  // ほかで変わったのが段の変えていない所なら、確かめない
+  expect(putBack(before, after, { ...after, other: 1 })).toEqual(patchOf(after, before))
+})
+
+test("置き直す所: id の並びは、足した・外した物を丸ごと確かめ、動かした物は、前後にある動かしていない物との順で確かめる", () => {
+  const items = (...xs: (string | { id: string; v: number })[]) => ({
+    items: xs.map(x => (typeof x === "string" ? { id: x } : x)),
+  })
+  // 段は c を末尾から先頭へ動かし、d を足した。戻すときの反対側は [c, a, b, d]
+  const before = items("a", "b", "c")
+  const after = items("c", "a", "b", "d")
+  expect(putBack(before, after, items("c", "x", "a", "b", "d"))).toEqual(patchOf(after, before))
+  // c が、段の前の所（b の後）にもう在れば、並びは飛ばし、d を外すだけ
+  expect(putBack(before, after, items("a", "b", "c", "d"))).toEqual({
+    fields: { items: { list: [{ id: "d", index: -1, patch: { absent: true, was: { id: "d" } } }] } },
+  })
+  // c が、どちらの所でもない（a と b の間）なら CLASH
+  expect(putBack(before, after, items("a", "c", "b", "d"))).toBe(CLASH)
+  // 足した d が変わっていれば CLASH、もう無ければ飛ばす
+  expect(putBack(before, after, items("c", "a", "b", { id: "d", v: 1 }))).toBe(CLASH)
+  expect(putBack(before, after, items("c", "a", "b"))).toMatchObject({ fields: { items: { moved: ["c"] } } })
+})
+
+test("置き直す所: 行の違いは、違いの所の反対側の行が今も続けて並んでいれば置き直し、ほかで書き換えられていれば CLASH", () => {
+  const before = "一\n二\n三"
+  const after = "一\n弐\n三"
+  expect(putBack(before, after, "一\n弐\n三\n四")).toEqual({ text: { from: after, to: before } })
+  expect(putBack(before, after, before)).toBeUndefined()
+  expect(putBack(before, after, "一\nに\n三")).toBe(CLASH)
 })

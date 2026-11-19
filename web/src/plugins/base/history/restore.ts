@@ -1,6 +1,6 @@
 // 画面の履歴の段の置き直し: 画面の履歴の段が変えたページとフォルダごとに、変えた所（フィールドごと・id の並びは id ごと・改行を含む文字列は行ごと。core/patch.ts）だけを、
-// 前か後の値に置き直す。置き直す値（Patch）は画面の履歴の段だけから決まり、今の表の上で行う（その間にほかで変わった所は、画面の履歴の段が変えた所に重なれば上書きし、
-// 重ならなければ残す。core/patch.ts）。ただし、無かった行を丸ごと置く値は、その行が今在れば断る（core/folders.ts の restoredTables）
+// 前か後の値に置き直す。置き直す値（Patch）は画面の履歴の段だけから決まり、所ごとに反対側の値も持つ。今の表の上で行い、段が書いた値のままの所だけを置き直す
+// （その間にほかで変わった所は、段が変えた所に重ならなければ残し、重なれば断る。無かった行を丸ごと置く値が、今在る行に向いていても断る。core/folders.ts の restoredTables）
 import { z } from "zod"
 import {
   inTrash,
@@ -23,19 +23,18 @@ export const DECLINED_UNCHANGED = { declined: "there is nothing to put back", ki
 export const isRevertUnchanged = (result: { ok: boolean; reason?: string; kind?: string }): boolean =>
   !result.ok && result.reason === "refused" && result.kind === REVERT_UNCHANGED
 
-export const PatchSchema: z.ZodType<Patch> = z.lazy(() =>
-  z.union([
-    z.strictObject({ set: z.unknown() }),
-    z.strictObject({ absent: z.literal(true) }),
+export const PatchSchema: z.ZodType<Patch> = z.lazy(() => {
+  const list = z.array(z.strictObject({ id: z.string().min(1), index: z.number().int(), patch: PatchSchema }))
+  const ids = z.array(z.string().min(1))
+  return z.union([
+    z.strictObject({ set: z.unknown(), was: z.unknown().optional() }),
+    z.strictObject({ absent: z.literal(true), was: z.unknown() }),
     z.strictObject({ fields: z.record(z.string(), PatchSchema) }),
-    z.strictObject({
-      list: z.array(z.strictObject({ id: z.string().min(1), index: z.number().int(), patch: PatchSchema })),
-      order: z.array(z.string().min(1)).optional(),
-      moved: z.array(z.string().min(1)).optional(),
-    }),
+    z.strictObject({ list }),
+    z.strictObject({ list, order: ids, was: ids, moved: ids }),
     z.strictObject({ text: z.strictObject({ from: z.string(), to: z.string() }) }),
-  ]),
-) as z.ZodType<Patch>
+  ])
+}) as z.ZodType<Patch>
 
 // 置き直しの引数: 画面の履歴の段が変えた物を持つブックの id（books）と、ページとフォルダごとの置き直す値
 export const RevertArgs = z.strictObject({
