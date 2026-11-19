@@ -15,6 +15,7 @@ export const LIBRARY_MESSAGES = defineMessages({
   Create: { en: "Create", ja: "作成" },
   "Could not create": { en: "Could not create", ja: "作成できません" },
   "Move to trash": { en: "Move to trash", ja: "ゴミ箱に入れる" },
+  "Could not move": { en: "Could not move", ja: "移動できません" },
   "Could not move to trash": { en: "Could not move to trash", ja: "ゴミ箱に入れられません" },
   "Could not rename": { en: "Could not rename", ja: "名前を変更できません" },
   Library: { en: "Library", ja: "書庫" },

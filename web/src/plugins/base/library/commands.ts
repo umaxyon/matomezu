@@ -13,6 +13,7 @@ import { kit } from "../kit"
 import { refusalMessage } from "../utils/refusal"
 import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG, LIBRARY_RENAME_DIALOG } from "./dialog"
 import { holdsEntries, placedInFolder } from "./entries"
+import { ENTRY_MOVE, ENTRY_MOVE_OVER } from "./entry-move"
 import { ENTRY_TRASH } from "./entry-trash"
 import {
   NOT_OPENED,
@@ -159,6 +160,26 @@ export const LIBRARY_ENTRY_TRASH = kit.defineScreenCommand({
       a.showToast({ kind: "warn", message: refusalMessage(ctx.catalog, done, kit.message("Could not move to trash")) })
   },
   when: ctx => placed(ctx) !== undefined,
+})
+
+// 動かす（ドラッグで落としたとき）: エントリ entry を、フォルダ into の index 番目（言わなければ末尾）へ。how は、先に同じ名前の物が在るときに利用者が選んだ手
+// （"number" は番号を付ける。replaces は、消えると確かめた物を上書きする）。断られたらトーストで知らせる。選んでいた行が、開いているフォルダから出たら、選ぶのを外す
+type Moving = { entry: string; into: string; index?: number; how?: "number" | { replaces: string } }
+export const LIBRARY_ENTRY_MOVE = kit.defineScreenCommand({
+  id: "library-entry-move",
+  title: "Move",
+  performs: [ENTRY_MOVE.id, ENTRY_MOVE_OVER.id],
+  run: (ctx, a, { entry, into, index, how }: Moving) => {
+    const done =
+      typeof how === "object"
+        ? a.perform(ENTRY_MOVE_OVER.id, { entry, into, index, replaces: how.replaces })
+        : a.perform(ENTRY_MOVE.id, { entry, into, index, onConflict: how ?? "refuse" })
+    if (!done.ok)
+      return a.showToast({ kind: "warn", message: refusalMessage(ctx.catalog, done, kit.message("Could not move")) })
+    const opened = openedFolderOf(ctx.folders, ctx.pluginState(LIBRARY_FOLDER))
+    if (into !== opened) a.updatePluginState(LIBRARY_PICKED, now => (now === entry ? undefined : now))
+  },
+  when: () => true,
 })
 
 // ツリーの行 row へ移る: 中へ入れる行なら、右の枠にその中身を出す。入れない行（ページなど）なら、それを持つフォルダの中身を出して、その行を選ぶ

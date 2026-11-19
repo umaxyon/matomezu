@@ -28,6 +28,7 @@ import {
 import {
   LIBRARY_BOOK_NEW,
   LIBRARY_CONTENTS_KEY_SCOPE,
+  LIBRARY_ENTRY_MOVE,
   LIBRARY_ENTRY_OPEN,
   LIBRARY_ENTRY_RENAME,
   LIBRARY_ENTRY_TRASH,
@@ -551,6 +552,7 @@ export const BASE = defineBuiltin(
       LIBRARY_FOLDER_NEW,
       LIBRARY_ENTRY_RENAME,
       LIBRARY_ENTRY_TRASH,
+      LIBRARY_ENTRY_MOVE,
       LIBRARY_TREE_MOVE,
       LIBRARY_TREE_LEFT,
       LIBRARY_TREE_RIGHT,
@@ -776,6 +778,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-book-new": typeof LIBRARY_BOOK_NEW
     "@matomezu/base:library-folder-new": typeof LIBRARY_FOLDER_NEW
     "@matomezu/base:library-entry-rename": typeof LIBRARY_ENTRY_RENAME
+    "@matomezu/base:library-entry-move": typeof LIBRARY_ENTRY_MOVE
     "@matomezu/base:library-tree-move": typeof LIBRARY_TREE_MOVE
     "@matomezu/base:library-tree-fold-or-parent": typeof LIBRARY_TREE_LEFT
     "@matomezu/base:library-tree-unfold-or-next": typeof LIBRARY_TREE_RIGHT

@@ -10,7 +10,7 @@ import type { MatomezuState } from "../../../store/store"
 import { useContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
 import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
-import { useActions, usePluginState, useSetPluginState } from "../../../ui/view-hooks"
+import { useActions, usePluginState, useReadPluginState, useSetPluginState } from "../../../ui/view-hooks"
 import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { rowAboveOrBelow } from "./arrows"
@@ -27,6 +27,7 @@ import { HistoryButtons } from "./HistoryButtons"
 import { useKeepFocusIn, useLibraryRows, useNameOf } from "./hooks"
 import { CHEVRON, iconOf, TRASH } from "./icons"
 import styles from "./LibraryView.module.css"
+import { MoveClashConfirm } from "./MoveClashConfirm"
 import {
   holdsRows,
   type LibraryRow,
@@ -42,6 +43,7 @@ import {
 } from "./outline"
 import { LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_UNFOLDED } from "./state"
 import { TrashView } from "./TrashView"
+import { type LibraryDrag, useLibraryDrag } from "./useLibraryDrag"
 
 // 一番上に並ぶフォルダの行（書庫ホームとゴミ箱。名前は画面が付ける）
 const TOPS: readonly LibraryRow[] = [HOME_ID, TRASH_ID].map(id => ({
@@ -64,6 +66,7 @@ interface Handlers {
   pick(row: LibraryRow, holder: string): void
   open(row: LibraryRow): void
   menu(e: MouseEvent, row: LibraryRow): void // 行の右クリックのメニューを開く
+  drag: LibraryDrag | null
 }
 
 export function LibraryView() {
@@ -87,6 +90,7 @@ export function LibraryView() {
   const { openDialog } = useActions()
   const unfolded = unfoldedOf(usePluginState(kit, LIBRARY_UNFOLDED))
   const setUnfolded = useSetPluginState(kit, LIBRARY_UNFOLDED)
+  const readUnfolded = useReadPluginState(kit, LIBRARY_UNFOLDED)
   const shown = new Set(unfolded)
   const enter = (folder: string) => {
     if (folder !== opened) setFolder(folder)
@@ -97,7 +101,12 @@ export function LibraryView() {
   }
   const openEntryMenu = useContextMenu(LIBRARY_ENTRY_CONTEXT)
   const openFolderMenu = useContextMenu(LIBRARY_FOLDER_CONTEXT)
+  const { drag, asking, onPointerDown, answered } = useLibraryDrag(root, id => {
+    const now = unfoldedOf(readUnfolded())
+    if (!now.includes(id) && read().folders[id] !== undefined && id !== TRASH_ID) setUnfolded([...now, id])
+  })
   const handlers: Handlers = {
+    drag,
     menu: (e, row) => openEntryMenu(e, { entry: row.id }),
     opened,
     picked,
@@ -129,7 +138,13 @@ export function LibraryView() {
   }, [current, picked])
   const here = nameOf({ id: opened, title: titles[titles.length - 1] ?? NO_TITLE })
   return (
-    <div ref={root} className={styles.library} data-key-scope={LIBRARY_SCOPE} tabIndex={-1}>
+    <div
+      ref={root}
+      className={styles.library}
+      data-key-scope={LIBRARY_SCOPE}
+      tabIndex={-1}
+      onPointerDown={onPointerDown}
+    >
       <nav className={styles.tree} aria-label={t("Folders")} data-key-scope={LIBRARY_TREE_SCOPE}>
         <ul className={styles.rows}>
           {TOPS.map(top => (
@@ -188,6 +203,8 @@ export function LibraryView() {
                   type="button"
                   className={styles.entry}
                   data-library-row={row.id}
+                  data-holder={opened}
+                  {...dragMarks(drag, LIBRARY_CONTENTS_SCOPE, row.id)}
                   aria-pressed={row.id === picked}
                   onClick={() => setPicked(row.id)}
                   onDoubleClick={() => handlers.open(row)}
@@ -208,9 +225,16 @@ export function LibraryView() {
           </ul>
         )}
       </div>
+      {asking && <MoveClashConfirm asking={asking} onDone={answered} />}
     </div>
   )
 }
+
+// ドラッグ中の行の印: 掴んだ行（data-dragging）と、落とす所の行（data-drop に、中へ・前・後ろ）
+const dragMarks = (drag: LibraryDrag | null, zone: string, row: string) => ({
+  "data-dragging": drag?.id === row ? true : undefined,
+  "data-drop": drag?.aim?.zone === zone && drag.aim.row === row ? drag.aim.where : undefined,
+})
 
 // 行のボタンの上の Enter は、押す（選ぶ）代わりに開く（2 回押すのと同じ）
 const openOnEnter = (e: KeyboardEvent, open: () => void) => {
@@ -262,6 +286,8 @@ function TreeNode({
           type="button"
           className={styles.name}
           data-library-row={row.id}
+          data-holder={holder}
+          {...dragMarks(handlers.drag, LIBRARY_TREE_SCOPE, row.id)}
           aria-current={holds && row.id === handlers.opened ? "true" : undefined}
           aria-pressed={!holds && row.id === handlers.picked}
           onClick={() => (holds ? handlers.enter(row.id) : handlers.pick(row, holder))}

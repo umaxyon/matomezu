@@ -1,4 +1,6 @@
 // 書庫の画面（コントロールセンターの中）: 左のツリーと右の枠で書庫を見て、フォルダへ入り、ブックを 2 回押して開く
+
+import type { Locator } from "@playwright/test"
 import { BOOK_SCREEN_DEF, expect, joinedAiAuth, type Page, test, urlFront, urlStages } from "./fixtures"
 import { storedBook, storedBooks } from "./helpers/stored"
 
@@ -424,4 +426,118 @@ test("書庫の行の右クリックのメニューから、名前の変更・�
   await expect(menu.getByRole("menuitem")).toHaveText(["開く"])
   await menu.getByRole("menuitem", { name: "開く" }).click()
   await expect.poll(() => urlFront(page)).toBe(BOOK_SCREEN_DEF)
+})
+
+test("書庫の行をドラッグして、行の間（その位置へ）・フォルダの上（中へ）・ゴミ箱の行へ落とせる。名前が重なれば確かめる。少し動かしただけ・落としたあとの click は、選ぶ・開く操作にならない", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await page.bringToFront()
+  const made = async (title: string, into?: string) => {
+    const done = await perform(page, "@matomezu/base:folder-create", { title, into })
+    expect(done).toMatchObject({ ok: true })
+    return (done.result as { folder: string }).folder
+  }
+  const box = await made("ドラッグの箱")
+  await made("ドラッグ ア")
+  await made("ドラッグ イ")
+  await made("ドラッグ ア", box)
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  const home = page.getByRole("list", { name: "書庫 の中身" })
+  const tree = page.getByRole("navigation", { name: "フォルダ" })
+  const icon = (name: string) => home.getByRole("button", { name, exact: true })
+  const names = async () => (await home.getByRole("button").allInnerTexts()).filter(n => n.startsWith("ドラッグ"))
+  // 行 from を掴んで、行 to の、幅（高さ）の at の所へ落とす
+  const dragTo = async (from: Locator, to: Locator, at: { x: number; y: number }, hold = 0) => {
+    await from.hover() // 開く動きが止まるまで待つ
+    const a = (await from.boundingBox())!
+    const b = (await to.boundingBox())!
+    await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(a.x + a.width / 2 + 10, a.y + a.height / 2 + 10, { steps: 2 })
+    await page.mouse.move(b.x + b.width * at.x, b.y + b.height * at.y, { steps: 4 })
+    if (hold > 0) await page.waitForTimeout(hold)
+  }
+  expect(await names()).toEqual(["ドラッグの箱", "ドラッグ ア", "ドラッグ イ"])
+
+  // 少し動かしただけでは掴まない（選ぶだけ）。2 回押しで中へ入るのも、そのまま
+  await icon("ドラッグ イ").hover()
+  const first = (await icon("ドラッグ イ").boundingBox())!
+  await page.mouse.move(first.x + 20, first.y + 20)
+  await page.mouse.down()
+  await page.mouse.move(first.x + 22, first.y + 21)
+  await page.mouse.up()
+  await expect(icon("ドラッグ イ")).toHaveAttribute("aria-pressed", "true")
+  expect(await names()).toEqual(["ドラッグの箱", "ドラッグ ア", "ドラッグ イ"])
+
+  // アイコンの間へ: イ を、箱の前へ。掴んだ行は薄くなり、落とす所に線が出る
+  await dragTo(icon("ドラッグ イ"), icon("ドラッグの箱"), { x: 0.1, y: 0.5 })
+  await expect(icon("ドラッグ イ")).toHaveAttribute("data-dragging", "true")
+  await expect(icon("ドラッグの箱")).toHaveAttribute("data-drop", "before")
+  await page.screenshot({ path: "/tmp/m0126-drag-between.png" })
+  await page.mouse.up()
+  expect(await names()).toEqual(["ドラッグ イ", "ドラッグの箱", "ドラッグ ア"])
+  // 落としたあとの click で、落とした先の行を選んだり開いたりしない（選んでいた イ のまま）
+  await expect(icon("ドラッグ イ")).toHaveAttribute("aria-pressed", "true")
+  await expect(icon("ドラッグの箱")).toHaveAttribute("aria-pressed", "false")
+
+  // 落とせない所（自分の上・同じ場所）では、色も線も出ず、離しても何も変わらない
+  await dragTo(icon("ドラッグ イ"), icon("ドラッグの箱"), { x: 0.1, y: 0.5 })
+  await expect(home.locator("[data-drop]")).toHaveCount(0)
+  await page.mouse.up()
+  expect(await names()).toEqual(["ドラッグ イ", "ドラッグの箱", "ドラッグ ア"])
+
+  // Escape で取り消す
+  await dragTo(icon("ドラッグ ア"), icon("ドラッグ イ"), { x: 0.1, y: 0.5 })
+  await expect(icon("ドラッグ イ")).toHaveAttribute("data-drop", "before")
+  await page.keyboard.press("Escape")
+  await expect(home.locator("[data-drop], [data-dragging]")).toHaveCount(0)
+  await page.mouse.up()
+  expect(await names()).toEqual(["ドラッグ イ", "ドラッグの箱", "ドラッグ ア"])
+
+  // フォルダの上（中へ）: イ を箱の中へ。行に色が付く
+  await dragTo(icon("ドラッグ イ"), icon("ドラッグの箱"), { x: 0.5, y: 0.5 })
+  await expect(icon("ドラッグの箱")).toHaveAttribute("data-drop", "into")
+  await page.screenshot({ path: "/tmp/m0126-drag-into.png" })
+  await page.mouse.up()
+  expect(await names()).toEqual(["ドラッグの箱", "ドラッグ ア"])
+
+  // 名前が重なる: ア を、ツリーの箱の行へ（中に ア が在る）。番号を付けて入る
+  await dragTo(icon("ドラッグ ア"), tree.getByRole("button", { name: "ドラッグの箱", exact: true }), { x: 0.5, y: 0.5 })
+  await page.mouse.up()
+  const asked = page.getByRole("alertdialog").or(page.getByRole("dialog"))
+  await expect(asked).toContainText("同じ名前があります")
+  await expect(asked).toContainText("ドラッグ ア 2")
+  await asked.getByRole("button", { name: "番号を付ける" }).click()
+  expect(await names()).toEqual(["ドラッグの箱"])
+
+  // ツリーの、中をしまっている行の上で少し待つと、中が出る。その中の行の間へ落とす（ア 2 を、イ の前へ）
+  await icon("ドラッグの箱").dblclick()
+  const inside = page.getByRole("list", { name: "ドラッグの箱 の中身" })
+  await expect(inside.getByRole("button")).toHaveText(["ドラッグ ア", "ドラッグ イ", "ドラッグ ア 2"])
+  await dragTo(
+    inside.getByRole("button", { name: "ドラッグ ア 2" }),
+    tree.getByRole("button", { name: "ドラッグの箱", exact: true }),
+    { x: 0.5, y: 0.5 },
+    900,
+  )
+  const row = tree.getByRole("button", { name: "ドラッグ イ", exact: true })
+  await expect(row).toBeVisible()
+  const at = (await row.boundingBox())!
+  await page.mouse.move(at.x + at.width / 2, at.y + 2, { steps: 3 })
+  await expect(row).toHaveAttribute("data-drop", "before")
+  await page.mouse.up()
+  await expect(inside.getByRole("button")).toHaveText(["ドラッグ ア", "ドラッグ ア 2", "ドラッグ イ"])
+
+  // ゴミ箱の行へ落とすと、ゴミ箱に入る。Ctrl+Z で戻る
+  await dragTo(inside.getByRole("button", { name: "ドラッグ イ" }), tree.getByRole("button", { name: "ゴミ箱" }), {
+    x: 0.5,
+    y: 0.5,
+  })
+  await expect(tree.getByRole("button", { name: "ゴミ箱" })).toHaveAttribute("data-drop", "into")
+  await page.mouse.up()
+  await expect(inside.getByRole("button")).toHaveText(["ドラッグ ア", "ドラッグ ア 2"])
+  await inside.getByRole("button", { name: "ドラッグ ア", exact: true }).click()
+  await page.keyboard.press("Control+z")
+  await expect(inside.getByRole("button")).toHaveText(["ドラッグ ア", "ドラッグ ア 2", "ドラッグ イ"])
 })

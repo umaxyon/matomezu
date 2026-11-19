@@ -66,9 +66,9 @@ export function retitled(library: Library, kind: EntryKind, entry: string, title
   }
 }
 
-// フォルダ into の直下に在るエントリ entry（種類 kind）の、同じフォルダのほかの物と重ならない名前（重なっていれば「名前 2」から番号を付ける。重ならなければ今の名前）。
+// フォルダ into の直下に在る（か、そこへ入れる）エントリ entry（種類 kind）の、そのフォルダのほかの物と重ならない名前（重なっていれば「名前 2」から番号を付ける。重ならなければ今の名前）。
 // 名前を持たない物・フォルダが無いときは undefined
-function freeTitleIn(library: Library, kind: EntryKind, entry: string, into: string): string | undefined {
+export function freeTitleIn(library: Library, kind: EntryKind, entry: string, into: string): string | undefined {
   const holder = library.folders[into]
   const title = titleOf(library, kind, entry)
   return !holder || title === undefined ? undefined : freeTitle(title, titlesIn(library, holder, entry))

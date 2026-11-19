@@ -290,3 +290,53 @@
   padding: 0 8px 8px;
   font-size: 13px;
 }
+
+/* ドラッグ: 掴んだ行は薄く、中へ落とす行は色、行の間へ落とす所は線（ツリーは行の上か下、右の枠はアイコンの左か右） */
+.name[data-dragging],
+.entry[data-dragging] {
+  opacity: 0.45;
+}
+.name[data-drop="into"],
+.entry[data-drop="into"] {
+  background: var(--skin-btn);
+  outline: 2px solid var(--skin-accent);
+}
+.name[data-drop="before"],
+.name[data-drop="after"],
+.entry[data-drop="before"],
+.entry[data-drop="after"] {
+  position: relative;
+}
+.name[data-drop="before"]::after,
+.name[data-drop="after"]::after,
+.entry[data-drop="before"]::after,
+.entry[data-drop="after"]::after {
+  position: absolute;
+  background: var(--skin-accent);
+  content: "";
+  pointer-events: none;
+}
+.name[data-drop="before"]::after,
+.name[data-drop="after"]::after {
+  right: 0;
+  left: 0;
+  height: 2px;
+}
+.name[data-drop="before"]::after {
+  top: -1px;
+}
+.name[data-drop="after"]::after {
+  bottom: -1px;
+}
+.entry[data-drop="before"]::after,
+.entry[data-drop="after"]::after {
+  top: 0;
+  bottom: 0;
+  width: 2px;
+}
+.entry[data-drop="before"]::after {
+  left: -5px;
+}
+.entry[data-drop="after"]::after {
+  right: -5px;
+}
