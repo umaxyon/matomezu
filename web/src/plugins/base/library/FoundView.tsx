@@ -2,6 +2,7 @@
 import type { MouseEvent } from "react"
 import { useMessages } from "../../../ui/i18n"
 import { kit } from "../kit"
+import { openOnEnter } from "./arrows"
 import { useLibraryRows, useNameOf } from "./hooks"
 import { iconOf } from "./icons"
 import styles from "./LibraryView.module.css"
@@ -39,11 +40,7 @@ export function FoundView({
               aria-pressed={row.id === current}
               onClick={() => onPick(row)}
               onDoubleClick={() => onOpen(row)}
-              onKeyDown={e => {
-                if (e.key !== "Enter" || e.nativeEvent.isComposing) return
-                e.preventDefault()
-                onOpen(row)
-              }}
+              onKeyDown={e => openOnEnter(e, () => onOpen(row))}
               onContextMenu={e => onMenu(e, row)}
             >
               <span className={styles.icon}>{iconOf(row.kind)}</span>

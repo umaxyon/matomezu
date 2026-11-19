@@ -141,8 +141,8 @@ import {
 } from "../core/workspace"
 import { type CommandArgs, type CommandId, called, commandOwner, isEnabled } from "./commands"
 import { type CommandActions, calledScreenIdOf, givenActions } from "./commands/def"
-import { type MenuOpens, type OpenedContextMenu, openedAt } from "./context-menus"
-import { type DialogArgs, type DialogPreview, NO_STAGE, type OpenedDialog } from "./dialogs"
+import type { MenuOpens, OpenedContextMenu } from "./context-menus"
+import { type DialogArgs, type DialogPreview, NO_STAGE, type OpenedDialog, type OpenedPlace, openedAt } from "./dialogs"
 import { findKey, type KeyReach, type KeyTable, keyScopes, keyTable } from "./keys"
 import { type Assembled, assemble, type Plugin } from "./plugin"
 import {
@@ -1208,7 +1208,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     const stages = next.window?.screens.flatMap(s => s.stages?.stages ?? [])
     // 開いたステージ（ステージを持たずに開いたダイアログは、開いたスクリーン）が無くなったか
     const screensNow = next.window?.screens
-    const gone = (opened: { stage: string; screen?: string } | null) => {
+    const gone = (opened: OpenedPlace | null) => {
       if (opened === null) return false
       if (opened.stage !== NO_STAGE) return stages !== undefined && !stages.some(s => s.id === opened.stage)
       return screensNow !== undefined && !screensNow.some(s => s.id === opened.screen)
@@ -1251,6 +1251,13 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   }
   // ステージ stage が窓のどれかのブックスクリーンにあるか
   const inWindow = (stage: string) => stageIn(getState().window, stage) !== undefined
+  // 場所 at（ステージか、ステージを持たないスクリーン）から開く、ダイアログ・右クリックのメニューの開いた場所: ステージからなら、そのステージと、それを並べているスクリーン。
+  // スクリーンからなら、ステージは持たない。at が窓に無ければ undefined
+  const placeOpenedFrom = (at: string): OpenedPlace | undefined => {
+    const win = getState().window
+    const screen = screenOfStage(win, at)?.id ?? win.screens.find(s => s.id === at)?.id
+    return screen === undefined ? undefined : { stage: inWindow(at) ? at : NO_STAGE, screen }
+  }
   let toasts = 0 // トーストの id の番号（出すたびに 1 つ進める）
   // プラグイン状態の宣言 id の値を value にした値の組 values（変わらなければ values のまま）。画面の場所に入れる宣言の値は宣言の形で確かめる（合わなければ E123）。
   // ステージごとの宣言は stage のステージの値（無いステージには置かない）、ステージに結ばない宣言は stage を渡さない。知らない id は E122、範囲が合わなければ E124
@@ -1353,12 +1360,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     openDialog: (at, id, ...args) => {
       if (!defs.catalog.store.dialogs.has(id)) fail("E108", { id })
-      const win = getState().window
-      // ステージから開いたなら、そのステージと、それを並べているスクリーン。スクリーンから開いたなら、ステージは持たない
-      const screen = screenOfStage(win, at)?.id ?? win.screens.find(s => s.id === at)?.id
-      if (screen === undefined) return
-      const stage = inWindow(at) ? at : NO_STAGE
-      setState({ dialog: { id, stage, screen, args: args[0], submitted: 0, preview: null } })
+      const place = placeOpenedFrom(at)
+      if (place) setState({ dialog: { id, ...place, args: args[0], submitted: 0, preview: null } })
     },
     closeDialog: () => {
       if (getState().dialog) setState({ dialog: null })
@@ -1402,11 +1405,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       return false
     },
     openContextMenu: (from, id, target, at, opens = "down") => {
-      const win = getState().window
-      // ステージから開いたなら、そのステージと、それを並べているスクリーン。スクリーンから開いたなら、ステージは持たない（ダイアログと同じ）
-      const screen = screenOfStage(win, from)?.id ?? win.screens.find(s => s.id === from)?.id
-      if (screen === undefined) return
-      setState({ contextMenu: { id, stage: inWindow(from) ? from : NO_STAGE, screen, target, at, opens } })
+      const place = placeOpenedFrom(from)
+      if (place) setState({ contextMenu: { id, ...place, target, at, opens } })
     },
     closeContextMenu: () => {
       if (getState().contextMenu) setState({ contextMenu: null })

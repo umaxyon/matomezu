@@ -37,10 +37,10 @@ import {
   LIBRARY_KEYS,
   LIBRARY_PICK_MOVE,
   LIBRARY_REDO,
+  LIBRARY_TREE_FOLD_OR_PARENT,
   LIBRARY_TREE_KEY_SCOPE,
-  LIBRARY_TREE_LEFT,
   LIBRARY_TREE_MOVE,
-  LIBRARY_TREE_RIGHT,
+  LIBRARY_TREE_UNFOLD_OR_NEXT,
   LIBRARY_UNDO,
 } from "./library/commands"
 import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG, LIBRARY_RENAME_DIALOG } from "./library/dialog"
@@ -554,8 +554,8 @@ export const BASE = defineBuiltin(
       LIBRARY_ENTRY_TRASH,
       LIBRARY_ENTRY_MOVE,
       LIBRARY_TREE_MOVE,
-      LIBRARY_TREE_LEFT,
-      LIBRARY_TREE_RIGHT,
+      LIBRARY_TREE_FOLD_OR_PARENT,
+      LIBRARY_TREE_UNFOLD_OR_NEXT,
       LIBRARY_PICK_MOVE,
       NOTE_NEW,
       MARK_NEW,
@@ -781,8 +781,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-entry-rename": typeof LIBRARY_ENTRY_RENAME
     "@matomezu/base:library-entry-move": typeof LIBRARY_ENTRY_MOVE
     "@matomezu/base:library-tree-move": typeof LIBRARY_TREE_MOVE
-    "@matomezu/base:library-tree-fold-or-parent": typeof LIBRARY_TREE_LEFT
-    "@matomezu/base:library-tree-unfold-or-next": typeof LIBRARY_TREE_RIGHT
+    "@matomezu/base:library-tree-fold-or-parent": typeof LIBRARY_TREE_FOLD_OR_PARENT
+    "@matomezu/base:library-tree-unfold-or-next": typeof LIBRARY_TREE_UNFOLD_OR_NEXT
     "@matomezu/base:library-pick-move": typeof LIBRARY_PICK_MOVE
     "@matomezu/base:library-entry-trash": typeof LIBRARY_ENTRY_TRASH
     "@matomezu/base:control-center-toggle": typeof CONTROL_CENTER_TOGGLE

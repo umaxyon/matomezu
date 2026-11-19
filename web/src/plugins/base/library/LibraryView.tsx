@@ -1,7 +1,7 @@
 // 書庫の画面: 左にツリー（書庫ホームとゴミ箱が一番上に並ぶ）、右にパンくずと、開いているフォルダの中身。
 // 1 回押すと選び（ツリーのフォルダ・ブック・バインダは、右の枠にその中身を出す）、2 回押すと開く（フォルダは中へ入り、ブックとその中のページ・バインダは窓に出す）。
 // ゴミ箱は、ツリーでは中を出さず、右の枠に捨てた物の一覧を出す（TrashView.tsx）。読めない物は、選べるだけ。開いているフォルダは画面の場所に入り、選んでいる行は入らない（state.ts）
-import { type KeyboardEvent, type MouseEvent, useEffect, useId, useRef, useState } from "react"
+import { type MouseEvent, useEffect, useId, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { titleOf } from "../../../core/entries"
 import { HOME_ID, TRASH_ID } from "../../../core/folders"
@@ -13,7 +13,7 @@ import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/sto
 import { useActions, usePluginState, useReadPluginState, useSetPluginState } from "../../../ui/view-hooks"
 import { ActionButton, controlClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import { rowAboveOrBelow } from "./arrows"
+import { openOnEnter, rowAboveOrBelow } from "./arrows"
 import {
   LIBRARY_CONTENTS_SCOPE,
   LIBRARY_ENTRY_CONTEXT,
@@ -30,6 +30,7 @@ import { CHEVRON, iconOf, TRASH } from "./icons"
 import styles from "./LibraryView.module.css"
 import { MoveClashConfirm } from "./MoveClashConfirm"
 import {
+  arrivedAt,
   holdsRows,
   type LibraryRow,
   NO_TITLE,
@@ -40,6 +41,7 @@ import {
   pathTo,
   rowsIn,
   treeCurrentOf,
+  unfoldable,
   unfoldedOf,
 } from "./outline"
 import { type FoundRow, NO_SEARCH, searchWord } from "./search"
@@ -94,26 +96,20 @@ export function LibraryView() {
   const setUnfolded = useSetPluginState(kit, LIBRARY_UNFOLDED)
   const readUnfolded = useReadPluginState(kit, LIBRARY_UNFOLDED)
   const shown = new Set(unfolded)
-  const enter = (folder: string) => {
-    if (folder !== opened) setFolder(folder)
-    setPicked(undefined)
-    // 入ったフォルダまでの道は、ツリーの中を出す
-    const over = pathTo(read().folders, folder).slice(0, -1)
-    if (over.some(id => !shown.has(id))) setUnfolded([...new Set([...unfolded, ...over])])
+  // 行へ移る: 開くフォルダ・選ぶ行・ツリーで中を出すフォルダを置き直す
+  const arrive = (row: { id: string; holder: string; holds: boolean }) => {
+    const next = arrivedAt(read().folders, row, unfolded)
+    if (next.folder !== opened) setFolder(next.folder)
+    setPicked(next.picked)
+    if (next.unfolded !== unfolded) setUnfolded([...next.unfolded])
   }
+  const enter = (folder: string) => arrive({ id: folder, holder: folder, holds: true })
   // 検索: 入力Formに打っている途中の言葉 typed と、「検索」を押して探している言葉 query
   const query = usePluginState(kit, LIBRARY_QUERY)
   const setQuery = useSetPluginState(kit, LIBRARY_QUERY)
   const [typed, setTyped] = useState(query ?? "")
   const searchForm = useId()
-  // 見つかった行 row へ、ツリーで移る: 中へ入れる行なら、その中身を出す。入れない行（ページなど）なら、それを持つフォルダの中身を出して、その行を選ぶ
-  const reveal = (row: FoundRow) => {
-    if (holdsRows(row)) return enter(row.id)
-    if (row.holder !== opened) setFolder(row.holder)
-    setPicked(row.id)
-    const over = pathTo(read().folders, row.holder)
-    if (over.some(id => !shown.has(id))) setUnfolded([...new Set([...unfolded, ...over])])
-  }
+  const reveal = (row: FoundRow) => arrive({ id: row.id, holder: row.holder, holds: holdsRows(row) })
   const openEntryMenu = useContextMenu(LIBRARY_ENTRY_CONTEXT)
   const openFolderMenu = useContextMenu(LIBRARY_FOLDER_CONTEXT)
   const { drag, asking, onPointerDown, answered } = useLibraryDrag(root, id => {
@@ -122,16 +118,13 @@ export function LibraryView() {
   })
   const handlers: Handlers = {
     drag,
-    menu: (e, row) => openEntryMenu(e, { entry: row.id }),
+    menu: (e, row) => openEntryMenu(e, { entry: row.id, readable: row.readable }),
     opened,
     picked,
     shown,
     toggle: id => setUnfolded(shown.has(id) ? unfolded.filter(x => x !== id) : [...unfolded, id]),
     enter,
-    pick: (row, holder) => {
-      if (holder !== opened) setFolder(holder)
-      setPicked(row.id)
-    },
+    pick: (row, holder) => arrive({ id: row.id, holder, holds: false }),
     open: row => {
       const target = openTargetOf(read().folders, row)
       if (target === NOT_OPENED) return
@@ -248,7 +241,7 @@ export function LibraryView() {
                 aria-label={t("Contents of {name}", { name: here })}
                 onContextMenu={e => openFolderMenu(e, { folder: opened })}
                 data-key-scope={LIBRARY_CONTENTS_SCOPE}
-                onKeyDown={rowAboveOrBelow}
+                onKeyDown={e => rowAboveOrBelow(e, setPicked)}
               >
                 {rows.map(row => (
                   <li key={row.id}>
@@ -291,13 +284,6 @@ const dragMarks = (drag: LibraryDrag | null, zone: string, row: string) => ({
   "data-drop": drag?.aim?.zone === zone && drag.aim.row === row ? drag.aim.where : undefined,
 })
 
-// 行のボタンの上の Enter は、押す（選ぶ）代わりに開く（2 回押すのと同じ）
-const openOnEnter = (e: KeyboardEvent, open: () => void) => {
-  if (e.key !== "Enter" || e.nativeEvent.isComposing) return
-  e.preventDefault()
-  open()
-}
-
 // フォルダ id の名前（名前を持たない物・無い物は NO_TITLE）
 const folderTitle = (s: MatomezuState, id: string): string => titleOf(s, "folder", id) ?? NO_TITLE
 
@@ -318,7 +304,7 @@ function TreeNode({
   const name = nameOf(row)
   const holds = holdsRows(row)
   // ゴミ箱の中は、ツリーに出さない
-  const unfolds = holds && row.id !== TRASH_ID
+  const unfolds = unfoldable(row.id, holds)
   const open = unfolds && handlers.shown.has(row.id)
   return (
     <li>

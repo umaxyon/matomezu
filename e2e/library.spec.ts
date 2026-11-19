@@ -535,6 +535,13 @@ test("書庫の行をドラッグして、行の間（その位置へ）・フ�
   await inside.getByRole("button", { name: "ドラッグ ア", exact: true }).click()
   await page.keyboard.press("Control+z")
   await expect(inside.getByRole("button")).toHaveText(["ドラッグ ア", "ドラッグ ア 2", "ドラッグ イ"])
+
+  // 書庫ホームで何も選ばずに、ゴミ箱の行へ落としても入る
+  await page.getByRole("navigation", { name: "場所" }).getByRole("button", { name: "書庫" }).click()
+  await expect(home.locator('[aria-pressed="true"]')).toHaveCount(0)
+  await dragTo(icon("ドラッグの箱"), tree.getByRole("button", { name: "ゴミ箱" }), { x: 0.5, y: 0.5 })
+  await page.mouse.up()
+  await expect(icon("ドラッグの箱")).toHaveCount(0)
 })
 
 test("書庫の検索は、名前に言葉を含む物を右の枠に並べる。行を押すとツリーのその行へ移り、2 回押すと開く。入力Formを空にすると元の表示に戻る", async ({

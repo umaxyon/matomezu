@@ -1,21 +1,24 @@
-// 書庫の画面のコマンド: 選んでいる物（右クリックのメニューからは、右クリックした物）を開く・名前を変える・ゴミ箱に入れる、中にブック・フォルダを作る、書庫の画面の履歴を元に戻す・やり直す（library-revert で、最後の画面の履歴の段が変えた所を置き直す）。
-// キーは、書庫の画面（LibraryView）の中に焦点がある間だけ効く（キーの範囲 library）。置き直しても何も変わらない段は、動かして飛ばし、その次の段を置き直す。
-// 断られたらトーストで知らせ（その間のほかの変更とぶつかって断られたなら、2 行目にそう出す）、その画面の履歴の段は動かさない
+// 書庫の画面のコマンド: 選んでいる物（右クリックのメニューからは右クリックした物、ツリーのキーからはツリーで今いる行）を開く・名前を変える・ゴミ箱に入れる、中にブック・フォルダを作る、
+// ドラッグで落とした物を動かす、矢印キーでツリーの行・右の枠の隣の行へ移る、書庫の画面の履歴を元に戻す・やり直す（library-revert で、最後の画面の履歴の段が変えた所を置き直す）。
+// キーは、書庫の画面（LibraryView）の中に焦点がある間だけ効く（キーの範囲 library。矢印は、ツリーの中 library-tree と、右の枠の中身の中 library-contents）。
+// 置き直しても何も変わらない段は、動かして飛ばし、その次の段を置き直す。断られたらトーストで知らせ（その間のほかの変更とぶつかって断られたなら、2 行目にそう出す）、その画面の履歴の段は動かさない
 
 import { entriesIn, placeOf } from "../../../core/entries"
-import { HOME_ID } from "../../../core/folders"
 import { LIBRARY_HISTORY } from "../../../core/history"
 import { type CommandActions, type ScreenCommandContext, storeActionsOf } from "../../../store/commands/def"
 import { NO_STAGE } from "../../../store/dialogs"
+import { BOOK_CREATE } from "../book-new/book-create"
 import { showNotRestored } from "../history"
 import { isRevertUnchanged } from "../history/restore"
 import { kit } from "../kit"
 import { refusalMessage } from "../utils/refusal"
 import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG, LIBRARY_RENAME_DIALOG } from "./dialog"
-import { holdsEntries, placedInFolder } from "./entries"
-import { ENTRY_MOVE, ENTRY_MOVE_OVER } from "./entry-move"
+import type { Drop } from "./drop"
+import { holderForNew, holdsEntries, placedInFolder } from "./entries"
+import { ENTRY_MOVE, ENTRY_MOVE_OVER, ENTRY_RENAME, FOLDER_CREATE } from "./entry-move"
 import { ENTRY_TRASH } from "./entry-trash"
 import {
+  arrivedAt,
   NOT_OPENED,
   type OpenTarget,
   openedFolderOf,
@@ -64,41 +67,61 @@ export const LIBRARY_FOLDER_CONTEXT = kit.name("library-folder-context")
 // LibraryView が開く右クリックのメニュー（LibraryView を描くウィジェットが、contextMenus に書く）
 export const LIBRARY_CONTEXT_MENUS = [LIBRARY_ENTRY_CONTEXT, LIBRARY_FOLDER_CONTEXT] as const
 
-type Named = { entry: string } | undefined
+// コマンドが受け取る物: エントリ entry（readable は読めるか。言わなければ、読める）か、フォルダ folder（何も無い所のメニューから）か、ツリーで今いる行（at）。
+// 書庫の右クリックのメニューが受け取る物も、この形
+type Named = { entry: string; readable?: boolean } | { folder: string } | { at: "tree" }
 
-// コマンドが扱うエントリ: 名指した物 named。無ければ、開いている書庫の右クリックのメニューが受け取った物。それも無ければ、呼ばれた場所の書庫の画面で選んでいる行。
-// それも無ければ、右の枠に中身を出しているフォルダ（ツリーで選んだフォルダ）
-function entryOf(ctx: ScreenCommandContext, named?: Named): string | undefined {
-  if (named) return named.entry
+// 名指した物 named。無ければ、開いている書庫の右クリックのメニューが受け取った物
+function given(ctx: ScreenCommandContext, named: Named | undefined): Named | undefined {
+  if (named) return named
   const menu = ctx.contextMenu
-  if (menu?.id === LIBRARY_ENTRY_CONTEXT) return (menu.target as { entry: string }).entry
-  if (menu?.id === LIBRARY_FOLDER_CONTEXT) return (menu.target as { folder: string }).folder
-  return ctx.pluginState(LIBRARY_PICKED) ?? ctx.pluginState(LIBRARY_FOLDER)
+  return menu && (LIBRARY_CONTEXT_MENUS as readonly string[]).includes(menu.id) ? (menu.target as Named) : undefined
 }
 
-// 名前を変えられる・ゴミ箱に入れられる・動かせるエントリか（エントリのアクションが扱う物: 書庫ホームかフォルダの直下に在る物）
+const openedIn = (ctx: ScreenCommandContext): string => openedFolderOf(ctx.folders, ctx.pluginState(LIBRARY_FOLDER))
+
+// コマンドが扱うエントリ: 受け取ったエントリ・フォルダ。ツリーからなら、ツリーで今いる行。何も受け取らなければ、呼ばれた場所の書庫の画面で選んでいる行（無ければ、扱う物は無い）
+function entryOf(ctx: ScreenCommandContext, named?: Named): string | undefined {
+  const to = given(ctx, named)
+  const picked = ctx.pluginState(LIBRARY_PICKED)
+  if (!to) return picked
+  return "entry" in to ? to.entry : "folder" in to ? to.folder : treeCurrentOf(ctx.folders, openedIn(ctx), picked)
+}
+
+// 名前を変えられる・ゴミ箱に入れられるエントリか（エントリのアクションが扱う物: 書庫ホームかフォルダの直下に在る物）。
+// フォルダを受け取ったとき（何も無い所のメニュー）は、扱わない（そのフォルダは、右クリックした物でない）
 const placed = (ctx: ScreenCommandContext, named?: Named): string | undefined => {
-  const entry = entryOf(ctx, named)
+  const to = given(ctx, named)
+  const entry = to && "folder" in to ? undefined : entryOf(ctx, named)
   return entry !== undefined && placedInFolder(ctx.folders, entry) ? entry : undefined
 }
 
-// 中に新しいブック・フォルダを作れるフォルダか（書庫ホームかフォルダで、ゴミ箱の中でない）。何も無い所のメニューからは、フォルダを名指す
-type In = Named | { folder: string }
-const holder = (ctx: ScreenCommandContext, named?: In): string | undefined => {
-  const entry = (named && "folder" in named ? named.folder : entryOf(ctx, named)) ?? HOME_ID
-  return holdsEntries(ctx.folders, entry) ? entry : undefined
+// 名前の変更・ゴミ箱に入れるを出すか: 右クリックのメニューでは、受け取った物がエントリのアクションの扱う物のときだけ。
+// キーからは、押してから扱う物を決める（ツリーのキーは、ツリーで今いる行を名指す）ので、いつも出す
+const inMenuPlaced = (ctx: ScreenCommandContext): boolean =>
+  given(ctx, undefined) === undefined || placed(ctx) !== undefined
+
+// 新しいブック・フォルダを作る先のフォルダ: エントリを受け取ったら、それが書庫ホームかフォルダのとき、その中。
+// フォルダを受け取ったら（何も無い所のメニュー）、ボタンと同じに、それがブック・バインダなら、それを入れているフォルダ
+const holder = (ctx: ScreenCommandContext, named?: Named): string | undefined => {
+  const to = given(ctx, named)
+  if (to && "folder" in to) return holderForNew(ctx.folders, to.folder)
+  const entry = entryOf(ctx, named)
+  return entry !== undefined && holdsEntries(ctx.folders, entry) ? entry : undefined
 }
 
-// 開く行き先（フォルダは開かない: 中へ入るのは、行を押す動き）
+// 開く行き先（フォルダは開かない: 中へ入るのは、行を押す動き。読めない物も開かない）
 function opening(
   ctx: ScreenCommandContext,
   named?: Named,
 ): Exclude<OpenTarget, typeof NOT_OPENED | { to: "folder" }> | undefined {
-  const entry = entryOf(ctx, named)
+  const to = given(ctx, named)
+  const entry = to && "folder" in to ? undefined : entryOf(ctx, named)
   const kind = entry === undefined ? undefined : placeOf(ctx.folders, entry)?.ref.kind
   if (entry === undefined || kind === undefined) return undefined
-  // ページが読めるかは、フォルダの表からは分からない（読めないページは、ブックを開いた先が見せる）
-  const readable = kind === "page" || ctx.folders[entry] !== undefined
+  // ページが読めるかは、フォルダの表からは分からないので、受け取った readable で決める
+  const readable =
+    !(to && "entry" in to && to.readable === false) && (kind === "page" || ctx.folders[entry] !== undefined)
   const target = openTargetOf(ctx.folders, { id: entry, kind, readable })
   return target === NOT_OPENED || target.to === "folder" ? undefined : target
 }
@@ -106,7 +129,7 @@ function opening(
 export const LIBRARY_ENTRY_OPEN = kit.defineScreenCommand({
   id: "library-entry-open",
   title: "Open",
-  run: (ctx, a, named: Named) => {
+  run: (ctx, a, named: Named | undefined) => {
     const target = opening(ctx, named)
     if (!target) return
     const store = storeActionsOf(a)
@@ -119,7 +142,8 @@ export const LIBRARY_ENTRY_OPEN = kit.defineScreenCommand({
 export const LIBRARY_BOOK_NEW = kit.defineScreenCommand({
   id: "library-book-new",
   title: "New book…",
-  run: (ctx, a, named: In) => {
+  performs: [BOOK_CREATE.id], // 開いたダイアログが行う
+  run: (ctx, a, named: Named | undefined) => {
     const into = holder(ctx, named)
     if (into !== undefined) a.openDialog(LIBRARY_NEW_BOOK_DIALOG.id, { into })
   },
@@ -129,7 +153,8 @@ export const LIBRARY_BOOK_NEW = kit.defineScreenCommand({
 export const LIBRARY_FOLDER_NEW = kit.defineScreenCommand({
   id: "library-folder-new",
   title: "New folder…",
-  run: (ctx, a, named: In) => {
+  performs: [FOLDER_CREATE.id], // 開いたダイアログが行う
+  run: (ctx, a, named: Named | undefined) => {
     const into = holder(ctx, named)
     if (into !== undefined) a.openDialog(LIBRARY_NEW_FOLDER_DIALOG.id, { into })
   },
@@ -139,63 +164,68 @@ export const LIBRARY_FOLDER_NEW = kit.defineScreenCommand({
 export const LIBRARY_ENTRY_RENAME = kit.defineScreenCommand({
   id: "library-entry-rename",
   title: "Rename…",
-  run: (ctx, a, named: Named) => {
+  performs: [ENTRY_RENAME.id], // 開いたダイアログが行う
+  run: (ctx, a, named: Named | undefined) => {
     const entry = placed(ctx, named)
     if (entry !== undefined) a.openDialog(LIBRARY_RENAME_DIALOG.id, { entry })
   },
-  when: ctx => placed(ctx) !== undefined,
+  when: inMenuPlaced,
 })
 
-// ゴミ箱に入れる。断られたらトーストで知らせる。行えたら、選んでいる行を外す
+// エントリ entry をゴミ箱に入れる。断られたらトーストで知らせる。行えたら、それを選んでいれば外す
+function trash(ctx: ScreenCommandContext, a: CommandActions, entry: string): void {
+  const done = a.perform(ENTRY_TRASH.id, { entry })
+  if (done.ok) a.updatePluginState(LIBRARY_PICKED, now => (now === entry ? undefined : now))
+  else a.showToast({ kind: "warn", message: refusalMessage(ctx.catalog, done, kit.message("Could not move to trash")) })
+}
+
 export const LIBRARY_ENTRY_TRASH = kit.defineScreenCommand({
   id: "library-entry-trash",
   title: "Move to trash",
   performs: [ENTRY_TRASH.id],
-  run: (ctx, a, named: Named) => {
+  run: (ctx, a, named: Named | undefined) => {
     const entry = placed(ctx, named)
-    if (entry === undefined) return
-    const done = a.perform(ENTRY_TRASH.id, { entry })
-    if (done.ok) a.updatePluginState(LIBRARY_PICKED, now => (now === entry ? undefined : now))
-    else
-      a.showToast({ kind: "warn", message: refusalMessage(ctx.catalog, done, kit.message("Could not move to trash")) })
+    if (entry !== undefined) trash(ctx, a, entry)
   },
-  when: ctx => placed(ctx) !== undefined,
+  when: inMenuPlaced,
 })
 
-// 動かす（ドラッグで落としたとき）: エントリ entry を、フォルダ into の index 番目（言わなければ末尾）へ。how は、先に同じ名前の物が在るときに利用者が選んだ手
+// 動かす（ドラッグで落としたとき）: エントリ entry を、落とす先 to（フォルダの index 番目か、ゴミ箱）へ。how は、先に同じ名前の物が在るときに利用者が選んだ手
 // （"number" は番号を付ける。replaces は、消えると確かめた物を上書きする）。断られたらトーストで知らせる。選んでいた行が、開いているフォルダから出たら、選ぶのを外す
-type Moving = { entry: string; into: string; index?: number; how?: "number" | { replaces: string } }
+type Moving = { entry: string; to: Drop; how?: "number" | { replaces: string } }
 export const LIBRARY_ENTRY_MOVE = kit.defineScreenCommand({
   id: "library-entry-move",
   title: "Move",
-  performs: [ENTRY_MOVE.id, ENTRY_MOVE_OVER.id],
-  run: (ctx, a, { entry, into, index, how }: Moving) => {
+  performs: [ENTRY_MOVE.id, ENTRY_MOVE_OVER.id, ENTRY_TRASH.id],
+  run: (ctx, a, { entry, to, how }: Moving) => {
+    if (to.to === "trash") return trash(ctx, a, entry)
+    const { into, index } = to
     const done =
       typeof how === "object"
         ? a.perform(ENTRY_MOVE_OVER.id, { entry, into, index, replaces: how.replaces })
         : a.perform(ENTRY_MOVE.id, { entry, into, index, onConflict: how ?? "refuse" })
     if (!done.ok)
       return a.showToast({ kind: "warn", message: refusalMessage(ctx.catalog, done, kit.message("Could not move")) })
-    const opened = openedFolderOf(ctx.folders, ctx.pluginState(LIBRARY_FOLDER))
-    if (into !== opened) a.updatePluginState(LIBRARY_PICKED, now => (now === entry ? undefined : now))
+    if (into !== openedIn(ctx)) a.updatePluginState(LIBRARY_PICKED, now => (now === entry ? undefined : now))
   },
   when: () => true,
 })
 
-// ツリーの行 row へ移る: 中へ入れる行なら、右の枠にその中身を出す。入れない行（ページなど）なら、それを持つフォルダの中身を出して、その行を選ぶ
+// ツリーの行 row へ移る（開くフォルダ・選ぶ行・中を出すフォルダは、ビューが行を押したときと同じに決める）
 function goTo(ctx: ScreenCommandContext, a: CommandActions, row: TreeRow | undefined): void {
   if (!row) return
-  const folder = row.holds ? row.id : row.holder
-  if (folder !== ctx.pluginState(LIBRARY_FOLDER)) a.updatePluginState(LIBRARY_FOLDER, () => folder)
-  a.updatePluginState(LIBRARY_PICKED, () => (row.holds ? undefined : row.id))
+  const now = unfoldedOf(ctx.pluginState(LIBRARY_UNFOLDED))
+  const next = arrivedAt(ctx.folders, row, now)
+  if (next.folder !== openedIn(ctx)) a.updatePluginState(LIBRARY_FOLDER, () => next.folder)
+  a.updatePluginState(LIBRARY_PICKED, () => next.picked)
+  if (next.unfolded !== now) a.updatePluginState(LIBRARY_UNFOLDED, () => next.unfolded)
 }
 
 // 呼ばれた場所の書庫の画面のツリー: 出ている行 rows と、今いる行の位置 i（出ていなければ -1）と、中を出しているフォルダ unfolded
 function treeAt(ctx: ScreenCommandContext) {
   const unfolded = unfoldedOf(ctx.pluginState(LIBRARY_UNFOLDED))
   const rows = treeRowsOf(ctx.folders, unfolded)
-  const opened = openedFolderOf(ctx.folders, ctx.pluginState(LIBRARY_FOLDER))
-  const at = treeCurrentOf(ctx.folders, opened, ctx.pluginState(LIBRARY_PICKED))
+  const at = treeCurrentOf(ctx.folders, openedIn(ctx), ctx.pluginState(LIBRARY_PICKED))
   return { rows, unfolded, i: rows.findIndex(r => r.id === at) }
 }
 
@@ -211,7 +241,7 @@ export const LIBRARY_TREE_MOVE = kit.defineScreenCommand({
 })
 
 // ツリーで、中を出している行なら中をしまい、ほかは、それを持つフォルダの行へ移る
-export const LIBRARY_TREE_LEFT = kit.defineScreenCommand({
+export const LIBRARY_TREE_FOLD_OR_PARENT = kit.defineScreenCommand({
   id: "library-tree-fold-or-parent",
   title: "Fold or go to the parent",
   run: (ctx, a) => {
@@ -230,7 +260,7 @@ export const LIBRARY_TREE_LEFT = kit.defineScreenCommand({
 })
 
 // ツリーで、中をしまっている行なら中を出し、中を出している行なら、その下の行へ移る
-export const LIBRARY_TREE_RIGHT = kit.defineScreenCommand({
+export const LIBRARY_TREE_UNFOLD_OR_NEXT = kit.defineScreenCommand({
   id: "library-tree-unfold-or-next",
   title: "Unfold or go inside",
   run: (ctx, a) => {
@@ -248,7 +278,7 @@ export const LIBRARY_PICK_MOVE = kit.defineScreenCommand({
   id: "library-pick-move",
   title: "Pick the neighbour",
   run: (ctx, a, { to }: { to: "previous" | "next" }) => {
-    const rows = entriesIn(ctx.folders, openedFolderOf(ctx.folders, ctx.pluginState(LIBRARY_FOLDER)))
+    const rows = entriesIn(ctx.folders, openedIn(ctx))
     const i = rows.findIndex(r => r.id === ctx.pluginState(LIBRARY_PICKED))
     const next = i < 0 ? rows[0] : rows[to === "next" ? i + 1 : i - 1]
     if (next) a.updatePluginState(LIBRARY_PICKED, () => next.id)
@@ -276,6 +306,22 @@ export const LIBRARY_CONTENTS_KEY_SCOPE = kit.defineKeyScope({
 
 export const LIBRARY_KEYS = [
   kit.defineKey({
+    id: "library-tree-rename-f2",
+    title: "Rename",
+    key: "F2",
+    command: LIBRARY_ENTRY_RENAME.id,
+    args: { at: "tree" },
+    scope: LIBRARY_TREE_SCOPE,
+  }),
+  kit.defineKey({
+    id: "library-tree-trash-delete",
+    title: "Move to trash",
+    key: "Delete",
+    command: LIBRARY_ENTRY_TRASH.id,
+    args: { at: "tree" },
+    scope: LIBRARY_TREE_SCOPE,
+  }),
+  kit.defineKey({
     id: "library-tree-up",
     title: "Row above",
     key: "ArrowUp",
@@ -294,13 +340,13 @@ export const LIBRARY_KEYS = [
   kit.defineKey({
     id: "library-tree-left",
     key: "ArrowLeft",
-    command: LIBRARY_TREE_LEFT.id,
+    command: LIBRARY_TREE_FOLD_OR_PARENT.id,
     scope: LIBRARY_TREE_SCOPE,
   }),
   kit.defineKey({
     id: "library-tree-right",
     key: "ArrowRight",
-    command: LIBRARY_TREE_RIGHT.id,
+    command: LIBRARY_TREE_UNFOLD_OR_NEXT.id,
     scope: LIBRARY_TREE_SCOPE,
   }),
   kit.defineKey({

@@ -27,11 +27,11 @@ export function MoveClashConfirm({ asking, onDone }: { asking: AskingMove; onDon
       blocked={replaceBlockedOf(clash, allowed)}
       onNumber={() => {
         onDone()
-        move({ entry, into, index, how: "number" })
+        move({ entry, to: { to: "folder", into, index }, how: "number" })
       }}
       onReplace={() => {
         onDone()
-        move({ entry, into, index: clash.indexOver, how: { replaces: clash.replaces } })
+        move({ entry, to: { to: "folder", into, index: over.index }, how: { replaces: over.replaces } })
       }}
       onCancel={onDone}
     />

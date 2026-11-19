@@ -7,7 +7,7 @@ import { fail } from "../../../core/errors"
 import type { Book } from "../../../core/schema/book"
 import { shownPageId } from "../../../core/stage"
 import { stageIn } from "../../../core/window"
-import { NO_STAGE, type OpenedDialog } from "../../../store/dialogs"
+import { openedAt } from "../../../store/dialogs"
 import { ActsOnScope } from "../../../ui/scope"
 import { useCatalog, useMatomezuState, useStoreActions, useUiCatalog } from "../../../ui/store-context"
 import { useEditLock } from "../utils/useEditLock"
@@ -24,7 +24,7 @@ export function DialogHost() {
   const View = ui.dialogViews.get(dialog.id) ?? fail("E109", { kind: "dialog", id: dialog.id })
   const locks = book ? locksOf(book, shownPageId(opened), def?.edits?.(dialog.args) ?? []) : []
   return (
-    <ActsOnScope at={dialogAt(dialog)}>
+    <ActsOnScope at={openedAt(dialog)}>
       {locks.map(l => (
         <Lock key={l.within} within={l.within} ids={l.ids} />
       ))}
@@ -49,4 +49,3 @@ function Lock({ within, ids }: { within: string; ids: readonly string[] }) {
 }
 
 // ダイアログの操作の向け先: 開いたステージ。ステージを持たずに開いたなら、開いたスクリーン
-const dialogAt = (dialog: OpenedDialog): string => (dialog.stage === NO_STAGE ? dialog.screen : dialog.stage)

@@ -44,6 +44,16 @@ export type DialogArgs<Id extends DialogId> = [DialogArgsOf<Id>] extends [undefi
 // ステージを持たずに開いたダイアログの stage の値
 export const NO_STAGE = "none"
 
+// ダイアログ・右クリックのメニューを開いた場所: 開いたステージ stage（ステージを持たないスクリーンから開いたなら NO_STAGE）と、
+// 開いたスクリーン screen（ステージから開いたなら、そのステージを並べているスクリーン）
+export interface OpenedPlace {
+  stage: string
+  screen: string
+}
+
+// 開いた場所の id（ステージの id。ステージを持たずに開いたら、スクリーンの id）。そこから、コマンドを呼び、操作を向ける
+export const openedAt = (opened: OpenedPlace): string => (opened.stage !== NO_STAGE ? opened.stage : opened.screen)
+
 export interface OpenedDialog {
   id: DialogId
   stage: string // 開いたステージ。ダイアログの操作はこのステージに向ける。ステージを持たないスクリーンから開いたなら NO_STAGE

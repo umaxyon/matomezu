@@ -3,14 +3,18 @@
 // 中をしまっているツリーの行の上で少し待つと、中を出す。Escape で取り消す。先に同じ名前の物が在れば、離したときに確かめる（asking）
 import { type PointerEvent, type RefObject, useEffect, useRef, useState } from "react"
 import { entriesIn } from "../../../core/entries"
-import { type Library, TRASH_ID } from "../../../core/folders"
+import { HOME_ID, type Library, TRASH_ID } from "../../../core/folders"
 import { useCommand } from "../../../ui/commands"
 import { useReadState } from "../../../ui/store-context"
+import { useAllowed, useAllowedOn } from "../../../ui/view-hooks"
 import { DRAG_START } from "../utils"
-import { LIBRARY_ENTRY_MOVE, LIBRARY_ENTRY_TRASH, LIBRARY_TREE_SCOPE } from "./commands"
+import { LIBRARY_ENTRY_MOVE, LIBRARY_TREE_SCOPE } from "./commands"
 import { type Drop, draggable, droppable, indexBefore, type MoveClash, moveClashOf } from "./drop"
+import { ENTRY_MOVE } from "./entry-move"
+import { ENTRY_TRASH } from "./entry-trash"
 
 const ROW = "[data-library-row]"
+const NO_ENTRY = "-" // ドラッグしていない間に問う、無いエントリ
 const UNFOLD_AFTER = 700 // 行の上で待つと中を出すまでの ms
 
 // 落とす所: ツリーか右の枠か zone（キーの範囲の名前）の、行 row の、上（中へ）・前・後ろ
@@ -68,26 +72,36 @@ const sameAim = (a: Aim | null, b: Aim | null): boolean =>
 export function useLibraryDrag(root: RefObject<HTMLElement | null>, unfold: (id: string) => void) {
   const read = useReadState()
   const move = useCommand(LIBRARY_ENTRY_MOVE.id).run
-  const trash = useCommand(LIBRARY_ENTRY_TRASH.id).run
   const [drag, setDrag] = useState<LibraryDrag | null>(null)
   const [asking, setAsking] = useState<AskingMove | null>(null)
-  const live = useRef({ unfold, move, trash })
-  live.current = { unfold, move, trash }
+  // 始める前に、動かす・ゴミ箱に入れるアクションを行えるか聞く（どちらも行えなければ、始めない）。落とす所ごとに、その引数で行えるか（ロックなど）も聞き、行えない所は落とす所にしない
+  const movable = useAllowed(ENTRY_MOVE.id).ok
+  const trashable = useAllowed(ENTRY_TRASH.id).ok
+  const to = drag?.aim?.drop
+  const entry = drag?.id ?? NO_ENTRY
+  const moves = useAllowedOn(ENTRY_MOVE.id, {
+    entry,
+    into: to?.to === "folder" ? to.into : HOME_ID,
+    index: to?.to === "folder" ? to.index : undefined,
+  }).ok
+  const trashes = useAllowedOn(ENTRY_TRASH.id, { entry }).ok
+  const allowed = to !== undefined && (to.to === "trash" ? trashable && trashes : movable && moves)
+  const live = useRef({ unfold, move, starts: movable || trashable, allowed })
+  live.current = { unfold, move, starts: movable || trashable, allowed }
   const stop = useRef<(() => void) | null>(null)
   useEffect(() => () => stop.current?.(), [])
 
   const drop = (entry: string, to: Drop) => {
-    if (to.to === "trash") return live.current.trash({ entry })
     // 離した時点の書庫で、名前の重なりを読み直す
     const clash = moveClashOf(read(), entry, to)
-    if (clash) setAsking({ entry, into: to.into, index: to.index, clash })
-    else live.current.move({ entry, into: to.into, index: to.index })
+    if (clash && to.to === "folder") setAsking({ entry, into: to.into, index: to.index, clash })
+    else live.current.move({ entry, to })
   }
 
   const onPointerDown = (e: PointerEvent<HTMLElement>) => {
     const el = root.current
     const id = e.target instanceof Element ? e.target.closest<HTMLElement>(ROW)?.dataset.libraryRow : undefined
-    if (!el || e.button !== 0 || !id || !draggable(read().folders, id)) return
+    if (!el || e.button !== 0 || !id || !live.current.starts || !draggable(read().folders, id)) return
     stop.current?.()
     const from = { x: e.clientX, y: e.clientY }
     let dragging = false
@@ -125,7 +139,7 @@ export function useLibraryDrag(root: RefObject<HTMLElement | null>, unfold: (id:
       setTimeout(() => window.removeEventListener("click", swallow, true))
     }
     const onUp = () => {
-      const to = dragging ? aim : null
+      const to = dragging && live.current.allowed ? aim : null
       end()
       if (to) drop(id, to.drop)
     }
@@ -141,5 +155,6 @@ export function useLibraryDrag(root: RefObject<HTMLElement | null>, unfold: (id:
     stop.current = end
   }
 
-  return { drag, asking, onPointerDown, answered: () => setAsking(null) }
+  const shown = drag && !allowed && drag.aim ? { id: drag.id, aim: null } : drag
+  return { drag: shown, asking, onPointerDown, answered: () => setAsking(null) }
 }
