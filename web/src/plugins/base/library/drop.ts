@@ -3,10 +3,11 @@ import { entriesIn, isMoveRefusal, movedEntry, titleOf } from "../../../core/ent
 import type { Folders, Library } from "../../../core/folders"
 import {
   freeTitleIn,
-  holdsEntries,
   isNotOverwritten,
+  movesInto,
   type NotOverwritten,
   overwritten,
+  placedInLibrary,
   placedOutsideBooks,
   sameTitled,
 } from "./entries"
@@ -14,14 +15,17 @@ import {
 // 落とす先: フォルダ into の index 番目（掴んだ物を除いて数える。言わなければ末尾）か、ゴミ箱
 export type Drop = { to: "folder"; into: string; index?: number } | { to: "trash" }
 
-// 掴める物か: エントリのアクションが扱う物（書庫ホームかフォルダの直下に在る物）
-export const draggable = (folders: Folders, entry: string): boolean => placedOutsideBooks(folders, entry) !== undefined
+// 掴める物か: 動かすアクションが扱う物（ゴミ箱の外に在る物。ブックの中のページ・バインダも）
+export const draggable = (folders: Folders, entry: string): boolean => placedInLibrary(folders, entry) !== undefined
 
-// エントリ entry を drop へ落とせるか（動かしても同じ場所になる所・自分の中・ブックの中へは落とせない）
+// エントリ entry を drop へ落とせるか（動かしても同じ場所になる所・自分の中・持てない種類の所・ブックの中の物をブックの外へは落とせない。
+// ゴミ箱へは、書庫ホームかフォルダの直下に在る物だけ）
 export function droppable(library: Library, entry: string, drop: Drop): boolean {
   if (!draggable(library.folders, entry)) return false
-  if (drop.to === "trash") return true
-  return holdsEntries(library.folders, drop.into) && !isMoveRefusal(movedEntry(library, entry, drop.into, drop.index))
+  if (drop.to === "trash") return placedOutsideBooks(library.folders, entry) !== undefined
+  return (
+    movesInto(library.folders, entry, drop.into) && !isMoveRefusal(movedEntry(library, entry, drop.into, drop.index))
+  )
 }
 
 // フォルダ into の並びで、行 before の前（before が無ければ末尾）の位置を、掴んだ物 entry を除いて数えた index
@@ -42,7 +46,7 @@ export interface MoveClash {
 
 // 重ならなければ（同じフォルダの中の並べ替えも）undefined
 export function moveClashOf(library: Library, entry: string, drop: Drop): MoveClash | undefined {
-  const place = placedOutsideBooks(library.folders, entry)
+  const place = placedInLibrary(library.folders, entry)
   if (!place || drop.to !== "folder" || place.holder.id === drop.into) return undefined
   const kind = place.ref.kind
   const there = sameTitled(library, kind, entry, drop.into)

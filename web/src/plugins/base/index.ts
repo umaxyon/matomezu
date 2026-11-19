@@ -28,6 +28,7 @@ import {
 import {
   LIBRARY_BOOK_NEW,
   LIBRARY_CONTENTS_KEY_SCOPE,
+  LIBRARY_ENTRY_DUPLICATE,
   LIBRARY_ENTRY_MOVE,
   LIBRARY_ENTRY_OPEN,
   LIBRARY_ENTRY_RENAME,
@@ -564,6 +565,7 @@ export const BASE = defineBuiltin(
       LIBRARY_FOLDER_NEW,
       LIBRARY_ENTRY_RENAME,
       LIBRARY_ENTRY_TRASH,
+      LIBRARY_ENTRY_DUPLICATE,
       LIBRARY_ENTRY_MOVE,
       LIBRARY_TREE_MOVE,
       LIBRARY_TREE_FOLD_OR_PARENT,
@@ -801,6 +803,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-tree-unfold-or-next": typeof LIBRARY_TREE_UNFOLD_OR_NEXT
     "@matomezu/base:library-pick-move": typeof LIBRARY_PICK_MOVE
     "@matomezu/base:library-entry-trash": typeof LIBRARY_ENTRY_TRASH
+    "@matomezu/base:library-entry-duplicate": typeof LIBRARY_ENTRY_DUPLICATE
     "@matomezu/base:control-center-toggle": typeof CONTROL_CENTER_TOGGLE
     "@matomezu/base:control-center-leave": typeof CONTROL_CENTER_LEAVE
     "@matomezu/base:stage-split": typeof STAGE_SPLIT

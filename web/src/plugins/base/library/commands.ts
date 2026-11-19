@@ -5,6 +5,7 @@
 // 2 行目にそう出し、その画面の履歴の段を捨てる（次はその前の段を置き直す）。認可ステップが止めた（ロック中など）なら、その画面の履歴の段は動かさない
 
 import { entriesIn, placeOf } from "../../../core/entries"
+import type { Folders } from "../../../core/folders"
 import { LIBRARY_HISTORY } from "../../../core/history"
 import { type CommandActions, type ScreenCommandContext, storeActionsOf } from "../../../store/commands/def"
 import { NO_STAGE } from "../../../store/dialogs"
@@ -15,7 +16,8 @@ import { kit } from "../kit"
 import { refusalMessage } from "../utils/refusal"
 import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG, LIBRARY_RENAME_DIALOG } from "./dialog"
 import type { Drop } from "./drop"
-import { holderForNew, holdsEntries, placedOutsideBooks } from "./entries"
+import { holderForNew, holdsEntries, placedInLibrary, placedOutsideBooks } from "./entries"
+import { ENTRY_DUPLICATE } from "./entry-duplicate"
 import { ENTRY_MOVE, ENTRY_MOVE_OVER, ENTRY_RENAME, FOLDER_CREATE } from "./entry-move"
 import { ENTRY_TRASH } from "./entry-trash"
 import {
@@ -89,18 +91,25 @@ function entryOf(ctx: ScreenCommandContext, named?: Named): string | undefined {
   return "entry" in to ? to.entry : "folder" in to ? to.folder : treeCurrentOf(ctx.folders, openedIn(ctx), picked)
 }
 
-// 名前を変えられる・ゴミ箱に入れられるエントリか（エントリのアクションが扱う物: 書庫ホームかフォルダの直下に在る物）。
-// フォルダを受け取ったとき（何も無い所のメニュー）は、扱わない（そのフォルダは、右クリックした物でない）
-const placed = (ctx: ScreenCommandContext, named?: Named): string | undefined => {
+// コマンドが扱う、受け取ったエントリ（フォルダを受け取ったとき（何も無い所のメニュー）は、扱わない。そのフォルダは、右クリックした物でない）のうち、
+// in が扱うと答えた物: 名前を変える物はゴミ箱の外のどこに在っても（placedInLibrary）、ゴミ箱に入れる物は書庫ホームかフォルダの直下に在る物（placedOutsideBooks）、
+// 写す物はブックの中のページ・バインダ（inBook）
+type Handles = (folders: Folders, entry: string) => unknown
+const handled = (ctx: ScreenCommandContext, handles: Handles, named?: Named): string | undefined => {
   const to = given(ctx, named)
   const entry = to && "folder" in to ? undefined : entryOf(ctx, named)
-  return entry !== undefined && placedOutsideBooks(ctx.folders, entry) ? entry : undefined
+  return entry !== undefined && handles(ctx.folders, entry) ? entry : undefined
+}
+const inBook: Handles = (folders, entry) => {
+  const role = placedInLibrary(folders, entry)?.holder.folderRole
+  return role === "book" || role === "binder"
 }
 
-// 名前の変更・ゴミ箱に入れるを出すか: 右クリックのメニューでは、受け取った物がエントリのアクションの扱う物のときだけ。
-// キーからは、押してから扱う物を決める（ツリーのキーは、ツリーで今いる行を名指す）ので、いつも出す
-const inMenuPlaced = (ctx: ScreenCommandContext): boolean =>
-  given(ctx, undefined) === undefined || placed(ctx) !== undefined
+// 右クリックのメニューの行を出すか: 受け取った物を handles が扱うときだけ。キーからは、押してから扱う物を決める（ツリーのキーは、ツリーで今いる行を名指す）ので、いつも出す
+const inMenuHandled =
+  (handles: Handles) =>
+  (ctx: ScreenCommandContext): boolean =>
+    given(ctx, undefined) === undefined || handled(ctx, handles) !== undefined
 
 // 新しいブック・フォルダを作る先のフォルダ: エントリを受け取ったら、それが書庫ホームかフォルダのとき、その中。
 // フォルダを受け取ったら（何も無い所のメニュー）、ボタンと同じに、それがブック・バインダなら、それを入れているフォルダ
@@ -168,10 +177,25 @@ export const LIBRARY_ENTRY_RENAME = kit.defineScreenCommand({
   title: "Rename…",
   performs: [ENTRY_RENAME.id], // 開いたダイアログが行う
   run: (ctx, a, named: Named | undefined) => {
-    const entry = placed(ctx, named)
+    const entry = handled(ctx, placedInLibrary, named)
     if (entry !== undefined) a.openDialog(LIBRARY_RENAME_DIALOG.id, { entry })
   },
-  when: inMenuPlaced,
+  when: inMenuHandled(placedInLibrary),
+})
+
+// 写す: ブックの中のページ・バインダを、すぐ後ろに番号付きの名前で写す。断られたらトーストで知らせる
+export const LIBRARY_ENTRY_DUPLICATE = kit.defineScreenCommand({
+  id: "library-entry-duplicate",
+  title: "Duplicate",
+  performs: [ENTRY_DUPLICATE.id],
+  run: (ctx, a, named: Named | undefined) => {
+    const entry = handled(ctx, inBook, named)
+    if (entry === undefined) return
+    const done = a.perform(ENTRY_DUPLICATE.id, { entry })
+    if (!done.ok)
+      a.showToast({ kind: "warn", message: refusalMessage(ctx.catalog, done, kit.message("Cannot be duplicated")) })
+  },
+  when: inMenuHandled(inBook),
 })
 
 // エントリ entry をゴミ箱に入れる。断られたらトーストで知らせる。行えたら、それを選んでいれば外す
@@ -186,10 +210,10 @@ export const LIBRARY_ENTRY_TRASH = kit.defineScreenCommand({
   title: "Move to trash",
   performs: [ENTRY_TRASH.id],
   run: (ctx, a, named: Named | undefined) => {
-    const entry = placed(ctx, named)
+    const entry = handled(ctx, placedOutsideBooks, named)
     if (entry !== undefined) trash(ctx, a, entry)
   },
-  when: inMenuPlaced,
+  when: inMenuHandled(placedOutsideBooks),
 })
 
 // 動かす（ドラッグで落としたとき）: エントリ entry を、落とす先 to（フォルダの index 番目か、ゴミ箱）へ。how は、先に同じ名前の物が在るときに利用者が選んだ手

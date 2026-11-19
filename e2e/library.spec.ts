@@ -391,7 +391,7 @@ test("書庫の右の枠の上下の矢印は、描いた段の真上・真下�
   }
 })
 
-test("書庫の行の右クリックのメニューから、名前の変更・ゴミ箱に入れる・開く・中に作る、ができる。ブックの中のページは「開く」だけ。何も無い所では、作るだけ。Escape で閉じる", async ({
+test("書庫の行の右クリックのメニューから、名前の変更・ゴミ箱に入れる・開く・中に作る、ができる。ブックの中のページは開く・名前の変更・複製。何も無い所では、作るだけ。Escape で閉じる", async ({
   page,
 }) => {
   await page.goto("/")
@@ -442,13 +442,13 @@ test("書庫の行の右クリックのメニューから、名前の変更・�
   await tree.getByRole("button", { name: "メニューで作った所", exact: true }).click({ button: "right" })
   await menu.getByRole("menuitem", { name: "ゴミ箱に入れる" }).click()
   await expect(tree.getByRole("button", { name: "メニューで作った所", exact: true })).toHaveCount(0)
-  // ブックの中のページは「開く」だけ（ページの在るブックで確かめる）
+  // ブックの中のページは、開く・名前の変更・複製（ページの在るブックで確かめる）
   const books = (await storedBooks(page.request)) as { id: string; title: string }[]
   const first = books[0]!
   await tree.getByRole("button", { name: `${first.title} の中を出す` }).click()
   const pageRow = tree.getByRole("button", { name: "ページ 1", exact: true }).first()
   await pageRow.click({ button: "right" })
-  await expect(menu.getByRole("menuitem")).toHaveText(["開くEnter"])
+  await expect(menu.getByRole("menuitem")).toHaveText(["開くEnter", "名前の変更…F2", "複製"])
   await menu.getByRole("menuitem", { name: "開く" }).click()
   await expect.poll(() => urlFront(page)).toBe(BOOK_SCREEN_DEF)
 })
@@ -568,6 +568,75 @@ test("書庫の行をドラッグして、行の間（その位置へ）・フ�
   await dragTo(icon("ドラッグの箱"), tree.getByRole("button", { name: "ゴミ箱" }), { x: 0.5, y: 0.5 })
   await page.mouse.up()
   await expect(icon("ドラッグの箱")).toHaveCount(0)
+})
+
+test("書庫のツリーで、ブックの中のページの名前を F2 で変え、右クリックの「複製」で写し、ドラッグでブックの中の行の間とほかのブックの行の上へ動かせる", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await page.bringToFront()
+  const made = async (action: string, args: object) => {
+    const done = await perform(page, action, args)
+    expect(done).toMatchObject({ ok: true })
+    return done.result as { folder: string; book: string; page: { page: string } }
+  }
+  const drawing = { type: "@matomezu/drawing:drawing" }
+  const folder = (await made("@matomezu/base:folder-create", { title: "中のページの所" })).folder
+  const a = (
+    await made("@matomezu/base:book-create", { title: "中のページ甲", into: folder, page: { ...drawing, title: "甲" } })
+  ).book
+  await made("@matomezu/base:page-create", { folder: a, ...drawing, title: "乙" })
+  const b = (
+    await made("@matomezu/base:book-create", { title: "中のページ乙", into: folder, page: { ...drawing, title: "丙" } })
+  ).book
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  const tree = page.getByRole("navigation", { name: "フォルダ" })
+  const row = (name: string) => tree.getByRole("button", { name, exact: true })
+  const titlesIn = async (book: string) =>
+    ((await storedBook(page.request, book)) as { lineup: { title: string }[] }).lineup.map(e => e.title)
+  await tree.getByRole("button", { name: "中のページの所 の中を出す" }).click()
+  await tree.getByRole("button", { name: "中のページ甲 の中を出す" }).click()
+  await tree.getByRole("button", { name: "中のページ乙 の中を出す" }).click()
+
+  // F2 で名前を変える
+  await row("甲").click()
+  await page.keyboard.press("F2")
+  await page.getByRole("dialog").getByRole("textbox").fill("甲 改")
+  await page.keyboard.press("Enter")
+  await expect(row("甲 改")).toBeVisible()
+
+  // 右クリックの「複製」: すぐ後ろに番号付きの名前で写す
+  await row("乙").click({ button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "複製" }).click()
+  await expect(row("乙 2")).toBeVisible()
+  await expect.poll(() => titlesIn(a)).toEqual(["甲 改", "乙", "乙 2"])
+
+  // 行 from を掴んで、行 to の高さの at の所へ落とす
+  const dragTo = async (from: Locator, to: Locator, at: number) => {
+    await from.hover()
+    const p = (await from.boundingBox())!
+    const q = (await to.boundingBox())!
+    await page.mouse.move(p.x + p.width / 2, p.y + p.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(p.x + p.width / 2 + 10, p.y + p.height / 2 + 10, { steps: 2 })
+    await page.mouse.move(q.x + q.width / 2, q.y + q.height * at, { steps: 4 })
+  }
+  // ブックの中の行の間: 乙 2 を 甲 改 の前へ
+  await dragTo(row("乙 2"), row("甲 改"), 0.1)
+  await expect(row("甲 改")).toHaveAttribute("data-drop", "before")
+  await page.mouse.up()
+  await expect.poll(() => titlesIn(a)).toEqual(["乙 2", "甲 改", "乙"])
+  // ほかのブックの行の上（中へ）: 乙 を 中のページ乙 の末尾へ
+  await dragTo(row("乙"), row("中のページ乙"), 0.5)
+  await expect(row("中のページ乙")).toHaveAttribute("data-drop", "into")
+  await page.mouse.up()
+  await expect.poll(() => titlesIn(b)).toEqual(["丙", "乙"])
+  await expect.poll(() => titlesIn(a)).toEqual(["乙 2", "甲 改"])
+  // ブックの中の行は、ブックの外（フォルダの行の上）へは落とせない
+  await dragTo(row("丙"), row("中のページの所"), 0.5)
+  await expect(tree.locator("[data-drop]")).toHaveCount(0)
+  await page.mouse.up()
+  await expect.poll(() => titlesIn(b)).toEqual(["丙", "乙"])
 })
 
 test("書庫の検索は、名前に言葉を含む物を右の枠に並べる。行を押すとツリーのその行へ移り、Enter で開く。入力Formを空にすると元の表示に戻る", async ({

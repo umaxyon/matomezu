@@ -235,9 +235,13 @@ function booksOfEntry(
       : library.folders[into]?.folderRole === "book"
         ? into
         : bookIdOf(library.folders, into)
+  // 中身ごと変えるページは、そのページを丸ごと変える所で問う
+  const whole = how === "all-pages" && library.pages[entry] !== undefined
   const asked = (book: string) => ({
     book,
-    where: { entries: [entry], ...(how === "place" || how === "title" ? { entriesChange: how } : {}) } as Where,
+    where: whole
+      ? ({ page: entry } as Where)
+      : ({ entries: [entry], ...(how === "place" || how === "title" ? { entriesChange: how } : {}) } as Where),
   })
   const enters = to !== undefined && to !== from && row?.folderRole !== "book" ? [asked(to)] : []
   if (row?.folderRole === "book") return how === "copy" ? [] : [{ book: entry, where }]

@@ -15,13 +15,13 @@ function setup() {
   return { perform, folder, library, ids }
 }
 
-test("掴めるのは書庫ホームかフォルダの直下の物。自分の中・ブックの中・同じ場所へは落とせず、ゴミ箱へは落とせる", () => {
+test("掴めるのはゴミ箱の外の物（ブックの中のページも）。自分の中・同じ場所・ブックのフォルダの中へは落とせない。ブックの中の物はブックの外とゴミ箱へは落とせない", () => {
   const { folder, library, ids } = setup()
   const a = folder("あ")
   const inner = folder("中", a)
   expect(draggable(library().folders, "b1")).toBe(true)
   expect(draggable(library().folders, inner)).toBe(true)
-  expect(draggable(library().folders, "p1")).toBe(false) // ブックの中のページ
+  expect(draggable(library().folders, "p1")).toBe(true) // ブックの中のページ
   expect(draggable(library().folders, HOME_ID)).toBe(false)
   const can = (entry: string, drop: Drop) => droppable(library(), entry, drop)
   expect(can("b1", { to: "folder", into: a })).toBe(true)
@@ -30,6 +30,9 @@ test("掴めるのは書庫ホームかフォルダの直下の物。自分の�
   expect(can(a, { to: "folder", into: a })).toBe(false)
   expect(can(a, { to: "folder", into: "b1" })).toBe(false)
   expect(can("p1", { to: "folder", into: a })).toBe(false)
+  expect(can("p1", { to: "trash" })).toBe(false)
+  expect(can("p1", { to: "folder", into: "b2" })).toBe(true)
+  expect(can("p1", { to: "folder", into: "b1" })).toBe(false) // 同じ場所
   // 同じ場所: 今の位置と、その次の行の前
   const home = ids(HOME_ID)
   expect(home[0]).toBe("b1")
