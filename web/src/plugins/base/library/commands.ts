@@ -263,6 +263,16 @@ export const LIBRARY_ENTRY_MOVE = kit.defineScreenCommand({
       return a.showToast({ kind: "warn", message: refusalMessage(ctx.catalog, done, kit.message("Could not move")) })
     if (into !== openedIn(ctx)) a.updatePluginState(LIBRARY_PICKED, now => (now === entry ? undefined : now))
   },
+  // 引数を受け取らずに問われたら（押す前のボタンなど）、分からない
+  performsWith: (_ctx, moving?: Moving) => {
+    if (!moving) return "unknown"
+    const { entry, to, how } = moving
+    if (to.to === "trash") return [{ action: ENTRY_TRASH.id, args: { entry } }]
+    const { into, index } = to
+    return typeof how === "object"
+      ? [{ action: ENTRY_MOVE_OVER.id, args: { entry, into, index, replaces: how.replaces } }]
+      : [{ action: ENTRY_MOVE.id, args: { entry, into, index, onConflict: how ?? "refuse" } }]
+  },
   when: () => true,
 })
 

@@ -9,7 +9,7 @@ import {
   LIBRARY_PICKED,
   LIBRARY_UNFOLDED,
 } from "../../../web/src/plugins/base/library/state"
-import { isShown } from "../../../web/src/store/commands"
+import { isEnabled, isShown } from "../../../web/src/store/commands"
 import { pluginValueOf } from "../../../web/src/store/plugin-state"
 import { newStore } from "../../support"
 
@@ -264,4 +264,19 @@ test("ツリーで今いる行のゴミ箱入れをロックが止めていれ�
   set(LIBRARY_PICKED.id, center, "b1")
   expect(store.actions.pressKey("F2", [scope("library-contents"), scope("library")])).toBe(false)
   expect(dialog()).toBeNull()
+})
+
+test("落とした物を動かすコマンドは、行うアクションを引数で名乗る: ロックしたブックをゴミ箱へ落としても、押す前に止められて何もせず、トーストも出さない", () => {
+  const { store, center, run, ids } = setup()
+  const perform = store.actions.perform as (id: string, args: unknown, on?: unknown) => { ok: boolean }
+  expect(perform("@matomezu/base:book-lock", {}, { book: "b1" }).ok).toBe(true)
+  const enabled = (args: unknown) =>
+    isEnabled(store, store.state.getState(), center, "@matomezu/base:library-entry-move" as CommandId, args)
+  // 引数が無ければ分からないので、押せる
+  expect(enabled(undefined)).toBe(true)
+  expect(enabled({ entry: "b1", to: { to: "trash" } })).toBe(false)
+  expect(enabled({ entry: "b2", to: { to: "trash" } })).toBe(true)
+  expect(run("library-entry-move", { entry: "b1", to: { to: "trash" } })).toBe(false)
+  expect(ids(HOME_ID)).toContain("b1")
+  expect(store.state.getState().toasts).toEqual([])
 })

@@ -212,14 +212,20 @@ export interface ScreenCommandDef<A = undefined, Tt extends string = MessageKey>
   enabled?(ctx: ScreenCommandContext): boolean
   active?(ctx: ScreenCommandContext): boolean
   run(ctx: ScreenCommandContext, actions: CommandActions, args: A): void
-  // 引数 args で押したら行うアクションと、その引数（performs の中の物。何も行わないなら空）。引数がまだ分からないなら "unknown"。
+  // 引数 args で押したら行うアクションと、その引数（performs の中の、書庫か利用者の設定が対象の物。何も行わないなら空）。引数がまだ分からないなら "unknown"。
   // 名乗れば、土台は押す前にその引数で問う（書庫が対象のアクションなら、許可スコープが引数から出すブックの認可ステップにも）。名乗ったアクションのどれかが止められれば押せない。
   // 名乗らないか "unknown" なら、コントロールセンターにだけ問う
   performsWith?(ctx: ScreenCommandContext, args: A): readonly PerformedWith[] | typeof UNKNOWN_PERFORMED
 }
 
+// スクリーンから呼ぶコマンドが名乗れるアクション: 書庫か利用者の設定が対象のもの（Id の中の。ほかは、引数だけでは問う所が決まらない）
+type NamedTarget<Id extends ActionId> = {
+  [K in Id]: ActionTable[K] extends { target: "library" | "settings" } ? K : never
+}[Id]
 // スクリーンから呼ぶコマンドが名乗る、行うアクション 1 つとその引数
-export type PerformedWith<Id extends ActionId = ActionId> = { [K in Id]: { action: K; args: ArgsOf<K> } }[Id]
+export type PerformedWith<Id extends ActionId = ActionId> = {
+  [K in NamedTarget<Id>]: { action: K; args: ArgsOf<K> }
+}[NamedTarget<Id>]
 // performsWith の、引数がまだ分からないときの答え
 export const UNKNOWN_PERFORMED = "unknown"
 
@@ -266,7 +272,7 @@ export type ScreenPerforms<P extends readonly ActionId[] | undefined> = {
     : P[I]
 }
 
-// スクリーンから呼ぶコマンドの performsWith が名乗れるのは、performs に書いたアクションだけ（defineScreenCommand の型が求める）
+// スクリーンから呼ぶコマンドの performsWith が名乗れるのは、performs に書いたアクションのうち、書庫か利用者の設定が対象のものだけ（defineScreenCommand の型が求める）
 export type ScreenPerformsWith<P extends readonly ActionId[] | undefined, A> = {
   performsWith?(
     ctx: ScreenCommandContext,

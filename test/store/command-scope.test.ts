@@ -71,3 +71,31 @@ test("スクリーンから呼ぶコマンドは、ブック・ページ・ア�
   defineScreenCommand({ ...base, id: "e" })
   expect(true).toBe(true)
 })
+
+test("スクリーンから呼ぶコマンドの performsWith が名乗れるのは、performs に書いた、書庫か利用者の設定が対象のアクションだけ（ほかは型の誤り）", () => {
+  const base = { title: "@matomezu/base:Delete" as MessageKey, run: () => {}, when: () => true }
+  defineScreenCommand({
+    ...base,
+    id: "a",
+    performs: ["@matomezu/base:entry-trash", "@matomezu/base:settings-set", "@matomezu/base:workroom-remove"],
+    performsWith: () => [
+      { action: "@matomezu/base:entry-trash", args: { entry: "b1" } },
+      { action: "@matomezu/base:settings-set", args: { values: {} } },
+    ],
+  })
+  defineScreenCommand({
+    ...base,
+    id: "b",
+    performs: ["@matomezu/base:workroom-remove"],
+    // @ts-expect-error レコードが対象
+    performsWith: () => [{ action: "@matomezu/base:workroom-remove", args: {} }],
+  })
+  defineScreenCommand({
+    ...base,
+    id: "c",
+    performs: ["@matomezu/base:entry-trash"],
+    // @ts-expect-error performs に無い
+    performsWith: () => [{ action: "@matomezu/base:settings-set", args: { values: {} } }],
+  })
+  expect(true).toBe(true)
+})
