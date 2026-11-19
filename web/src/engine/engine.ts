@@ -163,6 +163,7 @@ type Output =
       reason: string
       permission?: string
       kind?: string
+      systemFolder?: string // 名前が重なる断り（title-taken）で、重なった相手がシステムフォルダのときの、その印
       detail?: string
       page?: string
       code?: string
@@ -217,8 +218,10 @@ function refusal(catalog: CoreCatalog, done: Exclude<PerformedIn, { ok: true }>)
   }
   // 断りの種類（run が添えた名前か、土台の種類）は、そのまま添える
   const kind = "kind" in done && done.kind !== undefined ? { kind: done.kind } : {}
+  // 名前が重なった相手のシステムフォルダの印も、そのまま添える
+  const mark = "systemFolder" in done && done.systemFolder !== undefined ? { systemFolder: done.systemFolder } : {}
   if ("detail" in done && done.detail !== undefined)
-    return { ok: false, reason: done.reason, ...kind, detail: done.detail }
+    return { ok: false, reason: done.reason, ...kind, ...mark, detail: done.detail }
   // 読めないページの断りは、そのページの id と理由の番号を添える（常駐は AI に番号だけを返す）
   if (done.reason === "unreadable")
     return { ok: false, reason: done.reason, page: done.page, code: done.code, detail: AI_REFUSALS.unreadable }

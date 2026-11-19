@@ -434,14 +434,16 @@ var ErrNoActions = errors.New("a perform needs at least one action")
 
 // Performed は行った結果（断ったら Detail に AI への説明。認可ステップが止めたら Permission にそのステップの id）
 type Performed struct {
-	OK         bool            `json:"ok"`
-	Reason     string          `json:"reason,omitempty"`
-	Permission string          `json:"permission,omitempty"`
-	Detail     string          `json:"detail,omitempty"`
-	Kind       string          `json:"kind,omitempty"` // 断りの種類（アクションが添えた名前か、土台の種類）
-	Code       string          `json:"code,omitempty"` // 読めないページで断ったとき（reason unreadable）、読めない理由の warning の番号
-	Result     json.RawMessage `json:"result,omitempty"`
-	Notice     string          `json:"notice,omitempty"` // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
+	OK         bool   `json:"ok"`
+	Reason     string `json:"reason,omitempty"`
+	Permission string `json:"permission,omitempty"`
+	Detail     string `json:"detail,omitempty"`
+	Kind       string `json:"kind,omitempty"` // 断りの種類（アクションが添えた名前か、土台の種類）
+	// 名前が重なる断り（title-taken）で、重なった相手がシステムフォルダのときの、その印（定義の id。AI に見せる名前は英語なので、利用者の言語で重なった相手が分かるように）
+	SystemFolder string          `json:"systemFolder,omitempty"`
+	Code         string          `json:"code,omitempty"` // 読めないページで断ったとき（reason unreadable）、読めない理由の warning の番号
+	Result       json.RawMessage `json:"result,omitempty"`
+	Notice       string          `json:"notice,omitempty"` // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
 }
 
 // Perform はアクションバルクを行い、変わったものを 1 回で書いて知らせる。行い終えた番号（Key）がまた届いたら、行わずに前の結果を返す（ack も送る）
@@ -471,7 +473,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	if !out.OK && out.At != nil && *out.At >= 0 && *out.At < len(p.Actions) {
 		fmt.Fprintf(os.Stderr, "%s refused at the action %d of %d (%s): %s\n", stamp(), *out.At, len(p.Actions), p.Actions[*out.At].Action, out.Reason)
 	}
-	done := Performed{OK: out.OK, Reason: out.Reason, Permission: out.Permission, Detail: out.Detail, Kind: out.Kind, Code: out.Code, Result: out.Result, Notice: out.Notice}
+	done := Performed{OK: out.OK, Reason: out.Reason, Permission: out.Permission, Detail: out.Detail, Kind: out.Kind, SystemFolder: out.SystemFolder, Code: out.Code, Result: out.Result, Notice: out.Notice}
 	// AI のアクションは、窓に出ているブックをゴミ箱に入れない（AI は利用者に聞く）
 	if out.OK && p.By == "ai" && h.trashesShown(out.Trashing) {
 		done = Performed{OK: false, Reason: "open-on-screen"}

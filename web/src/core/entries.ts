@@ -255,6 +255,20 @@ export const titledIn = (
 ): AnyEntryRef | undefined =>
   folder.lineup.find(r => r.id !== except && titleOf(library, r.kind, r.id, naming) === title)
 
+// 名前が重なったフォルダ clashes（titleClashes が挙げた物）の直下で、ほかの物と名前が重なるシステムフォルダの印（定義の id。無ければ undefined）
+export function clashedSystemFolder(library: Library, clashes: readonly string[], naming: Naming): string | undefined {
+  for (const id of clashes) {
+    const folder = library.folders[id]
+    if (!folder) continue
+    const titles = folder.lineup.map(r => titleOf(library, r.kind, r.id, naming))
+    for (const [i, r] of folder.lineup.entries()) {
+      const mark = r.kind === "page" ? undefined : systemFolderOf(library.folders[r.id])
+      if (mark !== undefined && titles[i] !== undefined && titles.filter(t => t === titles[i]).length > 1) return mark
+    }
+  }
+  return undefined
+}
+
 // 書庫が was から now に変わる間に、直下の名前が変わって、同じ名前が重なった書庫ホーム・フォルダ・ブック・バインダの id（ゴミ箱の直下は、同じ名前を許す）。
 // 前から重なっていて、名前の並びが変わらないフォルダは挙げない。名前は was を naming で、now を nowNaming（言わなければ naming）で引く（言語が変わるときは、言語の前と後）
 export function titleClashes(was: Library, now: Library, naming: Naming, nowNaming: Naming = naming): string[] {

@@ -45,7 +45,15 @@ import {
 } from "./def/action"
 import type { PlaceChange, Referred } from "./def/permission"
 import type { SubjectDef } from "./def/subject"
-import { binnedBetween, isWithin, namingOf, TITLE_TAKEN, titleClashes } from "./entries"
+import {
+  binnedBetween,
+  clashedSystemFolder,
+  isWithin,
+  type Naming,
+  namingOf,
+  TITLE_TAKEN,
+  titleClashes,
+} from "./entries"
 import {
   bookIdOf,
   bookOf,
@@ -120,7 +128,8 @@ export type Refused =
   | { ok: false; reason: Exclude<Refusal, "not-allowed" | "refused"> }
   | NoPage
   | Unreadable
-  | { ok: false; reason: "refused"; detail?: string; kind?: string } // kind は断りの種類（run が添えた名前か、土台の種類。土台の種類は名前空間が付かない）
+  // kind は断りの種類（run が添えた名前か、土台の種類。土台の種類は名前空間が付かない）。systemFolder は、名前が重なる断り（title-taken）で、重なった相手がシステムフォルダのときの、その印（定義の id）
+  | { ok: false; reason: "refused"; detail?: string; kind?: string; systemFolder?: string }
   | NotAllowed
   | Denied
 // others はレコードが対象のアクションが、宛先のほかに変えたレコード（同じ種類か、writes に書いた種類。確かめ終えた物）
@@ -611,7 +620,8 @@ export function perform<Id extends ActionId>(
     // 行う前から在るページのタイプも、変えない（ページがブックの間を動いても）
     const typesKept = keepsPageTypesAcross(Object.values(was), Object.values(now))
     // 同じ入れ物の中の名前の重なりは、ブックの決まりで断る前に、名前が重なる断りにする
-    if (titleClashes(subject as Library, next as Library, ctx.naming).length > 0) return titleTaken
+    const clashes = titleClashes(subject as Library, next as Library, ctx.naming)
+    if (clashes.length > 0) return titleTaken(next as Library, clashes, ctx.naming)
     if (!librarySettles(ctx.catalog, was, now) || !typesKept) return { ok: false, reason: "refused" }
   }
   if (action.target === "annotations") {
@@ -798,7 +808,8 @@ export function performIn(
     const changes = placedChanges(world, made)
     const after = withChanges(world, changes)
     if (!treeHolds(after)) return { ok: false, reason: "refused" }
-    if (titleClashes(world, after, naming).length > 0) return titleTaken
+    const clashes = titleClashes(world, after, naming)
+    if (clashes.length > 0) return titleTaken(after, clashes, naming)
     // 無くなったページのアノテーションは消す
     const gone = Object.entries(changes.pages)
       .filter(([p, v]) => v === REMOVED && (world.annotations[p]?.length ?? 0) > 0)
@@ -818,28 +829,34 @@ export function performIn(
   // 言語が変わって、名前を設定の言語で引く物（システムフォルダ）の名前が、同じフォルダのほかの物と重なるなら断る（書庫の行は変えない）
   const library: Library = { pages: world.pages, folders: world.folders }
   const nextNaming = namingOf(ctx.catalog, next)
-  if (nextNaming.lang !== naming.lang && titleClashes(library, library, naming, nextNaming).length > 0)
-    return languageTitleTaken
+  const clashes = nextNaming.lang === naming.lang ? [] : titleClashes(library, library, naming, nextNaming)
+  if (clashes.length > 0) return languageTitleTaken(library, clashes, nextNaming)
   return { ok: true, result: done.result, settings: next }
 }
 
+// 名前が重なる断り（説明 detail）。書庫 library のフォルダ clashes（titleClashes）で重なった相手がシステムフォルダなら、その印を添える（名前は naming で引く）
+function titleTakenOf(detail: string, library: Library, clashes: readonly string[], naming: Naming): Refused {
+  const systemFolder = clashedSystemFolder(library, clashes, naming)
+  return { ok: false, reason: "refused", kind: TITLE_TAKEN, detail, ...(systemFolder ? { systemFolder } : {}) }
+}
+
 // 同じフォルダ（ゴミ箱の直下を除く）の中で、名前が重なる断り
-const titleTaken = {
-  ok: false,
-  reason: "refused",
-  kind: TITLE_TAKEN,
-  detail:
+const titleTaken = (library: Library, clashes: readonly string[], naming: Naming): Refused =>
+  titleTakenOf(
     "an entry with the same title is already in the same folder (titles do not repeat within a folder); use another title",
-} as const
+    library,
+    clashes,
+    naming,
+  )
 
 // 言語を変えると、その言語で引く名前（システムフォルダ）が、同じフォルダのほかの物と重なる断り
-const languageTitleTaken = {
-  ok: false,
-  reason: "refused",
-  kind: TITLE_TAKEN,
-  detail:
+const languageTitleTaken = (library: Library, clashes: readonly string[], naming: Naming): Refused =>
+  titleTakenOf(
     "in that language, the title of a system folder would be the same as that of another entry in the same folder; rename that entry first",
-} as const
+    library,
+    clashes,
+    naming,
+  )
 
 // 変わり changes が新しく足すページ・フォルダの id が、世界 world にもう在るか（行う前のブック before に無かった物を足すなら、その id は世界のどこにも無いこと。
 // ページもフォルダも、ちょうど 1 つのフォルダに入り、id は世界の中で重ならない）
@@ -855,11 +872,12 @@ function changedBook(catalog: CoreCatalog, world: World, book: Book, done: Retur
   if (next === book) return { ok: true, result: done.result }
   const changes = changesBetween([book], [next])
   if (collides(world, [book], changes)) return { ok: false, reason: "refused" }
-  if (
-    next.title !== book.title &&
-    titleClashes(world, withChanges(world, changes), namingOf(catalog, world.settings)).length > 0
-  )
-    return titleTaken
+  if (next.title !== book.title) {
+    const after = withChanges(world, changes)
+    const naming = namingOf(catalog, world.settings)
+    const clashes = titleClashes(world, after, naming)
+    if (clashes.length > 0) return titleTaken(after, clashes, naming)
+  }
   const { annotations } = world
   const now = new Map(pagesOf(next).map(p => [p.id, p]))
   const changed: Record<string, readonly Annotation[]> = {}

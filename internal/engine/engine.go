@@ -127,17 +127,18 @@ type Output struct {
 	Reason        string                      `json:"reason,omitempty"`
 	Permission    string                      `json:"permission,omitempty"`
 	Detail        string                      `json:"detail,omitempty"`
-	Kind          string                      `json:"kind,omitempty"`     // 断りの種類（アクションが添えた名前か、土台の種類。title-taken など）
-	Page          string                      `json:"page,omitempty"`     // 読めないページで断ったとき（reason unreadable）、そのページの id
-	Code          string                      `json:"code,omitempty"`     // 読めないページで断ったとき、読めない理由の warning の番号（W027〜W029）
-	At            *int                        `json:"at,omitempty"`       // 断られたアクションが何番目か（常駐のログにだけ使う）
-	Result        json.RawMessage             `json:"result,omitempty"`   // 最後のアクションの結果
-	Pages         []RowChange                 `json:"pages,omitempty"`    // 変わった・足した・無くなったページ
-	Folders       []RowChange                 `json:"folders,omitempty"`  // 変わった・足した・無くなったフォルダ
-	Created       []string                    `json:"created,omitempty"`  // そのうち新しく足したページ・フォルダの id（世界のどこにも無い id であること）
-	Books         []string                    `json:"books,omitempty"`    // 変わったブックの id（変わったページ・フォルダを持つブック。無くなったブックも）
-	Trashing      []string                    `json:"trashing,omitempty"` // 新しくゴミ箱に入るブックの id
-	Library       json.RawMessage             `json:"library,omitempty"`  // 書庫の履歴に入るアクションが変えたページとフォルダごとの、前と後（{"pages": {id: {"before", "after"}}, "folders": 同じ}。無い側は "none"。画面にそのまま知らせる）
+	Kind          string                      `json:"kind,omitempty"`         // 断りの種類（アクションが添えた名前か、土台の種類。title-taken など）
+	SystemFolder  string                      `json:"systemFolder,omitempty"` // 名前が重なる断り（title-taken）で、重なった相手がシステムフォルダのときの、その印（定義の id）
+	Page          string                      `json:"page,omitempty"`         // 読めないページで断ったとき（reason unreadable）、そのページの id
+	Code          string                      `json:"code,omitempty"`         // 読めないページで断ったとき、読めない理由の warning の番号（W027〜W029）
+	At            *int                        `json:"at,omitempty"`           // 断られたアクションが何番目か（常駐のログにだけ使う）
+	Result        json.RawMessage             `json:"result,omitempty"`       // 最後のアクションの結果
+	Pages         []RowChange                 `json:"pages,omitempty"`        // 変わった・足した・無くなったページ
+	Folders       []RowChange                 `json:"folders,omitempty"`      // 変わった・足した・無くなったフォルダ
+	Created       []string                    `json:"created,omitempty"`      // そのうち新しく足したページ・フォルダの id（世界のどこにも無い id であること）
+	Books         []string                    `json:"books,omitempty"`        // 変わったブックの id（変わったページ・フォルダを持つブック。無くなったブックも）
+	Trashing      []string                    `json:"trashing,omitempty"`     // 新しくゴミ箱に入るブックの id
+	Library       json.RawMessage             `json:"library,omitempty"`      // 書庫の履歴に入るアクションが変えたページとフォルダごとの、前と後（{"pages": {id: {"before", "after"}}, "folders": 同じ}。無い側は "none"。画面にそのまま知らせる）
 	Settings      json.RawMessage             `json:"settings,omitempty"`
 	Annotations   map[string]json.RawMessage  `json:"annotations,omitempty"`
 	Records       []RecordChange              `json:"records,omitempty"`       // 変わったレコードの全部（宛先が先）。1 つのトランザクションで書く
