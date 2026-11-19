@@ -13,6 +13,7 @@ import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/sto
 import { useActions, usePluginState, useSetPluginState } from "../../../ui/view-hooks"
 import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
+import { contentsArrows, treeArrows } from "./arrows"
 import { LIBRARY_ENTRY_CONTEXT, LIBRARY_FOLDER_CONTEXT, LIBRARY_SCOPE } from "./commands"
 import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG } from "./dialog"
 import { holderForNew } from "./entries"
@@ -111,7 +112,7 @@ export function LibraryView() {
   const here = nameOf({ id: opened, title: titles[titles.length - 1] ?? NO_TITLE })
   return (
     <div ref={root} className={styles.library} data-key-scope={LIBRARY_SCOPE} tabIndex={-1}>
-      <nav className={styles.tree} aria-label={t("Folders")}>
+      <nav className={styles.tree} aria-label={t("Folders")} onKeyDown={e => treeArrows(e, handlers.toggle)}>
         <ul className={styles.rows}>
           {TOPS.map(top => (
             <TreeNode key={top.id} row={top} holder={top.id} depth={0} handlers={handlers} />
@@ -160,12 +161,14 @@ export function LibraryView() {
             className={styles.contents}
             aria-label={t("Contents of {name}", { name: here })}
             onContextMenu={e => openFolderMenu(e, { entry: opened })}
+            onKeyDown={contentsArrows}
           >
             {rows.map(row => (
               <li key={row.id}>
                 <button
                   type="button"
                   className={styles.entry}
+                  data-library-row={row.id}
                   aria-pressed={row.id === picked}
                   onClick={() => setPicked(row.id)}
                   onDoubleClick={() => handlers.open(row)}
@@ -239,6 +242,9 @@ function TreeNode({
         <button
           type="button"
           className={styles.name}
+          data-library-row={row.id}
+          data-holder={holder}
+          data-unfolded={unfolds ? open : undefined}
           aria-current={holds && row.id === handlers.opened ? "true" : undefined}
           aria-pressed={!holds && row.id === handlers.picked}
           onClick={() => (holds ? handlers.enter(row.id) : handlers.pick(row, holder))}
