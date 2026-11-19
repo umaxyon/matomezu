@@ -179,6 +179,11 @@ export function treeRowsOf(folders: Folders, unfolded: readonly string[]): TreeR
   return [HOME_ID, TRASH_ID].flatMap(id => under(id, id, "folder"))
 }
 
+// 行の並び ids のうち、Tab で止まる行: 止めたい行 want が並びに在ればそれ、無ければ fallback（言わなければ最初の行。並びが空なら undefined）
+export function tabStopOf(ids: readonly string[], want: string | undefined, fallback = ids[0]): string | undefined {
+  return want !== undefined && ids.includes(want) ? want : fallback
+}
+
 // ツリーで今いる行: 中へ入れない行（ページなど）を選んでいればその行、ほかは、右の枠に中身を出しているフォルダ opened
 export const treeCurrentOf = (folders: Folders, opened: string, picked: string | undefined): string =>
   picked !== undefined && folders[picked] === undefined ? picked : opened

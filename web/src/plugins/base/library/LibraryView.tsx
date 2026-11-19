@@ -40,6 +40,7 @@ import {
   openedFolderOf,
   pathTo,
   rowsIn,
+  tabStopOf,
   treeCurrentOf,
   treeRowsOf,
   unfoldable,
@@ -119,6 +120,20 @@ export function LibraryView() {
     const now = unfoldedOf(readUnfolded())
     if (!now.includes(id) && read().folders[id] !== undefined && id !== TRASH_ID) setUnfolded([...now, id])
   })
+  // Tab で止まる行: ツリーは今いる行（出ていなければ書庫ホーム）、右の枠は選んでいる行（無ければ最初の行）
+  const current = useMatomezuState(st => treeCurrentOf(st.folders, opened, picked))
+  const treeStop = useMatomezuState(
+    st =>
+      tabStopOf(
+        treeRowsOf(st.folders, unfolded).map(r => r.id),
+        current,
+        HOME_ID,
+      ) ?? HOME_ID,
+  )
+  const contentsStop = tabStopOf(
+    rows.map(r => r.id),
+    picked,
+  )
   const handlers: Handlers = {
     drag,
     menu: (e, row) => openEntryMenu(e, { entry: row.id }),
@@ -130,14 +145,10 @@ export function LibraryView() {
     pick: (row, holder) => arrive({ id: row.id, holder, holds: false }),
     // 開く（フォルダは中へ入る）のは、Enter・右クリックのメニューと同じコマンド
     open: row => openEntry({ entry: row.id }),
-    tabbable: HOME_ID,
+    tabbable: treeStop,
   }
   // キーで選ぶ行が変わったら、焦点もその行へ移す（ツリー・検索の結果の中に焦点があればツリーの今いる行へ、右の枠の中身の中に在れば選んでいる行へ）。
   // 行のボタンは、入っている所の範囲を自分で名乗る
-  const current = useMatomezuState(st => treeCurrentOf(st.folders, opened, picked))
-  handlers.tabbable = useMatomezuState(st =>
-    treeRowsOf(st.folders, unfolded).some(r => r.id === current) ? current : HOME_ID,
-  )
   useEffect(() => {
     const at = document.activeElement
     const scope = at instanceof HTMLElement ? at.closest<HTMLElement>("[data-key-scope]")?.dataset.keyScope : undefined
@@ -259,11 +270,7 @@ export function LibraryView() {
                       className={styles.entry}
                       data-library-row={row.id}
                       data-key-scope={LIBRARY_CONTENTS_SCOPE}
-                      tabIndex={
-                        row.id === (picked !== undefined && rows.some(r => r.id === picked) ? picked : rows[0]?.id)
-                          ? 0
-                          : -1
-                      }
+                      tabIndex={row.id === contentsStop ? 0 : -1}
                       data-holder={opened}
                       {...dragMarks(drag, LIBRARY_CONTENTS_SCOPE, row.id)}
                       aria-pressed={row.id === picked}

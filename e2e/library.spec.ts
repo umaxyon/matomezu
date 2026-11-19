@@ -1,6 +1,7 @@
 // 書庫の画面（コントロールセンターの中）: 左のツリーと右の枠で書庫を見て、フォルダへ入り、ブックを 2 回押して開く
 
 import type { Locator } from "@playwright/test"
+import { drawingPage, testBook } from "../test/lineup"
 import { BOOK_SCREEN_DEF, expect, joinedAiAuth, type Page, test, urlFront, urlStages } from "./fixtures"
 import { storedBook, storedBooks } from "./helpers/stored"
 
@@ -627,5 +628,35 @@ test.describe("ブックごと読めないブック", () => {
     await expect(
       page.getByRole("navigation", { name: "フォルダ" }).getByRole("button", { name: /壊れたブック/ }),
     ).toBeVisible()
+  })
+})
+
+test.describe("読めないページ", () => {
+  // 今の機能台帳に無いタイプのページ（外したプラグインのページのつもり）
+  const gone = {
+    kind: "page",
+    id: "gone-1",
+    type: "@gone/plugin:sheet",
+    title: "外したタイプ",
+    paper: "@matomezu/base:a4",
+    orientation: "landscape",
+  }
+  const mixed = testBook("mixed", "混ざったブック", [drawingPage("mixed-p1")])
+  test.use({ books: [{ ...mixed, lineup: [...mixed.lineup, gone] }] })
+
+  test("書庫で読めないページの行を Enter で開くと、ブックの窓が開き、読めないことを見せる", async ({ page }) => {
+    await page.goto("/")
+    await page.bringToFront()
+    await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+    await page
+      .getByRole("navigation", { name: "フォルダ" })
+      .getByRole("button", { name: "混ざったブック", exact: true })
+      .click()
+    const row = page.getByRole("list", { name: "混ざったブック の中身" }).getByRole("button", { name: /外したタイプ/ })
+    await expect(row).toContainText("読めません")
+    await row.click()
+    await page.keyboard.press("Enter")
+    await expect.poll(() => urlFront(page)).toBe(BOOK_SCREEN_DEF)
+    await expect(page.locator("[data-unreadable-page]")).toContainText("このページは読めません")
   })
 })

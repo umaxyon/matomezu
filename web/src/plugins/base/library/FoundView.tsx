@@ -6,6 +6,7 @@ import { LIBRARY_FOUND_SCOPE } from "./commands"
 import { useLibraryRows, useNameOf } from "./hooks"
 import { RowIcon } from "./icons"
 import styles from "./LibraryView.module.css"
+import { tabStopOf } from "./outline"
 import { type FoundRow, foundRowsOf } from "./search"
 
 export function FoundView({
@@ -25,7 +26,10 @@ export function FoundView({
   const nameOf = useNameOf()
   const rows = useLibraryRows(`found:${query}`, s => foundRowsOf(s, query))
   // Tab で止まる行（ツリーで今いる行。一覧に無ければ最初の行）
-  const tabbable = rows.some(r => r.id === current) ? current : rows[0]?.id
+  const tabbable = tabStopOf(
+    rows.map(r => r.id),
+    current,
+  )
   return (
     <div className={styles.found}>
       <p className={styles.foundHead} role="status">
