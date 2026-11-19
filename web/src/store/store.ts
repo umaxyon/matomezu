@@ -289,6 +289,9 @@ export interface WindowActions {
   // ブック book の画面の履歴（book が LIBRARY_HISTORY なら、書庫の画面の履歴）の、戻せる（from が undo）かやり直せる（redo）最後の画面の履歴の段を、反対の側へ移す。それが変えたほかのブックの画面の履歴でも移す。
   // 画面の履歴の段を戻す・やり直すアクションを行えたあとに呼ぶ
   moveHistory(book: string, from: "undo" | "redo"): void
+  // ブック book の画面の履歴（book が LIBRARY_HISTORY なら、書庫の画面の履歴）の、戻せる（from が undo）かやり直せる（redo）最後の画面の履歴の段を捨てる。それが変えたほかのブックの画面の履歴からも捨てる。
+  // 画面の履歴の段を戻す・やり直すアクションが断られ、その段をもう置き直せないときに呼ぶ
+  dropHistory(book: string, from: "undo" | "redo"): void
   // 同じ処理の中でこのあと行うアクションを、ブック book の最後の画面の履歴の段に足す（足して始めたその場の編集を確定するとき。足すのと書くのを 1 つの画面の履歴の段にする）。
   // 足すのは、そのブックに最後に入れた画面の履歴の段が、そのブックの最後の物のときだけ（元に戻す・やり直すのあとは足さずに、別の画面の履歴の段になる）。
   // 足したあと何も変わらなければ（足した物を書かずに消したなど）、その画面の履歴の段ごと無くなる
@@ -435,6 +438,7 @@ export const REFUSED_WINDOW_ACTIONS: WindowActions = {
   requestBack: NOTHING,
   closePicker: NOTHING,
   moveHistory: NOTHING,
+  dropHistory: NOTHING,
   continueStep: NOTHING,
 }
 
@@ -462,6 +466,7 @@ export const WINDOW_ACTIONS: { readonly [K in keyof WindowActions]: true } = {
   requestBack: true,
   closePicker: true,
   moveHistory: true,
+  dropHistory: true,
   continueStep: true,
 }
 
@@ -1579,6 +1584,18 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       for (const id of step.books) {
         const was = next[id] ?? NO_HISTORY
         next[id] = { ...was, [from]: was[from].filter(s => s !== step), [to]: [...was[to], step] } as History
+      }
+      setState({ history: next })
+    },
+    dropHistory: (book, from) => {
+      const { history } = getState()
+      const step = (history[book] ?? NO_HISTORY)[from].at(-1)
+      if (!step) return
+      lastPut = Object.fromEntries(Object.entries(lastPut).filter(([, s]) => s !== step))
+      const next = { ...history }
+      for (const id of step.books) {
+        const was = next[id] ?? NO_HISTORY
+        next[id] = { ...was, [from]: was[from].filter(s => s !== step) } as History
       }
       setState({ history: next })
     },
