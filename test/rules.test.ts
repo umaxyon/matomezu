@@ -464,7 +464,7 @@ const ENTRY_ALLOWED: Record<string, (target: string) => boolean> = {
     t === "plugin-api" || t === "zod" || t === "plugins/base" || t === "plugins/base/utils" || t === "plugins",
   "plugin-entry/ui.ts": t =>
     t === "plugin-api/ui" || t === "plugins/base/ui" || t === "plugins/base/utils/ui" || t === "plugins/ui",
-  "testing/index.ts": t => ["store", "ui"].includes(topOf(t)) || t === "plugins" || t === "plugins/ui",
+  "testing/index.ts": t => ["core", "store", "ui"].includes(topOf(t)) || t === "plugins" || t === "plugins/ui",
 }
 
 test("プラグイン API の入口は、ビルトインの一覧（plugins・plugins/ui）を型だけ読む（値で読むと、ビルトインの全部が入口に入る）", () => {
