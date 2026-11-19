@@ -13,12 +13,13 @@ import { useMatomezuState, useReadState } from "../../../ui/store-context"
 import { useActions, usePluginState, useReadPluginState, useSetPluginState } from "../../../ui/view-hooks"
 import { ActionButton, controlClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import { openOnEnter, useColumnsMeasure } from "./arrows"
+import { useColumnsMeasure } from "./arrows"
 import {
   LIBRARY_CONTENTS_SCOPE,
   LIBRARY_ENTRY_CONTEXT,
   LIBRARY_ENTRY_OPEN,
   LIBRARY_FOLDER_CONTEXT,
+  LIBRARY_FOUND_SCOPE,
   LIBRARY_SCOPE,
   LIBRARY_TREE_SCOPE,
 } from "./commands"
@@ -36,12 +37,11 @@ import {
   type LibraryRow,
   NO_TITLE,
   NO_TYPE,
-  NOT_OPENED,
   openedFolderOf,
-  openTargetOf,
   pathTo,
   rowsIn,
   treeCurrentOf,
+  treeRowsOf,
   unfoldable,
   unfoldedOf,
 } from "./outline"
@@ -72,6 +72,7 @@ interface Handlers {
   open(row: LibraryRow): void
   menu(e: MouseEvent, row: LibraryRow): void // 行の右クリックのメニューを開く
   drag: LibraryDrag | null
+  tabbable: string // ツリーで Tab で止まる行（今いる行。ツリーに出ていなければ書庫ホーム）
 }
 
 export function LibraryView() {
@@ -120,30 +121,36 @@ export function LibraryView() {
   })
   const handlers: Handlers = {
     drag,
-    menu: (e, row) => openEntryMenu(e, { entry: row.id, readable: row.readable }),
+    menu: (e, row) => openEntryMenu(e, { entry: row.id }),
     opened,
     picked,
     shown,
     toggle: id => setUnfolded(shown.has(id) ? unfolded.filter(x => x !== id) : [...unfolded, id]),
     enter,
     pick: (row, holder) => arrive({ id: row.id, holder, holds: false }),
-    // フォルダは中へ入り、ほかはコマンド library-entry-open で窓に出す
-    open: row => {
-      const target = openTargetOf(read().folders, row)
-      if (target === NOT_OPENED) return
-      if (target.to === "folder") enter(target.folder)
-      else openEntry({ entry: row.id, readable: row.readable })
-    },
+    // 開く（フォルダは中へ入る）のは、Enter・右クリックのメニューと同じコマンド
+    open: row => openEntry({ entry: row.id }),
+    tabbable: HOME_ID,
   }
-  // キーで選ぶ行が変わったら、焦点もその行へ移す（ツリーの中に焦点があればツリーの今いる行へ、右の枠の中身の中に在れば選んでいる行へ）
+  // キーで選ぶ行が変わったら、焦点もその行へ移す（ツリー・検索の結果の中に焦点があればツリーの今いる行へ、右の枠の中身の中に在れば選んでいる行へ）。
+  // 行のボタンは、入っている所の範囲を自分で名乗る
   const current = useMatomezuState(st => treeCurrentOf(st.folders, opened, picked))
+  handlers.tabbable = useMatomezuState(st =>
+    treeRowsOf(st.folders, unfolded).some(r => r.id === current) ? current : HOME_ID,
+  )
   useEffect(() => {
     const at = document.activeElement
-    const zone = at instanceof HTMLElement ? at.closest<HTMLElement>("[data-key-scope]") : null
-    const scope = zone?.dataset.keyScope
-    const id = scope === LIBRARY_TREE_SCOPE ? current : scope === LIBRARY_CONTENTS_SCOPE ? picked : undefined
-    if (!zone || id === undefined) return
-    const to = [...zone.querySelectorAll<HTMLElement>("[data-library-row]")].find(r => r.dataset.libraryRow === id)
+    const scope = at instanceof HTMLElement ? at.closest<HTMLElement>("[data-key-scope]")?.dataset.keyScope : undefined
+    const id =
+      scope === LIBRARY_TREE_SCOPE || scope === LIBRARY_FOUND_SCOPE
+        ? current
+        : scope === LIBRARY_CONTENTS_SCOPE
+          ? picked
+          : undefined
+    if (id === undefined) return
+    const to = [
+      ...(root.current?.querySelectorAll<HTMLElement>(`[data-library-row][data-key-scope="${scope}"]`) ?? []),
+    ].find(r => r.dataset.libraryRow === id)
     if (to && to !== at) to.focus()
   }, [current, picked])
   const here = nameOf({ id: opened, title: titles[titles.length - 1] ?? NO_TITLE })
@@ -251,12 +258,17 @@ export function LibraryView() {
                       type="button"
                       className={styles.entry}
                       data-library-row={row.id}
+                      data-key-scope={LIBRARY_CONTENTS_SCOPE}
+                      tabIndex={
+                        row.id === (picked !== undefined && rows.some(r => r.id === picked) ? picked : rows[0]?.id)
+                          ? 0
+                          : -1
+                      }
                       data-holder={opened}
                       {...dragMarks(drag, LIBRARY_CONTENTS_SCOPE, row.id)}
                       aria-pressed={row.id === picked}
                       onClick={() => setPicked(row.id)}
                       onDoubleClick={() => handlers.open(row)}
-                      onKeyDown={e => openOnEnter(e, () => handlers.open(row))}
                       onContextMenu={e => {
                         setPicked(row.id)
                         handlers.menu(e, row)
@@ -329,13 +341,14 @@ function TreeNode({
           type="button"
           className={styles.name}
           data-library-row={row.id}
+          data-key-scope={LIBRARY_TREE_SCOPE}
+          tabIndex={row.id === handlers.tabbable ? 0 : -1}
           data-holder={holder}
           {...dragMarks(handlers.drag, LIBRARY_TREE_SCOPE, row.id)}
           aria-current={holds && row.id === handlers.opened ? "true" : undefined}
           aria-pressed={!holds && row.id === handlers.picked}
           onClick={() => (holds ? handlers.enter(row.id) : handlers.pick(row, holder))}
           onDoubleClick={() => handlers.open(row)}
-          onKeyDown={e => openOnEnter(e, () => handlers.open(row))}
           onContextMenu={e => {
             if (row.id !== TRASH_ID) handlers.menu(e, row)
           }}

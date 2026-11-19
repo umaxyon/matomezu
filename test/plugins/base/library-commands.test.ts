@@ -155,7 +155,7 @@ test("扱う物: 何も受け取らなければ選んでいる行（無ければ
   expect(dialog()).toBeNull()
 })
 
-test("右クリックのメニューの行: フォルダは作る・名前の変更・ゴミ箱、ブックは開く・名前の変更・ゴミ箱、ブックの中のページは開くだけ（読めなければ出ない）。何も無い所は、作るだけ（ブックの中なら、それを入れているフォルダに作る）", () => {
+test("右クリックのメニューの行: フォルダは作る・名前の変更・ゴミ箱、ブックは開く・名前の変更・ゴミ箱、ブックの中のページは開くだけ。何も無い所は、作るだけ（ブックの中なら、それを入れているフォルダに作る）", () => {
   const { store, center, folder, run, shown, dialog } = setup()
   const a = folder("あ")
   const [open, book, fold, rename, trash] = [
@@ -170,11 +170,10 @@ test("右クリックのメニューの行: フォルダは作る・名前の変
     store.actions.openContextMenu(center, `@matomezu/base:${id}`, target, { x: 0, y: 0 })
     return rows.filter(shown)
   }
-  expect(menu("library-entry-context", { entry: a, readable: true })).toEqual([book, fold, rename, trash])
-  expect(menu("library-entry-context", { entry: "b1", readable: true })).toEqual([open, rename, trash])
-  expect(menu("library-entry-context", { entry: "p1", readable: true })).toEqual([open])
-  expect(menu("library-entry-context", { entry: "p1", readable: false })).toEqual([])
-  expect(menu("library-entry-context", { entry: HOME_ID, readable: true })).toEqual([book, fold])
+  expect(menu("library-entry-context", { entry: a })).toEqual([book, fold, rename, trash])
+  expect(menu("library-entry-context", { entry: "b1" })).toEqual([open, rename, trash])
+  expect(menu("library-entry-context", { entry: "p1" })).toEqual([open])
+  expect(menu("library-entry-context", { entry: HOME_ID })).toEqual([book, fold])
   expect(menu("library-folder-context", { folder: a })).toEqual([book, fold])
   expect(menu("library-folder-context", { folder: "b1" })).toEqual([book, fold])
   expect(menu("library-folder-context", { folder: TRASH_ID })).toEqual([])
@@ -203,13 +202,26 @@ test("落とした物を動かす: フォルダの位置へ・ゴミ箱へ。何
   expect(at().picked).toBeUndefined()
 })
 
-test("開く: メニューの外で名指せば、何も選んでいなくても窓に出す（行を 2 回押す・Enter と同じ道）。読めないと受け取ったページは出さない", () => {
-  const { store, run, at } = setup()
+test("開く: 2 回押す・Enter・メニューの「開く」の 1 つの道。名指さなければ選んでいる行、{at: tree} ならツリーで今いる行。フォルダは中へ入る", () => {
+  const { store, center, folder, run, at, set } = setup()
   const opened = () => store.state.getState().window.screens.flatMap(s => s.stages?.stages.map(st => st.opened) ?? [])
   const shows = (book: string) => opened().some(o => o !== null && "book" in o && o.book === book)
-  expect(at().picked).toBeUndefined()
-  run("library-entry-open", { entry: "p1", readable: false })
-  expect(opened()).toHaveLength(1)
-  run("library-entry-open", { entry: "b3", readable: true })
+  const a = folder("あ")
+  // 何も選んでいなければ、何もしない
+  run("library-entry-open")
+  expect(at().folder).toBeUndefined()
+  // 名指せば、選んでいなくても窓に出す
+  run("library-entry-open", { entry: "b3" })
   expect(shows("b3")).toBe(true)
+  // 選んでいるフォルダは、中へ入る
+  set(LIBRARY_PICKED.id, center, a)
+  run("library-entry-open")
+  expect(at()).toMatchObject({ folder: a, picked: undefined })
+  // ツリーで今いる行（開いているフォルダ あ）: 中へ入ったまま
+  run("library-entry-open", { at: "tree" })
+  expect(at().folder).toBe(a)
+  // ツリーで今いる行がブックなら、窓に出す
+  set(LIBRARY_FOLDER.id, center, "b4")
+  run("library-entry-open", { at: "tree" })
+  expect(shows("b4")).toBe(true)
 })
