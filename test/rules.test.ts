@@ -63,12 +63,13 @@ const LIBRARY_READERS: Record<string, readonly string[]> = {
 const baseAllowed = (rel: string) => (t: string) =>
   (isView(rel) ? ALLOWED.ui!(t) : t === "core" || t === "store" || t === "zod") ||
   (LIBRARY_READERS[rel]?.includes(t) ?? false)
-// base 以外のビルトインプラグインは、プラグイン API と zod だけ（見た目は plugin-api/ui と React も）。状態は plugin-api/ui のフックで読む
+// base 以外のビルトインプラグインは、プラグイン API と zod だけ（見た目は plugin-api/ui と react も。react-dom は読まない: 追加プラグインが借りられる物と合わせる。
+// document.body に描くゴーストは base の GhostArea で描く）。状態は plugin-api/ui のフックで読む
 const apiAllowed = (rel: string) => (t: string) =>
   t === "plugin-api" ||
   t === "plugin-api/builtin" ||
   t === "zod" ||
-  (isView(rel) && ["plugin-api/ui", "react", "react-dom"].includes(t))
+  (isView(rel) && ["plugin-api/ui", "react"].includes(t))
 
 // web/src の直下は、architecture の表のクレートと、直下に置くファイル（画面の入口・CSS の型の宣言）だけ。
 // 表に無いクレートは「依存の向き」が見ないので、足したら表と ALLOWED（か入口の見張り）を決める

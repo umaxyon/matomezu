@@ -16,7 +16,6 @@
 // 行は台紙の上の 1 枚ずつのカードで、カードの地・角・影・折り返しはテーマが決める（付箋紙のテーマでは付箋）。色はリストの台紙と見出しに塗る（paint.ts）
 
 import { type CSSProperties, type PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { createPortal } from "react-dom"
 import { type ItemProps, resolveTokens, toPaperDelta } from "../../../plugin-api"
 import {
   type ItemViewProps,
@@ -29,7 +28,15 @@ import {
   useStage,
 } from "../../../plugin-api/ui"
 import { DRAG_START } from "../../base"
-import { modPressed, RichText, useAnchorRef, useFollowsSelection, useRevealable, useThemeVars } from "../../base/ui"
+import {
+  GhostArea,
+  modPressed,
+  RichText,
+  useAnchorRef,
+  useFollowsSelection,
+  useRevealable,
+  useThemeVars,
+} from "../../base/ui"
 import { LIST_ADD_ROW, LIST_CHECK, LIST_EDIT_ROW, LIST_MOVE_ROW, LIST_STRETCH_ROW } from "./commands"
 import { edgeScroller } from "./edge-scroll"
 import { kit } from "./kit"
@@ -349,29 +356,26 @@ export function ListView({
           )}
         </div>
       </div>
-      {carried &&
-        carry.current?.look &&
-        createPortal(
-          <>
-            <Ghost
-              row={carry.current.row}
-              look={carry.current.look}
-              x={carried.x}
-              y={carried.y}
-              checklist={props.checklist}
-              lines={layout[rows.indexOf(carry.current.row)]}
-              done={props.checklist && props.checkedGray && carry.current.row.props.checked === true}
+      {carried && carry.current?.look && (
+        <GhostArea>
+          <Ghost
+            row={carry.current.row}
+            look={carry.current.look}
+            x={carried.x}
+            y={carried.y}
+            checklist={props.checklist}
+            lines={layout[rows.indexOf(carry.current.row)]}
+            done={props.checklist && props.checkedGray && carry.current.row.props.checked === true}
+          />
+          {carried.drop && (
+            <div
+              className={styles.dropBar}
+              data-drop-bar
+              style={{ left: carried.drop.bar.x, top: carried.drop.bar.y - BAR_HALF, width: carried.drop.bar.w }}
             />
-            {carried.drop && (
-              <div
-                className={styles.dropBar}
-                data-drop-bar
-                style={{ left: carried.drop.bar.x, top: carried.drop.bar.y - BAR_HALF, width: carried.drop.bar.w }}
-              />
-            )}
-          </>,
-          document.body,
-        )}
+          )}
+        </GhostArea>
+      )}
     </div>
   )
 }
