@@ -164,6 +164,8 @@ export const LOCK = kit.definePermission({
     if (q.kind === "page") {
       // ページを入れているブックがロック中なら、そのページのロックの掛け外しも止める
       if (q.folders.some(f => f.folderRole === "book" && f.locked)) return true
+      // エントリとして動かす・写すだけなら、ロックしたページも止めない（名前を変える・中身ごと変えるのは止める）
+      if (q.where?.entry === "place" || q.where?.entry === "copy") return false
       return !!q.page.locked && !PAGE_SWITCHES.includes(q.action.id)
     }
     if (q.kind !== "folder") return false

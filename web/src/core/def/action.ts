@@ -271,11 +271,14 @@ export type LibraryScope<A = unknown> =
 // （"copy" は、写して隣に足す。エントリそのものは変えない）
 export type EntryWhere = "all-pages" | "place" | "title" | "copy"
 
-// 書庫が対象のアクションが変える物: books は今あるブックの id と、その中の所、entries は名指したエントリと、その変え方（どのブックに問うかは、core が出す）、creates はブックを作るか
+// 書庫が対象のアクションが変える物: books は今あるブックの id と、その中の所、entries は名指したエントリと、その変え方（どのブックか、どのページに問うかは、core が出す）、
+// creates はブックを作るか、pages は作るページのタイプ creates と、入れるフォルダの id into（引数が名指すときだけ。core が、ブックかその中ならそのブックに作るページのタイプで、
+// ほかなら、そのタイプの空のページで問う。into を省いたときにアクションが決める先には問わない）
 export interface LibraryTargets {
   books: readonly { book: string; where: Where }[]
   entries?: readonly { entry: string; where: EntryWhere; into?: string }[]
   creates: boolean
+  pages?: readonly { creates: string; into?: string }[]
 }
 
 // 表に並べたアクションの、書庫の許可スコープ（引数の形を問わない形）

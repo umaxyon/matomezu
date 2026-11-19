@@ -33,6 +33,7 @@ import {
   type Declined,
   type Done,
   type EntryWhere,
+  type LibraryTargets,
   libraryScopeOf,
   type OtherRecord,
   pageScopeOf,
@@ -77,7 +78,7 @@ import {
   withChanges,
 } from "./folders"
 import { idsIn, skipping } from "./ids"
-import { decidedByPlace, deniedBy, type Inspected, inspect, withoutPermissions } from "./inspect"
+import { type AskedPage, decidedByPlace, deniedBy, type Inspected, inspect, withoutPermissions } from "./inspect"
 import type { Books } from "./library"
 import type { ItemPage } from "./placed"
 import { type RecordSource, readFrom, SOURCE, sourceIn, sourceOf, type WithSource } from "./record-source"
@@ -283,15 +284,23 @@ function brokenRecord(
   return null
 }
 
-// 書庫が対象のアクションが名指したエントリ entry を where のとおりに変えるとき、行う前に問うブックと、その中の所:
-// ブックならそのブック、フォルダなら中のブックの全部（名前だけ・写すだけなら、どれにも問わない）、ブックの中のページ・バインダなら、そのブックのそのエントリ
-// （動かす・名前を変えるなら、その印 entriesChange を添える）。into（動かす先のフォルダ）がほかのブックかその中なら、そのブックにも、入るエントリとして問う
-function booksOfEntry(
-  library: Library,
-  entry: string,
-  how: EntryWhere,
-  into?: string,
-): { book: string; where: Where }[] {
+// 書庫が対象のアクションの、行う前に問う相手: ブック book とその中の所 where か、ページそのもの（ブックの外のページか作るページ。core/inspect.ts の AskedPage）
+export type LibraryAsk = { book: Book; where: Where } | { page: AskedPage }
+// エントリから出した問う相手（ブックは id）
+type EntryAsk = { book: string; where: Where } | { page: AskedPage }
+
+// 書庫 library のブックの外のページ id を、エントリの変え方 how で問う相手（読めないページには問わない）
+function outsidePageAsk(library: Library, id: string, how: EntryWhere): EntryAsk[] {
+  const row = library.pages[id]
+  if (row?.kind !== "page") return []
+  return [{ page: { page: row, folders: permissionFoldersOf(library.folders, id), where: { entry: how } } }]
+}
+
+// 書庫が対象のアクションが名指したエントリ entry を where のとおりに変えるとき、行う前に問う相手:
+// ブックならそのブック、フォルダなら中のブックの全部と、中のブックの外のページの全部（名前だけ・写すだけなら、どれにも問わない）、ブックの中のページ・バインダなら、そのブックのそのエントリ
+// （動かす・名前を変えるなら、その印 entriesChange を添える）、ブックの外のページならそのページ、ブックの外のバインダなら中のページの全部（名前だけ・写すだけなら問わない）。
+// ブックの外のページには、エントリの変え方をそのまま where の entry に添える。into（動かす先のフォルダ）がほかのブックかその中なら、そのブックにも、入るエントリとして問う
+export function asksOfEntry(library: Library, entry: string, how: EntryWhere, into?: string): EntryAsk[] {
   const where: Where = how === "all-pages" ? { allPages: true } : how === "place" ? { place: true } : {}
   const row = library.folders[entry]
   const from = row?.folderRole === "book" ? entry : bookIdOf(library.folders, entry)
@@ -313,11 +322,64 @@ function booksOfEntry(
   if (row?.folderRole === "book") return how === "copy" ? [] : [{ book: entry, where }]
   if (row && isOpenRole(row.folderRole)) {
     if (how === "title" || how === "copy") return []
-    return Object.values(library.folders).flatMap(f =>
+    const books = Object.values(library.folders).flatMap(f =>
       f.folderRole === "book" && isWithin(library.folders, f.id, entry) ? [{ book: f.id, where }] : [],
     )
+    const pages = Object.keys(library.pages).flatMap(id =>
+      bookIdOf(library.folders, id) === undefined && isWithin(library.folders, id, entry)
+        ? outsidePageAsk(library, id, how)
+        : [],
+    )
+    return [...books, ...pages]
   }
-  return [...(from === undefined ? [] : [asked(from)]), ...enters]
+  if (from !== undefined) return [asked(from), ...enters]
+  if (row?.folderRole === "binder")
+    return how === "title" || how === "copy"
+      ? enters
+      : [...row.lineup.flatMap(p => outsidePageAsk(library, p.id, how)), ...enters]
+  return [...outsidePageAsk(library, entry, how), ...enters]
+}
+
+// 作るページを問う、タイプ type の空のページ（問うためだけの物。紙と向きはタイプの規定の既定）。タイプが機能台帳に無ければ undefined
+function newPageOf(catalog: CoreCatalog, type: string): ItemPage | undefined {
+  const def = catalog.pageTypes.get(type)
+  if (!def) return undefined
+  return {
+    kind: "page",
+    id: "new-page",
+    type: def.id,
+    title: "new page",
+    paper: def.paper.default,
+    orientation: def.paper.orientation,
+  }
+}
+
+// 書庫が対象のアクションが変える物 targets（許可スコープから出した物）を、書庫 library で行う前に問う相手の並び（書庫に無いブックには問わない。
+// 作るブックは空のブック NEW_BOOK、作るページはそのタイプの空のページで問う）
+export function libraryAsksOf(catalog: CoreCatalog, library: Library, targets: LibraryTargets): LibraryAsk[] {
+  const books = libraryOf(library)
+  const pages = (targets.pages ?? []).flatMap((p): EntryAsk[] => {
+    const into =
+      p.into === undefined
+        ? undefined
+        : library.folders[p.into]?.folderRole === "book"
+          ? p.into
+          : bookIdOf(library.folders, p.into)
+    if (into !== undefined) return [{ book: into, where: { creates: p.creates } }]
+    const made = newPageOf(catalog, p.creates)
+    return made ? [{ page: { page: made, folders: [] } }] : []
+  })
+  const named: EntryAsk[] = [
+    ...targets.books,
+    ...(targets.entries ?? []).flatMap(e => asksOfEntry(library, e.entry, e.where, e.into)),
+    ...pages,
+  ]
+  const found = named.flatMap((a): LibraryAsk[] => {
+    if ("page" in a) return [a]
+    const book = books[a.book]
+    return book ? [{ book, where: a.where }] : []
+  })
+  return targets.creates ? [...found, { book: NEW_BOOK, where: {} }] : found
 }
 
 // 書庫が was から now に変わる間の、エントリ id の置き場所の変化
@@ -416,6 +478,7 @@ function permits(
     book: Book | undefined,
     where: Where | undefined,
     record?: { record: unknown; refs: readonly Referred[] },
+    page?: AskedPage,
   ) =>
     inspect(
       ctx.catalog,
@@ -426,6 +489,7 @@ function permits(
         ...(where ? { where } : {}),
         ...(settings ? { settings } : {}),
         ...(record ? { record } : {}),
+        ...(page ? { page } : {}),
         actor: ctx.actor,
       },
       ctx,
@@ -438,19 +502,14 @@ function permits(
   }
   if (action.target === "library") {
     const targets = args.success ? libraryScopeOf(action.permissionScope as AnyLibraryScope, args.data) : null
-    const library = libraryOf(subject as Library)
-    const named = [
-      ...(targets?.books ?? []),
-      ...(targets?.entries ?? []).flatMap(e => booksOfEntry(subject as Library, e.entry, e.where, e.into)),
-    ]
-    const books = named.flatMap(t => {
-      const book = library[t.book]
-      return book ? [{ book, where: t.where }] : []
-    })
-    const made = targets?.creates ? [{ book: NEW_BOOK, where: {} }] : []
-    const asks = [...books, ...made]
-    if (asks.length === 0) return asked(undefined, undefined)
-    for (const a of asks) {
+    const found = targets ? libraryAsksOf(ctx.catalog, subject as Library, targets) : []
+    if (found.length === 0) return asked(undefined, undefined)
+    for (const a of found) {
+      if ("page" in a) {
+        const answer = answerOf(asking(undefined, undefined, undefined, a.page))
+        if (!answer.ok) return answer
+        continue
+      }
       const answer = asked(a.book, a.where)
       if (!answer.ok) return answer.reason === "denied" && a.book !== NEW_BOOK ? { ...answer, book: a.book.id } : answer
     }

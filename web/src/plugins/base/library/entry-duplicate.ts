@@ -64,9 +64,10 @@ export const PAGE_CREATE = kit.defineAction({
     "Create a page in a book of the library: folder is the id of the book (see read_folder). The other arguments are those of page-add. Returns what page-add returns. Refused for a folder that is not a book or is in the trash, for a page type that leaves page-add out, and as page-add refuses.",
   title: "New page",
   target: "library",
-  // 作るページのタイプで、そのブックに問う
+  // 作るページのタイプと入れるフォルダで問う（core が、ブックならそのブックに、ほかなら空のページで問う）
   permissionScope: (args: { folder: string; type: string }) => ({
-    books: [{ book: args.folder, where: { creates: args.type } }],
+    books: [],
+    pages: [{ creates: args.type, into: args.folder }],
     creates: false,
   }),
   args: PAGE_CREATE_ARGS,
