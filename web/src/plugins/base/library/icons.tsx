@@ -7,6 +7,7 @@ import { BookIcon, BookOpenIcon } from "../utils/book-icons"
 import { LIBRARY_REDO, LIBRARY_UNDO } from "./commands"
 import styles from "./LibraryView.module.css"
 import type { LibraryRow } from "./outline"
+import { LIBRARY_OPEN } from "./screen"
 
 const FOLDER = icon(<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />)
 const BINDER = icon(
@@ -59,4 +60,5 @@ export function RowIcon({
 export const LIBRARY_COMMAND_ICONS = {
   [LIBRARY_UNDO.id]: UNDO_ICON,
   [LIBRARY_REDO.id]: REDO_ICON,
+  [LIBRARY_OPEN.id]: icon(<path d="M3.5 5.5h6l2 2h9v11h-17z" />),
 }

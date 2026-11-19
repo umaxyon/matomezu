@@ -1,10 +1,9 @@
 import { drawingPage, testBook } from "../../test/lineup"
 import { E2E_BOOKS, pagesIn } from "../books"
-import { BOOK_SCREEN_URL, bookScreenUrl, expect, joinedAiAuth, type Page, test, urlStages } from "../fixtures"
+import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test, urlStages } from "../fixtures"
 import { addBox } from "../helpers/paper"
 import { openGeneral } from "../helpers/settings"
-import { fromMenu } from "../helpers/stage-menu"
-import { storedBook, storedBooks, storedPageVersion, storedTrashedAt } from "../helpers/stored"
+import { storedBook, storedBooks, storedPageVersion } from "../helpers/stored"
 
 // 常駐を空にして始め、テストごとに使うブックを置く
 test.use({ books: [] })
@@ -212,48 +211,6 @@ test("開いているブックとページは URL に入り、読み直しても
   await page.reload()
   await expect(page.getByRole("img", { name: "紙" })).toBeVisible()
   expect(urlStages(page)[0]?.b).toBe(book.id)
-})
-
-test("ブックを開くダイアログで、行のゴミ箱のボタンでゴミ箱に入れ、ゴミ箱の一覧から戻す・消すができる。ロック中のブックにはボタンが出ない", async ({
-  page,
-}) => {
-  await put(page, { ...E2E_1, id: "e2e-trash", title: "捨てるブック" })
-  // ページの id は、ほかのブックのページと重ならない
-  await put(page, {
-    ...E2E_1,
-    id: "e2e-locked",
-    title: "鍵のブック",
-    locked: true,
-    lineup: [{ ...pagesIn(E2E_1)[0]!, id: "e2e-locked-p1" }],
-  })
-  // ゴミ箱に入れるブックでない方を開いておく（開いているブックが無くなると、そのブックスクリーンは閉じる）
-  await page.goto(bookScreenUrl("e2e-locked"))
-  const openDialog = async () => {
-    await (await fromMenu(page, "ブックを開く")).click()
-    return page.getByRole("dialog", { name: "ブックを開く" })
-  }
-  let dialog = await openDialog()
-  const row = (name: string) => dialog.getByRole("option", { name })
-  await row("鍵のブック").hover()
-  await expect(row("鍵のブック").getByRole("button", { name: "ゴミ箱に入れる" })).toHaveCount(0)
-  await row("捨てるブック").hover()
-  await row("捨てるブック").getByRole("button", { name: "ゴミ箱に入れる" }).click()
-  await expect(row("捨てるブック")).toHaveCount(0)
-  await expect.poll(async () => await storedTrashedAt(page.request, "e2e-trash")).toBeTruthy()
-  await dialog.getByText("ゴミ箱 1").click()
-  const trash = dialog.getByRole("list", { name: "ゴミ箱" })
-  await expect(trash.getByRole("listitem")).toHaveText([/捨てるブック/])
-  await trash.getByRole("button", { name: "戻す" }).click()
-  await expect(trash.getByRole("listitem")).toHaveCount(0)
-  await expect.poll(async () => await storedTrashedAt(page.request, "e2e-trash")).toBeUndefined()
-  await page.keyboard.press("Escape")
-  dialog = await openDialog()
-  await row("捨てるブック").hover()
-  await row("捨てるブック").getByRole("button", { name: "ゴミ箱に入れる" }).click()
-  await dialog.getByText("ゴミ箱 1").click()
-  await dialog.getByRole("list", { name: "ゴミ箱" }).getByRole("button", { name: "削除" }).click()
-  await page.getByRole("dialog").getByRole("button", { name: "削除" }).last().click()
-  await expect.poll(async () => await bookIn(page, "e2e-trash")).toBeUndefined()
 })
 
 test("ロック中のブックの名前とページタブに鍵が出る。鍵は押せず、ブックとページは設定のダイアログの見出しの鍵で外す（ロック中は項目を押せない）", async ({

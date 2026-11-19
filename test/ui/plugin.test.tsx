@@ -88,7 +88,9 @@ describe("見た目のプラグイン", () => {
     const ui = assembleUi([...BUILTIN_UI, notesUi])
     expect(ui.presentationViews.get("notes:note")?.view).toBe(NoteView)
     expect(ui.dialogViews.get("@matomezu/base:book-new")).toBe(MyNewBook)
-    expect(ui.dialogViews.get("@matomezu/base:book-open")).toBe(BASE_UI.ui.dialogViews["@matomezu/base:book-open"])
+    expect(ui.dialogViews.get("@matomezu/base:binder-delete")).toBe(
+      BASE_UI.ui.dialogViews["@matomezu/base:binder-delete"],
+    )
   })
 
   test("見た目の表は、同じプラグインの配列なら組み直さず、別の配列なら組み直す", () => {

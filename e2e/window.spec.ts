@@ -11,7 +11,7 @@ import {
   test,
   urlFront,
 } from "./fixtures"
-import { splitWith } from "./helpers/split"
+import { lowerLibrary, splitWith } from "./helpers/split"
 import { fromMenu } from "./helpers/stage-menu"
 import { storedBooks, storedTrashedAt } from "./helpers/stored"
 
@@ -151,10 +151,11 @@ test("別の窓が、開いているブックをゴミ箱に入れると、そ�
   await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(1)
   const second = await newPage()
   await second.goto(bookScreenUrl(other))
-  await (await fromMenu(second, "ブックを開く")).click()
-  const row = second.getByRole("dialog", { name: "ブックを開く" }).getByRole("option", { name: books[0]?.title ?? "" })
-  await row.hover()
-  await row.getByRole("button", { name: "ゴミ箱に入れる" }).click()
+  await (await fromMenu(second, "書庫を開く")).click()
+  await lowerLibrary(second)
+    .getByRole("button", { name: books[0]?.title ?? "", exact: true })
+    .click()
+  await second.keyboard.press("Delete")
   await expect.poll(async () => await storedTrashedAt(page.request, mine)).toBeTruthy()
   await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(0)
   await expect(center(page)).toBeVisible()

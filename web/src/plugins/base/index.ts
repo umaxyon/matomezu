@@ -11,7 +11,6 @@ import {
   THEME_TYPES_CHECK,
 } from "./book-look"
 import { BOOK_CREATE, BOOK_NEW, NEW_BOOK_DIALOG } from "./book-new"
-import { BOOK_OPEN, OPEN_BOOK_DIALOG } from "./book-open"
 import { CONTEXT_MENU_STATES, MENU_CLOSE, MENU_KEYS, type PRESSED_ANCHOR } from "./context-menu"
 import { DIALOG_CLOSE, DIALOG_KEYS, DIALOG_SUBMIT } from "./dialog-host"
 import { HISTORY_KEYS, HISTORY_RESTORE, REDO, UNDO } from "./history"
@@ -545,7 +544,6 @@ export const BASE = defineBuiltin(
       DIALOG_SUBMIT,
       DIALOG_CLOSE,
       MENU_CLOSE,
-      BOOK_OPEN,
       PAGE_NEW,
       BINDER_OPEN,
       BINDER_SETTINGS,
@@ -589,7 +587,6 @@ export const BASE = defineBuiltin(
       ...SEARCH_COMMANDS,
     ],
     dialogs: [
-      OPEN_BOOK_DIALOG,
       NEW_PAGE_DIALOG,
       PAGE_DELETE_DIALOG,
       BINDER_SETTINGS_DIALOG,
@@ -841,7 +838,6 @@ declare module "../../core/catalog" {
     "@matomezu/base:dialog-submit": typeof DIALOG_SUBMIT
     "@matomezu/base:dialog-close": typeof DIALOG_CLOSE
     "@matomezu/base:menu-close": typeof MENU_CLOSE
-    "@matomezu/base:book-open": typeof BOOK_OPEN
     "@matomezu/base:page-new": typeof PAGE_NEW
     "@matomezu/base:page-open": typeof PAGE_OPEN
     "@matomezu/base:binder-open": typeof BINDER_OPEN
@@ -919,7 +915,6 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-book-new": typeof LIBRARY_NEW_BOOK_DIALOG
     "@matomezu/base:library-folder-new": typeof LIBRARY_NEW_FOLDER_DIALOG
     "@matomezu/base:library-entry-rename": typeof LIBRARY_RENAME_DIALOG
-    "@matomezu/base:book-open": typeof OPEN_BOOK_DIALOG
     "@matomezu/base:page-new": typeof NEW_PAGE_DIALOG
     "@matomezu/base:page-delete": typeof PAGE_DELETE_DIALOG
     "@matomezu/base:binder-settings": typeof BINDER_SETTINGS_DIALOG
