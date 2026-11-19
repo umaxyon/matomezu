@@ -42,7 +42,7 @@ export function suppressContextMenu(): void {
   Object.assign(press, { pending: null, suppressed: true })
 }
 
-// 向け先のステージで、右クリックされた物 target のメニュー id を、押した位置に開く。ブラウザのメニューは出さない。
+// 向け先（ステージか、ステージを持たないスクリーン）で、右クリックされた物 target のメニュー id を、押した位置に開く。ブラウザのメニューは出さない。
 // 右ボタンを押している間なら、離したときに開く。開くコンポーネント（ウィジェットかプレゼンテーションのビュー）は、そのメニューを contextMenus に書く。
 // 向け先が無い所（ステージの外で見るだけに描くページの中）では、開かない（右クリックは外へ渡す）
 export function useContextMenu<M extends ContextMenuId>(id: M): (e: MouseEvent, target: ContextMenuTable[M]) => void {
@@ -53,7 +53,7 @@ export function useContextMenu<M extends ContextMenuId>(id: M): (e: MouseEvent, 
   }
 }
 
-// 向け先のステージで、ボタンを押して開くメニュー id を、画面の位置 at に開く口（右ボタンの押し続けの決まりは通らない）。
+// 向け先（ステージか、ステージを持たないスクリーン）で、ボタンを押して開くメニュー id を、画面の位置 at に開く口（右ボタンの押し続けの決まりは通らない）。
 // opens が up なら、at を左下にして上へ開く（画面の下にあるボタンから開くとき。書かなければ下へ）。向け先が無い所では、開かない
 export function useButtonMenu<M extends ContextMenuId>(
   id: M,

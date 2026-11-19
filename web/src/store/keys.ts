@@ -17,7 +17,7 @@ import { type KeyBinding, type KeyChanges, normalizeKey, sameBinding } from "../
 import type { CommandArgs } from "./commands"
 
 // キーの範囲が、そこに置くキーバインドに呼ばせるコマンド: ステージで呼ぶコマンド（stage）か、スクリーンから呼ぶコマンド（screen）か。
-// ステージに属さない要素（ダイアログ・左サイドパネルなど、ステージを並べないスクリーンでも出る物）が名乗る範囲は screen。
+// ステージに属さない要素（ダイアログ・右クリックのメニュー・左サイドパネルなど、ステージを並べないスクリーンでも出る物）が名乗る範囲は screen。
 // stage の範囲にはスクリーンから呼ぶコマンドも置ける（スクリーンから呼ぶコマンドはステージからも呼べる）
 export type KeyScopeCommandsFrom = "stage" | "screen"
 
@@ -26,7 +26,7 @@ export const BASE_KEY_SCOPES = {
   global: { title: "Whole screen", commandsFrom: "stage" },
   stage: { title: "Stage", commandsFrom: "stage" },
   dialog: { title: "While a dialog is open", commandsFrom: "screen" },
-  menu: { title: "While a menu is open", commandsFrom: "stage" },
+  menu: { title: "While a menu is open", commandsFrom: "screen" },
   screen: { title: "Screens without stages", commandsFrom: "screen" },
 } as const satisfies Readonly<Record<BaseKeyScope, { title: MessageKey; commandsFrom: KeyScopeCommandsFrom }>>
 

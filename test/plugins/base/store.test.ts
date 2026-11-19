@@ -1,8 +1,9 @@
 import { expect, test } from "bun:test"
 import { shownPageId, shownType } from "../../../web/src/core/stage"
-import { screenOf } from "../../../web/src/core/window"
+import { screenOf, screenOfStage } from "../../../web/src/core/window"
 import { currentStage } from "../../../web/src/core/workspace"
 import { addPageIn, createBookIn } from "../../../web/src/plugins/base"
+import { NO_STAGE } from "../../../web/src/store/dialogs"
 import { newStore } from "../../support"
 
 test("ページを足すと、そのステージのブックに入り、そのステージで開いてカレントになる", () => {
@@ -137,7 +138,7 @@ test("閉じたステージへの分割と分割の取りやめは、ほかの�
   expect(before.stages.map(s => s.id)).toEqual(["s1", "s3"])
 })
 
-test("右クリックのメニューは 1 つだけ出し、開いたステージが無くなれば閉じる。無いステージでは開かない", () => {
+test("右クリックのメニューは 1 つだけ出し、開いたステージが無くなれば閉じる。無いステージでは開かない。ステージを持たないスクリーンでも開く", () => {
   const { state, actions } = newStore()
   actions.split("s1")
   actions.openContextMenu("s1", "@matomezu/paper:paper-context", {}, { x: 10, y: 20 })
@@ -145,6 +146,7 @@ test("右クリックのメニューは 1 つだけ出し、開いたステー�
   expect(state.getState().contextMenu).toEqual({
     id: "@matomezu/paper:paper-context",
     stage: "s2",
+    screen: screenOfStage(state.getState().window, "s2")?.id as string,
     target: {},
     at: { x: 30, y: 40 },
     opens: "down",
@@ -155,6 +157,13 @@ test("右クリックのメニューは 1 つだけ出し、開いたステー�
   expect(state.getState().contextMenu).toBeNull()
   actions.openContextMenu("s1", "@matomezu/paper:paper-context", {}, { x: 0, y: 0 })
   actions.closeContextMenu()
+  expect(state.getState().contextMenu).toBeNull()
+  // ステージを持たないスクリーン（コントロールセンター）から開くと、ステージは NO_STAGE で、スクリーンを持つ。Escape はそのスクリーンから閉じる
+  const center = state.getState().window.screens.find(s => s.stages === undefined)?.id as string
+  actions.makeScreenCurrent(center)
+  actions.openContextMenu(center, "@matomezu/paper:paper-context", {}, { x: 0, y: 0 })
+  expect(state.getState().contextMenu).toMatchObject({ stage: NO_STAGE, screen: center })
+  expect(actions.pressKey("Escape")).toBe(true)
   expect(state.getState().contextMenu).toBeNull()
 })
 

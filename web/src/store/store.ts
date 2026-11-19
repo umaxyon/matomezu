@@ -141,7 +141,7 @@ import {
 } from "../core/workspace"
 import { type CommandArgs, type CommandId, called, commandOwner, isEnabled } from "./commands"
 import { type CommandActions, calledScreenIdOf, givenActions } from "./commands/def"
-import type { MenuOpens, OpenedContextMenu } from "./context-menus"
+import { type MenuOpens, type OpenedContextMenu, openedAt } from "./context-menus"
 import { type DialogArgs, type DialogPreview, NO_STAGE, type OpenedDialog } from "./dialogs"
 import { findKey, type KeyReach, type KeyTable, keyScopes, keyTable } from "./keys"
 import { type Assembled, assemble, type Plugin } from "./plugin"
@@ -314,7 +314,8 @@ export interface PlaceActions {
   // ダイアログを開く。at は、開く場所: ステージの id か、開いているスクリーンの id（ステージを持たないスクリーンから開くとき）。どちらでもなければ開かない
   openDialog<Id extends DialogId>(at: string, id: Id, ...args: DialogArgs<Id>): void
   // そのステージで右クリックされた物 target のメニュー id を、画面の座標 at に出す（出ていたものは閉じる）
-  openContextMenu(stage: string, id: string, target: unknown, at: Point, opens?: MenuOpens): void
+  // 場所 from（ステージの id か、開いているスクリーンの id）で、右クリックのメニューを開く
+  openContextMenu(from: string, id: string, target: unknown, at: Point, opens?: MenuOpens): void
   split(stage: string): void // そのステージをカレントにして、右に何も開いていないステージを足す
   unsplit(stage: string): void // そのステージだけを残す
   closeStage(id: string): void // 分けたステージの 1 つを閉じ、残りで画面を使う
@@ -1375,10 +1376,15 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const table = keysFor(settings)
       // 長押しの道具のアイコンを開いているステージ（どのブックスクリーンのステージでも）
       const picker = window.screens.flatMap(x => x.stages?.stages ?? []).find(st => st.picker !== null)?.id
-      // キーの宛先: 右クリックのメニュー・長押しの道具・ダイアログを開いたステージ。無ければ（ステージを持たずに開いたダイアログも）、いちばん最近カレントにしたブックスクリーンのカレントのステージ
+      // キーの宛先: 右クリックのメニューを開いた場所（ステージか、ステージを持たないスクリーン）・長押しの道具・ダイアログを開いたステージ。
+      // 無ければ（ステージを持たずに開いたダイアログも）、いちばん最近カレントにしたブックスクリーンのカレントのステージ
       const opener = dialog && dialog.stage !== NO_STAGE ? dialog.stage : undefined
       const stage =
-        contextMenu?.stage ?? picker ?? opener ?? recentBookScreen(window)?.stages.current ?? currentScreen(window).id
+        (contextMenu ? openedAt(contextMenu) : undefined) ??
+        picker ??
+        opener ??
+        recentBookScreen(window)?.stages.current ??
+        currentScreen(window).id
       const menu = contextMenu !== null || picker !== undefined
       // プレゼンテーションのキーの範囲は、ページを開いているときだけ（空のバインダでは、プレゼンテーションのビューを描かない）
       const type = openedPage(stageIn(window, stage)?.opened ?? null)?.type
@@ -1395,8 +1401,12 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       }
       return false
     },
-    openContextMenu: (stage, id, target, at, opens = "down") => {
-      if (inWindow(stage)) setState({ contextMenu: { id, stage, target, at, opens } })
+    openContextMenu: (from, id, target, at, opens = "down") => {
+      const win = getState().window
+      // ステージから開いたなら、そのステージと、それを並べているスクリーン。スクリーンから開いたなら、ステージは持たない（ダイアログと同じ）
+      const screen = screenOfStage(win, from)?.id ?? win.screens.find(s => s.id === from)?.id
+      if (screen === undefined) return
+      setState({ contextMenu: { id, stage: inWindow(from) ? from : NO_STAGE, screen, target, at, opens } })
     },
     closeContextMenu: () => {
       if (getState().contextMenu) setState({ contextMenu: null })

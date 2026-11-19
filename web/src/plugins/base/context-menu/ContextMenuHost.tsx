@@ -7,7 +7,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import type { ContextMenuId } from "../../../core/catalog"
 import type { Point } from "../../../core/geom"
-import type { OpenedContextMenu } from "../../../store/context-menus"
+import { type OpenedContextMenu, openedAt } from "../../../store/context-menus"
 import { useCommand } from "../../../ui/commands"
 import { useAnchorMenuItems, useContextMenuItems } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
@@ -31,19 +31,19 @@ export function ContextMenuHost() {
   const menu = useMatomezuState(s => s.contextMenu)
   if (!menu) return null
   return (
-    <ActsOnScope at={menu.stage}>
-      <ContextMenu key={`${menu.id}:${menu.stage}:${menu.at.x}:${menu.at.y}`} menu={menu} />
+    <ActsOnScope at={openedAt(menu)}>
+      <ContextMenu key={`${menu.id}:${openedAt(menu)}:${menu.at.x}:${menu.at.y}`} menu={menu} />
     </ActsOnScope>
   )
 }
 
 function ContextMenu({ menu }: { menu: OpenedContextMenu }) {
   const { closeContextMenu } = useStoreActions()
-  const items = useContextMenuItems(menu.stage, menu.id as ContextMenuId)
+  const items = useContextMenuItems(openedAt(menu), menu.id as ContextMenuId)
   const t = useMessages(kit)
   const readPressed = useReadPluginState(kit, PRESSED_ANCHOR)
   const [anchor] = useState(() => pressedAnchorAt(readPressed(), menu.at)) // 開いたときの、押した物のアンカー
-  const shown = useAnchorMenuItems(menu.stage)
+  const shown = useAnchorMenuItems(openedAt(menu))
   const anchored = anchor === undefined ? [] : shown
   const own = useUiCatalog().contextMenuRows.get(menu.id) // メニューが自分で出す行（あれば、UI マッピングのコマンドの並びの前に出す）
   const empty = !own && items.every(i => i === SEPARATOR) && anchored.length === 0

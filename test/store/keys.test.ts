@@ -194,12 +194,12 @@ test("台帳アセンブルは、読めないキー・無いコマンド・追�
   )
 })
 
-test("スクリーンから呼ぶコマンドの範囲（dialog・左サイドパネルなど）に置けるのはスクリーンから呼ぶコマンドだけ（型でも誤り）。プレゼンテーションはその範囲を名乗れない（E072）", () => {
+test("スクリーンから呼ぶコマンドの範囲（dialog・menu・左サイドパネルなど）に置けるのはスクリーンから呼ぶコマンドだけ（型でも誤り）。プレゼンテーションはその範囲を名乗れない（E072）", () => {
   const kit = pluginKit("@matomezu/base", defineMessages({}))
-  // @ts-expect-error menu-close はステージで呼ぶコマンド
-  kit.defineKey({ id: "x", key: "K", command: "@matomezu/base:menu-close", scope: "dialog" })
+  // @ts-expect-error stage-split はステージで呼ぶコマンド
+  kit.defineKey({ id: "x", key: "K", command: "@matomezu/base:stage-split", scope: "dialog" })
   // @ts-expect-error 左サイドパネルの範囲もスクリーンから呼ぶコマンドの範囲
-  kit.defineKey({ id: "y", key: "K", command: "@matomezu/base:menu-close", scope: "@matomezu/base:left-side-panel" })
+  kit.defineKey({ id: "y", key: "K", command: "@matomezu/base:stage-split", scope: "@matomezu/base:left-side-panel" })
   kit.defineKey({ id: "z", key: "K", command: "@matomezu/base:dialog-close", scope: "stage" })
   const plugin = definePlugin({
     id: "k",
