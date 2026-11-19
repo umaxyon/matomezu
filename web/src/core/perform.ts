@@ -60,6 +60,7 @@ import {
   noChanges,
   placedChanges,
   rowChanges,
+  systemFolderOf,
   type TableChanges,
   treeHolds,
   withBook,
@@ -305,6 +306,22 @@ function normalizedLibrary(catalog: CoreCatalog, action: ActionDef, before: Book
     if (tidy !== b) next = withBook(next, tidy)
   }
   return next
+}
+
+// 書庫が was から now に変わる間に、システムフォルダの決まりを守るか: 行う前から在るフォルダの行の印（systemFolder）は変わらない（付けも外しもしない）。
+// 印の付いた行を足せるのは、印の定義が機能台帳に在るときだけ。定義が機能台帳に在る印の行は、ゴミ箱の外に在れば、ゴミ箱に入れず消さない
+// （定義の無い間は、ゴミ箱に入れられる。いくつ在ってよいか・どこに在るかは、木の決まり treeHolds が見る）
+function systemFoldersKept(catalog: CoreCatalog, was: Library, now: Library): boolean {
+  for (const [id, f] of Object.entries(now.folders)) {
+    const before = was.folders[id]
+    const mark = systemFolderOf(f)
+    if (before ? systemFolderOf(before) !== mark : mark !== undefined && !catalog.systemFolders.has(mark)) return false
+  }
+  return Object.entries(was.folders).every(([id, f]) => {
+    const mark = systemFolderOf(f)
+    if (mark === undefined || !catalog.systemFolders.has(mark) || inTrash(was.folders, id)) return true
+    return now.folders[id] !== undefined && !inTrash(now.folders, id)
+  })
 }
 
 // 行う前の問いに要る文脈（機能台帳・コントロールセンター・誰が行うか）
@@ -584,6 +601,7 @@ export function perform<Id extends ActionId>(
       f => !isOpenRole(f.folderRole) || rows[f.id] === f || homeOrFolderHolds(f),
     )
     if (!shaped) return { ok: false, reason: "refused" }
+    if (!systemFoldersKept(ctx.catalog, subject as Library, next as Library)) return { ok: false, reason: "refused" }
     // 残るブックの読めないページは、そのまま（無くなるのは、ブックごと消すときだけ。作るブックには入れられない）
     for (const b of Object.values(now)) {
       const lost = was[b.id] === b ? null : lostUnreadable(was[b.id], b)
@@ -793,7 +811,14 @@ export function performIn(
   if (!done.ok) return done
   const next = done.next as Settings
   const same = sameData(next, world.settings)
-  return same ? { ok: true, result: done.result } : { ok: true, result: done.result, settings: next }
+  if (same) return { ok: true, result: done.result }
+  // 言語が変わって、名前を設定の言語で引く物（システムフォルダ）の名前が、同じフォルダのほかの物と重なるなら断る（書庫の行は変えない）
+  const library: Library = { pages: world.pages, folders: world.folders }
+  const naming = namingOf(ctx.catalog, world.settings)
+  const nextNaming = namingOf(ctx.catalog, next)
+  if (nextNaming.lang !== naming.lang && titleClashes(library, library, naming, nextNaming).length > 0)
+    return languageTitleTaken
+  return { ok: true, result: done.result, settings: next }
 }
 
 // 同じフォルダ（ゴミ箱の直下を除く）の中で、名前が重なる断り
@@ -803,6 +828,15 @@ const titleTaken = {
   kind: TITLE_TAKEN,
   detail:
     "an entry with the same title is already in the same folder (titles do not repeat within a folder); use another title",
+} as const
+
+// 言語を変えると、その言語で引く名前（システムフォルダ）が、同じフォルダのほかの物と重なる断り
+const languageTitleTaken = {
+  ok: false,
+  reason: "refused",
+  kind: TITLE_TAKEN,
+  detail:
+    "in that language, the title of a system folder would be the same as that of another entry in the same folder; rename that entry first",
 } as const
 
 // 変わり changes が新しく足すページ・フォルダの id が、世界 world にもう在るか（行う前のブック before に無かった物を足すなら、その id は世界のどこにも無いこと。

@@ -8,9 +8,12 @@ import {
   type Folder,
   type Folders,
   foldersOver,
+  HOME_ID,
   inTrash,
   isOpenRole,
   type Library,
+  systemFolderIndex,
+  systemFolderOf,
   TRASH_ID,
   type TrashFolder,
   type TrashRef,
@@ -124,9 +127,12 @@ export function restoredEntry(library: Library, entry: string, into: string): Li
   if (to.folderRole === "trash" || inTrash(folders, into)) return "in-trash"
   if (!canHold(to, ref.kind)) return "kind"
   const back = { kind: ref.kind, id: entry } as AnyEntryRef
+  // システムフォルダは、書庫ホームの先頭の、印の順の所へ戻る（ほかの物は末尾）
+  const mark = systemFolderOf(folders[entry])
+  const at = mark === undefined || to.id !== HOME_ID ? to.lineup.length : systemFolderIndex(folders, mark)
   return withFolders(library, {
     [TRASH_ID]: { ...trash, lineup: trash.lineup.filter(r => r.id !== entry) } as Folder,
-    [to.id]: { ...to, lineup: [...to.lineup, back] } as Folder,
+    [to.id]: { ...to, lineup: [...to.lineup.slice(0, at), back, ...to.lineup.slice(at)] } as Folder,
   })
 }
 

@@ -371,6 +371,14 @@ export const pinnedCount = (folders: Folders): number => {
   return at < 0 ? lineup.length : at
 }
 
+// 印 mark のシステムフォルダを書庫ホームの直下に置くときの、並びの位置（先頭のシステムフォルダのうち、印が mark より前の物の後）
+export const systemFolderIndex = (folders: Folders, mark: string): number => {
+  const lineup = folders[HOME_ID]?.lineup ?? []
+  const pinned = lineup.slice(0, pinnedCount(folders))
+  const after = pinned.findIndex(r => (systemFolderOf(folders[r.id]) ?? "") > mark)
+  return after < 0 ? pinned.length : after
+}
+
 // 木の決まり: 書庫ホームが在る（ゴミ箱は、在れば 1 つ）／書庫ホームとゴミ箱はどのフォルダにも入らない／そのほかのフォルダは、ちょうど 1 つのフォルダに入り、
 // 上へたどると書庫ホームかゴミ箱に着く（輪にならない）／ページは、どれかのフォルダ（ブック・バインダを含む）に入る／書庫ホーム・ゴミ箱・フォルダのエントリは、
 // 種類が合う（page は表に在るページ、binder はバインダ、folder は表に在るフォルダ、book はブック）／ブックとバインダは、ブックもフォルダも持たない（型が決める）／
