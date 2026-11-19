@@ -76,10 +76,7 @@ test("リストを置こうとして紙の上で押すとリストの追加の�
   const store = ready()
   store.actions.togglePlacing("s1", "@matomezu/list:shape-list")
   expect(store.actions.command("s1", "@matomezu/paper:paper-place", pointerFor(store, { x: 100, y: 50 }))).toBe(true)
-  expect(store.state.getState().dialog).toMatchObject({
-    id: "@matomezu/list:list-add",
-    args: { page: "p1", at: { x: 100, y: 50 } },
-  })
+  expect(store.state.getState().dialog).toMatchObject({ id: "@matomezu/list:list-add", args: { page: "p1" } })
   store.actions.closeDialog()
   place(store, "@matomezu/list:shape-list", 100, 100)
   store.actions.command("s1", "@matomezu/paper:paper-edit", { item: "n1" })

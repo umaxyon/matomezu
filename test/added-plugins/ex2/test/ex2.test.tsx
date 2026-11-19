@@ -112,10 +112,21 @@ test("自分のアクションで判断に答える。判断のひし形でな�
   })
 })
 
-test("追加のダイアログで置き、編集のダイアログで答える（ダイアログは usePerform でアクションを行い、useItem で今の答えを読む）", () => {
+test("追加のダイアログで置き、編集のダイアログで答える（追加は開いた側が渡した置き方に項目の値を渡し、編集は usePerform でアクションを行い、useItem で今の答えを読む）", () => {
   const instance = make()
   const { page } = flow(instance)
-  act(() => instance.actions.openDialog("s1", "ex2:diamond-add", { page: page().id, at: { x: 40, y: 40 } }))
+  // 置き方は開いた側（紙）が渡す。ここでは渡された項目の値で、そのまま置く
+  const place = (props: object) =>
+    instance.actions.perform(
+      "@matomezu/paper:item-place",
+      { item: "ex2:diamond", at: { x: 40, y: 40 }, props } as never,
+      {
+        page: page().id,
+      },
+    ).ok
+      ? null
+      : ("@matomezu/paper:Does not fit on the paper" as never)
+  act(() => instance.actions.openDialog("s1", "ex2:diamond-add", { page: page().id, place }))
   const add = screen.getByRole("dialog", { name: "判断の追加" })
   fireEvent.change(add.querySelector("input")!, { target: { value: "続ける？" } })
   fireEvent.click(screen.getByRole("button", { name: "追加" }))

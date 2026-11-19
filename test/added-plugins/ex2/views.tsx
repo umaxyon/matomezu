@@ -1,5 +1,5 @@
 // 判断のひし形のビュー・追加と編集のダイアログ・流れの向きのコンポーネント
-import type { ShapeAddArgs, z } from "matomezu"
+import type { MessageKey, ShapeAddArgs, z } from "matomezu"
 import {
   Dialog,
   type DialogProps,
@@ -35,19 +35,16 @@ export const DIAMOND_ICON = (
   </svg>
 )
 
+// 追加のダイアログは項目の値を決めて、開いた側（紙）が渡した置き方 place に渡すだけ（置く所・置く・選ぶは開いた側が持つ）。
+// 断られれば閉じずに、返った断りの文を出す
 export function AddDiamondDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
   const t = useMessages(kit)
-  const perform = usePerform()
   const [caption, setCaption] = useState("")
+  const [refused, setRefused] = useState<MessageKey | null>(null)
   const add = () => {
-    // 置く所はそのまま渡し、画面で置くので、ほかの形は押してどける
-    const { page, ...where } = args
-    const done = perform(
-      "@matomezu/paper:item-place",
-      { ...where, item: DIAMOND.id, props: { caption }, crowd: "push" },
-      { page },
-    )
-    if (done.ok) onClose()
+    const no = args.place({ caption })
+    if (no === null) onClose()
+    setRefused(no)
   }
   return (
     <Dialog title={t("addDecision")} onClose={onClose}>
@@ -55,6 +52,7 @@ export function AddDiamondDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
         {t("caption")}
         <input value={caption} onChange={e => setCaption(e.target.value)} />
       </label>
+      {refused && <p role="alert">{t(refused)}</p>}
       <button type="button" onClick={add}>
         {t("add")}
       </button>

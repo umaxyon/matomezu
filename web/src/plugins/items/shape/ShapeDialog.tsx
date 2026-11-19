@@ -2,7 +2,7 @@
 // 色は色を選ぶポップアップで、ブックのテーマの代表色か、好きな色を選ぶ。
 // 編集では、選んだ寄せ・色を決める前から形に重ねて見せる（ダイアログの下書き。確定で書き、キャンセルでは元のまま）。
 // 置けない（紙からはみ出すなど）ときは閉じずに理由を出す。
-// 追加は開いたときに渡された置く所（ShapeAddArgs）を、そのままアクション item-place に渡して形を置き（ほかの形は画面と同じに押す）、置いた形を選ぶ。編集は形の項目を書き換える（アクション item-update）
+// 追加は決めた項目の値を、開いた側が渡した置き方（ShapeAddArgs の place）に渡す（置く・選ぶ・断りの文は開いた側が持つ）。編集は形の項目を書き換える（アクション item-update）
 
 import { useCallback, useEffect, useId, useState } from "react"
 import { findPage, type ItemProps, type MessageKey, type ShapeAddArgs } from "../../../plugin-api"
@@ -32,9 +32,6 @@ import {
 import { kit } from "./kit"
 import { type ROUNDED, SHAPE_FILL, startTurned, TURNABLE } from "./shapes"
 
-// 紙のプラグインの item-place が、空きを探して見つからなかった断りの種類（断りの kind）
-const NO_FREE_SPOT = "@matomezu/paper:no-free-spot"
-
 // 形の項目（回せる形は向き turned も持つ）
 type ShapeProps = ItemProps<typeof ROUNDED.item.id> & { turned?: boolean }
 
@@ -52,16 +49,10 @@ export function addShapeDialog(item: string, turnable = false) {
     const opened = useBook()
     const page = opened ? findPage(opened, args.page)?.page : undefined
     const turned = page ? startTurned(catalog, page, item) : false
-    const { select } = useActions()
-    const perform = usePerform()
     const add = (props: ShapeProps) => {
-      if (!book) return { reason: "no-book" }
-      const { page, ...where } = args
-      const done = perform("@matomezu/paper:item-place", { ...where, item, props, crowd: "push" }, { page })
-      if (!done.ok) return done
-      select([done.result.item])
-      onClose()
-      return null
+      const no = args.place(props)
+      if (no === null) onClose()
+      return no
     }
     return (
       <ShapeDialog
@@ -78,6 +69,7 @@ export function addShapeDialog(item: string, turnable = false) {
 }
 
 export function EditShapeDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
+  const catalog = useCoreCatalog()
   const book = useBookOf()
   const bookTheme = usePageTheme()
   const placed = useItem(args.page, args.item)
@@ -102,7 +94,7 @@ export function EditShapeDialog({ args, onClose }: DialogProps<{ page: string; i
       { page: args.page },
     )
     if (done.ok) onClose()
-    return done.ok ? null : done
+    return done.ok ? null : refusalMessage(catalog, done, kit.message("Does not fit on the paper"))
   }
   return (
     <ShapeDialog
@@ -133,7 +125,7 @@ function ShapeDialog({
   start: ShapeProps
   bookTheme: string | undefined // ブックのテーマの id（色の見本に使う）
   ready: boolean
-  onSubmit: (props: ShapeProps) => { reason: string; permission?: string; kind?: string } | null // 断られたわけ（決められたら null。kind は断りの種類）
+  onSubmit: (props: ShapeProps) => MessageKey | null // 断られたわけの文言（決められたら null）
   onPreview?: (look: Look | null) => void // 寄せ・色を選んだ（元の値に戻せば null。無ければ見せない）
   onClose: () => void
 }) {
@@ -141,7 +133,6 @@ function ShapeDialog({
   const form = useId()
   const [head, setHead] = useState({ caption: start.caption, captionAlign: start.captionAlign }) // キャプションと寄せ
   const { caption, captionAlign } = head
-  const catalog = useCoreCatalog()
   const [color, setColor] = useState(start.color)
   const [turned, setTurned] = useState(start.turned)
   // 色の見本: ブックのテーマの代表色と塗り
@@ -174,14 +165,7 @@ function ShapeDialog({
             ...(color ? { color } : {}),
             ...(turned === undefined ? {} : { turned }),
           })
-          setRefused(
-            no &&
-              refusalMessage(
-                catalog,
-                no,
-                kit.message(no.kind === NO_FREE_SPOT ? "No free spot" : "Does not fit on the paper"),
-              ),
-          )
+          setRefused(no)
         }}
       >
         <CaptionField text={head} onChange={setHead} />

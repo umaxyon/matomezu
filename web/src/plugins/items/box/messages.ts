@@ -9,7 +9,6 @@ export const BOX_MESSAGES = defineMessages({
   "Edit box": { en: "Edit box", ja: "ボックスの編集" },
   OK: { en: "OK", ja: "確定" },
   "Does not fit on the paper": { en: "Does not fit on the paper", ja: "紙に収まりません" },
-  "No free spot": { en: "No free spot", ja: "空きがありません" },
   Theme: { en: "Theme", ja: "テーマ" },
   "Page's theme": { en: "Page's theme", ja: "ページのテーマ" },
   Color: { en: "Color", ja: "色" },

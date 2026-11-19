@@ -243,6 +243,7 @@ test("matomezu/ui が出す名前", () => {
     "Elapsed",
     "Field",
     "Form",
+    "GhostArea",
     "IconButton",
     "InheritChoices",
     "LEFT_SIDE_PANEL",

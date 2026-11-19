@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
+import type { ShapeAddArgs } from "../../web/src/core/def/item"
 import type { Point } from "../../web/src/core/geom"
 import type { Book } from "../../web/src/core/schema/book"
 import { openedPage, placement } from "../../web/src/core/stage"
@@ -29,18 +30,22 @@ const toolAt = (store: ReturnType<typeof newStore>, stage = "s1") =>
 
 const ready = () => sizedStore()
 
-test("箱を置こうとして紙の上で押すと、置くのをやめ、押した所を渡して追加のダイアログを開く（まだ置かない）", () => {
+test("箱を置こうとして紙の上で押すと、置くのをやめ、置き方を渡して追加のダイアログを開く（まだ置かない）。置き方は押した所に置いて選び、断られれば断りの文を返す", () => {
   const store = ready()
   store.actions.togglePlacing("s1", "@matomezu/box:shape-nest-box")
   expect(store.actions.command("s1", "@matomezu/paper:paper-place", pointerFor(store, { x: 100, y: 50 }))).toBe(true)
   expect(page(store).items).toBeUndefined()
-  expect(store.state.getState().dialog).toMatchObject({
-    id: "@matomezu/box:nest-box-add",
-    stage: "s1",
-    args: { page: "p1", at: { x: 100, y: 50 } },
-  })
+  const dialog = store.state.getState().dialog
+  expect(dialog).toMatchObject({ id: "@matomezu/box:nest-box-add", stage: "s1", args: { page: "p1" } })
   expect(screenOf(store.state.getState().window).stages[0]).toMatchObject({ placing: null })
   expect(toolAt(store)).toBe("@matomezu/base:select")
+  const { place } = dialog!.args as ShapeAddArgs
+  expect(place({ caption: 1 })).toContain("Does not fit on the paper")
+  expect(page(store).items).toBeUndefined()
+  expect(place({ caption: "箱" })).toBeNull()
+  const [box] = page(store).items ?? []
+  expect(box).toMatchObject({ x: 100, y: 50, props: { caption: "箱" } })
+  expect(screenOf(store.state.getState().window).stages[0]!.selection).toEqual([box!.id])
 })
 
 test("置くときに渡した項目を箱に入れ、書かなかった項目は既定。形に合わない項目なら置かない", () => {
