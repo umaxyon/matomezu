@@ -7,6 +7,7 @@ import { addPage, findPage, freeTitle, siblingsOf } from "../../../core/book"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import type { Declined } from "../../../core/def/action"
 import type { ItemPage } from "../../../core/placed"
+import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
 import { renewedIds, survivesRenewedIds } from "../utils/ids"
 
@@ -38,18 +39,31 @@ export const PAGE_DUPLICATE = kit.defineAction({
   args: ARGS,
   permissionScope: { entry: "page" },
   run: (book, args, ctx) => {
-    const at = findPage(book, args.page)
-    if (!at) return null
-    const problem = duplicateProblem(ctx.catalog, at.page)
-    if (problem === "content") return UNRENEWABLE_DECLINED
-    if (problem) return null
-    const siblings = siblingsOf(book, args.page) ?? []
-    const titles = siblings.map(e => e.title)
-    if (args.title !== undefined && titles.includes(args.title)) return null
-    const { id: _id, locked: _locked, ...content } = at.page
-    const copy = { ...renewedIds(at.page, content, ctx.newId), title: args.title ?? freeTitle(at.page.title, titles) }
-    const index = siblings.findIndex(e => e.id === args.page) + 1
-    const added = addPage(book, copy, at.binder ? { binder: at.binder.id, index } : { index }, ctx.newId)
-    return added ? { next: added.book, result: { page: added.page } } : null
+    const done = duplicatedPage(ctx.catalog, book, args.page, args.title, ctx.newId)
+    return done && "declined" in done ? done : done && { next: done.book, result: { page: done.page } }
   },
 })
+
+// ブック book のページ page を複製したブックと、写しの id（page-duplicate と、書庫の entry-duplicate が使う）。写しは元のすぐ後ろ（同じブックかバインダの中）、
+// 名前は title（無ければ、元の名前に番号を付けた名前）。ページが無い・複製できないタイプ・渡した名前が重なるなら null、id を振り直すと壊れる形があれば、その断り
+export function duplicatedPage(
+  catalog: CoreCatalog,
+  book: Book,
+  page: string,
+  title: string | undefined,
+  newId: () => string,
+): { book: Book; page: string } | Declined | null {
+  const at = findPage(book, page)
+  if (!at) return null
+  const problem = duplicateProblem(catalog, at.page)
+  if (problem === "content") return UNRENEWABLE_DECLINED
+  if (problem) return null
+  const siblings = siblingsOf(book, page) ?? []
+  const titles = siblings.map(e => e.title)
+  if (title !== undefined && titles.includes(title)) return null
+  const { id: _id, locked: _locked, ...content } = at.page
+  const copy = { ...renewedIds(at.page, content, newId), title: title ?? freeTitle(at.page.title, titles) }
+  const index = siblings.findIndex(e => e.id === page) + 1
+  const added = addPage(book, copy, at.binder ? { binder: at.binder.id, index } : { index }, newId)
+  return added ? { book: added.book, page: added.page } : null
+}

@@ -9,9 +9,10 @@ import { kit } from "../kit"
 import {
   holdsEntries,
   isNotOverwritten,
+  movesInto,
   numbered,
   overwritten,
-  placedInFolder,
+  placedInLibrary,
   REPLACES_NOTHING,
   retitled,
 } from "./entries"
@@ -38,10 +39,10 @@ export const FOLDER_CREATE = kit.defineAction({
 export const ENTRY_MOVE = kit.defineAction({
   id: "entry-move",
   aiDescription:
-    'Move an entry of the library (a book or a folder, with everything in it; or a page or a binder that is not in a book) to another folder, or to another position in the same folder: entry is its id (it must be directly in the library home or a folder), into the id of the folder to move it to (the library home or a folder, not inside the entry itself), index the position there (counted without the entry; at the end without it). Nothing in the entry changes. When the folder already has an entry with the same title, onConflict "refuse" (the default) refuses with title-taken, and "number" moves it with a number added to its title (returned as title). Only the user can replace the entry that is there (entry-move-over).',
+    'Move an entry of the library to another folder, or to another position in the same folder: entry is its id (a book or a folder, with everything in it; a page or a binder in a book; or a page or a binder that is not in a book), into the id of the folder to move it to (not inside the entry itself), index the position there (counted without the entry; at the end without it). A book or a folder goes into the library home or a folder. A page or a binder in a book goes into a book (its lineup) or a binder of its page type, in the same book or another; it cannot leave books, and a page in a binder stays in binders. Nothing in the entry changes. When the folder already has an entry with the same title, onConflict "refuse" (the default) refuses with title-taken, and "number" moves it with a number added to its title (returned as title). Only the user can replace the entry that is there (entry-move-over).',
   title: "Move",
   target: "library",
-  permissionScope: { entry: "entry", where: "place" },
+  permissionScope: { entry: "entry", where: "place", into: "into" },
   args: z.strictObject({
     entry: z.string().min(1),
     into: z.string().min(1),
@@ -49,8 +50,8 @@ export const ENTRY_MOVE = kit.defineAction({
     onConflict: z.enum(["refuse", "number"]).default("refuse"),
   }),
   run: (library, args) => {
-    const place = placedInFolder(library.folders, args.entry)
-    if (!place || !holdsEntries(library.folders, args.into)) return null
+    const place = placedInLibrary(library.folders, args.entry)
+    if (!place || !movesInto(library.folders, args.entry, args.into)) return null
     const moved = movedEntry(library, args.entry, args.into, args.index)
     if (isMoveRefusal(moved)) return null
     if (args.onConflict !== "number" || place.holder.id === args.into) return { next: moved, result: {} }
@@ -70,10 +71,10 @@ export const ENTRY_MOVE_OVER = kit.defineAction({
   title: "Move and replace",
   target: "library",
   // 上書きで消える物も、中身ごと変える物として名乗る（ロック中なら、行う前に分かる）
-  permissionScope: (args: { entry: string; replaces?: string }): LibraryTargets => ({
+  permissionScope: (args: { entry: string; into: string; replaces?: string }): LibraryTargets => ({
     books: [],
     entries: [
-      { entry: args.entry, where: "place" },
+      { entry: args.entry, where: "place", into: args.into },
       ...(args.replaces === undefined ? [] : [{ entry: args.replaces, where: "all-pages" as const }]),
     ],
     creates: false,
@@ -85,8 +86,8 @@ export const ENTRY_MOVE_OVER = kit.defineAction({
     replaces: z.string().min(1).optional(), // 消えると利用者が確かめた物の id（今 同じ名前で在る物がそれと違えば断る）
   }),
   run: (library, args) => {
-    const place = placedInFolder(library.folders, args.entry)
-    if (!place || place.holder.id === args.into || !holdsEntries(library.folders, args.into)) return null
+    const place = placedInLibrary(library.folders, args.entry)
+    if (!place || place.holder.id === args.into || !movesInto(library.folders, args.entry, args.into)) return null
     const cleared = overwritten(library, place.ref.kind, args.entry, args.into, args.replaces ?? REPLACES_NOTHING)
     if (isNotOverwritten(cleared)) return null
     const next = movedEntry(cleared, args.entry, args.into, args.index)
@@ -97,13 +98,13 @@ export const ENTRY_MOVE_OVER = kit.defineAction({
 export const ENTRY_RENAME = kit.defineAction({
   id: "entry-rename",
   aiDescription:
-    "Rename an entry of the library (a book, a folder, or a page or a binder that is not in a book): entry is its id (it must be directly in the library home or a folder), title the new name. Refused (title-taken) when its folder already has an entry with that title, and for a locked book.",
+    "Rename an entry of the library (a book, a folder, a page or a binder; in a book or not): entry is its id (not in the trash), title the new name. Refused (title-taken) when its folder, book or binder already has an entry with that title; not allowed for a locked book, or a locked page or a page in a locked book.",
   title: "Rename",
   target: "library",
   permissionScope: { entry: "entry", where: "title" },
   args: z.strictObject({ entry: z.string().min(1), title: z.string().trim().min(1) }),
   run: (library, args) => {
-    const place = placedInFolder(library.folders, args.entry)
+    const place = placedInLibrary(library.folders, args.entry)
     if (!place) return null
     const next = retitled(library, place.ref.kind, args.entry, args.title)
     return !next || next === library ? null : { next, result: {} }

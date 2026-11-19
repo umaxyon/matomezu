@@ -15,7 +15,7 @@ import { kit } from "../kit"
 import { refusalMessage } from "../utils/refusal"
 import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG, LIBRARY_RENAME_DIALOG } from "./dialog"
 import type { Drop } from "./drop"
-import { holderForNew, holdsEntries, placedInFolder } from "./entries"
+import { holderForNew, holdsEntries, placedOutsideBooks } from "./entries"
 import { ENTRY_MOVE, ENTRY_MOVE_OVER, ENTRY_RENAME, FOLDER_CREATE } from "./entry-move"
 import { ENTRY_TRASH } from "./entry-trash"
 import {
@@ -94,7 +94,7 @@ function entryOf(ctx: ScreenCommandContext, named?: Named): string | undefined {
 const placed = (ctx: ScreenCommandContext, named?: Named): string | undefined => {
   const to = given(ctx, named)
   const entry = to && "folder" in to ? undefined : entryOf(ctx, named)
-  return entry !== undefined && placedInFolder(ctx.folders, entry) ? entry : undefined
+  return entry !== undefined && placedOutsideBooks(ctx.folders, entry) ? entry : undefined
 }
 
 // 名前の変更・ゴミ箱に入れるを出すか: 右クリックのメニューでは、受け取った物がエントリのアクションの扱う物のときだけ。

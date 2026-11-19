@@ -28,15 +28,30 @@ function changedIds(before: readonly { id: string }[], after: readonly { id: str
   return [...ids].filter(id => !sameData(was.get(id), now.get(id)))
 }
 
-function pageChange(id: string, before: Page | undefined, after: Page | undefined): PageChange {
-  if (!before) return { id, change: "added", fields: [], items: itemsOf(after).map(i => i.id) }
-  if (!after) return { id, change: "removed", fields: [], items: itemsOf(before).map(i => i.id) }
+// ページ id の変化。前か後のブックに無いページは、書庫のほかの所の行 elsewhere（行う前 was・後 now）に在れば、ブックの間か外と動いた物
+// （出た movedOut は後の行と、入った movedIn は前の行と比べたフィールドとアイテム）。無ければ、足した・消した物
+function pageChange(
+  id: string,
+  before: Page | undefined,
+  after: Page | undefined,
+  elsewhere: Elsewhere | undefined,
+): PageChange {
+  const was = before ?? (elsewhere?.was[id] as Page | undefined)
+  const now = after ?? (elsewhere?.now[id] as Page | undefined)
+  if (!was) return { id, change: "added", fields: [], items: itemsOf(now).map(i => i.id) }
+  if (!now) return { id, change: "removed", fields: [], items: itemsOf(was).map(i => i.id) }
   return {
     id,
-    change: "changed",
-    fields: changedFields(before, after, ["items", "slide"]),
-    items: [...changedIds(before.items ?? [], after.items ?? []), ...changedIds(before.slide ?? [], after.slide ?? [])],
+    change: !before ? "movedIn" : !after ? "movedOut" : "changed",
+    fields: changedFields(was, now, ["items", "slide"]),
+    items: [...changedIds(was.items ?? [], now.items ?? []), ...changedIds(was.slide ?? [], now.slide ?? [])],
   }
+}
+
+// 書庫の、ページの行の表（行う前と後。ブックの外か、ほかのブックに在るページを引く）
+export interface Elsewhere {
+  was: Readonly<Record<string, unknown>>
+  now: Readonly<Record<string, unknown>>
 }
 
 // 並びの骨組み: 要素の id の順と、バインダの名前・入れるタイプ・中のページの id の順（ページの中身は入れない）
@@ -48,7 +63,7 @@ const skeleton = (book: Book): unknown =>
 export function changesOf(
   before: Book | undefined,
   after: Book | undefined,
-  { place = "same" }: { place?: PlaceChange } = {},
+  { place = "same", elsewhere }: { place?: PlaceChange; elsewhere?: Elsewhere } = {},
 ): Changes {
   if (!after) return { gone: true, place: "same", added: false, fields: [], lineup: false, pages: [] }
   if (!before)
@@ -58,7 +73,7 @@ export function changesOf(
       added: true,
       fields: Object.keys(after).filter(k => k !== "lineup"),
       lineup: lineupOf(after).length > 0,
-      pages: pagesOf(after).map(p => pageChange(p.id, undefined, p)),
+      pages: pagesOf(after).map(p => pageChange(p.id, undefined, p, elsewhere)),
     }
   const was = new Map(pagesOf(before).map(p => [p.id, p]))
   const now = new Map(pagesOf(after).map(p => [p.id, p]))
@@ -71,6 +86,6 @@ export function changesOf(
     lineup: !sameData(skeleton(before), skeleton(after)),
     pages: [...ids]
       .filter(id => !sameData(was.get(id), now.get(id)))
-      .map(id => pageChange(id, was.get(id), now.get(id))),
+      .map(id => pageChange(id, was.get(id), now.get(id), elsewhere)),
   }
 }

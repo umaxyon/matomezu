@@ -44,6 +44,7 @@ import {
   LIBRARY_UNDO,
 } from "./library/commands"
 import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG, LIBRARY_RENAME_DIALOG } from "./library/dialog"
+import { ENTRY_DUPLICATE, PAGE_CREATE } from "./library/entry-duplicate"
 import { ENTRY_MOVE, ENTRY_MOVE_OVER, ENTRY_RENAME, FOLDER_CREATE } from "./library/entry-move"
 import { ENTRY_PURGE, ENTRY_RESTORE, ENTRY_TRASH, TRASH_EMPTY } from "./library/entry-trash"
 import { LIBRARY_REVERT } from "./library/revert"
@@ -429,6 +430,8 @@ export const BASE = defineBuiltin(
       ENTRY_MOVE,
       ENTRY_MOVE_OVER,
       ENTRY_RENAME,
+      ENTRY_DUPLICATE,
+      PAGE_CREATE,
       ENTRY_TRASH,
       ENTRY_RESTORE,
       ENTRY_PURGE,
@@ -685,6 +688,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:entry-move": typeof ENTRY_MOVE
     "@matomezu/base:entry-move-over": typeof ENTRY_MOVE_OVER
     "@matomezu/base:entry-rename": typeof ENTRY_RENAME
+    "@matomezu/base:entry-duplicate": typeof ENTRY_DUPLICATE
+    "@matomezu/base:page-create": typeof PAGE_CREATE
     "@matomezu/base:entry-trash": typeof ENTRY_TRASH
     "@matomezu/base:entry-restore": typeof ENTRY_RESTORE
     "@matomezu/base:entry-purge": typeof ENTRY_PURGE

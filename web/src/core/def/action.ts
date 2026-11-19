@@ -173,6 +173,9 @@ export interface Where {
   entries?: readonly string[]
   creates?: string
   place?: true // 書庫の中の、ブックの置き場所だけ（書庫が対象のアクションが、ブックを動かすだけで、ブックの中は何も変えない）
+  // entries を、エントリとして変える印（書庫が対象のアクションが添える）: 置き場所だけ（place。ブックの中で並べ替える・ブックの間を動かす。ページの中身は変えない）か、
+  // 名前だけ（title）。無ければ、エントリをほかの変え方（写す・中身ごと）で扱う
+  entriesChange?: "place" | "title"
 }
 
 // 引数の形 A のうち、値の型が V に当たる引数の名前
@@ -245,26 +248,28 @@ export type AnySettingsScope = { settings: string } | ((args: never) => readonly
 // book・books には、ブックの id・ブックの id の並びが入っている引数の名前を書き、where に "all-pages" を書けば、そのブックのページを含む全部を変える。
 // ブックを作るアクションは "create" と書く（認可ステップは、空のブックで問う）。
 // entry・entries には、エントリ（ブック・フォルダ・ページ・バインダ）の id・id の並びが入っている引数の名前を書き、where に、そのエントリをどう変えるかを書く:
-// "all-pages" は中身ごと（ゴミ箱に入れる・消す）、"place" は置き場所だけ、"title" は名前だけ。どのブックに、どの所で問うかは、core がエントリから出す
+// "all-pages" は中身ごと（ゴミ箱に入れる・消す）、"place" は置き場所だけ、"title" は名前だけ、"copy" は写して隣に足す。どのブックに、どの所で問うかは、core がエントリから出す
 // （ブックならそのブックに、中身ごとなら全部のページ・置き場所だけなら置き場所・名前だけならブック自身の所で。フォルダなら中のブックの全部に同じく
-// （名前だけなら、どれにも問わない）。ブックの中のページ・バインダなら、そのブックのそのエントリ）。
+// （名前だけ・写すだけなら、どれにも問わない）。ブックの中のページ・バインダなら、そのブックのそのエントリに、動かす・名前を変えるなら印 entriesChange を添えて）。
+// entry の動かす先のフォルダの id が入っている引数の名前を into に書けば、先がほかのブックかその中のとき、そのブックにも入るエントリとして問う。
 // 引数の名前で言えなければ、引数から変えるブックを返す関数を書く。行う前に変えるブックが分からなければ "unknown"（行った後の確かめだけで止める）
 export type LibraryScope<A = unknown> =
   | "unknown"
   | { book: ArgsOfType<A, string>; where?: "all-pages" }
   | { books: ArgsOfType<A, readonly string[]>; where?: "all-pages" }
-  | { entry: ArgsOfType<A, string>; where: EntryWhere }
+  | { entry: ArgsOfType<A, string>; where: EntryWhere; into?: ArgsOfType<A, string> }
   | { entries: ArgsOfType<A, readonly string[]>; where: EntryWhere }
   | "create"
   | ((args: A) => LibraryTargets)
 
 // 書庫が対象のアクションが、名指したエントリをどう変えるか
-export type EntryWhere = "all-pages" | "place" | "title"
+// （"copy" は、写して隣に足す。エントリそのものは変えない）
+export type EntryWhere = "all-pages" | "place" | "title" | "copy"
 
 // 書庫が対象のアクションが変える物: books は今あるブックの id と、その中の所、entries は名指したエントリと、その変え方（どのブックに問うかは、core が出す）、creates はブックを作るか
 export interface LibraryTargets {
   books: readonly { book: string; where: Where }[]
-  entries?: readonly { entry: string; where: EntryWhere }[]
+  entries?: readonly { entry: string; where: EntryWhere; into?: string }[]
   creates: boolean
 }
 
@@ -273,7 +278,7 @@ export type AnyLibraryScope =
   | "unknown"
   | { book: string; where?: "all-pages" }
   | { books: string; where?: "all-pages" }
-  | { entry: string; where: EntryWhere }
+  | { entry: string; where: EntryWhere; into?: string }
   | { entries: string; where: EntryWhere }
   | "create"
   | ((args: never) => LibraryTargets)
@@ -302,7 +307,12 @@ export function libraryScopeOf(scope: AnyLibraryScope | undefined, args: unknown
     (many === undefined ? [one] : Array.isArray(many) ? many : []).filter((id): id is string => typeof id === "string")
   if ("entry" in scope || "entries" in scope) {
     const ids = "entry" in scope ? named(a[scope.entry], undefined) : named(undefined, a[scope.entries] ?? [])
-    return { books: [], entries: ids.map(entry => ({ entry, where: scope.where })), creates: false }
+    const into = "into" in scope && scope.into !== undefined ? a[scope.into] : undefined
+    return {
+      books: [],
+      entries: ids.map(entry => ({ entry, where: scope.where, ...(typeof into === "string" ? { into } : {}) })),
+      creates: false,
+    }
   }
   const where: Where = scope.where === "all-pages" ? { allPages: true } : {}
   const ids = "book" in scope ? named(a[scope.book], undefined) : named(undefined, a[scope.books] ?? [])
