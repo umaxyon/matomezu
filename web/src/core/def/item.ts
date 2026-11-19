@@ -2,7 +2,7 @@
 // kind はアイテムのタイプで、kind ごとに持つ項目が変わる。置いたアイテムのデータの外枠（id・位置・つなぐ相手）は kind ごとに土台が決める（core/placed.ts のスキーマ）
 import type { z } from "zod"
 import type { CapabilityTable, ConnectorItemExtras, ShapeItemExtras } from "../catalog"
-import type { Point, Size } from "../geom"
+import type { Size } from "../geom"
 import type { MessageKey } from "../i18n/i18n"
 import type { TokenDef } from "./theme"
 
@@ -39,12 +39,11 @@ export interface ConnectorData<P = unknown> {
   props: P
 }
 
-// 形の追加のダイアログに渡す値: 置く所。page は置くページ、at は左上（紙の上の px。parent があれば親の左上から。無ければ、置く所を決めるのは置くアクション）、
-// parent は入れる親の形
+// 形の追加のダイアログに渡す値: page は置くページ。place は、ダイアログが決めた項目の値 props で形を置いて選ぶ（置く所と、置く・選ぶ・断りの文は開いた側が持つ）。
+// 置けたら null、断られたら断りの文を返す（ダイアログは閉じずにその文を出す）
 export interface ShapeAddArgs {
   page: string
-  at?: Point
-  parent?: string
+  place(props: Readonly<Record<string, unknown>>): MessageKey | null
 }
 // 形の編集のダイアログに渡す値: ページと、置いた形の id
 export interface ShapeEditArgs {
