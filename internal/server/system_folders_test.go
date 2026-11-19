@@ -86,6 +86,24 @@ func TestSystemFoldersAreAddedAtStartAndWhenPluginsChange(t *testing.T) {
 	if len(now) != 2 || now[0] != docs[0] || again.AIFolder("").Lineup[1].Title != "Extra" {
 		t.Fatalf("after linking a plugin = %v %+v", now, again.AIFolder("").Lineup)
 	}
+	// 利用者の設定で無効にした間は、その行をゴミ箱に入れられる。有効に戻すと、ゴミ箱の外に無いので新しい行を足す（設定のアクションのあと、h.mu を放してから行う）
+	set := func(enabled string) {
+		t.Helper()
+		out, err := again.Perform(performOne("@matomezu/base:settings-set", json.RawMessage(`{"values":{"`+enabledPluginsSetting+`":`+enabled+`}}`), nil))
+		if err != nil || !out.OK {
+			t.Fatalf("settings-set %s = %+v, %v", enabled, out, err)
+		}
+	}
+	set(`[]`)
+	if out, err := again.Perform(performOne("@matomezu/base:entry-trash", json.RawMessage(`{"entry":"`+now[1]+`"}`), nil)); err != nil || !out.OK {
+		t.Fatalf("trash the extra folder while its plugin is off = %+v, %v", out, err)
+	}
+	trashed := now[1]
+	set(`["a"]`)
+	now = documentsOf(t, again)
+	if len(now) != 2 || now[0] != docs[0] || now[1] == trashed || !again.inTrash(trashed) {
+		t.Fatalf("after turning the plugin on again = %v (trashed %s)", now, trashed)
+	}
 	if err := again.UnlinkPlugin("a"); err != nil {
 		t.Fatal(err)
 	}
