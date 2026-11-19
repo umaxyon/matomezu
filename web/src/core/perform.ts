@@ -827,7 +827,7 @@ export function performIn(
   const same = sameData(next, world.settings)
   if (same) return { ok: true, result: done.result }
   // 選んでいた言語を変えて、名前を設定の言語で引く物（システムフォルダ）の名前が、同じフォルダのほかの物と重なるなら断る（書庫の行は変えない）。
-  // 言語を選んでいない所から初めて選ぶのは、変えるのでないので断らない（名前の重なりは、機能台帳が変わったときのアクションが番号を付けて解く。ActionDef の runsAtWindowStart）
+  // 言語を選んでいない所から初めて選ぶのは、変えるのでないので断らない（窓が初めて書くときは、続けて行う機能台帳が変わったときのアクションが、名前の重なりに番号を付けて解く。ActionDef の runsAtWindowStart）
   const library: Library = { pages: world.pages, folders: world.folders }
   const nextNaming = namingOf(ctx.catalog, next)
   const changes = langChosen(ctx.catalog, world.settings) && nextNaming.lang !== naming.lang
