@@ -4,11 +4,17 @@
 import { z } from "zod"
 import { freeTitle } from "../../../core/book"
 import type { CoreCatalog } from "../../../core/core-catalog"
-import { type EntryKind, type Naming, titleOf, titlesIn } from "../../../core/entries"
+import {
+  type EntryKind,
+  missingSystemFolders,
+  type Naming,
+  sameTitledAsSystemFolder,
+  titleOf,
+  titlesIn,
+} from "../../../core/entries"
 import {
   type Folder,
   HOME_ID,
-  inTrash,
   type Library,
   type PlainFolder,
   systemFolderIndex,
@@ -48,13 +54,7 @@ export function withSystemFolders(
   naming: Naming,
   newId: () => string,
 ): { next: Library; result: SystemFoldersAdded } | null {
-  const outside = new Set(
-    Object.values(library.folders).flatMap(f => {
-      const mark = systemFolderOf(f)
-      return mark === undefined || inTrash(library.folders, f.id) ? [] : [mark]
-    }),
-  )
-  const missing = [...catalog.systemFolders.keys()].filter(mark => !outside.has(mark)).sort()
+  const missing = missingSystemFolders(library, catalog)
   let next = library
   const added: AddedSystemFolder[] = []
   for (const mark of missing) {
@@ -73,11 +73,9 @@ export function withSystemFolders(
   const marked = (next.folders[HOME_ID]?.lineup ?? []).filter(r => systemFolderOf(next.folders[r.id]) !== undefined)
   for (const { id: folder } of marked) {
     const title = titleOf(next, "folder", folder, naming)
-    const home = next.folders[HOME_ID]
-    if (title === undefined || !home) continue
-    for (const r of home.lineup) {
-      if (r.id === folder || systemFolderOf(next.folders[r.id]) !== undefined) continue
-      if (titleOf(next, r.kind, r.id, naming) !== title) continue
+    for (const r of sameTitledAsSystemFolder(next, folder, naming)) {
+      const home = next.folders[HOME_ID]
+      if (title === undefined || !home) return null
       const to = freeTitle(title, titlesIn(next, home, naming, r.id))
       const done = retitled(next, r.kind, r.id, to, naming)
       if (!done) return null

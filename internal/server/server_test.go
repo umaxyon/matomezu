@@ -625,7 +625,9 @@ func TestPerformTellsEveryScreen(t *testing.T) {
 		t.Fatalf("a ack = %s", got)
 	}
 	// 版が上がるのはそのページだけで、ブックのフォルダの版は変わらない
+	// （システムフォルダの行は除いて比べる。id の順に並ぶので、振った id によって b1 と書庫ホームの間に入る）
 	_, data := send(t, "GET", s.URL+"/api/data", "", nil)
+	data = withoutDocuments(data)
 	if !strings.Contains(data, `"id":"k1"`) || !strings.Contains(data, `"bodyAlign":"left"}}]},"version":2}],"participantCalls"`) ||
 		!strings.Contains(data, `{"id":"b1","folder":{"folderRole":"book","id":"b1","lineup":[{"id":"p1","kind":"page"}],"title":"T"},"version":1},{"id":"library-home",`) {
 		t.Fatalf("data = %s", data)

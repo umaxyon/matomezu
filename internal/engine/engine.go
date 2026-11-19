@@ -202,6 +202,7 @@ type Engine struct {
 	once        func() string
 	catalogActs func() string
 	sysFolders  func() string
+	sysInPlace  func(string, string, string) bool
 	records     func(string) string
 	joinedMsg   func(string, string) string
 	live        func(string, string, string, string) string
@@ -333,6 +334,9 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuSystemFolderTitles"), &e.sysFolders); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuSystemFolderTitles: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuSystemFoldersInPlace"), &e.sysInPlace); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuSystemFoldersInPlace: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuSubjectRoles"), &e.roles); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuSubjectRoles: %w", err)
@@ -860,6 +864,31 @@ func (e *Engine) SystemFolderTitles() (titles map[string]string, err error) {
 	}()
 	err = json.Unmarshal([]byte(e.sysFolders()), &titles)
 	return titles, err
+}
+
+// SystemFoldersInPlace は、書庫のシステムフォルダが今の機能台帳に合っているか: 定義の在る印のシステムフォルダがゴミ箱の外に揃い、書庫ホームの直下のシステムフォルダの名前
+// （利用者の設定 settings の言語で引く）が、そこのほかの物と当たっていない。folders は書庫ホーム・ゴミ箱・フォルダの行の全部と、書庫ホームの直下のブック・バインダの行、
+// pages は書庫ホームの直下のページの行（id → 行）。データには手を付けない
+func (e *Engine) SystemFoldersInPlace(folders []json.RawMessage, pages map[string]json.RawMessage, settings json.RawMessage) (ok bool, err error) {
+	b, err := json.Marshal(folders)
+	if err != nil {
+		return false, err
+	}
+	p, err := json.Marshal(pages)
+	if err != nil {
+		return false, err
+	}
+	if len(settings) == 0 {
+		settings = json.RawMessage("{}")
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	return e.sysInPlace(string(b), string(p), string(settings)), nil
 }
 
 // SubjectRoles は、常駐が読む種類の役（participants・workrooms）ごとの、対象の定義の id（役を名乗る定義が無ければ入らない）

@@ -24,7 +24,7 @@ import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, type AIEditTicketChange, type AIMessage, stopsOnEditLock } from "../core/def/action"
 import { slideIsBackground } from "../core/def/page-type"
 import type { SubjectDef } from "../core/def/subject"
-import { binnedBetween } from "../core/entries"
+import { binnedBetween, namingOf, systemFoldersInPlace } from "../core/entries"
 import {
   bookIdOf,
   bookOf,
@@ -34,6 +34,7 @@ import {
   NO_CHANGES,
   rawBooksOf,
   rowsHoldTree,
+  rowsLibraryOf,
   withChanges,
   worldTablesOf,
 } from "../core/folders"
@@ -518,6 +519,17 @@ function aiTables(of: Assembled) {
   rowsHoldTree(JSON.parse(folders) as unknown[], JSON.parse(pages) as string[])
     ? ""
     : warningText(warning("W030", "", {}))
+
+// 書庫のシステムフォルダが今の機能台帳に合っているか（core/entries.ts の systemFoldersInPlace。名前は利用者の設定 settings の言語で引く）。
+// 常駐が、データを書いたあとに、機能台帳に合わせてデータを足すアクションを行うかを決める。受けるのは、書庫ホーム・ゴミ箱・フォルダの行の全部と、
+// 書庫ホームの直下のブック・バインダの行の folders、書庫ホームの直下のページの行 pages（id → 行）
+;(
+  globalThis as { matomezuSystemFoldersInPlace?: (folders: string, pages: string, settings: string) => boolean }
+).matomezuSystemFoldersInPlace = (folders, pages, settings) => {
+  const catalog = assembled.catalog.core
+  const library = rowsLibraryOf(JSON.parse(folders) as unknown[], JSON.parse(pages) as Record<string, unknown>)
+  return systemFoldersInPlace(library, namingOf(catalog, restoreSettings(JSON.parse(settings))))
+}
 
 // 残したアノテーションを今の機能台帳で確かめ、効かないもの（種類が無い W018・形が合わない W019）の warning の 1 行ずつを返す（常駐がログに書く）。
 // 受けるのは、ブックと、そのページごとのアノテーション（ページの id → 並び）の組。読めないブックのアノテーションは確かめない

@@ -2,11 +2,14 @@ package server
 
 import (
 	"encoding/json"
+	"io"
+	"os"
 	"regexp"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/umaxyon/matomezu/internal/engine"
 	"github.com/umaxyon/matomezu/internal/storage"
 )
 
@@ -109,5 +112,82 @@ func TestSystemFoldersAreAddedAtStartAndWhenPluginsChange(t *testing.T) {
 	}
 	if left := documentsOf(t, again); !slices.Equal(left, now) || again.AIFolder("").Lineup[1].Title != "" {
 		t.Fatalf("after unlinking = %v %+v", left, again.AIFolder("").Lineup)
+	}
+}
+
+// stderrDuring は、do の間に常駐が標準エラーに書いた物
+func stderrDuring(t *testing.T, do func()) string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	was := os.Stderr
+	os.Stderr = w
+	got := make(chan string)
+	go func() {
+		b, _ := io.ReadAll(r)
+		got <- string(b)
+	}()
+	defer func() { os.Stderr = was }()
+	do()
+	w.Close()
+	os.Stderr = was
+	return <-got
+}
+
+// データを書いたあと、書庫のシステムフォルダが機能台帳に合わなくなっていれば、常駐が system-folder-add を行う:
+// AI が言語を初めて日本語に選ぶと、利用者の「ドキュメント」に番号が付く。合っていれば、書いたあとにバルクを行わない
+func TestSystemFoldersAreKeptAfterWrites(t *testing.T) {
+	store := libraryStore(t, false)
+	putBook(t, store, `{"id":"b9","title":"ドキュメント","lineup":[]}`)
+	s, hub := newServerOn(t, Options{}, store)
+	ai := joinedAI(t, s)
+	acts := hub.acts
+	if out, err := hub.Perform(Perform{Actions: []engine.BulkAction{{Action: "@matomezu/base:book-update", Args: json.RawMessage(`{"title":"x"}`), On: &engine.On{Book: "b1"}}}}); err != nil || !out.OK {
+		t.Fatalf("book-update = %+v, %v", out, err)
+	}
+	if hub.acts != acts+1 {
+		t.Fatalf("acts after a write while the system folders are in place = %d; want %d", hub.acts, acts+1)
+	}
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:lang":"matomezu:ja"}}}`, ai); got != `{"ok":true,"result":{}}` {
+		t.Fatalf("the AI chooses Japanese = %s", got)
+	}
+	if b := hub.Book("b9"); b == nil || !strings.Contains(string(b.Body), `"title":"ドキュメント 2"`) {
+		t.Fatalf("the book with the same title after choosing Japanese = %+v", b)
+	}
+}
+
+// ロック中のブックと名前が当たると、system-folder-add は断られる。同じ答えで断られる間は、書くたびに行い直してもログは 1 回だけ。
+// ロックを外したバルクのあとに、番号を付ける
+func TestSystemFoldersWaitForTheLockAndLogTheRefusalOnce(t *testing.T) {
+	store := libraryStore(t, false)
+	putBook(t, store, `{"id":"b9","title":"ドキュメント","lineup":[]}`)
+	_, hub := newServerOn(t, Options{}, store)
+	do := func(action, args string, on *engine.On) {
+		t.Helper()
+		if out, err := hub.Perform(Perform{Actions: []engine.BulkAction{{Action: action, Args: json.RawMessage(args), On: on}}}); err != nil || !out.OK {
+			t.Fatalf("%s = %+v, %v", action, out, err)
+		}
+	}
+	do("@matomezu/base:book-lock", `{}`, &engine.On{Book: "b9"})
+	logged := stderrDuring(t, func() {
+		do("@matomezu/base:settings-set", `{"values":{"@matomezu/base:lang":"matomezu:ja"}}`, nil)
+		// 書庫ホームの名前が当たっている間は、そこの名前は変えられないので、ほかの物を書く
+		do("@matomezu/base:settings-set", `{"values":{"@matomezu/base:skin":"@matomezu/base:dark"}}`, nil)
+		do("@matomezu/base:settings-set", `{"values":{"@matomezu/base:skin":"@matomezu/base:light"}}`, nil)
+	})
+	if n := strings.Count(logged, "system-folder-add could not run"); n != 1 {
+		t.Fatalf("the refusals logged %d times; want 1:\n%s", n, logged)
+	}
+	if n := strings.Count(logged, "refused at the action"); n != 1 {
+		t.Fatalf("the refused lines logged %d times; want 1:\n%s", n, logged)
+	}
+	if b := hub.Book("b9"); b == nil || !strings.Contains(string(b.Body), `"title":"ドキュメント"`) {
+		t.Fatalf("the locked book = %+v", b)
+	}
+	do("@matomezu/base:book-unlock", `{}`, &engine.On{Book: "b9"})
+	if b := hub.Book("b9"); b == nil || !strings.Contains(string(b.Body), `"title":"ドキュメント 2"`) {
+		t.Fatalf("the book after unlocking = %+v", b)
 	}
 }

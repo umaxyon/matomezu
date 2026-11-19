@@ -440,6 +440,27 @@ export function rowsHoldTree(rows: readonly unknown[], pages: readonly string[])
   return treeHolds({ pages: Object.fromEntries(pages.map(id => [id, undefined])), folders } as unknown as Library)
 }
 
+// 置き場所から読んだままのフォルダの行 rows（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダ）とページの行 pages（id → 行）を、形を確かめずに読んだ書庫
+// （id と並びの在る行だけ。並びは、種類と id の在るエントリだけ）。名前と置き場所を読むだけの所が使う。形の合わない行も入るので、木の決まりは確かめない
+// （形を確かめる homeAndFoldersOf は、常駐が書くたびに呼ぶには重い）
+export function rowsLibraryOf(rows: readonly unknown[], pages: Readonly<Record<string, unknown>>): Library {
+  const folders: Record<string, Folder> = {}
+  for (const row of rows) {
+    if (typeof row !== "object" || row === null) continue
+    const { id, lineup } = row as { id?: unknown; lineup?: unknown }
+    if (typeof id !== "string" || !Array.isArray(lineup)) continue
+    const refs = lineup.filter(
+      (r: unknown) =>
+        typeof r === "object" &&
+        r !== null &&
+        typeof (r as { id?: unknown }).id === "string" &&
+        typeof (r as { kind?: unknown }).kind === "string",
+    )
+    folders[id] = { ...row, lineup: refs } as unknown as Folder
+  }
+  return { pages, folders } as unknown as Library
+}
+
 // 変わり changes（ブックを足す・消す）に、置き場所の書き込みを足した変わり: 足したブックのうち、変わりがどのフォルダにも入れていない物は書庫ホームの末尾に入れ、
 // 無くなったブックは、入っていたフォルダの並びから外す
 export function placedChanges(tables: Library, changes: TableChanges): TableChanges {

@@ -281,3 +281,39 @@ export function titleClashes(was: Library, now: Library, naming: Naming, nowNami
     return kept.length === titles.length && kept.every((t, i) => t === titles[i]) ? [] : [f.id]
   })
 }
+
+// 書庫 library に足りないシステムフォルダの印（機能台帳 catalog に定義が在り、ゴミ箱の外に行が無い物。印の順）
+export function missingSystemFolders(library: Library, catalog: CoreCatalog): string[] {
+  const outside = new Set(
+    Object.values(library.folders).flatMap(f => {
+      const mark = systemFolderOf(f)
+      return mark === undefined || inTrash(library.folders, f.id) ? [] : [mark]
+    }),
+  )
+  return [...catalog.systemFolders.keys()].filter(mark => !outside.has(mark)).sort()
+}
+
+// 書庫ホームの直下で、システムフォルダ folder と名前が当たる、システムフォルダでないエントリ（並びの順。folder の名前が引けなければ空）
+export function sameTitledAsSystemFolder(library: Library, folder: string, naming: Naming): AnyEntryRef[] {
+  const title = titleOf(library, "folder", folder, naming)
+  const home = library.folders[HOME_ID]
+  if (title === undefined || !home) return []
+  return home.lineup.filter(
+    r =>
+      r.id !== folder &&
+      systemFolderOf(library.folders[r.id]) === undefined &&
+      titleOf(library, r.kind, r.id, naming) === title,
+  )
+}
+
+// 書庫 library のシステムフォルダが、機能台帳に合っているか: 定義の在る印のシステムフォルダがゴミ箱の外に揃い、書庫ホームの直下のシステムフォルダの名前が、
+// そこのシステムフォルダでない物と当たっていない（名前は naming で引く）。合っていなければ、足りない物を足すアクションが要る
+export function systemFoldersInPlace(library: Library, naming: Naming): boolean {
+  if (missingSystemFolders(library, naming.catalog).length > 0) return false
+  const lineup = library.folders[HOME_ID]?.lineup ?? []
+  return lineup.every(
+    r =>
+      systemFolderOf(library.folders[r.id]) === undefined ||
+      sameTitledAsSystemFolder(library, r.id, naming).length === 0,
+  )
+}

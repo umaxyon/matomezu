@@ -248,8 +248,10 @@ func TestPerformChangesNothingWhenTheWriteFails(t *testing.T) {
 	if err != nil || !done.OK {
 		t.Fatalf("perform again = %+v, %v", done, err)
 	}
+	// 起動したときに書けなかったシステムフォルダ（ドキュメント）も、書けたあとの確かめで足す（フォルダとエントリが 1 つずつ増える）
 	pages, folders = hub.Tables()
-	if len(pages) != 2 || len(folders) != 3 || folders[0].Version != 2 || entries() != 3 {
+	b1 := slices.IndexFunc(folders, func(f storage.Folder) bool { return f.ID == "b1" })
+	if len(pages) != 2 || len(folders) != 4 || b1 < 0 || folders[b1].Version != 2 || entries() != 4 || len(documentsOf(t, hub)) != 1 {
 		t.Fatalf("the book did not change: %+v %+v", pages, folders)
 	}
 	if book := hub.Book("b1"); book == nil || book.Version != 2 || !strings.Contains(string(book.Body), "追加") {
