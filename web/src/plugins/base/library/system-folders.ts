@@ -94,7 +94,7 @@ export const SYSTEM_FOLDER_ADD = kit.defineAction({
   target: "library",
   userOnly: true,
   history: false, // 利用者の操作でなく、機能台帳に合わせて足す
-  runsWhenCatalogChanges: true,
+  runAndKeepsWithCatalog: true,
   permissionScope: "unknown", // 番号を付ける物は、行うまで分からない
   args: z.strictObject({}),
   run: (library, _args, ctx) => withSystemFolders(library, ctx.catalog, ctx.naming, ctx.newId),

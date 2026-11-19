@@ -840,7 +840,7 @@ func (e *Engine) RunOnceActions() (ids []string, err error) {
 	return ids, err
 }
 
-// CatalogActions は、常駐が起動したときと機能台帳が変わったときに行うアクション（runsWhenCatalogChanges）の id の並び
+// CatalogActions は、常駐が起動したときと機能台帳が変わったときに行うアクション（runAndKeepsWithCatalog）の id の並び
 func (e *Engine) CatalogActions() (ids []string, err error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()

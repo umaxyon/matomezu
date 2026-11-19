@@ -555,9 +555,9 @@ interface AnnotatedBook {
 ;(globalThis as { matomezuRunOnceActions?: () => string }).matomezuRunOnceActions = () =>
   JSON.stringify([...assembled.catalog.core.actions.values()].filter(a => a.runsOnceAtStart).map(a => a.id))
 
-// 常駐が起動したときと機能台帳が変わったときに行うアクション（ActionDef の runsWhenCatalogChanges）の id の並び
+// 常駐が起動したときと機能台帳が変わったときに行うアクション（ActionDef の runAndKeepsWithCatalog）の id の並び
 ;(globalThis as { matomezuCatalogActions?: () => string }).matomezuCatalogActions = () =>
-  JSON.stringify([...assembled.catalog.core.actions.values()].filter(a => a.runsWhenCatalogChanges).map(a => a.id))
+  JSON.stringify([...assembled.catalog.core.actions.values()].filter(a => a.runAndKeepsWithCatalog).map(a => a.id))
 
 // システムフォルダの定義の id → AI に見せる名前（英語の文言）。read_folder でシステムフォルダの名前に使う
 ;(globalThis as { matomezuSystemFolderTitles?: () => string }).matomezuSystemFolderTitles = () => {
