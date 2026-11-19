@@ -1,6 +1,6 @@
 //go:build e2e
 
-// e2e の常駐のテストの用意（booksForTest・resetForTest・enablePluginsForTest・enabledPluginsSetting とその Hub のメソッドは books_for_test_test.go と同じ物。go test はタグを付けずに流すので、そちらにも置く）
+// e2e の常駐のテストの用意（booksForTest・resetForTest・enablePluginsForTest・enabledPluginsSetting・joinedAIForTest とその Hub のメソッドは books_for_test_test.go と同じ物。go test はタグを付けずに流すので、そちらにも置く）
 
 package server
 

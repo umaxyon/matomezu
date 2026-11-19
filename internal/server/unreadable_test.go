@@ -122,7 +122,7 @@ func TestUnreadablePagesStayInAReadableBook(t *testing.T) {
 
 	perform := func(body string) string {
 		t.Helper()
-		_, got := send(t, "POST", s.URL+"/api/ai/perform", body, ai)
+		_, got := send(t, "POST", s.URL+"/api/ai/perform", body, writerAI(t, s.URL))
 		return got
 	}
 	// 読めないページを宛先にするアクションは、エンジンが断り、番号だけを返す。読めないページを動かすアクションも、エンジンが断る
@@ -275,7 +275,7 @@ func TestAPageComesBackWhenItsPluginIsAddedAgain(t *testing.T) {
 	if !bytes.Equal(rowOf(h, "p1"), original) {
 		t.Fatalf("the row of p1 changed when ex2 was removed: %s", rowOf(h, "p1"))
 	}
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-lock","args":{},"on":{"page":"p2"}}`, ai); !strings.HasPrefix(got, `{"ok":true`) {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-lock","args":{},"on":{"page":"p2"}}`, writerAI(t, s.URL)); !strings.HasPrefix(got, `{"ok":true`) {
 		t.Fatalf("page-lock on p2 = %s", got)
 	}
 	if !bytes.Equal(rowOf(h, "p1"), original) {

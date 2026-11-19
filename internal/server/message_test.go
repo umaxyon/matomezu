@@ -301,11 +301,12 @@ func TestActionSendsAIMessage(t *testing.T) {
 	joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
 	makeRoom(t, s.URL, "からす")
 	noticeOf(t, s.URL, a)
+	// 1 人目のワーカー（ひよこ）を受け入れたときに、管理者の印はできている。ここでは、印を付け替える形で確かめる
 	ids := map[string]string{}
 	for id, r := range recordsOf(t, s.URL, "@matomezu/base:workroom") {
 		ids[r["name"].(string)] = id
 	}
-	if _, got := postPerform(t, s.URL, `{"action":"@matomezu/base:admin-set","args":{"workroom":"`+ids["ひよこ"]+`"},"lang":"ja","now":"2026-11-08T01:00:00.000Z"}`); !strings.Contains(got, `"ok":true`) {
+	if _, got := postPerform(t, s.URL, `{"action":"@matomezu/base:admin-set","args":{"workroom":"`+ids["ひよこ"]+`"},"on":{"record":"admin"},"lang":"ja","now":"2026-11-08T01:00:00.000Z"}`); !strings.Contains(got, `"ok":true`) {
 		t.Fatalf("admin-set = %s", got)
 	}
 	set := func(room string) string {

@@ -211,7 +211,7 @@ func (h *Hub) joinedParticipants() map[string]bool {
 		return out
 	}
 	for _, r := range records {
-		if r.State == "joined" {
+		if r.accepted() {
 			out[r.ID] = true
 		}
 	}
@@ -349,7 +349,7 @@ func (h *Hub) requestedParticipants() map[string]bool {
 	out := map[string]bool{}
 	for _, body := range h.recordsOfRole("participants") {
 		var r participantRecord
-		if json.Unmarshal(body, &r) == nil && r.State == "requested" {
+		if json.Unmarshal(body, &r) == nil && r.State == stateRequested {
 			out[r.ID] = true
 		}
 	}
@@ -380,7 +380,9 @@ func (h *Hub) wakeOnParticipants(before map[string]bool) {
 		switch {
 		case !ok:
 			h.enqueueWake(wakeItem{participant: id, kind: wakeDeclined, line: noticeLine("matomezu: the user declined your request to join (participant " + id + "). Tell the user, and do not ask again unless the user asks.")})
-		case s.State == "joined":
+		case s.State == stateVisitor:
+			h.enqueueWake(wakeItem{participant: id, kind: wakeAccepted, line: noticeLine("matomezu: the user accepted your request to join as a visitor that only reads (participant " + id + "). The welcome comes with this turn or with your next matomezu call.")})
+		case s.State == stateJoined:
 			// 「参加しました」は、このターンの始まりのフック（talked）か、参加の id の付いた次の呼び出しの返事の、先に来た方が 1 度だけ添える
 			// （伝えたと印を付けるので二重にならない。どちらが先かは AI のプログラムによるので、文は両方を言う）
 			h.enqueueWake(wakeItem{participant: id, kind: wakeAccepted, line: noticeLine("matomezu: the user accepted your request to join (participant " + id + ", workroom " + rooms[s.Workroom] + "). The welcome comes with this turn or with your next matomezu call.")})

@@ -572,6 +572,10 @@ func (o Options) aiShow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	o.waitLatest()
+	if o.Hub.isVisitor(r.Header.Get(ParticipantHeader)) {
+		writeJSON(w, map[string]any{"ok": false, "reason": "visitor", "detail": "a visitor only reads: it cannot show books on the user's screen"})
+		return
+	}
 	err := o.Hub.Show(req)
 	opened := false
 	if errors.Is(err, ErrNoWindow) && o.Open != nil {

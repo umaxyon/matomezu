@@ -2,6 +2,7 @@
 // 部屋の名前は重ならず、部屋に入る参加者は 1 人で、人のいる部屋は消せない。参加要求の郵便（mail-join-request）は、別の種類（郵便のレコード）として届く
 
 import { expect, test } from "bun:test"
+import { z } from "zod"
 import { AI, USER } from "../../../web/src/core/actor"
 import { checkCoreCatalog } from "../../../web/src/core/core-catalog"
 import { translate } from "../../../web/src/core/i18n/i18n"
@@ -265,6 +266,22 @@ test("AI が参加を頼むときの役（runsWhenAIJoins）は、1 つの役を
   expect(codes).toContain("E044")
 })
 
+test("役 participants の種類の state は、常駐が読む値（requested・joined・visitor）をちょうど受ける（足りなくても多くても E130）", () => {
+  const owner = BUILTIN_PARTS.subjects.find(s => s.role === "participants")
+  if (!owner) throw new Error("役 participants の種類が無い")
+  const codesWith = (state: z.ZodType) =>
+    checkCoreCatalog({
+      ...BUILTIN_PARTS,
+      subjects: BUILTIN_PARTS.subjects.map(s =>
+        s === owner ? { ...s, record: z.strictObject({ ...s.record.shape, state }) } : s,
+      ),
+    }).map(p => p.code)
+  expect(checkCoreCatalog(BUILTIN_PARTS).map(p => p.code)).not.toContain("E130")
+  expect(codesWith(z.enum(["requested", "joined"]))).toContain("E130")
+  expect(codesWith(z.enum(["requested", "joined", "visitor", "gone"]))).toContain("E130")
+  expect(codesWith(z.string())).toContain("E130")
+})
+
 // いる参加者を外して入れる・新しい部屋を作って入れる・前の部屋を消して作る・部屋を消すは、1 つのアクションで、全部通るか全部断られる
 function roomWith(link: string, name: string) {
   const r = ready()
@@ -340,4 +357,85 @@ test("部屋を消す: いる参加者を一緒に外し、渡した参加者が
   const again = roomWith("L9", "C")
   again.perform(REMOVE, {}, { record: again.holder })
   expect(again.perform(ROOM_REMOVE, { occupant: again.holder }, { record: again.room }).ok).toBe(true)
+})
+
+const ADMIN_MARK = "@matomezu/base:admin-mark"
+const adminOf = (store: ReturnType<typeof ready>["store"]) =>
+  (store.state.getState().records[ADMIN_MARK]?.admin as { workroom: string } | undefined)?.workroom
+
+test("ビジターとして受け入れると、ワークルームを持たない visitor になる。ワークルームも管理者の印も変えない。外すと消える", () => {
+  const { store, people, rooms, request, perform } = ready()
+  const id = request().result.participant
+  expect(perform(ACCEPT, { as: "visitor" }, { record: id })).toMatchObject({ ok: true, result: { workroom: "none" } })
+  expect(people()).toEqual([expect.objectContaining({ id, state: "visitor", joinedAt: expect.any(String) })])
+  expect(people()[0]?.workroom).toBeUndefined()
+  expect(rooms()).toHaveLength(0)
+  expect(adminOf(store)).toBeUndefined()
+  expect(perform(ACCEPT, { as: "visitor" }, { record: id }).ok).toBe(false)
+  expect(perform(REMOVE, {}, { record: id }).ok).toBe(true)
+  expect(people()).toHaveLength(0)
+})
+
+test("ビジターとして頼んだ要求は、ビジターとしてだけ受け入れる。ワークルームの名前と一緒には頼めない", () => {
+  const { people, request, addRoom, perform } = ready()
+  expect(perform(REQUEST, { ...WHO, as: "visitor", wantedName: "A" }).ok).toBe(false)
+  const id = request({ ...WHO, as: "visitor" }).result.participant
+  expect(people()[0]).toMatchObject({ state: "requested", as: "visitor" })
+  const room = addRoom("A").result.workroom
+  expect(perform(ACCEPT, { workroom: room }, { record: id }).ok).toBe(false)
+  expect(perform(ACCEPT, { newWorkroom: { name: "B", bird: "inko" } }, { record: id }).ok).toBe(false)
+  expect(perform(ACCEPT, { as: "visitor" }, { record: id }).ok).toBe(true)
+  expect(people()[0]).toMatchObject({ state: "visitor" })
+  expect(people()[0]).not.toHaveProperty("as")
+})
+
+test("管理者がいなければ、受け入れたワーカーのワークルームが管理者になる（印が無い・指す先が無い・同じ受け入れで消す部屋を指す）。none と、在る部屋を指す印は変えない", () => {
+  // 印が無い: 1 人目のワーカーが管理者になり、2 人目は変えない
+  const a = ready()
+  const first = a.request().result.participant
+  const roomA = (
+    a.perform(ACCEPT, { newWorkroom: { name: "A", bird: "inko" } }, { record: first }) as Done & {
+      result: { workroom: string }
+    }
+  ).result.workroom
+  expect(adminOf(a.store)).toBe(roomA)
+  const second = a.request({ ...WHO, link: "L2" }).result.participant
+  const roomB = a.addRoom("B").result.workroom
+  expect(a.perform(ACCEPT, { workroom: roomB }, { record: second }).ok).toBe(true)
+  expect(adminOf(a.store)).toBe(roomA)
+
+  // none は残す
+  const b = ready()
+  expect(b.perform(ADMIN_SET, { workroom: "none" }).ok).toBe(true)
+  const p = b.request().result.participant
+  expect(b.perform(ACCEPT, { newWorkroom: { name: "A", bird: "inko" } }, { record: p }).ok).toBe(true)
+  expect(adminOf(b.store)).toBe("none")
+
+  // 指す先が無い印は、入れたワークルームに付け替える
+  const c = ready()
+  const gone = c.addRoom("G").result.workroom
+  expect(c.perform(ADMIN_SET, { workroom: gone }).ok).toBe(true)
+  expect(c.perform(ROOM_REMOVE, {}, { record: gone }).ok).toBe(true)
+  const q = c.request().result.participant
+  const roomC = c.addRoom("C").result.workroom
+  expect(c.perform(ACCEPT, { workroom: roomC }, { record: q }).ok).toBe(true)
+  expect(adminOf(c.store)).toBe(roomC)
+
+  // 同じ受け入れで消す部屋が管理者なら、新しい部屋に付け替える
+  const d = ready()
+  const old = d.request().result.participant
+  const oldRoom = (
+    d.perform(ACCEPT, { newWorkroom: { name: "A", bird: "inko" } }, { record: old }) as Done & {
+      result: { workroom: string }
+    }
+  ).result.workroom
+  expect(adminOf(d.store)).toBe(oldRoom)
+  const next = d.request({ ...WHO, link: "L2" }).result.participant
+  const made = d.perform(
+    ACCEPT,
+    { newWorkroom: { name: "A", bird: "suzume" }, discarding: { workroom: oldRoom, occupant: old } },
+    { record: next },
+  ) as Done & { result: { workroom: string } }
+  expect(made.ok).toBe(true)
+  expect(adminOf(d.store)).toBe(made.result.workroom)
 })

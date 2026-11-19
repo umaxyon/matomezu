@@ -126,7 +126,7 @@ test("ワークルームの一覧は管理者が先頭で、選ぶと枠に情�
   await expect(panel).toContainText("opus-5")
   await expect(panel).toContainText("wsl-linux")
   await expect(panel).toContainText("最終アクセス:なし")
-  // 管理者の印はまだ無い。sub_b の王冠を押すと管理者になり、先頭へ動く
+  // 1 人目に受け入れた sub_a が管理者。sub_b の王冠を押すと管理者が替わり、先頭へ動く
   await panel.getByRole("button", { name: "管理者" }).click()
   await expect(rows(page).first()).toContainText("sub_b")
   await expect(panel.getByRole("button", { name: "管理者" })).toHaveAttribute("aria-pressed", "true")

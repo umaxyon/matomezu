@@ -2,7 +2,7 @@
 // 外から読む入口は plugin-entry（matomezu）。名前の一覧は test/plugin-api.test.ts
 
 export type { Actor } from "../core/actor"
-export { isAI, isUser } from "../core/actor"
+export { isAI, isUser, isVisitor, workroomOfActor } from "../core/actor"
 export type { Annotation, PageAnnotations } from "../core/annotation"
 export type { PageInto } from "../core/book"
 export {

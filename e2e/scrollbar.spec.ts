@@ -1,5 +1,5 @@
 // スクロールバーが幅を取る環境（Windows など）での見た目。ヘッドレスのブラウザは既定でスクロールバーを隠すので、隠さずに起動する
-import { aiAuth, BOOK_SCREEN_URL, expect, test } from "./fixtures"
+import { BOOK_SCREEN_URL, expect, joinedAiAuth, test } from "./fixtures"
 import { addFromTabs } from "./helpers/new-book"
 import { fromMenu } from "./helpers/stage-menu"
 
@@ -41,7 +41,7 @@ test("分割した右のステージで中身が縦にスクロールしても�
 test("リストの行が収まらず縦のスクロールバーが出ても、本文の右端の字は切れない。右寄せの本文の右端はそろう", async ({
   page,
 }) => {
-  const ai = aiAuth()
+  const ai = await joinedAiAuth()
   await page.setViewportSize({ width: 1600, height: 1000 })
   await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()

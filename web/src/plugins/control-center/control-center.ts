@@ -53,6 +53,9 @@ export const frontScreenOf = (value: FrontScreen | undefined): FrontScreen => va
 // 選んでいるワークルームの id（スクリーン 1 枚ごとの状態。読み直すと消える。ワークルームが無くなれば、選んでいないのと同じ）
 export const PICKED_ROOM = kit.definePluginStateOf<string>()({ id: "picked-room", scope: "screen" })
 
+// 選んでいるビジターの参加者の id（スクリーン 1 枚ごと。ワークルームとビジターは、どちらか一方だけを選ぶ。参加者が居なくなれば、選んでいないのと同じ）
+export const PICKED_VISITOR = kit.definePluginStateOf<string>()({ id: "picked-visitor", scope: "screen" })
+
 // 書庫の画面を最大化しているか（スクリーン 1 枚ごとの状態。読み直すと消える）
 export const LIBRARY_MAXIMIZED = kit.definePluginStateOf<boolean>()({ id: "library-maximized", scope: "screen" })
 

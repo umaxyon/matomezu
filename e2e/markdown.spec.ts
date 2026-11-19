@@ -1,6 +1,6 @@
 // マークダウンのブック（@matomezu/markdown）: 紙を置かず、ソースとプレビューのペインを（選んでいなければ空のページは左右、本文のあるページはプレビューだけで）開く。上の行のボタンで並べ方を変え、見出しのドラッグで入れ替え、境目のドラッグで大きさを変え（どれも読み直しても戻る）、右クリックでページの設定を開く
 import { pageIn } from "./books"
-import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test, urlStages } from "./fixtures"
+import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test, urlStages } from "./fixtures"
 import { addFromTabs, newBook } from "./helpers/new-book"
 import { backToBook, openGeneral, openSettings, settingsDialog } from "./helpers/settings"
 import { fromMenu } from "./helpers/stage-menu"
@@ -272,7 +272,7 @@ test("描いた文書は、段落の中の改行 1 つを既定で改行にし�
 test("ソースのペインで Mod+Z で戻すと、自分が書いた所だけが戻り、書いていない間に AI が書いた行は残る", async ({
   page,
 }) => {
-  const ai = aiAuth()
+  const ai = await joinedAiAuth()
   await markdownBook(page)
   const field = () => pane(page, "ソース").getByRole("textbox")
   await field().click()
@@ -337,7 +337,7 @@ test("ソースに書いている間（テキストFormにフォーカスがあ�
   page,
 }) => {
   await markdownBook(page)
-  const ai = aiAuth()
+  const ai = await joinedAiAuth()
   const field = pane(page, "ソース").getByRole("textbox")
   await field.click()
   await page.keyboard.type("利用者")

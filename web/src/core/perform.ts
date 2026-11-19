@@ -3,7 +3,7 @@
 // その前に認可ステップ（core/def/permission.ts）が止められ、run の結果も認可ステップが守らせることを守っていなければ断る（denied）
 
 import type { z } from "zod"
-import { isAI, USER } from "./actor"
+import { USER, workroomOfActor } from "./actor"
 import { type Annotation, type Annotations, annotationsSettle, type PageAnnotations, prune } from "./annotation"
 import {
   distinctBooks,
@@ -112,13 +112,13 @@ export type ResultOf<Id extends ActionId> =
   ActionOf<Id> extends ActionDef<infer _T, infer _A, infer R, infer _I> ? R : never
 
 // denied は認可ステップが止めたこと（permission はそのステップの id）。refused の detail・kind は、run が添えた断った理由の文と断りの種類（def/action.ts の Declined）。not-allowed で止めたのが利用者の設定の項目ごとのステップなら、
-// setting にその項目の id、because に理由（user-only は利用者だけが変える項目、fixed はコントロールセンターが変えさせない項目）
+// setting にその項目の id、because に理由（user-only は利用者だけが変える項目、fixed はコントロールセンターが変えさせない項目。参加のステップなら not-joined は参加が確定していない AI、visitor はビジター）
 export type Refusal = "unknown" | "not-allowed" | "bad-args" | "refused"
 export type NotAllowed = {
   ok: false
   reason: "not-allowed"
   setting?: string
-  because?: "user-only" | "fixed" | "not-joined"
+  because?: "user-only" | "fixed" | "not-joined" | "visitor"
 }
 // 宛先のページが無い（ブックのどこにも無い・ゴミ箱のブックにある・2 冊にある）。detail は AI への説明に載る英語の文
 export type NoPage = { ok: false; reason: "no-page"; detail: string }
@@ -465,7 +465,7 @@ function answerOf(answer: Inspected<boolean>): Permitted {
   const permission = deniedBy(answer)
   if (permission) return { ok: false, reason: "denied", permission }
   const from = answer.decidedBy
-  if (from?.source === "participation") return { ok: false, reason: "not-allowed", because: "not-joined" }
+  if (from?.source === "participation") return { ok: false, reason: "not-allowed", because: from.because }
   if (from?.source === "userSetting")
     return { ok: false, reason: "not-allowed", setting: from.id, because: "user-only" }
   if (from?.source === "controlCenter" && from.id !== null && from.field === "fixedUserSettings")
@@ -622,7 +622,7 @@ export function perform<Id extends ActionId>(
   const others = (ran.others ?? []) as readonly OtherRecord<never>[]
   // 送る AI 間メッセージは、レコードが対象のアクションで、行う者が参加の確定した AI のときだけ（送り手は行った参加者）
   const messages = isRecordTarget(ctx.catalog, action.target) ? (ran.aiMessages ?? []) : []
-  if (messages.length > 0 && !(isAI(ctx.actor) && ctx.actor.workroom !== "none"))
+  if (messages.length > 0 && workroomOfActor(ctx.actor) === undefined)
     return { ok: false, reason: "refused", detail: "only an AI in a workroom sends AI messages" }
   if (isRecordTarget(ctx.catalog, action.target)) {
     const changes = recordChanges(ctx, action, subject, done.next, others)

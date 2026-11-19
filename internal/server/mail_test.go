@@ -19,7 +19,7 @@ const mailRecords = "/api/ai/records?kind=%40matomezu%2Fbase%3Amail"
 func TestAISendsMail(t *testing.T) {
 	s := newServer(t, nil)
 	ai := joinedAI(t, s)
-	send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:mail-send","args":{"from":"D64","title":"済みました"}}`, ai)
+	send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:mail-send","args":{"from":"D64","title":"済みました"}}`, writerAI(t, s.URL))
 	_, data := send(t, "GET", s.URL+"/api/data", "", nil)
 	if strings.Count(data, `"mail":"@matomezu/base:letter"`) != 1 || !strings.Contains(data, `"props":{"title":"済みました","body":""}`) {
 		t.Fatalf("data = %s", data)
@@ -41,7 +41,7 @@ func TestAIMailQuery(t *testing.T) {
 	s := newServer(t, nil)
 	ai := joinedAI(t, s)
 	for _, title := range []string{"一", "二", "三"} {
-		send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:mail-send","args":{"from":"D89","title":"`+title+`","body":"本文"}}`, ai)
+		send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:mail-send","args":{"from":"D89","title":"`+title+`","body":"本文"}}`, writerAI(t, s.URL))
 	}
 	_, list := send(t, "GET", s.URL+mailRecords+"&limit=2", "", ai)
 	if strings.Contains(list, `"props"`) || !strings.Contains(list, `"brief":"三"`) || !strings.Contains(list, `"brief":"二"`) || strings.Contains(list, `"brief":"一"`) ||

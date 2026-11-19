@@ -692,7 +692,7 @@ func TestSettingsActions(t *testing.T) {
 	if _, got := send(t, "GET", s.URL+"/api/ai/settings", "", ai); !strings.Contains(got, `"@matomezu/base:skin":"@matomezu/base:dark"`) {
 		t.Fatalf("ai settings = %s", got)
 	}
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:skin":"@matomezu/base:light"}}}`, ai); got != `{"ok":true,"result":{}}` {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:skin":"@matomezu/base:light"}}}`, writerAI(t, s.URL)); got != `{"ok":true,"result":{}}` {
 		t.Fatalf("ai perform = %s", got)
 	}
 }
@@ -945,13 +945,13 @@ func TestTrashABook(t *testing.T) {
 func TestAICannotRestoreOrPurge(t *testing.T) {
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
-	send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:entry-trash","args":{"entry":"b1"}}`, ai)
+	send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:entry-trash","args":{"entry":"b1"}}`, writerAI(t, s.URL))
 	for _, req := range []string{
 		`{"action":"@matomezu/base:entry-restore","args":{"entry":"b1"}}`,
 		`{"action":"@matomezu/base:entry-purge","args":{"entries":["b1"]}}`,
 		`{"action":"@matomezu/base:trash-empty","args":{}}`,
 	} {
-		if _, got := send(t, "POST", s.URL+"/api/ai/perform", req, ai); !strings.HasPrefix(got, `{"ok":false,"reason":"not-allowed","detail":`) {
+		if _, got := send(t, "POST", s.URL+"/api/ai/perform", req, writerAI(t, s.URL)); !strings.HasPrefix(got, `{"ok":false,"reason":"not-allowed","detail":`) {
 			t.Fatalf("ai %s = %s", req, got)
 		}
 	}
@@ -966,14 +966,14 @@ func TestAICannotTrashABookOnAScreen(t *testing.T) {
 	next(t, a)
 	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"focused":true}`, nil)
 	trash := `{"action":"@matomezu/base:entry-trash","args":{"entry":"b1"}}`
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", trash, ai); got != `{"ok":false,"reason":"open-on-screen"}` {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", trash, writerAI(t, s.URL)); got != `{"ok":false,"reason":"open-on-screen"}` {
 		t.Fatalf("ai trash on a screen = %s", got)
 	}
 	if _, got := send(t, "GET", s.URL+"/api/ai/books", "", ai); !strings.Contains(got, `"id":"b1"`) {
 		t.Fatalf("the book left: %s", got)
 	}
 	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"book":null,"stages":[{"id":"s1","book":null}]}}`, nil)
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", trash, ai); got != `{"ok":true,"result":{}}` {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", trash, writerAI(t, s.URL)); got != `{"ok":true,"result":{}}` {
 		t.Fatalf("ai trash = %s", got)
 	}
 }
@@ -988,7 +988,7 @@ func TestAIWorksOnLibraryEntries(t *testing.T) {
 	next(t, a)
 	do := func(action, args string) string {
 		t.Helper()
-		_, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:`+action+`","args":`+args+`}`, ai)
+		_, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:`+action+`","args":`+args+`}`, writerAI(t, s.URL))
 		return got
 	}
 	made := do("folder-create", `{"title":"仕事"}`)
@@ -1092,13 +1092,13 @@ func TestAICanLockButNotUnlock(t *testing.T) {
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	on := `,"args":{},"on":{"book":"b1"}}`
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-lock"`+on, ai); got != `{"ok":true,"result":{}}` {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-lock"`+on, writerAI(t, s.URL)); got != `{"ok":true,"result":{}}` {
 		t.Fatalf("lock = %s", got)
 	}
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-update","args":{"title":"x"},"on":{"book":"b1"}}`, ai); !strings.HasPrefix(got, `{"ok":false,"reason":"denied","permission":"@matomezu/base:lock","detail":"by @matomezu/base:lock: the book or a page it would change is locked`) {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-update","args":{"title":"x"},"on":{"book":"b1"}}`, writerAI(t, s.URL)); !strings.HasPrefix(got, `{"ok":false,"reason":"denied","permission":"@matomezu/base:lock","detail":"by @matomezu/base:lock: the book or a page it would change is locked`) {
 		t.Fatalf("update = %s", got)
 	}
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-unlock"`+on, ai); !strings.HasPrefix(got, `{"ok":false,"reason":"not-allowed","detail":`) {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-unlock"`+on, writerAI(t, s.URL)); !strings.HasPrefix(got, `{"ok":false,"reason":"not-allowed","detail":`) {
 		t.Fatalf("ai unlock = %s", got)
 	}
 	if _, got := postPerform(t, s.URL, `{"action":"@matomezu/base:book-unlock","lang":"ja"`+on); got != `{"ok":true,"result":{}}` {
@@ -1185,7 +1185,8 @@ func TestAIEntrancesNeedTheToken(t *testing.T) {
 	if _, body := send(t, "GET", s.URL+"/api/ai/books", "", auth); body != `{"books":[{"id":"b1","title":"T","version":1}]}` {
 		t.Fatalf("books = %s", body)
 	}
-	code, body := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/drawing:drawing","title":"Two"},"on":{"book":"b1"}}`, auth)
+	writer := writerAI(t, s.URL)
+	code, body := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/drawing:drawing","title":"Two"},"on":{"book":"b1"}}`, writer)
 	if code != 200 || !strings.HasPrefix(body, `{"ok":true,"result":{"page":"`) {
 		t.Fatalf("perform = %d %s", code, body)
 	}
@@ -1309,7 +1310,7 @@ func TestListsWhyABookCannotBeRead(t *testing.T) {
 	}
 	// 読めないページへのアクションは「無い」でなく、番号だけで断る。どのブックにも無いページは no-page
 	lock := func(page string) string {
-		_, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-lock","args":{},"on":{"page":"`+page+`"}}`, ai)
+		_, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-lock","args":{},"on":{"page":"`+page+`"}}`, writerAI(t, s.URL))
 		return got
 	}
 	if got := lock("p1"); got != `{"code":"W027","ok":false,"reason":"unreadable"}` {
@@ -1320,7 +1321,7 @@ func TestListsWhyABookCannotBeRead(t *testing.T) {
 	}
 	// 読めないページのあるブックにも、ページを足せる
 	page := `{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/drawing:drawing","title":"p"},"on":{"book":"f1"}}`
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", page, ai); !strings.HasPrefix(got, `{"ok":true`) {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", page, writerAI(t, s.URL)); !strings.HasPrefix(got, `{"ok":true`) {
 		t.Fatalf("page-add to a book with an unreadable page = %s", got)
 	}
 	if got := link(t, s, "../../test/added-plugins/ex2"); got != `{"id":"ex2","ok":true}` {
@@ -1346,7 +1347,7 @@ func TestListsWhyABookCannotBeRead(t *testing.T) {
 		t.Fatalf("a broken book = %q", problem)
 	}
 	add := `{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/drawing:drawing","title":"p"},"on":{"book":"z1"}}`
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", add, ai); !strings.HasPrefix(got, `{"detail":"W005 `) || !strings.HasSuffix(got, `"ok":false,"reason":"unreadable"}`) {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", add, writerAI(t, s.URL)); !strings.HasPrefix(got, `{"detail":"W005 `) || !strings.HasSuffix(got, `"ok":false,"reason":"unreadable"}`) {
 		t.Fatalf("perform on an unreadable book = %s", got)
 	}
 }
@@ -1484,17 +1485,17 @@ func TestAICannotChangeWhatTheUserIsEditing(t *testing.T) {
 	update := func(item, caption string) string {
 		return `{"action":"@matomezu/paper:item-update","args":{"item":"` + item + `","props":{"caption":"` + caption + `"}},"on":{"page":"p1"}}`
 	}
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", update(k1, "AI"), ai); got != `{"ok":false,"reason":"being-edited"}` {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", update(k1, "AI"), writerAI(t, s.URL)); got != `{"ok":false,"reason":"being-edited"}` {
 		t.Fatalf("ai update of a locked thing = %s", got)
 	}
 	remove := `{"action":"@matomezu/paper:item-remove","args":{"items":["` + k1 + `"]},"on":{"page":"p1"}}`
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", remove, ai); got != `{"ok":false,"reason":"being-edited"}` {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", remove, writerAI(t, s.URL)); got != `{"ok":false,"reason":"being-edited"}` {
 		t.Fatalf("ai remove of a locked thing = %s", got)
 	}
 	if _, got := send(t, "GET", s.URL+"/api/ai/books/b1", "", ai); !strings.Contains(got, `"caption":"一"`) {
 		t.Fatalf("the locked thing changed: %s", got)
 	}
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", update(k2, "AI"), ai); !strings.HasPrefix(got, `{"ok":true`) {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", update(k2, "AI"), writerAI(t, s.URL)); !strings.HasPrefix(got, `{"ok":true`) {
 		t.Fatalf("ai update of another thing = %s", got)
 	}
 	user := `{"action":"@matomezu/paper:item-update","args":{"item":"` + k1 + `","props":{"caption":"人"}},"on":{"page":"p1"},"lang":"ja","client":"c1","seq":1}`
@@ -1503,11 +1504,11 @@ func TestAICannotChangeWhatTheUserIsEditing(t *testing.T) {
 	}
 	// 古い番号の知らせでは編集ロックは変わらない。新しい番号で外せば通る
 	send(t, "POST", s.URL+"/api/view", `{"client":"c2","view":`+window+`,"seq":1}`, nil)
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", update(k1, "AI"), ai); got != `{"ok":false,"reason":"being-edited"}` {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", update(k1, "AI"), writerAI(t, s.URL)); got != `{"ok":false,"reason":"being-edited"}` {
 		t.Fatalf("ai update after a stale view = %s", got)
 	}
 	send(t, "POST", s.URL+"/api/view", `{"client":"c2","view":`+window+`,"seq":2}`, nil)
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", update(k1, "AI"), ai); !strings.HasPrefix(got, `{"ok":true`) {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", update(k1, "AI"), writerAI(t, s.URL)); !strings.HasPrefix(got, `{"ok":true`) {
 		t.Fatalf("ai update after unlocking = %s", got)
 	}
 }
@@ -1528,13 +1529,13 @@ func TestEditLocksGoWithTheWindow(t *testing.T) {
 	}
 	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"editLocks":{"b1":["`+k1+`"]},"seq":1}`, nil)
 	remove := `{"action":"@matomezu/paper:item-remove","args":{"items":["` + k1 + `"]},"on":{"page":"p1"}}`
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", remove, ai); got != `{"ok":false,"reason":"being-edited"}` {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", remove, writerAI(t, s.URL)); got != `{"ok":false,"reason":"being-edited"}` {
 		t.Fatalf("ai remove while locked = %s", got)
 	}
 	res.Body.Close()
 	deadline := time.Now().Add(3 * time.Second)
 	for {
-		_, got := send(t, "POST", s.URL+"/api/ai/perform", remove, ai)
+		_, got := send(t, "POST", s.URL+"/api/ai/perform", remove, writerAI(t, s.URL))
 		if strings.HasPrefix(got, `{"ok":true`) {
 			break
 		}
@@ -1568,14 +1569,14 @@ func TestEditLocksSeeOnlyTheLockedThing(t *testing.T) {
 	update := func(r string) string {
 		return `{"action":"@matomezu/list:row-update","args":{"list":"` + list + `","row":"` + r + `","props":{"caption":"AI"}},"on":{"page":"p1"}}`
 	}
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", update(r1), ai); got != `{"ok":false,"reason":"being-edited"}` {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", update(r1), writerAI(t, s.URL)); got != `{"ok":false,"reason":"being-edited"}` {
 		t.Fatalf("ai update of the locked row = %s", got)
 	}
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", update(r2), ai); !strings.HasPrefix(got, `{"ok":true`) {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", update(r2), writerAI(t, s.URL)); !strings.HasPrefix(got, `{"ok":true`) {
 		t.Fatalf("ai update of a sibling row = %s", got)
 	}
 	caption := `{"action":"@matomezu/paper:item-update","args":{"item":"` + list + `","props":{"caption":"AI"}},"on":{"page":"p1"}}`
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", caption, ai); !strings.HasPrefix(got, `{"ok":true`) {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", caption, writerAI(t, s.URL)); !strings.HasPrefix(got, `{"ok":true`) {
 		t.Fatalf("ai update of the list's caption = %s", got)
 	}
 }
@@ -1591,7 +1592,7 @@ func TestEditLocksIgnoreDefaultsFilledOnRead(t *testing.T) {
 	next(t, a)
 	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"editLocks":{"b1":["k1"]},"seq":1}`, nil)
 	update := `{"action":"@matomezu/paper:item-update","args":{"item":"k2","props":{"caption":"AI"}},"on":{"page":"p1"}}`
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", update, ai); !strings.HasPrefix(got, `{"ok":true`) {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", update, writerAI(t, s.URL)); !strings.HasPrefix(got, `{"ok":true`) {
 		t.Fatalf("ai update of an unlocked thing = %s", got)
 	}
 }
@@ -1599,7 +1600,7 @@ func TestEditLocksIgnoreDefaultsFilledOnRead(t *testing.T) {
 // resultField は、AI がアクション req を行い、結果のフィールド name の値を返す
 func resultField(t *testing.T, url, req, name string) string {
 	t.Helper()
-	_, got := send(t, "POST", url+"/api/ai/perform", req, ai)
+	_, got := send(t, "POST", url+"/api/ai/perform", req, writerAI(t, url))
 	var done struct {
 		Result map[string]any `json:"result"`
 	}
@@ -1663,7 +1664,7 @@ func TestChangeProposal(t *testing.T) {
 	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"editLocks":{"b1":["`+k1+`"]},"seq":1}`, nil)
 	change := `[{"action":"@matomezu/paper:item-update","args":{"item":"` + k1 + `","props":{"caption":"AI"}},"on":{"page":"p1"}}]`
 	proposal := `{"action":"@matomezu/base:proposal-send","args":{"from":"E51","title":"名前","book":"b1","page":"p1","changes":` + change + `}}`
-	_, got := send(t, "POST", s.URL+"/api/ai/perform", proposal, ai)
+	_, got := send(t, "POST", s.URL+"/api/ai/perform", proposal, writerAI(t, s.URL))
 	var sent struct {
 		OK     bool `json:"ok"`
 		Result struct {
@@ -1835,6 +1836,18 @@ func TestRecordBeingEditedStopsAIActions(t *testing.T) {
 
 // joinedAI は、参加が確定した AI（受け入れ済みで、join でセッション id を運んだので準備中でない）の合言葉と参加の id のヘッダ。
 // ブックでない対象のアクションは、参加が確定するまで AI が使えない
+// writerAI は、ブック・ページ・アノテーションを書ける（参加が確定してワークルームに入っている）AI のヘッダ。
+// テストの用意の口で参加者を 1 人置く（郵便も参加の頼みも通さない。同じ常駐で何度呼んでも同じ参加者）
+func writerAI(t *testing.T, url string) map[string]string {
+	t.Helper()
+	_, got := send(t, "POST", url+"/api/joined-ai-for-test", `{}`, nil)
+	var joined struct{ Participant string }
+	if json.Unmarshal([]byte(got), &joined) != nil || joined.Participant == "" {
+		t.Fatalf("joined-ai-for-test = %s", got)
+	}
+	return map[string]string{"Authorization": "Bearer secret", ParticipantHeader: joined.Participant}
+}
+
 func joinedAI(t *testing.T, s *httptest.Server) map[string]string {
 	t.Helper()
 	_, got := send(t, "POST", s.URL+"/api/ai/join", `{"ai":"claude","model":"opus","env":"wsl-linux","link":"JL","sessionId":"JS"}`, ai)
@@ -1850,7 +1863,7 @@ func joinedAI(t *testing.T, s *httptest.Server) map[string]string {
 	return header
 }
 
-// ブックでない対象のアクション（郵便を送るなど）を AI が使えるのは、参加が確定してから: 参加の id が無い・要求中・準備中（受け入れ済みでも、フックが参加を伝えるまで）は断り、確定すれば行える。ブックのアクションは参加を問わない
+// AI がアクション（郵便を送る・ブックを変えるなど）を使えるのは、参加が確定してから: 参加の id が無い・要求中・準備中（受け入れ済みでも、フックが参加を伝えるまで）は断り、確定すれば行える
 func TestAIActionsOfTheControlCenterNeedAConfirmedParticipation(t *testing.T) {
 	s := newServer(t, nil)
 	mail := `{"action":"@matomezu/base:mail-send","args":{"from":"x","title":"t"}}`
@@ -1874,9 +1887,10 @@ func TestAIActionsOfTheControlCenterNeedAConfirmedParticipation(t *testing.T) {
 	if !refused(header) {
 		t.Fatal("while preparing (accepted, the hook has not told), the action was not refused")
 	}
-	// ブックのアクションは、参加を問わない
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/drawing:drawing","title":"P"},"on":{"book":"nothing"}}`, ai); strings.Contains(got, "not joined") {
-		t.Fatalf("a book action was stopped for the participation: %s", got)
+	// ブックのアクションも、参加が確定するまで断る
+	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/drawing:drawing","title":"P"},"on":{"book":"b1"}}`, header); !strings.Contains(got, "not-joined") {
+		t.Fatalf("a book action was not stopped for the participation: %s", got)
 	}
 	// 参加が確定した AI は行える
 	joinedHeader := joinedAI(t, s)

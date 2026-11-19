@@ -55,6 +55,13 @@ const call = (page: Page, participant: string) =>
 const talk = (page: Page, sessionId: string, link: string) =>
   page.request.post("/api/ai/talked", { headers: aiAuth(), data: { sessionId, candidates: [link] } })
 
+// 受け入れたあとに出る、ようこそのダイアログを閉じる
+async function closeWelcome(page: Page) {
+  const welcome = page.getByRole("dialog", { name: "ようこそ" })
+  await welcome.getByRole("button", { name: "閉じる" }).click()
+  await expect(welcome).toHaveCount(0)
+}
+
 // 画面を開き、参加要求の郵便のダイアログを開く
 async function openRequest(page: Page) {
   await page.getByRole("button", { name: REQUEST }).click()
@@ -90,6 +97,7 @@ test("参加要求の郵便で受け入れるを押すと、名前・鳥・配�
   await dialog.getByRole("radio", { name: "ピンク" }).check({ force: true })
   await dialog.getByRole("button", { name: "受け入れる" }).click()
   await expect(dialog).toHaveCount(0)
+  await closeWelcome(page)
 
   // 受け入れた参加者の表に、決めた名前・鳥・配色が入る
   await expect
@@ -122,6 +130,7 @@ test("セッション id を join で運ぶ AI（フックの無い AI）は、�
   const made = await join(page, "e2e-link-20", "codex", "", "S-e2e-20")
   await openRequest(page).then(d => d.getByRole("button", { name: "受け入れる" }).click())
   await page.getByRole("dialog", { name: JOINED }).getByRole("button", { name: "受け入れる" }).click()
+  await closeWelcome(page)
   await (await fromMenu(page, "コントロールセンター")).click()
   const row = page.getByRole("listitem").filter({ hasText: "codex" })
   await expect(row).toContainText("（空き）")
@@ -163,6 +172,7 @@ test("受け入れ済みの参加要求の郵便には、断る・受け入れ�
   const mail = await openRequest(page)
   await mail.getByRole("button", { name: "受け入れる" }).click()
   await page.getByRole("dialog", { name: JOINED }).getByRole("button", { name: "受け入れる" }).click()
+  await closeWelcome(page)
   await (await fromMenu(page, "左サイドパネルを開く")).click()
   await page
     .getByRole("complementary", { name: "左サイドパネル" })
@@ -177,6 +187,7 @@ test("生きている参加者と同じ名前は、受け入れのダイアロ�
   const first = await join(page, "e2e-link-5", "同じ名前", "", "S-e2e-5")
   await openRequest(page).then(d => d.getByRole("button", { name: "受け入れる" }).click())
   await page.getByRole("dialog", { name: JOINED }).getByRole("button", { name: "受け入れる" }).click()
+  await closeWelcome(page)
   await expect(page.getByRole("dialog", { name: JOINED })).toHaveCount(0)
   await joinedOnHost(page)
   await call(page, first.participant)
@@ -209,6 +220,7 @@ async function acceptAs(page: Page, name: string) {
   await dialog.getByRole("textbox", { name: "ワークルーム名" }).fill(name)
   await dialog.getByRole("button", { name: "受け入れる" }).click()
   await expect(dialog).toHaveCount(0)
+  await closeWelcome(page)
   await joinedOnHost(page)
 }
 
@@ -242,6 +254,7 @@ test("生きていない参加者のワークルームの名前で頼むと、�
   await expect(dialog.getByRole("button", { name: "前のを破棄して新しく始める" })).toHaveCount(0)
   await dialog.getByRole("button", { name: "引き継ぐ" }).click()
   await expect(dialog).toHaveCount(0)
+  await closeWelcome(page)
 
   // アクションが常駐に届くまで待つ
   await expect
@@ -267,6 +280,7 @@ test("名前が生きていない参加者と同じなら、最後に引き継�
   await expect(dialog).toContainText("ひよこ を引き継ぎますか。前のを破棄して新しく始めますか")
   await dialog.getByRole("button", { name: "前のを破棄して新しく始める" }).click()
   await expect(dialog).toHaveCount(0)
+  await closeWelcome(page)
 
   await expect
     .poll(() => participants(page))
@@ -310,7 +324,13 @@ test("列は、呼ばれた時刻と参加の新しい順に並び、列に触�
   await dialog.getByRole("textbox", { name: "ワークルーム名" }).fill("かきく")
   await dialog.getByRole("button", { name: "受け入れる" }).click()
   await expect(dialog).toHaveCount(0)
+  await closeWelcome(page)
   await expect.poll(async () => (await participants(page)).filter(p => p.state === "joined").length).toBe(2)
+  // 1 人目のワーカー（あいう）は受け入れで管理者になり、いつも先頭に出る。並びだけを見るため、管理者を置かない形にする
+  const noAdmin = await page.request.post("/api/perform", {
+    data: { actions: [{ action: "@matomezu/base:admin-set", args: { workroom: "none" }, on: { record: "admin" } }] },
+  })
+  expect(await noAdmin.json()).toMatchObject({ ok: true })
   await (await fromMenu(page, "コントロールセンター")).click()
   const names = () => page.locator("[data-workroom]").evaluateAll(els => els.map(e => e.textContent ?? ""))
   const order = async () => (await names()).map(t => (t.includes("あいう") ? "あいう" : "かきく"))
@@ -345,4 +365,76 @@ test("列は、呼ばれた時刻と参加の新しい順に並び、列に触�
   await expect(page.locator("[data-workroom]").first()).toContainText(top)
   await page.mouse.move(0, 0)
   await expect.poll(followsTimes).toBe("follows")
+})
+
+test("ビジター: as visitor で頼むと受け入れのダイアログは区分を選ばせず、受け入れると、ようこそに区分が出て、センターのビジターの節に並ぶ。ビジターはブックも変えられず、外すと消える", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.goto(BOOK_SCREEN_URL)
+  const res = await page.request.post("/api/ai/join", {
+    headers: aiAuth(),
+    data: {
+      ai: "claude",
+      model: "opus-5",
+      env: "wsl",
+      sessionName: "見学",
+      link: "e2e-visitor-1",
+      sessionId: "S-v1",
+      as: "visitor",
+    },
+  })
+  const made = (await res.json()) as { participant: string }
+  await openRequest(page).then(d => d.getByRole("button", { name: "受け入れる" }).click())
+  const dialog = page.getByRole("dialog", { name: JOINED })
+  await expect(dialog).toContainText("ビジターとして参加を頼んでいます")
+  await expect(dialog.getByRole("radio", { name: "ワーカー" })).toHaveCount(0)
+  await expect(dialog.getByRole("textbox", { name: "ワークルーム名" })).toHaveCount(0)
+  await dialog.getByRole("button", { name: "受け入れる" }).click()
+  const welcome = page.getByRole("dialog", { name: "ようこそ" })
+  await expect(welcome).toContainText("claude / 見学 が参加しました")
+  await expect(welcome).toContainText("ビジター（読むだけ）")
+  await closeWelcome(page)
+  await expect.poll(() => participants(page)).toMatchObject([{ id: made.participant, state: "visitor" }])
+
+  // ビジターは、ブックを変えるアクションも断られる（理由は visitor）
+  const done = await page.request.post("/api/ai/perform", {
+    headers: { ...aiAuth(), "X-Matomezu-Participant": made.participant },
+    data: { action: "@matomezu/base:book-create", args: { title: "x" } },
+  })
+  expect(await done.json()).toMatchObject({
+    ok: false,
+    reason: "not-allowed",
+    detail: expect.stringMatching(/^visitor:/),
+  })
+
+  // センターの一覧の下にビジターの節。選ぶと右に情報、外すと消える
+  await (await fromMenu(page, "コントロールセンター")).click()
+  const row = page.locator(`[data-visitor="${made.participant}"]`)
+  await expect(row).toContainText("claude / 見学")
+  await row.getByRole("button").click()
+  const panel = page.locator("[data-workroom-panel]")
+  await expect(panel).toContainText("ビジター（読むだけ）")
+  await expect(panel).toContainText("opus-5")
+  await panel.getByRole("button", { name: "ビジターを外す" }).click()
+  await expect(row).toHaveCount(0)
+  await expect.poll(() => participants(page)).toHaveLength(0)
+})
+
+test("ワーカーとして頼んだ要求も、受け入れのダイアログでビジターを選ぶと、ワークルームの入力Formが消え、ワークルームを作らずに受け入れる", async ({
+  page,
+}) => {
+  await page.goto(BOOK_SCREEN_URL)
+  const made = await join(page, "e2e-visitor-2", "選ぶ", "", "S-v2")
+  await openRequest(page).then(d => d.getByRole("button", { name: "受け入れる" }).click())
+  const dialog = page.getByRole("dialog", { name: JOINED })
+  await expect(dialog.getByRole("radio", { name: "ワーカー" })).toBeChecked()
+  await dialog.getByRole("radio", { name: "ビジター" }).check()
+  await expect(dialog).toContainText("読むだけ。ワークルームは持たない")
+  await expect(dialog.getByRole("textbox", { name: "ワークルーム名" })).toHaveCount(0)
+  await dialog.getByRole("button", { name: "受け入れる" }).click()
+  await closeWelcome(page)
+  await expect.poll(() => participants(page)).toMatchObject([{ id: made.participant, state: "visitor" }])
+  const body = await (await page.request.get("/api/data", { headers: aiAuth() })).json()
+  expect(Object.keys(body.records["@matomezu/base:workroom"] ?? {})).toHaveLength(0)
 })

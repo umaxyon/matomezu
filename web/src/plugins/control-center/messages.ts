@@ -11,6 +11,9 @@ export const CONTROL_CENTER_MESSAGES = defineMessages({
   "Wide search": { en: "Wide search", ja: "横断検索" },
   Workrooms: { en: "Workrooms / participants", ja: "ワークルーム/参加者" },
   "No workrooms": { en: "No workrooms", ja: "ワークルームはありません" },
+  Visitors: { en: "Visitors", ja: "ビジター" },
+  "Remove the visitor": { en: "Remove the visitor", ja: "ビジターを外す" },
+  "Visitor (read only)": { en: "Visitor (read only)", ja: "ビジター（読むだけ）" },
   "(empty)": { en: "(empty)", ja: "（空室）" },
   "(preparing)": { en: "(preparing)", ja: "（準備中）" },
   "Workroom information": {

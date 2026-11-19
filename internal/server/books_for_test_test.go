@@ -1,6 +1,6 @@
 //go:build !e2e
 
-// Go のテストの用意（booksForTest・resetForTest・enablePluginsForTest・enabledPluginsSetting とその Hub のメソッドは books_for_test_e2e.go と同じ物）
+// Go のテストの用意（booksForTest・resetForTest・enablePluginsForTest・enabledPluginsSetting・joinedAIForTest とその Hub のメソッドは books_for_test_e2e.go と同じ物）
 
 package server
 
@@ -17,6 +17,14 @@ func withRoutesForTest(h http.Handler, o Options) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("PUT /api/books-for-test/{id}", sameOrigin(booksForTest(o)))
 	mux.Handle("POST /api/reset-for-test", sameOrigin(resetForTest(o)))
+	mux.Handle("POST /api/joined-ai-for-test", sameOrigin(func(w http.ResponseWriter, _ *http.Request) {
+		id, err := o.Hub.joinedAIForTest()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, map[string]any{"participant": id})
+	}))
 	mux.Handle("/", h)
 	return mux
 }
@@ -181,3 +189,47 @@ func (h *Hub) enablePluginsForTest(ids []string) error {
 
 // enabledPluginsSetting は、有効にした追加プラグインの id の並びを持つ利用者の設定の項目（テストの用意が書くのに使う。エンジンが role で読む）
 const enabledPluginsSetting = "@matomezu/base:enabled-plugins"
+
+// joinedAIForTest は、参加が確定した AI の参加者（受け入れ済みで準備中でない）を、ワークルームと一緒に 1 人置く（まだ無ければ。アクションも郵便も通さない）。参加の id を返す。
+// ブックでない対象のアクションは、参加が確定するまで AI が使えないので、AI の入口を使う e2e の用意に使う
+func (h *Hub) joinedAIForTest() (string, error) {
+	const id = "e2e-ai"
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if _, ok := h.recordTables[h.roles["participants"]][id]; ok {
+		return id, nil
+	}
+	now := stamp()
+	room, err := json.Marshal(map[string]any{"id": "e2e-room", "name": "e2e", "bird": "inko", "createdAt": now})
+	if err != nil {
+		return "", err
+	}
+	who, err := json.Marshal(map[string]any{
+		"id": id, "state": "joined", "ai": "claude", "model": "e2e", "env": "e2e", "sessionName": "", "link": id,
+		"workroom": "e2e-room", "requestedAt": now, "joinedAt": now,
+	})
+	if err != nil {
+		return "", err
+	}
+	writes := []storage.RecordWrite{
+		{Subject: h.roles["workrooms"], ID: "e2e-room", Body: room},
+		{Subject: h.roles["participants"], ID: id, Body: who},
+	}
+	if err := h.store.Apply(storage.Batch{Records: writes}); err != nil {
+		return "", err
+	}
+	changes := make([]map[string]any, 0, len(writes))
+	for _, w := range writes {
+		if h.recordTables[w.Subject] == nil {
+			h.recordTables[w.Subject] = map[string]recordEntry{}
+		}
+		h.recordTables[w.Subject][w.ID] = recordEntry{w.Body, 1}
+		changes = append(changes, map[string]any{"subject": w.Subject, "id": w.ID, "record": json.RawMessage(w.Body), "version": 1})
+	}
+	h.broadcast("changed", map[string]any{"pages": []any{}, "folders": []any{}, "books": []any{}, "records": changes})
+	h.participantNotes[id] = participantNote{SessionID: id, BoundBy: boundByJoin}
+	if err := h.putParticipantNotes(); err != nil {
+		return "", err
+	}
+	return id, nil
+}

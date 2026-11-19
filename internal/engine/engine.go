@@ -63,6 +63,7 @@ type Input struct {
 type Actor struct {
 	Kind     string `json:"kind"`
 	Workroom string `json:"workroom,omitempty"`
+	As       string `json:"as,omitempty"` // ビジターなら "visitor"（ワークルームは持たない。core の WireActor）
 }
 
 // On はアクションの宛先: ブックか、ページか、レコード（対象の定義が足した種類のデータ）のどれか
@@ -205,6 +206,7 @@ type Engine struct {
 	sysInPlace  func(string, string, string) bool
 	records     func(string) string
 	joinedMsg   func(string, string) string
+	visitorMsg  func(string) string
 	live        func(string, string, string, string) string
 	forAI       func(string) string
 	briefs      func(string) string
@@ -349,6 +351,9 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuJoinedText"), &e.joinedMsg); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuJoinedText: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuVisitorJoinedText"), &e.visitorMsg); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuVisitorJoinedText: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuUnexpired"), &e.live); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuUnexpired: %w", err)
@@ -810,6 +815,21 @@ func (e *Engine) JoinedText(settings json.RawMessage, workroom string) (text str
 		}
 	}()
 	return e.joinedMsg(string(settings), workroom), nil
+}
+
+// VisitorJoinedText は、ビジターとして参加したことを利用者に伝える文（利用者の設定 settings の言語）
+func (e *Engine) VisitorJoinedText(settings json.RawMessage) (text string, err error) {
+	if len(settings) == 0 {
+		settings = json.RawMessage("null")
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	return e.visitorMsg(string(settings)), nil
 }
 
 // ParticipantAlive は、参加者が時点 now で生きているか（最後に呼ばれた時刻 calledAt は RFC 3339 の文字。空なら呼ばれていない。利用者の設定 settings の参加の有効時間で決まる）

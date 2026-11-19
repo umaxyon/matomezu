@@ -1,4 +1,4 @@
-import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
+import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
 import { browserMenuStopped } from "./helpers/browser-menu"
 import { addList, addRow } from "./helpers/list"
 import { panel, writeNote } from "./helpers/note"
@@ -435,7 +435,7 @@ test("読まれていない伝言は、箱の上の辺が画面の外に出る�
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.setViewportSize({ width: 900, height: 560 })
-  const ai = aiAuth()
+  const ai = await joinedAiAuth()
   await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
   await expect
@@ -488,7 +488,7 @@ test("リストの行に付けた AI が読んだ伝言も、リストが画面�
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
-  const ai = aiAuth()
+  const ai = await joinedAiAuth()
   await page.setViewportSize({ width: 560, height: 480 })
   await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
@@ -532,7 +532,7 @@ test("物の角に 2 つ以上あれば、先頭の 2 つを重ねた絵にま�
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
-  const ai = aiAuth()
+  const ai = await joinedAiAuth()
   await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
   await expect
@@ -686,7 +686,7 @@ test("設定画面の「コーナーステータスの並び」で、角に出�
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
-  const ai = aiAuth()
+  const ai = await joinedAiAuth()
   await page.goto(BOOK_SCREEN_URL)
   const general = await openGeneral(page)
   const order = general.getByRole("group", { name: "コーナーステータスの並び" })

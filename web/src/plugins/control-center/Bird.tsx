@@ -4,7 +4,7 @@ import { BirdFaceView } from "../base/ui"
 import styles from "./Bird.module.css"
 import { CrownIcon } from "./icons"
 
-const BIRD_SIZE = 22
+export const BIRD_SIZE = 22
 const CROWN_RATIO = 0.7
 
 export function Bird({ row, size = BIRD_SIZE }: { row: WorkroomRow; size?: number }) {

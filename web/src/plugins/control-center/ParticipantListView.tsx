@@ -1,10 +1,12 @@
 // 左の列のワークルーム/参加者の一覧。管理者の行は高く、頭に王冠。空室の行は空の丸と（空室）、準備中は鳥を薄くして（準備中）。
-// 下の 1 行は、参加済みではスロット workroom-row-line に置かれたウィジェットが出す（今のタスクなど）
+// 下の 1 行は、参加済みではスロット workroom-row-line に置かれたウィジェットが出す（今のタスクなど）。
+// ワークルームの下に、ビジター（ワークルームを持たない、読むだけの参加者）の節を出す（いなければ節ごと出さない）。ワークルームとビジターは、どちらか一方だけを選ぶ
 import { useState } from "react"
 import { Slot, useMessages, usePluginState, useSetPluginState } from "../../plugin-api/ui"
-import { Band, Panel, useWorkroomRows } from "../base/ui"
-import { Bird } from "./Bird"
-import { PICKED_ROOM } from "./control-center"
+import { visitorName } from "../base"
+import { Band, Panel, useVisitorRows, useWorkroomRows, VisitorIcon } from "../base/ui"
+import { BIRD_SIZE, Bird } from "./Bird"
+import { PICKED_ROOM, PICKED_VISITOR } from "./control-center"
 import { kit } from "./kit"
 import styles from "./ParticipantListView.module.css"
 import { orderHeld, orderRows, type RowDetail, rowDetail } from "./rows"
@@ -24,7 +26,17 @@ export function ParticipantListView() {
   const register = useRowSlide(rows.map(r => r.room.id))
   const picked = usePluginState(kit, PICKED_ROOM)
   const setPicked = useSetPluginState(kit, PICKED_ROOM)
-  const pick = (room: string | undefined) => setPicked(room)
+  const visitors = useVisitorRows()
+  const pickedVisitor = usePluginState(kit, PICKED_VISITOR)
+  const setPickedVisitor = useSetPluginState(kit, PICKED_VISITOR)
+  const pick = (room: string | undefined) => {
+    setPicked(room)
+    setPickedVisitor(undefined)
+  }
+  const pickVisitor = (participant: string) => {
+    setPickedVisitor(participant)
+    setPicked(undefined)
+  }
   const detailText = (d: RowDetail) => (d === "empty" ? t("(empty)") : d === "preparing" ? t("(preparing)") : null)
   return (
     <Panel className={styles.list}>
@@ -41,7 +53,7 @@ export function ParticipantListView() {
               key={row.room.id}
               ref={register(row.room.id)}
               className={styles.row}
-              data-selected={picked === row.room.id}
+              data-selected={picked === row.room.id && pickedVisitor === undefined}
               data-admin={row.admin}
               data-workroom={row.room.id}
             >
@@ -61,6 +73,31 @@ export function ParticipantListView() {
           )
         })}
       </ul>
+      {visitors.length > 0 ? (
+        <>
+          <h3 className={styles.section}>{t("Visitors")}</h3>
+          <ul className={styles.rows}>
+            {visitors.map(row => (
+              <li
+                key={row.participant.id}
+                className={styles.row}
+                data-selected={pickedVisitor === row.participant.id}
+                data-visitor={row.participant.id}
+              >
+                <button type="button" className={styles.pick} onClick={() => pickVisitor(row.participant.id)}>
+                  <span className={styles.lead}>
+                    <VisitorIcon size={BIRD_SIZE} />
+                  </span>
+                  <span className={styles.who}>
+                    <span className={styles.name}>{visitorName(row.participant)}</span>
+                    {row.state === "preparing" ? <span className={styles.detail}>{t("(preparing)")}</span> : null}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
     </Panel>
   )
 }

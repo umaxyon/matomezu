@@ -1,7 +1,7 @@
 // 書いた者（チケットを作った者・履歴の行を書いた者）: アクターをそのまま写した形。AI は入っているワークルームの、その時の名前・鳥・配色の写しを持つ
 // （ワークルームを消しても、行の鳥が描ける）。鳥と配色の id は、タスクボードは意味を知らず、そのまま持つ
 import { z } from "zod"
-import { type ActionContext, type Actor, isAI, type RecordOf, type RecordRead } from "../../plugin-api"
+import { type ActionContext, type Actor, isAI, type RecordOf, type RecordRead, workroomOfActor } from "../../plugin-api"
 
 export const WORKROOM_SUBJECT = "@matomezu/base:workroom"
 
@@ -32,8 +32,10 @@ export const workroomOf = (ctx: Records, id: string) =>
   recordIn(ctx, WORKROOM_SUBJECT, id) as RecordOf<typeof WORKROOM_SUBJECT> | undefined
 
 // 書いた者を写す（byOf）アクションが読む物: 行う者が入っているワークルーム
-export const readsBy = (actor: Actor): RecordRead[] =>
-  isAI(actor) && actor.workroom !== "none" ? [{ subject: WORKROOM_SUBJECT, id: actor.workroom.id }] : []
+export const readsBy = (actor: Actor): RecordRead[] => {
+  const id = workroomOfActor(actor)
+  return id === undefined ? [] : [{ subject: WORKROOM_SUBJECT, id }]
+}
 
 // ワークルームを名前でも指せるアクションが読む物: 全部のワークルームの索引キー（名前と作った時点）だけ
 export const READS_WORKROOM_NAMES: RecordRead = { subject: WORKROOM_SUBJECT, where: [], keysOnly: true }
@@ -45,11 +47,12 @@ export const workroomsOf = (ctx: Records): { id: string; name: string }[] =>
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))
     .map(w => ({ id: w.id, name: w.name }))
 
-// 行った者を写す。入っているワークルームを確かめられない AI は null（参加が確定していない AI は、ブックでない対象のアクションを断られるので来ない）
+// 行った者を写す。入っているワークルームを確かめられない AI は null（参加が確定していない AI とビジターは、参加を頼む役のほかのアクションを断られるので来ない）
 export function byOf(actor: Actor, ctx: Records): By | null {
   if (!isAI(actor)) return { kind: "user" }
-  if (actor.workroom === "none") return null
-  const room = workroomOf(ctx, actor.workroom.id)
+  const id = workroomOfActor(actor)
+  if (id === undefined) return null
+  const room = workroomOf(ctx, id)
   if (!room) return null
   return {
     kind: "ai",
