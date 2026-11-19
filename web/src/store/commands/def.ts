@@ -83,7 +83,7 @@ export interface ScreenCommandContext {
   settings: Settings
   dialog: OpenedDialog | null // 開いているダイアログ
   contextMenu: OpenedContextMenu | null // 開いている右クリックのメニュー
-  libraryHistory: History // 書庫の画面の履歴
+  libraryHistory: History // 書庫の履歴
   folders: Folders // 書庫のフォルダの表（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダの行と並び。読むだけ。ページの中身は持たない）
   // コマンドを持つプラグインが宣言したプラグイン状態 def の今の値（スクリーンごとの宣言は呼ばれた場所のスクリーンの値、ステージごとの宣言は呼ばれた場所のステージの値。
   // 無ければ undefined。ほかのプラグインの宣言は E125。変えるのは run が受け取る updatePluginState）

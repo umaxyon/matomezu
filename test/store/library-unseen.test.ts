@@ -1,6 +1,6 @@
-// まだ見ていない、AI とほかの窓の書庫の変更: 常駐の知らせ（receive の change）の library（書庫の画面の履歴に入るアクションが変えたページとフォルダの前と後）の分は、
+// まだ見ていない、AI とほかの窓の書庫の変更: 常駐の知らせ（receive の change）の library（書庫の履歴に入るアクションが変えたページとフォルダの前と後）の分は、
 // ブックの画面の履歴に入れず、まだ見ていない書庫の変更として溜める。変わったフォルダか、変わった物を入れているフォルダを、見えているスクリーンのビューが見せたら、
-// 書庫の画面の履歴に時刻の位置で差し込む。まだ見ていない変更と同じ所を置き直す戻す・やり直すは断る。画面の履歴に入らない変更（完全に消すなど）が
+// 書庫の履歴に時刻の位置で差し込む。まだ見ていない変更と同じ所を置き直す戻す・やり直すは断る。画面の履歴に入らない変更（完全に消すなど）が
 // 消した、まだ見ていない変更は捨て、AI の物は消えたと知らせる
 
 import { expect, test } from "bun:test"
@@ -45,7 +45,7 @@ function pair(visible: () => boolean = () => true) {
   const there = newStore({ newId: sequence() })
   here.receive(rowsOf(here), [])
   // よそが steps を順に行い、その後の世界を、この窓に知らせる。library の印の付いた物が変えたページとフォルダの前と後を、知らせの library に載せる
-  // （常駐のエンジンが、書庫の画面の履歴に入るアクションの分として知らせる物）
+  // （常駐のエンジンが、書庫の履歴に入るアクションの分として知らせる物）
   const foreign = async (
     change: { by: "ai" | "window"; act: string; actions: readonly string[] },
     ...steps: Step[]
@@ -95,7 +95,7 @@ function pair(visible: () => boolean = () => true) {
   return { here, there, told, foreign, show, showBook, center }
 }
 
-test("AI が書庫のアクションで変えたブックの名前は、ブックの画面の履歴に入らず、入れ物のフォルダを書庫の画面が見せたら、書庫の画面の履歴に入る", async () => {
+test("AI が書庫のアクションで変えたブックの名前は、ブックの画面の履歴に入らず、入れ物のフォルダを書庫の画面が見せたら、書庫の履歴に入る", async () => {
   const { here, there, told, foreign, show } = pair()
   await foreign({ by: "ai", act: "1", actions: [RENAME] }, renamed(there, "AI の名前"))
   expect(titleOf(here, "b1")).toBe("AI の名前")
@@ -132,7 +132,7 @@ test("見えていないスクリーンの書庫が見せているフォルダ�
   expect(libraryHistory(here).undo).toMatchObject([{ by: "ai" }])
 })
 
-test("ほかの窓のアクションバルクにブックの変更と書庫の変更が混ざっていたら、ブックの分はブックの画面の履歴に、書庫の分は書庫の画面の履歴に分かれる", async () => {
+test("ほかの窓のアクションバルクにブックの変更と書庫の変更が混ざっていたら、ブックの分はブックの画面の履歴に、書庫の分は書庫の履歴に分かれる", async () => {
   const { here, there, foreign, show, showBook } = pair()
   show([HOME_ID])
   const page = Object.keys(there.state.getState().pages)[0] as string
@@ -159,7 +159,7 @@ test("ほかの窓のアクションバルクにブックの変更と書庫の�
   expect(libraryHistory(here).undo).toMatchObject([{ by: "window", pages: {}, folders: { b1: {} } }])
 })
 
-test("同じブックを、ブックが対象のアクションと書庫が対象のアクションの両方が変えたバルクでも、ページを足した分はブックの画面の履歴に、名前の分は書庫の画面の履歴に入る", async () => {
+test("同じブックを、ブックが対象のアクションと書庫が対象のアクションの両方が変えたバルクでも、ページを足した分はブックの画面の履歴に、名前の分は書庫の履歴に入る", async () => {
   const { here, there, foreign, show } = pair()
   show([HOME_ID])
   const ADD = "@matomezu/base:page-add"
@@ -207,7 +207,7 @@ test("まだ見ていない AI の値と同じ所を、利用者の書庫の元�
   expect(told).toEqual([{ act: "5", places: ["b1"], outcome: "seen" }])
 })
 
-test("書庫が対象・ブックが対象・書庫が対象の順に同じブックを変えたバルクでも、足したページは書庫の画面の履歴の段に入らない", async () => {
+test("書庫が対象・ブックが対象・書庫が対象の順に同じブックを変えたバルクでも、足したページは書庫の履歴の段に入らない", async () => {
   const { here, there, foreign, show } = pair()
   show([HOME_ID])
   const ADD = "@matomezu/base:page-add"
@@ -313,7 +313,7 @@ test("書庫を出す事と、開くフォルダを替える事を 1 度に行�
   expect(libraryHistory(here).undo).toEqual([])
 })
 
-test("プラグインを組み直したら、まだ見ていない書庫の変更は忘れる（あとで見えても、書庫の画面の履歴に入らない）", async () => {
+test("プラグインを組み直したら、まだ見ていない書庫の変更は忘れる（あとで見えても、書庫の履歴に入らない）", async () => {
   const { here, there, foreign, show } = pair()
   await foreign({ by: "ai", act: "1", actions: [RENAME] }, renamed(there, "AI の名前"))
   here.use([definePlugin({ id: "plain" })])
@@ -321,7 +321,7 @@ test("プラグインを組み直したら、まだ見ていない書庫の変�
   expect(libraryHistory(here).undo).toEqual([])
 })
 
-test("まだ見ていない書庫の変更が HISTORY_LIMIT を超えたら、古い物から捨てる（見えても、捨てた分は書庫の画面の履歴に入らず、見えたとも知らせない）", async () => {
+test("まだ見ていない書庫の変更が HISTORY_LIMIT を超えたら、古い物から捨てる（見えても、捨てた分は書庫の履歴に入らず、見えたとも知らせない）", async () => {
   const { here, there, told, foreign, show } = pair()
   for (let i = 0; i <= HISTORY_LIMIT; i++)
     await foreign({ by: "ai", act: String(i), actions: [RENAME] }, renamed(there, `AI の名前 ${i}`))

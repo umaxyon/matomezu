@@ -62,7 +62,7 @@ export const ENTRY_MOVE = kit.defineAction({
   },
 })
 
-// 上書きの移動: 先のフォルダに同じ名前の物（同じ種類）が在れば、それを中身ごと消してから動かす（消えた物はゴミ箱に入らない。書庫の画面の履歴の 1 段で、両方戻る）。利用者だけ
+// 上書きの移動: 先のフォルダに同じ名前の物（同じ種類）が在れば、それを中身ごと消してから動かす（消えた物はゴミ箱に入らない。書庫の履歴の 1 段で、両方戻る）。利用者だけ
 export const ENTRY_MOVE_OVER = kit.defineAction({
   id: "entry-move-over",
   userOnly: true,

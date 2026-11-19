@@ -250,6 +250,7 @@ import { CORNER_STATUS_ORDER } from "./utils/corner-order"
 import { REVEAL_REQUEST_STATES, type REVEALING_STATE } from "./utils/reveal-state"
 import { WIDE_SEARCH_MODE } from "./wide-search"
 import {
+  BOOK_SCREEN_CLOSE,
   BOOK_SCREEN_DEF,
   CONTROL_CENTER_KEYS,
   CONTROL_CENTER_LEAVE,
@@ -521,6 +522,7 @@ export const BASE = defineBuiltin(
       SCRAP_OPEN_ORIGINAL,
       BOOK_NEW,
       CONTROL_CENTER_TOGGLE,
+      BOOK_SCREEN_CLOSE,
       CONTROL_CENTER_LEAVE,
       STAGE_SPLIT,
       STAGE_UNSPLIT,
@@ -816,6 +818,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-entry-trash": typeof LIBRARY_ENTRY_TRASH
     "@matomezu/base:library-entry-duplicate": typeof LIBRARY_ENTRY_DUPLICATE
     "@matomezu/base:control-center-toggle": typeof CONTROL_CENTER_TOGGLE
+    "@matomezu/base:book-screen-close": typeof BOOK_SCREEN_CLOSE
     "@matomezu/base:control-center-leave": typeof CONTROL_CENTER_LEAVE
     "@matomezu/base:stage-split": typeof STAGE_SPLIT
     "@matomezu/base:stage-unsplit": typeof STAGE_UNSPLIT

@@ -106,7 +106,7 @@ test("断る所 check は、アクションごとにその前と後の世界を�
   expect(done).toMatchObject({ ok: false, reason: "being-edited", at: 1 })
 })
 
-test("書庫の画面の履歴に入るアクションが変えたページとフォルダは、library に挙げる（ブックが対象・置き直しのアクションの分は挙げない）", () => {
+test("書庫の履歴に入るアクションが変えたページとフォルダは、library に挙げる（ブックが対象・置き直しのアクションの分は挙げない）", () => {
   const rename = step("@matomezu/base:entry-rename", { entry: "b1", title: "別の名前" })
   const mixed = performBulk(world(), [place("一"), rename], CTX)
   if (!mixed.ok) throw new Error(mixed.reason)

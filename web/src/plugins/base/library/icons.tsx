@@ -1,4 +1,4 @@
-// 書庫の行のアイコン（種類ごと。ページは、そのタイプのプラグインが名乗ったアイコン）と、ツリーの開閉の印、書庫の画面の履歴のコマンドのアイコン（ブックの画面の履歴のコマンドと同じ絵）
+// 書庫の行のアイコン（種類ごと。ページは、そのタイプのプラグインが名乗ったアイコン）と、ツリーの開閉の印、書庫の履歴のコマンドのアイコン（ブックの画面の履歴のコマンドと同じ絵）
 import type { EntryKind } from "../../../core/entries"
 import { useUiCatalog } from "../../../ui/store-context"
 import { REDO_ICON, UNDO_ICON } from "../history/icons"

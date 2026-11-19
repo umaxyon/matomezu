@@ -1,6 +1,6 @@
 // 書庫のスクリーン: 「画面を分割」で、ブックスクリーンを左右に分けつつ窓の下半分に書庫のスクリーンを出し、選んだブックを右の空のステージに開く。
 // 選ばずに閉じる・書庫の外を押すと、空のステージも閉じて分割をやめる。ブラウザの戻る 1 回で、分ける前に戻る。窓が低いときは書庫だけを窓いっぱいに出す。
-import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
+import { BOOK_SCREEN_URL, bookScreenUrl, expect, type Page, test } from "./fixtures"
 import { fromMenu } from "./helpers/stage-menu"
 
 const library = (page: Page) => page.getByRole("list", { name: "書庫 の中身" })
@@ -82,4 +82,21 @@ test("下に出した書庫は Esc で閉じ、空のステージも閉じる", 
   await page.keyboard.press("Escape")
   await expect(library(page)).toHaveCount(0)
   await expect(stageNames(page)).toHaveCount(1)
+})
+
+test("何も開いていないステージ 1 つなら、真ん中に「書庫を開く」と「スクリーンを閉じる」。書庫から選ぶとそのステージに開き、閉じるとコントロールセンターへ戻る", async ({
+  page,
+}) => {
+  await page.goto(bookScreenUrl(null))
+  const stage = page.getByRole("region", { name: "ステージ" })
+  await stage.getByRole("button", { name: "書庫を開く" }).click()
+  await expect(library(page)).toBeVisible()
+  await library(page).getByRole("button", { name: "残課題" }).dblclick()
+  await expect(library(page)).toHaveCount(0)
+  await expect(stageNames(page)).toHaveText([/残課題/])
+  await expect(stage.getByRole("button", { name: "書庫を開く" })).toHaveCount(0)
+  await page.goto(bookScreenUrl(null))
+  await stage.getByRole("button", { name: "スクリーンを閉じる" }).click()
+  await expect(page.getByRole("heading", { name: "コントロールセンター" })).toBeVisible()
+  await expect(stage).toHaveCount(0)
 })

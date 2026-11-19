@@ -1,5 +1,5 @@
 // ステージのビュー（ウィジェット book-view）: ステージ（core/stage.ts）を読んで、与えられた枠の中に開いたブックを、レイヤー（スロット book-layers。
-// 紙の面のレイヤー・そのタイプのビューを描くレイヤーなど）を並べた順に下から重ねて描く。ブックの中はブックのテーマの値と文字の色の値（CSS 変数）で描く。ブックの設定のダイアログの下書き（アイテムを指さないもの）があれば、ブックの項目に重ねて決める。何も開いていなければ、ブックを作るボタン（コマンド book-new）とブックを探すコンポーネントを真ん中に出す。
+// 紙の面のレイヤー・そのタイプのビューを描くレイヤーなど）を並べた順に下から重ねて描く。ブックの中はブックのテーマの値と文字の色の値（CSS 変数）で描く。ブックの設定のダイアログの下書き（アイテムを指さないもの）があれば、ブックの項目に重ねて決める。何も開いていなければ、ステージがそれ 1 つのときだけ「書庫を開く」と「スクリーンを閉じる」のボタンを真ん中に出す。
 // 紙をずらす道具（pans）の間は、ステージの中のどこでもポインタを手にする（中のアイテムのカーソルより強い。ドラッグ中は握った手）。
 // 測った大きさと、ドラッグ（ハンドの道具のとき）・ホイール（紙をずらさない道具のときは除く）で動いた量を、そのまま store の操作に渡す（ずらす量の計算はステージの側）。
 // ホイールは、ポインタの下にその向きへまだスクロールできる物（リストの行の並び・データの表など）があればその物が受け、紙はずらさない。一続きの回しは始めに決めた物が受け、
@@ -20,10 +20,12 @@ import { useBook, useStage } from "../../../ui/view-hooks"
 import { usePageLookStyle } from "../book-look/use-page-look-style"
 import { kit } from "../kit"
 import { PrintPreviewView } from "../print-preview/PrintPreviewView"
+import { LIBRARY_OPEN } from "../library/screen"
 import { keepsPan } from "../tool-switch/tools"
 import { AnchorsProvider } from "../utils/anchors"
 import { CornersProvider } from "../utils/corner"
 import { useResize } from "../utils/useResize"
+import { BOOK_SCREEN_CLOSE } from "../window"
 import { BOOK_LAYERS } from "../workspace/slots"
 import { ZOOM_WHEEL } from "../zoom"
 import styles from "./StageView.module.css"
@@ -133,13 +135,35 @@ export const StageView = memo(function StageView() {
       ) : stage.opened && book ? (
         <BookContent stage={id} previewing={inPreview} />
       ) : (
-        <div className={styles.empty} />
+        <EmptyStage stage={id} />
       )}
     </section>
   )
 })
 
-// 何も開いていないステージは何も描かない（「画面を分割」で足したステージ。開く物は、下に出る書庫で選ぶ）
+// 何も開いていないステージの中身: ブックスクリーンのステージがそれ 1 つなら、真ん中に「書庫を開く」と「スクリーンを閉じる」（閉じられるときだけ）を縦に並べる。
+// ステージを分けている間（「画面を分割」で足したステージ。開く物は、下に出る書庫のスクリーンで選ぶ）は何も描かない
+function EmptyStage({ stage }: { stage: string }) {
+  const alone = useMatomezuState(s => workspaceOf(s.window, stage).stages.length === 1)
+  const library = useCommand(LIBRARY_OPEN.id)
+  const close = useCommand(BOOK_SCREEN_CLOSE.id)
+  const t = useMessages(kit)
+  if (!alone) return null
+  return (
+    <div className={styles.choices}>
+      {library.shown && (
+        <button type="button" className={styles.choice} onClick={() => library.run()}>
+          {t(library.title)}
+        </button>
+      )}
+      {close.shown && (
+        <button type="button" className={styles.choice} onClick={() => close.run()}>
+          {t(close.title)}
+        </button>
+      )}
+    </div>
+  )
+}
 
 // 読めないページを開いたステージの中身: 読めないことと、その理由（中身は描かない）。タイプが無いときは、無いタイプの id も出す
 const UNREADABLE_REASONS = {

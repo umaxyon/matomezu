@@ -56,17 +56,17 @@ export interface BulkTicketChange {
   change: AIEditTicketChange
 }
 
-// 書庫の画面の履歴に入るアクションか（書庫が対象で、画面の履歴に入れない印 history: false の無いアクション。ほかのアクションの変更は、ブックの画面の履歴に入る）
+// 書庫の履歴に入るアクションか（書庫が対象で、画面の履歴に入れない印 history: false の無いアクション。ほかのアクションの変更は、ブックの画面の履歴に入る）
 export const entersLibraryHistory = (action: { target: string; history?: false } | undefined): boolean =>
   action?.target === "library" && action.history !== false
 
-// アクションバルクのうち、書庫の画面の履歴に入るアクションが変えたページとフォルダごとの、前と後（最初のそのアクションの前の値と、それに、そのアクションたちの変えた分だけを
+// アクションバルクのうち、書庫の履歴に入るアクションが変えたページとフォルダごとの、前と後（最初のそのアクションの前の値と、それに、そのアクションたちの変えた分だけを
 // 行った値。同じ物をほかのアクションも変えていたら、その分は後の値に入らない）
 export type LibraryRows = Pick<HistoryStep, "pages" | "folders">
 
 export const NO_LIBRARY_ROWS: LibraryRows = { pages: {}, folders: {} }
 
-// 書庫の画面の履歴に入るアクションが、同じ物をもう一度変えた分 next を、それまでの分 had に重ねた前と後。後の値は、それまでの後の値に、今回の違い（Patch）だけを当てた物
+// 書庫の履歴に入るアクションが、同じ物をもう一度変えた分 next を、それまでの分 had に重ねた前と後。後の値は、それまでの後の値に、今回の違い（Patch）だけを当てた物
 // （その間にほかのアクションが変えた分を、入れない）
 function joined<T>(had: RowChange<T> | undefined, next: RowChange<T>): RowChange<T> {
   if (!had) return next
@@ -76,7 +76,7 @@ function joined<T>(had: RowChange<T> | undefined, next: RowChange<T>): RowChange
   return { before: had.before, after: after ?? "none" }
 }
 
-// performBulk の結果。library は、changes のうち書庫の画面の履歴に入るアクションが変えた物（無ければ持たない）。通れば、アクションごとの結果と、合わせた変更（ページとフォルダは最初の前から最後の後へ。バルクの中で作って消した物は持たない）
+// performBulk の結果。library は、changes のうち書庫の履歴に入るアクションが変えた物（無ければ持たない）。通れば、アクションごとの結果と、合わせた変更（ページとフォルダは最初の前から最後の後へ。バルクの中で作って消した物は持たない）
 export type PerformedBulk<R = never> =
   | {
       ok: true
@@ -164,7 +164,7 @@ export function performBulk<R extends { ok: false } = never>(
   const changes = { pages: kept(pages, world.pages), folders: kept(folders, world.folders) }
   const keptRecords = records.filter(c => c.record !== REMOVED || base.byId(c.subject, c.id) !== undefined)
   const changed = Object.keys(changes.pages).length > 0 || Object.keys(changes.folders).length > 0
-  // 書庫の画面の履歴に入るアクションが作って消した物は、前も後も無いので持たない
+  // 書庫の履歴に入るアクションが作って消した物は、前も後も無いので持たない
   const changedRows = <T>(rows: Record<string, RowChange<T>>) =>
     Object.fromEntries(Object.entries(rows).filter(([, r]) => r.before !== "none" || r.after !== "none"))
   const library = { pages: changedRows(libraryPages), folders: changedRows(libraryFolders) }
