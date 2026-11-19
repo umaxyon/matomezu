@@ -4,5 +4,8 @@ description: Request to join a matomezu workroom from the current Claude Code co
 ---
 
 1. Call the matomezu MCP tool `join_rules`. If it is unavailable or the call fails, report the failure and stop. If matomezu was just updated, tell the user to restart matomezu and reconnect the MCP.
-2. Follow the returned rules to submit one `join` request from this conversation.
+2. Follow the returned rules to submit one `join` request from this conversation. If the command argument below is present, use it as the requested workroom name.
+
+   Requested workroom: $ARGUMENTS
+
 3. When approval is pending, tell the user how to approve the request on the matomezu screen, then end the turn.

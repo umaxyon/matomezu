@@ -1,6 +1,6 @@
 {
   "name": "matomezu",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "matomezu for Codex: the MCP tools, the hooks that tell matomezu the session started or was talked to (and bring the notes that wait for AI), and the delivery that wakes a Codex conversation when the user does something on the screen that AI should answer or another AI sends it a message.",
   "skills": "./skills/",
   "author": { "name": "matomezu" },
