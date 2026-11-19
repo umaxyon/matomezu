@@ -89,7 +89,7 @@ test("書庫は最大化でき、最大化の間は左の列が出ていく。�
   await page.getByRole("button", { name: "書庫", exact: true }).first().click()
   await page.getByRole("button", { name: "最大化" }).click()
   await expect(page.getByRole("heading", { name: "ワークルーム/参加者" })).toBeHidden()
-  await page.getByRole("button", { name: "元に戻す", exact: true }).click()
+  await page.getByRole("button", { name: "元の大きさに戻す" }).click()
   await expect(page.getByRole("heading", { name: "ワークルーム/参加者" })).toBeVisible()
 })
 

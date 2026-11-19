@@ -27,5 +27,5 @@ export const CORNER_MESSAGES = defineMessages({
 // 領域の最大化のボタン（MaxButton.tsx）
 export const MAX_BUTTON_MESSAGES = defineMessages({
   "Maximize area": { en: "Maximize", ja: "最大化" },
-  "Restore area": { en: "Restore", ja: "元に戻す" },
+  "Restore area": { en: "Restore size", ja: "元の大きさに戻す" },
 })

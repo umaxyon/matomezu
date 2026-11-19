@@ -67,8 +67,8 @@ test("一覧でタスクボードを出し入れし、レーンにチケット�
   await expect(target).toHaveAttribute("data-max", "true")
   await expect(lanes.nth(1)).toHaveAttribute("data-folded", "true")
   await expect.poll(() => area.evaluate(e => Math.round(e.getBoundingClientRect().bottom))).toBe(Math.round(roomBottom))
-  // レーンの最大化の間は、レーンのボタンが「元の大きさに戻す」に、タスクボードの題の帯のボタンも「元に戻す」になる
-  await expect(board.getByRole("button", { name: "元に戻す" })).toHaveCount(1)
+  // レーンの最大化の間は、レーンのボタンも、タスクボードの題の帯のボタンも「元の大きさに戻す」になる
+  await expect(board.getByRole("button", { name: "元の大きさに戻す" })).toHaveCount(2)
   await target.getByRole("button", { name: "元の大きさに戻す" }).click()
   await expect(target).toHaveAttribute("data-max", "false")
 
