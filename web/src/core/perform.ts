@@ -305,10 +305,10 @@ function outsidePageAsk(library: Library, id: string, how: EntryWhere): EntryAsk
 }
 
 // 書庫が対象のアクションが名指したエントリ entry を where のとおりに変えるとき、行う前に問う相手:
-// ブックならそのブック、フォルダなら中のブックの全部と、中のブックの外のページの全部（名前だけ・写すだけなら、どれにも問わない）、ブックの中のページ・バインダなら、そのブックのそのエントリ
-// （動かす・名前を変えるなら、その印 entriesChange を添える）、ブックの外のページならそのページ、ブックの外のバインダなら中のページの全部（名前だけ・写すだけなら問わない）。
+// ブックならそのブック、フォルダなら中のブックの全部と、中のブックの外のページの全部（名前だけ・複製だけなら、どれにも問わない）、ブックの中のページ・バインダなら、そのブックのそのエントリ
+// （動かす・名前を変えるなら、その印 entriesChange を添える）、ブックの外のページならそのページ、ブックの外のバインダなら中のページの全部（名前だけ・複製だけなら問わない）。
 // ブックの外のページには、エントリの変え方をそのまま where の entry に添える。into（動かす先のフォルダ）がほかのブックかその中なら、そのブックにも、入るエントリとして問う
-export function asksOfEntry(library: Library, entry: string, how: EntryWhere, into?: string): EntryAsk[] {
+function asksOfEntry(library: Library, entry: string, how: EntryWhere, into?: string): EntryAsk[] {
   const where: Where = how === "all-pages" ? { allPages: true } : how === "place" ? { place: true } : {}
   const row = library.folders[entry]
   const from = row?.folderRole === "book" ? entry : bookIdOf(library.folders, entry)
