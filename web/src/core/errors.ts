@@ -119,7 +119,7 @@ export const ERRORS = {
   E316: "plugin {plugin}: its ui entry must export the plugin with the id {plugin} as default (export default definePluginUi(...))",
 
   E401: "the server could not give the data: {status}",
-  E402: "the server does not know this browser (run matomezu open in a terminal)",
+  E402: "the server does not know this browser (run matomezu server start --open in a terminal)",
   E403: "the server could not search: {status}",
 } as const
 

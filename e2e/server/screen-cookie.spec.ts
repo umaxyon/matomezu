@@ -7,7 +7,7 @@ test("画面 cookie を持たないブラウザは断られ、画面 cookie を�
   expect((await page.request.get(`${host.url}/api/data`)).status()).toBe(403)
   expect((await page.request.post(`${host.url}/api/perform`, { data: {} })).status()).toBe(403)
   await page.goto(`${host.url}${BOOK_SCREEN_URL}`)
-  await expect(page.getByText("ターミナルで matomezu open を実行してください")).toBeVisible()
+  await expect(page.getByText("ターミナルで matomezu server start --open を実行してください")).toBeVisible()
 
   const made = await fetch(`${host.url}/api/cookie-code-for-test`, {
     method: "POST",

@@ -29,5 +29,9 @@ function showOpenHint() {
     navigator.languages,
     LANGUAGES.map(l => l.lang),
   )
-  document.body.textContent = translate(new Map(Object.entries(MESSAGES)), lang, "Run matomezu open in a terminal")
+  document.body.textContent = translate(
+    new Map(Object.entries(MESSAGES)),
+    lang,
+    "Run matomezu server start --open in a terminal",
+  )
 }
