@@ -144,6 +144,18 @@ test("名前は利用者の設定の言語で引く: 日本語ならドキュメ
   expect(run(renamed, "settings-set", { values: JA }).ok).toBe(true)
 })
 
+test("日本語を選んでいれば、ブックをドキュメントの名前にするのは印を添えて断り、英語の名前（Documents）にはできる", () => {
+  const { actions, state } = newStore({ now: () => NOW, settings: JA })
+  expect(actions.perform(SYSTEM_FOLDER_ADD.id, {}).ok).toBe(true)
+  const book = state.getState().folders[HOME_ID]!.lineup.find(r => r.kind === "book")!.id
+  expect(actions.perform("@matomezu/base:book-update", { title: "ドキュメント" }, { book })).toMatchObject({
+    ok: false,
+    kind: "title-taken",
+    systemFolder: DOCUMENTS,
+  })
+  expect(actions.perform("@matomezu/base:entry-rename", { entry: book, title: "Documents" }).ok).toBe(true)
+})
+
 test("systemFoldersInPlace は、system-folder-add が何も足さず番号も付けないときだけ合っていると言う", () => {
   const world = prepared()
   const home = world.folders[HOME_ID]!

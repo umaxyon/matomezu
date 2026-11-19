@@ -1,6 +1,7 @@
 // システムフォルダ: 常駐が書庫ホームの先頭にドキュメントを足し、名前は利用者の設定の言語で引く（窓を初めて開くと、窓の言語が設定に書かれ、
 // 名前の当たる物には、そのあと常駐が番号を付ける）。
-// 書庫の画面では名前の変更とゴミ箱をメニューに出さない。言語を変えて名前が当たるなら断り、当たる名前へは変えられない
+// 書庫の画面では名前の変更とゴミ箱をメニューに出さない（当たる名前への変更と、言語を変えて当たるときの断りは、
+// test/plugins/base/system-folders.test.ts と internal/server/same_titles_test.go が見る）
 import { expect, joinedAiAuth, type Page, test } from "./fixtures"
 import { storedBooks } from "./helpers/stored"
 
@@ -35,25 +36,6 @@ test("日本語のブラウザで初めて開くと、書庫ホームの先頭�
   // 中へ入ると、パンくずにも名前が出る
   await home.getByRole("button", { name: "ドキュメント" }).dblclick()
   await expect(page.getByRole("navigation", { name: "場所" }).getByRole("button")).toHaveText(["書庫", "ドキュメント"])
-})
-
-test("AI は、ドキュメントと同じ名前へブックの名前を変えられず、名前が当たる言語へ変えるのも断られる", async ({
-  page,
-}) => {
-  await page.goto("/")
-  await langWritten(page, "matomezu:ja")
-  const book = ((await storedBooks(page.request)) as { id: string }[])[0]!.id
-  expect(await perform(page, "@matomezu/base:book-update", { title: "ドキュメント" }, { book })).toMatchObject({
-    ok: false,
-    kind: "title-taken",
-    systemFolder: "@matomezu/base:documents",
-  })
-  expect(await perform(page, "@matomezu/base:entry-rename", { entry: book, title: "Documents" })).toMatchObject({
-    ok: true,
-  })
-  expect(
-    await perform(page, "@matomezu/base:settings-set", { values: { "@matomezu/base:lang": "matomezu:en" } }),
-  ).toMatchObject({ ok: false, kind: "title-taken" })
 })
 
 test("日本語のブラウザで初めて開くと、先に在った利用者の「ドキュメント」は、常駐が番号を付けて「ドキュメント 2」になる", async ({
