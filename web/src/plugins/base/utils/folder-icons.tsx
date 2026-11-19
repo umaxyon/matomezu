@@ -1,4 +1,4 @@
-// フォルダの絵: 閉じたフォルダと開いたフォルダ（24 の四角の固定色。書庫とディレクトリ構成図が使う）
+// フォルダの絵: 閉じたフォルダと開いたフォルダ（24 の四角の固定色）
 
 export const FolderIcon = ({ size = 16 }: { size?: number }) => (
   <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true" fill="none">
