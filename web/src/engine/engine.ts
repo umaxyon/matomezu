@@ -65,7 +65,7 @@ import {
 import { WARNINGS, type Warning, warning, warningText } from "../core/warnings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../plugins"
-import { aiPlacedOf, type GrowRule, JOINED_MESSAGE, textColorRef, themesFor } from "../plugins/base"
+import { aiPlacedOf, growKindOf, JOINED_MESSAGE, textColorRef, themesFor } from "../plugins/base"
 import { type Assembled, assemble, type Plugin, warningsOf, withoutParts } from "../store/plugin"
 
 ;(globalThis as { __matomezuModules?: unknown }).__matomezuModules = MODULES
@@ -367,10 +367,6 @@ function shiftNotice(before: Readonly<Record<string, Book>>, changed: readonly B
     ? `The contents of a variable page were shifted by whole papers, so every position there changed (${moved.join("; ")}); read_page before using positions.`
     : null
 }
-// ページのタイプのページの可変ページの決め方（aiCatalog）: 利用者が選べる増やす向きの一覧（最初のものが既定）、タイプが向きを決める by-type、
-// どのページもいつも可変ページの always、可変ページを作れない none
-const growsOf = (rule: GrowRule | undefined): readonly string[] | "by-type" | "always" | "none" =>
-  !rule ? "none" : "always" in rule ? "always" : "choices" in rule ? rule.choices : "by-type"
 
 // MCP 公開ツールの actions の元になる物: 表ごとの全文（アクション・アイテム・設定などの args・props の JSON Schema まで）に、目次 index を添える。
 // 全文は、機能台帳から AI に見せる物（利用者だけのアクションと、利用者だけが変える設定の項目は除く）を書き出したもの。名前は英語。
@@ -407,7 +403,7 @@ function aiTables(of: Assembled) {
       id: t.id,
       title: en(t.title),
       grouping: t.grouping, // binder のタイプのページは、そのタイプのバインダの中にだけ置ける
-      grows: growsOf(t.grow), // 可変ページの決め方
+      grows: growKindOf(t.grow), // 可変ページの決め方（base の growKindOf）
       items: t.items.allowed, // ページに置けるアイテム
       // ページの slide（形だけの並び）に置けるアイテムと、その並びがページの背景か本体か（無ければ null）。read_page には、背景は有無と文字だけが見える（page.background.texts）
       slide: t.slide ? { items: t.slide.allowed, role: slideIsBackground(t) ? "background" : "body" } : null,
