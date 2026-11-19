@@ -24,7 +24,7 @@ const NOTE = definePageType({
   grouping: "none",
   paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "portrait" },
   items: { allowed: [] },
-  actions: { add: ["notes:rename" as never, "notes:break" as never, "notes:stamp" as never] },
+  actions: { add: ["notes:rename" as never, "notes:break" as never, "notes:stamp" as never, "notes:date" as never] },
   theme: "@matomezu/base:standard",
   themeTypes: ["@matomezu/base:diagram"],
   presentation: "@matomezu/paper:paper", // 画面に出さないので、プレゼンテーションは表にあるものを借りる
@@ -75,7 +75,20 @@ const STAMP = defineAction({
     return next ? { next, result: {} } : null
   },
 })
-const notes = definePlugin({ id: "notes", pageTypes: [NOTE], actions: [RENAME, BREAK, STAMP] })
+// 行った日付をページの題名に書くアクション
+const DATE = defineAction({
+  id: "notes:date",
+  title: "@matomezu/drawing:Drawing",
+  aiDescription: "Write the date into the notes page's title.",
+  target: "book",
+  permissionScope: { page: "page" },
+  args: PAGE,
+  run: (book, args, ctx) => {
+    const next = withPage(book, args.page, p => ({ ...p, title: ctx.today }))
+    return next ? { next, result: {} } : null
+  },
+})
+const notes = definePlugin({ id: "notes", pageTypes: [NOTE], actions: [RENAME, BREAK, STAMP, DATE] })
 const untyped = (a: Actions) =>
   a as unknown as { perform(id: string, args: unknown, on?: { book: string } | { page: string }): unknown }
 // メモのページを 1 枚入れたブック n1 を作る（ブックとページの id は newId の n1・n2）
@@ -150,6 +163,41 @@ describe("アクションの入口", () => {
     // ホストから届いたブックに、まだ確かめられていないアクションを行い直す
     instance.receive({ ...worldRows([receivedBook("メモ")]), settings: {} }, [done.at(-1)!])
     expect(notePage(instance)).toMatchObject({ title: "2026-10-26T02:00:00.000Z" })
+  })
+
+  test("アクションは時点と同じ時点の画面の暦の日付を ctx.today で受け取り、知らせにも載り、行い直しでも送った日付を使う", async () => {
+    const was = process.env.TZ
+    process.env.TZ = "Asia/Tokyo"
+    try {
+      const done: DoneBulk[] = []
+      // UTC では 11/18、画面の暦（JST）では 11/19。時計を 2 回読むと、あとの読みは日付にならない
+      const times = ["2026-10-26T01:00:00.000Z", "2026-11-18T23:30:00.000Z"]
+      const instance = createMatomezu({
+        plugins: BUILTIN,
+        controlCenter: "@matomezu/control-center:control-center",
+        newId: sequence("n"),
+        now: () => times.shift() ?? "later",
+        observe: d => {
+          done.push(d)
+        },
+      })
+      instance.use([notes])
+      notesBook(instance)
+      await Promise.resolve()
+      untyped(instance.actions).perform("notes:date", { page: "n2" }, { book: "n1" })
+      expect(notePage(instance)).toMatchObject({ title: "2026-11-19" })
+      await Promise.resolve()
+      expect(done.at(-1)).toMatchObject([
+        { action: "notes:date", now: "2026-11-18T23:30:00.000Z", today: "2026-11-19" },
+      ])
+      // 行い直しは、ここの暦でなく送った日付を使う
+      const sent = { ...done.at(-1)![0]!, today: "2026-11-20" }
+      instance.receive({ ...worldRows([receivedBook("メモ")]), settings: {} }, [[sent]])
+      expect(notePage(instance)).toMatchObject({ title: "2026-11-20" })
+    } finally {
+      if (was === undefined) delete process.env.TZ
+      else process.env.TZ = was
+    }
   })
 
   test("行い直しの 1 つが投げても、受け取りは止まらず、あとの行い直しを続ける", async () => {

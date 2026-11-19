@@ -84,6 +84,7 @@ test("AI は手紙を送れるが、見た・行き先を見た・消すはで�
     lang: "en" as const,
     newId: () => "n",
     now: "t",
+    today: "2026-01-01",
     actor: AI,
   }
   const ai = (action: string, args: unknown, on?: { record: string }) => performIn(world, action, args, on, ctx)
@@ -133,6 +134,7 @@ test("上限を超えたときの送るアクションは、足す 1 通と消�
       lang: "en",
       newId: () => "fresh-mail-id",
       now: "t",
+      today: "2026-01-01",
       actor: AI,
     },
   )

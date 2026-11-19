@@ -52,6 +52,7 @@ test("AI は切り抜くことも消すこともできない", () => {
     lang: "en" as const,
     newId: () => "n",
     now: "t",
+    today: "2026-01-01",
     actor: AI,
   }
   const refused = { ok: false, reason: "not-allowed" } as const

@@ -187,6 +187,7 @@ test("AI は伝言を付け・変え・消せない（利用者だけ）が、�
     lang: "en" as const,
     newId: () => "n",
     now: "t",
+    today: "2026-01-01",
     actor: AI,
   }
   const ai = (action: string, args: unknown) => performIn(world, action, args, ON, ctx)

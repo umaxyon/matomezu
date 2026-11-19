@@ -97,6 +97,7 @@ const ctxOf = (newId: () => string = sequence()) => ({
   lang: "en" as const,
   newId,
   now: "2026-01-01T00:00:00.000Z",
+  today: "2026-01-01",
   actor: USER,
 })
 const act = (b: Book, page: string, id: string, args: unknown, newId?: () => string) =>

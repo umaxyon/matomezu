@@ -94,6 +94,7 @@ test("AI はマークを付けられないが、読んだ印を付けて外せ�
     lang: "en" as const,
     newId: () => "n",
     now: "t",
+    today: "2026-01-01",
     actor: AI,
   }
   const ai = (action: string, args: unknown) => {

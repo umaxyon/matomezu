@@ -60,6 +60,7 @@ test("AI はロックを掛けられるが外せない（userOnly のアクシ�
     lang: "en" as const,
     newId: () => "n",
     now: "2026-10-29T00:00:00.000Z",
+    today: "2026-10-29",
     actor,
   })
   let world = {

@@ -134,6 +134,7 @@ test("新しく足すページの id が、世界のほかのブックにもう�
     lang: "en" as const,
     newId: () => ids.shift() ?? sequence()(),
     now: "2026-01-01T00:00:00.000Z",
+    today: "2026-01-01",
     actor: USER,
   })
   const add = (ids: string[]) =>

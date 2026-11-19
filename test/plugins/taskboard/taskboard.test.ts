@@ -29,6 +29,7 @@ function ready() {
     lang: "ja" as const,
     newId: () => `n${Math.random()}`,
     now: "2026-11-12T00:00:00.000Z",
+    today: "2026-11-12",
     actor,
   })
   const run = (actor: typeof AI | typeof USER, action: string, args: unknown, on?: { record: string }) => {

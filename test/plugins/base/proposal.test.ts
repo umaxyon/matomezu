@@ -129,6 +129,7 @@ test("反映と結果を残すのは利用者だけ。送るのは AI もでき�
     lang: "ja" as const,
     newId: () => "x",
     now: "t",
+    today: "2026-01-01",
     actor: AI,
   }
   const settle = performIn(world as never, SETTLE, { outcome: "applied" }, { record: "m" }, ctx)
@@ -172,6 +173,7 @@ test("送るときに読むのは、引数 book のブック 1 冊だけ（reads
     lang: "ja" as const,
     newId: () => "fresh-mail-1",
     now: "t",
+    today: "2026-01-01",
     actor: AI,
   }
   const done = performIn(
@@ -247,6 +249,7 @@ test("上限で反映していない提案が消えると、送ったアクシ�
       lang: "ja",
       newId: () => "fresh-mail-1",
       now: "t",
+      today: "2026-01-01",
       actor: AI,
     },
   )
@@ -284,6 +287,7 @@ test("利用者が消すと、反映していない提案だけが removed（cau
         lang: "ja",
         newId: () => "x",
         now: "t",
+        today: "2026-01-01",
         actor: USER,
       },
     )

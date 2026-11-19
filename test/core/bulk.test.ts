@@ -1,7 +1,7 @@
 // アクションバルク（core/bulk.ts の performBulk）: 順に行い、変わった物を 1 つに合わせる。どれかが断られたら何も変えない。前のアクションが書いたレコードは、あとのアクションから見える
 import { expect, test } from "bun:test"
 import { USER } from "../../web/src/core/actor"
-import { type BulkAction, performBulk } from "../../web/src/core/bulk"
+import { type BulkAction, bulkActionOf, localDateOf, performBulk } from "../../web/src/core/bulk"
 import type { World } from "../../web/src/core/perform"
 import { sourceOf } from "../../web/src/core/record-source"
 import { MAIL } from "../../web/src/plugins/base/mail"
@@ -21,6 +21,7 @@ const step = (action: string, args: unknown, on?: BulkAction["on"]): BulkAction 
   ...(on ? { on } : {}),
   newId: ids,
   now: "2026-11-17T00:00:00.000Z",
+  today: "2026-11-17",
 })
 const X: Record<string, number> = { 一: 100, 二: 400 }
 const place = (caption: string) =>
@@ -147,4 +148,39 @@ test("書庫が対象・ブックが対象・書庫が対象の順に同じブ�
   expect(lineupOf(sides.after)).toEqual(lineupOf(sides.before))
   // バルクの全部の後の値には、足したページが入っている
   expect(lineupOf(done.changes?.folders.b1)).toHaveLength(lineupOf(sides.before).length + 1)
+})
+
+// 時点の書き方を変えずに、ここの時間帯だけを替えて fn を行う
+const inZone = (zone: string, fn: () => void) => {
+  const was = process.env.TZ
+  process.env.TZ = zone
+  try {
+    fn()
+  } finally {
+    if (was === undefined) delete process.env.TZ
+    else process.env.TZ = was
+  }
+}
+
+test("日付（ctx.today）は、時点のここの暦の日付（UTC の日付ではない）", () => {
+  inZone("Asia/Tokyo", () => expect(localDateOf("2026-11-18T23:30:00.000Z")).toBe("2026-11-19"))
+  inZone("America/Los_Angeles", () => expect(localDateOf("2026-11-19T03:30:00.000Z")).toBe("2026-11-18"))
+})
+
+test("送られた日付は行い直しでもそのまま使い、無ければ同じアクションの時点から決める（時点と日付は同じ時点から）", () => {
+  inZone("Asia/Tokyo", () => {
+    const sent = { action: "a", args: {}, now: "2026-11-18T23:30:00.000Z" }
+    // 画面が決めた日付は、ここの暦と違っても変えない
+    expect(bulkActionOf({ ...sent, today: "2026-11-18" }, ids, "2026-12-01T00:00:00.000Z")).toMatchObject({
+      now: "2026-11-18T23:30:00.000Z",
+      today: "2026-11-18",
+    })
+    // 日付が無ければ、送られた時点の日付
+    expect(bulkActionOf(sent, ids, "2026-12-01T00:00:00.000Z")).toMatchObject({ today: "2026-11-19" })
+    // 時点も無ければ、ここで決めた時点とその日付
+    expect(bulkActionOf({ action: "a", args: {} }, ids, "2026-11-30T15:00:00.000Z")).toMatchObject({
+      now: "2026-11-30T15:00:00.000Z",
+      today: "2026-12-01",
+    })
+  })
 })

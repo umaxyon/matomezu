@@ -29,7 +29,8 @@ type BulkAction struct {
 	On     *On             `json:"on,omitempty"`
 	Lang   string          `json:"lang,omitempty"` // 画面で先に行ったときの言語（空ならエンジンが設定の言語の項目で決める）
 	IDs    []string        `json:"ids,omitempty"`
-	Now    string          `json:"now,omitempty"` // 画面で先に行った時点（無ければエンジンが決める）
+	Now    string          `json:"now,omitempty"`   // 画面で先に行った時点（AI が頼んだときなどはホストが決める。無ければエンジンが決める）
+	Today  string          `json:"today,omitempty"` // Now と同じ所が同じ時点から決めた、利用者の暦の日付（YYYY-MM-DD。無ければエンジンが Now の時点から決める）
 }
 
 // Input はアクションバルク 1 つの頼み。Actions を順に行い、全部通るか全部断る

@@ -185,6 +185,7 @@ describe("アクションを行う", () => {
     lang: "ja" as const,
     newId: () => "new",
     now: "2026-10-26T00:00:00.000Z",
+    today: "2026-10-26",
     actor: USER,
   }
   const library = tablesOf([book])
@@ -321,6 +322,7 @@ describe("機能台帳ごとに別の世界", () => {
     lang: "ja" as const,
     newId: () => "n1",
     now: "2026-10-26T00:00:00.000Z",
+    today: "2026-10-26",
     actor: USER,
   })
 

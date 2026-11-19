@@ -118,7 +118,8 @@ interface WireBulkAction {
   on?: ActionOn
   lang?: string // 画面で先に行ったときの言語。無ければ（AI が頼んだときなど）設定の言語の項目で決める
   ids?: string[]
-  now?: string // 画面で先に行った時点。無ければ（AI が頼んだときなど）ここで決める
+  now?: string // 画面で先に行った時点。無ければ（AI が頼んだときなど）ホストが決めて渡す。それも無ければここで決める
+  today?: string // now と同じ所が決めた日付（YYYY-MM-DD）。無ければ now の時点のここの暦の日付
 }
 
 interface Input {
@@ -267,6 +268,7 @@ function perform(input: Input): Output {
   const source = hostSource(records)
   const tables = worldTablesOf(Object.values(books), homeAndFoldersOf(input.folders ?? []))
   const world = { ...tables, settings, annotations, records, counters, ...(source ? { source } : {}) }
+  // 時点が渡されなかったアクションの時点（その日付も、bulkActionOf がこの同じ時点から決める）
   const at = new Date().toISOString()
   const steps = input.actions.map(a => bulkActionOf(a, () => crypto.randomUUID(), at, langFor(a.lang)))
   // AI のアクションと、利用者でも編集ロックで断るアクションは、利用者が直している物を変えも消しもしない（あとでやり直す）。バルクの中のアクションごとに見る。

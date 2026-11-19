@@ -294,6 +294,7 @@ test("線と線の既定の通り方を選ばないタイプのページでは�
     lang: "ja",
     newId: sequence("x"),
     now: "2026-10-26T00:00:00.000Z",
+    today: "2026-10-26",
     actor: USER,
   }
   expect(usesLines(CORE_CATALOG, pagesOf(book)[0]!)).toBe(true)

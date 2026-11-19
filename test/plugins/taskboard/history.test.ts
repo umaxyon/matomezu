@@ -43,6 +43,7 @@ function ready() {
       lang: "ja",
       newId: () => `n${Math.random()}`,
       now: "2026-11-12T00:00:00.000Z",
+      today: "2026-11-12",
       actor,
     }) as unknown as Done
   }
@@ -202,6 +203,7 @@ function completing() {
       lang: "ja",
       newId: () => `n${++n}`,
       now: "2026-11-12T00:00:00.000Z",
+      today: "2026-11-12",
       actor,
     }) as PerformedIn
     if (done.ok)

@@ -109,6 +109,7 @@ test("AI は要求できるが、受け入れる・外す・部屋を作る・�
     lang: "en" as const,
     newId: () => `n${Math.random()}`,
     now: "2026-11-08T00:00:00.000Z",
+    today: "2026-11-08",
   }
   const world = (s = store.state.getState()) => ({
     pages: {},
@@ -150,6 +151,7 @@ test("同じ入力（時刻と id のもと）なら同じ結果", () => {
         lang: "en",
         newId: () => "0123456789abcdef",
         now: "2026-11-08T00:00:00.000Z",
+        today: "2026-11-08",
         actor: USER,
       },
     )

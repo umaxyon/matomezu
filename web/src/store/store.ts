@@ -6,7 +6,7 @@ import { USER } from "../core/actor"
 import { type Address, addressOf, keepPlace, placeAt } from "../core/address"
 import { type Annotations, restoreAllAnnotations, withAnnotations } from "../core/annotation"
 import { checkBooks, distinctBooks, findPage, pageById } from "../core/book"
-import { bulkActionOf, entersLibraryHistory, performBulk } from "../core/bulk"
+import { bulkActionOf, entersLibraryHistory, localDateOf, performBulk } from "../core/bulk"
 import type {
   ActionId,
   ControlCenterId,
@@ -507,6 +507,7 @@ export interface DoneAction {
   ids: readonly string[]
   lang: Lang
   now: string // 行った時点（ActionContext の now）
+  today: string // 行った日付（ActionContext の today。now と同じ時点の、画面の暦の日付）
 }
 
 // アクションバルク: 同期の 1 回の流れで行ったアクションの並び（画面の履歴の段と同じ区切り）。ホストは 1 回で書き、全部通すか全部断る
@@ -731,7 +732,11 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       checkSeen()
   })
   const { getState, setState } = store
-  const ctx = (): ActionContext => ({ catalog, controlCenter, lang: getState().lang, newId, now: clock(), actor: USER })
+  // 時点と日付は、時計を 1 回読んだ同じ時点から決める（日付の変わり目でずれない）
+  const ctx = (): ActionContext => {
+    const now = clock()
+    return { catalog, controlCenter, lang: getState().lang, newId, now, today: localDateOf(now), actor: USER }
+  }
   // 残した・知らされたブックを確かめた値（読めたブックか、読めない warning。同じ値は確かめ直さない）
   let checked = new WeakMap<object, { book: Book; partial: readonly Warning[] } | { warning: Warning }>()
   const restore = (saved: readonly unknown[]): { books: Book[]; warnings: Warning[]; partial: Warning[] } => {
@@ -1175,7 +1180,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       },
     })
     if (!done.ok) return done
-    const sent: DoneAction = { action: id, args, ...(on ? { on } : {}), ids, lang: c.lang, now: c.now }
+    const sent: DoneAction = { action: id, args, ...(on ? { on } : {}), ids, lang: c.lang, now: c.now, today: c.today }
     const answer = catalog.actions.get(id)?.bulk === "alone" ? sendAlone(sent) : joinBulk(sent, c.now)
     const next: Partial<MatomezuState> = {}
     if (done.changes) {

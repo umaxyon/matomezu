@@ -24,6 +24,7 @@ const ctx = () => ({
   lang: "ja" as const,
   newId: sequence("n"),
   now: "2026-11-16T00:00:00.000Z",
+  today: "2026-11-16",
   actor: USER,
 })
 const slide = (id: string) => testPage(SLIDE, id, { title: id, paper: "@matomezu/base:ratio-16x9" })

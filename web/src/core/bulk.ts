@@ -13,17 +13,26 @@ import { type RecordSource, sourceOf } from "./record-source"
 import { type Counters, REMOVED, type RecordChange, withCounters, withRecords } from "./records"
 import type { Settings } from "./settings"
 
-// バルクの中のアクション 1 つ: アクションと引数と宛先、そのアクションの id の振り方・時点・言語
+// バルクの中のアクション 1 つ: アクションと引数と宛先、そのアクションの id の振り方・時点・日付・言語
 export interface BulkAction {
   action: string
   args: unknown
   on?: ActionOn
   newId(): string
   now: string
+  today: string
   lang?: ActionContext["lang"]
 }
 
-// 送られたアクション 1 つ（行ったときに振った id の並び ids と時点 now を持つ）を、行う形にする。id が尽きたら spareId で振り、時点が無ければ now
+// 時点 at（ISO 8601）の、ここの暦の日付（YYYY-MM-DD。ActionContext の today）
+export function localDateOf(at: string): string {
+  const d = new Date(at)
+  const two = (n: number) => String(n).padStart(2, "0")
+  return `${String(d.getFullYear()).padStart(4, "0")}-${two(d.getMonth() + 1)}-${two(d.getDate())}`
+}
+
+// 送られたアクション 1 つ（行ったときに振った id の並び ids と時点 now・日付 today を持つ）を、行う形にする。id が尽きたら spareId で振り、
+// 時点が無ければ now。日付が無ければ、その時点のここの暦の日付（時点と日付は同じ時点から決まる）
 export function bulkActionOf(
   sent: {
     action: string
@@ -31,18 +40,21 @@ export function bulkActionOf(
     on?: ActionOn | undefined
     ids?: readonly string[] | undefined
     now?: string | undefined
+    today?: string | undefined
   },
   spareId: () => string,
   now: string,
   lang?: ActionContext["lang"],
 ): BulkAction {
   const ids = [...(sent.ids ?? [])]
+  const at = sent.now ?? now
   return {
     action: sent.action,
     args: sent.args,
     ...(sent.on ? { on: sent.on } : {}),
     newId: () => ids.shift() ?? spareId(),
-    now: sent.now ?? now,
+    now: at,
+    today: sent.today ?? localDateOf(at),
     ...(lang ? { lang } : {}),
   }
 }
@@ -100,7 +112,7 @@ export type BulkCheck<R> = (i: number, before: World, after: World, done: Done) 
 export function performBulk<R extends { ok: false } = never>(
   world: World,
   steps: readonly BulkAction[],
-  ctx: Omit<ActionContext, "newId" | "now">,
+  ctx: Omit<ActionContext, "newId" | "now" | "today">,
   check?: BulkCheck<R>,
 ): PerformedBulk<R> {
   const base = world.source ?? sourceOf(world.records)
@@ -123,6 +135,7 @@ export function performBulk<R extends { ok: false } = never>(
       ...(step.lang ? { lang: step.lang } : {}),
       newId: () => step.newId(),
       now: step.now,
+      today: step.today,
     })
     if (!done.ok) return { ...done, at: i }
     const after: World = {

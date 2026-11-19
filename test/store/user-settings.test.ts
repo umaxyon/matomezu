@@ -35,6 +35,7 @@ const ctx = (catalog = CORE_CATALOG, actor: Actor = USER) => ({
   lang: "en",
   newId: () => "x",
   now: "2026-10-29T00:00:00.000Z",
+  today: "2026-10-29",
   actor,
 })
 

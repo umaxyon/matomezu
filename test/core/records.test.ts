@@ -161,6 +161,7 @@ const ctx = (newIds = [...ids]) => ({
   lang: "en",
   newId: () => newIds.shift() ?? "z",
   now: "2026-11-12T00:00:00.000Z",
+  today: "2026-11-12",
   actor: USER,
 })
 const run = (world: World, id: string, args: unknown, on?: { record: string }, newIds?: string[]): PerformedIn =>
