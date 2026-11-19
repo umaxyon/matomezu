@@ -6,6 +6,7 @@ import (
 	"os"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -189,5 +190,48 @@ func TestSystemFoldersWaitForTheLockAndLogTheRefusalOnce(t *testing.T) {
 	do("@matomezu/base:book-unlock", `{}`, &engine.On{Book: "b9"})
 	if b := hub.Book("b9"); b == nil || !strings.Contains(string(b.Body), `"title":"ドキュメント 2"`) {
 		t.Fatalf("the book after unlocking = %+v", b)
+	}
+}
+
+// 書庫ホームの直下の読めないブックの名前が、システムフォルダの名前と同じでも、書いたあとの確かめは、system-folder-add と同じく数えない
+// （行っても何も変わらない system-folder-add を、書くたびに行わない）
+func TestTheCheckAfterWritesSkipsUnreadableBooks(t *testing.T) {
+	store := libraryStore(t, false)
+	folders, err := store.Folders()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var home struct {
+		Lineup []json.RawMessage `json:"lineup"`
+	}
+	for _, f := range folders {
+		if f.ID == storage.HomeID {
+			if err := json.Unmarshal(f.Body, &home); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	v := versionsOf(t, store)
+	if err := store.Apply(storage.Batch{
+		Folders: []storage.RowWrite{
+			{ID: "bx", Body: json.RawMessage(`{"folderRole":"book","id":"bx","title":"Documents","lineup":[],"locked":"no"}`)},
+			{ID: storage.HomeID, Base: v[storage.HomeID], Body: storage.HomeBody(append(home.Lineup, storage.RefOf("book", "bx")))},
+		},
+		Entries: []storage.EntryPut{{ID: "bx", Folder: storage.HomeID}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	_, hub := newServerOn(t, Options{}, store)
+	if !hub.BookWarnings()["bx"].Unreadable || len(documentsOf(t, hub)) != 1 {
+		t.Fatalf("the unreadable book %+v, the documents %v", hub.BookWarnings()["bx"], documentsOf(t, hub))
+	}
+	for i := range 2 {
+		acts := hub.acts
+		if out, err := hub.Perform(performOne("@matomezu/base:book-update", json.RawMessage(`{"title":"x`+strconv.Itoa(i)+`"}`), &engine.On{Book: "b1"})); err != nil || !out.OK {
+			t.Fatalf("book-update = %+v, %v", out, err)
+		}
+		if hub.acts != acts+1 {
+			t.Fatalf("acts after a write = %d; want %d", hub.acts, acts+1)
+		}
 	}
 }

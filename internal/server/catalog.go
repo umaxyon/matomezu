@@ -67,14 +67,17 @@ func (h *Hub) keepWithCatalog(wrote bool) {
 func (h *Hub) afterCatalogChange() { h.keepWithCatalog(false) }
 
 // systemFoldersInPlace は、書庫のシステムフォルダが今の機能台帳に合っているか（engine.SystemFoldersInPlace）。エンジンには、書庫ホーム・ゴミ箱・フォルダの行の全部
-// （システムフォルダは、その中だけに在る）と、名前を比べる書庫ホームの直下のブック・バインダ・ページの行を渡す。確かめられなければ、ログに書いて合っているとする（h.mu を持って呼ぶ）
+// （システムフォルダは、その中だけに在る）と、名前を比べる書庫ホームの直下のブック（読めない物は除く）・バインダ・ページの行を渡す。確かめられなければ、ログに書いて合っているとする（h.mu を持って呼ぶ）
 func (h *Hub) systemFoldersInPlace() bool {
 	folders := h.openRows()
 	pages := map[string]json.RawMessage{}
 	if home, ok := h.folders[storage.HomeID]; ok {
 		for _, e := range home.entries {
 			if f, ok := h.folders[e]; ok && !f.isOpen() {
-				folders = append(folders, f.body)
+				// 読めないブックは、アクションの世界に入らない（名前も無い物になる）ので渡さない
+				if !h.bookWarnings[e].Unreadable {
+					folders = append(folders, f.body)
+				}
 			} else if p, ok := h.pages[e]; ok {
 				pages[e] = p.body
 			}
