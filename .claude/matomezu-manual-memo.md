@@ -25,7 +25,7 @@ npm で入れた matomezu のフォルダの下にあります。場所は `mato
 | Claude Code のプラグイン | `matomezu plugin-path claude-code` |
 | Codex のプラグイン | `matomezu plugin-path codex` |
 
-- フォルダが 1 行で出ます。プラグインを入れるときは、これを渡します（16 章「Claude Code のプラグイン」「Codex のプラグイン」）
+- フォルダが 1 行で出ます。AI 側のコマンドでプラグインの置き場所を手で登録するときに使えます
 - node の入れ方（volta など）で場所が変わっても、正しいフォルダが出ます
 
 注: プラグインのフォルダが見つからないときは、`the plugin folder was not found (it comes with matomezu installed by npm: npm i -g matomezu)` と出ます。`npm i -g matomezu` で入れ直します。
@@ -43,18 +43,27 @@ npm で入れた matomezu のフォルダの下にあります。場所は `mato
 
 | AI | プラグインを新しくする |
 |---|---|
-| Claude Code | 【未確認】`claude plugin marketplace update matomezu` を打ち、`claude plugin update matomezu@matomezu` を打つ |
-| Codex | `codex plugin remove matomezu@matomezu` を打ち、`codex plugin add matomezu@matomezu` を打つ。そのあと Codex を起動し直す |
+| Claude Code | `matomezu plugin install claude` を打つ。すでに開いている Claude Code で使うときは、その会話で `/reload-plugins` を実行する |
+| Codex | `matomezu plugin install codex` を打つ。そのあと Codex を起動し直す |
 | opencode | matomezu-opencode を、本体と同じ版にそろえる |
 
-注: Codex では、`codex plugin marketplace upgrade` は効きません（`No configured Git marketplaces to upgrade.` と出ます）。Codex はプラグインを自分の所に写して使うので、外して入れ直すと新しい版が写ります。
+注: 開発用のリポジトリからプラグインを入れている場合は、その登録元で更新します（16 章「Claude Code のプラグイン」「Codex のプラグイン」）。
 注: Windows では、動いている matomezu を上書きできません。2 が `Could not remove directory`（volta なら `Volta error: Could not remove directory`）で失敗します。そのときは、AI（Claude Code・Codex・opencode）を終え、PowerShell で `Get-Process matomezu | Stop-Process` を打って、残っている matomezu を止めます。そのあと、もう一度 2 を打ちます。
+
+### プラグインの利用を一時的に止める
+
+| AI | 止める | 再開する |
+|---|---|---|
+| Claude Code | `matomezu plugin disable claude` | `matomezu plugin enable claude` |
+| Codex | `matomezu plugin disable codex` | `matomezu plugin enable codex` |
+
+AI の名前を省くと、入っている Claude Code と Codex のプラグインが対象になります。実行したら、新しい会話を開きます。
 
 ### 外す
 
 matomezu を外すときは、npm で消す前に、AI からプラグインを外します。
 
-1. `matomezu plugin-remove` を打つ
+1. `matomezu plugin remove` を打つ（`matomezu plugin-remove` でも同じ）
 2. Claude Code・Codex・opencode を終える
 3. `npm uninstall -g matomezu` を打つ
 
@@ -72,7 +81,7 @@ matomezu を外すときは、npm で消す前に、AI からプラグインを�
 | opencode | `opencode plugin remove matomezu-opencode` |
 
 - ブックは消えません。要らなければ、1 で出たフォルダを自分で消します
-- 一部の AI からだけ外すときは、AI の名前を添えます（例: `matomezu plugin-remove codex`）。名前は `claude-code`・`codex`・`opencode` です
+- 一部の AI からだけ外すときは、AI の名前を添えます（例: `matomezu plugin remove codex`）。名前は `claude`（`claude-code` でも可）・`codex`・`opencode` です
 
 注: Windows では、AI を終えずに 3 を打つと、AI が使っている matomezu を消せず、`Could not remove directory` で失敗します。
 注: npm で消すだけでは、AI のプラグインは残ります。npm は、消すときに matomezu の後片付けをしないからです。
@@ -95,7 +104,7 @@ matomezu を外すときは、npm で消す前に、AI からプラグインを�
 
 ### 起動する
 
-1. `matomezu open` を実行する
+1. `matomezu start --open` を実行する（`matomezu open` でも可）
 2. ブラウザが開き、画面が出る
 
 - 起動していなければ、起動してからブラウザを開きます
@@ -106,18 +115,18 @@ matomezu を外すときは、npm で消す前に、AI からプラグインを�
 
 - 起動するだけで、ブラウザは開きません。出るのは URL（http://127.0.0.1:7230/）です
 - 既に起動していれば、URL だけが出ます
-- 一度 `matomezu open` で開いたブラウザなら、この URL を開いて使えます。初めてのブラウザには、「matomezu open で開く」という案内が（URL とは別に）出ます
+- 一度 matomezu が開いたブラウザなら、この URL を開いて使えます。初めてのブラウザは `matomezu start --open` で開きます
 
 注: 窓が 1 つも無いときに AI がブックを画面に出すと、matomezu がブラウザを開きます。そのブラウザも、そのまま使えます。窓が開いていれば、ブラウザは開きません。
 注: WSL では、Windows のブラウザが開きます。Windows の System32 のフォルダ（`rundll32.exe` のある所）が PATH に無いと、ブラウザが開きません。
 
 ### 使えるブラウザ
 
-matomezu の画面を使えるのは、`matomezu open` で開いたブラウザ（または AI が画面に出すときに開いたブラウザ）だけです。ほかのブラウザで URL を開くと、画面に次の 1 行だけが出ます。
+matomezu の画面は、`matomezu start --open` や `matomezu open` で開いたブラウザで使えます。AI が画面に出すときに開いたブラウザも使えます。ほかのブラウザで URL を開くと、画面に次の 1 行だけが出ます。
 
 > ターミナルで matomezu open を実行してください
 
-出たら、ターミナルで `matomezu open` を実行します。ブラウザが開き、そのブラウザが使えるようになります。
+出たら、ターミナルで `matomezu start --open` または `matomezu open` を実行します。ブラウザが開き、そのブラウザが使えるようになります。
 
 この 1 行が出るのは、次のようなときです。
 
@@ -3692,6 +3701,7 @@ Claude Code には、matomezu のプラグインを入れます。入れるだ�
 | 揃う物 | できる事 |
 |---|---|
 | MCP | AI が matomezu を使える（1 章「AI とつなぐ」） |
+| 参加用 Skill | Claude Code の会話で `/matomezu:join` を使って参加を頼める（下の「AI の参加」） |
 | 話しかけたときの知らせ | 話しかけるたびに、まだ読まれていない伝言とマークが AI に届く。読まれた伝言の伝言期限が数え始まる（13 章「AI とのやり取り」）。参加しましたの知らせが出る（下の「参加しましたの知らせ」） |
 | モデルの知らせ | セッションが始まったときと、モデルを切り替えたときに、ワークルームの枠のモデルが替わる（下の「モデルとブランチ」） |
 | 画面の操作を待つ | 画面で参加を受け入れる・断ると、AI が動き出す（下の「画面の操作で AI を動かす（Claude Code）」） |
@@ -3708,10 +3718,8 @@ Claude Code には、matomezu のプラグインを入れます。入れるだ�
 入れ方（利用者ごとに 1 度）:
 
 1. `npm i -g matomezu` で matomezu を入れておく
-2. 次を打つ（1 章「入れる」の「プラグインの置き場所」）
-   - PowerShell: `claude plugin marketplace add (matomezu plugin-path claude-code)`
-   - Linux・macOS などのシェル: `claude plugin marketplace add "$(matomezu plugin-path claude-code)"`
-3. `claude plugin install matomezu@matomezu` を打つ
+2. `matomezu plugin install claude` を打つ
+3. Claude Code を開く。すでに開いている会話で使うときは、その会話で `/reload-plugins` を実行する
 
 - matomezu を npm で更新したときは、プラグインも新しくします（1 章「更新する」）
 - 外すときは、npm で消す前に `matomezu plugin-remove` を打ちます（1 章「外す」）
@@ -3719,7 +3727,7 @@ Claude Code には、matomezu のプラグインを入れます。入れるだ�
 
 注: 前に Claude Code へ手で登録した matomezu の MCP は外します。
 注: プラグインの MCP の道具は、Claude Code の上で `mcp__plugin_matomezu_matomezu__` で始まる名前になります。手で登録したときの `mcp__matomezu__` とは違います。
-注: matomezu のリポジトリから試すときは、2 の代わりに `claude plugin marketplace add （matomezu のリポジトリ）/clients/claude-code` を打ちます。
+注: matomezu のリポジトリから試すときは、`claude plugin marketplace add （matomezu のリポジトリ）/clients/claude-code` で登録し、`claude plugin install matomezu@matomezu` で入れます。この方法で入れたプラグインは、`claude plugin update matomezu@matomezu` で更新します。
 注: Windows（WSL でない）でも、そのまま使えます。
 
 #### 道具の許可
@@ -3728,7 +3736,7 @@ Claude Code には、matomezu のプラグインを入れます。入れるだ�
 
 | 道具 | 利用者に聞くか |
 |---|---|
-| actions・list_books・read_book・read_page・read_records・read_settings・search・view（読むだけ） | 聞かない |
+| actions・join_rules・list_books・read_book・read_page・read_records・read_settings・search・view（読むだけ） | 聞かない |
 | perform（ブックなどを変える） | 聞く |
 | show（ブックを画面に出す） | 聞く |
 | join（参加を頼む） | 聞く |
@@ -3766,6 +3774,7 @@ Codex にも、matomezu のプラグインを入れます。入れるだけで�
 | 揃う物 | できる事 |
 |---|---|
 | MCP | AI が matomezu を使える（1 章「AI とつなぐ」） |
+| 参加用 Skill | Codex の会話で `matomezu-join` を選んで参加を頼める（下の「AI の参加」） |
 | 話しかけたときの知らせ | 話しかけるたびに、まだ読まれていない伝言とマークが AI に届く。読まれた伝言の伝言期限が数え始まる（13 章「AI とのやり取り」） |
 | モデルの知らせ | セッションが始まったときに、ワークルームの枠のモデルが替わる（下の「モデルとブランチ」） |
 | ほかの AI のメッセージを待つ | ほかの AI からメッセージが届くと、利用者が打たなくても AI が動き出す（下の「AI どうしのメッセージ」） |
@@ -3777,16 +3786,14 @@ Codex にも、matomezu のプラグインを入れます。入れるだけで�
 入れ方（利用者ごとに 1 度）:
 
 1. `npm i -g matomezu` で matomezu を入れておく（1 章「入れる」）
-2. 次を打つ（1 章「入れる」の「プラグインの置き場所」）
-   - PowerShell: `codex plugin marketplace add (matomezu plugin-path codex)`
-   - Linux・macOS などのシェル: `codex plugin marketplace add "$(matomezu plugin-path codex)"`
-3. `codex plugin add matomezu@matomezu` を打つ（Codex の中なら `/plugins` から matomezu を選んで入れる）。入れたら Codex を起動し直す
+2. `matomezu plugin install codex` を打つ
+3. Codex を起動する。すでに開いていたら、起動し直す
 
 - matomezu を npm で更新したときは、プラグインを入れ直します（1 章「更新する」）
 - 外すときは、npm で消す前に `matomezu plugin-remove` を打ちます（1 章「外す」）
 - Windows（WSL でない）でも、そのまま使えます
 
-注: matomezu のリポジトリから試すときは、2 の代わりに `codex plugin marketplace add （matomezu のリポジトリ）/clients/codex` を打ちます。AI がつなぐのは、そのリポジトリで動かしている開発用の matomezu です。
+注: matomezu のリポジトリから試すときは、`codex plugin marketplace add （matomezu のリポジトリ）/clients/codex` で登録し、`codex plugin add matomezu@matomezu` で入れます。AI がつなぐのは、そのリポジトリで動かしている開発用の matomezu です。
 
 メッセージで AI が動き出すように、Codex は次のように起動します。
 
@@ -3932,6 +3939,12 @@ AI は、ブックを次の順で読みます。
 ### AI の参加
 
 AI は、利用者の「ワークルーム」に参加者として入れます。AI が参加を頼み、人が受け入れます。
+
+1. `matomezu start --open` で matomezu の画面を開く
+2. 参加させたい AI の会話で、参加を頼む。Claude Code では `/matomezu:join` を実行する。Codex では `matomezu-join` を選ぶ
+3. matomezu に参加要求の郵便が届いたら、内容を確かめて受け入れる（下の「参加を受け入れる」）
+
+Claude Code で部屋の名前を添えるなら、`/matomezu:join 議事録` のように打ちます。Codex では、Skill を選んだ会話で部屋の名前を伝えます。
 
 ワークルームは次を持ちます。
 
@@ -4149,6 +4162,7 @@ AI は、利用者の「ワークルーム」に参加者として入れます�
 - 「キャンセル」で閉じると、参加要求は返事をしないまま残ります。郵便からもう一度開けます
 - ワークルーム名の初めは、AI が頼んだ名前です。無ければ、AI のセッションの名前です
 - AI がワークルーム名を頼んだときは、郵便の本文の頭に「ワークルーム名: （名前）」が出ます
+- AI が Orca の作業場所を確認できたときは、郵便に「Orca ワークスペース」の名前も出ます
 
 ワークルーム名が、今あるワークルームと同じとき:
 

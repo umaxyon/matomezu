@@ -26,7 +26,10 @@ export type DialogArgsOf<Id extends DialogId> = DialogTable[Id] extends DialogDe
 export type DialogTaking<A> = {
   [K in DialogId]: [DialogArgsOf<K>] extends [A] ? ([A] extends [DialogArgsOf<K>] ? K : never) : never
 }[DialogId]
-// 形の定義が名指す追加と編集のダイアログ（受ける値が ShapeAddArgs・ShapeEditArgs であることは definePlugin が型で、名指したダイアログがあることは台帳アセンブルが確かめる）
+// 形の定義が名指す追加と編集のダイアログ（受ける値が ShapeAddArgs・ShapeEditArgs であることは definePlugin が型で、名指したダイアログがあることは台帳アセンブルが確かめる）。
+// 使うのはプラグインだけだが、土台に置く: 形の定義の dialogs は id の文字で、型の上で「その値を受けるダイアログ」とは書けない（DialogTaking はダイアログの表から作り、
+// その表を作る材料に形の定義も入るので、形の定義の型に使うと型どうしが互いを参照する）。土台の確かめを根拠にした言い張りを、土台の関数に閉じておくため
+// （ページのタイプが名指すダイアログを引く base の pageDialog も同じ作り）
 export function shapeDialogs(def: ShapeItemDef): {
   add?: DialogTaking<ShapeAddArgs>
   edit?: DialogTaking<ShapeEditArgs>

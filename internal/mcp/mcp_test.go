@@ -53,6 +53,8 @@ func (f *fakeAPI) Get(path string, header http.Header) (json.RawMessage, http.He
 		return json.RawMessage(`{"page":"small"}`), f.replied, nil
 	case "api/ai/pages/p1":
 		return json.RawMessage(`{"page":"` + strings.Repeat("あ", maxAnswer) + `"}`), f.replied, nil
+	case "api/ai/join-rules":
+		return json.RawMessage(`{"rules":"Request to join from this conversation."}`), f.replied, nil
 	case "api/ai/view":
 		return json.RawMessage(`{"book":"b1","page":"p1","selection":[]}`), f.replied, nil
 	}
@@ -124,8 +126,26 @@ func TestToolsDoNotDependOnTheCatalog(t *testing.T) {
 	for _, x := range got[0]["result"].(map[string]any)["tools"].([]any) {
 		names = append(names, x.(map[string]any)["name"].(string))
 	}
-	if strings.Join(names, ",") != "view,list_books,read_folder,read_book,read_page,read_records,search,read_settings,actions,show,perform,join,send_message" {
+	if strings.Join(names, ",") != "view,list_books,read_folder,read_book,read_page,read_records,search,read_settings,actions,show,perform,join_rules,join,send_message" {
 		t.Fatalf("tools = %v", names)
+	}
+}
+
+func TestJoinRulesAndRequest(t *testing.T) {
+	api := &fakeAPI{answer: `{"ok":true,"participant":"p7"}`}
+	got := talk(t, api,
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"join_rules","arguments":{}}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"join","arguments":{"model":"unknown","link":"L1","orcaWorkspace":"M-0143 Codex"},"_meta":{"sessionId":"S1","x-turn":{"model":"gpt-6"}}}}`,
+	)
+	if textOf(got[0]) != `{"rules":"Request to join from this conversation."}` || !ReadOnly("join_rules") {
+		t.Fatalf("join_rules = %v", got[0])
+	}
+	if !slices.Equal(api.gets, []string{"api/ai/join-rules"}) || api.sent[0] != "" {
+		t.Fatalf("join_rules calls = %v, participants = %v", api.gets, api.sent)
+	}
+	want := `api/ai/join {"ai":"unknown","env":"wsl-linux","link":"L1","model":"gpt-6","orcaWorkspace":"M-0143 Codex","sessionId":"S1","sessionName":""}`
+	if !slices.Equal(api.posts, []string{want}) || textOf(got[1]) != `{"participant":"p7"}` {
+		t.Fatalf("join = %v, posts = %v", got[1], api.posts)
 	}
 }
 

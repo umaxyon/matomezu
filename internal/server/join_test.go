@@ -71,6 +71,51 @@ func joinBody(link, sessionName string) string {
 	return `{"ai":"claude","model":"opus","env":"wsl-linux","sessionName":"` + sessionName + `","link":"` + link + `","sessionId":"S1"}`
 }
 
+func TestJoinRulesAndOrcaWorkspaceMail(t *testing.T) {
+	s, _ := joinWorld(t, joinStore(t))
+	rules, _ := call(t, "GET", s.URL+"/api/ai/join-rules", "", nil)
+	var reply struct {
+		Rules string `json:"rules"`
+	}
+	if err := json.Unmarshal([]byte(rules), &reply); err != nil || !strings.Contains(reply.Rules, "matomezu start --open") {
+		t.Fatalf("join rules = %s", rules)
+	}
+	rows, mails := table(t, s.URL)
+	if len(rows) != 0 || len(mails) != 0 {
+		t.Fatalf("reading rules changed participants or mail")
+	}
+
+	workspace := strings.Repeat("🧪", 120)
+	request := func(name string) Joined {
+		t.Helper()
+		body, err := json.Marshal(JoinRequest{AI: "codex", Model: "gpt-6", Env: "wsl-linux", Link: "L1", OrcaWorkspace: name})
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, _ := call(t, "POST", s.URL+"/api/ai/join", string(body), nil)
+		var answer Joined
+		if err := json.Unmarshal([]byte(got), &answer); err != nil {
+			t.Fatalf("join = %s", got)
+		}
+		return answer
+	}
+	if refused := request(workspace + "x"); refused.OK || refused.Reason != "bad-args" {
+		t.Fatalf("join with a long workspace = %+v", refused)
+	}
+	rows, mails = table(t, s.URL)
+	if len(rows) != 0 || len(mails) != 0 {
+		t.Fatalf("invalid join changed participants or mail")
+	}
+	if result := request(workspace); !result.OK {
+		t.Fatalf("join = %+v", result)
+	}
+	data, _ := call(t, "GET", s.URL+"/api/data", "", nil)
+	if !strings.Contains(data, `"orcaWorkspace":"`+workspace+`"`) ||
+		!strings.Contains(data, `"env":"wsl-linux"`) {
+		t.Fatalf("join mail is missing the environment: %s", data)
+	}
+}
+
 // 参加を頼むと参加者と郵便が 1 つずつできる。同じ link をまた送っても増えず、参加の id が付いていて参加（要求）中でも、弾かずにいる参加者のまま答える
 func TestJoinMakesOneParticipantAndOneMail(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))

@@ -14,6 +14,7 @@ import { withPageSettings } from "./page-settings"
 
 export { PAGE_PAPER_COLOR, PAGE_THEME, pageTheme, pageTokens } from "./look"
 export { withPageSettings } from "./page-settings"
+export { resolveTokens } from "./tokens"
 
 const ARGS = z.strictObject({
   title: z.string().trim().min(1).optional(),
