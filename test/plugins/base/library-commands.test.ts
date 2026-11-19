@@ -266,6 +266,25 @@ test("ツリーで今いる行のゴミ箱入れをロックが止めていれ�
   expect(dialog()).toBeNull()
 })
 
+test("ロックしたページ・ロックしたブックの中のページの「名前の変更」は、押す前に止められて押せず、F2 も何もしない。ロックしていないページは押せる", () => {
+  const { store, center, set, dialog } = setup()
+  const perform = store.actions.perform as (id: string, args: unknown, on?: unknown) => { ok: boolean }
+  const enabled = (entry: string) =>
+    isEnabled(store, store.state.getState(), center, "@matomezu/base:library-entry-rename" as CommandId, { entry })
+  expect(enabled("p1")).toBe(true)
+  expect(perform("@matomezu/base:page-lock", {}, { page: "p1" }).ok).toBe(true)
+  expect(perform("@matomezu/base:book-lock", {}, { book: "b2" }).ok).toBe(true)
+  expect(enabled("p1")).toBe(false)
+  expect(enabled("b2-p1")).toBe(false)
+  expect(enabled("b3-p1")).toBe(true)
+  // ロックしたページを選んで F2 を押しても、名前の変更のダイアログは開かない
+  const scope = (id: string) => `@matomezu/base:${id}`
+  set(LIBRARY_FOLDER.id, center, "b1")
+  set(LIBRARY_PICKED.id, center, "p1")
+  expect(store.actions.pressKey("F2", [scope("library-contents"), scope("library")])).toBe(false)
+  expect(dialog()).toBeNull()
+})
+
 test("落とした物を動かすコマンドは、行うアクションを引数で名乗る: ロックしたブックをゴミ箱へ落としても、押す前に止められて何もせず、トーストも出さない", () => {
   const { store, center, run, ids } = setup()
   const perform = store.actions.perform as (id: string, args: unknown, on?: unknown) => { ok: boolean }

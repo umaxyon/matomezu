@@ -190,15 +190,17 @@ export const LIBRARY_ENTRY_RENAME = kit.defineScreenCommand({
     const entry = handled(ctx, renames, named)
     if (entry !== undefined) a.openDialog(LIBRARY_RENAME_DIALOG.id, { entry })
   },
-  // 今の名前のままにするとして問う（ページの名前は文脈に無いので、ページと、名前の無い物は分からない）
+  // 今の名前のままにするとして問う（名前の無い物は分からない）
   performsWith: (ctx, named) => {
     const entry = handled(ctx, renames, named)
     if (entry === undefined) return []
     const kind = placeOf(ctx.folders, entry)?.ref.kind
     const title =
-      kind === undefined || kind === "page"
+      kind === undefined
         ? undefined
-        : rowTitle(ctx.folders[entry], kind, namingOf(ctx.catalog, ctx.settings))
+        : kind === "page"
+          ? ctx.pageTitle(entry)
+          : rowTitle(ctx.folders[entry], kind, namingOf(ctx.catalog, ctx.settings))
     return title === undefined ? "unknown" : [{ action: ENTRY_RENAME.id, args: { entry, title } }]
   },
   when: inMenuHandled(renames),

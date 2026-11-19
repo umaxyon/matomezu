@@ -461,6 +461,7 @@ test("コマンドが受け取る文脈（CommandContext）のフィールド（
     "dialog",
     "folders",
     "libraryHistory",
+    "pageTitle",
     "pluginState",
     "screen",
     "settings",
