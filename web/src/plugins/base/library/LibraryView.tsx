@@ -58,6 +58,7 @@ const TOPS: readonly LibraryRow[] = [HOME_ID, TRASH_ID].map(id => ({
   title: NO_TITLE,
   type: NO_TYPE,
   readable: true,
+  locked: false,
 }))
 
 // フォルダ folder の直下の行

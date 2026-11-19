@@ -41,6 +41,7 @@ test("フォルダの直下の行は、並びの順に、種類・名前・ペ�
     title: "仕事",
     type: NO_TYPE,
     readable: true,
+    locked: false,
   })
   expect(home.some(r => r.id === "b2")).toBe(false)
   expect(rowsIn(library(), folder, NAMING).map(r => [r.kind, r.id])).toEqual([["book", "b2"]])
@@ -218,4 +219,16 @@ test("Tab で止まる行: 止めたい行が並びに在ればそれ、無け�
   expect(tabStopOf(["a", "b"], undefined)).toBe("a")
   expect(tabStopOf(["a", "b"], "z", HOME_ID)).toBe(HOME_ID)
   expect(tabStopOf([], "z")).toBeUndefined()
+})
+
+test("ロック中のページとブックの行は locked を持つ（鍵をアイコンに重ねる）", () => {
+  const { store, library } = setup()
+  // ページを先に（ロック中のブックのページはロックできない）
+  expect(store.actions.perform("@matomezu/base:page-lock", {}, { page: "p1" }).ok).toBe(true)
+  expect(store.actions.perform("@matomezu/base:book-lock", {}, { book: "b1" }).ok).toBe(true)
+  const home = rowsIn(library(), HOME_ID, NAMING)
+  expect(home.find(r => r.id === "b1")?.locked).toBe(true)
+  expect(home.find(r => r.id === "b3")?.locked).toBe(false)
+  const pages = rowsIn(library(), "b1", NAMING)
+  expect(pages.find(r => r.id === "p1")?.locked).toBe(true)
 })
