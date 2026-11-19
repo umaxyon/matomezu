@@ -1396,7 +1396,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       // 長押しの道具のアイコンを開いているステージ（どのブックスクリーンのステージでも）
       const picker = window.screens.flatMap(x => x.stages?.stages ?? []).find(st => st.picker !== null)?.id
       // キーの宛先: 右クリックのメニューを開いた場所（ステージか、ステージを持たないスクリーン）・長押しの道具・ダイアログを開いたステージ。
-      // 無ければ（ステージを持たずに開いたダイアログも）、カレントスクリーンがステージを持たなければそのスクリーン（下に出した書庫のスクリーンなど）、
+      // 無ければ（ステージを持たずに開いたダイアログも）、カレントスクリーンがステージを持たなければそのスクリーン、
       // 持てば、いちばん最近カレントにしたブックスクリーンのカレントのステージ
       const opener = dialog && dialog.stage !== NO_STAGE ? dialog.stage : undefined
       const front = currentScreen(window)
