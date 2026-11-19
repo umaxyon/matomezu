@@ -147,7 +147,7 @@ type Output =
       folders: readonly RowChange[]
       created: readonly string[]
       books: readonly string[]
-      library?: LibraryRows // 書庫の画面の履歴に入るアクションが変えたページとフォルダごとの、前と後（無ければ none）
+      library?: LibraryRows // 書庫の履歴に入るアクションが変えたページとフォルダごとの、前と後（無ければ none）
       trashing: readonly string[]
       settings?: unknown
       annotations?: Annotations

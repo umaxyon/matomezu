@@ -112,7 +112,6 @@ import {
   newWindow,
   type OpenedScreen,
   openScreen,
-  recentBookScreen,
   screenOfStage,
   setArrangement,
   shownBook,
@@ -286,10 +285,10 @@ export interface WindowActions {
   requestPrint(): void // 画面を刷ってほしいと頼む（刷るのはホストクライアント。刷る物は画面が印刷のときだけ出す）
   requestBack(): void // ブラウザの履歴を 1 つ戻してほしいと頼む（戻すのはホストクライアント。戻る先が無い canGoBack が false のときは、頼んでも何も起きない）
   closePicker(): void
-  // ブック book の画面の履歴（book が LIBRARY_HISTORY なら、書庫の画面の履歴）の、戻せる（from が undo）かやり直せる（redo）最後の画面の履歴の段を、反対の側へ移す。それが変えたほかのブックの画面の履歴でも移す。
+  // ブック book の画面の履歴（book が LIBRARY_HISTORY なら、書庫の履歴）の、戻せる（from が undo）かやり直せる（redo）最後の画面の履歴の段を、反対の側へ移す。それが変えたほかのブックの画面の履歴でも移す。
   // 画面の履歴の段を戻す・やり直すアクションを行えたあとに呼ぶ
   moveHistory(book: string, from: "undo" | "redo"): void
-  // ブック book の画面の履歴（book が LIBRARY_HISTORY なら、書庫の画面の履歴）の、戻せる（from が undo）かやり直せる（redo）最後の画面の履歴の段を捨てる。それが変えたほかのブックの画面の履歴からも捨てる。
+  // ブック book の画面の履歴（book が LIBRARY_HISTORY なら、書庫の履歴）の、戻せる（from が undo）かやり直せる（redo）最後の画面の履歴の段を捨てる。それが変えたほかのブックの画面の履歴からも捨てる。
   // 画面の履歴の段を戻す・やり直すアクションが断られ、その段をもう置き直せないときに呼ぶ
   dropHistory(book: string, from: "undo" | "redo"): void
   // 同じ処理の中でこのあと行うアクションを、ブック book の最後の画面の履歴の段に足す（足して始めたその場の編集を確定するとき。足すのと書くのを 1 つの画面の履歴の段にする）。
@@ -306,6 +305,8 @@ export interface FrameActions {
   showBookStage(book: string, page?: string): string
   makeScreenCurrent(id: string): void // 開いているスクリーン id をカレントスクリーンにする（見せるかはスクリーンアレンジメントが決める。退いた物の中は残す）
   showStage(id: string): void // ステージ id をカレントにし、それを並べているスクリーンをカレントスクリーンにする（そのステージを見せる）
+  // ステージ stage をカレントにして右に何も開いていないステージを足し、足したステージの id を返す（足せなければ NO_STAGE）。ほかは split と同じ
+  splitStage(stage: string): string
 }
 
 // 画面の操作のうち、場所（ステージの id。ダイアログとコマンドは、ステージを持たないスクリーンの id も）に向ける物。どれも第 1 引数が向ける場所。
@@ -443,7 +444,14 @@ export const REFUSED_WINDOW_ACTIONS: WindowActions = {
 }
 
 // 画面の操作（store が持つ形。場所に向ける操作は、場所を第 1 引数に取る）
-export interface Actions extends WindowActions, FrameActions, PlaceActions {}
+// アクションを行わずに確かめる操作。プラグイン API には出さない（base の元に戻す・やり直すが、store/commands/def.ts の tryPerformOf で読む）
+export interface ProbeActions {
+  // アクションを行わずに、今の状態で行ったらどうなるかの答えを返す（状態に入れず、ホストにも送らず、画面の履歴にも入れない。
+  // 元に戻す・やり直すが、ぶつかって断られる画面の履歴の段を、置き直さずに確かめるのに使う）
+  tryPerform<Id extends ActionId>(id: Id, ...args: PerformArgs<Id>): Performed<Id>
+}
+
+export interface Actions extends WindowActions, FrameActions, PlaceActions, ProbeActions {}
 
 // 窓に向ける操作の名前（WindowActions に操作を足したら、ここにも書く。書き忘れは型の誤り）。プラグインに渡す操作は、store の操作からこれと場所に向ける物だけを選ぶ
 export const WINDOW_ACTIONS: { readonly [K in keyof WindowActions]: true } = {
@@ -477,7 +485,7 @@ export const windowActionsOf = (actions: WindowActions): WindowActions =>
   ) as unknown as WindowActions
 
 // この窓のでない変更（AI・ほかの窓・ホスト）の知らせ: books は変わったブック、act は常駐がその 1 回に振った印、actions は行ったアクションの id、
-// library は、書庫の画面の履歴に入るアクションが変えたページとフォルダごとの、前と後（置き場所の形のまま。無い側は none。無ければ持たない）
+// library は、書庫の履歴に入るアクションが変えたページとフォルダごとの、前と後（置き場所の形のまま。無い側は none。無ければ持たない）
 export interface ForeignChange {
   books: readonly string[]
   by: "ai" | "window" | "host"
@@ -642,7 +650,7 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   now?: () => string // アクションを行う時点（UTC の ISO 8601）を決める。無ければ今の時刻
   // アクションバルクを閉じたときに、行えたアクションの並びを知らせる（行い直しは知らせない）。ホストが確かめた答えを返せば、断られたアクションバルクの画面の履歴の段を捨てる
   observe?: (bulk: DoneBulk) => Promise<HostAnswer> | undefined
-  aiEditTicket?: (change: AIEditTicketOutcome) => void // まだ見ていない AI の変更が、この窓で見えたか、見られる前に戻す・やり直すで消えたときに知らせる
+  aiEditTicket?: (change: AIEditTicketOutcome) => void // まだ見ていない AI の変更が、この窓で見えたか、見られる前に画面の履歴に入らない変更（ゴミ箱から消すなど）で消えたときに知らせる
   visible?: () => boolean // 窓が見えているか（裏のタブなどで見えていない間は、まだ見ていない変更を見えたとしない。無ければいつも見えている）
   search?: (query: WideSearchQuery) => Promise<WideSearchAnswer> // ホストの言葉の検索（横断検索）。無ければ、どの言葉にも横断検索の当たりなし
 }
@@ -659,7 +667,7 @@ interface OpenStep {
   books: string[]
   pages: Record<string, RowChange<PageRow>>
   folders: Record<string, RowChange<Folder>>
-  // 書庫が対象のアクションが変えたページとフォルダ（書庫の画面の履歴に、別の段として入れる）と、閉じて入れたその段
+  // 書庫が対象のアクションが変えたページとフォルダ（書庫の履歴に、別の段として入れる）と、閉じて入れたその段
   library?: { pages: Record<string, RowChange<PageRow>>; folders: Record<string, RowChange<Folder>> }
   libraryStep?: HistoryStep
   continued?: true
@@ -804,7 +812,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   // 同じ段の中で足して無くした物は、前も後も無いので持たない
   const keptRows = <T>(rows: Record<string, RowChange<T>>) =>
     Object.fromEntries(Object.entries(rows).filter(([, r]) => r.before !== "none" || r.after !== "none"))
-  // 閉じた段のうち、書庫が対象のアクションが変えた分を、書庫の画面の履歴に入れる（入れる前にホストが断ったなら入れない）
+  // 閉じた段のうち、書庫が対象のアクションが変えた分を、書庫の履歴に入れる（入れる前にホストが断ったなら入れない）
   const putLibraryStep = (was: OpenStep) => {
     if (!was.library || was.refused) return
     const step: HistoryStep = {
@@ -916,13 +924,13 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     }
     setState({ history })
   }
-  // まだ見ていない、AI とほかの窓の書庫の変更（古い順。1 回の変更で 1 つの画面の履歴の段で、見えたら書庫の画面の履歴に入る）。near はその変更の近くのフォルダ
+  // まだ見ていない、AI とほかの窓の書庫の変更（古い順。1 回の変更で 1 つの画面の履歴の段で、見えたら書庫の履歴に入る）。near はその変更の近くのフォルダ
   // （foldersNear が出す。どれかを、見えているスクリーンの書庫アピアランスが見せたら見えた）、places は常駐に見えた・消えたと知らせる範囲（変えたページと、ブック・バインダ）
   type UnseenInLibrary = { step: HistoryStep; act: string; near: readonly string[]; places: readonly string[] }
   let unseenInLibrary: UnseenInLibrary[] = []
   // 確かめた世界の、最後に知っている表（よその変更の前の値）
   let knownTables: Library = { pages: {}, folders: {} }
-  // 最後に知っている表に、よその変更のうち書庫の画面の履歴に入るアクションの分 rows だけを行った表と、その分が変えたページとフォルダの id
+  // 最後に知っている表に、よその変更のうち書庫の履歴に入るアクションの分 rows だけを行った表と、その分が変えたページとフォルダの id
   // （知らせの前と後の違いを、最後に知っている行に当てる。同じ物をほかのアクションも変えていても、その分は入らない）
   const afterLibraryActions = (rows: ForeignLibraryRows) => {
     const side = (v: unknown) => (v === "none" ? undefined : v)
@@ -963,7 +971,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     }
     return shown
   }
-  // まだ見ていない書庫の変更のうち、近くのフォルダを、見えているスクリーンの書庫アピアランスが見せている物を、書庫の画面の履歴に時刻の位置で差し込む（窓が見えていない間は差し込まない）
+  // まだ見ていない書庫の変更のうち、近くのフォルダを、見えているスクリーンの書庫アピアランスが見せている物を、書庫の履歴に時刻の位置で差し込む（窓が見えていない間は差し込まない）
   const checkSeenInLibrary = () => {
     if (unseenInLibrary.length === 0 || options.visible?.() === false) return
     const shown = foldersShownNow()
@@ -977,7 +985,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     }
     setState({ history: { ...getState().history, [LIBRARY_HISTORY]: history } })
   }
-  // よその変更 change のうち、書庫の画面の履歴に入るアクションが変えたページとフォルダ rows を、まだ見ていない書庫の変更に足す（HISTORY_LIMIT まで。古い物から捨てる）
+  // よその変更 change のうち、書庫の履歴に入るアクションが変えたページとフォルダ rows を、まだ見ていない書庫の変更に足す（HISTORY_LIMIT まで。古い物から捨てる）
   const addUnseenInLibrary = (
     change: { by: "ai" | "window"; act: string },
     rows: { pages: readonly string[]; folders: readonly string[] },
@@ -1180,7 +1188,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       next.trash = shelves.trash
       if (catalog.actions.get(id)?.target === "library") {
         next.window = followLibraryIn(window, catalog, shelves.books, books)
-        // 画面の履歴に入れないアクション（戻す・やり直す）が上書きした物は、その前の値を画面の履歴の段に残さないので捨てる
+        // 画面の履歴に入れないアクション（戻す・やり直す・ゴミ箱から消すなど）が消した物は、その前の値を画面の履歴の段に残さないので捨てる
         if (!entersLibraryHistory(catalog.actions.get(id))) {
           for (const after of Object.values(shelves.books)) {
             const before = books[after.id]
@@ -1387,14 +1395,11 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       // 長押しの道具のアイコンを開いているステージ（どのブックスクリーンのステージでも）
       const picker = window.screens.flatMap(x => x.stages?.stages ?? []).find(st => st.picker !== null)?.id
       // キーの宛先: 右クリックのメニューを開いた場所（ステージか、ステージを持たないスクリーン）・長押しの道具・ダイアログを開いたステージ。
-      // 無ければ（ステージを持たずに開いたダイアログも）、いちばん最近カレントにしたブックスクリーンのカレントのステージ
+      // 無ければ（ステージを持たずに開いたダイアログも）、カレントスクリーンのカレントのステージ（ステージを持たなければ、そのスクリーン）
       const opener = dialog && dialog.stage !== NO_STAGE ? dialog.stage : undefined
+      const front = currentScreen(window)
       const stage =
-        (contextMenu ? openedAt(contextMenu) : undefined) ??
-        picker ??
-        opener ??
-        recentBookScreen(window)?.stages.current ??
-        currentScreen(window).id
+        (contextMenu ? openedAt(contextMenu) : undefined) ?? picker ?? opener ?? front.stages?.current ?? front.id
       // プレゼンテーションのキーの範囲は、ページを開いているときだけ（空のバインダでは、プレゼンテーションのビューを描かない）
       const type = openedPage(stageIn(window, stage)?.opened ?? null)?.type
       const presentation = type && catalog.pageTypes.get(type)?.presentation
@@ -1435,7 +1440,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const { toasts: now } = getState()
       if (now.some(t => t.id === id)) setState({ toasts: now.filter(t => t.id !== id) })
     },
-    // 無いステージ（閉じたステージなど）への分割は、カレントへの分割にしない
+    tryPerform: (id, ...[args, on]) => {
+      const done = performIn(worldOf(getState()), id, args, on, ctx())
+      return (done.ok ? { ok: true, result: done.result } : done) as Performed<typeof id>
+    },
     openScreenId: (def, props) => {
       const fits = catalog.screens.get(def)?.props.safeParse(props)
       if (!fits?.success) return SCREEN_REFUSED
@@ -1474,15 +1482,23 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
           screenOfStage(win, id)?.id ?? "",
         ),
       ),
-    split: stage =>
+    // 無いステージ（閉じたステージなど）への分割は、カレントへの分割にしない
+    splitStage: stage => {
+      let added = NO_STAGE
       withWindow(win => {
         const ws = screenOfStage(win, stage)?.stages
         if (!ws) return win
         const focused = focus(ws, stage)
         if (focused.stages.length >= MAX_STAGES) return mapScreenOfStage(win, stage, () => focused)
         const { win: issued, id } = issueStage(win)
+        added = id
         return mapScreenOfStage(issued, stage, () => split(focused, id))
-      }),
+      })
+      return added
+    },
+    split: stage => {
+      actions.splitStage(stage)
+    },
     unsplit: stage => withStageScreen(stage, ws => unsplit(focus(ws, stage))),
     moveDivider: (x, width) => withWorkspace(ws => moveDivider(ws, x, width)),
     evenDivider: () => withWorkspace(evenDivider),
@@ -1626,7 +1642,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const library = libraryOf(tables)
       const by = change?.by === "host" ? undefined : change?.by
       const recorded = change && by && change.actions.some(a => catalog.actions.get(a)?.history !== false)
-      // よその変更のうち、書庫の画面の履歴に入るアクションの分は、まだ見ていない書庫の変更に足す。ブックごとのまだ見ていない変更は、その分だけを行った後の表から比べる
+      // よその変更のうち、書庫の履歴に入るアクションの分は、まだ見ていない書庫の変更に足す。ブックごとのまだ見ていない変更は、その分だけを行った後の表から比べる
       // （書庫の分を、ブックの画面の履歴に入れない）
       const split = change?.library && by ? afterLibraryActions(change.library) : undefined
       if (change && by && split) addUnseenInLibrary({ by, act: change.act }, split.rows, knownTables, split.tables)

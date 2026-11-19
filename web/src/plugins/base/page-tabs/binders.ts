@@ -14,6 +14,8 @@ import {
   putPage,
   removeBinder,
 } from "../../../core/book"
+import type { CoreCatalog } from "../../../core/core-catalog"
+import type { Declined } from "../../../core/def/action"
 import { ORIENTATIONS } from "../../../core/def/paper"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
@@ -95,35 +97,51 @@ export const BINDER_DUPLICATE = kit.defineAction({
   args: z.strictObject({ binder: BINDER, title: z.string().trim().min(1).optional() }),
   permissionScope: { entry: "binder" },
   run: (book, args, ctx) => {
-    const source = findBinder(book, args.binder)
-    if (!source) return null
-    // 読めないページは複製できないので、それを持つバインダも複製しない（黙って落とした写しを作らない）
-    if (entriesIn(book, source.id).some(p => p.kind === "unreadable")) return null
-    const titles = lineupOf(book).map(e => e.title)
-    if (args.title !== undefined && titles.includes(args.title)) return null
-    // 中の物の id は、ページごとに振り直す（ブックのどの id とも、写しどうしでも重ならない。core が run の振る id を重ねない）
-    const { id: _binder, kind: _kind, lineup: _lineup, ...binder } = source
-    const made = addBinder(
-      book,
-      { ...binder, title: args.title ?? freeTitle(source.title, titles) },
-      lineupOf(book).findIndex(e => e.id === source.id) + 1,
-      ctx.newId,
-    )
-    let next: Book = made.book
-    const pages: string[] = []
-    for (const page of pagesIn(book, source.id)) {
-      const problem = duplicateProblem(ctx.catalog, page)
-      if (problem === "content") return UNRENEWABLE_DECLINED
-      if (problem) return null
-      const { id: _id, locked: _locked, ...content } = page
-      const added = addPage(next, renewedIds(page, content, ctx.newId), { binder: made.binder }, ctx.newId)
-      if (!added) return null
-      pages.push(added.page)
-      next = added.book
-    }
-    return { next, result: { binder: made.binder, pages } }
+    const done = duplicatedBinder(ctx.catalog, book, args.binder, args.title, ctx.newId)
+    return done && "declined" in done
+      ? done
+      : done && { next: done.book, result: { binder: done.binder, pages: done.pages } }
   },
 })
+
+// ブック book のバインダ binder を、中のページごと複製したブックと、写しのバインダと中のページの id（binder-duplicate と、書庫の entry-duplicate が使う）。
+// 写しは元のすぐ後ろ、名前は title（無ければ、元の名前に番号を付けた名前）。バインダが無い・読めないページを持つ・複製できないページを持つ・渡した名前が重なるなら null、
+// id を振り直すと壊れる形があれば、その断り
+export function duplicatedBinder(
+  catalog: CoreCatalog,
+  book: Book,
+  binder: string,
+  title: string | undefined,
+  newId: () => string,
+): { book: Book; binder: string; pages: string[] } | Declined | null {
+  const source = findBinder(book, binder)
+  if (!source) return null
+  // 読めないページは複製できないので、それを持つバインダも複製しない（黙って落とした写しを作らない）
+  if (entriesIn(book, source.id).some(p => p.kind === "unreadable")) return null
+  const titles = lineupOf(book).map(e => e.title)
+  if (title !== undefined && titles.includes(title)) return null
+  // 中の物の id は、ページごとに振り直す（ブックのどの id とも、写しどうしでも重ならない。core が run の振る id を重ねない）
+  const { id: _binder, kind: _kind, lineup: _lineup, ...rest } = source
+  const made = addBinder(
+    book,
+    { ...rest, title: title ?? freeTitle(source.title, titles) },
+    lineupOf(book).findIndex(e => e.id === source.id) + 1,
+    newId,
+  )
+  let next: Book = made.book
+  const pages: string[] = []
+  for (const page of pagesIn(book, source.id)) {
+    const problem = duplicateProblem(catalog, page)
+    if (problem === "content") return UNRENEWABLE_DECLINED
+    if (problem) return null
+    const { id: _id, locked: _locked, ...content } = page
+    const added = addPage(next, renewedIds(page, content, newId), { binder: made.binder }, newId)
+    if (!added) return null
+    pages.push(added.page)
+    next = added.book
+  }
+  return { book: next, binder: made.binder, pages }
+}
 
 // バインダを、中のページごと消す
 export const BINDER_REMOVE = kit.defineAction({

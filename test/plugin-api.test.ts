@@ -533,7 +533,8 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
     "updatePluginState",
     "zoomStage",
   ])
-  // useActions の操作は、そこから updatePluginState を除いた物（store の素の操作のうち、ほかのスクリーン・ステージを名指す FrameActions は渡さない）
+  // useActions の操作は、そこから updatePluginState を除いた物（store の素の操作のうち、ほかのスクリーン・ステージを名指す FrameActions と、
+  // 行わずに確かめる ProbeActions は渡さない）
   const given = { ...windowActionsOf(store.actions), ...boundActions(store.actions, "s1") }
   expect(names(given)).toEqual(names(got).filter(n => n !== "updatePluginState"))
   expect(names(store.actions).filter(n => !names(given).includes(n))).toEqual([
@@ -541,6 +542,8 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
     "openScreenId",
     "showBookStage",
     "showStage",
+    "splitStage",
+    "tryPerform",
   ])
 })
 

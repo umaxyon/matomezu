@@ -149,30 +149,35 @@ test("扱う物: 何も受け取らなければ選んでいる行（無ければ
   // 名指し
   run("library-entry-trash", { entry: a })
   expect(ids(HOME_ID)).not.toContain(a)
-  // 書庫ホーム・ブックの中のページには、名前の変更もゴミ箱も効かない
+  // 書庫ホームには、名前の変更もゴミ箱も効かない。ブックの中のページは、名前を変えられるが、ゴミ箱には入れない
   run("library-entry-trash", { entry: HOME_ID })
-  run("library-entry-rename", { entry: "p1" })
+  run("library-entry-rename", { entry: HOME_ID })
   expect(dialog()).toBeNull()
+  run("library-entry-trash", { entry: "p1" })
+  expect(ids("b1")).toEqual(["p1"])
+  run("library-entry-rename", { entry: "p1" })
+  expect(dialog()).toMatchObject({ id: "@matomezu/base:library-entry-rename", args: { entry: "p1" } })
 })
 
-test("右クリックのメニューの行: フォルダは作る・名前の変更・ゴミ箱、ブックは開く・名前の変更・ゴミ箱、ブックの中のページは開くだけ。何も無い所は、作るだけ（ブックの中なら、それを入れているフォルダに作る）", () => {
+test("右クリックのメニューの行: フォルダは作る・名前の変更・ゴミ箱、ブックは開く・名前の変更・ゴミ箱、ブックの中のページは開く・名前の変更・複製。何も無い所は、作るだけ（ブックの中なら、それを入れているフォルダに作る）", () => {
   const { store, center, folder, run, shown, dialog } = setup()
   const a = folder("あ")
-  const [open, book, fold, rename, trash] = [
+  const [open, book, fold, rename, copy, trash] = [
     "library-entry-open",
     "library-book-new",
     "library-folder-new",
     "library-entry-rename",
+    "library-entry-duplicate",
     "library-entry-trash",
   ] as const
-  const rows = [open, book, fold, rename, trash]
+  const rows = [open, book, fold, rename, copy, trash]
   const menu = (id: string, target: unknown) => {
     store.actions.openContextMenu(center, `@matomezu/base:${id}`, target, { x: 0, y: 0 })
     return rows.filter(shown)
   }
   expect(menu("library-entry-context", { entry: a })).toEqual([book, fold, rename, trash])
   expect(menu("library-entry-context", { entry: "b1" })).toEqual([open, rename, trash])
-  expect(menu("library-entry-context", { entry: "p1" })).toEqual([open])
+  expect(menu("library-entry-context", { entry: "p1" })).toEqual([open, rename, copy])
   expect(menu("library-entry-context", { entry: HOME_ID })).toEqual([book, fold])
   expect(menu("library-folder-context", { folder: a })).toEqual([book, fold])
   expect(menu("library-folder-context", { folder: "b1" })).toEqual([book, fold])
@@ -224,4 +229,18 @@ test("開く: 2 回押す・Enter・メニューの「開く」の 1 つの道�
   set(LIBRARY_FOLDER.id, center, "b4")
   run("library-entry-open", { at: "tree" })
   expect(shows("b4")).toBe(true)
+})
+
+test("書庫を開く: 書庫のスクリーンを 1 枚ずつの並べ方でカレントにする。開いていれば新しく開かず、それを前に出す", () => {
+  const { store, center } = setup()
+  const screens = () => store.state.getState().window.screens.filter(s => s.def === "@matomezu/base:library-screen")
+  const current = () => store.state.getState().window.order.at(-1)
+  store.actions.command(center, "@matomezu/base:library-open")
+  expect(screens()).toHaveLength(1)
+  expect(current()).toBe(screens()[0]?.id)
+  store.actions.makeScreenCurrent(center)
+  store.actions.command(center, "@matomezu/base:library-open")
+  expect(screens()).toHaveLength(1)
+  expect(current()).toBe(screens()[0]?.id)
+  expect(store.state.getState().window.arrangement).toBe("@matomezu/base:one-screen")
 })

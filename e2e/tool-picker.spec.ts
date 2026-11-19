@@ -1,7 +1,7 @@
 import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { onPaper } from "./helpers/paper"
 import { backToBook, openSettings } from "./helpers/settings"
-import { fromMenu } from "./helpers/stage-menu"
+import { openWith, splitWith } from "./helpers/split"
 
 const picker = (page: Page) => page.getByRole("toolbar", { name: "ツールの切り替え" })
 
@@ -102,12 +102,8 @@ test("付け替えを押すと付け替えになる。Escape・離れる・外�
 
 test("分けて別の図面を開いても、道具は左右で同じ。左でハンドにすると右もハンドになる", async ({ page }) => {
   await page.goto(BOOK_SCREEN_URL)
-  await (await fromMenu(page, "画面を分割")).click()
+  await splitWith(page, "週次の振り返り")
   const stages = page.getByRole("region", { name: "ステージ" })
-  const input = stages.nth(1).getByRole("combobox", { name: "ブックを探す" })
-  await input.click()
-  await input.pressSequentially("振り返り")
-  await input.press("Enter")
   await expect(page.getByRole("img", { name: "紙" })).toHaveCount(2)
   const left = (await page.getByRole("img", { name: "紙" }).first().boundingBox())!
   await longPress(page, { x: left.x + 200, y: left.y + 200 })
@@ -123,9 +119,7 @@ test("設定で長押しの時間を 500 ミリ秒にすると、300 ミリ秒�
 }) => {
   await page.clock.install()
   await page.goto(BOOK_SCREEN_URL)
-  await (await fromMenu(page, "ブックを開く")).click()
-  await page.keyboard.type("振り返り")
-  await page.keyboard.press("Enter")
+  await openWith(page, "週次の振り返り")
   await openSettings(page)
   await page.getByLabel("ツールの切り替えを出す長押しの時間（ミリ秒）").selectOption("500")
   await expect(page.getByLabel("ツールの切り替えを出す長押しの時間（ミリ秒）")).toHaveValue("500")

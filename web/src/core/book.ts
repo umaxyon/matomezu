@@ -2,6 +2,8 @@
 // ブックの並び（lineup）を読む・書くのは、ここの関数だけ（ほかは book.lineup を直に歩かない。ページとバインダの持ち方が変わっても、呼ぶ側を変えないため）
 
 import { type CoreCatalog, pageType } from "./core-catalog"
+import { isMoveRefusal, movedEntry, placeOf } from "./entries"
+import { bookOf, tablesOf } from "./folders"
 import { freshPageId } from "./ids"
 import { splitId } from "./names"
 import { type ItemPage, pageHolds, slideOf, walkShapes } from "./placed"
@@ -336,21 +338,14 @@ export function removePage<B extends Book>(book: B, page: string): B {
   return mapPages(book, e => (e.id === page ? undefined : e))
 }
 
-// エントリ（ページかバインダ）を、同じブックかバインダの中の index 番目へ動かす（並びに直に入っている物は並びの中、バインダの中のページはそのバインダの中。
-// index が後ろすぎれば末尾。id が無ければ何も変えない）
+// エントリ（ページかバインダ）を、同じブックかバインダの中の index 番目（動かす物を除いて数える）へ動かす（並びに直に入っている物は並びの中、バインダの中のページはそのバインダの中。
+// index が後ろすぎれば末尾。id が無いか、動かしても同じ場所なら何も変えない）。並べ替えの中身は、書庫の並びと同じ core/entries.ts の movedEntry
 export function moveEntry<B extends Book>(book: B, id: string, index: number): B {
-  const moved = <E extends LineupEntry>(list: readonly E[]): readonly E[] => {
-    const entry = list.find(e => e.id === id)
-    return entry
-      ? insertAt(
-          list.filter(e => e !== entry),
-          entry,
-          index,
-        )
-      : list
-  }
-  if (book.lineup.some(e => e.id === id)) return { ...book, lineup: moved(book.lineup) }
-  return { ...book, lineup: book.lineup.map(e => (e.kind === "binder" ? { ...e, lineup: moved(e.lineup) } : e)) }
+  const tables = tablesOf([book])
+  const place = placeOf(tables.folders, id)
+  if (!place) return book
+  const moved = movedEntry(tables, id, place.holder.id, Math.min(index, place.holder.lineup.length - 1))
+  return isMoveRefusal(moved) ? book : ((bookOf(moved, book.id) ?? book) as B)
 }
 
 // 空のバインダ binder（id を持たない）を並びの index 番目（省けば末尾）に足したブックと、振ったバインダの id（newId の値そのまま。ブックのほかの id と重ならない）

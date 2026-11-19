@@ -307,7 +307,7 @@ func TestRevertOfTwoBooksIsOneWrite(t *testing.T) {
 			}
 		}
 	}
-	revert := `{"books":["b1","b2"],"pages":{},"folders":{"b1":{"fields":{"title":{"set":"T2"}}},"b2":{"fields":{"title":{"set":"U2"}}}}}`
+	revert := `{"books":["b1","b2"],"pages":{},"folders":{"b1":{"fields":{"title":{"set":"T2","was":"T"}}},"b2":{"fields":{"title":{"set":"U2","was":"U"}}}}}`
 	if done := do("@matomezu/base:book-lock", `{}`, &engine.On{Book: "b2"}); !done.OK {
 		t.Fatalf("lock = %+v", done)
 	}

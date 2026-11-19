@@ -163,10 +163,12 @@ export const LOCK = kit.definePermission({
     if (where?.place) return false // 置き場所だけを変える（ロックした物も、動かせる）
     if (folder.locked) return !BOOK_SWITCHES.includes(action.id)
     if (where?.allPages) return pagesOf(folder).some(p => p.locked)
+    // ロックしたページは、エントリとして動かせるが、名前は変えない
+    if (where?.entriesChange === "title") return (where.entries ?? []).some(id => findPage(folder, id)?.page.locked)
     return pageAt(folder, where)?.locked === true && !PAGE_SWITCHES.includes(action.id)
   },
   // ロック中のブックは、ロックの掛け外しのほかは変えない。ロック中のページは、ロックの掛け外しのほかは変えず、消さず、
-  // ブックごとゴミ箱にも入れない。ロックを外せるのは利用者だけ
+  // ブックごとゴミ箱にも入れない（中身を変えずに、ほかのブックへ動かすのはよい）。ロックを外せるのは利用者だけ
   keeps: c => {
     if (c.kind === "record") return recordKeeps(c)
     if (c.kind !== "folder") return true
@@ -188,7 +190,8 @@ export const LOCK = kit.definePermission({
       const c = changes.pages.find(x => x.id === p.id)
       return (
         !c ||
-        (c.change === "changed" &&
+        // ほかのブックへ動かすのはよい（中身は変えない）
+        ((c.change === "changed" || c.change === "movedOut") &&
           c.items.length === 0 &&
           onlySwitched(c.fields, next.get(p.id), actor, action.id, PAGE_SWITCHES))
       )

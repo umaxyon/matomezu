@@ -1,4 +1,4 @@
-// 書庫が対象のアクションが使う、エントリの読み方と変え方: 書庫ホームかフォルダの直下に在るエントリ・名前を変える・重ならない名前にする・ゴミ箱から戻す先
+// 書庫が対象のアクションが使う、エントリの読み方と変え方: ゴミ箱の外に在るエントリ・動かせる先・名前を変える・重ならない名前にする・ゴミ箱から戻す先
 import { freeTitle } from "../../../core/book"
 import {
   type EntryKind,
@@ -26,23 +26,49 @@ import {
   type PageRow,
 } from "../../../core/folders"
 
+// ゴミ箱の外のどこか（書庫ホーム・フォルダ・ブック・バインダ）に入っているエントリ entry の、入れているフォルダと並びのエントリ。
+// ゴミ箱かその中の物、どこにも入っていない物（書庫ホーム・ゴミ箱）は undefined
+export function placedOutsideTrash(folders: Folders, entry: string): { holder: Folder; ref: AnyEntryRef } | undefined {
+  const place = placeOf(folders, entry)
+  if (!place || place.holder.folderRole === "trash" || inTrash(folders, entry)) return undefined
+  return place
+}
+
+// ブックかバインダの中に在る（ゴミ箱の中でない）エントリ entry（ブックの中のページ・バインダ）か
+export const placedInBook = (folders: Folders, entry: string): boolean => {
+  const role = placedOutsideTrash(folders, entry)?.holder.folderRole
+  return role === "book" || role === "binder"
+}
+
 // 書庫ホームかフォルダの直下に在る（ゴミ箱の中でない）エントリ entry の、入れているフォルダと並びのエントリ。
 // ブック・バインダの中の物、ゴミ箱かその中の物、どこにも入っていない物（書庫ホーム・ゴミ箱）は undefined
-export function placedInFolder(
+export function placedOutsideBooks(
   folders: Folders,
   entry: string,
 ): { holder: Exclude<HomeOrFolder, { folderRole: "trash" }>; ref: AnyEntryRef } | undefined {
-  const place = placeOf(folders, entry)
+  const place = placedOutsideTrash(folders, entry)
   if (!place) return undefined
   const { holder, ref } = place
-  if (holder.folderRole !== "home" && holder.folderRole !== "folder") return undefined
-  return inTrash(folders, entry) ? undefined : { holder, ref }
+  return holder.folderRole === "home" || holder.folderRole === "folder" ? { holder, ref } : undefined
 }
 
 // エントリを入れられるフォルダか: 書庫ホームかフォルダで、ゴミ箱の中でない
 export const holdsEntries = (folders: Folders, id: string): boolean => {
   const f = folders[id]
   return (f?.folderRole === "home" || f?.folderRole === "folder") && !inTrash(folders, id)
+}
+
+// エントリ entry を、フォルダ into へ動かす（同じフォルダの中の並べ替えも）のを、書庫が対象のアクションが扱うか: entry がゴミ箱の外に在り、into がゴミ箱の外のフォルダ・ブック・バインダで、
+// ブックの中の物（ページ・バインダ）なら、ブックかバインダの中へだけ（ブックの外へは出さない）、バインダの中のページなら、バインダの中へだけ（バインダの外へ 1 枚ずつは出さない）。
+// ブックの外の物なら、ブックの外へだけ（ブックかバインダの中へは入れない）。持てる種類か・自分の中へでないかは、土台（core/entries.ts の movedEntry）が見る
+export function movesInto(folders: Folders, entry: string, into: string): boolean {
+  const place = placedOutsideTrash(folders, entry)
+  const to = folders[into]
+  if (!place || !to || to.folderRole === "trash" || inTrash(folders, into)) return false
+  const toBook = to.folderRole === "book" || to.folderRole === "binder"
+  if (place.holder.folderRole === "binder") return to.folderRole === "binder"
+  if (place.holder.folderRole === "book") return toBook
+  return !toBook
 }
 
 // 新しいブック・フォルダを作る先: フォルダ opened がエントリを入れられれば、そこ。入れられなければ（ブック・バインダ）、それを入れている一番近い書庫ホームかフォルダ。

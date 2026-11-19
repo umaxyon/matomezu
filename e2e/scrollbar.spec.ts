@@ -13,7 +13,7 @@ test("分割した右のステージで中身が縦にスクロールしても�
   await (await fromMenu(page, "画面を分割")).click()
   // 右のステージに長いマークダウンのページを作る（プレビューのペインは縦にスクロールし、右端にスクロールバーが出る）
   const right = page.getByRole("region", { name: "ステージ" }).nth(1)
-  await right.getByRole("button", { name: "新しいブック" }).click()
+  await page.getByRole("button", { name: "ブック新規作成" }).locator("visible=true").click()
   const add = page.getByRole("dialog", { name: "新しいブック" })
   await page.keyboard.type("長い文書")
   await add.getByRole("button", { name: "作成" }).click()

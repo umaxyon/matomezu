@@ -1,8 +1,10 @@
 // 書庫の画面のドラッグで落とす先（base/library/drop.ts）: 落とせるか・行の間の位置・名前が重なるときに確かめる事が、動かすアクションと合う
 import { expect, test } from "bun:test"
 import { entriesIn } from "../../../web/src/core/entries"
-import { HOME_ID } from "../../../web/src/core/folders"
+import { HOME_ID, type HomeFolder, type Library, type PlainFolder, worldTablesOf } from "../../../web/src/core/folders"
 import { type Drop, draggable, droppable, indexBefore, moveClashOf } from "../../../web/src/plugins/base/library/drop"
+import { movesInto } from "../../../web/src/plugins/base/library/entries"
+import { DRAWING, drawingPage, testBinder, testBook } from "../../lineup"
 import { newStore } from "../../support"
 
 function setup() {
@@ -15,13 +17,13 @@ function setup() {
   return { perform, folder, library, ids }
 }
 
-test("掴めるのは書庫ホームかフォルダの直下の物。自分の中・ブックの中・同じ場所へは落とせず、ゴミ箱へは落とせる", () => {
+test("掴めるのはゴミ箱の外の物（ブックの中のページも）。自分の中・同じ場所・ブックのフォルダの中へは落とせない。ブックの中の物はブックの外とゴミ箱へは落とせない", () => {
   const { folder, library, ids } = setup()
   const a = folder("あ")
   const inner = folder("中", a)
   expect(draggable(library().folders, "b1")).toBe(true)
   expect(draggable(library().folders, inner)).toBe(true)
-  expect(draggable(library().folders, "p1")).toBe(false) // ブックの中のページ
+  expect(draggable(library().folders, "p1")).toBe(true) // ブックの中のページ
   expect(draggable(library().folders, HOME_ID)).toBe(false)
   const can = (entry: string, drop: Drop) => droppable(library(), entry, drop)
   expect(can("b1", { to: "folder", into: a })).toBe(true)
@@ -30,6 +32,9 @@ test("掴めるのは書庫ホームかフォルダの直下の物。自分の�
   expect(can(a, { to: "folder", into: a })).toBe(false)
   expect(can(a, { to: "folder", into: "b1" })).toBe(false)
   expect(can("p1", { to: "folder", into: a })).toBe(false)
+  expect(can("p1", { to: "trash" })).toBe(false)
+  expect(can("p1", { to: "folder", into: "b2" })).toBe(true)
+  expect(can("p1", { to: "folder", into: "b1" })).toBe(false) // 同じ場所
   // 同じ場所: 今の位置と、その次の行の前
   const home = ids(HOME_ID)
   expect(home[0]).toBe("b1")
@@ -97,4 +102,40 @@ test("上書きできない訳を出す（種類が違う）", () => {
   expect(book).toBeDefined()
   const mine = folder("同じ")
   expect(moveClashOf(library(), mine, { to: "folder", into: a })).toMatchObject({ replaces: book, overwrite: "kind" })
+})
+
+test("ブックの外のページ・バインダは、ブックの中（ブック・バインダ）へは入れない（ドラッグも entry-move も）。ブックの外の間では動かせる", () => {
+  const a: PlainFolder = { folderRole: "folder", id: "a", title: "あ", lineup: [] }
+  const home: HomeFolder = {
+    folderRole: "home",
+    id: HOME_ID,
+    lineup: [
+      { kind: "page", id: "loose" },
+      { kind: "binder", id: "lb" },
+      { kind: "folder", id: "a" },
+      { kind: "book", id: "b1" },
+    ],
+  }
+  const tables = worldTablesOf(
+    [
+      testBook("b1", "一", [drawingPage("p1"), testBinder("bd", "束", DRAWING, drawingPage("p2"))]),
+      testBook("b9", "仮", [testBinder("lb", "外の束", DRAWING, drawingPage("p3"))]),
+    ],
+    [home, a],
+  )
+  // b9 は、外のバインダ lb の行を作るためだけのブック（表からは外す）
+  const { b9: _, ...folders } = tables.folders
+  const library: Library = {
+    pages: { ...tables.pages, loose: { ...tables.pages.p1, id: "loose", title: "外" } as Library["pages"][string] },
+    folders,
+  }
+  for (const entry of ["loose", "lb"]) {
+    expect(movesInto(library.folders, entry, "b1")).toBe(false)
+    expect(droppable(library, entry, { to: "folder", into: "b1" })).toBe(false)
+    expect(droppable(library, entry, { to: "folder", into: "a" })).toBe(true)
+  }
+  expect(movesInto(library.folders, "loose", "bd")).toBe(false)
+  expect(droppable(library, "loose", { to: "folder", into: "bd" })).toBe(false)
+  // ブックの中からほかのブック・バインダへは今のまま
+  expect(movesInto(library.folders, "p1", "bd")).toBe(true)
 })

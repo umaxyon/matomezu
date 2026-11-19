@@ -1,4 +1,4 @@
-// ex15 のたな: フォルダの直下のエントリを並べる。AI の書庫の変更は、たなが見せているフォルダの物なら見えたとして書庫の画面の履歴に入り、
+// ex15 のたな: フォルダの直下のエントリを並べる。AI の書庫の変更は、たなが見せているフォルダの物なら見えたとして書庫の履歴に入り、
 // たたんでいる間（描いたまま隠している間）は入らない
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
@@ -63,7 +63,7 @@ test("たなのスクリーンは、書庫ホームの直下のエントリを�
   expect(names()).toEqual([])
 })
 
-test("AI の書庫の変更は、たなが見せているフォルダの物なら書庫の画面の履歴に入る。たたんでいる間は入らず、ひらくと入る", async () => {
+test("AI の書庫の変更は、たなが見せているフォルダの物なら書庫の履歴に入る。たたんでいる間は入らず、ひらくと入る", async () => {
   const { here, renameByAI } = await pair()
   here.actions.openScreen("ex15:shelf-screen", {})
   const shelf = here.state.getState().window.screens.find(s => s.def === "ex15:shelf-screen")?.id as string

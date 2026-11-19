@@ -4,6 +4,7 @@ import { BOOK_SCREEN_URL, expect, joinedAiAuth, test } from "./fixtures"
 import { panel, writeNote } from "./helpers/note"
 import { leftPanel, openOutbox } from "./helpers/outbox"
 import { addBox, items } from "./helpers/paper"
+import { splitWith } from "./helpers/split"
 import { fromMenu } from "./helpers/stage-menu"
 
 test("左サイドパネルの送信トレイに、伝言とマークが新しい順に並ぶ。伝言の行を押すと右サイドパネルに出る（閉じない）。マークの行は物へ移るだけ。取消は確かめてから消える。外を押しても閉じず、閉じるボタンで閉じる", async ({
@@ -125,7 +126,7 @@ test("分けているとき左サイドパネルを開くと、窓の左に出�
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto(BOOK_SCREEN_URL)
-  await (await fromMenu(page, "画面を分割")).click()
+  await splitWith(page, "画面の構成")
   const stages = page.locator("[data-stage]")
   await expect(stages).toHaveCount(2)
   const before = (await stages.nth(1).boundingBox())!
@@ -169,7 +170,7 @@ test("右サイドパネルを開いているステージで左サイドパネ�
   await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 150, "一")
   await writeNote(page, items(page).filter({ hasText: "一" }), "見て")
-  await (await fromMenu(page, "画面を分割")).click()
+  await splitWith(page, "画面の構成")
   await page.getByRole("button", { name: "伝言を開く" }).first().click()
   await expect(panel(page)).toBeVisible()
   await (await fromMenu(page, "左サイドパネルを開く", 0)).click()

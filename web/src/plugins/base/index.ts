@@ -11,7 +11,6 @@ import {
   THEME_TYPES_CHECK,
 } from "./book-look"
 import { BOOK_CREATE, BOOK_NEW, NEW_BOOK_DIALOG } from "./book-new"
-import { BOOK_OPEN, OPEN_BOOK_DIALOG } from "./book-open"
 import { CONTEXT_MENU_STATES, MENU_CLOSE, MENU_KEYS, type PRESSED_ANCHOR } from "./context-menu"
 import { DIALOG_CLOSE, DIALOG_KEYS, DIALOG_SUBMIT } from "./dialog-host"
 import { HISTORY_KEYS, HISTORY_RESTORE, REDO, UNDO } from "./history"
@@ -28,6 +27,7 @@ import {
 import {
   LIBRARY_BOOK_NEW,
   LIBRARY_CONTENTS_KEY_SCOPE,
+  LIBRARY_ENTRY_DUPLICATE,
   LIBRARY_ENTRY_MOVE,
   LIBRARY_ENTRY_OPEN,
   LIBRARY_ENTRY_RENAME,
@@ -45,9 +45,12 @@ import {
   LIBRARY_UNDO,
 } from "./library/commands"
 import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG, LIBRARY_RENAME_DIALOG } from "./library/dialog"
+import { ENTRY_DUPLICATE, PAGE_CREATE } from "./library/entry-duplicate"
 import { ENTRY_MOVE, ENTRY_MOVE_OVER, ENTRY_RENAME, FOLDER_CREATE } from "./library/entry-move"
 import { ENTRY_PURGE, ENTRY_RESTORE, ENTRY_TRASH, TRASH_EMPTY } from "./library/entry-trash"
 import { LIBRARY_REVERT } from "./library/revert"
+import { LIBRARY_OPEN, LIBRARY_SCREEN, LIBRARY_SCREEN_CLOSE, LIBRARY_SCREEN_EXPAND } from "./library/screen"
+import { LIBRARY_SCREEN_KEYS } from "./library/screen-keys"
 import {
   LIBRARY_APPEARANCE,
   LIBRARY_COLUMNS,
@@ -246,13 +249,14 @@ import { CORNER_STATUS_ORDER } from "./utils/corner-order"
 import { REVEAL_REQUEST_STATES, type REVEALING_STATE } from "./utils/reveal-state"
 import { WIDE_SEARCH_MODE } from "./wide-search"
 import {
+  BOOK_SCREEN_CLOSE,
   BOOK_SCREEN_DEF,
-  CONTROL_CENTER_KEYS,
-  CONTROL_CENTER_LEAVE,
   CONTROL_CENTER_TOGGLE,
   MAXIMIZERS,
   ONE_SCREEN,
   SCREEN_FLASH,
+  SPLIT_BACK,
+  SPLIT_KEYS,
   SPLIT_ROWS,
 } from "./window"
 import { ZOOM_FIT, ZOOM_IN, ZOOM_KEYS, ZOOM_OUT, ZOOM_RESET, ZOOM_WHEEL } from "./zoom"
@@ -430,6 +434,8 @@ export const BASE = defineBuiltin(
       ENTRY_MOVE,
       ENTRY_MOVE_OVER,
       ENTRY_RENAME,
+      ENTRY_DUPLICATE,
+      PAGE_CREATE,
       ENTRY_TRASH,
       ENTRY_RESTORE,
       ENTRY_PURGE,
@@ -497,7 +503,7 @@ export const BASE = defineBuiltin(
     annotations: [NOTE, MARK],
     mails: [MAIL_LETTER, MAIL_JOIN_REQUEST, MAIL_PROPOSAL],
     subjects: [WORKROOM, PARTICIPANT, ADMIN_MARK, MAIL, SCRAP],
-    screens: [BOOK_SCREEN_DEF],
+    screens: [BOOK_SCREEN_DEF, LIBRARY_SCREEN],
     screenArrangements: [ONE_SCREEN, SPLIT_ROWS],
     checks: [
       PROP_NAMES_CHECK,
@@ -515,7 +521,8 @@ export const BASE = defineBuiltin(
       SCRAP_OPEN_ORIGINAL,
       BOOK_NEW,
       CONTROL_CENTER_TOGGLE,
-      CONTROL_CENTER_LEAVE,
+      BOOK_SCREEN_CLOSE,
+      SPLIT_BACK,
       STAGE_SPLIT,
       STAGE_UNSPLIT,
       STAGE_CLOSE,
@@ -537,7 +544,6 @@ export const BASE = defineBuiltin(
       DIALOG_SUBMIT,
       DIALOG_CLOSE,
       MENU_CLOSE,
-      BOOK_OPEN,
       PAGE_NEW,
       BINDER_OPEN,
       BINDER_SETTINGS,
@@ -559,9 +565,13 @@ export const BASE = defineBuiltin(
       LIBRARY_REDO,
       LIBRARY_ENTRY_OPEN,
       LIBRARY_BOOK_NEW,
+      LIBRARY_OPEN,
+      LIBRARY_SCREEN_CLOSE,
+      LIBRARY_SCREEN_EXPAND,
       LIBRARY_FOLDER_NEW,
       LIBRARY_ENTRY_RENAME,
       LIBRARY_ENTRY_TRASH,
+      LIBRARY_ENTRY_DUPLICATE,
       LIBRARY_ENTRY_MOVE,
       LIBRARY_TREE_MOVE,
       LIBRARY_TREE_FOLD_OR_PARENT,
@@ -577,7 +587,6 @@ export const BASE = defineBuiltin(
       ...SEARCH_COMMANDS,
     ],
     dialogs: [
-      OPEN_BOOK_DIALOG,
       NEW_PAGE_DIALOG,
       PAGE_DELETE_DIALOG,
       BINDER_SETTINGS_DIALOG,
@@ -633,9 +642,10 @@ export const BASE = defineBuiltin(
       ...MENU_KEYS,
       ...HISTORY_KEYS,
       ...LIBRARY_KEYS,
+      ...LIBRARY_SCREEN_KEYS,
       ...RIGHT_SIDE_PANEL_KEYS,
       ...LEFT_SIDE_PANEL_KEYS,
-      ...CONTROL_CENTER_KEYS,
+      ...SPLIT_KEYS,
       ...PRINT_KEYS,
       ...SEARCH_KEYS,
     ],
@@ -688,6 +698,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:entry-move": typeof ENTRY_MOVE
     "@matomezu/base:entry-move-over": typeof ENTRY_MOVE_OVER
     "@matomezu/base:entry-rename": typeof ENTRY_RENAME
+    "@matomezu/base:entry-duplicate": typeof ENTRY_DUPLICATE
+    "@matomezu/base:page-create": typeof PAGE_CREATE
     "@matomezu/base:entry-trash": typeof ENTRY_TRASH
     "@matomezu/base:entry-restore": typeof ENTRY_RESTORE
     "@matomezu/base:entry-purge": typeof ENTRY_PURGE
@@ -738,6 +750,7 @@ declare module "../../core/catalog" {
   }
   interface ScreenTable {
     "@matomezu/base:book-screen": typeof BOOK_SCREEN_DEF
+    "@matomezu/base:library-screen": typeof LIBRARY_SCREEN
   }
   interface ScreenArrangementTable {
     "@matomezu/base:one-screen": typeof ONE_SCREEN
@@ -789,6 +802,9 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-redo": typeof LIBRARY_REDO
     "@matomezu/base:library-entry-open": typeof LIBRARY_ENTRY_OPEN
     "@matomezu/base:library-book-new": typeof LIBRARY_BOOK_NEW
+    "@matomezu/base:library-open": typeof LIBRARY_OPEN
+    "@matomezu/base:library-screen-close": typeof LIBRARY_SCREEN_CLOSE
+    "@matomezu/base:library-screen-expand": typeof LIBRARY_SCREEN_EXPAND
     "@matomezu/base:library-folder-new": typeof LIBRARY_FOLDER_NEW
     "@matomezu/base:library-entry-rename": typeof LIBRARY_ENTRY_RENAME
     "@matomezu/base:library-entry-move": typeof LIBRARY_ENTRY_MOVE
@@ -797,8 +813,10 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-tree-unfold-or-next": typeof LIBRARY_TREE_UNFOLD_OR_NEXT
     "@matomezu/base:library-pick-move": typeof LIBRARY_PICK_MOVE
     "@matomezu/base:library-entry-trash": typeof LIBRARY_ENTRY_TRASH
+    "@matomezu/base:library-entry-duplicate": typeof LIBRARY_ENTRY_DUPLICATE
     "@matomezu/base:control-center-toggle": typeof CONTROL_CENTER_TOGGLE
-    "@matomezu/base:control-center-leave": typeof CONTROL_CENTER_LEAVE
+    "@matomezu/base:book-screen-close": typeof BOOK_SCREEN_CLOSE
+    "@matomezu/base:split-back": typeof SPLIT_BACK
     "@matomezu/base:stage-split": typeof STAGE_SPLIT
     "@matomezu/base:stage-unsplit": typeof STAGE_UNSPLIT
     "@matomezu/base:stage-close": typeof STAGE_CLOSE
@@ -820,7 +838,6 @@ declare module "../../core/catalog" {
     "@matomezu/base:dialog-submit": typeof DIALOG_SUBMIT
     "@matomezu/base:dialog-close": typeof DIALOG_CLOSE
     "@matomezu/base:menu-close": typeof MENU_CLOSE
-    "@matomezu/base:book-open": typeof BOOK_OPEN
     "@matomezu/base:page-new": typeof PAGE_NEW
     "@matomezu/base:page-open": typeof PAGE_OPEN
     "@matomezu/base:binder-open": typeof BINDER_OPEN
@@ -898,7 +915,6 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-book-new": typeof LIBRARY_NEW_BOOK_DIALOG
     "@matomezu/base:library-folder-new": typeof LIBRARY_NEW_FOLDER_DIALOG
     "@matomezu/base:library-entry-rename": typeof LIBRARY_RENAME_DIALOG
-    "@matomezu/base:book-open": typeof OPEN_BOOK_DIALOG
     "@matomezu/base:page-new": typeof NEW_PAGE_DIALOG
     "@matomezu/base:page-delete": typeof PAGE_DELETE_DIALOG
     "@matomezu/base:binder-settings": typeof BINDER_SETTINGS_DIALOG

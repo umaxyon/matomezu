@@ -1,4 +1,4 @@
-// 書庫の行のアイコン（種類ごと。ページは、そのタイプのプラグインが名乗ったアイコン）と、ツリーの開閉の印、書庫の画面の履歴のコマンドのアイコン（ブックの画面の履歴のコマンドと同じ絵）
+// 書庫の行のアイコン（種類ごと。ページは、そのタイプのプラグインが名乗ったアイコン）と、ツリーの開閉の印、書庫の履歴のコマンドのアイコン（ブックの画面の履歴のコマンドと同じ絵）
 import type { EntryKind } from "../../../core/entries"
 import { useUiCatalog } from "../../../ui/store-context"
 import { REDO_ICON, UNDO_ICON } from "../history/icons"
@@ -7,6 +7,7 @@ import { BookIcon, BookOpenIcon } from "../utils/book-icons"
 import { LIBRARY_REDO, LIBRARY_UNDO } from "./commands"
 import styles from "./LibraryView.module.css"
 import type { LibraryRow } from "./outline"
+import { LIBRARY_OPEN } from "./screen"
 
 const FOLDER = icon(<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />)
 const BINDER = icon(
@@ -23,6 +24,10 @@ const PAGE = icon(
 )
 export const TRASH = icon(<path d="M4 7h16M10 7V4h4v3M6 7l1 13h10l1-13M10 11v6M14 11v6" />)
 export const CHEVRON = icon(<path d="M9 6l6 6-6 6" />)
+// 書庫のスクリーンの帯: 閉じる（窓いっぱいのとき）・右へ引っ込む（並べているとき）・広げる
+export const CLOSE = icon(<path d="M6 6l12 12M18 6L6 18" />)
+export const CLOSE_RIGHT = icon(<path d="M5 12h14M13 6l6 6-6 6" />)
+export const EXPAND = icon(<path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7" />)
 
 const ICONS = { folder: FOLDER, book: <BookIcon />, binder: BINDER, page: PAGE } as const satisfies Record<
   EntryKind,
@@ -55,4 +60,5 @@ export function RowIcon({
 export const LIBRARY_COMMAND_ICONS = {
   [LIBRARY_UNDO.id]: UNDO_ICON,
   [LIBRARY_REDO.id]: REDO_ICON,
+  [LIBRARY_OPEN.id]: icon(<path d="M3.5 5.5h6l2 2h9v11h-17z" />),
 }

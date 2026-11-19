@@ -4,7 +4,7 @@ import { addList, addRow } from "./helpers/list"
 import { panel, writeNote } from "./helpers/note"
 import { addBox, items, settled } from "./helpers/paper"
 import { backToBook, openGeneral, settingsDialog } from "./helpers/settings"
-import { fromMenu } from "./helpers/stage-menu"
+import { splitWith } from "./helpers/split"
 
 const stands = (page: Page) => page.locator("[data-stand]")
 
@@ -352,7 +352,7 @@ test("分けた左のステージのリストの行の伝言は、右サイド�
   await addRow(page, list, "行 1")
   const row = list.getByRole("listitem").first()
   await writeNote(page, row, "見て")
-  await (await fromMenu(page, "画面を分割")).click()
+  await splitWith(page, "画面の構成")
   const bubble = page.getByRole("button", { name: "伝言を開く" })
   // 吹き出しの左の端と、行の右の端の差（行の右に付いていれば、すき間の分だけ正）
   const beside = async () =>
@@ -375,7 +375,7 @@ test("分けたステージの境目を左へドラッグして左のステー�
   await addBox(page, 200, 150, "一")
   const box = items(page).filter({ hasText: "一" })
   await writeNote(page, box, "境目に押される")
-  await (await fromMenu(page, "画面を分割")).click()
+  await splitWith(page, "画面の構成")
   const bubble = page.getByRole("group", { name: "伝言", exact: true }).getByRole("button", { name: "伝言を開く" })
   const pointer = page.getByRole("button", { name: "一を見せる" })
   await expect(bubble).toBeVisible()

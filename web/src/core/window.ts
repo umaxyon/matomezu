@@ -198,6 +198,18 @@ export function followLibraryIn(
   return next
 }
 
+// スクリーン screen のステージの並び（左から。何かを開いているか付き。ステージを並べないスクリーンなら空）
+export const stageListOf = (screen: Pick<OpenedScreen, "stages">): readonly StageListed[] =>
+  screen.stages?.stages.map(st => ({ id: st.id, opened: st.opened !== null })) ?? NO_STAGE_LIST
+export interface StageListed {
+  id: string
+  opened: boolean // 何かを開いているか
+}
+const NO_STAGE_LIST: readonly StageListed[] = []
+
+// スクリーン screen のカレントのステージの id（ステージを並べないスクリーンなら null）
+export const currentStageOf = (screen: Pick<OpenedScreen, "stages">): string | null => screen.stages?.current ?? null
+
 // 開いたままにする枚数（定義の maxOpen）を超えたスクリーンを閉じる（カレントにしたのが古い物から。超えていなければ同じ窓を返す）
 export function withinLimits(win: WindowState, catalog: CoreCatalog): WindowState {
   let next = win

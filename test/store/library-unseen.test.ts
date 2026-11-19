@@ -1,6 +1,7 @@
-// まだ見ていない、AI とほかの窓の書庫の変更: 常駐の知らせ（receive の change）の library（書庫の画面の履歴に入るアクションが変えたページとフォルダの前と後）の分は、
+// まだ見ていない、AI とほかの窓の書庫の変更: 常駐の知らせ（receive の change）の library（書庫の履歴に入るアクションが変えたページとフォルダの前と後）の分は、
 // ブックの画面の履歴に入れず、まだ見ていない書庫の変更として溜める。変わったフォルダか、変わった物を入れているフォルダを、見えているスクリーンのビューが見せたら、
-// 書庫の画面の履歴に時刻の位置で差し込む。置き直しが上書きした、まだ見ていない変更は捨てる
+// 書庫の履歴に時刻の位置で差し込む。まだ見ていない変更と同じ所を置き直す戻す・やり直すは断る。画面の履歴に入らない変更（完全に消すなど）が
+// 消した、まだ見ていない変更は捨て、AI の物は消えたと知らせる
 
 import { expect, test } from "bun:test"
 import { HOME_ID } from "../../web/src/core/folders"
@@ -21,6 +22,8 @@ const rowsOf = (store: Store) => {
 const libraryHistory = (store: Store) => store.state.getState().history[LIBRARY_HISTORY] ?? { undo: [], redo: [] }
 const titleOf = (store: Store, id: string) => (store.state.getState().folders[id] as { title?: string }).title
 const RENAME = "@matomezu/base:entry-rename"
+const TRASH = "@matomezu/base:entry-trash"
+const PURGE = "@matomezu/base:entry-purge"
 const CENTER = "@matomezu/control-center:screen"
 const FRONT = "@matomezu/control-center:front-screen"
 // よそが、ブック b1 の名前を書庫のアクションで title に変える
@@ -42,7 +45,7 @@ function pair(visible: () => boolean = () => true) {
   const there = newStore({ newId: sequence() })
   here.receive(rowsOf(here), [])
   // よそが steps を順に行い、その後の世界を、この窓に知らせる。library の印の付いた物が変えたページとフォルダの前と後を、知らせの library に載せる
-  // （常駐のエンジンが、書庫の画面の履歴に入るアクションの分として知らせる物）
+  // （常駐のエンジンが、書庫の履歴に入るアクションの分として知らせる物）
   const foreign = async (
     change: { by: "ai" | "window"; act: string; actions: readonly string[] },
     ...steps: Step[]
@@ -92,7 +95,7 @@ function pair(visible: () => boolean = () => true) {
   return { here, there, told, foreign, show, showBook, center }
 }
 
-test("AI が書庫のアクションで変えたブックの名前は、ブックの画面の履歴に入らず、入れ物のフォルダを書庫の画面が見せたら、書庫の画面の履歴に入る", async () => {
+test("AI が書庫のアクションで変えたブックの名前は、ブックの画面の履歴に入らず、入れ物のフォルダを書庫の画面が見せたら、書庫の履歴に入る", async () => {
   const { here, there, told, foreign, show } = pair()
   await foreign({ by: "ai", act: "1", actions: [RENAME] }, renamed(there, "AI の名前"))
   expect(titleOf(here, "b1")).toBe("AI の名前")
@@ -129,7 +132,7 @@ test("見えていないスクリーンの書庫が見せているフォルダ�
   expect(libraryHistory(here).undo).toMatchObject([{ by: "ai" }])
 })
 
-test("ほかの窓のアクションバルクにブックの変更と書庫の変更が混ざっていたら、ブックの分はブックの画面の履歴に、書庫の分は書庫の画面の履歴に分かれる", async () => {
+test("ほかの窓のアクションバルクにブックの変更と書庫の変更が混ざっていたら、ブックの分はブックの画面の履歴に、書庫の分は書庫の履歴に分かれる", async () => {
   const { here, there, foreign, show, showBook } = pair()
   show([HOME_ID])
   const page = Object.keys(there.state.getState().pages)[0] as string
@@ -156,7 +159,7 @@ test("ほかの窓のアクションバルクにブックの変更と書庫の�
   expect(libraryHistory(here).undo).toMatchObject([{ by: "window", pages: {}, folders: { b1: {} } }])
 })
 
-test("同じブックを、ブックが対象のアクションと書庫が対象のアクションの両方が変えたバルクでも、ページを足した分はブックの画面の履歴に、名前の分は書庫の画面の履歴に入る", async () => {
+test("同じブックを、ブックが対象のアクションと書庫が対象のアクションの両方が変えたバルクでも、ページを足した分はブックの画面の履歴に、名前の分は書庫の履歴に入る", async () => {
   const { here, there, foreign, show } = pair()
   show([HOME_ID])
   const ADD = "@matomezu/base:page-add"
@@ -187,7 +190,7 @@ test("同じブックを、ブックが対象のアクションと書庫が対�
   expect(titleOf(here, "b1")).toBe(was)
 })
 
-test("利用者の書庫の元に戻すが、まだ見ていない AI の値を上書きしたら、その変更は捨て、消えた所と値を知らせる", async () => {
+test("まだ見ていない AI の値と同じ所を、利用者の書庫の元に戻すが置き直すなら断り、段を捨てる。AI の値は残り、見えたら差し込む（消えたと知らせない）", async () => {
   const { here, there, told, foreign, show } = pair()
   here.actions.perform(RENAME, { entry: "b1", title: "利用者の名前" })
   await settled()
@@ -196,15 +199,15 @@ test("利用者の書庫の元に戻すが、まだ見ていない AI の値を�
   here.receive(rowsOf(there), [])
   await foreign({ by: "ai", act: "5", actions: [RENAME] }, renamed(there, "AI の名前"))
   expect(here.actions.command("s1", "@matomezu/base:library-undo")).toBe(true)
-  expect(titleOf(here, "b1")).not.toBe("AI の名前")
-  expect(told).toEqual([
-    { book: "b1", act: "5", places: ["b1"], outcome: "lost", lost: [{ at: "title", value: "AI の名前" }] },
-  ])
+  expect(titleOf(here, "b1")).toBe("AI の名前")
+  expect(here.state.getState().toasts.at(-1)).toMatchObject({ kind: "warn" })
+  expect(told).toEqual([])
   show([HOME_ID])
-  expect(libraryHistory(here).undo.filter(s => s.by === "ai")).toEqual([])
+  expect(libraryHistory(here).undo.map(s => s.by)).toEqual(["ai"])
+  expect(told).toEqual([{ act: "5", places: ["b1"], outcome: "seen" }])
 })
 
-test("書庫が対象・ブックが対象・書庫が対象の順に同じブックを変えたバルクでも、足したページは書庫の画面の履歴の段に入らない", async () => {
+test("書庫が対象・ブックが対象・書庫が対象の順に同じブックを変えたバルクでも、足したページは書庫の履歴の段に入らない", async () => {
   const { here, there, foreign, show } = pair()
   show([HOME_ID])
   const ADD = "@matomezu/base:page-add"
@@ -246,38 +249,34 @@ test("見えた変更は、時刻の位置に入る（そのあとの利用者�
   expect(libraryHistory(here).undo.map(s => s.by)).toEqual(["window", "user"])
 })
 
-test("AI の 1 回の変更が 2 冊のブックを変え、利用者の書庫の元に戻すがその両方を上書きしたら、ブックごとに、そのブックの分だけを知らせる", async () => {
+test("AI の 1 回の変更が 2 冊のブックを変え、見られる前に利用者がその両方を完全に消したら、ブックごとに、そのブックの分だけを知らせる", async () => {
   const { here, there, told, foreign } = pair()
   const both = (store: Store, title: string) => {
     store.actions.perform(RENAME, { entry: "b1", title: `${title} 1` })
     store.actions.perform(RENAME, { entry: "b2", title: `${title} 2` })
   }
-  // 利用者が 2 冊の名前を 1 回の操作で変え（続けて行ったアクションは 1 段）、よそも同じ所まで進める
-  both(here, "利用者の名前")
-  await settled()
-  both(there, "利用者の名前")
-  await settled()
-  here.receive(rowsOf(there), [])
   await foreign(
     { by: "ai", act: "7", actions: [RENAME, RENAME] },
     { run: () => both(there, "AI の名前"), library: true },
   )
-  expect(libraryHistory(here).undo).toHaveLength(1)
-  expect(here.actions.command("s1", "@matomezu/base:library-undo")).toBe(true)
+  // ゴミ箱に入れる（画面の履歴に入るので、AI の値は段の前の値に残る）。完全に消す（画面の履歴に入らない）と、AI の値が消える
+  for (const entry of ["b1", "b2"]) here.actions.perform(TRASH, { entry })
+  await settled()
+  expect(told).toEqual([])
+  here.actions.perform(PURGE, { entries: ["b1", "b2"] })
+  await settled()
   expect(told.filter(t => t.outcome === "lost").sort((a, b) => (a.book < b.book ? -1 : 1))).toEqual([
     { book: "b1", act: "7", places: ["b1"], outcome: "lost", lost: [{ at: "title", value: "AI の名前 1" }] },
     { book: "b2", act: "7", places: ["b2"], outcome: "lost", lost: [{ at: "title", value: "AI の名前 2" }] },
   ])
 })
 
-test("利用者の書庫の元に戻すが上書きしたのが、ブックの外のフォルダだけでも、その段の AI が変えたブックに、消えたと知らせる（値は空）", async () => {
+test("見られる前に利用者が消したのが、ブックの外のフォルダだけでも、その段の AI が変えたブックに、消えたと知らせる（値は空）", async () => {
   const { here, there, told, foreign, show } = pair()
-  // 利用者がフォルダを作り、その名前を変える（よそも同じ所まで進める）
+  // 利用者がフォルダを作る（よそも同じ所まで進める）
   const made = here.actions.perform("@matomezu/base:folder-create", { title: "箱" })
   await settled()
   const box = (made as { result: { folder: string } }).result.folder
-  here.actions.perform(RENAME, { entry: box, title: "利用者の名前" })
-  await settled()
   there.receive(rowsOf(here), [])
   here.receive(rowsOf(there), [])
   // AI が 1 回で、フォルダとブック b2 の名前を変える（常駐が AI 編集チケットに入れるのは b2 だけ）
@@ -291,9 +290,12 @@ test("利用者の書庫の元に戻すが上書きしたのが、ブックの�
       library: true,
     },
   )
-  // 利用者の元に戻すが、AI の付けたフォルダの名前を上書きする。段ごと捨てるので、b2 に消えたと知らせる
-  expect(here.actions.command("s1", "@matomezu/base:library-undo")).toBe(true)
-  expect(titleOf(here, box)).toBe("箱")
+  // 利用者が、AI の付けたフォルダの名前ごとフォルダを完全に消す。段ごと捨てるので、b2 に消えたと知らせる
+  here.actions.perform(TRASH, { entry: box })
+  await settled()
+  here.actions.perform(PURGE, { entries: [box] })
+  await settled()
+  expect(box in here.state.getState().folders).toBe(false)
   expect(told).toEqual([{ book: "b2", act: "9", places: ["b2"], outcome: "lost", lost: [] }])
   show([HOME_ID])
   expect(libraryHistory(here).undo.filter(s => s.by === "ai")).toEqual([])
@@ -311,7 +313,7 @@ test("書庫を出す事と、開くフォルダを替える事を 1 度に行�
   expect(libraryHistory(here).undo).toEqual([])
 })
 
-test("プラグインを組み直したら、まだ見ていない書庫の変更は忘れる（あとで見えても、書庫の画面の履歴に入らない）", async () => {
+test("プラグインを組み直したら、まだ見ていない書庫の変更は忘れる（あとで見えても、書庫の履歴に入らない）", async () => {
   const { here, there, foreign, show } = pair()
   await foreign({ by: "ai", act: "1", actions: [RENAME] }, renamed(there, "AI の名前"))
   here.use([definePlugin({ id: "plain" })])
@@ -319,7 +321,7 @@ test("プラグインを組み直したら、まだ見ていない書庫の変�
   expect(libraryHistory(here).undo).toEqual([])
 })
 
-test("まだ見ていない書庫の変更が HISTORY_LIMIT を超えたら、古い物から捨てる（見えても、捨てた分は書庫の画面の履歴に入らず、見えたとも知らせない）", async () => {
+test("まだ見ていない書庫の変更が HISTORY_LIMIT を超えたら、古い物から捨てる（見えても、捨てた分は書庫の履歴に入らず、見えたとも知らせない）", async () => {
   const { here, there, told, foreign, show } = pair()
   for (let i = 0; i <= HISTORY_LIMIT; i++)
     await foreign({ by: "ai", act: String(i), actions: [RENAME] }, renamed(there, `AI の名前 ${i}`))
@@ -328,4 +330,27 @@ test("まだ見ていない書庫の変更が HISTORY_LIMIT を超えたら、�
   expect(told.map(t => t.act)).toEqual(Array.from({ length: HISTORY_LIMIT }, (_, i) => String(i + 1)))
   // いちばん古い段は、2 回目の変更（1 回目の後の名前から）
   expect(libraryHistory(here).undo[0]).toMatchObject({ folders: { b1: { before: { title: "AI の名前 0" } } } })
+})
+
+test("書庫で足したページを、まだ見ていない AI がほかのブックへ動かしていたら、足したのを戻すと断る（動かした先のブックの並びを変えない）。ページは残り、消えたと知らせない", async () => {
+  const { here, there, told, foreign } = pair()
+  const made = here.actions.perform("@matomezu/base:page-create", {
+    folder: "b1",
+    type: "@matomezu/drawing:drawing",
+    title: "新",
+  })
+  await settled()
+  const page = (made as { result: { page: string } }).result.page
+  there.receive(rowsOf(here), [])
+  here.receive(rowsOf(there), [])
+  await foreign(
+    { by: "ai", act: "3", actions: ["@matomezu/base:entry-move"] },
+    { run: () => void there.actions.perform("@matomezu/base:entry-move", { entry: page, into: "b2" }), library: true },
+  )
+  expect(here.state.getState().folders.b2?.lineup.map(r => r.id)).toContain(page)
+  expect(here.actions.command("s1", "@matomezu/base:library-undo")).toBe(true)
+  expect(here.state.getState().toasts.at(-1)).toMatchObject({ kind: "warn" })
+  expect(page in here.state.getState().pages).toBe(true)
+  expect(here.state.getState().folders.b2?.lineup.map(r => r.id)).toContain(page)
+  expect(told.filter(t => t.outcome === "lost")).toEqual([])
 })

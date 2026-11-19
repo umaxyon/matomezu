@@ -6,7 +6,6 @@ import { BASE } from "."
 import { BOOK_LOOK_DIALOG_VIEWS, BOOK_LOOK_ICONS, BOOK_LOOK_SETTING_VIEWS } from "./book-look/ui"
 import { BOOK_NAME, FOOTER_MENU_MINIMAP, HISTORY_BUTTONS, STAGE_MENU_BUTTONS } from "./book-name/ui"
 import { BOOK_NEW_DIALOG_VIEWS } from "./book-new/ui"
-import { BOOK_OPEN_DIALOG_VIEWS, BOOK_OPEN_ICONS } from "./book-open/ui"
 import { MENU_HOST } from "./context-menu/ui"
 import { DIALOG_HOST } from "./dialog-host/ui"
 import { EDIT_LOCK } from "./edit-lock/ui"
@@ -15,6 +14,7 @@ import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG, LIBRARY_RENAME_DIAL
 import { LIBRARY_COMMAND_ICONS } from "./library/icons"
 import { LibraryNewBookDialog } from "./library/LibraryNewBookDialog"
 import { LibraryNewFolderDialog, LibraryRenameDialog } from "./library/NameDialogs"
+import { LIBRARY_SCREEN_VIEW } from "./library/screen-ui"
 import type { MailActionsProps } from "./mail/slots"
 import {
   MAIL_BOOKMARKS,
@@ -67,7 +67,7 @@ import type { WideSearchModeProps } from "./wide-search/slots"
 import type { WideSearchOpened } from "./wide-search/ui"
 import { FULL_TEXT_MODE, WIDE_SEARCH_TAB } from "./wide-search/ui"
 import { WINDOW_ICONS } from "./window/icons"
-import { CONTROL_CENTER_BIRDHOUSE, SCREENS_WIDGET, WINDOW } from "./window/ui"
+import { SCREENS_WIDGET, WINDOW } from "./window/ui"
 import { WORKSPACE } from "./workspace/ui"
 import { ZOOM_ICONS } from "./zoom/icons"
 
@@ -191,7 +191,6 @@ export { defineWorkspace, STAGE_BASE_SLOTS } from "./workspace/ui"
 import { SCRAP_DIALOG_VIEWS, SCRAP_TRAY_BUTTON, SCRAP_TRAY_TAB } from "./scrap/ui"
 export const BASE_UI = definePluginUi(BASE, {
   dialogViews: {
-    ...BOOK_OPEN_DIALOG_VIEWS,
     ...PAGE_DIALOG_VIEWS,
     ...BOOK_LOOK_DIALOG_VIEWS,
     ...BOOK_NEW_DIALOG_VIEWS,
@@ -208,7 +207,7 @@ export const BASE_UI = definePluginUi(BASE, {
   widgets: [
     WINDOW,
     SCREENS_WIDGET,
-    CONTROL_CENTER_BIRDHOUSE,
+    LIBRARY_SCREEN_VIEW,
     WORKSPACE,
     DIALOG_HOST,
     MENU_HOST,
@@ -268,7 +267,6 @@ export const BASE_UI = definePluginUi(BASE, {
   commandIcons: {
     ...STAGE_ICONS,
     ...ZOOM_ICONS,
-    ...BOOK_OPEN_ICONS,
     ...BOOK_LOOK_ICONS,
     ...PAGE_SETTINGS_ICONS,
     ...HISTORY_ICONS,
@@ -327,8 +325,8 @@ declare module "../../core/catalog" {
   interface WidgetTable {
     "@matomezu/base:window": typeof WINDOW
     "@matomezu/base:screens-view": typeof SCREENS_WIDGET
-    "@matomezu/base:control-center-birdhouse": typeof CONTROL_CENTER_BIRDHOUSE
     "@matomezu/base:workspace": typeof WORKSPACE
+    "@matomezu/base:library-screen-view": typeof LIBRARY_SCREEN_VIEW
     "@matomezu/base:dialog-host": typeof DIALOG_HOST
     "@matomezu/base:menu-host": typeof MENU_HOST
     "@matomezu/base:toast-host": typeof TOAST_HOST

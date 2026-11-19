@@ -215,11 +215,11 @@ export function titlesIn(library: Library, folder: Folder, except?: string): str
 export const titledIn = (library: Library, folder: Folder, title: string, except?: string): AnyEntryRef | undefined =>
   folder.lineup.find(r => r.id !== except && titleOf(library, r.kind, r.id) === title)
 
-// 書庫が was から now に変わる間に、直下の名前が変わって、同じ名前が重なった書庫ホーム・フォルダの id（ゴミ箱の直下は、同じ名前を許す。
-// ブックとバインダの中は、ブックの決まりが見る）。前から重なっていて、名前の並びが変わらないフォルダは挙げない
+// 書庫が was から now に変わる間に、直下の名前が変わって、同じ名前が重なった書庫ホーム・フォルダ・ブック・バインダの id（ゴミ箱の直下は、同じ名前を許す）。
+// 前から重なっていて、名前の並びが変わらないフォルダは挙げない
 export function titleClashes(was: Library, now: Library): string[] {
   return Object.values(now.folders).flatMap(f => {
-    if (f.folderRole !== "home" && f.folderRole !== "folder") return []
+    if (f.folderRole === "trash") return []
     const titles = titlesIn(now, f)
     if (new Set(titles).size === titles.length) return []
     const before = was.folders[f.id]

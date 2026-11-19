@@ -13,10 +13,11 @@ import type { MessageKey } from "../../core/i18n/i18n"
 import type { Books } from "../../core/library"
 import type { Book } from "../../core/schema/book"
 import { type Stage, shownPageId, toPaper } from "../../core/stage"
+import type { StageListed } from "../../core/window"
 import type { StageView, Workspace } from "../../core/workspace"
 import type { OpenedContextMenu } from "../context-menus"
 import type { OpenedDialog } from "../dialogs"
-import type { Actions, BoundPlaceActions, Settings, WindowActions } from "../store"
+import type { Actions, BoundPlaceActions, ProbeActions, Settings, WindowActions } from "../store"
 
 // コマンドの許可スコープ: "book" はページもアイテムも変えない、"opened-page" は開いているページ、"selection" はその選んでいる物（形の中身やページのフィールドの中の物も含む）。
 // { page } には、ページの id が入っている引数の名前を書く（右クリックしたページのように、引数が所を決めるとき）。
@@ -83,7 +84,7 @@ export interface ScreenCommandContext {
   settings: Settings
   dialog: OpenedDialog | null // 開いているダイアログ
   contextMenu: OpenedContextMenu | null // 開いている右クリックのメニュー
-  libraryHistory: History // 書庫の画面の履歴
+  libraryHistory: History // 書庫の履歴
   folders: Folders // 書庫のフォルダの表（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダの行と並び。読むだけ。ページの中身は持たない）
   // コマンドを持つプラグインが宣言したプラグイン状態 def の今の値（スクリーンごとの宣言は呼ばれた場所のスクリーンの値、ステージごとの宣言は呼ばれた場所のステージの値。
   // 無ければ undefined。ほかのプラグインの宣言は E125。変えるのは run が受け取る updatePluginState）
@@ -101,6 +102,8 @@ export interface CommandContext extends ScreenCommandContext {
 // 開いているスクリーン 1 枚（id 付き。base のコマンドが screensOf で読む）
 export interface OpenScreen extends CalledScreen {
   id: string // 開いた 1 枚ごとの id
+  stageList: readonly StageListed[] // ステージの並び（左から。何かを開いているか付き。ステージを並べないスクリーンなら空）
+  currentStage: string | null // カレントのステージの id（ステージを並べないスクリーンなら null）
 }
 
 // スクリーンから呼ぶコマンドの文脈ごとの、ほかのスクリーンを名指す物（呼ばれた場所のスクリーンの id・開いているスクリーンをカレントにした順に並べた物（最後がカレントスクリーン）・
@@ -173,6 +176,9 @@ export const givenActions = new WeakMap<CommandActions, Actions>()
 
 // コマンドが受け取った操作 a の、store の素の操作（store がコマンドに渡した操作だけが持つ）
 export const storeActionsOf = (a: CommandActions): Actions => givenActions.get(a) ?? fail("E116")
+
+// コマンドが受け取った操作 a の、アクションを行わずに確かめる操作（store がコマンドに渡した操作だけが持つ。プラグイン API には出さない）
+export const tryPerformOf = (a: CommandActions): ProbeActions["tryPerform"] => storeActionsOf(a).tryPerform
 
 // コマンドの定義の、呼ぶ場所によらない所
 interface CommandDefBase<A, Tt extends string> extends CommandExtras {

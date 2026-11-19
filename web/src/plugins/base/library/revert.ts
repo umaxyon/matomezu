@@ -1,7 +1,7 @@
-// 書庫の画面の履歴の段の置き直し（library-revert）: 書庫が対象のアクションの段が変えたページとフォルダごとに、変えた所だけを、前か後の値に置き直す
-// （置き直す値は、ブックの画面の履歴の段と同じ形。plugins/base/history/restore.ts）。今の書庫の上で行うので、その間に変わっていて、置き直すと木の決まりや
-// 同じ名前の決まりを破るなら、土台が断る（消したはずのブックにページが足されていた・元の名前がほかの物に使われた、など）。無かった行を丸ごと置く値が、
-// 今在る行に向いていても断る。置き直しても何も変わらなければ、断りの種類 REVERT_UNCHANGED で断る。利用者だけ（userOnly）
+// 書庫の履歴の段の置き直し（library-revert）: 書庫が対象のアクションの段が変えたページとフォルダごとに、変えた所だけを、前か後の値に置き直す
+// （置き直す値は、ブックの画面の履歴の段と同じ形。plugins/base/history/restore.ts）。今の書庫の上で行い、段が書いた値のままの所だけを置き直す。
+// その間にほかの変更が同じ所を変えていれば、ぶつかりとして断る（core/folders.ts の restoredTables）。置き直すと木の決まりや同じ名前の決まりを破るなら、
+// 土台が断る（元の名前がほかの物に使われた、など）。置き直しても何も変わらなければ、断りの種類 REVERT_UNCHANGED で断る。利用者だけ（userOnly）
 import { z } from "zod"
 import { restoredTables } from "../../../core/folders"
 import type { HistoryStep } from "../../../core/history"
@@ -15,7 +15,7 @@ export const LibraryRevertArgs = z.strictObject({
 
 export type LibraryRevertArgs = z.output<typeof LibraryRevertArgs>
 
-// 書庫の画面の履歴の段 step を、to の側（"before" なら戻す、"after" ならやり直す）へ置き直す引数
+// 書庫の履歴の段 step を、to の側（"before" なら戻す、"after" ならやり直す）へ置き直す引数
 export const libraryRevertArgs = (step: HistoryStep, to: "before" | "after"): LibraryRevertArgs => ({
   pages: patchesToward(step.pages, to),
   folders: patchesToward(step.folders, to),

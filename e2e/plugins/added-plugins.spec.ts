@@ -250,7 +250,7 @@ test("新しいブックのダイアログに追加プラグインのタイプ�
   await link(page, "test/added-plugins/ex3")
   await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "画面を分割")).click()
-  await page.getByRole("region", { name: "ステージ" }).nth(1).getByRole("button", { name: "新しいブック" }).click()
+  await page.getByRole("button", { name: "ブック新規作成" }).locator("visible=true").click()
   const dialog = page.getByRole("dialog", { name: "新しいブック" })
   await page.keyboard.type("星のボード")
   await page.keyboard.press("Enter")

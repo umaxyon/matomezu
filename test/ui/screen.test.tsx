@@ -13,7 +13,7 @@ import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { WindowRoot } from "../../web/src/ui/WindowRoot"
 import { drawingPage, testBook } from "../lineup"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { showFirstBook, worldRows } from "../support"
+import { showFirstBook } from "../support"
 
 const SKIN = "@matomezu/base:skin"
 
@@ -61,7 +61,10 @@ test("ステージに紙が 1 枚あり、下の行のフッタメニューに�
   expect(screen.getByRole("button", { name: "まとめ図の構想" }).getAttribute("aria-expanded")).toBe("false")
 })
 
-test("分割すると、右のステージは何も開いておらず、真ん中でブックを選べる。もう一度押すと 1 つに戻る", () => {
+// 下に出た書庫のスクリーンの、右の枠の中身
+const lowerLibrary = () => screen.getAllByRole("list", { name: "書庫 の中身", hidden: true }).at(-1)!
+
+test("分割すると、右のステージは何も開いておらず、下に書庫のスクリーンが出る。もう一度押すと 1 つに戻る", () => {
   renderBooksScreen()
   expect(screen.queryByRole("button", { name: "画面を分割" })).toBeNull()
   fireEvent.click(fromMenu("画面を分割"))
@@ -69,57 +72,18 @@ test("分割すると、右のステージは何も開いておらず、真ん�
   expect(fromMenu("分割をやめる").getAttribute("aria-pressed")).toBe("true")
   expect(stages()).toHaveLength(2)
   expect(screen.getAllByRole("img", { name: "紙" })).toHaveLength(1)
-  const right = stages()[1]!
-  expect(within(right).getByText("ブックを選択してください")).toBeTruthy()
-  expect(within(right).getByRole("combobox", { name: "ブックを探す" })).toBeTruthy()
+  expect(within(stages()[1]!).queryByRole("combobox")).toBeNull()
+  expect(screen.getAllByRole("list", { name: "書庫 の中身", hidden: true })).toHaveLength(2)
   fireEvent.click(fromMenu("分割をやめる"))
   expect(stages()).toHaveLength(1)
 })
 
-test("右のステージで探して選んだブックを右で開き、右にそのブックのタブが出る", () => {
+test("下に出た書庫で 2 回押したブックを右で開き、右にそのブックのタブが出る", () => {
   renderBooksScreen()
   fireEvent.click(fromMenu("画面を分割"))
-  const right = stages()[1]!
-  const input = within(right).getByRole("combobox", { name: "ブックを探す" })
-  fireEvent.change(input, { target: { value: "残課題" } })
-  expect(
-    within(right)
-      .getAllByRole("option")
-      .map(o => o.textContent),
-  ).toEqual(["残課題"])
-  fireEvent.keyDown(input, { key: "Enter" })
+  fireEvent.doubleClick(within(lowerLibrary()).getByRole("button", { name: "残課題", hidden: true }))
   expect(screen.getAllByRole("img", { name: "紙" })).toHaveLength(2)
   expect(screen.getAllByRole("tablist").map(l => l.getAttribute("aria-label"))).toEqual(["まとめ図の構想", "残課題"])
-})
-
-test("↑↓で選ぶ候補が動き、クリックでも選べる", () => {
-  renderBooksScreen()
-  fireEvent.click(fromMenu("画面を分割"))
-  const right = stages()[1]!
-  const input = within(right).getByRole("combobox", { name: "ブックを探す" })
-  const selected = () => within(right).getByRole("option", { selected: true }).textContent
-  expect(selected()).toBe("まとめ図の構想")
-  fireEvent.keyDown(input, { key: "ArrowDown" })
-  expect(selected()).toBe("画面の構成")
-  fireEvent.keyDown(input, { key: "ArrowUp" })
-  fireEvent.keyDown(input, { key: "ArrowUp" })
-  expect(selected()).toBe("Design Notes")
-  fireEvent.click(within(right).getByRole("option", { name: "データの形" }))
-  expect(screen.getAllByRole("tablist").map(l => l.getAttribute("aria-label"))).toEqual([
-    "まとめ図の構想",
-    "データの形",
-  ])
-})
-
-test("タブの左のボタンでダイアログを開き、選んだブックをそのステージで開く", () => {
-  renderBooksScreen()
-  fireEvent.click(fromMenu("ブックを開く"))
-  const dialog = screen.getByRole("dialog", { name: "ブックを開く" })
-  const input = within(dialog).getByRole("combobox", { name: "ブックを探す" })
-  fireEvent.change(input, { target: { value: "api" } })
-  fireEvent.keyDown(input, { key: "Enter" })
-  expect(screen.getByRole("tablist").getAttribute("aria-label")).toBe("API の一覧")
-  expect(screen.queryByRole("combobox", { name: "ブックを探す" })).toBeNull()
 })
 
 test("＋でページを作るダイアログが開き（紙は A 判とレター・タブロイド・16:9）、名前と紙を決めて作ると、そのタブが選ばれる。名前が空なら作れない", () => {
@@ -145,16 +109,6 @@ test("＋でページを作るダイアログが開き（紙は A 判とレタ�
   expect(screen.queryByRole("dialog", { name: /^新しい/ })).toBeNull()
 })
 
-test("日本語の変換を確定する Enter では、候補を選ばない", () => {
-  renderBooksScreen()
-  fireEvent.click(fromMenu("ブックを開く"))
-  const dialog = screen.getByRole("dialog", { name: "ブックを開く" })
-  const input = within(dialog).getByRole("combobox", { name: "ブックを探す" })
-  fireEvent.keyDown(input, { key: "Enter", isComposing: true })
-  expect(screen.getByRole("dialog", { name: "ブックを開く" })).toBeTruthy()
-  expect(screen.getByRole("tablist").getAttribute("aria-label")).toBe("まとめ図の構想")
-})
-
 test("言語を英語にすると、画面の文言が英語になり、＋で足すページの名前の案も英語になる", () => {
   renderBooksScreen({ books: SAMPLE_BOOKS, lang: "en" })
   fireEvent.click(screen.getByRole("button", { name: "Add page" }))
@@ -165,7 +119,7 @@ test("言語を英語にすると、画面の文言が英語になり、＋で�
   fireEvent.click(within(dialog).getByRole("button", { name: "Create" }))
   expect(screen.getAllByRole("tab").map(t => t.textContent)).toEqual(["ページ 1", "Page 2"])
   fireEvent.click(fromMenu("Split screen"))
-  expect(screen.getByText("Select a book")).toBeTruthy()
+  expect(screen.getAllByRole("list", { name: "Contents of Library", hidden: true }).length).toBeGreaterThan(0)
   expect(document.documentElement.lang).toBe("en")
 })
 
@@ -177,7 +131,7 @@ test("分割すると、それぞれのステージに閉じるボタンが出�
   expect(closes).toHaveLength(2)
   fireEvent.click(closes[0]!)
   expect(stages()).toHaveLength(1)
-  expect(within(stages()[0]!).getByText("ブックを選択してください")).toBeTruthy()
+  expect(screen.queryByRole("img", { name: "紙" })).toBeNull()
   expect(screen.queryByRole("button", { name: "ステージを閉じる" })).toBeNull()
   expect(fromMenu("画面を分割").getAttribute("aria-pressed")).toBe("false")
 })
@@ -379,96 +333,6 @@ test("認可ステップがページの削除を止めていれば、ページ�
   expect((screen.getByRole("button", { name: "ページを削除" }) as HTMLButtonElement).disabled).toBe(true)
 })
 
-test("認可ステップがあるブックのゴミ箱入れを止めていれば、ブックを開くダイアログのその行にゴミ箱のボタンが出ない。行っても断る", () => {
-  const kit = pluginKit("@ex/keep", defineMessages({ keep: { en: "Keep", ja: "残す" } }))
-  const keep = definePluginUi(
-    kit.plugin({
-      permissions: [
-        kit.definePermission({
-          id: "keep",
-          title: "keep",
-          aiDescription: "this book stays",
-          denies: q =>
-            q.kind === "folder" && q.action.id === "@matomezu/base:entry-trash" && q.folder.title === "API の一覧",
-        }),
-      ],
-    }),
-    {},
-  )
-  const store = createMatomezu({
-    controlCenter: "@matomezu/control-center:control-center",
-    books: SAMPLE_BOOKS,
-    lang: "ja",
-    plugins: [...BUILTIN_UI, keep],
-    partial: true,
-  })
-  showFirstBook(store)
-  render(
-    <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
-      <WindowRoot />
-    </MatomezuProvider>,
-  )
-  fireEvent.click(fromMenu("ブックを開く"))
-  const dialog = screen.getByRole("dialog", { name: "ブックを開く" })
-  const row = (title: string) => within(dialog).getByRole("option", { name: new RegExp(title) })
-  expect(within(row("API の一覧")).queryByRole("button", { name: "ゴミ箱に入れる" })).toBeNull()
-  expect(within(row("データの形")).getByRole("button", { name: "ゴミ箱に入れる" })).toBeTruthy()
-  const api = Object.values(store.state.getState().books).find(b => b.title === "API の一覧")!
-  expect(store.actions.perform("@matomezu/base:entry-trash", { entry: api.id })).toEqual({
-    ok: false,
-    reason: "denied",
-    permission: "@ex/keep:keep",
-    book: api.id,
-  })
-})
-
-test("認可ステップがゴミ箱のブックの戻す・消すを止めていれば、ゴミ箱の一覧のその行のボタンは押せない。行えるほうの行は押せる", () => {
-  const kit = pluginKit("@ex/keep", defineMessages({ keep: { en: "Keep", ja: "残す" } }))
-  const keep = definePluginUi(
-    kit.plugin({
-      permissions: [
-        kit.definePermission({
-          id: "keep",
-          title: "keep",
-          aiDescription: "this book stays in the trash",
-          denies: q =>
-            q.kind === "folder" &&
-            ["@matomezu/base:entry-restore", "@matomezu/base:entry-purge"].includes(q.action.id) &&
-            q.folder.title === "API の一覧",
-        }),
-      ],
-    }),
-    {},
-  )
-  const store = createMatomezu({
-    controlCenter: "@matomezu/control-center:control-center",
-    books: SAMPLE_BOOKS,
-    lang: "ja",
-    plugins: [...BUILTIN_UI, keep],
-    partial: true,
-  })
-  showFirstBook(store)
-  const books = Object.values(store.state.getState().books)
-  for (const title of ["API の一覧", "データの形"])
-    expect(
-      store.actions.perform("@matomezu/base:entry-trash", { entry: books.find(b => b.title === title)!.id }).ok,
-    ).toBe(true)
-  render(
-    <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
-      <WindowRoot />
-    </MatomezuProvider>,
-  )
-  fireEvent.click(fromMenu("ブックを開く"))
-  const dialog = screen.getByRole("dialog", { name: "ブックを開く" })
-  fireEvent.click(within(dialog).getByRole("radio", { name: "ゴミ箱" }))
-  const row = (title: string) => within(dialog).getByText(title).closest("li") as HTMLElement
-  const button = (title: string, name: string) => within(row(title)).getByRole("button", { name }) as HTMLButtonElement
-  expect(button("API の一覧", "戻す").disabled).toBe(true)
-  expect(button("API の一覧", "削除").disabled).toBe(true)
-  expect(button("データの形", "戻す").disabled).toBe(false)
-  expect(button("データの形", "削除").disabled).toBe(false)
-})
-
 test("右クリックのメニューは、外を押すか Escape で閉じる", () => {
   renderBooksScreen()
   const paper = screen.getByRole("img", { name: "紙" })
@@ -514,7 +378,7 @@ test("ステージの上の行と下の行を右クリックしても、ブラ�
   expect(screen.queryByRole("menu")).toBeNull()
 })
 
-test("読めないブックは、ブックを開くの一覧に押せない行として、開けない理由を添えて出る（データには手を付けない）。読めないページだけのブックは読める", () => {
+test("読めないブックは読み込まない（データには手を付けない）。読めないページだけのブックは読め、そのページが読めないページになる", () => {
   // ページのタイプが機能台帳に無いだけなら、ブックは読める（ページが読めないページになる）
   const gone = testBook("x1", "スタンプ帳", [
     { ...drawingPage("q1", { title: "1" }), type: "@foo/stamps:board" } as never,
@@ -527,28 +391,9 @@ test("読めないブックは、ブックを開くの一覧に押せない行�
     { kind: "unreadable", id: "q1", title: "1", code: "W027", type: "@foo/stamps:board" },
   ])
   expect(store.state.getState().books.x3).toBeUndefined()
-  fireEvent.click(fromMenu("ブックを開く"))
-  const dialog = screen.getByRole("dialog", { name: "ブックを開く" })
-  const rows = within(dialog)
-    .getAllByRole("option")
-    .filter(o => o.getAttribute("aria-disabled") === "true")
-  expect(rows.map(r => r.textContent)).toEqual([
-    "双子開けません: 並びかページのタイプの決まりを守っていません",
-    "壊れた図面開けません: ブックの形に合いません",
-  ])
-  // 押しても開かない
-  fireEvent.click(rows[0]!)
-  expect(screen.getByRole("dialog", { name: "ブックを開く" })).toBeTruthy()
-  // 名前で絞り込める
-  fireEvent.change(within(dialog).getByRole("combobox", { name: "ブックを探す" }), { target: { value: "双子" } })
-  expect(
-    within(dialog)
-      .getAllByRole("option")
-      .map(o => o.getAttribute("aria-disabled")),
-  ).toEqual(["true"])
 })
 
-test("一部のプラグインが無いブックは開け、知らない形は枠だけで描き、ダブルクリックしても編集のダイアログは出ない。一覧の名前の横に印が付く", () => {
+test("一部のプラグインが無いブックは開け、知らない形は枠だけで描き、ダブルクリックしても編集のダイアログは出ない", () => {
   const book = testBook("u1", "星の残る図", [
     drawingPage("p1", { title: "P", items: [{ id: "s", item: "@foo/stars:star", x: 40, y: 40, props: {} }] }),
   ])
@@ -559,31 +404,6 @@ test("一部のプラグインが無いブックは開け、知らない形は�
   expect(star.textContent).toBe("") // ビューは無く、枠だけ
   fireEvent.doubleClick(star)
   expect(screen.queryByRole("dialog")).toBeNull()
-  fireEvent.click(fromMenu("ブックを開く"))
-  const dialog = screen.getByRole("dialog", { name: "ブックを開く" })
-  expect(within(dialog).getByRole("option", { name: /星の残る図/ }).textContent).toBe(
-    "星の残る図一部表示できない物があります",
-  )
-})
-
-test("ブックを選ぶ一覧は、触れた（開いたか書いた）時刻の新しい順で、右の列に「〜前」を出す。時刻の無いブックは後ろで、右の列も出さない", () => {
-  const store = renderBooksScreen()
-  const now = Date.now()
-  act(() =>
-    store.receive(
-      {
-        ...worldRows(SAMPLE_BOOKS),
-        settings: undefined,
-        touched: { b4: new Date(now - 5 * 60_000).toISOString(), b2: new Date(now - 3 * 3_600_000).toISOString() },
-      },
-      [],
-    ),
-  )
-  fireEvent.click(fromMenu("画面を分割"))
-  const right = stages()[1]!
-  const options = within(right).getAllByRole("option")
-  expect(options.slice(0, 2).map(o => o.textContent)).toEqual(["週次の振り返り5 分前", "画面の構成3 時間前"])
-  expect(options[2]!.textContent).not.toMatch(/前$/)
 })
 
 test("内包ボックスの子は親の中に描き、子に付いた線も描く。押すと一番内側の子だけを選び、ダブルクリックで子の編集のダイアログを開く", () => {
