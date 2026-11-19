@@ -4,8 +4,13 @@
 
 import { expect, test } from "bun:test"
 import { HOME_ID } from "../../../web/src/core/folders"
+import { BUILTIN } from "../../../web/src/plugins"
 import { PAGE_CREATE } from "../../../web/src/plugins/base/library/entry-duplicate"
-import { newStore } from "../../support"
+import { pluginKit } from "../../../web/src/store/kit"
+import { definePlugin } from "../../../web/src/store/plugin"
+import { createMatomezuInstance } from "../../../web/src/store/store"
+import { SAMPLE_BOOKS } from "../../sample-books"
+import { newStore, showFirstBook } from "../../support"
 
 const DRAWING = "@matomezu/drawing:drawing"
 const SLIDE = "@matomezu/slide-book:slide"
@@ -119,4 +124,55 @@ test("ロックしたブックからは出さず、入れず、中を並べ替�
   expect(act("page-create", { folder: "b2", type: DRAWING, title: "新" })).toMatchObject(locked)
   expect(perform("@matomezu/base:book-lock", {}, { book: "b1" }).ok).toBe(true)
   expect(act("entry-move", { entry: a, into: "b1", index: 0 })).toMatchObject({ ...locked, book: "b1" })
+})
+
+// 見本のタイプ: page-duplicate を外すタイプ（複製は宣言する）と、page-add を外すタイプ
+const notes = pluginKit("notes", { Note: { en: "Note" } })
+const NOTE_TYPE = {
+  version: 1,
+  title: "Note",
+  grouping: "none",
+  paper: { allowed: ["@matomezu/base:a4"], default: "@matomezu/base:a4", orientation: "portrait" },
+  items: { allowed: [] },
+  theme: "@matomezu/base:standard",
+  themeTypes: ["@matomezu/base:diagram"],
+  presentation: "@matomezu/paper:paper",
+  tokens: [],
+  duplicatesPages: true,
+} as const
+const NOTES = definePlugin(
+  notes.plugin({
+    pageTypes: [
+      notes.definePageType({ ...NOTE_TYPE, id: "kept", actions: { without: ["@matomezu/base:page-duplicate"] } }),
+      notes.definePageType({ ...NOTE_TYPE, id: "fixed", actions: { without: ["@matomezu/base:page-add"] } }),
+    ],
+  }),
+)
+
+test("entry-duplicate・page-create は、ページのタイプが page-duplicate・page-add を外していれば、そのタイプで断る", () => {
+  const store = createMatomezuInstance({
+    plugins: [...BUILTIN, NOTES],
+    controlCenter: "@matomezu/control-center:control-center",
+    books: SAMPLE_BOOKS,
+    lang: "ja",
+  })
+  showFirstBook(store)
+  const act = (action: string, args: Record<string, unknown>) =>
+    (store.actions.perform as (id: string, args: unknown) => { ok: boolean; result?: unknown; reason?: string })(
+      `@matomezu/base:${action}`,
+      args,
+    )
+  const made = act("page-create", { folder: "b1", type: "notes:kept", title: "残す" })
+  expect(made.ok).toBe(true)
+  const page = (made.result as { page: string }).page
+  expect(store.actions.perform("@matomezu/base:page-duplicate", { page } as never, { book: "b1" })).toMatchObject({
+    ok: false,
+    reason: "not-allowed",
+  })
+  expect(act("entry-duplicate", { entry: page })).toMatchObject({ ok: false, reason: "refused" })
+  expect(act("entry-duplicate", { entry: "p1" }).ok).toBe(true)
+  expect(act("page-create", { folder: "b1", type: "notes:fixed", title: "作らない" })).toMatchObject({
+    ok: false,
+    reason: "refused",
+  })
 })

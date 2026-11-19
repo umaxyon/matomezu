@@ -446,7 +446,7 @@ export const REFUSED_WINDOW_ACTIONS: WindowActions = {
 // アクションを行わずに確かめる操作。プラグイン API には出さない（base の元に戻す・やり直すが、store/commands/def.ts の tryPerformOf で読む）
 export interface ProbeActions {
   // アクションを行わずに、今の状態で行ったらどうなるかの答えを返す（状態に入れず、ホストにも送らず、画面の履歴にも入れない。
-  // 元に戻す・やり直すが、ぶつかって断られる段を、置き直さずに確かめるのに使う）
+  // 元に戻す・やり直すが、ぶつかって断られる画面の履歴の段を、置き直さずに確かめるのに使う）
   tryPerform<Id extends ActionId>(id: Id, ...args: PerformArgs<Id>): Performed<Id>
 }
 
@@ -1442,7 +1442,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const { toasts: now } = getState()
       if (now.some(t => t.id === id)) setState({ toasts: now.filter(t => t.id !== id) })
     },
-    // 無いステージ（閉じたステージなど）への分割は、カレントへの分割にしない
     tryPerform: (id, ...[args, on]) => {
       const done = performIn(worldOf(getState()), id, args, on, ctx())
       return (done.ok ? { ok: true, result: done.result } : done) as Performed<typeof id>
@@ -1485,6 +1484,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
           screenOfStage(win, id)?.id ?? "",
         ),
       ),
+    // 無いステージ（閉じたステージなど）への分割は、カレントへの分割にしない
     split: stage =>
       withWindow(win => {
         const ws = screenOfStage(win, stage)?.stages

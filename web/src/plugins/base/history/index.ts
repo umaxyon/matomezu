@@ -90,12 +90,13 @@ export function notRestored(
   if (refused.reason === "refused") a.dropHistory(history, from)
 }
 
-// 置き直しの答え（行わずに確かめた物。置き直す値が無い段は undefined）
+// 置き直しの答え（行わずに確かめた物。置き直す値が無い画面の履歴の段は undefined）
 type Tried = { ok: boolean; reason?: string; kind?: string } | undefined
 
-// 画面の履歴 history の戻す・やり直すがぶつかって断られ、その段を捨てたあと、続く段 steps（次に置き直す順）のうち、続けてぶつかる段もまとめて捨てる。
-// 段ごとに tries で置き直しを行わずに確かめ、ぶつかる（土台かアクションが断る）段は捨てる。置き直しても何も変わらない段は、いつもの戻す・やり直すと同じに
-// 動かして飛ばす。置き直せる段・認可ステップが止める段に当たったら、そこで止める（その段は残し、次に押したときに置き直す）。何も置き直さない
+// 画面の履歴 history の戻す・やり直すがぶつかって断られ、その画面の履歴の段を捨てたあと、続く画面の履歴の段 steps（次に置き直す順）のうち、
+// 続けてぶつかる物もまとめて捨てる。画面の履歴の段ごとに tries で置き直しを行わずに確かめ、ぶつかる（土台かアクションが断る）物は捨てる。
+// 置き直しても何も変わらない物は、いつもの戻す・やり直すと同じに動かして飛ばす。置き直せる物・認可ステップが止める物に当たったら、そこで止める
+// （その画面の履歴の段は残し、次に押したときに置き直す）。何も置き直さない
 export function dropClashing(
   a: Pick<CommandActions, "dropHistory" | "moveHistory">,
   history: string,
@@ -113,8 +114,8 @@ export function dropClashing(
 
 // 最後の画面の履歴の段を、from が undo なら前へ戻し、redo なら後へやり直す（変えたブックがいくつ在っても、1 回のアクションで置き直す）。
 // 置き直しても何も変わらない段（もうその側の値になっている）は、動かして飛ばし、その次の段を置き直す。
-// 断られたら notRestored で知らせ（認可ステップが止めたなら、2 行目にそのブックの名前と認可ステップの名前）、ぶつかって断られた段は捨て、認可ステップが止めた段は動かさない。
-// ぶつかって断られたら、続けてぶつかる段もまとめて捨てる（dropClashing。トーストは 1 つ）
+// 断られたら notRestored で知らせ（認可ステップが止めたなら、2 行目にそのブックの名前と認可ステップの名前）、ぶつかって断られた画面の履歴の段は捨て、
+// 認可ステップが止めた物は動かさない。ぶつかって断られたら、続けてぶつかる画面の履歴の段もまとめて捨てる（dropClashing。トーストは 1 つ）
 function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"): void {
   const opened = ctx.stage.opened
   if (!opened) return

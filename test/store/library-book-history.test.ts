@@ -148,7 +148,7 @@ test("書庫で同じブックの中を並べ替える → タブで並べ替え
   expect(lineup("b1")).toEqual(["p1", b, a])
 })
 
-test("書庫でブックの名前を変える → タブでブックの名前を変える → 書庫で戻す: ぶつかって断り（トースト）、段を捨てる。後から付けた名前が残る", async () => {
+test("書庫でブックの名前を変える → タブでブックの名前を変える → 書庫で戻す: ぶつかって断り（トースト）、画面の履歴の段を捨てる。後から付けた名前が残る", async () => {
   const { store, state, perform, steps, lib } = setup()
   expect((await lib("entry-rename", { entry: "b1", title: "書庫で" })).ok).toBe(true)
   expect(perform("@matomezu/base:book-update", { title: "タブで" }, { book: "b1" }).ok).toBe(true)
@@ -160,7 +160,7 @@ test("書庫でブックの名前を変える → タブでブックの名前を
   expect(steps(LIBRARY_HISTORY)).toEqual({ undo: [], redo: [] })
 })
 
-test("タブでブックの名前を変える → 書庫でブックの名前を変える → タブで戻す: ぶつかって断り（トースト）、段を捨てる。後から付けた名前が残る", async () => {
+test("タブでブックの名前を変える → 書庫でブックの名前を変える → タブで戻す: ぶつかって断り（トースト）、画面の履歴の段を捨てる。後から付けた名前が残る", async () => {
   const { store, state, perform, steps, lib } = setup()
   expect(perform("@matomezu/base:book-update", { title: "タブで" }, { book: "b1" }).ok).toBe(true)
   await settled()
@@ -190,7 +190,7 @@ test("書庫でページを並べ替える → タブで同じページを別の
   expect(steps(LIBRARY_HISTORY).undo).toEqual([])
 })
 
-test("書庫で写す・作る → タブでそのページの名前を変える → 書庫で戻す: ぶつかって断り（続けてぶつかる段もまとめて捨てる）、写した・作ったページは名前を変えたまま残る", async () => {
+test("書庫で写す・作る → タブでそのページの名前を変える → 書庫で戻す: ぶつかって断り（続けてぶつかる画面の履歴の段もまとめて捨てる）、写した・作ったページは名前を変えたまま残る", async () => {
   const { store, state, perform, steps, lib } = setup()
   const made = await lib("page-create", { folder: "b2", type: DRAWING, title: "新" })
   const fresh = (made.ok && (made.result as { page: string }).page) as string
@@ -238,7 +238,7 @@ test("タブでページを足す → 書庫で写す・作る → タブで戻�
   expect(lineup("b2")).not.toContain(b)
 })
 
-test("タブで続けてブックの名前を変える → 書庫でブックの名前を変える → タブで戻す: 続けてぶつかる段をまとめて捨て（トーストは 1 つ）、置き直せる段（ページを足した）は置き直さずに残す", async () => {
+test("タブで続けてブックの名前を変える → 書庫でブックの名前を変える → タブで戻す: 続けてぶつかる画面の履歴の段をまとめて捨て（トーストは 1 つ）、置き直せる画面の履歴の段（ページを足した）は置き直さずに残す", async () => {
   const { store, state, perform, steps, lib, add } = setup()
   const page = await add("b1", "足した")
   for (const title of ["一", "二"]) {

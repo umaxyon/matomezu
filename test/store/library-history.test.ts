@@ -182,7 +182,7 @@ test("何も変えない段（完全に消した物をゴミ箱に入れた段�
   expect(lineup(TRASH_ID)).toEqual([kept])
 })
 
-test("書庫の元に戻す・やり直すが、ほかの変更とぶつかって断られたら、トーストで知らせてその段を捨て、続けてぶつかる前の段もまとめて捨てる", async () => {
+test("書庫の元に戻す・やり直すが、ほかの変更とぶつかって断られたら、トーストで知らせてその画面の履歴の段を捨て、続けてぶつかる前の画面の履歴の段もまとめて捨てる", async () => {
   const { store, perform, history, title, made } = setup()
   const b = await made("folder-create", { title: "メモ" })
   const a = await made("folder-create", { title: "仕事" })
@@ -206,7 +206,7 @@ test("書庫の元に戻す・やり直すが、ほかの変更とぶつかっ�
   expect(b in store.state.getState().folders).toBe(true)
 })
 
-test("置き直しても変わらない段を飛ばした直後に、ぶつかって断られたら、飛ばした段はやり直す側に、断られた段と続けてぶつかる段は捨てる", async () => {
+test("置き直しても変わらない画面の履歴の段を飛ばした直後に、ぶつかって断られたら、飛ばした画面の履歴の段はやり直す側に、断られた画面の履歴の段と続けてぶつかる画面の履歴の段は捨てる", async () => {
   const { store, perform, history, title, made } = setup()
   const b = await made("folder-create", { title: "メモ" })
   const a = await made("folder-create", { title: "仕事" })
@@ -242,7 +242,7 @@ test("同じ処理の中で行ったアクションの段は、すぐあとの d
   expect(history().undo).toEqual([first!])
 })
 
-test("書庫のやり直す: 無かった行を置く段は、同じ中身の行がもう在れば済んでいるとして飛ばし、次の段をやり直す", async () => {
+test("書庫のやり直す: 無かった行を置く画面の履歴の段は、同じ中身の行がもう在れば済んでいるとして飛ばし、次の画面の履歴の段をやり直す", async () => {
   const { store, perform, history, title, move, made } = setup()
   const a = await made("folder-create", { title: "仕事" })
   perform("@matomezu/base:entry-rename", { entry: a, title: "しごと" })
@@ -314,7 +314,7 @@ test("ホストが戻す・やり直すを断ったら、動かした段を元�
   expect(history().redo).toEqual([])
 })
 
-test("ホストがぶつかりで断った段は元の側へ戻り、ぶつかった変更が届いたあとの次の 1 回は、窓でぶつかって断られ（トースト）、その段を捨てる", async () => {
+test("ホストがぶつかりで断った画面の履歴の段は元の側へ戻り、ぶつかった変更が届いたあとの次の 1 回は、窓でぶつかって断られ（トースト）、その画面の履歴の段を捨てる", async () => {
   const store = newStore({
     now: () => "2026-11-18T01:00:00.000Z",
     observe: bulk =>
@@ -365,7 +365,7 @@ test("置き直しは、ロックの印を外せない（外せるのは、掛�
   expect(perform("@matomezu/base:book-unlock", {}, { book }).ok).toBe(true)
 })
 
-test("書庫の元に戻すがぶつかったら、続けてぶつかる段もまとめて捨て（トーストは 1 つ）、置き直せる段に当たったら、置き直さずにそこで止める", async () => {
+test("書庫の元に戻すがぶつかったら、続けてぶつかる画面の履歴の段もまとめて捨て（トーストは 1 つ）、置き直せる画面の履歴の段に当たったら、置き直さずにそこで止める", async () => {
   const { store, perform, history, title, made } = setup()
   const x = await made("folder-create", { title: "外" })
   for (const t of ["一", "二"]) {
@@ -391,7 +391,7 @@ test("書庫の元に戻すがぶつかったら、続けてぶつかる段も�
   expect(title("b1")).toBe("タブで")
 })
 
-test("書庫の元に戻すがぶつかって捨てたあと、認可ステップが止める段（ロック中）に当たったら、その段は残してそこで止める（トーストは 1 つ）", async () => {
+test("書庫の元に戻すがぶつかって捨てたあと、認可ステップが止める画面の履歴の段（ロック中）に当たったら、その画面の履歴の段は残してそこで止める（トーストは 1 つ）", async () => {
   const { store, perform, history, title, made } = setup()
   const book = await made("book-create", { title: "議事録" })
   perform("@matomezu/base:entry-rename", { entry: book, title: "会議" })
@@ -409,7 +409,7 @@ test("書庫の元に戻すがぶつかって捨てたあと、認可ステッ�
   expect(title(book)).toBe("会議")
 })
 
-test("書庫のやり直すも、続けてぶつかる段をまとめて捨て、置き直せる段は残す", async () => {
+test("書庫のやり直すも、続けてぶつかる画面の履歴の段をまとめて捨て、置き直せる画面の履歴の段は残す", async () => {
   const { store, perform, history, made } = setup()
   for (const t of ["一", "二"]) {
     perform("@matomezu/base:entry-rename", { entry: "b1", title: t })
