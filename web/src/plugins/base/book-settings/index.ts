@@ -15,14 +15,12 @@ import type { ItemPage } from "../../../core/placed"
 import type { Book, Page } from "../../../core/schema/book"
 import { settingSchema } from "../../../core/settings"
 import { tidyConnectors } from "../place/placed"
-import { PRINT_PREVIEW_SETTINGS } from "../print-preview/settings"
 
-// 設定の項目の組: print-preview は印刷プレビューの設定（アクション print-preview-update が変え、印刷プレビューの右サイドパネルに出す）、
+// 設定の項目の組: print-preview は printPreview を書いた項目（アクション print-preview-update が変え、印刷プレビューの右サイドパネルに出す）、
 // general はそのほか（page-update・pages-update・book-update が受け、設定のダイアログに並べる）
 export type SettingGroup = "general" | "print-preview"
 
-export const groupOf = (id: string): SettingGroup =>
-  (PRINT_PREVIEW_SETTINGS as readonly string[]).includes(id) ? "print-preview" : "general"
+export const groupOf = (def: SettingDef): SettingGroup => (def.printPreview ? "print-preview" : "general")
 
 // タイプ type が選んだ、ページの設定の定義（選んだ順）
 export function settingDefs(catalog: CoreCatalog, type: string): PageSettingDef[] {
@@ -33,9 +31,7 @@ export function settingDefs(catalog: CoreCatalog, type: string): PageSettingDef[
 
 // ブックが持つ設定の定義のうち、組 group の物（表の順）
 export function bookSettingDefs(catalog: CoreCatalog, group: SettingGroup = "general"): BookSettingDef[] {
-  return [...catalog.settings.values()].filter(
-    (d): d is BookSettingDef => d.holder === "book" && groupOf(d.id) === group,
-  )
+  return [...catalog.settings.values()].filter((d): d is BookSettingDef => d.holder === "book" && groupOf(d) === group)
 }
 
 // 項目 defs を、変えるときに渡す形にする（どれも書かなくてよく、null は消す。項目の id で渡す。値の形は、持つ所 owner の項目として機能台帳から組み立てた形か schema）
