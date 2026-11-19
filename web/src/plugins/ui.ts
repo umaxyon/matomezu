@@ -126,7 +126,7 @@ export const DEFAULT_LAYOUT = defineLayout({
     "@matomezu/base:stage-menu": [
       "@matomezu/base:control-center-toggle",
       { either: ["@matomezu/base:stage-split", "@matomezu/base:stage-unsplit"] },
-      "@matomezu/base:library-open",
+      "@matomezu/base:book-open",
       { either: ["@matomezu/base:binder-settings-opened", "@matomezu/base:page-settings"] },
     ],
   },

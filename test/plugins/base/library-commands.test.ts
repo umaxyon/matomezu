@@ -225,3 +225,17 @@ test("開く: 2 回押す・Enter・メニューの「開く」の 1 つの道�
   run("library-entry-open", { at: "tree" })
   expect(shows("b4")).toBe(true)
 })
+
+test("書庫を開く: 書庫のスクリーンを 1 枚ずつの並べ方でカレントにする。開いていれば新しく開かず、それを前に出す", () => {
+  const { store, center } = setup()
+  const screens = () => store.state.getState().window.screens.filter(s => s.def === "@matomezu/base:library-screen")
+  const current = () => store.state.getState().window.order.at(-1)
+  store.actions.command(center, "@matomezu/base:library-open")
+  expect(screens()).toHaveLength(1)
+  expect(current()).toBe(screens()[0]?.id)
+  store.actions.makeScreenCurrent(center)
+  store.actions.command(center, "@matomezu/base:library-open")
+  expect(screens()).toHaveLength(1)
+  expect(current()).toBe(screens()[0]?.id)
+  expect(store.state.getState().window.arrangement).toBe("@matomezu/base:one-screen")
+})

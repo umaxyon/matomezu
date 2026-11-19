@@ -1,6 +1,5 @@
 // 書庫のスクリーン: 「画面を分割」で、ブックスクリーンを左右に分けつつ窓の下半分に書庫のスクリーンを出し、選んだブックを右の空のステージに開く。
 // 選ばずに閉じる・書庫の外を押すと、空のステージも閉じて分割をやめる。ブラウザの戻る 1 回で、分ける前に戻る。窓が低いときは書庫だけを窓いっぱいに出す。
-// 「書庫を開く」は、書庫のスクリーンを窓いっぱいに出し、選ぶと新しいブックスクリーンに開いて閉じる
 import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { fromMenu } from "./helpers/stage-menu"
 
@@ -64,14 +63,4 @@ test("窓が低いときは、書庫だけを窓いっぱいに出し、選ぶ�
   await expect(stageNames(page)).toHaveCount(0)
   await library(page).getByRole("button", { name: "残課題" }).dblclick()
   await expect(stageNames(page)).toHaveText([/まとめ図の構想/, /残課題/])
-})
-
-test("「書庫を開く」は書庫を窓いっぱいに出し、選ぶと新しいブックスクリーンに開いて閉じる", async ({ page }) => {
-  await page.goto(BOOK_SCREEN_URL)
-  await page.bringToFront()
-  await (await fromMenu(page, "書庫を開く")).click()
-  await expect(library(page)).toBeVisible()
-  await library(page).getByRole("button", { name: "残課題" }).dblclick()
-  await expect(library(page)).toHaveCount(0)
-  await expect(stageNames(page)).toHaveText([/残課題/])
 })
