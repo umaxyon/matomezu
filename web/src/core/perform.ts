@@ -54,6 +54,7 @@ import {
   foldersOver,
   homeOrFolderHolds,
   inTrash,
+  isKeptSystemFolder,
   isOpenRole,
   type Library,
   libraryOf,
@@ -317,11 +318,11 @@ function systemFoldersKept(catalog: CoreCatalog, was: Library, now: Library): bo
     const mark = systemFolderOf(f)
     if (before ? systemFolderOf(before) !== mark : mark !== undefined && !catalog.systemFolders.has(mark)) return false
   }
-  return Object.entries(was.folders).every(([id, f]) => {
-    const mark = systemFolderOf(f)
-    if (mark === undefined || !catalog.systemFolders.has(mark) || inTrash(was.folders, id)) return true
-    return now.folders[id] !== undefined && !inTrash(now.folders, id)
-  })
+  return Object.keys(was.folders).every(
+    id =>
+      !isKeptSystemFolder(was.folders, id, catalog.systemFolders) ||
+      (now.folders[id] !== undefined && !inTrash(now.folders, id)),
+  )
 }
 
 // 行う前の問いに要る文脈（機能台帳・コントロールセンター・誰が行うか）

@@ -342,6 +342,16 @@ function refFits(pages: Pages, folders: Folders, r: AnyEntryRef): boolean {
 export const systemFolderOf = (f: Folder | undefined): string | undefined =>
   f?.folderRole === "folder" && typeof f.systemFolder === "string" ? f.systemFolder : undefined
 
+// エントリ entry が、ゴミ箱に入れず消さず上書きしないシステムフォルダか: 印の定義が機能台帳の systemFolders に在り、ゴミ箱の外に在る
+export const isKeptSystemFolder = (
+  folders: Folders,
+  entry: string,
+  systemFolders: { has(mark: string): boolean },
+): boolean => {
+  const mark = systemFolderOf(folders[entry])
+  return mark !== undefined && systemFolders.has(mark) && !inTrash(folders, entry)
+}
+
 // システムフォルダの決まり: システムフォルダは、書庫ホームかゴミ箱の直下だけに在る。書庫ホームの直下では、並びの先頭に、印の順に並ぶ
 // （同じ印は、ゴミ箱の外に 1 つだけ）
 function systemFoldersHold(folders: Folders, holder: ReadonlyMap<string, string>): boolean {

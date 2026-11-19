@@ -6,7 +6,7 @@
 
 import type { CoreCatalog } from "../../../core/core-catalog"
 import { entriesIn, placeOf } from "../../../core/entries"
-import { type Folders, systemFolderOf } from "../../../core/folders"
+import { type Folders, isKeptSystemFolder, systemFolderOf } from "../../../core/folders"
 import { LIBRARY_HISTORY } from "../../../core/history"
 import { type CommandActions, type ScreenCommandContext, tryPerformOf } from "../../../store/commands/def"
 import { BOOK_CREATE } from "../book-new/book-create"
@@ -113,10 +113,8 @@ const handled = (ctx: ScreenCommandContext, handles: Handles, named?: Named): st
 const renames: Handles = (folders, entry) =>
   placedOutsideTrash(folders, entry) !== undefined && systemFolderOf(folders[entry]) === undefined
 // ゴミ箱に入れる物: 書庫ホームかフォルダの直下に在る物（システムフォルダは、定義が機能台帳に無い間だけ）
-const trashes: Handles = (folders, entry, catalog) => {
-  const mark = systemFolderOf(folders[entry])
-  return placedOutsideBooks(folders, entry) !== undefined && (mark === undefined || !catalog.systemFolders.has(mark))
-}
+const trashes: Handles = (folders, entry, catalog) =>
+  placedOutsideBooks(folders, entry) !== undefined && !isKeptSystemFolder(folders, entry, catalog.systemFolders)
 
 // 右クリックのメニューの行を出すか: 受け取った物を handles が扱うときだけ。キーからは、押してから扱う物を決める（ツリーのキーは、ツリーで今いる行を名指す）ので、いつも出す
 const inMenuHandled =
