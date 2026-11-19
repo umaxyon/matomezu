@@ -714,7 +714,7 @@ export type PerformedIn =
 
 // ページかアノテーションが対象のアクションの宛先（on のページ）と、そのページを持っているブック（performIn と permittedIn で同じ決まりを使う）。
 // ゴミ箱のブックのページと、どのブックにも入っていないページは、無いものとする
-function pageIn(world: World, on: ActionOn | undefined): PageInBook | NoPage | Unreadable {
+function targetPageIn(world: World, on: ActionOn | undefined): PageInBook | NoPage | Unreadable {
   const page = (on && "page" in on ? on.page : undefined) ?? ""
   const book = bookOf(world, bookIdOf(world.folders, page) ?? "")
   const row = world.pages[page]
@@ -775,7 +775,7 @@ export function performIn(
     return changedBook(ctx.naming, world, book, loose(book, id, args, ctx))
   }
   if (target === "annotations") {
-    const at = pageIn(world, on)
+    const at = targetPageIn(world, on)
     if ("ok" in at) return at
     const annotations = world.annotations[at.page] ?? []
     const done = loose({ ...at, annotations }, id, args, ctx)
@@ -786,7 +786,7 @@ export function performIn(
       : { ok: true, result: done.result, annotations: { [at.page]: next } }
   }
   if (target === "page") {
-    const at = pageIn(world, on)
+    const at = targetPageIn(world, on)
     if ("ok" in at) return at
     return changedBook(ctx.naming, world, at.book, loose(at, id, args, ctx))
   }
@@ -1010,7 +1010,7 @@ export function permittedIn(
     return book ? permitted(book, id, args, ctx) : { ok: false, reason: "no-book" }
   }
   if (target === "page" || target === "annotations") {
-    const at = pageIn(world, on)
+    const at = targetPageIn(world, on)
     if ("ok" in at) return at
     return permitted(target === "page" ? at : { ...at, annotations: world.annotations[at.page] ?? [] }, id, args, ctx)
   }
