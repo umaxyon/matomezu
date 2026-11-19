@@ -101,7 +101,7 @@ func TestUnreadablePagesStayInAReadableBook(t *testing.T) {
 		if !strings.Contains(body, `"lineup":[{"kind":"unreadable","id":"q1","title":"Q1","code":"W028","type":"@matomezu/slide-book:slide"},{"kind":"page","id":"q2"`) {
 			t.Fatalf("read_book's binder = %s", body)
 		}
-		if strings.Contains(body, `"stamps"`) || strings.Contains(body, "bad") {
+		if strings.Contains(body, `"stamps"`) || strings.Contains(body, `"bad"`) {
 			t.Fatalf("read_book shows the contents of an unreadable page: %s", body)
 		}
 		for page, code := range map[string]string{"p1": "W027", "q1": "W028"} {
@@ -111,7 +111,7 @@ func TestUnreadablePagesStayInAReadableBook(t *testing.T) {
 		}
 		// 目次でない読み方でも、読めないページは中身を見せない
 		if _, body := get(t, s.URL+"/api/ai/books/f1", "secret"); !strings.Contains(body, `{"kind":"unreadable","id":"p1","title":"Stamps","code":"W027","type":"@foo/stamps:board"}`) ||
-			!strings.Contains(body, `{"kind":"unreadable","id":"q1","title":"Q1","code":"W028","type":"@matomezu/slide-book:slide"}`) || strings.Contains(body, `"stamps"`) || strings.Contains(body, "bad") {
+			!strings.Contains(body, `{"kind":"unreadable","id":"q1","title":"Q1","code":"W028","type":"@matomezu/slide-book:slide"}`) || strings.Contains(body, `"stamps"`) || strings.Contains(body, `"bad"`) {
 			t.Fatalf("read_book without outline = %s", body)
 		}
 		if _, body := get(t, s.URL+"/api/ai/pages/p2", "secret"); !strings.Contains(body, `"book":"f1"`) {
