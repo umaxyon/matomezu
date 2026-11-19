@@ -375,7 +375,7 @@ function systemFoldersHold(folders: Folders, holder: ReadonlyMap<string, string>
 }
 
 // 書庫ホームの直下の、先頭に並ぶシステムフォルダの数（ほかのエントリは、この数より前に置けない）
-export const pinnedCount = (folders: Folders): number => {
+const pinnedCount = (folders: Folders): number => {
   const lineup = folders[HOME_ID]?.lineup ?? []
   const at = lineup.findIndex(r => r.kind !== "folder" || systemFolderOf(folders[r.id]) === undefined)
   return at < 0 ? lineup.length : at
