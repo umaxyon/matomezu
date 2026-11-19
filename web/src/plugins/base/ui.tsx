@@ -282,7 +282,7 @@ export const BASE_UI = definePluginUi(BASE, {
 declare module "../../core/catalog" {
   interface ContextMenuTable {
     "@matomezu/base:library-entry-context": { entry: string } // 書庫の画面の行（右クリックしたエントリの id）
-    "@matomezu/base:library-folder-context": { entry: string } // 書庫の画面の右の枠の何も無い所（開いているフォルダの id）
+    "@matomezu/base:library-folder-context": { folder: string } // 書庫の画面の右の枠の何も無い所（開いているフォルダの id）
   }
   interface SlotTable {
     "@matomezu/base:control-center-footer": Record<string, never> // コントロールセンターの下の行（何も受け取らない）

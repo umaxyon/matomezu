@@ -132,3 +132,33 @@ export function shownFoldersOf(folders: Folders, opened: string, unfolded: reado
   )
   return [...new Set([opened, ...inTree])]
 }
+
+// ツリーに出ている行 1 つ: holder は行を持つフォルダ（一番上の行は、自分）、holds は中へ入れる行か（フォルダ・ブック・バインダで、表に在る物）、
+// unfolded は中を出しているか（中を出せない行: ページ・読めない物・ゴミ箱は NOT_UNFOLDABLE）
+export interface TreeRow {
+  id: string
+  holder: string
+  holds: boolean
+  unfolded: boolean | typeof NOT_UNFOLDABLE
+}
+export const NOT_UNFOLDABLE = "not-unfoldable"
+
+// ツリーに出ている行（上から順）: 一番上の行（書庫ホームとゴミ箱）と、中を出しているフォルダ unfolded の下の行
+export function treeRowsOf(folders: Folders, unfolded: readonly string[]): TreeRow[] {
+  const open = new Set(unfolded)
+  const under = (id: string, holder: string, kind: EntryKind): TreeRow[] => {
+    // 一番上の行は、表に行が無くても（何も入れた事のないゴミ箱）、中へ入れる
+    const holds = id === holder || (kind !== "page" && folders[id] !== undefined)
+    if (!holds || id === TRASH_ID) return [{ id, holder, holds, unfolded: NOT_UNFOLDABLE }]
+    const shown = open.has(id)
+    return [
+      { id, holder, holds, unfolded: shown },
+      ...(shown ? entriesIn(folders, id).flatMap(r => under(r.id, id, r.kind)) : []),
+    ]
+  }
+  return [HOME_ID, TRASH_ID].flatMap(id => under(id, id, "folder"))
+}
+
+// ツリーで今いる行: 中へ入れない行（ページなど）を選んでいればその行、ほかは、右の枠に中身を出しているフォルダ opened
+export const treeCurrentOf = (folders: Folders, opened: string, picked: string | undefined): string =>
+  picked !== undefined && folders[picked] === undefined ? picked : opened

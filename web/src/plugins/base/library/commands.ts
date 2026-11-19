@@ -2,7 +2,7 @@
 // キーは、書庫の画面（LibraryView）の中に焦点がある間だけ効く（キーの範囲 library）。置き直しても何も変わらない段は、動かして飛ばし、その次の段を置き直す。
 // 断られたらトーストで知らせ（その間のほかの変更とぶつかって断られたなら、2 行目にそう出す）、その画面の履歴の段は動かさない
 
-import { placeOf } from "../../../core/entries"
+import { entriesIn, placeOf } from "../../../core/entries"
 import { HOME_ID } from "../../../core/folders"
 import { LIBRARY_HISTORY } from "../../../core/history"
 import { type CommandActions, type ScreenCommandContext, storeActionsOf } from "../../../store/commands/def"
@@ -14,9 +14,18 @@ import { refusalMessage } from "../utils/refusal"
 import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG, LIBRARY_RENAME_DIALOG } from "./dialog"
 import { holdsEntries, placedInFolder } from "./entries"
 import { ENTRY_TRASH } from "./entry-trash"
-import { NOT_OPENED, type OpenTarget, openTargetOf } from "./outline"
+import {
+  NOT_OPENED,
+  type OpenTarget,
+  openedFolderOf,
+  openTargetOf,
+  type TreeRow,
+  treeCurrentOf,
+  treeRowsOf,
+  unfoldedOf,
+} from "./outline"
 import { LIBRARY_REVERT, libraryRevertArgs } from "./revert"
-import { LIBRARY_FOLDER, LIBRARY_PICKED } from "./state"
+import { LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_UNFOLDED } from "./state"
 
 function restore(ctx: ScreenCommandContext, a: CommandActions, from: "undo" | "redo"): void {
   for (const step of [...ctx.libraryHistory[from]].reverse()) {
@@ -61,8 +70,8 @@ type Named = { entry: string } | undefined
 function entryOf(ctx: ScreenCommandContext, named?: Named): string | undefined {
   if (named) return named.entry
   const menu = ctx.contextMenu
-  if (menu && (LIBRARY_CONTEXT_MENUS as readonly string[]).includes(menu.id))
-    return (menu.target as { entry: string }).entry
+  if (menu?.id === LIBRARY_ENTRY_CONTEXT) return (menu.target as { entry: string }).entry
+  if (menu?.id === LIBRARY_FOLDER_CONTEXT) return (menu.target as { folder: string }).folder
   return ctx.pluginState(LIBRARY_PICKED) ?? ctx.pluginState(LIBRARY_FOLDER)
 }
 
@@ -72,9 +81,10 @@ const placed = (ctx: ScreenCommandContext, named?: Named): string | undefined =>
   return entry !== undefined && placedInFolder(ctx.folders, entry) ? entry : undefined
 }
 
-// 中に新しいブック・フォルダを作れるフォルダか（書庫ホームかフォルダで、ゴミ箱の中でない）
-const holder = (ctx: ScreenCommandContext, named?: Named): string | undefined => {
-  const entry = entryOf(ctx, named) ?? HOME_ID
+// 中に新しいブック・フォルダを作れるフォルダか（書庫ホームかフォルダで、ゴミ箱の中でない）。何も無い所のメニューからは、フォルダを名指す
+type In = Named | { folder: string }
+const holder = (ctx: ScreenCommandContext, named?: In): string | undefined => {
+  const entry = (named && "folder" in named ? named.folder : entryOf(ctx, named)) ?? HOME_ID
   return holdsEntries(ctx.folders, entry) ? entry : undefined
 }
 
@@ -108,7 +118,7 @@ export const LIBRARY_ENTRY_OPEN = kit.defineScreenCommand({
 export const LIBRARY_BOOK_NEW = kit.defineScreenCommand({
   id: "library-book-new",
   title: "New book…",
-  run: (ctx, a, named: Named) => {
+  run: (ctx, a, named: In) => {
     const into = holder(ctx, named)
     if (into !== undefined) a.openDialog(LIBRARY_NEW_BOOK_DIALOG.id, { into })
   },
@@ -118,7 +128,7 @@ export const LIBRARY_BOOK_NEW = kit.defineScreenCommand({
 export const LIBRARY_FOLDER_NEW = kit.defineScreenCommand({
   id: "library-folder-new",
   title: "New folder…",
-  run: (ctx, a, named: Named) => {
+  run: (ctx, a, named: In) => {
     const into = holder(ctx, named)
     if (into !== undefined) a.openDialog(LIBRARY_NEW_FOLDER_DIALOG.id, { into })
   },
@@ -151,11 +161,143 @@ export const LIBRARY_ENTRY_TRASH = kit.defineScreenCommand({
   when: ctx => placed(ctx) !== undefined,
 })
 
+// ツリーの行 row へ移る: 中へ入れる行なら、右の枠にその中身を出す。入れない行（ページなど）なら、それを持つフォルダの中身を出して、その行を選ぶ
+function goTo(ctx: ScreenCommandContext, a: CommandActions, row: TreeRow | undefined): void {
+  if (!row) return
+  const folder = row.holds ? row.id : row.holder
+  if (folder !== ctx.pluginState(LIBRARY_FOLDER)) a.updatePluginState(LIBRARY_FOLDER, () => folder)
+  a.updatePluginState(LIBRARY_PICKED, () => (row.holds ? undefined : row.id))
+}
+
+// 呼ばれた場所の書庫の画面のツリー: 出ている行 rows と、今いる行の位置 i（出ていなければ -1）と、中を出しているフォルダ unfolded
+function treeAt(ctx: ScreenCommandContext) {
+  const unfolded = unfoldedOf(ctx.pluginState(LIBRARY_UNFOLDED))
+  const rows = treeRowsOf(ctx.folders, unfolded)
+  const opened = openedFolderOf(ctx.folders, ctx.pluginState(LIBRARY_FOLDER))
+  const at = treeCurrentOf(ctx.folders, opened, ctx.pluginState(LIBRARY_PICKED))
+  return { rows, unfolded, i: rows.findIndex(r => r.id === at) }
+}
+
+// ツリーで、上・下の行へ移る
+export const LIBRARY_TREE_MOVE = kit.defineScreenCommand({
+  id: "library-tree-move",
+  title: "Move in the tree",
+  run: (ctx, a, { to }: { to: "up" | "down" }) => {
+    const { rows, i } = treeAt(ctx)
+    goTo(ctx, a, rows[to === "down" ? i + 1 : i - 1])
+  },
+  when: () => true,
+})
+
+// ツリーで、中を出している行なら中をしまい、ほかは、それを持つフォルダの行へ移る
+export const LIBRARY_TREE_LEFT = kit.defineScreenCommand({
+  id: "library-tree-fold-or-parent",
+  title: "Fold or go to the parent",
+  run: (ctx, a) => {
+    const { rows, unfolded, i } = treeAt(ctx)
+    const row = rows[i]
+    if (!row) return
+    if (row.unfolded === true) a.updatePluginState(LIBRARY_UNFOLDED, () => unfolded.filter(id => id !== row.id))
+    else if (row.holder !== row.id)
+      goTo(
+        ctx,
+        a,
+        rows.find(r => r.id === row.holder),
+      )
+  },
+  when: () => true,
+})
+
+// ツリーで、中をしまっている行なら中を出し、中を出している行なら、その下の行へ移る
+export const LIBRARY_TREE_RIGHT = kit.defineScreenCommand({
+  id: "library-tree-unfold-or-next",
+  title: "Unfold or go inside",
+  run: (ctx, a) => {
+    const { rows, unfolded, i } = treeAt(ctx)
+    const row = rows[i]
+    if (!row) return
+    if (row.unfolded === false) a.updatePluginState(LIBRARY_UNFOLDED, () => [...unfolded, row.id])
+    else if (row.unfolded === true && rows[i + 1]?.holder === row.id) goTo(ctx, a, rows[i + 1])
+  },
+  when: () => true,
+})
+
+// 右の枠で、選んでいる行の前・次の行を選ぶ（選んでいなければ、最初の行）
+export const LIBRARY_PICK_MOVE = kit.defineScreenCommand({
+  id: "library-pick-move",
+  title: "Pick the neighbour",
+  run: (ctx, a, { to }: { to: "previous" | "next" }) => {
+    const rows = entriesIn(ctx.folders, openedFolderOf(ctx.folders, ctx.pluginState(LIBRARY_FOLDER)))
+    const i = rows.findIndex(r => r.id === ctx.pluginState(LIBRARY_PICKED))
+    const next = i < 0 ? rows[0] : rows[to === "next" ? i + 1 : i - 1]
+    if (next) a.updatePluginState(LIBRARY_PICKED, () => next.id)
+  },
+  when: () => true,
+})
+
 // 書庫の画面の中に焦点がある間のキーの範囲（LibraryView の根の要素が名乗る）
 export const LIBRARY_SCOPE = kit.name("library")
 export const LIBRARY_KEY_SCOPE = kit.defineKeyScope({ id: "library", title: "Library", commandsFrom: "screen" })
 
+// ツリーの中・右の枠の中身の中に焦点がある間のキーの範囲（矢印キー。LibraryView のその要素が名乗る）
+export const LIBRARY_TREE_SCOPE = kit.name("library-tree")
+export const LIBRARY_TREE_KEY_SCOPE = kit.defineKeyScope({
+  id: "library-tree",
+  title: "Library tree",
+  commandsFrom: "screen",
+})
+export const LIBRARY_CONTENTS_SCOPE = kit.name("library-contents")
+export const LIBRARY_CONTENTS_KEY_SCOPE = kit.defineKeyScope({
+  id: "library-contents",
+  title: "Library contents",
+  commandsFrom: "screen",
+})
+
 export const LIBRARY_KEYS = [
+  kit.defineKey({
+    id: "library-tree-up",
+    title: "Row above",
+    key: "ArrowUp",
+    command: LIBRARY_TREE_MOVE.id,
+    args: { to: "up" },
+    scope: LIBRARY_TREE_SCOPE,
+  }),
+  kit.defineKey({
+    id: "library-tree-down",
+    title: "Row below",
+    key: "ArrowDown",
+    command: LIBRARY_TREE_MOVE.id,
+    args: { to: "down" },
+    scope: LIBRARY_TREE_SCOPE,
+  }),
+  kit.defineKey({
+    id: "library-tree-left",
+    key: "ArrowLeft",
+    command: LIBRARY_TREE_LEFT.id,
+    scope: LIBRARY_TREE_SCOPE,
+  }),
+  kit.defineKey({
+    id: "library-tree-right",
+    key: "ArrowRight",
+    command: LIBRARY_TREE_RIGHT.id,
+    scope: LIBRARY_TREE_SCOPE,
+  }),
+  kit.defineKey({
+    id: "library-pick-previous",
+    title: "Previous",
+    key: "ArrowLeft",
+    command: LIBRARY_PICK_MOVE.id,
+    args: { to: "previous" },
+    scope: LIBRARY_CONTENTS_SCOPE,
+  }),
+  kit.defineKey({
+    id: "library-pick-next",
+    title: "Next",
+    key: "ArrowRight",
+    command: LIBRARY_PICK_MOVE.id,
+    args: { to: "next" },
+    scope: LIBRARY_CONTENTS_SCOPE,
+  }),
   kit.defineKey({ id: "library-undo-mod-z", key: "Mod+Z", command: LIBRARY_UNDO.id, scope: LIBRARY_SCOPE }),
   kit.defineKey({ id: "library-redo-mod-shift-z", key: "Mod+Shift+Z", command: LIBRARY_REDO.id, scope: LIBRARY_SCOPE }),
   kit.defineKey({ id: "library-redo-mod-y", key: "Mod+Y", command: LIBRARY_REDO.id, scope: LIBRARY_SCOPE }),

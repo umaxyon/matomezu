@@ -1,8 +1,10 @@
 import { expect, test } from "bun:test"
+import type { CommandId } from "../../../web/src/core/catalog"
 import { shownPageId, shownType } from "../../../web/src/core/stage"
 import { screenOf, screenOfStage } from "../../../web/src/core/window"
 import { currentStage } from "../../../web/src/core/workspace"
 import { addPageIn, createBookIn } from "../../../web/src/plugins/base"
+import { isShown } from "../../../web/src/store/commands"
 import { NO_STAGE } from "../../../web/src/store/dialogs"
 import { newStore } from "../../support"
 
@@ -165,6 +167,22 @@ test("右クリックのメニューは 1 つだけ出し、開いたステー�
   expect(state.getState().contextMenu).toMatchObject({ stage: NO_STAGE, screen: center })
   expect(actions.pressKey("Escape")).toBe(true)
   expect(state.getState().contextMenu).toBeNull()
+})
+
+test("ステージを持たないスクリーンで開いたメニューには、スクリーンから呼ぶコマンドの行だけ出る（ステージで呼ぶコマンドの行は出ない）", () => {
+  const store = newStore()
+  const { state, actions } = store
+  const center = state.getState().window.screens.find(s => s.stages === undefined)?.id as string
+  actions.makeScreenCurrent(center)
+  actions.openContextMenu(center, "@matomezu/base:library-entry-context", { entry: "b1" }, { x: 0, y: 0 })
+  const shown = (id: string) => isShown(store, state.getState(), center, id as CommandId)
+  expect(shown("@matomezu/base:library-entry-rename")).toBe(true)
+  expect(shown("@matomezu/base:library-entry-open")).toBe(true)
+  expect(shown("@matomezu/base:library-book-new")).toBe(false) // ブックの中には作らない
+  expect(shown("@matomezu/base:page-delete")).toBe(false)
+  expect(shown("@matomezu/paper:paper-paste")).toBe(false)
+  // ステージでは、ステージで呼ぶコマンドは出る（比べる相手）
+  expect(isShown(store, state.getState(), "s1", "@matomezu/paper:paper-paste" as CommandId)).toBe(true)
 })
 
 test("ホストとの同期（receive）はインスタンスにあり、プラグインに渡す actions には無い（アクションを通さずに世界を入れ替えられないように）", () => {

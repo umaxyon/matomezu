@@ -1,7 +1,7 @@
 // 書庫の画面: 左にツリー（書庫ホームとゴミ箱が一番上に並ぶ）、右にパンくずと、開いているフォルダの中身。
 // 1 回押すと選び（ツリーのフォルダ・ブック・バインダは、右の枠にその中身を出す）、2 回押すと開く（フォルダは中へ入り、ブックとその中のページ・バインダは窓に出す）。
 // ゴミ箱は、ツリーでは中を出さず、右の枠に捨てた物の一覧を出す（TrashView.tsx）。読めない物は、選べるだけ。開いているフォルダは画面の場所に入り、選んでいる行は入らない（state.ts）
-import { type KeyboardEvent, type MouseEvent, useRef } from "react"
+import { type KeyboardEvent, type MouseEvent, useEffect, useRef } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { titleOf } from "../../../core/entries"
 import { HOME_ID, TRASH_ID } from "../../../core/folders"
@@ -13,8 +13,14 @@ import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/sto
 import { useActions, usePluginState, useSetPluginState } from "../../../ui/view-hooks"
 import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import { contentsArrows, treeArrows } from "./arrows"
-import { LIBRARY_ENTRY_CONTEXT, LIBRARY_FOLDER_CONTEXT, LIBRARY_SCOPE } from "./commands"
+import { rowAboveOrBelow } from "./arrows"
+import {
+  LIBRARY_CONTENTS_SCOPE,
+  LIBRARY_ENTRY_CONTEXT,
+  LIBRARY_FOLDER_CONTEXT,
+  LIBRARY_SCOPE,
+  LIBRARY_TREE_SCOPE,
+} from "./commands"
 import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG } from "./dialog"
 import { holderForNew } from "./entries"
 import { HistoryButtons } from "./HistoryButtons"
@@ -31,6 +37,7 @@ import {
   openTargetOf,
   pathTo,
   rowsIn,
+  treeCurrentOf,
   unfoldedOf,
 } from "./outline"
 import { LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_UNFOLDED } from "./state"
@@ -109,10 +116,21 @@ export function LibraryView() {
       if (stage !== NO_STAGE && target.binder !== undefined) actions.openBinder(stage, target.binder)
     },
   }
+  // キーで選ぶ行が変わったら、焦点もその行へ移す（ツリーの中に焦点があればツリーの今いる行へ、右の枠の中身の中に在れば選んでいる行へ）
+  const current = useMatomezuState(st => treeCurrentOf(st.folders, opened, picked))
+  useEffect(() => {
+    const at = document.activeElement
+    const zone = at instanceof HTMLElement ? at.closest<HTMLElement>("[data-key-scope]") : null
+    const scope = zone?.dataset.keyScope
+    const id = scope === LIBRARY_TREE_SCOPE ? current : scope === LIBRARY_CONTENTS_SCOPE ? picked : undefined
+    if (!zone || id === undefined) return
+    const to = [...zone.querySelectorAll<HTMLElement>("[data-library-row]")].find(r => r.dataset.libraryRow === id)
+    if (to && to !== at) to.focus()
+  }, [current, picked])
   const here = nameOf({ id: opened, title: titles[titles.length - 1] ?? NO_TITLE })
   return (
     <div ref={root} className={styles.library} data-key-scope={LIBRARY_SCOPE} tabIndex={-1}>
-      <nav className={styles.tree} aria-label={t("Folders")} onKeyDown={e => treeArrows(e, handlers.toggle)}>
+      <nav className={styles.tree} aria-label={t("Folders")} data-key-scope={LIBRARY_TREE_SCOPE}>
         <ul className={styles.rows}>
           {TOPS.map(top => (
             <TreeNode key={top.id} row={top} holder={top.id} depth={0} handlers={handlers} />
@@ -153,15 +171,16 @@ export function LibraryView() {
         {opened === TRASH_ID ? (
           <TrashView picked={picked} onPick={setPicked} />
         ) : rows.length === 0 ? (
-          <p className={styles.blank} onContextMenu={e => openFolderMenu(e, { entry: opened })}>
+          <p className={styles.blank} onContextMenu={e => openFolderMenu(e, { folder: opened })}>
             {t("Nothing inside")}
           </p>
         ) : (
           <ul
             className={styles.contents}
             aria-label={t("Contents of {name}", { name: here })}
-            onContextMenu={e => openFolderMenu(e, { entry: opened })}
-            onKeyDown={contentsArrows}
+            onContextMenu={e => openFolderMenu(e, { folder: opened })}
+            data-key-scope={LIBRARY_CONTENTS_SCOPE}
+            onKeyDown={rowAboveOrBelow}
           >
             {rows.map(row => (
               <li key={row.id}>
@@ -243,8 +262,6 @@ function TreeNode({
           type="button"
           className={styles.name}
           data-library-row={row.id}
-          data-holder={holder}
-          data-unfolded={unfolds ? open : undefined}
           aria-current={holds && row.id === handlers.opened ? "true" : undefined}
           aria-pressed={!holds && row.id === handlers.picked}
           onClick={() => (holds ? handlers.enter(row.id) : handlers.pick(row, holder))}

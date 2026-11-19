@@ -1,5 +1,6 @@
 // 書庫の画面が描く物（base/library/outline.ts）: フォルダの直下の行・パンくず・行を開いたときの行き先
 import { expect, test } from "bun:test"
+import { entriesIn } from "../../../web/src/core/entries"
 import { HOME_ID, TRASH_ID } from "../../../web/src/core/folders"
 import { restorePlanOf, SAME_TITLE } from "../../../web/src/plugins/base/library/entries"
 import { FOLDER_CREATE } from "../../../web/src/plugins/base/library/entry-move"
@@ -12,6 +13,8 @@ import {
   rowsIn,
   shownFoldersOf,
   trashRowsOf,
+  treeCurrentOf,
+  treeRowsOf,
 } from "../../../web/src/plugins/base/library/outline"
 import { newStore } from "../../support"
 
@@ -158,4 +161,31 @@ test("見せているフォルダは、右の枠で開いているフォルダ�
   expect(shownFoldersOf(folders, HOME_ID, [HOME_ID, folder, "b2"]).sort()).toEqual([HOME_ID, folder, "b2"].sort())
   // ゴミ箱と、無いフォルダは、ツリーで開いた印が在っても入らない
   expect(shownFoldersOf(folders, HOME_ID, [HOME_ID, TRASH_ID, "no-such-folder"])).toEqual([HOME_ID])
+})
+
+test("ツリーに出ている行は、一番上の行と、中を出しているフォルダの下の行。ゴミ箱とページは中を出せない。今いる行は、選んだページか、開いているフォルダ", () => {
+  const { library, folder } = setup()
+  const ids = (unfolded: string[]) => treeRowsOf(library().folders, unfolded).map(r => r.id)
+  expect(ids([])).toEqual([HOME_ID, TRASH_ID])
+  const home = entriesIn(library().folders, HOME_ID).map(r => r.id)
+  expect(home.slice(0, 2)).toEqual(["b1", "b3"])
+  expect(ids([HOME_ID])).toEqual([HOME_ID, ...home, TRASH_ID])
+  // 上のフォルダの中を出していなければ、その下の行は出ない
+  expect(ids([folder])).toEqual([HOME_ID, TRASH_ID])
+  const rows = treeRowsOf(library().folders, [HOME_ID, folder, "b1", TRASH_ID])
+  expect(rows.map(r => r.id)).toEqual([
+    HOME_ID,
+    "b1",
+    ...entriesIn(library().folders, "b1").map(r => r.id),
+    ...home.slice(1, -1),
+    folder,
+    "b2",
+    TRASH_ID,
+  ])
+  expect(rows.find(r => r.id === "b2")).toEqual({ id: "b2", holder: folder, holds: true, unfolded: false })
+  expect(rows.find(r => r.id === "p1")).toMatchObject({ holder: "b1", holds: false, unfolded: "not-unfoldable" })
+  expect(rows.find(r => r.id === TRASH_ID)).toMatchObject({ holder: TRASH_ID, holds: true, unfolded: "not-unfoldable" })
+  expect(treeCurrentOf(library().folders, "b1", "p1")).toBe("p1")
+  expect(treeCurrentOf(library().folders, HOME_ID, "b1")).toBe(HOME_ID)
+  expect(treeCurrentOf(library().folders, folder, undefined)).toBe(folder)
 })
