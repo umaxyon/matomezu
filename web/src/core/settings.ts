@@ -32,7 +32,7 @@ const byRole = (catalog: CoreCatalog, settings: Settings, role: SettingRole): un
   return def ? userSetting(catalog, settings, def.id) : undefined
 }
 
-// 言語を選んでいるか: role が lang の項目に値が在る（今は無い言語パックの値も、選んだ物として残す）
+// 言語を選んでいるか: role が lang の項目に値が在る（機能台帳に無い言語パックの値も、選んだ物として残す）
 export function langChosen(catalog: CoreCatalog, settings: Settings): boolean {
   const def = catalog.roles.get("lang")
   return def !== undefined && def.id in settings

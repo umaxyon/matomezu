@@ -159,7 +159,7 @@ type Hub struct {
 	aiEditTickets  []AIEditTicket       // AI 編集チケットの全部（古い順。ai_edit_tickets.go）
 	// 今の機能台帳のシステムフォルダの定義の id → AI に見せる名前（英語。read_folder の名前。起動したときとプラグインが変わったときに読み直す）
 	systemFolderTitles map[string]string
-	// プラグインが変わって、機能台帳に合わせてデータを足すアクション（runAndKeepsWithCatalog）をまだ行っていない（h.mu を放したあとに行う。catalog.go）
+	// 機能台帳が変わって（プラグインが変わった・起動した・テストの用意で世界を置き直した）、機能台帳に合わせてデータを足すアクション（runAndKeepsWithCatalog）をまだ行っていない（h.mu を放したあとに行う。catalog.go）
 	catalogChanged bool
 	// 機能台帳に合わせてデータを足すアクションの id → 前に断られた答え（断った行を、同じ答えのあいだはログに書き直さない。行えたら消す。catalog.go）
 	catalogRefused map[string]string

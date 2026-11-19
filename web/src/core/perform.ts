@@ -781,7 +781,7 @@ export function performIn(
   if (target === "book") {
     const book = bookIn(world, on as { book: string } | undefined)
     if (!book) return { ok: false, reason: "no-book" }
-    return changedBook(ctx.catalog, world, book, loose(book, id, args, ctx))
+    return changedBook(ctx.naming, world, book, loose(book, id, args, ctx))
   }
   if (target === "annotations") {
     const at = pageIn(world, on)
@@ -797,7 +797,7 @@ export function performIn(
   if (target === "page") {
     const at = pageIn(world, on)
     if ("ok" in at) return at
-    return changedBook(ctx.catalog, world, at.book, loose(at, id, args, ctx))
+    return changedBook(ctx.naming, world, at.book, loose(at, id, args, ctx))
   }
   if (target === "library") {
     const library: Library = { pages: world.pages, folders: world.folders }
@@ -827,7 +827,7 @@ export function performIn(
   const same = sameData(next, world.settings)
   if (same) return { ok: true, result: done.result }
   // 選んでいた言語を変えて、名前を設定の言語で引く物（システムフォルダ）の名前が、同じフォルダのほかの物と重なるなら断る（書庫の行は変えない）。
-  // 言語を選んでいない所から初めて選ぶのは、変えるのでないので断らない（窓が初めて書くときは、続けて行う機能台帳が変わったときのアクションが、名前の重なりに番号を付けて解く。ActionDef の runsAtWindowStart）
+  // 言語を選んでいない所から初めて選ぶのは、変えるのでないので断らない（重なった名前は、書いたあとに常駐が行う、機能台帳に合わせてデータを足すアクションが、番号を付けて解く。ActionDef の runAndKeepsWithCatalog）
   const library: Library = { pages: world.pages, folders: world.folders }
   const nextNaming = namingOf(ctx.catalog, next)
   const changes = langChosen(ctx.catalog, world.settings) && nextNaming.lang !== naming.lang
@@ -866,8 +866,8 @@ const collides = (world: Library, before: readonly Book[], changes: TableChanges
   createdIn(before, changes).some(id => id in world.pages || id in world.folders)
 
 // ブックを変えるアクションの結果 done を、変わった物だけの形にする（book は行う前のブック）。
-// ブックの id を変えていたら断り、変わったページでは無くなった物をアノテーションのアンカーから外し、無くなったページのアノテーションは消す
-function changedBook(catalog: CoreCatalog, world: World, book: Book, done: ReturnType<typeof perform>): PerformedIn {
+// ブックの id を変えていたら断り、変わったページでは無くなった物をアノテーションのアンカーから外し、無くなったページのアノテーションは消す（名前は naming で引く）
+function changedBook(naming: Naming, world: World, book: Book, done: ReturnType<typeof perform>): PerformedIn {
   if (!done.ok) return done
   const next = done.next as Book
   if (next.id !== book.id) return { ok: false, reason: "refused" }
@@ -876,7 +876,6 @@ function changedBook(catalog: CoreCatalog, world: World, book: Book, done: Retur
   if (collides(world, [book], changes)) return { ok: false, reason: "refused" }
   if (next.title !== book.title) {
     const after = withChanges(world, changes)
-    const naming = namingOf(catalog, world.settings)
     const clashes = titleClashes(world, after, naming)
     if (clashes.length > 0) return titleTaken(after, clashes, naming)
   }
