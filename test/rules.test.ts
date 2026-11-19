@@ -888,15 +888,42 @@ test("拡張ポイントへの書き足しは、base は短い名前、ほかの
   expect(bad).toEqual([])
 })
 
-test("e2e は web/src を読まない（画面とホストの外から確かめる）", () => {
-  const offenders = filesUnder(join(ROOT, "e2e"))
-    .map(path => ({ path, text: readFileSync(path, "utf8") }))
-    .flatMap(f =>
-      [...f.text.matchAll(/(?:from\s*|import\(\s*|import\s+)["']([^"']+)["']/g)]
-        .map(m => m[1]!)
-        .filter(s => s.startsWith(".") && resolve(dirname(f.path), s).startsWith(`${SRC}/`))
-        .map(s => `${relative(ROOT, f.path)}: ${s}`),
-    )
+// e2e は web/src の値を読まない（画面とホストの外から確かめる）。型は読んでよい（import type はビルドで消える）。
+// e2e が相対で読む test/ のファイルも、その先まで同じに見る
+test("e2e は web/src の値を読まない（型は読んでよい。e2e が読む test/ のファイルが読む物も見る）", () => {
+  const TEST = join(ROOT, "test")
+  const importsOf = (path: string, text: string) =>
+    [
+      ...text.matchAll(
+        // 1 つの文の中だけ: 名前の並び（{ … } は行をまたいでよい）か、行の中の名前のあとの from。副作用だけの import と import() も拾う
+        /^(import|export)\s+(type\s+)?(?:[\w*\s,]*\{[^}"']*\}|[^\n"'{]*?)\s*from\s*["']([^"']+)["']|^import\s*["']([^"']+)["']|import\(\s*["']([^"']+)["']/gm,
+      ),
+    ].map(m => ({
+      typeOnly: m[3] !== undefined && m[2] !== undefined,
+      to: m[3] ?? m[4] ?? m[5]!,
+      path,
+    }))
+  const withTs = (p: string) => (existsSync(p) ? p : ([".ts", ".tsx"].map(e => p + e).find(existsSync) ?? p))
+  const seen = new Set<string>()
+  const queue = filesUnder(join(ROOT, "e2e"))
+  const offenders: string[] = []
+  let typeReads = 0
+  while (queue.length > 0) {
+    const path = queue.pop()!
+    if (seen.has(path)) continue
+    seen.add(path)
+    for (const i of importsOf(path, readFileSync(path, "utf8"))) {
+      if (!i.to.startsWith(".")) continue
+      const target = resolve(dirname(path), i.to)
+      if (target.startsWith(`${SRC}/`)) {
+        if (i.typeOnly) typeReads++
+        else offenders.push(`${relative(ROOT, path)}: ${i.to}`)
+      } else if (target.startsWith(`${TEST}/`)) queue.push(withTs(target))
+    }
+  }
+  // 見張りが空振りしていない（test/lineup.ts を通した型の読み込みを見ている）
+  expect(seen.has(join(TEST, "lineup.ts"))).toBe(true)
+  expect(typeReads).toBeGreaterThan(0)
   expect(offenders).toEqual([])
 })
 

@@ -1,4 +1,4 @@
-// 字の幅を確かめる e2e の本文と、その字の幅を core で計算した表。表は scripts/e2e-build.ts が e2e の前に作る（e2e は web/src を読まないため）
+// 字の幅を確かめる e2e の本文と、その字の幅を core で計算した表。表は scripts/e2e-build.ts が e2e の前に作る（e2e は web/src の値を読まないため）
 import { readFileSync } from "node:fs"
 
 export const BODY =
