@@ -7,7 +7,7 @@
   color: var(--skin-text);
   outline: none;
 }
-/* 左: 検索の欄と、その下にツリー */
+/* 左: 検索の入力Formと、その下にツリー */
 .left {
   display: flex;
   flex: none;

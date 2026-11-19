@@ -14,7 +14,7 @@ export const LIBRARY_FOLDER = kit.definePluginState({
 // 選んでいる行の id（読み直すと消える。画面の場所には入れない）
 export const LIBRARY_PICKED = kit.definePluginStateOf<string>()({ id: "library-picked", scope: "screen" })
 
-// 検索している言葉（「検索」を押したときの欄の中身。読み直すと消える。値が無ければ、検索していない）
+// 検索している言葉（「検索」を押したときの入力Formの中身。読み直すと消える。値が無ければ、検索していない）
 export const LIBRARY_QUERY = kit.definePluginStateOf<string>()({ id: "library-query", scope: "screen" })
 
 // ツリーで中を出しているフォルダの id（読み直すと消える。値が無ければ、書庫ホームだけ）

@@ -537,7 +537,7 @@ test("書庫の行をドラッグして、行の間（その位置へ）・フ�
   await expect(inside.getByRole("button")).toHaveText(["ドラッグ ア", "ドラッグ ア 2", "ドラッグ イ"])
 })
 
-test("書庫の検索は、名前に言葉を含む物を右の枠に並べる。行を押すとツリーのその行へ移り、2 回押すと開く。欄を空にすると元の表示に戻る", async ({
+test("書庫の検索は、名前に言葉を含む物を右の枠に並べる。行を押すとツリーのその行へ移り、2 回押すと開く。入力Formを空にすると元の表示に戻る", async ({
   page,
 }) => {
   await page.goto("/")
@@ -566,7 +566,7 @@ test("書庫の検索は、名前に言葉を含む物を右の枠に並べる�
   await field.fill("どこにも無い名前")
   await page.getByRole("button", { name: "検索", exact: true }).click()
   await expect(page.getByRole("status")).toHaveText("「どこにも無い名前」を含む名前はありません")
-  // 欄を空にすると、元の表示（開いているフォルダの中身）に戻る
+  // 入力Formを空にすると、元の表示（開いているフォルダの中身）に戻る
   await field.fill("")
   await expect(found).toHaveCount(0)
   await expect(page.getByRole("navigation", { name: "場所" }).getByRole("button")).toHaveText([

@@ -101,7 +101,7 @@ export function LibraryView() {
     const over = pathTo(read().folders, folder).slice(0, -1)
     if (over.some(id => !shown.has(id))) setUnfolded([...new Set([...unfolded, ...over])])
   }
-  // 検索: 欄に打っている途中の言葉 typed と、「検索」を押して探している言葉 query
+  // 検索: 入力Formに打っている途中の言葉 typed と、「検索」を押して探している言葉 query
   const query = usePluginState(kit, LIBRARY_QUERY)
   const setQuery = useSetPluginState(kit, LIBRARY_QUERY)
   const [typed, setTyped] = useState(query ?? "")
@@ -177,7 +177,7 @@ export function LibraryView() {
               value={typed}
               onChange={e => {
                 setTyped(e.target.value)
-                // 欄を空にしたら、元の表示に戻す
+                // 入力Formを空にしたら、元の表示に戻す
                 if (e.target.value === "") setQuery(undefined)
               }}
             />
