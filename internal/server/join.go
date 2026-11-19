@@ -114,6 +114,7 @@ type participantRecord struct {
 	Link        string `json:"link"`
 	Workroom    string `json:"workroom"`
 	RequestedAt string `json:"requestedAt"`
+	JoinedAt    string `json:"joinedAt"` // 受け入れた時点（受け入れ済みだけ）
 }
 
 // 参加者の state の値（core/def/subject.ts の PARTICIPANT_STATES）
@@ -654,13 +655,6 @@ func (o Options) aiJoin(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, done)
 }
 
-// isVisitor は、参加者 id が参加の確定したビジターか
-func (h *Hub) isVisitor(id string) bool {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	return h.actorOfParticipantHeld(id).As == stateVisitor
-}
-
 // actorOfParticipantHeld は、参加者 id の AI のアクター: 参加が確定していれば、入っているワークルームの id か、ビジターの印。
 // 確定していなければ、どちらも無い（core は参加が確定していない AI として扱う）。h.mu を持って呼ぶ
 func (h *Hub) actorOfParticipantHeld(id string) *engine.Actor {
@@ -693,6 +687,11 @@ func (h *Hub) sessionEnded(id string) bool {
 // leaveEnded は、セッションが終わった参加者 id を、利用者として退室させる（ワークルームは空室で残る。アクションは定義が役 runsWhenAIEnds で名乗る）。
 // 起こす知らせの行列は、宛先が参加者でなくなったので捨てられる（watch.go の stale）
 func (h *Hub) leaveEnded(id string) error {
+	return h.leave(id, "its session ended")
+}
+
+// leave は、参加者 id を、利用者として退室させる（なぜ退室させたかを why でログに残す）
+func (h *Hub) leave(id, why string) error {
 	ids, err := h.engine.EndActions()
 	if err != nil {
 		return err
@@ -700,7 +699,7 @@ func (h *Hub) leaveEnded(id string) error {
 	if ids == nil {
 		return nil
 	}
-	fmt.Fprintln(os.Stderr, "participant", id, "left: its session ended")
+	fmt.Fprintln(os.Stderr, "participant", id, "left:", why)
 	done, err := h.Perform(performOne(ids.Leave, json.RawMessage("{}"), &engine.On{Record: id}))
 	if err != nil {
 		return err
@@ -709,4 +708,51 @@ func (h *Hub) leaveEnded(id string) error {
 		return fmt.Errorf("participant %s could not leave: %s", id, done.Detail)
 	}
 	return nil
+}
+
+// VisitorIdle は、ビジターを退室させるまでの、呼ばれない間（最後に呼ばれてから。呼ばれていなければ受け入れてから）
+const VisitorIdle = 5 * time.Minute
+
+// VisitorSweepEvery は、呼ばれないビジターを見回る間隔
+const VisitorSweepEvery = 30 * time.Second
+
+// LeaveIdleVisitors は、時点 now までに VisitorIdle の間呼ばれていないビジターを、利用者として退室させる
+func (h *Hub) LeaveIdleVisitors(now time.Time) error {
+	records, err := h.records()
+	if err != nil {
+		return err
+	}
+	for _, s := range records {
+		if s.State != stateVisitor {
+			continue
+		}
+		h.mu.Lock()
+		last := h.participantNotes[s.ID].Called
+		h.mu.Unlock()
+		if last == "" {
+			last = s.JoinedAt
+		}
+		at, err := time.Parse(time.RFC3339Nano, last)
+		if err != nil || now.Sub(at) < VisitorIdle {
+			continue
+		}
+		if err := h.leave(s.ID, "a visitor was not called for "+VisitorIdle.String()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// showRefusal は、参加者 id の AI が show を頼んだときの断りの理由と文（参加が確定してワークルームに入っている AI なら、どちらも空）
+func (h *Hub) showRefusal(id string) (reason, detail string) {
+	h.mu.Lock()
+	actor := h.actorOfParticipantHeld(id)
+	h.mu.Unlock()
+	switch {
+	case actor.As == stateVisitor:
+		return "visitor", "a visitor only reads: it cannot show books on the user's screen"
+	case actor.Workroom == "":
+		return "not-joined", "only an AI whose request to join was accepted shows books on the user's screen (call join first)"
+	}
+	return "", ""
 }

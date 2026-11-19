@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 )
 
 // ビジター: as visitor で頼み、窓でビジターとして受け入れると、起こす知らせはビジターと言い、フックの参加の知らせはワークルームの名前を持たずに（利用者の言語の文も、ビジターの文）
@@ -61,5 +62,51 @@ func TestVisitorWithAWorkroomIsRefusedByTheRequest(t *testing.T) {
 	}
 	if rows := recordsOf(t, s.URL, "@matomezu/base:participant"); len(rows) != 1 || rows[a] == nil {
 		t.Fatalf("participants = %v", rows)
+	}
+}
+
+// ビジターは、最後に呼ばれてから（呼ばれていなければ受け入れてから）VisitorIdle の間呼ばれなければ退室させる。ワーカーは時間では外さない
+func TestIdleVisitorsLeave(t *testing.T) {
+	s, hub := joinWorld(t, joinStore(t))
+	worker := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
+	got, _ := call(t, "POST", s.URL+"/api/ai/join", `{"ai":"claude","model":"opus","env":"wsl-linux","link":"LV","sessionId":"SV","as":"visitor"}`, nil)
+	var joined Joined
+	if json.Unmarshal([]byte(got), &joined) != nil || joined.Participant == "" {
+		t.Fatalf("join = %s", got)
+	}
+	if out := windowPerform(t, s.URL, "@matomezu/base:participant-accept", `{"as":"visitor"}`, joined.Participant); !strings.Contains(out, `"ok":true`) {
+		t.Fatalf("accept = %s", out)
+	}
+	noticeOf(t, s.URL, joined.Participant) // 呼ばれた時刻が残る
+	called := hub.ParticipantCalls()[joined.Participant]
+	at, err := time.Parse(time.RFC3339Nano, called)
+	if err != nil {
+		t.Fatalf("called = %q", called)
+	}
+	if err := hub.LeaveIdleVisitors(at.Add(VisitorIdle - time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if rows := recordsOf(t, s.URL, "@matomezu/base:participant"); rows[joined.Participant] == nil {
+		t.Fatal("a visitor called just now left")
+	}
+	if err := hub.LeaveIdleVisitors(at.Add(VisitorIdle + time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	rows := recordsOf(t, s.URL, "@matomezu/base:participant")
+	if rows[joined.Participant] != nil || rows[worker] == nil {
+		t.Fatalf("participants after the visitors' idle time = %v", rows)
+	}
+}
+
+// show は、参加が確定してワークルームに入っている AI だけ。参加者の id が無い AI は not-joined で断る
+func TestShowNeedsAJoinedWorker(t *testing.T) {
+	s, _ := joinWorld(t, joinStore(t))
+	if got, _ := call(t, "POST", s.URL+"/api/ai/show", `{"book":"b1"}`, nil); !strings.Contains(got, `"reason":"not-joined"`) {
+		t.Fatalf("show without joining = %s", got)
+	}
+	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
+	noticeOf(t, s.URL, a)
+	if got, _ := call(t, "POST", s.URL+"/api/ai/show", `{"book":"b1"}`, map[string]string{ParticipantHeader: a}); strings.Contains(got, "not-joined") {
+		t.Fatalf("show by a joined worker = %s", got)
 	}
 }

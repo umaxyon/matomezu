@@ -1079,10 +1079,10 @@ func TestViewSeparatesTheHiddenBookScreen(t *testing.T) {
 	if got != `{"front":"control-center","hidden":{"awaiting":[],"book":"b1","canSplit":true,"page":"p1","stage":"s1","stages":[{"id":"s1","book":"b1"}]}}` {
 		t.Fatalf("view = %s", got)
 	}
-	if _, body := send(t, "POST", s.URL+"/api/ai/show", `{"book":"b1","stage":"s1"}`, ai); !strings.Contains(body, `"ok":true`) {
+	if _, body := send(t, "POST", s.URL+"/api/ai/show", `{"book":"b1","stage":"s1"}`, writerAI(t, s.URL)); !strings.Contains(body, `"ok":true`) {
 		t.Fatalf("show onto a hidden stage = %s", body)
 	}
-	if _, body := send(t, "POST", s.URL+"/api/ai/show", `{"book":"b1","stage":"s9"}`, ai); !strings.Contains(body, `"no-stage"`) {
+	if _, body := send(t, "POST", s.URL+"/api/ai/show", `{"book":"b1","stage":"s9"}`, writerAI(t, s.URL)); !strings.Contains(body, `"no-stage"`) {
 		t.Fatalf("show onto a stage that is not there = %s", body)
 	}
 }
@@ -1200,10 +1200,10 @@ const window = `{"book":"b1","page":"p1","selection":[],"stage":"s1","stages":[{
 func TestShowGoesToTheLastFocusedWindow(t *testing.T) {
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
+	auth := writerAI(t, s.URL)
 	a, b := listen(t, s.URL), listen(t, s.URL)
 	next(t, a)
 	next(t, b)
-	auth := map[string]string{"Authorization": "Bearer secret"}
 	show := func(body string) string {
 		_, out := send(t, "POST", s.URL+"/api/ai/show", body, auth)
 		return out
@@ -1255,7 +1255,7 @@ func TestShowOpensABrowserWhenNoWindowIsThere(t *testing.T) {
 		return nil
 	}})
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
-	auth := map[string]string{"Authorization": "Bearer secret"}
+	auth := writerAI(t, s.URL)
 	if _, got := send(t, "POST", s.URL+"/api/ai/show", `{"book":"b1","split":true}`, auth); got != "{\"ok\":true,\"opened\":true}" {
 		t.Fatalf("show = %s", got)
 	}
@@ -1267,7 +1267,7 @@ func TestShowOpensABrowserWhenNoWindowIsThere(t *testing.T) {
 func TestShowWithoutAWindowNorABrowser(t *testing.T) {
 	s := newServerWith(t, Options{URL: "http://screen/", Wait: 50 * time.Millisecond, Open: func(string) error { return nil }})
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
-	auth := map[string]string{"Authorization": "Bearer secret"}
+	auth := writerAI(t, s.URL)
 	if _, got := send(t, "POST", s.URL+"/api/ai/show", `{"book":"b1"}`, auth); got != "{\"ok\":false,\"reason\":\"no-window\",\"url\":\"http://screen/\"}" {
 		t.Fatalf("show = %s", got)
 	}
@@ -1845,7 +1845,9 @@ func writerAI(t *testing.T, url string) map[string]string {
 	if json.Unmarshal([]byte(got), &joined) != nil || joined.Participant == "" {
 		t.Fatalf("joined-ai-for-test = %s", got)
 	}
-	return map[string]string{"Authorization": "Bearer secret", ParticipantHeader: joined.Participant}
+	header := map[string]string{"Authorization": "Bearer secret", ParticipantHeader: joined.Participant}
+	send(t, "GET", url+"/api/ai/books", "", header) // 最初の呼び出しの知らせ（participant-calls）を、窓をつなぐ前に済ませておく
+	return header
 }
 
 func joinedAI(t *testing.T, s *httptest.Server) map[string]string {

@@ -572,8 +572,8 @@ func (o Options) aiShow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	o.waitLatest()
-	if o.Hub.isVisitor(r.Header.Get(ParticipantHeader)) {
-		writeJSON(w, map[string]any{"ok": false, "reason": "visitor", "detail": "a visitor only reads: it cannot show books on the user's screen"})
+	if reason, detail := o.Hub.showRefusal(r.Header.Get(ParticipantHeader)); reason != "" {
+		writeJSON(w, map[string]any{"ok": false, "reason": reason, "detail": detail})
 		return
 	}
 	err := o.Hub.Show(req)
