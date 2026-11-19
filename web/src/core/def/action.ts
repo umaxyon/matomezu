@@ -81,9 +81,8 @@ export interface ActionContext {
   today: string
   // 許可スコープがページ 1 枚ごとに問う形（pages と denied）のアクションに、名指したページがブックにあるときだけ在る: 名指したページのうち、認可ステップにもページのタイプにも止められなかったページの id（ブックのページの順）
   permittedPages?: readonly string[]
-  // 書庫が対象のアクションに在る: エントリの名前を引く決まり（利用者の設定の言語。performIn が世界の設定から入れる）。名前は core/entries.ts の titleOf などに渡して引く
-  //（無ければ namingFor が設定の無いときと同じ英語にする）
-  naming?: Naming
+  // エントリの名前を引く決まり（利用者の設定の言語。performIn が世界の設定から、どの対象のアクションにも入れる）。名前は core/entries.ts の titleOf などに渡して引く
+  naming: Naming
   actor: Actor // 行った者（利用者か AI か。AI には userOnly のアクションとロックを外すことを断る）
   // レコードが対象のアクションが読むだけのブック（アクションの readsBooks が引数から答えた id のブックだけ。ほかのアクションには無い。郵便に乗せる変更を確かめるのに使う）
   books?: Readonly<Books>

@@ -734,7 +734,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   })
   const { getState, setState } = store
   // 時点と日付は、時計を 1 回読んだ同じ時点から決める（日付の変わり目でずれない）
-  const ctx = (): ActionContext => {
+  const ctx = (): Omit<ActionContext, "naming"> => {
     const now = clock()
     return { catalog, controlCenter, lang: getState().lang, newId, now, today: localDateOf(now), actor: USER }
   }

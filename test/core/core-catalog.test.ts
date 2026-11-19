@@ -15,7 +15,7 @@ import { resolveTokens } from "../../web/src/core/theme"
 import { pageTokens, tokenDefsOf } from "../../web/src/plugins/base/book-look/look"
 import { DRAWING, drawingPage, testBook } from "../lineup"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
+import { BUILTIN_PARTS, CORE_CATALOG, NAMING } from "../support"
 
 describe("機能台帳", () => {
   test("ビルトインプラグインのテーマが上書きするテーマキーは、どれもビルトインプラグインのアイテム・タイプ・プラグインが宣言している（インスタンスに無いアイテムのテーマキーの上書きは error にせず、使わないだけ）", () => {
@@ -187,6 +187,7 @@ describe("アクションを行う", () => {
     now: "2026-10-26T00:00:00.000Z",
     today: "2026-10-26",
     actor: USER,
+    naming: NAMING,
   }
   const library = tablesOf([book])
 
@@ -324,6 +325,7 @@ describe("機能台帳ごとに別の世界", () => {
     now: "2026-10-26T00:00:00.000Z",
     today: "2026-10-26",
     actor: USER,
+    naming: NAMING,
   })
 
   test("足したタイプのページは、それを持つ表でだけ作れて、データの形もその表で通る", () => {

@@ -13,7 +13,7 @@ import { GAP } from "../../../../web/src/plugins/base/place/push"
 import { alignedEndsOf, routeInputOf } from "../../../../web/src/plugins/items/line/drawn"
 import { elbowAt, usesLines } from "../../../../web/src/plugins/items/line/line"
 import { CAPTION_GAP, LINK_GAP, linesOf } from "../../../../web/src/plugins/items/line/placed"
-import { BUILTIN_PARTS, CORE_CATALOG, sequence, sizedStore } from "../../../support"
+import { BUILTIN_PARTS, CORE_CATALOG, NAMING, sequence, sizedStore } from "../../../support"
 
 const ready = () => sizedStore()
 type Store = ReturnType<typeof ready>
@@ -296,6 +296,7 @@ test("線と線の既定の通り方を選ばないタイプのページでは�
     now: "2026-10-26T00:00:00.000Z",
     today: "2026-10-26",
     actor: USER,
+    naming: NAMING,
   }
   expect(usesLines(CORE_CATALOG, pagesOf(book)[0]!)).toBe(true)
   expect(usesLines(noLines, pagesOf(book)[0]!)).toBe(false)

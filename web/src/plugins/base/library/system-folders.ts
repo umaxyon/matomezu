@@ -4,7 +4,7 @@
 import { z } from "zod"
 import { freeTitle } from "../../../core/book"
 import type { CoreCatalog } from "../../../core/core-catalog"
-import { type EntryKind, type Naming, namingFor, titleOf, titlesIn } from "../../../core/entries"
+import { type EntryKind, type Naming, titleOf, titlesIn } from "../../../core/entries"
 import {
   type Folder,
   HOME_ID,
@@ -99,5 +99,5 @@ export const SYSTEM_FOLDER_ADD = kit.defineAction({
   runsWhenCatalogChanges: true,
   permissionScope: "unknown", // 番号を付ける物は、行うまで分からない
   args: z.strictObject({}),
-  run: (library, _args, ctx) => withSystemFolders(library, ctx.catalog, namingFor(ctx), ctx.newId),
+  run: (library, _args, ctx) => withSystemFolders(library, ctx.catalog, ctx.naming, ctx.newId),
 })

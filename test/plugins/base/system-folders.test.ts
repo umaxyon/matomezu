@@ -25,7 +25,7 @@ const GONE = "@x/gone:folder" // 定義が機能台帳に無いシステムフ�
 const SYSTEM_FOLDER_ADD_NAME = SYSTEM_FOLDER_ADD.id.slice("@matomezu/base:".length)
 const JA = { "@matomezu/base:lang": "matomezu:ja" }
 
-const ctxOf = (): ActionContext => ({
+const ctxOf = (): Omit<ActionContext, "naming"> => ({
   catalog: CORE_CATALOG,
   controlCenter: "@matomezu/control-center:control-center",
   lang: "en",

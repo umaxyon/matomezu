@@ -19,7 +19,7 @@ import {
   type TrashRef,
 } from "./folders"
 import { type Lang, translate } from "./i18n/i18n"
-import { langOf, NO_SETTINGS, type Settings } from "./settings"
+import { langOf, type Settings } from "./settings"
 
 export type EntryKind = AnyEntryRef["kind"]
 
@@ -210,9 +210,6 @@ export const namingIn = (catalog: CoreCatalog, lang: Lang): Naming => ({ catalog
 // 利用者の設定 settings の言語で名前を引く決まり（言語を選んでいない・使えなければ英語）。画面も常駐も、名前の決まりはこれで引く
 export const namingOf = (catalog: CoreCatalog, settings: Settings): Naming =>
   namingIn(catalog, langOf(catalog, settings, "en"))
-// アクションの文脈 ctx の、名前を引く決まり（performIn が世界の利用者の設定から入れる。入っていなければ、設定の無いときと同じ英語）
-export const namingFor = (ctx: { catalog: CoreCatalog; naming?: Naming }): Naming =>
-  ctx.naming ?? namingOf(ctx.catalog, NO_SETTINGS)
 
 // ページかフォルダの行 row（種類 kind）の名前（名前の無い物・行が無ければ undefined）。名前を引くのは、ここだけ:
 // システムフォルダは、印の定義の title を naming の言語で引く（定義が機能台帳に無ければ名前の無い物）。ほかは行の title

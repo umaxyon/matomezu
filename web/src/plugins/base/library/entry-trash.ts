@@ -5,7 +5,6 @@ import { z } from "zod"
 import type { LibraryTargets } from "../../../core/def/action"
 import {
   isMoveRefusal,
-  namingFor,
   removedEntry,
   restoredEntry,
   trashedEntry,
@@ -86,7 +85,7 @@ export const ENTRY_RESTORE = kit.defineAction({
     replaces: z.string().min(1).optional(),
   }),
   run: (library, args, ctx) => {
-    const naming = namingFor(ctx)
+    const naming = ctx.naming
     const ref = trashRefOf(library.folders, args.entry)
     if (!ref) return null
     const into = restoreTargetOf(library.folders, ref.from)

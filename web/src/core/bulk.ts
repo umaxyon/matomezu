@@ -112,7 +112,7 @@ export type BulkCheck<R> = (i: number, before: World, after: World, done: Done) 
 export function performBulk<R extends { ok: false } = never>(
   world: World,
   steps: readonly BulkAction[],
-  ctx: Omit<ActionContext, "newId" | "now" | "today">,
+  ctx: Omit<ActionContext, "newId" | "now" | "today" | "naming">,
   check?: BulkCheck<R>,
 ): PerformedBulk<R> {
   const base = world.source ?? sourceOf(world.records)

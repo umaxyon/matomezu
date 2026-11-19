@@ -45,7 +45,7 @@ import {
 } from "./def/action"
 import type { PlaceChange, Referred } from "./def/permission"
 import type { SubjectDef } from "./def/subject"
-import { binnedBetween, isWithin, namingFor, namingOf, TITLE_TAKEN, titleClashes } from "./entries"
+import { binnedBetween, isWithin, namingOf, TITLE_TAKEN, titleClashes } from "./entries"
 import {
   bookIdOf,
   bookOf,
@@ -611,7 +611,7 @@ export function perform<Id extends ActionId>(
     // 行う前から在るページのタイプも、変えない（ページがブックの間を動いても）
     const typesKept = keepsPageTypesAcross(Object.values(was), Object.values(now))
     // 同じ入れ物の中の名前の重なりは、ブックの決まりで断る前に、名前が重なる断りにする
-    if (titleClashes(subject as Library, next as Library, namingFor(ctx)).length > 0) return titleTaken
+    if (titleClashes(subject as Library, next as Library, ctx.naming).length > 0) return titleTaken
     if (!librarySettles(ctx.catalog, was, now) || !typesKept) return { ok: false, reason: "refused" }
   }
   if (action.target === "annotations") {
@@ -754,8 +754,11 @@ export function performIn(
   id: string,
   args: unknown,
   on: ActionOn | undefined,
-  ctx: ActionContext,
+  given: Omit<ActionContext, "naming">,
 ): PerformedIn {
+  // 名前を引く決まりは、どの対象のアクションにも、世界の利用者の設定から入れる
+  const naming = namingOf(given.catalog, world.settings)
+  const ctx: ActionContext = { ...given, naming }
   const target: ActionTarget | undefined = ctx.catalog.actions.get(id)?.target
   const loose = perform as (
     subject: unknown,
@@ -788,8 +791,7 @@ export function performIn(
   }
   if (target === "library") {
     const library: Library = { pages: world.pages, folders: world.folders }
-    const naming = namingOf(ctx.catalog, world.settings)
-    const done = loose(library, id, args, { ...ctx, naming })
+    const done = loose(library, id, args, ctx)
     if (!done.ok) return done
     const made = rowChanges(library, done.next as Library)
     // 足したブックと無くなったブックの置き場所を書く。木の決まりを守っていた世界は、行った後も守る
@@ -815,7 +817,6 @@ export function performIn(
   if (same) return { ok: true, result: done.result }
   // 言語が変わって、名前を設定の言語で引く物（システムフォルダ）の名前が、同じフォルダのほかの物と重なるなら断る（書庫の行は変えない）
   const library: Library = { pages: world.pages, folders: world.folders }
-  const naming = namingOf(ctx.catalog, world.settings)
   const nextNaming = namingOf(ctx.catalog, next)
   if (nextNaming.lang !== naming.lang && titleClashes(library, library, naming, nextNaming).length > 0)
     return languageTitleTaken

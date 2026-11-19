@@ -16,7 +16,7 @@ import {
 } from "../../../web/src/plugins/base/page-tabs/binders"
 import { PAGE_ADD } from "../../../web/src/plugins/base/page-tabs/page-add"
 import { DRAWING, drawingPage, MARKDOWN, SLIDE, testBinder, testBook, testPage, withSlide } from "../../lineup"
-import { BUILTIN_PARTS, CORE_CATALOG, sequence } from "../../support"
+import { BUILTIN_PARTS, CORE_CATALOG, NAMING, sequence } from "../../support"
 
 const ctx = () => ({
   catalog: CORE_CATALOG,
@@ -26,6 +26,7 @@ const ctx = () => ({
   now: "2026-11-16T00:00:00.000Z",
   today: "2026-11-16",
   actor: USER,
+  naming: NAMING,
 })
 const slide = (id: string) => testPage(SLIDE, id, { title: id, paper: "@matomezu/base:ratio-16x9" })
 const book = testBook("b1", "混ざる", [

@@ -3,7 +3,7 @@
 // 同じフォルダの中に同じ名前は置けない（土台が title-taken で断る）。entry-move の onConflict が number なら、番号を付けた名前にして入れる
 import { z } from "zod"
 import type { LibraryTargets } from "../../../core/def/action"
-import { isMoveRefusal, movedEntry, namingFor, placedEntry, titleOf } from "../../../core/entries"
+import { isMoveRefusal, movedEntry, placedEntry, titleOf } from "../../../core/entries"
 import { HOME_ID, type PlainFolder } from "../../../core/folders"
 import { kit } from "../kit"
 import {
@@ -50,7 +50,7 @@ export const ENTRY_MOVE = kit.defineAction({
     onConflict: z.enum(["refuse", "number"]).default("refuse"),
   }),
   run: (library, args, ctx) => {
-    const naming = namingFor(ctx)
+    const naming = ctx.naming
     const place = placedOutsideTrash(library.folders, args.entry)
     if (!place || !movesInto(library.folders, args.entry, args.into)) return null
     const moved = movedEntry(library, args.entry, args.into, args.index)
@@ -95,7 +95,7 @@ export const ENTRY_MOVE_OVER = kit.defineAction({
       args.entry,
       args.into,
       args.replaces ?? REPLACES_NOTHING,
-      namingFor(ctx),
+      ctx.naming,
     )
     if (isNotOverwritten(cleared)) return null
     const next = movedEntry(cleared, args.entry, args.into, args.index)
@@ -114,7 +114,7 @@ export const ENTRY_RENAME = kit.defineAction({
   run: (library, args, ctx) => {
     const place = placedOutsideTrash(library.folders, args.entry)
     if (!place) return null
-    const next = retitled(library, place.ref.kind, args.entry, args.title, namingFor(ctx))
+    const next = retitled(library, place.ref.kind, args.entry, args.title, ctx.naming)
     return !next || next === library ? null : { next, result: {} }
   },
 })
