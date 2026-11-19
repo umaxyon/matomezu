@@ -5,6 +5,7 @@ package server
 //
 //	GET /api/ai/folder[?folder=<フォルダの id>]   {"id", "kind": "home" | "folder", "title"（書庫ホームには無い）, "path": [{"id", "title"}], "lineup": [エントリ]}
 //	                                              folder が無ければ書庫ホーム。path は書庫ホームからそのフォルダまで（両端を含む。書庫ホームの title は無い）。
+//	                                              システムフォルダは、どこでも "systemFolder"（定義の id）を添え、title は定義の英語の名前（定義が今の機能台帳に無ければ空）。
 //	                                              エントリは {"kind": "folder", "id", "title"}・{"kind": "book", "id", "title", "problem"（読めないブックの理由。list_books と同じ）}・
 //	                                              {"kind": "page", "id", "title", "type"}・{"kind": "binder", "id", "title", "pageType"}・
 //	                                              {"kind": "unreadable", "id", "title", "code", "type"}（読めないページ。read_book と同じ）
@@ -19,8 +20,9 @@ import (
 
 // folderStep は、書庫ホームからフォルダまでの道筋の 1 つ（書庫ホームは名前を持たない）
 type folderStep struct {
-	ID    string `json:"id"`
-	Title string `json:"title,omitempty"`
+	ID           string `json:"id"`
+	Title        string `json:"title,omitempty"`
+	SystemFolder string `json:"systemFolder,omitempty"`
 }
 
 // folderEntry は、AI に見せるフォルダの直下のエントリ 1 つ。Type はページのタイプ、PageType はバインダが入れるタイプ、
@@ -33,15 +35,19 @@ type folderEntry struct {
 	PageType string `json:"pageType,omitempty"`
 	Code     string `json:"code,omitempty"`
 	Problem  string `json:"problem,omitempty"`
+	// SystemFolder は、システムフォルダの印（定義の id）
+	SystemFolder string `json:"systemFolder,omitempty"`
 }
 
 // AIFolder は、AI に見せるフォルダ 1 つ（書庫ホームかフォルダ）
 type AIFolder struct {
-	ID     string        `json:"id"`
-	Kind   string        `json:"kind"` // 書庫ホームなら "home"、フォルダなら "folder"
-	Title  string        `json:"title,omitempty"`
-	Path   []folderStep  `json:"path"`
-	Lineup []folderEntry `json:"lineup"`
+	ID    string `json:"id"`
+	Kind  string `json:"kind"` // 書庫ホームなら "home"、フォルダなら "folder"
+	Title string `json:"title,omitempty"`
+	// SystemFolder は、システムフォルダなら、その印（定義の id）
+	SystemFolder string        `json:"systemFolder,omitempty"`
+	Path         []folderStep  `json:"path"`
+	Lineup       []folderEntry `json:"lineup"`
 }
 
 // rowHead は、ページかフォルダの行の本文のうち、常駐が読む土台のフィールド（名前・ページのタイプ・バインダが入れるタイプ。文字でなければ空）
@@ -52,6 +58,19 @@ func rowHead(body json.RawMessage) (title, pageType, binderType string) {
 	_ = json.Unmarshal(row["type"], &pageType)
 	_ = json.Unmarshal(row["pageType"], &binderType)
 	return title, pageType, binderType
+}
+
+// folderTitle は、フォルダの行の本文 body の、AI に見せる名前と、システムフォルダならその印。システムフォルダの名前は、定義の英語の名前（定義が無ければ空）
+func (h *Hub) folderTitle(body json.RawMessage) (title, systemFolder string) {
+	var row struct {
+		Title        string `json:"title"`
+		SystemFolder string `json:"systemFolder"`
+	}
+	_ = json.Unmarshal(body, &row)
+	if row.SystemFolder != "" {
+		return h.systemFolderTitles[row.SystemFolder], row.SystemFolder
+	}
+	return row.Title, ""
 }
 
 // AIFolder は、AI の MCP 公開ツールに出すフォルダ id（空なら書庫ホーム）と、その直下のエントリ。
@@ -72,12 +91,12 @@ func (h *Hub) AIFolder(id string) *AIFolder {
 	for _, at := range append(above, id) {
 		step := folderStep{ID: at}
 		if h.folders[at].role == "folder" {
-			step.Title, _, _ = rowHead(h.folders[at].body)
+			step.Title, step.SystemFolder = h.folderTitle(h.folders[at].body)
 		}
 		out.Path = append(out.Path, step)
 	}
 	if f.role == "folder" {
-		out.Title, _, _ = rowHead(f.body)
+		out.Title, out.SystemFolder = h.folderTitle(f.body)
 	}
 	for _, e := range f.entries {
 		if p, ok := h.pages[e]; ok {
@@ -96,7 +115,8 @@ func (h *Hub) AIFolder(id string) *AIFolder {
 		title, _, binderType := rowHead(inner.body)
 		switch {
 		case inner.role == "folder":
-			out.Lineup = append(out.Lineup, folderEntry{Kind: "folder", ID: e, Title: title})
+			title, mark := h.folderTitle(inner.body)
+			out.Lineup = append(out.Lineup, folderEntry{Kind: "folder", ID: e, Title: title, SystemFolder: mark})
 		case inner.role == "binder":
 			out.Lineup = append(out.Lineup, folderEntry{Kind: "binder", ID: e, Title: title, PageType: binderType})
 		case inner.isBook():

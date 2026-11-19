@@ -60,6 +60,7 @@ import {
   LIBRARY_QUERY,
   LIBRARY_UNFOLDED,
 } from "./library/state"
+import { DOCUMENTS, SYSTEM_FOLDER_ADD } from "./library/system-folders"
 import { BOOK_LOCK, BOOK_UNLOCK, LOCK, LOCKABLE_CHECK, PAGE_LOCK, PAGE_UNLOCK } from "./lock"
 import type { A3, A4, A5, LETTER, TABLOID, WIDE } from "./looks"
 import {
@@ -432,6 +433,7 @@ export const BASE = defineBuiltin(
       BOOK_UNLOCK,
       BOOK_CREATE,
       FOLDER_CREATE,
+      SYSTEM_FOLDER_ADD,
       ENTRY_MOVE,
       ENTRY_MOVE_OVER,
       ENTRY_RENAME,
@@ -502,6 +504,7 @@ export const BASE = defineBuiltin(
     tools: [SELECT_TOOL, HAND_TOOL],
     permissions: [LOCK],
     annotations: [NOTE, MARK],
+    systemFolders: [DOCUMENTS],
     mails: [MAIL_LETTER, MAIL_JOIN_REQUEST, MAIL_PROPOSAL],
     subjects: [WORKROOM, PARTICIPANT, ADMIN_MARK, MAIL, SCRAP],
     screens: [BOOK_SCREEN_DEF, LIBRARY_SCREEN],
@@ -698,6 +701,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-lock": typeof BOOK_LOCK
     "@matomezu/base:book-unlock": typeof BOOK_UNLOCK
     "@matomezu/base:folder-create": typeof FOLDER_CREATE
+    "@matomezu/base:system-folder-add": typeof SYSTEM_FOLDER_ADD
     "@matomezu/base:entry-move": typeof ENTRY_MOVE
     "@matomezu/base:entry-move-over": typeof ENTRY_MOVE_OVER
     "@matomezu/base:entry-rename": typeof ENTRY_RENAME
@@ -750,6 +754,9 @@ declare module "../../core/catalog" {
   interface AnnotationTable {
     "@matomezu/base:note": typeof NOTE
     "@matomezu/base:mark": typeof MARK
+  }
+  interface SystemFolderTable {
+    "@matomezu/base:documents": typeof DOCUMENTS
   }
   interface ScreenTable {
     "@matomezu/base:book-screen": typeof BOOK_SCREEN_DEF

@@ -409,7 +409,7 @@ func TestBulkInputsAreTheUnionOfTheActions(t *testing.T) {
 		t.Fatalf("two pages = %v", got)
 	}
 	added := step("@matomezu/base:page-add", `{"type":"@matomezu/drawing:drawing","title":"追加"}`, &engine.On{Book: "b1"}, "p3")
-	if got := folders(added, update("p3")); !slices.Equal(got, []string{"b1", "b2", storage.HomeID, storage.TrashID}) {
+	if got := folders(added, update("p3")); !slices.Equal(got, append([]string{"b1", "b2", storage.HomeID, storage.TrashID}, documentsOf(t, hub)...)) {
 		t.Fatalf("a page the bulk adds = %v", got)
 	}
 	if got := folders(update("p9"), update("p1")); !slices.Equal(got, []string{"b1", storage.HomeID}) {

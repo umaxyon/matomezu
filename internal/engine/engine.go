@@ -199,6 +199,8 @@ type Engine struct {
 	roles       func() string
 	aiRecords   func(string, string, string, string) string
 	once        func() string
+	catalogActs func() string
+	sysFolders  func() string
 	records     func(string) string
 	joinedMsg   func(string, string) string
 	live        func(string, string, string, string) string
@@ -324,6 +326,12 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuRunOnceActions"), &e.once); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuRunOnceActions: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuCatalogActions"), &e.catalogActs); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuCatalogActions: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuSystemFolderTitles"), &e.sysFolders); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuSystemFolderTitles: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuSubjectRoles"), &e.roles); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuSubjectRoles: %w", err)
@@ -825,6 +833,32 @@ func (e *Engine) RunOnceActions() (ids []string, err error) {
 	}()
 	err = json.Unmarshal([]byte(e.once()), &ids)
 	return ids, err
+}
+
+// CatalogActions は、常駐が起動したときと機能台帳が変わったときに行うアクション（runsWhenCatalogChanges）の id の並び
+func (e *Engine) CatalogActions() (ids []string, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	err = json.Unmarshal([]byte(e.catalogActs()), &ids)
+	return ids, err
+}
+
+// SystemFolderTitles は、今の機能台帳のシステムフォルダの定義の id → AI に見せる名前（英語）
+func (e *Engine) SystemFolderTitles() (titles map[string]string, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	err = json.Unmarshal([]byte(e.sysFolders()), &titles)
+	return titles, err
 }
 
 // SubjectRoles は、常駐が読む種類の役（participants・workrooms）ごとの、対象の定義の id（役を名乗る定義が無ければ入らない）

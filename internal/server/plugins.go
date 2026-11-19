@@ -27,6 +27,7 @@ func (h *Hub) LinkPlugin(dir string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	defer h.afterCatalogChange()
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	next := slices.Clone(h.plugins)
@@ -44,6 +45,7 @@ func (h *Hub) LinkPlugin(dir string) (string, error) {
 // UnlinkPlugin は id の追加プラグインを外し、そのプラグインが足した種類のアノテーションを消す
 // （外したプラグインの物はもう使わない。プラグインを入れずに起動したときや、版が変わって種類が無くなったときは消さずに warning にする）
 func (h *Hub) UnlinkPlugin(id string) error {
+	defer h.afterCatalogChange()
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	next := slices.DeleteFunc(slices.Clone(h.plugins), func(p *plugin.Bundle) bool { return p.Manifest.ID == id })
@@ -107,6 +109,8 @@ func (h *Hub) usePlugins(next []*plugin.Bundle) error {
 	}
 	h.plugins = next
 	h.disabled = h.engine.Disabled()
+	h.loadSystemFolderTitles()
+	h.catalogChanged = true
 	h.pluginsVersion++
 	h.broadcast("plugins", map[string]any{"version": h.pluginsVersion})
 	return nil

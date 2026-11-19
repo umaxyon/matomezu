@@ -111,7 +111,7 @@ func TestTrashLineupPlacesItsEntries(t *testing.T) {
 		}
 		hub.applyWrites(plan, out, Perform{}, "ai", "a1")
 	}
-	write(`{"kind":"book","id":"b2"}`, `{"kind":"book","id":"b1","trashed":"2026-11-18T00:00:00.000Z","from":["library-home"]}`)
+	write(documentsRef(t, hub)+`{"kind":"book","id":"b2"}`, `{"kind":"book","id":"b1","trashed":"2026-11-18T00:00:00.000Z","from":["library-home"]}`)
 	entries, err := store.Entries()
 	if err != nil {
 		t.Fatal(err)

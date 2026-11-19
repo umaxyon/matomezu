@@ -446,8 +446,9 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 func TestBooksAreKeptWithVersions(t *testing.T) {
 	s := newServer(t, nil)
 	// 常駐が初めて起動したときに、最初のプロジェクトを 1 つ作る（runsOnceAtStart）
+	// 起動したときに足したドキュメントは除いて比べる
 	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 ||
-		!strings.HasPrefix(body, `{"annotations":{},"counters":{},"folders":[{"id":"library-home","folder":{"folderRole":"home","id":"library-home","lineup":[]},"version":1},{"id":"library-trash","folder":{"folderRole":"trash","id":"library-trash","lineup":[]},"version":1}],"pages":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{"@matomezu/taskboard:project":{"`) ||
+		!strings.HasPrefix(withoutDocuments(body), `{"annotations":{},"counters":{},"folders":[{"id":"library-home","folder":{"folderRole":"home","id":"library-home","lineup":[]},"version":2},{"id":"library-trash","folder":{"folderRole":"trash","id":"library-trash","lineup":[]},"version":1}],"pages":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{"@matomezu/taskboard:project":{"`) ||
 		!strings.Contains(body, `},"settings":{"`+enabledPluginsSetting+`":[`) || !strings.HasSuffix(body, `]},"touched":{}}`) {
 		t.Fatalf("empty data = %d %s", code, body)
 	}
@@ -464,16 +465,17 @@ func TestBooksAreKeptWithVersions(t *testing.T) {
 		t.Fatalf("update = %d %s", code, body)
 	}
 	// 触れた時刻（touched）は書いた時刻なので、その前までを比べる
-	want := `{"annotations":{},"counters":{},"folders":[{"id":"b1","folder":{"folderRole":"book","id":"b1","lineup":[],"title":"B"},"version":2},{"id":"library-home","folder":{"folderRole":"home","id":"library-home","lineup":[{"id":"b1","kind":"book"}]},"version":2},{"id":"library-trash","folder":{"folderRole":"trash","id":"library-trash","lineup":[]},"version":1}],"pages":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{"@matomezu/taskboard:project":`
-	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || !strings.HasPrefix(body, want) || !strings.Contains(body, `"touched":{"b1":"`) {
+	want := `{"annotations":{},"counters":{},"folders":[{"id":"b1","folder":{"folderRole":"book","id":"b1","lineup":[],"title":"B"},"version":2},{"id":"library-home","folder":{"folderRole":"home","id":"library-home","lineup":[{"id":"b1","kind":"book"}]},"version":3},{"id":"library-trash","folder":{"folderRole":"trash","id":"library-trash","lineup":[]},"version":1}],"pages":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{"@matomezu/taskboard:project":`
+	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || !strings.HasPrefix(withoutDocuments(body), want) || !strings.Contains(body, `"touched":{"b1":"`) {
 		t.Fatalf("data = %d %s", code, body)
 	}
 }
 
 func TestResetForTestLeavesOnlyTheGivenBooks(t *testing.T) {
 	s := newServer(t, nil)
+	// 名前の重ならないブック（重なっていると、置いたあとにドキュメントを足せない）
 	book := func(id string) string {
-		return `{"id":"` + id + `","title":"t","lineup":[]}`
+		return `{"id":"` + id + `","title":"` + id + `","lineup":[]}`
 	}
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+book("b1")+`,"base":0}`, nil)
 	postPerform(t, s.URL, `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:skin":"@matomezu/base:dark"}},"lang":"ja"}`)
@@ -481,15 +483,15 @@ func TestResetForTestLeavesOnlyTheGivenBooks(t *testing.T) {
 		t.Fatalf("reset = %d %s", code, body)
 	}
 	folder := func(id string) string {
-		return `{"id":"` + id + `","folder":{"folderRole":"book","id":"` + id + `","lineup":[],"title":"t"},"version":1}`
+		return `{"id":"` + id + `","folder":{"folderRole":"book","id":"` + id + `","lineup":[],"title":"` + id + `"},"version":1}`
 	}
 	// 触れた時刻（touched）は置いた時刻なので、その前までを比べる
-	want := `{"annotations":{},"counters":{},"folders":[` + folder("b2") + `,` + folder("b3") + `,{"id":"library-home","folder":{"folderRole":"home","id":"library-home","lineup":[{"id":"b3","kind":"book"},{"id":"b2","kind":"book"}]},"version":5},{"id":"library-trash","folder":{"folderRole":"trash","id":"library-trash","lineup":[]},"version":2}],"pages":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{},"settings":null,"touched":{`
-	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || !strings.HasPrefix(body, want) {
+	want := `{"annotations":{},"counters":{},"folders":[` + folder("b2") + `,` + folder("b3") + `,{"id":"library-home","folder":{"folderRole":"home","id":"library-home","lineup":[{"kind":"book","id":"b3"},{"kind":"book","id":"b2"}]},"version":7},{"id":"library-trash","folder":{"folderRole":"trash","id":"library-trash","lineup":[]},"version":2}],"pages":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{},"settings":null,"touched":{`
+	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || !strings.HasPrefix(withoutDocuments(body), want) {
 		t.Fatalf("data = %d %s", code, body)
 	}
 	// AI に見せる並びは、置いた順
-	if _, got := send(t, "GET", s.URL+"/api/ai/books", "", ai); got != `{"books":[{"id":"b3","title":"t","version":1},{"id":"b2","title":"t","version":1}]}` {
+	if _, got := send(t, "GET", s.URL+"/api/ai/books", "", ai); got != `{"books":[{"id":"b3","title":"b3","version":1},{"id":"b2","title":"b2","version":1}]}` {
 		t.Fatalf("ai books = %s", got)
 	}
 	if code, _ := send(t, "POST", s.URL+"/api/reset-for-test", `{"books":[{"title":"no id"}]}`, nil); code != 400 {
@@ -614,7 +616,7 @@ func TestPerformTellsEveryScreen(t *testing.T) {
 	for name, lines := range map[string]<-chan string{"a": a, "b": b} {
 		got := next(t, lines)
 		// 変わったのはページ p1 だけ: pages にその 1 枚が新しい版で並び、folders は空
-		if !strings.HasPrefix(got, `changed {"act":"`) || !strings.Contains(got, `-2","actions":["@matomezu/paper:item-place"],"annotations":{},"books":["b1"],"by":"window","client":"c1","folders":[],"pages":[{"id":"p1","page":{`) ||
+		if !strings.HasPrefix(got, `changed {"act":"`) || !strings.Contains(got, `-3","actions":["@matomezu/paper:item-place"],"annotations":{},"books":["b1"],"by":"window","client":"c1","folders":[],"pages":[{"id":"p1","page":{`) ||
 			!strings.Contains(got, `"id":"k1"`) || !strings.HasSuffix(got, `},"version":2}],"records":[],"seq":7,"window":""}`) {
 			t.Fatalf("%s changed = %s", name, got)
 		}
@@ -625,7 +627,7 @@ func TestPerformTellsEveryScreen(t *testing.T) {
 	// 版が上がるのはそのページだけで、ブックのフォルダの版は変わらない
 	_, data := send(t, "GET", s.URL+"/api/data", "", nil)
 	if !strings.Contains(data, `"id":"k1"`) || !strings.Contains(data, `"bodyAlign":"left"}}]},"version":2}],"participantCalls"`) ||
-		!strings.Contains(data, `"folders":[{"id":"b1","folder":{"folderRole":"book","id":"b1","lineup":[{"id":"p1","kind":"page"}],"title":"T"},"version":1},{"id":"library-home",`) {
+		!strings.Contains(data, `{"id":"b1","folder":{"folderRole":"book","id":"b1","lineup":[{"id":"p1","kind":"page"}],"title":"T"},"version":1},{"id":"library-home",`) {
 		t.Fatalf("data = %s", data)
 	}
 }
@@ -779,10 +781,14 @@ func TestAddingAndRemovingAPageKeepsTheEntries(t *testing.T) {
 	h, s := hubAt(t, path)
 	a := listen(t, s.URL)
 	next(t, a)
+	// 起動したときに足したドキュメントの行は除く
 	entries := func() string {
 		got, err := h.store.Entries()
 		if err != nil {
 			t.Fatal(err)
+		}
+		for _, d := range documentsOf(t, h) {
+			delete(got, d)
 		}
 		return fmt.Sprint(got)
 	}
@@ -912,7 +918,7 @@ func TestTrashABook(t *testing.T) {
 		}
 		return string(body.Folders)
 	}
-	if got := next(t, a); !strings.HasPrefix(got, "changed ") || strings.Contains(after(got), `"trashed"`) || !strings.Contains(got, `"books":["b1"]`) || !strings.Contains(got, `{"folderRole":"home","id":"library-home","lineup":[{"kind":"book","id":"b1"}]}`) || !strings.Contains(got, `{"folderRole":"trash","id":"library-trash","lineup":[]}`) {
+	if got := next(t, a); !strings.HasPrefix(got, "changed ") || strings.Contains(after(got), `"trashed"`) || !strings.Contains(got, `"books":["b1"]`) || !strings.Contains(got, `"},{"kind":"book","id":"b1"}]}`) || !strings.Contains(got, `{"folderRole":"trash","id":"library-trash","lineup":[]}`) {
 		t.Fatalf("changed after restore = %s", got)
 	}
 	// 戻したブックは、AI の読む口にまた出る
@@ -927,7 +933,8 @@ func TestTrashABook(t *testing.T) {
 	if got := next(t, a); !strings.HasPrefix(got, "changed ") || !strings.Contains(got, `"books":["b1"]`) || !strings.Contains(got, `"folders":[{"folder":{"folderRole":"trash","id":"library-trash","lineup":[]},"id":"library-trash","version":5},{"id":"b1","removed":true}],"pages":[{"id":"p1","removed":true}]`) {
 		t.Fatalf("changed after empty = %s", got)
 	}
-	if _, data := send(t, "GET", s.URL+"/api/data", "", nil); !strings.Contains(data, `"folders":[{"id":"library-home","folder":{"folderRole":"home","id":"library-home","lineup":[]},"version":5},{"id":"library-trash","folder":{"folderRole":"trash","id":"library-trash","lineup":[]},"version":5}],"pages":[]`) || !strings.Contains(data, `"touched":{}`) {
+	if _, data := send(t, "GET", s.URL+"/api/data", "", nil); !strings.Contains(data, `{"id":"library-home","folder":{"folderRole":"home","id":"library-home","lineup":[{"kind":"folder","id":"`) ||
+		!strings.Contains(data, `"}]},"version":6},{"id":"library-trash","folder":{"folderRole":"trash","id":"library-trash","lineup":[]},"version":5}],"pages":[]`) || !strings.Contains(data, `"touched":{}`) {
 		t.Fatalf("data after empty = %s", data)
 	}
 }

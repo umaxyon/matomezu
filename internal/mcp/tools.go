@@ -50,6 +50,7 @@ var tools = []tool{
 			"It answers the folder's id, kind (home for the library home, folder for a folder), title (the library home has none), path (the folders from the library home down to this one, each with id and title) " +
 			"and lineup, its entries in order: a folder (kind folder, id, title), a book (kind book, id, title; one that cannot be read now also has problem, the reason, as in list_books), " +
 			"a page (kind page, id, title, type), a binder of pages of one type (kind binder, id, title, pageType) or a page that cannot be read now (kind unreadable, id, title, code and type, as in read_book). " +
+			"A system folder (such as Documents, always at the top of the library home; it cannot be moved, renamed or put in the trash) also has systemFolder, the id of its kind; its title is empty while the plugin that adds that kind is off. " +
 			"Read a folder in the lineup with read_folder and a book with read_book. What is in the trash is not answered.",
 		map[string]any{
 			"type":                 "object",

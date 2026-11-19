@@ -544,6 +544,18 @@ interface AnnotatedBook {
 ;(globalThis as { matomezuRunOnceActions?: () => string }).matomezuRunOnceActions = () =>
   JSON.stringify([...assembled.catalog.core.actions.values()].filter(a => a.runsOnceAtStart).map(a => a.id))
 
+// 常駐が起動したときと機能台帳が変わったときに行うアクション（ActionDef の runsWhenCatalogChanges）の id の並び
+;(globalThis as { matomezuCatalogActions?: () => string }).matomezuCatalogActions = () =>
+  JSON.stringify([...assembled.catalog.core.actions.values()].filter(a => a.runsWhenCatalogChanges).map(a => a.id))
+
+// システムフォルダの定義の id → AI に見せる名前（英語の文言）。read_folder でシステムフォルダの名前に使う
+;(globalThis as { matomezuSystemFolderTitles?: () => string }).matomezuSystemFolderTitles = () => {
+  const { messages, systemFolders } = assembled.catalog.core
+  return JSON.stringify(
+    Object.fromEntries([...systemFolders.values()].map(d => [d.id, translate(messages, "en", d.title)])),
+  )
+}
+
 // AI に見せる種類 kind のレコードの一覧（read_records）の、種類の全部を読む道: where（項目 → 値）に合う物を、載せる物と載せない物（aiListed）に分け、unlisted（hide・include・only）の物の id と 1 行（aiBrief）を、
 // 並びの鍵（aiOrder。無ければ id）の順に返す（core/ai-list.ts）。hide のときは、載せなかった数も返す。指す先のレコードは、ホストの読み口から引く。AI に見せない種類・無い種類は null
 ;(

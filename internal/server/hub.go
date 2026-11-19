@@ -157,6 +157,10 @@ type Hub struct {
 	acts           int64                // 行ったアクションの数（changed の知らせの act の後ろ。1 回の Perform に 1 つの印）
 	actPrefix      string               // changed の知らせの act の前（起動ごとに違う値。起動し直しても、前の act と重ならない）
 	aiEditTickets  []AIEditTicket       // AI 編集チケットの全部（古い順。ai_edit_tickets.go）
+	// 今の機能台帳のシステムフォルダの定義の id → AI に見せる名前（英語。read_folder の名前。起動したときとプラグインが変わったときに読み直す）
+	systemFolderTitles map[string]string
+	// プラグインが変わって、機能台帳が変わったときのアクション（runsWhenCatalogChanges）をまだ行っていない（h.mu を放したあとに行う。catalog.go）
+	catalogChanged bool
 }
 
 // NewHub は置き場所から世界を読む
@@ -207,6 +211,8 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 		return nil, err
 	}
 	h.runOnceActions()
+	h.loadSystemFolderTitles()
+	h.runCatalogActions()
 	if err := h.checkBooks(h.order); err != nil {
 		return nil, err
 	}
@@ -443,6 +449,8 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	if len(p.Actions) == 0 {
 		return Performed{}, ErrNoActions
 	}
+	// 利用者の設定で有効なプラグインが変わったら、h.mu を放したあとに、機能台帳が変わったときのアクションを行う
+	defer h.afterCatalogChange()
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if done, ok := h.performed[p.Key]; ok && p.Key != "" {

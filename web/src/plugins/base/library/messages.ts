@@ -4,6 +4,8 @@ import { defineMessages } from "../../../core/i18n/messages"
 export const LIBRARY_MESSAGES = defineMessages({
   "Create book": { en: "New book", ja: "ブック新規作成" },
   "New folder": { en: "New folder", ja: "フォルダ新規作成" },
+  Documents: { en: "Documents", ja: "ドキュメント" },
+  "Add system folders": { en: "Add system folders", ja: "システムフォルダを足す" },
   Move: { en: "Move", ja: "移動" },
   "Move and replace": { en: "Move and replace", ja: "上書きして移動" },
   Rename: { en: "Rename", ja: "名前を変更" },

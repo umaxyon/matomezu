@@ -8,6 +8,7 @@ export const CONTROL_CENTER = kit.defineControlCenter({
   actions: [
     "@matomezu/base:book-create",
     "@matomezu/base:folder-create",
+    "@matomezu/base:system-folder-add",
     "@matomezu/base:entry-move",
     "@matomezu/base:entry-move-over",
     "@matomezu/base:entry-rename",
