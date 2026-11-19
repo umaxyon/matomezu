@@ -1,15 +1,8 @@
-// 書庫の画面の行のボタンが、ビューで直に受けるキー Enter（開く）と、右の枠の中身の列の数を測るフック（上下の矢印のコマンドが読む）
-import { type KeyboardEvent, useLayoutEffect, useState } from "react"
+// 書庫の画面の右の枠の中身の列の数を測るフック（上下の矢印のコマンド library-pick-move が読む）
+import { useLayoutEffect, useState } from "react"
 import { useReadPluginState, useSetPluginState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { LIBRARY_COLUMNS } from "./state"
-
-// 行のボタンの上の Enter は、押す（選ぶ）代わりに開く（2 回押すのと同じ）
-export function openOnEnter(e: KeyboardEvent, open: () => void): void {
-  if (e.key !== "Enter" || e.nativeEvent.isComposing) return
-  e.preventDefault()
-  open()
-}
 
 // 右の枠の中身の要素に付ける ref。その要素の大きさか、行の数 count が変わるたびに、最初の段に並ぶ行の数を測って LIBRARY_COLUMNS に置く（同じ数なら置き直さない）
 export function useColumnsMeasure(count: number): (el: HTMLElement | null) => void {

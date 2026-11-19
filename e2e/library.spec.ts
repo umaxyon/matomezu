@@ -1,6 +1,7 @@
 // 書庫の画面（コントロールセンターの中）: 左のツリーと右の枠で書庫を見て、フォルダへ入り、ブックを 2 回押して開く
 
 import type { Locator } from "@playwright/test"
+import { drawingPage, testBook } from "../test/lineup"
 import { BOOK_SCREEN_DEF, expect, joinedAiAuth, type Page, test, urlFront, urlStages } from "./fixtures"
 import { storedBook, storedBooks } from "./helpers/stored"
 
@@ -344,6 +345,12 @@ test("書庫の「フォルダ新規作成」で開いているフォルダに�
   await inside.getByRole("button", { name: "ブックの隣", exact: true }).click()
   await page.keyboard.press("ArrowRight")
   await expect(inside.getByRole("button", { name: "ブックの隣 2" })).toHaveAttribute("aria-pressed", "true")
+  await expect(inside.getByRole("button", { name: "ブックの隣 2" })).toBeFocused()
+  // Tab で止まるのは、右の枠は選んでいる行、ツリーは今いる行だけ
+  await expect(inside.locator("[data-library-row][tabindex='0']")).toHaveText(["ブックの隣 2"])
+  await expect(
+    page.getByRole("navigation", { name: "フォルダ" }).locator("[data-library-row][tabindex='0']"),
+  ).toHaveText(["キーで変えた名前"])
   const tree = page.getByRole("navigation", { name: "フォルダ" })
   await tree.getByRole("button", { name: "キーで変えた名前", exact: true }).click()
   await page.keyboard.press("ArrowRight")
@@ -420,7 +427,7 @@ test("書庫の行の右クリックのメニューから、名前の変更・�
   await expect(inside.getByRole("button", { name: "メニューで作った所" })).toBeVisible()
   // ブックの行: 開く・名前の変更・ゴミ箱。名前を変える
   await inside.getByRole("button", { name: "メニューの試しのブック" }).click({ button: "right" })
-  await expect(menu.getByRole("menuitem")).toHaveText(["開く", "名前の変更…F2", "ゴミ箱に入れるDelete"])
+  await expect(menu.getByRole("menuitem")).toHaveText(["開くEnter", "名前の変更…F2", "ゴミ箱に入れるDelete"])
   await menu.getByRole("menuitem", { name: "名前の変更…" }).click()
   await page.getByRole("dialog").getByRole("textbox").fill("メニューで変えた名前")
   await page.keyboard.press("Enter")
@@ -441,7 +448,7 @@ test("書庫の行の右クリックのメニューから、名前の変更・�
   await tree.getByRole("button", { name: `${first.title} の中を出す` }).click()
   const pageRow = tree.getByRole("button", { name: "ページ 1", exact: true }).first()
   await pageRow.click({ button: "right" })
-  await expect(menu.getByRole("menuitem")).toHaveText(["開く"])
+  await expect(menu.getByRole("menuitem")).toHaveText(["開くEnter"])
   await menu.getByRole("menuitem", { name: "開く" }).click()
   await expect.poll(() => urlFront(page)).toBe(BOOK_SCREEN_DEF)
 })
@@ -563,7 +570,7 @@ test("書庫の行をドラッグして、行の間（その位置へ）・フ�
   await expect(icon("ドラッグの箱")).toHaveCount(0)
 })
 
-test("書庫の検索は、名前に言葉を含む物を右の枠に並べる。行を押すとツリーのその行へ移り、2 回押すと開く。入力Formを空にすると元の表示に戻る", async ({
+test("書庫の検索は、名前に言葉を含む物を右の枠に並べる。行を押すとツリーのその行へ移り、Enter で開く。入力Formを空にすると元の表示に戻る", async ({
   page,
 }) => {
   await page.goto("/")
@@ -600,10 +607,11 @@ test("書庫の検索は、名前に言葉を含む物を右の枠に並べる�
     "検索の試しの所",
     "検索の試しの帳面",
   ])
-  // 2 回押すと開く
+  // 選んだ行の Enter で開く（2 回押すのと同じ）
   await field.fill("検索の試しの帳面")
   await page.keyboard.press("Enter")
-  await found.getByRole("button", { name: /検索の試しの帳面/ }).dblclick()
+  await found.getByRole("button", { name: /検索の試しの帳面/ }).click()
+  await page.keyboard.press("Enter")
   await expect.poll(() => urlFront(page)).toBe(BOOK_SCREEN_DEF)
 })
 
@@ -620,5 +628,35 @@ test.describe("ブックごと読めないブック", () => {
     await expect(
       page.getByRole("navigation", { name: "フォルダ" }).getByRole("button", { name: /壊れたブック/ }),
     ).toBeVisible()
+  })
+})
+
+test.describe("読めないページ", () => {
+  // 今の機能台帳に無いタイプのページ（外したプラグインのページのつもり）
+  const gone = {
+    kind: "page",
+    id: "gone-1",
+    type: "@gone/plugin:sheet",
+    title: "外したタイプ",
+    paper: "@matomezu/base:a4",
+    orientation: "landscape",
+  }
+  const mixed = testBook("mixed", "混ざったブック", [drawingPage("mixed-p1")])
+  test.use({ books: [{ ...mixed, lineup: [...mixed.lineup, gone] }] })
+
+  test("書庫で読めないページの行を Enter で開くと、ブックの窓が開き、読めないことを見せる", async ({ page }) => {
+    await page.goto("/")
+    await page.bringToFront()
+    await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+    await page
+      .getByRole("navigation", { name: "フォルダ" })
+      .getByRole("button", { name: "混ざったブック", exact: true })
+      .click()
+    const row = page.getByRole("list", { name: "混ざったブック の中身" }).getByRole("button", { name: /外したタイプ/ })
+    await expect(row).toContainText("読めません")
+    await row.click()
+    await page.keyboard.press("Enter")
+    await expect.poll(() => urlFront(page)).toBe(BOOK_SCREEN_DEF)
+    await expect(page.locator("[data-unreadable-page]")).toContainText("このページは読めません")
   })
 })

@@ -68,9 +68,9 @@ export const LIBRARY_FOLDER_CONTEXT = kit.name("library-folder-context")
 // LibraryView が開く右クリックのメニュー（LibraryView を描くウィジェットが、contextMenus に書く）
 export const LIBRARY_CONTEXT_MENUS = [LIBRARY_ENTRY_CONTEXT, LIBRARY_FOLDER_CONTEXT] as const
 
-// コマンドが受け取る物: エントリ entry（readable は読めるか。言わなければ、読める）か、フォルダ folder（何も無い所のメニューから）か、ツリーで今いる行（at）。
+// コマンドが受け取る物: エントリ entry か、フォルダ folder（何も無い所のメニューから）か、ツリーで今いる行（at）。
 // 書庫の右クリックのメニューが受け取る物も、この形
-type Named = { entry: string; readable?: boolean } | { folder: string } | { at: "tree" }
+type Named = { entry: string } | { folder: string } | { at: "tree" }
 
 // 名指した物 named。無ければ、開いている書庫の右クリックのメニューが受け取った物
 function given(ctx: ScreenCommandContext, named: Named | undefined): Named | undefined {
@@ -111,35 +111,34 @@ const holder = (ctx: ScreenCommandContext, named?: Named): string | undefined =>
   return entry !== undefined && holdsEntries(ctx.folders, entry) ? entry : undefined
 }
 
-// 開く行き先（フォルダは開かない: 中へ入るのは、行を押す動き。読めない物も開かない）
-function opening(
-  ctx: ScreenCommandContext,
-  named?: Named,
-): Exclude<OpenTarget, typeof NOT_OPENED | { to: "folder" }> | undefined {
+// 開く行き先（フォルダは中へ入る。表に行の無い物・ゴミ箱の中の物は開かない。読めないページも開き、窓が「読めない」と見せる）
+function opening(ctx: ScreenCommandContext, named?: Named): Exclude<OpenTarget, typeof NOT_OPENED> | undefined {
   const to = given(ctx, named)
   const entry = to && "folder" in to ? undefined : entryOf(ctx, named)
   const kind = entry === undefined ? undefined : placeOf(ctx.folders, entry)?.ref.kind
   if (entry === undefined || kind === undefined) return undefined
-  // ページが読めるかは、フォルダの表からは分からないので、受け取った readable で決める
-  const readable =
-    !(to && "entry" in to && to.readable === false) && (kind === "page" || ctx.folders[entry] !== undefined)
-  const target = openTargetOf(ctx.folders, { id: entry, kind, readable })
-  return target === NOT_OPENED || target.to === "folder" ? undefined : target
+  const target = openTargetOf(ctx.folders, { id: entry, kind, readable: kind === "page" || entry in ctx.folders })
+  return target === NOT_OPENED ? undefined : target
 }
 
-// ブック・ページ・バインダを窓に出す（書庫の画面で行を 2 回押す・Enter も、行を名指してこれを呼ぶ）。
-// 右クリックのメニューでは、受け取った物を開けるときだけ出す。名指して呼ぶときは when が引数を受けないので、メニューの外ではいつも出す
+// 開く: フォルダは右の枠で中へ入り、ブック・ページ・バインダは窓に出す（書庫の画面の行を 2 回押す・Enter・右クリックのメニューの「開く」の、ただ 1 つの道）。
+// 右クリックのメニューでは、受け取った物がフォルダでなく開けるときだけ出す。名指して呼ぶときは when が引数を受けないので、メニューの外ではいつも出す
 export const LIBRARY_ENTRY_OPEN = kit.defineScreenCommand({
   id: "library-entry-open",
   title: "Open",
   run: (ctx, a, named: Named | undefined) => {
     const target = opening(ctx, named)
     if (!target) return
+    if (target.to === "folder") return goTo(ctx, a, { id: target.folder, holder: target.folder, holds: true })
     const store = storeActionsOf(a)
     const stage = store.showBookStage(target.book, target.page)
     if (stage !== NO_STAGE && target.binder !== undefined) store.openBinder(stage, target.binder)
   },
-  when: ctx => given(ctx, undefined) === undefined || opening(ctx) !== undefined,
+  when: ctx => {
+    if (given(ctx, undefined) === undefined) return true
+    const target = opening(ctx)
+    return target !== undefined && target.to !== "folder"
+  },
 })
 
 export const LIBRARY_BOOK_NEW = kit.defineScreenCommand({
@@ -215,7 +214,11 @@ export const LIBRARY_ENTRY_MOVE = kit.defineScreenCommand({
 })
 
 // ツリーの行 row へ移る（開くフォルダ・選ぶ行・中を出すフォルダは、ビューが行を押したときと同じに決める）
-function goTo(ctx: ScreenCommandContext, a: CommandActions, row: TreeRow | undefined): void {
+function goTo(
+  ctx: ScreenCommandContext,
+  a: CommandActions,
+  row: Pick<TreeRow, "id" | "holder" | "holds"> | undefined,
+): void {
   if (!row) return
   const now = unfoldedOf(ctx.pluginState(LIBRARY_UNFOLDED))
   const next = arrivedAt(ctx.folders, row, now)
@@ -320,6 +323,14 @@ export const LIBRARY_CONTENTS_KEY_SCOPE = kit.defineKeyScope({
   commandsFrom: "screen",
 })
 
+// 検索の結果の中に焦点がある間のキーの範囲（Enter。FoundView の行が名乗る）
+export const LIBRARY_FOUND_SCOPE = kit.name("library-found")
+export const LIBRARY_FOUND_KEY_SCOPE = kit.defineKeyScope({
+  id: "library-found",
+  title: "Library search results",
+  commandsFrom: "screen",
+})
+
 export const LIBRARY_KEYS = [
   kit.defineKey({
     id: "library-tree-rename-f2",
@@ -396,6 +407,31 @@ export const LIBRARY_KEYS = [
     command: LIBRARY_PICK_MOVE.id,
     args: { to: "down" },
     scope: LIBRARY_CONTENTS_SCOPE,
+  }),
+  // 行のボタンが自分で範囲を名乗るので、焦点のある行の上の Enter が効く（右の枠は選んでいる行、ツリーと検索の結果はツリーで今いる行）
+  kit.defineKey({
+    id: "library-entry-open-enter",
+    title: "Open",
+    key: "Enter",
+    command: LIBRARY_ENTRY_OPEN.id,
+    args: undefined,
+    scope: LIBRARY_CONTENTS_SCOPE,
+  }),
+  kit.defineKey({
+    id: "library-tree-open-enter",
+    title: "Open",
+    key: "Enter",
+    command: LIBRARY_ENTRY_OPEN.id,
+    args: { at: "tree" },
+    scope: LIBRARY_TREE_SCOPE,
+  }),
+  kit.defineKey({
+    id: "library-found-open-enter",
+    title: "Open",
+    key: "Enter",
+    command: LIBRARY_ENTRY_OPEN.id,
+    args: { at: "tree" },
+    scope: LIBRARY_FOUND_SCOPE,
   }),
   kit.defineKey({ id: "library-undo-mod-z", key: "Mod+Z", command: LIBRARY_UNDO.id, scope: LIBRARY_SCOPE }),
   kit.defineKey({ id: "library-redo-mod-shift-z", key: "Mod+Shift+Z", command: LIBRARY_REDO.id, scope: LIBRARY_SCOPE }),

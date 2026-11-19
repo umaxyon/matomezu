@@ -33,6 +33,7 @@ import {
   LIBRARY_ENTRY_RENAME,
   LIBRARY_ENTRY_TRASH,
   LIBRARY_FOLDER_NEW,
+  LIBRARY_FOUND_KEY_SCOPE,
   LIBRARY_KEY_SCOPE,
   LIBRARY_KEYS,
   LIBRARY_PICK_MOVE,
@@ -624,6 +625,7 @@ export const BASE = defineBuiltin(
       LIBRARY_KEY_SCOPE,
       LIBRARY_TREE_KEY_SCOPE,
       LIBRARY_CONTENTS_KEY_SCOPE,
+      LIBRARY_FOUND_KEY_SCOPE,
     ],
     keys: [
       ...TOOLBOX_KEYS,
@@ -890,6 +892,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:search": typeof SEARCH_KEY_SCOPE // 検索ダイアログの入力Formの中のキー
     "@matomezu/base:library-tree": typeof LIBRARY_TREE_KEY_SCOPE // 書庫の画面のツリーの中にフォーカスがある間のキー
     "@matomezu/base:library-contents": typeof LIBRARY_CONTENTS_KEY_SCOPE // 書庫の画面の右の枠の中身の中にフォーカスがある間のキー
+    "@matomezu/base:library-found": typeof LIBRARY_FOUND_KEY_SCOPE // 書庫の画面の検索の結果の中にフォーカスがある間のキー
     "@matomezu/base:library": typeof LIBRARY_KEY_SCOPE // 書庫の画面の中にフォーカスがある間のキー
   }
   interface DialogTable {

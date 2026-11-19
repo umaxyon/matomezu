@@ -1,7 +1,8 @@
 // キーの受け口: 画面で押したキーを 1 か所で受け、store のキーバインドで引いてコマンドを行う（行ったらブラウザの動きを止める）。
 // 日本語の変換中のキーは見ない。テキストFormの中では、Escape と 1 行のテキストFormの Enter だけを見る（ほかはテキストFormに任せる）。
 // ただし、テキストFormが自分で data-key-scope を名乗っていれば、その中のほかのキーは、その範囲だけで引く。
-// 焦点のあるボタン・リンクの Space と Enter は、それを押す動きに任せる。
+// 焦点のあるボタン・リンクの Space と Enter は、それを押す動きに任せる。ただし、ボタン・リンクが自分で data-key-scope を名乗っていれば、その上の Enter は、
+// その範囲だけで引く（行えたら押す動きを止める。引けなければ押す動きに任せる）。
 // 押した所の要素から外側へたどり、data-key-scope で名乗った範囲（プラグインの範囲）を狭いものから渡す
 import { useEffect } from "react"
 import type { CommandId } from "../core/catalog"
@@ -22,11 +23,14 @@ function textField(el: Element | null): { el: Element; lines: "line" | "multi" }
   return { el: field, lines: field.getAttribute("aria-multiline") === "false" ? "line" : "multi" }
 }
 
+// 押した所の要素から外側へ、名乗った範囲（狭いものから。続けて同じ範囲を名乗る要素は 1 つにまとめる）
 function scopesOf(el: Element | null): string[] {
   const scopes: string[] = []
-  for (let e = el?.closest("[data-key-scope]"); e; e = e.parentElement?.closest("[data-key-scope]"))
-    scopes.push(e.getAttribute("data-key-scope") ?? "")
-  return scopes.filter(s => s !== "")
+  for (let e = el?.closest("[data-key-scope]"); e; e = e.parentElement?.closest("[data-key-scope]")) {
+    const scope = e.getAttribute("data-key-scope") ?? ""
+    if (scope !== "" && scope !== scopes[scopes.length - 1]) scopes.push(scope)
+  }
+  return scopes
 }
 
 // 画面の根に 1 つ置く
@@ -45,8 +49,14 @@ export function KeyListener() {
         if (own && pressKey(key, [own], "named")) e.preventDefault()
         return
       }
-      // 焦点のあるボタン・リンクの Space と Enter は、それを押す動き（ブラウザ）に任せる
-      if ((key === "Space" || key === "Enter") && target?.closest("button, a[href], [role=button], summary")) return
+      // 焦点のあるボタン・リンクの Space と Enter は、それを押す動き（ブラウザ）に任せる。自分で範囲を名乗るボタン・リンクの Enter だけは、その範囲で引く
+      const pressable =
+        key === "Space" || key === "Enter" ? target?.closest("button, a[href], [role=button], summary") : null
+      if (pressable) {
+        const own = pressable.getAttribute("data-key-scope")
+        if (key === "Enter" && own && pressKey(key, [own], "named")) e.preventDefault()
+        return
+      }
       if (pressKey(key, scopesOf(target))) e.preventDefault()
     }
     window.addEventListener("keydown", onKey)

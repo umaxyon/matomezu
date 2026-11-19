@@ -14,6 +14,7 @@
   flex-direction: column;
   width: 260px;
   border-right: 1px solid var(--skin-border-strong);
+  background: var(--skin-surface); /* 参加者リストなどの枠（Panel）と同じ色 */
 }
 .search {
   display: flex;
@@ -197,8 +198,16 @@
 .crumb[aria-current="true"] {
   font-weight: 700;
 }
+/* パンくずの 1 段（区切りの › と名前）: 縦は中央 */
+.path > span {
+  display: flex;
+  align-items: center;
+}
 .sep {
+  padding: 0 2px;
   color: var(--skin-text-muted);
+  font-size: 18px;
+  line-height: 1;
 }
 /* パンくずの下の、作るボタンの行 */
 .tools {
@@ -406,4 +415,38 @@
 }
 .entry[data-drop="after"]::after {
   right: -5px;
+}
+/* スクロールする所のバー: 細く、溝は無し（タスクボードのスクロールバーと同じ幅と色）。
+   Chromium は ::-webkit-scrollbar、それの無いブラウザは細い既定のバー */
+.tree::-webkit-scrollbar,
+.found::-webkit-scrollbar,
+.contents::-webkit-scrollbar,
+.trash::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.tree::-webkit-scrollbar-thumb,
+.found::-webkit-scrollbar-thumb,
+.contents::-webkit-scrollbar-thumb,
+.trash::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--skin-text) 28%, transparent);
+}
+.tree::-webkit-scrollbar-track,
+.tree::-webkit-scrollbar-corner,
+.found::-webkit-scrollbar-track,
+.found::-webkit-scrollbar-corner,
+.contents::-webkit-scrollbar-track,
+.contents::-webkit-scrollbar-corner,
+.trash::-webkit-scrollbar-track,
+.trash::-webkit-scrollbar-corner {
+  background: transparent;
+}
+@supports not selector(::-webkit-scrollbar) {
+  .tree,
+  .found,
+  .contents,
+  .trash {
+    scrollbar-width: thin;
+  }
 }

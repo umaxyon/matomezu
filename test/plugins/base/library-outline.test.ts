@@ -12,6 +12,7 @@ import {
   pathTo,
   rowsIn,
   shownFoldersOf,
+  tabStopOf,
   trashRowsOf,
   treeCurrentOf,
   treeRowsOf,
@@ -209,4 +210,12 @@ test("検索は、名前に言葉を含む物を書庫ホームから下へ並�
   expect(perform("@matomezu/base:entry-trash", { entry: folder }).ok).toBe(true)
   expect(foundRowsOf(library(), "仕事")).toEqual([])
   expect(foundRowsOf(library(), b2).some(r => r.id === "b2")).toBe(false)
+})
+
+test("Tab で止まる行: 止めたい行が並びに在ればそれ、無ければ言った行か最初の行。並びが空なら無い", () => {
+  expect(tabStopOf(["a", "b"], "b")).toBe("b")
+  expect(tabStopOf(["a", "b"], "z")).toBe("a")
+  expect(tabStopOf(["a", "b"], undefined)).toBe("a")
+  expect(tabStopOf(["a", "b"], "z", HOME_ID)).toBe(HOME_ID)
+  expect(tabStopOf([], "z")).toBeUndefined()
 })

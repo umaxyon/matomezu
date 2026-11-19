@@ -228,6 +228,8 @@ test("matomezu/ui が出す名前", () => {
     "BirdFaceView",
     "BirdWalk",
     "BodyField",
+    "BookIcon",
+    "BookOpenIcon",
     "CONTROL_CENTER_FOOTER",
     "CORNER_STATUSES",
     "CaptionField",
