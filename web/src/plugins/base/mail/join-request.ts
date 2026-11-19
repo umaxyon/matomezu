@@ -38,7 +38,7 @@ export const MAIL_JOIN_REQUEST = kit.defineMail({
         `${t(kit.message("AI"))}: ${p.ai}`,
         `${t(kit.message("Model"))}: ${p.model}`,
         `${t(kit.message("Environment"))}: ${p.env}`,
-        ...(p.orcaWorkspace ? [`Orca: ${p.orcaWorkspace}`] : []),
+        ...(p.orcaWorkspace ? [`${t(kit.message("Orca workspace"))}: ${p.orcaWorkspace}`] : []),
         ...(p.sessionName ? [`${t(kit.message("Session"))}: ${p.sessionName}`] : []),
       ].join("\n"),
   },
