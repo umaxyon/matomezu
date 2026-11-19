@@ -614,3 +614,19 @@ test("書庫の検索は、名前に言葉を含む物を右の枠に並べる�
   await found.getByRole("button", { name: /検索の試しの帳面/ }).dblclick()
   await expect.poll(() => urlFront(page)).toBe(BOOK_SCREEN_DEF)
 })
+
+test.describe("ブックごと読めないブック", () => {
+  // 並びが並びの形でない（W005）ブック。書庫の表に行が無く、名前は読めない訳に残る
+  test.use({ books: [{ id: "broken-1", title: "壊れたブック", lineup: "no" }] })
+
+  test("書庫の右の枠とツリーに、読めない訳に残った名前と「読めません」が出る", async ({ page }) => {
+    await page.goto("/")
+    await page.bringToFront()
+    await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+    const row = page.getByRole("list", { name: "書庫 の中身" }).getByRole("button", { name: /壊れたブック/ })
+    await expect(row).toContainText("読めません")
+    await expect(
+      page.getByRole("navigation", { name: "フォルダ" }).getByRole("button", { name: /壊れたブック/ }),
+    ).toBeVisible()
+  })
+})
