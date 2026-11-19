@@ -766,7 +766,7 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
     if (!annotationsSettle(ctx.catalog, page, pair.annotations, next)) return { ok: false, reason: "refused" }
   }
   const others = (ran.others ?? []) as readonly OtherRecord<never>[]
-  // 送る AI 間メッセージは、レコードが対象のアクションで、行う者が参加の確定した AI のときだけ（送り手は行った参加者）
+  // 送る AI 間メッセージは、レコードが対象のアクションで、行う者がワークルームに入っている AI のときだけ（送り手は行った参加者）
   const messages = isRecordTarget(ctx.catalog, action.target) ? (ran.aiMessages ?? []) : []
   if (messages.length > 0 && workroomOfActor(ctx.actor) === undefined)
     return { ok: false, reason: "refused", detail: "only an AI in a workroom sends AI messages" }

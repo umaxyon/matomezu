@@ -1835,7 +1835,7 @@ func TestRecordBeingEditedStopsAIActions(t *testing.T) {
 }
 
 // joinedAI は、参加が確定した AI（受け入れ済みで、join でセッション id を運んだので準備中でない）の合言葉と参加の id のヘッダ。
-// ブックでない対象のアクションは、参加が確定するまで AI が使えない
+// AI はアクションを、参加が確定してワークルームに入るまで使えない
 // writerAI は、ブック・ページ・アノテーションを書ける（参加が確定してワークルームに入っている）AI のヘッダ。
 // テストの用意の口で参加者を 1 人置く（郵便も参加の頼みも通さない。同じ常駐で何度呼んでも同じ参加者）
 func writerAI(t *testing.T, url string) map[string]string {

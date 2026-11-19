@@ -150,7 +150,7 @@ func (h *Hub) resetForTest(books []json.RawMessage, enabledPlugins []string) err
 }
 
 // joinedAIForTest は、参加が確定した AI の参加者（受け入れ済みで準備中でない）を、ワークルームと一緒に 1 人置く（まだ無ければ。アクションも郵便も通さない）。参加の id を返す。
-// ブックでない対象のアクションは、参加が確定するまで AI が使えないので、AI の入口を使う e2e の用意に使う
+// AI はアクションを、参加が確定してワークルームに入るまで使えないので、AI の入口を使うテストの用意に使う
 func (h *Hub) joinedAIForTest() (string, error) {
 	const id = "e2e-ai"
 	h.mu.Lock()

@@ -31,7 +31,7 @@ export const aiAuth = () => ({
   Authorization: `Bearer ${serverIn(homeOf(test.info().workerIndex))!.token}`,
 })
 
-// 参加が確定した AI の合言葉と参加の id のヘッダ（ブックでない対象のアクション — 郵便を送る・設定を変えるなど — は、参加が確定するまで AI が使えない）。
+// 参加が確定してワークルームに入っている AI の合言葉と参加の id のヘッダ（AI はアクションを — ブックを変える・郵便を送るなども — 参加が確定してワークルームに入るまで使えない）。
 // 常駐の用意の口で参加者を 1 人置く（郵便は送らない）
 export const joinedAiAuth = async () => {
   const server = serverIn(homeOf(test.info().workerIndex))!
