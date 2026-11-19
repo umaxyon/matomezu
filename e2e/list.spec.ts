@@ -239,11 +239,11 @@ test("行を押して動かすと行のドラッグになり、行の間に光�
     await during?.()
     await page.mouse.up()
   }
-  // 「三」を「一」の上半分へ: 一の前に入る（ドラッグ中は光る線が出る）
+  // 「三」を「一」の上半分へ: 一の前に入る（ドラッグ中は光る線が出る。紙の外のゴーストエリアに描く）
   const three = (await rows(first).nth(2).boundingBox())!
   const one = (await rows(first).nth(0).boundingBox())!
   await drag({ x: three.x + 40, y: three.y + 10 }, { x: one.x + 40, y: one.y + 4 }, async () => {
-    await expect(page.locator("[data-drop-bar]")).toBeVisible()
+    await expect(page.locator("[data-ghost-area] [data-drop-bar]")).toBeVisible()
   })
   await expect(rows(first)).toHaveText(["三", "一", "二"])
   await expect(page.locator("[data-drop-bar]")).toHaveCount(0)
