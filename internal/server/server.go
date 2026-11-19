@@ -43,6 +43,7 @@
 //	GET  /api/ai/settings    AI が読む利用者の設定（項目の id → 値。engine.AISettings）
 //	GET  /api/ai/catalog?ids=a&ids=b  MCP 公開ツールの actions が返す物。ids が無ければ {"version", "index", "warnings"}（一覧の版と目次。warnings は今あるときだけ）、あれば ids の物の全文 {"version", 表の名前: [全文]..., "unknown"}
 //	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "permission", "detail", "result", "notice"}（ok 以外は無ければ省く）を返す。宛先か動かす物が読めないページなら {"ok": false, "reason": "unreadable", "code"}（理由の文は添えない）
+//	GET  /api/ai/join-rules  参加を頼む AI が読む手順。
 //	POST /api/ai/join        {"ai", "model", "env", "sessionName", "link", "sessionId"} 参加を頼む（参加者を作り、利用者に知らせる郵便を送る）。{"ok", "participant"} か弾いた理由（join.go）
 //	POST /api/ai/message     {"to", "text"} AI 間メッセージを、ワークルーム to の参加者に送る（受け取られるまで常駐が持つ）。{"ok", "queued"} か断った理由（message.go）
 //	POST /api/ai/show        {"book", "page", "stage", "split"} 最後にフォーカスされた窓にブックを出す（Hub.Show）。
@@ -169,6 +170,7 @@ func Handler(o Options) http.Handler {
 	}))
 	mux.Handle("POST /api/ai/perform", o.ai(o.aiPerform))
 	mux.Handle("POST /api/ai/show", o.ai(o.aiShow))
+	mux.Handle("GET /api/ai/join-rules", o.ai(o.aiJoinRules))
 	mux.Handle("POST /api/ai/join", o.ai(o.aiJoin))
 	mux.Handle("POST /api/ai/message", o.ai(o.aiMessage))
 	mux.Handle("/api/", http.NotFoundHandler())

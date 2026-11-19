@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"unicode/utf16"
 )
 
 // instructions は、つないだ AI に渡す matomezu の説明
@@ -252,6 +253,13 @@ var tools = []tool{
 	},
 	{"show", showDescription, showSchema, func(c *conn, args map[string]any) (string, bool) { return show(c, args) }, false},
 	{"perform", performDescription, performSchema, func(c *conn, args map[string]any) (string, bool) { return perform(c, args) }, false},
+	{
+		"join_rules",
+		"Read the current matomezu participation rules before requesting to join. Available before joining.",
+		noArgs,
+		reading(func(api caller, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/join-rules") }, nil),
+		true,
+	},
 	{"join", joinDescription, joinSchema, join, false},
 	{"send_message", sendMessageDescription, sendMessageSchema, sendMessage, false},
 }
@@ -544,29 +552,36 @@ func refusalText(reason, detail string) string {
 	}
 }
 
-// joinSchema は join の受ける形。AI の名前と環境は MCP が埋めるので受けない
+// joinSchema は join の受ける形。AI の名前と OS の環境は MCP が埋める
 var joinSchema = map[string]any{
 	"type": "object",
 	"properties": map[string]any{
-		"model":       map[string]any{"type": "string", "minLength": 1, "description": "The name of the model you are, such as claude-opus-4 or gpt-5."},
-		"sessionName": map[string]any{"type": "string", "description": "The name of this session, if it has one."},
-		"link":        map[string]any{"type": "string", "minLength": 1, "description": "A one-time passphrase: a new uuid (8-4-4-4-12 hex digits) you make for this session. The hook that runs when the user talks finds it in this session's transcript to tie the session to you, so put it in this call as it is. Use the same link when you ask again."},
-		"workroom":    map[string]any{"type": "string", "description": "The name of the workroom you would like to continue (a workroom whose participant is not alive any more, or an empty one), or the name you would like for a new one (up to 20 characters). The user chooses on the screen. Optional."},
+		"model":         map[string]any{"type": "string", "minLength": 1, "description": "The model of this conversation for the approval screen. Use unknown if it cannot be determined. The client’s model metadata takes priority when present."},
+		"sessionName":   map[string]any{"type": "string", "description": "The name of this session, if it has one."},
+		"orcaWorkspace": map[string]any{"type": "string", "minLength": 1, "maxLength": 120, "description": "The display name of the current Orca workspace, if verified in this conversation’s environment. Do not send its path or internal ID."},
+		"link":          map[string]any{"type": "string", "minLength": 1, "description": "A one-time passphrase: a new uuid (8-4-4-4-12 hex digits) you make for this session. The hook that runs when the user talks finds it in this session's transcript to tie the session to you, so put it in this call as it is. Use the same link when you ask again."},
+		"workroom":      map[string]any{"type": "string", "description": "The name of the workroom you would like to continue (a workroom whose participant is not alive any more, or an empty one), or the name you would like for a new one (up to 20 characters). The user chooses on the screen. Optional."},
 	},
 	"required":             []string{"model", "link"},
 	"additionalProperties": false,
 }
 
 const joinDescription = "Ask to join the user's workroom as a participant. The user accepts it on the screen; until then you are requested. " +
-	"After the user accepts, you are not counted as a participant (your calls do not count, and no notice comes) until the hook that runs when the user talks to you tells them and you your workroom name (with matomezu's background watch, such as its Claude Code plugin, a turn starts by itself when the user accepts, and that turn's hook tells it); an AI whose calls carry the session id is counted as soon as it is accepted, and the notice comes with a later answer. Meanwhile books and annotations work the same, but actions on anything else (such as the control center's records) are refused (not-allowed, reason not-joined). Call it once per session (asking again with the same link answers with the participant you already are). " +
-	"With workroom, you say which workroom you would like to continue (the name you were given when you joined before) or the name you would like for a new one: it is refused with workroom-in-use while the workroom has a participant who is alive (do not ask again; tell the user in the chat). Otherwise the user chooses on the screen whether you take over a participant who joined before or start new. Use the same workroom name each time you continue the same work."
+	"After the user accepts, you are not counted as a participant (your calls do not count, and no notice comes) until the hook that runs when the user talks to you tells them and you your workroom name (with matomezu's background watch, such as its Claude Code plugin, a turn starts by itself when the user accepts, and that turn's hook tells it); an AI whose calls carry the session id is counted as soon as it is accepted, and the notice comes with a later answer. Meanwhile books and annotations work the same, but actions on anything else (such as the control center's records) are refused (not-allowed, reason not-joined). Read join_rules for the participation procedure. " +
+	"With workroom, you say which workroom you would like to continue (the name you were given when you joined before) or the name you would like for a new one: it is refused with workroom-in-use while the workroom has a participant who is alive. Otherwise the user chooses on the screen whether you take over a participant who joined before or start new."
 
 // join は参加を頼む。AI の名前と環境は MCP が埋め、受けた参加の id を、この呼び出しのセッション id に結んで以後の呼び出しに添える
 func join(c *conn, args map[string]any) (string, bool) {
 	model, _ := args["model"].(string)
+	if reported := strings.TrimSpace(c.model); reported != "" && len(utf16.Encode([]rune(reported))) <= 80 {
+		model = reported
+	}
 	link, _ := args["link"].(string)
 	sessionName, _ := args["sessionName"].(string)
 	body := map[string]any{"ai": c.ai, "model": model, "env": c.env, "sessionName": sessionName, "link": link}
+	if workspace, _ := args["orcaWorkspace"].(string); workspace != "" {
+		body["orcaWorkspace"] = workspace
+	}
 	if workroom, _ := args["workroom"].(string); workroom != "" {
 		body["workroom"] = workroom
 	}

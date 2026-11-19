@@ -1,6 +1,6 @@
 package main
 
-// プラグインを外す（matomezu plugin-remove）: npm で matomezu を消すと、AI のプログラムに入れたプラグインと置き場所の登録が残る（npm は消すときにパッケージの処理を走らせない）。
+// プラグインを外す（matomezu plugin remove）: npm で matomezu を消すと、AI のプログラムに入れたプラグインと置き場所の登録が残る（npm は消すときにパッケージの処理を走らせない）。
 // 消す前にこれを打ってもらい、常駐を止め、AI のプログラムごとの CLI でプラグインを外す。matomezu 本体と保管庫フォルダ（利用者のデータ）は消さない
 
 import (
@@ -17,7 +17,7 @@ import (
 )
 
 type pluginRemoveCmd struct {
-	AI []string `arg:"" optional:"" help:"The AI programs to remove the plugin from: claude-code, codex or opencode (all of them that are found when omitted)."`
+	AI []string `arg:"" optional:"" help:"The AI programs to remove the plugin from: claude, codex or opencode (all of them that are found when omitted)."`
 }
 
 // removers は、AI の名前と、そのプラグインを外すコマンド（並びは外す順）
@@ -39,6 +39,10 @@ type remover struct {
 
 // Run は、常駐を止めてから、AI ごとにプラグインを外し、残りの手順を出す
 func (c *pluginRemoveCmd) Run() error {
+	return withPluginLock(c.removeInstalled)
+}
+
+func (c *pluginRemoveCmd) removeInstalled() error {
 	if err := (&stopCmd{}).Run(); err != nil {
 		fmt.Printf("The matomezu server could not be stopped: %v\n", err)
 	}
@@ -60,6 +64,9 @@ func (c *pluginRemoveCmd) Run() error {
 func (r remover) remove(names []string) error {
 	want := map[string]bool{}
 	for _, n := range names {
+		if n == "claude" {
+			n = "claude-code"
+		}
 		if !knownRemover(n) {
 			return fmt.Errorf("unknown AI program %q (claude-code, codex or opencode)", n)
 		}

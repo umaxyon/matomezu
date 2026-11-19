@@ -42,7 +42,7 @@ const startWait = 10 * time.Second
 
 type cli struct {
 	Serve        serveCmd        `cmd:"" help:"Run the server in the foreground."`
-	Start        startCmd        `cmd:"" help:"Start the server in the background unless it is running, and print its URL (a browser opens the screen through the open command)."`
+	Start        startCmd        `cmd:"" help:"Start the server in the background unless it is running, and print its URL."`
 	Stop         stopCmd         `cmd:"" help:"Stop the background server."`
 	Open         openCmd         `cmd:"" help:"Open the screen in your browser and give it the server's screen cookie (for a browser that has none). Nothing is printed."`
 	MCP          mcpCmd          `cmd:"" name:"mcp" help:"Serve the MCP tools for an AI on stdin and stdout (starts the server unless it is running)."`
@@ -54,6 +54,7 @@ type cli struct {
 	Codex        codexCmd        `cmd:"" help:"Commands that matomezu's Codex plugin runs (its MCP, hooks, and the command that hands wake notices to a Codex conversation)."`
 	Opencode     opencodeCmd     `cmd:"" help:"Commands that matomezu's opencode plugin runs (its MCP, and the command that hands wake notices to an opencode conversation)."`
 	PluginPath   pluginPathCmd   `cmd:"" name:"plugin-path" help:"Print the folder of matomezu's plugin for an AI program, to add it from (such as claude plugin marketplace add)."`
+	Plugin       pluginCmd       `cmd:"" help:"Manage matomezu plugins for AI clients."`
 	PluginRemove pluginRemoveCmd `cmd:"" name:"plugin-remove" help:"Before removing matomezu (npm uninstall -g matomezu): stop the server and remove matomezu's plugin from the AI programs (Claude Code, Codex and opencode). Your books are kept."`
 	Version      versionCmd      `cmd:"" help:"Print the version."`
 }
@@ -82,6 +83,7 @@ type serveCmd struct {
 
 type startCmd struct {
 	serverFlags
+	Open bool `help:"Open the screen and give the browser a screen cookie."`
 }
 
 type stopCmd struct{}
@@ -261,8 +263,11 @@ func (c *startCmd) Run() error {
 		return err
 	}
 	fmt.Println(s.URL)
+	if c.Open {
+		return openBrowser(s)
+	}
 	// 画面 cookie の無いブラウザは、この URL を開いても断られる（URL は標準出力のまま、案内は標準エラーへ）
-	fmt.Fprintln(os.Stderr, "A browser that has not opened the screen through matomezu open is refused: run matomezu open to open it.")
+	fmt.Fprintln(os.Stderr, "Run matomezu start --open to give your browser access to the screen.")
 	return nil
 }
 
@@ -659,6 +664,10 @@ func (c *openCmd) Run() error {
 	if err != nil {
 		return err
 	}
+	return openBrowser(s)
+}
+
+func openBrowser(s *home.Server) error {
 	out, _, _, err := send(s, http.MethodPost, "api/open", nil, nil)
 	if err != nil {
 		return err
