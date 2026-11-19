@@ -362,6 +362,13 @@ test("書庫の「フォルダ新規作成」で開いているフォルダに�
   await expect(inside.getByRole("button", { name: "ブックの隣", exact: true })).toHaveCount(0)
   await page.keyboard.press("Control+z")
   await expect(inside.getByRole("button", { name: "ブックの隣", exact: true })).toBeVisible()
+
+  // 何も無い所を押すと、選んでいる行が外れ、Delete は何もしない
+  await inside.getByRole("button", { name: "ブックの隣", exact: true }).click()
+  await inside.click({ position: { x: 400, y: 300 } })
+  await expect(inside.locator("[aria-pressed=true]")).toHaveCount(0)
+  await page.keyboard.press("Delete")
+  await expect(inside.locator("[data-library-row]")).toHaveCount(2)
 })
 
 test("書庫の右の枠の上下の矢印は、描いた段の真上・真下の行を選ぶ。窓の幅が変わると段の列の数を測り直す", async ({
