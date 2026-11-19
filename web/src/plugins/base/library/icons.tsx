@@ -4,12 +4,12 @@ import { useUiCatalog } from "../../../ui/store-context"
 import { REDO_ICON, UNDO_ICON } from "../history/icons"
 import { icon } from "../icon"
 import { BookIcon, BookOpenIcon } from "../utils/book-icons"
+import { FolderIcon, FolderOpenIcon } from "../utils/folder-icons"
 import { LIBRARY_REDO, LIBRARY_UNDO } from "./commands"
 import styles from "./LibraryView.module.css"
 import type { LibraryRow } from "./outline"
 import { LIBRARY_OPEN } from "./screen"
 
-const FOLDER = icon(<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />)
 const BINDER = icon(
   <>
     <rect x="5" y="4" width="14" height="16" rx="2" />
@@ -29,7 +29,7 @@ export const CLOSE = icon(<path d="M6 6l12 12M18 6L6 18" />)
 export const CLOSE_RIGHT = icon(<path d="M5 12h14M13 6l6 6-6 6" />)
 export const EXPAND = icon(<path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7" />)
 
-const ICONS = { folder: FOLDER, book: <BookIcon />, binder: BINDER, page: PAGE } as const satisfies Record<
+const ICONS = { folder: <FolderIcon />, book: <BookIcon />, binder: BINDER, page: PAGE } as const satisfies Record<
   EntryKind,
   unknown
 >
@@ -37,7 +37,7 @@ const ICONS = { folder: FOLDER, book: <BookIcon />, binder: BINDER, page: PAGE }
 export const iconOf = (kind: EntryKind) => ICONS[kind]
 
 // 行 row のアイコンを、className（styles.icon か styles.bigIcon）の枠に描く。ページは、タイプが pageTypeIcons で名乗ったアイコン（ページタブと同じ絵。
-// 枠いっぱいに広げ、絵が決めていない線は引かない）。ブックは固定色の本の絵（base の BookIcon）で、open（ツリーで中を見せている）なら開いた本。名乗らないタイプ・バインダは、種類の絵
+// 枠いっぱいに広げ、絵が決めていない線は引かない）。ブックは固定色の本の絵（base の BookIcon）、フォルダは固定色のフォルダの絵（FolderIcon）で、open（ツリーで中を見せている）なら開いた本・開いたフォルダ。名乗らないタイプ・バインダは、種類の絵
 export function RowIcon({
   row,
   className,
@@ -50,6 +50,8 @@ export function RowIcon({
   const typed = useUiCatalog().pageTypeIcons.get(row.type)
   if (row.kind === "book")
     return <span className={`${className} ${styles.typed}`}>{open ? <BookOpenIcon /> : <BookIcon />}</span>
+  if (row.kind === "folder")
+    return <span className={`${className} ${styles.typed}`}>{open ? <FolderOpenIcon /> : <FolderIcon />}</span>
   return row.kind === "page" && typed !== undefined ? (
     <span className={`${className} ${styles.typed}`}>{typed}</span>
   ) : (

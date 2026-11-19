@@ -1,7 +1,7 @@
 // ディレクトリ構成図のプラグインの見た目: ビュー・説明の見せ方の設定のスイッチ・ページを作るダイアログ・中身の設定のダイアログ・鉛筆の道具のアイコン。
 // 末尾で、ビューが開く右クリックのメニューを core/catalog.ts に書き足す
 import { definePluginUi } from "../../../plugin-api/ui"
-import { BookIcon, BookOpenIcon } from "../../base/ui"
+import { BookIcon, BookOpenIcon, FolderIcon, FolderOpenIcon } from "../../base/ui"
 import { DIR_PLUGIN } from "."
 import { DIR, DIR_PRESENTATION, ENTRY_SETTINGS_DIALOG, NEW_DIR_PAGE_DIALOG } from "./dir"
 import { EntrySettingsDialog } from "./EntrySettingsDialog"
@@ -9,7 +9,7 @@ import { ICON_BOOK, ICON_CLASS_DIAGRAM, ICON_DIRECTORY, ICON_FILE, ICON_FOLDER, 
 import { DIR_TOOL_ICONS } from "./icons"
 import { NewDirPageDialog } from "./NewDirPageDialog"
 import { NoteSetting } from "./NoteSetting"
-import { ClassDiagramIcon, DirectoryIcon, FileIcon, FolderIcon, FolderOpenIcon, HtmlIcon } from "./node-icons"
+import { ClassDiagramIcon, DirectoryIcon, FileIcon, HtmlIcon } from "./node-icons"
 import { NOTES } from "./notes"
 import { DIR_VIEW } from "./view/ui"
 

@@ -142,6 +142,14 @@ textarea.control {
 .plain:disabled:hover {
   background: transparent;
 }
+/* 地の色の上で目立たせるボタン: 浮いた面の色の地と、濃い縁 */
+.plain[data-raised] {
+  border-color: var(--skin-border-strong);
+  background: var(--skin-surface-raised);
+}
+.plain[data-raised]:hover {
+  background: var(--skin-btn-hover);
+}
 /* 取り消せない操作のボタン: 赤い文字と縁 */
 .plain[data-danger] {
   border-color: var(--skin-danger);

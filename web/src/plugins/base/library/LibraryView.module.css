@@ -182,6 +182,7 @@
   gap: 2px;
   padding: 8px 12px;
   border-bottom: 1px solid var(--skin-border-strong);
+  background: var(--skin-surface); /* 左のツリーと同じ色 */
 }
 .crumb {
   padding: 2px 6px;
@@ -209,13 +210,14 @@
   font-size: 18px;
   line-height: 1;
 }
-/* パンくずの下の、作るボタンの行 */
+/* パンくずの下の、作るボタンの行（下に区切りの線） */
 .tools {
   display: flex;
   flex: none;
   gap: 8px;
   align-items: center;
-  padding: 8px 12px 0;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--skin-border-strong);
 }
 .historyButton {
   display: grid;

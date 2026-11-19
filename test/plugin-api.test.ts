@@ -242,6 +242,8 @@ test("matomezu/ui が出す名前", () => {
     "DividerField",
     "Elapsed",
     "Field",
+    "FolderIcon",
+    "FolderOpenIcon",
     "Form",
     "GhostArea",
     "IconButton",

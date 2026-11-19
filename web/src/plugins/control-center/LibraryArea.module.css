@@ -3,7 +3,7 @@
   flex: 1;
   min-height: 0;
 }
-/* 書庫: 題の帯の下で、領域の左右と下の詰めの分だけ外へ広げる（スクロールバーと区切りの線を枠の端まで） */
+/* 書庫: 題の帯に付け（帯との間を空けない）、領域の左右と下の詰めの分だけ外へ広げる（スクロールバーと区切りの線を枠の端まで） */
 .library {
-  margin: 0 calc(-1 * var(--area-pad-x)) calc(-1 * var(--area-pad-bottom));
+  margin: calc(-1 * var(--area-gap)) calc(-1 * var(--area-pad-x)) calc(-1 * var(--area-pad-bottom));
 }

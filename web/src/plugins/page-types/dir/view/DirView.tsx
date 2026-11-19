@@ -40,6 +40,7 @@ import {
 } from "../../../../plugin-api/ui"
 import { growOf, pageContext, refusalMessage } from "../../../base"
 import {
+  FolderIcon,
   PaperFrame,
   RichBar,
   RichInput,
@@ -59,7 +60,7 @@ import { dirRootOf } from "../entry"
 import { kit } from "../kit"
 import { editorWidth, ICON, type LaidRow, nameLeft } from "../layout"
 import { NodeIcon } from "../node-icon"
-import { FileIcon, FolderIcon } from "../node-icons"
+import { FileIcon } from "../node-icons"
 import { laidArea, laidPage } from "../print"
 import { PENCIL_TOOL } from "../tools"
 import styles from "./DirView.module.css"
