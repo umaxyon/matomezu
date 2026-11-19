@@ -16,7 +16,7 @@ import { kit } from "../kit"
 import { refusalMessage } from "../utils/refusal"
 import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG, LIBRARY_RENAME_DIALOG } from "./dialog"
 import type { Drop } from "./drop"
-import { holderForNew, holdsEntries, placedInLibrary, placedOutsideBooks } from "./entries"
+import { holderForNew, holdsEntries, placedInBook, placedOutsideBooks, placedOutsideTrash } from "./entries"
 import { ENTRY_DUPLICATE } from "./entry-duplicate"
 import { ENTRY_MOVE, ENTRY_MOVE_OVER, ENTRY_RENAME, FOLDER_CREATE } from "./entry-move"
 import { ENTRY_TRASH } from "./entry-trash"
@@ -92,17 +92,13 @@ function entryOf(ctx: ScreenCommandContext, named?: Named): string | undefined {
 }
 
 // コマンドが扱う、受け取ったエントリ（フォルダを受け取ったとき（何も無い所のメニュー）は、扱わない。そのフォルダは、右クリックした物でない）のうち、
-// in が扱うと答えた物: 名前を変える物はゴミ箱の外のどこに在っても（placedInLibrary）、ゴミ箱に入れる物は書庫ホームかフォルダの直下に在る物（placedOutsideBooks）、
-// 写す物はブックの中のページ・バインダ（inBook）
+// in が扱うと答えた物: 名前を変える物はゴミ箱の外のどこに在っても（placedOutsideTrash）、ゴミ箱に入れる物は書庫ホームかフォルダの直下に在る物（placedOutsideBooks）、
+// 写す物はブックの中のページ・バインダ（placedInBook）
 type Handles = (folders: Folders, entry: string) => unknown
 const handled = (ctx: ScreenCommandContext, handles: Handles, named?: Named): string | undefined => {
   const to = given(ctx, named)
   const entry = to && "folder" in to ? undefined : entryOf(ctx, named)
   return entry !== undefined && handles(ctx.folders, entry) ? entry : undefined
-}
-const inBook: Handles = (folders, entry) => {
-  const role = placedInLibrary(folders, entry)?.holder.folderRole
-  return role === "book" || role === "binder"
 }
 
 // 右クリックのメニューの行を出すか: 受け取った物を handles が扱うときだけ。キーからは、押してから扱う物を決める（ツリーのキーは、ツリーで今いる行を名指す）ので、いつも出す
@@ -177,10 +173,10 @@ export const LIBRARY_ENTRY_RENAME = kit.defineScreenCommand({
   title: "Rename…",
   performs: [ENTRY_RENAME.id], // 開いたダイアログが行う
   run: (ctx, a, named: Named | undefined) => {
-    const entry = handled(ctx, placedInLibrary, named)
+    const entry = handled(ctx, placedOutsideTrash, named)
     if (entry !== undefined) a.openDialog(LIBRARY_RENAME_DIALOG.id, { entry })
   },
-  when: inMenuHandled(placedInLibrary),
+  when: inMenuHandled(placedOutsideTrash),
 })
 
 // 写す: ブックの中のページ・バインダを、すぐ後ろに番号付きの名前で写す。断られたらトーストで知らせる
@@ -189,13 +185,13 @@ export const LIBRARY_ENTRY_DUPLICATE = kit.defineScreenCommand({
   title: "Duplicate",
   performs: [ENTRY_DUPLICATE.id],
   run: (ctx, a, named: Named | undefined) => {
-    const entry = handled(ctx, inBook, named)
+    const entry = handled(ctx, placedInBook, named)
     if (entry === undefined) return
     const done = a.perform(ENTRY_DUPLICATE.id, { entry })
     if (!done.ok)
       a.showToast({ kind: "warn", message: refusalMessage(ctx.catalog, done, kit.message("Cannot be duplicated")) })
   },
-  when: inMenuHandled(inBook),
+  when: inMenuHandled(placedInBook),
 })
 
 // エントリ entry をゴミ箱に入れる。断られたらトーストで知らせる。行えたら、それを選んでいれば外す

@@ -7,8 +7,8 @@ import {
   movesInto,
   type NotOverwritten,
   overwritten,
-  placedInLibrary,
   placedOutsideBooks,
+  placedOutsideTrash,
   sameTitled,
 } from "./entries"
 
@@ -16,7 +16,7 @@ import {
 export type Drop = { to: "folder"; into: string; index?: number } | { to: "trash" }
 
 // 掴める物か: 動かすアクションが扱う物（ゴミ箱の外に在る物。ブックの中のページ・バインダも）
-export const draggable = (folders: Folders, entry: string): boolean => placedInLibrary(folders, entry) !== undefined
+export const draggable = (folders: Folders, entry: string): boolean => placedOutsideTrash(folders, entry) !== undefined
 
 // エントリ entry を drop へ落とせるか（動かしても同じ場所になる所・自分の中・持てない種類の所・ブックの中の物をブックの外へは落とせない。
 // ゴミ箱へは、書庫ホームかフォルダの直下に在る物だけ）
@@ -46,7 +46,7 @@ export interface MoveClash {
 
 // 重ならなければ（同じフォルダの中の並べ替えも）undefined
 export function moveClashOf(library: Library, entry: string, drop: Drop): MoveClash | undefined {
-  const place = placedInLibrary(library.folders, entry)
+  const place = placedOutsideTrash(library.folders, entry)
   if (!place || drop.to !== "folder" || place.holder.id === drop.into) return undefined
   const kind = place.ref.kind
   const there = sameTitled(library, kind, entry, drop.into)

@@ -7,12 +7,11 @@ import { kit } from "../kit"
 import { duplicatedBinder } from "../page-tabs/binders"
 import { describeNewPage, NEW_PAGE_ARGS, withNewPage } from "../page-tabs/page-add"
 import { duplicatedPage } from "../page-tabs/page-duplicate"
-import { placedInLibrary } from "./entries"
+import { placedInBook, placedOutsideTrash } from "./entries"
 
 // ブックの中に在る（ゴミ箱の外の）エントリ entry を入れているブック（ブックの中に無ければ undefined）
 function bookHolding(library: Library, entry: string): Book | undefined {
-  const place = placedInLibrary(library.folders, entry)
-  if (place?.holder.folderRole !== "book" && place?.holder.folderRole !== "binder") return undefined
+  if (!placedInBook(library.folders, entry)) return undefined
   const id = bookIdOf(library.folders, entry)
   return id === undefined ? undefined : bookOf(library, id)
 }
@@ -27,8 +26,8 @@ export const ENTRY_DUPLICATE = kit.defineAction({
   args: z.strictObject({ entry: z.string().min(1) }),
   run: (library, args, ctx) => {
     const book = bookHolding(library, args.entry)
-    const kind = book && library.folders[args.entry]?.folderRole === "binder" ? "binder" : "page"
     if (!book) return null
+    const kind = library.folders[args.entry]?.folderRole === "binder" ? "binder" : "page"
     const done =
       kind === "binder"
         ? duplicatedBinder(ctx.catalog, book, args.entry, undefined, ctx.newId)
@@ -58,7 +57,7 @@ export const PAGE_CREATE = kit.defineAction({
   describeArgs: catalog => describeNewPage(catalog).extend({ folder: z.string().min(1) }),
   run: (library, { folder, ...args }, ctx) => {
     const book = library.folders[folder]?.folderRole === "book" ? bookOf(library, folder) : undefined
-    if (!book || placedInLibrary(library.folders, folder) === undefined) return null
+    if (!book || placedOutsideTrash(library.folders, folder) === undefined) return null
     const done = withNewPage(ctx.catalog, book, args, ctx)
     return done && { next: withBook(library, done.book), result: done.result }
   },

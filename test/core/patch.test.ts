@@ -1,5 +1,6 @@
 // データの置き直し（core/patch.ts）: patchOf は 2 つの値の違う所だけを置き直す値を作り、applyPatch が今の値の上で行う。
-// オブジェクトはフィールドごと、id の並びは id ごと、改行を含む文字列は行ごと（ほかで変わった所は、重ならなければ残す）。
+// オブジェクトはフィールドごと、id の並びは id ごと、改行を含む文字列は行ごと（ほかで変わった所は、重ならなければ残す。重なる所を上書きするのは、
+// バルクの中で同じ物をもう一度変えた分を重ねるとき（core/bulk.ts の joined）だけ。元に戻す・やり直すは toPutBack で確かめ、重なればぶつかりとして断る）。
 // toPutBack は、今の値で所ごとに反対側の値のままかを確かめ、置き直す所だけにする（どちらの値でもない所が在れば CLASH）
 import { expect, test } from "bun:test"
 import { applyPatch, CLASH, type Patch, patchOf, toPutBack, undoneIn } from "../../web/src/core/patch"
@@ -58,7 +59,8 @@ test("並び順: 動かしていない物の順は、ほかで変えた順のま
   const items = (...xs: string[]) => ({ items: xs.map(id => ({ id })) })
   // 段は c を末尾から先頭へ動かした。その後ほかで a と b を入れ替えた。戻すと c だけが a・b の後ろへ戻る
   expect(ids(back(items("c", "a", "b"), items("a", "b", "c"), items("c", "b", "a")))).toEqual(["b", "a", "c"])
-  // 前後の決まりがぶつかる（m は a の後・b の前に戻るはずが、ほかで b が a の前に来た）ときは、前にあるべき a との順を取る
+  // バルクの重ね方: 前後の決まりがぶつかる（m は a の後・b の前に戻るはずが、ほかで b が a の前に来た）ときは、前にあるべき a との順を取る
+  // （元に戻す・やり直すでは、toPutBack がぶつかりとして断る）
   expect(ids(back(items("m", "a", "b"), items("a", "m", "b"), items("b", "m", "a")))).toEqual(["b", "a", "m"])
 })
 
@@ -83,7 +85,7 @@ test("行ごと: 消した行は元の所に戻し、すぐ隣にほかで足し
   expect(back(after, before, now)).toBe("一\n二\nAI\n三")
 })
 
-test("行ごと: 自分が変えた行をほかでも変えていたら、自分の Patch の値で上書きする", () => {
+test("行ごと（バルクの重ね方）: 前の分の後の値で変わっていた行を今回の Patch も変えたら、今回の Patch の値で上書きする", () => {
   const before = "一\n二\n三"
   const after = "一\n自分\n三"
   const now = "一\nAI\n三"

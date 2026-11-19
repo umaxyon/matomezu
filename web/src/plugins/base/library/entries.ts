@@ -28,10 +28,16 @@ import {
 
 // ゴミ箱の外のどこか（書庫ホーム・フォルダ・ブック・バインダ）に入っているエントリ entry の、入れているフォルダと並びのエントリ。
 // ゴミ箱かその中の物、どこにも入っていない物（書庫ホーム・ゴミ箱）は undefined
-export function placedInLibrary(folders: Folders, entry: string): { holder: Folder; ref: AnyEntryRef } | undefined {
+export function placedOutsideTrash(folders: Folders, entry: string): { holder: Folder; ref: AnyEntryRef } | undefined {
   const place = placeOf(folders, entry)
   if (!place || place.holder.folderRole === "trash" || inTrash(folders, entry)) return undefined
   return place
+}
+
+// ブックかバインダの中に在る（ゴミ箱の中でない）エントリ entry（ブックの中のページ・バインダ）か
+export const placedInBook = (folders: Folders, entry: string): boolean => {
+  const role = placedOutsideTrash(folders, entry)?.holder.folderRole
+  return role === "book" || role === "binder"
 }
 
 // 書庫ホームかフォルダの直下に在る（ゴミ箱の中でない）エントリ entry の、入れているフォルダと並びのエントリ。
@@ -40,7 +46,7 @@ export function placedOutsideBooks(
   folders: Folders,
   entry: string,
 ): { holder: Exclude<HomeOrFolder, { folderRole: "trash" }>; ref: AnyEntryRef } | undefined {
-  const place = placedInLibrary(folders, entry)
+  const place = placedOutsideTrash(folders, entry)
   if (!place) return undefined
   const { holder, ref } = place
   return holder.folderRole === "home" || holder.folderRole === "folder" ? { holder, ref } : undefined
@@ -56,7 +62,7 @@ export const holdsEntries = (folders: Folders, id: string): boolean => {
 // ブックの中の物（ページ・バインダ）なら、ブックかバインダの中へだけ（ブックの外へは出さない）、バインダの中のページなら、バインダの中へだけ（バインダの外へ 1 枚ずつは出さない）。
 // 持てる種類か・自分の中へでないかは、土台（core/entries.ts の movedEntry）が見る
 export function movesInto(folders: Folders, entry: string, into: string): boolean {
-  const place = placedInLibrary(folders, entry)
+  const place = placedOutsideTrash(folders, entry)
   const to = folders[into]
   if (!place || !to || to.folderRole === "trash" || inTrash(folders, into)) return false
   if (place.holder.folderRole === "binder") return to.folderRole === "binder"

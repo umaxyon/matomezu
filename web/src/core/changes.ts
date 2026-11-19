@@ -28,16 +28,16 @@ function changedIds(before: readonly { id: string }[], after: readonly { id: str
   return [...ids].filter(id => !sameData(was.get(id), now.get(id)))
 }
 
-// ページ id の変化。前か後のブックに無いページは、書庫のほかの所の行 elsewhere（行う前 was・後 now）に在れば、ブックの間か外と動いた物
-// （出た movedOut は後の行と、入った movedIn は前の行と比べたフィールドとアイテム）。無ければ、足した・消した物
+// ページ id の変化。前か後のブックに無いページは、書庫のゴミ箱の外のページの行 rows（行う前 was・後 now）に在れば、ブックの間か外と動いた物
+// （出た movedOut は後の行と、入った movedIn は前の行と比べたフィールドとアイテム）。無ければ（ゴミ箱との出し入れも）、足した・消した物
 function pageChange(
   id: string,
   before: Page | undefined,
   after: Page | undefined,
-  elsewhere: Elsewhere | undefined,
+  rows: LibraryPageRows | undefined,
 ): PageChange {
-  const was = before ?? (elsewhere?.was[id] as Page | undefined)
-  const now = after ?? (elsewhere?.now[id] as Page | undefined)
+  const was = before ?? (rows?.was[id] as Page | undefined)
+  const now = after ?? (rows?.now[id] as Page | undefined)
   if (!was) return { id, change: "added", fields: [], items: itemsOf(now).map(i => i.id) }
   if (!now) return { id, change: "removed", fields: [], items: itemsOf(was).map(i => i.id) }
   return {
@@ -48,8 +48,8 @@ function pageChange(
   }
 }
 
-// 書庫の、ページの行の表（行う前と後。ブックの外か、ほかのブックに在るページを引く）
-export interface Elsewhere {
+// 書庫の、ゴミ箱の外のページの行の表（行う前 was と後 now。ブックの外か、ほかのブックに在るページを引く。ゴミ箱の中のページは入れない）
+export interface LibraryPageRows {
   was: Readonly<Record<string, unknown>>
   now: Readonly<Record<string, unknown>>
 }
@@ -63,7 +63,7 @@ const skeleton = (book: Book): unknown =>
 export function changesOf(
   before: Book | undefined,
   after: Book | undefined,
-  { place = "same", elsewhere }: { place?: PlaceChange; elsewhere?: Elsewhere } = {},
+  { place = "same", rows }: { place?: PlaceChange; rows?: LibraryPageRows } = {},
 ): Changes {
   if (!after) return { gone: true, place: "same", added: false, fields: [], lineup: false, pages: [] }
   if (!before)
@@ -73,7 +73,7 @@ export function changesOf(
       added: true,
       fields: Object.keys(after).filter(k => k !== "lineup"),
       lineup: lineupOf(after).length > 0,
-      pages: pagesOf(after).map(p => pageChange(p.id, undefined, p, elsewhere)),
+      pages: pagesOf(after).map(p => pageChange(p.id, undefined, p, rows)),
     }
   const was = new Map(pagesOf(before).map(p => [p.id, p]))
   const now = new Map(pagesOf(after).map(p => [p.id, p]))
@@ -86,6 +86,6 @@ export function changesOf(
     lineup: !sameData(skeleton(before), skeleton(after)),
     pages: [...ids]
       .filter(id => !sameData(was.get(id), now.get(id)))
-      .map(id => pageChange(id, was.get(id), now.get(id), elsewhere)),
+      .map(id => pageChange(id, was.get(id), now.get(id), rows)),
   }
 }

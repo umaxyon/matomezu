@@ -1,7 +1,9 @@
 // データの置き直し（画面の履歴の段を戻す・やり直す）: 2 つの値 from・to の違う所だけを to にする値（Patch）を作り、今の値の上で行う。
 // オブジェクトはフィールドごと、どの要素も id を持つ並びは id ごと（並びの順も）、改行を含む文字列は行ごとにたどる。
 // Patch は所ごとに反対側（from）の値も持つ。toPutBack が、今の値でそれを確かめ、置き直す所だけの Patch にする（反対側のままの所だけを置き直し、
-// どちらの値でもない所が 1 つでも在れば、ぶつかりとして断る）。applyPatch は確かめずに行う（Patch が変えた所のほかで変わった所は残し、重なれば to で上書きする）
+// どちらの値でもない所が 1 つでも在れば、ぶつかりとして断る）。applyPatch は確かめずに行う（Patch が変えた所のほかで変わった所は残し、重なれば to で上書きする）。
+// applyPatch を使うのは、toPutBack で確かめた所だけを当てる置き直し（core/folders.ts の restoredTables）と、バルクの中で同じ物をもう一度変えた分を
+// 前の分の後の値に重ねる所（core/bulk.ts の joined）。重なる所を上書きするのは、バルクの重ね方だけ
 import { sameData } from "./same"
 
 type Fields = Readonly<Record<string, unknown>>

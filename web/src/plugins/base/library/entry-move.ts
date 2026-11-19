@@ -12,7 +12,7 @@ import {
   movesInto,
   numbered,
   overwritten,
-  placedInLibrary,
+  placedOutsideTrash,
   REPLACES_NOTHING,
   retitled,
 } from "./entries"
@@ -50,7 +50,7 @@ export const ENTRY_MOVE = kit.defineAction({
     onConflict: z.enum(["refuse", "number"]).default("refuse"),
   }),
   run: (library, args) => {
-    const place = placedInLibrary(library.folders, args.entry)
+    const place = placedOutsideTrash(library.folders, args.entry)
     if (!place || !movesInto(library.folders, args.entry, args.into)) return null
     const moved = movedEntry(library, args.entry, args.into, args.index)
     if (isMoveRefusal(moved)) return null
@@ -86,7 +86,7 @@ export const ENTRY_MOVE_OVER = kit.defineAction({
     replaces: z.string().min(1).optional(), // 消えると利用者が確かめた物の id（今 同じ名前で在る物がそれと違えば断る）
   }),
   run: (library, args) => {
-    const place = placedInLibrary(library.folders, args.entry)
+    const place = placedOutsideTrash(library.folders, args.entry)
     if (!place || place.holder.id === args.into || !movesInto(library.folders, args.entry, args.into)) return null
     const cleared = overwritten(library, place.ref.kind, args.entry, args.into, args.replaces ?? REPLACES_NOTHING)
     if (isNotOverwritten(cleared)) return null
@@ -104,7 +104,7 @@ export const ENTRY_RENAME = kit.defineAction({
   permissionScope: { entry: "entry", where: "title" },
   args: z.strictObject({ entry: z.string().min(1), title: z.string().trim().min(1) }),
   run: (library, args) => {
-    const place = placedInLibrary(library.folders, args.entry)
+    const place = placedOutsideTrash(library.folders, args.entry)
     if (!place) return null
     const next = retitled(library, place.ref.kind, args.entry, args.title)
     return !next || next === library ? null : { next, result: {} }
