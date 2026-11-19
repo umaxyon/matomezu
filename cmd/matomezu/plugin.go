@@ -18,9 +18,23 @@ import (
 )
 
 type pluginCmd struct {
+	Install pluginInstallCmd `cmd:"" help:"Install or update the bundled matomezu plugin for one AI client."`
 	Enable  pluginEnableCmd  `cmd:"" help:"Enable the installed matomezu plugin."`
 	Disable pluginDisableCmd `cmd:"" help:"Disable the installed matomezu plugin."`
 	Remove  pluginRemoveCmd  `cmd:"" help:"Remove the plugins and stop the server before uninstalling matomezu."`
+}
+
+type pluginInstallCmd struct {
+	AI string `arg:"" enum:"claude,codex" help:"The AI client: claude or codex."`
+}
+
+func (c *pluginInstallCmd) Run() error {
+	client := aiPluginFor(c.AI)
+	executable, err := exec.LookPath(client.program)
+	if err != nil {
+		return err
+	}
+	return withPluginLock(func() error { return client.installBundled(executable) })
 }
 
 type pluginTarget struct {
@@ -155,7 +169,7 @@ func (p aiPlugin) changeEnabled(enabled, required bool) error {
 	return nil
 }
 
-func (p aiPlugin) prepare(executable string) error {
+func (p aiPlugin) installBundled(executable string) error {
 	installed, enabled, err := p.installed(executable)
 	if err != nil {
 		return err
@@ -172,10 +186,6 @@ func (p aiPlugin) prepare(executable string) error {
 	if err != nil {
 		return err
 	}
-	if installed == bundled {
-		return nil
-	}
-
 	out, err := pluginOutput(executable, p.listMarketplaces...)
 	if err != nil {
 		return err
@@ -187,6 +197,11 @@ func (p aiPlugin) prepare(executable string) error {
 	if found && !sameFile(source, dir) {
 		return fmt.Errorf("%s has a matomezu marketplace registered from another source. To switch to the bundled plugin, remove that registration first", p.program)
 	}
+	if found && installed == bundled {
+		fmt.Printf("%s: matomezu plugin %s is already installed.\n", p.program, bundled)
+		return nil
+	}
+
 	args := p.update
 	if installed == "" {
 		fmt.Fprintf(os.Stderr, "Installing the bundled matomezu plugin in your %s settings.\n", p.program)
@@ -209,6 +224,7 @@ func (p aiPlugin) prepare(executable string) error {
 	if got != bundled || !enabled {
 		return fmt.Errorf("%s did not report the bundled plugin version %s as installed and enabled", p.program, bundled)
 	}
+	fmt.Printf("%s: matomezu plugin %s is installed. Open a new session to load it.\n", p.program, bundled)
 	return nil
 }
 
