@@ -421,6 +421,10 @@ func TestAFailedSettleIsAWarningUntilItSucceeds(t *testing.T) {
 	if _, body := get(t, s.URL+"/api/ai/catalog", "secret"); !strings.Contains(body, "W033") {
 		t.Fatalf("actions = %s", body)
 	}
+	// 読めない物が書庫に残っていなければ、失敗している間も書庫が対象のアクションは通る
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:folder-create","args":{"title":"失敗の間の所"}}`, writerAI(t, s.URL)); !strings.Contains(got, `"ok":true`) {
+		t.Fatalf("folder-create while the settle fails = %s", got)
+	}
 	h.mu.Lock()
 	whole := storage.UnreadableBody(nil)
 	version := h.folders[storage.UnreadableID].version
