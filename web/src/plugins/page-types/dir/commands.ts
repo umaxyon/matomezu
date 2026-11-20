@@ -30,9 +30,8 @@ export const FOLDER_TOGGLE = kit.defineCommand({
   title: "Open or close folder",
   run: (ctx, a, args: { folder: string }) => {
     const dir = dirAt(ctx)
-    const opened = ctx.stage.opened
     const folder = dir && entryOf(dir.root, args.folder)
-    if (!dir || !opened || folder?.kind !== "folder") return
+    if (!dir || folder?.kind !== "folder") return
     const closed = folder.closed !== true
     const done = a.perform(FOLDER_CLOSE.id, { folder: folder.id, closed }, { page: dir.page.id })
     if (!done.ok)
@@ -109,8 +108,7 @@ export const ENTRY_LEFT = kit.defineCommand({
   title: "Close or select parent",
   run: (ctx, a) => {
     const s = selected(ctx)
-    const opened = ctx.stage.opened
-    if (!s || !opened) return
+    if (!s) return
     const e = entryOf(s.root, s.id)
     if (e?.kind === "folder" && !e.closed && (e.children?.length ?? 0) > 0)
       a.perform(FOLDER_CLOSE.id, { folder: s.id, closed: true }, { page: s.page.id })
@@ -127,8 +125,7 @@ export const FOLDER_OPEN = kit.defineCommand({
   title: "Open folder",
   run: (ctx, a) => {
     const s = selected(ctx)
-    const opened = ctx.stage.opened
-    if (!s || !opened) return
+    if (!s) return
     const done = a.perform(FOLDER_CLOSE.id, { folder: s.id, closed: false }, { page: s.page.id })
     if (!done.ok) refused(ctx, a, done)
   },
@@ -247,8 +244,7 @@ function sortCommand<const Id extends string>(id: Id, title: "Sort ascending" | 
     title,
     run: (ctx, a) => {
       const s = selected(ctx)
-      const opened = ctx.stage.opened
-      if (s && opened) a.perform(FOLDER_SORT.id, { folder: s.id, order }, { page: s.page.id })
+      if (s) a.perform(FOLDER_SORT.id, { folder: s.id, order }, { page: s.page.id })
     },
     when: ctx => {
       const s = penciling(ctx) ? selected(ctx) : null
@@ -268,9 +264,8 @@ export const ENTRY_DELETE = kit.defineCommand({
   title: "Delete",
   run: (ctx, a) => {
     const s = selected(ctx)
-    const opened = ctx.stage.opened
     const next = s && afterRemove(s.root, s.id)
-    if (!s || !opened || !next) return
+    if (!s || !next) return
     if (a.perform(ENTRY_REMOVE.id, { entry: s.id }, { page: s.page.id }).ok) a.select([next])
   },
   when: ctx => {

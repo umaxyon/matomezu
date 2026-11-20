@@ -117,8 +117,7 @@ export const NODE_DELETE = kit.defineCommand({
   title: "Delete",
   run: (ctx, a) => {
     const tree = treeAt(ctx)
-    const opened = ctx.stage.opened
-    if (!tree || !opened) return
+    if (!tree) return
     const node = selectedIn(tree.root, ctx.stage.selection)
     const next = afterRemove(tree.root, tree.grow, node)
     if (!next) return
