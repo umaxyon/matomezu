@@ -339,3 +339,52 @@ func TestAPageComesBackWhenItsPluginIsAddedAgain(t *testing.T) {
 		t.Fatalf("read_page p1 after adding ex2 again = %s", body)
 	}
 }
+
+// 確かめる関数が開けないとしたブック（読めない物のフォルダへ移らずに書庫に残った物。ここでは、どのフォルダにも入っていないので移らない f1）は、AI に見せない:
+// list_books と read_folder に出ず、read_book と read_page は無い物とし、名指したアクションは無い（no-book・no-page）で断る。warning は actions に残る
+func TestAnUnreadableBookLeftInTheLibraryIsHiddenFromAI(t *testing.T) {
+	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { store.Close() })
+	putBook(t, store, strings.Replace(boxed, `"p1"`, `"p9"`, 1))
+	putBook(t, store, withUnreadable)
+	folders, err := store.Folders()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var base int64
+	for _, f := range folders {
+		if f.ID == storage.HomeID {
+			base = f.Version
+		}
+	}
+	alone := storage.Batch{Folders: []storage.RowWrite{{ID: storage.HomeID, Base: base, Body: storage.HomeBody([]json.RawMessage{storage.RefOf("book", "b1")})}}}
+	if err := store.Apply(alone); err != nil {
+		t.Fatal(err)
+	}
+	s, h := newServerOn(t, Options{}, store)
+	if got := unreadableRefs(t, h); len(got) != 0 {
+		t.Fatalf("the unreadable folder = %v", got)
+	}
+	if _, body := get(t, s.URL+"/api/ai/books", "secret"); strings.Contains(body, `"f1"`) || !strings.Contains(body, `"b1"`) {
+		t.Fatalf("list_books = %s", body)
+	}
+	if code, _ := get(t, s.URL+"/api/ai/books/f1", "secret"); code != 404 {
+		t.Fatalf("read_book f1 = %d", code)
+	}
+	if code, _ := get(t, s.URL+"/api/ai/pages/p2", "secret"); code != 404 {
+		t.Fatalf("read_page p2 = %d", code)
+	}
+	ai := writerAI(t, s.URL)
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-lock","args":{},"on":{"book":"f1"}}`, ai); !strings.Contains(got, `"reason":"no-book"`) {
+		t.Fatalf("book-lock f1 = %s", got)
+	}
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-lock","args":{},"on":{"page":"p2"}}`, ai); !strings.Contains(got, `"reason":"no-page"`) {
+		t.Fatalf("page-lock p2 = %s", got)
+	}
+	if !slices.ContainsFunc(h.Warnings(), func(l string) bool { return strings.HasPrefix(l, "W027") && strings.Contains(l, "f1") }) {
+		t.Fatalf("the warnings = %v", h.Warnings())
+	}
+}

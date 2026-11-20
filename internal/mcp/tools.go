@@ -38,7 +38,7 @@ var tools = []tool{
 	},
 	{
 		"list_books",
-		"List the books: id, title, version (it goes up when the book itself changes: its title, its settings or its lineup; not when the contents of a page change) and awaiting (how many annotations, such as the user's notes and marks, wait for your answer; left out when none). A book that cannot be read now (it does not fit the shape or the rules of a book) has problem, the reason; it cannot be opened or changed until that is fixed. A book with items or settings of plugins that are not installed, or with pages that cannot be read now (see read_book), has warning; it can be read and changed, and those parts are kept as they are.",
+		"List the books: id, title, version (it goes up when the book itself changes: its title, its settings or its lineup; not when the contents of a page change) and awaiting (how many annotations, such as the user's notes and marks, wait for your answer; left out when none). A book that cannot be read now is not listed (actions lists the problem in warnings). A book with items or settings of plugins that are not installed has warning; it can be read and changed, and those parts are kept as they are.",
 		noArgs,
 		reading(func(api caller, _ map[string]any) (json.RawMessage, error) {
 			return api.Get("api/ai/books")
@@ -49,7 +49,7 @@ var tools = []tool{
 		"read_folder",
 		"Read a folder of the library, one level deep. The library keeps books in folders under the library home, its top folder; a folder can also hold pages and binders that are in no book. " +
 			"It answers the folder's id, kind (home for the library home, folder for a folder), title (the library home has none), path (the folders from the library home down to this one, each with id and title) " +
-			"and lineup, its entries in order: a folder (kind folder, id, title), a book (kind book, id, title; one that cannot be read now also has problem, the reason, as in list_books), " +
+			"and lineup, its entries in order: a folder (kind folder, id, title), a book (kind book, id, title; one that cannot be read now is not answered, as in list_books), " +
 			"a page (kind page, id, title, type) or a binder of pages of one type (kind binder, id, title, pageType). " +
 			"A system folder (such as Documents, always at the top of the library home; it cannot be moved or renamed) also has systemFolder, the id of its kind. " +
 			"While the plugin that adds that kind is off, its title is empty and it can be put in the trash; otherwise it cannot. " +
@@ -511,8 +511,6 @@ func show(api caller, args map[string]any) (string, bool) {
 // refusalText は断った理由の、AI に返す 1 行。常駐が決めた理由のほかは、エンジンが添えた AI への説明（detail）を使う
 func refusalText(reason, detail string) string {
 	switch {
-	case reason == "unreadable":
-		return "unreadable: the book cannot be read now (" + detail + "); it cannot be changed until that is fixed (see list_books)"
 	case reason == "open-on-screen":
 		return "open-on-screen: the book is shown on the user's screen now, so it was not moved to the trash; ask the user in the chat"
 	case reason == "being-edited":

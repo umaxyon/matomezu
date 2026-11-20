@@ -22,10 +22,13 @@ func (h *Hub) inUnreadable(id string) bool {
 	return slices.Contains(h.foldersAbove(id), storage.UnreadableID)
 }
 
-// outOfSight は、エントリ id が、AI と CLI に見せない所（ゴミ箱の中か、読めない物のフォルダの中）に在るか（h.mu を持って呼ぶ）
+// outOfSight は、エントリ id が、AI と CLI に見せない物か: ゴミ箱の中か、読めない物のフォルダの中に在るか、確かめる関数が開けないとしたブック（読めないブック）か、その中に在る（h.mu を持って呼ぶ）
 func (h *Hub) outOfSight(id string) bool {
+	if h.bookWarnings[id].Unreadable {
+		return true
+	}
 	for _, at := range h.foldersAbove(id) {
-		if at == storage.TrashID || at == storage.UnreadableID {
+		if at == storage.TrashID || at == storage.UnreadableID || h.bookWarnings[at].Unreadable {
 			return true
 		}
 	}

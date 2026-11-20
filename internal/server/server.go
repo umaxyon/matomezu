@@ -478,7 +478,6 @@ func (o Options) aiBooks(w http.ResponseWriter, r *http.Request) {
 		ID      string `json:"id"`
 		Title   string `json:"title"`
 		Version int64  `json:"version"`
-		Problem string `json:"problem,omitempty"`  // 読めないブックの理由（warning の 1 行。開けず、アクションも行えない）
 		Warning string `json:"warning,omitempty"`  // 読めるが、機能台帳に無いアイテムや設定の項目（W007 の 1 行。そのまま残っている）
 		Awaits  int    `json:"awaiting,omitempty"` // AI の応えを待つアノテーションの数
 	}
@@ -490,9 +489,7 @@ func (o Options) aiBooks(w http.ResponseWriter, r *http.Request) {
 		}
 		_ = json.Unmarshal(b.Body, &body)
 		h := head{ID: b.ID, Title: body.Title, Version: b.Version, Awaits: len(pick(annotations[b.ID], awaiting))}
-		if n, ok := warnings[b.ID]; ok && n.Unreadable {
-			h.Problem = n.Warning
-		} else if ok {
+		if n, ok := warnings[b.ID]; ok {
 			h.Warning = n.Warning
 		}
 		heads = append(heads, h)
@@ -545,13 +542,6 @@ func (o Options) aiPerform(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
-	}
-	// 読めないブック（保存はあるが今のプラグインで読めない）は「無い」でなく、その理由で断る
-	if !done.OK && (done.Reason == "no-book" || done.Reason == "no-page") && p.On != nil {
-		if n, ok := o.Hub.BookWarnings()[o.Hub.BookOn(p.On)]; ok && n.Unreadable {
-			writeJSON(w, map[string]any{"ok": false, "reason": "unreadable", "detail": n.Warning})
-			return
-		}
 	}
 	writeJSON(w, done)
 }

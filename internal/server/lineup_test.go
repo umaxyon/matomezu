@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// 目次では、読めないページ（ここでは s2）は kind unreadable・id・title・code だけにする
+// 目次は、並びに直に入るページと、バインダの中のページを、並びの順にたどる（空のバインダは何も足さない）
 func TestWalksTheLineupWithBinders(t *testing.T) {
 	const book = `{"id":"b1","title":"T","lineup":[` +
 		`{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"図"},` +
