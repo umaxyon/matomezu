@@ -1,6 +1,6 @@
 // 印刷: 画面が印刷を頼んだら（インスタンスの printRequests が増えたら）、ブラウザの印刷ダイアログを開く（PDF もそこから保存する）。
 // 刷る物は画面が決める（印刷のときだけ出す物を描いておく）。テストでは刷る口を差し替える
-import type { MatomezuInstance } from "../store/store"
+import type { MatomezuInstance } from "../store/state"
 
 export interface Printer {
   print(): void

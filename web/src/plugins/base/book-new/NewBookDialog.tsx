@@ -2,7 +2,7 @@
 // 出来るのはページの無いブック（ブックはタイプを持たない。ページは、開いたあとにページタブの＋から、タイプを選んで足す）
 
 import { useState } from "react"
-import type { Performed } from "../../../store/store"
+import type { Performed } from "../../../store/actions"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
 import { Dialog } from "../dialog-host/Dialog"

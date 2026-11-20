@@ -14,12 +14,13 @@ import type { Books } from "../../core/library"
 import type { ArgsOf } from "../../core/perform"
 import type { ItemPage } from "../../core/placed"
 import type { Book } from "../../core/schema/book"
+import type { Settings } from "../../core/settings"
 import { type Stage, shownPageId, toPaper } from "../../core/stage"
 import type { StageListed } from "../../core/window"
 import type { StageView, Workspace } from "../../core/workspace"
+import type { Actions, BoundPlaceActions, ProbeActions, WindowActions } from "../actions"
 import type { OpenedContextMenu } from "../context-menus"
 import type { OpenedDialog } from "../dialogs"
-import type { Actions, BoundPlaceActions, ProbeActions, Settings, WindowActions } from "../store"
 
 // コマンドの許可スコープ: "book" はページもアイテムも変えない、"opened-page" は開いているページ、"selection" はその選んでいる物（形の中身やページのフィールドの中の物も含む）。
 // { page } には、ページの id が入っている引数の名前を書く（右クリックしたページのように、引数が所を決めるとき）。

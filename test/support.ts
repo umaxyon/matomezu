@@ -13,7 +13,8 @@ import { NO_SETTINGS } from "../web/src/core/settings"
 import { recentBookScreen, recentPlainScreen, stagesDefOf } from "../web/src/core/window"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../web/src/plugins"
 import { assemble } from "../web/src/store/plugin"
-import { createMatomezuInstance, type StoreOptions } from "../web/src/store/store"
+import type { StoreOptions } from "../web/src/store/state"
+import { createMatomezuInstance } from "../web/src/store/store"
 import { SAMPLE_BOOKS } from "./sample-books"
 
 export const CORE_CATALOG = assemble(BUILTIN).catalog.core

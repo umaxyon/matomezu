@@ -6,8 +6,8 @@
 import type { Point, Size } from "../../../core/geom"
 import { extentOf, panBy, paperOf, resetView, type Stage, zoomTo } from "../../../core/stage"
 import { MARGIN, ZOOM_MAX, ZOOM_MIN, zoomInRange } from "../../../core/viewport"
+import type { Actions, BoundPlaceActions } from "../../../store/actions"
 import { type CommandContext, calledStageOf } from "../../../store/commands/def"
-import type { Actions, BoundPlaceActions } from "../../../store/store"
 import { kit } from "../kit"
 
 export { ZOOM_MAX, ZOOM_MIN }

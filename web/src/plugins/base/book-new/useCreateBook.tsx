@@ -1,7 +1,7 @@
 // ブックを作って開くフック: アクション book-create でブックを作り、描いている場所（ui/scope.tsx）のステージで開いてカレントにする（create-book.ts の openCreatedBook）。
 // アクションの結果を返す（ステージの外なら null）
 import type { ArgsOf } from "../../../core/perform"
-import type { Performed } from "../../../store/store"
+import type { Performed } from "../../../store/actions"
 import { useStageId } from "../../../ui/scope"
 import { useInstance } from "../../../ui/store-context"
 import type { BOOK_CREATE } from "./book-create"

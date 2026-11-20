@@ -26,7 +26,7 @@ import {
 import { stageView, toolOf } from "../../core/workspace"
 import type { Assembled } from "../plugin"
 import { ownedPluginState, placeOf, pluginValueOf } from "../plugin-state"
-import type { MatomezuState } from "../store"
+import type { MatomezuState } from "../state"
 import { worldOf } from "../world"
 import {
   type CalledScreen,

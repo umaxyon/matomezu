@@ -33,7 +33,7 @@ import type {
   MatomezuInstance,
   MatomezuState,
   ParticipantLive,
-} from "../store/store"
+} from "../store/state"
 import type { HostClient, Loaded } from "./client"
 import { WIDE_SEARCH_ANSWER, wideSearchParams } from "./search"
 

@@ -6,7 +6,7 @@ import { pagesOf } from "../../web/src/core/book"
 import type { Book } from "../../web/src/core/schema/book"
 import { shownPageId } from "../../web/src/core/stage"
 import { screenOf } from "../../web/src/core/window"
-import type { AIEditTicketOutcome } from "../../web/src/store/store"
+import type { AIEditTicketOutcome } from "../../web/src/store/state"
 import { drawingPage, SLIDE, testBinder, testBook, testPage, withSlide } from "../lineup"
 import { newStore, sequence, worldRows } from "../support"
 

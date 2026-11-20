@@ -5,6 +5,8 @@
 import type { PluginStateDef, PluginStateScope } from "../core/def/plugin-state"
 import { fail } from "../core/errors"
 import { isOwnedBy } from "../core/names"
+import { sameData } from "../core/same"
+import { stageIn, type WindowState } from "../core/window"
 
 export interface PluginValues {
   readonly window: Readonly<Record<string, unknown>>
@@ -108,3 +110,63 @@ export function pluginValueOf<S>(values: PluginValues, at: PluginPlace, def: Plu
 // 画面の場所に入れて、変わるたびにブラウザの履歴に積むと宣言した id の組
 export const pushingIds = (defs: PluginStateDefs): ReadonlySet<string> =>
   new Set([...defs.values()].filter(d => d.address === "push").map(d => d.id))
+
+// 宣言の表 defs と窓 win で、値の組 values の宣言 id の値を value にした値の組（変わらなければ values のまま）。画面の場所に入れる宣言の値は宣言の形で確かめる（合わなければ E123）。
+// 場所 at は、窓の範囲の宣言なら WINDOW_PLACE、ステージごとの宣言ならステージの id（窓に無いステージには置かない）、スクリーンごとの宣言なら開いているスクリーンの id（無いスクリーンには置かない）。
+// 知らない id は E122、範囲と場所が合わなければ E124
+export function withPluginValueIn(
+  defs: PluginStateDefs,
+  win: WindowState,
+  values: PluginValues,
+  id: string,
+  at: PluginPlace,
+  value: unknown,
+): PluginValues {
+  const def = defs.get(id) ?? fail("E122", { id })
+  if (def.scope === "window" && at !== WINDOW_PLACE) fail("E124", { id, scope: "window", need: "give WINDOW_PLACE" })
+  if (def.scope === "stage" && typeof at !== "string") fail("E124", { id, scope: "stage", need: "give the stage" })
+  if (def.scope === "screen" && typeof at !== "string") fail("E124", { id, scope: "screen", need: "give the screen" })
+  let next = value
+  if (value !== undefined && def.address !== "none") {
+    const read = def.schema?.safeParse(value)
+    if (!read?.success) fail("E123", { id })
+    next = read.data
+  }
+  // 画面の場所に入れる宣言の値は中身を比べ、入れない宣言の値は同じ物かだけ比べる（頻繁に書く値を深く比べない）
+  const same = def.address === "none" ? Object.is : sameData
+  if (typeof at !== "string") {
+    return same(values.window[id], next) ? values : { ...values, window: withPluginState(values.window, id, next) }
+  }
+  const stage = at
+  if (def.scope === "screen") {
+    const opened = win.screens.some(s => s.id === stage)
+    if (!opened || same(values.screens[stage]?.[id], next)) return values
+    return { ...values, screens: { ...values.screens, [stage]: withPluginState(values.screens[stage], id, next) } }
+  }
+  if (stageIn(win, stage) === undefined || same(values.stages[stage]?.[id], next)) return values
+  return { ...values, stages: { ...values.stages, [stage]: withPluginState(values.stages[stage], id, next) } }
+}
+
+// 宣言の表 defs と窓 win で、ほかのプラグインの宣言 id に値 value を入れる場所（入れられなければ null）。画面の場所に入れる宣言（address を持つ）で、値が宣言の形に合うときだけ。
+// ステージの宣言は caller.stage の窓にあるステージ、窓の宣言は WINDOW_PLACE。スクリーンの宣言は、caller.screenDef の開いているスクリーン（複数なら最後にカレントにした 1 枚）、
+// screenDef が無ければ caller.screen（開いているスクリーンだけ）
+export function pluginPlaceById(
+  defs: PluginStateDefs,
+  win: WindowState,
+  id: string,
+  value: unknown,
+  caller: { screen?: string; screenDef?: string; stage?: string },
+): PluginPlace | null {
+  const def = defs.get(id)
+  if (!def || def.address === "none" || !def.schema?.safeParse(value).success) return null
+  const callerScreen = (): string | null => {
+    if (caller.screenDef === undefined) return caller.screen ?? null
+    const ids = win.screens.filter(s => s.def === caller.screenDef).map(s => s.id)
+    return [...win.order].reverse().find(o => ids.includes(o)) ?? null
+  }
+  const at = placeOf(def.scope, { stage: caller.stage, screen: callerScreen() })
+  if (at === null) return null
+  if (def.scope === "screen" && !win.screens.some(s => s.id === at)) return null
+  if (def.scope === "stage" && stageIn(win, at as string) === undefined) return null
+  return at
+}

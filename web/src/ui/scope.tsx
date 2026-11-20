@@ -14,7 +14,7 @@ import type { Book } from "../core/schema/book"
 import { type Stage, shownPageId } from "../core/stage"
 import { stageIn } from "../core/window"
 import { NO_STAGE } from "../store/dialogs"
-import type { MatomezuState } from "../store/store"
+import type { MatomezuState } from "../store/state"
 import { useScreenContext } from "./screen-context"
 import { useMatomezuState, useReadState } from "./store-context"
 

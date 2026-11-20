@@ -7,7 +7,7 @@
 import { type Address, moved, recentStagesIn, type ScreenPlace, type StagePlace } from "../core/address"
 import { NO_OUTERMOST } from "../core/folders"
 import { stagesDefOf } from "../core/window"
-import type { MatomezuInstance } from "../store/store"
+import type { MatomezuInstance } from "../store/state"
 
 // URL とのやり取り（テストでは差し替える）
 export interface Place {

@@ -33,7 +33,6 @@ import { type Settings, userSetting } from "../core/settings"
 import { shownPageId, stageBlocks, toPaper } from "../core/stage"
 import { currentScreen, shownScreens, stageIn } from "../core/window"
 import type { StageView } from "../core/workspace"
-import { ownedPluginState, type PluginPlace, placeOf } from "../store/plugin-state"
 import {
   type BoundPlaceActions,
   boundActions,
@@ -41,7 +40,8 @@ import {
   REFUSED_WINDOW_ACTIONS,
   type WindowActions,
   windowActionsOf,
-} from "../store/store"
+} from "../store/actions"
+import { ownedPluginState, type PluginPlace, placeOf } from "../store/plugin-state"
 import { worldOf } from "../store/world"
 import { useArranged } from "./arranged-context"
 import {
