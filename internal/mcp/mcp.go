@@ -33,6 +33,19 @@ type API interface {
 	Post(path string, body any, header http.Header) (json.RawMessage, http.Header, error)
 }
 
+// HostError は、常駐が 200 でない状態で答えた誤り。Error() は方法・パス・状態・常駐の文の 1 行
+type HostError struct {
+	Method string
+	Path   string
+	Status string // 状態の行（404 Not Found など）
+	Code   int    // 状態の番号
+	Text   string // 常駐の文
+}
+
+func (e *HostError) Error() string {
+	return fmt.Sprintf("%s %s: %s %s", e.Method, e.Path, e.Status, e.Text)
+}
+
 // caller は MCP 公開ツールが常駐を呼ぶ口（conn がヘッダを足す）
 type caller interface {
 	Get(path string) (json.RawMessage, error)
@@ -211,8 +224,8 @@ func handle(req request, c *conn) (any, *rpcError) {
 			return nil, &rpcError{-32602, "invalid params"}
 		}
 		c.sessionID, c.model = fromMeta(p.Meta, c.meta)
-		text, failed := callTool(c, p.Name, p.Arguments)
-		return map[string]any{"content": []map[string]any{{"type": "text", "text": text}}, "isError": failed}, nil
+		text, fault := callTool(c, p.Name, p.Arguments)
+		return map[string]any{"content": []map[string]any{{"type": "text", "text": text}}, "isError": fault}, nil
 	default:
 		return nil, &rpcError{-32601, fmt.Sprintf("method not found: %s", req.Method)}
 	}

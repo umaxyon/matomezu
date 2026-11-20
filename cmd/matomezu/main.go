@@ -620,7 +620,7 @@ func send(s *home.Server, method, path string, body []byte, header http.Header) 
 		return nil, nil, false, err
 	}
 	if res.StatusCode != http.StatusOK {
-		return nil, nil, res.StatusCode == http.StatusUnauthorized, fmt.Errorf("%s %s: %s %s", method, path, res.Status, bytes.TrimSpace(out))
+		return nil, nil, res.StatusCode == http.StatusUnauthorized, &mcp.HostError{Method: method, Path: path, Status: res.Status, Code: res.StatusCode, Text: string(bytes.TrimSpace(out))}
 	}
 	return out, res.Header, false, nil
 }

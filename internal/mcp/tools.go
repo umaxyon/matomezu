@@ -2,7 +2,9 @@ package mcp
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -271,16 +273,16 @@ func reading(read func(api caller, args map[string]any) (json.RawMessage, error)
 	return func(c *conn, args map[string]any) (string, bool) {
 		out, err := read(c, args)
 		if err != nil {
-			return err.Error(), true
+			return hostFailed(err)
 		}
 		for _, r := range refused {
 			if text, ok := r(out); ok {
-				return text, true
+				return text, false
 			}
 		}
 		if narrow != nil {
 			if n := len([]rune(string(out))); n > maxAnswer {
-				return fmt.Sprintf("too-large: the answer is %d characters, over the limit of %d, so it is not returned; %s", n, maxAnswer, narrow(args)), true
+				return fmt.Sprintf("too-large: the answer is %d characters, over the limit of %d, so it is not returned; %s", n, maxAnswer, narrow(args)), false
 			}
 		}
 		return string(out), false
@@ -385,16 +387,27 @@ func listTools() []map[string]any {
 	return list
 }
 
-// callTool は MCP 公開ツールを呼び、AI に返す文と、失敗したかを返す。
+// callTool は MCP 公開ツールを呼び、AI に返す文と、matomezu の側の失敗か（isError にする）を返す。
+// 断り（呼び方の誤り・できない理由）は失敗にせず、文で断りと直し方を言う。matomezu の側の失敗は、常駐につながらない・常駐の答えが読めないなど、AI が呼び方を直しても済まない物
 // 常駐の返事に AI への知らせ（参加しましたなど）があれば、どの MCP 公開ツールでも文の末尾に足す
 func callTool(c *conn, name string, raw json.RawMessage) (string, bool) {
 	c.notice = ""
-	text, failed := dispatch(c, name, raw)
+	text, fault := dispatch(c, name, raw)
 	if c.notice != "" {
 		text += "\n" + c.notice
 		c.notice = ""
 	}
-	return text, failed
+	return text, fault
+}
+
+// hostFailed は、常駐を呼んだ誤り err を AI に返す文にする。常駐が 400・404 で答えた物は呼び方への断りなので、常駐の文だけを返し、matomezu の側の失敗にしない。
+// ほか（つながらない・つなぎ直せない・ほかの状態）は matomezu の側の失敗
+func hostFailed(err error) (string, bool) {
+	var h *HostError
+	if errors.As(err, &h) && (h.Code == http.StatusBadRequest || h.Code == http.StatusNotFound) {
+		return h.Text, false
+	}
+	return err.Error(), true
 }
 
 // unreadablePage は、read_page の答えが読めないページの断り（{"ok": false, "reason": "unreadable", "code"}）なら、AI に返す 1 行
@@ -431,7 +444,7 @@ func dispatch(c *conn, name string, raw json.RawMessage) (string, bool) {
 	args := map[string]any{}
 	if len(raw) > 0 {
 		if err := json.Unmarshal(raw, &args); err != nil {
-			return "the arguments are not a JSON object", true
+			return "the arguments are not a JSON object", false
 		}
 		if args == nil {
 			args = map[string]any{}
@@ -442,17 +455,17 @@ func dispatch(c *conn, name string, raw json.RawMessage) (string, bool) {
 			continue
 		}
 		if problems := checkArguments(name, t.schema, args); len(problems) > 0 {
-			return "bad-args: " + strings.Join(problems, "; ") + "\nthe arguments of " + name + " (JSON Schema): " + schemaText(t.schema), true
+			return "bad-args: " + strings.Join(problems, "; ") + "\nthe arguments of " + name + " (JSON Schema): " + schemaText(t.schema), false
 		}
 		return t.call(c, args)
 	}
-	return "unknown tool: " + name, true
+	return "unknown tool: " + name, false
 }
 
 func perform(api caller, args map[string]any) (string, bool) {
 	out, err := api.Post("api/ai/perform", args)
 	if err != nil {
-		return err.Error(), true
+		return hostFailed(err)
 	}
 	var done struct {
 		OK     bool            `json:"ok"`
@@ -466,14 +479,14 @@ func perform(api caller, args map[string]any) (string, bool) {
 		return string(out), true
 	}
 	if !done.OK && done.Reason == "unreadable" && done.Code != "" {
-		return unreadablePageText(done.Code), true
+		return unreadablePageText(done.Code), false
 	}
 	if !done.OK {
 		text := refusalText(done.Reason, done.Detail)
 		if done.Reason == "bad-args" {
 			text += argsSchemaOf(api, args["action"].(string))
 		}
-		return text, true
+		return text, false
 	}
 	// 知らせは結果の次の行に添える
 	if done.Notice != "" {
@@ -502,7 +515,7 @@ func argsSchemaOf(api caller, action string) string {
 func show(api caller, args map[string]any) (string, bool) {
 	out, err := api.Post("api/ai/show", args)
 	if err != nil {
-		return err.Error(), true
+		return hostFailed(err)
 	}
 	var done struct {
 		OK     bool   `json:"ok"`
@@ -520,17 +533,17 @@ func show(api caller, args map[string]any) (string, bool) {
 	case done.OK:
 		return "shown", false
 	case done.Reason == "no-browser":
-		return "no-browser: could not open a browser (" + done.Detail + "); ask the user to open " + done.URL + " and call show again", true
+		return "no-browser: could not open a browser (" + done.Detail + "); ask the user to open " + done.URL + " and call show again", false
 	case done.Reason == "no-book":
-		return "no-book: there is no book with that id (see list_books)", true
+		return "no-book: there is no book with that id (see list_books)", false
 	case done.Reason == "no-window":
-		return "no-window: no matomezu window connected; ask the user to open " + done.URL + " and call show again", true
+		return "no-window: no matomezu window connected; ask the user to open " + done.URL + " and call show again", false
 	case done.Reason == "no-stage":
-		return "no-stage: the window has no stage with that id (see view)", true
+		return "no-stage: the window has no stage with that id (see view)", false
 	case done.Reason == "no-split":
-		return "no-split: the window cannot split more; give the stage to show it on instead (see view)", true
+		return "no-split: the window cannot split more; give the stage to show it on instead (see view)", false
 	}
-	return refusalText(done.Reason, done.Detail), true
+	return refusalText(done.Reason, done.Detail), false
 }
 
 // refusalText は断った理由の、AI に返す 1 行。常駐が決めた理由のほかは、エンジンが添えた AI への説明（detail）を使う
@@ -595,7 +608,7 @@ func join(c *conn, args map[string]any) (string, bool) {
 	}
 	out, err := c.Post("api/ai/join", body)
 	if err != nil {
-		return err.Error(), true
+		return hostFailed(err)
 	}
 	var done struct {
 		OK          bool   `json:"ok"`
@@ -607,7 +620,7 @@ func join(c *conn, args map[string]any) (string, bool) {
 		return string(out), true
 	}
 	if !done.OK {
-		return refusalText(done.Reason, done.Detail), true
+		return refusalText(done.Reason, done.Detail), false
 	}
 	c.participants[c.sessionID] = done.Participant
 	answer := map[string]any{"participant": done.Participant}
@@ -635,7 +648,7 @@ const sendMessageDescription = "Send a message to another AI that has joined mat
 func sendMessage(c *conn, args map[string]any) (string, bool) {
 	out, err := c.Post("api/ai/message", map[string]any{"to": args["to"], "text": args["text"]})
 	if err != nil {
-		return err.Error(), true
+		return hostFailed(err)
 	}
 	var done struct {
 		OK     bool   `json:"ok"`
@@ -647,7 +660,7 @@ func sendMessage(c *conn, args map[string]any) (string, bool) {
 		return string(out), true
 	}
 	if !done.OK {
-		return refusalText(done.Reason, done.Detail), true
+		return refusalText(done.Reason, done.Detail), false
 	}
 	return `{"ok":true,"queued":true}`, false
 }
