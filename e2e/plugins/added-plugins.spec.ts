@@ -155,6 +155,30 @@ test("見た目の台帳アセンブルで食い違う追加プラグインが�
   expect((await data(page)).plugins.map((p: { id: string }) => p.id)).toEqual(["ex2"])
 })
 
+test("起動エラーの画面で止めた窓が 2 枚あり、片方で外して開いたあとでも、もう片方の［外して開く］で開ける（もう外れているプラグインはホストが飛ばす）", async ({
+  page,
+  context,
+}) => {
+  const dir = mkdtempSync(join(tmpdir(), "matomezu-e2e-"))
+  temps.push(dir)
+  cpSync(resolve("test/added-plugins/ex3"), dir, { recursive: true })
+  const ui = join(dir, "ui.tsx")
+  writeFileSync(ui, readFileSync(ui, "utf8").replace(`items: { [STAR.id]: { view: StarView, icon: STAR_ICON } },`, ""))
+  await page.goto(BOOK_SCREEN_URL)
+  await page.request.post("/api/plugins", { headers: aiAuth(), data: { dir } })
+  await page.request.post("/api/enable-plugins-for-test", { data: { ids: ["ex2", "ex3"] } })
+  const stopped = (p: Page) => p.getByRole("heading", { name: "matomezu を開けません" })
+  await expect(stopped(page)).toBeVisible()
+  const other = await context.newPage()
+  await other.goto(BOOK_SCREEN_URL)
+  await expect(stopped(other)).toBeVisible()
+  await other.getByRole("button", { name: "外して開く" }).click()
+  await expect(stopped(other)).toHaveCount(0)
+  await page.getByRole("button", { name: "外して開く" }).click()
+  await expect(page.locator("[data-ex2-diamond]")).toBeVisible()
+  await expect(page.getByRole("alert")).toHaveCount(0)
+})
+
 test("起動エラーの画面で外したプラグインのページを持つブックが在っても、開き直した窓で、関係ないフォルダの名前を変えられる（読めないブックで書庫のアクションが断られない）", async ({
   page,
 }) => {

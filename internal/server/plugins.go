@@ -6,6 +6,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -44,13 +45,16 @@ func (h *Hub) LinkPlugin(dir string) (string, error) {
 
 // UnlinkPlugin は id の追加プラグインを外し、そのプラグインが足した種類のアノテーションを消す
 // （外したプラグインの物はもう使わない。プラグインを入れずに起動したときや、版が変わって種類が無くなったときは消さずに warning にする）
+// errNoPlugin は、外すよう頼まれた id の追加プラグインを足していない
+var errNoPlugin = errors.New("no plugin")
+
 func (h *Hub) UnlinkPlugin(id string) error {
 	defer h.afterCatalogChange()
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	next := slices.DeleteFunc(slices.Clone(h.plugins), func(p *plugin.Bundle) bool { return p.Manifest.ID == id })
 	if len(next) == len(h.plugins) {
-		return fmt.Errorf("no plugin %q", id)
+		return fmt.Errorf("%w %q", errNoPlugin, id)
 	}
 	if err := h.usePlugins(next); err != nil {
 		return err

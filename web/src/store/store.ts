@@ -658,7 +658,7 @@ export interface StartupCause {
   name: string // 原因の名前（追加プラグインの id など）
   reason: string // 理由の文（作り手向けの error の文のまま）
 }
-// 直す手を行った結果: fixed は直せた（画面の入口が窓を読み直すので、もう押せない）、refused は断られた理由の文と残りの原因、unreachable は常駐につながらない（原因はそのまま）
+// 直す手を行った結果: fixed は直せた（窓を読み直すので、もう押せない）、refused は断られた理由の文と残りの原因、unreachable は常駐につながらない（原因はそのまま）
 export type StartupFixOutcome =
   | { state: "fixed" }
   | { state: "refused"; reason: string; causes: readonly StartupCause[] }
@@ -666,7 +666,7 @@ export type StartupFixOutcome =
 export interface StartupError {
   kind: StartupErrorKind
   causes: readonly StartupCause[]
-  fix: () => Promise<StartupFixOutcome>
+  fix: (causes: readonly StartupCause[]) => Promise<StartupFixOutcome> // 直す手。今出している原因の一覧を渡す
 }
 
 export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> {

@@ -1,4 +1,4 @@
-// 追加プラグインを組めずに起動を止めた窓の、起動エラーの画面の直す手: まだ外していない物をホストに外させ、途中で断られたら残りに減らす
+// 追加プラグインを組めずに起動を止めた窓の、起動エラーの画面の原因の集め方と直す手: 出している物をホストに外させ、途中で断られたら残りに減らす
 import { expect, test } from "bun:test"
 import { matomezuError, problem } from "../../web/src/core/errors"
 import type { ScreenPluginsRemoved } from "../../web/src/host-client/client"
@@ -28,15 +28,15 @@ test("全部外せたら fixed", async () => {
   const error = pluginsNotAddedError(causes, remove)
   expect(error.kind).toBe("plugins-not-added")
   expect(error.causes).toEqual(causes)
-  expect(await error.fix?.()).toEqual({ state: "fixed" })
+  expect(await error.fix(causes)).toEqual({ state: "fixed" })
   expect(asked).toEqual([["ex1", "ex2", "ex3"]])
 })
 
-test("途中で断られたら、断られた物から後ろを残りにし、また押すと残りだけを頼む", async () => {
+test("途中で断られたら、断られた物から後ろを残りにする（画面は残りを出し、また押すと残りだけを頼む）", async () => {
   const { asked, remove } = host({ state: "refused", id: "ex2", reason: "locked" }, { state: "removed" })
   const error = pluginsNotAddedError(causes, remove)
-  expect(await error.fix?.()).toEqual({ state: "refused", reason: "locked", causes: causes.slice(1) })
-  expect(await error.fix?.()).toEqual({ state: "fixed" })
+  expect(await error.fix(causes)).toEqual({ state: "refused", reason: "locked", causes: causes.slice(1) })
+  expect(await error.fix(causes.slice(1))).toEqual({ state: "fixed" })
   expect(asked).toEqual([
     ["ex1", "ex2", "ex3"],
     ["ex2", "ex3"],
@@ -46,8 +46,8 @@ test("途中で断られたら、断られた物から後ろを残りにし、�
 test("常駐につながらなければ unreachable で、原因はそのまま（また押すと全部を頼む）", async () => {
   const { asked, remove } = host({ state: "unreachable" }, { state: "removed" })
   const error = pluginsNotAddedError(causes, remove)
-  expect(await error.fix?.()).toEqual({ state: "unreachable" })
-  await error.fix?.()
+  expect(await error.fix(causes)).toEqual({ state: "unreachable" })
+  await error.fix(causes)
   expect(asked).toEqual([
     ["ex1", "ex2", "ex3"],
     ["ex1", "ex2", "ex3"],
@@ -57,7 +57,7 @@ test("常駐につながらなければ unreachable で、原因はそのまま�
 test("常駐が断った（E405 などを投げた）ら、その error の文を理由に refused、原因はそのまま", async () => {
   const { remove } = host(new Error("E405 the server could not remove the plugins: 500"))
   const error = pluginsNotAddedError(causes, remove)
-  expect(await error.fix?.()).toEqual({
+  expect(await error.fix(causes)).toEqual({
     state: "refused",
     reason: "E405 the server could not remove the plugins: 500",
     causes,

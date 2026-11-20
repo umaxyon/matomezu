@@ -472,7 +472,7 @@ func TestAFailedSettleWithAnUnreadableBookLeftRefusesActionsOnTheLibrary(t *test
 }
 
 // 止めた窓の［外して開く］が呼ぶ口: 画面 cookie の無い頼みは断り、ある頼みは追加プラグインを並びの順に外す（POST /api/plugins/remove と同じに、そのタイプのページは読めない物のフォルダへ移る）。
-// 無いプラグインの所で止め、その id と訳を返す
+// もう足していない id は飛ばして成功にする（ほかの窓や AI が先に外していても開ける）
 func TestTheScreenRemovesThePluginsItCouldNotAdd(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data.db")
 	store, err := storage.OpenSQLite(path)
@@ -502,7 +502,11 @@ func TestTheScreenRemovesThePluginsItCouldNotAdd(t *testing.T) {
 	if got := unreadableRefs(t, h); !slices.Equal(got, [][2]string{{"p1", "W027"}}) {
 		t.Fatalf("after removing ex2: unreadable %v", got)
 	}
-	if _, got := send(t, "POST", s.URL+"/api/screen-plugins/remove", `{"ids":["ex2"]}`, nil); !strings.Contains(got, `"ok":false`) || !strings.Contains(got, `"id":"ex2"`) {
-		t.Fatalf("remove a plugin that is not there = %s", got)
+	// もう足していない id は飛ばして成功にする（ほかの窓や AI が先に外した）。AI の口は今のまま断る
+	if _, got := send(t, "POST", s.URL+"/api/screen-plugins/remove", `{"ids":["ex2"]}`, nil); got != `{"ok":true}` {
+		t.Fatalf("remove a plugin that is not there from a screen = %s", got)
+	}
+	if _, got := send(t, "POST", s.URL+"/api/plugins/remove", `{"id":"ex2"}`, writerAI(t, s.URL)); !strings.Contains(got, `no plugin \"ex2\"`) {
+		t.Fatalf("remove a plugin that is not there by the AI = %s", got)
 	}
 }

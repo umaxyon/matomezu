@@ -1,5 +1,5 @@
 // 追加プラグインのどれかを組めずに起動を止める窓の、組めなかった物を集め、起動エラーの画面に出す物（訳 plugins-not-added）を作る。
-// 原因は組めなかった追加プラグインの id と理由の文。直す手は、まだ外していない物をホストから外す（外せたらホストクライアントが窓を読み直す）。
+// 原因は組めなかった追加プラグインの id と理由の文。直す手は、出している物をホストから外す（もう外れている物はホストが飛ばす。外せたらホストクライアントが窓を読み直す）。
 // 途中で断られたら、断られた物から後ろが残る（それより前の物は外れている）
 import type { MatomezuError } from "../core/errors"
 import type { StartupCause, StartupError, StartupFixOutcome } from "../store/store"
@@ -24,17 +24,14 @@ export function pluginsNotAddedError(
   causes: readonly StartupCause[],
   remove: HostClient["removeScreenPlugins"],
 ): StartupError {
-  let left = causes
-  const fix = async (): Promise<StartupFixOutcome> => {
+  const fix = async (shown: readonly StartupCause[]): Promise<StartupFixOutcome> => {
     try {
-      const answer = await remove(left.map(c => c.name))
-      if (answer.state === "removed") return { state: "fixed" }
-      if (answer.state === "unreachable") return answer
-      const from = left.findIndex(c => c.name === answer.id)
-      if (from > 0) left = left.slice(from)
-      return { state: "refused", reason: answer.reason, causes: left }
+      const answer = await remove(shown.map(c => c.name))
+      if (answer.state !== "refused") return answer.state === "removed" ? { state: "fixed" } : answer
+      const from = shown.findIndex(c => c.name === answer.id)
+      return { state: "refused", reason: answer.reason, causes: from < 0 ? shown : shown.slice(from) }
     } catch (e) {
-      return { state: "refused", reason: reasonOf(e), causes: left }
+      return { state: "refused", reason: reasonOf(e), causes: shown }
     }
   }
   return { kind: "plugins-not-added", causes, fix }

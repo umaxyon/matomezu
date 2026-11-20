@@ -17,6 +17,7 @@
 //	POST /api/log         {"client", "lines": [{"at", "text"}]} 窓が書き残した事（つながりが切れた・読み直せなかったなど。at は窓の時刻）。常駐のログに出す  … 画面から
 //	POST /api/ai-edit-tickets  {"act", "places", "outcome", "book", "lost"} 窓が、AI の変更のうちページとフォルダ places を見た（seen）・見られる前に消えた（lost。ブック book の、消えた所と AI の値）（ai_edit_tickets.go）  … 画面から
 //	POST /api/screen-plugins/remove {"ids"} 窓が組み込めなかった追加プラグイン ids を、並びの順に外す（POST /api/plugins/remove と同じ。止めた窓の［外して開く］）。
+//	                      もう足していない id は飛ばす（ほかの窓や AI が先に外していても、外れた状態になれば成功）。
 //	                      {"ok"} か、外せなかった所で止めて {"ok": false, "id", "reason"}（それより前の物は外れたまま）  … 画面から
 //	POST /api/view        {"client", "view", "editLocks", "recordLocks", "focused", "seq"} 窓のカレントのステージが見ているもの（view）と、利用者が直している物（editLocks。
 //	                      ブックの id → 物の id の並び。AI のアクションがそれを変えるか消すなら断る。editlock.go）と、その窓がフォーカスされたか。
@@ -307,7 +308,7 @@ func (o Options) unlinkPluginsFromScreen(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	for _, id := range req.IDs {
-		if err := o.Hub.UnlinkPlugin(id); err != nil {
+		if err := o.Hub.UnlinkPlugin(id); err != nil && !errors.Is(err, errNoPlugin) {
 			writeJSON(w, map[string]any{"ok": false, "id": id, "reason": err.Error()})
 			return
 		}

@@ -4,7 +4,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { STARTUP_ERROR } from "../../../web/src/plugins/base/startup-error/ui"
 import { BUILTIN_UI } from "../../../web/src/plugins/ui"
 import { createMatomezu } from "../../../web/src/store/create"
-import type { StartupError, StartupFixOutcome } from "../../../web/src/store/store"
+import type { StartupCause, StartupError, StartupFixOutcome } from "../../../web/src/store/store"
 import { defineLayout } from "../../../web/src/ui/layout"
 import { MatomezuProvider } from "../../../web/src/ui/store-context"
 import { WindowRoot } from "../../../web/src/ui/WindowRoot"
@@ -22,9 +22,9 @@ const causes = [
 // 押すたびに、テストが答えを決めるまで待つ直す手で描く
 function show(error: Omit<StartupError, "fix">) {
   let answer: (outcome: StartupFixOutcome) => void = () => {}
-  let presses = 0
-  const fix = () => {
-    presses++
+  const asked: string[][] = [] // 押すたびに、直す手に渡した原因の名前
+  const fix = (shown: readonly StartupCause[]) => {
+    asked.push(shown.map(c => c.name))
     return new Promise<StartupFixOutcome>(r => (answer = r))
   }
   const instance = createMatomezu({ plugins: BUILTIN_UI, lang: "ja", startupError: { ...error, fix } })
@@ -37,7 +37,7 @@ function show(error: Omit<StartupError, "fix">) {
   const answerWith = async (outcome: StartupFixOutcome) => {
     await act(async () => answer(outcome))
   }
-  return { button, answerWith, presses: () => presses }
+  return { button, answerWith, asked }
 }
 
 test("見出しと説明と、原因の名前と理由の文を全部と、補足を出す", () => {
@@ -54,18 +54,18 @@ test("見出しと説明と、原因の名前と理由の文を全部と、補�
 })
 
 test("押している間は押せず、断られたら失敗の 2 行（外せませんでした・理由）を出し、一覧を残りに替えて、また押せる", async () => {
-  const { button, answerWith, presses } = show({ kind: "plugins-not-added", causes })
+  const { button, answerWith, asked } = show({ kind: "plugins-not-added", causes })
   fireEvent.click(button())
   expect((button() as HTMLButtonElement).disabled).toBe(true)
   fireEvent.click(button())
-  expect(presses()).toBe(1)
+  expect(asked).toEqual([["ex2", "ex3"]])
   await answerWith({ state: "refused", reason: "busy", causes: causes.slice(1) })
   expect(screen.getByRole("alert").textContent).toBe("外せませんでしたbusy")
   expect(screen.queryByText("ex2")).toBeNull()
   expect(screen.getByText("ex3")).toBeTruthy()
   expect((button() as HTMLButtonElement).disabled).toBe(false)
   fireEvent.click(button())
-  expect(presses()).toBe(2)
+  expect(asked).toEqual([["ex2", "ex3"], ["ex3"]])
 })
 
 test("常駐につながらなければ、2 行目は「常駐につながりません」で、一覧はそのまま", async () => {

@@ -46,7 +46,7 @@ function StartupErrorView() {
   useWindowTitle(title)
   const press = async () => {
     setPressed({ state: "pressing" })
-    const outcome = await error.fix()
+    const outcome = await error.fix(causes)
     if (outcome.state === "refused") {
       setCauses(outcome.causes)
       setPressed({ state: "refused", reason: outcome.reason })
