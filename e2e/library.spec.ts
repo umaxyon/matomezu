@@ -646,7 +646,7 @@ test("書庫のツリーで、ブックの中のページの名前を F2 で変�
   await expect.poll(() => titlesIn(b)).toEqual(["丙", "乙"])
 })
 
-test("書庫の検索は、名前に言葉を含む物を右の枠に並べる。行を押すとツリーのその行へ移り、Enter で開く。結果の欄の何も無い所を押すと結果の選んだ行が外れる。入力Formを空にすると元の表示に戻る", async ({
+test("書庫の検索は、名前に言葉を含む物を右の枠に並べる。行を押すとツリーのその行へ移り、Enter で開く。結果の枠の何も無い所を押すと結果の選んだ行が外れる。入力Formを空にすると元の表示に戻る", async ({
   page,
 }) => {
   await page.goto("/")
@@ -671,7 +671,7 @@ test("書庫の検索は、名前に言葉を含む物を右の枠に並べる�
     "true",
   )
   await expect(found.getByRole("button", { name: /検索の試しの帳面/ })).toHaveAttribute("aria-pressed", "true")
-  // 結果の欄の何も無い所を押すと、結果の選んだ行だけが外れる（ツリーの今いる行はそのまま）
+  // 結果の枠の何も無い所を押すと、結果の選んだ行だけが外れる（ツリーの今いる行はそのまま）
   await page.getByRole("status").click()
   await expect(found.locator('[aria-pressed="true"]')).toHaveCount(0)
   await expect(tree.getByRole("button", { name: "検索の試しの帳面", exact: true })).toHaveAttribute(
