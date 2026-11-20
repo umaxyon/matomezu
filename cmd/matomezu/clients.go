@@ -65,11 +65,16 @@ type claudeMCPCmd struct{}
 
 // Run は、Claude Code の MCP を出す
 func (claudeMCPCmd) Run() error {
-	c := mcpCmd{serverFlags: serverFlags{Addr: DefaultAddr}, SessionEndsWith: sessionEndsWith(claudelaunch.SessionEndsWith)}
+	c := claudeMCP(sessionEndsWith(claudelaunch.SessionEndsWith))
 	if root := claudeDev(); root != "" {
 		c.serverFlags = devServerFlags(root)
 	}
 	return c.Run()
+}
+
+// claudeMCP は、Claude Code の MCP の mcp コマンド（endsWith は --session-ends-with の値）。Claude Code が渡すセッション id を添える
+func claudeMCP(endsWith string) mcpCmd {
+	return mcpCmd{serverFlags: serverFlags{Addr: DefaultAddr}, SessionEndsWith: endsWith, Session: os.Getenv(claudelaunch.SessionEnv)}
 }
 
 // sessionEndsWith は、mcp --session-ends-with の値: たどった AI のプログラムの名前から、その AI の事情（choose）で決める（たどれなければ、空の名前で聞く）
@@ -159,7 +164,7 @@ func codexSessionEndsWith(watch codexsessionend.Process) string {
 
 // Run は、Codex の MCP を出し、起こす知らせを Codex の会話に渡す watch も中で動かす
 func (codexMCPCmd) Run() error {
-	c := mcpCmd{serverFlags: serverFlags{Addr: DefaultAddr}, SessionEndsWith: codexSessionEndsWith(codexsessionend.Watch()), MetaModel: codexlaunch.MetaModel, NotClaudeCode: true, Deliver: append([]string{selfExecutable()}, codexlaunch.DeliverArgs...)}
+	c := mcpCmd{serverFlags: serverFlags{Addr: DefaultAddr}, SessionEndsWith: codexSessionEndsWith(codexsessionend.Watch()), MetaModel: codexlaunch.MetaModel, Deliver: append([]string{selfExecutable()}, codexlaunch.DeliverArgs...)}
 	if root := codexDev(); root != "" {
 		c.serverFlags = devServerFlags(root)
 	}
@@ -202,7 +207,7 @@ type opencodeMCPCmd struct {
 
 // Run は、opencode の MCP を出す
 func (c opencodeMCPCmd) Run() error {
-	m := mcpCmd{serverFlags: c.serverFlags, MetaSession: opencodelaunch.MetaSession, NotClaudeCode: true}
+	m := mcpCmd{serverFlags: c.serverFlags, MetaSession: opencodelaunch.MetaSession}
 	return m.Run()
 }
 

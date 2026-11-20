@@ -219,3 +219,14 @@ func TestCodexSessionEndsWith(t *testing.T) {
 		}
 	}
 }
+
+// Claude Code の MCP だけが、Claude Code が渡すセッション id を添える（素の mcp・codex・opencode の mcp は mcpCmd の Session を空のまま使う）
+func TestOnlyClaudeCodeMCPSendsTheClaudeCodeSession(t *testing.T) {
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "s-1")
+	if got := claudeMCP("program"); got.Session != "s-1" || got.SessionEndsWith != "program" {
+		t.Fatalf("claude-code mcp: %+v", got)
+	}
+	if got := (mcpCmd{}).Session; got != "" {
+		t.Fatalf("plain mcp: %q", got)
+	}
+}
