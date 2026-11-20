@@ -1,0 +1,21 @@
+/* 窓の中の全部のスクロールバー: 細く（6px）、溝は無し。つまみは字の色を薄めた色で、ブックの中身（テーマの変数が置かれた所）ではテーマの字の色、外ではスキンの字の色。
+   Chromium は ::-webkit-scrollbar、それの無いブラウザは細い既定のバー。
+   要素に scrollbar-width・scrollbar-color を書くと、Chromium ではその要素にこの指定が効かなくなるので、各所では書かない（test/rules.test.ts が見張る） */
+:global(*)::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+:global(*)::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--theme-text, var(--skin-text)) 28%, transparent);
+}
+:global(*)::-webkit-scrollbar-track,
+:global(*)::-webkit-scrollbar-corner {
+  background: transparent;
+}
+@supports not selector(::-webkit-scrollbar) {
+  :global(*) {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--theme-text, var(--skin-text)) 28%, transparent) transparent;
+  }
+}

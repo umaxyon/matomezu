@@ -1,5 +1,6 @@
 // base の見た目: 機能ごとのフォルダのダイアログ・ウィジェット・メニューのアイコンを集める。
 // 末尾で、骨組みが描くスロット・ウィジェット・メニューを core/catalog.ts に書き足す
+import "./scrollbar/scrollbar.module.css" // 窓の中の全部のスクロールバーを細くする（全体に効く指定）
 import type { WideSearchHit } from "../../core/wide-search"
 import { definePluginUi } from "../../ui/plugin"
 import { BASE } from "."

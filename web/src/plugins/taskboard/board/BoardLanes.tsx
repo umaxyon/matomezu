@@ -2,7 +2,6 @@
 import { Slot, useActions, useAllowedOn } from "../../../plugin-api/ui"
 import { PROJECT_UPDATE } from "../project/actions"
 import { useGripDrag } from "../reorder/useGripDrag"
-import scroll from "../scrollbar.module.css"
 import { LaneView } from "./LaneView"
 import { laneKeyOf, movedLanes } from "./lane-order"
 import { lanesOf, type ProjectRecord, type TicketRecord, type WorkroomRecord } from "./shown"
@@ -33,7 +32,7 @@ export function BoardLanes({
     "x",
   )
   return (
-    <div className={`${styles.lanes} ${scroll.thin}`} data-lane-max={laneMax !== undefined}>
+    <div className={styles.lanes} data-lane-max={laneMax !== undefined}>
       {lanes.map(lane => (
         <LaneView
           key={lane.id}
