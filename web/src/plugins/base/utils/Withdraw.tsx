@@ -2,11 +2,11 @@
 // 行えないとき（allowed が false）は押せない。name は、読み上げで何を取り消すかを言う名前
 import { useState } from "react"
 import { useMessages } from "../../../ui/i18n"
-import { kit } from "../kit"
+import { UTILS_TEXT } from "./messages"
 import styles from "./PanelRows.module.css"
 
 export function Withdraw({ name, allowed, onWithdraw }: { name: string; allowed: boolean; onWithdraw: () => void }) {
-  const t = useMessages(kit)
+  const t = useMessages(UTILS_TEXT)
   const [asking, setAsking] = useState(false)
   if (asking)
     return (

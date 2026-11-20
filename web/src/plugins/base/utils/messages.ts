@@ -1,5 +1,9 @@
-// 経った時間（「〜前」）と、同じ名前で断られた原因と、一覧の行の「取消」（Withdraw.tsx）と、問いの吹き出し（Ask.tsx）と、物の角に出す物（corner.tsx）の文言
+// 経った時間（「〜前」）と、同じ名前で断られた原因と、一覧の行の「取消」（Withdraw.tsx）と、領域の最大化のボタン（MaxButton.tsx）の文言。
+// utils の部品は、base の定義の関数の組（kit）を読まずに、文言だけの組 UTILS_TEXT で引く
 import { defineMessages } from "../../../core/i18n/messages"
+import { pluginMessages } from "../../../store/kit"
+import { joinMessages } from "./join-messages"
+import { BASE_ID } from "./plugin-id"
 
 export const ELAPSED_MESSAGES = defineMessages({
   "Just now": { en: "Just now", ja: "たった今" },
@@ -20,20 +24,11 @@ export const WITHDRAW_MESSAGES = defineMessages({
   "Withdraw {name}": { en: "Withdraw {name}", ja: "{name}を取り消す" },
 })
 
-// 問いの吹き出し（Ask.tsx）
-export const ASK_MESSAGES = defineMessages({
-  Yes: { en: "Yes", ja: "はい" },
-})
-
-export const CORNER_MESSAGES = defineMessages({
-  Corner: { en: "Corner", ja: "角" },
-  "Things at the corner": { en: "Things at the corner", ja: "角の物" },
-  "Show the {n} things at the corner": { en: "Show the {n} things at the corner", ja: "角の {n} 件を見る" },
-  "Corner status order": { en: "Corner status order", ja: "コーナーステータスの並び" },
-})
-
 // 領域の最大化のボタン（MaxButton.tsx）
 export const MAX_BUTTON_MESSAGES = defineMessages({
   "Maximize area": { en: "Maximize", ja: "最大化" },
   "Restore area": { en: "Restore size", ja: "元の大きさに戻す" },
 })
+
+export const UTILS_MESSAGES = joinMessages(ELAPSED_MESSAGES, WITHDRAW_MESSAGES, MAX_BUTTON_MESSAGES)
+export const UTILS_TEXT = pluginMessages(BASE_ID, UTILS_MESSAGES)

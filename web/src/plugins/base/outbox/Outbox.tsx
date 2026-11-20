@@ -10,13 +10,13 @@ import { shownPageId } from "../../../core/stage"
 import { useMessages } from "../../../ui/i18n"
 import { useLayout } from "../../../ui/store-context"
 import { useActions, useAllowed, useBook, useCoreCatalog, useStage, useUiCatalog } from "../../../ui/view-hooks"
-import { useBookAnnotations, usePerformOrToast } from "../annotation-hooks"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
 import { useOpenRightSidePanel } from "../right-side-panel/hooks"
+import { useRevealHere } from "../stand/reveal-request"
 import { clampChars } from "../text/text"
+import { useBookAnnotations, usePerformOrToast } from "../utils/annotation-hooks"
 import rows from "../utils/PanelRows.module.css"
-import { useRevealHere } from "../utils/reveal-request"
 import { shownTime } from "../utils/shown-time"
 import { Withdraw } from "../utils/Withdraw"
 import { listedOf } from "./listed"
@@ -53,7 +53,7 @@ export function Outbox() {
 function Row({ annotation: a, now }: { annotation: AiAnnotation; now: Date }) {
   const t = useMessages(kit)
   const go = useGo()
-  const run = usePerformOrToast("Could not withdraw")
+  const run = usePerformOrToast(kit.message("Could not withdraw"))
   const catalog = useCoreCatalog()
   const name = useAnchorName(a.anchors.at(-1) ?? "")
   const listed = listedOf(catalog, a)

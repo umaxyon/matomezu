@@ -9,12 +9,12 @@ import { useEffect, useRef, useState } from "react"
 import { anchorIds } from "../../../core/annotation"
 import { useMessages } from "../../../ui/i18n"
 import { useAllowed, usePage, useUserSetting } from "../../../ui/view-hooks"
-import { useAnnotationsOf, usePerformOrToast } from "../annotation-hooks"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
 import { useCloseRightSidePanel, useRightSidePanel, useSetRightSidePanelCurrent } from "../right-side-panel/hooks"
 import type { RightSidePanelOpen } from "../right-side-panel/state"
 import { clampChars } from "../text/text"
+import { useAnnotationsOf, usePerformOrToast } from "../utils/annotation-hooks"
 import { useEditLock } from "../utils/useEditLock"
 import { NOTE, NOTE_ADD, NOTE_REMOVE, NOTE_UPDATE, type NoteProps, NoteTextSchema } from "."
 import { expiryOutlook, hoursAndMinutes, NOTE_EXPIRY } from "./expiry"
@@ -105,7 +105,7 @@ function Lost({ anchors }: { anchors: readonly string[] }) {
 // 新しく書く伝言: 文を書いて「付ける」（付ける先が無い間は付けられない）
 function NewNote({ open }: { open: RightSidePanelOpen }) {
   const t = useMessages(kit)
-  const run = usePerformOrToast("The note was refused")
+  const run = usePerformOrToast(kit.message("The note was refused"))
   const close = useCloseRightSidePanel()
   const addable = useAllowed(NOTE_ADD.id).ok
   const [text, setText] = useState("")
@@ -145,7 +145,7 @@ function NoteEditor({
   open: RightSidePanelOpen
 }) {
   const t = useMessages(kit)
-  const run = usePerformOrToast("The note was refused")
+  const run = usePerformOrToast(kit.message("The note was refused"))
   const close = useCloseRightSidePanel()
   const updatable = useAllowed(NOTE_UPDATE.id).ok
   const removable = useAllowed(NOTE_REMOVE.id).ok

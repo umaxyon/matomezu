@@ -2,7 +2,7 @@
 // 四角の真ん中を表示領域の真ん中へずらす（ずらす量は、マークポインタを押したときと同じ stand-place.ts の revealShift。表示領域より大きい向きは、上・左の端をそろえる）
 import type { Rect } from "../../../core/geom"
 import { panBy, placement, type Stage, toPaper, toPaperDelta, zoomTo } from "../../../core/stage"
-import { revealShift } from "../utils/stand-place"
+import { revealShift } from "../stand/stand-place"
 import { fitZoom, type ViewAt } from "../zoom"
 
 // 物の周りに残す表示領域の余白（px）。マークポインタのずらし（スタンドと端のすき間 STAND_MARGIN）より広く取り、見せた物が表示領域の端に付かないようにする

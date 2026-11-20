@@ -277,12 +277,32 @@ export interface PluginKit<P extends string, M extends MessageMap> {
   ) => DialogDef<A> & { id: Owned<P, Id> }
 }
 
+// 文言だけの組: プラグインの id と、頭を付けた文言の表と、短い鍵から本当の鍵を返す message。定義の関数は持たない（定義を足さない所が文言を引くため）
+export interface PluginMessages<P extends string, M extends MessageMap> {
+  id: P
+  messages: OwnedMessages<P, M>
+  message<const K extends keyof M & string>(key: K): Owned<P, K>
+}
+
+export function pluginMessages<const P extends string, const M extends MessageMap>(
+  plugin: P,
+  messages: M,
+): PluginMessages<P, M> {
+  return {
+    id: plugin,
+    messages: Object.fromEntries(Object.entries(messages).map(([k, t]) => [`${plugin}:${k}`, t])) as OwnedMessages<
+      P,
+      M
+    >,
+    message: <const K extends keyof M & string>(key: K) => `${plugin}:${key}` as Owned<P, K>,
+  }
+}
+
 export function pluginKit<const P extends string, const M extends MessageMap = Record<never, never>>(
   plugin: P,
   messages: M = {} as M,
 ): PluginKit<P, M> {
-  const ownMessages = Object.fromEntries(Object.entries(messages).map(([k, t]) => [`${plugin}:${k}`, t]))
-  const message = (key: string) => `${plugin}:${key}`
+  const { messages: ownMessages, message } = pluginMessages(plugin, messages)
   // テーマキーの宣言（短い名前か、kit.name で頭を付けた id）
   const tokens = (defs: readonly TokenDef[]): TokenDef[] =>
     defs.map(t => (t.id.includes(":") ? t : { ...t, id: owned(plugin, t.id) }))

@@ -2,11 +2,11 @@
 // 基準の時刻 now は描いたときの時刻で、時間が経っても描き直さない（ダイアログなど、開くたびに描くものに使う）
 
 import { useMessages } from "../../../ui/i18n"
-import { kit } from "../kit"
 import { type Elapsed, elapsedOf } from "./elapsed"
+import { UTILS_TEXT } from "./messages"
 
 export function useElapsed(): (then: string | Date) => string {
-  const t = useMessages(kit)
+  const t = useMessages(UTILS_TEXT)
   const now = new Date()
   const text = (e: Elapsed): string => {
     switch (e.unit) {

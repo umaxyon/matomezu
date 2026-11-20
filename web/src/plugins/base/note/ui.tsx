@@ -1,9 +1,9 @@
 // 伝言の見た目のウィジェット: ブックのレイヤーに置き、開いているブックの伝言をスタンドで出す。右サイドパネルには伝言の文を出す
 import { defineWidget } from "../../../ui/layout"
+import { defineCornerStatus } from "../corner-status/corner"
 import { kit } from "../kit"
 import { defineAnnotationIcon } from "../outbox/ui"
 import { RIGHT_SIDE_PANEL } from "../right-side-panel/slots"
-import { defineCornerStatus } from "../utils/corner"
 import { BOOK_LAYERS } from "../workspace/slots"
 import { NOTE } from "."
 import { FoldedLook, NoteIcon, NoteLayer, ReadCheckLook } from "./NoteLayer"

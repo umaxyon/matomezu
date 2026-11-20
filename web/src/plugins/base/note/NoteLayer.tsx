@@ -3,7 +3,7 @@
 // 吹き出しは右に入らなくても左に回さず、物に重ねもしない。いつもの位置（尾の先が物の右の端）のまま、置ける範囲の右の端に押されて幅を縮める。
 // BUBBLE_MIN_W まで縮めても入らなければ、物が見える所の外に出たのと同じに、縁のマークポインタにする。
 // AI が読んだ伝言は、吹き出しも絵も出さず、物の右上の角に緑の丸のチェックを出す（吹き出しを出すかのデータは変えない）。
-// 角の絵とチェックは、角に出すほかの物（マークなど）と一緒に角のスタンドにまとまる（utils/corner.tsx。2 つ以上なら、乗せると広がる吹き出しから 1 つずつ選ぶ）。
+// 角の絵とチェックは、角に出すほかの物（マークなど）と一緒に角のスタンドにまとまる（corner-status/corner.tsx。2 つ以上なら、乗せると広がる吹き出しから 1 つずつ選ぶ）。
 // 角の中の並びは、マークの後に、たたんだ伝言、既読の伝言の順で、それぞれ付けた時点の新しい順。
 // 付けた物の上の辺が見える所の外に出たら、吹き出しか絵かチェックの代わりにマークポインタを縁に出し、押すと付けた物を見せる（読まれていない伝言は丸の中に伝言の絵、読まれた伝言は緑の丸のチェック）。
 // 吹き出しか絵かチェックを押すと、右サイドパネルにその伝言を出す（付けた先を選び、吹き出しの物をカレントにする。吹き出しを出すかのデータは変えない）。
@@ -16,7 +16,7 @@ import type { MouseEvent, ReactNode } from "react"
 import { useMessages } from "../../../ui/i18n"
 import { useReadStageHere } from "../../../ui/scope"
 import { useActions, useAllowed } from "../../../ui/view-hooks"
-import { useAnnotationsOf, usePerformOrToast } from "../annotation-hooks"
+import { AtCorner, useAtCornerBubble } from "../corner-status/corner"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
 import {
@@ -26,12 +26,12 @@ import {
   useRightSidePanel,
 } from "../right-side-panel/hooks"
 import { pointedSelection } from "../right-side-panel/state"
+import { Ask, type AskItem } from "../stand/Ask"
+import { StandAt, useStandAway, useStandFacing } from "../stand/anchors"
+import { StandPointer } from "../stand/StandPointer"
+import { facingY } from "../stand/stand-place"
 import { clampChars } from "../text/text"
-import { Ask, type AskItem } from "../utils/Ask"
-import { StandAt, useStandAway, useStandFacing } from "../utils/anchors"
-import { AtCorner, useAtCornerBubble } from "../utils/corner"
-import { StandPointer } from "../utils/StandPointer"
-import { facingY } from "../utils/stand-place"
+import { useAnnotationsOf, usePerformOrToast } from "../utils/annotation-hooks"
 import { modPressed } from "../utils/ui"
 import { NOTE, NOTE_REMOVE, NOTE_UPDATE, type NoteProps } from "."
 import { NoteBirds } from "./NoteBirds"
@@ -210,7 +210,7 @@ function FoldedNote({ id, anchors, props }: NoteViewProps) {
 // 乗せて出す問い: hide は「隠す」（吹き出し）、showOrRemove は「表示」「消す」（たたんだ伝言の絵）。変えられない物は出さない
 function useNoteAsks(note: string, kind: "hide" | "showOrRemove"): AskItem[] {
   const t = useMessages(kit)
-  const run = usePerformOrToast("The note was refused")
+  const run = usePerformOrToast(kit.message("The note was refused"))
   const updatable = useAllowed(NOTE_UPDATE.id).ok
   const removable = useAllowed(NOTE_REMOVE.id).ok
   const bubble = (on: boolean): AskItem => ({

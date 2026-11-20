@@ -5,7 +5,7 @@ import { useEffect } from "react"
 import type { Point } from "../../../core/geom"
 import { useSetPluginState } from "../../../ui/view-hooks"
 import { kit } from "../kit"
-import { anchorOf } from "../utils/anchors"
+import { anchorOf } from "../stand/anchors"
 import { PRESSED_ANCHOR, type PressedAnchor } from "./states"
 
 // 窓の右クリックを先に受けて、押した物のアンカーと位置を覚える（置き場のウィジェットが描いている間）

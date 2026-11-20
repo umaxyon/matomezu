@@ -1,8 +1,8 @@
 // ステージの見た目: ブックの中身を描く枠とレイヤー（紙の面・印刷区画の区切り・プレゼンテーションのビュー・スタンド）、閉じるボタン、ステージのコマンドのアイコン
 import { defineWidget } from "../../../ui/layout"
+import { CORNER_STATUSES } from "../corner-status/corner"
 import { kit } from "../kit"
-import { StandLayer } from "../utils/anchors"
-import { CORNER_STATUSES } from "../utils/corner"
+import { StandLayer } from "../stand/anchors"
 import { BOOK_LAYERS, SHEET_LAYERS, STAGE_BODY } from "../workspace/slots"
 import { STAGE_SLOTS } from "../workspace/ui"
 import { BackgroundBand, BackgroundButton, BackgroundPrintControl } from "./BackgroundParts"

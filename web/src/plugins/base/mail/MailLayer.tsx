@@ -10,7 +10,7 @@ import { BIRD_IDS, type Bird } from "../birds"
 import { pickBird } from "../birds/assign"
 import { BirdWalk, birdClass } from "../birds/BirdWalk"
 import { kit } from "../kit"
-import { AnchorFrame, StandAt } from "../utils/anchors"
+import { AnchorFrame, StandAt } from "../stand/anchors"
 import { type BirdVisit, useBirdVisit, useClearBirdVisit } from "./bird-visit"
 import styles from "./MailLayer.module.css"
 

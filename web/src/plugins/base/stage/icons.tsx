@@ -1,5 +1,5 @@
 // ステージのコマンドのアイコン
-import { icon } from "../icon"
+import { icon } from "../utils/icon"
 import { STAGE_SPLIT, STAGE_UNSPLIT } from "."
 
 const SPLIT = icon(

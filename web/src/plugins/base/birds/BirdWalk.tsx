@@ -6,8 +6,8 @@
 // 動きを減らす設定（prefers-reduced-motion）では、鳥は降りた所で正面を向いたまま動かず、飛び去るときはすぐ消える（立ち寄るなら、立ち寄る間だけ出す）
 import { type CSSProperties, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react"
 import type { Point } from "../../../core/geom"
-import { useStandAway, useStandShape } from "../utils/anchors"
-import { STAND_MARGIN } from "../utils/stand-place"
+import { useStandAway, useStandShape } from "../stand/anchors"
+import { STAND_MARGIN } from "../stand/stand-place"
 import type { Bird } from "."
 import styles from "./BirdWalk.module.css"
 import {

@@ -1,11 +1,11 @@
-// 物の右上の角に出す物の並べ方と、コーナーステータスの並び（utils/corner-order.ts）
+// 物の右上の角に出す物の並べ方と、コーナーステータスの並び（corner-status/corner-order.ts）
 import { expect, test } from "bun:test"
 import {
   type CornerEntry,
   cornersByAnchor,
   movedStatus,
   statusOrder,
-} from "../../../web/src/plugins/base/utils/corner-order"
+} from "../../../web/src/plugins/base/corner-status/corner-order"
 
 test("角に出す物は物ごとに分け、コーナーステータスの並びで先の物が先、同じコーナーステータスなら at の新しい物が先、同じなら後に登録した物が先。並びに無い物は後ろ。物の順は最初に登録された順", () => {
   const entry = (anchor: string, status: string, at: string, seq: number): CornerEntry => ({
