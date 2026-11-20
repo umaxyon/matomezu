@@ -124,7 +124,7 @@ const liveOf = (v: { model?: string | undefined; branch?: string | undefined }):
 const openedOf = (stage: Stage) => {
   const opened = stage.opened
   return {
-    book: opened?.book ?? null,
+    book: opened?.outermost ?? null,
     page: opened && "page" in opened ? (opened.page ?? null) : null,
     mode: stage.mode.kind,
   }

@@ -15,7 +15,7 @@ import { useEditLock } from "../utils/useEditLock"
 export function DialogHost() {
   const dialog = useMatomezuState(s => s.dialog)
   const opened = useMatomezuState(s => (s.dialog ? stageIn(s.window, s.dialog.stage)?.opened : undefined) ?? null)
-  const book = useMatomezuState(s => (opened ? s.books[opened.book] : undefined))
+  const book = useMatomezuState(s => (opened ? s.books[opened.outermost] : undefined))
   const { closeDialog } = useStoreActions()
   const ui = useUiCatalog()
   const dialogs = useCatalog().store.dialogs

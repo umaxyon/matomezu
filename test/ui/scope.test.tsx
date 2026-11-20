@@ -244,7 +244,7 @@ test("同じ物をステージの中に置けば、ステージが開いてい�
     ),
   )
   expect(seen.now).toMatchObject({ page: "py", command: true, screenCommand: true })
-  expect(seen.now?.stage?.opened).toMatchObject({ book: "y", page: "py" })
+  expect(seen.now?.stage?.opened).toMatchObject({ outermost: "y", page: "py" })
   act(() => container.querySelector<HTMLElement>("[data-probe]")!.click())
   const stage = screenOf(instance.state.getState().window).stages[0]!
   expect(stage.selection).toEqual(["a"])

@@ -40,7 +40,7 @@ const typeOf = (e: LineupEntry): string | undefined =>
 
 export function PageTabs() {
   const opened = useStageHere(st => st?.opened)
-  const book = useMatomezuState(s => (opened ? s.books[opened.book] : undefined))
+  const book = useMatomezuState(s => (opened ? s.books[opened.outermost] : undefined))
   const openPage = useCommand(PAGE_OPEN.id)
   const openBinder = useCommand(BINDER_OPEN.id)
   const openMenu = useContextMenu(PAGE_CONTEXT)

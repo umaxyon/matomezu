@@ -458,15 +458,15 @@ describe("store", () => {
 
   test("最初のエントリが読めないページなら、ブックを開くとそれを開く（kind が unreadable で、見せるページは無い）。ページを開くでも開け、ほかのページが変わっても開いたまま", async () => {
     const store = newStore({ books: [], savedBooks: [saved] })
-    expect(stageOf(store)?.opened).toEqual({ kind: "unreadable", book: "b1", page: "u1" })
+    expect(stageOf(store)?.opened).toEqual({ kind: "unreadable", outermost: "b1", page: "u1" })
     expect(shownPageId(stageOf(store)?.opened ?? null)).toBeNull()
     store.actions.openPage("s1", "p1")
     expect(stageOf(store)?.opened?.kind).toBe("page")
     store.actions.openPage("s1", "u2")
-    expect(stageOf(store)?.opened).toEqual({ kind: "unreadable", book: "b1", page: "u2" })
+    expect(stageOf(store)?.opened).toEqual({ kind: "unreadable", outermost: "b1", page: "u2" })
     expect(store.actions.perform("@matomezu/base:page-update", { title: "改" }, { page: "p1" }).ok).toBe(true)
     await settled()
-    expect(stageOf(store)?.opened).toEqual({ kind: "unreadable", book: "b1", page: "u2" })
+    expect(stageOf(store)?.opened).toEqual({ kind: "unreadable", outermost: "b1", page: "u2" })
   })
 
   test("タイプが機能台帳に無いバインダの中の読めないページを開いても、どのコマンドも出すかを問える（タイプの無いバインダで投げない）", () => {
@@ -476,7 +476,7 @@ describe("store", () => {
     ])
     const store = newStore({ books: [], savedBooks: [book] })
     store.actions.openPage("s1", "q1")
-    expect(stageOf(store)?.opened).toEqual({ kind: "unreadable", book: "c", page: "q1" })
+    expect(stageOf(store)?.opened).toEqual({ kind: "unreadable", outermost: "c", page: "q1" })
     for (const id of store.catalog.store.commands.keys())
       expect(() => isShown(store, store.state.getState(), "s1", id as never)).not.toThrow()
   })

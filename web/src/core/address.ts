@@ -84,7 +84,7 @@ function stagesPlaceOf(ws: Workspace, states: (stage: string) => Readonly<Record
     places: ws.stages.map(s => {
       const view = s.mode.kind === "print-preview" ? s.mode.back : s
       return {
-        book: s.opened?.book ?? null,
+        book: s.opened?.outermost ?? null,
         // 読めないページを開いていれば、その id（読み直しても、同じ読めないページを開く）
         page: s.opened?.kind === "unreadable" ? s.opened.page : shownPageId(s.opened),
         binder: s.opened?.kind === "binder" ? s.opened.binder : null,

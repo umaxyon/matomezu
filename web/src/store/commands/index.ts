@@ -127,7 +127,7 @@ export function commandContext(
 ): CommandContext | null {
   const stage = stageIn(state.window, stageId)
   if (!stage) return null
-  const book = (stage.opened && state.books[stage.opened.book]) || NO_BOOK
+  const book = (stage.opened && state.books[stage.opened.outermost]) || NO_BOOK
   const page = shownPageId(stage.opened)
   const workspace = workspaceOf(state.window, stageId)
   const screen = screenOfStage(state.window, stageId) ?? currentScreen(state.window)

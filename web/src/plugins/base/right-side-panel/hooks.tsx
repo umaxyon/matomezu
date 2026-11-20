@@ -72,7 +72,7 @@ export function useOpenRightSidePanelAt(): (
       const now = stageIn(window, stage)
       const opened = now?.opened
       if (!now || !opened) return
-      const panel = { ...open, book: opened.book, page: shownPageId(opened) }
+      const panel = { ...open, book: opened.outermost, page: shownPageId(opened) }
       setStates(
         restore === "back"
           ? [

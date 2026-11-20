@@ -44,7 +44,7 @@ test("場所を当てはめると、そのとおりにステージを開いて�
     ),
   )
   const ws = screenOf(win)
-  expect(ws.stages.map(s => s.opened?.book ?? null)).toEqual(["b3", null])
+  expect(ws.stages.map(s => s.opened?.outermost ?? null)).toEqual(["b3", null])
   expect(ws.current).toBe(ws.stages[1]!.id)
   expect(ws.arrangement.share).toBe(0.85)
   // ステージの番号は使い回さず、足したステージには新しい番号
@@ -57,7 +57,7 @@ test("無いブックを名指すステージは開かない。全部がそう�
   const place = (book: string) => ({ book, page: null, binder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} })
   const on = (address: Address) => placeAt(catalog.core, state.getState().books, state.getState().window, address)
   const one = on(at([place("gone"), place("b3")], 0))
-  expect(screenOf(one).stages.map(s => s.opened?.book)).toEqual(["b3"])
+  expect(screenOf(one).stages.map(s => s.opened?.outermost)).toEqual(["b3"])
   expect(recentBookScreen(on(at([place("gone")])))).toBeUndefined()
 })
 

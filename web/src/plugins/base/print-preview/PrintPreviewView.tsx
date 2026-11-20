@@ -171,7 +171,7 @@ export function PrintPreviewView() {
   useEffect(() => {
     if (!crossing || !opened) return
     closePrintPreview(id)
-    openPanel(id, printCheckOpen(opened.book))
+    openPanel(id, printCheckOpen(opened.outermost))
   }, [crossing, id, opened, closePrintPreview, openPanel])
   useEffect(() => {
     if (crossing) return
@@ -179,7 +179,11 @@ export function PrintPreviewView() {
     else if (seen.current) closePrintPreview(id)
     // 閉じたときに戻す見え方は印刷プレビューが持つので、右サイドパネルの戻しは使わない
     else if (opened)
-      openPanel(id, { widget: PRINT_PREVIEW_PANEL_ID, subject: opened.book, anchors: [], current: opened.book }, "none")
+      openPanel(
+        id,
+        { widget: PRINT_PREVIEW_PANEL_ID, subject: opened.outermost, anchors: [], current: opened.outermost },
+        "none",
+      )
   }, [crossing, shown, id, opened, closePrintPreview, openPanel])
   // ダブルクリックは、ずらすドラッグでステージがポインタをつかむので、ステージで受けて押した所の印刷区画を探す
   const ref = useRef<HTMLDivElement>(null)

@@ -60,15 +60,15 @@ const make = () =>
 test("取り込んだ追加プラグインを use で足すと組み直し、作ったときに渡したブックを新しい台帳で読み直す（足す前は読めないページだったページが、読めるページになり、開いていたステージもそのページを開く）", () => {
   const instance = make()
   expect(instance.state.getState().books.n1?.lineup as unknown).toEqual([unreadableNote])
-  expect(openedOf(instance)).toEqual({ kind: "unreadable", book: "n1", page: "p1" }) // 足す前は、ページが読めない
+  expect(openedOf(instance)).toEqual({ kind: "unreadable", outermost: "n1", page: "p1" }) // 足す前は、ページが読めない
   expect(instance.state.getState().partial.map(w => w.code)).toEqual(["W027"])
-  expect(openedOf(instance)).toEqual({ kind: "unreadable", book: "n1", page: "p1" })
+  expect(openedOf(instance)).toEqual({ kind: "unreadable", outermost: "n1", page: "p1" })
   expect(instance.use([notes])).toEqual({ failed: [] })
   expect(instance.catalog.core.actions.has("notes:rename")).toBe(true)
   expect(instance.plugins.at(-1) as unknown).toBe(notes)
   expect(instance.state.getState().books.n1 as unknown).toEqual(saved)
   expect(instance.state.getState().partial).toEqual([])
-  expect(openedOf(instance)).toMatchObject({ kind: "page", book: "n1", page: "p1", type: "notes:note" })
+  expect(openedOf(instance)).toMatchObject({ kind: "page", outermost: "n1", page: "p1", type: "notes:note" })
   const perform = instance.actions.perform as unknown as (id: string, args: unknown, on: { book: string }) => unknown
   expect(perform("notes:rename", { page: "p1", title: "新" }, { book: "n1" })).toEqual({ ok: true, result: {} })
 })
@@ -80,7 +80,7 @@ test("台帳アセンブルで食い違う追加プラグインは外して、�
   expect(failed.map(f => f.id)).toEqual(["bad"])
   expect(instance.catalog.core.actions.has("notes:rename")).toBe(false)
   expect(instance.state.getState().books.n1?.lineup as unknown).toEqual([unreadableNote])
-  expect(openedOf(instance)).toEqual({ kind: "unreadable", book: "n1", page: "p1" })
+  expect(openedOf(instance)).toEqual({ kind: "unreadable", outermost: "n1", page: "p1" })
   expect(instance.use([broken, notes]).failed.map(f => f.id)).toEqual(["bad"])
   expect(instance.catalog.core.actions.has("notes:rename")).toBe(true)
 })

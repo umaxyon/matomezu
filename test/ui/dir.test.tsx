@@ -16,7 +16,7 @@ function setup() {
   act(() => {
     expect(createBookIn(store, "s1", { title: "構成" })).toBe(true)
   })
-  const id = (screenOf(store.state.getState().window).stages[0]!.opened as { book: string }).book
+  const id = (screenOf(store.state.getState().window).stages[0]!.opened as { outermost: string }).outermost
   const book = () => store.state.getState().books[id]!
   const perform = (action: string, args: unknown, on: { book: string } | { page: string } = { book: id }) => {
     let done: ReturnType<typeof store.actions.perform> | undefined

@@ -37,7 +37,7 @@ const markdownStore = (options: Parameters<typeof newStore>[0] = {}) => {
   const store = newStore(options)
   createBookIn(store, "s1", { title: "メモ" })
   addPageIn(store, "s1", { type: "@matomezu/markdown:markdown", title: "ページ 1" })
-  const id = screenOf(store.state.getState().window).stages[0]!.opened!.book
+  const id = screenOf(store.state.getState().window).stages[0]!.opened!.outermost
   const book = () => store.state.getState().books[id] as Book
   return { store, id, book }
 }

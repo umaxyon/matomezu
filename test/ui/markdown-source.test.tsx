@@ -35,7 +35,7 @@ function setup() {
     createBookIn(store, "s1", { title: "メモ" })
     addPageIn(store, "s1", { type: "@matomezu/markdown:markdown", title: "ページ 1" })
   })
-  const id = (screenOf(store.state.getState().window).stages[0]!.opened as { book: string }).book
+  const id = (screenOf(store.state.getState().window).stages[0]!.opened as { outermost: string }).outermost
   const book = () => store.state.getState().books[id] as Book
   const text = () => (pagesOf(book())[0] as { text?: string }).text ?? ""
   const field = () => within(screen.getByRole("region", { name: "ソース" })).getByRole("textbox") as HTMLTextAreaElement
