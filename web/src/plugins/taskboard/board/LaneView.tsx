@@ -7,7 +7,6 @@ import { MaximizeIcon, RestoreIcon, SortIcon } from "../icons"
 import { kit } from "../kit"
 import { LANE_SETTLE_MS } from "../motion"
 import type { useGripDrag } from "../reorder/useGripDrag"
-import scroll from "../scrollbar.module.css"
 import { assigneesOf } from "../ticket/assignees"
 import { tagsOf } from "../ticket/tags"
 import { LANE_SORTS } from "."
@@ -108,7 +107,7 @@ export function LaneView({
           <SortTray rules={rules} opener={opener} onChange={setRules} onClose={() => setTrayOpen(false)} />
         ) : null}
       </div>
-      <div className={`${styles.cards} ${scroll.thin}`} data-wrap={maximized && !settling} data-settling={settling}>
+      <div className={styles.cards} data-wrap={maximized && !settling} data-settling={settling}>
         {sortTickets(
           tickets,
           rules,

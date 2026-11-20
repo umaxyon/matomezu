@@ -88,7 +88,8 @@ test("ミニマップと印刷区画の既定は、ページの slide の形も�
     props: { to: { x: 1, y: 0.5 } },
   }
   const text = { id: "t", item: TEXT, x: 5, y: 6, w: 40, h: 30, props: { text: "a" } }
-  const p = { ...page, slide: [ellipse, line, text] } as never
+  const rectangle = { id: "r", item: "@matomezu/slide:slide-rectangle", x: 30, y: 40, w: 60, h: 20, props: {} }
+  const p = { ...page, slide: [ellipse, line, text, rectangle] } as never
   expect(
     itemMinimapMarks(CORE_CATALOG, p, { setting: () => undefined as never, grow: undefined, drawn: () => undefined }),
   ).toEqual([
@@ -101,6 +102,7 @@ test("ミニマップと印刷区画の既定は、ページの slide の形も�
       ],
     },
     { kind: "rect", x: 5, y: 6, w: 40, h: 30 },
+    { kind: "rect", x: 30, y: 40, w: 60, h: 20 },
   ])
   expect(filledSheets(CORE_CATALOG, { ...page, slide: [text] } as never)?.size).toBe(1)
   expect(filledSheets(CORE_CATALOG, { ...page, slide: [] } as never)?.size).toBe(0)

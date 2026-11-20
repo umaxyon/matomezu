@@ -8,7 +8,6 @@ import { kit } from "../kit"
 import { PROJECT } from "../project"
 import { PROJECT_UPDATE } from "../project/actions"
 import { useOpenProjectSettings } from "../project-settings/useOpenProjectSettings"
-import scroll from "../scrollbar.module.css"
 import { TICKET } from "../ticket"
 import { TICKET_FILTER } from "../wide-search"
 import { FilterIndicator } from "../wide-search/FilterIndicator"
@@ -43,7 +42,7 @@ export function TaskboardView() {
 
   if (ordered.length === 0) return <p className={styles.empty}>{t("No projects")}</p>
   return (
-    <div ref={setRoot} className={`${styles.root} ${scroll.thin}`}>
+    <div ref={setRoot} className={styles.root}>
       {rendered.map(project => {
         const phase = phases[project.id] ?? "idle"
         const hidden = maximized !== undefined && maximized.board !== project.id
