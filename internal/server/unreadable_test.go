@@ -388,3 +388,50 @@ func TestAnUnreadableBookLeftInTheLibraryIsHiddenFromAI(t *testing.T) {
 		t.Fatalf("the warnings = %v", h.Warnings())
 	}
 }
+
+// 書庫を整えるのに失敗している間（ここでは、読めない物のフォルダの行が形に合わない）は、warning W033 を 1 つ持ち、actions に出す。整えられたら消える
+func TestAFailedSettleIsAWarningUntilItSucceeds(t *testing.T) {
+	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { store.Close() })
+	putBook(t, store, boxed)
+	folders, err := store.Folders()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var base int64
+	for _, f := range folders {
+		if f.ID == storage.UnreadableID {
+			base = f.Version
+		}
+	}
+	broken := json.RawMessage(`{"folderRole":"unreadable","id":"` + storage.UnreadableID + `","lineup":"bad"}`)
+	if err := store.Apply(storage.Batch{Folders: []storage.RowWrite{{ID: storage.UnreadableID, Base: base, Body: broken}}}); err != nil {
+		t.Fatal(err)
+	}
+	s, h := newServerOn(t, Options{}, store)
+	failed := func() []string {
+		return slices.DeleteFunc(h.Warnings(), func(l string) bool { return !strings.HasPrefix(l, "W033") })
+	}
+	if got := failed(); len(got) != 1 || !strings.Contains(got[0], "the unreadable folder does not fit its shape") {
+		t.Fatalf("the warnings = %v", h.Warnings())
+	}
+	if _, body := get(t, s.URL+"/api/ai/catalog", "secret"); !strings.Contains(body, "W033") {
+		t.Fatalf("actions = %s", body)
+	}
+	h.mu.Lock()
+	whole := storage.UnreadableBody(nil)
+	version := h.folders[storage.UnreadableID].version
+	err = store.Apply(storage.Batch{Folders: []storage.RowWrite{{ID: storage.UnreadableID, Base: version, Body: whole}}})
+	h.folders[storage.UnreadableID] = newFolderRow(whole, version+1)
+	h.settleLibrary(true)
+	h.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := failed(); len(got) != 0 {
+		t.Fatalf("the warning stays after the settle succeeds: %v", got)
+	}
+}

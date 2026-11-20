@@ -50,22 +50,24 @@ func (h *Hub) allRows() (pages, folders []json.RawMessage) {
 
 // settleLibrary は、書庫を今の機能台帳に合わせて整える: 読めない物を読めない物のフォルダへ移し、読めるようになった物を在った所へ戻す（1 回の書き込みで。触れた時刻は残さない）。
 // quiet なら窓に知らせない（起動の途中・窓が読み直す所）。そうでなければ、変えた行を changed で知らせる。
-// 移した・戻した・名前に番号を付けた物と、読めない物の warning（W032）が変わったときは、常駐のログに書く。失敗は止めず、ログに書く（h.mu を持って呼ぶか、起動の途中で呼ぶ）
+// 移した・戻した・名前に番号を付けた物と、読めない物の warning（W032）が変わったときは、常駐のログに書く。失敗は止めず、失敗している間は warning（W033）を持つ
+// （h.mu を持って呼ぶか、起動の途中で呼ぶ）
 func (h *Hub) settleLibrary(quiet bool) {
 	pages, folders := h.allRows()
 	done, err := h.engine.SettleLibrary(pages, folders, h.settings, stamp())
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "engine: could not move the unreadable things:", err)
+		h.holdSettleFailure("engine", err)
 		return
 	}
 	if done.Broken {
-		fmt.Fprintln(os.Stderr, "the unreadable folder", storage.UnreadableID, "does not fit its shape; nothing is moved to it or back from it")
+		h.holdSettleFailure("broken", nil)
 		return
 	}
 	if err := h.writeUnreadable(done.Pages, done.Folders, quiet); err != nil {
-		fmt.Fprintln(os.Stderr, "could not write the unreadable things:", err)
+		h.holdSettleFailure("write", err)
 		return
 	}
+	h.settleWarning = ""
 	for _, m := range done.Moved {
 		fmt.Fprintln(os.Stderr, "moved to the unreadable folder:", m.ID, m.Code)
 	}
@@ -127,6 +129,22 @@ func (h *Hub) writeUnreadable(pages, folders []engine.RowChange, quiet bool) err
 }
 
 // holdUnreadableWarning は、読めない物の warning（W032 の 1 行。無ければ空）を持ち、変わったら常駐のログに書く（h.mu を持って呼ぶ）
+// holdSettleFailure は、書庫を整えるのに訳 reason（"engine"・"broken"・"write"。err はその誤り、無ければ nil）で失敗した事の warning（W033）を持つ。
+// 変わったときは、常駐のログに warning と誤りを書く（h.mu を持って呼ぶか、起動の途中で呼ぶ）
+func (h *Hub) holdSettleFailure(reason string, err error) {
+	line, lineErr := h.engine.SettleFailed(reason)
+	if lineErr != nil {
+		line = "W033 : " + reason
+	}
+	if line != h.settleWarning {
+		fmt.Fprintln(os.Stderr, "warning:", line)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "  ", err)
+		}
+	}
+	h.settleWarning = line
+}
+
 func (h *Hub) holdUnreadableWarning(line string) {
 	if line != "" && line != h.unreadableWarning {
 		fmt.Fprintln(os.Stderr, "warning:", line)

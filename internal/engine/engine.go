@@ -204,6 +204,7 @@ type Engine struct {
 	sysFolders  func() string
 	sysInPlace  func(string, string, string) bool
 	settle      func(string, string, string, string) string
+	settleFail  func(string) string
 	purge       func(string, string, string) string
 	records     func(string) string
 	joinedMsg   func(string, string) string
@@ -343,6 +344,9 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuSettleLibrary"), &e.settle); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuSettleLibrary: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuSettleFailed"), &e.settleFail); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuSettleFailed: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuPurgedRows"), &e.purge); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuPurgedRows: %w", err)
@@ -963,6 +967,18 @@ func (e *Engine) SettleLibrary(pages, folders []json.RawMessage, settings json.R
 	}()
 	err = json.Unmarshal([]byte(e.settle(string(p), string(f), string(settings), now)), &out)
 	return out, err
+}
+
+// SettleFailed は、書庫を整えるのに失敗した訳 reason（"engine"・"broken"・"write"）の warning W033 の 1 行
+func (e *Engine) SettleFailed(reason string) (line string, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	return e.settleFail(reason), nil
 }
 
 // PurgedRows は、読めない物のフォルダの直下の物 id を完全に消す行の変わり（その中の物の行も。ほかのフォルダも持つ行は消さない）と、そのあとの warning W032 の 1 行。

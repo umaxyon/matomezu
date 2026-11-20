@@ -33,7 +33,7 @@ func (h *Hub) SetWindowWarnings(clientID string, warnings json.RawMessage) (bool
 	return true, nil
 }
 
-// Warnings は今の warning の 1 行ずつ: 定義の warning、書庫の木の決まりが破れている warning、warning のあるブック（ブックの並びの順）、
+// Warnings は今の warning の 1 行ずつ: 定義の warning、書庫の木の決まりが破れている warning、読めない物のフォルダの warning、書庫を整えるのに失敗している warning、warning のあるブック（ブックの並びの順）、
 // 効かないアノテーション、窓が見つけた warning（同じ 1 行は 1 つ）
 func (h *Hub) Warnings() []string {
 	h.mu.Lock()
@@ -45,6 +45,9 @@ func (h *Hub) Warnings() []string {
 	// 読めない物のフォルダに移った物は、1 つずつの warning を出さず、件数の warning 1 つだけ
 	if h.unreadableWarning != "" {
 		out = append(out, h.unreadableWarning)
+	}
+	if h.settleWarning != "" {
+		out = append(out, h.settleWarning)
 	}
 	for _, id := range h.order {
 		if h.inUnreadable(id) {

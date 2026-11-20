@@ -145,6 +145,8 @@ type Hub struct {
 	libraryWarning string
 	// unreadableWarning は、読めない物のフォルダに物が在れば、その warning（W032）の 1 行（無ければ空。unreadable.go）
 	unreadableWarning string
+	// settleWarning は、書庫を整える（読めない物を移す・戻す）のに失敗している間の warning（W033）の 1 行（失敗していなければ空。unreadable.go）
+	settleWarning string
 	// 効かないレコード（種類が無い W024・形が合わない W025。郵便は種類が無い W022・形が合わない W023）の warning の 1 行ずつ（レコードごと）。
 	// 起動したとき・プラグインが変わったときに全部、アクションがレコードを変えたときに変えたレコードだけを確かめ直す（records.go）
 	recordLines map[recordKey][]string

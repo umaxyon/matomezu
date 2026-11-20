@@ -33,6 +33,7 @@ export const WARNINGS = {
   W030: "the library: its home and folders break the rules of the tree (kept as they are; actions on the library are refused)",
   W031: "key {key} in {scope} for {command}: the key scope is not in the catalog (not used)",
   W032: "the library: {count} thing(s) cannot be read now and are kept in the unreadable folder, out of the library ({reasons}); they come back when they can be read",
+  W033: "the library: the unreadable things could not be moved to or back from the unreadable folder ({reason}); actions on the library are refused until that is fixed",
 } as const
 
 export type WarningCode = keyof typeof WARNINGS
