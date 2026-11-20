@@ -94,7 +94,7 @@ export function MarkdownView() {
   const setScrolls = useSetPluginState(kit, SCROLL_STATE)
   const memory = useScrollMemory(page?.id, scrolls, next => setScrolls(next), source, rendered)
   if (!page || !book) return null
-  const width = paperSize(catalog, page)?.w
+  const width = paperSize(catalog, page).w
   // ソースのペインのスクロールに、描いた文書のペインを付いて行かせる（片方だけ見せている間は、描いた文書のペインが無い）
   const follow = () => {
     const [from, to] = [source.current, rendered.current]

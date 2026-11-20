@@ -105,17 +105,10 @@ export function BookContentLayer() {
   )
 }
 
-// 紙の知らせとビュー view: 表に無い紙なら紙の左上に印（ビューの下に重ねる）、描けない紙なら真ん中に文（ビューの上に重ねる）。
-// どちらもポインタは受けない（右クリックなどはビューが受ける）。紙を置かないプレゼンテーション（paper が null）には出さない
+// 紙の知らせとビュー view: 表に無い紙なら紙の左上に印（ビューの下に重ねる。ポインタは受けず、右クリックなどはビューが受ける）。
+// 紙を置かないプレゼンテーション（paper が null）には出さない
 function PaperNotice({ stage, paper, view }: { stage: StageView; paper: ResolvedPaper | null; view: ReactNode }) {
   const t = useMessages(kit)
-  if (paper?.status === "unshowable")
-    return (
-      <>
-        {view}
-        <p className={styles.unshowable}>{t("This paper cannot be shown")}</p>
-      </>
-    )
   if (paper?.status !== "unknown") return view
   return (
     <>

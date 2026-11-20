@@ -346,7 +346,7 @@ test("編集の道具の間は、選んでいる節（初めは根）に印が�
   expect(selected()).toEqual([a!.children![0]!.id])
 })
 
-test("選んでいる節の＋で空の子を足してその場で書き、Enter で確定する。Escape か空のままなら、足した子を消して親を選ぶ", () => {
+test("選んでいる節の＋で空の子を足してその場で書き、Enter で確定する。Escape か空のままなら、足した子を消して親を選ぶ", async () => {
   const { store, id, book } = setup()
   const done = addTree(store, id, { caption: "根" })
   const rootId = done.fields!.root.id
@@ -367,6 +367,14 @@ test("選んでいる節の＋で空の子を足してその場で書き、Enter
   const a = (pagesOf(book())[0] as unknown as { root: { children: { id: string; caption: string }[] } }).root
     .children[0]!
   expect(a.caption).toBe("子 A")
+  expect(selected()).toBe(a.id)
+  // 足すのと書くのは 1 つの段: 元に戻すと節ごと消え、やり直すとキャプションごと戻る
+  await act(() => Promise.resolve()) // 画面の履歴の段は、処理が終わってから入る
+  fireEvent.click(screen.getByRole("button", { name: "元に戻す", hidden: true }))
+  expect(pagesOf(book())[0]).not.toHaveProperty("root.children.0")
+  fireEvent.click(screen.getByRole("button", { name: "やり直す", hidden: true }))
+  expect(pagesOf(book())[0]).toMatchObject({ root: { children: [{ id: a.id, caption: "子 A" }] } })
+  fireEvent.pointerDown(paper().querySelector(`[data-node="${a.id}"]`)!, { button: 0 })
   expect(selected()).toBe(a.id)
   // 子には、子の＋と、前と後ろの兄弟の＋
   expect(
@@ -584,6 +592,83 @@ test("ロック中のブックでは編集の道具を使えず（斜めの線�
   })
   fireEvent.click(screen.getByRole("button", { name: "ハンドツール" }))
   expect(screen.getByRole("button", { name: "ハンドツール" })).toBeTruthy()
+})
+
+test("キャプションを書いている途中でブックがロックされると、その場の編集が終わり、外しても書いた字は戻らない", () => {
+  const { store, id, book } = setup()
+  const done = addTree(store, id, { caption: "根", children: [{ caption: "子 A" }] })
+  const a = done.fields!.root.children[0]!.id
+  const paper = () => screen.getByRole("img", { name: "紙" })
+  fireEvent.doubleClick(paper().querySelector(`[data-node="${a}"]`)!)
+  writeRich(within(paper()).getByRole("textbox"), "子 B")
+  act(() => {
+    expect(store.actions.perform("@matomezu/base:book-lock", {}, { book: id }).ok).toBe(true)
+  })
+  expect(within(paper()).queryByRole("textbox")).toBeNull()
+  act(() => {
+    expect(store.actions.perform("@matomezu/base:book-unlock", {}, { book: id }).ok).toBe(true)
+  })
+  expect(within(paper()).queryByRole("textbox")).toBeNull()
+  expect(paper().querySelector(`[data-node="${a}"]`)?.textContent).toBe("子 A")
+  fireEvent.keyDown(window, { key: "F2" })
+  expect(within(paper()).getByRole("textbox").textContent).toBe("子 A")
+  expect(pagesOf(book())[0]).toMatchObject({ root: { children: [{ id: a, caption: "子 A" }] } })
+})
+
+test("キャプションを書いている途中で確定のアクションが止められると、書いた字を捨ててその場の編集を終え、トーストで 1 回知らせる", () => {
+  let on = false
+  const kit = pluginKit("@ex/freeze", defineMessages({ freeze: { en: "Frozen", ja: "凍結" } }))
+  const freeze = definePluginUi(
+    kit.plugin({
+      permissions: [
+        kit.definePermission({
+          id: "freeze",
+          title: "freeze",
+          aiDescription: "the captions are frozen",
+          denies: ({ action }) =>
+            on &&
+            ["@matomezu/tree:node-update", "@matomezu/tree:node-remove", "@matomezu/base:page-update"].includes(
+              action.id,
+            ),
+        }),
+      ],
+    }),
+    {},
+  )
+  const { store, id, book } = setup([...BUILTIN_UI, freeze])
+  const done = addTree(store, id, { caption: "根", children: [{ caption: "子 A" }] })
+  const a = done.fields!.root.children[0]!.id
+  const paper = () => screen.getByRole("img", { name: "紙" })
+  fireEvent.doubleClick(paper().querySelector(`[data-node="${a}"]`)!)
+  writeRich(within(paper()).getByRole("textbox"), "子 B")
+  on = true
+  writeRich(within(paper()).getByRole("textbox"), "子 C") // 書き足すと、押せるかを問い直す
+  expect(within(paper()).queryByRole("textbox")).toBeNull()
+  expect(screen.getAllByRole("alert").map(t => t.textContent)).toEqual([
+    expect.stringContaining("書けなくなったので、書いた字を捨てました"),
+  ])
+  on = false
+  fireEvent.keyDown(window, { key: "F2" })
+  expect(within(paper()).getByRole("textbox").textContent).toBe("子 A")
+  expect(pagesOf(book())[0]).toMatchObject({ root: { children: [{ id: a, caption: "子 A" }] } })
+})
+
+test("消すのだけを認可ステップが止めていても、足したばかりの節の Escape はその場の編集を終える（節は消さずに残し、選びも外さない）", () => {
+  const { store, id, book } = frozen(["@matomezu/tree:node-remove"])
+  const done = addTree(store, id, { caption: "根" })
+  const rootId = done.fields!.root.id
+  const paper = () => screen.getByRole("img", { name: "紙" })
+  fireEvent.click(within(paper()).getByRole("button", { name: "子を足す" }))
+  const input = within(paper()).getByRole("textbox", { name: "キャプション" })
+  writeRich(input, "子 A")
+  fireEvent.keyDown(input, { key: "Escape" })
+  expect(within(paper()).queryByRole("textbox")).toBeNull()
+  const children = (pagesOf(book())[0] as unknown as { root: { children: { id: string; caption: string }[] } }).root
+    .children
+  expect(children.map(c => c.caption)).toEqual([""])
+  expect(paper().querySelector('[data-selected="true"]')?.getAttribute("data-node")).toBe(children[0]!.id)
+  expect(rootId).not.toBe(children[0]!.id)
+  expect(screen.queryAllByRole("alert")).toHaveLength(0)
 })
 
 // A4 横の紙で、grow の向きなら入り、ほかの向きなら入らない子の数（なるべく多く）と、grow の向きで入る一番多い数

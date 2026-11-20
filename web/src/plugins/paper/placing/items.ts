@@ -65,7 +65,7 @@ export function trackDrag(catalog: CoreCatalog, page: ItemPage, id: string, prev
 }
 
 // ドラッグ中の、同じ Frame のアイテムの四角（drag.ts の dragRects。動かすアイテムと、その場で入れ替えた相手だけが動く）。
-// 四角はデータの位置（子の形は親の左上から）。無い形・描けない紙なら null
+// 四角はデータの位置（子の形は親の左上から）。無い形なら null
 export function dragging(
   catalog: CoreCatalog,
   page: ItemPage,

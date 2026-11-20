@@ -206,6 +206,20 @@ test("Enter・F2・ダブルクリックで名前をその場で書き、Enter �
   expect(rowNames()).toEqual(["app", "src", "b.ts", "README.md"])
 })
 
+test("名前を書いている途中は、変換中の Enter では確定せず、ほかの行を押すと先に確定してからその行を選ぶ", () => {
+  const { book, perform } = setup()
+  const ids = addProject(perform)
+  fireEvent.doubleClick(row(ids.a))
+  const input = within(paper()).getByRole("textbox", { name: "名前" })
+  writeRich(input, "b.ts")
+  fireEvent.keyDown(input, { key: "Enter", isComposing: true })
+  expect(within(paper()).queryByRole("textbox", { name: "名前" })).not.toBeNull()
+  fireEvent.pointerDown(row(ids.readme), { button: 0 })
+  expect(rowNames()).toEqual(["proj", "src", "b.ts", "README.md"])
+  expect(selectedRow()).toBe(ids.readme)
+  expect(pagesOf(book())[0]).toMatchObject({ root: { children: [{ children: [{ name: "b.ts" }] }, {}] } })
+})
+
 test("d と f ですぐ下に兄弟のフォルダとファイルを足して書き始める（根では中の末尾）。空のまま終えると消す", () => {
   const { perform } = setup()
   const ids = addProject(perform)

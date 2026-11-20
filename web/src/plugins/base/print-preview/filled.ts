@@ -86,7 +86,7 @@ export function sheetShapes(
 export function filledSheets(catalog: CoreCatalog, page: ItemPage): ReadonlySet<string> | null {
   const paper = paperSize(catalog, page)
   const type = pageType(catalog, page.type)
-  if (!paper || placeableIn(type, "items").length === 0) return null
+  if (placeableIn(type, "items").length === 0) return null
   const filled = new Set<string>()
   const rects = rectsOf(catalog, page)
   for (const r of rects.values()) for (const c of sheetsOfShape(r, paper)) filled.add(sheetKey(c.column, c.row))

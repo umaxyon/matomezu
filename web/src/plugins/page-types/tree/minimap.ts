@@ -1,4 +1,4 @@
-// ツリーのページのミニマップの絵: 木を並べ（layout.ts）、親から子への線を両端を結ぶ線で、節を四角で描く（紙の座標。描けない紙と根の無いページは描かない）
+// ツリーのページのミニマップの絵: 木を並べ（layout.ts）、親から子への線を両端を結ぶ線で、節を四角で描く（紙の座標。根の無いページは描かない）
 import type { CoreCatalog, ItemPage } from "../../../plugin-api"
 import type { GrowSides, MinimapMark, SettingReader } from "../../base"
 import { laidPage } from "./print"

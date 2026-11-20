@@ -3,6 +3,7 @@ import { defineMessages } from "../../../plugin-api"
 
 export const DIR_MESSAGES = defineMessages({
   Directory: { en: "Directory", ja: "ディレクトリ構成図" },
+  "Directory editing in place": { en: "Directory editing in place", ja: "ディレクトリ構成図のその場の編集" },
   Pencil: { en: "Pencil", ja: "鉛筆" },
   "Add entries": { en: "Add entries", ja: "中身を足す" },
   "Add paths": { en: "Add paths", ja: "パスから足す" },

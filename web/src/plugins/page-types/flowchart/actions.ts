@@ -72,7 +72,6 @@ export function alignedRects(
   grows = false,
 ): Map<string, Rect> | null {
   const paper = paperSize(catalog, page)
-  if (!paper) return null
   const rects = rectsOf(catalog, page)
   const shapes = shapesOf(page).filter(s => rects.has(s.id))
   const item = new Map(

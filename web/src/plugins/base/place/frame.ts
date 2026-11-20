@@ -33,11 +33,11 @@ function childRects(catalog: CoreCatalog, parent: PlacedShape, origin: Point): M
   return rects
 }
 
-// ページ page の、形 parent の子の領域の Frame（null ならページの紙。可変ページは、空きの印刷区画を含めた広さ。roomOf）。無い形・描けない紙なら null
+// ページ page の、形 parent の子の領域の Frame（null ならページの紙。可変ページは、空きの印刷区画を含めた広さ。roomOf）。無い形なら null
 export function frameOf(catalog: CoreCatalog, page: ItemPage, parent: string | null): Frame | null {
   if (parent === null) {
     const paper = roomOf(catalog, page)
-    return paper && { parent, origin: { x: 0, y: 0 }, paper, rects: rectsOf(catalog, page) }
+    return { parent, origin: { x: 0, y: 0 }, paper, rects: rectsOf(catalog, page) }
   }
   const shape = findShape(page, parent)?.shape
   if (!shape) return null

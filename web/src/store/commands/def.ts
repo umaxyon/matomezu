@@ -207,6 +207,9 @@ interface CommandDefBase<A, Tt extends string> extends CommandExtras {
 // ステージから呼ぶコマンド（defineCommand）。呼ばれた場所のステージとブックを受け取る
 export interface StageCommandDef<A = undefined, Tt extends string = MessageKey> extends CommandDefBase<A, Tt> {
   from?: "stage"
+  // "runs" なら、行うアクションが認可ステップに止められても押せる（止められたアクションは perform が断るので、run はそれで何も変えずに終える。
+  // 取り消しのように、行えなくても終えられるコマンドのため）。書かなければ、どれも止められると押せない。使えない（出さない）ことと印刷プレビューの間は変えない
+  denied?: "runs"
   when(ctx: CommandContext): boolean // 出すか
   enabled?(ctx: CommandContext): boolean // 押せるか。無ければ、出ていれば押せる
   active?(ctx: CommandContext): boolean // 押されている状態か（メニューのボタンの見た目・OS のメニューの印）。無ければ押されていない

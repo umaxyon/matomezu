@@ -33,7 +33,7 @@ import { useTabDrag } from "./useTabDrag"
 function Thumbnail({ book, page }: { book: Book; page: Page }) {
   const catalog = useCatalog().core
   const [width, setWidth] = useState(0)
-  const size = pageArea(catalog, page)?.size ?? { w: 1280, h: 720 }
+  const size = pageArea(catalog, page).size
   const scale = width / size.w
   return (
     <PageScope book={book.id} page={page.id} zoom={scale || 1}>

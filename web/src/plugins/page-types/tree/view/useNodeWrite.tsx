@@ -1,14 +1,13 @@
-// 節のキャプションと色を書くフック: 根はページのフィールド root として base の page-update で、子はアクション node-update で書く
-// （根と子は型が別で、根はページのフィールド）。allowed は、その書き方を認可ステップが止めていないか
+// 節のキャプションと色を書くフック: 書き分けは write.ts の nodeWrite。allowed は、その書き方を認可ステップが止めていないか
 import { useAllowed, usePerform } from "../../../../plugin-api/ui"
-import { NODE_UPDATE } from "../actions"
+import { type NodePatch, nodeWrite, nodeWriteAction } from "../write"
 
 export function useNodeWrite(page: string | undefined, isRoot: boolean) {
   const perform = usePerform()
-  const allowed = useAllowed(isRoot ? "@matomezu/base:page-update" : NODE_UPDATE.id, page ? { page } : undefined).ok
-  const write = (page: string, node: string, patch: { caption?: string; color?: string | null }) =>
-    isRoot
-      ? perform("@matomezu/base:page-update", { fields: { root: patch } }, { page })
-      : perform(NODE_UPDATE.id, { node, ...patch }, { page })
+  const allowed = useAllowed(nodeWriteAction(isRoot), page ? { page } : undefined).ok
+  const write = (page: string, node: string, patch: NodePatch) => {
+    const w = nodeWrite(isRoot, node, patch)
+    return perform(w.action, w.args, { page })
+  }
   return { allowed, write }
 }

@@ -17,7 +17,7 @@ import { type TreeRoot, treeRootOf } from "./node"
 import { NODE_SHAPE } from "./shape"
 import { NODE_SIZE } from "./size"
 
-// ページ page の木を並べたもの（描けない紙と根の無いページは null）。setting はそのページで効いている設定の値、grow はページの増やす向き。
+// ページ page の木を並べたもの（根の無いページは null）。setting はそのページで効いている設定の値、grow はページの増やす向き。
 // root は並べる木（書く画面の、書いている字を重ねた木など。無ければページの根）
 export function laidPage(
   catalog: CoreCatalog,
@@ -26,7 +26,7 @@ export function laidPage(
   root: TreeRoot | undefined = treeRootOf(page),
 ): TreeLayout | null {
   const paper = paperSize(catalog, page)
-  return root && paper ? layoutTree(root, setting(GROW), paper, setting(NODE_SIZE), setting(NODE_SHAPE), grow) : null
+  return root ? layoutTree(root, setting(GROW), paper, setting(NODE_SIZE), setting(NODE_SHAPE), grow) : null
 }
 
 // 並べた木 laid が右・下へずれている印刷区画の数（可変ページで左（上）へ増やすとき。書く画面がステージに知らせる量と、ブックタイプの contentOrigin が返す量は、これ 1 つ）
@@ -45,7 +45,7 @@ export function printLaid(
 ): TreeLayout | null {
   const laid = laidPage(catalog, page, on)
   const paper = paperSize(catalog, page)
-  if (!laid || !paper || !on.grow) return laid
+  if (!laid || !on.grow) return laid
   const dx = breakShift(
     laid.nodes.map(n => ({ at: n.x, size: n.w })),
     paper.w,
@@ -76,6 +76,6 @@ export function treePrintSheets(
 ): PrintSheets {
   const laid = on.purpose === "print" ? printLaid(catalog, page, on) : laidPage(catalog, page, on)
   const paper = paperSize(catalog, page)
-  if (!laid || !paper) return { columns: 1, rows: 1, filled: new Set() }
+  if (!laid) return { columns: 1, rows: 1, filled: new Set() }
   return printSheetsOf(paper, laid.nodes, on.grow, laidExtent(laid.nodes))
 }

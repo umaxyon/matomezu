@@ -16,6 +16,7 @@ import {
 } from "./commands"
 import { TREE_ENTRY_ICON } from "./entry-icon"
 import { GROW } from "./grow"
+import { TREE_DRAFT, TREE_EDIT_CANCEL, TREE_EDIT_COMMIT, TREE_EDIT_KEY_SCOPE, TREE_EDIT_KEYS } from "./in-place"
 import { kit } from "./kit"
 import { LINE_SHAPE } from "./line-shape"
 import { NODE_SHAPE } from "./shape"
@@ -35,7 +36,7 @@ export const TREE_PLUGIN = defineBuiltin(
   kit.plugin({
     pageTypes: [TREE],
     enumValues: [TREE_ENTRY_ICON],
-    pluginStates: TREE_STATES,
+    pluginStates: [...TREE_STATES, TREE_DRAFT],
     presentations: [TREE_PRESENTATION],
     settings: [GROW, NODE_SIZE, NODE_SHAPE, LINE_SHAPE],
     dialogs: [NEW_TREE_PAGE_DIALOG, TREE_PAGE_SETTINGS_DIALOG, NODE_SIZE_DIALOG],
@@ -49,9 +50,11 @@ export const TREE_PLUGIN = defineBuiltin(
       NODE_COLOR_EDIT,
       NODE_SIZE_EDIT,
       NODE_DELETE,
+      TREE_EDIT_COMMIT,
+      TREE_EDIT_CANCEL,
     ],
-    keys: TREE_KEYS,
-    keyScopes: [TREE_KEY_SCOPE],
+    keys: [...TREE_KEYS, ...TREE_EDIT_KEYS],
+    keyScopes: [TREE_KEY_SCOPE, TREE_EDIT_KEY_SCOPE],
     tools: [EDIT_TOOL],
     toolSets: [TREE_TOOLS],
   }),
@@ -88,12 +91,16 @@ declare module "../../../core/catalog" {
     "@matomezu/tree:node-delete": typeof NODE_DELETE
     "@matomezu/tree:node-size-edit": typeof NODE_SIZE_EDIT
     "@matomezu/tree:node-color-edit": typeof NODE_COLOR_EDIT
+    "@matomezu/tree:node-edit-commit": typeof TREE_EDIT_COMMIT
+    "@matomezu/tree:node-edit-cancel": typeof TREE_EDIT_CANCEL
   }
   interface PluginStateTable {
     "@matomezu/tree:focus-released": typeof TREE_FOCUS_RELEASED_STATE
+    "@matomezu/tree:in-place-draft": typeof TREE_DRAFT
   }
   interface KeyScopeTable {
     "@matomezu/tree:tree": typeof TREE_KEY_SCOPE // ツリーのプレゼンテーションで描いている間のキー
+    "@matomezu/tree:in-place": typeof TREE_EDIT_KEY_SCOPE // キャプションをその場で書いている入力Formの中のキー
   }
   interface ToolTable {
     "@matomezu/tree:edit": typeof EDIT_TOOL

@@ -216,6 +216,7 @@ export {
   TextBlockView,
   type TextDraft,
   useBodyGrips,
+  useInPlaceInput,
 } from "./text/ui"
 export * from "./utils/ui"
 export {

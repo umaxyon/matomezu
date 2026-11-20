@@ -15,4 +15,8 @@ export const TEXT_MESSAGES = defineMessages({
   Divider: { en: "Divider", ja: "区切り線" },
   Body: { en: "Body", ja: "本文" },
   "Body alignment": { en: "Body alignment", ja: "本文の寄せ" },
+  "Can no longer write, so the text was discarded": {
+    en: "Can no longer write, so the text was discarded",
+    ja: "書けなくなったので、書いた字を捨てました",
+  },
 })

@@ -81,7 +81,7 @@ export const SCRAP_REMOVE = kit.defineAction({
 // 可変ページの中身をずらした量（px。ページのずらした印刷区画の数 × 紙の大きさ）
 export function shiftOf(catalog: CoreCatalog, page: ItemPage): Point {
   const paper = paperSize(catalog, page)
-  return { x: (page.shift?.x ?? 0) * (paper?.w ?? 0), y: (page.shift?.y ?? 0) * (paper?.h ?? 0) }
+  return { x: (page.shift?.x ?? 0) * paper.w, y: (page.shift?.y ?? 0) * paper.h }
 }
 
 // 範囲（ページの中身の位置）を、今のページの上の位置にする（中身をずらした分だけ動かす）
@@ -90,10 +90,9 @@ export const areaOnPage = (area: Rect, shift: Point): Rect => ({ ...area, x: are
 // ページの上の位置を、範囲（ページの中身の位置）にする
 export const areaOfPage = (rect: Rect, shift: Point): Rect => ({ ...rect, x: rect.x - shift.x, y: rect.y - shift.y })
 
-// 切り抜いた直後の範囲: ページ全体（描けない紙なら null）
-export function wholePage(catalog: CoreCatalog, page: ItemPage): Rect | null {
-  const size = pageArea(catalog, page)?.size
-  if (!size) return null
+// 切り抜いた直後の範囲: ページ全体
+export function wholePage(catalog: CoreCatalog, page: ItemPage): Rect {
+  const size = pageArea(catalog, page).size
   return areaOfPage({ x: 0, y: 0, w: size.w, h: size.h }, shiftOf(catalog, page))
 }
 

@@ -698,7 +698,9 @@ test("書庫の検索は、名前に言葉を含む物を右の枠に並べる�
   await expect.poll(() => urlCurrentScreen(page)).toBe(BOOK_SCREEN_DEF)
 })
 
-test("書庫の検索の結果を押すと、ツリーがはみ出していても、その行が見える所までツリーを送る。同じ行を押し直しても送り直す", async ({ page }) => {
+test("書庫の検索の結果を押すと、ツリーがはみ出していても、その行が見える所までツリーを送る。同じ行を押し直しても送り直す", async ({
+  page,
+}) => {
   await page.goto("/")
   await page.bringToFront()
   // ツリーの高さを超える数のフォルダを作り、最後のフォルダの中にブックを置く

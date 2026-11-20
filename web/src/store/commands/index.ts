@@ -187,7 +187,7 @@ export function isShown(defs: Assembled, state: MatomezuState, at: string, id: C
   return c !== null && performable(c, arg) && ask(c, "when") === true
 }
 
-// 行うアクションのどれかを、認可ステップと印刷プレビューの間のステージ（stageBlocks）が止めないか（行うアクションが無ければ止められない）。
+// 行うアクションのどれかを、認可ステップと印刷プレビューの間のステージ（stageBlocks）が止めないか（行うアクションが無ければ止められない。denied: "runs" のコマンドは認可ステップを見ない）。
 // ブック・ページ・アノテーションが対象のアクションは、今のブックの許可スコープの所で問う。
 // 許可スコープを書いたコマンドが行う、一覧が対象のアクション（戻す・やり直すの置き直しなど）は、開いているブックのその所を変える物として扱う
 // スクリーンから呼ぶコマンドが行うアクションと引数を名乗れば（performsWith）、その引数で行うときと同じに問い、名乗ったどれかが止められれば押せない
@@ -213,10 +213,11 @@ function permitted(c: Called, state: MatomezuState, arg?: unknown): boolean {
     book && onOpened(action)
       ? { kind: "action", action, actor: USER, book, ...(where ? { where } : {}) }
       : actionQuery(ctx.catalog, action, book, where)
+  const runs = c.def.from !== "screen" && c.def.denied === "runs" // 認可ステップに止められても押せる
   return actions.some(
     action =>
       !stageBlocks(ctx.catalog, ctx.stage.mode, action, onOpened(action) ? "opened-book" : "target") &&
-      inspect(ctx.catalog, query(action), ctx).value === true,
+      (runs || inspect(ctx.catalog, query(action), ctx).value === true),
   )
 }
 

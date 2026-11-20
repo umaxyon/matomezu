@@ -10,9 +10,10 @@ import { kit } from "./kit"
 import { treeRootOf } from "./node"
 import { EDIT_TOOL } from "./tools"
 import { NODE_SIZE_DIALOG, TREE_KEYS_SCOPE, TREE_PAGE_SETTINGS_DIALOG } from "./tree"
+import { PAGE_UPDATE } from "./write"
 
 // 開いているページと、その根と伸びる向き（ツリーのページでなければ null）
-function treeAt(ctx: CommandContext) {
+export function treeAt(ctx: CommandContext) {
   if (!hasOpenedPage(ctx)) return null
   const page = ctx.page
   const root = treeRootOf(page)
@@ -47,7 +48,7 @@ export const NODE_SELECT_ROOT = kit.defineCommand({
 // 選んでいる節（何も選んでいなければ根）を編集し始める。子はその場で、根はページの設定のダイアログ（根のダイアログを兼ねる）で
 export const NODE_EDIT = kit.defineCommand({
   id: "node-edit",
-  performs: [NODE_UPDATE.id, "@matomezu/base:page-update"],
+  performs: [NODE_UPDATE.id, PAGE_UPDATE],
   permissionScope: "opened-page",
   title: "Edit caption",
   run: (ctx, a) => {
@@ -152,7 +153,7 @@ export const NODE_SIZE_EDIT = kit.defineCommand({
 // 選んでいる節（根も）の色を選び始める（その場の編集 NODE_COLOR_PICK。節のそばに出す色のスタンドはビューが出す。その場の編集中は出さない）
 export const NODE_COLOR_EDIT = kit.defineCommand({
   id: "node-color-edit",
-  performs: [NODE_UPDATE.id, "@matomezu/base:page-update"],
+  performs: [NODE_UPDATE.id, PAGE_UPDATE],
   permissionScope: "opened-page",
   title: "Node color",
   run: (ctx, a) => {

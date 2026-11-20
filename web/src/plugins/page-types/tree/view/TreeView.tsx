@@ -1,12 +1,12 @@
 // ツリーのビュー（プレゼンテーション tree）: プレゼンテーションのビューのレイヤー（book-content）が描く。紙の枠（PaperFrame。紙の面は下のレイヤーが描く）の中に、開いたページの根から伸びる木を描く
 // （節の位置と線は layout.ts が伸びる向きから決める）。
-// ページが無ければ、真ん中にページを作るボタン（コマンド page-new）を出す。表に無い紙は「不明な紙」と示し、描けない紙は知らせだけを出す。
+// ページが無ければ、真ん中にページを作るボタン（コマンド page-new）を出す。
 // 画面のどこを右クリックしても、ツリーのメニュー（tree-context）を開く。編集の道具の間に節を右クリックすると、その節を選んで節のメニュー（node-context）を開く。
 // 編集の道具の間は、選んでいる節（無ければ根）に印を付け、ほかを少し暗くし、押した節を選ぶ。選んでいる節がいつもビューの真ん中に来るように紙をずらす
 // （編集の道具では 125%、ほかの道具では 100% に。選ぶ節が替わると紙の動きをなめらかにする）。
 // 選んでいる節には＋（子・前と後ろの兄弟。中央の木の根は上下左右の子。ふだんは小さな点で、ポインタを近づけると＋の丸に開く）を出し、押すと空の節を足して、その場で編集し始める。ダブルクリック（と F2 のコマンド）でも編集し始める
 // （根はページの設定のダイアログを開く）。節の形が下線でも、根は箱で描く。
-// その場で編集中は、書いている字で節の大きさを決め直し、装飾を見たまま書く入力Form（base の RichInput）と、そのすぐ上に装飾のボックス（base の RichBar。太字と文字の色）を出す（押しても焦点は外れない）。キャプションは普通の太さで、装飾して描く。節の形が下線なら、入力Formと選んでいる印も下線で描く。Enter か入力Formの外を押すと確定、Escape で取り消す。空のまま終えた、キャプションの空の子は消す。
+// その場で編集中は、書いている字で節の大きさを決め直し、装飾を見たまま書く入力Form（base の RichInput）と、そのすぐ上に装飾のボックス（base の RichBar。太字と文字の色）を出す（押しても焦点は外れない）。キャプションは普通の太さで、装飾して描く。節の形が下線なら、入力Formと選んでいる印も下線で描く。Enter か入力Formの外を押すと確定、Escape で取り消す（確定と取り消しは in-place.ts のコマンド。入力Formは base の useInPlaceInput で、書いている字は TREE_DRAFT に置く）。空のまま終えた、キャプションの空の子は消す。
 // 編集の道具の間は、根でない節を押して動かすとドラッグになり、落とした所で子孫ごと付け替える（落とす先は drag.ts が決める。節の写しがポインタに付き、元の節と子孫は薄く、
 // 子として入る節には点線の枠、兄弟の間に入る所には線を出す）。押している間は、選んだ節を真ん中に持ってこない（離してから）。
 // ドラッグの間は倍率を 100% にし、ポインタが端に近ければ紙をずらす（遠くの節にも落とせる）。終えたら編集の倍率に戻す。
@@ -38,19 +38,18 @@ import {
   RichText,
   useAnchorRef,
   useFollowsSelection,
+  useInPlaceInput,
   usePageTheme,
   usePaperDrag,
   useResize,
   useSwatches,
 } from "../../../base/ui"
-import { NODE_ADD, NODE_MOVE, NODE_REMOVE, NODE_UPDATE } from "../actions"
+import { NODE_ADD, NODE_MOVE, NODE_UPDATE } from "../actions"
 import { dropAt, subtreeIds } from "../drag"
 import {
   ADDED_EDIT,
   addArgs,
-  afterRemove,
   centerShift,
-  editEnd,
   NODE_COLOR_PICK,
   nodeOf,
   type Plus,
@@ -61,6 +60,7 @@ import {
   withCaption,
 } from "../edit"
 import { GROW } from "../grow"
+import { TREE_DRAFT, TREE_EDIT_COMMIT, TREE_EDIT_KEY_SCOPE, writingCaption } from "../in-place"
 import { kit } from "../kit"
 import { editorWidth, type LaidNode } from "../layout"
 import { LINE_SHAPE, treePath } from "../line-shape"
@@ -73,7 +73,6 @@ import { NODE_CONTEXT, NODE_FILL, TREE_CONTEXT, TREE_PAGE_SETTINGS_DIALOG } from
 import { NodeColorStand } from "./NodeColorStand"
 import { nodePaint } from "./paint"
 import styles from "./TreeView.module.css"
-import { useNodeWrite } from "./useNodeWrite"
 
 export function TreeView() {
   const stage = useStage()
@@ -142,7 +141,7 @@ const Tree = memo(function Tree({
   const book = useShownBook()
   const page = useShownPage()
   const perform = usePerform()
-  const { select, setEditing, panStageBy, zoomStage, showToast, openDialog, continueStep } = useActions()
+  const { select, setEditing, panStageBy, zoomStage, showToast, openDialog } = useActions()
   const anchor = useAnchorRef() // 節にアンカーを付ける（そばにスタンドを立てられる）
   // 変更を始めてよいか（動かす・書き換える・足す。認可ステップが止めていれば始めない）
   const where = page ? { page: page.id } : undefined
@@ -159,26 +158,24 @@ const Tree = memo(function Tree({
   const grow = settingValue(catalog, page ?? null, GROW)
   const usingEdit = stage.tool === EDIT_TOOL.id
   const selected = root ? selectedIn(root, stage.selection) : null
-  const nodeWrite = useNodeWrite(page?.id, selected !== null && selected === root?.id)
   const swatches = useSwatches(usePageTheme(), NODE_FILL) // 節の色のスタンドに並べる色
   const picking = usingEdit && stage.editing === NODE_COLOR_PICK && selected !== null // 節の色を選んでいる
   // 背景編集モードの間の文字枠の書き換え（slide のもの。stage.editing は同じ true）は、節の書き換えにしない
-  const writing =
-    usingEdit &&
-    stage.edits === "items" &&
-    (stage.editing === true || stage.editing === ADDED_EDIT) &&
-    selected !== null
-  // 書いている字（どの節のものか）と、入力Formを出してから終えたか（Enter のあとの blur で 2 度終えない）
-  const [draft, setDraft] = useState<{ node: string; text: string } | null>(null)
-  const [composing, setComposing] = useState<string | null>(null) // 変換中（確定する前）の字。枠の幅だけに使う
-  const ended = useRef(false)
+  const writing = writingCaption({ stage }) && selected !== null
+  // キャプションの入力Form（書いている字は TREE_DRAFT）
+  const caption = useInPlaceInput(kit, TREE_DRAFT, {
+    target: selected ?? undefined,
+    active: writing,
+    keyScope: TREE_EDIT_KEY_SCOPE.id,
+    commit: TREE_EDIT_COMMIT.id,
+  })
   const editor = useRef<RichInputHandle>(null)
   // 節のドラッグ: 動かし始めたら、ポインタの所を中心に倍率を 100% にし（遠くの節にも落とせる）、終えたら編集の道具の倍率に戻す
   const drag = usePaperDrag(stage, area, {
     begin: p => zoomStage(1, p),
     end: () => zoomStage(toolZoom(true)),
   })
-  const text = writing && draft?.node === selected ? draft.text : null
+  const text = caption.text
   const shown = root && selected && text !== null ? withCaption(root, selected, text) : root
   const shape = settingValue(catalog, page ?? null, NODE_SHAPE)
   const lineShape = settingValue(catalog, page ?? null, LINE_SHAPE)
@@ -201,25 +198,6 @@ const Tree = memo(function Tree({
   const tree = root
   const pageId = page.id
 
-  // その場の編集を終える（commit なら書いた字を確定する。することは edit.ts の editEnd が決める）
-  const end = (commit: boolean) => {
-    if (ended.current) return
-    ended.current = true
-    setComposing(null)
-    if (stage.editing === ADDED_EDIT) continueStep(book.id)
-    const todo = editEnd(tree, selected, commit ? text : null)
-    if (todo.kind === "remove") {
-      const next = afterRemove(tree, grow, selected)
-      if (perform(NODE_REMOVE.id, { node: selected }, { page: pageId }).ok && next) select([next])
-    }
-    const done =
-      todo.kind === "root" || todo.kind === "child"
-        ? nodeWrite.write(pageId, selected, { caption: todo.caption })
-        : null
-    if (done && !done.ok) refused(done) // 書けない字は書かず、元のキャプションのまま
-    setDraft(null)
-    setEditing(false)
-  }
   // ＋: 空の節を足して選び、その場で編集し始める
   const add = (plus: Plus) => {
     const done = perform(NODE_ADD.id, addArgs(plus), { page: pageId })
@@ -263,13 +241,13 @@ const Tree = memo(function Tree({
           style={{ left: n.x, top: n.y, width: n.w, height: n.h, ...nodePaint(n.color) }}
           onPointerDown={e => {
             if (e.button !== 0 || !usingEdit) return
-            if (writing) end(true) // 入力Formが外れるより先に選びが替わるので、ここで確定する
+            caption.settle() // 入力Formが外れるより先に選びが替わるので、ここで確定する
             select([n.id])
             if (n.id !== tree.id && movable) drag.start(n, e.clientX, e.clientY)
           }}
           onContextMenu={e => {
             if (!usingEdit) return
-            if (writing) end(true)
+            caption.settle()
             select([n.id])
             openNodeMenu(e, {})
           }}
@@ -329,59 +307,51 @@ const Tree = memo(function Tree({
       {writing && at && (
         <RichInput
           ref={editor}
+          {...caption.input}
           className={styles.editor}
-          data={{ "data-shape": selected === tree.id ? "box" : shape }}
+          data={{ ...caption.input.data, "data-shape": selected === tree.id ? "box" : shape }}
           label={t("Caption")}
-          multiline={false}
-          autoFocus
           value={text ?? at.caption}
-          style={{ left: at.x, top: at.y, width: editorWidth(composing ?? text ?? at.caption, at.w), height: at.h }}
-          onChange={next => setDraft({ node: selected, text: next })}
-          onCompose={setComposing}
-          onFocus={() => {
-            ended.current = false
+          style={{
+            left: at.x,
+            top: at.y,
+            width: editorWidth(caption.composing ?? text ?? at.caption, at.w),
+            height: at.h,
           }}
-          onPointerDown={e => e.stopPropagation()}
-          onKeyDown={e => {
-            if (e.nativeEvent.isComposing) return
-            if (e.key !== "Enter" && e.key !== "Escape") return
-            e.preventDefault()
-            e.stopPropagation()
-            end(e.key === "Enter")
-          }}
-          onBlur={() => end(true)}
         />
       )}
-      {usingEdit &&
-        focused &&
-        addable &&
-        !writing &&
-        !dragging &&
-        at &&
-        plusesOf(tree, grow, selected).map(plus => {
-          const p = plusPoint(at, plus.side)
-          return (
-            <button
-              key={`${plus.kind}-${plus.side}`}
-              type="button"
-              className={styles.plus}
-              aria-label={t(plusName(plus))}
-              title={t(plusName(plus))}
-              style={{ left: p.x, top: p.y }}
-              onPointerDown={e => e.stopPropagation()}
-              onClick={() => add(plus)}
-            >
-              <span className={styles.plusMark}>
-                <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
-                  <path d="M5 1V9M1 5H9" />
-                </svg>
-              </span>
-            </button>
-          )
-        })}
+      {usingEdit && focused && addable && !writing && !dragging && at && (
+        <Pluses at={at} pluses={plusesOf(tree, grow, selected)} onAdd={add} />
+      )}
     </>
   )
 })
+
+// 選んでいる節 at の＋（子・前と後ろの兄弟。押すと onAdd）
+function Pluses({ at, pluses, onAdd }: { at: LaidNode; pluses: readonly Plus[]; onAdd: (plus: Plus) => void }) {
+  const t = useMessages(kit)
+  return pluses.map(plus => {
+    const p = plusPoint(at, plus.side)
+    return (
+      <button
+        key={`${plus.kind}-${plus.side}`}
+        type="button"
+        className={styles.plus}
+        aria-label={t(plusName(plus))}
+        title={t(plusName(plus))}
+        style={{ left: p.x, top: p.y }}
+        onPointerDown={e => e.stopPropagation()}
+        onClick={() => onAdd(plus)}
+      >
+        <span className={styles.plusMark}>
+          <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+            <path d="M5 1V9M1 5H9" />
+          </svg>
+        </span>
+      </button>
+    )
+  })
+}
 
 // 節のキャプションと、根の本文（描くときだけ）
 export function NodeText({ node: n }: { node: LaidNode }) {
