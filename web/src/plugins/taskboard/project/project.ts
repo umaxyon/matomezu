@@ -59,7 +59,7 @@ const LANE = z.strictObject({
   name: z.string().trim().min(1).max(LANE_NAME_MAX),
   prompt: z.string(), // AI がそのレーンでチケットをどう扱うかの指示
   cardSize: z.enum([INHERIT_CARD_SIZE, ...CARD_SIZES]), // このレーンのチケットカードの大きさ（inherit はプロジェクトの大きさ）
-  working: z.literal(true).optional(), // 作業中の印（主担当のチケットがこのレーンにあれば、そのワークルームの今のチケット。いくつのレーンにも付けられ、完了のレーンには付けない）
+  working: z.literal(true).optional(), // 作業中の印（このレーンにあるチケットは、担当のワークルームそれぞれの今のチケット。いくつのレーンにも付けられ、完了のレーンには付けない）
 })
 const UNSORTED_ROW = z.strictObject({ kind: z.literal("unsorted"), shown: z.boolean() })
 const TAG = z.strictObject({

@@ -1,5 +1,5 @@
-// ワークルームの今のチケット: そのワークルームが主担当（担当の並びの 1 人目）で、プロジェクトの作業中の印のあるレーンにあるチケット（記録は持たず、担当とレーンから決める）。
-// 主担当は書いたままの assignees[0]（消したワークルームが先頭でも、そのワークルームの物として数える。索引キー lead と同じ決まり。消したワークルームは参加者の一覧に出ない）。
+// ワークルームの今のチケット: そのワークルームが担当の並びに入っていて、プロジェクトの作業中の印のあるレーンにあるチケット（記録は持たず、担当とレーンから決める）。
+// 担当は書いたままの assignees で見る（消したワークルームは参加者の一覧に出ない）。
 // 閉じたプロジェクトのチケットも数える。完了のレーンには作業中の印が付かないので、完了のチケットは入らない。
 // 参加者の一覧の行の下の 1 行・右の今のタスクの列・作業の様子（workroomActivity）が、この 1 つの判定を使う
 import type { z } from "zod"
@@ -31,7 +31,7 @@ export function currentTicketsOf<T extends TicketLike>(
 ): CurrentTicket<T>[] {
   return tickets
     .flatMap(ticket => {
-      if (leadOf(ticket) !== workroom) return []
+      if (!ticket.assignees.includes(workroom)) return []
       const project = projectOf(ticket.project)
       return project && inWorkingLane(project, ticket.lane) ? [{ ticket, project }] : []
     })
