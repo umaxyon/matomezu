@@ -11,18 +11,10 @@ import type { CoreCatalog } from "../core/core-catalog"
 import type { ActionContext, ActionOn } from "../core/def/action"
 import type { PluginStateDef } from "../core/def/plugin-state"
 import { fail, matomezuError, type Problem, problem } from "../core/errors"
-import {
-  type Folder,
-  homeAndFoldersOf,
-  type Library,
-  outsideUnreadable,
-  type PageRow,
-  rawBooksOf,
-  settledOn,
-  type TableChanges,
-  withChanges,
-  worldTablesOf,
-} from "../core/folders"
+import { type Folder, homeAndFoldersOf, type Library, type PageRow, type TableChanges } from "../core/folders"
+import { worldTablesOf } from "../core/folders-books"
+import { settledOn, withChanges } from "../core/folders-changes"
+import { outsideUnreadable, rawBooksOf } from "../core/folders-unreadable"
 import { deepFreeze } from "../core/freeze"
 import {
   HISTORY_LIMIT,

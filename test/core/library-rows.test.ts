@@ -6,14 +6,8 @@ import { buildCoreCatalog } from "../../web/src/core/core-catalog"
 import { defineAction } from "../../web/src/core/def/action"
 import type { PermissionDef } from "../../web/src/core/def/permission"
 import { isMoveRefusal, restoredEntry, trashedEntry } from "../../web/src/core/entries"
-import {
-  type Folder,
-  HOME_ID,
-  type HomeFolder,
-  type Library,
-  type PlainFolder,
-  worldTablesOf,
-} from "../../web/src/core/folders"
+import { type Folder, HOME_ID, type HomeFolder, type Library, type PlainFolder } from "../../web/src/core/folders"
+import { worldTablesOf } from "../../web/src/core/folders-books"
 import { perform } from "../../web/src/core/perform"
 import type { AnyPage, Book } from "../../web/src/core/schema/book"
 import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"

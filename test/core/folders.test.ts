@@ -1,26 +1,12 @@
-// ページとフォルダの表（core/folders.ts）: ブックを表に分け、表からブックを組み、変わりを表への書き込みに分ける
+// ページとフォルダの表（core/folders.ts・folders-books.ts・folders-changes.ts）: ブックを表に分け、表からブックを組み、変わりを表への書き込みに分ける
 import { expect, test } from "bun:test"
 import { USER } from "../../web/src/core/actor"
 import { checkBooks, putBinder, putPage, removePage } from "../../web/src/core/book"
-import {
-  type BinderFolder,
-  bookIdOf,
-  bookOf,
-  changesBetween,
-  foldersOver,
-  HOME_ID,
-  type Library,
-  libraryOf,
-  NO_OUTERMOST,
-  outermostOf,
-  type PlainFolder,
-  rawBooksOf,
-  recordsOf,
-  settledOn,
-  TRASH_ID,
-  tablesOf,
-  withChanges,
-} from "../../web/src/core/folders"
+import { type BinderFolder, HOME_ID, type Library, type PlainFolder, TRASH_ID } from "../../web/src/core/folders"
+import { bookOf, libraryOf, recordsOf, tablesOf } from "../../web/src/core/folders-books"
+import { changesBetween, settledOn, withChanges } from "../../web/src/core/folders-changes"
+import { bookIdOf, foldersOver, NO_OUTERMOST, outermostOf } from "../../web/src/core/folders-tree"
+import { rawBooksOf } from "../../web/src/core/folders-unreadable"
 import { performIn } from "../../web/src/core/perform-world"
 import type { Book } from "../../web/src/core/schema/book"
 import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"

@@ -1,6 +1,7 @@
 // 画面の履歴（Undo・Redo）: 利用者の 1 回の操作で変わったページとフォルダの前と後を画面の履歴の段 1 つに持つ（store が作り、戻す・やり直すのは base の history）。
 // AI とほかの窓の変更は、まだ見ていない画面の履歴の段として store が溜め、変えた物が見えたら時刻の位置に差し込む
-import { type Folder, type Folders, foldersOver, type Library, type PageRow, type TableChanges } from "./folders"
+import type { Folder, Folders, Library, PageRow, TableChanges } from "./folders"
+import { foldersOver } from "./folders-tree"
 import type { ListPatch, Patch } from "./patch"
 import { REMOVED } from "./records"
 import { sameData } from "./same"

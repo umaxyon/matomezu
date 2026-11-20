@@ -6,15 +6,9 @@ import type { Annotations } from "../core/annotation"
 import type { ControlCenterId, MessageKey, SkinId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
 import type { ActionOn } from "../core/def/action"
-import {
-  type BROKEN,
-  type Folders,
-  homeOver,
-  type Library,
-  type Pages,
-  type UnreadableItem,
-  worldTablesOf,
-} from "../core/folders"
+import { type BROKEN, type Folders, homeOver, type Library, type Pages } from "../core/folders"
+import { worldTablesOf } from "../core/folders-books"
+import type { UnreadableItem } from "../core/folders-unreadable"
 import type { History } from "../core/history"
 import type { Lang, Params } from "../core/i18n/i18n"
 import { type Books, splitTrash } from "../core/library"

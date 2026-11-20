@@ -6,16 +6,13 @@ import {
   BROKEN,
   FIRST,
   type Folders,
-  foldersOver,
   HOME_ID,
-  outsideUnreadable,
-  rawBooksOf,
-  rowsHoldTree,
   TRASH_ID,
-  treeHolds,
   UNREADABLE_ID,
   type UnreadableFolder,
 } from "../../web/src/core/folders"
+import { foldersOver, rowsHoldTree, treeHolds } from "../../web/src/core/folders-tree"
+import { outsideUnreadable, rawBooksOf } from "../../web/src/core/folders-unreadable"
 import { purgedRows, type Settled, settleLibrary } from "../../web/src/core/unreadable"
 import { DRAWING, drawingPage, MARKDOWN, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { CORE_CATALOG, NAMING, worldRows } from "../support"

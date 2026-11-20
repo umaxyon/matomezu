@@ -7,7 +7,8 @@
 
 import type { CoreCatalog } from "../../../core/core-catalog"
 import { entriesIn, namingOf, placeOf, rowTitle } from "../../../core/entries"
-import { type Folders, isKeptSystemFolder, systemFolderOf } from "../../../core/folders"
+import type { Folders } from "../../../core/folders"
+import { isKeptSystemFolder, systemFolderOf } from "../../../core/folders-tree"
 import { LIBRARY_HISTORY } from "../../../core/history"
 import { type CommandActions, type ScreenCommandContext, tryPerformOf } from "../../../store/commands/def"
 import { BOOK_CREATE } from "../book-new/book-create"

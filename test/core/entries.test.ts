@@ -20,9 +20,9 @@ import {
   type PlainFolder,
   TRASH_ID,
   type TrashFolder,
-  treeHolds,
-  worldTablesOf,
 } from "../../web/src/core/folders"
+import { worldTablesOf } from "../../web/src/core/folders-books"
+import { treeHolds } from "../../web/src/core/folders-tree"
 import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { NAMING } from "../support"
 

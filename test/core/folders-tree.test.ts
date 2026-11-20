@@ -5,31 +5,22 @@ import { USER } from "../../web/src/core/actor"
 import { keepsPageTypesAcross } from "../../web/src/core/book"
 import { trashedEntry } from "../../web/src/core/entries"
 import {
-  bookIdOf,
-  bookOf,
   type Folder,
-  foldersOver,
   HOME_ID,
   homeAndFoldersOf,
   homeOver,
   type Library,
-  libraryOf,
   NO_CHANGES,
   type PlainFolder,
-  placedChanges,
-  rawBooksOf,
-  restoredTables,
-  rowChanges,
-  rowsHoldTree as rowsHold,
   TRASH_ID,
   type TrashFolder,
-  treeHolds,
   UNREADABLE_ID,
-  withBook,
-  withChanges,
-  withoutBook,
-  worldTablesOf,
 } from "../../web/src/core/folders"
+import { bookOf, libraryOf, withBook, withoutBook, worldTablesOf } from "../../web/src/core/folders-books"
+import { placedChanges, rowChanges, withChanges } from "../../web/src/core/folders-changes"
+import { restoredTables } from "../../web/src/core/folders-restore"
+import { bookIdOf, foldersOver, rowsHoldTree as rowsHold, treeHolds } from "../../web/src/core/folders-tree"
+import { rawBooksOf } from "../../web/src/core/folders-unreadable"
 import { performIn, type World } from "../../web/src/core/perform-world"
 import { REMOVED } from "../../web/src/core/records"
 import type { Book } from "../../web/src/core/schema/book"

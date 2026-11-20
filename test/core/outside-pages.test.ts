@@ -7,14 +7,14 @@ import { type ActionDef, defineAction } from "../../web/src/core/def/action"
 import type { PermissionQuery } from "../../web/src/core/def/permission"
 import {
   type BinderFolder,
-  bookOf,
   HOME_ID,
   type HomeFolder,
   NO_CHANGES,
   type PlainFolder,
   TRASH_ID,
-  withChanges,
 } from "../../web/src/core/folders"
+import { bookOf } from "../../web/src/core/folders-books"
+import { withChanges } from "../../web/src/core/folders-changes"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { pageChecksBetween } from "../../web/src/core/perform-checks"
 import { brokenIn, libraryAsksOf } from "../../web/src/core/perform-library"

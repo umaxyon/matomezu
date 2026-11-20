@@ -1,7 +1,9 @@
 // 置き場所から読んだままの行を、機能台帳で読んだ書庫（readLibrary）: ブックの中はブックの読み方のまま、ブックの外のページとバインダも表に残す
 import { expect, test } from "bun:test"
 import { checkBooks, readLibrary } from "../../web/src/core/book"
-import { HOME_ID, rawBooksOf, treeHolds } from "../../web/src/core/folders"
+import { HOME_ID } from "../../web/src/core/folders"
+import { treeHolds } from "../../web/src/core/folders-tree"
+import { rawBooksOf } from "../../web/src/core/folders-unreadable"
 import type { AnyPage } from "../../web/src/core/schema/book"
 import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { CORE_CATALOG, worldRows } from "../support"

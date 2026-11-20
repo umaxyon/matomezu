@@ -1,5 +1,8 @@
 // ブックを id ごとに持つ値（書庫から組んだブック）
-import { inTrash, type Library, libraryOf } from "./folders"
+
+import type { Library } from "./folders"
+import { libraryOf } from "./folders-books"
+import { inTrash } from "./folders-tree"
 import type { Book } from "./schema/book"
 
 export type Books = Readonly<Record<string, Book>>

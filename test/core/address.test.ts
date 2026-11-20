@@ -1,7 +1,7 @@
 // 画面の場所（core/address.ts）: 見ているものから場所を出し、場所を当てはめ、移動したかを見分ける
 import { expect, test } from "bun:test"
 import { type Address, addressOf, moved, placeAt, type StagePlace } from "../../web/src/core/address"
-import { NO_OUTERMOST } from "../../web/src/core/folders"
+import { NO_OUTERMOST } from "../../web/src/core/folders-tree"
 import { paperOf, setArea, setStart } from "../../web/src/core/stage"
 import { ZOOM_MAX, ZOOM_MIN } from "../../web/src/core/viewport"
 import { recentBookScreen, screenOf } from "../../web/src/core/window"

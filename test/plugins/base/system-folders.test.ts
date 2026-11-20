@@ -4,14 +4,9 @@ import { expect, test } from "bun:test"
 import { USER } from "../../../web/src/core/actor"
 import type { ActionContext } from "../../../web/src/core/def/action"
 import { namingOf, systemFoldersInPlace } from "../../../web/src/core/entries"
-import {
-  type Folder,
-  HOME_ID,
-  type Library,
-  systemFolderOf,
-  TRASH_ID,
-  withChanges,
-} from "../../../web/src/core/folders"
+import { type Folder, HOME_ID, type Library, TRASH_ID } from "../../../web/src/core/folders"
+import { withChanges } from "../../../web/src/core/folders-changes"
+import { systemFolderOf } from "../../../web/src/core/folders-tree"
 import { type PerformedIn, performIn, type World } from "../../../web/src/core/perform-world"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { draggable, droppable, moveClashOf } from "../../../web/src/plugins/base/library/drop"

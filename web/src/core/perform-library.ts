@@ -4,17 +4,9 @@ import type { LibraryPageRows } from "./changes"
 import type { CoreCatalog } from "./core-catalog"
 import type { ActionContext, ActionDef, EntryWhere, LibraryTargets, Where } from "./def/action"
 import { binnedBetween, isWithin } from "./entries"
-import {
-  bookIdOf,
-  inTrash,
-  isKeptSystemFolder,
-  isOpenRole,
-  type Library,
-  libraryOf,
-  type PageRow,
-  permissionFoldersOf,
-  systemFolderOf,
-} from "./folders"
+import { isOpenRole, type Library, type PageRow } from "./folders"
+import { libraryOf } from "./folders-books"
+import { bookIdOf, inTrash, isKeptSystemFolder, permissionFoldersOf, systemFolderOf } from "./folders-tree"
 import type { AskedPage } from "./inspect"
 import { broken, brokenPage, normalizedPage, pageChecksBetween, placeChangeOf } from "./perform-checks"
 import type { ItemPage } from "./placed"

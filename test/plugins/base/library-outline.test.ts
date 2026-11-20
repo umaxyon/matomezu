@@ -1,7 +1,8 @@
 // 書庫の画面が描く物（base/library/outline.ts）: フォルダの直下の行・パンくず・行を開いたときの行き先
 import { expect, test } from "bun:test"
 import { entriesIn } from "../../../web/src/core/entries"
-import { BROKEN, FIRST, HOME_ID, TRASH_ID, type UnreadableItem } from "../../../web/src/core/folders"
+import { BROKEN, FIRST, HOME_ID, TRASH_ID } from "../../../web/src/core/folders"
+import type { UnreadableItem } from "../../../web/src/core/folders-unreadable"
 import { restorePlanOf, SAME_TITLE } from "../../../web/src/plugins/base/library/entries"
 import { FOLDER_CREATE } from "../../../web/src/plugins/base/library/entry-move"
 import {

@@ -4,15 +4,11 @@
 import { findPage } from "../core/book"
 import type { CoreCatalog } from "../core/core-catalog"
 import type { PluginStateRead } from "../core/def/plugin-state"
-import {
-  bookIdOf,
-  changesBetween,
-  isOpenRole,
-  type Library,
-  libraryOf,
-  tablesOf,
-  withRowsPatched,
-} from "../core/folders"
+import { isOpenRole, type Library } from "../core/folders"
+import { libraryOf, tablesOf } from "../core/folders-books"
+import { changesBetween } from "../core/folders-changes"
+import { withRowsPatched } from "../core/folders-restore"
+import { bookIdOf } from "../core/folders-tree"
 import {
   changeSeen,
   foldersNear,

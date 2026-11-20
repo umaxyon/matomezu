@@ -6,22 +6,10 @@ import type { CoreCatalog } from "./core-catalog"
 import type { ActionContext, ActionDef, ActionOn, ActionTarget, AIEditTicketChange, AIMessage } from "./def/action"
 import { shownToAI } from "./def/subject"
 import { type Naming, namingOf, titleClashes } from "./entries"
-import {
-  bookIdOf,
-  bookOf,
-  changesBetween,
-  createdIn,
-  inTrash,
-  type Library,
-  noChanges,
-  type PageRow,
-  permissionFoldersOf,
-  placedChanges,
-  rowChanges,
-  type TableChanges,
-  treeHolds,
-  withChanges,
-} from "./folders"
+import type { Library, PageRow, TableChanges } from "./folders"
+import { bookOf } from "./folders-books"
+import { changesBetween, createdIn, noChanges, placedChanges, rowChanges, withChanges } from "./folders-changes"
+import { bookIdOf, inTrash, permissionFoldersOf, treeHolds } from "./folders-tree"
 import type { Books } from "./library"
 import {
   languageTitleTaken,

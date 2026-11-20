@@ -4,14 +4,13 @@ import {
   type AnyEntryRef,
   BROKEN,
   type Folders,
-  foldersOver,
   HOME_ID,
-  inTrash,
   type Library,
   type MovedCode,
   TRASH_ID,
-  type UnreadableItem,
 } from "../../../core/folders"
+import { foldersOver, inTrash } from "../../../core/folders-tree"
+import type { UnreadableItem } from "../../../core/folders-unreadable"
 import { restoreTargetOf } from "./entries"
 
 // 行 1 つ（描くのに要る物だけ）。title は名前（名前の無い物は NO_TITLE）、type はページのタイプの id（バインダなら入れるページのタイプ。無ければ NO_TYPE）、

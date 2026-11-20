@@ -20,7 +20,8 @@ import type {
   SubjectData,
 } from "./def/action"
 import { clashedSystemFolder, type Naming, TITLE_TAKEN, titleClashes } from "./entries"
-import { type Folder, homeOrFolderHolds, isOpenRole, type Library, libraryOf } from "./folders"
+import { type Folder, homeOrFolderHolds, isOpenRole, type Library } from "./folders"
+import { libraryOf } from "./folders-books"
 import { idsIn, skipping } from "./ids"
 import {
   broken,
@@ -49,7 +50,7 @@ export interface PageInBook {
 }
 
 // ブックの外のページに、ページが対象のアクションを行うときに渡す対象: そのページの id と値 held と、認可ステップに見せるフォルダの列 folders
-// （core/folders.ts の permissionFoldersOf。入れているバインダだけか空）
+// （core/folders-tree.ts の permissionFoldersOf。入れているバインダだけか空）
 export interface PageOutsideBook {
   book: typeof NOT_IN_BOOK
   page: string

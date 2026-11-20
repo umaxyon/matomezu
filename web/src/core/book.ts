@@ -6,7 +6,6 @@ import { isMoveRefusal, movedEntry, placeOf } from "./entries"
 import {
   type AnyEntryRef,
   binderFolderOf,
-  bookOf,
   type Folder,
   HOME_ID,
   homeAndFoldersOf,
@@ -14,14 +13,12 @@ import {
   isUnreadableRole,
   type Library,
   type MovedCode,
-  outsideUnreadable,
   type PageRow,
-  rawBooksOf,
-  rowsById,
   TRASH_ID,
   type TrashRef,
-  tablesOf,
 } from "./folders"
+import { bookOf, tablesOf } from "./folders-books"
+import { outsideUnreadable, rawBooksOf, rowsById } from "./folders-unreadable"
 import { freshPageId } from "./ids"
 import { splitId } from "./names"
 import { type ItemPage, pageHolds, slideOf, walkShapes } from "./placed"

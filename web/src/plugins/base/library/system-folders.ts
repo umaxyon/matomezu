@@ -13,14 +13,8 @@ import {
   titleOf,
   titlesIn,
 } from "../../../core/entries"
-import {
-  type Folder,
-  HOME_ID,
-  type Library,
-  type PlainFolder,
-  systemFolderIndex,
-  systemFolderOf,
-} from "../../../core/folders"
+import { type Folder, HOME_ID, type Library, type PlainFolder } from "../../../core/folders"
+import { systemFolderIndex, systemFolderOf } from "../../../core/folders-tree"
 import { kit } from "../kit"
 import { retitled } from "./entries"
 

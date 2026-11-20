@@ -5,7 +5,7 @@
 // URL の形: 値 1 つ（sc）に、場所を短い名前の JSON で書く（searchOf）。前の形（b0・p0・v0・s0…、c・r・w・f）は読むだけで、書かない。
 // URL が無ければ、開いた直後はステージを並べないスクリーン（コントロールセンター）をカレントスクリーンにする。プラグイン状態の中身は読まない（形を確かめるのは store の locate）
 import { type Address, moved, recentStagesIn, type ScreenPlace, type StagePlace } from "../core/address"
-import { NO_OUTERMOST } from "../core/folders"
+import { NO_OUTERMOST } from "../core/folders-tree"
 import { stagesDefOf } from "../core/window"
 import type { MatomezuInstance } from "../store/state"
 

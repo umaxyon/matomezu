@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
-import { BROKEN, HOME_ID, recordsOf, TRASH_ID } from "../../web/src/core/folders"
+import { BROKEN, HOME_ID, TRASH_ID } from "../../web/src/core/folders"
+import { recordsOf } from "../../web/src/core/folders-books"
 import type { Book } from "../../web/src/core/schema/book"
 import { NOT_INSIDE, PURGED } from "../../web/src/core/unreadable"
 import { screenOf } from "../../web/src/core/window"
