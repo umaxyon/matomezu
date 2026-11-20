@@ -1,5 +1,5 @@
 // チケットの絞り（横断検索のチケットモードが決め、タスクボードが従う。見た目でない。窓のプラグイン状態に持つ）:
-// 言葉に当たったチケットの id の集合（言葉が無ければ null）と、プロジェクト・タグ・優先度・規模の選び（空なら絞らない）
+// 言葉に当たったチケットの id の集合（言葉が無ければ null）と、プロジェクト・タグ・優先度・チケットボリュームの選び（空なら絞らない）
 import type { WideSearchHit } from "../../../plugin-api"
 import type { TicketRecord } from "../board/shown"
 import { ticketNumberOf } from "../ticket/label"

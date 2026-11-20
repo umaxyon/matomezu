@@ -112,7 +112,9 @@ test("URL でチケットを開くと、チケットの枠と本文が右から�
   await expect(heading).toBeHidden()
 })
 
-test("名前・優先度・規模・本文は直したそばから反映され、読み直しても残る。巣箱で閉じる", async ({ page }) => {
+test("名前・優先度・チケットボリューム・本文は直したそばから反映され、読み直しても残る。巣箱で閉じる", async ({
+  page,
+}) => {
   await page.goto(CONTROL_CENTER_URL)
   const { ticket } = await setup(page)
   await page.goto(open(ticket))
@@ -127,7 +129,7 @@ test("名前・優先度・規模・本文は直したそばから反映され�
   await slider.focus()
   await slider.press("ArrowRight")
   await expect(slider).toHaveAttribute("aria-valuetext", "大")
-  // 規模のつまみ: 見積もっていない「未」から 1 段上げて XS に
+  // チケットボリュームのつまみ: 見積もっていない「未」から 1 段上げて XS に
   const volume = screen.getByRole("slider", { name: "規模" })
   await expect(volume).toHaveAttribute("aria-valuetext", "未")
   await volume.focus()

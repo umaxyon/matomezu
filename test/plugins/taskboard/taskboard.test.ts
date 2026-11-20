@@ -98,7 +98,7 @@ test("AI はプロジェクトを作る・閉じる・開け直す・チケッ�
   expect(run(AI, "project-reopen", {}, { record: p.id }).ok).toBe(true)
 })
 
-test("チケットの番号はプロジェクトごとに続き、消しても使い回さない。レーンを省くと未分類、優先度は中、規模は見積もっていない", () => {
+test("チケットの番号はプロジェクトごとに続き、消しても使い回さない。レーンを省くと未分類、優先度は中、チケットボリュームは見積もっていない", () => {
   const { user, projects, tickets } = ready()
   user("project-add", {})
   const p = projects()[0] as Project
@@ -110,7 +110,7 @@ test("チケットの番号はプロジェクトごとに続き、消しても�
   expect(tickets()[0]).toMatchObject({ lane: "unsorted", tags: [], priority: "medium", volume: "none" })
 })
 
-test("規模は ticket-add で選べ、ticket-update で変えられる。同じ規模なら最終更新は進まない。段に無い値は断る", () => {
+test("チケットボリュームは ticket-add で選べ、ticket-update で変えられる。同じチケットボリュームなら最終更新は進まない。段に無い値は断る", () => {
   const { user, projects, tickets } = ready()
   user("project-add", {})
   const p = projects()[0] as Project
@@ -192,7 +192,7 @@ test("プロジェクトを直すと、id の無いレーン・タグは新し�
   expect(q.tags[0]?.id).toBe(task?.id)
 })
 
-test("新しいプロジェクトのチケットカードは優先度と規模を出す。cardShows の priority・volume を 1 つずつ変えられ、省けば今のまま", () => {
+test("新しいプロジェクトのチケットカードは優先度とチケットボリュームを出す。cardShows の priority・volume を 1 つずつ変えられ、省けば今のまま", () => {
   const { user, projects } = ready()
   user("project-add", {})
   const p = projects()[0] as Project

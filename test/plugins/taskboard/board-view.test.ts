@@ -133,7 +133,7 @@ test("並べ方は、使う項目を上から比べる。既定は id の降順�
       desc: keys.find(([k]) => k === r.key)?.[1] ?? false,
     }))
   expect(ids(on(["priority", true], ["updated", false]))).toEqual(["T2", "T3", "T4", "T1"])
-  // 規模は段の順で、見積もっていない none がいちばん小さい
+  // チケットボリュームは段の順で、見積もっていない none がいちばん小さい
   expect(ids(on(["volume", false]))).toEqual(["T2", "T3", "T4", "T1"])
   expect(ids(on(["volume", true]))).toEqual(["T1", "T4", "T3", "T2"])
   // T4 はタスクとバグ（プロジェクトの順に 0・1）、T2 はタスク（0）だけ、T1 はバグ（1）

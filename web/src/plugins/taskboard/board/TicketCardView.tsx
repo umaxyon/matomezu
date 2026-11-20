@@ -1,4 +1,4 @@
-// チケットのチケットカード（レーンの中の 1 枚）: 番号（プレフィクス＋番号）・名前・タグのバッヂ・優先度の印と右下の規模の分銅（プロジェクトの cardShows が出すときだけ。見積もっていない規模は出さない）・右上に担当の鳥。
+// チケットのチケットカード（レーンの中の 1 枚）: 番号（プレフィクス＋番号）・名前・タグのバッヂ・優先度の印と右下のチケットボリュームの分銅（プロジェクトの cardShows が出すときだけ。見積もっていないチケットボリュームは出さない）・右上に担当の鳥。
 // 大きさ（チケットサイズ）で形が変わる: large は名前とタグを折り返し（タグは 3 行まで）、medium は名前を 1 行で … で切りタグも 1 行、small は番号と名前の 1 行だけ（… で切る）。
 // タグはプロジェクトの順で、入らない分は「+N」
 // 押すとチケットスクリーンを開く（上下に分けて見せていれば閉じる。開き方は useOpenTicket の card）。上下に分けて見せているチケットのカードは色を付ける（data-open）。
@@ -20,7 +20,7 @@ const BAR_PITCH = 3.2
 const BAR_TOP = 10
 const barHeight = (i: number) => 3 + i * 1.75
 
-// 規模の分銅の一辺（px）: xs から xl へ 2px ずつ大きくする（none は出さない）
+// チケットボリュームの分銅の一辺（px）: xs から xl へ 2px ずつ大きくする（none は出さない）
 const weightSize = (volume: (typeof VOLUMES)[number]) => 4 + VOLUMES.indexOf(volume) * 2
 // 分銅の下の段の名前の字の高さ（px）。SVG の字にして、ブラウザの最小の文字サイズに掛からないようにする
 const VOLUME_TEXT = 7
@@ -113,7 +113,7 @@ function PriorityMark({ priority }: { priority: (typeof PRIORITIES)[number] }) {
   )
 }
 
-// 規模の印: 段で大きさの変わる分銅と、その下の段の名前。カードの右下の隅に置き、カードの下の行の高さを変えない
+// チケットボリュームの印: 段で大きさの変わる分銅と、その下の段の名前。カードの右下の隅に置き、カードの下の行の高さを変えない
 function VolumeMark({ volume }: { volume: (typeof VOLUMES)[number] }) {
   const t = useMessages(kit)
   const name = t(`volume ${volume}`)

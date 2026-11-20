@@ -1,5 +1,5 @@
 // レーンの中のチケットの並べ方: 使う項目（on）を上から順に比べる（先の項目で同じなら次の項目で）。どれも使わなければ元の並び。
-// 項目は 5 つ: id（番号の数）・優先度（PRIORITIES の順）・規模（VOLUMES の順。見積もっていない none がいちばん小さい）・最終更新（時刻の文字。無ければ最も古い）・タグ（プロジェクトのチケットタグの並び順。タグなしと無いタグは最後）
+// 項目は 5 つ: id（番号の数）・優先度（PRIORITIES の順）・チケットボリューム（VOLUMES の順。見積もっていない none がいちばん小さい）・最終更新（時刻の文字。無ければ最も古い）・タグ（プロジェクトのチケットタグの並び順。タグなしと無いタグは最後）
 import { PRIORITIES, PRIORITY_DEFAULT, type TicketRecord, VOLUMES } from "./shown"
 
 export const SORT_KEYS = ["id", "priority", "volume", "updated", "tag"] as const

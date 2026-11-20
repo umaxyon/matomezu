@@ -9,7 +9,7 @@ export const TICKET_MESSAGES = defineMessages({
   "remove ticket": { en: "Remove a ticket", ja: "チケットを消す" },
   "lock ticket": { en: "Lock a ticket", ja: "チケットをロックする" },
   "unlock ticket": { en: "Unlock a ticket", ja: "チケットのロックを外す" },
-  // 優先度と規模の段の名前（カード・チケットスクリーン・横断検索で使う）
+  // 優先度とチケットボリュームの段の名前（カード・チケットスクリーン・横断検索で使う）
   "priority lowest": { en: "lowest", ja: "最小" },
   "priority low": { en: "low", ja: "小" },
   "priority medium": { en: "medium", ja: "中" },

@@ -60,7 +60,7 @@ test("当たりは、チケットの当たりは自分の id、履歴の当た�
   ).toEqual(["a", "b"])
 })
 
-test("絞りが無いか効いていなければ全部、言葉の当たりとプロジェクト・タグ・優先度・規模の選びは掛け合わせて残す", () => {
+test("絞りが無いか効いていなければ全部、言葉の当たりとプロジェクト・タグ・優先度・チケットボリュームの選びは掛け合わせて残す", () => {
   expect(ids(undefined)).toEqual(["a", "b", "c", "d"])
   expect(isFiltering(NO_FILTER)).toBe(false)
   expect(ids(NO_FILTER)).toEqual(["a", "b", "c", "d"])

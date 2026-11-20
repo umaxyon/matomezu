@@ -1,4 +1,4 @@
-// プロジェクト設定: ボードの歯車で開き、レーンの名前を直し、完了と作業中のスイッチ（同じレーンには片方だけ）を切り替え、未分類を表示すると、保存でボードに出る。名前が重なる間は保存できない。全般の「優先度を出す」「規模を出す」を切ると、チケットカードに優先度・規模が出ない
+// プロジェクト設定: ボードの歯車で開き、レーンの名前を直し、完了と作業中のスイッチ（同じレーンには片方だけ）を切り替え、未分類を表示すると、保存でボードに出る。名前が重なる間は保存できない。全般の「優先度を出す」「チケットボリュームを出す」を切ると、チケットカードに優先度・チケットボリュームが出ない
 import { CONTROL_CENTER_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
 
 const projects = async (page: Page) =>
@@ -203,7 +203,7 @@ test("プロジェクト設定で追加した行の名前は、1 文字ずつ打
   }
 })
 
-test("全般の「優先度を出す」「規模を出す」を切って保存すると、チケットカードの右下に優先度も規模も出ない", async ({
+test("全般の「優先度を出す」「規模を出す」を切って保存すると、チケットカードの右下に優先度もチケットボリュームも出ない", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -218,7 +218,7 @@ test("全般の「優先度を出す」「規模を出す」を切って保存�
     doneLane?: string
     lanes: { kind: string; id?: string; cardSize?: string }[]
   }
-  // 優先度と規模の印は small のカードには出ないので、完了でない、large か medium か継承のレーンに置く
+  // 優先度とチケットボリュームの印は small のカードには出ないので、完了でない、large か medium か継承のレーンに置く
   const lane = first.lanes.find(l => l.kind === "lane" && l.id !== first.doneLane && l.cardSize !== "small")!
   const added = await page.request.post("/api/ai/perform", {
     headers: await joinedAiAuth(),
