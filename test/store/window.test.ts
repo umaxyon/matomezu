@@ -18,7 +18,7 @@ import {
   shownScreens,
   stageIn,
 } from "../../web/src/core/window"
-import { showIn, viewOf } from "../../web/src/host-client/server"
+import { showIn, viewOf } from "../../web/src/host-client/server-view"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { isActive } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"

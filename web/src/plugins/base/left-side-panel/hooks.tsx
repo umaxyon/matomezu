@@ -2,8 +2,9 @@
 // 開くのは、開く側が渡したタブの組（どのタブに何を渡すか）で置き換える。カレントスクリーンは替えない。
 // ステージの物を見せるタブ（タブの定義の scope が "stage"）が組にあれば、開いた所のステージを一緒に持つ（タブの中身は、そのステージの中として描かれる）
 import { useCallback } from "react"
+import { usePluginState, useSetPluginState, useUpdatePluginState } from "../../../ui/plugin-state-hooks"
 import { useStageId } from "../../../ui/scope"
-import { usePluginState, useSetPluginState, useUiCatalog, useUpdatePluginState } from "../../../ui/view-hooks"
+import { useUiCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import {
   LEFT_SIDE_PANEL_STATE,

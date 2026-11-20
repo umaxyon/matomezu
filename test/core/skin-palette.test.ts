@@ -1,6 +1,6 @@
 // 外観枠の代表色（core/skin.ts）: 役割ごとにスキンの明暗の既定を持ち、スキンの palette の上書きが勝ち、上の字は色の明るさで濃い字か白になる。palette の値が #rrggbb でなければ台帳アセンブルで error（E052）
 import { expect, test } from "bun:test"
-import { checkCoreCatalog } from "../../web/src/core/core-catalog"
+import { checkCoreCatalog } from "../../web/src/core/core-catalog-check"
 import { defineSkin } from "../../web/src/core/def/skin"
 import { paletteInk, skinPalette } from "../../web/src/core/skin"
 import { DARK } from "../../web/src/plugins/base/looks/dark"

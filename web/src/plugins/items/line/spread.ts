@@ -8,16 +8,8 @@ import type { Point } from "../../../plugin-api"
 import type { PortArea } from "../../base"
 import { centerOf } from "./geom"
 import type { PlacedLine } from "./placed"
-import {
-  fewestRoute,
-  perimeterAt,
-  type Route,
-  type RouteInput,
-  routeOnSides,
-  type Side,
-  sideAt,
-  vertexAt,
-} from "./route"
+import { fewestRoute, type Route, type RouteInput, routeOnSides, type Side, sideAt } from "./route"
+import { perimeterAt, vertexAt } from "./route-ends"
 
 const VERTEX_DIR: Record<Side, Point> = { t: { x: 0, y: -1 }, r: { x: 1, y: 0 }, b: { x: 0, y: 1 }, l: { x: -1, y: 0 } }
 // 頂点を割り当てる線の数の上限（頂点は 4 つ）

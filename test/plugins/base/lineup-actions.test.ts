@@ -3,7 +3,7 @@
 import { describe, expect, test } from "bun:test"
 import { USER } from "../../../web/src/core/actor"
 import { findBinder, findPage, lineupOf, pagesIn, pagesOf, putPage } from "../../../web/src/core/book"
-import { checkCoreCatalog } from "../../../web/src/core/core-catalog"
+import { checkCoreCatalog } from "../../../web/src/core/core-catalog-check"
 import { bookOf, tablesOf } from "../../../web/src/core/folders-books"
 import { perform } from "../../../web/src/core/perform"
 import type { ItemPage } from "../../../web/src/core/placed"

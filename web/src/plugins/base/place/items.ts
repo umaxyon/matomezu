@@ -1,15 +1,12 @@
 // ページに置いたアイテムの操作（データを書き換えず、新しい値を返す）。
 // アイテムは紙から少しでもはみ出す所には置かず、動かさない。置いた・動かした・大きさか左上が変わったアイテムは、近づきすぎた相手をどける（push.ts）。
 // 形が変わったあとは、ページのつなぐものの決まりで整える（placed.ts の tidyConnectors）
-import { type CatalogCheckDef, type CoreCatalog, pageType } from "../../../core/core-catalog"
+import type { CatalogCheckDef, CoreCatalog } from "../../../core/core-catalog"
 import type { ConnectorData, ShapeData } from "../../../core/def/item"
 import { problem } from "../../../core/errors"
 import type { Point, Size } from "../../../core/geom"
-import { resolvePaper } from "../../../core/paper"
 import {
   byConnector,
-  connectorDef,
-  connectorsOf,
   findShape,
   type ItemPage,
   isShape,
@@ -22,23 +19,12 @@ import {
   walkShapes,
 } from "../../../core/placed"
 import { themeFits } from "../book-look/theme-types"
-import { type PageContext, type SettingReader, settingsAt, tidyPage } from "../book-settings"
-import { setField } from "../utils/fields"
+import { type PageContext, type SettingReader, tidyPage } from "../book-settings"
 import { contentIdMaker } from "../utils/ids"
-import { GROW_CHOICE_SIDES, type GrowSides, grownArea } from "./grow"
-import { childrenSize, connectorGaps, type PortArea, placedSize, portAreasOf, rectsOf, shapeDefOf } from "./placed"
-import {
-  apartWay,
-  evenGap,
-  type Floors,
-  type Gap,
-  inPaper,
-  newClash,
-  planPlace,
-  pushFrom,
-  type Rect,
-  tooClose,
-} from "./push"
+import { roomOf, shiftedConnectors } from "./grow"
+import { connectorGaps, type PortArea, placedSize, rectsOf, shapeDefOf } from "./placed"
+import { apartWay, evenGap, type Gap, inPaper, newClash, planPlace, pushFrom, type Rect, tooClose } from "./push"
+import { floorsOf } from "./size"
 
 // 形の仲間の名前（familyTitle）が文言の表にあるか（台帳アセンブルのときの確かめ）
 export const FAMILY_TITLE_CHECK: CatalogCheckDef = catalog =>
@@ -120,196 +106,12 @@ export function nextItemId(page: ItemPage, newId: () => string): string {
   return contentIdMaker(page, newId)()
 }
 
-// 置く前のアイテムの大きさ（定義の大きさ。表に無いアイテムと、大きさを持たないアイテムは null）
-export function itemSize(catalog: CoreCatalog, item: string): Size | null {
-  return shapeDefOf(catalog, item)?.size ?? null
-}
-
-// 大きさを変えられるアイテムの、一番小さい大きさ（変えられないアイテムは null）
-export function minSize(catalog: CoreCatalog, item: PlacedShape): Size | null {
-  return shapeDefOf(catalog, item.item)?.min ?? null
-}
-
-// キャプションが切れずに見える幅（編集で縮めてよい横の下限と、キャプションで広げる幅。表に無いアイテムは 0）
-const captionWidth = (catalog: CoreCatalog, item: PlacedShape): number => {
-  const def = shapeDefOf(catalog, item.item)
-  return def ? (def.captionWidth?.(item) ?? def.size.w) : 0
-}
-
-// キャプションが切れずに見える高さ（定義の captionHeight。無ければ null で、縦にはキャプションで広げない）
-const captionHeight = (catalog: CoreCatalog, item: PlacedShape): number | null =>
-  shapeDefOf(catalog, item.item)?.captionHeight?.(item) ?? null
-
-// つかんだ辺（x は左か右、y は上か下。角なら両方）
-export interface Edges {
-  x?: "left" | "right"
-  y?: "top" | "bottom"
-}
-
-// 辺をつかんで、紙の上で by だけ動かしたときの左上と大きさ。つかんでいない辺はそのまま。
-// 一番小さい大きさより小さくせず（子を持つ形は、子がみな入る大きさより小さくしない）、紙の外へは広げない（変えられないアイテムは null）。
-// ratio なら、つかめるのは角だけで（辺なら null）、向かいの角を止めて幅と高さの比を保つ（幅と高さのうち、大きく変わった方の割合に合わせる）。
-// 大きさを項目に写す形（定義の resizedTo）は、写した項目から決まる大きさにする（離したあとの大きさと同じ）
-export function resizedBy(
-  catalog: CoreCatalog,
-  item: PlacedShape,
-  edges: Edges,
-  by: Point,
-  paper: Size,
-  ratio = false,
-): { x: number; y: number; w: number; h: number } | null {
-  const own = minSize(catalog, item)
-  const size = placedSize(catalog, item)
-  if (!own || !size) return null
-  const children = childrenSize(catalog, item)
-  const min = children ? { w: Math.max(own.w, children.w), h: Math.max(own.h, children.h) } : own
-  if (ratio) {
-    if (!edges.x || !edges.y) return null
-    const right = edges.x === "right"
-    const bottom = edges.y === "bottom"
-    // 止めた角から紙の端までの広さ
-    const room = { w: right ? paper.w - item.x : item.x + size.w, h: bottom ? paper.h - item.y : item.y + size.h }
-    // 幅と高さのうち、大きく変わった方の割合に合わせる（横だけ・縦だけに引いても変わる）
-    const fw = (size.w + (right ? by.x : -by.x)) / size.w
-    const fh = (size.h + (bottom ? by.y : -by.y)) / size.h
-    const grown = Math.abs(fw - 1) >= Math.abs(fh - 1) ? fw : fh
-    const f = Math.min(Math.max(grown, min.w / size.w, min.h / size.h), room.w / size.w, room.h / size.h)
-    const wanted = { w: size.w * f, h: size.h * f }
-    const to = shapeDefOf(catalog, item.item)?.resizedTo
-    const next = to ? placedSize(catalog, to(item as ShapeData, wanted) as PlacedShape) : wanted
-    if (!next) return null
-    return {
-      x: right ? item.x : item.x + size.w - next.w,
-      y: bottom ? item.y : item.y + size.h - next.h,
-      w: next.w,
-      h: next.h,
-    }
-  }
-  const span = (start: number, len: number, d: number, side: "start" | "end" | undefined, lo: number, max: number) => {
-    if (side === "end") return { at: start, len: Math.min(Math.max(len + d, lo), max - start) }
-    if (side !== "start") return { at: start, len }
-    const end = start + len
-    const at = Math.max(Math.min(start + d, end - lo), 0)
-    return { at, len: end - at }
-  }
-  const h = span(item.x, size.w, by.x, edges.x && (edges.x === "left" ? "start" : "end"), min.w, paper.w)
-  const v = span(item.y, size.h, by.y, edges.y && (edges.y === "top" ? "start" : "end"), min.h, paper.h)
-  const rect = { x: h.at, y: v.at, w: h.len, h: v.len }
-  // 大きさを項目に写す形は、写した項目から決まる大きさにし、つかんでいない側の辺を止める
-  const to = shapeDefOf(catalog, item.item)?.resizedTo
-  const next = to ? placedSize(catalog, to(item as ShapeData, rect) as PlacedShape) : null
-  if (!next) return rect
-  return {
-    x: edges.x === "left" ? item.x + size.w - next.w : rect.x,
-    y: edges.y === "top" ? item.y + size.h - next.h : rect.y,
-    w: next.w,
-    h: next.h,
-  }
-}
-
-// 中身を変えた形 next の大きさ: キャプションの項目（定義の captionProp）が変わって、キャプションが見える幅（20 字まで）より狭ければ、そこまで広げる。
-// 文字を縦に置く形（定義の captionHeight を持つ形）は、見える高さまで縦にも広げる。
-// 広げる向きはページのタイプの growFrom（無ければ左・上を保って右・下へ。center なら真ん中を保って両側へ）で、紙からははみ出さない。
-// 狭めはしない。キャプションが変わらないか、captionProp の無い形ならそのまま
-export function widenForCaption(
-  catalog: CoreCatalog,
-  page: ItemPage,
-  before: PlacedShape,
-  next: PlacedShape,
-): PlacedShape {
-  const prop = shapeDefOf(catalog, next.item)?.captionProp
-  if (prop === undefined) return next
-  const caption = (p: PlacedShape) => (p.props as Record<string, unknown>)[prop]
-  if (caption(next) === caption(before)) return next
-  const size = placedSize(catalog, next)
-  const paper = roomOf(catalog, page)
-  if (!size) return next
-  const from = catalog.pageTypes.get(page.type)?.growFrom?.(settingsAt(catalog, page))
-  // 1 つの向きに、want まで広げた位置と長さ（at は左か上、len は今の長さ、room は紙の長さ）
-  const grow = (at: number, len: number, want: number, room: number, center: boolean) => {
-    const to = Math.min(want, center ? room : room - at)
-    if (to <= len) return { at, len }
-    return { at: center ? Math.min(Math.max(0, Math.round(at - (to - len) / 2)), room - to) : at, len: to }
-  }
-  const x = grow(next.x, size.w, captionWidth(catalog, next), paper.w, from?.x === "center")
-  const tall = captionHeight(catalog, next)
-  const y = tall === null ? { at: next.y, len: size.h } : grow(next.y, size.h, tall, paper.h, from?.y === "center")
-  if (x.len === size.w && y.len === size.h) return next
-  return { ...next, x: x.at, y: y.at, w: x.len, h: y.len }
-}
-
 // 形の個別のテーマ（定義の themeProp が名指す項目）を、タイプ type のページで使えるか（book-look/theme-types.ts。themeProp の無い形と、値が無いときは true）
 export function shapeThemeFits(catalog: CoreCatalog, type: string, item: { item: string; props: object }): boolean {
   const prop = shapeDefOf(catalog, item.item)?.themeProp
   if (prop === undefined) return true
   const theme = (item.props as Record<string, unknown>)[prop]
   return theme === undefined || (typeof theme === "string" && themeFits(catalog, type, theme))
-}
-
-// ページの紙の大きさ
-export const paperSize = (catalog: CoreCatalog, page: ItemPage): Size => resolvePaper(catalog, page).size
-
-// ページ page の増やす向き（可変ページでなければ undefined）。利用者が選ぶタイプは選んだ向き（選べない向きや true なら既定）、
-// タイプが決めるタイプは、そのページで効いている設定の値から。いつも可変ページのタイプは、どのページもタイプの向き
-export function growOf(catalog: CoreCatalog, page: ItemPage): GrowSides | undefined {
-  const rule = catalog.pageTypes.get(page.type)?.grow
-  if (rule && "always" in rule) return rule.always
-  if (!page.grows || !rule) return undefined
-  if ("sides" in rule) return rule.sides(settingsAt(catalog, page))
-  const chosen = page.grows === true || !rule.choices.includes(page.grows) ? rule.choices[0] : page.grows
-  return chosen && GROW_CHOICE_SIDES[chosen]
-}
-
-declare module "../../../core/catalog" {
-  interface PageTypeExtras {
-    // 位置をデータに持たないプレゼンテーションが、可変ページで描く中身を右・下へずらした印刷区画の数（ページの slide の形も、同じだけずらして描く。無ければ 0）。
-    // page で効いている設定の値は setting、ページの増やす向きは grow（可変ページでなければ undefined。growOf）
-    contentOrigin?(catalog: CoreCatalog, page: ItemPage, setting: SettingReader, grow: GrowSides | undefined): Point
-  }
-}
-
-// ページ page の slide の形を、描くときにずらす量（紙の上。ページのタイプの contentOrigin の印刷区画の数に、紙の大きさを掛ける）。
-// 位置をデータに持つプレゼンテーションは、データの slide の座標をずらすので、ここでは 0
-export function slideOffsetOf(catalog: CoreCatalog, page: ItemPage): Point {
-  const paper = paperSize(catalog, page)
-  const origin = pageType(catalog, page.type).contentOrigin?.(
-    catalog,
-    page,
-    settingsAt(catalog, page),
-    growOf(catalog, page),
-  )
-  return origin ? { x: origin.x * paper.w, y: origin.y * paper.h } : { x: 0, y: 0 }
-}
-
-// ページ page の広さ: 可変ページでなければ紙 1 枚。可変ページは、形とつなぐものの外枠が入るだけ印刷区画を並べた広さ
-// （spare なら右・下へ増やす向きに空きの印刷区画を 1 つずつ足す。grow.ts の grownArea）
-export function pageArea(
-  catalog: CoreCatalog,
-  page: ItemPage,
-  spare = false,
-): { columns: number; rows: number; size: Size } {
-  const paper = paperSize(catalog, page)
-  const grow = growOf(catalog, page)
-  if (!grow) return { columns: 1, rows: 1, size: paper }
-  return grownArea(paper, grow, extentOf(catalog, page, settingsAt(catalog, page)), spare)
-}
-
-// ページの形を置ける広さ（ページの Frame の大きさ）: 可変ページでなければ紙 1 枚。可変ページは、形の外枠が入るだけ並べた印刷区画に、
-// 右・下へ増やす向きの空きを 1 つずつ足した広さ（空きへ置けば、また空きが出る）。つなぐものは測らない（道筋を計算し直さないため）
-export function roomOf(catalog: CoreCatalog, page: ItemPage): Size {
-  const paper = paperSize(catalog, page)
-  const grow = growOf(catalog, page)
-  if (!grow) return paper
-  const rects = [...rectsOf(catalog, page).values()]
-  const extent = rects.length
-    ? {
-        x: 0,
-        y: 0,
-        w: Math.max(...rects.map(r => r.x + r.w)),
-        h: Math.max(...rects.map(r => r.y + r.h)),
-      }
-    : null
-  return grownArea(paper, grow, extent, true).size
 }
 
 // 押したあとのページ next を、線を整えて返す（tidyPage）。ただし、紙 paper の中にあった形と新しく置いた形が、描く大きさ（placedSize）で紙からはみ出すなら null。
@@ -321,22 +123,6 @@ function pushedPage(catalog: CoreCatalog, page: ItemPage, next: ItemPage, paper:
     if ((!old || inPaper(old, paper)) && !inPaper(r, paper)) return null
   }
   return tidyPage(catalog, next)
-}
-
-// ページの形とつなぐものを、今の位置で描いたときの外枠（つなぐものは定義の bounds で測る）。何も描かなければ null。
-// setting はそのページで効いている設定の値
-export function extentOf(catalog: CoreCatalog, page: ItemPage, setting: SettingReader): Rect | null {
-  const rects = rectsOf(catalog, page)
-  const boxes: Rect[] = [...rects.values()]
-  const areas = portAreasOf(catalog, page, rects)
-  for (const [def, list] of byConnector(catalog, page)) {
-    const b = def.bounds?.(list as ConnectorData[], areas, setting)
-    if (b) boxes.push(b)
-  }
-  if (boxes.length === 0) return null
-  const x = Math.min(...boxes.map(b => b.x))
-  const y = Math.min(...boxes.map(b => b.y))
-  return { x, y, w: Math.max(...boxes.map(b => b.x + b.w)) - x, h: Math.max(...boxes.map(b => b.y + b.h)) - y }
 }
 
 // 形をそのブックに合わせたページ（整列など）: 形に、定義のブックへの合わせ（adapt）をかける。タイプがその形に渡す指定と、
@@ -352,56 +138,6 @@ export function adaptPage<P extends ItemPage>(catalog: CoreCatalog, page: P, con
     return next
   })
   return changed ? { ...page, items } : page
-}
-
-// 可変ページの中身を、印刷区画の単位でずらしたページ: 形の外枠の左端（上端）が、左（上）から into.x（into.y）番目の印刷区画に来るようにする
-// （1 なら左・上に空きの印刷区画を 1 つ持ち、0 なら持たない。無い向きはずらさない）。ずらした量（印刷区画の数）はページの shift に足す（0 なら消す）。
-// つなぐものは、定義の shift で位置を持つ物も一緒にずらす。ページの slide の形も、同じ量でずらす（線の点は枠の割合なので、枠の位置だけ）。
-// 形の無いページ・ずらさなくてよいページはそのまま
-export function alignPadding<P extends ItemPage>(catalog: CoreCatalog, page: P, into: { x?: 0 | 1; y?: 0 | 1 }): P {
-  const paper = paperSize(catalog, page)
-  const rects = [...rectsOf(catalog, page).values()]
-  if (rects.length === 0) return page
-  const kx = into.x === undefined ? 0 : into.x - Math.floor(Math.min(...rects.map(r => r.x)) / paper.w)
-  const ky = into.y === undefined ? 0 : into.y - Math.floor(Math.min(...rects.map(r => r.y)) / paper.h)
-  if (kx === 0 && ky === 0) return page
-  const d = { x: kx * paper.w, y: ky * paper.h }
-  const shifted = shiftedConnectors(catalog, page, () => d)
-  const items = pageItemsOf(page).map(i =>
-    isShape(i) ? { ...i, x: i.x + d.x, y: i.y + d.y } : (shifted.get(i.id) ?? i),
-  )
-  const total = { x: (page.shift?.x ?? 0) + kx, y: (page.shift?.y ?? 0) + ky }
-  const moved = {
-    ...page,
-    items,
-    ...(page.slide ? { slide: page.slide.map(s => ({ ...s, x: s.x + d.x, y: s.y + d.y })) } : {}),
-  }
-  return setField(moved, ["orientation", "grows"], "shift", total.x === 0 && total.y === 0 ? undefined : total)
-}
-
-// ページ page のつなぐもののうち、by が量を返すものを、定義の shift で位置を持つ物ごとその量だけずらした物（id → ずらした物）。
-// 定義に shift の無い種類と、by が null を返すものは入れない
-function shiftedConnectors(
-  catalog: CoreCatalog,
-  page: ItemPage,
-  by: (c: PlacedConnector) => Point | null,
-): Map<string, PlacedConnector> {
-  const groups = new Map<string, { d: Point; list: PlacedConnector[] }>() // 種類と量 → つなぐもの
-  for (const c of connectorsOf(page)) {
-    const d = by(c)
-    if (!d) continue
-    const key = `${c.item} ${d.x},${d.y}`
-    groups.set(key, { d, list: [...(groups.get(key)?.list ?? []), c] })
-  }
-  const shifted = new Map<string, PlacedConnector>()
-  if (groups.size === 0) return shifted
-  const areas = portAreasOf(catalog, page)
-  for (const { d, list } of groups.values()) {
-    const def = connectorDef(catalog, (list[0] as PlacedConnector).item)
-    if (!def?.shift) continue
-    for (const c of def.shift(list as ConnectorData[], areas, d)) shifted.set(c.id, c as PlacedConnector)
-  }
-  return shifted
 }
 
 // 同じだけ動いたとみなす差（位置の引き算に出る浮動小数点の誤差より大きく、動かす量の刻みより小さい）
@@ -426,18 +162,6 @@ export function followConnectors<P extends ItemPage>(
     return a && b && sameShift(a, b) && (a.x !== 0 || a.y !== 0) ? a : null
   })
   return shifted.size === 0 ? page : { ...page, items: pageItemsOf(page).map(i => shifted.get(i.id) ?? i) }
-}
-
-// 可変ページの中身を、増やす向き sides に合わせてずらしたページ: 左（上）へ増やすなら左（上）に空きの印刷区画を 1 つ持たせ、
-// 前は増やしていた（was）が増やさなくなった向きは空きを詰める（入らないかは shapesFit で確かめる）
-export function paddedFor<P extends ItemPage>(
-  catalog: CoreCatalog,
-  page: P,
-  sides: GrowSides | undefined,
-  was: GrowSides | undefined,
-): P {
-  const axis = (now: boolean | undefined, before: boolean | undefined) => (now ? 1 : before ? 0 : undefined)
-  return alignPadding(catalog, page, { x: axis(sides?.left, was?.left), y: axis(sides?.up, was?.up) })
 }
 
 // 形を並べ直したページ（整列など）: つなぐものに、定義の固定の外し（unpin）を種類ごとにかける（前の並びに合わせて手で決めた形を外す）。
@@ -488,28 +212,6 @@ export function shownRects(
   }
   walk(shapes, { x: 0, y: 0 }, { x: 0, y: 0 })
   return rects
-}
-
-// 編集で縮めてよい下限（紙に収める）: 横がキャプションが全部見える幅、縦が一番低い高さ（箱はキャプション 1 行、リストは見出しと「＋」の行。
-// 文字を縦に置く形はキャプションが全部見える高さ）。子を持つ形は、子がみな入る大きさより小さくしない（placed.ts の childrenSize）。
-// 今それより小さければ今の大きさ。大きさを項目に写す形は、今の大きさ（縮めない）
-export function floorsOf(catalog: CoreCatalog, page: ItemPage): Floors {
-  const floors = new Map<string, Size>()
-  for (const i of shapesOf(page)) {
-    const size = placedSize(catalog, i)
-    if (!size) continue
-    // 大きさを項目に写す形（定義の resizedTo）は、押されても縮まない（w・h を書いても、大きさは項目から決まるため）
-    if (shapeDefOf(catalog, i.item)?.resizedTo) {
-      floors.set(i.id, size)
-      continue
-    }
-    const children = childrenSize(catalog, i) ?? { w: 0, h: 0 }
-    floors.set(i.id, {
-      w: Math.min(size.w, Math.max(children.w, captionWidth(catalog, i))),
-      h: Math.min(size.h, Math.max(children.h, captionHeight(catalog, i) ?? (minSize(catalog, i) ?? size).h)),
-    })
-  }
-  return floors
 }
 
 // ページのアイテムを next に置き換え、近づきすぎた相手を押してどける（push.ts）。shrink なら、押した列が紙からはみ出すとき縮めて収める。

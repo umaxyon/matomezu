@@ -3,7 +3,7 @@
 // 無ければ（まだ描いていない・別のページを描いた絵）定義の minimap で作る
 
 import { useLayoutEffect } from "react"
-import { usePluginState, useReadPluginState, useSetPluginState } from "../../../ui/view-hooks"
+import { usePluginState, useReadPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
 import { kit } from "../kit"
 import { usePrinting } from "../print-preview/printing"
 import type { MinimapMark } from "./marks"

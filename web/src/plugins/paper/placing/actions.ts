@@ -236,7 +236,7 @@ export const ITEM_REPARENT = kit.defineAction({
 })
 
 // アイテムの項目を変える。props に書いた項目だけを変え、書かなかった項目はそのまま。null を書いた項目は消す（既定に戻す）。
-// 形に当てるテーマ（theme）はページのタイプが使えるものだけ（渡したときだけ確かめる。残っている使えないテーマは、ほかの項目を変えても断らない）。形のキャプションが変わったら、20 字まで見える幅まで右へ広げ（base/place/items.ts の widenForCaption。狭めはしない）、
+// 形に当てるテーマ（theme）はページのタイプが使えるものだけ（渡したときだけ確かめる。残っている使えないテーマは、ほかの項目を変えても断らない）。形のキャプションが変わったら、20 字まで見える幅まで右へ広げ（base/place/size.ts の widenForCaption。狭めはしない）、
 // 近づきすぎた相手を押す。押した相手が紙に収まらなければ、広げずに変える。項目の形に合わなければ断る
 export const ITEM_UPDATE = kit.defineAction({
   id: "item-update",

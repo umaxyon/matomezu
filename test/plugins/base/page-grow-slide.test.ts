@@ -1,9 +1,9 @@
-// 可変ページの中身のずらし（base の place/items の alignPadding）: 左・上へ増やすとき、ページの slide の形も、中身（items）と同じ量でずれる
+// 可変ページの中身のずらし（base の place/grow の alignPadding）: 左・上へ増やすとき、ページの slide の形も、中身（items）と同じ量でずれる
 
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../../web/src/core/book"
 import type { Book } from "../../../web/src/core/schema/book"
-import { paperSize } from "../../../web/src/plugins/base/place/items"
+import { paperSize } from "../../../web/src/plugins/base/place/grow"
 import { ELLIPSE } from "../../../web/src/plugins/items/slide/slide"
 import { CORE_CATALOG, newStore } from "../../support"
 

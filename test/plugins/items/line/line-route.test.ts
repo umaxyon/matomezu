@@ -3,7 +3,6 @@ import { expect, test } from "bun:test"
 import type { Point } from "../../../../web/src/core/geom"
 import { nearestAt, pointAt, type Rect } from "../../../../web/src/plugins/items/line/geom"
 import {
-  alignedEnds,
   passes,
   type RouteInput,
   type RouteShape,
@@ -15,6 +14,7 @@ import {
   sideAt,
   simplifyVia,
 } from "../../../../web/src/plugins/items/line/route"
+import { alignedEnds } from "../../../../web/src/plugins/items/line/route-ends"
 import { perimeter } from "../../../../web/src/plugins/items/line/selfloop"
 
 // a: 40〜160 × 40〜104（中心 100, 72）、b: 400〜520 × 300〜364（中心 460, 332）

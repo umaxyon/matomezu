@@ -2,8 +2,8 @@
 // モードはスロット wide-search-modes に置かれたウィジェットで、置いた順に並べる。最後に選んだモードは覚え、開き直したら同じモードで開く
 import { useState } from "react"
 import { useMessages, useT } from "../../../ui/i18n"
+import { usePluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
 import { useLayout, useUiCatalog } from "../../../ui/store-context"
-import { usePluginState, useSetPluginState } from "../../../ui/view-hooks"
 import { ActionButton, controlClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { WIDE_SEARCH_MODES, type WideSearchModeProps } from "./slots"

@@ -1,5 +1,5 @@
 // 印刷区画の区切りの線を隠しているか（base が持つステージのプラグイン状態。画面の中だけで、読み直すと見せる）
-import { usePluginState, useReadPluginState, useSetPluginState } from "../../../ui/view-hooks"
+import { usePluginState, useReadPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
 import { kit } from "../kit"
 import { PRINT_AREAS_HIDDEN } from "./states"
 

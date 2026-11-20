@@ -8,7 +8,8 @@ import { drawLines } from "./drawn"
 import { nearestAt, pointAt, type Rect } from "./geom"
 import type { Head } from "./heads"
 import { canConnect, linesOf, type PlacedLine } from "./placed"
-import { perimeterAt, type Side, vertexAt } from "./route"
+import type { Side } from "./route"
+import { perimeterAt, vertexAt } from "./route-ends"
 import { cornerAt, nearestCorner, perimeter, selfLoop } from "./selfloop"
 
 export const SIDES: readonly Side[] = ["t", "r", "b", "l"]

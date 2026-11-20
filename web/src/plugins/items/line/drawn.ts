@@ -7,19 +7,16 @@ import { captionBox } from "./caption"
 import { type Head, headDraw } from "./heads"
 import { BEND_MARGIN, type PlacedLine } from "./placed"
 import {
-  alignedEnds,
   type EndMemory,
   fewestRoute,
-  isAligned,
-  perimeterAt,
   type Route,
   type RouteInput,
   type RouteShape,
   route,
   type Segment,
   scopeObstacles,
-  vertexAt,
 } from "./route"
+import { alignedEnds, isAligned, perimeterAt, vertexAt } from "./route-ends"
 import { selfLoop } from "./selfloop"
 import { keepApart, type Routed, separateEnds, splitVertices } from "./spread"
 

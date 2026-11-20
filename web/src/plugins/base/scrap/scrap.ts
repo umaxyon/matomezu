@@ -6,7 +6,7 @@ import type { CoreCatalog } from "../../../core/core-catalog"
 import type { Point, Rect, Size } from "../../../core/geom"
 import type { ItemPage } from "../../../core/placed"
 import { kit } from "../kit"
-import { pageArea, paperSize } from "../place/items"
+import { pageArea, paperSize } from "../place/grow"
 
 // 倍率の範囲（1 が等倍）
 export const SCRAP_SCALE_MIN = 0.1

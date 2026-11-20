@@ -28,24 +28,18 @@ import {
   useStage,
 } from "../../../plugin-api/ui"
 import { DRAG_START, resolveTokens } from "../../base"
-import {
-  GhostArea,
-  modPressed,
-  RichText,
-  useAnchorRef,
-  useFollowsSelection,
-  useRevealable,
-  useThemeVars,
-} from "../../base/ui"
+import { GhostArea, modPressed, useAnchorRef, useFollowsSelection, useRevealable, useThemeVars } from "../../base/ui"
 import { LIST_ADD_ROW, LIST_CHECK, LIST_EDIT_ROW, LIST_MOVE_ROW, LIST_STRETCH_ROW } from "./commands"
 import { edgeScroller } from "./edge-scroll"
 import { kit } from "./kit"
 import styles from "./ListView.module.css"
 import { LIST, LIST_ROWS_SCOPE, type ListRow, ROW_CONTEXT } from "./list"
 import { listPaintVars } from "./paint"
+import { Ghost, RowFace } from "./RowFace"
 import { rowScroll } from "./reveal"
-import { canCarry, dropPlace, rowPress, shownOrder } from "./rows"
-import { linesFor, listLayout, type RowLayout, rowHeight } from "./size"
+import { BAR_HALF, type Drop, dropAt, type GhostLook, ghostLook } from "./row-drag"
+import { canCarry, rowPress, shownOrder } from "./rows"
+import { linesFor, listLayout, rowHeight } from "./size"
 
 // リストを描くテーマキー
 const LOOK_TOKENS = LIST.tokens
@@ -60,79 +54,6 @@ interface Carry {
   moving: boolean
   look?: GhostLook
 }
-
-// ポインタに付く行の写し: 行の大きさ（紙の上の px）と画面での倍率、つかんだ所（行の左上から、画面の px）、行の所の CSS 変数
-interface GhostLook {
-  w: number
-  h: number
-  scale: number
-  grab: { x: number; y: number }
-  vars: Record<string, string>
-}
-
-// 行の要素 li から写しの見た目を取る。変数はテーマキー（names）と、台紙・文字・行の地。scale はステージの倍率（写しも同じ倍率で描く）
-function ghostLook(li: HTMLElement, x: number, y: number, names: readonly string[], scale: number): GhostLook {
-  const r = li.getBoundingClientRect()
-  const css = getComputedStyle(li)
-  const vars: Record<string, string> = {}
-  for (const name of [...names, "--mount", "--ink", "--row-fill"]) {
-    const v = css.getPropertyValue(name)
-    if (v !== "") vars[name] = v
-  }
-  return { w: li.offsetWidth, h: li.offsetHeight, scale, grab: { x: x - r.left, y: y - r.top }, vars }
-}
-
-// 行を落とす所: リスト list の行 before の前（無ければ最後）と、光らせる所（画面の座標）
-interface Drop {
-  list: string
-  before?: string
-  bar: { x: number; y: number; w: number }
-}
-
-// ポインタ（画面の座標）の下のリストで、チェック済みか（checked）の行 row を落とす所（無ければ null）。行の並びは画面に見えている順。行の真ん中より上なら、その行の前。
-// チェック済みを寄せて見せているリストでは、落とせるのはその行が寄せられる組の中だけ（rows.ts の dropPlace）。
-// ポインタの高さと光る線は、行の並びの見えている範囲（スクロールする所）の中に収める（範囲の外の行の間には出さない）
-function dropAt(x: number, pointerY: number, row: string, checked: boolean): Drop | null {
-  const under = document.elementsFromPoint(x, pointerY)
-  const frame = under.map(el => el.closest("[data-list-frame]")).find(Boolean)
-  const ul = frame?.querySelector<HTMLElement>("[data-list-rows]")
-  const list = ul?.dataset.listRows
-  if (!ul || !list) return null
-  const box = ul.getBoundingClientRect()
-  const view = (ul.parentElement ?? ul).getBoundingClientRect()
-  const y = clamp(pointerY, view.top, view.bottom)
-  const others = [...ul.querySelectorAll<HTMLElement>(":scope > [data-row]")].filter(li => li.dataset.row !== row)
-  const li = new Map(others.map(el => [el.dataset.row ?? "", el]))
-  const gather = (ul.dataset.gather ?? "none") as "none" | "first" | "last"
-  const rows = others.map(el => ({
-    id: el.dataset.row ?? "",
-    checked: el.dataset.checked === "true",
-    order: Number(el.dataset.order),
-  }))
-  const place = dropPlace(rows, gather, checked, id => {
-    const r = li.get(id)?.getBoundingClientRect()
-    return r !== undefined && y < r.top + r.height / 2
-  })
-  const rect = (id: string) => li.get(id)?.getBoundingClientRect()
-  const bar = place.bar
-  const gap =
-    "before" in bar
-      ? (rect(bar.before)?.top ?? box.top) - GAP_MID
-      : "after" in bar
-        ? (rect(bar.after)?.bottom ?? box.top) + GAP_MID
-        : others.length > 0
-          ? (others[0]?.getBoundingClientRect().top ?? box.top) - GAP_MID
-          : box.top + INSET_MID
-  return {
-    list,
-    ...(place.before ? { before: place.before } : {}),
-    bar: { x: box.left + 8, y: clamp(gap, view.top + BAR_HALF, view.bottom - BAR_HALF), w: box.width - 16 },
-  }
-}
-const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
-const GAP_MID = 3 // 行の間の隙間（6px）の真ん中
-const INSET_MID = 4 // 行の無いリストの、台紙の内側の余白の真ん中
-const BAR_HALF = 2 // 光る線の太さ（4px）の半分
 
 // 行の高さを変えているドラッグ: つかんだ行と、その高さ（紙の上）、押したときのポインタの位置
 interface Stretch {
@@ -376,79 +297,6 @@ export function ListView({
           )}
         </GhostArea>
       )}
-    </div>
-  )
-}
-
-// 行のカードの地と、キャプション・線・本文（チェックの印は除く）
-function RowFace({ row, look }: { row: ListRow; look: RowLayout | undefined }) {
-  return (
-    <>
-      <div className={styles.cardShadow}>
-        <div className={styles.card} />
-      </div>
-      <div className={styles.text}>
-        <div className={styles.caption} data-align={row.props.captionAlign}>
-          {row.props.caption}
-        </div>
-        {look?.rule && <hr className={styles.rule} />}
-        {look && look.body.length > 0 && (
-          <div data-align={row.props.bodyAlign} style={{ width: look.width }}>
-            {look.body.map((line, n) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: 行は折り返した順の並びで、並べ替えない
-              <div key={n} className={styles.line}>
-                <RichText line={line} />
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </>
-  )
-}
-
-// ポインタに付く行の写し: つかんだ所がポインタの下に来るように、行と同じ大きさ・倍率で描く。チェックの印は押せない飾り
-function Ghost(p: {
-  row: ListRow
-  look: GhostLook
-  x: number
-  y: number
-  checklist: boolean
-  lines: RowLayout | undefined
-  done: boolean
-}) {
-  const { look } = p
-  const { "--row-fill": fill, ...vars } = look.vars
-  return (
-    <div
-      className={styles.ghost}
-      style={
-        {
-          ...vars,
-          left: p.x - look.grab.x,
-          top: p.y - look.grab.y,
-          width: look.w,
-          height: look.h,
-          transform: `scale(${look.scale})`,
-        } as CSSProperties
-      }
-    >
-      <div
-        className={styles.row}
-        data-done={p.done}
-        style={{ height: look.h, ...(fill ? { "--row-fill": fill } : {}) } as CSSProperties}
-      >
-        {p.checklist && (
-          <input
-            type="checkbox"
-            className={styles.check}
-            checked={p.row.props.checked === true}
-            readOnly
-            tabIndex={-1}
-          />
-        )}
-        <RowFace row={p.row} look={p.lines} />
-      </div>
     </div>
   )
 }

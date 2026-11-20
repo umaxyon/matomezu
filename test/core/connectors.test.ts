@@ -1,8 +1,8 @@
-// つなぐもの（線など）を種類ごとに分ける byConnector（core/placed.ts）と、それを使う base の外枠 extentOf（place/items.ts）
+// つなぐもの（線など）を種類ごとに分ける byConnector（core/placed.ts）と、それを使う base の外枠 extentOf（place/grow.ts）
 import { expect, test } from "bun:test"
 import type { ConnectorData } from "../../web/src/core/def/item"
 import { byConnector, type ItemPage } from "../../web/src/core/placed"
-import { extentOf } from "../../web/src/plugins/base/place/items"
+import { extentOf } from "../../web/src/plugins/base/place/grow"
 import { portAreasOf, rectsOf } from "../../web/src/plugins/base/place/placed"
 import { drawingPage } from "../lineup"
 import { CORE_CATALOG } from "../support"

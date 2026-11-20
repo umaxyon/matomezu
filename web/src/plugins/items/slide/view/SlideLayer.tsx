@@ -10,7 +10,6 @@ import { type PointerEvent, useEffect, useRef, useState } from "react"
 import {
   type ItemId,
   openedPage,
-  type PlacedShape,
   type Point,
   pageType,
   type Rect,
@@ -32,42 +31,36 @@ import { slideOffsetOf } from "../../../base"
 import { modPressed, PaperFrame, useFollowsSelection } from "../../../base/ui"
 import { SLIDE_DELETE, SLIDE_MOVE_TO, SLIDE_PUT, SLIDE_RESHAPE, SLIDE_SET } from "../commands"
 import {
-  boundsOf,
-  drawnRect,
+  CLICK,
+  drawnPlacement,
+  groupOf,
+  type Live,
+  minSizeOf,
+  movesBy,
+  selectedItemOf,
+  shownShapes,
+  sweptSelection,
+} from "../layer"
+import {
   type Grip,
   movedPoint,
   pointsOnPaper,
+  rectOf,
   resizedRect,
   rotatedTo,
   rotationOf,
-  scaledFontSize,
+  roundRect,
   shapeProps,
   snappedTo45,
   spanOf,
-  thinned,
-  touches,
-  unionOf,
+  squaredEnd,
 } from "../rect"
 import { ADDED_EDIT, SLIDE_ITEM_CONTEXT, SLIDE_KEY_SCOPE } from "../scope"
-import {
-  DEFAULT_FONT_SIZE,
-  FREE_LINE,
-  linePointsOf,
-  linePropsOf,
-  MIN_SIZE,
-  movedLineProps,
-  STRAIGHT_LINE,
-  squarable,
-  TEXT_FRAME,
-} from "../slide"
+import { FREE_LINE, linePointsOf, movedLineProps, STRAIGHT_LINE, squarable, TEXT_FRAME } from "../slide"
 import { useSlideItemView } from "./item-view"
 import { GRIPS, GroupSelection, type SelectedItem, Selection } from "./Selection"
 import { SlideItem } from "./SlideItem"
 import styles from "./SlideLayer.module.css"
-
-// 押しただけとみなす動き（紙の上の px）と、自由な線の点の間引きの間
-const CLICK = 4
-const THIN = 3
 
 const TEXT = TEXT_FRAME.id
 const FREE = FREE_LINE.id
@@ -108,24 +101,6 @@ type Drag =
     }
   | { kind: "rotate"; pointer: number; item: string; start: Point; center: Point; rotation: number; rect: Rect }
   | { kind: "draw"; pointer: number; item: ItemId; start: Point }
-
-// ドラッグの途中の様子（離すまで、アクションは呼ばない）
-interface Live {
-  item: string
-  rect: Rect
-  rotation?: number
-  scaled?: boolean
-  points?: Point[] // 点を動かしている途中の線の点（枠の中の割合）
-}
-
-const rectOf = (shape: PlacedShape): Rect => ({ x: shape.x, y: shape.y, w: shape.w ?? 0, h: shape.h ?? 0 })
-// 始めの点 start から今の点 at への縦横を、長い方に揃えた終わりの点
-function squaredEnd(start: Point, at: Point): Point {
-  const side = Math.max(Math.abs(at.x - start.x), Math.abs(at.y - start.y))
-  return { x: start.x + (at.x < start.x ? -side : side), y: start.y + (at.y < start.y ? -side : side) }
-}
-const round = (n: number): number => Math.round(n * 100) / 100
-const roundRect = (f: Rect): Rect => ({ x: round(f.x), y: round(f.y), w: round(f.w), h: round(f.h) })
 
 export function SlideLayer() {
   const stage = useStage()
@@ -174,10 +149,7 @@ function SlidePageView({
   const placing =
     operable && stage.placing !== null && placeable.includes(stage.placing.item) ? stage.placing.item : null
   const editing = stage.editing === true || stage.editing === ADDED_EDIT ? (selected?.id ?? null) : null // 文字を書き換えているアイテム（選んでいる 1 つ）
-  const minOf = (item: string): number => {
-    const def = catalog.items.get(item)
-    return def?.kind === "shape" && def.min ? Math.max(def.min.w, def.min.h) : MIN_SIZE
-  }
+  const minOf = (item: string): number => minSizeOf(catalog, item)
 
   // 置いたばかりの文字枠が選ばれたら、そのまま文字を書く
   useEffect(() => {
@@ -351,17 +323,11 @@ function SlidePageView({
     if (d.kind === "move") {
       if (d.travelled && moved) {
         // 動かす物を全部、1 つの画面の履歴の段で動かす
-        moveTo.run({
-          moves: d.items.map(i => ({
-            item: i.id,
-            at: { x: round(i.rect.x + moved.by.x), y: round(i.rect.y + moved.by.y) },
-          })),
-        })
+        moveTo.run({ moves: movesBy(d.items, moved.by) })
       } else if (d.items.length > 1) select([d.click]) // 複数を選んでいて、動かさずに離したら、押した物だけを選ぶ
     } else if (d.kind === "dragFrame") {
       if (swept && Math.hypot(swept.w, swept.h) >= CLICK / stage.zoom) {
-        const hit = shapes.filter(s => touches(boundsOf(rectOf(s), rotationOf(s)), swept)).map(s => s.id)
-        select([...d.base, ...hit.filter(id => !d.base.includes(id))])
+        select(sweptSelection(shapes, d.base, swept))
       }
     } else if (d.kind === "point" && l?.points) {
       const shape = shapes.find(s => s.id === d.item)
@@ -377,24 +343,10 @@ function SlidePageView({
   }
   // なぞった点 points に、置こうとしているアイテム item を置く（なぞれていなければ、置くときの大きさで始めの点に置く）
   const placeDrawn = (item: ItemId, points: readonly Point[]) => {
-    const def = catalog.items.get(item)
-    const from = points[0]
-    const to = points.at(-1)
-    if (!from || !to || def?.kind !== "shape") return
-    const moved = Math.hypot(to.x - from.x, to.y - from.y) >= CLICK / stage.zoom
-    if (item === LINE || item === FREE) {
-      if (!moved) return
-      const dense = item === FREE ? thinned(points, THIN / stage.zoom) : [from, to]
-      const { rect, fractions } = drawnRect(dense.slice(0, 500), minOf(item))
-      const props = linePropsOf(item, fractions)
-      put.run({ item, rect: roundRect(rect), props })
-      return
-    }
-    const rect = moved
-      ? drawnRect([from, to], minOf(item)).rect
-      : { x: from.x, y: from.y, w: def.size.w, h: def.size.h }
+    const placed = drawnPlacement(catalog, item, points, stage.zoom)
+    if (!placed) return
     if (item === TEXT) typeNext.current = true
-    put.run({ item, rect: roundRect(rect), props: item === TEXT ? { text: "" } : {} })
+    put.run({ item, ...placed })
   }
   // アイテムを右クリックしたら、そのアイテムを選んで（選んだ物の 1 つなら選びはそのまま）メニューを開く
   const onContextMenu = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -417,43 +369,12 @@ function SlidePageView({
   }
 
   // 描く形（ドラッグの途中のアイテムは、動かした先の枠・角度で。角のつまみなら文字の大きさも）
-  const shown = shapes.map(s => {
-    if (shift?.ids.has(s.id)) return { ...s, x: s.x + shift.by.x, y: s.y + shift.by.y } as PlacedShape
-    if (!live || live.item !== s.id) return s
-    const props = shapeProps(s)
-    const scaledSize =
-      live.scaled && s.item === TEXT && s.w
-        ? { fontSize: scaledFontSize((props.fontSize as number | undefined) ?? DEFAULT_FONT_SIZE, live.rect.w, s.w) }
-        : {}
-    return {
-      ...s,
-      ...live.rect,
-      props: {
-        ...props,
-        ...scaledSize,
-        ...(live.rotation === undefined ? {} : { rotation: live.rotation }),
-        ...(live.points ? movedLineProps(s.item, live.points) : {}),
-      },
-    } as PlacedShape
-  })
+  const shown = shownShapes(shapes, shift, live)
   const current = selected && shown.find(s => s.id === selected.id)
   // 複数を選んでいるとき: 全体を囲む四角と、バーに渡す物
-  const chosenShown = shown.filter(s => stage.selection.includes(s.id))
-  const groupRect = chosenShown.length > 1 ? unionOf(chosenShown.map(s => boundsOf(rectOf(s), rotationOf(s)))) : null
-  const group = groupRect && {
-    rect: groupRect,
-    subjects: chosenShown.map(s => ({ id: s.id, item: s.item, props: shapeProps(s) })),
-  }
+  const group = groupOf(shown, stage.selection)
   const ghost = drawn && placing ? { item: placing, points: drawn } : null
-  const item: SelectedItem | null = current
-    ? {
-        id: current.id,
-        rect: rectOf(current),
-        rotation: rotationOf(current),
-        kind: current.item,
-        props: shapeProps(current),
-      }
-    : null
+  const item: SelectedItem | null = selectedItemOf(current)
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: 選ぶ・動かす・大きさを変える・回すのはポインタの操作で、キーの操作はコマンドとキーバインドが受ける
     <div
