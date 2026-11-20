@@ -51,7 +51,7 @@ func TestAIReadsRecords(t *testing.T) {
 		t.Fatalf("history where text = %d %s", code, got)
 	}
 	// where は索引キーだけ: 索引キーでない名前は断り（理由に索引キーを並べ）、数のキーは数で受ける
-	if code, got := send(t, "GET", s.URL+"/api/ai/records?kind="+ticket+"&where.name=first", "", ai); code != 400 || !strings.Contains(got, "name is not an index key of this kind (its index keys: project, lane, assigned, number)") {
+	if code, got := send(t, "GET", s.URL+"/api/ai/records?kind="+ticket+"&where.name=first", "", ai); code != 400 || !strings.Contains(got, "name is not an index key of this kind (its index keys: project, lane, assigned, lead, number)") {
 		t.Fatalf("where name = %d %s", code, got)
 	}
 	if code, got := send(t, "GET", s.URL+"/api/ai/records?kind="+ticket+"&where.number=two", "", ai); code != 400 || !strings.Contains(got, "number is a number") {
@@ -109,7 +109,7 @@ func TestAIListLeavesOutCompletedTickets(t *testing.T) {
 		t.Fatalf("only = %s", got)
 	}
 	for _, q := range []string{
-		"kind=@matomezu/taskboard:current-ticket&unlisted=only", // 載せない物の無い種類
+		"kind=@matomezu/taskboard:ticket-history&unlisted=only", // 載せない物の無い種類
 		"kind=" + ticket + "&id=t1&unlisted=include",            // id と一緒には渡せない
 		"kind=" + ticket + "&unlisted=nothing",
 	} {

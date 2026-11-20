@@ -16,7 +16,7 @@ export interface NamedRow {
   name: string
 }
 export type LaneRow =
-  | (NamedRow & { kind: "lane"; prompt: string; cardSize: LaneCardSize })
+  | (NamedRow & { kind: "lane"; prompt: string; cardSize: LaneCardSize; working: boolean })
   | { key: string; kind: "unsorted"; shown: boolean }
 type LaneCardSize = Lane["cardSize"]
 export type TagRow = NamedRow & Omit<Tag, "id" | "name">
@@ -27,7 +27,16 @@ export const UNSORTED_KEY = UNSORTED // 未分類の行の鍵（どの行の鍵�
 export const laneRowsOf = (project: Project): LaneRow[] =>
   project.lanes.map(l =>
     l.kind === "lane"
-      ? { key: l.id, id: l.id, was: l.name, kind: "lane", name: l.name, prompt: l.prompt, cardSize: l.cardSize }
+      ? {
+          key: l.id,
+          id: l.id,
+          was: l.name,
+          kind: "lane",
+          name: l.name,
+          prompt: l.prompt,
+          cardSize: l.cardSize,
+          working: l.working === true,
+        }
       : { key: UNSORTED_KEY, kind: "unsorted", shown: l.shown },
   )
 
@@ -124,7 +133,14 @@ export function updateArgsOf(
       if (l.kind === "unsorted") return [{ kind: "unsorted", shown: l.shown }]
       if (l.name.trim() === "") return []
       return [
-        { kind: "lane", ...(l.id ? { id: l.id } : {}), name: l.name.trim(), prompt: l.prompt, cardSize: l.cardSize },
+        {
+          kind: "lane",
+          ...(l.id ? { id: l.id } : {}),
+          name: l.name.trim(),
+          prompt: l.prompt,
+          cardSize: l.cardSize,
+          ...(l.working ? { working: true as const } : {}),
+        },
       ]
     }),
     tags: tags.flatMap(({ key: _key, was: _was, ...t }) =>

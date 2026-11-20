@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/umaxyon/matomezu/internal/engine"
 )
 
 // joinedIn は、プロセス id host・セッション id session の AI として参加を頼み（join でセッション id を運ぶので、受け入れた時点で準備中でない）、
@@ -293,41 +295,47 @@ func TestWatchAckOverHTTP(t *testing.T) {
 	}
 }
 
-// 管理者のワークルームの AI が、ほかのワークルームの今のチケットを決めると、行った参加者からそのワークルームの AI に AI 間メッセージが届く。
-// 宛先のワークルームに参加の確定した AI がいなければ、何も変えずに no-recipient で断る
+// AI がほかのワークルームを担当にしてチケットを足すと、行った参加者から、そのワークルームの AI に AI 間メッセージが届く。
+// 担当の知らせは noRecipient が skip なので、参加の確定した AI のいないワークルームへの分は送らず、アクションは通る
 func TestActionSendsAIMessage(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
 	makeRoom(t, s.URL, "からす")
 	noticeOf(t, s.URL, a)
-	// 1 人目のワーカー（ひよこ）を受け入れたときに、管理者の印はできている。ここでは、印を付け替える形で確かめる
+	var project string // 最初からあるプロジェクト
+	for id := range recordsOf(t, s.URL, "@matomezu/taskboard:project") {
+		project = id
+	}
+	got, _ := call(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/taskboard:ticket-add","args":{"project":"`+project+`","name":"x","assignees":["からす","すずめ"]}}`, map[string]string{ParticipantHeader: a})
+	if !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("ticket-add = %s", got)
+	}
+	woke := wakes(hub, hub.OpenWakesWith("200", "", WakeLimits{}))
+	if len(woke) != 1 || !strings.Contains(woke[0], `message from AI "ひよこ"`) || !strings.Contains(woke[0], `Your workroom was assigned to the ticket`) || strings.Contains(woke[0], "as its lead") {
+		t.Fatalf("wakes = %q", woke)
+	}
+}
+
+// 宛先のワークルームに参加の確定した AI がいなければ、noRecipient が refuse（省いたとき）の知らせはバルクごと no-recipient で断り、skip の知らせは送らないだけ
+func TestActionEnvelopesNoRecipient(t *testing.T) {
+	s, hub := joinWorld(t, joinStore(t))
+	joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
+	makeRoom(t, s.URL, "からす")
 	ids := map[string]string{}
 	for id, r := range recordsOf(t, s.URL, "@matomezu/base:workroom") {
 		ids[r["name"].(string)] = id
 	}
-	if _, got := postPerform(t, s.URL, `{"action":"@matomezu/base:admin-set","args":{"workroom":"`+ids["ひよこ"]+`"},"on":{"record":"admin"},"lang":"ja","now":"2026-11-08T01:00:00.000Z"}`); !strings.Contains(got, `"ok":true`) {
-		t.Fatalf("admin-set = %s", got)
+	actor := &engine.Actor{Kind: "ai", Workroom: ids["ひよこ"]}
+	hub.mu.Lock()
+	defer hub.mu.Unlock()
+	if _, refused := hub.actionEnvelopes([]engine.AIMessage{{Workroom: ids["からす"], Text: "x"}}, actor, time.Now()); refused == nil || refused.Reason != "no-recipient" {
+		t.Fatalf("refuse = %+v", refused)
 	}
-	set := func(room string) string {
-		got, _ := call(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/taskboard:current-ticket-set","args":{"ticket":"none","workroom":"`+room+`"}}`, map[string]string{ParticipantHeader: a})
-		return got
-	}
-	if got := set("からす"); !strings.Contains(got, `"reason":"no-recipient"`) || !strings.Contains(got, "からす") {
-		t.Fatalf("to an empty workroom = %s", got)
-	}
-	if got := recordsOf(t, s.URL, "@matomezu/taskboard:current-ticket"); len(got) != 0 {
-		t.Fatalf("written although refused: %v", got)
-	}
-	if got := set("すずめ"); !strings.HasPrefix(got, `{"ok":true`) {
-		t.Fatalf("to a joined workroom = %s", got)
-	}
-	got := wakes(hub, hub.OpenWakesWith("200", "", WakeLimits{}))
-	want := `matomezu: message from AI "ひよこ" (not the user; reply via send_message, id *): "The administrator set your workroom's current ticket to none."`
-	if len(got) != 1 || withoutID(got[0]) != want {
-		t.Fatalf("wakes = %q", got)
-	}
-	if rec := recordsOf(t, s.URL, "@matomezu/taskboard:current-ticket")[ids["すずめ"]]; rec["ticket"] != "none" {
-		t.Fatalf("current ticket = %v", rec)
+	for _, to := range []string{ids["からす"], ids["ひよこ"]} {
+		envelopes, refused := hub.actionEnvelopes([]engine.AIMessage{{Workroom: to, Text: "x", NoRecipient: "skip"}}, actor, time.Now())
+		if refused != nil || len(envelopes) != 0 {
+			t.Fatalf("skip to %s = %+v %+v", to, envelopes, refused)
+		}
 	}
 }

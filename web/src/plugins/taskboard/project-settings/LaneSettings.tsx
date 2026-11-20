@@ -1,5 +1,6 @@
 // プロジェクト設定の「レーン」: 上に「未分類を表示する」のスイッチ、左にレーンの一覧（つまみ・名前、「レーン追加」、つまみのドラッグで並べ替え）、右に選んだレーンの「レーンプロンプト」。
 // プロンプトの上に「完了レーンにする」のスイッチ（名前のあるレーンだけ）。ほかのレーンが完了のレーンなら、入れる前に確かめる。切ると完了のレーンは無し。
+// その下に「作業中レーンにする」のスイッチ（いくつのレーンにも入れられる）。同じレーンの完了と作業中は、片方を入れるともう片方が切れる。
 // 未分類の行は、スイッチが入っている間だけ並びに出る（「未分類」の字とつまみ。プロンプトは書けない）。切っても並びの位置は残る。
 // 名前の入力Formを離れたとき、空か、ほかのレーンと重なっていれば片付ける（settings-rows）
 import { useId, useState } from "react"
@@ -49,13 +50,23 @@ export function LaneSettings({
   const chosen = rows.find(r => r.key === selected)
   const switchId = useId()
   const doneId = useId()
+  const workingId = useId()
   // 完了のレーンにしようとして、確かめている行の鍵と、今の完了のレーンの名前
   const [asking, setAsking] = useState<{ key: string; now: string } | null>(null)
   const doneChoice = doneChoices(rows).find(r => r.key === chosen?.key)
   // 完了のレーンにする（その行のチケットサイズを small にする）
   const makeDone = (key: string) => {
     onDone(key)
-    lanes.apply(list => sizedAsDone(list, key) as LaneRow[])
+    lanes.apply(list =>
+      (sizedAsDone(list, key) as LaneRow[]).map(r =>
+        r.key === key && r.kind === "lane" ? { ...r, working: false } : r,
+      ),
+    )
+  }
+  // 作業中の印を入れる・切る（完了のレーンに入れたら、完了のレーンは無し）
+  const toggleWorking = (key: string, on: boolean) => {
+    if (on && done === key) onDone(NO_DONE_LANE)
+    change(key, { working: on })
   }
   const toggleDone = (key: string, on: boolean) => {
     if (!on) return onDone(NO_DONE_LANE)
@@ -81,7 +92,7 @@ export function LaneSettings({
           ...(doneBlocked ? [t("The done lane has tickets with assignees: complete them first")] : []),
         ]}
         addLabel={t("Add a lane")}
-        onAdd={() => setSelected(add({ kind: "lane", prompt: "", cardSize: INHERIT_CARD_SIZE }))}
+        onAdd={() => setSelected(add({ kind: "lane", prompt: "", cardSize: INHERIT_CARD_SIZE, working: false }))}
         promptTitle={t("Lane prompt")}
         promptHead={
           chosen?.kind === "lane" ? (
@@ -95,6 +106,17 @@ export function LaneSettings({
                     onChange={on => toggleDone(doneChoice.key, on)}
                   />
                   <label htmlFor={doneId}>{t("Make it the done lane")}</label>
+                </div>
+              ) : null}
+              {doneChoice ? (
+                <div className={settings.switchRow}>
+                  <Switch
+                    id={workingId}
+                    label={t("Make it a working lane")}
+                    checked={chosen.working}
+                    onChange={on => toggleWorking(doneChoice.key, on)}
+                  />
+                  <label htmlFor={workingId}>{t("Make it a working lane")}</label>
                 </div>
               ) : null}
               <div className={settings.switchRow}>

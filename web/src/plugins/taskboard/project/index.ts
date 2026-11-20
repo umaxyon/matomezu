@@ -40,6 +40,11 @@ export const DONE_LANE_CARD_SIZE: CardSize = "small"
 // レーン lane が、プロジェクト project の完了のレーンか（完了のレーンが無ければ、どのレーンも違う）
 export const inDoneLane = (project: { doneLane?: string | undefined }, lane: string): boolean =>
   project.doneLane !== undefined && project.doneLane === lane
+// レーン lane が、プロジェクト project の作業中の印のあるレーンか
+export const inWorkingLane = (
+  project: { lanes: readonly { kind: string; id?: string; working?: true }[] },
+  lane: string,
+): boolean => project.lanes.some(l => l.kind === "lane" && l.id === lane && l.working === true)
 
 // チケットカードに出す物の、出す・出さない（priority は右下の優先度の印）。プロジェクトごと
 export const CARD_SHOWS = z.strictObject({ priority: z.boolean() })
@@ -54,6 +59,7 @@ const LANE = z.strictObject({
   name: z.string().trim().min(1).max(LANE_NAME_MAX),
   prompt: z.string(), // AI がそのレーンでチケットをどう扱うかの指示
   cardSize: z.enum([INHERIT_CARD_SIZE, ...CARD_SIZES]), // このレーンのチケットカードの大きさ（inherit はプロジェクトの大きさ）
+  working: z.literal(true).optional(), // 作業中の印（主担当のチケットがこのレーンにあれば、そのワークルームの今のチケット。いくつのレーンにも付けられ、完了のレーンには付けない）
 })
 const UNSORTED_ROW = z.strictObject({ kind: z.literal("unsorted"), shown: z.boolean() })
 const TAG = z.strictObject({
@@ -84,18 +90,20 @@ export const PROJECT = kit.defineSubject({
   id: "project",
   title: "project",
   aiDescription:
-    "A project: one task board. It has a name, the prefix of its ticket numbers (such as T-), closed (no ticket can be added to a closed project, and the project cannot be changed but reopened), the lanes in order (each with a prompt that tells you how to handle the tickets in the lane; unsorted is a row of the lanes too), doneLane (the id of the lane where completed tickets are; absent when there is none; a ticket gets there only through ticket-complete: the prompt of the done lane tells when a ticket is done, and then you complete it with ticket-complete), the ticket tags (each with a prompt that tells you how to handle the tickets with the tag) and cardSize (large, medium or small: how big the ticket cards are drawn on the board; each lane has a cardSize too, where inherit takes the project's) and cardShows (what the ticket cards show besides the number and the name: priority, whether the card shows the ticket's priority).",
-  record: z.strictObject({
-    id: z.string().min(1),
-    name: z.string().trim().min(1).max(PROJECT_NAME_MAX),
-    prefix: PREFIX,
-    closed: z.boolean(),
-    lanes: LANES,
-    tags: TAGS,
-    doneLane: z.string().min(1).optional(), // 完了のレーンの id（無ければ完了のレーンは無い。レーンを消したら外す）
-    cardSize: z.enum(CARD_SIZES), // チケットカードの大きさ（レーンが inherit のとき）
-    cardShows: CARD_SHOWS, // チケットカードに出す物
-  }),
+    "A project: one task board. It has a name, the prefix of its ticket numbers (such as T-), closed (no ticket can be added to a closed project, and the project cannot be changed but reopened), the lanes in order (each with a prompt that tells you how to handle the tickets in the lane, and working: true on the lanes the user marked as working lanes, any number of them; a ticket in a working lane is the current ticket of the workroom that leads it, its first assignee; unsorted is a row of the lanes too), doneLane (the id of the lane where completed tickets are; absent when there is none; never a working lane; a ticket gets there only through ticket-complete: the prompt of the done lane tells when a ticket is done, and then you complete it with ticket-complete), the ticket tags (each with a prompt that tells you how to handle the tickets with the tag) and cardSize (large, medium or small: how big the ticket cards are drawn on the board; each lane has a cardSize too, where inherit takes the project's) and cardShows (what the ticket cards show besides the number and the name: priority, whether the card shows the ticket's priority).",
+  record: z
+    .strictObject({
+      id: z.string().min(1),
+      name: z.string().trim().min(1).max(PROJECT_NAME_MAX),
+      prefix: PREFIX,
+      closed: z.boolean(),
+      lanes: LANES,
+      tags: TAGS,
+      doneLane: z.string().min(1).optional(), // 完了のレーンの id（無ければ完了のレーンは無い。レーンを消したら外す）
+      cardSize: z.enum(CARD_SIZES), // チケットカードの大きさ（レーンが inherit のとき）
+      cardShows: CARD_SHOWS, // チケットカードに出す物
+    })
+    .refine(p => p.doneLane === undefined || !inWorkingLane(p, p.doneLane)), // 完了のレーンに作業中の印は付けない
   // prefix は、重なりを確かめるのに比べる形（前後の空白を除き、小文字にした物）
   keys: { prefix: { type: "text", of: p => prefixKey(p.prefix) } },
   aiBrief: p => `${p.prefix} ${p.name}`,

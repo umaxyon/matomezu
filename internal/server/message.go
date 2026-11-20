@@ -66,7 +66,8 @@ func (h *Hub) occupants(records []participantRecord) map[string]string {
 }
 
 // actionEnvelopes は、アクションバルクが返した AI 間メッセージ messages を、行った参加者から送る封筒にする（h.mu を持って呼ぶ）。
-// 行ったのが参加の確定した AI でない、宛先が自分のワークルームか、宛先のワークルームに参加の確定した参加者がいなければ、バルクを断る答えを返す
+// 行ったのが参加の確定した AI でなければ、バルクを断る答えを返す。宛先が自分のワークルームか、宛先のワークルームに参加の確定した参加者がいなければ、
+// noRecipient が skip のその 1 通は送らず、ほかはバルクを断る答えを返す
 func (h *Hub) actionEnvelopes(messages []engine.AIMessage, actor *engine.Actor, now time.Time) ([]Envelope, *Performed) {
 	if len(messages) == 0 {
 		return nil, nil
@@ -92,6 +93,9 @@ func (h *Hub) actionEnvelopes(messages []engine.AIMessage, actor *engine.Actor, 
 		to := occupant[m.Workroom]
 		name := roomName(rooms, m.Workroom)
 		if m.Workroom == actor.Workroom || to == "" {
+			if m.NoRecipient == "skip" {
+				continue
+			}
 			if name == "" {
 				name = m.Workroom
 			}
