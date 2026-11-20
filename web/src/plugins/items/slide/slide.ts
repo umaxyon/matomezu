@@ -20,7 +20,7 @@ const FRAME = {
 export const PointSchema = z.strictObject({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) })
 
 // 線・楕円・長方形の枠の太さ（px）の既定と上限
-export const DEFAULT_STROKE_WIDTH = 2
+export const DEFAULT_STROKE_WIDTH = 1
 export const MAX_STROKE_WIDTH = 200
 
 // 線の項目（色・太さ・点線）
