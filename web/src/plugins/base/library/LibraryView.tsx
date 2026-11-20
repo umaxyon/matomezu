@@ -252,10 +252,16 @@ export function LibraryView({ className }: { className?: string } = {}) {
                 {into !== undefined && (
                   <>
                     <ActionButton raised onClick={() => openDialog(LIBRARY_NEW_BOOK_DIALOG.id, { into })}>
-                      {t("Create book")}
+                      <span className={styles.create}>
+                        <RowIcon row={{ kind: "book", type: NO_TYPE }} className={styles.icon} />
+                        {t("Create book")}
+                      </span>
                     </ActionButton>
                     <ActionButton raised onClick={() => openDialog(LIBRARY_NEW_FOLDER_DIALOG.id, { into })}>
-                      {t("New folder")}
+                      <span className={styles.create}>
+                        <RowIcon row={{ kind: "folder", type: NO_TYPE }} className={styles.icon} />
+                        {t("New folder")}
+                      </span>
                     </ActionButton>
                   </>
                 )}
