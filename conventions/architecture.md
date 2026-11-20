@@ -2,14 +2,14 @@
 
 ## クレート
 
-`web/src` の下を、役割ごとのクレートに分ける。`web/src` の直下には、表のクレートと画面の入口（`main.tsx`）・`css.d.ts` だけを置く。
+`web/src` の下を、役割ごとのクレートに分ける。`web/src` の直下には、表のクレートと画面の入口（`main.tsx`）・`css.d.ts` だけを置く。`core`・`store`・`ui`・`host-client`・`engine` は自分のフォルダの中のファイルも読んでよく、表の「読んでよいもの」は、そのほかに読んでよい物。ファイルごとに書いた行（`plugin-api`・`plugin-entry`・`testing`・`plugin-modules`）は、その行のとおり。プラグインのファイルは、表の下の行のとおり。
 
 | クレート | 役割 | 読んでよいもの |
 |---|---|---|
-| `core` | データの形・定義の型・core 台帳・純粋な関数。React も状態も持たない | `core`・zod |
-| `store` | 状態（Zustand）・コマンド・ダイアログの表・台帳アセンブル | `core`・`store`・zustand |
-| `ui` | 画面の根と、プラグインが使う画面の口。画面に出る物は置かない | `core`・`store`・`ui`・React・zustand |
-| `host-client` | ホストクライアント: 画面がホスト（常駐サーバー）とブラウザ（保存・URL・履歴・クリップボード・印刷）に頼む口 | `core`・`store`・`host-client`・zod |
+| `core` | データの形・定義の型・core 台帳・純粋な関数。React も状態も持たない | zod |
+| `store` | 状態（Zustand）・コマンド・ダイアログの表・台帳アセンブル | `core`・zustand |
+| `ui` | 画面の根と、プラグインが使う画面の口。画面に出る物は置かない | `core`・`store`・React・zustand |
+| `host-client` | ホストクライアント: 画面がホスト（常駐サーバー）とブラウザ（保存・URL・履歴・クリップボード・印刷）に頼む口 | `core`・`store`・zod |
 | `engine` | ホストのエンジン: ホストの goja で、画面と同じアクションを行う入口 | `core`・`store`・`plugins`（ビルトインの一覧と、各プラグインの入口だけ）・`plugin-modules`・zod |
 | `plugins` | 画面に出る物と、足していく定義の全部（ビルトインプラグイン） | 下の行（プラグインのファイルと、base 以外のビルトインプラグイン） |
 | `plugin-api` | プラグイン API: 追加プラグインとビルトインプラグインが使ってよい名前を、土台から出し直すだけのクレート（`index.ts` は React なし、`ui.ts` は見た目、`builtin.ts` はビルトインだけが使うビルトインの印 `defineBuiltin`（キーバインドでビルトインを先に扱う）と、台帳アセンブルのときの確かめ（`checks`）を書く `CatalogCheckDef`・`problem`・`warning`、テーマキーに書かれた値の引き方 `writtenValues`） | `index.ts` は `core`・`store`、`ui.ts` は `ui`、`builtin.ts` は `store` |
@@ -25,7 +25,7 @@
 - 入口（`plugin-entry`・`testing`）は外に名前を出すだけで、中のコードは入口を読まない
 - 例外は `plugin-modules`。`plugin-entry` を読んでよいのは `plugin-modules` だけで、`plugin-modules` を読んでよいのはホストのエンジン（`engine/engine.ts`）と画面の入口（`main.tsx`）だけ
 - 向きは 土台 → `plugin-api` → ビルトインプラグインと `plugin-entry` → `plugin-modules` の一方向。`plugin-api` はプラグインを読まない（base の物を出し直すのは `plugin-entry`）
-- プラグインのファイルは役割で見る。見た目（`.tsx` と `ui.ts`）は `ui` と同じものを読んでよく、ほかは `core`・`store`・zod だけ
+- プラグインのファイルは役割で見る。見た目（`.tsx` と `ui.ts`）は `ui` と、`ui` が読んでよいものを読んでよく、ほかは `core`・`store`・zod だけ
 - 表と上の行で読んでよい物（zod・React・zustand）のほかに読んでよい外のライブラリは次だけ: Markdown を読むライブラリ（mdast-util-from-markdown・mdast-util-gfm・micromark-extension-gfm と、その型の mdast）、コードを色付けするライブラリ（refractor と、その型の hast）。ライブラリごとに決めた 1 つのファイルだけが読み、その型をプラグイン API に出さない（matomezu の形に移して出す）
 - 上の 2 行は base だけ。base 以外のビルトインプラグインは、`plugin-api` と base の入口だけを読み、土台を直に読まない。見た目は `plugin-api/ui`・`plugins/base/ui`・react も読み（react-dom は読まない。追加プラグインが借りられる物と合わせる）、見た目でないファイルは `plugin-api`・`plugins/base/index`・zod だけ。状態は `plugin-api/ui` のフック（「プラグイン」の「プラグインどうしの関係」）で読む。base はプラグイン API を読まない
 - 見た目でないファイルは、見た目を読まない
