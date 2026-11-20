@@ -5,7 +5,7 @@
 import { describe, expect, test } from "bun:test"
 import { USER } from "../../web/src/core/actor"
 import { checkBooks, readLibrary } from "../../web/src/core/book"
-import { performIn, type World } from "../../web/src/core/perform"
+import { performIn, type World } from "../../web/src/core/perform-world"
 import { warningText } from "../../web/src/core/warnings"
 import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { DRAWING, drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"

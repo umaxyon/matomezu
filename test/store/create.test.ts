@@ -9,11 +9,11 @@ import { screenOf } from "../../web/src/core/window"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { BASE, createBookIn } from "../../web/src/plugins/base"
 import { BOX } from "../../web/src/plugins/items/box/box"
+import type { Actions } from "../../web/src/store/actions"
 import { defineCommand } from "../../web/src/store/commands/def"
 import { createMatomezu } from "../../web/src/store/create"
 import { defineDialog, defineDialogWith, type PageSettingsArgs } from "../../web/src/store/dialogs"
 import { definePlugin } from "../../web/src/store/plugin"
-import type { Actions } from "../../web/src/store/store"
 import { BUILTIN_PARTS, showFirstBook } from "../support"
 
 // テストのプラグイン。型（core/catalog.ts）は書き足さない（書き足すと、このプロジェクトの全部のインスタンスに要るものになる）ので、インスタンスは partial で作る

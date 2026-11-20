@@ -3,7 +3,7 @@
 // 何を知らせるかはホストクライアントが決めて運ぶ（自分の設定で無効にして移った分は除いてある）
 import { useState } from "react"
 import type { UnreadableNotice as Notice } from "../../../core/unreadable"
-import type { MatomezuInstance } from "../../../store/store"
+import type { MatomezuInstance } from "../../../store/state"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { defineWidget } from "../../../ui/layout"

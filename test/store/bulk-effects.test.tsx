@@ -5,7 +5,7 @@ import { useEffect, useSyncExternalStore } from "react"
 import { flushSync } from "react-dom"
 import { createRoot } from "react-dom/client"
 import { pagesOf } from "../../web/src/core/book"
-import type { DoneBulk } from "../../web/src/store/store"
+import type { DoneBulk } from "../../web/src/store/state"
 import { sizedStore } from "../support"
 
 const BOX = "@matomezu/box:shape-nest-box"

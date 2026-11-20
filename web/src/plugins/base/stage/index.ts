@@ -1,4 +1,6 @@
 // ステージのコマンド: 分割する・分割をやめる・閉じる
+
+import { SCREEN_REFUSED } from "../../../store/actions"
 import {
   arrangementValueIn,
   type CommandContext,
@@ -9,7 +11,6 @@ import {
   workspaceOf,
 } from "../../../store/commands/def"
 import { NO_STAGE } from "../../../store/dialogs"
-import { SCREEN_REFUSED } from "../../../store/store"
 import { kit } from "../kit"
 import { LIBRARY_SCREEN } from "../library/screen"
 import { SPLIT_ROWS, splitOf } from "../window/split"

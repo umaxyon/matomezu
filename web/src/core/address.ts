@@ -7,7 +7,7 @@
 
 import type { CoreCatalog } from "./core-catalog"
 import { arrangementValueOf } from "./def/screen-arrangement"
-import { NO_OUTERMOST } from "./folders"
+import { NO_OUTERMOST } from "./folders-tree"
 import type { Point } from "./geom"
 import { sameData } from "./same"
 import type { Book } from "./schema/book"

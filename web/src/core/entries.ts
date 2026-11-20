@@ -7,18 +7,15 @@ import {
   type AnyEntryRef,
   type Folder,
   type Folders,
-  foldersOver,
   HOME_ID,
-  inTrash,
   isOpenRole,
   isUnreadableRole,
   type Library,
-  systemFolderIndex,
-  systemFolderOf,
   TRASH_ID,
   type TrashFolder,
   type TrashRef,
 } from "./folders"
+import { foldersOver, inTrash, systemFolderIndex, systemFolderOf } from "./folders-tree"
 import { type Lang, translate } from "./i18n/i18n"
 import { langOf, type Settings } from "./settings"
 

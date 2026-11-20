@@ -2,7 +2,7 @@
 
 import { expect, test } from "bun:test"
 import { AI, USER } from "../../../web/src/core/actor"
-import { performIn, permittedIn } from "../../../web/src/core/perform"
+import { performIn, permittedIn } from "../../../web/src/core/perform-world"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { PROJECT } from "../../../web/src/plugins/taskboard/project"
 import { TICKET } from "../../../web/src/plugins/taskboard/ticket"

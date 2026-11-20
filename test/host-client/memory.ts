@@ -7,7 +7,7 @@ import type { Settings } from "../../web/src/core/settings"
 import { NOT_INSIDE } from "../../web/src/core/unreadable"
 import type { WideSearchAnswer, WideSearchHit, WideSearchQuery } from "../../web/src/core/wide-search"
 import type { HostClient } from "../../web/src/host-client/client"
-import type { MatomezuInstance } from "../../web/src/store/store"
+import type { MatomezuInstance } from "../../web/src/store/state"
 import { persist } from "./persist"
 
 export interface MemoryClient extends HostClient {

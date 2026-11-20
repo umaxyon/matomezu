@@ -4,7 +4,7 @@ import type { BROKEN } from "../core/folders"
 import type { MovedIfOff, Purged, UnreadableNotice } from "../core/unreadable"
 import type { Warning } from "../core/warnings"
 import type { WideSearchAnswer, WideSearchQuery } from "../core/wide-search"
-import type { AIEditTicketOutcome, DoneBulk, HostAnswer, MatomezuInstance } from "../store/store"
+import type { AIEditTicketOutcome, DoneBulk, HostAnswer, MatomezuInstance } from "../store/state"
 
 // 起動のときに読むもの
 export interface Loaded {

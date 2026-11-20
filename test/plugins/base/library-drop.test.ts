@@ -1,7 +1,8 @@
 // 書庫の画面のドラッグで落とす先（base/library/drop.ts）: 落とせるか・行の間の位置・名前が重なるときに確かめる事が、動かすアクションと合う
 import { expect, test } from "bun:test"
 import { entriesIn } from "../../../web/src/core/entries"
-import { HOME_ID, type HomeFolder, type Library, type PlainFolder, worldTablesOf } from "../../../web/src/core/folders"
+import { HOME_ID, type HomeFolder, type Library, type PlainFolder } from "../../../web/src/core/folders"
+import { worldTablesOf } from "../../../web/src/core/folders-books"
 import { type Drop, draggable, droppable, indexBefore, moveClashOf } from "../../../web/src/plugins/base/library/drop"
 import { movesInto } from "../../../web/src/plugins/base/library/entries"
 import { DRAWING, drawingPage, testBinder, testBook } from "../../lineup"

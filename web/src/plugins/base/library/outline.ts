@@ -4,17 +4,16 @@ import {
   type AnyEntryRef,
   BROKEN,
   type Folders,
-  foldersOver,
   HOME_ID,
-  inTrash,
   type Library,
   type MovedCode,
   TRASH_ID,
   type TrashRef,
   UNREADABLE_ID,
-  type UnreadableItem,
   type UnreadableRef,
 } from "../../../core/folders"
+import { foldersOver, inTrash } from "../../../core/folders-tree"
+import type { UnreadableItem } from "../../../core/folders-unreadable"
 import type { MovedIfOff } from "../../../core/unreadable"
 import { restoreTargetOf } from "./entries"
 

@@ -31,7 +31,7 @@
 
 ## ビルドと常駐
 
-- `web/src/engine/engine.ts` か、それが読む core とプラグインを直したら `bun run build:engine` で `internal/engine/engine.js` を作り直す（テストが見張る）
+- ホストのエンジン（`web/src/engine`）か、それが読む core とプラグインを直したら `bun run build:engine` で `internal/engine/engine.js` を作り直す（テストが見張る）
 - 開発は `bun run dev`（5300）。Go の常駐を `.dev-home` で立て、`web/dist` を配る。直したら起動し直し、開いているタブも読み直す
 - フォントの版を変えたら `bun scripts/fonts.ts widths` で字の幅の表を作り直す（テストが見張る）
 - アクションを足したら、常駐の実行ファイルを作り直して起動し直すまで、画面からも AI からも使えない

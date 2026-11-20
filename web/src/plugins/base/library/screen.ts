@@ -3,6 +3,7 @@
 // 書庫のスクリーンを閉じる・広げる道（帯のボタン・書庫のスクリーンの外の操作・「書庫を開く」・選んで開いたあと）は、どれもここの関数を通り、ステージを分けて足した空のステージを閉じる
 import { z } from "zod"
 import { UNREADABLE_ID } from "../../../core/folders"
+import { type Actions, SCREEN_REFUSED } from "../../../store/actions"
 import {
   arrangementValueIn,
   type CommandActions,
@@ -13,7 +14,6 @@ import {
   storeActionsOf,
 } from "../../../store/commands/def"
 import { NO_STAGE } from "../../../store/dialogs"
-import { type Actions, SCREEN_REFUSED } from "../../../store/store"
 import { kit } from "../kit"
 import { ONE_SCREEN } from "../window"
 import { applySplitFrom } from "../window/apply-split"

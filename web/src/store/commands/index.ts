@@ -11,7 +11,7 @@ import { pageIn } from "../../core/folders"
 import { LIBRARY_HISTORY, NO_HISTORY } from "../../core/history"
 import { actionQuery, inspect, type Query, withoutPermissions } from "../../core/inspect"
 import { splitId } from "../../core/names"
-import { permittedIn } from "../../core/perform"
+import { permittedIn } from "../../core/perform-world"
 import { shownPageId, stageBlocks } from "../../core/stage"
 import {
   currentScreen,
@@ -26,7 +26,7 @@ import {
 import { stageView, toolOf } from "../../core/workspace"
 import type { Assembled } from "../plugin"
 import { ownedPluginState, placeOf, pluginValueOf } from "../plugin-state"
-import type { MatomezuState } from "../store"
+import type { MatomezuState } from "../state"
 import { worldOf } from "../world"
 import {
   type CalledScreen,

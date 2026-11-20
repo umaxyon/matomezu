@@ -1,19 +1,14 @@
 // テストで使う、ビルトインプラグインだけの表と store
 import { namingOf } from "../web/src/core/entries"
-import {
-  type AnyEntryRef,
-  type BinderFolder,
-  HOME_ID,
-  type Library,
-  type PageRow,
-  tablesOf,
-} from "../web/src/core/folders"
+import { type AnyEntryRef, type BinderFolder, HOME_ID, type Library, type PageRow } from "../web/src/core/folders"
+import { tablesOf } from "../web/src/core/folders-books"
 import type { AnyPage, BinderEntry, Book } from "../web/src/core/schema/book"
 import { NO_SETTINGS } from "../web/src/core/settings"
 import { recentBookScreen, recentPlainScreen, stagesDefOf } from "../web/src/core/window"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../web/src/plugins"
 import { assemble } from "../web/src/store/plugin"
-import { createMatomezuInstance, type StoreOptions } from "../web/src/store/store"
+import type { StoreOptions } from "../web/src/store/state"
+import { createMatomezuInstance } from "../web/src/store/store"
 import { SAMPLE_BOOKS } from "./sample-books"
 
 export const CORE_CATALOG = assemble(BUILTIN).catalog.core
