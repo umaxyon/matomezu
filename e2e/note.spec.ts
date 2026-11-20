@@ -586,7 +586,7 @@ test("物の角に 2 つ以上あれば、先頭の 2 つを重ねた絵にま�
   await expect(bubble.getByRole("button").nth(0)).toHaveAccessibleName("びっくりマーク")
   await expect(bubble.getByRole("button").nth(1)).not.toHaveAttribute("data-read")
   await expect(bubble.locator("[data-read]")).toHaveCount(2)
-  // 既読の伝言の並びは、常駐に残った付けた時点の新しい順（WSL では時計が戻り、あとに付けた「新しい」が古い時点になる事がある）
+  // 既読の伝言の並びは、常駐に残った付けた時点の新しい順（時計が戻ると、あとに付けた「新しい」が古い時点になる事がある）
   const read = (await notesOf())
     .filter(n => n.props.readAt)
     .sort((a, b) => (b.props.addedAt ?? "").localeCompare(a.props.addedAt ?? ""))
