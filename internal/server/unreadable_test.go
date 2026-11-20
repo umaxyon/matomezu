@@ -470,3 +470,39 @@ func TestAFailedSettleWithAnUnreadableBookLeftRefusesActionsOnTheLibrary(t *test
 		t.Fatalf("book-lock f1 = %s", got)
 	}
 }
+
+// 止めた窓の［外して開く］が呼ぶ口: 画面 cookie の無い頼みは断り、ある頼みは追加プラグインを並びの順に外す（POST /api/plugins/remove と同じに、そのタイプのページは読めない物のフォルダへ移る）。
+// 無いプラグインの所で止め、その id と訳を返す
+func TestTheScreenRemovesThePluginsItCouldNotAdd(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	store, err := storage.OpenSQLite(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.PutSettings(user, json.RawMessage(`{"`+enabledPluginsSetting+`":["ex2"]}`)); err != nil {
+		t.Fatal(err)
+	}
+	putBook(t, store, `{"id":"f1","title":"Flow","lineup":[`+
+		`{"kind":"page","id":"p0","type":"@matomezu/drawing:drawing","title":"P0","paper":"@matomezu/base:a4","orientation":"landscape","items":[]},`+
+		`{"kind":"page","id":"p1","type":"ex2:flow","title":"P1","paper":"@matomezu/base:a4","orientation":"portrait"}]}`)
+	store.Close()
+	s, h := serveStore(t, path)
+	if got := link(t, s, "../../test/added-plugins/ex2"); got != `{"id":"ex2","ok":true}` {
+		t.Fatalf("link = %s", got)
+	}
+	if code, _ := send(t, "POST", s.URL+"/api/screen-plugins/remove", `{"ids":["ex2"]}`, map[string]string{"Cookie": ""}); code < 400 {
+		t.Fatalf("remove without the screen cookie = %d", code)
+	}
+	if got := unreadableRefs(t, h); len(got) != 0 {
+		t.Fatalf("the unreadable folder before removing = %v", got)
+	}
+	if _, got := send(t, "POST", s.URL+"/api/screen-plugins/remove", `{"ids":["ex2"]}`, nil); got != `{"ok":true}` {
+		t.Fatalf("remove = %s", got)
+	}
+	if got := unreadableRefs(t, h); !slices.Equal(got, [][2]string{{"p1", "W027"}}) {
+		t.Fatalf("after removing ex2: unreadable %v", got)
+	}
+	if _, got := send(t, "POST", s.URL+"/api/screen-plugins/remove", `{"ids":["ex2"]}`, nil); !strings.Contains(got, `"ok":false`) || !strings.Contains(got, `"id":"ex2"`) {
+		t.Fatalf("remove a plugin that is not there = %s", got)
+	}
+}

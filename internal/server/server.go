@@ -16,6 +16,8 @@
 //	POST /api/warnings     {"client", "warnings": [{"code", "plugin", "params"}]} 窓が見つけた warning（その窓の分を入れ替える）。常駐が集めてログと、MCP 公開ツールの actions が返す物に出す
 //	POST /api/log         {"client", "lines": [{"at", "text"}]} 窓が書き残した事（つながりが切れた・読み直せなかったなど。at は窓の時刻）。常駐のログに出す  … 画面から
 //	POST /api/ai-edit-tickets  {"act", "places", "outcome", "book", "lost"} 窓が、AI の変更のうちページとフォルダ places を見た（seen）・見られる前に消えた（lost。ブック book の、消えた所と AI の値）（ai_edit_tickets.go）  … 画面から
+//	POST /api/screen-plugins/remove {"ids"} 窓が組み込めなかった追加プラグイン ids を、並びの順に外す（POST /api/plugins/remove と同じ。止めた窓の［外して開く］）。
+//	                      {"ok"} か、外せなかった所で止めて {"ok": false, "id", "reason"}（それより前の物は外れたまま）  … 画面から
 //	POST /api/view        {"client", "view", "editLocks", "recordLocks", "focused", "seq"} 窓のカレントのステージが見ているもの（view）と、利用者が直している物（editLocks。
 //	                      ブックの id → 物の id の並び。AI のアクションがそれを変えるか消すなら断る。editlock.go）と、その窓がフォーカスされたか。
 //	                      seq は窓ごとに増やす番号で、受けたものより古い番号の view と editLocks は捨てる（届く順が入れ替わるため）  … 画面から
@@ -68,6 +70,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -142,6 +145,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("POST /api/warnings", o.screen(o.warnings))
 	mux.Handle("POST /api/log", o.screen(o.windowLog))
 	mux.Handle("POST /api/ai-edit-tickets", o.screen(o.aiEditTicket))
+	mux.Handle("POST /api/screen-plugins/remove", o.screen(o.unlinkPluginsFromScreen))
 	mux.Handle("GET /api/ai/view", o.ai(o.aiView))
 	mux.Handle("GET /api/ai/books", o.ai(o.aiBooks))
 	mux.Handle("GET /api/ai/books/{id}", o.ai(o.aiBook))
@@ -289,6 +293,23 @@ func (o Options) unlinkPlugin(w http.ResponseWriter, r *http.Request) {
 	if err := o.Hub.UnlinkPlugin(req.ID); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "reason": err.Error()})
 		return
+	}
+	writeJSON(w, map[string]any{"ok": true})
+}
+
+func (o Options) unlinkPluginsFromScreen(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		IDs []string `json:"ids"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, maxBody)).Decode(&req); err != nil || len(req.IDs) == 0 || slices.Contains(req.IDs, "") {
+		http.Error(w, "the body must be {\"ids\"}", http.StatusBadRequest)
+		return
+	}
+	for _, id := range req.IDs {
+		if err := o.Hub.UnlinkPlugin(id); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "id": id, "reason": err.Error()})
+			return
+		}
 	}
 	writeJSON(w, map[string]any{"ok": true})
 }
