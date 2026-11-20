@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { checkCoreCatalog } from "../../web/src/core/core-catalog"
+import { checkCoreCatalog } from "../../web/src/core/core-catalog-check"
 import { screenOf } from "../../web/src/core/window"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"

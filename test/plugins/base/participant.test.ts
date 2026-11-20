@@ -4,7 +4,7 @@
 import { expect, test } from "bun:test"
 import { z } from "zod"
 import { AI, USER } from "../../../web/src/core/actor"
-import { checkCoreCatalog } from "../../../web/src/core/core-catalog"
+import { checkCoreCatalog } from "../../../web/src/core/core-catalog-check"
 import { translate } from "../../../web/src/core/i18n/i18n"
 import { joinActions } from "../../../web/src/core/participant"
 import { performIn } from "../../../web/src/core/perform-world"

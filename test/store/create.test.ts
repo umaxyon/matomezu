@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { z } from "zod"
 import { pagesOf } from "../../web/src/core/book"
-import { checkCoreCatalog } from "../../web/src/core/core-catalog"
+import { checkCoreCatalog } from "../../web/src/core/core-catalog-check"
 import { definePageType } from "../../web/src/core/def/page-type"
 import { type MatomezuError, problemText } from "../../web/src/core/errors"
 import { translate } from "../../web/src/core/i18n/i18n"
