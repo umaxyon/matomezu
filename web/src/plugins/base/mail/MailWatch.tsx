@@ -9,7 +9,7 @@ import { useT } from "../../../ui/i18n"
 import { useReadState, useStoreActions } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
-import { anchorElementIn } from "../utils/anchors"
+import { anchorElementIn } from "../stand/anchors"
 import { MAIL_VISITED, mailboxOf } from "."
 import { useMailbox } from "./hooks"
 import { shownOf } from "./shown"
@@ -58,7 +58,7 @@ function useVisited() {
         if (!m.to || m.visitedAt) continue
         const stages = shown
           .flatMap(x => x.stages.stages)
-          .flatMap(st => (st.opened ? [{ id: st.id, book: st.opened.book, page: shownPageId(st.opened) }] : []))
+          .flatMap(st => (st.opened ? [{ id: st.id, book: st.opened.outermost, page: shownPageId(st.opened) }] : []))
         if (placeShown(m, stages, onScreen)) perform(MAIL_VISITED.id, {}, { record: m.id })
       }
     }

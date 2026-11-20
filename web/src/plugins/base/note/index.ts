@@ -204,7 +204,7 @@ export const NOTE_NEW = kit.defineCommand({
       subject: NEW_NOTE,
       anchors,
       current: anchor,
-      book: opened.book,
+      book: opened.outermost,
       page: shownPageId(opened),
     }
     a.updatePluginState(RIGHT_SIDE_PANEL_STATE, () => panel)

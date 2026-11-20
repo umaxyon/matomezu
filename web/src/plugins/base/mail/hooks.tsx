@@ -6,7 +6,7 @@ import { NO_STAGE } from "../../../store/dialogs"
 import { useStageId } from "../../../ui/scope"
 import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
 import { useLeftSidePanelShowsAt, useToggleLeftSidePanelAt } from "../left-side-panel/hooks"
-import { useRequestReveal } from "../utils/reveal-request"
+import { useRequestReveal } from "../stand/reveal-request"
 import { mailboxOf } from "."
 import { useSetBirdVisitAt } from "./bird-visit"
 import { MAIL_DIALOG } from "./dialogs"
@@ -59,7 +59,7 @@ export function useShowMailPlaceAt(): (target: string, mail: Mail) => void {
       const to = mail.to
       if (!to) return
       actions.showStage(target)
-      if (stageIn(read().window, target)?.opened?.book !== to.book) actions.openBook(target, to.book)
+      if (stageIn(read().window, target)?.opened?.outermost !== to.book) actions.openBook(target, to.book)
       if (to.page) actions.openPage(target, to.page)
       if (to.ids && to.ids.length > 0) {
         reveal(target, to.ids)

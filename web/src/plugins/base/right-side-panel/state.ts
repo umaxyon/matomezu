@@ -129,14 +129,14 @@ export const restoreTo = (
 ): ViewAt | null =>
   elsewhere ||
   restore.moved ||
-  stage.opened?.book !== restore.before.book ||
+  stage.opened?.outermost !== restore.before.book ||
   (shownPageId(stage.opened ?? null) ?? null) !== restore.before.page
     ? null
     : { zoom: restore.before.zoom, pan: restore.before.pan }
 
 // 開いたときのブックとページが、今ステージで開いているものと同じか（違えば、右サイドパネルは閉じる）
 export const stillOn = (open: RightSidePanelOpen, stage: Pick<Stage, "opened">): boolean =>
-  stage.opened?.book === open.book && (shownPageId(stage.opened ?? null) ?? null) === open.page
+  stage.opened?.outermost === open.book && (shownPageId(stage.opened ?? null) ?? null) === open.page
 
 // 分けたステージの列の伸び（flex-grow）: 右サイドパネルを開いていれば、開いたステージ panel が 1・もう片方が 0。開いていなければ分けた割合 share
 export const columnGrow = (stage: string, i: number, panel: string | null, share: number): number =>

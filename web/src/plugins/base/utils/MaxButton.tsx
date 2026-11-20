@@ -1,8 +1,8 @@
 // 領域の右上の隅に置く、最大化と元に戻すのボタン
 import { useMessages } from "../../../ui/i18n"
-import { kit } from "../kit"
 import { IconButton } from "./IconButton"
 import styles from "./MaxButton.module.css"
+import { UTILS_TEXT } from "./messages"
 
 const Svg = ({ children }: { children: React.ReactNode }) => (
   <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
@@ -24,7 +24,7 @@ const RestoreIcon = () => (
 )
 
 export function MaxButton({ maximized, onToggle }: { maximized: boolean; onToggle: () => void }) {
-  const t = useMessages(kit)
+  const t = useMessages(UTILS_TEXT)
   return (
     <IconButton className={styles.corner} label={maximized ? t("Restore area") : t("Maximize area")} onClick={onToggle}>
       {maximized ? <RestoreIcon /> : <MaximizeIcon />}

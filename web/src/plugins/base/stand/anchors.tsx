@@ -21,12 +21,13 @@ import {
 import { createPortal } from "react-dom"
 import type { Point, Rect, Size } from "../../../core/geom"
 import { useActions, useBook, useStage, useStagePan } from "../../../ui/view-hooks"
+import { glidePan } from "../utils/glide-pan"
+import { KEEP_INSIDE } from "../utils/keep-inside"
+import { stageElement } from "../utils/stage-element"
+import { ZOOM_MS } from "../utils/useZoomMotion"
 import styles from "./anchors.module.css"
-import { glidePan } from "./glide-pan"
-import { KEEP_INSIDE } from "./keep-inside"
 import { useClearRevealRequest, useRevealRequest } from "./reveal-request"
 import { revealAround, revealablesAround } from "./revealable"
-import { stageElement } from "./stage-element"
 import {
   intersectRect,
   pointInto,
@@ -41,7 +42,6 @@ import {
   topEdgeOut,
   unionRect,
 } from "./stand-place"
-import { ZOOM_MS } from "./useZoomMotion"
 
 // ステージのアンカーの表: id → 要素と、変わったときに知らせる先
 interface Anchors {

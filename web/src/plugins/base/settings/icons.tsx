@@ -1,5 +1,5 @@
 // 設定を開くコマンドのアイコン（歯車）
-import { icon } from "../icon"
+import { icon } from "../utils/icon"
 import { SETTINGS_OPEN } from "./settings-screen"
 
 export const SETTINGS_ICONS = {

@@ -131,7 +131,7 @@ export function toolOf(catalog: CoreCatalog, ws: Workspace, id: string, books: B
 
 // ステージで道具を使えるか（開いているブックのページで、行うアクションのどれかを認可ステップが止めない）
 export function usableIn(catalog: CoreCatalog, stage: Stage, books: Books): (tool: string) => boolean {
-  const book = stage.opened ? (books[stage.opened.book] ?? null) : null
+  const book = stage.opened ? (books[stage.opened.outermost] ?? null) : null
   return tool => toolUsable(catalog, tool, book, shownPageId(stage.opened))
 }
 
@@ -192,12 +192,12 @@ export function followLibrary(
   books: Readonly<Record<string, Book>>,
   before?: Readonly<Record<string, Book>>,
 ): Workspace | typeof NO_STAGES_LEFT {
-  const gone = ws.stages.filter(s => s.opened && !books[s.opened.book]).map(s => s.id)
+  const gone = ws.stages.filter(s => s.opened && !books[s.opened.outermost]).map(s => s.id)
   if (gone.length === ws.stages.length) return NO_STAGES_LEFT
   const left = gone.reduce(close, ws)
   const stages = left.stages.map(s => {
-    const book = s.opened ? books[s.opened.book] : undefined
-    return s.opened && book ? followStage(catalog, s, book, before?.[s.opened.book]) : s
+    const book = s.opened ? books[s.opened.outermost] : undefined
+    return s.opened && book ? followStage(catalog, s, book, before?.[s.opened.outermost]) : s
   })
   return stages.every((s, i) => s === left.stages[i]) ? left : { ...left, stages }
 }

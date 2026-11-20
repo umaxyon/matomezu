@@ -2,6 +2,7 @@
 import { BOOK_LOOK_MESSAGES } from "./book-look/messages"
 import { BOOK_NEW_MESSAGES } from "./book-new/messages"
 import { MENU_MESSAGES } from "./context-menu/messages"
+import { CORNER_MESSAGES } from "./corner-status/messages"
 import { DIALOG_MESSAGES } from "./dialog-host/messages"
 import { HISTORY_MESSAGES } from "./history/messages"
 import { ITEM_PARTS_MESSAGES } from "./item-parts/messages"
@@ -23,18 +24,13 @@ import { SCRAP_MESSAGES } from "./scrap/messages"
 import { SEARCH_MESSAGES } from "./search/messages"
 import { SETTINGS_MESSAGES } from "./settings/messages"
 import { STAGE_MESSAGES } from "./stage/messages"
+import { ASK_MESSAGES } from "./stand/messages"
 import { TEXT_MESSAGES } from "./text/messages"
 import { TOOL_PICKER_MESSAGES } from "./tool-picker/messages"
 import { TOOL_SWITCH_MESSAGES } from "./tool-switch/messages"
 import { TOOLBOX_MESSAGES } from "./toolbox/messages"
 import { joinMessages } from "./utils/join-messages"
-import {
-  ASK_MESSAGES,
-  CORNER_MESSAGES,
-  ELAPSED_MESSAGES,
-  MAX_BUTTON_MESSAGES,
-  WITHDRAW_MESSAGES,
-} from "./utils/messages"
+import { UTILS_MESSAGES } from "./utils/messages"
 import { WIDE_SEARCH_MESSAGES } from "./wide-search/messages"
 import { WINDOW_MESSAGES } from "./window/messages"
 import { ZOOM_MESSAGES } from "./zoom/messages"
@@ -70,9 +66,7 @@ export const BASE_MESSAGES = joinMessages(
   LOOKS_MESSAGES,
   ITEM_PARTS_MESSAGES,
   TEXT_MESSAGES,
-  ELAPSED_MESSAGES,
-  WITHDRAW_MESSAGES,
-  MAX_BUTTON_MESSAGES,
+  UTILS_MESSAGES,
   CORNER_MESSAGES,
   ASK_MESSAGES,
   HISTORY_MESSAGES,

@@ -1,4 +1,4 @@
-// スタンドの置き場所（plugins/base/utils/stand-place.ts）: アンカーのどちら側に立て、入らなければどこへ回すか。上の辺が外に出たか・点を範囲に収める
+// スタンドの置き場所（plugins/base/stand/stand-place.ts）: アンカーのどちら側に立て、入らなければどこへ回すか。上の辺が外に出たか・点を範囲に収める
 import { describe, expect, test } from "bun:test"
 import {
   facingY,
@@ -9,7 +9,7 @@ import {
   standAt,
   topEdgeOut,
   unionRect,
-} from "../../../web/src/plugins/base/utils/stand-place"
+} from "../../../web/src/plugins/base/stand/stand-place"
 
 const area = { w: 400, h: 300 }
 const size = { w: 100, h: 40 }

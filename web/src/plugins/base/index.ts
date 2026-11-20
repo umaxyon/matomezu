@@ -12,6 +12,7 @@ import {
 } from "./book-look"
 import { BOOK_CREATE, BOOK_NEW, NEW_BOOK_DIALOG } from "./book-new"
 import { CONTEXT_MENU_STATES, MENU_CLOSE, MENU_KEYS, type PRESSED_ANCHOR } from "./context-menu"
+import { CORNER_STATUS_ORDER } from "./corner-status"
 import { DIALOG_CLOSE, DIALOG_KEYS, DIALOG_SUBMIT } from "./dialog-host"
 import { HISTORY_KEYS, HISTORY_RESTORE, REDO, UNDO } from "./history"
 import { kit } from "./kit"
@@ -242,15 +243,13 @@ import {
   STAGE_STATES,
   STAGE_UNSPLIT,
 } from "./stage"
+import { REVEAL_REQUEST_STATES, type REVEALING_STATE } from "./stand"
 import { PAGE_TEXT_COLORS, TEXT_COLORS, THEME_TEXT_COLORS_CHECK, USER_TEXT_COLORS } from "./text"
 import { TOOL_PICKER, TOOL_PICKER_CLOSE, TOOL_PICKER_HOLD, TOOL_PICKER_KEYS, TOOL_SET } from "./tool-picker"
 import { HAND_TOOL, SELECT_TOOL, TOOL_NEXT } from "./tool-switch"
 // 拡張ポイントに書き足したフィールド toolbox の型（toolbox.ts の declare module）
 import type {} from "./toolbox"
 import { TOOLBOX_CANCEL, TOOLBOX_KEYS } from "./toolbox"
-// utils は機能のフォルダでなく、index.ts はプラグインに公開する物だけを出すので、base だけが使う定義はファイルから読む
-import { CORNER_STATUS_ORDER } from "./utils/corner-order"
-import { REVEAL_REQUEST_STATES, type REVEALING_STATE } from "./utils/reveal-state"
 import { WIDE_SEARCH_MODE } from "./wide-search"
 import {
   BOOK_SCREEN_CLOSE,

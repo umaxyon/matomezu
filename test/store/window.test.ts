@@ -113,7 +113,7 @@ test("ブックを開くと、ブックスクリーンを前に出す", () => {
   showCenter({ state, actions })
   actions.openBook("s1", "b2")
   expect(viewFrontOf(state.getState().window)).toBe("book-screen")
-  expect(screenOf(state.getState().window).stages[0]?.opened?.book).toBe("b2")
+  expect(screenOf(state.getState().window).stages[0]?.opened?.outermost).toBe("b2")
 })
 
 test("コントロールセンターを前に出している間は、ステージの範囲のキーが効かず、後ろのステージは変わらない", () => {
@@ -164,7 +164,7 @@ test("AI の show は、ブックを渡すとブックスクリーンを前に�
   showCenter(store)
   showIn(store, { book: "b2" })
   expect(viewFrontOf(store.state.getState().window)).toBe("book-screen")
-  expect(screenOf(store.state.getState().window).stages[0]?.opened?.book).toBe("b2")
+  expect(screenOf(store.state.getState().window).stages[0]?.opened?.outermost).toBe("b2")
 })
 
 test("store の openScreen は、定義の渡す値の形に合えば開いて前に出し、合わない値と無い定義は開かない。closeScreen で閉じると前の物に戻る", () => {
@@ -208,7 +208,7 @@ test("2 枚目のブックスクリーンのステージにも、ステージの
   actions.resizeStage(stage, { w: 800, h: 600 })
   expect(stageOf().stages[0]!.view).toEqual({ w: 800, h: 600 })
   actions.openBook(stage, "b2")
-  expect(stageOf().stages[0]!.opened?.book).toBe("b2")
+  expect(stageOf().stages[0]!.opened?.outermost).toBe("b2")
   actions.zoomStage(stage, 2)
   expect(stageOf().stages[0]!.zoom).toBe(2)
   actions.select(stage, ["x"])
@@ -220,7 +220,7 @@ test("2 枚目のブックスクリーンのステージにも、ステージの
   actions.closeStage(right)
   expect(stageOf().stages.map(s => s.id)).toEqual([stage])
   // 1 枚目のブックスクリーンは変わらない（ステージ s1 は b1 を開いたまま）
-  expect(stageIn(state.getState().window, "s1")?.opened?.book).toBe("b1")
+  expect(stageIn(state.getState().window, "s1")?.opened?.outermost).toBe("b1")
   expect(stageIn(state.getState().window, "s1")?.zoom).toBe(1)
 })
 
@@ -313,7 +313,7 @@ const bookScreens = (store: ReturnType<typeof newStore>) =>
   store.state
     .getState()
     .window.screens.filter(s => s.stages)
-    .map(s => ({ id: s.id, books: s.stages?.stages.map(st => st.opened?.book ?? null) }))
+    .map(s => ({ id: s.id, books: s.stages?.stages.map(st => st.opened?.outermost ?? null) }))
 
 test("宛先なしで作った窓は、ブックスクリーンが 0 枚。AI の view は bookScreen が none で、キーを押しても落ちない", () => {
   const store = createMatomezu({

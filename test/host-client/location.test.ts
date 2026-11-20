@@ -3,6 +3,7 @@
 import { expect, test } from "bun:test"
 import { z } from "zod"
 import { type Address, currentIn, recentStagesIn } from "../../web/src/core/address"
+import { NO_OUTERMOST } from "../../web/src/core/folders"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { screenOf, viewFrontOf } from "../../web/src/core/window"
 import {
@@ -94,8 +95,15 @@ test("URL の形: 値 1 つ（sc）に、スクリーンの並び・前に出し
         states: {},
         stages: {
           places: [
-            { book: "b1", page: "p1", binder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} },
-            { book: null, page: null, binder: null, zoom: 1.25, pan: { x: 12.5, y: -3 }, states: { "@x/p": { a: 1 } } },
+            { outermost: "b1", page: "p1", binder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} },
+            {
+              outermost: NO_OUTERMOST,
+              page: null,
+              binder: null,
+              zoom: 1.25,
+              pan: { x: 12.5, y: -3 },
+              states: { "@x/p": { a: 1 } },
+            },
           ],
           current: 1,
           share: 0.4,
@@ -152,8 +160,15 @@ test("前の形の URL（b0・p0・v0・s0…、c・r・w・f）も読み、今�
     former: true,
     front: "book-screen",
     stages: [
-      { book: "b1", page: "p1", binder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} },
-      { book: null, page: null, binder: null, zoom: 1.25, pan: { x: 12.5, y: -3 }, states: { "@x/p": { a: 1 } } },
+      { outermost: "b1", page: "p1", binder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} },
+      {
+        outermost: NO_OUTERMOST,
+        page: null,
+        binder: null,
+        zoom: 1.25,
+        pan: { x: 12.5, y: -3 },
+        states: { "@x/p": { a: 1 } },
+      },
     ],
     current: 1,
     share: 0.4,
@@ -177,7 +192,11 @@ test("前の形の URL（b0・p0・v0・s0…、c・r・w・f）も読み、今�
     window: {},
   }
   const placed = fromFormer(former as FormerAddress, now)
-  expect(placed.screens[1]?.stages).toMatchObject({ current: 1, share: 0.4, places: [{ book: "b1" }, { book: null }] })
+  expect(placed.screens[1]?.stages).toMatchObject({
+    current: 1,
+    share: 0.4,
+    places: [{ outermost: "b1" }, { outermost: NO_OUTERMOST }],
+  })
   expect(placed.order).toEqual(["c1", "c2"])
   expect(placed.window).toEqual({ "@x/tab": "two" })
   // ステージの無い前の形は、前に出す物の種類だけを替える（ステージは今のまま）
@@ -190,7 +209,7 @@ test("開いたときは URL の場所を当てはめる（読み直しても同
   const store = newStore()
   const f = fakePlace("?b0=b3&p0=p1&v0=1,0,0&c=0&r=0.5")
   followLocation(store, f.place)
-  expect(screenOf(store.state.getState().window).stages[0]!.opened?.book).toBe("b3")
+  expect(screenOf(store.state.getState().window).stages[0]!.opened?.outermost).toBe("b3")
 })
 
 // 同じ同期の処理が終わるのを待つ
@@ -202,7 +221,7 @@ test("ブック・ページの移動と分割はブラウザの履歴に積み�
   followLocation(store, f.place)
   store.actions.openBook("s1", "b2")
   await settled()
-  expect(f.pushed.map(s => stagesIn(s)?.places[0]?.book)).toEqual(["b2"])
+  expect(f.pushed.map(s => stagesIn(s)?.places[0]?.outermost)).toEqual(["b2"])
   store.actions.split("s1")
   await settled()
   expect(f.pushed).toHaveLength(2)
@@ -214,7 +233,7 @@ test("ブック・ページの移動と分割はブラウザの履歴に積み�
   // 戻る: 1 つ前の場所（b2 を開いた 1 つのステージ）
   f.back(f.pushed[0]!)
   const ws = screenOf(store.state.getState().window)
-  expect(ws.stages.map(s => s.opened?.book)).toEqual(["b2"])
+  expect(ws.stages.map(s => s.opened?.outermost)).toEqual(["b2"])
   expect(f.pushed).toHaveLength(2)
 })
 
@@ -228,7 +247,7 @@ test("同じ処理の中の移動（分割してブックとページを開く�
   store.actions.openPage(right, "p1")
   await settled()
   expect(f.pushed).toHaveLength(1)
-  expect(stagesIn(f.pushed[0]!)?.places.map(s => s.book)).toEqual(["b1", "b3"])
+  expect(stagesIn(f.pushed[0]!)?.places.map(s => s.outermost)).toEqual(["b1", "b3"])
 })
 
 test("URL が無い（開いた直後）なら、コントロールセンターを前に出す。URL にブックスクリーンの場所があれば、ブックスクリーンを前に出す", () => {
@@ -245,7 +264,7 @@ test("前に出ているスクリーンは URL の前に出した順に書く。
   const f = fakePlace()
   followLocation(store, f.place)
   expect(frontDefIn(f.replaced[0]!)).toBe("@matomezu/control-center:screen")
-  expect(stagesIn(f.replaced[0]!)?.places[0]?.book).toBe("b1")
+  expect(stagesIn(f.replaced[0]!)?.places[0]?.outermost).toBe("b1")
 })
 
 test("前に出す物を替えるのは、ブラウザの履歴に 1 つ積む。戻ると前に出す物が戻り、後ろのブックスクリーンの中は残る", async () => {

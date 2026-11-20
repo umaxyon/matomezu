@@ -10,7 +10,7 @@ import { BIRD_IDS, type Bird } from "../birds"
 import { pickBird } from "../birds/assign"
 import { BirdWalk, birdClass } from "../birds/BirdWalk"
 import { kit } from "../kit"
-import { AnchorFrame, StandAt } from "../utils/anchors"
+import { AnchorFrame, StandAt } from "../stand/anchors"
 import { type BirdVisit, useBirdVisit, useClearBirdVisit } from "./bird-visit"
 import styles from "./MailLayer.module.css"
 
@@ -18,7 +18,8 @@ export function MailLayer() {
   const visit = useBirdVisit()
   const clear = useClearBirdVisit()
   const opened = useStageHere(st => st?.opened ?? null)
-  const here = !!visit && opened?.book === visit.book && (visit.page === null || shownPageId(opened) === visit.page)
+  const here =
+    !!visit && opened?.outermost === visit.book && (visit.page === null || shownPageId(opened) === visit.page)
   useEffect(() => {
     if (visit && !here) clear()
   }, [visit, here, clear])

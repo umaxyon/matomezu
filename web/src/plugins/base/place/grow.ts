@@ -4,7 +4,7 @@ import type { GrowChoice } from "../../../core/def/paper"
 import type { Rect, Size } from "../../../core/geom"
 import type { Page } from "../../../core/schema/book"
 import type { SettingReader } from "../book-settings"
-import { setField } from "../fields"
+import { setField } from "../utils/fields"
 
 // 可変ページの増やす向き: 上・下・左・右のうち、どれへ印刷区画を増やすか
 export interface GrowSides {

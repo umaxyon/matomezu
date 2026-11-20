@@ -16,7 +16,7 @@ import {
   talkActions,
   unexpired,
 } from "../core/annotation"
-import { checkBooks, findPage, pageById, pagesOf, restoreBooks, unreadableOf, warnsOf } from "../core/book"
+import { checkBooks, findPage, pageById, pagesOf, readLibrary, restoreBooks, unreadableOf, warnsOf } from "../core/book"
 import { briefLine } from "../core/brief"
 import { bulkActionOf, type LibraryRows, performBulk } from "../core/bulk"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
@@ -29,14 +29,13 @@ import {
   bookIdOf,
   bookOf,
   createdOn,
-  homeAndFoldersOf,
+  type Library,
   libraryOf,
   NO_CHANGES,
-  rawBooksOf,
+  pageIn,
   rowsHoldTree,
   rowsLibraryOf,
   withChanges,
-  worldTablesOf,
 } from "../core/folders"
 import { detectLang, translate } from "../core/i18n/i18n"
 import { changedIn } from "../core/ids"
@@ -274,8 +273,8 @@ function perform(input: Input): Output {
   const settings = restoreSettings(input.settings)
   const langFor = (l: string | undefined) =>
     l ? detectLang([l], [...catalog.languages.keys()]) : langOf(catalog, settings, "en")
-  const raw = rawBooksOf(input.pages ?? [], input.folders ?? [])
-  const books = Object.fromEntries(restoreBooks(catalog, raw).map(b => [b.id, b]))
+  const read = readLibrary(catalog, input.pages ?? [], input.folders ?? [])
+  const books = Object.fromEntries(read.books.map(b => [b.id, b]))
   const annotations = Object.fromEntries(
     Object.entries(input.annotations ?? {}).map(([page, list]) => [page, restoreAnnotations(list)]),
   )
@@ -283,7 +282,7 @@ function perform(input: Input): Output {
   const counters = restoreCounters(input.counters)
   const actor = actorOfWire(input.actor)
   const source = hostSource(records)
-  const tables = worldTablesOf(Object.values(books), homeAndFoldersOf(input.folders ?? []))
+  const tables = read.library
   const world = { ...tables, settings, annotations, records, counters, ...(source ? { source } : {}) }
   // 時点が渡されなかったアクションの時点（その日付も、bulkActionOf がこの同じ時点から決める）
   const at = new Date().toISOString()
@@ -318,7 +317,7 @@ function perform(input: Input): Output {
   const binned = moved ? binnedBetween(tables, after) : { trashed: [], restored: [] }
   const trashing = binned.trashed.filter(id => id in next)
   const restoring = binned.restored.filter(id => id in next)
-  const notice = shiftNotice(books, changed)
+  const notice = shiftNotice(books, changed, tables, after)
   const changes = done.changes ?? NO_CHANGES
   return {
     ok: true,
@@ -341,7 +340,7 @@ function perform(input: Input): Output {
   }
 }
 
-// アクション 1 つが、利用者が直している物 watched（ブックの中の物・ページの中の物とそのページのアノテーション）を変えたか消した所（before と after はそのアクションの前と後の世界、changedAnnotations はそのアクションが変えたアノテーション）
+// アクション 1 つが、利用者が直している物 watched（ブックの中の物・ページの中の物とそのページのアノテーション。ページはブックの中でも外でも）を変えたか消した所（before と after はそのアクションの前と後の世界、changedAnnotations はそのアクションが変えたアノテーション）
 function touchedIn(
   before: World,
   after: World,
@@ -353,35 +352,48 @@ function touchedIn(
     // ブックの中の物（バインダ・ブックそのもの）
     const was = bookOf(before, id)
     if (was) return changedIn(was, bookOf(after, id), list)
-    // ページの中の物と、そのページのアノテーション（そのページを持っているブックだけを組む）
+    // ページの中の物と、そのページのアノテーション（ブックの中のページなら、そのページを持っているブックだけを組む）
     const holder = bookIdOf(before.folders, id)
     const held = holder ? bookOf(before, holder) : undefined
     const at = held ? pageById({ [held.id]: held }, id) : undefined
-    if (!at) return []
+    const page = holder === undefined ? pageIn(before.pages, id) : at?.page
+    if (!page) return []
+    const book = at ? bookOf(after, at.book.id) : undefined
+    const pageNow = at ? book && findPage(book, id)?.page : pageIn(after.pages, id)
     const annotationsNow =
       changedAnnotations && id in changedAnnotations ? changedAnnotations[id] : before.annotations[id]
-    const book = bookOf(after, at.book.id)
     return changedIn(
-      { page: at.page, annotations: before.annotations[id] },
-      { page: book && findPage(book, id)?.page, annotations: annotationsNow },
+      { page, annotations: before.annotations[id] },
+      { page: pageNow, annotations: annotationsNow },
       list,
     )
   })
 }
 
-// 中身をずらした可変ページ（ページの shift が変わった）があれば、AI への知らせ（位置が変わったので読み直す）
-function shiftNotice(before: Readonly<Record<string, Book>>, changed: readonly Book[]): string | null {
-  const shiftOf = (b: Book | undefined, page: string) =>
-    (b ? findPage(b, page)?.page.shift : undefined) ?? { x: 0, y: 0 }
-  const moved = changed.flatMap(b =>
-    pagesOf(b).flatMap(p => {
-      const was = shiftOf(before[b.id], p.id)
-      const now = shiftOf(b, p.id)
-      const dx = now.x - was.x
-      const dy = now.y - was.y
-      return dx || dy ? [`page ${p.id} of book ${b.id} by ${dx} paper(s) right and ${dy} down`] : []
-    }),
+// 中身をずらした可変ページ（ページの shift が変わった）があれば、AI への知らせ（位置が変わったので読み直す）。
+// ブックの中のページは、前のブック before と変わったブック changed から、ブックの外のページは、前の表 was と後の表 now から見る
+function shiftNotice(
+  before: Readonly<Record<string, Book>>,
+  changed: readonly Book[],
+  was: Library,
+  now: Library,
+): string | null {
+  const NO_SHIFT = { x: 0, y: 0 }
+  const shiftOf = (b: Book | undefined, page: string) => (b ? findPage(b, page)?.page.shift : undefined) ?? NO_SHIFT
+  const line = (from: { x: number; y: number }, to: { x: number; y: number }, at: string) => {
+    const dx = to.x - from.x
+    const dy = to.y - from.y
+    return dx || dy ? [`${at} by ${dx} paper(s) right and ${dy} down`] : []
+  }
+  const inBooks = changed.flatMap(b =>
+    pagesOf(b).flatMap(p => line(shiftOf(before[b.id], p.id), shiftOf(b, p.id), `page ${p.id} of book ${b.id}`)),
   )
+  const outside = Object.keys(now.pages).flatMap(id => {
+    const page = now.pages[id]
+    if (page === was.pages[id] || page?.kind !== "page" || bookIdOf(now.folders, id) !== undefined) return []
+    return line(pageIn(was.pages, id)?.shift ?? NO_SHIFT, page.shift ?? NO_SHIFT, `page ${id}`)
+  })
+  const moved = [...inBooks, ...outside]
   return moved.length
     ? `The contents of a variable page were shifted by whole papers, so every position there changed (${moved.join("; ")}); read_page before using positions.`
     : null

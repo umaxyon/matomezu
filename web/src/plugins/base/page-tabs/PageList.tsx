@@ -74,7 +74,7 @@ function ThumbnailFrame({
 
 export function PageList() {
   const opened = useStageHere(st => st?.opened)
-  const book = useMatomezuState(s => (opened ? s.books[opened.book] : undefined))
+  const book = useMatomezuState(s => (opened ? s.books[opened.outermost] : undefined))
   const openPage = useCommand(PAGE_OPEN.id)
   const addAfter = useCommand(PAGE_ADD_AFTER.id)
   const addInto = useAddPage()

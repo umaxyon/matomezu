@@ -3,10 +3,10 @@ import type { MessageKey } from "../../../core/i18n/i18n"
 import { useMessages } from "../../../ui/i18n"
 import type { UserSettingControlProps } from "../../../ui/plugin"
 import { useUiCatalog } from "../../../ui/store-context"
+import { useCornerStatuses } from "../corner-status/corner"
+import { movedStatus } from "../corner-status/corner-order"
 import { rowClass, Section } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import { useCornerStatuses } from "../utils/corner"
-import { movedStatus } from "../utils/corner-order"
 import styles from "./CornerStatusOrderSetting.module.css"
 
 export function CornerStatusOrderSetting({ label, onChange }: UserSettingControlProps<readonly string[]>) {

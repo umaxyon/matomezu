@@ -42,7 +42,7 @@ export function withBookSettings(
 // 項目 id が、組 group でないブックの設定の項目なら、どちらの組かの添え書き
 function elsewhere(catalog: CoreCatalog, id: string, group: SettingGroup): string {
   const def = catalog.settings.get(id)
-  if (def?.holder !== "book" || groupOf(def) === group) return ""
+  if (def?.holder !== "outermost" || groupOf(def) === group) return ""
   return def.printPreview ? " (it is a print preview setting)" : " (it is not a print preview setting)"
 }
 

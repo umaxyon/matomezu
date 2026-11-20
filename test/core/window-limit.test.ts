@@ -8,7 +8,9 @@ const showing = (id: string, ...books: string[]): BookScreen =>
     id,
     def: "book",
     props: {},
-    stages: { stages: books.map((book, i) => ({ id: `${id}-s${i}`, opened: { kind: "page", book, page: "p" } })) },
+    stages: {
+      stages: books.map((book, i) => ({ id: `${id}-s${i}`, opened: { kind: "page", outermost: book, page: "p" } })),
+    },
   }) as unknown as BookScreen
 
 test("開いたままにする数を超えた分を、カレントにしたのが古い順に閉じる物として答える（ほかの定義のスクリーンは数えない）", () => {

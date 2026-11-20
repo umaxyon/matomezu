@@ -14,7 +14,7 @@ declare module "../../../core/catalog" {
 // printPreview はブックが持つ設定の項目だけが書く（ページの項目・利用者の設定の項目には書けない。台帳アセンブルのときの確かめ）
 export const PRINT_PREVIEW_SETTING_CHECK: CatalogCheckDef = catalog =>
   [...catalog.settings.values(), ...catalog.userSettings.values()]
-    .filter(d => d.printPreview && d.holder !== "book")
+    .filter(d => d.printPreview && d.holder !== "outermost")
     .map(d => problem("E129", { id: d.id }))
 
 // 印刷区画を並べる向き: column は上から下へ、row は左から右へ
@@ -36,7 +36,7 @@ export const ShownSchema = z
 
 export const PRINT_PREVIEW_FLOW = kit.defineSetting({
   id: "print-preview-flow",
-  holder: "book",
+  holder: "outermost",
   printPreview: true,
   title: "Arrange sheets",
   schema: SheetFlowSchema,
@@ -45,7 +45,7 @@ export const PRINT_PREVIEW_FLOW = kit.defineSetting({
 
 export const PRINT_PREVIEW_ORDER = kit.defineSetting({
   id: "print-preview-order",
-  holder: "book",
+  holder: "outermost",
   printPreview: true,
   title: "Order of print areas",
   schema: SheetOrderSchema,
@@ -54,7 +54,7 @@ export const PRINT_PREVIEW_ORDER = kit.defineSetting({
 
 export const PRINT_PREVIEW_SHEET_NUMBERS = kit.defineSetting({
   id: "print-preview-sheet-numbers",
-  holder: "book",
+  holder: "outermost",
   printPreview: true,
   title: "Print page numbers",
   schema: ShownSchema,
@@ -63,7 +63,7 @@ export const PRINT_PREVIEW_SHEET_NUMBERS = kit.defineSetting({
 
 export const PRINT_PREVIEW_BOOK_NAME = kit.defineSetting({
   id: "print-preview-book-name",
-  holder: "book",
+  holder: "outermost",
   printPreview: true,
   title: "Print the book name",
   schema: ShownSchema,
@@ -72,7 +72,7 @@ export const PRINT_PREVIEW_BOOK_NAME = kit.defineSetting({
 
 export const PRINT_PREVIEW_PAGE_NAME = kit.defineSetting({
   id: "print-preview-page-name",
-  holder: "book",
+  holder: "outermost",
   printPreview: true,
   title: "Print the page name",
   schema: ShownSchema,

@@ -3,14 +3,21 @@ import { expect, test } from "bun:test"
 import { USER } from "../../web/src/core/actor"
 import { checkBooks, putBinder, putPage, removePage } from "../../web/src/core/book"
 import {
+  type BinderFolder,
   bookIdOf,
   bookOf,
   changesBetween,
   foldersOver,
+  HOME_ID,
+  type Library,
   libraryOf,
+  NO_OUTERMOST,
+  outermostOf,
+  type PlainFolder,
   rawBooksOf,
   recordsOf,
   settledOn,
+  TRASH_ID,
   tablesOf,
   withChanges,
 } from "../../web/src/core/folders"
@@ -209,4 +216,88 @@ test("同じフォルダと同じ中身からは、同じ値のブックの本�
   const changed = rawBooksOf(rows({ ...pages, x1: { ...pages.x1, title: "改" } }), rows(folders))
   expect(changed[0]).toBe(first)
   expect(changed[1]).not.toBe(second)
+})
+
+// ステージエントリを引く書庫: 書庫ホームに、ブック b1（ページ p1・バインダ f1 の中の s1・s2）・フォルダ d1（中に外のページ y1 と外のバインダ g1 の中の t1）・
+// 外のページ x1・読めない外のページ u1。ゴミ箱に、ブック b2・外のページ z1・外のバインダ h1 の中の w1。どこにも入っていないページ n1
+function outermostLibrary(): Library {
+  const tables = tablesOf([book, other])
+  const binder = (id: string, ...pages: string[]): BinderFolder => ({
+    folderRole: "binder",
+    id,
+    title: id,
+    pageType: SLIDE,
+    lineup: pages.map(p => ({ kind: "page", id: p })),
+  })
+  const d1: PlainFolder = {
+    folderRole: "folder",
+    id: "d1",
+    title: "フォルダ",
+    lineup: [
+      { kind: "page", id: "y1" },
+      { kind: "binder", id: "g1" },
+    ],
+  }
+  const trashed = { trashed: "2026-01-01T00:00:00.000Z", from: [HOME_ID] }
+  const slide = (id: string) => testPage(SLIDE, id, { title: id })
+  return {
+    pages: {
+      ...tables.pages,
+      ...Object.fromEntries(["x1", "y1", "z1", "n1"].map(id => [id, drawingPage(id, { title: id })])),
+      ...Object.fromEntries(["t1", "w1"].map(id => [id, slide(id)])),
+      u1: { kind: "unreadable", id: "u1", title: "読めない", code: "W027" },
+    },
+    folders: {
+      ...tables.folders,
+      d1,
+      g1: binder("g1", "t1"),
+      h1: binder("h1", "w1"),
+      [HOME_ID]: {
+        folderRole: "home",
+        id: HOME_ID,
+        lineup: [
+          { kind: "book", id: "b1" },
+          { kind: "folder", id: "d1" },
+          { kind: "page", id: "x1" },
+          { kind: "page", id: "u1" },
+        ],
+      },
+      [TRASH_ID]: {
+        folderRole: "trash",
+        id: TRASH_ID,
+        lineup: [
+          { kind: "book", id: "b2", ...trashed },
+          { kind: "page", id: "z1", ...trashed },
+          { kind: "binder", id: "h1", ...trashed },
+        ],
+      },
+    },
+  }
+}
+
+test("ステージエントリ: ブックとその中の物はブック、ブックの外のバインダとその中のページはバインダ、ブックの外のページはそのページ", () => {
+  const library = outermostLibrary()
+  expect(outermostOf(library, "b1")).toEqual({ kind: "book", book: "b1" })
+  expect(["p1", "f1", "s1"].map(id => outermostOf(library, id))).toEqual(Array(3).fill({ kind: "book", book: "b1" }))
+  expect(outermostOf(library, "g1")).toEqual({ kind: "binder", binder: "g1" })
+  expect(outermostOf(library, "t1")).toEqual({ kind: "binder", binder: "g1" })
+  expect(outermostOf(library, "x1")).toEqual({ kind: "page", page: "x1" })
+  expect(outermostOf(library, "y1")).toEqual({ kind: "page", page: "y1" })
+  // 読めないページも、ブックの外ならそのページ
+  expect(outermostOf(library, "u1")).toEqual({ kind: "page", page: "u1" })
+})
+
+test("ステージエントリ: ゴミ箱の中の物も外と同じに引く", () => {
+  const library = outermostLibrary()
+  expect(outermostOf(library, "b2")).toEqual({ kind: "book", book: "b2" })
+  expect(outermostOf(library, "z1")).toEqual({ kind: "page", page: "z1" })
+  expect(outermostOf(library, "h1")).toEqual({ kind: "binder", binder: "h1" })
+  expect(outermostOf(library, "w1")).toEqual({ kind: "binder", binder: "h1" })
+})
+
+test("ステージエントリ: フォルダ・書庫ホーム・ゴミ箱・表に無い id・どこにも入っていないページは NO_OUTERMOST", () => {
+  const library = outermostLibrary()
+  expect(["d1", HOME_ID, TRASH_ID, "nothing", "n1"].map(id => outermostOf(library, id))).toEqual(
+    Array(5).fill(NO_OUTERMOST),
+  )
 })

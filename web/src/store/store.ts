@@ -915,7 +915,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       .flatMap(s => s.stages.stages)
       .some(
         st =>
-          st.opened?.book === u.book &&
+          st.opened?.outermost === u.book &&
           changeSeen(u.made, { before: u.before, after: u.after }, shownPageId(st.opened), seenTestOf(st)),
       )
   // まだ見ていない変更のうち、どこかのステージで見えた物を、そのブックの画面の履歴に時刻の位置で差し込む（窓が見えていない間は差し込まない）
@@ -1525,7 +1525,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     openPage: (stage, page) => {
       const { books, window } = getState()
-      const book = books[stageIn(window, stage)?.opened?.book ?? ""]
+      const book = books[stageIn(window, stage)?.opened?.outermost ?? ""]
       // ページを開くと、そのブックスクリーンをカレントスクリーンにする
       if (book && inWindow(stage))
         withWindow(win =>
@@ -1537,7 +1537,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     openBinder: (stage, binder) => {
       const { books, window } = getState()
-      const book = books[stageIn(window, stage)?.opened?.book ?? ""]
+      const book = books[stageIn(window, stage)?.opened?.outermost ?? ""]
       // バインダを開くと、そのブックスクリーンをカレントスクリーンにする
       if (book && inWindow(stage))
         withWindow(win =>
@@ -1550,7 +1550,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     openPageById: (stage, page) => {
       const at = pageById(getState().books, page)
       if (!at) return
-      if (stageIn(getState().window, stage)?.opened?.book !== at.book.id) actions.openBook(stage, at.book.id)
+      if (stageIn(getState().window, stage)?.opened?.outermost !== at.book.id) actions.openBook(stage, at.book.id)
       actions.openPage(stage, page)
     },
     resizeStage: (id, view) => withStageScreen(id, ws => mapStage(ws, id, s => resize(s, view))),
@@ -1856,5 +1856,5 @@ export const openedIn = (
   stage = "s1",
 ): { book: string; page: string | null } | null => {
   const opened = stageIn(instance.state.getState().window, stage)?.opened
-  return opened ? { book: opened.book, page: shownPageId(opened) } : null
+  return opened ? { book: opened.outermost, page: shownPageId(opened) } : null
 }

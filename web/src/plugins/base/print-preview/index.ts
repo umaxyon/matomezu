@@ -113,7 +113,7 @@ function openPreview(ctx: CommandContext, a: CommandActions) {
   const now = calledStageOf(ctx)
   const opened = now?.opened
   if (book !== NO_BOOK && now && opened && hasCrossing(ctx.catalog, book)) {
-    const open = { ...printCheckOpen(book.id), book: opened.book, page: shownPageId(opened) }
+    const open = { ...printCheckOpen(book.id), book: opened.outermost, page: shownPageId(opened) }
     a.updatePluginState(RIGHT_SIDE_PANEL_STATE, () => open)
     a.updatePluginState(RIGHT_SIDE_PANEL_RESTORE_STATE, kept => openedRestore(kept, open, now))
     return

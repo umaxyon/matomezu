@@ -7,6 +7,7 @@ import { BOOK_LOOK_DIALOG_VIEWS, BOOK_LOOK_ICONS, BOOK_LOOK_SETTING_VIEWS } from
 import { BOOK_NAME } from "./book-name/ui"
 import { BOOK_NEW_DIALOG_VIEWS } from "./book-new/ui"
 import { MENU_HOST } from "./context-menu/ui"
+import type { CornerStatusProps } from "./corner-status/ui"
 import { DIALOG_HOST } from "./dialog-host/ui"
 import { EDIT_LOCK } from "./edit-lock/ui"
 import { FOOTER_MENU_MINIMAP, HISTORY_BUTTONS, STAGE_MENU_BUTTONS } from "./footer-menu/ui"
@@ -64,7 +65,6 @@ import { TOOL_PICKER_WIDGET } from "./tool-picker/ui"
 import { TOOL_ICONS } from "./tool-switch/icons"
 import { TOOL_SWITCH } from "./tool-switch/ui"
 import { TOOLBOX } from "./toolbox/ui"
-import type { CornerStatusProps } from "./utils/corner"
 import type { WideSearchModeProps } from "./wide-search/slots"
 import type { WideSearchOpened } from "./wide-search/ui"
 import { FULL_TEXT_MODE, WIDE_SEARCH_TAB } from "./wide-search/ui"
@@ -75,6 +75,13 @@ import { ZOOM_ICONS } from "./zoom/icons"
 
 export { BirdWalk } from "./birds/BirdWalk"
 export { type CodeSpan, highlightCode } from "./code-highlight/highlight"
+export {
+  AtCorner,
+  CORNER_STATUSES,
+  type CornerStatusProps,
+  defineCornerStatus,
+  useAtCornerBubble,
+} from "./corner-status/ui"
 export { ColorPicker, type Swatch } from "./dialog-host/ColorPicker"
 export { Confirm } from "./dialog-host/Confirm"
 export { Dialog } from "./dialog-host/Dialog"
@@ -137,6 +144,16 @@ export type { PrintMeasured, PrintMeasureProps, PrintSheetProps } from "./print-
 export { ScrapForm } from "./scrap/ScrapForm"
 export { ScrapView, type ScrapViewProps } from "./scrap/ScrapView"
 export { ChoiceSetting } from "./settings/ChoiceSetting"
+export {
+  type Revealable,
+  Stand,
+  type StandAway,
+  type StandSide,
+  useAnchorRef,
+  useAnchorShapeRef,
+  useRevealable,
+  useStandAway,
+} from "./stand/ui"
 export { useWideSearch, useWideSearchPanel, WIDE_SEARCH_LIMIT_MAX } from "./wide-search/hooks"
 export { WIDE_SEARCH_MODES, WIDE_SEARCH_OPENERS, type WideSearchModeProps } from "./wide-search/slots"
 export {

@@ -1,7 +1,14 @@
 // テストで使う、ビルトインプラグインだけの表と store
 import { namingOf } from "../web/src/core/entries"
-import { homeOver, worldTablesOf } from "../web/src/core/folders"
-import type { Book } from "../web/src/core/schema/book"
+import {
+  type AnyEntryRef,
+  type BinderFolder,
+  HOME_ID,
+  type Library,
+  type PageRow,
+  tablesOf,
+} from "../web/src/core/folders"
+import type { AnyPage, BinderEntry, Book } from "../web/src/core/schema/book"
 import { NO_SETTINGS } from "../web/src/core/settings"
 import { recentBookScreen, recentPlainScreen, stagesDefOf } from "../web/src/core/window"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../web/src/plugins"
@@ -69,10 +76,44 @@ export function showBooks(store: Pick<ReturnType<typeof newStore>, "state" | "ac
   if (to) store.actions.makeScreenCurrent(to.id)
 }
 
-// ブックの並び books を、ホストが知らせる形（置き場所から読んだままのページとフォルダの並び）にした物（instance.receive に渡す世界の pages と folders）。
-// ブックは、書庫ホームの直下に置く
-export function worldRows(books: readonly unknown[]): { pages: unknown[]; folders: unknown[] } {
-  const tables = worldTablesOf(books as readonly Book[], [homeOver(books as readonly Book[])])
+// ブック books と、ブックの外のページ・バインダ outside を書庫ホームの直下に置いた書庫（ホームの並びは、ブックのあとに外の物）。
+// 外の物は、テストの用意として表に直に置く（作るアクションは通さない）。バインダは、バインダの行と中のページの行に分ける
+export function libraryWith(books: readonly Book[], outside: readonly (AnyPage | BinderEntry)[] = []): Library {
+  const tables = tablesOf(books)
+  const lineup: AnyEntryRef[] = [
+    ...books.map(b => ({ kind: "book" as const, id: b.id })),
+    ...outside.map(e => ({ kind: e.kind, id: e.id })),
+  ]
+  const pages = outside.flatMap((e): readonly PageRow[] => (e.kind === "binder" ? e.lineup : [e]))
+  const binders = outside.flatMap((e): readonly BinderFolder[] =>
+    e.kind === "binder"
+      ? [
+          {
+            folderRole: "binder",
+            id: e.id,
+            title: e.title,
+            pageType: e.pageType,
+            lineup: e.lineup.map(p => ({ kind: "page", id: p.id })),
+          },
+        ]
+      : [],
+  )
+  return {
+    pages: { ...tables.pages, ...Object.fromEntries(pages.map(p => [p.id, p])) },
+    folders: {
+      ...tables.folders,
+      ...Object.fromEntries(binders.map(f => [f.id, f])),
+      [HOME_ID]: { folderRole: "home", id: HOME_ID, lineup },
+    },
+  }
+}
+
+// 書庫 libraryWith(books, outside) を、ホストが知らせる形（置き場所から読んだままのページとフォルダの並び）にした物（instance.receive と常駐のエンジンに渡す世界の pages と folders）
+export function worldRows(
+  books: readonly unknown[],
+  outside: readonly (AnyPage | BinderEntry)[] = [],
+): { pages: unknown[]; folders: unknown[] } {
+  const tables = libraryWith(books as readonly Book[], outside)
   return { pages: Object.values(tables.pages), folders: Object.values(tables.folders) }
 }
 

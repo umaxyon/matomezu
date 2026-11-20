@@ -5,7 +5,7 @@ import type { Rect } from "../../../web/src/core/geom"
 import { newStage, openBook, panBy, placement, resize, type Stage, zoomTo } from "../../../web/src/core/stage"
 import { paperRectOf, revealView } from "../../../web/src/plugins/base/right-side-panel/reveal"
 import { movedFrom, openedRestore, restoreTo, withRestore } from "../../../web/src/plugins/base/right-side-panel/state"
-import { EDGE_STAND_ROOM } from "../../../web/src/plugins/base/utils/stand-place"
+import { EDGE_STAND_ROOM } from "../../../web/src/plugins/base/stand/stand-place"
 import { fitView, moveView, ZOOM_MIN } from "../../../web/src/plugins/base/zoom"
 import { drawingPage, testBook } from "../../lineup"
 import { CORE_CATALOG } from "../../support"
@@ -63,11 +63,11 @@ test("見せる前に閉じたら、閉じて幅を動かしている間は開�
 
 test("閉じたら、変えていなければ開く前の見え方に戻す。変えたか、ほかのブックかページを開いているか、別のステージで開いていれば戻さない", () => {
   const restore = { ...openedRestore(undefined, OPEN, PANNED), shown: HOME }
-  const on = { opened: { kind: "page", book: "b1", page: "p1" } as never }
+  const on = { opened: { kind: "page", outermost: "b1", page: "p1" } as never }
   expect(restoreTo(restore, on)).toEqual(PANNED)
   expect(restoreTo(restore, on, true)).toBeNull()
   expect(restoreTo({ ...restore, moved: true }, on)).toBeNull()
-  expect(restoreTo(restore, { opened: { kind: "page", book: "b1", page: "p2" } as never })).toBeNull()
+  expect(restoreTo(restore, { opened: { kind: "page", outermost: "b1", page: "p2" } as never })).toBeNull()
   expect(restoreTo(restore, { opened: null })).toBeNull()
 })
 

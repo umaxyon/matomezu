@@ -1,5 +1,5 @@
 // 拡大縮小のコマンドのアイコン（初めの位置は家、ページ全体を収めるは四隅の外向きの印、縮小は −、拡大は ＋）
-import { icon } from "../icon"
+import { icon } from "../utils/icon"
 import { ZOOM_FIT, ZOOM_IN, ZOOM_OUT, ZOOM_RESET } from "."
 
 export const ZOOM_ICONS = {

@@ -225,7 +225,7 @@ const FRAMES = [
   "stage/StageView.tsx",
   "stage/index.ts",
   "tool-picker/ToolPickerView.tsx",
-  "utils/reveal-request.tsx",
+  "stand/reveal-request.tsx",
   "window/ScreensView.tsx",
   "window/WindowView.tsx",
   "window/index.ts",
@@ -366,19 +366,14 @@ test("単体のテストは、確かめる物の置き場（クレート・test/
   expect(bad).toEqual([])
 })
 
-// base の utils は、どの機能にも属さない共通の処理の置き場なので、base の機能のフォルダを読まない（base の直下のファイルは読んでよい）（plugins の「プラグインどうしの関係」）
-test("base の utils は、base の機能のフォルダを読まない", () => {
+// base の utils は、どの機能にも属さない共通の処理の置き場なので、base の utils の外のファイルを読まない。base の機能のフォルダも、直下のファイルも、kit も（kit は base の全部の文言を読むので、機能のフォルダにつながる）（plugins の「プラグインどうしの関係」）
+test("base の utils は、base の utils の外のファイルを読まない", () => {
   const offenders = sources
     .filter(f => f.rel.startsWith("plugins/base/utils/"))
     .flatMap(f =>
       [...f.text.matchAll(/from\s*["'](\.\.\/[^"']+)["']/g)]
         .map(m => normalize(join(dirname(f.rel), m[1]!)))
-        .filter(
-          t =>
-            t.startsWith("plugins/base/") &&
-            !t.startsWith("plugins/base/utils") &&
-            statSync(join(SRC, t.split("/").slice(0, 3).join("/")), { throwIfNoEntry: false })?.isDirectory() === true,
-        )
+        .filter(t => t.startsWith("plugins/base/") && !t.startsWith("plugins/base/utils/"))
         .map(t => `${f.rel} → ${t}`),
     )
   expect(offenders).toEqual([])

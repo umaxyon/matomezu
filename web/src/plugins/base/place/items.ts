@@ -23,7 +23,7 @@ import {
 } from "../../../core/placed"
 import { themeFits } from "../book-look/theme-types"
 import { type PageContext, type SettingReader, settingsAt, tidyPage } from "../book-settings"
-import { setField } from "../fields"
+import { setField } from "../utils/fields"
 import { contentIdMaker } from "../utils/ids"
 import { GROW_CHOICE_SIDES, type GrowSides, grownArea } from "./grow"
 import { childrenSize, connectorGaps, type PortArea, placedSize, portAreasOf, rectsOf, shapeDefOf } from "./placed"

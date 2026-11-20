@@ -4,8 +4,8 @@ import { useMessages } from "../../../ui/i18n"
 import { useActions } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
+import { useRevealHere } from "../stand/reveal-request"
 import { clampChars } from "../text/text"
-import { useRevealHere } from "../utils/reveal-request"
 import styles from "./PrintPreviewPanel.module.css"
 
 const BADGE_CHARS = 10 // バッジに出す、名前の始めの字数

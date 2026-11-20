@@ -13,6 +13,7 @@ import {
   keepsPageTypes,
   keepsPageTypesAcross,
   lostUnreadable,
+  lostUnreadableOutside,
   pageSettles,
   pagesOf,
   putPage,
@@ -754,6 +755,9 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
       const lost = was[b.id] === b ? null : lostUnreadable(was[b.id], b)
       if (lost) return unreadable(lost)
     }
+    // ブックの外の読めないページも、そのまま（同じフォルダに同じ値で残る）
+    const lostOutside = lostUnreadableOutside(subject as Library, next as Library)
+    if (lostOutside) return unreadable(lostOutside)
     // 行う前から在るページのタイプも、変えない（ページがブックの間を動いても）
     const typesKept = keepsPageTypesAcross(Object.values(was), Object.values(now))
     // 同じ入れ物の中の名前の重なりは、ブックの決まりで断る前に、名前が重なる断りにする
