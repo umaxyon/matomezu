@@ -1,11 +1,9 @@
 // 変更提案郵便: 利用者が直している箱を AI が変えようとして断られ（being-edited）、変更を郵便で送る。利用者は郵便を開き、「場所を示す」で郵便を閉じずに
 // 窓の右の端に寄せて箱を見て、「反映」を押すと箱が変わり、郵便箱の行に「反映済み」が出る（読み直しても両方が残る）。ほかの窓でその箱を直している間は、反映を断ってトーストで知らせる
 import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, startingAtFirstBook, test } from "./fixtures"
+import { aiPerform } from "./helpers/ai"
 import { addBox, items } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
-
-const perform = async (page: Page, data: object) =>
-  (await page.request.post("/api/ai/perform", { headers: await joinedAiAuth(), data })).json()
 
 async function ready(page: Page): Promise<{ book: string; page: string }> {
   const ai = await joinedAiAuth()
@@ -34,8 +32,8 @@ test("断られた変更を変更提案郵便で送り、場所を示すで郵�
     args: { item: box, props: { caption: "AI" } },
     on: { page: at.page },
   }
-  await expect.poll(async () => (await perform(page, change)).reason).toBe("being-edited")
-  const sent = await perform(page, {
+  await expect.poll(async () => (await aiPerform(page, change)).reason).toBe("being-edited")
+  const sent = await aiPerform(page, {
     action: "@matomezu/base:proposal-send",
     args: {
       from: "E51",
@@ -66,7 +64,7 @@ test("断られた変更を変更提案郵便で送り、場所を示すで郵�
   const otherEditing = other.getByRole("dialog", { name: "ボックスの編集" })
   await items(other).filter({ hasText: "一" }).dblclick()
   await expect(otherEditing).toBeVisible()
-  await expect.poll(async () => (await perform(page, change)).reason).toBe("being-edited")
+  await expect.poll(async () => (await aiPerform(page, change)).reason).toBe("being-edited")
   await page.bringToFront()
   await mail.getByRole("button", { name: "反映" }).click()
   await expect(page.getByRole("alert").filter({ hasText: "直している最中です" })).toBeVisible()
@@ -76,8 +74,8 @@ test("断られた変更を変更提案郵便で送り、場所を示すで郵�
   await expect(otherEditing).toHaveCount(0)
   await other.close()
   // 直し終えてから押すと反映され、郵便は閉じ、郵便箱の行に反映済みが出る
-  await expect.poll(async () => (await perform(page, change)).ok).toBe(true)
-  await perform(page, {
+  await expect.poll(async () => (await aiPerform(page, change)).ok).toBe(true)
+  await aiPerform(page, {
     action: "@matomezu/paper:item-update",
     args: { item: box, props: { caption: "一" } },
     on: { page: at.page },
@@ -107,7 +105,7 @@ test("ブックスクリーンが無い窓で開いた変更提案郵便の「�
     args: { item: box, props: { caption: "AI" } },
     on: { page: at.page },
   }
-  const sent = await perform(page, {
+  const sent = await aiPerform(page, {
     action: "@matomezu/base:proposal-send",
     args: {
       from: "E51",

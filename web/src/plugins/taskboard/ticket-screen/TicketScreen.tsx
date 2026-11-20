@@ -25,6 +25,7 @@ import {
   useMarkdownDocument,
   useRecordEditLock,
 } from "../../base/ui"
+import { WORKROOM_SUBJECT } from "../by"
 import { BookIcon, PencilIcon } from "../icons"
 import { kit } from "../kit"
 import { PROJECT } from "../project"
@@ -47,8 +48,6 @@ import { useTicketRefs } from "./useTicketRefs"
 import { type HistoryRow, historyRows, whenOf } from "./view"
 import { WriterBird } from "./WriterBird"
 
-const WORKROOM = "@matomezu/base:workroom"
-
 const MODES = [
   { mode: "source-only", label: "Source only" },
   { mode: "split-row", label: "Side by side" },
@@ -63,7 +62,7 @@ export function TicketScreen() {
   const ticket = useRecord(TICKET.id, id)
   const project = useRecord(PROJECT.id, ticket?.project ?? "")
   const lines = useRecords(HISTORY.id, { where: [] })
-  const workrooms = useRecords(WORKROOM, { where: [] })
+  const workrooms = useRecords(WORKROOM_SUBJECT, { where: [] })
   const workroomNames = useMemo(() => Object.fromEntries(workrooms.map(w => [w.id, w.name])), [workrooms])
   const { perform } = useActions()
   // 画面の状態は、開いたスクリーン 1 枚ごと（閉じると消えるので、開くたびに初めに戻る）

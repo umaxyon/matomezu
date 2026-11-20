@@ -2,13 +2,12 @@
 // しおりか郵便箱の行を押すとダイアログで本文が見え（見たことになる）、下の行の「開く」などで行き先へ移る（行き先を見たことになる）。行き先の物には鳥が来て枠が光る。
 // 行き先が無ければ「行き先がありません」と「閉じる」だけ
 import { aiAuth, BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test, urlPlace, urlStages } from "./fixtures"
+import { aiPerform } from "./helpers/ai"
 import { addBox, items } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
 import { storedBooks } from "./helpers/stored"
 
 const leftPanel = (page: Page) => page.getByRole("complementary", { name: "左サイドパネル" })
-const perform = async (page: Page, data: object) =>
-  (await page.request.post("/api/ai/perform", { headers: await joinedAiAuth(), data })).json()
 const mailbox = async (page: Page) =>
   (
     await (
@@ -40,7 +39,7 @@ test("AI が手紙を送るとマーキーとしおりが出て、未読の数�
   await addBox(page, 700, 600, "隣")
   const box = (await items(page).filter({ hasText: "遠く" }).getAttribute("data-item"))!
   const next = (await items(page).filter({ hasText: "隣" }).getAttribute("data-item"))!
-  await perform(page, {
+  await aiPerform(page, {
     action: "@matomezu/base:mail-send",
     args: {
       from: "D64",
@@ -85,7 +84,7 @@ test("1 画面で「分割で開く」は、右に分けたステージで行き
   const book = await ready(page)
   await addBox(page, 300, 300, "右の箱")
   const box = (await items(page).filter({ hasText: "右の箱" }).getAttribute("data-item"))!
-  await perform(page, {
+  await aiPerform(page, {
     action: "@matomezu/base:mail-send",
     args: { from: "a", title: "右へ", to: { book, ids: [box] } },
   })
@@ -107,7 +106,7 @@ test("2 画面なら「左に開く」「右に開く」で、Enter はダイア
   await page.goto(`/?b0=${book}&v0=1,0,0&b1=&v1=1,0,0&c=1&r=0.5`)
   const stages = page.locator("[data-stage]")
   await expect(stages).toHaveCount(2)
-  await perform(page, {
+  await aiPerform(page, {
     action: "@matomezu/base:mail-send",
     args: { from: "a", title: "二つ", to: { book, ids: [box] } },
   })
@@ -126,12 +125,12 @@ test("未読が 3 通まではしおりを 1 通に 1 つずつ、4 通になる
 }) => {
   await ready(page)
   for (const n of [1, 2, 3])
-    await perform(page, {
+    await aiPerform(page, {
       action: "@matomezu/base:mail-send",
       args: { from: "a", title: `題${n}` },
     })
   for (const n of [1, 2, 3]) await expect(page.getByRole("button", { name: `題${n}` })).toBeVisible()
-  await perform(page, { action: "@matomezu/base:mail-send", args: { from: "a", title: "題4" } })
+  await aiPerform(page, { action: "@matomezu/base:mail-send", args: { from: "a", title: "題4" } })
   const many = page.getByRole("button", { name: "未読の郵便 4 通" })
   await expect(many).toBeVisible()
   await expect(page.getByRole("button", { name: "題1" })).toHaveCount(0)
@@ -208,7 +207,7 @@ test("参加済みの送り手の鳥を郵便ごとに表示し、受信や退�
 
 test("行き先の無くなった手紙は、ダイアログに「行き先がありません」と出て、ボタンは閉じるだけ", async ({ page }) => {
   const book = await ready(page)
-  await perform(page, {
+  await aiPerform(page, {
     action: "@matomezu/base:mail-send",
     args: { from: "a", title: "消えた所", to: { book, ids: ["nothing"] } },
   })
@@ -224,7 +223,7 @@ test("開くを使わなくても、行き先が画面に出ていれば行き�
   page,
 }) => {
   const book = await ready(page)
-  await perform(page, {
+  await aiPerform(page, {
     action: "@matomezu/base:mail-send",
     args: { from: "a", title: "今のブック", to: { book } },
   })
@@ -236,7 +235,7 @@ test("しおりに乗せると、待たずに自前の吹き出しで題が出�
   page,
 }) => {
   await ready(page)
-  await perform(page, {
+  await aiPerform(page, {
     action: "@matomezu/base:mail-send",
     args: { from: "a", title: "吹き出しの題" },
   })
@@ -260,7 +259,7 @@ test("郵便箱から開いたダイアログは、「閉じる」でも「開�
   const book = await ready(page)
   await addBox(page, 300, 300, "行き先の箱")
   const box = (await items(page).filter({ hasText: "行き先の箱" }).getAttribute("data-item"))!
-  await perform(page, {
+  await aiPerform(page, {
     action: "@matomezu/base:mail-send",
     args: { from: "a", title: "残す", to: { book, ids: [box] } },
   })
@@ -308,7 +307,7 @@ test("「開く」は、行き先のブックを新しいブックスクリー�
   const book = await ready(page)
   const other = ((await storedBooks(page.request)) as { id: string }[]).find(b => b.id !== book)?.id
   expect(other).toBeDefined()
-  await perform(page, {
+  await aiPerform(page, {
     action: "@matomezu/base:mail-send",
     args: { from: "a", title: "別のブック", to: { book: other } },
   })

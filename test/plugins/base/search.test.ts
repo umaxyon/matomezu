@@ -3,6 +3,7 @@ import { expect, test } from "bun:test"
 import { findAll, replaceAll, replaceOne, type SearchQuery } from "../../../web/src/plugins/base/search/find"
 import { changedSearch, replaceOneStep, searchCount, stepHit } from "../../../web/src/plugins/base/search/search"
 import type { SearchOpen } from "../../../web/src/plugins/base/search/state"
+import { MARKDOWN, testBook, testPage } from "../../lineup"
 import { CORE_CATALOG } from "../../support"
 
 const q = (text: string, opts: Partial<SearchQuery> = {}): SearchQuery => ({
@@ -54,26 +55,18 @@ test("全部置換は当たりを全部替える（正規表現の $1 も）", (
   expect(replaceAll("aaa", q("a(?=a)", { regex: true }), "b")).toBe("bba")
 })
 
-const page = (id: string, text: string) => ({
-  kind: "page" as const,
-  type: "@matomezu/markdown:markdown",
-  id,
-  title: id,
-  paper: "@matomezu/base:a4",
-  orientation: "portrait" as const,
-  text,
-})
+const page = (id: string, text: string) => testPage(MARKDOWN, id, { title: id, orientation: "portrait", text })
 const pagesOfTexts = (texts: readonly string[], query: SearchQuery) =>
   texts.map((t, i) => {
     const found = findAll(t, query)
     return { page: page(`p${i + 1}`, t), hits: found.kind === "hits" ? found.hits : [] }
   })
 const book = (texts: readonly string[]) =>
-  ({
-    id: "b",
-    title: "b",
-    lineup: texts.map((t, i) => page(`p${i + 1}`, t)),
-  }) as never
+  testBook(
+    "b",
+    "b",
+    texts.map((t, i) => page(`p${i + 1}`, t)),
+  )
 const open = (current: SearchOpen["current"], more: Partial<SearchOpen> = {}): SearchOpen => ({
   query: q("x"),
   replacement: "",

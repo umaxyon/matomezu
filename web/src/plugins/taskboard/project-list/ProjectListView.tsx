@@ -1,7 +1,7 @@
 // コントロールセンターの左の列に置くプロジェクトの一覧: 見出しを押して開閉（最初は閉じている）。行ごとに、左のつまみのドラッグで並べ替え・タスクボードを出すチェック・名前。
 // 並びと出しているタスクボードは利用者の設定。変えさせない設定のときは、つまみもチェックも押せない
 import { useMessages, usePluginState, useRecords, useUpdatePluginState } from "../../../plugin-api/ui"
-import { Band, Panel } from "../../base/ui"
+import { Band, Panel, useRowSlide } from "../../base/ui"
 import { orderedProjects, shownProjects } from "../board/shown"
 import { useBoardSettings } from "../board/useBoardSettings"
 import { ChevronIcon } from "../icons"
@@ -10,7 +10,6 @@ import { PROJECT } from "../project"
 import { Grip } from "../reorder/Grip"
 import { moved } from "../reorder/order"
 import { useGripDrag } from "../reorder/useGripDrag"
-import { useReorderAnimation } from "../reorder/useReorderAnimation"
 import { LIST_OPEN } from "."
 import styles from "./ProjectListView.module.css"
 
@@ -23,7 +22,7 @@ export function ProjectListView() {
   const ordered = orderedProjects(projects, settings.order)
   const ids = ordered.map(p => p.id)
   const shown = shownProjects(ordered, settings.shown).map(p => p.id)
-  const { register, snapshot } = useReorderAnimation(ids)
+  const { register, snapshot } = useRowSlide(ids, { from: "snapshot" })
   const { dragRowProps, gripProps, markClass } = useGripDrag((dragging, over) => {
     if (!settings.canChange) return
     snapshot()

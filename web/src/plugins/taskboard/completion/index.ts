@@ -7,10 +7,9 @@ import { type Actor, type AIMessage, workroomOfActor } from "../../../plugin-api
 import { adminWorkroom, READS_ADMIN, READS_WORKROOM_KEYS } from "../../base"
 import { byOf, type Records, readsBy, workroomsOf } from "../by"
 import { kit } from "../kit"
-import { inDoneLane } from "../project"
-import { type Project, projectOf } from "../project/actions"
-import { TICKET } from "../ticket"
-import type { Ticket } from "../ticket/actions"
+import { inDoneLane, type Project } from "../project"
+import { projectOf } from "../project/actions"
+import { TICKET, type Ticket } from "../ticket"
 import { ticketLabel } from "../ticket/label"
 import { HISTORY, TOPIC_COMPLETE } from "../ticket-history"
 

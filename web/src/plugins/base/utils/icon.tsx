@@ -1,4 +1,5 @@
-// メニューに出すコマンドのアイコンの形（24 の四角の中に描く線）
+// 24 の四角の中に描く線のアイコンの形: メニューに出すコマンドのアイコン icon（線の太さと大きさはメニューが決める）と、
+// 画面に置く線画のアイコン LineIcon（色は currentColor、大きさ size と線の太さ stroke は置く側が決める）
 import type { ReactNode } from "react"
 
 export const icon = (paths: ReactNode) => (
@@ -6,3 +7,32 @@ export const icon = (paths: ReactNode) => (
     {paths}
   </svg>
 )
+
+export function LineIcon({
+  size,
+  stroke = 1.6,
+  className,
+  children,
+}: {
+  size: number
+  stroke?: number
+  className?: string
+  children: ReactNode
+}) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={stroke}
+      strokeLinejoin="round"
+      strokeLinecap="round"
+    >
+      {children}
+    </svg>
+  )
+}

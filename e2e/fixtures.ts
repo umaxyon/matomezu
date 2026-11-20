@@ -1,11 +1,11 @@
 // e2e の test: ワーカーごとに常駐（ビルドタグ e2e の matomezu serve。空の matomezu 保管庫フォルダ）を 1 つ立て、テストごとに、テストの用意の口で
-// 常駐を空にしてから books（既定は E2E_BOOKS）を置く。画面と実行ファイルは global-setup.ts が 1 度だけ作る。
+// 常駐を空にしてから books（既定は SAMPLE_BOOKS）を置く。画面と実行ファイルは global-setup.ts が 1 度だけ作る。
 // ポートは常駐が空いている物を選ぶ（同時に流れているほかの e2e の常駐につながない）
 import { spawn } from "node:child_process"
 import { readFileSync, rmSync } from "node:fs"
 import { resolve } from "node:path"
 import { type BrowserContext, test as base, type Page } from "@playwright/test"
-import { E2E_BOOKS } from "./books"
+import { SAMPLE_BOOKS } from "../test/sample-books"
 import { storedBooks } from "./helpers/stored"
 
 // test のほか（expect・Page など）は Playwright のまま
@@ -167,7 +167,7 @@ export const test = base.extend<
   ],
   baseURL: async ({ host }, use) => use(host.url),
   // テストが始まるときに常駐に置くブック
-  books: [E2E_BOOKS, { option: true }],
+  books: [SAMPLE_BOOKS, { option: true }],
   // テストごとのブラウザ（context）を、常駐の画面 cookie を持たせる
   withCookie: [
     async ({ host, context }, use) => {

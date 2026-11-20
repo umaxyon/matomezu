@@ -1,16 +1,14 @@
 // チケットのアクション。チケットを足す・直すは AI も行え、チケットを消す・ロックを外すは利用者だけ
-import { type z, z as zod } from "zod"
+import { z as zod } from "zod"
 import { type Actor, type AIMessage, workroomOfActor } from "../../../plugin-api"
 import { READS_WORKROOM_KEYS } from "../../base"
 import { byOf, type Records, readsBy, recordIn, workroomsOf } from "../by"
 import { kit } from "../kit"
-import { inDoneLane, PROJECT, UNSORTED } from "../project"
-import { type Project, projectOf } from "../project/actions"
+import { inDoneLane, PROJECT, type Project, UNSORTED } from "../project"
+import { projectOf } from "../project/actions"
 import { ticketLabel } from "./label"
 import { type Candidate, type Resolved, resolve } from "./resolve"
-import { PRIORITIES, PRIORITY_DEFAULT, TICKET, TICKET_NAME_MAX, VOLUME_DEFAULT, VOLUMES } from "./ticket"
-
-export type Ticket = z.output<typeof TICKET.record>
+import { PRIORITIES, PRIORITY_DEFAULT, TICKET, TICKET_NAME_MAX, type Ticket, VOLUME_DEFAULT, VOLUMES } from "./ticket"
 
 // アクションが読んだチケット（reads が id で答えた物）
 export const ticketOf = (ctx: Records, id: string): Ticket | undefined =>

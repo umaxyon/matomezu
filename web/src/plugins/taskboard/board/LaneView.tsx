@@ -6,13 +6,15 @@ import { useMessages, usePluginState, useUpdatePluginState } from "../../../plug
 import { MaximizeIcon, RestoreIcon, SortIcon } from "../icons"
 import { kit } from "../kit"
 import { LANE_SETTLE_MS } from "../motion"
+import type { Project } from "../project"
 import type { useGripDrag } from "../reorder/useGripDrag"
+import type { Ticket } from "../ticket"
 import { assigneesOf } from "../ticket/assignees"
 import { tagsOf } from "../ticket/tags"
 import { LANE_SORTS } from "."
 import styles from "./LaneView.module.css"
 import { SortTray } from "./SortTray"
-import { cardSizeOf, type LaneInfo, type ProjectRecord, type TicketRecord, type WorkroomRecord } from "./shown"
+import { cardSizeOf, type LaneInfo, type WorkroomRecord } from "./shown"
 import { DEFAULT_SORT, type SortRules, sortActive, sortTickets } from "./sort"
 import { TicketCardView } from "./TicketCardView"
 
@@ -33,9 +35,9 @@ export function LaneView({
   onToggleMaximize,
   drag,
 }: {
-  project: ProjectRecord
+  project: Project
   lane: LaneInfo
-  tickets: readonly TicketRecord[]
+  tickets: readonly Ticket[]
   workrooms: readonly WorkroomRecord[] // ワークルーム全部（担当の鳥を引く）
   maximized: boolean // このレーンだけで広がる
   folded: boolean // ほかのレーンが最大化されている間（畳んで消す）
