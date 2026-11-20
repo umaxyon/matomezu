@@ -252,4 +252,9 @@ describe("ページの紙を描く大きさ", () => {
     const unknown = { paper: "b5", orientation: "landscape" as const }
     expect(resolvePaper(CORE_CATALOG, unknown)).toEqual({ status: "unknown", size: { w: 1587, h: 1123 } })
   })
+
+  test("表に紙が 1 つも無ければ、表に無い紙は描けず E131", () => {
+    const empty = { ...CORE_CATALOG, papers: new Map(), parts: { ...CORE_CATALOG.parts, papers: [] } }
+    expect(() => resolvePaper(empty, { paper: "b5", orientation: "landscape" })).toThrow("E131")
+  })
 })

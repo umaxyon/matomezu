@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { openedPage, panBy, shownPageId } from "../../web/src/core/stage"
+import { openedPage, panBy, select, setEditing, shownPageId } from "../../web/src/core/stage"
 import {
   close,
   currentStage,
@@ -14,8 +14,10 @@ import {
   moveDivider,
   NO_STAGES_LEFT,
   newWorkspace,
+  setTool,
   showPage,
   split,
+  toolOf,
   unsplit,
 } from "../../web/src/core/workspace"
 import { drawingPage, testBook } from "../lineup"
@@ -122,5 +124,35 @@ describe("workspace", () => {
     expect(split(unsplit(moved), "s3").arrangement.share).toBe(0.3)
     expect(evenDivider(moved).arrangement.share).toBe(EVEN_SHARE)
     expect(evenDivider(ws)).toBe(ws)
+  })
+
+  describe("その場の編集と、認可ステップで替わる道具", () => {
+    const box = { id: "a", item: "@matomezu/box:shape-nest-box", x: 0, y: 0, props: { caption: "a", body: "" } }
+    const open = testBook("b2", "箱", [drawingPage("q1", { items: [box] })])
+    const locked = { ...open, locked: true as const }
+    // 付け替えの道具（行うアクションがあり、ロックで止められる）で、箱をその場で編集している
+    const reparenting = setTool(CORE_CATALOG, newWorkspace(CORE_CATALOG, open), "s1", "@matomezu/paper:reparent")
+    const editing = mapStage(reparenting, "s1", s => setEditing(select(s, ["a"]), true))
+    const stage = (w: ReturnType<typeof newWorkspace>) => w.stages[0]!
+
+    test("ロックで今の道具が使えなくなり組の次の道具になると、その場の編集を終える", () => {
+      expect(toolOf(CORE_CATALOG, editing, "s1", { b2: open })).not.toBe(
+        toolOf(CORE_CATALOG, editing, "s1", { b2: locked }),
+      )
+      const after = followBook(CORE_CATALOG, editing, locked, open)
+      expect(stage(after).editing).toBe(false)
+      expect(stage(after).selection).toEqual(["a"])
+    })
+
+    test("道具が替わらなければ、その場の編集は続く", () => {
+      const renamed = { ...open, title: "箱 2" }
+      expect(stage(followBook(CORE_CATALOG, editing, renamed, open)).editing).toBe(true)
+    })
+
+    test("ブックの一覧が変わったときも、道具が替われば、その場の編集を終える", () => {
+      const after = followLibrary(CORE_CATALOG, editing, { b2: locked }, { b2: open })
+      expect(after).not.toBe(NO_STAGES_LEFT)
+      expect(stage(after as ReturnType<typeof newWorkspace>).editing).toBe(false)
+    })
   })
 })
