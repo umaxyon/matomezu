@@ -502,7 +502,8 @@ export const inTrash = (folders: Folders, entry: string): boolean =>
   foldersOver(folders, entry).some(f => f.folderRole === "trash")
 
 // 置き場所から読んだままのフォルダの行の全部 rows（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダ）と、ページの行の id の全部 pages が、木の決まり treeHolds を守るか。
-// 書庫ホーム・ゴミ箱・フォルダは形を確かめ（合わない行は入らない）、ブックとバインダは id と並びのエントリの id だけを読む（読めないブックも、行が在れば木に入る）
+// 書庫ホーム・ゴミ箱・フォルダは形を確かめ（合わない行は入らない）、ブックとバインダは id と並びのエントリの id だけを読む（読めないブックも、行が在れば木に入る）。
+// 読めない物のフォルダの中の物（移ったブックなど）が持つ物のうち、外のフォルダも持つ物は、中の物が持つとは数えない（ほかのブックと id を分け合う行。W006）
 export function rowsHoldTree(rows: readonly unknown[], pages: readonly string[]): boolean {
   const folders: Record<string, Folder> = {}
   for (const f of homeAndFoldersOf(rows)) folders[f.id] = f
@@ -517,6 +518,22 @@ export function rowsHoldTree(rows: readonly unknown[], pages: readonly string[])
     const { id, folderRole, lineup } = parsed.data
     const refs = lineup.flatMap(r => (LooseRefSchema.safeParse(r).success ? [r as EntryRef] : []))
     folders[id] = { folderRole: folderRole === "binder" ? "binder" : "book", id, lineup: refs } as unknown as Folder
+  }
+  const inside = new Set<string>()
+  const walk = (id: string) => {
+    for (const r of folders[id]?.lineup ?? [])
+      if (!inside.has(r.id)) {
+        inside.add(r.id)
+        walk(r.id)
+      }
+  }
+  walk(UNREADABLE_ID)
+  const heldOutside = new Set(
+    Object.values(folders).flatMap(f => (f.id === UNREADABLE_ID || inside.has(f.id) ? [] : f.lineup.map(r => r.id))),
+  )
+  for (const id of inside) {
+    const f = folders[id]
+    if (f) folders[id] = { ...f, lineup: f.lineup.filter(r => !heldOutside.has(r.id)) } as Folder
   }
   return treeHolds({ pages: Object.fromEntries(pages.map(id => [id, undefined])), folders } as unknown as Library)
 }

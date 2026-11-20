@@ -242,6 +242,10 @@ func TestPurgingAReadableBookKeepsThePagesAMovedBookShares(t *testing.T) {
 	if got := unreadableRefs(t, h); !slices.Equal(got, [][2]string{{"b2", "W006"}}) {
 		t.Fatalf("the unreadable folder = %v", got)
 	}
+	// 移ったブックが分け合う行を持っていても、書庫の木の決まりは破れない（読めない物のフォルダの中の物が持つ行は数えない）
+	if slices.ContainsFunc(h.Warnings(), func(l string) bool { return strings.HasPrefix(l, "W030") }) {
+		t.Fatalf("the warnings have W030: %v", h.Warnings())
+	}
 	perform := func(action, args string) string {
 		_, got := postPerform(t, s.URL, `{"action":"@matomezu/base:`+action+`","args":`+args+`,"lang":"ja","now":"2026-10-29T00:00:00.000Z"}`)
 		return got
