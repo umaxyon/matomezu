@@ -130,7 +130,7 @@ func (h *Hub) resetForTest(books []json.RawMessage, enabledPlugins []string) err
 	if len(enabledPlugins) > 0 {
 		h.settings = settings
 	}
-	h.reusePluginsForSettings()
+	h.reusePluginsForSettings("")
 	h.participantNotes = map[string]participantNote{}
 	h.performed = map[string]Performed{}
 	h.performedOrder = nil
@@ -192,7 +192,7 @@ func (h *Hub) enablePluginsForTest(ids []string) error {
 		return err
 	}
 	h.settings = settings
-	h.reusePluginsForSettings()
+	h.reusePluginsForSettings("")
 	return nil
 }
 

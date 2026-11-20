@@ -1,13 +1,16 @@
 // 書庫の画面が描く物を、書庫の表（ページの行とフォルダの行）から出す: フォルダの直下の行・ゴミ箱の行・パンくず・行を開いたときの行き先
-import { type EntryKind, entriesIn, type Naming, titleOf, trashRefsOf } from "../../../core/entries"
+import { type EntryKind, entriesIn, type Naming, rowTitle, titleOf, trashRefsOf } from "../../../core/entries"
 import {
   type AnyEntryRef,
+  BROKEN,
   type Folders,
   foldersOver,
   HOME_ID,
   inTrash,
   type Library,
+  type MovedCode,
   TRASH_ID,
+  type UnreadableItem,
 } from "../../../core/folders"
 import { restoreTargetOf } from "./entries"
 
@@ -86,6 +89,72 @@ export function trashRowsOf(library: Library, naming: Naming): readonly TrashRow
     })
     .reverse()
     .sort((a, b) => (a.trashed === b.trashed ? 0 : a.trashed < b.trashed ? 1 : -1))
+}
+
+// 読めない物の行 1 つ: 読めない物のフォルダの直下の物の id と名前 title。並びの要素が形に合えば（fits）、種類 kind・在った所 place・訳の番号 code・
+// 無いタイプ type（W027 のとき。無ければ NO_TYPE）・移った時刻 moved も持つ。形に合わなければ（BROKEN）名前だけ
+export type UnreadableRow =
+  | {
+      shape: "fits"
+      id: string
+      title: string
+      kind: EntryKind
+      place: UnreadablePlace
+      code: MovedCode
+      type: string
+      moved: string
+    }
+  | { shape: typeof BROKEN; id: string; title: string }
+// 読めない物が在った所: そのフォルダかブックの id・名前 title（名前の無い物は NO_TITLE）・ブックか trash（ゴミ箱に居た物なら true。id は、ゴミ箱に入れる前に居た所）
+export interface UnreadablePlace {
+  id: string
+  title: string
+  book: boolean
+  trash: boolean
+}
+
+const NO_UNREADABLE: readonly UnreadableRow[] = []
+
+// 読めない物のフォルダの直下の物 items の行（移った時刻の新しい順。同じ時刻なら、後から移った物が先。形に合わない物は最後に並びの順）。
+// 在った所は、書庫の表 library に在ればそこから、無ければ（そのブックもあとから移った）読めない物のフォルダの直下の物の行から名前を引く。
+// バインダの中に居たページは、そのバインダを持つブックを在った所とする（ブックの外のバインダなら、そのバインダ）
+export function unreadableRowsOf(
+  items: readonly UnreadableItem[],
+  library: Library,
+  naming: Naming,
+): readonly UnreadableRow[] {
+  if (items.length === 0) return NO_UNREADABLE
+  const moved = new Map(items.map(i => [i.id, i.row]))
+  const roleOf = (id: string): unknown =>
+    library.folders[id]?.folderRole ?? (moved.get(id) as { folderRole?: unknown } | undefined)?.folderRole
+  const placeOf = (from: readonly string[], trash: boolean): UnreadablePlace => {
+    const [near = HOME_ID, next] = from
+    const id = roleOf(near) === "binder" && next !== undefined && roleOf(next) === "book" ? next : near
+    const title = titleOf(library, "folder", id, naming) ?? rowTitle(moved.get(id), "book", naming) ?? NO_TITLE
+    return { id, title, book: roleOf(id) === "book", trash }
+  }
+  const fits: Extract<UnreadableRow, { shape: "fits" }>[] = []
+  const broken: UnreadableRow[] = []
+  for (const item of items) {
+    if (item.ref === BROKEN) {
+      broken.push({ shape: BROKEN, id: item.id, title: rowTitle(item.row, "page", naming) ?? NO_TITLE })
+      continue
+    }
+    const { entry, from, code, type, moved: at } = item.ref
+    const trashed = "trashed" in entry
+    fits.push({
+      shape: "fits",
+      id: item.id,
+      title: rowTitle(item.row, entry.kind, naming) ?? NO_TITLE,
+      kind: entry.kind,
+      place: placeOf(trashed ? entry.from : from, trashed),
+      code,
+      type: type ?? NO_TYPE,
+      moved: at,
+    })
+  }
+  fits.reverse().sort((a, b) => (a.moved === b.moved ? 0 : a.moved < b.moved ? 1 : -1))
+  return [...fits, ...broken]
 }
 
 // 行の中へ入れるか（右の枠にその中身を出せるか）: フォルダ・ブック・バインダで、表に在る物

@@ -12,6 +12,7 @@ import {
   type Folder,
   HOME_ID,
   MOVED_CODES,
+  type MovedCode,
   pinnedCount,
   rowsLibraryOf,
   TRASH_ID,
@@ -24,6 +25,25 @@ import {
 import { type Warning, warning } from "./warnings"
 
 type Row = Readonly<Record<string, unknown>>
+
+// 追加プラグインを無効にしたら、読めない物のフォルダへ移る物 1 つ（常駐が書かずに数えた物）: エントリの種類と id、在った所 holder（それを並びに持つフォルダの id）、訳の番号、無いタイプ（W027 のとき）
+export interface MovedIfOff {
+  id: string
+  kind: EntryKind
+  holder: string
+  code: MovedCode
+  type?: string
+}
+// 機能台帳が変わって、読めない物のフォルダへ移った物（訳ごとの数。訳は番号と、W027 なら無いタイプ）と、戻った物の数（窓が読み直したあとに利用者に知らせる。データには残さない）
+export interface UnreadableNotice {
+  moved: readonly { code: MovedCode; type?: string; count: number }[]
+  returned: number
+}
+
+// 読めない物のフォルダの直下の物を完全に消すのを頼んだ答え: 消した・直下に無かった（ほかの窓が先に消したなど。何も書かない）
+export const PURGED = "purged"
+export const NOT_INSIDE = "not-inside"
+export type Purged = typeof PURGED | typeof NOT_INSIDE
 
 // 書く行の変わり: id → 新しい行（置き場所の行の形のまま）。消す行は removed に id を挙げる
 export interface RowWrites {

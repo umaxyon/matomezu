@@ -19,6 +19,10 @@
 //	POST /api/screen-plugins/remove {"ids"} 窓が組み込めなかった追加プラグイン ids を、並びの順に外す（POST /api/plugins/remove と同じ。止めた窓の［外して開く］）。
 //	                      もう足していない id は飛ばす（ほかの窓や AI が先に外していても、外れた状態になれば成功）。
 //	                      {"ok"} か、外せなかった所で止めて {"ok": false, "id", "reason"}（それより前の物は外れたまま）  … 画面から
+//	POST /api/unreadable/purge {"id"} 読めない物のフォルダの直下の物 id を、中の物の行ごと完全に消す（アクションでなく、窓の履歴に入らない）。
+//	                      {"ok"} か、直下に無ければ {"ok": false, "reason": "not-inside"}（何も書かない）  … 画面から
+//	POST /api/unreadable/if-off {"ids"} 追加プラグイン ids を無効にしたら読めない物のフォルダへ移る物（書かない）。
+//	                      {"ok", "moved": [{"id", "kind", "holder", "code", "type"}]} か、読めない物のフォルダの行が形に合わなければ {"ok": false, "reason": "broken"}  … 画面から
 //	POST /api/view        {"client", "view", "editLocks", "recordLocks", "focused", "seq"} 窓のカレントのステージが見ているもの（view）と、利用者が直している物（editLocks。
 //	                      ブックの id → 物の id の並び。AI のアクションがそれを変えるか消すなら断る。editlock.go）と、その窓がフォーカスされたか。
 //	                      seq は窓ごとに増やす番号で、受けたものより古い番号の view と editLocks は捨てる（届く順が入れ替わるため）  … 画面から
@@ -148,6 +152,8 @@ func Handler(o Options) http.Handler {
 	mux.Handle("POST /api/log", o.screen(o.windowLog))
 	mux.Handle("POST /api/ai-edit-tickets", o.screen(o.aiEditTicket))
 	mux.Handle("POST /api/screen-plugins/remove", o.screen(o.unlinkPluginsFromScreen))
+	mux.Handle("POST /api/unreadable/purge", o.screen(o.purgeUnreadable))
+	mux.Handle("POST /api/unreadable/if-off", o.screen(o.movedIfOff))
 	mux.Handle("GET /api/ai/view", o.ai(o.aiView))
 	mux.Handle("GET /api/ai/books", o.ai(o.aiBooks))
 	mux.Handle("GET /api/ai/books/{id}", o.ai(o.aiBook))
@@ -314,6 +320,52 @@ func (o Options) unlinkPluginsFromScreen(w http.ResponseWriter, r *http.Request)
 		}
 	}
 	writeJSON(w, map[string]any{"ok": true})
+}
+
+// purgeUnreadable は、画面の口: 読めない物のフォルダの直下の物 id を完全に消す。直下に無ければ { ok: false, reason: "not-inside" }（何も書かない）
+func (o Options) purgeUnreadable(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, maxBody)).Decode(&req); err != nil || req.ID == "" {
+		http.Error(w, "the body must be {\"id\"}", http.StatusBadRequest)
+		return
+	}
+	done, err := o.Hub.PurgeUnreadable(req.ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if !done {
+		writeJSON(w, map[string]any{"ok": false, "reason": "not-inside"})
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true})
+}
+
+// movedIfOff は、画面の口: 追加プラグイン ids を無効にしたら読めない物のフォルダへ移る物（書かない）。
+// 読めない物のフォルダの行が形に合わなければ { ok: false, reason: "broken" }
+func (o Options) movedIfOff(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		IDs []string `json:"ids"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, maxBody)).Decode(&req); err != nil || len(req.IDs) == 0 || slices.Contains(req.IDs, "") {
+		http.Error(w, "the body must be {\"ids\"}", http.StatusBadRequest)
+		return
+	}
+	moved, broken, err := o.Hub.MovedIfOff(req.IDs)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if broken {
+		writeJSON(w, map[string]any{"ok": false, "reason": "broken"})
+		return
+	}
+	if moved == nil {
+		moved = []engine.MovedUnit{}
+	}
+	writeJSON(w, map[string]any{"ok": true, "moved": moved})
 }
 
 func (o Options) events(w http.ResponseWriter, r *http.Request) {

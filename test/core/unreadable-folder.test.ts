@@ -481,3 +481,41 @@ test("読める物だけなら、何も書かない", () => {
     removedFolders: [],
   })
 })
+
+test("書庫から外した物と、読めない物のフォルダの直下の物は同じ走りで決まる: 形に合う要素はその並びの要素と行を、形に合わない要素も BROKEN として挙げる", () => {
+  const moved = settled(NO_MARKDOWN, worldRows([testBook("b1", "B", [md("m1"), drawingPage("p1")])], [md("x1", "外")]))
+  const folder = (moved.folders as { id: string; lineup?: unknown[] }[]).find(f => f.id === UNREADABLE_ID)
+  // 形に合わない要素のブック b1（書庫ホームからは外す）と、書庫ホームも持つ外のページ x2（書庫に残るので挙げない）
+  const loose = {
+    pages: [...moved.pages, md("x2")],
+    folders: moved.folders.map(f => {
+      const row = f as { id: string; lineup?: unknown[] }
+      if (f === folder)
+        return {
+          ...folder,
+          lineup: [
+            ...(folder?.lineup ?? []),
+            { entry: { kind: "book", id: "b1" } },
+            { entry: { kind: "page", id: "x2" } },
+          ],
+        }
+      if (row.id === HOME_ID)
+        return {
+          ...row,
+          lineup: [...(row.lineup ?? []).filter(e => (e as { id: string }).id !== "b1"), { kind: "page", id: "x2" }],
+        }
+      return f
+    }),
+  }
+  const out = outsideUnreadable(loose.pages, loose.folders)
+  expect(out.unreadable.map(u => [u.id, u.ref === BROKEN ? BROKEN : u.ref.code])).toEqual([
+    ["x1", "W027"],
+    ["m1", "W027"],
+    ["b1", BROKEN],
+  ])
+  expect(out.unreadable.map(u => (u.row as { title?: string } | undefined)?.title)).toEqual(["外", "m1", "B"])
+  const kept = new Set([...out.pageRows, ...out.folderRows].map(r => (r as { id: string }).id))
+  for (const u of out.unreadable) expect(kept.has(u.id)).toBe(false)
+  expect(kept.has("x2")).toBe(true)
+  expect(outsideUnreadable(loose.pages, loose.folders)).toBe(out)
+})

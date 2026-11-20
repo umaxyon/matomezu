@@ -204,6 +204,7 @@ type Engine struct {
 	sysFolders  func() string
 	sysInPlace  func(string, string, string) bool
 	settle      func(string, string, string, string) string
+	movedIfOff  func(string, string, string, string, string) string
 	settleFail  func(string) string
 	purge       func(string, string, string) string
 	records     func(string) string
@@ -347,6 +348,9 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuSettleFailed"), &e.settleFail); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuSettleFailed: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuMovedIfOff"), &e.movedIfOff); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuMovedIfOff: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuPurgedRows"), &e.purge); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuPurgedRows: %w", err)
@@ -920,10 +924,11 @@ func (e *Engine) SystemFoldersInPlace(folders []json.RawMessage, pages map[strin
 	return e.sysInPlace(string(b), string(p), string(settings)), nil
 }
 
-// Moved は、読めない物のフォルダへ移した物 1 つ（id と、理由の warning の番号）
+// Moved は、読めない物のフォルダへ移した物 1 つ（id と、理由の warning の番号と、無いタイプ。タイプは W027 のときだけ）
 type Moved struct {
 	ID   string `json:"id"`
 	Code string `json:"code"`
+	Type string `json:"type,omitempty"`
 }
 
 // Numbered は、名前が重なって番号を付けた物 1 つ（id と、付けた名前）
@@ -979,6 +984,53 @@ func (e *Engine) SettleFailed(reason string) (line string, err error) {
 		}
 	}()
 	return e.settleFail(reason), nil
+}
+
+// MovedIfOff は、利用者の設定 settings で無効の追加プラグインに加えて ids も無効にしたら、読めない物のフォルダへ移る物（移す順。書かない）。
+// 今の組は替えずに別に組み、SettleLibrary と同じ決め方で決める。broken なら、読めない物のフォルダの行が形に合わない（何も移らない）
+func (e *Engine) MovedIfOff(ids []string, pages, folders []json.RawMessage, settings json.RawMessage, now string) (moved []MovedUnit, broken bool, err error) {
+	if ids == nil {
+		ids = []string{}
+	}
+	i, err := json.Marshal(ids)
+	if err != nil {
+		return nil, false, err
+	}
+	p, err := json.Marshal(append([]json.RawMessage{}, pages...))
+	if err != nil {
+		return nil, false, err
+	}
+	f, err := json.Marshal(append([]json.RawMessage{}, folders...))
+	if err != nil {
+		return nil, false, err
+	}
+	if len(settings) == 0 {
+		settings = json.RawMessage("{}")
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	var got struct {
+		Broken bool        `json:"broken"`
+		Moved  []MovedUnit `json:"moved"`
+	}
+	if err = json.Unmarshal([]byte(e.movedIfOff(string(i), string(p), string(f), string(settings), now)), &got); err != nil {
+		return nil, false, err
+	}
+	return got.Moved, got.Broken, nil
+}
+
+// MovedUnit は、読めない物のフォルダへ移る物 1 つ: エントリの種類と id、在った所 Holder（それを並びに持つフォルダの id）、訳の番号、無いタイプ（W027 のとき）
+type MovedUnit struct {
+	ID     string `json:"id"`
+	Kind   string `json:"kind"`
+	Holder string `json:"holder"`
+	Code   string `json:"code"`
+	Type   string `json:"type,omitempty"`
 }
 
 // PurgedRows は、読めない物のフォルダの直下の物 id を完全に消す行の変わり（その中の物の行も。ほかのフォルダも持つ行は消さない）と、そのあとの warning W032 の 1 行。

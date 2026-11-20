@@ -17,9 +17,10 @@
 import { z } from "zod"
 import type { CoreCatalog } from "../core/core-catalog"
 import { fail, matomezuError, problem } from "../core/errors"
-import { rawBooksOf } from "../core/folders"
+import { BROKEN, MOVED_CODES, rawBooksOf } from "../core/folders"
 import { restoreCounters, restoreRecords, withCounters, withRecords } from "../core/records"
 import type { Stage } from "../core/stage"
+import { NOT_INSIDE, PURGED, type UnreadableNotice } from "../core/unreadable"
 import type { Warning } from "../core/warnings"
 import { currentKindOf, recentBookScreen, screenOfStage, shownScreens } from "../core/window"
 import { currentStage, MAX_STAGES } from "../core/workspace"
@@ -49,7 +50,9 @@ export interface Net {
   onVisible(listener: () => void): () => void // 窓が見えるようになったら呼ぶ。止める関数を返す
   importModule(url: string): Promise<{ default?: unknown }> // ES モジュールを読む
   addStyle(url: string): void // CSS を読む
-  reload(): void // 画面を読み直す
+  // 画面を読み直す。carry を渡すと、読み直したあとの窓の carried が 1 回だけそれを返す（そのタブの sessionStorage に置く）
+  reload(carry?: string): void
+  carried(): string | undefined // 読み直す前の窓が reload に渡した物（読んだら消す。無ければ undefined）
   later(run: () => void, ms: number): () => void // ms 後に run を呼ぶ。取り消す関数を返す
   newKey(): string // アクションの一意の番号
   now(): number // 壁時計の時刻（ミリ秒。スリープの間も進む）
@@ -59,6 +62,9 @@ export interface Events {
   onError(listener: () => void): void
   close(): void
 }
+
+// 読み直しをまたいで運ぶ物（読み直す前に知らされた、読めない物のフォルダへ移った・戻った物の知らせ）の、sessionStorage の鍵
+const CARRY_KEY = "matomezu:unreadable-notice"
 
 const browserNet: Net = {
   fetch: (url, init) => fetch(url, init),
@@ -90,7 +96,15 @@ const browserNet: Net = {
     link.href = url
     document.head.append(link)
   },
-  reload: () => window.location.reload(),
+  reload: carry => {
+    if (carry !== undefined) sessionStorage.setItem(CARRY_KEY, carry)
+    window.location.reload()
+  },
+  carried: () => {
+    const kept = sessionStorage.getItem(CARRY_KEY)
+    sessionStorage.removeItem(CARRY_KEY)
+    return kept ?? undefined
+  },
   later: (run, ms) => {
     const timer = setTimeout(run, ms)
     return () => clearTimeout(timer)
@@ -222,6 +236,46 @@ const SCREEN_PLUGINS_REMOVED = z.union([
   z.object({ ok: z.literal(true) }),
   z.object({ ok: z.literal(false), id: z.string(), reason: z.string() }),
 ])
+
+const PURGE_ANSWER = z.union([
+  z.object({ ok: z.literal(true) }),
+  z.object({ ok: z.literal(false), reason: z.literal(NOT_INSIDE) }),
+])
+const MOVED_IF_OFF_ANSWER = z.union([
+  z.object({
+    ok: z.literal(true),
+    moved: z.array(
+      z.object({
+        id: z.string(),
+        kind: z.enum(["page", "binder", "book", "folder"]),
+        holder: z.string(),
+        code: z.enum(MOVED_CODES),
+        type: z.string().optional(),
+      }),
+    ),
+  }),
+  z.object({ ok: z.literal(false), reason: z.literal(BROKEN) }),
+])
+
+const NoticeSchema = z.object({
+  moved: z.array(z.object({ code: z.enum(MOVED_CODES), type: z.string().optional(), count: z.number().int() })),
+  returned: z.number().int(),
+})
+const PluginsSchema = z.object({
+  moved: NoticeSchema.shape.moved.optional(),
+  returned: z.number().int().optional(),
+  by: z.string().optional(),
+})
+// 読み直す前の窓が運んだ知らせ carried（形に合わなければ無い）
+function noticeOf(carried: string | undefined): UnreadableNotice | undefined {
+  if (carried === undefined) return undefined
+  try {
+    const read = NoticeSchema.parse(JSON.parse(carried))
+    return { ...read, moved: read.moved.map(({ type, ...m }) => (type === undefined ? m : { ...m, type })) }
+  } catch {
+    return undefined
+  }
+}
 
 const DataSchema = z.object({
   pages: z.array(z.object({ id: z.string(), page: z.unknown(), version: z.number().int() })),
@@ -698,7 +752,13 @@ export function serverClient(net: Net = browserNet): HostClient {
       show()
     })
     on("keep", () => {}) // 待ちを始め直すためだけに受ける
-    on("plugins", () => net.reload())
+    // 機能台帳が変わった: 読めない物のフォルダへ移った・戻った物があれば、読み直したあとの窓に運ぶ（この窓が設定で無効にして移した物は、確かめたので運ばない）
+    on("plugins", data => {
+      const told = PluginsSchema.parse(JSON.parse(data))
+      const moved = told.by === client ? [] : (told.moved ?? [])
+      const returned = told.returned ?? 0
+      net.reload(moved.length > 0 || returned > 0 ? JSON.stringify({ moved, returned }) : undefined)
+    })
     on("ack", data => {
       const ack = AckSchema.parse(JSON.parse(data))
       settle({ client, seq: ack.seq }, ack.ok ? { ok: true } : { ok: false, reason: ack.reason })
@@ -718,6 +778,7 @@ export function serverClient(net: Net = browserNet): HostClient {
 
   return {
     load: async (): Promise<Loaded> => {
+      const notice = noticeOf(net.carried())
       await listen()
       // 知らせにはつながったが読めなかったら、つながりを閉じる（読み直すときは新しく作る）
       await read().catch(e => {
@@ -752,6 +813,7 @@ export function serverClient(net: Net = browserNet): HostClient {
         plugins: added,
         failed,
         disabled: plugins.filter(p => p.disabled).map(p => p.id),
+        ...(notice ? { unreadableNotice: notice } : {}),
       }
     },
     observe: done =>
@@ -779,6 +841,29 @@ export function serverClient(net: Net = browserNet): HostClient {
       if (!answer.ok) return { state: "refused", id: answer.id, reason: answer.reason }
       net.reload()
       return { state: "removed" }
+    },
+    purgeUnreadable: async id => {
+      const res = await net
+        .fetch("api/unreadable/purge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id }),
+        })
+        .catch(() => null)
+      if (!res?.ok) fail("E407", { id, status: res ? `${res.status}` : "no answer" })
+      return PURGE_ANSWER.parse(await res.json()).ok ? PURGED : NOT_INSIDE
+    },
+    movedIfOff: async ids => {
+      const res = await net
+        .fetch("api/unreadable/if-off", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids }),
+        })
+        .catch(() => null)
+      if (!res?.ok) fail("E408", { status: res ? `${res.status}` : "no answer" })
+      const answer = MOVED_IF_OFF_ANSWER.parse(await res.json())
+      return answer.ok ? answer.moved.map(({ type, ...m }) => (type === undefined ? m : { ...m, type })) : BROKEN
     },
     visible: () => net.visible(),
     search: async q => {

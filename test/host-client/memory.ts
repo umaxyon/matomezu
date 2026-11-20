@@ -1,8 +1,10 @@
 // メモリに持つホストクライアント（テストでホストの代わりに使う）: 残したものは読み直すと消える。
 // アクションは画面の中で済み、変わったブック（ゴミ箱のブックも）と設定をそのまま覚え、ゴミ箱から消したブックは忘れる（persist）
+
 import { recordContext } from "../../web/src/core/ai-list"
 import type { Book } from "../../web/src/core/schema/book"
 import type { Settings } from "../../web/src/core/settings"
+import { NOT_INSIDE } from "../../web/src/core/unreadable"
 import type { WideSearchAnswer, WideSearchHit, WideSearchQuery } from "../../web/src/core/wide-search"
 import type { HostClient } from "../../web/src/host-client/client"
 import type { MatomezuInstance } from "../../web/src/store/store"
@@ -75,6 +77,8 @@ export function memoryClient(books: readonly Book[] = [], settings?: Settings): 
     reportAIEditTicket: () => {}, // ホストがいないので、AI もいない
     closeEvents: () => {}, // 知らせのつながりが無い
     removeScreenPlugins: async () => ({ state: "removed" }), // 追加プラグインを持たないので、外す物も無い
+    purgeUnreadable: async () => NOT_INSIDE, // 読めない物のフォルダを持たないので、消す物も無い
+    movedIfOff: async () => [], // 追加プラグインを持たないので、移る物も無い
     visible: () => true,
     search: async q => searchIn(connected, q),
     connect: instance => {

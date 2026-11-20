@@ -22,6 +22,7 @@ import type { ActionContext, ActionOn, PageTarget } from "../core/def/action"
 import type { PluginStateDef, PluginStateRead } from "../core/def/plugin-state"
 import { fail, matomezuError, type Problem, problem } from "../core/errors"
 import {
+  type BROKEN,
   bookIdOf,
   changesBetween,
   type Folder,
@@ -31,12 +32,14 @@ import {
   isOpenRole,
   type Library,
   libraryOf,
+  outsideUnreadable,
   type PageRow,
   type Pages,
   rawBooksOf,
   settledOn,
   type TableChanges,
   tablesOf,
+  type UnreadableItem,
   withChanges,
   withRowsPatched,
   worldTablesOf,
@@ -97,6 +100,7 @@ import {
   toPaper,
   zoomTo,
 } from "../core/stage"
+import type { MovedIfOff, Purged, UnreadableNotice } from "../core/unreadable"
 import type { Warning } from "../core/warnings"
 import { NO_WIDE_SEARCH_HITS, type WideSearchAnswer, type WideSearchQuery } from "../core/wide-search"
 import {
@@ -172,6 +176,7 @@ export interface MatomezuState {
   books: Readonly<Record<string, Book>> // ブックの id ごと（ゴミ箱のブックは除く。表から組んだ値）
   unreadable: readonly Warning[] // 残したブックのうち、ブックごと読めないもの（warning W005・W006・読めないページを持つ W027〜W029。データには手を付けず、開けない）
   partial: readonly Warning[] // 読めるブックの、機能台帳に無いアイテムや設定の項目（W007）。無い物はそのまま残す
+  unreadableFolder: readonly UnreadableItem[] // 読めない物のフォルダの直下の物（並びの順。ホストから受け取った行から。書庫には入らない）
   window: WindowState // 窓の、開いているスクリーンとカレントにした順・スクリーンアレンジメント（core/window.ts）
   settings: Settings
   annotations: Annotations // ページの id → そのページのアノテーション（core/annotation.ts。1 つも無いページは持たない）
@@ -556,10 +561,18 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   search(query: WideSearchQuery): Promise<WideSearchAnswer>
   // ブラウザのクリップボードに文字を書く。base のフック useCopyText を通して使う（プラグインに渡す actions には入れない）。書けなければ投げる
   copyText(text: string): Promise<void>
+  // 読めない物のフォルダの直下の物 id を完全に消すのをホストに頼む（アクションでなく、画面の履歴に入らない。変わった行はホストの知らせで入る）。
+  // base のフックを通して使う（プラグインに渡す actions には入れない）。ホストが無いか、頼めなければ投げる
+  purgeUnreadable(id: string): Promise<Purged>
+  // 追加プラグイン ids を無効にしたら読めない物のフォルダへ移る物を、ホストに書かずに数えてもらう（BROKEN なら、読めない物のフォルダの行が形に合わず、何も移らない）。
+  // base のフックを通して使う（プラグインに渡す actions には入れない）。ホストが無いか、頼めなければ投げる
+  movedIfOff(ids: readonly string[]): Promise<readonly MovedIfOff[] | typeof BROKEN>
   // 窓のタイトル（ブラウザのタブとタイトルバーに出る文字）を替える。base のフック useWindowTitle を通して使う（プラグインに渡す actions には入れない）
   setWindowTitle(title: string): void
   // 今の窓のタイトル（替えたあとで戻すため）。口が無ければ空
   windowTitle(): string
+  // 窓を開く前に知らされた、読めない物のフォルダへ移った・戻った物（作ったときに渡したもの。無ければ持たない）。base のフックを通して、窓を開いたあと 1 回知らせる
+  unreadableNotice?: UnreadableNotice
   // 起動エラーの画面に出す物（作ったときに渡したもの。起動を止めた窓のほかは無い）。base のフック useStartupError を通して使う
   startupError?: StartupError
   // 今の画面の場所（開いているブック・ページ・倍率・ずらす量・分割と、画面の場所に入れるプラグイン状態。core/address.ts・plugin-state.ts）。ホストクライアントだけが使う
@@ -602,6 +615,8 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   use(added: readonly Plugin[], check?: (plugins: readonly Plugin[]) => void): void
 }
 
+const NO_UNREADABLE_ITEMS: readonly UnreadableItem[] = []
+
 // 最初の状態（ブックスクリーンは開かない）
 function initialState(
   booksAndTrashOf: (tables: Library) => BooksAndTrash,
@@ -619,6 +634,7 @@ function initialState(
     books: open,
     unreadable,
     partial,
+    unreadableFolder: NO_UNREADABLE_ITEMS,
     window: newWindow(catalog),
     settings,
     annotations: {},
@@ -686,9 +702,15 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   visible?: () => boolean // 窓が見えているか（裏のタブなどで見えていない間は、まだ見ていない変更を見えたとしない。無ければいつも見えている）
   search?: (query: WideSearchQuery) => Promise<WideSearchAnswer> // ホストの言葉の検索（横断検索）。無ければ、どの言葉にも横断検索の当たりなし
   copyText?: (text: string) => Promise<void> // ブラウザのクリップボードに文字を書く。無ければ、書けないとして投げる（E404）
+  // 読めない物のフォルダについてホストに頼む口（完全に消す・無効にしたら移る物を数える）。無ければ、頼むと投げる（E406）
+  unreadableHost?: {
+    purge(id: string): Promise<Purged>
+    movedIfOff(ids: readonly string[]): Promise<readonly MovedIfOff[] | typeof BROKEN>
+  }
   setWindowTitle?: (title: string) => void // 窓のタイトルを替える。無ければ何もしない
   windowTitle?: () => string // 今の窓のタイトル。無ければ空
   startupError?: StartupError // 起動エラーの画面に出す物（起動を止めた窓だけが渡す）
+  unreadableNotice?: UnreadableNotice // 窓を開く前に知らされた、読めない物のフォルダへ移った・戻った物（ホストクライアントが運んだ物）
 }
 
 // 開いている画面の履歴の段と、そのアクションバルク（同じ区切りなので 1 つで持つ）。step は閉じて画面の履歴に入れた段、refused はホストがアクションバルクを断ったこと。
@@ -1732,6 +1754,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (sameData(counters, now.counters)) counters = now.counters
       const unreadable = sameData(found.warnings, now.unreadable) ? now.unreadable : found.warnings
       const partial = sameData(found.partial, now.partial) ? now.partial : found.partial
+      const moved = outsideUnreadable(world.pages, world.folders).unreadable
+      const unreadableFolder = sameData(moved, now.unreadableFolder) ? now.unreadableFolder : moved
       // ホストが知らせた値は、無いか変わっていなければ今の値のまま
       const kept = <T>(next: T | undefined, current: T): T =>
         next === undefined || sameData(next, current) ? current : next
@@ -1754,6 +1778,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         ...(counters === now.counters ? {} : { counters }),
         ...(unreadable === now.unreadable ? {} : { unreadable }),
         ...(partial === now.partial ? {} : { partial }),
+        ...(unreadableFolder === now.unreadableFolder ? {} : { unreadableFolder }),
       })
       checkSeen()
     },
@@ -1763,9 +1788,18 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (!options.copyText) fail("E404")
       await options.copyText(text)
     },
+    purgeUnreadable: async id => {
+      if (!options.unreadableHost) fail("E406")
+      return await options.unreadableHost.purge(id)
+    },
+    movedIfOff: async ids => {
+      if (!options.unreadableHost) fail("E406")
+      return await options.unreadableHost.movedIfOff(ids)
+    },
     setWindowTitle: title => options.setWindowTitle?.(title),
     windowTitle: () => options.windowTitle?.() ?? "",
     ...(options.startupError ? { startupError: options.startupError } : {}),
+    ...(options.unreadableNotice ? { unreadableNotice: options.unreadableNotice } : {}),
     address: () => addressNow(),
     locate: address => {
       const now = getState()

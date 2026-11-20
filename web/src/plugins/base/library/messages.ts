@@ -51,6 +51,7 @@ export const LIBRARY_MESSAGES = defineMessages({
   "Cannot be read": { en: "Cannot be read", ja: "読めません" },
   "Untitled ({id})": { en: "Untitled ({id})", ja: "名前なし（{id}）" },
   Trash: { en: "Trash", ja: "ゴミ箱" },
+  "Show the unreadable folder": { en: "Show the unreadable folder", ja: "読めない物のフォルダを表示" },
   Restore: { en: "Restore", ja: "戻す" },
   "Could not restore": { en: "Could not restore", ja: "戻せません" },
   "Could not delete": { en: "Could not delete", ja: "消せません" },
