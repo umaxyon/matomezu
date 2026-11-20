@@ -593,3 +593,36 @@ func TestTheScreenPurgesWhatIsRightInsideTheUnreadableFolder(t *testing.T) {
 		t.Fatalf("purge again = %s", got)
 	}
 }
+
+// 機能台帳が変わって読めない物が移る・戻るとき、知らせ plugins に、移した物の訳ごとの数と戻した物の数と、設定の変更でそうした窓 by を添える（窓は読み直したあとに知らせる）
+func TestThePluginsNoticeTellsWhatMovedAndWhatCameBack(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	store, err := storage.OpenSQLite(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.PutSettings(user, json.RawMessage(`{"`+enabledPluginsSetting+`":["ex2"]}`)); err != nil {
+		t.Fatal(err)
+	}
+	putBook(t, store, `{"id":"f1","title":"Flow","lineup":[`+
+		`{"kind":"page","id":"p0","type":"@matomezu/drawing:drawing","title":"P0","paper":"@matomezu/base:a4","orientation":"landscape","items":[]},`+
+		`{"kind":"page","id":"p1","type":"ex2:flow","title":"P1","paper":"@matomezu/base:a4","orientation":"portrait"},`+
+		`{"kind":"page","id":"p2","type":"ex2:flow","title":"P2","paper":"@matomezu/base:a4","orientation":"portrait"}]}`)
+	store.Close()
+	s, _ := serveStore(t, path)
+	screen := listen(t, s.URL)
+	next(t, screen) // hello
+	// 起動のときは読めない物が移ったが、足すと戻る（設定の変更でないので by は無い）
+	link(t, s, "../../test/added-plugins/ex2")
+	if got := next(t, screen); got != `plugins {"returned":2,"version":1}` {
+		t.Fatalf("event after adding = %s", got)
+	}
+	set := func(ids string, seq string) {
+		postPerform(t, s.URL, `{"action":"@matomezu/base:settings-set","args":{"values":{"`+enabledPluginsSetting+`":`+ids+`}},"lang":"ja","client":"c1","seq":`+seq+`}`)
+	}
+	set(`[]`, "1")
+	next(t, screen) // settings
+	if got := next(t, screen); got != `plugins {"by":"c1","moved":[{"code":"W027","type":"ex2:flow","count":2}],"version":2}` {
+		t.Fatalf("event after turning it off = %s", got)
+	}
+}

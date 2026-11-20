@@ -426,7 +426,8 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	if _, got := send(t, "POST", s.URL+"/api/plugins/remove", `{"id":"ex2"}`, ai); got != `{"ok":true}` {
 		t.Fatalf("remove = %s", got)
 	}
-	if got := next(t, screen); got != `plugins {"version":3}` {
+	// 知らせには、読めない物のフォルダへ移した物の訳ごとの数を添える
+	if got := next(t, screen); got != `plugins {"moved":[{"code":"W027","type":"ex2:flow","count":1}],"version":3}` {
 		t.Fatalf("event = %s", got)
 	}
 	// 定義から消える（読めなくなったページは読めない物のフォルダへ移り、warning は件数と理由の番号の W032 だけ）

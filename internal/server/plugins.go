@@ -37,7 +37,7 @@ func (h *Hub) LinkPlugin(dir string) (string, error) {
 	} else {
 		next = append(next, b)
 	}
-	if err := h.usePlugins(next); err != nil {
+	if err := h.usePlugins(next, ""); err != nil {
 		return "", err
 	}
 	return b.Manifest.ID, nil
@@ -56,7 +56,7 @@ func (h *Hub) UnlinkPlugin(id string) error {
 	if len(next) == len(h.plugins) {
 		return fmt.Errorf("%w %q", errNoPlugin, id)
 	}
-	if err := h.usePlugins(next); err != nil {
+	if err := h.usePlugins(next, ""); err != nil {
 		return err
 	}
 	return h.dropAnnotationsOf(id)
@@ -80,8 +80,9 @@ func (h *Hub) dropAnnotationsOf(id string) error {
 	return h.checkAnnotations()
 }
 
-// usePlugins はホストのエンジンを組み直し、窓に知らせる（h.mu を持って呼ぶ）
-func (h *Hub) usePlugins(next []*plugin.Bundle) error {
+// usePlugins はホストのエンジンを組み直し、窓に知らせる。by は、組み直しを起こした設定の変更を頼んだ窓（設定の変更でなければ空）。
+// 知らせ plugins には、読めない物のフォルダへ移した物（訳ごとの数）と戻した物の数と by を添える（窓は読み直したあとに知らせる。h.mu を持って呼ぶ）
+func (h *Hub) usePlugins(next []*plugin.Bundle, by string) error {
 	before := h.engine.Warnings()
 	if _, err := h.engine.UseFor(next, h.settingsForPlugins()); err != nil {
 		return err
@@ -116,13 +117,23 @@ func (h *Hub) usePlugins(next []*plugin.Bundle) error {
 	h.disabled = h.engine.Disabled()
 	h.loadSystemFolderTitles()
 	// 読めない物を移し、読めるようになった物を戻す（窓は plugins の知らせで読み直すので、窓には知らせない）。そのあとのブックを確かめ直す
-	h.settleLibrary(true)
+	moved, returned := h.settleLibrary(true)
 	if err := h.checkBooks(h.order); err != nil {
 		fmt.Fprintln(os.Stderr, "engine: could not check the books:", err)
 	}
 	h.catalogChanged = true
 	h.pluginsVersion++
-	h.broadcast("plugins", map[string]any{"version": h.pluginsVersion})
+	told := map[string]any{"version": h.pluginsVersion}
+	if len(moved) > 0 {
+		told["moved"] = moved
+	}
+	if returned > 0 {
+		told["returned"] = returned
+	}
+	if by != "" && (len(moved) > 0 || returned > 0) {
+		told["by"] = by
+	}
+	h.broadcast("plugins", told)
 	return nil
 }
 
@@ -137,9 +148,9 @@ func (h *Hub) Plugins() ([]PluginFiles, int64) {
 	return files, h.pluginsVersion
 }
 
-// reusePluginsForSettings は、利用者の設定が変わったあと、無効になる追加プラグインが変わっていれば、エンジンを組み直す（窓は読み直す）。
+// reusePluginsForSettings は、利用者の設定が変わったあと、無効になる追加プラグインが変わっていれば、エンジンを組み直す（窓は読み直す。by はその設定の変更を頼んだ窓）。
 // 組み直せなければ前のまま（理由は標準エラーに書く）。h.mu を持って呼ぶ
-func (h *Hub) reusePluginsForSettings() {
+func (h *Hub) reusePluginsForSettings(by string) {
 	if len(h.plugins) == 0 {
 		return
 	}
@@ -151,7 +162,7 @@ func (h *Hub) reusePluginsForSettings() {
 	if slices.Equal(sortedCopy(now), sortedCopy(h.disabled)) {
 		return
 	}
-	if err := h.usePlugins(h.plugins); err != nil {
+	if err := h.usePlugins(h.plugins, by); err != nil {
 		fmt.Fprintln(os.Stderr, "engine: could not reassemble the plugins for the settings:", err)
 	}
 }

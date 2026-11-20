@@ -924,10 +924,11 @@ func (e *Engine) SystemFoldersInPlace(folders []json.RawMessage, pages map[strin
 	return e.sysInPlace(string(b), string(p), string(settings)), nil
 }
 
-// Moved は、読めない物のフォルダへ移した物 1 つ（id と、理由の warning の番号）
+// Moved は、読めない物のフォルダへ移した物 1 つ（id と、理由の warning の番号と、無いタイプ。タイプは W027 のときだけ）
 type Moved struct {
 	ID   string `json:"id"`
 	Code string `json:"code"`
+	Type string `json:"type,omitempty"`
 }
 
 // Numbered は、名前が重なって番号を付けた物 1 つ（id と、付けた名前）

@@ -248,7 +248,7 @@ func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act
 		h.dropBook(id)
 	}
 	if len(out.Settings) > 0 {
-		h.reusePluginsForSettings()
+		h.reusePluginsForSettings(p.Client)
 	}
 	// ブックを消したら、そのページのアノテーションの warning も一覧から外す
 	if len(plan.removed) > 0 {

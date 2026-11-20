@@ -51,21 +51,22 @@ func (h *Hub) allRows() (pages, folders []json.RawMessage) {
 // settleLibrary は、書庫を今の機能台帳に合わせて整える: 読めない物を読めない物のフォルダへ移し、読めるようになった物を在った所へ戻す（1 回の書き込みで。触れた時刻は残さない）。
 // quiet なら窓に知らせない（起動の途中・窓が読み直す所）。そうでなければ、変えた行を changed で知らせる。
 // 移した・戻した・名前に番号を付けた物と、読めない物の warning（W032）が変わったときは、常駐のログに書く。失敗は止めず、失敗している間は warning（W033）を持つ
+// 返すのは、移した物を訳（番号と無いタイプ）ごとに数えた物と、戻した物の数（窓が読み直したあとに知らせるため。失敗したときは何も移っていない）
 // （h.mu を持って呼ぶか、起動の途中で呼ぶ）
-func (h *Hub) settleLibrary(quiet bool) {
+func (h *Hub) settleLibrary(quiet bool) (moved []MovedCount, returned int) {
 	pages, folders := h.allRows()
 	done, err := h.engine.SettleLibrary(pages, folders, h.settings, stamp())
 	if err != nil {
 		h.holdSettleFailure("engine", err)
-		return
+		return nil, 0
 	}
 	if done.Broken {
 		h.holdSettleFailure("broken", nil)
-		return
+		return nil, 0
 	}
 	if err := h.writeUnreadable(done.Pages, done.Folders, quiet); err != nil {
 		h.holdSettleFailure("write", err)
-		return
+		return nil, 0
 	}
 	h.settleWarning = ""
 	for _, m := range done.Moved {
@@ -78,6 +79,28 @@ func (h *Hub) settleLibrary(quiet bool) {
 		fmt.Fprintf(os.Stderr, "the title of %s was taken in its folder; it is now %q\n", n.ID, n.Title)
 	}
 	h.holdUnreadableWarning(done.Warning)
+	return movedCounts(done.Moved), len(done.Returned)
+}
+
+// MovedCount は、読めない物のフォルダへ移した物の、訳ごとの数（訳は番号 Code と、W027 なら無いタイプ Type）
+type MovedCount struct {
+	Code  string `json:"code"`
+	Type  string `json:"type,omitempty"`
+	Count int    `json:"count"`
+}
+
+// movedCounts は、移した物 moved を訳ごとに数えた物（訳が初めて出た順）
+func movedCounts(moved []engine.Moved) []MovedCount {
+	counts := []MovedCount{}
+	for _, m := range moved {
+		i := slices.IndexFunc(counts, func(c MovedCount) bool { return c.Code == m.Code && c.Type == m.Type })
+		if i < 0 {
+			counts = append(counts, MovedCount{Code: m.Code, Type: m.Type})
+			i = len(counts) - 1
+		}
+		counts[i].Count++
+	}
+	return counts
 }
 
 // PurgeUnreadable は、画面が頼んだ、読めない物のフォルダの直下の物 id を完全に消す（purgeUnreadable）。直下に無ければ false（ほかの窓が先に消したなど。何も書かない）

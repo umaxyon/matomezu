@@ -932,7 +932,7 @@ const WindowWarningSchema = z.object({
   if (done === BROKEN) return JSON.stringify({ broken: true })
   return JSON.stringify({
     ...rowWrites(done.writes),
-    moved: done.moved.map(u => ({ id: u.element.id, code: u.code })),
+    moved: done.moved.map(u => ({ id: u.element.id, code: u.code, ...(u.type === undefined ? {} : { type: u.type }) })),
     returned: done.returned,
     numbered: done.numbered,
     warning: warningLineOf(done.writes.folders[UNREADABLE_ID], JSON.parse(folders) as unknown[]),
