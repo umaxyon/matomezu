@@ -443,3 +443,30 @@ func TestAFailedSettleIsAWarningUntilItSucceeds(t *testing.T) {
 		t.Fatalf("the warning stays after the settle succeeds: %v", got)
 	}
 }
+
+// 書庫を整えるのに失敗していて、読めないブック（f1）が書庫に残っている間は、書庫が対象のアクションは断られ、そのブックを名指したアクションは無い（no-book）で断る。
+// warning W033 が出ている
+func TestAFailedSettleWithAnUnreadableBookLeftRefusesActionsOnTheLibrary(t *testing.T) {
+	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { store.Close() })
+	putBook(t, store, withUnreadable)
+	v := versionsOf(t, store)
+	broken := json.RawMessage(`{"folderRole":"unreadable","id":"` + storage.UnreadableID + `","lineup":"bad"}`)
+	if err := store.Apply(storage.Batch{Folders: []storage.RowWrite{{ID: storage.UnreadableID, Base: v[storage.UnreadableID], Body: broken}}}); err != nil {
+		t.Fatal(err)
+	}
+	s, h := newServerOn(t, Options{}, store)
+	if !slices.ContainsFunc(h.Warnings(), func(l string) bool { return strings.HasPrefix(l, "W033") }) {
+		t.Fatalf("the warnings = %v", h.Warnings())
+	}
+	ai := writerAI(t, s.URL)
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:folder-create","args":{"title":"失敗の間の所"}}`, ai); !strings.Contains(got, `"reason":"refused"`) {
+		t.Fatalf("folder-create = %s", got)
+	}
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-lock","args":{},"on":{"book":"f1"}}`, ai); !strings.Contains(got, `"reason":"no-book"`) {
+		t.Fatalf("book-lock f1 = %s", got)
+	}
+}

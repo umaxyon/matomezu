@@ -503,7 +503,7 @@ export const inTrash = (folders: Folders, entry: string): boolean =>
 
 // 置き場所から読んだままのフォルダの行の全部 rows（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダ）と、ページの行の id の全部 pages が、木の決まり treeHolds を守るか。
 // 書庫ホーム・ゴミ箱・フォルダは形を確かめ（合わない行は入らない）、ブックとバインダは id と並びのエントリの id だけを読む（読めないブックも、行が在れば木に入る）。
-// 読めない物のフォルダの中の物（移ったブックなど）が持つ物のうち、外のフォルダも持つ物は、中の物が持つとは数えない（ほかのブックと id を分け合う行。W006）
+// 読めない物のフォルダの中の物（移ったブックなど）が持つ物は、外のフォルダか、先に数えた中の物も持つなら、持つとは数えない（ほかのブックと id を分け合う行。W006）
 export function rowsHoldTree(rows: readonly unknown[], pages: readonly string[]): boolean {
   const folders: Record<string, Folder> = {}
   for (const f of homeAndFoldersOf(rows)) folders[f.id] = f
@@ -531,9 +531,14 @@ export function rowsHoldTree(rows: readonly unknown[], pages: readonly string[])
   const heldOutside = new Set(
     Object.values(folders).flatMap(f => (f.id === UNREADABLE_ID || inside.has(f.id) ? [] : f.lineup.map(r => r.id))),
   )
+  // 中の物どうしが分け合う行も、先に持つ物だけが持つとする
+  const held = new Set(heldOutside)
   for (const id of inside) {
     const f = folders[id]
-    if (f) folders[id] = { ...f, lineup: f.lineup.filter(r => !heldOutside.has(r.id)) } as Folder
+    if (!f) continue
+    const kept = f.lineup.filter(r => !held.has(r.id))
+    for (const r of kept) held.add(r.id)
+    folders[id] = { ...f, lineup: kept } as Folder
   }
   return treeHolds({ pages: Object.fromEntries(pages.map(id => [id, undefined])), folders } as unknown as Library)
 }
