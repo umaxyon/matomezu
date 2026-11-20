@@ -182,7 +182,7 @@ const ShowSchema = z.object({
   mode: z.enum(["edit", "print-preview"]).optional(),
 })
 
-// 常駐が頼んだブックを出す。ステージも split も言わなければ、窓に出す（showBook: もう開いていれば前に出し、無ければ新しいブックスクリーン）。
+// 常駐が頼んだブックを出す。ステージも split も言わなければ、窓に出す（showBook: もう開いていればカレントスクリーンにし、無ければ新しいブックスクリーン）。
 // ステージを言えばそのステージに、split なら分けて右にできたステージに出す。mode が print-preview なら、印刷プレビューで出す
 export function showIn(instance: MatomezuInstance, show: z.infer<typeof ShowSchema>) {
   const { actions, state } = instance

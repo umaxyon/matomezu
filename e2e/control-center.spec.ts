@@ -1,5 +1,5 @@
 // コントロールセンターの画面: 左の列（利用者パネル・ワークルーム/参加者の一覧）と右の領域（プロジェクト・書庫）。
-// 前に出す画面を替えると履歴に積まれ、戻れる。郵便は左サイドパネルを開閉し、歯車は設定画面を開く。ワークルームは選ぶと枠に出て、王冠で管理者にし、退室で空室にするか消す
+// コンテンツエリアに出す画面を替えると履歴に積まれ、戻れる。郵便は左サイドパネルを開閉し、歯車は設定画面を開く。ワークルームは選ぶと枠に出て、王冠で管理者にし、退室で空室にするか消す
 import { aiAuth, CONTROL_CENTER_URL, expect, type Page, test } from "./fixtures"
 
 const NOW = "2026-11-12T00:00:00.000Z"
@@ -66,7 +66,9 @@ test("題の左に巣箱の絵が線の絵で出る（塗らない）。見た�
   await expect(page.getByRole("button", { name: "プロジェクト" }).first()).toHaveAttribute("aria-pressed", "true")
 })
 
-test("前に出す画面は、書庫とプロジェクトを替えるたびに履歴に積まれ、戻ると前の画面が前に出る", async ({ page }) => {
+test("コンテンツエリアに出す画面は、書庫とプロジェクトを替えるたびに履歴に積まれ、戻ると前の画面が出る", async ({
+  page,
+}) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto(CONTROL_CENTER_URL)
   const projects = page.locator('button[aria-label="プロジェクト"]')

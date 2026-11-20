@@ -314,7 +314,7 @@ test("「開く」は、行き先のブックを新しいブックスクリー�
   })
   await page.getByRole("button", { name: "別のブック" }).click()
   await page.getByRole("dialog", { name: "別のブック" }).getByRole("button", { name: "開く", exact: true }).click()
-  // 見ていたブックのスクリーンは閉じずに残り、行き先のブックのスクリーンが前に出る
+  // 見ていたブックのスクリーンは閉じずに残り、行き先のブックのスクリーンがカレントスクリーンになる
   await expect.poll(() => urlStages(page)[0]?.b).toBe(other)
   expect(
     urlPlace(page)

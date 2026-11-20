@@ -97,7 +97,7 @@ type client struct {
 	view        json.RawMessage     // 窓が知らせた、見ているもの（POST /api/view。まだ知らせが無ければ nil）
 	focused     int64               // 最後にフォーカスされた順（大きいほど新しい。つないだときも 1 つ進める）
 	viewSeq     int64               // 受けた見ているものの番号（窓が知らせるたびに増やす。古い番号の知らせは捨てる）
-	shown       []string            // いまその窓に見えているブック（touched.go。新しく見えたブックだけを「開いた」とする。コントロールセンターを前に出している間は空）
+	shown       []string            // いまその窓に見えているブック（touched.go。新しく見えたブックだけを「開いた」とする。コントロールセンターがカレントスクリーンの間は空）
 	held        []string            // いまその窓のブックスクリーンが開いているブック（隠れている物も含む。trash.go。AI はゴミ箱に入れられない）
 	editLocks   map[string][]string // 利用者がその窓で直している物（ページかブックの id → その中の物の id の並び。editlock.go）
 	recordLocks map[string][]string // 利用者がその窓で直しているレコード（対象の種類の id → レコードの id の並び。editlock.go）
@@ -828,7 +828,7 @@ func (h *Hub) Show(s Show) error {
 		Hidden *screen `json:"hidden"`
 	}
 	_ = json.Unmarshal(c.view, &v)
-	// コントロールセンターを前に出している窓は、後ろに隠れているブックスクリーンのステージに出す（出すとブックスクリーンが前に出る）
+	// コントロールセンターがカレントスクリーンの窓は、後ろに隠れているブックスクリーンのステージに出す（出すとブックスクリーンがカレントスクリーンになる）
 	shown := v.screen
 	if v.Hidden != nil {
 		shown = *v.Hidden

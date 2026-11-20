@@ -76,15 +76,15 @@ function fakePlace(start = "") {
 
 // 書いた URL（今の形）の場所
 const written = (search: string) => parseSearch(search) as Address
-// 書いた URL の、ブックスクリーン（いちばん最近前に出した、ステージを並べるスクリーン）の中の場所
+// 書いた URL の、ブックスクリーン（いちばん最近カレントにした、ステージを並べるスクリーン）の中の場所
 const stagesIn = (search: string) => recentStagesIn(written(search))?.stages
-// 書いた URL の、前に出ているスクリーンの定義の id
+// 書いた URL の、カレントスクリーンの定義の id
 const frontDefIn = (search: string) => {
   const address = written(search)
   return address.screens.find(x => x.id === currentIn(address))?.def
 }
 
-test("URL の形: 値 1 つ（sc）に、スクリーンの並び・前に出した順と、ステージごとのブック・ページ・倍率とずらす量、場所に入れるプラグイン状態を書く。読み戻すと同じ場所", () => {
+test("URL の形: 値 1 つ（sc）に、スクリーンの並び・カレントにした順と、ステージごとのブック・ページ・倍率とずらす量、場所に入れるプラグイン状態を書く。読み戻すと同じ場所", () => {
   const address: Address = {
     screens: [
       { id: "c1", def: "@x/home", props: {}, states: { "@x/pane": "b" } },
@@ -199,7 +199,7 @@ test("前の形の URL（b0・p0・v0・s0…、c・r・w・f）も読み、今�
   })
   expect(placed.order).toEqual(["c1", "c2"])
   expect(placed.window).toEqual({ "@x/tab": "two" })
-  // ステージの無い前の形は、前に出す物の種類だけを替える（ステージは今のまま）
+  // ステージの無い前の形は、カレントスクリーンの種類だけを替える（ステージは今のまま）
   const center = fromFormer(parseSearch("?f=center") as FormerAddress, now)
   expect(center.order).toEqual(["c2", "c1"])
   expect(center.screens[1]?.stages).toEqual(now.screens[1]?.stages)
@@ -250,7 +250,7 @@ test("同じ処理の中の移動（分割してブックとページを開く�
   expect(stagesIn(f.pushed[0]!)?.places.map(s => s.outermost)).toEqual(["b1", "b3"])
 })
 
-test("URL が無い（開いた直後）なら、コントロールセンターを前に出す。URL にブックスクリーンの場所があれば、ブックスクリーンを前に出す", () => {
+test("URL が無い（開いた直後）なら、コントロールセンターをカレントスクリーンにする。URL にブックスクリーンの場所があれば、ブックスクリーンをカレントスクリーンにする", () => {
   const first = newStore()
   followLocation(first, fakePlace().place)
   expect(viewFrontOf(first.state.getState().window)).toBe("control-center")
@@ -259,7 +259,7 @@ test("URL が無い（開いた直後）なら、コントロールセンター�
   expect(viewFrontOf(second.state.getState().window)).toBe("book-screen")
 })
 
-test("前に出ているスクリーンは URL の前に出した順に書く。後ろのブックスクリーンの場所も書く", () => {
+test("カレントスクリーンは URL のカレントにした順に書く。後ろのブックスクリーンの場所も書く", () => {
   const store = newStore()
   const f = fakePlace()
   followLocation(store, f.place)
@@ -267,7 +267,7 @@ test("前に出ているスクリーンは URL の前に出した順に書く。
   expect(stagesIn(f.replaced[0]!)?.places[0]?.outermost).toBe("b1")
 })
 
-test("前に出す物を替えるのは、ブラウザの履歴に 1 つ積む。戻ると前に出す物が戻り、後ろのブックスクリーンの中は残る", async () => {
+test("カレントスクリーンを替えるのは、ブラウザの履歴に 1 つ積む。戻るとカレントスクリーンが戻り、後ろのブックスクリーンの中は残る", async () => {
   const store = newStore()
   const f = fakePlace("?b0=b1&p0=p1&v0=1,0,0&c=0&r=0.5")
   followLocation(store, f.place)

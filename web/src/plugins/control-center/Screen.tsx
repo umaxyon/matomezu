@@ -25,8 +25,8 @@ import { WorkroomView } from "./WorkroomView"
 
 export function ControlCenterScreen() {
   const screen = contentAreaOf(usePluginState(kit, CONTENT_AREA))
-  const setFront = useSetPluginState(kit, CONTENT_AREA)
-  const setScreen = (to: ContentArea) => setFront(to)
+  const setContentArea = useSetPluginState(kit, CONTENT_AREA)
+  const setScreen = (to: ContentArea) => setContentArea(to)
   const maximized = usePluginState(kit, LIBRARY_MAXIMIZED) === true
   const retreat = retreatOf(screen, maximized, useControlCenterMaximized())
   const setLibraryMaximized = useSetPluginState(kit, LIBRARY_MAXIMIZED)

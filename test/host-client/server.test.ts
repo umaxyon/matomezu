@@ -875,7 +875,7 @@ test("フォーカスされたとき、壁時計で QUIET_MS 何も届いてい�
   ])
 })
 
-test("コントロールセンターを前に出している間は、見ているものを front と hidden に分けて知らせる", async () => {
+test("コントロールセンターがカレントスクリーンの間は、見ているものを front と hidden に分けて知らせる", async () => {
   const s = await connected()
   showCenter(s.store)
   expect(s.sent.at(-1)?.view).toEqual({

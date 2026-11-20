@@ -1027,7 +1027,7 @@ func TestAIWorksOnLibraryEntries(t *testing.T) {
 	}
 }
 
-// コントロールセンターを前に出している窓の後ろに、ブックスクリーンが開いているブックも、AI はゴミ箱に入れられない（open-on-screen）
+// コントロールセンターがカレントスクリーンの窓の後ろに、ブックスクリーンが開いているブックも、AI はゴミ箱に入れられない（open-on-screen）
 func TestAICannotTrashABookBehindTheControlCenter(t *testing.T) {
 	s := newServer(t, nil)
 	ai := joinedAI(t, s)
@@ -1041,7 +1041,7 @@ func TestAICannotTrashABookBehindTheControlCenter(t *testing.T) {
 	}
 }
 
-// コントロールセンターを前に出している間、後ろのブックスクリーンのブックは開いたことにならない。ブックスクリーンが前に戻ったら開いたことになる
+// コントロールセンターがカレントスクリーンの間、後ろのブックスクリーンのブックは開いたことにならない。ブックスクリーンがカレントスクリーンに戻ったら開いたことになる
 func TestTouchedIgnoresTheBookScreenBehindTheControlCenter(t *testing.T) {
 	s := newServer(t, nil)
 	screen := listen(t, s.URL)
@@ -1067,7 +1067,7 @@ func TestTouchedIgnoresTheBookScreenBehindTheControlCenter(t *testing.T) {
 	}
 }
 
-// AI の view は、コントロールセンターを前に出している間、出している物（front）と、隠れているブックスクリーンの book・page（hidden）を分けて返す。
+// AI の view は、コントロールセンターがカレントスクリーンの間、出している物（front）と、隠れているブックスクリーンの book・page（hidden）を分けて返す。
 // show は隠れているブックスクリーンのステージを指せる
 func TestViewSeparatesTheHiddenBookScreen(t *testing.T) {
 	s := newServer(t, nil)

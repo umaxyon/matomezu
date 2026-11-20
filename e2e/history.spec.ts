@@ -98,7 +98,7 @@ test("ページタブをドラッグして並べ替えられ、元に戻すで�
   await expect(tabs).toHaveText(["ページ 2", "ページ 1"])
 })
 
-// 窓を前に出し、AI が見る今のブックとページ（AI の口で読む）
+// 窓をカレントスクリーンにし、AI が見る今のブックとページ（AI の口で読む）
 async function aiReady(page: Page) {
   const ai = await joinedAiAuth()
   await page.goto(BOOK_SCREEN_URL)

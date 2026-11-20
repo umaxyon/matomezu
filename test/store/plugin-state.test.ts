@@ -106,7 +106,7 @@ test("readPlaced は範囲の合う宣言の値だけを読み、withPluginState
   expect(withPluginState({ a: 1 }, "a", undefined)).toEqual({})
 })
 
-test("コントロールセンターの前に出す画面の宣言は、スクリーン 1 枚ごとの値で、変えるたびにブラウザの履歴に積む。スクリーンを閉じると値も消える", () => {
+test("コントロールセンターのコンテンツエリアに出す画面の宣言は、スクリーン 1 枚ごとの値で、変えるたびにブラウザの履歴に積む。スクリーンを閉じると値も消える", () => {
   const instance = createMatomezu({
     plugins: BUILTIN,
     controlCenter: BUILTIN_CONTROL_CENTER,
