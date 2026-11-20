@@ -26,6 +26,7 @@ import {
   useShownBook,
   useShownPage,
   useStage,
+  useTokenScope,
   useToPaper,
 } from "../../../../plugin-api/ui"
 import { slideOffsetOf } from "../../../base"
@@ -522,6 +523,7 @@ function SlidePageView({
 // なぞっている途中の見え方: 四角（直線は線、自由な線はなぞった跡）
 function Ghost({ ghost, zoom }: { ghost: { item: ItemId; points: readonly Point[] }; zoom: number }) {
   const { item, points } = ghost
+  const tokens = useTokenScope(item)
   const a = points[0]
   const b = points.at(-1)
   if (!a || !b || points.length < 2) return null
@@ -529,7 +531,7 @@ function Ghost({ ghost, zoom }: { ghost: { item: ItemId; points: readonly Point[
   if (item === FREE || item === LINE) {
     const at = item === FREE ? points : [a, b]
     return (
-      <svg className={styles.ghost} aria-hidden="true">
+      <svg className={styles.ghost} aria-hidden="true" data-ghost>
         <polyline points={at.map(p => `${p.x},${p.y}`).join(" ")} {...stroke} />
       </svg>
     )
@@ -537,9 +539,9 @@ function Ghost({ ghost, zoom }: { ghost: { item: ItemId; points: readonly Point[
   const x = Math.min(a.x, b.x)
   const y = Math.min(a.y, b.y)
   if (item === ROUND) {
-    // 置いたときと同じ見た目の楕円（EllipseView）
+    // 置いたときと同じ見た目の楕円（EllipseView）。線の色はプラグインのテーマキーなので、その範囲 tokens の中に描く
     return (
-      <div style={{ position: "absolute", left: x, top: y, pointerEvents: "none" }}>
+      <div style={{ position: "absolute", left: x, top: y, pointerEvents: "none", ...tokens }} data-ghost>
         <EllipseView
           id=""
           props={{}}
@@ -552,7 +554,7 @@ function Ghost({ ghost, zoom }: { ghost: { item: ItemId; points: readonly Point[
     )
   }
   return (
-    <svg className={styles.ghost} aria-hidden="true">
+    <svg className={styles.ghost} aria-hidden="true" data-ghost>
       <rect x={x} y={y} width={Math.abs(a.x - b.x)} height={Math.abs(a.y - b.y)} {...stroke} />
     </svg>
   )
