@@ -109,6 +109,7 @@ test("matomezu が出す名前", () => {
     "growKindOf",
     "growOf",
     "grownArea",
+    "hasOpenedPage",
     "inPaper",
     "isAI",
     "isAdminActor",

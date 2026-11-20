@@ -4,8 +4,8 @@
 // 選んでいる行の＋が、フォルダとファイルを足す（フォルダの行は中の末尾に。閉じていれば開く。ファイルの行はすぐ下に）。
 // 行の右クリックのメニューで、ノードの設定のダイアログを開き、フォルダの直下を名前で並べ（昇順・降順）、消す（Delete・Backspace でも。根は消せない。消したら、すぐ上の行を選ぶ）。
 // フォルダを選んで Tab を押すと、中に足す種類を選び始める（その場の編集の名前 KIND_PICK。選ぶ枠はビューが出す）。キーはディレクトリ構成図のプレゼンテーションの範囲
-import { type CommandContext, NO_PAGE } from "../../../plugin-api"
-import { refusalMessage } from "../../base"
+import type { CommandContext } from "../../../plugin-api"
+import { hasOpenedPage, refusalMessage } from "../../base"
 import { ENTRY_ADD, ENTRY_REMOVE, ENTRY_UPDATE, FOLDER_CLOSE, FOLDER_SORT } from "./actions"
 import { DIR_KEYS_SCOPE, ENTRY_SETTINGS_DIALOG } from "./dir"
 import { type AddAt, addAfter, addInto, afterRemove, entryOf, type Order, parentOf, rowFrom, selectedIn } from "./edit"
@@ -15,9 +15,10 @@ import { PENCIL_TOOL } from "./tools"
 
 // 開いているページと、その根（ディレクトリ構成図のページでなければ null）
 export function dirAt(ctx: CommandContext) {
-  const page = ctx.page === NO_PAGE ? undefined : ctx.page
+  if (!hasOpenedPage(ctx)) return null
+  const page = ctx.page
   const root = dirRootOf(page)
-  if (!page || !root) return null
+  if (!root) return null
   return { page, root }
 }
 

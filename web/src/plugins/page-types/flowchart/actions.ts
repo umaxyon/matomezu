@@ -4,19 +4,18 @@
 // 並べ直したら線の端の固定と手直しを外す（つなぐものの定義の unpin）。紙に収まらなければ間隔を詰めて試し、それでも収まらなければ断る（可変ページは、下へ段を重ね、広いチャートは右へはみ出して印刷区画を増やすので断らない）
 import { z } from "zod"
 import {
-  type CommandContext,
   type CoreCatalog,
   connectorsOf,
   type ItemPage,
   type MessageKey,
   type Rect,
   shapesOf,
-  shownPageId,
 } from "../../../plugin-api"
 import {
   adaptPage,
   extentOf,
   growOf,
+  hasOpenedPage,
   pageContext,
   paperSize,
   placedAt,
@@ -184,9 +183,6 @@ export const PAGE_ALIGN = kit.defineAction({
   },
 })
 
-// ページを開いているか（ページの無いブックと、ページが 1 枚も無いブックでは開いていない）
-const onOpenedPage = (ctx: CommandContext) => shownPageId(ctx.stage.opened ?? null) != null
-
 // 自動で整列の確認のダイアログ（ページ page を整える）
 export const PAGE_ALIGN_DIALOG = kit.defineDialogWith<{ page: string }>()({ id: "page-align" })
 
@@ -197,8 +193,7 @@ export const PAGE_ALIGN_COMMAND = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Auto align",
   run: (ctx, a) => {
-    const page = shownPageId(ctx.stage.opened ?? null)
-    if (page) a.openDialog(PAGE_ALIGN_DIALOG.id, { page })
+    if (hasOpenedPage(ctx)) a.openDialog(PAGE_ALIGN_DIALOG.id, { page: ctx.page.id })
   },
-  when: onOpenedPage,
+  when: hasOpenedPage,
 })

@@ -1,6 +1,7 @@
 // スライドのコマンド: 画面の操作（置く・動かす・大きさを変える・項目を変える・消す）から、スライドのアクション（slide プラグイン）を呼ぶ。
 // 位置と大きさは、プレゼンテーションが決めた紙の上の px で受け取る。置けたら置くのをやめ、置いたアイテムを選ぶ
-import { type ItemId, type ItemPage, NO_PAGE, openedPage, type Rect, shownPageId, slideOf } from "../../../plugin-api"
+import { type ItemId, type Rect, slideOf } from "../../../plugin-api"
+import { hasOpenedPage } from "../../base"
 
 import { SLIDE_MOVE, SLIDE_PLACE, SLIDE_REMOVE, SLIDE_REORDER, SLIDE_RESIZE, SLIDE_UPDATE } from "./actions"
 import { kit } from "./kit"
@@ -18,12 +19,9 @@ type Run = Parameters<typeof kit.defineCommand>[0]["run"]
 type Ctx = Parameters<Run>[0]
 type Actions = Parameters<Run>[1]
 
-// 開いているページがあるか
-const onPage = (ctx: Ctx): boolean => shownPageId(ctx.stage.opened ?? null) != null
-
 // 開いているページの slide のアイテムの id（後ろから前への並び）
 function slideIds(ctx: Ctx): string[] {
-  return ctx.page === NO_PAGE ? [] : slideOf(ctx.page as ItemPage).map(s => s.id)
+  return hasOpenedPage(ctx) ? slideOf(ctx.page).map(s => s.id) : []
 }
 
 // 選んでいる物のうち、開いているページの slide にあるアイテムの id（選択には、自分の扱わない id が混じる）
@@ -39,8 +37,7 @@ export const SLIDE_PUT = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Place on slide",
   run: (ctx, a, args: { item: ItemId; rect: Rect; props: Record<string, unknown> }) => {
-    const opened = openedPage(ctx.stage.opened ?? null)
-    if (!opened?.page) return
+    if (!hasOpenedPage(ctx)) return
     const done = a.perform(
       PLACE,
       {
@@ -50,7 +47,7 @@ export const SLIDE_PUT = kit.defineCommand({
         h: args.rect.h,
         props: args.props,
       } as never,
-      { page: opened.page },
+      { page: ctx.page.id },
     )
     if (!done.ok) {
       a.showToast({ kind: "warn", message: kit.message("Cannot place here") })
@@ -59,7 +56,7 @@ export const SLIDE_PUT = kit.defineCommand({
     a.stopPlacing()
     a.select([(done.result as { item: string }).item])
   },
-  when: ctx => onPage(ctx) && ctx.stage.placing !== null,
+  when: ctx => hasOpenedPage(ctx) && ctx.stage.placing !== null,
 })
 
 // アイテムを、左上が at（紙の上）になるよう動かす（複数のアイテムを一度に。画面の履歴は 1 段）
@@ -69,11 +66,10 @@ export const SLIDE_MOVE_TO = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Move on slide",
   run: (ctx, a, args: { moves: readonly { item: string; at: { x: number; y: number } }[] }) => {
-    const opened = openedPage(ctx.stage.opened ?? null)
-    if (!opened?.page) return
-    for (const m of args.moves) a.perform(MOVE, { item: m.item, at: m.at }, { page: opened.page })
+    if (!hasOpenedPage(ctx)) return
+    for (const m of args.moves) a.perform(MOVE, { item: m.item, at: m.at }, { page: ctx.page.id })
   },
-  when: onPage,
+  when: hasOpenedPage,
 })
 
 // アイテムの枠を rect にする。scaled なら文字枠の文字も幅の倍率で変える
@@ -83,8 +79,7 @@ export const SLIDE_RESHAPE = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Resize on slide",
   run: (ctx, a, args: { item: string; rect: Rect; scaled: boolean }) => {
-    const opened = openedPage(ctx.stage.opened ?? null)
-    if (!opened?.page) return
+    if (!hasOpenedPage(ctx)) return
     const { rect } = args
     a.perform(
       RESIZE,
@@ -95,10 +90,10 @@ export const SLIDE_RESHAPE = kit.defineCommand({
         h: rect.h,
         scale: args.scaled,
       },
-      { page: opened.page },
+      { page: ctx.page.id },
     )
   },
-  when: onPage,
+  when: hasOpenedPage,
 })
 
 // アイテムの項目を変える（null の項目は消す）。複数のアイテムを一度に変える（画面の履歴は 1 段）
@@ -108,11 +103,10 @@ export const SLIDE_SET = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Change on slide",
   run: (ctx, a, args: { items: readonly string[]; props: Record<string, unknown> }) => {
-    const opened = openedPage(ctx.stage.opened ?? null)
-    if (!opened?.page) return
-    for (const item of args.items) a.perform(UPDATE, { item, props: args.props }, { page: opened.page })
+    if (!hasOpenedPage(ctx)) return
+    for (const item of args.items) a.perform(UPDATE, { item, props: args.props }, { page: ctx.page.id })
   },
-  when: onPage,
+  when: hasOpenedPage,
 })
 
 // 選んでいるアイテムを消し、選択を外す
@@ -122,20 +116,18 @@ export const SLIDE_DELETE = kit.defineCommand({
   permissionScope: "selection",
   title: "Delete",
   run: (ctx, a) => {
-    const opened = openedPage(ctx.stage.opened ?? null)
-    if (!opened?.page) return
-    for (const item of selectedOnSlide(ctx)) a.perform(REMOVE, { item }, { page: opened.page })
+    if (!hasOpenedPage(ctx)) return
+    for (const item of selectedOnSlide(ctx)) a.perform(REMOVE, { item }, { page: ctx.page.id })
     a.select([])
   },
-  when: ctx => onPage(ctx) && selectedOnSlide(ctx).length > 0,
+  when: ctx => hasOpenedPage(ctx) && selectedOnSlide(ctx).length > 0,
 })
 
 // 選んでいるアイテムの重ねの順を to へ動かす（選んだ物どうしの前後は保つ。画面の履歴は 1 段）
 function reorder(ctx: Ctx, a: Actions, to: Order): void {
-  const opened = openedPage(ctx.stage.opened ?? null)
-  if (!opened?.page) return
+  if (!hasOpenedPage(ctx)) return
   for (const step of orderSteps(slideIds(ctx), new Set(selectedOnSlide(ctx)), to))
-    a.perform(REORDER, { item: step.item, to: step.to }, { page: opened.page })
+    a.perform(REORDER, { item: step.item, to: step.to }, { page: ctx.page.id })
 }
 
 // 選んでいるアイテムを最前面へ
@@ -145,7 +137,7 @@ export const SLIDE_TO_FRONT = kit.defineCommand({
   permissionScope: "selection",
   title: "To front",
   run: (ctx, a) => reorder(ctx, a, "front"),
-  when: ctx => onPage(ctx) && selectedOnSlide(ctx).length > 0,
+  when: ctx => hasOpenedPage(ctx) && selectedOnSlide(ctx).length > 0,
 })
 
 // 選んでいるアイテムを 1 つ前へ
@@ -155,7 +147,7 @@ export const SLIDE_FORWARD = kit.defineCommand({
   permissionScope: "selection",
   title: "Forward",
   run: (ctx, a) => reorder(ctx, a, "forward"),
-  when: ctx => onPage(ctx) && selectedOnSlide(ctx).length > 0,
+  when: ctx => hasOpenedPage(ctx) && selectedOnSlide(ctx).length > 0,
 })
 
 // 選んでいるアイテムを 1 つ後ろへ
@@ -165,7 +157,7 @@ export const SLIDE_BACKWARD = kit.defineCommand({
   permissionScope: "selection",
   title: "Backward",
   run: (ctx, a) => reorder(ctx, a, "backward"),
-  when: ctx => onPage(ctx) && selectedOnSlide(ctx).length > 0,
+  when: ctx => hasOpenedPage(ctx) && selectedOnSlide(ctx).length > 0,
 })
 
 // 選んでいるアイテムを最背面へ
@@ -175,7 +167,7 @@ export const SLIDE_TO_BACK = kit.defineCommand({
   permissionScope: "selection",
   title: "To back",
   run: (ctx, a) => reorder(ctx, a, "back"),
-  when: ctx => onPage(ctx) && selectedOnSlide(ctx).length > 0,
+  when: ctx => hasOpenedPage(ctx) && selectedOnSlide(ctx).length > 0,
 })
 
 export const SLIDE_KEYS = [

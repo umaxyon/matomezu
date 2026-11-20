@@ -5,7 +5,7 @@ import { findBinder, findPage, siblingsOf } from "../../../core/book"
 import type { MessageKey } from "../../../core/catalog"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import { ANY_PAGE_TYPE } from "../../../core/def/action"
-import { binderOf, editingBackground, openedPage } from "../../../core/stage"
+import { binderOf, editingBackground } from "../../../core/stage"
 import { NO_BOOK } from "../../../store/commands/def"
 import type { DialogTaking, PageSettingsArgs } from "../../../store/dialogs"
 import { kit } from "../kit"
@@ -20,6 +20,7 @@ import {
   PAGE_UPDATE,
   UNRENEWABLE_SHAPE,
 } from "../pages"
+import { hasOpenedPage } from "../utils/opened-page"
 import { refusalMessage } from "../utils/refusal"
 
 declare module "../../../core/catalog" {
@@ -118,10 +119,10 @@ export const PAGE_SETTINGS = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Page settings",
   run: (ctx, a) => {
-    const page = openedPage(ctx.stage.opened)
-    if (page && ctx.book !== NO_BOOK) a.openDialog(pageDialog(ctx.catalog, page.type, "settings"), { page: page.page })
+    if (hasOpenedPage(ctx) && ctx.book !== NO_BOOK)
+      a.openDialog(pageDialog(ctx.catalog, ctx.page.type, "settings"), { page: ctx.page.id })
   },
-  when: ctx => ctx.book !== NO_BOOK && openedPage(ctx.stage.opened) !== null,
+  when: ctx => ctx.book !== NO_BOOK && hasOpenedPage(ctx),
 })
 
 // ページ page（ページ一覧で右クリックしたページなど）の設定のダイアログを開く
