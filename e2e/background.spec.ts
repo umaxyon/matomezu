@@ -2,6 +2,7 @@
 // 中身が薄くなって触れず、ページタブが消え、帯が出て、背景の形を選んで直せる。終了・ボタンをもう一度・Escape で出る。印刷には、中身の載った印刷区画にだけ背景が出る（印刷対象で変えられる）
 import { drawingPage, testBook, withSlide } from "../test/lineup"
 import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
+import { band } from "./helpers/background"
 import { footerMenuTool } from "./helpers/footer-menu"
 import { addBox, items, onPaper } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
@@ -26,7 +27,6 @@ test.use({
 })
 
 const bg = (page: Page) => page.locator('[data-item="bg1"]')
-const band = (page: Page) => page.locator("[data-background-band]")
 
 async function enter(page: Page) {
   await (await fromMenu(page, "背景を編集")).click()

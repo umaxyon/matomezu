@@ -1,24 +1,16 @@
 // プロジェクト設定: ボードの歯車で開き、レーンの名前を直し、完了と作業中のスイッチ（同じレーンには片方だけ）を切り替え、未分類を表示すると、保存でボードに出る。名前が重なる間は保存できない。全般の「優先度を出す」「チケットボリュームを出す」を切ると、チケットカードに優先度・チケットボリュームが出ない
 import { CONTROL_CENTER_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
+import { aiPerform } from "./helpers/ai"
+import { storedRecords } from "./helpers/stored"
 
-const projects = async (page: Page) =>
-  Object.values(
-    (
-      (await (await page.request.get("/api/data", { headers: await joinedAiAuth() })).json()) as {
-        records: Record<string, Record<string, unknown>>
-      }
-    ).records["@matomezu/taskboard:project"] ?? {},
-  ) as { id: string }[]
+const PROJECT = "@matomezu/taskboard:project"
 
 test("ボードの歯車でプロジェクト設定を開き、レーンを直して保存するとボードに出る", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto(CONTROL_CENTER_URL)
-  if ((await projects(page)).length === 0)
-    await page.request.post("/api/ai/perform", {
-      headers: await joinedAiAuth(),
-      data: { action: "@matomezu/taskboard:project-add", args: {} },
-    })
-  const first = (await projects(page))[0]!
+  if ((await storedRecords<{ id: string }>(page.request, PROJECT)).length === 0)
+    await aiPerform(page, { action: "@matomezu/taskboard:project-add", args: {} })
+  const first = (await storedRecords<{ id: string }>(page.request, PROJECT))[0]!
   const board = page.locator(`[data-board="${first.id}"]`)
   await board.getByRole("button", { name: "プロジェクト設定" }).click()
   const dialog = page.getByRole("dialog", { name: "プロジェクト設定" })
@@ -87,20 +79,16 @@ test("プロジェクト設定でチケットサイズを変えると、ボー�
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto(CONTROL_CENTER_URL)
-  const ai = { headers: await joinedAiAuth() }
-  if ((await projects(page)).length === 0)
-    await page.request.post("/api/ai/perform", { ...ai, data: { action: "@matomezu/taskboard:project-add", args: {} } })
-  const first = (await projects(page))[0] as unknown as {
+  if ((await storedRecords<{ id: string }>(page.request, PROJECT)).length === 0)
+    await aiPerform(page, { action: "@matomezu/taskboard:project-add", args: {} })
+  const first = (await storedRecords<{ id: string }>(page.request, PROJECT))[0] as unknown as {
     id: string
     lanes: { kind: string; id?: string; name?: string }[]
   }
   const lane = first.lanes.find(l => l.kind === "lane")!
-  await page.request.post("/api/ai/perform", {
-    ...ai,
-    data: {
-      action: "@matomezu/taskboard:ticket-add",
-      args: { project: first.id, name: "大きさを見る", lane: lane.id },
-    },
+  await aiPerform(page, {
+    action: "@matomezu/taskboard:ticket-add",
+    args: { project: first.id, name: "大きさを見る", lane: lane.id },
   })
   const board = page.locator(`[data-board="${first.id}"]`)
   const card = board.locator("[data-card]").filter({ hasText: "大きさを見る" })
@@ -126,12 +114,9 @@ test("プロジェクト設定の全般で、プレフィクスの入力とチ�
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto(CONTROL_CENTER_URL)
-  if ((await projects(page)).length === 0)
-    await page.request.post("/api/ai/perform", {
-      headers: await joinedAiAuth(),
-      data: { action: "@matomezu/taskboard:project-add", args: {} },
-    })
-  const first = (await projects(page))[0]!
+  if ((await storedRecords<{ id: string }>(page.request, PROJECT)).length === 0)
+    await aiPerform(page, { action: "@matomezu/taskboard:project-add", args: {} })
+  const first = (await storedRecords<{ id: string }>(page.request, PROJECT))[0]!
   await page.locator(`[data-board="${first.id}"]`).getByRole("button", { name: "プロジェクト設定" }).click()
   const dialog = page.getByRole("dialog", { name: "プロジェクト設定" })
   const width = async (locator: ReturnType<Page["locator"]>) => (await locator.boundingBox())!.width
@@ -145,12 +130,9 @@ test("プロジェクト設定のタグ・レーンは、中身が少ないと�
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto(CONTROL_CENTER_URL)
-  if ((await projects(page)).length === 0)
-    await page.request.post("/api/ai/perform", {
-      headers: await joinedAiAuth(),
-      data: { action: "@matomezu/taskboard:project-add", args: {} },
-    })
-  const first = (await projects(page))[0]!
+  if ((await storedRecords<{ id: string }>(page.request, PROJECT)).length === 0)
+    await aiPerform(page, { action: "@matomezu/taskboard:project-add", args: {} })
+  const first = (await storedRecords<{ id: string }>(page.request, PROJECT))[0]!
   await page.locator(`[data-board="${first.id}"]`).getByRole("button", { name: "プロジェクト設定" }).click()
   const dialog = page.getByRole("dialog", { name: "プロジェクト設定" })
   const scrolls = (tab: string) =>
@@ -180,12 +162,9 @@ test("プロジェクト設定で追加した行の名前は、1 文字ずつ打
   page,
 }) => {
   await page.goto(CONTROL_CENTER_URL)
-  if ((await projects(page)).length === 0)
-    await page.request.post("/api/ai/perform", {
-      headers: await joinedAiAuth(),
-      data: { action: "@matomezu/taskboard:project-add", args: {} },
-    })
-  const first = (await projects(page))[0]!
+  if ((await storedRecords<{ id: string }>(page.request, PROJECT)).length === 0)
+    await aiPerform(page, { action: "@matomezu/taskboard:project-add", args: {} })
+  const first = (await storedRecords<{ id: string }>(page.request, PROJECT))[0]!
   await page.locator(`[data-board="${first.id}"]`).getByRole("button", { name: "プロジェクト設定" }).click()
   const dialog = page.getByRole("dialog", { name: "プロジェクト設定" })
   for (const [tab, add, field] of [
@@ -208,12 +187,9 @@ test("全般の「優先度を出す」「規模を出す」を切って保存�
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto(CONTROL_CENTER_URL)
-  if ((await projects(page)).length === 0)
-    await page.request.post("/api/ai/perform", {
-      headers: await joinedAiAuth(),
-      data: { action: "@matomezu/taskboard:project-add", args: {} },
-    })
-  const first = (await projects(page))[0] as unknown as {
+  if ((await storedRecords<{ id: string }>(page.request, PROJECT)).length === 0)
+    await aiPerform(page, { action: "@matomezu/taskboard:project-add", args: {} })
+  const first = (await storedRecords<{ id: string }>(page.request, PROJECT))[0] as unknown as {
     id: string
     doneLane?: string
     lanes: { kind: string; id?: string; cardSize?: string }[]

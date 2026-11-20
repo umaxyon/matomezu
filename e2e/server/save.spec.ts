@@ -1,6 +1,8 @@
 import { drawingPage, testBook } from "../../test/lineup"
-import { E2E_BOOKS, pagesIn } from "../books"
+import { SAMPLE_BOOKS } from "../../test/sample-books"
+import { pagesIn } from "../books"
 import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test, urlStages } from "../fixtures"
+import { aiPerform } from "../helpers/ai"
 import { addBox } from "../helpers/paper"
 import { openGeneral } from "../helpers/settings"
 import { storedBook, storedBooks, storedPageVersion } from "../helpers/stored"
@@ -9,7 +11,7 @@ import { storedBook, storedBooks, storedPageVersion } from "../helpers/stored"
 test.use({ books: [] })
 
 // 図面のブック（A4 横のページ p1 が 1 つ）
-const E2E_1 = { ...E2E_BOOKS[0]!, id: "e2e-1" }
+const E2E_1 = { ...SAMPLE_BOOKS[0]!, id: "e2e-1" }
 
 // 常駐に置いてあるもの
 const data = async (page: Page) => (await page.request.get("/api/data")).json()
@@ -204,7 +206,7 @@ test("線は箱より手前に描かれ、選択の道具で押すと選ばれ�
 test("開いているブックとページは URL に入り、読み直しても同じものが開く（戻る・進むは host-client/location.test.ts）", async ({
   page,
 }) => {
-  const book = { ...E2E_BOOKS[1]!, id: "e2e-url" }
+  const book = { ...SAMPLE_BOOKS[1]!, id: "e2e-url" }
   await put(page, book)
   await page.goto(`/?b0=${book.id}&p0=p1&v0=1,0,0&c=0&r=0.5`)
   await expect(page.getByRole("img", { name: "紙" })).toBeVisible()
@@ -259,7 +261,7 @@ test("AI がマークダウンのページの原文を page-update で変える�
   page,
 }) => {
   const ai = await joinedAiAuth()
-  const perform = async (data: object) => (await page.request.post("/api/ai/perform", { headers: ai, data })).json()
+  const perform = (data: { action: string; args: object; on?: object }) => aiPerform(page, data, ai)
   await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
   await expect
@@ -307,7 +309,7 @@ test("伝言を書いている間に AI が付ける先の物を消すと、右�
   page,
 }) => {
   const ai = await joinedAiAuth()
-  const perform = async (data: object) => (await page.request.post("/api/ai/perform", { headers: ai, data })).json()
+  const perform = (data: { action: string; args: object; on?: object }) => aiPerform(page, data, ai)
   await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
   await expect
@@ -360,7 +362,7 @@ test("付けた伝言を右サイドパネルで開いて文を直している�
   page,
 }) => {
   const ai = await joinedAiAuth()
-  const perform = async (data: object) => (await page.request.post("/api/ai/perform", { headers: ai, data })).json()
+  const perform = (data: { action: string; args: object; on?: object }) => aiPerform(page, data, ai)
   await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
   await expect
@@ -420,7 +422,7 @@ test("箱の編集のダイアログを開いている間は、AI がその箱�
   page,
 }) => {
   const ai = await joinedAiAuth()
-  const perform = async (data: object) => (await page.request.post("/api/ai/perform", { headers: ai, data })).json()
+  const perform = (data: { action: string; args: object; on?: object }) => aiPerform(page, data, ai)
   await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
   await expect

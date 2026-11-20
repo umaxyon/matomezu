@@ -1,4 +1,5 @@
 import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
+import { aiPerform } from "./helpers/ai"
 import { browserMenuStopped } from "./helpers/browser-menu"
 import { addList, addRow } from "./helpers/list"
 import { panel, writeNote } from "./helpers/note"
@@ -468,10 +469,7 @@ test("読まれていない伝言は、箱の上の辺が画面の外に出る�
   const note = (
     (await (await page.request.get(`/api/ai/books/${book}`, { headers: ai })).json()).annotations as { id: string }[]
   )[0]!.id
-  await page.request.post("/api/ai/perform", {
-    headers: ai,
-    data: { action: "@matomezu/base:note-read", args: { note }, on: { page: shown } },
-  })
+  await aiPerform(page, { action: "@matomezu/base:note-read", args: { note }, on: { page: shown } }, ai)
   await expect(bubble).toHaveAttribute("data-read", "true")
   await away()
   // 縁には緑の丸のチェックのマークポインタ。押すと箱が見えて角のチェックに戻る
@@ -505,10 +503,7 @@ test("リストの行に付けた AI が読んだ伝言も、リストが画面�
   const note = (
     (await (await page.request.get(`/api/ai/books/${book}`, { headers: ai })).json()).annotations as { id: string }[]
   )[0]!.id
-  await page.request.post("/api/ai/perform", {
-    headers: ai,
-    data: { action: "@matomezu/base:note-read", args: { note }, on: { page: shown } },
-  })
+  await aiPerform(page, { action: "@matomezu/base:note-read", args: { note }, on: { page: shown } }, ai)
   const check = page.locator("[data-read-check]")
   await expect(check).toHaveCount(1)
   // 紙を左へずらして、リストを画面の左の外へ出す
@@ -552,10 +547,7 @@ test("物の角に 2 つ以上あれば、先頭の 2 つを重ねた絵にま�
   const readAll = async () => {
     const notes = await notesOf()
     for (const n of notes.filter(n => !n.props.readAt))
-      await page.request.post("/api/ai/perform", {
-        headers: ai,
-        data: { action: "@matomezu/base:note-read", args: { note: n.id }, on: { page: shown } },
-      })
+      await aiPerform(page, { action: "@matomezu/base:note-read", args: { note: n.id }, on: { page: shown } }, ai)
   }
   // 1 つだけなら、まとめずにその絵（既読のチェック）
   await writeNote(page, two, "古い")
@@ -724,10 +716,7 @@ test("設定画面の「コーナーステータスの並び」で、角に出�
     id: string
   }[]
   for (const n of notes)
-    await page.request.post("/api/ai/perform", {
-      headers: ai,
-      data: { action: "@matomezu/base:note-read", args: { note: n.id }, on: { page: shown } },
-    })
+    await aiPerform(page, { action: "@matomezu/base:note-read", args: { note: n.id }, on: { page: shown } }, ai)
   await box.click({ button: "right" })
   await page.getByRole("menu").getByRole("menuitem", { name: "AIに示す" }).click()
   await page.getByRole("group", { name: "マークを付ける" }).getByRole("button", { name: "びっくりマーク" }).click()

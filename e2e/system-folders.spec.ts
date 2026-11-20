@@ -3,15 +3,8 @@
 // 書庫の画面では名前の変更とゴミ箱をメニューに出さない（当たる名前への変更と、言語を変えて当たるときの断りは、
 // test/plugins/base/system-folders.test.ts と internal/server/same_titles_test.go が見る）
 import { expect, joinedAiAuth, type Page, test } from "./fixtures"
+import { aiPerform } from "./helpers/ai"
 import { storedBooks } from "./helpers/stored"
-
-const perform = async (page: Page, action: string, args: object, on?: object) =>
-  (
-    await page.request.post("/api/ai/perform", {
-      headers: await joinedAiAuth(),
-      data: { action, args, ...(on ? { on } : {}) },
-    })
-  ).json()
 
 // 窓が利用者の設定に言語を書くまで待つ
 const langWritten = async (page: Page, pack: string) =>
@@ -43,7 +36,9 @@ test("日本語のブラウザで初めて開くと、先に在った利用者�
 }) => {
   // 言語を選んでいない間（英語で引く）は、ドキュメントと当たらない
   const book = ((await storedBooks(page.request)) as { id: string }[])[0]!.id
-  expect(await perform(page, "@matomezu/base:entry-rename", { entry: book, title: "ドキュメント" })).toMatchObject({
+  expect(
+    await aiPerform(page, { action: "@matomezu/base:entry-rename", args: { entry: book, title: "ドキュメント" } }),
+  ).toMatchObject({
     ok: true,
   })
   await page.goto("/")

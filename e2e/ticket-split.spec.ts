@@ -1,42 +1,32 @@
 // チケットを上下に分けて開く（M-0120）: 窓が高ければ、カードを押すとコントロールセンターの下にチケットが入り、2 枚目は上に入る。
 // 広げると押した 1 枚だけを全画面にし、もう 1 枚は閉じる。窓が低くなれば、カレントの 1 枚を残して全画面に戻す
-import { CONTROL_CENTER_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
+import { CONTROL_CENTER_URL, expect, type Page, test } from "./fixtures"
+import { aiPerform } from "./helpers/ai"
+import { storedRecords } from "./helpers/stored"
 
-const perform = async (page: Page, action: string, args: object, on?: object) =>
-  (
-    await page.request.post("/api/ai/perform", {
-      headers: await joinedAiAuth(),
-      data: { action, args, ...(on ? { on } : {}) },
-    })
-  ).json() as Promise<{
-    ok: boolean
-    result?: Record<string, string>
-  }>
-
-const records = async (page: Page, subject: string) =>
-  Object.values(
-    (
-      (await (await page.request.get("/api/data", { headers: await joinedAiAuth() })).json()) as {
-        records: Record<string, Record<string, unknown>>
-      }
-    ).records[subject] ?? {},
-  ) as { id: string; lanes?: { kind: string; id: string }[] }[]
+type Row = { id: string; lanes?: { kind: string; id: string }[] }
 
 // 最初のプロジェクトに、チケット 2 枚を足す
 async function twoTickets(page: Page, tag = "") {
-  if ((await records(page, "@matomezu/taskboard:project")).length === 0)
-    await perform(page, "@matomezu/taskboard:project-add", {})
-  const first = (await records(page, "@matomezu/taskboard:project"))[0]!
+  if ((await storedRecords<Row>(page.request, "@matomezu/taskboard:project")).length === 0)
+    await aiPerform(page, { action: "@matomezu/taskboard:project-add", args: {} })
+  const first = (await storedRecords<Row>(page.request, "@matomezu/taskboard:project"))[0]!
   const lane = first.lanes!.find(l => l.kind === "lane")!.id
-  const a = await perform(page, "@matomezu/taskboard:ticket-add", {
-    project: first.id,
-    name: `上下の一枚目${tag}`,
-    lane,
+  const a = await aiPerform(page, {
+    action: "@matomezu/taskboard:ticket-add",
+    args: {
+      project: first.id,
+      name: `上下の一枚目${tag}`,
+      lane,
+    },
   })
-  const b = await perform(page, "@matomezu/taskboard:ticket-add", {
-    project: first.id,
-    name: `上下の二枚目${tag}`,
-    lane,
+  const b = await aiPerform(page, {
+    action: "@matomezu/taskboard:ticket-add",
+    args: {
+      project: first.id,
+      name: `上下の二枚目${tag}`,
+      lane,
+    },
   })
   return { a: a.result?.ticket ?? "", b: b.result?.ticket ?? "" }
 }
@@ -112,10 +102,14 @@ test("本文のチケットの番号を押すと「開く／分割で開く」�
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.goto(CONTROL_CENTER_URL)
   const { a, b } = await twoTickets(page)
-  const all = await records(page, "@matomezu/taskboard:ticket")
+  const all = await storedRecords<Row>(page.request, "@matomezu/taskboard:ticket")
   const number = (all.find(t => t.id === b) as unknown as { number: number }).number
   const label = `T-${String(number).padStart(4, "0")}`
-  await perform(page, "@matomezu/taskboard:ticket-update", { body: `${label} を見る` }, { record: a })
+  await aiPerform(page, {
+    action: "@matomezu/taskboard:ticket-update",
+    args: { body: `${label} を見る` },
+    on: { record: a },
+  })
   await page.locator(`[data-card="${a}"]`).click()
   await expect(tickets(page)).toHaveCount(1)
   await tickets(page).getByRole("link", { name: label }).click()

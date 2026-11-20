@@ -1,37 +1,26 @@
 // タスクボード: コントロールセンターの左の一覧でプロジェクトのタスクボードを出す・隠す、レーンにチケットのチケットカードが並ぶ、レーンの最大化と並べ方の一覧
-import { CONTROL_CENTER_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
+import { CONTROL_CENTER_URL, expect, joinedAiAuth, test } from "./fixtures"
+import { aiPerform } from "./helpers/ai"
+import { storedRecords } from "./helpers/stored"
 
-const perform = async (page: Page, data: object) =>
-  (await page.request.post("/api/ai/perform", { headers: await joinedAiAuth(), data })).json() as Promise<{
-    ok: boolean
-    result?: { project?: string; ticket?: string }
-  }>
-
-const records = async (page: Page, subject: string) =>
-  Object.values(
-    (
-      (await (await page.request.get("/api/data", { headers: await joinedAiAuth() })).json()) as {
-        records: Record<string, Record<string, unknown>>
-      }
-    ).records[subject] ?? {},
-  ) as {
-    id: string
-    name: string
-    lanes?: { kind: string; id: string }[]
-    createdBy?: { workroom?: { id: string } }
-  }[]
+type Row = {
+  id: string
+  name: string
+  lanes?: { kind: string; id: string }[]
+  createdBy?: { workroom?: { id: string } }
+}
 
 test("一覧でタスクボードを出し入れし、レーンにチケットカードが並び、最大化と並べ方の一覧が動く", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto(CONTROL_CENTER_URL)
   // 最初のプロジェクトが無ければ足す（常駐が初めて起動したときに作られる）
-  if ((await records(page, "@matomezu/taskboard:project")).length === 0)
-    expect((await perform(page, { action: "@matomezu/taskboard:project-add", args: {} })).ok).toBe(true)
-  const first = (await records(page, "@matomezu/taskboard:project"))[0]!
+  if ((await storedRecords<Row>(page.request, "@matomezu/taskboard:project")).length === 0)
+    expect((await aiPerform(page, { action: "@matomezu/taskboard:project-add", args: {} })).ok).toBe(true)
+  const first = (await storedRecords<Row>(page.request, "@matomezu/taskboard:project"))[0]!
   const lane = first.lanes!.find(l => l.kind === "lane")!.id
   expect(
     (
-      await perform(page, {
+      await aiPerform(page, {
         action: "@matomezu/taskboard:ticket-add",
         args: { project: first.id, name: "最初のチケットカード", lane },
       })
@@ -39,7 +28,7 @@ test("一覧でタスクボードを出し入れし、レーンにチケット�
   ).toBe(true)
   expect(
     (
-      await perform(page, {
+      await aiPerform(page, {
         action: "@matomezu/taskboard:ticket-add",
         args: { project: first.id, name: "二枚目", lane, priority: "high" },
       })
@@ -88,9 +77,9 @@ test("担当の 2 人目のチケットでも、作業中のレーンへ入れ�
   page,
 }) => {
   await page.goto(CONTROL_CENTER_URL)
-  if ((await records(page, "@matomezu/taskboard:project")).length === 0)
-    expect((await perform(page, { action: "@matomezu/taskboard:project-add", args: {} })).ok).toBe(true)
-  const first = (await records(page, "@matomezu/taskboard:project"))[0]!
+  if ((await storedRecords<Row>(page.request, "@matomezu/taskboard:project")).length === 0)
+    expect((await aiPerform(page, { action: "@matomezu/taskboard:project-add", args: {} })).ok).toBe(true)
+  const first = (await storedRecords<Row>(page.request, "@matomezu/taskboard:project"))[0]!
   const lane = first.lanes!.find(l => l.kind === "lane")!.id
   // 利用者が、そのレーンに作業中の印を付ける
   const marked = first.lanes!.map(l => (l.kind === "lane" && l.id === lane ? { ...l, working: true } : l))
@@ -100,13 +89,14 @@ test("担当の 2 人目のチケットでも、作業中のレーンへ入れ�
     },
   })
   expect(((await updated.json()) as { ok: boolean }).ok).toBe(true)
-  const added = await perform(page, {
+  const added = await aiPerform(page, {
     action: "@matomezu/taskboard:ticket-add",
     args: { project: first.id, name: "立ち寄り先" },
   })
   const ticket = added.result!.ticket!
   // タスクボードを隠してから、ワークルームを選ぶ（現在のタスクはまだなし）
-  const own = (await records(page, "@matomezu/taskboard:ticket")).find(t => t.id === ticket)!.createdBy!.workroom!.id
+  const own = (await storedRecords<Row>(page.request, "@matomezu/taskboard:ticket")).find(t => t.id === ticket)!
+    .createdBy!.workroom!.id
   await page.locator("button[aria-expanded]", { hasText: "プロジェクト" }).click()
   await page.getByRole("checkbox", { name: first.name }).uncheck()
   await expect(page.locator(`[data-board="${first.id}"]`)).toHaveCount(0)
@@ -122,7 +112,7 @@ test("担当の 2 人目のチケットでも、作業中のレーンへ入れ�
   const lead = ((await roomAdded.json()) as { result?: { workroom: string } }).result!.workroom
   expect(
     (
-      await perform(page, {
+      await aiPerform(page, {
         action: "@matomezu/taskboard:ticket-update",
         args: { assignees: [lead, own], lane },
         on: { record: ticket },
@@ -145,9 +135,9 @@ test("担当の 2 人目のチケットでも、作業中のレーンへ入れ�
 test("レーンのタイトル帯をドラッグすると、レーンが左右に入れ替わり、離す前は入るすき間に線が出る", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto(CONTROL_CENTER_URL)
-  if ((await records(page, "@matomezu/taskboard:project")).length === 0)
-    expect((await perform(page, { action: "@matomezu/taskboard:project-add", args: {} })).ok).toBe(true)
-  const first = (await records(page, "@matomezu/taskboard:project"))[0]!
+  if ((await storedRecords<Row>(page.request, "@matomezu/taskboard:project")).length === 0)
+    expect((await aiPerform(page, { action: "@matomezu/taskboard:project-add", args: {} })).ok).toBe(true)
+  const first = (await storedRecords<Row>(page.request, "@matomezu/taskboard:project"))[0]!
   const board = page.locator(`[data-board="${first.id}"]`)
   // 入る動き（右から滑り込む）が終わって、位置が止まってから測る（動いている間の位置でつかむと、別の所を運ぶことになる）
   await expect(board).toHaveAttribute("data-state", "idle")
@@ -191,11 +181,12 @@ test("レーンのタイトル帯をドラッグすると、レーンが左右�
 test("一覧でプロジェクトをつまみで入れ替えても、チェックはプロジェクトに付いて行く", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto(CONTROL_CENTER_URL)
-  if ((await records(page, "@matomezu/taskboard:project")).length === 0)
-    expect((await perform(page, { action: "@matomezu/taskboard:project-add", args: {} })).ok).toBe(true)
-  if ((await records(page, "@matomezu/taskboard:project")).length < 2)
+  if ((await storedRecords<Row>(page.request, "@matomezu/taskboard:project")).length === 0)
+    expect((await aiPerform(page, { action: "@matomezu/taskboard:project-add", args: {} })).ok).toBe(true)
+  if ((await storedRecords<Row>(page.request, "@matomezu/taskboard:project")).length < 2)
     expect(
-      (await perform(page, { action: "@matomezu/taskboard:project-add", args: { name: "二つ目", prefix: "SW-" } })).ok,
+      (await aiPerform(page, { action: "@matomezu/taskboard:project-add", args: { name: "二つ目", prefix: "SW-" } }))
+        .ok,
     ).toBe(true)
   const head = page.locator("button[aria-expanded]", { hasText: "プロジェクト" })
   if ((await head.getAttribute("aria-expanded")) === "false") await head.click()
@@ -216,14 +207,17 @@ test("完了のアクションで、チケットカードが完了のレーン�
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto(CONTROL_CENTER_URL)
-  if ((await records(page, "@matomezu/taskboard:project")).length === 0)
-    expect((await perform(page, { action: "@matomezu/taskboard:project-add", args: {} })).ok).toBe(true)
-  const first = (await records(page, "@matomezu/taskboard:project"))[0]! as { id: string; doneLane?: string } & {
+  if ((await storedRecords<Row>(page.request, "@matomezu/taskboard:project")).length === 0)
+    expect((await aiPerform(page, { action: "@matomezu/taskboard:project-add", args: {} })).ok).toBe(true)
+  const first = (await storedRecords<Row>(page.request, "@matomezu/taskboard:project"))[0]! as {
+    id: string
+    doneLane?: string
+  } & {
     lanes?: { kind: string; id: string }[]
   }
   const todo = first.lanes!.find(l => l.kind === "lane")!.id
   expect(typeof first.doneLane).toBe("string") // 最初のプロジェクトは、完了のレーンが最初から決まっている
-  const added = await perform(page, {
+  const added = await aiPerform(page, {
     action: "@matomezu/taskboard:ticket-add",
     args: { project: first.id, name: "完了させるチケット", lane: todo },
   })
@@ -238,7 +232,11 @@ test("完了のアクションで、チケットカードが完了のレーン�
     data: { action: "@matomezu/taskboard:ticket-update", args: { lane: first.doneLane }, on: { record: ticket } },
   })
   expect((await moved.json()).ok).toBe(false)
-  const done = await perform(page, { action: "@matomezu/taskboard:ticket-complete", args: {}, on: { record: ticket } })
+  const done = await aiPerform(page, {
+    action: "@matomezu/taskboard:ticket-complete",
+    args: {},
+    on: { record: ticket },
+  })
   expect(done.ok).toBe(true)
   await expect(
     board.locator(`[data-lane="${first.doneLane}"]`).locator("[data-card]", { hasText: "完了させるチケット" }),

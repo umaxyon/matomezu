@@ -2,11 +2,9 @@
 
 import type { Locator } from "@playwright/test"
 import { drawingPage, testBook } from "../test/lineup"
-import { BOOK_SCREEN_DEF, expect, joinedAiAuth, type Page, test, urlCurrentScreen, urlStages } from "./fixtures"
+import { BOOK_SCREEN_DEF, expect, joinedAiAuth, test, urlCurrentScreen, urlStages } from "./fixtures"
+import { aiPerform } from "./helpers/ai"
 import { storedBook, storedBooks } from "./helpers/stored"
-
-const perform = async (page: Page, action: string, args: object) =>
-  (await page.request.post("/api/ai/perform", { headers: await joinedAiAuth(), data: { action, args } })).json()
 
 test("書庫でフォルダへ入るとパンくずが伸び、ブラウザの戻るで前のフォルダへ戻る。ブックを 2 回押すと新しいブックスクリーンで開く", async ({
   page,
@@ -15,9 +13,11 @@ test("書庫でフォルダへ入るとパンくずが伸び、ブラウザの�
   await page.bringToFront()
   const books = (await storedBooks(page.request)) as { id: string; title: string }[]
   const book = books[0]!
-  const made = await perform(page, "@matomezu/base:folder-create", { title: "仕事" })
+  const made = await aiPerform(page, { action: "@matomezu/base:folder-create", args: { title: "仕事" } })
   expect(made).toMatchObject({ ok: true })
-  expect(await perform(page, "@matomezu/base:entry-move", { entry: book.id, into: made.result.folder })).toMatchObject({
+  expect(
+    await aiPerform(page, { action: "@matomezu/base:entry-move", args: { entry: book.id, into: made.result.folder } }),
+  ).toMatchObject({
     ok: true,
   })
   await page.getByRole("button", { name: "書庫", exact: true }).first().click()
@@ -77,12 +77,15 @@ test("書庫のゴミ箱に、捨てたフォルダも並ぶ。選んだ行を�
   await page.goto("/")
   await page.bringToFront()
   const folder = async (title: string, into?: string) => {
-    const made = await perform(page, "@matomezu/base:folder-create", { title, ...(into ? { into } : {}) })
+    const made = await aiPerform(page, {
+      action: "@matomezu/base:folder-create",
+      args: { title, ...(into ? { into } : {}) },
+    })
     expect(made).toMatchObject({ ok: true })
     return made.result.folder as string
   }
   const trash = async (entry: string) =>
-    expect(await perform(page, "@matomezu/base:entry-trash", { entry })).toMatchObject({ ok: true })
+    expect(await aiPerform(page, { action: "@matomezu/base:entry-trash", args: { entry } })).toMatchObject({ ok: true })
   const plan = await folder("ゴミ箱の試しの企画")
   // 「古い案」を捨てたあと、同じ名前のフォルダを同じ所に作る
   await trash(await folder("古い案", plan))
@@ -163,7 +166,7 @@ test("ゴミ箱から上書きで戻すと、前から在った物が消える�
   await page.goto("/")
   await page.bringToFront()
   const made = async (action: string, args: object) => {
-    const done = await perform(page, action, args)
+    const done = await aiPerform(page, { action: action, args: args })
     expect(done).toMatchObject({ ok: true })
     return done.result as { folder: string; book: string }
   }
@@ -220,7 +223,7 @@ test("AI が書庫で変えた名前は、その入れ物のフォルダを見�
   await page.goto("/")
   await page.bringToFront()
   const made = async (action: string, args: object) => {
-    const done = await perform(page, action, args)
+    const done = await aiPerform(page, { action: action, args: args })
     expect(done).toMatchObject({ ok: true })
     return done.result as { folder: string; book: string }
   }
@@ -260,7 +263,7 @@ test("書庫の右の枠の上のボタンで、元に戻す・やり直すが�
   await page.goto("/")
   await page.bringToFront()
   const made = async (action: string, args: object) => {
-    const done = await perform(page, action, args)
+    const done = await aiPerform(page, { action: action, args: args })
     expect(done).toMatchObject({ ok: true })
     return done.result as { folder: string; book: string }
   }
@@ -404,7 +407,7 @@ test("書庫の行の右クリックのメニューから、名前の変更・�
   await page.goto("/")
   await page.bringToFront()
   const made = async (action: string, args: object) => {
-    const done = await perform(page, action, args)
+    const done = await aiPerform(page, { action: action, args: args })
     expect(done).toMatchObject({ ok: true })
     return done.result as { folder: string; book: string }
   }
@@ -466,7 +469,7 @@ test("書庫の行をドラッグして、行の間（その位置へ）・フ�
   await page.goto("/")
   await page.bringToFront()
   const made = async (title: string, into?: string) => {
-    const done = await perform(page, "@matomezu/base:folder-create", { title, into })
+    const done = await aiPerform(page, { action: "@matomezu/base:folder-create", args: { title, into } })
     expect(done).toMatchObject({ ok: true })
     return (done.result as { folder: string }).folder
   }
@@ -583,7 +586,7 @@ test("書庫のツリーで、ブックの中のページの名前を F2 で変�
   await page.goto("/")
   await page.bringToFront()
   const made = async (action: string, args: object) => {
-    const done = await perform(page, action, args)
+    const done = await aiPerform(page, { action: action, args: args })
     expect(done).toMatchObject({ ok: true })
     return done.result as { folder: string; book: string; page: { page: string } }
   }
@@ -651,9 +654,11 @@ test("書庫の検索は、名前に言葉を含む物を右の枠に並べる�
 }) => {
   await page.goto("/")
   await page.bringToFront()
-  const made = await perform(page, "@matomezu/base:folder-create", { title: "検索の試しの所" })
+  const made = await aiPerform(page, { action: "@matomezu/base:folder-create", args: { title: "検索の試しの所" } })
   const folder = (made.result as { folder: string }).folder
-  expect(await perform(page, "@matomezu/base:book-create", { title: "検索の試しの帳面", into: folder })).toMatchObject({
+  expect(
+    await aiPerform(page, { action: "@matomezu/base:book-create", args: { title: "検索の試しの帳面", into: folder } }),
+  ).toMatchObject({
     ok: true,
   })
   await page.getByRole("button", { name: "書庫", exact: true }).first().click()
@@ -706,10 +711,10 @@ test("書庫の検索の結果を押すと、ツリーがはみ出していて�
   // ツリーの高さを超える数のフォルダを作り、最後のフォルダの中にブックを置く
   let last = ""
   for (let i = 0; i < 40; i++) {
-    const made = await perform(page, "@matomezu/base:folder-create", { title: `送りの試し ${i}` })
+    const made = await aiPerform(page, { action: "@matomezu/base:folder-create", args: { title: `送りの試し ${i}` } })
     last = (made.result as { folder: string }).folder
   }
-  await perform(page, "@matomezu/base:book-create", { title: "一番下の帳面", into: last })
+  await aiPerform(page, { action: "@matomezu/base:book-create", args: { title: "一番下の帳面", into: last } })
   await page.getByRole("button", { name: "書庫", exact: true }).first().click()
   const tree = page.getByRole("navigation", { name: "フォルダ" })
   const row = tree.getByRole("button", { name: "一番下の帳面", exact: true })

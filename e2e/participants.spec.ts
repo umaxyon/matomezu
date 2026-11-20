@@ -25,7 +25,7 @@ async function join(page: Page, link: string, sessionName = "", workroom = "", s
 
 // 参加者の表（要求が届いた順）。入っているワークルームの名前・鳥・配色を workroom・bird・palette に引き、要求中は希望の名前を workroom に置く
 async function participants(page: Page) {
-  const body = await (await page.request.get("/api/data", { headers: aiAuth() })).json()
+  const body = await (await page.request.get("/api/data")).json()
   const rooms = (body.records?.["@matomezu/base:workroom"] ?? {}) as Record<
     string,
     { name: string; bird: string; palette?: string }
@@ -308,7 +308,7 @@ test("生きている参加者のワークルームは引き継げない。断�
   expect(refused).toMatchObject({ ok: false, reason: "workroom-in-use" })
   const table = await participants(page)
   expect(table).toHaveLength(1)
-  const body = await (await page.request.get("/api/data", { headers: aiAuth() })).json()
+  const body = await (await page.request.get("/api/data")).json()
   expect(Object.keys(body.records["@matomezu/base:mail"] ?? {})).toHaveLength(1) // 最初の郵便だけ
 })
 
@@ -337,7 +337,7 @@ test("列は、呼ばれた時刻と参加の新しい順に並び、列に触�
   // 常駐に残った時刻（呼ばれた時刻と参加した時刻の新しいほう）の新しい順。マシンの時計は合わせ直しで後ろへ戻ることがあり、
   // 戻った直後に残った時刻は前の時刻より古くなるので、画面の並びはコメントの並びでなく、この並びと比べる
   const byTimes = async () => {
-    const body = await (await page.request.get("/api/data", { headers: aiAuth() })).json()
+    const body = await (await page.request.get("/api/data")).json()
     const at = (p: { participant: string }) => {
       const joinedAt = body.records["@matomezu/base:participant"][p.participant].joinedAt as string
       const calledAt = body.participantCalls?.[p.participant] as string | undefined
@@ -350,7 +350,7 @@ test("列は、呼ばれた時刻と参加の新しい順に並び、列に触�
     return shown.join() === recorded.join() ? "follows" : `shown ${shown}, by the times ${recorded}`
   }
   const calledOf = async (p: { participant: string }) =>
-    (await (await page.request.get("/api/data", { headers: aiAuth() })).json()).participantCalls?.[p.participant]
+    (await (await page.request.get("/api/data")).json()).participantCalls?.[p.participant]
   // あとから参加したほうが上
   await expect.poll(followsTimes).toBe("follows")
   // 先に参加したほうが呼ばれると、上へ来る
@@ -451,6 +451,6 @@ test("ワーカーとして頼んだ要求も、受け入れのダイアログ�
   await visitor.getByRole("button", { name: "受け入れる" }).click()
   await closeWelcome(page)
   await expect.poll(() => participants(page)).toMatchObject([{ id: made.participant, state: "visitor" }])
-  const body = await (await page.request.get("/api/data", { headers: aiAuth() })).json()
+  const body = await (await page.request.get("/api/data")).json()
   expect(Object.keys(body.records["@matomezu/base:workroom"] ?? {})).toHaveLength(0)
 })

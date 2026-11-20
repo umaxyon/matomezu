@@ -1,11 +1,10 @@
 // 可変ページで左・上へ増やすと、背景（ページの slide）は中身と同じだけずれて、中身に対する位置を保つ（図面は slide の座標をずらし、ツリーは描くときにずらす）
 import { BOOK_SCREEN_URL, expect, type Locator, type Page, test } from "./fixtures"
+import { band } from "./helpers/background"
 import { footerMenuTool } from "./helpers/footer-menu"
 import { newBook } from "./helpers/new-book"
 import { addBox, onPaper, paper, settled } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
-
-const band = (page: Page) => page.locator("[data-background-band]")
 
 // 2 つの物の左上の差
 async function gap(a: Locator, b: Locator) {

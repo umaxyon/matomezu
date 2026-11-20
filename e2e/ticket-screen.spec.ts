@@ -1,6 +1,6 @@
 // チケットスクリーン: URL で開く（開いているチケットの id が画面の場所に入る）。番号・名前・タグ・担当・履歴（起票の行つき・質問の吹き出し）を見せ、名前・本文・優先度を直すと反映し、
 // 読み直しても残り、巣箱で閉じる。ロック中は直せず、AI の上書きは直している間だけ断られる
-import { aiAuth, CONTROL_CENTER_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
+import { CONTROL_CENTER_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
 
 // 窓が低い（800px 未満）ときの、チケットスクリーンを全画面で開く動きを確かめる（上下に分ける動きは ticket-split.spec.ts）
 test.use({ viewport: { width: 1280, height: 720 } })
@@ -140,7 +140,7 @@ test("名前・優先度・チケットボリューム・本文は直したそ�
   await screen.getByRole("textbox", { name: "本文（マークダウン）" }).fill("書き直した本文")
   await expect
     .poll(async () => {
-      const body = await (await page.request.get("/api/data", { headers: aiAuth() })).json()
+      const body = await (await page.request.get("/api/data")).json()
       const t = (
         Object.values(body.records[TICKET] ?? {}) as { name: string; priority: string; volume: string; body: string }[]
       )[0]
@@ -197,7 +197,7 @@ test("本文を直してチケットスクリーンから離れると、チケ�
   await page.goto(CONTROL_CENTER_URL)
   const { ticket } = await setup(page)
   const lines = async () => {
-    const body = await (await page.request.get("/api/data", { headers: aiAuth() })).json()
+    const body = await (await page.request.get("/api/data")).json()
     return (
       Object.values(body.records["@matomezu/taskboard:ticket-history"] ?? {}) as {
         topic: string

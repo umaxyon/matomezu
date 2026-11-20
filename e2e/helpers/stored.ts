@@ -9,6 +9,13 @@ export const storedBooks = async (request: APIRequestContext): Promise<any[]> =>
 export const storedBook = async (request: APIRequestContext, id: string) =>
   (await storedBooks(request)).find(b => b.id === id)
 
+// 置いてあるレコードのうち、種類 subject の物の全部
+// biome-ignore lint/suspicious/noExplicitAny: 読んだ JSON を、テストごとの形で読む
+export const storedRecords = async <R = any>(request: APIRequestContext, subject: string): Promise<R[]> =>
+  Object.values(
+    ((await (await request.get("/api/data")).json()).records as Record<string, object>)[subject] ?? {},
+  ) as R[]
+
 // 置いてあるページ id の版（無ければ undefined。ページを変えるたびに 1 つ上がる）
 export const storedPageVersion = async (request: APIRequestContext, id: string): Promise<number | undefined> =>
   ((await (await request.get("/api/data")).json()).pages as { id: string; version: number }[]).find(p => p.id === id)
