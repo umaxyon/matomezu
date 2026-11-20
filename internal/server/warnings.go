@@ -70,8 +70,15 @@ func (h *Hub) Warnings() []string {
 	if h.libraryWarning != "" {
 		out = append(out, h.libraryWarning)
 	}
+	// 読めない物のフォルダに移った物は、1 つずつの warning を出さず、件数の warning 1 つだけ
+	if h.unreadableWarning != "" {
+		out = append(out, h.unreadableWarning)
+	}
 	pages := slices.Sorted(maps.Keys(h.pageWarnings))
 	for _, id := range h.order {
+		if h.inUnreadable(id) {
+			continue
+		}
 		if n, ok := h.bookWarnings[id]; ok {
 			out = append(out, n.Warning)
 		}

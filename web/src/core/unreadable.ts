@@ -11,6 +11,7 @@ import {
   FIRST,
   type Folder,
   HOME_ID,
+  MOVED_CODES,
   pinnedCount,
   rowsLibraryOf,
   TRASH_ID,
@@ -20,6 +21,7 @@ import {
   type UnreadableRef,
   unreadableFolderOf,
 } from "./folders"
+import { type Warning, warning } from "./warnings"
 
 type Row = Readonly<Record<string, unknown>>
 
@@ -318,4 +320,14 @@ function renamed(
   if (free === title) return undefined
   const row = (kind === "page" ? world.pages.get(id) : world.folders.get(id)) as Row
   return { ...row, title: free }
+}
+
+// 読めない物のフォルダ folder に物が在れば、その warning（W032。件数と、理由の番号ごとの件数を番号の順に）。無ければ undefined
+export function unreadableWarning(folder: UnreadableFolder): Warning | undefined {
+  if (folder.lineup.length === 0) return undefined
+  const reasons = MOVED_CODES.flatMap(code => {
+    const n = folder.lineup.filter(r => r.code === code).length
+    return n === 0 ? [] : [`${code} x ${n}`]
+  })
+  return warning("W032", "", { count: `${folder.lineup.length}`, reasons: reasons.join(", ") })
 }

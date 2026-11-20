@@ -49,6 +49,7 @@ func TestTrashedBooksMoveIntoTheTrash(t *testing.T) {
 	}
 	trash := folders[TrashID]
 	delete(folders, TrashID)
+	delete(folders, UnreadableID) // あとの移し替えが作る
 	if !maps.Equal(folders, want) {
 		t.Fatalf("folders = %v; want %v", folders, want)
 	}

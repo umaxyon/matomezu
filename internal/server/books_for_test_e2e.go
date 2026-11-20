@@ -96,7 +96,12 @@ func (h *Hub) assembledBooksForTest() []json.RawMessage {
 func (h *Hub) putBookForTest(id string, body json.RawMessage, base int64) (version int64, conflict bool, err error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	return h.replaceBook(id, body, base)
+	version, conflict, err = h.replaceBook(id, body, base)
+	if err == nil && !conflict {
+		// 置いた世界の読めない物を移す（窓には、移した行を知らせる）
+		h.settleUnreadable(false)
+	}
+	return version, conflict, err
 }
 
 // resetForTest は、置き場所と世界を空にしてから books を置く（置き場所のブック・開いた時刻・アノテーション・設定・レコード（郵便も）も消す。つないでいる窓と追加プラグインはそのまま。窓には知らせないので、テストは開き直す）
@@ -146,6 +151,7 @@ func (h *Hub) resetForTest(books []json.RawMessage, enabledPlugins []string) err
 			return err
 		}
 	}
+	h.settleUnreadable(true)
 	return h.checkBooks(h.order)
 }
 

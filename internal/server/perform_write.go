@@ -31,6 +31,8 @@ type writePlan struct {
 	tickets *[]AIEditTicket // 書き換えた AI 編集チケットの並びの全部（変えなければ nil）
 	records []recordPut     // 変えたレコードの全部
 	quiet   bool            // 窓に知らせず、触れた時刻も残さない（テストの用意で世界を置き直すとき）
+	// untouched なら、窓に知らせても、触れた時刻は残さない（常駐が読めない物を移す・戻すとき。利用者がブックに触れたのでない）
+	untouched bool
 }
 
 // planWrites は out の変えた物を、置き場所に書く形（batch）と、当てる物にする。何も変えない（h.mu を持って呼ぶ）。
@@ -263,7 +265,7 @@ func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act
 	}
 	for _, id := range out.Books {
 		if e, ok := h.books[id]; ok {
-			if !plan.quiet {
+			if !plan.quiet && !plan.untouched {
 				h.touch(id, stamp())
 			}
 			h.checkBook(id, e.body)

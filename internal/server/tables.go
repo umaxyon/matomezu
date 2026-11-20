@@ -42,7 +42,17 @@ func (f folderRow) isOpen() bool { return storage.IsOpenRole(f.role) }
 // （それより多くを持つ要素は、中身ごと残っている物）
 func entryRef(role string, entry json.RawMessage) (kind, id string, ok bool) {
 	var fields map[string]json.RawMessage
-	if json.Unmarshal(entry, &fields) != nil || (role != "trash" && len(fields) != 2) {
+	if json.Unmarshal(entry, &fields) != nil {
+		return "", "", false
+	}
+	// 読めない物のフォルダの要素は、在った所の並びのエントリ entry を持つ
+	if role == "unreadable" {
+		if inner, ok := fields["entry"]; ok {
+			return entryRef("trash", inner)
+		}
+		return "", "", false
+	}
+	if role != "trash" && len(fields) != 2 {
 		return "", "", false
 	}
 	if json.Unmarshal(fields["kind"], &kind) != nil || json.Unmarshal(fields["id"], &id) != nil || id == "" {
@@ -235,7 +245,7 @@ func (h *Hub) entriesNotInBooks() []string {
 // entryNotInBook は、ブックに入っていないページ page の行をエンジンへ渡すときの、渡すエントリの id: 書庫ホームかフォルダの直下のページならそのページ、
 // その直下のバインダの中のページならそのバインダ。ブックの中・ゴミ箱の中・どのフォルダにも入っていない・無いページなら空（h.mu を持って呼ぶ）
 func (h *Hub) entryNotInBook(page string) string {
-	if _, ok := h.pages[page]; !ok || h.inTrash(page) || h.bookOfEntry(page) != "" {
+	if _, ok := h.pages[page]; !ok || h.outOfSight(page) || h.bookOfEntry(page) != "" {
 		return ""
 	}
 	holder, ok := h.folders[h.places[page]]
@@ -494,14 +504,16 @@ func (h *Hub) clearBooks() error {
 		batch.Pages = append(batch.Pages, storage.RowWrite{ID: id, Base: p.version, Removed: true})
 	}
 	for id, f := range h.folders {
-		if id != storage.HomeID && id != storage.TrashID {
+		if id != storage.HomeID && id != storage.TrashID && id != storage.UnreadableID {
 			batch.Folders = append(batch.Folders, storage.RowWrite{ID: id, Base: f.version, Removed: true})
 		}
 	}
-	home, trash := storage.HomeBody(nil), storage.TrashBody(nil)
+	home, trash, unreadable := storage.HomeBody(nil), storage.TrashBody(nil), storage.UnreadableBody(nil)
 	homeVersion, trashVersion := h.folders[storage.HomeID].version, h.folders[storage.TrashID].version
+	unreadableVersion := h.folders[storage.UnreadableID].version
 	batch.Folders = append(batch.Folders, storage.RowWrite{ID: storage.HomeID, Body: home, Base: homeVersion},
-		storage.RowWrite{ID: storage.TrashID, Body: trash, Base: trashVersion})
+		storage.RowWrite{ID: storage.TrashID, Body: trash, Base: trashVersion},
+		storage.RowWrite{ID: storage.UnreadableID, Body: unreadable, Base: unreadableVersion})
 	for id := range h.places {
 		batch.Entries = append(batch.Entries, storage.EntryPut{ID: id})
 	}
@@ -514,7 +526,9 @@ func (h *Hub) clearBooks() error {
 		return err
 	}
 	h.pages = map[string]row{}
-	h.folders = map[string]folderRow{storage.HomeID: newFolderRow(home, homeVersion+1), storage.TrashID: newFolderRow(trash, trashVersion+1)}
+	h.folders = map[string]folderRow{storage.HomeID: newFolderRow(home, homeVersion+1), storage.TrashID: newFolderRow(trash, trashVersion+1),
+		storage.UnreadableID: newFolderRow(unreadable, unreadableVersion+1)}
+	h.unreadableWarning = ""
 	h.places = map[string]string{}
 	h.books = map[string]entry{}
 	h.order = nil

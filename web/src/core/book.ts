@@ -254,12 +254,13 @@ export interface LibraryRead {
 // ブックの外のページは、そのタイプのページの形で読んだページか、読めなければ読めないページのエントリにする（残したデータには手を付けない）。
 // ブックの外のバインダは、形に合い、中のページの行が全部在り、バインダの決まりを守るときだけ、中のページごと入れる。
 // 入らなかった物を指す並びは、表に無い物を指すので、木の決まりが破れて見える（書庫が対象のアクションは断られる）。
-// どのフォルダにも持たれていないページの行と、読めないブックの行は、表に入れない
+// どのフォルダにも持たれていないページの行と、読めないブックの行と、読めない物のフォルダの行とその中の物の行は、表に入れない
 export function readLibrary(
   catalog: CoreCatalog,
-  pageRows: readonly unknown[],
-  folderRows: readonly unknown[],
+  allPages: readonly unknown[],
+  allFolders: readonly unknown[],
 ): LibraryRead {
+  const { pageRows, folderRows } = outsideUnreadable(allPages, allFolders)
   const checked = checkBooks(catalog, rawBooksOf(pageRows, folderRows))
   const tables = tablesOf(checked.books)
   const open = homeAndFoldersOf(folderRows)
@@ -313,6 +314,44 @@ export function readLibrary(
   const lost = read.filter((p): p is UnreadableEntry => p.kind === "unreadable")
   const outsideWarnings = [...unreadableWarnings(lost, {}), ...missingWarnings(missingIn(catalog, [], readable), {})]
   return { library: { pages, folders }, ...checked, outsideWarnings }
+}
+
+// 置き場所から読んだままの行のうち、読めない物のフォルダの行と、その中の物（何段下でも）の行を除いた物（書庫に入らない。同じ行の並びには同じ値を返す）
+const outsideKept = new WeakMap<
+  readonly unknown[],
+  { pages: readonly unknown[]; out: { pageRows: readonly unknown[]; folderRows: readonly unknown[] } }
+>()
+function outsideUnreadable(
+  pageRows: readonly unknown[],
+  folderRows: readonly unknown[],
+): { pageRows: readonly unknown[]; folderRows: readonly unknown[] } {
+  const kept = outsideKept.get(folderRows)
+  if (kept && kept.pages === pageRows) return kept.out
+  const isUnreadable = (r: unknown) => isUnreadableRole((r as { folderRole?: unknown } | null)?.folderRole)
+  const found = folderRows.find(isUnreadable) as { lineup?: unknown } | undefined
+  const entries = Array.isArray(found?.lineup) ? (found.lineup as unknown[]) : []
+  let out = { pageRows, folderRows }
+  if (found) {
+    const folder = rowsById(folderRows)
+    const inside = new Set<string>()
+    const walk = (id: string) => {
+      if (inside.has(id)) return
+      inside.add(id)
+      const row = folder.get(id)
+      for (const e of Array.isArray(row?.lineup) ? (row.lineup as unknown[]) : []) {
+        const r = (e as { id?: unknown } | null)?.id
+        if (typeof r === "string") walk(r)
+      }
+    }
+    for (const e of entries) {
+      const id = (e as { entry?: { id?: unknown } } | null)?.entry?.id
+      if (typeof id === "string") walk(id)
+    }
+    const away = (r: unknown) => inside.has((r as { id?: unknown } | null)?.id as string)
+    out = { pageRows: pageRows.filter(r => !away(r)), folderRows: folderRows.filter(r => !isUnreadable(r) && !away(r)) }
+  }
+  outsideKept.set(folderRows, { pages: pageRows, out })
+  return out
 }
 
 // ブックの外のページの残した行 raw（id は id）を、表の 1 行にした物: 読めればタイプの形で読んだページ、読めなければ読めないページのエントリ

@@ -65,7 +65,7 @@ func (h *Hub) bookOfPage(page string) string {
 		return ""
 	}
 	book := h.bookOfEntry(page)
-	if h.inTrash(book) {
+	if h.outOfSight(book) || h.inUnreadable(page) {
 		return ""
 	}
 	return book
@@ -146,6 +146,8 @@ type Hub struct {
 	annotationWarnings []string
 	// 書庫の木の決まりが破れているときの warning の 1 行（W030。守っていれば空。tables.go の checkLibrary）
 	libraryWarning string
+	// unreadableWarning は、読めない物のフォルダに物が在れば、その warning（W032）の 1 行（無ければ空。unreadable.go）
+	unreadableWarning string
 	// 効かないレコード（種類が無い W024・形が合わない W025。郵便は種類が無い W022・形が合わない W023）の warning の 1 行ずつ（レコードごと）。
 	// 起動したとき・プラグインが変わったときに全部、アクションがレコードを変えたときに変えたレコードだけを確かめ直す（records.go）
 	recordLines map[recordKey][]string
@@ -213,6 +215,8 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 		return nil, err
 	}
 	h.loadSystemFolderTitles()
+	// 読めない物を読めない物のフォルダへ移し、読めるようになった物を戻す（機能台帳に合わせて足すアクションより先に）
+	h.settleUnreadable(true)
 	// 起動したときは、機能台帳に合わせてデータを足すアクションを 1 度行う（初めての起動のアクションが書けば、そのあとに。書かなければ、ここで）
 	h.catalogChanged = true
 	h.runOnceActions()
@@ -361,11 +365,13 @@ func (h *Hub) dropPageWarnings(ids ...string) {
 	}
 }
 
-// BookWarnings は warning のあるブックの id → そのブックの warning（読めないページの warning は PageWarnings）
+// BookWarnings は warning のあるブックの id → そのブックの warning（読めないページの warning は PageWarnings。読めない物のフォルダに移ったブックは入らない）
 func (h *Hub) BookWarnings() map[string]engine.BookWarning {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	return maps.Clone(h.bookWarnings)
+	out := maps.Clone(h.bookWarnings)
+	maps.DeleteFunc(out, func(id string, _ engine.BookWarning) bool { return h.inUnreadable(id) })
+	return out
 }
 
 // PageWarnings は、読めるブックの読めないページの id → その warning
@@ -407,7 +413,7 @@ func (h *Hub) AIBooks() []Book {
 	defer h.mu.Unlock()
 	books := make([]Book, 0, len(h.order))
 	for _, id := range h.order {
-		if e := h.books[id]; !h.inTrash(id) {
+		if e := h.books[id]; !h.outOfSight(id) {
 			books = append(books, Book{ID: id, Body: e.body, Version: e.version})
 		}
 	}
@@ -528,12 +534,17 @@ func (h *Hub) performHeld(p Perform, catalog string) (performRun, error) {
 		return refused(*envelopesRefused), nil
 	}
 	act := h.actPrefix + "-" + strconv.FormatInt(h.acts+1, 10)
+	shared := h.sharedWithUnreadable()
+	out = withoutSharedRemovals(out, shared)
 	plan, err := h.planWrites(out, by, act, stamp())
 	if err != nil {
 		return performRun{}, err
 	}
-	if plan == nil || h.unreadableWrite(out) {
-		// 新しく足すページ・フォルダの id が、世界にもう在る（エンジンが受けたブックの外に）か、読めないページの行を書き換える。何も変えずに断る
+	if plan != nil {
+		keepSharedPlaces(plan, shared)
+	}
+	if plan == nil || h.unreadableWrite(out) || h.touchesUnreadable(out) {
+		// 新しく足すページ・フォルダの id が、世界にもう在る（エンジンが受けたブックの外に）か、読めないページの行・読めない物のフォルダの物の行を書き換える。何も変えずに断る
 		done = Performed{OK: false, Reason: "refused"}
 		h.remember(p.Key, done)
 		h.ack(p, done)
@@ -565,8 +576,9 @@ func (h *Hub) performInputs(in *engine.Input) error {
 	books := []string{}
 	entries := []string{} // 宛先のページがブックに入っていないときの、渡すエントリ（そのページか、それを持つバインダ）
 	named := []string{}   // 宛先がブックそのもののときの、そのブック（名前を変えうるので、隣のエントリの行も渡す）
+	// 読めない物のフォルダに移ったブックは渡さない（書庫に入らないので、名指したアクションは無い物として断られる）
 	add := func(id string) {
-		if id != "" && !slices.Contains(books, id) {
+		if id != "" && !slices.Contains(books, id) && !h.inUnreadable(id) {
 			books = append(books, id)
 		}
 	}
@@ -607,9 +619,14 @@ func (h *Hub) performInputs(in *engine.Input) error {
 	}
 	in.Annotations = map[string]json.RawMessage{}
 	if all {
-		in.Pages, in.Folders = h.rowsOf(append(slices.Clone(h.order), h.entriesNotInBooks()...))
+		order := slices.DeleteFunc(slices.Clone(h.order), h.inUnreadable)
+		in.Pages, in.Folders = h.rowsOf(append(order, h.entriesNotInBooks()...))
 		in.Folders = append(in.Folders, h.openRows()...)
-		maps.Copy(in.Annotations, h.annotations)
+		for page, list := range h.annotations {
+			if !h.inUnreadable(page) {
+				in.Annotations[page] = list
+			}
+		}
 		return nil
 	}
 	needed := append(slices.Clone(books), entries...)
@@ -816,7 +833,7 @@ var (
 func (h *Hub) Show(s Show) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if _, ok := h.books[s.Book]; !ok || h.inTrash(s.Book) {
+	if _, ok := h.books[s.Book]; !ok || h.outOfSight(s.Book) {
 		return ErrNoBook
 	}
 	c := h.window()
@@ -852,7 +869,7 @@ func (h *Hub) Book(id string) *Book {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	e, ok := h.books[id]
-	if !ok || h.inTrash(id) {
+	if !ok || h.outOfSight(id) {
 		return nil
 	}
 	return &Book{ID: id, Body: e.body, Version: e.version}

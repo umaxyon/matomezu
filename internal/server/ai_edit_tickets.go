@@ -170,7 +170,7 @@ func (h *Hub) SettleAIEditTicket(act, book string, places []string, lost json.Ra
 // titleOfTold は、AI に渡す物のブック id の名前（置いていないブックとゴミ箱の中のブックの物は渡さないので false。h.mu を持って呼ぶ）
 func (h *Hub) titleOfTold(id string) (string, bool) {
 	e, ok := h.books[id]
-	if !ok || h.inTrash(id) {
+	if !ok || h.outOfSight(id) {
 		return "", false
 	}
 	var head struct {

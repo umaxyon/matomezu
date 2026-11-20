@@ -83,7 +83,7 @@ func (h *Hub) AIFolder(id string) *AIFolder {
 		id = storage.HomeID
 	}
 	f, ok := h.folders[id]
-	if !ok || (f.role != "home" && f.role != "folder") || h.inTrash(id) {
+	if !ok || (f.role != "home" && f.role != "folder") || h.outOfSight(id) {
 		return nil
 	}
 	out := &AIFolder{ID: id, Kind: f.role, Path: []folderStep{}, Lineup: []folderEntry{}}

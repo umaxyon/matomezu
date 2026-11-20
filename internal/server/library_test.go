@@ -174,7 +174,7 @@ func TestWholeBooksGoIntoTheLibraryHome(t *testing.T) {
 		t.Fatal(err)
 	}
 	stored, _ := hub.store.Folders()
-	if folders := slices.Sorted(maps.Keys(hub.folders)); len(hub.pages) != 0 || !slices.Equal(folders, []string{storage.HomeID, storage.TrashID}) || len(stored) != 2 ||
+	if folders := slices.Sorted(maps.Keys(hub.folders)); len(hub.pages) != 0 || !slices.Equal(folders, []string{storage.HomeID, storage.TrashID, storage.UnreadableID}) || len(stored) != 3 ||
 		home() != `{"folderRole":"home","id":"library-home","lineup":[]}` || string(hub.folders[storage.TrashID].body) != `{"folderRole":"trash","id":"library-trash","lineup":[]}` ||
 		len(entries()) != 0 || len(hub.order) != 0 {
 		t.Fatalf("after clearing: pages %v, folders %v, stored %+v, entries %v", hub.pages, folders, stored, entries())

@@ -26,6 +26,7 @@ import { slideIsBackground } from "../core/def/page-type"
 import type { SubjectDef } from "../core/def/subject"
 import { binnedBetween, namingOf, systemFoldersInPlace } from "../core/entries"
 import {
+  BROKEN,
   bookIdOf,
   bookOf,
   createdOn,
@@ -35,6 +36,8 @@ import {
   pageIn,
   rowsHoldTree,
   rowsLibraryOf,
+  UNREADABLE_ID,
+  unreadableFolderOf,
   withChanges,
 } from "../core/folders"
 import { detectLang, translate } from "../core/i18n/i18n"
@@ -62,6 +65,7 @@ import {
   restoreSettings,
   settingSchema,
 } from "../core/settings"
+import { purgedRows, type RowWrites, settleUnreadable, unreadableWarning } from "../core/unreadable"
 import { WARNINGS, type Warning, warning, warningText } from "../core/warnings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../plugins"
@@ -928,6 +932,54 @@ const WindowWarningSchema = z.object({
   return JSON.stringify(lines)
 }
 
+// 読めない物を読めない物のフォルダへ移し、読めるようになった物を戻す（core/unreadable.ts の settleUnreadable。名前は利用者の設定 settings の言語で比べる。移した時刻は now）。
+// 常駐が起動したときと機能台帳が変わったときに、置き場所の行の全部 pages・folders で呼ぶ。返すのは、書く行の変わり（engine の Output の pages・folders と同じ形）と、
+// 移した物（id と理由の番号）と戻した物の id と、そのあとの warning W032 の 1 行（読めない物が無ければ空）。読めない物のフォルダの行が形に合わなければ broken（何も書かない）
+;(
+  globalThis as { matomezuSettleUnreadable?: (pages: string, folders: string, settings: string, now: string) => string }
+).matomezuSettleUnreadable = (pages, folders, settings, now) => {
+  const catalog = assembled.catalog.core
+  const done = settleUnreadable(
+    catalog,
+    JSON.parse(pages) as unknown[],
+    JSON.parse(folders) as unknown[],
+    namingOf(catalog, restoreSettings(JSON.parse(settings))),
+    now,
+  )
+  if (done === BROKEN) return JSON.stringify({ broken: true })
+  return JSON.stringify({
+    ...rowWrites(done.writes),
+    moved: done.moved.map(u => ({ id: u.element.id, code: u.code })),
+    returned: done.returned,
+    warning: warningLineOf(done.writes.folders[UNREADABLE_ID], JSON.parse(folders) as unknown[]),
+  })
+}
+
+// 読めない物のフォルダの直下の物 id を完全に消す行の変わり（core/unreadable.ts の purgedRows）と、そのあとの warning W032 の 1 行。直下に無ければ none
+;(globalThis as { matomezuPurgedRows?: (pages: string, folders: string, id: string) => string }).matomezuPurgedRows = (
+  pages,
+  folders,
+  id,
+) => {
+  const rows = JSON.parse(folders) as unknown[]
+  const done = purgedRows(JSON.parse(pages) as unknown[], rows, id)
+  if (!done) return JSON.stringify({ none: true })
+  return JSON.stringify({ ...rowWrites(done), warning: warningLineOf(done.folders[UNREADABLE_ID], rows) })
+}
+
+// 書く行の変わり writes を、engine の Output の pages・folders の形にした物（id の順）
+function rowWrites(writes: RowWrites): { pages: RowChange[]; folders: RowChange[] } {
+  const of = (puts: Readonly<Record<string, unknown>>, gone: readonly string[]) =>
+    [...rowChanges(puts), ...gone.map(id => ({ id, removed: true as const }))].sort((a, b) => a.id.localeCompare(b.id))
+  return { pages: of(writes.pages, writes.removedPages), folders: of(writes.folders, writes.removedFolders) }
+}
+
+// 書いた後の読めない物のフォルダの行 written（書かなければ、置き場所の行 folders の物）の warning W032 の 1 行（読めない物が無ければ空）
+function warningLineOf(written: unknown, folders: readonly unknown[]): string {
+  const folder = unreadableFolderOf(written === undefined ? folders : [written])
+  const found = folder === BROKEN ? undefined : unreadableWarning(folder)
+  return found ? warningText(found) : ""
+}
 // 常駐が呼ぶ口: JSON の文字列で受けて返す
 ;(globalThis as { matomezuPerform?: (input: string) => string }).matomezuPerform = input =>
   JSON.stringify(perform(JSON.parse(input) as Input))

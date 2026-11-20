@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http/httptest"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -64,135 +65,203 @@ func rowOf(h *Hub, id string) json.RawMessage {
 	return nil
 }
 
-// 読めないページは読めるブックの中にそのまま残る: 一覧では warning、目次では同じ位置に kind unreadable と番号、読む・アクションは番号だけで断る。
-// ほかのページへのアクションは効き、読めないページの行は 1 バイトも変わらず、並びの位置も変わらない。起動し直しても同じで、ブックごと消せば行も消える
-func TestUnreadablePagesStayInAReadableBook(t *testing.T) {
+// unreadableRefs は、常駐が持つ読めない物のフォルダの並びの、中の物の id と理由の番号
+func unreadableRefs(t *testing.T, h *Hub) [][2]string {
+	t.Helper()
+	var folder struct {
+		Lineup []struct {
+			Entry struct {
+				ID string `json:"id"`
+			} `json:"entry"`
+			Code string `json:"code"`
+		} `json:"lineup"`
+	}
+	if err := json.Unmarshal(rowOf(h, storage.UnreadableID), &folder); err != nil {
+		t.Fatal(err)
+	}
+	out := [][2]string{}
+	for _, r := range folder.Lineup {
+		out = append(out, [2]string{r.Entry.ID, r.Code})
+	}
+	return out
+}
+
+// 起動すると、読めない物は在った所から読めない物のフォルダへ 1 回の書き込みで移り、行の中身は 1 バイトも変わらない。書庫からも AI からも消え（名指すと無い物として断る）、
+// warning は件数の W032 だけ。起動し直しても同じで、ふつうの書き込みのあとには移さない
+func TestUnreadableThingsMoveToTheUnreadableFolderAtStart(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data.db")
 	store, err := storage.OpenSQLite(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	putBook(t, store, withUnreadable)
+	stored := map[string]string{}
+	pages, _ := store.Pages()
+	for _, p := range pages {
+		stored[p.ID] = string(p.Body)
+	}
 	store.Close()
 	s, h := serveStore(t, path)
-	p1, q1 := rowOf(h, "p1"), rowOf(h, "q1")
-	if p1 == nil || q1 == nil {
-		t.Fatal("the rows of the unreadable pages are not there")
+	if got := unreadableRefs(t, h); !slices.Equal(got, [][2]string{{"p1", "W027"}, {"q1", "W028"}}) {
+		t.Fatalf("the unreadable folder = %v", got)
 	}
-
-	check := func(s *httptest.Server) {
-		t.Helper()
-		_, body := get(t, s.URL+"/api/ai/books", "secret")
-		if !strings.Contains(body, `"id":"f1","title":"Flow","version":`) || !strings.Contains(body, `1 page(s) are of type `) || !strings.Contains(body, `; W028 : book f1 (Flow): 1 page(s) do not fit the shape of their type`) || strings.Contains(body, `"problem"`) {
-			t.Fatalf("list_books = %s", body)
-		}
-		_, body = get(t, s.URL+"/api/ai/books/f1?outline=1", "secret")
-		var got struct {
-			Book struct {
-				Lineup []json.RawMessage `json:"lineup"`
-			} `json:"book"`
-		}
-		if err := json.Unmarshal([]byte(body), &got); err != nil || len(got.Book.Lineup) < 1 {
-			t.Fatalf("read_book = %s", body)
-		}
-		if first := string(got.Book.Lineup[0]); first != `{"kind":"unreadable","id":"p1","title":"Stamps","code":"W027","type":"@foo/stamps:board"}` {
-			t.Fatalf("read_book's first entry = %s", first)
-		}
-		if !strings.Contains(body, `"lineup":[{"kind":"unreadable","id":"q1","title":"Q1","code":"W028","type":"@matomezu/slide-book:slide"},{"kind":"page","id":"q2"`) {
-			t.Fatalf("read_book's binder = %s", body)
-		}
-		if strings.Contains(body, `"stamps"`) || strings.Contains(body, `"bad"`) {
-			t.Fatalf("read_book shows the contents of an unreadable page: %s", body)
-		}
-		for page, code := range map[string]string{"p1": "W027", "q1": "W028"} {
-			if _, body := get(t, s.URL+"/api/ai/pages/"+page, "secret"); strings.TrimSpace(body) != `{"code":"`+code+`","ok":false,"reason":"unreadable"}` {
-				t.Fatalf("read_page %s = %s", page, body)
-			}
-		}
-		// 目次でない読み方でも、読めないページは中身を見せない
-		if _, body := get(t, s.URL+"/api/ai/books/f1", "secret"); !strings.Contains(body, `{"kind":"unreadable","id":"p1","title":"Stamps","code":"W027","type":"@foo/stamps:board"}`) ||
-			!strings.Contains(body, `{"kind":"unreadable","id":"q1","title":"Q1","code":"W028","type":"@matomezu/slide-book:slide"}`) || strings.Contains(body, `"stamps"`) || strings.Contains(body, `"bad"`) {
-			t.Fatalf("read_book without outline = %s", body)
-		}
-		if _, body := get(t, s.URL+"/api/ai/pages/p2", "secret"); !strings.Contains(body, `"book":"f1"`) {
-			t.Fatalf("read_page p2 = %s", body)
+	for _, id := range []string{"p1", "q1"} {
+		if string(rowOf(h, id)) != stored[id] {
+			t.Fatalf("the row of %s changed: %s", id, rowOf(h, id))
 		}
 	}
-	check(s)
-
-	perform := func(body string) string {
-		t.Helper()
-		_, got := send(t, "POST", s.URL+"/api/ai/perform", body, writerAI(t, s.URL))
+	h.mu.Lock()
+	inside := h.inUnreadable("p1") && h.inUnreadable("q1") && !h.inUnreadable("p2")
+	book, binder := slices.Clone(h.folders["f1"].entries), slices.Clone(h.folders["d1"].entries)
+	h.mu.Unlock()
+	if !inside || !slices.Equal(book, []string{"p2", "d1", "p3"}) || !slices.Equal(binder, []string{"q2"}) {
+		t.Fatalf("in the unreadable folder %v, f1 %v, d1 %v", inside, book, binder)
+	}
+	if code, _ := get(t, s.URL+"/api/ai/pages/p1", "secret"); code != 404 {
+		t.Fatalf("read_page p1 = %d", code)
+	}
+	if _, body := get(t, s.URL+"/api/ai/books/f1", "secret"); strings.Contains(body, `"p1"`) || strings.Contains(body, `"q1"`) || strings.Contains(body, "unreadable") {
+		t.Fatalf("read_book f1 = %s", body)
+	}
+	lock := func(page string) string {
+		_, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-lock","args":{},"on":{"page":"`+page+`"}}`, writerAI(t, s.URL))
 		return got
 	}
-	// 読めないページを宛先にするアクションは、エンジンが断り、番号だけを返す。読めないページを動かすアクションも、エンジンが断る
-	if got := perform(`{"action":"@matomezu/base:page-lock","args":{},"on":{"page":"p1"}}`); got != `{"code":"W027","ok":false,"reason":"unreadable"}` {
-		t.Fatalf("page-lock on p1 = %s", got)
+	if got := lock("p1"); !strings.Contains(got, `"reason":"no-page"`) {
+		t.Fatalf("perform on a moved page = %s", got)
 	}
-	if got := perform(`{"action":"@matomezu/base:page-move","args":{"page":"p1","index":2},"on":{"book":"f1"}}`); got != `{"code":"W027","ok":false,"reason":"unreadable"}` {
-		t.Fatalf("page-move of p1 = %s", got)
+	warnings := h.Warnings()
+	if !slices.ContainsFunc(warnings, func(w string) bool { return strings.Contains(w, "W032") && strings.Contains(w, "(W027 x 1, W028 x 1)") }) ||
+		slices.ContainsFunc(warnings, func(w string) bool { return strings.HasPrefix(w, "W027") || strings.HasPrefix(w, "W028") }) {
+		t.Fatalf("warnings = %v", warnings)
 	}
-	// 読めないページを持つバインダを消すアクションは、エンジンが unreadable で断り、その読めないページの番号を返す
-	if got := perform(`{"action":"@matomezu/base:binder-remove","args":{"binder":"d1"},"on":{"book":"f1"}}`); got != `{"code":"W028","ok":false,"reason":"unreadable"}` {
-		t.Fatalf("binder-remove of d1 = %s", got)
+	before := rowOf(h, storage.UnreadableID)
+	// ふつうの書き込み（ほかのページへのアクション）のあとには移さない。テストの用意の入口でなく置いた読めないページも、そのまま
+	h.mu.Lock()
+	if _, _, err := h.replaceBookQuietly("f2", json.RawMessage(`{"id":"f2","title":"F2","lineup":[{"kind":"page","id":"x1","type":"@foo/stamps:board","title":"X","paper":"@matomezu/base:a4","orientation":"landscape"}]}`), 0); err != nil {
+		h.mu.Unlock()
+		t.Fatal(err)
 	}
-	// ほかのページへのアクション・ページを足す・入れ替えるは効く
-	for _, body := range []string{
-		`{"action":"@matomezu/base:page-lock","args":{},"on":{"page":"p2"}}`,
-		`{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/drawing:drawing","title":"P4"},"on":{"book":"f1"}}`,
-		`{"action":"@matomezu/base:page-move","args":{"page":"p3","index":1},"on":{"book":"f1"}}`,
-	} {
-		if got := perform(body); !strings.HasPrefix(got, `{"ok":true`) {
-			t.Fatalf("%s = %s", body, got)
-		}
+	h.mu.Unlock()
+	if got := lock("p2"); !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("perform on p2 = %s", got)
 	}
-	if !bytes.Equal(rowOf(h, "p1"), p1) || !bytes.Equal(rowOf(h, "q1"), q1) {
-		t.Fatalf("the rows of the unreadable pages changed: %s / %s", rowOf(h, "p1"), rowOf(h, "q1"))
+	if !bytes.Equal(rowOf(h, storage.UnreadableID), before) {
+		t.Fatalf("the unreadable folder changed by a plain write: %s", rowOf(h, storage.UnreadableID))
 	}
-	// 並びの要素の id（id だけのエントリでなければ空）
-	ids := func(folder string) []string {
-		out := []string{}
-		for _, e := range lineupOf(rowOf(h, folder)) {
-			_, id, _ := entryRef("", e)
-			out = append(out, id)
-		}
-		return out
-	}
-	if got := ids("f1"); len(got) != 5 || got[0] != "p1" || got[1] != "p3" || got[2] != "p2" || got[3] != "d1" {
-		t.Fatalf("the lineup of f1 = %s", rowOf(h, "f1"))
-	}
-	if got := ids("d1"); len(got) != 2 || got[0] != "q1" || got[1] != "q2" {
-		t.Fatalf("the lineup of d1 = %s", rowOf(h, "d1"))
-	}
-	check(s)
-
-	// 起動し直しても同じ（同じ置き場所から読み直す）
-	s2, h2 := serveStore(t, path)
-	check(s2)
-	if !bytes.Equal(rowOf(h2, "p1"), p1) || !bytes.Equal(rowOf(h2, "q1"), q1) {
-		t.Fatal("the rows of the unreadable pages changed after the restart")
-	}
-
-	// ブックごと消せば、読めないページの行も消える（鍵は利用者だけが外せるので、画面の口から外してから）
-	for _, body := range []string{
-		`{"action":"@matomezu/base:page-unlock","args":{},"on":{"page":"p2"},"lang":"ja","now":"2026-11-01T00:00:00.000Z"}`,
-		`{"action":"@matomezu/base:entry-trash","args":{"entry":"f1"},"lang":"ja","now":"2026-11-01T00:00:00.000Z"}`,
-		`{"action":"@matomezu/base:entry-purge","args":{"entries":["f1"]},"lang":"ja","now":"2026-11-01T00:00:00.000Z"}`,
-	} {
-		if _, got := postPerform(t, s2.URL, body); !strings.HasPrefix(got, `{"ok":true`) {
-			t.Fatalf("%s = %s", body, got)
-		}
-	}
-	if rowOf(h2, "p1") != nil || rowOf(h2, "q1") != nil || rowOf(h2, "f1") != nil {
-		t.Fatal("the rows of the purged book are still there")
-	}
-	if len(h2.PageWarnings()) != 0 {
-		t.Fatalf("page warnings after the purge = %v", h2.PageWarnings())
+	// 起動し直すと、まだ在った読めない物（x1）だけが移り、移っていた物はそのまま
+	s.Close()
+	h.CloseAll()
+	_, again := serveStore(t, path)
+	if got := unreadableRefs(t, again); !slices.Equal(got, [][2]string{{"p1", "W027"}, {"q1", "W028"}, {"x1", "W027"}}) {
+		t.Fatalf("the unreadable folder after starting again = %v", got)
 	}
 }
 
-// 読めないページの行を書き換える出力と、読めないページの行をそれを持つブックごとでなく消す出力は、エンジンが返しても書かない（読めないページの行はそのまま残す決まりの、後ろの守り）
-func TestAWriteThatChangesAnUnreadablePageIsRefused(t *testing.T) {
+// 先のブックと id が重なるブック（W006）は、ブックごと移る。完全に消すと、そのブックと中の物の行は置き場所から無くなり（ほかのブックと分け合うページの行は残る）、起動し直しても戻らない
+func TestAPurgedUnreadableBookDoesNotComeBack(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	store, err := storage.OpenSQLite(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := func(id, title string) string {
+		return `{"kind":"page","id":"` + id + `","type":"@matomezu/drawing:drawing","title":"` + title + `","paper":"@matomezu/base:a4","orientation":"landscape","items":[]}`
+	}
+	putBook(t, store, `{"id":"b1","title":"B1","lineup":[`+page("p1", "P1")+`]}`)
+	// b2 は b1 のページ p1 も持つ（同じ名前のページ 2 枚とバインダ）
+	v := versionsOf(t, store)
+	if err := store.Apply(storage.Batch{
+		Pages: []storage.RowWrite{{ID: "p2", Body: json.RawMessage(page("p2", "P1"))}, {ID: "q1", Body: json.RawMessage(`{"kind":"page","id":"q1","type":"@matomezu/slide-book:slide","title":"Q","paper":"@matomezu/base:a4","orientation":"landscape","items":[]}`)}},
+		Folders: []storage.RowWrite{
+			{ID: "b2", Body: json.RawMessage(`{"folderRole":"book","id":"b2","title":"B2","lineup":[{"kind":"page","id":"p1"},{"kind":"page","id":"p2"},{"kind":"binder","id":"d1"}]}`)},
+			{ID: "d1", Body: json.RawMessage(`{"folderRole":"binder","id":"d1","title":"D","pageType":"@matomezu/slide-book:slide","lineup":[{"kind":"page","id":"q1"}]}`)},
+			{ID: storage.HomeID, Base: v[storage.HomeID], Body: storage.HomeBody([]json.RawMessage{storage.RefOf("book", "b1"), storage.RefOf("book", "b2")})},
+		},
+		Entries: []storage.EntryPut{{ID: "b2", Folder: storage.HomeID}, {ID: "p2", Folder: "b2"}, {ID: "d1", Folder: "b2"}, {ID: "q1", Folder: "d1"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	store.Close()
+	s, h := serveStore(t, path)
+	if got := unreadableRefs(t, h); !slices.Equal(got, [][2]string{{"b2", "W006"}}) {
+		t.Fatalf("the unreadable folder = %v", got)
+	}
+	if _, body := get(t, s.URL+"/api/ai/books", "secret"); strings.Contains(body, `"b2"`) {
+		t.Fatalf("list_books = %s", body)
+	}
+	h.mu.Lock()
+	done, err := h.purgeUnreadable("b2")
+	notThere, _ := h.purgeUnreadable("b1")
+	h.mu.Unlock()
+	if err != nil || !done || notThere {
+		t.Fatalf("purge = %v %v, purge b1 = %v", done, err, notThere)
+	}
+	for _, id := range []string{"b2", "p2", "d1", "q1"} {
+		if rowOf(h, id) != nil {
+			t.Fatalf("the row of %s is still there", id)
+		}
+	}
+	if rowOf(h, "p1") == nil || len(unreadableRefs(t, h)) != 0 || slices.ContainsFunc(h.Warnings(), func(w string) bool { return strings.Contains(w, "W032") }) {
+		t.Fatalf("after purging: p1 %s, unreadable %v, warnings %v", rowOf(h, "p1"), unreadableRefs(t, h), h.Warnings())
+	}
+	s.Close()
+	h.CloseAll()
+	s2, again := serveStore(t, path)
+	for _, id := range []string{"b2", "p2", "d1", "q1"} {
+		if rowOf(again, id) != nil {
+			t.Fatalf("the row of %s came back", id)
+		}
+	}
+	if _, body := get(t, s2.URL+"/api/ai/books/b1", "secret"); !strings.Contains(body, `"p1"`) {
+		t.Fatalf("read_book b1 after starting again = %s", body)
+	}
+}
+
+// 読めない物のフォルダに移ったブックと id を分け合う読めるブックを、利用者がゴミ箱から消しても、分け合うページの行は消えない（移ったブックが持ち続ける）
+func TestPurgingAReadableBookKeepsThePagesAMovedBookShares(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	store, err := storage.OpenSQLite(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := `{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"P1","paper":"@matomezu/base:a4","orientation":"landscape","items":[]}`
+	putBook(t, store, `{"id":"b1","title":"B1","lineup":[`+page+`]}`)
+	v := versionsOf(t, store)
+	if err := store.Apply(storage.Batch{
+		Folders: []storage.RowWrite{
+			{ID: "b2", Body: json.RawMessage(`{"folderRole":"book","id":"b2","title":"B2","lineup":[{"kind":"page","id":"p1"}]}`)},
+			{ID: storage.HomeID, Base: v[storage.HomeID], Body: storage.HomeBody([]json.RawMessage{storage.RefOf("book", "b1"), storage.RefOf("book", "b2")})},
+		},
+		Entries: []storage.EntryPut{{ID: "b2", Folder: storage.HomeID}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	store.Close()
+	s, h := serveStore(t, path)
+	if got := unreadableRefs(t, h); !slices.Equal(got, [][2]string{{"b2", "W006"}}) {
+		t.Fatalf("the unreadable folder = %v", got)
+	}
+	perform := func(action, args string) string {
+		_, got := postPerform(t, s.URL, `{"action":"@matomezu/base:`+action+`","args":`+args+`,"lang":"ja","now":"2026-10-29T00:00:00.000Z"}`)
+		return got
+	}
+	if got := perform("entry-trash", `{"entry":"b1"}`); got != `{"ok":true,"result":{}}` {
+		t.Fatalf("trash = %s", got)
+	}
+	if got := perform("trash-empty", `{}`); got != `{"ok":true,"result":{}}` {
+		t.Fatalf("empty = %s", got)
+	}
+	h.mu.Lock()
+	place := h.places["p1"]
+	h.mu.Unlock()
+	if rowOf(h, "b1") != nil || rowOf(h, "p1") == nil || place != "b2" {
+		t.Fatalf("after emptying the trash: b1 %s, p1 %s in %q", rowOf(h, "b1"), rowOf(h, "p1"), place)
+	}
+}
+
+// アクションは、読めない物のフォルダの行と、その中の物の行を変えられない（エンジンの後ろの守り）
+func TestAWriteThatTouchesTheUnreadableFolderIsRefused(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data.db")
 	store, err := storage.OpenSQLite(path)
 	if err != nil {
@@ -203,36 +272,21 @@ func TestAWriteThatChangesAnUnreadablePageIsRefused(t *testing.T) {
 	_, h := serveStore(t, path)
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	removed := func(ids ...string) []engine.RowChange {
-		out := []engine.RowChange{}
-		for _, id := range ids {
-			out = append(out, engine.RowChange{ID: id, Removed: true})
-		}
-		return out
-	}
 	for _, out := range []engine.Output{
 		{Pages: []engine.RowChange{{ID: "p1", Row: json.RawMessage(`{"kind":"page","id":"p1"}`)}}},
-		{Pages: []engine.RowChange{{ID: "p2", Row: json.RawMessage(`{"kind":"unreadable","id":"p2","title":"","code":"W027"}`)}}},
-		{Folders: []engine.RowChange{{ID: "f1", Row: json.RawMessage(`{"id":"f1","lineup":[{"kind":"unreadable","id":"p1","title":"","code":"W027"}]}`)}}},
-		// ブックを消さずに、読めないページを消す・読めないページを持つバインダごと消す
-		{Pages: removed("p1")},
-		{Pages: removed("q1", "q2"), Folders: removed("d1")},
+		{Pages: []engine.RowChange{{ID: "q1", Removed: true}}},
+		{Folders: []engine.RowChange{{ID: storage.UnreadableID, Row: storage.UnreadableBody(nil)}}},
 	} {
-		if !h.unreadableWrite(out) {
+		if !h.touchesUnreadable(out) {
 			t.Fatalf("not refused: %+v", out)
 		}
 	}
-	whole := engine.Output{Pages: removed("p1", "p2", "q1", "q2", "p3"), Folders: removed("d1", "f1")}
-	if h.unreadableWrite(whole) {
-		t.Fatal("removing a whole book with unreadable pages was refused")
-	}
-	if h.unreadableWrite(engine.Output{Pages: []engine.RowChange{{ID: "p2", Row: json.RawMessage(`{"kind":"page","id":"p2"}`)}}}) {
+	if h.touchesUnreadable(engine.Output{Pages: []engine.RowChange{{ID: "p2", Row: json.RawMessage(`{"kind":"page","id":"p2"}`)}}}) {
 		t.Fatal("changing a readable page was refused")
 	}
 }
 
-// 追加プラグインを外すと、そのタイプのページは読めないページ（W027）になり、行は 1 バイトも変わらない。同じブックのほかのページに書いても変わらず、
-// プラグインを足し直せば、同じ行のまま読めるページに戻る
+// 追加プラグインを外すと、そのタイプのページは読めない物のフォルダへ移り、行は 1 バイトも変わらない。足し直せば、同じ行のまま元の位置に戻る
 func TestAPageComesBackWhenItsPluginIsAddedAgain(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data.db")
 	store, err := storage.OpenSQLite(path)
@@ -243,6 +297,7 @@ func TestAPageComesBackWhenItsPluginIsAddedAgain(t *testing.T) {
 		t.Fatal(err)
 	}
 	putBook(t, store, `{"id":"f1","title":"Flow","lineup":[`+
+		`{"kind":"page","id":"p0","type":"@matomezu/drawing:drawing","title":"P0","paper":"@matomezu/base:a4","orientation":"landscape","items":[]},`+
 		`{"kind":"page","id":"p1","type":"ex2:flow","title":"P1","paper":"@matomezu/base:a4","orientation":"portrait"},`+
 		`{"kind":"page","id":"p2","type":"@matomezu/drawing:drawing","title":"P2","paper":"@matomezu/base:a4","orientation":"landscape","items":[]}]}`)
 	store.Close()
@@ -251,45 +306,36 @@ func TestAPageComesBackWhenItsPluginIsAddedAgain(t *testing.T) {
 	if got := link(t, s, flow); got != `{"id":"ex2","ok":true}` {
 		t.Fatalf("link = %s", got)
 	}
-	readable := func() {
-		t.Helper()
-		if code, ok := h.UnreadablePage("p1"); ok {
-			t.Fatalf("p1 is unreadable (%s)", code)
-		}
-		if _, body := get(t, s.URL+"/api/ai/pages/p1", "secret"); !strings.Contains(body, `"book":"f1"`) {
-			t.Fatalf("read_page p1 = %s", body)
-		}
+	lineup := func() []string {
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		return slices.Clone(h.folders["f1"].entries)
 	}
-	readable()
+	if _, body := get(t, s.URL+"/api/ai/pages/p1", "secret"); !strings.Contains(body, `"book":"f1"`) || !slices.Equal(lineup(), []string{"p0", "p1", "p2"}) {
+		t.Fatalf("read_page p1 = %s, f1 %v", body, lineup())
+	}
 	original := rowOf(h, "p1")
-	if original == nil {
-		t.Fatal("the row of p1 is not there")
-	}
 
 	if _, got := send(t, "POST", s.URL+"/api/plugins/remove", `{"id":"ex2"}`, ai); got != `{"ok":true}` {
 		t.Fatalf("remove = %s", got)
 	}
-	if code, ok := h.UnreadablePage("p1"); !ok || code != "W027" {
-		t.Fatalf("p1 after removing ex2 = %q %v", code, ok)
-	}
-	if !bytes.Equal(rowOf(h, "p1"), original) {
-		t.Fatalf("the row of p1 changed when ex2 was removed: %s", rowOf(h, "p1"))
+	if got := unreadableRefs(t, h); !slices.Equal(got, [][2]string{{"p1", "W027"}}) || !slices.Equal(lineup(), []string{"p0", "p2"}) {
+		t.Fatalf("after removing ex2: unreadable %v, f1 %v", got, lineup())
 	}
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-lock","args":{},"on":{"page":"p2"}}`, writerAI(t, s.URL)); !strings.HasPrefix(got, `{"ok":true`) {
 		t.Fatalf("page-lock on p2 = %s", got)
 	}
 	if !bytes.Equal(rowOf(h, "p1"), original) {
-		t.Fatalf("the row of p1 changed by a write on p2: %s", rowOf(h, "p1"))
+		t.Fatalf("the row of p1 changed: %s", rowOf(h, "p1"))
 	}
 
 	if got := link(t, s, flow); got != `{"id":"ex2","ok":true}` {
 		t.Fatalf("link again = %s", got)
 	}
-	readable()
-	if len(h.PageWarnings()) != 0 {
-		t.Fatalf("page warnings after adding ex2 again = %v", h.PageWarnings())
+	if got := unreadableRefs(t, h); len(got) != 0 || !slices.Equal(lineup(), []string{"p0", "p1", "p2"}) || !bytes.Equal(rowOf(h, "p1"), original) {
+		t.Fatalf("after adding ex2 again: unreadable %v, f1 %v, p1 %s", got, lineup(), rowOf(h, "p1"))
 	}
-	if !bytes.Equal(rowOf(h, "p1"), original) {
-		t.Fatalf("the row of p1 changed when ex2 was added again: %s", rowOf(h, "p1"))
+	if _, body := get(t, s.URL+"/api/ai/pages/p1", "secret"); !strings.Contains(body, `"book":"f1"`) {
+		t.Fatalf("read_page p1 after adding ex2 again = %s", body)
 	}
 }

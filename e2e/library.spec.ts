@@ -715,23 +715,24 @@ test("書庫の検索の結果を押すと、ツリーがはみ出していて�
 })
 
 test.describe("ブックごと読めないブック", () => {
-  // 並びが並びの形でない（W005）ブック。書庫の表に行が無く、名前は読めない訳に残る
+  // 並びが並びの形でない（W005）ブック。読めない物のフォルダへ移り、書庫に入らない
   test.use({ books: [{ id: "broken-1", title: "壊れたブック", lineup: "no" }] })
 
-  test("書庫の右の枠とツリーに、読めない訳に残った名前と「読めません」が出る", async ({ page }) => {
+  test("書庫の右の枠にもツリーにも出ない", async ({ page }) => {
     await page.goto("/")
     await page.bringToFront()
     await page.getByRole("button", { name: "書庫", exact: true }).first().click()
-    const row = page.getByRole("list", { name: "書庫 の中身" }).getByRole("button", { name: /壊れたブック/ })
-    await expect(row).toContainText("読めません")
+    const list = page.getByRole("list", { name: "書庫 の中身" })
+    await expect(list.getByRole("button", { name: /ドキュメント/ })).toBeVisible()
+    await expect(list.getByRole("button", { name: /壊れたブック/ })).toHaveCount(0)
     await expect(
       page.getByRole("navigation", { name: "フォルダ" }).getByRole("button", { name: /壊れたブック/ }),
-    ).toBeVisible()
+    ).toHaveCount(0)
   })
 })
 
 test.describe("読めないページ", () => {
-  // 今の機能台帳に無いタイプのページ（外したプラグインのページのつもり）
+  // 今の機能台帳に無いタイプのページ（外したプラグインのページのつもり）。読めない物のフォルダへ移り、ブックには読めるページだけが残る
   const gone = {
     kind: "page",
     id: "gone-1",
@@ -743,7 +744,7 @@ test.describe("読めないページ", () => {
   const mixed = testBook("mixed", "混ざったブック", [drawingPage("mixed-p1")])
   test.use({ books: [{ ...mixed, lineup: [...mixed.lineup, gone] }] })
 
-  test("書庫で読めないページの行を Enter で開くと、ブックの窓が開き、読めないことを見せる", async ({ page }) => {
+  test("書庫のブックの中身に出ず、ブックのページタブにも出ない", async ({ page }) => {
     await page.goto("/")
     await page.bringToFront()
     await page.getByRole("button", { name: "書庫", exact: true }).first().click()
@@ -751,11 +752,11 @@ test.describe("読めないページ", () => {
       .getByRole("navigation", { name: "フォルダ" })
       .getByRole("button", { name: "混ざったブック", exact: true })
       .click()
-    const row = page.getByRole("list", { name: "混ざったブック の中身" }).getByRole("button", { name: /外したタイプ/ })
-    await expect(row).toContainText("読めません")
-    await row.click()
-    await page.keyboard.press("Enter")
+    const list = page.getByRole("list", { name: "混ざったブック の中身" })
+    await expect(list.getByRole("button")).toHaveCount(1)
+    await expect(list.getByRole("button", { name: /外したタイプ/ })).toHaveCount(0)
+    await list.getByRole("button").first().dblclick()
     await expect.poll(() => urlFront(page)).toBe(BOOK_SCREEN_DEF)
-    await expect(page.locator("[data-unreadable-page]")).toContainText("このページは読めません")
+    await expect(page.getByRole("tab")).toHaveCount(1)
   })
 })

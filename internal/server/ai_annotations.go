@@ -28,7 +28,7 @@ func (h *Hub) annotatedBooks(ids []string) ([]engine.AnnotatedBook, []string) {
 	for _, id := range ids {
 		e, ok := h.books[id]
 		lists := h.annotationsIn(id)
-		if !ok || h.inTrash(id) || len(lists) == 0 {
+		if !ok || h.outOfSight(id) || len(lists) == 0 {
 			continue
 		}
 		pairs = append(pairs, engine.AnnotatedBook{Book: e.body, Annotations: lists})
