@@ -262,14 +262,14 @@ test("ページのタブの右クリックの「複製」で図のページを�
 }) => {
   await page.goto(BOOK_SCREEN_URL)
   const tabs = page.getByRole("tab")
-  const before = await tabs.count()
+  await expect(tabs).toHaveCount(1)
   await tabs.first().click({ button: "right" })
   await page.getByRole("menuitem", { name: "複製" }).click()
-  await expect(tabs).toHaveCount(before + 1)
+  await expect(tabs).toHaveCount(2)
   // 写したページが開いている。そこにデータを置くと、複製できない
   await addData(page)
   await page.getByRole("tab", { selected: true }).click({ button: "right" })
   await page.getByRole("menuitem", { name: "複製" }).click()
   await expect(page.getByText("コピーできない形があります")).toBeVisible()
-  await expect(tabs).toHaveCount(before + 1)
+  await expect(tabs).toHaveCount(2)
 })
