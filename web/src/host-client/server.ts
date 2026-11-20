@@ -153,23 +153,24 @@ export function viewOf(catalog: CoreCatalog, state: MatomezuState) {
 }
 
 // 利用者が直している物（useEditLock）を、ページかブックの id → その中の物の id の並びにまとめたもの（常駐はこれを変える AI のアクションを断る）
-export function editLocksOf(state: MatomezuState): Record<string, string[]> {
-  const locks: Record<string, string[]> = {}
-  for (const l of Object.values(state.editLocks)) {
-    if (!("within" in l)) continue
-    const now = locks[l.within] ?? []
-    locks[l.within] = [...now, ...l.ids.filter(id => !now.includes(id))]
-  }
-  return locks
-}
+export const editLocksOf = (state: MatomezuState): Record<string, string[]> =>
+  groupLocks(state, l => ("within" in l ? l.within : undefined))
 
 // 利用者が直しているレコード（useRecordEditLock）を、対象の種類の id → レコードの id の並びにまとめたもの（常駐はこれを変える AI のアクションを断る）
-export function recordLocksOf(state: MatomezuState): Record<string, string[]> {
+export const recordLocksOf = (state: MatomezuState): Record<string, string[]> =>
+  groupLocks(state, l => ("subject" in l ? l.subject : undefined))
+
+// 利用者が直している物を、keyOf が答えた id ごとに、直している物の id の並び（重なりを除く）にまとめる（答えない物は入れない）
+function groupLocks(
+  state: MatomezuState,
+  keyOf: (lock: MatomezuState["editLocks"][string]) => string | undefined,
+): Record<string, string[]> {
   const locks: Record<string, string[]> = {}
   for (const l of Object.values(state.editLocks)) {
-    if (!("subject" in l)) continue
-    const now = locks[l.subject] ?? []
-    locks[l.subject] = [...now, ...l.ids.filter(id => !now.includes(id))]
+    const key = keyOf(l)
+    if (key === undefined) continue
+    const now = locks[key] ?? []
+    locks[key] = [...now, ...l.ids.filter(id => !now.includes(id))]
   }
   return locks
 }

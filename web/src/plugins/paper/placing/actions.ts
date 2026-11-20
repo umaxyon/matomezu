@@ -29,7 +29,7 @@ import { kit } from "../kit"
 import { pasted } from "./clip"
 import { ancestorsOf, CROWD_AI, CrowdSchema, crowded, movedShapes, NO_FREE_SPOT, PointSchema } from "./crowd"
 import { DIRS } from "./drag"
-import { freeAt, moveItems, parsePlaced, subtreeOf } from "./items"
+import { freeAt, moveItems, parsePlaced, sizedTo, subtreeOf } from "./items"
 
 // 項目を変えたあとに形が中身を整えるメソッド（定義オブジェクトの拡張ポイントに、紙のプラグインの id を頭に付けて書き足す）。
 // before は変える前の形。無ければそのまま
@@ -300,10 +300,7 @@ export const ITEM_RESIZE = kit.defineAction({
     const widthOnly = stretch === "width"
     const moved = { ...now, x: args.x ?? now.x, y: widthOnly ? now.y : (args.y ?? now.y) }
     const wanted = { w: args.w ?? size.w, h: widthOnly || stretch === "ratio" ? size.h : (args.h ?? size.h) }
-    const resized = parsePlaced(
-      ctx.catalog,
-      def?.resizedTo ? (def.resizedTo(moved as ShapeData, wanted) as PlacedShape) : { ...moved, ...wanted },
-    )
+    const resized = parsePlaced(ctx.catalog, sizedTo(ctx.catalog, moved, wanted))
     // 項目に写した形は、求めた幅になったか（切り上げの 1px は許す）
     const got = resized && def?.resizedTo ? placedSize(ctx.catalog, resized) : null
     if (got && Math.abs(got.w - wanted.w) > 1) return null

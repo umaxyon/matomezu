@@ -3,15 +3,13 @@
 import { useLayoutEffect, useRef, useState } from "react"
 import type { PlacedShape, Rect } from "../../../../plugin-api"
 import { useAnchorRef } from "../../../base/ui"
-import { fittedRect } from "../rect"
+import { fittedRect, rotationOf } from "../rect"
 import { DEFAULT_FONT_SIZE, TEXT_LINE_HEIGHT } from "../slide"
 import face from "../TextFace.module.css"
 import { textFitSize, wrapsIn } from "../text-fit"
 import { useSlideItemView } from "./item-view"
+import { SlideItemBox } from "./SlideItemBox"
 import styles from "./SlideLayer.module.css"
-
-export const shapeProps = (shape: PlacedShape): Record<string, unknown> => shape.props as Record<string, unknown>
-export const rotationOf = (shape: PlacedShape): number => (shapeProps(shape).rotation as number | undefined) ?? 0
 
 export interface SlideItemEdit {
   editing: boolean
@@ -29,19 +27,14 @@ export function SlideItem({ shape, zoom, edit }: { shape: PlacedShape; zoom: num
   const size = { w: rect.w, h: rect.h }
   const rotation = rotationOf(shape)
   return (
-    <div
-      ref={edit ? anchor(shape.id) : undefined}
-      data-item={edit ? shape.id : undefined}
+    <SlideItemBox
+      rect={rect}
+      rotation={rotation}
+      tokens={tokens}
       className={styles.item}
-      style={{
-        ...tokens,
-        left: rect.x,
-        top: rect.y,
-        width: size.w,
-        height: size.h,
-        transform: rotation ? `rotate(${rotation}deg)` : undefined,
-        cursor: edit ? undefined : "default",
-      }}
+      ref={edit ? anchor(shape.id) : undefined}
+      item={edit ? shape.id : undefined}
+      cursor={edit ? undefined : "default"}
     >
       {edit && editing ? (
         <TextEditor
@@ -60,7 +53,7 @@ export function SlideItem({ shape, zoom, edit }: { shape: PlacedShape; zoom: num
       ) : (
         View && <View props={shape.props} size={size} id={shape.id} content={{}} zoom={zoom} hasChildren={false} />
       )}
-    </div>
+    </SlideItemBox>
   )
 }
 

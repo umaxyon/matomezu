@@ -431,6 +431,10 @@ export interface ActionDef<
   run(subject: RunSubject<T, At>, args: A, ctx: ActionContext): Done<T, R> | Declined | null
 }
 
+// ブック自身だけを変えるアクションか（ブックが対象で、許可スコープが "book"）。ページを名指さないので、ページのタイプでは使えるかが決まらない
+export const changesBookOnly = (def: Pick<ActionDef, "target" | "permissionScope">): boolean =>
+  def.target === "book" && def.permissionScope === "book"
+
 // タイプに依らない付く先の書き方は、対象で決まる: ページが対象のアクションは pages、ほかは books（もう一方は型の誤り）
 export type AttachFor<T extends ActionTarget> = T extends "page"
   ? { attach?: { books?: never } }
