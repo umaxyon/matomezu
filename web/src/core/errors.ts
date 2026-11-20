@@ -122,6 +122,7 @@ export const ERRORS = {
   E401: "the server could not give the data: {status}",
   E402: "the server does not know this browser (run matomezu open in a terminal)",
   E403: "the server could not search: {status}",
+  E404: "this window cannot write to the clipboard",
 } as const
 
 export type ErrorCode = keyof typeof ERRORS

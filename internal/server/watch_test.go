@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/umaxyon/matomezu/internal/aiwire"
 )
 
 // windowPerform は、窓 c1 からアクションを行う（窓のアクションだけが AI を起こす）
@@ -25,7 +27,7 @@ func joinFrom(t *testing.T, url, link, host string) string {
 // joinFromSession は、プロセス id host・立てたときのセッション id session の AI として参加を頼み、参加の id を返す
 func joinFromSession(t *testing.T, url, link, host, session string) string {
 	t.Helper()
-	got, _ := call(t, "POST", url+"/api/ai/join", `{"ai":"claude","model":"opus","env":"wsl-linux","link":"`+link+`"}`, map[string]string{HostHeader: host, HostSessionHeader: session})
+	got, _ := call(t, "POST", url+"/api/ai/join", `{"ai":"claude","model":"opus","env":"wsl-linux","link":"`+link+`"}`, map[string]string{aiwire.HostHeader: host, aiwire.HostSessionHeader: session})
 	var joined Joined
 	if json.Unmarshal([]byte(got), &joined) != nil || joined.Participant == "" {
 		t.Fatalf("join = %s", got)

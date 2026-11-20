@@ -114,39 +114,33 @@ func (h *Hub) AIRecords(q RecordsQuery) (out json.RawMessage, refusal string, ok
 		}
 		limit = n
 	}
-	names := make([]string, 0, len(kind.Keys))
-	types := map[string]string{}
-	for _, k := range kind.Keys {
-		names = append(names, k.Name)
-		types[k.Name] = k.Type
-	}
-	noKey := func(name string) string {
-		return fmt.Sprintf("%s is not an index key of this kind (its index keys: %s)", name, strings.Join(names, ", "))
-	}
+	keys := keyIndexOf(kind)
 	find := storage.Query{KeysOnly: true, Order: &storage.Order{Key: kind.AIList.Order.Key, Desc: kind.AIList.Order.Dir == "desc"}}
 	for _, name := range slices.Sorted(maps.Keys(q.Where)) {
+		typ, refusal := keys.typeOf(name, "this kind")
+		if refusal != "" {
+			return nil, refusal, true, nil
+		}
 		value := q.Where[name]
-		switch types[name] {
-		case "text":
-			find.Where = append(find.Where, storage.Cond{Key: name, Op: "eq", Value: value})
-		case "number":
+		if typ == "number" {
 			n, err := strconv.ParseFloat(value, 64)
 			if err != nil {
 				return nil, fmt.Sprintf("%s is a number", name), true, nil
 			}
 			find.Where = append(find.Where, storage.Cond{Key: name, Op: "eq", Value: n})
-		default:
-			return nil, noKey(name), true, nil
+			continue
 		}
+		find.Where = append(find.Where, storage.Cond{Key: name, Op: "eq", Value: value})
 	}
 	for _, name := range slices.Sorted(maps.Keys(q.Is)) {
-		if _, has := types[name]; !has {
-			return nil, noKey(name), true, nil
+		if _, refusal := keys.typeOf(name, "this kind"); refusal != "" {
+			return nil, refusal, true, nil
 		}
-		if q.Is[name] != "absent" && q.Is[name] != "present" {
-			return nil, "is takes absent or present", true, nil
+		cond, refusal := isCond(name, q.Is[name])
+		if refusal != "" {
+			return nil, refusal, true, nil
 		}
-		find.Where = append(find.Where, storage.Cond{Key: name, Op: q.Is[name]})
+		find.Where = append(find.Where, cond)
 	}
 	found, err := h.store.Find(q.Kind, find)
 	if err != nil {
@@ -205,20 +199,15 @@ func indexWhere(kind engine.Kind, where map[string]string) (map[string]string, s
 	if len(where) == 0 {
 		return where, ""
 	}
-	types := map[string]string{}
-	names := make([]string, 0, len(kind.Keys))
-	for _, k := range kind.Keys {
-		types[k.Name] = k.Type
-		names = append(names, k.Name)
-	}
-	if len(names) == 0 {
+	keys := keyIndexOf(kind)
+	if len(keys.names) == 0 {
 		return nil, "this kind has no index keys, so it takes no where"
 	}
 	out := map[string]string{}
 	for _, name := range slices.Sorted(maps.Keys(where)) {
-		typ, has := types[name]
-		if !has {
-			return nil, fmt.Sprintf("%s is not an index key of this kind (its index keys: %s)", name, strings.Join(names, ", "))
+		typ, refusal := keys.typeOf(name, "this kind")
+		if refusal != "" {
+			return nil, refusal
 		}
 		value := where[name]
 		if typ == "number" {

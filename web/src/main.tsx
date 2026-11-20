@@ -1,5 +1,6 @@
 // 画面の入口: ホストクライアント（ホストに頼むもの）から残したブックと設定を読み、ビルトインプラグインと見た目でインスタンスを作り、React の根に Screen を描く。行ったアクションと外の変化はホストクライアントを通してやり取りし、画面の場所は URL と行き来させる。
-// 常駐につながらないときは、つながるまで待つ（起動の失敗なので画面には出さない）。
+// 常駐につながらないときは、つながるまで待つ（起動の失敗なので画面には出さない）。常駐がこのブラウザを知らないときは、ブックも設定も読まずに
+// ビルトインプラグインだけでインスタンスを作り、開き方の案内の UI マッピングで描いて止める（常駐ともブラウザの URL ともやり取りしない）。
 // ホストが足した追加プラグインも、ホストクライアントが読んだものをビルトインプラグインの後ろに足す。追加プラグインが借りる実物（plugin-modules）は、読む前に globalThis.__matomezuModules に置く
 
 import { StrictMode } from "react"
@@ -9,9 +10,10 @@ import { warning } from "./core/warnings"
 import { followLocation } from "./host-client/location"
 import { openClient } from "./host-client/open"
 import { followPrint } from "./host-client/print"
+import { browserWindowIo } from "./host-client/window-io"
 import { UI_MODULES } from "./plugin-modules/ui"
 import { BUILTIN_CONTROL_CENTER } from "./plugins"
-import { BUILTIN_UI, DEFAULT_LAYOUT } from "./plugins/ui"
+import { BUILTIN_UI, DEFAULT_LAYOUT, UNKNOWN_BROWSER_LAYOUT } from "./plugins/ui"
 import { createMatomezu } from "./store/create"
 import { loadFonts } from "./ui/fonts"
 import { placeAdded, placeAddedWithWarnings } from "./ui/layout"
@@ -22,7 +24,10 @@ import "./ui/skin.css"
 
 loadFonts()
 ;(globalThis as { __matomezuModules?: unknown }).__matomezuModules = UI_MODULES
-const { client, loaded: saved } = await openClient()
+const root = document.getElementById("root")
+if (!root) fail("E202")
+const opened = await openClient()
+const { client, loaded: saved } = opened.state === "opened" ? opened : await showOpenGuide(root)
 const store = createMatomezu({
   plugins: BUILTIN_UI,
   controlCenter: BUILTIN_CONTROL_CENTER,
@@ -33,6 +38,7 @@ const store = createMatomezu({
   aiEditTicket: change => client.reportAIEditTicket(change),
   visible: () => client.visible(),
   search: query => client.search(query),
+  ...browserWindowIo(),
 })
 // 取り込んだ追加プラグインは、matomezu 本体の core/catalog.ts の型に入らないので、型では確かめず、台帳アセンブルで確かめる（見た目と、置いた UI マッピングも）。
 // 読み込めないもの・台帳アセンブルで食い違うもの・UI マッピングが食い違うものは外す（ほかのプラグインとブックは使える）
@@ -58,8 +64,6 @@ store.startWindow()
 followLocation(store)
 // 画面が頼んだら、ブラウザの印刷ダイアログで刷る
 followPrint(store)
-const root = document.getElementById("root")
-if (!root) fail("E202")
 
 createRoot(root).render(
   <StrictMode>
@@ -68,3 +72,16 @@ createRoot(root).render(
     </MatomezuProvider>
   </StrictMode>,
 )
+
+// 開き方の案内を描いて止める（戻らない）。ブックも設定も読まず、ビルトインプラグインだけでインスタンスを作る
+async function showOpenGuide(at: HTMLElement): Promise<never> {
+  const guide = createMatomezu({ plugins: BUILTIN_UI, lang: navigator.languages, ...browserWindowIo() })
+  createRoot(at).render(
+    <StrictMode>
+      <MatomezuProvider instance={guide} layout={UNKNOWN_BROWSER_LAYOUT} warnings={[]}>
+        <WindowRoot />
+      </MatomezuProvider>
+    </StrictMode>,
+  )
+  return new Promise<never>(() => {})
+}

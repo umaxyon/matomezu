@@ -38,26 +38,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/umaxyon/matomezu/internal/aiwire"
 	"github.com/umaxyon/matomezu/internal/engine"
-)
-
-const (
-	// ParticipantHeader は、MCP が参加の id を添えるヘッダ
-	ParticipantHeader = "X-Matomezu-Participant"
-	// NoticeHeader は、常駐が AI への知らせを返すヘッダ（値は URL エンコード）
-	NoticeHeader = "X-Matomezu-Notice"
-	// BranchHeader は、MCP が git のブランチを添えるヘッダ（値は URL エンコード。参加の id を添えるときはいつも添え、空はブランチが無い）
-	BranchHeader = "X-Matomezu-Branch"
-	// HostHeader は、MCP が AI のプログラムのプロセス id を添えるヘッダ
-	HostHeader = "X-Matomezu-Host"
-	// HostSessionHeader は、MCP が、AI のプログラムが MCP を立てたときのセッション id を添えるヘッダ（分かるときだけ。起こす知らせの宛て先。watch.go）
-	HostSessionHeader = "X-Matomezu-Host-Session"
-	// SessionPidHeader は、MCP が、セッションと同じだけ生きるプロセスの id を名乗るヘッダ（居なくなればセッションが終わった。名乗らない MCP の参加者は、プロセスでは見ない）
-	SessionPidHeader = "X-Matomezu-Session-Pid"
-	// SessionPidSpaceHeader は、セッションのプロセスを名乗った MCP が、プロセス id が通じる範囲の印を添えるヘッダ（常駐が同じ印のときだけ、居るかを確かめる）
-	SessionPidSpaceHeader = "X-Matomezu-Session-Pid-Space"
-	// ModelHeader は、MCP が、呼び出しが運んだモデルを添えるヘッダ（値は URL エンコード。無ければ添えない）
-	ModelHeader = "X-Matomezu-Model"
 )
 
 // participantNote は参加者 1 人の、常駐だけが持つ記録
@@ -515,13 +497,13 @@ type CallerSays struct {
 
 // callerSays は、呼び出しのヘッダから MCP が添えたものを読む
 func callerSays(header http.Header) CallerSays {
-	says := CallerSays{Host: header.Get(HostHeader), SessionPid: header.Get(SessionPidHeader), SessionPidSpace: header.Get(SessionPidSpaceHeader)}
-	if v := header.Get(ModelHeader); v != "" {
+	says := CallerSays{Host: header.Get(aiwire.HostHeader), SessionPid: header.Get(aiwire.SessionPidHeader), SessionPidSpace: header.Get(aiwire.SessionPidSpaceHeader)}
+	if v := header.Get(aiwire.ModelHeader); v != "" {
 		if m, err := url.QueryUnescape(v); err == nil {
 			says.Model = m
 		}
 	}
-	if v, ok := header[BranchHeader]; ok {
+	if v, ok := header[aiwire.BranchHeader]; ok {
 		says.BranchSent = true
 		if len(v) > 0 {
 			if b, err := url.QueryUnescape(v[0]); err == nil {
@@ -629,8 +611,8 @@ func (h *Hub) Called(id string, says CallerSays, now time.Time) string {
 // ai は /api/ai の口を包む。合言葉を確かめたあと（auth）、参加の id・ブランチ・AI のプログラムのプロセス id のヘッダを読んで常駐だけが持つ参加者の記録を更新し、知らせがあれば返事のヘッダに付ける
 func (o Options) ai(h http.HandlerFunc) http.Handler {
 	return o.auth(func(w http.ResponseWriter, r *http.Request) {
-		if notice := o.Hub.Called(r.Header.Get(ParticipantHeader), callerSays(r.Header), time.Now()); notice != "" {
-			w.Header().Set(NoticeHeader, url.QueryEscape(notice))
+		if notice := o.Hub.Called(r.Header.Get(aiwire.ParticipantHeader), callerSays(r.Header), time.Now()); notice != "" {
+			w.Header().Set(aiwire.NoticeHeader, url.QueryEscape(notice))
 		}
 		h(w, r)
 	})
@@ -641,11 +623,11 @@ func (o Options) aiJoin(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &req) {
 		return
 	}
-	req.Participant = r.Header.Get(ParticipantHeader)
-	req.Host = r.Header.Get(HostHeader)
-	req.HostSession = r.Header.Get(HostSessionHeader)
-	req.SessionPid = r.Header.Get(SessionPidHeader)
-	req.SessionPidSpace = r.Header.Get(SessionPidSpaceHeader)
+	req.Participant = r.Header.Get(aiwire.ParticipantHeader)
+	req.Host = r.Header.Get(aiwire.HostHeader)
+	req.HostSession = r.Header.Get(aiwire.HostSessionHeader)
+	req.SessionPid = r.Header.Get(aiwire.SessionPidHeader)
+	req.SessionPidSpace = r.Header.Get(aiwire.SessionPidSpaceHeader)
 	done, err := o.Hub.AIJoin(req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

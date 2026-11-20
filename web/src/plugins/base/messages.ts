@@ -16,6 +16,7 @@ import { MARK_MESSAGES } from "./mark/messages"
 import { MARKDOWN_DOCUMENT_MESSAGES } from "./markdown/messages"
 import { MINIMAP_MESSAGES } from "./minimap/messages"
 import { NOTE_MESSAGES } from "./note/messages"
+import { OPEN_GUIDE_MESSAGES } from "./open-guide/messages"
 import { OUTBOX_MESSAGES } from "./outbox/messages"
 import { PAGE_MESSAGES } from "./page-tabs/messages"
 import { PARTICIPANT_MESSAGES } from "./participant/messages"
@@ -72,4 +73,5 @@ export const BASE_MESSAGES = joinMessages(
   CORNER_MESSAGES,
   ASK_MESSAGES,
   HISTORY_MESSAGES,
+  OPEN_GUIDE_MESSAGES,
 )

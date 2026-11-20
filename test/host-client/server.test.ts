@@ -3,6 +3,7 @@ import { pagesOf } from "../../web/src/core/book"
 import { HOME_ID, recordsOf, TRASH_ID } from "../../web/src/core/folders"
 import type { Book } from "../../web/src/core/schema/book"
 import { screenOf } from "../../web/src/core/window"
+import { openClient } from "../../web/src/host-client/open"
 import { type Events, NoServer, OFFLINE_MS, QUIET_MS, serverClient } from "../../web/src/host-client/server"
 import { drawingPage, testBook } from "../lineup"
 import { SAMPLE_BOOKS } from "../sample-books"
@@ -217,6 +218,17 @@ test("画面 cookie を持たないブラウザは、読めずに、画面 cooki
   const again = s.host.load()
   s.fail()
   await expect(again).rejects.toBeInstanceOf(NoServer)
+})
+
+test("常駐がこのブラウザを知らない（E402）なら、openClient は読まずに unknown-browser を返し、画面には何も描かない", async () => {
+  const s = fakeServer()
+  s.answer.read = () => 403
+  s.answer.data = "cookie-required"
+  const before = document.body.innerHTML
+  const opening = openClient(() => s.host)
+  s.fail()
+  expect(await opening).toEqual({ state: "unknown-browser" })
+  expect(document.body.innerHTML).toBe(before)
 })
 
 test("読むと、置いてあるブックと設定を返す", async () => {

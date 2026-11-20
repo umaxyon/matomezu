@@ -72,6 +72,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/umaxyon/matomezu/internal/aiwire"
 	"github.com/umaxyon/matomezu/internal/engine"
 )
 
@@ -545,7 +546,7 @@ func (o Options) aiPerform(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	one := performOne(p.Action, p.Args, p.On)
-	one.By, one.Participant, one.TimeoutSec = "ai", r.Header.Get(ParticipantHeader), p.TimeoutSec
+	one.By, one.Participant, one.TimeoutSec = "ai", r.Header.Get(aiwire.ParticipantHeader), p.TimeoutSec
 	done, err := o.Hub.Perform(one)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -572,7 +573,7 @@ func (o Options) aiShow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	o.waitLatest()
-	if reason, detail := o.Hub.showRefusal(r.Header.Get(ParticipantHeader)); reason != "" {
+	if reason, detail := o.Hub.showRefusal(r.Header.Get(aiwire.ParticipantHeader)); reason != "" {
 		writeJSON(w, map[string]any{"ok": false, "reason": reason, "detail": detail})
 		return
 	}
