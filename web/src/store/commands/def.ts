@@ -6,7 +6,7 @@ import type { CoreCatalog } from "../../core/core-catalog"
 import { ANY_PAGE_TYPE, type ArgsOfType, type Where } from "../../core/def/action"
 import type { PluginStateDef, PluginStateRead } from "../../core/def/plugin-state"
 import { fail } from "../../core/errors"
-import type { Folders } from "../../core/folders"
+import type { Folders, UnreadableItem } from "../../core/folders"
 import type { Point } from "../../core/geom"
 import type { History } from "../../core/history"
 import type { MessageKey } from "../../core/i18n/i18n"
@@ -138,6 +138,20 @@ export const arrangementValueIn = (ctx: ScreenCommandContext): unknown => frames
 
 // コマンドの文脈 ctx の、呼ばれた場所のスクリーンの id（store が、スクリーンごとのプラグイン状態の置き場に使う）
 export const calledScreenIdOf = (ctx: ScreenCommandContext): string => frames.get(ctx)?.here ?? fail("E116")
+
+// コマンドの文脈ごとの、読めない物のフォルダの直下の物（書庫の表 folders に入らず、プラグイン API にも出さない。base の書庫のコマンドが unreadableItemsIn で読む）
+const unreadableItems = new WeakMap<ScreenCommandContext, readonly UnreadableItem[]>()
+
+// ctx に、読めない物のフォルダの直下の物 items を結ぶ（ctx を返す）
+export function withUnreadableItems<C extends ScreenCommandContext>(ctx: C, items: readonly UnreadableItem[]): C {
+  unreadableItems.set(ctx, items)
+  return ctx
+}
+
+// コマンドの文脈 ctx の、読めない物のフォルダの直下の物（並びの順。withUnreadableItems を通した文脈だけが持つ）
+export const unreadableItemsIn = (ctx: ScreenCommandContext): readonly UnreadableItem[] =>
+  unreadableItems.get(ctx) ?? NO_UNREADABLE_ITEMS
+const NO_UNREADABLE_ITEMS: readonly UnreadableItem[] = []
 
 // コマンドの文脈ごとの、ステージの並びと道具（表示領域の大きさ・道具のアイコンなども持つので、プラグイン API の文脈のフィールドにはしない。base のコマンドが workspaceOf で読む）と、
 // 開けるブックの一覧（base のコマンドが booksOf で読む）。

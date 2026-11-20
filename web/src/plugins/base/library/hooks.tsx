@@ -1,7 +1,7 @@
 // 書庫の画面のビューが共に使うフック: 書庫の表から出した行を同じ値のまま保つ・行の名前・焦点を中に保つ
 import { type RefObject, useEffect, useRef } from "react"
 import { type EntryKind, type Naming, namingOf } from "../../../core/entries"
-import { type BROKEN, HOME_ID, type Library, TRASH_ID } from "../../../core/folders"
+import { type BROKEN, HOME_ID, type Library, TRASH_ID, UNREADABLE_ID } from "../../../core/folders"
 import { sameData } from "../../../core/same"
 import type { MovedIfOff } from "../../../core/unreadable"
 import { useMessages } from "../../../ui/i18n"
@@ -51,13 +51,14 @@ export function useFolderEntries(folder: string): readonly FolderEntry[] | undef
   return useMatomezuState(s => s.folders[folder] !== undefined) ? entries : undefined
 }
 
-// 行の名前: 書庫ホームとゴミ箱は画面の言葉、ブックごと読めないブックは読めない訳に残った名前、名前の無い物は id を添える
+// 行の名前: 書庫ホームとゴミ箱と読めない物のフォルダは画面の言葉、ブックごと読めないブックは読めない訳に残った名前、名前の無い物は id を添える
 export function useNameOf(): (row: Pick<LibraryRow, "id" | "title">) => string {
   const t = useMessages(kit)
   const unreadable = useMatomezuState(s => s.unreadable)
   return row => {
     if (row.id === HOME_ID) return t("Library")
     if (row.id === TRASH_ID) return t("Trash")
+    if (row.id === UNREADABLE_ID) return t("Unreadable")
     if (row.title !== NO_TITLE) return row.title
     // ブックごと読めないブックは書庫の表に行が無いので、読めない訳（warning）に残った名前
     const title = unreadable.find(w => w.params.book === row.id)?.params.title

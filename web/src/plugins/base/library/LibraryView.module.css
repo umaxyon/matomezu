@@ -33,6 +33,21 @@
   padding: 6px;
   overflow: auto;
 }
+/* ツリーの下の「⚠ 読めない物 N 件」: 押すと読めない物のフォルダを開く */
+.unreadableNotice {
+  flex: none;
+  padding: 6px 12px;
+  border: 0;
+  border-top: 1px solid var(--skin-border);
+  background: none;
+  color: var(--skin-palette-warn); /* 外観枠の代表色の warn */
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.unreadableNotice:hover {
+  text-decoration: underline;
+}
 /* 検索の結果: 1 行に、種類のアイコン・名前・置き場所 */
 .found {
   display: flex;

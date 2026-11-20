@@ -4,13 +4,19 @@
 import { type MouseEvent, useEffect, useId, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { type Naming, namingOf, titleOf } from "../../../core/entries"
-import { HOME_ID, TRASH_ID } from "../../../core/folders"
+import { HOME_ID, TRASH_ID, UNREADABLE_ID } from "../../../core/folders"
 import type { MatomezuState } from "../../../store/store"
 import { useCommand } from "../../../ui/commands"
 import { useContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useMatomezuState, useReadState } from "../../../ui/store-context"
-import { useActions, usePluginState, useReadPluginState, useSetPluginState } from "../../../ui/view-hooks"
+import {
+  useActions,
+  usePluginState,
+  useReadPluginState,
+  useSetPluginState,
+  useUserSetting,
+} from "../../../ui/view-hooks"
 import { ActionButton, controlClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { useColumnsMeasure } from "./arrows"
@@ -41,25 +47,30 @@ import {
   pathTo,
   rowsIn,
   tabStopOf,
+  topIdsOf,
   treeCurrentOf,
   treeRowsOf,
   unfoldable,
   unfoldedOf,
 } from "./outline"
 import { type FoundRow, NO_SEARCH, searchWord } from "./search"
+import { SHOW_UNREADABLE_FOLDER } from "./show-unreadable"
 import { LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_QUERY, LIBRARY_UNFOLDED } from "./state"
 import { TrashView } from "./TrashView"
 import { type LibraryDrag, useLibraryDrag } from "./useLibraryDrag"
 
-// 一番上に並ぶフォルダの行（書庫ホームとゴミ箱。名前は画面が付ける）
-const TOPS: readonly LibraryRow[] = [HOME_ID, TRASH_ID].map(id => ({
-  kind: "folder",
-  id,
-  title: NO_TITLE,
-  type: NO_TYPE,
-  readable: true,
-  locked: false,
-}))
+// 一番上に並ぶフォルダの行（書庫ホームとゴミ箱と、設定がオンなら読めない物のフォルダ。名前は画面が付ける）
+const topRowsOf = (unreadableShown: boolean): readonly LibraryRow[] =>
+  topIdsOf(unreadableShown).map(id => ({
+    kind: "folder",
+    id,
+    title: NO_TITLE,
+    type: NO_TYPE,
+    readable: true,
+    locked: false,
+  }))
+const TOPS = topRowsOf(false)
+const TOPS_WITH_UNREADABLE = topRowsOf(true)
 
 // フォルダ folder の直下の行
 const useRowsIn = (folder: string): readonly LibraryRow[] =>
@@ -96,6 +107,9 @@ export function LibraryView({ className }: { className?: string } = {}) {
   const catalog = useCatalog().core
   const titles = useMatomezuState(useShallow(s => path.map(id => folderTitle(s, id, namingOf(catalog, s.settings)))))
   const rows = useRowsIn(opened)
+  const unreadableShown = useUserSetting(SHOW_UNREADABLE_FOLDER.id) === true
+  // 読めない物のフォルダの直下の物の数（在る間は、設定がオフでも、ツリーの下に出して開けるようにする）
+  const unreadableCount = useMatomezuState(s => s.unreadableFolder.length)
   const measureColumns = useColumnsMeasure(rows.length)
   // 新しいブック・フォルダを作る先（開いているのがブック・バインダなら、それを入れているフォルダ。ゴミ箱なら無い）
   const into = useMatomezuState(s => holderForNew(s.folders, opened))
@@ -134,7 +148,7 @@ export function LibraryView({ className }: { className?: string } = {}) {
   const treeStop = useMatomezuState(
     st =>
       tabStopOf(
-        treeRowsOf(st.folders, unfolded).map(r => r.id),
+        treeRowsOf(st.folders, unfolded, unreadableShown).map(r => r.id),
         current,
         HOME_ID,
       ) ?? HOME_ID,
@@ -218,11 +232,16 @@ export function LibraryView({ className }: { className?: string } = {}) {
         </search>
         <nav className={styles.tree} aria-label={t("Folders")} data-key-scope={LIBRARY_TREE_SCOPE}>
           <ul className={styles.rows}>
-            {TOPS.map(top => (
+            {(unreadableShown ? TOPS_WITH_UNREADABLE : TOPS).map(top => (
               <TreeNode key={top.id} row={top} holder={top.id} depth={0} handlers={handlers} />
             ))}
           </ul>
         </nav>
+        {unreadableCount > 0 && (
+          <button type="button" className={styles.unreadableNotice} onClick={() => enter(UNREADABLE_ID)}>
+            {t("⚠ Unreadable: {count}", { count: unreadableCount })}
+          </button>
+        )}
       </div>
       <div className={styles.right}>
         {query !== undefined ? (
@@ -254,7 +273,7 @@ export function LibraryView({ className }: { className?: string } = {}) {
                 </span>
               ))}
             </nav>
-            {opened !== TRASH_ID && (
+            {opened !== TRASH_ID && opened !== UNREADABLE_ID && (
               <div className={styles.tools}>
                 {into !== undefined && (
                   <>
@@ -389,7 +408,7 @@ function TreeNode({
           onClick={() => (holds ? handlers.enter(row.id) : handlers.pick(row, holder))}
           onDoubleClick={() => handlers.open(row)}
           onContextMenu={e => {
-            if (row.id !== TRASH_ID) handlers.menu(e, row)
+            if (row.id !== TRASH_ID && row.id !== UNREADABLE_ID) handlers.menu(e, row)
           }}
         >
           {row.id === TRASH_ID ? (
