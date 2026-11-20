@@ -386,7 +386,8 @@ test("ビジター: as visitor で頼むと受け入れのダイアログは区�
   })
   const made = (await res.json()) as { participant: string }
   await openRequest(page).then(d => d.getByRole("button", { name: "受け入れる" }).click())
-  const dialog = page.getByRole("dialog", { name: JOINED })
+  // ビジターはワークルームに入れないので、題は「参加を受け入れます」
+  const dialog = page.getByRole("dialog", { name: "参加を受け入れます" })
   await expect(dialog).toContainText("ビジターとして参加を頼んでいます")
   await expect(dialog.getByRole("radio", { name: "ワーカー" })).toHaveCount(0)
   await expect(dialog.getByRole("textbox", { name: "ワークルーム名" })).toHaveCount(0)
@@ -429,7 +430,7 @@ test("ビジター: as visitor で頼むと受け入れのダイアログは区�
   await expect.poll(() => participants(page)).toHaveLength(0)
 })
 
-test("ワーカーとして頼んだ要求も、受け入れのダイアログでビジターを選ぶと、ワークルームの入力Formが消え、ワークルームを作らずに受け入れる", async ({
+test("ワーカーとして頼んだ要求も、受け入れのダイアログでビジターを選ぶと、題が替わってワークルームの入力Formが消え、ワークルームを作らずに受け入れる", async ({
   page,
 }) => {
   await page.goto(BOOK_SCREEN_URL)
@@ -438,9 +439,11 @@ test("ワーカーとして頼んだ要求も、受け入れのダイアログ�
   const dialog = page.getByRole("dialog", { name: JOINED })
   await expect(dialog.getByRole("radio", { name: "ワーカー" })).toBeChecked()
   await dialog.getByRole("radio", { name: "ビジター" }).check()
-  await expect(dialog).toContainText("読むだけ。ワークルームは持たない")
-  await expect(dialog.getByRole("textbox", { name: "ワークルーム名" })).toHaveCount(0)
-  await dialog.getByRole("button", { name: "受け入れる" }).click()
+  // 題が「参加を受け入れます」に替わる
+  const visitor = page.getByRole("dialog", { name: "参加を受け入れます" })
+  await expect(visitor).toContainText("読むだけ。ワークルームは持たない")
+  await expect(visitor.getByRole("textbox", { name: "ワークルーム名" })).toHaveCount(0)
+  await visitor.getByRole("button", { name: "受け入れる" }).click()
   await closeWelcome(page)
   await expect.poll(() => participants(page)).toMatchObject([{ id: made.participant, state: "visitor" }])
   const body = await (await page.request.get("/api/data", { headers: aiAuth() })).json()

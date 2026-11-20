@@ -34,10 +34,20 @@ const BIRD_TITLES = {
 
 export function ParticipantJoinDialog({ args, onClose }: DialogProps<{ participant: string }>) {
   const t = useMessages(kit)
-  const requested = useParticipants().some(p => p.id === args.participant && p.state === "requested")
+  const first = useParticipants().find(p => p.id === args.participant && p.state === "requested")
+  // 選んでいる参加者区分（題もこれで替わる。ビジターはワークルームに入れないので「参加を受け入れます」）
+  const [category, setCategory] = useState<Category>(first?.as === "visitor" ? "visitor" : "worker")
   return (
-    <Dialog title={t("Join the workroom")} width={460} onClose={onClose}>
-      {requested ? <JoinForm participant={args.participant} onClose={onClose} /> : <p>{t("Already answered")}</p>}
+    <Dialog
+      title={category === "visitor" ? t("Accept the participant") : t("Join the workroom")}
+      width={460}
+      onClose={onClose}
+    >
+      {first ? (
+        <JoinForm participant={args.participant} category={category} setCategory={setCategory} onClose={onClose} />
+      ) : (
+        <p>{t("Already answered")}</p>
+      )}
     </Dialog>
   )
 }
@@ -45,7 +55,17 @@ export function ParticipantJoinDialog({ args, onClose }: DialogProps<{ participa
 type Mode = "new" | "takeover"
 type Category = "worker" | "visitor"
 
-function JoinForm({ participant, onClose }: { participant: string; onClose: () => void }) {
+function JoinForm({
+  participant,
+  category,
+  setCategory,
+  onClose,
+}: {
+  participant: string
+  category: Category
+  setCategory: (c: Category) => void
+  onClose: () => void
+}) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
   const { perform, showToast, openDialog } = useActions()
@@ -57,7 +77,6 @@ function JoinForm({ participant, onClose }: { participant: string; onClose: () =
   const nowMs = useNowMs()
   const first = participants.find(p => p.id === participant)
   const askedVisitor = first?.as === "visitor"
-  const [category, setCategory] = useState<Category>(askedVisitor ? "visitor" : "worker")
   const form = useId()
   const quiet = takeable(rooms, participants, calls, isAlive, nowMs)
   const asked = quiet.find(r => r.name === first?.wantedName)
