@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { HOME_ID, UNREADABLE_ID } from "../../../web/src/core/folders"
 import { PURGED } from "../../../web/src/core/unreadable"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
+import { SHOW_UNREADABLE_FOLDER } from "../../../web/src/plugins/base/library/show-unreadable"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../../web/src/plugins/ui"
 import { createMatomezu } from "../../../web/src/store/create"
 import { MatomezuProvider } from "../../../web/src/ui/store-context"
@@ -14,7 +15,7 @@ import { showFirstBook, worldRows } from "../../support"
 afterEach(cleanup)
 
 // 読めない物のフォルダに、タイプのプラグインが無いページ 1 つ（書庫ホームに居た）と、形に合わないブック 1 つ（あとから移った）を置いた窓
-function setup() {
+function setup(settings: Record<string, unknown> = {}) {
   const purged: string[] = []
   const store = createMatomezu({
     controlCenter: BUILTIN_CONTROL_CENTER,
@@ -55,7 +56,7 @@ function setup() {
             ],
           },
         ],
-        settings: {},
+        settings,
       },
       [],
     ),
@@ -88,4 +89,13 @@ test("ツリーの下の「⚠ 読めない物 N 件」から開くと、新し�
     fireEvent.click(screen.getAllByRole("button", { name: "完全に消す", hidden: true }).at(-1) as HTMLElement)
   })
   expect(purged).toEqual(["u2"])
+})
+
+test("読めない物のフォルダを出す設定がオンなら、ツリーのゴミ箱の下に「読めない物」の行が出て、押すと開く", () => {
+  setup({ [SHOW_UNREADABLE_FOLDER.id]: true })
+  const tree = within(screen.getByRole("navigation", { name: "フォルダ", hidden: true }))
+  const rows = tree.getAllByRole("button", { hidden: true }).map(b => b.textContent)
+  expect(rows.slice(-2)).toEqual(["ゴミ箱", "読めない物"])
+  fireEvent.click(tree.getByRole("button", { name: "読めない物", hidden: true }))
+  expect(screen.getByRole("list", { name: "読めない物", hidden: true })).toBeTruthy()
 })

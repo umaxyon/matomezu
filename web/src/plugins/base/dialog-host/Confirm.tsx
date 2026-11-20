@@ -12,6 +12,10 @@ export interface ConfirmChoice {
   onClick: () => void
 }
 
+// する（ok はボタンの名前）。知らせるだけで、するの無いときは NO_OK（やめるのボタンだけを出す）
+type ConfirmOk = { ok: string; onOk: () => void } | { ok: typeof NO_OK; onOk?: undefined }
+export const NO_OK = "none"
+
 export function Confirm({
   message,
   detail,
@@ -23,12 +27,10 @@ export function Confirm({
 }: {
   message: string
   detail?: readonly string[] // 文の下に、1 つずつ行にして出す
-  ok: string // する（ボタンの名前）
-  cancel: string // やめる（ボタンの名前）
+  cancel: string // やめる（ボタンの名前。知らせるだけなら、閉じる）
   others?: readonly ConfirmChoice[] // する・やめるのほかの選び方（やめるとするの間に並べる）
-  onOk: () => void
   onCancel: () => void
-}) {
+} & ConfirmOk) {
   const ref = useRef<HTMLDialogElement>(null)
   const keep = useRef<HTMLButtonElement>(null)
   // 外側を押して閉じるのは、押し始めも外側のときだけ
@@ -88,9 +90,11 @@ export function Confirm({
               {o.label}
             </button>
           ))}
-          <button type="button" className={styles.submit} onClick={onOk}>
-            {ok}
-          </button>
+          {ok !== NO_OK && (
+            <button type="button" className={styles.submit} onClick={onOk}>
+              {ok}
+            </button>
+          )}
         </div>
       </div>
     </dialog>

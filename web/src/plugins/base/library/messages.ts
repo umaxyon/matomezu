@@ -63,6 +63,18 @@ export const LIBRARY_MESSAGES = defineMessages({
   "Trash ({place})": { en: "Trash ({place})", ja: "ゴミ箱（{place}）" },
   "Why it cannot be read": { en: "Why it cannot be read", ja: "読めない訳" },
   Moved: { en: "Moved", ja: "移った日時" },
+  "{count} items became unreadable and moved to the unreadable folder": {
+    en: "{count} items became unreadable and moved to the unreadable folder",
+    ja: "読めない物が {count} 件移りました",
+  },
+  "{count} items are readable again and went back": {
+    en: "{count} items are readable again and went back",
+    ja: "読めるようになった物が {count} 件戻りました",
+  },
+  "{reason}: {count}": { en: "{reason}: {count}", ja: "{reason}　{count} 件" },
+  "{count} more": { en: "{count} more", ja: "ほか {count} 件" },
+  View: { en: "View", ja: "見る" },
+  "Open the unreadable folder": { en: "Open the unreadable folder", ja: "読めない物のフォルダを開く" },
   "Nothing is unreadable": { en: "Nothing is unreadable", ja: "読めない物はありません" },
   "Its shape does not fit": { en: "Its shape does not fit", ja: "形が合いません" },
   "It breaks the rules": { en: "It breaks the rules", ja: "決まりに合いません" },

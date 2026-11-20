@@ -6,7 +6,8 @@ import { BROKEN } from "../../../core/folders"
 import { isBuiltin } from "../../../store/plugin"
 import { useMessages } from "../../../ui/i18n"
 import type { UserSettingControlProps } from "../../../ui/plugin"
-import { useInstance, useReadState, useStoreActions } from "../../../ui/store-context"
+import { useInstance, useReadState } from "../../../ui/store-context"
+import { useActions } from "../../../ui/view-hooks"
 import { Confirm } from "../dialog-host/Confirm"
 import { rowClass, Section } from "../dialog-host/FormParts"
 import { kit } from "../kit"
@@ -34,7 +35,7 @@ export function EnabledPluginsSetting({ label, value, onChange }: UserSettingCon
   const read = useReadState()
   const naming = useReadNaming()
   const nameOf = useNameOf()
-  const { showToast } = useStoreActions()
+  const { showToast } = useActions()
   const [asking, setAsking] = useState<Asking | null>(null)
   // プラグイン id の有効を on にする。無効にするときは、移る物を数えてもらい、在れば確かめる（形に合わない読めない物のフォルダなら何も移らないので、0 件と同じ）
   const change = async (id: string, on: boolean) => {

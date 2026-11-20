@@ -3,20 +3,17 @@
 
 import { useState } from "react"
 import { BROKEN } from "../../../core/folders"
-import { splitId } from "../../../core/names"
-import { isBuiltin } from "../../../store/plugin"
 import { useMessages } from "../../../ui/i18n"
-import { useInstance, useStoreActions } from "../../../ui/store-context"
-import { useUserSetting } from "../../../ui/view-hooks"
+import { useActions } from "../../../ui/view-hooks"
 import { Confirm } from "../dialog-host/Confirm"
 import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import { ENABLED_PLUGINS } from "../settings/enabled-plugins"
 import { useLibraryRows, useNameOf, usePurgeUnreadable } from "./hooks"
 import { RowIcon } from "./icons"
 import styles from "./LibraryView.module.css"
 import { NO_TYPE, shownDateTime, type UnreadableRow, unreadableRowsOf } from "./outline"
 import { type RowCell, RowTable } from "./RowTable"
+import { useReasonOf } from "./reasons"
 
 // useLibraryRows の鍵（読めない物の行）
 const UNREADABLE_ROWS = "unreadable"
@@ -32,7 +29,7 @@ export function UnreadableView({
   const rows = useLibraryRows(UNREADABLE_ROWS, (s, naming) => unreadableRowsOf(s.unreadableFolder, s, naming))
   const nameOf = useNameOf()
   const purge = usePurgeUnreadable()
-  const { showToast } = useStoreActions()
+  const { showToast } = useActions()
   const reasonOf = useReasonOf()
   const [purging, setPurging] = useState<UnreadableRow | null>(null)
   const cells: readonly RowCell<UnreadableRow>[] = [
@@ -61,7 +58,8 @@ export function UnreadableView({
     {
       head: t("Why it cannot be read"),
       width: "minmax(0, 1.5fr)",
-      render: row => (row.shape === BROKEN ? null : <span className={styles.place}>{reasonOf(row)}</span>),
+      render: row =>
+        row.shape === BROKEN ? null : <span className={styles.place}>{reasonOf(row.code, row.type)}</span>,
     },
     {
       head: t("Moved"),
@@ -110,21 +108,4 @@ export function UnreadableView({
       )}
     </>
   )
-}
-
-// 読めない訳の短い言葉: タイプのプラグインが無い・無効（W027）、形が合わない（W005・W028）、決まりに合わない（W006・W029）
-function useReasonOf(): (row: Extract<UnreadableRow, { shape: "fits" }>) => string {
-  const t = useMessages(kit)
-  const added = useInstance().plugins.filter(p => !isBuiltin(p))
-  const enabled = useUserSetting(ENABLED_PLUGINS.id) as readonly string[]
-  return row => {
-    if (row.code === "W005" || row.code === "W028") return t("Its shape does not fit")
-    if (row.code === "W006" || row.code === "W029") return t("It breaks the rules")
-    const owner = row.type === NO_TYPE ? null : splitId(row.type).owner
-    if (owner === null) return t("No plugin for it")
-    const plugin = added.find(p => p.id === owner)
-    return plugin && !enabled.includes(owner)
-      ? t("The plugin is disabled: {plugin}", { plugin: plugin.title ? t(plugin.title) : owner })
-      : t("No plugin: {plugin}", { plugin: owner })
-  }
 }

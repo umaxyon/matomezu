@@ -68,6 +68,7 @@ import {
   LIBRARY_TREE_UNFOLD_OR_NEXT,
   LIBRARY_UNDO,
   LIBRARY_UNFOLDED,
+  LIBRARY_UNREADABLE_OPEN,
   PAGE_CREATE,
   SHOW_UNREADABLE_FOLDER,
   SYSTEM_FOLDER_ADD,
@@ -596,6 +597,7 @@ export const BASE = defineBuiltin(
       LIBRARY_BOOK_NEW,
       LIBRARY_OPEN,
       LIBRARY_SCREEN_CLOSE,
+      LIBRARY_UNREADABLE_OPEN,
       LIBRARY_SCREEN_EXPAND,
       LIBRARY_FOLDER_NEW,
       LIBRARY_ENTRY_RENAME,
@@ -839,6 +841,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-book-new": typeof LIBRARY_BOOK_NEW
     "@matomezu/base:library-open": typeof LIBRARY_OPEN
     "@matomezu/base:library-screen-close": typeof LIBRARY_SCREEN_CLOSE
+    "@matomezu/base:library-unreadable-open": typeof LIBRARY_UNREADABLE_OPEN
     "@matomezu/base:library-screen-expand": typeof LIBRARY_SCREEN_EXPAND
     "@matomezu/base:library-folder-new": typeof LIBRARY_FOLDER_NEW
     "@matomezu/base:library-entry-rename": typeof LIBRARY_ENTRY_RENAME

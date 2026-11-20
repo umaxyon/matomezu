@@ -590,6 +590,7 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
   expect(names(store.actions).filter(n => !names(given).includes(n))).toEqual([
     "makeScreenCurrent",
     "openScreenId",
+    "setPluginStateById",
     "showBookStage",
     "showStage",
     "splitStage",

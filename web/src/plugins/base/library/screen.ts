@@ -2,10 +2,13 @@
 // 開く先は、置かれた所で決める（渡す値は無い）: ブックスクリーンと上下に並んでいれば、そのブックスクリーンの空のステージ（vacantStageBeside）、並んでいなければ新しいブックスクリーン。
 // 書庫のスクリーンを閉じる・広げる道（帯のボタン・書庫のスクリーンの外の操作・「書庫を開く」・選んで開いたあと）は、どれもここの関数を通り、ステージを分けて足した空のステージを閉じる
 import { z } from "zod"
+import { UNREADABLE_ID } from "../../../core/folders"
 import {
   arrangementValueIn,
+  type CommandActions,
   calledScreenIdOf,
   type OpenScreen,
+  type ScreenCommandContext,
   screensOf,
   storeActionsOf,
 } from "../../../store/commands/def"
@@ -15,7 +18,7 @@ import { kit } from "../kit"
 import { ONE_SCREEN } from "../window"
 import { applySplitFrom } from "../window/apply-split"
 import { behindOf, planClose, planExpand, SPLIT_ROWS, splitOf } from "../window/split"
-import { LIBRARY_APPEARANCE } from "./state"
+import { LIBRARY_APPEARANCE, LIBRARY_FOLDER } from "./state"
 
 export const LIBRARY_SCREEN = kit.defineScreen({
   id: "library-screen",
@@ -33,25 +36,44 @@ export const LIBRARY_OPEN = kit.defineScreenCommand({
   id: "library-open",
   title: "Open library",
   run: (ctx, a) => {
-    const store = storeActionsOf(a)
-    const screens = screensOf(ctx)
-    const value = arrangementValueIn(ctx)
-    const opened = screens.find(s => s.def === LIBRARY_SCREEN.id)?.id
-    const library = opened ?? store.openScreenId(LIBRARY_SCREEN.id, {})
-    if (library === SCREEN_REFUSED) return
-    if (!ctx.screen.stages) {
-      store.setScreenArrangement(ONE_SCREEN.id)
-      store.makeScreenCurrent(library)
-      return
-    }
-    const book = calledScreenIdOf(ctx)
-    // 前の並び（コントロールセンターとチケットなど）は behind に覚え、書庫のスクリーンを閉じたら戻す
-    const before = splitOf(screens, value).filter(id => id !== library && id !== book)
-    store.setScreenArrangement(SPLIT_ROWS.id, { screens: [book, library], behind: before })
-    store.makeScreenCurrent(library)
+    openLibrary(ctx, a)
   },
   when: () => true,
 })
+
+// 読めない物のフォルダを開く: 書庫を開き（書庫を開くと同じ所に出す）、右の枠に読めない物のフォルダを出す（ツリーに出す設定がオフでも開く）。
+// 読めない物が移ったときの知らせのダイアログの［見る］が呼ぶ
+export const LIBRARY_UNREADABLE_OPEN = kit.defineScreenCommand({
+  id: "library-unreadable-open",
+  title: "Open the unreadable folder",
+  run: (ctx, a) => {
+    const library = openLibrary(ctx, a)
+    if (library !== SCREEN_REFUSED)
+      storeActionsOf(a).setPluginStateById(LIBRARY_FOLDER.id, UNREADABLE_ID, { screen: library })
+  },
+  when: () => true,
+})
+
+// 書庫のスクリーンを出して、その id を返す（出せなければ SCREEN_REFUSED）。開いていれば、新しく開かずにそれを使う
+function openLibrary(ctx: ScreenCommandContext, a: CommandActions): string | typeof SCREEN_REFUSED {
+  const store = storeActionsOf(a)
+  const screens = screensOf(ctx)
+  const value = arrangementValueIn(ctx)
+  const opened = screens.find(s => s.def === LIBRARY_SCREEN.id)?.id
+  const library = opened ?? store.openScreenId(LIBRARY_SCREEN.id, {})
+  if (library === SCREEN_REFUSED) return library
+  if (!ctx.screen.stages) {
+    store.setScreenArrangement(ONE_SCREEN.id)
+    store.makeScreenCurrent(library)
+    return library
+  }
+  const book = calledScreenIdOf(ctx)
+  // 前の並び（コントロールセンターとチケットなど）は behind に覚え、書庫のスクリーンを閉じたら戻す
+  const before = splitOf(screens, value).filter(id => id !== library && id !== book)
+  store.setScreenArrangement(SPLIT_ROWS.id, { screens: [book, library], behind: before })
+  store.makeScreenCurrent(library)
+  return library
+}
 
 // 書庫のスクリーンを閉じる（帯の閉じるボタン・書庫のスクリーンの外の操作。書庫の画面の中で Esc。コントロールセンターの書庫の画面からは出さない）
 export const LIBRARY_SCREEN_CLOSE = kit.defineScreenCommand({
