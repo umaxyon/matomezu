@@ -120,9 +120,9 @@ export function useKeepFocusIn(root: RefObject<HTMLElement | null>): void {
   }, [root])
 }
 
-// 押した所が行の外か（何も無い所を押して選んでいる行を外すときに使う）
+// 押した所が行の外か（何も無い所を押して選んでいる行を外すときに使う。選んだ行に出すボタンの並びは、行の内側）
 export const outsideRow = (target: EventTarget): boolean =>
-  target instanceof Element && target.closest("[data-library-row]") === null
+  target instanceof Element && target.closest("[data-library-row], [data-library-row-actions]") === null
 
 // 追加プラグイン ids を無効にしたら読めない物のフォルダへ移る物を、ホストに書かずに数えてもらう（ホストが無いか、頼めなければ投げる）
 export function useMovedIfOff(): (ids: readonly string[]) => Promise<readonly MovedIfOff[] | typeof BROKEN> {

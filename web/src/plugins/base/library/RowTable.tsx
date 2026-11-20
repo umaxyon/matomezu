@@ -81,7 +81,12 @@ export function RowTable<R extends { id: string }>({
                 </span>
               ))}
             </button>
-            {row.id === picked && <span className={styles.tableActions}>{actions(row)}</span>}
+            {row.id === picked && (
+              // 選んだ行のボタンは行の内側（押しても、選んでいる行を外さない）
+              <span className={styles.tableActions} data-library-row-actions="">
+                {actions(row)}
+              </span>
+            )}
           </li>
         ))}
       </ul>

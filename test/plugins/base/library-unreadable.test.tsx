@@ -82,6 +82,10 @@ test("ツリーの下の「⚠ 読めない物 N 件」から開くと、新し�
     expect.stringMatching(/^古い案書庫形が合いません/),
   ])
   fireEvent.click(rows[1] as HTMLElement)
+  // 選んだ行のボタンを押しても、選んでいる行は外れない（確かめをやめても、ボタンが残る）
+  fireEvent.click(screen.getByRole("button", { name: "完全に消す", hidden: true }))
+  fireEvent.click(screen.getByRole("button", { name: "キャンセル", hidden: true }))
+  expect(rows[1]?.getAttribute("aria-pressed")).toBe("true")
   fireEvent.click(screen.getByRole("button", { name: "完全に消す", hidden: true }))
   expect(screen.getByText("「古い案」が完全に消えます")).toBeTruthy()
   expect(screen.getByText("中身も一緒に消えます")).toBeTruthy()
