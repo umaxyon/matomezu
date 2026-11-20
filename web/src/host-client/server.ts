@@ -275,7 +275,7 @@ const ParticipantLiveSchema = z.object({
   branch: z.string().optional(),
 })
 const TouchedSchema = z.object({ book: z.string(), at: z.string() })
-const AnnotationsSchema = z.object({ page: z.string(), annotations: z.unknown(), ...Mark })
+const AnnotationsSchema = z.object({ page: z.string(), annotations: z.unknown() })
 
 export function serverClient(net: Net = browserNet): HostClient {
   // 確かめた世界のページとフォルダ（id → 置き場所から読んだままの中身と版）
@@ -667,7 +667,6 @@ export function serverClient(net: Net = browserNet): HostClient {
       noticed(() => {
         annotations = withPageAnnotations(e.page, e.annotations)
       })
-      settle(e)
       show()
     })
     on("show", data => {

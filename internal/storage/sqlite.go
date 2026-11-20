@@ -598,10 +598,6 @@ func (s *sqliteStorage) Annotations() (map[string]json.RawMessage, error) {
 	return all, rows.Err()
 }
 
-func (s *sqliteStorage) PutAnnotations(page string, body json.RawMessage) error {
-	return s.Apply(Batch{Annotations: []PageBody{{page, body}}})
-}
-
 // txPutTickets は、AI 編集チケットの並びの全部（表 ai_edit_tickets の 1 行）を置き換える（空の並びなら消す）
 func txPutTickets(tx *sql.Tx, body json.RawMessage) error {
 	if empty(body) {
@@ -645,10 +641,6 @@ func (s *sqliteStorage) Settings(user string) (json.RawMessage, error) {
 		return nil, err
 	}
 	return json.RawMessage(body), nil
-}
-
-func (s *sqliteStorage) PutSettings(user string, body json.RawMessage) error {
-	return s.Apply(Batch{Settings: &UserBody{user, body}})
 }
 
 func (s *sqliteStorage) ParticipantNotes(user string) (json.RawMessage, error) {

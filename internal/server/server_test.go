@@ -100,7 +100,7 @@ func newServerOn(t *testing.T, o Options, store storage.Storage) (*httptest.Serv
 		t.Fatal(err)
 	}
 	// 追加プラグインは、利用者が有効にするまで無効。このテストで足す見本は、はじめから有効にしておく（有効・無効の確かめは TestAddedPluginsAreOffUntilEnabled）
-	if err := store.PutSettings(user, json.RawMessage(`{"`+enabledPluginsSetting+`":["a","b","ex1","ex2","ex3","ex9","ex10","ex12","ex14"]}`)); err != nil {
+	if err := store.Apply(storage.Batch{Settings: &storage.UserBody{User: user, Body: json.RawMessage(`{"` + enabledPluginsSetting + `":["a","b","ex1","ex2","ex3","ex9","ex10","ex12","ex14"]}`)}}); err != nil {
 		t.Fatal(err)
 	}
 	hub, err := NewHub(store, eng)
