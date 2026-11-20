@@ -1,5 +1,5 @@
 // チケットの絞り（横断検索のチケットモードが決め、タスクボードが従う。見た目でない。窓のプラグイン状態に持つ）:
-// 言葉に当たったチケットの id の集合（言葉が無ければ null）と、プロジェクト・タグ・優先度の選び（空なら絞らない）
+// 言葉に当たったチケットの id の集合（言葉が無ければ null）と、プロジェクト・タグ・優先度・規模の選び（空なら絞らない）
 import type { WideSearchHit } from "../../../plugin-api"
 import type { TicketRecord } from "../board/shown"
 import { ticketNumberOf } from "../ticket/label"
@@ -10,16 +10,18 @@ export interface TicketFilter {
   projects: readonly string[]
   tags: readonly string[]
   priorities: readonly string[]
+  volumes: readonly string[]
 }
 
 // タグの選びの「タグなし」（タグを付けていないチケットに当たる）
 export const NO_TAGS = "none"
 
-export const NO_FILTER: TicketFilter = { term: "", hits: null, projects: [], tags: [], priorities: [] }
+export const NO_FILTER: TicketFilter = { term: "", hits: null, projects: [], tags: [], priorities: [], volumes: [] }
 
 // 絞りが効いているか
 export const isFiltering = (f: TicketFilter | undefined): f is TicketFilter =>
-  f !== undefined && (f.hits !== null || f.projects.length > 0 || f.tags.length > 0 || f.priorities.length > 0)
+  f !== undefined &&
+  (f.hits !== null || f.projects.length > 0 || f.tags.length > 0 || f.priorities.length > 0 || f.volumes.length > 0)
 
 // 横断検索の当たりから、当たったチケットの id を取り出す（チケットの当たりは自分の id、チケット履歴の当たりは親のチケットの id）。重ならない
 export function ticketIdsOf(hits: readonly WideSearchHit[], ticketKind: string): string[] {
@@ -40,7 +42,8 @@ export function filterTickets(
       (hits === null || hits.has(t.id)) &&
       has(filter.projects, t.project) &&
       hasTag(filter.tags, t.tags) &&
-      has(filter.priorities, t.priority),
+      has(filter.priorities, t.priority) &&
+      has(filter.volumes, t.volume),
   )
 }
 

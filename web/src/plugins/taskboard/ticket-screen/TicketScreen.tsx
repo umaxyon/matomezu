@@ -29,7 +29,7 @@ import { BookIcon, PencilIcon } from "../icons"
 import { kit } from "../kit"
 import { PROJECT } from "../project"
 import scroll from "../scrollbar.module.css"
-import { PRIORITIES, TICKET, TICKET_NAME_MAX } from "../ticket"
+import { PRIORITIES, TICKET, TICKET_NAME_MAX, VOLUMES } from "../ticket"
 import { TICKET_LOCK, TICKET_UNLOCK, TICKET_UPDATE } from "../ticket/actions"
 import { assigneesOf } from "../ticket/assignees"
 import { ticketLabel } from "../ticket/label"
@@ -90,8 +90,13 @@ export function TicketScreen() {
       </section>
     )
 
-  const edit = (patch: { name?: string; body?: string; priority?: (typeof PRIORITIES)[number]; tags?: string[] }) =>
-    perform(TICKET_UPDATE.id, patch, { record: id })
+  const edit = (patch: {
+    name?: string
+    body?: string
+    priority?: (typeof PRIORITIES)[number]
+    volume?: (typeof VOLUMES)[number]
+    tags?: string[]
+  }) => perform(TICKET_UPDATE.id, patch, { record: id })
   const tags = project ? tagsOf(project, ticket) : []
   const tagChoices = project?.tags.filter(tag => tag.enabled && !ticket.tags.includes(tag.id)) ?? []
   const rows = historyRows(ticket, lines)
@@ -127,7 +132,24 @@ export function TicketScreen() {
                 {assignees.length > 0 ? <AssigneeBirds workrooms={assignees} /> : t("No assignees")}
               </span>
             </div>
-            <PriorityField priority={ticket.priority} canEdit={canEdit} onChange={priority => edit({ priority })} />
+            <div className={styles.steps}>
+              <StepSlider
+                title={t("Priority")}
+                steps={PRIORITIES}
+                value={ticket.priority}
+                nameOf={p => t(`priority ${p}`)}
+                canEdit={canEdit}
+                onChange={priority => edit({ priority })}
+              />
+              <StepSlider
+                title={t("Volume")}
+                steps={VOLUMES}
+                value={ticket.volume}
+                nameOf={v => t(`volume ${v}`)}
+                canEdit={canEdit}
+                onChange={volume => edit({ volume })}
+              />
+            </div>
             <div className={styles.sectionHead}>{t("Knowledge")}</div>
             <div className={styles.knowledge}>
               <button
@@ -266,53 +288,51 @@ function NameField({
   )
 }
 
-const PRIORITY_NAMES = {
-  lowest: "Lowest",
-  low: "Low",
-  medium: "Medium",
-  high: "High",
-  highest: "Highest",
-} as const
-
-// 優先度: 5 段のスライダー。つまみを動かしている間は値を持ち、離したとき（キーなら 1 段ごと）に送る
-function PriorityField({
-  priority,
+// 段を選ぶスライダー（優先度・規模）: 段の数だけ止まる所があり、下に段の名前。つまみを動かしている間は値を持ち、離したとき（キーなら 1 段ごと）に送る
+function StepSlider<T extends string>({
+  title,
+  steps,
+  value,
+  nameOf,
   canEdit,
   onChange,
 }: {
-  priority: (typeof PRIORITIES)[number]
+  title: string
+  steps: readonly T[]
+  value: T
+  nameOf: (step: T) => string
   canEdit: boolean
-  onChange: (priority: (typeof PRIORITIES)[number]) => void
+  onChange: (step: T) => void
 }) {
-  const t = useMessages(kit)
   const [drag, setDrag] = useState<number | null>(null)
-  const index = drag ?? PRIORITIES.indexOf(priority)
+  const index = drag ?? steps.indexOf(value)
+  const shown = steps[index] ?? value
   const commit = () => {
-    const next = drag === null ? undefined : PRIORITIES[drag]
+    const next = drag === null ? undefined : steps[drag]
     setDrag(null)
-    if (next && next !== priority) onChange(next)
+    if (next !== undefined && next !== value) onChange(next)
   }
   return (
-    <label className={styles.priority}>
-      <span className={styles.factName}>{t("Priority")}</span>
-      <span className={styles.slider}>
+    <label className={styles.step}>
+      <span className={styles.factName}>{title}</span>
+      <span className={styles.slider} style={{ width: `${steps.length * 32}px` }}>
         <input
           type="range"
           min={0}
-          max={PRIORITIES.length - 1}
+          max={steps.length - 1}
           step={1}
           value={index}
           disabled={!canEdit}
-          aria-valuetext={t(PRIORITY_NAMES[PRIORITIES[index] ?? "medium"])}
+          aria-valuetext={nameOf(shown)}
           onChange={e => setDrag(Number(e.target.value))}
           onPointerUp={commit}
           onKeyUp={commit}
           onBlur={commit}
         />
         <span className={styles.ticks} aria-hidden="true">
-          {PRIORITIES.map((p, i) => (
-            <span key={p} data-on={i === index}>
-              {t(PRIORITY_NAMES[p])}
+          {steps.map((step, i) => (
+            <span key={step} data-on={i === index}>
+              {nameOf(step)}
             </span>
           ))}
         </span>

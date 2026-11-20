@@ -12,6 +12,7 @@ export function FilterBanner({ filter, onClear }: { filter: TicketFilter; onClea
     filter.projects.length > 0 ? t("{n} projects", { n: filter.projects.length }) : "",
     filter.tags.length > 0 ? t("{n} tags", { n: filter.tags.length }) : "",
     filter.priorities.length > 0 ? t("{n} priorities", { n: filter.priorities.length }) : "",
+    filter.volumes.length > 0 ? t("{n} volumes", { n: filter.volumes.length }) : "",
   ].filter(p => p !== "")
   return (
     <div className={styles.banner} role="status">

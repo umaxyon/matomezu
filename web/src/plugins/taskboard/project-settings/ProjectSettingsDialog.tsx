@@ -172,6 +172,16 @@ function Settings({
                   />
                 )}
               </Field>
+              <Field label={t("Show volume")}>
+                {id => (
+                  <Switch
+                    id={id}
+                    label={t("Show volume")}
+                    checked={cardShows.volume}
+                    onChange={volume => setCardShows({ ...cardShows, volume })}
+                  />
+                )}
+              </Field>
             </div>
             <div className={styles.fill} hidden={tab !== "tags"}>
               <TagSettings tags={tags} repeated={repeatedTags} />

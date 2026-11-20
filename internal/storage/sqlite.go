@@ -196,6 +196,8 @@ var migrations = []string{
 	`SELECT 1;`,
 	// ワークルームの今のチケットの記録を捨てる（今のチケットは、チケットの担当とレーンから決める。Go の移し替え。migrate_current_ticket.go）
 	`SELECT 1;`,
+	// チケットに規模（volume）を、プロジェクトの cardShows に volume を足す（Go の移し替え。migrate_ticket_volume.go）
+	`SELECT 1;`,
 }
 
 // goMigrations は、SQL だけでは書けない移し替え（JSON の中をたどる物）。鍵は migrations の番号（0 から）で、その SQL を行ったあと、同じトランザクションの中で行う
@@ -208,6 +210,7 @@ var goMigrations = map[int]func(tx *sql.Tx) error{
 	26: trashToFolder,
 	27: numberSameTitlesLogged,
 	28: dropCurrentTickets,
+	29: addTicketVolume,
 }
 
 type sqliteStorage struct {

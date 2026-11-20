@@ -112,7 +112,7 @@ test("URL でチケットを開くと、チケットの枠と本文が右から�
   await expect(heading).toBeHidden()
 })
 
-test("名前・優先度・本文は直したそばから反映され、読み直しても残る。巣箱で閉じる", async ({ page }) => {
+test("名前・優先度・規模・本文は直したそばから反映され、読み直しても残る。巣箱で閉じる", async ({ page }) => {
   await page.goto(CONTROL_CENTER_URL)
   const { ticket } = await setup(page)
   await page.goto(open(ticket))
@@ -123,20 +123,28 @@ test("名前・優先度・本文は直したそばから反映され、読み�
   await name.press("Enter")
   await expect(screen.getByRole("heading", { name: "ログイン画面を直した" })).toBeVisible()
   // 優先度のつまみ: キーで 1 段上げる
-  const slider = screen.getByRole("slider")
+  const slider = screen.getByRole("slider", { name: "優先度" })
   await slider.focus()
   await slider.press("ArrowRight")
   await expect(slider).toHaveAttribute("aria-valuetext", "大")
+  // 規模のつまみ: 見積もっていない「未」から 1 段上げて XS に
+  const volume = screen.getByRole("slider", { name: "規模" })
+  await expect(volume).toHaveAttribute("aria-valuetext", "未")
+  await volume.focus()
+  await volume.press("ArrowRight")
+  await expect(volume).toHaveAttribute("aria-valuetext", "XS")
   // 本文を編集に切り替えて書く
   await screen.getByRole("button", { name: "編集", exact: true }).click()
   await screen.getByRole("textbox", { name: "本文（マークダウン）" }).fill("書き直した本文")
   await expect
     .poll(async () => {
       const body = await (await page.request.get("/api/data", { headers: aiAuth() })).json()
-      const t = (Object.values(body.records[TICKET] ?? {}) as { name: string; priority: string; body: string }[])[0]
-      return t ? [t.name, t.priority, t.body] : []
+      const t = (
+        Object.values(body.records[TICKET] ?? {}) as { name: string; priority: string; volume: string; body: string }[]
+      )[0]
+      return t ? [t.name, t.priority, t.volume, t.body] : []
     })
-    .toEqual(["ログイン画面を直した", "high", "書き直した本文"])
+    .toEqual(["ログイン画面を直した", "high", "xs", "書き直した本文"])
   await page.reload()
   await expect(
     page.getByRole("region", { name: "チケット" }).first().getByRole("heading", { name: "ログイン画面を直した" }),
@@ -152,7 +160,8 @@ test("ロック中のチケットは直せず、帯のロックで外すと直�
   await page.goto(open(ticket))
   const screen = page.getByRole("region", { name: "チケット" }).first()
   await expect(screen.getByRole("button", { name: "名前を編集" })).toHaveCount(0)
-  await expect(screen.getByRole("slider")).toBeDisabled()
+  await expect(screen.getByRole("slider", { name: "優先度" })).toBeDisabled()
+  await expect(screen.getByRole("slider", { name: "規模" })).toBeDisabled()
   await screen.getByRole("button", { name: "チケットのロックを外す" }).click()
   await expect(screen.getByRole("button", { name: "名前を編集" })).toBeVisible()
   await page.goto(open("nothing"))
@@ -199,7 +208,7 @@ test("本文を直してチケットスクリーンから離れると、チケ�
   await page.goto(open(ticket))
   const screen = page.getByRole("region", { name: "チケット" }).first()
   await expect(screen.getByRole("button", { name: "本文", exact: true })).toBeVisible()
-  const slider = screen.getByRole("slider")
+  const slider = screen.getByRole("slider", { name: "優先度" })
   await slider.focus()
   await slider.press("ArrowRight")
   await expect(slider).toHaveAttribute("aria-valuetext", "大")

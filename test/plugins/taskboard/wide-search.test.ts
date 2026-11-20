@@ -23,6 +23,7 @@ const ticket = (id: string, over: Partial<TicketRecord> = {}): TicketRecord => (
   lane: "todo",
   tags: [],
   priority: "medium",
+  volume: "none",
   assignees: [],
   createdAt: "2026-01-01T00:00:00.000Z",
   createdBy: { kind: "user" },
@@ -32,8 +33,8 @@ const ticket = (id: string, over: Partial<TicketRecord> = {}): TicketRecord => (
 const all = [
   ticket("a"),
   ticket("b", { tags: ["bug"], priority: "high" }),
-  ticket("c", { project: "p2", tags: ["bug"] }),
-  ticket("d", { project: "p2", priority: "high" }),
+  ticket("c", { project: "p2", tags: ["bug"], volume: "m" }),
+  ticket("d", { project: "p2", priority: "high", volume: "xl" }),
 ]
 const ids = (f: Parameters<typeof filterTickets>[1]) => filterTickets(all, f).map(t => t.id)
 
@@ -59,7 +60,7 @@ test("当たりは、チケットの当たりは自分の id、履歴の当た�
   ).toEqual(["a", "b"])
 })
 
-test("絞りが無いか効いていなければ全部、言葉の当たりとプロジェクト・タグ・優先度の選びは掛け合わせて残す", () => {
+test("絞りが無いか効いていなければ全部、言葉の当たりとプロジェクト・タグ・優先度・規模の選びは掛け合わせて残す", () => {
   expect(ids(undefined)).toEqual(["a", "b", "c", "d"])
   expect(isFiltering(NO_FILTER)).toBe(false)
   expect(ids(NO_FILTER)).toEqual(["a", "b", "c", "d"])
@@ -75,6 +76,9 @@ test("絞りが無いか効いていなければ全部、言葉の当たりと�
     "c",
   ])
   expect(ids({ ...NO_FILTER, projects: ["p1", "p2"], priorities: ["high", "medium"] })).toEqual(["a", "b", "c", "d"])
+  expect(isFiltering({ ...NO_FILTER, volumes: ["none"] })).toBe(true)
+  expect(ids({ ...NO_FILTER, volumes: ["none"] })).toEqual(["a", "b"])
+  expect(ids({ ...NO_FILTER, volumes: ["m", "xl"], priorities: ["high"] })).toEqual(["d"])
 })
 
 test("選びは、押すと入り、もう一度押すと外れる", () => {

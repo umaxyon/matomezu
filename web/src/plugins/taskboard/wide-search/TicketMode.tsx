@@ -10,7 +10,7 @@ import {
   useUpdatePluginState,
 } from "../../../plugin-api/ui"
 import { ChoiceText, MultiChoices, useWideSearch, WIDE_SEARCH_LIMIT_MAX, type WideSearchModeProps } from "../../base/ui"
-import { orderedProjects, PRIORITIES, shownProjects } from "../board/shown"
+import { orderedProjects, PRIORITIES, shownProjects, VOLUMES } from "../board/shown"
 import { useBoardSettings } from "../board/useBoardSettings"
 import { CONTROL_CENTER_SCREEN, FRONT_SCREEN_STATE } from "../control-center-ids"
 import { kit } from "../kit"
@@ -152,6 +152,18 @@ export function TicketMode({ term, setTerm }: WideSearchModeProps) {
             icon: <ChoiceText>{t(`priority ${p}`)}</ChoiceText>,
           }))}
           onChange={priorities => change(now => ({ ...now, priorities }))}
+        />
+      </Group>
+      <Group title={t("Filter volumes")}>
+        <MultiChoices
+          label={t("Filter volumes")}
+          values={f.volumes}
+          options={VOLUMES.map(v => ({
+            value: v,
+            label: t(`volume ${v}`),
+            icon: <ChoiceText>{t(`volume ${v}`)}</ChoiceText>,
+          }))}
+          onChange={volumes => change(now => ({ ...now, volumes }))}
         />
       </Group>
     </div>

@@ -52,6 +52,7 @@ test("虫メガネで横断検索が開き、全文で打つと当たりが並�
               lane: "todo",
               tags: [],
               priority: "medium",
+              volume: "none",
               assignees: [],
               createdAt: at,
               createdBy: by,

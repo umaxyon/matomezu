@@ -1,4 +1,4 @@
-// プロジェクト設定: ボードの歯車で開き、レーンの名前を直し、完了と作業中のスイッチ（同じレーンには片方だけ）を切り替え、未分類を表示すると、保存でボードに出る。名前が重なる間は保存できない。全般の「優先度を出す」を切ると、チケットカードに優先度が出ない
+// プロジェクト設定: ボードの歯車で開き、レーンの名前を直し、完了と作業中のスイッチ（同じレーンには片方だけ）を切り替え、未分類を表示すると、保存でボードに出る。名前が重なる間は保存できない。全般の「優先度を出す」「規模を出す」を切ると、チケットカードに優先度・規模が出ない
 import { CONTROL_CENTER_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
 
 const projects = async (page: Page) =>
@@ -203,7 +203,9 @@ test("プロジェクト設定で追加した行の名前は、1 文字ずつ打
   }
 })
 
-test("全般の「優先度を出す」を切って保存すると、チケットカードの右下に優先度が出ない", async ({ page }) => {
+test("全般の「優先度を出す」「規模を出す」を切って保存すると、チケットカードの右下に優先度も規模も出ない", async ({
+  page,
+}) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto(CONTROL_CENTER_URL)
   if ((await projects(page)).length === 0)
@@ -216,26 +218,31 @@ test("全般の「優先度を出す」を切って保存すると、チケッ�
     doneLane?: string
     lanes: { kind: string; id?: string; cardSize?: string }[]
   }
-  // 優先度の印は small のカードには出ないので、完了でない、large か medium か継承のレーンに置く
+  // 優先度と規模の印は small のカードには出ないので、完了でない、large か medium か継承のレーンに置く
   const lane = first.lanes.find(l => l.kind === "lane" && l.id !== first.doneLane && l.cardSize !== "small")!
   const added = await page.request.post("/api/ai/perform", {
     headers: await joinedAiAuth(),
     data: {
       action: "@matomezu/taskboard:ticket-add",
-      args: { project: first.id, name: "優先度の確かめ", lane: lane.id },
+      args: { project: first.id, name: "優先度の確かめ", lane: lane.id, volume: "m" },
     },
   })
   expect(added.ok()).toBe(true)
   const board = page.locator(`[data-board="${first.id}"]`)
   const card = board.locator("[data-card]", { hasText: "優先度の確かめ" })
   await expect(card.getByTitle(/^優先度/)).toBeVisible()
+  await expect(card.getByTitle("規模 M")).toBeVisible()
   await board.getByRole("button", { name: "プロジェクト設定" }).click()
   const dialog = page.getByRole("dialog", { name: "プロジェクト設定" })
   const shows = dialog.getByRole("switch", { name: "優先度を出す" })
   await expect(shows).toBeChecked()
   await shows.click()
+  const volume = dialog.getByRole("switch", { name: "規模を出す" })
+  await expect(volume).toBeChecked()
+  await volume.click()
   await dialog.getByRole("button", { name: "保存" }).click()
   await expect(dialog).toHaveCount(0)
   await expect(card).toBeVisible()
   await expect(card.getByTitle(/^優先度/)).toHaveCount(0)
+  await expect(card.getByTitle(/^規模/)).toHaveCount(0)
 })

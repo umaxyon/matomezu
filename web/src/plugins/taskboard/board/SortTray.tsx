@@ -7,7 +7,16 @@ import { Grip } from "../reorder/Grip"
 import { moved } from "../reorder/order"
 import { useGripDrag } from "../reorder/useGripDrag"
 import styles from "./SortTray.module.css"
-import type { SortRule, SortRules } from "./sort"
+import type { SortKey, SortRule, SortRules } from "./sort"
+
+// 並べ方の項目の名前（文言の鍵）
+const SORT_NAMES = {
+  id: "sort id",
+  priority: "sort priority",
+  volume: "sort volume",
+  updated: "sort updated",
+  tag: "sort tag",
+} as const satisfies Record<SortKey, string>
 
 export function SortTray({
   rules,
@@ -32,8 +41,7 @@ export function SortTray({
   )
   const change = (key: SortRule["key"], patch: Partial<SortRule>) =>
     onChange(rules.map(r => (r.key === key ? { ...r, ...patch } : r)))
-  const nameOf = (key: SortRule["key"]) =>
-    t(key === "id" ? "sort id" : key === "priority" ? "sort priority" : key === "updated" ? "sort updated" : "sort tag")
+  const nameOf = (key: SortRule["key"]) => t(SORT_NAMES[key])
 
   useEffect(() => {
     const down = (e: PointerEvent) => {
