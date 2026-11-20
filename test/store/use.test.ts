@@ -4,7 +4,7 @@ import { findPage, putPage } from "../../web/src/core/book"
 import { defineAction } from "../../web/src/core/def/action"
 import { definePageType } from "../../web/src/core/def/page-type"
 import { stageIn } from "../../web/src/core/window"
-import { BUILTIN } from "../../web/src/plugins"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { definePlugin, withoutParts } from "../../web/src/store/plugin"
@@ -53,9 +53,7 @@ const unreadableNote = { kind: "unreadable", id: "p1", title: "メモ", code: "W
 const openedOf = (instance: ReturnType<typeof make>) => stageIn(instance.state.getState().window, "s1")?.opened
 
 const make = () =>
-  shown(
-    createMatomezu({ plugins: BUILTIN, controlCenter: "@matomezu/control-center:control-center", savedBooks: [saved] }),
-  )
+  shown(createMatomezu({ plugins: BUILTIN, controlCenter: BUILTIN_CONTROL_CENTER, savedBooks: [saved] }))
 
 test("取り込んだ追加プラグインを use で足すと組み直し、作ったときに渡したブックを新しい台帳で読み直す（足す前は読めないページだったページが、読めるページになり、開いていたステージもそのページを開く）", () => {
   const instance = make()

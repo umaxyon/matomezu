@@ -1,4 +1,6 @@
-// 参加要求を受け入れるダイアログ: 新しく始める（ワークルームの名前・鳥・配色を 1 度に決める。ワークルームを作って入れる）か、
+// 参加要求を受け入れるダイアログ: 一番上で参加者区分（ワーカーかビジター）を選ぶ。ビジターはワークルームを持たないので、ワークルームの名前・鳥・配色の入力Formを出さない
+// （AI がビジターとして頼んだ要求は、ビジターとしてだけ受け入れる）。受け入れたら、ようこそのダイアログに替える。
+// ワーカーなら: 新しく始める（ワークルームの名前・鳥・配色を 1 度に決める。ワークルームを作って入れる）か、
 // 引き継げるワークルーム（空室か、いる参加者が生きていないワークルーム）に入る（一覧から選ぶ。名前・鳥・配色はワークルームのまま）かを選ぶ（引き継げるワークルームがなければ、新しく始めるだけ）。
 // 名前の初めは AI が頼んだ名前か元のセッション名。鳥は 5 羽から 1 つ（同じ鳥を何人に当ててもよい）、配色は 20 個から 1 つ（選ばなければ、鳥の元の配色）。配色を選ぶと、5 羽ともその配色に塗り替わる。
 // 同じ名前のワークルームに、生きている参加者がいる間は決められない。名前が引き継げるワークルームと同じなら、最後に引き継ぐか、前のワークルームを消して新しく始めるかを確かめる。
@@ -16,6 +18,7 @@ import { refusalMessage } from "../utils/refusal"
 import { PARTICIPANT_ACCEPT, WORKROOM_NAME_MAX, type Workroom } from "."
 import { BirdFaceView } from "./BirdFaceView"
 import { asBird, originalPalette, PALETTE_TITLES } from "./birds"
+import { PARTICIPANT_WELCOME_DIALOG } from "./dialogs"
 import { useIsAlive, useNowMs, useParticipantCalls, useParticipantLive, useParticipants, useWorkrooms } from "./hooks"
 import { shownModel } from "./live"
 import styles from "./Participant.module.css"
@@ -40,11 +43,12 @@ export function ParticipantJoinDialog({ args, onClose }: DialogProps<{ participa
 }
 
 type Mode = "new" | "takeover"
+type Category = "worker" | "visitor"
 
 function JoinForm({ participant, onClose }: { participant: string; onClose: () => void }) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
-  const { perform, showToast } = useActions()
+  const { perform, showToast, openDialog } = useActions()
   const participants = useParticipants()
   const rooms = useWorkrooms()
   const calls = useParticipantCalls()
@@ -52,6 +56,8 @@ function JoinForm({ participant, onClose }: { participant: string; onClose: () =
   const isAlive = useIsAlive()
   const nowMs = useNowMs()
   const first = participants.find(p => p.id === participant)
+  const askedVisitor = first?.as === "visitor"
+  const [category, setCategory] = useState<Category>(askedVisitor ? "visitor" : "worker")
   const form = useId()
   const quiet = takeable(rooms, participants, calls, isAlive, nowMs)
   const asked = quiet.find(r => r.name === first?.wantedName)
@@ -77,11 +83,13 @@ function JoinForm({ participant, onClose }: { participant: string; onClose: () =
     { record: participant },
   ).ok
   const allowedAccept = useAllowedOn(PARTICIPANT_ACCEPT.id, { workroom: "-" }, { record: participant }).ok
+  const allowedVisitor = useAllowedOn(PARTICIPANT_ACCEPT.id, { as: "visitor" }, { record: participant }).ok
   const refused = (done: Parameters<typeof refusalMessage>[1]) =>
     showToast({ kind: "warn", message: refusalMessage(catalog, done, kit.message("Could not answer the request")) })
   const finish = (done: ReturnType<typeof perform>) => {
-    if (done.ok) onClose()
-    else refused(done)
+    if (!done.ok) return refused(done)
+    onClose()
+    openDialog(PARTICIPANT_WELCOME_DIALOG.id, { participant })
   }
   // 受け入れは 1 つのアクションで行う（いる参加者を外す・捨てるワークルームを消す・作るまで全部通るか、全部断られる）
   const accept = (args: Parameters<typeof PARTICIPANT_ACCEPT.run>[1]) =>
@@ -96,12 +104,18 @@ function JoinForm({ participant, onClose }: { participant: string; onClose: () =
   }
   // OK: 名前が引き継げるワークルームと同じ、または一覧から選んだなら、最後に確かめる
   const submit = () => {
-    if (mode === "takeover") {
+    if (category === "visitor") accept({ as: "visitor" })
+    else if (mode === "takeover") {
       if (chosen) setConfirming({ target: chosen, discardable: false })
     } else if (sameQuiet) setConfirming({ target: sameQuiet, discardable: true })
     else accept({ newWorkroom: room })
   }
-  const ready = mode === "takeover" ? chosen !== undefined && allowedAccept : trimmed !== "" && !inUse && allowedNew
+  const ready =
+    category === "visitor"
+      ? allowedVisitor
+      : mode === "takeover"
+        ? chosen !== undefined && allowedAccept
+        : trimmed !== "" && !inUse && allowedNew
   if (confirming) {
     const { target, discardable } = confirming
     const stillQuiet = quiet.some(r => r.id === target.id)
@@ -135,7 +149,24 @@ function JoinForm({ participant, onClose }: { participant: string; onClose: () =
   }
   return (
     <Form id={form} ready={ready} onSubmit={submit}>
-      {quiet.length > 0 && (
+      {askedVisitor ? (
+        <p className={styles.paletteName}>{t("Asked to join as a visitor")}</p>
+      ) : (
+        <Field label={t("Participant category")}>
+          {() => (
+            <fieldset className={styles.modes} aria-label={t("Participant category")}>
+              {(["worker", "visitor"] as const).map(c => (
+                <label key={c} className={styles.mode}>
+                  <input type="radio" name="join-category" checked={category === c} onChange={() => setCategory(c)} />
+                  {t(c === "worker" ? "Worker" : "Visitor")}
+                </label>
+              ))}
+            </fieldset>
+          )}
+        </Field>
+      )}
+      {category === "visitor" ? <p className={styles.paletteName}>{t("Only reads. Has no workroom.")}</p> : null}
+      {category === "worker" && quiet.length > 0 && (
         <fieldset className={styles.modes} aria-label={t("Join the workroom")}>
           {(["new", "takeover"] as const).map(m => (
             <label key={m} className={styles.mode}>
@@ -145,7 +176,7 @@ function JoinForm({ participant, onClose }: { participant: string; onClose: () =
           ))}
         </fieldset>
       )}
-      {mode === "takeover" ? (
+      {category === "visitor" ? null : mode === "takeover" ? (
         <Field label={t("Choose who to take over")}>
           {() => (
             <fieldset className={styles.takeable} aria-label={t("Choose who to take over")}>

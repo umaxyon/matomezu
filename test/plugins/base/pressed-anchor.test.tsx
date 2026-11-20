@@ -2,6 +2,7 @@
 // メニューの置き場は、開いたメニューの位置で右クリックしていたときだけ、そのアンカーを使う
 import { afterEach, expect, test } from "bun:test"
 import { cleanup, render } from "@testing-library/react"
+import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { pressedAnchorAt, useRememberPressedAnchor } from "../../../web/src/plugins/base/context-menu/pressed-anchor"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../../web/src/plugins/ui"
 import { createMatomezu } from "../../../web/src/store/create"
@@ -21,7 +22,7 @@ test("押した物のアンカーは、右クリックした位置に開いた�
   const instance = createMatomezu({
     plugins: [...BUILTIN_UI],
     partial: true,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
   })
   render(

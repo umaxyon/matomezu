@@ -1,7 +1,7 @@
 // 対象の定義（レコード）: プラグインが足した種類のデータをアクションが作る・直す・消す（宛先の 1 件と、ほかの同じ種類のレコードを 1 回でまとめて）。確かめは宣言の形、番号は常駐が決める
 import { expect, test } from "bun:test"
 import { z } from "zod"
-import { AI, AI_NOT_JOINED, USER } from "../../web/src/core/actor"
+import { AI, AI_NOT_JOINED, AI_VISITOR, USER } from "../../web/src/core/actor"
 import type { ActionDef } from "../../web/src/core/def/action"
 import type { SubjectDef } from "../../web/src/core/def/subject"
 import { type PerformedIn, performIn, permittedIn, type World } from "../../web/src/core/perform"
@@ -281,12 +281,13 @@ test("残したレコードを確かめ、種類が機能台帳に無い・形�
   expect(lines).toEqual(["W025", "W024"])
 })
 
-test("参加が確定していない AI は、ブックでない対象のアクションを断られる（理由は not-joined）。確定した AI と利用者は行える", () => {
+test("参加が確定していない AI（理由は not-joined）とビジター（理由は visitor）は、レコードが対象のアクションを断られる。確定した AI と利用者は行える", () => {
   const ask = (actor: typeof USER) =>
     permittedIn(empty, "@ex/rec:card-add", { label: "a" }, undefined, { catalog, controlCenter: CENTER, actor })
   expect(ask(USER)).toEqual({ ok: true })
   expect(ask(AI)).toEqual({ ok: true })
   expect(ask(AI_NOT_JOINED)).toEqual({ ok: false, reason: "not-allowed", because: "not-joined" })
+  expect(ask(AI_VISITOR)).toEqual({ ok: false, reason: "not-allowed", because: "visitor" })
   // 参加を頼む役のアクションは、参加が確定する前にも行える（準備中の AI が参加を頼める）
   const join = permittedIn(
     empty,

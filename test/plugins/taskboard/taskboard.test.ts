@@ -3,6 +3,7 @@
 import { expect, test } from "bun:test"
 import { AI, USER } from "../../../web/src/core/actor"
 import { performIn, permittedIn } from "../../../web/src/core/perform"
+import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { PROJECT } from "../../../web/src/plugins/taskboard/project"
 import { TICKET } from "../../../web/src/plugins/taskboard/ticket"
 import { CORE_CATALOG, newStore } from "../../support"
@@ -25,7 +26,7 @@ function ready() {
   const store = newStore()
   const ctx = (actor: typeof AI | typeof USER) => ({
     catalog: CORE_CATALOG,
-    controlCenter: "@matomezu/control-center:control-center" as never,
+    controlCenter: BUILTIN_CONTROL_CENTER as never,
     lang: "ja" as const,
     newId: () => `n${Math.random()}`,
     now: "2026-11-12T00:00:00.000Z",
@@ -252,7 +253,7 @@ test("閉じたプロジェクトは、行う前の問いでも、開け直す�
       { record: p.id },
       {
         catalog: CORE_CATALOG,
-        controlCenter: "@matomezu/control-center:control-center" as never,
+        controlCenter: BUILTIN_CONTROL_CENTER as never,
         actor: USER,
       },
     )

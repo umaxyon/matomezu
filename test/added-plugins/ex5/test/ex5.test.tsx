@@ -4,6 +4,7 @@ import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
 import { addPageIn, createBookIn, nextItemId, pagesOf } from "matomezu"
 import {
+  BUILTIN_CONTROL_CENTER,
   BUILTIN_UI,
   createMatomezu,
   DEFAULT_LAYOUT,
@@ -24,7 +25,7 @@ interface Page {
 const shelf = () => {
   const instance = createMatomezu({
     plugins: [...BUILTIN_UI, EX5_UI],
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
   })
   // 最初のブックを窓に出す（ブックが無ければ、何も開かないステージのブックスクリーンを開く）

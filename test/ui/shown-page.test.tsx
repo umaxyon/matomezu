@@ -4,6 +4,7 @@ import { afterEach, expect, test } from "bun:test"
 import { cleanup, render } from "@testing-library/react"
 import { pagesOf } from "../../web/src/core/book"
 import { findShape, type ItemPage } from "../../web/src/core/placed"
+import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { StageScope } from "../../web/src/ui/scope"
@@ -20,7 +21,7 @@ const LIST = "@matomezu/list:shape-list"
 test("内包ボックスの中のリストの設定ダイアログの下書きは、子の形に重なる（データは変えない）", () => {
   const instance = createMatomezu({
     plugins: BUILTIN_UI,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     books: SAMPLE_BOOKS,
     lang: "ja",
     newId: sequence(),

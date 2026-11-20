@@ -86,6 +86,7 @@ export const ERRORS = {
   E127: "item {id}: scrapFrame is for a shape whose props are a scrap",
   E128: "{name} is used outside a screen arrangement (only the widget that lays out the screens names them)",
   E129: "setting {id}: printPreview is only for a setting a book holds (holder outermost)",
+  E130: "subject {id}: the state of role participants takes exactly {states}",
 
   E201: "MatomezuProvider is missing",
   E202: "#root is missing",

@@ -1,10 +1,11 @@
 // 右の下のワークルームの枠: 選んでいる参加者の鳥・名前・管理者の王冠（管理者なら金、ほかは薄い灰色。押すと管理者にする）・情報（最終アクセス・ブランチ（あれば）・model・os）・現在のタスク・履歴。
-// 情報の列の右下に退室のアイコン。情報の列の右には、スロット workroom-columnsに置かれたウィジェットの列（現在のタスク・履歴など）が並ぶ
+// 情報の列の右下に退室のアイコン。情報の列の右には、スロット workroom-columnsに置かれたウィジェットの列（現在のタスク・履歴など）が並ぶ。
+// ビジターを選んでいれば、ビジターの印・呼び名・（ビジター（読むだけ））・情報と、右下に外すアイコン（確かめのダイアログを開く）
 import { Slot, useActions, useAllowedOn, useMessages } from "../../plugin-api/ui"
-import type { WorkroomRow } from "../base"
-import { Elapsed, IconButton, Panel, Tip, useWorkroomActions } from "../base/ui"
-import { Bird } from "./Bird"
-import { WORKROOM_LEAVE_DIALOG } from "./control-center"
+import { type VisitorRow, visitorName, type WorkroomRow } from "../base"
+import { Elapsed, IconButton, Panel, Tip, useWorkroomActions, VisitorIcon } from "../base/ui"
+import { BIRD_SIZE, Bird } from "./Bird"
+import { VISITOR_LEAVE_DIALOG, WORKROOM_LEAVE_DIALOG } from "./control-center"
 import { CrownIcon, LeaveIcon, TrashIcon } from "./icons"
 import { kit } from "./kit"
 import { lastAccessOf } from "./rows"
@@ -12,11 +13,21 @@ import { WORKROOM_COLUMNS } from "./slots"
 import text from "./text.module.css"
 import styles from "./WorkroomView.module.css"
 
-export function WorkroomView({ row, hidden }: { row: WorkroomRow | undefined; hidden: boolean }) {
+export function WorkroomView({
+  row,
+  visitor,
+  hidden,
+}: {
+  row: WorkroomRow | undefined
+  visitor: VisitorRow | undefined
+  hidden: boolean
+}) {
   const t = useMessages(kit)
   return (
     <Panel className={styles.room} data-max={hidden} data-workroom-panel>
-      {row && row.state === "empty" ? (
+      {visitor ? (
+        <Visitor row={visitor} />
+      ) : row && row.state === "empty" ? (
         <Empty row={row} />
       ) : row ? (
         <Occupied row={row} />
@@ -122,6 +133,61 @@ function Occupied({ row }: { row: WorkroomRow }) {
         </span>
       </div>
       <Slot name={WORKROOM_COLUMNS} props={{ workroom: row.room.id }} />
+    </div>
+  )
+}
+
+// ビジター: 印・呼び名・（ビジター（読むだけ））・情報（最終アクセス・ブランチ（あれば）・model・os）、右下に外すアイコン
+function Visitor({ row }: { row: VisitorRow }) {
+  const t = useMessages(kit)
+  const { openDialog } = useActions()
+  const participant = row.participant
+  const access = lastAccessOf(row)
+  const canLeave = useAllowedOn("@matomezu/base:participant-remove", {}, { record: participant.id }).ok
+  return (
+    <div className={styles.body}>
+      <div className={styles.info}>
+        <div className={styles.head}>
+          <VisitorIcon size={BIRD_SIZE} />
+          <span className={styles.name}>{visitorName(participant)}</span>
+          <span className={text.note}>{t("Visitor (read only)")}</span>
+        </div>
+        <dl className={styles.facts}>
+          <dt>{t("Last access:")}</dt>
+          <dd>
+            {access === "called" && row.calledAt ? (
+              <Elapsed at={row.calledAt} />
+            ) : access === "preparing" ? (
+              t("Preparing")
+            ) : (
+              t("None")
+            )}
+          </dd>
+          {row.branch ? (
+            <>
+              <dt>{t("Branch:")}</dt>
+              <dd>{row.branch}</dd>
+            </>
+          ) : null}
+          <dt>{t("Model:")}</dt>
+          <dd>{row.model}</dd>
+          <dt>{t("Environment:")}</dt>
+          <dd>{participant.env}</dd>
+        </dl>
+        <span className={styles.leave}>
+          <Tip text={t("Remove the visitor")} side="above">
+            <IconButton
+              className={styles.leaveButton}
+              label={t("Remove the visitor")}
+              title={undefined}
+              disabled={!canLeave}
+              onClick={() => openDialog(VISITOR_LEAVE_DIALOG.id, { participant: participant.id })}
+            >
+              <LeaveIcon />
+            </IconButton>
+          </Tip>
+        </span>
+      </div>
     </div>
   )
 }

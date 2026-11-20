@@ -88,7 +88,7 @@ export function orderHeld(rows: readonly WorkroomRow[], held: readonly string[])
 // ワークルームの枠の「最終アクセス」の出し方: 呼ばれた時刻があればそれ、無ければ準備中か、なし
 export type LastAccess = "called" | "preparing" | "none"
 
-export const lastAccessOf = (row: WorkroomRow): LastAccess =>
+export const lastAccessOf = (row: Pick<WorkroomRow, "calledAt" | "state">): LastAccess =>
   row.calledAt ? "called" : row.state === "preparing" ? "preparing" : "none"
 
 // 枠（左の列・ワークルームの枠）が画面の外へ退くか。前に出している画面の最大化と、中身が名乗った最大化（useControlCenterMaximized）から決める。

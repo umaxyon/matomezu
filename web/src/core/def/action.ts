@@ -107,7 +107,7 @@ export type AIEditTicketChange =
 export type AIEditTicketRemovedCause = "limit" | "user"
 
 // レコードが対象のアクションが送る AI 間メッセージ 1 通: 宛先のワークルームの id と文。送り手は行った参加者で、ここには書かない。
-// 返せるのは、行う者が参加の確定した AI のときだけ。常駐は、アクションバルクが通ったときだけ送り、宛先のワークルームに参加の確定した参加者がいなければ、バルクごと断る（no-recipient）
+// 返せるのは、行う者がワークルームに入っている AI のときだけ。常駐は、アクションバルクが通ったときだけ送り、宛先のワークルームに参加の確定した参加者がいなければ、バルクごと断る（no-recipient）
 export interface AIMessage {
   workroom: string
   text: string

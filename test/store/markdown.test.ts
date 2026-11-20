@@ -9,7 +9,7 @@ import { shownPageId } from "../../web/src/core/stage"
 import { screenOf } from "../../web/src/core/window"
 import { growOf } from "../../web/src/plugins/base"
 import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
-import { addPageIn } from "../../web/src/plugins/base/page-tabs/add-page"
+import { addPageIn } from "../../web/src/plugins/base/pages/add-page"
 import {
   chosenWith,
   openingFor,

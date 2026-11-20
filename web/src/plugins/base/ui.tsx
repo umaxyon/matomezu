@@ -4,11 +4,12 @@ import type { WideSearchHit } from "../../core/wide-search"
 import { definePluginUi } from "../../ui/plugin"
 import { BASE } from "."
 import { BOOK_LOOK_DIALOG_VIEWS, BOOK_LOOK_ICONS, BOOK_LOOK_SETTING_VIEWS } from "./book-look/ui"
-import { BOOK_NAME, FOOTER_MENU_MINIMAP, HISTORY_BUTTONS, STAGE_MENU_BUTTONS } from "./book-name/ui"
+import { BOOK_NAME } from "./book-name/ui"
 import { BOOK_NEW_DIALOG_VIEWS } from "./book-new/ui"
 import { MENU_HOST } from "./context-menu/ui"
 import { DIALOG_HOST } from "./dialog-host/ui"
 import { EDIT_LOCK } from "./edit-lock/ui"
+import { FOOTER_MENU_MINIMAP, HISTORY_BUTTONS, STAGE_MENU_BUTTONS } from "./footer-menu/ui"
 import { HISTORY_ICONS } from "./history/icons"
 import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG, LIBRARY_RENAME_DIALOG } from "./library/dialog"
 import { LIBRARY_COMMAND_ICONS } from "./library/icons"
@@ -17,6 +18,7 @@ import { LibraryNewFolderDialog, LibraryRenameDialog } from "./library/NameDialo
 import { LIBRARY_SCREEN_VIEW } from "./library/screen-ui"
 import type { MailActionsProps } from "./mail/slots"
 import {
+  JOIN_REQUEST_ACTIONS,
   MAIL_BOOKMARKS,
   MAIL_DIALOG_VIEWS,
   MAIL_LAYER,
@@ -30,7 +32,7 @@ import { FOLDED_NOTE_STATUS, NOTE_ICON, NOTE_LAYER, NOTE_PANEL, NOTE_READ_NOTICE
 import type { AnnotationIconProps } from "./outbox/slots"
 import { OUTBOX } from "./outbox/ui"
 import { PAGE_CONTEXT_MENU_ROWS, PAGE_DIALOG_VIEWS, PAGE_LIST, PAGE_SETTINGS_ICONS, PAGE_TABS } from "./page-tabs/ui"
-import { JOIN_REQUEST_ACTIONS, PARTICIPANT_DIALOG_VIEWS } from "./participant/ui"
+import { PARTICIPANT_DIALOG_VIEWS } from "./participant/ui"
 import {
   PRINT_CHECK_PANEL,
   PRINT_PREVIEW_BUTTON,
@@ -129,7 +131,8 @@ export { PageProblemsView, usePageProblems } from "./page-tabs/PageProblems"
 export { type PaperValue, usePaperControls } from "./page-tabs/PaperControls"
 export { useAddPage } from "./page-tabs/useAddPage"
 export { BirdFaceView } from "./participant/BirdFaceView"
-export { useWorkroomActions, useWorkroomRows, type WorkroomActions } from "./participant/hooks"
+export { useVisitorRows, useWorkroomActions, useWorkroomRows, type WorkroomActions } from "./participant/hooks"
+export { VisitorIcon } from "./participant/VisitorIcon"
 export type { PrintMeasured, PrintMeasureProps, PrintSheetProps } from "./print-preview/PrintPreviewView"
 export { ScrapForm } from "./scrap/ScrapForm"
 export { ScrapView, type ScrapViewProps } from "./scrap/ScrapView"

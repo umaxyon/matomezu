@@ -12,10 +12,10 @@ import { useBook } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
 import { controlClass, Field, Form } from "../dialog-host/FormParts"
 import { kit } from "../kit"
+import { nextPageTitle } from "../pages/pages"
 import { freeTitle } from "../utils/titles"
 import type { NewPageDialogArgs } from "."
 import { usePaperControls } from "./PaperControls"
-import { nextPageTitle } from "./pages"
 import { useAddPage } from "./useAddPage"
 
 export function NewPageDialog({ args, onClose }: DialogProps<NewPageDialogArgs>) {

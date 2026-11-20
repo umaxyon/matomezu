@@ -20,7 +20,7 @@ import type { ScreenArrangementDef } from "./def/screen-arrangement"
 import type { ScreenDef } from "./def/screen-def"
 import type { HeldSettingDef, SettingDef, SettingRole, UserSettingDef } from "./def/setting"
 import type { SkinDef } from "./def/skin"
-import { SUBJECT_ROLE_FIELDS, type SubjectDef } from "./def/subject"
+import { PARTICIPANT_STATES, SUBJECT_ROLE_FIELDS, type SubjectDef } from "./def/subject"
 import type { SystemFolderDef } from "./def/system-folder"
 import type { TextColorDef } from "./def/text-color"
 import { THEME_TOKENS, type ThemeDef, type TokenDef } from "./def/theme"
@@ -35,6 +35,12 @@ import { UNREADABLE_CODES } from "./schema/book"
 import { PageSchema } from "./schema/page"
 import { writtenValues } from "./theme"
 import { type Warning, warning } from "./warnings"
+
+// フィールドの形 field が、値の並び values をそれぞれ受け、ほかの字を受けないか（列挙の値がちょうど values か）
+const takesExactly = (field: unknown, values: readonly string[]): boolean =>
+  field instanceof z.ZodEnum &&
+  values.every(v => field.safeParse(v).success) &&
+  (field.options as readonly unknown[]).length === values.length
 
 export type { ActionId, ItemId, PageTypeId, PaperId, SettingId, SkinId, ThemeId } from "./catalog"
 
@@ -369,6 +375,9 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     else roleOwner.set(s.role, s.id)
     for (const field of SUBJECT_ROLE_FIELDS[s.role])
       if (!(field in s.record.shape)) problems.push(problem("E051", { id: s.id, role: s.role, field }))
+    // 参加者の state は、常駐が読む値（PARTICIPANT_STATES）をそれぞれ受け、ほかを受けない
+    if (s.role === "participants" && !takesExactly(s.record.shape.state, PARTICIPANT_STATES))
+      problems.push(problem("E130", { id: s.id, states: PARTICIPANT_STATES.join(", ") }))
   }
   // 列挙の値の data は、宣言の value の形に合う（宣言が無い値は error にせず、効かない warning にする）
   const enumTables = { enums: byId(parts.enums), enumValues: byId(parts.enumValues) }

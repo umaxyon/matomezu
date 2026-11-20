@@ -8,9 +8,9 @@ import { bookIdOf, bookOf, type Library, withBook } from "../../../core/folders"
 import { typeAllows } from "../../../core/inspect"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
-import { BINDER_DUPLICATE, duplicatedBinder } from "../page-tabs/binders"
-import { describeNewPage, NEW_PAGE_ARGS, PAGE_ADD, withNewPage } from "../page-tabs/page-add"
-import { duplicatedPage, PAGE_DUPLICATE } from "../page-tabs/page-duplicate"
+import { BINDER_DUPLICATE, duplicatedBinder } from "../pages/binders"
+import { describeNewPage, NEW_PAGE_ARGS, PAGE_ADD, withNewPage } from "../pages/page-add"
+import { duplicatedPage, PAGE_DUPLICATE } from "../pages/page-duplicate"
 import { placedInBook, placedOutsideTrash } from "./entries"
 
 // ブックの中に在る（ゴミ箱の外の）エントリ entry を入れているブック（ブックの中に無ければ undefined）

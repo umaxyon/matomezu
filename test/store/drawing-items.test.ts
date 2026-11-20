@@ -6,7 +6,7 @@ import type { Book } from "../../web/src/core/schema/book"
 import { openedPage, placement } from "../../web/src/core/stage"
 import { screenOf } from "../../web/src/core/window"
 import { toolOf } from "../../web/src/core/workspace"
-import { BUILTIN } from "../../web/src/plugins"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { addPageIn } from "../../web/src/plugins/base"
 import { NEST_BOX } from "../../web/src/plugins/items/box/box"
 import { PLACE_OFFSET } from "../../web/src/plugins/paper/placing/items"
@@ -217,7 +217,7 @@ test("追加と編集のダイアログを持たない形は、押した所に�
   )
   const store = createMatomezuInstance({
     plugins,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     books: SAMPLE_BOOKS,
     lang: "ja",
     newId: sequence(),

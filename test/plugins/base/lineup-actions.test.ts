@@ -8,19 +8,20 @@ import { bookOf, tablesOf } from "../../../web/src/core/folders"
 import { perform } from "../../../web/src/core/perform"
 import type { ItemPage } from "../../../web/src/core/placed"
 import type { Book } from "../../../web/src/core/schema/book"
+import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import {
   BINDER_DUPLICATE,
   BINDER_MOVE,
   BINDER_REMOVE,
   BINDER_UPDATE,
-} from "../../../web/src/plugins/base/page-tabs/binders"
-import { PAGE_ADD } from "../../../web/src/plugins/base/page-tabs/page-add"
+} from "../../../web/src/plugins/base/pages/binders"
+import { PAGE_ADD } from "../../../web/src/plugins/base/pages/page-add"
 import { DRAWING, drawingPage, MARKDOWN, SLIDE, testBinder, testBook, testPage, withSlide } from "../../lineup"
 import { BUILTIN_PARTS, CORE_CATALOG, NAMING, sequence } from "../../support"
 
 const ctx = () => ({
   catalog: CORE_CATALOG,
-  controlCenter: "@matomezu/control-center:control-center",
+  controlCenter: BUILTIN_CONTROL_CENTER,
   lang: "ja" as const,
   newId: sequence("n"),
   now: "2026-11-16T00:00:00.000Z",

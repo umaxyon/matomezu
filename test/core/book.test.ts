@@ -12,7 +12,7 @@ import {
 } from "../../web/src/core/book"
 import { resolvePaper } from "../../web/src/core/paper"
 import { PAPER_IDS } from "../../web/src/plugins/base"
-import { choosablePapers, defaultPaper, paperChoices } from "../../web/src/plugins/base/page-tabs/pages"
+import { choosablePapers, defaultPaper, paperChoices } from "../../web/src/plugins/base/pages/pages"
 import { DRAWING, drawingPage, MARKDOWN, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { CORE_CATALOG, sequence } from "../support"
 

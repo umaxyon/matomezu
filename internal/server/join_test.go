@@ -585,11 +585,11 @@ func TestJoinWithAWorkroomOfAQuietParticipantCanBeAcceptedByTakingOver(t *testin
 // 参加を伝える文は、利用者の言語の文言の表から作る
 func TestJoinedTextComesFromTheMessageTable(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
-	if got := hub.userJoinedText("ひよこ"); got != "Joined matomezu. Workroom name: ひよこ" {
+	if got := hub.userJoinedText(Welcome{Workroom: "ひよこ"}); got != "Joined matomezu. Workroom name: ひよこ" {
 		t.Fatalf("en = %q", got)
 	}
 	postPerform(t, s.URL, `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:lang":"matomezu:ja"}},"lang":"ja"}`)
-	if got := hub.userJoinedText("ひよこ"); got != "matomezu に参加しました。ワークルーム名: ひよこ" {
+	if got := hub.userJoinedText(Welcome{Workroom: "ひよこ"}); got != "matomezu に参加しました。ワークルーム名: ひよこ" {
 		t.Fatalf("ja = %q", got)
 	}
 }

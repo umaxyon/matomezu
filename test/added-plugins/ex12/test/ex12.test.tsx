@@ -1,6 +1,14 @@
 import { afterEach, expect, test } from "bun:test"
 import { cleanup, fireEvent, render, screen } from "@testing-library/react"
-import { BUILTIN_UI, createMatomezu, DEFAULT_LAYOUT, MatomezuProvider, placeAdded, WindowRoot } from "matomezu/testing"
+import {
+  BUILTIN_CONTROL_CENTER,
+  BUILTIN_UI,
+  createMatomezu,
+  DEFAULT_LAYOUT,
+  MatomezuProvider,
+  placeAdded,
+  WindowRoot,
+} from "matomezu/testing"
 import EX12_UI from "../ui"
 
 afterEach(cleanup)
@@ -8,7 +16,7 @@ afterEach(cleanup)
 const make = () => {
   const instance = createMatomezu({
     plugins: [...BUILTIN_UI, EX12_UI],
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
   })
   // 最初のブックを窓に出す（ブックが無ければ、何も開かないステージのブックスクリーンを開く）

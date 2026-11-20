@@ -7,7 +7,7 @@ package server
 // 封筒の形（id・送り手・宛て先・本文・送った時刻）は、マシンをまたいで運ぶときも変えない。id で重なりを見分け、同じ封筒は二度入れない
 //
 //	POST /api/ai/message {"to", "text"}  {"ok": true, "queued": true}、または断った理由 {"ok": false, "reason", "detail"}
-//	  断る理由: not-joined（送り手の参加が確定していない）・unknown-recipient（その名前のワークルームが無いか、参加が確定した参加者がいない。detail に送れる名前）・to-self（自分のワークルーム）
+//	  断る理由: not-joined（送り手の参加が確定していない）・visitor（送り手がビジター）・unknown-recipient（その名前のワークルームが無いか、参加が確定した参加者がいない。detail に送れる名前）・to-self（自分のワークルーム）
 
 import (
 	"crypto/rand"
@@ -58,7 +58,7 @@ const seenEnvelopesMax = 1000
 func (h *Hub) occupants(records []participantRecord) map[string]string {
 	occupant := map[string]string{}
 	for _, r := range records {
-		if r.State == "joined" && r.Workroom != "" && h.participantNotes[r.ID].ready() {
+		if r.State == stateJoined && r.Workroom != "" && h.participantNotes[r.ID].ready() {
 			occupant[r.Workroom] = r.ID
 		}
 	}
@@ -128,6 +128,9 @@ func (h *Hub) SendMessage(req MessageRequest, now time.Time) (MessageSent, error
 		}
 	}
 	if from == nil {
+		if h.actorOfParticipantHeld(req.Participant).As == stateVisitor {
+			return MessageSent{Reason: "visitor", Detail: "a visitor only reads: it cannot send messages to other AIs"}, nil
+		}
 		return MessageSent{Reason: "not-joined", Detail: "only an AI whose request to join was accepted can send messages (call join first)"}, nil
 	}
 	var to *workroomRecord

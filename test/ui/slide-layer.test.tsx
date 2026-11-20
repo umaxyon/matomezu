@@ -6,6 +6,7 @@ import { act, cleanup, render, screen } from "@testing-library/react"
 import { definePageType } from "../../web/src/core/def/page-type"
 import { definePresentation } from "../../web/src/core/def/presentation"
 import { screenOf } from "../../web/src/core/window"
+import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
@@ -44,7 +45,7 @@ describe("スライドのレイヤー", () => {
     const instance = createMatomezu({
       plugins: [...BUILTIN_UI, backUi],
       partial: true,
-      controlCenter: "@matomezu/control-center:control-center",
+      controlCenter: BUILTIN_CONTROL_CENTER,
       lang: "ja",
     })
     showFirstBook(instance)

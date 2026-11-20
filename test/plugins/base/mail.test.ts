@@ -4,6 +4,7 @@
 import { expect, test } from "bun:test"
 import { AI } from "../../../web/src/core/actor"
 import { performIn } from "../../../web/src/core/perform"
+import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { MAIL, mailboxOf } from "../../../web/src/plugins/base/mail"
 import type { Mail } from "../../../web/src/plugins/base/mail/mail"
 import { placeShown } from "../../../web/src/plugins/base/mail/visited"
@@ -80,7 +81,7 @@ test("AI は手紙を送れるが、見た・行き先を見た・消すはで�
   }
   const ctx = {
     catalog: CORE_CATALOG,
-    controlCenter: "@matomezu/control-center:control-center" as never,
+    controlCenter: BUILTIN_CONTROL_CENTER as never,
     lang: "en" as const,
     newId: () => "n",
     now: "t",
@@ -130,7 +131,7 @@ test("上限を超えたときの送るアクションは、足す 1 通と消�
     undefined,
     {
       catalog: CORE_CATALOG,
-      controlCenter: "@matomezu/control-center:control-center" as never,
+      controlCenter: BUILTIN_CONTROL_CENTER as never,
       lang: "en",
       newId: () => "fresh-mail-id",
       now: "t",

@@ -4,8 +4,15 @@
 // 前に出す画面は、このスクリーンの値として画面の場所に入る（FRONT_SCREEN。値が無ければプロジェクト）。選んだワークルームと書庫の最大化は、このスクリーンの中だけ
 import { useState } from "react"
 import { Slot, usePluginState, useSetPluginState } from "../../plugin-api/ui"
-import { Panel, useControlCenterMaximized, useWorkroomRows } from "../base/ui"
-import { FRONT_SCREEN, type FrontScreen, frontScreenOf, LIBRARY_MAXIMIZED, PICKED_ROOM } from "./control-center"
+import { Panel, useControlCenterMaximized, useVisitorRows, useWorkroomRows } from "../base/ui"
+import {
+  FRONT_SCREEN,
+  type FrontScreen,
+  frontScreenOf,
+  LIBRARY_MAXIMIZED,
+  PICKED_ROOM,
+  PICKED_VISITOR,
+} from "./control-center"
 import { kit } from "./kit"
 import { LibraryArea } from "./LibraryArea"
 import { ParticipantListView } from "./ParticipantListView"
@@ -25,6 +32,8 @@ export function ControlCenterScreen() {
   const setLibraryMaximized = useSetPluginState(kit, LIBRARY_MAXIMIZED)
   const setMaximized = (on: boolean) => setLibraryMaximized(on)
   const picked = pickedRow(useWorkroomRows(), usePluginState(kit, PICKED_ROOM))
+  const pickedVisitorId = usePluginState(kit, PICKED_VISITOR)
+  const visitor = useVisitorRows().find(v => v.participant.id === pickedVisitorId)
   // 最初の表示では滑り込ませず、画面を替えたあとから滑り込ませる
   const [switched, setSwitched] = useState(false)
   const show = (to: FrontScreen) => {
@@ -46,7 +55,7 @@ export function ControlCenterScreen() {
               <Panel recess className={styles.boards} data-max={retreat.workroom} data-boards-area>
                 <Slot name={PROJECTS} props={{}} />
               </Panel>
-              <WorkroomView row={picked} hidden={retreat.workroom} />
+              <WorkroomView row={picked} visitor={visitor} hidden={retreat.workroom} />
             </div>
           </ScreenPane>
           <ScreenPane front={screen === "library"} slideIn={switched}>

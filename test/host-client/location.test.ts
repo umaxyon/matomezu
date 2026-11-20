@@ -14,7 +14,7 @@ import {
   parseSearch,
   searchOf,
 } from "../../web/src/host-client/location"
-import { BUILTIN } from "../../web/src/plugins"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { SAMPLE_BOOKS } from "../sample-books"
@@ -298,7 +298,7 @@ test("積むと宣言したステージに結ばない値は変わるたびに�
   const MODE = kit.definePluginState({ id: "mode", scope: "stage", schema: z.string(), address: "replace" })
   const store = createMatomezu({
     plugins: [...BUILTIN, kit.plugin({ pluginStates: [TAB, MODE] })],
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     books: SAMPLE_BOOKS,
     lang: "ja",
     partial: true,
@@ -331,7 +331,7 @@ test("積むと宣言したステージに結ばない値は変わるたびに�
 test("スクリーンを開くのも、開いているスクリーンの渡す値を setScreenProps で替えるのも、履歴に積む。戻ると前の渡す値に戻る", async () => {
   const store = createMatomezu({
     plugins: BUILTIN,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
   })
   showFirstBook(store)
@@ -352,7 +352,7 @@ test("スクリーンを開くのも、開いているスクリーンの渡す�
 test("この窓が積んだ行が無ければ canGoBack は false、積めば true、戻って先頭に着けば false。requestBack は戻れるときだけブラウザの履歴を戻す", async () => {
   const store = createMatomezu({
     plugins: BUILTIN,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
   })
   showFirstBook(store)
@@ -374,7 +374,7 @@ test("この窓が積んだ行が無ければ canGoBack は false、積めば tr
 test("スクリーンアレンジメントと値は URL に入り、替えると履歴に積む。replaceHistory を頼むと、同じ処理の中の替える・閉じるをまとめて、積まずに書き換える", async () => {
   const store = createMatomezu({
     plugins: BUILTIN,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
   })
   showFirstBook(store)

@@ -572,6 +572,10 @@ func (o Options) aiShow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	o.waitLatest()
+	if reason, detail := o.Hub.showRefusal(r.Header.Get(ParticipantHeader)); reason != "" {
+		writeJSON(w, map[string]any{"ok": false, "reason": reason, "detail": detail})
+		return
+	}
 	err := o.Hub.Show(req)
 	opened := false
 	if errors.Is(err, ErrNoWindow) && o.Open != nil {

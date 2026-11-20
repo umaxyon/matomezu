@@ -7,7 +7,7 @@ import type { PluginStateDef } from "../../web/src/core/def/plugin-state"
 import type { MatomezuError } from "../../web/src/core/errors"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { screenOf } from "../../web/src/core/window"
-import { BUILTIN } from "../../web/src/plugins"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { readPlaced, withPluginState } from "../../web/src/store/plugin-state"
@@ -25,7 +25,7 @@ const make = () =>
   shown(
     createMatomezu({
       plugins: [...BUILTIN, kit.plugin({ pluginStates: [TAB, MODE, NOTE, PICK] })],
-      controlCenter: "@matomezu/control-center:control-center",
+      controlCenter: BUILTIN_CONTROL_CENTER,
       books: SAMPLE_BOOKS,
       lang: "ja",
       partial: true,
@@ -109,7 +109,7 @@ test("readPlaced は範囲の合う宣言の値だけを読み、withPluginState
 test("コントロールセンターの前に出す画面の宣言は、スクリーン 1 枚ごとの値で、変えるたびにブラウザの履歴に積む。スクリーンを閉じると値も消える", () => {
   const instance = createMatomezu({
     plugins: BUILTIN,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
   })
   showFirstBook(instance)
@@ -208,7 +208,7 @@ test("ほかのプラグインの宣言に、id と値だけで入れる道: add
 test("スクリーンに渡す値を替える（積まない）: 開いているスクリーンの値だけ、定義の形に合う値で替える。無いスクリーン・形に合わない値は替えず false", () => {
   const instance = createMatomezu({
     plugins: BUILTIN,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
   })
   showFirstBook(instance)

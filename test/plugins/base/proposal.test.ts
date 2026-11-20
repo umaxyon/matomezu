@@ -5,6 +5,7 @@ import { expect, test } from "bun:test"
 import { AI, USER } from "../../../web/src/core/actor"
 import { pagesOf } from "../../../web/src/core/book"
 import { performIn } from "../../../web/src/core/perform"
+import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { MAIL, mailboxOf } from "../../../web/src/plugins/base/mail"
 import type { Mail } from "../../../web/src/plugins/base/mail/mail"
 import { type ProposalProps, proposalChanged } from "../../../web/src/plugins/base/mail/proposal"
@@ -169,7 +170,7 @@ test("送るときに読むのは、引数 book のブック 1 冊だけ（reads
   }
   const ctx = {
     catalog: watching as never,
-    controlCenter: "@matomezu/control-center:control-center" as never,
+    controlCenter: BUILTIN_CONTROL_CENTER as never,
     lang: "ja" as const,
     newId: () => "fresh-mail-1",
     now: "t",
@@ -245,7 +246,7 @@ test("上限で反映していない提案が消えると、送ったアクシ�
     undefined,
     {
       catalog: CORE_CATALOG,
-      controlCenter: "@matomezu/control-center:control-center" as never,
+      controlCenter: BUILTIN_CONTROL_CENTER as never,
       lang: "ja",
       newId: () => "fresh-mail-1",
       now: "t",
@@ -283,7 +284,7 @@ test("利用者が消すと、反映していない提案だけが removed（cau
       { record: id },
       {
         catalog: CORE_CATALOG,
-        controlCenter: "@matomezu/control-center:control-center" as never,
+        controlCenter: BUILTIN_CONTROL_CENTER as never,
         lang: "ja",
         newId: () => "x",
         now: "t",

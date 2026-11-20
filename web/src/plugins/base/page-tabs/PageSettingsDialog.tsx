@@ -15,11 +15,11 @@ import { ActionButton, controlClass, Field, Form, rowClass } from "../dialog-hos
 import { kit } from "../kit"
 import { LOCK, PAGE_LOCK, PAGE_UNLOCK } from "../lock"
 import { LockToggle } from "../lock/LockToggle"
+import { PAGE_REMOVE } from "../pages/page-remove"
+import { PAGE_UPDATE } from "../pages/page-update"
 import { changeWithLock } from "../utils/lock"
 import { PageProblemsView, usePageProblems } from "./PageProblems"
 import { usePaperControls } from "./PaperControls"
-import { PAGE_REMOVE } from "./page-remove"
-import { PAGE_UPDATE } from "./page-update"
 
 export function PageSettingsDialog({ args, onClose }: DialogProps<{ page: string }>) {
   const t = useMessages(kit)

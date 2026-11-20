@@ -4,7 +4,7 @@
 
 import { expect, test } from "bun:test"
 import { HOME_ID } from "../../../web/src/core/folders"
-import { BUILTIN } from "../../../web/src/plugins"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { PAGE_CREATE } from "../../../web/src/plugins/base/library/entry-duplicate"
 import { pluginKit } from "../../../web/src/store/kit"
 import { definePlugin } from "../../../web/src/store/plugin"
@@ -152,7 +152,7 @@ const NOTES = definePlugin(
 test("entry-duplicate・page-create は、ページのタイプが page-duplicate・page-add を外していれば、そのタイプで断る", () => {
   const store = createMatomezuInstance({
     plugins: [...BUILTIN, NOTES],
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     books: SAMPLE_BOOKS,
     lang: "ja",
   })

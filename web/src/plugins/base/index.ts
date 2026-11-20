@@ -121,32 +121,34 @@ import type {} from "./outbox"
 import {
   BINDER_DELETE,
   BINDER_DELETE_DIALOG,
-  BINDER_DUPLICATE,
   BINDER_DUPLICATE_COMMAND,
-  BINDER_MOVE,
   BINDER_OPEN,
-  BINDER_REMOVE,
   BINDER_SETTINGS,
   BINDER_SETTINGS_DIALOG,
   BINDER_SETTINGS_OPENED,
-  BINDER_UPDATE,
   NEW_PAGE_DIALOG,
-  PAGE_ADD,
   PAGE_ADD_AFTER,
   PAGE_DELETE,
   PAGE_DELETE_DIALOG,
-  PAGE_DUPLICATE,
   PAGE_DUPLICATE_COMMAND,
-  PAGE_MOVE,
   PAGE_NEW,
   PAGE_OPEN,
-  PAGE_REMOVE,
   PAGE_SETTINGS,
   PAGE_SETTINGS_DIALOG,
   PAGE_SETTINGS_OF,
+} from "./page-tabs"
+import {
+  BINDER_DUPLICATE,
+  BINDER_MOVE,
+  BINDER_REMOVE,
+  BINDER_UPDATE,
+  PAGE_ADD,
+  PAGE_DUPLICATE,
+  PAGE_MOVE,
+  PAGE_REMOVE,
   PAGE_UPDATE,
   VARIABLE_PAGES,
-} from "./page-tabs"
+} from "./pages"
 import {
   ADMIN_MARK,
   ADMIN_SET,
@@ -157,6 +159,7 @@ import {
   PARTICIPANT_JOIN_DIALOG,
   PARTICIPANT_REMOVE,
   PARTICIPANT_REQUEST,
+  PARTICIPANT_WELCOME_DIALOG,
   WORKROOM,
   WORKROOM_ADD,
   WORKROOM_REMOVE,
@@ -303,10 +306,17 @@ export {
 } from "./markdown"
 // 拡張ポイントに書き足した物の型（定義を書くプラグインが使う。追加プラグインには matomezu から出す）
 export { itemMinimapMarks, type MinimapMark } from "./minimap"
-export type { PageProblem } from "./page-tabs"
-export { addPageIn, nextPageTitle, type PageFieldsWay, pageFieldsWay } from "./page-tabs"
-export type { WorkroomRow, WorkroomState } from "./participant"
-export { isAdminActor, JOINED_MESSAGE, READS_ADMIN } from "./participant"
+export type { PageProblem } from "./pages"
+export { addPageIn, nextPageTitle, type PageFieldsWay, pageFieldsWay } from "./pages"
+export type { ParticipantCategory, VisitorRow, WorkroomRow, WorkroomState } from "./participant"
+export {
+  isAdminActor,
+  JOINED_MESSAGE,
+  participantCategory,
+  READS_ADMIN,
+  VISITOR_JOINED_MESSAGE,
+  visitorName,
+} from "./participant"
 // 置く計算と文字（ほかのプラグインが使う。追加プラグインには matomezu から出す）
 export type { Axis, Edges, Frame, Gap, GrowFrom, PortArea, Ports } from "./place"
 export {
@@ -606,6 +616,7 @@ export const BASE = defineBuiltin(
       SETTINGS_DIALOG,
       MAIL_DIALOG,
       PARTICIPANT_JOIN_DIALOG,
+      PARTICIPANT_WELCOME_DIALOG,
     ],
     libraryAppearances: [LIBRARY_APPEARANCE],
     pluginStates: [
@@ -920,6 +931,7 @@ declare module "../../core/catalog" {
   interface DialogTable {
     "@matomezu/base:mail": typeof MAIL_DIALOG
     "@matomezu/base:participant-join": typeof PARTICIPANT_JOIN_DIALOG
+    "@matomezu/base:participant-welcome": typeof PARTICIPANT_WELCOME_DIALOG
     "@matomezu/base:book-new": typeof NEW_BOOK_DIALOG
     "@matomezu/base:library-book-new": typeof LIBRARY_NEW_BOOK_DIALOG
     "@matomezu/base:library-folder-new": typeof LIBRARY_NEW_FOLDER_DIALOG

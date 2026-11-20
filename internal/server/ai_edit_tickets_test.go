@@ -62,7 +62,7 @@ func TestAIEditTicketsUndoneBeforeSeen(t *testing.T) {
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
 	ai := map[string]string{"Authorization": "Bearer secret"}
 	rename := func(s *httptest.Server, title string) {
-		send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-update","args":{"title":"`+title+`"},"on":{"book":"b1"}}`, ai)
+		send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-update","args":{"title":"`+title+`"},"on":{"book":"b1"}}`, writerAI(t, s.URL))
 	}
 	rename(s, "AI1")
 	rename(s, "AI2")
@@ -124,7 +124,7 @@ func TestATicketStaysUntilAllItChangedIsSettled(t *testing.T) {
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b2", `{"book":{"id":"b2","title":"U","lineup":[]},"base":0}`, nil)
 	ai := map[string]string{"Authorization": "Bearer secret"}
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/paper:item-update","args":{"item":"a","props":{"caption":"AI"}},"on":{"page":"p1"}}`, ai); !strings.HasPrefix(got, `{"ok":true`) {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/paper:item-update","args":{"item":"a","props":{"caption":"AI"}},"on":{"page":"p1"}}`, writerAI(t, s.URL)); !strings.HasPrefix(got, `{"ok":true`) {
 		t.Fatalf("item-update = %s", got)
 	}
 	if list := tickets(hub); len(list) != 1 || !slices.Equal(list[0].Unseen, []string{"p1"}) {

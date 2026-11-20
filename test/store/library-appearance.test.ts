@@ -4,7 +4,7 @@ import { z } from "zod"
 import type { MatomezuError } from "../../web/src/core/errors"
 import { HOME_ID } from "../../web/src/core/folders"
 import { defineMessages } from "../../web/src/core/i18n/messages"
-import { BUILTIN } from "../../web/src/plugins"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { createMatomezuInstance } from "../../web/src/store/store"
@@ -70,7 +70,7 @@ test("書庫アピアランスとスクリーンの定義のメソッドが受�
       other.plugin({ pluginStates: [theirs] }),
       kit.plugin({ libraryAppearances: [appearance], screens: [screen] }),
     ],
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
   })
   // 見えたかを確かめるのは、まだ見ていない書庫の変更が在るときだけ。フォルダを作り、その名前を AI が変えたと知らせて、read の断りを見る

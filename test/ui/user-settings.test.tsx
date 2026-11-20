@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { z } from "zod"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { userSetting } from "../../web/src/core/settings"
+import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { defineSettingsCategory } from "../../web/src/plugins/base/ui"
 import { CONTROL_CENTER } from "../../web/src/plugins/control-center"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
@@ -49,7 +50,7 @@ const EX = definePluginUi(EX_PLUGIN, {})
 // book のブックを開いた（無ければブックを開いていない）ステージで、設定画面を開いて「全体」の中身（tabpanel）を返す（コントロールセンターの「全体設定」で）
 function renderGeneral(plugins: readonly AnyPluginUi[] = [...BUILTIN_UI, EX], book?: string) {
   const store = createMatomezu({
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     books: book === undefined ? [] : SAMPLE_BOOKS,
     lang: "ja",
     plugins,

@@ -1,7 +1,15 @@
 // ex13 のスクリーン: 条件で読んだメモを並べ、済みにすると消える
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
-import { BUILTIN_UI, createMatomezu, DEFAULT_LAYOUT, MatomezuProvider, placeAdded, WindowRoot } from "matomezu/testing"
+import {
+  BUILTIN_CONTROL_CENTER,
+  BUILTIN_UI,
+  createMatomezu,
+  DEFAULT_LAYOUT,
+  MatomezuProvider,
+  placeAdded,
+  WindowRoot,
+} from "matomezu/testing"
 import EX13_UI from "../ui"
 
 afterEach(cleanup)
@@ -9,7 +17,7 @@ afterEach(cleanup)
 test("メモのスクリーン: このボードの済んでいないメモを新しい順に出し、✓ で済みにすると消える", () => {
   const m = createMatomezu({
     plugins: [...BUILTIN_UI, EX13_UI],
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
   })
   for (const t of ["a1", "a2", "a3"]) m.actions.perform("ex13:memo-add", { board: "a", text: t })

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
 import { pagesOf } from "../../../web/src/core/book"
 import type { PageOf } from "../../../web/src/core/schema/book"
+import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { ScrapView } from "../../../web/src/plugins/base/scrap/ScrapView"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../../web/src/plugins/ui"
 import { createMatomezu } from "../../../web/src/store/create"
@@ -42,7 +43,7 @@ const Y = drawing("y")
 function setup(extra: readonly object[] = []) {
   const instance = createMatomezu({
     plugins: BUILTIN_UI,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     books: [],
     savedBooks: [X, Y, ...extra],
     lang: "ja",

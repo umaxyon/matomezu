@@ -11,18 +11,10 @@ import { useMessages } from "../../../ui/i18n"
 import { useCatalog } from "../../../ui/store-context"
 import { controlClass, Field, rowClass, Switch } from "../dialog-host/FormParts"
 import { kit } from "../kit"
+import type { PageProblem } from "../pages/page-problems"
+import { defaultPaper, normalizedPage, type PaperPlace, paperChoices, paperChoicesFor } from "../pages/pages"
+import { canGrow, growChoices, withGrows } from "../place/grow"
 import { PaperFields } from "./PaperFields"
-import type { PageProblem } from "./page-problems"
-import {
-  canGrow,
-  defaultPaper,
-  growChoices,
-  normalizedPage,
-  type PaperPlace,
-  paperChoices,
-  paperChoicesFor,
-  withGrows,
-} from "./pages"
 
 // 増やす向きの名前
 const GROW_TITLES = {

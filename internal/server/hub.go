@@ -910,7 +910,7 @@ func (h *Hub) send(c *client, name string, v any) {
 // actorOfHeld は、ワークルームをアクションと同じロックの中で引く。引いてからアクションを行うまでに参加者が入れ替わらない
 func (h *Hub) actorOfHeld(p Perform) *engine.Actor {
 	if p.By == "ai" {
-		return &engine.Actor{Kind: "ai", Workroom: h.workroomOfHeld(p.Participant)}
+		return h.actorOfParticipantHeld(p.Participant)
 	}
 	return nil
 }

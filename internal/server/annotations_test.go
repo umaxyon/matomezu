@@ -116,7 +116,7 @@ func TestAIReadsAnnotations(t *testing.T) {
 	if _, got := send(t, "GET", s.URL+"/api/ai/awaiting", "", ai); got != `{"awaiting":[{"book":"b1","title":"T","annotation":`+waiting+`,"brief":"x"}],"failed":[],"removed":[],"undone":[]}` {
 		t.Fatalf("awaiting = %s", got)
 	}
-	send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:note-read","args":{"note":"c1"},"on":{"page":"p1"}}`, ai)
+	send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:note-read","args":{"note":"c1"},"on":{"page":"p1"}}`, writerAI(t, s.URL))
 	if _, got := send(t, "GET", s.URL+"/api/ai/awaiting", "", ai); got != `{"awaiting":[],"failed":[],"removed":[],"undone":[]}` {
 		t.Fatalf("awaiting after read = %s", got)
 	}
@@ -126,7 +126,7 @@ func TestAIReadsAnnotations(t *testing.T) {
 func TestAICannotReadANoteTheUserIsEditing(t *testing.T) {
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
-	ai := map[string]string{"Authorization": "Bearer secret"}
+	ai := writerAI(t, s.URL)
 	a := listen(t, s.URL)
 	next(t, a)
 	postPerform(t, s.URL, `{"action":"@matomezu/base:note-add","args":{"anchors":["a"],"text":"x"},"on":{"page":"p1"},"lang":"ja","ids":["c1"],"now":"2026-11-02T00:00:00.000Z"}`)
@@ -245,7 +245,7 @@ func TestTalkStartsNoteExpiry(t *testing.T) {
 func TestAIPerformRefusesATimeoutOutOfRange(t *testing.T) {
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
-	ai := map[string]string{"Authorization": "Bearer secret"}
+	ai := writerAI(t, s.URL)
 	_, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-update","args":{"title":"x"},"on":{"book":"b1"},"timeoutSec":61}`, ai)
 	if !strings.Contains(got, `"reason":"bad-args"`) || !strings.Contains(got, "timeoutSec must be 1 to 60") {
 		t.Fatalf("timeoutSec 61 = %s", got)

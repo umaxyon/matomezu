@@ -561,13 +561,15 @@ var joinSchema = map[string]any{
 		"orcaWorkspace": map[string]any{"type": "string", "minLength": 1, "maxLength": 120, "description": "The display name of the current Orca workspace, if verified in this conversation’s environment. Do not send its path or internal ID."},
 		"link":          map[string]any{"type": "string", "minLength": 1, "description": "A one-time passphrase: a new uuid (8-4-4-4-12 hex digits) you make for this session. The hook that runs when the user talks finds it in this session's transcript to tie the session to you, so put it in this call as it is. Use the same link when you ask again."},
 		"workroom":      map[string]any{"type": "string", "description": "The name of the workroom you would like to continue (a workroom whose participant is not alive any more, or an empty one), or the name you would like for a new one (up to 20 characters). The user chooses on the screen. Optional."},
+		"as":            map[string]any{"type": "string", "enum": []string{"visitor"}, "description": "visitor: you ask to join only to read, as a visitor with no workroom (not together with workroom). Leave it out to join as a worker in a workroom; the user may still accept you as a visitor."},
 	},
 	"required":             []string{"model", "link"},
 	"additionalProperties": false,
 }
 
 const joinDescription = "Ask to join the user's workroom as a participant. The user accepts it on the screen; until then you are requested. " +
-	"After the user accepts, you are not counted as a participant (your calls do not count, and no notice comes) until the hook that runs when the user talks to you tells them and you your workroom name (with matomezu's background watch, such as its Claude Code plugin, a turn starts by itself when the user accepts, and that turn's hook tells it); an AI whose calls carry the session id is counted as soon as it is accepted, and the notice comes with a later answer. Meanwhile books and annotations work the same, but actions on anything else (such as the control center's records) are refused (not-allowed, reason not-joined). Read join_rules for the participation procedure. " +
+	"After the user accepts, you are not counted as a participant (your calls do not count, and no notice comes) until the hook that runs when the user talks to you tells them and you your workroom name (with matomezu's background watch, such as its Claude Code plugin, a turn starts by itself when the user accepts, and that turn's hook tells it); an AI whose calls carry the session id is counted as soon as it is accepted, and the notice comes with a later answer. Until then you can read, but every action is refused (not-allowed, reason not-joined), books and annotations too. An AI program with no such hook is counted only if its calls carry the session id; otherwise it can only read. " +
+	"A visitor (as: visitor, or accepted as one by the user) has no workroom and only reads: every action is refused (not-allowed, reason visitor), and it cannot send messages or show books. Read join_rules for the participation procedure. " +
 	"With workroom, you say which workroom you would like to continue (the name you were given when you joined before) or the name you would like for a new one: it is refused with workroom-in-use while the workroom has a participant who is alive. Otherwise the user chooses on the screen whether you take over a participant who joined before or start new."
 
 // join は参加を頼む。AI の名前と環境は MCP が埋め、受けた参加の id を、この呼び出しのセッション id に結んで以後の呼び出しに添える
@@ -584,6 +586,9 @@ func join(c *conn, args map[string]any) (string, bool) {
 	}
 	if workroom, _ := args["workroom"].(string); workroom != "" {
 		body["workroom"] = workroom
+	}
+	if as, _ := args["as"].(string); as != "" {
+		body["as"] = as
 	}
 	if c.sessionID != "" {
 		body["sessionId"] = c.sessionID

@@ -16,6 +16,7 @@ import {
 } from "../../web/src/core/folders"
 import { perform } from "../../web/src/core/perform"
 import type { AnyPage, Book } from "../../web/src/core/schema/book"
+import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { DRAWING, drawingPage, testBinder, testBook } from "../lineup"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
@@ -73,7 +74,7 @@ const BREAK = defineAction({
   }),
 })
 
-const CENTER = "@matomezu/control-center:control-center"
+const CENTER = BUILTIN_CONTROL_CENTER
 const center = CORE_CATALOG.controlCenters.get(CENTER)!
 const catalog = buildCoreCatalog({
   ...BUILTIN_PARTS,

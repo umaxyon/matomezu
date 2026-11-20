@@ -38,7 +38,7 @@ import { NoteBirds } from "./NoteBirds"
 import styles from "./NoteLayer.module.css"
 import { FOLDED_NOTE_STATUS_ID, NEW_NOTE, NOTE_PANEL_ID, READ_NOTE_STATUS_ID } from "./panel-id"
 
-export const BUBBLE_CHARS = 20 // 吹き出しに出す、文の始めの字数（送信トレイの行も同じ）
+export const BUBBLE_CHARS = 20 // 吹き出しに出す、文の始めの字数
 const POINTER = 24 // マークポインタの丸の大きさ（マークと同じ）
 const BUBBLE_W = 180 // 吹き出しの幅と、範囲の右の端で止めたときに縮める下限
 const BUBBLE_MIN_W = 72

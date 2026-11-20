@@ -1,3 +1,4 @@
+import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { worldRows } from "../support"
 // useRecords・useRecord: 種類のレコードのうち索引キーの条件に合う物を、並びの順に件数まで返し（並びが無ければ id の順）、定義の record に合わない物は返さない。その種類が変わらない間は同じ参照
 
@@ -24,7 +25,7 @@ const letter = (n: number, seen: boolean) => ({
 
 function setup() {
   const store = createMatomezu({
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
     plugins: BUILTIN_UI,
     newId: (() => {

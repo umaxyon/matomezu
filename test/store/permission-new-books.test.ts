@@ -4,7 +4,7 @@
 import { expect, test } from "bun:test"
 import { findPage, pagesOf } from "../../web/src/core/book"
 import { defineMessages } from "../../web/src/core/i18n/messages"
-import { BUILTIN } from "../../web/src/plugins"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { isEnabled, isShown } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
@@ -15,7 +15,7 @@ test("keeps だけを書いた認可ステップでも、そのタイプのペ�
   const kit = pluginKit("@ex/no-tree", defineMessages({ noTree: { en: "No tree", ja: "ツリーは作らない" } }))
   const seen: { before: unknown; added: boolean }[] = []
   const store = createMatomezu({
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     books: SAMPLE_BOOKS,
     lang: "ja",
     partial: true,
@@ -65,7 +65,7 @@ test("認可ステップは、作るページのタイプを行う前に見ら�
   const kit = pluginKit("@ex/no-markdown", defineMessages({ noMarkdown: { en: "No documents", ja: "文書は作らない" } }))
   const MARKDOWN = "@matomezu/markdown:markdown"
   const store = createMatomezu({
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     books: SAMPLE_BOOKS,
     lang: "ja",
     partial: true,

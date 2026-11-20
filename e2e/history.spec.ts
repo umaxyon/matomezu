@@ -1,7 +1,7 @@
 // 画面の履歴: 置いた箱を Ctrl+Z で元に戻し、Ctrl+Shift+Z でやり直す。フッタメニューの元に戻す・やり直すのボタンも同じで、押してもフッタメニューは下がらない。
 // 画面に見えた AI の変更は、画面の履歴に時刻の位置で入り、新しい方から戻る
 import { pageIn } from "./books"
-import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
+import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./helpers/footer-menu"
 import { addFromTabs, newBook } from "./helpers/new-book"
 import { addBox, items } from "./helpers/paper"
@@ -100,7 +100,7 @@ test("ページタブをドラッグして並べ替えられ、元に戻すで�
 
 // 窓を前に出し、AI が見る今のブックとページ（AI の口で読む）
 async function aiReady(page: Page) {
-  const ai = aiAuth()
+  const ai = await joinedAiAuth()
   await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
   await expect
@@ -134,7 +134,7 @@ async function scroll(page: Page, dy: number) {
 }
 
 test("見えている箱を AI が書き換えたら、Ctrl+Z はまず AI の変更を戻し、次に自分の操作を戻す", async ({ page }) => {
-  const ai = aiAuth()
+  const ai = await joinedAiAuth()
   await page.goto(BOOK_SCREEN_URL)
   await page.bringToFront()
   await expect

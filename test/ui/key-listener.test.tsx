@@ -4,6 +4,7 @@ import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { pagesOf } from "../../web/src/core/book"
 import { screenOf } from "../../web/src/core/window"
+import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
@@ -15,7 +16,7 @@ afterEach(cleanup)
 
 test("親の要素だけが範囲を名乗るテキストFormでは Mod+Z をテキストFormに任せ、自分で名乗るテキストFormでは、その範囲の Mod+Z で元に戻す", async () => {
   const store = createMatomezu({
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
     plugins: BUILTIN_UI,
     partial: true,
@@ -53,7 +54,7 @@ test("親の要素だけが範囲を名乗るテキストFormでは Mod+Z をテ
 
 test("焦点のあるボタンの Enter は、ボタンが自分で名乗った範囲だけで引き、引けたら押す動きを止める。親だけが名乗るボタン・キーバインドの無い範囲・Space は押す動きに任せる", () => {
   const store = createMatomezu({
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
     plugins: BUILTIN_UI,
     partial: true,

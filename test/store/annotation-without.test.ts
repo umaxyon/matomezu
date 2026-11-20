@@ -2,7 +2,7 @@
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
 import { definePageType } from "../../web/src/core/def/page-type"
-import { BUILTIN } from "../../web/src/plugins"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { isShown } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
@@ -28,7 +28,7 @@ function ready() {
   let n = 0
   const store = createMatomezu({
     plugins: BUILTIN,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     newId: () => `n${++n}`,
   })
   store.use([definePlugin({ id: "plain", pageTypes: [PLAIN] })])

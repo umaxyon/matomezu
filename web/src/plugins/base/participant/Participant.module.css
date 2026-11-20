@@ -110,3 +110,34 @@
   flex-direction: column;
   gap: 12px;
 }
+
+/* ビジターの印（目の線画）: 鳥の顔の丸と同じ丸に、地の色で描く */
+.visitor {
+  color: var(--skin-text-muted);
+  box-shadow: inset 0 0 0 1px var(--skin-border);
+}
+
+/* ようこそのダイアログ: 印と「〇〇が参加しました」を真ん中に、区分とモデルを 2 列で */
+.welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.welcome .name {
+  margin: 0;
+}
+.welcomeFacts {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 13px;
+}
+.welcomeFacts dt {
+  color: var(--skin-text-muted);
+}
+.welcomeFacts dd {
+  margin: 0;
+}

@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test"
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
 import { basename, dirname, join, normalize, relative, resolve } from "node:path"
 import { WEB_ENTRIES } from "../scripts/web-build"
+import { BUILTIN_CONTROL_CENTER } from "../web/src/plugins"
 
 const ROOT = resolve(import.meta.dir, "..")
 const SRC = join(ROOT, "web/src")
@@ -295,7 +296,7 @@ test("プラグイン状態の宣言（kit.definePluginState・definePluginState
     .filter(f => crateOf(f.rel) === "plugins")
     .map(f => f.text.match(/\bkit\.definePluginState(?:Of\b<[^()]*>\(\))?\(/g)?.length ?? 0)
     .reduce((a, b) => a + b, 0)
-  const instance = createMatomezu({ plugins: BUILTIN, controlCenter: "@matomezu/control-center:control-center" })
+  const instance = createMatomezu({ plugins: BUILTIN, controlCenter: BUILTIN_CONTROL_CENTER })
   // 鍵ごとに宣言を作る関数（anchorTargetState）は 1 つの書き方で、呼ぶ所ごとに宣言が 1 つ増える
   expect(instance.catalog.store.pluginStates.size).toBe(written)
 })

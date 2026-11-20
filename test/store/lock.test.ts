@@ -9,9 +9,10 @@ import { foldersOverIn, withChanges } from "../../web/src/core/folders"
 import { type PerformedIn, performIn } from "../../web/src/core/perform"
 import type { Book } from "../../web/src/core/schema/book"
 import { screenOf } from "../../web/src/core/window"
+import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { refusalMessage } from "../../web/src/plugins/base"
 import { LOCK } from "../../web/src/plugins/base/lock"
-import { addPageIn } from "../../web/src/plugins/base/page-tabs/add-page"
+import { addPageIn } from "../../web/src/plugins/base/pages/add-page"
 import type { CommandId } from "../../web/src/store/commands"
 import { isEnabled } from "../../web/src/store/commands"
 import { DRAWING, drawingPage, testBinder, testBook } from "../lineup"
@@ -56,7 +57,7 @@ test("AI はロックを掛けられるが外せない（userOnly のアクシ�
   const { state } = newStore()
   const ctx = (actor: Actor = USER) => ({
     catalog: CORE_CATALOG,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "en" as const,
     newId: () => "n",
     now: "2026-10-29T00:00:00.000Z",

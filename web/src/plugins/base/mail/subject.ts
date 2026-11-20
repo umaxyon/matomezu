@@ -1,5 +1,5 @@
 // 郵便箱: 郵便のレコードの種類（対象の定義 mail）と、郵便を 1 通足すアクションが使う処理（上限を守って古い郵便を消す）
-import { type Actor, isAI } from "../../../core/actor"
+import { type Actor, workroomOfActor } from "../../../core/actor"
 import type { ActionContext, AIEditTicketChange, RecordRead } from "../../../core/def/action"
 import { inOrder } from "../../../core/record-keys"
 import { NO_RECORD, RECORDS_MAX, type Records } from "../../../core/records"
@@ -48,14 +48,14 @@ export const READS_MAILBOX_KEYS = () => [{ subject: MAIL.id, where: [], keysOnly
 // 参加済みの AI から送るときは、送り手と鳥の配色をワークルームから引く
 export function readsMailSender(actor: Actor): readonly RecordRead[] {
   const mailbox = READS_MAILBOX_KEYS()
-  if (!isAI(actor) || actor.workroom === "none") return mailbox
-  return [...mailbox, readsParticipantsIn(actor.workroom.id), { subject: WORKROOM.id, id: actor.workroom.id }]
+  const roomId = workroomOfActor(actor)
+  if (roomId === undefined) return mailbox
+  return [...mailbox, readsParticipantsIn(roomId), { subject: WORKROOM.id, id: roomId }]
 }
 
 function mailSender(ctx: ActionContext): Mail["sender"] {
-  const { actor } = ctx
-  if (!isAI(actor) || actor.workroom === "none") return undefined
-  const roomId = actor.workroom.id
+  const roomId = workroomOfActor(ctx.actor)
+  if (roomId === undefined) return undefined
   const participants = Object.entries(ctx.keys?.[PARTICIPANT.id] ?? {}).filter(
     ([, keys]) => keys.workroom === roomId && keys.state === "joined",
   )

@@ -4,6 +4,7 @@ import { StrictMode } from "react"
 import { pagesOf } from "../../web/src/core/book"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { screenOf } from "../../web/src/core/window"
+import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
@@ -21,7 +22,7 @@ afterEach(cleanup)
 
 function renderBooksScreen(options: Omit<StoreOptions, "plugins"> = {}) {
   const store = createMatomezu({
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     books: SAMPLE_BOOKS,
     lang: "ja",
     ...options,
@@ -226,7 +227,7 @@ test("メニューのボタンは、コマンドが押せないとき押せな�
     commands: base.commands.map(c => (c.id === "@matomezu/base:stage-split" ? { ...c, enabled: () => false } : c)),
   }
   const store = createMatomezu({
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     books: SAMPLE_BOOKS,
     lang: "ja",
     plugins: [locked, ...rest],
@@ -251,7 +252,7 @@ test("表に無い紙のページは、代わりの紙に「不明な紙」と�
 
 test("StrictMode で描いても、開いたダイアログは閉じない", async () => {
   const store = createMatomezu({
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     books: SAMPLE_BOOKS,
     lang: "ja",
     plugins: BUILTIN_UI,
@@ -336,7 +337,7 @@ test("認可ステップがページの削除を止めていれば、ページ�
     {},
   )
   const store = createMatomezu({
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     books: SAMPLE_BOOKS,
     lang: "ja",
     plugins: [...BUILTIN_UI, keep],
@@ -366,7 +367,7 @@ test("右クリックのメニューは、外を押すか Escape で閉じる", 
 
 test("右クリックのメニューに出るコマンドが無ければ、メニューは出さない（ブラウザのメニューも出さない）", () => {
   const store = createMatomezu({
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     books: SAMPLE_BOOKS,
     lang: "ja",
     plugins: BUILTIN_UI,

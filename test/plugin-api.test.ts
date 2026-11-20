@@ -113,6 +113,7 @@ test("matomezu が出す名前", () => {
     "isLight",
     "isPaletteName",
     "isUser",
+    "isVisitor",
     "itemAiPlaced",
     "itemMinimapMarks",
     "itemSize",
@@ -136,6 +137,7 @@ test("matomezu が出す名前", () => {
     "paperSize",
     "parseMarkdown",
     "parseRich",
+    "participantCategory",
     "placeChild",
     "placeItem",
     "placedAt",
@@ -200,10 +202,12 @@ test("matomezu が出す名前", () => {
     "tooClose",
     "translate",
     "unpinPage",
+    "visitorName",
     "walkShapes",
     "widenForCaption",
     "withSettings",
     "wordLinksOf",
+    "workroomOfActor",
     "wrap",
     "wrapRich",
     "z",
@@ -295,6 +299,7 @@ test("matomezu/ui が出す名前", () => {
     "TitledArea",
     "TokenScope",
     "UserSettings",
+    "VisitorIcon",
     "WIDE_SEARCH_LIMIT_MAX",
     "WIDE_SEARCH_MODES",
     "WIDE_SEARCH_OPENERS",
@@ -404,6 +409,7 @@ test("matomezu/ui が出す名前", () => {
     "useUiCatalog",
     "useUpdatePluginState",
     "useUserSetting",
+    "useVisitorRows",
     "useWideSearch",
     "useWideSearchPanel",
     "useWorkroomActions",
@@ -415,6 +421,7 @@ test("matomezu/ui が出す名前", () => {
 test("matomezu/testing が出す名前", () => {
   expect(names(testing)).toEqual([
     "BUILTIN",
+    "BUILTIN_CONTROL_CENTER",
     "BUILTIN_UI",
     "DEFAULT_LAYOUT",
     "MatomezuProvider",
@@ -581,6 +588,6 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
 test("base の入口が出す名前は、どれもプラグイン API からも出る（ビルトインと追加プラグインが同じ名前を使えるように。base のプラグインそのものは除く）", () => {
   const shown = new Set([...names(api), ...names(ui)])
   // base のプラグインそのものと、ホストのエンジンだけが読む名前（プラグイン API には出さない）
-  const own = ["BASE", "BASE_UI", "JOINED_MESSAGE"]
+  const own = ["BASE", "BASE_UI", "JOINED_MESSAGE", "VISITOR_JOINED_MESSAGE"]
   expect([...names(plugin), ...names(pluginUi)].filter(n => !own.includes(n) && !shown.has(n))).toEqual([])
 })

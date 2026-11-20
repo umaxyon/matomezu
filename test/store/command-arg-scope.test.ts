@@ -2,7 +2,7 @@
 // 開いているページのタイプでは使えないアクションでも、引数のページのタイプで使えるなら出して、押せる
 import { expect, test } from "bun:test"
 import { defineMessages } from "../../web/src/core/i18n/messages"
-import { BUILTIN } from "../../web/src/plugins"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { isEnabled, isShown } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
@@ -23,7 +23,7 @@ const ADD_ENTRY = kit.defineCommand({
 
 test("引数のページのタイプで使えるアクションなら、開いているページのタイプで使えなくても、出して押せる", () => {
   const store = createMatomezu({
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     books: SAMPLE_BOOKS,
     lang: "ja",
     partial: true,

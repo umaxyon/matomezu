@@ -4,6 +4,7 @@ import { expect, test } from "bun:test"
 import { type Actor, USER } from "../../../web/src/core/actor"
 import { type PerformedIn, performIn, type World } from "../../../web/src/core/perform"
 import { withCounters, withRecords } from "../../../web/src/core/records"
+import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { CURRENT } from "../../../web/src/plugins/taskboard/current-ticket"
 import { TICKET } from "../../../web/src/plugins/taskboard/ticket"
 import { HISTORY, HISTORY_TOPIC } from "../../../web/src/plugins/taskboard/ticket-history"
@@ -39,7 +40,7 @@ function ready() {
     }
     return performIn(world, A(action), args, on, {
       catalog: CORE_CATALOG,
-      controlCenter: "@matomezu/control-center:control-center" as never,
+      controlCenter: BUILTIN_CONTROL_CENTER as never,
       lang: "ja",
       newId: () => `n${Math.random()}`,
       now: "2026-11-12T00:00:00.000Z",
@@ -199,7 +200,7 @@ function completing() {
   const act = (actor: Actor, action: string, args: unknown, on?: On) => {
     const done = performIn(w, action.includes(":") ? action : A(action), args, on, {
       catalog: CORE_CATALOG,
-      controlCenter: "@matomezu/control-center:control-center" as never,
+      controlCenter: BUILTIN_CONTROL_CENTER as never,
       lang: "ja",
       newId: () => `n${++n}`,
       now: "2026-11-12T00:00:00.000Z",

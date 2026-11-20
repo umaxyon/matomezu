@@ -1,6 +1,6 @@
 // 今のチケットのアクション
 import { z as zod } from "zod"
-import { isAI } from "../../../plugin-api"
+import { workroomOfActor } from "../../../plugin-api"
 import { isAdminActor, READS_ADMIN } from "../../base"
 import { READS_WORKROOM_NAMES, type Records, workroomsOf } from "../by"
 import { kit } from "../kit"
@@ -21,7 +21,7 @@ export const CURRENT_TICKET_SET = kit.defineAction({
   target: CURRENT.id,
   // 宣言するチケットとそのプロジェクト（完了のレーンのチケットは宣言させない）、ワークルームを名前でも指すならワークルームの名前、自分のほかの分なら管理者の印
   reads: (args, actor, on) => {
-    const own = isAI(actor) && actor.workroom !== "none" ? actor.workroom.id : undefined
+    const own = workroomOfActor(actor)
     const other = args.workroom !== undefined || (on !== undefined && on !== own)
     return [
       ...(args.ticket === NO_TICKET
@@ -36,14 +36,14 @@ export const CURRENT_TICKET_SET = kit.defineAction({
   },
   args: zod.strictObject({ ticket: zod.string().min(1), workroom: zod.string().min(1).optional() }),
   run: (now, args, ctx) => {
-    if (!isAI(ctx.actor) || ctx.actor.workroom === "none")
-      return { declined: "only an AI in a workroom declares a current ticket" }
+    const own = workroomOfActor(ctx.actor)
+    if (own === undefined) return { declined: "only an AI in a workroom declares a current ticket" }
     if (now !== "none" && args.workroom !== undefined)
       return { declined: "on.record already says the workroom: leave workroom out" }
-    const target = now !== "none" ? { id: now.id } : resolveWorkroom(ctx, args.workroom, ctx.actor.workroom.id)
+    const target = now !== "none" ? { id: now.id } : resolveWorkroom(ctx, args.workroom, own)
     if ("declined" in target) return target
     const id = target.id
-    if (id !== ctx.actor.workroom.id && !isAdminActor(ctx.actor, ctx))
+    if (id !== own && !isAdminActor(ctx.actor, ctx))
       return { declined: "only the AI of the administrator's workroom declares another workroom's current ticket" }
     const ticket = args.ticket === NO_TICKET ? undefined : ticketOf(ctx, args.ticket)
     if (args.ticket !== NO_TICKET) {
@@ -53,7 +53,7 @@ export const CURRENT_TICKET_SET = kit.defineAction({
         return { declined: "the ticket is completed: a completed ticket is not a current ticket" }
     }
     const next = { id, ticket: args.ticket, at: ctx.now }
-    if (id === ctx.actor.workroom.id) return { next, result: { current: id } }
+    if (id === own) return { next, result: { current: id } }
     // ほかのワークルームの分を決めたら、そのワークルームの AI に知らせる（宛先に参加の確定した AI がいなければ、常駐がバルクごと断る）
     const told = ticket ? `"${ticket.name}" (${ticket.id})` : "none"
     return {

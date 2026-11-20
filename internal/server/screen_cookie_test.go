@@ -100,7 +100,7 @@ func TestCookieCodeIsOnlyInTheBrowserURL(t *testing.T) {
 		return nil
 	}})
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
-	auth := map[string]string{"Authorization": "Bearer secret"}
+	auth := writerAI(t, s.URL)
 	for _, c := range []struct{ name, path, body string }{{"show", "/api/ai/show", `{"book":"b1"}`}, {"open", "/api/open", ``}} {
 		for _, fail := range []bool{false, true} {
 			failing = fail

@@ -66,7 +66,14 @@ import {
 import { WARNINGS, type Warning, warning, warningText } from "../core/warnings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../plugins"
-import { aiPlacedOf, growKindOf, JOINED_MESSAGE, textColorRef, themesFor } from "../plugins/base"
+import {
+  aiPlacedOf,
+  growKindOf,
+  JOINED_MESSAGE,
+  textColorRef,
+  themesFor,
+  VISITOR_JOINED_MESSAGE,
+} from "../plugins/base"
 import { type Assembled, assemble, type Plugin, warningsOf, withoutParts } from "../store/plugin"
 
 ;(globalThis as { __matomezuModules?: unknown }).__matomezuModules = MODULES
@@ -208,7 +215,13 @@ function refusal(catalog: CoreCatalog, done: Exclude<PerformedIn, { ok: true }>)
       ok: false,
       reason: done.reason,
       detail:
-        "you have not joined matomezu yet (not accepted by the user, or not told by the hook): until then you can read and change books, but not use the actions of the control center; ask the user in the chat",
+        "not-joined: you have not joined matomezu yet (not accepted by the user, or not told by the hook): until then you can only read, and every action is refused; ask the user in the chat",
+    }
+  if ("because" in done && done.because === "visitor")
+    return {
+      ok: false,
+      reason: done.reason,
+      detail: "visitor: you joined matomezu as a visitor, and a visitor only reads; every action is refused",
     }
   if ("setting" in done && done.setting !== undefined) {
     const detail =
@@ -834,6 +847,14 @@ function searchTextOf(def: SubjectDef, record: unknown): { title: string; body: 
     langOf(assembled.catalog.core, restoreSettings(JSON.parse(settings)), "en"),
     JOINED_MESSAGE,
     { name: workroom },
+  )
+
+// ビジターとして参加したことを利用者に伝える文（利用者の言語。matomezuJoinedText と同じく、フックの systemMessage に使う）
+;(globalThis as { matomezuVisitorJoinedText?: (settings: string) => string }).matomezuVisitorJoinedText = settings =>
+  translate(
+    assembled.catalog.core.messages,
+    langOf(assembled.catalog.core, restoreSettings(JSON.parse(settings)), "en"),
+    VISITOR_JOINED_MESSAGE,
   )
 
 // アクションがレコードを対象にするとき、常駐が渡す物: 対象の種類（レコードが対象でなければ null）と、読むだけのブックの id（アクションの readsBooks が引数 args〈JSON〉から答えた物。

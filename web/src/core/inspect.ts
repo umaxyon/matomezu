@@ -2,7 +2,7 @@
 // 口はこの inspect 1 つで、問い合わせの種類（kind）ごとに調べ方を足す。
 // ステップ（steps）は見る順に並べ、最初に値のあったステップで決まる（決まった後のステップも並べる）。ステップの出どころは文ではなくデータで返す
 
-import { type Actor, hasJoined, isAI, USER } from "./actor"
+import { type Actor, canAct, isAI, isVisitor, USER } from "./actor"
 import { findBinder, findPage, pagesOf } from "./book"
 import type { ActionId, SubjectId } from "./catalog"
 import { type CoreCatalog, pageType } from "./core-catalog"
@@ -34,7 +34,7 @@ export type Source =
   | { source: "action"; id: string; field: "attach.books" | "attach.pages" } // アクションが、どのブック・どのページにも付くか（ページを名指さないとき）
   | { source: "action"; id: string; field: "run" } // 名指した所がブックに無い: ここでは止めず、行う側（run）が断る
   | { source: "action"; id: string; field: "userOnly" } // 利用者だけが行うアクションを、AI が頼んだ
-  | { source: "participation"; id: string } // 参加が確定していない AI が、ブック・ページ・アノテーションのほかが対象のアクションを頼んだ
+  | { source: "participation"; id: string; because: "not-joined" | "visitor" } // 参加が確定していない AI か、ビジターが、参加を頼む役のほかのアクションを頼んだ
   | { source: "userSetting"; id: string; field: "userOnly" } // 利用者だけが変える利用者の設定の項目を、AI が変えようとした
   | { source: "controlCenter"; id: string; field: "actions" } // コントロールセンターが許すアクション
   | { source: "controlCenter"; id: string; field: "fixedUserSettings"; setting: string } // コントロールセンターが変えさせない利用者の設定の項目
@@ -277,8 +277,8 @@ function action(
     value: def.userOnly && isAI(q.actor) ? false : null,
   }
   const participation: Step<boolean> = {
-    from: { source: "participation", id: def.id },
-    value: !hasJoined(q.actor) && !joinsWithoutParticipation(def) && !isInBook(def.target) ? false : null,
+    from: { source: "participation", id: def.id, because: isVisitor(q.actor) ? "visitor" : "not-joined" },
+    value: !canAct(q.actor) && !joinsWithoutParticipation(def) ? false : null,
   }
   const { book, settings, where, record, page } = q
   const permitted = book
@@ -298,10 +298,10 @@ function action(
         : []
   if (isInBook(def.target))
     return book
-      ? decide([known, userOnly, ...permitted, ...placeSteps(catalog, def, book, where)])
+      ? decide([known, userOnly, participation, ...permitted, ...placeSteps(catalog, def, book, where)])
       : page && def.target !== "book"
-        ? decide([known, userOnly, ...permitted, ...typeSteps(def, pageType(catalog, page.page.type))])
-        : decide([known, userOnly])
+        ? decide([known, userOnly, participation, ...permitted, ...typeSteps(def, pageType(catalog, page.page.type))])
+        : decide([known, userOnly, participation])
   const center = controlCenter === null ? undefined : catalog.controlCenters.get(controlCenter)
   if (!center)
     return decide([known, userOnly, participation, { from: { source: "controlCenter", id: null }, value: false }])

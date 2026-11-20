@@ -4,7 +4,7 @@ import { homeOver, worldTablesOf } from "../web/src/core/folders"
 import type { Book } from "../web/src/core/schema/book"
 import { NO_SETTINGS } from "../web/src/core/settings"
 import { recentBookScreen, recentPlainScreen, stagesDefOf } from "../web/src/core/window"
-import { BUILTIN } from "../web/src/plugins"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../web/src/plugins"
 import { assemble } from "../web/src/store/plugin"
 import { createMatomezuInstance, type StoreOptions } from "../web/src/store/store"
 import { SAMPLE_BOOKS } from "./sample-books"
@@ -27,7 +27,7 @@ export function newStore(options: Omit<StoreOptions, "plugins"> & { bookScreen?:
   const { bookScreen, ...rest } = options
   const store = createMatomezuInstance({
     plugins: BUILTIN,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     books: SAMPLE_BOOKS,
     lang: "ja",
     newId: sequence(),

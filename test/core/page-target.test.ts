@@ -1,7 +1,7 @@
 // ページが対象のアクション: run はページ 1 枚だけを受け、返したページがブックの同じ所へ戻る。使えるか・認可ステップ・ブックの決まりは、ページを持っているブックで確かめる
 import { expect, test } from "bun:test"
 import { z } from "zod"
-import { USER } from "../../web/src/core/actor"
+import { AI, AI_NOT_JOINED, AI_VISITOR, USER } from "../../web/src/core/actor"
 import { bindersOf, findPage, pagesOf } from "../../web/src/core/book"
 import { defineAction } from "../../web/src/core/def/action"
 import { bookOf, NO_CHANGES, TRASH_ID, tablesOf, withChanges } from "../../web/src/core/folders"
@@ -195,5 +195,21 @@ test("performIn は宛先のページを持っているブックで行い、変�
     ok: false,
     reason: "denied",
     permission: LOCK,
+  })
+})
+
+test("ページが対象のアクションも、参加が確定していない AI（not-joined）とビジター（visitor）には断る。ワークルームに入っている AI と利用者は行える", () => {
+  const as = (actor: typeof USER) => ({ ...ctxOf(), actor })
+  expect(permittedIn(world(book), ADD, {}, { page: "p1" }, as(USER))).toEqual({ ok: true })
+  expect(permittedIn(world(book), ADD, {}, { page: "p1" }, as(AI))).toEqual({ ok: true })
+  expect(permittedIn(world(book), ADD, {}, { page: "p1" }, as(AI_NOT_JOINED))).toEqual({
+    ok: false,
+    reason: "not-allowed",
+    because: "not-joined",
+  })
+  expect(performIn(world(book), ADD, {}, { page: "p1" }, as(AI_VISITOR))).toEqual({
+    ok: false,
+    reason: "not-allowed",
+    because: "visitor",
   })
 })

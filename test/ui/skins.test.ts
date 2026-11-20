@@ -3,7 +3,7 @@ import { PALETTE } from "../../web/src/core/color"
 import { buildCoreCatalog } from "../../web/src/core/core-catalog"
 import { defineSkin, SKIN_TOKENS } from "../../web/src/core/def/skin"
 import { autoSkin } from "../../web/src/core/skin"
-import { BUILTIN } from "../../web/src/plugins"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { DARK } from "../../web/src/plugins/base/looks/dark"
 import { LIGHT } from "../../web/src/plugins/base/looks/light"
 import { createMatomezu } from "../../web/src/store/create"
@@ -51,7 +51,7 @@ describe("スキン", () => {
     const instance = createMatomezu({
       plugins: [...BUILTIN, acme],
       partial: true,
-      controlCenter: "@matomezu/control-center:control-center",
+      controlCenter: BUILTIN_CONTROL_CENTER,
       autoSkin: { dark: "acme:dark" as "@matomezu/base:dark" },
     })
     expect(instance.autoSkin).toEqual({ light: "@matomezu/base:light", dark: "acme:dark" })

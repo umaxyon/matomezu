@@ -13,6 +13,7 @@ import {
   withChanges,
 } from "../../../web/src/core/folders"
 import { type PerformedIn, performIn, type World } from "../../../web/src/core/perform"
+import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { draggable, droppable, moveClashOf } from "../../../web/src/plugins/base/library/drop"
 import { replaceBlockedOf, restorePlanOf } from "../../../web/src/plugins/base/library/entries"
 import {
@@ -32,7 +33,7 @@ const EN = { "@matomezu/base:lang": "matomezu:en" }
 
 const ctxOf = (): Omit<ActionContext, "naming"> => ({
   catalog: CORE_CATALOG,
-  controlCenter: "@matomezu/control-center:control-center",
+  controlCenter: BUILTIN_CONTROL_CENTER,
   lang: "en",
   newId: sequence("sf"),
   now: NOW,

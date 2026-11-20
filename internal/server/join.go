@@ -20,7 +20,7 @@ package server
 // 参加の id を添えるときは、ブランチ（X-Matomezu-Branch。値は URL エンコードで、git が無い・リポジトリでない・ブランチに居ないなら空）も添える。
 // 呼び出しがモデルを運ぶ AI なら、モデル（X-Matomezu-Model。値は URL エンコード）も添える。AI のプログラムのプロセス id（X-Matomezu-Host）は join も含めていつも添える。
 //
-//	POST /api/ai/join  {"ai", "model", "env", "sessionName", "link", "sessionId", "workroom", "orcaWorkspace"} 参加を頼む。{"ok", "participant"}、または弾いた理由 {"ok": false, "reason", "detail"}
+//	POST /api/ai/join  {"ai", "model", "env", "sessionName", "link", "sessionId", "workroom", "as", "orcaWorkspace"} 参加を頼む。{"ok", "participant"}、または弾いた理由 {"ok": false, "reason", "detail"}
 //
 // workroom は、AI が続けたい（またはその名前で始めたい）ワークルームの名前。その名前の受け入れ済みの参加者がいて、生きていれば断る（workroom-in-use）。
 // そうでなければ、名前を添えた参加の要求を郵便で出す。引き継ぐか新しく始めるかは、利用者が受け入れのダイアログで選ぶ。
@@ -114,7 +114,21 @@ type participantRecord struct {
 	Link        string `json:"link"`
 	Workroom    string `json:"workroom"`
 	RequestedAt string `json:"requestedAt"`
+	JoinedAt    string `json:"joinedAt"` // 受け入れた時点（受け入れ済みだけ）
 }
+
+// 参加者の state の値（core/def/subject.ts の PARTICIPANT_STATES）
+const (
+	stateRequested = "requested" // 要求中
+	stateJoined    = "joined"    // 受け入れ済みで、ワークルームに入っている
+	stateVisitor   = "visitor"   // 受け入れ済みで、ワークルームを持たない（ビジター。読むだけ）
+)
+
+// accepted は、受け入れ済み（ワークルームに入っているか、ビジター）か
+func (s participantRecord) accepted() bool { return s.State == stateJoined || s.State == stateVisitor }
+
+// sitting は、参加（要求）中か: 要求中か、受け入れ済み
+func (s participantRecord) sitting() bool { return s.State == stateRequested || s.accepted() }
 
 // workroomRecord はワークルームのレコード（役 workrooms）のうち、常駐が読む所
 type workroomRecord struct {
@@ -131,6 +145,7 @@ type JoinRequest struct {
 	Link            string `json:"link"`
 	SessionID       string `json:"sessionId"`
 	Workroom        string `json:"workroom"`
+	As              string `json:"as"` // visitor なら、ビジターとしての参加（ワークルームと一緒には頼めない）
 	OrcaWorkspace   string `json:"orcaWorkspace"`
 	Participant     string `json:"-"`
 	Host            string `json:"-"` // AI のプログラムのプロセス id（MCP が X-Matomezu-Host で添える。起こす知らせの宛て先。watch.go）
@@ -227,10 +242,9 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 	if err != nil {
 		return Joined{}, err
 	}
-	sitting := func(s participantRecord) bool { return s.State == "requested" || s.State == "joined" }
 	// 参加の id が付いていて、その参加者が参加（要求）中なら、その参加者のまま答える。付いていなくても、同じ link の参加者があれば同じ
 	for _, s := range records {
-		if (req.Participant != "" && s.ID == req.Participant && sitting(s)) || (req.Link != "" && s.Link == req.Link) {
+		if (req.Participant != "" && s.ID == req.Participant && s.sitting()) || (req.Link != "" && s.Link == req.Link) {
 			h.noteSession(s.ID, req.SessionID)
 			h.noteJoinHost(s.ID, req)
 			return Joined{OK: true, Participant: s.ID}, h.settleNotes()
@@ -238,7 +252,8 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 	}
 	left := false       // 部屋を見回るあいだに、セッションの終わった参加者を退室させた
 	continuing := false // 頼まれた名前の部屋に、生きていない参加者がいる（利用者が画面で引き継ぐかを選ぶ。同じセッション名でも「参加済み」にしない）
-	if req.Workroom != "" {
+	// ビジターとしての頼み（As）は、ワークルームを持たないので部屋を見回らない（ワークルームと一緒に頼めば、要求のアクションが断る）
+	if req.Workroom != "" && req.As == "" {
 		rooms, err := h.workrooms()
 		if err != nil {
 			return Joined{}, err
@@ -248,7 +263,7 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 				continue
 			}
 			for _, s := range records {
-				if s.State != "joined" || s.Workroom != room.ID {
+				if s.State != stateJoined || s.Workroom != room.ID {
 					continue
 				}
 				// 居座っている参加者が名乗った、セッションと同じだけ生きるプロセスが居なくなっていれば、そのセッションは終わっている。退室させて、部屋を空ける
@@ -278,7 +293,7 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 	}
 	if !continuing && req.Participant == "" && req.SessionName != "" {
 		for _, s := range records {
-			if sitting(s) && s.AI == req.AI && s.Env == req.Env && s.SessionName == req.SessionName {
+			if s.sitting() && s.AI == req.AI && s.Env == req.Env && s.SessionName == req.SessionName {
 				return alreadyJoined(s), nil
 			}
 		}
@@ -289,6 +304,9 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 	}
 	if req.Workroom != "" {
 		args["wantedName"] = req.Workroom
+	}
+	if req.As != "" {
+		args["as"] = req.As
 	}
 	made, err := h.performAs(ids.Participant, args)
 	if err != nil || !made.OK {
@@ -303,6 +321,7 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 	// 利用者に知らせる郵便の引数（頼んだ名前は workroom）
 	delete(args, "link")
 	delete(args, "wantedName")
+	delete(args, "as")
 	if workspace != "" {
 		args["orcaWorkspace"] = workspace
 	}
@@ -427,7 +446,7 @@ func (h *Hub) rebindByHost(records []participantRecord, sessionID, host string) 
 	changed := false
 	for _, s := range records {
 		n := h.participantNotes[s.ID]
-		if (s.State == "requested" || s.State == "joined") && n.Host == host && n.SessionID != sessionID && n.BoundBy != boundByJoin {
+		if s.sitting() && n.Host == host && n.SessionID != sessionID && n.BoundBy != boundByJoin {
 			h.bindSession(s.ID, sessionID, n.BoundBy, host)
 			changed = true
 		}
@@ -551,7 +570,7 @@ func (h *Hub) Called(id string, says CallerSays, now time.Time) string {
 			continue
 		}
 		n := h.participantNotes[id]
-		if s.State != "joined" || !n.ready() {
+		if !s.accepted() || !n.ready() {
 			return ""
 		}
 		before, _ := time.Parse(time.RFC3339Nano, n.Called)
@@ -593,7 +612,7 @@ func (h *Hub) Called(id string, says CallerSays, now time.Time) string {
 				h.participantNotes[id] = n
 				return strings.Join(notices, "\n")
 			}
-			notices = append([]string{joinedText(roomName(rooms, s.Workroom))}, notices...)
+			notices = append([]string{s.joinedText(rooms)}, notices...)
 		}
 		h.participantNotes[id] = n
 		return strings.Join(notices, "\n")
@@ -636,17 +655,25 @@ func (o Options) aiJoin(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, done)
 }
 
-// workroomOfHeld は、参加が確定した参加者が入っているワークルームの id を返す。h.mu を持って呼ぶ
-func (h *Hub) workroomOfHeld(id string) string {
+// actorOfParticipantHeld は、参加者 id の AI のアクター: 参加が確定していれば、入っているワークルームの id か、ビジターの印。
+// 確定していなければ、どちらも無い（core は参加が確定していない AI として扱う）。h.mu を持って呼ぶ
+func (h *Hub) actorOfParticipantHeld(id string) *engine.Actor {
+	actor := &engine.Actor{Kind: "ai"}
 	if id == "" || !h.participantNotes[id].ready() {
-		return ""
+		return actor
 	}
 	var participant participantRecord
 	entry, ok := h.recordTables[h.roles["participants"]][id]
-	if ok && json.Unmarshal(entry.body, &participant) == nil && participant.State == "joined" {
-		return participant.Workroom
+	if !ok || json.Unmarshal(entry.body, &participant) != nil {
+		return actor
 	}
-	return ""
+	switch participant.State {
+	case stateJoined:
+		actor.Workroom = participant.Workroom
+	case stateVisitor:
+		actor.As = stateVisitor
+	}
+	return actor
 }
 
 // sessionEnded は、参加者 id が、セッションと同じだけ生きるプロセスを名乗っていて、そのプロセスが終わっているか（ProcessSpaceEnded。名乗っていない・確かめられないなら false で、退室させない側に倒す）
@@ -660,6 +687,11 @@ func (h *Hub) sessionEnded(id string) bool {
 // leaveEnded は、セッションが終わった参加者 id を、利用者として退室させる（ワークルームは空室で残る。アクションは定義が役 runsWhenAIEnds で名乗る）。
 // 起こす知らせの行列は、宛先が参加者でなくなったので捨てられる（watch.go の stale）
 func (h *Hub) leaveEnded(id string) error {
+	return h.leave(id, "its session ended")
+}
+
+// leave は、参加者 id を、利用者として退室させる（なぜ退室させたかを why でログに残す）
+func (h *Hub) leave(id, why string) error {
 	ids, err := h.engine.EndActions()
 	if err != nil {
 		return err
@@ -667,7 +699,7 @@ func (h *Hub) leaveEnded(id string) error {
 	if ids == nil {
 		return nil
 	}
-	fmt.Fprintln(os.Stderr, "participant", id, "left: its session ended")
+	fmt.Fprintln(os.Stderr, "participant", id, "left:", why)
 	done, err := h.Perform(performOne(ids.Leave, json.RawMessage("{}"), &engine.On{Record: id}))
 	if err != nil {
 		return err
@@ -676,4 +708,51 @@ func (h *Hub) leaveEnded(id string) error {
 		return fmt.Errorf("participant %s could not leave: %s", id, done.Detail)
 	}
 	return nil
+}
+
+// VisitorIdle は、ビジターを退室させるまでの、呼ばれない間（最後に呼ばれてから。呼ばれていなければ受け入れてから）
+const VisitorIdle = 5 * time.Minute
+
+// VisitorSweepEvery は、呼ばれないビジターを見回る間隔
+const VisitorSweepEvery = 30 * time.Second
+
+// LeaveIdleVisitors は、時点 now までに VisitorIdle の間呼ばれていないビジターを、利用者として退室させる
+func (h *Hub) LeaveIdleVisitors(now time.Time) error {
+	records, err := h.records()
+	if err != nil {
+		return err
+	}
+	for _, s := range records {
+		if s.State != stateVisitor {
+			continue
+		}
+		h.mu.Lock()
+		last := h.participantNotes[s.ID].Called
+		h.mu.Unlock()
+		if last == "" {
+			last = s.JoinedAt
+		}
+		at, err := time.Parse(time.RFC3339Nano, last)
+		if err != nil || now.Sub(at) < VisitorIdle {
+			continue
+		}
+		if err := h.leave(s.ID, "a visitor was not called for "+VisitorIdle.String()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// showRefusal は、参加者 id の AI が show を頼んだときの断りの理由と文（参加が確定してワークルームに入っている AI なら、どちらも空）
+func (h *Hub) showRefusal(id string) (reason, detail string) {
+	h.mu.Lock()
+	actor := h.actorOfParticipantHeld(id)
+	h.mu.Unlock()
+	switch {
+	case actor.As == stateVisitor:
+		return "visitor", "a visitor only reads: it cannot show books on the user's screen"
+	case actor.Workroom == "":
+		return "not-joined", "only an AI whose request to join was accepted shows books on the user's screen (call join first)"
+	}
+	return "", ""
 }

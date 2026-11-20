@@ -57,3 +57,47 @@ export function workroomRows(input: {
   })
   return [...rows.filter(r => r.admin), ...rows.filter(r => !r.admin)]
 }
+
+// ビジターの行（参加者リストのビジターの節の 1 行）: ワークルームを持たない、受け入れ済みの参加者。参加した順
+export interface VisitorRow {
+  participant: Participant
+  state: Exclude<WorkroomState, "empty">
+  model: string
+  branch?: string
+  calledAt?: string
+}
+
+export function visitorRows(input: {
+  participants: readonly Participant[] // 要求が届いた順
+  ready: readonly string[]
+  live: Readonly<Record<string, ParticipantLive>>
+  calls: Readonly<Record<string, string>>
+}): VisitorRow[] {
+  return input.participants
+    .filter(p => participantCategory(p, undefined) === "visitor")
+    .sort((a, b) => (a.joinedAt ?? "").localeCompare(b.joinedAt ?? "") || a.id.localeCompare(b.id))
+    .map(participant => {
+      const live = input.live[participant.id]
+      const calledAt = input.calls[participant.id]
+      return {
+        participant,
+        state: input.ready.includes(participant.id) ? "ready" : "preparing",
+        model: shownModel(participant, live),
+        ...(live?.branch ? { branch: live.branch } : {}),
+        ...(calledAt ? { calledAt } : {}),
+      }
+    })
+}
+
+// 参加者区分: 管理者（管理者の印が指すワークルームに入っている）・ワーカー（ほかのワークルームに入っている）・ビジター（ワークルームを持たない）。
+// 受け入れていない参加者は区分を持たない（undefined）
+export type ParticipantCategory = "admin" | "worker" | "visitor"
+
+export function participantCategory(p: Participant, admin: string | undefined): ParticipantCategory | undefined {
+  if (p.state === "visitor") return "visitor"
+  if (p.state !== "joined") return undefined
+  return p.workroom === admin ? "admin" : "worker"
+}
+
+// ビジターの呼び名（ワークルームの名前が無いので、AI の名前と元のセッション名）
+export const visitorName = (p: Participant): string => (p.sessionName ? `${p.ai} / ${p.sessionName}` : p.ai)

@@ -1,7 +1,13 @@
-// 参加ダイアログと参加者リストの見方: 引き継げる部屋（空室か、いる参加者が生きていない部屋）と、名前が使われているか、画面に出すモデル
+// 参加ダイアログと参加者リストの見方: 引き継げる部屋（空室か、いる参加者が生きていない部屋）と、名前が使われているか、画面に出すモデル、ビジターの行と参加者区分
 
 import { expect, test } from "bun:test"
 import { shownModel } from "../../../web/src/plugins/base/participant/live"
+import {
+  participantCategory,
+  visitorName,
+  visitorRows,
+  workroomRows,
+} from "../../../web/src/plugins/base/participant/rows"
 import { nameInUse, occupantOf, takeable } from "../../../web/src/plugins/base/participant/workroom"
 
 const room = (id: string, name: string) => ({ id, name, bird: "inko", createdAt: "t" }) as never
@@ -28,4 +34,23 @@ test("画面に出すモデルは、フックが知らせたモデルを先に�
   expect(shownModel(p, { model: "sonnet", branch: "main" })).toBe("sonnet")
   expect(shownModel(p, { branch: "main" })).toBe("opus")
   expect(shownModel(p, undefined)).toBe("opus")
+})
+
+test("ビジターの行は、ワークルームを持たない受け入れ済みの参加者だけを参加した順に並べ、ワークルームの行には入れない。参加者区分は管理者・ワーカー・ビジター", () => {
+  const visitor = (id: string, joinedAt: string, sessionName = "") =>
+    ({ id, state: "visitor", ai: "claude", model: "opus", env: "e", sessionName, joinedAt }) as never
+  const all = [...people, visitor("v2", "2", "D92"), visitor("v1", "1"), { id: "q", state: "requested" } as never]
+  const rows = visitorRows({ participants: all, ready: ["v1"], live: {}, calls: { v2: "now" } })
+  expect(rows.map(r => [r.participant.id, r.state, r.calledAt])).toEqual([
+    ["v1", "ready", undefined],
+    ["v2", "preparing", "now"],
+  ])
+  expect(visitorName(rows[1]?.participant as never)).toBe("claude / D92")
+  expect(visitorName(rows[0]?.participant as never)).toBe("claude")
+  const rooms3 = workroomRows({ rooms, participants: all, admin: "r1", ready: [], live: {}, calls: {}, activities: {} })
+  expect(rooms3.map(r => r.participant?.id)).toEqual(["a", "b", undefined])
+  expect(participantCategory(people[0] as never, "r1")).toBe("admin")
+  expect(participantCategory(people[1] as never, "r1")).toBe("worker")
+  expect(participantCategory(all[2] as never, "r1")).toBe("visitor")
+  expect(participantCategory({ id: "q", state: "requested" } as never, "r1")).toBeUndefined()
 })

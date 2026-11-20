@@ -18,7 +18,7 @@ import {
   type Workroom,
 } from "."
 import { workroomActivityOf } from "./activity"
-import { adminRoomOf, type WorkroomRow, workroomRows } from "./rows"
+import { adminRoomOf, type VisitorRow, visitorRows, type WorkroomRow, workroomRows } from "./rows"
 
 // 参加者のレコード（種類 PARTICIPANT。要求が届いた順）と、ワークルームのレコード（作った順）
 const sorted = <T extends { id: string }>(records: Readonly<Record<string, unknown>> | undefined, key: keyof T) =>
@@ -81,6 +81,15 @@ export function useWorkroomRows(): readonly WorkroomRow[] {
   )
 }
 
+// ビジターの行（参加した順）
+export function useVisitorRows(): readonly VisitorRow[] {
+  const participants = useParticipants()
+  const ready = useParticipantReady()
+  const live = useParticipantLive()
+  const calls = useParticipantCalls()
+  return useMemo(() => visitorRows({ participants, ready, live, calls }), [participants, ready, live, calls])
+}
+
 // アクションを 1 件行う関数（useActions の perform）。成功なら ok が true で result を持ち、断られたら ok が false
 export type Do = (
   id: string,
@@ -99,6 +108,8 @@ export interface WorkroomActions {
 export function useWorkroomActions(): WorkroomActions {
   const { perform, showToast } = useActions()
   const catalog = useCoreCatalog()
+  // 管理者の印が在れば、その印を書き換える（無ければ作る）
+  const marked = useMatomezuState(s => s.records[ADMIN_MARK.id]?.admin !== undefined)
   return useMemo(() => {
     const doing = perform as unknown as Do
     const settle = (done: ReturnType<Do>) => {
@@ -117,7 +128,7 @@ export function useWorkroomActions(): WorkroomActions {
       leave: occupant => settle(doing(PARTICIPANT_REMOVE.id, {}, { record: occupant })),
       remove: (room, occupant) =>
         settle(doing(WORKROOM_REMOVE.id, occupant === undefined ? {} : { occupant }, { record: room })),
-      makeAdmin: room => settle(doing(ADMIN_SET.id, { workroom: room })),
+      makeAdmin: room => settle(doing(ADMIN_SET.id, { workroom: room }, ...(marked ? [{ record: "admin" }] : []))),
     }
-  }, [perform, showToast, catalog])
+  }, [perform, showToast, catalog, marked])
 }

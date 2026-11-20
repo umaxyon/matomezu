@@ -1,6 +1,7 @@
 // ページ一覧（ステージの左の縦の列）: ページ一覧を選んだタイプ（スライドのブック）のブックにだけ出て、ページタブは出さない。押したページを開く
 import { afterEach, describe, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
@@ -18,7 +19,7 @@ function open(type: string) {
   const instance = createMatomezu({
     plugins: BUILTIN_UI,
     partial: true,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
   })
   showFirstBook(instance)

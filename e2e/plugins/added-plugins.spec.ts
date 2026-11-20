@@ -225,7 +225,7 @@ test("AI は actions で追加プラグインのアクションを読み、perfo
   expect(whole.actions[0].description).toContain("Answer a decision")
   expect(whole.items[0].props.properties).toBeDefined()
   const perform = async (body: object) =>
-    (await page.request.post("/api/ai/perform", { headers: aiAuth(), data: body })).json()
+    (await page.request.post("/api/ai/perform", { headers: await joinedAiAuth(), data: body })).json()
   expect(
     await perform({
       action: "ex2:diamond-answer",
@@ -300,7 +300,7 @@ test("ex6 と ex7 を読ませると、ex7 の木箱が ex6 の拡張ポイン�
   }
   expect((await page.request.put(`/api/books-for-test/${yard.id}`, { data: { book: yard, base: 0 } })).ok()).toBe(true)
   const perform = async (body: object) =>
-    (await page.request.post("/api/ai/perform", { headers: aiAuth(), data: body })).json()
+    (await page.request.post("/api/ai/perform", { headers: await joinedAiAuth(), data: body })).json()
   expect(await perform({ action: "ex6:page-weight", args: {}, on: { page: "yard-p1" } })).toMatchObject({
     ok: true,
     result: { weight: 7 },

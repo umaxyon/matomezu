@@ -1,5 +1,5 @@
 // ツリーのブック（@matomezu/tree）: 道具の組は編集とハンド。編集の間はホイールでも紙のドラッグでも紙をずらさず（ミニマップを押すとハンドに替わる）、ハンドで紙をずらして見る
-import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
+import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
 import { afterFrames } from "./helpers/frames"
 import { imeCompose } from "./helpers/ime"
 import { newBook } from "./helpers/new-book"
@@ -278,7 +278,7 @@ test("節のメニューの「節の色」で、節のすぐ下に色のスタ�
 test("節をその場で書いている間は、AI がその節を変えると断られ（being-edited）、確定すると変えられる", async ({
   page,
 }) => {
-  const ai = aiAuth()
+  const ai = await joinedAiAuth()
   await treeBook(page)
   const paperEl = paper(page)
   await paperEl.getByRole("button", { name: "子を足す" }).click()

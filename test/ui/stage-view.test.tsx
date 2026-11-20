@@ -4,6 +4,7 @@ import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
 import { openedPage } from "../../web/src/core/stage"
 import { screenOf } from "../../web/src/core/window"
+import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { BOOK_LAYERS } from "../../web/src/plugins/base/workspace/slots"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
@@ -29,7 +30,7 @@ test("パンしても、book-layers のレイヤーは描き直さない", () =>
   const instance = createMatomezu({
     plugins: [...BUILTIN_UI, counter],
     partial: true,
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     books: SAMPLE_BOOKS,
     lang: "ja",
     newId: sequence(),

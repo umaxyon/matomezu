@@ -4,6 +4,7 @@ import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render } from "@testing-library/react"
 import { addPageIn, createBookIn, pagesOf } from "matomezu"
 import {
+  BUILTIN_CONTROL_CENTER,
   BUILTIN_UI,
   createMatomezu,
   DEFAULT_LAYOUT,
@@ -19,7 +20,7 @@ afterEach(cleanup)
 const make = () => {
   const instance = createMatomezu({
     plugins: [...BUILTIN_UI, EX4_UI],
-    controlCenter: "@matomezu/control-center:control-center",
+    controlCenter: BUILTIN_CONTROL_CENTER,
     lang: "ja",
   })
   // 最初のブックを窓に出す（ブックが無ければ、何も開かないステージのブックスクリーンを開く）
@@ -108,7 +109,7 @@ test("ビルトインの線（と線を選ぶ図面・フローチャート）�
   const plugins = BUILTIN_UI.filter(
     ui => !["@matomezu/line", "@matomezu/drawing", "@matomezu/flowchart"].includes(ui.id),
   )
-  const instance = createMatomezu({ plugins, controlCenter: "@matomezu/control-center:control-center", partial: true })
+  const instance = createMatomezu({ plugins, controlCenter: BUILTIN_CONTROL_CENTER, partial: true })
   // 最初のブックを窓に出す（ブックが無ければ、何も開かないステージのブックスクリーンを開く）
   if (!instance.actions.showBook(Object.keys(instance.state.getState().books)[0] ?? ""))
     instance.actions.openScreen("@matomezu/base:book-screen", {})
