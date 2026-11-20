@@ -1,6 +1,6 @@
 // マークのレイヤー（ウィジェット mark-layer）: 開いているブックのマークを、付けた物の最後の 1 つのそばにスタンドで出す。
 // 鳥のマークは物の上の辺を歩き（付けたときだけ、飛んでくるか物の裏から顔を出す。birds/）、びっくりマークは物の右上の角に止まる
-// （角に出すほかの物〈伝言など〉と一緒に角のスタンドにまとまり、並びの先頭に来る。utils/corner.tsx）。
+// （角に出すほかの物〈伝言など〉と一緒に角のスタンドにまとまり、並びの先頭に来る。corner-status/corner.tsx）。
 // どちらも押すと「外す？」の小さな吹き出しを出し、「はい」で外す。ポインタが離れるか、ほかを押すと隠す。
 // マークの種類を選ぶスタンド（states.ts の MARK_PICKER）が開いていれば、付ける先のそばに 6 つの種類の絵を並べ、押した種類を付ける。
 // 動きを減らす設定（prefers-reduced-motion）では、鳥は降りた所で正面を向いたまま動かない。
@@ -9,19 +9,19 @@
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
 import { useMessages } from "../../../ui/i18n"
 import { useReadPluginState, useSetPluginState } from "../../../ui/view-hooks"
-import { useAnnotationsOf, usePerformOrToast } from "../annotation-hooks"
 import type { Bird } from "../birds"
 import { BirdWalk, birdClass, FRONT, frameStyle } from "../birds/BirdWalk"
 import type { Arrival } from "../birds/flight"
 import { useBirdSheet } from "../birds/use-bird-sheet"
 import type { AnchorTargets } from "../context-menu/anchor-targets"
 import { useAnchorTargets, useSetAnchorTargets } from "../context-menu/use-anchor-targets"
+import { AtCorner, useAtCornerBubble } from "../corner-status/corner"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
-import { Ask, useRemoveAsk } from "../utils/Ask"
-import { Stand, StandAt } from "../utils/anchors"
-import { AtCorner, useAtCornerBubble } from "../utils/corner"
-import { StandPointer } from "../utils/StandPointer"
+import { Ask, useRemoveAsk } from "../stand/Ask"
+import { Stand, StandAt } from "../stand/anchors"
+import { StandPointer } from "../stand/StandPointer"
+import { useAnnotationsOf, usePerformOrToast } from "../utils/annotation-hooks"
 import { MARK, MARK_ADD, MARK_KINDS, MARK_REMOVE, type MarkKind, type MarkProps } from "."
 import styles from "./MarkLayer.module.css"
 import { MARK_ARRIVING, MARK_PICKER } from "./states"
@@ -50,7 +50,7 @@ export function MarkLayer() {
 
 function MarkStand({ id, anchor, kind, addedAt }: { id: string; anchor: string; kind: MarkKind; addedAt: string }) {
   const t = useMessages(kit)
-  const run = usePerformOrToast("The mark was refused")
+  const run = usePerformOrToast(kit.message("The mark was refused"))
   const remove = () => run(MARK_REMOVE.id, { mark: id })
   const title = t(MARK_KINDS.find(k => k.id === kind)?.title ?? "Mark")
   const awayLabel = t("Show {name}", { name: useAnchorName(anchor) })
@@ -139,7 +139,7 @@ function MarkBird({
 // マークの種類を選ぶスタンド: 6 つの種類の絵を並べ、押した種類を付ける。Esc か、ほかを押すと付けずに閉じる
 function PickerStand({ picker }: { picker: AnchorTargets }) {
   const t = useMessages(kit)
-  const run = usePerformOrToast("The mark was refused")
+  const run = usePerformOrToast(kit.message("The mark was refused"))
   const setPicker = useSetAnchorTargets(MARK_PICKER)
   const readArriving = useReadPluginState(kit, MARK_ARRIVING)
   const setArriving = useSetPluginState(kit, MARK_ARRIVING)

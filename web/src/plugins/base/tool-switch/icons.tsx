@@ -1,5 +1,5 @@
 // base の道具のアイコン（24 の四角の中に描く線。見た目の重心をそろえるため、少しずらしてある）
-import { icon } from "../icon"
+import { icon } from "../utils/icon"
 import { HAND_TOOL, SELECT_TOOL } from "./tools"
 
 export const TOOL_ICONS = {

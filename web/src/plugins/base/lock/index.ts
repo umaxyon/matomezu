@@ -10,8 +10,8 @@ import { problem } from "../../../core/errors"
 import type { ItemPage } from "../../../core/placed"
 import { sameData } from "../../../core/same"
 import type { Book } from "../../../core/schema/book"
-import { setField } from "../fields"
 import { kit } from "../kit"
+import { setField } from "../utils/fields"
 
 declare module "../../../core/catalog" {
   interface SubjectExtras {

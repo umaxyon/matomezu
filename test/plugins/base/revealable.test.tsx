@@ -2,7 +2,7 @@
 // リストは、頼まれた行を行の並びのスクロールの見える所へ動かす
 import { afterEach, expect, test } from "bun:test"
 import { cleanup, render } from "@testing-library/react"
-import { revealAround, useRevealable } from "../../../web/src/plugins/base/utils/revealable"
+import { revealAround, useRevealable } from "../../../web/src/plugins/base/stand/revealable"
 import { rowScroll } from "../../../web/src/plugins/items/list/reveal"
 
 function Box({ name, calls, children }: { name: string; calls: string[]; children?: React.ReactNode }) {

@@ -4,7 +4,7 @@
 import { useEffect } from "react"
 import { useOpenContextMenu } from "../../../ui/context-menu"
 import { kit } from "../kit"
-import { anchorOf } from "../utils/anchors"
+import { anchorOf } from "../stand/anchors"
 
 export const ANCHOR_CONTEXT = kit.name("anchor-context")
 
