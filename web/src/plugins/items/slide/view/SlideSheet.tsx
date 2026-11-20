@@ -12,7 +12,9 @@ import {
 import { useCoreCatalog } from "../../../../plugin-api/ui"
 import { BACKGROUND_PRINT, settingValue, slideOffsetOf } from "../../../base"
 import type { PrintSheetProps } from "../../../base/ui"
+import { rotationOf } from "../rect"
 import { useSlideItemView } from "./item-view"
+import { SlideItemBox } from "./SlideItemBox"
 import styles from "./SlideSheet.module.css"
 
 export function SlideSheet({ zoom, page }: PrintSheetProps) {
@@ -34,20 +36,14 @@ export function SlideSheet({ zoom, page }: PrintSheetProps) {
 function SheetShape({ shape, offset, zoom }: { shape: PlacedShape; offset: Point; zoom: number }) {
   const { View, tokens } = useSlideItemView(shape.item)
   const size = { w: shape.w ?? 0, h: shape.h ?? 0 }
-  const rotation = (shape.props as { rotation?: number }).rotation ?? 0
   return (
-    <div
+    <SlideItemBox
+      rect={{ x: shape.x + offset.x, y: shape.y + offset.y, ...size }}
+      rotation={rotationOf(shape)}
+      tokens={tokens}
       className={styles.item}
-      style={{
-        ...tokens,
-        left: shape.x + offset.x,
-        top: shape.y + offset.y,
-        width: size.w,
-        height: size.h,
-        transform: rotation ? `rotate(${rotation}deg)` : undefined,
-      }}
     >
       {View && <View props={shape.props} size={size} id={shape.id} content={{}} zoom={zoom} hasChildren={false} />}
-    </div>
+    </SlideItemBox>
   )
 }

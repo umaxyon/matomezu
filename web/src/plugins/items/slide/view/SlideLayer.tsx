@@ -39,7 +39,9 @@ import {
   pointsOnPaper,
   resizedRect,
   rotatedTo,
+  rotationOf,
   scaledFontSize,
+  shapeProps,
   snappedTo45,
   spanOf,
   thinned,
@@ -60,7 +62,7 @@ import {
 } from "../slide"
 import { useSlideItemView } from "./item-view"
 import { GRIPS, GroupSelection, type SelectedItem, Selection } from "./Selection"
-import { rotationOf, SlideItem, shapeProps } from "./SlideItem"
+import { SlideItem } from "./SlideItem"
 import styles from "./SlideLayer.module.css"
 
 // 押しただけとみなす動き（紙の上の px）と、自由な線の点の間引きの間

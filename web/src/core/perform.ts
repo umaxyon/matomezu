@@ -47,7 +47,7 @@ import {
   type Where,
 } from "./def/action"
 import type { PagePermissionCheck, PlaceChange, Referred } from "./def/permission"
-import type { SubjectDef } from "./def/subject"
+import { type SubjectDef, shownToAI } from "./def/subject"
 import {
   binnedBetween,
   clashedSystemFolder,
@@ -936,7 +936,7 @@ function noRecord(
 ): { ok: false; reason: "no-record"; detail: string } {
   const def = catalog.subjects.get(target)
   // AI に見せる種類（aiBrief を書いた種類）だけ、一覧の引き方と種類の説明を言う
-  const shown = def?.aiBrief !== undefined
+  const shown = def !== undefined && shownToAI(def)
   const list = shown ? `; read_records with kind ${target} lists the records` : ""
   const about = shown ? ` About that subject: ${def.aiDescription}` : ""
   return {

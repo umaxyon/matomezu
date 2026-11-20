@@ -76,3 +76,6 @@ export interface SubjectDef<
   writableBy?: readonly string[]
   numbered?: true // レコードに番号を振る種類。アクションは ctx.number(区切り) で次の番号を受け取る（常駐が決める。区切りごとに連番で、使い回さない）
 }
+
+// AI に見せる種類か（aiBrief を書いた種類。read_records の一覧・アクションの一覧・断りの直し方に出す）
+export const shownToAI = (def: Pick<SubjectDef, "aiBrief">): boolean => def.aiBrief !== undefined

@@ -12,6 +12,7 @@ import {
   ANY_PAGE_TYPE,
   attachedTo,
   BASE_TARGETS,
+  changesBookOnly,
   isInBook,
   isOnPage,
   type Where,
@@ -152,7 +153,7 @@ function typesAt(
   where: Where | undefined,
 ): { types: PageTypeDef[]; need: "every" | "some" } | "missing" | null {
   // 許可スコープが "book" のアクションは、問う側が所を添えても、ページのタイプでは決めない（画面と perform で答えが割れないように）
-  if (def.target === "book" && def.permissionScope === "book") return null
+  if (changesBookOnly(def)) return null
   const every = (ids: readonly (string | undefined)[]) =>
     (ids.length === 0 && def.target !== "annotations") || ids.includes(undefined)
       ? ("missing" as const)

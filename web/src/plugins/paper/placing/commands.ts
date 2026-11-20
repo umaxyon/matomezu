@@ -12,12 +12,12 @@ import {
   shapesOf,
   toPaperDelta,
 } from "../../../plugin-api"
-import { amongSelected, type Edges, hasOpenedPage, refusalMessage, resizedBy, shapeDefOf } from "../../base"
+import { amongSelected, type Edges, hasOpenedPage, refusalMessage, shapeDefOf } from "../../base"
 import { kit } from "../kit"
 import { ITEM_MOVE, ITEM_PLACE, ITEM_REMOVE, ITEM_REPARENT, ITEM_RESIZE, ITEM_UPDATE } from "./actions"
 import { NO_FREE_SPOT } from "./crowd"
 import type { Came } from "./drag"
-import { nearestMove, nearestReparent, PLACE_OFFSET, placeTarget, placingShape } from "./items"
+import { nearestMove, nearestReparent, PLACE_OFFSET, placeTarget, placingShape, stretchedBy } from "./items"
 
 // 置こうとしているアイテムの左上（紙の上）。ポインタ（表示領域の左上から）を PLACE_OFFSET だけ戻した所を、toPaperAt で紙の上の点に直す
 export function placeAt(toPaperAt: (p: Point) => Point | null, pointer: Point): Point | null {
@@ -214,8 +214,7 @@ export const PAPER_RESIZE = kit.defineCommand({
     const page = ctx.page
     const placed = findShape(page, args.item)?.shape
     if (!placed) return
-    const ratio = shapeDefOf(ctx.catalog, placed.item)?.[kit.name("stretch")] === "ratio"
-    const to = resizedBy(ctx.catalog, placed, args.edges, toPaperDelta(ctx.stage, args.by), paper, ratio)
+    const to = stretchedBy(ctx.catalog, placed, args.edges, toPaperDelta(ctx.stage, args.by), paper)
     if (to) a.perform(ITEM_RESIZE.id, { item: placed.id, ...to }, { page: page.id })
   },
   when: hasOpenedPage,

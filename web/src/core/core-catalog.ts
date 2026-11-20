@@ -5,7 +5,7 @@
 import { z } from "zod"
 import { type CorePart, type ItemId, type ItemTable, PARTS, type PartDefTable, partsOf } from "./catalog"
 import { HEX } from "./color"
-import { type ActionDef, attachedTo, BASE_TARGETS } from "./def/action"
+import { type ActionDef, attachedTo, BASE_TARGETS, changesBookOnly } from "./def/action"
 import type { AnnotationDef } from "./def/annotation"
 import type { ControlCenterDef } from "./def/control-center"
 import type { EnumDef, EnumValueDef } from "./def/enum"
@@ -414,7 +414,7 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
   for (const d of parts.userSettings) if (d.holder !== undefined) problems.push(problem("E065", { id: d.id }))
   // 許可スコープが "book" のアクションは、ページを名指さないので、ページのタイプで決まる付く先（items・presentations・annotations）を持てない
   for (const a of parts.actions)
-    if (a.target === "book" && a.permissionScope === "book" && a.attach) {
+    if (changesBookOnly(a) && a.attach) {
       const typed = (["items", "presentations", "annotations"] as const).filter(k => a.attach?.[k] !== undefined)
       if (typed.length > 0) problems.push(problem("E063", { id: a.id, attach: typed.join(", ") }))
     }
@@ -423,8 +423,7 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     for (const field of ["add", "without"] as const)
       for (const id of t.actions[field] ?? []) {
         const a = actions.get(id)
-        if (a?.target === "book" && a.permissionScope === "book")
-          problems.push(problem("E066", { id: t.id, field, action: id }))
+        if (a && changesBookOnly(a)) problems.push(problem("E066", { id: t.id, field, action: id }))
       }
   for (const t of parts.pageTypes) {
     for (const id of t.settings ?? []) {
