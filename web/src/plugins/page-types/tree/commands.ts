@@ -12,7 +12,7 @@ import { EDIT_TOOL } from "./tools"
 import { NODE_SIZE_DIALOG, TREE_KEYS_SCOPE, TREE_PAGE_SETTINGS_DIALOG } from "./tree"
 
 // 開いているページと、その根と伸びる向き（ツリーのページでなければ null）
-function treeAt(ctx: CommandContext) {
+export function treeAt(ctx: CommandContext) {
   if (!hasOpenedPage(ctx)) return null
   const page = ctx.page
   const root = treeRootOf(page)

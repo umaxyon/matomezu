@@ -2,28 +2,19 @@
 // 上から下へ並べて描く（行と罫線は layout.ts が決める）。行は、アイコン（フォルダは開・閉、ファイル）と、その右の名前（装飾して描く）。
 // 説明は、行の右にそろえた列に 1 行で描く（列の位置・… で切るか・出さないか・前の「・・・」・紙を縦に分ける区切り線は、ページの設定の項目から layout.ts が決める）。選んでいる行の説明にも、行と同じ印を付ける。
 // フォルダには開け閉めの印（▸・▾）を出し、押すとコマンド folder-toggle で開け閉めする（鉛筆でもハンドでも。アクションが止められていれば押せない形で描く）。
-// ページが無ければ、真ん中にページを作るボタン（コマンド page-new）を出す。表に無い紙は「不明な紙」と示し、描けない紙は知らせだけを出す。
+// ページが無ければ、真ん中にページを作るボタン（コマンド page-new）を出す。
 // 画面のどこを右クリックしても、ディレクトリ構成図のメニュー（dir-context）を開く。
 // 鉛筆の間は、選んでいる行（無ければ根）に印を付け、押した行を選ぶ。行を右クリックすると、その行を選んで行のメニュー（entry-context）を開く。
 // 選んでいる行の右には＋（フォルダとファイル。フォルダの行は中の末尾に、ファイルの行はすぐ下に足す。コマンド folder-add・file-add）を出す。
 // ダブルクリック（と Enter・F2 のコマンド）で、名前をその場で書き始める。書いている字で行の幅を決め直し、装飾を見たまま書く入力Form（base の RichInput）と、そのすぐ上に装飾のボックス（base の RichBar）を出す。
-// Enter か入力Formの外を押すと確定、Escape で取り消す。名前の空の中身が空のまま終わったら消す。書き換えが紙に入らず断られたら、トーストで知らせる。
+// Enter か入力Formの外を押すと確定、Escape で取り消す（確定と取り消しは in-place.ts のコマンド。入力Formは base の useInPlaceInput で、書いている字は DIR_DRAFT に置く）。名前の空の中身が空のまま終わったら消す。書き換えが紙に入らず断られたら、トーストで知らせる。
 // 説明を出している間は、説明の列（説明の無い行は、その行の高さの空き）をダブルクリックすると、説明をその場で書き始める（その場の編集の名前 NOTE_EDIT）。
 // 入力Formは説明の列の幅で、確定のしかたは名前と同じ。空にして確定すると説明を消す。
 // 中に足す種類を選んでいる間（その場の編集の名前 KIND_PICK。Tab のコマンド）は、選んでいるフォルダの行のすぐ右に、フォルダとファイルを縦に並べた枠を出す。
 // ↑・↓ で選び、Enter か押して、その種類を中の末尾に足して名前を書き始める（コマンド folder-add・file-add）。Escape か枠の外へ焦点が移ると、やめる。
 // 鉛筆の間は、根でない行を押して動かすとドラッグになり、落とした所で中身ごと付け替える（落とす先は drag.ts が決める。行の写しがポインタに付き、元の行と中身は薄く、
 // 中へ入るフォルダの行には点線の枠、行の間に入る所には線を出す）。ポインタが端に近ければ紙をずらす。付け替えが紙に入らず断られたら、トーストで知らせる
-import {
-  type KeyboardEvent,
-  type MouseEvent,
-  memo,
-  type PointerEvent,
-  type RefObject,
-  useMemo,
-  useRef,
-  useState,
-} from "react"
+import { type MouseEvent, memo, type PointerEvent, type RefObject, useMemo, useRef } from "react"
 import { paperOf, type StageView } from "../../../../plugin-api"
 import {
   useActions,
@@ -49,14 +40,16 @@ import {
   Tip,
   useAnchorRef,
   useFollowsSelection,
+  useInPlaceInput,
   usePaperDrag,
 } from "../../../base/ui"
-import { ENTRY_MOVE, ENTRY_REMOVE, ENTRY_UPDATE } from "../actions"
-import { ADDED_EDIT, FILE_ADD, FOLDER_ADD, FOLDER_TOGGLE, KIND_PICK } from "../commands"
+import { ENTRY_MOVE, ENTRY_UPDATE } from "../actions"
+import { FILE_ADD, FOLDER_ADD, FOLDER_TOGGLE, KIND_PICK } from "../commands"
 import { DIR_CONTEXT, ENTRY_CONTEXT } from "../dir"
 import { dropAt, subtreeIds } from "../drag"
-import { afterRemove, changeEntry, editEnd, entryOf, noteEnd, selectedIn } from "../edit"
+import { changeEntry, entryOf, selectedIn } from "../edit"
 import { dirRootOf } from "../entry"
+import { DIR_DRAFT, DIR_EDIT_COMMIT, DIR_EDIT_KEY_SCOPE, NOTE_EDIT, writingName, writingNote } from "../in-place"
 import { kit } from "../kit"
 import { editorWidth, ICON, type LaidRow, nameLeft } from "../layout"
 import { NodeIcon } from "../node-icon"
@@ -64,9 +57,6 @@ import { FileIcon } from "../node-icons"
 import { laidArea, laidPage } from "../print"
 import { PENCIL_TOOL } from "../tools"
 import styles from "./DirView.module.css"
-
-// 説明をその場で書いている間の、その場の編集の名前
-const NOTE_EDIT = kit.name("note-edit")
 
 export function DirView() {
   const stage = useStage()
@@ -112,16 +102,11 @@ const Rows = memo(function Rows({
   const book = useShownBook()
   const page = useShownPage()
   const perform = usePerform()
-  const { select, setEditing, showToast, continueStep } = useActions()
+  const { select, setEditing, showToast } = useActions()
   const toggle = useCommand(FOLDER_TOGGLE.id)
   const addFolder = useCommand(FOLDER_ADD.id)
   const addFile = useCommand(FILE_ADD.id)
   const openEntryMenu = useContextMenu(ENTRY_CONTEXT)
-  // 書いている字（どの中身のものか）と、入力Formを出してから終えたか（Enter のあとの blur で 2 度終えない）
-  const [draft, setDraft] = useState<{ entry: string; text: string } | null>(null)
-  const [noteDraft, setNoteDraft] = useState<{ entry: string; text: string } | null>(null) // 書いている説明
-  const [composing, setComposing] = useState<string | null>(null) // 変換中（確定する前）の字。名前の枠の幅だけに使う
-  const ended = useRef(false)
   const editor = useRef<RichInputHandle>(null)
   const drag = usePaperDrag(stage, area)
   const renamable = useAllowed(ENTRY_UPDATE.id, page ? { page: page.id } : undefined).ok // 名前・説明を書き始められるか
@@ -131,10 +116,13 @@ const Rows = memo(function Rows({
   const root = dirRootOf(page)
   const usingPencil = stage.tool === PENCIL_TOOL.id
   const selected = root ? selectedIn(root, stage.selection) : undefined
-  // 背景編集モードの間の文字枠の書き換え（slide のもの。stage.editing は同じ true）は、行の書き換えにしない
-  const writing = usingPencil && stage.edits === "items" && (stage.editing === true || stage.editing === ADDED_EDIT)
+  const writing = writingName({ stage })
   const picking = usingPencil && stage.editing === KIND_PICK
-  const text = writing && draft && draft.entry === selected ? draft.text : null
+  // 名前と説明の入力Form（書いている字は DIR_DRAFT。名前と説明を同時には書かない）
+  const edit = { target: selected, keyScope: DIR_EDIT_KEY_SCOPE.id, commit: DIR_EDIT_COMMIT.id }
+  const nameInput = useInPlaceInput(kit, DIR_DRAFT, { ...edit, active: writing })
+  const noteInput = useInPlaceInput(kit, DIR_DRAFT, { ...edit, active: writingNote({ stage }) })
+  const text = nameInput.text
   // 書いている字を重ねた根
   const shown =
     root && text !== null && selected !== undefined ? (changeEntry(root, selected, { name: text }) ?? root) : root
@@ -150,8 +138,8 @@ const Rows = memo(function Rows({
   const dir = root
   const { rows, lines, notes, divider } = laid
   const at = rows.find(r => r.id === selected)
-  const noting = usingPencil && stage.editing === NOTE_EDIT && notes !== null
-  const noteText = noting && noteDraft?.entry === selected ? noteDraft.text : null
+  const noting = writingNote({ stage }) && notes !== null
+  const noteText = noting ? noteInput.text : null
   const description = entryOf(dir, selected)?.description ?? ""
   // ドラッグで動かしている行（押しただけでまだ動かしていなければ null）と、落とす先
   const dragging = drag.state?.moved ? drag.state : null
@@ -162,48 +150,10 @@ const Rows = memo(function Rows({
   const refused = (done: Parameters<typeof refusalMessage>[1]) =>
     showToast({ kind: "warn", message: refusalMessage(catalog, done, kit.message("Does not fit on the paper")) })
 
-  // その場の編集を終える（commit なら書いた字を確定する。することは edit.ts の editEnd が決める）
-  const end = (commit: boolean) => {
-    if (ended.current) return
-    ended.current = true
-    setComposing(null)
-    if (stage.editing === ADDED_EDIT && book) continueStep(book.id)
-    const todo = editEnd(dir, selected, commit ? text : null)
-    if (todo.kind === "remove") {
-      const next = afterRemove(dir, selected)
-      if (perform(ENTRY_REMOVE.id, { entry: selected }, { page: pageId }).ok && next) select([next])
-    }
-    if (todo.kind === "rename") {
-      const done = perform(ENTRY_UPDATE.id, { entry: selected, name: todo.name }, { page: pageId })
-      if (!done.ok) refused(done) // 書けない字は書かず、元の名前のまま
-    }
-    setDraft(null)
-    setEditing(false)
-  }
-  // 説明のその場の編集を終える（commit なら書いた字を確定する。することは edit.ts の noteEnd が決める）
-  const endNote = (commit: boolean) => {
-    if (ended.current) return
-    ended.current = true
-    const next = commit ? noteEnd(dir, selected, noteText) : undefined
-    if (next !== undefined) {
-      const done = perform(ENTRY_UPDATE.id, { entry: selected, description: next }, { page: pageId })
-      if (!done.ok) refused(done)
-    }
-    setNoteDraft(null)
-    setEditing(false)
-  }
   // 書いている途中の名前か説明を確定する（入力Formが外れるより先に選びが替わるので、押したときに確定する）
   const settle = () => {
-    if (writing) end(true)
-    if (noting) endNote(true)
-  }
-  // 入力Formのキー: Enter で確定、Escape で取り消す
-  const keys = (finish: (commit: boolean) => void) => (e: KeyboardEvent) => {
-    if (e.nativeEvent.isComposing) return
-    if (e.key !== "Enter" && e.key !== "Escape") return
-    e.preventDefault()
-    e.stopPropagation()
-    finish(e.key === "Enter")
+    nameInput.settle()
+    noteInput.settle()
   }
   drag.onDrop.current = (entry, point) => {
     const target = dropAt(dir, rows, entry, point)
@@ -260,25 +210,16 @@ const Rows = memo(function Rows({
       {writing && at && (
         <RichInput
           ref={editor}
+          {...nameInput.input}
           className={styles.editor}
           label={t("Name")}
-          multiline={false}
-          autoFocus
           value={text ?? at.name}
           style={{
             left: nameLeft(at.x) - EDITOR_INSET,
             top: at.y,
-            width: editorWidth(composing ?? text ?? at.name, at.w - (nameLeft(at.x) - at.x)),
+            width: editorWidth(nameInput.composing ?? text ?? at.name, at.w - (nameLeft(at.x) - at.x)),
             height: at.h,
           }}
-          onChange={next => setDraft({ entry: selected, text: next })}
-          onCompose={setComposing}
-          onFocus={() => {
-            ended.current = false
-          }}
-          onPointerDown={e => e.stopPropagation()}
-          onKeyDown={keys(end)}
-          onBlur={() => end(true)}
         />
       )}
       {notes &&
@@ -322,19 +263,11 @@ const Rows = memo(function Rows({
       {noting && notes && at && (
         <RichInput
           ref={editor}
+          {...noteInput.input}
           className={styles.editor}
           label={t("Description")}
-          multiline={false}
-          autoFocus
           value={noteText ?? description}
           style={{ left: notes.x - EDITOR_INSET, top: at.y, width: notes.w + EDITOR_INSET, height: at.h }}
-          onChange={next => setNoteDraft({ entry: selected, text: next })}
-          onFocus={() => {
-            ended.current = false
-          }}
-          onPointerDown={e => e.stopPropagation()}
-          onKeyDown={keys(endNote)}
-          onBlur={() => endNote(true)}
         />
       )}
       {ghost && dragging && (
@@ -369,35 +302,51 @@ const Rows = memo(function Rows({
         />
       )}
       {usingPencil && !writing && !picking && !dragging && at && (
-        <div className={styles.pluses} style={{ left: at.x + at.w + PLUS_GAP, top: at.y + at.h / 2 }}>
-          {[
-            { command: addFolder, id: FOLDER_ADD.id, kind: "folder", label: "Add folder", icon: FOLDER_ICON },
-            { command: addFile, id: FILE_ADD.id, kind: "file", label: "Add file", icon: FILE_ICON },
-          ].map(p =>
-            p.command.shown ? (
-              <Tip key={p.label} text={t(p.label as "Add folder" | "Add file")} command={p.id}>
-                <button
-                  type="button"
-                  className={styles.plus}
-                  data-kind={p.kind}
-                  aria-label={t(p.label as "Add folder" | "Add file")}
-                  disabled={!p.command.enabled}
-                  onPointerDown={e => e.stopPropagation()}
-                  onClick={() => p.command.run()}
-                >
-                  <span className={styles.plusIcon}>{p.icon}</span>
-                  <svg className={styles.plusMark} viewBox="0 0 10 10" aria-hidden="true">
-                    <path d="M5 1V9M1 5H9" />
-                  </svg>
-                </button>
-              </Tip>
-            ) : null,
-          )}
-        </div>
+        <Pluses at={at} addFolder={addFolder} addFile={addFile} />
       )}
     </>
   )
 })
+
+// 選んでいる行の右の＋（フォルダとファイル。押すとコマンド folder-add・file-add）
+function Pluses({
+  at,
+  addFolder,
+  addFile,
+}: {
+  at: LaidRow
+  addFolder: ReturnType<typeof useCommand<typeof FOLDER_ADD.id>>
+  addFile: ReturnType<typeof useCommand<typeof FILE_ADD.id>>
+}) {
+  const t = useMessages(kit)
+  return (
+    <div className={styles.pluses} style={{ left: at.x + at.w + PLUS_GAP, top: at.y + at.h / 2 }}>
+      {[
+        { command: addFolder, id: FOLDER_ADD.id, kind: "folder", label: "Add folder", icon: FOLDER_ICON },
+        { command: addFile, id: FILE_ADD.id, kind: "file", label: "Add file", icon: FILE_ICON },
+      ].map(p =>
+        p.command.shown ? (
+          <Tip key={p.label} text={t(p.label as "Add folder" | "Add file")} command={p.id}>
+            <button
+              type="button"
+              className={styles.plus}
+              data-kind={p.kind}
+              aria-label={t(p.label as "Add folder" | "Add file")}
+              disabled={!p.command.enabled}
+              onPointerDown={e => e.stopPropagation()}
+              onClick={() => p.command.run()}
+            >
+              <span className={styles.plusIcon}>{p.icon}</span>
+              <svg className={styles.plusMark} viewBox="0 0 10 10" aria-hidden="true">
+                <path d="M5 1V9M1 5H9" />
+              </svg>
+            </button>
+          </Tip>
+        ) : null,
+      )}
+    </div>
+  )
+}
 
 // 中に足す種類を選ぶ枠: フォルダとファイルを縦に並べ、初めはフォルダに焦点を置く。↑・↓ で焦点を動かし、Enter か押して onPick、Escape か枠の外へ焦点が移ると onCancel
 function KindPicker({

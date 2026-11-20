@@ -111,6 +111,7 @@ export {
   useFolderEntries,
   useFollowsSelection,
   useHighlightRanges,
+  useInPlaceInput,
   useLeftSidePanel,
   useMailboxPanel,
   useMarkdownDocument,

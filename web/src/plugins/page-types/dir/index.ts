@@ -30,6 +30,7 @@ import {
   ICON_FOLDER,
   ICON_HTML,
 } from "./entry-icon"
+import { DIR_DRAFT, DIR_EDIT_CANCEL, DIR_EDIT_COMMIT, DIR_EDIT_KEY_SCOPE, DIR_EDIT_KEYS } from "./in-place"
 import { kit } from "./kit"
 import { NOTES } from "./notes"
 import { DIR_TOOLS, PENCIL_TOOL } from "./tools"
@@ -59,9 +60,12 @@ export const DIR_PLUGIN = defineBuiltin(
       FOLDER_SORT_ASC,
       FOLDER_SORT_DESC,
       ENTRY_DELETE,
+      DIR_EDIT_COMMIT,
+      DIR_EDIT_CANCEL,
     ],
-    keys: DIR_KEYS,
-    keyScopes: [DIR_KEY_SCOPE],
+    pluginStates: [DIR_DRAFT],
+    keys: [...DIR_KEYS, ...DIR_EDIT_KEYS],
+    keyScopes: [DIR_KEY_SCOPE, DIR_EDIT_KEY_SCOPE],
     tools: [PENCIL_TOOL],
     toolSets: [DIR_TOOLS],
   }),
@@ -113,9 +117,15 @@ declare module "../../../core/catalog" {
     "@matomezu/dir:folder-sort-asc": typeof FOLDER_SORT_ASC
     "@matomezu/dir:folder-sort-desc": typeof FOLDER_SORT_DESC
     "@matomezu/dir:entry-delete": typeof ENTRY_DELETE
+    "@matomezu/dir:entry-edit-commit": typeof DIR_EDIT_COMMIT
+    "@matomezu/dir:entry-edit-cancel": typeof DIR_EDIT_CANCEL
+  }
+  interface PluginStateTable {
+    "@matomezu/dir:in-place-draft": typeof DIR_DRAFT
   }
   interface KeyScopeTable {
     "@matomezu/dir:dir": typeof DIR_KEY_SCOPE // ディレクトリ構成図のプレゼンテーションで描いている間のキー
+    "@matomezu/dir:dir-edit": typeof DIR_EDIT_KEY_SCOPE // 名前と説明をその場で書いている入力Formの中のキー
   }
   interface ToolTable {
     "@matomezu/dir:pencil": typeof PENCIL_TOOL
