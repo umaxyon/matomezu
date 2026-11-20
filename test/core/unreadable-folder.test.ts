@@ -6,6 +6,7 @@ import {
   BROKEN,
   FIRST,
   HOME_ID,
+  outsideUnreadable,
   rawBooksOf,
   rowsHoldTree,
   TRASH_ID,
@@ -133,6 +134,76 @@ const CASES: { name: string; rows: () => Rows; less: CoreCatalog; moved: [string
   },
 ]
 
+// 移したあとの書庫は、その機能台帳で読めない物を持たず、読めない物のフォルダの外の行を全部、表に読む
+function readsWhole(catalog: CoreCatalog, moved: Rows) {
+  const read = readLibrary(catalog, moved.pages, moved.folders)
+  expect([...read.warnings, ...read.outsideWarnings].map(w => w.code)).toEqual([])
+  const outside = outsideUnreadable(moved.pages, moved.folders)
+  const ids = (rows: readonly unknown[]) => rows.map(r => (r as { id: string }).id).sort()
+  expect(Object.keys(read.library.pages).sort()).toEqual(ids(outside.pageRows))
+  expect(Object.keys(read.library.folders).sort()).toEqual(ids(outside.folderRows))
+}
+
+// 行 rows のフォルダ id の行を f で替えた行
+const withFolder = (rows: Rows, id: string, f: (row: Record<string, unknown>) => object): Rows => ({
+  ...rows,
+  folders: rows.folders.map(r => ((r as { id: string }).id === id ? f(r as Record<string, unknown>) : r)),
+})
+const connector = { id: "l", item: "@matomezu/line:connector-line", from: "a", to: "b", props: {} }
+
+// 機能台帳がそろっていても読めない物の用意: 行と、移る物の id と理由の番号（直らない間は戻らない）
+const STAYS: { name: string; rows: () => Rows; moved: [string, string][] }[] = [
+  {
+    name: "タイプの形に合わないページ",
+    rows: () =>
+      worldRows([
+        testBook("b1", "B", [drawingPage("p1"), { ...drawingPage("p2", { title: "二" }), items: "x" } as never]),
+      ]),
+    moved: [["p2", "W028"]],
+  },
+  {
+    name: "タイプの決まりを守らないページ（線の端が無い）",
+    rows: () =>
+      worldRows([
+        testBook("b1", "B", [drawingPage("p1"), drawingPage("p2", { title: "二", items: [connector] } as never)]),
+      ]),
+    moved: [["p2", "W029"]],
+  },
+  {
+    name: "形に合わないバインダ",
+    rows: () =>
+      withFolder(
+        worldRows([testBook("b1", "B", [drawingPage("p1"), testBinder("f1", "束", SLIDE, slide("s1"))])]),
+        "f1",
+        r => ({
+          ...r,
+          pageType: 5,
+        }),
+      ),
+    moved: [["f1", "W028"]],
+  },
+  {
+    name: "紙と向きのそろわないバインダ（ブックの外）",
+    rows: () =>
+      worldRows(
+        [],
+        [testBinder("f1", "束", SLIDE, slide("s1", "一"), { ...slide("s2", "二"), orientation: "portrait" } as never)],
+      ),
+    moved: [["f1", "W029"]],
+  },
+]
+
+describe("機能台帳がそろっていても読めない物は移り、移したあとの書庫は読めない物のフォルダの外の行を全部読む。もう 1 回行っても変わらない", () => {
+  for (const c of STAYS)
+    test(c.name, () => {
+      const moved = settled(CORE_CATALOG, c.rows())
+      expect(unreadableOf(moved).lineup.map(r => [r.entry.id, r.code])).toEqual(c.moved)
+      readsWhole(CORE_CATALOG, moved)
+      const again = settle(CORE_CATALOG, moved, LATER) as Settled
+      expect(again.writes).toEqual({ pages: {}, folders: {}, removedPages: [], removedFolders: [] })
+    })
+})
+
 describe("単位ごとに、欠けた機能台帳で移り、もう 1 回行っても変わらず、元の機能台帳で戻すと行が全部元どおり", () => {
   for (const c of CASES)
     test(c.name, () => {
@@ -145,9 +216,7 @@ describe("単位ごとに、欠けた機能台帳で移り、もう 1 回行っ�
           moved.pages.map(p => (p as { id: string }).id),
         ),
       ).toBe(true)
-      // 移したあとの書庫は、欠けた機能台帳でも読めない物を持たない
-      const read = readLibrary(c.less, moved.pages, moved.folders)
-      expect([...read.warnings, ...read.outsideWarnings].map(w => w.code)).toEqual([])
+      readsWhole(c.less, moved)
       const again = settle(c.less, moved, LATER) as Settled
       expect(again.writes).toEqual({ pages: {}, folders: {}, removedPages: [], removedFolders: [] })
       const back = settled(CORE_CATALOG, moved, LATER)
@@ -294,6 +363,7 @@ test("先のブックと id が重なるブック（W006）は、ブックごと
   ])
   const moved = settled(CORE_CATALOG, rows)
   expect(unreadableOf(moved).lineup.map(r => [r.entry.id, r.code])).toEqual([["b2", "W006"]])
+  readsWhole(CORE_CATALOG, moved)
   const again = settle(CORE_CATALOG, moved, LATER) as Settled
   expect(again.returned).toEqual([])
   expect(again.writes).toEqual({ pages: {}, folders: {}, removedPages: [], removedFolders: [] })
@@ -332,6 +402,9 @@ test("木の決まりを破る物（行の無いページを持つブック・2 
     ),
   }
   expect(unreadableUnitsOf(NO_MARKDOWN, broken.pages, broken.folders)).toEqual([])
+  // 行の無いページを持つブックは、読めないページ（W027）でなく、ブックの形に合わない（W005）として読む
+  const read = checkBooks(CORE_CATALOG, rawBooksOf(broken.pages, broken.folders))
+  expect(read.warnings.map(w => [w.code, w.params.book])).toEqual([["W005", "b1"]])
 })
 
 test("読めない物のフォルダの行が形に合わなければ、何も書かない", () => {

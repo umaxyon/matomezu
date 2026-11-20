@@ -309,20 +309,27 @@ func (h *Hub) holdAnnotations(page string, body json.RawMessage) json.RawMessage
 	return body
 }
 
-// checkBooks は ids のブックを今のプラグインで確かめ、warning のあるブックの一覧を直す。新しい warning は常駐のログに書く（h.mu を持って呼ぶ）
+// checkBooks は ids のブックを今のプラグインで確かめ、warning のあるブックの一覧を直す。新しい warning は常駐のログに書く。
+// 読めない物のフォルダに移ったブックは確かめない（1 冊ずつの warning にせず、読めない物の warning W032 にまとめる。h.mu を持って呼ぶ）
 func (h *Hub) checkBooks(ids []string) error {
+	shown := slices.DeleteFunc(slices.Clone(ids), h.inUnreadable)
+	found, err := h.engine.CheckBooks(h.bookBodies(shown))
+	if err != nil {
+		return err
+	}
+	h.recordWarnings(ids, found)
+	return nil
+}
+
+// bookBodies は、ids のブックの本文（メモリに無いブックは飛ばす。h.mu を持って呼ぶ）
+func (h *Hub) bookBodies(ids []string) []json.RawMessage {
 	bodies := make([]json.RawMessage, 0, len(ids))
 	for _, id := range ids {
 		if e, ok := h.books[id]; ok {
 			bodies = append(bodies, e.body)
 		}
 	}
-	found, err := h.engine.CheckBooks(bodies)
-	if err != nil {
-		return err
-	}
-	h.recordWarnings(ids, found)
-	return nil
+	return bodies
 }
 
 // recordWarnings は、ブック ids を確かめた結果 found を一覧に持つ（変わった warning はログに書く。h.mu を持って呼ぶ）

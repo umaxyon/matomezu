@@ -50,7 +50,8 @@ export function checkBooks(
     const holds = parsed.success && lineupHolds(catalog, parsed.data as Book)
     // 読めないページかタイプの無いバインダが在れば、その理由を先に出す（タイプの無いバインダは、形に合っても並びの決まりで落ちる）
     const lost = whole && holds ? [] : lostPagesOf(catalog, b)
-    if (lost.length > 0) warnings.push(...unreadableWarnings(lost, params))
+    // ブックごと読めない warning は、ほかの訳（W005・W006）と同じに 1 冊に 1 つ（最初の理由の物。常駐はブックごとに 1 つ持つ）
+    if (lost.length > 0) warnings.push(...unreadableWarnings(lost, params).slice(0, 1))
     else if (!parsed.success) warnings.push(warning("W005", "", params))
     else if (!holds) warnings.push(warning("W006", "", params))
     else {
@@ -70,15 +71,15 @@ export function checkBooks(
 // 残したデータにタイプの id（文字列の type）が無いページの、warning に書くタイプ
 const NO_TYPE = "(none)"
 
-// 読めないページ（かタイプが機能台帳に無いバインダ）1 つの、理由の番号と、機能台帳に無いタイプの id（W027 で、残したデータが文字列で持つときだけ）
-interface LostPage {
+// 読めないエントリ 1 つ（読めないページか、タイプが機能台帳に無いバインダ）の、理由の番号と、機能台帳に無いタイプの id（W027 で、残したデータが文字列で持つときだけ）
+interface LostEntry {
   code: UnreadableCode
   type?: string
 }
 
 // 読めないページ found（ブック 1 冊の中か、ブックの外の全部）の warning: 番号ごとに 1 つ（タイプが無い W027 は、無いタイプごとに 1 つ）。
 // 何枚かを pages に持ち（1 枚ごとには出さない）、params（ブックの id と名前。ブックの外なら無し）を添える
-function unreadableWarnings(found: readonly LostPage[], params: Readonly<Record<string, string>>): Warning[] {
+function unreadableWarnings(found: readonly LostEntry[], params: Readonly<Record<string, string>>): Warning[] {
   const groups = new Map<string, { code: UnreadableCode; type?: string; pages: number }>()
   for (const u of found) {
     const type = u.code === "W027" ? (u.type ?? NO_TYPE) : undefined
@@ -178,11 +179,11 @@ function readPage(catalog: CoreCatalog, page: object): AnyPage | UnreadableCode 
 }
 
 // 残したブック（形を確かめる前）の並びとバインダの中の、読めないページと、タイプが機能台帳に無いバインダ（中のページは数えない）。
-// id の無いページ・ページでもバインダでもない物は数えない（ブックの形に合わず、ブックごと読めない W005）
-function lostPagesOf(catalog: CoreCatalog, book: unknown): LostPage[] {
+// id の無いページ・行の無いページ（id だけのエントリが残った物）・ページでもバインダでもない物は数えない（ブックの形に合わず、ブックごと読めない W005。行の無い物は木の決まりも見る）
+function lostPagesOf(catalog: CoreCatalog, book: unknown): LostEntry[] {
   const isObject = (v: unknown): v is Readonly<Record<string, unknown>> =>
     typeof v === "object" && v !== null && !Array.isArray(v)
-  const found: LostPage[] = []
+  const found: LostEntry[] = []
   const typeOf = (v: unknown) => (typeof v === "string" ? { type: v } : {})
   const entry = (e: unknown) => {
     if (!isObject(e)) return
@@ -192,7 +193,7 @@ function lostPagesOf(catalog: CoreCatalog, book: unknown): LostPage[] {
       else for (const p of e.lineup) entry(p)
       return
     }
-    if (e.kind !== "page" || typeof e.id !== "string" || e.id === "") return
+    if (e.kind !== "page" || typeof e.id !== "string" || e.id === "" || Object.keys(e).length === 2) return
     const code = pageCheck(catalog, e)
     if (code !== "readable") found.push({ code, ...(code === "W027" ? typeOf(e.type) : {}) })
   }
@@ -263,7 +264,7 @@ export function readLibrary(
     )
   const pageRow = rowsById(pageRows)
   const folderRow = rowsById(folderRows)
-  const lost: LostPage[] = []
+  const lost: LostEntry[] = []
   // 持たれていて、まだ表に無いページの行を読んだ物（行が無い・もう表に在る・読めなければ undefined。2 度持たれた物は、木の決まりが見る）
   const readOutside = (id: string): PageRow | undefined => {
     const raw = pageRow.get(id)
