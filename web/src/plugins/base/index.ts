@@ -320,10 +320,12 @@ export type { PageProblem } from "./pages"
 export { addPageIn, nextPageTitle, type PageFieldsWay, pageFieldsWay } from "./pages"
 export type { ParticipantCategory, VisitorRow, WorkroomRow, WorkroomState } from "./participant"
 export {
+  adminWorkroom,
   isAdminActor,
   JOINED_MESSAGE,
   participantCategory,
   READS_ADMIN,
+  READS_WORKROOM_KEYS,
   VISITOR_JOINED_MESSAGE,
   visitorName,
 } from "./participant"

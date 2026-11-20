@@ -21,7 +21,10 @@ export interface WorkroomRow {
 }
 
 // 管理者の印（ADMIN_MARK のレコード。無い・none・ワークルームが無ければ undefined）が指す、ワークルームの id
-export function adminRoomOf(mark: { workroom: string } | undefined, rooms: readonly Workroom[]): string | undefined {
+export function adminRoomOf(
+  mark: { workroom: string } | undefined,
+  rooms: readonly Pick<Workroom, "id">[],
+): string | undefined {
   return mark && rooms.some(r => r.id === mark.workroom) ? mark.workroom : undefined
 }
 
