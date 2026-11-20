@@ -176,9 +176,19 @@ export function showBinder(catalog: CoreCatalog, ws: Workspace, stage: string, b
   return mapStage(ws, stage, s => openBinder(catalog, s, book, binder))
 }
 
-// ブックが変わったとき、そのブックを開いている全部のステージを合わせる（stage.ts の followBook。before は変わる前のブック）
+// ステージ stage を、変わったブック book に合わせる（stage.ts の followBook。before は変わる前のブック）。
+// 今の道具が替わった（認可ステップが今の道具を止め、組の次の使える道具になったときも）なら、その場の編集を終える
+function followIn(catalog: CoreCatalog, ws: Workspace, stage: Stage, book: Book, before?: Book): Stage {
+  const next = followStage(catalog, stage, book, before)
+  if (!next.editing || !before || next.opened?.outermost !== book.id) return next
+  const was = toolOf(catalog, { ...ws, stages: [stage] }, stage.id, { [book.id]: before })
+  const now = toolOf(catalog, { ...ws, stages: [next] }, next.id, { [book.id]: book })
+  return was === now ? next : setEditing(next, false)
+}
+
+// ブックが変わったとき、そのブックを開いている全部のステージを合わせる（followIn。before は変わる前のブック）
 export function followBook(catalog: CoreCatalog, ws: Workspace, book: Book, before?: Book): Workspace {
-  const stages = ws.stages.map(s => followStage(catalog, s, book, before))
+  const stages = ws.stages.map(s => followIn(catalog, ws, s, book, before))
   return stages.every((s, i) => s === ws.stages[i]) ? ws : { ...ws, stages }
 }
 
@@ -197,7 +207,7 @@ export function followLibrary(
   const left = gone.reduce(close, ws)
   const stages = left.stages.map(s => {
     const book = s.opened ? books[s.opened.outermost] : undefined
-    return s.opened && book ? followStage(catalog, s, book, before?.[s.opened.outermost]) : s
+    return s.opened && book ? followIn(catalog, left, s, book, before?.[s.opened.outermost]) : s
   })
   return stages.every((s, i) => s === left.stages[i]) ? left : { ...left, stages }
 }
