@@ -3,7 +3,7 @@ import { defineMessages } from "../../../plugin-api"
 
 export const TREE_MESSAGES = defineMessages({
   Tree: { en: "Tree", ja: "ツリー" },
-  "Editing in place": { en: "Editing in place", ja: "その場の編集" },
+  "Tree editing in place": { en: "Tree editing in place", ja: "ツリーのその場の編集" },
   "Edit tool": { en: "Edit tool", ja: "編集ツール" },
   "Add nodes": { en: "Add nodes", ja: "節を足す" },
   "Update node": { en: "Update node", ja: "節を書き換える" },

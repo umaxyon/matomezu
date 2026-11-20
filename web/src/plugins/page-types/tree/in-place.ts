@@ -16,8 +16,8 @@ export const TREE_DRAFT = kit.definePluginStateOf<InPlaceDraft>()({ id: "in-plac
 
 // キャプションの入力Formが名乗るキーの範囲
 export const TREE_EDIT_KEY_SCOPE = kit.defineKeyScope({
-  id: "tree-edit",
-  title: "Editing in place",
+  id: "in-place",
+  title: "Tree editing in place",
   commandsFrom: "stage",
 })
 

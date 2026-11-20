@@ -100,7 +100,7 @@ declare module "../../../core/catalog" {
   }
   interface KeyScopeTable {
     "@matomezu/tree:tree": typeof TREE_KEY_SCOPE // ツリーのプレゼンテーションで描いている間のキー
-    "@matomezu/tree:tree-edit": typeof TREE_EDIT_KEY_SCOPE // キャプションをその場で書いている入力Formの中のキー
+    "@matomezu/tree:in-place": typeof TREE_EDIT_KEY_SCOPE // キャプションをその場で書いている入力Formの中のキー
   }
   interface ToolTable {
     "@matomezu/tree:edit": typeof EDIT_TOOL

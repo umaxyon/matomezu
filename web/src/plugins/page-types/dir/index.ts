@@ -133,7 +133,7 @@ declare module "../../../core/catalog" {
   }
   interface KeyScopeTable {
     "@matomezu/dir:dir": typeof DIR_KEY_SCOPE // ディレクトリ構成図のプレゼンテーションで描いている間のキー
-    "@matomezu/dir:dir-edit": typeof DIR_EDIT_KEY_SCOPE // 名前と説明をその場で書いている入力Formの中のキー
+    "@matomezu/dir:in-place": typeof DIR_EDIT_KEY_SCOPE // 名前と説明をその場で書いている入力Formの中のキー
   }
   interface ToolTable {
     "@matomezu/dir:pencil": typeof PENCIL_TOOL

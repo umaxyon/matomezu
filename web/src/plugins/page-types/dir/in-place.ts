@@ -17,8 +17,8 @@ export const DIR_NOTE_DRAFT = kit.definePluginStateOf<InPlaceDraft>()({ id: "in-
 
 // 名前と説明の入力Formが名乗るキーの範囲
 export const DIR_EDIT_KEY_SCOPE = kit.defineKeyScope({
-  id: "dir-edit",
-  title: "Editing in place",
+  id: "in-place",
+  title: "Directory editing in place",
   commandsFrom: "stage",
 })
 
