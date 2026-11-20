@@ -301,6 +301,16 @@ test("プラグイン状態の宣言（kit.definePluginState・definePluginState
   expect(instance.catalog.store.pluginStates.size).toBe(written)
 })
 
+test("ページのタイプの slide.allowed に書くのは描画シェイプ（@matomezu/slide のアイテム）だけ", async () => {
+  const { CORE_CATALOG } = await import("./support")
+  const { SLIDE_PLUGIN } = await import("../web/src/plugins/items/slide")
+  const drawn = new Set<string>((SLIDE_PLUGIN.items ?? []).map(d => d.id))
+  const others = [...CORE_CATALOG.pageTypes.values()].flatMap(t =>
+    (t.slide?.allowed ?? []).filter(id => !drawn.has(id)).map(id => `${t.id}: ${id}`),
+  )
+  expect(others).toEqual([])
+})
+
 test("プラグインの文言の表（defineMessages）は、messages.ts にだけ書く", () => {
   const offenders = sources
     .filter(f => crateOf(f.rel) === "plugins" && !f.rel.endsWith("/messages.ts"))
