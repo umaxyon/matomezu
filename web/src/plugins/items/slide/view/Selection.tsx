@@ -1,4 +1,4 @@
-// 選んだスライドのアイテムの上に出す物: 枠線・四隅と四辺のつまみ・回すつまみ（右上の角の斜め外）と、そばに立つバー（スタンド。上が足りなければ下。角度（文字枠と楕円は「水平に戻す」）・見た目の入力Form）。
+// 選んだスライドのアイテムの上に出す物: 枠線・四隅と四辺のつまみ・回すつまみ（右上の角の斜め外）と、そばに立つバー（スタンド。上が足りなければ下。角度（線でない物は「水平に戻す」）・見た目の入力Form）。
 // 枠とつまみは、アイテムと同じ位置・大きさ・角度でかける。大きさは画面の上で一定にする（紙の倍率 --paper-zoom で割る）。バーは傾けず、倍率でも変えない（スタンドが付いて動く）
 import { useState } from "react"
 import type { Rect } from "../../../../plugin-api"
@@ -7,7 +7,7 @@ import { Stand } from "../../../base/ui"
 import { SLIDE_SET } from "../commands"
 import { kit } from "../kit"
 import { normalizeAngle, pointsOnPaper } from "../rect"
-import { ELLIPSE, linePointsOf, TEXT_FRAME } from "../slide"
+import { isLineKind, linePointsOf } from "../slide"
 import styles from "./Selection.module.css"
 import { StyleFields, type StyleSubject, showsGroupBar } from "./StyleFields"
 
@@ -33,7 +33,7 @@ export interface SelectedItem {
 export function Selection({ item, hidden }: { item: SelectedItem; hidden: boolean }) {
   const { rect, rotation } = item
   const t = useMessages(kit)
-  const isLine = linePointsOf(item.kind, item.props).length > 0
+  const isLine = isLineKind(item.kind)
   return (
     <>
       {!hidden && (
@@ -78,7 +78,7 @@ function Bar({ item }: { item: SelectedItem }) {
     <Stand anchor={item.id} side="above" through label={t("Change on slide")}>
       <div className={styles.barBox}>
         <div className={styles.bar} data-bar role="toolbar" aria-label={t("Change on slide")}>
-          {item.kind === TEXT_FRAME.id || item.kind === ELLIPSE.id ? (
+          {!isLineKind(item.kind) ? (
             <button
               type="button"
               className={styles.button}

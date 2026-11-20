@@ -28,7 +28,6 @@ import {
 import { BookIcon, PencilIcon } from "../icons"
 import { kit } from "../kit"
 import { PROJECT } from "../project"
-import scroll from "../scrollbar.module.css"
 import { PRIORITIES, TICKET, TICKET_NAME_MAX, VOLUMES } from "../ticket"
 import { TICKET_LOCK, TICKET_UNLOCK, TICKET_UPDATE } from "../ticket/actions"
 import { assigneesOf } from "../ticket/assignees"
@@ -116,7 +115,7 @@ export function TicketScreen() {
               />
             </span>
           </div>
-          <div className={`${styles.content} ${scroll.thin}`} inert={view.maximized}>
+          <div className={styles.content} inert={view.maximized}>
             <div className={styles.head}>
               <span className={styles.id}>{ticketLabel(project?.prefix ?? "", ticket.number)}</span>
               <TagPicker tags={tags} choices={tagChoices} canEdit={canEdit} onChange={next => edit({ tags: next })} />
@@ -165,7 +164,7 @@ export function TicketScreen() {
               </button>
             </div>
             <div className={styles.sectionHead}>{t("History")}</div>
-            <div className={`${styles.historyScroll} ${scroll.thin}`}>
+            <div className={styles.historyScroll}>
               <TicketHistoryTimeline
                 ticket={id}
                 rows={rows}
@@ -394,7 +393,7 @@ function BodyPanes({
       <div className={styles.panes} data-mode={mode}>
         {mode !== "rendered-only" ? (
           <textarea
-            className={`${styles.source} ${scroll.thin}`}
+            className={styles.source}
             aria-label={t("Body (markdown)")}
             readOnly={!canEdit}
             value={composing ?? body}
@@ -409,7 +408,7 @@ function BodyPanes({
           />
         ) : null}
         {mode !== "source-only" ? (
-          <div className={`${styles.preview} ${scroll.thin}`}>
+          <div className={styles.preview}>
             {body ? (
               <div className={styles.markdown} style={markdownDocumentOnSkin()}>
                 <MarkdownDocumentView
@@ -447,7 +446,7 @@ function QuestionView({ ticket, row, onClose }: { ticket: string; row: HistoryRo
           </button>
         </span>
       </div>
-      <p className={`${styles.questionText} ${scroll.thin}`}>
+      <p className={styles.questionText}>
         <LinkedText text={row.text} find={refs.find} open={refs.open} />
       </p>
     </>

@@ -17,9 +17,10 @@ import { scaledFontSize } from "./rect"
 import {
   DEFAULT_FONT_SIZE,
   ELLIPSE,
-  EllipseProps,
+  FigureProps,
   FREE_LINE,
   FreeLineProps,
+  RECTANGLE,
   SLIDE_ITEMS,
   STRAIGHT_LINE,
   StraightLineProps,
@@ -70,14 +71,15 @@ export const SLIDE_PLACE = kit.defineAction({
   id: "slide-place",
   attach: ON_SLIDE,
   aiDescription:
-    "Place a drawing item on a page's slide with its top-left at at (in paper pixels from the paper's top-left; it may be negative or outside the paper, which only shows what is inside). Items on a slide never push each other and are not joined by lines. item is a text frame (props.text), a free line (props.points, fractions of the frame), a straight line, or an ellipse. w and h set the frame (without them, the item's own size). Later items are drawn over earlier ones. Returns the new item's id.",
+    "Place a drawing item on a page's slide with its top-left at at (in paper pixels from the paper's top-left; it may be negative or outside the paper, which only shows what is inside). Items on a slide never push each other and are not joined by lines. item is a text frame (props.text), a free line (props.points, fractions of the frame), a straight line, an ellipse, or a rectangle. w and h set the frame (without them, the item's own size). Later items are drawn over earlier ones. Returns the new item's id.",
   title: "Place on slide",
   target: "page",
   args: z.discriminatedUnion("item", [
     place(TEXT_FRAME.id, TextFrameProps),
     place(FREE_LINE.id, FreeLineProps),
     place(STRAIGHT_LINE.id, StraightLineProps.default({})),
-    place(ELLIPSE.id, EllipseProps.default({})),
+    place(ELLIPSE.id, FigureProps.default({})),
+    place(RECTANGLE.id, FigureProps.default({})),
   ]),
   permissionScope: "page",
   run: (page, args, ctx) => {

@@ -26,7 +26,6 @@ import {
   useShownBook,
   useShownPage,
   useStage,
-  useTokenScope,
   useToPaper,
 } from "../../../../plugin-api/ui"
 import { slideOffsetOf } from "../../../base"
@@ -47,19 +46,19 @@ import {
   touches,
   unionOf,
 } from "../rect"
-import { EllipseView } from "../SlideItemViews"
 import { ADDED_EDIT, SLIDE_ITEM_CONTEXT, SLIDE_KEY_SCOPE } from "../scope"
 import {
   DEFAULT_FONT_SIZE,
-  ELLIPSE,
   FREE_LINE,
   linePointsOf,
   linePropsOf,
   MIN_SIZE,
   movedLineProps,
   STRAIGHT_LINE,
+  squarable,
   TEXT_FRAME,
 } from "../slide"
+import { useSlideItemView } from "./item-view"
 import { GRIPS, GroupSelection, type SelectedItem, Selection } from "./Selection"
 import { rotationOf, SlideItem, shapeProps } from "./SlideItem"
 import styles from "./SlideLayer.module.css"
@@ -69,7 +68,6 @@ const CLICK = 4
 const THIN = 3
 
 const TEXT = TEXT_FRAME.id
-const ROUND = ELLIPSE.id
 const FREE = FREE_LINE.id
 const LINE = STRAIGHT_LINE.id
 
@@ -104,7 +102,7 @@ type Drag =
       grip: Grip
       min: number
       text: boolean
-      round: boolean // 楕円（角を引くとき、Ctrl か Command で正円にできる）
+      square: boolean // 楕円・長方形（角を引くとき、Ctrl か Command で縦横をそろえられる）
     }
   | { kind: "rotate"; pointer: number; item: string; start: Point; center: Point; rotation: number; rect: Rect }
   | { kind: "draw"; pointer: number; item: ItemId; start: Point }
@@ -233,7 +231,7 @@ function SlidePageView({
         grip: found?.grip ?? {},
         min: minOf(selected.item),
         text: selected.item === TEXT,
-        round: selected.item === ROUND,
+        square: squarable(selected.item),
       }
       return
     }
@@ -328,15 +326,15 @@ function SlidePageView({
       const moved = movedPoint(d.rect, d.rotation, d.points, d.index, to, d.min)
       setLive({ item: d.item, rect: moved.rect, points: moved.points, rotation: 0 })
     } else if (d.kind === "grip") {
-      const to = resizedRect(d.rect, d.rotation, d.grip, by, d.min, d.round && (e.ctrlKey || e.metaKey))
+      const to = resizedRect(d.rect, d.rotation, d.grip, by, d.min, d.square && (e.ctrlKey || e.metaKey))
       setLive({ item: d.item, rect: to, scaled: to.scaled && d.text })
     } else if (d.kind === "rotate") {
       const rotation = rotatedTo(d.rotation, d.center, d.start, at, e.shiftKey ? 15 : undefined)
       setLive({ item: d.item, rect: d.rect, rotation })
     } else {
       // なぞる点は、自由な線ならすべて、それ以外は始めと今の 2 つ
-      // 楕円は、Ctrl か Command を押していれば正円になるよう、縦横の長い方に揃える
-      const end = d.item === ROUND && (e.ctrlKey || e.metaKey) ? squaredEnd(d.start, at) : at
+      // 楕円・長方形は、Ctrl か Command を押していれば正円・正方形になるよう、縦横の長い方に揃える
+      const end = squarable(d.item) && (e.ctrlKey || e.metaKey) ? squaredEnd(d.start, at) : at
       setDrawn(now => (d.item === FREE ? [...(now ?? [d.start]), at] : [d.start, end]))
     }
   }
@@ -520,10 +518,10 @@ function SlidePageView({
   )
 }
 
-// なぞっている途中の見え方: 四角（直線は線、自由な線はなぞった跡）
+// なぞっている途中の見え方: 文字枠は点線の四角、直線は線、自由な線はなぞった跡、ほかは置いたときと同じ見た目
 function Ghost({ ghost, zoom }: { ghost: { item: ItemId; points: readonly Point[] }; zoom: number }) {
   const { item, points } = ghost
-  const tokens = useTokenScope(item)
+  const { View, tokens } = useSlideItemView(item)
   const a = points[0]
   const b = points.at(-1)
   if (!a || !b || points.length < 2) return null
@@ -538,11 +536,11 @@ function Ghost({ ghost, zoom }: { ghost: { item: ItemId; points: readonly Point[
   }
   const x = Math.min(a.x, b.x)
   const y = Math.min(a.y, b.y)
-  if (item === ROUND) {
-    // 置いたときと同じ見た目の楕円（EllipseView）。線の色はプラグインのテーマキーなので、その範囲 tokens の中に描く
+  if (item !== TEXT && View) {
+    // その種類のビュー（項目は既定のまま）。線の色はプラグインのテーマキーなので、その範囲 tokens の中に描く
     return (
       <div style={{ position: "absolute", left: x, top: y, pointerEvents: "none", ...tokens }} data-ghost>
-        <EllipseView
+        <View
           id=""
           props={{}}
           content={{}}

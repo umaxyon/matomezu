@@ -59,15 +59,21 @@
 .head[data-align="right"] {
   text-align: right;
 }
-/* 行の並び。リストの高さを超えたらここだけスクロールする。スクロールバーは細く、つまみはテーマの文字の色を薄めた色、溝は透明（OS の明暗によらない） */
+/* 行の並び。リストの高さを超えたらここだけスクロールする。スクロールバーは全体の細いバー（base/scrollbar）で、つまみの色だけアイテムの色（--ink）を薄めた色にする */
 .rows {
   flex: 1;
   min-height: 0;
   overflow-x: hidden; /* 本文が行の右の余白より大きくはみ出しても、横にはスクロールさせない */
   overflow-y: auto;
   margin-bottom: 4px; /* 下辺との間の余白（size.ts の LIST_LOOK.bottom） */
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--ink) 28%, transparent) transparent;
+}
+.rows::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--ink) 28%, transparent);
+}
+@supports not selector(::-webkit-scrollbar) {
+  .rows {
+    scrollbar-color: color-mix(in srgb, var(--ink) 28%, transparent) transparent;
+  }
 }
 /* 台紙の内側の余白（左右と、最初の行の上） */
 .items {

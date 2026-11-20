@@ -1,5 +1,5 @@
 // スクロールバーが幅を取る環境（Windows など）での見た目。ヘッドレスのブラウザは既定でスクロールバーを隠すので、隠さずに起動する
-import { BOOK_SCREEN_URL, expect, joinedAiAuth, test } from "./fixtures"
+import { BOOK_SCREEN_URL, CONTROL_CENTER_URL, expect, joinedAiAuth, test } from "./fixtures"
 import { addFromTabs } from "./helpers/new-book"
 import { fromMenu } from "./helpers/stage-menu"
 
@@ -93,4 +93,39 @@ test("リストの行が収まらず縦のスクロールバーが出ても、�
   const rights = measured.lines.filter(l => l.align === "right").map(l => Math.round(l.right))
   expect(rights.length).toBeGreaterThan(1)
   expect(new Set(rights).size).toBe(1)
+})
+
+test("窓の中のスクロールバーは、どこでも同じ細いバー（幅 6px）。後から足した要素にも効く", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 360 })
+  await page.goto(CONTROL_CENTER_URL)
+  await expect(page.getByRole("heading", { name: "コントロールセンター" })).toBeVisible()
+  // 縦にスクロールしている所の、バーの幅（枠の分は除く）
+  const bars = async () =>
+    page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>("*")]
+        .filter(e => {
+          const s = getComputedStyle(e)
+          return ["auto", "scroll"].includes(s.overflowY) && e.scrollHeight > e.clientHeight && e.clientHeight > 0
+        })
+        .map(e => {
+          const s = getComputedStyle(e)
+          return (
+            e.offsetWidth - e.clientWidth - Number.parseFloat(s.borderLeftWidth) - Number.parseFloat(s.borderRightWidth)
+          )
+        }),
+    )
+  await expect.poll(async () => (await bars()).length).toBeGreaterThan(0)
+  expect(new Set(await bars())).toEqual(new Set([6]))
+  // どの要素にも当たる全体の指定なので、後から足した要素も細い
+  const probe = await page.evaluate(() => {
+    const el = document.createElement("div")
+    el.style.cssText = "position:absolute;top:-200px;width:100px;height:100px;overflow:scroll"
+    document.body.append(el)
+    const size = { width: el.offsetWidth - el.clientWidth, height: el.offsetHeight - el.clientHeight }
+    el.remove()
+    return size
+  })
+  expect(probe).toEqual({ width: 6, height: 6 })
 })

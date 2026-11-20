@@ -401,7 +401,7 @@ test("プラグインの index・ui・messages は、機能のフォルダの同
   const offenders = sources
     .filter(f => crateOf(f.rel) === "plugins" && dirname(f.rel) === pluginRoot(f.rel) && basename(f.rel) in ENTRY_READS)
     .flatMap(f =>
-      [...f.text.matchAll(/from\s*["'](\.\/[^"']+)["']/g)]
+      [...f.text.matchAll(/(?:from\s*|import\s+)["'](\.\/[^"']+)["']/g)]
         .map(m => m[1]!.slice(2))
         .filter(spec => {
           const [folder, ...rest] = spec.split("/")
@@ -448,6 +448,20 @@ test("ソースに、用語集で使わないと決めた言葉を書かない",
   expect(
     wordedFiles()
       .filter(f => words.test(f.text))
+      .map(f => f.rel),
+  ).toEqual([])
+})
+
+// Chromium は、要素に scrollbar-width・scrollbar-color があると ::-webkit-scrollbar を使わないので、それを書くと全体の細いバー（base/scrollbar）が黙って外れる。
+// 書いてよいのは全体の指定と、::-webkit-scrollbar の無いブラウザに向けた @supports の中で色だけを変える所
+test("スクロールバーの太さと色の標準のプロパティは、全体の指定（base/scrollbar）と ::-webkit-scrollbar の無いブラウザ向けの @supports の中にだけ書く", () => {
+  const outside = (text: string) =>
+    text.replace(/@supports not selector\(::-webkit-scrollbar\) \{[\s\S]*?\n\}/g, "")
+  expect(
+    filesEnding(SRC, ".css")
+      .map(path => ({ rel: relative(SRC, path), text: readFileSync(path, "utf8") }))
+      .filter(f => f.rel !== "plugins/base/scrollbar/scrollbar.module.css")
+      .filter(f => /scrollbar-(width|color)\s*:/.test(outside(f.text)))
       .map(f => f.rel),
   ).toEqual([])
 })

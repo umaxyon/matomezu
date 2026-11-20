@@ -17,6 +17,7 @@ const SLIDE_ITEMS = [
   "@matomezu/slide:slide-free-line",
   "@matomezu/slide:slide-line",
   "@matomezu/slide:slide-ellipse",
+  "@matomezu/slide:slide-rectangle",
 ] as const
 
 export const SLIDE_BOOK = kit.definePageType({
