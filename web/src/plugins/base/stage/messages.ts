@@ -12,7 +12,6 @@ export const STAGE_MESSAGES = defineMessages({
   "Editing background": { en: "Editing background", ja: "背景を編集中" },
   "End background editing": { en: "Done", ja: "終了" },
   "Hide content": { en: "Hide content", ja: "コンテンツを隠す" },
-  "This paper cannot be shown": { en: "This paper cannot be shown", ja: "この紙は表示できません" },
   "Unknown paper": { en: "Unknown paper", ja: "不明な紙" },
   "This page cannot be read": { en: "This page cannot be read", ja: "このページは読めません" },
   "Its page type is not installed": { en: "Its page type is not installed", ja: "ページのタイプがありません" },

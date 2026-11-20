@@ -126,7 +126,7 @@ export function PrintPreviewView() {
       pages.flatMap(p => {
         const Measure = views.get(pageType(catalog, p.type).presentation)?.printMeasure
         const paper = paperSize(catalog, p)
-        return Measure && paper ? [{ page: p, paper, Measure }] : []
+        return Measure ? [{ page: p, paper, Measure }] : []
       }),
     [views, pages, catalog],
   )

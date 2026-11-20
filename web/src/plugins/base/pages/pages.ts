@@ -116,10 +116,7 @@ export function nextPageTitle(
 
 // ページ page の形が、ページの広さに収まるか（可変ページは伸びる向きには印刷区画を増やして広がるので、伸びない向きだけ紙 1 枚に収める）
 export function shapesFit(catalog: CoreCatalog, page: ItemPage): boolean {
-  const area = pageArea(catalog, page)?.size
+  const area = pageArea(catalog, page).size
   const extent = extentOf(catalog, page, settingsAt(catalog, page))
-  return (
-    !extent ||
-    (!!area && extent.x >= 0 && extent.y >= 0 && extent.x + extent.w <= area.w && extent.y + extent.h <= area.h)
-  )
+  return !extent || (extent.x >= 0 && extent.y >= 0 && extent.x + extent.w <= area.w && extent.y + extent.h <= area.h)
 }

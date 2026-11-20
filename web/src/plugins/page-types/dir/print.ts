@@ -16,7 +16,7 @@ import { type DirFolder, dirRootOf } from "./entry"
 import { type DirLayout, laidBottom, laidRight, layoutDir, MARGIN } from "./layout"
 import { NOTES } from "./notes"
 
-// ページ page の行と説明を並べたもの（描けない紙と根の無いページは null）。setting はそのページで効いている設定の値、grow はページの増やす向き。
+// ページ page の行と説明を並べたもの（根の無いページは null）。setting はそのページで効いている設定の値、grow はページの増やす向き。
 // root は並べる根（書く画面が、書いている字を重ねた根を渡す。無ければページの根）
 export function laidPage(
   catalog: CoreCatalog,
@@ -25,7 +25,7 @@ export function laidPage(
   root: DirFolder | undefined = dirRootOf(page),
 ): DirLayout | null {
   const paper = paperSize(catalog, page)
-  return root && paper ? layoutDir(root, paper, setting(NOTES), grow !== undefined) : null
+  return root ? layoutDir(root, paper, setting(NOTES), grow !== undefined) : null
 }
 
 // 可変ページで、並べた行と説明 laid が入るだけ印刷区画を並べた数と広さ（spare なら、増やす向きに空きの印刷区画を足す。書く画面がステージに知らせる広さ）
@@ -43,7 +43,7 @@ export function printLaid(
 ): DirLayout | null {
   const laid = laidPage(catalog, page, on)
   const paper = paperSize(catalog, page)
-  if (!laid || !paper || !on.grow) return laid
+  if (!laid || !on.grow) return laid
   const dy = breakShift(
     laid.rows.map(r => ({ at: r.y, size: r.h })),
     paper.h,
@@ -68,7 +68,7 @@ export function dirPrintSheets(
 ): PrintSheets {
   const laid = on.purpose === "print" ? printLaid(catalog, page, on) : laidPage(catalog, page, on)
   const paper = paperSize(catalog, page)
-  if (!laid || !paper) return { columns: 1, rows: 1, filled: new Set() }
+  if (!laid) return { columns: 1, rows: 1, filled: new Set() }
   const notes = laid.notes
   const rects: Rect[] = [
     ...laid.rows,

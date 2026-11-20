@@ -248,13 +248,8 @@ describe("ページの紙を描く大きさ", () => {
     })
   })
 
-  test("表に無い紙は、表で一番大きい紙で描いて不明とする。中身が入らなければ描けない", () => {
+  test("表に無い紙は、表で一番大きい紙で描いて不明とする", () => {
     const unknown = { paper: "b5", orientation: "landscape" as const }
     expect(resolvePaper(CORE_CATALOG, unknown)).toEqual({ status: "unknown", size: { w: 1587, h: 1123 } })
-    expect(resolvePaper(CORE_CATALOG, unknown, { w: 1500, h: 1000 })).toEqual({
-      status: "unknown",
-      size: { w: 1587, h: 1123 },
-    })
-    expect(resolvePaper(CORE_CATALOG, unknown, { w: 2000, h: 1000 })).toEqual({ status: "unshowable" })
   })
 })

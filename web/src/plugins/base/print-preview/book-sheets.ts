@@ -25,7 +25,7 @@ export function sheetsOfPage(
     ? own(catalog, page, { setting: settingsAt(catalog, page), grow: growOf(catalog, page), purpose })
     : (() => {
         const area = pageArea(catalog, page)
-        return area && { columns: area.columns, rows: area.rows, filled: filledSheets(catalog, page) }
+        return { columns: area.columns, rows: area.rows, filled: filledSheets(catalog, page) }
       })()
   // 背景を「必ず」印刷するページは、中身が無くても、どの印刷区画も載っているとする（背景は、載っている印刷区画に敷く）。
   // 可変ページは、中身の外枠の外にある背景も入るだけ、右・下へ印刷区画を増やして数える
@@ -37,7 +37,7 @@ export function sheetsOfPage(
 // 印刷区画 sheets を、ページの slide の形（背景）がすべて入るだけ、右・下へ増やした物（可変ページでなければそのまま）
 function backgroundCovered<S extends Omit<PrintSheets, "filled">>(catalog: CoreCatalog, page: ItemPage, sheets: S): S {
   const paper = paperSize(catalog, page)
-  if (!paper || !growOf(catalog, page)) return sheets
+  if (!growOf(catalog, page)) return sheets
   const offset = slideOffsetOf(catalog, page)
   let columns = sheets.columns
   let rows = sheets.rows
@@ -54,11 +54,10 @@ function backgroundCovered<S extends Omit<PrintSheets, "filled">>(catalog: CoreC
 // 測るプレゼンテーション（プレゼンテーションのビューの printMeasure）のページだけが入る
 export type MeasuredSheets = ReadonlyMap<string, number | "pending">
 
-// ブック book の各ページの印刷区画（描けない紙のページは並べない）。measured にあるページは、測った数（1 列）
+// ブック book の各ページの印刷区画。measured にあるページは、測った数（1 列）
 export function pageSheetsOf(catalog: CoreCatalog, book: Book, measured: MeasuredSheets = new Map()): PageSheets[] {
   return pagesOf(book).flatMap(page => {
     const paper = paperSize(catalog, page)
-    if (!paper) return []
     // 測るページは測った数（測っている途中と、測って何も無ければ並べない）
     const rows = measured.get(page.id)
     if (rows !== undefined) return rows === "pending" || rows === 0 ? [] : [{ page: page.id, paper, columns: 1, rows }]
@@ -115,7 +114,7 @@ export function unprintedSheets(
 }
 
 // ページ page の初めの位置で、表示領域の左上に置く紙の点: 書く画面の並べ方で何か載っている印刷区画の、いちばん左の列と
-// いちばん上の行の左上（unprintedSheets が暗くしない所）。載っている印刷区画を判定できないタイプ・何も載っていないページ・描けない紙なら紙の左上
+// いちばん上の行の左上（unprintedSheets が暗くしない所）。載っている印刷区画を判定できないタイプ・何も載っていないページなら紙の左上
 export function startOf(catalog: CoreCatalog, page: ItemPage): Point {
   const paper = paperSize(catalog, page)
   const sheets = sheetsOfPage(catalog, page, "screen")

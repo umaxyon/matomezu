@@ -140,8 +140,8 @@ export const DATA_SET = kit.defineAction({
     // 表の見た目なら、表と文字の領域が全部見える大きさ（紙の端で止める）に合わせる。合わせて置けなければ、大きさはそのまま
     const paper = roomOf(ctx.catalog, page)
     const onPage = page.items?.some(i => i.id === args.item) ?? false
-    const room = paper && (onPage ? { w: paper.w - now.x, h: paper.h - now.y } : paper)
-    const fitted = props.view === "table" && room ? fitTable(table.data, props, room) : null
+    const room = onPage ? { w: paper.w - now.x, h: paper.h - now.y } : paper
+    const fitted = props.view === "table" ? fitTable(table.data, props, room) : null
     const item = { ...now, props, table: table.data }
     // 表に合わせないときは、キャプションが見える幅まで広げる（広げて置けなければ、大きさはそのまま）
     const shown = fitted ? item : widenForCaption(ctx.catalog, page, now, item as PlacedShape)

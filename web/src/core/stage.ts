@@ -138,11 +138,8 @@ function leave(stage: Stage): Stage {
   return { ...stage, placing: null, selection: NONE, editing: false, picker: null }
 }
 
-// ステージに出す紙の大きさ（ページを開いていないか、描けない紙か、プレゼンテーションが紙を置かないなら null）
-export function paperOf(stage: Pick<Stage, "opened">): Size | null {
-  const paper = openedPage(stage.opened)?.paper
-  return paper && paper.status !== "unshowable" ? paper.size : null
-}
+// ステージに出す紙の大きさ（ページを開いていないか、プレゼンテーションが紙を置かないなら null）
+export const paperOf = (stage: Pick<Stage, "opened">): Size | null => openedPage(stage.opened)?.paper?.size ?? null
 
 // ステージに描く広さ（プレゼンテーションが知らせた広さ。無ければ紙 1 枚。紙が無ければ null）。ずらす量の範囲・紙の枠の大きさ・全体を収める倍率は、これで決める
 export function areaOf(stage: Pick<Stage, "opened">): Size | null {

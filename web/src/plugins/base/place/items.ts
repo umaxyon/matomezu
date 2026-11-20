@@ -223,7 +223,7 @@ export function widenForCaption(
   if (caption(next) === caption(before)) return next
   const size = placedSize(catalog, next)
   const paper = roomOf(catalog, page)
-  if (!size || !paper) return next
+  if (!size) return next
   const from = catalog.pageTypes.get(page.type)?.growFrom?.(settingsAt(catalog, page))
   // 1 つの向きに、want まで広げた位置と長さ（at は左か上、len は今の長さ、room は紙の長さ）
   const grow = (at: number, len: number, want: number, room: number, center: boolean) => {
@@ -246,11 +246,8 @@ export function shapeThemeFits(catalog: CoreCatalog, type: string, item: { item:
   return theme === undefined || (typeof theme === "string" && themeFits(catalog, type, theme))
 }
 
-// ページの紙の大きさ（描けない紙なら null）
-export function paperSize(catalog: CoreCatalog, page: ItemPage): Size | null {
-  const paper = resolvePaper(catalog, page)
-  return paper.status === "unshowable" ? null : paper.size
-}
+// ページの紙の大きさ
+export const paperSize = (catalog: CoreCatalog, page: ItemPage): Size => resolvePaper(catalog, page).size
 
 // ページ page の増やす向き（可変ページでなければ undefined）。利用者が選ぶタイプは選んだ向き（選べない向きや true なら既定）、
 // タイプが決めるタイプは、そのページで効いている設定の値から。いつも可変ページのタイプは、どのページもタイプの向き
@@ -281,29 +278,28 @@ export function slideOffsetOf(catalog: CoreCatalog, page: ItemPage): Point {
     settingsAt(catalog, page),
     growOf(catalog, page),
   )
-  return paper && origin ? { x: origin.x * paper.w, y: origin.y * paper.h } : { x: 0, y: 0 }
+  return origin ? { x: origin.x * paper.w, y: origin.y * paper.h } : { x: 0, y: 0 }
 }
 
 // ページ page の広さ: 可変ページでなければ紙 1 枚。可変ページは、形とつなぐものの外枠が入るだけ印刷区画を並べた広さ
-// （spare なら右・下へ増やす向きに空きの印刷区画を 1 つずつ足す。grow.ts の grownArea）。描けない紙なら null
+// （spare なら右・下へ増やす向きに空きの印刷区画を 1 つずつ足す。grow.ts の grownArea）
 export function pageArea(
   catalog: CoreCatalog,
   page: ItemPage,
   spare = false,
-): { columns: number; rows: number; size: Size } | null {
+): { columns: number; rows: number; size: Size } {
   const paper = paperSize(catalog, page)
-  if (!paper) return null
   const grow = growOf(catalog, page)
   if (!grow) return { columns: 1, rows: 1, size: paper }
   return grownArea(paper, grow, extentOf(catalog, page, settingsAt(catalog, page)), spare)
 }
 
 // ページの形を置ける広さ（ページの Frame の大きさ）: 可変ページでなければ紙 1 枚。可変ページは、形の外枠が入るだけ並べた印刷区画に、
-// 右・下へ増やす向きの空きを 1 つずつ足した広さ（空きへ置けば、また空きが出る）。つなぐものは測らない（道筋を計算し直さないため）。描けない紙なら null
-export function roomOf(catalog: CoreCatalog, page: ItemPage): Size | null {
+// 右・下へ増やす向きの空きを 1 つずつ足した広さ（空きへ置けば、また空きが出る）。つなぐものは測らない（道筋を計算し直さないため）
+export function roomOf(catalog: CoreCatalog, page: ItemPage): Size {
   const paper = paperSize(catalog, page)
   const grow = growOf(catalog, page)
-  if (!paper || !grow) return paper
+  if (!grow) return paper
   const rects = [...rectsOf(catalog, page).values()]
   const extent = rects.length
     ? {
@@ -364,7 +360,6 @@ export function adaptPage<P extends ItemPage>(catalog: CoreCatalog, page: P, con
 // 形の無いページ・ずらさなくてよいページはそのまま
 export function alignPadding<P extends ItemPage>(catalog: CoreCatalog, page: P, into: { x?: 0 | 1; y?: 0 | 1 }): P {
   const paper = paperSize(catalog, page)
-  if (!paper) return page
   const rects = [...rectsOf(catalog, page).values()]
   if (rects.length === 0) return page
   const kx = into.x === undefined ? 0 : into.x - Math.floor(Math.min(...rects.map(r => r.x)) / paper.w)
@@ -462,7 +457,7 @@ export function unpinPage<P extends ItemPage>(catalog: CoreCatalog, page: P): P 
 export function placeItem(catalog: CoreCatalog, page: ItemPage, item: PlacedShape): ItemPage | null {
   const paper = roomOf(catalog, page)
   const size = placedSize(catalog, item)
-  if (!paper || !size) return null
+  if (!size) return null
   const after = planPlace(
     rectsOf(catalog, page),
     item.id,
@@ -527,7 +522,7 @@ export function replacePushing(
 ): ItemPage | null {
   const paper = roomOf(catalog, page)
   const size = placedSize(catalog, next)
-  if (!paper || !size || !shapesOf(page).some(i => i.id === next.id)) return null
+  if (!size || !shapesOf(page).some(i => i.id === next.id)) return null
   const before = rectsOf(catalog, page)
   const gap = gapOf(catalog, page)
   const after = pushFrom(
@@ -594,7 +589,6 @@ export function replaceShapePushing(
 // （離れていた方の向きへ。押した先も押し、紙の端で詰まれば押された形を縮める）。どけられなければ null。近くなければそのまま
 export function keepApart(catalog: CoreCatalog, page: ItemPage, a: string, b: string): ItemPage | null {
   const paper = roomOf(catalog, page)
-  if (!paper) return null
   const before = rectsOf(catalog, page)
   const ra = before.get(a)
   const rb = before.get(b)
