@@ -1,4 +1,4 @@
-// 起動エラーの画面の文言。見出しは訳によらず 1 つ、説明・ボタン・外せなかったときの 1 行目・補足は訳（StartupErrorKind）ごと
+// 起動エラーの画面の文言。見出しは止めた理由の種類によらず 1 つ、説明・ボタン・外せなかったときの 1 行目・補足は種類（StartupErrorKind）ごと
 import { defineMessages } from "../../../core/i18n/messages"
 
 export const STARTUP_ERROR_MESSAGES = defineMessages({

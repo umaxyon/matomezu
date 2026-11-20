@@ -651,8 +651,8 @@ export type AIEditTicketOutcome =
   | { act: string; places: readonly string[]; outcome: "seen" }
   | { book: string; act: string; places: readonly string[]; outcome: "lost"; lost: readonly Written[] }
 
-// 起動エラーの画面に出す物: 画面が起動を止めた訳（kind。base の文言を引く）、原因の一覧と、直す手（ボタン）。
-// 訳ごとに、画面の入口が作って createMatomezu に渡す（起動エラーの画面のほかは描かない窓）
+// 起動エラーの画面に出す物: 画面が起動を止めた理由の種類（kind。base の文言を引く）、原因の一覧と、直す手（ボタン）。
+// 種類ごとに、画面の入口が作って createMatomezu に渡す（起動エラーの画面のほかは描かない窓）
 export type StartupErrorKind = "plugins-not-added" // 追加プラグインのどれかを組めない
 export interface StartupCause {
   name: string // 原因の名前（追加プラグインの id など）

@@ -1,6 +1,6 @@
 // 起動エラーの画面（ウィジェット startup-error。UI マッピング STARTUP_ERROR_LAYOUT で根に置く）: 画面が起動を止めたとき、ブックを開かずに、
-// 見出しと訳ごとの説明・原因の一覧（名前と理由の文。全部折り返して出し、長ければ一覧の枠の中だけを送る）・直すボタン・訳ごとの補足だけを出す。
-// ボタンを押している間と、直せた（画面の入口が窓を読み直す）あとは押せない。直せなければ、ボタンの下に失敗の 2 行（訳ごとの 1 行目と、断られた理由か常駐につながらない）を出し、
+// 見出しと止めた理由の種類ごとの説明・原因の一覧（名前と理由の文。全部折り返して出し、長ければ一覧の枠の中だけを送る）・直すボタン・種類ごとの補足だけを出す。
+// ボタンを押している間と、直せた（画面の入口が窓を読み直す）あとは押せない。直せなければ、ボタンの下に失敗の 2 行（種類ごとの 1 行目と、断られた理由か常駐につながらない）を出し、
 // 断られたら一覧を残りの原因に替えて、また押せる
 import { useState } from "react"
 
@@ -16,7 +16,7 @@ import styles from "./StartupError.module.css"
 
 const ID = kit.name("startup-error")
 
-// 訳ごとの文言のキー（STARTUP_ERROR_MESSAGES）
+// 止めた理由の種類ごとの文言のキー（STARTUP_ERROR_MESSAGES）
 type Key = keyof typeof STARTUP_ERROR_MESSAGES
 interface Texts {
   lead: Key

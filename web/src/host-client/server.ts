@@ -724,11 +724,11 @@ export function serverClient(net: Net = browserNet): HostClient {
         closeEvents()
         throw e
       })
-      // 1 つが読み込めなくても、ほかのプラグインとブックは読む（読み込めた物だけ CSS も足す）
+      // 1 つが読み込めなくても、ほかのプラグインとブックは読み、読み込めなかった物は理由と一緒に返す（読み込めた物だけ CSS も足す。画面の入口は、それが在れば起動を止める）
       const settled = await Promise.allSettled(
         plugins.map(async p => {
           const ui: unknown = (await net.importModule(p.ui)).default
-          // default で、manifest と同じ id のプラグインを出していなければ、その追加プラグインだけを外す（ホストのエンジンと同じ確かめ）
+          // default で、manifest と同じ id のプラグインを出していなければ、読み込めなかった物にする（ホストのエンジンと同じ確かめ）
           if (typeof ui !== "object" || ui === null || (ui as { id?: unknown }).id !== p.id)
             fail("E316", { plugin: p.id })
           if (p.css) net.addStyle(p.css)
