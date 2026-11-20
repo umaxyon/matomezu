@@ -14,6 +14,7 @@ test("サブの名前とモデルを読む", () => {
   expect(parseTarget("sub4")).toEqual({ workroom: "sub4_work" })
   expect(parseTarget("sub4_work")).toEqual({ workroom: "sub4_work" })
   expect(parseTarget("sub6:claude-fable-5-2")).toEqual({ workroom: "sub6_work", model: "claude-fable-5-2" })
+  expect(parseTarget("main_manager")).toEqual({ workroom: "main_manager" })
 })
 
 test("Orca の WSL のパスを直す", () => {
