@@ -6,7 +6,7 @@ import { useAllowed, useBook, usePerform } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import { PAGE_REMOVE } from "./page-remove"
+import { PAGE_REMOVE } from "../pages/page-remove"
 
 export function PageDeleteDialog({ args, onClose }: DialogProps<{ page: string }>) {
   const t = useMessages(kit)

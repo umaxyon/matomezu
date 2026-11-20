@@ -1,16 +1,14 @@
-// 次のページ（と、あとで変えるページ）に選べる紙と向き、可変ページにできるかと、次のページの題名の案（ページを足す・消すのは土台の core/book.ts）
+// 次のページ（と、あとで変えるページ）に選べる紙と向きと、次のページの題名の案（可変ページにできるか・増やす向きの選び方は place/grow.ts）（ページを足す・消すのは土台の core/book.ts）
 
 import { findBinder, findPage, lineupOf, pagesIn } from "../../../core/book"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
-import { type GrowChoice, ORIENTATIONS, type Orientation } from "../../../core/def/paper"
+import { ORIENTATIONS, type Orientation } from "../../../core/def/paper"
 import type { MessageKey, Params } from "../../../core/i18n/i18n"
 import type { PaperChoice, PaperRule } from "../../../core/paper"
 import type { ItemPage } from "../../../core/placed"
 import type { Book, Page } from "../../../core/schema/book"
 import { settingsAt } from "../book-settings"
-import { setField } from "../fields"
 import { kit } from "../kit"
-import { growKindOf } from "../place/grow"
 import { extentOf, growOf, paddedFor, pageArea } from "../place/items"
 
 // タイプ type のページの、紙の規定
@@ -66,32 +64,6 @@ export function canPaperBinder(catalog: CoreCatalog, book: Book, binder: string,
   if (type === undefined) return false
   return canChoose({ papers: paperRule(catalog, type).allowed, orientations: ORIENTATIONS }, choice)
 }
-
-// タイプ type のページを、可変ページにする・やめるを選べるか（いつも可変ページのタイプは選べない）
-export function canGrow(catalog: CoreCatalog, type: string): boolean {
-  const kind = growKindOf(pageType(catalog, type).grow)
-  return kind !== "none" && kind !== "always"
-}
-
-// タイプ type で利用者が選べる増やす向き（最初のものが既定）。タイプが決めるなら空
-export function growChoices(catalog: CoreCatalog, type: string): readonly GrowChoice[] {
-  const kind = growKindOf(pageType(catalog, type).grow)
-  return typeof kind === "string" ? [] : kind
-}
-
-// 可変ページにするか（true・false）か、選んだ増やす向き grows を、タイプ type のページの grows の値にしたもの。作れない・選べない向きなら null。
-// 向きを選べるタイプで true なら既定の向き。false なら undefined（可変ページでない）
-export function growsValue(catalog: CoreCatalog, type: string, grows: boolean | GrowChoice): Page["grows"] | null {
-  if (grows === false) return undefined
-  if (!canGrow(catalog, type)) return null
-  const choices = growChoices(catalog, type)
-  if (grows === true) return choices[0] ?? true
-  return choices.includes(grows) ? grows : null
-}
-
-// ページ page の grows を grows（ページの grows の値）にしたもの（中身は、ノーマライズステップ variable-pages.ts が増やす向きに合わせてずらす）
-export const withGrows = <P extends Page>(page: P, grows: Page["grows"]): P =>
-  setField(page, ["orientation"], "grows", grows)
 
 // アクションのあとのページ page を、増やす向きに合わせて整えたもの: 左・上へ増やすなら空きの印刷区画を持たせ、アクションの前のページ before では
 // 増やしていたが増やさなくなった向きは空きを詰める（中身を印刷区画の単位でずらし、ページの shift に足す。作ったページなら before は undefined）。

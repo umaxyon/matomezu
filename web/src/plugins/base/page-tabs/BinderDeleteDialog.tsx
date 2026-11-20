@@ -7,8 +7,8 @@ import { useAllowedOn, useBook, usePerform } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
+import { BINDER_REMOVE } from "../pages/binders"
 import type { BinderSettingsArgs } from "."
-import { BINDER_REMOVE } from "./binders"
 
 export function BinderDeleteDialog({ args, onClose }: DialogProps<BinderSettingsArgs>) {
   const t = useMessages(kit)

@@ -3,7 +3,7 @@
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../../web/src/core/book"
 import type { Book } from "../../../web/src/core/schema/book"
-import { addPageIn } from "../../../web/src/plugins/base/page-tabs/add-page"
+import { addPageIn } from "../../../web/src/plugins/base/pages/add-page"
 import { newStore } from "../../support"
 
 function setup() {

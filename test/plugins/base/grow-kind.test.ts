@@ -1,7 +1,6 @@
 // 可変ページの決め方の種類（plugins/base/place/grow.ts の growKindOf）と、それを読む canGrow・growChoices
 import { expect, test } from "bun:test"
-import { canGrow, growChoices } from "../../../web/src/plugins/base/page-tabs/pages"
-import { growKindOf } from "../../../web/src/plugins/base/place/grow"
+import { canGrow, growChoices, growKindOf } from "../../../web/src/plugins/base/place/grow"
 import { CORE_CATALOG } from "../../support"
 
 const SIDES = { up: false, down: true, left: false, right: true }

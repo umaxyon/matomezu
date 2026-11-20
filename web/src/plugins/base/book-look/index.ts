@@ -9,7 +9,7 @@ import type { Book } from "../../../core/schema/book"
 import { bookSettingsPatch, groupOf, type SettingGroup, settingsArgs, settleBook } from "../book-settings"
 import { kit } from "../kit"
 import { BOOK_LOCK, BOOK_UNLOCK } from "../lock"
-import { pageProblems } from "../page-tabs/page-problems"
+import { pageProblems } from "../pages/page-problems"
 import { withPageSettings } from "./page-settings"
 
 export { PAGE_PAPER_COLOR, PAGE_THEME, pageTheme, pageTokens } from "./look"

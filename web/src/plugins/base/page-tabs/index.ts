@@ -10,14 +10,17 @@ import { NO_BOOK } from "../../../store/commands/def"
 import type { DialogTaking, PageSettingsArgs } from "../../../store/dialogs"
 import { kit } from "../kit"
 import { PAGE_LOCK, PAGE_UNLOCK } from "../lock"
+import {
+  BINDER_DUPLICATE,
+  BINDER_REMOVE,
+  BINDER_UPDATE,
+  PAGE_ADD,
+  PAGE_DUPLICATE,
+  PAGE_REMOVE,
+  PAGE_UPDATE,
+  UNRENEWABLE_SHAPE,
+} from "../pages"
 import { refusalMessage } from "../utils/refusal"
-import { BINDER_DUPLICATE, BINDER_REMOVE, BINDER_UPDATE } from "./binders"
-import { PAGE_ADD } from "./page-add"
-import { PAGE_DUPLICATE, UNRENEWABLE_SHAPE } from "./page-duplicate"
-import { PAGE_REMOVE } from "./page-remove"
-import { PAGE_UPDATE } from "./page-update"
-
-export { PAGE_ADD } from "./page-add"
 
 declare module "../../../core/catalog" {
   interface PageTypeExtras {
@@ -247,13 +250,3 @@ export const BINDER_DELETE = kit.defineCommand({
   run: (_ctx, a, { binder }: BinderSettingsArgs) => a.openDialog(BINDER_DELETE_DIALOG.id, { binder }),
   when: ctx => ctx.book !== NO_BOOK,
 })
-export { addPageIn } from "./add-page"
-export { BINDER_DUPLICATE, BINDER_MOVE, BINDER_REMOVE, BINDER_UPDATE } from "./binders"
-export { PAGE_DUPLICATE } from "./page-duplicate"
-export { type PageFieldsWay, pageFieldsWay } from "./page-fields"
-export { PAGE_MOVE } from "./page-move"
-export type { PageProblem } from "./page-problems"
-export { PAGE_REMOVE } from "./page-remove"
-export { PAGE_UPDATE } from "./page-update"
-export { nextPageTitle } from "./pages"
-export { VARIABLE_PAGES } from "./variable-pages"

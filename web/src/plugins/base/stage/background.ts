@@ -5,7 +5,7 @@ import { slideIsBackground } from "../../../core/def/page-type"
 import { editingBackground as isEditing, openedPage, shownPageId } from "../../../core/stage"
 import type { CommandActions, CommandContext } from "../../../store/commands/def"
 import { kit } from "../kit"
-import { PAGE_UPDATE } from "../page-tabs/page-update"
+import { PAGE_UPDATE } from "../pages/page-update"
 import { BACKGROUND_PRINT, type BackgroundPrint } from "../print-preview/settings"
 import { CONTENT_HIDDEN } from "./states"
 

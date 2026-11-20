@@ -6,7 +6,7 @@ import { withBook } from "../../../core/folders"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
 import { holdsEntries } from "../library/entries"
-import { describeNewPage, NEW_PAGE_ARGS, type NewPageResult, withNewPage } from "../page-tabs/page-add"
+import { describeNewPage, NEW_PAGE_ARGS, type NewPageResult, withNewPage } from "../pages/page-add"
 
 const ARGS = z.strictObject({
   title: z.string().trim().min(1),

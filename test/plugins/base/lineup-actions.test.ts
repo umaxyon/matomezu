@@ -14,8 +14,8 @@ import {
   BINDER_MOVE,
   BINDER_REMOVE,
   BINDER_UPDATE,
-} from "../../../web/src/plugins/base/page-tabs/binders"
-import { PAGE_ADD } from "../../../web/src/plugins/base/page-tabs/page-add"
+} from "../../../web/src/plugins/base/pages/binders"
+import { PAGE_ADD } from "../../../web/src/plugins/base/pages/page-add"
 import { DRAWING, drawingPage, MARKDOWN, SLIDE, testBinder, testBook, testPage, withSlide } from "../../lineup"
 import { BUILTIN_PARTS, CORE_CATALOG, NAMING, sequence } from "../../support"
 

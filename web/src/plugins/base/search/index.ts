@@ -5,7 +5,7 @@ import { pagesOf } from "../../../core/book"
 import { shownPageId } from "../../../core/stage"
 import { type CommandActions, type CommandContext, NO_BOOK, NO_PAGE } from "../../../store/commands/def"
 import { kit } from "../kit"
-import { PAGE_UPDATE } from "../page-tabs/page-update"
+import { PAGE_UPDATE } from "../pages/page-update"
 import { hitsIn, replaceAllArgs, replaceOneStep, searchableOf, stepHit } from "./search"
 import { NEW_SEARCH, SEARCH_PICK_STATE, SEARCH_STATE, type SearchOpen, type SearchSpot } from "./state"
 

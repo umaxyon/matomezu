@@ -1,7 +1,10 @@
 // 可変ページの広さ: 紙の大きさで区切った印刷区画を、中身が入るだけ並べる（place/items の pageArea が使う）。区切りの線の位置も出す
+import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import type { GrowChoice } from "../../../core/def/paper"
 import type { Rect, Size } from "../../../core/geom"
+import type { Page } from "../../../core/schema/book"
 import type { SettingReader } from "../book-settings"
+import { setField } from "../fields"
 
 // 可変ページの増やす向き: 上・下・左・右のうち、どれへ印刷区画を増やすか
 export interface GrowSides {
@@ -71,3 +74,29 @@ export function printAreaLines(
     ys: Array.from({ length: rows - 1 }, (_, i) => (i + 1) * paper.h),
   }
 }
+
+// タイプ type のページを、可変ページにする・やめるを選べるか（いつも可変ページのタイプは選べない）
+export function canGrow(catalog: CoreCatalog, type: string): boolean {
+  const kind = growKindOf(pageType(catalog, type).grow)
+  return kind !== "none" && kind !== "always"
+}
+
+// タイプ type で利用者が選べる増やす向き（最初のものが既定）。タイプが決めるなら空
+export function growChoices(catalog: CoreCatalog, type: string): readonly GrowChoice[] {
+  const kind = growKindOf(pageType(catalog, type).grow)
+  return typeof kind === "string" ? [] : kind
+}
+
+// 可変ページにするか（true・false）か、選んだ増やす向き grows を、タイプ type のページの grows の値にしたもの。作れない・選べない向きなら null。
+// 向きを選べるタイプで true なら既定の向き。false なら undefined（可変ページでない）
+export function growsValue(catalog: CoreCatalog, type: string, grows: boolean | GrowChoice): Page["grows"] | null {
+  if (grows === false) return undefined
+  if (!canGrow(catalog, type)) return null
+  const choices = growChoices(catalog, type)
+  if (grows === true) return choices[0] ?? true
+  return choices.includes(grows) ? grows : null
+}
+
+// ページ page の grows を grows（ページの grows の値）にしたもの（中身は、ノーマライズステップ pages/variable-pages.ts が増やす向きに合わせてずらす）
+export const withGrows = <P extends Page>(page: P, grows: Page["grows"]): P =>
+  setField(page, ["orientation"], "grows", grows)

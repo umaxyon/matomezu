@@ -3,8 +3,8 @@
 import type { ArgsOf } from "../../../core/perform"
 import { useStageId } from "../../../ui/scope"
 import { useInstance } from "../../../ui/store-context"
-import { addPageIn } from "./add-page"
-import type { PAGE_ADD } from "./page-add"
+import { addPageIn } from "../pages/add-page"
+import type { PAGE_ADD } from "../pages/page-add"
 
 export function useAddPage(): (args: ArgsOf<typeof PAGE_ADD.id>) => boolean {
   const instance = useInstance()

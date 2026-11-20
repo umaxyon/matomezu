@@ -14,8 +14,8 @@ import { Confirm } from "../dialog-host/Confirm"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton, controlClass, Field, Form, rowClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
+import { BINDER_REMOVE, BINDER_UPDATE } from "../pages/binders"
 import type { BinderSettingsArgs } from "."
-import { BINDER_REMOVE, BINDER_UPDATE } from "./binders"
 import { PaperFields } from "./PaperFields"
 
 export function BinderSettingsDialog({ args, onClose }: DialogProps<BinderSettingsArgs>) {

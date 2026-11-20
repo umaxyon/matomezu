@@ -7,16 +7,17 @@ import type { ItemPage } from "../../../core/placed"
 import { withPageSettings } from "../book-look/page-settings"
 import { settingsArgs, tidyPage } from "../book-settings"
 import { kit } from "../kit"
+import { growsValue, withGrows } from "../place/grow"
 import { contentIdMaker } from "../utils/ids"
 import { fieldsArgs, writeFields } from "./page-fields"
 import { pageProblem } from "./page-problems"
-import { canChoose, growsValue, typePaperChoices, withGrows } from "./pages"
+import { canChoose, typePaperChoices } from "./pages"
 
 const ARGS = z.strictObject({
   title: z.string().trim().min(1).optional(),
   paper: z.string().min(1).optional(), // 紙の id
   orientation: z.enum(ORIENTATIONS).optional(),
-  grows: z.union([z.boolean(), z.enum(GROW_CHOICES)]).optional(), // 可変ページにするか、選んだ増やす向き（pages.ts の growsValue）
+  grows: z.union([z.boolean(), z.enum(GROW_CHOICES)]).optional(), // 可変ページにするか、選んだ増やす向き（place/grow.ts の growsValue）
   settings: z.record(z.string(), z.unknown()).optional(), // ページのタイプが足す項目（形はタイプが決める）
   fields: z.record(z.string(), z.unknown()).optional(), // ページのタイプがページに足したフィールド（形はタイプが決める）
 })

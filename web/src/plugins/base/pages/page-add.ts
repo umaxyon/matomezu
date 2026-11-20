@@ -23,11 +23,12 @@ import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import { settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
 import { kit } from "../kit"
+import { growsValue } from "../place/grow"
 import { contentIdMaker } from "../utils/ids"
 import { freeTitle } from "../utils/titles"
 import { fieldsArgs, writeFields } from "./page-fields"
 import { pageProblem } from "./page-problems"
-import { canChoose, defaultPaper, growsValue, paperChoices } from "./pages"
+import { canChoose, defaultPaper, paperChoices } from "./pages"
 
 // 足すページの引数（book-create も、最初のページに同じ引数を受ける）
 export const NEW_PAGE_ARGS = z.strictObject({
@@ -35,7 +36,7 @@ export const NEW_PAGE_ARGS = z.strictObject({
   title: z.string().trim().min(1).optional(), // ページの名前。無ければ「（無題）」（今の言語で）
   paper: z.string().min(1).optional(), // 紙の id。無ければ規定の既定
   orientation: z.enum(ORIENTATIONS).optional(), // 無ければ規定の既定
-  grows: z.union([z.boolean(), z.enum(GROW_CHOICES)]).optional(), // 可変ページにするか、選んだ増やす向き（pages.ts の growsValue）。無ければ可変ページでない
+  grows: z.union([z.boolean(), z.enum(GROW_CHOICES)]).optional(), // 可変ページにするか、選んだ増やす向き（place/grow.ts の growsValue）。無ければ可変ページでない
   settings: z.record(z.string(), z.unknown()).optional(), // タイプが選んだページの設定の項目（形はタイプが決める）
   fields: z.record(z.string(), z.unknown()).optional(), // タイプがページに足したフィールド（形はタイプが決める）
   // まとまるタイプのページを入れる所: 今あるバインダ（binder はその id）か、新しく作るバインダ（newBinder はその名前）。まとまらないタイプは書かない
