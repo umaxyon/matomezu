@@ -39,7 +39,7 @@ export type Mail = z.output<typeof MailSchema>
 export const MAIL_ORDER_SCOPE = "mail"
 
 // 郵便 1 通の効かない所（種類が機能台帳に無い W022・形が合わない W023）の warning。データには手を付けない（画面は題を「郵便」として出す）。
-// 対象の定義 mail の check に書き、アクションの結果の確かめ（core/perform.ts）と、残したレコードの確かめ（core/records.ts の checkRecords）が呼ぶ
+// 対象の定義 mail の check に書き、アクションの結果の確かめ（core/perform-checks.ts）と、残したレコードの確かめ（core/records.ts の checkRecords）が呼ぶ
 export function checkMail(catalog: CoreCatalog, record: unknown): Warning[] {
   const m = (typeof record === "object" && record !== null ? record : {}) as Partial<Record<keyof Mail, unknown>>
   const kind = typeof m.mail === "string" ? m.mail : ""

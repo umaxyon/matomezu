@@ -13,8 +13,6 @@ import {
   HOME_ID,
   MOVED_CODES,
   type MovedCode,
-  pinnedCount,
-  rowsLibraryOf,
   TRASH_ID,
   type TrashRef,
   UNREADABLE_ID,
@@ -22,6 +20,7 @@ import {
   type UnreadableRef,
   unreadableFolderOf,
 } from "./folders"
+import { pinnedCount, rowsLibraryOf } from "./folders-tree"
 import { type Warning, warning } from "./warnings"
 
 type Row = Readonly<Record<string, unknown>>

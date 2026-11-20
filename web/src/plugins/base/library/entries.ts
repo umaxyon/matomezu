@@ -18,14 +18,12 @@ import {
   type AnyEntryRef,
   type Folder,
   type Folders,
-  foldersOver,
   HOME_ID,
   type HomeOrFolder,
-  inTrash,
-  isKeptSystemFolder,
   type Library,
   type PageRow,
 } from "../../../core/folders"
+import { foldersOver, inTrash, isKeptSystemFolder } from "../../../core/folders-tree"
 
 // ゴミ箱の外のどこか（書庫ホーム・フォルダ・ブック・バインダ）に入っているエントリ entry の、入れているフォルダと並びのエントリ。
 // ゴミ箱かその中の物、どこにも入っていない物（書庫ホーム・ゴミ箱）は undefined

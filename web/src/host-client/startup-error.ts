@@ -2,7 +2,7 @@
 // 原因は組めなかった追加プラグインの id と理由の文。直す手は、出している物をホストから外す（もう外れている物はホストが飛ばす。外せたらホストクライアントが窓を読み直す）。
 // 途中で断られたら、断られた物から後ろが残る（それより前の物は外れている）
 import type { MatomezuError } from "../core/errors"
-import type { StartupCause, StartupError, StartupFixOutcome } from "../store/store"
+import type { StartupCause, StartupError, StartupFixOutcome } from "../store/state"
 import type { HostClient, Loaded } from "./client"
 
 // 組めなかった追加プラグイン: 読み込めなかった物（loadFailed）と、use（インスタンスの use で足す）が E317 で断った物（details の E318 の順）。

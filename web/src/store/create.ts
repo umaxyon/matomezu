@@ -14,7 +14,8 @@ import type {
 } from "../core/catalog"
 import type { MESSAGES } from "../core/i18n/messages"
 import type { IdsOf, Plugin } from "./plugin"
-import { createMatomezuInstance, type MatomezuInstance, type StoreOptions } from "./store"
+import type { MatomezuInstance, StoreOptions } from "./state"
+import { createMatomezuInstance } from "./store"
 
 // core/catalog.ts と合わない id を「種類:id」の文字にする。書き足したのに渡していないものと、渡したのに書き足していないもの
 type Gaps<P> = {

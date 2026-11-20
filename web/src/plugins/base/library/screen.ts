@@ -2,6 +2,7 @@
 // 開く先は、置かれた所で決める（渡す値は無い）: ブックスクリーンと上下に並んでいれば、そのブックスクリーンの空のステージ（vacantStageBeside）、並んでいなければ新しいブックスクリーン。
 // 書庫のスクリーンを閉じる・広げる道（帯のボタン・書庫のスクリーンの外の操作・「書庫を開く」・選んで開いたあと）は、どれもここの関数を通り、ステージを分けて足した空のステージを閉じる
 import { z } from "zod"
+import { type Actions, SCREEN_REFUSED } from "../../../store/actions"
 import {
   arrangementValueIn,
   calledScreenIdOf,
@@ -10,7 +11,6 @@ import {
   storeActionsOf,
 } from "../../../store/commands/def"
 import { NO_STAGE } from "../../../store/dialogs"
-import { type Actions, SCREEN_REFUSED } from "../../../store/store"
 import { kit } from "../kit"
 import { ONE_SCREEN } from "../window"
 import { applySplitFrom } from "../window/apply-split"

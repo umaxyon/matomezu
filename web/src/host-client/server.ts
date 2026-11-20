@@ -17,7 +17,8 @@
 import { z } from "zod"
 import type { CoreCatalog } from "../core/core-catalog"
 import { fail, matomezuError, problem } from "../core/errors"
-import { BROKEN, MOVED_CODES, rawBooksOf } from "../core/folders"
+import { BROKEN, MOVED_CODES } from "../core/folders"
+import { rawBooksOf } from "../core/folders-unreadable"
 import { restoreCounters, restoreRecords, withCounters, withRecords } from "../core/records"
 import type { Stage } from "../core/stage"
 import { NOT_INSIDE, PURGED, type UnreadableNotice } from "../core/unreadable"
@@ -33,7 +34,7 @@ import type {
   MatomezuInstance,
   MatomezuState,
   ParticipantLive,
-} from "../store/store"
+} from "../store/state"
 import type { HostClient, Loaded } from "./client"
 import { WIDE_SEARCH_ANSWER, wideSearchParams } from "./search"
 

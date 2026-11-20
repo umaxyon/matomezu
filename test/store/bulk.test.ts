@@ -3,7 +3,7 @@
 
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
-import type { DoneBulk, HostAnswer } from "../../web/src/store/store"
+import type { DoneBulk, HostAnswer } from "../../web/src/store/state"
 import { type newStore, sizedStore, worldRows } from "../support"
 
 const BOX = "@matomezu/box:shape-nest-box"

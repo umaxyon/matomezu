@@ -2,7 +2,7 @@
 import { useCallback, useMemo } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { isParticipantAlive } from "../../../core/settings"
-import type { ParticipantLive } from "../../../store/store"
+import type { ParticipantLive } from "../../../store/state"
 import { useMatomezuState } from "../../../ui/store-context"
 import { useActions, useCoreCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"

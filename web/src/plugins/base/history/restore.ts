@@ -1,8 +1,11 @@
 // 画面の履歴の段の置き直し: 画面の履歴の段が変えたページとフォルダごとに、変えた所（フィールドごと・id の並びは id ごと・改行を含む文字列は行ごと。core/patch.ts）だけを、
 // 前か後の値に置き直す。置き直す値（Patch）は画面の履歴の段だけから決まり、所ごとに反対側の値も持つ。今の表の上で行い、画面の履歴の段が書いた値のままの所だけを置き直す
-// （その間にほかで変わった所は、画面の履歴の段が変えた所に重ならなければ残し、重なれば断る。無かった行を丸ごと置く値は、同じ中身の行が今在れば飛ばし、違えば断る。core/folders.ts の restoredTables）
+// （その間にほかで変わった所は、画面の履歴の段が変えた所に重ならなければ残し、重なれば断る。無かった行を丸ごと置く値は、同じ中身の行が今在れば飛ばし、違えば断る。core/folders-restore.ts の restoredTables）
 import { z } from "zod"
-import { inTrash, type Library, libraryOf, type RowPatches, restoredTables, tablesOf } from "../../../core/folders"
+import type { Library } from "../../../core/folders"
+import { libraryOf, tablesOf } from "../../../core/folders-books"
+import { type RowPatches, restoredTables } from "../../../core/folders-restore"
+import { inTrash } from "../../../core/folders-tree"
 import type { RowChange } from "../../../core/history"
 import type { Books } from "../../../core/library"
 import { type ListPatch, type Patch, patchOf } from "../../../core/patch"

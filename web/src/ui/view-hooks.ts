@@ -15,7 +15,9 @@ import { pageIn } from "../core/folders"
 import type { Point, Size } from "../core/geom"
 import type { Lang } from "../core/i18n/i18n"
 import { actionQuery, deniedBy, inspect } from "../core/inspect"
-import { type ArgsOf, noPage, type Permitted, permittedIn, type TargetOf } from "../core/perform"
+import { type ArgsOf, noPage, type TargetOf } from "../core/perform"
+import type { Permitted } from "../core/perform-permit"
+import { permittedIn } from "../core/perform-world"
 import {
   findShape,
   type ItemPage,
@@ -31,7 +33,6 @@ import { type Settings, userSetting } from "../core/settings"
 import { shownPageId, stageBlocks, toPaper } from "../core/stage"
 import { currentScreen, shownScreens, stageIn } from "../core/window"
 import type { StageView } from "../core/workspace"
-import { ownedPluginState, type PluginPlace, placeOf } from "../store/plugin-state"
 import {
   type BoundPlaceActions,
   boundActions,
@@ -39,7 +40,8 @@ import {
   REFUSED_WINDOW_ACTIONS,
   type WindowActions,
   windowActionsOf,
-} from "../store/store"
+} from "../store/actions"
+import { ownedPluginState, type PluginPlace, placeOf } from "../store/plugin-state"
 import { worldOf } from "../store/world"
 import { useArranged } from "./arranged-context"
 import {

@@ -1,20 +1,13 @@
-// 画面の履歴の段の置き直し（base の history と、core/folders.ts の restoredTables）: 変えたページとフォルダごとの前後から、片方の値にする値（patchesToward）を作り、
+// 画面の履歴の段の置き直し（base の history と、core/folders-restore.ts の restoredTables）: 変えたページとフォルダごとの前後から、片方の値にする値（patchesToward）を作り、
 // 今の表・一覧の上で行う（restoredTables・restoredBooks）。段が書いた所がその間に変わっていれば断る。行った後に、中身の無いエントリと、
 // どの並びからもたどれないページ・フォルダを落とす。
 // 置き直すページと最上位のアイテム（restoredPages）が、認可の所（permissionScope）を決める（値の置き直しそのものは core/patch.test.ts）
 import { expect, test } from "bun:test"
 import { trashedEntry } from "../../../web/src/core/entries"
-import {
-  bookOf,
-  changesBetween,
-  homeOver,
-  type Library,
-  type RowPatches,
-  restoredTables,
-  type TableChanges,
-  tablesOf,
-  worldTablesOf,
-} from "../../../web/src/core/folders"
+import { homeOver, type Library, type TableChanges } from "../../../web/src/core/folders"
+import { bookOf, tablesOf, worldTablesOf } from "../../../web/src/core/folders-books"
+import { changesBetween } from "../../../web/src/core/folders-changes"
+import { type RowPatches, restoredTables } from "../../../web/src/core/folders-restore"
 import type { RowChange } from "../../../web/src/core/history"
 import { REMOVED } from "../../../web/src/core/records"
 import type { Book } from "../../../web/src/core/schema/book"

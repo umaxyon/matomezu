@@ -2,7 +2,7 @@
 // 最初のページも一緒に作れる（page。page-add と同じ引数。1 回のアクションで、ブックとページを作る）。置くフォルダは into（言わなければ書庫ホーム）の末尾
 import { z } from "zod"
 import { isMoveRefusal, placedEntry } from "../../../core/entries"
-import { withBook } from "../../../core/folders"
+import { withBook } from "../../../core/folders-books"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
 import { holdsEntries } from "../library/entries"

@@ -28,7 +28,7 @@ import {
 } from "../../../../web/src/plugins/page-types/markdown/scroll-memory"
 import { sourceEdit } from "../../../../web/src/plugins/page-types/markdown/source-edit"
 import { isActive, isShown } from "../../../../web/src/store/commands"
-import type { DoneBulk } from "../../../../web/src/store/store"
+import type { DoneBulk } from "../../../../web/src/store/state"
 import { newStore, worldRows } from "../../../support"
 
 const settled = () => Promise.resolve()
