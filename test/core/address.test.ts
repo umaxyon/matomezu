@@ -9,7 +9,7 @@ import { newStore } from "../support"
 
 const CENTER = "@matomezu/control-center:screen"
 const BOOKS = "@matomezu/base:book-screen"
-// 最初から開いているスクリーン（c1）と、ステージの並び places のブックスクリーン（c2。前に出ている）の場所
+// 最初から開いているスクリーン（c1）と、ステージの並び places のブックスクリーン（c2。カレントスクリーン）の場所
 const at = (places: StagePlace[], current = 0, share = 0.5): Address => ({
   screens: [
     { id: "c1", def: CENTER, props: {}, states: {} },
@@ -21,7 +21,7 @@ const at = (places: StagePlace[], current = 0, share = 0.5): Address => ({
   window: {},
 })
 
-test("場所は、開いているスクリーンと前に出した順、ブックスクリーンのステージごとのブック・ページ・倍率・ずらす量と、カレントと境目の割合", () => {
+test("場所は、開いているスクリーンとカレントにした順、ブックスクリーンのステージごとのブック・ページ・倍率・ずらす量と、カレントと境目の割合", () => {
   const { state } = newStore()
   expect(addressOf(state.getState().window)).toEqual(
     at([{ outermost: "b1", page: "p1", binder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} }]),
@@ -90,7 +90,7 @@ test("場所の倍率は、範囲に収める（URL から 0・負・極端な�
   ])
 })
 
-test("移動は、スクリーン・前に出ている物・ステージの数か、ブック・ページが変わったとき（倍率・ずらす量・カレント・境目だけは移動ではない）", () => {
+test("移動は、スクリーン・カレントスクリーン・ステージの数か、ブック・ページが変わったとき（倍率・ずらす量・カレント・境目だけは移動ではない）", () => {
   const place = { outermost: "b1", page: "p1", binder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} }
   const a = at([place])
   expect(moved(a, at([place], 0, 0.3))).toBe(false)

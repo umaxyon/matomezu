@@ -54,3 +54,27 @@ export const BIRD_ORIGINAL = Object.fromEntries(
 export function birdColors(bird: Bird, paletteId?: string): BirdColors {
   return BIRD_PALETTES.find(p => p.id === paletteId)?.colors ?? BIRD_ORIGINAL[bird]
 }
+
+// 配色の名前の文言の鍵（画面に出すときは t() を通す）
+export const PALETTE_TITLES = {
+  "tsunagidori-green": "Tsunagidori Green",
+  "inko-red": "Parakeet Red",
+  "buncho-white": "Java Sparrow White",
+  "suzume-yellow": "Sparrow Yellow",
+  "fukurou-blue": "Owl Blue",
+  forest: "Forest",
+  lime: "Lime",
+  olive: "Olive",
+  orange: "Orange",
+  pink: "Pink",
+  magenta: "Magenta",
+  plum: "Plum",
+  lilac: "Lilac",
+  violet: "Violet",
+  navy: "Navy",
+  sky: "Sky",
+  "deep-teal": "Deep Teal",
+  turquoise: "Turquoise",
+  chestnut: "Chestnut",
+  charcoal: "Charcoal",
+} as const

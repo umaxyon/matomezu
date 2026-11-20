@@ -84,7 +84,7 @@ test("一覧でタスクボードを出し入れし、レーンにチケット�
   await expect(target.getByRole("button", { name: "並べ方" })).toHaveAttribute("aria-expanded", "false")
 })
 
-test("主担当のチケットを作業中のレーンへ入れると現在のタスクに出て、ボードで見るを押すと、出ていないタスクボードが出て、鳥がチケットカードに立ち寄り、色が付いて、飛び去ると消える", async ({
+test("担当の 2 人目のチケットでも、作業中のレーンへ入れると現在のタスクに出て、ボードで見るを押すと、出ていないタスクボードが出て、鳥がチケットカードに立ち寄り、色が付いて、飛び去ると消える", async ({
   page,
 }) => {
   await page.goto(CONTROL_CENTER_URL)
@@ -113,12 +113,18 @@ test("主担当のチケットを作業中のレーンへ入れると現在の�
   await page.locator(`[data-workroom="${own}"]`).getByRole("button").first().click()
   const task = page.locator('[data-column="task"]')
   await expect(task).toContainText("なし")
-  // AI が自分のワークルームを主担当にして、作業中のレーンへ入れると、現在のタスクにそのチケットが出る
+  // 利用者が足した空のワークルームを主担当に、AI が自分のワークルームを 2 人目の担当にして、作業中のレーンへ入れると、現在のタスクにそのチケットが出る
+  const roomAdded = await page.request.post("/api/perform", {
+    data: {
+      actions: [{ action: "@matomezu/base:workroom-add", args: { name: `主担当${Date.now() % 1e6}`, bird: "inko" } }],
+    },
+  })
+  const lead = ((await roomAdded.json()) as { result?: { workroom: string } }).result!.workroom
   expect(
     (
       await perform(page, {
         action: "@matomezu/taskboard:ticket-update",
-        args: { assignees: [own], lane },
+        args: { assignees: [lead, own], lane },
         on: { record: ticket },
       })
     ).ok,

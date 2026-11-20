@@ -52,7 +52,7 @@ export const useStagesWithRightSidePanel = (): readonly string[] =>
 export const useRightSidePanelAt = (stage: string | null): RightSidePanelOpen | null =>
   useMatomezuState(s => (stage === null ? null : (panelOf(s, stage) ?? null)))
 
-// 右サイドパネルを開く関数（開くとブックスクリーンを前に出す）: ステージ stage で、中身 widget に物 subject（付いた先は anchors、カレントは current）を見せる（閉じたら戻すため、開く前の見え方も覚える）。
+// 右サイドパネルを開く関数（開くとブックスクリーンをカレントスクリーンにする）: ステージ stage で、中身 widget に物 subject（付いた先は anchors、カレントは current）を見せる（閉じたら戻すため、開く前の見え方も覚える）。
 // 選択に従う中身なら、入れ物が開いたときにステージの選択を anchors にする。右サイドパネルを閉じたのと同じ押しなら開かない。
 // restore が none なら、閉じたときに見え方を戻さない（開く前の見え方を覚えない。戻す見え方を自分で持つ物。印刷プレビューなど）
 export function useOpenRightSidePanelAt(): (

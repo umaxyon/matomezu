@@ -6,6 +6,7 @@ import { NO_RECORD, RECORDS_MAX, type Records } from "../../../core/records"
 import { kit } from "../kit"
 import { PARTICIPANT, readsParticipantsIn, WORKROOM } from "../participant"
 import { freshId } from "../utils/ids"
+import { keyRowsIn } from "../utils/key-rows"
 import { checkMail, MAIL_ORDER_SCOPE, type Mail, MailSchema, mailsInOrder } from "./mail"
 import { ticketsOnRemoved } from "./removed"
 
@@ -56,11 +57,11 @@ export function readsMailSender(actor: Actor): readonly RecordRead[] {
 function mailSender(ctx: ActionContext): Mail["sender"] {
   const roomId = workroomOfActor(ctx.actor)
   if (roomId === undefined) return undefined
-  const participants = Object.entries(ctx.keys?.[PARTICIPANT.id] ?? {}).filter(
-    ([, keys]) => keys.workroom === roomId && keys.state === "joined",
+  const participants = keyRowsIn(ctx, PARTICIPANT.id).filter(
+    ({ keys }) => keys.workroom === roomId && keys.state === "joined",
   )
   const room = WORKROOM.record.safeParse(ctx.records?.[WORKROOM.id]?.[roomId])
-  const participant = participants[0]?.[0]
+  const participant = participants[0]?.id
   if (!participant || participants.length !== 1 || !room.success) return undefined
   const { bird, palette } = room.data
   return { participant, bird, ...(palette ? { palette } : {}) }
@@ -107,10 +108,10 @@ export function mailAdded(
   aiEditTickets: readonly AIEditTicketChange[]
 } | null {
   if (!ctx.number) return null
-  const mailbox: MailKeys[] = inOrder(
-    Object.entries(ctx.keys?.[MAIL.id] ?? {}).map(([id, keys]) => ({ id, keys })),
-    { key: "order", dir: "asc" },
-  ).map(m => ({ id: m.id, seen: m.keys.seenAt !== undefined }))
+  const mailbox: MailKeys[] = inOrder(keyRowsIn(ctx, MAIL.id), { key: "order", dir: "asc" }).map(m => ({
+    id: m.id,
+    seen: m.keys.seenAt !== undefined,
+  }))
   const id = freshId(
     ctx.newId,
     mailbox.map(m => m.id),

@@ -39,11 +39,11 @@ export const TICKET = kit.defineSubject({
   id: "ticket",
   title: "ticket",
   aiDescription:
-    "A ticket: one card of a project's task board. It has the project's id, a number (counted for each project and never reused), a name, a body (markdown), the lane (a lane's id of the project, or unsorted), the tags (tags' ids of the project, none or more, no tag twice), the priority (lowest, low, medium, high or highest), the volume (how much work it is: xs, s, m, l or xl, or none while it is not estimated) and the times it was filed and last changed. The assignees are workrooms' ids, in order: the first is the lead (the index key lead), and a ticket in a working lane of its project (a lane with working: true) is the current ticket of its lead's workroom. A lane that is not there any more reads as unsorted; a tag or assignee that is not there any more is left out. It also has who filed it and when. A locked ticket cannot be changed or removed. A completed ticket (one in the done lane of its project) is left out of the list by default: the list says how many it left out.",
+    "A ticket: one card of a project's task board. It has the project's id, a number (counted for each project and never reused), a name, a body (markdown), the lane (a lane's id of the project, or unsorted), the tags (tags' ids of the project, none or more, no tag twice), the priority (lowest, low, medium, high or highest), the volume (how much work it is: xs, s, m, l or xl, or none while it is not estimated) and the times it was filed and last changed. The assignees are workrooms' ids, in order: the first is the lead (the index key lead), and a ticket in a working lane of its project (a lane with working: true) is the current ticket of each of its assignees' workrooms. A lane that is not there any more reads as unsorted; a tag or assignee that is not there any more is left out. It also has who filed it and when. A locked ticket cannot be changed or removed. A completed ticket (one in the done lane of its project) is left out of the list by default: the list says how many it left out.",
   record: TICKET_RECORD,
   refers: t => [{ subject: PROJECT.id, id: t.project }],
   // プロジェクトのチケットを、レーンと担当の有無で探す（完了のレーンの確かめなど。担当の人数 assigned は、いない 0）。
-  // lead は主担当のワークルームの id（担当がいなければ値なし。ワークルームの今のチケットを引く）
+  // lead は主担当のワークルームの id（担当がいなければ値なし）。ワークルームの今のチケットは assigned で担当のいるチケットを引いて絞る
   keys: {
     project: { type: "text", of: t => t.project },
     lane: { type: "text", of: t => t.lane },
@@ -71,9 +71,9 @@ export const TICKET = kit.defineSubject({
     const label = ticketLabel(project === "none" ? "" : (project.prefix ?? ""), t.number)
     return `${label} ${t.name} [${[t.lane, ...t.tags].join(", ")}]`
   },
-  // 参加者リストの並びを見せるためだけ: 主担当で作業中のレーンにあるチケットがあれば作業中
+  // 参加者リストの並びを見せるためだけ: 担当に入っていて作業中のレーンにあるチケットがあれば作業中
   workroomActivity: (workroom, read, find) => {
-    const tickets = find(TICKET_KIND, [{ key: "lead", eq: workroom }]).flatMap(r => {
+    const tickets = find(TICKET_KIND, [{ key: "assigned", gt: 0 }]).flatMap(r => {
       const ticket = TICKET_RECORD.safeParse(r)
       return ticket.success ? [ticket.data] : []
     })

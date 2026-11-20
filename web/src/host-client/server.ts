@@ -21,7 +21,7 @@ import { rawBooksOf } from "../core/folders"
 import { restoreCounters, restoreRecords, withCounters, withRecords } from "../core/records"
 import type { Stage } from "../core/stage"
 import type { Warning } from "../core/warnings"
-import { recentBookScreen, screenOfStage, shownScreens, viewFrontOf } from "../core/window"
+import { currentKindOf, recentBookScreen, screenOfStage, shownScreens } from "../core/window"
 import { currentStage, MAX_STAGES } from "../core/workspace"
 import { NO_STAGE } from "../store/dialogs"
 import type {
@@ -130,15 +130,15 @@ const openedOf = (stage: Stage) => {
   }
 }
 
-// 窓が見ているもの。front はカレントスクリーンの種類（ステージを並べるスクリーンなら book-screen、そうでなければ control-center）。
+// 窓が見ているもの。current はカレントスクリーンの種類（ステージを並べるスクリーンなら book-screen、そうでなければ control-center）。
 // book・page・mode（編集か印刷プレビューか）・selection は、いちばん最近カレントにしたブックスクリーンの、カレントのステージのもの（何も開いていなければ book は null）。
 // そのブックスクリーンが見えているスクリーンでなければ、それらを hidden に分けて添える（見えていない物として、常駐は開いたことにしない）。
 // ブックスクリーンが 1 枚も無ければ、bookScreen が NO_BOOK_SCREEN
 export const NO_BOOK_SCREEN = "none"
 export function viewOf(catalog: CoreCatalog, state: MatomezuState) {
-  const front = viewFrontOf(state.window)
+  const current = currentKindOf(state.window)
   const book = recentBookScreen(state.window)
-  if (!book) return { front, bookScreen: NO_BOOK_SCREEN }
+  if (!book) return { current, bookScreen: NO_BOOK_SCREEN }
   const ws = book.stages
   const stage = currentStage(ws)
   const screen = {
@@ -149,7 +149,7 @@ export function viewOf(catalog: CoreCatalog, state: MatomezuState) {
     canSplit: ws.stages.length < MAX_STAGES,
   }
   // そのブックスクリーンが見えていなければ、見えていない物として分ける
-  return shownScreens(catalog, state.window).includes(book.id) ? { front, ...screen } : { front, hidden: screen }
+  return shownScreens(catalog, state.window).includes(book.id) ? { current, ...screen } : { current, hidden: screen }
 }
 
 // 利用者が直している物（useEditLock）を、ページかブックの id → その中の物の id の並びにまとめたもの（常駐はこれを変える AI のアクションを断る）
@@ -182,7 +182,7 @@ const ShowSchema = z.object({
   mode: z.enum(["edit", "print-preview"]).optional(),
 })
 
-// 常駐が頼んだブックを出す。ステージも split も言わなければ、窓に出す（showBook: もう開いていれば前に出し、無ければ新しいブックスクリーン）。
+// 常駐が頼んだブックを出す。ステージも split も言わなければ、窓に出す（showBook: もう開いていればカレントスクリーンにし、無ければ新しいブックスクリーン）。
 // ステージを言えばそのステージに、split なら分けて右にできたステージに出す。mode が print-preview なら、印刷プレビューで出す
 export function showIn(instance: MatomezuInstance, show: z.infer<typeof ShowSchema>) {
   const { actions, state } = instance
@@ -270,11 +270,7 @@ const ParticipantLiveSchema = z.object({
 const TouchedSchema = z.object({ book: z.string(), at: z.string() })
 const AnnotationsSchema = z.object({ page: z.string(), annotations: z.unknown(), ...Mark })
 
-export interface ServerClient extends HostClient {
-  pending(): readonly DoneBulk[] // まだ確かめられていない自分のアクションバルク
-}
-
-export function serverClient(net: Net = browserNet): ServerClient {
+export function serverClient(net: Net = browserNet): HostClient {
   // 確かめた世界のページとフォルダ（id → 置き場所から読んだままの中身と版）
   type Rows = Map<string, { row: unknown; version: number }>
   const confirmed: { pages: Rows; folders: Rows } = { pages: new Map(), folders: new Map() }
@@ -713,7 +709,6 @@ export function serverClient(net: Net = browserNet): ServerClient {
   const listen = () => new Promise<void>((resolve, reject) => attach(net.events("api/events"), { resolve, reject }))
 
   return {
-    pending: () => pending.map(p => p.done),
     load: async (): Promise<Loaded> => {
       await listen()
       // 知らせにはつながったが読めなかったら、つながりを閉じる（読み直すときは新しく作る）

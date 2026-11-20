@@ -144,7 +144,7 @@ test("分けているとき左サイドパネルを開くと、窓の左に出�
   await expect.poll(async () => Math.round((await stages.nth(1).boundingBox())!.width)).toBe(Math.round(before.width))
 })
 
-test("コントロールセンターを前に出しても左サイドパネルは残り、コントロールセンターは右へ押し縮められる。外を押しても閉じない", async ({
+test("コントロールセンターをカレントスクリーンにしても左サイドパネルは残り、コントロールセンターは右へ押し縮められる。外を押しても閉じない", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })

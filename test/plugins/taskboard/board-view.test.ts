@@ -168,7 +168,7 @@ test("タスクボードの最大化は 1 つだけ。レーンを最大化す�
   expect(maximizedAmong({ board: "a" }, ["b"])).toBeUndefined()
 })
 
-test("ワークルームの今のチケットは、主担当で作業中の印のあるレーンにあるチケット。更新の新しい順、同じなら番号の順", () => {
+test("ワークルームの今のチケットは、担当に入っていて作業中の印のあるレーンにあるチケット。更新の新しい順、同じなら番号の順", () => {
   const working = project("p1", {
     lanes: [
       { kind: "lane", id: "todo", name: "未着手", prompt: "", cardSize: "inherit" },
@@ -183,8 +183,9 @@ test("ワークルームの今のチケットは、主担当で作業中の印�
   const projects = new Map([working, closed].map(p => [p.id, p]))
   const of = (tickets: TicketRecord[]) => currentTicketsOf("r1", tickets, id => projects.get(id)).map(c => c.ticket.id)
   const at = (h: number) => `2026-11-01T0${h}:00:00.000Z`
-  // 主担当でない・作業中でないレーン・未分類・プロジェクトが無いチケットは入らない
-  expect(of([ticket("T1", { lane: "doing", assignees: ["r2", "r1"] })])).toEqual([])
+  // 担当の 2 人目でも入る。担当でない・作業中でないレーン・未分類・プロジェクトが無いチケットは入らない
+  expect(of([ticket("T1", { lane: "doing", assignees: ["r2", "r1"] })])).toEqual(["T1"])
+  expect(of([ticket("T1", { lane: "doing", assignees: ["r2"] })])).toEqual([])
   expect(of([ticket("T1", { lane: "todo", assignees: ["r1"] })])).toEqual([])
   expect(of([ticket("T1", { lane: "unsorted", assignees: ["r1"] })])).toEqual([])
   expect(of([ticket("T1", { lane: "doing", assignees: ["r1"], project: "gone" })])).toEqual([])
@@ -246,7 +247,7 @@ test("レーンのチケットカードの大きさは、レーンの cardSize�
   expect(cardSizeOf(p, "gone")).toBe("large")
 })
 
-test("ワークルームの作業の様子は、主担当で作業中のレーンにあるチケットがあれば作業中、無ければ空き。行の下の 1 行と同じ判定", () => {
+test("ワークルームの作業の様子は、担当に入っていて作業中のレーンにあるチケットがあれば作業中、無ければ空き。行の下の 1 行と同じ判定", () => {
   const p = project("p1", {
     lanes: [
       { kind: "lane", id: "todo", name: "未着手", prompt: "", cardSize: "inherit" },
@@ -262,7 +263,8 @@ test("ワークルームの作業の様子は、主担当で作業中のレー�
   expect(activity(records({ lane: "doing", assignees: ["w"] }))).toBe("working")
   expect(activity(records())).toBe("idle")
   expect(activity(records({ lane: "todo", assignees: ["w"] }))).toBe("idle")
-  expect(activity(records({ lane: "doing", assignees: ["x", "w"] }))).toBe("idle")
+  expect(activity(records({ lane: "doing", assignees: ["x", "w"] }))).toBe("working")
+  expect(activity(records({ lane: "doing", assignees: ["x"] }))).toBe("idle")
 })
 
 test("作業の様子を答える種類が無ければ unknown", () => {

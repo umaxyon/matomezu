@@ -231,7 +231,7 @@ test("開く: 2 回押す・Enter・メニューの「開く」の 1 つの道�
   expect(shows("b4")).toBe(true)
 })
 
-test("書庫を開く: 書庫のスクリーンを 1 枚ずつの並べ方でカレントにする。開いていれば新しく開かず、それを前に出す", () => {
+test("書庫を開く: 書庫のスクリーンを 1 枚ずつの並べ方でカレントにする。開いていれば新しく開かず、それをカレントスクリーンにする", () => {
   const { store, center } = setup()
   const screens = () => store.state.getState().window.screens.filter(s => s.def === "@matomezu/base:library-screen")
   const current = () => store.state.getState().window.order.at(-1)

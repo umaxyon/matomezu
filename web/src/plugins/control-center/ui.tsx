@@ -1,4 +1,4 @@
-// コントロールセンターのプラグインの見た目: 窓がコントロールセンターを前に出したときの画面と、退室の確認のダイアログ。
+// コントロールセンターのプラグインの見た目: コントロールセンターがカレントスクリーンのときの画面と、退室の確認のダイアログ。
 // 画面は郵便箱と横断検索の左サイドパネルを開くので、そのタブの中身が開けるスロットを opens に書く。書庫の画面（LibraryView）が開く右クリックのメニューは contextMenus に書く
 import { definePluginUi, defineWidget } from "../../plugin-api/ui"
 import { LIBRARY_CONTEXT_MENUS, MAILBOX_OPENS, WIDE_SEARCH_OPENS } from "../base/ui"

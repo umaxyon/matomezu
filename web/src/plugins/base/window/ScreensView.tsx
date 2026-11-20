@@ -7,7 +7,7 @@
 // 窓が低く（SPLIT_MIN_HEIGHT 未満）なったら、カレントスクリーンだけを残して 1 枚ずつに戻す（ほかの並びの物は閉じる。利用者の操作でないので、ブラウザの履歴に積まない）。
 // ブックスクリーンを入れた並び（「画面を分割」で下に書庫のスクリーンを出した物）は畳まず、低い間はカレントスクリーンだけを窓いっぱいに見せる。
 // 並びに入れたブックスクリーンは上の行に描き、押せばカレントスクリーンにする。その間、並びに入っていないステージを並べないスクリーンは見せない。
-// ステージを並べないスクリーンが出ている間の下の行は、スロット control-center-footer に置いたウィジェットを並べる（置いた物が無ければ、下の行を描かない）
+// ステージを並べないスクリーンが出ている間の下の行は、スロット screen-footer に置いたウィジェットを並べる（置いた物が無ければ、下の行を描かない）
 import { type CSSProperties, useEffect, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { bookScreenCurrent, type OpenedScreen, recentBookScreen, recentPlainScreen } from "../../../core/window"
@@ -19,7 +19,7 @@ import { kit } from "../kit"
 import footerRow from "../utils/FooterRow.module.css"
 import styles from "./ScreensView.module.css"
 import { SLIDE_MS } from "./slide"
-import { CONTROL_CENTER_FOOTER } from "./slots"
+import { SCREEN_FOOTER } from "./slots"
 import { planExpand, SCREEN_FLASH, SPLIT_ROWS } from "./split"
 import { applySplit, splitIn, useTallEnough } from "./useScreenSplit"
 
@@ -34,8 +34,8 @@ interface Row {
 }
 
 export function ScreensView() {
-  // カレントスクリーンがブックスクリーンか（CSS が data-front で、どちらを見せるかを決める）
-  const front = useMatomezuState(s => bookScreenCurrent(s.window)) ? "book-screen" : "control-center"
+  // カレントスクリーンがブックスクリーンか（CSS が data-current で、どちらを見せるかを決める）
+  const currentKind = useMatomezuState(s => bookScreenCurrent(s.window)) ? "book-screen" : "control-center"
   // 見せるブックスクリーン（いちばん最近カレントにした 1 枚）と、見せるステージを並べないスクリーン（同じく。無ければ none）
   const recentBook = useMatomezuState(s => recentBookScreen(s.window)?.id)
   const top = useMatomezuState(s => recentPlainScreen(s.window))
@@ -68,7 +68,7 @@ export function ScreensView() {
   useMarkFits(arranged.length > 0 && arranged.some(id => stageScreens.includes(id)), lowMixed)
   const { makeScreenCurrent } = useStoreActions()
   // 下の行に置いたウィジェットがあるか（無ければ、下の行を描かない）
-  const footer = (useLayout().slots[CONTROL_CENTER_FOOTER]?.length ?? 0) > 0
+  const footer = (useLayout().slots[SCREEN_FOOTER]?.length ?? 0) > 0
   // 枠を一瞬光らせる頼み（useScreenSplit の showOf）
   const flash = usePluginState(kit, SCREEN_FLASH)
   // 最初に描いたときから開いていたスクリーンは、滑り込ませない
@@ -100,12 +100,12 @@ export function ScreensView() {
           <div
             key={id}
             className={styles.bookScreen}
-            data-front={mixed ? "book-screen" : front}
+            data-current={mixed ? "book-screen" : currentKind}
             data-shown={id === book}
             data-row={row !== null}
             data-footer={footer}
             style={row ? ({ "--row-index": row.index, "--row-of": row.of } as CSSProperties) : undefined}
-            inert={mixed ? id !== splitBook : front !== "book-screen" || id !== book}
+            inert={mixed ? id !== splitBook : currentKind !== "book-screen" || id !== book}
             onPointerDownCapture={() => {
               if (row !== null && id !== current) makeScreenCurrent(id)
             }}
@@ -116,9 +116,9 @@ export function ScreensView() {
       })}
       <section
         className={styles.center}
-        data-front={mixed ? "control-center" : front}
+        data-current={mixed ? "control-center" : currentKind}
         data-mixed={mixed}
-        inert={!mixed && front !== "control-center"}
+        inert={!mixed && currentKind !== "control-center"}
       >
         <div className={styles.body}>
           {plainScreens.map(id => {
@@ -158,7 +158,7 @@ export function ScreensView() {
         </div>
         {footer && (
           <footer className={`${footerRow.row} ${styles.footer}`}>
-            <Slot name={CONTROL_CENTER_FOOTER} props={{}} />
+            <Slot name={SCREEN_FOOTER} props={{}} />
           </footer>
         )}
       </section>

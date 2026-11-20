@@ -6,6 +6,7 @@ import type { ContextMenuId, ContextMenuTable } from "../core/catalog"
 import type { Point } from "../core/geom"
 import { isShown } from "../store/commands"
 import type { MenuOpens } from "../store/context-menus"
+import { editableOf } from "./editable"
 import { type AnchorMenuCommandId, type ContextMenuEntry, SEPARATOR, tidySeparators } from "./layout"
 import { useAt } from "./scope"
 import { useInstance, useLayout, useMatomezuState, useStoreActions } from "./store-context"
@@ -34,7 +35,7 @@ if (typeof window !== "undefined") {
 
 // 右クリック e のブラウザのメニューを止める（テキストFormの中は止めない）。画面の根と、知らせを外へ渡さない所（スタンドなど）が呼ぶ
 export const stopBrowserMenu = (e: Pick<MouseEvent, "target" | "preventDefault">): void => {
-  if (!(e.target instanceof Element && e.target.closest("input, textarea, [contenteditable]"))) e.preventDefault()
+  if (!(e.target instanceof Element && editableOf(e.target))) e.preventDefault()
 }
 
 // 今の右ボタンの押し続けでは、右クリックのメニューを出さない（待たせていたものも、離したあとに届くものも）

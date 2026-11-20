@@ -123,7 +123,7 @@ export const DEFAULT_LAYOUT = defineLayout({
   },
   menus: {
     "@matomezu/base:stage-menu": [
-      "@matomezu/base:control-center-toggle",
+      "@matomezu/base:screen-toggle",
       { either: ["@matomezu/base:stage-split", "@matomezu/base:stage-unsplit"] },
       "@matomezu/base:library-open",
       { either: ["@matomezu/base:binder-settings-opened", "@matomezu/base:page-settings"] },
@@ -246,4 +246,11 @@ export const DEFAULT_LAYOUT = defineLayout({
     "@matomezu/list:row-context": ["@matomezu/list:list-edit-row", "-", "@matomezu/list:list-delete-row"],
     "@matomezu/line:line-context": ["@matomezu/line:line-edit", "-", "@matomezu/paper:paper-delete"],
   },
+})
+
+// 常駐が知らないブラウザ（画面 cookie が無い・合わない）で開いたときの UI マッピング: 根に開き方の案内だけを置く
+export const UNKNOWN_BROWSER_LAYOUT = defineLayout({
+  id: "unknown-browser",
+  slots: { root: ["@matomezu/base:open-guide"] },
+  menus: {},
 })

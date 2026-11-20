@@ -1,4 +1,5 @@
 // base の文言（各フォルダの文言を集めたもの）
+import { BIRDS_MESSAGES } from "./birds/messages"
 import { BOOK_LOOK_MESSAGES } from "./book-look/messages"
 import { BOOK_NEW_MESSAGES } from "./book-new/messages"
 import { MENU_MESSAGES } from "./context-menu/messages"
@@ -15,6 +16,7 @@ import { MARK_MESSAGES } from "./mark/messages"
 import { MARKDOWN_DOCUMENT_MESSAGES } from "./markdown/messages"
 import { MINIMAP_MESSAGES } from "./minimap/messages"
 import { NOTE_MESSAGES } from "./note/messages"
+import { OPEN_GUIDE_MESSAGES } from "./open-guide/messages"
 import { OUTBOX_MESSAGES } from "./outbox/messages"
 import { PAGE_MESSAGES } from "./page-tabs/messages"
 import { PARTICIPANT_MESSAGES } from "./participant/messages"
@@ -60,6 +62,7 @@ export const BASE_MESSAGES = joinMessages(
   SCRAP_MESSAGES,
   WIDE_SEARCH_MESSAGES,
   PARTICIPANT_MESSAGES,
+  BIRDS_MESSAGES,
   MARKDOWN_DOCUMENT_MESSAGES,
   OUTBOX_MESSAGES,
   SETTINGS_MESSAGES,
@@ -70,4 +73,5 @@ export const BASE_MESSAGES = joinMessages(
   CORNER_MESSAGES,
   ASK_MESSAGES,
   HISTORY_MESSAGES,
+  OPEN_GUIDE_MESSAGES,
 )

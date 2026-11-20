@@ -15,6 +15,7 @@ import { toolDef, toolSetOf, toolsIn } from "../../../core/tools"
 import { bookScreenCurrent, screenOf, workspaceOf } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { suppressContextMenu } from "../../../ui/context-menu"
+import { editableOf } from "../../../ui/editable"
 import { useMessages } from "../../../ui/i18n"
 import { StageScope } from "../../../ui/scope"
 import { useCatalog, useMatomezuState, useStoreActions, useUiCatalog } from "../../../ui/store-context"
@@ -45,14 +46,12 @@ interface Press {
   timer: number
 }
 
-const typing = (el: Element | null) => !!el?.closest("input, textarea, select, [contenteditable]")
-
 export function ToolPickerView() {
   const { openPicker, closeContextMenu } = useStoreActions()
   const last = useRef<Point | null>(null)
   const press = useRef<Press | null>(null)
   const [ring, setRing] = useState<Point | null>(null)
-  // 長押しで開けるステージ（ブックスクリーンが前に出ていて、紙があり、ダイアログも道具のアイコンも開いていない）。押したときに読むので ref に写す
+  // 長押しで開けるステージ（ブックスクリーンがカレントスクリーンで、紙があり、ダイアログも道具のアイコンも開いていない）。押したときに読むので ref に写す
   const pressable = useMatomezuState(
     useShallow(s =>
       s.dialog !== null || !bookScreenCurrent(s.window) || allStages(s.window).some(st => st.picker !== null)
@@ -79,7 +78,7 @@ export function ToolPickerView() {
       end()
       const target = e.target instanceof Element ? e.target : null
       const stage = target?.closest("[data-stage]")?.getAttribute("data-stage")
-      if (!stage || typing(target) || !pressableRef.current.includes(stage)) return
+      if (!stage || editableOf(target) || !pressableRef.current.includes(stage)) return
       const at = { x: e.clientX, y: e.clientY }
       const timer = window.setTimeout(() => {
         const p = press.current

@@ -455,8 +455,7 @@ test("ソースに、用語集で使わないと決めた言葉を書かない",
 // Chromium は、要素に scrollbar-width・scrollbar-color があると ::-webkit-scrollbar を使わないので、それを書くと全体の細いバー（base/scrollbar）が黙って外れる。
 // 書いてよいのは全体の指定と、::-webkit-scrollbar の無いブラウザに向けた @supports の中で色だけを変える所
 test("スクロールバーの太さと色の標準のプロパティは、全体の指定（base/scrollbar）と ::-webkit-scrollbar の無いブラウザ向けの @supports の中にだけ書く", () => {
-  const outside = (text: string) =>
-    text.replace(/@supports not selector\(::-webkit-scrollbar\) \{[\s\S]*?\n\}/g, "")
+  const outside = (text: string) => text.replace(/@supports not selector\(::-webkit-scrollbar\) \{[\s\S]*?\n\}/g, "")
   expect(
     filesEnding(SRC, ".css")
       .map(path => ({ rel: relative(SRC, path), text: readFileSync(path, "utf8") }))

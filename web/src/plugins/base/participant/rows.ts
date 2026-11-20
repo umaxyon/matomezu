@@ -5,6 +5,7 @@ import type { ParticipantLive } from "../../../store/store"
 import type { Participant, Workroom } from "."
 import type { WorkroomActivity } from "./activity"
 import { shownModel } from "./live"
+import { occupantOf } from "./workroom"
 
 export type WorkroomState = "empty" | "preparing" | "ready"
 
@@ -21,7 +22,10 @@ export interface WorkroomRow {
 }
 
 // 管理者の印（ADMIN_MARK のレコード。無い・none・ワークルームが無ければ undefined）が指す、ワークルームの id
-export function adminRoomOf(mark: { workroom: string } | undefined, rooms: readonly Workroom[]): string | undefined {
+export function adminRoomOf(
+  mark: { workroom: string } | undefined,
+  rooms: readonly Pick<Workroom, "id">[],
+): string | undefined {
   return mark && rooms.some(r => r.id === mark.workroom) ? mark.workroom : undefined
 }
 
@@ -35,7 +39,7 @@ export function workroomRows(input: {
   activities: Readonly<Record<string, WorkroomActivity | "unknown">> // ワークルームの id → 作業の様子（無ければ unknown）
 }): WorkroomRow[] {
   const rows = input.rooms.map((room): WorkroomRow => {
-    const participant = input.participants.find(p => p.state === "joined" && p.workroom === room.id)
+    const participant = occupantOf(input.participants, room)
     const live = participant ? input.live[participant.id] : undefined
     const calledAt = participant ? input.calls[participant.id] : undefined
     const requestedAt = input.participants

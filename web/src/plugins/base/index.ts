@@ -265,10 +265,10 @@ import { WIDE_SEARCH_MODE } from "./wide-search"
 import {
   BOOK_SCREEN_CLOSE,
   BOOK_SCREEN_DEF,
-  CONTROL_CENTER_TOGGLE,
   MAXIMIZERS,
   ONE_SCREEN,
   SCREEN_FLASH,
+  SCREEN_TOGGLE,
   SPLIT_BACK,
   SPLIT_KEYS,
   SPLIT_ROWS,
@@ -320,10 +320,12 @@ export type { PageProblem } from "./pages"
 export { addPageIn, nextPageTitle, type PageFieldsWay, pageFieldsWay } from "./pages"
 export type { ParticipantCategory, VisitorRow, WorkroomRow, WorkroomState } from "./participant"
 export {
+  adminWorkroom,
   isAdminActor,
   JOINED_MESSAGE,
   participantCategory,
   READS_ADMIN,
+  READS_WORKROOM_KEYS,
   VISITOR_JOINED_MESSAGE,
   visitorName,
 } from "./participant"
@@ -545,7 +547,7 @@ export const BASE = defineBuiltin(
       SCRAP_CUT_COMMAND,
       SCRAP_OPEN_ORIGINAL,
       BOOK_NEW,
-      CONTROL_CENTER_TOGGLE,
+      SCREEN_TOGGLE,
       BOOK_SCREEN_CLOSE,
       SPLIT_BACK,
       STAGE_SPLIT,
@@ -844,7 +846,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-pick-move": typeof LIBRARY_PICK_MOVE
     "@matomezu/base:library-entry-trash": typeof LIBRARY_ENTRY_TRASH
     "@matomezu/base:library-entry-duplicate": typeof LIBRARY_ENTRY_DUPLICATE
-    "@matomezu/base:control-center-toggle": typeof CONTROL_CENTER_TOGGLE
+    "@matomezu/base:screen-toggle": typeof SCREEN_TOGGLE
     "@matomezu/base:book-screen-close": typeof BOOK_SCREEN_CLOSE
     "@matomezu/base:split-back": typeof SPLIT_BACK
     "@matomezu/base:stage-split": typeof STAGE_SPLIT

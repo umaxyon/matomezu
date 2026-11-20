@@ -3,6 +3,7 @@ import { pagesOf } from "../../web/src/core/book"
 import { HOME_ID, recordsOf, TRASH_ID } from "../../web/src/core/folders"
 import type { Book } from "../../web/src/core/schema/book"
 import { screenOf } from "../../web/src/core/window"
+import { openClient } from "../../web/src/host-client/open"
 import { type Events, NoServer, OFFLINE_MS, QUIET_MS, serverClient } from "../../web/src/host-client/server"
 import { drawingPage, testBook } from "../lineup"
 import { SAMPLE_BOOKS } from "../sample-books"
@@ -177,6 +178,14 @@ async function connected(server = fakeServer()) {
   const stop = server.host.connect(store)
   return { ...server, store, stop }
 }
+// つなぎ直し（2 度目の hello）で送り直したアクション（確かめられていないアクションが無ければ空）
+async function resentOnReconnect(s: Awaited<ReturnType<typeof connected>>, client: string) {
+  const before = s.performs().length
+  s.fail()
+  s.emit("hello", { client })
+  await flush()
+  return s.performs().slice(before)
+}
 const itemsOf = (store: ReturnType<typeof newStore>) =>
   pagesOf(store.state.getState().books.b1 as Book)[0]!.items?.map(i => i.id) ?? []
 const place = (store: ReturnType<typeof newStore>) =>
@@ -209,6 +218,17 @@ test("画面 cookie を持たないブラウザは、読めずに、画面 cooki
   const again = s.host.load()
   s.fail()
   await expect(again).rejects.toBeInstanceOf(NoServer)
+})
+
+test("常駐がこのブラウザを知らない（E402）なら、openClient は読まずに unknown-browser を返し、画面には何も描かない", async () => {
+  const s = fakeServer()
+  s.answer.read = () => 403
+  s.answer.data = "cookie-required"
+  const before = document.body.innerHTML
+  const opening = openClient(() => s.host)
+  s.fail()
+  expect(await opening).toEqual({ state: "unknown-browser" })
+  expect(document.body.innerHTML).toBe(before)
 })
 
 test("読むと、置いてあるブックと設定を返す", async () => {
@@ -304,16 +324,17 @@ test("同じ流れで行ったアクションは、振った id と並べて、1
 })
 
 test("ほかから変わったブックの上で、まだ確かめられていない自分のアクションを行い直す。自分の番号が返ると確かめ終わり", async () => {
-  const { store, emit, host } = await connected()
+  const { store, emit } = await connected()
   place(store)
   await Promise.resolve()
   expect(itemsOf(store)).toEqual(["n1"])
   emit("changed", pageChangedOf(b1With("o1"), "p1", 2, { client: "c2", seq: 5 }))
   expect(itemsOf(store)).toEqual(["o1", "n1"])
-  expect(host.pending()).toHaveLength(1)
   emit("changed", pageChangedOf(b1With("o1", "n1"), "p1", 3, { client: "c1", seq: 1 }))
   expect(itemsOf(store)).toEqual(["o1", "n1"])
-  expect(host.pending()).toEqual([])
+  // 確かめ終わったアクションは、ほかから変わったブックの上でも行い直さない
+  emit("changed", pageChangedOf(b1With("o1"), "p1", 4, { client: "c2", seq: 6 }))
+  expect(itemsOf(store)).toEqual(["o1"])
 })
 
 test("ゴミ箱に入ったブックはゴミ箱へ分け、消したと届いたブックは一覧から外れる（ほかのブックは同じ値のまま）", async () => {
@@ -415,7 +436,7 @@ test("つなぎ直したら（2 度目の hello）、読み直した世界の上
     ["c9", 1, "k1"],
   ])
   s.emit("ack", { seq: 1, ok: true, reason: "" })
-  expect(s.host.pending()).toEqual([])
+  expect(await resentOnReconnect(s, "c10")).toEqual([])
 })
 
 test("常駐を起動し直して、つなぎ直した窓の id が前と同じでも、答えの来なかったアクションを送り直す", async () => {
@@ -502,11 +523,11 @@ test("常駐が 5xx を返したアクションは、しばらくして送り直
   s.tick()
   await flush()
   expect(s.performs()).toHaveLength(2)
-  expect(s.host.pending()).toHaveLength(1)
   s.tick()
   await flush()
   expect(s.performs()).toHaveLength(3)
-  expect(s.host.pending()).toEqual([])
+  s.answer.perform = () => 200
+  expect(await resentOnReconnect(s, "c9")).toEqual([])
   expect(itemsOf(s.store)).toEqual([])
   expect(s.store.state.getState().toasts).toMatchObject([{ kind: "warn", message: "An edit could not be saved" }])
 })
@@ -676,7 +697,7 @@ test("読んでいる間に届いたレコード・番号・設定・アノテ�
 test("窓が見ているものと、窓がフォーカスされたことを、増やす番号を付けて知らせる。変わらなければ知らせない", async () => {
   const s = await connected()
   const view = (selection: string[]) => ({
-    front: "book-screen",
+    current: "book-screen",
     book: "b1",
     page: "p1",
     mode: "edit",
@@ -715,7 +736,7 @@ test("分けた窓は、ステージごとに見ているものを知らせ、�
   const s = await connected()
   s.store.actions.split("s1")
   expect(s.sent.at(-1)?.view).toEqual({
-    front: "book-screen",
+    current: "book-screen",
     book: "b1",
     page: "p1",
     mode: "edit",
@@ -875,11 +896,11 @@ test("フォーカスされたとき、壁時計で QUIET_MS 何も届いてい�
   ])
 })
 
-test("コントロールセンターを前に出している間は、見ているものを front と hidden に分けて知らせる", async () => {
+test("コントロールセンターがカレントスクリーンの間は、見ているものを current と hidden に分けて知らせる", async () => {
   const s = await connected()
   showCenter(s.store)
   expect(s.sent.at(-1)?.view).toEqual({
-    front: "control-center",
+    current: "control-center",
     hidden: {
       book: "b1",
       page: "p1",

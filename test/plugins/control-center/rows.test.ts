@@ -1,7 +1,7 @@
-// コントロールセンターの画面の、見た目でない決め事（rows.ts・control-center.ts の frontScreenOf）: 一覧の下の 1 行の種類と、選んだ部屋の引き方、前に出す画面の既定
+// コントロールセンターの画面の、見た目でない決め事（rows.ts・control-center.ts の contentAreaOf）: 一覧の下の 1 行の種類と、選んだ部屋の引き方、コンテンツエリアに出す画面の既定
 import { expect, test } from "bun:test"
 import type { WorkroomRow } from "../../../web/src/plugins/base"
-import { frontScreenOf } from "../../../web/src/plugins/control-center/control-center"
+import { contentAreaOf } from "../../../web/src/plugins/control-center/control-center"
 import {
   lastAccessOf,
   orderHeld,
@@ -33,9 +33,9 @@ test("選んだワークルームは id で引き、無くなっていれば選�
   expect(pickedRow(rows, undefined)).toBeUndefined()
 })
 
-test("前に出す画面は、値が無ければプロジェクト", () => {
-  expect(frontScreenOf(undefined)).toBe("projects")
-  expect(frontScreenOf("library")).toBe("library")
+test("コンテンツエリアに出す画面は、値が無ければプロジェクト", () => {
+  expect(contentAreaOf(undefined)).toBe("projects")
+  expect(contentAreaOf("library")).toBe("library")
 })
 
 test("最終アクセスの出し方は、呼ばれた時刻があればそれ、無ければ準備中か、なし", () => {
@@ -45,11 +45,11 @@ test("最終アクセスの出し方は、呼ばれた時刻があればそれ�
   expect(lastAccessOf(row("empty"))).toBe("none")
 })
 
-test("枠が退くのは、前に出している画面の最大化のときだけ。書庫の最大化は左の列だけ、中身の最大化は左の列とワークルームの枠。前に出していない画面の最大化は動かさない", () => {
+test("枠が退くのは、コンテンツエリアに出している画面の最大化のときだけ。書庫の最大化は左の列だけ、中身の最大化は左の列とワークルームの枠。コンテンツエリアに出していない画面の最大化は動かさない", () => {
   expect(retreatOf("library", true, false)).toEqual({ left: true, workroom: false })
   expect(retreatOf("projects", false, true)).toEqual({ left: true, workroom: true })
-  expect(retreatOf("projects", true, false)).toEqual({ left: false, workroom: false }) // 書庫を最大化したまま、戻るでプロジェクトの画面が前に出た
-  expect(retreatOf("library", false, true)).toEqual({ left: false, workroom: false }) // プロジェクトの画面の最大化のまま、書庫が前に出た
+  expect(retreatOf("projects", true, false)).toEqual({ left: false, workroom: false }) // 書庫を最大化したまま、戻るでプロジェクトの画面がコンテンツエリアに出た
+  expect(retreatOf("library", false, true)).toEqual({ left: false, workroom: false }) // プロジェクトの画面の最大化のまま、書庫がコンテンツエリアに出た
   expect(retreatOf("projects", false, false)).toEqual({ left: false, workroom: false })
 })
 

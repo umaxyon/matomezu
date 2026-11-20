@@ -121,7 +121,7 @@ test("絞っている間だけ題の帯に押した状態のろうとが出て�
   await expect(indicator).toHaveCount(0)
 })
 
-test("書庫が前に出ていても、チケットモードで絞るとボードが出る。カードの番号（M-0050 の形）でも当たる", async ({
+test("コンテンツエリアに書庫が出ていても、チケットモードで絞るとボードが出る。カードの番号（M-0050 の形）でも当たる", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })

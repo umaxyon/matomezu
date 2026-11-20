@@ -2,7 +2,9 @@ package mcp
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -31,7 +33,7 @@ var noArgs = map[string]any{"type": "object", "properties": map[string]any{}, "a
 var tools = []tool{
 	{
 		"view",
-		"What the user is looking at now: the book, page, mode (edit, or print-preview: all its pages laid out as the sheets they print on, arranged by the book's print preview settings) and selected items of the matomezu window focused last, and awaiting, the annotations on that book (such as the user's notes and marks) that wait for your answer, each with its page. front tells what the window brings to front: book-screen, or control-center, which covers the book screen; then the book, page, mode, selection and awaiting of the book screen kept behind it are under hidden (the user does not see them now). A window that has no book screen open answers only front and bookScreen: \"none\". null when no window is open.",
+		"What the user is looking at now: the book, page, mode (edit, or print-preview: all its pages laid out as the sheets they print on, arranged by the book's print preview settings) and selected items of the matomezu window focused last, and awaiting, the annotations on that book (such as the user's notes and marks) that wait for your answer, each with its page. current tells the kind of the window's current screen: book-screen, or control-center (a screen with no stages, such as the control center or the library screen), which covers the book screen; then the book, page, mode, selection and awaiting of the book screen kept behind it are under hidden (the user does not see them now). A window that has no book screen open answers only current and bookScreen: \"none\". null when no window is open.",
 		noArgs,
 		reading(func(api caller, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/view") }, nil),
 		true,
@@ -269,16 +271,16 @@ func reading(read func(api caller, args map[string]any) (json.RawMessage, error)
 	return func(c *conn, args map[string]any) (string, bool) {
 		out, err := read(c, args)
 		if err != nil {
-			return err.Error(), true
+			return hostFailed(err)
 		}
 		for _, r := range refused {
 			if text, ok := r(out); ok {
-				return text, true
+				return text, false
 			}
 		}
 		if narrow != nil {
 			if n := len([]rune(string(out))); n > maxAnswer {
-				return fmt.Sprintf("too-large: the answer is %d characters, over the limit of %d, so it is not returned; %s", n, maxAnswer, narrow(args)), true
+				return fmt.Sprintf("too-large: the answer is %d characters, over the limit of %d, so it is not returned; %s", n, maxAnswer, narrow(args)), false
 			}
 		}
 		return string(out), false
@@ -360,7 +362,7 @@ var showSchema = map[string]any{
 	"additionalProperties": false,
 }
 
-const showDescription = "Show a book on the user's screen, in the matomezu window focused last: a book screen that already shows the book comes to front; otherwise the book opens in a new book screen, which comes to front (a window keeps two book screens: opening a third closes the one brought to front longest ago, with its zoom, position and selection). With stage or split, the book opens on that stage instead, replacing what is open there. " +
+const showDescription = "Show a book on the user's screen, in the matomezu window focused last: a book screen that already shows the book becomes the current screen; otherwise the book opens in a new book screen, which becomes the current screen (a window keeps two book screens: opening a third closes the one made current longest ago, with its zoom, position and selection). With stage or split, the book opens on that stage instead, replacing what is open there. " +
 	"When no window is open, a browser opens matomezu first (this can take some seconds)."
 
 // ReadOnly は、名前 name の MCP 公開ツールが読むだけか（無い名前なら false）
@@ -382,16 +384,27 @@ func listTools() []map[string]any {
 	return list
 }
 
-// callTool は MCP 公開ツールを呼び、AI に返す文と、失敗したかを返す。
+// callTool は MCP 公開ツールを呼び、AI に返す文と、matomezu の側の失敗か（isError にする）を返す。
+// 断り（呼び方の誤り・できない理由）は失敗にせず、文で断りと直し方を言う。matomezu の側の失敗は、常駐につながらない・常駐の答えが読めないなど、AI が呼び方を直しても済まない物
 // 常駐の返事に AI への知らせ（参加しましたなど）があれば、どの MCP 公開ツールでも文の末尾に足す
 func callTool(c *conn, name string, raw json.RawMessage) (string, bool) {
 	c.notice = ""
-	text, failed := dispatch(c, name, raw)
+	text, fault := dispatch(c, name, raw)
 	if c.notice != "" {
 		text += "\n" + c.notice
 		c.notice = ""
 	}
-	return text, failed
+	return text, fault
+}
+
+// hostFailed は、常駐を呼んだ誤り err を AI に返す文にする。常駐が 400・404 で答えた物は呼び方への断りなので、常駐の文だけを返し、matomezu の側の失敗にしない。
+// ほか（つながらない・つなぎ直せない・ほかの状態）は matomezu の側の失敗
+func hostFailed(err error) (string, bool) {
+	var h *HostError
+	if errors.As(err, &h) && (h.Code == http.StatusBadRequest || h.Code == http.StatusNotFound) {
+		return h.Text, false
+	}
+	return err.Error(), true
 }
 
 // maxAnswer は、読む MCP 公開ツールの 1 つの答えの文字数の上限
@@ -410,7 +423,7 @@ func dispatch(c *conn, name string, raw json.RawMessage) (string, bool) {
 	args := map[string]any{}
 	if len(raw) > 0 {
 		if err := json.Unmarshal(raw, &args); err != nil {
-			return "the arguments are not a JSON object", true
+			return "the arguments are not a JSON object", false
 		}
 		if args == nil {
 			args = map[string]any{}
@@ -421,17 +434,17 @@ func dispatch(c *conn, name string, raw json.RawMessage) (string, bool) {
 			continue
 		}
 		if problems := checkArguments(name, t.schema, args); len(problems) > 0 {
-			return "bad-args: " + strings.Join(problems, "; ") + "\nthe arguments of " + name + " (JSON Schema): " + schemaText(t.schema), true
+			return "bad-args: " + strings.Join(problems, "; ") + "\nthe arguments of " + name + " (JSON Schema): " + schemaText(t.schema), false
 		}
 		return t.call(c, args)
 	}
-	return "unknown tool: " + name, true
+	return "unknown tool: " + name, false
 }
 
 func perform(api caller, args map[string]any) (string, bool) {
 	out, err := api.Post("api/ai/perform", args)
 	if err != nil {
-		return err.Error(), true
+		return hostFailed(err)
 	}
 	var done struct {
 		OK     bool            `json:"ok"`
@@ -448,7 +461,7 @@ func perform(api caller, args map[string]any) (string, bool) {
 		if done.Reason == "bad-args" {
 			text += argsSchemaOf(api, args["action"].(string))
 		}
-		return text, true
+		return text, false
 	}
 	// 知らせは結果の次の行に添える
 	if done.Notice != "" {
@@ -477,7 +490,7 @@ func argsSchemaOf(api caller, action string) string {
 func show(api caller, args map[string]any) (string, bool) {
 	out, err := api.Post("api/ai/show", args)
 	if err != nil {
-		return err.Error(), true
+		return hostFailed(err)
 	}
 	var done struct {
 		OK     bool   `json:"ok"`
@@ -495,17 +508,17 @@ func show(api caller, args map[string]any) (string, bool) {
 	case done.OK:
 		return "shown", false
 	case done.Reason == "no-browser":
-		return "no-browser: could not open a browser (" + done.Detail + "); ask the user to open " + done.URL + " and call show again", true
+		return "no-browser: could not open a browser (" + done.Detail + "); ask the user to open " + done.URL + " and call show again", false
 	case done.Reason == "no-book":
-		return "no-book: there is no book with that id (see list_books)", true
+		return "no-book: there is no book with that id (see list_books)", false
 	case done.Reason == "no-window":
-		return "no-window: no matomezu window connected; ask the user to open " + done.URL + " and call show again", true
+		return "no-window: no matomezu window connected; ask the user to open " + done.URL + " and call show again", false
 	case done.Reason == "no-stage":
-		return "no-stage: the window has no stage with that id (see view)", true
+		return "no-stage: the window has no stage with that id (see view)", false
 	case done.Reason == "no-split":
-		return "no-split: the window cannot split more; give the stage to show it on instead (see view)", true
+		return "no-split: the window cannot split more; give the stage to show it on instead (see view)", false
 	}
-	return refusalText(done.Reason, done.Detail), true
+	return refusalText(done.Reason, done.Detail), false
 }
 
 // refusalText は断った理由の、AI に返す 1 行。常駐が決めた理由のほかは、エンジンが添えた AI への説明（detail）を使う
@@ -568,7 +581,7 @@ func join(c *conn, args map[string]any) (string, bool) {
 	}
 	out, err := c.Post("api/ai/join", body)
 	if err != nil {
-		return err.Error(), true
+		return hostFailed(err)
 	}
 	var done struct {
 		OK          bool   `json:"ok"`
@@ -580,7 +593,7 @@ func join(c *conn, args map[string]any) (string, bool) {
 		return string(out), true
 	}
 	if !done.OK {
-		return refusalText(done.Reason, done.Detail), true
+		return refusalText(done.Reason, done.Detail), false
 	}
 	c.participants[c.sessionID] = done.Participant
 	answer := map[string]any{"participant": done.Participant}
@@ -608,7 +621,7 @@ const sendMessageDescription = "Send a message to another AI that has joined mat
 func sendMessage(c *conn, args map[string]any) (string, bool) {
 	out, err := c.Post("api/ai/message", map[string]any{"to": args["to"], "text": args["text"]})
 	if err != nil {
-		return err.Error(), true
+		return hostFailed(err)
 	}
 	var done struct {
 		OK     bool   `json:"ok"`
@@ -620,7 +633,7 @@ func sendMessage(c *conn, args map[string]any) (string, bool) {
 		return string(out), true
 	}
 	if !done.OK {
-		return refusalText(done.Reason, done.Detail), true
+		return refusalText(done.Reason, done.Detail), false
 	}
 	return `{"ok":true,"queued":true}`, false
 }

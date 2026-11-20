@@ -236,7 +236,7 @@ describe("木の決まり", () => {
     expect(rowsHold([home, book("b1"), book("b2"), unreadable("b2")], ["p1"])).toBe(true)
     // 移った b2 と b3 だけが p1 を持つ（外のブックは無い）
     expect(rowsHold([{ ...home, lineup: [] }, book("b2"), book("b3"), unreadable("b2", "b3")], ["p1"])).toBe(true)
-    // 外の 2 つが持つのは、今までどおり破れる
+    // 外の 2 つが持てば破れる
     expect(
       rowsHold(
         [

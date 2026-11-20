@@ -36,6 +36,7 @@ import {
 } from "./mail/ui"
 import { ALERT_STATUS, MARK_ICON, MARK_LAYER } from "./mark/ui"
 import { FOLDED_NOTE_STATUS, NOTE_ICON, NOTE_LAYER, NOTE_PANEL, NOTE_READ_NOTICE, READ_NOTE_STATUS } from "./note/ui"
+import { OPEN_GUIDE } from "./open-guide/ui"
 import type { AnnotationIconProps } from "./outbox/ui"
 import { OUTBOX } from "./outbox/ui"
 import { PAGE_CONTEXT_MENU_ROWS, PAGE_DIALOG_VIEWS, PAGE_LIST, PAGE_SETTINGS_ICONS, PAGE_TABS } from "./page-tabs/ui"
@@ -178,6 +179,7 @@ export {
   type WideSearchModeProps,
   type WideSearchOpened,
 } from "./wide-search/ui"
+export { useCopyText, useWindowTitle } from "./window-io/ui"
 
 import type { PrintSheetProps } from "./print-preview/ui"
 
@@ -217,7 +219,7 @@ export {
 export * from "./utils/ui"
 export {
   BOOK_SCREEN,
-  CONTROL_CENTER_FOOTER,
+  SCREEN_FOOTER,
   type ScreenSplit,
   useControlCenterMaximize,
   useControlCenterMaximized,
@@ -277,6 +279,7 @@ export const BASE_UI = definePluginUi(BASE, {
     MAIL_BOOKMARKS,
     MAIL_WATCH,
     EDIT_LOCK,
+    OPEN_GUIDE,
     JOIN_REQUEST_ACTIONS,
     PROPOSAL_ACTIONS,
     FULL_TEXT_MODE,
@@ -321,7 +324,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-folder-context": { folder: string } // 書庫の画面の右の枠の何も無い所（開いているフォルダの id）
   }
   interface SlotTable {
-    "@matomezu/base:control-center-footer": Record<string, never> // コントロールセンターの下の行（何も受け取らない）
+    "@matomezu/base:screen-footer": Record<string, never> // ステージを並べないスクリーンがカレントの間だけの下の行（何も受け取らない）
     "@matomezu/base:mail-actions": MailActionsProps // 郵便のダイアログの下の行に並べる、その種類のボタンなど
     "@matomezu/base:wide-search-modes": WideSearchModeProps // 横断検索のタブに並べるモード（入力の下のパネル）
     "@matomezu/base:wide-search-openers": Record<string, never> // 種類ごとの、横断検索の当たりの開き方（何も描かない）
@@ -391,6 +394,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:mail-bookmarks": typeof MAIL_BOOKMARKS
     "@matomezu/base:mail-watch": typeof MAIL_WATCH
     "@matomezu/base:edit-lock": typeof EDIT_LOCK
+    "@matomezu/base:open-guide": typeof OPEN_GUIDE
     "@matomezu/base:join-request-actions": typeof JOIN_REQUEST_ACTIONS
     "@matomezu/base:proposal-actions": typeof PROPOSAL_ACTIONS
     "@matomezu/base:wide-search-full-text": typeof FULL_TEXT_MODE

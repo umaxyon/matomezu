@@ -7,10 +7,10 @@ import type { EditList } from "../../../core/def/page-type"
 import { problem } from "../../../core/errors"
 import { findShape } from "../../../core/placed"
 import { sameData } from "../../../core/same"
-import { shownPageId } from "../../../core/stage"
-import { type CommandContext, NO_BOOK, NO_PAGE } from "../../../store/commands/def"
+import { type CommandContext, NO_BOOK } from "../../../store/commands/def"
 import { kit } from "../kit"
 import { placeableIn } from "../toolbox/toolbox"
+import { hasOpenedPage } from "../utils/opened-page"
 import { SCRAP_CUT, type Scrap } from "./scrap"
 
 // スクラップフレームの印（定義オブジェクトの拡張ポイントに書き足す）。true を書いた形は、スクラップトレイから置ける。
@@ -54,16 +54,16 @@ export const SCRAP_CUT_COMMAND = kit.defineCommand({
   performs: [SCRAP_CUT.id],
   // 受けるのは、ページタブの右クリックのページか、紙の右クリックの所（使わない）
   run: (ctx, a, target: { page?: string; pointer?: unknown }) => {
-    const page = target.page ?? shownPageId(ctx.stage.opened ?? null)
+    const page = target.page ?? (hasOpenedPage(ctx) ? ctx.page.id : undefined)
     if (page) a.openDialog(SCRAP_CUT_DIALOG.id, { page })
   },
-  when: ctx => ctx.book !== NO_BOOK && shownPageId(ctx.stage.opened ?? null) != null,
+  when: ctx => ctx.book !== NO_BOOK && hasOpenedPage(ctx),
 })
 
 // 右クリックした形 item が、スクラップフレームなら、その項目のスクラップ（違えば null）
 function scrapOf(ctx: CommandContext, item: string | undefined): Scrap | null {
   if (item === undefined) return null
-  const placed = ctx.page === NO_PAGE ? undefined : findShape(ctx.page, item)?.shape
+  const placed = hasOpenedPage(ctx) ? findShape(ctx.page, item)?.shape : undefined
   const def = placed && (ctx.catalog.items.get(placed.item) as { scrapFrame?: true } | undefined)
   return placed && def?.scrapFrame === true ? (placed.props as Scrap) : null
 }

@@ -148,11 +148,14 @@ import {
   keptOutside,
   NO_PLUGIN_STATES,
   ownedPluginState,
+  type PluginPlace,
   type PluginValues,
   placedOf,
+  placeOf,
   pluginValueOf,
   pushingIds,
   readPlaced,
+  WINDOW_PLACE,
   withPluginState,
 } from "./plugin-state"
 import { worldOf } from "./world"
@@ -551,6 +554,12 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   // ホストの言葉の検索（横断検索）。base のフック useWideSearch を通して使う（プラグインに渡す actions には入れない）。
   // ホストが無いか、頼めなければ、投げる（検索の見た目が受ける）
   search(query: WideSearchQuery): Promise<WideSearchAnswer>
+  // ブラウザのクリップボードに文字を書く。base のフック useCopyText を通して使う（プラグインに渡す actions には入れない）。書けなければ投げる
+  copyText(text: string): Promise<void>
+  // 窓のタイトル（ブラウザのタブとタイトルバーに出る文字）を替える。base のフック useWindowTitle を通して使う（プラグインに渡す actions には入れない）
+  setWindowTitle(title: string): void
+  // 今の窓のタイトル（替えたあとで戻すため）。口が無ければ空
+  windowTitle(): string
   // 今の画面の場所（開いているブック・ページ・倍率・ずらす量・分割と、画面の場所に入れるプラグイン状態。core/address.ts・plugin-state.ts）。ホストクライアントだけが使う
   address(): Address
   // 画面の場所を address にする（core/address.ts の placeAt と、画面の場所に入れるプラグイン状態）。
@@ -567,9 +576,9 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   setCanGoBack(can: boolean): void
   // 今の利用者の設定でのキーバインドの表（作り直すのは利用者の変更が変わったときだけ。画面がキーの名前を出すのに使う）
   keys(): KeyTable
-  // プラグイン状態の宣言 id の値を value にする（undefined なら消す）。ステージごとの宣言は stage のステージの値を、ステージに結ばない宣言は stage を渡さず。知らない id は E122、範囲が合わなければ E124、画面の場所に入れる宣言の形に合わない値は E123。
+  // プラグイン状態の宣言 id の値を value にする（undefined なら消す）。場所 at は、窓の範囲の宣言なら WINDOW_PLACE、ステージごとの宣言ならステージの id、スクリーンごとの宣言ならスクリーンの id。知らない id は E122、範囲が合わなければ E124、画面の場所に入れる宣言の形に合わない値は E123。
   // プラグインは、自分の kit と宣言を渡すフックを通して、自分の宣言だけを変える（プラグインに渡す actions には入れない）
-  setPluginState(id: string, stage: string | null, value: unknown): void
+  setPluginState(id: string, at: PluginPlace, value: unknown): void
   // ほかのプラグインの宣言に値を入れる道: 画面の場所に入れる宣言（address を持つ）の id と値だけで、宣言の形で確かめて入れる。入れたら true。
   // 宣言が無い・address が無い・形に合わない値・場所の無い範囲（ステージの宣言でステージを渡さない・開いていないスクリーン）は、何もせず false。
   // ステージの宣言は caller.stage のステージの値、窓の宣言は窓の値。スクリーンの宣言は、caller.screenDef（書き先のスクリーンの定義の id）の開いているスクリーン（複数なら最後にカレントにした 1 枚）の値、
@@ -580,7 +589,7 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
     caller: { screen?: string; screenDef?: string; stage?: string },
   ): boolean
   // 複数の値をまとめて書く（store には 1 回で書く。途中の、片方だけ変わった状態を知らせない）。1 つでも知らない id・範囲違い・形違いがあれば、何も書かずに error
-  setPluginStates(changes: readonly (readonly [id: string, stage: string | null, value: unknown])[]): void
+  setPluginStates(changes: readonly (readonly [id: string, at: PluginPlace, value: unknown])[]): void
   // ブラウザの履歴に積むと宣言した宣言の id の組（今の台帳のもの。追加プラグインを取り込んだら変わる。ホストクライアントが、画面の場所が移動したかを決めるのに使う）
   pushing(): ReadonlySet<string>
   // 鍵 key の編集ロックを lock にする（null なら外す）。base のフック useEditLock を通して使う（プラグインに渡す actions には入れない）
@@ -658,6 +667,9 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   aiEditTicket?: (change: AIEditTicketOutcome) => void // まだ見ていない AI の変更が、この窓で見えたか、見られる前に画面の履歴に入らない変更（ゴミ箱から消すなど）で消えたときに知らせる
   visible?: () => boolean // 窓が見えているか（裏のタブなどで見えていない間は、まだ見ていない変更を見えたとしない。無ければいつも見えている）
   search?: (query: WideSearchQuery) => Promise<WideSearchAnswer> // ホストの言葉の検索（横断検索）。無ければ、どの言葉にも横断検索の当たりなし
+  copyText?: (text: string) => Promise<void> // ブラウザのクリップボードに文字を書く。無ければ、書けないとして投げる（E404）
+  setWindowTitle?: (title: string) => void // 窓のタイトルを替える。無ければ何もしない
+  windowTitle?: () => string // 今の窓のタイトル。無ければ空
 }
 
 // 開いている画面の履歴の段と、そのアクションバルク（同じ区切りなので 1 つで持つ）。step は閉じて画面の履歴に入れた段、refused はホストがアクションバルクを断ったこと。
@@ -1290,13 +1302,13 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   }
   let toasts = 0 // トーストの id の番号（出すたびに 1 つ進める）
   // プラグイン状態の宣言 id の値を value にした値の組 values（変わらなければ values のまま）。画面の場所に入れる宣言の値は宣言の形で確かめる（合わなければ E123）。
-  // ステージごとの宣言は stage のステージの値（無いステージには置かない）、ステージに結ばない宣言は stage を渡さない。知らない id は E122、範囲が合わなければ E124
-  // スクリーンごとの宣言は、stage に開いているスクリーンの id を渡す（無いスクリーンには置かない）
-  const withPluginValue = (values: PluginValues, id: string, stage: string | null, value: unknown): PluginValues => {
+  // 場所 at は、窓の範囲の宣言なら WINDOW_PLACE、ステージごとの宣言ならステージの id（無いステージには置かない）、スクリーンごとの宣言なら開いているスクリーンの id（無いスクリーンには置かない）。
+  // 知らない id は E122、範囲と場所が合わなければ E124
+  const withPluginValue = (values: PluginValues, id: string, at: PluginPlace, value: unknown): PluginValues => {
     const def = defs.catalog.store.pluginStates.get(id) ?? fail("E122", { id })
-    if (def.scope === "window" && stage !== null) fail("E124", { id, scope: "window", need: "give no stage" })
-    if (def.scope === "stage" && stage === null) fail("E124", { id, scope: "stage", need: "give the stage" })
-    if (def.scope === "screen" && stage === null) fail("E124", { id, scope: "screen", need: "give the screen" })
+    if (def.scope === "window" && at !== WINDOW_PLACE) fail("E124", { id, scope: "window", need: "give WINDOW_PLACE" })
+    if (def.scope === "stage" && typeof at !== "string") fail("E124", { id, scope: "stage", need: "give the stage" })
+    if (def.scope === "screen" && typeof at !== "string") fail("E124", { id, scope: "screen", need: "give the screen" })
     let next = value
     if (value !== undefined && def.address !== "none") {
       const read = def.schema?.safeParse(value)
@@ -1305,9 +1317,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     }
     // 画面の場所に入れる宣言の値は中身を比べ、入れない宣言の値は同じ物かだけ比べる（頻繁に書く値を深く比べない）
     const same = def.address === "none" ? Object.is : sameData
-    if (stage === null) {
+    if (typeof at !== "string") {
       return same(values.window[id], next) ? values : { ...values, window: withPluginState(values.window, id, next) }
     }
+    const stage = at
     if (def.scope === "screen") {
       const opened = getState().window.screens.some(s => s.id === stage)
       if (!opened || same(values.screens[stage]?.[id], next)) return values
@@ -1316,12 +1329,12 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     if (!inWindow(stage) || same(values.stages[stage]?.[id], next)) return values
     return { ...values, stages: { ...values.stages, [stage]: withPluginState(values.stages[stage], id, next) } }
   }
-  const setPluginStates = (changes: readonly (readonly [id: string, stage: string | null, value: unknown])[]) => {
+  const setPluginStates = (changes: readonly (readonly [id: string, at: PluginPlace, value: unknown])[]) => {
     const now = getState().pluginValues
-    const next = changes.reduce((v, [id, stage, value]) => withPluginValue(v, id, stage, value), now)
+    const next = changes.reduce((v, [id, at, value]) => withPluginValue(v, id, at, value), now)
     if (next !== now) setState({ pluginValues: next })
   }
-  const setPluginState = (id: string, stage: string | null, value: unknown) => setPluginStates([[id, stage, value]])
+  const setPluginState = (id: string, at: PluginPlace, value: unknown) => setPluginStates([[id, at, value]])
   const setPluginStateById = (
     id: string,
     value: unknown,
@@ -1335,8 +1348,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const ids = win.screens.filter(s => s.def === caller.screenDef).map(s => s.id)
       return [...win.order].reverse().find(o => ids.includes(o)) ?? null
     }
-    const at = def.scope === "window" ? null : def.scope === "screen" ? screenAt() : (caller.stage ?? null)
-    if (def.scope !== "window" && at === null) return false
+    const at = placeOf(def.scope, { stage: caller.stage, screen: screenAt() })
+    if (at === null) return false
     if (def.scope === "screen" && !win.screens.some(s => s.id === at)) return false
     if (def.scope === "stage" && !inWindow(at as string)) return false
     setPluginState(id, at, value)
@@ -1364,15 +1377,14 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (!call || !isEnabled(defs, state, stage, id, args[0])) return false
       const owner = commandOwner(id)
       // 1 回のコマンドで複数の値を書いても、store には 1 回で書く（途中の、片方だけ変わった状態を知らせない）。読む値は、書いた分を重ねたもの
-      const pending: [string, string | null, unknown][] = []
+      const pending: [string, PluginPlace, unknown][] = []
       const working = () =>
         pending.reduce((v, [id, st, value]) => withPluginValue(v, id, st, value), getState().pluginValues)
       const updatePluginState = <S>(stateDef: PluginStateDef<S>, change: (now: S | undefined) => S | undefined) => {
         const own = ownedPluginState(owner, stateDef)
         // スクリーンごとの宣言は、呼ばれた場所のスクリーンの値
-        const here = own.scope === "screen" ? calledScreenIdOf(call.ctx) : stage
-        const at = own.scope === "window" ? null : here
-        const next = change(pluginValueOf(working(), here, own))
+        const at = placeOf(own.scope, { stage, screen: calledScreenIdOf(call.ctx) })
+        const next = change(pluginValueOf(working(), at, own))
         withPluginValue(working(), own.id, at, next) // 書く前に、範囲と形を確かめる
         pending.push([own.id, at, next])
       }
@@ -1412,9 +1424,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       // キーの宛先: 右クリックのメニューを開いた場所（ステージか、ステージを持たないスクリーン）・長押しの道具・ダイアログを開いたステージ。
       // 無ければ（ステージを持たずに開いたダイアログも）、カレントスクリーンのカレントのステージ（ステージを持たなければ、そのスクリーン）
       const opener = dialog && dialog.stage !== NO_STAGE ? dialog.stage : undefined
-      const front = currentScreen(window)
+      const current = currentScreen(window)
       const stage =
-        (contextMenu ? openedAt(contextMenu) : undefined) ?? picker ?? opener ?? front.stages?.current ?? front.id
+        (contextMenu ? openedAt(contextMenu) : undefined) ?? picker ?? opener ?? current.stages?.current ?? current.id
       // プレゼンテーションのキーの範囲は、ページを開いているときだけ（空のバインダでは、プレゼンテーションのビューを描かない）
       const type = openedPage(stageIn(window, stage)?.opened ?? null)?.type
       const presentation = type && catalog.pageTypes.get(type)?.presentation
@@ -1728,6 +1740,12 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     checkSeen,
     search: query => options.search?.(query) ?? Promise.resolve(NO_WIDE_SEARCH_HITS),
+    copyText: async text => {
+      if (!options.copyText) fail("E404")
+      await options.copyText(text)
+    },
+    setWindowTitle: title => options.setWindowTitle?.(title),
+    windowTitle: () => options.windowTitle?.() ?? "",
     address: () => addressNow(),
     locate: address => {
       const now = getState()

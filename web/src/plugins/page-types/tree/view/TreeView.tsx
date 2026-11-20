@@ -12,7 +12,7 @@
 // ドラッグの間は倍率を 100% にし、ポインタが端に近ければ紙をずらす（遠くの節にも落とせる）。終えたら編集の倍率に戻す。
 // 足す・書き換える・付け替えるのが紙に入らないので断られたら、トーストで知らせる
 import { Fragment, memo, type RefObject, useEffect, useMemo, useRef, useState } from "react"
-import { openedPage, paperOf, placement, type Size, type StageView } from "../../../../plugin-api"
+import { paperOf, placement, type Size, type StageView } from "../../../../plugin-api"
 import {
   useActions,
   useAllowed,
@@ -105,12 +105,9 @@ function Content({
   const w = size?.w
   const h = size?.h
   const paperSize = useMemo(() => (w !== undefined && h !== undefined ? { w, h } : null), [w, h])
-  const paper = openedPage(stage.opened ?? null)?.paper
-  if (paper?.status === "unshowable") return <p className={styles.error}>{t("This paper cannot be shown")}</p>
   if (!paperSize) return null
   return (
     <PaperFrame stage={stage} role="img" aria-label={t("Paper")}>
-      {paper?.status === "unknown" && <span className={styles.unknown}>{t("Unknown paper")}</span>}
       <Tree stage={stage} paper={paperSize} view={view} area={area} />
     </PaperFrame>
   )

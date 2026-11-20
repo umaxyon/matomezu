@@ -6,7 +6,7 @@ import type { PluginStateDef } from "../core/def/plugin-state"
 import { stageIn, workspaceOf } from "../core/window"
 import { type StageView, stageView, toolOf } from "../core/workspace"
 import type { PluginKit } from "../store/kit"
-import { ownedPluginState, pluginValueOf } from "../store/plugin-state"
+import { ownedPluginState, type PluginPlace, placeAt, pluginValueOf } from "../store/plugin-state"
 import { useCatalog, useInstance, useMatomezuState, useReadState } from "./store-context"
 
 // プラグイン状態の持ち主（プラグインの kit。kit の id が頭の宣言だけを読み書きする。id だけの物は受けない）
@@ -39,33 +39,36 @@ export function useStageAt(stage: string | null): StageView | null {
   return useMemo(() => (found ? stageView(catalog, found, tool) : null), [catalog, found, tool])
 }
 
-// プラグイン状態 def の、場所 at（ステージかスクリーンの id。窓の範囲の宣言は ""。null なら場所が無い）の今の値。置き直すたびに描き直す
-export function usePluginStateAt<S>(kit: Owner, def: PluginStateDef<S>, at: string | null): S | undefined {
+// プラグイン状態 def の、場所 at（null なら場所が無い）の今の値。置き直すたびに描き直す
+export function usePluginStateAt<S>(kit: Owner, def: PluginStateDef<S>, at: PluginPlace | null): S | undefined {
   const own = ownedPluginState(kit.id, def)
   return useMatomezuState(s => (at === null ? undefined : pluginValueOf(s.pluginValues, at, own)))
 }
 
 // プラグイン状態 def を、描き直さずに読む関数（引数は場所）
-export function useReadPluginStateAt<S>(kit: Owner, def: PluginStateDef<S>): (at: string) => S | undefined {
+export function useReadPluginStateAt<S>(kit: Owner, def: PluginStateDef<S>): (at: PluginPlace) => S | undefined {
   const read = useReadState()
   const own = ownedPluginState(kit.id, def)
-  return useCallback((at: string) => pluginValueOf(read().pluginValues, at, own), [read, own])
+  return useCallback((at: PluginPlace) => pluginValueOf(read().pluginValues, at, own), [read, own])
 }
 
 // プラグイン状態 def の、場所 at の値を変える関数（value が undefined なら消す。窓の範囲の宣言は at を見ない）
-export function useSetPluginStateAt<S>(kit: Owner, def: PluginStateDef<S>): (at: string, value: S | undefined) => void {
+export function useSetPluginStateAt<S>(
+  kit: Owner,
+  def: PluginStateDef<S>,
+): (at: PluginPlace, value: S | undefined) => void {
   const { setPluginState } = useInstance()
   const own = ownedPluginState(kit.id, def)
   return useCallback(
-    (at: string, value: S | undefined) => setPluginState(own.id, own.scope === "window" ? null : at, value),
+    (at: PluginPlace, value: S | undefined) => setPluginState(own.id, placeAt(own.scope, at) ?? at, value),
     [setPluginState, own],
   )
 }
 
-// 複数のプラグイン状態の値を、1 回で書く関数。変え方は [宣言, 場所（窓の範囲の宣言は null）, 新しい値] の並び
+// 複数のプラグイン状態の値を、1 回で書く関数。変え方は [宣言, 場所, 新しい値] の並び
 export function useSetPluginStatesAt(
   kit: Owner,
-): (changes: readonly (readonly [def: PluginStateDef<unknown>, at: string | null, value: unknown])[]) => void {
+): (changes: readonly (readonly [def: PluginStateDef<unknown>, at: PluginPlace, value: unknown])[]) => void {
   const { setPluginStates } = useInstance()
   const id = kit.id
   return useCallback(
@@ -78,17 +81,15 @@ export function useSetPluginStatesAt(
 export function useUpdatePluginStateAt<S>(
   kit: Owner,
   def: PluginStateDef<S>,
-): (at: string, change: (now: S | undefined) => S | undefined) => void {
+): (at: PluginPlace, change: (now: S | undefined) => S | undefined) => void {
   const { setPluginState } = useInstance()
   const read = useReadState()
   const own = ownedPluginState(kit.id, def)
   return useCallback(
-    (at: string, change: (now: S | undefined) => S | undefined) =>
-      setPluginState(
-        own.id,
-        own.scope === "window" ? null : at,
-        change(pluginValueOf(read().pluginValues, own.scope === "window" ? "" : at, own)),
-      ),
+    (at: PluginPlace, change: (now: S | undefined) => S | undefined) => {
+      const place = placeAt(own.scope, at) ?? at // 範囲に合わない場所は、そのまま渡して E124 で断る
+      setPluginState(own.id, place, change(pluginValueOf(read().pluginValues, place, own)))
+    },
     [setPluginState, read, own],
   )
 }

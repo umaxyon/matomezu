@@ -1,5 +1,5 @@
-// 窓の状態（core/window.ts）: コントロールセンターかブックスクリーンを前に出す。前に出す物を替えても、ブックスクリーンの中は残る。
-// コントロールセンターを前に出している間、後ろのブックスクリーンは見えていない物として扱い、キーも届かない
+// 窓の状態（core/window.ts）: コントロールセンターかブックスクリーンをカレントスクリーンにする。カレントスクリーンを替えても、ブックスクリーンの中は残る。
+// コントロールセンターがカレントスクリーンの間、後ろのブックスクリーンは見えていない物として扱い、キーも届かない
 
 import { expect, test } from "bun:test"
 import { z } from "zod"
@@ -7,6 +7,7 @@ import type { MatomezuError } from "../../web/src/core/errors"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import {
   closeScreen,
+  currentKindOf,
   currentScreen,
   makeCurrent,
   newWindow,
@@ -16,7 +17,6 @@ import {
   shownBookScreens,
   shownScreens,
   stageIn,
-  viewFrontOf,
 } from "../../web/src/core/window"
 import { showIn, viewOf } from "../../web/src/host-client/server"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
@@ -27,7 +27,7 @@ import { pluginKit } from "../../web/src/store/kit"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { CORE_CATALOG, newStore, sequence, showBooks, showCenter, shown, worldRows } from "../support"
 
-const CENTER = "@matomezu/base:control-center-toggle"
+const CENTER = "@matomezu/base:screen-toggle"
 
 test("ステージの番号は窓で振り、閉じたステージの番号も使い回さない", () => {
   const { actions, state } = newStore()
@@ -51,14 +51,14 @@ const withBookScreen = () => openScreen(newWindow(CORE_CATALOG), CORE_CATALOG, "
 test("窓は、最初から開いているスクリーンだけで始まる（ブックスクリーンは 0 枚）", () => {
   const win = newWindow(CORE_CATALOG)
   expect(win.screens.map(s => s.def)).toEqual(["@matomezu/control-center:screen"])
-  expect(viewFrontOf(win)).toBe("control-center")
+  expect(currentKindOf(win)).toBe("control-center")
   expect(recentBookScreen(win)).toBeUndefined()
   const opened = withBookScreen()
-  expect(viewFrontOf(opened)).toBe("book-screen")
+  expect(currentKindOf(opened)).toBe("book-screen")
   expect(currentScreen(opened)).toMatchObject({ id: "c2", stages: { current: "s1" } })
 })
 
-test("スクリーンを開くと前に出て、閉じると 1 つ前に出していた物が前に出る。同じ定義から何枚でも開け、id は使い回さない", () => {
+test("スクリーンを開くとカレントスクリーンになって、閉じると 1 つ前にカレントだった物がカレントスクリーンになる。同じ定義から何枚でも開け、id は使い回さない", () => {
   let win = withBookScreen()
   win = makeCurrent(win, "c1")
   const first = openScreen(win, CORE_CATALOG, "@matomezu/control-center:screen", {})
@@ -84,39 +84,39 @@ test("最初から開いているスクリーンは閉じない。ブックス�
   expect(closeScreen(two.win, CORE_CATALOG, "c2").screens.map(s => s.id)).toEqual(["c1", "c3"])
 })
 
-test("コントロールセンターを前に出しても、ブックスクリーンの中（ステージ・倍率）は残る。戻すと同じ", () => {
+test("コントロールセンターをカレントスクリーンにしても、ブックスクリーンの中（ステージ・倍率）は残る。戻すと同じ", () => {
   const { actions, state } = newStore()
   actions.zoomStage("s1", 2)
   const before = screenOf(state.getState().window)
   showCenter({ state, actions })
-  expect(viewFrontOf(state.getState().window)).toBe("control-center")
+  expect(currentKindOf(state.getState().window)).toBe("control-center")
   expect(screenOf(state.getState().window)).toBe(before)
   showBooks({ state, actions })
-  expect(viewFrontOf(state.getState().window)).toBe("book-screen")
+  expect(currentKindOf(state.getState().window)).toBe("book-screen")
   expect(screenOf(state.getState().window)).toBe(before)
 })
 
-test("巣箱のコマンドは、コントロールセンターを前に出し、前に出している間は押すとブックスクリーンへ戻る。前に出している間は押された状態", () => {
+test("巣箱のコマンドは、コントロールセンターをカレントスクリーンにし、カレントスクリーンの間は押すとブックスクリーンへ戻る。カレントスクリーンの間は押された状態", () => {
   const { actions, state, ...instance } = newStore()
   const active = () => isActive(instance as never, state.getState(), "s1", CENTER)
   expect(active()).toBe(false)
   expect(actions.command("s1", CENTER)).toBe(true)
-  expect(viewFrontOf(state.getState().window)).toBe("control-center")
+  expect(currentKindOf(state.getState().window)).toBe("control-center")
   expect(active()).toBe(true)
   expect(actions.command("s1", CENTER)).toBe(true)
-  expect(viewFrontOf(state.getState().window)).toBe("book-screen")
+  expect(currentKindOf(state.getState().window)).toBe("book-screen")
   expect(active()).toBe(false)
 })
 
-test("ブックを開くと、ブックスクリーンを前に出す", () => {
+test("ブックを開くと、ブックスクリーンをカレントスクリーンにする", () => {
   const { actions, state } = newStore()
   showCenter({ state, actions })
   actions.openBook("s1", "b2")
-  expect(viewFrontOf(state.getState().window)).toBe("book-screen")
+  expect(currentKindOf(state.getState().window)).toBe("book-screen")
   expect(screenOf(state.getState().window).stages[0]?.opened?.outermost).toBe("b2")
 })
 
-test("コントロールセンターを前に出している間は、ステージの範囲のキーが効かず、後ろのステージは変わらない", () => {
+test("コントロールセンターがカレントスクリーンの間は、ステージの範囲のキーが効かず、後ろのステージは変わらない", () => {
   const { actions, state } = newStore()
   actions.resizeStage("s1", { w: 800, h: 600 })
   actions.zoomStage("s1", 2)
@@ -129,7 +129,7 @@ test("コントロールセンターを前に出している間は、ステー�
   expect(screenOf(state.getState().window).stages[0]?.zoom).toBe(1)
 })
 
-test("コントロールセンターを前に出している間は、後ろのブックスクリーンの変更は見えていない。戻したら見えたとして、画面の履歴に入る", () => {
+test("コントロールセンターがカレントスクリーンの間は、後ろのブックスクリーンの変更は見えていない。戻したら見えたとして、画面の履歴に入る", () => {
   const store = newStore({ now: sequence() })
   const book = store.state.getState().books.b1 as never as { title: string; id: string }
   store.receive({ ...worldRows([book]), settings: {} }, [])
@@ -145,29 +145,29 @@ test("コントロールセンターを前に出している間は、後ろの�
   expect(store.state.getState().history.b1?.undo.map(s => s.by)).toEqual(["ai"])
 })
 
-test("AI に知らせる見ているもの: ブックスクリーンを前に出している間は book など、コントロールセンターを前に出している間は front と hidden に分ける", () => {
+test("AI に知らせる見ているもの: ブックスクリーンがカレントスクリーンの間は book など、コントロールセンターがカレントスクリーンの間は current と hidden に分ける", () => {
   const { actions, state } = newStore()
   expect(viewOf(CORE_CATALOG, state.getState())).toMatchObject({
-    front: "book-screen",
+    current: "book-screen",
     book: "b1",
     page: "p1",
     stage: "s1",
   })
   showCenter({ state, actions })
   const view = viewOf(CORE_CATALOG, state.getState())
-  expect(view).toMatchObject({ front: "control-center", hidden: { book: "b1", page: "p1", stage: "s1" } })
+  expect(view).toMatchObject({ current: "control-center", hidden: { book: "b1", page: "p1", stage: "s1" } })
   expect("book" in view).toBe(false)
 })
 
-test("AI の show は、ブックを渡すとブックスクリーンを前に出す（コントロールセンターを前に出していても）", () => {
+test("AI の show は、ブックを渡すとブックスクリーンをカレントスクリーンにする（コントロールセンターがカレントスクリーンでも）", () => {
   const store = newStore()
   showCenter(store)
   showIn(store, { book: "b2" })
-  expect(viewFrontOf(store.state.getState().window)).toBe("book-screen")
+  expect(currentKindOf(store.state.getState().window)).toBe("book-screen")
   expect(screenOf(store.state.getState().window).stages[0]?.opened?.outermost).toBe("b2")
 })
 
-test("store の openScreen は、定義の渡す値の形に合えば開いて前に出し、合わない値と無い定義は開かない。closeScreen で閉じると前の物に戻る", () => {
+test("store の openScreen は、定義の渡す値の形に合えば開いてカレントスクリーンにし、合わない値と無い定義は開かない。closeScreen で閉じると前の物に戻る", () => {
   const { actions, state } = newStore()
   const before = currentScreen(state.getState().window).id
   expect(actions.openScreenId("@ex/none:x", {})).toBe("refused")
@@ -259,9 +259,9 @@ test("見えているスクリーンは、スクリーンアレンジメント�
   expect(win().arrangement).toBe("k:all")
   expect(shownScreens(core, win())).toEqual(win().screens.map(s => s.id))
   expect(shownBookScreens(core, win()).map(s => s.def)).toEqual(["@matomezu/base:book-screen"])
-  expect(viewFrontOf(win())).toBe("control-center")
+  expect(currentKindOf(win())).toBe("control-center")
   // 見えているブックスクリーンは、AI に見えている物として知らせる（カレントスクリーンの種類は変わらない）
-  expect(viewOf(core, state.getState())).toMatchObject({ front: "control-center", book: "b1" })
+  expect(viewOf(core, state.getState())).toMatchObject({ current: "control-center", book: "b1" })
   // 機能台帳に無いアレンジメントには替えない。場所に入り、当てはめると戻る
   actions.setScreenArrangement("k:none")
   expect(win().arrangement).toBe("k:all")
@@ -323,11 +323,11 @@ test("宛先なしで作った窓は、ブックスクリーンが 0 枚。AI �
   })
   const { state } = store
   expect(state.getState().window.screens.map(s => s.def)).toEqual(["@matomezu/control-center:screen"])
-  expect(viewOf(store.catalog.core, state.getState())).toEqual({ front: "control-center", bookScreen: "none" })
+  expect(viewOf(store.catalog.core, state.getState())).toEqual({ current: "control-center", bookScreen: "none" })
   expect(store.actions.pressKey("Home")).toBe(false)
 })
 
-test("showBook は、新しいブックスクリーンで開き、もう開いているブックはそのスクリーンを前に出すだけ。無いブックは false", () => {
+test("showBook は、新しいブックスクリーンで開き、もう開いているブックはそのスクリーンをカレントスクリーンにするだけ。無いブックは false", () => {
   const store = newStore({ bookScreen: "none" })
   expect(store.actions.showBook("b1")).toBe(true)
   expect(store.actions.showBook("b2")).toBe(true)
@@ -346,7 +346,7 @@ test("ブックスクリーンは 2 枚まで: 3 枚目を開くと、カレン�
   const store = newStore({ bookScreen: "none" })
   store.actions.showBook("b1")
   store.actions.showBook("b2")
-  store.actions.showBook("b1") // b1 を前に出したので、古いのは b2
+  store.actions.showBook("b1") // b1 をカレントスクリーンにしたので、古いのは b2
   store.actions.showBook("b3")
   expect(bookScreens(store)).toEqual([
     { id: "c2", books: ["b1"] },
@@ -384,7 +384,7 @@ test("場所を当てはめても、ブックスクリーンは 2 枚まで。�
   store.locate(one)
   store.locate(none)
   expect(bookScreens(store).length).toBe(1)
-  expect(viewFrontOf(store.state.getState().window)).toBe("control-center")
+  expect(currentKindOf(store.state.getState().window)).toBe("control-center")
 })
 
 test("2 枚のブックスクリーンから、ブックスクリーンの無い場所へ戻ると、いちばん最近カレントにした 1 枚が残る", () => {
@@ -392,7 +392,7 @@ test("2 枚のブックスクリーンから、ブックスクリーンの無い
   const none = store.address()
   store.actions.showBook("b1")
   store.actions.showBook("b2")
-  // 先に開いた b1 を前に出してから戻る: 残るのは b1 のスクリーン
+  // 先に開いた b1 をカレントスクリーンにしてから戻る: 残るのは b1 のスクリーン
   store.actions.showBook("b1")
   store.locate(none)
   expect(bookScreens(store).map(s => s.books)).toEqual([["b1"]])

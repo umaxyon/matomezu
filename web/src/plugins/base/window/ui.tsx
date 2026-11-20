@@ -3,7 +3,7 @@ import { defineWidget } from "../../../ui/layout"
 import { kit } from "../kit"
 import { ONE_SCREEN } from "."
 import { ScreensView } from "./ScreensView"
-import { CONTROL_CENTER_FOOTER } from "./slots"
+import { SCREEN_FOOTER } from "./slots"
 import { SPLIT_ROWS } from "./split"
 import { WindowView } from "./WindowView"
 
@@ -19,7 +19,7 @@ export const WINDOW = defineWidget({
 export const SCREENS_WIDGET = defineWidget({
   id: kit.name("screens-view"),
   slots: [ONE_SCREEN.id, SPLIT_ROWS.id],
-  opens: [CONTROL_CENTER_FOOTER],
+  opens: [SCREEN_FOOTER],
   screens: true,
   view: ScreensView,
 })
@@ -27,5 +27,5 @@ export const SCREENS_WIDGET = defineWidget({
 export { WINDOW_ICONS } from "./icons"
 export { useControlCenterMaximize, useControlCenterMaximized } from "./maximize"
 export { useShowControlCenter } from "./show-control-center"
-export { BOOK_SCREEN, CONTROL_CENTER_FOOTER } from "./slots"
+export { BOOK_SCREEN, SCREEN_FOOTER } from "./slots"
 export { type ScreenSplit, useScreenSplit } from "./useScreenSplit"

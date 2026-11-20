@@ -32,7 +32,6 @@ import {
   type CoreCatalog,
   findShape,
   type ItemPage,
-  openedPage,
   type PlacedShape,
   type Point,
   type Rect,
@@ -217,11 +216,8 @@ function Content({
   localOf: LocalOf
 }) {
   const t = useMessages(kit)
-  const paper = openedPage(stage.opened ?? null)?.paper
-  if (paper?.status === "unshowable") return <p className={styles.error}>{t("This paper cannot be shown")}</p>
   return (
     <PaperFrame stage={stage} role="img" aria-label={t("Paper")}>
-      {paper?.status === "unknown" && <span className={styles.unknown}>{t("Unknown paper")}</span>}
       <Items stage={stage} into={placed?.target?.parent ?? null} localOf={localOf} />
       {pointer && placed && <Ghost placed={placed} />}
       {box && (

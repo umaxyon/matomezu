@@ -25,7 +25,7 @@ const RENAME = "@matomezu/base:entry-rename"
 const TRASH = "@matomezu/base:entry-trash"
 const PURGE = "@matomezu/base:entry-purge"
 const CENTER = "@matomezu/control-center:screen"
-const FRONT = "@matomezu/control-center:front-screen"
+const CONTENT_AREA = "@matomezu/control-center:content-area"
 // よそが、ブック b1 の名前を書庫のアクションで title に変える
 const renamed = (there: Store, title: string): Step => ({
   run: () => void there.actions.perform(RENAME, { entry: "b1", title }),
@@ -87,7 +87,7 @@ function pair(visible: () => boolean = () => true) {
       here.setPluginState(LIBRARY_FOLDER.id, center, folders[0])
       here.setPluginState(LIBRARY_UNFOLDED.id, center, folders)
     }
-    here.setPluginState(FRONT, center, folders ? "library" : "projects")
+    here.setPluginState(CONTENT_AREA, center, folders ? "library" : "projects")
   }
   // ブックスクリーンを、見えているスクリーンに戻す
   const showBook = () =>
@@ -306,7 +306,7 @@ test("書庫を出す事と、開くフォルダを替える事を 1 度に行�
   here.actions.makeScreenCurrent(center)
   await foreign({ by: "ai", act: "1", actions: [RENAME] }, renamed(there, "AI の名前"))
   here.setPluginStates([
-    [FRONT, center, "library"],
+    [CONTENT_AREA, center, "library"],
     [LIBRARY_FOLDER.id, center, "b2"],
     [LIBRARY_UNFOLDED.id, center, []],
   ])

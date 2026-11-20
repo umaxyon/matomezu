@@ -5,7 +5,7 @@ import { z } from "zod"
 import { type Address, currentIn, recentStagesIn } from "../../web/src/core/address"
 import { NO_OUTERMOST } from "../../web/src/core/folders"
 import { defineMessages } from "../../web/src/core/i18n/messages"
-import { screenOf, viewFrontOf } from "../../web/src/core/window"
+import { currentKindOf, screenOf } from "../../web/src/core/window"
 import {
   type FormerAddress,
   followLocation,
@@ -17,6 +17,7 @@ import {
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
+import { WINDOW_PLACE } from "../../web/src/store/plugin-state"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { newStore, showBooks, showCenter, showFirstBook } from "../support"
 
@@ -76,15 +77,15 @@ function fakePlace(start = "") {
 
 // 書いた URL（今の形）の場所
 const written = (search: string) => parseSearch(search) as Address
-// 書いた URL の、ブックスクリーン（いちばん最近前に出した、ステージを並べるスクリーン）の中の場所
+// 書いた URL の、ブックスクリーン（いちばん最近カレントにした、ステージを並べるスクリーン）の中の場所
 const stagesIn = (search: string) => recentStagesIn(written(search))?.stages
-// 書いた URL の、前に出ているスクリーンの定義の id
+// 書いた URL の、カレントスクリーンの定義の id
 const frontDefIn = (search: string) => {
   const address = written(search)
   return address.screens.find(x => x.id === currentIn(address))?.def
 }
 
-test("URL の形: 値 1 つ（sc）に、スクリーンの並び・前に出した順と、ステージごとのブック・ページ・倍率とずらす量、場所に入れるプラグイン状態を書く。読み戻すと同じ場所", () => {
+test("URL の形: 値 1 つ（sc）に、スクリーンの並び・カレントにした順と、ステージごとのブック・ページ・倍率とずらす量、場所に入れるプラグイン状態を書く。読み戻すと同じ場所", () => {
   const address: Address = {
     screens: [
       { id: "c1", def: "@x/home", props: {}, states: { "@x/pane": "b" } },
@@ -158,7 +159,7 @@ test("前の形の URL（b0・p0・v0・s0…、c・r・w・f）も読み、今�
   )
   expect(former).toEqual({
     former: true,
-    front: "book-screen",
+    kind: "book-screen",
     stages: [
       { outermost: "b1", page: "p1", binder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} },
       {
@@ -179,8 +180,8 @@ test("前の形の URL（b0・p0・v0・s0…、c・r・w・f）も読み、今�
     stages: [{ states: {} }],
     window: {},
   })
-  expect(parseSearch("?f=center")).toMatchObject({ front: "control-center", stages: [] })
-  expect(parseSearch("?f=book")).toMatchObject({ front: "book-screen", stages: [] })
+  expect(parseSearch("?f=center")).toMatchObject({ kind: "control-center", stages: [] })
+  expect(parseSearch("?f=book")).toMatchObject({ kind: "book-screen", stages: [] })
   const now: Address = {
     screens: [
       { id: "c1", def: "@x/home", props: {}, states: {} },
@@ -199,7 +200,7 @@ test("前の形の URL（b0・p0・v0・s0…、c・r・w・f）も読み、今�
   })
   expect(placed.order).toEqual(["c1", "c2"])
   expect(placed.window).toEqual({ "@x/tab": "two" })
-  // ステージの無い前の形は、前に出す物の種類だけを替える（ステージは今のまま）
+  // ステージの無い前の形は、カレントスクリーンの種類だけを替える（ステージは今のまま）
   const center = fromFormer(parseSearch("?f=center") as FormerAddress, now)
   expect(center.order).toEqual(["c2", "c1"])
   expect(center.screens[1]?.stages).toEqual(now.screens[1]?.stages)
@@ -250,16 +251,16 @@ test("同じ処理の中の移動（分割してブックとページを開く�
   expect(stagesIn(f.pushed[0]!)?.places.map(s => s.outermost)).toEqual(["b1", "b3"])
 })
 
-test("URL が無い（開いた直後）なら、コントロールセンターを前に出す。URL にブックスクリーンの場所があれば、ブックスクリーンを前に出す", () => {
+test("URL が無い（開いた直後）なら、コントロールセンターをカレントスクリーンにする。URL にブックスクリーンの場所があれば、ブックスクリーンをカレントスクリーンにする", () => {
   const first = newStore()
   followLocation(first, fakePlace().place)
-  expect(viewFrontOf(first.state.getState().window)).toBe("control-center")
+  expect(currentKindOf(first.state.getState().window)).toBe("control-center")
   const second = newStore()
   followLocation(second, fakePlace("?b0=b3&p0=p1&v0=1,0,0&c=0&r=0.5").place)
-  expect(viewFrontOf(second.state.getState().window)).toBe("book-screen")
+  expect(currentKindOf(second.state.getState().window)).toBe("book-screen")
 })
 
-test("前に出ているスクリーンは URL の前に出した順に書く。後ろのブックスクリーンの場所も書く", () => {
+test("カレントスクリーンは URL のカレントにした順に書く。後ろのブックスクリーンの場所も書く", () => {
   const store = newStore()
   const f = fakePlace()
   followLocation(store, f.place)
@@ -267,7 +268,7 @@ test("前に出ているスクリーンは URL の前に出した順に書く。
   expect(stagesIn(f.replaced[0]!)?.places[0]?.outermost).toBe("b1")
 })
 
-test("前に出す物を替えるのは、ブラウザの履歴に 1 つ積む。戻ると前に出す物が戻り、後ろのブックスクリーンの中は残る", async () => {
+test("カレントスクリーンを替えるのは、ブラウザの履歴に 1 つ積む。戻るとカレントスクリーンが戻り、後ろのブックスクリーンの中は残る", async () => {
   const store = newStore()
   const f = fakePlace("?b0=b1&p0=p1&v0=1,0,0&c=0&r=0.5")
   followLocation(store, f.place)
@@ -281,7 +282,7 @@ test("前に出す物を替えるのは、ブラウザの履歴に 1 つ積む�
   expect(f.pushed).toHaveLength(2)
   // 戻る: コントロールセンター
   f.back(f.pushed[0]!)
-  expect(viewFrontOf(store.state.getState().window)).toBe("control-center")
+  expect(currentKindOf(store.state.getState().window)).toBe("control-center")
   expect(screenOf(store.state.getState().window).stages[0]!.opened).toEqual(was.stages[0]!.opened)
   expect(f.pushed).toHaveLength(2)
 })
@@ -308,7 +309,7 @@ test("積むと宣言したステージに結ばない値は変わるたびに�
   followLocation(store, f.place)
   expect(store.pushing().has("k:tab")).toBe(true)
   expect(store.pushing().has("k:mode")).toBe(false)
-  store.setPluginState("k:tab", null, "two")
+  store.setPluginState("k:tab", WINDOW_PLACE, "two")
   await settled()
   expect(f.pushed.map(s => written(s).window)).toEqual([{ "k:tab": "two" }])
   store.setPluginState("k:mode", "s1", "wide")
@@ -317,7 +318,7 @@ test("積むと宣言したステージに結ばない値は変わるたびに�
   f.flush()
   expect(stagesIn(f.replaced.at(-1)!)?.places[0]?.states).toEqual({ "k:mode": "wide" })
   // 積む値と書き換える値が同じ処理で変われば、積むのは 1 つで、URL には今の値が全部入る
-  store.setPluginState("k:tab", null, "one")
+  store.setPluginState("k:tab", WINDOW_PLACE, "one")
   store.setPluginState("k:mode", "s1", "narrow")
   await settled()
   expect(f.pushed).toHaveLength(2)

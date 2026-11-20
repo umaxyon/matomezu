@@ -23,7 +23,7 @@ export const BOOK_SCREEN_DEF = kit.defineScreen({
 })
 
 // スクリーンアレンジメント「1 枚ずつ」: 見えているのは、カレントスクリーンの 1 枚だけ。窓を開いたときのスクリーンアレンジメント。
-// ブックスクリーンは動かさず、ステージを並べないスクリーンは右から滑り込み、その間は下の行（スロット control-center-footer に置いた物があれば）を出す（描き方は WindowView）
+// ブックスクリーンは動かさず、ステージを並べないスクリーンは右から滑り込み、その間は下の行（スロット screen-footer に置いた物があれば）を出す（描き方は WindowView）
 export const ONE_SCREEN = kit.defineScreenArrangement({
   id: "one-screen",
   title: "One screen at a time",
@@ -40,8 +40,8 @@ const recent = (ctx: ScreenCommandContext, stages: boolean): OpenScreen | undefi
 
 // 巣箱のコマンド（ステージのメニューの「コントロールセンター」）。ブックスクリーンと、ステージを並べないスクリーン（コントロールセンターなど）を行き来する: カレントスクリーンと違う種類の、
 // いちばん最近カレントにしたスクリーンをカレントスクリーンにする。ステージを並べないスクリーンがカレントの間は、押された状態
-export const CONTROL_CENTER_TOGGLE = kit.defineScreenCommand({
-  id: "control-center-toggle",
+export const SCREEN_TOGGLE = kit.defineScreenCommand({
+  id: "screen-toggle",
   title: "Control center",
   run: (ctx, a) => {
     const to = recent(ctx, current(ctx)?.stages !== true)

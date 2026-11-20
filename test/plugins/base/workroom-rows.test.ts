@@ -1,6 +1,13 @@
-// ワークルームごとの行（base/participant/rows.ts の workroomRows・adminRoomOf）
+// ワークルームごとの行（base/participant/rows.ts の workroomRows・adminRoomOf）と、アクションが引く管理者（adminWorkroom・isAdminActor）
 import { expect, test } from "bun:test"
-import type { Participant, Workroom } from "../../../web/src/plugins/base/participant"
+import {
+  ADMIN_MARK,
+  adminWorkroom,
+  isAdminActor,
+  type Participant,
+  WORKROOM,
+  type Workroom,
+} from "../../../web/src/plugins/base/participant"
 import { adminRoomOf, workroomRows } from "../../../web/src/plugins/base/participant/rows"
 
 const room = (id: string, name = id): Workroom => ({ id, name, bird: "inko", createdAt: "t" })
@@ -64,6 +71,22 @@ test("管理者の印が指すワークルームが無い・印が無ければ�
   expect(adminRoomOf({ workroom: "none" }, rooms)).toBeUndefined()
   expect(adminRoomOf({ workroom: "gone" }, rooms)).toBeUndefined()
   expect(adminRoomOf(undefined, rooms)).toBeUndefined()
+})
+
+test("アクションは、読んだ管理者の印と全部のワークルームの索引キーから管理者のワークルームを引く（決め方は adminRoomOf と同じ）", () => {
+  const ctx = (workroom?: string) => ({
+    records: workroom === undefined ? {} : { [ADMIN_MARK.id]: { admin: { id: "admin", workroom } } },
+    keys: { [WORKROOM.id]: { a: { name: "a" }, b: { name: "b" } } },
+  })
+  expect(adminWorkroom(ctx("a") as never)).toBe("a")
+  expect(adminWorkroom(ctx("none") as never)).toBeUndefined()
+  expect(adminWorkroom(ctx("gone") as never)).toBeUndefined()
+  expect(adminWorkroom(ctx() as never)).toBeUndefined()
+  // 管理者のワークルームに入っている AI だけが管理者
+  expect(isAdminActor({ kind: "ai", workroom: { id: "a" } }, ctx("a") as never)).toBe(true)
+  expect(isAdminActor({ kind: "ai", workroom: { id: "b" } }, ctx("a") as never)).toBe(false)
+  expect(isAdminActor({ kind: "user" }, ctx("a") as never)).toBe(false)
+  expect(isAdminActor({ kind: "ai", workroom: { id: "a" } }, ctx("none") as never)).toBe(false)
 })
 
 test("行は、ワークルームの作業の様子を持ち、知らされていなければ unknown", () => {

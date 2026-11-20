@@ -24,8 +24,8 @@
 //
 // AI の入口（MCP。internal/mcp）は合言葉で通す:
 //
-//	GET  /api/ai/view        最後にフォーカスされた窓が見ているもの（{"front", "book", "page", "selection", "awaiting"}。無ければ null。awaiting は見ているブックの、AI の応えを待つアノテーション。
-//	                      コントロールセンターを前に出している窓は {"front": "control-center", "hidden": {後ろに隠れているブックスクリーンの book, page, selection, awaiting など}}）
+//	GET  /api/ai/view        最後にフォーカスされた窓が見ているもの（{"current", "book", "page", "selection", "awaiting"}。無ければ null。awaiting は見ているブックの、AI の応えを待つアノテーション。
+//	                      コントロールセンターがカレントスクリーンの窓は {"current": "control-center", "hidden": {後ろに隠れているブックスクリーンの book, page, selection, awaiting など}}）
 //	GET  /api/ai/books  {"books": [{"id", "type", "title", "version", "awaiting"}]}（awaiting は AI の応えを待つアノテーションの数）
 //	GET  /api/ai/books/{id}  {"id", "book", "version", "annotations", "placed"}（?outline=1 ならページの目次。ai_outline.go）
 //	GET  /api/ai/pages/{page}  {"book", "folder", "page", "version", "annotations", "placed"}（book はそのページを持っているブックの id、folder はそのページが入っているフォルダ（ブックの直下ならブック、バインダの中ならバインダ）の id、version はそのページの版、annotations はそのページの物に立つもの。?outline=1 でページの中の物の目次、?item=id でその物だけ。ai_outline.go）
@@ -465,11 +465,11 @@ func (o Options) aiView(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	// コントロールセンターを前に出している間は、見えている物が無いので、一番上に awaiting を置かない（hidden の中だけ）
+	// コントロールセンターがカレントスクリーンの間は、見えている物が無いので、一番上に awaiting を置かない（hidden の中だけ）
 	if _, covered := view["hidden"]; !covered {
 		view["awaiting"], _ = json.Marshal(pick(list, awaiting))
 	}
-	// コントロールセンターを前に出している間、後ろに隠れているブックスクリーンが開いているブックの、AI の応えを待つ物も hidden に添える
+	// コントロールセンターがカレントスクリーンの間、後ろに隠れているブックスクリーンが開いているブックの、AI の応えを待つ物も hidden に添える
 	if raw, ok := view["hidden"]; ok {
 		var hidden map[string]json.RawMessage
 		if json.Unmarshal(raw, &hidden) == nil && hidden != nil {

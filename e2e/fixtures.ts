@@ -50,10 +50,10 @@ export type HostOptions = { hostArgs: string[] }
 // テストごとの Playwright の option
 export type TestOptions = { enabledPlugins: readonly string[] }
 
-// 開いた直後（URL が無いとき）はコントロールセンターが前に出る。ブックスクリーンから始めるテストは BOOK_SCREEN_URL、コントロールセンターから始めるテストは CONTROL_CENTER_URL を開く
+// 開いた直後（URL が無いとき）はコントロールセンターがカレントスクリーンになる。ブックスクリーンから始めるテストは BOOK_SCREEN_URL、コントロールセンターから始めるテストは CONTROL_CENTER_URL を開く
 export const BOOK_SCREEN_URL = "/?f=book"
 
-// ブック book（無ければ、何も開かないステージ）を開いたブックスクリーンが前に出ている場所の URL（コントロールセンター c1 の後ろに、ブックスクリーン c2）
+// ブック book（無ければ、何も開かないステージ）を開いたブックスクリーンがカレントスクリーンになっている場所の URL（コントロールセンター c1 の後ろに、ブックスクリーン c2）
 export const bookScreenUrl = (book: string | null): string =>
   `/?sc=${encodeURIComponent(
     JSON.stringify({
@@ -91,8 +91,8 @@ export interface UrlStage {
 }
 export const urlPlace = (page: { url(): string }): UrlPlace | null =>
   JSON.parse(new URL(page.url()).searchParams.get("sc") ?? "null")
-// URL の、前に出ているスクリーンの定義の id
-export const urlFront = (page: { url(): string }): string | undefined => {
+// URL の、カレントスクリーンの定義の id
+export const urlCurrentScreen = (page: { url(): string }): string | undefined => {
   const place = urlPlace(page)
   return place?.s.find(x => x.i === place.o.at(-1))?.d
 }
