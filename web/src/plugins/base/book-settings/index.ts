@@ -39,7 +39,7 @@ export function bookSettingDefs(catalog: CoreCatalog, group: SettingGroup = "gen
 // 項目 defs を、変えるときに渡す形にする（どれも書かなくてよく、null は消す。項目の id で渡す。値の形は、持つ所 owner の項目として機能台帳から組み立てた形か schema）
 function settingsPatch(
   catalog: CoreCatalog,
-  owner: { pageType: string } | "book",
+  owner: { pageType: string } | "outermost",
   defs: readonly SettingDef[],
 ): z.ZodObject {
   return z.strictObject(
@@ -60,7 +60,7 @@ export function settingsPatchOf(catalog: CoreCatalog, type: string): z.ZodObject
 // ブックの設定の項目（組 group の物）を変えるときに渡す形（項目が無ければ null）
 export function bookSettingsPatch(catalog: CoreCatalog, group: SettingGroup = "general"): z.ZodObject | null {
   const defs = bookSettingDefs(catalog, group)
-  return defs.length > 0 ? settingsPatch(catalog, "book", defs) : null
+  return defs.length > 0 ? settingsPatch(catalog, "outermost", defs) : null
 }
 
 // AI に見せる、ページの settings の形: 項目を選んだタイプごとの形のどれか（説明にタイプの id）

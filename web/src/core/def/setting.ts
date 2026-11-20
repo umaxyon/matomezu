@@ -34,8 +34,8 @@ export type BookSettingDef<S extends z.ZodType = z.ZodType> = SettingDef<S> & { 
 export type HeldSettingDef = SettingDef & { holder: SettingHolder }
 export type UserSettingDef = SettingDef & { holder?: never }
 
-// 設定の項目を持つ所: タイプ pageType のページか、ブック（book）か、利用者の設定（user）
-export type SettingOwner = { pageType: string } | "book" | "user"
+// 設定の項目を持つ所: タイプ pageType のページか、いちばん外（outermost）か、利用者の設定（user）
+export type SettingOwner = { pageType: string } | "outermost" | "user"
 
 // 既定を持つ設定の項目の定義（どこにも値が無くても、読めば既定の値がある）
 export type DefaultedSettingDef<S extends z.ZodType = z.ZodType, Tt extends string = MessageKey> = SettingDef<S, Tt> & {

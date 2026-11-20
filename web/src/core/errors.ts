@@ -54,7 +54,7 @@ export const ERRORS = {
   E061: "subject {id}: aiListed and aiList cannot be given together",
   E062: "pageType {id}: settings has {setting}, which is not a page setting (its holder is not page)",
   E063: 'action {id}: its permissionScope is "book" (no page named), so its attach cannot have {attach} (they depend on a page type)',
-  E064: "setting {id}: a page or book setting needs holder (page or outermost)",
+  E064: "setting {id}: a page or outermost setting needs holder (page or outermost)",
   E065: "userSetting {id}: a user setting takes no holder",
   E066: 'pageType {id}: actions.{field} has {action}, whose permissionScope is "book" (it changes the container itself, so no page type decides it)',
   E048: "subject {id}: lockable needs a locked field in its record (true, optional)",
