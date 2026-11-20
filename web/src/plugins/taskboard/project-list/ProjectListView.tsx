@@ -46,7 +46,7 @@ export function ProjectListView() {
       <div className={styles.body} data-open={open}>
         <div className={styles.inner}>
           {ordered.length === 0 ? (
-            <p className={styles.name}>{t("No projects")}</p>
+            <p className={styles.note}>{t("No projects")}</p>
           ) : (
             <ul className={styles.list}>
               {ordered.map(project => (
