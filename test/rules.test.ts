@@ -401,7 +401,7 @@ test("プラグインの index・ui・messages は、機能のフォルダの同
   const offenders = sources
     .filter(f => crateOf(f.rel) === "plugins" && dirname(f.rel) === pluginRoot(f.rel) && basename(f.rel) in ENTRY_READS)
     .flatMap(f =>
-      [...f.text.matchAll(/from\s*["'](\.\/[^"']+)["']/g)]
+      [...f.text.matchAll(/(?:from\s*|import\s+)["'](\.\/[^"']+)["']/g)]
         .map(m => m[1]!.slice(2))
         .filter(spec => {
           const [folder, ...rest] = spec.split("/")
