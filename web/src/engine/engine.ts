@@ -65,7 +65,7 @@ import {
   restoreSettings,
   settingSchema,
 } from "../core/settings"
-import { purgedRows, type RowWrites, settleUnreadable, unreadableWarning } from "../core/unreadable"
+import { purgedRows, type RowWrites, settleLibrary, unreadableWarning } from "../core/unreadable"
 import { WARNINGS, type Warning, warning, warningText } from "../core/warnings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../plugins"
@@ -932,25 +932,25 @@ const WindowWarningSchema = z.object({
   return JSON.stringify(lines)
 }
 
-// 読めない物を読めない物のフォルダへ移し、読めるようになった物を戻す（core/unreadable.ts の settleUnreadable。名前は利用者の設定 settings の言語で比べる。移した時刻は now）。
+// 書庫を今の機能台帳に合わせて整える: 読めない物を読めない物のフォルダへ移し、読めるようになった物を戻す（core/unreadable.ts の settleLibrary。名前は利用者の設定 settings の言語で比べる。移した時刻は now）。
 // 常駐が起動したときと機能台帳が変わったときに、置き場所の行の全部 pages・folders で呼ぶ。返すのは、書く行の変わり（engine の Output の pages・folders と同じ形）と、
-// 移した物（id と理由の番号）と戻した物の id と、そのあとの warning W032 の 1 行（読めない物が無ければ空）。読めない物のフォルダの行が形に合わなければ broken（何も書かない）
+// 移した物（id と理由の番号）と戻した物の id と、名前に番号を付けた物（id と付けた名前）と、そのあとの warning W032 の 1 行（読めない物が無ければ空）。
+// 読めない物のフォルダの行が形に合わなければ broken（何も書かない）
 ;(
-  globalThis as { matomezuSettleUnreadable?: (pages: string, folders: string, settings: string, now: string) => string }
-).matomezuSettleUnreadable = (pages, folders, settings, now) => {
+  globalThis as { matomezuSettleLibrary?: (pages: string, folders: string, settings: string, now: string) => string }
+).matomezuSettleLibrary = (pages, folders, settings, now) => {
   const catalog = assembled.catalog.core
-  const done = settleUnreadable(
-    catalog,
-    JSON.parse(pages) as unknown[],
-    JSON.parse(folders) as unknown[],
-    namingOf(catalog, restoreSettings(JSON.parse(settings))),
+  const done = settleLibrary(catalog, JSON.parse(pages) as unknown[], JSON.parse(folders) as unknown[], {
+    naming: namingOf(catalog, restoreSettings(JSON.parse(settings))),
     now,
-  )
+    newId: () => crypto.randomUUID(),
+  })
   if (done === BROKEN) return JSON.stringify({ broken: true })
   return JSON.stringify({
     ...rowWrites(done.writes),
     moved: done.moved.map(u => ({ id: u.element.id, code: u.code })),
     returned: done.returned,
+    numbered: done.numbered,
     warning: warningLineOf(done.writes.folders[UNREADABLE_ID], JSON.parse(folders) as unknown[]),
   })
 }

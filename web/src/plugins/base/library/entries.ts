@@ -2,7 +2,7 @@
 
 import {
   type EntryKind,
-  freeTitle,
+  freeTitleIn,
   isMoveRefusal,
   isWithin,
   type MoveRefusal,
@@ -13,7 +13,6 @@ import {
   rowsWithin,
   titledIn,
   titleOf,
-  titlesIn,
   trashRefOf,
 } from "../../../core/entries"
 import {
@@ -99,20 +98,6 @@ export function retitled(
     pages: library.pages,
     folders: { ...library.folders, [entry]: { ...library.folders[entry], title } as Folder },
   }
-}
-
-// フォルダ into の直下に在る（か、そこへ入れる）エントリ entry（種類 kind）の、そのフォルダのほかの物と重ならない名前（重なっていれば「名前 2」から番号を付ける。重ならなければ今の名前）。
-// 名前を持たない物・フォルダが無いときは undefined
-export function freeTitleIn(
-  library: Library,
-  kind: EntryKind,
-  entry: string,
-  into: string,
-  naming: Naming,
-): string | undefined {
-  const holder = library.folders[into]
-  const title = titleOf(library, kind, entry, naming)
-  return !holder || title === undefined ? undefined : freeTitle(title, titlesIn(library, holder, naming, entry))
 }
 
 // フォルダ into の直下に在るエントリ entry（種類 kind）の名前が、同じフォルダのほかの物と重なっていれば、番号を付けた名前（「名前 2」から）にした書庫。重ならなければ library のまま

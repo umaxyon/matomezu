@@ -216,7 +216,7 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	}
 	h.loadSystemFolderTitles()
 	// 読めない物を読めない物のフォルダへ移し、読めるようになった物を戻す（機能台帳に合わせて足すアクションより先に）
-	h.settleUnreadable(true)
+	h.settleLibrary(true)
 	// 起動したときは、機能台帳に合わせてデータを足すアクションを 1 度行う（初めての起動のアクションが書けば、そのあとに。書かなければ、ここで）
 	h.catalogChanged = true
 	h.runOnceActions()

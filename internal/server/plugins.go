@@ -111,7 +111,7 @@ func (h *Hub) usePlugins(next []*plugin.Bundle) error {
 	h.disabled = h.engine.Disabled()
 	h.loadSystemFolderTitles()
 	// 読めない物を移し、読めるようになった物を戻す（窓は plugins の知らせで読み直すので、窓には知らせない）
-	h.settleUnreadable(true)
+	h.settleLibrary(true)
 	h.catalogChanged = true
 	h.pluginsVersion++
 	h.broadcast("plugins", map[string]any{"version": h.pluginsVersion})

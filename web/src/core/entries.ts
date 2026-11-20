@@ -11,6 +11,7 @@ import {
   HOME_ID,
   inTrash,
   isOpenRole,
+  isUnreadableRole,
   type Library,
   systemFolderIndex,
   systemFolderOf,
@@ -254,6 +255,20 @@ export function titlesIn(library: Library, folder: Folder, naming: Naming, excep
   })
 }
 
+// フォルダ into の直下に在る（か、そこへ入れる）エントリ entry（種類 kind）の、そのフォルダのほかの物と重ならない名前（重なっていれば「名前 2」から番号を付ける。重ならなければ今の名前）。
+// 名前を持たない物・フォルダが無いときは undefined
+export function freeTitleIn(
+  library: Library,
+  kind: EntryKind,
+  entry: string,
+  into: string,
+  naming: Naming,
+): string | undefined {
+  const holder = library.folders[into]
+  const title = titleOf(library, kind, entry, naming)
+  return !holder || title === undefined ? undefined : freeTitle(title, titlesIn(library, holder, naming, entry))
+}
+
 // フォルダ folder の直下で、名前が title のエントリ（except のエントリは除く。無ければ undefined）
 export const titledIn = (
   library: Library,
@@ -282,7 +297,8 @@ export function clashedSystemFolder(library: Library, clashes: readonly string[]
 // 前から重なっていて、名前の並びが変わらないフォルダは挙げない。名前は was を naming で、now を nowNaming（言わなければ naming）で引く（言語が変わるときは、言語の前と後）
 export function titleClashes(was: Library, now: Library, naming: Naming, nowNaming: Naming = naming): string[] {
   return Object.values(now.folders).flatMap(f => {
-    if (f.folderRole === "trash") return []
+    // ゴミ箱と読めない物のフォルダの中は、名前が重なってよい
+    if (f.folderRole === "trash" || isUnreadableRole(f.folderRole)) return []
     const titles = titlesIn(now, f, nowNaming)
     if (new Set(titles).size === titles.length) return []
     const before = was.folders[f.id]

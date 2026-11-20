@@ -11,7 +11,7 @@ import {
   UNREADABLE_ID,
   type UnreadableFolder,
 } from "../../web/src/core/folders"
-import { purgedRows, type Settled, settleUnreadable } from "../../web/src/core/unreadable"
+import { purgedRows, type Settled, settleLibrary } from "../../web/src/core/unreadable"
 import { DRAWING, drawingPage, MARKDOWN, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { CORE_CATALOG, NAMING, worldRows } from "../support"
 
@@ -54,7 +54,7 @@ function applied(rows: Rows, done: Settled | typeof BROKEN): Rows {
 }
 
 const settle = (catalog: CoreCatalog, rows: Rows, now = NOW) =>
-  settleUnreadable(catalog, rows.pages, rows.folders, NAMING, now)
+  settleLibrary(catalog, rows.pages, rows.folders, { naming: NAMING, now, newId: () => "new" })
 const settled = (catalog: CoreCatalog, rows: Rows, now = NOW) => applied(rows, settle(catalog, rows, now))
 const unreadableOf = (rows: Rows): UnreadableFolder =>
   rows.folders.find(f => (f as { id: string }).id === UNREADABLE_ID) as UnreadableFolder
@@ -233,6 +233,7 @@ test("在ったフォルダが無ければ、その上のまだ在るフォル�
         : f,
     ),
   }
+  expect((settle(CORE_CATALOG, crowded, LATER) as Settled).numbered).toEqual([{ id: "x1", title: "メモ 2" }])
   const back = settled(CORE_CATALOG, crowded, LATER)
   expect(folderOf(back, HOME_ID).lineup.map(r => r.id)).toEqual(["x1", "x2"])
   expect(back.pages.find(p => (p as { id: string }).id === "x1")).toEqual({ ...md("x1", "メモ 2"), locked: true })
@@ -293,7 +294,7 @@ test("先のブックと id が重なるブック（W006）は、ブックごと
   expect(purge?.removedFolders).toEqual(["b2"])
   expect(purge?.removedPages).toEqual(["p2"])
   expect(purgedRows(moved.pages, moved.folders, "b1")).toBeUndefined()
-  const gone = applied(moved, { writes: purge!, moved: [], returned: [] })
+  const gone = applied(moved, { writes: purge!, moved: [], returned: [], numbered: [] })
   expect(
     rowsHoldTree(
       gone.folders,

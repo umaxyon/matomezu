@@ -99,7 +99,7 @@ func (h *Hub) putBookForTest(id string, body json.RawMessage, base int64) (versi
 	version, conflict, err = h.replaceBook(id, body, base)
 	if err == nil && !conflict {
 		// 置いた世界の読めない物を移す（窓には、移した行を知らせる）
-		h.settleUnreadable(false)
+		h.settleLibrary(false)
 	}
 	return version, conflict, err
 }
@@ -151,7 +151,7 @@ func (h *Hub) resetForTest(books []json.RawMessage, enabledPlugins []string) err
 			return err
 		}
 	}
-	h.settleUnreadable(true)
+	h.settleLibrary(true)
 	return h.checkBooks(h.order)
 }
 

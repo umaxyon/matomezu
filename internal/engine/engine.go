@@ -343,8 +343,8 @@ func New() (*Engine, error) {
 	if err := vm.ExportTo(vm.Get("matomezuSystemFoldersInPlace"), &e.sysInPlace); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuSystemFoldersInPlace: %w", err)
 	}
-	if err := vm.ExportTo(vm.Get("matomezuSettleUnreadable"), &e.settle); err != nil {
-		return nil, fmt.Errorf("engine.js has no matomezuSettleUnreadable: %w", err)
+	if err := vm.ExportTo(vm.Get("matomezuSettleLibrary"), &e.settle); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuSettleLibrary: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuPurgedRows"), &e.purge); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuPurgedRows: %w", err)
@@ -926,7 +926,13 @@ type Moved struct {
 	Code string `json:"code"`
 }
 
-// Settled は、読めない物を移し、読めるようになった物を戻した結果: 書く行の変わり（Pages・Folders）と、移した物・戻した物の id と、
+// Numbered は、名前が重なって番号を付けた物 1 つ（id と、付けた名前）
+type Numbered struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+}
+
+// Settled は、書庫を整えた結果: 書く行の変わり（Pages・Folders）と、移した物・戻した物の id・名前に番号を付けた物と、
 // そのあとの warning W032 の 1 行（読めない物が無ければ空）。Broken なら、読めない物のフォルダの行が形に合わず、何も書かない
 type Settled struct {
 	Broken   bool        `json:"broken,omitempty"`
@@ -934,12 +940,13 @@ type Settled struct {
 	Folders  []RowChange `json:"folders,omitempty"`
 	Moved    []Moved     `json:"moved,omitempty"`
 	Returned []string    `json:"returned,omitempty"`
+	Numbered []Numbered  `json:"numbered,omitempty"`
 	Warning  string      `json:"warning,omitempty"`
 }
 
-// SettleUnreadable は、置き場所の行の全部（pages・folders）を今の機能台帳で読み、読めない物を読めない物のフォルダへ移し、読めるようになった物を在った所へ戻す行の変わり
-// （名前は利用者の設定 settings の言語で比べる。移した時刻は now。core/unreadable.ts の settleUnreadable）
-func (e *Engine) SettleUnreadable(pages, folders []json.RawMessage, settings json.RawMessage, now string) (out Settled, err error) {
+// SettleLibrary は、置き場所の行の全部（pages・folders）で、書庫を今の機能台帳に合わせて整える行の変わり: 読めない物を読めない物のフォルダへ移し、読めるようになった物を在った所へ戻す
+// （名前は利用者の設定 settings の言語で比べる。移した時刻は now。core/unreadable.ts の settleLibrary）
+func (e *Engine) SettleLibrary(pages, folders []json.RawMessage, settings json.RawMessage, now string) (out Settled, err error) {
 	p, err := json.Marshal(append([]json.RawMessage{}, pages...))
 	if err != nil {
 		return out, err
