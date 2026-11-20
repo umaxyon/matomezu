@@ -69,6 +69,7 @@ import {
   LIBRARY_UNDO,
   LIBRARY_UNFOLDED,
   PAGE_CREATE,
+  SHOW_UNREADABLE_FOLDER,
   SYSTEM_FOLDER_ADD,
   TRASH_EMPTY,
 } from "./library"
@@ -519,6 +520,7 @@ export const BASE = defineBuiltin(
       CORNER_STATUS_ORDER,
       ENABLED_PLUGINS,
       SOFT_BREAK,
+      SHOW_UNREADABLE_FOLDER,
     ],
     themes: [STANDARD, STICKY, SIMPLE, MATOMEZU_THEME],
     papers: PAPERS,
@@ -701,6 +703,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:soft-break": typeof SOFT_BREAK
     "@matomezu/base:corner-status-order": typeof CORNER_STATUS_ORDER
     "@matomezu/base:enabled-plugins": typeof ENABLED_PLUGINS
+    "@matomezu/base:show-unreadable-folder": typeof SHOW_UNREADABLE_FOLDER
     "@matomezu/base:skin": typeof SKIN
     "@matomezu/base:keys": typeof KEYS
     "@matomezu/base:text-colors": typeof USER_TEXT_COLORS

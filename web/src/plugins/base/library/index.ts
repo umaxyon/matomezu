@@ -26,6 +26,7 @@ export { ENTRY_PURGE, ENTRY_RESTORE, ENTRY_TRASH, TRASH_EMPTY } from "./entry-tr
 export { LIBRARY_REVERT } from "./revert"
 export { LIBRARY_OPEN, LIBRARY_SCREEN, LIBRARY_SCREEN_CLOSE, LIBRARY_SCREEN_EXPAND } from "./screen"
 export { LIBRARY_SCREEN_KEYS } from "./screen-keys"
+export { SHOW_UNREADABLE_FOLDER } from "./show-unreadable"
 export {
   LIBRARY_APPEARANCE,
   LIBRARY_COLUMNS,
