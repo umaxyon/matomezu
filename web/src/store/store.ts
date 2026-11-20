@@ -20,7 +20,7 @@ import type {
 import type { CoreCatalog } from "../core/core-catalog"
 import type { ActionContext, ActionOn, PageTarget } from "../core/def/action"
 import type { PluginStateDef, PluginStateRead } from "../core/def/plugin-state"
-import { fail } from "../core/errors"
+import { fail, matomezuError, type Problem, problem } from "../core/errors"
 import {
   bookIdOf,
   changesBetween,
@@ -560,6 +560,8 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   setWindowTitle(title: string): void
   // 今の窓のタイトル（替えたあとで戻すため）。口が無ければ空
   windowTitle(): string
+  // 起動エラーの画面に出す物（作ったときに渡したもの。起動を止めた窓のほかは無い）。base のフック useStartupError を通して使う
+  startupError?: StartupError
   // 今の画面の場所（開いているブック・ページ・倍率・ずらす量・分割と、画面の場所に入れるプラグイン状態。core/address.ts・plugin-state.ts）。ホストクライアントだけが使う
   address(): Address
   // 画面の場所を address にする（core/address.ts の placeAt と、画面の場所に入れるプラグイン状態）。
@@ -595,11 +597,9 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   // 鍵 key の編集ロックを lock にする（null なら外す）。base のフック useEditLock を通して使う（プラグインに渡す actions には入れない）
   setEditLock(key: string, lock: EditLock | null): void
   // 取り込んだ追加プラグイン added を足して組み直す（前に足したものと置き換える）。状態は作ったときの初めに戻し、残したブックを新しい台帳で読み直す。
-  // 台帳アセンブルで食い違う追加プラグイン（check が投げたものも）は外し、その id と error を返す
-  use(
-    added: readonly Plugin[],
-    check?: (plugins: readonly Plugin[]) => void,
-  ): { failed: { id: string; error: unknown }[] }
+  // 追加プラグインは並びの順に 1 つずつ試し、台帳アセンブルで食い違う物（check が投げたものも）は、そのあとを試す台帳に入れない。
+  // 1 つでも食い違えば、何も当てずに（前の台帳のまま）E317 を投げる。details は食い違った物ごとの E318（並びの順。plugin は id、reason は中の error の文）
+  use(added: readonly Plugin[], check?: (plugins: readonly Plugin[]) => void): void
 }
 
 // 最初の状態（ブックスクリーンは開かない）
@@ -651,6 +651,24 @@ export type AIEditTicketOutcome =
   | { act: string; places: readonly string[]; outcome: "seen" }
   | { book: string; act: string; places: readonly string[]; outcome: "lost"; lost: readonly Written[] }
 
+// 起動エラーの画面に出す物: 画面が起動を止めた訳（kind。base の文言を引く）、原因の一覧と、直す手（ボタン）。
+// 訳ごとに、画面の入口が作って createMatomezu に渡す（起動エラーの画面のほかは描かない窓）
+export type StartupErrorKind = "plugins-not-added" // 追加プラグインのどれかを組めない
+export interface StartupCause {
+  name: string // 原因の名前（追加プラグインの id など）
+  reason: string // 理由の文（作り手向けの error の文のまま）
+}
+// 直す手を行った結果: fixed は直せた（画面の入口が窓を読み直すので、もう押せない）、refused は断られた理由の文と残りの原因、unreachable は常駐につながらない（原因はそのまま）
+export type StartupFixOutcome =
+  | { state: "fixed" }
+  | { state: "refused"; reason: string; causes: readonly StartupCause[] }
+  | { state: "unreachable" }
+export interface StartupError {
+  kind: StartupErrorKind
+  causes: readonly StartupCause[]
+  fix: () => Promise<StartupFixOutcome>
+}
+
 export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> {
   plugins: Ps
   controlCenter?: ControlCenterId // コントロールセンターの定義の id。ブックの一覧・利用者の設定・対象の定義の種類を変えるアクションを許すかはこれが決める。無ければ、それらは断る
@@ -670,6 +688,7 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   copyText?: (text: string) => Promise<void> // ブラウザのクリップボードに文字を書く。無ければ、書けないとして投げる（E404）
   setWindowTitle?: (title: string) => void // 窓のタイトルを替える。無ければ何もしない
   windowTitle?: () => string // 今の窓のタイトル。無ければ空
+  startupError?: StartupError // 起動エラーの画面に出す物（起動を止めた窓だけが渡す）
 }
 
 // 開いている画面の履歴の段と、そのアクションバルク（同じ区切りなので 1 つで持つ）。step は閉じて画面の履歴に入れた段、refused はホストがアクションバルクを断ったこと。
@@ -1746,6 +1765,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     setWindowTitle: title => options.setWindowTitle?.(title),
     windowTitle: () => options.windowTitle?.() ?? "",
+    ...(options.startupError ? { startupError: options.startupError } : {}),
     address: () => addressNow(),
     locate: address => {
       const now = getState()
@@ -1828,7 +1848,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     keys: () => keysFor(getState().settings),
     use: (added, check) => {
-      const failed: { id: string; error: unknown }[] = []
+      const failed: Problem[] = []
       let used: Plugin[] = []
       let next = assemble(plugins, options.controlCenter ?? null, options.autoSkin)
       for (const p of added) {
@@ -1839,9 +1859,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
           used = [...used, p]
           next = tried
         } catch (error) {
-          failed.push({ id: p.id, error })
+          failed.push(problem("E318", { plugin: p.id, reason: error instanceof Error ? error.message : String(error) }))
         }
       }
+      if (failed.length > 0) throw matomezuError(problem("E317", { count: failed.length }), failed)
       // 開いていたスクリーンは、組み直したあとに同じ場所へ当てはめ直す
       const at = addressNow()
       defs = next
@@ -1870,7 +1891,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         true,
       )
       instance.locate(at)
-      return { failed }
     },
   }
   return instance

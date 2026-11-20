@@ -8,7 +8,7 @@ import { defineWorkspace, STAGE_BASE_SLOTS } from "../../web/src/plugins/base/ui
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { defineCommand } from "../../web/src/store/commands/def"
 import { createMatomezu } from "../../web/src/store/create"
-import { definePlugin } from "../../web/src/store/plugin"
+import { definePlugin, type Plugin } from "../../web/src/store/plugin"
 import {
   checkLayout,
   defineLayout,
@@ -501,13 +501,19 @@ describe("取り込むときの UI マッピングの確かめ", () => {
     ],
   })
 
-  test("UI マッピングが食い違うプラグインは取り込むときに外し、ほかのプラグインで画面を描く", () => {
+  test("UI マッピングが食い違うプラグインは取り込むときに食い違い（E317 の details の E318）になり、食い違わない物だけなら、それで画面を描く", () => {
     const instance = createMatomezu({ plugins: BUILTIN_UI, controlCenter: BUILTIN_CONTROL_CENTER })
     showFirstBook(instance)
-    const { failed } = instance.use([nowhere, fine], all => {
+    const check = (all: readonly Plugin[]) => {
       shownLayout(placeAdded(DEFAULT_LAYOUT, all), all, assembleUi(all))
-    })
-    expect(failed.map(f => f.id)).toEqual(["q"])
+    }
+    expect(() => instance.use([nowhere, fine], check)).toThrow(
+      expect.objectContaining({
+        code: "E317",
+        details: [expect.objectContaining({ params: expect.objectContaining({ plugin: "q" }) })],
+      }),
+    )
+    instance.use([fine], check)
     expect(instance.plugins.map(p => p.id as string)).toContain("r")
     render(
       <MatomezuProvider instance={instance} layout={placeAdded(DEFAULT_LAYOUT, instance.plugins)}>

@@ -254,3 +254,10 @@ export const UNKNOWN_BROWSER_LAYOUT = defineLayout({
   slots: { root: ["@matomezu/base:open-guide"] },
   menus: {},
 })
+
+// 画面が起動を止めたとき（ホストが足した追加プラグインのどれかを組めない）の UI マッピング: 根に起動エラーの画面だけを置く
+export const STARTUP_ERROR_LAYOUT = defineLayout({
+  id: "startup-error",
+  slots: { root: ["@matomezu/base:startup-error"] },
+  menus: {},
+})

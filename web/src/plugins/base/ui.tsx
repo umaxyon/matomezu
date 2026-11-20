@@ -71,6 +71,7 @@ import {
   STAGE_ICONS,
   STAND_LAYER,
 } from "./stage/ui"
+import { STARTUP_ERROR } from "./startup-error/ui"
 import { TEXT_SETTING_VIEWS } from "./text/ui"
 import { TOAST_HOST } from "./toast-host/ui"
 import { TOOL_PICKER_WIDGET } from "./tool-picker/ui"
@@ -280,6 +281,7 @@ export const BASE_UI = definePluginUi(BASE, {
     MAIL_WATCH,
     EDIT_LOCK,
     OPEN_GUIDE,
+    STARTUP_ERROR,
     JOIN_REQUEST_ACTIONS,
     PROPOSAL_ACTIONS,
     FULL_TEXT_MODE,
@@ -395,6 +397,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:mail-watch": typeof MAIL_WATCH
     "@matomezu/base:edit-lock": typeof EDIT_LOCK
     "@matomezu/base:open-guide": typeof OPEN_GUIDE
+    "@matomezu/base:startup-error": typeof STARTUP_ERROR
     "@matomezu/base:join-request-actions": typeof JOIN_REQUEST_ACTIONS
     "@matomezu/base:proposal-actions": typeof PROPOSAL_ACTIONS
     "@matomezu/base:wide-search-full-text": typeof FULL_TEXT_MODE

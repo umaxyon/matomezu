@@ -216,6 +216,12 @@ function placedStage({ actions, state }: MatomezuInstance, show: z.infer<typeof 
   return to
 }
 
+// POST api/screen-plugins/remove の答え
+const SCREEN_PLUGINS_REMOVED = z.union([
+  z.object({ ok: z.literal(true) }),
+  z.object({ ok: z.literal(false), id: z.string(), reason: z.string() }),
+])
+
 const DataSchema = z.object({
   pages: z.array(z.object({ id: z.string(), page: z.unknown(), version: z.number().int() })),
   folders: z.array(z.object({ id: z.string(), folder: z.unknown(), version: z.number().int() })),
@@ -703,6 +709,8 @@ export function serverClient(net: Net = browserNet): HostClient {
   const closeEvents = () => {
     quietTimer?.()
     quietTimer = null
+    offlineTimer?.()
+    offlineTimer = null
     events?.close()
   }
   // 知らせにつなぎ、最初の hello を待つ。つながらなければ NoServer
@@ -755,6 +763,22 @@ export function serverClient(net: Net = browserNet): HostClient {
     reportWarnings: list => {
       warnings = list
       tellWarnings()
+    },
+    closeEvents: () => closeEvents(),
+    removeScreenPlugins: async ids => {
+      const res = await net
+        .fetch("api/screen-plugins/remove", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids }),
+        })
+        .catch(() => null)
+      if (!res) return { state: "unreachable" }
+      if (!res.ok) fail("E405", { status: `${res.status}` })
+      const answer = SCREEN_PLUGINS_REMOVED.parse(await res.json())
+      if (!answer.ok) return { state: "refused", id: answer.id, reason: answer.reason }
+      net.reload()
+      return { state: "removed" }
     },
     visible: () => net.visible(),
     search: async q => {

@@ -956,3 +956,62 @@ test("準備中でない参加者の知らせは、同じ id を重ねて持た�
   s.emit("participant-ready", { participant: "p2" })
   expect(ready()).toEqual(["p1", "p2"])
 })
+
+// 外す口だけを試すホストクライアント: api/screen-plugins/remove に answer を返し（null ならつながらない）、頼まれた本文と読み直した数を残す
+function removing(answer: { status: number; body: unknown } | null) {
+  const sent: unknown[] = []
+  let reloads = 0
+  const host = serverClient({
+    fetch: async (url, init) => {
+      if (url !== "api/screen-plugins/remove") throw new Error(`unexpected ${url}`)
+      sent.push(JSON.parse(String(init?.body)))
+      if (!answer) throw new TypeError("Failed to fetch")
+      return new Response(JSON.stringify(answer.body), { status: answer.status })
+    },
+    events: () => ({ on: () => {}, onError: () => {}, close: () => {} }),
+    focused: () => false,
+    onFocus: () => () => {},
+    visible: () => true,
+    onVisible: () => () => {},
+    importModule: async () => ({}),
+    addStyle: () => {},
+    reload: () => {
+      reloads++
+    },
+    later: () => () => {},
+    newKey: () => "k",
+    now: () => 0,
+  })
+  return { host, sent, reloads: () => reloads }
+}
+
+test("組み込めなかった追加プラグインを外すと頼み、全部外せたら窓を読み直して removed", async () => {
+  const { host, sent, reloads } = removing({ status: 200, body: { ok: true } })
+  expect(await host.removeScreenPlugins(["ex2", "ex3"])).toEqual({ state: "removed" })
+  expect(sent).toEqual([{ ids: ["ex2", "ex3"] }])
+  expect(reloads()).toBe(1)
+})
+
+test("外せなかった物があれば、その id と理由で refused（読み直さない）。つながらなければ unreachable、常駐が断れば E405", async () => {
+  const refused = removing({ status: 200, body: { ok: false, id: "ex3", reason: "busy" } })
+  expect(await refused.host.removeScreenPlugins(["ex2", "ex3"])).toEqual({
+    state: "refused",
+    id: "ex3",
+    reason: "busy",
+  })
+  expect(refused.reloads()).toBe(0)
+  expect(await removing(null).host.removeScreenPlugins(["ex2"])).toEqual({ state: "unreachable" })
+  await expect(removing({ status: 403, body: {} }).host.removeScreenPlugins(["ex2"])).rejects.toMatchObject({
+    code: "E405",
+  })
+})
+
+test("closeEvents は知らせのつながりを閉じる", async () => {
+  const server = fakeServer()
+  const loading = server.host.load()
+  server.emit("hello", { client: "c1" })
+  await loading
+  const before = server.closed()
+  server.host.closeEvents()
+  expect(server.closed()).toBe(before + 1)
+})

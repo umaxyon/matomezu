@@ -1,4 +1,4 @@
-// warning の表: 止めるほどではない間違い。止めずに、その物（定義の 1 行・ブック 1 冊・画面が組めずに外した追加プラグインなど）だけを効かなくする。
+// warning の表: 止めるほどではない間違い。止めずに、その物（定義の 1 行・ブック 1 冊など）だけを効かなくする。
 // error（core/errors.ts）と違い、止めない（インスタンスは作り、ほかは動く）。
 // 番号は一度付けたら変えず、消した番号も使い回さない。文は開発者に向けたもので、画面には出さない。{name} は渡す値で置き換える
 export const WARNINGS = {
@@ -11,7 +11,6 @@ export const WARNINGS = {
   W007: "book {book} ({title}): it has {missing}, not in the catalog (kept as they are)",
   W008: "key {key} in {scope} for {command}: a builtin plugin's key is there (not used)",
   W010: "layout {layout}: {kind} {id} is skipped, as its plugin is not there",
-  W011: "the screen did not add it ({reason}); its actions still work on the host, but nothing it draws is shown",
   W012: "tool {tool}: performs {action}, which is not in the catalog",
   W013: "controlCenter {controlCenter}: fixedUserSettings names {setting}, which is not a user setting",
   W014: "theme {theme}: textColors names {textColor}, which is not in the catalog",

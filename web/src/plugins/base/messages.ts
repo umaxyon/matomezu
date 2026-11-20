@@ -27,6 +27,7 @@ import { SEARCH_MESSAGES } from "./search/messages"
 import { SETTINGS_MESSAGES } from "./settings/messages"
 import { STAGE_MESSAGES } from "./stage/messages"
 import { ASK_MESSAGES } from "./stand/messages"
+import { STARTUP_ERROR_MESSAGES } from "./startup-error/messages"
 import { TEXT_MESSAGES } from "./text/messages"
 import { TOOL_PICKER_MESSAGES } from "./tool-picker/messages"
 import { TOOL_SWITCH_MESSAGES } from "./tool-switch/messages"
@@ -74,4 +75,5 @@ export const BASE_MESSAGES = joinMessages(
   ASK_MESSAGES,
   HISTORY_MESSAGES,
   OPEN_GUIDE_MESSAGES,
+  STARTUP_ERROR_MESSAGES,
 )
