@@ -2,9 +2,8 @@
 // タスクボードの出入りは useBoardPhases の様子（phase）で動かす。タスクボードかレーンを最大化すると、ほかのタスクボードは畳み、枠にも最大化を知らせる（左と下を退かせる）
 import { useState } from "react"
 import { useAllowedOn, useMessages, usePluginState, useRecords, useUpdatePluginState } from "../../../plugin-api/ui"
-import { IconButton, TitledArea, useControlCenterMaximize } from "../../base/ui"
+import { GearIcon, IconButton, TitledArea, useControlCenterMaximize } from "../../base/ui"
 import { WORKROOM_SUBJECT } from "../by"
-import { GearIcon } from "../icons"
 import { kit } from "../kit"
 import { PROJECT } from "../project"
 import { PROJECT_UPDATE } from "../project/actions"
