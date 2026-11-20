@@ -3,7 +3,11 @@ package server
 // ブック（本文）の並び（lineup）を歩く口。エントリは、ページ（"kind": "page"）か、1 つのタイプのページだけを入れるバインダ（"kind": "binder"。中の並びも lineup）。
 // サーバーがブックの本文の中のページを読む・替えるのは、ここを通す（バインダの中のページも、並びの順に歩く）
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/umaxyon/matomezu/internal/storage"
+)
 
 // binderEntry は、並びのバインダ（フィールドの順は保存の形と同じ）
 type binderEntry struct {
@@ -39,9 +43,9 @@ func pagesOfBook(body json.RawMessage) []json.RawMessage {
 	out := []json.RawMessage{}
 	for _, e := range lineupOf(body) {
 		switch kindOf(e) {
-		case "page":
+		case storage.KindPage:
 			out = append(out, e)
-		case "binder":
+		case storage.KindBinder:
 			var f binderEntry
 			if json.Unmarshal(e, &f) == nil {
 				out = append(out, f.Lineup...)
@@ -75,13 +79,13 @@ func mapLineup(
 	out := make([]json.RawMessage, 0, len(entries))
 	for _, e := range entries {
 		switch kindOf(e) {
-		case "page":
+		case storage.KindPage:
 			p, err := page(e)
 			if err != nil {
 				return nil, err
 			}
 			out = append(out, p)
-		case "binder":
+		case storage.KindBinder:
 			var f binderEntry
 			if json.Unmarshal(e, &f) != nil {
 				out = append(out, e)

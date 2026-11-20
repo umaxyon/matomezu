@@ -2,22 +2,15 @@
 import { expect, test } from "bun:test"
 import { checkBooks, readLibrary } from "../../web/src/core/book"
 import { HOME_ID, rawBooksOf, treeHolds } from "../../web/src/core/folders"
-import type { AnyPage, UnreadableEntry } from "../../web/src/core/schema/book"
+import type { AnyPage } from "../../web/src/core/schema/book"
 import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { CORE_CATALOG, worldRows } from "../support"
 
 const UNKNOWN = "@foo/stamps:board"
 const stranger = (id: string, title = id, type = UNKNOWN) => ({ ...drawingPage(id), type, title }) as never as AnyPage
 const connector = { id: "l", item: "@matomezu/line:connector-line", from: "a", to: "b", props: {} }
-const unreadable = (id: string, title: string, code: UnreadableEntry["code"], type: string): UnreadableEntry => ({
-  kind: "unreadable",
-  id,
-  title,
-  code,
-  type,
-})
 const read = (rows: { pages: unknown[]; folders: unknown[] }) => readLibrary(CORE_CATALOG, rows.pages, rows.folders)
-const book = () => testBook("b1", "ブック", [drawingPage("p1"), stranger("u1", "U")])
+const book = () => testBook("b1", "ブック", [drawingPage("p1")])
 
 test("ブックの中は checkBooks と同じに読み、ブックの外のページは、読めるならタイプの形で読んだページのまま表に残す。木の決まりは守られる", () => {
   const rows = worldRows([book()], [drawingPage("x1", { title: "外" })])
@@ -28,11 +21,11 @@ test("ブックの中は checkBooks と同じに読み、ブックの外のペ�
   expect(done.partial).toEqual(checked.partial)
   expect(done.outsideWarnings).toEqual([])
   expect(done.library.pages.x1).toEqual(drawingPage("x1", { title: "外" }))
-  expect(Object.keys(done.library.pages).sort()).toEqual(["p1", "u1", "x1"])
+  expect(Object.keys(done.library.pages).sort()).toEqual(["p1", "x1"])
   expect(treeHolds(done.library)).toBe(true)
 })
 
-test("ブックの外の読めないページ（タイプが機能台帳に無い・形に合わない・決まりを守らない）は、読めないページのエントリで表に残り、warning はブックの外の全体で理由ごとに 1 つ（ブックの id と名前は無い）", () => {
+test("ブックの外の読めないページ（タイプが機能台帳に無い・形に合わない・決まりを守らない）は表に入らず（木の決まりが破れて見える）、warning はブックの外の全体で理由ごとに 1 つ（ブックの id と名前は無い）", () => {
   const rows = worldRows(
     [],
     [
@@ -44,19 +37,14 @@ test("ブックの外の読めないページ（タイプが機能台帳に無�
     ],
   )
   const done = read(rows)
-  expect(["x1", "x3", "x4", "x5"].map(id => done.library.pages[id])).toEqual([
-    unreadable("x1", "x1", "W027", UNKNOWN),
-    unreadable("x3", "x3", "W027", "@bar/other:t"),
-    unreadable("x4", "ページ 1", "W028", "@matomezu/drawing:drawing"),
-    unreadable("x5", "線", "W029", "@matomezu/drawing:drawing"),
-  ])
+  expect(Object.keys(done.library.pages)).toEqual([])
   expect(done.outsideWarnings.map(w => [w.code, w.plugin, w.params])).toEqual([
-    ["W027", "@foo/stamps", { pages: "2", type: UNKNOWN }],
-    ["W027", "@bar/other", { pages: "1", type: "@bar/other:t" }],
+    ["W027", "", { pages: "2", type: UNKNOWN }],
+    ["W027", "", { pages: "1", type: "@bar/other:t" }],
     ["W028", "", { pages: "1" }],
     ["W029", "", { pages: "1" }],
   ])
-  expect(treeHolds(done.library)).toBe(true)
+  expect(treeHolds(done.library)).toBe(false)
 })
 
 test("機能台帳に無いアイテムを持つブックの外のページは読め、warning W007 はブックの外の全体で 1 つ", () => {
@@ -75,8 +63,14 @@ test("機能台帳に無いアイテムを持つブックの外のページは�
   ])
 })
 
-test("ブックの外のバインダは、バインダの決まりを守れば中のページごと表に入る（中の読めないページも入る）", () => {
-  const binder = testBinder("lb", "束", SLIDE, testPage(SLIDE, "y1", { title: "1" }), stranger("y2", "2"))
+test("ブックの外のバインダは、バインダの決まりを守れば中のページごと表に入る", () => {
+  const binder = testBinder(
+    "lb",
+    "束",
+    SLIDE,
+    testPage(SLIDE, "y1", { title: "1" }),
+    testPage(SLIDE, "y2", { title: "2" }),
+  )
   const done = read(worldRows([], [binder]))
   expect(done.library.folders.lb).toEqual({
     folderRole: "binder",
@@ -88,8 +82,8 @@ test("ブックの外のバインダは、バインダの決まりを守れば�
       { kind: "page", id: "y2" },
     ],
   })
-  expect(done.library.pages.y2).toEqual(unreadable("y2", "2", "W027", UNKNOWN))
-  expect(done.outsideWarnings.map(w => w.code)).toEqual(["W027"])
+  expect(done.library.pages.y2?.kind).toBe("page")
+  expect(done.outsideWarnings).toEqual([])
   expect(treeHolds(done.library)).toBe(true)
 })
 
@@ -130,14 +124,14 @@ test("並びが表に無い行を指すと、その行は表に入らず、木�
   expect(treeHolds(loose.library)).toBe(true)
 })
 
-test("読めないブックのページの行は、ブックの外のページにならず表に入らない（ブックを指す並びは、表に無いブックも通す）", () => {
+test("読めないブックのページの行は、ブックの外のページにならず表に入らない（読めないブックを指す並びは、木の決まりを破って見える）", () => {
   const broken = testBook("b2", "壊", [drawingPage("q1"), drawingPage("q2", { title: "ページ 1" })])
   const rows = worldRows([book(), broken], [drawingPage("x1")])
   const done = read(rows)
   expect(done.warnings.map(w => [w.code, w.params.book])).toEqual([["W006", "b2"]])
   expect(["q1", "q2"].some(id => id in done.library.pages)).toBe(false)
   expect(done.library.folders[HOME_ID]?.lineup.map(r => r.id)).toEqual(["b1", "b2", "x1"])
-  expect(treeHolds(done.library)).toBe(true)
+  expect(treeHolds(done.library)).toBe(false)
 })
 
 test("書庫ホームもフォルダも無ければ、読めるブックの表だけ", () => {

@@ -153,23 +153,24 @@ export function viewOf(catalog: CoreCatalog, state: MatomezuState) {
 }
 
 // 利用者が直している物（useEditLock）を、ページかブックの id → その中の物の id の並びにまとめたもの（常駐はこれを変える AI のアクションを断る）
-export function editLocksOf(state: MatomezuState): Record<string, string[]> {
-  const locks: Record<string, string[]> = {}
-  for (const l of Object.values(state.editLocks)) {
-    if (!("within" in l)) continue
-    const now = locks[l.within] ?? []
-    locks[l.within] = [...now, ...l.ids.filter(id => !now.includes(id))]
-  }
-  return locks
-}
+export const editLocksOf = (state: MatomezuState): Record<string, string[]> =>
+  groupLocks(state, l => ("within" in l ? l.within : undefined))
 
 // 利用者が直しているレコード（useRecordEditLock）を、対象の種類の id → レコードの id の並びにまとめたもの（常駐はこれを変える AI のアクションを断る）
-export function recordLocksOf(state: MatomezuState): Record<string, string[]> {
+export const recordLocksOf = (state: MatomezuState): Record<string, string[]> =>
+  groupLocks(state, l => ("subject" in l ? l.subject : undefined))
+
+// 利用者が直している物を、keyOf が答えた id ごとに、直している物の id の並び（重なりを除く）にまとめる（答えない物は入れない）
+function groupLocks(
+  state: MatomezuState,
+  keyOf: (lock: MatomezuState["editLocks"][string]) => string | undefined,
+): Record<string, string[]> {
   const locks: Record<string, string[]> = {}
   for (const l of Object.values(state.editLocks)) {
-    if (!("subject" in l)) continue
-    const now = locks[l.subject] ?? []
-    locks[l.subject] = [...now, ...l.ids.filter(id => !now.includes(id))]
+    const key = keyOf(l)
+    if (key === undefined) continue
+    const now = locks[key] ?? []
+    locks[key] = [...now, ...l.ids.filter(id => !now.includes(id))]
   }
   return locks
 }
@@ -215,6 +216,12 @@ function placedStage({ actions, state }: MatomezuInstance, show: z.infer<typeof 
   if (show.page) actions.openPage(to, show.page)
   return to
 }
+
+// POST api/screen-plugins/remove の答え
+const SCREEN_PLUGINS_REMOVED = z.union([
+  z.object({ ok: z.literal(true) }),
+  z.object({ ok: z.literal(false), id: z.string(), reason: z.string() }),
+])
 
 const DataSchema = z.object({
   pages: z.array(z.object({ id: z.string(), page: z.unknown(), version: z.number().int() })),
@@ -268,7 +275,7 @@ const ParticipantLiveSchema = z.object({
   branch: z.string().optional(),
 })
 const TouchedSchema = z.object({ book: z.string(), at: z.string() })
-const AnnotationsSchema = z.object({ page: z.string(), annotations: z.unknown(), ...Mark })
+const AnnotationsSchema = z.object({ page: z.string(), annotations: z.unknown() })
 
 export function serverClient(net: Net = browserNet): HostClient {
   // 確かめた世界のページとフォルダ（id → 置き場所から読んだままの中身と版）
@@ -660,7 +667,6 @@ export function serverClient(net: Net = browserNet): HostClient {
       noticed(() => {
         annotations = withPageAnnotations(e.page, e.annotations)
       })
-      settle(e)
       show()
     })
     on("show", data => {
@@ -703,6 +709,8 @@ export function serverClient(net: Net = browserNet): HostClient {
   const closeEvents = () => {
     quietTimer?.()
     quietTimer = null
+    offlineTimer?.()
+    offlineTimer = null
     events?.close()
   }
   // 知らせにつなぎ、最初の hello を待つ。つながらなければ NoServer
@@ -716,11 +724,11 @@ export function serverClient(net: Net = browserNet): HostClient {
         closeEvents()
         throw e
       })
-      // 1 つが読み込めなくても、ほかのプラグインとブックは読む（読み込めた物だけ CSS も足す）
+      // 1 つが読み込めなくても、ほかのプラグインとブックは読み、読み込めなかった物は理由と一緒に返す（読み込めた物だけ CSS も足す。画面の入口は、それが在れば起動を止める）
       const settled = await Promise.allSettled(
         plugins.map(async p => {
           const ui: unknown = (await net.importModule(p.ui)).default
-          // default で、manifest と同じ id のプラグインを出していなければ、その追加プラグインだけを外す（ホストのエンジンと同じ確かめ）
+          // default で、manifest と同じ id のプラグインを出していなければ、読み込めなかった物にする（ホストのエンジンと同じ確かめ）
           if (typeof ui !== "object" || ui === null || (ui as { id?: unknown }).id !== p.id)
             fail("E316", { plugin: p.id })
           if (p.css) net.addStyle(p.css)
@@ -755,6 +763,22 @@ export function serverClient(net: Net = browserNet): HostClient {
     reportWarnings: list => {
       warnings = list
       tellWarnings()
+    },
+    closeEvents: () => closeEvents(),
+    removeScreenPlugins: async ids => {
+      const res = await net
+        .fetch("api/screen-plugins/remove", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids }),
+        })
+        .catch(() => null)
+      if (!res) return { state: "unreachable" }
+      if (!res.ok) fail("E405", { status: `${res.status}` })
+      const answer = SCREEN_PLUGINS_REMOVED.parse(await res.json())
+      if (!answer.ok) return { state: "refused", id: answer.id, reason: answer.reason }
+      net.reload()
+      return { state: "removed" }
     },
     visible: () => net.visible(),
     search: async q => {

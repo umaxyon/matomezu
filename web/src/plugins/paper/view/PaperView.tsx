@@ -66,7 +66,6 @@ import {
   minSize,
   onlySelected,
   placedSize,
-  resizedBy,
   roomOf,
   shapeDefOf,
   shownRects,
@@ -93,6 +92,7 @@ import {
   trackDrag,
 } from "../placing"
 import { settledDraft } from "../placing/draft"
+import { sizedTo, stretchedBy } from "../placing/items"
 import { REPARENT_TOOL } from "../tools"
 import styles from "./PaperView.module.css"
 import { type Placing, usePlaceTarget } from "./use-place-target"
@@ -424,13 +424,9 @@ function PageItems({
     const item = findShape(shownPage, placed.id)?.shape ?? placed
     const st = stretch.current
     if (!st || st.item !== item.id || !paper) return item
-    const ratio = shapeDefOf(catalog, item.item)?.[kit.name("stretch")] === "ratio"
-    const to = resizedBy(catalog, item, st.edges, toPaperDelta(stage, stretched), paper, ratio)
-    if (!to) return item
+    const to = stretchedBy(catalog, item, st.edges, toPaperDelta(stage, stretched), paper)
     // 大きさを項目に写す形は、写した項目で描く（w・h を書いても、大きさは項目から決まるため）
-    const write = shapeDefOf(catalog, item.item)?.resizedTo
-    const sized = write ? (write(item as never, to) as PlacedShape) : { ...item, w: to.w, h: to.h }
-    return { ...sized, x: to.x, y: to.y }
+    return to ? { ...sizedTo(catalog, item, to), x: to.x, y: to.y } : item
   }
   const resizing = stretch.current && (stretched.x !== 0 || stretched.y !== 0) ? stretch.current.item : null
   const selectable = !pans && stage.placing === null

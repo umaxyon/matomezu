@@ -28,7 +28,7 @@ func (h *Hub) annotatedBooks(ids []string) ([]engine.AnnotatedBook, []string) {
 	for _, id := range ids {
 		e, ok := h.books[id]
 		lists := h.annotationsIn(id)
-		if !ok || h.inTrash(id) || len(lists) == 0 {
+		if !ok || h.outOfSight(id) || len(lists) == 0 {
 			continue
 		}
 		pairs = append(pairs, engine.AnnotatedBook{Book: e.body, Annotations: lists})
@@ -81,16 +81,13 @@ func (h *Hub) AIPage(book, page json.RawMessage) (json.RawMessage, error) {
 	return h.engine.AIPage(book, page)
 }
 
-// AIBook は、AI に見せるブック（本文）: 並びの全部のページ（バインダの中も）を AIPage に通す。読めないページは unreadableEntry にする（読めない形のブックは、渡したまま返す）
+// AIBook は、AI に見せるブック（本文）: 並びの全部のページ（バインダの中も）を AIPage に通す（読めない形のブックは、渡したまま返す）
 func (h *Hub) AIBook(book json.RawMessage) (json.RawMessage, error) {
 	lineup := lineupOf(book)
 	if lineup == nil {
 		return book, nil
 	}
 	shown, err := mapLineup(lineup, func(p json.RawMessage) (json.RawMessage, error) {
-		if code, ok := h.UnreadablePage(pageID(p)); ok {
-			return unreadableEntry(p, code)
-		}
 		return h.AIPage(book, p)
 	}, nil)
 	if err != nil {
@@ -131,7 +128,7 @@ func (o Options) annotationsOf(book string) ([]json.RawMessage, error) {
 }
 
 // aiPage は、1 ページ（{"book", "folder", "page", "version", "annotations", "placed"}。book はそのページを持っているブックの id、folder はそのページが入っているフォルダ（ブックの直下ならブック、バインダの中ならバインダ）の id、version はそのページの版、annotations はそのページの物に立つもの、
-// placed はそのページの形の描いた位置と大きさ。プレゼンテーションが答えなければ null）。読めないページは {"ok": false, "reason": "unreadable", "code"} で断る
+// placed はそのページの形の描いた位置と大きさ。プレゼンテーションが答えなければ null）
 func (o Options) aiPage(w http.ResponseWriter, r *http.Request) {
 	want := r.PathValue("page")
 	b := o.Hub.Book(o.Hub.BookOn(&engine.On{Page: want}))
@@ -150,10 +147,6 @@ func (o Options) aiPage(w http.ResponseWriter, r *http.Request) {
 	}
 	if page == nil {
 		http.Error(w, "no such page", http.StatusNotFound)
-		return
-	}
-	if code, ok := o.Hub.UnreadablePage(want); ok {
-		writeUnreadable(w, code)
 		return
 	}
 	folder := o.Hub.FolderOfPage(want)

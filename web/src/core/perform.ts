@@ -8,12 +8,9 @@ import { type Annotation, type Annotations, annotationsSettle, type PageAnnotati
 import {
   distinctBooks,
   findPage,
-  findUnreadable,
   holds,
   keepsPageTypes,
   keepsPageTypesAcross,
-  lostUnreadable,
-  lostUnreadableOutside,
   pageSettles,
   pagesOf,
   putPage,
@@ -47,7 +44,7 @@ import {
   type Where,
 } from "./def/action"
 import type { PagePermissionCheck, PlaceChange, Referred } from "./def/permission"
-import type { SubjectDef } from "./def/subject"
+import { type SubjectDef, shownToAI } from "./def/subject"
 import {
   binnedBetween,
   clashedSystemFolder,
@@ -88,7 +85,7 @@ import { type RecordSource, readFrom, SOURCE, sourceIn, sourceOf, type WithSourc
 import { type Counters, NO_RECORD, RECORDS_MAX, REMOVED, type RecordChange, type Records } from "./records"
 import { referredOf } from "./refs"
 import { sameData } from "./same"
-import type { Book, UnreadableCode, UnreadableEntry } from "./schema/book"
+import type { Book } from "./schema/book"
 import { langChosen, type Settings } from "./settings"
 import { settledAfter } from "./settle"
 
@@ -133,12 +130,9 @@ export type NotAllowed = {
 }
 // 宛先のページが無い（ブックのどこにも無い・ゴミ箱のブックにある・2 冊にある）。detail は AI への説明に載る英語の文
 export type NoPage = { ok: false; reason: "no-page"; detail: string }
-// 読めないページには何もできない: 宛先が読めないページ page か、アクションが読めないページ page を変えよう（動かす・消す・足す）とした。code は読めない理由の warning の番号
-export type Unreadable = { ok: false; reason: "unreadable"; page: string; code: UnreadableCode }
 export type Refused =
   | { ok: false; reason: Exclude<Refusal, "not-allowed" | "refused"> }
   | NoPage
-  | Unreadable
   // kind は断りの種類（run が添えた名前か、土台の種類。土台の種類は名前空間が付かない）。systemFolder は、名前が重なる断り（title-taken）で、重なった相手がシステムフォルダのときの、その印（定義の id）
   | { ok: false; reason: "refused"; detail?: string; kind?: string; systemFolder?: string }
   | NotAllowed
@@ -226,10 +220,10 @@ type PageCheck = Omit<PagePermissionCheck, "kind" | "action" | "actor">
 const pagePlaceIn = (library: Library, id: string): "book" | "outside" | undefined =>
   !(id in library.pages) ? undefined : bookIdOf(library.folders, id) === undefined ? "outside" : "book"
 
-// 書庫 library のページ id の、認可ステップに見せる値（読めないページと、ゴミ箱の中のページは無い物）
+// 書庫 library のページ id の、認可ステップに見せる値（ゴミ箱の中のページは無い物）
 function checkedPage(library: Library, id: string): ItemPage | undefined {
   const row = library.pages[id]
-  return row?.kind === "page" && !inTrash(library.folders, id) ? row : undefined
+  return row && !inTrash(library.folders, id) ? row : undefined
 }
 
 // 書庫が was から now に変わる間の、ブックの外で変わったページと、ブックとの間を出入りしたページの確かめ（ブックの中だけに在ったページは入れない）。
@@ -298,10 +292,10 @@ export type LibraryAsk = { book: Book; where: Where } | { page: AskedPage }
 // エントリから出した問う相手（ブックは id）
 type EntryAsk = { book: string; where: Where } | { page: AskedPage }
 
-// 書庫 library のブックの外のページ id を、エントリの変え方 how で問う相手（読めないページには問わない）
+// 書庫 library のブックの外のページ id を、エントリの変え方 how で問う相手（表に無いページには問わない）
 function outsidePageAsk(library: Library, id: string, how: EntryWhere): EntryAsk[] {
   const row = library.pages[id]
-  if (row?.kind !== "page") return []
+  if (!row) return []
   return [{ page: { page: row, folders: permissionFoldersOf(library.folders, id), where: { entry: how } } }]
 }
 
@@ -436,13 +430,13 @@ export function brokenIn(
 }
 
 // 書庫が対象のアクションが返した書庫 after の、変わったページ（ブックの中でも外でも）を 1 枚ずつ、行う前の書庫 was の同じページと比べて整えた書庫
-// （どれかが整えられなければ null）。読めないページの行は整えない
+// （どれかが整えられなければ null）
 function normalizedLibrary(catalog: CoreCatalog, action: ActionDef, was: Library, after: Library): Library | null {
   const tidied: Record<string, PageRow> = {}
   for (const [id, row] of Object.entries(after.pages)) {
     const prev = was.pages[id]
-    if (row === prev || row.kind !== "page") continue
-    const done = normalizedPage(catalog, action, prev?.kind === "page" ? prev : undefined, row)
+    if (row === prev) continue
+    const done = normalizedPage(catalog, action, prev, row)
     if (!done) return null
     if (done !== row) tidied[id] = done as PageRow
   }
@@ -562,20 +556,6 @@ function permits(
   return !args.success && answer.value === false && decidedByPlace(answer) ? { ok: true } : answerOf(answer)
 }
 
-// ブックが対象のアクション action の許可スコープが、引数で名指す所（ページ・エントリ・1 枚ごとに問うページ）のうち、最初の読めないページ（無ければ null）。
-// 読めないページには何もできないので、行う前に断る
-function namedUnreadable(
-  action: ActionDef,
-  book: Book,
-  args: { success: true; data: unknown } | { success: false },
-): UnreadableEntry | null {
-  if (!args.success) return null
-  const where = placeOf(action, args)
-  const each = pagesScopeOf(action.permissionScope as AnyPermissionScope | undefined, args.data)
-  const ids = [...(where?.page ? [where.page] : []), ...(where?.entries ?? []), ...(Array.isArray(each) ? each : [])]
-  return ids.map(id => findUnreadable(book, id)?.entry).find(e => e !== undefined) ?? null
-}
-
 // ブックが対象のアクション action が、引数で名指す所（引数が形に合わなければ、分からない）
 const placeOf = (action: ActionDef, args: { success: true; data: unknown } | { success: false }): Where | undefined =>
   args.success ? scopeOf(action.permissionScope as AnyPermissionScope | undefined, args.data) : undefined
@@ -619,17 +599,10 @@ function answerOf(answer: Inspected<boolean>): Permitted {
 }
 
 // 対象 subject に、アクション id を引数 args で行えるかを、行う前に問う（perform の行う前の確かめと同じ答え。run は回さない）
-export function permitted(
-  subject: unknown,
-  id: string,
-  args: unknown,
-  ctx: PermitContext,
-): Permitted | Refused | Unreadable {
+export function permitted(subject: unknown, id: string, args: unknown, ctx: PermitContext): Permitted | Refused {
   const action: ActionDef | undefined = ctx.catalog.actions.get(id)
   if (!action) return { ok: false, reason: "unknown" }
   const parsed = action.args.safeParse(args)
-  const named = action.target === "book" ? namedUnreadable(action, subject as Book, parsed) : null
-  if (named) return unreadable(named)
   const answer = permits(ctx, action, subject as Subjects[keyof Subjects], parsed)
   return answer.ok ? { ok: true } : answer
 }
@@ -694,8 +667,6 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
   const before =
     action.target === "book" ? (subject as Book) : action.target === "page" ? (subject as PageInBook).book : undefined
   const parsed = action.args.safeParse(args)
-  const named = action.target === "book" ? namedUnreadable(action, subject as Book, parsed) : null
-  if (named) return unreadable(named)
   const permitted = permits(ctx, action, subject, parsed)
   if (!permitted.ok) return permitted
   if (!parsed.success) return { ok: false, reason: "bad-args" }
@@ -731,8 +702,6 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
       : null
   if (permission) return { ok: false, reason: "denied", permission }
   if (before) {
-    const lost = lostUnreadable(before, done.next as Book)
-    if (lost) return unreadable(lost)
     // ページのタイプは作ったあと変えない（アクションが替えていたら断る）
     if (!settles(ctx.catalog, done.next as Book) || !keepsPageTypes(before, done.next as Book))
       return { ok: false, reason: "refused" }
@@ -750,14 +719,6 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
     )
     if (!shaped) return { ok: false, reason: "refused" }
     if (!systemFoldersKept(ctx.catalog, subject as Library, next as Library)) return { ok: false, reason: "refused" }
-    // 残るブックの読めないページは、そのまま（無くなるのは、ブックごと消すときだけ。作るブックには入れられない）
-    for (const b of Object.values(now)) {
-      const lost = was[b.id] === b ? null : lostUnreadable(was[b.id], b)
-      if (lost) return unreadable(lost)
-    }
-    // ブックの外の読めないページも、そのまま（同じフォルダに同じ値で残る）
-    const lostOutside = lostUnreadableOutside(subject as Library, next as Library)
-    if (lostOutside) return unreadable(lostOutside)
     // 行う前から在るページのタイプも、変えない（ページがブックの間を動いても）
     const typesKept = keepsPageTypesAcross(Object.values(was), Object.values(now))
     // 同じ入れ物の中の名前の重なりは、ブックの決まりで断る前に、名前が重なる断りにする
@@ -908,25 +869,17 @@ export type PerformedIn =
 
 // ページかアノテーションが対象のアクションの宛先（on のページ）と、そのページを持っているブック（どのブックにも入っていなければ、そのページと、認可ステップに見せるフォルダの列）。
 // performIn と permittedIn で同じ決まりを使う。ゴミ箱の中のページ（ゴミ箱のブックのページも）は、無いものとする
-function targetPageIn(world: World, on: ActionOn | undefined): PageAt | NoPage | Unreadable {
+function targetPageIn(world: World, on: ActionOn | undefined): PageAt | NoPage {
   const page = (on && "page" in on ? on.page : undefined) ?? ""
   const row = world.pages[page]
   if (!row || inTrash(world.folders, page)) return noPage(page)
   const id = bookIdOf(world.folders, page)
   const book = id === undefined ? undefined : bookOf(world, id)
   if (id !== undefined && !book) return noPage(page)
-  if (row.kind === "unreadable") return unreadable(row)
   return book
     ? { book, page }
     : { book: NOT_IN_BOOK, page, held: row, folders: permissionFoldersOf(world.folders, page) }
 }
-
-const unreadable = (entry: UnreadableEntry): Unreadable => ({
-  ok: false,
-  reason: "unreadable",
-  page: entry.id,
-  code: entry.code,
-})
 
 // on.record に指した id のレコードが無いときの断り: どの種類のどの id が無いか。AI に見える種類なら、直し方（一覧の引き方）と種類の説明（id が何の id か）も
 function noRecord(
@@ -936,7 +889,7 @@ function noRecord(
 ): { ok: false; reason: "no-record"; detail: string } {
   const def = catalog.subjects.get(target)
   // AI に見せる種類（aiBrief を書いた種類）だけ、一覧の引き方と種類の説明を言う
-  const shown = def?.aiBrief !== undefined
+  const shown = def !== undefined && shownToAI(def)
   const list = shown ? `; read_records with kind ${target} lists the records` : ""
   const about = shown ? ` About that subject: ${def.aiDescription}` : ""
   return {

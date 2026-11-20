@@ -27,7 +27,7 @@ import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG } from "./dialog"
 import { holderForNew } from "./entries"
 import { FoundView } from "./FoundView"
 import { HistoryButtons } from "./HistoryButtons"
-import { useKeepFocusIn, useLibraryRows, useNameOf } from "./hooks"
+import { outsideRow, useKeepFocusIn, useLibraryRows, useNameOf } from "./hooks"
 import { CHEVRON, RowIcon, TRASH } from "./icons"
 import styles from "./LibraryView.module.css"
 import { MoveClashConfirm } from "./MoveClashConfirm"
@@ -117,7 +117,12 @@ export function LibraryView({ className }: { className?: string } = {}) {
   const setQuery = useSetPluginState(kit, LIBRARY_QUERY)
   const [typed, setTyped] = useState(query ?? "")
   const searchForm = useId()
-  const reveal = (row: FoundRow) => arrive({ id: row.id, holder: row.holder, holds: holdsRows(row) })
+  // 検索の結果を押した回数: 同じ行を押し直しても、ツリーをその行まで送り直す
+  const [reveals, setReveals] = useState(0)
+  const reveal = (row: FoundRow) => {
+    arrive({ id: row.id, holder: row.holder, holds: holdsRows(row) })
+    setReveals(n => n + 1)
+  }
   const openEntryMenu = useContextMenu(LIBRARY_ENTRY_CONTEXT)
   const openFolderMenu = useContextMenu(LIBRARY_FOLDER_CONTEXT)
   const { drag, asking, onPointerDown, answered } = useLibraryDrag(root, id => {
@@ -168,13 +173,14 @@ export function LibraryView({ className }: { className?: string } = {}) {
     ].find(r => r.dataset.libraryRow === id)
     if (to && to !== at) to.focus()
   }, [current, picked])
-  // ツリーで今いる行が変わったら（検索の結果を押した・パンくずで移ったなど）、その行が見える所までツリーを送る（見えていれば動かさない）
+  // ツリーで今いる行が変わったら（パンくずで移ったなど）と、検索の結果を押すたびに、その行が見える所までツリーを送る（見えていれば動かさない）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reveals は検索の結果を押し直したときにも送るための合図
   useEffect(() => {
     const row = root.current?.querySelector<HTMLElement>(
       `[data-library-row="${CSS.escape(current)}"][data-key-scope="${LIBRARY_TREE_SCOPE}"]`,
     )
     row?.scrollIntoView({ block: "nearest" })
-  }, [current])
+  }, [current, reveals])
   const here = nameOf({ id: opened, title: titles[titles.length - 1] ?? NO_TITLE })
   return (
     <div
@@ -221,6 +227,7 @@ export function LibraryView({ className }: { className?: string } = {}) {
       <div className={styles.right}>
         {query !== undefined ? (
           <FoundView
+            key={query}
             query={query}
             current={current}
             onPick={reveal}
@@ -282,8 +289,7 @@ export function LibraryView({ className }: { className?: string } = {}) {
                 onContextMenu={e => openFolderMenu(e, { folder: opened })}
                 // 何も無い所（行の外）を押すと、選んでいる行を外す（パンくずで今のフォルダを押したときと同じ）。ドラッグのあとの click は、useLibraryDrag が止める
                 onClick={e => {
-                  if (e.target instanceof Element && e.target.closest("[data-library-row]") === null)
-                    setPicked(undefined)
+                  if (outsideRow(e.target)) setPicked(undefined)
                 }}
                 ref={measureColumns}
                 data-key-scope={LIBRARY_CONTENTS_SCOPE}

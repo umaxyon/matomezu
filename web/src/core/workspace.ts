@@ -72,8 +72,6 @@ export function mapStage(ws: Workspace, id: string, change: (s: Stage) => Stage)
   return changed ? { ...ws, stages } : ws
 }
 
-export const hasStage = (ws: Workspace, id: string): boolean => ws.stages.some(s => s.id === id)
-
 // カレントのステージの右に、何も開いていないステージ id を足す（足せなければ同じ物を返す）
 export function split(ws: Workspace, id: string): Workspace {
   if (ws.stages.length >= MAX_STAGES) return ws

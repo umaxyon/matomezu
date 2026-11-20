@@ -646,7 +646,7 @@ test("書庫のツリーで、ブックの中のページの名前を F2 で変�
   await expect.poll(() => titlesIn(b)).toEqual(["丙", "乙"])
 })
 
-test("書庫の検索は、名前に言葉を含む物を右の枠に並べる。行を押すとツリーのその行へ移り、Enter で開く。入力Formを空にすると元の表示に戻る", async ({
+test("書庫の検索は、名前に言葉を含む物を右の枠に並べる。行を押すとツリーのその行へ移り、Enter で開く。結果の枠の何も無い所を押すと結果の選んだ行が外れる。入力Formを空にすると元の表示に戻る", async ({
   page,
 }) => {
   await page.goto("/")
@@ -671,6 +671,13 @@ test("書庫の検索は、名前に言葉を含む物を右の枠に並べる�
     "true",
   )
   await expect(found.getByRole("button", { name: /検索の試しの帳面/ })).toHaveAttribute("aria-pressed", "true")
+  // 結果の枠の何も無い所を押すと、結果の選んだ行だけが外れる（ツリーの今いる行はそのまま）
+  await page.getByRole("status").click()
+  await expect(found.locator('[aria-pressed="true"]')).toHaveCount(0)
+  await expect(tree.getByRole("button", { name: "検索の試しの帳面", exact: true })).toHaveAttribute(
+    "aria-current",
+    "true",
+  )
   // 見つからない言葉
   await field.fill("どこにも無い名前")
   await page.getByRole("button", { name: "検索", exact: true }).click()
@@ -691,7 +698,7 @@ test("書庫の検索は、名前に言葉を含む物を右の枠に並べる�
   await expect.poll(() => urlCurrentScreen(page)).toBe(BOOK_SCREEN_DEF)
 })
 
-test("書庫の検索の結果を押すと、ツリーがはみ出していても、その行が見える所までツリーを送る", async ({ page }) => {
+test("書庫の検索の結果を押すと、ツリーがはみ出していても、その行が見える所までツリーを送る。同じ行を押し直しても送り直す", async ({ page }) => {
   await page.goto("/")
   await page.bringToFront()
   // ツリーの高さを超える数のフォルダを作り、最後のフォルダの中にブックを置く
@@ -706,32 +713,38 @@ test("書庫の検索の結果を押すと、ツリーがはみ出していて�
   const row = tree.getByRole("button", { name: "一番下の帳面", exact: true })
   await page.getByRole("textbox", { name: "名前で検索" }).fill("一番下の帳面")
   await page.keyboard.press("Enter")
-  await page
-    .getByRole("list", { name: "見つかった物" })
-    .getByRole("button", { name: /一番下の帳面/ })
-    .click()
+  const result = page.getByRole("list", { name: "見つかった物" }).getByRole("button", { name: /一番下の帳面/ })
+  await result.click()
   await expect(row).toHaveAttribute("aria-current", "true")
+  await expect(row).toBeInViewport()
+  // ツリーを上の端まで動かしてから同じ行をもう一度押しても、その行まで送り直す
+  await tree.evaluate(e => {
+    e.scrollTop = 0
+  })
+  await expect(row).not.toBeInViewport()
+  await result.click()
   await expect(row).toBeInViewport()
 })
 
 test.describe("ブックごと読めないブック", () => {
-  // 並びが並びの形でない（W005）ブック。書庫の表に行が無く、名前は読めない訳に残る
+  // 並びが並びの形でない（W005）ブック。読めない物のフォルダへ移り、書庫に入らない
   test.use({ books: [{ id: "broken-1", title: "壊れたブック", lineup: "no" }] })
 
-  test("書庫の右の枠とツリーに、読めない訳に残った名前と「読めません」が出る", async ({ page }) => {
+  test("書庫の右の枠にもツリーにも出ない", async ({ page }) => {
     await page.goto("/")
     await page.bringToFront()
     await page.getByRole("button", { name: "書庫", exact: true }).first().click()
-    const row = page.getByRole("list", { name: "書庫 の中身" }).getByRole("button", { name: /壊れたブック/ })
-    await expect(row).toContainText("読めません")
+    const list = page.getByRole("list", { name: "書庫 の中身" })
+    await expect(list.getByRole("button", { name: /ドキュメント/ })).toBeVisible()
+    await expect(list.getByRole("button", { name: /壊れたブック/ })).toHaveCount(0)
     await expect(
       page.getByRole("navigation", { name: "フォルダ" }).getByRole("button", { name: /壊れたブック/ }),
-    ).toBeVisible()
+    ).toHaveCount(0)
   })
 })
 
 test.describe("読めないページ", () => {
-  // 今の機能台帳に無いタイプのページ（外したプラグインのページのつもり）
+  // 今の機能台帳に無いタイプのページ（外したプラグインのページのつもり）。読めない物のフォルダへ移り、ブックには読めるページだけが残る
   const gone = {
     kind: "page",
     id: "gone-1",
@@ -743,7 +756,7 @@ test.describe("読めないページ", () => {
   const mixed = testBook("mixed", "混ざったブック", [drawingPage("mixed-p1")])
   test.use({ books: [{ ...mixed, lineup: [...mixed.lineup, gone] }] })
 
-  test("書庫で読めないページの行を Enter で開くと、ブックの窓が開き、読めないことを見せる", async ({ page }) => {
+  test("書庫のブックの中身に出ず、ブックのページタブにも出ない", async ({ page }) => {
     await page.goto("/")
     await page.bringToFront()
     await page.getByRole("button", { name: "書庫", exact: true }).first().click()
@@ -751,11 +764,11 @@ test.describe("読めないページ", () => {
       .getByRole("navigation", { name: "フォルダ" })
       .getByRole("button", { name: "混ざったブック", exact: true })
       .click()
-    const row = page.getByRole("list", { name: "混ざったブック の中身" }).getByRole("button", { name: /外したタイプ/ })
-    await expect(row).toContainText("読めません")
-    await row.click()
-    await page.keyboard.press("Enter")
+    const list = page.getByRole("list", { name: "混ざったブック の中身" })
+    await expect(list.getByRole("button")).toHaveCount(1)
+    await expect(list.getByRole("button", { name: /外したタイプ/ })).toHaveCount(0)
+    await list.getByRole("button").first().dblclick()
     await expect.poll(() => urlCurrentScreen(page)).toBe(BOOK_SCREEN_DEF)
-    await expect(page.locator("[data-unreadable-page]")).toContainText("このページは読めません")
+    await expect(page.getByRole("tab")).toHaveCount(1)
   })
 })

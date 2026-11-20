@@ -5,7 +5,7 @@
 import { z } from "zod"
 import { type CorePart, type ItemId, type ItemTable, PARTS, type PartDefTable, partsOf } from "./catalog"
 import { HEX } from "./color"
-import { type ActionDef, attachedTo, BASE_TARGETS } from "./def/action"
+import { type ActionDef, attachedTo, BASE_TARGETS, changesBookOnly } from "./def/action"
 import type { AnnotationDef } from "./def/annotation"
 import type { ControlCenterDef } from "./def/control-center"
 import type { EnumDef, EnumValueDef } from "./def/enum"
@@ -31,7 +31,6 @@ import type { Messages } from "./i18n/i18n"
 import { CORE_MESSAGES, LANGUAGES, type Lang, type LanguagePackDef, type MessageSetDef } from "./i18n/messages"
 import { splitId } from "./names"
 import { placedSchema } from "./placed"
-import { UNREADABLE_CODES } from "./schema/book"
 import { PageSchema } from "./schema/page"
 import { writtenValues } from "./theme"
 import { type Warning, warning } from "./warnings"
@@ -172,31 +171,23 @@ function buildPageSchema(parts: CoreCatalogParts, t: PageTypeDef): z.ZodObject {
 }
 
 // ブックのデータの形: 名前 title（1 字以上）・ロック locked・並び lineup・ブックが持つ設定の項目（holder が "outermost" の項目）。
-// エントリ 1 つは、ページ（kind が "page"。タイプごとの形のどれか）か、1 つのタイプのページだけを入れるバインダ（中身も同じ並びで、入るのはページと読めないページ）か、読めないページ
+// エントリ 1 つは、ページ（kind が "page"。タイプごとの形のどれか）か、1 つのタイプのページだけを入れるバインダ（中身も同じ並びで、入るのはページだけ）
 function buildBookSchema(parts: CoreCatalogParts, pageSchemas: ReadonlyMap<string, z.ZodObject>): z.ZodType {
   const [first, ...rest] = [...pageSchemas.values()]
   if (!first) return fail("E015")
   const page = z.discriminatedUnion("type", [first, ...rest])
-  // 読めないページ: id・名前（残したデータに無ければ空）・読めない理由の warning の番号・タイプの id（残したデータにあれば）だけ
-  const unreadable = z.strictObject({
-    kind: z.literal("unreadable"),
-    id: z.string().min(1),
-    title: z.string(),
-    code: z.enum(UNREADABLE_CODES),
-    type: z.string().optional(),
-  })
   const binderEntry = z.strictObject({
     kind: z.literal("binder"),
     id: z.string().min(1),
     title: z.string().min(1),
     pageType: z.string().min(1),
-    lineup: z.array(z.union([page, unreadable])),
+    lineup: z.array(page),
   })
   return z.strictObject({
     id: z.string().min(1),
     title: z.string().min(1),
     locked: z.literal(true).optional(),
-    lineup: z.array(z.union([page, binderEntry, unreadable])),
+    lineup: z.array(z.union([page, binderEntry])),
     ...settingsField(
       parts,
       parts.settings.filter(d => d.holder === "outermost").map(d => d.id),
@@ -215,11 +206,6 @@ function slideField(t: PageTypeDef, items: ReadonlyMap<string, ItemDef>): Record
   const unknown = z.looseObject({ id: z.string().min(1), item: z.string().refine(id => !items.has(id)) })
   const [one, ...more] = shapes
   return { slide: z.array(one ? z.union([z.discriminatedUnion("item", [one, ...more]), unknown]) : unknown).optional() }
-}
-
-// ページのタイプのデータの形（組み立てたもの）
-export function pageSchema(catalog: CoreCatalog, id: string): z.ZodObject {
-  return catalog.pageSchemas.get(id) ?? fail("E101", { id })
 }
 
 // ページのタイプは、データのタイプが表に無ければ error。ほかの定義は catalog.items.get(id) などで引き、知らない id なら undefined
@@ -414,7 +400,7 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
   for (const d of parts.userSettings) if (d.holder !== undefined) problems.push(problem("E065", { id: d.id }))
   // 許可スコープが "book" のアクションは、ページを名指さないので、ページのタイプで決まる付く先（items・presentations・annotations）を持てない
   for (const a of parts.actions)
-    if (a.target === "book" && a.permissionScope === "book" && a.attach) {
+    if (changesBookOnly(a) && a.attach) {
       const typed = (["items", "presentations", "annotations"] as const).filter(k => a.attach?.[k] !== undefined)
       if (typed.length > 0) problems.push(problem("E063", { id: a.id, attach: typed.join(", ") }))
     }
@@ -423,8 +409,7 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     for (const field of ["add", "without"] as const)
       for (const id of t.actions[field] ?? []) {
         const a = actions.get(id)
-        if (a?.target === "book" && a.permissionScope === "book")
-          problems.push(problem("E066", { id: t.id, field, action: id }))
+        if (a && changesBookOnly(a)) problems.push(problem("E066", { id: t.id, field, action: id }))
       }
   for (const t of parts.pageTypes) {
     for (const id of t.settings ?? []) {

@@ -232,7 +232,7 @@ func TestPerformChangesNothingWhenTheWriteFails(t *testing.T) {
 		return len(got)
 	}
 	pages, folders := hub.Tables()
-	if len(pages) != 1 || pages[0].Version != 1 || len(folders) != 3 || folders[0].Version != 1 || strings.Contains(string(folders[0].Body), "追加") || entries() != 2 {
+	if len(pages) != 1 || pages[0].Version != 1 || len(folders) != 4 || folders[0].Version != 1 || strings.Contains(string(folders[0].Body), "追加") || entries() != 2 {
 		t.Fatalf("the book changed: %+v %+v", pages, folders)
 	}
 	if book := hub.Book("b1"); book == nil || book.Version != 1 || strings.Contains(string(book.Body), "追加") {
@@ -251,7 +251,7 @@ func TestPerformChangesNothingWhenTheWriteFails(t *testing.T) {
 	// 起動したときに書けなかったシステムフォルダ（ドキュメント）も、書けたあとの確かめで足す（フォルダとエントリが 1 つずつ増える）
 	pages, folders = hub.Tables()
 	b1 := slices.IndexFunc(folders, func(f storage.Folder) bool { return f.ID == "b1" })
-	if len(pages) != 2 || len(folders) != 4 || b1 < 0 || folders[b1].Version != 2 || entries() != 4 || len(documentsOf(t, hub)) != 1 {
+	if len(pages) != 2 || len(folders) != 5 || b1 < 0 || folders[b1].Version != 2 || entries() != 4 || len(documentsOf(t, hub)) != 1 {
 		t.Fatalf("the book did not change: %+v %+v", pages, folders)
 	}
 	if book := hub.Book("b1"); book == nil || book.Version != 2 || !strings.Contains(string(book.Body), "追加") {

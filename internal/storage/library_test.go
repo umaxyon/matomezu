@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -70,13 +71,14 @@ func beforeMigration(t *testing.T, path string, n int, qs ...string) {
 	}
 }
 
-// 空の置き場所を開くと、書庫ホームとゴミ箱だけが出来る（フォルダ「旧ブック」は作らない）
-func TestEmptyStorageGetsOnlyTheLibraryHomeAndTheTrash(t *testing.T) {
+// 空の置き場所を開くと、書庫ホームとゴミ箱と読めない物のフォルダだけが出来る（フォルダ「旧ブック」は作らない）
+func TestEmptyStorageGetsOnlyTheLibraryHomeTheTrashAndTheUnreadableFolder(t *testing.T) {
 	s := open(t, filepath.Join(t.TempDir(), "data.db"))
 	folders, err := s.Folders()
-	if err != nil || len(folders) != 2 || folders[0].ID != HomeID || folders[0].Version != 1 ||
+	if err != nil || len(folders) != 3 || folders[0].ID != HomeID || folders[0].Version != 1 ||
 		string(folders[0].Body) != `{"folderRole":"home","id":"library-home","lineup":[]}` ||
-		folders[1].ID != TrashID || folders[1].Version != 1 || string(folders[1].Body) != `{"folderRole":"trash","id":"library-trash","lineup":[]}` {
+		folders[1].ID != TrashID || folders[1].Version != 1 || string(folders[1].Body) != `{"folderRole":"trash","id":"library-trash","lineup":[]}` ||
+		folders[2].ID != UnreadableID || folders[2].Version != 1 || string(folders[2].Body) != `{"folderRole":"unreadable","id":"library-unreadable","lineup":[]}` {
 		t.Fatalf("folders = %+v, %v", folders, err)
 	}
 	if entries, err := s.Entries(); err != nil || len(entries) != 0 {
@@ -125,7 +127,7 @@ func TestBooksMoveIntoTheOldBooksFolder(t *testing.T) {
 		t.Fatal(err)
 	}
 	old := entries["a1"]
-	if old == "" || len(afterFolders) != len(beforeFolders)+3 || !maps.Equal(entries, map[string]string{
+	if old == "" || len(afterFolders) != len(beforeFolders)+4 || !maps.Equal(entries, map[string]string{
 		"p1": "b2", "f1": "b2", "p2": "f1", "a1": old, "b2": old, "c-broken": old, old: HomeID,
 	}) {
 		t.Fatalf("folders %v, entries %v", afterFolders, entries)
@@ -215,5 +217,35 @@ func TestTouchedOfBooksInFolders(t *testing.T) {
 	}
 	if got := same(placed); !maps.Equal(got, want) {
 		t.Fatalf("touched in folders = %v; want %v", got, want)
+	}
+}
+
+// 読めない物のフォルダの移し替えは、行が無ければ空の行を作り、在れば触らない。同じ id がほかの役の行なら止める
+func TestUnreadableFolderIsAddedOnce(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	s := open(t, path)
+	db := s.(*sqliteStorage).db
+	if _, err := db.Exec(`UPDATE folders SET body = ?, version = 4 WHERE id = ?`,
+		`{"folderRole":"unreadable","id":"library-unreadable","lineup":[{"entry":{"kind":"page","id":"x"}}]}`, UnreadableID); err != nil {
+		t.Fatal(err)
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := addUnreadableFolder(tx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tx.Exec(`UPDATE folders SET body = '{"folderRole":"folder","id":"library-unreadable","title":"x","lineup":[]}' WHERE id = ?`, UnreadableID); err != nil {
+		t.Fatal(err)
+	}
+	if err := addUnreadableFolder(tx); err == nil {
+		t.Fatal("a folder of another role with the id of the unreadable folder was taken")
+	}
+	if err := tx.Rollback(); err != nil {
+		t.Fatal(err)
+	}
+	if got := rawRows(t, db, "folders")[UnreadableID]; !strings.Contains(got, `"entry"`) || !strings.HasPrefix(got, "4 ") {
+		t.Fatalf("the unreadable folder = %q; want it as it was", got)
 	}
 }

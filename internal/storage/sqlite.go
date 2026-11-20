@@ -198,6 +198,8 @@ var migrations = []string{
 	`SELECT 1;`,
 	// チケットに規模（volume）を、プロジェクトの cardShows に volume を足す（Go の移し替え。migrate_ticket_volume.go）
 	`SELECT 1;`,
+	// 読めない物のフォルダ（フォルダの行 library-unreadable）を作る（Go の移し替え。migrate_unreadable.go）
+	`SELECT 1;`,
 }
 
 // goMigrations は、SQL だけでは書けない移し替え（JSON の中をたどる物）。鍵は migrations の番号（0 から）で、その SQL を行ったあと、同じトランザクションの中で行う
@@ -211,6 +213,7 @@ var goMigrations = map[int]func(tx *sql.Tx) error{
 	27: numberSameTitlesLogged,
 	28: dropCurrentTickets,
 	29: addTicketVolume,
+	30: addUnreadableFolder,
 }
 
 type sqliteStorage struct {
@@ -595,10 +598,6 @@ func (s *sqliteStorage) Annotations() (map[string]json.RawMessage, error) {
 	return all, rows.Err()
 }
 
-func (s *sqliteStorage) PutAnnotations(page string, body json.RawMessage) error {
-	return s.Apply(Batch{Annotations: []PageBody{{page, body}}})
-}
-
 // txPutTickets は、AI 編集チケットの並びの全部（表 ai_edit_tickets の 1 行）を置き換える（空の並びなら消す）
 func txPutTickets(tx *sql.Tx, body json.RawMessage) error {
 	if empty(body) {
@@ -642,10 +641,6 @@ func (s *sqliteStorage) Settings(user string) (json.RawMessage, error) {
 		return nil, err
 	}
 	return json.RawMessage(body), nil
-}
-
-func (s *sqliteStorage) PutSettings(user string, body json.RawMessage) error {
-	return s.Apply(Batch{Settings: &UserBody{user, body}})
 }
 
 func (s *sqliteStorage) ParticipantNotes(user string) (json.RawMessage, error) {

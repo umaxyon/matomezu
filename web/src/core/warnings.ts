@@ -1,17 +1,15 @@
-// warning の表: 止めるほどではない間違い。止めずに、その物（定義の 1 行・ブック 1 冊・画面が組めずに外した追加プラグインなど）だけを効かなくする。
+// warning の表: 止めるほどではない間違い。止めずに、その物（定義の 1 行・ブック 1 冊など）だけを効かなくする。
 // error（core/errors.ts）と違い、止めない（インスタンスは作り、ほかは動く）。
 // 番号は一度付けたら変えず、消した番号も使い回さない。文は開発者に向けたもので、画面には出さない。{name} は渡す値で置き換える
 export const WARNINGS = {
   W001: "pageType {type}: without names {action}, which is not attached to it",
   W002: "pageType {type}: add names {action}, which is already attached to it",
   W003: "command {command}: performs {action}, which is not in the catalog",
-  W004: "book {book} ({title}): it has a page of type {type}, which is not in the catalog",
   W005: "book {book} ({title}): it does not fit the shape of a book",
   W006: "book {book} ({title}): it breaks the rules of its lineup or of a page type",
   W007: "book {book} ({title}): it has {missing}, not in the catalog (kept as they are)",
   W008: "key {key} in {scope} for {command}: a builtin plugin's key is there (not used)",
   W010: "layout {layout}: {kind} {id} is skipped, as its plugin is not there",
-  W011: "the screen did not add it ({reason}); its actions still work on the host, but nothing it draws is shown",
   W012: "tool {tool}: performs {action}, which is not in the catalog",
   W013: "controlCenter {controlCenter}: fixedUserSettings names {setting}, which is not a user setting",
   W014: "theme {theme}: textColors names {textColor}, which is not in the catalog",
@@ -32,6 +30,8 @@ export const WARNINGS = {
   W029: "book {book} ({title}): {pages} page(s) break the rules of their type (kept as they are, not readable)",
   W030: "the library: its home and folders break the rules of the tree (kept as they are; actions on the library are refused)",
   W031: "key {key} in {scope} for {command}: the key scope is not in the catalog (not used)",
+  W032: "the library: {count} thing(s) cannot be read now and are kept in the unreadable folder, out of the library ({reasons}); they come back when they can be read",
+  W033: "the library: the unreadable things could not be moved to or back from the unreadable folder ({reason}); while unreadable things stay in the library, actions on the library are refused",
 } as const
 
 export type WarningCode = keyof typeof WARNINGS

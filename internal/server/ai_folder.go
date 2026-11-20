@@ -6,9 +6,8 @@ package server
 //	GET /api/ai/folder[?folder=<フォルダの id>]   {"id", "kind": "home" | "folder", "title"（書庫ホームには無い）, "path": [{"id", "title"}], "lineup": [エントリ]}
 //	                                              folder が無ければ書庫ホーム。path は書庫ホームからそのフォルダまで（両端を含む。書庫ホームの title は無い）。
 //	                                              システムフォルダは、どこでも "systemFolder"（定義の id）を添え、title は定義の英語の名前（定義が今の機能台帳に無ければ空）。
-//	                                              エントリは {"kind": "folder", "id", "title"}・{"kind": "book", "id", "title", "problem"（読めないブックの理由。list_books と同じ）}・
-//	                                              {"kind": "page", "id", "title", "type"}・{"kind": "binder", "id", "title", "pageType"}・
-//	                                              {"kind": "unreadable", "id", "title", "code", "type"}（読めないページ。read_book と同じ）
+//	                                              エントリは {"kind": "folder", "id", "title"}・{"kind": "book", "id", "title"}（読めないブックは出さない）・
+//	                                              {"kind": "page", "id", "title", "type"}・{"kind": "binder", "id", "title", "pageType"}
 
 import (
 	"encoding/json"
@@ -25,16 +24,13 @@ type folderStep struct {
 	SystemFolder string `json:"systemFolder,omitempty"`
 }
 
-// folderEntry は、AI に見せるフォルダの直下のエントリ 1 つ。Type はページのタイプ、PageType はバインダが入れるタイプ、
-// Code は読めないページの理由の warning の番号、Problem は読めないブックの理由（warning の 1 行）
+// folderEntry は、AI に見せるフォルダの直下のエントリ 1 つ。Type はページのタイプ、PageType はバインダが入れるタイプ
 type folderEntry struct {
 	Kind     string `json:"kind"`
 	ID       string `json:"id"`
 	Title    string `json:"title"`
 	Type     string `json:"type,omitempty"`
 	PageType string `json:"pageType,omitempty"`
-	Code     string `json:"code,omitempty"`
-	Problem  string `json:"problem,omitempty"`
 	// SystemFolder は、システムフォルダの印（定義の id）
 	SystemFolder string `json:"systemFolder,omitempty"`
 }
@@ -83,7 +79,7 @@ func (h *Hub) AIFolder(id string) *AIFolder {
 		id = storage.HomeID
 	}
 	f, ok := h.folders[id]
-	if !ok || (f.role != "home" && f.role != "folder") || h.inTrash(id) {
+	if !ok || (f.role != storage.RoleHome && f.role != storage.RoleFolder) || h.outOfSight(id) {
 		return nil
 	}
 	out := &AIFolder{ID: id, Kind: f.role, Path: []folderStep{}, Lineup: []folderEntry{}}
@@ -91,22 +87,18 @@ func (h *Hub) AIFolder(id string) *AIFolder {
 	slices.Reverse(above)
 	for _, at := range append(above, id) {
 		step := folderStep{ID: at}
-		if h.folders[at].role == "folder" {
+		if h.folders[at].role == storage.RoleFolder {
 			step.Title, step.SystemFolder = h.folderTitle(h.folders[at].body)
 		}
 		out.Path = append(out.Path, step)
 	}
-	if f.role == "folder" {
+	if f.role == storage.RoleFolder {
 		out.Title, out.SystemFolder = h.folderTitle(f.body)
 	}
 	for _, e := range f.entries {
 		if p, ok := h.pages[e]; ok {
 			title, pageType, _ := rowHead(p.body)
-			if n, unreadable := h.pageWarnings[e]; unreadable {
-				out.Lineup = append(out.Lineup, folderEntry{Kind: "unreadable", ID: e, Title: title, Code: n.Code, Type: pageType})
-				continue
-			}
-			out.Lineup = append(out.Lineup, folderEntry{Kind: "page", ID: e, Title: title, Type: pageType})
+			out.Lineup = append(out.Lineup, folderEntry{Kind: storage.KindPage, ID: e, Title: title, Type: pageType})
 			continue
 		}
 		inner, ok := h.folders[e]
@@ -115,17 +107,13 @@ func (h *Hub) AIFolder(id string) *AIFolder {
 		}
 		title, _, binderType := rowHead(inner.body)
 		switch {
-		case inner.role == "folder":
+		case inner.role == storage.RoleFolder:
 			title, mark := h.folderTitle(inner.body)
-			out.Lineup = append(out.Lineup, folderEntry{Kind: "folder", ID: e, Title: title, SystemFolder: mark})
-		case inner.role == "binder":
-			out.Lineup = append(out.Lineup, folderEntry{Kind: "binder", ID: e, Title: title, PageType: binderType})
-		case inner.isBook():
-			entry := folderEntry{Kind: "book", ID: e, Title: title}
-			if n, ok := h.bookWarnings[e]; ok && n.Unreadable {
-				entry.Problem = n.Warning
-			}
-			out.Lineup = append(out.Lineup, entry)
+			out.Lineup = append(out.Lineup, folderEntry{Kind: storage.KindFolder, ID: e, Title: title, SystemFolder: mark})
+		case inner.role == storage.RoleBinder:
+			out.Lineup = append(out.Lineup, folderEntry{Kind: storage.KindBinder, ID: e, Title: title, PageType: binderType})
+		case inner.isBook() && !h.bookWarnings[e].Unreadable:
+			out.Lineup = append(out.Lineup, folderEntry{Kind: storage.KindBook, ID: e, Title: title})
 		}
 	}
 	return out

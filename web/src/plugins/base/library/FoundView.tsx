@@ -1,9 +1,10 @@
-// 書庫の画面の検索の結果（右の枠）: 名前に言葉を含む物の一覧（種類のアイコン・名前・置き場所）。行を押すと、ツリーのその行へ移る。2 回押す・Enter で開く
-import type { MouseEvent } from "react"
+// 書庫の画面の検索の結果（右の枠）: 名前に言葉を含む物の一覧（種類のアイコン・名前・置き場所）。行を押すと、その行を選び、ツリーのその行へ移る。2 回押す・Enter で開く。
+// 選んでいる行は結果の枠だけの物で、ツリーで移っても変わらない。結果の枠の何も無い所を押すと外れる。言葉を変えると、置く側が作り直して外す
+import { type MouseEvent, useState } from "react"
 import { useMessages } from "../../../ui/i18n"
 import { kit } from "../kit"
 import { LIBRARY_FOUND_SCOPE } from "./commands"
-import { useLibraryRows, useNameOf } from "./hooks"
+import { outsideRow, useLibraryRows, useNameOf } from "./hooks"
 import { RowIcon } from "./icons"
 import styles from "./LibraryView.module.css"
 import { tabStopOf } from "./outline"
@@ -17,13 +18,14 @@ export function FoundView({
   onMenu,
 }: {
   query: string
-  current: string // ツリーで今いる行
+  current: string // ツリーで今いる行（Tab で止まる行を決める）
   onPick(row: FoundRow): void
   onOpen(row: FoundRow): void
   onMenu(e: MouseEvent, row: FoundRow): void
 }) {
   const t = useMessages(kit)
   const nameOf = useNameOf()
+  const [picked, setPicked] = useState<string>()
   const rows = useLibraryRows(`found:${query}`, (s, naming) => foundRowsOf(s, query, naming))
   // Tab で止まる行（ツリーで今いる行。一覧に無ければ最初の行）
   const tabbable = tabStopOf(
@@ -31,7 +33,14 @@ export function FoundView({
     current,
   )
   return (
-    <div className={styles.found}>
+    // biome-ignore lint/a11y/useKeyWithClickEvents: 何も無い所を押して選択を外すのはポインタの操作
+    // biome-ignore lint/a11y/noStaticElementInteractions: 同じ。キーでは行の間を動く
+    <div
+      className={styles.found}
+      onClick={e => {
+        if (outsideRow(e.target)) setPicked(undefined)
+      }}
+    >
       <p className={styles.foundHead} role="status">
         {rows.length === 0
           ? t('No name has "{word}"', { word: query })
@@ -46,10 +55,16 @@ export function FoundView({
               data-library-row={row.id}
               data-key-scope={LIBRARY_FOUND_SCOPE}
               tabIndex={row.id === tabbable ? 0 : -1}
-              aria-pressed={row.id === current}
-              onClick={() => onPick(row)}
+              aria-pressed={row.id === picked}
+              onClick={() => {
+                setPicked(row.id)
+                onPick(row)
+              }}
               onDoubleClick={() => onOpen(row)}
-              onContextMenu={e => onMenu(e, row)}
+              onContextMenu={e => {
+                setPicked(row.id)
+                onMenu(e, row)
+              }}
             >
               <RowIcon row={row} className={styles.icon} />
               <span className={row.readable ? styles.label : `${styles.label} ${styles.unreadable}`}>

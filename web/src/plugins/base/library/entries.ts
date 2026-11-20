@@ -2,6 +2,7 @@
 
 import {
   type EntryKind,
+  freeTitleIn,
   isMoveRefusal,
   isWithin,
   type MoveRefusal,
@@ -9,10 +10,8 @@ import {
   placeOf,
   removedEntry,
   restoredEntry,
-  rowsWithin,
   titledIn,
   titleOf,
-  titlesIn,
   trashRefOf,
 } from "../../../core/entries"
 import {
@@ -27,7 +26,6 @@ import {
   type Library,
   type PageRow,
 } from "../../../core/folders"
-import { freeTitle } from "../utils/titles"
 
 // ゴミ箱の外のどこか（書庫ホーム・フォルダ・ブック・バインダ）に入っているエントリ entry の、入れているフォルダと並びのエントリ。
 // ゴミ箱かその中の物、どこにも入っていない物（書庫ホーム・ゴミ箱）は undefined
@@ -99,20 +97,6 @@ export function retitled(
     pages: library.pages,
     folders: { ...library.folders, [entry]: { ...library.folders[entry], title } as Folder },
   }
-}
-
-// フォルダ into の直下に在る（か、そこへ入れる）エントリ entry（種類 kind）の、そのフォルダのほかの物と重ならない名前（重なっていれば「名前 2」から番号を付ける。重ならなければ今の名前）。
-// 名前を持たない物・フォルダが無いときは undefined
-export function freeTitleIn(
-  library: Library,
-  kind: EntryKind,
-  entry: string,
-  into: string,
-  naming: Naming,
-): string | undefined {
-  const holder = library.folders[into]
-  const title = titleOf(library, kind, entry, naming)
-  return !holder || title === undefined ? undefined : freeTitle(title, titlesIn(library, holder, naming, entry))
 }
 
 // フォルダ into の直下に在るエントリ entry（種類 kind）の名前が、同じフォルダのほかの物と重なっていれば、番号を付けた名前（「名前 2」から）にした書庫。重ならなければ library のまま
@@ -190,9 +174,9 @@ export function sameTitled(
   return title === undefined || !holder ? undefined : titledIn(library, holder, title, naming, entry)
 }
 
-// 上書きできない訳: 種類が違う（kind）・前から在った方の中に上書きする物が在る（within）・前から在った方かその中に読めないページが在る（unreadable）・
+// 上書きできない訳: 種類が違う（kind）・前から在った方の中に上書きする物が在る（within）・
 // 前から在った方が、定義が機能台帳に在るシステムフォルダ（system-folder）・同じ名前で在る物が、確かめた物と違う（changed）
-export type NotOverwritten = "kind" | "within" | "unreadable" | "system-folder" | "changed" | MoveRefusal
+export type NotOverwritten = "kind" | "within" | "system-folder" | "changed" | MoveRefusal
 export const REPLACES_NOTHING = ""
 export const isNotOverwritten = (v: Library | NotOverwritten): v is NotOverwritten => typeof v === "string"
 
@@ -213,7 +197,5 @@ export function overwritten(
   if (there.kind !== kind) return "kind"
   if (isWithin(library.folders, entry, there.id)) return "within"
   if (isKeptSystemFolder(library.folders, there.id, naming.catalog.systemFolders)) return "system-folder"
-  const pages = there.kind === "page" ? [there.id] : rowsWithin(library.folders, there.id).pages
-  if (pages.some(p => library.pages[p]?.kind === "unreadable")) return "unreadable"
   return removedEntry(library, there.id)
 }

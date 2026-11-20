@@ -7,7 +7,7 @@ import { createMatomezu } from "../../../web/src/store/create"
 import { definePlugin } from "../../../web/src/store/plugin"
 import { shown } from "../../support"
 
-// ページを 1 枚持つブック（そのページのタイプは notes プラグインが足す。足さなければ読めないページ）
+// ページを 1 枚持つブック（そのページのタイプは notes プラグインが足す。足さなければ読めないブック）
 const NOTE = definePageType({
   id: "notes:note",
   version: 1,
@@ -30,12 +30,11 @@ const saved = {
   ],
 }
 
+// プラグイン plugins を足してから最初のブックを開いたインスタンス（足さなければ、そのブックは読めないブックなので開かない）
 const make = (plugins: readonly (typeof notes)[]) => {
-  const instance = shown(
-    createMatomezu({ plugins: BUILTIN, controlCenter: BUILTIN_CONTROL_CENTER, savedBooks: [saved] }),
-  )
+  const instance = createMatomezu({ plugins: BUILTIN, controlCenter: BUILTIN_CONTROL_CENTER, savedBooks: [saved] })
   if (plugins.length > 0) instance.use([...plugins])
-  return instance
+  return shown(instance)
 }
 const COMMAND = "@matomezu/paper:paper-select-all"
 
@@ -46,7 +45,7 @@ test("ページを開いていて中身が読めれば、開いているペー�
   expect(hasOpenedPage(ctx) && ctx.page.id).toBe("p1")
 })
 
-test("開いているページが読めないページなら、開いているページは無い", () => {
+test("ブックが読めないブックなら（ページのタイプが無い）、開いているページは無い", () => {
   const instance = make([])
   const ctx = commandContext(instance.catalog.core, null, instance.state.getState(), "s1", COMMAND)!
   expect(hasOpenedPage(ctx)).toBe(false)

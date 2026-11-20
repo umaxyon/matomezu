@@ -193,7 +193,7 @@ func TestSystemFoldersWaitForTheLockAndLogTheRefusalOnce(t *testing.T) {
 	}
 }
 
-// 書庫ホームの直下の読めないブックの名前が、システムフォルダの名前と同じでも、書いたあとの確かめは、system-folder-add と同じく数えない
+// 読めないブックの名前が、システムフォルダの名前と同じでも、読めない物のフォルダへ移り、書いたあとの確かめは、system-folder-add と同じく数えない
 // （行っても何も変わらない system-folder-add を、書くたびに行わない）
 func TestTheCheckAfterWritesSkipsUnreadableBooks(t *testing.T) {
 	store := libraryStore(t, false)
@@ -222,8 +222,11 @@ func TestTheCheckAfterWritesSkipsUnreadableBooks(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, hub := newServerOn(t, Options{}, store)
-	if !hub.BookWarnings()["bx"].Unreadable || len(documentsOf(t, hub)) != 1 {
-		t.Fatalf("the unreadable book %+v, the documents %v", hub.BookWarnings()["bx"], documentsOf(t, hub))
+	hub.mu.Lock()
+	moved := hub.inUnreadable("bx")
+	hub.mu.Unlock()
+	if !moved || len(documentsOf(t, hub)) != 1 {
+		t.Fatalf("the unreadable book is in the unreadable folder %v, the documents %v", moved, documentsOf(t, hub))
 	}
 	for i := range 2 {
 		acts := hub.acts

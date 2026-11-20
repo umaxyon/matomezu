@@ -2,7 +2,7 @@
 
 import { expect, test } from "bun:test"
 import { USER } from "../../../../web/src/core/actor"
-import { pagesOf, restoreBooks } from "../../../../web/src/core/book"
+import { checkBooks, pagesOf } from "../../../../web/src/core/book"
 import { buildCoreCatalog } from "../../../../web/src/core/core-catalog"
 import { perform } from "../../../../web/src/core/perform"
 import { shapesOf } from "../../../../web/src/core/placed"
@@ -175,10 +175,10 @@ test("関係の決まりを守らないページ（線の端が無い・行に�
     to,
     props: {},
   })
-  // 読んだブックの最初のページ: 読めれば "page"、読めないページなら理由の番号（ブックごと読めなければ undefined）
+  // 読んだブックの最初のページ: 読めれば "page"、読めなければブックごと読めない理由の番号
   const readAs = (saved: unknown) => {
-    const entry = restoreBooks(CORE_CATALOG, [saved])[0]?.lineup[0]
-    return entry?.kind === "unreadable" ? entry.code : entry?.kind
+    const read = checkBooks(CORE_CATALOG, [saved])
+    return read.books[0]?.lineup[0]?.kind ?? read.warnings[0]?.code
   }
   expect(readAs(good)).toBe("page")
   expect(readAs(withLines([line("l1", "n1", "zz")]))).toBe("W029")

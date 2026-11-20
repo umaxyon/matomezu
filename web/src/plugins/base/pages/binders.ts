@@ -5,7 +5,6 @@ import { z } from "zod"
 import {
   addBinder,
   addPage,
-  entriesIn,
   findBinder,
   lineupOf,
   moveEntry,
@@ -17,10 +16,10 @@ import {
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { Declined } from "../../../core/def/action"
 import { ORIENTATIONS } from "../../../core/def/paper"
+import { freeTitle } from "../../../core/entries"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
 import { renewedIds } from "../utils/ids"
-import { freeTitle } from "../utils/titles"
 import { duplicateProblem, UNRENEWABLE_DECLINED } from "./page-duplicate"
 import { pageProblems } from "./page-problems"
 import { canPaperBinder } from "./pages"
@@ -106,7 +105,7 @@ export const BINDER_DUPLICATE = kit.defineAction({
 })
 
 // ブック book のバインダ binder を、中のページごと複製したブックと、写しのバインダと中のページの id（binder-duplicate と、書庫の entry-duplicate が使う）。
-// 写しは元のすぐ後ろ、名前は title（無ければ、元の名前に番号を付けた名前）。バインダが無い・読めないページを持つ・複製できないページを持つ・渡した名前が重なるなら null、
+// 写しは元のすぐ後ろ、名前は title（無ければ、元の名前に番号を付けた名前）。バインダが無い・複製できないページを持つ・渡した名前が重なるなら null、
 // id を振り直すと壊れる形があれば、その断り
 export function duplicatedBinder(
   catalog: CoreCatalog,
@@ -117,8 +116,6 @@ export function duplicatedBinder(
 ): { book: Book; binder: string; pages: string[] } | Declined | null {
   const source = findBinder(book, binder)
   if (!source) return null
-  // 読めないページは複製できないので、それを持つバインダも複製しない（黙って落とした写しを作らない）
-  if (entriesIn(book, source.id).some(p => p.kind === "unreadable")) return null
   const titles = lineupOf(book).map(e => e.title)
   if (title !== undefined && titles.includes(title)) return null
   // 中の物の id は、ページごとに振り直す（ブックのどの id とも、写しどうしでも重ならない。core が run の振る id を重ねない）

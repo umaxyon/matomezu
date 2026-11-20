@@ -415,8 +415,8 @@ test("ステージの上の行と下の行を右クリックしても、ブラ�
   expect(screen.queryByRole("menu")).toBeNull()
 })
 
-test("読めないブックは読み込まない（データには手を付けない）。読めないページだけのブックは読め、そのページが読めないページになる", () => {
-  // ページのタイプが機能台帳に無いだけなら、ブックは読める（ページが読めないページになる）
+test("読めないブックは読み込まない（データには手を付けない）。読めないページを持つブックも、ブックごと読めない", () => {
+  // ページのタイプが機能台帳に無いページを持つブックは、ブックごと読めない（W027）
   const gone = testBook("x1", "スタンプ帳", [
     { ...drawingPage("q1", { title: "1" }), type: "@foo/stamps:board" } as never,
   ])
@@ -424,10 +424,13 @@ test("読めないブックは読み込まない（データには手を付け�
   const twins = testBook("x3", "双子", [drawingPage("q2", { title: "同じ" }), drawingPage("q3", { title: "同じ" })])
   const broken = { id: "x2", title: "壊れた図面", lineup: "?" }
   const store = renderBooksScreen({ savedBooks: [gone, twins, broken] })
-  expect(store.state.getState().books.x1?.lineup).toEqual([
-    { kind: "unreadable", id: "q1", title: "1", code: "W027", type: "@foo/stamps:board" },
-  ])
+  expect(store.state.getState().books.x1).toBeUndefined()
   expect(store.state.getState().books.x3).toBeUndefined()
+  expect(store.state.getState().unreadable.map(w => [w.code, w.params.book])).toEqual([
+    ["W027", "x1"],
+    ["W006", "x3"],
+    ["W005", "x2"],
+  ])
 })
 
 test("一部のプラグインが無いブックは開け、知らない形は枠だけで描き、ダブルクリックしても編集のダイアログは出ない", () => {

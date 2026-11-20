@@ -123,7 +123,7 @@ test("動いている常駐にプラグインを足すと、開いている画�
   expect((await data(page)).plugins.map((p: { id: string }) => p.id)).toEqual(["ex2"])
 })
 
-test("見た目の台帳アセンブルで食い違う追加プラグインは、画面が外して、ほかはそのまま使える。外したことは warning W011 として常駐に知らせ、AI の actions の warnings に出る", async ({
+test("見た目の台帳アセンブルで食い違う追加プラグインがあれば、窓は起動を止めて起動エラーの画面に id と理由を出し（AI の view の向け先に数えない）、［外して開く］でホストから外して開き直す", async ({
   page,
 }) => {
   // 星のビューを結んでいない ex3（ホストのエンジンでは台帳アセンブルでき、画面の見た目の台帳アセンブルで食い違う）
@@ -139,16 +139,78 @@ test("見た目の台帳アセンブルで食い違う追加プラグインは�
   await page.goto(BOOK_SCREEN_URL)
   const linked = await page.request.post("/api/plugins", { headers: aiAuth(), data: { dir } })
   expect(await linked.json()).toEqual({ ok: true, id: "ex3" })
-  // 足したときは無効（名乗りと文言だけで組むので、見た目は食い違わない）。有効にすると、見た目の台帳アセンブルで外れる
+  // 足したときは無効（名乗りと文言だけで組むので、見た目は食い違わない）。有効にすると、見た目の台帳アセンブルで食い違う
   await page.request.post("/api/enable-plugins-for-test", { data: { ids: ["ex2", "ex3"] } })
-  await expect.poll(() => errors.some(e => e.includes("plugin ex3 is not added"))).toBe(true)
+  await expect(page.getByRole("heading", { name: "matomezu を開けません" })).toBeVisible()
+  await expect(page).toHaveTitle("matomezu を開けません")
+  await expect(page.getByText("ex3", { exact: true })).toBeVisible()
+  await expect(page.getByText("E204 plugin ex3: item ex3:star has no view")).toBeVisible()
+  expect(errors.some(e => e.includes("plugin ex3 is not added"))).toBe(true)
+  await expect(page.locator("[data-ex2-diamond]")).toHaveCount(0)
+  // 知らせのつながりを閉じたので、常駐はこの窓を AI の view の向け先に数えない
+  const ai = await joinedAiAuth()
+  await expect.poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json()).toBeNull()
+  await page.getByRole("button", { name: "外して開く" }).click()
   await expect(page.locator("[data-ex2-diamond]")).toBeVisible()
-  // 常駐のエンジンには入っているので AI は使えるが、画面には出ない。そのことを warning として、MCP 公開ツールの actions が返す物に添える
-  await expect
-    .poll(async () => (await (await page.request.get("/api/ai/catalog", { headers: aiAuth() })).json()).warnings)
-    .toEqual(expect.arrayContaining([expect.stringMatching(/^W011 ex3: /)]))
-  const removed = await page.request.post("/api/plugins/remove", { headers: aiAuth(), data: { id: "ex3" } })
-  expect(await removed.json()).toEqual({ ok: true })
+  expect((await data(page)).plugins.map((p: { id: string }) => p.id)).toEqual(["ex2"])
+})
+
+test("起動エラーの画面で止めた窓が 2 枚あり、片方で外して開いたあとでも、もう片方の［外して開く］で開ける（もう外れているプラグインはホストが飛ばす）", async ({
+  page,
+  context,
+}) => {
+  const dir = mkdtempSync(join(tmpdir(), "matomezu-e2e-"))
+  temps.push(dir)
+  cpSync(resolve("test/added-plugins/ex3"), dir, { recursive: true })
+  const ui = join(dir, "ui.tsx")
+  writeFileSync(ui, readFileSync(ui, "utf8").replace(`items: { [STAR.id]: { view: StarView, icon: STAR_ICON } },`, ""))
+  await page.goto(BOOK_SCREEN_URL)
+  await page.request.post("/api/plugins", { headers: aiAuth(), data: { dir } })
+  await page.request.post("/api/enable-plugins-for-test", { data: { ids: ["ex2", "ex3"] } })
+  const stopped = (p: Page) => p.getByRole("heading", { name: "matomezu を開けません" })
+  await expect(stopped(page)).toBeVisible()
+  const other = await context.newPage()
+  await other.goto(BOOK_SCREEN_URL)
+  await expect(stopped(other)).toBeVisible()
+  await other.getByRole("button", { name: "外して開く" }).click()
+  await expect(stopped(other)).toHaveCount(0)
+  await page.getByRole("button", { name: "外して開く" }).click()
+  await expect(page.locator("[data-ex2-diamond]")).toBeVisible()
+  await expect(page.getByRole("alert")).toHaveCount(0)
+})
+
+test("起動エラーの画面で外したプラグインのページを持つブックが在っても、開き直した窓で、関係ないフォルダの名前を変えられる（読めないブックで書庫のアクションが断られない）", async ({
+  page,
+}) => {
+  const dir = mkdtempSync(join(tmpdir(), "matomezu-e2e-"))
+  temps.push(dir)
+  cpSync(resolve("test/added-plugins/ex3"), dir, { recursive: true })
+  const ui = join(dir, "ui.tsx")
+  writeFileSync(ui, readFileSync(ui, "utf8").replace(`items: { [STAR.id]: { view: StarView, icon: STAR_ICON } },`, ""))
+  await page.goto(BOOK_SCREEN_URL)
+  expect(await (await page.request.post("/api/plugins", { headers: aiAuth(), data: { dir } })).json()).toEqual({
+    ok: true,
+    id: "ex3",
+  })
+  await page.request.post("/api/enable-plugins-for-test", { data: { ids: ["ex2", "ex3"] } })
+  // ホストのエンジンには ex3 が入っているので、AI は ex3 のページを持つブックを作れる
+  const ai = await joinedAiAuth()
+  const perform = async (action: string, args: object, on?: object) =>
+    (await page.request.post("/api/ai/perform", { headers: ai, data: { action, args, ...(on ? { on } : {}) } })).json()
+  const book = await perform("@matomezu/base:book-create", { title: "ボードのブック" })
+  expect((await perform("@matomezu/base:page-add", { type: "ex3:board" }, { book: book.result.book })).ok).toBe(true)
+  expect((await perform("@matomezu/base:folder-create", { title: "関係ない所" })).ok).toBe(true)
+  await page.goto("/")
+  await page.getByRole("button", { name: "外して開く" }).click()
+  await expect(page.getByRole("heading", { name: "matomezu を開けません" })).toHaveCount(0)
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  const home = page.getByRole("list", { name: "書庫 の中身" })
+  await home.getByRole("button", { name: "関係ない所" }).click({ button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "名前の変更…" }).click()
+  await page.getByRole("dialog").getByRole("textbox").fill("画面で変えた名前")
+  await page.keyboard.press("Enter")
+  await expect(home.getByRole("button", { name: "画面で変えた名前" })).toBeVisible()
+  await expect.poll(async () => JSON.stringify((await data(page)).folders)).toContain("画面で変えた名前")
 })
 
 test("取り込んだプラグインが置いてほしいと書いたウィジェットは、既定の UI マッピングに足されて出る", async ({

@@ -130,8 +130,6 @@ type Output struct {
 	Detail        string                      `json:"detail,omitempty"`
 	Kind          string                      `json:"kind,omitempty"`         // 断りの種類（アクションが添えた名前か、土台の種類。title-taken など）
 	SystemFolder  string                      `json:"systemFolder,omitempty"` // 名前が重なる断り（title-taken）で、重なった相手がシステムフォルダのときの、その印（定義の id）
-	Page          string                      `json:"page,omitempty"`         // 読めないページで断ったとき（reason unreadable）、そのページの id
-	Code          string                      `json:"code,omitempty"`         // 読めないページで断ったとき、読めない理由の warning の番号（W027〜W029）
 	At            *int                        `json:"at,omitempty"`           // 断られたアクションが何番目か（常駐のログにだけ使う）
 	Result        json.RawMessage             `json:"result,omitempty"`       // 最後のアクションの結果
 	Pages         []RowChange                 `json:"pages,omitempty"`        // 変わった・足した・無くなったページ
@@ -205,6 +203,9 @@ type Engine struct {
 	catalogActs func() string
 	sysFolders  func() string
 	sysInPlace  func(string, string, string) bool
+	settle      func(string, string, string, string) string
+	settleFail  func(string) string
+	purge       func(string, string, string) string
 	records     func(string) string
 	joinedMsg   func(string, string) string
 	visitorMsg  func(string) string
@@ -340,6 +341,15 @@ func New() (*Engine, error) {
 	}
 	if err := vm.ExportTo(vm.Get("matomezuSystemFoldersInPlace"), &e.sysInPlace); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuSystemFoldersInPlace: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuSettleLibrary"), &e.settle); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuSettleLibrary: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuSettleFailed"), &e.settleFail); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuSettleFailed: %w", err)
+	}
+	if err := vm.ExportTo(vm.Get("matomezuPurgedRows"), &e.purge); err != nil {
+		return nil, fmt.Errorf("engine.js has no matomezuPurgedRows: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuSubjectRoles"), &e.roles); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuSubjectRoles: %w", err)
@@ -646,14 +656,12 @@ func (e *Engine) PerformWith(in Input, src Source) (out Output, err error) {
 }
 
 // BookWarning は warning のあるブック: ブックの id・warning の番号・warning の 1 行と、ブックごと読めないか（エンジンが決める。
-// ブックごと読めない W005 形に合わない・W006 決まりを守らない、読めるが機能台帳に無い物を持つ W007 など）。
-// 読めるブックの読めないページ（W027 タイプが無い・W028 タイプの形に合わない・W029 タイプの決まりを守らない）の warning は、ページ 1 枚に 1 つで、Page にそのページの id
+// ブックごと読めない W005 形に合わない・W006 決まりを守らない・読めないページを持つ W027〜W029、読めるが機能台帳に無い物を持つ W007 など。1 冊に 1 つ）
 type BookWarning struct {
 	Book       string `json:"book"`
 	Code       string `json:"code"`
 	Warning    string `json:"warning"`
 	Unreadable bool   `json:"unreadable"`
-	Page       string `json:"page,omitempty"`
 }
 
 // CheckBooks はブックを今の機能台帳で確かめ、warning のあるものを返す（データには手を付けない）
@@ -910,6 +918,95 @@ func (e *Engine) SystemFoldersInPlace(folders []json.RawMessage, pages map[strin
 		}
 	}()
 	return e.sysInPlace(string(b), string(p), string(settings)), nil
+}
+
+// Moved は、読めない物のフォルダへ移した物 1 つ（id と、理由の warning の番号）
+type Moved struct {
+	ID   string `json:"id"`
+	Code string `json:"code"`
+}
+
+// Numbered は、名前が重なって番号を付けた物 1 つ（id と、付けた名前）
+type Numbered struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+}
+
+// Settled は、書庫を整えた結果: 書く行の変わり（Pages・Folders）と、移した物・戻した物の id・名前に番号を付けた物と、
+// そのあとの warning W032 の 1 行（読めない物が無ければ空）。Broken なら、読めない物のフォルダの行が形に合わず、何も書かない
+type Settled struct {
+	Broken   bool        `json:"broken,omitempty"`
+	Pages    []RowChange `json:"pages,omitempty"`
+	Folders  []RowChange `json:"folders,omitempty"`
+	Moved    []Moved     `json:"moved,omitempty"`
+	Returned []string    `json:"returned,omitempty"`
+	Numbered []Numbered  `json:"numbered,omitempty"`
+	Warning  string      `json:"warning,omitempty"`
+}
+
+// SettleLibrary は、置き場所の行の全部（pages・folders）で、書庫を今の機能台帳に合わせて整える行の変わり: 読めない物を読めない物のフォルダへ移し、読めるようになった物を在った所へ戻す
+// （名前は利用者の設定 settings の言語で比べる。移した時刻は now。core/unreadable.ts の settleLibrary）
+func (e *Engine) SettleLibrary(pages, folders []json.RawMessage, settings json.RawMessage, now string) (out Settled, err error) {
+	p, err := json.Marshal(append([]json.RawMessage{}, pages...))
+	if err != nil {
+		return out, err
+	}
+	f, err := json.Marshal(append([]json.RawMessage{}, folders...))
+	if err != nil {
+		return out, err
+	}
+	if len(settings) == 0 {
+		settings = json.RawMessage("{}")
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	err = json.Unmarshal([]byte(e.settle(string(p), string(f), string(settings), now)), &out)
+	return out, err
+}
+
+// SettleFailed は、書庫を整えるのに失敗した訳 reason（"engine"・"broken"・"write"）の warning W033 の 1 行
+func (e *Engine) SettleFailed(reason string) (line string, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	return e.settleFail(reason), nil
+}
+
+// PurgedRows は、読めない物のフォルダの直下の物 id を完全に消す行の変わり（その中の物の行も。ほかのフォルダも持つ行は消さない）と、そのあとの warning W032 の 1 行。
+// 直下に無ければ found が false（core/unreadable.ts の purgedRows）
+func (e *Engine) PurgedRows(pages, folders []json.RawMessage, id string) (out Settled, found bool, err error) {
+	p, err := json.Marshal(append([]json.RawMessage{}, pages...))
+	if err != nil {
+		return out, false, err
+	}
+	f, err := json.Marshal(append([]json.RawMessage{}, folders...))
+	if err != nil {
+		return out, false, err
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	var got struct {
+		Settled
+		None bool `json:"none"`
+	}
+	if err = json.Unmarshal([]byte(e.purge(string(p), string(f), id)), &got); err != nil {
+		return out, false, err
+	}
+	return got.Settled, !got.None, nil
 }
 
 // SubjectRoles は、常駐が読む種類の役（participants・workrooms）ごとの、対象の定義の id（役を名乗る定義が無ければ入らない）

@@ -528,7 +528,7 @@ func TestWarningLinesUseTheTable(t *testing.T) {
 		t.Fatal(err)
 	}
 	lines, err := e.WarningLines(json.RawMessage(`[
-		{"code":"W011","plugin":"acme","params":{"reason":"E301"}},
+		{"code":"W016","plugin":"acme","params":{"widget":"acme:w","target":"acme:x","slot":"top"}},
 		{"code":"W999","plugin":"x","params":{}},
 		{"code":"constructor","plugin":"x","params":{}},
 		{"code":"__proto__","plugin":"x","params":{}},
@@ -538,7 +538,7 @@ func TestWarningLinesUseTheTable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(lines) != 2 || !strings.HasPrefix(lines[0], "W011 acme: the screen did not add it (E301)") ||
+	if len(lines) != 2 || lines[0] != "W016 acme: widget acme:w: place names acme:x in slot top, which is not there (not placed)" ||
 		lines[1] != "W010 acme: layout default: widget acme:w is skipped, as its plugin is not there" {
 		t.Fatalf("lines = %q", lines)
 	}
@@ -560,7 +560,7 @@ func TestCheckBooksSaysWhetherABookIsUnreadable(t *testing.T) {
 		got[n.Code] = n
 	}
 	want := map[string]BookWarning{
-		"W027": {Book: "x1", Code: "W027", Page: "p1"},
+		"W027": {Book: "x1", Code: "W027", Unreadable: true},
 		"W007": {Book: "y1", Code: "W007"},
 		"W005": {Book: "z1", Code: "W005", Unreadable: true},
 	}

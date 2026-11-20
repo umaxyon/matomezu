@@ -40,6 +40,7 @@ import (
 
 	"github.com/umaxyon/matomezu/internal/aiwire"
 	"github.com/umaxyon/matomezu/internal/engine"
+	"github.com/umaxyon/matomezu/internal/storage"
 )
 
 // participantNote は参加者 1 人の、常駐だけが持つ記録
@@ -555,7 +556,7 @@ func (h *Hub) Called(id string, says CallerSays, now time.Time) string {
 			return ""
 		}
 		before, _ := time.Parse(time.RFC3339Nano, n.Called)
-		n.Called = isoTime(now)
+		n.Called = storage.Stamp(now)
 		moved := says.BranchSent && n.Branch != says.Branch // ブランチかモデルが変わった
 		if moved {
 			n.Branch = says.Branch

@@ -96,3 +96,7 @@ export function useKeepFocusIn(root: RefObject<HTMLElement | null>): void {
     }
   }, [root])
 }
+
+// 押した所が行の外か（何も無い所を押して選んでいる行を外すときに使う）
+export const outsideRow = (target: EventTarget): boolean =>
+  target instanceof Element && target.closest("[data-library-row]") === null

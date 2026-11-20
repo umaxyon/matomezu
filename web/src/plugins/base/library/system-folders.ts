@@ -6,6 +6,7 @@ import { z } from "zod"
 import type { CoreCatalog } from "../../../core/core-catalog"
 import {
   type EntryKind,
+  freeTitle,
   missingSystemFolders,
   type Naming,
   sameTitledAsSystemFolder,
@@ -21,7 +22,6 @@ import {
   systemFolderOf,
 } from "../../../core/folders"
 import { kit } from "../kit"
-import { freeTitle } from "../utils/titles"
 import { retitled } from "./entries"
 
 export const DOCUMENTS = kit.defineSystemFolder({

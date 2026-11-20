@@ -16,6 +16,11 @@ func drawingPage(id, title string) storage.RowWrite {
 	return storage.RowWrite{ID: id, Body: json.RawMessage(`{"kind":"page","id":"` + id + `","type":"@matomezu/drawing:drawing","title":"` + title + `","paper":"@matomezu/base:a4","orientation":"landscape"}`)}
 }
 
+// slidePage は、バインダに入れるスライドのタイプのページの行（id と名前だけが違う）
+func slidePage(id, title string) storage.RowWrite {
+	return storage.RowWrite{ID: id, Body: json.RawMessage(`{"kind":"page","id":"` + id + `","type":"@matomezu/slide-book:slide","title":"` + title + `","paper":"@matomezu/base:a4","orientation":"landscape"}`)}
+}
+
 // entriesStore は、libraryStore の nested の置き場所（書庫ホーム > d1 > ブック b1 とフォルダ d2 > ブック b2）に、ブックに入っていないページとバインダを足した置き場所:
 //   - 書庫ホームの直下: フォルダ d1、ページ h1
 //   - d1 の直下: ブック b1、フォルダ d2、バインダ n1（ページ n1a・n1b）
@@ -39,12 +44,12 @@ func entriesStore(t *testing.T) storage.Storage {
 			}
 			refs += ref("page", p)
 		}
-		return storage.RowWrite{ID: id, Body: json.RawMessage(`{"folderRole":"binder","id":"` + id + `","title":"` + title + `","pageType":"@matomezu/drawing:drawing","lineup":[` + refs + `]}`)}
+		return storage.RowWrite{ID: id, Body: json.RawMessage(`{"folderRole":"binder","id":"` + id + `","title":"` + title + `","pageType":"@matomezu/slide-book:slide","lineup":[` + refs + `]}`)}
 	}
 	if err := store.Apply(storage.Batch{
 		Pages: []storage.RowWrite{
-			drawingPage("h1", "H1"), drawingPage("n1a", "A"), drawingPage("n1b", "B"), drawingPage("g1", "G1"),
-			drawingPage("t1", "T1"), drawingPage("tn1", "TN1"), drawingPage("dt1", "DT1"),
+			drawingPage("h1", "H1"), slidePage("n1a", "A"), slidePage("n1b", "B"), drawingPage("g1", "G1"),
+			drawingPage("t1", "T1"), slidePage("tn1", "TN1"), drawingPage("dt1", "DT1"),
 		},
 		Folders: []storage.RowWrite{
 			{ID: storage.HomeID, Base: v[storage.HomeID], Body: storage.HomeBody([]json.RawMessage{storage.RefOf("folder", "d1"), storage.RefOf("page", "h1")})},
@@ -64,7 +69,7 @@ func entriesStore(t *testing.T) storage.Storage {
 		t.Fatal(err)
 	}
 	for _, page := range []string{"h1", "n1b", "g1", "t1"} {
-		if err := store.PutAnnotations(page, json.RawMessage(`[{"id":"c-`+page+`","annotation":"@matomezu/note:note","anchors":[],"props":{}}]`)); err != nil {
+		if err := store.Apply(storage.Batch{Annotations: []storage.PageBody{{Page: page, Body: json.RawMessage(`[{"id":"c-` + page + `","annotation":"@matomezu/note:note","anchors":[],"props":{}}]`)}}}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -100,7 +105,11 @@ func TestRowsNotInBooksGoToTheEngine(t *testing.T) {
 		if err := hub.performInputs(&in); err != nil {
 			t.Fatal(err)
 		}
-		return idsOf(in.Pages), idsOf(in.Folders), slices.Sorted(maps.Keys(in.Annotations))
+		// 用意に無いシステムフォルダ（機能台帳に合わせて足した物）の行は数えない
+		folders = slices.DeleteFunc(idsOf(in.Folders), func(id string) bool {
+			return strings.Contains(string(hub.folders[id].body), `"systemFolder"`)
+		})
+		return idsOf(in.Pages), folders, slices.Sorted(maps.Keys(in.Annotations))
 	}
 	update := func(page string) engine.BulkAction {
 		return step("@matomezu/base:page-update", `{"title":"x"}`, &engine.On{Page: page})
@@ -141,7 +150,7 @@ func TestRowsNotInBooksGoToTheEngine(t *testing.T) {
 	same("annotations for a list action", annotated, []string{"g1", "h1", "n1b", "t1"})
 }
 
-// AI は、書庫ホームとフォルダを 1 段ずつ読める（read_folder）: 書庫ホームからの道筋と、直下のフォルダ・ブック・ページ・バインダ。読めないブックには理由が付く。
+// AI は、書庫ホームとフォルダを 1 段ずつ読める（read_folder）: 書庫ホームからの道筋と、直下のフォルダ・ブック・ページ・バインダ。読めないブックは読めない物のフォルダへ移り、出ない。
 // ゴミ箱・ゴミ箱の中のフォルダ・フォルダでない物（ブック・バインダ・ページ）・無い id は、どれも同じ 404
 func TestTheAIReadsAFolderOneLevelDeep(t *testing.T) {
 	store := entriesStore(t)
@@ -156,18 +165,20 @@ func TestTheAIReadsAFolderOneLevelDeep(t *testing.T) {
 		t.Fatal(err)
 	}
 	s, hub := newServerOn(t, Options{}, store)
-	problem := hub.BookWarnings()["bx"]
-	if !problem.Unreadable || problem.Warning == "" {
-		t.Fatalf("the warning of bx = %+v", problem)
+	hub.mu.Lock()
+	moved, docs := hub.inUnreadable("bx"), hub.folders[storage.HomeID].entries[0]
+	hub.mu.Unlock()
+	if !moved {
+		t.Fatal("the unreadable book bx is not in the unreadable folder")
 	}
-	quoted, _ := json.Marshal(problem.Warning)
+	home := `{"id":"library-home","kind":"home","path":[{"id":"library-home"}],"lineup":[` +
+		`{"kind":"folder","id":"` + docs + `","title":"Documents","systemFolder":"@matomezu/base:documents"},` +
+		`{"kind":"folder","id":"d1","title":"D1"},{"kind":"page","id":"h1","title":"H1","type":"@matomezu/drawing:drawing"}]}`
 	for path, want := range map[string]string{
-		"/api/ai/folder": `{"id":"library-home","kind":"home","path":[{"id":"library-home"}],"lineup":[` +
-			`{"kind":"folder","id":"d1","title":"D1"},{"kind":"page","id":"h1","title":"H1","type":"@matomezu/drawing:drawing"},{"kind":"book","id":"bx","title":"X","problem":` + string(quoted) + `}]}`,
-		"/api/ai/folder?folder=" + storage.HomeID: `{"id":"library-home","kind":"home","path":[{"id":"library-home"}],"lineup":[` +
-			`{"kind":"folder","id":"d1","title":"D1"},{"kind":"page","id":"h1","title":"H1","type":"@matomezu/drawing:drawing"},{"kind":"book","id":"bx","title":"X","problem":` + string(quoted) + `}]}`,
+		"/api/ai/folder": home,
+		"/api/ai/folder?folder=" + storage.HomeID: home,
 		"/api/ai/folder?folder=d1": `{"id":"d1","kind":"folder","title":"D1","path":[{"id":"library-home"},{"id":"d1","title":"D1"}],"lineup":[` +
-			`{"kind":"book","id":"b1","title":"T"},{"kind":"folder","id":"d2","title":"D2"},{"kind":"binder","id":"n1","title":"N1","pageType":"@matomezu/drawing:drawing"}]}`,
+			`{"kind":"book","id":"b1","title":"T"},{"kind":"folder","id":"d2","title":"D2"},{"kind":"binder","id":"n1","title":"N1","pageType":"@matomezu/slide-book:slide"}]}`,
 		"/api/ai/folder?folder=d2": `{"id":"d2","kind":"folder","title":"D2","path":[{"id":"library-home"},{"id":"d1","title":"D1"},{"id":"d2","title":"D2"}],"lineup":[` +
 			`{"kind":"book","id":"b2","title":"S"},{"kind":"page","id":"g1","title":"G1","type":"@matomezu/drawing:drawing"}]}`,
 	} {
@@ -175,7 +186,7 @@ func TestTheAIReadsAFolderOneLevelDeep(t *testing.T) {
 			t.Fatalf("%s = %d %s; want %s", path, code, body, want)
 		}
 	}
-	for _, id := range []string{storage.TrashID, "dt", "b1", "f1", "n1", "tn", "h1", "t1", "none"} {
+	for _, id := range []string{storage.TrashID, storage.UnreadableID, "bx", "dt", "b1", "f1", "n1", "tn", "h1", "t1", "none"} {
 		if code, body := send(t, "GET", s.URL+"/api/ai/folder?folder="+id, "", ai); code != 404 || body != "no such folder" {
 			t.Fatalf("folder %s = %d %q", id, code, body)
 		}

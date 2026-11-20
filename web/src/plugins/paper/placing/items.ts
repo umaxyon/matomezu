@@ -16,6 +16,7 @@ import {
 import {
   childOrigin,
   commitChildren,
+  type Edges,
   followConnectors,
   frameAround,
   frameOf,
@@ -25,10 +26,12 @@ import {
   placedAt,
   placedSize,
   placeItem,
+  resizedBy,
   shapeDefOf,
   tidyPage,
   toData,
 } from "../../base"
+import { kit } from "../kit"
 import { type Came, clampBy, dragRects, dropManyRects, dropRects, track } from "./drag"
 
 // 置こうとしているアイテムの左上を、ポインタから左上へこれだけ離す（画面の px）
@@ -36,6 +39,24 @@ export const PLACE_OFFSET: Point = { x: 16, y: 12 }
 
 // 位置の引き算に出る浮動小数点の誤差（99.99999999999999 など）を落とした量（線の手直しの点に足すので、整数の点が整数のままになる）
 const noiseless = (v: number): number => Math.round(v * 1e6) / 1e6
+
+// アイテム item の辺 edges を、紙の上で by だけ動かした位置と大きさ（比を保つ形は比を保つ。変えられなければ null。base の resizedBy）
+export function stretchedBy(
+  catalog: CoreCatalog,
+  item: PlacedShape,
+  edges: Edges,
+  by: Point,
+  paper: Size,
+): { x: number; y: number; w: number; h: number } | null {
+  const ratio = shapeDefOf(catalog, item.item)?.[kit.name("stretch")] === "ratio"
+  return resizedBy(catalog, item, edges, by, paper, ratio)
+}
+
+// アイテム item を大きさ size にした物（大きさを項目に写す形〈定義の resizedTo〉は写した項目にし、w・h を書かない）
+export function sizedTo(catalog: CoreCatalog, item: PlacedShape, size: Size): PlacedShape {
+  const write = shapeDefOf(catalog, item.item)?.resizedTo
+  return write ? (write(item as never, size) as PlacedShape) : { ...item, w: size.w, h: size.h }
+}
 
 // ドラッグ中のアイテム id の通り道を覚え直す（drag.ts の track）
 export function trackDrag(catalog: CoreCatalog, page: ItemPage, id: string, prev: Point, by: Point, came: Came): Came {

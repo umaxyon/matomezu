@@ -1,5 +1,5 @@
 // matomezu の error の表。番号は一度付けたら変えず、消した番号も使い回さない（利用者が調べる手がかりと、テストの照合に使う）。
-// 文は開発者に向けたもので、画面には出さない（画面の文言は i18n の表）。{name} は渡す値で置き換える。
+// 文は開発者に向けたもので、画面には出さない（画面の文言は i18n の表。起動エラーの画面だけは、起動を止めた理由の文として出す）。{name} は渡す値で置き換える。
 // 番号の範囲: E0xx 定義の組の食い違い（機能台帳）、E1xx 表に無いものを引いた・前提の状態が無い、E2xx 画面の組み立て、E3xx プラグイン、E4xx ホストとブラウザとのやり取り
 export const ERRORS = {
   E001: "{kind} {id}: id is registered twice",
@@ -102,6 +102,7 @@ export const ERRORS = {
   E211: "layout {layout}: slot {slot} is not opened by any placed widget",
   E212: "layout {layout}: menu {menu} is not shown by any placed widget",
   E213: "layout {layout}: context menu {menu} is not opened by any placed widget or book view",
+  E214: "widget {widget}: the window has no startup error to show",
 
   E301: 'plugin {plugin}: {kind} {id} must be "{plugin}:<name>" (a name of a-z, 0-9 and -, starting with a-z)',
   E302: "plugin {plugin}: key {key} binds {command}, which is not its own command",
@@ -119,11 +120,14 @@ export const ERRORS = {
   E314: "plugin {plugin}: enumValueIcons has {id}, which is not its own enum value",
   E315: "plugin {plugin}: contextMenuRows has {id}, which is not its own context menu",
   E316: "plugin {plugin}: its ui entry must export the plugin with the id {plugin} as default (export default definePluginUi(...))",
+  E317: "{count} added plugin(s) could not be added",
+  E318: "plugin {plugin}: it could not be added ({reason})",
 
   E401: "the server could not give the data: {status}",
   E402: "the server does not know this browser (run matomezu open in a terminal)",
   E403: "the server could not search: {status}",
   E404: "this window cannot write to the clipboard",
+  E405: "the server could not remove the plugins: {status}",
 } as const
 
 export type ErrorCode = keyof typeof ERRORS

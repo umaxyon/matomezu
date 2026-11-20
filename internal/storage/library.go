@@ -7,11 +7,31 @@ import (
 	"fmt"
 )
 
-// 書庫: フォルダの行は、書庫ホーム（folderRole が "home"）・ゴミ箱（"trash"）・フォルダ（"folder"）・ブック・バインダ（"binder"）のどれか。
-// 書庫ホームとゴミ箱は書庫の一番上のフォルダで、どちらもただ 1 つ・名前なし・どのフォルダにも入らない（表 entries に自分の行を持たない）。
+// 書庫: フォルダの行は、書庫ホーム（folderRole が "home"）・ゴミ箱（"trash"）・読めない物のフォルダ（"unreadable"）・フォルダ（"folder"）・ブック・バインダ（"binder"）のどれか。
+// 書庫ホーム・ゴミ箱・読めない物のフォルダは書庫の一番上のフォルダで、どれもただ 1 つ・名前なし・どのフォルダにも入らない（表 entries に自分の行を持たない）。
 // 書庫ホームとフォルダは、id だけのエントリ（{"kind": "page" | "binder" | "book" | "folder", "id"}）を順に持つ。
 // ゴミ箱のエントリは、それに入れた時刻 trashed と、元いたフォルダから書庫ホームまでの id の列 from（近い順）も持つ（trashRef）。
-// ブックは、folderRole が home・trash・folder・binder のどれでもない行（"book" と、役の無い・読めない行 = 読めないブック）。どのフォルダに入っているかでは決めない
+// 読めない物のフォルダのエントリは、在った所の並びのエントリ entry と、在った所の覚え（from・after・code・type・moved。core/folders.ts の UnreadableRef）を持つ。
+// 中の物の表 entries の folder は、読めない物のフォルダ。読めない物を移す・戻すのは常駐（アクションでない）。
+// ブックは、folderRole が home・trash・unreadable・folder・binder のどれでもない行（"book" と、役の無い・読めない行 = 読めないブック）。どのフォルダに入っているかでは決めない
+
+// フォルダの行の役（folderRole の値）
+const (
+	RoleHome       = "home"       // 書庫ホーム
+	RoleTrash      = "trash"      // ゴミ箱
+	RoleUnreadable = "unreadable" // 読めない物のフォルダ
+	RoleFolder     = "folder"     // フォルダ
+	RoleBinder     = "binder"     // バインダ
+	RoleBook       = "book"       // ブック
+)
+
+// エントリの種類（並びの要素の kind の値）
+const (
+	KindPage   = "page"
+	KindBinder = "binder"
+	KindBook   = "book"
+	KindFolder = "folder"
+)
 
 // HomeID は、書庫ホームの id（決まった値）
 const HomeID = "library-home"
@@ -19,14 +39,19 @@ const HomeID = "library-home"
 // TrashID は、ゴミ箱の id（決まった値）
 const TrashID = "library-trash"
 
-// IsTopRole は、フォルダの行の役 role（folderRole の値。無い・読めないなら空）が、書庫の一番上のフォルダ（どのフォルダにも入らない）の役か: 書庫ホームとゴミ箱
-func IsTopRole(role string) bool { return role == "home" || role == "trash" }
+// UnreadableID は、読めない物のフォルダの id（決まった値）
+const UnreadableID = "library-unreadable"
 
-// IsOpenRole は、役 role が、ページ・バインダ・ブック・フォルダの 4 つとも持てる役か: 書庫ホーム・ゴミ箱・フォルダ
-func IsOpenRole(role string) bool { return IsTopRole(role) || role == "folder" }
+// IsTopRole は、フォルダの行の役 role（folderRole の値。無い・読めないなら空）が、書庫の一番上のフォルダ（どのフォルダにも入らない）の役か: 書庫ホーム・ゴミ箱・読めない物のフォルダ
+func IsTopRole(role string) bool {
+	return role == RoleHome || role == RoleTrash || role == RoleUnreadable
+}
 
-// IsBookRole は、役 role が、ブックの役か（4 つとも持てる役でも、バインダでもない）
-func IsBookRole(role string) bool { return !IsOpenRole(role) && role != "binder" }
+// IsOpenRole は、役 role が、ページ・バインダ・ブック・フォルダの 4 つとも持てる役か: 書庫ホーム・ゴミ箱・フォルダ（読めない物のフォルダは、物を入れる所でない）
+func IsOpenRole(role string) bool { return role == RoleHome || role == RoleTrash || role == RoleFolder }
+
+// IsBookRole は、役 role が、ブックの役か（一番上の役でも、4 つとも持てる役でも、バインダでもない）
+func IsBookRole(role string) bool { return !IsTopRole(role) && !IsOpenRole(role) && role != RoleBinder }
 
 // RoleOf は、フォルダの行の本文 body の役（folderRole。無い・文字でない・本文が読めないなら空）
 func RoleOf(body json.RawMessage) string {
@@ -43,7 +68,7 @@ func HomeBody(lineup []json.RawMessage) json.RawMessage {
 	if lineup == nil {
 		lineup = []json.RawMessage{}
 	}
-	return marshal(map[string]any{"folderRole": "home", "id": HomeID, "lineup": lineup})
+	return marshal(map[string]any{"folderRole": RoleHome, "id": HomeID, "lineup": lineup})
 }
 
 // TrashBody は、エントリ lineup（trashRef の形）を持つゴミ箱の本文
@@ -51,7 +76,15 @@ func TrashBody(lineup []json.RawMessage) json.RawMessage {
 	if lineup == nil {
 		lineup = []json.RawMessage{}
 	}
-	return marshal(map[string]any{"folderRole": "trash", "id": TrashID, "lineup": lineup})
+	return marshal(map[string]any{"folderRole": RoleTrash, "id": TrashID, "lineup": lineup})
+}
+
+// UnreadableBody は、エントリ lineup を持つ読めない物のフォルダの本文
+func UnreadableBody(lineup []json.RawMessage) json.RawMessage {
+	if lineup == nil {
+		lineup = []json.RawMessage{}
+	}
+	return marshal(map[string]any{"folderRole": RoleUnreadable, "id": UnreadableID, "lineup": lineup})
 }
 
 // trashRef は、ゴミ箱の並びのエントリ 1 つ（フィールドの順は保存の形と同じ）
@@ -68,8 +101,8 @@ func RefOf(kind, id string) json.RawMessage { return refOf(kind, id) }
 // roleSQL は、表 folders の行の役を読む SQL の式（本文が読めない行は NULL。json_extract は読めない本文で誤りになるので、先に確かめる）
 const roleSQL = `CASE WHEN json_valid(body) THEN json_extract(body, '$.folderRole') END`
 
-// notBookSQL は、ブックでないフォルダの行の id（書庫ホーム・ゴミ箱・フォルダ・バインダ。IsBookRole の逆）を選ぶ SQL
-const notBookSQL = `SELECT id FROM folders WHERE ` + roleSQL + ` IN ('home', 'trash', 'folder', 'binder')`
+// notBookSQL は、ブックでないフォルダの行の id（書庫ホーム・ゴミ箱・読めない物のフォルダ・フォルダ・バインダ。IsBookRole の逆）を選ぶ SQL
+const notBookSQL = `SELECT id FROM folders WHERE ` + roleSQL + ` IN ('` + RoleHome + `', '` + RoleTrash + `', '` + RoleUnreadable + `', '` + RoleFolder + `', '` + RoleBinder + `')`
 
 // placeBooksInLibrary は、書庫ホームを作り、どのフォルダにも入っていないフォルダ（ブック。読めない物も）が在れば、
 // 書庫ホームの中のフォルダ「旧ブック」（作った uuid）を作って、それらを id の順に入れる（entries も）。1 つも無ければ「旧ブック」は作らない。
@@ -102,18 +135,18 @@ func placeBooksInLibrary(tx *sql.Tx) error {
 	old := newUUID()
 	refs := make([]json.RawMessage, 0, len(books))
 	for _, id := range books {
-		refs = append(refs, refOf("book", id))
+		refs = append(refs, refOf(KindBook, id))
 		if _, err := tx.Exec(`INSERT INTO entries (id, folder) VALUES (?, ?)`, id, old); err != nil {
 			return err
 		}
 	}
-	if err := put(old, marshal(map[string]any{"folderRole": "folder", "id": old, "title": "旧ブック", "lineup": refs})); err != nil {
+	if err := put(old, marshal(map[string]any{"folderRole": RoleFolder, "id": old, "title": "旧ブック", "lineup": refs})); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(`INSERT INTO entries (id, folder) VALUES (?, ?)`, old, HomeID); err != nil {
 		return err
 	}
-	return put(HomeID, HomeBody([]json.RawMessage{refOf("folder", old)}))
+	return put(HomeID, HomeBody([]json.RawMessage{refOf(KindFolder, old)}))
 }
 
 // newUUID は、uuid の形の乱数（版 4）

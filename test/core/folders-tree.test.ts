@@ -24,6 +24,7 @@ import {
   TRASH_ID,
   type TrashFolder,
   treeHolds,
+  UNREADABLE_ID,
   withBook,
   withChanges,
   withoutBook,
@@ -117,9 +118,9 @@ describe("木の決まり", () => {
     )
   })
 
-  test("書庫ホームとフォルダのエントリは、ブックかフォルダで、種類が合う（表に無い book は、読めないブックとして通す）", () => {
+  test("書庫ホームとフォルダのエントリは、ブックかフォルダで、種類が合う（表に無い book も破れる。読めないブックは表に入らない）", () => {
     const t = tables()
-    expect(treeHolds(withFolders(t, { ...old, lineup: [...old.lineup, { kind: "book", id: "unread" }] }))).toBe(true)
+    expect(treeHolds(withFolders(t, { ...old, lineup: [...old.lineup, { kind: "book", id: "unread" }] }))).toBe(false)
     expect(treeHolds(withFolders(t, { ...old, lineup: [...old.lineup, { kind: "folder", id: "none" }] }))).toBe(false)
     expect(treeHolds(withFolders(t, { ...old, lineup: [{ kind: "folder", id: "b1" }, old.lineup[1]!] }))).toBe(false)
   })
@@ -218,6 +219,40 @@ describe("木の決まり", () => {
     expect(rowsHoldTree([...Object.values(withFolders(tables(), holding).folders), broken])).toBe(true)
     expect(rowsHoldTree(rows.map(r => ((r as Folder).id === "old" ? { ...old, title: 3 } : r)))).toBe(false)
     expect(rowsHoldTree(rows.filter(r => (r as Folder).id !== HOME_ID))).toBe(false)
+  })
+
+  test("置き場所の行のまま確かめる: 読めない物のフォルダの中の物が持つ物は、外のフォルダか先の中の物も持つなら数えない（外の 2 つが持てば破れる）", () => {
+    const home = { folderRole: "home", id: HOME_ID, lineup: [{ kind: "book", id: "b1" }] }
+    const moved = (id: string) => ({
+      entry: { kind: "book", id },
+      from: [HOME_ID],
+      after: "none",
+      code: "W006",
+      moved: "2026-11-20T00:00:00.000Z",
+    })
+    const book = (id: string) => ({ folderRole: "book", id, title: id, lineup: [{ kind: "page", id: "p1" }] })
+    const unreadable = (...ids: string[]) => ({ folderRole: "unreadable", id: UNREADABLE_ID, lineup: ids.map(moved) })
+    // 外のブック b1 と、移った b2 が p1 を持つ
+    expect(rowsHold([home, book("b1"), book("b2"), unreadable("b2")], ["p1"])).toBe(true)
+    // 移った b2 と b3 だけが p1 を持つ（外のブックは無い）
+    expect(rowsHold([{ ...home, lineup: [] }, book("b2"), book("b3"), unreadable("b2", "b3")], ["p1"])).toBe(true)
+    // 外の 2 つが持てば破れる
+    expect(
+      rowsHold(
+        [
+          {
+            ...home,
+            lineup: [
+              { kind: "book", id: "b1" },
+              { kind: "book", id: "b2" },
+            ],
+          },
+          book("b1"),
+          book("b2"),
+        ],
+        ["p1"],
+      ),
+    ).toBe(false)
   })
 })
 

@@ -40,7 +40,7 @@ var tools = []tool{
 	},
 	{
 		"list_books",
-		"List the books: id, title, version (it goes up when the book itself changes: its title, its settings or its lineup; not when the contents of a page change) and awaiting (how many annotations, such as the user's notes and marks, wait for your answer; left out when none). A book that cannot be read now (it does not fit the shape or the rules of a book) has problem, the reason; it cannot be opened or changed until that is fixed. A book with items or settings of plugins that are not installed, or with pages that cannot be read now (see read_book), has warning; it can be read and changed, and those parts are kept as they are.",
+		"List the books: id, title, version (it goes up when the book itself changes: its title, its settings or its lineup; not when the contents of a page change) and awaiting (how many annotations, such as the user's notes and marks, wait for your answer; left out when none). A book that cannot be read now is not listed (actions lists the problem in warnings). A book with items or settings of plugins that are not installed has warning; it can be read and changed, and those parts are kept as they are.",
 		noArgs,
 		reading(func(api caller, _ map[string]any) (json.RawMessage, error) {
 			return api.Get("api/ai/books")
@@ -51,8 +51,8 @@ var tools = []tool{
 		"read_folder",
 		"Read a folder of the library, one level deep. The library keeps books in folders under the library home, its top folder; a folder can also hold pages and binders that are in no book. " +
 			"It answers the folder's id, kind (home for the library home, folder for a folder), title (the library home has none), path (the folders from the library home down to this one, each with id and title) " +
-			"and lineup, its entries in order: a folder (kind folder, id, title), a book (kind book, id, title; one that cannot be read now also has problem, the reason, as in list_books), " +
-			"a page (kind page, id, title, type), a binder of pages of one type (kind binder, id, title, pageType) or a page that cannot be read now (kind unreadable, id, title, code and type, as in read_book). " +
+			"and lineup, its entries in order: a folder (kind folder, id, title), a book (kind book, id, title; one that cannot be read now is not answered, as in list_books), " +
+			"a page (kind page, id, title, type) or a binder of pages of one type (kind binder, id, title, pageType). " +
 			"A system folder (such as Documents, always at the top of the library home; it cannot be moved or renamed) also has systemFolder, the id of its kind. " +
 			"While the plugin that adds that kind is off, its title is empty and it can be put in the trash; otherwise it cannot. " +
 			"Read a folder in the lineup with read_folder and a book with read_book. What is in the trash is not answered.",
@@ -73,8 +73,6 @@ var tools = []tool{
 	{
 		"read_book",
 		"Read a book: the book without its pages' contents (title, settings and so on), its lineup as an outline (each entry is a page: kind page, id, title, type, size in characters and version, which goes up each time that page changes; or a binder of pages of one type: kind binder, id, title, pageType and its own lineup of pages), its version (see list_books) and its annotations (such as the user's notes and marks: page, the page they are on; anchors, the things of that page they are tied to; and awaiting, whether they wait for your answer). " +
-			"A page that cannot be read now is in the lineup as kind unreadable with id, title, code (the reason: W027 its type is not installed, W028 it does not fit its type, W029 it breaks its type's rules) and type (its page type's id, when it has one). " +
-			"It is kept as it is and nothing can be done to it (read_page on it is refused with unreadable and the code; an action that would change it is refused with unreadable and the code), while the other pages work as usual. " +
 			"Read the contents of a page with read_page.",
 		map[string]any{
 			"type":                 "object",
@@ -116,7 +114,7 @@ var tools = []tool{
 				path += "?" + q.Encode()
 			}
 			return api.Get(path)
-		}, narrowPage, unreadablePage),
+		}, narrowPage),
 		true,
 	},
 	{
@@ -246,7 +244,7 @@ var tools = []tool{
 			"the page types (whether pages of the type go in a binder of their own, and which items they place), the kinds of annotations and mail, the subjects (kinds of records that actions work on, with the shape of a record; perform takes on.record for them), the themes, the colors by role, the language packs (the language setting takes a pack id), the skins and the text colors. " +
 			"With ids (ids from the index), it answers the whole entry of each: an action's description and args (JSON Schema, for perform), an item's props (JSON Schema) and default size, a setting's schema; unknown lists ids it does not have. " +
 			"warnings (only when there are some, without ids) lists the problems that hold now, one line each with its code (W and 3 digits), found by the host or by the user's screens: " +
-			"definitions that partly do not work, books that cannot be read, added plugins a screen could not set up (W011: their actions still work, but the user does not see what they draw).",
+			"definitions that partly do not work, books that cannot be read.",
 		actionsSchema,
 		reading(func(api caller, args map[string]any) (json.RawMessage, error) {
 			return api.Get("api/ai/catalog" + idsQuery(args))
@@ -344,8 +342,7 @@ var performSchema = map[string]any{
 }
 
 const performDescription = "Perform an action listed by actions, as the user would on the screen: the change appears at once on screens showing that book. " +
-	"Returns the action's result (such as the id of what it made), with a notice on the next line when the action changed something else you should know (such as positions), or why it was refused. " +
-	"Nothing can be done to a page that cannot be read now: an action on it or one that would change it is refused with unreadable and the code (see read_book)."
+	"Returns the action's result (such as the id of what it made), with a notice on the next line when the action changed something else you should know (such as positions), or why it was refused."
 
 // showSchema は show の受ける形
 var showSchema = map[string]any{
@@ -410,24 +407,6 @@ func hostFailed(err error) (string, bool) {
 	return err.Error(), true
 }
 
-// unreadablePage は、read_page の答えが読めないページの断り（{"ok": false, "reason": "unreadable", "code"}）なら、AI に返す 1 行
-func unreadablePage(out json.RawMessage) (string, bool) {
-	var done struct {
-		OK     *bool  `json:"ok"`
-		Reason string `json:"reason"`
-		Code   string `json:"code"`
-	}
-	if json.Unmarshal(out, &done) != nil || done.OK == nil || *done.OK || done.Reason != "unreadable" {
-		return "", false
-	}
-	return unreadablePageText(done.Code), true
-}
-
-// unreadablePageText は、読めないページで断ったときの、AI に返す 1 行（理由は warning の番号 code だけ。番号の意味は read_book の説明にある）
-func unreadablePageText(code string) string {
-	return "unreadable: the page cannot be read now (" + code + "); nothing can be done to it (see read_book)"
-}
-
 // maxAnswer は、読む MCP 公開ツールの 1 つの答えの文字数の上限
 const maxAnswer = 60000
 
@@ -471,15 +450,11 @@ func perform(api caller, args map[string]any) (string, bool) {
 		OK     bool            `json:"ok"`
 		Reason string          `json:"reason"`
 		Detail string          `json:"detail"`
-		Code   string          `json:"code"` // 読めないページで断ったとき、理由の warning の番号
 		Result json.RawMessage `json:"result"`
 		Notice string          `json:"notice"` // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
 	}
 	if err := json.Unmarshal(out, &done); err != nil {
 		return string(out), true
-	}
-	if !done.OK && done.Reason == "unreadable" && done.Code != "" {
-		return unreadablePageText(done.Code), false
 	}
 	if !done.OK {
 		text := refusalText(done.Reason, done.Detail)
@@ -549,8 +524,6 @@ func show(api caller, args map[string]any) (string, bool) {
 // refusalText は断った理由の、AI に返す 1 行。常駐が決めた理由のほかは、エンジンが添えた AI への説明（detail）を使う
 func refusalText(reason, detail string) string {
 	switch {
-	case reason == "unreadable":
-		return "unreadable: the book cannot be read now (" + detail + "); it cannot be changed until that is fixed (see list_books)"
 	case reason == "open-on-screen":
 		return "open-on-screen: the book is shown on the user's screen now, so it was not moved to the trash; ask the user in the chat"
 	case reason == "being-edited":

@@ -16,16 +16,17 @@ import {
   talkActions,
   unexpired,
 } from "../core/annotation"
-import { checkBooks, findPage, pageById, pagesOf, readLibrary, restoreBooks, unreadableOf, warnsOf } from "../core/book"
+import { checkBooks, findPage, pageById, pagesOf, readLibrary, restoreBooks } from "../core/book"
 import { briefLine } from "../core/brief"
 import { bulkActionOf, type LibraryRows, performBulk } from "../core/bulk"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
 import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, type AIEditTicketChange, type AIMessage, stopsOnEditLock } from "../core/def/action"
 import { slideIsBackground } from "../core/def/page-type"
-import type { SubjectDef } from "../core/def/subject"
+import { type SubjectDef, shownToAI } from "../core/def/subject"
 import { binnedBetween, namingOf, systemFoldersInPlace } from "../core/entries"
 import {
+  BROKEN,
   bookIdOf,
   bookOf,
   createdOn,
@@ -35,6 +36,8 @@ import {
   pageIn,
   rowsHoldTree,
   rowsLibraryOf,
+  UNREADABLE_ID,
+  unreadableFolderOf,
   withChanges,
 } from "../core/folders"
 import { detectLang, translate } from "../core/i18n/i18n"
@@ -53,7 +56,7 @@ import {
   restoreCounters,
   restoreRecords,
 } from "../core/records"
-import { type Book, UNREADABLE_CODES } from "../core/schema/book"
+import type { Book } from "../core/schema/book"
 import {
   aiSettings,
   disabledPluginsOf,
@@ -62,6 +65,7 @@ import {
   restoreSettings,
   settingSchema,
 } from "../core/settings"
+import { purgedRows, type RowWrites, settleLibrary, unreadableWarning } from "../core/unreadable"
 import { WARNINGS, type Warning, warning, warningText } from "../core/warnings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../plugins"
@@ -172,10 +176,8 @@ type Output =
       kind?: string
       systemFolder?: string // 名前が重なる断り（title-taken）で、重なった相手がシステムフォルダのときの、その印
       detail?: string
-      page?: string
-      code?: string
       at?: number
-    } // page と code は、読めないページの断り（unreadable）のとき。at は断られたアクションが何番目か
+    } // at は断られたアクションが何番目か
 
 // 変わったページ・フォルダ 1 つ（row は新しい値。無くなったなら removed が true で、row は無い）
 interface RowChange {
@@ -199,7 +201,6 @@ const AI_REFUSALS: Record<Exclude<PerformedIn, { ok: true }>["reason"], string> 
   "no-book": "there is no book with that id (see list_books)",
   "no-page": "there is no page with that id (on.page is the id of a page; read_book lists a book's pages)",
   "no-record": "there is no record with that id (on.record is the id of a record of the action's subject)",
-  unreadable: "that page cannot be read now (code is the reason); nothing can be done to it",
 }
 
 // 断りに、AI への説明を添える
@@ -235,9 +236,6 @@ function refusal(catalog: CoreCatalog, done: Exclude<PerformedIn, { ok: true }>)
   const mark = "systemFolder" in done && done.systemFolder !== undefined ? { systemFolder: done.systemFolder } : {}
   if ("detail" in done && done.detail !== undefined)
     return { ok: false, reason: done.reason, ...kind, ...mark, detail: done.detail }
-  // 読めないページの断りは、そのページの id と理由の番号を添える（常駐は AI に番号だけを返す）
-  if (done.reason === "unreadable")
-    return { ok: false, reason: done.reason, page: done.page, code: done.code, detail: AI_REFUSALS.unreadable }
   return { ok: false, reason: done.reason, ...kind, detail: AI_REFUSALS[done.reason] }
 }
 
@@ -463,20 +461,18 @@ function aiTables(of: Assembled) {
       props: z.toJSONSchema(a.props, { io: "input", unrepresentable: "any" }),
     })),
     // 対象の定義（レコードの種類。アクションの target はこの id のとき、perform の on は { record: レコードの id }（作るときは on を書かない））
-    subjects: [...catalog.subjects.values()]
-      .filter(s => s.aiBrief !== undefined)
-      .map(s => ({
-        id: s.id,
-        title: en(s.title),
-        description: s.aiDescription,
-        record: z.toJSONSchema(s.record, { io: "input", unrepresentable: "any" }),
-        // 一覧の既定の目次に載せない物（read_records の unlisted で include か only を付けると取れる）
-        ...(s.aiListed ? { unlisted: s.aiListed.unlisted } : {}),
-        // 索引キー（read_records の where に書ける名前と型。一覧の既定の並びを持つ種類だけが、索引キーで探す）
-        ...(s.aiList && s.keys
-          ? { keys: Object.fromEntries(Object.entries(s.keys).map(([name, key]) => [name, key.type])) }
-          : {}),
-      })),
+    subjects: [...catalog.subjects.values()].filter(shownToAI).map(s => ({
+      id: s.id,
+      title: en(s.title),
+      description: s.aiDescription,
+      record: z.toJSONSchema(s.record, { io: "input", unrepresentable: "any" }),
+      // 一覧の既定の目次に載せない物（read_records の unlisted で include か only を付けると取れる）
+      ...(s.aiListed ? { unlisted: s.aiListed.unlisted } : {}),
+      // 索引キー（read_records の where に書ける名前と型。一覧の既定の並びを持つ種類だけが、索引キーで探す）
+      ...(s.aiList && s.keys
+        ? { keys: Object.fromEntries(Object.entries(s.keys).map(([name, key]) => [name, key.type])) }
+        : {}),
+    })),
     // 郵便の種類（read_records の郵便の mail は、この id）
     mails: [...catalog.mails.values()].map(m => ({
       id: m.id,
@@ -509,9 +505,8 @@ function aiTables(of: Assembled) {
 ;(globalThis as { matomezuReadSettings?: (settings: string) => string }).matomezuReadSettings = settings =>
   JSON.stringify(aiSettings(assembled.catalog.core, restoreSettings(JSON.parse(settings))))
 
-// 残したブックを今の機能台帳で確かめ、warning のあるブック（ブックごと読めない W005・W006、読めないページがある W027〜W029、一部に無い物がある W007）の
-// id・番号・warning の 1 行と、ブックごと読めないか（unreadable）を返す（常駐が一覧に持つ）。読めないページの warning は、ページ 1 枚ごとに、
-// そのページの id（page）を添えて返す（1 行は、同じブックの同じ理由のページで同じ）
+// 残したブックを今の機能台帳で確かめ、warning のあるブック（ブックごと読めない W005・W006・読めないページを持つ W027〜W029、一部に無い物がある W007）の
+// id・番号・warning の 1 行と、ブックごと読めないか（unreadable）を返す（常駐が一覧に持つ）
 ;(globalThis as { matomezuCheckBooks?: (books: string) => string }).matomezuCheckBooks = books => {
   const read = checkBooks(assembled.catalog.core, JSON.parse(books) as unknown[])
   const line = (n: Warning, unreadable: boolean) => ({
@@ -520,19 +515,7 @@ function aiTables(of: Assembled) {
     warning: warningText(n),
     unreadable,
   })
-  const ofPages = (n: Warning): boolean => (UNREADABLE_CODES as readonly string[]).includes(n.code)
-  // 読めないページ 1 枚ごとに、そのページの理由の warning
-  const pages = read.books.flatMap(book =>
-    unreadableOf(book).flatMap(u => {
-      const found = read.partial.find(n => warnsOf(n, book.id, u))
-      return found ? [{ ...line(found, false), page: u.id }] : []
-    }),
-  )
-  return JSON.stringify([
-    ...read.warnings.map(n => line(n, true)),
-    ...read.partial.filter(n => !ofPages(n)).map(n => line(n, false)),
-    ...pages,
-  ])
+  return JSON.stringify([...read.warnings.map(n => line(n, true)), ...read.partial.map(n => line(n, false))])
 }
 
 // 残したフォルダの行の全部（書庫ホーム・フォルダ・ブック・バインダ）とページの行の id の全部が木の決まりを守るかを確かめ、破れていれば warning（W030）の 1 行を、守っていれば空の文字列を返す
@@ -625,11 +608,10 @@ interface AnnotatedBook {
   const out: string[] = []
   if (def) {
     for (const [id, record] of Object.entries(parseOr(records) as Record<string, unknown>)) {
-      const parsed = def.record.safeParse(record)
-      try {
-        if (parsed.success && !isAIListed(assembled.catalog.core, def, parsed.data, (s, i) => source?.byId(s, i)))
-          out.push(id)
-      } catch {}
+      const listed = onRecord(def, record, data =>
+        isAIListed(assembled.catalog.core, def, data, (s, i) => source?.byId(s, i)),
+      )
+      if (listed === false) out.push(id)
     }
   }
   return JSON.stringify(out)
@@ -652,11 +634,20 @@ function withKeys(
 
 // レコード 1 件の、横断検索に使う文字（形に合わない・関数が投げたレコードは undefined）
 function searchTextOf(def: SubjectDef, record: unknown): { title: string; body: string } | undefined {
-  const parsed = def.record.safeParse(record)
-  if (!parsed.success || def.searchTexts === undefined) return undefined
-  try {
-    const { title, body } = def.searchTexts(parsed.data as never)
+  const texts = def.searchTexts
+  if (texts === undefined) return undefined
+  return onRecord(def, record, data => {
+    const { title, body } = texts(data)
     return { title: title ?? "", body: body ?? "" }
+  })
+}
+
+// レコード 1 件を種類 def の形で確かめ、プラグインの関数 f に渡した答え。形に合わないか f が投げたら undefined（1 件の誤りで、ほかのレコードを止めない）
+function onRecord<T>(def: SubjectDef, record: unknown, f: (data: never) => T): T | undefined {
+  const parsed = def.record.safeParse(record)
+  if (!parsed.success) return undefined
+  try {
+    return f(parsed.data as never)
   } catch {
     return undefined
   }
@@ -669,15 +660,15 @@ function searchTextOf(def: SubjectDef, record: unknown): { title: string; body: 
       keys: Object.entries(s.keys ?? {}).map(([name, key]) => ({ name, type: key.type })),
       // AI に見せる種類か（aiBrief を書いた種類）と、その一覧の既定の並びと件数（aiList。索引キーで探す種類だけ）
       search: s.searchTexts !== undefined,
-      ai: s.aiBrief !== undefined,
-      ...(s.aiBrief !== undefined && s.aiList && s.keys?.[s.aiList.order.key] ? { aiList: s.aiList } : {}),
+      ai: shownToAI(s),
+      ...(shownToAI(s) && s.aiList && s.keys?.[s.aiList.order.key] ? { aiList: s.aiList } : {}),
       // 目次に載せない物がある種類の、載せない物の説明（aiListed。read_records の unlisted を受ける種類）
-      ...(s.aiBrief !== undefined && s.aiListed ? { aiUnlisted: s.aiListed.unlisted } : {}),
+      ...(shownToAI(s) && s.aiListed ? { aiUnlisted: s.aiListed.unlisted } : {}),
     })),
   )
 
 // AI に見せる種類 kind のレコードの並び records（JSON。常駐が索引キーで探して並べた、その件数だけ）の、一覧の行: id・種類が添えるフィールド（aiRow）・題（brief）。
-// 並びは受けた順のまま。形に合わないレコードは id だけの行にする（数と続きが食い違わないように）
+// 並びは受けた順のまま。形に合わない・種類の関数が投げたレコードは id だけの行にする（数と続きが食い違わないように）
 ;(globalThis as { matomezuAiRows?: (kind: string, records: string) => string }).matomezuAiRows = (kind, records) => {
   const catalog = assembled.catalog.core
   const source = hostSource({})
@@ -685,19 +676,19 @@ function searchTextOf(def: SubjectDef, record: unknown): { title: string; body: 
   const brief = def?.aiBrief
   if (def === undefined || brief === undefined) return "null"
   return JSON.stringify(
-    (JSON.parse(records) as unknown[]).map(r => {
-      const parsed = def.record.safeParse(r)
-      if (!parsed.success) return { id: String((r as { id?: unknown } | null)?.id ?? "") }
-      const { id } = parsed.data as { id: string }
-      const line = briefLine(
-        brief(
-          parsed.data,
-          recordContext(catalog, def, parsed.data, (s, i) => source?.byId(s, i)),
-        ),
-        120,
-      )
-      return { id, ...(def.aiRow?.(parsed.data) ?? {}), ...(line === "" ? {} : { brief: line }) }
-    }),
+    (JSON.parse(records) as unknown[]).map(
+      r =>
+        onRecord(def, r, (data: { id: string }) => {
+          const line = briefLine(
+            brief(
+              data,
+              recordContext(catalog, def, data, (s, i) => source?.byId(s, i)),
+            ),
+            120,
+          )
+          return { id: data.id, ...(def.aiRow?.(data) ?? {}), ...(line === "" ? {} : { brief: line }) }
+        }) ?? { id: String((r as { id?: unknown } | null)?.id ?? "") },
+    ),
   )
 }
 
@@ -738,12 +729,9 @@ function searchTextOf(def: SubjectDef, record: unknown): { title: string; body: 
   const out: Record<string, { subject: string; id: string }> = {}
   if (def?.refers) {
     for (const [id, record] of Object.entries(parseOr(records) as Record<string, unknown>)) {
-      const parsed = def.record.safeParse(record)
-      if (!parsed.success) continue
-      try {
-        const first = def.refers(parsed.data as never)[0]
-        if (first) out[id] = { subject: first.subject, id: first.id }
-      } catch {}
+      const refers = def.refers
+      const first = onRecord(def, record, data => refers(data)[0])
+      if (first) out[id] = { subject: first.subject, id: first.id }
     }
   }
   return JSON.stringify(out)
@@ -928,6 +916,69 @@ const WindowWarningSchema = z.object({
   return JSON.stringify(lines)
 }
 
+// 書庫を今の機能台帳に合わせて整える: 読めない物を読めない物のフォルダへ移し、読めるようになった物を戻す（core/unreadable.ts の settleLibrary。名前は利用者の設定 settings の言語で比べる。移した時刻は now）。
+// 常駐が起動したときと機能台帳が変わったときに、置き場所の行の全部 pages・folders で呼ぶ。返すのは、書く行の変わり（engine の Output の pages・folders と同じ形）と、
+// 移した物（id と理由の番号）と戻した物の id と、名前に番号を付けた物（id と付けた名前）と、そのあとの warning W032 の 1 行（読めない物が無ければ空）。
+// 読めない物のフォルダの行が形に合わなければ broken（何も書かない）
+;(
+  globalThis as { matomezuSettleLibrary?: (pages: string, folders: string, settings: string, now: string) => string }
+).matomezuSettleLibrary = (pages, folders, settings, now) => {
+  const catalog = assembled.catalog.core
+  const done = settleLibrary(catalog, JSON.parse(pages) as unknown[], JSON.parse(folders) as unknown[], {
+    naming: namingOf(catalog, restoreSettings(JSON.parse(settings))),
+    now,
+    newId: () => crypto.randomUUID(),
+  })
+  if (done === BROKEN) return JSON.stringify({ broken: true })
+  return JSON.stringify({
+    ...rowWrites(done.writes),
+    moved: done.moved.map(u => ({ id: u.element.id, code: u.code })),
+    returned: done.returned,
+    numbered: done.numbered,
+    warning: warningLineOf(done.writes.folders[UNREADABLE_ID], JSON.parse(folders) as unknown[]),
+  })
+}
+
+// 書庫を整えるのに失敗した訳 reason（常駐が渡す。engine: 整える関数が失敗した・broken: 読めない物のフォルダの行が形に合わない・write: 書き込みが失敗した）ごとの、warning W033 に書く言い方
+const SETTLE_FAILURES: Readonly<Record<"engine" | "broken" | "write", string>> = {
+  engine: "engine failed",
+  broken: "the unreadable folder does not fit its shape",
+  write: "could not write",
+}
+
+// 書庫を整えるのに失敗した訳 reason（SETTLE_FAILURES の鍵）の warning W033 の 1 行。常駐が、失敗している間だけ持つ
+;(globalThis as { matomezuSettleFailed?: (reason: string) => string }).matomezuSettleFailed = reason =>
+  warningText(
+    warning("W033", "", {
+      reason: Object.hasOwn(SETTLE_FAILURES, reason) ? SETTLE_FAILURES[reason as keyof typeof SETTLE_FAILURES] : reason,
+    }),
+  )
+
+// 読めない物のフォルダの直下の物 id を完全に消す行の変わり（core/unreadable.ts の purgedRows）と、そのあとの warning W032 の 1 行。直下に無ければ none
+;(globalThis as { matomezuPurgedRows?: (pages: string, folders: string, id: string) => string }).matomezuPurgedRows = (
+  pages,
+  folders,
+  id,
+) => {
+  const rows = JSON.parse(folders) as unknown[]
+  const done = purgedRows(JSON.parse(pages) as unknown[], rows, id)
+  if (!done) return JSON.stringify({ none: true })
+  return JSON.stringify({ ...rowWrites(done), warning: warningLineOf(done.folders[UNREADABLE_ID], rows) })
+}
+
+// 書く行の変わり writes を、engine の Output の pages・folders の形にした物（id の順）
+function rowWrites(writes: RowWrites): { pages: RowChange[]; folders: RowChange[] } {
+  const of = (puts: Readonly<Record<string, unknown>>, gone: readonly string[]) =>
+    [...rowChanges(puts), ...gone.map(id => ({ id, removed: true as const }))].sort((a, b) => a.id.localeCompare(b.id))
+  return { pages: of(writes.pages, writes.removedPages), folders: of(writes.folders, writes.removedFolders) }
+}
+
+// 書いた後の読めない物のフォルダの行 written（書かなければ、置き場所の行 folders の物）の warning W032 の 1 行（読めない物が無ければ空）
+function warningLineOf(written: unknown, folders: readonly unknown[]): string {
+  const folder = unreadableFolderOf(written === undefined ? folders : [written])
+  const found = folder === BROKEN ? undefined : unreadableWarning(folder)
+  return found ? warningText(found) : ""
+}
 // 常駐が呼ぶ口: JSON の文字列で受けて返す
 ;(globalThis as { matomezuPerform?: (input: string) => string }).matomezuPerform = input =>
   JSON.stringify(perform(JSON.parse(input) as Input))

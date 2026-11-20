@@ -170,12 +170,3 @@ export function inspectKey(table: KeyTable, q: { scope: string; key: string }): 
   const hit = steps[0]?.value != null ? steps[0] : undefined
   return { value: hit?.value ?? null, decidedBy: hit?.from ?? null, steps }
 }
-
-// 狭い範囲の同じキーに隠れる行（画面全体の行が、ステージでは隠れるなど）
-export function shadowedKeys(table: KeyTable): { entry: KeyEntry; by: KeyEntry }[] {
-  return table.active.flatMap(e => {
-    if (e.binding.scope !== "global" || findKey(table, "global", e.binding.key) !== e) return []
-    const by = findKey(table, "stage", e.binding.key)
-    return by ? [{ entry: e, by }] : []
-  })
-}

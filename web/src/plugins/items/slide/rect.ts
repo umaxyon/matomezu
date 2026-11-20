@@ -1,6 +1,11 @@
 // スライドのアイテムの四角の計算（紙の上の px。角度は度で、時計回り、四角の中心まわり）。つまみで大きさを変えたときの新しい四角と、回すつまみで決まる角度、ドラッグで描いた線の四角。
 // 大きさを変えるときは、つかんでいない側の辺（角なら向かいの角）が紙の上で動かないようにする
-import type { Point, Rect } from "../../../plugin-api"
+import type { PlacedShape, Point, Rect } from "../../../plugin-api"
+
+// 形のアイテムの props（スライドのアイテムの項目を名前で読む）
+export const shapeProps = (shape: PlacedShape): Record<string, unknown> => shape.props as Record<string, unknown>
+// 形のアイテムの角度（度。書いていなければ 0）
+export const rotationOf = (shape: PlacedShape): number => (shapeProps(shape).rotation as number | undefined) ?? 0
 
 // つかんだ辺（角なら 2 つ）
 export interface Grip {
@@ -34,10 +39,6 @@ export function cornersOf(f: Rect, rotation: number): readonly Point[] {
     return { x: c.x + t.x, y: c.y + t.y }
   })
 }
-
-// 角か辺か（角は 2 つの辺をつかむ）
-export const isCorner = (g: Grip): boolean =>
-  (g.left === true || g.right === true) && (g.top === true || g.bottom === true)
 
 export interface Resized extends Rect {
   scaled: boolean // 角をつかんだ（文字枠の文字も一緒に拡大する）

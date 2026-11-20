@@ -36,7 +36,7 @@ export function shownLayout(
 // 見た目を結んだプラグインだけで作ったインスタンスを、UI マッピングと一緒に置く（結んでいないプラグインがあれば型の誤り）。
 // UI マッピングは渡すたびに確かめ（知らないウィジェット・置けないスロット・インスタンスに無いコマンド）、変えればその場で組み直す。
 // 持ち主のプラグインが組み込まれていない物は、確かめる前に除いて warning にする。
-// warnings は、UI マッピングを作るときに見つかった warning（置かなかったウィジェット・外した追加プラグインなど）で、除いた物の warning と一緒に画面の warning にする
+// warnings は、UI マッピングを作るときに見つかった warning（置かなかったウィジェットなど）で、除いた物の warning と一緒に画面の warning にする
 export function MatomezuProvider({
   instance,
   layout,

@@ -17,12 +17,24 @@ export interface HostClient {
   load(): Promise<Loaded>
   observe(bulk: DoneBulk): Promise<HostAnswer> // 画面で行ったアクションバルクを渡し、ホストが確かめた答えを待つ（createMatomezu の observe に渡す）
   connect(instance: MatomezuInstance): () => void // load で読んだもので作ったインスタンスとつなぐ（外の変化を入れ、残す）。切る関数を返す
-  // 画面が見つけた warning（UI マッピングの W010・外した追加プラグインの W011 など）をホストに知らせる。前に知らせたものと入れ替え、
+  // 画面が見つけた warning（UI マッピングの W010・置かなかったウィジェットの W016 など）をホストに知らせる。前に知らせたものと入れ替え、
   // つなぎ直すたびに知らせ直す（ホストは窓ごとに持ち、ほかの warning と集めてログと AI に出す）
   reportWarnings(warnings: readonly Warning[]): void
   // まだ見ていない AI の変更が、この窓で見えたか、見られる前に消えたこと（createMatomezu の aiEditTicket に渡す）。ホストは AI の変更ごとに残し、消えた物を AI に渡す
   reportAIEditTicket(change: AIEditTicketOutcome): void
   // ホストの言葉の検索（横断検索）。断られた・つながらなかったときは投げる。画面には createMatomezu の search で渡す
   search(query: WideSearchQuery): Promise<WideSearchAnswer>
+  // load が開いた知らせのつながりを閉じる（起動を止めた窓が connect の前に呼ぶ）。常駐はこの窓を、AI の view・show の向け先に数えなくなる。
+  // 閉じたあとは「plugins」の知らせでも読み直さない。removeScreenPlugins は閉じたあとも使える
+  closeEvents(): void
+  // 窓が組み込めなかった追加プラグイン ids を、並びの順にホストから外す（AI から外すのと同じ）。全部外せたら窓を読み直して removed、
+  // 外せなかった物があれば、その id と理由で止めて refused（それより前の物は外れたまま）、常駐につながらなければ unreachable。常駐が断れば（200 でない）E405 を投げる
+  removeScreenPlugins(ids: readonly string[]): Promise<ScreenPluginsRemoved>
   visible(): boolean // 窓が見えているか（裏のタブなどで見えていない間は、まだ見ていない変更を見えたとしない。createMatomezu の visible に渡す）
 }
+
+// removeScreenPlugins の答え
+export type ScreenPluginsRemoved =
+  | { state: "removed" }
+  | { state: "refused"; id: string; reason: string }
+  | { state: "unreachable" }

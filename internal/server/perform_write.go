@@ -31,6 +31,8 @@ type writePlan struct {
 	tickets *[]AIEditTicket // 書き換えた AI 編集チケットの並びの全部（変えなければ nil）
 	records []recordPut     // 変えたレコードの全部
 	quiet   bool            // 窓に知らせず、触れた時刻も残さない（テストの用意で世界を置き直すとき）
+	// untouched なら、窓に知らせても、触れた時刻は残さない（常駐が読めない物を移す・戻すとき。利用者がブックに触れたのでない）
+	untouched bool
 }
 
 // planWrites は out の変えた物を、置き場所に書く形（batch）と、当てる物にする。何も変えない（h.mu を持って呼ぶ）。
@@ -170,36 +172,6 @@ func repeatedChanges(out engine.Output) error {
 	return nil
 }
 
-// unreadableWrite は、out が読めないページの行に触れるか: 読めないページの行を変える、読めないページの行を、それを持つブックのフォルダを消さずに消す、
-// kind が unreadable のページの行を書く、並びに kind が unreadable の要素を持つフォルダの行を書く。読めないページの行はそのまま残す決まりの、エンジンの後ろの守り（Perform が断る。h.mu を持って呼ぶ）
-func (h *Hub) unreadableWrite(out engine.Output) bool {
-	removedFolders := map[string]bool{}
-	for _, c := range out.Folders {
-		if c.Removed {
-			removedFolders[c.ID] = true
-		}
-	}
-	for _, c := range out.Pages {
-		_, unreadable := h.pageWarnings[c.ID]
-		if c.Removed {
-			// 読めないページの行を消してよいのは、それを持つブックごと消すときだけ
-			if book := h.bookOfEntry(c.ID); unreadable && (book == "" || !removedFolders[book]) {
-				return true
-			}
-			continue
-		}
-		if unreadable || kindOf(c.Row) == "unreadable" {
-			return true
-		}
-	}
-	for _, c := range out.Folders {
-		if !c.Removed && slices.ContainsFunc(lineupOf(c.Row), func(e json.RawMessage) bool { return kindOf(e) == "unreadable" }) {
-			return true
-		}
-	}
-	return false
-}
-
 // rowNotice は、窓に知らせるページ・フォルダ 1 つ（field は "page" か "folder"）
 func rowNotice(field string, put rowPut) map[string]any {
 	if put.removed {
@@ -263,7 +235,7 @@ func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act
 	}
 	for _, id := range out.Books {
 		if e, ok := h.books[id]; ok {
-			if !plan.quiet {
+			if !plan.quiet && !plan.untouched {
 				h.touch(id, stamp())
 			}
 			h.checkBook(id, e.body)

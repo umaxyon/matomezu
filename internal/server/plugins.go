@@ -6,6 +6,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -44,13 +45,16 @@ func (h *Hub) LinkPlugin(dir string) (string, error) {
 
 // UnlinkPlugin は id の追加プラグインを外し、そのプラグインが足した種類のアノテーションを消す
 // （外したプラグインの物はもう使わない。プラグインを入れずに起動したときや、版が変わって種類が無くなったときは消さずに warning にする）
+// errNoPlugin は、外すよう頼まれた id の追加プラグインを足していない
+var errNoPlugin = errors.New("no plugin")
+
 func (h *Hub) UnlinkPlugin(id string) error {
 	defer h.afterCatalogChange()
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	next := slices.DeleteFunc(slices.Clone(h.plugins), func(p *plugin.Bundle) bool { return p.Manifest.ID == id })
 	if len(next) == len(h.plugins) {
-		return fmt.Errorf("no plugin %q", id)
+		return fmt.Errorf("%w %q", errNoPlugin, id)
 	}
 	if err := h.usePlugins(next); err != nil {
 		return err
@@ -70,7 +74,7 @@ func (h *Hub) dropAnnotationsOf(id string) error {
 			kept[page] = without
 		}
 	}
-	if err := h.putAnnotationLists(kept, "", 0); err != nil {
+	if err := h.putAnnotationLists(kept); err != nil {
 		return err
 	}
 	return h.checkAnnotations()
@@ -82,8 +86,9 @@ func (h *Hub) usePlugins(next []*plugin.Bundle) error {
 	if _, err := h.engine.UseFor(next, h.settingsForPlugins()); err != nil {
 		return err
 	}
-	// 読めるブックを今のプラグインで確かめ直す。確かめ直せなければ、エンジンを前の組に戻す（h.plugins と warning の一覧は前のまま）
-	if err := h.checkBooks(h.order); err != nil {
+	// 今のプラグインでブックを確かめられるかを見る。確かめられなければ、エンジンを前の組に戻す（h.plugins と warning の一覧は前のまま）。
+	// warning の一覧に持つのは、読めない物を移したあと（移す物を 1 冊ずつの warning にしない）
+	if _, err := h.engine.CheckBooks(h.bookBodies(h.order)); err != nil {
 		if _, back := h.engine.UseFor(h.plugins, h.settingsForPlugins()); back != nil {
 			fmt.Fprintln(os.Stderr, "engine: could not go back to the previous plugins:", back)
 		}
@@ -110,6 +115,11 @@ func (h *Hub) usePlugins(next []*plugin.Bundle) error {
 	h.plugins = next
 	h.disabled = h.engine.Disabled()
 	h.loadSystemFolderTitles()
+	// 読めない物を移し、読めるようになった物を戻す（窓は plugins の知らせで読み直すので、窓には知らせない）。そのあとのブックを確かめ直す
+	h.settleLibrary(true)
+	if err := h.checkBooks(h.order); err != nil {
+		fmt.Fprintln(os.Stderr, "engine: could not check the books:", err)
+	}
 	h.catalogChanged = true
 	h.pluginsVersion++
 	h.broadcast("plugins", map[string]any{"version": h.pluginsVersion})

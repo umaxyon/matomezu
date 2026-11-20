@@ -100,7 +100,7 @@ func newServerOn(t *testing.T, o Options, store storage.Storage) (*httptest.Serv
 		t.Fatal(err)
 	}
 	// 追加プラグインは、利用者が有効にするまで無効。このテストで足す見本は、はじめから有効にしておく（有効・無効の確かめは TestAddedPluginsAreOffUntilEnabled）
-	if err := store.PutSettings(user, json.RawMessage(`{"`+enabledPluginsSetting+`":["a","b","ex1","ex2","ex3","ex9","ex10","ex12","ex14"]}`)); err != nil {
+	if err := store.Apply(storage.Batch{Settings: &storage.UserBody{User: user, Body: json.RawMessage(`{"` + enabledPluginsSetting + `":["a","b","ex1","ex2","ex3","ex9","ex10","ex12","ex14"]}`)}}); err != nil {
 		t.Fatal(err)
 	}
 	hub, err := NewHub(store, eng)
@@ -429,8 +429,8 @@ func TestAddsReplacesAndRemovesPluginsWhileRunning(t *testing.T) {
 	if got := next(t, screen); got != `plugins {"version":3}` {
 		t.Fatalf("event = %s", got)
 	}
-	// 定義から消える（読めなくなったページの warning W027 には ex2 の名前が残る）
-	if c := catalog(); strings.Contains(c, `"id":"ex2:`) || !strings.Contains(c, "W027 ex2") {
+	// 定義から消える（読めなくなったページは読めない物のフォルダへ移り、warning は件数と理由の番号の W032 だけ）
+	if c := catalog(); strings.Contains(c, `"id":"ex2:`) || !strings.Contains(c, "W032 : the library: 1 thing(s)") || !strings.Contains(c, "(W027 x 1)") || strings.Contains(c, "W027 ex2") {
 		t.Fatalf("catalog after removing = %s", c)
 	}
 	if got := perform(place); strings.Contains(got, `"ok":true`) {
@@ -449,7 +449,7 @@ func TestBooksAreKeptWithVersions(t *testing.T) {
 	// 常駐が初めて起動したときに、最初のプロジェクトを 1 つ作る（runsOnceAtStart）
 	// 起動したときに足したドキュメントは除いて比べる
 	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 ||
-		!strings.HasPrefix(withoutDocuments(body), `{"annotations":{},"counters":{},"folders":[{"id":"library-home","folder":{"folderRole":"home","id":"library-home","lineup":[]},"version":2},{"id":"library-trash","folder":{"folderRole":"trash","id":"library-trash","lineup":[]},"version":1}],"pages":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{"@matomezu/taskboard:project":{"`) ||
+		!strings.HasPrefix(withoutDocuments(body), `{"annotations":{},"counters":{},"folders":[{"id":"library-home","folder":{"folderRole":"home","id":"library-home","lineup":[]},"version":2},{"id":"library-trash","folder":{"folderRole":"trash","id":"library-trash","lineup":[]},"version":1},{"id":"library-unreadable","folder":{"folderRole":"unreadable","id":"library-unreadable","lineup":[]},"version":1}],"pages":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{"@matomezu/taskboard:project":{"`) ||
 		!strings.Contains(body, `},"settings":{"`+enabledPluginsSetting+`":[`) || !strings.HasSuffix(body, `]},"touched":{}}`) {
 		t.Fatalf("empty data = %d %s", code, body)
 	}
@@ -466,7 +466,7 @@ func TestBooksAreKeptWithVersions(t *testing.T) {
 		t.Fatalf("update = %d %s", code, body)
 	}
 	// 触れた時刻（touched）は書いた時刻なので、その前までを比べる
-	want := `{"annotations":{},"counters":{},"folders":[{"id":"b1","folder":{"folderRole":"book","id":"b1","lineup":[],"title":"B"},"version":2},{"id":"library-home","folder":{"folderRole":"home","id":"library-home","lineup":[{"id":"b1","kind":"book"}]},"version":3},{"id":"library-trash","folder":{"folderRole":"trash","id":"library-trash","lineup":[]},"version":1}],"pages":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{"@matomezu/taskboard:project":`
+	want := `{"annotations":{},"counters":{},"folders":[{"id":"b1","folder":{"folderRole":"book","id":"b1","lineup":[],"title":"B"},"version":2},{"id":"library-home","folder":{"folderRole":"home","id":"library-home","lineup":[{"id":"b1","kind":"book"}]},"version":3},{"id":"library-trash","folder":{"folderRole":"trash","id":"library-trash","lineup":[]},"version":1},{"id":"library-unreadable","folder":{"folderRole":"unreadable","id":"library-unreadable","lineup":[]},"version":1}],"pages":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{"@matomezu/taskboard:project":`
 	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || !strings.HasPrefix(withoutDocuments(body), want) || !strings.Contains(body, `"touched":{"b1":"`) {
 		t.Fatalf("data = %d %s", code, body)
 	}
@@ -487,7 +487,7 @@ func TestResetForTestLeavesOnlyTheGivenBooks(t *testing.T) {
 		return `{"id":"` + id + `","folder":{"folderRole":"book","id":"` + id + `","lineup":[],"title":"` + id + `"},"version":1}`
 	}
 	// 触れた時刻（touched）は置いた時刻なので、その前までを比べる
-	want := `{"annotations":{},"counters":{},"folders":[` + folder("b2") + `,` + folder("b3") + `,{"id":"library-home","folder":{"folderRole":"home","id":"library-home","lineup":[{"kind":"book","id":"b3"},{"kind":"book","id":"b2"}]},"version":7},{"id":"library-trash","folder":{"folderRole":"trash","id":"library-trash","lineup":[]},"version":2}],"pages":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{},"settings":null,"touched":{`
+	want := `{"annotations":{},"counters":{},"folders":[` + folder("b2") + `,` + folder("b3") + `,{"id":"library-home","folder":{"folderRole":"home","id":"library-home","lineup":[{"kind":"book","id":"b3"},{"kind":"book","id":"b2"}]},"version":7},{"id":"library-trash","folder":{"folderRole":"trash","id":"library-trash","lineup":[]},"version":2},{"id":"library-unreadable","folder":{"folderRole":"unreadable","id":"library-unreadable","lineup":[]},"version":2}],"pages":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{},"settings":null,"touched":{`
 	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || !strings.HasPrefix(withoutDocuments(body), want) {
 		t.Fatalf("data = %d %s", code, body)
 	}
@@ -937,7 +937,7 @@ func TestTrashABook(t *testing.T) {
 		t.Fatalf("changed after empty = %s", got)
 	}
 	if _, data := send(t, "GET", s.URL+"/api/data", "", nil); !strings.Contains(data, `{"id":"library-home","folder":{"folderRole":"home","id":"library-home","lineup":[{"kind":"folder","id":"`) ||
-		!strings.Contains(data, `"}]},"version":6},{"id":"library-trash","folder":{"folderRole":"trash","id":"library-trash","lineup":[]},"version":5}],"pages":[]`) || !strings.Contains(data, `"touched":{}`) {
+		!strings.Contains(data, `"}]},"version":6},{"id":"library-trash","folder":{"folderRole":"trash","id":"library-trash","lineup":[]},"version":5},{"id":"library-unreadable","folder":{"folderRole":"unreadable","id":"library-unreadable","lineup":[]},"version":1}],"pages":[]`) || !strings.Contains(data, `"touched":{}`) {
 		t.Fatalf("data after empty = %s", data)
 	}
 }
@@ -1278,7 +1278,7 @@ func TestShowWithoutAWindowNorABrowser(t *testing.T) {
 // プラグインを足せば読めるようになり、外せばまた読めなくなる（データはそのまま）。ブックの形が壊れていれば、ブックごと読めず、一覧に理由が付き、アクションはその理由で断る
 func TestListsWhyABookCannotBeRead(t *testing.T) {
 	s := newServer(t, nil)
-	// ex2 を結んでいる間に書いたフローのページは、ex2 を外すと読めなくなる
+	// ex2 を結んでいる間に書いたフローのページは、ex2 を外すと読めなくなり、読めない物のフォルダへ移る
 	flow := `{"id":"f1","title":"Flow","lineup":[{"kind":"page","id":"p1","type":"ex2:flow","title":"P","paper":"@matomezu/base:a4","orientation":"portrait"}]}`
 	if got := link(t, s, "../../test/added-plugins/ex2"); got != `{"id":"ex2","ok":true}` {
 		t.Fatalf("link = %s", got)
@@ -1306,50 +1306,44 @@ func TestListsWhyABookCannotBeRead(t *testing.T) {
 		}
 		return "missing", ""
 	}
-	if problem, warning := head("f1"); problem != "" || !strings.Contains(warning, "1 page(s) are of type ") {
+	moved := func() string {
+		_, body := get(t, s.URL+"/api/ai/catalog", "secret")
+		return body
+	}
+	if problem, warning := head("f1"); problem != "" || warning != "" || !strings.Contains(moved(), "(W027 x 1)") {
 		t.Fatalf("after unlinking = %q %q", problem, warning)
 	}
-	// 読めないページへのアクションは「無い」でなく、番号だけで断る。どのブックにも無いページは no-page
+	// 移ったページへのアクションは、どのブックにも無いページと同じ no-page
 	lock := func(page string) string {
 		_, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-lock","args":{},"on":{"page":"`+page+`"}}`, writerAI(t, s.URL))
 		return got
 	}
-	if got := lock("p1"); got != `{"code":"W027","ok":false,"reason":"unreadable"}` {
-		t.Fatalf("perform on an unreadable page = %s", got)
+	for _, page := range []string{"p1", "gone"} {
+		if got := lock(page); !strings.Contains(got, `"reason":"no-page"`) || !strings.Contains(got, "there is no page with the id "+page) {
+			t.Fatalf("perform on %s = %s", page, got)
+		}
 	}
-	if got := lock("gone"); !strings.Contains(got, `"reason":"no-page"`) || !strings.Contains(got, "there is no page with the id gone") {
-		t.Fatalf("perform on a page that is nowhere = %s", got)
-	}
-	// 読めないページのあるブックにも、ページを足せる
+	// ページの移ったブックにも、ページを足せる
 	page := `{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/drawing:drawing","title":"p"},"on":{"book":"f1"}}`
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", page, writerAI(t, s.URL)); !strings.HasPrefix(got, `{"ok":true`) {
-		t.Fatalf("page-add to a book with an unreadable page = %s", got)
+		t.Fatalf("page-add to a book whose page moved = %s", got)
 	}
 	if got := link(t, s, "../../test/added-plugins/ex2"); got != `{"id":"ex2","ok":true}` {
 		t.Fatalf("link again = %s", got)
 	}
-	if problem, warning := head("f1"); problem != "" || warning != "" {
-		t.Fatalf("after linking again = %q %q", problem, warning)
+	if got := lock("p1"); !strings.HasPrefix(got, `{"ok":true`) || strings.Contains(moved(), "W032") {
+		t.Fatalf("perform on p1 after linking again = %s", got)
 	}
-	if _, got := send(t, "POST", s.URL+"/api/plugins/remove", `{"id":"ex2"}`, ai); got != `{"ok":true}` {
-		t.Fatalf("unlink = %s", got)
-	}
-	if _, warning := head("f1"); !strings.Contains(warning, "1 page(s) are of type ") {
-		t.Fatalf("after unlinking again = %q", warning)
-	}
-	if got := lock("p1"); got != `{"code":"W027","ok":false,"reason":"unreadable"}` {
-		t.Fatalf("perform on an unreadable page after unlinking again = %s", got)
-	}
-	// 形の壊れたブックは、ブックごと読めない（一覧に理由が付き、アクションはその理由で断る）
+	// 形の壊れたブックは、ブックごと移る（一覧に出ず、アクションは無いブックと同じ no-book）
 	if code, body := send(t, "PUT", s.URL+"/api/books-for-test/z1", `{"book":{"id":"z1","title":"Z","lineup":"no"},"base":0}`, nil); code != 200 {
 		t.Fatalf("put = %d %s", code, body)
 	}
-	if problem, _ := head("z1"); !strings.HasPrefix(problem, "W005 ") {
+	if problem, _ := head("z1"); problem != "missing" || !strings.Contains(moved(), "(W005 x 1)") {
 		t.Fatalf("a broken book = %q", problem)
 	}
 	add := `{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/drawing:drawing","title":"p"},"on":{"book":"z1"}}`
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", add, writerAI(t, s.URL)); !strings.HasPrefix(got, `{"detail":"W005 `) || !strings.HasSuffix(got, `"ok":false,"reason":"unreadable"}`) {
-		t.Fatalf("perform on an unreadable book = %s", got)
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", add, writerAI(t, s.URL)); !strings.Contains(got, `"reason":"no-book"`) {
+		t.Fatalf("perform on a moved book = %s", got)
 	}
 }
 
@@ -1366,15 +1360,15 @@ func TestListsAWarningForAPartlyKnownBook(t *testing.T) {
 	}
 }
 
-// AI のブックの一覧の 1 行は、ブックの本文からブックの名前（title）だけを読む: 本文に problem・warning・awaiting の名前のフィールドがあっても拾わない
+// AI のブックの一覧の 1 行は、ブックの本文からブックの名前（title）だけを読む: 名前に problem・warning・awaiting の名前のフィールドに見える字があっても、名前のまま
 func TestListsOnlyTheTitleFromABooksBody(t *testing.T) {
 	s := newServer(t, nil)
-	broken := `{"id":"z2","title":"Z","lineup":"no","problem":"fake","warning":"fake","awaiting":9}`
-	if code, body := send(t, "PUT", s.URL+"/api/books-for-test/z2", `{"book":`+broken+`,"base":0}`, nil); code != 200 {
+	tricky := `{"id":"z2","title":"Z\",\"problem\":\"fake","lineup":[]}`
+	if code, body := send(t, "PUT", s.URL+"/api/books-for-test/z2", `{"book":`+tricky+`,"base":0}`, nil); code != 200 {
 		t.Fatalf("put = %d %s", code, body)
 	}
 	_, body := get(t, s.URL+"/api/ai/books", "secret")
-	if !strings.Contains(body, `"id":"z2","title":"Z","version":`) || !strings.Contains(body, `"problem":"W005 `) || strings.Contains(body, "fake") || strings.Contains(body, `"awaiting":9`) {
+	if !strings.Contains(body, `"id":"z2","title":"Z\",\"problem\":\"fake","version":`) || strings.Contains(body, `"problem":"fake"`) || strings.Contains(body, `"awaiting"`) {
 		t.Fatalf("books = %s", body)
 	}
 }
@@ -1393,16 +1387,16 @@ func TestWindowWarningsAreGatheredForAI(t *testing.T) {
 		t.Fatalf("catalog before = %s", catalog())
 	}
 	// 2 つの窓が同じ warning を知らせても 1 つ。表に無い番号は捨てる
-	w011 := `{"code":"W011","plugin":"acme","params":{"reason":"E301"}}`
-	send(t, "POST", s.URL+"/api/warnings", `{"client":"c1","warnings":[`+w011+`,{"code":"W999","plugin":"x","params":{}}]}`, nil)
-	send(t, "POST", s.URL+"/api/warnings", `{"client":"c2","warnings":[`+w011+`]}`, nil)
+	w016 := `{"code":"W016","plugin":"acme","params":{"widget":"acme:w","target":"acme:x","slot":"top"}}`
+	send(t, "POST", s.URL+"/api/warnings", `{"client":"c1","warnings":[`+w016+`,{"code":"W999","plugin":"x","params":{}}]}`, nil)
+	send(t, "POST", s.URL+"/api/warnings", `{"client":"c2","warnings":[`+w016+`]}`, nil)
 	body := catalog()
-	if strings.Count(body, "W011 acme: the screen did not add it (E301)") != 1 || strings.Contains(body, "W999") {
+	if strings.Count(body, "W016 acme: widget acme:w: place names acme:x in slot top") != 1 || strings.Contains(body, "W999") {
 		t.Fatalf("catalog after = %s", body)
 	}
 	// 窓が warning は無いと知らせれば、その窓の分が消える（ほかの窓の分は残る）
 	send(t, "POST", s.URL+"/api/warnings", `{"client":"c1","warnings":[]}`, nil)
-	if !strings.Contains(catalog(), "W011 acme") {
+	if !strings.Contains(catalog(), "W016 acme") {
 		t.Fatalf("c2's warning is gone: %s", catalog())
 	}
 	send(t, "POST", s.URL+"/api/warnings", `{"client":"c2","warnings":[]}`, nil)

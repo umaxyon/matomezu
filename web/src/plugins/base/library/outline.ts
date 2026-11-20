@@ -12,7 +12,7 @@ import {
 import { restoreTargetOf } from "./entries"
 
 // 行 1 つ（描くのに要る物だけ）。title は名前（名前の無い物は NO_TITLE）、type はページのタイプの id（バインダなら入れるページのタイプ。無ければ NO_TYPE）、
-// readable は読めるか（読めないページ・表に無いブックは false）
+// readable は読めるか（表に無い物は false）
 export interface LibraryRow {
   kind: EntryKind
   id: string
@@ -37,8 +37,8 @@ function rowOf(library: Library, r: AnyEntryRef, naming: Naming): LibraryRow {
       id: r.id,
       title,
       type: page?.type ?? NO_TYPE,
-      readable: page !== undefined && page.kind !== "unreadable",
-      locked: page !== undefined && page.kind !== "unreadable" && page.locked === true,
+      readable: page !== undefined,
+      locked: page?.locked === true,
     }
   }
   const row = folders[r.id]

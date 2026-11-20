@@ -13,8 +13,8 @@ import (
 	"maps"
 	"os"
 	"slices"
+	"strconv"
 
-	"github.com/umaxyon/matomezu/internal/engine"
 	"github.com/umaxyon/matomezu/internal/storage"
 )
 
@@ -42,13 +42,23 @@ func (f folderRow) isOpen() bool { return storage.IsOpenRole(f.role) }
 // （それより多くを持つ要素は、中身ごと残っている物）
 func entryRef(role string, entry json.RawMessage) (kind, id string, ok bool) {
 	var fields map[string]json.RawMessage
-	if json.Unmarshal(entry, &fields) != nil || (role != "trash" && len(fields) != 2) {
+	if json.Unmarshal(entry, &fields) != nil {
+		return "", "", false
+	}
+	// 読めない物のフォルダの要素は、在った所の並びのエントリ entry を持つ
+	if role == storage.RoleUnreadable {
+		if inner, ok := fields["entry"]; ok {
+			return entryRef(storage.RoleTrash, inner)
+		}
+		return "", "", false
+	}
+	if role != storage.RoleTrash && len(fields) != 2 {
 		return "", "", false
 	}
 	if json.Unmarshal(fields["kind"], &kind) != nil || json.Unmarshal(fields["id"], &id) != nil || id == "" {
 		return "", "", false
 	}
-	return kind, id, kind == "page" || kind == "binder" || kind == "book" || kind == "folder"
+	return kind, id, kind == storage.KindPage || kind == storage.KindBinder || kind == storage.KindBook || kind == storage.KindFolder
 }
 
 // newFolderRow は、フォルダの本文 body を覚える形にする
@@ -108,7 +118,7 @@ func (h *Hub) assemble(id string, binder bool) json.RawMessage {
 	}
 	delete(fields, "folderRole")
 	if binder {
-		fields["kind"] = json.RawMessage(`"binder"`)
+		fields["kind"] = json.RawMessage(strconv.Quote(storage.KindBinder))
 	}
 	var lineup []json.RawMessage
 	if raw, has := fields["lineup"]; has && json.Unmarshal(raw, &lineup) == nil {
@@ -116,11 +126,11 @@ func (h *Hub) assemble(id string, binder bool) json.RawMessage {
 		for _, e := range lineup {
 			kind, entry, isRef := entryRef(f.role, e)
 			switch {
-			case isRef && kind == "page":
+			case isRef && kind == storage.KindPage:
 				if p, ok := h.pages[entry]; ok {
 					e = p.body
 				}
-			case isRef && kind == "binder":
+			case isRef && kind == storage.KindBinder:
 				if inner := h.assemble(entry, true); inner != nil {
 					e = inner
 				}
@@ -224,7 +234,7 @@ func (h *Hub) entriesNotInBooks() []string {
 	out := []string{}
 	for _, id := range h.openIDs() {
 		for _, e := range h.folders[id].entries {
-			if _, page := h.pages[e]; page || h.folders[e].role == "binder" {
+			if _, page := h.pages[e]; page || h.folders[e].role == storage.RoleBinder {
 				out = append(out, e)
 			}
 		}
@@ -235,12 +245,12 @@ func (h *Hub) entriesNotInBooks() []string {
 // entryNotInBook は、ブックに入っていないページ page の行をエンジンへ渡すときの、渡すエントリの id: 書庫ホームかフォルダの直下のページならそのページ、
 // その直下のバインダの中のページならそのバインダ。ブックの中・ゴミ箱の中・どのフォルダにも入っていない・無いページなら空（h.mu を持って呼ぶ）
 func (h *Hub) entryNotInBook(page string) string {
-	if _, ok := h.pages[page]; !ok || h.inTrash(page) || h.bookOfEntry(page) != "" {
+	if _, ok := h.pages[page]; !ok || h.outOfSight(page) || h.bookOfEntry(page) != "" {
 		return ""
 	}
 	holder, ok := h.folders[h.places[page]]
 	switch {
-	case ok && holder.role == "binder":
+	case ok && holder.role == storage.RoleBinder:
 		return h.places[page]
 	case ok && holder.isOpen():
 		return page
@@ -306,7 +316,7 @@ func (h *Hub) rowsUnder(id string) []string {
 	for _, e := range f.entries {
 		if inner, folder := h.folders[e]; !folder {
 			out = append(out, e)
-		} else if inner.role == "binder" {
+		} else if inner.role == storage.RoleBinder {
 			out = append(out, h.rowsUnder(e)...)
 		}
 	}
@@ -329,7 +339,7 @@ func (h *Hub) rowsOf(ids []string) (pages, folders []json.RawMessage) {
 		}
 		folders = append(folders, f.body)
 		for _, e := range f.entries {
-			if _, page := h.pages[e]; page || h.folders[e].role == "binder" {
+			if _, page := h.pages[e]; page || h.folders[e].role == storage.RoleBinder {
 				walk(e)
 			}
 		}
@@ -402,127 +412,4 @@ func (h *Hub) PageVersion(id string) int64 {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return h.pages[id].version
-}
-
-// replaceBook は、ブック id を本文 body（並びにページとバインダの中身ごと持つ形）に丸ごと置き換えて、窓に知らせる（アクションも認可も通さない。ブックを丸ごと受け取る、テストの用意の入口が使う）。
-// 置いてあるブックのフォルダの版が base のときだけ（まだ無ければ base は 0）で、違えば conflict。本文は置き場所の決まり（storage.SplitBook）で分け、分けられない本文は、そのままフォルダの 1 行にする。
-// まだどのフォルダにも入っていないブックは、書庫ホームの並びの末尾に足す。
-// 返すのは、書いた後のブックのフォルダの版（h.mu を持って呼ぶ）
-func (h *Hub) replaceBook(id string, body json.RawMessage, base int64) (version int64, conflict bool, err error) {
-	return h.putWholeBook(id, body, base, false)
-}
-
-// replaceBookQuietly は replaceBook と同じに置き換えるが、窓に知らせず、触れた時刻も残さない（世界を空にして置き直す、テストの用意の入口が使う。h.mu を持って呼ぶ）
-func (h *Hub) replaceBookQuietly(id string, body json.RawMessage, base int64) (version int64, conflict bool, err error) {
-	return h.putWholeBook(id, body, base, true)
-}
-
-func (h *Hub) putWholeBook(id string, body json.RawMessage, base int64, quiet bool) (version int64, conflict bool, err error) {
-	if h.folders[id].version != base {
-		return 0, true, nil
-	}
-	// そのブックが今持っているページとフォルダ（置き換えで無くなる物を消し、id を使い直せるようにする）
-	old := map[string]bool{}
-	for _, row := range h.rowsUnder(id) {
-		old[row] = true
-	}
-	taken := map[string]bool{}
-	for other := range h.pages {
-		taken[other] = !old[other]
-	}
-	for other := range h.folders {
-		taken[other] = !old[other]
-	}
-	split, ok := storage.SplitBook(body, taken)
-	if !ok {
-		split = storage.Split{Folders: []storage.Row{{ID: id, Body: body}}}
-	}
-	out := engine.Output{Books: []string{id}}
-	kept := map[string]bool{}
-	for _, p := range split.Pages {
-		kept[p.ID] = true
-		out.Pages = append(out.Pages, engine.RowChange{ID: p.ID, Row: p.Body})
-	}
-	for _, f := range split.Folders {
-		kept[f.ID] = true
-		out.Folders = append(out.Folders, engine.RowChange{ID: f.ID, Row: f.Body})
-	}
-	// まだどのフォルダにも入っていないブックは、書庫ホームの並びの末尾に足す
-	if _, placed := h.places[id]; !placed {
-		home, err := h.homeWith(func(lineup []json.RawMessage) []json.RawMessage { return append(lineup, storage.RefOf("book", id)) })
-		if err != nil {
-			return 0, false, err
-		}
-		out.Folders = append(out.Folders, engine.RowChange{ID: storage.HomeID, Row: home})
-	}
-	for _, gone := range slices.Sorted(maps.Keys(old)) {
-		if kept[gone] {
-			continue
-		}
-		if _, page := h.pages[gone]; page {
-			out.Pages = append(out.Pages, engine.RowChange{ID: gone, Removed: true})
-		} else {
-			out.Folders = append(out.Folders, engine.RowChange{ID: gone, Removed: true})
-		}
-	}
-	plan, err := h.planWrites(out, "host", "", stamp())
-	if err != nil {
-		return 0, false, err
-	}
-	plan.quiet = quiet
-	if err := h.store.Apply(plan.batch); err != nil {
-		return 0, false, err
-	}
-	h.applyWrites(plan, out, Perform{}, "host", "")
-	return h.folders[id].version, false, nil
-}
-
-// homeWith は、書庫ホームの並びを change で替えた本文（書庫ホームが無ければ、空の並びから作る。h.mu を持って呼ぶ。何も変えない）
-func (h *Hub) homeWith(change func([]json.RawMessage) []json.RawMessage) (json.RawMessage, error) {
-	f, ok := h.folders[storage.HomeID]
-	if !ok {
-		return storage.HomeBody(change(nil)), nil
-	}
-	return withLineup(f.body, change(slices.Clone(lineupOf(f.body))))
-}
-
-// clearBooks は、全部のブック（ページとフォルダとエントリ、開いた時刻、AI 編集チケット、ページのアノテーション）を、置き場所とメモリから消す。
-// 書庫ホームとゴミ箱は残して、並びを空にする（窓には知らせない。テストの用意が使う。h.mu を持って呼ぶ）
-func (h *Hub) clearBooks() error {
-	var batch storage.Batch
-	for id, p := range h.pages {
-		batch.Pages = append(batch.Pages, storage.RowWrite{ID: id, Base: p.version, Removed: true})
-	}
-	for id, f := range h.folders {
-		if id != storage.HomeID && id != storage.TrashID {
-			batch.Folders = append(batch.Folders, storage.RowWrite{ID: id, Base: f.version, Removed: true})
-		}
-	}
-	home, trash := storage.HomeBody(nil), storage.TrashBody(nil)
-	homeVersion, trashVersion := h.folders[storage.HomeID].version, h.folders[storage.TrashID].version
-	batch.Folders = append(batch.Folders, storage.RowWrite{ID: storage.HomeID, Body: home, Base: homeVersion},
-		storage.RowWrite{ID: storage.TrashID, Body: trash, Base: trashVersion})
-	for id := range h.places {
-		batch.Entries = append(batch.Entries, storage.EntryPut{ID: id})
-	}
-	batch.RemovedBooks = slices.Clone(h.order)
-	batch.AIEditTickets = json.RawMessage("[]")
-	for page := range h.annotations {
-		batch.Annotations = append(batch.Annotations, storage.PageBody{Page: page, Body: json.RawMessage("[]")})
-	}
-	if err := h.store.Apply(batch); err != nil {
-		return err
-	}
-	h.pages = map[string]row{}
-	h.folders = map[string]folderRow{storage.HomeID: newFolderRow(home, homeVersion+1), storage.TrashID: newFolderRow(trash, trashVersion+1)}
-	h.places = map[string]string{}
-	h.books = map[string]entry{}
-	h.order = nil
-	h.annotations = map[string]json.RawMessage{}
-	h.aiEditTickets = nil
-	h.touched = map[string]string{}
-	h.bookWarnings = map[string]engine.BookWarning{}
-	h.pageWarnings = map[string]engine.BookWarning{}
-	h.annotationWarnings = nil
-	return nil
 }
