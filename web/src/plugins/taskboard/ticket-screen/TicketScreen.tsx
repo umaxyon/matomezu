@@ -2,7 +2,7 @@
 // 右に本文（マークダウン）。本文は最初からプレビューで出ていて、ナレッジの「本文」で出し入れし、4 つの並べ方（編集・縦分割・横分割・プレビュー）を切り替える。本文の最大化で、左の枠は戻るボタンだけに畳む。
 // チケット履歴の質問を押すと、質問の枠が右の領域の上に重なる。名前・本文・優先度は直したそばから反映する（本文は打つたびに送り、変換中は送らない）。
 // ロック中のチケットは薄くして直せなくし、帯のロックで掛け外しする。直している間（名前の入力か本文の編集にフォーカスがある間）は、チケットに編集ロックを掛ける。画面の状態は、開いているチケットが替われば初めに戻る
-import { type KeyboardEvent, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import {
   useActions,
   useAllowedOn,
@@ -12,24 +12,13 @@ import {
   useRecords,
   useScreen,
   useUpdatePluginState,
-  useUserSetting,
 } from "../../../plugin-api/ui"
-import { wordLinksOf } from "../../base"
-import {
-  IconButton,
-  LockToggle,
-  MARKDOWN_PANE_MODE_ICONS,
-  MarkdownDocumentView,
-  MaxButton,
-  markdownDocumentOnSkin,
-  useMarkdownDocument,
-  useRecordEditLock,
-} from "../../base/ui"
+import { LockToggle, useRecordEditLock } from "../../base/ui"
 import { WORKROOM_SUBJECT } from "../by"
-import { BookIcon, PencilIcon } from "../icons"
+import { BookIcon } from "../icons"
 import { kit } from "../kit"
 import { PROJECT } from "../project"
-import { PRIORITIES, TICKET, TICKET_NAME_MAX, VOLUMES } from "../ticket"
+import { PRIORITIES, TICKET, VOLUMES } from "../ticket"
 import { TICKET_LOCK, TICKET_UNLOCK, TICKET_UPDATE } from "../ticket/actions"
 import { assigneesOf } from "../ticket/assignees"
 import { ticketLabel } from "../ticket/label"
@@ -38,22 +27,14 @@ import { HISTORY } from "../ticket-history"
 import { TICKET_SCREEN, TICKET_SCREEN_STATE, type TicketScreenState, viewOf } from "."
 import { AssigneeBirds } from "./AssigneeBirds"
 import { BackBar } from "./BackBar"
-import { LinkedText } from "./LinkedText"
 import { OpenChoiceHost } from "./OpenChoice"
 import { TagPicker } from "./TagPicker"
+import { Fact, NameField, StepSlider } from "./TicketFacts"
 import { TicketHistoryTimeline } from "./TicketHistoryTimeline"
 import styles from "./TicketScreen.module.css"
+import { BodyPanes, QuestionView, Side } from "./TicketSide"
 import { useBodyUpdateLine } from "./useBodyUpdateLine"
-import { useTicketRefs } from "./useTicketRefs"
 import { type HistoryRow, historyRows, whenOf } from "./view"
-import { WriterBird } from "./WriterBird"
-
-const MODES = [
-  { mode: "source-only", label: "Source only" },
-  { mode: "split-row", label: "Side by side" },
-  { mode: "split-column", label: "Top and bottom" },
-  { mode: "rendered-only", label: "Preview only" },
-] as const
 
 export function TicketScreen() {
   const t = useMessages(kit)
@@ -196,258 +177,5 @@ export function TicketScreen() {
         </div>
       </section>
     </OpenChoiceHost>
-  )
-}
-
-function Fact({ name, children }: { name: string; children: React.ReactNode }) {
-  return (
-    <span>
-      <span className={styles.factName}>{name}</span>
-      {children}
-    </span>
-  )
-}
-
-// 右の領域の枠: 閉じている間は右へ出し、操作も読み上げも受けない
-function Side({
-  open,
-  title,
-  className,
-  children,
-}: {
-  open: boolean
-  title: string
-  className?: string
-  children: React.ReactNode
-}) {
-  return (
-    <section className={`${styles.side} ${className ?? ""}`} data-open={open} inert={!open} aria-label={title}>
-      {children}
-    </section>
-  )
-}
-
-// チケットの名前: 鉛筆で直す。Enter かフォーカスが外れたら決め、Esc でやめる。空なら元の名前に戻す
-function NameField({
-  name,
-  canEdit,
-  onEditing,
-  onRename,
-}: {
-  name: string
-  canEdit: boolean
-  onEditing: (on: boolean) => void
-  onRename: (name: string) => void
-}) {
-  const t = useMessages(kit)
-  const [draft, setDraft] = useState<string | null>(null)
-  const finish = (save: boolean) => {
-    if (save && draft !== null && draft.trim() !== "" && draft.trim() !== name) onRename(draft.trim())
-    setDraft(null)
-    onEditing(false)
-  }
-  const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && !e.nativeEvent.isComposing) finish(true)
-    if (e.key === "Escape") finish(false)
-  }
-  return (
-    <div className={styles.titleRow}>
-      {draft === null ? (
-        <>
-          <h2 className={styles.name}>{name}</h2>
-          {canEdit ? (
-            <IconButton
-              small
-              label={t("Edit the name")}
-              onClick={() => {
-                setDraft(name)
-                onEditing(true)
-              }}
-            >
-              <PencilIcon />
-            </IconButton>
-          ) : null}
-        </>
-      ) : (
-        <input
-          ref={el => el?.focus()}
-          type="text"
-          className={styles.nameInput}
-          aria-label={t("Ticket name")}
-          aria-invalid={draft.trim() === ""}
-          maxLength={TICKET_NAME_MAX}
-          value={draft}
-          onChange={e => setDraft(e.target.value)}
-          onKeyDown={onKey}
-          onBlur={() => finish(true)}
-        />
-      )}
-    </div>
-  )
-}
-
-// 段を選ぶスライダー（優先度・チケットボリューム）: 段の数だけ止まる所があり、下に段の名前。つまみを動かしている間は値を持ち、離したとき（キーなら 1 段ごと）に送る
-function StepSlider<T extends string>({
-  title,
-  steps,
-  value,
-  nameOf,
-  canEdit,
-  onChange,
-}: {
-  title: string
-  steps: readonly T[]
-  value: T
-  nameOf: (step: T) => string
-  canEdit: boolean
-  onChange: (step: T) => void
-}) {
-  const [drag, setDrag] = useState<number | null>(null)
-  const index = drag ?? steps.indexOf(value)
-  const shown = steps[index] ?? value
-  const commit = () => {
-    const next = drag === null ? undefined : steps[drag]
-    setDrag(null)
-    if (next !== undefined && next !== value) onChange(next)
-  }
-  return (
-    <label className={styles.step}>
-      <span className={styles.factName}>{title}</span>
-      <span className={styles.slider} style={{ width: `${steps.length * 32}px` }}>
-        <input
-          type="range"
-          min={0}
-          max={steps.length - 1}
-          step={1}
-          value={index}
-          disabled={!canEdit}
-          aria-valuetext={nameOf(shown)}
-          onChange={e => setDrag(Number(e.target.value))}
-          onPointerUp={commit}
-          onKeyUp={commit}
-          onBlur={commit}
-        />
-        <span className={styles.ticks} aria-hidden="true">
-          {steps.map((step, i) => (
-            <span key={step} data-on={i === index}>
-              {nameOf(step)}
-            </span>
-          ))}
-        </span>
-      </span>
-    </label>
-  )
-}
-
-// 本文の枠: 帯（題・4 つの並べ方・最大化）と、編集（原文）とプレビュー
-function BodyPanes({
-  ticket,
-  body,
-  mode,
-  maximized,
-  canEdit,
-  onMode,
-  onMaximize,
-  onEditing,
-  onBody,
-}: {
-  ticket: string
-  body: string
-  mode: TicketScreenState["mode"]
-  maximized: boolean
-  canEdit: boolean
-  onMode: (mode: TicketScreenState["mode"]) => void
-  onMaximize: () => void
-  onEditing: (on: boolean) => void
-  onBody: (body: string) => void
-}) {
-  const t = useMessages(kit)
-  const [composing, setComposing] = useState<string | null>(null) // 変換中の字（変換が決まるまで送らない）
-  const document = useMarkdownDocument(body, ticket)
-  // 本文の文中のチケットの番号は、今あるチケットのときだけリンクにする（原文は変えない）
-  const refs = useTicketRefs(ticket)
-  const wordLinks = useMemo(() => wordLinksOf(document, refs.find), [document, refs.find])
-  const softBreak = useUserSetting("@matomezu/base:soft-break") === "space" ? "space" : "line-break"
-  return (
-    <>
-      <div className={styles.band}>
-        <span className={styles.bandTitle}>{t("Body")}</span>
-        <div className={styles.modes} role="toolbar" aria-label={t("How to show the body")}>
-          {MODES.map(m => (
-            <button
-              key={m.mode}
-              type="button"
-              className={styles.mode}
-              aria-label={t(m.label)}
-              title={t(m.label)}
-              aria-pressed={mode === m.mode}
-              onClick={() => onMode(m.mode)}
-            >
-              {MARKDOWN_PANE_MODE_ICONS[m.mode]}
-            </button>
-          ))}
-        </div>
-        <MaxButton maximized={maximized} onToggle={onMaximize} />
-      </div>
-      <div className={styles.panes} data-mode={mode}>
-        {mode !== "rendered-only" ? (
-          <textarea
-            className={styles.source}
-            aria-label={t("Body (markdown)")}
-            readOnly={!canEdit}
-            value={composing ?? body}
-            onFocus={() => canEdit && onEditing(true)}
-            onBlur={() => onEditing(false)}
-            onCompositionStart={e => setComposing(e.currentTarget.value)}
-            onCompositionEnd={e => {
-              setComposing(null)
-              onBody(e.currentTarget.value)
-            }}
-            onChange={e => (composing !== null ? setComposing(e.target.value) : onBody(e.target.value))}
-          />
-        ) : null}
-        {mode !== "source-only" ? (
-          <div className={styles.preview}>
-            {body ? (
-              <div className={styles.markdown} style={markdownDocumentOnSkin()}>
-                <MarkdownDocumentView
-                  document={document}
-                  softBreak={softBreak}
-                  wordLinks={wordLinks}
-                  onWordLink={refs.open}
-                />
-              </div>
-            ) : (
-              <p className={styles.empty}>{t("No body")}</p>
-            )}
-          </div>
-        ) : null}
-      </div>
-    </>
-  )
-}
-
-// チケット履歴の質問を開いた枠（右の領域の上に重ねる）: 質問した者の鳥・時刻・質問の文と、閉じるボタン
-function QuestionView({ ticket, row, onClose }: { ticket: string; row: HistoryRow; onClose: () => void }) {
-  const t = useMessages(kit)
-  const refs = useTicketRefs(ticket)
-  return (
-    <>
-      <div className={styles.band}>
-        <span className={styles.bandTitle}>{t("Question")}</span>
-        <WriterBird by={row.by} />
-        <span className={styles.questionMeta}>
-          {row.by.kind === "ai" ? row.by.workroom.name : t("User")} {whenOf(row.at)}
-        </span>
-        <span className={styles.bandEnd}>
-          <button type="button" className={styles.close} onClick={onClose}>
-            {t("Close")}
-          </button>
-        </span>
-      </div>
-      <p className={styles.questionText}>
-        <LinkedText text={row.text} find={refs.find} open={refs.open} />
-      </p>
-    </>
   )
 }
