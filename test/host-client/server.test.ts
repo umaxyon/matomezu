@@ -177,6 +177,14 @@ async function connected(server = fakeServer()) {
   const stop = server.host.connect(store)
   return { ...server, store, stop }
 }
+// つなぎ直し（2 度目の hello）で送り直したアクション（確かめられていないアクションが無ければ空）
+async function resentOnReconnect(s: Awaited<ReturnType<typeof connected>>, client: string) {
+  const before = s.performs().length
+  s.fail()
+  s.emit("hello", { client })
+  await flush()
+  return s.performs().slice(before)
+}
 const itemsOf = (store: ReturnType<typeof newStore>) =>
   pagesOf(store.state.getState().books.b1 as Book)[0]!.items?.map(i => i.id) ?? []
 const place = (store: ReturnType<typeof newStore>) =>
@@ -304,16 +312,17 @@ test("同じ流れで行ったアクションは、振った id と並べて、1
 })
 
 test("ほかから変わったブックの上で、まだ確かめられていない自分のアクションを行い直す。自分の番号が返ると確かめ終わり", async () => {
-  const { store, emit, host } = await connected()
+  const { store, emit } = await connected()
   place(store)
   await Promise.resolve()
   expect(itemsOf(store)).toEqual(["n1"])
   emit("changed", pageChangedOf(b1With("o1"), "p1", 2, { client: "c2", seq: 5 }))
   expect(itemsOf(store)).toEqual(["o1", "n1"])
-  expect(host.pending()).toHaveLength(1)
   emit("changed", pageChangedOf(b1With("o1", "n1"), "p1", 3, { client: "c1", seq: 1 }))
   expect(itemsOf(store)).toEqual(["o1", "n1"])
-  expect(host.pending()).toEqual([])
+  // 確かめ終わったアクションは、ほかから変わったブックの上でも行い直さない
+  emit("changed", pageChangedOf(b1With("o1"), "p1", 4, { client: "c2", seq: 6 }))
+  expect(itemsOf(store)).toEqual(["o1"])
 })
 
 test("ゴミ箱に入ったブックはゴミ箱へ分け、消したと届いたブックは一覧から外れる（ほかのブックは同じ値のまま）", async () => {
@@ -415,7 +424,7 @@ test("つなぎ直したら（2 度目の hello）、読み直した世界の上
     ["c9", 1, "k1"],
   ])
   s.emit("ack", { seq: 1, ok: true, reason: "" })
-  expect(s.host.pending()).toEqual([])
+  expect(await resentOnReconnect(s, "c10")).toEqual([])
 })
 
 test("常駐を起動し直して、つなぎ直した窓の id が前と同じでも、答えの来なかったアクションを送り直す", async () => {
@@ -502,11 +511,11 @@ test("常駐が 5xx を返したアクションは、しばらくして送り直
   s.tick()
   await flush()
   expect(s.performs()).toHaveLength(2)
-  expect(s.host.pending()).toHaveLength(1)
   s.tick()
   await flush()
   expect(s.performs()).toHaveLength(3)
-  expect(s.host.pending()).toEqual([])
+  s.answer.perform = () => 200
+  expect(await resentOnReconnect(s, "c9")).toEqual([])
   expect(itemsOf(s.store)).toEqual([])
   expect(s.store.state.getState().toasts).toMatchObject([{ kind: "warn", message: "An edit could not be saved" }])
 })

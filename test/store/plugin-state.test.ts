@@ -10,7 +10,7 @@ import { screenOf } from "../../web/src/core/window"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
-import { readPlaced, withPluginState } from "../../web/src/store/plugin-state"
+import { placeAt, placeOf, readPlaced, WINDOW_PLACE, withPluginState } from "../../web/src/store/plugin-state"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { showFirstBook, shown } from "../support"
 
@@ -54,18 +54,18 @@ test("宣言は id を持ち、kit が頭を付ける。積むと宣言した宣
 
 test("値を置くと画面の場所に入る。形に合わない値は E123、知らない id は E122、範囲が違えば E124。ステージの宣言は無いステージに置かない", () => {
   const instance = make()
-  instance.setPluginState("k:tab", null, "two")
+  instance.setPluginState("k:tab", WINDOW_PLACE, "two")
   instance.setPluginState("k:mode", "s1", "wide")
   instance.setPluginState("k:mode", "s9", "wide")
   const address = instance.address()
   expect(address.window).toEqual({ "k:tab": "two" })
   expect(stagePlacesOf(address)[0]?.states).toEqual({ "k:mode": "wide" })
-  expect(code(() => instance.setPluginState("k:tab", null, "three"))).toBe("E123")
-  expect(code(() => instance.setPluginState("k:nope", null, 1))).toBe("E122")
+  expect(code(() => instance.setPluginState("k:tab", WINDOW_PLACE, "three"))).toBe("E123")
+  expect(code(() => instance.setPluginState("k:nope", WINDOW_PLACE, 1))).toBe("E122")
   expect(code(() => instance.setPluginState("k:tab", "s1", "one"))).toBe("E124")
-  expect(code(() => instance.setPluginState("k:mode", null, "x"))).toBe("E124")
+  expect(code(() => instance.setPluginState("k:mode", WINDOW_PLACE, "x"))).toBe("E124")
   // undefined なら消す
-  instance.setPluginState("k:tab", null, undefined)
+  instance.setPluginState("k:tab", WINDOW_PLACE, undefined)
   expect(instance.address().window).toEqual({})
 })
 
@@ -120,7 +120,7 @@ test("コントロールセンターのコンテンツエリアに出す画面�
   instance.setPluginState(id, center, "library")
   expect(instance.address().screens.find(s => s.id === center)?.states).toEqual({ [id]: "library" })
   expect(code(() => instance.setPluginState(id, center, "participants"))).toBe("E123")
-  expect(code(() => instance.setPluginState(id, null, "library"))).toBe("E124")
+  expect(code(() => instance.setPluginState(id, WINDOW_PLACE, "library"))).toBe("E124")
   // 開いていないスクリーンには置かない。2 枚目に置いた値は、そのスクリーンを閉じると消える
   instance.setPluginState(id, "c99", "library")
   expect(instance.state.getState().pluginValues.screens.c99).toBeUndefined()
@@ -138,9 +138,9 @@ test("コントロールセンターのコンテンツエリアに出す画面�
 
 test("画面の場所に入れない宣言（none）の値は、画面の場所に出ず、場所から来ても読まず、場所を当てはめても（戻る・進むでも）残る", () => {
   const instance = make()
-  instance.setPluginState("k:note", null, "hello")
+  instance.setPluginState("k:note", WINDOW_PLACE, "hello")
   instance.setPluginState("k:pick", "s1", 3)
-  instance.setPluginState("k:tab", null, "two")
+  instance.setPluginState("k:tab", WINDOW_PLACE, "two")
   const at = instance.address()
   // 場所には入れる宣言の値だけが出る
   expect(at.window).toEqual({ "k:tab": "two" })
@@ -160,11 +160,11 @@ test("画面の場所に入れない宣言（none）の値は、画面の場所�
 
 test("入れない宣言（none）は形を確かめず、同じ値なら置き直さない。入れる宣言の形は書くたびに確かめる", () => {
   const instance = make()
-  instance.setPluginState("k:note", null, "a")
+  instance.setPluginState("k:note", WINDOW_PLACE, "a")
   const first = instance.state.getState().pluginValues
-  instance.setPluginState("k:note", null, "a")
+  instance.setPluginState("k:note", WINDOW_PLACE, "a")
   expect(instance.state.getState().pluginValues).toBe(first)
-  expect(code(() => instance.setPluginState("k:tab", null, "three"))).toBe("E123")
+  expect(code(() => instance.setPluginState("k:tab", WINDOW_PLACE, "three"))).toBe("E123")
 })
 
 test("ほかのプラグインの宣言に、id と値だけで入れる道: address を持つ宣言にだけ、宣言の形で確かめて入れる。宣言の無い id・address の無い宣言・形に合わない値・場所の無い範囲は落ちる。同じ値は積まない", () => {
@@ -222,4 +222,17 @@ test("スクリーンに渡す値を替える（積まない）: 開いている
   expect(instance.actions.setScreenProps(id, { ticket: 3 })).toBe(false)
   expect(instance.actions.setScreenProps("c99", { ticket: "t2" })).toBe(false)
   expect(instance.state.getState().window.screens.find(s => s.id === id)?.props).toEqual({ ticket: "t2" })
+})
+
+test("値の場所は範囲で決まる: 窓の範囲は WINDOW_PLACE、ステージごとはステージ、スクリーンごとはスクリーン。その場所が無ければ null", () => {
+  expect(placeOf("window", {})).toBe(WINDOW_PLACE)
+  expect(placeOf("window", { stage: "s1", screen: "c1" })).toBe(WINDOW_PLACE)
+  expect(placeOf("stage", { stage: "s1", screen: "c1" })).toBe("s1")
+  expect(placeOf("screen", { stage: "s1", screen: "c1" })).toBe("c1")
+  expect(placeOf("stage", { screen: "c1" })).toBeNull()
+  expect(placeOf("screen", { stage: "s1", screen: null })).toBeNull()
+  // 範囲の id を 1 つ受ける形: 窓の範囲は受けた id を見ず、ほかの範囲は窓の値を受けても場所にしない
+  expect(placeAt("window", "s1")).toBe(WINDOW_PLACE)
+  expect(placeAt("stage", "s1")).toBe("s1")
+  expect(placeAt("stage", WINDOW_PLACE)).toBeNull()
 })

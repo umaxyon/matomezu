@@ -25,7 +25,7 @@ import {
 } from "../../core/window"
 import { stageView, toolOf } from "../../core/workspace"
 import type { Assembled } from "../plugin"
-import { ownedPluginState, pluginValueOf } from "../plugin-state"
+import { ownedPluginState, placeOf, pluginValueOf } from "../plugin-state"
 import type { MatomezuState } from "../store"
 import { worldOf } from "../world"
 import {
@@ -103,7 +103,7 @@ export function screenCommandContext(
     pluginState: <S>(def: PluginStateDef<S>) =>
       pluginValueOf(
         state.pluginValues,
-        def.scope === "screen" ? screen.id : at,
+        placeOf(def.scope, { stage: at, screen: screen.id }),
         ownedPluginState(commandOwner(command), def),
       ),
   }

@@ -76,9 +76,32 @@ export function ownedPluginState<S>(owner: string, def: PluginStateDef<S>): Plug
   return isOwnedBy(owner, def.id) ? def : fail("E125", { id: def.id, owner })
 }
 
-// 宣言 def の今の値（ステージの宣言は at のステージの値、スクリーンの宣言は at のスクリーンの値。無ければ undefined）
-export function pluginValueOf<S>(values: PluginValues, at: string, def: PluginStateDef<S>): S | undefined {
+// プラグイン状態の値の場所: 窓の範囲の宣言は WINDOW_PLACE、ステージごとの宣言はステージの id、スクリーンごとの宣言はスクリーンの id
+export const WINDOW_PLACE: { readonly scope: "window" } = Object.freeze({ scope: "window" })
+export type PluginPlace = string | typeof WINDOW_PLACE
+
+// 宣言の範囲 scope の値の場所。呼び手が決めたステージ here.stage とスクリーン here.screen から引く（その範囲の場所が無ければ null）
+export function placeOf(scope: PluginStateScope, here: { readonly stage: string; readonly screen: string }): PluginPlace
+export function placeOf(
+  scope: PluginStateScope,
+  here: { readonly stage?: string | null; readonly screen?: string | null },
+): PluginPlace | null
+export function placeOf(
+  scope: PluginStateScope,
+  here: { readonly stage?: string | null; readonly screen?: string | null },
+): PluginPlace | null {
+  if (scope === "window") return WINDOW_PLACE
+  return (scope === "screen" ? here.screen : here.stage) ?? null
+}
+
+// 範囲 scope の宣言の、場所 at の値の場所（at はその範囲のステージかスクリーンの id。窓の範囲の宣言は at を見ない）
+export const placeAt = (scope: PluginStateScope, at: PluginPlace): PluginPlace | null =>
+  placeOf(scope, typeof at === "string" ? { stage: at, screen: at } : {})
+
+// 宣言 def の今の値（窓の範囲の宣言は窓の値、ステージの宣言は at のステージの値、スクリーンの宣言は at のスクリーンの値。無ければ undefined）
+export function pluginValueOf<S>(values: PluginValues, at: PluginPlace, def: PluginStateDef<S>): S | undefined {
   if (def.scope === "window") return values.window[def.id] as S | undefined
+  if (typeof at !== "string") return undefined
   return (def.scope === "stage" ? values.stages[at] : values.screens[at])?.[def.id] as S | undefined
 }
 
