@@ -203,7 +203,7 @@ export const givenActions = new WeakMap<CommandActions, Actions>()
 // コマンドが受け取った操作 a の、store の素の操作（store がコマンドに渡した操作だけが持つ）
 export const storeActionsOf = (a: CommandActions): Actions => givenActions.get(a) ?? fail("E116")
 
-// コマンドを持つプラグインの、スクリーンごとの宣言 def の値を、呼ばれた場所でないスクリーン screen で、今の値から change が返す値にする（updatePluginState と同じく、1 回のコマンドの書き込みにまとめる）
+// コマンドを持つプラグインの、スクリーンごとの宣言 def の値を、呼ばれた場所でないスクリーン screen で、今の値から change が返す値にする（updatePluginState と同じく、1 回のコマンドの書き込みにまとめる）。スクリーンごとの宣言でなければ E124
 export type UpdatePluginStateAt = <S>(
   screen: string,
   def: PluginStateDef<S>,

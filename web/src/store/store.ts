@@ -618,6 +618,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       // ほかのスクリーン screen の、スクリーンごとの宣言の値（base のコマンドだけが updatePluginStateAtOf で使う）
       const updatePluginStateAt: UpdatePluginStateAt = (screen, stateDef, change) => {
         const own = ownedPluginState(owner, stateDef)
+        // 渡したスクリーンに書くのはスクリーンごとの宣言だけ（ステージ・窓の範囲の宣言を、呼ばれた場所に黙って書かない）
+        if (own.scope !== "screen") fail("E124", { id: own.id, scope: own.scope, need: "use updatePluginState" })
         const at = placeOf(own.scope, { stage, screen })
         const next = change(pluginValueOf(working(), at, own))
         withPluginValue(working(), own.id, at, next)
