@@ -1,6 +1,6 @@
 // Orca の端末で動くサブの Claude Code を、まとめて再起動する
 //   bun scripts/restart-subs.ts [--dry-run] [--timeout-min <分>] <サブ>...
-//   <サブ> は sub4・sub4_work、モデルを指定するなら sub6:claude-fable-5-2（無ければ最後の会話のモデル）
+//   <サブ> は sub4（sub4_work の略）・sub4_work・main_manager などのワークルーム名、モデルを指定するなら sub6:claude-fable-5-2（無ければ最後の会話のモデル）
 // サブごとに並行して、次の順に進める。どこかで止まったサブは、そこで止めて理由を出す
 //   1. 再起動の準備（引き継ぎを書き、未コミットを残さない）を頼み、手が空くのを待つ
 //   2. 最後の返事が READY_MARK で終わり、追跡するファイルに変更が無ければ /exit を送り、claude が終わるのを待つ
@@ -20,7 +20,8 @@ export type Target = { workroom: string; model?: string }
 
 export function parseTarget(arg: string): Target {
   const [name, model] = arg.split(":", 2) as [string, string | undefined]
-  const workroom = name.endsWith("_work") ? name : `${name}_work`
+  // subN だけは subN_work の略として読む（main_manager などはそのまま）
+  const workroom = /^sub\d+$/.test(name) ? `${name}_work` : name
   return model ? { workroom, model } : { workroom }
 }
 
