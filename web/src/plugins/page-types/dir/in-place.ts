@@ -77,11 +77,12 @@ export const DIR_EDIT_COMMIT = kit.defineCommand({
   when: editing,
 })
 
-// 書いている名前か説明を取り消す（足したばかりの名前の空の中身は消す）
+// 書いている名前か説明を取り消す（足したばかりの名前の空の中身は消す。消すのを認可ステップが止めていても押せ、そのときは消さずに字を捨てて終える）
 export const DIR_EDIT_CANCEL = kit.defineCommand({
   id: "entry-edit-cancel",
   performs: [ENTRY_REMOVE.id],
   permissionScope: "opened-page",
+  denied: "runs",
   title: "Cancel",
   run: (ctx, a) => endEdit(ctx, a, false),
   when: editing,

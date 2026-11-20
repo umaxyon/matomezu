@@ -67,11 +67,12 @@ export const TREE_EDIT_COMMIT = kit.defineCommand({
   when: editing,
 })
 
-// 書いているキャプションを取り消す（足したばかりの空の節は消す）
+// 書いているキャプションを取り消す（足したばかりの空の節は消す。消すのを認可ステップが止めていても押せ、そのときは消さずに字を捨てて終える）
 export const TREE_EDIT_CANCEL = kit.defineCommand({
   id: "node-edit-cancel",
   performs: [NODE_REMOVE.id],
   permissionScope: "opened-page",
+  denied: "runs",
   title: "Cancel",
   run: (ctx, a) => endEdit(ctx, a, false),
   when: editing,

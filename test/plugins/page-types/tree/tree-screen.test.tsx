@@ -653,6 +653,24 @@ test("キャプションを書いている途中で確定のアクションが�
   expect(pagesOf(book())[0]).toMatchObject({ root: { children: [{ id: a, caption: "子 A" }] } })
 })
 
+test("消すのだけを認可ステップが止めていても、足したばかりの節の Escape はその場の編集を終える（節は消さずに残し、選びも外さない）", () => {
+  const { store, id, book } = frozen(["@matomezu/tree:node-remove"])
+  const done = addTree(store, id, { caption: "根" })
+  const rootId = done.fields!.root.id
+  const paper = () => screen.getByRole("img", { name: "紙" })
+  fireEvent.click(within(paper()).getByRole("button", { name: "子を足す" }))
+  const input = within(paper()).getByRole("textbox", { name: "キャプション" })
+  writeRich(input, "子 A")
+  fireEvent.keyDown(input, { key: "Escape" })
+  expect(within(paper()).queryByRole("textbox")).toBeNull()
+  const children = (pagesOf(book())[0] as unknown as { root: { children: { id: string; caption: string }[] } }).root
+    .children
+  expect(children.map(c => c.caption)).toEqual([""])
+  expect(paper().querySelector('[data-selected="true"]')?.getAttribute("data-node")).toBe(children[0]!.id)
+  expect(rootId).not.toBe(children[0]!.id)
+  expect(screen.queryAllByRole("alert")).toHaveLength(0)
+})
+
 // A4 横の紙で、grow の向きなら入り、ほかの向きなら入らない子の数（なるべく多く）と、grow の向きで入る一番多い数
 const A4 = { w: 1123, h: 794 }
 const kids = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `k${i}`, caption: `子 ${i}` }))
