@@ -544,11 +544,13 @@ test("物の角に 2 つ以上あれば、先頭の 2 つを重ねた絵にま�
   }
   await addBox(page, 200, 200, "二")
   const two = items(page).filter({ hasText: "二" })
-  const readAll = async () => {
-    const notes = (await (await page.request.get(`/api/ai/books/${book}`, { headers: ai })).json()).annotations as {
+  const notesOf = async () =>
+    (await (await page.request.get(`/api/ai/books/${book}`, { headers: ai })).json()).annotations as {
       id: string
-      props: { readAt?: string }
+      props: { text?: string; addedAt?: string; readAt?: string }
     }[]
+  const readAll = async () => {
+    const notes = await notesOf()
     for (const n of notes.filter(n => !n.props.readAt))
       await page.request.post("/api/ai/perform", {
         headers: ai,
@@ -584,13 +586,18 @@ test("物の角に 2 つ以上あれば、先頭の 2 つを重ねた絵にま�
   await expect(bubble.getByRole("button").nth(0)).toHaveAccessibleName("びっくりマーク")
   await expect(bubble.getByRole("button").nth(1)).not.toHaveAttribute("data-read")
   await expect(bubble.locator("[data-read]")).toHaveCount(2)
+  // 既読の伝言の並びは、常駐に残った付けた時点の新しい順（WSL では時計が戻り、あとに付けた「新しい」が古い時点になる事がある）
+  const read = (await notesOf())
+    .filter(n => n.props.readAt)
+    .sort((a, b) => (b.props.addedAt ?? "").localeCompare(a.props.addedAt ?? ""))
+  const older = read.findIndex(n => n.props.text === "古い")
   // 古い既読の伝言を選ぶと、右サイドパネルにその伝言だけが出る
-  await bubble.locator("[data-read]").nth(1).click()
+  await bubble.locator("[data-read]").nth(older).click()
   await expect(panel(page).getByLabel("伝言", { exact: true })).toHaveValue("古い")
   // 開いている間は、ほかの伝言は薄く押せない（開いている伝言とマークは押せる）
   await stack.hover()
-  await expect(bubble.locator("[data-read]").nth(0)).toBeDisabled()
-  await expect(bubble.locator("[data-read]").nth(1)).toBeEnabled()
+  await expect(bubble.locator("[data-read]").nth(1 - older)).toBeDisabled()
+  await expect(bubble.locator("[data-read]").nth(older)).toBeEnabled()
   await expect(bubble.getByRole("button").nth(1)).toBeDisabled()
   await expect(bubble.getByRole("button").nth(0)).toBeEnabled()
   await page.keyboard.press("Escape")

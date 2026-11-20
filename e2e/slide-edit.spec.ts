@@ -43,7 +43,7 @@ const order = (page: Page) => page.locator("[data-item]").evaluateAll(els => els
 
 test("右クリックのメニューで重なり順を変えられ、選んだ物を消すのもここから", async ({ page }) => {
   await page.goto(BOOK_SCREEN_URL)
-  expect(await order(page)).toEqual(["e1", "e2", "e3"])
+  await expect.poll(() => order(page)).toEqual(["e1", "e2", "e3"])
   const p = await at(page, 130, 300)
   await page.mouse.click(p.x, p.y, { button: "right" })
   await page.getByRole("menuitem", { name: "最前面へ" }).click()

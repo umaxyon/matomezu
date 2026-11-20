@@ -1,14 +1,18 @@
 // 設定画面: コントロールセンターの「全体設定」で開いたダイアログと、その「全体」の中身
-import { expect, type Page } from "@playwright/test"
+import { expect, type Locator, type Page } from "@playwright/test"
 import { fromMenu, menuOf, menuTrigger } from "./stage-menu"
 
 export const settingsDialog = (page: Page) => page.getByRole("dialog", { name: "設定" })
 
+// locator のうち、inert の中に無い物（押せる所に出ているスクリーンの物）
+const live = (locator: Locator) => locator.locator("xpath=self::*[not(ancestor-or-self::*[@inert])]")
+
 // コントロールセンターの「全体設定」で設定画面を開く（ブックスクリーンにいれば、フッタメニューの巣箱でコントロールセンターへ移ってから）。
-// 画面が描かれるまで待ってから、どちらにいるかを見る（読み直した直後は、コントロールセンターでも歯車がまだ無い）
+// 画面が描かれるまで待ってから、どちらにいるかを見る（読み直した直後は、コントロールセンターでも歯車がまだ無い）。
+// 後ろに退いたスクリーンと、滑り出ている間のスクリーンは inert で描かれたままなので、その中の歯車と名前のボタンは数えない
 export async function openSettings(page: Page) {
-  const gear = page.getByRole("button", { name: "全体設定" })
-  await expect(gear.or(menuTrigger(page)).first()).toBeAttached()
+  const gear = live(page.getByRole("button", { name: "全体設定" }))
+  await expect(gear.or(live(menuTrigger(page))).first()).toBeAttached()
   if (!(await gear.isVisible())) await (await fromMenu(page, "コントロールセンター")).click()
   await gear.click()
 }

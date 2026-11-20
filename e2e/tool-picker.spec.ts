@@ -127,6 +127,8 @@ test("設定で長押しの時間を 500 ミリ秒にすると、300 ミリ秒�
   await backToBook(page)
   const at = await onPaper(page, 400, 300)
   await page.mouse.move(at.x, at.y)
+  // 押してからの時間を runFor だけで進める（時計が流れたままだと、負荷の重い間に 500 ミリ秒を過ぎる）
+  await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 1000)
   await page.mouse.down({ button: "right" })
   await page.clock.runFor(350)
   await expect(picker(page)).toHaveCount(0)
