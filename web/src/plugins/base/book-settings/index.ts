@@ -1,7 +1,7 @@
 // ページとブックの設定の項目。
 // 項目のコンポーネントの並び（useSettingControls。SettingControls.tsx）も、このフォルダに置く
 // ページの項目: ページのタイプが設定の定義（core/def/setting.ts。holder が "page"）を id で選び、機能台帳がページの形に settings のフィールド（項目の id → 値）を足す。
-// ブックの項目: holder が "book" の設定の定義で、タイプに依らず、どのブックも持てる。
+// ブックの項目: holder が "outermost" の設定の定義で、タイプに依らず、どのブックも持てる。
 // 変える base のアクション（page-update・pages-update・book-update）は、名前などの共通の項目に加えて、項目を settings（項目の id → 値）として受け付ける。書いた項目だけを変え、null は項目を消す（既定に戻す）。
 // 変えたあとはページを整える（settleBook）。値は、値があればその値、無ければ定義の既定（settingValue・bookSettingValue）。ページの項目がブックの値を引き継ぐことは無い。
 // AI には、タイプごとの項目を引数の形に入れて見せる（settingsArgs）
@@ -31,7 +31,9 @@ export function settingDefs(catalog: CoreCatalog, type: string): PageSettingDef[
 
 // ブックが持つ設定の定義のうち、組 group の物（表の順）
 export function bookSettingDefs(catalog: CoreCatalog, group: SettingGroup = "general"): BookSettingDef[] {
-  return [...catalog.settings.values()].filter((d): d is BookSettingDef => d.holder === "book" && groupOf(d) === group)
+  return [...catalog.settings.values()].filter(
+    (d): d is BookSettingDef => d.holder === "outermost" && groupOf(d) === group,
+  )
 }
 
 // 項目 defs を、変えるときに渡す形にする（どれも書かなくてよく、null は消す。項目の id で渡す。値の形は、持つ所 owner の項目として機能台帳から組み立てた形か schema）
@@ -99,7 +101,7 @@ export function settingValue(catalog: CoreCatalog, page: object | null, def: Pag
 export function bookSettingValue<S extends z.ZodType>(
   catalog: CoreCatalog,
   book: Book | null,
-  def: DefaultedSettingDef<S> & { holder: "book" },
+  def: DefaultedSettingDef<S> & { holder: "outermost" },
 ): z.output<S>
 export function bookSettingValue<S extends z.ZodType>(
   catalog: CoreCatalog,

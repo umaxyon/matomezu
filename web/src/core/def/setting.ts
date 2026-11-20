@@ -1,5 +1,5 @@
 // 設定の項目の定義: ページかブックに持たせる 1 つの値（線の既定の通り方など）。持つ所は holder で決まる: "page" の項目は、ページのタイプが自分のページに持たせる項目として id で選ぶ。
-// "book" の項目は、タイプに依らず、どのブックも持てる（ブックのページを並べて刷るときの決まりなど）。
+// "outermost" の項目は、タイプに依らず、どのブックも持てる（ブックのページを並べて刷るときの決まりなど）。
 // 値はページ（ブック）のデータの settings のフィールドに、項目の id を鍵にして入れ、どれも書かなくてよい（例: settings: { "@matomezu/line:line-route": "elbow" }）。読むときは、値があればその値、無ければ既定（default）（plugins/base/book-settings の settingValue・bookSettingValue）。ページの項目がブックの値を引き継ぐことは無い。
 // 既定を持たない項目は、値が無ければ undefined で、読む側が決める（base のテーマはページのタイプのテーマ、紙の色はテーマの紙の色）。
 // 同じ定義で、プラグインの userSettings に入れれば利用者の設定の項目になる（holder は書かない）。値は利用者の設定（core/settings.ts）に、項目の id を鍵にして入れる。1 つの項目をページ・ブックと利用者の両方には使わない
@@ -27,10 +27,10 @@ export interface SettingDef<S extends z.ZodType = z.ZodType, Tt extends string =
 }
 
 // 設定の項目の値を持つ所: ページ（タイプが選ぶ）か、ブック（どのブックも持てる）
-export type SettingHolder = "page" | "book"
+export type SettingHolder = "page" | "outermost"
 // ページの設定の項目・ブックの設定の項目・利用者の設定の項目（holder で分かれる。読む関数は、合う holder の項目だけを受ける）
 export type PageSettingDef<S extends z.ZodType = z.ZodType> = SettingDef<S> & { holder: "page" }
-export type BookSettingDef<S extends z.ZodType = z.ZodType> = SettingDef<S> & { holder: "book" }
+export type BookSettingDef<S extends z.ZodType = z.ZodType> = SettingDef<S> & { holder: "outermost" }
 export type HeldSettingDef = SettingDef & { holder: SettingHolder }
 export type UserSettingDef = SettingDef & { holder?: never }
 

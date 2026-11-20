@@ -13,9 +13,9 @@ type SettingValuesOf<Ids> = {
   [K in Ids & keyof SettingTable]?: SettingTable[K] extends { schema: infer S extends z.ZodType } ? z.output<S> : never
 }
 type Selected<T> = T extends { settings: readonly (infer I)[] } ? I : never
-// ブックが持つ設定の項目（holder が "book" の項目）の id
+// ブックが持つ設定の項目（holder が "outermost" の項目）の id
 type BookSettingId = {
-  [K in keyof SettingTable]: SettingTable[K] extends { holder: "book" } ? K : never
+  [K in keyof SettingTable]: SettingTable[K] extends { holder: "outermost" } ? K : never
 }[keyof SettingTable]
 
 // タイプがページに足すフィールド（fields）

@@ -54,7 +54,7 @@ export const ERRORS = {
   E061: "subject {id}: aiListed and aiList cannot be given together",
   E062: "pageType {id}: settings has {setting}, which is not a page setting (its holder is not page)",
   E063: 'action {id}: its permissionScope is "book" (no page named), so its attach cannot have {attach} (they depend on a page type)',
-  E064: "setting {id}: a page or book setting needs holder (page or book)",
+  E064: "setting {id}: a page or book setting needs holder (page or outermost)",
   E065: "userSetting {id}: a user setting takes no holder",
   E066: 'pageType {id}: actions.{field} has {action}, whose permissionScope is "book" (it changes the container itself, so no page type decides it)',
   E048: "subject {id}: lockable needs a locked field in its record (true, optional)",
@@ -85,7 +85,7 @@ export const ERRORS = {
   E126: "this view is not drawn in a screen of {screen}",
   E127: "item {id}: scrapFrame is for a shape whose props are a scrap",
   E128: "{name} is used outside a screen arrangement (only the widget that lays out the screens names them)",
-  E129: "setting {id}: printPreview is only for a setting a book holds (holder book)",
+  E129: "setting {id}: printPreview is only for a setting a book holds (holder outermost)",
 
   E201: "MatomezuProvider is missing",
   E202: "#root is missing",

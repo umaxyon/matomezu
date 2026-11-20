@@ -13,7 +13,7 @@ import { sequence } from "../../support"
 const ex = pluginKit("ex-print", { Margin: { en: "Margin" } })
 const MARGIN = ex.defineSetting({
   id: "margin",
-  holder: "book",
+  holder: "outermost",
   title: "Margin",
   schema: z.enum(["narrow", "wide"]),
   default: "narrow",

@@ -107,7 +107,7 @@ export interface PluginKit<P extends string, M extends MessageMap> {
   ): Omit<ActionDef<T, A, R, I, MessageKey, At>, "id"> & { id: Owned<P, Id> } & OnContainer<Sc>
 
   // 既定を持つ項目は、読むとき（settingValue）に必ず値があると分かるように、default を持つ形で返す
-  // 設定の項目。holder（"page" か "book"）を書いた定義はページ・ブックの項目、書かない定義は利用者の設定の項目（型に holder が残り、読む関数が合う項目だけを受ける）
+  // 設定の項目。holder（"page" か "outermost"）を書いた定義はページ・ブックの項目、書かない定義は利用者の設定の項目（型に holder が残り、読む関数が合う項目だけを受ける）
   defineSetting<
     const Id extends string,
     S extends SettingDef["schema"],
