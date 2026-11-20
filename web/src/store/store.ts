@@ -571,9 +571,9 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   setWindowTitle(title: string): void
   // 今の窓のタイトル（替えたあとで戻すため）。口が無ければ空
   windowTitle(): string
-  // 起動エラーの画面に出す物（作ったときに渡したもの。起動を止めた窓のほかは無い）。base のフック useStartupError を通して使う
   // 窓を開く前に知らされた、読めない物のフォルダへ移った・戻った物（作ったときに渡したもの。無ければ持たない）。base のフックを通して、窓を開いたあと 1 回知らせる
   unreadableNotice?: UnreadableNotice
+  // 起動エラーの画面に出す物（作ったときに渡したもの。起動を止めた窓のほかは無い）。base のフック useStartupError を通して使う
   startupError?: StartupError
   // 今の画面の場所（開いているブック・ページ・倍率・ずらす量・分割と、画面の場所に入れるプラグイン状態。core/address.ts・plugin-state.ts）。ホストクライアントだけが使う
   address(): Address

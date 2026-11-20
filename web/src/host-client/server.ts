@@ -63,7 +63,7 @@ export interface Events {
   close(): void
 }
 
-// 読み直しをまたいで運ぶ物の、sessionStorage の鍵（今は、読み直す前に知らされた、読めない物のフォルダへ移った・戻った物の知らせ）
+// 読み直しをまたいで運ぶ物（読み直す前に知らされた、読めない物のフォルダへ移った・戻った物の知らせ）の、sessionStorage の鍵
 const CARRY_KEY = "matomezu:unreadable-notice"
 
 const browserNet: Net = {
