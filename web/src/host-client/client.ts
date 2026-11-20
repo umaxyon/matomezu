@@ -1,5 +1,7 @@
 // ホストクライアント: 画面がホスト（常駐サーバー）とブラウザに頼むこと（読む・行ったアクションを渡す・外の変化を受ける）を 1 つの型にまとめる。画面のコードは、この口からしか外に触らない。
 // 実装は常駐に頼むもの（server.ts）。テストはメモリに持つもの（test/host-client/memory.ts）を使う
+import type { BROKEN } from "../core/folders"
+import type { MovedIfOff, Purged } from "../core/unreadable"
 import type { Warning } from "../core/warnings"
 import type { WideSearchAnswer, WideSearchQuery } from "../core/wide-search"
 import type { AIEditTicketOutcome, DoneBulk, HostAnswer, MatomezuInstance } from "../store/store"
@@ -30,6 +32,10 @@ export interface HostClient {
   // 窓が組み込めなかった追加プラグイン ids を、並びの順にホストから外す（AI から外すのと同じ）。全部外せたら窓を読み直して removed、
   // 外せなかった物があれば、その id と理由で止めて refused（それより前の物は外れたまま）、常駐につながらなければ unreachable。常駐が断れば（200 でない）E405 を投げる
   removeScreenPlugins(ids: readonly string[]): Promise<ScreenPluginsRemoved>
+  // 読めない物のフォルダの直下の物 id を完全に消すのを頼む（変わった行は知らせで入る）。常駐が断るか（200 でない）つながらなければ E407 を投げる
+  purgeUnreadable(id: string): Promise<Purged>
+  // 追加プラグイン ids を無効にしたら読めない物のフォルダへ移る物を、書かずに数えてもらう。常駐が断るか（200 でない）つながらなければ E408 を投げる
+  movedIfOff(ids: readonly string[]): Promise<readonly MovedIfOff[] | typeof BROKEN>
   visible(): boolean // 窓が見えているか（裏のタブなどで見えていない間は、まだ見ていない変更を見えたとしない。createMatomezu の visible に渡す）
 }
 

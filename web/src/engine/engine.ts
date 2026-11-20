@@ -939,6 +939,42 @@ const WindowWarningSchema = z.object({
   })
 }
 
+// 設定 settings で無効の追加プラグインに加えて ids の追加プラグインも無効にしたら、読めない物のフォルダへ移る物（移す順。書かない）。今の組は替えずに別に組み、
+// 常駐が移すときと同じ settleLibrary で決める。読めない物のフォルダの行が形に合わなければ broken
+;(
+  globalThis as {
+    matomezuMovedIfOff?: (ids: string, pages: string, folders: string, settings: string, now: string) => string
+  }
+).matomezuMovedIfOff = (ids, pages, folders, settings, now) => {
+  const off = new Set(JSON.parse(ids) as string[])
+  const restored = restoreSettings(JSON.parse(settings))
+  for (const id of disabledPluginsOf(
+    assembled.catalog.core,
+    restored,
+    lastAdded.map(p => p.id),
+  ))
+    off.add(id)
+  const catalog = assemble(
+    [...BUILTIN, ...lastAdded.map(p => (off.has(p.id) ? withoutParts(p) : p))],
+    BUILTIN_CONTROL_CENTER,
+  ).catalog.core
+  const done = settleLibrary(catalog, JSON.parse(pages) as unknown[], JSON.parse(folders) as unknown[], {
+    naming: namingOf(catalog, restored),
+    now,
+    newId: () => crypto.randomUUID(),
+  })
+  if (done === BROKEN) return JSON.stringify({ broken: true })
+  return JSON.stringify({
+    moved: done.moved.map(u => ({
+      id: u.element.id,
+      kind: u.element.kind,
+      holder: u.holder,
+      code: u.code,
+      ...(u.type === undefined ? {} : { type: u.type }),
+    })),
+  })
+}
+
 // 書庫を整えるのに失敗した訳 reason（常駐が渡す。engine: 整える関数が失敗した・broken: 読めない物のフォルダの行が形に合わない・write: 書き込みが失敗した）ごとの、warning W033 に書く言い方
 const SETTLE_FAILURES: Readonly<Record<"engine" | "broken" | "write", string>> = {
   engine: "engine failed",

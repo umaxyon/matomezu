@@ -22,6 +22,7 @@ import type { ActionContext, ActionOn, PageTarget } from "../core/def/action"
 import type { PluginStateDef, PluginStateRead } from "../core/def/plugin-state"
 import { fail, matomezuError, type Problem, problem } from "../core/errors"
 import {
+  type BROKEN,
   bookIdOf,
   changesBetween,
   type Folder,
@@ -99,6 +100,7 @@ import {
   toPaper,
   zoomTo,
 } from "../core/stage"
+import type { MovedIfOff, Purged } from "../core/unreadable"
 import type { Warning } from "../core/warnings"
 import { NO_WIDE_SEARCH_HITS, type WideSearchAnswer, type WideSearchQuery } from "../core/wide-search"
 import {
@@ -559,6 +561,12 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   search(query: WideSearchQuery): Promise<WideSearchAnswer>
   // ブラウザのクリップボードに文字を書く。base のフック useCopyText を通して使う（プラグインに渡す actions には入れない）。書けなければ投げる
   copyText(text: string): Promise<void>
+  // 読めない物のフォルダの直下の物 id を完全に消すのをホストに頼む（アクションでなく、画面の履歴に入らない。変わった行はホストの知らせで入る）。
+  // base のフックを通して使う（プラグインに渡す actions には入れない）。ホストが無いか、頼めなければ投げる
+  purgeUnreadable(id: string): Promise<Purged>
+  // 追加プラグイン ids を無効にしたら読めない物のフォルダへ移る物を、ホストに書かずに数えてもらう（BROKEN なら、読めない物のフォルダの行が形に合わず、何も移らない）。
+  // base のフックを通して使う（プラグインに渡す actions には入れない）。ホストが無いか、頼めなければ投げる
+  movedIfOff(ids: readonly string[]): Promise<readonly MovedIfOff[] | typeof BROKEN>
   // 窓のタイトル（ブラウザのタブとタイトルバーに出る文字）を替える。base のフック useWindowTitle を通して使う（プラグインに渡す actions には入れない）
   setWindowTitle(title: string): void
   // 今の窓のタイトル（替えたあとで戻すため）。口が無ければ空
@@ -692,6 +700,11 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   visible?: () => boolean // 窓が見えているか（裏のタブなどで見えていない間は、まだ見ていない変更を見えたとしない。無ければいつも見えている）
   search?: (query: WideSearchQuery) => Promise<WideSearchAnswer> // ホストの言葉の検索（横断検索）。無ければ、どの言葉にも横断検索の当たりなし
   copyText?: (text: string) => Promise<void> // ブラウザのクリップボードに文字を書く。無ければ、書けないとして投げる（E404）
+  // 読めない物のフォルダについてホストに頼む口（完全に消す・無効にしたら移る物を数える）。無ければ、頼むと投げる（E406）
+  unreadableHost?: {
+    purge(id: string): Promise<Purged>
+    movedIfOff(ids: readonly string[]): Promise<readonly MovedIfOff[] | typeof BROKEN>
+  }
   setWindowTitle?: (title: string) => void // 窓のタイトルを替える。無ければ何もしない
   windowTitle?: () => string // 今の窓のタイトル。無ければ空
   startupError?: StartupError // 起動エラーの画面に出す物（起動を止めた窓だけが渡す）
@@ -1771,6 +1784,14 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     copyText: async text => {
       if (!options.copyText) fail("E404")
       await options.copyText(text)
+    },
+    purgeUnreadable: async id => {
+      if (!options.unreadableHost) fail("E406")
+      return await options.unreadableHost.purge(id)
+    },
+    movedIfOff: async ids => {
+      if (!options.unreadableHost) fail("E406")
+      return await options.unreadableHost.movedIfOff(ids)
     },
     setWindowTitle: title => options.setWindowTitle?.(title),
     windowTitle: () => options.windowTitle?.() ?? "",

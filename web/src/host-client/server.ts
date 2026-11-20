@@ -17,9 +17,10 @@
 import { z } from "zod"
 import type { CoreCatalog } from "../core/core-catalog"
 import { fail, matomezuError, problem } from "../core/errors"
-import { rawBooksOf } from "../core/folders"
+import { BROKEN, MOVED_CODES, rawBooksOf } from "../core/folders"
 import { restoreCounters, restoreRecords, withCounters, withRecords } from "../core/records"
 import type { Stage } from "../core/stage"
+import { NOT_INSIDE, PURGED } from "../core/unreadable"
 import type { Warning } from "../core/warnings"
 import { currentKindOf, recentBookScreen, screenOfStage, shownScreens } from "../core/window"
 import { currentStage, MAX_STAGES } from "../core/workspace"
@@ -221,6 +222,26 @@ function placedStage({ actions, state }: MatomezuInstance, show: z.infer<typeof 
 const SCREEN_PLUGINS_REMOVED = z.union([
   z.object({ ok: z.literal(true) }),
   z.object({ ok: z.literal(false), id: z.string(), reason: z.string() }),
+])
+
+const PURGE_ANSWER = z.union([
+  z.object({ ok: z.literal(true) }),
+  z.object({ ok: z.literal(false), reason: z.literal(NOT_INSIDE) }),
+])
+const MOVED_IF_OFF_ANSWER = z.union([
+  z.object({
+    ok: z.literal(true),
+    moved: z.array(
+      z.object({
+        id: z.string(),
+        kind: z.enum(["page", "binder", "book", "folder"]),
+        holder: z.string(),
+        code: z.enum(MOVED_CODES),
+        type: z.string().optional(),
+      }),
+    ),
+  }),
+  z.object({ ok: z.literal(false), reason: z.literal(BROKEN) }),
 ])
 
 const DataSchema = z.object({
@@ -780,6 +801,29 @@ export function serverClient(net: Net = browserNet): HostClient {
       if (!answer.ok) return { state: "refused", id: answer.id, reason: answer.reason }
       net.reload()
       return { state: "removed" }
+    },
+    purgeUnreadable: async id => {
+      const res = await net
+        .fetch("api/unreadable/purge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id }),
+        })
+        .catch(() => null)
+      if (!res?.ok) fail("E407", { id, status: res ? `${res.status}` : "no answer" })
+      return PURGE_ANSWER.parse(await res.json()).ok ? PURGED : NOT_INSIDE
+    },
+    movedIfOff: async ids => {
+      const res = await net
+        .fetch("api/unreadable/if-off", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids }),
+        })
+        .catch(() => null)
+      if (!res?.ok) fail("E408", { status: res ? `${res.status}` : "no answer" })
+      const answer = MOVED_IF_OFF_ANSWER.parse(await res.json())
+      return answer.ok ? answer.moved.map(({ type, ...m }) => (type === undefined ? m : { ...m, type })) : BROKEN
     },
     visible: () => net.visible(),
     search: async q => {

@@ -510,3 +510,86 @@ func TestTheScreenRemovesThePluginsItCouldNotAdd(t *testing.T) {
 		t.Fatalf("remove a plugin that is not there by the AI = %s", got)
 	}
 }
+
+// 画面の口 if-off: 追加プラグインを無効にしたら移る物を、書かずに答える。答えた物は、そのあと設定で無効にしたときに本当に移る物と同じ
+func TestTheMovesIfAPluginIsOffAreTheMovesWhenItIsTurnedOff(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	store, err := storage.OpenSQLite(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.PutSettings(user, json.RawMessage(`{"`+enabledPluginsSetting+`":["ex2"]}`)); err != nil {
+		t.Fatal(err)
+	}
+	putBook(t, store, `{"id":"f1","title":"Flow","lineup":[`+
+		`{"kind":"page","id":"p0","type":"@matomezu/drawing:drawing","title":"P0","paper":"@matomezu/base:a4","orientation":"landscape","items":[]},`+
+		`{"kind":"page","id":"p1","type":"ex2:flow","title":"P1","paper":"@matomezu/base:a4","orientation":"portrait"},`+
+		`{"kind":"page","id":"p2","type":"ex2:flow","title":"P2","paper":"@matomezu/base:a4","orientation":"portrait"}]}`)
+	store.Close()
+	s, h := serveStore(t, path)
+	if got := link(t, s, "../../test/added-plugins/ex2"); got != `{"id":"ex2","ok":true}` {
+		t.Fatalf("link = %s", got)
+	}
+	if code, _ := send(t, "POST", s.URL+"/api/unreadable/if-off", `{"ids":["ex2"]}`, map[string]string{"Cookie": ""}); code < 400 {
+		t.Fatalf("if-off without the screen cookie = %d", code)
+	}
+	_, got := send(t, "POST", s.URL+"/api/unreadable/if-off", `{"ids":["ex2"]}`, nil)
+	var answer struct {
+		OK    bool               `json:"ok"`
+		Moved []engine.MovedUnit `json:"moved"`
+	}
+	if err := json.Unmarshal([]byte(got), &answer); err != nil || !answer.OK {
+		t.Fatalf("if-off = %s", got)
+	}
+	if got := unreadableRefs(t, h); len(got) != 0 {
+		t.Fatalf("if-off wrote: unreadable %v", got)
+	}
+	postPerform(t, s.URL, `{"action":"@matomezu/base:settings-set","args":{"values":{"`+enabledPluginsSetting+`":[]}},"lang":"ja","client":"c1","seq":1}`)
+	moved := unreadableRefs(t, h)
+	told := make([][2]string, len(answer.Moved))
+	for i, m := range answer.Moved {
+		told[i] = [2]string{m.ID, m.Code}
+		if m.Kind != "page" || m.Holder != "f1" || m.Type != "ex2:flow" {
+			t.Fatalf("if-off told %+v", m)
+		}
+	}
+	if len(moved) != 2 || !slices.Equal(told, moved) {
+		t.Fatalf("if-off told %v, but turning ex2 off moved %v", told, moved)
+	}
+	// 無効になっている物は、もとから無効として数える（もう移った物は移らない）
+	if _, got := send(t, "POST", s.URL+"/api/unreadable/if-off", `{"ids":["ex2"]}`, nil); got != `{"moved":[],"ok":true}` {
+		t.Fatalf("if-off after turning it off = %s", got)
+	}
+}
+
+// 画面の口 purge: 読めない物のフォルダの直下の物を完全に消す。直下に無い id は ok: false で、何も書かない
+func TestTheScreenPurgesWhatIsRightInsideTheUnreadableFolder(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	store, err := storage.OpenSQLite(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	putBook(t, store, `{"id":"f1","title":"Flow","lineup":[`+
+		`{"kind":"page","id":"p0","type":"@matomezu/drawing:drawing","title":"P0","paper":"@matomezu/base:a4","orientation":"landscape","items":[]},`+
+		`{"kind":"page","id":"p1","type":"ex2:flow","title":"P1","paper":"@matomezu/base:a4","orientation":"portrait"}]}`)
+	store.Close()
+	s, h := serveStore(t, path)
+	if got := unreadableRefs(t, h); !slices.Equal(got, [][2]string{{"p1", "W027"}}) {
+		t.Fatalf("the unreadable folder = %v", got)
+	}
+	if code, _ := send(t, "POST", s.URL+"/api/unreadable/purge", `{"id":"p1"}`, map[string]string{"Cookie": ""}); code < 400 {
+		t.Fatalf("purge without the screen cookie = %d", code)
+	}
+	if _, got := send(t, "POST", s.URL+"/api/unreadable/purge", `{"id":"p0"}`, nil); got != `{"ok":false,"reason":"not-inside"}` || rowOf(h, "p0") == nil {
+		t.Fatalf("purge a page outside = %s, p0 %s", got, rowOf(h, "p0"))
+	}
+	if _, got := send(t, "POST", s.URL+"/api/unreadable/purge", `{"id":"p1"}`, nil); got != `{"ok":true}` {
+		t.Fatalf("purge = %s", got)
+	}
+	if got := unreadableRefs(t, h); len(got) != 0 || rowOf(h, "p1") != nil {
+		t.Fatalf("after purging: unreadable %v, p1 %s", got, rowOf(h, "p1"))
+	}
+	if _, got := send(t, "POST", s.URL+"/api/unreadable/purge", `{"id":"p1"}`, nil); got != `{"ok":false,"reason":"not-inside"}` {
+		t.Fatalf("purge again = %s", got)
+	}
+}

@@ -80,6 +80,23 @@ func (h *Hub) settleLibrary(quiet bool) {
 	h.holdUnreadableWarning(done.Warning)
 }
 
+// PurgeUnreadable は、画面が頼んだ、読めない物のフォルダの直下の物 id を完全に消す（purgeUnreadable）。直下に無ければ false（ほかの窓が先に消したなど。何も書かない）
+func (h *Hub) PurgeUnreadable(id string) (bool, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.purgeUnreadable(id)
+}
+
+// MovedIfOff は、画面が頼んだ、追加プラグイン ids を無効にしたら読めない物のフォルダへ移る物（移す順。書かない。今の設定で無効の物はもとから無効として数える）。
+// broken なら、読めない物のフォルダの行が形に合わず、何も移らない。組むのに時間が掛かる（100ms ほど）ので、行と設定を写してから h.mu を離して組む
+func (h *Hub) MovedIfOff(ids []string) (moved []engine.MovedUnit, broken bool, err error) {
+	h.mu.Lock()
+	pages, folders := h.allRows()
+	settings := h.settingsForPlugins()
+	h.mu.Unlock()
+	return h.engine.MovedIfOff(ids, pages, folders, settings, stamp())
+}
+
 // purgeUnreadable は、読めない物のフォルダの直下の物 id を、中の物の行とページのアノテーションごと置き場所から消す（ほかのフォルダも持つ行は消さない。窓に知らせる）。
 // 直下に無ければ false（h.mu を持って呼ぶ）
 func (h *Hub) purgeUnreadable(id string) (bool, error) {

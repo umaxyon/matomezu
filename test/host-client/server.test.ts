@@ -1,7 +1,8 @@
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
-import { HOME_ID, recordsOf, TRASH_ID } from "../../web/src/core/folders"
+import { BROKEN, HOME_ID, recordsOf, TRASH_ID } from "../../web/src/core/folders"
 import type { Book } from "../../web/src/core/schema/book"
+import { NOT_INSIDE, PURGED } from "../../web/src/core/unreadable"
 import { screenOf } from "../../web/src/core/window"
 import { openClient } from "../../web/src/host-client/open"
 import { type Events, NoServer, OFFLINE_MS, QUIET_MS, serverClient } from "../../web/src/host-client/server"
@@ -957,13 +958,13 @@ test("準備中でない参加者の知らせは、同じ id を重ねて持た�
   expect(ready()).toEqual(["p1", "p2"])
 })
 
-// 外す口だけを試すホストクライアント: api/screen-plugins/remove に answer を返し（null ならつながらない）、頼まれた本文と読み直した数を残す
-function removing(answer: { status: number; body: unknown } | null) {
+// 画面だけの口 1 つを試すホストクライアント: path（既定は外す口 api/screen-plugins/remove）に answer を返し（null ならつながらない）、頼まれた本文と読み直した数を残す
+function removing(answer: { status: number; body: unknown } | null, path = "api/screen-plugins/remove") {
   const sent: unknown[] = []
   let reloads = 0
   const host = serverClient({
     fetch: async (url, init) => {
-      if (url !== "api/screen-plugins/remove") throw new Error(`unexpected ${url}`)
+      if (url !== path) throw new Error(`unexpected ${url}`)
       sent.push(JSON.parse(String(init?.body)))
       if (!answer) throw new TypeError("Failed to fetch")
       return new Response(JSON.stringify(answer.body), { status: answer.status })
@@ -1004,6 +1005,32 @@ test("外せなかった物があれば、その id と理由で refused（読�
   await expect(removing({ status: 403, body: {} }).host.removeScreenPlugins(["ex2"])).rejects.toMatchObject({
     code: "E405",
   })
+})
+
+test("読めない物のフォルダの直下の物を完全に消すと頼み、直下に無ければ not-inside。常駐が断るか、つながらなければ E407", async () => {
+  const purged = removing({ status: 200, body: { ok: true } }, "api/unreadable/purge")
+  expect(await purged.host.purgeUnreadable("p1")).toBe(PURGED)
+  expect(purged.sent).toEqual([{ id: "p1" }])
+  expect(purged.reloads()).toBe(0)
+  const away = removing({ status: 200, body: { ok: false, reason: "not-inside" } }, "api/unreadable/purge")
+  expect(await away.host.purgeUnreadable("p1")).toBe(NOT_INSIDE)
+  for (const answer of [{ status: 403, body: {} }, null])
+    await expect(removing(answer, "api/unreadable/purge").host.purgeUnreadable("p1")).rejects.toMatchObject({
+      code: "E407",
+    })
+})
+
+test("無効にしたら移る物を数えてもらい、移る物の並びか、読めない物のフォルダが形に合わなければ BROKEN。常駐が断るか、つながらなければ E408", async () => {
+  const moved = { id: "p1", kind: "page", holder: "b1", code: "W027", type: "ex2:flow" } as const
+  const asked = removing({ status: 200, body: { ok: true, moved: [moved] } }, "api/unreadable/if-off")
+  expect(await asked.host.movedIfOff(["ex2"])).toEqual([moved])
+  expect(asked.sent).toEqual([{ ids: ["ex2"] }])
+  const broken = removing({ status: 200, body: { ok: false, reason: "broken" } }, "api/unreadable/if-off")
+  expect(await broken.host.movedIfOff(["ex2"])).toBe(BROKEN)
+  for (const answer of [{ status: 500, body: {} }, null])
+    await expect(removing(answer, "api/unreadable/if-off").host.movedIfOff(["ex2"])).rejects.toMatchObject({
+      code: "E408",
+    })
 })
 
 test("closeEvents は知らせのつながりを閉じる", async () => {

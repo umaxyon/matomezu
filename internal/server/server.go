@@ -148,6 +148,8 @@ func Handler(o Options) http.Handler {
 	mux.Handle("POST /api/log", o.screen(o.windowLog))
 	mux.Handle("POST /api/ai-edit-tickets", o.screen(o.aiEditTicket))
 	mux.Handle("POST /api/screen-plugins/remove", o.screen(o.unlinkPluginsFromScreen))
+	mux.Handle("POST /api/unreadable/purge", o.screen(o.purgeUnreadable))
+	mux.Handle("POST /api/unreadable/if-off", o.screen(o.movedIfOff))
 	mux.Handle("GET /api/ai/view", o.ai(o.aiView))
 	mux.Handle("GET /api/ai/books", o.ai(o.aiBooks))
 	mux.Handle("GET /api/ai/books/{id}", o.ai(o.aiBook))
@@ -314,6 +316,52 @@ func (o Options) unlinkPluginsFromScreen(w http.ResponseWriter, r *http.Request)
 		}
 	}
 	writeJSON(w, map[string]any{"ok": true})
+}
+
+// purgeUnreadable は、画面の口: 読めない物のフォルダの直下の物 id を完全に消す。直下に無ければ { ok: false, reason: "not-inside" }（何も書かない）
+func (o Options) purgeUnreadable(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, maxBody)).Decode(&req); err != nil || req.ID == "" {
+		http.Error(w, "the body must be {\"id\"}", http.StatusBadRequest)
+		return
+	}
+	done, err := o.Hub.PurgeUnreadable(req.ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if !done {
+		writeJSON(w, map[string]any{"ok": false, "reason": "not-inside"})
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true})
+}
+
+// movedIfOff は、画面の口: 追加プラグイン ids を無効にしたら読めない物のフォルダへ移る物（書かない）。
+// 読めない物のフォルダの行が形に合わなければ { ok: false, reason: "broken" }
+func (o Options) movedIfOff(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		IDs []string `json:"ids"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, maxBody)).Decode(&req); err != nil || len(req.IDs) == 0 || slices.Contains(req.IDs, "") {
+		http.Error(w, "the body must be {\"ids\"}", http.StatusBadRequest)
+		return
+	}
+	moved, broken, err := o.Hub.MovedIfOff(req.IDs)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if broken {
+		writeJSON(w, map[string]any{"ok": false, "reason": "broken"})
+		return
+	}
+	if moved == nil {
+		moved = []engine.MovedUnit{}
+	}
+	writeJSON(w, map[string]any{"ok": true, "moved": moved})
 }
 
 func (o Options) events(w http.ResponseWriter, r *http.Request) {
