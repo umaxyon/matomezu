@@ -191,7 +191,56 @@ const STAYS: { name: string; rows: () => Rows; moved: [string, string][] }[] = [
       ),
     moved: [["f1", "W029"]],
   },
+  {
+    name: "紙と向きのそろわないバインダ（ブックの中。ブックは残る）",
+    rows: () =>
+      worldRows([
+        testBook("b1", "B", [
+          drawingPage("p1"),
+          testBinder("f1", "束", SLIDE, slide("s1", "一"), { ...slide("s2", "二"), orientation: "portrait" } as never),
+        ]),
+      ]),
+    moved: [["f1", "W029"]],
+  },
+  {
+    name: "読めないページを持ち、ブック自体も形に合わないブック（ブックごと）",
+    rows: () =>
+      withFolder(
+        worldRows([
+          testBook("b1", "B", [drawingPage("p1"), { ...drawingPage("p2", { title: "二" }), items: "x" } as never]),
+        ]),
+        "b1",
+        r => ({ ...r, title: 5 }),
+      ),
+    moved: [["b1", "W005"]],
+  },
 ]
+
+// 読めるかの判定が 1 つである事: 確かめる関数 checkBooks（画面と同じ読み方）がブックに出す訳の番号は、移す側 unreadableUnitsOf が、
+// そのブックごとか、その中から移す最初の物の番号と同じ（移す物の無いブックには、どちらも出さない）
+function agrees(catalog: CoreCatalog, rows: Rows) {
+  const folders = rows.folders as { id: string; folderRole?: string; lineup?: { id?: string }[] }[]
+  const holder = new Map(folders.flatMap(f => (f.lineup ?? []).flatMap(e => (e.id ? [[e.id, f.id] as const] : []))))
+  const role = new Map(folders.map(f => [f.id, f.folderRole]))
+  const isBook = (id: string) =>
+    role.has(id) && !["home", "trash", "folder", "binder", "unreadable"].includes(role.get(id) ?? "")
+  const bookOf = (id: string | undefined): string | undefined =>
+    id === undefined || isBook(id) ? id : bookOf(holder.get(id))
+  const fromUnits = new Map<string, string>()
+  for (const u of unreadableUnitsOf(catalog, rows.pages, rows.folders)) {
+    const book = bookOf(u.element.id)
+    if (book !== undefined && !fromUnits.has(book)) fromUnits.set(book, u.code)
+  }
+  const fromCheck = new Map<string, string>(
+    checkBooks(catalog, rawBooksOf(rows.pages, rows.folders)).warnings.map(w => [w.params.book ?? "", w.code]),
+  )
+  expect(fromCheck).toEqual(fromUnits)
+}
+
+describe("確かめる関数と移す側は、ブックに同じ訳の番号を出す", () => {
+  for (const c of CASES) test(c.name, () => agrees(c.less, c.rows()))
+  for (const c of STAYS) test(c.name, () => agrees(CORE_CATALOG, c.rows()))
+})
 
 describe("機能台帳がそろっていても読めない物は移り、移したあとの書庫は読めない物のフォルダの外の行を全部読む。もう 1 回行っても変わらない", () => {
   for (const c of STAYS)
