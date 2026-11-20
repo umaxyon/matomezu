@@ -1,13 +1,13 @@
 // スライドのアイテム 1 つの絵: 書いた位置と大きさに、角度（rotation）を枠の中心でかけて、アイテムのビューを描く。
 // 操作を受けるレイヤー（SlideLayer）は edit を渡す: アイテムに操作の印（data-item）とアンカーを付け、文字枠は書き換え中ならテキストForm にする。
-import { type ReactNode, useLayoutEffect, useRef, useState } from "react"
+import { useLayoutEffect, useRef, useState } from "react"
 import type { PlacedShape, Rect } from "../../../../plugin-api"
-import { type ItemViewProps, useTokenScope, useUiCatalog } from "../../../../plugin-api/ui"
 import { useAnchorRef } from "../../../base/ui"
 import { fittedRect } from "../rect"
 import { DEFAULT_FONT_SIZE, TEXT_LINE_HEIGHT } from "../slide"
 import face from "../TextFace.module.css"
 import { textFitSize, wrapsIn } from "../text-fit"
+import { useSlideItemView } from "./item-view"
 import styles from "./SlideLayer.module.css"
 
 export const shapeProps = (shape: PlacedShape): Record<string, unknown> => shape.props as Record<string, unknown>
@@ -21,13 +21,8 @@ export interface SlideItemEdit {
 }
 
 export function SlideItem({ shape, zoom, edit }: { shape: PlacedShape; zoom: number; edit?: SlideItemEdit }) {
-  const ui = useUiCatalog()
   const anchor = useAnchorRef()
-  const tokens = useTokenScope(shape.item) // このアイテムのプラグインのテーマキー（--<名前>）
-  const View = ui.items.get(shape.item)?.view as
-    | ((p: ItemViewProps<PlacedShape["props"]>) => ReactNode)
-    | React.ComponentType<ItemViewProps<PlacedShape["props"]>>
-    | undefined
+  const { View, tokens } = useSlideItemView(shape.item)
   const [grown, setGrown] = useState<Rect | null>(null) // 書き換えている間、文字に合わせた枠
   const editing = edit?.editing === true
   const rect = editing && grown ? grown : { x: shape.x, y: shape.y, w: shape.w ?? 0, h: shape.h ?? 0 }

@@ -19,3 +19,8 @@ export const ELLIPSE_ICON = (
     <ellipse cx="12" cy="12" rx="8" ry="5.5" />
   </svg>
 )
+export const RECTANGLE_ICON = (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <rect x="4" y="6.5" width="16" height="11" />
+  </svg>
+)

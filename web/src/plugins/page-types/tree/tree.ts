@@ -27,6 +27,7 @@ const BACKGROUND_ITEMS = [
   "@matomezu/slide:slide-free-line",
   "@matomezu/slide:slide-line",
   "@matomezu/slide:slide-ellipse",
+  "@matomezu/slide:slide-rectangle",
 ] as const
 
 export const TREE_KEY_SCOPE = kit.defineKeyScope({ id: "tree", title: "Tree", commandsFrom: "stage" })

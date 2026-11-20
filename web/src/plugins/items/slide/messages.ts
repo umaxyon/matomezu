@@ -7,6 +7,7 @@ export const SLIDE_MESSAGES = defineMessages({
   "Free line": { en: "Free line", ja: "自由な線" },
   "Straight line": { en: "Straight line", ja: "直線" },
   Ellipse: { en: "Ellipse", ja: "楕円" },
+  Rectangle: { en: "Rectangle", ja: "長方形" },
   "Place on slide": { en: "Place on slide", ja: "スライドに置く" },
   "Move on slide": { en: "Move on slide", ja: "スライドで動かす" },
   "Resize on slide": { en: "Resize on slide", ja: "スライドで大きさを変える" },
