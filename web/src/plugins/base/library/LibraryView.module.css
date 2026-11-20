@@ -243,6 +243,12 @@
   padding: 8px 12px;
   border-bottom: 1px solid var(--skin-border-strong);
 }
+/* 作るボタンの中: 一覧の行と同じアイコンを名前の頭に並べる */
+.create {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
 .historyButton {
   display: grid;
   place-items: center;
