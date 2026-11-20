@@ -31,12 +31,14 @@ import {
   isOpenRole,
   type Library,
   libraryOf,
+  outsideUnreadable,
   type PageRow,
   type Pages,
   rawBooksOf,
   settledOn,
   type TableChanges,
   tablesOf,
+  type UnreadableItem,
   withChanges,
   withRowsPatched,
   worldTablesOf,
@@ -172,6 +174,7 @@ export interface MatomezuState {
   books: Readonly<Record<string, Book>> // ブックの id ごと（ゴミ箱のブックは除く。表から組んだ値）
   unreadable: readonly Warning[] // 残したブックのうち、ブックごと読めないもの（warning W005・W006・読めないページを持つ W027〜W029。データには手を付けず、開けない）
   partial: readonly Warning[] // 読めるブックの、機能台帳に無いアイテムや設定の項目（W007）。無い物はそのまま残す
+  unreadableFolder: readonly UnreadableItem[] // 読めない物のフォルダの直下の物（並びの順。ホストから受け取った行から。書庫には入らない）
   window: WindowState // 窓の、開いているスクリーンとカレントにした順・スクリーンアレンジメント（core/window.ts）
   settings: Settings
   annotations: Annotations // ページの id → そのページのアノテーション（core/annotation.ts。1 つも無いページは持たない）
@@ -602,6 +605,8 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   use(added: readonly Plugin[], check?: (plugins: readonly Plugin[]) => void): void
 }
 
+const NO_UNREADABLE_ITEMS: readonly UnreadableItem[] = []
+
 // 最初の状態（ブックスクリーンは開かない）
 function initialState(
   booksAndTrashOf: (tables: Library) => BooksAndTrash,
@@ -619,6 +624,7 @@ function initialState(
     books: open,
     unreadable,
     partial,
+    unreadableFolder: NO_UNREADABLE_ITEMS,
     window: newWindow(catalog),
     settings,
     annotations: {},
@@ -1732,6 +1738,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (sameData(counters, now.counters)) counters = now.counters
       const unreadable = sameData(found.warnings, now.unreadable) ? now.unreadable : found.warnings
       const partial = sameData(found.partial, now.partial) ? now.partial : found.partial
+      const moved = outsideUnreadable(world.pages, world.folders).unreadable
+      const unreadableFolder = sameData(moved, now.unreadableFolder) ? now.unreadableFolder : moved
       // ホストが知らせた値は、無いか変わっていなければ今の値のまま
       const kept = <T>(next: T | undefined, current: T): T =>
         next === undefined || sameData(next, current) ? current : next
@@ -1754,6 +1762,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         ...(counters === now.counters ? {} : { counters }),
         ...(unreadable === now.unreadable ? {} : { unreadable }),
         ...(partial === now.partial ? {} : { partial }),
+        ...(unreadableFolder === now.unreadableFolder ? {} : { unreadableFolder }),
       })
       checkSeen()
     },

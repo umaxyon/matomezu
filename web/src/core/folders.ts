@@ -107,20 +107,20 @@ export const isOpenRole = (role: unknown): role is HomeOrFolder["folderRole"] =>
 
 const AnyEntryRefSchema = z.strictObject({ kind: z.enum(["page", "binder", "book", "folder"]), id: z.string().min(1) })
 const TrashRefSchema = AnyEntryRefSchema.extend({ trashed: z.string().min(1), from: z.array(z.string().min(1)) })
+// 読めない物のフォルダの並びの要素の形
+const UnreadableRefSchema = z.strictObject({
+  entry: z.union([TrashRefSchema, AnyEntryRefSchema]),
+  from: z.array(z.string().min(1)),
+  after: z.string().min(1),
+  code: z.enum(MOVED_CODES),
+  type: z.string().min(1).optional(),
+  moved: z.string().min(1),
+})
 // 読めない物のフォルダの行の形
 const UnreadableFolderSchema = z.strictObject({
   folderRole: z.literal("unreadable"),
   id: z.literal(UNREADABLE_ID),
-  lineup: z.array(
-    z.strictObject({
-      entry: z.union([TrashRefSchema, AnyEntryRefSchema]),
-      from: z.array(z.string().min(1)),
-      after: z.string().min(1),
-      code: z.enum(MOVED_CODES),
-      type: z.string().min(1).optional(),
-      moved: z.string().min(1),
-    }),
-  ),
+  lineup: z.array(UnreadableRefSchema),
 })
 // 読めない物のフォルダの行が形に合わない（中の物を戻せず、上書きもしない）
 export const BROKEN = "broken"
@@ -716,21 +716,30 @@ export const rowsById = (rows: readonly unknown[]): Map<string, Readonly<Record<
     ),
   )
 
-// 置き場所から読んだままの行のうち、読めない物のフォルダの行と、その中の物（何段下でも）の行を除いた物（書庫に入らない。同じ行の並びには同じ値を返す）
-const outsideKept = new WeakMap<
-  readonly unknown[],
-  { pages: readonly unknown[]; out: { pageRows: readonly unknown[]; folderRows: readonly unknown[] } }
->()
-export function outsideUnreadable(
-  pageRows: readonly unknown[],
-  folderRows: readonly unknown[],
-): { pageRows: readonly unknown[]; folderRows: readonly unknown[] } {
+// 読めない物のフォルダの直下の物 1 つ: 並びの要素の entry の id、その物の行 row（置き場所から読んだまま。表に無ければ undefined）、
+// 並びの要素 ref（形に合わなければ BROKEN。中の物は書庫から外れたまま、在った所は分からない）
+export interface UnreadableItem {
+  id: string
+  row: unknown
+  ref: UnreadableRef | typeof BROKEN
+}
+// 置き場所から読んだままの行を、書庫に入る物 pageRows・folderRows と、読めない物のフォルダの直下の物 unreadable（並びの順。外のフォルダも持つので書庫に残る物は除く）に分けた物
+export interface OutsideUnreadable {
+  pageRows: readonly unknown[]
+  folderRows: readonly unknown[]
+  unreadable: readonly UnreadableItem[]
+}
+const NO_UNREADABLE: readonly UnreadableItem[] = []
+
+// 置き場所から読んだままの行のうち、読めない物のフォルダの行と、その中の物（何段下でも）の行を除いた物（書庫に入らない）と、そのとき外した直下の物（同じ行の並びには同じ値を返す）
+const outsideKept = new WeakMap<readonly unknown[], { pages: readonly unknown[]; out: OutsideUnreadable }>()
+export function outsideUnreadable(pageRows: readonly unknown[], folderRows: readonly unknown[]): OutsideUnreadable {
   const kept = outsideKept.get(folderRows)
   if (kept && kept.pages === pageRows) return kept.out
   const isUnreadable = (r: unknown) => isUnreadableRole((r as { folderRole?: unknown } | null)?.folderRole)
   const found = folderRows.find(isUnreadable) as { lineup?: unknown } | undefined
   const entries = Array.isArray(found?.lineup) ? (found.lineup as unknown[]) : []
-  let out = { pageRows, folderRows }
+  let out: OutsideUnreadable = { pageRows, folderRows, unreadable: NO_UNREADABLE }
   if (found) {
     const folder = rowsById(folderRows)
     const inside = new Set<string>()
@@ -743,9 +752,19 @@ export function outsideUnreadable(
         if (typeof r === "string") walk(r)
       }
     }
+    const pageOf = rowsById(pageRows)
+    const unreadable: UnreadableItem[] = []
     for (const e of entries) {
-      const id = (e as { entry?: { id?: unknown } } | null)?.entry?.id
-      if (typeof id === "string") walk(id)
+      const id = (e as { entry?: { id?: unknown; kind?: unknown } } | null)?.entry?.id
+      if (typeof id !== "string") continue
+      walk(id)
+      const parsed = UnreadableRefSchema.safeParse(e)
+      const kind = (e as { entry: { kind?: unknown } }).entry.kind
+      unreadable.push({
+        id,
+        row: kind === "page" ? pageOf.get(id) : folder.get(id),
+        ref: parsed.success ? (parsed.data as UnreadableRef) : BROKEN,
+      })
     }
     // 外に残るフォルダもその並びに持つ物（読めない物のフォルダへ移したブックと id を分け合う、読めるブックのページなど）は外さない（何段下でも）
     const lineupIdsOf = (row: Readonly<Record<string, unknown>>) =>
@@ -762,7 +781,11 @@ export function outsideUnreadable(
       })
     }
     const away = (r: unknown) => inside.has((r as { id?: unknown } | null)?.id as string)
-    out = { pageRows: pageRows.filter(r => !away(r)), folderRows: folderRows.filter(r => !isUnreadable(r) && !away(r)) }
+    out = {
+      pageRows: pageRows.filter(r => !away(r)),
+      folderRows: folderRows.filter(r => !isUnreadable(r) && !away(r)),
+      unreadable: unreadable.filter(u => inside.has(u.id)),
+    }
   }
   outsideKept.set(folderRows, { pages: pageRows, out })
   return out
