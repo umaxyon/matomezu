@@ -100,11 +100,11 @@ export interface Retreat {
 }
 
 export function retreatOf(
-  front: "projects" | "library",
+  shown: "projects" | "library",
   libraryMaximized: boolean,
   contentMaximized: boolean,
 ): Retreat {
-  const library = front === "library" && libraryMaximized
-  const projects = front === "projects" && contentMaximized
+  const library = shown === "library" && libraryMaximized
+  const projects = shown === "projects" && contentMaximized
   return { left: library || projects, workroom: projects }
 }

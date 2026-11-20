@@ -7,12 +7,12 @@
   flex-direction: column;
 }
 /* コントロールセンターがカレントスクリーンになって滑り込み終えたら、後ろのブックスクリーンは見えなくする。戻すときはすぐ見える */
-.bookScreen[data-front="control-center"] {
+.bookScreen[data-current="control-center"] {
   visibility: hidden;
-  transition: visibility 0s linear var(--front-slide);
+  transition: visibility 0s linear var(--screen-slide);
 }
 @media (prefers-reduced-motion: reduce) {
-  .bookScreen[data-front="control-center"] {
+  .bookScreen[data-current="control-center"] {
     transition: none;
   }
 }
@@ -25,20 +25,20 @@
   color: var(--skin-text);
   transform: translateX(0);
   transition:
-    transform var(--front-slide) ease,
+    transform var(--screen-slide) ease,
     visibility 0s;
 }
 /* 後ろに退いている間は、滑り出てから見えなくする（操作も読み上げも受けない） */
-.center[data-front="book-screen"] {
+.center[data-current="book-screen"] {
   transform: translateX(100%);
   visibility: hidden;
   transition:
-    transform var(--front-slide) ease,
-    visibility 0s linear var(--front-slide);
+    transform var(--screen-slide) ease,
+    visibility 0s linear var(--screen-slide);
 }
 @media (prefers-reduced-motion: reduce) {
   .center,
-  .center[data-front="book-screen"] {
+  .center[data-current="book-screen"] {
     transition: none;
   }
 }
@@ -67,9 +67,9 @@
   background: var(--skin-stage);
   transform: translateX(0);
   transition:
-    transform var(--front-slide) ease,
-    top var(--front-slide) ease,
-    height var(--front-slide) ease;
+    transform var(--screen-slide) ease,
+    top var(--screen-slide) ease,
+    height var(--screen-slide) ease;
 }
 .plain[data-in="false"] {
   transform: translateX(100%);
@@ -94,8 +94,8 @@
 /* 上下に分けた並びに入ったブックスクリーン: 下の行の上の残りを、並びの枚数で等分した位置と高さに置く（ステージを並べないスクリーンの行と同じ動き） */
 .bookScreen {
   transition:
-    top var(--front-slide) ease,
-    height var(--front-slide) ease;
+    top var(--screen-slide) ease,
+    height var(--screen-slide) ease;
 }
 @media (prefers-reduced-motion: reduce) {
   .bookScreen {
@@ -127,7 +127,7 @@
 }
 /* 分け始めに入る物は、上の物が縮み終えてから滑り込む */
 .plain[data-late="true"] {
-  transition-delay: var(--front-slide);
+  transition-delay: var(--screen-slide);
 }
 /* 枠を一瞬光らせる（すでに開いているスクリーンを、もう一度開こうとしたとき）: 縁をアクセントの色にして、0.5 秒で消す。ポインタは通す */
 .flash {

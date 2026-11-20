@@ -34,8 +34,8 @@ interface Row {
 }
 
 export function ScreensView() {
-  // カレントスクリーンがブックスクリーンか（CSS が data-front で、どちらを見せるかを決める）
-  const front = useMatomezuState(s => bookScreenCurrent(s.window)) ? "book-screen" : "control-center"
+  // カレントスクリーンがブックスクリーンか（CSS が data-current で、どちらを見せるかを決める）
+  const currentKind = useMatomezuState(s => bookScreenCurrent(s.window)) ? "book-screen" : "control-center"
   // 見せるブックスクリーン（いちばん最近カレントにした 1 枚）と、見せるステージを並べないスクリーン（同じく。無ければ none）
   const recentBook = useMatomezuState(s => recentBookScreen(s.window)?.id)
   const top = useMatomezuState(s => recentPlainScreen(s.window))
@@ -100,12 +100,12 @@ export function ScreensView() {
           <div
             key={id}
             className={styles.bookScreen}
-            data-front={mixed ? "book-screen" : front}
+            data-current={mixed ? "book-screen" : currentKind}
             data-shown={id === book}
             data-row={row !== null}
             data-footer={footer}
             style={row ? ({ "--row-index": row.index, "--row-of": row.of } as CSSProperties) : undefined}
-            inert={mixed ? id !== splitBook : front !== "book-screen" || id !== book}
+            inert={mixed ? id !== splitBook : currentKind !== "book-screen" || id !== book}
             onPointerDownCapture={() => {
               if (row !== null && id !== current) makeScreenCurrent(id)
             }}
@@ -116,9 +116,9 @@ export function ScreensView() {
       })}
       <section
         className={styles.center}
-        data-front={mixed ? "control-center" : front}
+        data-current={mixed ? "control-center" : currentKind}
         data-mixed={mixed}
-        inert={!mixed && front !== "control-center"}
+        inert={!mixed && currentKind !== "control-center"}
       >
         <div className={styles.body}>
           {plainScreens.map(id => {

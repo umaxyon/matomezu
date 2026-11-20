@@ -101,7 +101,7 @@ export function searchOf(address: Address): string {
 // 前の形の URL から読んだ場所: カレントスクリーンの種類（ステージを並べるスクリーンか、そうでないスクリーンか）と、ブックスクリーンのステージの並び
 export interface FormerAddress {
   former: true
-  front: "control-center" | "book-screen"
+  kind: "control-center" | "book-screen"
   stages: readonly StagePlace[]
   current: number
   share: number
@@ -181,7 +181,7 @@ function formerAddress(q: URLSearchParams): FormerAddress | null {
   if (stages.length === 0 && !q.has("f")) return null
   return {
     former: true,
-    front: q.get("f") === "center" ? "control-center" : "book-screen",
+    kind: q.get("f") === "center" ? "control-center" : "book-screen",
     stages,
     current: n(q.get("c"), 0),
     share: n(q.get("r"), 0.5),
@@ -216,7 +216,7 @@ export function fromFormer(former: FormerAddress, now: Address, stagesDef?: stri
   )
   const recent = (stages: boolean) =>
     [...at.order].reverse().find(id => (at.screens.find(s => s.id === id)?.stages !== undefined) === stages)
-  const to = recent(former.front === "book-screen")
+  const to = recent(former.kind === "book-screen")
   const order = to === undefined ? at.order : [...at.order.filter(id => id !== to), to]
   // 前の形では、重ねて開いたスクリーン（チケットスクリーンなど）を窓の範囲の値 1 つに書いていた。開いているスクリーンの 1 枚に直す
   const { [FORMER_OPENED]: opened, ...window } = former.window
@@ -224,10 +224,10 @@ export function fromFormer(former: FormerAddress, now: Address, stagesDef?: stri
     return { screens, order, arrangement: at.arrangement, arrangementValue: at.arrangementValue, window }
   const id = `c${Math.max(0, ...at.screens.map(s => Number(s.id.slice(1)) || 0)) + 1}`
   const added: ScreenPlace = { id, def: opened.screen, props: opened.props ?? {}, states: {} }
-  const front = former.front === "book-screen" ? [id, ...order] : [...order, id]
+  const ordered = former.kind === "book-screen" ? [id, ...order] : [...order, id]
   return {
     screens: [...screens, added],
-    order: front,
+    order: ordered,
     arrangement: at.arrangement,
     arrangementValue: at.arrangementValue,
     window,
@@ -259,7 +259,7 @@ export function followLocation(
   // URL が無い（開いた直後）なら、ステージを並べないスクリーン（コントロールセンター）をカレントスクリーンにする
   const start: Address | FormerAddress = parseSearch(place.search()) ?? {
     former: true,
-    front: "control-center",
+    kind: "control-center",
     stages: [],
     current: 0,
     share: 0.5,

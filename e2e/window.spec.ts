@@ -9,7 +9,7 @@ import {
   joinedAiAuth,
   type Page,
   test,
-  urlFront,
+  urlCurrentScreen,
 } from "./fixtures"
 import { lowerLibrary, splitWith } from "./helpers/split"
 import { fromMenu } from "./helpers/stage-menu"
@@ -24,7 +24,7 @@ test("開いた直後（URL が無いとき）はコントロールセンター�
   await expect(center(page)).toBeVisible()
   await expect(page.getByRole("heading", { name: "ワークルーム/参加者" })).toBeVisible()
   await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(0)
-  await expect.poll(() => urlFront(page)).toBe(CONTROL_CENTER_SCREEN_DEF)
+  await expect.poll(() => urlCurrentScreen(page)).toBe(CONTROL_CENTER_SCREEN_DEF)
 })
 
 test("コントロールセンターへ行き、書庫で開いているブックを開くと、同じブックスクリーンへ戻る。戻ってもステージの中は残る", async ({
@@ -53,7 +53,7 @@ test("カレントスクリーンを替えるのはブラウザの履歴に 1 �
   await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "コントロールセンター")).click()
   await expect(center(page)).toBeVisible()
-  await expect.poll(() => urlFront(page)).toBe(CONTROL_CENTER_SCREEN_DEF)
+  await expect.poll(() => urlCurrentScreen(page)).toBe(CONTROL_CENTER_SCREEN_DEF)
   await page.goBack()
   await expect(center(page)).toBeHidden()
   await expect(page.getByRole("img", { name: "紙" })).toBeVisible()
@@ -71,7 +71,7 @@ async function startOnCenter(page: Page): Promise<string> {
     .poll(async () => (await page.request.get("/api/ai/view", { headers: await joinedAiAuth() })).json())
     .toHaveProperty("hidden.book")
   const view = await (await page.request.get("/api/ai/view", { headers: await joinedAiAuth() })).json()
-  expect(view).toMatchObject({ front: "control-center" })
+  expect(view).toMatchObject({ current: "control-center" })
   expect("book" in view || "awaiting" in view).toBe(false)
   return view.hidden.book as string
 }
@@ -133,7 +133,7 @@ test("コントロールセンターがカレントスクリーンの間の Esc 
   await expect(center(page)).toBeVisible()
   await page.keyboard.press("Escape")
   await expect(center(page)).toBeVisible()
-  await expect.poll(() => urlFront(page)).toBe(CONTROL_CENTER_SCREEN_DEF)
+  await expect.poll(() => urlCurrentScreen(page)).toBe(CONTROL_CENTER_SCREEN_DEF)
 })
 
 test("宛先なしで開いた窓は、コントロールセンターだけで、ブックスクリーンは無い。AI の view は bookScreen が none", async ({
@@ -145,7 +145,7 @@ test("宛先なしで開いた窓は、コントロールセンターだけで�
   await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(0)
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: await joinedAiAuth() })).json())
-    .toMatchObject({ front: "control-center", bookScreen: "none" })
+    .toMatchObject({ current: "control-center", bookScreen: "none" })
 })
 
 test("別の窓が、開いているブックをゴミ箱に入れると、そのブックスクリーンは閉じてコントロールセンターがカレントスクリーンになる。URL にもブックスクリーンは残らない", async ({
@@ -166,7 +166,7 @@ test("別の窓が、開いているブックをゴミ箱に入れると、そ�
   await expect.poll(async () => await storedTrashedAt(page.request, mine)).toBeTruthy()
   await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(0)
   await expect(center(page)).toBeVisible()
-  await expect.poll(() => urlFront(page)).toBe(CONTROL_CENTER_SCREEN_DEF)
+  await expect.poll(() => urlCurrentScreen(page)).toBe(CONTROL_CENTER_SCREEN_DEF)
   await expect.poll(() => page.url()).not.toContain(`%22${mine}%22`)
 })
 
@@ -194,5 +194,5 @@ test("ブックスクリーンが無い窓でも、郵便のダイアログは E
   await open("開く手紙")
   await page.keyboard.press("Enter")
   await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(1)
-  await expect.poll(() => urlFront(page)).toBe(BOOK_SCREEN_DEF)
+  await expect.poll(() => urlCurrentScreen(page)).toBe(BOOK_SCREEN_DEF)
 })

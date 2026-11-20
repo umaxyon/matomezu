@@ -24,8 +24,8 @@ export interface OpenedScreen {
 // ステージを並べるスクリーン（ブックスクリーン）
 export type BookScreen = OpenedScreen & { stages: Workspace }
 
-// AI に見せる（view の front）、カレントスクリーンの種類: ステージを並べるスクリーン（book-screen）か、そうでないスクリーン（control-center。コントロールセンターのほかのスクリーンも）
-export type ViewFront = "control-center" | "book-screen"
+// AI に見せる（view の current）、カレントスクリーンの種類: ステージを並べるスクリーン（book-screen）か、そうでないスクリーン（control-center。コントロールセンターのほかのスクリーンも）
+export type CurrentKind = "control-center" | "book-screen"
 
 export interface WindowState {
   screens: readonly OpenedScreen[] // 開いているスクリーン（開いた順。1 枚以上。ステージを並べるスクリーンは 0 枚でもよい）
@@ -157,8 +157,8 @@ export function makeCurrent(win: WindowState, id: string): WindowState {
 }
 
 // カレントスクリーンの種類を替える: いちばん最近カレントにした、その種類のスクリーンをカレントにする（無ければ同じ窓を返す）
-export function makeCurrentKind(win: WindowState, front: ViewFront): WindowState {
-  const to = recent(win, front === "book-screen" ? "stages" : "plain")
+export function makeCurrentKind(win: WindowState, kind: CurrentKind): WindowState {
+  const to = recent(win, kind === "book-screen" ? "stages" : "plain")
   return to ? makeCurrent(win, to.id) : win
 }
 
@@ -263,12 +263,12 @@ export function issueStage(win: WindowState): { win: WindowState; id: string } {
 }
 
 // AI に見せる、カレントスクリーンの種類
-export const viewFrontOf = (win: Pick<WindowState, "screens" | "order">): ViewFront =>
+export const currentKindOf = (win: Pick<WindowState, "screens" | "order">): CurrentKind =>
   holdsStages(currentScreen(win)) ? "book-screen" : "control-center"
 
 // カレントスクリーンがブックスクリーン（ステージを並べるスクリーン）か。ステージのキーと、ステージでの操作が効くのは、この間
 export const bookScreenCurrent = (win: Pick<WindowState, "screens" | "order">): boolean =>
-  viewFrontOf(win) === "book-screen"
+  currentKindOf(win) === "book-screen"
 
 // ステージの id から、そのステージ（どのブックスクリーンの物でも。ステージの id は窓で一意。無ければ undefined）
 export function stageIn(win: Pick<WindowState, "screens">, id: string): Stage | undefined {

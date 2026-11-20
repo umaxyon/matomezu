@@ -5,7 +5,7 @@ import { z } from "zod"
 import { type Address, currentIn, recentStagesIn } from "../../web/src/core/address"
 import { NO_OUTERMOST } from "../../web/src/core/folders"
 import { defineMessages } from "../../web/src/core/i18n/messages"
-import { screenOf, viewFrontOf } from "../../web/src/core/window"
+import { currentKindOf, screenOf } from "../../web/src/core/window"
 import {
   type FormerAddress,
   followLocation,
@@ -158,7 +158,7 @@ test("前の形の URL（b0・p0・v0・s0…、c・r・w・f）も読み、今�
   )
   expect(former).toEqual({
     former: true,
-    front: "book-screen",
+    kind: "book-screen",
     stages: [
       { outermost: "b1", page: "p1", binder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} },
       {
@@ -179,8 +179,8 @@ test("前の形の URL（b0・p0・v0・s0…、c・r・w・f）も読み、今�
     stages: [{ states: {} }],
     window: {},
   })
-  expect(parseSearch("?f=center")).toMatchObject({ front: "control-center", stages: [] })
-  expect(parseSearch("?f=book")).toMatchObject({ front: "book-screen", stages: [] })
+  expect(parseSearch("?f=center")).toMatchObject({ kind: "control-center", stages: [] })
+  expect(parseSearch("?f=book")).toMatchObject({ kind: "book-screen", stages: [] })
   const now: Address = {
     screens: [
       { id: "c1", def: "@x/home", props: {}, states: {} },
@@ -253,10 +253,10 @@ test("同じ処理の中の移動（分割してブックとページを開く�
 test("URL が無い（開いた直後）なら、コントロールセンターをカレントスクリーンにする。URL にブックスクリーンの場所があれば、ブックスクリーンをカレントスクリーンにする", () => {
   const first = newStore()
   followLocation(first, fakePlace().place)
-  expect(viewFrontOf(first.state.getState().window)).toBe("control-center")
+  expect(currentKindOf(first.state.getState().window)).toBe("control-center")
   const second = newStore()
   followLocation(second, fakePlace("?b0=b3&p0=p1&v0=1,0,0&c=0&r=0.5").place)
-  expect(viewFrontOf(second.state.getState().window)).toBe("book-screen")
+  expect(currentKindOf(second.state.getState().window)).toBe("book-screen")
 })
 
 test("カレントスクリーンは URL のカレントにした順に書く。後ろのブックスクリーンの場所も書く", () => {
@@ -281,7 +281,7 @@ test("カレントスクリーンを替えるのは、ブラウザの履歴に 1
   expect(f.pushed).toHaveLength(2)
   // 戻る: コントロールセンター
   f.back(f.pushed[0]!)
-  expect(viewFrontOf(store.state.getState().window)).toBe("control-center")
+  expect(currentKindOf(store.state.getState().window)).toBe("control-center")
   expect(screenOf(store.state.getState().window).stages[0]!.opened).toEqual(was.stages[0]!.opened)
   expect(f.pushed).toHaveLength(2)
 })

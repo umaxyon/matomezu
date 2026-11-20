@@ -92,7 +92,7 @@ export interface UrlStage {
 export const urlPlace = (page: { url(): string }): UrlPlace | null =>
   JSON.parse(new URL(page.url()).searchParams.get("sc") ?? "null")
 // URL の、カレントスクリーンの定義の id
-export const urlFront = (page: { url(): string }): string | undefined => {
+export const urlCurrentScreen = (page: { url(): string }): string | undefined => {
   const place = urlPlace(page)
   return place?.s.find(x => x.i === place.o.at(-1))?.d
 }

@@ -676,7 +676,7 @@ test("読んでいる間に届いたレコード・番号・設定・アノテ�
 test("窓が見ているものと、窓がフォーカスされたことを、増やす番号を付けて知らせる。変わらなければ知らせない", async () => {
   const s = await connected()
   const view = (selection: string[]) => ({
-    front: "book-screen",
+    current: "book-screen",
     book: "b1",
     page: "p1",
     mode: "edit",
@@ -715,7 +715,7 @@ test("分けた窓は、ステージごとに見ているものを知らせ、�
   const s = await connected()
   s.store.actions.split("s1")
   expect(s.sent.at(-1)?.view).toEqual({
-    front: "book-screen",
+    current: "book-screen",
     book: "b1",
     page: "p1",
     mode: "edit",
@@ -875,11 +875,11 @@ test("フォーカスされたとき、壁時計で QUIET_MS 何も届いてい�
   ])
 })
 
-test("コントロールセンターがカレントスクリーンの間は、見ているものを front と hidden に分けて知らせる", async () => {
+test("コントロールセンターがカレントスクリーンの間は、見ているものを current と hidden に分けて知らせる", async () => {
   const s = await connected()
   showCenter(s.store)
   expect(s.sent.at(-1)?.view).toEqual({
-    front: "control-center",
+    current: "control-center",
     hidden: {
       book: "b1",
       page: "p1",

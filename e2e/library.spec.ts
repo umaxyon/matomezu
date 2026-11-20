@@ -2,7 +2,7 @@
 
 import type { Locator } from "@playwright/test"
 import { drawingPage, testBook } from "../test/lineup"
-import { BOOK_SCREEN_DEF, expect, joinedAiAuth, type Page, test, urlFront, urlStages } from "./fixtures"
+import { BOOK_SCREEN_DEF, expect, joinedAiAuth, type Page, test, urlCurrentScreen, urlStages } from "./fixtures"
 import { storedBook, storedBooks } from "./helpers/stored"
 
 const perform = async (page: Page, action: string, args: object) =>
@@ -46,7 +46,7 @@ test("書庫でフォルダへ入るとパンくずが伸び、ブラウザの�
   await expect(path.getByRole("button")).toHaveText(["書庫", "仕事"])
   // ブックを 2 回押すと、新しいブックスクリーンで開く
   await page.getByRole("list", { name: "仕事 の中身" }).getByRole("button", { name: book.title }).dblclick()
-  await expect.poll(() => urlFront(page)).toBe(BOOK_SCREEN_DEF)
+  await expect.poll(() => urlCurrentScreen(page)).toBe(BOOK_SCREEN_DEF)
   await expect.poll(() => urlStages(page)[0]?.b).toBe(book.id)
 })
 
@@ -61,7 +61,7 @@ test("ブックスクリーンが無い窓でも、書庫の「ブック新規�
   await dialog.getByLabel("ブックの名前").fill("書庫から作ったブック")
   await page.keyboard.press("Enter")
   await expect(dialog).toHaveCount(0)
-  await expect.poll(() => urlFront(page)).toBe(BOOK_SCREEN_DEF)
+  await expect.poll(() => urlCurrentScreen(page)).toBe(BOOK_SCREEN_DEF)
   await expect
     .poll(async () => ((await storedBooks(page.request)) as { title: string }[]).map(b => b.title))
     .toContain("書庫から作ったブック")
@@ -457,7 +457,7 @@ test("書庫の行の右クリックのメニューから、名前の変更・�
   await pageRow.click({ button: "right" })
   await expect(menu.getByRole("menuitem")).toHaveText(["開くEnter", "名前の変更…F2", "複製"])
   await menu.getByRole("menuitem", { name: "開く" }).click()
-  await expect.poll(() => urlFront(page)).toBe(BOOK_SCREEN_DEF)
+  await expect.poll(() => urlCurrentScreen(page)).toBe(BOOK_SCREEN_DEF)
 })
 
 test("書庫の行をドラッグして、行の間（その位置へ）・フォルダの上（中へ）・ゴミ箱の行へ落とせる。名前が重なれば確かめる。少し動かしただけ・落としたあとの click は、選ぶ・開く操作にならない", async ({
@@ -688,7 +688,7 @@ test("書庫の検索は、名前に言葉を含む物を右の枠に並べる�
   await page.keyboard.press("Enter")
   await found.getByRole("button", { name: /検索の試しの帳面/ }).click()
   await page.keyboard.press("Enter")
-  await expect.poll(() => urlFront(page)).toBe(BOOK_SCREEN_DEF)
+  await expect.poll(() => urlCurrentScreen(page)).toBe(BOOK_SCREEN_DEF)
 })
 
 test("書庫の検索の結果を押すと、ツリーがはみ出していても、その行が見える所までツリーを送る", async ({ page }) => {
@@ -755,7 +755,7 @@ test.describe("読めないページ", () => {
     await expect(row).toContainText("読めません")
     await row.click()
     await page.keyboard.press("Enter")
-    await expect.poll(() => urlFront(page)).toBe(BOOK_SCREEN_DEF)
+    await expect.poll(() => urlCurrentScreen(page)).toBe(BOOK_SCREEN_DEF)
     await expect(page.locator("[data-unreadable-page]")).toContainText("このページは読めません")
   })
 })

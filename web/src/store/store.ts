@@ -1412,9 +1412,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       // キーの宛先: 右クリックのメニューを開いた場所（ステージか、ステージを持たないスクリーン）・長押しの道具・ダイアログを開いたステージ。
       // 無ければ（ステージを持たずに開いたダイアログも）、カレントスクリーンのカレントのステージ（ステージを持たなければ、そのスクリーン）
       const opener = dialog && dialog.stage !== NO_STAGE ? dialog.stage : undefined
-      const front = currentScreen(window)
+      const current = currentScreen(window)
       const stage =
-        (contextMenu ? openedAt(contextMenu) : undefined) ?? picker ?? opener ?? front.stages?.current ?? front.id
+        (contextMenu ? openedAt(contextMenu) : undefined) ?? picker ?? opener ?? current.stages?.current ?? current.id
       // プレゼンテーションのキーの範囲は、ページを開いているときだけ（空のバインダでは、プレゼンテーションのビューを描かない）
       const type = openedPage(stageIn(window, stage)?.opened ?? null)?.type
       const presentation = type && catalog.pageTypes.get(type)?.presentation

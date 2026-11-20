@@ -3,9 +3,9 @@
 import type { ReactNode } from "react"
 import styles from "./ScreenPane.module.css"
 
-export function ScreenPane({ front, slideIn, children }: { front: boolean; slideIn: boolean; children: ReactNode }) {
+export function ScreenPane({ shown, slideIn, children }: { shown: boolean; slideIn: boolean; children: ReactNode }) {
   return (
-    <div className={styles.pane} data-front={front} data-slide-in={slideIn} aria-hidden={!front} inert={!front}>
+    <div className={styles.pane} data-shown={shown} data-slide-in={slideIn} aria-hidden={!shown} inert={!shown}>
       {children}
     </div>
   )

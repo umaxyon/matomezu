@@ -50,7 +50,7 @@ export function ControlCenterScreen() {
           <ParticipantListView />
         </div>
         <div className={styles.stage} data-max={retreat.left}>
-          <ScreenPane front={screen === "projects"} slideIn={switched}>
+          <ScreenPane shown={screen === "projects"} slideIn={switched}>
             <div className={styles.projectScreen}>
               <Panel recess className={styles.boards} data-max={retreat.workroom} data-boards-area>
                 <Slot name={PROJECTS} props={{}} />
@@ -58,7 +58,7 @@ export function ControlCenterScreen() {
               <WorkroomView row={picked} visitor={visitor} hidden={retreat.workroom} />
             </div>
           </ScreenPane>
-          <ScreenPane front={screen === "library"} slideIn={switched}>
+          <ScreenPane shown={screen === "library"} slideIn={switched}>
             <LibraryArea maximized={maximized} onToggleMaximize={() => setMaximized(!maximized)} />
           </ScreenPane>
         </div>

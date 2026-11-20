@@ -16,7 +16,7 @@ export function WindowView() {
       className={styles.window}
       style={
         {
-          ["--front-slide" as string]: `${SLIDE_MS}ms`,
+          ["--screen-slide" as string]: `${SLIDE_MS}ms`,
           ["--side-panel-slide" as string]: `${SLIDE_MS}ms`,
         } as CSSProperties
       }

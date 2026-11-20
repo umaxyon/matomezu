@@ -11,13 +11,13 @@
   flex: 1;
   min-height: 0;
 }
-.pane[data-front="true"] {
+.pane[data-shown="true"] {
   z-index: 2;
 }
-.pane[data-front="false"] {
+.pane[data-shown="false"] {
   z-index: 1;
 }
-.pane[data-front="true"][data-slide-in="true"] {
+.pane[data-shown="true"][data-slide-in="true"] {
   /* 名前は animation-name に分けて書く。animation の一括指定に var() が入ると、bun が名前を CSS Modules の名前に書き換えない */
   animation-name: drop-in;
   animation-duration: var(--motion);
