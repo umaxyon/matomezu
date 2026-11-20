@@ -234,17 +234,7 @@ export interface ProbeActions {
   tryPerform<Id extends ActionId>(id: Id, ...args: PerformArgs<Id>): Performed<Id>
 }
 
-// 呼ばれた場所でないスクリーンの、画面の場所に入れるプラグイン状態に値を入れる操作（インスタンスの setPluginStateById と同じ）。プラグイン API には出さない
-// （base のコマンドが storeActionsOf で読む。読めない物のフォルダを開くコマンドが、開いた書庫のスクリーンの開くフォルダを書く）
-export interface AddressActions {
-  setPluginStateById(
-    id: string,
-    value: unknown,
-    caller: { screen?: string; screenDef?: string; stage?: string },
-  ): boolean
-}
-
-export interface Actions extends WindowActions, FrameActions, PlaceActions, ProbeActions, AddressActions {}
+export interface Actions extends WindowActions, FrameActions, PlaceActions, ProbeActions {}
 
 // 窓に向ける操作の名前（WindowActions に操作を足したら、ここにも書く。書き忘れは型の誤り）。プラグインに渡す操作は、store の操作からこれと場所に向ける物だけを選ぶ
 export const WINDOW_ACTIONS: { readonly [K in keyof WindowActions]: true } = {

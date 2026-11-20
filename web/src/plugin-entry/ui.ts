@@ -56,6 +56,7 @@ export {
   MarkdownDocumentView,
   MultiChoices,
   markdownDocumentOnSkin,
+  Notice,
   opensOf,
   PageProblemsView,
   type PaperValue,

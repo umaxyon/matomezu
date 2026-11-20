@@ -136,6 +136,12 @@ export function LibraryView({ className }: { className?: string } = {}) {
   const setQuery = useSetPluginState(kit, LIBRARY_QUERY)
   const [typed, setTyped] = useState(query ?? "")
   const searchForm = useId()
+  // 読めない物のフォルダを開く（ツリーの下の ⚠ の行）: 検索していればやめ、選んでいる行も外す
+  const openUnreadable = () => {
+    setQuery(undefined)
+    setTyped("")
+    enter(UNREADABLE_ID)
+  }
   // 検索の結果を押した回数: 同じ行を押し直しても、ツリーをその行まで送り直す
   const [reveals, setReveals] = useState(0)
   const reveal = (row: FoundRow) => {
@@ -239,7 +245,7 @@ export function LibraryView({ className }: { className?: string } = {}) {
           </ul>
         </nav>
         {unreadableCount > 0 && (
-          <button type="button" className={styles.unreadableNotice} onClick={() => enter(UNREADABLE_ID)}>
+          <button type="button" className={styles.unreadableNotice} onClick={openUnreadable}>
             {t("⚠ Unreadable: {count}", { count: unreadableCount })}
           </button>
         )}

@@ -12,13 +12,14 @@ import {
   type ScreenCommandContext,
   screensOf,
   storeActionsOf,
+  updatePluginStateAtOf,
 } from "../../../store/commands/def"
 import { NO_STAGE } from "../../../store/dialogs"
 import { kit } from "../kit"
 import { ONE_SCREEN } from "../window"
 import { applySplitFrom } from "../window/apply-split"
 import { behindOf, planClose, planExpand, SPLIT_ROWS, splitOf } from "../window/split"
-import { LIBRARY_APPEARANCE, LIBRARY_FOLDER } from "./state"
+import { LIBRARY_APPEARANCE, LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_QUERY } from "./state"
 
 export const LIBRARY_SCREEN = kit.defineScreen({
   id: "library-screen",
@@ -41,15 +42,19 @@ export const LIBRARY_OPEN = kit.defineScreenCommand({
   when: () => true,
 })
 
-// 読めない物のフォルダを開く: 書庫を開き（書庫を開くと同じ所に出す）、右の枠に読めない物のフォルダを出す（ツリーに出す設定がオフでも開く）。
+// 読めない物のフォルダを開く: 書庫を開き（書庫を開くと同じ所に出す）、右の枠に読めない物のフォルダを出す（ツリーに出す設定がオフでも開く。検索していればやめ、選んでいる行は外す）。
 // 読めない物が移ったときの知らせのダイアログの［見る］が呼ぶ
 export const LIBRARY_UNREADABLE_OPEN = kit.defineScreenCommand({
   id: "library-unreadable-open",
   title: "Open the unreadable folder",
   run: (ctx, a) => {
     const library = openLibrary(ctx, a)
-    if (library !== SCREEN_REFUSED)
-      storeActionsOf(a).setPluginStateById(LIBRARY_FOLDER.id, UNREADABLE_ID, { screen: library })
+    if (library === SCREEN_REFUSED) return
+    // 検索をやめ、選んでいる行も外して、読めない物のフォルダを出す
+    const write = updatePluginStateAtOf(a)
+    write(library, LIBRARY_FOLDER, () => UNREADABLE_ID)
+    write(library, LIBRARY_PICKED, () => undefined)
+    write(library, LIBRARY_QUERY, () => undefined)
   },
   when: () => true,
 })

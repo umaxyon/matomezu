@@ -6,7 +6,7 @@ import { useMessages } from "../../../ui/i18n"
 import { defineWidget } from "../../../ui/layout"
 import { useInstance } from "../../../ui/store-context"
 import { usePluginState, useSetPluginState } from "../../../ui/view-hooks"
-import { Confirm, NO_OK } from "../dialog-host/Confirm"
+import { Confirm, Notice } from "../dialog-host/Confirm"
 import { kit } from "../kit"
 import { NO_TYPE } from "./outline"
 import { useReasonOf } from "./reasons"
@@ -28,7 +28,7 @@ export function UnreadableNoticeView() {
   if (moved === 0 && notice.returned === 0) return null
   const close = () => setClosed(NOTICE_CLOSED)
   const returned = t("{count} items are readable again and went back", { count: notice.returned })
-  if (moved === 0) return <Confirm message={returned} ok={NO_OK} cancel={t("Close")} onCancel={close} />
+  if (moved === 0) return <Notice message={returned} close={t("Close")} onClose={close} />
   // 訳の言葉ごとの数（同じプラグインの別のタイプは 1 行にまとめる）。多い順
   const counts = new Map<string, number>()
   for (const m of notice.moved) {

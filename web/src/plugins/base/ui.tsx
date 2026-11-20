@@ -107,6 +107,7 @@ export {
   InheritChoices,
   inlineClass,
   MultiChoices,
+  Notice,
   Problem,
   pairClass,
   rowClass,

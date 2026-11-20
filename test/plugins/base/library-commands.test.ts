@@ -7,6 +7,7 @@ import {
   LIBRARY_COLUMNS,
   LIBRARY_FOLDER,
   LIBRARY_PICKED,
+  LIBRARY_QUERY,
   LIBRARY_UNFOLDED,
 } from "../../../web/src/plugins/base/library/state"
 import { isEnabled, isShown } from "../../../web/src/store/commands"
@@ -351,4 +352,18 @@ test("落とした物を動かすコマンドは、行うアクションを引�
   expect(run("library-entry-move", { entry: "b1", to: { to: "trash" } })).toBe(false)
   expect(ids(HOME_ID)).toContain("b1")
   expect(store.state.getState().toasts).toEqual([])
+})
+
+test("読めない物のフォルダを開く: 書庫を開き、検索していればやめ、選んでいる行も外して、右の枠に読めない物のフォルダを出す", () => {
+  const { store, run, set } = setup()
+  run("library-open")
+  const library = store.state.getState().window.screens.find(s => s.def === "@matomezu/base:library-screen")
+    ?.id as string
+  set(LIBRARY_QUERY.id, library, "企画")
+  set(LIBRARY_PICKED.id, library, "b1")
+  run("library-unreadable-open")
+  const values = store.state.getState().pluginValues
+  expect(pluginValueOf(values, library, LIBRARY_FOLDER)).toBe(UNREADABLE_ID)
+  expect(pluginValueOf(values, library, LIBRARY_PICKED)).toBeUndefined()
+  expect(pluginValueOf(values, library, LIBRARY_QUERY)).toBeUndefined()
 })
