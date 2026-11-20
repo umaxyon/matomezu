@@ -11,8 +11,10 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: inherit;
+  color: var(--skin-text-muted);
   font: inherit;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
 }
 .chevron {
