@@ -228,7 +228,7 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 	if err != nil {
 		return Joined{}, err
 	}
-	// 参加の id が付いていて、その参加者が参加（要求）中なら、その参加者のまま答える。付いていなくても、同じ link の参加者があれば同じ
+	// 呼び出しの参加者が決まっていて、その参加者が参加（要求）中なら、その参加者のまま答える。決まっていなくても、同じ link の参加者があれば同じ
 	for _, s := range records {
 		if (req.Participant != "" && s.ID == req.Participant && s.sitting()) || (req.Link != "" && s.Link == req.Link) {
 			h.noteSession(s.ID, req.SessionID)
@@ -489,7 +489,7 @@ func (h *Hub) ParticipantLive() map[string]participantLive {
 	return out
 }
 
-// CallerSays は、参加の id の付いた /api/ai の呼び出しに、MCP が添えたもの
+// CallerSays は、参加者が決まった /api/ai の呼び出しに、MCP が添えたもの
 type CallerSays struct {
 	Branch          string // git のブランチ（空はブランチが無い）
 	BranchSent      bool   // ブランチのヘッダが付いていた（付いていなければブランチを変えない）
@@ -531,7 +531,7 @@ func (h *Hub) ParticipantCalls() map[string]string {
 	return out
 }
 
-// Called は、参加の id が付いた /api/ai の呼び出しを常駐だけが持つ参加者の記録に残し、その参加者が参加（joined）していて、まだ伝えていなければ、
+// Called は、参加者が決まった /api/ai の呼び出しを常駐だけが持つ参加者の記録に残し、その参加者が参加（joined）していて、まだ伝えていなければ、
 // 1 度だけ返す「参加しました」の知らせ（伝えたと印を付ける）を返す。参加が済んでいない（要求中か準備中）id は何も残さず、知らせも返さない。
 // 表に無い id（断られたか、外された）には、1 度だけ「参加が断られた」知らせを返す。
 // id が空なら何もしない。最後に呼ばれた時刻は、前に知らせてから callsAnnounceGap 以上たっていたときだけ窓に知らせる。

@@ -3922,6 +3922,7 @@ Claude Code には、matomezu のプラグインを入れます。入れるだ�
 注: プラグインの MCP の道具は、Claude Code の上で `mcp__plugin_matomezu_matomezu__` で始まる名前になります。手で登録したときの `mcp__matomezu__` とは違います。
 注: matomezu のリポジトリから試すときは、`claude plugin marketplace add （matomezu のリポジトリ）/clients/claude-code` で登録し、`claude plugin install matomezu@matomezu` で入れます。この方法で入れたプラグインは、`claude plugin update matomezu@matomezu` で更新します。
 注: Windows（WSL でない）でも、そのまま使えます。
+注: Claude Desktop の Code タブから使うときは、下の「Claude Desktop の Code タブから使う」を見ます。
 
 #### 道具の許可
 
@@ -3959,6 +3960,30 @@ npm で消したときに気づけるのは、次の所だけです。
 - プラグインを外す（1 章「外す」の「先に npm で消してしまったとき」）
 
 注: matomezu が起動していないだけなら、話しかけたときの知らせとモデルの知らせは何もしません。画面の操作を待つ事は、起動したらつながります。
+
+### Claude Desktop の Code タブから使う
+
+Windows の Claude Desktop の Code タブからも、WSL に入れた matomezu に参加できます。Windows に matomezu を入れなくて構いません。
+
+Code タブで WSL を環境に選ぶと、WSL の中で Claude Code が動きます。WSL に入れた matomezu のプラグインが、そのまま効きます。
+
+1. WSL に matomezu を入れ、Claude Code のプラグインを入れる（上の「Claude Code のプラグイン」）
+2. WSL で `matomezu start --open` を打ち、matomezu の画面を開く
+3. Claude Desktop の Code タブで、WSL を環境に選んで会話を始める
+4. 会話で参加を頼む（下の「AI の参加」）
+5. 画面で参加を受け入れる（下の「参加を受け入れる」）
+6. 会話で一言話しかける。参加しましたの知らせが出て、参加が確定する（下の「参加しましたの知らせ」）
+
+ターミナルの Claude Code と違う所:
+
+| 場面 | Claude Desktop の Code タブ |
+|---|---|
+| 画面で参加を受け入れる・断る | AI は自分から動き出さない。話しかけると伝わる |
+| ほかの AI からメッセージが届く | AI は自分から動き出さない。話しかけると読む |
+| しばらく話しかけない | 裏の Claude Code が止まる。話しかけると同じ会話のまま起動し直し、参加者のまま続く。参加を頼み直さなくてよい |
+| 会話を終える | 自動で退室しない。画面で退室させる（下の「退室」） |
+
+注: 話しかけたときの知らせとモデルの知らせは、ターミナルの Claude Code と同じに動きます。
 
 ### Codex のプラグイン
 
@@ -4508,6 +4533,7 @@ AI が動き出す操作:
 - ほかの操作（伝言を付けるなど）では動き出しません。次に話しかけたときに伝わります
 
 注: 動き出すのは、参加を頼んだ Claude Code のセッションだけです。
+注: Claude Desktop の Code タブでは、動き出しません。話しかけると伝わります（上の「Claude Desktop の Code タブから使う」）。
 注: opencode も、matomezu のプラグインを入れれば、同じ操作で動き出します（上の「opencode のプラグイン」）。
 注: /clear のあとも動き出します。
 注: 利用者が打たずに動き出したときは、話しかけた事になりません。読まれた伝言の伝言期限は数え始めません（13 章「伝言期限」）。
@@ -4661,6 +4687,7 @@ Claude Code を終えたあと、新しい Claude Code で同じワークルー�
 - ワークルーム名を伝えずに参加を頼ませたときは、退室しません。前の参加者が生きている間は、受け入れのダイアログで同じ名前を使えず、「引き継ぐ」の一覧にも出ません。画面で退室させてから受け入れます（上の「退室」）
 
 注: matomezu のプラグインを入れた Claude Code だけです（上の「Claude Code のプラグイン」）。
+注: Claude Desktop の Code タブの会話は、終えても自動で退室しません。画面で退室させます（上の「Claude Desktop の Code タブから使う」）。
 注: Codex は、下の「Codex の会話を閉じたあと」を見ます。
 注: opencode やほかの AI では、自動で退室しません。参加の有効時間が過ぎて「静か」になるのを待つか、画面で退室させます（上の「退室」）。
 注: matomezu と Claude Code が別の環境（WSL の別のディストリ・コンテナなど）で動いているときは、自動で退室しません。
