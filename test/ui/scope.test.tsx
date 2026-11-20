@@ -18,6 +18,7 @@ import { createMatomezu } from "../../web/src/store/create"
 import { useCommand } from "../../web/src/ui/commands"
 import { useContextMenu } from "../../web/src/ui/context-menu"
 import { useMenuCommand } from "../../web/src/ui/menu"
+import { usePluginState, useSetPluginState } from "../../web/src/ui/plugin-state-hooks"
 import { ActsOnScope, PageScope, StageScope } from "../../web/src/ui/scope"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 import {
@@ -25,8 +26,6 @@ import {
   useAllowed,
   usePage,
   usePerform,
-  usePluginState,
-  useSetPluginState,
   useStage,
   useStageArea,
   useStagePan,

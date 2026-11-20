@@ -9,14 +9,9 @@ import type { MatomezuState } from "../../../store/state"
 import { useCommand } from "../../../ui/commands"
 import { useContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
+import { usePluginState, useReadPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
 import { useCatalog, useMatomezuState, useReadState } from "../../../ui/store-context"
-import {
-  useActions,
-  usePluginState,
-  useReadPluginState,
-  useSetPluginState,
-  useUserSetting,
-} from "../../../ui/view-hooks"
+import { useActions, useUserSetting } from "../../../ui/view-hooks"
 import { ActionButton, controlClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import {

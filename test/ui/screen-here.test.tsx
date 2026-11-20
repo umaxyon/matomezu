@@ -2,7 +2,7 @@ import { afterEach, expect, test } from "bun:test"
 import { cleanup, renderHook } from "@testing-library/react"
 import type { ReactNode } from "react"
 import { ScreenProvider } from "../../web/src/ui/screen-context"
-import { useScreenHere } from "../../web/src/ui/view-hooks"
+import { useScreenHere } from "../../web/src/ui/screen-hooks"
 
 afterEach(cleanup)
 

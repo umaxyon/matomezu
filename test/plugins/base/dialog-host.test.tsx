@@ -10,8 +10,8 @@ import { defineDialog } from "../../../web/src/store/dialogs"
 import { pluginKit } from "../../../web/src/store/kit"
 import { definePlugin } from "../../../web/src/store/plugin"
 import { definePluginUi } from "../../../web/src/ui/plugin"
+import { usePluginState, useSetPluginState } from "../../../web/src/ui/plugin-state-hooks"
 import { MatomezuProvider } from "../../../web/src/ui/store-context"
-import { usePluginState, useSetPluginState } from "../../../web/src/ui/view-hooks"
 
 afterEach(cleanup)
 

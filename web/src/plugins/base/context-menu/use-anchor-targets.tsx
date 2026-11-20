@@ -1,7 +1,7 @@
 // 付ける先を持つプラグイン状態（anchor-targets.ts）を読み書きするフック
 import { useCallback } from "react"
 import type { PluginStateDef } from "../../../core/def/plugin-state"
-import { usePluginState, useSetPluginState } from "../../../ui/view-hooks"
+import { usePluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
 import { kit } from "../kit"
 import type { AnchorTargets } from "./anchor-targets"
 

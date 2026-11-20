@@ -11,16 +11,10 @@ import { recentBookScreen } from "../../../core/window"
 import { pluginValueOf } from "../../../store/plugin-state"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
+import { usePluginState, useReadPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
 import { StageScope } from "../../../ui/scope"
 import { useMatomezuState } from "../../../ui/store-context"
-import {
-  useBook,
-  useCoreCatalog,
-  usePluginState,
-  useReadPluginState,
-  useSetPluginState,
-  useStage,
-} from "../../../ui/view-hooks"
+import { useBook, useCoreCatalog, useStage } from "../../../ui/view-hooks"
 import { controlClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { DRAG_START } from "../utils/drag"
