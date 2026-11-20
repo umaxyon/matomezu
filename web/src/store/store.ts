@@ -100,7 +100,7 @@ import {
   toPaper,
   zoomTo,
 } from "../core/stage"
-import type { MovedIfOff, Purged } from "../core/unreadable"
+import type { MovedIfOff, Purged, UnreadableNotice } from "../core/unreadable"
 import type { Warning } from "../core/warnings"
 import { NO_WIDE_SEARCH_HITS, type WideSearchAnswer, type WideSearchQuery } from "../core/wide-search"
 import {
@@ -572,6 +572,8 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   // 今の窓のタイトル（替えたあとで戻すため）。口が無ければ空
   windowTitle(): string
   // 起動エラーの画面に出す物（作ったときに渡したもの。起動を止めた窓のほかは無い）。base のフック useStartupError を通して使う
+  // 窓を開く前に知らされた、読めない物のフォルダへ移った・戻った物（作ったときに渡したもの。無ければ持たない）。base のフックを通して、窓を開いたあと 1 回知らせる
+  unreadableNotice?: UnreadableNotice
   startupError?: StartupError
   // 今の画面の場所（開いているブック・ページ・倍率・ずらす量・分割と、画面の場所に入れるプラグイン状態。core/address.ts・plugin-state.ts）。ホストクライアントだけが使う
   address(): Address
@@ -708,6 +710,7 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   setWindowTitle?: (title: string) => void // 窓のタイトルを替える。無ければ何もしない
   windowTitle?: () => string // 今の窓のタイトル。無ければ空
   startupError?: StartupError // 起動エラーの画面に出す物（起動を止めた窓だけが渡す）
+  unreadableNotice?: UnreadableNotice // 窓を開く前に知らされた、読めない物のフォルダへ移った・戻った物（ホストクライアントが運んだ物）
 }
 
 // 開いている画面の履歴の段と、そのアクションバルク（同じ区切りなので 1 つで持つ）。step は閉じて画面の履歴に入れた段、refused はホストがアクションバルクを断ったこと。
@@ -1796,6 +1799,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     setWindowTitle: title => options.setWindowTitle?.(title),
     windowTitle: () => options.windowTitle?.() ?? "",
     ...(options.startupError ? { startupError: options.startupError } : {}),
+    ...(options.unreadableNotice ? { unreadableNotice: options.unreadableNotice } : {}),
     address: () => addressNow(),
     locate: address => {
       const now = getState()

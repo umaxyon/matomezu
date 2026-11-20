@@ -1,7 +1,7 @@
 // ホストクライアント: 画面がホスト（常駐サーバー）とブラウザに頼むこと（読む・行ったアクションを渡す・外の変化を受ける）を 1 つの型にまとめる。画面のコードは、この口からしか外に触らない。
 // 実装は常駐に頼むもの（server.ts）。テストはメモリに持つもの（test/host-client/memory.ts）を使う
 import type { BROKEN } from "../core/folders"
-import type { MovedIfOff, Purged } from "../core/unreadable"
+import type { MovedIfOff, Purged, UnreadableNotice } from "../core/unreadable"
 import type { Warning } from "../core/warnings"
 import type { WideSearchAnswer, WideSearchQuery } from "../core/wide-search"
 import type { AIEditTicketOutcome, DoneBulk, HostAnswer, MatomezuInstance } from "../store/store"
@@ -13,6 +13,8 @@ export interface Loaded {
   plugins: readonly unknown[] // ホストが足した追加プラグイン（見た目を結んだもの）。プラグインかは台帳アセンブルが確かめる
   failed: readonly { id: string; error: unknown }[] // 読み込めなかった追加プラグインと理由（ほかのプラグインとブックは読む）
   disabled: readonly string[] // 利用者が有効にしていない追加プラグインの id（名乗りと文言だけで組む）
+  // 読み直す前の窓に知らされた、読めない物のフォルダへ移った・戻った物（その窓が自分で無効にして移した物は除く）。無ければ持たない
+  unreadableNotice?: UnreadableNotice
 }
 
 export interface HostClient {

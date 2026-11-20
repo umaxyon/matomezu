@@ -71,6 +71,8 @@ function fakeServer(data: unknown = { ...dataOf([SAMPLE_BOOKS[0]!]), settings: n
   let reads = 0
   let focus = () => {}
   let reloads = 0
+  const carries: (string | undefined)[] = [] // 読み直すときに運んだ物（読み直すごと）
+  let carried: string | undefined // 読み直す前の窓が運んだ物（読んだら消える）
   const events = (): Events => {
     const mine = new Map<string, (data: string) => void>()
     listeners = mine
@@ -119,8 +121,14 @@ function fakeServer(data: unknown = { ...dataOf([SAMPLE_BOOKS[0]!]), settings: n
     },
     importModule: async url => ({ default: { id: url } }),
     addStyle: () => {},
-    reload: () => {
+    reload: carry => {
       reloads++
+      carries.push(carry)
+    },
+    carried: () => {
+      const kept = carried
+      carried = undefined
+      return kept
     },
     later: (run, ms) => {
       made.set(ms, (made.get(ms) ?? 0) + 1)
@@ -165,6 +173,10 @@ function fakeServer(data: unknown = { ...dataOf([SAMPLE_BOOKS[0]!]), settings: n
     },
     focus: () => focus(),
     reloads: () => reloads,
+    carries: () => carries,
+    carry: (v: string) => {
+      carried = v
+    },
   }
 }
 // 送る・読むのを済ませる
@@ -281,6 +293,7 @@ test("常駐が足した追加プラグインは、見た目の JS を読んで 
     reload: () => {},
     later: () => () => {},
     newKey: () => "k",
+    carried: () => undefined,
     now: () => 0,
   })
   const loading = host.load()
@@ -302,6 +315,37 @@ test("追加プラグインが変わったと届いたら、画面を読み直�
   expect(reloads()).toBe(0)
   emit("plugins", { version: 1 })
   expect(reloads()).toBe(1)
+})
+
+test("機能台帳が変わって読めない物が移った・戻ったと届いたら、その知らせを運んで読み直す。この窓が設定で無効にして移した物は運ばない", async () => {
+  const { emit, carries } = await connected()
+  const moved = [{ code: "W027", type: "ex2:flow", count: 2 }]
+  emit("plugins", { version: 1 })
+  emit("plugins", { version: 2, moved, returned: 1 })
+  emit("plugins", { version: 3, moved, by: "c1" })
+  emit("plugins", { version: 4, moved, returned: 1, by: "c1" })
+  emit("plugins", { version: 5, moved, by: "c2" })
+  expect(carries().map(c => (c === undefined ? c : JSON.parse(c)))).toEqual([
+    undefined,
+    { moved, returned: 1 },
+    undefined,
+    { moved: [], returned: 1 },
+    { moved, returned: 0 },
+  ])
+})
+
+test("読み直す前の窓が運んだ知らせを、読んだ物に添える（形に合わなければ添えない）", async () => {
+  const notice = { moved: [{ code: "W027", type: "ex2:flow", count: 2 }], returned: 1 } as const
+  const server = fakeServer()
+  server.carry(JSON.stringify(notice))
+  const loading = server.host.load()
+  server.emit("hello", { client: "c1" })
+  expect((await loading).unreadableNotice).toEqual(notice)
+  const broken = fakeServer()
+  broken.carry("{")
+  const again = broken.host.load()
+  broken.emit("hello", { client: "c1" })
+  expect((await again).unreadableNotice).toBeUndefined()
 })
 
 test("同じ流れで行ったアクションは、振った id と並べて、1 つのアクションバルクとして、つながりの id と順の番号を添えて常駐に送る", async () => {
@@ -643,6 +687,7 @@ test("読んでいる間に届いた新しい版の知らせは、読んだ古�
     reload: () => {},
     later: () => () => {},
     newKey: () => "k",
+    carried: () => undefined,
     now: () => 0,
   })
   const loading = host.load()
@@ -669,6 +714,7 @@ test("読んでいる間に届いたレコード・番号・設定・アノテ�
     reload: () => {},
     later: () => () => {},
     newKey: () => "k",
+    carried: () => undefined,
     now: () => 0,
   })
   const ROOM = "@matomezu/base:workroom"
@@ -981,6 +1027,7 @@ function removing(answer: { status: number; body: unknown } | null, path = "api/
     },
     later: () => () => {},
     newKey: () => "k",
+    carried: () => undefined,
     now: () => 0,
   })
   return { host, sent, reloads: () => reloads }
