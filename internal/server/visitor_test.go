@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/umaxyon/matomezu/internal/aiwire"
 )
 
 // ビジター: as visitor で頼み、窓でビジターとして受け入れると、起こす知らせはビジターと言い、フックの参加の知らせはワークルームの名前を持たずに（利用者の言語の文も、ビジターの文）
@@ -12,7 +14,7 @@ import (
 func TestVisitorIsToldAndOnlyReads(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
 	line := hub.OpenWakesWith("300", "", WakeLimits{})
-	got, _ := call(t, "POST", s.URL+"/api/ai/join", `{"ai":"claude","model":"opus","env":"wsl-linux","link":"LV","as":"visitor"}`, map[string]string{HostHeader: "300"})
+	got, _ := call(t, "POST", s.URL+"/api/ai/join", `{"ai":"claude","model":"opus","env":"wsl-linux","link":"LV","as":"visitor"}`, map[string]string{aiwire.HostHeader: "300"})
 	var joined Joined
 	if json.Unmarshal([]byte(got), &joined) != nil || joined.Participant == "" {
 		t.Fatalf("join = %s", got)
@@ -42,7 +44,7 @@ func TestVisitorIsToldAndOnlyReads(t *testing.T) {
 	if sent, _ := sendMessage(t, s.URL, joined.Participant, "どこか", "x"); sent.Reason != "visitor" {
 		t.Fatalf("message = %+v", sent)
 	}
-	visitor := map[string]string{ParticipantHeader: joined.Participant}
+	visitor := map[string]string{aiwire.ParticipantHeader: joined.Participant}
 	if got, _ := call(t, "POST", s.URL+"/api/ai/show", `{"book":"b1"}`, visitor); !strings.Contains(got, `"reason":"visitor"`) {
 		t.Fatalf("show = %s", got)
 	}
@@ -106,7 +108,7 @@ func TestShowNeedsAJoinedWorker(t *testing.T) {
 	}
 	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
 	noticeOf(t, s.URL, a)
-	if got, _ := call(t, "POST", s.URL+"/api/ai/show", `{"book":"b1"}`, map[string]string{ParticipantHeader: a}); strings.Contains(got, "not-joined") {
+	if got, _ := call(t, "POST", s.URL+"/api/ai/show", `{"book":"b1"}`, map[string]string{aiwire.ParticipantHeader: a}); strings.Contains(got, "not-joined") {
 		t.Fatalf("show by a joined worker = %s", got)
 	}
 }

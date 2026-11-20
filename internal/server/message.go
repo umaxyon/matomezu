@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/umaxyon/matomezu/internal/aiwire"
 	"github.com/umaxyon/matomezu/internal/engine"
 )
 
@@ -225,7 +226,7 @@ func (o Options) aiMessage(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &req) {
 		return
 	}
-	req.Participant = r.Header.Get(ParticipantHeader)
+	req.Participant = r.Header.Get(aiwire.ParticipantHeader)
 	done, err := o.Hub.SendMessage(req, time.Now())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

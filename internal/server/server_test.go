@@ -19,6 +19,7 @@ import (
 	"testing/fstest"
 	"time"
 
+	"github.com/umaxyon/matomezu/internal/aiwire"
 	"github.com/umaxyon/matomezu/internal/engine"
 	"github.com/umaxyon/matomezu/internal/storage"
 )
@@ -1839,7 +1840,7 @@ func writerAI(t *testing.T, url string) map[string]string {
 	if json.Unmarshal([]byte(got), &joined) != nil || joined.Participant == "" {
 		t.Fatalf("joined-ai-for-test = %s", got)
 	}
-	header := map[string]string{"Authorization": "Bearer secret", ParticipantHeader: joined.Participant}
+	header := map[string]string{"Authorization": "Bearer secret", aiwire.ParticipantHeader: joined.Participant}
 	send(t, "GET", url+"/api/ai/books", "", header) // 最初の呼び出しの知らせ（participant-calls）を、窓をつなぐ前に済ませておく
 	return header
 }
@@ -1854,7 +1855,7 @@ func joinedAI(t *testing.T, s *httptest.Server) map[string]string {
 	if body := acceptRoom(t, s.URL, joined.Participant, "w"); !strings.Contains(body, `"ok":true`) {
 		t.Fatalf("accept = %s", body)
 	}
-	header := map[string]string{"Authorization": "Bearer secret", ParticipantHeader: joined.Participant}
+	header := map[string]string{"Authorization": "Bearer secret", aiwire.ParticipantHeader: joined.Participant}
 	send(t, "GET", s.URL+"/api/ai/books", "", header) // 最初の呼び出しの知らせ（participant-calls）を、窓をつなぐ前に済ませておく
 	return header
 }
@@ -1875,7 +1876,7 @@ func TestAIActionsOfTheControlCenterNeedAConfirmedParticipation(t *testing.T) {
 	if json.Unmarshal([]byte(got), &joined) != nil || joined.Participant == "" {
 		t.Fatalf("join = %s", got)
 	}
-	header := map[string]string{"Authorization": "Bearer secret", ParticipantHeader: joined.Participant}
+	header := map[string]string{"Authorization": "Bearer secret", aiwire.ParticipantHeader: joined.Participant}
 	if !refused(header) {
 		t.Fatal("while requested, the action was not refused")
 	}

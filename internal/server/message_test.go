@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/umaxyon/matomezu/internal/aiwire"
 	"github.com/umaxyon/matomezu/internal/engine"
 )
 
@@ -16,7 +17,7 @@ import (
 // 名前 room のワークルームに受け入れ（常駐が行うので起こさない）、参加の id を返す
 func joinedIn(t *testing.T, srv, link, host, session, room string) string {
 	t.Helper()
-	got, _ := call(t, "POST", srv+"/api/ai/join", `{"ai":"codex","model":"gpt","env":"wsl-linux","link":"`+link+`","sessionId":"`+session+`"}`, map[string]string{HostHeader: host})
+	got, _ := call(t, "POST", srv+"/api/ai/join", `{"ai":"codex","model":"gpt","env":"wsl-linux","link":"`+link+`","sessionId":"`+session+`"}`, map[string]string{aiwire.HostHeader: host})
 	var joined Joined
 	if json.Unmarshal([]byte(got), &joined) != nil || joined.Participant == "" {
 		t.Fatalf("join = %s", got)
@@ -31,12 +32,12 @@ func joinedIn(t *testing.T, srv, link, host, session, room string) string {
 func sendMessage(t *testing.T, srv, from, to, text string) (MessageSent, string) {
 	t.Helper()
 	body, _ := json.Marshal(map[string]string{"to": to, "text": text})
-	got, header := call(t, "POST", srv+"/api/ai/message", string(body), map[string]string{ParticipantHeader: from})
+	got, header := call(t, "POST", srv+"/api/ai/message", string(body), map[string]string{aiwire.ParticipantHeader: from})
 	var sent MessageSent
 	if err := json.Unmarshal([]byte(got), &sent); err != nil {
 		t.Fatalf("message = %s", got)
 	}
-	notice, _ := url.QueryUnescape(header.Get(NoticeHeader))
+	notice, _ := url.QueryUnescape(header.Get(aiwire.NoticeHeader))
 	return sent, notice
 }
 
@@ -48,8 +49,8 @@ func withoutID(s string) string {
 // noticeOf は、参加の id id の AI が matomezu を呼んだときの返事に添う知らせ
 func noticeOf(t *testing.T, srv, id string) string {
 	t.Helper()
-	_, header := call(t, "GET", srv+"/api/ai/settings", "", map[string]string{ParticipantHeader: id})
-	notice, _ := url.QueryUnescape(header.Get(NoticeHeader))
+	_, header := call(t, "GET", srv+"/api/ai/settings", "", map[string]string{aiwire.ParticipantHeader: id})
+	notice, _ := url.QueryUnescape(header.Get(aiwire.NoticeHeader))
 	return notice
 }
 
@@ -173,7 +174,7 @@ func TestSameEnvelopeIsQueuedOnce(t *testing.T) {
 // join でセッション id を運んだ AI への受け入れの知らせは「次の呼び出し」で歓迎すると言い、その呼び出しで歓迎を受けたら、行列の受け入れの知らせは流さない
 func TestAcceptedWakeIsDroppedOnceWelcomed(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
-	got, _ := call(t, "POST", s.URL+"/api/ai/join", `{"ai":"codex","model":"gpt","env":"wsl-linux","link":"L1","sessionId":"S1"}`, map[string]string{HostHeader: "100"})
+	got, _ := call(t, "POST", s.URL+"/api/ai/join", `{"ai":"codex","model":"gpt","env":"wsl-linux","link":"L1","sessionId":"S1"}`, map[string]string{aiwire.HostHeader: "100"})
 	var joined Joined
 	_ = json.Unmarshal([]byte(got), &joined)
 	room := makeRoom(t, s.URL, "ひよこ")
@@ -307,7 +308,7 @@ func TestActionSendsAIMessage(t *testing.T) {
 	for id := range recordsOf(t, s.URL, "@matomezu/taskboard:project") {
 		project = id
 	}
-	got, _ := call(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/taskboard:ticket-add","args":{"project":"`+project+`","name":"x","assignees":["からす","すずめ"]}}`, map[string]string{ParticipantHeader: a})
+	got, _ := call(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/taskboard:ticket-add","args":{"project":"`+project+`","name":"x","assignees":["からす","すずめ"]}}`, map[string]string{aiwire.ParticipantHeader: a})
 	if !strings.HasPrefix(got, `{"ok":true`) {
 		t.Fatalf("ticket-add = %s", got)
 	}

@@ -245,19 +245,13 @@ func (h *Hub) titleOf(kind, id string) (string, error) {
 // searchConds は、探す種類の絞り k.Where を、索引キーの条件にする（型は種類の宣言から決める。合わなければ断る理由）
 func (h *Hub) searchConds(k SearchKind) ([]storage.Cond, string) {
 	h.mu.Lock()
-	kind := h.kinds[k.Kind]
+	keys := keyIndexOf(h.kinds[k.Kind])
 	h.mu.Unlock()
-	types := map[string]string{}
-	names := []string{}
-	for _, key := range kind.Keys {
-		types[key.Name] = key.Type
-		names = append(names, key.Name)
-	}
 	var conds []storage.Cond
 	for _, name := range slices.Sorted(maps.Keys(k.Where)) {
-		typ, has := types[name]
-		if !has {
-			return nil, fmt.Sprintf("%s is not an index key of %s (its index keys: %s)", name, k.Kind, strings.Join(names, ", "))
+		typ, refusal := keys.typeOf(name, k.Kind)
+		if refusal != "" {
+			return nil, refusal
 		}
 		switch v := k.Where[name].(type) {
 		case string:
@@ -272,10 +266,11 @@ func (h *Hub) searchConds(k SearchKind) ([]storage.Cond, string) {
 			conds = append(conds, storage.Cond{Key: name, Op: "eq", Value: v})
 		case map[string]any:
 			is, _ := v["is"].(string)
-			if is != "absent" && is != "present" {
-				return nil, "is takes absent or present"
+			cond, refusal := isCond(name, is)
+			if refusal != "" {
+				return nil, refusal
 			}
-			conds = append(conds, storage.Cond{Key: name, Op: is})
+			conds = append(conds, cond)
 		default:
 			return nil, fmt.Sprintf("where.%s is text, a number or {\"is\": \"absent\" or \"present\"}", name)
 		}
