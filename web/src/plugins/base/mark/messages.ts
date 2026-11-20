@@ -9,11 +9,6 @@ export const MARK_MESSAGES = defineMessages({
   "Remove mark": { en: "Remove mark", ja: "マークを外す" },
   "Remove?": { en: "Remove?", ja: "外す？" },
   "Show {name}": { en: "Show {name}", ja: "{name}を見せる" },
-  Tsunagidori: { en: "Tsunagidori", ja: "ツナギドリ" },
-  Parakeet: { en: "Parakeet", ja: "インコ" },
-  "Java sparrow": { en: "Java sparrow", ja: "文鳥" },
-  Sparrow: { en: "Sparrow", ja: "スズメ" },
-  Owl: { en: "Owl", ja: "フクロウ" },
   Alert: { en: "Alert", ja: "びっくりマーク" },
   "The mark was refused": { en: "The mark was refused", ja: "マークを変えられませんでした" },
 })

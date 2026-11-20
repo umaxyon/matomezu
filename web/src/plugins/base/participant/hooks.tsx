@@ -1,5 +1,5 @@
 // 参加者・ワークルームのレコードと、最後に呼ばれた時刻・モデルとブランチを読むフック
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useMemo } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { isParticipantAlive } from "../../../core/settings"
 import type { ParticipantLive } from "../../../store/store"
@@ -45,16 +45,6 @@ export function useIsAlive(): (calledAt: string | undefined, nowMs: number) => b
   const catalog = useCoreCatalog()
   const settings = useMatomezuState(s => s.settings)
   return useCallback((calledAt, nowMs) => isParticipantAlive(catalog, settings, calledAt, nowMs), [catalog, settings])
-}
-
-// 今の時刻（ミリ秒）。生きているかは時が経つと変わるので、interval ミリ秒ごとに進める
-export function useNowMs(interval = 30_000): number {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), interval)
-    return () => clearInterval(timer)
-  }, [interval])
-  return now
 }
 
 // 管理者のワークルームの id（管理者の印が指すワークルームが無ければ undefined）
