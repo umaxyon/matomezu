@@ -120,6 +120,23 @@ export function homeAndFoldersOf(folders: readonly unknown[]): HomeOrFolder[] {
   })
 }
 
+// バインダの行の形（ブックの中でも外でも同じ: 名前・入れるページのタイプ・ページの id の並び）
+const BinderFolderSchema = z.strictObject({
+  folderRole: z.literal("binder"),
+  id: z.string().min(1),
+  title: z.string().min(1),
+  pageType: z.string().min(1),
+  lineup: z.array(z.strictObject({ kind: z.literal("page"), id: z.string().min(1) })),
+})
+
+// 置き場所から読んだままのフォルダの行 row が、バインダの形に合えばそのバインダ（合わなければ undefined）
+export function binderFolderOf(row: unknown): BinderFolder | undefined {
+  if (typeof row !== "object" || row === null || (row as { folderRole?: unknown }).folderRole !== "binder")
+    return undefined
+  const parsed = BinderFolderSchema.safeParse(row)
+  return parsed.success ? (parsed.data as BinderFolder) : undefined
+}
+
 // ブック books だけを直下に持つ書庫ホーム（ブックの並びから世界を作るときの、置き場所）
 export const homeOver = (books: readonly { id: string }[]): HomeFolder => ({
   folderRole: "home",

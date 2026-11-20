@@ -6,16 +6,13 @@ import { USER } from "../../web/src/core/actor"
 import { type ActionDef, defineAction } from "../../web/src/core/def/action"
 import type { PermissionQuery } from "../../web/src/core/def/permission"
 import {
-  type AnyEntryRef,
   type BinderFolder,
   bookOf,
   HOME_ID,
   type HomeFolder,
-  type Library,
   NO_CHANGES,
   type PlainFolder,
   TRASH_ID,
-  tablesOf,
   withChanges,
 } from "../../web/src/core/folders"
 import { defineMessages } from "../../web/src/core/i18n/messages"
@@ -28,10 +25,10 @@ import {
   type World,
 } from "../../web/src/core/perform"
 import type { ItemPage } from "../../web/src/core/placed"
-import type { AnyPage, Book } from "../../web/src/core/schema/book"
+import type { Book } from "../../web/src/core/schema/book"
 import { pluginKit } from "../../web/src/store/kit"
 import { DRAWING, drawingPage, SLIDE, testBook, testPage } from "../lineup"
-import { CORE_CATALOG, sequence } from "../support"
+import { CORE_CATALOG, libraryWith, sequence } from "../support"
 
 const LOCK = "@matomezu/base:lock"
 const MOVE = "@matomezu/base:entry-move"
@@ -46,19 +43,6 @@ const ctxOf = () =>
     today: "2026-01-01",
     actor: USER,
   }) as never
-
-// ブック books と、書庫ホームの直下に置いたブックの外のページ outside の書庫（ホームの並びは、ブックのあとに外のページ）
-function libraryWith(books: readonly Book[], outside: readonly AnyPage[]): Library {
-  const tables = tablesOf(books)
-  const lineup: AnyEntryRef[] = [
-    ...books.map(b => ({ kind: "book" as const, id: b.id })),
-    ...outside.map(p => ({ kind: "page" as const, id: p.id })),
-  ]
-  return {
-    pages: { ...tables.pages, ...Object.fromEntries(outside.map(p => [p.id, p])) },
-    folders: { ...tables.folders, [HOME_ID]: { folderRole: "home", id: HOME_ID, lineup } },
-  }
-}
 
 test("ブックとの間を出入りしたページは、ブックの側とページの側の両方で確かめる（ブックの側が見ない、入ったロックしたページの変化も止まる）", () => {
   const move = CORE_CATALOG.actions.get(MOVE) as ActionDef
