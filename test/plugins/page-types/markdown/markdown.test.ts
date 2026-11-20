@@ -2,14 +2,14 @@
 // ペインの並べ方はステージごとのプラグイン状態で、ペインの分割のコマンドで変え、画面の場所に入れる（読み直しても戻す）
 
 import { expect, test } from "bun:test"
-import { stagePlacesOf, withStagePlaces } from "../../web/src/core/address"
-import { pagesOf } from "../../web/src/core/book"
-import type { Book } from "../../web/src/core/schema/book"
-import { shownPageId } from "../../web/src/core/stage"
-import { screenOf } from "../../web/src/core/window"
-import { growOf } from "../../web/src/plugins/base"
-import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
-import { addPageIn } from "../../web/src/plugins/base/pages/add-page"
+import { stagePlacesOf, withStagePlaces } from "../../../../web/src/core/address"
+import { pagesOf } from "../../../../web/src/core/book"
+import type { Book } from "../../../../web/src/core/schema/book"
+import { shownPageId } from "../../../../web/src/core/stage"
+import { screenOf } from "../../../../web/src/core/window"
+import { growOf } from "../../../../web/src/plugins/base"
+import { createBookIn } from "../../../../web/src/plugins/base/book-new/create-book"
+import { addPageIn } from "../../../../web/src/plugins/base/pages/add-page"
 import {
   chosenWith,
   openingFor,
@@ -19,17 +19,17 @@ import {
   shareAt,
   shownPanes,
   swapPanes,
-} from "../../web/src/plugins/page-types/markdown/panes"
+} from "../../../../web/src/plugins/page-types/markdown/panes"
 import {
   MAX_REMEMBERED,
   positionOf,
   remember,
   SCROLL_STATE,
-} from "../../web/src/plugins/page-types/markdown/scroll-memory"
-import { sourceEdit } from "../../web/src/plugins/page-types/markdown/source-edit"
-import { isActive, isShown } from "../../web/src/store/commands"
-import type { DoneBulk } from "../../web/src/store/store"
-import { newStore, worldRows } from "../support"
+} from "../../../../web/src/plugins/page-types/markdown/scroll-memory"
+import { sourceEdit } from "../../../../web/src/plugins/page-types/markdown/source-edit"
+import { isActive, isShown } from "../../../../web/src/store/commands"
+import type { DoneBulk } from "../../../../web/src/store/store"
+import { newStore, worldRows } from "../../../support"
 
 const settled = () => Promise.resolve()
 

@@ -2,24 +2,24 @@
 // 複数を選んだ右クリックのメニュー、両端の形を一緒に動かした線の手直し（base の followConnectors）
 
 import { expect, test } from "bun:test"
-import { pagesOf } from "../../web/src/core/book"
-import { type ItemPage, shapesOf } from "../../web/src/core/placed"
-import type { Book } from "../../web/src/core/schema/book"
-import { screenOf } from "../../web/src/core/window"
-import { amongSelected, onlySelected, toggledSelection } from "../../web/src/plugins/base"
-import { anchorsFor } from "../../web/src/plugins/base/context-menu/anchor-targets"
-import { linesOf } from "../../web/src/plugins/items/line/placed"
-import { rowPress } from "../../web/src/plugins/items/list/rows"
-import { movableTogether } from "../../web/src/plugins/paper/placing/items"
+import { pagesOf } from "../../../web/src/core/book"
+import { type ItemPage, shapesOf } from "../../../web/src/core/placed"
+import type { Book } from "../../../web/src/core/schema/book"
+import { screenOf } from "../../../web/src/core/window"
+import { amongSelected, onlySelected, toggledSelection } from "../../../web/src/plugins/base"
+import { anchorsFor } from "../../../web/src/plugins/base/context-menu/anchor-targets"
+import { linesOf } from "../../../web/src/plugins/items/line/placed"
+import { rowPress } from "../../../web/src/plugins/items/list/rows"
+import { movableTogether } from "../../../web/src/plugins/paper/placing/items"
 import {
   lifted,
   pressSelection,
   sameLevel,
   sweptItems,
   sweptSelection,
-} from "../../web/src/plugins/paper/placing/selection"
-import { isShown } from "../../web/src/store/commands"
-import { CORE_CATALOG, sizedStore } from "../support"
+} from "../../../web/src/plugins/paper/placing/selection"
+import { isShown } from "../../../web/src/store/commands"
+import { CORE_CATALOG, sizedStore } from "../../support"
 
 // 形の無いページ（押した物がどれも形でないときの選び方を見る）
 const EMPTY = { id: "p0", items: [] } as unknown as ItemPage

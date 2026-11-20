@@ -1,16 +1,16 @@
 // base の拡大縮小のコマンド（zoom-in・zoom-out・zoom-reset・zoom-fit）と、倍率の範囲
 
 import { expect, test } from "bun:test"
-import { findPage } from "../../web/src/core/book"
-import { paperOf } from "../../web/src/core/stage"
-import { MARGIN } from "../../web/src/core/viewport"
-import { screenOf } from "../../web/src/core/window"
-import { roomOf } from "../../web/src/plugins/base/place/items"
-import { startOf } from "../../web/src/plugins/base/print-preview/book-sheets"
-import { stepZoom, wheelZoom, ZOOM_MAX, ZOOM_MIN } from "../../web/src/plugins/base/zoom"
-import type { CommandId } from "../../web/src/store/commands"
-import { isEnabled } from "../../web/src/store/commands"
-import { newStore } from "../support"
+import { findPage } from "../../../web/src/core/book"
+import { paperOf } from "../../../web/src/core/stage"
+import { MARGIN } from "../../../web/src/core/viewport"
+import { screenOf } from "../../../web/src/core/window"
+import { roomOf } from "../../../web/src/plugins/base/place/items"
+import { startOf } from "../../../web/src/plugins/base/print-preview/book-sheets"
+import { stepZoom, wheelZoom, ZOOM_MAX, ZOOM_MIN } from "../../../web/src/plugins/base/zoom"
+import type { CommandId } from "../../../web/src/store/commands"
+import { isEnabled } from "../../../web/src/store/commands"
+import { newStore } from "../../support"
 
 test("倍率は 30～180% の無段階。ボタンは 10% の倍数へ 1 つずつ動き（間なら近い向きの倍数へ）、ホイールは回した量に合わせて滑らかに変える", () => {
   expect(stepZoom(1, 1)).toBe(1.1)

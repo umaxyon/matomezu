@@ -2,14 +2,14 @@
 // フッタメニューの歯車（開いている物の設定）、紙をそろえるタイプのページの設定に紙と向きを出さない
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, screen, within } from "@testing-library/react"
-import { pagesIn } from "../../web/src/core/book"
-import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"
-import { renderScreen } from "./support"
+import { pagesIn } from "../../../web/src/core/book"
+import { A4, WIDE } from "../../../web/src/plugins/base/looks/papers"
+import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../../lineup"
+import { renderScreen } from "../../ui/support"
 
 afterEach(cleanup)
 
-const slide = (id: string, title: string) =>
-  testPage(SLIDE, id, { title, paper: "@matomezu/base:ratio-16x9", orientation: "landscape" })
+const slide = (id: string, title: string) => testPage(SLIDE, id, { title, paper: WIDE.id, orientation: "landscape" })
 
 // スライドのバインダ（2 枚）と図面のページを並べたブックを開く
 function open() {
@@ -40,15 +40,15 @@ test("バインダの設定で紙を変えると、中のページ全部の紙�
   fireEvent.contextMenu(tab("提案"))
   fireEvent.click(screen.getByRole("menuitem", { name: "設定…" }))
   const dialog = screen.getByRole("dialog", { name: "スライドの設定" })
-  fireEvent.change(within(dialog).getByLabelText("紙のサイズ"), { target: { value: "@matomezu/base:a4" } })
+  fireEvent.change(within(dialog).getByLabelText("紙のサイズ"), { target: { value: A4.id } })
   const undos = store.state.getState().history.b1?.undo.length ?? 0
   fireEvent.click(within(dialog).getByRole("button", { name: "確定" }))
   expect(dialog.isConnected).toBe(false)
-  expect(pagesIn(book(), "f1").map(p => p.paper)).toEqual(["@matomezu/base:a4", "@matomezu/base:a4"])
+  expect(pagesIn(book(), "f1").map(p => p.paper)).toEqual([A4.id, A4.id])
   await act(() => Promise.resolve()) // 画面の履歴の段は、処理が終わってから入る
   expect(store.state.getState().history.b1?.undo.length).toBe(undos + 1)
   fireEvent.click(screen.getByRole("button", { name: "元に戻す", hidden: true }))
-  expect(pagesIn(book(), "f1").map(p => p.paper)).toEqual(["@matomezu/base:ratio-16x9", "@matomezu/base:ratio-16x9"])
+  expect(pagesIn(book(), "f1").map(p => p.paper)).toEqual([WIDE.id, WIDE.id])
 })
 
 test("バインダのタブの右クリックの複製で、写しのバインダが隣にでき、その写しが開く", () => {

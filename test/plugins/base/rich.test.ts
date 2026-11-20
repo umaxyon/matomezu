@@ -1,9 +1,9 @@
 // 本文の装飾（base の text/rich.ts・edit.ts・text-colors.ts）
 
 import { expect, test } from "bun:test"
-import { pagesOf } from "../../web/src/core/book"
-import { restoreSettings, userSetting } from "../../web/src/core/settings"
-import { TEXT_LOOK, wrap } from "../../web/src/plugins/base"
+import { pagesOf } from "../../../web/src/core/book"
+import { restoreSettings, userSetting } from "../../../web/src/core/settings"
+import { TEXT_LOOK, wrap } from "../../../web/src/plugins/base"
 import {
   charsOf,
   type Decoration,
@@ -12,15 +12,15 @@ import {
   styleAt,
   styled,
   textOf,
-} from "../../web/src/plugins/base/text/edit"
-import { clampRich, parseRich, plainOf, textColorRef, wrapRich } from "../../web/src/plugins/base/text/rich"
+} from "../../../web/src/plugins/base/text/edit"
+import { clampRich, parseRich, plainOf, textColorRef, wrapRich } from "../../../web/src/plugins/base/text/rich"
 import {
   type TextColorValues as TextColors,
   textColorsOf,
   withTextColor,
-} from "../../web/src/plugins/base/text/text-colors"
-import { drawingPage } from "../lineup"
-import { CORE_CATALOG, newStore } from "../support"
+} from "../../../web/src/plugins/base/text/text-colors"
+import { drawingPage } from "../../lineup"
+import { CORE_CATALOG, newStore } from "../../support"
 
 const W = "@matomezu/base:warn"
 
