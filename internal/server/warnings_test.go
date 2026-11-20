@@ -26,10 +26,10 @@ func TestAWindowCutForAFullBufferTakesItsWarnings(t *testing.T) {
 		t.Fatal(err)
 	}
 	c := h.Join()
-	if ok, err := h.SetWindowWarnings(c.id, json.RawMessage(`[{"code":"W011","plugin":"acme","params":{"reason":"E301"}}]`)); !ok || err != nil {
+	if ok, err := h.SetWindowWarnings(c.id, json.RawMessage(`[{"code":"W016","plugin":"acme","params":{"widget":"acme:w","target":"acme:x","slot":"top"}}]`)); !ok || err != nil {
 		t.Fatalf("set = %v %v", ok, err)
 	}
-	if got := strings.Join(h.Warnings(), "\n"); !strings.Contains(got, "W011 acme") {
+	if got := strings.Join(h.Warnings(), "\n"); !strings.Contains(got, "W016 acme") {
 		t.Fatalf("warnings before = %s", got)
 	}
 	h.mu.Lock()
@@ -37,7 +37,7 @@ func TestAWindowCutForAFullBufferTakesItsWarnings(t *testing.T) {
 		h.send(c, "ping", nil)
 	}
 	h.mu.Unlock()
-	if got := strings.Join(h.Warnings(), "\n"); strings.Contains(got, "W011") {
+	if got := strings.Join(h.Warnings(), "\n"); strings.Contains(got, "W016") {
 		t.Fatalf("warnings after the window was cut = %s", got)
 	}
 }

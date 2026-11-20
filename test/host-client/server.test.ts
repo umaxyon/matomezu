@@ -756,13 +756,13 @@ test("show の split は、そのステージを分けて右にできたステ�
 
 test("画面が見つけた warning は、つながりの id を添えて常駐に知らせ、つなぎ直すたびに知らせ直す", async () => {
   const { host, sent, emit } = await connected()
-  const w011 = { code: "W011" as const, plugin: "acme", params: { reason: "E301" } }
-  host.reportWarnings([w011])
+  const w016 = { code: "W016" as const, plugin: "acme", params: { widget: "acme:w", target: "acme:x", slot: "top" } }
+  host.reportWarnings([w016])
   emit("hello", { client: "c2" })
   await Promise.resolve()
   expect(sent.filter(x => x.url === "api/warnings")).toEqual([
-    { url: "api/warnings", client: "c1", warnings: [w011] },
-    { url: "api/warnings", client: "c2", warnings: [w011] },
+    { url: "api/warnings", client: "c1", warnings: [w016] },
+    { url: "api/warnings", client: "c2", warnings: [w016] },
   ])
 })
 

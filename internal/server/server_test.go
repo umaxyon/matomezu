@@ -1386,16 +1386,16 @@ func TestWindowWarningsAreGatheredForAI(t *testing.T) {
 		t.Fatalf("catalog before = %s", catalog())
 	}
 	// 2 つの窓が同じ warning を知らせても 1 つ。表に無い番号は捨てる
-	w011 := `{"code":"W011","plugin":"acme","params":{"reason":"E301"}}`
-	send(t, "POST", s.URL+"/api/warnings", `{"client":"c1","warnings":[`+w011+`,{"code":"W999","plugin":"x","params":{}}]}`, nil)
-	send(t, "POST", s.URL+"/api/warnings", `{"client":"c2","warnings":[`+w011+`]}`, nil)
+	w016 := `{"code":"W016","plugin":"acme","params":{"widget":"acme:w","target":"acme:x","slot":"top"}}`
+	send(t, "POST", s.URL+"/api/warnings", `{"client":"c1","warnings":[`+w016+`,{"code":"W999","plugin":"x","params":{}}]}`, nil)
+	send(t, "POST", s.URL+"/api/warnings", `{"client":"c2","warnings":[`+w016+`]}`, nil)
 	body := catalog()
-	if strings.Count(body, "W011 acme: the screen did not add it (E301)") != 1 || strings.Contains(body, "W999") {
+	if strings.Count(body, "W016 acme: widget acme:w: place names acme:x in slot top") != 1 || strings.Contains(body, "W999") {
 		t.Fatalf("catalog after = %s", body)
 	}
 	// 窓が warning は無いと知らせれば、その窓の分が消える（ほかの窓の分は残る）
 	send(t, "POST", s.URL+"/api/warnings", `{"client":"c1","warnings":[]}`, nil)
-	if !strings.Contains(catalog(), "W011 acme") {
+	if !strings.Contains(catalog(), "W016 acme") {
 		t.Fatalf("c2's warning is gone: %s", catalog())
 	}
 	send(t, "POST", s.URL+"/api/warnings", `{"client":"c2","warnings":[]}`, nil)
