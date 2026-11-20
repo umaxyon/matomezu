@@ -27,7 +27,7 @@ import { pluginKit } from "../../web/src/store/kit"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { CORE_CATALOG, newStore, sequence, showBooks, showCenter, shown, worldRows } from "../support"
 
-const CENTER = "@matomezu/base:control-center-toggle"
+const CENTER = "@matomezu/base:screen-toggle"
 
 test("ステージの番号は窓で振り、閉じたステージの番号も使い回さない", () => {
   const { actions, state } = newStore()

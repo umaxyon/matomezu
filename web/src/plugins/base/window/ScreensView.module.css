@@ -1,4 +1,4 @@
-/* スクリーンアレンジメント「1 枚ずつ」と「上下に分ける」（ScreensView）: ブックスクリーンを下に敷き、ステージを並べないスクリーンを前に出すときは右から滑り込ませ、ブックスクリーンへ戻すときは右へ滑り出す。その間は下の行（置いた物があれば）を出す */
+/* スクリーンアレンジメント「1 枚ずつ」と「上下に分ける」（ScreensView）: ブックスクリーンを下に敷き、ステージを並べないスクリーンをカレントスクリーンにするときは右から滑り込ませ、ブックスクリーンへ戻すときは右へ滑り出す。その間は下の行（置いた物があれば）を出す */
 .bookScreen {
   --footer-row-height: 30px; /* 下の行の高さ（utils/FooterRow と同じ） */
   position: absolute;
@@ -6,7 +6,7 @@
   display: flex;
   flex-direction: column;
 }
-/* コントロールセンターが前に出て滑り込み終えたら、後ろのブックスクリーンは見えなくする。戻すときはすぐ見える */
+/* コントロールセンターがカレントスクリーンになって滑り込み終えたら、後ろのブックスクリーンは見えなくする。戻すときはすぐ見える */
 .bookScreen[data-front="control-center"] {
   visibility: hidden;
   transition: visibility 0s linear var(--front-slide);
@@ -42,7 +42,7 @@
     transition: none;
   }
 }
-/* いちばん最近前に出した物でないブックスクリーンは、描いたまま出さない */
+/* いちばん最近カレントスクリーンにした物でないブックスクリーンは、描いたまま出さない */
 .bookScreen[data-shown="false"] {
   display: none;
 }

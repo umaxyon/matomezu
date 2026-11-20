@@ -52,7 +52,7 @@ export function ToolPickerView() {
   const last = useRef<Point | null>(null)
   const press = useRef<Press | null>(null)
   const [ring, setRing] = useState<Point | null>(null)
-  // 長押しで開けるステージ（ブックスクリーンが前に出ていて、紙があり、ダイアログも道具のアイコンも開いていない）。押したときに読むので ref に写す
+  // 長押しで開けるステージ（ブックスクリーンがカレントスクリーンで、紙があり、ダイアログも道具のアイコンも開いていない）。押したときに読むので ref に写す
   const pressable = useMatomezuState(
     useShallow(s =>
       s.dialog !== null || !bookScreenCurrent(s.window) || allStages(s.window).some(st => st.picker !== null)

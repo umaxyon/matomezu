@@ -25,7 +25,7 @@ const RENAME = "@matomezu/base:entry-rename"
 const TRASH = "@matomezu/base:entry-trash"
 const PURGE = "@matomezu/base:entry-purge"
 const CENTER = "@matomezu/control-center:screen"
-const FRONT = "@matomezu/control-center:front-screen"
+const FRONT = "@matomezu/control-center:content-area"
 // よそが、ブック b1 の名前を書庫のアクションで title に変える
 const renamed = (there: Store, title: string): Step => ({
   run: () => void there.actions.perform(RENAME, { entry: "b1", title }),

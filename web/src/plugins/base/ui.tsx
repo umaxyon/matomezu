@@ -216,7 +216,7 @@ export {
 export * from "./utils/ui"
 export {
   BOOK_SCREEN,
-  CONTROL_CENTER_FOOTER,
+  SCREEN_FOOTER,
   type ScreenSplit,
   useControlCenterMaximize,
   useControlCenterMaximized,
@@ -320,7 +320,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-folder-context": { folder: string } // 書庫の画面の右の枠の何も無い所（開いているフォルダの id）
   }
   interface SlotTable {
-    "@matomezu/base:control-center-footer": Record<string, never> // コントロールセンターの下の行（何も受け取らない）
+    "@matomezu/base:screen-footer": Record<string, never> // コントロールセンターの下の行（何も受け取らない）
     "@matomezu/base:mail-actions": MailActionsProps // 郵便のダイアログの下の行に並べる、その種類のボタンなど
     "@matomezu/base:wide-search-modes": WideSearchModeProps // 横断検索のタブに並べるモード（入力の下のパネル）
     "@matomezu/base:wide-search-openers": Record<string, never> // 種類ごとの、横断検索の当たりの開き方（何も描かない）

@@ -1,7 +1,7 @@
-// コントロールセンターの画面の、見た目でない決め事（rows.ts・control-center.ts の frontScreenOf）: 一覧の下の 1 行の種類と、選んだ部屋の引き方、前に出す画面の既定
+// コントロールセンターの画面の、見た目でない決め事（rows.ts・control-center.ts の contentAreaOf）: 一覧の下の 1 行の種類と、選んだ部屋の引き方、前に出す画面の既定
 import { expect, test } from "bun:test"
 import type { WorkroomRow } from "../../../web/src/plugins/base"
-import { frontScreenOf } from "../../../web/src/plugins/control-center/control-center"
+import { contentAreaOf } from "../../../web/src/plugins/control-center/control-center"
 import {
   lastAccessOf,
   orderHeld,
@@ -34,8 +34,8 @@ test("選んだワークルームは id で引き、無くなっていれば選�
 })
 
 test("前に出す画面は、値が無ければプロジェクト", () => {
-  expect(frontScreenOf(undefined)).toBe("projects")
-  expect(frontScreenOf("library")).toBe("library")
+  expect(contentAreaOf(undefined)).toBe("projects")
+  expect(contentAreaOf("library")).toBe("library")
 })
 
 test("最終アクセスの出し方は、呼ばれた時刻があればそれ、無ければ準備中か、なし", () => {

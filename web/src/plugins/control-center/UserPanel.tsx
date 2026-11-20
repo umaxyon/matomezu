@@ -2,17 +2,17 @@
 import type { ReactNode } from "react"
 import { useCommand, useMessages, useUiCatalog } from "../../plugin-api/ui"
 import { Band, IconButton, Panel, Tip, useMailboxPanel, useWideSearchPanel } from "../base/ui"
-import type { FrontScreen } from "./control-center"
+import type { ContentArea } from "./control-center"
 import { AvatarIcon, GearIcon, LibraryIcon, MailIcon, ProjectIcon, SearchIcon } from "./icons"
 import { kit } from "./kit"
 import styles from "./UserPanel.module.css"
 
 // 巣箱のボタンのコマンドの id（別のプラグインの定義は id で選ぶ。絵を引くのに使う）
-const BIRDHOUSE_COMMAND = "@matomezu/base:control-center-toggle"
+const BIRDHOUSE_COMMAND = "@matomezu/base:screen-toggle"
 
 type Tile = { label: string; icon: ReactNode; onClick: () => void; pressed: boolean }
 
-export function UserPanel({ screen, onShow }: { screen: FrontScreen; onShow: (to: FrontScreen) => void }) {
+export function UserPanel({ screen, onShow }: { screen: ContentArea; onShow: (to: ContentArea) => void }) {
   const t = useMessages(kit)
   const mailbox = useMailboxPanel()
   const wideSearch = useWideSearchPanel()

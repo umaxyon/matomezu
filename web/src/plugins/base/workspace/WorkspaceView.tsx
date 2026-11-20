@@ -28,7 +28,7 @@ import { STAGE_BODY, STAGE_BOTTOM, STAGE_CORNER, STAGE_SIDE, STAGE_TOP } from ".
 import styles from "./WorkspaceView.module.css"
 
 export function WorkspaceView() {
-  // 描いている場所のブックスクリーンの中（スクリーンの外で描いたときは、いちばん最近前に出したブックスクリーンの中）
+  // 描いている場所のブックスクリーンの中（スクリーンの外で描いたときは、いちばん最近カレントスクリーンにしたブックスクリーンの中）
   const here = useScreenContext()?.id
   const mine = (s: MatomezuState) => s.window.screens.find(x => x.id === here)?.stages ?? screenOf(s.window)
   const ids = useMatomezuState(useShallow(s => mine(s).stages.map(st => st.id)))

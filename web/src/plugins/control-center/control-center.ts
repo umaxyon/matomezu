@@ -35,20 +35,20 @@ export const CONTROL_CENTER_SCREEN = kit.defineScreen({
   atStart: true,
   // 書庫の画面を出している間だけ、base の書庫（LibraryView）を見せている（プロジェクトの画面の間は、描いたまま隠している）
   libraryAppearances: ["@matomezu/base:library"],
-  shownLibraryAppearances: read => (frontScreenOf(read(FRONT_SCREEN)) === "library" ? ["@matomezu/base:library"] : []),
+  shownLibraryAppearances: read => (contentAreaOf(read(CONTENT_AREA)) === "library" ? ["@matomezu/base:library"] : []),
 })
 
-// コントロールセンターの中で前に出す画面（画面の場所に入れるプラグイン状態。コントロールセンターのスクリーン 1 枚ごとの値で、変えるたびにブラウザの履歴に積む）。
-// 値は、プロジェクトの画面（projects）か書庫の画面（library）。値が無ければ、プロジェクトの画面を出す（frontScreenOf）
-export const FRONT_SCREEN = kit.definePluginState({
-  id: "front-screen",
+// コントロールセンターのコンテンツエリアに出す画面（画面の場所に入れるプラグイン状態。コントロールセンターのスクリーン 1 枚ごとの値で、変えるたびにブラウザの履歴に積む）。
+// 値は、プロジェクトの画面（projects）か書庫の画面（library）。値が無ければ、プロジェクトの画面を出す（contentAreaOf）
+export const CONTENT_AREA = kit.definePluginState({
+  id: "content-area",
   scope: "screen",
   schema: z.enum(["projects", "library"]),
   address: "push",
 })
 
-export type FrontScreen = "projects" | "library"
-export const frontScreenOf = (value: FrontScreen | undefined): FrontScreen => value ?? "projects"
+export type ContentArea = "projects" | "library"
+export const contentAreaOf = (value: ContentArea | undefined): ContentArea => value ?? "projects"
 
 // 選んでいるワークルームの id（スクリーン 1 枚ごとの状態。読み直すと消える。ワークルームが無くなれば、選んでいないのと同じ）
 export const PICKED_ROOM = kit.definePluginStateOf<string>()({ id: "picked-room", scope: "screen" })

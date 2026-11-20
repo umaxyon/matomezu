@@ -113,7 +113,7 @@ test("コントロールセンターの前に出す画面の宣言は、スク�
     lang: "ja",
   })
   showFirstBook(instance)
-  const id = "@matomezu/control-center:front-screen"
+  const id = "@matomezu/control-center:content-area"
   expect(instance.catalog.store.pluginStates.get(id)).toMatchObject({ scope: "screen", address: "push" })
   expect(instance.pushing().has(id)).toBe(true)
   const center = instance.state.getState().window.screens.find(s => s.def === "@matomezu/control-center:screen")!.id
@@ -185,7 +185,7 @@ test("ほかのプラグインの宣言に、id と値だけで入れる道: add
   expect(instance.setPluginStateById("k:mode", "wide", { ...caller, stage: "s1" })).toBe(true)
   expect(stagePlacesOf(instance.address())[0]?.states).toEqual({ "k:mode": "wide" })
   // スクリーンの宣言は、呼んだスクリーンの値。開いていないスクリーンには入れず、同じ値は state を作り直さない
-  const id = "@matomezu/control-center:front-screen"
+  const id = "@matomezu/control-center:content-area"
   const center = instance.state.getState().window.screens.find(s => s.def === "@matomezu/control-center:screen")!.id
   expect(instance.setPluginStateById(id, "library", { screen: center })).toBe(true)
   expect(instance.address().screens.find(s => s.id === center)?.states).toEqual({ [id]: "library" })

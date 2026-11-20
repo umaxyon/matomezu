@@ -1,6 +1,6 @@
 // 窓のコマンドのアイコン: 巣箱（斜めから見た屋根と箱、正面の丸い入口、その下の止まり棒と支柱）
 import { icon } from "../utils/icon"
-import { CONTROL_CENTER_TOGGLE } from "."
+import { SCREEN_TOGGLE } from "."
 
 export const BIRDHOUSE = icon(
   <>
@@ -11,5 +11,5 @@ export const BIRDHOUSE = icon(
 )
 
 export const WINDOW_ICONS = {
-  [CONTROL_CENTER_TOGGLE.id]: BIRDHOUSE,
+  [SCREEN_TOGGLE.id]: BIRDHOUSE,
 }

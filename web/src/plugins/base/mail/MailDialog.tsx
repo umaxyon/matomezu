@@ -80,7 +80,7 @@ export function MailDialog({ args, onClose }: DialogProps<{ mail: string }>) {
     onClose()
     if (choice === "split") actions.split(stage)
     const ws = screenOfStage(read().window, stage)?.stages
-    // 「開く」は、ブックを窓に出す（もう開いていれば前に出し、無ければ新しいブックスクリーン。見ていたブックは差し替えない）。
+    // 「開く」は、ブックを窓に出す（もう開いていればカレントスクリーンにし、無ければ新しいブックスクリーン。見ていたブックは差し替えない）。
     // 分けて開く・左右に開くは、ダイアログを出したステージの並びの、そのステージに開く
     const inWindow = choice === "here" || !ws
     const target = inWindow ? actions.showBookStage(to.book) : openStageOf(ws, stage, choice)

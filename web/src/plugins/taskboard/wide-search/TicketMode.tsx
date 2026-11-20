@@ -12,7 +12,7 @@ import {
 import { ChoiceText, MultiChoices, useWideSearch, WIDE_SEARCH_LIMIT_MAX, type WideSearchModeProps } from "../../base/ui"
 import { orderedProjects, PRIORITIES, shownProjects, VOLUMES } from "../board/shown"
 import { useBoardSettings } from "../board/useBoardSettings"
-import { CONTROL_CENTER_SCREEN, FRONT_SCREEN_STATE } from "../control-center-ids"
+import { CONTENT_AREA_STATE, CONTROL_CENTER_SCREEN } from "../control-center-ids"
 import { kit } from "../kit"
 import { PROJECT } from "../project"
 import { TICKET } from "../ticket"
@@ -88,11 +88,11 @@ export function TicketMode({ term, setTerm }: WideSearchModeProps) {
   const matched = active ? filterTickets(tickets, f) : []
   const count = isFiltering(f) ? filterTickets(tickets, f).length : tickets.length
   // 絞りが有効になったら、コントロールセンターのコンテンツエリアをプロジェクトの表示（タスクボード）にする（書庫の表示なら引っ込む）。
-  // コントロールセンターのコードは読まず、画面の場所に入れる宣言 front-screen の id と値で土台に頼む。同じ値なら何も起きない。開き直しただけでは頼まない
+  // コントロールセンターのコードは読まず、画面の場所に入れる宣言 content-area の id と値で土台に頼む。同じ値なら何も起きない。開き直しただけでは頼まない
   const wasActive = useRef(active)
   useEffect(() => {
     if (active && !wasActive.current)
-      setPluginStateById(FRONT_SCREEN_STATE, "projects", { screenDef: CONTROL_CENTER_SCREEN })
+      setPluginStateById(CONTENT_AREA_STATE, "projects", { screenDef: CONTROL_CENTER_SCREEN })
     wasActive.current = active
   }, [active, setPluginStateById])
   // 絞りに合うチケットのプロジェクトと、選びで指したプロジェクトは、出すタスクボードに足す（利用者の設定。絞りを外しても戻さない）
