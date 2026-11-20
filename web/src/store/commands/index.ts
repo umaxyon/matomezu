@@ -11,7 +11,7 @@ import { pageIn } from "../../core/folders"
 import { LIBRARY_HISTORY, NO_HISTORY } from "../../core/history"
 import { actionQuery, inspect, type Query, withoutPermissions } from "../../core/inspect"
 import { splitId } from "../../core/names"
-import { permittedIn } from "../../core/perform"
+import { permittedIn } from "../../core/perform-world"
 import { shownPageId, stageBlocks } from "../../core/stage"
 import {
   currentScreen,

@@ -7,7 +7,7 @@ import type { ActionContext, ActionOn, AIEditTicketChange, AIMessage } from "./d
 import { type Folder, type PageRow, type TableChanges, withChanges } from "./folders"
 import { type HistoryStep, type RowChange, rowChangesOf } from "./history"
 import { applyPatch, patchOf } from "./patch"
-import { type PerformedIn, performIn, type World } from "./perform"
+import { type PerformedIn, performIn, type World } from "./perform-world"
 import { keyValuesOf } from "./record-keys"
 import { type RecordSource, sourceOf } from "./record-source"
 import { type Counters, REMOVED, type RecordChange, withCounters, withRecords } from "./records"

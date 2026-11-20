@@ -2,7 +2,7 @@
 
 import { expect, test } from "bun:test"
 import { type Actor, USER } from "../../../web/src/core/actor"
-import { type PerformedIn, performIn, type World } from "../../../web/src/core/perform"
+import { type PerformedIn, performIn, type World } from "../../../web/src/core/perform-world"
 import { withCounters, withRecords } from "../../../web/src/core/records"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { TICKET } from "../../../web/src/plugins/taskboard/ticket"

@@ -21,7 +21,7 @@ import {
   tablesOf,
   withChanges,
 } from "../../web/src/core/folders"
-import { performIn } from "../../web/src/core/perform"
+import { performIn } from "../../web/src/core/perform-world"
 import type { Book } from "../../web/src/core/schema/book"
 import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { CORE_CATALOG, sequence } from "../support"

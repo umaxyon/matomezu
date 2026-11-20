@@ -64,7 +64,8 @@ import { detectLang, type Lang, type Params } from "../core/i18n/i18n"
 import { type Books, splitTrash } from "../core/library"
 import { splitId } from "../core/names"
 import { type Patch, patchOf, undoneIn, type Written } from "../core/patch"
-import { type ArgsOf, performIn, type Refused, type ResultOf, type TargetOf } from "../core/perform"
+import type { ArgsOf, Refused, ResultOf, TargetOf } from "../core/perform"
+import { performIn } from "../core/perform-world"
 import {
   type Counters,
   type Records,

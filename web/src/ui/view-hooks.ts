@@ -15,7 +15,9 @@ import { pageIn } from "../core/folders"
 import type { Point, Size } from "../core/geom"
 import type { Lang } from "../core/i18n/i18n"
 import { actionQuery, deniedBy, inspect } from "../core/inspect"
-import { type ArgsOf, noPage, type Permitted, permittedIn, type TargetOf } from "../core/perform"
+import { type ArgsOf, noPage, type TargetOf } from "../core/perform"
+import type { Permitted } from "../core/perform-permit"
+import { permittedIn } from "../core/perform-world"
 import {
   findShape,
   type ItemPage,

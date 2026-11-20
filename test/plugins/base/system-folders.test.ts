@@ -12,7 +12,7 @@ import {
   TRASH_ID,
   withChanges,
 } from "../../../web/src/core/folders"
-import { type PerformedIn, performIn, type World } from "../../../web/src/core/perform"
+import { type PerformedIn, performIn, type World } from "../../../web/src/core/perform-world"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { draggable, droppable, moveClashOf } from "../../../web/src/plugins/base/library/drop"
 import { replaceBlockedOf, restorePlanOf } from "../../../web/src/plugins/base/library/entries"

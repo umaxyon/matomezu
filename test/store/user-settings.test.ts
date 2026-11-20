@@ -5,7 +5,7 @@ import { z } from "zod"
 import { type Actor, AI, USER } from "../../web/src/core/actor"
 import { buildCoreCatalog, checkCoreCatalog } from "../../web/src/core/core-catalog"
 import type { HeldSettingDef, UserSettingDef } from "../../web/src/core/def/setting"
-import { performIn } from "../../web/src/core/perform"
+import { performIn } from "../../web/src/core/perform-world"
 import {
   aiSettings,
   disabledPluginsOf,

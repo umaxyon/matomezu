@@ -3,7 +3,7 @@
 
 import { expect, test } from "bun:test"
 import { AI } from "../../../web/src/core/actor"
-import { performIn } from "../../../web/src/core/perform"
+import { performIn } from "../../../web/src/core/perform-world"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { MAIL, mailboxOf } from "../../../web/src/plugins/base/mail"
 import type { Mail } from "../../../web/src/plugins/base/mail/mail"

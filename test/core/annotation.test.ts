@@ -12,7 +12,7 @@ import {
 } from "../../web/src/core/annotation"
 import { findPage } from "../../web/src/core/book"
 import { tablesOf } from "../../web/src/core/folders"
-import { performIn } from "../../web/src/core/perform"
+import { performIn } from "../../web/src/core/perform-world"
 import { warningText } from "../../web/src/core/warnings"
 import { drawingPage, FLOWCHART, testBook, testPage } from "../lineup"
 import { CORE_CATALOG } from "../support"

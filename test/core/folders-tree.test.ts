@@ -30,7 +30,7 @@ import {
   withoutBook,
   worldTablesOf,
 } from "../../web/src/core/folders"
-import { performIn, type World } from "../../web/src/core/perform"
+import { performIn, type World } from "../../web/src/core/perform-world"
 import { REMOVED } from "../../web/src/core/records"
 import type { Book } from "../../web/src/core/schema/book"
 import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
