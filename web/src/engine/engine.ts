@@ -937,7 +937,7 @@ const WindowWarningSchema = z.object({
 }
 
 // 書庫を整えるのに失敗した訳 reason（常駐が渡す。engine: 整える関数が失敗した・broken: 読めない物のフォルダの行が形に合わない・write: 書き込みが失敗した）ごとの、warning W033 に書く言い方
-const SETTLE_FAILURES: Readonly<Record<string, string>> = {
+const SETTLE_FAILURES: Readonly<Record<"engine" | "broken" | "write", string>> = {
   engine: "engine failed",
   broken: "the unreadable folder does not fit its shape",
   write: "could not write",
@@ -945,7 +945,11 @@ const SETTLE_FAILURES: Readonly<Record<string, string>> = {
 
 // 書庫を整えるのに失敗した訳 reason（SETTLE_FAILURES の鍵）の warning W033 の 1 行。常駐が、失敗している間だけ持つ
 ;(globalThis as { matomezuSettleFailed?: (reason: string) => string }).matomezuSettleFailed = reason =>
-  warningText(warning("W033", "", { reason: SETTLE_FAILURES[reason] ?? reason }))
+  warningText(
+    warning("W033", "", {
+      reason: Object.hasOwn(SETTLE_FAILURES, reason) ? SETTLE_FAILURES[reason as keyof typeof SETTLE_FAILURES] : reason,
+    }),
+  )
 
 // 読めない物のフォルダの直下の物 id を完全に消す行の変わり（core/unreadable.ts の purgedRows）と、そのあとの warning W032 の 1 行。直下に無ければ none
 ;(globalThis as { matomezuPurgedRows?: (pages: string, folders: string, id: string) => string }).matomezuPurgedRows = (

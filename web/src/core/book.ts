@@ -140,8 +140,7 @@ function wholeBook(catalog: CoreCatalog, saved: unknown): Book | null {
     const from = raw[i]
     const hit = from && kept.get(from)
     if (hit && typeof hit !== "string") return true
-    const def = catalog.pageTypes.get(page.type)
-    const held = def !== undefined && (def.holds?.(page as AnyPage, catalog) ?? true) && pageHolds(catalog, page)
+    const held = typeRulesHold(catalog, page as AnyPage)
     if (held && from) kept.set(from, page as AnyPage)
     return held
   })
@@ -175,7 +174,13 @@ function readPage(catalog: CoreCatalog, page: object): AnyPage | UnreadableCode 
   if (!def || !parsed) return "W027"
   if (!parsed.success) return "W028"
   const read = parsed.data as AnyPage
-  return (def.holds?.(read, catalog) ?? true) && pageHolds(catalog, read as ItemPage) ? read : "W029"
+  return typeRulesHold(catalog, read) ? read : "W029"
+}
+
+// 形を読んだページ page が、そのタイプが機能台帳に在り、タイプの決まり（holds）と、つなぐものの定義の決まりを守るか（読めるかの決まりの確かめは、ここ 1 つ）
+function typeRulesHold(catalog: CoreCatalog, page: AnyPage): boolean {
+  const def = catalog.pageTypes.get(page.type)
+  return def !== undefined && (def.holds?.(page, catalog) ?? true) && pageHolds(catalog, page as ItemPage)
 }
 
 const isRecord = (v: unknown): v is Readonly<Record<string, unknown>> =>

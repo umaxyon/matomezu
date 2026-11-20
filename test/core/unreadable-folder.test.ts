@@ -5,6 +5,8 @@ import type { CoreCatalog } from "../../web/src/core/core-catalog"
 import {
   BROKEN,
   FIRST,
+  type Folders,
+  foldersOver,
   HOME_ID,
   outsideUnreadable,
   rawBooksOf,
@@ -222,24 +224,25 @@ const STAYS: { name: string; rows: () => Rows; moved: [string, string][] }[] = [
 ]
 
 // 読めるかの判定が 1 つである事: 確かめる関数 checkBooks（画面と同じ読み方）がブックに出す訳の番号は、移す側 unreadableUnitsOf が、
-// そのブックごとか、その中から移す最初の物の番号と同じ（移す物の無いブックには、どちらも出さない）
+// そのブックごとか、その中から移す最初の物の番号と同じ（移す物の無いブックには、どちらも出さない）。ブックの外の物も、readLibrary の外の warning の番号と、
+// 移す側がブックの外から移す物の番号がそろう
 function agrees(catalog: CoreCatalog, rows: Rows) {
-  const folders = rows.folders as { id: string; folderRole?: string; lineup?: { id?: string }[] }[]
-  const holder = new Map(folders.flatMap(f => (f.lineup ?? []).flatMap(e => (e.id ? [[e.id, f.id] as const] : []))))
-  const role = new Map(folders.map(f => [f.id, f.folderRole]))
-  const isBook = (id: string) =>
-    role.has(id) && !["home", "trash", "folder", "binder", "unreadable"].includes(role.get(id) ?? "")
-  const bookOf = (id: string | undefined): string | undefined =>
-    id === undefined || isBook(id) ? id : bookOf(holder.get(id))
+  const folders = Object.fromEntries(rows.folders.map(f => [(f as { id: string }).id, f])) as Folders
+  const bookOf = (id: string): string | undefined =>
+    folders[id]?.folderRole === "book" ? id : foldersOver(folders, id).find(f => f.folderRole === "book")?.id
   const fromUnits = new Map<string, string>()
+  const outside = new Set<string>()
   for (const u of unreadableUnitsOf(catalog, rows.pages, rows.folders)) {
     const book = bookOf(u.element.id)
-    if (book !== undefined && !fromUnits.has(book)) fromUnits.set(book, u.code)
+    if (book === undefined) outside.add(u.code)
+    else if (!fromUnits.has(book)) fromUnits.set(book, u.code)
   }
   const fromCheck = new Map<string, string>(
     checkBooks(catalog, rawBooksOf(rows.pages, rows.folders)).warnings.map(w => [w.params.book ?? "", w.code]),
   )
   expect(fromCheck).toEqual(fromUnits)
+  const read = readLibrary(catalog, rows.pages, rows.folders)
+  expect(new Set<string>(read.outsideWarnings.map(w => w.code).filter(c => c !== "W007"))).toEqual(outside)
 }
 
 describe("確かめる関数と移す側は、ブックに同じ訳の番号を出す", () => {
