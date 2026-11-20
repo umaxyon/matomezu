@@ -5,6 +5,7 @@ import type { ParticipantLive } from "../../../store/store"
 import type { Participant, Workroom } from "."
 import type { WorkroomActivity } from "./activity"
 import { shownModel } from "./live"
+import { occupantOf } from "./workroom"
 
 export type WorkroomState = "empty" | "preparing" | "ready"
 
@@ -38,7 +39,7 @@ export function workroomRows(input: {
   activities: Readonly<Record<string, WorkroomActivity | "unknown">> // ワークルームの id → 作業の様子（無ければ unknown）
 }): WorkroomRow[] {
   const rows = input.rooms.map((room): WorkroomRow => {
-    const participant = input.participants.find(p => p.state === "joined" && p.workroom === room.id)
+    const participant = occupantOf(input.participants, room)
     const live = participant ? input.live[participant.id] : undefined
     const calledAt = participant ? input.calls[participant.id] : undefined
     const requestedAt = input.participants

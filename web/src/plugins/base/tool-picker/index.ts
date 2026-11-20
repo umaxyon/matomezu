@@ -3,23 +3,17 @@
 // Space で開いた道具のアイコンは、もう一度 Space で閉じる）
 
 import type { ToolId } from "../../../core/catalog"
-import { paperOf, shownPageId } from "../../../core/stage"
+import { paperOf } from "../../../core/stage"
 import { toolUsable } from "../../../core/tools"
 import { calledStageOf, NO_BOOK } from "../../../store/commands/def"
 import { kit } from "../kit"
+import { hasOpenedPage } from "../utils/opened-page"
 
 export const TOOL_SET = kit.defineCommand({
   id: "tool-set",
   title: "Set tool",
   run: (ctx, a, tool: ToolId) => {
-    if (
-      toolUsable(
-        ctx.catalog,
-        tool,
-        ctx.book === NO_BOOK ? null : ctx.book,
-        shownPageId(ctx.stage.opened ?? null) ?? null,
-      )
-    )
+    if (toolUsable(ctx.catalog, tool, ctx.book === NO_BOOK ? null : ctx.book, hasOpenedPage(ctx) ? ctx.page.id : null))
       a.setTool(tool)
   },
   when: ctx => paperOf(ctx.stage) !== null,

@@ -1,6 +1,6 @@
 // アノテーションのレイヤー（伝言・マーク）が共通に使うフック
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { type Annotation, type Annotations, unexpired } from "../../../core/annotation"
 import { pagesOf } from "../../../core/book"
@@ -8,6 +8,7 @@ import type { MessageKey } from "../../../core/i18n/i18n"
 import { useMatomezuState } from "../../../ui/store-context"
 import { useActions, useBook, useCoreCatalog, usePage, usePerform } from "../../../ui/view-hooks"
 import { refusalMessage } from "./refusal"
+import { useNow } from "./useNow"
 
 const NONE: readonly Annotation[] = []
 
@@ -15,14 +16,7 @@ const NONE: readonly Annotation[] = []
 const EXPIRY_CHECK_MS = 60_000
 
 // 今の時点（ISO の時刻）。期限を見直す間隔ごとに進む
-function useNow(): string {
-  const [now, setNow] = useState(() => new Date().toISOString())
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date().toISOString()), EXPIRY_CHECK_MS)
-    return () => clearInterval(timer)
-  }, [])
-  return now
-}
+const useNowIso = (): string => new Date(useNow(EXPIRY_CHECK_MS)).toISOString()
 
 // 描いているページの、全部のアノテーション。期限の過ぎた物は、常駐が消すまでの間も出さない（この窓で利用者が直している物は出す）
 export function useAnnotationsIn(): readonly Annotation[] {
@@ -33,7 +27,7 @@ export function useAnnotationsIn(): readonly Annotation[] {
   const locked = useMatomezuState(
     useShallow(s => Object.values(s.editLocks).flatMap(l => ("within" in l && l.within === page ? l.ids : []))),
   )
-  const now = useNow()
+  const now = useNowIso()
   return useMemo(() => unexpired(catalog, all, settings, now, new Set(locked)), [catalog, all, settings, now, locked])
 }
 
@@ -44,7 +38,7 @@ export function useBookAnnotations(): Annotations {
   const all = useMatomezuState(s => s.annotations)
   const settings = useMatomezuState(s => s.settings)
   const locks = useMatomezuState(s => s.editLocks)
-  const now = useNow()
+  const now = useNowIso()
   return useMemo(() => {
     const out: Record<string, readonly Annotation[]> = {}
     for (const p of book ? pagesOf(book) : []) {

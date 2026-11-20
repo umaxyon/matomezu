@@ -1,7 +1,8 @@
 // ペインの並べ方のコマンドと、ソースのペインのテキストFormの中のキー（元に戻す・やり直す・検索は base のコマンド）。
 // 並べ方のコマンドは 4 つ（ソースだけ・左右に並べる・上下に並べる・プレビューだけ）で、ビューの上の行のボタンが押す。今の並べ方のコマンドは押した状態。
 // 利用者が選んだ並べ方は画面の場所に入れるプラグイン状態に持つ（panes.ts の PANE_LAYOUT_STATE）。コマンドは並べ方（mode）だけを変え、選んだ並べ方にする
-import { type CommandContext, NO_PAGE, shownType } from "../../../plugin-api"
+import type { CommandContext } from "../../../plugin-api"
+import { hasOpenedPage } from "../../base"
 import { kit } from "./kit"
 import { MARKDOWN_PRESENTATION, SOURCE_KEYS_SCOPE } from "./markdown"
 import {
@@ -15,14 +16,12 @@ import {
 } from "./panes"
 
 // 開いているページのタイプが、マークダウンのプレゼンテーションで描くか
-const onMarkdown = (ctx: CommandContext) => {
-  const type = shownType(ctx.stage.opened ?? null)
-  return type !== null && ctx.catalog.pageTypes.get(type)?.presentation === MARKDOWN_PRESENTATION.id
-}
+const onMarkdown = (ctx: CommandContext) =>
+  hasOpenedPage(ctx) && ctx.catalog.pageTypes.get(ctx.page.type)?.presentation === MARKDOWN_PRESENTATION.id
 
-// 開いているページ（id と本文）
-function openedPage(ctx: CommandContext): { id: string; text: string } | null {
-  return ctx.page === NO_PAGE ? null : paneInputOf(ctx.page)
+// 開いているページの、ペインに渡す id と本文
+function paneInputHere(ctx: CommandContext): { id: string; text: string } | null {
+  return hasOpenedPage(ctx) ? paneInputOf(ctx.page) : null
 }
 
 // 並べ方 mode にするコマンドの中身（入れ替えた順と境目の割合はそのまま。今その並べ方なら押した状態）
@@ -32,11 +31,11 @@ const toMode = (mode: PaneMode) => ({
     a: { updatePluginState(def: typeof PANE_LAYOUT_STATE, f: (now: ChosenLayout | undefined) => ChosenLayout): void },
   ) =>
     a.updatePluginState(PANE_LAYOUT_STATE, now =>
-      chosenWith(now, paneLayoutOf(now, ctx.pluginState(PANE_OPENING_STATE), openedPage(ctx)), { mode }),
+      chosenWith(now, paneLayoutOf(now, ctx.pluginState(PANE_OPENING_STATE), paneInputHere(ctx)), { mode }),
     ),
   when: onMarkdown,
   active: (ctx: CommandContext) =>
-    paneLayoutOf(ctx.pluginState(PANE_LAYOUT_STATE), ctx.pluginState(PANE_OPENING_STATE), openedPage(ctx)).mode ===
+    paneLayoutOf(ctx.pluginState(PANE_LAYOUT_STATE), ctx.pluginState(PANE_OPENING_STATE), paneInputHere(ctx)).mode ===
     mode,
 })
 

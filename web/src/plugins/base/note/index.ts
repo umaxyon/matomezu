@@ -6,11 +6,10 @@
 // 右クリックのメニューのコマンド note-new（押した物に伝言を書き始める）もここ
 import { z } from "zod"
 import type { Annotation } from "../../../core/annotation"
-import { shownPageId } from "../../../core/stage"
-import { calledStageOf, NO_BOOK } from "../../../store/commands/def"
+import { NO_BOOK } from "../../../store/commands/def"
 import { anchorsFor } from "../context-menu/anchor-targets"
 import { kit } from "../kit"
-import { openedRestore, RIGHT_SIDE_PANEL_RESTORE_STATE, RIGHT_SIDE_PANEL_STATE } from "../right-side-panel/state"
+import { openRightSidePanelIn } from "../right-side-panel/state"
 import { freshId } from "../utils/ids"
 import { expiryFrom, NOTE_EXPIRY } from "./expiry"
 import { NEW_NOTE, NOTE_PANEL_ID } from "./panel-id"
@@ -194,21 +193,12 @@ export const NOTE_NEW = kit.defineCommand({
   id: "note-new",
   title: "Note to AI",
   performs: [NOTE_ADD.id],
-  run: (ctx, a, anchor: string) => {
-    const now = calledStageOf(ctx)
-    const opened = now?.opened
-    if (!now || !opened) return
-    const anchors = anchorsFor(anchor, ctx.stage.selection)
-    const panel = {
+  run: (ctx, a, anchor: string) =>
+    openRightSidePanelIn(ctx, a, {
       widget: NOTE_PANEL_ID,
       subject: NEW_NOTE,
-      anchors,
+      anchors: anchorsFor(anchor, ctx.stage.selection),
       current: anchor,
-      book: opened.outermost,
-      page: shownPageId(opened),
-    }
-    a.updatePluginState(RIGHT_SIDE_PANEL_STATE, () => panel)
-    a.updatePluginState(RIGHT_SIDE_PANEL_RESTORE_STATE, kept => openedRestore(kept, panel, now))
-  },
+    }),
   when: ctx => ctx.book !== NO_BOOK,
 })

@@ -1,8 +1,8 @@
 // ツリーのコマンド: 上下左右のキーで、選んでいる節を動かす（伸びる向きのキーで最初の子へ、逆向きで親へ、横向きで隣の兄弟へ）と、
 // Home で根を選び、F2 で、選んでいる節のキャプションをその場で書き始める。Tab で子を、Enter ですぐ後ろの兄弟を足して、その場で書き始める（根に兄弟は足せない）。Delete（Backspace）と節の右クリックのメニューで、選んでいる節を子孫ごと消す（根は消せない。
 // 消したら、前の兄弟、無ければ親を選ぶ）。節の右クリックのメニューで、節の色と、子の節の大きさのダイアログを開く。編集の道具の間だけ。キーはツリーのプレゼンテーションの範囲（ステージの範囲より先に探す）
-import { type CommandContext, NO_PAGE, shownPageId } from "../../../plugin-api"
-import { refusalMessage, settingValue } from "../../base"
+import type { CommandContext } from "../../../plugin-api"
+import { hasOpenedPage, refusalMessage, settingValue } from "../../base"
 import { NODE_ADD, NODE_REMOVE, NODE_UPDATE } from "./actions"
 import { ADDED_EDIT, type Arrow, addArgs, afterRemove, keyPlus, moveFrom, NODE_COLOR_PICK, selectedIn } from "./edit"
 import { GROW } from "./grow"
@@ -13,14 +13,14 @@ import { NODE_SIZE_DIALOG, TREE_KEYS_SCOPE, TREE_PAGE_SETTINGS_DIALOG } from "./
 
 // 開いているページと、その根と伸びる向き（ツリーのページでなければ null）
 function treeAt(ctx: CommandContext) {
-  const page = ctx.page === NO_PAGE ? undefined : ctx.page
+  if (!hasOpenedPage(ctx)) return null
+  const page = ctx.page
   const root = treeRootOf(page)
-  if (!page || !root) return null
+  if (!root) return null
   return { page, root, grow: settingValue(ctx.catalog, page, GROW) }
 }
 
-const editingTree = (ctx: CommandContext) =>
-  ctx.stage.tool === EDIT_TOOL.id && shownPageId(ctx.stage.opened ?? null) != null
+const editingTree = (ctx: CommandContext) => ctx.stage.tool === EDIT_TOOL.id && hasOpenedPage(ctx)
 
 export const NODE_SELECT_MOVE = kit.defineCommand({
   id: "node-select-move",
@@ -117,8 +117,7 @@ export const NODE_DELETE = kit.defineCommand({
   title: "Delete",
   run: (ctx, a) => {
     const tree = treeAt(ctx)
-    const opened = ctx.stage.opened
-    if (!tree || !opened) return
+    if (!tree) return
     const node = selectedIn(tree.root, ctx.stage.selection)
     const next = afterRemove(tree.root, tree.grow, node)
     if (!next) return

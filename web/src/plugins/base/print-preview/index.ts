@@ -7,7 +7,6 @@ import { z } from "zod"
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
-import { shownPageId } from "../../../core/stage"
 import type { CommandActions, CommandContext } from "../../../store/commands/def"
 import { calledStageOf, NO_BOOK } from "../../../store/commands/def"
 import { withBookSettings } from "../book-look"
@@ -15,8 +14,8 @@ import type { SettingReader } from "../book-settings"
 import { bookSettingsPatch, bookSettingValue } from "../book-settings"
 import { kit } from "../kit"
 import type { GrowSides } from "../place/grow"
-import { openedRestore, RIGHT_SIDE_PANEL_RESTORE_STATE, RIGHT_SIDE_PANEL_STATE } from "../right-side-panel/state"
-import { fitSideView, moveHere, stageOf } from "../zoom"
+import { openRightSidePanelIn } from "../right-side-panel/state"
+import { fitSideView, moveHere } from "../zoom"
 import { hasCrossing } from "./book-sheets"
 import { printCheckOpen } from "./panel-id"
 import { PRINT_READY_STATE } from "./print-state"
@@ -90,12 +89,12 @@ export const PRINT_PREVIEW_FIT = kit.defineCommand({
   id: "print-preview-fit",
   title: "Fit to width",
   run: (ctx, a) => {
-    const stage = stageOf(ctx)
+    const stage = calledStageOf(ctx)
     if (stage) moveHere(a, stage, fitSideView(stage, sideOf(ctx)))
   },
   when: ctx => ctx.stage.mode === "print-preview",
   enabled: ctx => {
-    const stage = stageOf(ctx)
+    const stage = calledStageOf(ctx)
     return stage !== undefined && fitSideView(stage, sideOf(ctx)) !== stage
   },
 })
@@ -110,12 +109,8 @@ const sideOf = (ctx: CommandContext) => fitSide(ctx.catalog, ctx.book === NO_BOO
 // 印刷区画の境目をまたいだ形を直してもらうタイプで、またいだ形があれば、印刷プレビューは開かず、それを知らせる右サイドパネルを開く
 function openPreview(ctx: CommandContext, a: CommandActions) {
   const book = ctx.book
-  const now = calledStageOf(ctx)
-  const opened = now?.opened
-  if (book !== NO_BOOK && now && opened && hasCrossing(ctx.catalog, book)) {
-    const open = { ...printCheckOpen(book.id), book: opened.outermost, page: shownPageId(opened) }
-    a.updatePluginState(RIGHT_SIDE_PANEL_STATE, () => open)
-    a.updatePluginState(RIGHT_SIDE_PANEL_RESTORE_STATE, kept => openedRestore(kept, open, now))
+  if (book !== NO_BOOK && calledStageOf(ctx)?.opened && hasCrossing(ctx.catalog, book)) {
+    openRightSidePanelIn(ctx, a, printCheckOpen(book.id))
     return
   }
   a.openPrintPreview()

@@ -1,0 +1,30 @@
+// マスコットの鳥の文言（鳥の名前と配色の名前）
+import { defineMessages } from "../../../core/i18n/messages"
+
+export const BIRDS_MESSAGES = defineMessages({
+  Parakeet: { en: "Parakeet", ja: "インコ" },
+  "Java sparrow": { en: "Java sparrow", ja: "文鳥" },
+  Sparrow: { en: "Sparrow", ja: "スズメ" },
+  Tsunagidori: { en: "Tsunagidori", ja: "ツナギドリ" },
+  "Barn owl": { en: "Barn owl", ja: "ホンフクロウ" },
+  "Tsunagidori Green": { en: "Tsunagidori Green", ja: "ツナギドリ・グリーン" },
+  "Parakeet Red": { en: "Parakeet Red", ja: "インコ・レッド" },
+  "Java Sparrow White": { en: "Java Sparrow White", ja: "文鳥・ホワイト" },
+  "Sparrow Yellow": { en: "Sparrow Yellow", ja: "スズメ・イエロー" },
+  "Owl Blue": { en: "Owl Blue", ja: "フクロウ・ブルー" },
+  Forest: { en: "Forest", ja: "フォレスト" },
+  Lime: { en: "Lime", ja: "ライム" },
+  Olive: { en: "Olive", ja: "オリーブ" },
+  Orange: { en: "Orange", ja: "オレンジ" },
+  Pink: { en: "Pink", ja: "ピンク" },
+  Magenta: { en: "Magenta", ja: "マゼンタ" },
+  Plum: { en: "Plum", ja: "プラム" },
+  Lilac: { en: "Lilac", ja: "ライラック" },
+  Violet: { en: "Violet", ja: "バイオレット" },
+  Navy: { en: "Navy", ja: "ネイビー" },
+  Sky: { en: "Sky", ja: "スカイ" },
+  "Deep Teal": { en: "Deep Teal", ja: "ディープティール" },
+  Turquoise: { en: "Turquoise", ja: "ターコイズ" },
+  Chestnut: { en: "Chestnut", ja: "チェスナット" },
+  Charcoal: { en: "Charcoal", ja: "チャコール" },
+})

@@ -1,4 +1,5 @@
 // base の文言（各フォルダの文言を集めたもの）
+import { BIRDS_MESSAGES } from "./birds/messages"
 import { BOOK_LOOK_MESSAGES } from "./book-look/messages"
 import { BOOK_NEW_MESSAGES } from "./book-new/messages"
 import { MENU_MESSAGES } from "./context-menu/messages"
@@ -60,6 +61,7 @@ export const BASE_MESSAGES = joinMessages(
   SCRAP_MESSAGES,
   WIDE_SEARCH_MESSAGES,
   PARTICIPANT_MESSAGES,
+  BIRDS_MESSAGES,
   MARKDOWN_DOCUMENT_MESSAGES,
   OUTBOX_MESSAGES,
   SETTINGS_MESSAGES,

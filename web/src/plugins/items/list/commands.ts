@@ -1,21 +1,10 @@
 // リストの行のコマンド: 行の追加・編集のダイアログを開く、行を消す（選んでいる行を Delete で消すのも）、チェックを入れ切りする、行を動かす、行の下の端をドラッグして高さを変える（リストのビューと、行の右クリックのメニューから呼ぶ）
-import {
-  type CommandContext,
-  type ItemPage,
-  NO_PAGE,
-  openedPage,
-  type Point,
-  shownPageId,
-  toPaperDelta,
-  walkShapes,
-} from "../../../plugin-api"
+import { type CommandContext, type ItemPage, type Point, toPaperDelta, walkShapes } from "../../../plugin-api"
+import { hasOpenedPage } from "../../base"
 import { ROW_ADD, ROW_CHECK, ROW_LINES, ROW_MOVE, ROW_REMOVE, ROW_UPDATE } from "./actions"
 import { kit } from "./kit"
 import { LIST, LIST_ROWS_SCOPE, type ListRow, ROW_ADD_DIALOG, ROW_EDIT_DIALOG } from "./list"
 import { linesFor } from "./size"
-
-// ページを開いているか（ページの無いブックと、ページが 1 枚も無いブックでは開いていない）
-const onOpenedPage = (ctx: CommandContext) => shownPageId(ctx.stage.opened ?? null) != null
 
 // リスト list の最後に行を足すダイアログを開く
 export const LIST_ADD_ROW = kit.defineCommand({
@@ -24,10 +13,9 @@ export const LIST_ADD_ROW = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Add row",
   run: (ctx, a, { list }: { list: string }) => {
-    const page = shownPageId(ctx.stage.opened ?? null)
-    if (page) a.openDialog(ROW_ADD_DIALOG.id, { page, list })
+    if (hasOpenedPage(ctx)) a.openDialog(ROW_ADD_DIALOG.id, { page: ctx.page.id, list })
   },
-  when: onOpenedPage,
+  when: hasOpenedPage,
 })
 
 // 行の中身を変えるダイアログを開く
@@ -37,10 +25,9 @@ export const LIST_EDIT_ROW = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Edit row",
   run: (ctx, a, { list, row }: { list: string; row: string }) => {
-    const page = shownPageId(ctx.stage.opened ?? null)
-    if (page) a.openDialog(ROW_EDIT_DIALOG.id, { page, list, row })
+    if (hasOpenedPage(ctx)) a.openDialog(ROW_EDIT_DIALOG.id, { page: ctx.page.id, list, row })
   },
-  when: onOpenedPage,
+  when: hasOpenedPage,
 })
 
 // 行を消す
@@ -50,17 +37,16 @@ export const LIST_DELETE_ROW = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Delete row",
   run: (ctx, a, { list, row }: { list: string; row: string }) => {
-    const opened = openedPage(ctx.stage.opened ?? null)
-    if (opened?.page) a.perform(ROW_REMOVE.id, { list, rows: [row] }, { page: opened.page })
+    if (hasOpenedPage(ctx)) a.perform(ROW_REMOVE.id, { list, rows: [row] }, { page: ctx.page.id })
   },
-  when: onOpenedPage,
+  when: hasOpenedPage,
 })
 
 // 選んでいる物が、開いているページの 1 つのリストの行だけなら、そのリストと行（でなければ null）
 function selectedRows(ctx: CommandContext): { page: string; list: string; rows: readonly string[] } | null {
   const { selection } = ctx.stage
-  const page = ctx.page === NO_PAGE ? undefined : ctx.page
-  if (!page || selection.length === 0) return null
+  if (!hasOpenedPage(ctx) || selection.length === 0) return null
+  const page = ctx.page
   const list = walkLists(page).find(l => selection.every(id => l.rows.includes(id)))
   return list ? { page: page.id, list: list.id, rows: selection } : null
 }
@@ -93,10 +79,9 @@ export const LIST_CHECK = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Check",
   run: (ctx, a, { list, row, checked }: { list: string; row: string; checked: boolean }) => {
-    const opened = openedPage(ctx.stage.opened ?? null)
-    if (opened?.page) a.perform(ROW_CHECK.id, { list, row, checked }, { page: opened.page })
+    if (hasOpenedPage(ctx)) a.perform(ROW_CHECK.id, { list, row, checked }, { page: ctx.page.id })
   },
-  when: onOpenedPage,
+  when: hasOpenedPage,
 })
 
 // 行の下の端を、画面の上で by だけ動かしたとき: 高さ height（紙の上）の行を、一番近い行数の高さにする（size.ts の linesFor）
@@ -106,12 +91,11 @@ export const LIST_STRETCH_ROW = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Set row heights",
   run: (ctx, a, { list, row, height, by }: { list: string; row: string; height: number; by: Point }) => {
-    const opened = openedPage(ctx.stage.opened ?? null)
-    if (!opened?.page) return
+    if (!hasOpenedPage(ctx)) return
     const lines = linesFor(height + toPaperDelta(ctx.stage, by).y)
-    a.perform(ROW_LINES.id, { list, rows: [row], lines }, { page: opened.page })
+    a.perform(ROW_LINES.id, { list, rows: [row], lines }, { page: ctx.page.id })
   },
-  when: onOpenedPage,
+  when: hasOpenedPage,
 })
 
 // 行を動かす: リスト to（無ければ同じリスト）の行 before の前（無ければ最後）へ（行のドラッグで離したとき）
@@ -121,12 +105,11 @@ export const LIST_MOVE_ROW = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Move row",
   run: (ctx, a, args: { list: string; row: string; to: string; before?: string }) => {
-    const opened = openedPage(ctx.stage.opened ?? null)
-    if (!opened?.page) return
+    if (!hasOpenedPage(ctx)) return
     const before = args.before === undefined ? {} : { before: args.before }
-    a.perform(ROW_MOVE.id, { list: args.list, row: args.row, to: args.to, ...before }, { page: opened.page })
+    a.perform(ROW_MOVE.id, { list: args.list, row: args.row, to: args.to, ...before }, { page: ctx.page.id })
   },
-  when: onOpenedPage,
+  when: hasOpenedPage,
 })
 
 // 選んでいる行を消すキー（Mac の delete キーは Backspace として届く）

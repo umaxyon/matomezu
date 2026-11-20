@@ -1,16 +1,13 @@
 // 線のコマンド: 形の〇から引いて離したときに線を引く（ラインビューから呼ぶ）、線の編集のダイアログを開く（線のダブルクリックと右クリックのメニュー）、線の端をほかの形の上で離したときにつなぎ替える
 
-import { type CommandContext, NO_PAGE, type Point, shownPageId } from "../../../plugin-api"
-import { amongSelected, portAreasOf } from "../../base"
+import type { Point } from "../../../plugin-api"
+import { amongSelected, hasOpenedPage, portAreasOf } from "../../base"
 import { LINE_CONNECT, LINE_RECONNECT, LINE_UPDATE } from "./actions"
 import { drawnLineProps, loopEndsNear, nearestEnd } from "./connect"
 import { kit } from "./kit"
 import { elbowAt, LINE_EDIT_DIALOG } from "./line"
 import { linesOf } from "./placed"
 import type { Side } from "./route"
-
-// ページを開いているか（ページの無いブックと、ページが 1 枚も無いブックでは開いていない）
-const onOpenedPage = (ctx: CommandContext) => shownPageId(ctx.stage.opened ?? null) != null
 
 // 形 from の side の辺の〇から引き、形 to の上の at（表示領域の左上からの画面の座標）で離したときに線を引く（connect.ts の drawnLineProps の端と矢印）。
 // 引けない相手なら何もしない
@@ -20,14 +17,14 @@ export const LINE_DRAW = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Connect items",
   run: (ctx, a, args: { from: string; side: Side; to: string; at: Point }) => {
-    const page = ctx.page === NO_PAGE ? undefined : ctx.page
     const drop = ctx.toPaper(args.at)
-    if (!page || !drop) return
+    if (!hasOpenedPage(ctx) || !drop) return
+    const page = ctx.page
     const rects = portAreasOf(ctx.catalog, page)
     const props = drawnLineProps(page, rects, elbowAt(ctx.catalog, page), args.from, args.side, args.to, drop)
     if (props) a.perform(LINE_CONNECT.id, { from: args.from, to: args.to, props }, { page: page.id })
   },
-  when: onOpenedPage,
+  when: hasOpenedPage,
 })
 
 // 線の編集のダイアログを開く。右クリックのメニューでは「設定」として出す（いくつか選んだ中の線を右クリックしたなら、メニューは選んだ物全部に向けるので出さない）
@@ -37,12 +34,11 @@ export const LINE_EDIT = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Settings",
   run: (ctx, a, { item }: { item: string }) => {
-    const page = shownPageId(ctx.stage.opened ?? null)
-    if (page) a.openDialog(LINE_EDIT_DIALOG.id, { page, item })
+    if (hasOpenedPage(ctx)) a.openDialog(LINE_EDIT_DIALOG.id, { page: ctx.page.id, item })
   },
   when: ctx => {
     const target = ctx.contextMenu?.target as { item?: string } | undefined
-    return onOpenedPage(ctx) && !(target?.item !== undefined && amongSelected(ctx.stage.selection, target.item))
+    return hasOpenedPage(ctx) && !(target?.item !== undefined && amongSelected(ctx.stage.selection, target.item))
   },
 })
 
@@ -54,10 +50,11 @@ export const LINE_RECONNECT_DROP = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Reconnect line",
   run: (ctx, a, args: { line: string; end: "from" | "to"; item: string; at: Point }) => {
-    const page = ctx.page === NO_PAGE ? undefined : ctx.page
-    const line = page && linesOf(page).find(l => l.id === args.line)
+    if (!hasOpenedPage(ctx)) return
+    const page = ctx.page
+    const line = linesOf(page).find(l => l.id === args.line)
     const drop = ctx.toPaper(args.at)
-    if (!page || !line || !drop) return
+    if (!line || !drop) return
     const rects = portAreasOf(ctx.catalog, page)
     const to = rects.get(args.item)
     const other = args.end === "from" ? line.to : line.from
@@ -72,5 +69,5 @@ export const LINE_RECONNECT_DROP = kit.defineCommand({
       { page: page.id },
     )
   },
-  when: onOpenedPage,
+  when: hasOpenedPage,
 })

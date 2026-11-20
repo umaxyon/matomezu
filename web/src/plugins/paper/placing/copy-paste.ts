@@ -1,19 +1,16 @@
 // コピー・切り取り・貼り付け・複製のコマンド。写し（clip.ts の Clip）は紙のプラグインのプラグイン状態（CLIP_STATE）に置く（ブック・ページをまたいで貼れる。読み込み直すと消える）。
 // 貼るときは、アクション item-paste に写しを渡す（選んだ物に応じて入れる先を決め、収まらなければ収まる一番近い所へ寄せる）
 
-import { type CommandContext, findShape, NO_PAGE, openedPage, type Point, walkShapes } from "../../../plugin-api"
-import { placedSize, refusalMessage, shapeDefOf } from "../../base"
+import { type CommandContext, findShape, type Point, walkShapes } from "../../../plugin-api"
+import { hasOpenedPage, placedSize, refusalMessage, shapeDefOf } from "../../base"
 import { kit } from "../kit"
 import { ITEM_PASTE, ITEM_REMOVE } from "./actions"
 import { type Clip, clipOf, nearestPaste } from "./clip"
-import { itemsSelected, onOpenedPage } from "./commands"
+import { itemsSelected } from "./commands"
 import { CLIP_STATE } from "./states"
 
 // プラグイン状態に置いた写し（無ければ null）
 const clipIn = (ctx: CommandContext): Clip | null => ctx.pluginState(CLIP_STATE) ?? null
-
-// 開いているページ
-const pageOf = (ctx: CommandContext) => (ctx.page === NO_PAGE ? undefined : ctx.page)
 
 // 写しをプラグイン状態に置く
 const keep = (a: { updatePluginState(def: typeof CLIP_STATE, change: () => Clip): void }, clip: Clip) =>
@@ -21,7 +18,7 @@ const keep = (a: { updatePluginState(def: typeof CLIP_STATE, change: () => Clip)
 
 // 貼る先: ページの形を 1 つだけ選んでいれば、子を持てる形ならその中、持てない形（と、写した形そのもの）ならその形の隣（同じ親の中の、すぐ右）。それ以外はページ（最初の空き）
 function targetOf(ctx: CommandContext, clip: Clip): { parent: string | null; at?: Point } {
-  const page = pageOf(ctx)
+  const page = hasOpenedPage(ctx) ? ctx.page : undefined
   const { selection } = ctx.stage
   const only = page && selection.length === 1 && selection[0] !== undefined ? findShape(page, selection[0]) : undefined
   if (!only) return { parent: null }
@@ -41,8 +38,8 @@ function pasteAt(
   where: { parent: string | null; at?: Point },
   quiet = false,
 ): boolean {
-  const page = pageOf(ctx)
-  if (!page) return false
+  if (!hasOpenedPage(ctx)) return false
+  const page = ctx.page
   const at = where.at && (nearestPaste(ctx.catalog, page, clip, where.parent, where.at) ?? undefined)
   const done = a.perform(
     ITEM_PASTE.id,
@@ -79,8 +76,7 @@ function pasteNearSelection(ctx: CommandContext, a: Parameters<(typeof PAPER_PAS
 
 // 選んでいるアイテムを写しにする。写せない形が混じればトーストで知らせて null
 function copiedClip(ctx: CommandContext, a: Parameters<(typeof PAPER_COPY)["run"]>[1]): Clip | null {
-  const page = pageOf(ctx)
-  const clip = page && clipOf(ctx.catalog, page, ctx.stage.selection)
+  const clip = hasOpenedPage(ctx) && clipOf(ctx.catalog, ctx.page, ctx.stage.selection)
   if (clip === "uncopyable") a.showToast({ kind: "warn", message: kit.message("Cannot be copied") })
   return clip && clip !== "uncopyable" ? clip : null
 }
@@ -94,7 +90,7 @@ export const PAPER_COPY = kit.defineCommand({
     if (clip) keep(a, clip)
   },
   // 形を選んでいるときだけ出す（選んでいなければ、ブラウザ自身のコピーを塞がない）
-  when: ctx => onOpenedPage(ctx) && itemsSelected(ctx) && pageOf(ctx)?.items !== undefined,
+  when: ctx => hasOpenedPage(ctx) && itemsSelected(ctx) && ctx.page.items !== undefined,
 })
 
 // 写してから消す（消すアクション 1 つ。履歴は 1 段）
@@ -104,16 +100,15 @@ export const PAPER_CUT = kit.defineCommand({
   permissionScope: "selection",
   title: "Cut",
   run: (ctx, a) => {
-    const opened = openedPage(ctx.stage.opened ?? null)
     const { selection } = ctx.stage
     const clip = copiedClip(ctx, a)
-    if (!opened?.page || !clip) return
-    const done = a.perform(ITEM_REMOVE.id, { items: [...selection] }, { page: opened.page })
+    if (!hasOpenedPage(ctx) || !clip) return
+    const done = a.perform(ITEM_REMOVE.id, { items: [...selection] }, { page: ctx.page.id })
     if (!done.ok) return
     keep(a, clip)
     a.select([])
   },
-  when: ctx => onOpenedPage(ctx) && itemsSelected(ctx),
+  when: ctx => hasOpenedPage(ctx) && itemsSelected(ctx),
 })
 
 // 写しを貼る（キーと、アイテムの右クリックのメニュー）。入れる先は選んでいる物で決める
@@ -126,7 +121,7 @@ export const PAPER_PASTE = kit.defineCommand({
     const clip = clipIn(ctx)
     if (clip) pasteNearSelection(ctx, a, clip)
   },
-  when: onOpenedPage,
+  when: hasOpenedPage,
   enabled: ctx => clipIn(ctx) !== null,
 })
 
@@ -141,7 +136,7 @@ export const PAPER_PASTE_AT = kit.defineCommand({
     const at = args.pointer && ctx.toPaper(args.pointer)
     if (clip) pasteAt(ctx, a, clip, at ? { parent: null, at } : { parent: null })
   },
-  when: onOpenedPage,
+  when: hasOpenedPage,
   enabled: ctx => clipIn(ctx) !== null,
 })
 
@@ -152,10 +147,9 @@ export const PAPER_DUPLICATE = kit.defineCommand({
   permissionScope: "opened-page",
   title: "Duplicate",
   run: (ctx, a) => {
-    const page = pageOf(ctx)
     const clip = copiedClip(ctx, a)
-    if (!page || !clip) return
-    const roots = walkShapes(page).filter(s => clip.shapes.some(c => c.id === s.shape.id))
+    if (!hasOpenedPage(ctx) || !clip) return
+    const roots = walkShapes(ctx.page).filter(s => clip.shapes.some(c => c.id === s.shape.id))
     const parents = new Set(roots.map(r => r.parent))
     const parent = parents.size === 1 ? (roots[0]?.parent ?? null) : null
     const origin = {
@@ -164,7 +158,7 @@ export const PAPER_DUPLICATE = kit.defineCommand({
     }
     pasteAt(ctx, a, clip, { parent, at: { x: origin.x + 16, y: origin.y + 16 } })
   },
-  when: ctx => onOpenedPage(ctx) && itemsSelected(ctx),
+  when: ctx => hasOpenedPage(ctx) && itemsSelected(ctx),
 })
 
 export const COPY_PASTE_KEYS = [
