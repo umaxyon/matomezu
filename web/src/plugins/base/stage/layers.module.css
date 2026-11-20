@@ -30,6 +30,31 @@
   vector-effect: non-scaling-stroke;
 }
 
+/* 紙の知らせ: 表に無い紙の印（紙の左上）と、描けない紙の文（ステージの真ん中）。ポインタは受けない */
+.notice {
+  pointer-events: none;
+}
+.unknown {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--theme-accent);
+  color: var(--theme-paper);
+  font-size: 12px;
+}
+.unshowable {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  transform: translate(-50%, -50%);
+  color: var(--skin-text-muted);
+  font-size: 14px;
+  pointer-events: none;
+}
+
 /* 背景編集モードの間の、ブックの中身: 薄くして、触れない。隠していれば描かない（中身のデータは変えない） */
 .dimmed {
   position: absolute;
