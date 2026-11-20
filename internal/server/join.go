@@ -321,7 +321,6 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 	// 利用者に知らせる郵便の引数（頼んだ名前は workroom）
 	delete(args, "link")
 	delete(args, "wantedName")
-	delete(args, "as")
 	if workspace != "" {
 		args["orcaWorkspace"] = workspace
 	}
