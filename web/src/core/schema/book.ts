@@ -34,29 +34,20 @@ export type PageData<T> = Page &
 export type AnyPage = { [K in PageTypeId]: PageData<PageTypeTable[K]> }[PageTypeId]
 export type PageOf<T extends PageTypeId> = PageData<PageTypeTable[T]>
 
-// 読めないページ: 今の機能台帳では読めないページ（タイプが機能台帳に無い・タイプの形に合わない・タイプの決まりを守らない）のエントリ。
-// 持つのは id・名前（残したデータの title。無ければ空）・読めない理由の warning の番号・タイプの id（残したデータの type が文字列のときだけ）で、中身は持たない（残したデータには手を付けない）。
-// 何もできない（変える・消す・動かすアクションは断る）。消えるのは、ブックごと消すときだけ
+// 読めないページの理由の warning の番号（タイプが機能台帳に無い・タイプの形に合わない・タイプの決まりを守らない）
 export const UNREADABLE_CODES = ["W027", "W028", "W029"] as const satisfies readonly WarningCode[]
 export type UnreadableCode = (typeof UNREADABLE_CODES)[number]
-export interface UnreadableEntry {
-  kind: "unreadable"
-  id: string
-  title: string
-  code: UnreadableCode
-  type?: string
-}
 
-// エントリ 1 つ: ページ（kind: "page"）か、1 つのタイプのページだけを入れるバインダ（kind: "binder"。中身も同じ並びで、入るのはページと読めないページ）か、読めないページ（kind: "unreadable"）。
+// エントリ 1 つ: ページ（kind: "page"）か、1 つのタイプのページだけを入れるバインダ（kind: "binder"。中身も同じ並びで、入るのはページだけ）。
 // どれも並びの中で id を持つ（置き直しの Patch が、並びを id ごとにたどる。core/patch.ts）
 export interface BinderEntry {
   kind: "binder"
   id: string
   title: string
   pageType: string // 入れるページのタイプの id
-  lineup: readonly (AnyPage | UnreadableEntry)[]
+  lineup: readonly AnyPage[]
 }
-export type LineupEntry = AnyPage | BinderEntry | UnreadableEntry
+export type LineupEntry = AnyPage | BinderEntry
 
 // ブック（名前 title・ロック locked・並び lineup・ブックが持つ設定の項目）
 export type Book = {

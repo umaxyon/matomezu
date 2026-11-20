@@ -63,11 +63,8 @@ func (h *Hub) Talked(now time.Time) error {
 		h.mu.Unlock()
 		return err
 	}
-	// 読めないページと、読めない物のフォルダの中のページには行わない（エンジンが断るだけ）
-	pages := slices.DeleteFunc(slices.Sorted(maps.Keys(h.annotations)), func(page string) bool {
-		_, unreadable := h.pageWarnings[page]
-		return unreadable || h.inUnreadable(page)
-	})
+	// 読めない物のフォルダの中のページには行わない（エンジンが断るだけ）
+	pages := slices.DeleteFunc(slices.Sorted(maps.Keys(h.annotations)), h.inUnreadable)
 	h.mu.Unlock()
 	for _, page := range pages {
 		for _, id := range ids {

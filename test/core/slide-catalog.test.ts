@@ -27,7 +27,7 @@ test("slide に置けるのは形だけ（E042）", () => {
   expect(checkCoreCatalog(parts(withLine)).map(p => p.code)).toContain("E042")
 })
 
-test("slide のアイテムは、機能台帳に無ければ W007 で残し、allowed に無い形を持つページは形に合わない読めないページ（W028。バインダの中に残る）", () => {
+test("slide のアイテムは、機能台帳に無ければ W007 で残し、allowed に無い形を持つページは形に合わない読めないページ（W028。ブックごと読めない）", () => {
   const text = { id: "t", item: TEXT, x: 0, y: 0, w: 100, h: 40, props: { text: "a" } }
   const star = { id: "s", item: "@foo/stars:star", x: 0, y: 0, props: {} }
   expect(checkCoreCatalog(BUILTIN_PARTS)).toEqual([])
@@ -38,17 +38,8 @@ test("slide のアイテムは、機能台帳に無ければ W007 で残し、al
   ])
   const box = { id: "b", item: "@matomezu/box:shape-nest-box", x: 0, y: 0, props: {} }
   const misfit = checkBooks(CORE_CATALOG, [bookWith([box])])
-  expect(misfit.warnings).toEqual([])
-  expect(misfit.partial.map(w => w.code)).toEqual(["W028"])
-  expect(misfit.books[0]?.lineup).toEqual([
-    testBinder("s1-slides", "S", SLIDE, {
-      kind: "unreadable",
-      id: "p1",
-      title: "P",
-      code: "W028",
-      type: SLIDE,
-    } as never),
-  ])
+  expect(misfit.books).toEqual([])
+  expect(misfit.warnings.map(w => w.code)).toEqual(["W028"])
 })
 
 test("置けるアイテムは items.allowed と slide.allowed の合わせ: アクションの attach・テーマキー・ツールボックスが同じ物を見る", () => {

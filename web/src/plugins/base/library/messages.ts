@@ -89,7 +89,6 @@ export const LIBRARY_MESSAGES = defineMessages({
   "(It does not go to the trash)": { en: "(It does not go to the trash)", ja: "（ゴミ箱には入りません）" },
   "Cannot replace: {reason}": { en: "Cannot replace: {reason}", ja: "上書きできません: {reason}" },
   "It is a different kind": { en: "It is a different kind", ja: "種類が違います" },
-  "It has a page that cannot be read": { en: "It has a page that cannot be read", ja: "読めないページがあります" },
   "It cannot be done": { en: "It cannot be done", ja: "行えません" },
   "It holds what is moved": { en: "It holds what is moved", ja: "中に、動かす物があります" },
 })

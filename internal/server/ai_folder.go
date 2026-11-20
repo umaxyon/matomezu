@@ -7,8 +7,7 @@ package server
 //	                                              folder が無ければ書庫ホーム。path は書庫ホームからそのフォルダまで（両端を含む。書庫ホームの title は無い）。
 //	                                              システムフォルダは、どこでも "systemFolder"（定義の id）を添え、title は定義の英語の名前（定義が今の機能台帳に無ければ空）。
 //	                                              エントリは {"kind": "folder", "id", "title"}・{"kind": "book", "id", "title", "problem"（読めないブックの理由。list_books と同じ）}・
-//	                                              {"kind": "page", "id", "title", "type"}・{"kind": "binder", "id", "title", "pageType"}・
-//	                                              {"kind": "unreadable", "id", "title", "code", "type"}（読めないページ。read_book と同じ）
+//	                                              {"kind": "page", "id", "title", "type"}・{"kind": "binder", "id", "title", "pageType"}
 
 import (
 	"encoding/json"
@@ -26,14 +25,13 @@ type folderStep struct {
 }
 
 // folderEntry は、AI に見せるフォルダの直下のエントリ 1 つ。Type はページのタイプ、PageType はバインダが入れるタイプ、
-// Code は読めないページの理由の warning の番号、Problem は読めないブックの理由（warning の 1 行）
+// Problem は読めないブックの理由（warning の 1 行）
 type folderEntry struct {
 	Kind     string `json:"kind"`
 	ID       string `json:"id"`
 	Title    string `json:"title"`
 	Type     string `json:"type,omitempty"`
 	PageType string `json:"pageType,omitempty"`
-	Code     string `json:"code,omitempty"`
 	Problem  string `json:"problem,omitempty"`
 	// SystemFolder は、システムフォルダの印（定義の id）
 	SystemFolder string `json:"systemFolder,omitempty"`
@@ -102,10 +100,6 @@ func (h *Hub) AIFolder(id string) *AIFolder {
 	for _, e := range f.entries {
 		if p, ok := h.pages[e]; ok {
 			title, pageType, _ := rowHead(p.body)
-			if n, unreadable := h.pageWarnings[e]; unreadable {
-				out.Lineup = append(out.Lineup, folderEntry{Kind: "unreadable", ID: e, Title: title, Code: n.Code, Type: pageType})
-				continue
-			}
 			out.Lineup = append(out.Lineup, folderEntry{Kind: "page", ID: e, Title: title, Type: pageType})
 			continue
 		}

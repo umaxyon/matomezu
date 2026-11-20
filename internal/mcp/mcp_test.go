@@ -47,8 +47,6 @@ func (f *fakeAPI) Get(path string, header http.Header) (json.RawMessage, http.He
 		return json.RawMessage(`{"ok":true}`), f.replied, nil
 	case "api/ai/folder", "api/ai/folder?folder=d+1":
 		return json.RawMessage(`{"id":"library-home"}`), f.replied, nil
-	case "api/ai/pages/broken":
-		return json.RawMessage(`{"code":"W027","ok":false,"reason":"unreadable"}`), f.replied, nil
 	case "api/ai/pages/small":
 		return json.RawMessage(`{"page":"small"}`), f.replied, nil
 	case "api/ai/pages/p1":
@@ -166,7 +164,7 @@ func TestPerformingAnAction(t *testing.T) {
 	if api.posts[0] != `api/ai/perform {"action":"@matomezu/paper:item-place","args":{},"on":{"page":"p1"}}` {
 		t.Fatalf("posted = %v", api.posts)
 	}
-	for answer, want := range map[string]string{`{"ok":false,"reason":"no-book"}`: "no-book:", `{"ok":false,"reason":"unknown"}`: "unknown:", `{"ok":false,"reason":"unreadable","detail":"W005 x"}`: "unreadable: the book cannot be read now (W005 x)", `{"ok":false,"reason":"unreadable","code":"W028"}`: "unreadable: the page cannot be read now (W028); nothing can be done to it (see read_book)", `{"ok":false,"reason":"denied","permission":"@matomezu/base:lock","detail":"by @matomezu/base:lock: it is locked"}`: "denied: by @matomezu/base:lock: it is locked", `{"ok":false,"reason":"not-allowed","detail":"the control center keeps the setting x fixed"}`: "not-allowed: the control center keeps the setting x fixed", `{"ok":false,"reason":"refused","detail":"the action's rules refuse it"}`: "refused: the action's rules refuse it", `{"ok":false,"reason":"not-allowed"}`: "not-allowed: it could not be done here"} {
+	for answer, want := range map[string]string{`{"ok":false,"reason":"no-book"}`: "no-book:", `{"ok":false,"reason":"unknown"}`: "unknown:", `{"ok":false,"reason":"unreadable","detail":"W005 x"}`: "unreadable: the book cannot be read now (W005 x)", `{"ok":false,"reason":"denied","permission":"@matomezu/base:lock","detail":"by @matomezu/base:lock: it is locked"}`: "denied: by @matomezu/base:lock: it is locked", `{"ok":false,"reason":"not-allowed","detail":"the control center keeps the setting x fixed"}`: "not-allowed: the control center keeps the setting x fixed", `{"ok":false,"reason":"refused","detail":"the action's rules refuse it"}`: "refused: the action's rules refuse it", `{"ok":false,"reason":"not-allowed"}`: "not-allowed: it could not be done here"} {
 		api.answer = answer
 		got = talk(t, api, `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"perform","arguments":{"action":"x.y","args":{}}}}`)
 		r = got[0]["result"].(map[string]any)
@@ -187,18 +185,6 @@ func TestPerformingAnAction(t *testing.T) {
 }
 
 // 読めないページの read_page は、理由の番号だけの 1 行で断る
-func TestReadPageOfAnUnreadablePage(t *testing.T) {
-	got := talk(t, &fakeAPI{}, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"read_page","arguments":{"page":"broken"}}}`)
-	r := got[0]["result"].(map[string]any)
-	if r["isError"] != true || textOf(got[0]) != "unreadable: the page cannot be read now (W027); nothing can be done to it (see read_book)" {
-		t.Fatalf("read_page = %v", r)
-	}
-	got = talk(t, &fakeAPI{}, `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"read_page","arguments":{"page":"small"}}}`)
-	if r := got[0]["result"].(map[string]any); r["isError"] != false || textOf(got[0]) != `{"page":"small"}` {
-		t.Fatalf("read_page of a readable page = %v", r)
-	}
-}
-
 func TestReadTools(t *testing.T) {
 	got := talk(t, &fakeAPI{}, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"view","arguments":{}}}`)
 	r := got[0]["result"].(map[string]any)

@@ -114,7 +114,7 @@ var tools = []tool{
 				path += "?" + q.Encode()
 			}
 			return api.Get(path)
-		}, narrowPage, unreadablePage),
+		}, narrowPage),
 		true,
 	},
 	{
@@ -397,24 +397,6 @@ func callTool(c *conn, name string, raw json.RawMessage) (string, bool) {
 	return text, failed
 }
 
-// unreadablePage は、read_page の答えが読めないページの断り（{"ok": false, "reason": "unreadable", "code"}）なら、AI に返す 1 行
-func unreadablePage(out json.RawMessage) (string, bool) {
-	var done struct {
-		OK     *bool  `json:"ok"`
-		Reason string `json:"reason"`
-		Code   string `json:"code"`
-	}
-	if json.Unmarshal(out, &done) != nil || done.OK == nil || *done.OK || done.Reason != "unreadable" {
-		return "", false
-	}
-	return unreadablePageText(done.Code), true
-}
-
-// unreadablePageText は、読めないページで断ったときの、AI に返す 1 行（理由は warning の番号 code だけ。番号の意味は read_book の説明にある）
-func unreadablePageText(code string) string {
-	return "unreadable: the page cannot be read now (" + code + "); nothing can be done to it (see read_book)"
-}
-
 // maxAnswer は、読む MCP 公開ツールの 1 つの答えの文字数の上限
 const maxAnswer = 60000
 
@@ -458,15 +440,11 @@ func perform(api caller, args map[string]any) (string, bool) {
 		OK     bool            `json:"ok"`
 		Reason string          `json:"reason"`
 		Detail string          `json:"detail"`
-		Code   string          `json:"code"` // 読めないページで断ったとき、理由の warning の番号
 		Result json.RawMessage `json:"result"`
 		Notice string          `json:"notice"` // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
 	}
 	if err := json.Unmarshal(out, &done); err != nil {
 		return string(out), true
-	}
-	if !done.OK && done.Reason == "unreadable" && done.Code != "" {
-		return unreadablePageText(done.Code), true
 	}
 	if !done.OK {
 		text := refusalText(done.Reason, done.Detail)

@@ -9,7 +9,7 @@ import { applyPatch, CLASH, type Patch, toPutBack } from "./patch"
 import type { ItemPage } from "./placed"
 import { REMOVED } from "./records"
 import { sameData } from "./same"
-import type { AnyPage, BinderEntry, Book, LineupEntry, UnreadableEntry } from "./schema/book"
+import type { AnyPage, BinderEntry, Book, LineupEntry } from "./schema/book"
 import type { WarningCode } from "./warnings"
 
 // フォルダが持つエントリ 1 つ: ページかバインダの id
@@ -203,9 +203,8 @@ export function worldTablesOf(books: readonly Book[], others: readonly HomeOrFol
   return { pages: tables.pages, folders: { ...tables.folders, ...Object.fromEntries(others.map(f => [f.id, f])) } }
 }
 
-// ページの表の 1 行: ページか、読めないページ（今の機能台帳では読めないページ。id・名前・理由の番号だけで、残したデータは置き場所に残る。
-// フォルダのエントリは、どちらも kind が "page" の id で指す）
-export type PageRow = AnyPage | UnreadableEntry
+// ページの表の 1 行（今の機能台帳で読めるページ）
+export type PageRow = AnyPage
 export type Pages = Readonly<Record<string, PageRow>>
 export type Folders = Readonly<Record<string, Folder>>
 
@@ -726,6 +725,20 @@ export function outsideUnreadable(
     for (const e of entries) {
       const id = (e as { entry?: { id?: unknown } } | null)?.entry?.id
       if (typeof id === "string") walk(id)
+    }
+    // 外に残るフォルダもその並びに持つ物（読めない物のフォルダへ移したブックと id を分け合う、読めるブックのページなど）は外さない（何段下でも）
+    const lineupIdsOf = (row: Readonly<Record<string, unknown>>) =>
+      (Array.isArray(row.lineup) ? (row.lineup as unknown[]) : []).flatMap(e => {
+        const r = (e as { id?: unknown } | null)?.id
+        return typeof r === "string" ? [r] : []
+      })
+    let held = [...folder.values()].filter(r => !isUnreadable(r) && !inside.has(r.id as string))
+    while (held.length > 0) {
+      const back = held.flatMap(lineupIdsOf).filter(id => inside.delete(id))
+      held = back.flatMap(id => {
+        const row = folder.get(id)
+        return row ? [row] : []
+      })
     }
     const away = (r: unknown) => inside.has((r as { id?: unknown } | null)?.id as string)
     out = { pageRows: pageRows.filter(r => !away(r)), folderRows: folderRows.filter(r => !isUnreadable(r) && !away(r)) }

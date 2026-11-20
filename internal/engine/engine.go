@@ -130,8 +130,6 @@ type Output struct {
 	Detail        string                      `json:"detail,omitempty"`
 	Kind          string                      `json:"kind,omitempty"`         // 断りの種類（アクションが添えた名前か、土台の種類。title-taken など）
 	SystemFolder  string                      `json:"systemFolder,omitempty"` // 名前が重なる断り（title-taken）で、重なった相手がシステムフォルダのときの、その印（定義の id）
-	Page          string                      `json:"page,omitempty"`         // 読めないページで断ったとき（reason unreadable）、そのページの id
-	Code          string                      `json:"code,omitempty"`         // 読めないページで断ったとき、読めない理由の warning の番号（W027〜W029）
 	At            *int                        `json:"at,omitempty"`           // 断られたアクションが何番目か（常駐のログにだけ使う）
 	Result        json.RawMessage             `json:"result,omitempty"`       // 最後のアクションの結果
 	Pages         []RowChange                 `json:"pages,omitempty"`        // 変わった・足した・無くなったページ
@@ -661,7 +659,6 @@ type BookWarning struct {
 	Code       string `json:"code"`
 	Warning    string `json:"warning"`
 	Unreadable bool   `json:"unreadable"`
-	Page       string `json:"page,omitempty"`
 }
 
 // CheckBooks はブックを今の機能台帳で確かめ、warning のあるものを返す（データには手を付けない）

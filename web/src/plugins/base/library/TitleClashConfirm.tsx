@@ -33,11 +33,9 @@ export function TitleClashConfirm({
     }
     return b.why === "kind"
       ? t("It is a different kind")
-      : b.why === "unreadable"
-        ? t("It has a page that cannot be read")
-        : b.why === "within"
-          ? t("It holds what is moved")
-          : t("It cannot be done")
+      : b.why === "within"
+        ? t("It holds what is moved")
+        : t("It cannot be done")
   }
   return (
     <Confirm

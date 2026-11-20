@@ -7,8 +7,6 @@
 // Ctrl+ホイール（Mac は Cmd も。ピンチも）は、回した量とポインタの位置をそのままコマンド zoom-wheel に渡す（倍率はコマンドが決める。
 // コマンドが出ているステージならブラウザの拡大は止める）
 import { memo, type PointerEvent, useEffect, useRef, useState, type WheelEvent } from "react"
-import { findUnreadable } from "../../../core/book"
-import type { UnreadableCode, UnreadableEntry } from "../../../core/schema/book"
 import { paperOf } from "../../../core/stage"
 import { workspaceOf } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
@@ -130,13 +128,7 @@ export const StageView = memo(function StageView() {
       onPointerCancel={endDrag}
       onWheel={onWheel}
     >
-      {stage.opened && book && stage.opened.kind === "unreadable" ? (
-        <UnreadablePage entry={findUnreadable(book, stage.opened.page)?.entry} />
-      ) : stage.opened && book ? (
-        <BookContent stage={id} previewing={inPreview} />
-      ) : (
-        <EmptyStage stage={id} />
-      )}
+      {stage.opened && book ? <BookContent stage={id} previewing={inPreview} /> : <EmptyStage stage={id} />}
     </section>
   )
 })
@@ -161,27 +153,6 @@ function EmptyStage({ stage }: { stage: string }) {
           {t(close.title)}
         </button>
       )}
-    </div>
-  )
-}
-
-// 読めないページを開いたステージの中身: 読めないことと、その理由（中身は描かない）。タイプが無いときは、無いタイプの id も出す
-const UNREADABLE_REASONS = {
-  W027: "Its page type is not installed",
-  W028: "It does not fit its page type",
-  W029: "It breaks the rules of its page type",
-} as const satisfies Record<UnreadableCode, string>
-
-function UnreadablePage({ entry }: { entry: UnreadableEntry | undefined }) {
-  const t = useMessages(kit)
-  const reason =
-    entry?.code === "W027" && entry.type !== undefined
-      ? t("Page type {type} is not installed", { type: entry.type })
-      : entry && t(UNREADABLE_REASONS[entry.code])
-  return (
-    <div className={styles.empty} data-unreadable-page>
-      <p className={styles.prompt}>{t("This page cannot be read")}</p>
-      {reason && <p className={styles.prompt}>{reason}</p>}
     </div>
   )
 }

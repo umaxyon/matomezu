@@ -5,7 +5,7 @@
 // 操作はデータを書き換えず、新しい値を返す（変わらなければ同じものを返す）
 
 import { anchorIds } from "./annotation"
-import { findBinder, findPage, findUnreadable, lineupOf, pagesOf } from "./book"
+import { findBinder, findPage, lineupOf, pagesOf } from "./book"
 import type { ItemId } from "./catalog"
 import type { CoreCatalog, PageTypeId } from "./core-catalog"
 import { isInBook } from "./def/action"
@@ -25,7 +25,7 @@ import { clampPan, contentSize, paperOrigin } from "./viewport"
 //   origin は、位置をデータに持たないプレゼンテーションが、描く中身を右・下へずらした量（印刷区画の数。プレゼンテーションが広さと一緒に知らせる。変わったらパンを合わせる）
 // - unreadable: 読めないページ（中身は描かず、読めないことだけを見せる。タイプも紙も持たない）
 // ページが入っているバインダは持たない（ブックから引く。core/book.ts の findPage）
-export type Opened = OpenedNone | OpenedBinder | OpenedPage | OpenedUnreadable
+export type Opened = OpenedNone | OpenedBinder | OpenedPage
 interface OpenedBook {
   outermost: string // ブックの id
 }
@@ -36,10 +36,6 @@ export interface OpenedBinder extends OpenedBook {
   kind: "binder"
   binder: string // バインダの id
   type: PageTypeId
-}
-export interface OpenedUnreadable extends OpenedBook {
-  kind: "unreadable"
-  page: string // 読めないページの id
 }
 export interface OpenedPage extends OpenedBook {
   kind: "page"
@@ -268,7 +264,6 @@ export function openedAt(catalog: CoreCatalog, book: Pick<Book, "id">, page: Pag
 function openedFirst(catalog: CoreCatalog, book: Book): Opened {
   const [first] = lineupOf(book)
   if (!first) return { kind: "none", outermost: book.id }
-  if (first.kind === "unreadable") return { kind: "unreadable", outermost: book.id, page: first.id }
   return first.kind === "page" ? openedAt(catalog, book, first) : openedIn(catalog, book, first.id)
 }
 
@@ -277,7 +272,6 @@ function openedIn(catalog: CoreCatalog, book: Book, binder: string): Opened {
   const found = findBinder(book, binder)
   if (!found) return { kind: "none", outermost: book.id }
   const [first] = found.lineup
-  if (first?.kind === "unreadable") return { kind: "unreadable", outermost: book.id, page: first.id }
   return first
     ? openedAt(catalog, book, first)
     : { kind: "binder", outermost: book.id, binder: found.id, type: found.pageType as PageTypeId }
@@ -293,11 +287,10 @@ export function openBook(catalog: CoreCatalog, stage: Stage, book: Book): Stage 
 export function openPage(catalog: CoreCatalog, stage: Stage, book: Book, page: string): Stage {
   const o = stage.opened
   const found = findPage(book, page)?.page
-  const unreadable = findUnreadable(book, page)?.entry
-  if (!o || o.outermost !== book.id || (!found && !unreadable)) return stage
+  if (!o || o.outermost !== book.id || !found) return stage
   if (shownPageId(o) === page) return closePrintPreview(stage)
   if (editingBackground(stage)) return stage // 背景編集モードの間は、ページを替えない
-  const to: Opened = found ? openedAt(catalog, book, found) : { kind: "unreadable", outermost: book.id, page }
+  const to = openedAt(catalog, book, found)
   return sameData(to, o) ? stage : settle(leave(opening(edited(stage), to)), HOME)
 }
 
@@ -313,7 +306,6 @@ export function openBinder(catalog: CoreCatalog, stage: Stage, book: Book, binde
 // 開いているものが入っているバインダの id（空のバインダを開いていればそのバインダ。バインダの外のページか、何も開いていなければ null）
 export function binderOf(book: Book, opened: Opened | null): string | null {
   if (opened?.kind === "binder") return opened.binder
-  if (opened?.kind === "unreadable") return findUnreadable(book, opened.page)?.binder?.id ?? null
   return opened?.kind === "page" ? (findPage(book, opened.page)?.binder?.id ?? null) : null
 }
 
@@ -336,7 +328,6 @@ export function followBook(catalog: CoreCatalog, stage: Stage, book: Book, befor
 function followOpened(catalog: CoreCatalog, stage: Stage, book: Book, before?: Book): Stage {
   const o = stage.opened
   if (!o || o.outermost !== book.id) return stage
-  if (o.kind === "unreadable" && findUnreadable(book, o.page)) return stage
   const found = o.kind === "page" ? findPage(book, o.page)?.page : undefined
   if (o.kind === "page" && found) {
     const paper = stagePaper(catalog, found)

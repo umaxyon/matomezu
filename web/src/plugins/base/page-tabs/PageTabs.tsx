@@ -79,14 +79,7 @@ export function PageTabs() {
             className={styles.tab}
             data-locked={e.kind === "page" && e.locked === true}
             data-binder={e.kind === "binder" || undefined}
-            data-unreadable={e.kind === "unreadable" || undefined}
-            aria-selected={
-              e.kind === "page"
-                ? e.id === shown
-                : e.kind === "binder"
-                  ? e.id === binder
-                  : opened?.kind === "unreadable" && opened.page === e.id
-            }
+            aria-selected={e.kind === "page" ? e.id === shown : e.id === binder}
             onClick={() => {
               if (tabDrag.swallowClick()) return
               if (e.kind === "binder") openBinder.run(e.id)
@@ -94,10 +87,9 @@ export function PageTabs() {
             }}
             onContextMenu={ev => {
               if (e.kind === "page") openMenu(ev, { page: e.id })
-              else if (e.kind === "binder") openBinderMenu(ev, { binder: e.id })
-              else ev.preventDefault() // 読めないページには、何もできない
+              else openBinderMenu(ev, { binder: e.id })
             }}
-            {...(e.kind === "unreadable" ? {} : tabDrag.handlers(e.id))}
+            {...tabDrag.handlers(e.id)}
           >
             <span className={styles.typeIcon} aria-hidden="true">
               {icons.get(typeOf(e) ?? "") ?? <FileIcon />}

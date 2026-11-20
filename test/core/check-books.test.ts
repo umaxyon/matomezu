@@ -5,20 +5,21 @@ import { drawingPage, testBook } from "../lineup"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { CORE_CATALOG } from "../support"
 
-test("読めるブックと、ブックごと読めないブックの warning（ブックの形に合わない W005・並びの決まりを守らない W006）に分ける。読めないページだけなら、ブックは読める", () => {
+test("読めるブックと、ブックごと読めないブックの warning（読めないページを持つ W027〜W029・ブックの形に合わない W005・並びの決まりを守らない W006）に分ける", () => {
   const ok = SAMPLE_BOOKS[0]!
   const noType = testBook("x1", "スタンプ帳", [{ ...drawingPage("q1"), type: "@foo/stamps:board" } as never])
   const misfit = { ...ok, id: "x2", title: "壊れた図面", lineup: "?" }
   const twins = testBook("x3", "双子", [drawingPage("q2", { title: "同じ" }), drawingPage("q3", { title: "同じ" })])
   const done = checkBooks(CORE_CATALOG, [ok, noType, misfit, twins])
-  expect(done.books.map(b => b.id)).toEqual([ok.id, "x1"])
+  expect(done.books.map(b => b.id)).toEqual([ok.id])
   expect(done.warnings.map(warningText)).toEqual([
+    "W027 : book x1 (スタンプ帳): 1 page(s) are of type @foo/stamps:board, which is not in the catalog (kept as they are, not readable)",
     "W005 : book x2 (壊れた図面): it does not fit the shape of a book",
     "W006 : book x3 (双子): it breaks the rules of its lineup or of a page type",
   ])
 })
 
-test("機能台帳に無いアイテムと設定の項目は、ブックを読めるまま残し、warning W007 を付ける。あるのに選んでいない物を持つページは、形に合わない読めないページ（W028）", () => {
+test("機能台帳に無いアイテムと設定の項目は、ブックを読めるまま残し、warning W007 を付ける。あるのに選んでいない物を持つページは、形に合わない読めないページ（W028）で、ブックごと読めない", () => {
   const ok = SAMPLE_BOOKS[0]!
   const page = drawingPage("p1", { title: "P" })
   const star = { id: "s", item: "@foo/stars:star", x: 10, y: 10, props: { points: 5 } }
@@ -48,12 +49,9 @@ test("機能台帳に無いアイテムと設定の項目は、ブックを読�
     lineup: [{ ...page, id: "p3", items: [{ ...star, item: "@matomezu/box:shape-nest-box", props: { nope: 1 } }] }],
   }
   const read = checkBooks(CORE_CATALOG, [unselected, misfit])
-  expect(read.warnings).toEqual([])
-  expect(read.books.map(b => b.lineup)).toEqual([
-    [{ kind: "unreadable", id: "p2", title: "P", code: "W028", type: page.type }],
-    [{ kind: "unreadable", id: "p3", title: "P", code: "W028", type: page.type }],
-  ])
-  expect(read.partial.map(n => [n.code, n.params.book, n.params.pages])).toEqual([
+  expect(read.books).toEqual([])
+  expect(read.partial).toEqual([])
+  expect(read.warnings.map(n => [n.code, n.params.book, n.params.pages])).toEqual([
     ["W028", "y2", "1"],
     ["W028", "y3", "1"],
   ])

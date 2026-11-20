@@ -37,8 +37,8 @@ function rowOf(library: Library, r: AnyEntryRef, naming: Naming): LibraryRow {
       id: r.id,
       title,
       type: page?.type ?? NO_TYPE,
-      readable: page !== undefined && page.kind !== "unreadable",
-      locked: page !== undefined && page.kind !== "unreadable" && page.locked === true,
+      readable: page !== undefined,
+      locked: page?.locked === true,
     }
   }
   const row = folders[r.id]

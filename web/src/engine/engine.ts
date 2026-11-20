@@ -16,7 +16,7 @@ import {
   talkActions,
   unexpired,
 } from "../core/annotation"
-import { checkBooks, findPage, pageById, pagesOf, readLibrary, restoreBooks, unreadableOf, warnsOf } from "../core/book"
+import { checkBooks, findPage, pageById, pagesOf, readLibrary, restoreBooks } from "../core/book"
 import { briefLine } from "../core/brief"
 import { bulkActionOf, type LibraryRows, performBulk } from "../core/bulk"
 import { PALETTE, PALETTE_MEANINGS } from "../core/color"
@@ -56,7 +56,7 @@ import {
   restoreCounters,
   restoreRecords,
 } from "../core/records"
-import { type Book, UNREADABLE_CODES } from "../core/schema/book"
+import type { Book } from "../core/schema/book"
 import {
   aiSettings,
   disabledPluginsOf,
@@ -203,7 +203,6 @@ const AI_REFUSALS: Record<Exclude<PerformedIn, { ok: true }>["reason"], string> 
   "no-book": "there is no book with that id (see list_books)",
   "no-page": "there is no page with that id (on.page is the id of a page; read_book lists a book's pages)",
   "no-record": "there is no record with that id (on.record is the id of a record of the action's subject)",
-  unreadable: "that page cannot be read now (code is the reason); nothing can be done to it",
 }
 
 // 断りに、AI への説明を添える
@@ -239,9 +238,6 @@ function refusal(catalog: CoreCatalog, done: Exclude<PerformedIn, { ok: true }>)
   const mark = "systemFolder" in done && done.systemFolder !== undefined ? { systemFolder: done.systemFolder } : {}
   if ("detail" in done && done.detail !== undefined)
     return { ok: false, reason: done.reason, ...kind, ...mark, detail: done.detail }
-  // 読めないページの断りは、そのページの id と理由の番号を添える（常駐は AI に番号だけを返す）
-  if (done.reason === "unreadable")
-    return { ok: false, reason: done.reason, page: done.page, code: done.code, detail: AI_REFUSALS.unreadable }
   return { ok: false, reason: done.reason, ...kind, detail: AI_REFUSALS[done.reason] }
 }
 
@@ -513,9 +509,8 @@ function aiTables(of: Assembled) {
 ;(globalThis as { matomezuReadSettings?: (settings: string) => string }).matomezuReadSettings = settings =>
   JSON.stringify(aiSettings(assembled.catalog.core, restoreSettings(JSON.parse(settings))))
 
-// 残したブックを今の機能台帳で確かめ、warning のあるブック（ブックごと読めない W005・W006、読めないページがある W027〜W029、一部に無い物がある W007）の
-// id・番号・warning の 1 行と、ブックごと読めないか（unreadable）を返す（常駐が一覧に持つ）。読めないページの warning は、ページ 1 枚ごとに、
-// そのページの id（page）を添えて返す（1 行は、同じブックの同じ理由のページで同じ）
+// 残したブックを今の機能台帳で確かめ、warning のあるブック（ブックごと読めない W005・W006・読めないページを持つ W027〜W029、一部に無い物がある W007）の
+// id・番号・warning の 1 行と、ブックごと読めないか（unreadable）を返す（常駐が一覧に持つ）
 ;(globalThis as { matomezuCheckBooks?: (books: string) => string }).matomezuCheckBooks = books => {
   const read = checkBooks(assembled.catalog.core, JSON.parse(books) as unknown[])
   const line = (n: Warning, unreadable: boolean) => ({
@@ -524,19 +519,7 @@ function aiTables(of: Assembled) {
     warning: warningText(n),
     unreadable,
   })
-  const ofPages = (n: Warning): boolean => (UNREADABLE_CODES as readonly string[]).includes(n.code)
-  // 読めないページ 1 枚ごとに、そのページの理由の warning
-  const pages = read.books.flatMap(book =>
-    unreadableOf(book).flatMap(u => {
-      const found = read.partial.find(n => warnsOf(n, book.id, u))
-      return found ? [{ ...line(found, false), page: u.id }] : []
-    }),
-  )
-  return JSON.stringify([
-    ...read.warnings.map(n => line(n, true)),
-    ...read.partial.filter(n => !ofPages(n)).map(n => line(n, false)),
-    ...pages,
-  ])
+  return JSON.stringify([...read.warnings.map(n => line(n, true)), ...read.partial.map(n => line(n, false))])
 }
 
 // 残したフォルダの行の全部（書庫ホーム・フォルダ・ブック・バインダ）とページの行の id の全部が木の決まりを守るかを確かめ、破れていれば warning（W030）の 1 行を、守っていれば空の文字列を返す

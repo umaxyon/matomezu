@@ -1,6 +1,6 @@
 // 読めない物のフォルダ（core/unreadable.ts）: 読めない物は在った所から移り、読めるようになると在った所へ戻る。行の中身には手を付けない
 import { describe, expect, test } from "bun:test"
-import { checkBooks, unreadableUnitsOf } from "../../web/src/core/book"
+import { checkBooks, readLibrary, unreadableUnitsOf } from "../../web/src/core/book"
 import type { CoreCatalog } from "../../web/src/core/core-catalog"
 import {
   BROKEN,
@@ -145,6 +145,9 @@ describe("単位ごとに、欠けた機能台帳で移り、もう 1 回行っ�
           moved.pages.map(p => (p as { id: string }).id),
         ),
       ).toBe(true)
+      // 移したあとの書庫は、欠けた機能台帳でも読めない物を持たない
+      const read = readLibrary(c.less, moved.pages, moved.folders)
+      expect([...read.warnings, ...read.outsideWarnings].map(w => w.code)).toEqual([])
       const again = settle(c.less, moved, LATER) as Settled
       expect(again.writes).toEqual({ pages: {}, folders: {}, removedPages: [], removedFolders: [] })
       const back = settled(CORE_CATALOG, moved, LATER)
@@ -283,7 +286,7 @@ test("ゴミ箱に居た物は、ゴミ箱に居た事（入れた時刻と元�
   expect(byId(settled(CORE_CATALOG, moved, LATER))).toEqual(byId(rows))
 })
 
-test("先のブックと id が重なるブック（W006）は、ブックごと移る。完全に消しても、ほかのブックと分け合うページの行は消さない", () => {
+test("先のブックと id が重なるブック（W006）は、ブックごと移り、相手のブックが在る間は戻らない（書庫ホームへも）。完全に消しても、ほかのブックと分け合うページの行は消さない", () => {
   const shared = drawingPage("p1")
   const rows = worldRows([
     testBook("b1", "B", [shared]),
@@ -291,6 +294,9 @@ test("先のブックと id が重なるブック（W006）は、ブックごと
   ])
   const moved = settled(CORE_CATALOG, rows)
   expect(unreadableOf(moved).lineup.map(r => [r.entry.id, r.code])).toEqual([["b2", "W006"]])
+  const again = settle(CORE_CATALOG, moved, LATER) as Settled
+  expect(again.returned).toEqual([])
+  expect(again.writes).toEqual({ pages: {}, folders: {}, removedPages: [], removedFolders: [] })
   const purge = purgedRows(moved.pages, moved.folders, "b2")
   expect(purge?.removedFolders).toEqual(["b2"])
   expect(purge?.removedPages).toEqual(["p2"])

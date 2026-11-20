@@ -5,7 +5,6 @@ import { z } from "zod"
 import {
   addBinder,
   addPage,
-  entriesIn,
   findBinder,
   lineupOf,
   moveEntry,
@@ -117,8 +116,6 @@ export function duplicatedBinder(
 ): { book: Book; binder: string; pages: string[] } | Declined | null {
   const source = findBinder(book, binder)
   if (!source) return null
-  // 読めないページは複製できないので、それを持つバインダも複製しない（黙って落とした写しを作らない）
-  if (entriesIn(book, source.id).some(p => p.kind === "unreadable")) return null
   const titles = lineupOf(book).map(e => e.title)
   if (title !== undefined && titles.includes(title)) return null
   // 中の物の id は、ページごとに振り直す（ブックのどの id とも、写しどうしでも重ならない。core が run の振る id を重ねない）

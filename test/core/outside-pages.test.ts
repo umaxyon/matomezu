@@ -13,7 +13,6 @@ import {
   NO_CHANGES,
   type PlainFolder,
   TRASH_ID,
-  type TrashFolder,
   withChanges,
 } from "../../web/src/core/folders"
 import { defineMessages } from "../../web/src/core/i18n/messages"
@@ -26,9 +25,9 @@ import {
   type World,
 } from "../../web/src/core/perform"
 import type { ItemPage } from "../../web/src/core/placed"
-import type { Book, UnreadableEntry } from "../../web/src/core/schema/book"
+import type { Book } from "../../web/src/core/schema/book"
 import { pluginKit } from "../../web/src/store/kit"
-import { DRAWING, drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"
+import { DRAWING, drawingPage, SLIDE, testBook, testPage } from "../lineup"
 import { CORE_CATALOG, libraryWith, sequence } from "../support"
 
 const LOCK = "@matomezu/base:lock"
@@ -83,7 +82,6 @@ const TRASH = "@matomezu/base:entry-trash"
 const PAGE_CREATE = "@matomezu/base:page-create"
 const DUPLICATE = "@matomezu/base:entry-duplicate"
 const SNEAK = "test:sneak-rename"
-const SNEAK_ADD = "test:sneak-add"
 
 // 行う前に問わず（許可スコープ "unknown"）、ブックの外のページ x1 の名前を変える書庫のアクション（行った後の確かめだけが止める）
 const sneak = defineAction({
@@ -96,23 +94,6 @@ const sneak = defineAction({
   run: library => {
     const row = library.pages.x1
     return row ? { next: { ...library, pages: { ...library.pages, x1: { ...row, title: "改" } } }, result: {} } : null
-  },
-})
-
-// 行う前に問わず、フォルダ c に読めないページ n1 の行を足す書庫のアクション（ブックの外に読めないページが増える）
-const sneakAdd = defineAction({
-  id: SNEAK_ADD,
-  title: "@matomezu/base:Change pages",
-  aiDescription: "",
-  target: "library",
-  permissionScope: "unknown",
-  args: z.strictObject({}),
-  run: library => {
-    const c = library.folders.c as PlainFolder | undefined
-    if (!c) return null
-    const n1: UnreadableEntry = { kind: "unreadable", id: "n1", title: "増", code: "W027" }
-    const folders = { ...library.folders, c: { ...c, lineup: [...c.lineup, { kind: "page" as const, id: "n1" }] } }
-    return { next: { pages: { ...library.pages, n1 }, folders }, result: {} }
   },
 })
 
@@ -130,11 +111,11 @@ const SEEN = kit.definePermission({
 })
 const catalog = {
   ...CORE_CATALOG,
-  actions: new Map<string, unknown>([...CORE_CATALOG.actions, [SNEAK, sneak], [SNEAK_ADD, sneakAdd]]),
+  actions: new Map<string, unknown>([...CORE_CATALOG.actions, [SNEAK, sneak]]),
   permissions: new Map<string, unknown>([...CORE_CATALOG.permissions, [`@ex/seen:${SEEN.id}`, SEEN]]),
   controlCenters: new Map<string, unknown>([
     ...CORE_CATALOG.controlCenters,
-    ["test:center", { id: "test:center", actions: [SNEAK, SNEAK_ADD] }],
+    ["test:center", { id: "test:center", actions: [SNEAK] }],
   ]),
 } as unknown as typeof CORE_CATALOG
 const libraryCtx = (controlCenter = CENTER) =>
@@ -336,79 +317,4 @@ test("ブックの外のバインダの中のページも、紙と向きをほ�
   expect(performIn(w, UPDATE, { title: "改" }, { page: "y1" }, libraryCtx()).ok).toBe(true)
   // バインダに入っていないページは、向きを変えられる
   expect(performIn(pagesWorld(), UPDATE, { orientation: "portrait" }, { page: "x1" }, libraryCtx()).ok).toBe(true)
-})
-
-const unreadableRow = (id: string, title: string): UnreadableEntry => ({
-  kind: "unreadable",
-  id,
-  title,
-  code: "W027",
-  type: "@foo/stamps:board",
-})
-// 書庫ホームの直下に、ブック b1・読めないページ u1 を持つフォルダ a・空のフォルダ c・読めないページ u2 を持つブックの外のバインダ lb・ブックの外の読めないページ u3 を置いた世界
-function unreadableWorld(): World {
-  const library = libraryWith(
-    [testBook("b1", "ブック", [drawingPage("p1")])],
-    [testBinder("lb", "束", SLIDE, testPage(SLIDE, "y1", { title: "1" }), unreadableRow("u2", "2") as never)],
-  )
-  const home = library.folders[HOME_ID] as HomeFolder
-  return {
-    pages: { ...library.pages, u1: unreadableRow("u1", "読めない"), u3: unreadableRow("u3", "外") },
-    folders: {
-      ...library.folders,
-      a: { folderRole: "folder", id: "a", title: "あ", lineup: [{ kind: "page", id: "u1" }] },
-      c: { folderRole: "folder", id: "c", title: "し", lineup: [] },
-      [HOME_ID]: {
-        ...home,
-        lineup: [...home.lineup, { kind: "folder", id: "a" }, { kind: "folder", id: "c" }, { kind: "page", id: "u3" }],
-      },
-    },
-    settings: {},
-    annotations: {},
-    records: {},
-    counters: {},
-  }
-}
-// 世界 w でフォルダ a をゴミ箱に入れた後の世界
-function trashedA(w: World): World {
-  const done = performIn(w, TRASH, { entry: "a" }, undefined, libraryCtx())
-  if (!done.ok) throw new Error(done.reason)
-  return { ...w, ...withChanges(w, done.changes ?? NO_CHANGES) }
-}
-const unreadableRefusal = (page: string) => ({ ok: false, reason: "unreadable", page, code: "W027" }) as const
-
-test("ブックの外の読めないページを持つフォルダは、動かせ、ゴミ箱に入れられる（読めないページは、同じフォルダに同じ値で残る）", () => {
-  const w = unreadableWorld()
-  const moved = performIn(w, MOVE, { entry: "a", into: "c" }, undefined, libraryCtx())
-  expect(moved.ok).toBe(true)
-  const binned = trashedA(w)
-  expect(binned.pages.u1).toEqual(unreadableRow("u1", "読めない"))
-  expect((binned.folders[TRASH_ID] as TrashFolder).lineup.map(r => r.id)).toEqual(["a"])
-})
-
-test("ブックの外の読めないページを持つフォルダを、ゴミ箱から消す・ゴミ箱を空にすると、読めないページが無くなるので断る", () => {
-  const binned = trashedA(unreadableWorld())
-  expect(performIn(binned, "@matomezu/base:entry-purge", { entries: ["a"] }, undefined, libraryCtx())).toEqual(
-    unreadableRefusal("u1"),
-  )
-  expect(performIn(binned, "@matomezu/base:trash-empty", {}, undefined, libraryCtx())).toEqual(unreadableRefusal("u1"))
-})
-
-test("ブックの外に読めないページが新しく増えると断る", () => {
-  expect(performIn(unreadableWorld(), SNEAK_ADD, {}, undefined, libraryCtx("test:center"))).toEqual({
-    ok: false,
-    reason: "unreadable",
-    page: "n1",
-    code: "W027",
-  })
-})
-
-test("ブックの外の読めないページの入っているフォルダが変わると断る。名前を変える・ゴミ箱に入れる・宛先にすることもできない。複製はアクションが断る", () => {
-  const w = unreadableWorld()
-  expect(performIn(w, MOVE, { entry: "u3", into: "c" }, undefined, libraryCtx())).toEqual(unreadableRefusal("u3"))
-  expect(performIn(w, RENAME, { entry: "u3", title: "改" }, undefined, libraryCtx())).toEqual(unreadableRefusal("u3"))
-  expect(performIn(w, TRASH, { entry: "u3" }, undefined, libraryCtx())).toEqual(unreadableRefusal("u3"))
-  // entry-duplicate はブックの中のエントリだけを複製する（ブックの外の物には run が断る）
-  expect(performIn(w, DUPLICATE, { entry: "u3" }, undefined, libraryCtx())).toEqual({ ok: false, reason: "refused" })
-  expect(performIn(w, UPDATE, { title: "改" }, { page: "u3" }, libraryCtx())).toEqual(unreadableRefusal("u3"))
 })

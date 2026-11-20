@@ -172,36 +172,6 @@ func repeatedChanges(out engine.Output) error {
 	return nil
 }
 
-// unreadableWrite は、out が読めないページの行に触れるか: 読めないページの行を変える、読めないページの行を、それを持つブックのフォルダを消さずに消す、
-// kind が unreadable のページの行を書く、並びに kind が unreadable の要素を持つフォルダの行を書く。読めないページの行はそのまま残す決まりの、エンジンの後ろの守り（Perform が断る。h.mu を持って呼ぶ）
-func (h *Hub) unreadableWrite(out engine.Output) bool {
-	removedFolders := map[string]bool{}
-	for _, c := range out.Folders {
-		if c.Removed {
-			removedFolders[c.ID] = true
-		}
-	}
-	for _, c := range out.Pages {
-		_, unreadable := h.pageWarnings[c.ID]
-		if c.Removed {
-			// 読めないページの行を消してよいのは、それを持つブックごと消すときだけ
-			if book := h.bookOfEntry(c.ID); unreadable && (book == "" || !removedFolders[book]) {
-				return true
-			}
-			continue
-		}
-		if unreadable || kindOf(c.Row) == "unreadable" {
-			return true
-		}
-	}
-	for _, c := range out.Folders {
-		if !c.Removed && slices.ContainsFunc(lineupOf(c.Row), func(e json.RawMessage) bool { return kindOf(e) == "unreadable" }) {
-			return true
-		}
-	}
-	return false
-}
-
 // rowNotice は、窓に知らせるページ・フォルダ 1 つ（field は "page" か "folder"）
 func rowNotice(field string, put rowPut) map[string]any {
 	if put.removed {

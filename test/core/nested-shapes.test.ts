@@ -1,7 +1,7 @@
 // 子の形（ケイパビリティ nests の形が持つ shapes）: ページの形が受け付ける子と、子までたどる・探す・置き換える関数（core/placed.ts）・子を持つ形の大きさ（base の place/placed.ts）
 
 import { describe, expect, test } from "bun:test"
-import { pagesOf, restoreBooks } from "../../web/src/core/book"
+import { checkBooks, pagesOf, restoreBooks } from "../../web/src/core/book"
 import { findShape, type ItemPage, type PlacedShape, replaceShape, walkShapes } from "../../web/src/core/placed"
 import { shownRects } from "../../web/src/plugins/base/place/items"
 import { NEST_PADDING, placedSize } from "../../web/src/plugins/base/place/placed"
@@ -26,10 +26,10 @@ const box = (id: string, x: number, y: number, shapes?: unknown[]) => ({
 })
 const list = (id: string) => ({ id, x: 0, y: 0, item: LIST, props: {} })
 const line = (id: string, from: string, to: string) => ({ id, item: LINE, from, to, props: {} })
-// アイテム items を置いたページが読めるか: 読めれば "page"、読めなければ読めないページの理由の番号（ブックは読めるまま）
+// アイテム items を置いたページが読めるか: 読めれば "page"、読めなければ読めないページの理由の番号（ブックごと読めない）
 const readAs = (items: object[]) => {
-  const entry = restoreBooks(nesting, [book(items)])[0]?.lineup[0]
-  return entry?.kind === "unreadable" ? entry.code : entry?.kind
+  const read = checkBooks(nesting, [book(items)])
+  return read.books[0]?.lineup[0]?.kind ?? read.warnings[0]?.code
 }
 
 describe("子の形を受け付けるページの形（受け付けない子を持つページは、形に合わない読めないページ W028）", () => {

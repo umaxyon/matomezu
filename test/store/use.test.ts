@@ -47,38 +47,32 @@ const saved = {
   ],
 }
 
-// 機能台帳にタイプの無い間の、saved のページ（読めないページ W027。ブックは読める）
-const unreadableNote = { kind: "unreadable", id: "p1", title: "メモ", code: "W027", type: "notes:note" }
-
 const openedOf = (instance: ReturnType<typeof make>) => stageIn(instance.state.getState().window, "s1")?.opened
 
 const make = () =>
   shown(createMatomezu({ plugins: BUILTIN, controlCenter: BUILTIN_CONTROL_CENTER, savedBooks: [saved] }))
 
-test("取り込んだ追加プラグインを use で足すと組み直し、作ったときに渡したブックを新しい台帳で読み直す（足す前は読めないページだったページが、読めるページになり、開いていたステージもそのページを開く）", () => {
+test("取り込んだ追加プラグインを use で足すと組み直し、作ったときに渡したブックを新しい台帳で読み直す（足す前は読めないページを持つので読めなかったブックが、読めるブックになる）", () => {
   const instance = make()
-  expect(instance.state.getState().books.n1?.lineup as unknown).toEqual([unreadableNote])
-  expect(openedOf(instance)).toEqual({ kind: "unreadable", outermost: "n1", page: "p1" }) // 足す前は、ページが読めない
-  expect(instance.state.getState().partial.map(w => w.code)).toEqual(["W027"])
-  expect(openedOf(instance)).toEqual({ kind: "unreadable", outermost: "n1", page: "p1" })
+  expect(instance.state.getState().books.n1).toBeUndefined() // 足す前は、ページのタイプが無いのでブックごと読めない
+  expect(instance.state.getState().unreadable.map(w => w.code)).toEqual(["W027"])
   expect(instance.use([notes])).toEqual({ failed: [] })
   expect(instance.catalog.core.actions.has("notes:rename")).toBe(true)
   expect(instance.plugins.at(-1) as unknown).toBe(notes)
   expect(instance.state.getState().books.n1 as unknown).toEqual(saved)
-  expect(instance.state.getState().partial).toEqual([])
-  expect(openedOf(instance)).toMatchObject({ kind: "page", outermost: "n1", page: "p1", type: "notes:note" })
+  expect(instance.state.getState().unreadable).toEqual([])
   const perform = instance.actions.perform as unknown as (id: string, args: unknown, on: { book: string }) => unknown
   expect(perform("notes:rename", { page: "p1", title: "新" }, { book: "n1" })).toEqual({ ok: true, result: {} })
 })
 
-test("台帳アセンブルで食い違う追加プラグインは外して、ほかは足す。use は前に足したものと置き換える（外したプラグインのタイプのページは、また読めないページになり、開いていたステージも読めないページを開く）", () => {
+test("台帳アセンブルで食い違う追加プラグインは外して、ほかは足す。use は前に足したものと置き換える（外したプラグインのタイプのページを持つブックは、また読めなくなり、開いていたステージは閉じる）", () => {
   const instance = make()
   instance.use([notes])
   const { failed } = instance.use([broken])
   expect(failed.map(f => f.id)).toEqual(["bad"])
   expect(instance.catalog.core.actions.has("notes:rename")).toBe(false)
-  expect(instance.state.getState().books.n1?.lineup as unknown).toEqual([unreadableNote])
-  expect(openedOf(instance)).toEqual({ kind: "unreadable", outermost: "n1", page: "p1" })
+  expect(instance.state.getState().books.n1).toBeUndefined()
+  expect(openedOf(instance) ?? null).toBeNull()
   expect(instance.use([broken, notes]).failed.map(f => f.id)).toEqual(["bad"])
   expect(instance.catalog.core.actions.has("notes:rename")).toBe(true)
 })

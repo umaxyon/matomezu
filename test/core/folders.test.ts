@@ -219,7 +219,7 @@ test("同じフォルダと同じ中身からは、同じ値のブックの本�
 })
 
 // ステージエントリを引く書庫: 書庫ホームに、ブック b1（ページ p1・バインダ f1 の中の s1・s2）・フォルダ d1（中に外のページ y1 と外のバインダ g1 の中の t1）・
-// 外のページ x1・読めない外のページ u1。ゴミ箱に、ブック b2・外のページ z1・外のバインダ h1 の中の w1。どこにも入っていないページ n1
+// 外のページ x1。ゴミ箱に、ブック b2・外のページ z1・外のバインダ h1 の中の w1。どこにも入っていないページ n1
 function outermostLibrary(): Library {
   const tables = tablesOf([book, other])
   const binder = (id: string, ...pages: string[]): BinderFolder => ({
@@ -245,7 +245,6 @@ function outermostLibrary(): Library {
       ...tables.pages,
       ...Object.fromEntries(["x1", "y1", "z1", "n1"].map(id => [id, drawingPage(id, { title: id })])),
       ...Object.fromEntries(["t1", "w1"].map(id => [id, slide(id)])),
-      u1: { kind: "unreadable", id: "u1", title: "読めない", code: "W027" },
     },
     folders: {
       ...tables.folders,
@@ -259,7 +258,6 @@ function outermostLibrary(): Library {
           { kind: "book", id: "b1" },
           { kind: "folder", id: "d1" },
           { kind: "page", id: "x1" },
-          { kind: "page", id: "u1" },
         ],
       },
       [TRASH_ID]: {
@@ -283,8 +281,6 @@ test("ステージエントリ: ブックとその中の物はブック、ブッ
   expect(outermostOf(library, "t1")).toEqual({ kind: "binder", binder: "g1" })
   expect(outermostOf(library, "x1")).toEqual({ kind: "page", page: "x1" })
   expect(outermostOf(library, "y1")).toEqual({ kind: "page", page: "y1" })
-  // 読めないページも、ブックの外ならそのページ
-  expect(outermostOf(library, "u1")).toEqual({ kind: "page", page: "u1" })
 })
 
 test("ステージエントリ: ゴミ箱の中の物も外と同じに引く", () => {

@@ -1,7 +1,7 @@
 // 機能台帳が組み立てるブックの形: タイプが選んだアイテム・設定の項目・プレゼンテーションから作り、選んでいないものは受け付けない
 import { describe, expect, test } from "bun:test"
 import { z } from "zod"
-import { restoreBooks } from "../../web/src/core/book"
+import { checkBooks, restoreBooks } from "../../web/src/core/book"
 import { buildCoreCatalog, checkCoreCatalog } from "../../web/src/core/core-catalog"
 import { BUILTIN } from "../../web/src/plugins"
 import { settingValue } from "../../web/src/plugins/base/book-settings"
@@ -29,11 +29,11 @@ const book = (lineup: unknown[], extra: object = {}) => ({
   lineup,
   ...extra,
 })
-// 台帳 catalog で読んだブック saved の、最初のページ: 読めれば "page"、読めないページなら理由の番号、ブックごと読めなければ "no-book"
-const firstPage = (catalog: Parameters<typeof restoreBooks>[0], saved: unknown) => {
-  const [restored] = restoreBooks(catalog, [saved])
-  const entry = restored?.lineup[0]
-  return !restored ? "no-book" : entry?.kind === "unreadable" ? entry.code : entry?.kind
+// 台帳 catalog で読んだブック saved の、最初のページ: 読めれば "page"、読めないページを持てばその理由の番号、ほかの訳でブックごと読めなければ "no-book"
+const firstPage = (catalog: Parameters<typeof checkBooks>[0], saved: unknown) => {
+  const read = checkBooks(catalog, [saved])
+  const code = read.warnings[0]?.code
+  return read.books[0]?.lineup[0]?.kind ?? (code === "W027" || code === "W028" || code === "W029" ? code : "no-book")
 }
 const box = { id: "n1", x: 10, y: 10, item: "@matomezu/box:shape-nest-box", props: {} }
 const list = { id: "n2", x: 200, y: 10, item: "@matomezu/list:shape-list", props: {} }
