@@ -367,7 +367,7 @@ test("列は、呼ばれた時刻と参加の新しい順に並び、列に触�
   await expect.poll(followsTimes).toBe("follows")
 })
 
-test("ビジター: as visitor で頼むと受け入れのダイアログは区分を選ばせず、受け入れると、ようこそに区分が出て、センターのビジターの節に並ぶ。ビジターはブックも変えられず、確かめて外すと消える", async ({
+test("ビジター: as visitor で頼むと参加要求の郵便にそう出て、受け入れのダイアログは区分を選ばせず、受け入れると、ようこそに区分が出て、センターのビジターの節に並ぶ。ビジターはブックも変えられず、確かめて外すと消える", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -385,7 +385,10 @@ test("ビジター: as visitor で頼むと受け入れのダイアログは区�
     },
   })
   const made = (await res.json()) as { participant: string }
-  await openRequest(page).then(d => d.getByRole("button", { name: "受け入れる" }).click())
+  // 参加要求の郵便にも、ビジターとして頼んだことが出る
+  const mail = await openRequest(page)
+  await expect(mail).toContainText("参加者区分: ビジター（読むだけ）")
+  await mail.getByRole("button", { name: "受け入れる" }).click()
   // ビジターはワークルームに入れないので、題は「参加を受け入れます」
   const dialog = page.getByRole("dialog", { name: "参加を受け入れます" })
   await expect(dialog).toContainText("ビジターとして参加を頼んでいます")
@@ -435,7 +438,9 @@ test("ワーカーとして頼んだ要求も、受け入れのダイアログ�
 }) => {
   await page.goto(BOOK_SCREEN_URL)
   const made = await join(page, "e2e-visitor-2", "選ぶ", "", "S-v2")
-  await openRequest(page).then(d => d.getByRole("button", { name: "受け入れる" }).click())
+  const mail = await openRequest(page)
+  await expect(mail).not.toContainText("参加者区分")
+  await mail.getByRole("button", { name: "受け入れる" }).click()
   const dialog = page.getByRole("dialog", { name: JOINED })
   await expect(dialog.getByRole("radio", { name: "ワーカー" })).toBeChecked()
   await dialog.getByRole("radio", { name: "ビジター" }).check()
