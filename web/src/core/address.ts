@@ -22,8 +22,11 @@ import {
 } from "./window"
 import { MAX_STAGES, MIN_SHARE, newWorkspace, type Workspace } from "./workspace"
 
+// ステージが何も開いていないときの、場所の outermost の値
+export const NO_OUTERMOST = "none"
+
 export interface StagePlace {
-  book: string | null // 開いているブックの id（何も開いていなければ null）
+  outermost: string // 開いているブックの id（何も開いていなければ NO_OUTERMOST）
   page: string | null // 開いているページの id
   binder: string | null // 空のバインダを開いているときの、バインダの id（ページを開いていれば null）
   zoom: number
@@ -84,7 +87,7 @@ function stagesPlaceOf(ws: Workspace, states: (stage: string) => Readonly<Record
     places: ws.stages.map(s => {
       const view = s.mode.kind === "print-preview" ? s.mode.back : s
       return {
-        book: s.opened?.outermost ?? null,
+        outermost: s.opened?.outermost ?? NO_OUTERMOST,
         // 読めないページを開いていれば、その id（読み直しても、同じ読めないページを開く）
         page: s.opened?.kind === "unreadable" ? s.opened.page : shownPageId(s.opened),
         binder: s.opened?.kind === "binder" ? s.opened.binder : null,
@@ -142,7 +145,7 @@ export function moved(a: Address, b: Address, pushes: ReadonlySet<string> = new 
       x.length !== y.length ||
       x.some(
         (p, j) =>
-          p.book !== y[j]?.book ||
+          p.outermost !== y[j]?.outermost ||
           p.page !== y[j]?.page ||
           [...pushes].some(id => !sameData(p.states[id], y[j]?.states[id])),
       )
@@ -152,7 +155,7 @@ export function moved(a: Address, b: Address, pushes: ReadonlySet<string> = new 
 
 // ステージ stage に、場所 place を当てはめる（ブックを名指さない場所は何も開かず、無いページは開かず、開けたものに倍率とずらす量を戻す）
 function placed(catalog: CoreCatalog, books: Readonly<Record<string, Book>>, stage: Stage, place: StagePlace): Stage {
-  const book = place.book === null ? undefined : books[place.book]
+  const book = place.outermost === NO_OUTERMOST ? undefined : books[place.outermost]
   // 表示領域の大きさ（URL には書かない）はステージのまま
   const fresh = { ...newStage(stage.id), view: stage.view }
   if (!book) return fresh
@@ -192,7 +195,7 @@ export function placeAt(
     }
     // 無いブックを名指すステージは開かない（開いていたブックが無くなったときと同じ）。全部がそうなら、そのスクリーンも開かない
     const named = (place.stages?.places ?? []).slice(0, MAX_STAGES)
-    const places = named.filter(p => p.book === null || books[p.book] !== undefined)
+    const places = named.filter(p => p.outermost === NO_OUTERMOST || books[p.outermost] !== undefined)
     if (named.length > 0 && places.length === 0) continue
     if (places.length === 0) {
       const kept = was?.stages ?? newWorkspace(catalog, null, `s${++issued}`)

@@ -4,7 +4,7 @@
 // 変わりは、終わってから 1 つにまとめて書く（分割してブックとページを開いても、ブラウザの履歴に積むのは 1 つ）。その中で書き換えを頼まれた（store の replaceHistory で historyReplaces が増えた）なら、積まずにすぐ書き換える。ブラウザの戻る・進む（popstate）は、その URL の場所を当てはめる。
 // URL の形: 値 1 つ（sc）に、場所を短い名前の JSON で書く（searchOf）。前の形（b0・p0・v0・s0…、c・r・w・f）は読むだけで、書かない。
 // URL が無ければ、開いた直後はステージを並べないスクリーン（コントロールセンター）をカレントスクリーンにする。プラグイン状態の中身は読まない（形を確かめるのは store の locate）
-import { type Address, moved, recentStagesIn, type ScreenPlace, type StagePlace } from "../core/address"
+import { type Address, moved, NO_OUTERMOST, recentStagesIn, type ScreenPlace, type StagePlace } from "../core/address"
 import { stagesDefOf } from "../core/window"
 import type { MatomezuInstance } from "../store/store"
 
@@ -75,7 +75,7 @@ export function searchOf(address: Address): string {
         ? {
             g: {
               l: s.stages.places.map(p => ({
-                b: p.book,
+                b: p.outermost === NO_OUTERMOST ? null : p.outermost,
                 ...(p.page !== null ? { p: p.page } : {}),
                 ...(p.binder !== null ? { f: p.binder } : {}),
                 v: [round(p.zoom), round(p.pan.x), round(p.pan.y)] as [number, number, number],
@@ -135,7 +135,7 @@ function writtenAddress(text: string): Address | null {
       const v = Array.isArray(p.v) ? p.v : []
       return [
         {
-          book: typeof p.b === "string" && p.b !== "" ? p.b : null,
+          outermost: typeof p.b === "string" && p.b !== "" ? p.b : NO_OUTERMOST,
           page: typeof p.p === "string" ? p.p : null,
           binder: typeof p.f === "string" ? p.f : null,
           zoom: num(v[0], 1),
@@ -169,7 +169,7 @@ function formerAddress(q: URLSearchParams): FormerAddress | null {
   for (let i = 0; q.has(`b${i}`); i++) {
     const [zoom, x, y] = (q.get(`v${i}`) ?? "").split(",")
     stages.push({
-      book: q.get(`b${i}`) || null,
+      outermost: q.get(`b${i}`) || NO_OUTERMOST,
       page: q.get(`p${i}`) || null,
       binder: null,
       zoom: n(zoom, 1),
