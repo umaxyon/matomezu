@@ -19,9 +19,11 @@ const SHOWN_PLACES = 5
 
 // 確かめている事: 設定を next に変えると、在る所 places の物（合わせて count 件）が読めない物のフォルダへ移る
 interface Asking {
+  plugin: string
   next: readonly string[]
   places: readonly MovedPlace[]
   count: number
+  pages: boolean // 移る物がどれもページか
 }
 
 export function EnabledPluginsSetting({ label, value, onChange }: UserSettingControlProps<readonly string[]>) {
@@ -46,7 +48,14 @@ export function EnabledPluginsSetting({ label, value, onChange }: UserSettingCon
       return
     }
     if (moved === BROKEN || moved.length === 0) return onChange(next)
-    setAsking({ next, places: movedPlacesOf(moved, read(), naming()), count: moved.length })
+    const name = added.find(p => p.id === id)
+    setAsking({
+      plugin: name?.title ? t(name.title) : id,
+      next,
+      places: movedPlacesOf(moved, read(), naming()),
+      count: moved.length,
+      pages: moved.every(m => m.kind === "page"),
+    })
   }
   return (
     <Section title={label}>
@@ -68,14 +77,30 @@ export function EnabledPluginsSetting({ label, value, onChange }: UserSettingCon
       ))}
       {asking && (
         <Confirm
-          message={t("{count} items will move to the unreadable folder", { count: asking.count })}
+          message={t("Disable the plugin?")}
           detail={[
+            t("Disabling {plugin} makes these unreadable. They move to the unreadable folder", {
+              plugin: asking.plugin,
+            }),
+            t(asking.pages ? "{count} pages" : "{count} items", { count: asking.count }),
             ...asking.places
               .slice(0, SHOWN_PLACES)
-              .map(place => t('"{place}": {count}', { place: nameOf(place), count: place.count })),
+              .map(place =>
+                t(
+                  place.book
+                    ? place.pages
+                      ? 'Book "{place}": {count} pages'
+                      : 'Book "{place}": {count} items'
+                    : place.pages
+                      ? 'Folder "{place}": {count} pages'
+                      : 'Folder "{place}": {count} items',
+                  { place: nameOf(place), count: place.count },
+                ),
+              ),
             ...(asking.places.length > SHOWN_PLACES
               ? [t("{count} more places", { count: asking.places.length - SHOWN_PLACES })]
               : []),
+            t("Enable it again and they go back where they were"),
           ]}
           ok={t("Disable")}
           cancel={t("Cancel")}

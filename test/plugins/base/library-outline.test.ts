@@ -328,7 +328,7 @@ test("無効にしたら移る物は、在る所ごとに数え、在る所が�
     NAMING,
   )
   expect(places).toEqual([
-    { id: "b2", title: "画面の構成", count: 2 },
-    { id: "b1", title: "まとめ図の構想", count: 1 },
+    { id: "b2", title: "画面の構成", book: true, count: 2, pages: true },
+    { id: "b1", title: "まとめ図の構想", book: true, count: 1, pages: true },
   ])
 })

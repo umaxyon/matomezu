@@ -49,7 +49,7 @@ test("設定の「プラグイン」に、足した追加プラグインがス�
   expect(enabled()).toEqual(["@ex/frame"])
   fireEvent.click(boxes[0] as HTMLInputElement)
   await waitFor(() => expect(enabled()).toEqual([])) // 移る物が無ければ、確かめずに無効にする
-  expect(screen.queryByText(/件移ります/)).toBeNull()
+  expect(screen.queryByText("プラグインを無効にしますか？")).toBeNull()
 })
 
 test("無効にすると読めなくなる物が在れば、件数と在る所を出して確かめ、やめれば有効のまま、無効にするを押すと無効になる", async () => {
@@ -60,12 +60,16 @@ test("無効にすると読めなくなる物が在れば、件数と在る所�
   const { boxes, enabled } = openPlugins(moved)
   fireEvent.click(boxes[0] as HTMLInputElement)
   fireEvent.click(boxes[0] as HTMLInputElement)
-  const ask = (await screen.findByText("読めない物のフォルダへ 2 件移ります")).closest("dialog") as HTMLElement
-  expect(within(ask).getByText(/^「.+」 2 件$/)).toBeTruthy()
+  const ask = (await screen.findByText("プラグインを無効にしますか？")).closest("dialog") as HTMLElement
+  expect(
+    within(ask).getByText("@ex/frame を無効にすると、次の物が読めなくなり、読めない物のフォルダへ移ります"),
+  ).toBeTruthy()
+  expect(within(ask).getByText("ページ 2 枚")).toBeTruthy()
+  expect(within(ask).getByText(/^・フォルダ「.+」のページ 2 枚$/)).toBeTruthy() // 書庫に無い所は、ブックでない所として出る
   fireEvent.click(within(ask).getByRole("button", { name: "キャンセル", hidden: true }))
   expect(enabled()).toEqual(["@ex/frame"])
   fireEvent.click(boxes[0] as HTMLInputElement)
-  await screen.findByText("読めない物のフォルダへ 2 件移ります")
+  await screen.findByText("プラグインを無効にしますか？")
   fireEvent.click(screen.getByRole("button", { name: "無効にする", hidden: true }))
   expect(enabled()).toEqual([])
 })

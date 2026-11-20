@@ -123,11 +123,14 @@ export function placeIdOf(from: readonly string[], roleOf: (id: string) => unkno
   return roleOf(near) === "binder" && next !== undefined && roleOf(next) === "book" ? next : near
 }
 
-// 追加プラグインを無効にしたら移る物 moved が在る所ごとの数（在る所の名前 title。名前の無い物は NO_TITLE。在る所が最初に出た順）
+// 追加プラグインを無効にしたら移る物 moved が在る所ごとの数（在る所の名前 title。名前の無い物は NO_TITLE。在る所が最初に出た順）。
+// book は在る所がブックか、pages は数えた物がどれもページか
 export interface MovedPlace {
   id: string
   title: string
+  book: boolean
   count: number
+  pages: boolean
 }
 export function movedPlacesOf(moved: readonly MovedIfOff[], library: Library, naming: Naming): readonly MovedPlace[] {
   const roleOf = (id: string): unknown => library.folders[id]?.folderRole
@@ -140,7 +143,8 @@ export function movedPlacesOf(moved: readonly MovedIfOff[], library: Library, na
     placeOfHolder.set(m.holder, id)
     const was = places.get(id)
     const title = was?.title ?? titleOf(library, "folder", id, naming) ?? NO_TITLE
-    places.set(id, { id, title, count: (was?.count ?? 0) + 1 })
+    const book = roleOf(id) === "book"
+    places.set(id, { id, title, book, count: (was?.count ?? 0) + 1, pages: (was?.pages ?? true) && m.kind === "page" })
   }
   return [...places.values()]
 }
