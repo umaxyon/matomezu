@@ -8,15 +8,13 @@ import {
   cardSizeOf,
   lanesOf,
   orderedProjects,
-  type ProjectRecord,
   shownProjects,
-  type TicketRecord,
   ticketsByLane,
 } from "../../../web/src/plugins/taskboard/board/shown"
 import { DEFAULT_SORT, type SortRules, sortTickets } from "../../../web/src/plugins/taskboard/board/sort"
 import { PROJECT_ORDER, SHOWN_PROJECTS } from "../../../web/src/plugins/taskboard/board/user-settings"
-import { PROJECT } from "../../../web/src/plugins/taskboard/project"
-import { TICKET } from "../../../web/src/plugins/taskboard/ticket"
+import { PROJECT, type Project } from "../../../web/src/plugins/taskboard/project"
+import { TICKET, type Ticket } from "../../../web/src/plugins/taskboard/ticket"
 import { assigneesOf } from "../../../web/src/plugins/taskboard/ticket/assignees"
 import { currentTicketsOf } from "../../../web/src/plugins/taskboard/ticket/current"
 import { ticketLabel } from "../../../web/src/plugins/taskboard/ticket/label"
@@ -24,7 +22,7 @@ import { tagsOf } from "../../../web/src/plugins/taskboard/ticket/tags"
 import { type HistoryRecord, newestFirst } from "../../../web/src/plugins/taskboard/ticket-history"
 import { CORE_CATALOG } from "../../support"
 
-const project = (id: string, over: Partial<ProjectRecord> = {}): ProjectRecord => ({
+const project = (id: string, over: Partial<Project> = {}): Project => ({
   id,
   name: id,
   prefix: "T-",
@@ -43,7 +41,7 @@ const project = (id: string, over: Partial<ProjectRecord> = {}): ProjectRecord =
   cardShows: { priority: true, volume: true },
   ...over,
 })
-const ticket = (id: string, over: Partial<TicketRecord> = {}): TicketRecord => ({
+const ticket = (id: string, over: Partial<Ticket> = {}): Ticket => ({
   id,
   project: "p1",
   number: Number(id.replace(/\D/g, "")) || 1,
@@ -181,7 +179,7 @@ test("ワークルームの今のチケットは、担当に入っていて作�
   })
   const closed = project("p2", { ...working, id: "p2", closed: true })
   const projects = new Map([working, closed].map(p => [p.id, p]))
-  const of = (tickets: TicketRecord[]) => currentTicketsOf("r1", tickets, id => projects.get(id)).map(c => c.ticket.id)
+  const of = (tickets: Ticket[]) => currentTicketsOf("r1", tickets, id => projects.get(id)).map(c => c.ticket.id)
   const at = (h: number) => `2026-11-01T0${h}:00:00.000Z`
   // 担当の 2 人目でも入る。担当でない・作業中でないレーン・未分類・プロジェクトが無いチケットは入らない
   expect(of([ticket("T1", { lane: "doing", assignees: ["r2", "r1"] })])).toEqual(["T1"])
@@ -224,7 +222,7 @@ test("利用者の設定 2 つは利用者だけが変え、値の形から入�
 
 test("レーンのドラッグによる並べ替えは、未分類の行も含む並びで、ドラッグしたレーンを離したレーンの位置へ移す", () => {
   const lane = (id: string) => ({ kind: "lane" as const, id, name: id, prompt: "", cardSize: "inherit" as const })
-  const rows: ProjectRecord["lanes"] = [lane("a"), lane("b"), { kind: "unsorted" as const, shown: true }, lane("c")]
+  const rows: Project["lanes"] = [lane("a"), lane("b"), { kind: "unsorted" as const, shown: true }, lane("c")]
   const keys = (list: typeof rows) => list.map(laneKeyOf)
   expect(keys(movedLanes(rows, "c", "a"))).toEqual(["c", "a", "b", "unsorted"])
   expect(keys(movedLanes(rows, "a", "unsorted"))).toEqual(["b", "unsorted", "a", "c"])
@@ -255,7 +253,7 @@ test("ワークルームの作業の様子は、担当に入っていて作業�
       { kind: "unsorted", shown: false },
     ],
   })
-  const records = (t?: Partial<TicketRecord>): Record<string, Record<string, unknown>> => ({
+  const records = (t?: Partial<Ticket>): Record<string, Record<string, unknown>> => ({
     [TICKET.id]: t ? { t1: ticket("t1", t) } : {},
     [PROJECT.id]: { p1: p },
   })

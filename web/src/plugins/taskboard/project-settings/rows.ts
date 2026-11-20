@@ -2,10 +2,9 @@
 // 行からプロジェクトを直すアクションの引数を作る関数。
 // 行は画面の中だけの鍵 key と、データの id（もうある行だけ。無い行は保存で新しく入る）を分けて持つ。もうある行は、開いたときの名前 was も持つ
 import type { z } from "zod"
-import { DONE_LANE_CARD_SIZE, type LANE, NO_DONE_LANE, type PROJECT, repeatedAt, type TAG, UNSORTED } from "../project"
+import { DONE_LANE_CARD_SIZE, type LANE, NO_DONE_LANE, type Project, repeatedAt, type TAG, UNSORTED } from "../project"
 import { moved } from "../reorder/order"
 
-type Project = z.output<typeof PROJECT.record>
 type Lane = z.output<typeof LANE>
 type Tag = z.output<typeof TAG>
 

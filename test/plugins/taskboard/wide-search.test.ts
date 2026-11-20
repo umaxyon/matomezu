@@ -1,6 +1,6 @@
 // 横断検索のチケットの絞り（taskboard/wide-search/filter.ts）: 横断検索の当たりのチケットの id の集合と、プロジェクト・タグ・優先度の選びの掛け合わせ
 import { expect, test } from "bun:test"
-import type { TicketRecord } from "../../../web/src/plugins/taskboard/board/shown"
+import type { Ticket } from "../../../web/src/plugins/taskboard/ticket"
 import { ticketNumberOf } from "../../../web/src/plugins/taskboard/ticket/label"
 import {
   filterTickets,
@@ -14,7 +14,7 @@ import {
 
 const TICKET = "@matomezu/taskboard:ticket"
 const HISTORY = "@matomezu/taskboard:ticket-history"
-const ticket = (id: string, over: Partial<TicketRecord> = {}): TicketRecord => ({
+const ticket = (id: string, over: Partial<Ticket> = {}): Ticket => ({
   id,
   project: "p1",
   number: 1,

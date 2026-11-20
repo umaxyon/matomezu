@@ -1,10 +1,12 @@
 // タスクボード 1 枚のレーンの横並び。レーンのタイトル帯をドラッグすると、レーンを左右に入れ替える（プロジェクトのレーンの並びを書き換える。直せないプロジェクトと、レーンを最大化している間は動かせない）
 import { Slot, useActions, useAllowedOn } from "../../../plugin-api/ui"
+import type { Project } from "../project"
 import { PROJECT_UPDATE } from "../project/actions"
 import { useGripDrag } from "../reorder/useGripDrag"
+import type { Ticket } from "../ticket"
 import { LaneView } from "./LaneView"
 import { laneKeyOf, movedLanes } from "./lane-order"
-import { lanesOf, type ProjectRecord, type TicketRecord, type WorkroomRecord } from "./shown"
+import { lanesOf, type WorkroomRecord } from "./shown"
 import { PLUGIN_FRAMES } from "./slots"
 import styles from "./TaskboardView.module.css"
 
@@ -15,8 +17,8 @@ export function BoardLanes({
   laneMax,
   onToggleMaximize,
 }: {
-  project: ProjectRecord
-  byLane: Readonly<Record<string, TicketRecord[]>>
+  project: Project
+  byLane: Readonly<Record<string, Ticket[]>>
   workrooms: readonly WorkroomRecord[]
   laneMax: string | undefined // 最大化しているレーンの id
   onToggleMaximize: (lane: string) => void

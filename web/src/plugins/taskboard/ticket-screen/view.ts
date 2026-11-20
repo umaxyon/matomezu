@@ -2,10 +2,9 @@
 // 日の区切りは時間帯で変わるので、時間帯を受け取る（無ければ使っている環境の時間帯）
 import type { z } from "zod"
 import type { By } from "../by"
-import type { TICKET } from "../ticket"
+import type { Ticket } from "../ticket"
 import { type HISTORY, newestFirst, TOPIC_BODY } from "../ticket-history"
 
-type Ticket = z.output<typeof TICKET.record>
 type Line = z.output<typeof HISTORY.record>
 
 // 名前の並びを、言語 lang の言い方でつないだ文字

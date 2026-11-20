@@ -6,13 +6,14 @@
 import { useMessages, usePluginState } from "../../../plugin-api/ui"
 import { kit } from "../kit"
 import type { CardShows, CardSize } from "../project"
+import type { Ticket } from "../ticket"
 import { ticketLabel } from "../ticket/label"
 import { useOpenTicket } from "../ticket-screen/useOpenTicket"
 import { CARD_VISIT } from "."
 import { AssigneeStack } from "./AssigneeStack"
 import { CardTags } from "./CardTags"
 import styles from "./LaneView.module.css"
-import { PRIORITIES, type TagRecord, type TicketRecord, VOLUMES, type WorkroomRecord } from "./shown"
+import { PRIORITIES, type TagRecord, VOLUMES, type WorkroomRecord } from "./shown"
 
 // 優先度の棒の形（SVG の単位）: どの棒も同じ太さで描けるよう、CSS の px ではなく SVG で描く
 const BAR_WIDTH = 2
@@ -35,7 +36,7 @@ export function TicketCardView({
 }: {
   size: CardSize
   shows: CardShows
-  ticket: TicketRecord
+  ticket: Ticket
   prefix: string
   tags: readonly TagRecord[]
   assignees: readonly WorkroomRecord[]

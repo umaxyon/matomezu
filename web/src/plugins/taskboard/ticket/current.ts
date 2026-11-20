@@ -2,8 +2,7 @@
 // 担当は書いたままの assignees で見る（消したワークルームは参加者の一覧に出ない）。
 // 閉じたプロジェクトのチケットも数える。完了のレーンには作業中の印が付かないので、完了のチケットは入らない。
 // 参加者の一覧の行の下の 1 行・右の今のタスクの列・作業の様子（workroomActivity）が、この 1 つの判定を使う
-import type { z } from "zod"
-import { inWorkingLane, type PROJECT } from "../project"
+import { inWorkingLane, type Project } from "../project"
 
 // 判定に使うチケットの項目（チケットのレコードの型は ticket の定義が、この判定を使うので、ここでは項目だけを書く）
 export interface TicketLike {
@@ -13,7 +12,6 @@ export interface TicketLike {
   assignees: readonly string[]
   updatedAt: string
 }
-type Project = z.output<typeof PROJECT.record>
 
 export interface CurrentTicket<T extends TicketLike = TicketLike> {
   ticket: T

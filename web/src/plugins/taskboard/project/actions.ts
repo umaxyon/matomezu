@@ -1,6 +1,6 @@
 // プロジェクトのアクション。プロジェクトを作る・閉じる・開け直すは AI も行え、プロジェクトを直す（レーン・タグのプロンプトは AI への指示なので）は利用者だけ。
 // プロジェクトを作るのは、最初の 1 度は常駐が初めて起動したときに行う（project-add の引数は省いてよい）
-import { type z, z as zod } from "zod"
+import { z as zod } from "zod"
 import { type Records, recordIn } from "../by"
 import { kit } from "../kit"
 import {
@@ -14,14 +14,13 @@ import {
   PREFIX,
   PROJECT,
   PROJECT_NAME_MAX,
+  type Project,
   prefixKey,
   TAG,
   TAG_NAME_MAX,
   TAGS,
 } from "./project"
 import { projectNameOf, sayIn, templateOf } from "./template"
-
-export type Project = z.output<typeof PROJECT.record>
 
 // アクションが読んだプロジェクト（reads が id で答えた物か、宛先のチケットが指す先）
 export const projectOf = (ctx: Records, id: string): Project | undefined =>
@@ -82,7 +81,7 @@ const TAG_INPUT = TAG.extend({ id: zod.string().min(1).optional(), name: zod.str
 const TICKET_ID = kit.name("ticket")
 
 // 完了のレーンを決める: 引数 ref が無ければ今のまま（新しいレーンの並びに無ければ none）、あれば none か、新しいレーンの並びの id か名前
-function doneLaneOf(
+function resolveDoneLane(
   now: Project,
   ref: string | undefined,
   lanes: Project["lanes"],
@@ -137,7 +136,7 @@ export const PROJECT_UPDATE = kit.defineAction({
     if (lanes && !LANES.safeParse(lanes).success)
       return { declined: "the lanes need exactly one unsorted row, and the lane ids and names must not repeat" }
     if (tags && !TAGS.safeParse(tags).success) return { declined: "the tag ids and names must not repeat" }
-    const done = doneLaneOf(now, args.doneLane, (lanes ?? now.lanes) as Project["lanes"])
+    const done = resolveDoneLane(now, args.doneLane, (lanes ?? now.lanes) as Project["lanes"])
     if ("declined" in done) return done
     if (done.id !== (now.doneLane ?? NO_DONE_LANE) && done.id !== NO_DONE_LANE) {
       // 新しい完了のレーンにいるチケットは、担当がいれば断る

@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useAllowedOn, useMessages, usePluginState, useRecords, useUpdatePluginState } from "../../../plugin-api/ui"
 import { IconButton, TitledArea, useControlCenterMaximize } from "../../base/ui"
+import { WORKROOM_SUBJECT } from "../by"
 import { GearIcon } from "../icons"
 import { kit } from "../kit"
 import { PROJECT } from "../project"
@@ -27,7 +28,7 @@ export function TaskboardView() {
   const allTickets = useRecords(TICKET.id, { where: [] })
   const filter = usePluginState(kit, TICKET_FILTER)
   const tickets = filterTickets(allTickets, filter)
-  const workrooms = useRecords("@matomezu/base:workroom", { where: [] })
+  const workrooms = useRecords(WORKROOM_SUBJECT, { where: [] })
   const settings = useBoardSettings()
   const [root, setRoot] = useState<HTMLDivElement | null>(null)
   const ordered = orderedProjects(projects, settings.order)
