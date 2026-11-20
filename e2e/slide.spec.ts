@@ -101,6 +101,11 @@ const EMPTY = testBook("b2", "空のスライド", [
 ])
 const WIDE_WIDTH = 1280
 
+// 要素 selector（1 つ）の、描くときの線の色（計算した値）
+async function strokeOf(page: Page, selector: string): Promise<string> {
+  return page.locator(selector).evaluate(el => getComputedStyle(el).stroke)
+}
+
 test.describe("スライドの操作", () => {
   test.use({ books: [EMPTY] })
 
@@ -184,6 +189,8 @@ test.describe("スライドの操作", () => {
     // 離す前に、置いたときと同じ見た目の楕円が見える（まだ置いていないので、アイテムは無い）
     await expect(page.locator("[data-item]")).toHaveCount(0)
     await expect(page.locator("[data-placing] ellipse")).toHaveCount(1)
+    // 要素があるだけでなく、線が描かれている（色がテーマキーの var で、決まらないと none になり見えない）
+    expect(await strokeOf(page, "[data-ghost] ellipse")).not.toBe("none")
     // Ctrl を押しながら動かすと正円（長い方の 300 に揃う）
     await page.keyboard.down("Control")
     await page.mouse.move(at.x + 401 * z, at.y + 250 * z, { steps: 2 })
@@ -204,6 +211,53 @@ test.describe("スライドの操作", () => {
     const after = (await e.boundingBox())!
     expect(Math.abs(after.width - after.height)).toBeLessThan(3)
     expect(after.width / z).toBeGreaterThan(380)
+  })
+
+  test("Ctrl を先に押したままドラッグしても、楕円は正円で置け、角のつまみも正円になる", async ({ page }) => {
+    await page.goto(BOOK_SCREEN_URL)
+    await (await footerMenuTool(page, "楕円")).click()
+    const at = await onPaper(page, 0, 0)
+    const z = (await paper(page).boundingBox())!.width / WIDE_WIDTH
+    await page.keyboard.down("Control")
+    await page.mouse.move(at.x + 100 * z, at.y + 100 * z)
+    await page.mouse.down()
+    await page.mouse.move(at.x + 400 * z, at.y + 250 * z, { steps: 6 })
+    await page.mouse.up()
+    await page.keyboard.up("Control")
+    const e = page.locator("[data-item]").first()
+    const box = (await e.boundingBox())!
+    expect(Math.abs(box.width - box.height)).toBeLessThan(3)
+    expect(Math.abs(box.width / z - 300)).toBeLessThan(4)
+    const grip = (await page.locator('[data-grip="bottom-right"]').boundingBox())!
+    await page.keyboard.down("Control")
+    await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(grip.x + grip.width / 2 + 100 * z, grip.y + grip.height / 2 + 20 * z, { steps: 5 })
+    await page.mouse.up()
+    await page.keyboard.up("Control")
+    const after = (await e.boundingBox())!
+    expect(Math.abs(after.width - after.height)).toBeLessThan(3)
+    expect(after.width / z).toBeGreaterThan(380)
+  })
+
+  test("文字枠・直線・自由な線も、ドラッグしている間に線が見える", async ({ page }) => {
+    await page.goto(BOOK_SCREEN_URL)
+    const at = await onPaper(page, 0, 0)
+    const z = (await paper(page).boundingBox())!.width / WIDE_WIDTH
+    for (const [tool, shape, y] of [
+      ["文字枠", "rect", 50],
+      ["直線", "polyline", 250],
+      ["自由な線", "polyline", 450],
+    ] as const) {
+      await (await footerMenuTool(page, tool)).click()
+      await page.mouse.move(at.x + 100 * z, at.y + y * z)
+      await page.mouse.down()
+      await page.mouse.move(at.x + 400 * z, at.y + (y + 150) * z, { steps: 6 })
+      expect(await strokeOf(page, `[data-ghost] ${shape}`)).not.toBe("none")
+      await page.mouse.up()
+    }
+    // 何も書かなかった文字枠は消え、直線と自由な線が残る
+    await expect(page.locator("[data-item]")).toHaveCount(2)
   })
 
   test("直線を選ぶと、バーで色・太さ・点線・矢印を変えられる。楕円は塗りと枠の太さを変えられる", async ({ page }) => {
