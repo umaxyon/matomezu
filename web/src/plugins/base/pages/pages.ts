@@ -9,7 +9,7 @@ import type { ItemPage } from "../../../core/placed"
 import type { Book, Page } from "../../../core/schema/book"
 import { settingsAt } from "../book-settings"
 import { kit } from "../kit"
-import { extentOf, growOf, paddedFor, pageArea } from "../place/items"
+import { extentOf, growOf, paddedFor, pageArea } from "../place/grow"
 
 // タイプ type のページの、紙の規定
 const paperRule = (catalog: CoreCatalog, type: string): PaperRule => pageType(catalog, type).paper

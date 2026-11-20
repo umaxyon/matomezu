@@ -6,8 +6,9 @@ import { findShape, type ItemPage, walkShapes } from "../../../web/src/core/plac
 import type { Book } from "../../../web/src/core/schema/book"
 import { screenOf } from "../../../web/src/core/window"
 import { childOrigin, frameOf, freeSpotIn } from "../../../web/src/plugins/base/place/frame"
-import { floorsOf, resizedBy, roomOf } from "../../../web/src/plugins/base/place/items"
+import { roomOf } from "../../../web/src/plugins/base/place/grow"
 import { allRectsOf, NEST_PADDING, placedSize, portAreasOf } from "../../../web/src/plugins/base/place/placed"
+import { floorsOf, resizedBy } from "../../../web/src/plugins/base/place/size"
 import { targetsFrom } from "../../../web/src/plugins/items/line/connect"
 import { routeInputOf } from "../../../web/src/plugins/items/line/drawn"
 import {

@@ -202,7 +202,7 @@ export const PAPER_REPARENT = kit.defineCommand({
   when: hasOpenedPage,
 })
 
-// アイテムの辺（角なら 2 つの辺）をつかんで、画面の上で動いた量だけ大きさを変える（items.ts の resizedBy）
+// アイテムの辺（角なら 2 つの辺）をつかんで、画面の上で動いた量だけ大きさを変える（base の place/size.ts の resizedBy）
 export const PAPER_RESIZE = kit.defineCommand({
   id: "paper-resize",
   performs: [ITEM_RESIZE.id],

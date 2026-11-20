@@ -1,10 +1,23 @@
-// 可変ページの広さ: 紙の大きさで区切った印刷区画を、中身が入るだけ並べる（place/items の pageArea が使う）。区切りの線の位置も出す
+// ページの紙の大きさと可変ページの広さ: 紙の大きさで区切った印刷区画を、中身が入るだけ並べる（pageArea）。区切りの線の位置、増やす向き（growOf）、
+// 中身の外枠（extentOf）、中身を印刷区画の単位でずらす（alignPadding・paddedFor）も出す
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
+import type { ConnectorData } from "../../../core/def/item"
 import type { GrowChoice } from "../../../core/def/paper"
-import type { Rect, Size } from "../../../core/geom"
+import type { Point, Rect, Size } from "../../../core/geom"
+import { resolvePaper } from "../../../core/paper"
+import {
+  byConnector,
+  connectorDef,
+  connectorsOf,
+  type ItemPage,
+  isShape,
+  type PlacedConnector,
+  pageItemsOf,
+} from "../../../core/placed"
 import type { Page } from "../../../core/schema/book"
-import type { SettingReader } from "../book-settings"
+import { type SettingReader, settingsAt } from "../book-settings"
 import { setField } from "../utils/fields"
+import { portAreasOf, rectsOf } from "./placed"
 
 // 可変ページの増やす向き: 上・下・左・右のうち、どれへ印刷区画を増やすか
 export interface GrowSides {
@@ -51,7 +64,7 @@ export function grownArea(
   spare = false,
 ): { columns: number; rows: number; size: Size } {
   // 端がちょうど印刷区画の境目なら、次の印刷区画は要らない（割り算の誤差で 1 つ増やさない）。左（上）へ増やすページは、
-  // 左（上）の空きの印刷区画をデータに持つ（items.ts の alignPadding）ので、少なくとも 2 つ
+  // 左（上）の空きの印刷区画をデータに持つ（alignPadding）ので、少なくとも 2 つ
   const count = (end: number, len: number, before: boolean, after: boolean) =>
     before || after ? Math.max(before ? 2 : 1, Math.ceil(end / len - 1e-9)) + (spare && after ? 1 : 0) : 1
   const columns = count(extent ? extent.x + extent.w : 0, paper.w, sides.left, sides.right)
@@ -100,3 +113,147 @@ export function growsValue(catalog: CoreCatalog, type: string, grows: boolean | 
 // ページ page の grows を grows（ページの grows の値）にしたもの（中身は、ノーマライズステップ pages/variable-pages.ts が増やす向きに合わせてずらす）
 export const withGrows = <P extends Page>(page: P, grows: Page["grows"]): P =>
   setField(page, ["orientation"], "grows", grows)
+
+// ページの紙の大きさ
+export const paperSize = (catalog: CoreCatalog, page: ItemPage): Size => resolvePaper(catalog, page).size
+
+// ページ page の増やす向き（可変ページでなければ undefined）。利用者が選ぶタイプは選んだ向き（選べない向きや true なら既定）、
+// タイプが決めるタイプは、そのページで効いている設定の値から。いつも可変ページのタイプは、どのページもタイプの向き
+export function growOf(catalog: CoreCatalog, page: ItemPage): GrowSides | undefined {
+  const rule = catalog.pageTypes.get(page.type)?.grow
+  if (rule && "always" in rule) return rule.always
+  if (!page.grows || !rule) return undefined
+  if ("sides" in rule) return rule.sides(settingsAt(catalog, page))
+  const chosen = page.grows === true || !rule.choices.includes(page.grows) ? rule.choices[0] : page.grows
+  return chosen && GROW_CHOICE_SIDES[chosen]
+}
+
+declare module "../../../core/catalog" {
+  interface PageTypeExtras {
+    // 位置をデータに持たないプレゼンテーションが、可変ページで描く中身を右・下へずらした印刷区画の数（ページの slide の形も、同じだけずらして描く。無ければ 0）。
+    // page で効いている設定の値は setting、ページの増やす向きは grow（可変ページでなければ undefined。growOf）
+    contentOrigin?(catalog: CoreCatalog, page: ItemPage, setting: SettingReader, grow: GrowSides | undefined): Point
+  }
+}
+
+// ページ page の slide の形を、描くときにずらす量（紙の上。ページのタイプの contentOrigin の印刷区画の数に、紙の大きさを掛ける）。
+// 位置をデータに持つプレゼンテーションは、データの slide の座標をずらすので、ここでは 0
+export function slideOffsetOf(catalog: CoreCatalog, page: ItemPage): Point {
+  const paper = paperSize(catalog, page)
+  const origin = pageType(catalog, page.type).contentOrigin?.(
+    catalog,
+    page,
+    settingsAt(catalog, page),
+    growOf(catalog, page),
+  )
+  return origin ? { x: origin.x * paper.w, y: origin.y * paper.h } : { x: 0, y: 0 }
+}
+
+// ページ page の広さ: 可変ページでなければ紙 1 枚。可変ページは、形とつなぐものの外枠が入るだけ印刷区画を並べた広さ
+// （spare なら右・下へ増やす向きに空きの印刷区画を 1 つずつ足す。grow.ts の grownArea）
+export function pageArea(
+  catalog: CoreCatalog,
+  page: ItemPage,
+  spare = false,
+): { columns: number; rows: number; size: Size } {
+  const paper = paperSize(catalog, page)
+  const grow = growOf(catalog, page)
+  if (!grow) return { columns: 1, rows: 1, size: paper }
+  return grownArea(paper, grow, extentOf(catalog, page, settingsAt(catalog, page)), spare)
+}
+
+// ページの形を置ける広さ（ページの Frame の大きさ）: 可変ページでなければ紙 1 枚。可変ページは、形の外枠が入るだけ並べた印刷区画に、
+// 右・下へ増やす向きの空きを 1 つずつ足した広さ（空きへ置けば、また空きが出る）。つなぐものは測らない（道筋を計算し直さないため）
+export function roomOf(catalog: CoreCatalog, page: ItemPage): Size {
+  const paper = paperSize(catalog, page)
+  const grow = growOf(catalog, page)
+  if (!grow) return paper
+  const rects = [...rectsOf(catalog, page).values()]
+  const extent = rects.length
+    ? {
+        x: 0,
+        y: 0,
+        w: Math.max(...rects.map(r => r.x + r.w)),
+        h: Math.max(...rects.map(r => r.y + r.h)),
+      }
+    : null
+  return grownArea(paper, grow, extent, true).size
+}
+
+// ページの形とつなぐものを、今の位置で描いたときの外枠（つなぐものは定義の bounds で測る）。何も描かなければ null。
+// setting はそのページで効いている設定の値
+export function extentOf(catalog: CoreCatalog, page: ItemPage, setting: SettingReader): Rect | null {
+  const rects = rectsOf(catalog, page)
+  const boxes: Rect[] = [...rects.values()]
+  const areas = portAreasOf(catalog, page, rects)
+  for (const [def, list] of byConnector(catalog, page)) {
+    const b = def.bounds?.(list as ConnectorData[], areas, setting)
+    if (b) boxes.push(b)
+  }
+  if (boxes.length === 0) return null
+  const x = Math.min(...boxes.map(b => b.x))
+  const y = Math.min(...boxes.map(b => b.y))
+  return { x, y, w: Math.max(...boxes.map(b => b.x + b.w)) - x, h: Math.max(...boxes.map(b => b.y + b.h)) - y }
+}
+
+// 可変ページの中身を、印刷区画の単位でずらしたページ: 形の外枠の左端（上端）が、左（上）から into.x（into.y）番目の印刷区画に来るようにする
+// （1 なら左・上に空きの印刷区画を 1 つ持ち、0 なら持たない。無い向きはずらさない）。ずらした量（印刷区画の数）はページの shift に足す（0 なら消す）。
+// つなぐものは、定義の shift で位置を持つ物も一緒にずらす。ページの slide の形も、同じ量でずらす（線の点は枠の割合なので、枠の位置だけ）。
+// 形の無いページ・ずらさなくてよいページはそのまま
+export function alignPadding<P extends ItemPage>(catalog: CoreCatalog, page: P, into: { x?: 0 | 1; y?: 0 | 1 }): P {
+  const paper = paperSize(catalog, page)
+  const rects = [...rectsOf(catalog, page).values()]
+  if (rects.length === 0) return page
+  const kx = into.x === undefined ? 0 : into.x - Math.floor(Math.min(...rects.map(r => r.x)) / paper.w)
+  const ky = into.y === undefined ? 0 : into.y - Math.floor(Math.min(...rects.map(r => r.y)) / paper.h)
+  if (kx === 0 && ky === 0) return page
+  const d = { x: kx * paper.w, y: ky * paper.h }
+  const shifted = shiftedConnectors(catalog, page, () => d)
+  const items = pageItemsOf(page).map(i =>
+    isShape(i) ? { ...i, x: i.x + d.x, y: i.y + d.y } : (shifted.get(i.id) ?? i),
+  )
+  const total = { x: (page.shift?.x ?? 0) + kx, y: (page.shift?.y ?? 0) + ky }
+  const moved = {
+    ...page,
+    items,
+    ...(page.slide ? { slide: page.slide.map(s => ({ ...s, x: s.x + d.x, y: s.y + d.y })) } : {}),
+  }
+  return setField(moved, ["orientation", "grows"], "shift", total.x === 0 && total.y === 0 ? undefined : total)
+}
+
+// ページ page のつなぐもののうち、by が量を返すものを、定義の shift で位置を持つ物ごとその量だけずらした物（id → ずらした物）。
+// 定義に shift の無い種類と、by が null を返すものは入れない
+export function shiftedConnectors(
+  catalog: CoreCatalog,
+  page: ItemPage,
+  by: (c: PlacedConnector) => Point | null,
+): Map<string, PlacedConnector> {
+  const groups = new Map<string, { d: Point; list: PlacedConnector[] }>() // 種類と量 → つなぐもの
+  for (const c of connectorsOf(page)) {
+    const d = by(c)
+    if (!d) continue
+    const key = `${c.item} ${d.x},${d.y}`
+    groups.set(key, { d, list: [...(groups.get(key)?.list ?? []), c] })
+  }
+  const shifted = new Map<string, PlacedConnector>()
+  if (groups.size === 0) return shifted
+  const areas = portAreasOf(catalog, page)
+  for (const { d, list } of groups.values()) {
+    const def = connectorDef(catalog, (list[0] as PlacedConnector).item)
+    if (!def?.shift) continue
+    for (const c of def.shift(list as ConnectorData[], areas, d)) shifted.set(c.id, c as PlacedConnector)
+  }
+  return shifted
+}
+
+// 可変ページの中身を、増やす向き sides に合わせてずらしたページ: 左（上）へ増やすなら左（上）に空きの印刷区画を 1 つ持たせ、
+// 前は増やしていた（was）が増やさなくなった向きは空きを詰める（入らないかは shapesFit で確かめる）
+export function paddedFor<P extends ItemPage>(
+  catalog: CoreCatalog,
+  page: P,
+  sides: GrowSides | undefined,
+  was: GrowSides | undefined,
+): P {
+  const axis = (now: boolean | undefined, before: boolean | undefined) => (now ? 1 : before ? 0 : undefined)
+  return alignPadding(catalog, page, { x: axis(sides?.left, was?.left), y: axis(sides?.up, was?.up) })
+}

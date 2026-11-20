@@ -23,7 +23,7 @@ import { useCatalog, useMatomezuState, useReadState, useStoreActions, useUiCatal
 import { useBook, useStage, useStagePan } from "../../../ui/view-hooks"
 import { bookSettingValue } from "../book-settings"
 import { kit } from "../kit"
-import { paperSize } from "../place/items"
+import { paperSize } from "../place/grow"
 import { useOpenRightSidePanelAt, useRightSidePanelAt, useSidePanelSliding } from "../right-side-panel/hooks"
 import { useZoomMotion } from "../utils/useZoomMotion"
 import { PRINT_PREVIEW_FIT } from "."
