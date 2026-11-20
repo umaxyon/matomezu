@@ -686,12 +686,61 @@ export function createdOn(was: Library, changes: TableChanges): string[] {
   ].map(([id]) => id)
 }
 
+// 行の並び rows の、id → 行（id を文字列で持つ物だけ）
+export const rowsById = (rows: readonly unknown[]): Map<string, Readonly<Record<string, unknown>>> =>
+  new Map(
+    rows.flatMap(r =>
+      typeof r === "object" && r !== null && typeof (r as { id?: unknown }).id === "string"
+        ? [[(r as { id: string }).id, r as Readonly<Record<string, unknown>>] as const]
+        : [],
+    ),
+  )
+
+// 置き場所から読んだままの行のうち、読めない物のフォルダの行と、その中の物（何段下でも）の行を除いた物（書庫に入らない。同じ行の並びには同じ値を返す）
+const outsideKept = new WeakMap<
+  readonly unknown[],
+  { pages: readonly unknown[]; out: { pageRows: readonly unknown[]; folderRows: readonly unknown[] } }
+>()
+export function outsideUnreadable(
+  pageRows: readonly unknown[],
+  folderRows: readonly unknown[],
+): { pageRows: readonly unknown[]; folderRows: readonly unknown[] } {
+  const kept = outsideKept.get(folderRows)
+  if (kept && kept.pages === pageRows) return kept.out
+  const isUnreadable = (r: unknown) => isUnreadableRole((r as { folderRole?: unknown } | null)?.folderRole)
+  const found = folderRows.find(isUnreadable) as { lineup?: unknown } | undefined
+  const entries = Array.isArray(found?.lineup) ? (found.lineup as unknown[]) : []
+  let out = { pageRows, folderRows }
+  if (found) {
+    const folder = rowsById(folderRows)
+    const inside = new Set<string>()
+    const walk = (id: string) => {
+      if (inside.has(id)) return
+      inside.add(id)
+      const row = folder.get(id)
+      for (const e of Array.isArray(row?.lineup) ? (row.lineup as unknown[]) : []) {
+        const r = (e as { id?: unknown } | null)?.id
+        if (typeof r === "string") walk(r)
+      }
+    }
+    for (const e of entries) {
+      const id = (e as { entry?: { id?: unknown } } | null)?.entry?.id
+      if (typeof id === "string") walk(id)
+    }
+    const away = (r: unknown) => inside.has((r as { id?: unknown } | null)?.id as string)
+    out = { pageRows: pageRows.filter(r => !away(r)), folderRows: folderRows.filter(r => !isUnreadable(r) && !away(r)) }
+  }
+  outsideKept.set(folderRows, { pages: pageRows, out })
+  return out
+}
+
 // 置き場所から読んだままのページとフォルダ（形を確かめる前の値）から、ブックの本文（並びにページとバインダの中身ごと持つ形）を組む。確かめるのは、組んだ後（core/book.ts の checkBooks）。
-// ブックにするのは、役（folderRole）が書庫ホーム・ゴミ箱・フォルダ・バインダのどれでもないフォルダ（形の壊れた物も、そのまま 1 冊として返す。読めないブックとして見える）。
+// 読めない物のフォルダの中の物は組まない（outsideUnreadable。常駐も画面も、ここを通る）。ブックにするのは、役（folderRole）が書庫ホーム・ゴミ箱・フォルダ・バインダのどれでもないフォルダ（形の壊れた物も、そのまま 1 冊として返す。読めないブックとして見える）。
 // エントリが id だけの物（kind と id だけを持つ）なら、表から引いて中身に替える（表に無ければ、そのまま残す）。それより多くを持つエントリは、中身ごと残っている物として、そのまま使う。
 // 同じフォルダと同じ中身からは、同じ値を返す（確かめ直しを減らす）
 const rawKept = new WeakMap<object, Kept<unknown>>()
-export function rawBooksOf(pages: readonly unknown[], folders: readonly unknown[]): unknown[] {
+export function rawBooksOf(allPages: readonly unknown[], allFolders: readonly unknown[]): unknown[] {
+  const { pageRows: pages, folderRows: folders } = outsideUnreadable(allPages, allFolders)
   const isObject = (v: unknown): v is Readonly<Record<string, unknown>> =>
     typeof v === "object" && v !== null && !Array.isArray(v)
   const byId = (rows: readonly unknown[]) =>

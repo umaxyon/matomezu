@@ -1,11 +1,12 @@
 // 読めない物のフォルダ（core/unreadable.ts）: 読めない物は在った所から移り、読めるようになると在った所へ戻る。行の中身には手を付けない
 import { describe, expect, test } from "bun:test"
-import { unreadableUnitsOf } from "../../web/src/core/book"
+import { checkBooks, unreadableUnitsOf } from "../../web/src/core/book"
 import type { CoreCatalog } from "../../web/src/core/core-catalog"
 import {
   BROKEN,
   FIRST,
   HOME_ID,
+  rawBooksOf,
   rowsHoldTree,
   TRASH_ID,
   UNREADABLE_ID,
@@ -301,6 +302,18 @@ test("先のブックと id が重なるブック（W006）は、ブックごと
       gone.pages.map(p => (p as { id: string }).id),
     ),
   ).toBe(true)
+})
+
+test("移したあとの行を id の順に並べて画面と同じ読み方（rawBooksOf と checkBooks）で読んでも、読めない物のフォルダに移したブックは読めず、書庫に残ったブックが読める", () => {
+  const shared = drawingPage("p1")
+  const rows = worldRows([testBook("z1", "B", [shared]), testBook("a1", "C", [shared])])
+  const moved = settled(CORE_CATALOG, rows)
+  expect(unreadableOf(moved).lineup.map(r => [r.entry.id, r.code])).toEqual([["a1", "W006"]])
+  const idOf = (r: unknown) => (r as { id: string }).id
+  const sorted = [...moved.folders].sort((a, b) => idOf(a).localeCompare(idOf(b)))
+  const read = checkBooks(CORE_CATALOG, rawBooksOf(moved.pages, sorted))
+  expect(read.books.map(b => b.id)).toEqual(["z1"])
+  expect(read.warnings).toEqual([])
 })
 
 test("木の決まりを破る物（行の無いページを持つブック・2 度持たれたページ）と、どこにも持たれていない行は移さない", () => {
