@@ -19,7 +19,6 @@ import {
 } from "../../../ui/view-hooks"
 import { ActionButton, controlClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import { useColumnsMeasure } from "./arrows"
 import {
   LIBRARY_CONTENTS_SCOPE,
   LIBRARY_ENTRY_CONTEXT,
@@ -33,7 +32,7 @@ import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG } from "./dialog"
 import { holderForNew } from "./entries"
 import { FoundView } from "./FoundView"
 import { HistoryButtons } from "./HistoryButtons"
-import { outsideRow, useKeepFocusIn, useLibraryRows, useNameOf } from "./hooks"
+import { useKeepFocusIn, useLibraryRows, useNameOf } from "./hooks"
 import { CHEVRON, RowIcon, TRASH } from "./icons"
 import styles from "./LibraryView.module.css"
 import { MoveClashConfirm } from "./MoveClashConfirm"
@@ -53,10 +52,12 @@ import {
   unfoldable,
   unfoldedOf,
 } from "./outline"
+import { usePickRows } from "./RowTable"
 import { type FoundRow, NO_SEARCH, searchWord } from "./search"
 import { SHOW_UNREADABLE_FOLDER } from "./show-unreadable"
 import { LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_QUERY, LIBRARY_UNFOLDED } from "./state"
 import { TrashView } from "./TrashView"
+import { UnreadableView } from "./UnreadableView"
 import { type LibraryDrag, useLibraryDrag } from "./useLibraryDrag"
 
 // 一番上に並ぶフォルダの行（書庫ホームとゴミ箱と、設定がオンなら読めない物のフォルダ。名前は画面が付ける）
@@ -110,7 +111,11 @@ export function LibraryView({ className }: { className?: string } = {}) {
   const unreadableShown = useUserSetting(SHOW_UNREADABLE_FOLDER.id) === true
   // 読めない物のフォルダの直下の物の数（在る間は、設定がオフでも、ツリーの下に出して開けるようにする）
   const unreadableCount = useMatomezuState(s => s.unreadableFolder.length)
-  const measureColumns = useColumnsMeasure(rows.length)
+  const pick = usePickRows(
+    rows.map(r => r.id),
+    picked,
+    setPicked,
+  )
   // 新しいブック・フォルダを作る先（開いているのがブック・バインダなら、それを入れているフォルダ。ゴミ箱なら無い）
   const into = useMatomezuState(s => holderForNew(s.folders, opened))
   const { openDialog } = useActions()
@@ -152,10 +157,6 @@ export function LibraryView({ className }: { className?: string } = {}) {
         current,
         HOME_ID,
       ) ?? HOME_ID,
-  )
-  const contentsStop = tabStopOf(
-    rows.map(r => r.id),
-    picked,
   )
   const handlers: Handlers = {
     drag,
@@ -296,35 +297,28 @@ export function LibraryView({ className }: { className?: string } = {}) {
             )}
             {opened === TRASH_ID ? (
               <TrashView picked={picked} onPick={setPicked} />
+            ) : opened === UNREADABLE_ID ? (
+              <UnreadableView picked={picked} onPick={setPicked} />
             ) : rows.length === 0 ? (
               <p className={styles.blank} onContextMenu={e => openFolderMenu(e, { folder: opened })}>
                 {t("Nothing inside")}
               </p>
             ) : (
-              // biome-ignore lint/a11y/useKeyWithClickEvents: 何も無い所を押して選択を外すのはポインタの操作で、キーでは行の間を動く
               <ul
                 className={styles.contents}
                 aria-label={t("Contents of {name}", { name: here })}
                 onContextMenu={e => openFolderMenu(e, { folder: opened })}
-                // 何も無い所（行の外）を押すと、選んでいる行を外す（パンくずで今のフォルダを押したときと同じ）。ドラッグのあとの click は、useLibraryDrag が止める
-                onClick={e => {
-                  if (outsideRow(e.target)) setPicked(undefined)
-                }}
-                ref={measureColumns}
-                data-key-scope={LIBRARY_CONTENTS_SCOPE}
+                // ドラッグのあとの click は、useLibraryDrag が止める
+                {...pick.list}
               >
                 {rows.map(row => (
                   <li key={row.id}>
                     <button
                       type="button"
                       className={styles.entry}
-                      data-library-row={row.id}
-                      data-key-scope={LIBRARY_CONTENTS_SCOPE}
-                      tabIndex={row.id === contentsStop ? 0 : -1}
+                      {...pick.row(row.id)}
                       data-holder={opened}
                       {...dragMarks(drag, LIBRARY_CONTENTS_SCOPE, row.id)}
-                      aria-pressed={row.id === picked}
-                      onClick={() => setPicked(row.id)}
                       onDoubleClick={() => handlers.open(row)}
                       onContextMenu={e => {
                         setPicked(row.id)

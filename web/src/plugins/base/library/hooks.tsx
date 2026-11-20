@@ -3,28 +3,49 @@ import { type RefObject, useEffect, useRef } from "react"
 import { type EntryKind, type Naming, namingOf } from "../../../core/entries"
 import { type BROKEN, HOME_ID, type Library, TRASH_ID, UNREADABLE_ID } from "../../../core/folders"
 import { sameData } from "../../../core/same"
-import type { MovedIfOff } from "../../../core/unreadable"
+import type { MovedIfOff, Purged } from "../../../core/unreadable"
+import type { MatomezuState } from "../../../store/store"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useInstance, useMatomezuState, useReadState } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { type LibraryRow, NO_TITLE, rowsIn } from "./outline"
 
-// 書庫の表から rowsOf で出した行（名前は、利用者の設定の言語で引く naming で引く）。表と設定が変わっても、行の中身が同じなら同じ値のまま
-// （ページの中身が変わるたびに描き直さない）。key は、rowsOf が何の行を出すかを分ける値（フォルダの id など。変わったら出し直す）
+// 書庫の表から rowsOf で出した行（名前は、利用者の設定の言語で引く naming で引く。読めない物のフォルダの直下の物 unreadableFolder も読める）。
+// 表と設定と読めない物のフォルダが変わっても、行の中身が同じなら同じ値のまま（ページの中身が変わるたびに描き直さない）。
+// key は、rowsOf が何の行を出すかを分ける値（フォルダの id など。変わったら出し直す）
 export function useLibraryRows<R>(
   key: string,
-  rowsOf: (library: Library, naming: Naming) => readonly R[],
+  rowsOf: (library: Library & Pick<MatomezuState, "unreadableFolder">, naming: Naming) => readonly R[],
 ): readonly R[] {
   const catalog = useCatalog().core
-  const kept = useRef<{ key: string; pages: unknown; folders: unknown; settings: unknown; rows: readonly R[] } | null>(
-    null,
-  )
+  const kept = useRef<{
+    key: string
+    pages: unknown
+    folders: unknown
+    settings: unknown
+    unreadableFolder: unknown
+    rows: readonly R[]
+  } | null>(null)
   return useMatomezuState(s => {
     const was = kept.current?.key === key ? kept.current : null
-    if (was && was.pages === s.pages && was.folders === s.folders && was.settings === s.settings) return was.rows
+    if (
+      was &&
+      was.pages === s.pages &&
+      was.folders === s.folders &&
+      was.settings === s.settings &&
+      was.unreadableFolder === s.unreadableFolder
+    )
+      return was.rows
     const next = rowsOf(s, namingOf(catalog, s.settings))
     const rows = was && sameData(was.rows, next) ? was.rows : next
-    kept.current = { key, pages: s.pages, folders: s.folders, settings: s.settings, rows }
+    kept.current = {
+      key,
+      pages: s.pages,
+      folders: s.folders,
+      settings: s.settings,
+      unreadableFolder: s.unreadableFolder,
+      rows,
+    }
     return rows
   })
 }
@@ -106,4 +127,9 @@ export const outsideRow = (target: EventTarget): boolean =>
 // 追加プラグイン ids を無効にしたら読めない物のフォルダへ移る物を、ホストに書かずに数えてもらう（ホストが無いか、頼めなければ投げる）
 export function useMovedIfOff(): (ids: readonly string[]) => Promise<readonly MovedIfOff[] | typeof BROKEN> {
   return useInstance().movedIfOff
+}
+
+// 読めない物のフォルダの直下の物 id を完全に消すのをホストに頼む（ホストが無いか、頼めなければ投げる）
+export function usePurgeUnreadable(): (id: string) => Promise<Purged> {
+  return useInstance().purgeUnreadable
 }
