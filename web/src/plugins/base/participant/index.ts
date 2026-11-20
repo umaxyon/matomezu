@@ -2,7 +2,7 @@
 // ワークルームは名前・鳥・配色を持つ独立したデータ（id は振り直さない）。空室は、入っている参加者がいないワークルーム（ワークルームの側には持たない）。
 // 参加者は AI のセッションが入る記録で、要求中（requested）か、受け入れ済みでワークルームに入っている（joined。そのワークルームの id を持つ）か、
 // 受け入れ済みでワークルームを持たないビジター（visitor。読むことだけができる）。
-// 管理者の印は全体に 1 つ（id は "admin"。ワークルームの id か "none"）。アクションが、管理者のワークルームの AI にだけ行わせる事を決めるのに読む（READS_ADMIN・isAdminActor）。
+// 管理者の印は全体に 1 つ（id は "admin"。ワークルームの id か "none"）。アクションは READS_ADMIN と READS_WORKROOM_KEYS で読み、adminWorkroom・isAdminActor で引く。
 // 指す先のワークルームが無ければ「無い」として読む。書き換えるのは、管理者がいないときにワーカーを受け入れる participant-accept だけ。
 // 要求する participant-request は AI も行え、ほかは利用者だけ。participant-accept は、入るワークルームを作る・いる参加者を外す・捨てるワークルームを消す・
 // 管理者がいなければ入れたワークルームを管理者にする、まで 1 つのアクションで行う（ビジターとして受け入れるときは、ワークルームに触らない）。
@@ -16,6 +16,7 @@ import type { KeyValuesOf } from "../../../core/record-keys"
 import { BIRD_IDS } from "../birds"
 import { BIRD_PALETTE_IDS } from "../birds/colors"
 import { kit } from "../kit"
+import { adminRoomOf } from "./rows"
 
 export const WORKROOM_NAME_MAX = 20 // ワークルームの名前の長さの上限（字）
 
@@ -164,7 +165,7 @@ const leaving = (ctx: Pick<ActionContext, "keys">, room: string, occupant: strin
 }
 
 // 全部のワークルームの索引キー（名前が重ならないか、管理者の印の指す先が在るかを見る）
-const READS_WORKROOM_KEYS = { subject: WORKROOM.id, where: [], keysOnly: true as const }
+export const READS_WORKROOM_KEYS = { subject: WORKROOM.id, where: [], keysOnly: true as const }
 
 // ワーカーを受け入れるとき、入れたワークルームを管理者にするか: 印が無いか、指す先のワークルームが無い（このトランザクションで消すワークルーム gone も無いと見る）とき。
 // 利用者が選んだ none は残す。ctx は READS_ADMIN と READS_WORKROOM_KEYS を読んだアクションの文脈
@@ -366,15 +367,23 @@ export const ADMIN_SET = kit.defineAction({
 // 管理者の印を読むアクションが reads に足す物（印は全体に 1 件）
 export const READS_ADMIN: RecordRead = { subject: ADMIN_MARK.id, where: [] }
 
-// actor が、管理者の印の指すワークルームに入っている AI か（印が無い・none・ほかのワークルームなら false）。ctx は READS_ADMIN を読んだアクションの文脈。
-// 行う AI のワークルームは在るので、その id と比べれば「指す先が無い印は無い」も守れる
-export function isAdminActor(actor: Actor, ctx: Pick<ActionContext, "records">): boolean {
+// 管理者のワークルームの id（印が無い・none・指す先のワークルームが無ければ undefined。決め方は adminRoomOf）。
+// ctx は READS_ADMIN と READS_WORKROOM_KEYS を読んだアクションの文脈
+export function adminWorkroom(ctx: Pick<ActionContext, "records" | "keys">): string | undefined {
+  const mark = Object.values(ctx.records?.[ADMIN_MARK.id] ?? {}).flatMap(m => {
+    const read = ADMIN_MARK.record.safeParse(m)
+    return read.success ? [read.data] : []
+  })[0]
+  return adminRoomOf(
+    mark,
+    Object.keys(ctx.keys?.[WORKROOM.id] ?? {}).map(id => ({ id })),
+  )
+}
+
+// actor が、管理者のワークルーム（adminWorkroom）に入っている AI か。ctx は READS_ADMIN と READS_WORKROOM_KEYS を読んだアクションの文脈
+export function isAdminActor(actor: Actor, ctx: Pick<ActionContext, "records" | "keys">): boolean {
   const id = workroomOfActor(actor)
-  if (id === undefined) return false
-  return Object.values(ctx.records?.[ADMIN_MARK.id] ?? {}).some(mark => {
-    const read = ADMIN_MARK.record.safeParse(mark)
-    return read.success && read.data.workroom === id
-  })
+  return id !== undefined && adminWorkroom(ctx) === id
 }
 
 export { PARTICIPANT_ALIVE } from "./alive"

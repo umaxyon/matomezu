@@ -1,7 +1,8 @@
 // チケットのアクション。チケットを足す・直すは AI も行え、チケットを消す・ロックを外すは利用者だけ
 import { type z, z as zod } from "zod"
 import { type Actor, type AIMessage, workroomOfActor } from "../../../plugin-api"
-import { byOf, READS_WORKROOM_NAMES, type Records, readsBy, recordIn, workroomsOf } from "../by"
+import { READS_WORKROOM_KEYS } from "../../base"
+import { byOf, type Records, readsBy, recordIn, workroomsOf } from "../by"
 import { kit } from "../kit"
 import { inDoneLane, PROJECT, UNSORTED } from "../project"
 import { type Project, projectOf } from "../project/actions"
@@ -93,7 +94,7 @@ export const TICKET_ADD = kit.defineAction({
   target: TICKET.id,
   reads: (args, actor) => [
     { subject: PROJECT.id, id: args.project },
-    ...(args.assignees?.length ? [READS_WORKROOM_NAMES] : []),
+    ...(args.assignees?.length ? [READS_WORKROOM_KEYS] : []),
     ...readsBy(actor),
   ],
   args: zod.strictObject({
@@ -158,7 +159,7 @@ export const TICKET_UPDATE = kit.defineAction({
     "Change the name, the body, the priority, the volume (as in ticket-add), the lane, the tags or the assignees of the ticket named by on.record. tags is the whole new list of tags (empty: no tag). assignees is the whole new list of workrooms by their ids or names, in order (the first is the lead; no workroom twice, each a workroom that is there; a workroom that was removed stays on the ticket until the list is changed). The same rules as ticket-add apply to the lane and the tags, by their ids or names; a ticket cannot be moved into the done lane here (use ticket-complete), and a ticket in the done lane takes no assignees until it is moved out (a tag that is not enabled any more, or was removed, can stay on the ticket until the list is changed). The project of a ticket does not change. The time of the last change moves only when something changed. A workroom other than yours that becomes an assignee is told by an AI message (matomezu sends it when an AI has joined that workroom; you do not).",
   target: TICKET.id,
   // プロジェクトは、チケットが指す先なので書かない
-  reads: args => (args.assignees?.length ? [READS_WORKROOM_NAMES] : []),
+  reads: args => (args.assignees?.length ? [READS_WORKROOM_KEYS] : []),
   args: zod.strictObject({
     name: zod.string().trim().min(1).max(TICKET_NAME_MAX).optional(),
     body: zod.string().optional(),
