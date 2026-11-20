@@ -15,6 +15,7 @@ import (
 	"testing"
 	"testing/fstest"
 
+	"github.com/umaxyon/matomezu/internal/aiwire"
 	"github.com/umaxyon/matomezu/internal/engine"
 	"github.com/umaxyon/matomezu/internal/storage"
 )
@@ -143,7 +144,7 @@ func TestJoinMakesOneParticipantAndOneMail(t *testing.T) {
 		t.Fatalf("after the same link: participants = %d, mails = %d", p, m)
 	}
 	// 参加の id が付いていれば、弾かずに同じ参加者のまま答える（参加者も郵便も増えない）
-	again, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L2", ""), map[string]string{ParticipantHeader: first.Participant})
+	again, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L2", ""), map[string]string{aiwire.ParticipantHeader: first.Participant})
 	if again != `{"ok":true,"participant":"`+first.Participant+`"}` {
 		t.Fatalf("with the participant's id = %s", again)
 	}
@@ -172,10 +173,10 @@ func TestParticipantCallsAreNotedAndJoinedIsToldOnce(t *testing.T) {
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L1", ""), nil)
 	var joined Joined
 	_ = json.Unmarshal([]byte(got), &joined)
-	id := map[string]string{ParticipantHeader: joined.Participant}
+	id := map[string]string{aiwire.ParticipantHeader: joined.Participant}
 
-	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", id); h.Get(NoticeHeader) != "" {
-		t.Fatalf("a notice before joining = %q", h.Get(NoticeHeader))
+	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", id); h.Get(aiwire.NoticeHeader) != "" {
+		t.Fatalf("a notice before joining = %q", h.Get(aiwire.NoticeHeader))
 	}
 	// join で MCP がセッション id を運んだ AI は準備中でない
 	if ready := hub.ParticipantReady(); len(ready) != 1 || ready[0] != joined.Participant {
@@ -193,11 +194,11 @@ func TestParticipantCallsAreNotedAndJoinedIsToldOnce(t *testing.T) {
 	}
 
 	acceptRoom(t, s.URL, joined.Participant, "ひよこ")
-	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", nil); h.Get(NoticeHeader) != "" {
-		t.Fatalf("a notice without the participant's id = %q", h.Get(NoticeHeader))
+	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", nil); h.Get(aiwire.NoticeHeader) != "" {
+		t.Fatalf("a notice without the participant's id = %q", h.Get(aiwire.NoticeHeader))
 	}
 	_, h := call(t, "GET", s.URL+"/api/ai/books", "", id)
-	if text, _ := url.QueryUnescape(h.Get(NoticeHeader)); text != "You joined matomezu. Workroom name: ひよこ\n"+joinedAllowText {
+	if text, _ := url.QueryUnescape(h.Get(aiwire.NoticeHeader)); text != "You joined matomezu. Workroom name: ひよこ\n"+joinedAllowText {
 		t.Fatalf("notice = %q", text)
 	}
 	hub.mu.Lock()
@@ -206,12 +207,12 @@ func TestParticipantCallsAreNotedAndJoinedIsToldOnce(t *testing.T) {
 	if called == "" {
 		t.Fatal("the call after joining was not noted")
 	}
-	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", id); h.Get(NoticeHeader) != "" {
-		t.Fatalf("told twice: %q", h.Get(NoticeHeader))
+	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", id); h.Get(aiwire.NoticeHeader) != "" {
+		t.Fatalf("told twice: %q", h.Get(aiwire.NoticeHeader))
 	}
 	s2, _ := joinWorld(t, store)
-	if _, h := call(t, "GET", s2.URL+"/api/ai/books", "", id); h.Get(NoticeHeader) != "" {
-		t.Fatalf("told again after a restart: %q", h.Get(NoticeHeader))
+	if _, h := call(t, "GET", s2.URL+"/api/ai/books", "", id); h.Get(aiwire.NoticeHeader) != "" {
+		t.Fatalf("told again after a restart: %q", h.Get(aiwire.NoticeHeader))
 	}
 }
 
@@ -221,7 +222,7 @@ func TestDeclinedParticipantIsToldOnce(t *testing.T) {
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L1", ""), nil)
 	var joined Joined
 	_ = json.Unmarshal([]byte(got), &joined)
-	id := map[string]string{ParticipantHeader: joined.Participant}
+	id := map[string]string{aiwire.ParticipantHeader: joined.Participant}
 
 	call(t, "GET", s.URL+"/api/ai/books", "", id)
 	if calls := hub.ParticipantCalls(); calls[joined.Participant] != "" {
@@ -230,11 +231,11 @@ func TestDeclinedParticipantIsToldOnce(t *testing.T) {
 
 	postPerform(t, s.URL, `{"action":"@matomezu/base:participant-decline","args":{},"on":{"record":"`+joined.Participant+`"},"lang":"ja","now":"2026-11-08T01:00:00.000Z"}`)
 	_, h := call(t, "GET", s.URL+"/api/ai/books", "", id)
-	if text, _ := url.QueryUnescape(h.Get(NoticeHeader)); !strings.Contains(text, "declined") {
+	if text, _ := url.QueryUnescape(h.Get(aiwire.NoticeHeader)); !strings.Contains(text, "declined") {
 		t.Fatalf("notice = %q", text)
 	}
-	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", id); h.Get(NoticeHeader) != "" {
-		t.Fatalf("told twice: %q", h.Get(NoticeHeader))
+	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", id); h.Get(aiwire.NoticeHeader) != "" {
+		t.Fatalf("told twice: %q", h.Get(aiwire.NoticeHeader))
 	}
 }
 
@@ -244,7 +245,7 @@ func TestCallsAreNotAnnouncedEveryTime(t *testing.T) {
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L1", ""), nil)
 	var joined Joined
 	_ = json.Unmarshal([]byte(got), &joined)
-	id := map[string]string{ParticipantHeader: joined.Participant}
+	id := map[string]string{aiwire.ParticipantHeader: joined.Participant}
 	acceptRoom(t, s.URL, joined.Participant, "ひよこ") // join で MCP がセッション id を運んでいるので、受け入れで準備中でなくなる
 
 	hub.mu.Lock()
@@ -345,9 +346,9 @@ func TestTalkedBindsTheSessionByLinkAndWelcomesOnce(t *testing.T) {
 		t.Fatalf("another session = %+v", r)
 	}
 	// フックが伝えるまでは準備中。MCP が参加の id を名乗っても、知らせも最後に呼ばれた時刻も残さない
-	mcp := map[string]string{ParticipantHeader: joined.Participant}
-	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", mcp); h.Get(NoticeHeader) != "" {
-		t.Fatalf("MCP told while preparing: %q", h.Get(NoticeHeader))
+	mcp := map[string]string{aiwire.ParticipantHeader: joined.Participant}
+	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", mcp); h.Get(aiwire.NoticeHeader) != "" {
+		t.Fatalf("MCP told while preparing: %q", h.Get(aiwire.NoticeHeader))
 	}
 	if calls := hub.ParticipantCalls(); calls[joined.Participant] != "" {
 		t.Fatalf("calls while preparing = %v", calls)
@@ -376,8 +377,8 @@ func TestTalkedBindsTheSessionByLinkAndWelcomesOnce(t *testing.T) {
 		t.Fatalf("a talk moved the time: %q -> %q", at, now)
 	}
 	// 伝えたので、MCP の返事には添えない
-	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{ParticipantHeader: joined.Participant}); h.Get(NoticeHeader) != "" {
-		t.Fatalf("told by the hook and then by MCP: %q", h.Get(NoticeHeader))
+	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{aiwire.ParticipantHeader: joined.Participant}); h.Get(aiwire.NoticeHeader) != "" {
+		t.Fatalf("told by the hook and then by MCP: %q", h.Get(aiwire.NoticeHeader))
 	}
 }
 
@@ -388,7 +389,7 @@ func TestTalkedDoesNotWelcomeWhatMCPToldFirst(t *testing.T) {
 	var joined Joined
 	_ = json.Unmarshal([]byte(got), &joined)
 	acceptRoom(t, s.URL, joined.Participant, "ひよこ")
-	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{ParticipantHeader: joined.Participant}); h.Get(NoticeHeader) == "" {
+	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{aiwire.ParticipantHeader: joined.Participant}); h.Get(aiwire.NoticeHeader) == "" {
 		t.Fatal("MCP did not tell")
 	}
 	// join のときに添えられたセッション id（S1）でターンを始める
@@ -405,15 +406,15 @@ func TestParticipantIdHolderContinuesWhenNotAlive(t *testing.T) {
 	var joined Joined
 	_ = json.Unmarshal([]byte(got), &joined)
 	acceptRoom(t, s.URL, joined.Participant, "ひよこ")
-	id := map[string]string{ParticipantHeader: joined.Participant}
+	id := map[string]string{aiwire.ParticipantHeader: joined.Participant}
 	call(t, "GET", s.URL+"/api/ai/books", "", id) // 伝える
 	hub.mu.Lock()
 	n := hub.participantNotes[joined.Participant]
 	n.Called = "2020-01-01T00:00:00.000Z"
 	hub.participantNotes[joined.Participant] = n
 	hub.mu.Unlock()
-	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", id); h.Get(NoticeHeader) != "" {
-		t.Fatalf("a notice for the old participant = %q", h.Get(NoticeHeader))
+	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", id); h.Get(aiwire.NoticeHeader) != "" {
+		t.Fatalf("a notice for the old participant = %q", h.Get(aiwire.NoticeHeader))
 	}
 	again, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L2", ""), id)
 	if !strings.Contains(again, `"ok":true`) || !strings.Contains(again, joined.Participant) {
@@ -507,7 +508,7 @@ func TestJoinWithAWorkroomIsRefusedWhileItsParticipantIsAlive(t *testing.T) {
 	var first Joined
 	_ = json.Unmarshal([]byte(got), &first)
 	acceptRoom(t, s.URL, first.Participant, "ひよこ")
-	call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{ParticipantHeader: first.Participant}) // 呼ばれた: 生きている
+	call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{aiwire.ParticipantHeader: first.Participant}) // 呼ばれた: 生きている
 
 	refused, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L2", "", `,"workroom":"ひよこ"`), nil)
 	if !strings.Contains(refused, `"ok":false`) || !strings.Contains(refused, `"reason":"workroom-in-use"`) || !strings.Contains(refused, "already has a participant") {
@@ -564,11 +565,11 @@ func TestJoinWithAWorkroomOfAQuietParticipantCanBeAcceptedByTakingOver(t *testin
 		t.Fatalf("after: %+v", rows)
 	}
 	// 新しい持ち主には MCP の返事で伝わる。元の持ち主の id は表に無いので断られた知らせ
-	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{ParticipantHeader: second.Participant}); h.Get(NoticeHeader) == "" {
+	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{aiwire.ParticipantHeader: second.Participant}); h.Get(aiwire.NoticeHeader) == "" {
 		t.Fatal("the new owner was not welcomed")
 	}
-	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{ParticipantHeader: first.Participant}); !strings.Contains(h.Get(NoticeHeader), "declined") {
-		t.Fatalf("the old owner = %q", h.Get(NoticeHeader))
+	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{aiwire.ParticipantHeader: first.Participant}); !strings.Contains(h.Get(aiwire.NoticeHeader), "declined") {
+		t.Fatalf("the old owner = %q", h.Get(aiwire.NoticeHeader))
 	}
 	// 呼ばれて時間がたった（有効時間を過ぎた）参加者の名前も引き継げる
 	hub.mu.Lock()
@@ -621,22 +622,22 @@ func TestJoinFreesTheRoomOfAParticipantWhoseSessionEnded(t *testing.T) {
 		frees  bool
 	}{
 		{"the AI's program is gone", func(dead string) map[string]string {
-			return map[string]string{HostHeader: dead, SessionPidHeader: dead, SessionPidSpaceHeader: ProcessSpace()}
+			return map[string]string{aiwire.HostHeader: dead, aiwire.SessionPidHeader: dead, aiwire.SessionPidSpaceHeader: ProcessSpace()}
 		}, true},
 		{"the MCP is gone while the AI's program (shared) is alive", func(dead string) map[string]string {
-			return map[string]string{HostHeader: me, SessionPidHeader: dead, SessionPidSpaceHeader: ProcessSpace()}
+			return map[string]string{aiwire.HostHeader: me, aiwire.SessionPidHeader: dead, aiwire.SessionPidSpaceHeader: ProcessSpace()}
 		}, true},
 		{"the machine was started again since", func(string) map[string]string {
-			return map[string]string{HostHeader: me, SessionPidHeader: me, SessionPidSpaceHeader: "linux|ns0|boot-before"}
+			return map[string]string{aiwire.HostHeader: me, aiwire.SessionPidHeader: me, aiwire.SessionPidSpaceHeader: "linux|ns0|boot-before"}
 		}, spaceHasBoot()},
 		{"the process is alive", func(string) map[string]string {
-			return map[string]string{HostHeader: me, SessionPidHeader: me, SessionPidSpaceHeader: ProcessSpace()}
+			return map[string]string{aiwire.HostHeader: me, aiwire.SessionPidHeader: me, aiwire.SessionPidSpaceHeader: ProcessSpace()}
 		}, false},
 		{"another space (the pid cannot be checked here)", func(dead string) map[string]string {
-			return map[string]string{HostHeader: dead, SessionPidHeader: dead, SessionPidSpaceHeader: "elsewhere"}
+			return map[string]string{aiwire.HostHeader: dead, aiwire.SessionPidHeader: dead, aiwire.SessionPidSpaceHeader: "elsewhere"}
 		}, false},
 		{"no process said to live as long as the session", func(dead string) map[string]string {
-			return map[string]string{HostHeader: dead}
+			return map[string]string{aiwire.HostHeader: dead}
 		}, false},
 	}
 	for _, c := range cases {
@@ -646,7 +647,7 @@ func TestJoinFreesTheRoomOfAParticipantWhoseSessionEnded(t *testing.T) {
 			var first Joined
 			_ = json.Unmarshal([]byte(got), &first)
 			acceptRoom(t, s.URL, first.Participant, "ひよこ")
-			call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{ParticipantHeader: first.Participant}) // 呼ばれた: 生きている
+			call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{aiwire.ParticipantHeader: first.Participant}) // 呼ばれた: 生きている
 
 			second, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L2", "", `,"workroom":"ひよこ"`), nil)
 			rows, _ := table(t, s.URL)
@@ -686,12 +687,12 @@ func TestJoinAfterAnEndedSessionLeftDoesNotAnswerWithIt(t *testing.T) {
 		t.Run("link "+c.link, func(t *testing.T) {
 			s, _ := joinWorld(t, joinStore(t))
 			dead := deadPid(t)
-			said := map[string]string{HostHeader: dead, SessionPidHeader: dead, SessionPidSpaceHeader: ProcessSpace()}
+			said := map[string]string{aiwire.HostHeader: dead, aiwire.SessionPidHeader: dead, aiwire.SessionPidSpaceHeader: ProcessSpace()}
 			got, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L1", "sess", `,"sessionId":"S1"`), said)
 			var first Joined
 			_ = json.Unmarshal([]byte(got), &first)
 			acceptRoom(t, s.URL, first.Participant, "ひよこ")
-			call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{ParticipantHeader: first.Participant})
+			call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{aiwire.ParticipantHeader: first.Participant})
 
 			second, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith(c.link, "sess", `,"workroom":"ひよこ"`), nil)
 			var made Joined

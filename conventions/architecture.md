@@ -41,8 +41,9 @@
 | `storage` | matomezu のデータ（ブック・設定など）の保存（SQLite）。ブックの中身は、ページとフォルダの行に分けるための土台のフィールド（エントリの種類・id、フォルダの役〈`folderRole`〉）のほかは解釈しない（一度きりのデータの移し替えは除く） | なし |
 | `plugin` | 追加プラグインのフォルダ（`matomezu.json`）を読み、Go に組み込んだ esbuild で変換する | なし |
 | `engine` | ホストのエンジン: `engine.js` を goja で動かし、アクション・組み直し・ブックとアノテーションの確かめを行う | `plugin` |
-| `server` | ホスト: HTTP の口・知らせ（SSE）・窓・データをまとめる Hub | `engine`・`plugin`・`storage` |
-| `mcp` | AI に matomezu を MCP 公開ツールとして渡すサーバー。ホストの AI の口（`/api/ai/...`）にだけ話す | なし |
+| `server` | ホスト: HTTP の口・知らせ（SSE）・窓・データをまとめる Hub | `aiwire`・`engine`・`plugin`・`storage` |
+| `mcp` | AI に matomezu を MCP 公開ツールとして渡すサーバー。ホストの AI の口（`/api/ai/...`）にだけ話す | `aiwire` |
+| `aiwire` | `mcp` とホストの AI の口で同じでなければならない値（ヘッダの名前など）。読み合えない 2 つが共に使う物だけを置く | なし |
 | `home` | matomezu 保管庫フォルダ（利用者ごとに 1 つ） | なし |
 | `browser` | URL を既定のブラウザで開く | なし |
 | `web` | 実行ファイルに埋め込む画面（ビルドした `web/dist`） | なし |

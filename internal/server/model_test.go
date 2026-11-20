@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/umaxyon/matomezu/internal/aiwire"
 )
 
 // watchEvents は、窓を 1 つつないで、名前 name の知らせの中身を、呼ぶたびにそれまでに届いた分だけ返す関数
@@ -51,7 +53,7 @@ func TestCalledNotesTheBranchHostAndModel(t *testing.T) {
 	s, hub := joinWorld(t, store)
 	id := joinedID(t, s.URL, joinBody("L1", ""))
 	with := func(branch string) map[string]string {
-		return map[string]string{ParticipantHeader: id, BranchHeader: branch, HostHeader: "100"}
+		return map[string]string{aiwire.ParticipantHeader: id, aiwire.BranchHeader: branch, aiwire.HostHeader: "100"}
 	}
 	call(t, "GET", s.URL+"/api/ai/books", "", with("main"))
 	if n := noteOf(hub, id); n.Branch != "" || n.Host != "" {
@@ -71,7 +73,7 @@ func TestCalledNotesTheBranchHostAndModel(t *testing.T) {
 		t.Fatalf("saved notes = %s", saved)
 	}
 	call(t, "GET", s.URL+"/api/ai/books", "", with("feat%2Fx"))
-	call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{ParticipantHeader: id})
+	call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{aiwire.ParticipantHeader: id})
 	if got := live(); len(got) != 0 || noteOf(hub, id).Branch != "feat/x" {
 		t.Fatalf("announced without a change: %v, %+v", got, noteOf(hub, id))
 	}
@@ -84,7 +86,7 @@ func TestCalledNotesTheBranchHostAndModel(t *testing.T) {
 	}
 
 	model := func(m string) map[string]string {
-		return map[string]string{ParticipantHeader: id, ModelHeader: m}
+		return map[string]string{aiwire.ParticipantHeader: id, aiwire.ModelHeader: m}
 	}
 	call(t, "GET", s.URL+"/api/ai/books", "", model("gpt-6%2Fluna"))
 	if got := live(); len(got) != 1 || got[0] != `{"participant":"`+id+`","model":"gpt-6/luna"}` {
@@ -94,7 +96,7 @@ func TestCalledNotesTheBranchHostAndModel(t *testing.T) {
 		t.Fatalf("saved notes = %s", saved)
 	}
 	call(t, "GET", s.URL+"/api/ai/books", "", model("gpt-6%2Fluna"))
-	call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{ParticipantHeader: id})
+	call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{aiwire.ParticipantHeader: id})
 	if got := live(); len(got) != 0 || noteOf(hub, id).Model != "gpt-6/luna" {
 		t.Fatalf("announced without a change: %v, %+v", got, noteOf(hub, id))
 	}
@@ -192,14 +194,14 @@ func TestHostRebindsANewSession(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
 	carried := joinedID(t, s.URL, joinBody("L1", ""))
 	acceptRoom(t, s.URL, carried, "ひよこ")
-	call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{ParticipantHeader: carried, BranchHeader: "", HostHeader: "100"})
+	call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{aiwire.ParticipantHeader: carried, aiwire.BranchHeader: "", aiwire.HostHeader: "100"})
 	if n := noteOf(hub, carried); n.SessionID != "S1" || n.Host != "100" || !n.Told || n.BoundBy != boundByJoin {
 		t.Fatalf("carried = %+v", n)
 	}
 	// 準備中（受け入れたが、フックがまだ参加を伝えていない）の参加者は、AI のプログラムのプロセス id もブランチも残さない
 	id := joinedID(t, s.URL, `{"ai":"claude","model":"opus","env":"linux","link":"L2"}`)
 	acceptRoom(t, s.URL, id, "すずめ")
-	call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{ParticipantHeader: id, BranchHeader: "main", HostHeader: "100"})
+	call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{aiwire.ParticipantHeader: id, aiwire.BranchHeader: "main", aiwire.HostHeader: "100"})
 	if n := noteOf(hub, id); n.Host != "" || n.Branch != "" {
 		t.Fatalf("noted while preparing: %+v", n)
 	}
