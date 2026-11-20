@@ -26,7 +26,7 @@ test("ブックの中は checkBooks と同じに読み、ブックの外のペ�
   expect(done.books).toEqual(checked.books)
   expect(done.warnings).toEqual(checked.warnings)
   expect(done.partial).toEqual(checked.partial)
-  expect(done.outside).toEqual([])
+  expect(done.outsideWarnings).toEqual([])
   expect(done.library.pages.x1).toEqual(drawingPage("x1", { title: "外" }))
   expect(Object.keys(done.library.pages).sort()).toEqual(["p1", "u1", "x1"])
   expect(treeHolds(done.library)).toBe(true)
@@ -50,7 +50,7 @@ test("読めないブックの外のページ（タイプが機能台帳に無�
     unreadable("x4", "ページ 1", "W028", "@matomezu/drawing:drawing"),
     unreadable("x5", "線", "W029", "@matomezu/drawing:drawing"),
   ])
-  expect(done.outside.map(w => [w.code, w.plugin, w.params])).toEqual([
+  expect(done.outsideWarnings.map(w => [w.code, w.plugin, w.params])).toEqual([
     ["W027", "@foo/stamps", { pages: "2", type: UNKNOWN }],
     ["W027", "@bar/other", { pages: "1", type: "@bar/other:t" }],
     ["W028", "", { pages: "1" }],
@@ -70,7 +70,7 @@ test("機能台帳に無いアイテムを持つブックの外のページは�
   )
   const done = read(rows)
   expect(done.library.pages.x1?.kind).toBe("page")
-  expect(done.outside.map(w => [w.code, w.plugin, w.params])).toEqual([
+  expect(done.outsideWarnings.map(w => [w.code, w.plugin, w.params])).toEqual([
     ["W007", "@foo/stamps", { missing: "@foo/stamps:stamp, @foo/stamps:seal" }],
   ])
 })
@@ -89,7 +89,7 @@ test("ブックの外のバインダは、バインダの決まりを守れば�
     ],
   })
   expect(done.library.pages.y2).toEqual(unreadable("y2", "2", "W027", UNKNOWN))
-  expect(done.outside.map(w => w.code)).toEqual(["W027"])
+  expect(done.outsideWarnings.map(w => w.code)).toEqual(["W027"])
   expect(treeHolds(done.library)).toBe(true)
 })
 
@@ -148,5 +148,5 @@ test("書庫ホームもフォルダも無ければ、読めるブックの表�
     rows.folders.filter(f => (f as { id: string }).id !== HOME_ID),
   )
   expect(Object.keys(done.library.folders)).toEqual(["b1"])
-  expect(done.outside).toEqual([])
+  expect(done.outsideWarnings).toEqual([])
 })

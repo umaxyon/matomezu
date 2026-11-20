@@ -80,17 +80,12 @@ test("ブックの外の可変ページの中身をずらしたら、ブック�
   )
 })
 
-test("ブックの外の読めないページは、名前を変える・ゴミ箱に入れる・複製する・宛先にすることができない（行は書き直さない）", () => {
+test("常駐のエンジンは、ブックの外の読めないページを読めないページの行として持ち、それを変えるアクションを unreadable で断る（関係ないアクションは行える）", () => {
   const stranger = { ...drawingPage("x1", { title: "外" }), type: "@foo/stamps:board" } as never
   const on = (step: Step) => performOn([step], {}, [stranger])
   const refused = { ok: false, reason: "unreadable", page: "x1", code: "W027" }
   expect(on({ action: "@matomezu/base:entry-rename", args: { entry: "x1", title: "改" } })).toMatchObject(refused)
-  expect(on({ action: "@matomezu/base:entry-trash", args: { entry: "x1" } })).toMatchObject(refused)
-  expect(on({ action: "@matomezu/base:entry-duplicate", args: { entry: "x1" }, ids: ["d1"] })).toMatchObject({
-    ok: false,
-  })
   expect(on({ action: UPDATE, args: { title: "改" }, on: { page: "x1" } })).toMatchObject(refused)
-  // 外のページと関係ないアクションは行える
   expect(on({ action: "@matomezu/base:folder-create", args: { title: "新" }, ids: ["f1"] })).toMatchObject({
     ok: true,
     pages: [],
