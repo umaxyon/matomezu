@@ -7,6 +7,7 @@
 
 import type { CoreCatalog } from "./core-catalog"
 import { arrangementValueOf } from "./def/screen-arrangement"
+import { NO_OUTERMOST } from "./folders"
 import type { Point } from "./geom"
 import { sameData } from "./same"
 import type { Book } from "./schema/book"
@@ -21,9 +22,6 @@ import {
   withinLimits,
 } from "./window"
 import { MAX_STAGES, MIN_SHARE, newWorkspace, type Workspace } from "./workspace"
-
-// ステージが何も開いていないときの、場所の outermost の値
-export const NO_OUTERMOST = "none"
 
 export interface StagePlace {
   outermost: string // 開いているブックの id（何も開いていなければ NO_OUTERMOST）

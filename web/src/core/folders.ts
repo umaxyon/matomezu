@@ -520,6 +520,31 @@ export function permissionFoldersOf(folders: Folders, entry: string): Folder[] {
 export const bookIdOf = (folders: Folders, page: string): string | undefined =>
   foldersOver(folders, page).find(f => f.folderRole === "book")?.id
 
+// ステージエントリが無いときの値（ステージが何も開いていない・id がステージエントリに当たらない）
+export const NO_OUTERMOST = "none"
+
+// ステージエントリ（ステージで開く単位のエントリ）: ブックか、ブックの外のページか、ブックの外のバインダ。どれも id で持つ
+export type Outermost =
+  | { kind: "book"; book: string }
+  | { kind: "page"; page: string }
+  | { kind: "binder"; binder: string }
+  | typeof NO_OUTERMOST
+
+// id の物のステージエントリ: ブックか、ブックの中の物ならそのブック。ブックの外のバインダか、その中のページならバインダ。ブックの外の、バインダに入っていないページならそのページ。
+// フォルダ・書庫ホーム・ゴミ箱・表に無い id・どのフォルダにも入っていないページは NO_OUTERMOST。ゴミ箱の中の物も、外と同じに引く（bookIdOf と同じ）
+export function outermostOf({ pages, folders }: Library, id: string): Outermost {
+  const row = folders[id]
+  if (row?.folderRole === "book") return { kind: "book", book: id }
+  const over = foldersOver(folders, id)
+  const book = over.find(f => f.folderRole === "book")
+  if (book) return { kind: "book", book: book.id }
+  if (row?.folderRole === "binder") return { kind: "binder", binder: id }
+  if (!Object.hasOwn(pages, id)) return NO_OUTERMOST
+  const [near] = over
+  if (!near) return NO_OUTERMOST
+  return near.folderRole === "binder" ? { kind: "binder", binder: near.id } : { kind: "page", page: id }
+}
+
 // 行う前のブック before を、行った後のブック after にする変わり: 変わった・足したページとフォルダと、無くなったページとフォルダ（どちらにも在って中身が同じ物は入れない）。
 // before と after は、1 回のアクションが受けたブックの全部と、返したブックの全部（無くなったブックは after に無い）。ページがブックの間で動いても、
 // どちらかに在れば無くなったとはしない

@@ -2,7 +2,8 @@
 // 戻る・進むはその場所を当てはめる
 import { expect, test } from "bun:test"
 import { z } from "zod"
-import { type Address, currentIn, NO_OUTERMOST, recentStagesIn } from "../../web/src/core/address"
+import { type Address, currentIn, recentStagesIn } from "../../web/src/core/address"
+import { NO_OUTERMOST } from "../../web/src/core/folders"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { screenOf, viewFrontOf } from "../../web/src/core/window"
 import {
