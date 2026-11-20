@@ -34,3 +34,10 @@ export const LIBRARY_APPEARANCE = kit.defineLibraryAppearance({
   shownFolders: (folders, read) =>
     shownFoldersOf(folders, openedFolderOf(folders, read(LIBRARY_FOLDER)), unfoldedOf(read(LIBRARY_UNFOLDED))),
 })
+
+// 読めない物が移った・戻ったときの知らせを閉じたか（窓ごと。読み直すと消える。値が無ければ、まだ閉じていない）。描き直しても、閉じた知らせは出さない
+export const NOTICE_CLOSED = "closed"
+export const UNREADABLE_NOTICE_CLOSED = kit.definePluginStateOf<typeof NOTICE_CLOSED>()({
+  id: "unreadable-notice-closed",
+  scope: "window",
+})

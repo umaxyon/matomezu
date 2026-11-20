@@ -73,6 +73,7 @@ import {
   SHOW_UNREADABLE_FOLDER,
   SYSTEM_FOLDER_ADD,
   TRASH_EMPTY,
+  UNREADABLE_NOTICE_CLOSED,
 } from "./library"
 import { BOOK_LOCK, BOOK_UNLOCK, LOCK, LOCKABLE_CHECK, PAGE_LOCK, PAGE_UNLOCK } from "./lock"
 import type { A3, A4, A5, LETTER, TABLOID, WIDE } from "./looks"
@@ -646,6 +647,7 @@ export const BASE = defineBuiltin(
       LIBRARY_COLUMNS,
       LIBRARY_UNFOLDED,
       LIBRARY_QUERY,
+      UNREADABLE_NOTICE_CLOSED,
       ...REVEAL_REQUEST_STATES,
       ...PRINT_PREVIEW_STATES,
       ...MEASURES_STATES,
@@ -922,6 +924,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:screen-flash": typeof SCREEN_FLASH
     "@matomezu/base:library-folder": typeof LIBRARY_FOLDER
     "@matomezu/base:library-picked": typeof LIBRARY_PICKED
+    "@matomezu/base:unreadable-notice-closed": typeof UNREADABLE_NOTICE_CLOSED
     "@matomezu/base:library-columns": typeof LIBRARY_COLUMNS
     "@matomezu/base:library-unfolded": typeof LIBRARY_UNFOLDED
     "@matomezu/base:library-query": typeof LIBRARY_QUERY
