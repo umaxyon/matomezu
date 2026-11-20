@@ -95,9 +95,7 @@ test("リストの行が収まらず縦のスクロールバーが出ても、�
   expect(new Set(rights).size).toBe(1)
 })
 
-test("窓の中のスクロールバーは、どこでも同じ細いバー（幅 6px）。後から足した要素にも効く", async ({
-  page,
-}) => {
+test("窓の中のスクロールバーは、どこでも同じ細いバー（幅 6px）。後から足した要素にも効く", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 360 })
   await page.goto(CONTROL_CENTER_URL)
   await expect(page.getByRole("heading", { name: "コントロールセンター" })).toBeVisible()
