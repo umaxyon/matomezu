@@ -776,10 +776,11 @@ const GO_ALLOWED: Record<string, readonly string[]> = {
   storage: [],
   plugin: [],
   engine: ["plugin"],
-  server: ["engine", "plugin", "storage"],
-  mcp: [],
+  server: ["aiwire", "engine", "plugin", "storage"],
+  mcp: ["aiwire"],
   home: [],
   browser: [],
+  aiwire: [],
 }
 
 test("Go のパッケージは internal の下と、実行ファイルの入口（cmd/matomezu）と埋め込みの画面（web）と、AI のプログラムごとの部品（clients/<AI の名前>）だけ。web と clients は matomezu のほかのパッケージを読まず、clients を読むのは cmd/matomezu だけ", () => {
@@ -815,6 +816,15 @@ test("Go の internal のパッケージは、決めたパッケージだけを�
           .map(dep => `${pkg}/${f} → ${dep}`),
       ),
   )
+  expect(bad).toEqual([])
+})
+
+// MCP とホストの AI の口のヘッダの名前は aiwire にだけ書く（テストのファイルは、送る・返る値として直に書いてよい）
+test("Go のヘッダの名前（X-Matomezu-）の文字は、aiwire の外に書かない", () => {
+  const bad = [...filesEnding(join(ROOT, "internal"), ".go"), ...filesEnding(join(ROOT, "cmd"), ".go")]
+    .filter(f => !f.endsWith("_test.go") && !relative(ROOT, f).startsWith("internal/aiwire/"))
+    .filter(f => /"X-Matomezu-/.test(readFileSync(f, "utf8")))
+    .map(f => relative(ROOT, f))
   expect(bad).toEqual([])
 })
 

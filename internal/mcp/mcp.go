@@ -13,18 +13,8 @@ import (
 	"net/url"
 	"strings"
 	"sync"
-)
 
-// 常駐の AI の入口とやりとりするヘッダ（server の ParticipantHeader・NoticeHeader・BranchHeader・HostHeader・ModelHeader と同じ名前）
-const (
-	participantHeader     = "X-Matomezu-Participant"       // 送る: join の返事で受けた参加の id
-	noticeHeader          = "X-Matomezu-Notice"            // 返る: AI への知らせ（値は URL エンコード）
-	branchHeader          = "X-Matomezu-Branch"            // 送る: 参加の id と一緒にいつも。git のブランチ（値は URL エンコード。空はブランチが無い）
-	hostHeader            = "X-Matomezu-Host"              // 送る: いつも（join も）。AI のプログラムのプロセス id
-	hostSessionHeader     = "X-Matomezu-Host-Session"      // 送る: いつも（join も）。AI のプログラムが MCP を立てたときのセッション id（分かるときだけ。/clear でも変わらない）
-	sessionPidHeader      = "X-Matomezu-Session-Pid"       // 送る: 名乗ったとき。セッションと同じだけ生きるプロセスの id（居なくなればセッションが終わったということ）
-	sessionPidSpaceHeader = "X-Matomezu-Session-Pid-Space" // 送る: セッションのプロセスを名乗ったとき。プロセス id が通じる範囲の印（常駐が同じ印のときだけ確かめる）
-	modelHeader           = "X-Matomezu-Model"             // 送る: 参加の id と一緒に、呼び出しの _meta にモデルがあったとき。今のモデル（値は URL エンコード）
+	"github.com/umaxyon/matomezu/internal/aiwire"
 )
 
 // API は常駐の AI の入口を呼ぶ口。header は送るヘッダ、戻りの 2 つ目は返事のヘッダ
@@ -74,20 +64,20 @@ type conn struct {
 func (c *conn) header() http.Header {
 	h := http.Header{}
 	if c.host != "" {
-		h.Set(hostHeader, c.host)
+		h.Set(aiwire.HostHeader, c.host)
 	}
 	if c.sessionPid != "" {
-		h.Set(sessionPidHeader, c.sessionPid)
-		h.Set(sessionPidSpaceHeader, c.pidSpace)
+		h.Set(aiwire.SessionPidHeader, c.sessionPid)
+		h.Set(aiwire.SessionPidSpaceHeader, c.pidSpace)
 	}
 	if c.hostSession != "" {
-		h.Set(hostSessionHeader, c.hostSession)
+		h.Set(aiwire.HostSessionHeader, c.hostSession)
 	}
 	if p := c.participant(); p != "" {
-		h.Set(participantHeader, p)
-		h.Set(branchHeader, url.QueryEscape(c.branch()))
+		h.Set(aiwire.ParticipantHeader, p)
+		h.Set(aiwire.BranchHeader, url.QueryEscape(c.branch()))
 		if c.model != "" {
-			h.Set(modelHeader, url.QueryEscape(c.model))
+			h.Set(aiwire.ModelHeader, url.QueryEscape(c.model))
 		}
 	}
 	return h
@@ -112,7 +102,7 @@ func (c *conn) participant() string {
 }
 
 func (c *conn) heard(h http.Header) {
-	if v := h.Get(noticeHeader); v != "" {
+	if v := h.Get(aiwire.NoticeHeader); v != "" {
 		if text, err := url.QueryUnescape(v); err == nil {
 			c.notice = text
 		}
