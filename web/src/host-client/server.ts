@@ -14,29 +14,41 @@
 // 追加プラグインが変わったと届いたら（plugins）、画面を読み直す（台帳アセンブルし直すため）。
 // つながりが切れた・読み直せなかった・古い版を捨てたなどは、常駐のログにも書き残す（POST /api/log。切れている間の分は、つながってから送る）
 
-import { z } from "zod"
-import type { CoreCatalog } from "../core/core-catalog"
+import type { z } from "zod"
 import { fail, matomezuError, problem } from "../core/errors"
-import { BROKEN, MOVED_CODES } from "../core/folders"
+import { BROKEN } from "../core/folders"
 import { rawBooksOf } from "../core/folders-unreadable"
 import { restoreCounters, restoreRecords, withCounters, withRecords } from "../core/records"
-import type { Stage } from "../core/stage"
 import { NOT_INSIDE, PURGED, type UnreadableNotice } from "../core/unreadable"
 import type { Warning } from "../core/warnings"
-import { currentKindOf, recentBookScreen, screenOfStage, shownScreens } from "../core/window"
-import { currentStage, MAX_STAGES } from "../core/workspace"
-import { NO_STAGE } from "../store/dialogs"
 import type {
   AIEditTicketOutcome,
   DoneBulk,
   ForeignChange,
   HostAnswer,
   MatomezuInstance,
-  MatomezuState,
   ParticipantLive,
 } from "../store/state"
 import type { HostClient, Loaded } from "./client"
 import { WIDE_SEARCH_ANSWER, wideSearchParams } from "./search"
+import {
+  AckSchema,
+  AnnotationsSchema,
+  ChangedSchema,
+  DataSchema,
+  HelloSchema,
+  MOVED_IF_OFF_ANSWER,
+  NoticeSchema,
+  ParticipantCallSchema,
+  ParticipantLiveSchema,
+  ParticipantReadySchema,
+  PluginsSchema,
+  PURGE_ANSWER,
+  SCREEN_PLUGINS_REMOVED,
+  ShowSchema,
+  TouchedSchema,
+} from "./server-schemas"
+import { editLocksOf, recordLocksOf, showIn, viewOf } from "./server-view"
 
 // 常駐が答えなかった（常駐から開いていない）
 export class NoServer {}
@@ -136,137 +148,6 @@ const liveOf = (v: { model?: string | undefined; branch?: string | undefined }):
     ? { ...(v.model ? { model: v.model } : {}), ...(v.branch ? { branch: v.branch } : {}) }
     : undefined
 
-const openedOf = (stage: Stage) => {
-  const opened = stage.opened
-  return {
-    book: opened?.outermost ?? null,
-    page: opened && "page" in opened ? (opened.page ?? null) : null,
-    mode: stage.mode.kind,
-  }
-}
-
-// 窓が見ているもの。current はカレントスクリーンの種類（ステージを並べるスクリーンなら book-screen、そうでなければ control-center）。
-// book・page・mode（編集か印刷プレビューか）・selection は、いちばん最近カレントにしたブックスクリーンの、カレントのステージのもの（何も開いていなければ book は null）。
-// そのブックスクリーンが見えているスクリーンでなければ、それらを hidden に分けて添える（見えていない物として、常駐は開いたことにしない）。
-// ブックスクリーンが 1 枚も無ければ、bookScreen が NO_BOOK_SCREEN
-export const NO_BOOK_SCREEN = "none"
-export function viewOf(catalog: CoreCatalog, state: MatomezuState) {
-  const current = currentKindOf(state.window)
-  const book = recentBookScreen(state.window)
-  if (!book) return { current, bookScreen: NO_BOOK_SCREEN }
-  const ws = book.stages
-  const stage = currentStage(ws)
-  const screen = {
-    ...openedOf(stage),
-    selection: stage.selection,
-    stage: stage.id,
-    stages: ws.stages.map(s => ({ id: s.id, ...openedOf(s) })),
-    canSplit: ws.stages.length < MAX_STAGES,
-  }
-  // そのブックスクリーンが見えていなければ、見えていない物として分ける
-  return shownScreens(catalog, state.window).includes(book.id) ? { current, ...screen } : { current, hidden: screen }
-}
-
-// 利用者が直している物（useEditLock）を、ページかブックの id → その中の物の id の並びにまとめたもの（常駐はこれを変える AI のアクションを断る）
-export const editLocksOf = (state: MatomezuState): Record<string, string[]> =>
-  groupLocks(state, l => ("within" in l ? l.within : undefined))
-
-// 利用者が直しているレコード（useRecordEditLock）を、対象の種類の id → レコードの id の並びにまとめたもの（常駐はこれを変える AI のアクションを断る）
-export const recordLocksOf = (state: MatomezuState): Record<string, string[]> =>
-  groupLocks(state, l => ("subject" in l ? l.subject : undefined))
-
-// 利用者が直している物を、keyOf が答えた id ごとに、直している物の id の並び（重なりを除く）にまとめる（答えない物は入れない）
-function groupLocks(
-  state: MatomezuState,
-  keyOf: (lock: MatomezuState["editLocks"][string]) => string | undefined,
-): Record<string, string[]> {
-  const locks: Record<string, string[]> = {}
-  for (const l of Object.values(state.editLocks)) {
-    const key = keyOf(l)
-    if (key === undefined) continue
-    const now = locks[key] ?? []
-    locks[key] = [...now, ...l.ids.filter(id => !now.includes(id))]
-  }
-  return locks
-}
-
-const ShowSchema = z.object({
-  book: z.string(),
-  page: z.string().optional(),
-  stage: z.string().optional(),
-  split: z.boolean().optional(),
-  mode: z.enum(["edit", "print-preview"]).optional(),
-})
-
-// 常駐が頼んだブックを出す。ステージも split も言わなければ、窓に出す（showBook: もう開いていればカレントスクリーンにし、無ければ新しいブックスクリーン）。
-// ステージを言えばそのステージに、split なら分けて右にできたステージに出す。mode が print-preview なら、印刷プレビューで出す
-export function showIn(instance: MatomezuInstance, show: z.infer<typeof ShowSchema>) {
-  const { actions, state } = instance
-  const stage = show.stage === undefined && !show.split ? shownStage(instance, show) : placedStage(instance, show)
-  if (stage === undefined) return
-  const book = state.getState().books[show.book]
-  if (show.mode === "print-preview" && book) actions.openPrintPreview(stage)
-}
-
-// ブックを窓に出して、出したステージを答える
-function shownStage({ actions }: MatomezuInstance, show: z.infer<typeof ShowSchema>): string | undefined {
-  const stage = actions.showBookStage(show.book, show.page)
-  return stage === NO_STAGE ? undefined : stage
-}
-
-// ブックを、言われたステージ（split なら、分けて右にできたステージ）に出して、出したステージを答える
-function placedStage({ actions, state }: MatomezuInstance, show: z.infer<typeof ShowSchema>): string | undefined {
-  let stage = show.stage ?? recentBookScreen(state.getState().window)?.stages.current
-  if (stage === undefined) return undefined
-  if (show.split) {
-    const before = (screenOfStage(state.getState().window, stage)?.stages.stages ?? []).map(s => s.id)
-    const from = stage
-    actions.split(from)
-    const added = screenOfStage(state.getState().window, from)?.stages.stages.find(s => !before.includes(s.id))
-    if (!added) return undefined
-    stage = added.id
-  }
-  const to = stage
-  actions.openBook(to, show.book)
-  if (show.page) actions.openPage(to, show.page)
-  return to
-}
-
-// POST api/screen-plugins/remove の答え
-const SCREEN_PLUGINS_REMOVED = z.union([
-  z.object({ ok: z.literal(true) }),
-  z.object({ ok: z.literal(false), id: z.string(), reason: z.string() }),
-])
-
-const PURGE_ANSWER = z.union([
-  z.object({ ok: z.literal(true) }),
-  z.object({ ok: z.literal(false), reason: z.literal(NOT_INSIDE) }),
-])
-const MOVED_IF_OFF_ANSWER = z.union([
-  z.object({
-    ok: z.literal(true),
-    moved: z.array(
-      z.object({
-        id: z.string(),
-        kind: z.enum(["page", "binder", "book", "folder"]),
-        holder: z.string(),
-        code: z.enum(MOVED_CODES),
-        type: z.string().optional(),
-      }),
-    ),
-  }),
-  z.object({ ok: z.literal(false), reason: z.literal(BROKEN) }),
-])
-
-const NoticeSchema = z.object({
-  moved: z.array(z.object({ code: z.enum(MOVED_CODES), type: z.string().optional(), count: z.number().int() })),
-  returned: z.number().int(),
-})
-const PluginsSchema = z.object({
-  moved: NoticeSchema.shape.moved.optional(),
-  returned: z.number().int().optional(),
-  by: z.string().optional(),
-})
 // 読み直す前の窓が運んだ知らせ carried（形に合わなければ無い）
 function noticeOf(carried: string | undefined): UnreadableNotice | undefined {
   if (carried === undefined) return undefined
@@ -277,60 +158,6 @@ function noticeOf(carried: string | undefined): UnreadableNotice | undefined {
     return undefined
   }
 }
-
-const DataSchema = z.object({
-  pages: z.array(z.object({ id: z.string(), page: z.unknown(), version: z.number().int() })),
-  folders: z.array(z.object({ id: z.string(), folder: z.unknown(), version: z.number().int() })),
-  settings: z.unknown(),
-  annotations: z.record(z.string(), z.unknown()).optional(),
-  records: z.unknown().optional(),
-  counters: z.unknown().optional(),
-  plugins: z
-    .array(z.object({ id: z.string(), ui: z.string(), css: z.string().optional(), disabled: z.boolean().optional() }))
-    .optional(),
-  touched: z.record(z.string(), z.string()).optional(),
-  participantCalls: z.record(z.string(), z.string()).optional(),
-  participantReady: z.array(z.string()).optional(),
-  participantLive: z
-    .record(z.string(), z.object({ model: z.string().optional(), branch: z.string().optional() }))
-    .optional(),
-})
-const HelloSchema = z.object({ client: z.string() })
-const Mark = { client: z.string().optional(), seq: z.number().int().optional() }
-// 変わったページ・フォルダ 1 つ（消したなら removed が true で、中身と版は無い）
-const rowSchema = <K extends "page" | "folder">(field: K) =>
-  z.object({ id: z.string(), version: z.number().int().optional(), removed: z.literal(true).optional() }).extend({
-    [field]: z.unknown().optional(),
-  } as Record<K, z.ZodOptional<z.ZodUnknown>>)
-// 1 回の perform（アクションバルク）が変えた物の全部: ページとフォルダ（books は、それらを持つブックの id）と、変わったときだけ設定・アノテーション（ページの id → 並び）・
-// レコードと進めた番号（window は最後にフォーカスされた窓）。actions は行ったアクションの id の並び、library は、書庫の履歴に入るアクションが変えたページとフォルダごとの前と後（無い側は none）
-// ページ・フォルダ 1 つの、前と後（置き場所の形のまま。無い側は none）
-const RowSides = z.object({ before: z.unknown(), after: z.unknown() })
-const ChangedSchema = z.object({
-  pages: z.array(rowSchema("page")),
-  folders: z.array(rowSchema("folder")),
-  books: z.array(z.string()),
-  library: z.object({ pages: z.record(z.string(), RowSides), folders: z.record(z.string(), RowSides) }).optional(),
-  by: z.enum(["ai", "window", "host"]).optional(),
-  act: z.string().optional(),
-  actions: z.array(z.string()).optional(),
-  settings: z.unknown().optional(),
-  annotations: z.record(z.string(), z.unknown()).optional(),
-  records: z.array(z.object({ subject: z.string(), id: z.string(), record: z.unknown() })).optional(),
-  counters: z.record(z.string(), z.record(z.string(), z.number())).nullish(),
-  window: z.string().optional(),
-  ...Mark,
-})
-const AckSchema = z.object({ seq: z.number().int(), ok: z.boolean(), reason: z.string() })
-const ParticipantCallSchema = z.object({ participant: z.string(), at: z.string() })
-const ParticipantReadySchema = z.object({ participant: z.string() })
-const ParticipantLiveSchema = z.object({
-  participant: z.string(),
-  model: z.string().optional(),
-  branch: z.string().optional(),
-})
-const TouchedSchema = z.object({ book: z.string(), at: z.string() })
-const AnnotationsSchema = z.object({ page: z.string(), annotations: z.unknown() })
 
 export function serverClient(net: Net = browserNet): HostClient {
   // 確かめた世界のページとフォルダ（id → 置き場所から読んだままの中身と版）
