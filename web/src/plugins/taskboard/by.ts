@@ -37,10 +37,7 @@ export const readsBy = (actor: Actor): RecordRead[] => {
   return id === undefined ? [] : [{ subject: WORKROOM_SUBJECT, id }]
 }
 
-// ワークルームを名前でも指せるアクションが読む物: 全部のワークルームの索引キー（名前と作った時点）だけ
-export const READS_WORKROOM_NAMES: RecordRead = { subject: WORKROOM_SUBJECT, where: [], keysOnly: true }
-
-// ワークルームの候補（id と名前）: 読んだ索引キー（READS_WORKROOM_NAMES）から。作った順
+// ワークルームの候補（id と名前）: 読んだ全部のワークルームの索引キー（base の READS_WORKROOM_KEYS）から。作った順
 export const workroomsOf = (ctx: Records): { id: string; name: string }[] =>
   Object.entries(ctx.keys?.[WORKROOM_SUBJECT] ?? {})
     .map(([id, keys]) => ({ id, name: String(keys.name ?? ""), createdAt: String(keys.createdAt ?? "") }))
