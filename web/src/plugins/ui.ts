@@ -52,6 +52,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:note-read-notice",
       "@matomezu/base:mail-bookmarks",
       "@matomezu/base:mail-watch",
+      "@matomezu/base:unreadable-notice",
       "@matomezu/base:edit-lock",
       "@matomezu/base:tool-picker",
       "@matomezu/base:search-dialog",

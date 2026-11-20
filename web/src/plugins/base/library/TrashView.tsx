@@ -17,6 +17,7 @@ import { useLibraryRows, useNameOf, useReadNaming } from "./hooks"
 import { RowIcon } from "./icons"
 import styles from "./LibraryView.module.css"
 import { NO_TITLE, shownDateTime, type TrashRow, trashRowsOf } from "./outline"
+import { type RowCell, RowTable } from "./RowTable"
 import { TitleClashConfirm } from "./TitleClashConfirm"
 import { useLibraryPerform } from "./useLibraryPerform"
 
@@ -60,6 +61,27 @@ export function TrashView({ picked, onPick }: { picked: string | undefined; onPi
   }
   const folderName = (plan: RestorePlan) =>
     nameOf({ id: plan.into, title: titleOf(read(), "folder", plan.into, naming()) ?? NO_TITLE })
+  // 表の列: 種類のアイコン・名前・元の場所・捨てた日時
+  const cells: readonly RowCell<TrashRow>[] = [
+    { head: "", width: "20px", render: row => <RowIcon row={row} className={styles.icon} /> },
+    {
+      head: t("Name"),
+      width: "minmax(0, 2fr)",
+      render: row => (
+        <span className={row.readable ? styles.label : `${styles.label} ${styles.unreadable}`}>{nameOf(row)}</span>
+      ),
+    },
+    {
+      head: t("Returns to"),
+      width: "minmax(0, 1fr)",
+      render: row => <span className={styles.place}>{nameOf({ id: row.into, title: row.place })}</span>,
+    },
+    {
+      head: t("Moved to trash"),
+      width: "max-content",
+      render: row => <time className={styles.when}>{shownDateTime(row.trashed)}</time>,
+    },
+  ]
   return (
     <>
       <div className={styles.tools}>
@@ -71,40 +93,16 @@ export function TrashView({ picked, onPick }: { picked: string | undefined; onPi
       {rows.length === 0 ? (
         <p className={styles.empty}>{t("The trash is empty")}</p>
       ) : (
-        <div className={styles.trash}>
-          <div className={styles.trashHead}>
-            <span />
-            <span>{t("Name")}</span>
-            <span>{t("Returns to")}</span>
-            <span>{t("Moved to trash")}</span>
-          </div>
-          <ul className={styles.trashRows} aria-label={t("Trash")}>
-            {rows.map(row => (
-              <li key={row.id} className={styles.trashed} data-picked={row.id === picked}>
-                <button
-                  type="button"
-                  className={styles.trashedRow}
-                  aria-pressed={row.id === picked}
-                  onClick={() => onPick(row.id)}
-                >
-                  <RowIcon row={row} className={styles.icon} />
-                  <span className={row.readable ? styles.label : `${styles.label} ${styles.unreadable}`}>
-                    {nameOf(row)}
-                  </span>
-                  <span className={styles.place}>{nameOf({ id: row.into, title: row.place })}</span>
-                  <time className={styles.when}>{shownDateTime(row.trashed)}</time>
-                </button>
-                {row.id === picked && (
-                  <TrashActions
-                    row={row}
-                    onRestore={() => ask(row)}
-                    onPurge={() => setAsking({ about: "purge", row })}
-                  />
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
+        <RowTable
+          label={t("Trash")}
+          cells={cells}
+          rows={rows}
+          picked={picked}
+          onPick={onPick}
+          actions={row => (
+            <TrashActions row={row} onRestore={() => ask(row)} onPurge={() => setAsking({ about: "purge", row })} />
+          )}
+        />
       )}
       {asking?.about === "empty" && (
         <Confirm
@@ -196,13 +194,13 @@ function TrashActions({ row, onRestore, onPurge }: { row: TrashRow; onRestore():
   const restorable = useAllowedOn(ENTRY_RESTORE.id, { entry: row.id, onConflict: "refuse" }).ok
   const purgeable = useAllowedOn(ENTRY_PURGE.id, { entries: [row.id] }).ok
   return (
-    <span className={styles.trashedActions}>
+    <>
       <ActionButton disabled={!restorable} onClick={onRestore}>
         {t("Restore")}
       </ActionButton>
       <ActionButton danger disabled={!purgeable} onClick={onPurge}>
         {t("Delete for good")}
       </ActionButton>
-    </span>
+    </>
   )
 }

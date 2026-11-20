@@ -42,6 +42,7 @@ import {
   type StageCommandDef,
   UNKNOWN_PERFORMED,
   withScreenFrame,
+  withUnreadableItems,
   withWorkspace,
 } from "./def"
 
@@ -107,7 +108,7 @@ export function screenCommandContext(
         ownedPluginState(commandOwner(command), def),
       ),
   }
-  return withScreenFrame(ctx, frameOf(win, screen.id))
+  return withUnreadableItems(withScreenFrame(ctx, frameOf(win, screen.id)), state.unreadableFolder)
 }
 
 // 窓 win の、コマンドの文脈に結ぶほかのスクリーンを名指す物（here は呼ばれた場所のスクリーンの id）
@@ -131,20 +132,23 @@ export function commandContext(
   const page = shownPageId(stage.opened)
   const workspace = workspaceOf(state.window, stageId)
   const screen = screenOfStage(state.window, stageId) ?? currentScreen(state.window)
-  return withScreenFrame(
-    withWorkspace(
-      {
-        ...screenCommandContext(catalog, controlCenter, state, stageId, command),
-        stage: stageView(catalog, stage, toolOf(catalog, workspace, stageId, state.books)),
-        book,
-        page: (page !== null && pageIn(state.pages, page)) || NO_PAGE,
-        bookHistory: (book !== NO_BOOK && state.history[book.id]) || NO_HISTORY,
-      },
-      workspace,
-      stageId,
-      state.books,
+  return withUnreadableItems(
+    withScreenFrame(
+      withWorkspace(
+        {
+          ...screenCommandContext(catalog, controlCenter, state, stageId, command),
+          stage: stageView(catalog, stage, toolOf(catalog, workspace, stageId, state.books)),
+          book,
+          page: (page !== null && pageIn(state.pages, page)) || NO_PAGE,
+          bookHistory: (book !== NO_BOOK && state.history[book.id]) || NO_HISTORY,
+        },
+        workspace,
+        stageId,
+        state.books,
+      ),
+      frameOf(state.window, screen.id),
     ),
-    frameOf(state.window, screen.id),
+    state.unreadableFolder,
   )
 }
 

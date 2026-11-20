@@ -6,11 +6,16 @@
 // 2 行目にそう出し、その画面の履歴の段を捨てる（次はその前の段を置き直す）。認可ステップが止めた（ロック中など）なら、その画面の履歴の段は動かさない
 
 import type { CoreCatalog } from "../../../core/core-catalog"
-import { entriesIn, namingOf, placeOf, rowTitle } from "../../../core/entries"
+import { namingOf, placeOf, rowTitle } from "../../../core/entries"
 import type { Folders } from "../../../core/folders"
 import { isKeptSystemFolder, systemFolderOf } from "../../../core/folders-tree"
 import { LIBRARY_HISTORY } from "../../../core/history"
-import { type CommandActions, type ScreenCommandContext, tryPerformOf } from "../../../store/commands/def"
+import {
+  type CommandActions,
+  type ScreenCommandContext,
+  tryPerformOf,
+  unreadableItemsIn,
+} from "../../../store/commands/def"
 import { BOOK_CREATE } from "../book-new/book-create"
 import { dropClashing, notRestored } from "../history"
 import { isRevertUnchanged } from "../history/restore"
@@ -29,12 +34,14 @@ import {
   type OpenTarget,
   openedFolderOf,
   openTargetOf,
+  paneIdsOf,
   type TreeRow,
   treeCurrentOf,
   treeRowsOf,
   unfoldedOf,
 } from "./outline"
 import { LIBRARY_REVERT, libraryRevertArgs } from "./revert"
+import { unreadableShownIn } from "./show-unreadable"
 import { LIBRARY_COLUMNS, LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_UNFOLDED } from "./state"
 
 // 書庫の履歴の最後の段を、from の向きに置き直す（ブックの画面の履歴の restore と同じ決まり。plugins/base/history/index.ts）
@@ -296,7 +303,7 @@ function goTo(
 // 呼ばれた場所の書庫の画面のツリー: 出ている行 rows と、今いる行の位置 i（出ていなければ -1）と、中を出しているフォルダ unfolded
 function treeAt(ctx: ScreenCommandContext) {
   const unfolded = unfoldedOf(ctx.pluginState(LIBRARY_UNFOLDED))
-  const rows = treeRowsOf(ctx.folders, unfolded)
+  const rows = treeRowsOf(ctx.folders, unfolded, unreadableShownIn(ctx.catalog, ctx.settings))
   const at = treeCurrentOf(ctx.folders, openedIn(ctx), ctx.pluginState(LIBRARY_PICKED))
   return { rows, unfolded, i: rows.findIndex(r => r.id === at) }
 }
@@ -345,15 +352,15 @@ export const LIBRARY_TREE_UNFOLD_OR_NEXT = kit.defineScreenCommand({
   when: () => true,
 })
 
-// 右の枠で、選んでいる行の前・次の行か、上・下の段の行を選ぶ（選んでいなければ、最初の行）。段の列の数は、ビューが測った LIBRARY_COLUMNS
+// 右の枠で、選んでいる行の前・次の行か、上・下の段の行を選ぶ（選んでいなければ、最初の行）。行の順はビューと同じ paneIdsOf、段の列の数は、ビューが測った LIBRARY_COLUMNS
 export const LIBRARY_PICK_MOVE = kit.defineScreenCommand({
   id: "library-pick-move",
   title: "Pick the neighbour",
   run: (ctx, a, { to }: { to: PickTo }) => {
-    const rows = entriesIn(ctx.folders, openedIn(ctx))
-    const i = rows.findIndex(r => r.id === ctx.pluginState(LIBRARY_PICKED))
-    const next = i < 0 ? rows[0] : rows[pickedAfter(to, i, rows.length, ctx.pluginState(LIBRARY_COLUMNS) ?? 1)]
-    if (next) a.updatePluginState(LIBRARY_PICKED, () => next.id)
+    const ids = paneIdsOf(ctx.folders, unreadableItemsIn(ctx), openedIn(ctx))
+    const i = ids.indexOf(ctx.pluginState(LIBRARY_PICKED) ?? "")
+    const next = i < 0 ? ids[0] : ids[pickedAfter(to, i, ids.length, ctx.pluginState(LIBRARY_COLUMNS) ?? 1)]
+    if (next !== undefined) a.updatePluginState(LIBRARY_PICKED, () => next)
   },
   when: () => true,
 })

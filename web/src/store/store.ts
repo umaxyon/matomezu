@@ -94,7 +94,13 @@ import {
 } from "../core/workspace"
 import { type Actions, boundActions, type Performed, SCREEN_REFUSED, windowActionsOf } from "./actions"
 import { called, commandOwner, isEnabled } from "./commands"
-import { type CommandActions, calledScreenIdOf, givenActions } from "./commands/def"
+import {
+  type CommandActions,
+  calledScreenIdOf,
+  givenActions,
+  givenScreenWrites,
+  type UpdatePluginStateAt,
+} from "./commands/def"
 import { NO_STAGE, type OpenedPlace, openedAt } from "./dialogs"
 import { findKey, type KeyTable, keyScopes, keyTable } from "./keys"
 import { assemble, type Plugin } from "./plugin"
@@ -609,10 +615,21 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         withPluginValue(working(), own.id, at, next) // 書く前に、範囲と形を確かめる
         pending.push([own.id, at, next])
       }
+      // ほかのスクリーン screen の、スクリーンごとの宣言の値（base のコマンドだけが updatePluginStateAtOf で使う）
+      const updatePluginStateAt: UpdatePluginStateAt = (screen, stateDef, change) => {
+        const own = ownedPluginState(owner, stateDef)
+        // 渡したスクリーンに書くのはスクリーンごとの宣言だけ（ステージ・窓の範囲の宣言を、呼ばれた場所に黙って書かない）
+        if (own.scope !== "screen") fail("E124", { id: own.id, scope: own.scope, need: "use updatePluginState" })
+        const at = placeOf(own.scope, { stage, screen })
+        const next = change(pluginValueOf(working(), at, own))
+        withPluginValue(working(), own.id, at, next)
+        pending.push([own.id, at, next])
+      }
       const run = call.def.run as (ctx: unknown, actions: CommandActions, args: never) => void
       // 呼ばれた場所（ステージか、スクリーン）に向けた操作
       const given: CommandActions = { ...windowActionsOf(actions), ...boundActions(actions, stage), updatePluginState }
       givenActions.set(given, actions)
+      givenScreenWrites.set(given, updatePluginStateAt)
       run(call.ctx, given, args[0] as never)
       if (pending.length > 0) {
         const now = getState().pluginValues

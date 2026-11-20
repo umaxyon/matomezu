@@ -3,7 +3,7 @@ import { defineMessages } from "../../web/src/core/i18n/messages"
 import { screenOf } from "../../web/src/core/window"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { isActive, isShown, screenCommandContext } from "../../web/src/store/commands"
-import { screensOf } from "../../web/src/store/commands/def"
+import { screensOf, updatePluginStateAtOf } from "../../web/src/store/commands/def"
 import { pluginKit } from "../../web/src/store/kit"
 import { definePlugin } from "../../web/src/store/plugin"
 import { createMatomezuInstance } from "../../web/src/store/store"
@@ -174,7 +174,7 @@ describe("コマンドは、自分のプラグインのプラグイン状態を�
       }),
     )
   // 表に無い id（型に書き足していない追加プラグインのコマンド）を呼ぶ
-  const call = (store: ReturnType<typeof make>, stage: string, id: string) =>
+  const call = (store: { readonly actions: { readonly command: unknown } }, stage: string, id: string) =>
     (store.actions.command as (stage: string, id: string) => boolean)(stage, `@x/pane:${id}`)
 
   test("run で置いた値を、そのステージの when・active が読む。ほかのステージには効かない", () => {
@@ -208,6 +208,36 @@ describe("コマンドは、自分のプラグインのプラグイン状態を�
     expect(notified).toBe(1)
     expect(store.state.getState().pluginValues.stages.s1).toEqual({ "@x/pane:mode": "split" })
     expect(store.state.getState().pluginValues.window).toEqual({ "@x/pane:flipped": "on" })
+  })
+
+  test("ほかのスクリーンに書く操作（updatePluginStateAtOf）は、スクリーンごとの宣言だけを受ける（ステージ・窓の範囲の宣言は E124）", () => {
+    const PANE = kit.definePluginStateOf<"open">()({ id: "pane", scope: "screen" })
+    let target = ""
+    const AT = (name: string, def: typeof MODE | typeof FLIPPED | typeof PANE) =>
+      kit.defineCommand({
+        id: `at-${name}`,
+        title: "toggle",
+        run: (_, a) => updatePluginStateAtOf(a)(target, def as typeof PANE, () => "open"),
+        when: () => true,
+      })
+    const plugin = kit.plugin({
+      pluginStates: [MODE, FLIPPED, PANE],
+      commands: [AT("mode", MODE), AT("flipped", FLIPPED), AT("pane", PANE)],
+    })
+    const store = shown(
+      createMatomezuInstance({
+        plugins: [...BUILTIN, definePlugin(plugin)],
+        controlCenter: BUILTIN_CONTROL_CENTER,
+        books: SAMPLE_BOOKS,
+        lang: "ja",
+        newId: sequence(),
+      }),
+    )
+    target = store.actions.openScreenId("@matomezu/control-center:screen", {})
+    call(store, "s1", "at-pane")
+    expect(store.state.getState().pluginValues.screens).toEqual({ [target]: { "@x/pane:pane": "open" } })
+    expect(() => call(store, "s1", "at-mode")).toThrow("E124")
+    expect(() => call(store, "s1", "at-flipped")).toThrow("E124")
   })
 
   test("読むのは自分の宣言だけ（ほかのプラグインの宣言を読む・書くと E125）", () => {

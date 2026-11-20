@@ -7,6 +7,7 @@ import { ANY_PAGE_TYPE, type ArgsOfType, type Where } from "../../core/def/actio
 import type { PluginStateDef, PluginStateRead } from "../../core/def/plugin-state"
 import { fail } from "../../core/errors"
 import type { Folders } from "../../core/folders"
+import type { UnreadableItem } from "../../core/folders-unreadable"
 import type { Point } from "../../core/geom"
 import type { History } from "../../core/history"
 import type { MessageKey } from "../../core/i18n/i18n"
@@ -140,6 +141,20 @@ export const arrangementValueIn = (ctx: ScreenCommandContext): unknown => frames
 // コマンドの文脈 ctx の、呼ばれた場所のスクリーンの id（store が、スクリーンごとのプラグイン状態の置き場に使う）
 export const calledScreenIdOf = (ctx: ScreenCommandContext): string => frames.get(ctx)?.here ?? fail("E116")
 
+// コマンドの文脈ごとの、読めない物のフォルダの直下の物（書庫の表 folders に入らず、プラグイン API にも出さない。base の書庫のコマンドが unreadableItemsIn で読む）
+const unreadableItems = new WeakMap<ScreenCommandContext, readonly UnreadableItem[]>()
+
+// ctx に、読めない物のフォルダの直下の物 items を結ぶ（ctx を返す）
+export function withUnreadableItems<C extends ScreenCommandContext>(ctx: C, items: readonly UnreadableItem[]): C {
+  unreadableItems.set(ctx, items)
+  return ctx
+}
+
+// コマンドの文脈 ctx の、読めない物のフォルダの直下の物（並びの順。withUnreadableItems を通した文脈だけが持つ）
+export const unreadableItemsIn = (ctx: ScreenCommandContext): readonly UnreadableItem[] =>
+  unreadableItems.get(ctx) ?? NO_UNREADABLE_ITEMS
+const NO_UNREADABLE_ITEMS: readonly UnreadableItem[] = []
+
 // コマンドの文脈ごとの、ステージの並びと道具（表示領域の大きさ・道具のアイコンなども持つので、プラグイン API の文脈のフィールドにはしない。base のコマンドが workspaceOf で読む）と、
 // 開けるブックの一覧（base のコマンドが booksOf で読む）。
 // これを読む workspaceOf・booksOf・calledStageOf は、使うのが base だけでも土台に置く（store の外に出さない workspaces を読むので、base からは書けない）
@@ -187,6 +202,19 @@ export const givenActions = new WeakMap<CommandActions, Actions>()
 
 // コマンドが受け取った操作 a の、store の素の操作（store がコマンドに渡した操作だけが持つ）
 export const storeActionsOf = (a: CommandActions): Actions => givenActions.get(a) ?? fail("E116")
+
+// コマンドを持つプラグインの、スクリーンごとの宣言 def の値を、呼ばれた場所でないスクリーン screen で、今の値から change が返す値にする（updatePluginState と同じく、1 回のコマンドの書き込みにまとめる）。スクリーンごとの宣言でなければ E124
+export type UpdatePluginStateAt = <S>(
+  screen: string,
+  def: PluginStateDef<S>,
+  change: (now: S | undefined) => S | undefined,
+) => void
+// コマンドに渡した操作ごとの、ほかのスクリーンの自分の宣言の値を変える操作（プラグイン API には出さない。base のコマンドが updatePluginStateAtOf で読む）
+export const givenScreenWrites = new WeakMap<CommandActions, UpdatePluginStateAt>()
+
+// コマンドが受け取った操作 a の、ほかのスクリーンの自分の宣言の値を変える操作（store がコマンドに渡した操作だけが持つ）
+export const updatePluginStateAtOf = (a: CommandActions): UpdatePluginStateAt =>
+  givenScreenWrites.get(a) ?? fail("E116")
 
 // コマンドが受け取った操作 a の、アクションを行わずに確かめる操作（store がコマンドに渡した操作だけが持つ。プラグイン API には出さない）
 export const tryPerformOf = (a: CommandActions): ProbeActions["tryPerform"] => storeActionsOf(a).tryPerform

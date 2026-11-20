@@ -275,6 +275,7 @@ test("matomezu/ui が出す名前", () => {
     "MarkdownDocumentView",
     "MaxButton",
     "MultiChoices",
+    "Notice",
     "PageProblemsView",
     "Panel",
     "PaperFrame",

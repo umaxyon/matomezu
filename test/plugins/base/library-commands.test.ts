@@ -2,19 +2,20 @@
 import { expect, test } from "bun:test"
 import type { CommandId } from "../../../web/src/core/catalog"
 import { entriesIn } from "../../../web/src/core/entries"
-import { HOME_ID, TRASH_ID } from "../../../web/src/core/folders"
+import { HOME_ID, TRASH_ID, UNREADABLE_ID } from "../../../web/src/core/folders"
 import {
   LIBRARY_COLUMNS,
   LIBRARY_FOLDER,
   LIBRARY_PICKED,
+  LIBRARY_QUERY,
   LIBRARY_UNFOLDED,
 } from "../../../web/src/plugins/base/library/state"
 import { isEnabled, isShown } from "../../../web/src/store/commands"
 import { pluginValueOf } from "../../../web/src/store/plugin-state"
-import { newStore } from "../../support"
+import { newStore, worldRows } from "../../support"
 
-function setup() {
-  const store = newStore()
+function setup(now: () => string = () => "2026-11-18T01:00:00.000Z") {
+  const store = newStore({ now })
   const { state, actions } = store
   const center = state.getState().window.screens.find(s => s.stages === undefined)?.id as string
   actions.makeScreenCurrent(center)
@@ -99,6 +100,59 @@ test("右の枠の矢印: 選んでいる行の前・次を選ぶ。選んでい
   expect(at().picked).toBe(home[0])
   run("library-pick-move", { to: "next" })
   expect(at().picked).toBe(home[1])
+})
+
+test("ゴミ箱の右の枠の矢印は、見せている順（入れた時刻の新しい順）に選ぶ", () => {
+  let now = "2026-11-18T01:00:00.000Z"
+  const { store, run, at, set, center } = setup(() => now)
+  const perform = store.actions.perform as (id: string, args: unknown) => { ok: boolean }
+  expect(perform("@matomezu/base:entry-trash", { entry: "b1" }).ok).toBe(true)
+  now = "2026-11-18T02:00:00.000Z"
+  expect(perform("@matomezu/base:entry-trash", { entry: "b2" }).ok).toBe(true)
+  set(LIBRARY_FOLDER.id, center, TRASH_ID)
+  run("library-pick-move", { to: "next" })
+  expect(at().picked).toBe("b2")
+  run("library-pick-move", { to: "next" })
+  expect(at().picked).toBe("b1")
+})
+
+test("読めない物のフォルダの右の枠の矢印は、見せている順（移った時刻の新しい順、形に合わない物は最後）に選ぶ", () => {
+  const { store, run, at, set, center } = setup()
+  // 読めない物のフォルダの並び: 移った時刻の違う 2 つと、その間に形に合わない要素 1 つ（ホストが知らせる行の形）
+  const ref = (id: string, moved: string) => ({
+    entry: { kind: "page", id },
+    from: [HOME_ID],
+    after: "none",
+    code: "W029",
+    moved,
+  })
+  const world = worldRows([])
+  store.receive(
+    {
+      pages: [...world.pages, ...["u1", "u3"].map(id => ({ kind: "page", id, type: "@ex/none:x", title: id }))],
+      folders: [
+        ...world.folders,
+        {
+          folderRole: "unreadable",
+          id: UNREADABLE_ID,
+          lineup: [
+            ref("u1", "2026-11-18T01:00:00.000Z"),
+            { entry: { id: "u2" } },
+            ref("u3", "2026-11-18T02:00:00.000Z"),
+          ],
+        },
+      ],
+      settings: {},
+    },
+    [],
+  )
+  expect(store.state.getState().unreadableFolder.map(i => i.id)).toEqual(["u1", "u2", "u3"])
+  set(LIBRARY_FOLDER.id, center, UNREADABLE_ID)
+  const picks = [1, 2, 3].map(() => {
+    run("library-pick-move", { to: "next" })
+    return at().picked
+  })
+  expect(picks).toEqual(["u3", "u1", "u2"])
 })
 
 test("右の枠の上下の矢印: ビューが測った列の数だけ前・後ろの行を選ぶ。真下に行が無ければ下の段の最後の行。測っていなければ 1 列", () => {
@@ -298,4 +352,18 @@ test("落とした物を動かすコマンドは、行うアクションを引�
   expect(run("library-entry-move", { entry: "b1", to: { to: "trash" } })).toBe(false)
   expect(ids(HOME_ID)).toContain("b1")
   expect(store.state.getState().toasts).toEqual([])
+})
+
+test("読めない物のフォルダを開く: 書庫を開き、検索していればやめ、選んでいる行も外して、右の枠に読めない物のフォルダを出す", () => {
+  const { store, run, set } = setup()
+  run("library-open")
+  const library = store.state.getState().window.screens.find(s => s.def === "@matomezu/base:library-screen")
+    ?.id as string
+  set(LIBRARY_QUERY.id, library, "企画")
+  set(LIBRARY_PICKED.id, library, "b1")
+  run("library-unreadable-open")
+  const values = store.state.getState().pluginValues
+  expect(pluginValueOf(values, library, LIBRARY_FOLDER)).toBe(UNREADABLE_ID)
+  expect(pluginValueOf(values, library, LIBRARY_PICKED)).toBeUndefined()
+  expect(pluginValueOf(values, library, LIBRARY_QUERY)).toBeUndefined()
 })
