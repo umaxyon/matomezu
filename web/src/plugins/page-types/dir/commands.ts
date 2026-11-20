@@ -13,6 +13,10 @@ import { dirRootOf, type Kind } from "./entry"
 import { kit } from "./kit"
 import { PENCIL_TOOL } from "./tools"
 
+// 断られたわけを知らせるトースト（認可ステップが止めたのでなければ、断られるのは紙に入らないとき）
+export const fitRefusal = (catalog: CommandContext["catalog"], done: Parameters<typeof refusalMessage>[1]) =>
+  ({ kind: "warn", message: refusalMessage(catalog, done, kit.message("Does not fit on the paper")) }) as const
+
 // 開いているページと、その根（ディレクトリ構成図のページでなければ null）
 export function dirAt(ctx: CommandContext) {
   if (!hasOpenedPage(ctx)) return null
@@ -34,11 +38,7 @@ export const FOLDER_TOGGLE = kit.defineCommand({
     if (!dir || folder?.kind !== "folder") return
     const closed = folder.closed !== true
     const done = a.perform(FOLDER_CLOSE.id, { folder: folder.id, closed }, { page: dir.page.id })
-    if (!done.ok)
-      a.showToast({
-        kind: "warn",
-        message: refusalMessage(ctx.catalog, done, kit.message("Does not fit on the paper")),
-      })
+    if (!done.ok) a.showToast(fitRefusal(ctx.catalog, done))
   },
   when: ctx => dirAt(ctx) !== null,
 })
@@ -50,9 +50,9 @@ type CommandActions = Parameters<typeof FOLDER_TOGGLE.run>[1]
 const penciling = (ctx: CommandContext) =>
   ctx.stage.tool === PENCIL_TOOL.id && !ctx.stage.editing && dirAt(ctx) !== null
 
-// 断られたわけをトーストで知らせる（認可ステップが止めたのでなければ、断られるのは紙に入らないとき）
+// 断られたわけをトーストで知らせる
 const refused = (ctx: CommandContext, a: CommandActions, done: Parameters<typeof refusalMessage>[1]) =>
-  a.showToast({ kind: "warn", message: refusalMessage(ctx.catalog, done, kit.message("Does not fit on the paper")) })
+  a.showToast(fitRefusal(ctx.catalog, done))
 
 // 足す所 at に、名前の空の kind を 1 つ足して選び、その場で名前を書き始める（閉じたフォルダの中なら先に開く。開けない・足せなければトーストで知らせる）
 export function addEntry(ctx: CommandContext, a: CommandActions, at: AddAt, kind: Kind): void {

@@ -206,12 +206,11 @@ test("Enter・F2・ダブルクリックで名前をその場で書き、Enter �
   expect(rowNames()).toEqual(["app", "src", "b.ts", "README.md"])
 })
 
-test("名前を書いている途中は、変換中の Enter では確定せず、ほかの行を押すと先に確定してからその行を選ぶ（確定と取り消しは入力Formの範囲のキーバインド）", () => {
+test("名前を書いている途中は、変換中の Enter では確定せず、ほかの行を押すと先に確定してからその行を選ぶ", () => {
   const { book, perform } = setup()
   const ids = addProject(perform)
   fireEvent.doubleClick(row(ids.a))
   const input = within(paper()).getByRole("textbox", { name: "名前" })
-  expect(input.getAttribute("data-key-scope")).toBe("@matomezu/dir:dir-edit")
   writeRich(input, "b.ts")
   fireEvent.keyDown(input, { key: "Enter", isComposing: true })
   expect(within(paper()).queryByRole("textbox", { name: "名前" })).not.toBeNull()

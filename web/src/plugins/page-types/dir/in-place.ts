@@ -1,16 +1,19 @@
-// ディレクトリ構成図のその場の編集（名前と説明）の、書いている字と、確定・取り消し: 書いている字はステージごとのプラグイン状態 DIR_DRAFT に置き（ビューの入力Formが書く）、
-// 入力Formが名乗るキーの範囲 DIR_EDIT_KEY_SCOPE の Enter で確定し、Escape で取り消す（焦点が外れたときもビューが確定のコマンドを行う）。
+// ディレクトリ構成図のその場の編集（名前と説明）の、書いている字と、確定・取り消し: 書いている字はステージごとのプラグイン状態（名前は DIR_DRAFT、説明は DIR_NOTE_DRAFT）に置き（ビューの入力Formが書く）、
+// 入力Formが名乗るキーの範囲 DIR_EDIT_KEY_SCOPE の Enter で確定し、Escape で取り消す（焦点が外れたときは base の useInPlaceInput の onBlur が確定のコマンドを行う）。
 // 名前を書き終えたとき、することは edit.ts の editEnd（空なら消す・名前を変える）、説明は noteEnd が決める。書き換えが紙に入らず断られたら、トーストで知らせる
 import type { CommandContext } from "../../../plugin-api"
-import { endInPlace, type InPlaceDraft, inPlaceText, refusalMessage } from "../../base"
+import { endInPlace, type InPlaceDraft, inPlaceText } from "../../base"
 import { ENTRY_REMOVE, ENTRY_UPDATE } from "./actions"
-import { ADDED_EDIT, dirAt } from "./commands"
+import { ADDED_EDIT, dirAt, fitRefusal } from "./commands"
 import { afterRemove, editEnd, noteEnd, selectedIn } from "./edit"
 import { kit } from "./kit"
 import { PENCIL_TOOL } from "./tools"
 
-// 書いている名前か説明（どの中身のものか）
+// 書いている名前（どの中身のものか）
 export const DIR_DRAFT = kit.definePluginStateOf<InPlaceDraft>()({ id: "in-place-draft", scope: "stage" })
+
+// 書いている説明（どの中身のものか）
+export const DIR_NOTE_DRAFT = kit.definePluginStateOf<InPlaceDraft>()({ id: "in-place-note-draft", scope: "stage" })
 
 // 名前と説明の入力Formが名乗るキーの範囲
 export const DIR_EDIT_KEY_SCOPE = kit.defineKeyScope({
@@ -38,18 +41,17 @@ function endEdit(ctx: CommandContext, a: Actions, commit: boolean): void {
   if (!dir) return
   const selected = selectedIn(dir.root, ctx.stage.selection)
   const on = { page: dir.page.id }
-  const text = commit ? inPlaceText(ctx, DIR_DRAFT, selected) : null
-  const refused = (done: Parameters<typeof refusalMessage>[1]) =>
-    a.showToast({ kind: "warn", message: refusalMessage(ctx.catalog, done, kit.message("Does not fit on the paper")) })
   if (writingNote(ctx)) {
-    endInPlace(ctx, a, DIR_DRAFT, false, () => {
+    const text = commit ? inPlaceText(ctx, DIR_NOTE_DRAFT, selected) : null
+    endInPlace(ctx, a, DIR_NOTE_DRAFT, false, () => {
       const next = commit ? noteEnd(dir.root, selected, text) : undefined
       if (next === undefined) return
       const done = a.perform(ENTRY_UPDATE.id, { entry: selected, description: next }, on)
-      if (!done.ok) refused(done)
+      if (!done.ok) a.showToast(fitRefusal(ctx.catalog, done))
     })
     return
   }
+  const text = commit ? inPlaceText(ctx, DIR_DRAFT, selected) : null
   endInPlace(ctx, a, DIR_DRAFT, ctx.stage.editing === ADDED_EDIT, () => {
     const todo = editEnd(dir.root, selected, text)
     if (todo.kind === "remove") {
@@ -58,7 +60,7 @@ function endEdit(ctx: CommandContext, a: Actions, commit: boolean): void {
     }
     if (todo.kind === "rename") {
       const done = a.perform(ENTRY_UPDATE.id, { entry: selected, name: todo.name }, on)
-      if (!done.ok) refused(done) // 書けない字は書かず、元の名前のまま
+      if (!done.ok) a.showToast(fitRefusal(ctx.catalog, done)) // 書けない字は書かず、元の名前のまま
     }
   })
 }

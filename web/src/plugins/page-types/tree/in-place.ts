@@ -1,6 +1,6 @@
 // ツリーのその場の編集（節のキャプション）の、書いている字と、確定・取り消し: 書いている字はステージごとのプラグイン状態 TREE_DRAFT に置き（ビューの入力Formが書く）、
-// 入力Formが名乗るキーの範囲 TREE_EDIT_KEY_SCOPE の Enter で確定し、Escape で取り消す（焦点が外れたときもビューが確定のコマンドを行う）。
-// 書き終えたとき、することは edit.ts の editEnd（空の子なら消す・根は base の page-update でページのフィールドの根に、子は node-update で書く）が決める。
+// 入力Formが名乗るキーの範囲 TREE_EDIT_KEY_SCOPE の Enter で確定し、Escape で取り消す（焦点が外れたときは base の useInPlaceInput の onBlur が確定のコマンドを行う）。
+// 書き終えたとき、することは edit.ts の editEnd（空の子なら消す・書く）が決め、書き分け（根はページのフィールド、子は node-update）は write.ts の nodeWrite。
 // 書き換えが紙に入らず断られたら、トーストで知らせる
 import type { CommandContext } from "../../../plugin-api"
 import { endInPlace, type InPlaceDraft, inPlaceText, refusalMessage } from "../../base"
@@ -9,8 +9,7 @@ import { treeAt } from "./commands"
 import { ADDED_EDIT, afterRemove, editEnd, selectedIn } from "./edit"
 import { kit } from "./kit"
 import { EDIT_TOOL } from "./tools"
-
-const PAGE_UPDATE = "@matomezu/base:page-update"
+import { nodeWrite, PAGE_UPDATE } from "./write"
 
 // 書いているキャプション（どの節のものか）
 export const TREE_DRAFT = kit.definePluginStateOf<InPlaceDraft>()({ id: "in-place-draft", scope: "stage" })
@@ -45,10 +44,8 @@ function endEdit(ctx: CommandContext, a: Actions, commit: boolean): void {
       return
     }
     if (todo.kind === "none") return
-    const done =
-      todo.kind === "root"
-        ? a.perform(PAGE_UPDATE, { fields: { root: { caption: todo.caption } } }, on)
-        : a.perform(NODE_UPDATE.id, { node: selected, caption: todo.caption }, on)
+    const w = nodeWrite(todo.kind === "root", selected, { caption: todo.caption })
+    const done = a.perform(w.action, w.args, on)
     // 書けない字は書かず、元のキャプションのまま
     if (!done.ok)
       a.showToast({

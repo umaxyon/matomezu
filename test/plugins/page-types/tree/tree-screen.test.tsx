@@ -346,7 +346,7 @@ test("編集の道具の間は、選んでいる節（初めは根）に印が�
   expect(selected()).toEqual([a!.children![0]!.id])
 })
 
-test("選んでいる節の＋で空の子を足してその場で書き、Enter で確定する。Escape か空のままなら、足した子を消して親を選ぶ", () => {
+test("選んでいる節の＋で空の子を足してその場で書き、Enter で確定する。Escape か空のままなら、足した子を消して親を選ぶ", async () => {
   const { store, id, book } = setup()
   const done = addTree(store, id, { caption: "根" })
   const rootId = done.fields!.root.id
@@ -367,6 +367,14 @@ test("選んでいる節の＋で空の子を足してその場で書き、Enter
   const a = (pagesOf(book())[0] as unknown as { root: { children: { id: string; caption: string }[] } }).root
     .children[0]!
   expect(a.caption).toBe("子 A")
+  expect(selected()).toBe(a.id)
+  // 足すのと書くのは 1 つの段: 元に戻すと節ごと消え、やり直すとキャプションごと戻る
+  await act(() => Promise.resolve()) // 画面の履歴の段は、処理が終わってから入る
+  fireEvent.click(screen.getByRole("button", { name: "元に戻す", hidden: true }))
+  expect(pagesOf(book())[0]).not.toHaveProperty("root.children.0")
+  fireEvent.click(screen.getByRole("button", { name: "やり直す", hidden: true }))
+  expect(pagesOf(book())[0]).toMatchObject({ root: { children: [{ id: a.id, caption: "子 A" }] } })
+  fireEvent.pointerDown(paper().querySelector(`[data-node="${a.id}"]`)!, { button: 0 })
   expect(selected()).toBe(a.id)
   // 子には、子の＋と、前と後ろの兄弟の＋
   expect(

@@ -7,7 +7,7 @@
 // 鉛筆の間は、選んでいる行（無ければ根）に印を付け、押した行を選ぶ。行を右クリックすると、その行を選んで行のメニュー（entry-context）を開く。
 // 選んでいる行の右には＋（フォルダとファイル。フォルダの行は中の末尾に、ファイルの行はすぐ下に足す。コマンド folder-add・file-add）を出す。
 // ダブルクリック（と Enter・F2 のコマンド）で、名前をその場で書き始める。書いている字で行の幅を決め直し、装飾を見たまま書く入力Form（base の RichInput）と、そのすぐ上に装飾のボックス（base の RichBar）を出す。
-// Enter か入力Formの外を押すと確定、Escape で取り消す（確定と取り消しは in-place.ts のコマンド。入力Formは base の useInPlaceInput で、書いている字は DIR_DRAFT に置く）。名前の空の中身が空のまま終わったら消す。書き換えが紙に入らず断られたら、トーストで知らせる。
+// Enter か入力Formの外を押すと確定、Escape で取り消す（確定と取り消しは in-place.ts のコマンド。入力Formは base の useInPlaceInput で、書いている字は DIR_DRAFT・DIR_NOTE_DRAFT に置く）。名前の空の中身が空のまま終わったら消す。書き換えが紙に入らず断られたら、トーストで知らせる。
 // 説明を出している間は、説明の列（説明の無い行は、その行の高さの空き）をダブルクリックすると、説明をその場で書き始める（その場の編集の名前 NOTE_EDIT）。
 // 入力Formは説明の列の幅で、確定のしかたは名前と同じ。空にして確定すると説明を消す。
 // 中に足す種類を選んでいる間（その場の編集の名前 KIND_PICK。Tab のコマンド）は、選んでいるフォルダの行のすぐ右に、フォルダとファイルを縦に並べた枠を出す。
@@ -29,7 +29,7 @@ import {
   useStage,
   useStageArea,
 } from "../../../../plugin-api/ui"
-import { growOf, pageContext, refusalMessage } from "../../../base"
+import { growOf, pageContext } from "../../../base"
 import {
   FolderIcon,
   PaperFrame,
@@ -44,12 +44,20 @@ import {
   usePaperDrag,
 } from "../../../base/ui"
 import { ENTRY_MOVE, ENTRY_UPDATE } from "../actions"
-import { FILE_ADD, FOLDER_ADD, FOLDER_TOGGLE, KIND_PICK } from "../commands"
+import { FILE_ADD, FOLDER_ADD, FOLDER_TOGGLE, fitRefusal, KIND_PICK } from "../commands"
 import { DIR_CONTEXT, ENTRY_CONTEXT } from "../dir"
 import { dropAt, subtreeIds } from "../drag"
 import { changeEntry, entryOf, selectedIn } from "../edit"
 import { dirRootOf } from "../entry"
-import { DIR_DRAFT, DIR_EDIT_COMMIT, DIR_EDIT_KEY_SCOPE, NOTE_EDIT, writingName, writingNote } from "../in-place"
+import {
+  DIR_DRAFT,
+  DIR_EDIT_COMMIT,
+  DIR_EDIT_KEY_SCOPE,
+  DIR_NOTE_DRAFT,
+  NOTE_EDIT,
+  writingName,
+  writingNote,
+} from "../in-place"
 import { kit } from "../kit"
 import { editorWidth, ICON, type LaidRow, nameLeft } from "../layout"
 import { NodeIcon } from "../node-icon"
@@ -118,10 +126,10 @@ const Rows = memo(function Rows({
   const selected = root ? selectedIn(root, stage.selection) : undefined
   const writing = writingName({ stage })
   const picking = usingPencil && stage.editing === KIND_PICK
-  // 名前と説明の入力Form（書いている字は DIR_DRAFT。名前と説明を同時には書かない）
+  // 名前と説明の入力Form（書いている字は名前が DIR_DRAFT、説明が DIR_NOTE_DRAFT。名前と説明を同時には書かない）
   const edit = { target: selected, keyScope: DIR_EDIT_KEY_SCOPE.id, commit: DIR_EDIT_COMMIT.id }
   const nameInput = useInPlaceInput(kit, DIR_DRAFT, { ...edit, active: writing })
-  const noteInput = useInPlaceInput(kit, DIR_DRAFT, { ...edit, active: writingNote({ stage }) })
+  const noteInput = useInPlaceInput(kit, DIR_NOTE_DRAFT, { ...edit, active: writingNote({ stage }) })
   const text = nameInput.text
   // 書いている字を重ねた根
   const shown =
@@ -147,8 +155,6 @@ const Rows = memo(function Rows({
   const drop = dragging ? dropAt(dir, rows, dragging.id, dragging.at) : null
   const ghost = dragging && rows.find(r => r.id === dragging.id)
   const pageId = page.id
-  const refused = (done: Parameters<typeof refusalMessage>[1]) =>
-    showToast({ kind: "warn", message: refusalMessage(catalog, done, kit.message("Does not fit on the paper")) })
 
   // 書いている途中の名前か説明を確定する（入力Formが外れるより先に選びが替わるので、押したときに確定する）
   const settle = () => {
@@ -160,7 +166,7 @@ const Rows = memo(function Rows({
     if (!target) return
     const { mark: _mark, ...where } = target
     const moved = perform(ENTRY_MOVE.id, { entry, ...where }, { page: pageId })
-    if (!moved.ok) refused(moved)
+    if (!moved.ok) showToast(fitRefusal(catalog, moved))
   }
   return (
     <>
