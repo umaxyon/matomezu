@@ -6,8 +6,7 @@ import { kit } from "./kit"
 import { EllipseView, FreeLineView, StraightLineView, TextFrameView } from "./SlideItemViews"
 import { SLIDE_ITEM_CONTEXT } from "./scope"
 import { ELLIPSE, FREE_LINE, STRAIGHT_LINE, TEXT_FRAME } from "./slide"
-import { SlideLayer } from "./view/SlideLayer"
-import { SlideSheet } from "./view/SlideSheet"
+import { SlideLayer, SlideSheet } from "./view/ui"
 
 // スライドのレイヤー: ページのタイプが slide を選んでいるブックで、スライドのアイテムを描いて操作を受ける
 export const SLIDE_LAYER = defineWidget({

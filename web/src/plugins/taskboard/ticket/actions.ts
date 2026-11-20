@@ -1,12 +1,13 @@
 // チケットのアクション。チケットを足す・直すは AI も行え、チケットを消す・ロックを外すは利用者だけ
 import { type z, z as zod } from "zod"
+import { type Actor, type AIMessage, workroomOfActor } from "../../../plugin-api"
 import { byOf, READS_WORKROOM_NAMES, type Records, readsBy, recordIn, workroomsOf } from "../by"
 import { kit } from "../kit"
 import { inDoneLane, PROJECT, UNSORTED } from "../project"
 import { type Project, projectOf } from "../project/actions"
-import { PRIORITIES, PRIORITY_DEFAULT, TICKET, TICKET_NAME_MAX } from "."
 import { ticketLabel } from "./label"
 import { type Candidate, type Resolved, resolve } from "./resolve"
+import { PRIORITIES, PRIORITY_DEFAULT, TICKET, TICKET_NAME_MAX } from "./ticket"
 
 export type Ticket = z.output<typeof TICKET.record>
 
@@ -59,14 +60,36 @@ const pickTags = (project: Project, refs: readonly string[], current: readonly s
 const pickAssignees = (ctx: Records, refs: readonly string[], current: readonly string[]) =>
   pickAll(refs, current, ref => resolve(ref, workroomsOf(ctx), "workroom"), "an assignee is there twice")
 
-// 完了のレーンへは、ticket-complete だけが入れる（担当を外す・今のチケットを空にする・チケット履歴を足すを一緒に行うため）
+// 完了のレーンへは、ticket-complete だけが入れる（担当を外す・チケット履歴を足すを一緒に行うため）
 const DONE_LANE_REFUSAL = "the done lane is entered only with ticket-complete: complete the ticket"
+
+// 担当に新しく入ったワークルームの AI への知らせ（行う者がワークルームの AI のときだけ返せる。自分のワークルームには送らない。宛先に AI がいなければ送らないだけ）
+function assignedMessages(
+  actor: Actor,
+  before: readonly string[],
+  after: readonly string[],
+  ticket: Ticket,
+  project: Project,
+): AIMessage[] {
+  const own = workroomOfActor(actor)
+  if (own === undefined) return []
+  const label = ticketLabel(project.prefix, ticket.number)
+  return after
+    .filter(w => w !== own && !before.includes(w))
+    .map(w => ({
+      workroom: w,
+      text: `Your workroom was assigned to the ticket ${label} "${ticket.name}" (${ticket.id})${
+        after[0] === w ? " as its lead" : ""
+      }.`,
+      noRecipient: "skip" as const,
+    }))
+}
 
 export const TICKET_ADD = kit.defineAction({
   id: "ticket-add",
   title: "add ticket",
   aiDescription:
-    "Add a ticket to the project (its id). name is up to 50 characters, body is markdown. lane is a lane of the project by its id or name (left out or the word unsorted: unsorted), tags are enabled tags of the project by their ids or names (left out or empty: no tag; no tag twice), assignees are the workrooms by their ids or names, in order (the first is the main one; no workroom twice), priority is lowest, low, medium (the default), high or highest. The done lane of the project cannot be chosen (tickets get there with ticket-complete). A lane that is named like the word unsorted is pointed at by its id. A refusal for a name that is not there lists the names and ids to choose from. Read the prompts of the lanes and the tags of the project (read_records) and follow them. Refused when the project is closed. Returns the ticket's id and number, the number with the prefix of the project as label (such as M-0001), and the lane, the tags and the assignees as the ids they were taken for.",
+    "Add a ticket to the project (its id). name is up to 50 characters, body is markdown. lane is a lane of the project by its id or name (left out or the word unsorted: unsorted), tags are enabled tags of the project by their ids or names (left out or empty: no tag; no tag twice), assignees are the workrooms by their ids or names, in order (the first is the lead; no workroom twice), priority is lowest, low, medium (the default), high or highest. The done lane of the project cannot be chosen (tickets get there with ticket-complete). A lane that is named like the word unsorted is pointed at by its id. A refusal for a name that is not there lists the names and ids to choose from. Read the prompts of the lanes and the tags of the project (read_records) and follow them. Refused when the project is closed. A workroom other than yours that becomes an assignee is told by an AI message (matomezu sends it when an AI has joined that workroom; you do not). Returns the ticket's id and number, the number with the prefix of the project as label (such as M-0001), and the lane, the tags and the assignees as the ids they were taken for.",
   target: TICKET.id,
   reads: (args, actor) => [
     { subject: PROJECT.id, id: args.project },
@@ -110,8 +133,10 @@ export const TICKET_ADD = kit.defineAction({
       updatedAt: ctx.now,
       tags: tags.ids,
     }
+    const messages = assignedMessages(ctx.actor, [], ticket.assignees, ticket, project)
     return {
       next: ticket,
+      ...(messages.length > 0 ? { aiMessages: messages } : {}),
       result: {
         ticket: ticket.id,
         number: ticket.number,
@@ -128,7 +153,7 @@ export const TICKET_UPDATE = kit.defineAction({
   id: "ticket-update",
   title: "update ticket",
   aiDescription:
-    "Change the name, the body, the priority, the lane, the tags or the assignees of the ticket named by on.record. tags is the whole new list of tags (empty: no tag). assignees is the whole new list of workrooms by their ids or names, in order (the first is the main one; no workroom twice, each a workroom that is there; a workroom that was removed stays on the ticket until the list is changed). The same rules as ticket-add apply to the lane and the tags, by their ids or names; a ticket cannot be moved into the done lane here (use ticket-complete), and a ticket in the done lane takes no assignees until it is moved out (a tag that is not enabled any more, or was removed, can stay on the ticket until the list is changed). The project of a ticket does not change. The time of the last change moves only when something changed.",
+    "Change the name, the body, the priority, the lane, the tags or the assignees of the ticket named by on.record. tags is the whole new list of tags (empty: no tag). assignees is the whole new list of workrooms by their ids or names, in order (the first is the lead; no workroom twice, each a workroom that is there; a workroom that was removed stays on the ticket until the list is changed). The same rules as ticket-add apply to the lane and the tags, by their ids or names; a ticket cannot be moved into the done lane here (use ticket-complete), and a ticket in the done lane takes no assignees until it is moved out (a tag that is not enabled any more, or was removed, can stay on the ticket until the list is changed). The project of a ticket does not change. The time of the last change moves only when something changed. A workroom other than yours that becomes an assignee is told by an AI message (matomezu sends it when an AI has joined that workroom; you do not).",
   target: TICKET.id,
   // プロジェクトは、チケットが指す先なので書かない
   reads: args => (args.assignees?.length ? [READS_WORKROOM_NAMES] : []),
@@ -168,7 +193,13 @@ export const TICKET_UPDATE = kit.defineAction({
     const changed = (Object.keys(next) as (keyof Ticket)[]).some(
       k => JSON.stringify(next[k]) !== JSON.stringify(now[k]),
     )
-    return { next: changed ? { ...next, updatedAt: ctx.now } : now, result: {} }
+    if (!changed) return { next: now, result: {} }
+    const messages = assignedMessages(ctx.actor, now.assignees, next.assignees, next, project)
+    return {
+      next: { ...next, updatedAt: ctx.now },
+      ...(messages.length > 0 ? { aiMessages: messages } : {}),
+      result: {},
+    }
   },
 })
 

@@ -10,3 +10,26 @@ export const DIALOG_HOST = defineWidget({
   opens: [SETTINGS_CATEGORIES],
   view: DialogHost,
 })
+
+export { ColorPicker, type Swatch } from "./ColorPicker"
+export { Confirm } from "./Confirm"
+export { Dialog } from "./Dialog"
+export {
+  ActionButton,
+  Choices,
+  ChoiceText,
+  controlClass,
+  dividerClass,
+  Field,
+  Form,
+  InheritChoices,
+  inlineClass,
+  MultiChoices,
+  Problem,
+  pairClass,
+  rowClass,
+  Section,
+  SelectButton,
+  Switch,
+  SwitchPanel,
+} from "./FormParts"

@@ -22,3 +22,8 @@ export const USER_SETTING_VIEWS = {
   [CORNER_STATUS_ORDER.id]: { control: CornerStatusOrderSetting },
   [ENABLED_PLUGINS.id]: { control: EnabledPluginsSetting },
 }
+
+export { ChoiceSetting } from "./ChoiceSetting"
+export { defineSettingsCategory, GENERAL_CATEGORY, KEYS_CATEGORY, PLUGINS_CATEGORY } from "./categories"
+export { SETTINGS_ICONS } from "./icons"
+export { SettingRow } from "./SettingRow"

@@ -6,7 +6,7 @@ import { SLIDE_PRINT } from "./print-setting"
 import { SlidePrintSetting } from "./SlidePrintSetting"
 import { SLIDE_BOOK, SLIDE_PRESENTATION } from "./slide-book"
 import { SlideIcon } from "./type-icon"
-import { SlideView } from "./view/SlideView"
+import { SlideView } from "./view/ui"
 
 export const SLIDE_BOOK_UI = definePluginUi(SLIDE_BOOK_PLUGIN, {
   pageTypeIcons: { [SLIDE_BOOK.id]: <SlideIcon /> },

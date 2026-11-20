@@ -7,6 +7,7 @@ import {
   CARD_SHOWS,
   CARD_SIZES,
   INHERIT_CARD_SIZE,
+  inWorkingLane,
   LANE_NAME_MAX,
   LANES,
   NO_DONE_LANE,
@@ -17,7 +18,7 @@ import {
   TAG,
   TAG_NAME_MAX,
   TAGS,
-} from "."
+} from "./project"
 import { projectNameOf, sayIn, templateOf } from "./template"
 
 export type Project = z.output<typeof PROJECT.record>
@@ -72,13 +73,13 @@ const LANE_INPUT = zod.union([
     name: zod.string().trim().min(1).max(LANE_NAME_MAX),
     prompt: zod.string(),
     cardSize: zod.enum([INHERIT_CARD_SIZE, ...CARD_SIZES]),
+    working: zod.literal(true).optional(),
   }),
   zod.strictObject({ kind: zod.literal("unsorted"), shown: zod.boolean() }),
 ])
 const TAG_INPUT = TAG.extend({ id: zod.string().min(1).optional(), name: zod.string().trim().min(1).max(TAG_NAME_MAX) })
 
 const TICKET_ID = kit.name("ticket")
-const CURRENT_ID = kit.name("current-ticket")
 
 // 完了のレーンを決める: 引数 ref が無ければ今のまま（新しいレーンの並びに無ければ none）、あれば none か、新しいレーンの並びの id か名前
 function doneLaneOf(
@@ -101,20 +102,16 @@ export const PROJECT_UPDATE = kit.defineAction({
   id: "project-update",
   title: "update project",
   aiDescription:
-    "Change the name, the prefix (as in project-add), the lanes, the ticket tags, the card size (cardSize: large, medium or small; each lane row has cardSize too, inherit or a size), what the cards show (cardShows: priority true or false; a field left out stays as it is) or the done lane (doneLane: a lane of the new lanes by its id or name, or none; refused while a ticket in that lane has assignees; a workroom whose current ticket is in that lane gets none) of the project named by on.record (only the user, because the prompts of the lanes and the tags tell you how to work; refused while the project is closed). lanes and tags are the whole new lists: a row with an id keeps that lane or tag, a row without an id is new. A lane or tag left out is removed; the tickets keep it and read as unsorted, or without that tag.",
+    "Change the name, the prefix (as in project-add), the lanes, the ticket tags, the card size (cardSize: large, medium or small; each lane row has cardSize too, inherit or a size), what the cards show (cardShows: priority true or false; a field left out stays as it is) or the done lane (doneLane: a lane of the new lanes by its id or name, or none; refused while a ticket in that lane has assignees, and when that lane is a working lane) of the project named by on.record (only the user, because the prompts of the lanes and the tags tell you how to work; refused while the project is closed). lanes and tags are the whole new lists: a row with an id keeps that lane or tag, a row without an id is new. A lane row with working: true is a working lane (any number of them). A lane or tag left out is removed; the tickets keep it and read as unsorted, or without that tag.",
   target: PROJECT.id,
-  // 完了のレーンを選ぶときは、そのレーンのチケットと今のチケットを確かめるために、プロジェクトのチケットと今のチケットの索引キーを読む
-  // （project は ticket・current-ticket を読まない向きなので、id だけを書く）
+  // 完了のレーンを選ぶときは、そのレーンのチケットに担当がいないかを確かめるために、プロジェクトのチケットの索引キーを読む
+  // （project は ticket を読まない向きなので、id だけを書く）
   reads: (args, _actor, on) => [
     ...(args.prefix === undefined ? [] : readsPrefix(args.prefix)),
     ...(args.doneLane === undefined || on === undefined
       ? []
-      : [
-          { subject: TICKET_ID, where: [{ key: "project" as const, eq: on }], keysOnly: true as const },
-          { subject: CURRENT_ID, where: [], keysOnly: true as const },
-        ]),
+      : [{ subject: TICKET_ID, where: [{ key: "project" as const, eq: on }], keysOnly: true as const }]),
   ],
-  writes: [CURRENT_ID],
   userOnly: true,
   args: zod.strictObject({
     name: zod.string().trim().min(1).max(PROJECT_NAME_MAX).optional(),
@@ -142,18 +139,14 @@ export const PROJECT_UPDATE = kit.defineAction({
     if (tags && !TAGS.safeParse(tags).success) return { declined: "the tag ids and names must not repeat" }
     const done = doneLaneOf(now, args.doneLane, (lanes ?? now.lanes) as Project["lanes"])
     if ("declined" in done) return done
-    let cleared: string[] = []
     if (done.id !== (now.doneLane ?? NO_DONE_LANE) && done.id !== NO_DONE_LANE) {
-      // 新しい完了のレーンにいるチケットは、担当がいれば断る。今のチケットに指されていれば、同じトランザクションで今のチケットを none にする
+      // 新しい完了のレーンにいるチケットは、担当がいれば断る
       const inLane = Object.entries(ctx.keys?.[TICKET_ID] ?? {}).filter(([, k]) => k.lane === done.id)
       if (inLane.some(([, k]) => Number(k.assigned ?? 0) > 0))
         return { declined: "tickets in that lane have assignees: complete them with ticket-complete first" }
-      const ids = new Set(inLane.map(([id]) => id))
-      cleared = Object.entries(ctx.keys?.[CURRENT_ID] ?? {})
-        .filter(([, k]) => ids.has(String(k.ticket)))
-        .map(([room]) => room)
-        .sort()
     }
+    if (done.id !== NO_DONE_LANE && inWorkingLane({ lanes: lanes ?? now.lanes }, done.id))
+      return { declined: "the done lane cannot be a working lane: take the working mark off that lane first" }
     const { doneLane: _was, ...kept } = now
     return {
       next: {
@@ -166,11 +159,6 @@ export const PROJECT_UPDATE = kit.defineAction({
         ...(args.cardSize === undefined ? {} : { cardSize: args.cardSize }),
         cardShows: { ...now.cardShows, ...args.cardShows },
       },
-      others: cleared.map(room => ({
-        subject: CURRENT_ID,
-        id: room,
-        record: { id: room, ticket: "none", at: ctx.now },
-      })),
       result: {},
     }
   },

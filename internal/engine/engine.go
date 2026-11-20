@@ -151,8 +151,9 @@ type Output struct {
 
 // AIMessage は、アクションが送る AI 間メッセージ 1 通（Workroom は宛先のワークルームの id。送り手は行った参加者）
 type AIMessage struct {
-	Workroom string `json:"workroom"`
-	Text     string `json:"text"`
+	Workroom    string `json:"workroom"`
+	Text        string `json:"text"`
+	NoRecipient string `json:"noRecipient,omitempty"` // 宛先がいないとき: refuse（空のとき）はバルクを断る、skip はその 1 通を送らない
 }
 
 // RowChange は、変わったページ・フォルダ 1 つ（Row は新しい本文。無くなったなら Removed）

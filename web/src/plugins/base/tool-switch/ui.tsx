@@ -5,3 +5,5 @@ import { STAGE_SLOTS } from "../workspace/ui"
 import { ToolSwitchView } from "./ToolSwitchView"
 
 export const TOOL_SWITCH = defineWidget({ id: kit.name("tool-switch"), slots: STAGE_SLOTS, view: ToolSwitchView })
+
+export { TOOL_ICONS } from "./icons"

@@ -31,3 +31,5 @@ export const OUTBOX = defineLeftSidePanelTab<typeof OUTBOX_TAB_ID>({
   opens: [ANNOTATION_ICON],
   view: Outbox,
 })
+
+export { ANNOTATION_ICON, type AnnotationIconProps } from "./slots"

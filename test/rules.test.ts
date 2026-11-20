@@ -301,6 +301,16 @@ test("プラグイン状態の宣言（kit.definePluginState・definePluginState
   expect(instance.catalog.store.pluginStates.size).toBe(written)
 })
 
+test("ページのタイプの slide.allowed に書くのは描画シェイプ（@matomezu/slide のアイテム）だけ", async () => {
+  const { CORE_CATALOG } = await import("./support")
+  const { SLIDE_PLUGIN } = await import("../web/src/plugins/items/slide")
+  const drawn = new Set<string>((SLIDE_PLUGIN.items ?? []).map(d => d.id))
+  const others = [...CORE_CATALOG.pageTypes.values()].flatMap(t =>
+    (t.slide?.allowed ?? []).filter(id => !drawn.has(id)).map(id => `${t.id}: ${id}`),
+  )
+  expect(others).toEqual([])
+})
+
 test("プラグインの文言の表（defineMessages）は、messages.ts にだけ書く", () => {
   const offenders = sources
     .filter(f => crateOf(f.rel) === "plugins" && !f.rel.endsWith("/messages.ts"))
@@ -375,6 +385,34 @@ test("base の utils は、base の utils の外のファイルを読まない",
         .map(m => normalize(join(dirname(f.rel), m[1]!)))
         .filter(t => t.startsWith("plugins/base/") && !t.startsWith("plugins/base/utils/"))
         .map(t => `${f.rel} → ${t}`),
+    )
+  expect(offenders).toEqual([])
+})
+
+// プラグインの index.ts・ui.tsx（ui.ts）・messages.ts は、機能のフォルダの同じ役割のファイル（ui は、見た目を結ぶ定義の index も）だけを読み、フォルダの奥のファイルを直に読まない。
+// フォルダの中は、そのフォルダが組み直してよい。base の utils は機能のフォルダでないので除く（plugins の「プラグインの中の形」）
+const ENTRY_READS: Record<string, readonly string[]> = {
+  "index.ts": ["index"],
+  "ui.tsx": ["ui", "index"],
+  "ui.ts": ["ui", "index"],
+  "messages.ts": ["messages"],
+}
+test("プラグインの index・ui・messages は、機能のフォルダの同じ役割のファイルだけを読む", () => {
+  const offenders = sources
+    .filter(f => crateOf(f.rel) === "plugins" && dirname(f.rel) === pluginRoot(f.rel) && basename(f.rel) in ENTRY_READS)
+    .flatMap(f =>
+      [...f.text.matchAll(/from\s*["'](\.\/[^"']+)["']/g)]
+        .map(m => m[1]!.slice(2))
+        .filter(spec => {
+          const [folder, ...rest] = spec.split("/")
+          const root = pluginRoot(f.rel)
+          if (`${root}/${folder}` === "plugins/base/utils") return false
+          const isFolder = statSync(join(SRC, root, folder!), { throwIfNoEntry: false })?.isDirectory() === true
+          if (!isFolder) return false
+          const role = rest.length === 0 ? "index" : rest.join("/")
+          return !ENTRY_READS[basename(f.rel)]!.includes(role)
+        })
+        .map(spec => `${f.rel} → ./${spec}`),
     )
   expect(offenders).toEqual([])
 })

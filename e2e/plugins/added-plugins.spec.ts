@@ -113,7 +113,7 @@ test("動いている常駐にプラグインを足すと、開いている画�
   await reloaded()
   await expect(page.locator("[data-ex2-diamond]")).toBeVisible()
   expect((await data(page)).plugins.map((p: { id: string }) => p.id)).toEqual(["ex2", "ex3"])
-  await expect.poll(() => loaded(page)).toEqual(["/api/plugins/0/ui.js", "/api/plugins/1/ui.js"])
+  await expect.poll(async () => (await loaded(page)).sort()).toEqual(["/api/plugins/0/ui.js", "/api/plugins/1/ui.js"]) // 読み込みの順は決まらない
 
   await mark()
   const removed = await page.request.post("/api/plugins/remove", { headers: aiAuth(), data: { id: "ex3" } })

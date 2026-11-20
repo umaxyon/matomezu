@@ -5,7 +5,7 @@ import { byOf, readsBy } from "../by"
 import { kit } from "../kit"
 import { TICKET } from "../ticket"
 import { ticketOf } from "../ticket/actions"
-import { HISTORY, HISTORY_TOPIC, TOPIC_COMPLETE, type TopicData } from "."
+import { HISTORY, HISTORY_TOPIC, TOPIC_COMPLETE, type TopicData } from "./history"
 
 // 履歴の行を足す。書いた者は行った者（引数では受けない）。題は、列挙 history-topic の値の id
 export const TICKET_HISTORY_ADD = kit.defineAction({

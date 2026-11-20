@@ -10,3 +10,6 @@ export const MARKDOWN_VIEW = {
   printMeasure: MarkdownMeasure,
   contextMenus: [PANE_CONTEXT],
 } as const satisfies PresentationViewDef
+
+export { PANE_LAYOUT_ICONS } from "./pane-icons"
+export { TabKeySetting } from "./TabKeySetting"

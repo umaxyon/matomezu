@@ -1,11 +1,10 @@
-// チケットのロック・担当・履歴・今のチケット（タスクボード）。書いた者はアクターから写し、履歴の題は列挙 history-topic の値
+// チケットのロック・担当・担当に入ったときの知らせ・履歴（タスクボード）。書いた者はアクターから写し、履歴の題は列挙 history-topic の値
 
 import { expect, test } from "bun:test"
 import { type Actor, USER } from "../../../web/src/core/actor"
 import { type PerformedIn, performIn, type World } from "../../../web/src/core/perform"
 import { withCounters, withRecords } from "../../../web/src/core/records"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
-import { CURRENT } from "../../../web/src/plugins/taskboard/current-ticket"
 import { TICKET } from "../../../web/src/plugins/taskboard/ticket"
 import { HISTORY, HISTORY_TOPIC } from "../../../web/src/plugins/taskboard/ticket-history"
 import { CORE_CATALOG, newStore } from "../../support"
@@ -106,65 +105,45 @@ test("ロック中のチケットは直せず消せない。AI は掛けられ�
   expect(user(A("ticket-update"), { name: "z" }, { record: ticket }).ok).toBe(true)
 })
 
-test("今のチケットは、AI が自分のワークルームの分を宣言する。最初は on を省き、あとは on に自分の id。利用者は行えない", () => {
-  const { user, as, table, room, ticket } = ready()
-  const id = room("ひよこ")
-  const other = room("ぴよ")
-  expect(user(A("current-ticket-set"), { ticket }).ok).toBe(false)
-  expect(as(ai(id), "current-ticket-set", { ticket: "nothing" }).ok).toBe(false)
-  // 記録の無いワークルームを on.record で指すと、core が no-record で断る
-  expect(as(ai(id), "current-ticket-set", { ticket }, { record: other })).toMatchObject({
-    ok: false,
-    reason: "no-record",
-  })
-  // ワークルームの id でない id を on.record に付けたら、断りが種類の説明（id はワークルームの id）と一覧の引き方を言う
-  const wrong = as(ai(id), "current-ticket-set", { ticket }, { record: "a-participant" }) as { detail?: string }
-  expect(wrong).toMatchObject({ ok: false, reason: "no-record" })
-  expect(wrong.detail).toContain("The record's id is the workroom's id")
-  expect(wrong.detail).toContain(`read_records with kind ${CURRENT.id}`)
-  expect(as(ai(id), "current-ticket-set", { ticket })).toMatchObject({ ok: true, result: { current: id } })
-  expect(as(ai(id), "current-ticket-set", { ticket }).records?.[0]?.record).toEqual({
-    id,
-    ticket,
-    at: "2026-11-12T00:00:00.000Z",
-  })
-  expect(as(ai(id), "current-ticket-set", { ticket: "none" }).ok).toBe(true)
-  expect(table(CURRENT.id)).toEqual([])
-})
-
-test("管理者のワークルームの AI だけが、ほかのワークルームの今のチケットを決め、そのワークルームの AI に AI 間メッセージを送る。記録の無いワークルームは workroom（id か名前）で作り、記録があれば on.record で指す", () => {
-  const { user, act, table, room, ticket } = completing()
-  const admin = room("あ")
+test("AI がほかのワークルームを担当に入れると、そのワークルームの AI に知らせる（いなければ送らないだけ）。自分・もういた担当・利用者が行ったときは知らせない", () => {
+  const { user, act, room, project } = completing()
+  const me = room("あ")
   const other = room("い")
-  const set = (actor: string, args: object, on?: On) => act(ai(actor), "current-ticket-set", { ticket, ...args }, on)
-  const declined = (done: Done) => (done as { detail?: string }).detail ?? ""
-  // 印がまだ無いとき（admin-set を一度も行っていない）は断る
-  expect(declined(set(admin, { workroom: other }))).toContain("administrator")
-  expect(user("@matomezu/base:admin-set", { workroom: admin }).ok).toBe(true)
-  // 印がほかのワークルームを指す AI は断られる。自分の分は名前で指してもよい
-  expect(declined(set(other, { workroom: admin }))).toContain("administrator")
-  const own = set(other, { workroom: "い" })
-  expect(own).toMatchObject({ ok: true, result: { current: other } })
-  // 自分の分では AI 間メッセージを送らない
-  expect((own as { aiMessages?: unknown }).aiMessages).toBeUndefined()
-  expect(table(CURRENT.id)).toEqual([{ id: other, ticket, at: "2026-11-12T00:00:00.000Z" }])
-  // 管理者は、まだ宣言していないワークルームの分を作り、記録のあるワークルームの分を on.record で変える
   const third = room("う")
-  // ほかのワークルームの分を決めたら、そのワークルームの AI に AI 間メッセージを送る（宛先はワークルームの id）
-  expect(set(admin, { workroom: "う" })).toMatchObject({
+  const added = act(ai(me), "ticket-add", { project, name: "x", assignees: [other, me] }) as Done & {
+    aiMessages?: unknown
+    result: { ticket: string }
+  }
+  expect(added).toMatchObject({
     ok: true,
-    result: { current: third },
-    aiMessages: [{ workroom: third, text: `The administrator set your workroom's current ticket to "t" (${ticket}).` }],
+    aiMessages: [
+      {
+        workroom: other,
+        text: `Your workroom was assigned to the ticket T-0002 "x" (${added.result.ticket}) as its lead.`,
+        noRecipient: "skip",
+      },
+    ],
   })
-  expect(set(admin, { ticket: "none" }, { record: other }).ok).toBe(true)
-  expect(table(CURRENT.id)).toContainEqual({ id: other, ticket: "none", at: "2026-11-12T00:00:00.000Z" })
-  // 管理者でない AI は、ほかのワークルームの記録を on.record で変えられない
-  expect(declined(set(third, {}, { record: other }))).toContain("administrator")
-  // 無いワークルーム・on と workroom の両方は断る
-  expect(declined(set(admin, { workroom: "え" }))).toContain('the workroom "え" is not there')
-  expect(declined(set(admin, { workroom: other }, { record: other }))).toContain("leave workroom out")
-  // 記録のあるワークルームを、on を省いて作ろうとすると断られる
-  expect(set(admin, { workroom: other }).ok).toBe(false)
+  const ticket = added.result.ticket
+  // もういる担当には送らず、新しく入った分だけ（主担当でなければ as its lead は付かない）
+  expect(act(ai(me), "ticket-update", { assignees: [other, me, third] }, { record: ticket })).toMatchObject({
+    ok: true,
+    aiMessages: [{ workroom: third, text: `Your workroom was assigned to the ticket T-0002 "x" (${ticket}).` }],
+  })
+  // 担当を変えないとき・自分だけを入れたときは送らない
+  expect(
+    (act(ai(me), "ticket-update", { name: "y" }, { record: ticket }) as { aiMessages?: unknown }).aiMessages,
+  ).toBeUndefined()
+  const mine = act(ai(me), "ticket-add", { project, name: "z", assignees: [me] }) as { aiMessages?: unknown }
+  expect(mine.aiMessages).toBeUndefined()
+  // 利用者が担当を付けても送らない（AI 間メッセージは AI が行うときだけ）
+  expect(user("ticket-update", { assignees: [] }, { record: ticket }).ok).toBe(true)
+  const byUser = user("ticket-update", { assignees: [other] }, { record: ticket }) as {
+    ok: boolean
+    aiMessages?: unknown
+  }
+  expect(byUser.ok).toBe(true)
+  expect(byUser.aiMessages).toBeUndefined()
 })
 
 test("履歴の題は列挙 history-topic の値（状況・プラン・質問・本文更新・完了）。値の data は色の役割で、質問だけ利用者への質問（asksUser）、本文更新と完了だけ文を持たない（textless）", () => {
@@ -192,7 +171,7 @@ test("本文更新の題は文を持たなくてよい。ほかの題は文が�
   expect(user(A(LOG), { ticket, topic: A("topic-status"), text: "  " }).ok).toBe(false)
 })
 
-// チケットの完了（ticket-complete）: レーン・担当・今のチケット・チケット履歴が 1 回で、全部そろって変わる。
+// チケットの完了（ticket-complete）: レーン・担当・チケット履歴が 1 回で、全部そろって変わる。
 // store は利用者だけが行うので、AI としても行うここだけは、世界を自分で持って結果を当てていく
 function completing() {
   let w: World = { pages: {}, folders: {}, settings: {}, annotations: {}, records: {}, counters: {} }
@@ -233,18 +212,14 @@ function completing() {
   return { act, user, table, room, project, ticket, projectRecord, laneNamed }
 }
 
-test("完了にすると、チケットは完了のレーンへ移り、担当が外れ、指している全部のワークルームの今のチケットが none になり、チケット履歴に完了の行（外した担当つき）が足される。1 回で全部", () => {
-  const { user, act, table, room, ticket, projectRecord } = completing()
+test("完了にすると、チケットは完了のレーンへ移り、担当が外れ、チケット履歴に完了の行（外した担当つき）が足される。1 回で全部", () => {
+  const { user, table, room, ticket, projectRecord } = completing()
   const a = room("あ")
   const b = room("い")
   user("ticket-update", { assignees: [a, b] }, { record: ticket })
-  expect(act(ai(a), "current-ticket-set", { ticket }).ok).toBe(true)
-  expect(act(ai(b), "current-ticket-set", { ticket }).ok).toBe(true)
   const done = user("ticket-complete", {}, { record: ticket })
   expect(done).toMatchObject({ ok: true, result: { lane: projectRecord().doneLane, released: [a, b] } })
-  expect(((done.result?.cleared ?? []) as string[]).sort()).toEqual([a, b].sort())
   expect(table(TICKET.id)[0]).toMatchObject({ lane: projectRecord().doneLane, assignees: [] })
-  expect(table(CURRENT.id).map(c => c.ticket)).toEqual(["none", "none"])
   expect(table(HISTORY.id)).toEqual([
     expect.objectContaining({ ticket, topic: A("topic-complete"), text: "", by: { kind: "user" }, released: [a, b] }),
   ])
@@ -271,27 +246,28 @@ test("完了は、完了のレーンの無いプロジェクトと、もう完�
   expect(user("ticket-complete", {}, { record: ticket }).ok).toBe(false)
 })
 
-test("完了のレーンのチケットは、今のチケットに宣言できない", () => {
-  const { user, act, room, ticket } = completing()
-  const a = room("あ")
-  expect(act(ai(a), "current-ticket-set", { ticket }).ok).toBe(true)
-  user("ticket-complete", {}, { record: ticket })
-  expect(act(ai(a), "current-ticket-set", { ticket }, { record: a }).ok).toBe(false)
-  expect(act(ai(a), "current-ticket-set", { ticket: "none" }, { record: a }).ok).toBe(true)
+test("作業中の印のあるレーンは完了のレーンにできず、作業中の印は完了のレーンに付けられない", () => {
+  const { user, project, projectRecord, laneNamed } = completing()
+  const working = (lane: string) =>
+    projectRecord().lanes.map(l => (l.kind === "lane" && l.id === lane ? { ...l, working: true } : l))
+  const todo = laneNamed("未着手")
+  const done = laneNamed("完了")
+  expect(user("project-update", { lanes: working(done) }, { record: project }).ok).toBe(false)
+  expect(user("project-update", { lanes: working(todo) }, { record: project }).ok).toBe(true)
+  expect(user("project-update", { doneLane: todo }, { record: project }).ok).toBe(false)
+  expect(user("project-update", { doneLane: done }, { record: project }).ok).toBe(true)
 })
 
-test("完了のレーンを替えるときは、新しいレーンのチケットに担当がいれば断り、今のチケットに指されていれば同じ 1 回で none にする。名前でも指せ、無いレーンは断る。レーンを消すと none になる", () => {
-  const { user, act, table, room, ticket, project, projectRecord, laneNamed } = completing()
+test("完了のレーンを替えるときは、新しいレーンのチケットに担当がいれば断る。名前でも指せ、無いレーンは断る。レーンを消すと none になる", () => {
+  const { user, room, ticket, project, projectRecord, laneNamed } = completing()
   const a = room("あ")
   const todo = laneNamed("未着手")
   user("ticket-update", { lane: todo, assignees: [a] }, { record: ticket })
   const set = (doneLane: string) => user("project-update", { doneLane }, { record: project })
   expect(set("未着手").ok).toBe(false) // 担当のいるチケットがある
   user("ticket-update", { assignees: [] }, { record: ticket })
-  expect(act(ai(a), "current-ticket-set", { ticket }).ok).toBe(true)
   expect(set("nothing").ok).toBe(false)
-  expect(set("未着手").ok).toBe(true) // 今のチケットに指されていても通り、同じ 1 回で none になる
-  expect(table(CURRENT.id).map(c => c.ticket)).toEqual(["none"])
+  expect(set("未着手").ok).toBe(true)
   expect(projectRecord().doneLane).toBe(todo)
   // 完了のレーンを並びから省くと、完了のレーンは none になる
   const rest = projectRecord().lanes.filter(l => l.id !== todo)

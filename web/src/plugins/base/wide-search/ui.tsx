@@ -67,3 +67,6 @@ export const WIDE_SEARCH_TAB = defineLeftSidePanelTab<typeof WIDE_SEARCH_TAB_ID>
 
 // 横断検索のタブを開く側（コントロールセンターの虫メガネ）が名乗る opens
 export const WIDE_SEARCH_OPENS = opensOf(WIDE_SEARCH_TAB)
+
+export { useWideSearch, useWideSearchPanel, WIDE_SEARCH_LIMIT_MAX } from "./hooks"
+export { WIDE_SEARCH_MODES, WIDE_SEARCH_OPENERS, type WideSearchModeProps } from "./slots"

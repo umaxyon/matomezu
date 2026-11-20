@@ -4,6 +4,7 @@ import { defineBuiltin } from "../../plugin-api/builtin"
 import { kit } from "./kit"
 import { PAPER } from "./paper"
 import {
+  type CLIP_STATE,
   COPY_PASTE_KEYS,
   ITEM_KEYS,
   ITEM_MOVE,
@@ -25,8 +26,8 @@ import {
   PAPER_REPARENT,
   PAPER_RESIZE,
   PAPER_SELECT_ALL,
+  PAPER_STATES,
 } from "./placing"
-import { type CLIP_STATE, PAPER_STATES } from "./placing/states"
 import { PAPER_TOOLS, REPARENT_TOOL } from "./tools"
 
 export const PAPER_PLUGIN = defineBuiltin(

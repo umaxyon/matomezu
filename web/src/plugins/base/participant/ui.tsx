@@ -7,3 +7,7 @@ export const PARTICIPANT_DIALOG_VIEWS = {
   [PARTICIPANT_JOIN_DIALOG.id]: ParticipantJoinDialog,
   [PARTICIPANT_WELCOME_DIALOG.id]: ParticipantWelcomeDialog,
 }
+
+export { BirdFaceView } from "./BirdFaceView"
+export { useVisitorRows, useWorkroomActions, useWorkroomRows, type WorkroomActions } from "./hooks"
+export { VisitorIcon } from "./VisitorIcon"
