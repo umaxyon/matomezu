@@ -176,69 +176,74 @@ test.describe("スライドの操作", () => {
     await expect(e).toHaveCSS("transform", "none")
   })
 
-  test("楕円は、ドラッグしている間も楕円が見え、Ctrl を押していれば正円で置ける。角のつまみも Ctrl で正円になる", async ({
-    page,
-  }) => {
-    await page.goto(BOOK_SCREEN_URL)
-    await (await footerMenuTool(page, "楕円")).click()
-    const at = await onPaper(page, 0, 0)
-    const z = (await paper(page).boundingBox())!.width / WIDE_WIDTH
-    await page.mouse.move(at.x + 100 * z, at.y + 100 * z)
-    await page.mouse.down()
-    await page.mouse.move(at.x + 400 * z, at.y + 250 * z, { steps: 6 })
-    // 離す前に、置いたときと同じ見た目の楕円が見える（まだ置いていないので、アイテムは無い）
-    await expect(page.locator("[data-item]")).toHaveCount(0)
-    await expect(page.locator("[data-placing] ellipse")).toHaveCount(1)
-    // 要素があるだけでなく、線が描かれている（色がテーマキーの var で、決まらないと none になり見えない）
-    expect(await strokeOf(page, "[data-ghost] ellipse")).not.toBe("none")
-    // Ctrl を押しながら動かすと正円（長い方の 300 に揃う）
-    await page.keyboard.down("Control")
-    await page.mouse.move(at.x + 401 * z, at.y + 250 * z, { steps: 2 })
-    await page.mouse.up()
-    await page.keyboard.up("Control")
-    const e = page.locator("[data-item]").first()
-    const box = (await e.boundingBox())!
-    expect(Math.abs(box.width - box.height)).toBeLessThan(3)
-    expect(Math.abs(box.width / z - 300)).toBeLessThan(4)
-    // 角のつまみを Ctrl で引くと正円のまま
-    const grip = (await page.locator('[data-grip="bottom-right"]').boundingBox())!
-    await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2)
-    await page.mouse.down()
-    await page.keyboard.down("Control")
-    await page.mouse.move(grip.x + grip.width / 2 + 100 * z, grip.y + grip.height / 2 + 20 * z, { steps: 5 })
-    await page.mouse.up()
-    await page.keyboard.up("Control")
-    const after = (await e.boundingBox())!
-    expect(Math.abs(after.width - after.height)).toBeLessThan(3)
-    expect(after.width / z).toBeGreaterThan(380)
-  })
+  for (const [tool, shape, same] of [
+    ["楕円", "ellipse", "正円"],
+    ["長方形", "rect", "正方形"],
+  ] as const) {
+    test(`${tool}は、ドラッグしている間も${tool}が見え、Ctrl を押していれば${same}で置ける。角のつまみも Ctrl で${same}になる`, async ({
+      page,
+    }) => {
+      await page.goto(BOOK_SCREEN_URL)
+      await (await footerMenuTool(page, tool)).click()
+      const at = await onPaper(page, 0, 0)
+      const z = (await paper(page).boundingBox())!.width / WIDE_WIDTH
+      await page.mouse.move(at.x + 100 * z, at.y + 100 * z)
+      await page.mouse.down()
+      await page.mouse.move(at.x + 400 * z, at.y + 250 * z, { steps: 6 })
+      // 離す前に、置いたときと同じ見た目が見える（まだ置いていないので、アイテムは無い）
+      await expect(page.locator("[data-item]")).toHaveCount(0)
+      await expect(page.locator(`[data-ghost] ${shape}`)).toHaveCount(1)
+      // 要素があるだけでなく、線が描かれている（色がテーマキーの var で、決まらないと none になり見えない）
+      expect(await strokeOf(page, `[data-ghost] ${shape}`)).not.toBe("none")
+      // Ctrl を押しながら動かすと縦横がそろう（長い方の 300 に揃う）
+      await page.keyboard.down("Control")
+      await page.mouse.move(at.x + 401 * z, at.y + 250 * z, { steps: 2 })
+      await page.mouse.up()
+      await page.keyboard.up("Control")
+      const e = page.locator("[data-item]").first()
+      const box = (await e.boundingBox())!
+      expect(Math.abs(box.width - box.height)).toBeLessThan(3)
+      expect(Math.abs(box.width / z - 300)).toBeLessThan(4)
+      // 角のつまみを Ctrl で引くと縦横がそろったまま
+      const grip = (await page.locator('[data-grip="bottom-right"]').boundingBox())!
+      await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2)
+      await page.mouse.down()
+      await page.keyboard.down("Control")
+      await page.mouse.move(grip.x + grip.width / 2 + 100 * z, grip.y + grip.height / 2 + 20 * z, { steps: 5 })
+      await page.mouse.up()
+      await page.keyboard.up("Control")
+      const after = (await e.boundingBox())!
+      expect(Math.abs(after.width - after.height)).toBeLessThan(3)
+      expect(after.width / z).toBeGreaterThan(380)
+    })
 
-  test("Ctrl を先に押したままドラッグしても、楕円は正円で置け、角のつまみも正円になる", async ({ page }) => {
-    await page.goto(BOOK_SCREEN_URL)
-    await (await footerMenuTool(page, "楕円")).click()
-    const at = await onPaper(page, 0, 0)
-    const z = (await paper(page).boundingBox())!.width / WIDE_WIDTH
-    await page.keyboard.down("Control")
-    await page.mouse.move(at.x + 100 * z, at.y + 100 * z)
-    await page.mouse.down()
-    await page.mouse.move(at.x + 400 * z, at.y + 250 * z, { steps: 6 })
-    await page.mouse.up()
-    await page.keyboard.up("Control")
-    const e = page.locator("[data-item]").first()
-    const box = (await e.boundingBox())!
-    expect(Math.abs(box.width - box.height)).toBeLessThan(3)
-    expect(Math.abs(box.width / z - 300)).toBeLessThan(4)
-    const grip = (await page.locator('[data-grip="bottom-right"]').boundingBox())!
-    await page.keyboard.down("Control")
-    await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2)
-    await page.mouse.down()
-    await page.mouse.move(grip.x + grip.width / 2 + 100 * z, grip.y + grip.height / 2 + 20 * z, { steps: 5 })
-    await page.mouse.up()
-    await page.keyboard.up("Control")
-    const after = (await e.boundingBox())!
-    expect(Math.abs(after.width - after.height)).toBeLessThan(3)
-    expect(after.width / z).toBeGreaterThan(380)
-  })
+    test(`Ctrl を先に押したままドラッグしても、${tool}は${same}で置け、角のつまみも${same}になる`, async ({ page }) => {
+      await page.goto(BOOK_SCREEN_URL)
+      await (await footerMenuTool(page, tool)).click()
+      const at = await onPaper(page, 0, 0)
+      const z = (await paper(page).boundingBox())!.width / WIDE_WIDTH
+      await page.keyboard.down("Control")
+      await page.mouse.move(at.x + 100 * z, at.y + 100 * z)
+      await page.mouse.down()
+      await page.mouse.move(at.x + 400 * z, at.y + 250 * z, { steps: 6 })
+      await page.mouse.up()
+      await page.keyboard.up("Control")
+      const e = page.locator("[data-item]").first()
+      const box = (await e.boundingBox())!
+      expect(Math.abs(box.width - box.height)).toBeLessThan(3)
+      expect(Math.abs(box.width / z - 300)).toBeLessThan(4)
+      const grip = (await page.locator('[data-grip="bottom-right"]').boundingBox())!
+      await page.keyboard.down("Control")
+      await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2)
+      await page.mouse.down()
+      await page.mouse.move(grip.x + grip.width / 2 + 100 * z, grip.y + grip.height / 2 + 20 * z, { steps: 5 })
+      await page.mouse.up()
+      await page.keyboard.up("Control")
+      const after = (await e.boundingBox())!
+      expect(Math.abs(after.width - after.height)).toBeLessThan(3)
+      expect(after.width / z).toBeGreaterThan(380)
+    })
+  }
 
   test("文字枠・直線・自由な線も、ドラッグしている間に線が見える", async ({ page }) => {
     await page.goto(BOOK_SCREEN_URL)

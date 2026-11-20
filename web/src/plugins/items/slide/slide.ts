@@ -60,7 +60,8 @@ export const StraightLineProps = z.strictObject({
 // 枠の色が「枠なし」を表す値（未設定は、文字色の枠）
 export const NO_OUTLINE = "none"
 
-export const EllipseProps = z.strictObject({
+// 楕円と長方形の項目（塗り・枠の色・枠の太さ）
+export const FigureProps = z.strictObject({
   fill: ColorSchema.optional().describe("Fill color. Without it, no fill"),
   stroke: z
     .union([ColorSchema, z.literal(NO_OUTLINE)])
@@ -174,11 +175,30 @@ export const ELLIPSE = kit.defineShape({
   title: "Ellipse",
   capabilities: [],
   toolbox: true,
-  props: EllipseProps,
+  props: FigureProps,
   tokens: [],
   size: { w: 160, h: 100 },
   min: MIN,
   minimap: (_, r): MinimapMark[] => [{ kind: "ellipse", x: r.x, y: r.y, w: r.w, h: r.h }],
 })
 
-export const SLIDE_ITEMS = [TEXT_FRAME, FREE_LINE, STRAIGHT_LINE, ELLIPSE] as const
+export const RECTANGLE = kit.defineShape({
+  id: "slide-rectangle",
+  kind: "shape",
+  version: 1,
+  title: "Rectangle",
+  capabilities: [],
+  toolbox: true,
+  props: FigureProps,
+  tokens: [],
+  size: { w: 160, h: 100 },
+  min: MIN,
+  minimap: (_, r): MinimapMark[] => [{ kind: "rect", x: r.x, y: r.y, w: r.w, h: r.h }],
+})
+
+export const SLIDE_ITEMS = [TEXT_FRAME, FREE_LINE, STRAIGHT_LINE, ELLIPSE, RECTANGLE] as const
+
+// 線（自由な線・直線）。線は角度を数字で入れ、ほかは「水平に戻す」
+export const isLineKind = (kind: string): boolean => kind === FREE_LINE.id || kind === STRAIGHT_LINE.id
+// Ctrl（Mac は Command）で、置くときと角のつまみを引くときに縦横をそろえる種類（正円・正方形）
+export const squarable = (kind: string): boolean => kind === ELLIPSE.id || kind === RECTANGLE.id

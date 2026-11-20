@@ -10,6 +10,7 @@ import { newStore, sequence } from "../support"
 
 const TEXT = "@matomezu/slide:slide-text"
 const ELLIPSE = "@matomezu/slide:slide-ellipse"
+const RECTANGLE = "@matomezu/slide:slide-rectangle"
 const LINE = "@matomezu/slide:slide-line"
 const FREE = "@matomezu/slide:slide-free-line"
 
@@ -68,10 +69,14 @@ test("置いた物は書いたとおりの位置に残り、押し合わず、�
   expect(
     s.perform("@matomezu/slide:slide-place", { item: LINE, at: { x: -50, y: -50 }, props: {} }, { page: s.page }).ok,
   ).toBe(true)
+  expect(
+    s.perform("@matomezu/slide:slide-place", { item: RECTANGLE, at: { x: 30, y: 40 }, props: {} }, { page: s.page }).ok,
+  ).toBe(true)
   expect(s.slide().map(i => [i.item, i.x, i.y])).toEqual([
     [TEXT, 10, 20],
     [ELLIPSE, 12, 22],
     [LINE, -50, -50],
+    [RECTANGLE, 30, 40],
   ])
   // ブックの物（箱）は置けない
   expect(

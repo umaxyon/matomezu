@@ -16,11 +16,19 @@ import {
 } from "./commands"
 import { kit } from "./kit"
 import { SLIDE_KEY_SCOPE } from "./scope"
-import { ELLIPSE, FREE_LINE, SLIDE_INK, STRAIGHT_LINE, TEXT_FRAME } from "./slide"
+import {
+  type ELLIPSE,
+  type FREE_LINE,
+  type RECTANGLE,
+  SLIDE_INK,
+  SLIDE_ITEMS,
+  type STRAIGHT_LINE,
+  type TEXT_FRAME,
+} from "./slide"
 
 export const SLIDE_PLUGIN = defineBuiltin(
   kit.plugin({
-    items: [TEXT_FRAME, FREE_LINE, STRAIGHT_LINE, ELLIPSE],
+    items: [...SLIDE_ITEMS],
     tokens: [SLIDE_INK],
     actions: [SLIDE_PLACE, SLIDE_MOVE, SLIDE_RESIZE, SLIDE_UPDATE, SLIDE_REORDER, SLIDE_REMOVE],
     commands: [
@@ -45,6 +53,7 @@ declare module "../../../core/catalog" {
     "@matomezu/slide:slide-free-line": typeof FREE_LINE
     "@matomezu/slide:slide-line": typeof STRAIGHT_LINE
     "@matomezu/slide:slide-ellipse": typeof ELLIPSE
+    "@matomezu/slide:slide-rectangle": typeof RECTANGLE
   }
   interface ActionTable {
     "@matomezu/slide:slide-place": typeof SLIDE_PLACE

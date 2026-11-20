@@ -25,6 +25,7 @@ const BACKGROUND_ITEMS = [
   "@matomezu/slide:slide-free-line",
   "@matomezu/slide:slide-line",
   "@matomezu/slide:slide-ellipse",
+  "@matomezu/slide:slide-rectangle",
 ] as const
 
 export const DIR_KEY_SCOPE = kit.defineKeyScope({ id: "dir", title: "Directory", commandsFrom: "stage" })

@@ -1,6 +1,7 @@
-// スライドのアイテムのビュー: 文字枠・自由な線・直線・楕円。枠いっぱい（size）に描く。角度は見せ方が枠にかけるので、ここでは傾けない。
+// スライドのアイテムのビュー: 文字枠・自由な線・直線・楕円・長方形。枠いっぱい（size）に描く。角度は見せ方が枠にかけるので、ここでは傾けない。
 // 線の点は枠の中の割合なので、枠の大きさを掛けて描く。色は代表色の名前か #rrggbb（base の colorPaint）で、無ければ SLIDE_INK（テーマの文字の色。描く要素のテーマキーの範囲 useTokenScope が要る）
 
+import type { ReactNode } from "react"
 import type { z } from "zod"
 import { themeVar } from "../../../plugin-api"
 import type { ItemViewProps } from "../../../plugin-api/ui"
@@ -8,7 +9,7 @@ import { colorPaint } from "../../base"
 import {
   DEFAULT_FONT_SIZE,
   DEFAULT_STROKE_WIDTH,
-  type EllipseProps,
+  type FigureProps,
   type FreeLineProps,
   linePointsOf,
   NO_OUTLINE,
@@ -106,19 +107,51 @@ export function StraightLineView({ props, size }: ItemViewProps<z.output<typeof 
   )
 }
 
-export function EllipseView({ props, size }: ItemViewProps<z.output<typeof EllipseProps>>) {
+// 楕円と長方形の塗りと枠。枠は太さの半分だけ内に寄せ、枠いっぱいに収める（inset）
+function figurePaint(props: z.output<typeof FigureProps>) {
   const width = props.width ?? WIDTH
+  return {
+    inset: width / 2,
+    fill: props.fill === undefined ? "none" : paint(props.fill),
+    stroke: width > 0 && props.stroke !== NO_OUTLINE ? paint(props.stroke) : "none",
+    strokeWidth: width,
+  }
+}
+
+function FigureSvg({ size, children }: { size: { w: number; h: number }; children: ReactNode }) {
   return (
     <svg width={size.w} height={size.h} style={{ overflow: "visible", display: "block" }} aria-hidden="true">
+      {children}
+    </svg>
+  )
+}
+
+export function EllipseView({ props, size }: ItemViewProps<z.output<typeof FigureProps>>) {
+  const { inset, ...look } = figurePaint(props)
+  return (
+    <FigureSvg size={size}>
       <ellipse
         cx={size.w / 2}
         cy={size.h / 2}
-        rx={Math.max(size.w / 2 - width / 2, 0)}
-        ry={Math.max(size.h / 2 - width / 2, 0)}
-        fill={props.fill === undefined ? "none" : paint(props.fill)}
-        stroke={width > 0 && props.stroke !== NO_OUTLINE ? paint(props.stroke) : "none"}
-        strokeWidth={width}
+        rx={Math.max(size.w / 2 - inset, 0)}
+        ry={Math.max(size.h / 2 - inset, 0)}
+        {...look}
       />
-    </svg>
+    </FigureSvg>
+  )
+}
+
+export function RectangleView({ props, size }: ItemViewProps<z.output<typeof FigureProps>>) {
+  const { inset, ...look } = figurePaint(props)
+  return (
+    <FigureSvg size={size}>
+      <rect
+        x={Math.min(inset, size.w / 2)}
+        y={Math.min(inset, size.h / 2)}
+        width={Math.max(size.w - inset * 2, 0)}
+        height={Math.max(size.h - inset * 2, 0)}
+        {...look}
+      />
+    </FigureSvg>
   )
 }

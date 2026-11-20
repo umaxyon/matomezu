@@ -11,6 +11,7 @@ import {
   FREE_LINE,
   MAX_STROKE_WIDTH,
   NO_OUTLINE,
+  RECTANGLE,
   SLIDE_INK,
   STRAIGHT_LINE,
   TEXT_FRAME,
@@ -27,11 +28,14 @@ export interface StyleSubject {
 // 種類ごとに並べる入力Form（出し分けの表。単体テストが見る）
 export type StyleField = "text-color" | "color" | "width" | "dashed" | "arrow" | "fill" | "outline" | "outline-width"
 
+// 楕円と長方形
+const FIGURE_FIELDS: readonly StyleField[] = ["fill", "outline", "outline-width"]
+
 export function fieldsOf(item: string): readonly StyleField[] {
   if (item === TEXT_FRAME.id) return ["text-color"]
   if (item === FREE_LINE.id) return ["color", "width", "dashed"]
   if (item === STRAIGHT_LINE.id) return ["color", "width", "dashed", "arrow"]
-  if (item === ELLIPSE.id) return ["fill", "outline", "outline-width"]
+  if (item === ELLIPSE.id || item === RECTANGLE.id) return FIGURE_FIELDS
   return []
 }
 
