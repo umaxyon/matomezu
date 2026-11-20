@@ -48,38 +48,38 @@ func SplitBook(body json.RawMessage, taken map[string]bool) (split Split, ok boo
 	for _, e := range lineup {
 		kind, entry, fields := headOf(e)
 		switch {
-		case kind == "page" && entry != "" && !taken[entry]:
+		case kind == KindPage && entry != "" && !taken[entry]:
 			taken[entry] = true
 			split.Pages = append(split.Pages, Row{entry, e})
 			split.Entries[entry] = id
-			refs = append(refs, refOf("page", entry))
-		case kind == "binder" && entry != "" && !taken[entry] && isList(fields["lineup"]):
+			refs = append(refs, refOf(KindPage, entry))
+		case kind == KindBinder && entry != "" && !taken[entry] && isList(fields["lineup"]):
 			taken[entry] = true
 			var inner []json.RawMessage
 			_ = json.Unmarshal(fields["lineup"], &inner)
 			innerRefs := make([]json.RawMessage, 0, len(inner))
 			for _, p := range inner {
 				k, page, _ := headOf(p)
-				if k == "page" && page != "" && !taken[page] {
+				if k == KindPage && page != "" && !taken[page] {
 					taken[page] = true
 					split.Pages = append(split.Pages, Row{page, p})
 					split.Entries[page] = entry
-					innerRefs = append(innerRefs, refOf("page", page))
+					innerRefs = append(innerRefs, refOf(KindPage, page))
 				} else {
 					innerRefs = append(innerRefs, p)
 				}
 			}
 			delete(fields, "kind")
-			fields["folderRole"] = json.RawMessage(`"binder"`)
+			fields["folderRole"] = jsonText(RoleBinder)
 			fields["lineup"] = marshal(innerRefs)
 			binders = append(binders, Row{entry, marshal(fields)})
 			split.Entries[entry] = id
-			refs = append(refs, refOf("binder", entry))
+			refs = append(refs, refOf(KindBinder, entry))
 		default:
 			refs = append(refs, e)
 		}
 	}
-	book["folderRole"] = json.RawMessage(`"book"`)
+	book["folderRole"] = jsonText(RoleBook)
 	if hasLineup {
 		book["lineup"] = marshal(refs)
 	}
@@ -115,3 +115,6 @@ func marshal(v any) json.RawMessage {
 	}
 	return raw
 }
+
+// jsonText は、文字 s の JSON の値
+func jsonText(s string) json.RawMessage { return marshal(s) }

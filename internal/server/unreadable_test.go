@@ -138,7 +138,7 @@ func TestUnreadableThingsMoveToTheUnreadableFolderAtStart(t *testing.T) {
 	before := rowOf(h, storage.UnreadableID)
 	// ふつうの書き込み（ほかのページへのアクション）のあとには移さない。テストの用意の入口でなく置いた読めないページも、そのまま
 	h.mu.Lock()
-	if _, _, err := h.replaceBookQuietly("f2", json.RawMessage(`{"id":"f2","title":"F2","lineup":[{"kind":"page","id":"x1","type":"@foo/stamps:board","title":"X","paper":"@matomezu/base:a4","orientation":"landscape"}]}`), 0); err != nil {
+	if _, _, err := h.replaceBookQuietlyForTest("f2", json.RawMessage(`{"id":"f2","title":"F2","lineup":[{"kind":"page","id":"x1","type":"@foo/stamps:board","title":"X","paper":"@matomezu/base:a4","orientation":"landscape"}]}`), 0); err != nil {
 		h.mu.Unlock()
 		t.Fatal(err)
 	}

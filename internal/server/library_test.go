@@ -157,20 +157,20 @@ func TestWholeBooksGoIntoTheLibraryHome(t *testing.T) {
 		}
 		return got
 	}
-	if _, _, err := hub.replaceBook("b3", json.RawMessage(`{"id":"b3","title":"N","lineup":[]}`), 0); err != nil {
+	if _, _, err := hub.replaceBookForTest("b3", json.RawMessage(`{"id":"b3","title":"N","lineup":[]}`), 0); err != nil {
 		t.Fatal(err)
 	}
 	if want := `{"folderRole":"home","id":"library-home","lineup":[` + documentsRef(t, hub) + `{"kind":"folder","id":"d1"},{"id":"b3","kind":"book"}]}`; home() != want ||
 		entries()["b3"] != storage.HomeID || hub.places["b3"] != storage.HomeID || !slices.Contains(hub.order, "b3") {
 		t.Fatalf("home after a new book = %s, entries %v", home(), entries())
 	}
-	if _, _, err := hub.replaceBook("b1", json.RawMessage(`{"id":"b1","title":"T2","lineup":[]}`), 1); err != nil {
+	if _, _, err := hub.replaceBookForTest("b1", json.RawMessage(`{"id":"b1","title":"T2","lineup":[]}`), 1); err != nil {
 		t.Fatal(err)
 	}
 	if entries()["b1"] != "d1" || strings.Contains(home(), `"b1"`) || hub.places["p1"] != "" {
 		t.Fatalf("after putting b1 again: home %s, entries %v", home(), entries())
 	}
-	if err := hub.clearBooks(); err != nil {
+	if err := hub.clearBooksForTest(); err != nil {
 		t.Fatal(err)
 	}
 	stored, _ := hub.store.Folders()
@@ -180,7 +180,7 @@ func TestWholeBooksGoIntoTheLibraryHome(t *testing.T) {
 		t.Fatalf("after clearing: pages %v, folders %v, stored %+v, entries %v", hub.pages, folders, stored, entries())
 	}
 	// 空にした後も、新しいブックは書庫ホームに入る
-	if _, _, err := hub.replaceBook("b1", json.RawMessage(drawing), 0); err != nil {
+	if _, _, err := hub.replaceBookForTest("b1", json.RawMessage(drawing), 0); err != nil {
 		t.Fatal(err)
 	}
 	if home() != `{"folderRole":"home","id":"library-home","lineup":[{"id":"b1","kind":"book"}]}` || entries()["b1"] != storage.HomeID {
@@ -244,7 +244,7 @@ func TestABrokenLibraryTreeIsAWarning(t *testing.T) {
 		t.Fatalf("book-create on a broken tree = %s", got)
 	}
 	hub.mu.Lock()
-	home, err := hub.homeWith(func(lineup []json.RawMessage) []json.RawMessage { return append(lineup, ref("book", "b2")) })
+	home, err := hub.homeWithForTest(func(lineup []json.RawMessage) []json.RawMessage { return append(lineup, ref("book", "b2")) })
 	version := hub.folders[storage.HomeID].version
 	hub.mu.Unlock()
 	if err != nil {

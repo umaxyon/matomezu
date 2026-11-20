@@ -79,7 +79,7 @@ func (h *Hub) AIFolder(id string) *AIFolder {
 		id = storage.HomeID
 	}
 	f, ok := h.folders[id]
-	if !ok || (f.role != "home" && f.role != "folder") || h.outOfSight(id) {
+	if !ok || (f.role != storage.RoleHome && f.role != storage.RoleFolder) || h.outOfSight(id) {
 		return nil
 	}
 	out := &AIFolder{ID: id, Kind: f.role, Path: []folderStep{}, Lineup: []folderEntry{}}
@@ -87,18 +87,18 @@ func (h *Hub) AIFolder(id string) *AIFolder {
 	slices.Reverse(above)
 	for _, at := range append(above, id) {
 		step := folderStep{ID: at}
-		if h.folders[at].role == "folder" {
+		if h.folders[at].role == storage.RoleFolder {
 			step.Title, step.SystemFolder = h.folderTitle(h.folders[at].body)
 		}
 		out.Path = append(out.Path, step)
 	}
-	if f.role == "folder" {
+	if f.role == storage.RoleFolder {
 		out.Title, out.SystemFolder = h.folderTitle(f.body)
 	}
 	for _, e := range f.entries {
 		if p, ok := h.pages[e]; ok {
 			title, pageType, _ := rowHead(p.body)
-			out.Lineup = append(out.Lineup, folderEntry{Kind: "page", ID: e, Title: title, Type: pageType})
+			out.Lineup = append(out.Lineup, folderEntry{Kind: storage.KindPage, ID: e, Title: title, Type: pageType})
 			continue
 		}
 		inner, ok := h.folders[e]
@@ -107,13 +107,13 @@ func (h *Hub) AIFolder(id string) *AIFolder {
 		}
 		title, _, binderType := rowHead(inner.body)
 		switch {
-		case inner.role == "folder":
+		case inner.role == storage.RoleFolder:
 			title, mark := h.folderTitle(inner.body)
-			out.Lineup = append(out.Lineup, folderEntry{Kind: "folder", ID: e, Title: title, SystemFolder: mark})
-		case inner.role == "binder":
-			out.Lineup = append(out.Lineup, folderEntry{Kind: "binder", ID: e, Title: title, PageType: binderType})
+			out.Lineup = append(out.Lineup, folderEntry{Kind: storage.KindFolder, ID: e, Title: title, SystemFolder: mark})
+		case inner.role == storage.RoleBinder:
+			out.Lineup = append(out.Lineup, folderEntry{Kind: storage.KindBinder, ID: e, Title: title, PageType: binderType})
 		case inner.isBook() && !h.bookWarnings[e].Unreadable:
-			out.Lineup = append(out.Lineup, folderEntry{Kind: "book", ID: e, Title: title})
+			out.Lineup = append(out.Lineup, folderEntry{Kind: storage.KindBook, ID: e, Title: title})
 		}
 	}
 	return out

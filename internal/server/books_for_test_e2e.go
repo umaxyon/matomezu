@@ -1,14 +1,17 @@
 //go:build e2e
 
-// e2e の常駐のテストの用意（booksForTest・resetForTest・enablePluginsForTest・enabledPluginsSetting・joinedAIForTest とその Hub のメソッドは books_for_test_test.go と同じ物。go test はタグを付けずに流すので、そちらにも置く）
+// e2e の常駐のテストの用意（booksForTest・resetForTest・enablePluginsForTest・enabledPluginsSetting・joinedAIForTest と、ブックを丸ごと置き換える・全部を消す Hub のメソッド（replaceBookForTest・clearBooksForTest など）は books_for_test_test.go と同じ物。go test はタグを付けずに流すので、そちらにも置く）
 
 package server
 
 import (
 	"encoding/json"
 	"errors"
+	"maps"
 	"net/http"
+	"slices"
 
+	"github.com/umaxyon/matomezu/internal/engine"
 	"github.com/umaxyon/matomezu/internal/storage"
 )
 
@@ -96,7 +99,7 @@ func (h *Hub) assembledBooksForTest() []json.RawMessage {
 func (h *Hub) putBookForTest(id string, body json.RawMessage, base int64) (version int64, conflict bool, err error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	version, conflict, err = h.replaceBook(id, body, base)
+	version, conflict, err = h.replaceBookForTest(id, body, base)
 	if err == nil && !conflict {
 		// 置いた世界の読めない物を移す（窓には、移した行を知らせる）
 		h.settleLibrary(false)
@@ -121,7 +124,7 @@ func (h *Hub) resetForTest(books []json.RawMessage, enabledPlugins []string) err
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.catalogChanged = true
-	if err := h.clearBooks(); err != nil {
+	if err := h.clearBooksForTest(); err != nil {
 		return err
 	}
 	settings := json.RawMessage("null")
@@ -147,7 +150,7 @@ func (h *Hub) resetForTest(books []json.RawMessage, enabledPlugins []string) err
 	h.performed = map[string]Performed{}
 	h.performedOrder = nil
 	for i, body := range books {
-		if _, _, err := h.replaceBookQuietly(ids[i], body, 0); err != nil {
+		if _, _, err := h.replaceBookQuietlyForTest(ids[i], body, 0); err != nil {
 			return err
 		}
 	}
@@ -254,3 +257,131 @@ func (h *Hub) enablePluginsForTest(ids []string) error {
 
 // enabledPluginsSetting は、有効にした追加プラグインの id の並びを持つ利用者の設定の項目（テストの用意が書くのに使う。エンジンが role で読む）
 const enabledPluginsSetting = "@matomezu/base:enabled-plugins"
+
+// replaceBookForTest は、ブック id を本文 body（並びにページとバインダの中身ごと持つ形）に丸ごと置き換えて、窓に知らせる（アクションも認可も通さない。ブックを丸ごと受け取る、テストの用意の入口が使う）。
+// 置いてあるブックのフォルダの版が base のときだけ（まだ無ければ base は 0）で、違えば conflict。本文は置き場所の決まり（storage.SplitBook）で分け、分けられない本文は、そのままフォルダの 1 行にする。
+// まだどのフォルダにも入っていないブックは、書庫ホームの並びの末尾に足す。
+// 返すのは、書いた後のブックのフォルダの版（h.mu を持って呼ぶ）
+func (h *Hub) replaceBookForTest(id string, body json.RawMessage, base int64) (version int64, conflict bool, err error) {
+	return h.putWholeBookForTest(id, body, base, false)
+}
+
+// replaceBookQuietlyForTest は replaceBookForTest と同じに置き換えるが、窓に知らせず、触れた時刻も残さない（世界を空にして置き直す、テストの用意の入口が使う。h.mu を持って呼ぶ）
+func (h *Hub) replaceBookQuietlyForTest(id string, body json.RawMessage, base int64) (version int64, conflict bool, err error) {
+	return h.putWholeBookForTest(id, body, base, true)
+}
+
+func (h *Hub) putWholeBookForTest(id string, body json.RawMessage, base int64, quiet bool) (version int64, conflict bool, err error) {
+	if h.folders[id].version != base {
+		return 0, true, nil
+	}
+	// そのブックが今持っているページとフォルダ（置き換えで無くなる物を消し、id を使い直せるようにする）
+	old := map[string]bool{}
+	for _, row := range h.rowsUnder(id) {
+		old[row] = true
+	}
+	taken := map[string]bool{}
+	for other := range h.pages {
+		taken[other] = !old[other]
+	}
+	for other := range h.folders {
+		taken[other] = !old[other]
+	}
+	split, ok := storage.SplitBook(body, taken)
+	if !ok {
+		split = storage.Split{Folders: []storage.Row{{ID: id, Body: body}}}
+	}
+	out := engine.Output{Books: []string{id}}
+	kept := map[string]bool{}
+	for _, p := range split.Pages {
+		kept[p.ID] = true
+		out.Pages = append(out.Pages, engine.RowChange{ID: p.ID, Row: p.Body})
+	}
+	for _, f := range split.Folders {
+		kept[f.ID] = true
+		out.Folders = append(out.Folders, engine.RowChange{ID: f.ID, Row: f.Body})
+	}
+	// まだどのフォルダにも入っていないブックは、書庫ホームの並びの末尾に足す
+	if _, placed := h.places[id]; !placed {
+		home, err := h.homeWithForTest(func(lineup []json.RawMessage) []json.RawMessage {
+			return append(lineup, storage.RefOf(storage.KindBook, id))
+		})
+		if err != nil {
+			return 0, false, err
+		}
+		out.Folders = append(out.Folders, engine.RowChange{ID: storage.HomeID, Row: home})
+	}
+	for _, gone := range slices.Sorted(maps.Keys(old)) {
+		if kept[gone] {
+			continue
+		}
+		if _, page := h.pages[gone]; page {
+			out.Pages = append(out.Pages, engine.RowChange{ID: gone, Removed: true})
+		} else {
+			out.Folders = append(out.Folders, engine.RowChange{ID: gone, Removed: true})
+		}
+	}
+	plan, err := h.planWrites(out, "host", "", stamp())
+	if err != nil {
+		return 0, false, err
+	}
+	plan.quiet = quiet
+	if err := h.store.Apply(plan.batch); err != nil {
+		return 0, false, err
+	}
+	h.applyWrites(plan, out, Perform{}, "host", "")
+	return h.folders[id].version, false, nil
+}
+
+// homeWithForTest は、書庫ホームの並びを change で替えた本文（書庫ホームが無ければ、空の並びから作る。h.mu を持って呼ぶ。何も変えない）
+func (h *Hub) homeWithForTest(change func([]json.RawMessage) []json.RawMessage) (json.RawMessage, error) {
+	f, ok := h.folders[storage.HomeID]
+	if !ok {
+		return storage.HomeBody(change(nil)), nil
+	}
+	return withLineup(f.body, change(slices.Clone(lineupOf(f.body))))
+}
+
+// clearBooksForTest は、全部のブック（ページとフォルダとエントリ、開いた時刻、AI 編集チケット、ページのアノテーション）を、置き場所とメモリから消す。
+// 書庫ホームとゴミ箱は残して、並びを空にする（窓には知らせない。テストの用意が使う。h.mu を持って呼ぶ）
+func (h *Hub) clearBooksForTest() error {
+	var batch storage.Batch
+	for id, p := range h.pages {
+		batch.Pages = append(batch.Pages, storage.RowWrite{ID: id, Base: p.version, Removed: true})
+	}
+	for id, f := range h.folders {
+		if id != storage.HomeID && id != storage.TrashID && id != storage.UnreadableID {
+			batch.Folders = append(batch.Folders, storage.RowWrite{ID: id, Base: f.version, Removed: true})
+		}
+	}
+	home, trash, unreadable := storage.HomeBody(nil), storage.TrashBody(nil), storage.UnreadableBody(nil)
+	homeVersion, trashVersion := h.folders[storage.HomeID].version, h.folders[storage.TrashID].version
+	unreadableVersion := h.folders[storage.UnreadableID].version
+	batch.Folders = append(batch.Folders, storage.RowWrite{ID: storage.HomeID, Body: home, Base: homeVersion},
+		storage.RowWrite{ID: storage.TrashID, Body: trash, Base: trashVersion},
+		storage.RowWrite{ID: storage.UnreadableID, Body: unreadable, Base: unreadableVersion})
+	for id := range h.places {
+		batch.Entries = append(batch.Entries, storage.EntryPut{ID: id})
+	}
+	batch.RemovedBooks = slices.Clone(h.order)
+	batch.AIEditTickets = json.RawMessage("[]")
+	for page := range h.annotations {
+		batch.Annotations = append(batch.Annotations, storage.PageBody{Page: page, Body: json.RawMessage("[]")})
+	}
+	if err := h.store.Apply(batch); err != nil {
+		return err
+	}
+	h.pages = map[string]row{}
+	h.folders = map[string]folderRow{storage.HomeID: newFolderRow(home, homeVersion+1), storage.TrashID: newFolderRow(trash, trashVersion+1),
+		storage.UnreadableID: newFolderRow(unreadable, unreadableVersion+1)}
+	h.unreadableWarning = ""
+	h.places = map[string]string{}
+	h.books = map[string]entry{}
+	h.order = nil
+	h.annotations = map[string]json.RawMessage{}
+	h.aiEditTickets = nil
+	h.touched = map[string]string{}
+	h.bookWarnings = map[string]engine.BookWarning{}
+	h.annotationWarnings = nil
+	return nil
+}

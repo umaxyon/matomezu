@@ -20,6 +20,7 @@ import (
 
 	"github.com/umaxyon/matomezu/internal/aiwire"
 	"github.com/umaxyon/matomezu/internal/engine"
+	"github.com/umaxyon/matomezu/internal/storage"
 )
 
 // Address は、AI 間メッセージの送り手か宛て先: どのワークルームの、どの参加者か
@@ -107,7 +108,7 @@ func (h *Hub) actionEnvelopes(messages []engine.AIMessage, actor *engine.Actor, 
 			From:   Address{Workroom: roomName(rooms, actor.Workroom), Participant: from},
 			To:     Address{Workroom: name, Participant: to},
 			Text:   m.Text,
-			SentAt: isoTime(now),
+			SentAt: storage.Stamp(now),
 		})
 	}
 	return envelopes, nil
@@ -166,7 +167,7 @@ func (h *Hub) SendMessage(req MessageRequest, now time.Time) (MessageSent, error
 		From:   Address{Workroom: roomName(rooms, from.Workroom), Participant: from.ID},
 		To:     Address{Workroom: to.Name, Participant: occupant[to.ID]},
 		Text:   req.Text,
-		SentAt: isoTime(now),
+		SentAt: storage.Stamp(now),
 	})
 	return MessageSent{OK: true, Queued: true}, nil
 }
