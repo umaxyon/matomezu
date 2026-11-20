@@ -41,7 +41,7 @@ export interface Settled {
   numbered: readonly { id: string; title: string }[]
 }
 
-// 書庫を整えるときの決まり: 名前を比べる言語 naming と、移した時刻 now と、新しい行の id を振る newId（行を足す物のため）
+// 書庫を整えるときの決まり: 名前を比べる言語 naming と、移した時刻 now と、新しい行の id を振る newId
 export interface SettleWith {
   naming: Naming
   now: string
@@ -59,25 +59,25 @@ export function settleLibrary(
 ): Settled | typeof BROKEN {
   const found = unreadableFolderOf(folderRows)
   if (found === BROKEN) return BROKEN
-  const world = new World(pageRows, folderRows, found)
+  let world = worldOf(pageRows, folderRows, found)
   const returned: string[] = []
   const numbered: { id: string; title: string }[] = []
-  let units = world.units(catalog)
+  let units = unitsIn(catalog, world)
   for (let progressed = true; progressed; ) {
     progressed = false
     for (const ref of world.unreadable.lineup) {
       const back = returnedRows(catalog, world, ref, units, naming)
       if (!back) continue
-      world.apply(back)
-      units = world.units(catalog)
+      world = withReturned(world, back)
+      units = unitsIn(catalog, world)
       returned.push(ref.entry.id)
       if (back.title !== undefined) numbered.push({ id: ref.entry.id, title: back.title })
       progressed = true
     }
   }
   const moved = units
-  if (moved.length > 0) world.move(moved, now)
-  return { writes: world.writes(), moved, returned, numbered }
+  if (moved.length > 0) world = withMoved(world, moved, now)
+  return { writes: writesOf(world), moved, returned, numbered }
 }
 
 // 読めない物のフォルダの直下の物 id と、その中の物の行（完全に消す行）と、それを外した読めない物のフォルダの行。読めない物のフォルダの直下に無ければ undefined。
@@ -112,109 +112,112 @@ export function purgedRows(
 const isRow = (v: unknown): v is Row => typeof v === "object" && v !== null && !Array.isArray(v)
 
 // 行を変えていく途中の世界: ページとフォルダの行（id → 行）と、読めない物のフォルダと、変えた行の id
-class World {
-  pages: Map<string, unknown>
-  folders: Map<string, unknown>
+interface World {
+  pages: ReadonlyMap<string, unknown>
+  folders: ReadonlyMap<string, unknown>
   unreadable: UnreadableFolder
-  private readonly touchedPages = new Set<string>()
-  private readonly touchedFolders = new Set<string>()
+  touchedPages: ReadonlySet<string>
+  touchedFolders: ReadonlySet<string>
+}
 
-  constructor(pageRows: readonly unknown[], folderRows: readonly unknown[], unreadable: UnreadableFolder) {
-    const byId = (rows: readonly unknown[]) =>
-      new Map(rows.flatMap(r => (isRow(r) && typeof r.id === "string" ? [[r.id, r] as const] : [])))
-    this.pages = byId(pageRows)
-    this.folders = byId(folderRows)
-    this.unreadable = unreadable
+// 置き場所から読んだままの行と読めない物のフォルダの、まだ何も変えていない世界
+function worldOf(pageRows: readonly unknown[], folderRows: readonly unknown[], unreadable: UnreadableFolder): World {
+  const byId = (rows: readonly unknown[]) =>
+    new Map(rows.flatMap(r => (isRow(r) && typeof r.id === "string" ? [[r.id, r] as const] : [])))
+  return {
+    pages: byId(pageRows),
+    folders: byId(folderRows),
+    unreadable,
+    touchedPages: new Set(),
+    touchedFolders: new Set(),
   }
+}
 
-  units(catalog: CoreCatalog): UnreadableUnit[] {
-    return unreadableUnitsOf(catalog, [...this.pages.values()], [...this.withUnreadable().values()])
+// 世界 world の、今の機能台帳で読めない物
+const unitsIn = (catalog: CoreCatalog, world: World): UnreadableUnit[] =>
+  unreadableUnitsOf(
+    catalog,
+    [...world.pages.values()],
+    [...new Map([...world.folders, [UNREADABLE_ID, world.unreadable]]).values()],
+  )
+
+// 世界 world に、1 つ戻したときに変わる行 back を当てた世界
+function withReturned(world: World, back: Returned): World {
+  return {
+    pages: new Map([...world.pages, ...Object.entries(back.pages)]),
+    folders: new Map([...world.folders, ...Object.entries(back.folders)]),
+    unreadable: back.unreadable,
+    touchedPages: new Set([...world.touchedPages, ...Object.keys(back.pages)]),
+    touchedFolders: new Set([...world.touchedFolders, ...Object.keys(back.folders), UNREADABLE_ID]),
   }
+}
 
-  // フォルダの行に、今の読めない物のフォルダを入れた物
-  withUnreadable(): Map<string, unknown> {
-    return new Map([...this.folders, [UNREADABLE_ID, this.unreadable]])
+// 世界 world の読めない物 units を、在った所の並びから外して、読めない物のフォルダの末尾に足した世界（直前の物は、外す前の並びで決める）
+function withMoved(world: World, units: readonly UnreadableUnit[], now: string): World {
+  const lineupOf = (id: string) => {
+    const row = world.folders.get(id)
+    return isRow(row) && Array.isArray(row.lineup) ? (row.lineup as readonly unknown[]) : []
   }
-
-  apply(back: Returned) {
-    for (const [id, row] of Object.entries(back.folders)) {
-      this.folders.set(id, row)
-      this.touchedFolders.add(id)
-    }
-    for (const [id, row] of Object.entries(back.pages)) {
-      this.pages.set(id, row)
-      this.touchedPages.add(id)
-    }
-    this.unreadable = back.unreadable
-    this.touchedFolders.add(UNREADABLE_ID)
-  }
-
-  // 読めない物 units を、在った所の並びから外して、読めない物のフォルダの末尾に足す（直前の物は、外す前の並びで決める）
-  move(units: readonly UnreadableUnit[], now: string) {
-    const original = new Map<string, readonly unknown[]>()
-    const lineupOf = (id: string) => {
-      const row = this.folders.get(id)
-      return isRow(row) && Array.isArray(row.lineup) ? (row.lineup as readonly unknown[]) : []
-    }
-    const refs: UnreadableRef[] = []
-    for (const u of units) {
-      if (!original.has(u.holder)) original.set(u.holder, lineupOf(u.holder))
-      const before = original.get(u.holder) ?? []
-      const at = before.findIndex(e => (e as { id?: unknown }).id === u.element.id)
-      const prev = at > 0 ? (before[at - 1] as { id?: unknown }).id : undefined
-      refs.push({
-        entry: u.element,
-        from: [u.holder, ...this.above(u.holder)],
-        after: typeof prev === "string" ? prev : FIRST,
-        code: u.code,
-        ...(u.type === undefined ? {} : { type: u.type }),
-        moved: now,
-      })
-    }
-    const gone = new Set(units.map(u => u.element.id))
-    for (const holder of original.keys()) {
-      const row = this.folders.get(holder) as Row
-      this.folders.set(holder, {
-        ...row,
-        lineup: lineupOf(holder).filter(e => !gone.has((e as { id?: unknown }).id as string)),
-      })
-      this.touchedFolders.add(holder)
-    }
-    this.unreadable = { ...this.unreadable, lineup: [...this.unreadable.lineup, ...refs] }
-    this.touchedFolders.add(UNREADABLE_ID)
-  }
-
-  // フォルダ id を入れているフォルダから上への id の列（近い順。書庫ホーム・ゴミ箱・読めない物のフォルダで止まる。輪になっていたら、そこで止める）
-  above(id: string): string[] {
-    const holder = this.holders()
-    const out: string[] = []
-    for (let at = holder.get(id); at !== undefined && !out.includes(at); at = holder.get(at)) out.push(at)
-    return out
-  }
-
-  // エントリの id → それを並びに持つフォルダの id（読めない物のフォルダの中の物は、読めない物のフォルダ）
-  holders(): Map<string, string> {
-    const out = new Map<string, string>()
-    for (const [id, row] of this.folders) {
-      if (!isRow(row) || !Array.isArray(row.lineup)) continue
-      for (const e of row.lineup as unknown[]) {
-        const r = (e as { id?: unknown } | null)?.id
-        if (typeof r === "string" && !out.has(r)) out.set(r, id)
-      }
-    }
-    for (const r of this.unreadable.lineup) if (!out.has(r.entry.id)) out.set(r.entry.id, UNREADABLE_ID)
-    return out
-  }
-
-  writes(): RowWrites {
-    const pick = (ids: Set<string>, rows: Map<string, unknown>) =>
-      Object.fromEntries([...ids].sort().map(id => [id, id === UNREADABLE_ID ? this.unreadable : rows.get(id)]))
+  const refs = units.map((u): UnreadableRef => {
+    const before = lineupOf(u.holder)
+    const at = before.findIndex(e => (e as { id?: unknown }).id === u.element.id)
+    const prev = at > 0 ? (before[at - 1] as { id?: unknown }).id : undefined
     return {
-      pages: pick(this.touchedPages, this.pages),
-      folders: pick(this.touchedFolders, this.folders),
-      removedPages: [],
-      removedFolders: [],
+      entry: u.element,
+      from: [u.holder, ...aboveIn(world, u.holder)],
+      after: typeof prev === "string" ? prev : FIRST,
+      code: u.code,
+      ...(u.type === undefined ? {} : { type: u.type }),
+      moved: now,
     }
+  })
+  const gone = new Set(units.map(u => u.element.id))
+  const holders = [...new Set(units.map(u => u.holder))]
+  const folders = new Map(world.folders)
+  for (const holder of holders)
+    folders.set(holder, {
+      ...(world.folders.get(holder) as Row),
+      lineup: lineupOf(holder).filter(e => !gone.has((e as { id?: unknown }).id as string)),
+    })
+  return {
+    ...world,
+    folders,
+    unreadable: { ...world.unreadable, lineup: [...world.unreadable.lineup, ...refs] },
+    touchedFolders: new Set([...world.touchedFolders, ...holders, UNREADABLE_ID]),
+  }
+}
+
+// 世界 world で、フォルダ id を入れているフォルダから上への id の列（近い順。書庫ホーム・ゴミ箱・読めない物のフォルダで止まる。輪になっていたら、そこで止める）
+function aboveIn(world: World, id: string): string[] {
+  const holder = holdersIn(world)
+  const out: string[] = []
+  for (let at = holder.get(id); at !== undefined && !out.includes(at); at = holder.get(at)) out.push(at)
+  return out
+}
+
+// 世界 world の、エントリの id → それを並びに持つフォルダの id（読めない物のフォルダの中の物は、読めない物のフォルダ）
+function holdersIn(world: World): Map<string, string> {
+  const out = new Map<string, string>()
+  for (const [id, row] of world.folders) {
+    if (!isRow(row) || !Array.isArray(row.lineup)) continue
+    for (const e of row.lineup as unknown[]) {
+      const r = (e as { id?: unknown } | null)?.id
+      if (typeof r === "string" && !out.has(r)) out.set(r, id)
+    }
+  }
+  for (const r of world.unreadable.lineup) if (!out.has(r.entry.id)) out.set(r.entry.id, UNREADABLE_ID)
+  return out
+}
+
+// 世界 world で変えた行の、書く行の変わり
+function writesOf(world: World): RowWrites {
+  const pick = (ids: ReadonlySet<string>, rows: ReadonlyMap<string, unknown>) =>
+    Object.fromEntries([...ids].sort().map(id => [id, id === UNREADABLE_ID ? world.unreadable : rows.get(id)]))
+  return {
+    pages: pick(world.touchedPages, world.pages),
+    folders: pick(world.touchedFolders, world.folders),
+    removedPages: [],
+    removedFolders: [],
   }
 }
 
@@ -237,7 +240,7 @@ function returnedRows(
   naming: Naming,
 ): Returned | undefined {
   const { kind, id } = ref.entry
-  const holder = world.holders()
+  const holder = holdersIn(world)
   const unreadable = { ...world.unreadable, lineup: world.unreadable.lineup.filter(r => r !== ref) }
   const known = new Set(before.map(u => u.element.id))
   for (const to of [...new Set([...ref.from, HOME_ID])]) {
@@ -260,12 +263,9 @@ function returnedRows(
     const pages: Record<string, unknown> = {}
     const titled = to === TRASH_ID ? undefined : renamed(world, kind, id, to, folders, naming)
     if (titled) (kind === "page" ? pages : folders)[id] = titled
-    const trial = new World([], [], unreadable)
-    trial.pages = new Map([...world.pages, ...Object.entries(pages)])
-    trial.folders = new Map([...world.folders, ...Object.entries(folders)])
     // 戻した物も、戻す先とその上の入れ物も読めない物にならず、ほかに読めない物が増えない所にだけ戻す
-    const after = trial.units(catalog)
-    const around = new Set([id, to, ...world.above(to)])
+    const after = unitsIn(catalog, withReturned(world, { pages, folders, unreadable }))
+    const around = new Set([id, to, ...aboveIn(world, to)])
     if (after.every(u => known.has(u.element.id) && !around.has(u.element.id)))
       return { pages, folders, unreadable, ...(titled ? { title: titled.title as string } : {}) }
   }

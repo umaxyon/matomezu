@@ -652,8 +652,7 @@ func (e *Engine) PerformWith(in Input, src Source) (out Output, err error) {
 }
 
 // BookWarning は warning のあるブック: ブックの id・warning の番号・warning の 1 行と、ブックごと読めないか（エンジンが決める。
-// ブックごと読めない W005 形に合わない・W006 決まりを守らない、読めるが機能台帳に無い物を持つ W007 など）。
-// 読めるブックの読めないページ（W027 タイプが無い・W028 タイプの形に合わない・W029 タイプの決まりを守らない）の warning は、ページ 1 枚に 1 つで、Page にそのページの id
+// ブックごと読めない W005 形に合わない・W006 決まりを守らない・読めないページを持つ W027〜W029、読めるが機能台帳に無い物を持つ W007 など。1 冊に 1 つ）
 type BookWarning struct {
 	Book       string `json:"book"`
 	Code       string `json:"code"`

@@ -176,10 +176,8 @@ type Output =
       kind?: string
       systemFolder?: string // 名前が重なる断り（title-taken）で、重なった相手がシステムフォルダのときの、その印
       detail?: string
-      page?: string
-      code?: string
       at?: number
-    } // page と code は、読めないページの断り（unreadable）のとき。at は断られたアクションが何番目か
+    } // at は断られたアクションが何番目か
 
 // 変わったページ・フォルダ 1 つ（row は新しい値。無くなったなら removed が true で、row は無い）
 interface RowChange {

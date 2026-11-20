@@ -72,7 +72,7 @@ func beforeMigration(t *testing.T, path string, n int, qs ...string) {
 }
 
 // 空の置き場所を開くと、書庫ホームとゴミ箱と読めない物のフォルダだけが出来る（フォルダ「旧ブック」は作らない）
-func TestEmptyStorageGetsOnlyTheLibraryHomeAndTheTrash(t *testing.T) {
+func TestEmptyStorageGetsOnlyTheLibraryHomeTheTrashAndTheUnreadableFolder(t *testing.T) {
 	s := open(t, filepath.Join(t.TempDir(), "data.db"))
 	folders, err := s.Folders()
 	if err != nil || len(folders) != 3 || folders[0].ID != HomeID || folders[0].Version != 1 ||

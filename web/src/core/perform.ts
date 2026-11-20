@@ -220,10 +220,10 @@ type PageCheck = Omit<PagePermissionCheck, "kind" | "action" | "actor">
 const pagePlaceIn = (library: Library, id: string): "book" | "outside" | undefined =>
   !(id in library.pages) ? undefined : bookIdOf(library.folders, id) === undefined ? "outside" : "book"
 
-// 書庫 library のページ id の、認可ステップに見せる値（読めないページと、ゴミ箱の中のページは無い物）
+// 書庫 library のページ id の、認可ステップに見せる値（ゴミ箱の中のページは無い物）
 function checkedPage(library: Library, id: string): ItemPage | undefined {
   const row = library.pages[id]
-  return row?.kind === "page" && !inTrash(library.folders, id) ? row : undefined
+  return row && !inTrash(library.folders, id) ? row : undefined
 }
 
 // 書庫が was から now に変わる間の、ブックの外で変わったページと、ブックとの間を出入りしたページの確かめ（ブックの中だけに在ったページは入れない）。
@@ -292,10 +292,10 @@ export type LibraryAsk = { book: Book; where: Where } | { page: AskedPage }
 // エントリから出した問う相手（ブックは id）
 type EntryAsk = { book: string; where: Where } | { page: AskedPage }
 
-// 書庫 library のブックの外のページ id を、エントリの変え方 how で問う相手（読めないページには問わない）
+// 書庫 library のブックの外のページ id を、エントリの変え方 how で問う相手（表に無いページには問わない）
 function outsidePageAsk(library: Library, id: string, how: EntryWhere): EntryAsk[] {
   const row = library.pages[id]
-  if (row?.kind !== "page") return []
+  if (!row) return []
   return [{ page: { page: row, folders: permissionFoldersOf(library.folders, id), where: { entry: how } } }]
 }
 
@@ -430,13 +430,13 @@ export function brokenIn(
 }
 
 // 書庫が対象のアクションが返した書庫 after の、変わったページ（ブックの中でも外でも）を 1 枚ずつ、行う前の書庫 was の同じページと比べて整えた書庫
-// （どれかが整えられなければ null）。読めないページの行は整えない
+// （どれかが整えられなければ null）
 function normalizedLibrary(catalog: CoreCatalog, action: ActionDef, was: Library, after: Library): Library | null {
   const tidied: Record<string, PageRow> = {}
   for (const [id, row] of Object.entries(after.pages)) {
     const prev = was.pages[id]
-    if (row === prev || row.kind !== "page") continue
-    const done = normalizedPage(catalog, action, prev?.kind === "page" ? prev : undefined, row)
+    if (row === prev) continue
+    const done = normalizedPage(catalog, action, prev, row)
     if (!done) return null
     if (done !== row) tidied[id] = done as PageRow
   }

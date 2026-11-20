@@ -34,9 +34,8 @@ function sideways(el: HTMLElement | null): (() => void) | undefined {
   return () => el.removeEventListener("wheel", onWheel)
 }
 
-// エントリ 1 つのタイプ（ページはそのタイプ、バインダは入れるページのタイプ。読めないページは、タイプが分からないので無い）
-const typeOf = (e: LineupEntry): string | undefined =>
-  e.kind === "page" ? e.type : e.kind === "binder" ? e.pageType : undefined
+// エントリ 1 つのタイプ（ページはそのタイプ、バインダは入れるページのタイプ）
+const typeOf = (e: LineupEntry): string => (e.kind === "page" ? e.type : e.pageType)
 
 export function PageTabs() {
   const opened = useStageHere(st => st?.opened)
@@ -92,7 +91,7 @@ export function PageTabs() {
             {...tabDrag.handlers(e.id)}
           >
             <span className={styles.typeIcon} aria-hidden="true">
-              {icons.get(typeOf(e) ?? "") ?? <FileIcon />}
+              {icons.get(typeOf(e)) ?? <FileIcon />}
             </span>
             {e.title}
           </button>

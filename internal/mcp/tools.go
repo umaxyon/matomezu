@@ -50,7 +50,7 @@ var tools = []tool{
 		"Read a folder of the library, one level deep. The library keeps books in folders under the library home, its top folder; a folder can also hold pages and binders that are in no book. " +
 			"It answers the folder's id, kind (home for the library home, folder for a folder), title (the library home has none), path (the folders from the library home down to this one, each with id and title) " +
 			"and lineup, its entries in order: a folder (kind folder, id, title), a book (kind book, id, title; one that cannot be read now also has problem, the reason, as in list_books), " +
-			"a page (kind page, id, title, type), a binder of pages of one type (kind binder, id, title, pageType) or a page that cannot be read now (kind unreadable, id, title, code and type, as in read_book). " +
+			"a page (kind page, id, title, type) or a binder of pages of one type (kind binder, id, title, pageType). " +
 			"A system folder (such as Documents, always at the top of the library home; it cannot be moved or renamed) also has systemFolder, the id of its kind. " +
 			"While the plugin that adds that kind is off, its title is empty and it can be put in the trash; otherwise it cannot. " +
 			"Read a folder in the lineup with read_folder and a book with read_book. What is in the trash is not answered.",
@@ -71,8 +71,6 @@ var tools = []tool{
 	{
 		"read_book",
 		"Read a book: the book without its pages' contents (title, settings and so on), its lineup as an outline (each entry is a page: kind page, id, title, type, size in characters and version, which goes up each time that page changes; or a binder of pages of one type: kind binder, id, title, pageType and its own lineup of pages), its version (see list_books) and its annotations (such as the user's notes and marks: page, the page they are on; anchors, the things of that page they are tied to; and awaiting, whether they wait for your answer). " +
-			"A page that cannot be read now is in the lineup as kind unreadable with id, title, code (the reason: W027 its type is not installed, W028 it does not fit its type, W029 it breaks its type's rules) and type (its page type's id, when it has one). " +
-			"It is kept as it is and nothing can be done to it (read_page on it is refused with unreadable and the code; an action that would change it is refused with unreadable and the code), while the other pages work as usual. " +
 			"Read the contents of a page with read_page.",
 		map[string]any{
 			"type":                 "object",
@@ -342,8 +340,7 @@ var performSchema = map[string]any{
 }
 
 const performDescription = "Perform an action listed by actions, as the user would on the screen: the change appears at once on screens showing that book. " +
-	"Returns the action's result (such as the id of what it made), with a notice on the next line when the action changed something else you should know (such as positions), or why it was refused. " +
-	"Nothing can be done to a page that cannot be read now: an action on it or one that would change it is refused with unreadable and the code (see read_book)."
+	"Returns the action's result (such as the id of what it made), with a notice on the next line when the action changed something else you should know (such as positions), or why it was refused."
 
 // showSchema は show の受ける形
 var showSchema = map[string]any{

@@ -23,7 +23,6 @@ import { clampPan, contentSize, paperOrigin } from "./viewport"
 //   area は、プレゼンテーションが描く広さ（可変ページで、印刷区画を並べた広さ）。プレゼンテーションが知らせるまでと、紙 1 枚で描くページでは持たない。
 //   shift は、開いたページの中身をずらした量（ページの shift を写す。変わったらパンを合わせる）。
 //   origin は、位置をデータに持たないプレゼンテーションが、描く中身を右・下へずらした量（印刷区画の数。プレゼンテーションが広さと一緒に知らせる。変わったらパンを合わせる）
-// - unreadable: 読めないページ（中身は描かず、読めないことだけを見せる。タイプも紙も持たない）
 // ページが入っているバインダは持たない（ブックから引く。core/book.ts の findPage）
 export type Opened = OpenedNone | OpenedBinder | OpenedPage
 interface OpenedBook {

@@ -167,8 +167,8 @@ export interface MatomezuState {
   pages: Pages
   folders: Folders
   books: Readonly<Record<string, Book>> // ブックの id ごと（ゴミ箱のブックは除く。表から組んだ値）
-  unreadable: readonly Warning[] // 残したブックのうち、ブックごと読めないもの（warning W005・W006。データには手を付けず、開けない）
-  partial: readonly Warning[] // 読めるブックの、読めないページ（warning W027〜W029）と、機能台帳に無いアイテムや設定の項目（W007）。無い物はそのまま残す
+  unreadable: readonly Warning[] // 残したブックのうち、ブックごと読めないもの（warning W005・W006・読めないページを持つ W027〜W029。データには手を付けず、開けない）
+  partial: readonly Warning[] // 読めるブックの、機能台帳に無いアイテムや設定の項目（W007）。無い物はそのまま残す
   window: WindowState // 窓の、開いているスクリーンとカレントにした順・スクリーンアレンジメント（core/window.ts）
   settings: Settings
   annotations: Annotations // ページの id → そのページのアノテーション（core/annotation.ts。1 つも無いページは持たない）

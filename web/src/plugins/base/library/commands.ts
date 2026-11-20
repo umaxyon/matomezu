@@ -132,7 +132,7 @@ const holder = (ctx: ScreenCommandContext, named?: Named): string | undefined =>
   return entry !== undefined && holdsEntries(ctx.folders, entry) ? entry : undefined
 }
 
-// 開く行き先（フォルダは中へ入る。表に行の無い物・ゴミ箱の中の物は開かない。読めないページも開き、窓が「読めない」と見せる）
+// 開く行き先（フォルダは中へ入る。表に行の無い物・ゴミ箱の中の物は開かない）
 function opening(ctx: ScreenCommandContext, named?: Named): Exclude<OpenTarget, typeof NOT_OPENED> | undefined {
   const to = given(ctx, named)
   const entry = to && "folder" in to ? undefined : entryOf(ctx, named)
