@@ -11,8 +11,10 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: inherit;
+  color: var(--skin-text-muted);
   font: inherit;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
 }
 .chevron {
@@ -63,6 +65,12 @@
 }
 .row[data-dragging="true"] {
   opacity: 0.4;
+}
+/* 一覧が空のときの一言。ワークルーム/参加者の一覧の「なし」と同じ見た目 */
+.note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--skin-text-muted);
 }
 .name {
   flex: 1;

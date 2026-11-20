@@ -1,7 +1,7 @@
 // コントロールセンターの左の列に置くプロジェクトの一覧: 見出しを押して開閉（最初は閉じている）。行ごとに、左のつまみのドラッグで並べ替え・タスクボードを出すチェック・名前。
 // 並びと出しているタスクボードは利用者の設定。変えさせない設定のときは、つまみもチェックも押せない
 import { useMessages, usePluginState, useRecords, useUpdatePluginState } from "../../../plugin-api/ui"
-import { Panel } from "../../base/ui"
+import { Band, Panel } from "../../base/ui"
 import { orderedProjects, shownProjects } from "../board/shown"
 import { useBoardSettings } from "../board/useBoardSettings"
 import { ChevronIcon } from "../icons"
@@ -35,16 +35,18 @@ export function ProjectListView() {
   }
   return (
     <Panel className={styles.accordion}>
-      <button type="button" className={styles.head} aria-expanded={open} onClick={() => updateOpen(now => !now)}>
-        <span className={styles.chevron}>
-          <ChevronIcon />
-        </span>
-        {t("Projects")}
-      </button>
+      <Band>
+        <button type="button" className={styles.head} aria-expanded={open} onClick={() => updateOpen(now => !now)}>
+          <span className={styles.chevron}>
+            <ChevronIcon />
+          </span>
+          {t("Projects")}
+        </button>
+      </Band>
       <div className={styles.body} data-open={open}>
         <div className={styles.inner}>
           {ordered.length === 0 ? (
-            <p className={styles.name}>{t("No projects")}</p>
+            <p className={styles.note}>{t("No projects")}</p>
           ) : (
             <ul className={styles.list}>
               {ordered.map(project => (

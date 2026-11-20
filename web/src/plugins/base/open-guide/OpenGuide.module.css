@@ -1,4 +1,4 @@
-/* 開き方の案内: 点の格子の上の真ん中に、鳥の顔・題名・説明・ターミナルの絵を載せたカード。ターミナルの絵は、スキンの明暗によらず暗い */
+/* 開き方の案内: 点の格子の上の真ん中に、題名・説明・ターミナルの絵を載せたカード。上の辺を鳥が歩く。ターミナルの絵は、スキンの明暗によらず暗い */
 .page {
   position: fixed;
   inset: 0;
@@ -10,6 +10,7 @@
 }
 
 .card {
+  position: relative;
   width: min(460px, calc(100vw - 32px));
   padding: 36px 44px;
   display: flex;
@@ -22,8 +23,16 @@
   box-shadow: var(--skin-shadow-3);
 }
 
+/* 鳥が歩く所: カードの上の辺に足元をそろえる */
+.perch {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+}
+
 .title {
-  margin: 12px 0 8px;
+  margin: 0 0 8px;
   font-size: 19px;
   font-weight: 600;
 }
