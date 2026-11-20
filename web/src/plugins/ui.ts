@@ -247,3 +247,10 @@ export const DEFAULT_LAYOUT = defineLayout({
     "@matomezu/line:line-context": ["@matomezu/line:line-edit", "-", "@matomezu/paper:paper-delete"],
   },
 })
+
+// 常駐が知らないブラウザ（画面 cookie が無い・合わない）で開いたときの UI マッピング: 根に開き方の案内だけを置く
+export const UNKNOWN_BROWSER_LAYOUT = defineLayout({
+  id: "unknown-browser",
+  slots: { root: ["@matomezu/base:unknown-browser"] },
+  menus: {},
+})

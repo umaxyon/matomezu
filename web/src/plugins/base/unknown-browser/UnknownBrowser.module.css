@@ -1,0 +1,96 @@
+/* 開き方の案内: 点の格子の上の真ん中に、鳥の顔・題名・説明・ターミナルの絵を載せたカード。ターミナルの絵は、スキンの明暗によらず暗い */
+.page {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background-color: var(--skin-stage);
+  background-image: radial-gradient(var(--skin-stage-grid) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.card {
+  width: min(460px, calc(100vw - 32px));
+  padding: 36px 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  background: var(--skin-surface-raised);
+  border: 1px solid var(--skin-border);
+  border-radius: 14px;
+  box-shadow: var(--skin-shadow-3);
+}
+
+.title {
+  margin: 12px 0 8px;
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.how {
+  margin: 0 0 22px;
+  word-break: auto-phrase;
+  text-wrap: balance;
+  font-size: 14px;
+  color: var(--skin-text-muted);
+}
+
+.terminal {
+  align-self: stretch;
+  text-align: left;
+  background: #1e2329;
+  border: 1px solid #2c333b;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 8px 7px 12px;
+  background: #2a3038;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #4a525c;
+}
+
+.copy {
+  margin-left: auto;
+  padding: 3px 10px;
+  font-size: 12px;
+  color: #c9d1d9;
+  background: transparent;
+  border: 1px solid #4a525c;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.copy:hover {
+  background: #343b44;
+}
+
+.line {
+  padding: 14px 16px 16px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 15px;
+  color: #e6edf3;
+}
+
+.prompt {
+  color: #7ee787;
+}
+
+.cursor {
+  display: inline-block;
+  width: 8px;
+  height: 17px;
+  margin-left: 4px;
+  vertical-align: -3px;
+  background: #e6edf3;
+}

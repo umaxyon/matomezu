@@ -29,6 +29,7 @@ import { TEXT_MESSAGES } from "./text/messages"
 import { TOOL_PICKER_MESSAGES } from "./tool-picker/messages"
 import { TOOL_SWITCH_MESSAGES } from "./tool-switch/messages"
 import { TOOLBOX_MESSAGES } from "./toolbox/messages"
+import { UNKNOWN_BROWSER_MESSAGES } from "./unknown-browser/messages"
 import { joinMessages } from "./utils/join-messages"
 import { UTILS_MESSAGES } from "./utils/messages"
 import { WIDE_SEARCH_MESSAGES } from "./wide-search/messages"
@@ -70,4 +71,5 @@ export const BASE_MESSAGES = joinMessages(
   CORNER_MESSAGES,
   ASK_MESSAGES,
   HISTORY_MESSAGES,
+  UNKNOWN_BROWSER_MESSAGES,
 )

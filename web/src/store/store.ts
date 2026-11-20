@@ -554,6 +554,10 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   // ホストの言葉の検索（横断検索）。base のフック useWideSearch を通して使う（プラグインに渡す actions には入れない）。
   // ホストが無いか、頼めなければ、投げる（検索の見た目が受ける）
   search(query: WideSearchQuery): Promise<WideSearchAnswer>
+  // ブラウザのクリップボードに文字を書く。base のフック useCopyText を通して使う（プラグインに渡す actions には入れない）。書けなければ投げる
+  copyText(text: string): Promise<void>
+  // 窓のタイトル（ブラウザのタブとタイトルバーに出る文字）を替える。base のフック useWindowTitle を通して使う（プラグインに渡す actions には入れない）
+  setWindowTitle(title: string): void
   // 今の画面の場所（開いているブック・ページ・倍率・ずらす量・分割と、画面の場所に入れるプラグイン状態。core/address.ts・plugin-state.ts）。ホストクライアントだけが使う
   address(): Address
   // 画面の場所を address にする（core/address.ts の placeAt と、画面の場所に入れるプラグイン状態）。
@@ -661,6 +665,8 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   aiEditTicket?: (change: AIEditTicketOutcome) => void // まだ見ていない AI の変更が、この窓で見えたか、見られる前に画面の履歴に入らない変更（ゴミ箱から消すなど）で消えたときに知らせる
   visible?: () => boolean // 窓が見えているか（裏のタブなどで見えていない間は、まだ見ていない変更を見えたとしない。無ければいつも見えている）
   search?: (query: WideSearchQuery) => Promise<WideSearchAnswer> // ホストの言葉の検索（横断検索）。無ければ、どの言葉にも横断検索の当たりなし
+  copyText?: (text: string) => Promise<void> // ブラウザのクリップボードに文字を書く。無ければ、書けないとして投げる（E404）
+  setWindowTitle?: (title: string) => void // 窓のタイトルを替える。無ければ何もしない
 }
 
 // 開いている画面の履歴の段と、そのアクションバルク（同じ区切りなので 1 つで持つ）。step は閉じて画面の履歴に入れた段、refused はホストがアクションバルクを断ったこと。
@@ -1731,6 +1737,11 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     checkSeen,
     search: query => options.search?.(query) ?? Promise.resolve(NO_WIDE_SEARCH_HITS),
+    copyText: async text => {
+      if (!options.copyText) fail("E404")
+      await options.copyText(text)
+    },
+    setWindowTitle: title => options.setWindowTitle?.(title),
     address: () => addressNow(),
     locate: address => {
       const now = getState()

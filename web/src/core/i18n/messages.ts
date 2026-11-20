@@ -38,8 +38,6 @@ export const LANGUAGES: readonly LanguagePackDef[] = [
 // 土台（core・store・ui）が使う文言
 export const MESSAGES = defineMessages({
   "An edit could not be saved": { ja: "編集を反映できませんでした" },
-  // 常駐が知らないブラウザで画面を開いたときの 1 行（host-client/open.ts）
-  "Run matomezu open in a terminal": { ja: "ターミナルで matomezu open を実行してください" },
   // 土台のキーの範囲の題名（store/keys.ts）
   "Whole screen": { ja: "画面全体" },
   "Screens without stages": { ja: "ブックスクリーン以外の画面" },
