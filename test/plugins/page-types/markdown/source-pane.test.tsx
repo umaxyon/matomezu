@@ -3,16 +3,17 @@
 
 import { afterEach, expect, setSystemTime, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
-import { pagesOf } from "../../web/src/core/book"
-import type { Book } from "../../web/src/core/schema/book"
-import { screenOf } from "../../web/src/core/window"
-import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
-import { addPageIn, createBookIn } from "../../web/src/plugins/base"
-import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
-import { createMatomezu } from "../../web/src/store/create"
-import { MatomezuProvider } from "../../web/src/ui/store-context"
-import { WindowRoot } from "../../web/src/ui/WindowRoot"
-import { showFirstBook } from "../support"
+import { pagesOf } from "../../../../web/src/core/book"
+import type { Book } from "../../../../web/src/core/schema/book"
+import { screenOf } from "../../../../web/src/core/window"
+import { BUILTIN_CONTROL_CENTER } from "../../../../web/src/plugins"
+import { addPageIn, createBookIn } from "../../../../web/src/plugins/base"
+import { TAB_KEY } from "../../../../web/src/plugins/page-types/markdown/tab-key"
+import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../../../web/src/plugins/ui"
+import { createMatomezu } from "../../../../web/src/store/create"
+import { MatomezuProvider } from "../../../../web/src/ui/store-context"
+import { WindowRoot } from "../../../../web/src/ui/WindowRoot"
+import { showFirstBook } from "../../../support"
 
 afterEach(() => {
   cleanup()
@@ -140,7 +141,7 @@ test("Tab キーは、利用者の設定の項目で選んだ字を書く（既�
   expect(text()).toBe("a\t")
   act(() => {
     store.actions.perform("@matomezu/base:settings-set", {
-      values: { "@matomezu/markdown:tab-key": { writes: "spaces", spaces: 2 } },
+      values: { [TAB_KEY.id]: { writes: "spaces", spaces: 2 } },
     })
   })
   act(() => {
@@ -163,7 +164,7 @@ test("設定画面の「マークダウン」の「Tabキー」: 押している
       <WindowRoot />
     </MatomezuProvider>,
   )
-  const value = () => store.state.getState().settings["@matomezu/markdown:tab-key"]
+  const value = () => store.state.getState().settings[TAB_KEY.id]
   fireEvent.click(screen.getByRole("button", { name: "全体設定", hidden: true }))
   fireEvent.click(screen.getByRole("tab", { name: "マークダウン" }))
   const general = screen.getByRole("tabpanel", { name: "マークダウン" })

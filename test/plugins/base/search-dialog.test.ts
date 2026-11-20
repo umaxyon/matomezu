@@ -1,16 +1,16 @@
 // 検索（base/search）: 探せるブック（マークダウン）で検索ダイアログを開き、次・前へ移り（ページをまたぐ）、置き換え、閉じる
 
 import { expect, test } from "bun:test"
-import { pagesOf } from "../../web/src/core/book"
-import type { Book } from "../../web/src/core/schema/book"
-import { shownPageId } from "../../web/src/core/stage"
-import { screenOf } from "../../web/src/core/window"
-import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
-import { addPageIn } from "../../web/src/plugins/base/pages/add-page"
-import { SEARCH_PICK_STATE, SEARCH_STATE } from "../../web/src/plugins/base/search/state"
-import { isEnabled, isShown } from "../../web/src/store/commands"
-import { pluginValueOf } from "../../web/src/store/plugin-state"
-import { newStore } from "../support"
+import { pagesOf } from "../../../web/src/core/book"
+import type { Book } from "../../../web/src/core/schema/book"
+import { shownPageId } from "../../../web/src/core/stage"
+import { screenOf } from "../../../web/src/core/window"
+import { createBookIn } from "../../../web/src/plugins/base/book-new/create-book"
+import { addPageIn } from "../../../web/src/plugins/base/pages/add-page"
+import { SEARCH_PICK_STATE, SEARCH_STATE } from "../../../web/src/plugins/base/search/state"
+import { isEnabled, isShown } from "../../../web/src/store/commands"
+import { pluginValueOf } from "../../../web/src/store/plugin-state"
+import { newStore } from "../../support"
 
 function markdownStore(texts: readonly string[]) {
   const store = newStore()

@@ -1,11 +1,11 @@
 // 設定画面: コントロールセンターから設定画面のダイアログを開き、左の項目（全体・ショートカットキー）を押すと右の部分が切り替わる
 import { afterEach, expect, test } from "bun:test"
 import { cleanup, fireEvent, screen, within } from "@testing-library/react"
-import { CONTROL_CENTER } from "../../web/src/plugins/control-center"
-import { BUILTIN_UI } from "../../web/src/plugins/ui"
-import type { AnyPluginUi } from "../../web/src/ui/plugin"
-import { SAMPLE_BOOKS } from "../sample-books"
-import { renderScreen } from "./support"
+import { CONTROL_CENTER } from "../../../web/src/plugins/control-center"
+import { BUILTIN_UI } from "../../../web/src/plugins/ui"
+import type { AnyPluginUi } from "../../../web/src/ui/plugin"
+import { SAMPLE_BOOKS } from "../../sample-books"
+import { renderScreen } from "../../ui/support"
 
 afterEach(cleanup)
 

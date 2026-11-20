@@ -1,0 +1,149 @@
+// base の印刷プレビュー: 印刷区画の並べ方（sheets.ts）・改ページ（breaks.ts）・スクロールバー（scrollbar.ts）・刷るときの紙（print-pages.ts）
+import { describe, expect, test } from "bun:test"
+import { contentSize } from "../../../web/src/core/viewport"
+import { breakShift } from "../../../web/src/plugins/base/print-preview/breaks"
+import { pageNameOf, pageRules, sheetLabels } from "../../../web/src/plugins/base/print-preview/print-pages"
+import {
+  panForDrag,
+  panForTrack,
+  shownBars,
+  THUMB_MIN,
+  thumbOf,
+} from "../../../web/src/plugins/base/print-preview/scrollbar"
+import { arrangeSheets } from "../../../web/src/plugins/base/print-preview/sheets"
+
+describe("印刷区画の並べ方", () => {
+  const a4 = { w: 300, h: 200 }
+  const a5 = { w: 100, h: 150 }
+  const pages = [
+    { page: "p1", paper: a4, columns: 2, rows: 2 },
+    { page: "p2", paper: a5, columns: 1, rows: 1 },
+  ]
+  const cells = (layout: ReturnType<typeof arrangeSheets>) => layout.sheets.map(s => `${s.page}:${s.column}${s.row}`)
+
+  test("縦に並べるときは、上から順に間を空けて置き、横はいちばん大きい紙の真ん中にそろえる", () => {
+    const layout = arrangeSheets(pages, { flow: "column", order: "across", gap: 10 })
+    expect(cells(layout)).toEqual(["p1:00", "p1:10", "p1:01", "p1:11", "p2:00"])
+    expect(layout.sheets.map(s => [s.x, s.y, s.index])).toEqual([
+      [0, 0, 0],
+      [0, 210, 1],
+      [0, 420, 2],
+      [0, 630, 3],
+      [100, 840, 4],
+    ])
+    expect(layout.size).toEqual({ w: 300, h: 990 })
+  })
+
+  test("横に並べるときは、左から順に置き、縦をそろえる。縦に進むのが先なら、列ごとに数える", () => {
+    const layout = arrangeSheets(pages, { flow: "row", order: "down", gap: 0 })
+    expect(cells(layout)).toEqual(["p1:00", "p1:01", "p1:10", "p1:11", "p2:00"])
+    expect(layout.sheets.map(s => [s.x, s.y])).toEqual([
+      [0, 0],
+      [300, 0],
+      [600, 0],
+      [900, 0],
+      [1200, 25],
+    ])
+    expect(layout.size).toEqual({ w: 1300, h: 200 })
+  })
+
+  test("外した印刷区画は並べず、ページの印刷区画がどれも外れたら、そのページは並べない", () => {
+    const layout = arrangeSheets(pages, {
+      flow: "column",
+      order: "across",
+      shown: (page, column, row) => page === "p1" && column === 1 && row === 1,
+    })
+    expect(cells(layout)).toEqual(["p1:11"])
+  })
+
+  test("ページが無ければ、何も並べない", () => {
+    expect(arrangeSheets([], { flow: "column", order: "across" })).toEqual({ sheets: [], size: { w: 0, h: 0 } })
+  })
+})
+
+describe("改ページ（breakShift）", () => {
+  test("印刷区画の境目をまたぐ物と、それより先の物を、次の印刷区画の頭（余白の下）まで送る。またがない物は送らない", () => {
+    // 長さ 100 の印刷区画、余白 10。20〜50 は送らず、80〜120 は境目をまたぐので 110 へ（30 送る）、そのあとの 130 も 30 送る
+    const dy = breakShift(
+      [
+        { at: 20, size: 30 },
+        { at: 80, size: 40 },
+        { at: 130, size: 30 },
+      ],
+      100,
+      10,
+    )
+    expect([dy(20), dy(80), dy(130)]).toEqual([0, 30, 30])
+  })
+
+  test("送ったあとにまた境目をまたげば、さらに送る。印刷区画より長い物は送らない", () => {
+    const dy = breakShift(
+      [
+        { at: 80, size: 40 },
+        { at: 170, size: 40 },
+        { at: 250, size: 95 },
+      ],
+      100,
+      10,
+    )
+    // 80→110（30）、170+30=200 は境目ちょうどで、またがない。250 は 95 > 100 - 10 なので送らない
+    expect([dy(80), dy(170), dy(250)]).toEqual([30, 30, 30])
+  })
+})
+
+describe("印刷プレビューのスクロールバー（scrollbar.ts）", () => {
+  // 中身 1000・表示領域 250 でずらせる長さは 750、溝 400（つまみ 100、動ける長さ 300）
+  const axis = { content: 1000, view: 250, pan: -375 }
+  test("つまみの長さは見えている割合で、位置はずらした割合を溝の残りに割り振る", () => {
+    expect(thumbOf(axis, 400)).toEqual({ offset: 0.375, length: 0.25 })
+    expect(thumbOf({ content: 1000, view: 250, pan: -750 }, 400).offset).toBe(0.75)
+  })
+  test("つまみは 24px より短くしない（位置は溝の残りの長さで割り振る）", () => {
+    const long = { content: 52000, view: 700, pan: -51300 }
+    const t = thumbOf(long, 600)
+    expect(t.length * 600).toBe(THUMB_MIN)
+    expect(t.offset + t.length).toBeCloseTo(1)
+  })
+  test("溝を押すと、そこがつまみの真ん中になるずらす量を目指す", () => {
+    // 溝の 150 を押す: つまみ（100）の頭が 100 → 動ける長さ 300 の 3 分の 1 → ずらす量は 750 の 3 分の 1
+    expect(panForTrack(axis, 400, 150)).toBe(-250)
+  })
+  test("ドラッグは押した時点からの量で決め、端で止まってもポインタとつまみがずれない", () => {
+    expect(panForDrag(axis, 400, -375, 30)).toBe(-450)
+    expect(panForDrag(axis, 400, -375, 0)).toBe(-375)
+  })
+  test("並べた印刷区画そのものがはみ出す向きだけバーを出す（余白の分だけずらせるときは出さない）", () => {
+    const area = { w: 800, h: 3000 }
+    const view = { w: 900, h: 700 }
+    expect(contentSize(area, 1).w).toBeGreaterThan(view.w)
+    expect(shownBars(area, 1, view)).toEqual({ x: false, y: true })
+    expect(shownBars(area, 1.5, view)).toEqual({ x: true, y: true })
+    expect(shownBars({ w: 800, h: 650 }, 1, view)).toEqual({ x: false, y: false })
+  })
+})
+
+describe("刷るときの紙（print-pages.ts）", () => {
+  test("印刷区画の大きさごとに、紙ちょうどで余白 0 の名前付きの @page を 1 つずつ作る（同じ大きさはまとめる）", () => {
+    const a4 = { w: 794, h: 1123 }
+    const a3Landscape = { w: 1587, h: 1123 }
+    expect(pageNameOf(a4)).toBe("sheet-794x1123")
+    expect(pageRules([a4, a3Landscape, a4]).split("\n")).toEqual([
+      "@page sheet-794x1123 { size: 794px 1123px; margin: 0; }",
+      "@page sheet-1587x1123 { size: 1587px 1123px; margin: 0; }",
+    ])
+  })
+  test("印刷区画の番号は刷る紙全体の通しで、入れない設定なら出さない", () => {
+    const names = { book: "メモ", page: "1 章" }
+    const all = { sheetNumbers: true, bookName: true, pageName: true }
+    expect(sheetLabels(2, 12, all, names)).toEqual({ number: "3 / 12", title: "メモ - 1 章" })
+    const none = { sheetNumbers: false, bookName: false, pageName: false }
+    expect(sheetLabels(0, 1, none, names)).toEqual({ number: null, title: null })
+  })
+  test("名前はブック名とページ名の入れる物だけを「 - 」でつなぎ、名前の無いページはブック名だけ", () => {
+    const names = { book: "メモ", page: "1 章" }
+    expect(sheetLabels(0, 1, { sheetNumbers: false, bookName: true, pageName: false }, names).title).toBe("メモ")
+    expect(sheetLabels(0, 1, { sheetNumbers: false, bookName: false, pageName: true }, names).title).toBe("1 章")
+    const both = { sheetNumbers: false, bookName: true, pageName: true }
+    expect(sheetLabels(0, 1, both, { book: "メモ", page: "" }).title).toBe("メモ")
+  })
+})

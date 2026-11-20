@@ -1,11 +1,11 @@
 // base のアクション page-duplicate（ページを複製する）と page-add の index（入れる所）。page-duplicate は、タイプが宣言した（duplicatesPages）スライドのページだけが使える
 
 import { expect, test } from "bun:test"
-import { pagesOf } from "../../web/src/core/book"
-import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
-import { createBookIn } from "../../web/src/plugins/base"
-import { createMatomezu } from "../../web/src/store/create"
-import { newStore, sequence } from "../support"
+import { pagesOf } from "../../../web/src/core/book"
+import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
+import { createBookIn } from "../../../web/src/plugins/base"
+import { createMatomezu } from "../../../web/src/store/create"
+import { newStore, sequence } from "../../support"
 
 const TEXT = "@matomezu/slide:slide-text"
 const SLIDE = "@matomezu/slide-book:slide"
