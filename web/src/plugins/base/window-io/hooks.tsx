@@ -8,8 +8,12 @@ export function useCopyText(): (text: string) => Promise<void> {
   return useInstance().copyText
 }
 
-// 描いている間、窓のタイトル（ブラウザのタブとタイトルバーに出る文字）を title にする
+// 描いている間、窓のタイトル（ブラウザのタブとタイトルバーに出る文字）を title にする。描かなくなったら、替える前のタイトルに戻す
 export function useWindowTitle(title: string): void {
-  const set = useInstance().setWindowTitle
-  useEffect(() => set(title), [set, title])
+  const instance = useInstance()
+  useEffect(() => {
+    const before = instance.windowTitle()
+    instance.setWindowTitle(title)
+    return () => instance.setWindowTitle(before)
+  }, [instance, title])
 }

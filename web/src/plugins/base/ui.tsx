@@ -36,6 +36,7 @@ import {
 } from "./mail/ui"
 import { ALERT_STATUS, MARK_ICON, MARK_LAYER } from "./mark/ui"
 import { FOLDED_NOTE_STATUS, NOTE_ICON, NOTE_LAYER, NOTE_PANEL, NOTE_READ_NOTICE, READ_NOTE_STATUS } from "./note/ui"
+import { OPEN_GUIDE } from "./open-guide/ui"
 import type { AnnotationIconProps } from "./outbox/ui"
 import { OUTBOX } from "./outbox/ui"
 import { PAGE_CONTEXT_MENU_ROWS, PAGE_DIALOG_VIEWS, PAGE_LIST, PAGE_SETTINGS_ICONS, PAGE_TABS } from "./page-tabs/ui"
@@ -75,7 +76,6 @@ import { TOAST_HOST } from "./toast-host/ui"
 import { TOOL_PICKER_WIDGET } from "./tool-picker/ui"
 import { TOOL_ICONS, TOOL_SWITCH } from "./tool-switch/ui"
 import { TOOLBOX } from "./toolbox/ui"
-import { UNKNOWN_BROWSER } from "./unknown-browser/ui"
 import type { WideSearchModeProps, WideSearchOpened } from "./wide-search/ui"
 import { FULL_TEXT_MODE, WIDE_SEARCH_TAB } from "./wide-search/ui"
 import { SCREENS_WIDGET, WINDOW, WINDOW_ICONS } from "./window/ui"
@@ -279,7 +279,7 @@ export const BASE_UI = definePluginUi(BASE, {
     MAIL_BOOKMARKS,
     MAIL_WATCH,
     EDIT_LOCK,
-    UNKNOWN_BROWSER,
+    OPEN_GUIDE,
     JOIN_REQUEST_ACTIONS,
     PROPOSAL_ACTIONS,
     FULL_TEXT_MODE,
@@ -394,7 +394,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:mail-bookmarks": typeof MAIL_BOOKMARKS
     "@matomezu/base:mail-watch": typeof MAIL_WATCH
     "@matomezu/base:edit-lock": typeof EDIT_LOCK
-    "@matomezu/base:unknown-browser": typeof UNKNOWN_BROWSER
+    "@matomezu/base:open-guide": typeof OPEN_GUIDE
     "@matomezu/base:join-request-actions": typeof JOIN_REQUEST_ACTIONS
     "@matomezu/base:proposal-actions": typeof PROPOSAL_ACTIONS
     "@matomezu/base:wide-search-full-text": typeof FULL_TEXT_MODE

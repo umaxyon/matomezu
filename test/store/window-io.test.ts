@@ -22,3 +22,8 @@ test("setWindowTitle は渡した口にタイトルを渡し、口が無けれ�
   expect(titles).toEqual(["matomezu の開き方"])
   expect(() => createMatomezu({ plugins: BUILTIN }).setWindowTitle("x")).not.toThrow()
 })
+
+test("windowTitle は渡した口の今のタイトルを返し、口が無ければ空", () => {
+  expect(createMatomezu({ plugins: BUILTIN, windowTitle: () => "matomezu" }).windowTitle()).toBe("matomezu")
+  expect(createMatomezu({ plugins: BUILTIN }).windowTitle()).toBe("")
+})

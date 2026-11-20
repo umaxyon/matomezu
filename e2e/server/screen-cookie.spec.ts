@@ -10,6 +10,12 @@ test("画面 cookie を持たないブラウザは断られ、画面 cookie を�
   await expect(page.getByRole("heading", { name: "matomezu の開き方" })).toBeVisible()
   await expect(page).toHaveTitle("matomezu の開き方")
   await expect(page.getByText(/^\$ matomezu open$/)).toBeVisible()
+  // コピーを押すと、コマンドがクリップボードに入り、ボタンの字がしばらく替わる
+  await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: host.url })
+  await page.getByRole("button", { name: "コピー" }).click()
+  await expect(page.getByRole("button", { name: "コピーしました" })).toBeVisible()
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("matomezu open")
+  await expect(page.getByRole("button", { name: "コピー", exact: true })).toBeVisible()
 
   const made = await fetch(`${host.url}/api/cookie-code-for-test`, {
     method: "POST",

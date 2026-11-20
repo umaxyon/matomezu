@@ -15,6 +15,7 @@ import { MARK_MESSAGES } from "./mark/messages"
 import { MARKDOWN_DOCUMENT_MESSAGES } from "./markdown/messages"
 import { MINIMAP_MESSAGES } from "./minimap/messages"
 import { NOTE_MESSAGES } from "./note/messages"
+import { OPEN_GUIDE_MESSAGES } from "./open-guide/messages"
 import { OUTBOX_MESSAGES } from "./outbox/messages"
 import { PAGE_MESSAGES } from "./page-tabs/messages"
 import { PARTICIPANT_MESSAGES } from "./participant/messages"
@@ -29,7 +30,6 @@ import { TEXT_MESSAGES } from "./text/messages"
 import { TOOL_PICKER_MESSAGES } from "./tool-picker/messages"
 import { TOOL_SWITCH_MESSAGES } from "./tool-switch/messages"
 import { TOOLBOX_MESSAGES } from "./toolbox/messages"
-import { UNKNOWN_BROWSER_MESSAGES } from "./unknown-browser/messages"
 import { joinMessages } from "./utils/join-messages"
 import { UTILS_MESSAGES } from "./utils/messages"
 import { WIDE_SEARCH_MESSAGES } from "./wide-search/messages"
@@ -71,5 +71,5 @@ export const BASE_MESSAGES = joinMessages(
   CORNER_MESSAGES,
   ASK_MESSAGES,
   HISTORY_MESSAGES,
-  UNKNOWN_BROWSER_MESSAGES,
+  OPEN_GUIDE_MESSAGES,
 )
