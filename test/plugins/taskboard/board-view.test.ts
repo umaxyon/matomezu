@@ -40,7 +40,7 @@ const project = (id: string, over: Partial<ProjectRecord> = {}): ProjectRecord =
   ],
   doneLane: "done",
   cardSize: "medium",
-  cardShows: { priority: true },
+  cardShows: { priority: true, volume: true },
   ...over,
 })
 const ticket = (id: string, over: Partial<TicketRecord> = {}): TicketRecord => ({
@@ -51,6 +51,7 @@ const ticket = (id: string, over: Partial<TicketRecord> = {}): TicketRecord => (
   body: "",
   lane: "todo",
   priority: "medium",
+  volume: "none",
   assignees: [],
   createdAt: "2026-11-01T00:00:00.000Z",
   createdBy: { kind: "user" },
@@ -118,10 +119,10 @@ test("タグは id で引き、無いタグは外して、プロジェクトの�
 
 test("並べ方は、使う項目を上から比べる。既定は id の降順。タグは設定の並びの順で、付いたタグを 1 つ目から比べ（前が同じなら短い方が先）、タグなしと無いタグだけは最後。何も使わなければ元の並び", () => {
   const list = [
-    ticket("T1", { priority: "low", tags: ["bug"], updatedAt: "2026-11-03T00:00:00.000Z" }),
-    ticket("T2", { priority: "high", tags: ["task"], updatedAt: "2026-11-01T00:00:00.000Z" }),
-    ticket("T3", { priority: "high", tags: ["gone"], updatedAt: "2026-11-02T00:00:00.000Z" }),
-    ticket("T4", { priority: "medium", tags: ["bug", "task"], updatedAt: "2026-11-01T00:00:00.000Z" }),
+    ticket("T1", { priority: "low", volume: "xl", tags: ["bug"], updatedAt: "2026-11-03T00:00:00.000Z" }),
+    ticket("T2", { priority: "high", volume: "none", tags: ["task"], updatedAt: "2026-11-01T00:00:00.000Z" }),
+    ticket("T3", { priority: "high", volume: "s", tags: ["gone"], updatedAt: "2026-11-02T00:00:00.000Z" }),
+    ticket("T4", { priority: "medium", volume: "m", tags: ["bug", "task"], updatedAt: "2026-11-01T00:00:00.000Z" }),
   ]
   const ids = (rules: SortRules) => sortTickets(list, rules, ["task", "bug"]).map(t => t.id)
   expect(ids(DEFAULT_SORT)).toEqual(["T4", "T3", "T2", "T1"])
@@ -132,6 +133,9 @@ test("並べ方は、使う項目を上から比べる。既定は id の降順�
       desc: keys.find(([k]) => k === r.key)?.[1] ?? false,
     }))
   expect(ids(on(["priority", true], ["updated", false]))).toEqual(["T2", "T3", "T4", "T1"])
+  // チケットボリュームは段の順で、見積もっていない none がいちばん小さい
+  expect(ids(on(["volume", false]))).toEqual(["T2", "T3", "T4", "T1"])
+  expect(ids(on(["volume", true]))).toEqual(["T1", "T4", "T3", "T2"])
   // T4 はタスクとバグ（プロジェクトの順に 0・1）、T2 はタスク（0）だけ、T1 はバグ（1）
   expect(ids(on(["tag", false]))).toEqual(["T2", "T4", "T1", "T3"])
   expect(ids(on())).toEqual(["T1", "T2", "T3", "T4"])

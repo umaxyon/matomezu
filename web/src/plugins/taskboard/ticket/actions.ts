@@ -7,7 +7,7 @@ import { inDoneLane, PROJECT, UNSORTED } from "../project"
 import { type Project, projectOf } from "../project/actions"
 import { ticketLabel } from "./label"
 import { type Candidate, type Resolved, resolve } from "./resolve"
-import { PRIORITIES, PRIORITY_DEFAULT, TICKET, TICKET_NAME_MAX } from "./ticket"
+import { PRIORITIES, PRIORITY_DEFAULT, TICKET, TICKET_NAME_MAX, VOLUME_DEFAULT, VOLUMES } from "./ticket"
 
 export type Ticket = z.output<typeof TICKET.record>
 
@@ -89,7 +89,7 @@ export const TICKET_ADD = kit.defineAction({
   id: "ticket-add",
   title: "add ticket",
   aiDescription:
-    "Add a ticket to the project (its id). name is up to 50 characters, body is markdown. lane is a lane of the project by its id or name (left out or the word unsorted: unsorted), tags are enabled tags of the project by their ids or names (left out or empty: no tag; no tag twice), assignees are the workrooms by their ids or names, in order (the first is the lead; no workroom twice), priority is lowest, low, medium (the default), high or highest. The done lane of the project cannot be chosen (tickets get there with ticket-complete). A lane that is named like the word unsorted is pointed at by its id. A refusal for a name that is not there lists the names and ids to choose from. Read the prompts of the lanes and the tags of the project (read_records) and follow them. Refused when the project is closed. A workroom other than yours that becomes an assignee is told by an AI message (matomezu sends it when an AI has joined that workroom; you do not). Returns the ticket's id and number, the number with the prefix of the project as label (such as M-0001), and the lane, the tags and the assignees as the ids they were taken for.",
+    "Add a ticket to the project (its id). name is up to 50 characters, body is markdown. lane is a lane of the project by its id or name (left out or the word unsorted: unsorted), tags are enabled tags of the project by their ids or names (left out or empty: no tag; no tag twice), assignees are the workrooms by their ids or names, in order (the first is the lead; no workroom twice), priority is lowest, low, medium (the default), high or highest, volume (how much work it is) is xs, s, m, l or xl, or none (the default: not estimated yet). The done lane of the project cannot be chosen (tickets get there with ticket-complete). A lane that is named like the word unsorted is pointed at by its id. A refusal for a name that is not there lists the names and ids to choose from. Read the prompts of the lanes and the tags of the project (read_records) and follow them. Refused when the project is closed. A workroom other than yours that becomes an assignee is told by an AI message (matomezu sends it when an AI has joined that workroom; you do not). Returns the ticket's id and number, the number with the prefix of the project as label (such as M-0001), and the lane, the tags and the assignees as the ids they were taken for.",
   target: TICKET.id,
   reads: (args, actor) => [
     { subject: PROJECT.id, id: args.project },
@@ -104,6 +104,7 @@ export const TICKET_ADD = kit.defineAction({
     tags: zod.array(zod.string().min(1)).optional(),
     assignees: zod.array(zod.string().min(1)).optional(),
     priority: zod.enum(PRIORITIES).optional(),
+    volume: zod.enum(VOLUMES).optional(),
   }),
   run: (now, args, ctx) => {
     if (now !== "none") return null
@@ -127,6 +128,7 @@ export const TICKET_ADD = kit.defineAction({
       body: args.body ?? "",
       lane: lane.id,
       priority: args.priority ?? PRIORITY_DEFAULT,
+      volume: args.volume ?? VOLUME_DEFAULT,
       assignees: assignees.ids,
       createdAt: ctx.now,
       createdBy,
@@ -153,7 +155,7 @@ export const TICKET_UPDATE = kit.defineAction({
   id: "ticket-update",
   title: "update ticket",
   aiDescription:
-    "Change the name, the body, the priority, the lane, the tags or the assignees of the ticket named by on.record. tags is the whole new list of tags (empty: no tag). assignees is the whole new list of workrooms by their ids or names, in order (the first is the lead; no workroom twice, each a workroom that is there; a workroom that was removed stays on the ticket until the list is changed). The same rules as ticket-add apply to the lane and the tags, by their ids or names; a ticket cannot be moved into the done lane here (use ticket-complete), and a ticket in the done lane takes no assignees until it is moved out (a tag that is not enabled any more, or was removed, can stay on the ticket until the list is changed). The project of a ticket does not change. The time of the last change moves only when something changed. A workroom other than yours that becomes an assignee is told by an AI message (matomezu sends it when an AI has joined that workroom; you do not).",
+    "Change the name, the body, the priority, the volume (as in ticket-add), the lane, the tags or the assignees of the ticket named by on.record. tags is the whole new list of tags (empty: no tag). assignees is the whole new list of workrooms by their ids or names, in order (the first is the lead; no workroom twice, each a workroom that is there; a workroom that was removed stays on the ticket until the list is changed). The same rules as ticket-add apply to the lane and the tags, by their ids or names; a ticket cannot be moved into the done lane here (use ticket-complete), and a ticket in the done lane takes no assignees until it is moved out (a tag that is not enabled any more, or was removed, can stay on the ticket until the list is changed). The project of a ticket does not change. The time of the last change moves only when something changed. A workroom other than yours that becomes an assignee is told by an AI message (matomezu sends it when an AI has joined that workroom; you do not).",
   target: TICKET.id,
   // プロジェクトは、チケットが指す先なので書かない
   reads: args => (args.assignees?.length ? [READS_WORKROOM_NAMES] : []),
@@ -161,6 +163,7 @@ export const TICKET_UPDATE = kit.defineAction({
     name: zod.string().trim().min(1).max(TICKET_NAME_MAX).optional(),
     body: zod.string().optional(),
     priority: zod.enum(PRIORITIES).optional(),
+    volume: zod.enum(VOLUMES).optional(),
     lane: zod.string().min(1).optional(),
     tags: zod.array(zod.string().min(1)).optional(),
     assignees: zod.array(zod.string().min(1)).optional(),
@@ -187,6 +190,7 @@ export const TICKET_UPDATE = kit.defineAction({
       ...(args.name === undefined ? {} : { name: args.name }),
       ...(args.body === undefined ? {} : { body: args.body }),
       ...(args.priority === undefined ? {} : { priority: args.priority }),
+      ...(args.volume === undefined ? {} : { volume: args.volume }),
       ...(lane === undefined ? {} : { lane: lane.id }),
       ...(tags === undefined ? {} : { tags: tags.ids }),
     }

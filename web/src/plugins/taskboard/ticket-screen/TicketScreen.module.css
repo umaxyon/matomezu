@@ -203,12 +203,18 @@
   gap: 4px 16px;
   font-size: 12px;
 }
-/* 担当と優先度の行: 名前の右に中身（中身が何行でも、名前は上にそろえる） */
+/* 担当の行と、段を選ぶスライダー: 名前の右に中身（中身が何行でも、名前は上にそろえる） */
 .assignees,
-.priority {
+.step {
   display: flex;
   align-items: flex-start;
   font-size: 12px;
+}
+/* 優先度とチケットボリュームのスライダーを横に並べ、入らなければ折り返す */
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
 }
 /* 担当を横に並べ、入らなければ折り返す */
 .assigneeList {
@@ -218,10 +224,9 @@
   gap: 4px 14px;
   min-width: 0;
 }
-.priority .slider {
+.step .slider {
   display: flex;
   flex-direction: column;
-  width: 160px;
   zoom: 0.85; /* つまみと溝の大きさも一回り小さくする */
 }
 .slider input {
@@ -361,6 +366,6 @@
 
 /* ロック中は、直す所を薄くして触れなくする（読むことはできる） */
 .ticket[data-locked="true"] .name,
-.ticket[data-locked="true"] .priority {
+.ticket[data-locked="true"] .steps {
   opacity: 0.5;
 }

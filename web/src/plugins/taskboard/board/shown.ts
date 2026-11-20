@@ -3,9 +3,9 @@
 import type { z } from "zod"
 import type { RecordOf } from "../../../plugin-api"
 import { type CardSize, INHERIT_CARD_SIZE, type PROJECT, UNSORTED } from "../project"
-import { PRIORITIES, PRIORITY_DEFAULT, type TICKET } from "../ticket"
+import { PRIORITIES, PRIORITY_DEFAULT, type TICKET, VOLUMES } from "../ticket"
 
-export { PRIORITIES, PRIORITY_DEFAULT }
+export { PRIORITIES, PRIORITY_DEFAULT, VOLUMES }
 export type ProjectRecord = z.output<typeof PROJECT.record>
 export type TicketRecord = z.output<typeof TICKET.record>
 export type WorkroomRecord = RecordOf<"@matomezu/base:workroom">

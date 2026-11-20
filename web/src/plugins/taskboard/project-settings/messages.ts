@@ -6,6 +6,7 @@ export const PROJECT_SETTINGS_MESSAGES = defineMessages({
   General: { en: "General", ja: "全般" },
   "Ticket size": { en: "Ticket size", ja: "チケットサイズ" },
   "Show priority": { en: "Show priority", ja: "優先度を出す" },
+  "Show volume": { en: "Show volume", ja: "規模を出す" },
   "Card size large": { en: "Large: the title wraps", ja: "大: 題を折り返す" },
   "Card size medium": { en: "Medium: the title in one line", ja: "中: 題を 1 行で" },
   "Card size small": { en: "Small: the number and the title in one line", ja: "小: 番号と題の 1 行" },

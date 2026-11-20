@@ -196,6 +196,8 @@ var migrations = []string{
 	`SELECT 1;`,
 	// ワークルームの今のチケットの記録を捨てる（今のチケットは、チケットの担当とレーンから決める。Go の移し替え。migrate_current_ticket.go）
 	`SELECT 1;`,
+	// チケットに規模（volume）を、プロジェクトの cardShows に volume を足す（Go の移し替え。migrate_ticket_volume.go）
+	`SELECT 1;`,
 	// 読めない物のフォルダ（フォルダの行 library-unreadable）を作る（Go の移し替え。migrate_unreadable.go）
 	`SELECT 1;`,
 }
@@ -210,7 +212,8 @@ var goMigrations = map[int]func(tx *sql.Tx) error{
 	26: trashToFolder,
 	27: numberSameTitlesLogged,
 	28: dropCurrentTickets,
-	29: addUnreadableFolder,
+	29: addTicketVolume,
+	30: addUnreadableFolder,
 }
 
 type sqliteStorage struct {

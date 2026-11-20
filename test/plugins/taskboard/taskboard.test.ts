@@ -19,7 +19,7 @@ type Project = {
   closed: boolean
   lanes: { kind: string; id?: string; name?: string }[]
   tags: { id: string; name: string; enabled: boolean }[]
-  cardShows: { priority: boolean }
+  cardShows: { priority: boolean; volume: boolean }
 }
 
 function ready() {
@@ -56,6 +56,8 @@ function ready() {
       lane: string
       tags: string[]
       priority: string
+      volume: string
+      updatedAt: string
       project: string
     }[]
   return { store, run, user, projects, tickets }
@@ -96,7 +98,7 @@ test("AI はプロジェクトを作る・閉じる・開け直す・チケッ�
   expect(run(AI, "project-reopen", {}, { record: p.id }).ok).toBe(true)
 })
 
-test("チケットの番号はプロジェクトごとに続き、消しても使い回さない。レーンを省くと未分類、優先度は中", () => {
+test("チケットの番号はプロジェクトごとに続き、消しても使い回さない。レーンを省くと未分類、優先度は中、チケットボリュームは見積もっていない", () => {
   const { user, projects, tickets } = ready()
   user("project-add", {})
   const p = projects()[0] as Project
@@ -105,7 +107,23 @@ test("チケットの番号はプロジェクトごとに続き、消しても�
   user("ticket-remove", {}, { record: tickets()[1]?.id as string })
   user("ticket-add", { project: p.id, name: "c" })
   expect(tickets().map(t => t.number)).toEqual([1, 3])
-  expect(tickets()[0]).toMatchObject({ lane: "unsorted", tags: [], priority: "medium" })
+  expect(tickets()[0]).toMatchObject({ lane: "unsorted", tags: [], priority: "medium", volume: "none" })
+})
+
+test("チケットボリュームは ticket-add で選べ、ticket-update で変えられる。同じチケットボリュームなら最終更新は進まない。段に無い値は断る", () => {
+  const { user, projects, tickets } = ready()
+  user("project-add", {})
+  const p = projects()[0] as Project
+  expect(user("ticket-add", { project: p.id, name: "a", volume: "l" }).ok).toBe(true)
+  const t = tickets()[0]?.id as string
+  expect(tickets()[0]?.volume).toBe("l")
+  const at = tickets()[0]?.updatedAt
+  expect(user("ticket-update", { volume: "l" }, { record: t }).ok).toBe(true)
+  expect(tickets()[0]?.updatedAt).toBe(at as string)
+  expect(user("ticket-update", { volume: "xs" }, { record: t }).ok).toBe(true)
+  expect(tickets()[0]?.volume).toBe("xs")
+  expect(user("ticket-update", { volume: "huge" }, { record: t }).ok).toBe(false)
+  expect(user("ticket-add", { project: p.id, name: "b", volume: "5" }).ok).toBe(false)
 })
 
 test("チケットを足すとき、無いレーン・無いタグ・使わないタグは断る", () => {
@@ -174,16 +192,18 @@ test("プロジェクトを直すと、id の無いレーン・タグは新し�
   expect(q.tags[0]?.id).toBe(task?.id)
 })
 
-test("新しいプロジェクトのチケットカードは優先度を出す。cardShows の priority を変えられ、省けば今のまま", () => {
+test("新しいプロジェクトのチケットカードは優先度とチケットボリュームを出す。cardShows の priority・volume を 1 つずつ変えられ、省けば今のまま", () => {
   const { user, projects } = ready()
   user("project-add", {})
   const p = projects()[0] as Project
-  expect(p.cardShows).toEqual({ priority: true })
+  expect(p.cardShows).toEqual({ priority: true, volume: true })
   expect(user("project-update", { cardShows: { priority: false } }, { record: p.id }).ok).toBe(true)
-  expect((projects()[0] as Project).cardShows).toEqual({ priority: false })
+  expect((projects()[0] as Project).cardShows).toEqual({ priority: false, volume: true })
+  expect(user("project-update", { cardShows: { volume: false } }, { record: p.id }).ok).toBe(true)
+  expect((projects()[0] as Project).cardShows).toEqual({ priority: false, volume: false })
   expect(user("project-update", { name: "別の名前" }, { record: p.id }).ok).toBe(true)
   expect(user("project-update", { cardShows: {} }, { record: p.id }).ok).toBe(true)
-  expect((projects()[0] as Project).cardShows).toEqual({ priority: false })
+  expect((projects()[0] as Project).cardShows).toEqual({ priority: false, volume: false })
 })
 
 test("プロジェクトを直すとき、無い id・重なる名前（前後の空白を除いて）・未分類が 1 つでない並び・ほかのプロジェクトと重なるプレフィクス（大文字小文字を問わない）は断る", () => {

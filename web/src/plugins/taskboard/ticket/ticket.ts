@@ -12,6 +12,9 @@ import { ticketLabel } from "./label"
 export const TICKET_NAME_MAX = 50
 export const PRIORITIES = ["lowest", "low", "medium", "high", "highest"] as const
 export const PRIORITY_DEFAULT = "medium"
+// チケットボリューム（規模）: 見積もった作業の重さの 5 段と、まだ見積もっていない none。重みの点数は持たない（数える側が段から決める）
+export const VOLUMES = ["none", "xs", "s", "m", "l", "xl"] as const
+export const VOLUME_DEFAULT = "none"
 
 const TICKET_KIND = kit.name("ticket") // 作業の様子で自分の種類を引く（定義の中から TICKET を指さない）
 
@@ -23,6 +26,7 @@ const TICKET_RECORD = z.strictObject({
   body: z.string(),
   lane: z.string().min(1),
   priority: z.enum(PRIORITIES),
+  volume: z.enum(VOLUMES),
   assignees: z.array(z.string().min(1)), // 担当のワークルームの id（順序つき。消したワークルームの id は書いたまま残し、読む側が外す）
   createdAt: z.string(),
   createdBy: BY, // 起票した者（起票は履歴の行にせず、ここと createdAt から見せる）
@@ -35,7 +39,7 @@ export const TICKET = kit.defineSubject({
   id: "ticket",
   title: "ticket",
   aiDescription:
-    "A ticket: one card of a project's task board. It has the project's id, a number (counted for each project and never reused), a name, a body (markdown), the lane (a lane's id of the project, or unsorted), the tags (tags' ids of the project, none or more, no tag twice), the priority (lowest, low, medium, high or highest) and the times it was filed and last changed. The assignees are workrooms' ids, in order: the first is the lead (the index key lead), and a ticket in a working lane of its project (a lane with working: true) is the current ticket of its lead's workroom. A lane that is not there any more reads as unsorted; a tag or assignee that is not there any more is left out. It also has who filed it and when. A locked ticket cannot be changed or removed. A completed ticket (one in the done lane of its project) is left out of the list by default: the list says how many it left out.",
+    "A ticket: one card of a project's task board. It has the project's id, a number (counted for each project and never reused), a name, a body (markdown), the lane (a lane's id of the project, or unsorted), the tags (tags' ids of the project, none or more, no tag twice), the priority (lowest, low, medium, high or highest), the volume (how much work it is: xs, s, m, l or xl, or none while it is not estimated) and the times it was filed and last changed. The assignees are workrooms' ids, in order: the first is the lead (the index key lead), and a ticket in a working lane of its project (a lane with working: true) is the current ticket of its lead's workroom. A lane that is not there any more reads as unsorted; a tag or assignee that is not there any more is left out. It also has who filed it and when. A locked ticket cannot be changed or removed. A completed ticket (one in the done lane of its project) is left out of the list by default: the list says how many it left out.",
   record: TICKET_RECORD,
   refers: t => [{ subject: PROJECT.id, id: t.project }],
   // プロジェクトのチケットを、レーンと担当の有無で探す（完了のレーンの確かめなど。担当の人数 assigned は、いない 0）。
