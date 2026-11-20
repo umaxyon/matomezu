@@ -15,21 +15,10 @@
 // ドラッグの途中の動いた量と、点線の箱のポインタの位置だけはビューに持つ。
 // 紙をずらしても、ずらすのは紙の枠だけで、アイテムは描き直さない（紙をずらす量を読むのは紙の枠と点線の箱だけ）
 
-import {
-  type MouseEvent,
-  memo,
-  type PointerEvent,
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react"
+import { memo, type PointerEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   allowedItems,
   areaOf,
-  type CoreCatalog,
   findShape,
   type ItemPage,
   type PlacedShape,
@@ -38,10 +27,8 @@ import {
   type StageView,
   shapesOf,
   toPaperDelta,
-  walkShapes,
 } from "../../../plugin-api"
 import {
-  type ItemViewProps,
   type ShapeScene,
   TokenScope,
   useActions,
@@ -51,26 +38,14 @@ import {
   useCoreCatalog,
   useMessages,
   usePage,
-  useShapeMarks,
   useShownPage,
   useStage,
   useStageArea,
-  useTokenScope,
   useToPaper,
   useUiCatalog,
 } from "../../../plugin-api/ui"
-import {
-  type Edges,
-  followConnectors,
-  growOf,
-  minSize,
-  onlySelected,
-  placedSize,
-  roomOf,
-  shapeDefOf,
-  shownRects,
-} from "../../base"
-import { modPressed, PaperFrame, useAnchorRef, useFollowsSelection } from "../../base/ui"
+import { type Edges, followConnectors, growOf, minSize, onlySelected, roomOf, shownRects } from "../../base"
+import { modPressed, PaperFrame, useFollowsSelection } from "../../base/ui"
 import { kit } from "../kit"
 import { ITEM_CONTEXT, PAPER_CONTEXT } from "../paper"
 import {
@@ -92,8 +67,9 @@ import {
   trackDrag,
 } from "../placing"
 import { settledDraft } from "../placing/draft"
-import { sizedTo, stretchedBy } from "../placing/items"
+import { shiftedBy, shownShape, slidShapes } from "../placing/shown"
 import { REPARENT_TOOL } from "../tools"
+import { Item } from "./PaperItem"
 import styles from "./PaperView.module.css"
 import { type Placing, usePlaceTarget } from "./use-place-target"
 
@@ -394,12 +370,7 @@ function PageItems({
       ? dragging(catalog, page, d.items[0] as string, shift, d.came)
       : null
   // ドラッグ中にずらして描く量（紙の上）
-  const shiftOf = (item: PlacedShape): Point | null => {
-    if (!shift) return null
-    const r = plan?.get(item.id)
-    if (r) return r.x !== item.x || r.y !== item.y ? { x: r.x - item.x, y: r.y - item.y } : null
-    return dragged.includes(item.id) ? shift : null
-  }
+  const shiftOf = (item: PlacedShape): Point | null => shiftedBy(item, shift, plan, dragged)
 
   const startStretch = (e: PointerEvent<HTMLDivElement>, item: string, edges: Edges) => {
     if (e.button !== 0) return
@@ -420,25 +391,18 @@ function PageItems({
   }
   const paper = areaOf(stage)
   // 大きさを変えている途中のアイテムは、変えたあとの左上と大きさで描く。ダイアログの下書きは、下書きを重ねたページ（useShownPage）のアイテムで描く（子の形も）
-  const shown = (placed: PlacedShape): PlacedShape => {
-    const item = findShape(shownPage, placed.id)?.shape ?? placed
-    const st = stretch.current
-    if (!st || st.item !== item.id || !paper) return item
-    const to = stretchedBy(catalog, item, st.edges, toPaperDelta(stage, stretched), paper)
-    // 大きさを項目に写す形は、写した項目で描く（w・h を書いても、大きさは項目から決まるため）
-    return to ? { ...sizedTo(catalog, item, to), x: to.x, y: to.y } : item
+  const stretching = stretch.current && {
+    item: stretch.current.item,
+    edges: stretch.current.edges,
+    by: toPaperDelta(stage, stretched),
   }
+  const shown = (placed: PlacedShape): PlacedShape => shownShape(catalog, shownPage, placed, stretching, paper)
   const resizing = stretch.current && (stretched.x !== 0 || stretched.y !== 0) ? stretch.current.item : null
   const selectable = !pans && stage.placing === null
   // 描く形（下書き・大きさを変えている途中・ドラッグでずらした所を重ねたもの）
   const shapes = shapesOf(page).map(item => ({ item: shown(item), shift: shiftOf(item) }))
   // ドラッグでずらした形の両端が同じだけ動くつなぐものは、手直しの点も一緒にずらして描く（離したときのデータと同じ形。followConnectors）
-  const slid = new Map<string, Point>()
-  if (shift)
-    for (const { shape } of walkShapes(shownPage)) {
-      const by = shiftOf(shape as PlacedShape)
-      if (by) slid.set(shape.id, by)
-    }
+  const slid = shift ? slidShapes(shownPage, shiftOf) : new Map<string, Point>()
   const scene: ShapeScene = {
     zoom: stage.zoom,
     page: slid.size > 0 ? followConnectors(catalog, shownPage, slid) : shownPage,
@@ -516,164 +480,6 @@ function PageItems({
       </TokenScope>
     )
   }, items)
-}
-
-// 形のビューに渡す中身: 形の定義の content に宣言したフィールドの名前 → その値
-function contentOf(catalog: CoreCatalog, item: PlacedShape): Readonly<Record<string, unknown>> {
-  const fields = Object.keys(shapeDefOf(catalog, item.item)?.content ?? {})
-  return Object.fromEntries(fields.map(k => [k, (item as Record<string, unknown>)[k]]))
-}
-
-interface ItemProps {
-  zoom: number // ステージの今の倍率（形のビューに渡す）
-  item: PlacedShape
-  onHover(on: boolean): void
-  overlays: ReactNode // つなぐもののビューが形の上に重ねるコンポーネント
-  nested: ReactNode // 子の形（形の中に描く）
-  stretchable: boolean // 四辺と四隅をつかんで大きさを変えられるか
-  onStretch: {
-    down(e: PointerEvent<HTMLDivElement>, edges: Edges): void
-    move(e: PointerEvent<HTMLDivElement>): void
-    up(e: PointerEvent<HTMLDivElement>): void
-    cancel(e: PointerEvent<HTMLDivElement>): void
-  }
-  selected: boolean
-  dropTarget: boolean // 付け替えの道具のドラッグで離すと入る先か、置こうとしている間に押すと入る先か
-  shift: Point | null // ドラッグ中にずらして描く量（紙の上）
-  dragged: readonly string[] // ドラッグで動かしているアイテム
-  resizing: string | null // 大きさを変えているアイテム
-  onPointerDown(e: PointerEvent<HTMLDivElement>): void
-  onPointerMove(e: PointerEvent<HTMLDivElement>): void
-  onPointerUp(e: PointerEvent<HTMLDivElement>): void
-  onPointerCancel(e: PointerEvent<HTMLDivElement>): void
-  onDoubleClick(e: MouseEvent<HTMLDivElement>): void
-  onContextMenu(e: MouseEvent<HTMLDivElement>): void
-}
-
-// ポインタの操作を受けるのは、押した所の一番内側の形だけ（子の形の上の操作は、親の形に渡さない）
-const innermost = (e: { target: EventTarget; currentTarget: Element }) =>
-  (e.target as Element).closest("[data-item]") === e.currentTarget
-function ownHandlers(
-  handlers: Pick<
-    ItemProps,
-    "onPointerDown" | "onPointerMove" | "onPointerUp" | "onPointerCancel" | "onDoubleClick" | "onContextMenu"
-  >,
-) {
-  return Object.fromEntries(
-    Object.entries(handlers).map(([k, f]) => [
-      k,
-      (e: PointerEvent<HTMLDivElement> & MouseEvent<HTMLDivElement>) => {
-        if (innermost(e)) (f as (e: unknown) => void)(e)
-      },
-    ]),
-  ) as typeof handlers
-}
-
-// 大きさを変えるためにつかめる所: 四辺と四隅（角は 2 つの辺を動かす。幅だけを変えられる形は左右の辺だけ）
-const GRIPS: readonly { at: string; edges: Edges }[] = [
-  { at: "left", edges: { x: "left" } },
-  { at: "right", edges: { x: "right" } },
-  { at: "top", edges: { y: "top" } },
-  { at: "bottom", edges: { y: "bottom" } },
-  { at: "top-left", edges: { x: "left", y: "top" } },
-  { at: "top-right", edges: { x: "right", y: "top" } },
-  { at: "bottom-left", edges: { x: "left", y: "bottom" } },
-  { at: "bottom-right", edges: { x: "right", y: "bottom" } },
-]
-
-// 置いたアイテム 1 つ。結んだビューで描き、ビューの無いアイテムは枠だけを描く
-function Item({
-  zoom,
-  item,
-  onHover,
-  overlays,
-  nested,
-  stretchable,
-  onStretch,
-  selected,
-  dropTarget,
-  shift,
-  dragged,
-  resizing,
-  ...handlers
-}: ItemProps) {
-  const catalog = useCoreCatalog()
-  const marks = useShapeMarks()
-  const anchor = useAnchorRef() // アイテムにアンカーを付ける（そばにスタンドを立てられる）
-  // ドラッグ中の見た目: つなぐもののビューが薄くするよう求めた形は薄く。動かすアイテムは透かし、大きさを変えているアイテムはそのまま、ほかは薄く
-  const look = marks.keep
-    ? marks.keep.has(item.id)
-      ? undefined
-      : "faded"
-    : dragged.length > 0
-      ? dragged.includes(item.id)
-        ? "lifted"
-        : "faded"
-      : resizing && item.id !== resizing
-        ? "faded"
-        : undefined
-  const ui = useUiCatalog().items.get(item.item)
-  const size = placedSize(catalog, item)
-  const View = ui?.view as ((p: ItemViewProps<PlacedShape["props"]>) => ReactNode) | undefined
-  const tokens = useTokenScope(item.item) // そのアイテムのプラグインのテーマキー（--<名前>）
-  // 幅だけを変えられる形（@matomezu/paper:stretch）は左右の辺だけ、比を保つ形は角だけをつかめる
-  const stretch = shapeDefOf(catalog, item.item)?.[kit.name("stretch")]
-  const grips =
-    stretch === "width"
-      ? GRIPS.filter(g => !g.edges.y)
-      : stretch === "ratio"
-        ? GRIPS.filter(g => g.edges.x && g.edges.y)
-        : GRIPS
-  return (
-    <div
-      ref={anchor(item.id)}
-      data-item={item.id}
-      data-shape
-      data-target={marks.target === item.id}
-      className={styles.item}
-      onPointerEnter={() => onHover(true)}
-      onPointerLeave={() => onHover(false)}
-      data-selected={selected}
-      data-drop-target={dropTarget}
-      data-look={look}
-      style={{
-        left: item.x,
-        top: item.y,
-        width: size?.w,
-        height: size?.h,
-        transform: shift ? `translate(${shift.x}px, ${shift.y}px)` : undefined,
-        ...tokens,
-      }}
-      {...ownHandlers(handlers)}
-    >
-      {View && size ? (
-        <View
-          props={item.props}
-          size={size}
-          id={item.id}
-          content={contentOf(catalog, item)}
-          zoom={zoom}
-          hasChildren={(item.shapes?.length ?? 0) > 0}
-        />
-      ) : (
-        <div className={styles.unknownItem} />
-      )}
-      {nested}
-      {overlays}
-      {stretchable &&
-        grips.map(g => (
-          <div
-            key={g.at}
-            className={styles.grip}
-            data-grip={g.at}
-            onPointerDown={e => onStretch.down(e, g.edges)}
-            onPointerMove={onStretch.move}
-            onPointerUp={onStretch.up}
-            onPointerCancel={onStretch.cancel}
-          />
-        ))}
-    </div>
-  )
 }
 
 // 置こうとしているアイテムの点線の箱。押すと置く所（箱の中に寄せた所・空き）に描き、置けない所（ページの紙からはみ出す・空きが無い）では薄く出す
