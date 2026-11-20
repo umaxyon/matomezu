@@ -518,7 +518,7 @@ func TestTheMovesIfAPluginIsOffAreTheMovesWhenItIsTurnedOff(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := store.PutSettings(user, json.RawMessage(`{"`+enabledPluginsSetting+`":["ex2"]}`)); err != nil {
+	if err := store.Apply(storage.Batch{Settings: &storage.UserBody{User: user, Body: json.RawMessage(`{"` + enabledPluginsSetting + `":["ex2"]}`)}}); err != nil {
 		t.Fatal(err)
 	}
 	putBook(t, store, `{"id":"f1","title":"Flow","lineup":[`+
@@ -601,7 +601,7 @@ func TestThePluginsNoticeTellsWhatMovedAndWhatCameBack(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := store.PutSettings(user, json.RawMessage(`{"`+enabledPluginsSetting+`":["ex2"]}`)); err != nil {
+	if err := store.Apply(storage.Batch{Settings: &storage.UserBody{User: user, Body: json.RawMessage(`{"` + enabledPluginsSetting + `":["ex2"]}`)}}); err != nil {
 		t.Fatal(err)
 	}
 	putBook(t, store, `{"id":"f1","title":"Flow","lineup":[`+
