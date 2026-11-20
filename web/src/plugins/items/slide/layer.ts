@@ -6,6 +6,7 @@ import {
   drawnRect,
   rectOf,
   rotationOf,
+  round,
   roundRect,
   scaledFontSize,
   shapeProps,
@@ -62,6 +63,14 @@ export function drawnPlacement(
     ? drawnRect([from, to], minSizeOf(catalog, item)).rect
     : { x: from.x, y: from.y, w: def.size.w, h: def.size.h }
   return { rect: roundRect(rect), props: item === TEXT ? { text: "" } : {} }
+}
+
+// 動かす物 items（動かす前の四角）を、紙の上で by だけ動かした先（位置は丸める）
+export function movesBy(items: readonly { id: string; rect: Rect }[], by: Point): { item: string; at: Point }[] {
+  return items.map(i => ({
+    item: i.id,
+    at: { x: round(i.rect.x + by.x), y: round(i.rect.y + by.y) },
+  }))
 }
 
 // ドラッグ枠 swept で選ぶ物: 前の選び base に、枠にかかったアイテム（回した外枠で見る）を足したもの

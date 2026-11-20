@@ -36,6 +36,7 @@ import {
   groupOf,
   type Live,
   minSizeOf,
+  movesBy,
   selectedItemOf,
   shownShapes,
   sweptSelection,
@@ -48,7 +49,6 @@ import {
   resizedRect,
   rotatedTo,
   rotationOf,
-  round,
   roundRect,
   shapeProps,
   snappedTo45,
@@ -323,12 +323,7 @@ function SlidePageView({
     if (d.kind === "move") {
       if (d.travelled && moved) {
         // 動かす物を全部、1 つの画面の履歴の段で動かす
-        moveTo.run({
-          moves: d.items.map(i => ({
-            item: i.id,
-            at: { x: round(i.rect.x + moved.by.x), y: round(i.rect.y + moved.by.y) },
-          })),
-        })
+        moveTo.run({ moves: movesBy(d.items, moved.by) })
       } else if (d.items.length > 1) select([d.click]) // 複数を選んでいて、動かさずに離したら、押した物だけを選ぶ
     } else if (d.kind === "dragFrame") {
       if (swept && Math.hypot(swept.w, swept.h) >= CLICK / stage.zoom) {
