@@ -1,17 +1,16 @@
-// 開き方の案内（ウィジェット open-guide。UI マッピング UNKNOWN_BROWSER_LAYOUT で根に置く）: 常駐は立っているが、このブラウザを知らない（画面 cookie が無い・合わない）ときに、
+// 開き方の案内（ウィジェット open-guide。カードの上の辺をツナギドリが歩く。UI マッピング UNKNOWN_BROWSER_LAYOUT で根に置く）: 常駐は立っているが、このブラウザを知らない（画面 cookie が無い・合わない）ときに、
 // 画面を組む代わりに出す。AI に頼むか、ターミナルで matomezu open を実行すると、常駐が cookie を渡して新しいタブで開く。この窓はそのまま止まる。
 // コピーを押すと、ボタンの字を COPIED_MS の間だけ、書けたか書けなかったかに替える
 import { useEffect, useState } from "react"
 
 import { useMessages } from "../../../ui/i18n"
 import { defineWidget } from "../../../ui/layout"
+import { BirdWalk, birdClass } from "../birds/BirdWalk"
 import { kit } from "../kit"
-import { BirdFaceView } from "../participant/BirdFaceView"
 import { useCopyText, useWindowTitle } from "../window-io/hooks"
 import styles from "./OpenGuide.module.css"
 
 const COMMAND = "matomezu open"
-const FACE_SIZE = 72
 const COPIED_MS = 1500
 
 type Copied = "none" | "done" | "failed"
@@ -35,7 +34,11 @@ function OpenGuide() {
   return (
     <main className={styles.page}>
       <section className={styles.card}>
-        <BirdFaceView bird="inko" size={FACE_SIZE} />
+        <div className={styles.perch}>
+          <BirdWalk bird="tsunagidori" arrival="fly" awayLabel={title}>
+            {style => <span className={birdClass} style={style} aria-hidden />}
+          </BirdWalk>
+        </div>
         <h1 className={styles.title}>{title}</h1>
         <p className={styles.how}>{t("Ask your AI to “run matomezu open”, or run it in a terminal")}</p>
         <div className={styles.terminal}>
