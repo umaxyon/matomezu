@@ -1,9 +1,11 @@
 // ミニマップ: 紙の範囲の計算（base/minimap/geometry.ts）・
 // ページの絵（base/minimap/marks.ts と、形・線の定義の minimap）
 import { describe, expect, test } from "bun:test"
+import type { PageTypeId } from "../../../web/src/core/catalog"
 import type { ItemPage } from "../../../web/src/core/placed"
 import { fitScale, grabAt, panFor, seenRect } from "../../../web/src/plugins/base/minimap/geometry"
 import { minimapMarks } from "../../../web/src/plugins/base/minimap/marks"
+import { DRAWING, drawingPage, MARKDOWN, TREE, testPage } from "../../lineup"
 import { CORE_CATALOG } from "../../support"
 
 describe("紙の範囲の計算", () => {
@@ -43,21 +45,13 @@ describe("紙の範囲の計算", () => {
 })
 
 describe("ページの絵", () => {
-  const page = (items: ItemPage["items"]): ItemPage => ({
-    kind: "page",
-    type: "@matomezu/drawing:drawing",
-    id: "p1",
-    title: "",
-    paper: "@matomezu/base:a4",
-    orientation: "landscape",
-    items,
-  })
+  const page = (items: ItemPage["items"]): ItemPage => drawingPage("p1", { title: "", items })
   // タイプ type のブックの 1 枚だけのページ page の絵
   const marksOf = (type: string, page: ItemPage) => minimapMarks(CORE_CATALOG, { ...page, type } as ItemPage)
 
   test("線を先に（下に）、形をあとに描く。形は定義の輪郭、定義の無い形は置いた四角", () => {
     const marks = marksOf(
-      "@matomezu/drawing:drawing",
+      DRAWING,
       page([
         { id: "a", item: "@matomezu/shape:shape-diamond", x: 100, y: 100, w: 120, h: 60, props: { caption: "" } },
         { id: "b", item: "@matomezu/box:shape-nest-box", x: 400, y: 100, w: 100, h: 60, props: {} },
@@ -91,7 +85,7 @@ describe("ページの絵", () => {
 
   test("横向きの台形は、回した輪郭で描く", () => {
     const [up, turned] = marksOf(
-      "@matomezu/drawing:drawing",
+      DRAWING,
       page([
         {
           id: "a",
@@ -120,39 +114,26 @@ describe("ページの絵", () => {
 })
 
 test("アイテムを置かないツリーのページは、プレゼンテーションの minimap が節を四角で、線を両端を結ぶ線で描く", () => {
-  const tree = {
-    kind: "page",
-    type: "@matomezu/tree:tree",
-    id: "p1",
+  const tree = testPage(TREE, "p1", {
     title: "",
-    paper: "@matomezu/base:a4",
-    orientation: "landscape",
     items: [],
     root: { id: "r", caption: "根", children: [{ id: "a", caption: "子" }] },
-  } as ItemPage
+  })
   const marks = minimapMarks(CORE_CATALOG, tree)
   expect(marks.map(m => m.kind)).toEqual(["polyline", "rect", "rect"])
 })
 
 // 箱 1 つの、タイプ type のページの絵
-const oneBox = (type: string) => {
+const oneBox = (type: PageTypeId) => {
   const box = { id: "a", item: "@matomezu/box:shape-nest-box", x: 100, y: 100, w: 100, h: 60, props: {} }
-  const page = {
-    kind: "page",
-    type,
-    id: "p1",
-    title: "",
-    paper: "@matomezu/base:a4",
-    orientation: "landscape",
-    items: [box],
-  } as unknown as ItemPage
+  const page = testPage(type, "p1", { title: "", items: [box] })
   return minimapMarks(CORE_CATALOG, page)
 }
 
 test("紙のプレゼンテーションは、置いたアイテムを描く", () => {
-  expect(oneBox("@matomezu/drawing:drawing")).toEqual([{ kind: "rect", x: 100, y: 100, w: 100, h: 60 }])
+  expect(oneBox(DRAWING)).toEqual([{ kind: "rect", x: 100, y: 100, w: 100, h: 60 }])
 })
 
 test("minimap の無いプレゼンテーション（マークダウン）は、何も描かない", () => {
-  expect(oneBox("@matomezu/markdown:markdown")).toEqual([])
+  expect(oneBox(MARKDOWN)).toEqual([])
 })

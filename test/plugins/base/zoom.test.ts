@@ -10,6 +10,7 @@ import { startOf } from "../../../web/src/plugins/base/print-preview/book-sheets
 import { stepZoom, wheelZoom, ZOOM_MAX, ZOOM_MIN } from "../../../web/src/plugins/base/zoom"
 import type { CommandId } from "../../../web/src/store/commands"
 import { isEnabled } from "../../../web/src/store/commands"
+import { drawingPage, TREE, testPage } from "../../lineup"
 import { newStore } from "../../support"
 
 test("倍率は 30～180% の無段階。ボタンは 10% の倍数へ 1 つずつ動き（間なら近い向きの倍数へ）、ホイールは回した量に合わせて滑らかに変える", () => {
@@ -118,26 +119,9 @@ test("左と上へ増やす可変ページは、開くと、空きの印刷区�
 test("ツリーの可変ページも、左へ増やす向きなら左の印刷区画が空きで、初めの位置はその右の印刷区画の左上", () => {
   const { catalog } = newStore()
   const children = Array.from({ length: 3 }, (_, i) => ({ id: `c${i}`, caption: `子 ${i}` }))
-  const page = {
-    kind: "page" as const,
-    type: "@matomezu/tree:tree",
-    id: "p1",
-    title: "1",
-    paper: "@matomezu/base:a4",
-    orientation: "landscape" as const,
-    grows: true as const,
-    root: { id: "r", caption: "根", children },
-  }
-  expect(startOf(catalog.core, page as never)).toEqual({ x: 1123, y: 0 })
+  const page = testPage(TREE, "p1", { title: "1", grows: true, root: { id: "r", caption: "根", children } })
+  expect(startOf(catalog.core, page)).toEqual({ x: 1123, y: 0 })
   // 中身の無いページ・可変ページでないページは紙の左上
-  const plain = {
-    kind: "page" as const,
-    type: "@matomezu/drawing:drawing",
-    id: "p2",
-    title: "2",
-    paper: "@matomezu/base:a4",
-    orientation: "landscape" as const,
-    items: [],
-  }
-  expect(startOf(catalog.core, plain as never)).toEqual({ x: 0, y: 0 })
+  const plain = drawingPage("p2", { title: "2", items: [] })
+  expect(startOf(catalog.core, plain)).toEqual({ x: 0, y: 0 })
 })
