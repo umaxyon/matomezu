@@ -6,15 +6,7 @@ import { warningText } from "../../web/src/core/warnings"
 import { BUILTIN } from "../../web/src/plugins"
 import { defineCommand, defineScreenCommand } from "../../web/src/store/commands/def"
 import { createMatomezu } from "../../web/src/store/create"
-import {
-  BASE_KEY_SCOPES,
-  type DefaultKey,
-  inspectKey,
-  keyScopes,
-  keysOf,
-  keyTable,
-  shadowedKeys,
-} from "../../web/src/store/keys"
+import { BASE_KEY_SCOPES, type DefaultKey, inspectKey, keyScopes, keysOf, keyTable } from "../../web/src/store/keys"
 import { pluginKit } from "../../web/src/store/kit"
 import { definePlugin, warningsOf } from "../../web/src/store/plugin"
 import { newStore } from "../support"
@@ -82,7 +74,7 @@ test("キーを変えるのは、既定の行を外して新しい行を足す�
   expect(table.dropped).toMatchObject([{ reason: "removed", entry: { binding: { key: "Delete" } } }])
 })
 
-test("範囲は狭いものから引き、右クリックのメニュー・道具のアイコン・ダイアログが開いている間はほかを見ない。global の範囲のキーが、ステージの範囲のキーに隠れるかを返す", () => {
+test("範囲は狭いものから引き、右クリックのメニュー・道具のアイコン・ダイアログが開いている間はほかを見ない", () => {
   expect(keyScopes({ menu: false, dialog: false }, ["a:panel"])).toEqual(["a:panel", "stage", "global"])
   expect(keyScopes({ menu: false, dialog: true })).toEqual(["dialog"])
   expect(keyScopes({ menu: true, dialog: true })).toEqual(["menu"])
@@ -101,16 +93,6 @@ test("範囲は狭いものから引き、右クリックのメニュー・道�
   expect(keyScopes({ menu: false, dialog: true, center: true })).toEqual(["dialog"])
   // テキストFormが名乗った範囲だけで引くときは、ほかの範囲を見ない
   expect(keyScopes({ menu: false, dialog: false }, ["a:field"], "b:view", "named")).toEqual(["a:field"])
-  const table = keyTable(
-    [
-      def("D", "app:thing", "@matomezu/base", true, "global"),
-      def("D", "@matomezu/paper:paper-delete", "@matomezu/paper", true),
-    ],
-    NO_KEY_CHANGES,
-  )
-  expect(shadowedKeys(table)).toMatchObject([
-    { entry: { binding: { command: "app:thing" } }, by: { binding: { command: "@matomezu/paper:paper-delete" } } },
-  ])
 })
 
 test("押したキーは、当たった範囲のコマンドを行い、押せないコマンドなら外の範囲へは落とさない", () => {

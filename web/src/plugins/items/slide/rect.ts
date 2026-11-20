@@ -40,10 +40,6 @@ export function cornersOf(f: Rect, rotation: number): readonly Point[] {
   })
 }
 
-// 角か辺か（角は 2 つの辺をつかむ）
-export const isCorner = (g: Grip): boolean =>
-  (g.left === true || g.right === true) && (g.top === true || g.bottom === true)
-
 export interface Resized extends Rect {
   scaled: boolean // 角をつかんだ（文字枠の文字も一緒に拡大する）
 }

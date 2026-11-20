@@ -5,7 +5,6 @@ export const WARNINGS = {
   W001: "pageType {type}: without names {action}, which is not attached to it",
   W002: "pageType {type}: add names {action}, which is already attached to it",
   W003: "command {command}: performs {action}, which is not in the catalog",
-  W004: "book {book} ({title}): it has a page of type {type}, which is not in the catalog",
   W005: "book {book} ({title}): it does not fit the shape of a book",
   W006: "book {book} ({title}): it breaks the rules of its lineup or of a page type",
   W007: "book {book} ({title}): it has {missing}, not in the catalog (kept as they are)",

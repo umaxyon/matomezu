@@ -208,11 +208,6 @@ function slideField(t: PageTypeDef, items: ReadonlyMap<string, ItemDef>): Record
   return { slide: z.array(one ? z.union([z.discriminatedUnion("item", [one, ...more]), unknown]) : unknown).optional() }
 }
 
-// ページのタイプのデータの形（組み立てたもの）
-export function pageSchema(catalog: CoreCatalog, id: string): z.ZodObject {
-  return catalog.pageSchemas.get(id) ?? fail("E101", { id })
-}
-
 // ページのタイプは、データのタイプが表に無ければ error。ほかの定義は catalog.items.get(id) などで引き、知らない id なら undefined
 // （データに残った、外したプラグインのアイテムなど）
 export function pageType(catalog: CoreCatalog, id: string): PageTypeDef {

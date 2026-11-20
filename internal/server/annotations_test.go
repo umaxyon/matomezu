@@ -53,7 +53,7 @@ func TestDroppingAPluginsAnnotations(t *testing.T) {
 	t.Cleanup(func() { store.Close() })
 	list := `[{"id":"c1","annotation":"@ex/notes:sticky","anchors":["a"],"props":{}},{"id":"c2","annotation":"@ex/notesx:sticky","anchors":["a"],"props":{}}]`
 	putBook(t, store, boxed)
-	if err := store.PutAnnotations("p1", json.RawMessage(list)); err != nil {
+	if err := store.Apply(storage.Batch{Annotations: []storage.PageBody{{Page: "p1", Body: json.RawMessage(list)}}}); err != nil {
 		t.Fatal(err)
 	}
 	eng, err := engine.New()
@@ -153,7 +153,7 @@ func TestRemovingABookTakesItsAnnotationWarnings(t *testing.T) {
 	}
 	t.Cleanup(func() { store.Close() })
 	putBook(t, store, boxed)
-	if err := store.PutAnnotations("p1", json.RawMessage(`[{"id":"c1","annotation":"@ex/notes:sticky","anchors":["a"],"props":{}}]`)); err != nil {
+	if err := store.Apply(storage.Batch{Annotations: []storage.PageBody{{Page: "p1", Body: json.RawMessage(`[{"id":"c1","annotation":"@ex/notes:sticky","anchors":["a"],"props":{}}]`)}}}); err != nil {
 		t.Fatal(err)
 	}
 	eng, err := engine.New()
@@ -188,7 +188,7 @@ func TestTalkStartsNoteExpiry(t *testing.T) {
 	putBook(t, store, boxed)
 	const list = `[{"id":"c1","annotation":"@matomezu/base:note","anchors":["a"],"props":{"text":"x","bubble":true,"addedAt":"2026-11-05T00:00:00.000Z","readAt":"2026-11-05T00:01:00.000Z"}},` +
 		`{"id":"c2","annotation":"@matomezu/base:note","anchors":["a"],"props":{"text":"y","bubble":true,"addedAt":"2026-11-05T00:00:00.000Z"}}]`
-	if err := store.PutAnnotations("p1", json.RawMessage(list)); err != nil {
+	if err := store.Apply(storage.Batch{Annotations: []storage.PageBody{{Page: "p1", Body: json.RawMessage(list)}}}); err != nil {
 		t.Fatal(err)
 	}
 	eng, err := engine.New()

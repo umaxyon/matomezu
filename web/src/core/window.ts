@@ -156,12 +156,6 @@ export function makeCurrent(win: WindowState, id: string): WindowState {
   return { ...win, order: [...win.order.filter(x => x !== id), id] }
 }
 
-// カレントスクリーンの種類を替える: いちばん最近カレントにした、その種類のスクリーンをカレントにする（無ければ同じ窓を返す）
-export function makeCurrentKind(win: WindowState, kind: CurrentKind): WindowState {
-  const to = recent(win, kind === "book-screen" ? "stages" : "plain")
-  return to ? makeCurrent(win, to.id) : win
-}
-
 // スクリーン id を閉じる。最初から開いているスクリーン（定義が atStart を名乗る）の最後の 1 枚と、窓の最後の 1 枚は閉じない（同じ窓を返す）。
 // カレントスクリーンを閉じたら、その 1 つ前にカレントだった物がカレントになる
 export function closeScreen(win: WindowState, catalog: CoreCatalog, id: string): WindowState {

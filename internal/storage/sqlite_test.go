@@ -105,7 +105,7 @@ func TestSettingsPerUser(t *testing.T) {
 		t.Fatalf("settings before put = %s, %v", b, err)
 	}
 	for _, body := range []string{`{"lang":"en"}`, `{"lang":"ja"}`} {
-		if err := s.PutSettings("me", json.RawMessage(body)); err != nil {
+		if err := s.Apply(Batch{Settings: &UserBody{User: "me", Body: json.RawMessage(body)}}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -266,14 +266,14 @@ func TestEntriesHoldOneFolderPerEntry(t *testing.T) {
 func TestAnnotationsPerPage(t *testing.T) {
 	s := open(t, filepath.Join(t.TempDir(), "data.db"))
 	for _, page := range []string{"p1", "p2"} {
-		if err := s.PutAnnotations(page, json.RawMessage(`[{"id":"c"}]`)); err != nil {
+		if err := s.Apply(Batch{Annotations: []PageBody{{Page: page, Body: json.RawMessage(`[{"id":"c"}]`)}}}); err != nil {
 			t.Fatal(err)
 		}
 	}
 	if all, _ := s.Annotations(); len(all) != 2 || string(all["p1"]) != `[{"id":"c"}]` {
 		t.Fatalf("annotations = %v", all)
 	}
-	if err := s.PutAnnotations("p1", json.RawMessage(`[]`)); err != nil {
+	if err := s.Apply(Batch{Annotations: []PageBody{{Page: "p1", Body: json.RawMessage(`[]`)}}}); err != nil {
 		t.Fatal(err)
 	}
 	if all, _ := s.Annotations(); len(all) != 1 || string(all["p2"]) != `[{"id":"c"}]` {

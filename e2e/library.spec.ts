@@ -646,7 +646,7 @@ test("書庫のツリーで、ブックの中のページの名前を F2 で変�
   await expect.poll(() => titlesIn(b)).toEqual(["丙", "乙"])
 })
 
-test("書庫の検索は、名前に言葉を含む物を右の枠に並べる。行を押すとツリーのその行へ移り、Enter で開く。入力Formを空にすると元の表示に戻る", async ({
+test("書庫の検索は、名前に言葉を含む物を右の枠に並べる。行を押すとツリーのその行へ移り、Enter で開く。結果の枠の何も無い所を押すと結果の選んだ行が外れる。入力Formを空にすると元の表示に戻る", async ({
   page,
 }) => {
   await page.goto("/")
@@ -671,6 +671,13 @@ test("書庫の検索は、名前に言葉を含む物を右の枠に並べる�
     "true",
   )
   await expect(found.getByRole("button", { name: /検索の試しの帳面/ })).toHaveAttribute("aria-pressed", "true")
+  // 結果の枠の何も無い所を押すと、結果の選んだ行だけが外れる（ツリーの今いる行はそのまま）
+  await page.getByRole("status").click()
+  await expect(found.locator('[aria-pressed="true"]')).toHaveCount(0)
+  await expect(tree.getByRole("button", { name: "検索の試しの帳面", exact: true })).toHaveAttribute(
+    "aria-current",
+    "true",
+  )
   // 見つからない言葉
   await field.fill("どこにも無い名前")
   await page.getByRole("button", { name: "検索", exact: true }).click()
@@ -691,7 +698,7 @@ test("書庫の検索は、名前に言葉を含む物を右の枠に並べる�
   await expect.poll(() => urlCurrentScreen(page)).toBe(BOOK_SCREEN_DEF)
 })
 
-test("書庫の検索の結果を押すと、ツリーがはみ出していても、その行が見える所までツリーを送る", async ({ page }) => {
+test("書庫の検索の結果を押すと、ツリーがはみ出していても、その行が見える所までツリーを送る。同じ行を押し直しても送り直す", async ({ page }) => {
   await page.goto("/")
   await page.bringToFront()
   // ツリーの高さを超える数のフォルダを作り、最後のフォルダの中にブックを置く
@@ -706,11 +713,16 @@ test("書庫の検索の結果を押すと、ツリーがはみ出していて�
   const row = tree.getByRole("button", { name: "一番下の帳面", exact: true })
   await page.getByRole("textbox", { name: "名前で検索" }).fill("一番下の帳面")
   await page.keyboard.press("Enter")
-  await page
-    .getByRole("list", { name: "見つかった物" })
-    .getByRole("button", { name: /一番下の帳面/ })
-    .click()
+  const result = page.getByRole("list", { name: "見つかった物" }).getByRole("button", { name: /一番下の帳面/ })
+  await result.click()
   await expect(row).toHaveAttribute("aria-current", "true")
+  await expect(row).toBeInViewport()
+  // ツリーを上の端まで動かしてから同じ行をもう一度押しても、その行まで送り直す
+  await tree.evaluate(e => {
+    e.scrollTop = 0
+  })
+  await expect(row).not.toBeInViewport()
+  await result.click()
   await expect(row).toBeInViewport()
 })
 

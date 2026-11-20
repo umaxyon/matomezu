@@ -117,7 +117,7 @@ func (h *Hub) resetForTest(books []json.RawMessage, enabledPlugins []string) err
 		list, _ := json.Marshal(enabledPlugins)
 		settings = json.RawMessage(`{"` + enabledPluginsSetting + `":` + string(list) + `}`)
 	}
-	if err := h.store.PutSettings(user, settings); err != nil {
+	if err := h.store.Apply(storage.Batch{Settings: &storage.UserBody{User: user, Body: settings}}); err != nil {
 		return err
 	}
 	if err := h.resetRecordsForTest(); err != nil {
@@ -188,7 +188,7 @@ func (h *Hub) enablePluginsForTest(ids []string) error {
 	settings := json.RawMessage(`{"` + enabledPluginsSetting + `":` + string(list) + `}`)
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if err := h.store.PutSettings(user, settings); err != nil {
+	if err := h.store.Apply(storage.Batch{Settings: &storage.UserBody{User: user, Body: settings}}); err != nil {
 		return err
 	}
 	h.settings = settings

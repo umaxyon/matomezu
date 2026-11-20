@@ -74,7 +74,7 @@ func (h *Hub) dropAnnotationsOf(id string) error {
 			kept[page] = without
 		}
 	}
-	if err := h.putAnnotationLists(kept, "", 0); err != nil {
+	if err := h.putAnnotationLists(kept); err != nil {
 		return err
 	}
 	return h.checkAnnotations()
