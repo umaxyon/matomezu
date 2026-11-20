@@ -24,7 +24,7 @@ import {
   useRef,
   useState,
 } from "react"
-import { openedPage, paperOf, type StageView } from "../../../../plugin-api"
+import { paperOf, type StageView } from "../../../../plugin-api"
 import {
   useActions,
   useAllowed,
@@ -89,12 +89,9 @@ function Content({ stage, area }: { stage: StageView; area: RefObject<HTMLDivEle
   const w = size?.w
   const h = size?.h
   const paperSize = useMemo(() => (w !== undefined && h !== undefined ? { w, h } : null), [w, h])
-  const paper = openedPage(stage.opened ?? null)?.paper
-  if (paper?.status === "unshowable") return <p className={styles.error}>{t("This paper cannot be shown")}</p>
   if (!paperSize) return null
   return (
     <PaperFrame stage={stage} role="img" aria-label={t("Paper")}>
-      {paper?.status === "unknown" && <span className={styles.unknown}>{t("Unknown paper")}</span>}
       <Rows stage={stage} paper={paperSize} area={area} />
     </PaperFrame>
   )

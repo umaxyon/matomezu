@@ -1,12 +1,16 @@
 // ステージのレイヤー（スロット book-layers に置くウィジェット）: 紙の白い面を描くレイヤーと、印刷区画の区切りの線を描くレイヤーと、開いたページをそのタイプが選んだプレゼンテーションのビューで描くレイヤー。
-// 紙の面と区切りの線は紙の座標の枠（PaperFrame）に描き、ポインタは受けない（上のレイヤーとステージが受ける）。ページが無い・紙を出せないときは描かない（知らせはウィジェット book-view が出す）
+// 紙の面と区切りの線は紙の座標の枠（PaperFrame）に描き、ポインタは受けない（上のレイヤーとステージが受ける）。ページが無い・紙を出せないときは描かない（紙の知らせは BookContentLayer が出す）
 
-import { useLayoutEffect, useMemo } from "react"
+import { type ReactNode, useLayoutEffect, useMemo } from "react"
 import { pageType } from "../../../core/core-catalog"
 import { fail } from "../../../core/errors"
+import type { ResolvedPaper } from "../../../core/paper"
 import { areaOf, openedPage, paperOf } from "../../../core/stage"
+import type { StageView } from "../../../core/workspace"
+import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useUiCatalog } from "../../../ui/store-context"
 import { useActions, usePage, useStage } from "../../../ui/view-hooks"
+import { kit } from "../kit"
 import { printAreaLines } from "../place/grow"
 import { startOf, unprintedSheets } from "../print-preview/book-sheets"
 import { sheetKey } from "../print-preview/filled"
@@ -81,20 +85,44 @@ function useStartReport() {
   }, [setStageStart, x, y, opened])
 }
 
-// ブックの中身のレイヤー。背景編集モードの間は、中身を薄くして触れなくする（中身を隠していれば描かない）。背景は、この下のレイヤー（slide-layer）が描いて操作を受ける
+// ブックの中身のレイヤー。開いたページのプレゼンテーションのビューと、紙の知らせ（PaperNotice）を描く。
+// 背景編集モードの間は、中身を薄くして触れなくする（中身を隠していれば描かない）。背景は、この下のレイヤー（slide-layer）が描いて操作を受ける
 export function BookContentLayer() {
   const stage = useStage()
   const catalog = useCatalog().core
   const views = useUiCatalog().presentationViews
   const hidden = useContentHidden()
-  const type = openedPage(stage?.opened ?? null)?.type
-  if (!type || !stage) return null
-  const presentation = pageType(catalog, type).presentation
+  const opened = openedPage(stage?.opened ?? null)
+  if (!opened || !stage) return null
+  const presentation = pageType(catalog, opened.type).presentation
   const View = (views.get(presentation) ?? fail("E109", { kind: "presentation", id: presentation })).view
-  if (stage.edits !== "slide") return <View />
+  const content = <PaperNotice stage={stage} paper={opened.paper} view={<View />} />
+  if (stage.edits !== "slide") return content
   return (
     <div className={styles.dimmed} data-content-dimmed data-content-hidden={hidden}>
-      <View />
+      {content}
     </div>
+  )
+}
+
+// 紙の知らせとビュー view: 表に無い紙なら紙の左上に印（ビューの下に重ねる）、描けない紙なら真ん中に文（ビューの上に重ねる）。
+// どちらもポインタは受けない（右クリックなどはビューが受ける）。紙を置かないプレゼンテーション（paper が null）には出さない
+function PaperNotice({ stage, paper, view }: { stage: StageView; paper: ResolvedPaper | null; view: ReactNode }) {
+  const t = useMessages(kit)
+  if (paper?.status === "unshowable")
+    return (
+      <>
+        {view}
+        <p className={styles.unshowable}>{t("This paper cannot be shown")}</p>
+      </>
+    )
+  if (paper?.status !== "unknown") return view
+  return (
+    <>
+      <PaperFrame stage={stage} className={styles.notice}>
+        <span className={styles.unknown}>{t("Unknown paper")}</span>
+      </PaperFrame>
+      {view}
+    </>
   )
 }
