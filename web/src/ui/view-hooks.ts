@@ -31,7 +31,7 @@ import { type Settings, userSetting } from "../core/settings"
 import { shownPageId, stageBlocks, toPaper } from "../core/stage"
 import { currentScreen, shownScreens, stageIn } from "../core/window"
 import type { StageView } from "../core/workspace"
-import { ownedPluginState } from "../store/plugin-state"
+import { ownedPluginState, type PluginPlace, placeOf } from "../store/plugin-state"
 import {
   type BoundPlaceActions,
   boundActions,
@@ -180,17 +180,17 @@ export function useStage(): StageView | null {
 // スクリーンごとの宣言は、スクリーンの id を渡して名指せる（スクリーンを並べるスクリーンアレンジメントのウィジェットが、並べる 1 枚ごとの値を読み書きするとき）
 type At<Sc extends PluginStateScope> = Sc extends "screen" ? [screen?: string] : []
 
-// 宣言の範囲 scope の値がある場所の id（窓の範囲は ""。場所が無ければ null）。given は、呼び出しに渡されたスクリーンの id
+// 宣言の範囲 scope の値の場所（場所が無ければ null）。given は、呼び出しに渡されたスクリーンの id
 function usePluginPlace(
   scope: PluginStateScope,
   use: "read" | "write" = "read",
-): (given: string | undefined) => string | null {
+): (given: string | undefined) => PluginPlace | null {
   const here = useScope()
   const closed = use === "write" && here.actsOn.kind === "none" // 向け先が無い所からは、どの範囲の値も書かない
   const stage = useStageId()
   const screen = useScreenContext()?.id ?? (here.actsOn.kind === "screen" ? here.actsOn.screen : null)
   return useCallback(
-    given => (closed ? null : scope === "window" ? "" : scope === "screen" ? (given ?? screen) : stage),
+    given => (closed ? null : placeOf(scope, { stage, screen: given ?? screen })),
     [scope, stage, screen, closed],
   )
 }
@@ -210,13 +210,13 @@ export function useReadPluginState<S, Sc extends PluginStateScope>(
   def: PluginStateDef<S> & { scope: Sc },
 ): (...at: At<Sc>) => S | undefined {
   const read = useReadPluginStateAt(kit, def)
-  const placeOf = usePluginPlace(def.scope)
+  const placeFor = usePluginPlace(def.scope)
   return useCallback(
     (...given: readonly (string | undefined)[]) => {
-      const at = placeOf(given[0])
+      const at = placeFor(given[0])
       return at === null ? undefined : read(at)
     },
-    [read, placeOf],
+    [read, placeFor],
   )
 }
 
@@ -226,14 +226,14 @@ export function useSetPluginState<S, Sc extends PluginStateScope>(
   def: PluginStateDef<S> & { scope: Sc },
 ): (...args: [...At<Sc>, S | undefined] | [S | undefined]) => void {
   const set = useSetPluginStateAt(kit, def)
-  const placeOf = usePluginPlace(def.scope, "write")
+  const placeFor = usePluginPlace(def.scope, "write")
   const named = def.scope === "screen"
   return useCallback(
     (...args: unknown[]) => {
-      const at = placeOf(named && args.length === 2 ? (args[0] as string) : undefined)
+      const at = placeFor(named && args.length === 2 ? (args[0] as string) : undefined)
       if (at !== null) set(at, args[args.length - 1] as S | undefined)
     },
-    [set, placeOf, named],
+    [set, placeFor, named],
   )
 }
 
@@ -276,9 +276,8 @@ export function useSetPluginStates(
       !nowhere &&
       setPluginStates(
         changes.flatMap(([def, value]) => {
-          const at = def.scope === "window" ? null : def.scope === "screen" ? screen : stage
-          if (def.scope !== "window" && at === null) return []
-          return [[ownedPluginState(id, def).id, at, value] as const]
+          const at = placeOf(def.scope, { stage, screen })
+          return at === null ? [] : [[ownedPluginState(id, def).id, at, value] as const]
         }),
       ),
     [setPluginStates, id, stage, screen, nowhere],
@@ -291,14 +290,14 @@ export function useUpdatePluginState<S, Sc extends PluginStateScope>(
   def: PluginStateDef<S> & { scope: Sc },
 ): (...args: [...At<Sc>, (now: S | undefined) => S | undefined] | [(now: S | undefined) => S | undefined]) => void {
   const update = useUpdatePluginStateAt(kit, def)
-  const placeOf = usePluginPlace(def.scope, "write")
+  const placeFor = usePluginPlace(def.scope, "write")
   const named = def.scope === "screen"
   return useCallback(
     (...args: unknown[]) => {
-      const at = placeOf(named && args.length === 2 ? (args[0] as string) : undefined)
+      const at = placeFor(named && args.length === 2 ? (args[0] as string) : undefined)
       if (at !== null) update(at, args[args.length - 1] as (now: S | undefined) => S | undefined)
     },
-    [update, placeOf, named],
+    [update, placeFor, named],
   )
 }
 

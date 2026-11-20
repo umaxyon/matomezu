@@ -17,6 +17,7 @@ import {
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
+import { WINDOW_PLACE } from "../../web/src/store/plugin-state"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { newStore, showBooks, showCenter, showFirstBook } from "../support"
 
@@ -308,7 +309,7 @@ test("積むと宣言したステージに結ばない値は変わるたびに�
   followLocation(store, f.place)
   expect(store.pushing().has("k:tab")).toBe(true)
   expect(store.pushing().has("k:mode")).toBe(false)
-  store.setPluginState("k:tab", null, "two")
+  store.setPluginState("k:tab", WINDOW_PLACE, "two")
   await settled()
   expect(f.pushed.map(s => written(s).window)).toEqual([{ "k:tab": "two" }])
   store.setPluginState("k:mode", "s1", "wide")
@@ -317,7 +318,7 @@ test("積むと宣言したステージに結ばない値は変わるたびに�
   f.flush()
   expect(stagesIn(f.replaced.at(-1)!)?.places[0]?.states).toEqual({ "k:mode": "wide" })
   // 積む値と書き換える値が同じ処理で変われば、積むのは 1 つで、URL には今の値が全部入る
-  store.setPluginState("k:tab", null, "one")
+  store.setPluginState("k:tab", WINDOW_PLACE, "one")
   store.setPluginState("k:mode", "s1", "narrow")
   await settled()
   expect(f.pushed).toHaveLength(2)

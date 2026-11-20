@@ -270,11 +270,7 @@ const ParticipantLiveSchema = z.object({
 const TouchedSchema = z.object({ book: z.string(), at: z.string() })
 const AnnotationsSchema = z.object({ page: z.string(), annotations: z.unknown(), ...Mark })
 
-export interface ServerClient extends HostClient {
-  pending(): readonly DoneBulk[] // まだ確かめられていない自分のアクションバルク
-}
-
-export function serverClient(net: Net = browserNet): ServerClient {
+export function serverClient(net: Net = browserNet): HostClient {
   // 確かめた世界のページとフォルダ（id → 置き場所から読んだままの中身と版）
   type Rows = Map<string, { row: unknown; version: number }>
   const confirmed: { pages: Rows; folders: Rows } = { pages: new Map(), folders: new Map() }
@@ -713,7 +709,6 @@ export function serverClient(net: Net = browserNet): ServerClient {
   const listen = () => new Promise<void>((resolve, reject) => attach(net.events("api/events"), { resolve, reject }))
 
   return {
-    pending: () => pending.map(p => p.done),
     load: async (): Promise<Loaded> => {
       await listen()
       // 知らせにはつながったが読めなかったら、つながりを閉じる（読み直すときは新しく作る）
