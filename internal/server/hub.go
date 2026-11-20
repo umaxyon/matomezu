@@ -15,7 +15,7 @@ package server
 //	          client と seq は頼んだ窓とその番号（窓の外からなら空）。by は頼んだ物（"ai"・"window"・常駐が自分で行ったなら "host"）、act は 1 回の Perform の印、actions は行ったアクションの id の並び。
 //	          settings は変わったときだけ、新しい設定。annotations はアノテーションが変わったページの id → 新しい並び（空の並びなら全部無くなった）。
 //	          records は変えたレコード（郵便も。records.go）、counters は進めた番号の区切り（種類 → 区切り → 次の番号。進めたときだけ）。window は最後にフォーカスされた窓（無ければ空）
-//	annotations {"page", "annotations", "client", "seq"} Perform の外でページのアノテーションが変わった（並びが空なら全部無くなった）
+//	annotations {"page", "annotations"} Perform の外でページのアノテーションが変わった（並びが空なら全部無くなった）
 //	ack       {"seq", "ok", "reason"} 送った窓にだけ。そのアクションバルクを行い終えた（断ったなら ok が false）。そのバルクの changed のあとに届く
 //	show      {"book", "page", "stage", "split"} 最後にフォーカスされた窓にだけ。そのブックを出す（Show）
 //	plugins   {"version"} 追加プラグインが変わった（plugins.go）。窓は読み直す
@@ -270,13 +270,8 @@ func (h *Hub) annotationsIn(book string) map[string]json.RawMessage {
 	return out
 }
 
-// putAnnotations は、ページ page のアノテーションの並びを書いて知らせる（空の並びなら消す。h.mu を持って呼ぶ）
-func (h *Hub) putAnnotations(page string, body json.RawMessage, client string, seq int64) error {
-	return h.putAnnotationLists(map[string]json.RawMessage{page: body}, client, seq)
-}
-
 // putAnnotationLists は、ページごとのアノテーションの並び lists を 1 つのまとまりで書いて持ち、窓に知らせる（h.mu を持って呼ぶ）
-func (h *Hub) putAnnotationLists(lists map[string]json.RawMessage, client string, seq int64) error {
+func (h *Hub) putAnnotationLists(lists map[string]json.RawMessage) error {
 	if len(lists) == 0 {
 		return nil
 	}
@@ -289,15 +284,15 @@ func (h *Hub) putAnnotationLists(lists map[string]json.RawMessage, client string
 		return err
 	}
 	for _, page := range pages {
-		h.applyAnnotations(page, lists[page], client, seq)
+		h.applyAnnotations(page, lists[page])
 	}
 	return nil
 }
 
 // applyAnnotations は、書き終えたページ page のアノテーションの並びを持ち、窓に知らせる（h.mu を持って呼ぶ）
-func (h *Hub) applyAnnotations(page string, body json.RawMessage, client string, seq int64) {
+func (h *Hub) applyAnnotations(page string, body json.RawMessage) {
 	body = h.holdAnnotations(page, body)
-	h.broadcast("annotations", map[string]any{"page": page, "annotations": body, "client": client, "seq": seq})
+	h.broadcast("annotations", map[string]any{"page": page, "annotations": body})
 }
 
 // holdAnnotations は、書き終えたページ page のアノテーションの並びを持ち、窓に知らせる並びを返す（空の並びなら消して "[]"。h.mu を持って呼ぶ）

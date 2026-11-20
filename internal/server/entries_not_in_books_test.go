@@ -69,7 +69,7 @@ func entriesStore(t *testing.T) storage.Storage {
 		t.Fatal(err)
 	}
 	for _, page := range []string{"h1", "n1b", "g1", "t1"} {
-		if err := store.PutAnnotations(page, json.RawMessage(`[{"id":"c-`+page+`","annotation":"@matomezu/note:note","anchors":[],"props":{}}]`)); err != nil {
+		if err := store.Apply(storage.Batch{Annotations: []storage.PageBody{{Page: page, Body: json.RawMessage(`[{"id":"c-` + page + `","annotation":"@matomezu/note:note","anchors":[],"props":{}}]`)}}}); err != nil {
 			t.Fatal(err)
 		}
 	}

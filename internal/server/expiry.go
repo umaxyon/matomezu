@@ -47,7 +47,7 @@ func (h *Hub) Expire(now time.Time) error {
 			live[page] = kept
 		}
 	}
-	return h.putAnnotationLists(live, "", 0)
+	return h.putAnnotationLists(live)
 }
 
 // Talked は、利用者トリガートークのときに行うアクションを、アノテーションのある読めるページごとに行う（変える物の無いページは、断られるだけで何もしない）

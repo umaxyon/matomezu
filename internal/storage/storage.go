@@ -175,14 +175,11 @@ type Storage interface {
 	Search(q SearchQuery) (SearchResult, error)
 	// Settings は利用者の設定（無ければ nil）
 	Settings(user string) (json.RawMessage, error)
-	PutSettings(user string, body json.RawMessage) error
 	// ParticipantNotes は利用者の常駐だけが持つ参加者の記録（参加者の id → セッション id と、参加を伝えたかの印。JSON のまま。無ければ nil）。アクションを通さない記録
 	ParticipantNotes(user string) (json.RawMessage, error)
 	PutParticipantNotes(user string, body json.RawMessage) error
 	// Annotations はページの id ごとのアノテーションの並び（JSON のまま。1 つも無いページは無い）
 	Annotations() (map[string]json.RawMessage, error)
-	// PutAnnotations はページ page のアノテーションの並びを body にする（空の並びなら消す）
-	PutAnnotations(page string, body json.RawMessage) error
 	// AIEditTickets は、AI 編集チケットの並びの全部（JSON のまま。1 つも無ければ nil）
 	AIEditTickets() (json.RawMessage, error)
 	// PutAIEditTickets は、AI 編集チケットの並びの全部を body にする（空の並びなら消す）
