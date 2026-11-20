@@ -9,28 +9,21 @@ import { useId, useState } from "react"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
 import { useActions, useAllowedOn, useCoreCatalog } from "../../../ui/view-hooks"
-import { BIRD_IDS, type Bird } from "../birds"
-import { BIRD_PALETTES } from "../birds/colors"
+import { BIRD_IDS, BIRD_TITLES, type Bird } from "../birds"
+import { BIRD_PALETTES, PALETTE_TITLES } from "../birds/colors"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton, controlClass, Field, Form, Problem } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { refusalMessage } from "../utils/refusal"
+import { useNow } from "../utils/useNow"
 import { PARTICIPANT_ACCEPT, WORKROOM_NAME_MAX, type Workroom } from "."
 import { BirdFaceView } from "./BirdFaceView"
-import { asBird, originalPalette, PALETTE_TITLES } from "./birds"
+import { asBird, originalPalette } from "./birds"
 import { PARTICIPANT_WELCOME_DIALOG } from "./dialogs"
-import { useIsAlive, useNowMs, useParticipantCalls, useParticipantLive, useParticipants, useWorkrooms } from "./hooks"
+import { useIsAlive, useParticipantCalls, useParticipantLive, useParticipants, useWorkrooms } from "./hooks"
 import { shownModel } from "./live"
 import styles from "./Participant.module.css"
 import { nameInUse, occupantOf, takeable } from "./workroom"
-
-const BIRD_TITLES = {
-  inko: "Parakeet",
-  buncho: "Java sparrow",
-  suzume: "Sparrow",
-  tsunagidori: "Tsunagidori",
-  fukurou: "Barn owl",
-} as const satisfies Record<Bird, string>
 
 export function ParticipantJoinDialog({ args, onClose }: DialogProps<{ participant: string }>) {
   const t = useMessages(kit)
@@ -74,7 +67,7 @@ function JoinForm({
   const calls = useParticipantCalls()
   const live = useParticipantLive()
   const isAlive = useIsAlive()
-  const nowMs = useNowMs()
+  const nowMs = useNow(30_000) // 生きているかは時が経つと変わる
   const first = participants.find(p => p.id === participant)
   const askedVisitor = first?.as === "visitor"
   const form = useId()

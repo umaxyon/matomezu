@@ -16,6 +16,7 @@ import type { RightSidePanelOpen } from "../right-side-panel/state"
 import { clampChars } from "../text/text"
 import { useAnnotationsOf, usePerformOrToast } from "../utils/annotation-hooks"
 import { useEditLock } from "../utils/useEditLock"
+import { useNow } from "../utils/useNow"
 import { NOTE, NOTE_ADD, NOTE_REMOVE, NOTE_UPDATE, type NoteProps, NoteTextSchema } from "."
 import { expiryOutlook, hoursAndMinutes, NOTE_EXPIRY } from "./expiry"
 import { GrowingText } from "./NoteForm"
@@ -212,11 +213,7 @@ function NoteEditor({
 function ExpiryNote({ props }: { props: NoteProps }) {
   const t = useMessages(kit)
   const choice = useUserSetting(NOTE_EXPIRY.id)
-  const [now, setNow] = useState(() => new Date())
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 30_000)
-    return () => clearInterval(timer)
-  }, [])
+  const now = new Date(useNow(30_000))
   const outlook = expiryOutlook(props, choice, now)
   if (!outlook) return null
   const time = (minutes: number) => {

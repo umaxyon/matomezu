@@ -3,18 +3,17 @@
 // テキストFormの中と、ステージの外では開かず、ブラウザのメニューのままにする
 import { useEffect } from "react"
 import { useOpenContextMenu } from "../../../ui/context-menu"
+import { editableOf } from "../../../ui/editable"
 import { kit } from "../kit"
 import { anchorOf } from "../stand/anchors"
 
 export const ANCHOR_CONTEXT = kit.name("anchor-context")
 
-const EDITABLE = "input, textarea, [contenteditable]:not([contenteditable='false'])"
-
 // 窓まで届いた右クリック e で、アンカーだけのメニューを開くステージ（開かないなら null）: ほかのメニューが開いておらず、
-// テキストFormの外で、ステージの中のアンカーの付いた物を押したとき
+// 入力Formの外で、ステージの中のアンカーの付いた物を押したとき
 export function anchorContextStage(e: Pick<MouseEvent, "defaultPrevented" | "target">): string | null {
   const target = e.target
-  if (e.defaultPrevented || !(target instanceof Element) || target.closest(EDITABLE)) return null
+  if (e.defaultPrevented || !(target instanceof Element) || editableOf(target)) return null
   const stage = target.closest("[data-stage]")?.getAttribute("data-stage")
   return stage && anchorOf(target) !== undefined ? stage : null
 }

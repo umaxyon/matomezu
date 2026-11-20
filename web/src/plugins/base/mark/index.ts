@@ -5,7 +5,7 @@
 import { z } from "zod"
 import type { Annotation } from "../../../core/annotation"
 import { NO_BOOK } from "../../../store/commands/def"
-import type { Bird } from "../birds"
+import { BIRD_TITLES, type Bird } from "../birds"
 import { startAnchorTarget } from "../context-menu/anchor-targets"
 import { kit } from "../kit"
 import { freshId } from "../utils/ids"
@@ -13,11 +13,11 @@ import { MARK_PICKER } from "./states"
 
 // マークの種類。title は画面で見せる名前（文言の鍵）、ai は AI に伝える呼び方（利用者が旗の色や鳥の色・名前で呼ぶので、どれも書く）
 export const MARK_KINDS = [
-  { id: "tsunagidori", title: "Tsunagidori", ai: "tsunagidori: a green bird (petrel) with a green flag" },
-  { id: "inko", title: "Parakeet", ai: "inko: a plum purple bird (parakeet) with a red flag" },
-  { id: "buncho", title: "Java sparrow", ai: "buncho: a charcoal gray bird (Java sparrow) with a white flag" },
-  { id: "suzume", title: "Sparrow", ai: "suzume: a brown bird (sparrow) with a yellow flag" },
-  { id: "fukurou", title: "Owl", ai: "fukurou: an indigo blue bird (owl) with a blue flag" },
+  { id: "tsunagidori", title: BIRD_TITLES.tsunagidori, ai: "tsunagidori: a green bird (petrel) with a green flag" },
+  { id: "inko", title: BIRD_TITLES.inko, ai: "inko: a plum purple bird (parakeet) with a red flag" },
+  { id: "buncho", title: BIRD_TITLES.buncho, ai: "buncho: a charcoal gray bird (Java sparrow) with a white flag" },
+  { id: "suzume", title: BIRD_TITLES.suzume, ai: "suzume: a brown bird (sparrow) with a yellow flag" },
+  { id: "fukurou", title: BIRD_TITLES.fukurou, ai: "fukurou: an indigo blue bird (barn owl) with a blue flag" },
   { id: "alert", title: "Alert", ai: "alert: a red dot with an exclamation mark" },
 ] as const satisfies readonly { id: Bird | "alert"; title: string; ai: string }[] // 鳥の種類は、マスコットの鳥（birds/）の id
 export type MarkKind = (typeof MARK_KINDS)[number]["id"]

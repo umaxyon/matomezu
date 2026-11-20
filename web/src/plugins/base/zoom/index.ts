@@ -82,9 +82,6 @@ export function moveView(a: Pick<Actions, "zoomStage" | "panStageBy">, stage: St
   a.panStageBy(stage.id, target.pan.x - zoomed.pan.x, target.pan.y - zoomed.pan.y)
 }
 
-// 呼ばれたステージの中の状態（表示領域の大きさとずらす量）
-export const stageOf = (ctx: CommandContext) => calledStageOf(ctx)
-
 export const ZOOM_IN = kit.defineCommand({
   id: "zoom-in",
   title: "Zoom in",
@@ -116,7 +113,7 @@ export const ZOOM_RESET = kit.defineCommand({
   run: (_ctx, a) => a.resetStageView(),
   when: zoomable,
   enabled: ctx => {
-    const stage = stageOf(ctx)
+    const stage = calledStageOf(ctx)
     return stage !== undefined && resetView(stage) !== stage
   },
 })
@@ -126,12 +123,12 @@ export const ZOOM_FIT = kit.defineCommand({
   id: "zoom-fit",
   title: "Fit the page",
   run: (ctx, a) => {
-    const stage = stageOf(ctx)
+    const stage = calledStageOf(ctx)
     if (stage) moveHere(a, stage, fitView(stage))
   },
   when: zoomable,
   enabled: ctx => {
-    const stage = stageOf(ctx)
+    const stage = calledStageOf(ctx)
     return stage !== undefined && fitView(stage) !== stage
   },
 })
