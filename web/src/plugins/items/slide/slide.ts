@@ -1,4 +1,4 @@
-// スライドのアイテム: 文字枠・自由な線・直線・楕円。ブックのアイテム（箱や線）とは別の、描画シェイプの仲間。
+// スライドのアイテム（SLIDE_ITEMS）。ブックのアイテム（箱や線）とは別の、描画シェイプの仲間。
 // 置き場はページの slide（ページのタイプが選ぶ）で、押し合わず、線もつながず、紙をはみ出てもよい（紙は表示の範囲）。ケイパビリティ（capabilities）は持たない。
 // 線の点は、枠（幅と高さ）の中の割合（0 から 1）で持つ。枠を拡大すれば線も一緒に拡大する。
 // 角度（rotation）は、どのアイテムも持つ
@@ -19,7 +19,7 @@ const FRAME = {
 // 枠の中の点（枠の左上が 0, 0、右下が 1, 1）
 export const PointSchema = z.strictObject({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) })
 
-// 線・楕円の枠の太さ（px）の既定と上限
+// 線・楕円・長方形の枠の太さ（px）の既定と上限
 export const DEFAULT_STROKE_WIDTH = 2
 export const MAX_STROKE_WIDTH = 200
 

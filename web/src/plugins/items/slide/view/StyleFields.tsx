@@ -1,4 +1,4 @@
-// バーに並ぶ、選んだアイテムの見た目の入力Form: 文字枠=文字色、線=色・太さ・点線（直線だけ矢印）、楕円=塗り・枠の色・枠の太さ。
+// バーに並ぶ、選んだアイテムの見た目の入力Form: 文字枠=文字色、線=色・太さ・点線（直線だけ矢印）、楕円・長方形=塗り・枠の色・枠の太さ。
 // アイテムの種類に合う物だけを出し、変えるのはコマンド slide-set（行えなければ押せない）。色は「なし」（塗りは塗らない。枠の色は枠なし）か、テーマの代表色か、好きな色
 import { useRef, useState } from "react"
 import { useActions, useCommand, useMessages } from "../../../../plugin-api/ui"
@@ -160,7 +160,7 @@ function WidthField({
 }: {
   label: string
   value: number
-  zero: boolean // 0 を入れてよい（楕円の枠なし）。線は 0 より大きい数だけ（項目の決まり）
+  zero: boolean // 0 を入れてよい（楕円・長方形の枠なし）。線は 0 より大きい数だけ（項目の決まり）
   disabled: boolean
   onCommit: (n: number, continues: boolean) => void // continues: 同じ入力の中の 2 回目以降（元に戻す 1 段に続ける）
 }) {

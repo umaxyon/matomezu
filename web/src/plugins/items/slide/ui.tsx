@@ -1,4 +1,4 @@
-// スライドのアイテムの見た目: 4 つのアイテムのビューとアイコン
+// スライドのアイテムの見た目: アイテムごとのビューとアイコン
 import { definePluginUi, defineWidget } from "../../../plugin-api/ui"
 import { SLIDE_PLUGIN } from "."
 import { ELLIPSE_ICON, FREE_LINE_ICON, RECTANGLE_ICON, STRAIGHT_LINE_ICON, TEXT_FRAME_ICON } from "./icons"
