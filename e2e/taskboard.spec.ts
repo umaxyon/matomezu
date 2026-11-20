@@ -84,7 +84,7 @@ test("一覧でタスクボードを出し入れし、レーンにチケット�
   await expect(target.getByRole("button", { name: "並べ方" })).toHaveAttribute("aria-expanded", "false")
 })
 
-test("主担当のチケットを作業中のレーンへ入れると参加者の行に出て、ボードで見るを押すと、出ていないタスクボードが出て、鳥がチケットカードに立ち寄り、色が付いて、飛び去ると消える", async ({
+test("主担当のチケットを作業中のレーンへ入れると現在のタスクに出て、ボードで見るを押すと、出ていないタスクボードが出て、鳥がチケットカードに立ち寄り、色が付いて、飛び去ると消える", async ({
   page,
 }) => {
   await page.goto(CONTROL_CENTER_URL)
@@ -105,10 +105,15 @@ test("主担当のチケットを作業中のレーンへ入れると参加者�
     args: { project: first.id, name: "立ち寄り先" },
   })
   const ticket = added.result!.ticket!
-  // AI が自分のワークルームを主担当にして、作業中のレーンへ入れると、参加者の行の下の 1 行にそのチケットが出る
+  // タスクボードを隠してから、ワークルームを選ぶ（現在のタスクはまだなし）
   const own = (await records(page, "@matomezu/taskboard:ticket")).find(t => t.id === ticket)!.createdBy!.workroom!.id
-  const row = page.locator(`[data-workroom="${own}"]`)
-  await expect(row.locator("[data-current-line]")).toHaveText("（空き）")
+  await page.locator("button[aria-expanded]", { hasText: "プロジェクト" }).click()
+  await page.getByRole("checkbox", { name: first.name }).uncheck()
+  await expect(page.locator(`[data-board="${first.id}"]`)).toHaveCount(0)
+  await page.locator(`[data-workroom="${own}"]`).getByRole("button").first().click()
+  const task = page.locator('[data-column="task"]')
+  await expect(task).toContainText("なし")
+  // AI が自分のワークルームを主担当にして、作業中のレーンへ入れると、現在のタスクにそのチケットが出る
   expect(
     (
       await perform(page, {
@@ -118,13 +123,7 @@ test("主担当のチケットを作業中のレーンへ入れると参加者�
       })
     ).ok,
   ).toBe(true)
-  await expect(row.locator("[data-current-line]")).toContainText("立ち寄り先")
-
-  // タスクボードを隠してから、ワークルームを選ぶ
-  await page.locator("button[aria-expanded]", { hasText: "プロジェクト" }).click()
-  await page.getByRole("checkbox", { name: first.name }).uncheck()
-  await expect(page.locator(`[data-board="${first.id}"]`)).toHaveCount(0)
-  await row.getByRole("button").first().click()
+  await expect(task).toContainText("立ち寄り先")
   await page.getByRole("button", { name: "ボードで見る" }).click()
 
   // タスクボードが出て、鳥が来て、チケットカードに色が付く

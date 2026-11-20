@@ -1,4 +1,4 @@
-// タスクボードのプラグイン: プロジェクト（タスクボード 1 枚）・チケット・チケット履歴・ワークルームごとの今のチケットの対象の定義と、履歴の題の列挙、そのアクションと認可ステップ（閉じたプロジェクトを守る）、プロジェクト設定のダイアログ。
+// タスクボードのプラグイン: プロジェクト（タスクボード 1 枚）・チケット・チケット履歴の対象の定義と、履歴の題の列挙、そのアクションと認可ステップ（閉じたプロジェクトを守る）、プロジェクト設定のダイアログ。
 import { defineBuiltin } from "../../plugin-api/builtin"
 import { CARD_VISIT, LANE_SORTS, MAXIMIZED } from "./board"
 import { PROJECT_ORDER, SHOWN_PROJECTS } from "./board/user-settings"

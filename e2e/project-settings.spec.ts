@@ -1,4 +1,4 @@
-// プロジェクト設定: ボードの歯車で開き、レーンの名前を直して未分類を表示すると、保存でボードに出る。名前が重なる間は保存できない。全般の「優先度を出す」を切ると、チケットカードに優先度が出ない
+// プロジェクト設定: ボードの歯車で開き、レーンの名前を直し、完了と作業中のスイッチを切り替え、未分類を表示すると、保存でボードに出る。名前が重なる間は保存できない。全般の「優先度を出す」を切ると、チケットカードに優先度が出ない
 import { CONTROL_CENTER_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
 
 const projects = async (page: Page) =>
@@ -57,6 +57,15 @@ test("ボードの歯車でプロジェクト設定を開き、レーンを直�
   await expect(doneSwitch).not.toBeChecked()
   await doneSwitch.click()
   await expect(doneSwitch).toBeChecked()
+  // 作業中のスイッチ: 同じレーンの完了と作業中は、片方を入れるともう片方が切れる
+  const workingSwitch = dialog.getByRole("switch", { name: "作業中レーンにする" })
+  await expect(workingSwitch).not.toBeChecked()
+  await workingSwitch.click()
+  await expect(workingSwitch).toBeChecked()
+  await expect(doneSwitch).not.toBeChecked()
+  await doneSwitch.click()
+  await expect(doneSwitch).toBeChecked()
+  await expect(workingSwitch).not.toBeChecked()
   await dialog.getByRole("switch", { name: "未分類を表示する" }).click()
   await expect(dialog.getByText("未分類", { exact: true })).toBeVisible()
   await dialog.getByRole("button", { name: "保存" }).click()

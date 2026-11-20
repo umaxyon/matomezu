@@ -60,7 +60,7 @@ const pickTags = (project: Project, refs: readonly string[], current: readonly s
 const pickAssignees = (ctx: Records, refs: readonly string[], current: readonly string[]) =>
   pickAll(refs, current, ref => resolve(ref, workroomsOf(ctx), "workroom"), "an assignee is there twice")
 
-// 完了のレーンへは、ticket-complete だけが入れる（担当を外す・今のチケットを空にする・チケット履歴を足すを一緒に行うため）
+// 完了のレーンへは、ticket-complete だけが入れる（担当を外す・チケット履歴を足すを一緒に行うため）
 const DONE_LANE_REFUSAL = "the done lane is entered only with ticket-complete: complete the ticket"
 
 // 担当に新しく入ったワークルームの AI への知らせ（行う者がワークルームの AI のときだけ返せる。自分のワークルームには送らない。宛先に AI がいなければ送らないだけ）
