@@ -8,7 +8,8 @@ import { leftNormalAt, nearestAt, pointAt, type Rect } from "./geom"
 import type { Head } from "./heads"
 import type { LineRoute } from "./line"
 import { type PlacedLine, patchedProps } from "./placed"
-import { fixedAts, perimeterAt, simplifyVia } from "./route"
+import { simplifyVia } from "./route"
+import { fixedAts, perimeterAt } from "./route-ends"
 import { perimeter } from "./selfloop"
 
 type Props = PlacedLine["props"]
