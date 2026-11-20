@@ -170,7 +170,7 @@ func TestPerformingAnAction(t *testing.T) {
 		api.answer = answer
 		got = talk(t, api, `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"perform","arguments":{"action":"x.y","args":{}}}}`)
 		r = got[0]["result"].(map[string]any)
-		if r["isError"] != true || !strings.HasPrefix(r["content"].([]any)[0].(map[string]any)["text"].(string), want) {
+		if r["isError"] != false || !strings.HasPrefix(r["content"].([]any)[0].(map[string]any)["text"].(string), want) {
 			t.Fatalf("refused call = %v", r)
 		}
 	}
@@ -181,7 +181,7 @@ func TestPerformingAnAction(t *testing.T) {
 		t.Fatalf("call with a notice = %v", r)
 	}
 	got = talk(t, api, `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"perform","arguments":{"args":{}}}}`)
-	if r := got[0]["result"].(map[string]any); r["isError"] != true || !strings.HasPrefix(textOf(got[0]), "bad-args: action is needed\nthe arguments of perform (JSON Schema): ") {
+	if r := got[0]["result"].(map[string]any); r["isError"] != false || !strings.HasPrefix(textOf(got[0]), "bad-args: action is needed\nthe arguments of perform (JSON Schema): ") {
 		t.Fatalf("perform without action = %v", r)
 	}
 }
@@ -190,7 +190,7 @@ func TestPerformingAnAction(t *testing.T) {
 func TestReadPageOfAnUnreadablePage(t *testing.T) {
 	got := talk(t, &fakeAPI{}, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"read_page","arguments":{"page":"broken"}}}`)
 	r := got[0]["result"].(map[string]any)
-	if r["isError"] != true || textOf(got[0]) != "unreadable: the page cannot be read now (W027); nothing can be done to it (see read_book)" {
+	if r["isError"] != false || textOf(got[0]) != "unreadable: the page cannot be read now (W027); nothing can be done to it (see read_book)" {
 		t.Fatalf("read_page = %v", r)
 	}
 	got = talk(t, &fakeAPI{}, `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"read_page","arguments":{"page":"small"}}}`)
@@ -221,11 +221,11 @@ func TestShowTool(t *testing.T) {
 		t.Fatalf("posted = %v", api.posts)
 	}
 	api.answer = `{"ok":false,"reason":"no-window","url":"http://127.0.0.1:7230/"}`
-	if got, failed := text(api); !strings.Contains(got, "open http://127.0.0.1:7230/") || !failed {
+	if got, failed := text(api); !strings.Contains(got, "open http://127.0.0.1:7230/") || failed {
 		t.Fatalf("show without a window = %s %v", got, failed)
 	}
 	api.answer = `{"ok":false,"reason":"no-book"}`
-	if got, failed := text(api); !strings.HasPrefix(got, "no-book: there is no book with that id") || !failed {
+	if got, failed := text(api); !strings.HasPrefix(got, "no-book: there is no book with that id") || failed {
 		t.Fatalf("show without the book = %s %v", got, failed)
 	}
 }
@@ -304,7 +304,7 @@ func TestJoinFillsWhoAndAttachesTheParticipantToLaterCalls(t *testing.T) {
 	// 弾かれたら理由を返し、参加の id は持たない
 	api = &fakeAPI{answer: `{"ok":false,"reason":"already-participating","detail":"participant p1 is already joined"}`}
 	got = talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"join","arguments":{"model":"m","link":"L"}}}`)
-	if r := got[0]["result"].(map[string]any); r["isError"] != true || textOf(got[0]) != "already-participating: participant p1 is already joined" {
+	if r := got[0]["result"].(map[string]any); r["isError"] != false || textOf(got[0]) != "already-participating: participant p1 is already joined" {
 		t.Fatalf("refused join = %v", got[0])
 	}
 }
@@ -366,7 +366,7 @@ func TestJoinPassesTheWorkroom(t *testing.T) {
 	api = &fakeAPI{answer: `{"ok":false,"reason":"workroom-in-use","detail":"workroom ひよこ already has a participant who is alive"}`}
 	got = talk(t, api,
 		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"join","arguments":{"model":"m","link":"L","workroom":"ひよこ"}}}`)
-	if r := got[0]["result"].(map[string]any); r["isError"] != true || !strings.HasPrefix(textOf(got[0]), "workroom-in-use: ") {
+	if r := got[0]["result"].(map[string]any); r["isError"] != false || !strings.HasPrefix(textOf(got[0]), "workroom-in-use: ") {
 		t.Fatalf("refused = %v", got[0])
 	}
 }
@@ -380,12 +380,12 @@ func TestSendMessagePassesToAndText(t *testing.T) {
 	}
 	api = &fakeAPI{answer: `{"ok":false,"reason":"unknown-recipient","detail":"no AI is in a workroom named x; you can send to: すずめ"}`}
 	got = talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"x","text":"hi"}}}`)
-	if r := got[0]["result"].(map[string]any); r["isError"] != true || !strings.HasPrefix(textOf(got[0]), "unknown-recipient: ") {
+	if r := got[0]["result"].(map[string]any); r["isError"] != false || !strings.HasPrefix(textOf(got[0]), "unknown-recipient: ") {
 		t.Fatalf("refused = %v", got[0])
 	}
 	api = &fakeAPI{}
 	got = talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"send_message","arguments":{"to":"x","text":"`+strings.Repeat("a", 4001)+`"}}}`)
-	if r := got[0]["result"].(map[string]any); r["isError"] != true || len(api.posts) != 0 {
+	if r := got[0]["result"].(map[string]any); r["isError"] != false || len(api.posts) != 0 {
 		t.Fatalf("too long = %v", got[0])
 	}
 }
@@ -403,7 +403,7 @@ func TestABadArgsRefusalCarriesTheActionsArgsSchema(t *testing.T) {
 	got := talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"perform","arguments":{"action":"@matomezu/paper:item-place","args":{}}}}`)
 	r := got[0]["result"].(map[string]any)
 	text := r["content"].([]any)[0].(map[string]any)["text"].(string)
-	if r["isError"] != true || !strings.HasPrefix(text, "bad-args: the args do not fit the action\nthe args of @matomezu/paper:item-place (JSON Schema): ") {
+	if r["isError"] != false || !strings.HasPrefix(text, "bad-args: the args do not fit the action\nthe args of @matomezu/paper:item-place (JSON Schema): ") {
 		t.Fatalf("call = %v", r)
 	}
 }
@@ -434,7 +434,7 @@ func TestReadFolderAsksForTheLibraryHomeOrAFolder(t *testing.T) {
 	if r := got[0]["result"].(map[string]any); r["isError"] != false || textOf(got[0]) != `{"id":"library-home"}` {
 		t.Fatalf("read_folder = %v", r)
 	}
-	if r := got[2]["result"].(map[string]any); r["isError"] != true || !strings.HasPrefix(textOf(got[2]), "bad-args: ") {
+	if r := got[2]["result"].(map[string]any); r["isError"] != false || !strings.HasPrefix(textOf(got[2]), "bad-args: ") {
 		t.Fatalf("read_folder with an argument it does not take = %v", r)
 	}
 	if !ReadOnly("read_folder") {
@@ -449,7 +449,7 @@ func TestAPageOverTheLimitIsRefusedWithHowToNarrowIt(t *testing.T) {
 	)
 	big := got[0]["result"].(map[string]any)
 	text := big["content"].([]any)[0].(map[string]any)["text"].(string)
-	if big["isError"] != true || !strings.HasPrefix(text, "too-large: ") || !strings.Contains(text, "read_page with outline") || strings.Contains(text, "あ") {
+	if big["isError"] != false || !strings.HasPrefix(text, "too-large: ") || !strings.Contains(text, "read_page with outline") || strings.Contains(text, "あ") {
 		t.Fatalf("big = %v", big)
 	}
 	small := got[1]["result"].(map[string]any)
@@ -473,7 +473,7 @@ func TestSearchAnswersOneLinePerMatch(t *testing.T) {
 	if textOf(got[0]) != lines {
 		t.Fatalf("answer = %q", textOf(got[0]))
 	}
-	if r := got[1]["result"].(map[string]any); r["isError"] != true {
+	if r := got[1]["result"].(map[string]any); r["isError"] != false {
 		t.Fatalf("no terms = %v", got[1])
 	}
 }
@@ -483,7 +483,7 @@ func TestArgumentsThatDoNotFitTheToolAreRefusedWithoutCallingTheHost(t *testing.
 	api := &fakeAPI{}
 	got := talk(t, api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"actions","arguments":{"id":"x"}}}`)
 	want := "bad-args: actions does not take id (it takes ids)\nthe arguments of actions (JSON Schema): " + schemaText(actionsSchema)
-	if r := got[0]["result"].(map[string]any); r["isError"] != true || textOf(got[0]) != want {
+	if r := got[0]["result"].(map[string]any); r["isError"] != false || textOf(got[0]) != want {
 		t.Fatalf("actions with id = %q", textOf(got[0]))
 	}
 	if strings.Contains(textOf(got[0]), "description") || len(api.gets)+len(api.posts) != 0 {
@@ -590,5 +590,51 @@ func TestTheSessionPidAndSpaceGoWhenSaid(t *testing.T) {
 				t.Fatalf("headers = %v", h)
 			}
 		})
+	}
+}
+
+// errAPI は、どの呼び出しにも err で答える常駐（answer があれば答えの代わりに返す）
+type errAPI struct {
+	err    error
+	answer string
+}
+
+func (e *errAPI) Get(string, http.Header) (json.RawMessage, http.Header, error) {
+	if e.err != nil {
+		return nil, nil, e.err
+	}
+	return json.RawMessage(e.answer), nil, nil
+}
+
+func (e *errAPI) Post(path string, _ any, h http.Header) (json.RawMessage, http.Header, error) {
+	return e.Get(path, h)
+}
+
+// 断り（常駐の 400・404 も）は isError にせず、常駐の文だけを返す（方法・パス・状態の行を出さない）。isError は matomezu の側の失敗（常駐のほかの状態・つながらない・答えが読めない）だけ
+func TestARefusalIsNotAnErrorAndOnlyAFaultOfMatomezuIs(t *testing.T) {
+	host := func(code int, status string) error {
+		return &HostError{Method: "GET", Path: "api/ai/records?kind=x", Status: status, Code: code, Text: "there is no such kind or record: x"}
+	}
+	for _, c := range []struct {
+		name  string
+		api   *errAPI
+		call  string
+		text  string
+		isErr bool
+	}{
+		{"host 404", &errAPI{err: host(404, "404 Not Found")}, `"read_records","arguments":{"kind":"x"}`, "there is no such kind or record: x", false},
+		{"host 400", &errAPI{err: host(400, "400 Bad Request")}, `"perform","arguments":{"action":"x.y","args":{}}`, "there is no such kind or record: x", false},
+		{"host 403", &errAPI{err: host(403, "403 Forbidden")}, `"read_records","arguments":{"kind":"x"}`, "GET api/ai/records?kind=x: 403 Forbidden there is no such kind or record: x", true},
+		{"host 500", &errAPI{err: host(500, "500 Internal Server Error")}, `"show","arguments":{"book":"b1"}`, "GET api/ai/records?kind=x: 500 Internal Server Error there is no such kind or record: x", true},
+		{"no answer", &errAPI{err: errors.New("the matomezu server did not answer")}, `"view","arguments":{}`, "the matomezu server did not answer", true},
+		{"unreadable answer", &errAPI{answer: "not json"}, `"perform","arguments":{"action":"x.y","args":{}}`, "not json", true},
+		{"bad args", &errAPI{}, `"read_records","arguments":{}`, "", false},
+		{"unknown tool", &errAPI{}, `"nothing","arguments":{}`, "unknown tool: nothing", false},
+	} {
+		got := talk(t, c.api, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":`+c.call+`}}`)
+		r := got[0]["result"].(map[string]any)
+		if r["isError"] != c.isErr || (c.text != "" && textOf(got[0]) != c.text) {
+			t.Fatalf("%s = %v", c.name, r)
+		}
 	}
 }
