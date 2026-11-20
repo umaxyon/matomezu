@@ -3,7 +3,6 @@
 
 import { useState } from "react"
 import { BROKEN } from "../../../core/folders"
-import { isBuiltin } from "../../../store/plugin"
 import { useMessages } from "../../../ui/i18n"
 import type { UserSettingControlProps } from "../../../ui/plugin"
 import { useInstance, useReadState } from "../../../ui/store-context"
@@ -13,7 +12,7 @@ import { rowClass, Section } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { useMovedIfOff, useNameOf, useReadNaming } from "../library/hooks"
 import { type MovedPlace, movedPlacesOf } from "../library/outline"
-import { withPluginEnabled } from "./enabled-plugins"
+import { addedPluginsOf, pluginLabel, withPluginEnabled } from "./enabled-plugins"
 
 // 確かめに名前を出す在る所の数（ほかは数だけ）
 const SHOWN_PLACES = 5
@@ -29,7 +28,7 @@ interface Asking {
 
 export function EnabledPluginsSetting({ label, value, onChange }: UserSettingControlProps<readonly string[]>) {
   const t = useMessages(kit)
-  const added = useInstance().plugins.filter(p => !isBuiltin(p))
+  const added = addedPluginsOf(useInstance().plugins)
   const enabled = value ?? []
   const movedIfOff = useMovedIfOff()
   const read = useReadState()
@@ -49,9 +48,9 @@ export function EnabledPluginsSetting({ label, value, onChange }: UserSettingCon
       return
     }
     if (moved === BROKEN || moved.length === 0) return onChange(next)
-    const name = added.find(p => p.id === id)
+    const plugin = added.find(p => p.id === id)
     setAsking({
-      plugin: name?.title ? t(name.title) : id,
+      plugin: plugin ? pluginLabel(plugin, t) : id,
       next,
       places: movedPlacesOf(moved, read(), naming()),
       count: moved.length,

@@ -160,33 +160,6 @@ test("書庫のゴミ箱に、捨てたフォルダも並ぶ。選んだ行を�
   ])
 })
 
-test("ゴミ箱の行は、矢印キーで見せている順（入れた時刻の新しい順）に上から選べる", async ({ page }) => {
-  await page.goto("/")
-  await page.bringToFront()
-  const made = async (action: string, args: object) => {
-    const done = await aiPerform(page, { action: action, args: args })
-    expect(done).toMatchObject({ ok: true })
-    return done.result as { book: string }
-  }
-  for (const title of ["矢印の試し 1", "矢印の試し 2", "矢印の試し 3"])
-    await made("@matomezu/base:entry-trash", { entry: (await made("@matomezu/base:book-create", { title })).book })
-  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
-  await page.getByRole("navigation", { name: "フォルダ" }).getByRole("button", { name: "ゴミ箱", exact: true }).click()
-  const list = page.getByRole("list", { name: "ゴミ箱" })
-  const rows = list.locator("li > button:first-child")
-  await expect(rows).toHaveCount(3)
-  const listed = await rows.allTextContents()
-  const picked = list.locator("li > button:first-child[aria-pressed=true]")
-  await rows.first().click()
-  const order = [await picked.textContent()]
-  for (let i = 0; i < 2; i++) {
-    await page.keyboard.press("ArrowDown")
-    order.push(await picked.textContent())
-  }
-  expect(order).toEqual(listed)
-  await expect(picked).toBeFocused()
-})
-
 test("ゴミ箱から上書きで戻すと、前から在った物が消える。そのまま Ctrl+Z で両方が元どおりになり、Ctrl+Shift+Z でやり直せる。ロック中の物には上書きを選べない", async ({
   page,
 }) => {

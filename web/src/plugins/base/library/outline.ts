@@ -84,7 +84,7 @@ const NO_TRASH: readonly TrashRow[] = []
 export function trashRowsOf(library: Library, naming: Naming): readonly TrashRow[] {
   const refs = trashRefsOf(library.folders)
   if (refs.length === 0) return NO_TRASH
-  return trashOrder(refs).map(r => {
+  return trashNewestFirst(refs).map(r => {
     const into = restoreTargetOf(library.folders, r.from)
     const place = titleOf(library, "folder", into, naming) ?? NO_TITLE
     return { ...rowOf(library, r, naming), trashed: r.trashed, into, place }
@@ -97,7 +97,7 @@ function newestFirst<T>(items: readonly T[], at: (item: T) => string): T[] {
 }
 
 // ゴミ箱の並び refs の、見せる順（入れた時刻の新しい順）
-const trashOrder = (refs: readonly TrashRef[]): readonly TrashRef[] => newestFirst(refs, r => r.trashed)
+const trashNewestFirst = (refs: readonly TrashRef[]): readonly TrashRef[] => newestFirst(refs, r => r.trashed)
 
 // 読めない物のフォルダの直下の物 items の、見せる順（形に合う物を移った時刻の新しい順、そのあと形に合わない物を並びの順）
 function unreadableOrder(items: readonly UnreadableItem[]): readonly UnreadableItem[] {
@@ -108,7 +108,7 @@ function unreadableOrder(items: readonly UnreadableItem[]): readonly UnreadableI
 // 書庫の画面の右の枠が見せている行の id（見せる順）: 開いているフォルダ opened がゴミ箱・読めない物のフォルダ（直下の物 unreadable）なら、その一覧の順、ほかは並びの順。
 // ビューと、右の枠で行を選ぶコマンドが、同じ順を使う
 export function paneIdsOf(folders: Folders, unreadable: readonly UnreadableItem[], opened: string): readonly string[] {
-  if (opened === TRASH_ID) return trashOrder(trashRefsOf(folders)).map(r => r.id)
+  if (opened === TRASH_ID) return trashNewestFirst(trashRefsOf(folders)).map(r => r.id)
   if (opened === UNREADABLE_ID) return unreadableOrder(unreadable).map(i => i.id)
   return entriesIn(folders, opened).map(r => r.id)
 }

@@ -67,6 +67,7 @@ test("無効にする窓は移る物を確かめてから無効にし、ほか�
   await list.getByRole("button").first().focus()
   await other.keyboard.press("ArrowDown")
   await expect(list.getByRole("button").first()).toHaveAttribute("aria-pressed", "true")
+  await expect(list.getByRole("button").first()).toBeFocused() // キーで選んだ行へ焦点も移る
   await expect(other.getByRole("button", { name: "⚠ 読めない物 1 件" })).toBeVisible()
 
   // 有効に戻すと、元の所へ戻る。ほかの窓の知らせは［閉じる］だけ
