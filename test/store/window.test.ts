@@ -145,7 +145,7 @@ test("コントロールセンターがカレントスクリーンの間は、�
   expect(store.state.getState().history.b1?.undo.map(s => s.by)).toEqual(["ai"])
 })
 
-test("AI に知らせる見ているもの: ブックスクリーンがカレントスクリーンの間は book など、コントロールセンターがカレントスクリーンの間は front と hidden に分ける", () => {
+test("AI に知らせる見ているもの: ブックスクリーンがカレントスクリーンの間は book など、コントロールセンターがカレントスクリーンの間は current と hidden に分ける", () => {
   const { actions, state } = newStore()
   expect(viewOf(CORE_CATALOG, state.getState())).toMatchObject({
     current: "book-screen",
