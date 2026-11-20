@@ -17,6 +17,7 @@ export const PARTICIPANT_MESSAGES = defineMessages({
   Visitor: { en: "Visitor", ja: "ビジター" },
   "Visitor (read only)": { en: "Visitor (read only)", ja: "ビジター（読むだけ）" },
   "Only reads. Has no workroom.": { en: "Only reads. Has no workroom.", ja: "読むだけ。ワークルームは持たない" },
+  "Accept the participant": { en: "Accept the participant", ja: "参加を受け入れます" },
   "Asked to join as a visitor": { en: "Asked to join as a visitor", ja: "ビジターとして参加を頼んでいます" },
   Welcome: { en: "Welcome", ja: "ようこそ" },
   "{name} joined": { en: "{name} joined", ja: "{name} が参加しました" },
