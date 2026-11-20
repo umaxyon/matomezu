@@ -77,7 +77,7 @@ export function TicketCardView({
           ) : null}
           <span className={styles.cardId}>{ticketLabel(prefix, ticket.number)}</span>
           <span className={styles.cardName}>{ticket.name}</span>
-          <span className={styles.foot} data-volume={shows.volume || undefined}>
+          <span className={styles.foot} data-volume={volumeShown || undefined}>
             <CardTags tags={tags} lines={size === "large" ? 3 : 1} />
             {shows.priority ? <PriorityMark priority={ticket.priority} /> : null}
           </span>
