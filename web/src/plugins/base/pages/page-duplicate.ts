@@ -7,11 +7,11 @@ import { z } from "zod"
 import { addPage, findPage, siblingsOf } from "../../../core/book"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import type { Declined } from "../../../core/def/action"
+import { freeTitle } from "../../../core/entries"
 import type { ItemPage } from "../../../core/placed"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
 import { renewedIds, survivesRenewedIds } from "../utils/ids"
-import { freeTitle } from "../utils/titles"
 
 // 複製を断る種類: id を振り直すと壊れる形がページにある（画面は、この種類で知らせる）
 export const UNRENEWABLE_SHAPE = kit.name("unrenewable-shape")

@@ -4,15 +4,22 @@
 import { type CoreCatalog, pageType } from "./core-catalog"
 import { isMoveRefusal, movedEntry, placeOf } from "./entries"
 import {
+  type AnyEntryRef,
   binderFolderOf,
   bookIdOf,
   bookOf,
   type Folder,
   foldersOver,
+  HOME_ID,
   homeAndFoldersOf,
+  isOpenRole,
+  isUnreadableRole,
   type Library,
+  type MovedCode,
   type PageRow,
   rawBooksOf,
+  TRASH_ID,
+  type TrashRef,
   tablesOf,
 } from "./folders"
 import { freshPageId } from "./ids"
@@ -631,4 +638,161 @@ export function pageById(
     found = { book, ...at }
   }
   return found
+}
+
+// 読めない物 1 つ（読めない物のフォルダへ移す単位）: 在る所 holder（フォルダの id）の並びのエントリ element（置き場所から読んだまま。ゴミ箱の中なら TrashRef）と、理由の番号 code と、
+// 機能台帳に無いタイプの id type（W027 で、行が文字列で持つときだけ）
+export interface UnreadableUnit {
+  element: AnyEntryRef | TrashRef
+  holder: string
+  code: MovedCode
+  type?: string
+}
+
+// 置き場所から読んだままの行 pageRows・folderRows のうち、今の機能台帳で読めない物の全部（書庫ホームとゴミ箱から木をたどった順）。
+// 外側の物を 1 つだけ数える: ページ（W027〜W029）は、それだけで読めなければ 1 枚ずつ。バインダは、形に合わない（W028）・タイプが機能台帳に無い（W027）・
+// 読めるページだけでバインダの決まりを守らない（W029）ならバインダごと。ブックは、読めない物を除いてもブックの形に合わない（W005）・並びの決まりを守らない、
+// 先に数えたブックと id が重なる（W006）ならブックごと（中の物は数えない）。
+// 木の決まりを破る物（行の無いエントリ・種類と役の合わないエントリ・どこにも持たれていない行）と、読めない物のフォルダの中の物は数えない
+export function unreadableUnitsOf(
+  catalog: CoreCatalog,
+  pageRows: readonly unknown[],
+  folderRows: readonly unknown[],
+): UnreadableUnit[] {
+  const page = rowsById(pageRows)
+  const folder = rowsById(folderRows)
+  const units: UnreadableUnit[] = []
+  const passed = new Set<string>()
+  const books: { book: Book; unit: UnreadableUnit; inner: UnreadableUnit[] }[] = []
+  // ページの行 id を読んだ物（行が無ければ undefined。ページの種類でない行は、形に合わない W028）
+  const readRow = (id: string): AnyPage | UnreadableCode | undefined => {
+    const raw = page.get(id)
+    if (!raw) return undefined
+    return raw.kind === "page" ? pageRead(catalog, raw) : "W028"
+  }
+  const typeOf = (raw: Readonly<Record<string, unknown>> | undefined, key: "type" | "pageType") =>
+    typeof raw?.[key] === "string" ? { type: raw[key] as string } : {}
+  // ページ 1 枚: 読めれば読んだページ、読めなければ単位、行が無ければ undefined
+  const judgePage = (element: AnyEntryRef | TrashRef, holder: string): AnyPage | UnreadableUnit | undefined => {
+    const read = readRow(element.id)
+    if (read === undefined) return undefined
+    if (typeof read !== "string") return read
+    return { element, holder, code: read, ...(read === "W027" ? typeOf(page.get(element.id), "type") : {}) }
+  }
+  // バインダ 1 つ: 読めれば読んだバインダと、中の読めないページ。バインダごと読めなければ単位。行の無い物を持てば undefined
+  const judgeBinder = (
+    element: AnyEntryRef | TrashRef,
+    holder: string,
+  ): { binder: BinderEntry; inner: UnreadableUnit[] } | UnreadableUnit | undefined => {
+    const raw = folder.get(element.id)
+    if (raw?.folderRole !== "binder") return undefined
+    const row = binderFolderOf(raw)
+    if (!row) return { element, holder, code: "W028" }
+    if (row.lineup.some(p => !page.has(p.id))) return undefined
+    if (!catalog.pageTypes.has(row.pageType)) return { element, holder, code: "W027", type: row.pageType }
+    const inner: UnreadableUnit[] = []
+    const kept: AnyPage[] = []
+    for (const p of row.lineup) {
+      const read = judgePage(p, row.id)
+      if (read && "element" in read) inner.push(read)
+      else if (read) kept.push(read)
+    }
+    const binder: BinderEntry = { kind: "binder", id: row.id, title: row.title, pageType: row.pageType, lineup: kept }
+    return binderHolds(catalog, binder) ? { binder, inner } : { element, holder, code: "W029" }
+  }
+  // ブック 1 冊: 読めない物を除いて組み、形と並びの決まりを確かめる（id の重なりは、全部を見てから）
+  const judgeBook = (element: AnyEntryRef | TrashRef, holder: string) => {
+    const raw = folder.get(element.id)
+    if (!raw || isOpenRole(raw.folderRole) || raw.folderRole === "binder" || isUnreadableRole(raw.folderRole)) return
+    const unit: UnreadableUnit = { element, holder, code: "W005" }
+    if (!Array.isArray(raw.lineup)) {
+      units.push(unit)
+      return
+    }
+    const inner: UnreadableUnit[] = []
+    const lineup: unknown[] = []
+    for (const e of raw.lineup as unknown[]) {
+      const r = refOf(e)
+      if (r?.kind === "page") {
+        const read = judgePage(r, element.id)
+        if (read === undefined) return
+        if ("element" in read) inner.push(read)
+        else lineup.push(page.get(r.id))
+      } else if (r?.kind === "binder") {
+        const read = judgeBinder(r, element.id)
+        if (read === undefined) return
+        if ("element" in read) inner.push(read)
+        else {
+          inner.push(...read.inner)
+          const { folderRole: _, ...fields } = folder.get(r.id) as Readonly<Record<string, unknown>>
+          const kept = new Set(read.binder.lineup.map(p => p.id))
+          const pages = (fields.lineup as readonly { id: string }[])
+            .filter(p => kept.has(p.id))
+            .map(p => page.get(p.id))
+          lineup.push({ kind: "binder", ...fields, lineup: pages })
+        }
+      } else lineup.push(e)
+    }
+    const { folderRole: _, ...fields } = raw
+    const parsed = catalog.bookSchema.safeParse({ ...fields, lineup })
+    if (!parsed.success) units.push(unit)
+    else if (!lineupHolds(catalog, parsed.data as Book)) units.push({ ...unit, code: "W006" })
+    else books.push({ book: parsed.data as Book, unit: { ...unit, code: "W006" }, inner })
+  }
+  const visit = (id: string) => {
+    if (passed.has(id)) return
+    passed.add(id)
+    const row = folder.get(id)
+    if (!row || !isOpenRole(row.folderRole) || !Array.isArray(row.lineup)) return
+    for (const e of row.lineup as unknown[]) {
+      const r = refOf(e, true)
+      if (!r) continue
+      const element = e as AnyEntryRef | TrashRef
+      if (r.kind === "page") {
+        const read = judgePage(element, id)
+        if (read && "element" in read) units.push(read)
+      } else if (r.kind === "binder") {
+        const read = judgeBinder(element, id)
+        if (read && "element" in read) units.push(read)
+        else if (read) units.push(...read.inner)
+      } else if (r.kind === "book") judgeBook(element, id)
+      else if (r.kind === "folder") visit(r.id)
+    }
+  }
+  visit(HOME_ID)
+  visit(TRASH_ID)
+  const distinct = new Set(distinctBooks(books.map(b => b.book)).books)
+  for (const b of books) {
+    if (distinct.has(b.book)) units.push(...b.inner)
+    else units.push(b.unit)
+  }
+  // 2 度持たれた物は、木の決まりを破る物なので数えない
+  const held = new Map<string, number>()
+  for (const f of folder.values())
+    for (const e of Array.isArray(f.lineup) ? (f.lineup as unknown[]) : []) {
+      const r = refOf(e, true)
+      if (r) held.set(r.id, (held.get(r.id) ?? 0) + 1)
+    }
+  return units.filter(u => held.get(u.element.id) === 1)
+}
+
+// 行の並び rows の、id → 行（id を文字列で持つ物だけ）
+const rowsById = (rows: readonly unknown[]): Map<string, Readonly<Record<string, unknown>>> =>
+  new Map(
+    rows.flatMap(r =>
+      typeof r === "object" && r !== null && typeof (r as { id?: unknown }).id === "string"
+        ? [[(r as { id: string }).id, r as Readonly<Record<string, unknown>>] as const]
+        : [],
+    ),
+  )
+
+// 並びのエントリ e が指す物の種類と id（id だけのエントリでなければ undefined。trash なら、ゴミ箱の並びのエントリの入れた時刻と元の列も許す）
+function refOf(e: unknown, trash = false): AnyEntryRef | undefined {
+  if (typeof e !== "object" || e === null) return undefined
+  const { kind, id } = e as { kind?: unknown; id?: unknown }
+  if (!trash && Object.keys(e).length !== 2) return undefined
+  if (typeof id !== "string" || id === "") return undefined
+  return kind === "page" || kind === "binder" || kind === "book" || kind === "folder"
+    ? ({ kind, id } as AnyEntryRef)
+    : undefined
 }

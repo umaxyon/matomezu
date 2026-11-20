@@ -10,6 +10,7 @@ import type { ItemPage } from "./placed"
 import { REMOVED } from "./records"
 import { sameData } from "./same"
 import type { AnyPage, BinderEntry, Book, LineupEntry, UnreadableEntry } from "./schema/book"
+import type { WarningCode } from "./warnings"
 
 // フォルダが持つエントリ 1 つ: ページかバインダの id
 export interface PageRef {
@@ -68,6 +69,33 @@ export interface TrashFolder {
   id: typeof TRASH_ID
   lineup: readonly TrashRef[]
 }
+// 読めない物のフォルダの id（決まった値。読めない物のフォルダは、この id のフォルダただ 1 つ）
+export const UNREADABLE_ID = "library-unreadable"
+// 読めない物が移った理由の warning の番号: 形が合わない W005・決まりを守らない W006（ブックとバインダ）、タイプが機能台帳に無い W027・タイプの形に合わない W028・
+// タイプの決まりを守らない W029（ページとバインダ）
+export const MOVED_CODES = ["W005", "W006", "W027", "W028", "W029"] as const satisfies readonly WarningCode[]
+export type MovedCode = (typeof MOVED_CODES)[number]
+// 読めない物のフォルダの並びのエントリ 1 つ: 在った所の並びのエントリそのまま entry（ゴミ箱に居た物なら TrashRef のまま）と、在ったフォルダから上への id の列 from（近い順）と、
+// 在った所で直前に並んでいた物の id after（先頭なら "none"）と、理由の番号 code と、機能台帳に無いタイプの id type（W027 で、行が文字列で持つときだけ）と、移した時刻 moved
+export interface UnreadableRef {
+  entry: AnyEntryRef | TrashRef
+  from: readonly string[]
+  after: string
+  code: MovedCode
+  type?: string
+  moved: string
+}
+// 在った所で先頭に並んでいた物の after
+export const FIRST = "none"
+// 読めない物のフォルダ: 書庫の一番上のフォルダ（どのフォルダにも入らず、物を入れる所にはならない）。名前は持たない。中の物どうしは、名前が重なってよい
+export interface UnreadableFolder {
+  folderRole: "unreadable"
+  id: typeof UNREADABLE_ID
+  lineup: readonly UnreadableRef[]
+}
+// 読めない物のフォルダの役か
+export const isUnreadableRole = (role: unknown): role is "unreadable" => role === "unreadable"
+
 // 書庫ホームかゴミ箱かフォルダ（ブックを組む値には入らず、表にだけ在る）
 export type HomeOrFolder = HomeFolder | TrashFolder | PlainFolder
 export type Folder = BookFolder | BinderFolder | HomeOrFolder
@@ -79,6 +107,30 @@ export const isOpenRole = (role: unknown): role is HomeOrFolder["folderRole"] =>
 
 const AnyEntryRefSchema = z.strictObject({ kind: z.enum(["page", "binder", "book", "folder"]), id: z.string().min(1) })
 const TrashRefSchema = AnyEntryRefSchema.extend({ trashed: z.string().min(1), from: z.array(z.string().min(1)) })
+// 読めない物のフォルダの行の形
+const UnreadableFolderSchema = z.strictObject({
+  folderRole: z.literal("unreadable"),
+  id: z.literal(UNREADABLE_ID),
+  lineup: z.array(
+    z.strictObject({
+      entry: z.union([TrashRefSchema, AnyEntryRefSchema]),
+      from: z.array(z.string().min(1)),
+      after: z.string().min(1),
+      code: z.enum(MOVED_CODES),
+      type: z.string().min(1).optional(),
+      moved: z.string().min(1),
+    }),
+  ),
+})
+// 読めない物のフォルダの行が形に合わない（中の物を戻せず、上書きもしない）
+export const BROKEN = "broken"
+// 置き場所から読んだままのフォルダの行 folders のうちの、読めない物のフォルダ（行が無ければ、中に何も無い物。形に合わなければ BROKEN）
+export function unreadableFolderOf(folders: readonly unknown[]): UnreadableFolder | typeof BROKEN {
+  const row = folders.find(f => isUnreadableRole((f as { folderRole?: unknown } | null)?.folderRole))
+  if (row === undefined) return { folderRole: "unreadable", id: UNREADABLE_ID, lineup: [] }
+  const parsed = UnreadableFolderSchema.safeParse(row)
+  return parsed.success ? (parsed.data as UnreadableFolder) : BROKEN
+}
 const HomeOrFolderSchema = z.union([
   z.strictObject({ folderRole: z.literal("home"), id: z.literal(HOME_ID), lineup: z.array(AnyEntryRefSchema) }),
   z.strictObject({ folderRole: z.literal("trash"), id: z.literal(TRASH_ID), lineup: z.array(TrashRefSchema) }),
@@ -400,7 +452,7 @@ function systemFoldersHold(folders: Folders, holder: ReadonlyMap<string, string>
 }
 
 // 書庫ホームの直下の、先頭に並ぶシステムフォルダの数（ほかのエントリは、この数より前に置けない）
-const pinnedCount = (folders: Folders): number => {
+export const pinnedCount = (folders: Folders): number => {
   const lineup = folders[HOME_ID]?.lineup ?? []
   const at = lineup.findIndex(r => r.kind !== "folder" || systemFolderOf(folders[r.id]) === undefined)
   return at < 0 ? lineup.length : at
@@ -414,14 +466,16 @@ export const systemFolderIndex = (folders: Folders, mark: string): number => {
   return after < 0 ? pinned.length : after
 }
 
-// 木の決まり: 書庫ホームが在る（ゴミ箱は、在れば 1 つ）／書庫ホームとゴミ箱はどのフォルダにも入らない／そのほかのフォルダは、ちょうど 1 つのフォルダに入り、
-// 上へたどると書庫ホームかゴミ箱に着く（輪にならない）／ページは、どれかのフォルダ（ブック・バインダを含む）に入る／書庫ホーム・ゴミ箱・フォルダのエントリは、
+// 木の決まり: 書庫ホームが在る（ゴミ箱と読めない物のフォルダは、在れば 1 つ）／書庫ホーム・ゴミ箱・読めない物のフォルダはどのフォルダにも入らない／そのほかのフォルダは、ちょうど 1 つのフォルダに入り、
+// 上へたどると書庫ホームかゴミ箱か読めない物のフォルダに着く（輪にならない）／ページは、どれかのフォルダ（ブック・バインダを含む）に入る／書庫ホーム・ゴミ箱・フォルダのエントリは、
 // 種類が合う（page は表に在るページ、binder はバインダ、folder は表に在るフォルダ、book はブック）／ブックとバインダは、ブックもフォルダも持たない（型が決める）／
 // システムフォルダは書庫ホームかゴミ箱の直下だけに在り、書庫ホームでは先頭に印の順に並ぶ（同じ印はゴミ箱の外に 1 つ）
 export function treeHolds({ pages, folders }: Library): boolean {
   if (folders[HOME_ID]?.folderRole !== "home") return false
   const trash = folders[TRASH_ID]
   if (trash && trash.folderRole !== "trash") return false
+  const unreadable = (folders as Readonly<Record<string, { folderRole: string }>>)[UNREADABLE_ID]
+  if (unreadable && !isUnreadableRole(unreadable.folderRole)) return false
   const holder = new Map<string, string>()
   for (const f of Object.values(folders)) {
     for (const r of f.lineup) {
@@ -430,8 +484,8 @@ export function treeHolds({ pages, folders }: Library): boolean {
       if (isOpenRole(f.folderRole) && !refFits(pages, folders, r)) return false
     }
   }
-  const isTop = (id: string | undefined) => id === HOME_ID || id === TRASH_ID
-  if (holder.has(HOME_ID) || holder.has(TRASH_ID)) return false
+  const isTop = (id: string | undefined) => id === HOME_ID || id === TRASH_ID || id === UNREADABLE_ID
+  if (holder.has(HOME_ID) || holder.has(TRASH_ID) || holder.has(UNREADABLE_ID)) return false
   if (!Object.keys(pages).every(id => holder.has(id))) return false
   if (!systemFoldersHold(folders, holder)) return false
   return Object.values(folders).every(f => {
@@ -454,8 +508,12 @@ export const inTrash = (folders: Folders, entry: string): boolean =>
 export function rowsHoldTree(rows: readonly unknown[], pages: readonly string[]): boolean {
   const folders: Record<string, Folder> = {}
   for (const f of homeAndFoldersOf(rows)) folders[f.id] = f
+  // 読めない物のフォルダは、中の物（並びのエントリの entry）を持つ一番上のフォルダとして木に入れる（形に合わなければ入らず、中の物が持たれていない事で破れて見える）
+  const unreadable = unreadableFolderOf(rows)
+  if (unreadable !== BROKEN && rows.some(r => isUnreadableRole((r as { folderRole?: unknown } | null)?.folderRole)))
+    folders[UNREADABLE_ID] = { ...unreadable, lineup: unreadable.lineup.map(r => r.entry) } as unknown as Folder
   for (const row of rows) {
-    if (namesHomeOrFolder(row)) continue
+    if (namesHomeOrFolder(row) || isUnreadableRole((row as { folderRole?: unknown } | null)?.folderRole)) continue
     const parsed = LooseFolderSchema.safeParse(row)
     if (!parsed.success) continue
     const { id, folderRole, lineup } = parsed.data
@@ -645,7 +703,8 @@ export function rawBooksOf(pages: readonly unknown[], folders: readonly unknown[
     isObject(e) && Object.keys(e).length === 2 && typeof e.kind === "string" && typeof e.id === "string"
       ? { kind: e.kind, id: e.id }
       : undefined
-  const notBook = (f: Readonly<Record<string, unknown>>) => isOpenRole(f.folderRole) || f.folderRole === "binder"
+  const notBook = (f: Readonly<Record<string, unknown>>) =>
+    isOpenRole(f.folderRole) || f.folderRole === "binder" || isUnreadableRole(f.folderRole)
   // フォルダ f を、エントリを中身に替えて組む（binder なら、並びのエントリの形にする）
   const made = (f: Readonly<Record<string, unknown>>, as: "book" | "binder"): unknown => {
     const lineup = Array.isArray(f.lineup) ? f.lineup : undefined

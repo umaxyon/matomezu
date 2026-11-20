@@ -237,6 +237,15 @@ const NO_ENTRIES: readonly AnyEntryRef[] = []
 export const entriesIn = (folders: Folders, folder: string): readonly AnyEntryRef[] =>
   folders[folder]?.lineup ?? NO_ENTRIES
 
+// 名前 title を、同じ所の名前 taken と重ならない名前にする（重ならなければそのまま。重なれば「名前 2」から番号を付ける）
+export function freeTitle(title: string, taken: readonly string[]): string {
+  if (!taken.includes(title)) return title
+  for (let n = 2; ; n++) {
+    const made = `${title} ${n}`
+    if (!taken.includes(made)) return made
+  }
+}
+
 // フォルダ folder の直下のエントリの名前（並びの順。名前の無い物は入らない。except のエントリは除く）
 export function titlesIn(library: Library, folder: Folder, naming: Naming, except?: string): string[] {
   return folder.lineup.flatMap(r => {

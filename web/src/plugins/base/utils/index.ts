@@ -1,6 +1,7 @@
 // プラグインに公開する共通の処理（計算など見た目でない物）: ここで書き出した物は、プラグイン API の入口 matomezu からそのまま出る。
 // ここに置かない base の物は出ない。見た目の物（フックなど）は ui.ts に書き出す（matomezu/ui から出る）
 
+export { freeTitle } from "../../../core/entries"
 export { ColorSchema, colorPaint } from "./color"
 export { DRAG_START } from "./drag"
 export { edgePanner, edgeScroll } from "./edge-pan"
@@ -12,4 +13,3 @@ export { changeWithLock } from "./lock"
 export { actionsOfPage } from "./page-actions"
 export { refusalMessage } from "./refusal"
 export { amongSelected, onlySelected, toggledSelection } from "./selection"
-export { freeTitle } from "./titles"
