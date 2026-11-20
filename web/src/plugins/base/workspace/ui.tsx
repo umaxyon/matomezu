@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react"
 import { defineWidget } from "../../../ui/layout"
-import { FOOTER_MENU_SLOTS } from "../book-name/footer-menu"
+import { FOOTER_MENU_SLOTS } from "../footer-menu/footer-menu"
 import { kit } from "../kit"
 import { RIGHT_SIDE_PANEL } from "../right-side-panel/slots"
 import { BOOK_SCREEN } from "../window/slots"

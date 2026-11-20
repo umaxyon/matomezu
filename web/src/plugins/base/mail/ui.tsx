@@ -12,6 +12,8 @@ import { MailBookmarks } from "./Bookmarks"
 import { MAIL_DIALOG } from "./dialogs"
 import { mailboxEntries } from "./entries"
 import { useUnreadMail } from "./hooks"
+import { JoinRequestActions } from "./JoinRequestActions"
+import { MAIL_JOIN_REQUEST } from "./join-request"
 import { MailboxView } from "./Mailbox"
 import { MailDialog } from "./MailDialog"
 import { MailLayer } from "./MailLayer"
@@ -68,6 +70,13 @@ export const PROPOSAL_ACTIONS = defineMailActions({
   id: kit.name("proposal-actions"),
   mail: MAIL_PROPOSAL.id,
   view: ProposalActions,
+})
+
+// 参加要求の郵便のダイアログの下の行（断る・受け入れる）
+export const JOIN_REQUEST_ACTIONS = defineMailActions({
+  id: kit.name("join-request-actions"),
+  mail: MAIL_JOIN_REQUEST.id,
+  view: JoinRequestActions,
 })
 
 // 郵便箱を開くボタン（フッタメニューに置く）: 郵便箱と、このステージの送信トレイを渡して左サイドパネルを開く

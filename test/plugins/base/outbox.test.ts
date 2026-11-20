@@ -2,11 +2,11 @@
 
 import { expect, test } from "bun:test"
 import type { Annotation } from "../../../web/src/core/annotation"
-import { shownTime } from "../../../web/src/plugins/base/left-side-panel/time"
 import { defineLeftSidePanelTab, opensOf, tabEntry } from "../../../web/src/plugins/base/left-side-panel/ui"
 import { newlyRead } from "../../../web/src/plugins/base/note/ReadNotice"
 import { listedPages } from "../../../web/src/plugins/base/outbox/rows"
 import { defineAnnotationIcon } from "../../../web/src/plugins/base/outbox/ui"
+import { shownTime } from "../../../web/src/plugins/base/utils/shown-time"
 import { drawingPage, testBook } from "../../lineup"
 import { CORE_CATALOG } from "../../support"
 

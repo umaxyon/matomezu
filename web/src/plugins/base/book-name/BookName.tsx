@@ -10,12 +10,12 @@ import { useMessages } from "../../../ui/i18n"
 import { Slot } from "../../../ui/Slot"
 import { useStageHere } from "../../../ui/scope"
 import { useBook } from "../../../ui/view-hooks"
+import { FOOTER_MENU_SLOTS } from "../footer-menu/footer-menu"
+import { FooterMenuContext } from "../footer-menu/footer-menu-context"
 import { kit } from "../kit"
 import { LockIcon } from "../lock/LockIcon"
 import { useBottomHover } from "../workspace/bottom-hover"
 import styles from "./BookName.module.css"
-import { FOOTER_MENU_SLOTS } from "./footer-menu"
-import { FooterMenuContext } from "./footer-menu-context"
 
 // 離れてからメニューが下がるまで（ボタンとメニューの間を動く間に下がらないように）
 const LEAVE_MS = 250

@@ -1,4 +1,4 @@
-// 経った時間（「〜前」）と、同じ名前で断られた原因と、問いの吹き出し（Ask.tsx）と、物の角に出す物（corner.tsx）の文言
+// 経った時間（「〜前」）と、同じ名前で断られた原因と、一覧の行の「取消」（Withdraw.tsx）と、問いの吹き出し（Ask.tsx）と、物の角に出す物（corner.tsx）の文言
 import { defineMessages } from "../../../core/i18n/messages"
 
 export const ELAPSED_MESSAGES = defineMessages({
@@ -10,6 +10,14 @@ export const ELAPSED_MESSAGES = defineMessages({
   "{n} days ago": { en: "{n} days ago", ja: "{n} 日前" },
   "{month}/{day}": { en: "{month}/{day}", ja: "{month}/{day}" },
   "{year}/{month}/{day}": { en: "{year}/{month}/{day}", ja: "{year}/{month}/{day}" },
+})
+
+// 一覧の行の「取消」（Withdraw.tsx）
+export const WITHDRAW_MESSAGES = defineMessages({
+  "Withdraw?": { en: "Withdraw?", ja: "取り消しますか？" },
+  Keep: { en: "Keep", ja: "やめる" },
+  Withdraw: { en: "Withdraw", ja: "取消" },
+  "Withdraw {name}": { en: "Withdraw {name}", ja: "{name}を取り消す" },
 })
 
 // 問いの吹き出し（Ask.tsx）

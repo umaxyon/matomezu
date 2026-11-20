@@ -4,11 +4,11 @@ import { useMessages } from "../../../ui/i18n"
 import { useActions, useAllowedOn, useCoreCatalog } from "../../../ui/view-hooks"
 import { ActionButton } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import type { MailActionsProps } from "../mail/slots"
+import { PARTICIPANT_ACCEPT, PARTICIPANT_DECLINE } from "../participant"
+import { PARTICIPANT_JOIN_DIALOG } from "../participant/dialogs"
+import { useParticipants } from "../participant/hooks"
 import { refusalMessage } from "../utils/refusal"
-import { PARTICIPANT_ACCEPT, PARTICIPANT_DECLINE } from "."
-import { PARTICIPANT_JOIN_DIALOG } from "./dialogs"
-import { useParticipants } from "./hooks"
+import type { MailActionsProps } from "./slots"
 
 export function JoinRequestActions({ mail, onClose }: MailActionsProps) {
   const t = useMessages(kit)

@@ -13,17 +13,18 @@ import { useActions, useAllowed, useBook, useCoreCatalog, useStage, useUiCatalog
 import { useBookAnnotations, usePerformOrToast } from "../annotation-hooks"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
-import rows from "../left-side-panel/PanelRows.module.css"
-import { shownTime } from "../left-side-panel/time"
-import { Withdraw } from "../left-side-panel/Withdraw"
-import { BUBBLE_CHARS } from "../note/NoteLayer"
 import { useOpenRightSidePanel } from "../right-side-panel/hooks"
 import { clampChars } from "../text/text"
+import rows from "../utils/PanelRows.module.css"
 import { useRevealHere } from "../utils/reveal-request"
+import { shownTime } from "../utils/shown-time"
+import { Withdraw } from "../utils/Withdraw"
 import { listedOf } from "./listed"
 import styles from "./Outbox.module.css"
 import { listedPages } from "./rows"
 import { ANNOTATION_ICON, type AnnotationIconProps } from "./slots"
+
+const ROW_CHARS = 20 // 行に出す、文の始めの字数
 
 export function Outbox() {
   const t = useMessages(kit)
@@ -57,7 +58,7 @@ function Row({ annotation: a, now }: { annotation: AiAnnotation; now: Date }) {
   const name = useAnchorName(a.anchors.at(-1) ?? "")
   const listed = listedOf(catalog, a)
   const at = listed?.def.addedAt(listed.props as never) ?? null
-  const text = clampChars(listed?.def.text?.(listed.props as never) ?? name, BUBBLE_CHARS)
+  const text = clampChars(listed?.def.text?.(listed.props as never) ?? name, ROW_CHARS)
   const withdraw = listed?.def.withdraw
   // 取消のアクションを、その物の付いているページで行えなければ（認可ステップが止めたなど）、取消を押せなくする
   const withdrawable = useAllowed((withdraw?.action ?? "") as ActionId, { page: a.page }).ok
