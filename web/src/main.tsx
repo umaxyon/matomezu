@@ -38,7 +38,7 @@ const store = createMatomezu({
   aiEditTicket: change => client.reportAIEditTicket(change),
   visible: () => client.visible(),
   search: query => client.search(query),
-  ...browserWindowIo,
+  ...browserWindowIo(),
 })
 // 取り込んだ追加プラグインは、matomezu 本体の core/catalog.ts の型に入らないので、型では確かめず、台帳アセンブルで確かめる（見た目と、置いた UI マッピングも）。
 // 読み込めないもの・台帳アセンブルで食い違うもの・UI マッピングが食い違うものは外す（ほかのプラグインとブックは使える）
@@ -75,7 +75,7 @@ createRoot(root).render(
 
 // 開き方の案内を描いて止める（戻らない）。ブックも設定も読まず、ビルトインプラグインだけでインスタンスを作る
 async function showOpenGuide(at: HTMLElement): Promise<never> {
-  const guide = createMatomezu({ plugins: BUILTIN_UI, lang: navigator.languages, ...browserWindowIo })
+  const guide = createMatomezu({ plugins: BUILTIN_UI, lang: navigator.languages, ...browserWindowIo() })
   createRoot(at).render(
     <StrictMode>
       <MatomezuProvider instance={guide} layout={UNKNOWN_BROWSER_LAYOUT} warnings={[]}>
