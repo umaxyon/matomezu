@@ -159,7 +159,7 @@ func codexSessionEndsWith(watch codexsessionend.Process) string {
 
 // Run は、Codex の MCP を出し、起こす知らせを Codex の会話に渡す watch も中で動かす
 func (codexMCPCmd) Run() error {
-	c := mcpCmd{serverFlags: serverFlags{Addr: DefaultAddr}, SessionEndsWith: codexSessionEndsWith(codexsessionend.Watch()), MetaModel: codexlaunch.MetaModel, Deliver: append([]string{selfExecutable()}, codexlaunch.DeliverArgs...)}
+	c := mcpCmd{serverFlags: serverFlags{Addr: DefaultAddr}, SessionEndsWith: codexSessionEndsWith(codexsessionend.Watch()), MetaModel: codexlaunch.MetaModel, NotClaudeCode: true, Deliver: append([]string{selfExecutable()}, codexlaunch.DeliverArgs...)}
 	if root := codexDev(); root != "" {
 		c.serverFlags = devServerFlags(root)
 	}
@@ -202,7 +202,7 @@ type opencodeMCPCmd struct {
 
 // Run は、opencode の MCP を出す
 func (c opencodeMCPCmd) Run() error {
-	m := mcpCmd{serverFlags: c.serverFlags, MetaSession: opencodelaunch.MetaSession}
+	m := mcpCmd{serverFlags: c.serverFlags, MetaSession: opencodelaunch.MetaSession, NotClaudeCode: true}
 	return m.Run()
 }
 

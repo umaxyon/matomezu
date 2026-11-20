@@ -97,6 +97,9 @@ type mcpCmd struct {
 	MetaSession     []string `name:"meta-session" help:"Where in a tool call's _meta the AI program puts its session id (a JSON Pointer such as /ai.opencode~1sessionID), looked at after /sessionId and /threadId. Repeat for more."`
 	MetaModel       string   `name:"meta-model" help:"Where in a tool call's _meta the AI program puts its model (a JSON Pointer such as /x-codex-turn-metadata/model)."`
 	Deliver         []string `arg:"" optional:"" passthrough:"" help:"A command (after --) that hands each wake notice to the AI, as watch does with it. The MCP then also watches for the notices of its host program while it runs (for an AI program that has no background monitor)."`
+	// NotClaudeCode は、Claude Code でない AI の MCP（codex mcp・opencode mcp）。Claude Code のセッション id の環境変数を読まない
+	// （Claude Code の Bash から起こされた AI は、その環境変数を受け継ぐ。読むと、常駐がその Claude Code の参加者と取り違える）
+	NotClaudeCode bool `kong:"-"`
 }
 
 type annotationsCmd struct{}
@@ -291,6 +294,9 @@ func (c *mcpCmd) Run() error {
 	// 渡すコマンドがあれば、起こす知らせの watch も並べて動かす（標準出力は MCP が使うので、渡すコマンドが無いときは動かさない）
 	host := hostProcess()
 	session := os.Getenv(claudelaunch.SessionEnv) // プラグインを使わずに matomezu mcp を登録した Claude Code でも、セッション id を添える
+	if c.NotClaudeCode {
+		session = ""
+	}
 	if len(deliverCommand(c.Deliver)) > 0 {
 		w := &watchCmd{Host: host, Session: session, Resident: c.Resident, Deliver: c.Deliver}
 		go func() {

@@ -28,6 +28,7 @@ package server
 // 参加の id が付いているか、同じ link の頼みは、これを見ずに、いる参加者のまま答える（参加の id の持ち主は、生きていなくても続けられる）
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -609,14 +610,70 @@ func (h *Hub) Called(id string, says CallerSays, now time.Time) string {
 	return "The user declined your request to join matomezu (or removed you). Tell the user, and do not ask again unless the user asks."
 }
 
-// ai は /api/ai の口を包む。合言葉を確かめたあと（auth）、参加の id・ブランチ・AI のプログラムのプロセス id のヘッダを読んで常駐だけが持つ参加者の記録を更新し、知らせがあれば返事のヘッダに付ける
+// ai は /api/ai の口を包む。合言葉を確かめたあと（auth）、呼び出しの参加者を決め（participantOf で読む）、ブランチ・AI のプログラムのプロセス id のヘッダを読んで
+// 常駐だけが持つ参加者の記録を更新し、知らせがあれば返事のヘッダに付ける。
+// 参加者は、参加の id のヘッダか、無ければ AI のプログラムが MCP を立てたときのセッション id のヘッダに結ばれた参加者（SessionParticipant。
+// MCP が起動し直されて、join で受けた参加の id を失ったとき）
 func (o Options) ai(h http.HandlerFunc) http.Handler {
 	return o.auth(func(w http.ResponseWriter, r *http.Request) {
-		if notice := o.Hub.Called(r.Header.Get(aiwire.ParticipantHeader), callerSays(r.Header), time.Now()); notice != "" {
+		id := r.Header.Get(aiwire.ParticipantHeader)
+		if id == "" {
+			id = o.Hub.SessionParticipant(r.Header.Get(aiwire.HostSessionHeader), r.Header.Get(aiwire.HostHeader))
+		}
+		r = r.WithContext(context.WithValue(r.Context(), participantKey{}, id))
+		if notice := o.Hub.Called(id, callerSays(r.Header), time.Now()); notice != "" {
 			w.Header().Set(aiwire.NoticeHeader, url.QueryEscape(notice))
 		}
 		h(w, r)
 	})
+}
+
+// participantKey は、ai の包みが決めた呼び出しの参加者を、request の context に置く鍵
+type participantKey struct{}
+
+// participantOf は、ai の包みが決めた呼び出しの参加の id（無ければ空）
+func participantOf(r *http.Request) string {
+	id, _ := r.Context().Value(participantKey{}).(string)
+	return id
+}
+
+// SessionParticipant は、セッション id session が結ばれた参加者の id。受け入れ済みで準備中でない参加者が、ちょうど 1 人のときだけ返す（ほかは空。
+// フックは会話に出た link の参加者のどれにも同じセッション id を結ぶので、1 人に決まらなければ選ばない）。
+// 返すときは、起こす知らせの宛て先を、この呼び出しの AI のプログラムのプロセス id host とセッション id に書き直す（起動し直した AI のプログラムは、プロセス id が変わる）
+func (h *Hub) SessionParticipant(session, host string) string {
+	if session == "" {
+		return ""
+	}
+	records, err := h.records()
+	if err != nil {
+		return ""
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	found := ""
+	for _, s := range records {
+		n := h.participantNotes[s.ID]
+		if n.SessionID != session || !s.accepted() || !n.ready() {
+			continue
+		}
+		if found != "" {
+			return ""
+		}
+		found = s.ID
+	}
+	if found == "" {
+		return ""
+	}
+	n := h.participantNotes[found]
+	if n.WakeHost != host || n.WakeSession != session {
+		n.WakeHost, n.WakeSession = host, session
+		h.participantNotes[found] = n
+		if err := h.putParticipantNotes(); err != nil {
+			fmt.Fprintln(os.Stderr, "could not save the wake target of participant", found, ":", err)
+		}
+		h.signalWakes(found)
+	}
+	return found
 }
 
 func (o Options) aiJoin(w http.ResponseWriter, r *http.Request) {
@@ -624,7 +681,7 @@ func (o Options) aiJoin(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &req) {
 		return
 	}
-	req.Participant = r.Header.Get(aiwire.ParticipantHeader)
+	req.Participant = participantOf(r)
 	req.Host = r.Header.Get(aiwire.HostHeader)
 	req.HostSession = r.Header.Get(aiwire.HostSessionHeader)
 	req.SessionPid = r.Header.Get(aiwire.SessionPidHeader)
