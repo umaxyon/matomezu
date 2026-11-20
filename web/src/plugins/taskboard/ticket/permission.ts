@@ -4,7 +4,7 @@
 import { kit } from "../kit"
 import { PROJECT } from "../project"
 import { PROJECT_REOPEN } from "../project/actions"
-import { TICKET } from "."
+import { TICKET } from "./ticket"
 
 // レコード record（none・removed のこともある）が、閉じたプロジェクトか
 const closed = (record: unknown) =>

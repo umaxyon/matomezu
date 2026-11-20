@@ -5,9 +5,9 @@ import { byOf, READS_WORKROOM_NAMES, type Records, readsBy, recordIn, workroomsO
 import { kit } from "../kit"
 import { inDoneLane, PROJECT, UNSORTED } from "../project"
 import { type Project, projectOf } from "../project/actions"
-import { PRIORITIES, PRIORITY_DEFAULT, TICKET, TICKET_NAME_MAX } from "."
 import { ticketLabel } from "./label"
 import { type Candidate, type Resolved, resolve } from "./resolve"
+import { PRIORITIES, PRIORITY_DEFAULT, TICKET, TICKET_NAME_MAX } from "./ticket"
 
 export type Ticket = z.output<typeof TICKET.record>
 

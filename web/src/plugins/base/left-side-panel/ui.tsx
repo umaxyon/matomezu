@@ -36,3 +36,8 @@ export function tabEntry<P>(tab: { id: string; view: (props: P) => ReactNode }, 
 export const opensOf = (...tabs: readonly { opens?: readonly SlotId[] }[]): readonly SlotId[] => [
   ...new Set(tabs.flatMap(t => t.opens ?? [])),
 ]
+
+export { useCloseLeftSidePanel, useLeftSidePanel, useOpenLeftSidePanel } from "./hooks"
+export { LeftSidePanelOpenButton } from "./OpenButton"
+export { LEFT_SIDE_PANEL } from "./slots"
+export type { LeftSidePanelEntry, LeftSidePanelOpen } from "./state"

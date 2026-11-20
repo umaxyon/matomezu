@@ -1,26 +1,22 @@
 // タスクボードのプラグイン: プロジェクト（タスクボード 1 枚）・チケット・チケット履歴の対象の定義と、履歴の題の列挙、そのアクションと認可ステップ（閉じたプロジェクトを守る）、プロジェクト設定のダイアログ。
 import { defineBuiltin } from "../../plugin-api/builtin"
-import { CARD_VISIT, LANE_SORTS, MAXIMIZED } from "./board"
-import { PROJECT_ORDER, SHOWN_PROJECTS } from "./board/user-settings"
+import { CARD_VISIT, LANE_SORTS, MAXIMIZED, PROJECT_ORDER, SHOWN_PROJECTS } from "./board"
 import { TICKET_COMPLETE } from "./completion"
 import { kit } from "./kit"
-import { PROJECT } from "./project"
-import { PROJECT_ADD, PROJECT_CLOSE, PROJECT_REOPEN, PROJECT_UPDATE } from "./project/actions"
+import { PROJECT, PROJECT_ADD, PROJECT_CLOSE, PROJECT_REOPEN, PROJECT_UPDATE } from "./project"
 import { LIST_OPEN } from "./project-list"
 import { PROJECT_SETTINGS_DIALOG } from "./project-settings"
-import { TICKET } from "./ticket"
-import { TICKET_ADD, TICKET_LOCK, TICKET_REMOVE, TICKET_UNLOCK, TICKET_UPDATE } from "./ticket/actions"
-import { CLOSED_PROJECT } from "./ticket/permission"
+import { CLOSED_PROJECT, TICKET, TICKET_ADD, TICKET_LOCK, TICKET_REMOVE, TICKET_UNLOCK, TICKET_UPDATE } from "./ticket"
 import {
   HISTORY,
   HISTORY_TOPIC,
+  TICKET_HISTORY_ADD,
   TOPIC_BODY,
   TOPIC_COMPLETE,
   TOPIC_PLAN,
   TOPIC_QUESTION,
   TOPIC_STATUS,
 } from "./ticket-history"
-import { TICKET_HISTORY_ADD } from "./ticket-history/actions"
 import { TICKET_SCREEN, TICKET_SCREEN_STATE } from "./ticket-screen"
 import { TICKET_FILTER } from "./wide-search"
 

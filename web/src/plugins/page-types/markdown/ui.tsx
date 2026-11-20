@@ -9,9 +9,7 @@ import { MARKDOWN, MARKDOWN_PRESENTATION } from "./markdown"
 import { SOURCE_LOOK_SETTINGS } from "./source-look"
 import { TAB_KEY } from "./tab-key"
 import { MarkdownIcon } from "./type-icon"
-import { PANE_LAYOUT_ICONS } from "./view/pane-icons"
-import { TabKeySetting } from "./view/TabKeySetting"
-import { MARKDOWN_VIEW } from "./view/ui"
+import { MARKDOWN_VIEW, PANE_LAYOUT_ICONS, TabKeySetting } from "./view/ui"
 
 // 設定カテゴリ「マークダウン」: Tab キーとソースのペインの見た目と、描いた文書の段落の中の改行 1 つ（base の設定の項目）
 export const MARKDOWN_SETTINGS_CATEGORY = defineSettingsCategory({

@@ -379,6 +379,34 @@ test("base の utils は、base の utils の外のファイルを読まない",
   expect(offenders).toEqual([])
 })
 
+// プラグインの index.ts・ui.tsx（ui.ts）・messages.ts は、機能のフォルダの同じ役割のファイル（ui は、見た目を結ぶ定義の index も）だけを読み、フォルダの奥のファイルを直に読まない。
+// フォルダの中は、そのフォルダが組み直してよい。base の utils は機能のフォルダでないので除く（plugins の「プラグインの中の形」）
+const ENTRY_READS: Record<string, readonly string[]> = {
+  "index.ts": ["index"],
+  "ui.tsx": ["ui", "index"],
+  "ui.ts": ["ui", "index"],
+  "messages.ts": ["messages"],
+}
+test("プラグインの index・ui・messages は、機能のフォルダの同じ役割のファイルだけを読む", () => {
+  const offenders = sources
+    .filter(f => crateOf(f.rel) === "plugins" && dirname(f.rel) === pluginRoot(f.rel) && basename(f.rel) in ENTRY_READS)
+    .flatMap(f =>
+      [...f.text.matchAll(/from\s*["'](\.\/[^"']+)["']/g)]
+        .map(m => m[1]!.slice(2))
+        .filter(spec => {
+          const [folder, ...rest] = spec.split("/")
+          const root = pluginRoot(f.rel)
+          if (`${root}/${folder}` === "plugins/base/utils") return false
+          const isFolder = statSync(join(SRC, root, folder!), { throwIfNoEntry: false })?.isDirectory() === true
+          if (!isFolder) return false
+          const role = rest.length === 0 ? "index" : rest.join("/")
+          return !ENTRY_READS[basename(f.rel)]!.includes(role)
+        })
+        .map(spec => `${f.rel} → ./${spec}`),
+    )
+  expect(offenders).toEqual([])
+})
+
 // コメントの言葉を見張るファイル（ソース・テスト・e2e・スクリプト・CSS・Go。このファイルは除く）
 const wordedFiles = () =>
   [

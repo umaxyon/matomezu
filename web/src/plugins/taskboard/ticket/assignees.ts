@@ -1,6 +1,6 @@
 // チケットの担当のワークルーム（チケットの並びのまま。もう無いワークルームは外す）
 import type { z } from "zod"
-import type { TICKET } from "."
+import type { TICKET } from "./ticket"
 
 type Ticket = z.output<typeof TICKET.record>
 

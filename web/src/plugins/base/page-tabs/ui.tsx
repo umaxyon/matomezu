@@ -71,3 +71,7 @@ export const PAGE_DIALOG_VIEWS = {
 export const PAGE_CONTEXT_MENU_ROWS = {
   [ADD_PAGE_MENU]: useAddPageRows,
 }
+
+export { PageProblemsView, usePageProblems } from "./PageProblems"
+export { type PaperValue, usePaperControls } from "./PaperControls"
+export { useAddPage } from "./useAddPage"

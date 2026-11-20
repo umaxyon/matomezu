@@ -25,3 +25,6 @@ export const SCRAP_TRAY_BUTTON = defineWidget({
   opens: SCRAP_TRAY_TAB.opens,
   view: ScrapTrayButton,
 })
+
+export { ScrapForm } from "./ScrapForm"
+export { ScrapView, type ScrapViewProps } from "./ScrapView"

@@ -91,3 +91,6 @@ export const MAILBOX_BUTTON = defineWidget({
 function MailboxButton() {
   return <LeftSidePanelOpenButton entries={mailboxEntries} />
 }
+
+export { useMailboxPanel } from "./hooks"
+export { MAIL_ACTIONS, type MailActionsProps } from "./slots"

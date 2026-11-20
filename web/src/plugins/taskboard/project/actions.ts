@@ -18,7 +18,7 @@ import {
   TAG,
   TAG_NAME_MAX,
   TAGS,
-} from "."
+} from "./project"
 import { projectNameOf, sayIn, templateOf } from "./template"
 
 export type Project = z.output<typeof PROJECT.record>

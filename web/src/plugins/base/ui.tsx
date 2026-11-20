@@ -11,13 +11,18 @@ import type { CornerStatusProps } from "./corner-status/ui"
 import { DIALOG_HOST } from "./dialog-host/ui"
 import { EDIT_LOCK } from "./edit-lock/ui"
 import { FOOTER_MENU_MINIMAP, HISTORY_BUTTONS, STAGE_MENU_BUTTONS } from "./footer-menu/ui"
-import { HISTORY_ICONS } from "./history/icons"
-import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG, LIBRARY_RENAME_DIALOG } from "./library/dialog"
-import { LIBRARY_COMMAND_ICONS } from "./library/icons"
-import { LibraryNewBookDialog } from "./library/LibraryNewBookDialog"
-import { LibraryNewFolderDialog, LibraryRenameDialog } from "./library/NameDialogs"
-import { LIBRARY_SCREEN_VIEW } from "./library/screen-ui"
-import type { MailActionsProps } from "./mail/slots"
+import { HISTORY_ICONS } from "./history/ui"
+import {
+  LIBRARY_COMMAND_ICONS,
+  LIBRARY_NEW_BOOK_DIALOG,
+  LIBRARY_NEW_FOLDER_DIALOG,
+  LIBRARY_RENAME_DIALOG,
+  LIBRARY_SCREEN_VIEW,
+  LibraryNewBookDialog,
+  LibraryNewFolderDialog,
+  LibraryRenameDialog,
+} from "./library/ui"
+import type { MailActionsProps } from "./mail/ui"
 import {
   JOIN_REQUEST_ACTIONS,
   MAIL_BOOKMARKS,
@@ -30,7 +35,7 @@ import {
 } from "./mail/ui"
 import { ALERT_STATUS, MARK_ICON, MARK_LAYER } from "./mark/ui"
 import { FOLDED_NOTE_STATUS, NOTE_ICON, NOTE_LAYER, NOTE_PANEL, NOTE_READ_NOTICE, READ_NOTE_STATUS } from "./note/ui"
-import type { AnnotationIconProps } from "./outbox/slots"
+import type { AnnotationIconProps } from "./outbox/ui"
 import { OUTBOX } from "./outbox/ui"
 import { PAGE_CONTEXT_MENU_ROWS, PAGE_DIALOG_VIEWS, PAGE_LIST, PAGE_SETTINGS_ICONS, PAGE_TABS } from "./page-tabs/ui"
 import { PARTICIPANT_DIALOG_VIEWS } from "./participant/ui"
@@ -43,9 +48,14 @@ import {
   SHEET_CONTENT,
 } from "./print-preview/ui"
 import { SEARCH_DIALOG } from "./search/ui"
-import { GENERAL_CATEGORY, KEYS_CATEGORY, PLUGINS_CATEGORY } from "./settings/categories"
-import { SETTINGS_ICONS } from "./settings/icons"
-import { SETTINGS_DIALOG_VIEWS, USER_SETTING_VIEWS } from "./settings/ui"
+import {
+  GENERAL_CATEGORY,
+  KEYS_CATEGORY,
+  PLUGINS_CATEGORY,
+  SETTINGS_DIALOG_VIEWS,
+  SETTINGS_ICONS,
+  USER_SETTING_VIEWS,
+} from "./settings/ui"
 import {
   BACKGROUND_BAND,
   BACKGROUND_BUTTON,
@@ -62,19 +72,16 @@ import {
 import { TEXT_SETTING_VIEWS } from "./text/ui"
 import { TOAST_HOST } from "./toast-host/ui"
 import { TOOL_PICKER_WIDGET } from "./tool-picker/ui"
-import { TOOL_ICONS } from "./tool-switch/icons"
-import { TOOL_SWITCH } from "./tool-switch/ui"
+import { TOOL_ICONS, TOOL_SWITCH } from "./tool-switch/ui"
 import { TOOLBOX } from "./toolbox/ui"
-import type { WideSearchModeProps } from "./wide-search/slots"
-import type { WideSearchOpened } from "./wide-search/ui"
+import type { WideSearchModeProps, WideSearchOpened } from "./wide-search/ui"
 import { FULL_TEXT_MODE, WIDE_SEARCH_TAB } from "./wide-search/ui"
-import { WINDOW_ICONS } from "./window/icons"
-import { SCREENS_WIDGET, WINDOW } from "./window/ui"
+import { SCREENS_WIDGET, WINDOW, WINDOW_ICONS } from "./window/ui"
 import { WORKSPACE } from "./workspace/ui"
-import { ZOOM_ICONS } from "./zoom/icons"
+import { ZOOM_ICONS } from "./zoom/ui"
 
-export { BirdWalk } from "./birds/BirdWalk"
-export { type CodeSpan, highlightCode } from "./code-highlight/highlight"
+export { BirdWalk } from "./birds/ui"
+export { type CodeSpan, highlightCode } from "./code-highlight/ui"
 export {
   AtCorner,
   CORNER_STATUSES,
@@ -82,14 +89,14 @@ export {
   defineCornerStatus,
   useAtCornerBubble,
 } from "./corner-status/ui"
-export { ColorPicker, type Swatch } from "./dialog-host/ColorPicker"
-export { Confirm } from "./dialog-host/Confirm"
-export { Dialog } from "./dialog-host/Dialog"
 export {
   ActionButton,
   Choices,
   ChoiceText,
+  ColorPicker,
+  Confirm,
   controlClass,
+  Dialog,
   dividerClass,
   Field,
   Form,
@@ -101,9 +108,10 @@ export {
   rowClass,
   Section,
   SelectButton,
+  type Swatch,
   Switch,
   SwitchPanel,
-} from "./dialog-host/FormParts"
+} from "./dialog-host/ui"
 export {
   ALIGN_ICONS,
   useAligns,
@@ -112,38 +120,41 @@ export {
   usePageThemes,
   useSwatches,
   useThemeVars,
-} from "./item-parts/parts"
-export { useCloseLeftSidePanel, useLeftSidePanel, useOpenLeftSidePanel } from "./left-side-panel/hooks"
-export { LeftSidePanelOpenButton } from "./left-side-panel/OpenButton"
-export { LEFT_SIDE_PANEL } from "./left-side-panel/slots"
-export type { LeftSidePanelEntry, LeftSidePanelOpen } from "./left-side-panel/state"
-export { defineLeftSidePanelTab, opensOf, tabEntry } from "./left-side-panel/ui"
-export { LIBRARY_CONTEXT_MENUS } from "./library/commands"
-export { type FolderEntry, useFolderEntries } from "./library/hooks"
-export { LibraryView } from "./library/LibraryView"
-export { LockToggle } from "./lock/LockToggle"
-export { useMailboxPanel } from "./mail/hooks"
-export { MAIL_ACTIONS, type MailActionsProps } from "./mail/slots"
-export { defineMailActions, MAILBOX_OPENS } from "./mail/ui"
+} from "./item-parts/ui"
+export type { LeftSidePanelEntry, LeftSidePanelOpen } from "./left-side-panel/ui"
+export {
+  defineLeftSidePanelTab,
+  LEFT_SIDE_PANEL,
+  LeftSidePanelOpenButton,
+  opensOf,
+  tabEntry,
+  useCloseLeftSidePanel,
+  useLeftSidePanel,
+  useOpenLeftSidePanel,
+} from "./left-side-panel/ui"
+export { type FolderEntry, LIBRARY_CONTEXT_MENUS, LibraryView, useFolderEntries } from "./library/ui"
+export { LockToggle } from "./lock/ui"
+export { defineMailActions, MAIL_ACTIONS, MAILBOX_OPENS, type MailActionsProps, useMailboxPanel } from "./mail/ui"
 export {
   MARKDOWN_PANE_MODE_ICONS,
   MarkdownDocumentView,
   markdownDocumentOnSkin,
   useMarkdownDocument,
 } from "./markdown/ui"
-export { useDrawnMinimap } from "./minimap/drawn"
-export { ANNOTATION_ICON, type AnnotationIconProps } from "./outbox/slots"
-export { defineAnnotationIcon } from "./outbox/ui"
-export { PageProblemsView, usePageProblems } from "./page-tabs/PageProblems"
-export { type PaperValue, usePaperControls } from "./page-tabs/PaperControls"
-export { useAddPage } from "./page-tabs/useAddPage"
-export { BirdFaceView } from "./participant/BirdFaceView"
-export { useVisitorRows, useWorkroomActions, useWorkroomRows, type WorkroomActions } from "./participant/hooks"
-export { VisitorIcon } from "./participant/VisitorIcon"
-export type { PrintMeasured, PrintMeasureProps, PrintSheetProps } from "./print-preview/PrintPreviewView"
-export { ScrapForm } from "./scrap/ScrapForm"
-export { ScrapView, type ScrapViewProps } from "./scrap/ScrapView"
-export { ChoiceSetting } from "./settings/ChoiceSetting"
+export { useDrawnMinimap } from "./minimap/ui"
+export { ANNOTATION_ICON, type AnnotationIconProps, defineAnnotationIcon } from "./outbox/ui"
+export { PageProblemsView, type PaperValue, useAddPage, usePageProblems, usePaperControls } from "./page-tabs/ui"
+export {
+  BirdFaceView,
+  useVisitorRows,
+  useWorkroomActions,
+  useWorkroomRows,
+  VisitorIcon,
+  type WorkroomActions,
+} from "./participant/ui"
+export type { PrintMeasured, PrintMeasureProps, PrintSheetProps } from "./print-preview/ui"
+export { ScrapForm, ScrapView, type ScrapViewProps } from "./scrap/ui"
+export { ChoiceSetting } from "./settings/ui"
 export {
   type Revealable,
   Stand,
@@ -154,39 +165,41 @@ export {
   useRevealable,
   useStandAway,
 } from "./stand/ui"
-export { useWideSearch, useWideSearchPanel, WIDE_SEARCH_LIMIT_MAX } from "./wide-search/hooks"
-export { WIDE_SEARCH_MODES, WIDE_SEARCH_OPENERS, type WideSearchModeProps } from "./wide-search/slots"
 export {
   defineWideSearchMode,
   defineWideSearchOpener,
+  useWideSearch,
+  useWideSearchPanel,
+  WIDE_SEARCH_LIMIT_MAX,
+  WIDE_SEARCH_MODES,
+  WIDE_SEARCH_OPENERS,
   WIDE_SEARCH_OPENS,
+  type WideSearchModeProps,
   type WideSearchOpened,
 } from "./wide-search/ui"
 
-import type { PrintSheetProps } from "./print-preview/PrintPreviewView"
+import type { PrintSheetProps } from "./print-preview/ui"
 
 // ページとブックの設定の項目のコンポーネントの並び（ページのタイプの設定のダイアログが使う）
-export { type SettingsPatch, useSettingControls } from "./book-settings/SettingControls"
+export { type SettingsPatch, useSettingControls } from "./book-settings/ui"
+export type { RightSidePanelOpen } from "./right-side-panel/ui"
 export {
+  RIGHT_SIDE_PANEL,
   useCloseRightSidePanel,
   useFollowsSelection,
   useOpenRightSidePanel,
   useRightSidePanel,
   useSetRightSidePanelCurrent,
-} from "./right-side-panel/hooks"
-export { RIGHT_SIDE_PANEL } from "./right-side-panel/slots"
-export type { RightSidePanelOpen } from "./right-side-panel/state"
-export type { SearchHit } from "./search/find"
+} from "./right-side-panel/ui"
+export type { SearchHit } from "./search/ui"
 export {
   SEARCH_CURRENT_HIGHLIGHT,
   SEARCH_HIGHLIGHT,
   useHighlightRanges,
   useSearchHits,
   useSearchPick,
-} from "./search/highlights"
-export { defineSettingsCategory } from "./settings/categories"
-export { SettingRow } from "./settings/SettingRow"
-export { UserSettings } from "./settings/ui"
+} from "./search/ui"
+export { defineSettingsCategory, SettingRow, UserSettings } from "./settings/ui"
 export {
   BodyField,
   CaptionField,
@@ -201,10 +214,15 @@ export {
   useBodyGrips,
 } from "./text/ui"
 export * from "./utils/ui"
-export { useControlCenterMaximize, useControlCenterMaximized } from "./window/maximize"
-export { useShowControlCenter } from "./window/show-control-center"
-export { BOOK_SCREEN, CONTROL_CENTER_FOOTER } from "./window/slots"
-export { type ScreenSplit, useScreenSplit } from "./window/useScreenSplit"
+export {
+  BOOK_SCREEN,
+  CONTROL_CENTER_FOOTER,
+  type ScreenSplit,
+  useControlCenterMaximize,
+  useControlCenterMaximized,
+  useScreenSplit,
+  useShowControlCenter,
+} from "./window/ui"
 export { defineWorkspace, STAGE_BASE_SLOTS } from "./workspace/ui"
 
 import { SCRAP_DIALOG_VIEWS, SCRAP_TRAY_BUTTON, SCRAP_TRAY_TAB } from "./scrap/ui"

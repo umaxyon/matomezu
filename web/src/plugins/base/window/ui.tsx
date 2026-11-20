@@ -23,3 +23,9 @@ export const SCREENS_WIDGET = defineWidget({
   screens: true,
   view: ScreensView,
 })
+
+export { WINDOW_ICONS } from "./icons"
+export { useControlCenterMaximize, useControlCenterMaximized } from "./maximize"
+export { useShowControlCenter } from "./show-control-center"
+export { BOOK_SCREEN, CONTROL_CENTER_FOOTER } from "./slots"
+export { type ScreenSplit, useScreenSplit } from "./useScreenSplit"

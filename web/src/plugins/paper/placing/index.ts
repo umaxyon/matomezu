@@ -25,3 +25,5 @@ export {
   sweptItems,
   sweptSelection,
 } from "./selection"
+
+export { type CLIP_STATE, PAPER_STATES } from "./states"

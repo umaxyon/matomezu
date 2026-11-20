@@ -11,7 +11,7 @@ import {
   INHERIT_CARD_SIZE,
   type LANES,
   type TAGS,
-} from "."
+} from "./project"
 
 type Say = (key: Parameters<typeof translate>[2]) => string
 

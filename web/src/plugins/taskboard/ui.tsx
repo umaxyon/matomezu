@@ -6,7 +6,7 @@ import { TASKBOARD } from "./board/ui"
 import { WORKROOM_CURRENT_LINE, WORKROOM_TASK_COLUMNS } from "./current-ticket/ui"
 import { PROJECT_LIST } from "./project-list/ui"
 import { PROJECT_SETTINGS_DIALOG } from "./project-settings"
-import { ProjectSettingsDialog } from "./project-settings/ProjectSettingsDialog"
+import { ProjectSettingsDialog } from "./project-settings/ui"
 import { TICKET_SCREEN_VIEW } from "./ticket-screen/ui"
 import { HISTORY_OPENER, TICKET_MODE, TICKET_OPENER } from "./wide-search/ui"
 
