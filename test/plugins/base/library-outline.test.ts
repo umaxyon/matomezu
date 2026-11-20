@@ -5,11 +5,13 @@ import { BROKEN, FIRST, HOME_ID, TRASH_ID, type UnreadableItem } from "../../../
 import { restorePlanOf, SAME_TITLE } from "../../../web/src/plugins/base/library/entries"
 import { FOLDER_CREATE } from "../../../web/src/plugins/base/library/entry-move"
 import {
+  movedPlacesOf,
   NO_TYPE,
   NOT_OPENED,
   openedFolderOf,
   openTargetOf,
   pathTo,
+  placeIdOf,
   rowsIn,
   shownFoldersOf,
   tabStopOf,
@@ -303,4 +305,30 @@ test("読めない物の行は、移った時刻の新しい順に、名前・�
   expect(rows[3]).toMatchObject({ place: { id: "b1", book: true, trash: false } })
   expect(rows[4]).toEqual({ shape: BROKEN, id: "p4", title: "壊れた" })
   expect(unreadableRowsOf([], library(), NAMING)).toBe(unreadableRowsOf([], library(), NAMING))
+})
+
+test("読めない物が在った所は、並びに持つフォルダ。ブックの中のバインダならそのブック。列が空なら書庫ホーム", () => {
+  const roles: Record<string, string> = { bk: "book", bd: "binder", fd: "folder" }
+  const roleOf = (id: string) => roles[id]
+  expect(placeIdOf(["bd", "bk", HOME_ID], roleOf)).toBe("bk")
+  expect(placeIdOf(["bd", "fd", HOME_ID], roleOf)).toBe("bd")
+  expect(placeIdOf(["fd", HOME_ID], roleOf)).toBe("fd")
+  expect(placeIdOf([], roleOf)).toBe(HOME_ID)
+})
+
+test("無効にしたら移る物は、在る所ごとに数え、在る所が最初に出た順に並ぶ", () => {
+  const { library } = setup()
+  const places = movedPlacesOf(
+    [
+      { id: "b2-p1", kind: "page", holder: "b2", code: "W027", type: "ex2:flow" },
+      { id: "p1", kind: "page", holder: "b1", code: "W027", type: "ex2:flow" },
+      { id: "b2-p2", kind: "page", holder: "b2", code: "W027", type: "ex2:flow" },
+    ],
+    library(),
+    NAMING,
+  )
+  expect(places).toEqual([
+    { id: "b2", title: "画面の構成", count: 2 },
+    { id: "b1", title: "まとめ図の構想", count: 1 },
+  ])
 })

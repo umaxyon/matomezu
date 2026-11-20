@@ -1,10 +1,11 @@
 // 書庫の画面のビューが共に使うフック: 書庫の表から出した行を同じ値のまま保つ・行の名前・焦点を中に保つ
 import { type RefObject, useEffect, useRef } from "react"
 import { type EntryKind, type Naming, namingOf } from "../../../core/entries"
-import { HOME_ID, type Library, TRASH_ID } from "../../../core/folders"
+import { type BROKEN, HOME_ID, type Library, TRASH_ID } from "../../../core/folders"
 import { sameData } from "../../../core/same"
+import type { MovedIfOff } from "../../../core/unreadable"
 import { useMessages } from "../../../ui/i18n"
-import { useCatalog, useMatomezuState, useReadState } from "../../../ui/store-context"
+import { useCatalog, useInstance, useMatomezuState, useReadState } from "../../../ui/store-context"
 import { kit } from "../kit"
 import { type LibraryRow, NO_TITLE, rowsIn } from "./outline"
 
@@ -100,3 +101,8 @@ export function useKeepFocusIn(root: RefObject<HTMLElement | null>): void {
 // 押した所が行の外か（何も無い所を押して選んでいる行を外すときに使う）
 export const outsideRow = (target: EventTarget): boolean =>
   target instanceof Element && target.closest("[data-library-row]") === null
+
+// 追加プラグイン ids を無効にしたら読めない物のフォルダへ移る物を、ホストに書かずに数えてもらう（ホストが無いか、頼めなければ投げる）
+export function useMovedIfOff(): (ids: readonly string[]) => Promise<readonly MovedIfOff[] | typeof BROKEN> {
+  return useInstance().movedIfOff
+}

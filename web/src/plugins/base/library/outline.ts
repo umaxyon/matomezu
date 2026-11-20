@@ -12,6 +12,7 @@ import {
   TRASH_ID,
   type UnreadableItem,
 } from "../../../core/folders"
+import type { MovedIfOff } from "../../../core/unreadable"
 import { restoreTargetOf } from "./entries"
 
 // 行 1 つ（描くのに要る物だけ）。title は名前（名前の無い物は NO_TITLE）、type はページのタイプの id（バインダなら入れるページのタイプ。無ければ NO_TYPE）、
@@ -115,6 +116,35 @@ export interface UnreadablePlace {
 
 const NO_UNREADABLE: readonly UnreadableRow[] = []
 
+// 読めない物が在った所の id: from は、その物を並びに持つフォルダから上へのフォルダの id の列（空なら書庫ホーム）。
+// 直近がブックの中のバインダなら、そのブック。roleOf は、フォルダの id の役（folderRole）を引く
+export function placeIdOf(from: readonly string[], roleOf: (id: string) => unknown): string {
+  const [near = HOME_ID, next] = from
+  return roleOf(near) === "binder" && next !== undefined && roleOf(next) === "book" ? next : near
+}
+
+// 追加プラグインを無効にしたら移る物 moved が在る所ごとの数（在る所の名前 title。名前の無い物は NO_TITLE。在る所が最初に出た順）
+export interface MovedPlace {
+  id: string
+  title: string
+  count: number
+}
+export function movedPlacesOf(moved: readonly MovedIfOff[], library: Library, naming: Naming): readonly MovedPlace[] {
+  const roleOf = (id: string): unknown => library.folders[id]?.folderRole
+  const placeOfHolder = new Map<string, string>()
+  const places = new Map<string, MovedPlace>()
+  for (const m of moved) {
+    const id =
+      placeOfHolder.get(m.holder) ??
+      placeIdOf([m.holder, ...foldersOver(library.folders, m.holder).map(f => f.id)], roleOf)
+    placeOfHolder.set(m.holder, id)
+    const was = places.get(id)
+    const title = was?.title ?? titleOf(library, "folder", id, naming) ?? NO_TITLE
+    places.set(id, { id, title, count: (was?.count ?? 0) + 1 })
+  }
+  return [...places.values()]
+}
+
 // 読めない物のフォルダの直下の物 items の行（移った時刻の新しい順。同じ時刻なら、後から移った物が先。形に合わない物は最後に並びの順）。
 // 在った所は、書庫の表 library に在ればそこから、無ければ（そのブックもあとから移った）読めない物のフォルダの直下の物の行から名前を引く。
 // バインダの中に居たページは、そのバインダを持つブックを在った所とする（ブックの外のバインダなら、そのバインダ）
@@ -128,8 +158,7 @@ export function unreadableRowsOf(
   const roleOf = (id: string): unknown =>
     library.folders[id]?.folderRole ?? (moved.get(id) as { folderRole?: unknown } | undefined)?.folderRole
   const placeOf = (from: readonly string[], trash: boolean): UnreadablePlace => {
-    const [near = HOME_ID, next] = from
-    const id = roleOf(near) === "binder" && next !== undefined && roleOf(next) === "book" ? next : near
+    const id = placeIdOf(from, roleOf)
     const title = titleOf(library, "folder", id, naming) ?? rowTitle(moved.get(id), "book", naming) ?? NO_TITLE
     return { id, title, book: roleOf(id) === "book", trash }
   }

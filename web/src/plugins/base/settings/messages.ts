@@ -8,6 +8,14 @@ export const SETTINGS_MESSAGES = defineMessages({
   // 追加プラグインの有効・無効の設定（EnabledPluginsSetting.tsx）
   "Enabled plugins": { en: "Enabled plugins", ja: "有効なプラグイン" },
   "No added plugins": { en: "No plugins have been added", ja: "追加したプラグインはありません" },
+  "{count} items will move to the unreadable folder": {
+    en: "{count} items will move to the unreadable folder",
+    ja: "読めない物のフォルダへ {count} 件移ります",
+  },
+  '"{place}": {count}': { en: '"{place}": {count}', ja: "「{place}」 {count} 件" },
+  "{count} more places": { en: "{count} more places", ja: "ほか {count} か所" },
+  Disable: { en: "Disable", ja: "無効にする" },
+  "Could not check what will move": { en: "Could not check what will move", ja: "移る物を確かめられませんでした" },
   Plugins: { en: "Plugins", ja: "プラグイン" },
   Language: { en: "Language", ja: "言語" },
   Skin: { en: "Skin", ja: "スキン" },
