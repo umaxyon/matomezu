@@ -1,4 +1,4 @@
-// プロジェクト設定: ボードの歯車で開き、レーンの名前を直して未分類を表示すると、保存でボードに出る。名前が重なる間は保存できない。全般の「優先度を出す」を切ると、チケットカードに優先度が出ない
+// プロジェクト設定: ボードの歯車で開き、レーンの名前を直し、完了と作業中のスイッチ（同じレーンには片方だけ）を切り替え、未分類を表示すると、保存でボードに出る。名前が重なる間は保存できない。全般の「優先度を出す」を切ると、チケットカードに優先度が出ない
 import { CONTROL_CENTER_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
 
 const projects = async (page: Page) =>
@@ -43,7 +43,13 @@ test("ボードの歯車でプロジェクト設定を開き、レーンを直�
   // 完了のレーンは、選んだレーンのプロンプトの上のスイッチで決める（最初のプロジェクトには完了のレーンがある）。
   // ほかのレーンが完了のレーンなら確かめる: やめると変わらず、変更すると移る。切ると完了のレーンは無し
   const doneSwitch = dialog.getByRole("switch", { name: "完了レーンにする" })
+  const workingSwitch = dialog.getByRole("switch", { name: "作業中レーンにする" })
   await dialog.locator('[title="見直し"]').click()
+  // 最初のプロジェクトの作業中のレーンなら、先に作業中の印を切る（作業中の間は完了にできない）
+  if (await workingSwitch.isChecked()) {
+    await expect(doneSwitch).toBeDisabled()
+    await workingSwitch.click()
+  }
   await expect(doneSwitch).not.toBeChecked()
   await doneSwitch.click()
   const confirm = page.getByRole("alertdialog", { name: /^完了レーンに「.+」が設定されています。変更しますか？$/ })
@@ -55,6 +61,17 @@ test("ボードの歯車でプロジェクト設定を開き、レーンを直�
   await expect(doneSwitch).toBeChecked()
   await doneSwitch.click()
   await expect(doneSwitch).not.toBeChecked()
+  await doneSwitch.click()
+  await expect(doneSwitch).toBeChecked()
+  // 作業中のスイッチ: 同じレーンを完了と作業中の両方にはできず、片方が入っている間はもう片方を押せない
+  await expect(workingSwitch).toBeDisabled()
+  await doneSwitch.click()
+  await expect(doneSwitch).not.toBeChecked()
+  await workingSwitch.click()
+  await expect(workingSwitch).toBeChecked()
+  await expect(doneSwitch).toBeDisabled()
+  await workingSwitch.click()
+  await expect(workingSwitch).not.toBeChecked()
   await doneSwitch.click()
   await expect(doneSwitch).toBeChecked()
   await dialog.getByRole("switch", { name: "未分類を表示する" }).click()

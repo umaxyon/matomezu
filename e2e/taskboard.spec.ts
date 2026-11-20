@@ -14,7 +14,12 @@ const records = async (page: Page, subject: string) =>
         records: Record<string, Record<string, unknown>>
       }
     ).records[subject] ?? {},
-  ) as { id: string; name: string; lanes?: { kind: string; id: string }[] }[]
+  ) as {
+    id: string
+    name: string
+    lanes?: { kind: string; id: string }[]
+    createdBy?: { workroom?: { id: string } }
+  }[]
 
 test("一覧でタスクボードを出し入れし、レーンにチケットカードが並び、最大化と並べ方の一覧が動く", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -79,7 +84,7 @@ test("一覧でタスクボードを出し入れし、レーンにチケット�
   await expect(target.getByRole("button", { name: "並べ方" })).toHaveAttribute("aria-expanded", "false")
 })
 
-test("ワークルームのボードで見るを押すと、出ていないタスクボードが出て、鳥がチケットカードに立ち寄り、色が付いて、飛び去ると消える", async ({
+test("主担当のチケットを作業中のレーンへ入れると現在のタスクに出て、ボードで見るを押すと、出ていないタスクボードが出て、鳥がチケットカードに立ち寄り、色が付いて、飛び去ると消える", async ({
   page,
 }) => {
   await page.goto(CONTROL_CENTER_URL)
@@ -87,18 +92,38 @@ test("ワークルームのボードで見るを押すと、出ていないタ�
     expect((await perform(page, { action: "@matomezu/taskboard:project-add", args: {} })).ok).toBe(true)
   const first = (await records(page, "@matomezu/taskboard:project"))[0]!
   const lane = first.lanes!.find(l => l.kind === "lane")!.id
+  // 利用者が、そのレーンに作業中の印を付ける
+  const marked = first.lanes!.map(l => (l.kind === "lane" && l.id === lane ? { ...l, working: true } : l))
+  const updated = await page.request.post("/api/perform", {
+    data: {
+      actions: [{ action: "@matomezu/taskboard:project-update", args: { lanes: marked }, on: { record: first.id } }],
+    },
+  })
+  expect(((await updated.json()) as { ok: boolean }).ok).toBe(true)
   const added = await perform(page, {
     action: "@matomezu/taskboard:ticket-add",
-    args: { project: first.id, name: "立ち寄り先", lane },
+    args: { project: first.id, name: "立ち寄り先" },
   })
   const ticket = added.result!.ticket!
-  expect((await perform(page, { action: "@matomezu/taskboard:current-ticket-set", args: { ticket } })).ok).toBe(true)
-
-  // タスクボードを隠してから、ワークルームを選ぶ
+  // タスクボードを隠してから、ワークルームを選ぶ（現在のタスクはまだなし）
+  const own = (await records(page, "@matomezu/taskboard:ticket")).find(t => t.id === ticket)!.createdBy!.workroom!.id
   await page.locator("button[aria-expanded]", { hasText: "プロジェクト" }).click()
   await page.getByRole("checkbox", { name: first.name }).uncheck()
   await expect(page.locator(`[data-board="${first.id}"]`)).toHaveCount(0)
-  await page.locator("[data-workroom]").first().getByRole("button").first().click()
+  await page.locator(`[data-workroom="${own}"]`).getByRole("button").first().click()
+  const task = page.locator('[data-column="task"]')
+  await expect(task).toContainText("なし")
+  // AI が自分のワークルームを主担当にして、作業中のレーンへ入れると、現在のタスクにそのチケットが出る
+  expect(
+    (
+      await perform(page, {
+        action: "@matomezu/taskboard:ticket-update",
+        args: { assignees: [own], lane },
+        on: { record: ticket },
+      })
+    ).ok,
+  ).toBe(true)
+  await expect(task).toContainText("立ち寄り先")
   await page.getByRole("button", { name: "ボードで見る" }).click()
 
   // タスクボードが出て、鳥が来て、チケットカードに色が付く

@@ -15,6 +15,7 @@ export const PROJECT_SETTINGS_MESSAGES = defineMessages({
     ja: "プロジェクトのチケットサイズに従う",
   },
   "Make it the done lane": { en: "Make it the done lane", ja: "完了レーンにする" },
+  "Make it a working lane": { en: "Make it a working lane", ja: "作業中レーンにする" },
   "{name} is the done lane now. Change it?": {
     en: "{name} is the done lane now. Change it?",
     ja: "完了レーンに「{name}」が設定されています。変更しますか？",

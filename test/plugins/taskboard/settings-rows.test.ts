@@ -41,6 +41,7 @@ const lane = (key: string, name: string, was?: string): LaneRow => ({
   name,
   prompt: "",
   cardSize: "inherit",
+  working: false,
   ...(was === undefined ? {} : { id: key, was }),
 })
 

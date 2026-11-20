@@ -1,10 +1,8 @@
-// タスクボードのプラグイン: プロジェクト（タスクボード 1 枚）・チケット・チケット履歴・ワークルームごとの今のチケットの対象の定義と、履歴の題の列挙、そのアクションと認可ステップ（閉じたプロジェクトを守る）、プロジェクト設定のダイアログ。
+// タスクボードのプラグイン: プロジェクト（タスクボード 1 枚）・チケット・チケット履歴の対象の定義と、履歴の題の列挙、そのアクションと認可ステップ（閉じたプロジェクトを守る）、プロジェクト設定のダイアログ。
 import { defineBuiltin } from "../../plugin-api/builtin"
 import { CARD_VISIT, LANE_SORTS, MAXIMIZED } from "./board"
 import { PROJECT_ORDER, SHOWN_PROJECTS } from "./board/user-settings"
 import { TICKET_COMPLETE } from "./completion"
-import { CURRENT } from "./current-ticket"
-import { CURRENT_TICKET_SET } from "./current-ticket/actions"
 import { kit } from "./kit"
 import { PROJECT } from "./project"
 import { PROJECT_ADD, PROJECT_CLOSE, PROJECT_REOPEN, PROJECT_UPDATE } from "./project/actions"
@@ -28,7 +26,7 @@ import { TICKET_FILTER } from "./wide-search"
 
 export const TASKBOARD_PLUGIN = defineBuiltin(
   kit.plugin({
-    subjects: [PROJECT, TICKET, HISTORY, CURRENT],
+    subjects: [PROJECT, TICKET, HISTORY],
     enums: [HISTORY_TOPIC],
     enumValues: [TOPIC_STATUS, TOPIC_PLAN, TOPIC_QUESTION, TOPIC_BODY, TOPIC_COMPLETE],
     actions: [
@@ -43,7 +41,6 @@ export const TASKBOARD_PLUGIN = defineBuiltin(
       TICKET_UNLOCK,
       TICKET_HISTORY_ADD,
       TICKET_COMPLETE,
-      CURRENT_TICKET_SET,
     ],
     permissions: [CLOSED_PROJECT],
     dialogs: [PROJECT_SETTINGS_DIALOG],
@@ -58,7 +55,6 @@ declare module "../../core/catalog" {
     "@matomezu/taskboard:project": typeof PROJECT
     "@matomezu/taskboard:ticket": typeof TICKET
     "@matomezu/taskboard:ticket-history": typeof HISTORY
-    "@matomezu/taskboard:current-ticket": typeof CURRENT
   }
   interface EnumTable {
     "@matomezu/taskboard:history-topic": typeof HISTORY_TOPIC
@@ -82,7 +78,6 @@ declare module "../../core/catalog" {
     "@matomezu/taskboard:ticket-unlock": typeof TICKET_UNLOCK
     "@matomezu/taskboard:ticket-history-add": typeof TICKET_HISTORY_ADD
     "@matomezu/taskboard:ticket-complete": typeof TICKET_COMPLETE
-    "@matomezu/taskboard:current-ticket-set": typeof CURRENT_TICKET_SET
   }
   interface UserSettingTable {
     "@matomezu/taskboard:project-order": typeof PROJECT_ORDER

@@ -42,7 +42,15 @@ export type {
 export { HEX, isLight, isPaletteName, PALETTE } from "../core/color"
 export type { CoreCatalog, ItemProps } from "../core/core-catalog"
 export { pageType } from "../core/core-catalog"
-export type { ActionContext, ActionDef, Declined, RecordOf, RecordRead } from "../core/def/action"
+export type {
+  ActionContext,
+  ActionDef,
+  AIMessage,
+  AIMessageNoRecipient,
+  Declined,
+  RecordOf,
+  RecordRead,
+} from "../core/def/action"
 export type { AnnotationDef } from "../core/def/annotation"
 export type { EnumDef, EnumValueDef } from "../core/def/enum"
 export type {
