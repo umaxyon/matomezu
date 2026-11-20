@@ -1,11 +1,11 @@
-// スライドのアイテムの見た目: 4 つのアイテムのビューとアイコン
+// スライドのアイテムの見た目: アイテムごとのビューとアイコン
 import { definePluginUi, defineWidget } from "../../../plugin-api/ui"
 import { SLIDE_PLUGIN } from "."
-import { ELLIPSE_ICON, FREE_LINE_ICON, STRAIGHT_LINE_ICON, TEXT_FRAME_ICON } from "./icons"
+import { ELLIPSE_ICON, FREE_LINE_ICON, RECTANGLE_ICON, STRAIGHT_LINE_ICON, TEXT_FRAME_ICON } from "./icons"
 import { kit } from "./kit"
-import { EllipseView, FreeLineView, StraightLineView, TextFrameView } from "./SlideItemViews"
+import { EllipseView, FreeLineView, RectangleView, StraightLineView, TextFrameView } from "./SlideItemViews"
 import { SLIDE_ITEM_CONTEXT } from "./scope"
-import { ELLIPSE, FREE_LINE, STRAIGHT_LINE, TEXT_FRAME } from "./slide"
+import { ELLIPSE, FREE_LINE, RECTANGLE, STRAIGHT_LINE, TEXT_FRAME } from "./slide"
 import { SlideLayer, SlideSheet } from "./view/ui"
 
 // スライドのレイヤー: ページのタイプが slide を選んでいるブックで、スライドのアイテムを描いて操作を受ける
@@ -29,6 +29,7 @@ export const SLIDE_UI = definePluginUi(SLIDE_PLUGIN, {
     [FREE_LINE.id]: { view: FreeLineView, icon: FREE_LINE_ICON },
     [STRAIGHT_LINE.id]: { view: StraightLineView, icon: STRAIGHT_LINE_ICON },
     [ELLIPSE.id]: { view: EllipseView, icon: ELLIPSE_ICON },
+    [RECTANGLE.id]: { view: RectangleView, icon: RECTANGLE_ICON },
   },
   widgets: [SLIDE_LAYER, SLIDE_SHEET],
 })

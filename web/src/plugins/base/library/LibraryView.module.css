@@ -243,6 +243,12 @@
   padding: 8px 12px;
   border-bottom: 1px solid var(--skin-border-strong);
 }
+/* 作るボタンの中: 一覧の行と同じアイコンを名前の頭に並べる */
+.create {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
 .historyButton {
   display: grid;
   place-items: center;
@@ -441,38 +447,4 @@
 }
 .entry[data-drop="after"]::after {
   right: -5px;
-}
-/* スクロールする所のバー: 細く、溝は無し（タスクボードのスクロールバーと同じ幅と色）。
-   Chromium は ::-webkit-scrollbar、それの無いブラウザは細い既定のバー */
-.tree::-webkit-scrollbar,
-.found::-webkit-scrollbar,
-.contents::-webkit-scrollbar,
-.trash::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-.tree::-webkit-scrollbar-thumb,
-.found::-webkit-scrollbar-thumb,
-.contents::-webkit-scrollbar-thumb,
-.trash::-webkit-scrollbar-thumb {
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--skin-text) 28%, transparent);
-}
-.tree::-webkit-scrollbar-track,
-.tree::-webkit-scrollbar-corner,
-.found::-webkit-scrollbar-track,
-.found::-webkit-scrollbar-corner,
-.contents::-webkit-scrollbar-track,
-.contents::-webkit-scrollbar-corner,
-.trash::-webkit-scrollbar-track,
-.trash::-webkit-scrollbar-corner {
-  background: transparent;
-}
-@supports not selector(::-webkit-scrollbar) {
-  .tree,
-  .found,
-  .contents,
-  .trash {
-    scrollbar-width: thin;
-  }
 }

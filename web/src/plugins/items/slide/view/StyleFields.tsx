@@ -1,4 +1,4 @@
-// バーに並ぶ、選んだアイテムの見た目の入力Form: 文字枠=文字色、線=色・太さ・点線（直線だけ矢印）、楕円=塗り・枠の色・枠の太さ。
+// バーに並ぶ、選んだアイテムの見た目の入力Form: 文字枠=文字色、線=色・太さ・点線（直線だけ矢印）、楕円・長方形=塗り・枠の色・枠の太さ。
 // アイテムの種類に合う物だけを出し、変えるのはコマンド slide-set（行えなければ押せない）。色は「なし」（塗りは塗らない。枠の色は枠なし）か、テーマの代表色か、好きな色
 import { useRef, useState } from "react"
 import { useActions, useCommand, useMessages } from "../../../../plugin-api/ui"
@@ -11,6 +11,7 @@ import {
   FREE_LINE,
   MAX_STROKE_WIDTH,
   NO_OUTLINE,
+  RECTANGLE,
   SLIDE_INK,
   STRAIGHT_LINE,
   TEXT_FRAME,
@@ -27,11 +28,14 @@ export interface StyleSubject {
 // 種類ごとに並べる入力Form（出し分けの表。単体テストが見る）
 export type StyleField = "text-color" | "color" | "width" | "dashed" | "arrow" | "fill" | "outline" | "outline-width"
 
+// 楕円と長方形
+const FIGURE_FIELDS: readonly StyleField[] = ["fill", "outline", "outline-width"]
+
 export function fieldsOf(item: string): readonly StyleField[] {
   if (item === TEXT_FRAME.id) return ["text-color"]
   if (item === FREE_LINE.id) return ["color", "width", "dashed"]
   if (item === STRAIGHT_LINE.id) return ["color", "width", "dashed", "arrow"]
-  if (item === ELLIPSE.id) return ["fill", "outline", "outline-width"]
+  if (item === ELLIPSE.id || item === RECTANGLE.id) return FIGURE_FIELDS
   return []
 }
 
@@ -156,7 +160,7 @@ function WidthField({
 }: {
   label: string
   value: number
-  zero: boolean // 0 を入れてよい（楕円の枠なし）。線は 0 より大きい数だけ（項目の決まり）
+  zero: boolean // 0 を入れてよい（楕円・長方形の枠なし）。線は 0 より大きい数だけ（項目の決まり）
   disabled: boolean
   onCommit: (n: number, continues: boolean) => void // continues: 同じ入力の中の 2 回目以降（元に戻す 1 段に続ける）
 }) {

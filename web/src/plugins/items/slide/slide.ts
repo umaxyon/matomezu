@@ -1,4 +1,4 @@
-// スライドのアイテム: 文字枠・自由な線・直線・楕円。ブックのアイテム（箱や線）とは別の、描画シェイプの仲間。
+// スライドのアイテム（SLIDE_ITEMS）。ブックのアイテム（箱や線）とは別の、描画シェイプの仲間。
 // 置き場はページの slide（ページのタイプが選ぶ）で、押し合わず、線もつながず、紙をはみ出てもよい（紙は表示の範囲）。ケイパビリティ（capabilities）は持たない。
 // 線の点は、枠（幅と高さ）の中の割合（0 から 1）で持つ。枠を拡大すれば線も一緒に拡大する。
 // 角度（rotation）は、どのアイテムも持つ
@@ -19,8 +19,8 @@ const FRAME = {
 // 枠の中の点（枠の左上が 0, 0、右下が 1, 1）
 export const PointSchema = z.strictObject({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) })
 
-// 線・楕円の枠の太さ（px）の既定と上限
-export const DEFAULT_STROKE_WIDTH = 2
+// 線・楕円・長方形の枠の太さ（px）の既定と上限
+export const DEFAULT_STROKE_WIDTH = 1
 export const MAX_STROKE_WIDTH = 200
 
 // 線の項目（色・太さ・点線）
@@ -60,7 +60,8 @@ export const StraightLineProps = z.strictObject({
 // 枠の色が「枠なし」を表す値（未設定は、文字色の枠）
 export const NO_OUTLINE = "none"
 
-export const EllipseProps = z.strictObject({
+// 楕円と長方形の項目（塗り・枠の色・枠の太さ）
+export const FigureProps = z.strictObject({
   fill: ColorSchema.optional().describe("Fill color. Without it, no fill"),
   stroke: z
     .union([ColorSchema, z.literal(NO_OUTLINE)])
@@ -174,11 +175,30 @@ export const ELLIPSE = kit.defineShape({
   title: "Ellipse",
   capabilities: [],
   toolbox: true,
-  props: EllipseProps,
+  props: FigureProps,
   tokens: [],
   size: { w: 160, h: 100 },
   min: MIN,
   minimap: (_, r): MinimapMark[] => [{ kind: "ellipse", x: r.x, y: r.y, w: r.w, h: r.h }],
 })
 
-export const SLIDE_ITEMS = [TEXT_FRAME, FREE_LINE, STRAIGHT_LINE, ELLIPSE] as const
+export const RECTANGLE = kit.defineShape({
+  id: "slide-rectangle",
+  kind: "shape",
+  version: 1,
+  title: "Rectangle",
+  capabilities: [],
+  toolbox: true,
+  props: FigureProps,
+  tokens: [],
+  size: { w: 160, h: 100 },
+  min: MIN,
+  minimap: (_, r): MinimapMark[] => [{ kind: "rect", x: r.x, y: r.y, w: r.w, h: r.h }],
+})
+
+export const SLIDE_ITEMS = [TEXT_FRAME, FREE_LINE, STRAIGHT_LINE, ELLIPSE, RECTANGLE] as const
+
+// 線（自由な線・直線）。線は角度を数字で入れ、ほかは「水平に戻す」
+export const isLineKind = (kind: string): boolean => kind === FREE_LINE.id || kind === STRAIGHT_LINE.id
+// Ctrl（Mac は Command）で、置くときと角のつまみを引くときに縦横をそろえる種類（正円・正方形）
+export const squarable = (kind: string): boolean => kind === ELLIPSE.id || kind === RECTANGLE.id

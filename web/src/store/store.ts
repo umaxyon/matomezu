@@ -595,6 +595,7 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
 
 // 最初の状態（ブックスクリーンは開かない）
 function initialState(
+  booksAndTrashOf: (tables: Library) => BooksAndTrash,
   catalog: CoreCatalog,
   books: readonly Book[],
   settings: Settings,
@@ -603,7 +604,7 @@ function initialState(
   partial: readonly Warning[] = [],
 ): MatomezuState {
   const tables = worldTablesOf(books, [homeOver(books)])
-  const { books: open, trash } = shelvesOf(tables)
+  const { books: open, trash } = booksAndTrashOf(tables)
   return {
     ...tables,
     books: open,
@@ -682,17 +683,21 @@ interface OpenStep {
   refused?: true
 }
 
-// 表 tables から組んだ、開けるブックとゴミ箱のブック（中のブックが前に組んだ物と全部同じなら、前と同じ値を返す）
-let lastShelves: { books: Books; trash: Books } = { books: {}, trash: {} }
-function shelvesOf(tables: Library): { books: Books; trash: Books } {
-  const split = splitTrash(tables)
+type BooksAndTrash = { books: Books; trash: Books }
+
+// 表 tables から、開けるブックとゴミ箱のブックを組む関数を作る（インスタンスごとに 1 つ。中のブックがその関数で前に組んだ物と全部同じなら、前と同じ値を返す）
+function booksAndTrashMaker(): (tables: Library) => BooksAndTrash {
+  let last: BooksAndTrash = { books: {}, trash: {} }
   const same = (a: Books, b: Books) =>
     Object.keys(a).length === Object.keys(b).length && Object.entries(a).every(([id, book]) => b[id] === book)
-  lastShelves = {
-    books: same(split.books, lastShelves.books) ? lastShelves.books : split.books,
-    trash: same(split.trash, lastShelves.trash) ? lastShelves.trash : split.trash,
+  return tables => {
+    const split = splitTrash(tables)
+    last = {
+      books: same(split.books, last.books) ? last.books : split.books,
+      trash: same(split.trash, last.trash) ? last.trash : split.trash,
+    }
+    return last
   }
-  return lastShelves
 }
 
 function startLang(catalog: CoreCatalog, lang: Lang | readonly string[] = []): Lang {
@@ -708,11 +713,13 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   let catalog = defs.catalog.core
   // 設定の言語の項目が選んでいないときの言語
   let fallback = startLang(catalog, options.lang)
+  const booksAndTrashOf = booksAndTrashMaker()
   const saved = checkBooks(catalog, options.savedBooks ?? [])
   const savedSettings = restoreSettings(options.settings)
   const initial =
     options.initial ??
     initialState(
+      booksAndTrashOf,
       catalog,
       [...(options.books ?? []), ...saved.books],
       savedSettings,
@@ -1189,16 +1196,16 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     const next: Partial<MatomezuState> = {}
     if (done.changes) {
       const tables = withChanges({ pages, folders }, done.changes)
-      const shelves = shelvesOf(tables)
+      const both = booksAndTrashOf(tables)
       next.pages = tables.pages
       next.folders = tables.folders
-      next.books = shelves.books
-      next.trash = shelves.trash
+      next.books = both.books
+      next.trash = both.trash
       if (catalog.actions.get(id)?.target === "library") {
-        next.window = followLibraryIn(window, catalog, shelves.books, books)
+        next.window = followLibraryIn(window, catalog, both.books, books)
         // 画面の履歴に入れないアクション（戻す・やり直す・ゴミ箱から消すなど）が消した物は、その前の値を画面の履歴の段に残さないので捨てる
         if (!entersLibraryHistory(catalog.actions.get(id))) {
-          for (const after of Object.values(shelves.books)) {
+          for (const after of Object.values(both.books)) {
             const before = books[after.id]
             if (before && before !== after) dropOverwritten(before, after)
           }
@@ -1206,7 +1213,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         } else recordLibrary({ pages, folders }, done.changes, c.now)
       } else {
         // ブックかページが対象のアクションが変えるのは、開けるブック 1 冊
-        const after = Object.values(shelves.books).find(b => books[b.id] !== b)
+        const after = Object.values(both.books).find(b => books[b.id] !== b)
         const before = after && books[after.id]
         const recorded = catalog.actions.get(id)?.history !== false
         if (after && before && recorded) record(after.id, { pages, folders }, done.changes, c.now)
@@ -1687,7 +1694,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         counters = withCounters(counters, next.counters)
         annotations = withAnnotations(annotations, next.annotations)
       }
-      const { books, trash } = shelvesOf(tables)
+      const { books, trash } = booksAndTrashOf(tables)
       if (sameData(settings, now.settings)) settings = now.settings
       if (sameData(annotations, now.annotations)) annotations = now.annotations
       if (sameData(records, now.records)) records = now.records
@@ -1834,6 +1841,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const again = checkBooks(catalog, options.savedBooks ?? [])
       setState(
         initialState(
+          booksAndTrashOf,
           catalog,
           [...(options.books ?? []), ...again.books],
           settings,

@@ -2,16 +2,16 @@
 
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
-import { paperOf } from "../../web/src/core/stage"
-import { screenOf } from "../../web/src/core/window"
-import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
-import { PrintAreaLayer } from "../../web/src/plugins/base/stage/layers"
-import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
-import { createMatomezu } from "../../web/src/store/create"
-import { StageScope } from "../../web/src/ui/scope"
-import { MatomezuProvider } from "../../web/src/ui/store-context"
-import { SAMPLE_BOOKS } from "../sample-books"
-import { showFirstBook } from "../support"
+import { paperOf } from "../../../web/src/core/stage"
+import { screenOf } from "../../../web/src/core/window"
+import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
+import { PrintAreaLayer } from "../../../web/src/plugins/base/stage/layers"
+import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../../web/src/plugins/ui"
+import { createMatomezu } from "../../../web/src/store/create"
+import { StageScope } from "../../../web/src/ui/scope"
+import { MatomezuProvider } from "../../../web/src/ui/store-context"
+import { SAMPLE_BOOKS } from "../../sample-books"
+import { showFirstBook } from "../../support"
 
 afterEach(cleanup)
 
