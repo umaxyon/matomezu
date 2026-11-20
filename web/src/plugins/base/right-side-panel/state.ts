@@ -4,6 +4,7 @@
 
 import { areaOf, type Stage, shownPageId } from "../../../core/stage"
 import { clampPan, contentSize } from "../../../core/viewport"
+import { type CommandActions, type CommandContext, calledStageOf } from "../../../store/commands/def"
 import { kit } from "../kit"
 import { toggledSelection } from "../utils/selection"
 import type { ViewAt } from "../zoom"
@@ -94,6 +95,20 @@ export function openedRestore(
         seen: null,
         moved: false,
       }
+}
+
+// コマンドから右サイドパネルを開く: 呼ばれたステージで中身 open を見せ、閉じたら戻す見え方も覚える（開いているページが無ければ開かない）
+export function openRightSidePanelIn(
+  ctx: CommandContext,
+  a: Pick<CommandActions, "updatePluginState">,
+  open: Pick<RightSidePanelOpen, "widget" | "subject" | "anchors" | "current">,
+): void {
+  const now = calledStageOf(ctx)
+  const opened = now?.opened
+  if (!now || !opened) return
+  const panel = { ...open, book: opened.outermost, page: shownPageId(opened) }
+  a.updatePluginState(RIGHT_SIDE_PANEL_STATE, () => panel)
+  a.updatePluginState(RIGHT_SIDE_PANEL_RESTORE_STATE, kept => openedRestore(kept, panel, now))
 }
 
 // 戻すための覚え restore を、change で変えたもの（覚えが無ければ無いまま）

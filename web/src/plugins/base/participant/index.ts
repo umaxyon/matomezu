@@ -9,13 +9,12 @@
 // workroom-remove も、いる参加者を一緒に外す。外す参加者は id で渡し、渡した参加者がそのワークルームにいるときだけ外す（生きているかは、ダイアログが見る）
 import { z } from "zod"
 import { type Actor, workroomOfActor } from "../../../core/actor"
-import type { SubjectId } from "../../../core/catalog"
 import type { ActionContext, RecordRead } from "../../../core/def/action"
 import { PARTICIPANT_STATES } from "../../../core/def/subject"
-import type { KeyValuesOf } from "../../../core/record-keys"
 import { BIRD_IDS } from "../birds"
 import { BIRD_PALETTE_IDS } from "../birds/colors"
 import { kit } from "../kit"
+import { keyRowsIn } from "../utils/key-rows"
 import { adminRoomOf } from "./rows"
 
 export const WORKROOM_NAME_MAX = 20 // ワークルームの名前の長さの上限（字）
@@ -92,9 +91,6 @@ export const VISITOR_JOINED_MESSAGE = kit.message("Joined matomezu as a visitor 
 // データの型（画面の見た目は、ここから読む）
 export type Participant = z.output<typeof PARTICIPANT.record>
 export type Workroom = z.output<typeof WORKROOM.record>
-// アクションが読んだ索引キーの行（種類 subject の、id と索引キーの値）
-const keysIn = <S extends SubjectId>(ctx: Pick<ActionContext, "keys">, subject: S) =>
-  Object.entries<KeyValuesOf<S>>(ctx.keys?.[subject] ?? {}).map(([id, keys]) => ({ id, keys }))
 
 const BIRD_ARGS = { bird: z.enum(BIRD_IDS), palette: z.enum(BIRD_PALETTE_IDS).optional() }
 const NAME = z.string().trim().min(1).max(WORKROOM_NAME_MAX)
@@ -124,7 +120,7 @@ export const PARTICIPANT_REQUEST = kit.defineAction({
     if (now !== "none") return null
     if (args.as === "visitor" && args.wantedName !== undefined)
       return { declined: "a visitor has no workroom: leave wantedName out" }
-    const all = keysIn(ctx, PARTICIPANT.id)
+    const all = keyRowsIn(ctx, PARTICIPANT.id)
     if (all.some(p => p.keys.link === args.link)) return { declined: "a participant has the link already" }
     if (all.filter(p => p.keys.state === "requested").length >= PARTICIPANTS_LIMIT)
       return { declined: "too many requests are waiting for the user" }
@@ -157,7 +153,7 @@ const OCCUPANT = z.string().min(1).optional()
 
 // ワークルーム room に入っている参加者のうち、外す参加者 occupant だけなら、外す id の並びを返す（誰もいなければ空。別の参加者がいれば null）
 const leaving = (ctx: Pick<ActionContext, "keys">, room: string, occupant: string | undefined): string[] | null => {
-  const inRoom = keysIn(ctx, PARTICIPANT.id)
+  const inRoom = keyRowsIn(ctx, PARTICIPANT.id)
     .filter(p => p.keys.workroom === room)
     .map(p => p.id)
   if (inRoom.length === 0) return []
@@ -230,7 +226,7 @@ export const PARTICIPANT_ACCEPT = kit.defineAction({
     const gone = discarding === undefined ? [] : leaving(ctx, discarding.workroom, discarding.occupant)
     if (gone === null) return { declined: "a participant is in the workroom to discard" }
     // 同じ名前は、捨てるワークルームだけが持っていてよい
-    if (keysIn(ctx, WORKROOM.id).some(w => w.keys.name === args.newWorkroom.name && w.id !== discarding?.workroom))
+    if (keyRowsIn(ctx, WORKROOM.id).some(w => w.keys.name === args.newWorkroom.name && w.id !== discarding?.workroom))
       return { declined: `a workroom named ${args.newWorkroom.name} already exists` }
     const room: Workroom = {
       id: ctx.newId(),
@@ -288,7 +284,7 @@ export const WORKROOM_ADD = kit.defineAction({
   args: z.strictObject({ name: NAME, ...BIRD_ARGS }),
   run: (now, args, ctx) => {
     if (now !== "none") return null
-    if (keysIn(ctx, WORKROOM.id).length > 0) return { declined: `a workroom named ${args.name} already exists` }
+    if (keyRowsIn(ctx, WORKROOM.id).length > 0) return { declined: `a workroom named ${args.name} already exists` }
     const room: Workroom = {
       id: ctx.newId(),
       name: args.name,
@@ -312,7 +308,7 @@ export const WORKROOM_UPDATE = kit.defineAction({
   args: z.strictObject({ name: NAME.optional(), bird: BIRD_ARGS.bird.optional(), palette: BIRD_ARGS.palette }),
   run: (now, args, ctx) => {
     if (now === "none") return null
-    if (args.name !== undefined && keysIn(ctx, WORKROOM.id).some(w => w.id !== now.id))
+    if (args.name !== undefined && keyRowsIn(ctx, WORKROOM.id).some(w => w.id !== now.id))
       return { declined: `a workroom named ${args.name} already exists` }
     return {
       next: {

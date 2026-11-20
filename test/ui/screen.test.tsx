@@ -12,7 +12,7 @@ import type { StoreOptions } from "../../web/src/store/store"
 import { definePluginUi } from "../../web/src/ui/plugin"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { WindowRoot } from "../../web/src/ui/WindowRoot"
-import { drawingPage, testBook } from "../lineup"
+import { drawingPage, MARKDOWN, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { showFirstBook } from "../support"
 
@@ -246,8 +246,24 @@ test("表に無い紙のページは、代わりの紙に「不明な紙」と�
     drawingPage("p1", { title: "ページ 1", paper: "b5", orientation: "portrait" }),
   ])
   const store = renderBooksScreen({ books: [book] })
-  expect(within(screen.getByRole("img", { name: "紙" })).getByText("不明な紙")).toBeTruthy()
+  expect(screen.getAllByText("不明な紙")).toHaveLength(1)
   expect(store.state.getState().books.x).toEqual(book)
+})
+
+test("スライドのページも、表に無い紙なら「不明な紙」の印を 1 つ出す（紙の知らせはプレゼンテーションに依らず base のレイヤーが出す）", () => {
+  const book = testBook("x", "外した紙", [
+    testBinder("b1", "スライド", SLIDE, testPage(SLIDE, "p1", { title: "1", paper: "b5", orientation: "landscape" })),
+  ])
+  renderBooksScreen({ books: [book] })
+  expect(screen.getAllByText("不明な紙")).toHaveLength(1)
+})
+
+test("紙を置かないプレゼンテーション（マークダウン）には、紙の印を出さない", () => {
+  const book = testBook("x", "マークダウン", [
+    testPage(MARKDOWN, "p1", { title: "1", paper: "b5", orientation: "portrait" }),
+  ])
+  renderBooksScreen({ books: [book] })
+  expect(screen.queryByText("不明な紙")).toBeNull()
 })
 
 test("StrictMode で描いても、開いたダイアログは閉じない", async () => {

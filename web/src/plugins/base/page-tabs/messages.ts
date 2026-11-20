@@ -4,7 +4,6 @@ import { defineMessages } from "../../../core/i18n/messages"
 export const PAGE_MESSAGES = defineMessages({
   "Open page": { en: "Open page", ja: "ページを開く" },
   Orientation: { en: "Orientation", ja: "向き" },
-  "Unknown paper": { en: "Unknown paper", ja: "不明な紙" },
   "New page": { en: "New page", ja: "新しいページ" },
   "New {type}": { en: "New {type}", ja: "新しい{type}" },
   "Page name": { en: "Page name", ja: "ページの名前" },

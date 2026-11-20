@@ -15,6 +15,7 @@ import { toolDef, toolSetOf, toolsIn } from "../../../core/tools"
 import { bookScreenCurrent, screenOf, workspaceOf } from "../../../core/window"
 import { useCommand } from "../../../ui/commands"
 import { suppressContextMenu } from "../../../ui/context-menu"
+import { editableOf } from "../../../ui/editable"
 import { useMessages } from "../../../ui/i18n"
 import { StageScope } from "../../../ui/scope"
 import { useCatalog, useMatomezuState, useStoreActions, useUiCatalog } from "../../../ui/store-context"
@@ -44,8 +45,6 @@ interface Press {
   at: Point
   timer: number
 }
-
-const typing = (el: Element | null) => !!el?.closest("input, textarea, select, [contenteditable]")
 
 export function ToolPickerView() {
   const { openPicker, closeContextMenu } = useStoreActions()
@@ -79,7 +78,7 @@ export function ToolPickerView() {
       end()
       const target = e.target instanceof Element ? e.target : null
       const stage = target?.closest("[data-stage]")?.getAttribute("data-stage")
-      if (!stage || typing(target) || !pressableRef.current.includes(stage)) return
+      if (!stage || editableOf(target) || !pressableRef.current.includes(stage)) return
       const at = { x: e.clientX, y: e.clientY }
       const timer = window.setTimeout(() => {
         const p = press.current

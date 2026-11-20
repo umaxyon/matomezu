@@ -8,6 +8,7 @@ import { useEffect } from "react"
 import type { CommandId } from "../core/catalog"
 import { keyLabel, pressedKey, seenInText } from "../core/keys"
 import { keysOf } from "../store/keys"
+import { editableOf } from "./editable"
 import { useInstance, useMatomezuState, useStoreActions } from "./store-context"
 
 // Mac か（Mod を Cmd にし、キーの名前を記号で出す）
@@ -15,7 +16,7 @@ export const isMac = (): boolean => typeof navigator !== "undefined" && /Mac|iPh
 
 // 文字を打つ入力Form（テキストForm・セレクトForm・contenteditable。チェックボックスなどは除く）なら、その要素と、1 行か複数行か
 function textField(el: Element | null): { el: Element; lines: "line" | "multi" } | null {
-  const field = el?.closest("input, textarea, select, [contenteditable]")
+  const field = editableOf(el)
   if (!field) return null
   if (field instanceof HTMLInputElement)
     return ["checkbox", "radio", "button", "submit"].includes(field.type) ? null : { el: field, lines: "line" }

@@ -51,6 +51,4 @@ export const DIR_MESSAGES = defineMessages({
   "Root folder name": { en: "Root folder name", ja: "根のフォルダの名前" },
   Create: { en: "Create", ja: "作る" },
   Paper: { en: "Paper", ja: "紙" },
-  "This paper cannot be shown": { en: "This paper cannot be shown", ja: "この紙は表示できません" },
-  "Unknown paper": { en: "Unknown paper", ja: "不明な紙" },
 })
