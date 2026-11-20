@@ -117,9 +117,9 @@ describe("木の決まり", () => {
     )
   })
 
-  test("書庫ホームとフォルダのエントリは、ブックかフォルダで、種類が合う（表に無い book は、読めないブックとして通す）", () => {
+  test("書庫ホームとフォルダのエントリは、ブックかフォルダで、種類が合う（表に無い book も破れる。読めないブックは表に入らない）", () => {
     const t = tables()
-    expect(treeHolds(withFolders(t, { ...old, lineup: [...old.lineup, { kind: "book", id: "unread" }] }))).toBe(true)
+    expect(treeHolds(withFolders(t, { ...old, lineup: [...old.lineup, { kind: "book", id: "unread" }] }))).toBe(false)
     expect(treeHolds(withFolders(t, { ...old, lineup: [...old.lineup, { kind: "folder", id: "none" }] }))).toBe(false)
     expect(treeHolds(withFolders(t, { ...old, lineup: [{ kind: "folder", id: "b1" }, old.lineup[1]!] }))).toBe(false)
   })

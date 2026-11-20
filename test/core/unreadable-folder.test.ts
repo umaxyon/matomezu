@@ -10,6 +10,7 @@ import {
   rawBooksOf,
   rowsHoldTree,
   TRASH_ID,
+  treeHolds,
   UNREADABLE_ID,
   type UnreadableFolder,
 } from "../../web/src/core/folders"
@@ -135,13 +136,17 @@ const CASES: { name: string; rows: () => Rows; less: CoreCatalog; moved: [string
 ]
 
 // 移したあとの書庫は、その機能台帳で読めない物を持たず、読めない物のフォルダの外の行を全部、表に読む
-function readsWhole(catalog: CoreCatalog, moved: Rows) {
+// （sharing は、読めない物のフォルダの中の物とほかの物が行を分け合う壊れたデータ。行で見る木の決まりは、分け合う間は破れたまま）
+function readsWhole(catalog: CoreCatalog, moved: Rows, sharing = false) {
   const read = readLibrary(catalog, moved.pages, moved.folders)
   expect([...read.warnings, ...read.outsideWarnings].map(w => w.code)).toEqual([])
   const outside = outsideUnreadable(moved.pages, moved.folders)
   const ids = (rows: readonly unknown[]) => rows.map(r => (r as { id: string }).id).sort()
   expect(Object.keys(read.library.pages).sort()).toEqual(ids(outside.pageRows))
   expect(Object.keys(read.library.folders).sort()).toEqual(ids(outside.folderRows))
+  // 移したあとは、表で見る木の決まりと、行で見る木の決まりが同じく守られる（書庫が対象のアクションは断られない）
+  expect(treeHolds(read.library)).toBe(true)
+  expect(rowsHoldTree(moved.folders, ids(moved.pages))).toBe(!sharing)
 }
 
 // 行 rows のフォルダ id の行を f で替えた行
@@ -412,7 +417,7 @@ test("先のブックと id が重なるブック（W006）は、ブックごと
   ])
   const moved = settled(CORE_CATALOG, rows)
   expect(unreadableOf(moved).lineup.map(r => [r.entry.id, r.code])).toEqual([["b2", "W006"]])
-  readsWhole(CORE_CATALOG, moved)
+  readsWhole(CORE_CATALOG, moved, true)
   const again = settle(CORE_CATALOG, moved, LATER) as Settled
   expect(again.returned).toEqual([])
   expect(again.writes).toEqual({ pages: {}, folders: {}, removedPages: [], removedFolders: [] })

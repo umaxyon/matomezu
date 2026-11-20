@@ -406,12 +406,11 @@ export function foldersOver(folders: Folders, entry: string): Folder[] {
   return over
 }
 
-// 書庫ホーム・ゴミ箱・フォルダのエントリ r の種類が、表の中身と合うか（表に無い book は通す。読めないブックは、表に入らない）
+// 書庫ホーム・ゴミ箱・フォルダのエントリ r の種類が、表の中身と合うか（表に無い物は合わない。読めない物は表に入らないので、
+// 読めない物のフォルダへ移らずに残っている間は、書庫が対象のアクションを断る。表に無い物の行を消し残したり、名前の重なりを見落としたりしないため）
 function refFits(pages: Pages, folders: Folders, r: AnyEntryRef): boolean {
   if (r.kind === "page") return Object.hasOwn(pages, r.id)
-  const row = folders[r.id]
-  if (r.kind === "book") return !row || row.folderRole === "book"
-  return row?.folderRole === r.kind
+  return folders[r.id]?.folderRole === r.kind
 }
 
 // フォルダ f がシステムフォルダなら、その印（システムフォルダの定義の id）。ほかは undefined

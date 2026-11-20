@@ -124,14 +124,14 @@ test("並びが表に無い行を指すと、その行は表に入らず、木�
   expect(treeHolds(loose.library)).toBe(true)
 })
 
-test("読めないブックのページの行は、ブックの外のページにならず表に入らない（ブックを指す並びは、表に無いブックも通す）", () => {
+test("読めないブックのページの行は、ブックの外のページにならず表に入らない（読めないブックを指す並びは、木の決まりを破って見える）", () => {
   const broken = testBook("b2", "壊", [drawingPage("q1"), drawingPage("q2", { title: "ページ 1" })])
   const rows = worldRows([book(), broken], [drawingPage("x1")])
   const done = read(rows)
   expect(done.warnings.map(w => [w.code, w.params.book])).toEqual([["W006", "b2"]])
   expect(["q1", "q2"].some(id => id in done.library.pages)).toBe(false)
   expect(done.library.folders[HOME_ID]?.lineup.map(r => r.id)).toEqual(["b1", "b2", "x1"])
-  expect(treeHolds(done.library)).toBe(true)
+  expect(treeHolds(done.library)).toBe(false)
 })
 
 test("書庫ホームもフォルダも無ければ、読めるブックの表だけ", () => {
