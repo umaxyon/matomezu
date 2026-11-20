@@ -23,6 +23,7 @@ import { NOT_INSIDE, PURGED, type UnreadableNotice } from "../core/unreadable"
 import type { Warning } from "../core/warnings"
 import type { ForeignChange, MatomezuInstance, ParticipantLive } from "../store/state"
 import type { HostClient, Loaded } from "./client"
+import { createLinkWatch } from "./link-watch"
 import { WIDE_SEARCH_ANSWER, wideSearchParams } from "./search"
 import { createSendQueue, RETRY_MS } from "./send-queue"
 import {
@@ -120,9 +121,6 @@ const browserNet: Net = {
   now: () => Date.now(),
 }
 
-export const OFFLINE_MS = 10_000 // つながりがこれより長く切れたままなら、切れていると見せる
-export const QUIET_MS = 60_000 // 知らせ（keep も）がこれより長く届かなければ、つながりが黙って切れたとみてつなぎ直す（常駐は 25 秒ごとに keep を送る）
-
 // 参加者の様子のうち、空でない物（モデルもブランチも無ければ undefined）
 const liveOf = (v: { model?: string | undefined; branch?: string | undefined }): ParticipantLive | undefined =>
   v.model || v.branch
@@ -154,9 +152,6 @@ export function serverClient(net: Net = browserNet): HostClient {
   let participantLive: Record<string, ParticipantLive> = {} // 参加者の id → モデルとブランチ（どちらも無い参加者は持たない）
   let plugins: { id: string; ui: string; css?: string; disabled?: boolean }[] = []
   let client = ""
-  let link = 0 // 今のつながりの番号（hello のたびに増やす）
-  let online = false // 知らせにつながっているか
-  let offlineTimer: (() => void) | null = null // 切れていると見せるまでの待ち
   let warnings: readonly Warning[] = [] // 画面が見つけた warning（つなぎ直すたびに知らせ直す）
   const tellWarnings = () => {
     if (!client) return
@@ -174,12 +169,20 @@ export function serverClient(net: Net = browserNet): HostClient {
   const queue = createSendQueue({
     net,
     client: () => client,
-    online: () => online,
-    link: () => link,
+    online: () => watch.online(),
+    link: () => watch.link(),
     instance: () => instance,
     show: () => show(),
   })
   const { settle, pump, tellAIEditTickets, tellLog, logLine } = queue
+  const watch = createLinkWatch({
+    net,
+    events: () => events,
+    attachAgain: () => attach(net.events("api/events"), null),
+    instance: () => instance,
+    logLine,
+  })
+  const { lost, heard, checkQuiet } = watch
 
   // change は、この窓のでない変更の知らせのとき（その変更を、まだ見ていない画面の履歴の段にする）
   const show = (change?: ForeignChange) =>
@@ -291,40 +294,11 @@ export function serverClient(net: Net = browserNet): HostClient {
         logLine("could not read the server again:", e)
         show()
         void pump()
-        if (at === link) net.later(() => at === link && reread(at), RETRY_MS)
+        if (at === watch.link()) net.later(() => at === watch.link() && reread(at), RETRY_MS)
       },
     )
   }
 
-  // つながりが切れた。長く切れたままなら、切れていると見せる
-  const lost = (why: string) => {
-    const was = online
-    online = false
-    if (was) logLine(why)
-    offlineTimer ??= net.later(() => instance?.setOffline(true), OFFLINE_MS)
-  }
-  let quietTimer: (() => void) | null = null // 黙って切れたとみるまでの待ち（取り消す関数。見張っていなければ null）
-  let heardAt = 0 // 最後に知らせが届いた（つなぎ直し始めた）壁時計の時刻
-  // 黙って切れたとみて、閉じてつなぎ直す（つながると hello が来る）
-  const reconnect = (source: Events, why: string) => {
-    if (events !== source) return
-    quietTimer?.()
-    quietTimer = null
-    lost(why)
-    source.close()
-    attach(net.events("api/events"), null)
-  }
-  // 知らせが届くたびに待ち直す。QUIET_MS 何も届かなければ、つなぎ直す
-  const heard = (source: Events) => {
-    heardAt = net.now()
-    quietTimer?.()
-    quietTimer = net.later(() => reconnect(source, `no event for ${QUIET_MS / 1000}s; connecting again`), QUIET_MS)
-  }
-  // 見張っている間に、壁時計で QUIET_MS 何も届いていなければ、待ちを待たずにつなぎ直す（スリープ明けにフォーカスされたとき）
-  const checkQuiet = () => {
-    if (quietTimer && events && net.now() - heardAt >= QUIET_MS)
-      reconnect(events, `no event for ${Math.round((net.now() - heardAt) / 1000)}s by the clock; connecting again`)
-  }
   // 知らせを受ける処理を source に付ける。first はつながって最初の hello を待つ間だけの約束（hello で果たし、つながらなければ NoServer で断る）
   const attach = (source: Events, first: { resolve: () => void; reject: (e: unknown) => void } | null) => {
     events = source
@@ -363,8 +337,7 @@ export function serverClient(net: Net = browserNet): HostClient {
     on("hello", data => {
       const was = client
       client = HelloSchema.parse(JSON.parse(data)).client
-      link += 1
-      online = true
+      watch.opened()
       if (first) {
         first.resolve()
         first = null
@@ -372,15 +345,13 @@ export function serverClient(net: Net = browserNet): HostClient {
       }
       // つなぎ直した: 読み直した世界の上に、まだ確かめられていないアクションを出し、新しいつながりで全部送り直す（送ったものの答えは前のつながりに届くので）。
       // warning と見ているものは新しいつながりで知らせ直す
-      offlineTimer?.()
-      offlineTimer = null
-      instance?.setOffline(false)
+      watch.recovered()
       logLine(`reconnected as ${client} (was ${was}): sending ${queue.count()} actions again`)
       tellWarnings()
       tellLog()
       void tellAIEditTickets()
       retell?.()
-      reread(link)
+      reread(watch.link())
     })
     on("changed", data => {
       const e = ChangedSchema.parse(JSON.parse(data))
@@ -475,10 +446,7 @@ export function serverClient(net: Net = browserNet): HostClient {
   }
   // 知らせのつながりを閉じ、見張りを止める
   const closeEvents = () => {
-    quietTimer?.()
-    quietTimer = null
-    offlineTimer?.()
-    offlineTimer = null
+    watch.stop()
     events?.close()
   }
   // 知らせにつなぎ、最初の hello を待つ。つながらなければ NoServer
