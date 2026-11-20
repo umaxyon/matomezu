@@ -3,7 +3,7 @@
 // 見せ方がマーキー（form が marquee）の物は、画面の上の真ん中に、決まった幅の帯で 1 つずつ出す: 下りてきて文を右から左へ流し、流し終えたら引っ込んで消える
 
 import { useEffect } from "react"
-import type { Toast } from "../../../store/store"
+import type { Toast } from "../../../store/state"
 import { useMessages } from "../../../ui/i18n"
 import { useMatomezuState } from "../../../ui/store-context"
 import { useActions } from "../../../ui/view-hooks"

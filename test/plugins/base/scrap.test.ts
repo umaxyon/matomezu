@@ -1,7 +1,7 @@
 // スクラップトレイ（base の対象の定義 scrap）: 切り抜くとレコードが 1 件でき、消すと無くなる。行えるのは利用者だけ。置いたときの大きさは、見る範囲 × 倍率
 import { expect, test } from "bun:test"
 import { AI } from "../../../web/src/core/actor"
-import { performIn } from "../../../web/src/core/perform"
+import { performIn } from "../../../web/src/core/perform-world"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { scrapFrameIn } from "../../../web/src/plugins/base/scrap"
 import { SCRAP, scrapSize, scrapToPlace } from "../../../web/src/plugins/base/scrap/scrap"

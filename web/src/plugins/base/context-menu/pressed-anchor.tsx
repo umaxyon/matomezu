@@ -3,7 +3,7 @@
 // 右クリックの合図からでなく開いたメニュー（ほかの所で前に右クリックしたあと）が古いアンカーを読まないよう、押した位置も覚え、メニューの位置と同じときだけ使う
 import { useEffect } from "react"
 import type { Point } from "../../../core/geom"
-import { useSetPluginState } from "../../../ui/view-hooks"
+import { useSetPluginState } from "../../../ui/plugin-state-hooks"
 import { kit } from "../kit"
 import { anchorOf } from "../stand/anchors"
 import { PRESSED_ANCHOR, type PressedAnchor } from "./states"

@@ -14,7 +14,7 @@ import type { Book } from "../core/schema/book"
 import { type Stage, shownPageId } from "../core/stage"
 import { stageIn } from "../core/window"
 import { NO_STAGE } from "../store/dialogs"
-import type { MatomezuState } from "../store/store"
+import type { MatomezuState } from "../store/state"
 import { useScreenContext } from "./screen-context"
 import { useMatomezuState, useReadState } from "./store-context"
 
@@ -142,7 +142,7 @@ export function useZoomHere(): number {
 }
 
 // 向け先のステージの素の状態（向け先がステージでないか、もう無ければ null）と窓の状態から、pick が選んだ物を読む。
-// 土台と base だけが使う（プラグイン API には出さない。プラグインのビューは ui/view-hooks.ts のフックで約束の物だけを引く）
+// 土台と base だけが使う（プラグイン API には出さない。プラグインのビューは ui/view-hooks.ts などのフックで約束の物だけを引く）
 export function useStageHere<T>(pick: (stage: Stage | null, s: MatomezuState) => T): T {
   const id = useStageId()
   return useMatomezuState(s => pick(id === null ? null : (stageIn(s.window, id) ?? null), s))

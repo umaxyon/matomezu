@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { librarySettles } from "../../web/src/core/perform"
+import { librarySettles } from "../../web/src/core/perform-checks"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { CORE_CATALOG } from "../support"
 

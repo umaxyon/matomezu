@@ -201,3 +201,14 @@ export function movedPoint(
   const { rect: next, fractions } = drawnRect(onPaper, min)
   return { rect: next, points: fractions }
 }
+
+// 形のアイテムの四角（書いていない幅・高さは 0）
+export const rectOf = (shape: PlacedShape): Rect => ({ x: shape.x, y: shape.y, w: shape.w ?? 0, h: shape.h ?? 0 })
+// 始めの点 start から今の点 at への縦横を、長い方に揃えた終わりの点
+export function squaredEnd(start: Point, at: Point): Point {
+  const side = Math.max(Math.abs(at.x - start.x), Math.abs(at.y - start.y))
+  return { x: start.x + (at.x < start.x ? -side : side), y: start.y + (at.y < start.y ? -side : side) }
+}
+// 書く位置と大きさの丸め（小数 2 桁）
+export const round = (n: number): number => Math.round(n * 100) / 100
+export const roundRect = (f: Rect): Rect => ({ x: round(f.x), y: round(f.y), w: round(f.w), h: round(f.h) })

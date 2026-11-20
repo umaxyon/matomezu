@@ -24,8 +24,15 @@ export { ENTRY_DUPLICATE, PAGE_CREATE } from "./entry-duplicate"
 export { ENTRY_MOVE, ENTRY_MOVE_OVER, ENTRY_RENAME, FOLDER_CREATE } from "./entry-move"
 export { ENTRY_PURGE, ENTRY_RESTORE, ENTRY_TRASH, TRASH_EMPTY } from "./entry-trash"
 export { LIBRARY_REVERT } from "./revert"
-export { LIBRARY_OPEN, LIBRARY_SCREEN, LIBRARY_SCREEN_CLOSE, LIBRARY_SCREEN_EXPAND } from "./screen"
+export {
+  LIBRARY_OPEN,
+  LIBRARY_SCREEN,
+  LIBRARY_SCREEN_CLOSE,
+  LIBRARY_SCREEN_EXPAND,
+  LIBRARY_UNREADABLE_OPEN,
+} from "./screen"
 export { LIBRARY_SCREEN_KEYS } from "./screen-keys"
+export { SHOW_UNREADABLE_FOLDER } from "./show-unreadable"
 export {
   LIBRARY_APPEARANCE,
   LIBRARY_COLUMNS,
@@ -33,5 +40,6 @@ export {
   LIBRARY_PICKED,
   LIBRARY_QUERY,
   LIBRARY_UNFOLDED,
+  UNREADABLE_NOTICE_CLOSED,
 } from "./state"
 export { DOCUMENTS, SYSTEM_FOLDER_ADD } from "./system-folders"

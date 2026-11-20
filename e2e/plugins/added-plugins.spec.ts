@@ -3,6 +3,7 @@ import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { pagesIn } from "../books"
 import { aiAuth, BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test, urlPlace } from "../fixtures"
+import { aiPerform } from "../helpers/ai"
 import { footerMenuTool } from "../helpers/footer-menu"
 import { enablePlugins } from "../helpers/settings"
 import { fromMenu } from "../helpers/stage-menu"
@@ -195,8 +196,7 @@ test("起動エラーの画面で外したプラグインのページを持つ�
   await page.request.post("/api/enable-plugins-for-test", { data: { ids: ["ex2", "ex3"] } })
   // ホストのエンジンには ex3 が入っているので、AI は ex3 のページを持つブックを作れる
   const ai = await joinedAiAuth()
-  const perform = async (action: string, args: object, on?: object) =>
-    (await page.request.post("/api/ai/perform", { headers: ai, data: { action, args, ...(on ? { on } : {}) } })).json()
+  const perform = (action: string, args: object, on?: object) => aiPerform(page, { action, args, on }, ai)
   const book = await perform("@matomezu/base:book-create", { title: "ボードのブック" })
   expect((await perform("@matomezu/base:page-add", { type: "ex3:board" }, { book: book.result.book })).ok).toBe(true)
   expect((await perform("@matomezu/base:folder-create", { title: "関係ない所" })).ok).toBe(true)
@@ -286,8 +286,7 @@ test("AI は actions で追加プラグインのアクションを読み、perfo
   ).json()
   expect(whole.actions[0].description).toContain("Answer a decision")
   expect(whole.items[0].props.properties).toBeDefined()
-  const perform = async (body: object) =>
-    (await page.request.post("/api/ai/perform", { headers: await joinedAiAuth(), data: body })).json()
+  const perform = (body: { action: string; args: object; on?: object }) => aiPerform(page, body)
   expect(
     await perform({
       action: "ex2:diamond-answer",
@@ -361,8 +360,7 @@ test("ex6 と ex7 を読ませると、ex7 の木箱が ex6 の拡張ポイン�
     ],
   }
   expect((await page.request.put(`/api/books-for-test/${yard.id}`, { data: { book: yard, base: 0 } })).ok()).toBe(true)
-  const perform = async (body: object) =>
-    (await page.request.post("/api/ai/perform", { headers: await joinedAiAuth(), data: body })).json()
+  const perform = (body: { action: string; args: object; on?: object }) => aiPerform(page, body)
   expect(await perform({ action: "ex6:page-weight", args: {}, on: { page: "yard-p1" } })).toMatchObject({
     ok: true,
     result: { weight: 7 },
@@ -376,8 +374,7 @@ test("ex9 と ex14 を読ませると、ex14 のアクションが、ex9 が許�
   page,
 }) => {
   await link(page, "test/added-plugins/ex9", "test/added-plugins/ex14")
-  const perform = async (body: object) =>
-    (await page.request.post("/api/ai/perform", { headers: await joinedAiAuth(), data: body })).json()
+  const perform = (body: { action: string; args: object; on?: object }) => aiPerform(page, body)
   const shelf = await perform({ action: "ex9:shelf-add", args: { name: "本棚" } })
   expect(shelf.ok).toBe(true)
   const id = shelf.result.shelf as string

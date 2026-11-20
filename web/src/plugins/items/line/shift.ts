@@ -3,7 +3,7 @@ import type { Point } from "../../../plugin-api"
 import type { PortArea } from "../../base"
 import { pointAt } from "./geom"
 import type { LineLike } from "./placed"
-import { sideOf } from "./route"
+import { sideOf } from "./route-ends"
 import { perimeter } from "./selfloop"
 
 // 線 lines を、形と一緒に d だけずらす: 手で直した途中の区間の位置（via）も同じだけずらす（via は、出る辺と交わる向きの座標から、x と y を交互に持つ）。

@@ -2,7 +2,7 @@
 // 行き先の物のレイヤー（MailLayer）が、行き先の物の枠を光らせ、鳥を連れてきて、鳥が飛び去ったら消す。ステージが行き先から離れても消す
 import { useCallback } from "react"
 import { useSetPluginStateAt } from "../../../ui/at-hooks"
-import { usePluginState, useSetPluginState } from "../../../ui/view-hooks"
+import { usePluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
 import { kit } from "../kit"
 import { type BirdVisit, MAIL_BIRD_VISIT } from "./states"
 

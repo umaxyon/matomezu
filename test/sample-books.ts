@@ -1,4 +1,4 @@
-// 見本のブック（どれも、A4 横の図面のページが 1 つ。ページの id はブックをまたいで重ならない: b1 は p1、ほかは b2-p1 のようにブックの id を頭に付ける）
+// 見本のブック（単体テストと e2e が置く。どれも、A4 横の図面のページが 1 つ。ページの id はブックをまたいで重ならない: b1 は p1、ほかは b2-p1 のようにブックの id を頭に付ける）
 import type { Book } from "../web/src/core/schema/book"
 import { drawingPage, testBook } from "./lineup"
 

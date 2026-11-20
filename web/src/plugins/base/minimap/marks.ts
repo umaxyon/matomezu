@@ -8,8 +8,7 @@ import { slideIsBackground } from "../../../core/def/page-type"
 import type { Point, Rect } from "../../../core/geom"
 import { byConnector, type ItemPage, shapesOf, slideOf } from "../../../core/placed"
 import { type SettingReader, settingsAt } from "../book-settings"
-import type { GrowSides } from "../place/grow"
-import { growOf } from "../place/items"
+import { type GrowSides, growOf } from "../place/grow"
 import { type PortArea, placedSize, portAreasOf, rectsOf, shapeDefOf } from "../place/placed"
 
 // ミニマップに描く簡単な絵 1 つ（紙の座標）。色と線の太さはミニマップが決める。

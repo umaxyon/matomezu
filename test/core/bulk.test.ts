@@ -2,7 +2,7 @@
 import { expect, test } from "bun:test"
 import { USER } from "../../web/src/core/actor"
 import { type BulkAction, bulkActionOf, localDateOf, performBulk } from "../../web/src/core/bulk"
-import type { World } from "../../web/src/core/perform"
+import type { World } from "../../web/src/core/perform-world"
 import { sourceOf } from "../../web/src/core/record-source"
 import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { MAIL } from "../../web/src/plugins/base/mail"

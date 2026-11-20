@@ -10,9 +10,9 @@ import * as api from "../web/src/plugin-entry/index"
 import * as ui from "../web/src/plugin-entry/ui"
 import * as plugin from "../web/src/plugins/base"
 import * as pluginUi from "../web/src/plugins/base/ui"
+import { boundActions, windowActionsOf } from "../web/src/store/actions"
 import { commandContext, commandDef } from "../web/src/store/commands"
 import { NO_BOOK, NO_PAGE } from "../web/src/store/commands/def"
-import { boundActions, windowActionsOf } from "../web/src/store/store"
 import * as testing from "../web/src/testing"
 import { CORE_CATALOG, newStore } from "./support"
 
@@ -259,6 +259,7 @@ test("matomezu/ui が出す名前", () => {
     "FolderIcon",
     "FolderOpenIcon",
     "Form",
+    "GearIcon",
     "GhostArea",
     "IconButton",
     "InheritChoices",
@@ -266,6 +267,7 @@ test("matomezu/ui が出す名前", () => {
     "LIBRARY_CONTEXT_MENUS",
     "LeftSidePanelOpenButton",
     "LibraryView",
+    "LineIcon",
     "LockToggle",
     "MAILBOX_OPENS",
     "MAIL_ACTIONS",
@@ -273,6 +275,7 @@ test("matomezu/ui が出す名前", () => {
     "MarkdownDocumentView",
     "MaxButton",
     "MultiChoices",
+    "Notice",
     "PageProblemsView",
     "Panel",
     "PaperFrame",
@@ -387,6 +390,7 @@ test("matomezu/ui が出す名前", () => {
     "useResize",
     "useRevealable",
     "useRightSidePanel",
+    "useRowSlide",
     "useScreen",
     "useScreenArrangement",
     "useScreenHere",

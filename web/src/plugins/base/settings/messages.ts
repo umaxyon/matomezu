@@ -8,6 +8,27 @@ export const SETTINGS_MESSAGES = defineMessages({
   // 追加プラグインの有効・無効の設定（EnabledPluginsSetting.tsx）
   "Enabled plugins": { en: "Enabled plugins", ja: "有効なプラグイン" },
   "No added plugins": { en: "No plugins have been added", ja: "追加したプラグインはありません" },
+  "Disable the plugin?": { en: "Disable the plugin?", ja: "プラグインを無効にしますか？" },
+  "Disabling {plugin} makes these unreadable. They move to the unreadable folder": {
+    en: "Disabling {plugin} makes these unreadable. They move to the unreadable folder",
+    ja: "{plugin} を無効にすると、次の物が読めなくなり、読めない物のフォルダへ移ります",
+  },
+  "{count} pages": { en: "{count} pages", ja: "ページ {count} 枚" },
+  "{count} items": { en: "{count} items", ja: "{count} 件" },
+  'Book "{place}": {count} pages': { en: 'Book "{place}": {count} pages', ja: "・ブック「{place}」 {count} 枚" },
+  'Book "{place}": {count} items': { en: 'Book "{place}": {count} items', ja: "・ブック「{place}」 {count} 件" },
+  'Folder "{place}": {count} pages': {
+    en: 'Folder "{place}": {count} pages',
+    ja: "・フォルダ「{place}」のページ {count} 枚",
+  },
+  'Folder "{place}": {count} items': { en: 'Folder "{place}": {count} items', ja: "・フォルダ「{place}」 {count} 件" },
+  "Enable it again and they go back where they were": {
+    en: "Enable it again and they go back where they were",
+    ja: "有効に戻すと、元の場所へ戻ります",
+  },
+  "{count} more places": { en: "{count} more places", ja: "・ほか {count} か所" },
+  Disable: { en: "Disable", ja: "無効にする" },
+  "Could not check what will move": { en: "Could not check what will move", ja: "移る物を確かめられませんでした" },
   Plugins: { en: "Plugins", ja: "プラグイン" },
   Language: { en: "Language", ja: "言語" },
   Skin: { en: "Skin", ja: "スキン" },

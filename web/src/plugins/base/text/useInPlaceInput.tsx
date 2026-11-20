@@ -6,7 +6,8 @@
 import { type PointerEvent, useEffect, useRef, useState } from "react"
 import type { CommandId } from "../../../core/catalog"
 import { useCommand } from "../../../ui/commands"
-import { useActions, usePluginState, useSetPluginState } from "../../../ui/view-hooks"
+import { usePluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
+import { useActions } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import type { InPlaceDraftState } from "../utils/in-place"
 

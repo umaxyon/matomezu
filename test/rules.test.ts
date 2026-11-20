@@ -24,6 +24,9 @@ const filesEnding = (dir: string, ext: string): string[] =>
 
 const sources = filesUnder(SRC).map(path => ({ path, rel: relative(SRC, path), text: readFileSync(path, "utf8") }))
 const crateOf = (rel: string) => rel.split("/")[0]!
+// 読んでよい物をクレートで 1 行に書いたクレートは、自分のフォルダの中のファイルも読んでよい（ファイルごとに書いたクレートは、その行のとおり）
+const READS_OWN = ["core", "store", "ui", "host-client", "engine"]
+const inOwnCrate = (rel: string, target: string) => READS_OWN.includes(crateOf(rel)) && topOf(target) === crateOf(rel)
 
 // import の行き先。相対なら web/src から見たパス（拡張子なし）、そうでなければパッケージ名
 function importsOf(file: { path: string; text: string }): string[] {
@@ -36,14 +39,14 @@ function importsOf(file: { path: string; text: string }): string[] {
 }
 const topOf = (t: string) => t.split("/")[0]!
 
-// フォルダごとに読み込んでよいもの（土台のフォルダの名前か、パッケージ名）
+// フォルダごとに、自分のほかに読み込んでよいもの（土台のフォルダの名前か、パッケージ名）
 const ALLOWED: Record<string, (target: string) => boolean> = {
-  core: t => t === "core" || t === "zod",
-  store: t => t === "core" || t === "store" || t === "zustand/vanilla",
-  "host-client": t => t === "core" || t === "store" || t === "host-client" || t === "zod",
+  core: t => t === "zod",
+  store: t => t === "core" || t === "zustand/vanilla",
+  "host-client": t => t === "core" || t === "store" || t === "zod",
   engine: t => t === "core" || t === "store" || t === "plugins" || t === "plugin-modules" || t === "zod",
   ui: t =>
-    ["core", "store", "ui", "react", "react-dom", "react-dom/client", "zustand", "zustand/react/shallow"].includes(t) ||
+    ["core", "store", "react", "react-dom", "react-dom/client", "zustand", "zustand/react/shallow"].includes(t) ||
     t.endsWith(".css"),
   // プラグイン API は土台から名前を出し直すだけ（index は core・store、ui は ui。下の「プラグイン API のクレート」で分けて見る）。プラグインは読まない
   "plugin-api": t => t === "core" || t === "store" || t === "ui",
@@ -62,7 +65,7 @@ const LIBRARY_READERS: Record<string, readonly string[]> = {
   "plugins/base/code-highlight/highlight.ts": ["hast", "refractor", "refractor/zig"],
 }
 const baseAllowed = (rel: string) => (t: string) =>
-  (isView(rel) ? ALLOWED.ui!(t) : t === "core" || t === "store" || t === "zod") ||
+  (isView(rel) ? t === "ui" || ALLOWED.ui!(t) : t === "core" || t === "store" || t === "zod") ||
   (LIBRARY_READERS[rel]?.includes(t) ?? false)
 // base 以外のビルトインプラグインは、プラグイン API と zod だけ（見た目は plugin-api/ui と react も。react-dom は読まない: 追加プラグインが借りられる物と合わせる。
 // document.body に描くゴーストは base の GhostArea で描く）。状態は plugin-api/ui のフックで読む
@@ -157,7 +160,7 @@ describe("依存の向き", () => {
     if (!allowed) continue
     test(file.rel, () => {
       // 土台（core・store・ui）は、プラグインを読まない
-      expect(targets.filter(t => (local(t) ? !allowed(topOf(t)) : !allowed(t)))).toEqual([])
+      expect(targets.filter(t => !inOwnCrate(file.rel, t) && (local(t) ? !allowed(topOf(t)) : !allowed(t)))).toEqual([])
     })
   }
 })
@@ -236,7 +239,7 @@ const FRAMES = [
 
 test("場所（ステージ・スクリーン）を id で名指すのは土台と base の骨組みだけ（場所を置く物・id を取るフック・場所を引数に取る素の操作・向け先のステージの id・ほかのスクリーンの並びを、ほかは使わない）", () => {
   const names =
-    /\b(StageScope|PageScope|ActsOnScope|ArrangedProvider|useStoreActions|useStageId|screensOf|arrangementValueIn|storeActionsOf)\b|ui\/at-hooks"/
+    /\b(StageScope|PageScope|ActsOnScope|ArrangedProvider|useStoreActions|useStageId|screensOf|arrangementValueIn|storeActionsOf|updatePluginStateAtOf)\b|ui\/at-hooks"/
   const users = sources
     .filter(f => !["ui", "store"].includes(crateOf(f.rel)) && names.test(f.text))
     .map(f => f.rel)

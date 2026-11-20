@@ -128,6 +128,9 @@ export const ERRORS = {
   E403: "the server could not search: {status}",
   E404: "this window cannot write to the clipboard",
   E405: "the server could not remove the plugins: {status}",
+  E406: "this window has no server to ask about the unreadable folder",
+  E407: "the server could not purge {id} from the unreadable folder: {status}",
+  E408: "the server could not tell what would move to the unreadable folder: {status}",
 } as const
 
 export type ErrorCode = keyof typeof ERRORS

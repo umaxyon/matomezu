@@ -31,5 +31,5 @@ test("ツリーに描いた行の並びは、treeRowsOf の並びと同じ（フ
   const unfolded = pluginValueOf(s.pluginValues, center, LIBRARY_UNFOLDED) ?? []
   expect(unfolded.length).toBeGreaterThan(3)
   const drawn = tree.getAllByRole("button", { hidden: true }).flatMap(b => b.dataset.libraryRow ?? [])
-  expect(drawn).toEqual(treeRowsOf(s.folders, unfolded).map(r => r.id))
+  expect(drawn).toEqual(treeRowsOf(s.folders, unfolded, false).map(r => r.id))
 })

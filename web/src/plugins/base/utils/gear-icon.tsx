@@ -1,7 +1,13 @@
-// 設定を開くコマンドのアイコン（歯車）
-export const GEAR_ICON = (
-  <svg viewBox="0 0 24 24" aria-hidden="true">
+// 設定の歯車: 設定を開くコマンドのアイコン GEAR_ICON と、ボタンに置く GearIcon（同じ形）
+import { icon, LineIcon } from "./icon"
+
+const GEAR = (
+  <>
     <circle cx="12" cy="12" r="3" />
-    <path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8" />
-  </svg>
+    <path d="M12 2.8l1.6 2.3 2.7-.6.9 2.6 2.6.9-.6 2.7 2.3 1.6-2.3 1.6.6 2.7-2.6.9-.9 2.6-2.7-.6L12 21.2l-1.6-2.3-2.7.6-.9-2.6-2.6-.9.6-2.7L2.5 12l2.3-1.6-.6-2.7 2.6-.9.9-2.6 2.7.6z" />
+  </>
 )
+
+export const GEAR_ICON = icon(GEAR)
+
+export const GearIcon = ({ size = 16 }: { size?: number }) => <LineIcon size={size}>{GEAR}</LineIcon>

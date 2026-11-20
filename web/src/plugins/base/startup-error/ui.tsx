@@ -4,7 +4,7 @@
 // 断られたら一覧を残りの原因に替えて、また押せる
 import { useState } from "react"
 
-import type { StartupCause, StartupErrorKind, StartupFixOutcome } from "../../../store/store"
+import type { StartupCause, StartupErrorKind, StartupFixOutcome } from "../../../store/state"
 import { useMessages } from "../../../ui/i18n"
 import { defineWidget } from "../../../ui/layout"
 import { ActionButton } from "../dialog-host/FormParts"

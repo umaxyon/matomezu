@@ -1,5 +1,5 @@
 // 場所を名指すフック: ステージ・スクリーンの id を引数に取る。土台と、base の骨組み（ステージを並べる所・サイドパネルの入れ物・ダイアログやメニューの置き場など、
-// 自分の置かれた所でないステージを扱う物）だけが使う。プラグイン API には出さない（プラグインのビューは、描いている場所から引く ui/view-hooks.ts のフックを使う）
+// 自分の置かれた所でないステージを扱う物）だけが使う。プラグイン API には出さない（プラグインのビューは、描いている場所から引く ui/view-hooks.ts・ui/plugin-state-hooks.ts などのフックを使う）
 import { useCallback, useMemo } from "react"
 import { useShallow } from "zustand/react/shallow"
 import type { PluginStateDef } from "../core/def/plugin-state"

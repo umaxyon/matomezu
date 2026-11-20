@@ -1,25 +1,17 @@
-// つなぐもの（線など）を種類ごとに分ける byConnector（core/placed.ts）と、それを使う base の外枠 extentOf（place/items.ts）
+// つなぐもの（線など）を種類ごとに分ける byConnector（core/placed.ts）と、それを使う base の外枠 extentOf（place/grow.ts）
 import { expect, test } from "bun:test"
 import type { ConnectorData } from "../../web/src/core/def/item"
 import { byConnector, type ItemPage } from "../../web/src/core/placed"
-import { extentOf } from "../../web/src/plugins/base/place/items"
+import { extentOf } from "../../web/src/plugins/base/place/grow"
 import { portAreasOf, rectsOf } from "../../web/src/plugins/base/place/placed"
+import { drawingPage } from "../lineup"
 import { CORE_CATALOG } from "../support"
 
 const LINE = "@matomezu/line:connector-line"
 const BOX = "@matomezu/box:shape-nest-box"
 const setting = () => undefined
 
-const page = (items: unknown[]): ItemPage =>
-  ({
-    kind: "page",
-    id: "p1",
-    type: "@matomezu/drawing:drawing",
-    title: "",
-    paper: "@matomezu/base:a4",
-    orientation: "landscape",
-    items,
-  }) as unknown as ItemPage
+const page = (items: object[]): ItemPage => drawingPage("p1", { title: "", items })
 const box = (id: string, x: number) => ({ id, item: BOX, x, y: 100, w: 100, h: 60, props: {} })
 const line = (id: string, from: string, to: string, props: Record<string, unknown> = {}) => ({
   id,

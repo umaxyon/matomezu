@@ -1,7 +1,8 @@
 // ブックを作って開く: アクション book-create でブックを作り、そのステージで開いてカレントにする
 
 import type { ArgsOf } from "../../../core/perform"
-import type { MatomezuInstance, Performed } from "../../../store/store"
+import type { Performed } from "../../../store/actions"
+import type { MatomezuInstance } from "../../../store/state"
 import { BOOK_CREATE } from "./book-create"
 
 type Instance = Pick<MatomezuInstance, "state" | "actions">

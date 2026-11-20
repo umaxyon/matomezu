@@ -3,7 +3,7 @@
 import { expect, test } from "bun:test"
 import { z } from "zod"
 import { type Address, currentIn, recentStagesIn } from "../../web/src/core/address"
-import { NO_OUTERMOST } from "../../web/src/core/folders"
+import { NO_OUTERMOST } from "../../web/src/core/folders-tree"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { currentKindOf, screenOf } from "../../web/src/core/window"
 import {

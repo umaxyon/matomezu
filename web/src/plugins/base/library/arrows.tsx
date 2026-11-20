@@ -1,6 +1,6 @@
 // 書庫の画面の右の枠の中身の列の数を測るフック（上下の矢印のコマンド library-pick-move が読む）
 import { useLayoutEffect, useState } from "react"
-import { useReadPluginState, useSetPluginState } from "../../../ui/view-hooks"
+import { useReadPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
 import { kit } from "../kit"
 import { LIBRARY_COLUMNS } from "./state"
 

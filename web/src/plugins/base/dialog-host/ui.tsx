@@ -12,7 +12,7 @@ export const DIALOG_HOST = defineWidget({
 })
 
 export { ColorPicker, type Swatch } from "./ColorPicker"
-export { Confirm } from "./Confirm"
+export { Confirm, Notice } from "./Confirm"
 export { Dialog } from "./Dialog"
 export {
   ActionButton,

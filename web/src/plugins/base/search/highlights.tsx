@@ -3,7 +3,8 @@
 // どこを光らせるか（原文の位置から描いた要素の Range を作る）は、描いたビューが決める（ほかのプラグインのビューの中には手を入れない）
 import { useEffect, useMemo, useRef } from "react"
 import { findPage } from "../../../core/book"
-import { useBook, useCoreCatalog, usePluginState } from "../../../ui/view-hooks"
+import { usePluginState } from "../../../ui/plugin-state-hooks"
+import { useBook, useCoreCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import type { SearchHit } from "./find"
 import { hitsIn, liveCurrent, searchableOf } from "./search"

@@ -1,21 +1,26 @@
 // 書庫の画面が描く物（base/library/outline.ts）: フォルダの直下の行・パンくず・行を開いたときの行き先
 import { expect, test } from "bun:test"
 import { entriesIn } from "../../../web/src/core/entries"
-import { HOME_ID, TRASH_ID } from "../../../web/src/core/folders"
+import { BROKEN, FIRST, HOME_ID, TRASH_ID, UNREADABLE_ID } from "../../../web/src/core/folders"
+import type { UnreadableItem } from "../../../web/src/core/folders-unreadable"
 import { restorePlanOf, SAME_TITLE } from "../../../web/src/plugins/base/library/entries"
 import { FOLDER_CREATE } from "../../../web/src/plugins/base/library/entry-move"
 import {
+  movedPlacesOf,
   NO_TYPE,
   NOT_OPENED,
+  NOT_UNFOLDABLE,
   openedFolderOf,
   openTargetOf,
   pathTo,
+  placeIdOf,
   rowsIn,
   shownFoldersOf,
   tabStopOf,
   trashRowsOf,
   treeCurrentOf,
   treeRowsOf,
+  unreadableRowsOf,
 } from "../../../web/src/plugins/base/library/outline"
 import { foundRowsOf } from "../../../web/src/plugins/base/library/search"
 import { NAMING, newStore } from "../../support"
@@ -168,14 +173,14 @@ test("見せているフォルダは、右の枠で開いているフォルダ�
 
 test("ツリーに出ている行は、一番上の行と、中を出しているフォルダの下の行。ゴミ箱とページは中を出せない。今いる行は、選んだページか、開いているフォルダ", () => {
   const { library, folder } = setup()
-  const ids = (unfolded: string[]) => treeRowsOf(library().folders, unfolded).map(r => r.id)
+  const ids = (unfolded: string[]) => treeRowsOf(library().folders, unfolded, false).map(r => r.id)
   expect(ids([])).toEqual([HOME_ID, TRASH_ID])
   const home = entriesIn(library().folders, HOME_ID).map(r => r.id)
   expect(home.slice(0, 2)).toEqual(["b1", "b3"])
   expect(ids([HOME_ID])).toEqual([HOME_ID, ...home, TRASH_ID])
   // 上のフォルダの中を出していなければ、その下の行は出ない
   expect(ids([folder])).toEqual([HOME_ID, TRASH_ID])
-  const rows = treeRowsOf(library().folders, [HOME_ID, folder, "b1", TRASH_ID])
+  const rows = treeRowsOf(library().folders, [HOME_ID, folder, "b1", TRASH_ID], false)
   expect(rows.map(r => r.id)).toEqual([
     HOME_ID,
     "b1",
@@ -231,4 +236,115 @@ test("ロック中のページとブックの行は locked を持つ（鍵をア
   expect(home.find(r => r.id === "b3")?.locked).toBe(false)
   const pages = rowsIn(library(), "b1", NAMING)
   expect(pages.find(r => r.id === "p1")?.locked).toBe(true)
+})
+
+test("読めない物の行は、移った時刻の新しい順に、名前・在った所・訳・移った時刻を持つ。在った所は、書庫に無ければ一緒に移ったブックの名前、ゴミ箱に居た物はゴミ箱に入れる前の所。形に合わない物は名前だけで最後", () => {
+  const { library, folder } = setup()
+  const T1 = "2026-11-18T01:00:00.000Z"
+  const T2 = "2026-11-18T02:00:00.000Z"
+  const page = (id: string, title: string) => ({ kind: "page", id, title })
+  const items: UnreadableItem[] = [
+    {
+      id: "p1",
+      row: page("p1", "押印の表"),
+      ref: {
+        entry: { kind: "page", id: "p1" },
+        from: ["b1", HOME_ID],
+        after: FIRST,
+        code: "W027",
+        type: "ex2:flow",
+        moved: T1,
+      },
+    },
+    {
+      id: "mb",
+      row: { folderRole: "book", id: "mb", title: "企画書", lineup: [] },
+      ref: { entry: { kind: "book", id: "mb" }, from: [HOME_ID], after: FIRST, code: "W005", moved: T1 },
+    },
+    {
+      id: "p2",
+      row: page("p2", "押印 2"),
+      ref: {
+        entry: { kind: "page", id: "p2" },
+        from: ["mb", HOME_ID],
+        after: FIRST,
+        code: "W027",
+        type: "ex2:flow",
+        moved: T2,
+      },
+    },
+    {
+      id: "p3",
+      row: page("p3", "メモ"),
+      ref: {
+        entry: { kind: "page", id: "p3", trashed: T1, from: [folder, HOME_ID] },
+        from: [TRASH_ID],
+        after: FIRST,
+        code: "W029",
+        moved: T1,
+      },
+    },
+    { id: "p4", row: page("p4", "壊れた"), ref: BROKEN },
+  ]
+  const rows = unreadableRowsOf(items, library(), NAMING)
+  expect(rows.map(r => r.id)).toEqual(["p2", "p3", "mb", "p1", "p4"])
+  expect(rows[0]).toEqual({
+    shape: "fits",
+    id: "p2",
+    title: "押印 2",
+    kind: "page",
+    place: { id: "mb", title: "企画書", book: true, trash: false },
+    code: "W027",
+    type: "ex2:flow",
+    moved: T2,
+  })
+  expect(rows[1]).toMatchObject({
+    place: { id: folder, title: "仕事", book: false, trash: true },
+    code: "W029",
+    type: NO_TYPE,
+  })
+  expect(rows[2]).toMatchObject({ kind: "book", title: "企画書", place: { id: HOME_ID, book: false, trash: false } })
+  expect(rows[3]).toMatchObject({ place: { id: "b1", book: true, trash: false } })
+  expect(rows[4]).toEqual({ shape: BROKEN, id: "p4", title: "壊れた" })
+  expect(unreadableRowsOf([], library(), NAMING)).toBe(unreadableRowsOf([], library(), NAMING))
+})
+
+test("読めない物が在った所は、並びに持つフォルダ。ブックの中のバインダならそのブック。列が空なら書庫ホーム", () => {
+  const roles: Record<string, string> = { bk: "book", bd: "binder", fd: "folder" }
+  const roleOf = (id: string) => roles[id]
+  expect(placeIdOf(["bd", "bk", HOME_ID], roleOf)).toBe("bk")
+  expect(placeIdOf(["bd", "fd", HOME_ID], roleOf)).toBe("bd")
+  expect(placeIdOf(["fd", HOME_ID], roleOf)).toBe("fd")
+  expect(placeIdOf([], roleOf)).toBe(HOME_ID)
+})
+
+test("無効にしたら移る物は、在る所ごとに数え、在る所が最初に出た順に並ぶ", () => {
+  const { library } = setup()
+  const places = movedPlacesOf(
+    [
+      { id: "b2-p1", kind: "page", holder: "b2", code: "W027", type: "ex2:flow" },
+      { id: "p1", kind: "page", holder: "b1", code: "W027", type: "ex2:flow" },
+      { id: "b2-p2", kind: "page", holder: "b2", code: "W027", type: "ex2:flow" },
+    ],
+    library(),
+    NAMING,
+  )
+  expect(places).toEqual([
+    { id: "b2", title: "画面の構成", book: true, count: 2, pages: true },
+    { id: "b1", title: "まとめ図の構想", book: true, count: 1, pages: true },
+  ])
+})
+
+test("読めない物のフォルダは、設定がオンならツリーの一番上の行の最後に出て、中は出せない。書庫の表に無くても開ける", () => {
+  const { library } = setup()
+  const folders = library().folders
+  expect(treeRowsOf(folders, [], true).map(r => r.id)).toEqual([HOME_ID, TRASH_ID, UNREADABLE_ID])
+  expect(treeRowsOf(folders, [UNREADABLE_ID], true).at(-1)).toEqual({
+    id: UNREADABLE_ID,
+    holder: UNREADABLE_ID,
+    holds: true,
+    unfolded: NOT_UNFOLDABLE,
+  })
+  expect(treeRowsOf(folders, [], false).map(r => r.id)).toEqual([HOME_ID, TRASH_ID])
+  expect(openedFolderOf(folders, UNREADABLE_ID)).toBe(UNREADABLE_ID)
 })

@@ -14,7 +14,7 @@ import { UI_MODULES } from "./plugin-modules/ui"
 import { BUILTIN_CONTROL_CENTER } from "./plugins"
 import { BUILTIN_UI, DEFAULT_LAYOUT, STARTUP_ERROR_LAYOUT, UNKNOWN_BROWSER_LAYOUT } from "./plugins/ui"
 import { createMatomezu } from "./store/create"
-import type { StoreOptions } from "./store/store"
+import type { StoreOptions } from "./store/state"
 import { loadFonts } from "./ui/fonts"
 import { type LayoutDef, placeAdded, placeAddedWithWarnings } from "./ui/layout"
 import { type AnyPluginUi, assembleUi, withoutUi } from "./ui/plugin"
@@ -38,6 +38,8 @@ const store = createMatomezu({
   aiEditTicket: change => client.reportAIEditTicket(change),
   visible: () => client.visible(),
   search: query => client.search(query),
+  ...(saved.unreadableNotice ? { unreadableNotice: saved.unreadableNotice } : {}),
+  unreadableHost: { purge: id => client.purgeUnreadable(id), movedIfOff: ids => client.movedIfOff(ids) },
   ...browserWindowIo(),
 })
 // 取り込んだ追加プラグインは、matomezu 本体の core/catalog.ts の型に入らないので、型では確かめず、台帳アセンブルで確かめる（見た目と、置いた UI マッピングも）。

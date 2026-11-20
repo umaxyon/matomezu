@@ -2,8 +2,8 @@
 // タスクボードの出入りは useBoardPhases の様子（phase）で動かす。タスクボードかレーンを最大化すると、ほかのタスクボードは畳み、枠にも最大化を知らせる（左と下を退かせる）
 import { useState } from "react"
 import { useAllowedOn, useMessages, usePluginState, useRecords, useUpdatePluginState } from "../../../plugin-api/ui"
-import { IconButton, TitledArea, useControlCenterMaximize } from "../../base/ui"
-import { GearIcon } from "../icons"
+import { GearIcon, IconButton, TitledArea, useControlCenterMaximize } from "../../base/ui"
+import { WORKROOM_SUBJECT } from "../by"
 import { kit } from "../kit"
 import { PROJECT } from "../project"
 import { PROJECT_UPDATE } from "../project/actions"
@@ -27,7 +27,7 @@ export function TaskboardView() {
   const allTickets = useRecords(TICKET.id, { where: [] })
   const filter = usePluginState(kit, TICKET_FILTER)
   const tickets = filterTickets(allTickets, filter)
-  const workrooms = useRecords("@matomezu/base:workroom", { where: [] })
+  const workrooms = useRecords(WORKROOM_SUBJECT, { where: [] })
   const settings = useBoardSettings()
   const [root, setRoot] = useState<HTMLDivElement | null>(null)
   const ordered = orderedProjects(projects, settings.order)

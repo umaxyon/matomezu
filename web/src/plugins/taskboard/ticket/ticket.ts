@@ -85,4 +85,7 @@ export const TICKET = kit.defineSubject({
   },
 })
 
+// チケットのレコードの形
+export type Ticket = z.output<typeof TICKET.record>
+
 export { UNSORTED }

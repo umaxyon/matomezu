@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// aiIndexKey は、AI の一覧（web/src/engine/engine.ts の aiCatalog）の中の、目次の名前
+// aiIndexKey は、AI の一覧（web/src/engine/ai-catalog.ts の aiCatalog）の中の、目次の名前
 const aiIndexKey = "index"
 
 // AICatalogIndex は MCP 公開ツールの actions が、引数なしで返す物: 一覧の版 version と、目次 index（作るのは aiCatalog。大きい表は id と題名だけ、小さい表は全文）。

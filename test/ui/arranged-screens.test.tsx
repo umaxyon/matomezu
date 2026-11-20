@@ -6,8 +6,8 @@ import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { ArrangedProvider } from "../../web/src/ui/arranged-context"
 import { ScreenView } from "../../web/src/ui/ScreenView"
+import { useArrangedScreens } from "../../web/src/ui/screen-hooks"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
-import { useArrangedScreens } from "../../web/src/ui/view-hooks"
 
 afterEach(cleanup)
 

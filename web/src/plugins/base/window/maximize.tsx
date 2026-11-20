@@ -2,7 +2,7 @@
 // 中身（タスクボードなど。枠を読めない別のプラグイン）は、画面いっぱいを使っている間 useControlCenterMaximize(true) で名乗り、枠は useControlCenterMaximized() で読む。
 // 名乗った物が消えれば（外れた・プラグインを外した）、自然に解ける。名乗りの持ち方は maximize-state.ts
 import { useEffect, useId } from "react"
-import { usePluginState, useUpdatePluginState } from "../../../ui/view-hooks"
+import { usePluginState, useUpdatePluginState } from "../../../ui/plugin-state-hooks"
 import { kit } from "../kit"
 import { MAXIMIZERS } from "./maximize-state"
 

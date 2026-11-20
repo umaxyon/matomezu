@@ -6,7 +6,7 @@
 // 付ける先がいくつかあるときは、カレントの物に明るい色の枠を重ねて、どれがカレントかを示す
 import { useEffect, useState } from "react"
 import { useMessages } from "../../../ui/i18n"
-import { useReadPluginState, useSetPluginState } from "../../../ui/view-hooks"
+import { useReadPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
 import type { Bird } from "../birds"
 import { assignBirds } from "../birds/assign"
 import { BirdWalk, birdClass } from "../birds/BirdWalk"

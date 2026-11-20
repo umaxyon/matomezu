@@ -4,7 +4,7 @@ package server
 // フォルダは、書庫ホーム・ゴミ箱・フォルダ・ブック・バインダ（storage/library.go）。どれもエントリ（ページ・バインダ・ブック・フォルダ）の id を順に持つ。
 // エントリの入っているフォルダは places にも持つ（ページから持ち主のブックを引くのに使う）。
 // ブックの本文（並びにページとバインダの中身ごと持つ形）が要る所（AI に見せる・エンジンに確かめさせる）には、ここで組んだ物を渡す（books。変わったブックだけ組み直す）。
-// 組むのは形だけ: フォルダの lineup のうち、id だけのエントリ（kind と id だけを持つ）を、表の中身に替える（core/folders.ts の rawBooksOf と同じ決まり）。
+// 組むのは形だけ: フォルダの lineup のうち、id だけのエントリ（kind と id だけを持つ）を、表の中身に替える（core/folders-unreadable.ts の rawBooksOf と同じ決まり）。
 // ブックは、役（folderRole）が home・trash・folder・binder のどれでもないフォルダ（形の壊れた物も、読めないブックとして 1 冊に数える）
 
 import (

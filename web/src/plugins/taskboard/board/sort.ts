@@ -1,6 +1,7 @@
 // レーンの中のチケットの並べ方: 使う項目（on）を上から順に比べる（先の項目で同じなら次の項目で）。どれも使わなければ元の並び。
 // 項目は 5 つ: id（番号の数）・優先度（PRIORITIES の順）・チケットボリューム（VOLUMES の順。見積もっていない none がいちばん小さい）・最終更新（時刻の文字。無ければ最も古い）・タグ（プロジェクトのチケットタグの並び順。タグなしと無いタグは最後）
-import { PRIORITIES, PRIORITY_DEFAULT, type TicketRecord, VOLUMES } from "./shown"
+import type { Ticket } from "../ticket"
+import { PRIORITIES, PRIORITY_DEFAULT, VOLUMES } from "./shown"
 
 export const SORT_KEYS = ["id", "priority", "volume", "updated", "tag"] as const
 export type SortKey = (typeof SORT_KEYS)[number]
@@ -18,14 +19,10 @@ export const sortActive = (rules: SortRules): boolean => rules.some(r => r.on)
 
 // tagIds はプロジェクトのチケットタグの id を並びの順に。タグで並べるときは、付いたタグをプロジェクトの順に並べて 1 つ目から順に比べ、
 // 同じなら 2 つ目と比べる（前が同じで短い方が先）。タグの無いチケットは後ろ
-export function sortTickets(
-  tickets: readonly TicketRecord[],
-  rules: SortRules,
-  tagIds: readonly string[],
-): TicketRecord[] {
+export function sortTickets(tickets: readonly Ticket[], rules: SortRules, tagIds: readonly string[]): Ticket[] {
   const used = rules.filter(r => r.on)
   if (used.length === 0) return [...tickets]
-  const value = (t: TicketRecord, key: SortKey): readonly (number | string)[] => {
+  const value = (t: Ticket, key: SortKey): readonly (number | string)[] => {
     if (key === "id") return [t.number]
     if (key === "priority") return [PRIORITIES.indexOf(t.priority ?? PRIORITY_DEFAULT)]
     if (key === "volume") return [VOLUMES.indexOf(t.volume)]

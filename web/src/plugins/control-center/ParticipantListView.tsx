@@ -4,7 +4,7 @@
 import { useState } from "react"
 import { Slot, useMessages, usePluginState, useSetPluginState } from "../../plugin-api/ui"
 import { visitorName } from "../base"
-import { Band, Panel, useVisitorRows, useWorkroomRows, VisitorIcon } from "../base/ui"
+import { Band, Panel, useRowSlide, useVisitorRows, useWorkroomRows, VisitorIcon } from "../base/ui"
 import { BIRD_SIZE, Bird } from "./Bird"
 import { PICKED_ROOM, PICKED_VISITOR } from "./control-center"
 import { kit } from "./kit"
@@ -12,7 +12,6 @@ import styles from "./ParticipantListView.module.css"
 import { orderHeld, orderRows, type RowDetail, rowDetail } from "./rows"
 import { WORKROOM_ROW_LINE } from "./slots"
 import text from "./text.module.css"
-import { useRowSlide } from "./useRowSlide"
 import { useSettledOrder } from "./useSettledOrder"
 
 export function ParticipantListView() {
@@ -23,7 +22,7 @@ export function ParticipantListView() {
   const [held, setHeld] = useState<readonly string[] | null>(null)
   const rows = held ? orderHeld(ordered, held) : ordered
   const hold = () => setHeld(h => h ?? ordered.map(r => r.room.id))
-  const register = useRowSlide(rows.map(r => r.room.id))
+  const { register } = useRowSlide(rows.map(r => r.room.id))
   const picked = usePluginState(kit, PICKED_ROOM)
   const setPicked = useSetPluginState(kit, PICKED_ROOM)
   const visitors = useVisitorRows()

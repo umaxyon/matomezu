@@ -1,10 +1,11 @@
 // レーンのドラッグによる並べ替え（見た目でない）: プロジェクトのレーンの並び（未分類の行を含む）で、dragging のレーンを over のレーンの位置へ移す。
 // 未分類の行はレーンの id を持たず、未分類のレーンの値 UNSORTED で呼ぶ
+
+import type { Project } from "../project"
 import { UNSORTED } from "../project"
 import { moved } from "../reorder/order"
-import type { ProjectRecord } from "./shown"
 
-type LaneRow = ProjectRecord["lanes"][number]
+type LaneRow = Project["lanes"][number]
 
 export const laneKeyOf = (row: LaneRow): string => (row.kind === "lane" ? row.id : UNSORTED)
 

@@ -2,7 +2,8 @@
 
 import { expect, test } from "bun:test"
 import { z } from "zod"
-import { buildCoreCatalog, checkCoreCatalog } from "../../web/src/core/core-catalog"
+import { buildCoreCatalog } from "../../web/src/core/core-catalog"
+import { checkCoreCatalog } from "../../web/src/core/core-catalog-check"
 import type { EnumDef, EnumValueDef } from "../../web/src/core/def/enum"
 import { enumValuesOf } from "../../web/src/core/enum"
 import { CORE_MESSAGES } from "../../web/src/core/i18n/messages"

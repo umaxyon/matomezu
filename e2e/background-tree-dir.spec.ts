@@ -1,11 +1,10 @@
 // ツリーとディレクトリ構成図の背景: 背景編集モードで、背景の形を置ける。背景は紙の座標に敷かれ、中身（根の節・根の行）と同じ位置に載る
 import { BOOK_SCREEN_URL, expect, type Locator, type Page, test } from "./fixtures"
+import { band } from "./helpers/background"
 import { footerMenuTool } from "./helpers/footer-menu"
 import { newBook } from "./helpers/new-book"
 import { paper, settled } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
-
-const band = (page: Page) => page.locator("[data-background-band]")
 
 // 背景編集モードに入り、楕円の道具で target の枠をなぞって置く。置いた楕円の枠を返す
 async function placeEllipseOver(page: Page, target: Locator) {

@@ -3,8 +3,9 @@
 // 開いたら中にフォーカスを入れ、Esc は左サイドパネルのキーの範囲で閉じる。外を押しても閉じない（閉じるのは、閉じるボタン・Esc・開くボタン）
 import { type ReactNode, useEffect, useRef } from "react"
 import { useMessages, useT } from "../../../ui/i18n"
+import { usePluginState } from "../../../ui/plugin-state-hooks"
 import { StageScope } from "../../../ui/scope"
-import { usePluginState, useUiCatalog } from "../../../ui/view-hooks"
+import { useUiCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { useCloseLeftSidePanel, useSetLeftSidePanelTab } from "./hooks"
 import styles from "./LeftSidePanel.module.css"

@@ -1,6 +1,6 @@
 // 上下に分けた並びの変わりを行う（useScreenSplit の applySplit と、状態を読めない base のコマンドが通る、ただ 1 つの道）
 import type { OpenedScreen } from "../../../core/window"
-import type { Actions } from "../../../store/store"
+import type { Actions } from "../../../store/actions"
 import { ONE_SCREEN } from "."
 import { behindOf, SPLIT_ROWS, type SplitPlan } from "./split"
 

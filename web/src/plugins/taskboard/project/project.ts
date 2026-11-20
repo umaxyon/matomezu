@@ -109,3 +109,6 @@ export const PROJECT = kit.defineSubject({
   aiBrief: p => `${p.prefix} ${p.name}`,
   aiListed: { when: p => !p.closed, unlisted: "closed projects" },
 })
+
+// プロジェクトのレコードの形
+export type Project = z.output<typeof PROJECT.record>

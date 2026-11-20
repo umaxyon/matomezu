@@ -1,5 +1,6 @@
 // スクロールバーが幅を取る環境（Windows など）での見た目。ヘッドレスのブラウザは既定でスクロールバーを隠すので、隠さずに起動する
 import { BOOK_SCREEN_URL, CONTROL_CENTER_URL, expect, joinedAiAuth, test } from "./fixtures"
+import { aiPerform } from "./helpers/ai"
 import { addFromTabs } from "./helpers/new-book"
 import { fromMenu } from "./helpers/stage-menu"
 
@@ -52,8 +53,7 @@ test("リストの行が収まらず縦のスクロールバーが出ても、�
     book: string
     page: string
   }
-  const perform = async (action: string, args: object, on: object = { book }) =>
-    (await page.request.post("/api/ai/perform", { headers: ai, data: { action, args, on } })).json()
+  const perform = (action: string, args: object, on: object = { book }) => aiPerform(page, { action, args, on }, ai)
   const placed = await perform(
     "@matomezu/paper:item-place",
     {

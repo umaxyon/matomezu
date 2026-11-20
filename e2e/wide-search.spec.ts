@@ -1,37 +1,27 @@
 // 横断検索: コントロールセンターの虫メガネで左サイドパネルに開く。全文で打つと横断検索の当たりが並び、押すとチケットスクリーンが開く（パネルは開いたまま）。
 // チケットモードは、パネルを開いたままボードを絞り（書庫が前なら引っ込めてボードを出し）、閉じても絞ったままにして、ボードの上の印の × で戻す
-import { CONTROL_CENTER_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
+import { CONTROL_CENTER_URL, expect, type Page, test } from "./fixtures"
+import { aiPerform } from "./helpers/ai"
+import { storedRecords } from "./helpers/stored"
 
 // 窓が低い（800px 未満）ときの、チケットスクリーンを全画面で開く動きを確かめる（上下に分ける動きは ticket-split.spec.ts）
+const PROJECT = "@matomezu/taskboard:project"
+type Project = { id: string; lanes: { kind: string; id: string }[] }
+
 test.use({ viewport: { width: 1280, height: 720 } })
-
-const perform = async (page: Page, data: object) =>
-  (await page.request.post("/api/ai/perform", { headers: await joinedAiAuth(), data })).json() as Promise<{
-    ok: boolean
-    result?: { project?: string; ticket?: string; label?: string }
-  }>
-
-const projects = async (page: Page) =>
-  Object.values(
-    (
-      (await (await page.request.get("/api/data", { headers: await joinedAiAuth() })).json()) as {
-        records: Record<string, Record<string, unknown>>
-      }
-    ).records["@matomezu/taskboard:project"] ?? {},
-  ) as { id: string; lanes: { kind: string; id: string }[] }[]
 
 // 最初のプロジェクト（無ければ足す）のレーンに、題に word を含むチケットと、含まないチケットを足す
 async function setup(page: Page, word: string) {
   await page.goto(CONTROL_CENTER_URL)
-  if ((await projects(page)).length === 0)
-    expect((await perform(page, { action: "@matomezu/taskboard:project-add", args: {} })).ok).toBe(true)
-  const first = (await projects(page))[0]!
+  if ((await storedRecords<Project>(page.request, PROJECT)).length === 0)
+    expect((await aiPerform(page, { action: "@matomezu/taskboard:project-add", args: {} })).ok).toBe(true)
+  const first = (await storedRecords<Project>(page.request, PROJECT))[0]!
   const lane = first.lanes.find(l => l.kind === "lane")!.id
-  const hit = await perform(page, {
+  const hit = await aiPerform(page, {
     action: "@matomezu/taskboard:ticket-add",
     args: { project: first.id, name: `${word}を直す`, lane },
   })
-  const other = await perform(page, {
+  const other = await aiPerform(page, {
     action: "@matomezu/taskboard:ticket-add",
     args: { project: first.id, name: "ほかのチケット", lane },
   })
@@ -145,9 +135,9 @@ test("全文モードで続けて別のチケットを開いても、スクリ�
   const { hit, other } = await setup(page, word)
   expect(other).not.toBe(hit)
   // 2 枚目のチケット（題にも word を入れる）
-  const first = (await projects(page))[0]!
+  const first = (await storedRecords<Project>(page.request, PROJECT))[0]!
   const lane = first.lanes.find(l => l.kind === "lane")!.id
-  await perform(page, {
+  await aiPerform(page, {
     action: "@matomezu/taskboard:ticket-add",
     args: { project: first.id, name: `${word}の二枚目`, lane },
   })

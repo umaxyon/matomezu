@@ -3,9 +3,12 @@
 // ビューが物の見え方を知らせなければ、開いているページの変更は見えたとする。まだ見ていない変更と同じ所を置き直す戻す・やり直すは断り、その変更は残る
 
 import { expect, test } from "bun:test"
+import { z } from "zod"
 import { pagesOf } from "../../web/src/core/book"
+import { defineAction } from "../../web/src/core/def/action"
 import type { Book } from "../../web/src/core/schema/book"
-import type { AIEditTicketOutcome } from "../../web/src/store/store"
+import { definePlugin } from "../../web/src/store/plugin"
+import type { AIEditTicketOutcome } from "../../web/src/store/state"
 import { newStore, sequence, worldRows } from "../support"
 
 const BOX = "@matomezu/box:shape-nest-box"
@@ -118,6 +121,28 @@ test("常駐が自分で行った変更と、画面の履歴に入れないア�
   foreign(store, { ...bookOf(store), locked: true } as Book, "window", "3", "@matomezu/base:book-lock")
   expect(historyOf(store)).toBeUndefined()
   foreign(store, { ...bookOf(store), title: "ほかの窓" }, "window", "7")
+  expect(historyOf(store)?.undo.map(s => s.by)).toEqual(["window"])
+})
+
+test("プラグインを組み直したあとは、よその変更を画面の履歴に入れるかを、組み直した機能台帳のアクションで決める", () => {
+  const store = ready(sequence())
+  // 取り込んだ追加プラグインの、画面の履歴に入れないアクション（組み直す前の機能台帳には無い）
+  const quiet = defineAction({
+    id: "quiet:retitle",
+    title: "@matomezu/drawing:Drawing",
+    aiDescription: "Retitle a book without entering the history.",
+    target: "book",
+    permissionScope: "book",
+    history: false,
+    args: z.strictObject({ title: z.string().min(1) }),
+    run: (book, args) => ({ next: { ...book, title: args.title }, result: {} }),
+  })
+  store.use([definePlugin({ id: "quiet", actions: [quiet] })])
+  show(store)
+  confirm(store)
+  foreign(store, { ...bookOf(store), title: "履歴に入れない" }, "window", "1", "quiet:retitle")
+  expect(historyOf(store)).toBeUndefined()
+  foreign(store, { ...bookOf(store), title: "ほかの窓" }, "window", "2")
   expect(historyOf(store)?.undo.map(s => s.by)).toEqual(["window"])
 })
 

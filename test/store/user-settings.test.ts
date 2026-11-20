@@ -3,9 +3,10 @@
 import { expect, test } from "bun:test"
 import { z } from "zod"
 import { type Actor, AI, USER } from "../../web/src/core/actor"
-import { buildCoreCatalog, checkCoreCatalog } from "../../web/src/core/core-catalog"
+import { buildCoreCatalog } from "../../web/src/core/core-catalog"
+import { checkCoreCatalog } from "../../web/src/core/core-catalog-check"
 import type { HeldSettingDef, UserSettingDef } from "../../web/src/core/def/setting"
-import { performIn } from "../../web/src/core/perform"
+import { performIn } from "../../web/src/core/perform-world"
 import {
   aiSettings,
   disabledPluginsOf,

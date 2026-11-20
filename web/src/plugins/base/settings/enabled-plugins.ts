@@ -2,6 +2,8 @@
 // 無効のプラグインのウィジェットとコマンドは、画面の UI マッピングに置かない（プラグインは取り外さず、設定に残る。ビルトインプラグインは並びに関わらず有効。
 // 土台は role で読む: core/settings.ts の disabledPluginsOf）
 import { z } from "zod"
+import type { MessageKey } from "../../../core/catalog"
+import { isBuiltin, type Plugin } from "../../../store/plugin"
 import { kit } from "../kit"
 
 export const ENABLED_PLUGINS = kit.defineSetting({
@@ -18,3 +20,10 @@ export function withPluginEnabled(enabled: readonly string[], id: string, on: bo
   const rest = enabled.filter(e => e !== id)
   return on ? [...rest, id] : rest
 }
+
+// 入れた追加プラグイン（ビルトインプラグインを除く。入れた順）
+export const addedPluginsOf = <P extends Plugin>(plugins: readonly P[]): P[] => plugins.filter(p => !isBuiltin(p))
+
+// プラグイン p を画面に出す名前: 名乗った名前（文言の鍵を t で引く）、無ければ id
+export const pluginLabel = (p: Pick<Plugin, "id" | "title">, t: (key: MessageKey) => string): string =>
+  p.title ? t(p.title) : p.id

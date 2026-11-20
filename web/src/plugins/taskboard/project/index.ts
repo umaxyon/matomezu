@@ -19,6 +19,7 @@ export {
   PREFIX_PATTERN,
   PROJECT,
   PROJECT_NAME_MAX,
+  type Project,
   prefixKey,
   repeatedAt,
   sameName,

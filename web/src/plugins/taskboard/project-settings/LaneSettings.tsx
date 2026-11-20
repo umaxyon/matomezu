@@ -5,12 +5,11 @@
 // 名前の入力Formを離れたとき、空か、ほかのレーンと重なっていれば片付ける（settings-rows）
 import { useId, useState } from "react"
 import { useMessages } from "../../../plugin-api/ui"
-import { Confirm, Switch } from "../../base/ui"
+import { Confirm, Switch, useRowSlide } from "../../base/ui"
 import { kit } from "../kit"
 import { INHERIT_CARD_SIZE, LANE_NAME_MAX, NO_DONE_LANE } from "../project"
 import { Grip } from "../reorder/Grip"
 import { useGripDrag } from "../reorder/useGripDrag"
-import { useReorderAnimation } from "../reorder/useReorderAnimation"
 import { LaneCardSizeChoices } from "./CardSizeChoices"
 import settings from "./ProjectSettingsDialog.module.css"
 import { NameField, PromptSplit, rowProps } from "./PromptSplit"
@@ -39,7 +38,10 @@ export function LaneSettings({
   const unsorted = rows.find(r => r.kind === "unsorted")
   const shown = unsorted?.kind === "unsorted" && unsorted.shown
   const visible = rows.filter(r => r.kind === "lane" || shown)
-  const { register, snapshot } = useReorderAnimation(visible.map(r => r.key))
+  const { register, snapshot } = useRowSlide(
+    visible.map(r => r.key),
+    { from: "snapshot" },
+  )
   const { dragRowProps, gripProps, markClass } = useGripDrag(
     (dragging, over) => {
       snapshot()

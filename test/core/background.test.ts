@@ -76,20 +76,10 @@ test("ミニマップには背景を描かない", () => {
 
 test("可変ページで背景を必ず印刷するときは、背景だけの印刷区画も並べる（背景が中身の外枠の外にあっても数える）", () => {
   const far = { id: "far", item: ELLIPSE, x: 1300, y: 900, w: 100, h: 60, props: {} }
-  const page = {
-    kind: "page" as const,
-    type: DRAWING,
-    id: "p1",
-    title: "1",
-    paper: "@matomezu/base:a4",
-    orientation: "landscape" as const,
-    grows: true as const,
-    items: [],
-    slide: [far],
-  }
+  const page = withSlide(drawingPage("p1", { title: "1", grows: true, items: [] }), [far])
   const sheetsFor = (setting?: string) => {
     const p = { ...page, ...(setting ? { settings: { "@matomezu/base:background-print": setting } } : {}) }
-    return sheetsOfPage(CORE_CATALOG, p as never)
+    return sheetsOfPage(CORE_CATALOG, p)
   }
   const always = sheetsFor("always")
   expect(always?.filled).toBeNull()

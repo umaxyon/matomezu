@@ -68,9 +68,12 @@ import {
   LIBRARY_TREE_UNFOLD_OR_NEXT,
   LIBRARY_UNDO,
   LIBRARY_UNFOLDED,
+  LIBRARY_UNREADABLE_OPEN,
   PAGE_CREATE,
+  SHOW_UNREADABLE_FOLDER,
   SYSTEM_FOLDER_ADD,
   TRASH_EMPTY,
+  UNREADABLE_NOTICE_CLOSED,
 } from "./library"
 import { BOOK_LOCK, BOOK_UNLOCK, LOCK, LOCKABLE_CHECK, PAGE_LOCK, PAGE_UNLOCK } from "./lock"
 import type { A3, A4, A5, LETTER, TABLOID, WIDE } from "./looks"
@@ -519,6 +522,7 @@ export const BASE = defineBuiltin(
       CORNER_STATUS_ORDER,
       ENABLED_PLUGINS,
       SOFT_BREAK,
+      SHOW_UNREADABLE_FOLDER,
     ],
     themes: [STANDARD, STICKY, SIMPLE, MATOMEZU_THEME],
     papers: PAPERS,
@@ -594,6 +598,7 @@ export const BASE = defineBuiltin(
       LIBRARY_BOOK_NEW,
       LIBRARY_OPEN,
       LIBRARY_SCREEN_CLOSE,
+      LIBRARY_UNREADABLE_OPEN,
       LIBRARY_SCREEN_EXPAND,
       LIBRARY_FOLDER_NEW,
       LIBRARY_ENTRY_RENAME,
@@ -642,6 +647,7 @@ export const BASE = defineBuiltin(
       LIBRARY_COLUMNS,
       LIBRARY_UNFOLDED,
       LIBRARY_QUERY,
+      UNREADABLE_NOTICE_CLOSED,
       ...REVEAL_REQUEST_STATES,
       ...PRINT_PREVIEW_STATES,
       ...MEASURES_STATES,
@@ -701,6 +707,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:soft-break": typeof SOFT_BREAK
     "@matomezu/base:corner-status-order": typeof CORNER_STATUS_ORDER
     "@matomezu/base:enabled-plugins": typeof ENABLED_PLUGINS
+    "@matomezu/base:show-unreadable-folder": typeof SHOW_UNREADABLE_FOLDER
     "@matomezu/base:skin": typeof SKIN
     "@matomezu/base:keys": typeof KEYS
     "@matomezu/base:text-colors": typeof USER_TEXT_COLORS
@@ -836,6 +843,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-book-new": typeof LIBRARY_BOOK_NEW
     "@matomezu/base:library-open": typeof LIBRARY_OPEN
     "@matomezu/base:library-screen-close": typeof LIBRARY_SCREEN_CLOSE
+    "@matomezu/base:library-unreadable-open": typeof LIBRARY_UNREADABLE_OPEN
     "@matomezu/base:library-screen-expand": typeof LIBRARY_SCREEN_EXPAND
     "@matomezu/base:library-folder-new": typeof LIBRARY_FOLDER_NEW
     "@matomezu/base:library-entry-rename": typeof LIBRARY_ENTRY_RENAME
@@ -916,6 +924,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:screen-flash": typeof SCREEN_FLASH
     "@matomezu/base:library-folder": typeof LIBRARY_FOLDER
     "@matomezu/base:library-picked": typeof LIBRARY_PICKED
+    "@matomezu/base:unreadable-notice-closed": typeof UNREADABLE_NOTICE_CLOSED
     "@matomezu/base:library-columns": typeof LIBRARY_COLUMNS
     "@matomezu/base:library-unfolded": typeof LIBRARY_UNFOLDED
     "@matomezu/base:library-query": typeof LIBRARY_QUERY

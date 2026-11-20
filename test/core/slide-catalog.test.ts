@@ -2,7 +2,7 @@
 
 import { expect, test } from "bun:test"
 import { checkBooks } from "../../web/src/core/book"
-import { checkCoreCatalog } from "../../web/src/core/core-catalog"
+import { checkCoreCatalog } from "../../web/src/core/core-catalog-check"
 import { attachedTo } from "../../web/src/core/def/action"
 import { placeableOf } from "../../web/src/core/def/page-type"
 import { warningText } from "../../web/src/core/warnings"

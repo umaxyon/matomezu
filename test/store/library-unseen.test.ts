@@ -9,7 +9,7 @@ import { HISTORY_LIMIT, LIBRARY_HISTORY } from "../../web/src/core/history"
 import { applyPatch, patchOf } from "../../web/src/core/patch"
 import { LIBRARY_FOLDER, LIBRARY_UNFOLDED } from "../../web/src/plugins/base/library/state"
 import { definePlugin } from "../../web/src/store/plugin"
-import type { AIEditTicketOutcome } from "../../web/src/store/store"
+import type { AIEditTicketOutcome } from "../../web/src/store/state"
 import { newStore, sequence } from "../support"
 
 type Store = ReturnType<typeof newStore>

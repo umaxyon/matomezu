@@ -1,7 +1,7 @@
 // チケットの絞り（横断検索のチケットモードが決め、タスクボードが従う。見た目でない。窓のプラグイン状態に持つ）:
 // 言葉に当たったチケットの id の集合（言葉が無ければ null）と、プロジェクト・タグ・優先度・チケットボリュームの選び（空なら絞らない）
 import type { WideSearchHit } from "../../../plugin-api"
-import type { TicketRecord } from "../board/shown"
+import type { Ticket } from "../ticket"
 import { ticketNumberOf } from "../ticket/label"
 
 export interface TicketFilter {
@@ -30,10 +30,7 @@ export function ticketIdsOf(hits: readonly WideSearchHit[], ticketKind: string):
 }
 
 // 絞りに合うチケットだけを残す（絞りが無いか効いていなければ、そのまま）
-export function filterTickets(
-  tickets: readonly TicketRecord[],
-  filter: TicketFilter | undefined,
-): readonly TicketRecord[] {
+export function filterTickets(tickets: readonly Ticket[], filter: TicketFilter | undefined): readonly Ticket[] {
   if (!isFiltering(filter)) return tickets
   const hits = filter.hits === null ? null : new Set(filter.hits)
   const has = (chosen: readonly string[], value: string) => chosen.length === 0 || chosen.includes(value)
