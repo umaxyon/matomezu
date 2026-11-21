@@ -7,8 +7,7 @@ import { useCoreCatalog, usePageById } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import type { SearchHit } from "./find"
 import { hitsIn, liveCurrent, searchableOf } from "./search"
-import { SEARCH_PICK_STATE } from "./state"
-import { useSearchHere } from "./useSearchHere"
+import { SEARCH_PICK_STATE, SEARCH_STATE } from "./state"
 
 // 光らせる名前（CSS の ::highlight() で色を付ける。base の SearchDialog.module.css）
 export const SEARCH_HIGHLIGHT = "matomezu-search"
@@ -18,7 +17,8 @@ export const SEARCH_CURRENT_HIGHLIGHT = "matomezu-search-current"
 export function useSearchHits(page: string): { hits: readonly SearchHit[]; current: SearchHit | "none" } {
   const catalog = useCoreCatalog()
   const shown = usePageById(page)
-  const search = useSearchHere()
+  // 読むのは探す字と今の当たりだけで、範囲 scope は読まない（開いているページだけを光らせる）ので、useSearchHere を通さない
+  const search = usePluginState(kit, SEARCH_STATE)
   return useMemo(() => {
     if (!search || !shown || searchableOf(catalog, shown) === "none") return { hits: [], current: "none" }
     const found = hitsIn(catalog, [shown], search.query, "page", page)

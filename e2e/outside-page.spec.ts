@@ -154,3 +154,42 @@ test.describe("マークダウンのブックの外のページの置換", () =>
     await expect(page.getByRole("region", { name: "プレビュー" })).toContainText("猫と猫と犬")
   })
 })
+
+// 木と構成図は、ブックが無くても描く
+test.describe("ツリーのブックの外のページ", () => {
+  test.use({
+    outsidePages: [
+      {
+        ...OUTSIDE,
+        id: "t1",
+        type: "@matomezu/tree:tree",
+        title: "外のツリー",
+        root: { id: "r", caption: "根", children: [] },
+      },
+    ],
+  })
+
+  test("木を描く", async ({ page }) => {
+    await page.goto(stagesUrl([{ book: null, page: "t1" }]))
+    await expect(page.locator('[data-root="true"]')).toHaveText("根")
+  })
+})
+
+test.describe("ディレクトリ構成図のブックの外のページ", () => {
+  test.use({
+    outsidePages: [
+      {
+        ...OUTSIDE,
+        id: "d1",
+        type: "@matomezu/dir:dir",
+        title: "外の構成図",
+        root: { id: "r", kind: "folder", name: "proj", children: [{ id: "f", kind: "file", name: "main.ts" }] },
+      },
+    ],
+  })
+
+  test("構成図を描く", async ({ page }) => {
+    await page.goto(stagesUrl([{ book: null, page: "d1" }]))
+    await expect(page.getByText("main.ts")).toBeVisible()
+  })
+})

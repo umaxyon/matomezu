@@ -22,7 +22,6 @@ import {
   useCommand,
   useContextMenu,
   useCoreCatalog,
-  useShownBook,
   useShownPage,
   useStage,
   useToPaper,
@@ -122,7 +121,6 @@ function SlidePageView({
   operable: boolean // 操作を受けるか（本体のタイプはいつも。背景のタイプは背景編集モードの間だけ）
   placeable: readonly string[]
 }) {
-  const book = useShownBook()
   const page = useShownPage()
   const catalog = useCoreCatalog()
   const followed = useFollowsSelection()
@@ -143,7 +141,7 @@ function SlidePageView({
   const typeNext = useRef(false) // 置いた文字枠で、そのまま文字を打つ
   const shapes = page ? slideOf(page) : []
   // 位置をデータに持たないプレゼンテーション（ツリー）が、可変ページで中身をずらした量。slide の形は、データの座標のまま、この分ずらして描く
-  const offset = book && page ? slideOffsetOf(catalog, page) : { x: 0, y: 0 }
+  const offset = page ? slideOffsetOf(catalog, page) : { x: 0, y: 0 }
   const chosen = shapes.filter(s => stage.selection.includes(s.id)) // 選んでいるアイテム（重ねの順）
   const selected = chosen.length === 1 && stage.selection.length === 1 ? chosen[0] : undefined
   const placing =
