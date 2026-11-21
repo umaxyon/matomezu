@@ -96,15 +96,29 @@ describe("依存の向き", () => {
   }
 })
 
-test("ホストのエンジンが読むプラグインは、ビルトインの一覧と各プラグインの入口だけ（中のファイルは、そのプラグインが組み直してよい所）", () => {
+// プラグインの外（ホストのエンジン・testing・画面の入口）
+const PLUGIN_OUTSIDERS = (rel: string) => ["engine", "testing"].includes(crateOf(rel)) || rel === "main.tsx"
+test("プラグインの外が読むプラグインは、ビルトインの一覧と各プラグインの入口だけ（中のファイルは、そのプラグインが組み直してよい所）", () => {
+  const entry = (t: string) =>
+    t === "plugins" ||
+    t === "plugins/ui" ||
+    [pluginRoot(t), `${pluginRoot(t)}/index`, `${pluginRoot(t)}/ui`].includes(t)
   const bad = sources
-    .filter(f => crateOf(f.rel) === "engine")
+    .filter(f => PLUGIN_OUTSIDERS(f.rel))
     .flatMap(f =>
       importsOf(f)
-        .filter(t => topOf(t) === "plugins" && t !== "plugins" && t !== pluginRoot(t) && t !== `${pluginRoot(t)}/index`)
+        .filter(t => topOf(t) === "plugins" && !entry(t))
         .map(t => `${f.rel} → ${t}`),
     )
   expect(bad).toEqual([])
+})
+
+test("画面の入口（main.tsx）が読むのは、土台・host-client・ビルトインの一覧・plugin-modules の画面用・React だけ", () => {
+  const ok = (t: string) =>
+    ["core", "store", "ui", "host-client"].includes(topOf(t)) ||
+    ["plugins", "plugins/ui", "plugin-modules/ui", "react", "react-dom/client"].includes(t)
+  const main = sources.find(f => f.rel === "main.tsx")!
+  expect(importsOf(main).filter(t => !ok(t))).toEqual([])
 })
 
 test("状態を変えるのは store の中だけ（画面は setState を使わない）", () => {
