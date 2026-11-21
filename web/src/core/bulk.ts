@@ -75,7 +75,7 @@ export interface BulkTicketChange {
   change: AIEditTicketChange
 }
 
-// 書庫の履歴に入るアクションか（書庫が対象で、画面の履歴に入れない印 history: false の無いアクション。ほかのアクションの変更は、ブックの画面の履歴に入る）
+// 書庫の履歴に入るアクションか（書庫が対象で、画面の履歴に入れない印 history: false の無いアクション。ほかのアクションの変更は、ステージエントリの画面の履歴に入る）
 export const entersLibraryHistory = (action: { target: string; history?: false } | undefined): boolean =>
   action?.target === "library" && action.history !== false
 

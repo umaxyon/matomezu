@@ -17,7 +17,7 @@ export type HistoryBy = "user" | "ai" | "window"
 
 // 画面の履歴の段: 変えたページとフォルダごとの前と後（足した物の前と、無くした物の後は "none"）。seq は、この窓で段を始めた順の番号
 // （利用者の段は始めたとき、AI とほかの窓の段は届いたときに振る。マシンの時計は合わせ直しで後ろへ戻ることがあるので、並びは時計で決めない）。
-// outermosts は、この段を入れる履歴の鍵: 変えた物を持つブックの id（1 回の操作が、いくつかのブックを変えることがある）。書庫の段は LIBRARY_HISTORY
+// outermosts は、この段を入れる履歴の鍵: 変えた物を持つステージエントリの id（1 回の操作が、いくつかのステージエントリを変えることがある）。書庫の段は LIBRARY_HISTORY
 export interface HistoryStep {
   seq: number
   by: HistoryBy
@@ -54,15 +54,15 @@ export function changesByOutermost(was: Library, now: Library, changes: TableCha
   return out as Record<string, TableChanges>
 }
 
-// 画面の履歴（ブックごとと、書庫に 1 つ）: 戻せる画面の履歴の段（古い順）と、やり直せる画面の履歴の段（古い順。最後が次にやり直す物）
+// 画面の履歴（ステージエントリごとと、書庫に 1 つ）: 戻せる画面の履歴の段（古い順）と、やり直せる画面の履歴の段（古い順。最後が次にやり直す物）
 export interface History {
   undo: readonly HistoryStep[]
   redo: readonly HistoryStep[]
 }
 export const NO_HISTORY: History = { undo: [], redo: [] }
-// 書庫の履歴の鍵（ブックごとの履歴と同じ表に、この鍵で持つ）: 書庫が対象のアクションが変えたページとフォルダの段。ブックが対象・ページが対象のアクションの段は、ブックの履歴に入る
+// 書庫の履歴の鍵（ステージエントリごとの履歴と同じ表に、この鍵で持つ）: 書庫が対象のアクションが変えたページとフォルダの段。ブックが対象・ページが対象のアクションの段は、ステージエントリの履歴に入る
 export const LIBRARY_HISTORY = "library"
-export const HISTORY_LIMIT = 100 // ブックごとに覚える画面の履歴の段の数（まだ見ていない画面の履歴の段も、ブックごとにこの数まで）
+export const HISTORY_LIMIT = 100 // ステージエントリごとに覚える画面の履歴の段の数（まだ見ていない画面の履歴の段も、ステージエントリごとにこの数まで）
 
 // 履歴 was の戻せる画面の履歴の段に、step を始めた順の位置で差し込む（後ろから見て、seq の大きい物の前。やり直せる画面の履歴の段は消さない）
 export function insertStep(was: History, step: HistoryStep): History {
