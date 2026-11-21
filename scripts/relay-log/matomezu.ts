@@ -17,7 +17,7 @@ export const isMatomezuNamespace = (name: string) => PREFIXES.some(p => `${name}
 export const isMatomezuSend = (name: string) => matomezuTool(name) === "send_message"
 
 // matomezu が受け手の AI に渡す、AI 間メッセージの 1 行（名前と本文は JSON の文字列）。行の頭か、monitor の知らせの <event> の頭にある。
-// 文の形は 3 つ: 「the AI in workroom "X" sent you a message[ (id …)]: "本文" …」・「a message from the AI in workroom "X" (id …).
+// 文の形は 4 つ: 「the AI in workroom "X" sent you a message[ (id …)]: "本文" …」・「a message from the AI in workroom "X" (id …).
 // … Message: "本文"」・「message from AI "X" (… id …): "本文"」と、頭が「matomezu from AI "X"[ (… id …)]: "本文"」の形。長すぎて本文を入れない知らせは本文が無いので拾わない
 const JSON_STRING = String.raw`"(?:[^"\\]|\\.)*"`
 const MATOMEZU_LINE = new RegExp(
