@@ -61,7 +61,7 @@ func (h *Hub) Warnings() []string {
 			out = append(out, n.Warning)
 		}
 	}
-	out = append(out, h.annotationWarnings...)
+	out = append(out, h.annotationWarningLines()...)
 	out = append(out, h.recordWarningLines()...)
 	ids := make([]string, 0, len(h.windowWarnings))
 	for id := range h.windowWarnings {

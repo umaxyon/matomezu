@@ -9,20 +9,14 @@ import (
 	"os"
 	"slices"
 
-	"github.com/umaxyon/matomezu/internal/engine"
 	"github.com/umaxyon/matomezu/internal/storage"
 )
 
-// checkAnnotations は全部のアノテーションを今のプラグインで確かめ、効かないもの（種類が無い・形が合わない）の warning の一覧を直す。
+// checkAnnotations は、ブックとブックの外のページのアノテーション（ゴミ箱の中・読めない物は除く。annotatedIn）を今のプラグインで確かめ、効かないもの（種類が無い・形が合わない）の warning の一覧を直す。
 // 新しい warning は常駐のログに書く（h.mu を持って呼ぶ）
 func (h *Hub) checkAnnotations() error {
-	pairs := []engine.Annotated{}
-	for _, id := range h.order {
-		if lists := h.annotationsIn(id); len(lists) > 0 {
-			pairs = append(pairs, engine.AnnotatedBook(h.books[id].body, lists))
-		}
-	}
-	lines := []string{}
+	pairs, _ := h.annotatedIn(nil)
+	lines := map[string][]string{}
 	if len(pairs) > 0 {
 		found, err := h.engine.CheckAnnotations(pairs)
 		if err != nil {
@@ -30,13 +24,24 @@ func (h *Hub) checkAnnotations() error {
 		}
 		lines = found
 	}
-	for _, line := range lines {
-		if !slices.Contains(h.annotationWarnings, line) {
-			fmt.Fprintln(os.Stderr, "warning:", line)
+	for _, page := range slices.Sorted(maps.Keys(lines)) {
+		for _, line := range lines[page] {
+			if !slices.Contains(h.annotationWarnings[page], line) {
+				fmt.Fprintln(os.Stderr, "warning:", line)
+			}
 		}
 	}
 	h.annotationWarnings = lines
 	return nil
+}
+
+// annotationWarningLines は、効かないアノテーションの warning の 1 行ずつ（ページの id の順。h.mu を持って呼ぶ）
+func (h *Hub) annotationWarningLines() []string {
+	out := []string{}
+	for _, page := range slices.Sorted(maps.Keys(h.annotationWarnings)) {
+		out = append(out, h.annotationWarnings[page]...)
+	}
+	return out
 }
 
 // annotationsIn は、ブック book のページのうち、アノテーションの有るページの id → その並び（h.mu を持って呼ぶ）
@@ -80,6 +85,7 @@ func (h *Hub) holdAnnotations(page string, body json.RawMessage) json.RawMessage
 	var list []json.RawMessage
 	if json.Unmarshal(body, &list) == nil && len(list) == 0 {
 		delete(h.annotations, page)
+		delete(h.annotationWarnings, page)
 		return json.RawMessage("[]")
 	}
 	h.annotations[page] = body

@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -171,13 +172,17 @@ func TestRemovingABookTakesItsAnnotationWarnings(t *testing.T) {
 	if got := strings.Join(h.Warnings(), "\n"); !strings.Contains(got, "W018") {
 		t.Fatalf("warnings before = %s", got)
 	}
+	// ゴミ箱に入れた時点で、そのブックのページのアノテーションは消え、warning も外れる（完全に消したあとも同じ）
 	for _, do := range [][2]string{{"@matomezu/base:entry-trash", `{"entry":"b1"}`}, {"@matomezu/base:entry-purge", `{"entries":["b1"]}`}} {
 		if done, err := h.Perform(Perform{Actions: []engine.BulkAction{{Action: do[0], Args: json.RawMessage(do[1])}}}); err != nil || !done.OK {
 			t.Fatalf("%s = %+v, %v", do[0], done, err)
 		}
-	}
-	if got := strings.Join(h.Warnings(), "\n"); strings.Contains(got, "W018") {
-		t.Fatalf("warnings after removing the book = %s", got)
+		if got := strings.Join(h.Warnings(), "\n"); strings.Contains(got, "W018") {
+			t.Fatalf("warnings after %s = %s", do[0], got)
+		}
+		if kept, _ := store.Annotations(); len(kept) != 0 {
+			t.Fatalf("annotations after %s = %v", do[0], kept)
+		}
 	}
 }
 
@@ -253,5 +258,31 @@ func TestAIPerformRefusesATimeoutOutOfRange(t *testing.T) {
 	_, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-update","args":{"title":"x"},"on":{"book":"b1"},"timeoutSec":61}`, ai)
 	if !strings.Contains(got, `"reason":"bad-args"`) || !strings.Contains(got, "timeoutSec must be 1 to 60") {
 		t.Fatalf("timeoutSec 61 = %s", got)
+	}
+}
+
+// ブックの外のページの効かないアノテーションも warning になり（文の主語はページ）、そのページをゴミ箱に入れるとアノテーションごと消えて warning も外れる
+func TestAnnotationWarningsOfAPageOutsideBooks(t *testing.T) {
+	store := outsidePageStore(t)
+	eng, err := engine.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := NewHub(store, eng)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const line = "W018 @matomezu/note: page g1: annotation c-g1 is a @matomezu/note:note, which is not in the catalog (kept as it is, not used)"
+	if got := h.Warnings(); !slices.Contains(got, line) {
+		t.Fatalf("warnings = %s; want %s", strings.Join(got, "\n"), line)
+	}
+	if done, err := h.Perform(Perform{Actions: []engine.BulkAction{{Action: "@matomezu/base:entry-trash", Args: json.RawMessage(`{"entry":"g1"}`)}}}); err != nil || !done.OK {
+		t.Fatalf("entry-trash = %+v, %v", done, err)
+	}
+	if got := h.Warnings(); slices.Contains(got, line) {
+		t.Fatalf("warnings after the trash = %s", strings.Join(got, "\n"))
+	}
+	if kept := storedAnnotations(t, store, "g1"); kept != "" && kept != "[]" {
+		t.Fatalf("annotations of g1 after the trash = %s", kept)
 	}
 }

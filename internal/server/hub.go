@@ -116,8 +116,9 @@ type Hub struct {
 	// warning のあるブックの id → そのブックの warning（ブックごと読めない W005・W006・読めないページを持つ W027〜W029・一部に無い物がある W007）。読めるかは今のプラグインで決まる値なので DB には残さず、
 	// 起動したときとプラグインが変わったときに全部、ブックを書いたときにその 1 冊を確かめ直す
 	bookWarnings map[string]engine.BookWarning
-	// 効かないアノテーション（種類が無い W018・形が合わない W019）の warning の 1 行ずつ。起動したとき・プラグインが変わったとき・アノテーションを消したときに確かめ直す
-	annotationWarnings []string
+	// 効かないアノテーション（種類が無い W018・形が合わない W019）の warning の、付いているページの id → 1 行ずつ。起動したときとプラグインが変わったときに確かめ直し、
+	// ページのアノテーションが無くなったら、そのページの分を外す（holdAnnotations）
+	annotationWarnings map[string][]string
 	// 書庫の木の決まりが破れているときの warning の 1 行（W030。守っていれば空。tables.go の checkLibrary）
 	libraryWarning string
 	// unreadableWarning は、読めない物のフォルダに物が在れば、その warning（W032）の 1 行（無ければ空。unreadable.go）

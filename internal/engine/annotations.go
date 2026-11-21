@@ -5,9 +5,9 @@ import (
 	"fmt"
 )
 
-// CheckAnnotations はブックのアノテーションを今の機能台帳で確かめ、効かないもの（種類が無い・形が合わない）の warning の 1 行ずつを返す（データには手を付けない）。
-// pairs はブックとそのアノテーションの並び
-func (e *Engine) CheckAnnotations(pairs []Annotated) (out []string, err error) {
+// CheckAnnotations はステージエントリのアノテーションを今の機能台帳で確かめ、効かないもの（種類が無い・形が合わない）の warning の 1 行ずつを、付いているページの id ごとに返す（データには手を付けない）。
+// pairs はステージエントリ（ブックか、ブックの外のページ）とそのアノテーションの並び
+func (e *Engine) CheckAnnotations(pairs []Annotated) (out map[string][]string, err error) {
 	b, err := json.Marshal(pairs)
 	if err != nil {
 		return nil, err

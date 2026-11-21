@@ -7,7 +7,6 @@ import { type CoreCatalog, pageType } from "./core-catalog"
 import { idsIn } from "./ids"
 import { splitId } from "./names"
 import type { ItemPage } from "./placed"
-import type { Book } from "./schema/book"
 import { type Settings, userSetting } from "./settings"
 import { type Warning, warning } from "./warnings"
 
@@ -99,18 +98,13 @@ export function annotationsSettle(
   return after.every(a => kept.has(a) || fits(catalog, page, ids, a))
 }
 
-// 残しておいたページ page（ブック book の中）のアノテーションを確かめる: 種類が機能台帳に無い物（W018）・形が合わない物（W019）を warning にする（データには手を付けない）
-export function checkAnnotations(
-  catalog: CoreCatalog,
-  book: Pick<Book, "id" | "title">,
-  page: ItemPage,
-  annotations: readonly Annotation[],
-): Warning[] {
+// 残しておいたページ page（ブックの中でも外でも）のアノテーションを確かめる: 種類が機能台帳に無い物（W018）・形が合わない物（W019）を warning にする（データには手を付けない）
+export function checkAnnotations(catalog: CoreCatalog, page: ItemPage, annotations: readonly Annotation[]): Warning[] {
   const ids = anchorIds(page)
   return annotations.flatMap(a => {
     const id = typeof a?.id === "string" ? a.id : ""
     const kind = typeof a?.annotation === "string" ? a.annotation : ""
-    const params = { book: book.id, title: book.title, id, annotation: kind }
+    const params = { page: page.id, id, annotation: kind }
     const plugin = splitId(kind).owner ?? ""
     if (!catalog.annotations.has(kind)) return [warning("W018", plugin, params)]
     return fits(catalog, page, ids, a) ? [] : [warning("W019", plugin, params)]

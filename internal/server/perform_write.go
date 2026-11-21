@@ -260,12 +260,6 @@ func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act
 	if len(out.Settings) > 0 {
 		h.reusePluginsForSettings(p.Client)
 	}
-	// ブックを消したら、そのページのアノテーションの warning も一覧から外す
-	if len(plan.removed) > 0 {
-		if err := h.checkAnnotations(); err != nil {
-			fmt.Fprintln(os.Stderr, "engine: could not check the annotations:", err)
-		}
-	}
 }
 
 // changedEvent は、1 回の Perform の changed の知らせ（hub.go の頭。settings と counters は変わったときだけ、ほかはいつも載せる。h.mu を持って呼ぶ）
