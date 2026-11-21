@@ -183,7 +183,7 @@ func (h *Hub) titleOfToldBook(id string) (string, bool) {
 	return head.Title, true
 }
 
-// titleOfStageEntry は、見られる前に消えた分を記したステージエントリ id（ブックか、ブックの外のページ・バインダ）の、AI に渡す名前。記したあとでブックやバインダへ
+// titleOfStageEntry は、見られる前に消えた分を記したときのステージエントリ id（ブックか、ブックの外のページ・バインダ）の、AI に渡す名前。記したあとでブックやバインダへ
 // 移されていても、その物の名前を引く（置いていない物と、AI に見せない物は渡さないので false。h.mu を持って呼ぶ）
 func (h *Hub) titleOfStageEntry(id string) (string, bool) {
 	if title, ok := h.titleOfToldBook(id); ok {
@@ -306,7 +306,7 @@ func (h *Hub) TellRemoved() ([]RemovedAIEditTicket, error) {
 }
 
 // forgetToldAIEditTickets は、AI に渡した、見られる前に消えた AI の変更と、失敗にした・消えたと記した AI 編集チケットを消す（利用者トリガートークのとき。h.mu を持って呼ぶ）。
-// Act の物に、まだ見られていない物が残っていれば、渡した消えた分だけを外して残す（残りが見えるか消えるまで待つ）
+// Act の物に、まだ見られていない物が残っていれば、消えた分（AI に見せない所に在って渡せなかった分も）を外して残す（残りが見えるか消えるまで待つ）
 func (h *Hub) forgetToldAIEditTickets() error {
 	if !slices.ContainsFunc(h.aiEditTickets, func(t AIEditTicket) bool { return t.Told }) {
 		return nil
