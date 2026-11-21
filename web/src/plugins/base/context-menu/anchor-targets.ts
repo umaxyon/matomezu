@@ -1,12 +1,18 @@
 // 右クリックで押した物から始める、付ける先を持つプラグイン状態（伝言の下書き・マークの種類を選ぶスタンド）: 種類ごとに宣言を作る（anchorTargetState。ステージごと、画面の場所には入れない）。
 // ブックのデータには入れない。始めるのは UI マッピングの anchorMenu に置くコマンドで（startAnchorTarget）、終えるのはその種類のレイヤー
-import { type Anchors, anchorsEndingWith } from "../../../core/annotation"
+import type { Anchors } from "../../../core/annotation"
 import type { PluginStateDef } from "../../../core/def/plugin-state"
 import type { CommandActions, CommandContext } from "../../../store/commands/def"
 import { kit } from "../kit"
 
 export interface AnchorTargets {
   anchors: Anchors // 付ける先（出す物は最後の物のそばに出す）
+}
+
+// 並び ids の後ろに last を足した、結び付く物の id の並び
+function anchorsEndingWith(ids: readonly string[], last: string): Anchors {
+  const [first, ...rest] = ids
+  return first === undefined ? [last] : [first, ...rest, last]
 }
 
 // 付ける先: 押した物が選んでいる物のうちなら、選んでいる物の全部（押した物を最後にして、出す物は押した物のそばに出す）、でなければ押した物だけ

@@ -39,10 +39,10 @@ interface Drag {
 // 描いている場所のステージがあるときだけ描く（無ければ何も描かない）
 export const StageView = memo(function StageView() {
   const id = useStageId()
-  return id === null ? null : <StageOf id={id} />
+  return id === null ? null : <StageBody id={id} />
 })
 
-function StageOf({ id }: { id: string }) {
+function StageBody({ id }: { id: string }) {
   const stage = useStage() // パンの量を読まない（パンのたびに描き直さない）
   const isCurrent = useMatomezuState(s => workspaceOf(s.window, id).current === id)
   const book = useBook()

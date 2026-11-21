@@ -3,11 +3,12 @@
 // AI が読んだかは readAt で持ち、読まれていないマークは AI の応えを待つ物に数える（フックが知らせる）。会話で用が済んだら AI が外す
 // 右クリックのメニューのコマンド mark-new（押した物のそばに種類を選ぶスタンドを出す）もここ
 import { z } from "zod"
-import { AnchorsArg, type Annotation, anchorsOf } from "../../../core/annotation"
+import { type Annotation, anchorsOf } from "../../../core/annotation"
 import { NO_BOOK } from "../../../store/commands/def"
 import { BIRD_TITLES, type Bird } from "../birds"
 import { startAnchorTarget } from "../context-menu/anchor-targets"
 import { kit } from "../kit"
+import { AnchorsArg } from "../utils/anchors"
 import { freshId } from "../utils/ids"
 import { MARK_PICKER } from "./states"
 

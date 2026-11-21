@@ -19,34 +19,14 @@ export const AnnotationSchema = z.object({
 })
 export type Annotation = z.output<typeof AnnotationSchema>
 
-// アンカーの並び（1 つ以上）
+// 結び付く物の id の並び（1 つ以上）
 export type Anchors = Annotation["anchors"]
 
-// 並び ids をアンカーの並びにする（1 つも無ければ null）
+// 並び ids を、結び付く物の id の並びにする（1 つも無ければ null）
 export function anchorsOf(ids: readonly string[]): Anchors | null {
   const [first, ...rest] = ids
   return first === undefined ? null : [first, ...rest]
 }
-
-// アクションの引数のアンカー: id の並び（1 つ以上）で受け、同じ id を 1 つにまとめたアンカーの並びにする（AI には id の並びとして見せる）
-export const AnchorsArg = z
-  .array(z.string().min(1))
-  .min(1)
-  .transform((ids, ctx) => {
-    const anchors = anchorsOf([...new Set(ids)])
-    if (anchors) return anchors
-    ctx.issues.push({ code: "custom", message: "anchors must not be empty", input: ids })
-    return z.NEVER
-  })
-
-// 並び ids の後ろに last を足したアンカーの並び
-export function anchorsEndingWith(ids: readonly string[], last: string): Anchors {
-  const [first, ...rest] = ids
-  return first === undefined ? [last] : [first, ...rest, last]
-}
-
-// アンカーの最後の物（吹き出しや目印はその傍に立つ）
-export const lastAnchor = (anchors: Readonly<Anchors>): string => anchors[anchors.length - 1] ?? anchors[0]
 
 // アクションの対象 annotations が受けて返すもの: ページ（読むだけで、アクションは変えない）と、そのアノテーションの並び
 export interface PageAnnotations {

@@ -92,7 +92,7 @@ function MarkdownPage({ page, book }: { page: ItemPage; book: Book }) {
   const openedText = shownPage.text
   // biome-ignore lint/correctness/useExhaustiveDependencies: 本文は開いたとき（ページが替わったとき）だけ読む
   useEffect(() => {
-    const next = openingFor(opening, { id: openedId, text: openedText ?? "" })
+    const next = openingFor(opening, { id: openedId, text: openedText })
     if (next) setOpening(next)
   }, [openedId])
   const scrolls = usePluginState(kit, SCROLL_STATE)
@@ -243,7 +243,7 @@ function Rendered({
 // 戻したことで起きるソースのスクロールには、描いた文書のペインを付いて行かせない（restoring。別々に覚えた位置を戻すため）。ページを替えるときは、前のページの位置を先に覚える
 const SAVE_AFTER_MS = 300
 function useScrollMemory(
-  page: string | undefined,
+  page: string,
   scrolls: Scrolls | undefined,
   save: (next: Scrolls) => void,
   source: RefObject<HTMLDivElement | null>,
@@ -264,7 +264,6 @@ function useScrollMemory(
   }
   // biome-ignore lint/correctness/useExhaustiveDependencies: ページが替わったときだけ戻す（フックの中身は ref で読む）
   useLayoutEffect(() => {
-    if (page === undefined) return
     for (const name of PANES) {
       const el = pane[name].current
       if (!el) continue
@@ -277,7 +276,6 @@ function useScrollMemory(
   }, [page])
   return {
     moved(name: Pane) {
-      if (page === undefined) return
       const el = pane[name].current
       if (!el) return
       moving.current = {

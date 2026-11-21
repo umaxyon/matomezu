@@ -1,17 +1,14 @@
 // アノテーション（core/annotation.ts）: 種類が無い・形が合わない物は、その 1 つだけ効かず warning になり、ほかのアノテーションは変えられる
 
 import { expect, test } from "bun:test"
-import { z } from "zod"
 import { USER } from "../../web/src/core/actor"
 import {
   type Anchors,
-  AnchorsArg,
   type Annotation,
-  anchorsEndingWith,
+  anchorsOf,
   annotationBriefs,
   annotationsForAi,
   checkAnnotations,
-  lastAnchor,
   prune,
   unexpired,
 } from "../../web/src/core/annotation"
@@ -76,20 +73,12 @@ test("効かないアノテーションがあっても、ほかのアノテー�
   expect(done).toMatchObject({ ok: true, annotations: { p: [BAD, GONE] } })
 })
 
-test("アクションの引数のアンカーは、id の並び（1 つ以上）で受けて同じ id をまとめ、AI には並びとして見せる", () => {
-  expect(AnchorsArg.parse(["a", "b", "a"])).toEqual(["a", "b"])
-  expect(AnchorsArg.safeParse([]).success).toBe(false)
-  expect(z.toJSONSchema(AnchorsArg, { io: "input" })).toMatchObject({ type: "array", minItems: 1 })
-  expect(z.toJSONSchema(AnchorsArg, { io: "input" })).not.toHaveProperty("prefixItems")
+test("並びを、結び付く物の id の並び（1 つ以上）にする", () => {
+  expect(anchorsOf(["a", "b"])).toEqual(["a", "b"])
+  expect(anchorsOf([])).toBeNull()
 })
 
-test("アンカーの最後の物と、並びの後ろに足したアンカー", () => {
-  expect(lastAnchor(["a", "b"])).toBe("b")
-  expect(anchorsEndingWith([], "x")).toEqual(["x"])
-  expect(anchorsEndingWith(["a", "b"], "x")).toEqual(["a", "b", "x"])
-})
-
-test("prune は無くなった物をアンカーから外し、全部無くなった物を消す。変わらなければ同じ並び", () => {
+test("prune は無くなった物を結び付く物から外し、全部無くなった物を消す。変わらなければ同じ並び", () => {
   const list: Annotation[] = [GOOD, { ...GOOD, id: "c4", anchors: ["a", "x"] }, { ...GOOD, id: "c5", anchors: ["x"] }]
   expect(prune(list, page).map(a => [a.id, a.anchors])).toEqual([
     ["c1", ["a"]],

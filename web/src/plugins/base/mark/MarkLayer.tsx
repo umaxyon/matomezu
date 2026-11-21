@@ -7,7 +7,6 @@
 // 付けた物の上の辺が見える所（画面と、物を囲む Revealable〈リストの行の並びなど〉の重なり）の外に出たら、鳥はマークポインタ（鳥の顔の丸い絵）に替わって
 // 見える所の縁（囲む物が画面の外なら画面の縁）を歩き、びっくりマークは縁に寄って薄くなる。どちらも押すと、囲む物の中のスクロールと紙をずらして付けた物を見せる
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
-import { lastAnchor } from "../../../core/annotation"
 import { useMessages } from "../../../ui/i18n"
 import { useReadPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
 import type { Bird } from "../birds"
@@ -22,6 +21,7 @@ import { useAnchorName } from "../label/anchor-name"
 import { Ask, useRemoveAsk } from "../stand/Ask"
 import { Stand, StandAt } from "../stand/anchors"
 import { StandPointer } from "../stand/StandPointer"
+import { lastAnchor } from "../utils/anchors"
 import { useAnnotationsOf, usePerformOrToast } from "../utils/annotation-hooks"
 import { MARK, MARK_ADD, MARK_KINDS, MARK_REMOVE, type MarkKind, type MarkProps } from "."
 import styles from "./MarkLayer.module.css"

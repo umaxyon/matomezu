@@ -5,11 +5,12 @@
 // ロック中のブックにも付けられる（ロックはアノテーションを止めない）
 // 右クリックのメニューのコマンド note-new（押した物に伝言を書き始める）と、右サイドパネルで書いた伝言を送るコマンド note-send（Mod+Enter）もここ
 import { z } from "zod"
-import { AnchorsArg, type Annotation } from "../../../core/annotation"
+import type { Annotation } from "../../../core/annotation"
 import { type CommandContext, NO_BOOK, NO_PAGE } from "../../../store/commands/def"
 import { anchorsFor } from "../context-menu/anchor-targets"
 import { kit } from "../kit"
 import { openRightSidePanelIn, RIGHT_SIDE_PANEL_STATE, type RightSidePanelOpen } from "../right-side-panel/state"
+import { AnchorsArg } from "../utils/anchors"
 import { freshId } from "../utils/ids"
 import { type InPlaceDraft, inPlaceText } from "../utils/in-place"
 import { refusalMessage } from "../utils/refusal"

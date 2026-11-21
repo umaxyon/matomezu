@@ -4,7 +4,7 @@
 // 倍率そのままで付けた物を真ん中に見せる（マークなど）。「取消」は確かめてから、種類が答えたアクションで消す
 
 import { type ReactNode, useMemo } from "react"
-import { type AiAnnotation, type Annotation, lastAnchor } from "../../../core/annotation"
+import type { AiAnnotation, Annotation } from "../../../core/annotation"
 import type { ActionId } from "../../../core/catalog"
 import { shownPageId } from "../../../core/stage"
 import { useMessages } from "../../../ui/i18n"
@@ -15,6 +15,7 @@ import { useAnchorName } from "../label/anchor-name"
 import { useOpenRightSidePanel } from "../right-side-panel/hooks"
 import { useRevealHere } from "../stand/reveal-request"
 import { clampChars } from "../text/text"
+import { lastAnchor } from "../utils/anchors"
 import { useBookAnnotations, usePerformOrToast } from "../utils/annotation-hooks"
 import rows from "../utils/PanelRows.module.css"
 import { shownTime } from "../utils/shown-time"

@@ -13,7 +13,7 @@
 // 表示で吹き出しに戻し、消すで伝言を消す（タッチでは出さず、右サイドパネルのボタンを使う。既読のチェックには出さない。変えられないときと、角の絵を押せない間は出さない）。
 // 吹き出しの色はスキンの bubble だけで、物や伝言の様子では変えない。右サイドパネルが伝言を出している間は、付ける先に鳥を出す（NoteBirds）
 import type { MouseEvent, ReactNode } from "react"
-import { type Anchors, lastAnchor } from "../../../core/annotation"
+import type { Anchors } from "../../../core/annotation"
 import { useMessages } from "../../../ui/i18n"
 import { useReadStageHere } from "../../../ui/scope"
 import { useActions, useAllowed } from "../../../ui/view-hooks"
@@ -32,6 +32,7 @@ import { StandAt, useStandAway, useStandFacing } from "../stand/anchors"
 import { StandPointer } from "../stand/StandPointer"
 import { facingY } from "../stand/stand-place"
 import { clampChars } from "../text/text"
+import { lastAnchor } from "../utils/anchors"
 import { useAnnotationsOf, usePerformOrToast } from "../utils/annotation-hooks"
 import { modPressed } from "../utils/ui"
 import { NOTE, NOTE_REMOVE, NOTE_UPDATE, type NoteProps } from "."
