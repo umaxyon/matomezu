@@ -167,27 +167,34 @@ func TestJoinMakesOneParticipantAndRefusesAskingAgainWhileWaiting(t *testing.T) 
 	}
 }
 
-// 答えを待つ要求のセッションが終わっていれば、同じ AI の頼み直しは、知らせずに古い要求を消して、新しい要求として受ける
+// 答えを待つ要求のセッションが終わっていれば、同じ AI の頼み直し（同じセッション名か、--resume などで同じ link）は、知らせずに古い要求を消して、新しい要求として受ける
 func TestJoinDropsTheRequestOfAnEndedSession(t *testing.T) {
-	s, hub := joinWorld(t, joinStore(t))
-	ended := map[string]string{aiwire.SessionPidHeader: "999999999", aiwire.SessionPidSpaceHeader: ProcessSpace()}
-	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L1", "work"), ended)
-	var first Joined
-	if json.Unmarshal([]byte(got), &first) != nil || !first.OK {
-		t.Fatalf("join = %s", got)
-	}
-	again, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L2", "work"), nil)
-	var second Joined
-	if json.Unmarshal([]byte(again), &second) != nil || !second.OK || second.Participant == first.Participant {
-		t.Fatalf("join after the session ended = %s", again)
-	}
-	if rows := table(t, s.URL); len(rows) != 1 || rows[0].ID != second.Participant || rows[0].State != "requested" {
-		t.Fatalf("participants = %+v", rows)
-	}
-	hub.mu.Lock()
-	defer hub.mu.Unlock()
-	if len(hub.wakeQueue[first.Participant]) != 0 {
-		t.Fatalf("the dropped request was told: %+v", hub.wakeQueue[first.Participant])
+	for _, c := range []struct{ name, link, sessionName string }{
+		{"the same session name", "L2", "work"},
+		{"the same link", "L1", ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			s, hub := joinWorld(t, joinStore(t))
+			ended := map[string]string{aiwire.SessionPidHeader: "999999999", aiwire.SessionPidSpaceHeader: ProcessSpace()}
+			got, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L1", "work"), ended)
+			var first Joined
+			if json.Unmarshal([]byte(got), &first) != nil || !first.OK {
+				t.Fatalf("join = %s", got)
+			}
+			again, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody(c.link, c.sessionName), nil)
+			var second Joined
+			if json.Unmarshal([]byte(again), &second) != nil || !second.OK || second.Participant == first.Participant {
+				t.Fatalf("join after the session ended = %s", again)
+			}
+			if rows := table(t, s.URL); len(rows) != 1 || rows[0].ID != second.Participant || rows[0].State != "requested" {
+				t.Fatalf("participants = %+v", rows)
+			}
+			hub.mu.Lock()
+			defer hub.mu.Unlock()
+			if len(hub.wakeQueue[first.Participant]) != 0 {
+				t.Fatalf("the dropped request was told: %+v", hub.wakeQueue[first.Participant])
+			}
+		})
 	}
 }
 

@@ -30,15 +30,15 @@ interface Shown {
   openRest?: () => void
 }
 
-// 渡された物の表（置き場が 1 つ持つ）
-interface Shelf {
+// 種類のウィジェットごとに渡されたしおりの表（置き場が 1 つ持つ）
+interface BookmarkTable {
   set(widget: string, shown: Shown): void
   remove(widget: string): void
   entries(): ReadonlyMap<string, Shown>
   subscribe(listener: () => void): () => void
 }
 
-function newShelf(): Shelf {
+function newBookmarkTable(): BookmarkTable {
   let entries: ReadonlyMap<string, Shown> = new Map()
   const listeners = new Set<() => void>()
   const changed = () => {
@@ -64,35 +64,35 @@ function newShelf(): Shelf {
   }
 }
 
-const Context = createContext<{ shelf: Shelf; widget: string } | null>(null)
+const Context = createContext<{ table: BookmarkTable; widget: string } | null>(null)
 
 // スロット bookmarks に置いたウィジェットのビューが、出すしおりを渡す（ウィジェットの中で古い順に並べなくてよい）。openRest は、並べきれなかったときに「+n」で開く物（無くてもよい）。
 // 置き場の外で呼ばれたら何もしない
 export function useShowBookmarks(bookmarks: readonly Bookmark[], openRest?: () => void) {
   const at = useContext(Context)
   useEffect(() => {
-    at?.shelf.set(at.widget, openRest ? { bookmarks, openRest } : { bookmarks })
+    at?.table.set(at.widget, openRest ? { bookmarks, openRest } : { bookmarks })
   }, [at, bookmarks, openRest])
-  useEffect(() => () => at?.shelf.remove(at.widget), [at])
+  useEffect(() => () => at?.table.remove(at.widget), [at])
 }
 
 export function BookmarkHost() {
   const placed: readonly string[] = useLayout().slots[BOOKMARKS] ?? []
-  const shelf = useMemo(newShelf, [])
+  const table = useMemo(newBookmarkTable, [])
   return (
     <>
       {placed.map(id => (
-        <Placed key={id} shelf={shelf} widget={id} />
+        <Placed key={id} table={table} widget={id} />
       ))}
-      <Hanging shelf={shelf} order={placed} />
+      <Hanging table={table} order={placed} />
     </>
   )
 }
 
 // 置いたウィジェット 1 つのビュー（何も描かず、しおりを渡す）
-function Placed({ shelf, widget }: { shelf: Shelf; widget: string }) {
+function Placed({ table, widget }: { table: BookmarkTable; widget: string }) {
   const { widgets } = useUiCatalog()
-  const value = useMemo(() => ({ shelf, widget }), [shelf, widget])
+  const value = useMemo(() => ({ table, widget }), [table, widget])
   const View = (widgets.get(widget)?.view ?? fail("E109", { kind: "widget", id: widget })) as () => ReactNode
   return (
     <Context.Provider value={value}>
@@ -102,9 +102,9 @@ function Placed({ shelf, widget }: { shelf: Shelf; widget: string }) {
 }
 
 // ぶら下げるしおり
-function Hanging({ shelf, order }: { shelf: Shelf; order: readonly string[] }) {
+function Hanging({ table, order }: { table: BookmarkTable; order: readonly string[] }) {
   const t = useMessages(kit)
-  const entries = useSyncExternalStore(shelf.subscribe, shelf.entries)
+  const entries = useSyncExternalStore(table.subscribe, table.entries)
   const { shown, rest, hidden } = useMemo(
     () => allotBookmarks(order, new Map([...entries].map(([w, s]) => [w, s.bookmarks]))),
     [order, entries],

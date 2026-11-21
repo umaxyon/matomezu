@@ -83,21 +83,6 @@ test("受け入れると、部屋を指して受け入れた時点を書く（�
   expect(perform(ACCEPT, { workroom: room }, { record: second }).ok).toBe(false)
 })
 
-test("断ると要求のレコードが消える。受け入れた参加者と、無い参加者は断れない。外すと部屋は空室で残る", () => {
-  const { people, rooms, request, addRoom, perform } = ready()
-  const a = request().result.participant
-  expect(perform(DECLINE, {}, { record: a }).ok).toBe(true)
-  expect(people()).toHaveLength(0)
-  expect(perform(DECLINE, {}, { record: a })).toMatchObject({ ok: false, reason: "no-record" })
-  const b = request({ ...WHO, link: "L2" }).result.participant
-  const room = addRoom("A").result.workroom
-  perform(ACCEPT, { workroom: room }, { record: b })
-  expect(perform(DECLINE, {}, { record: b }).ok).toBe(false)
-  expect(perform(REMOVE, {}, { record: b }).ok).toBe(true)
-  expect(people()).toHaveLength(0)
-  expect(rooms().map(r => r.id)).toEqual([room])
-})
-
 test("AI は要求できるが、受け入れる・断る・キャンセルする・外す・部屋を作る・消す・管理者を決めるはできない（利用者だけ）", () => {
   const { store, request, addRoom } = ready()
   const id = request().result.participant
@@ -204,7 +189,7 @@ test("AI が参加を頼むときに行うアクションと、要求をキャ�
   expect(joinActions(CORE_CATALOG)).toEqual({ participant: REQUEST, cancel: CANCEL })
 })
 
-test("要求をキャンセルとして終える役（cancelsJoinRequest）は、1 つのアクションだけが名乗る（2 つ目は E067）。名乗る物が無くても参加は頼める", () => {
+test("要求をキャンセルとして終える役（cancelsJoinRequest）は、1 つのアクションだけが名乗る（2 つ目は E067）。名乗る物が無ければ、参加を頼むアクションだけを返す", () => {
   const canceller = BUILTIN_PARTS.actions.find(a => a.cancelsJoinRequest)
   if (!canceller) throw new Error("cancelsJoinRequest が無い")
   const codes = checkCoreCatalog({
@@ -212,18 +197,27 @@ test("要求をキャンセルとして終える役（cancelsJoinRequest）は�
     actions: [...BUILTIN_PARTS.actions, { ...canceller, id: "@ex/j:canceller" }],
   }).map(p => p.code)
   expect(codes).toContain("E067")
+  const withoutCancel = { ...CORE_CATALOG, actions: new Map([...CORE_CATALOG.actions].filter(([id]) => id !== CANCEL)) }
+  expect(joinActions(withoutCancel)).toEqual({ participant: REQUEST })
 })
 
-test("キャンセルすると要求のレコードが消える（痕跡は残さない）。受け入れた参加者はキャンセルできない", () => {
-  const { people, request, addRoom, perform } = ready()
-  const a = request().result.participant
-  expect(perform(CANCEL, {}, { record: a }).ok).toBe(true)
-  expect(people()).toHaveLength(0)
-  const b = request({ ...WHO, link: "L2" }).result.participant
-  const room = addRoom("A").result.workroom
-  perform(ACCEPT, { workroom: room }, { record: b })
-  expect(perform(CANCEL, {}, { record: b }).ok).toBe(false)
-})
+test.each([DECLINE, CANCEL])(
+  "%s は要求のレコードを消す（痕跡は残さない）。受け入れた参加者と、無い参加者には行えない。外すと部屋は空室で残る",
+  action => {
+    const { people, rooms, request, addRoom, perform } = ready()
+    const a = request().result.participant
+    expect(perform(action, {}, { record: a }).ok).toBe(true)
+    expect(people()).toHaveLength(0)
+    expect(perform(action, {}, { record: a })).toMatchObject({ ok: false, reason: "no-record" })
+    const b = request({ ...WHO, link: "L2" }).result.participant
+    const room = addRoom("A").result.workroom
+    perform(ACCEPT, { workroom: room }, { record: b })
+    expect(perform(action, {}, { record: b }).ok).toBe(false)
+    expect(perform(REMOVE, {}, { record: b }).ok).toBe(true)
+    expect(people()).toHaveLength(0)
+    expect(rooms().map(r => r.id)).toEqual([room])
+  },
+)
 
 test("要求は Orca の作業場所の表示名を持てる（受け入れると外す）", () => {
   const { people, request, addRoom, perform } = ready()

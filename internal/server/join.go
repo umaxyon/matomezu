@@ -229,7 +229,7 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 	for _, s := range records {
 		if (req.Participant != "" && s.ID == req.Participant && s.sitting()) || (req.Link != "" && s.Link == req.Link) {
 			if s.State == stateRequested {
-				waiting, err := h.stillRequested(s)
+				waiting, err := h.dropIfEnded(s)
 				if err != nil || waiting {
 					return alreadyRequested(s), err
 				}
@@ -297,7 +297,7 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 			if s.State != stateRequested {
 				return alreadyJoined(s), nil
 			}
-			if waiting, err := h.stillRequested(s); err != nil || waiting {
+			if waiting, err := h.dropIfEnded(s); err != nil || waiting {
 				return alreadyRequested(s), err
 			}
 		}
@@ -339,8 +339,8 @@ func (h *Hub) alive(id string, now time.Time) (bool, error) {
 	return h.engine.ParticipantAlive(settings, called, now)
 }
 
-// stillRequested は、要求中の参加者 s が答えを待っているか。そのセッションが終わっていれば、知らせずに消して false（セッションが終わったときに行うアクションで消す）
-func (h *Hub) stillRequested(s participantRecord) (bool, error) {
+// dropIfEnded は、要求中の参加者 s のセッションが終わっていれば、知らせずに消す（セッションが終わったときに行うアクションで）。waiting は、消さずに答えを待っているか
+func (h *Hub) dropIfEnded(s participantRecord) (waiting bool, err error) {
 	if !h.sessionEnded(s.ID) {
 		return true, nil
 	}

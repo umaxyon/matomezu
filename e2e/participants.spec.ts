@@ -168,18 +168,20 @@ test("断るを押すとダイアログとしおりが消え、参加者の表�
   expect(second.headers()["x-matomezu-notice"]).toBeUndefined()
 })
 
-test("参加要求は郵便箱に出ず、受け入れるとしおりが消える", async ({ page }) => {
+test("参加要求のしおりは封筒で、郵便箱には出ず、受け入れるとしおりが消える", async ({ page }) => {
   await page.goto(BOOK_SCREEN_URL)
   await join(page, "e2e-link-4", "a")
+  await expect(page.getByRole("button", { name: REQUEST }).locator("svg")).toBeVisible()
+  await (await fromMenu(page, "左サイドパネルを開く")).click()
+  const panel = page.getByRole("complementary", { name: "左サイドパネル" })
+  await expect(panel.getByRole("tab", { name: /郵便箱/ })).toHaveAttribute("aria-selected", "true")
+  await expect(panel.getByRole("listitem")).toHaveCount(0)
+  await panel.getByRole("button", { name: "左サイドパネルを閉じる" }).click()
   const mail = await openRequest(page)
   await mail.getByRole("button", { name: "受け入れる" }).click()
   await page.getByRole("dialog", { name: JOINED }).getByRole("button", { name: "受け入れる" }).click()
   await closeWelcome(page)
   await expect(page.getByRole("button", { name: REQUEST })).toHaveCount(0)
-  await (await fromMenu(page, "左サイドパネルを開く")).click()
-  await expect(
-    page.getByRole("complementary", { name: "左サイドパネル" }).getByRole("button", { name: REQUEST }),
-  ).toHaveCount(0)
 })
 
 test("参加要求のダイアログを Esc で閉じても、要求もしおりも残る", async ({ page }) => {

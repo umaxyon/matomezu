@@ -146,14 +146,15 @@ func (h *Hub) Called(id string, says CallerSays, now time.Time) string {
 		h.participantNotes[id] = n
 		return strings.Join(notices, "\n")
 	}
-	if h.goneTold[id] {
+	was := h.gone[id]
+	if was == goneTold {
 		return ""
 	}
-	if h.goneTold == nil {
-		h.goneTold = map[string]bool{}
+	if h.gone == nil {
+		h.gone = map[string]goneState{}
 	}
-	h.goneTold[id] = true
-	if h.goneCancelled[id] {
+	h.gone[id] = goneTold
+	if was == goneCancelled {
 		return cancelledText
 	}
 	return "The user declined your request to join matomezu (or removed you). Tell the user, and do not ask again unless the user asks."

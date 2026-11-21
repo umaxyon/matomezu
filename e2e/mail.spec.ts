@@ -180,18 +180,11 @@ test("参加済みの送り手の鳥を郵便ごとに表示し、受信や退�
   })
   const { participant } = (await joined.json()) as { participant: string }
   expect(participant).toBeTruthy()
-  // 参加要求のしおりは封筒で、ダイアログを閉じても残り、受け入れると消える
-  const request = page.getByRole("button", { name: "AI エージェントから参加要求が届きました" })
-  await expect(request.locator("svg")).toBeVisible()
-  await request.click()
-  await page.keyboard.press("Escape")
-  await expect(request).toBeVisible()
   await userAction(
     "@matomezu/base:participant-accept",
     { newWorkroom: { name: "郵便を送る部屋", bird: "inko", palette: "orange" } },
     { record: participant },
   )
-  await expect(request).toHaveCount(0)
   const ai = { ...aiAuth(), "X-Matomezu-Participant": participant }
   const send = async (title: string) => {
     const response = await page.request.post("/api/ai/perform", {

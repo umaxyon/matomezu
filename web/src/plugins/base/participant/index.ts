@@ -262,6 +262,10 @@ export const PARTICIPANT_ACCEPT = kit.defineAction({
   },
 })
 
+// 断り・キャンセルの中身: 要求中の参加者だけを消す（痕跡は残さない）。どちらで終えたかは、常駐がアクションの役で見分ける
+const dropRequested = (now: Participant | "none") =>
+  now === "none" || now.state !== "requested" ? null : { next: "removed" as const, result: {} }
+
 export const PARTICIPANT_DECLINE = kit.defineAction({
   id: "participant-decline",
   aiDescription:
@@ -270,7 +274,7 @@ export const PARTICIPANT_DECLINE = kit.defineAction({
   target: PARTICIPANT.id,
   userOnly: true,
   args: z.strictObject({}),
-  run: now => (now === "none" || now.state !== "requested" ? null : { next: "removed", result: {} }),
+  run: dropRequested,
 })
 
 export const PARTICIPANT_CANCEL = kit.defineAction({
@@ -282,7 +286,7 @@ export const PARTICIPANT_CANCEL = kit.defineAction({
   userOnly: true,
   cancelsJoinRequest: true,
   args: z.strictObject({}),
-  run: now => (now === "none" || now.state !== "requested" ? null : { next: "removed", result: {} }),
+  run: dropRequested,
 })
 
 export const PARTICIPANT_REMOVE = kit.defineAction({

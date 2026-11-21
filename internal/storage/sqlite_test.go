@@ -1074,27 +1074,3 @@ func TestLostBundledByBookIsDropped(t *testing.T) {
 		t.Fatalf("tickets = %s; want %s", got, want)
 	}
 }
-
-// 参加の要求の郵便（種類 join-request）は消す。ほかの郵便はそのまま
-func TestJoinRequestMailIsDropped(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "data.db")
-	first := open(t, path)
-	for _, q := range []string{
-		`INSERT INTO records (subject, id, body, version, updated_at) VALUES
-			('@matomezu/base:mail', 'm1', '{"id":"m1","mail":"@matomezu/base:join-request","props":{},"order":1}', 1, 'x'),
-			('@matomezu/base:mail', 'm2', '{"id":"m2","mail":"@matomezu/base:letter","props":{},"order":2}', 1, 'x')`,
-		fmt.Sprintf(`PRAGMA user_version = %d`, len(migrations)-1),
-	} {
-		if _, err := first.(*sqliteStorage).db.Exec(q); err != nil {
-			t.Fatal(err)
-		}
-	}
-	first.(*sqliteStorage).db.Close()
-	s := open(t, path)
-	if got, err := s.Record("@matomezu/base:mail", "m1"); err != nil || got != nil {
-		t.Fatalf("join request mail = %v, %v; want gone", got, err)
-	}
-	if got, err := s.Record("@matomezu/base:mail", "m2"); err != nil || got == nil {
-		t.Fatalf("letter = %v, %v; want kept", got, err)
-	}
-}
