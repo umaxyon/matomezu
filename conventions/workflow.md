@@ -46,6 +46,6 @@
 - 区切りのコミットは頼まれなくてよい。push は頼まれたときだけ
 - サブエージェント conventions-review（`.claude/agents/conventions-review.md`）で、変更が規約に違反していないかを確かめる。違反があれば直す。見せる物は、取り込みを頼む前なら main との差分、main に直接積むときと、main で衝突を解いてマージのコミットを作るときは、コミットの前のステージ済みの変更
 - 見せる差分が利用者向けマニュアルの下書き（`.claude/matomezu-manual-memo.md`）だけのときは、conventions-review を省く
-- AGENT.md の「利用者向けマニュアル」のとおりサブエージェント manual-creator（`.claude/agents/manual-creator.md`）が書き足した下書きは、タスクを閉じる前にコミットする。返ってきた問いには答えるかユーザーに聞き、使い方の不備はユーザーに伝える
+- AGENT.md の「利用者向けマニュアル」のとおりサブエージェント manual-creator（`.claude/agents/manual-creator.md`）が書き足した下書きは、書き足しを終えたらコミットする。返ってきた問いには答えるかユーザーに聞き、使い方の不備はユーザーに伝える
 - メッセージは英語で、何をどう変えたかを書く。Co-Authored-By を付けない
 - `docs/`（`docs/concept.md`・`docs/usecase.md` のほか）・`_old_docs/`・`tmp/` はコミットしない
