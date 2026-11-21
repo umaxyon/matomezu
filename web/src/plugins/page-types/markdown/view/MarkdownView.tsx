@@ -7,9 +7,8 @@
 // ソースのペインでは原文を書ける（SourcePane.tsx）。描いた文書は、ページの原文を読んで（base の parseMarkdown）、段落の中の改行 1 つを利用者の設定の項目のとおりに見せ（soft-break.ts）、ページの紙の幅で、枠を付けずに紙の色の面に描き、下へいくらでも伸びる。
 // 原文を読み直すのは、書くのを待たせないよう、画面とは別の処理の流れで読む（base の useMarkdownDocument）。ペインが紙より狭いときだけ、紙の幅のまま縮めて収める。両方のペインを並べている間は、ソースのペインをスクロールすると、描いた文書のペインがブロックごとに付いて行く（scroll-sync.ts）。
 import { type MouseEvent, type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react"
-import type { Book, ItemPage } from "../../../../plugin-api"
+import type { ItemPage } from "../../../../plugin-api"
 import {
-  useBook,
   useCommand,
   useContextMenu,
   useCoreCatalog,
@@ -17,6 +16,7 @@ import {
   usePluginState,
   useSetPluginState,
   useShownPage,
+  useStage,
   useUiCatalog,
   useUserSetting,
 } from "../../../../plugin-api/ui"
@@ -61,14 +61,14 @@ import { usePaneSwap } from "./usePaneSwap"
 
 const TITLES = { source: "Source", rendered: "Preview" } as const
 
-// 描いているページとブックがあるときだけ描く
+// 描いているページがあるときだけ描く（outermost は、ステージで開いているステージエントリの id。ブックか、ブックの外のページ）
 export function MarkdownView() {
   const page = useShownPage()
-  const book = useBook()
-  return page && book ? <MarkdownPage page={page} book={book} /> : null
+  const outermost = useStage()?.opened?.outermost.id
+  return page && outermost !== undefined ? <MarkdownPage page={page} outermost={outermost} /> : null
 }
 
-function MarkdownPage({ page, book }: { page: ItemPage; book: Book }) {
+function MarkdownPage({ page, outermost }: { page: ItemPage; outermost: string }) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
   const shownPage = paneInputOf(page)
@@ -143,7 +143,7 @@ function MarkdownPage({ page, book }: { page: ItemPage; book: Book }) {
               {pane === "source" ? (
                 <SourcePane
                   key={page.id}
-                  book={book.id}
+                  outermost={outermost}
                   page={page.id}
                   text={text}
                   document={document}
