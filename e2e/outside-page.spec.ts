@@ -107,6 +107,22 @@ test.describe("ロック中のブックの外のページ", () => {
     await expect(page.getByRole("button", { name: "ブックの外のページ" })).toBeVisible()
     await expect(page.getByRole("img", { name: "ロック中" })).toBeVisible()
   })
+
+  test("紙の右クリックからページの設定を開き、鍵を外して確定するとロックが外れる。ブックの外のページには削除のボタンを出さない", async ({
+    page,
+  }) => {
+    await page.goto(stagesUrl([{ book: null, page: "o1" }]))
+    await page.getByRole("img", { name: "紙" }).click({ button: "right" })
+    await page.getByRole("menu").getByRole("menuitem", { name: "ページの設定" }).click()
+    const dialog = page.getByRole("dialog", { name: "ページの設定" })
+    await expect(dialog.getByRole("button", { name: "ページを削除" })).toHaveCount(0)
+    await dialog.getByRole("button", { name: "ページのロックを外す" }).click()
+    await dialog.getByLabel("ページの名前").fill("外したページ")
+    await dialog.getByRole("button", { name: "確定" }).click()
+    await expect(dialog).toHaveCount(0)
+    await expect(page.getByRole("button", { name: "外したページ" })).toBeVisible()
+    await expect(page.getByRole("img", { name: "ロック中" })).toHaveCount(0)
+  })
 })
 
 test.describe("マークダウンのブックの外のページ", () => {
@@ -172,6 +188,15 @@ test.describe("ツリーのブックの外のページ", () => {
   test("木を描く", async ({ page }) => {
     await page.goto(stagesUrl([{ book: null, page: "t1" }]))
     await expect(page.locator('[data-root="true"]')).toHaveText("根")
+  })
+
+  test("根を 2 回押すとページの設定が開き、根のキャプションを変えられる", async ({ page }) => {
+    await page.goto(stagesUrl([{ book: null, page: "t1" }]))
+    await page.locator('[data-root="true"]').dblclick()
+    const dialog = page.getByRole("dialog", { name: "ページの設定" })
+    await dialog.getByLabel("根のキャプション").fill("新しい根")
+    await dialog.getByRole("button", { name: "確定" }).click()
+    await expect(page.locator('[data-root="true"]')).toHaveText("新しい根")
   })
 })
 

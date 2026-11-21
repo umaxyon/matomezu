@@ -276,3 +276,12 @@ test("ブックの外のページの紙・向き・可変ページか・名前�
   expect(page()?.locked).toBeUndefined()
   expect(perform("page-update", { paper: "@matomezu/base:a3" })).toMatchObject({ ok: true })
 })
+
+test("ロックしたブックの外のページでも、ページの設定は出て押せる（ロックを外す道）", () => {
+  const store = withOutside()
+  const stage = store.actions.showOutsidePageStage("o1")
+  expect(store.actions.perform("@matomezu/base:page-lock", {}, { page: "o1" }).ok).toBe(true)
+  const state = store.state.getState()
+  expect(isShown(store, state, stage, "@matomezu/base:page-settings")).toBe(true)
+  expect(isEnabled(store, state, stage, "@matomezu/base:page-settings")).toBe(true)
+})
