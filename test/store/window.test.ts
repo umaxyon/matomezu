@@ -144,24 +144,27 @@ test("コントロールセンターがカレントスクリーンの間は、�
   expect(store.state.getState().history.b1?.undo.map(s => s.by)).toEqual(["ai"])
 })
 
-test("AI に知らせる見ているもの: ブックスクリーンがカレントスクリーンの間は book など、コントロールセンターがカレントスクリーンの間は current と hidden に分ける", () => {
+test("AI に知らせる見ているもの: ブックスクリーンがカレントスクリーンの間は entry など、コントロールセンターがカレントスクリーンの間は current と hidden に分ける", () => {
   const { actions, state } = newStore()
   expect(viewOf(CORE_CATALOG, state.getState())).toMatchObject({
     current: "book-screen",
-    book: "b1",
+    entry: { kind: "book", id: "b1" },
     page: "p1",
     stage: "s1",
   })
   showCenter({ state, actions })
   const view = viewOf(CORE_CATALOG, state.getState())
-  expect(view).toMatchObject({ current: "plain-screen", hidden: { book: "b1", page: "p1", stage: "s1" } })
-  expect("book" in view).toBe(false)
+  expect(view).toMatchObject({
+    current: "plain-screen",
+    hidden: { entry: { kind: "book", id: "b1" }, page: "p1", stage: "s1" },
+  })
+  expect("entry" in view).toBe(false)
 })
 
 test("AI の show は、ブックを渡すとブックスクリーンをカレントスクリーンにする（コントロールセンターがカレントスクリーンでも）", () => {
   const store = newStore()
   showCenter(store)
-  showIn(store, { book: "b2" })
+  showIn(store, { to: "book", book: "b2" })
   expect(currentKindOf(store.state.getState().window)).toBe("book-screen")
   expect(screenOf(store.state.getState().window).stages[0]?.opened?.outermost.id).toBe("b2")
 })
@@ -260,7 +263,7 @@ test("見えているスクリーンは、スクリーンアレンジメント�
   expect(shownBookScreens(core, win()).map(s => s.def)).toEqual(["@matomezu/base:book-screen"])
   expect(currentKindOf(win())).toBe("plain-screen")
   // 見えているブックスクリーンは、AI に見えている物として知らせる（カレントスクリーンの種類は変わらない）
-  expect(viewOf(core, state.getState())).toMatchObject({ current: "plain-screen", book: "b1" })
+  expect(viewOf(core, state.getState())).toMatchObject({ current: "plain-screen", entry: { kind: "book", id: "b1" } })
   // 機能台帳に無いアレンジメントには替えない。場所に入り、当てはめると戻る
   actions.setScreenArrangement("k:none")
   expect(win().arrangement).toBe("k:all")
@@ -358,13 +361,13 @@ test("ブックスクリーンは 2 枚まで: 3 枚目を開くと、カレン�
 
 test("AI の show は、ステージも split も言わなければ窓に出す（showBook）。0 枚からでも出せる", () => {
   const store = newStore({ bookScreen: "none" })
-  showIn(store, { book: "b2" })
+  showIn(store, { to: "book", book: "b2" })
   expect(bookScreens(store)).toEqual([{ id: "c2", books: ["b2"] }])
-  showIn(store, { book: "b1" })
+  showIn(store, { to: "book", book: "b1" })
   expect(bookScreens(store).map(s => s.books)).toEqual([["b2"], ["b1"]])
   // ステージを言えば、そのステージで差し替える
   const stage = screenOf(store.state.getState().window).current
-  showIn(store, { book: "b3", stage })
+  showIn(store, { to: "book", book: "b3", stage })
   expect(bookScreens(store).map(s => s.books)).toEqual([["b2"], ["b3"]])
 })
 

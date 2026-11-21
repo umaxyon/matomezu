@@ -54,7 +54,7 @@ func (f *fakeAPI) Get(path string, header http.Header) (json.RawMessage, http.He
 	case "api/ai/join-rules":
 		return json.RawMessage(`{"rules":"Request to join from this conversation."}`), f.replied, nil
 	case "api/ai/view":
-		return json.RawMessage(`{"book":"b1","page":"p1","selection":[]}`), f.replied, nil
+		return json.RawMessage(`{"entry":{"kind":"book","id":"b1"},"page":"p1","selection":[]}`), f.replied, nil
 	}
 	return nil, nil, errors.New("404 " + path)
 }
@@ -188,7 +188,7 @@ func TestPerformingAnAction(t *testing.T) {
 func TestReadTools(t *testing.T) {
 	got := talk(t, &fakeAPI{}, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"view","arguments":{}}}`)
 	r := got[0]["result"].(map[string]any)
-	if r["content"].([]any)[0].(map[string]any)["text"] != `{"book":"b1","page":"p1","selection":[]}` {
+	if r["content"].([]any)[0].(map[string]any)["text"] != `{"entry":{"kind":"book","id":"b1"},"page":"p1","selection":[]}` {
 		t.Fatalf("view = %v", r)
 	}
 }
@@ -330,7 +330,7 @@ func TestNoticeHeaderIsAddedToEveryTool(t *testing.T) {
 		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"perform","arguments":{"action":"a.b","args":{}}}}`,
 	)
 	const notice = "\nYou joined matomezu. Workroom name: ひよこ"
-	if textOf(got[0]) != `{"book":"b1","page":"p1","selection":[]}`+notice || textOf(got[1]) != `{"item":"k1"}`+notice {
+	if textOf(got[0]) != `{"entry":{"kind":"book","id":"b1"},"page":"p1","selection":[]}`+notice || textOf(got[1]) != `{"item":"k1"}`+notice {
 		t.Fatalf("answers = %v", got)
 	}
 }

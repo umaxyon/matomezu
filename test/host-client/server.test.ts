@@ -752,12 +752,12 @@ test("窓が見ているものと、窓がフォーカスされたことを、�
   const s = await connected()
   const view = (selection: string[]) => ({
     current: "book-screen",
-    book: "b1",
+    entry: { kind: "book", id: "b1" },
     page: "p1",
     mode: "edit",
     selection,
     stage: "s1",
-    stages: [{ id: "s1", book: "b1", page: "p1", mode: "edit" }],
+    stages: [{ id: "s1", entry: { kind: "book", id: "b1" }, page: "p1", mode: "edit" }],
     canSplit: true,
   })
   expect(s.sent).toEqual([
@@ -791,14 +791,14 @@ test("分けた窓は、ステージごとに見ているものを知らせ、�
   s.store.actions.split("s1")
   expect(s.sent.at(-1)?.view).toEqual({
     current: "book-screen",
-    book: "b1",
+    entry: { kind: "book", id: "b1" },
     page: "p1",
     mode: "edit",
     selection: [],
     stage: "s1",
     stages: [
-      { id: "s1", book: "b1", page: "p1", mode: "edit" },
-      { id: "s2", book: null, page: null, mode: "edit" },
+      { id: "s1", entry: { kind: "book", id: "b1" }, page: "p1", mode: "edit" },
+      { id: "s2", page: null, mode: "edit" },
     ],
     canSplit: false,
   })
@@ -807,7 +807,7 @@ test("分けた窓は、ステージごとに見ているものを知らせ、�
 test("show が届いたら、言われたステージでブックを開き、カレントにする", async () => {
   const s = await connected()
   s.store.actions.split("s1")
-  s.emit("show", { book: "b1", stage: "s2" })
+  s.emit("show", { to: "book", book: "b1", stage: "s2" })
   const ws = screenOf(s.store.state.getState().window)
   expect(ws.current).toBe("s2")
   expect(ws.stages.map(st => st.opened?.outermost.id ?? null)).toEqual(["b1", "b1"])
@@ -815,14 +815,14 @@ test("show が届いたら、言われたステージでブックを開き、カ
 
 test("show の mode が print-preview なら、印刷プレビューで開く", async () => {
   const s = await connected()
-  s.emit("show", { book: "b1", mode: "print-preview" })
+  s.emit("show", { to: "book", book: "b1", mode: "print-preview" })
   expect(screenOf(s.store.state.getState().window).stages[0]?.mode.kind).toBe("print-preview")
   expect(s.sent.at(-1)?.view).toMatchObject({ mode: "print-preview" })
 })
 
 test("show の split は、そのステージを分けて右にできたステージに開く", async () => {
   const s = await connected()
-  s.emit("show", { book: "b1", split: true })
+  s.emit("show", { to: "book", book: "b1", split: true })
   const ws = screenOf(s.store.state.getState().window)
   expect(ws.stages.map(st => st.id)).toEqual(["s1", "s2"])
   expect(ws.current).toBe("s2")
@@ -956,12 +956,12 @@ test("コントロールセンターがカレントスクリーンの間は、�
   expect(s.sent.at(-1)?.view).toEqual({
     current: "plain-screen",
     hidden: {
-      book: "b1",
+      entry: { kind: "book", id: "b1" },
       page: "p1",
       mode: "edit",
       selection: [],
       stage: "s1",
-      stages: [{ id: "s1", book: "b1", page: "p1", mode: "edit" }],
+      stages: [{ id: "s1", entry: { kind: "book", id: "b1" }, page: "p1", mode: "edit" }],
       canSplit: true,
     },
   })

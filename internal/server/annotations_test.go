@@ -97,6 +97,10 @@ func TestAIReadsAnnotations(t *testing.T) {
 	if _, got := send(t, "GET", s.URL+"/api/ai/books/b1", "", ai); !strings.Contains(got, `"annotations":[`+waiting+`]`) {
 		t.Fatalf("read_book = %s", got)
 	}
+	// read_folder は、応えを待つ物の在るブックの行に、その数を添える
+	if _, got := send(t, "GET", s.URL+"/api/ai/folder", "", ai); !strings.Contains(got, `{"kind":"book","id":"b1","title":"T","awaiting":1}`) {
+		t.Fatalf("read_folder = %s", got)
+	}
 	if _, got := send(t, "GET", s.URL+"/api/ai/pages/p1", "", ai); !strings.HasPrefix(got, `{"annotations":[`+waiting+`],"entry":{"kind":"book","id":"b1"},"folder":"b1","page":{"kind":"page","id":"p1"`) {
 		t.Fatalf("read_page = %s", got)
 	}

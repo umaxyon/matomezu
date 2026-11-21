@@ -285,3 +285,19 @@ test("ロックしたブックの外のページでも、ページの設定は�
   expect(isShown(store, state, stage, "@matomezu/base:page-settings")).toBe(true)
   expect(isEnabled(store, state, stage, "@matomezu/base:page-settings")).toBe(true)
 })
+
+test("開く物を名指して開く（openToStage）: ステージを言わなければ窓に出し、言えばそのステージの開いている物を替える（ブックでも、ブックの外のページでも）", () => {
+  const store = withOutside()
+  const [book] = Object.values(store.state.getState().books)
+  if (!book) throw new Error("no book")
+  const outermostOf = (stage: string) => stageIn(store.state.getState().window, stage)?.opened?.outermost
+  const first = store.actions.openToStage({ to: "page", page: "o1" })
+  expect(outermostOf(first)).toEqual({ kind: "page", id: "o1" })
+  expect(store.actions.openToStage({ to: "book", book: book.id }, first)).toBe(first)
+  expect(outermostOf(first)).toEqual({ kind: "book", id: book.id })
+  expect(store.actions.openToStage({ to: "page", page: "o1" }, first)).toBe(first)
+  expect(outermostOf(first)).toEqual({ kind: "page", id: "o1" })
+  expect(store.actions.openToStage({ to: "page", page: "nothing" })).toBe(NO_STAGE)
+  expect(store.actions.openToStage({ to: "page", page: "o1" }, "no-such-stage")).toBe(NO_STAGE)
+  expect(store.actions.openToStage({ to: "book", book: "nothing" })).toBe(NO_STAGE)
+})

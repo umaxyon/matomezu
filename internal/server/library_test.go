@@ -56,7 +56,7 @@ func TestBooksInFoldersLookTheSameToTheAI(t *testing.T) {
 		if hub.Book(storage.HomeID) != nil || hub.Book("d1") != nil {
 			t.Fatalf("nested %v: the library home or a folder is a book", nested)
 		}
-		send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"current":"book-screen","book":"b2","page":"s1","stage":"s1","stages":[{"id":"s1","book":"b2"}]},"focused":true}`, nil)
+		send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"current":"book-screen","entry":{"kind":"book","id":"b2"},"page":"s1","stage":"s1","stages":[{"id":"s1","entry":{"kind":"book","id":"b2"}}]},"focused":true}`, nil)
 		out := []string{}
 		for _, path := range []string{"/api/ai/books", "/api/ai/books/b1", "/api/ai/books/b2", "/api/ai/pages/p1", "/api/ai/pages/s1", "/api/ai/view", "/api/ai/books/" + storage.HomeID, "/api/ai/books/d1"} {
 			code, body := send(t, "GET", s.URL+path, "", ai)
@@ -69,7 +69,7 @@ func TestBooksInFoldersLookTheSameToTheAI(t *testing.T) {
 		t.Fatalf("the answers differ:\n%s\n---\n%s", strings.Join(flat, "\n"), strings.Join(nested, "\n"))
 	}
 	if !strings.Contains(flat[0], `"id":"b1"`) || !strings.Contains(flat[0], `"id":"b2"`) || strings.Contains(flat[0], storage.HomeID) ||
-		!strings.Contains(flat[4], `"entry":{"kind":"book","id":"b2"}`) || !strings.Contains(flat[5], `"book":"b2"`) || !strings.Contains(flat[5], `"page":"s1"`) || !strings.HasPrefix(flat[6], "/api/ai/books/"+storage.HomeID+" 4") {
+		!strings.Contains(flat[4], `"entry":{"kind":"book","id":"b2"}`) || !strings.Contains(flat[5], `"entry":{"kind":"book","id":"b2"}`) || !strings.Contains(flat[5], `"page":"s1"`) || !strings.HasPrefix(flat[6], "/api/ai/books/"+storage.HomeID+" 4") {
 		t.Fatalf("answers = %s", strings.Join(flat, "\n"))
 	}
 }

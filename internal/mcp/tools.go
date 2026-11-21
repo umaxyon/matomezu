@@ -358,7 +358,6 @@ var showSchema = map[string]any{
 			"description": "print-preview shows all its pages as the sheets they print on (a book with pages; the user only looks, nothing can be changed there). Without it, edit.",
 		},
 	},
-	"required":             []string{"book"},
 	"additionalProperties": false,
 }
 

@@ -85,6 +85,9 @@ export interface WindowActions {
   continueStep(outermost: string): void
 }
 
+// ステージで開く物: ブック（とその中のページ・バインダ）か、ブックの外のページ
+export type OpenTo = { to: "book"; book: string; page?: string; binder?: string } | { to: "page"; page: string }
+
 // 画面の操作のうち、ほかのスクリーン・ステージを id で名指す物と、開いた 1 枚の id を返す開き方。プラグイン API には出さない（土台と base の決まったファイルが、素の操作として使う）
 export interface FrameActions {
   // スクリーンを 1 枚開いてカレントにし、開いた 1 枚の id を返す（開かなければ SCREEN_REFUSED）。ほかは openScreen と同じ
@@ -96,6 +99,8 @@ export interface FrameActions {
   // ステージ stage でブックの外のページを開いてカレントにし、そのステージの id を返す（そのブックスクリーンをカレントスクリーンにする。
   // 開ける外のページでない・窓に無いステージなら何もせず NO_STAGE）
   openOutsidePage(stage: string, page: string): string
+  // 開く物 to を、ステージ stage で開いて（stage を言わなければ窓に出して。showBookStage・showOutsidePageStage）、開いたステージの id を返す（開けなければ NO_STAGE）
+  openToStage(to: OpenTo, stage?: string): string
   makeScreenCurrent(id: string): void // 開いているスクリーン id をカレントスクリーンにする（見せるかはスクリーンアレンジメントが決める。退いた物の中は残す）
   showStage(id: string): void // ステージ id をカレントにし、それを並べているスクリーンをカレントスクリーンにする（そのステージを見せる）
   // ステージ stage をカレントにして右に何も開いていないステージを足し、足したステージの id を返す（足せなければ NO_STAGE）。ほかは split と同じ

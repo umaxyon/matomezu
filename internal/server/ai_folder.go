@@ -7,7 +7,8 @@ package server
 //	                                              folder が無ければ書庫ホーム。path は書庫ホームからそのフォルダまで（両端を含む。書庫ホームの title は無い）。
 //	                                              システムフォルダは、どこでも "systemFolder"（定義の id）を添え、title は定義の英語の名前（定義が今の機能台帳に無ければ空）。
 //	                                              エントリは {"kind": "folder", "id", "title"}・{"kind": "book", "id", "title"}（読めないブックは出さない）・
-//	                                              {"kind": "page", "id", "title", "type"}・{"kind": "binder", "id", "title", "pageType"}
+//	                                              {"kind": "page", "id", "title", "type"}・{"kind": "binder", "id", "title", "pageType"}。
+//	                                              ブックとページには、AI の応えを待つアノテーションが在れば、その数 "awaiting" を添える
 
 import (
 	"encoding/json"
@@ -33,6 +34,8 @@ type folderEntry struct {
 	PageType string `json:"pageType,omitempty"`
 	// SystemFolder は、システムフォルダの印（定義の id）
 	SystemFolder string `json:"systemFolder,omitempty"`
+	// Awaits は、ブックかページの、AI の応えを待つアノテーションの数（list_books の awaiting と同じ数え方）
+	Awaits int `json:"awaiting,omitempty"`
 }
 
 // AIFolder は、AI に見せるフォルダ 1 つ（書庫ホームかフォルダ）
@@ -131,6 +134,20 @@ func (o Options) aiFolder(w http.ResponseWriter, r *http.Request) {
 	if f == nil {
 		http.Error(w, "no such folder", http.StatusNotFound)
 		return
+	}
+	ids := []string{}
+	for _, e := range f.Lineup {
+		if e.Kind == storage.KindBook || e.Kind == storage.KindPage {
+			ids = append(ids, e.ID)
+		}
+	}
+	annotations, err := o.Hub.AIAnnotations(ids)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	for i, e := range f.Lineup {
+		f.Lineup[i].Awaits = len(pick(annotations[e.ID], awaiting))
 	}
 	writeJSON(w, f)
 }

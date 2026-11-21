@@ -449,8 +449,11 @@ test("読まれていない伝言は、箱の上の辺が画面の外に出る�
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
     .toHaveProperty("stage")
-  const { book, page: shown } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
-    book: string
+  const {
+    entry: { id: book },
+    page: shown,
+  } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
+    entry: { id: string }
     page: string
   }
   await addBox(page, 200, 150, "一")
@@ -500,8 +503,11 @@ test("リストの行に付けた AI が読んだ伝言も、リストが画面�
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
     .toHaveProperty("stage")
-  const { book, page: shown } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
-    book: string
+  const {
+    entry: { id: book },
+    page: shown,
+  } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
+    entry: { id: string }
     page: string
   }
   const list = await addList(page, "行のリスト")
@@ -540,8 +546,11 @@ test("物の角に 2 つ以上あれば、先頭の 2 つを重ねた絵にま�
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
     .toHaveProperty("stage")
-  const { book, page: shown } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
-    book: string
+  const {
+    entry: { id: book },
+    page: shown,
+  } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
+    entry: { id: string }
     page: string
   }
   await addBox(page, 200, 200, "二")
@@ -712,8 +721,11 @@ test("設定画面の「コーナーステータスの並び」で、角に出�
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
     .toHaveProperty("stage")
-  const { book, page: shown } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
-    book: string
+  const {
+    entry: { id: book },
+    page: shown,
+  } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
+    entry: { id: string }
     page: string
   }
   await addBox(page, 200, 200, "並")

@@ -48,8 +48,11 @@ test("リストの行が収まらず縦のスクロールバーが出ても、�
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
     .toHaveProperty("stage")
-  const { book, page: shown } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
-    book: string
+  const {
+    entry: { id: book },
+    page: shown,
+  } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
+    entry: { id: string }
     page: string
   }
   const perform = (action: string, args: object, on: object = { book }) => aiPerform(page, { action, args, on }, ai)

@@ -89,6 +89,10 @@ func TestTheAIReadsAPageOutsideBooks(t *testing.T) {
 			t.Fatalf("page %s = %d %s; want 404", page, code, body)
 		}
 	}
+	// read_folder は、応えを待つ物の在るページとブックの行に、その数を添える
+	if _, got := send(t, "GET", s.URL+"/api/ai/folder", "", ai); !strings.Contains(got, `{"kind":"page","id":"h1","title":"H1","type":"@matomezu/drawing:drawing","awaiting":1}`) {
+		t.Fatalf("read_folder = %s", got)
+	}
 	want := `{"awaiting":[{"entry":{"kind":"page","id":"h1"},"title":"H1","annotation":` + waiting + `,"brief":"x"}],`
 	if _, got := send(t, "GET", s.URL+"/api/ai/awaiting", "", ai); !strings.HasPrefix(got, want) {
 		t.Fatalf("awaiting = %s; want it to begin with %s", got, want)
@@ -164,5 +168,78 @@ func TestTheAIPerformsOnAPageOutsideBooks(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// AI は、どこかの窓に出ているブックの外のページをゴミ箱に入れられない（open-on-screen。隠れているブックスクリーンが開いている物も、それを中に持つフォルダごとも）。出ていなければ入れられる
+func TestAICannotTrashAPageOutsideBooksOnAScreen(t *testing.T) {
+	s, _ := newServerOn(t, Options{}, entriesStore(t))
+	writer := writerAI(t, s.URL)
+	a := listen(t, s.URL)
+	next(t, a)
+	on := func(page string) string {
+		return `{"entry":{"kind":"page","id":"` + page + `"},"page":"` + page + `","selection":[],"stage":"s1","stages":[{"id":"s1","entry":{"kind":"page","id":"` + page + `"},"page":"` + page + `"}],"canSplit":true}`
+	}
+	trash := func(entry string) string {
+		_, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:entry-trash","args":{"entry":"`+entry+`"}}`, writer)
+		return got
+	}
+	const refused = `{"ok":false,"reason":"open-on-screen"}`
+	for i, c := range []struct{ view, entry string }{
+		{on("h1"), "h1"},
+		{`{"current":"plain-screen","hidden":` + on("h1") + `}`, "h1"},
+		{on("g1"), "d2"},
+	} {
+		send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+c.view+`,"focused":true,"seq":`+string(rune('1'+i))+`}`, nil)
+		if got := trash(c.entry); got != refused {
+			t.Fatalf("ai trash of %s under the view %s = %s; want %s", c.entry, c.view, got, refused)
+		}
+	}
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"stage":"s1","stages":[{"id":"s1"}],"canSplit":true},"focused":true,"seq":9}`, nil)
+	for _, entry := range []string{"h1", "d2"} {
+		if got := trash(entry); !strings.HasPrefix(got, `{"ok":true`) {
+			t.Fatalf("ai trash of %s off the screen = %s", entry, got)
+		}
+	}
+}
+
+// show は、ページだけの頼みを読み分ける: ブックの中のページなら、そのページを持っているブックをそのページで、ブックの外のページならそのページを出す。
+// 言ったブックのページでない・無いページ・バインダの中やゴミ箱の中のページは no-page、ブックの外のページの印刷プレビューは no-print-preview、何も言わなければ no-book
+func TestShowReadsAPageAlone(t *testing.T) {
+	s, _ := newServerOn(t, Options{}, entriesStore(t))
+	auth := writerAI(t, s.URL)
+	a := listen(t, s.URL)
+	next(t, a)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"stage":"s1","stages":[{"id":"s1"}],"canSplit":true},"focused":true}`, nil)
+	for _, c := range []struct{ body, want string }{
+		{`{"page":"h1"}`, `show {"to":"page","page":"h1"}`},
+		{`{"page":"g1","stage":"s1"}`, `show {"to":"page","page":"g1","stage":"s1"}`},
+		{`{"page":"h1","split":true,"mode":"edit"}`, `show {"to":"page","page":"h1","split":true}`},
+		{`{"page":"p1"}`, `show {"to":"book","book":"b1","page":"p1"}`},
+		{`{"page":"s1","mode":"print-preview"}`, `show {"to":"book","book":"b2","page":"s1","mode":"print-preview"}`},
+		{`{"book":"b1","page":"p1"}`, `show {"to":"book","book":"b1","page":"p1"}`},
+		{`{"book":"b1"}`, `show {"to":"book","book":"b1"}`},
+	} {
+		if _, got := send(t, "POST", s.URL+"/api/ai/show", c.body, auth); got != `{"ok":true,"opened":false}` {
+			t.Fatalf("show %s = %s", c.body, got)
+		}
+		if got := next(t, a); got != c.want {
+			t.Fatalf("show %s sent %s; want %s", c.body, got, c.want)
+		}
+	}
+	for body, reason := range map[string]string{
+		`{}`:                                   "no-book",
+		`{"stage":"s1"}`:                       "no-book",
+		`{"book":"b1","page":"s1"}`:            "no-page",
+		`{"book":"b1","page":"h1"}`:            "no-page",
+		`{"page":"none"}`:                      "no-page",
+		`{"page":"n1a"}`:                       "no-page",
+		`{"page":"t1"}`:                        "no-page",
+		`{"page":"h1","mode":"print-preview"}`: "no-print-preview",
+		`{"page":"h1","stage":"s9"}`:           "no-stage",
+	} {
+		if _, got := send(t, "POST", s.URL+"/api/ai/show", body, auth); !strings.Contains(got, `"reason":"`+reason+`"`) {
+			t.Errorf("show %s = %s; want %s", body, got, reason)
+		}
 	}
 }

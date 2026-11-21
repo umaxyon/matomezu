@@ -37,7 +37,8 @@ async function ready(page: Page): Promise<string> {
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
     .toHaveProperty("stage")
-  return ((await (await page.request.get("/api/ai/view", { headers: ai })).json()) as { book: string }).book
+  const view = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as { entry: { id: string } }
+  return view.entry.id
 }
 
 test("AI が手紙を送るとマーキーとしおりが出て、未読の数が出る。しおりを押すとダイアログで本文が見え、開くで行き先の箱を見せ、鳥と光る枠が来て去る。AI はどちらも見たと知れる", async ({

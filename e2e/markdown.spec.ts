@@ -279,12 +279,12 @@ test("ソースのペインで Mod+Z で戻すと、自分が書いた所だけ�
   await page.keyboard.type("# 見出し")
   await expect(field()).toHaveValue("# 見出し")
   const view = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
-    book: string
+    entry: { id: string }
     page: string
   }
   // 書いた物が常駐に届いてから、AI が書く
   const text = async () => {
-    const got = (await (await page.request.get(`/api/ai/books/${view.book}`, { headers: ai })).json()) as {
+    const got = (await (await page.request.get(`/api/ai/books/${view.entry.id}`, { headers: ai })).json()) as {
       book: { lineup: unknown[] }
     }
     return pageIn<{ text?: string }>(got.book, view.page)?.text
@@ -343,7 +343,7 @@ test("ソースに書いている間（テキストFormにフォーカスがあ�
   await page.keyboard.type("利用者")
   await expect(field).toHaveValue("利用者")
   const view = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
-    book: string
+    entry: { id: string }
     page: string
   }
   const update = async () =>

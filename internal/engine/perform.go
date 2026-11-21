@@ -92,7 +92,7 @@ type Output struct {
 	Folders       []RowChange                 `json:"folders,omitempty"`      // 変わった・足した・無くなったフォルダ
 	Created       []string                    `json:"created,omitempty"`      // そのうち新しく足したページ・フォルダの id（世界のどこにも無い id であること）
 	Books         []string                    `json:"books,omitempty"`        // 変わったブックの id（変わったページ・フォルダを持つブック。無くなったブックも）
-	Trashing      []string                    `json:"trashing,omitempty"`     // 新しくゴミ箱に入るブックの id
+	Trashing      []string                    `json:"trashing,omitempty"`     // 新しくゴミ箱に入るステージエントリ（ブックと、ブックの外のページ）の id
 	Library       json.RawMessage             `json:"library,omitempty"`      // 書庫の履歴に入るアクションが変えたページとフォルダごとの、前と後（{"pages": {id: {"before", "after"}}, "folders": 同じ}。無い側は "none"。画面にそのまま知らせる）
 	Settings      json.RawMessage             `json:"settings,omitempty"`
 	Annotations   map[string]json.RawMessage  `json:"annotations,omitempty"`

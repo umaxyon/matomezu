@@ -71,8 +71,11 @@ test("AI が伝言を読むと、上からマーキーが下りて「AIが伝言
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
     .toHaveProperty("stage")
-  const { book, page: shown } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
-    book: string
+  const {
+    entry: { id: book },
+    page: shown,
+  } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
+    entry: { id: string }
     page: string
   }
   await addBox(page, 200, 150, "一")

@@ -94,7 +94,7 @@ test("AI の入口からは、最後にフォーカスした窓が見ている�
   await expect(page.getByRole("img", { name: "紙" })).toBeVisible()
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
-    .toMatchObject({ book: "e2e-1", page: "p1" })
+    .toMatchObject({ entry: { kind: "book", id: "e2e-1" }, page: "p1" })
   const done = await page.request.post("/api/ai/perform", {
     headers: ai,
     data: {
@@ -115,7 +115,7 @@ test("AI が show で頼むと、最後にフォーカスした窓が、分け�
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
     .toMatchObject({
-      book: "e2e-1",
+      entry: { kind: "book", id: "e2e-1" },
       canSplit: true,
     })
   const made = await page.request.post("/api/ai/perform", {
@@ -131,7 +131,7 @@ test("AI が show で頼むと、最後にフォーカスした窓が、分け�
   await expect(page.locator("[data-stage]")).toHaveCount(2)
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
-    .toMatchObject({ book: result.book, stage: "s2", canSplit: false })
+    .toMatchObject({ entry: { kind: "book", id: result.book }, stage: "s2", canSplit: false })
 })
 
 // 線のあるブック: 箱 a・b・c と、a から b（終点に矢印・キャプション）・a から c・b から c の線
@@ -167,7 +167,7 @@ test("線は箱より手前に描かれ、選択の道具で押すと選ばれ�
   await page.evaluate(() => window.dispatchEvent(new Event("focus")))
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
-    .toMatchObject({ book: "e2e-1", stage: "s1", canSplit: true })
+    .toMatchObject({ entry: { kind: "book", id: "e2e-1" }, stage: "s1", canSplit: true })
   const shown = await page.request.post("/api/ai/show", { headers: ai, data: { book: LINE_BOOK.id } })
   expect(await shown.json()).toMatchObject({ ok: true })
   const line = (id: string) => page.locator(`[data-item="${id}"]`)

@@ -732,6 +732,18 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       )
       return stage
     },
+    openToStage: (to, stage = NO_STAGE) => {
+      if (to.to === "page")
+        return stage === NO_STAGE ? actions.showOutsidePageStage(to.page) : actions.openOutsidePage(stage, to.page)
+      const at = stage === NO_STAGE ? actions.showBookStage(to.book, to.page) : stage
+      if (at === NO_STAGE) return NO_STAGE
+      if (stage !== NO_STAGE) {
+        actions.openBook(at, to.book)
+        if (to.page !== undefined) actions.openPage(at, to.page)
+      }
+      if (to.binder !== undefined) actions.openBinder(at, to.binder)
+      return at
+    },
     showBook: (bookId, page) => actions.showBookStage(bookId, page) !== NO_STAGE,
     setScreenProps: (at, props) => {
       const screen = screenAt(getState().window, at)

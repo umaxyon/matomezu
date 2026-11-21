@@ -85,7 +85,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		h.ack(p, done)
 		return done, nil
 	}
-	// AI のアクションは、窓に出ているブックをゴミ箱に入れない（AI は利用者に聞く）
+	// AI のアクションは、窓に出ているステージエントリ（ブックと、ブックの外のページ）をゴミ箱に入れない（AI は利用者に聞く）
 	if p.By == "ai" && h.trashesShown(out.Trashing) {
 		done = Performed{OK: false, Reason: "open-on-screen"}
 		h.remember(p.Key, done)

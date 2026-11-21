@@ -4,7 +4,6 @@ import "../../web/src/engine/engine"
 import { pagesOf } from "../../web/src/core/book"
 import {
   DIR,
-  DRAWING,
   drawingPage,
   FLOWCHART,
   MARKDOWN,

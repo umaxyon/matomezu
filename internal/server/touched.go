@@ -28,7 +28,7 @@ func (h *Hub) touch(id, at string) {
 
 // opened は、窓 c が知らせた見ているもの view に新しく見えたブックの、開いた時刻を残す（h.mu を持って呼ぶ）。
 // コントロールセンターがカレントスクリーンの間、後ろに隠れているブックスクリーンのブック（view の hidden）は見えていないので、開いたとしない。
-// ただし開いているブック（held）には含める
+// ただし開いているステージエントリ（held）には含める。held はブックもブックの外のページも持ち、開いた時刻を残すのはブックだけ
 func (h *Hub) opened(c *client, view json.RawMessage) {
 	var v struct {
 		screen
@@ -37,14 +37,14 @@ func (h *Hub) opened(c *client, view json.RawMessage) {
 	if json.Unmarshal(view, &v) != nil {
 		return
 	}
-	shown := v.books()
+	shown := v.entries()
 	held := shown
 	if v.Hidden != nil {
-		held = v.Hidden.books()
+		held = v.Hidden.entries()
 	}
 	before := c.shown
-	c.shown, c.held = shown, held
-	for _, id := range shown {
+	c.shown, c.held = booksOf(shown), entryIDs(held)
+	for _, id := range c.shown {
 		if slices.Contains(before, id) {
 			continue
 		}
@@ -57,34 +57,49 @@ func (h *Hub) opened(c *client, view json.RawMessage) {
 	}
 }
 
-// screen は、窓が知らせた見ているもののうち、ブックスクリーン 1 つが開いているブックとステージ
+// screen は、窓が知らせた見ているもののうち、ブックスクリーン 1 つが開いているステージエントリとステージ（何も開いていなければ Entry は nil）
 type screen struct {
-	Book   string `json:"book"`
+	Entry  *stageEntry `json:"entry"`
 	Stages []struct {
-		ID   string `json:"id"`
-		Book string `json:"book"`
+		ID    string      `json:"id"`
+		Entry *stageEntry `json:"entry"`
 	} `json:"stages"`
 	CanSplit bool `json:"canSplit"`
 }
 
-// books は、そのブックスクリーンが開いているブックの id（重ねない）
-func (s screen) books() []string {
-	books := []string{}
-	for _, id := range append([]string{s.Book}, s.stageBooks()...) {
-		if id != "" && !slices.Contains(books, id) {
-			books = append(books, id)
+// entries は、そのブックスクリーンが開いているステージエントリ（重ねない）
+func (s screen) entries() []stageEntry {
+	out := []stageEntry{}
+	add := func(e *stageEntry) {
+		if e != nil && e.ID != "" && !slices.Contains(out, *e) {
+			out = append(out, *e)
 		}
 	}
-	return books
+	add(s.Entry)
+	for _, st := range s.Stages {
+		add(st.Entry)
+	}
+	return out
 }
 
-// stageBooks はステージごとの開いているブックの id
-func (s screen) stageBooks() []string {
-	ids := make([]string, len(s.Stages))
-	for i, st := range s.Stages {
-		ids[i] = st.Book
+// booksOf は、ステージエントリ entries のうち、ブックの id
+func booksOf(entries []stageEntry) []string {
+	out := []string{}
+	for _, e := range entries {
+		if e.Kind == "book" {
+			out = append(out, e.ID)
+		}
 	}
-	return ids
+	return out
+}
+
+// entryIDs は、ステージエントリ entries の id
+func entryIDs(entries []stageEntry) []string {
+	out := make([]string, len(entries))
+	for i, e := range entries {
+		out[i] = e.ID
+	}
+	return out
 }
 
 // Touched はブックの id ごとの、触れた時刻

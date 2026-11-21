@@ -29,7 +29,7 @@
 //
 // AI の入口（MCP。internal/mcp）は合言葉で通す:
 //
-//	GET  /api/ai/view        最後にフォーカスされた窓が見ているもの（{"current", "book", "page", "selection", "awaiting"}。無ければ null。awaiting は見ているブックの、AI の応えを待つアノテーション。
+//	GET  /api/ai/view        最後にフォーカスされた窓が見ているもの（{"current", "entry", "page", "selection", "awaiting"}。entry は開いているステージエントリ {"kind", "id"}（ブックか、ブックの外のページ。何も開いていなければ無い）。無ければ null。awaiting は見ているブックの、AI の応えを待つアノテーション。
 //	                      ステージを並べないスクリーン（コントロールセンターなど）がカレントスクリーンの窓は {"current": "plain-screen", "hidden": {後ろに隠れているブックスクリーンの book, page, selection, awaiting など}}）
 //	GET  /api/ai/books  {"books": [{"id", "title", "version", "warning", "awaiting"}]}（warning は機能台帳に無い物の W007 の 1 行、awaiting は AI の応えを待つアノテーションの数）
 //	GET  /api/ai/books/{id}  {"id", "book", "version", "annotations", "placed"}（?outline=1 ならページの目次。ai_outline.go）
@@ -512,9 +512,9 @@ func (o Options) aiView(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("null"))
 		return
 	}
-	var book string
-	_ = json.Unmarshal(view["book"], &book)
-	list, err := o.annotationsOf(book)
+	var entry stageEntry
+	_ = json.Unmarshal(view["entry"], &entry)
+	list, err := o.annotationsOf(entry.ID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -523,13 +523,13 @@ func (o Options) aiView(w http.ResponseWriter, _ *http.Request) {
 	if _, covered := view["hidden"]; !covered {
 		view["awaiting"], _ = json.Marshal(pick(list, awaiting))
 	}
-	// コントロールセンターがカレントスクリーンの間、後ろに隠れているブックスクリーンが開いているブックの、AI の応えを待つ物も hidden に添える
+	// コントロールセンターがカレントスクリーンの間、後ろに隠れているブックスクリーンが開いているステージエントリの、AI の応えを待つ物も hidden に添える
 	if raw, ok := view["hidden"]; ok {
 		var hidden map[string]json.RawMessage
 		if json.Unmarshal(raw, &hidden) == nil && hidden != nil {
-			var hiddenBook string
-			_ = json.Unmarshal(hidden["book"], &hiddenBook)
-			hiddenList, err := o.annotationsOf(hiddenBook)
+			var hiddenEntry stageEntry
+			_ = json.Unmarshal(hidden["entry"], &hiddenEntry)
+			hiddenList, err := o.annotationsOf(hiddenEntry.ID)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return

@@ -26,7 +26,7 @@ type client struct {
 	focused     int64               // 最後にフォーカスされた順（大きいほど新しい。つないだときも 1 つ進める）
 	viewSeq     int64               // 受けた見ているものの番号（窓が知らせるたびに増やす。古い番号の知らせは捨てる）
 	shown       []string            // いまその窓に見えているブック（touched.go。新しく見えたブックだけを「開いた」とする。コントロールセンターがカレントスクリーンの間は空）
-	held        []string            // いまその窓のブックスクリーンが開いているブック（隠れている物も含む。trash.go。AI はゴミ箱に入れられない）
+	held        []string            // いまその窓のブックスクリーンが開いているステージエントリ（ブックと、ブックの外のページの id。隠れている物も含む。trash.go。AI はゴミ箱に入れられない）
 	editLocks   map[string][]string // 利用者がその窓で直している物（ページかブックの id → その中の物の id の並び。editlock.go）
 	recordLocks map[string][]string // 利用者がその窓で直しているレコード（対象の種類の id → レコードの id の並び。editlock.go）
 }
@@ -161,31 +161,65 @@ func (h *Hub) latestPending() bool {
 	return last != nil && last.view == nil
 }
 
-// Show の頼み。Stage は出すステージの id（空ならカレント）、Split なら、そのステージを分けて右にできたステージに出す。
-// Page は出すページ（空ならブックを開いたときのページ）
+// Show の頼み。Book は出すブック、Page は出すページ（Book が有り Page が空ならブックを開いたときのページ。Page だけなら、そのページを持っているブックをそのページで、
+// どのブックにも入っていないページならブックの外のページを出す）。Stage は出すステージの id（空ならカレント）、Split なら、そのステージを分けて右にできたステージに出す。
+// To は窓に知らせるときに常駐が決める、出す物の種類（book か、ブックの外のページの page）
 type Show struct {
-	Book  string `json:"book"`
+	To    string `json:"to,omitempty"`
+	Book  string `json:"book,omitempty"`
 	Page  string `json:"page,omitempty"`
 	Stage string `json:"stage,omitempty"`
 	Split bool   `json:"split,omitempty"`
-	Mode  string `json:"mode,omitempty"` // print-preview なら印刷プレビューで出す（画面がそのまま受ける）
+	Mode  string `json:"mode,omitempty"` // print-preview なら印刷プレビューで出す（ブックだけ。画面がそのまま受ける）
 }
 
 // Show で出せなかった理由
 var (
-	ErrNoBook   = errors.New("no-book")   // そのブックが無い
-	ErrNoWindow = errors.New("no-window") // 窓がつながっていない
-	ErrNoStage  = errors.New("no-stage")  // 窓にそのステージが無い
-	ErrNoSplit  = errors.New("no-split")  // 窓がもう分けられない
+	ErrNoBook         = errors.New("no-book")          // そのブックが無い（ブックもページも言わなかった）
+	ErrNoPage         = errors.New("no-page")          // そのページが無い（言ったブックのページでない）
+	ErrNoPrintPreview = errors.New("no-print-preview") // ブックの外のページは印刷プレビューで出せない
+	ErrNoWindow       = errors.New("no-window")        // 窓がつながっていない
+	ErrNoStage        = errors.New("no-stage")         // 窓にそのステージが無い
+	ErrNoSplit        = errors.New("no-split")         // 窓がもう分けられない
 )
 
-// Show は、最後にフォーカスされた窓に、ブックを出すように知らせる。
+// shownTo は、頼み s の出す物を確かめて、窓に知らせる形にする（To を決め、Page だけの頼みはそのページを持っているブックを添える。h.mu を持って呼ぶ）
+func (h *Hub) shownTo(s Show) (Show, error) {
+	s.To = "book"
+	if s.Book != "" {
+		if _, ok := h.books[s.Book]; !ok || h.outOfSight(s.Book) {
+			return s, ErrNoBook
+		}
+		if s.Page != "" && h.bookOfPage(s.Page) != s.Book {
+			return s, ErrNoPage
+		}
+		return s, nil
+	}
+	if s.Page == "" {
+		return s, ErrNoBook
+	}
+	if book := h.bookOfPage(s.Page); book != "" {
+		s.Book = book
+		return s, nil
+	}
+	if h.entryNotInBook(s.Page) != s.Page {
+		return s, ErrNoPage
+	}
+	if s.Mode == "print-preview" {
+		return s, ErrNoPrintPreview
+	}
+	s.To, s.Mode = "page", ""
+	return s, nil
+}
+
+// Show は、最後にフォーカスされた窓に、ブックかブックの外のページを出すように知らせる。
 // ステージと分けられるかは、その窓が知らせた見ているもの（stages・canSplit）で確かめる
 func (h *Hub) Show(s Show) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if _, ok := h.books[s.Book]; !ok || h.outOfSight(s.Book) {
-		return ErrNoBook
+	s, err := h.shownTo(s)
+	if err != nil {
+		return err
 	}
 	c := h.window()
 	if c == nil {

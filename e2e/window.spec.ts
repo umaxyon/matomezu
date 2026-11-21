@@ -69,11 +69,11 @@ async function startOnCenter(page: Page): Promise<string> {
   await expect(center(page)).toBeVisible()
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: await joinedAiAuth() })).json())
-    .toHaveProperty("hidden.book")
+    .toHaveProperty("hidden.entry.id")
   const view = await (await page.request.get("/api/ai/view", { headers: await joinedAiAuth() })).json()
   expect(view).toMatchObject({ current: "plain-screen" })
-  expect("book" in view || "awaiting" in view).toBe(false)
-  return view.hidden.book as string
+  expect("entry" in view || "awaiting" in view).toBe(false)
+  return view.hidden.entry.id as string
 }
 const send = async (page: Page, args: object) =>
   page.request.post("/api/ai/perform", {
