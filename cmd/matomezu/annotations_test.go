@@ -42,6 +42,30 @@ func TestWriteAwaiting(t *testing.T) {
 	}
 }
 
+func TestWriteUndoneNamesTheStageEntryAndTheRows(t *testing.T) {
+	var out strings.Builder
+	writeUndone(&out, []undoneTicket{
+		{Entry: "b1", Title: "Plan", At: "2026-11-21T01:00:00Z", Lost: json.RawMessage(`[{"entry":"p1","at":"title","value":"AI"}]`)},
+		{Entry: "p9", Title: "Memo", At: "2026-11-21T01:05:00Z", Lost: json.RawMessage(`[]`)},
+	})
+	text := out.String()
+	for _, want := range []string{
+		"2 change(s) you made were undone by the user before they saw them.",
+		"in lost, entry is the id of the page, book or binder, and at is the place inside it",
+		`- "Plan" (b1) at 2026-11-21T01:00:00Z: [{"entry":"p1","at":"title","value":"AI"}]`,
+		`- "Memo" (p9) at 2026-11-21T01:05:00Z: []`,
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("missing %q in:\n%s", want, text)
+		}
+	}
+	out.Reset()
+	writeUndone(&out, nil)
+	if out.Len() != 0 {
+		t.Errorf("no undone wrote %q", out.String())
+	}
+}
+
 func TestWriteRemovedSeparatesTheCauses(t *testing.T) {
 	var out strings.Builder
 	writeRemoved(&out, []removedTicket{

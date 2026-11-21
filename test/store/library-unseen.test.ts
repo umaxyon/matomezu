@@ -449,3 +449,26 @@ test("ブックの外のバインダの中のページの AI の変更が、見�
     },
   ])
 })
+
+test("まだ見ていない AI の書庫の変更は、利用者がそのブックにロックを掛けても消えたとしない（書庫を見れば、書庫の履歴に入る）", async () => {
+  const { here, there, told, foreign, show } = pair()
+  let made: unknown
+  await foreign(
+    { by: "ai", act: "3", actions: ["@matomezu/base:book-create", RENAME] },
+    {
+      run: () => {
+        made = there.actions.perform("@matomezu/base:book-create", { title: "AI のブック" })
+        there.actions.perform(RENAME, { entry: "b1", title: "AI の名前" })
+      },
+      library: true,
+    },
+  )
+  const created = (made as { result: { book: string } }).result.book
+  for (const book of [created, "b1"]) {
+    expect(here.actions.perform("@matomezu/base:book-lock", {}, { book })).toMatchObject({ ok: true })
+    await settled()
+  }
+  expect(told).toEqual([])
+  show([HOME_ID])
+  expect(libraryHistory(here).undo.map(s => s.by)).toEqual(["ai"])
+})

@@ -31,11 +31,12 @@ import type { StoreCatalog } from "./plugin"
 import { ownedPluginState, pluginValueOf } from "./plugin-state"
 import type { ForeignChange, ForeignLibraryRows, LostValue, MatomezuState, RowSides, StoreOptions } from "./state"
 
-// まだ見ていない変更を持つ所。checkSeen は見えた物を画面の履歴に差し込み、dropOverwritten はこの窓の利用者の、画面の履歴に入れない変更が
+// まだ見ていない変更を持つ所。checkSeen は見えた物を画面の履歴に差し込み、dropOverwritten・dropOverwrittenInLibrary はこの窓の利用者の、画面の履歴に入れない変更が
 // 消した物を捨て、addForeign はよその変更を足し、reset は持っている物を全部捨てる
 export interface UnseenChanges {
   checkSeen(): void
   dropOverwritten(was: Library, now: Library): void
+  dropOverwrittenInLibrary(was: Library, now: Library): void
   addForeign(change: ForeignChange | undefined, tables: Library): void
   reset(): void
 }
@@ -196,8 +197,8 @@ export function createUnseenChanges(deps: {
       })
     return [...of(step.pages, was.pages, now.pages), ...of(step.folders, was.folders, now.folders)]
   }
-  // この窓の利用者の、画面の履歴に入れない変更（表を was から now にした。ロックの掛け外し・完全に消す・ゴミ箱を空にする・置き直しなど）が、
-  // まだ見ていない変更が書いた値を消したら、それを捨てる（あとで見えても差し込まない。AI の物は、消えた所と値を、その物のステージエントリごとに知らせる）。
+  // この窓の利用者の、画面の履歴に入れない変更（表を was から now にした。ロックの掛け外し・完全に消す・置き直しなど）が、まだ見ていない変更が書いた値を消したら、
+  // それを捨てる（あとで見えても差し込まない。AI の物は、消えた所と値を、そのブックの分として知らせる）。
   // 画面の履歴に入れる操作が上書きした物は捨てない（その画面の履歴の段の前に値が残り、見えたら差し込まれ、戻せば戻る）
   const dropOverwritten = (was: Library, now: Library) => {
     unseen = unseen.filter(u => {
@@ -206,6 +207,10 @@ export function createUnseenChanges(deps: {
         options.aiEditTicket?.({ entry: u.book, act: u.act, places: u.places, outcome: "lost", lost })
       return lost.length === 0
     })
+  }
+  // この窓の利用者の、画面の履歴に入れない書庫の変更（表を was から now にした。完全に消す・ゴミ箱を空にする・置き直しなど）が、まだ見ていない書庫の変更が書いた値を
+  // 消したら、それを捨てる（あとで見えても差し込まない。AI の物は、消えた所と値を、その物のステージエントリごとに知らせる）
+  const dropOverwrittenInLibrary = (was: Library, now: Library) => {
     // 物 id のステージエントリの id（無ければ undefined）
     const entryOf = (id: string) => {
       const o = outermostOf(was, id)
@@ -268,5 +273,5 @@ export function createUnseenChanges(deps: {
     known = {}
     knownTables = { pages: {}, folders: {} }
   }
-  return { checkSeen, dropOverwritten, addForeign, reset }
+  return { checkSeen, dropOverwritten, dropOverwrittenInLibrary, addForeign, reset }
 }
