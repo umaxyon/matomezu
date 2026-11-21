@@ -954,7 +954,7 @@ test("コントロールセンターがカレントスクリーンの間は、�
   const s = await connected()
   showCenter(s.store)
   expect(s.sent.at(-1)?.view).toEqual({
-    current: "control-center",
+    current: "plain-screen",
     hidden: {
       book: "b1",
       page: "p1",

@@ -30,7 +30,7 @@
 // AI の入口（MCP。internal/mcp）は合言葉で通す:
 //
 //	GET  /api/ai/view        最後にフォーカスされた窓が見ているもの（{"current", "book", "page", "selection", "awaiting"}。無ければ null。awaiting は見ているブックの、AI の応えを待つアノテーション。
-//	                      コントロールセンターがカレントスクリーンの窓は {"current": "control-center", "hidden": {後ろに隠れているブックスクリーンの book, page, selection, awaiting など}}）
+//	                      ステージを並べないスクリーン（コントロールセンターなど）がカレントスクリーンの窓は {"current": "plain-screen", "hidden": {後ろに隠れているブックスクリーンの book, page, selection, awaiting など}}）
 //	GET  /api/ai/books  {"books": [{"id", "title", "version", "warning", "awaiting"}]}（warning は機能台帳に無い物の W007 の 1 行、awaiting は AI の応えを待つアノテーションの数）
 //	GET  /api/ai/books/{id}  {"id", "book", "version", "annotations", "placed"}（?outline=1 ならページの目次。ai_outline.go）
 //	GET  /api/ai/pages/{page}  {"book", "folder", "page", "version", "annotations", "placed"}（book はそのページを持っているブックの id、folder はそのページが入っているフォルダ（ブックの直下ならブック、バインダの中ならバインダ）の id、version はそのページの版、annotations はそのページの物に立つもの。?outline=1 でページの中の物の目次、?item=id でその物だけ。ai_outline.go）

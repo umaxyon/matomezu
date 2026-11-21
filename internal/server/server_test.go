@@ -1036,7 +1036,7 @@ func TestAICannotTrashABookBehindTheControlCenter(t *testing.T) {
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	a := listen(t, s.URL)
 	next(t, a)
-	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"current":"control-center","hidden":{"book":"b1","stages":[{"id":"s1","book":"b1"}],"canSplit":true}},"focused":true}`, nil)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"current":"plain-screen","hidden":{"book":"b1","stages":[{"id":"s1","book":"b1"}],"canSplit":true}},"focused":true}`, nil)
 	trash := `{"action":"@matomezu/base:entry-trash","args":{"entry":"b1"}}`
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", trash, ai); got != `{"ok":false,"reason":"open-on-screen"}` {
 		t.Fatalf("ai trash behind the control center = %s", got)
@@ -1058,7 +1058,7 @@ func TestTouchedIgnoresTheBookScreenBehindTheControlCenter(t *testing.T) {
 		}
 		return data.Touched
 	}
-	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"current":"control-center","hidden":{"book":"b0","stages":[{"id":"s1","book":"b0"}]}},"seq":1}`, nil)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"current":"plain-screen","hidden":{"book":"b0","stages":[{"id":"s1","book":"b0"}]}},"seq":1}`, nil)
 	if got := touched(); got["b0"] != "" {
 		t.Fatalf("touched behind the control center = %v", got)
 	}
@@ -1076,9 +1076,9 @@ func TestViewSeparatesTheHiddenBookScreen(t *testing.T) {
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	a := listen(t, s.URL)
 	next(t, a)
-	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"current":"control-center","hidden":{"book":"b1","page":"p1","stage":"s1","stages":[{"id":"s1","book":"b1"}],"canSplit":true}},"focused":true}`, nil)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"current":"plain-screen","hidden":{"book":"b1","page":"p1","stage":"s1","stages":[{"id":"s1","book":"b1"}],"canSplit":true}},"focused":true}`, nil)
 	_, got := send(t, "GET", s.URL+"/api/ai/view", "", ai)
-	if got != `{"current":"control-center","hidden":{"awaiting":[],"book":"b1","canSplit":true,"page":"p1","stage":"s1","stages":[{"id":"s1","book":"b1"}]}}` {
+	if got != `{"current":"plain-screen","hidden":{"awaiting":[],"book":"b1","canSplit":true,"page":"p1","stage":"s1","stages":[{"id":"s1","book":"b1"}]}}` {
 		t.Fatalf("view = %s", got)
 	}
 	if _, body := send(t, "POST", s.URL+"/api/ai/show", `{"book":"b1","stage":"s1"}`, writerAI(t, s.URL)); !strings.Contains(body, `"ok":true`) {
