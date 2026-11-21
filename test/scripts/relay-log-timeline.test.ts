@@ -198,11 +198,7 @@ test("セッション間のメッセージは送った側の名前と文で結�
     { session: "alpha", messages: a3 },
     {
       session: "gamma",
-      messages: [
-        monitorEvent(
-          `matomezu from AI "alpha": ${JSON.stringify("見て\n下さい")}`,
-        ),
-      ],
+      messages: [monitorEvent(`matomezu from AI "alpha": ${JSON.stringify("見て\n下さい")}`)],
     },
   ])
   const [a0id, , b1id, a3id, a4id, b2id, , g1] = ids
