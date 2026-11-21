@@ -1,5 +1,5 @@
 // まだ見ていない、AI とほかの窓の変更: 常駐の知らせ（receive の change）のうち、この窓のでない物は、まだ見ていない画面の履歴の段として溜め、
-// 変えた物がどこかのステージで見えたら、そのブックの画面の履歴に時刻の位置で差し込む（やり直せる画面の履歴の段は消さない）。
+// 変えた物がどこかのステージで見えたら、そのブックの画面の履歴に届いた順の位置で差し込む（やり直せる画面の履歴の段は消さない）。
 // ビューが物の見え方を知らせなければ、開いているページの変更は見えたとする。まだ見ていない変更と同じ所を置き直す戻す・やり直すは断り、その変更は残る
 
 import { expect, test } from "bun:test"
@@ -9,7 +9,7 @@ import { defineAction } from "../../web/src/core/def/action"
 import type { Book } from "../../web/src/core/schema/book"
 import { definePlugin } from "../../web/src/store/plugin"
 import type { AIEditTicketOutcome } from "../../web/src/store/state"
-import { newStore, sequence, worldRows } from "../support"
+import { newStore, worldRows } from "../support"
 
 const BOX = "@matomezu/box:shape-nest-box"
 type Drawing = Book
@@ -53,8 +53,8 @@ const show = (store: Store) => store.actions.resizeStage("s1", { w: 1400, h: 100
 const captions = (store: Store) =>
   (pagesOf(bookOf(store))[0]?.items ?? []).map(x => (x.props as { caption?: string }).caption)
 
-test("開いているページの AI の変更は、すぐ画面の履歴に入り、時刻の新しい方から戻る（AI の変更が先に戻る）", async () => {
-  const store = ready(sequence())
+test("開いているページの AI の変更は、すぐ画面の履歴に入り、届いた順の新しい方から戻る（AI の変更が先に戻る）", async () => {
+  const store = ready()
   place(store, "自分")
   await settled()
   confirm(store)
@@ -68,8 +68,8 @@ test("開いているページの AI の変更は、すぐ画面の履歴に入�
   expect(captions(store)).not.toContain("自分")
 })
 
-test("見える所に無い物の変更は溜めておき、見えたら時刻の位置に差し込む。やり直せる画面の履歴の段は消さない", async () => {
-  const store = ready(sequence())
+test("見える所に無い物の変更は溜めておき、見えたら届いた順の位置に差し込む。やり直せる画面の履歴の段は消さない", async () => {
+  const store = ready()
   hide(store)
   place(store, "1")
   await settled()
@@ -86,7 +86,7 @@ test("見える所に無い物の変更は溜めておき、見えたら時刻�
 })
 
 test("開いていないページの変更は、そのページを開いたら見えたとする", async () => {
-  const store = ready(sequence())
+  const store = ready()
   const book = bookOf(store)
   store.actions.perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", title: "2" }, { book: "b1" })
   await settled()
@@ -101,7 +101,7 @@ test("開いていないページの変更は、そのページを開いたら�
 })
 
 test("まだ見ていない変更と同じ所を戻すと断り、自分の段を捨てる。その変更は残り、見えたら差し込む", async () => {
-  const store = ready(sequence())
+  const store = ready()
   hide(store)
   place(store, "自分")
   await settled()
@@ -116,7 +116,7 @@ test("まだ見ていない変更と同じ所を戻すと断り、自分の段�
 })
 
 test("常駐が自分で行った変更と、画面の履歴に入れないアクションの変更は入れない。ほかの窓の変更は AI の変更と同じに扱う", () => {
-  const store = ready(sequence())
+  const store = ready()
   foreign(store, { ...bookOf(store), title: "組み直し" }, "host")
   foreign(store, { ...bookOf(store), locked: true } as Book, "window", "3", "@matomezu/base:book-lock")
   expect(historyOf(store)).toBeUndefined()
@@ -125,7 +125,7 @@ test("常駐が自分で行った変更と、画面の履歴に入れないア�
 })
 
 test("プラグインを組み直したあとは、よその変更を画面の履歴に入れるかを、組み直した機能台帳のアクションで決める", () => {
-  const store = ready(sequence())
+  const store = ready()
   // 取り込んだ追加プラグインの、画面の履歴に入れないアクション（組み直す前の機能台帳には無い）
   const quiet = defineAction({
     id: "quiet:retitle",
@@ -148,7 +148,7 @@ test("プラグインを組み直したあとは、よその変更を画面の�
 
 test("AI の変更が見えたら seen を知らせる。見られる前の AI の変更と同じ所を戻すと断るので、lost は知らせない。ほかの窓の変更は知らせない", async () => {
   const told: AIEditTicketOutcome[] = []
-  const store = ready(sequence(), c => told.push(c))
+  const store = ready(undefined, c => told.push(c))
   hide(store)
   place(store, "自分")
   await settled()
@@ -171,7 +171,7 @@ test("AI の変更が見えたら seen を知らせる。見られる前の AI �
 
 test("戻すが消したのでなく、ふつうの操作のあとに戻して AI の値に戻ったなら、捨てずに知らせない", async () => {
   const told: AIEditTicketOutcome[] = []
-  const store = ready(sequence(), c => told.push(c))
+  const store = ready(undefined, c => told.push(c))
   hide(store)
   place(store, "自分")
   await settled()
@@ -191,7 +191,7 @@ test("戻すが消したのでなく、ふつうの操作のあとに戻して A
 
 test("窓が見えていない間は、見えたとしない。見えるようになって確かめ直したら差し込む", () => {
   let visible = false
-  const store = newStore({ now: sequence(), visible: () => visible })
+  const store = newStore({ visible: () => visible })
   store.receive({ ...worldRows([bookOf(store)]), settings: {} }, [])
   foreign(store, { ...bookOf(store), title: "AI" })
   expect(historyOf(store)).toBeUndefined()
@@ -201,7 +201,7 @@ test("窓が見えていない間は、見えたとしない。見えるよう�
 })
 
 test("AI の 1 回の操作が何冊も変えたら、見えたブックの画面の履歴にだけ、そのブックの分が入る", () => {
-  const store = newStore({ now: sequence() })
+  const store = newStore()
   store.actions.resizeStage("s1", { w: 1400, h: 1000 })
   let world = { b1: bookOf(store), b2: store.state.getState().books.b2 as Drawing }
   store.receive({ ...worldRows(Object.values(world)), settings: {} }, [])
@@ -216,13 +216,13 @@ test("AI の 1 回の操作が何冊も変えたら、見えたブックの画�
   }
   change({ ...world.b2, title: "AI" })
   change({ ...world.b1, title: "AI" })
-  expect(historyOf(store)?.undo.map(s => s.books)).toEqual([["b1"]])
+  expect(historyOf(store)?.undo.map(s => s.outermosts)).toEqual([["b1"]])
   expect(store.state.getState().history.b2).toBeUndefined()
 })
 
 test("AI がほかのページを足しただけなら、開いているページでは見えたとしない。足したページを開いたら見えた", async () => {
   const told: AIEditTicketOutcome[] = []
-  const store = ready(sequence(), c => told.push(c))
+  const store = ready(undefined, c => told.push(c))
   const now = bookOf(store)
   const first = pagesOf(now)[0]!
   foreign(store, { ...now, lineup: [...now.lineup, { ...first, id: "p-ai", title: "AI" }] } as Book, "ai", "4")
@@ -233,7 +233,7 @@ test("AI がほかのページを足しただけなら、開いているペー�
 })
 
 test("AI がページの並びの順だけを変えたら、ブックを開いていればすぐ見えた", async () => {
-  const store = ready(sequence())
+  const store = ready()
   store.actions.perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", title: "2" }, { book: "b1" })
   await settled()
   confirm(store)
@@ -245,7 +245,7 @@ test("AI がページの並びの順だけを変えたら、ブックを開い�
 test("見られる前の AI の変更を、画面の履歴に入れない利用者の変更が上書きしたら、消えた所と AI の値を、そのブックの分として知らせる", async () => {
   const told: AIEditTicketOutcome[] = []
   let visible = false
-  const store = newStore({ now: sequence(), visible: () => visible, aiEditTicket: c => told.push(c) })
+  const store = newStore({ visible: () => visible, aiEditTicket: c => told.push(c) })
   store.receive({ ...worldRows([bookOf(store)]), settings: {} }, [])
   const flow = "@matomezu/base:print-preview-flow"
   foreign(store, { ...bookOf(store), settings: { [flow]: "row" } } as Book, "ai", "6", "@matomezu/base:book-update")
@@ -270,4 +270,17 @@ test("見られる前の AI の変更を、画面の履歴に入れない利用�
   visible = true
   store.checkSeen()
   expect(historyOf(store)).toBeUndefined()
+})
+
+test("AI が足したページを、見る前に利用者がロックしても、消えたとしない（開けば、画面の履歴に入る）", async () => {
+  const told: AIEditTicketOutcome[] = []
+  const store = ready(undefined, c => told.push(c))
+  const now = bookOf(store)
+  const first = pagesOf(now)[0]!
+  foreign(store, { ...now, lineup: [...now.lineup, { ...first, id: "p-ai", title: "AI" }] } as Book, "ai", "4")
+  expect(store.actions.perform("@matomezu/base:page-lock", {}, { page: "p-ai" })).toMatchObject({ ok: true })
+  await settled()
+  expect(told).toEqual([])
+  store.actions.openPage("s1", "p-ai")
+  expect(told).toEqual([{ act: "4", places: ["p-ai", "b1"], outcome: "seen" }])
 })

@@ -261,20 +261,20 @@ function outermostLibrary(): Library {
 
 test("ステージエントリ: ブックとその中の物はブック、ブックの外のバインダとその中のページはバインダ、ブックの外のページはそのページ", () => {
   const library = outermostLibrary()
-  expect(outermostOf(library, "b1")).toEqual({ kind: "book", book: "b1" })
-  expect(["p1", "f1", "s1"].map(id => outermostOf(library, id))).toEqual(Array(3).fill({ kind: "book", book: "b1" }))
-  expect(outermostOf(library, "g1")).toEqual({ kind: "binder", binder: "g1" })
-  expect(outermostOf(library, "t1")).toEqual({ kind: "binder", binder: "g1" })
-  expect(outermostOf(library, "x1")).toEqual({ kind: "page", page: "x1" })
-  expect(outermostOf(library, "y1")).toEqual({ kind: "page", page: "y1" })
+  expect(outermostOf(library, "b1")).toEqual({ kind: "book", id: "b1" })
+  expect(["p1", "f1", "s1"].map(id => outermostOf(library, id))).toEqual(Array(3).fill({ kind: "book", id: "b1" }))
+  expect(outermostOf(library, "g1")).toEqual({ kind: "binder", id: "g1" })
+  expect(outermostOf(library, "t1")).toEqual({ kind: "binder", id: "g1" })
+  expect(outermostOf(library, "x1")).toEqual({ kind: "page", id: "x1" })
+  expect(outermostOf(library, "y1")).toEqual({ kind: "page", id: "y1" })
 })
 
 test("ステージエントリ: ゴミ箱の中の物も外と同じに引く", () => {
   const library = outermostLibrary()
-  expect(outermostOf(library, "b2")).toEqual({ kind: "book", book: "b2" })
-  expect(outermostOf(library, "z1")).toEqual({ kind: "page", page: "z1" })
-  expect(outermostOf(library, "h1")).toEqual({ kind: "binder", binder: "h1" })
-  expect(outermostOf(library, "w1")).toEqual({ kind: "binder", binder: "h1" })
+  expect(outermostOf(library, "b2")).toEqual({ kind: "book", id: "b2" })
+  expect(outermostOf(library, "z1")).toEqual({ kind: "page", id: "z1" })
+  expect(outermostOf(library, "h1")).toEqual({ kind: "binder", id: "h1" })
+  expect(outermostOf(library, "w1")).toEqual({ kind: "binder", id: "h1" })
 })
 
 test("ステージエントリ: フォルダ・書庫ホーム・ゴミ箱・表に無い id・どこにも入っていないページは NO_OUTERMOST", () => {

@@ -5,7 +5,7 @@
 import { findBinder, findPage } from "../../../core/book"
 import { fail } from "../../../core/errors"
 import type { Book } from "../../../core/schema/book"
-import { shownPageId } from "../../../core/stage"
+import { openedBook, shownPageId } from "../../../core/stage"
 import { stageIn } from "../../../core/window"
 import { openedAt } from "../../../store/dialogs"
 import { ActsOnScope } from "../../../ui/scope"
@@ -15,7 +15,7 @@ import { useEditLock } from "../utils/useEditLock"
 export function DialogHost() {
   const dialog = useMatomezuState(s => s.dialog)
   const opened = useMatomezuState(s => (s.dialog ? stageIn(s.window, s.dialog.stage)?.opened : undefined) ?? null)
-  const book = useMatomezuState(s => (opened ? s.books[opened.outermost] : undefined))
+  const book = useMatomezuState(s => openedBook(s.books, opened))
   const { closeDialog } = useStoreActions()
   const ui = useUiCatalog()
   const dialogs = useCatalog().store.dialogs

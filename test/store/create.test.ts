@@ -95,7 +95,7 @@ describe("インスタンスを作る", () => {
     expect(createBookIn(instance, "s1", { title: "メモ", page: { type: "notes:note" } as never })).toBe(true)
     expect(screenOf(instance.state.getState().window).stages[0]!.opened).toMatchObject({
       type: "notes:note",
-      outermost: "n1",
+      outermost: { kind: "book", id: "n1" },
     })
     expect(untyped(instance.actions).command("s1", "notes:shoot")).toBe(true)
     expect(instance.state.getState().dialog).toMatchObject({ id: "notes:shot", stage: "s1" })

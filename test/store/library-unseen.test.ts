@@ -1,6 +1,6 @@
 // まだ見ていない、AI とほかの窓の書庫の変更: 常駐の知らせ（receive の change）の library（書庫の履歴に入るアクションが変えたページとフォルダの前と後）の分は、
 // ブックの画面の履歴に入れず、まだ見ていない書庫の変更として溜める。変わったフォルダか、変わった物を入れているフォルダを、見えているスクリーンのビューが見せたら、
-// 書庫の履歴に時刻の位置で差し込む。まだ見ていない変更と同じ所を置き直す戻す・やり直すは断る。画面の履歴に入らない変更（完全に消すなど）が
+// 書庫の履歴に届いた順の位置で差し込む。まだ見ていない変更と同じ所を置き直す戻す・やり直すは断る。画面の履歴に入らない変更（完全に消すなど）が
 // 消した、まだ見ていない変更は捨て、AI の物は消えたと知らせる
 
 import { expect, test } from "bun:test"
@@ -33,14 +33,14 @@ const renamed = (there: Store, title: string): Step => ({
   library: true,
 })
 
-// この窓 here と、よそ（AI かほかの窓の代わりに、同じ世界から始めて行う）there。told は、この窓が常駐に知らせた見えた・消えた
-function pair(visible: () => boolean = () => true) {
+// この窓 here と、よそ（AI かほかの窓の代わりに、同じ世界から始めて行う）there。told は、この窓が常駐に知らせた見えた・消えた。now は here の時計（無ければ 1 秒ずつ進む）
+function pair(visible: () => boolean = () => true, now?: () => string) {
   const told: AIEditTicketOutcome[] = []
   let at = 0
   const here = newStore({
     visible,
     newId: sequence(),
-    now: () => `2026-11-18T01:00:${String(at++).padStart(2, "0")}.000Z`,
+    now: now ?? (() => `2026-11-18T01:00:${String(at++).padStart(2, "0")}.000Z`),
     aiEditTicket: c => told.push(c),
   })
   const there = newStore({ newId: sequence() })
@@ -241,13 +241,27 @@ test("窓が見えていない間は、見せているフォルダの変更も�
   expect(libraryHistory(here).undo).toMatchObject([{ by: "ai" }])
 })
 
-test("見えた変更は、時刻の位置に入る（そのあとの利用者の段より前）", async () => {
+test("見えた変更は、届いた順の位置に入る（そのあとの利用者の段より前）", async () => {
   const { here, there, foreign, show } = pair()
   await foreign({ by: "window", act: "1", actions: [RENAME] }, renamed(there, "ほかの窓の名前"))
   here.actions.perform("@matomezu/base:folder-create", { title: "利用者のフォルダ" })
   await settled()
   show([HOME_ID])
   expect(libraryHistory(here).undo.map(s => s.by)).toEqual(["window", "user"])
+})
+
+test("時計が後ろへ戻ったあとに届いた変更も、前に届いた変更より後ろに入る（元に戻すは、後に届いた方を戻す）", async () => {
+  // マシンの時計は合わせ直しで後ろへ戻ることがある。並びは届いた順で、時計で決めない
+  const times = ["2026-11-18T01:00:10.000Z", "2026-11-18T01:00:08.000Z"]
+  let read = 0
+  const { here, there, foreign, show } = pair(undefined, () => times[Math.min(read++, times.length - 1)] as string)
+  show([HOME_ID])
+  await foreign({ by: "ai", act: "1", actions: [RENAME] }, renamed(there, "先の名前"))
+  await foreign({ by: "ai", act: "2", actions: [RENAME] }, renamed(there, "後の名前"))
+  expect(libraryHistory(here).undo.map(s => (s.folders.b1?.after as { title?: string } | undefined)?.title)).toEqual([
+    "先の名前",
+    "後の名前",
+  ])
 })
 
 test("AI の 1 回の変更が 2 冊のブックを変え、見られる前に利用者がその両方を完全に消したら、ブックごとに、そのブックの分だけを知らせる", async () => {
@@ -471,4 +485,32 @@ test("まだ見ていない AI の書庫の変更は、利用者がそのブッ�
   expect(told).toEqual([])
   show([HOME_ID])
   expect(libraryHistory(here).undo.map(s => s.by)).toEqual(["ai"])
+})
+
+test("AI が作ったブックを、見られる前に利用者が完全に消したら、作ったブックまるごとを消えたと知らせる", async () => {
+  const { here, there, told, foreign } = pair()
+  let made: unknown
+  await foreign(
+    { by: "ai", act: "8", actions: ["@matomezu/base:book-create"] },
+    {
+      run: () => {
+        made = there.actions.perform("@matomezu/base:book-create", { title: "AI のブック" })
+      },
+      library: true,
+    },
+  )
+  const created = (made as { result: { book: string } }).result.book
+  here.actions.perform(TRASH, { entry: created })
+  await settled()
+  here.actions.perform(PURGE, { entries: [created] })
+  await settled()
+  expect(told).toMatchObject([
+    {
+      entry: created,
+      act: "8",
+      places: [created],
+      outcome: "lost",
+      lost: [{ entry: created, at: "", value: { id: created, title: "AI のブック" } }],
+    },
+  ])
 })

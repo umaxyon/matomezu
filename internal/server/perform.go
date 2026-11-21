@@ -64,8 +64,9 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		h.ack(p, done)
 		return done, nil
 	}
-	// 時点の無いアクション（AI やホストが頼んだ物）は、ここで時計を 1 回読んで時点と日付を決める
-	in := engine.Input{Actions: stamped(p.Actions, time.Now()), Settings: h.settings, Actor: h.actorOfHeld(p), TimeoutSec: p.TimeoutSec}
+	// 時点の無いアクション（AI やホストが頼んだ物）は、ここで時計を 1 回読んで時点と日付を決める（前に決めた時点より後）
+	h.actionNow = laterThan(h.actionNow, time.Now())
+	in := engine.Input{Actions: stamped(p.Actions, h.actionNow), Settings: h.settings, Actor: h.actorOfHeld(p), TimeoutSec: p.TimeoutSec}
 	if err := h.performInputs(&in); err != nil {
 		return Performed{}, err
 	}

@@ -5,6 +5,7 @@ import { pagesIn } from "../books"
 import { aiAuth, BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test, urlPlace } from "../fixtures"
 import { aiPerform } from "../helpers/ai"
 import { footerMenuTool } from "../helpers/footer-menu"
+import { openNewBookDialog } from "../helpers/new-book"
 import { enablePlugins } from "../helpers/settings"
 import { fromMenu } from "../helpers/stage-menu"
 import { storedBook, storedBooks, storedPageVersion } from "../helpers/stored"
@@ -311,8 +312,7 @@ test("新しいブックのダイアログに追加プラグインのタイプ�
   await link(page, "test/added-plugins/ex3")
   await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "画面を分割")).click()
-  await page.getByRole("button", { name: "ブック新規作成" }).locator("visible=true").click()
-  const dialog = page.getByRole("dialog", { name: "新しいブック" })
+  const dialog = await openNewBookDialog(page)
   await page.keyboard.type("星のボード")
   await page.keyboard.press("Enter")
   await expect(dialog).toBeHidden()

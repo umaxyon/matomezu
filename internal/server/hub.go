@@ -107,6 +107,7 @@ type Hub struct {
 	seenEnvelopes    map[string]bool        // 行列に入れた AI 間メッセージの封筒の id（message.go。二度入れない）
 	seenOrder        []string               // seenEnvelopes に入れた順（古い物から忘れる）
 	next             int
+	actionNow        time.Time        // 前に、時点の無いアクションに入れた時点（Perform。時計が後ろへ戻っても、これより後にする）
 	ticks            int64            // フォーカスの順を振る数
 	viewed           chan struct{}    // 窓が見ているものを知らせたら閉じて、作り直す（WaitWindow）
 	plugins          []*plugin.Bundle // 足した追加プラグイン（plugins.go）

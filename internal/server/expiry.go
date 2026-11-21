@@ -20,6 +20,16 @@ const ExpireEvery = time.Minute
 // localDate は、アクションの日付と同じ書き方の、時点 t の利用者（この OS の時間帯）の暦の日付（YYYY-MM-DD）
 func localDate(t time.Time) string { return t.In(time.Local).Format("2006-01-02") }
 
+// laterThan は、前に決めた時点 last のあとに、時計で now と読んだときの時点: now が last より後なら now、後でなければ last の 1ms 後（時点はミリ秒まで残すので、
+// ミリ秒で比べる）。マシンの時計は合わせ直しで後ろへ戻ることがあるので、続けて決める時点が、前の時点より前や同じにならないようにする
+func laterThan(last, now time.Time) time.Time {
+	now = now.Truncate(time.Millisecond)
+	if now.After(last) {
+		return now
+	}
+	return last.Add(time.Millisecond)
+}
+
 // stamped は、時点の無いアクションに、時点 now とその日付を同じ時点から入れた写し（時点のあるアクションは、そのまま）
 func stamped(actions []engine.BulkAction, now time.Time) []engine.BulkAction {
 	out := slices.Clone(actions)

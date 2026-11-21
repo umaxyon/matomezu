@@ -223,7 +223,7 @@ export function overLimit(win: Pick<WindowState, "screens" | "order">, def: stri
 export function bookScreenShowing(win: Pick<WindowState, "screens" | "order">, book: string): BookScreen | undefined {
   for (let i = win.order.length - 1; i >= 0; i--) {
     const s = win.screens.find(x => x.id === win.order[i])
-    if (s && holdsStages(s) && s.stages.stages.some(st => st.opened?.outermost === book)) return s
+    if (s && holdsStages(s) && s.stages.stages.some(st => st.opened?.outermost.id === book)) return s
   }
   return undefined
 }
@@ -239,7 +239,7 @@ export function shownBook(win: WindowState, catalog: CoreCatalog, book: Book): {
       stage: opened.win.screens.find(s => s.id === opened.id)?.stages?.current ?? "",
     }
   }
-  const stages = showing.stages.stages.filter(st => st.opened?.outermost === book.id)
+  const stages = showing.stages.stages.filter(st => st.opened?.outermost.id === book.id)
   const stage = (stages.find(st => st.id === showing.stages.current) ?? stages[0])?.id ?? ""
   return {
     win: makeCurrent(

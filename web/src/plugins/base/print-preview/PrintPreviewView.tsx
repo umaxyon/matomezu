@@ -176,7 +176,7 @@ function PrintPreviewBody({ id }: { id: string }) {
   useEffect(() => {
     if (!crossing || !opened) return
     closePrintPreview(id)
-    openPanel(id, printCheckOpen(opened.outermost))
+    openPanel(id, printCheckOpen(opened.outermost.id))
   }, [crossing, id, opened, closePrintPreview, openPanel])
   useEffect(() => {
     if (crossing) return
@@ -186,7 +186,7 @@ function PrintPreviewBody({ id }: { id: string }) {
     else if (opened)
       openPanel(
         id,
-        { widget: PRINT_PREVIEW_PANEL_ID, subject: opened.outermost, anchors: [], current: opened.outermost },
+        { widget: PRINT_PREVIEW_PANEL_ID, subject: opened.outermost.id, anchors: [], current: opened.outermost.id },
         "none",
       )
   }, [crossing, shown, id, opened, closePrintPreview, openPanel])

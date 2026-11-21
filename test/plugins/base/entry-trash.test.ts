@@ -60,9 +60,9 @@ test("分けたステージの片方のブックが無くなると、そのス�
   const right = screenOf(state.getState().window).stages[1]?.id ?? ""
   actions.openBook(right, "b2")
   expect(actions.perform("@matomezu/base:entry-trash", { entry: "b2" }).ok).toBe(true)
-  expect(screenOf(state.getState().window).stages.map(s => s.opened?.outermost)).toEqual(["b1"])
+  expect(screenOf(state.getState().window).stages.map(s => s.opened?.outermost.id)).toEqual(["b1"])
   expect(actions.perform("@matomezu/base:entry-restore", { entry: "b2" }).ok).toBe(true)
-  expect(screenOf(state.getState().window).stages.map(s => s.opened?.outermost)).toEqual(["b1"])
+  expect(screenOf(state.getState().window).stages.map(s => s.opened?.outermost.id)).toEqual(["b1"])
 })
 
 test("ゴミ箱のブックは、ブックが対象のアクションでは無いものとして断る", () => {

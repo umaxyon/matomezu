@@ -51,6 +51,7 @@ export function TicketMode({ term, setTerm }: WideSearchModeProps) {
     update(now => f(now ?? { ...NO_FILTER, projects: shownIds }))
   const latest = useRef(0) // 最後に頼んだ問い合わせの番号（それ以外の返りは捨てる）
   const first = useRef(true)
+  const restored = useRef<string | null>(null) // 開き直したときに、絞りから入力に戻した言葉（それで問い合わせ直すまで）
   // biome-ignore lint/correctness/useExhaustiveDependencies: 言葉が変わったときだけ探す
   useEffect(() => {
     // 開き直したとき、絞りに言葉が残っていれば入力に戻す（言葉が空のまま、残っている絞りを消さない）
@@ -58,12 +59,15 @@ export function TicketMode({ term, setTerm }: WideSearchModeProps) {
     if (first.current) {
       first.current = false
       if (term === "" && kept !== "") {
+        restored.current = kept
         setTerm(kept)
         return
       }
     }
     const words = term.trim()
     const n = ++latest.current
+    const again = words === restored.current
+    restored.current = null
     if (words === "") {
       setFailed(false)
       update(now => (now && (now.term !== "" || now.hits !== null) ? { ...now, term: "", hits: null } : now))
@@ -74,7 +78,9 @@ export function TicketMode({ term, setTerm }: WideSearchModeProps) {
         ids => {
           if (n !== latest.current) return
           setFailed(false)
-          change(now => ({ ...now, term: words, hits: ids }))
+          // 戻した言葉で問い合わせ直した答えは、絞りがその言葉のまま残っているときだけ入れる（その間に解かれた絞りを戻さない）
+          if (again) update(now => (now?.term === words ? { ...now, hits: ids } : now))
+          else change(now => ({ ...now, term: words, hits: ids }))
         },
         () => {
           if (n === latest.current) setFailed(true)
