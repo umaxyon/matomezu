@@ -13,7 +13,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"runtime"
 	"time"
 
 	"github.com/gofrs/flock"
@@ -29,32 +28,18 @@ const (
 	cookiesName = "cookies.json"
 )
 
-// Dir は matomezu 保管庫フォルダの場所。EnvHome があればそれ、無ければ OS ごとのデータの置き場所の下の matomezu
+// Dir は matomezu 保管庫フォルダの場所。EnvHome があればそれ、無ければどの OS でもホームの下の .matomezu。
+// Windows で AppData の下に置かないのは、MSIX のパッケージの中（Claude Desktop の Code タブ）から起動されると、AppData の下に新しく作る物がそのパッケージだけの場所（%LOCALAPPDATA%\Packages\<パッケージ>\LocalCache）へ付け替わり、利用者が外で打つ matomezu と別の保管庫になるため（Microsoft Learn「Understanding how packaged desktop apps run on Windows」）。
+// ほかの OS も同じ場所にそろえる
 func Dir() (string, error) {
 	if d := os.Getenv(EnvHome); d != "" {
 		return filepath.Abs(d)
-	}
-	switch runtime.GOOS {
-	case "windows":
-		if d := os.Getenv("LOCALAPPDATA"); d != "" {
-			return filepath.Join(d, "matomezu"), nil
-		}
-	case "darwin":
-		d, err := os.UserConfigDir() // ~/Library/Application Support
-		if err != nil {
-			return "", err
-		}
-		return filepath.Join(d, "matomezu"), nil
-	default:
-		if d := os.Getenv("XDG_DATA_HOME"); d != "" {
-			return filepath.Join(d, "matomezu"), nil
-		}
 	}
 	h, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(h, ".local", "share", "matomezu"), nil
+	return filepath.Join(h, ".matomezu"), nil
 }
 
 // Home は、作った（あれば開いた）matomezu 保管庫フォルダ
