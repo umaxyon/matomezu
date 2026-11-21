@@ -1,5 +1,5 @@
-// その場の編集の 1 行の入力Formの、書いている字: プラグインが自分のステージごとのプラグイン状態に置き（入力Formのフック useInPlaceInput が書く）、
-// 確定・取り消しのコマンドが読んで消す。どの物の字かを target に持つ（選びが替わったら、前の物の字は読まない）
+// コマンドが読む、テキストForm に書いている字（その場の編集の入力Form・伝言のテキストFormなど）: プラグインが自分のステージごとのプラグイン状態に置き（その場の編集は入力Formのフック useInPlaceInput が書く）、
+// 確定・取り消し・送るのコマンドが読んで消す。どの物の字かを target に持つ（選びが替わったら、前の物の字は読まない）
 import type { PluginStateDef } from "../../../core/def/plugin-state"
 import type { CommandActions, CommandContext } from "../../../store/commands/def"
 

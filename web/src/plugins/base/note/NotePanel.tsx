@@ -1,13 +1,15 @@
 // 伝言の右サイドパネルの中身（ウィジェット note-panel）: ステージの選択に従い、選んだ物が付ける先になる（右サイドパネルの anchors。カレントは current）。
 // 上に付ける先の名前のバッジを並べ（カレントは色違い）、押すとその物をカレントにする（右サイドパネルが、倍率はそのままで真ん中へ見せる）。
-// 新しく書く（subject が NEW_NOTE）なら、文を書いて「付ける」。付けた伝言なら、文を直すか付ける先を変えて「再送」。
+// 新しく書く（subject が NEW_NOTE）なら、文を書いて「付ける」。付けた伝言なら、文を直すか付ける先を変えて「再送」。どちらも送るのはコマンド note-send（ボタンとテキストForm の Mod+Enter）。
 // どちらも付ける先はカレントを最後に並べて渡し、吹き出しはカレントに出る。付けるか再送したら閉じる（閉じたら選択を外すのは右サイドパネル）。
 // 書いている間に付ける先の物がブックから消えたら（AI が消したなど）、閉じずにテキストFormの上に知らせ、書きかけはそのまま残す（付ける先が無い間は付けられない）。
 // 吹き出しを出すか（隠す・表示）・消すは、付けた伝言では押したときに変える。変えられなければ（認可ステップが止めたなど）、どれも始められない。
 // 付けた伝言は、文か付ける先を変えてから、再送するか閉じるまで編集ロックを掛ける（AI が変えも消しもしない。開いて見ているだけなら掛けない）。付けた伝言が無くなったら（利用者がほかの窓で消したなど）、黙って右サイドパネルを閉じる
-import { useEffect, useRef, useState } from "react"
-import { anchorIds } from "../../../core/annotation"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { type Annotation, anchorIds } from "../../../core/annotation"
+import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
+import { usePluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
 import { useAllowed, usePage, useUserSetting } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
@@ -17,7 +19,17 @@ import { clampChars } from "../text/text"
 import { useAnnotationsOf, usePerformOrToast } from "../utils/annotation-hooks"
 import { useEditLock } from "../utils/useEditLock"
 import { useNow } from "../utils/useNow"
-import { NOTE, NOTE_ADD, NOTE_REMOVE, NOTE_UPDATE, type NoteProps, NoteTextSchema } from "."
+import {
+  NOTE,
+  NOTE_ADD,
+  NOTE_DRAFT,
+  NOTE_REMOVE,
+  NOTE_SEND,
+  NOTE_UPDATE,
+  type NoteProps,
+  noteSendOf,
+  orderedAnchors,
+} from "."
 import { expiryOutlook, hoursAndMinutes, NOTE_EXPIRY } from "./expiry"
 import { GrowingText } from "./NoteForm"
 import form from "./NoteForm.module.css"
@@ -42,13 +54,7 @@ export function NotePanel() {
       <Lost anchors={open.anchors} />
       {note ? (
         // 文が外で変わったら、テキストFormを新しい文で始め直す
-        <NoteEditor
-          key={`${note.id}:${(note.props as NoteProps).text}`}
-          id={note.id}
-          anchors={note.anchors}
-          props={note.props as NoteProps}
-          open={open}
-        />
+        <NoteEditor key={`${note.id}:${(note.props as NoteProps).text}`} note={note} open={open} />
       ) : (
         <NewNote open={open} />
       )}
@@ -57,10 +63,6 @@ export function NotePanel() {
 }
 
 // 付ける先 open.anchors を、カレントを最後にした並び（吹き出しはカレントに出る）
-const ordered = (open: RightSidePanelOpen): string[] =>
-  open.anchors.includes(open.current)
-    ? [...open.anchors.filter(id => id !== open.current), open.current]
-    : [...open.anchors]
 
 // 付ける先の名前のバッジ: カレントは色違い。押すとその物をカレントにする。名前は BADGE_CHARS 字で切り、全体はツールチップで見せる
 function Badges({ open }: { open: RightSidePanelOpen }) {
@@ -103,29 +105,28 @@ function Lost({ anchors }: { anchors: readonly string[] }) {
   ) : null
 }
 
-// 新しく書く伝言: 文を書いて「付ける」（付ける先が無い間は付けられない）
+// 伝言 subject（新しく書く伝言なら NEW_NOTE）の、書いている文（書いていなければ initial）と、書き換える関数。書いている文はステージのプラグイン状態 NOTE_DRAFT に置き
+// （送るコマンドが読む）、パネルの中身が外れたら消す（閉じたときと、外で文が変わって書き始め直すとき）
+function useNoteDraft(subject: string, initial: string): [string, (text: string) => void] {
+  const draft = usePluginState(kit, NOTE_DRAFT)
+  const setDraft = useSetPluginState(kit, NOTE_DRAFT)
+  useEffect(() => () => setDraft(undefined), [setDraft])
+  const write = useCallback((text: string) => setDraft({ target: subject, text }), [setDraft, subject])
+  return [draft?.target === subject ? draft.text : initial, write]
+}
+
+// 新しく書く伝言: 文を書いて「付ける」（付ける先が無い間は付けられない）。付けるのは送るコマンド（Mod+Enter と同じ）
 function NewNote({ open }: { open: RightSidePanelOpen }) {
   const t = useMessages(kit)
-  const run = usePerformOrToast(kit.message("The note was refused"))
-  const close = useCloseRightSidePanel()
+  const send = useCommand(NOTE_SEND.id)
   const addable = useAllowed(NOTE_ADD.id).ok
-  const [text, setText] = useState("")
-  const ready = addable && NoteTextSchema.safeParse(text).success && open.anchors.length > 0
-  const add = () => {
-    if (ready && run(NOTE_ADD.id, { anchors: ordered(open), text })) close()
-  }
+  const [text, setText] = useNoteDraft(NEW_NOTE, "")
+  const ready = addable && noteSendOf(open, text, undefined) !== null
   return (
     <>
-      <GrowingText
-        value={text}
-        onChange={setText}
-        placeholder={t("Note…")}
-        onSubmit={add}
-        label={t("Note")}
-        autoFocus
-      />
+      <GrowingText value={text} onChange={setText} placeholder={t("Note…")} label={t("Note")} autoFocus />
       <div className={form.buttons}>
-        <button type="button" className={form.primary} disabled={!ready} onClick={add}>
+        <button type="button" className={form.primary} disabled={!ready} onClick={() => send.run()}>
           {t("Add")}
         </button>
       </div>
@@ -133,25 +134,17 @@ function NewNote({ open }: { open: RightSidePanelOpen }) {
   )
 }
 
-// 付けた伝言: 文を直すか付ける先を変えて「再送」。たたむ・消すは、押したときに変える
-function NoteEditor({
-  id,
-  anchors,
-  props,
-  open,
-}: {
-  id: string
-  anchors: readonly string[]
-  props: NoteProps
-  open: RightSidePanelOpen
-}) {
+// 付けた伝言: 文を直すか付ける先を変えて「再送」（送るコマンド。Mod+Enter と同じ）。たたむ・消すは、押したときに変える
+function NoteEditor({ note, open }: { note: Annotation; open: RightSidePanelOpen }) {
+  const { id, anchors } = note
+  const props = note.props as NoteProps
   const t = useMessages(kit)
   const run = usePerformOrToast(kit.message("The note was refused"))
-  const close = useCloseRightSidePanel()
+  const send = useCommand(NOTE_SEND.id)
   const updatable = useAllowed(NOTE_UPDATE.id).ok
   const removable = useAllowed(NOTE_REMOVE.id).ok
-  const [text, setText] = useState(props.text)
-  const next = ordered(open)
+  const [text, setText] = useNoteDraft(id, props.text)
+  const next = orderedAnchors(open)
   const moved = next.length !== anchors.length || next.some((a, i) => anchors[i] !== a)
   // 文か付ける先を一度変えたら、閉じるまで、この伝言を AI が変えも消しもしない（読んだと知らせるのも。付いた物を消して伝言が変わるのも）
   const [edited, setEdited] = useState(false)
@@ -160,30 +153,13 @@ function NoteEditor({
     if (editing) setEdited(true)
   }, [editing])
   useEditLock(open.page, edited || editing ? [id] : [])
-  const textChanged = NoteTextSchema.safeParse(text).success && text !== props.text
-  const changed = updatable && next.length > 0 && (textChanged || moved)
-  const save = () => {
-    if (!changed) return
-    const done = run(NOTE_UPDATE.id, {
-      note: id,
-      ...(textChanged ? { text } : {}),
-      ...(moved ? { anchors: next } : {}),
-    })
-    if (done) close()
-  }
+  const changed = updatable && noteSendOf(open, text, note) !== null
   return (
     <>
-      <GrowingText
-        value={text}
-        onChange={setText}
-        placeholder={t("Note…")}
-        onSubmit={save}
-        label={t("Note")}
-        readOnly={!updatable}
-      />
+      <GrowingText value={text} onChange={setText} placeholder={t("Note…")} label={t("Note")} readOnly={!updatable} />
       <ExpiryNote props={props} />
       <div className={form.buttons}>
-        <button type="button" className={form.primary} disabled={!changed} onClick={save}>
+        <button type="button" className={form.primary} disabled={!changed} onClick={() => send.run()}>
           {t("Resend")}
         </button>
         {props.readAt === undefined && (

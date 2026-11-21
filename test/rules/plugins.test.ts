@@ -1,4 +1,4 @@
-// 「プラグイン」の決まりを見張る: プラグインの中のファイルの役割、base の utils、core/catalog.ts への書き足し、見本
+// 「プラグイン」の決まりを見張る: プラグインの中のファイルの役割、base の utils、core/catalog.ts への書き足し、見本、ステージ・スクリーンを id で名指すファイル
 import { expect, test } from "bun:test"
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
 import { basename, dirname, join, normalize, relative, resolve } from "node:path"

@@ -218,6 +218,7 @@ export {
   TextBlockView,
   type TextDraft,
   useBodyGrips,
+  useEndWhenBlocked,
   useInPlaceInput,
 } from "./text/ui"
 export * from "./utils/ui"

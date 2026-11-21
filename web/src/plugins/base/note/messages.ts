@@ -15,6 +15,8 @@ export const NOTE_MESSAGES = defineMessages({
   Resend: { en: "Resend", ja: "再送" },
   Remove: { en: "Remove", ja: "消す" },
   Add: { en: "Add", ja: "付ける" },
+  Send: { en: "Send", ja: "送る" },
+  "Note text": { en: "Note text", ja: "伝言の文" },
   "Things the note is on": { en: "Things the note is on", ja: "伝言を付ける先" },
   "A thing the note was on was removed": {
     en: "A thing the note was on was removed",

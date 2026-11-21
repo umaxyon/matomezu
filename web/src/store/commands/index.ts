@@ -118,6 +118,8 @@ const frameOf = (win: WindowState, here: string): ScreenFrame => ({
   arrangementValue: win.arrangementValue,
 })
 
+const NO_ANNOTATIONS: readonly never[] = []
+
 // コマンド command をステージ stageId から呼んだときの、ステージから呼ぶコマンドの文脈。ステージが無ければ null
 export function commandContext(
   catalog: CoreCatalog,
@@ -141,6 +143,7 @@ export function commandContext(
           book,
           page: (page !== null && pageIn(state.pages, page)) || NO_PAGE,
           bookHistory: (book !== NO_BOOK && state.history[book.id]) || NO_HISTORY,
+          annotations: (page !== null && state.annotations[page]) || NO_ANNOTATIONS,
         },
         workspace,
         stageId,

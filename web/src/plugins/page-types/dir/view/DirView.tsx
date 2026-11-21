@@ -354,7 +354,7 @@ function Pluses({
   )
 }
 
-// 中に足す種類を選ぶ枠: フォルダとファイルを縦に並べ、初めはフォルダに焦点を置く。↑・↓ で焦点を動かし、Enter か押して onPick、Escape か枠の外へ焦点が移ると onCancel
+// 中に足す種類を選ぶ枠: フォルダとファイルを縦に並べ、初めはフォルダに焦点を置く。↑・↓ で焦点を動かし、押すと（焦点のあるボタンの Enter・Space も）onPick、Escape か枠の外へ焦点が移ると onCancel
 function KindPicker({
   at,
   onPick,
@@ -385,8 +385,7 @@ function KindPicker({
         if (e.key === "ArrowDown" || e.key === "ArrowUp")
           all[(i + (e.key === "ArrowDown" ? 1 : all.length - 1)) % all.length]?.focus()
         else if (e.key === "Escape") onCancel()
-        else if (e.key !== "Enter") return
-        else all[i]?.click()
+        else return
         e.preventDefault()
         e.stopPropagation()
       }}
