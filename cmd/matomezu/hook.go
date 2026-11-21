@@ -92,7 +92,7 @@ type hookInput struct {
 	Woken          bool   `json:"-"`               // 起こす知らせで始まったターン（フックが --woken で渡す。渡せない AI のプログラムは、その AI の事情で入力から見分ける。hookPrompt。知らせをそのまま入力の道で受ける AI のプログラムは、talked に添える入力を常駐が照らす）
 	Titled         bool   `json:"-"`               // formatHook の答えに sessionTitle を書くか（それを読む AI のプログラムだけ。知らない項目のある JSON を断る AI がある）
 	Cwd            string `json:"cwd"`             // AI のセッションのフォルダ
-	// Rename は、作業名を ADE のワークスペースの表示名にも書く（フォルダ dir の場所。答えを書いたあとに呼ぶ。nil なら書かない）
+	// Rename は、作業名を ADE のワークスペースの表示名にも書く（dir は AI のセッションのフォルダ。答えを書いたあとに呼ぶ。nil なら書かない）
 	Rename func(dir, name string) `json:"-"`
 }
 

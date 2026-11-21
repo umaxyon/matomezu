@@ -1,4 +1,4 @@
-// ワークルームのカレントチケット（判定は current-work の currentTicketOf）と、当てられているだけのチケット（担当に入っていて完了していない、カレントチケットでない物。更新の新しい順）
+// ワークルームのカレントチケット（判定は current-work の currentTicketOf）と、担当に入っているがカレントチケットでないチケット（担当に入っていて完了していない、カレントチケットでない物。更新の新しい順）
 import { useMemo } from "react"
 import { useRecord, useRecords } from "../../../plugin-api/ui"
 import { CURRENT_WORK, currentTicketOf, isCurrentFor } from "../current-work"

@@ -274,7 +274,7 @@ func TestTalkedWritesTheTitleEveryTurn(t *testing.T) {
 }
 
 // ターンの終わりのフック: 常駐に作業名を訊き、表示名に書く。何も出さない。名前が無い・常駐が無ければ書かない
-func TestStopRenamesThePlace(t *testing.T) {
+func TestStopRenamesTheAdeWorkspace(t *testing.T) {
 	var renamed []string
 	rename := func(dir, name string) { renamed = append(renamed, dir+"|"+name) }
 	var asked map[string]any

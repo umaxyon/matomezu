@@ -78,7 +78,7 @@ export const PARTICIPANT_MESSAGES = defineMessages({
   AI: { en: "AI", ja: "AI" },
   Model: { en: "Model", ja: "モデル" },
   Environment: { en: "Environment", ja: "環境" },
-  "ADE workspace": { en: "ADE workspace", ja: "ADE のワークスペース" },
+  Workspace: { en: "Workspace", ja: "ワークスペース" },
   Session: { en: "Session", ja: "セッション" },
   "Cancel a join request": { en: "Cancel a join request", ja: "参加要求をキャンセルする" },
 })

@@ -73,8 +73,8 @@ func joinBody(link, sessionName string) string {
 	return `{"ai":"claude","model":"opus","env":"wsl-linux","sessionName":"` + sessionName + `","link":"` + link + `","sessionId":"S1"}`
 }
 
-// 参加の手順を読んでも参加者はできない。場所は 120 字までで、要求中の参加者が持つ
-func TestJoinRulesAndPlace(t *testing.T) {
+// 参加の手順を読んでも参加者はできない。ADE のワークスペースの名前は 120 字までで、要求中の参加者が持つ
+func TestJoinRulesAndAdeWorkspace(t *testing.T) {
 	s, _ := joinWorld(t, joinStore(t))
 	rules, _ := call(t, "GET", s.URL+"/api/ai/join-rules", "", nil)
 	var reply struct {
