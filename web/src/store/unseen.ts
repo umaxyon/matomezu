@@ -22,7 +22,7 @@ import {
 } from "../core/history"
 import type { Books } from "../core/library"
 import { splitId } from "../core/names"
-import { patchOf, undoneIn } from "../core/patch"
+import { type Patch, patchOf, undoneIn } from "../core/patch"
 import { sameData } from "../core/same"
 import type { Book } from "../core/schema/book"
 import { type Stage, shownPageId, shownType, toPaper } from "../core/stage"
@@ -31,12 +31,11 @@ import type { StoreCatalog } from "./plugin"
 import { ownedPluginState, pluginValueOf } from "./plugin-state"
 import type { ForeignChange, ForeignLibraryRows, LostValue, MatomezuState, RowSides, StoreOptions } from "./state"
 
-// まだ見ていない変更を持つ所。checkSeen は見えた物を画面の履歴に差し込み、dropOverwritten・dropOverwrittenInLibrary はこの窓の利用者の、画面の履歴に入れない変更が
+// まだ見ていない変更を持つ所。checkSeen は見えた物を画面の履歴に差し込み、dropOverwritten はこの窓の利用者の、画面の履歴に入れない変更が
 // 消した物を捨て、addForeign はよその変更を足し、reset は持っている物を全部捨てる
 export interface UnseenChanges {
   checkSeen(): void
   dropOverwritten(was: Library, now: Library): void
-  dropOverwrittenInLibrary(was: Library, now: Library): void
   addForeign(change: ForeignChange | undefined, tables: Library): void
   reset(): void
 }
@@ -184,21 +183,27 @@ export function createUnseenChanges(deps: {
     const near = foldersNear(step, was.folders, to.folders)
     unseenInLibrary = [...unseenInLibrary, { step, act: change.act, near, places }].slice(-HISTORY_LIMIT)
   }
-  // まだ見ていない変更の段 step が書いた値のうち、表が was から now になって消えた所と値（行ごと。無ければ空）
+  // まだ見ていない変更の段 step が書いた値のうち、表が was から now になって消えた所と値（行ごと。無ければ空）。
+  // 段が足した行は、行が残っていれば、書いたフィールドごとに比べる（ロックなど、ほかのフィールドが変わっただけなら消えていない）。行が無くなったら、足した行まるごと 1 つ
   const lostIn = (step: HistoryStep, was: Library, now: Library): LostValue[] => {
-    const of = <T>(
+    const of = <T extends object>(
       rows: Readonly<Record<string, RowChange<T>>>,
       before: Readonly<Record<string, T>>,
       after: Readonly<Record<string, T>>,
     ) =>
-      Object.entries(rows).flatMap(([entry, r]) => {
-        const made = patchOf(r.before === "none" ? undefined : r.before, r.after === "none" ? undefined : r.after)
+      Object.entries(rows).flatMap(([entry, r]): LostValue[] => {
+        const added = r.before === "none" && r.after !== "none" ? r.after : undefined
+        if (added && !Object.hasOwn(after, entry))
+          return Object.hasOwn(before, entry) ? [{ entry, at: "", value: added }] : []
+        const made = added
+          ? ({ fields: Object.fromEntries(Object.entries(added).map(([k, set]) => [k, { set }])) } satisfies Patch)
+          : patchOf(r.before === "none" ? undefined : r.before, r.after === "none" ? undefined : r.after)
         return made ? undoneIn(made, before[entry], after[entry]).map(l => ({ entry, ...l })) : []
       })
     return [...of(step.pages, was.pages, now.pages), ...of(step.folders, was.folders, now.folders)]
   }
-  // この窓の利用者の、画面の履歴に入れない変更（表を was から now にした。ロックの掛け外し・完全に消す・置き直しなど）が、まだ見ていない変更が書いた値を消したら、
-  // それを捨てる（あとで見えても差し込まない。AI の物は、消えた所と値を、そのブックの分として知らせる）。
+  // この窓の利用者の、画面の履歴に入れない変更（表を was から now にした。ロックの掛け外し・完全に消す・ゴミ箱を空にする・置き直しなど）が、
+  // まだ見ていない変更が書いた値を消したら、それを捨てる（あとで見えても差し込まない。AI の物は、消えた所と値を、その物のステージエントリごとに知らせる）。
   // 画面の履歴に入れる操作が上書きした物は捨てない（その画面の履歴の段の前に値が残り、見えたら差し込まれ、戻せば戻る）
   const dropOverwritten = (was: Library, now: Library) => {
     unseen = unseen.filter(u => {
@@ -207,10 +212,6 @@ export function createUnseenChanges(deps: {
         options.aiEditTicket?.({ entry: u.book, act: u.act, places: u.places, outcome: "lost", lost })
       return lost.length === 0
     })
-  }
-  // この窓の利用者の、画面の履歴に入れない書庫の変更（表を was から now にした。完全に消す・ゴミ箱を空にする・置き直しなど）が、まだ見ていない書庫の変更が書いた値を
-  // 消したら、それを捨てる（あとで見えても差し込まない。AI の物は、消えた所と値を、その物のステージエントリごとに知らせる）
-  const dropOverwrittenInLibrary = (was: Library, now: Library) => {
     // 物 id のステージエントリの id（無ければ undefined）
     const entryOf = (id: string) => {
       const o = outermostOf(was, id)
@@ -273,5 +274,5 @@ export function createUnseenChanges(deps: {
     known = {}
     knownTables = { pages: {}, folders: {} }
   }
-  return { checkSeen, dropOverwritten, dropOverwrittenInLibrary, addForeign, reset }
+  return { checkSeen, dropOverwritten, addForeign, reset }
 }

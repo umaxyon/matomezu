@@ -275,7 +275,7 @@ export function initialState(
 export type AIEditTicketOutcome =
   | { act: string; places: readonly string[]; outcome: "seen" }
   | { entry: string; act: string; places: readonly string[]; outcome: "lost"; lost: readonly LostValue[] }
-// 見られる前に消えた所と値 1 つ: entry はページかフォルダ（ブック・バインダも）の id、at はその行の中の道
+// 見られる前に消えた所と値 1 つ: entry はページ・ブック・バインダの id、at はその行の中の道
 export type LostValue = { entry: string } & Written
 
 // 起動エラーの画面に出す物: 画面が起動を止めた理由の種類（kind。base の文言を引く）、原因の一覧と、直す手（ボタン）。

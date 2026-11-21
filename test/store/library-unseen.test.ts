@@ -472,3 +472,31 @@ test("まだ見ていない AI の書庫の変更は、利用者がそのブッ�
   show([HOME_ID])
   expect(libraryHistory(here).undo.map(s => s.by)).toEqual(["ai"])
 })
+
+test("AI が作ったブックを、見られる前に利用者が完全に消したら、作ったブックまるごとを消えたと知らせる", async () => {
+  const { here, there, told, foreign } = pair()
+  let made: unknown
+  await foreign(
+    { by: "ai", act: "8", actions: ["@matomezu/base:book-create"] },
+    {
+      run: () => {
+        made = there.actions.perform("@matomezu/base:book-create", { title: "AI のブック" })
+      },
+      library: true,
+    },
+  )
+  const created = (made as { result: { book: string } }).result.book
+  here.actions.perform(TRASH, { entry: created })
+  await settled()
+  here.actions.perform(PURGE, { entries: [created] })
+  await settled()
+  expect(told).toMatchObject([
+    {
+      entry: created,
+      act: "8",
+      places: [created],
+      outcome: "lost",
+      lost: [{ entry: created, at: "", value: { id: created, title: "AI のブック" } }],
+    },
+  ])
+})
