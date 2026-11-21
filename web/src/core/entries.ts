@@ -253,20 +253,6 @@ export function titlesIn(library: Library, folder: Folder, naming: Naming, excep
   })
 }
 
-// フォルダ into の直下に在る（か、そこへ入れる）エントリ entry（種類 kind）の、そのフォルダのほかの物と重ならない名前（重なっていれば「名前 2」から番号を付ける。重ならなければ今の名前）。
-// 名前を持たない物・フォルダが無いときは undefined
-export function freeTitleIn(
-  library: Library,
-  kind: EntryKind,
-  entry: string,
-  into: string,
-  naming: Naming,
-): string | undefined {
-  const holder = library.folders[into]
-  const title = titleOf(library, kind, entry, naming)
-  return !holder || title === undefined ? undefined : freeTitle(title, titlesIn(library, holder, naming, entry))
-}
-
 // フォルダ folder の直下で、名前が title のエントリ（except のエントリは除く。無ければ undefined）
 export const titledIn = (
   library: Library,
