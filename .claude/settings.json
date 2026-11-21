@@ -11,7 +11,27 @@
     "vercel-optimize": "off",
     "vercel-react-best-practices": "off",
     "vercel-react-native-skills": "off",
-    "vercel-react-view-transitions": "off"
+    "vercel-react-view-transitions": "off",
+    "anthropic-skills:docx": "off",
+    "anthropic-skills:pptx": "off",
+    "anthropic-skills:xlsx": "off",
+    "anthropic-skills:pdf": "off",
+    "anthropic-skills:docs": "off",
+    "anthropic-skills:google-workspace": "off",
+    "anthropic-skills:computer-use": "off",
+    "anthropic-skills:built-in-browser": "off",
+    "anthropic-skills:chrome-browser": "off",
+    "anthropic-skills:pdf-to-report-pipeline": "off",
+    "anthropic-skills:morning": "off",
+    "anthropic-skills:deep-research": "off",
+    "anthropic-skills:import-memory": "off",
+    "anthropic-skills:skill-creator": "off",
+    "orca-emulator": "off",
+    "orca-emulator-android": "off",
+    "orca-per-workspace-env": "off",
+    "linear-tickets": "off",
+    "orca-linear": "off",
+    "dataviz": "off"
   },
   "hooks": {
     "PreToolUse": [
@@ -24,6 +44,13 @@
           }
         ]
       }
+    ]
+  },
+  "disableClaudeAiConnectors": true,
+  "disableWorkflows": true,
+  "permissions": {
+    "deny": [
+      "SendFeedback"
     ]
   }
 }
