@@ -1,4 +1,4 @@
-// ツリーのブック（@matomezu/tree）: 道具の組は編集とハンド。編集の間はホイールでも紙のドラッグでも紙をずらさず（ミニマップを押すとハンドに替わる）、ハンドで紙をずらして見る
+// ツリーのページ（@matomezu/tree）: 道具の組は編集とハンド。編集の間はホイールでも紙のドラッグでも紙をずらさず（ミニマップを押すとハンドに替わる）、ハンドで紙をずらして見る
 import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
 import { afterFrames } from "./helpers/frames"
 import { imeCompose } from "./helpers/ime"
@@ -6,7 +6,7 @@ import { newBook } from "./helpers/new-book"
 import { paper, settled } from "./helpers/paper"
 import { selectText } from "./helpers/rich"
 
-// ツリーのブックを作り、根だけのページを作る（grow は伸びる向きのボタンの名前。無ければ既定の向き）
+// ブックを作り、根だけのツリーのページを作る（grow は伸びる向きのボタンの名前。無ければ既定の向き）
 async function treeBook(page: Page, grow?: string) {
   await page.goto(BOOK_SCREEN_URL)
   const add = await newBook(page, "木", "ツリー")

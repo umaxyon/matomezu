@@ -10,10 +10,10 @@ import (
 func TestWalksTheLineupWithBinders(t *testing.T) {
 	const book = `{"id":"b1","title":"T","lineup":[` +
 		`{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"図"},` +
-		`{"kind":"binder","id":"f1","title":"スライド","pageType":"@matomezu/slide-book:slide","lineup":[` +
-		`{"kind":"page","id":"s1","type":"@matomezu/slide-book:slide","title":"1"},` +
-		`{"kind":"page","id":"s2","type":"@matomezu/slide-book:slide","title":"2"}]},` +
-		`{"kind":"binder","id":"f2","title":"空","pageType":"@matomezu/slide-book:slide","lineup":[]}]}`
+		`{"kind":"binder","id":"f1","title":"スライド","pageType":"@matomezu/slide-page:slide","lineup":[` +
+		`{"kind":"page","id":"s1","type":"@matomezu/slide-page:slide","title":"1"},` +
+		`{"kind":"page","id":"s2","type":"@matomezu/slide-page:slide","title":"2"}]},` +
+		`{"kind":"binder","id":"f2","title":"空","pageType":"@matomezu/slide-page:slide","lineup":[]}]}`
 	var ids []string
 	for _, p := range pagesOfBook(json.RawMessage(book)) {
 		var head struct{ ID string }
@@ -26,8 +26,8 @@ func TestWalksTheLineupWithBinders(t *testing.T) {
 	outlined := string(outlineBook(json.RawMessage(book), func(string) int64 { return 3 }))
 	for _, want := range []string{
 		`{"kind":"page","id":"p1","title":"図","type":"@matomezu/drawing:drawing","size":`,
-		`{"kind":"binder","id":"f1","title":"スライド","pageType":"@matomezu/slide-book:slide","lineup":[{"kind":"page","id":"s1","title":"1","type":"@matomezu/slide-book:slide","size":`,
-		`{"kind":"binder","id":"f2","title":"空","pageType":"@matomezu/slide-book:slide","lineup":[]}`,
+		`{"kind":"binder","id":"f1","title":"スライド","pageType":"@matomezu/slide-page:slide","lineup":[{"kind":"page","id":"s1","title":"1","type":"@matomezu/slide-page:slide","size":`,
+		`{"kind":"binder","id":"f2","title":"空","pageType":"@matomezu/slide-page:slide","lineup":[]}`,
 	} {
 		if !strings.Contains(outlined, want) {
 			t.Fatalf("outline = %s; want %s", outlined, want)

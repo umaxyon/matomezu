@@ -17,7 +17,7 @@ import { themeFits, themesFor } from "../book-look/theme-types"
 import { resolveTokens } from "../book-look/tokens"
 import { shadeOf, useDarkScheme } from "../book-look/use-dark-scheme"
 import { kit } from "../kit"
-import type { Align } from "../text/fields"
+import type { Align } from "../text/text-fields"
 
 // 寄せのアイコン（左・中央・右に寄せた横線）
 const lines = (x1: number, x2: number) => (

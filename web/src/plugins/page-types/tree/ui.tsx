@@ -2,7 +2,6 @@
 // 末尾で、ツリーのビューが開く右クリックのメニューを core/catalog.ts に書き足す
 import { definePluginUi } from "../../../plugin-api/ui"
 import { TREE_PLUGIN } from "."
-import { TREE_ENTRY_ICON } from "./entry-icon"
 import { GrowSetting } from "./GrowSetting"
 import { GROW } from "./grow"
 import { TREE_TOOL_ICONS } from "./icons"
@@ -12,6 +11,7 @@ import { NewTreePageDialog } from "./NewTreePageDialog"
 import { NodeShapeSetting } from "./NodeShapeSetting"
 import { NodeSizeDialog } from "./NodeSizeDialog"
 import { NodeSizeSetting } from "./NodeSizeSetting"
+import { TREE_NODE_ICON } from "./node-icon"
 import { NODE_SHAPE } from "./shape"
 import { NODE_SIZE } from "./size"
 import { TreePageSettingsDialog } from "./TreePageSettingsDialog"
@@ -21,7 +21,7 @@ import { TREE_VIEW } from "./view/ui"
 
 export const TREE_UI = definePluginUi(TREE_PLUGIN, {
   pageTypeIcons: { [TREE.id]: <TreeIcon /> },
-  enumValueIcons: { [TREE_ENTRY_ICON.id]: <TreeIcon /> },
+  enumValueIcons: { [TREE_NODE_ICON.id]: <TreeIcon /> },
   presentationViews: { [TREE_PRESENTATION.id]: TREE_VIEW },
   settingViews: {
     [GROW.id]: { control: GrowSetting },

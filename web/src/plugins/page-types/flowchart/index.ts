@@ -2,15 +2,15 @@
 // 形・箱・線・プレゼンテーション・ほかの設定の項目は、ほかのプラグインの定義を id で選ぶ（flowchart.ts）
 import { defineBuiltin } from "../../../plugin-api/builtin"
 import { PAGE_ALIGN, PAGE_ALIGN_COMMAND, PAGE_ALIGN_DIALOG } from "./actions"
-import { FLOWCHART_ENTRY_ICON } from "./entry-icon"
 import { FLOW_DIRECTION, FLOWCHART } from "./flowchart"
 import { kit } from "./kit"
+import { FLOWCHART_NODE_ICON } from "./node-icon"
 import { FLOWCHART_TOOLS } from "./tools"
 
 export const FLOWCHART_PLUGIN = defineBuiltin(
   kit.plugin({
     pageTypes: [FLOWCHART],
-    enumValues: [FLOWCHART_ENTRY_ICON],
+    enumValues: [FLOWCHART_NODE_ICON],
     settings: [FLOW_DIRECTION],
     actions: [PAGE_ALIGN],
     commands: [PAGE_ALIGN_COMMAND],
@@ -21,7 +21,7 @@ export const FLOWCHART_PLUGIN = defineBuiltin(
 
 declare module "../../../core/catalog" {
   interface EnumValueTable {
-    "@matomezu/flowchart:entry-icon": typeof FLOWCHART_ENTRY_ICON
+    "@matomezu/flowchart:node-icon": typeof FLOWCHART_NODE_ICON
   }
   interface PageTypeTable {
     "@matomezu/flowchart:flowchart": typeof FLOWCHART

@@ -7,7 +7,7 @@ export const paper = (page: Page) => page.getByRole("img", { name: "紙" })
 
 export const items = (page: Page) => page.locator("[data-item]")
 
-// e2e が置く図面のブック（e2e/books.ts）の、A4 横の紙の幅
+// e2e が置くブック（e2e/books.ts）の図面のページの、A4 横の紙の幅
 export const A4_LANDSCAPE_WIDTH = 1123
 
 // A4 横の紙の上の 1px が、画面の何 px か

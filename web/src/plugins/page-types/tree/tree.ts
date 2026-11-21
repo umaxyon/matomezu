@@ -1,4 +1,4 @@
-// ツリーのブック: ページごとに紙を置き、ページのフィールド root（根）から伸びる木を、自分のプレゼンテーション（tree）で紙に描く。紙に置けるアイテムは無い。
+// ツリーのページのタイプ: ページごとに紙を置き、ページのフィールド root（根）から伸びる木を、自分のプレゼンテーション（tree）で紙に描く。紙に置けるアイテムは無い。
 // 伸びる向き・節の大きさの選び方・節の形・線の形は、ページの設定の項目（grow.ts・size.ts・shape.ts・line-shape.ts）。新しいページを作るダイアログと、ページの設定のダイアログ（根のダイアログを兼ねる）は自分の物を名指す。道具は自分の組（tools.ts。編集とハンド）。
 // 見た目（テーマと紙の色）と文字の色は base の設定の項目で変えられる。根の本文は太字と文字の色で装飾できる
 import type { PageSettingsArgs } from "../../../plugin-api"
@@ -21,7 +21,7 @@ import { laidOrigin, laidPage, treePrintSheets } from "./print"
 import { TREE_TOOLS } from "./tools"
 
 // ツリーのキーの範囲（ツリーのプレゼンテーションで描いている間に探す）
-// 背景に置く形（ページの slide。背景編集モードで置く。スライドのアイテム）
+// 背景に置く形（ページの slide。背景編集モードで置く。描画シェイプ）
 const BACKGROUND_ITEMS = [
   "@matomezu/slide:slide-text",
   "@matomezu/slide:slide-free-line",
@@ -31,12 +31,11 @@ const BACKGROUND_ITEMS = [
 ] as const
 
 export const TREE_KEY_SCOPE = kit.defineKeyScope({ id: "tree", title: "Tree", commandsFrom: "stage" })
-export const TREE_KEYS_SCOPE = TREE_KEY_SCOPE.id
 
 // ツリーのプレゼンテーション: 紙の上に、根から伸びる木を描く。カレントのステージがこれで描いている間は、ツリーのキーの範囲を探す
 export const TREE_PRESENTATION = kit.definePresentation({
   id: "tree",
-  keyScope: TREE_KEYS_SCOPE,
+  keyScope: TREE_KEY_SCOPE.id,
   minimap: treeMinimap, // ミニマップには、節を四角で、線を両端を結ぶ線で描く
   printSheets: treePrintSheets, // 印刷区画は、木を並べて節が入るだけ
 })

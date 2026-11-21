@@ -1,4 +1,4 @@
-// スライドのアイテムの見た目: アイテムごとのビューとアイコン
+// 描画シェイプの見た目: アイテムごとのビューとアイコン
 import { definePluginUi, defineWidget } from "../../../plugin-api/ui"
 import { SLIDE_PLUGIN } from "."
 import { ELLIPSE_ICON, FREE_LINE_ICON, RECTANGLE_ICON, STRAIGHT_LINE_ICON, TEXT_FRAME_ICON } from "./icons"
@@ -8,7 +8,7 @@ import { SLIDE_ITEM_CONTEXT } from "./scope"
 import { ELLIPSE, FREE_LINE, RECTANGLE, STRAIGHT_LINE, TEXT_FRAME } from "./slide"
 import { SlideLayer, SlideSheet } from "./view/ui"
 
-// スライドのレイヤー: ページのタイプが slide を選んでいるブックで、スライドのアイテムを描いて操作を受ける
+// スライドのレイヤー: ページのタイプが slide を選んでいるブックで、描画シェイプを描いて操作を受ける
 export const SLIDE_LAYER = defineWidget({
   id: kit.name("slide-layer"),
   slots: ["@matomezu/base:book-layers"],
@@ -36,7 +36,7 @@ export const SLIDE_UI = definePluginUi(SLIDE_PLUGIN, {
 
 declare module "../../../core/catalog" {
   interface ContextMenuTable {
-    "@matomezu/slide:item-context": { item: string } // スライドのアイテム（右クリックしたアイテムの id）
+    "@matomezu/slide:item-context": { item: string } // 描画シェイプ（右クリックしたアイテムの id）
   }
   interface WidgetTable {
     "@matomezu/slide:slide-layer": typeof SLIDE_LAYER

@@ -71,7 +71,7 @@ async function startOnCenter(page: Page): Promise<string> {
     .poll(async () => (await page.request.get("/api/ai/view", { headers: await joinedAiAuth() })).json())
     .toHaveProperty("hidden.book")
   const view = await (await page.request.get("/api/ai/view", { headers: await joinedAiAuth() })).json()
-  expect(view).toMatchObject({ current: "control-center" })
+  expect(view).toMatchObject({ current: "plain-screen" })
   expect("book" in view || "awaiting" in view).toBe(false)
   return view.hidden.book as string
 }
@@ -145,7 +145,7 @@ test("宛先なしで開いた窓は、コントロールセンターだけで�
   await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(0)
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: await joinedAiAuth() })).json())
-    .toMatchObject({ current: "control-center", bookScreen: "none" })
+    .toMatchObject({ current: "plain-screen", bookScreen: "none" })
 })
 
 test("別の窓が、開いているブックをゴミ箱に入れると、そのブックスクリーンは閉じてコントロールセンターがカレントスクリーンになる。URL にもブックスクリーンは残らない", async ({

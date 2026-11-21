@@ -8,7 +8,7 @@ import { createMatomezu } from "../../../web/src/store/create"
 import { newStore, sequence } from "../../support"
 
 const TEXT = "@matomezu/slide:slide-text"
-const SLIDE = "@matomezu/slide-book:slide"
+const SLIDE = "@matomezu/slide-page:slide"
 
 type Pages = { id: string; title: string; locked?: boolean; slide?: { id: string }[] }[]
 

@@ -4,5 +4,5 @@ import { MARKDOWN_DOCUMENT_TOKENS } from "../../base"
 
 export const MARKDOWN_TOKENS = [
   ...MARKDOWN_DOCUMENT_TOKENS,
-  { id: "markdown-page-padding", value: "24px 32px", shades: "one" }, // 紙の辺と文書の間（書く画面の描いた文書と、印刷の印刷区画ごと）
+  { id: "markdown-page-padding", value: "24px 32px", shades: "one" }, // 紙の辺と文書の間（ステージに描いた文書と、印刷の印刷区画ごと）
 ] as const

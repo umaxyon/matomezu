@@ -27,7 +27,7 @@ import {
   useSearchHits,
   useSearchPick,
 } from "../../../base/ui"
-import { SOURCE_KEYS_SCOPE } from "../markdown"
+import { SOURCE_KEY_SCOPE } from "../markdown"
 import { blankRuns, sourceLines } from "../scroll-sync"
 import { caretMoved, followCaret, PAUSED, planWrite, type Writing, wrote } from "../source-edit"
 import { CURRENT_LINE, LINE_NUMBERS, SHOW_WHITESPACE } from "../source-look"
@@ -215,7 +215,7 @@ export function SourcePane({ book, page, text, document, scrollRef, onScroll }: 
           value={draft}
           readOnly={!allowed.ok}
           spellCheck={false}
-          data-key-scope={SOURCE_KEYS_SCOPE}
+          data-key-scope={SOURCE_KEY_SCOPE.id}
           onChange={onChange}
           onSelect={onSelect}
           onKeyDown={onKeyDown}

@@ -379,6 +379,35 @@ func TestWokenByADeliveredNotice(t *testing.T) {
 	}
 }
 
+// AI のプログラムが、動いている間に届いた知らせを 1 つの入力にまとめたとき（改行でつないだだけ）も、知らせで始まったターン（どれも使い切る）。
+// 利用者の文が混じっていれば当たらず、まとめた文も忘れない
+func TestWokenByJoinedNotices(t *testing.T) {
+	s, hub := joinWorld(t, joinStore(t))
+	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
+	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
+	noticeOf(t, s.URL, b)
+	l := hub.OpenWakesWith("200", "", WakeLimits{Breaks: true})
+	lend := func(text string) string {
+		sendMessage(t, s.URL, a, "すずめ", text)
+		out, ok := hub.nextWake(l, time.Now())
+		if !ok {
+			t.Fatal("no wake")
+		}
+		hub.AckWake(l.id, out.ID, WakeDelivered, time.Now())
+		return out.Text
+	}
+	one, two, three := lend("one"), lend("two"), lend("three")
+	if hub.WokenBy(one+"\n"+two+"\nこんにちは") || hub.WokenBy("こんにちは\n"+one) || hub.WokenBy(one+two) {
+		t.Fatal("a turn with the user's words")
+	}
+	if !hub.WokenBy("\n" + two + "\n" + one + "\n") {
+		t.Fatal("joined notices")
+	}
+	if hub.WokenBy(one) || hub.WokenBy(two) || !hub.WokenBy(three) {
+		t.Fatal("the joined ones are used up, the others stay")
+	}
+}
+
 // ターンの入力が貸した知らせの文そのものなら、利用者の言葉でないと伝える文を返す（フックの woken が付いていても。当てた文は使い切る）。
 // 知らせでない入力には、フックの woken が付いていても（monitor や裏の実行の終わりの task-notification）返さない
 func TestTalkedTellsTheAIAWokenTurnIsNotTheUsers(t *testing.T) {

@@ -102,7 +102,7 @@ test.describe("空のバインダ", () => {
       {
         id: "b1",
         title: "スライド",
-        lineup: [{ kind: "binder", id: "f1", title: "スライド", pageType: "@matomezu/slide-book:slide", lineup: [] }],
+        lineup: [{ kind: "binder", id: "f1", title: "スライド", pageType: "@matomezu/slide-page:slide", lineup: [] }],
       },
     ],
   })

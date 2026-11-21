@@ -49,7 +49,7 @@ export function ControlCenterScreen() {
           <Slot name={SIDE} props={{}} />
           <ParticipantListView />
         </div>
-        <div className={styles.stage} data-max={retreat.left}>
+        <div className={styles.content} data-max={retreat.left}>
           <ScreenPane shown={screen === "projects"} slideIn={switched}>
             <div className={styles.projectScreen}>
               <Panel recess className={styles.boards} data-max={retreat.workroom} data-boards-area>

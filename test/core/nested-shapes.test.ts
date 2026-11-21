@@ -12,7 +12,7 @@ const BOX = "@matomezu/box:shape-nest-box"
 const LIST = "@matomezu/list:shape-list"
 const LINE = "@matomezu/line:connector-line"
 
-// 図面のブックは内包ボックス（ケイパビリティ nests）・リスト・線を使う
+// 図面のページは内包ボックス（ケイパビリティ nests）・リスト・線を使う
 const nesting = CORE_CATALOG
 
 const book = (items: object[]) => testBook("b1", "T", [drawingPage("p1", { title: "P", items: items })])

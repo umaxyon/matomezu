@@ -1,6 +1,6 @@
 // ページを描く所に付ける CSS 変数: 描いているページ（ui/scope.tsx の描いている場所）のテーマの値と文字の色の値（どちらも設定のダイアログの下書きを重ねる）と、
 // ページのタイプのプラグインのテーマキー（--<名前>）。テーマはページごとなので、ページを描く所ごとに置く:
-// ステージは開いているページ、ステージの外で見るだけに描くページ（印刷の区画・サムネイル・スクラップ）は、そのページ（PageLook で包む）
+// ステージは開いているページ、ステージの外で見るだけに描くページ（印刷区画・サムネイル・スクラップ）は、そのページ（PageLook で包む）
 import { type CSSProperties, type ReactNode, useMemo } from "react"
 import { useCatalog } from "../../../ui/store-context"
 import { tokenScopeOf } from "../../../ui/theme-vars"

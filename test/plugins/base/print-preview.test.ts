@@ -147,7 +147,7 @@ test("ツリーのように並べ方を描くときに決めるタイプは、�
   expect(bookSheets(store.catalog.core, tree).sheets).toHaveLength(1)
 })
 
-test("可変ページのツリーとディレクトリ構成図で中身があふれると、printSheets は書く画面と同じ並べ方で増えた印刷区画を数え、中身の載る印刷区画を返す", () => {
+test("可変ページのツリーとディレクトリ構成図で中身があふれると、printSheets はステージに描くのと同じ並べ方で増えた印刷区画を数え、中身の載る印刷区画を返す", () => {
   const store = newStore()
   const paper = { paper: "@matomezu/base:a4", orientation: "landscape" as const, grows: true as const }
   const children = Array.from({ length: 40 }, (_, i) => ({ id: `c${i}`, caption: `子 ${i}` }))
@@ -183,7 +183,7 @@ test("印刷区画より大きい形は、またいでも直せないので、�
   expect(screenOf(store.state.getState().window).stages[0]!.mode.kind).toBe("print-preview")
 })
 
-test("印刷のときの改ページ: ツリーとディレクトリ構成図の節・行は、どれも 1 つの印刷区画に入り、線の端は節に付いたまま、区切り線は最後の行まで伸びる。書く画面の数え方は改ページの前", () => {
+test("印刷のときの改ページ: ツリーとディレクトリ構成図の節・行は、どれも 1 つの印刷区画に入り、線の端は節に付いたまま、区切り線は最後の行まで伸びる。ステージに描くときの数え方は改ページの前", () => {
   const store = newStore()
   const paper = { paper: "@matomezu/base:a4", orientation: "landscape" as const, grows: true as const }
   const size = paperSize(store.catalog.core, { ...paper, id: "p", title: "" } as never)!
@@ -215,7 +215,7 @@ test("印刷のときの改ページ: ツリーとディレクトリ構成図の
   expect(laidDir.rows.every(inOne)).toBe(true)
   const last = Math.max(...laidDir.rows.map(r => r.y + r.h))
   expect(laidDir.divider?.to.y).toBeGreaterThanOrEqual(last)
-  // 書く画面の暗くする印刷区画は、改ページの前の並べ方で数える（印刷の並べ方より印刷区画が増えない）
+  // ステージの暗くする印刷区画は、改ページの前の並べ方で数える（印刷の並べ方より印刷区画が増えない）
   const printed = sheetsOfPage(store.catalog.core, dirPage)!
   const screen = sheetsOfPage(store.catalog.core, dirPage, "screen")!
   expect(screen.rows).toBeLessThanOrEqual(printed.rows)

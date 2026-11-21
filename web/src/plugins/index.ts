@@ -13,7 +13,7 @@ import { DIR_PLUGIN } from "./page-types/dir"
 import { DRAWING_PLUGIN } from "./page-types/drawing"
 import { FLOWCHART_PLUGIN } from "./page-types/flowchart"
 import { MARKDOWN_PLUGIN } from "./page-types/markdown"
-import { SLIDE_BOOK_PLUGIN } from "./page-types/slide-book"
+import { SLIDE_PAGE_PLUGIN } from "./page-types/slide-page"
 import { TREE_PLUGIN } from "./page-types/tree"
 import { PAPER_PLUGIN } from "./paper"
 import { TASKBOARD_PLUGIN } from "./taskboard"
@@ -35,7 +35,7 @@ export const BUILTIN = [
   TREE_PLUGIN,
   DIR_PLUGIN,
   MARKDOWN_PLUGIN,
-  SLIDE_BOOK_PLUGIN,
+  SLIDE_PAGE_PLUGIN,
   TASKBOARD_PLUGIN,
 ] as const
 

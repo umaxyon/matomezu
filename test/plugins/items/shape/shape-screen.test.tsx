@@ -1,4 +1,4 @@
-// 形（@matomezu/shape）をフローチャートのブックで: ツールボックスに形が並ぶ・形を置いて描く・追加と編集のダイアログ・形のつなぎ口・分岐から出る線のキャプションの候補・台形の向き・キャプションで広がる向き
+// 形（@matomezu/shape）をフローチャートのページで: ツールボックスに形が並ぶ・形を置いて描く・追加と編集のダイアログ・形のつなぎ口・分岐から出る線のキャプションの候補・台形の向き・キャプションで広がる向き
 
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, screen, within } from "@testing-library/react"

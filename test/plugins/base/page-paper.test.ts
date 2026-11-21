@@ -190,7 +190,7 @@ test("上下左右へ伸びる可変ページは、左・上に空きの印刷�
   expect(at().items.find(i => i.id === first)).toMatchObject({ x: 100, y: 100 })
 })
 
-// ページの shift を自分で書くアクションの見本（図面のブックに足す）
+// ページの shift を自分で書くアクションの見本（図面のページに足す）
 const SHIFTER = defineAction({
   id: "notes:shift",
   title: "@matomezu/drawing:Drawing",

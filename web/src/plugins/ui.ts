@@ -14,7 +14,7 @@ import { DIR_UI } from "./page-types/dir/ui"
 import { DRAWING_UI } from "./page-types/drawing/ui"
 import { FLOWCHART_UI } from "./page-types/flowchart/ui"
 import { MARKDOWN_UI } from "./page-types/markdown/ui"
-import { SLIDE_BOOK_UI } from "./page-types/slide-book/ui"
+import { SLIDE_PAGE_UI } from "./page-types/slide-page/ui"
 import { TREE_UI } from "./page-types/tree/ui"
 import { PAPER_UI } from "./paper/ui"
 import { TASKBOARD_UI } from "./taskboard/ui"
@@ -36,7 +36,7 @@ export const BUILTIN_UI = [
   TREE_UI,
   DIR_UI,
   MARKDOWN_UI,
-  SLIDE_BOOK_UI,
+  SLIDE_PAGE_UI,
   TASKBOARD_UI,
 ] as const
 
@@ -158,12 +158,12 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:page-settings",
       "@matomezu/base:book-settings",
     ],
-    "@matomezu/dir:entry-context": [
-      "@matomezu/dir:entry-settings",
+    "@matomezu/dir:node-context": [
+      "@matomezu/dir:node-settings",
       "@matomezu/dir:folder-sort-asc",
       "@matomezu/dir:folder-sort-desc",
       "-",
-      "@matomezu/dir:entry-delete",
+      "@matomezu/dir:node-delete",
     ],
     "@matomezu/tree:tree-context": [
       "@matomezu/base:zoom-fit",

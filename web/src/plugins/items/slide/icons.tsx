@@ -1,4 +1,4 @@
-// スライドのアイテムのアイコン（ツールボックスなどに出す）
+// 描画シェイプのアイコン（ツールボックスなどに出す）
 export const TEXT_FRAME_ICON = (
   <svg viewBox="0 0 24 24" aria-hidden="true">
     <path d="M6 7h12M12 7v10M9 17h6" />

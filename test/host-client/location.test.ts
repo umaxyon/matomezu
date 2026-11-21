@@ -202,7 +202,7 @@ test("同じ処理の中の移動（分割してブックとページを開く�
 test("URL が無い（開いた直後）なら、コントロールセンターをカレントスクリーンにする。URL にブックスクリーンの場所があれば、ブックスクリーンをカレントスクリーンにする", () => {
   const first = newStore()
   followLocation(first, fakePlace().place)
-  expect(currentKindOf(first.state.getState().window)).toBe("control-center")
+  expect(currentKindOf(first.state.getState().window)).toBe("plain-screen")
   const second = newStore()
   followLocation(second, fakePlace(bookUrl("b3", "p1")).place)
   expect(currentKindOf(second.state.getState().window)).toBe("book-screen")
@@ -230,7 +230,7 @@ test("カレントスクリーンを替えるのは、ブラウザの履歴に 1
   expect(f.pushed).toHaveLength(2)
   // 戻る: コントロールセンター
   f.back(f.pushed[0]!)
-  expect(currentKindOf(store.state.getState().window)).toBe("control-center")
+  expect(currentKindOf(store.state.getState().window)).toBe("plain-screen")
   expect(screenOf(store.state.getState().window).stages[0]!.opened).toEqual(was.stages[0]!.opened)
   expect(f.pushed).toHaveLength(2)
 })

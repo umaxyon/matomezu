@@ -13,8 +13,8 @@ import (
 )
 
 // slides は、スライドのバインダを持つブック
-const slides = `{"id":"b2","title":"S","lineup":[{"kind":"binder","id":"f1","title":"スライド","pageType":"@matomezu/slide-book:slide","lineup":[` +
-	`{"kind":"page","id":"s1","type":"@matomezu/slide-book:slide","title":"1","paper":"@matomezu/base:a4","orientation":"landscape"}]}]}`
+const slides = `{"id":"b2","title":"S","lineup":[{"kind":"binder","id":"f1","title":"スライド","pageType":"@matomezu/slide-page:slide","lineup":[` +
+	`{"kind":"page","id":"s1","type":"@matomezu/slide-page:slide","title":"1","paper":"@matomezu/base:a4","orientation":"landscape"}]}]}`
 
 // libraryStore は、ブック drawing（b1）と slides（b2）を置いた置き場所。nested なら、b1 を書庫ホームの中のフォルダ d1 の中に、
 // b2 を d1 の中のフォルダ d2 の中に入れる（そうでなければ、どちらも書庫ホームの直下）
