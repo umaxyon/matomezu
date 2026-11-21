@@ -45,16 +45,17 @@ export const browserPlace: Place = {
 const round = (n: number) => Math.round(n * 1000) / 1000
 
 // URL の値 1 つに書く形（短い名前の JSON）: s はスクリーンの並び（i は id、d は定義の id、p は渡された値、t はスクリーンの範囲のプラグイン状態、
-// g はステージを並べるスクリーンの中）、o はカレントにした順、a はスクリーンアレンジメントの定義の id、w は窓の範囲のプラグイン状態。g の l はステージの並び（b はブックの id、p はページの id、
-// v は倍率・横・縦、s はステージの範囲のプラグイン状態）、c はカレントの番号、r は境目の割合。空の物は書かない
+// g はステージを並べるスクリーンの中）、o はカレントにした順、a はスクリーンアレンジメントの定義の id、av はその値、w は窓の範囲のプラグイン状態。g の l はステージの並び（b はブックの id、
+// p はページの id、f はバインダの id、v は倍率・横・縦、s はステージの範囲のプラグイン状態）、c はカレントの番号、r は境目の割合。空の物は書かない
 interface Written {
   s: { i: string; d: string; p?: unknown; t?: Record<string, unknown>; g?: WrittenStages }[]
   o: string[]
   a: string
+  av?: unknown
   w?: Record<string, unknown>
 }
 interface WrittenStages {
-  l: { b: string | null; p?: string; v: [number, number, number]; s?: Record<string, unknown> }[]
+  l: { b: string | null; p?: string; f?: string; v: [number, number, number]; s?: Record<string, unknown> }[]
   c: number
   r: number
 }

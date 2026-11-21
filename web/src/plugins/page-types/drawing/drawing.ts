@@ -65,7 +65,7 @@ export const DRAWING = kit.definePageType({
   presentation: "@matomezu/paper:paper",
   tokens: [],
   tools: "@matomezu/paper:paper",
-  // テーマ・紙の色・線の既定の通り方（ページは線の既定の通り方を持たなければブックの既定を継ぐ）
+  // ページの設定の項目: テーマ・紙の色・線の既定の通り方・文字の色・背景の印刷（ページが値を持たなければ項目の既定）
   printCrossing: "ask", // 形は利用者が手で置くので、印刷区画をまたいだ形は印刷プレビューの前に直してもらう
   settings: [PAGE_THEME.id, PAGE_PAPER_COLOR.id, "@matomezu/line:line-route", PAGE_TEXT_COLORS.id, BACKGROUND_PRINT.id],
 })

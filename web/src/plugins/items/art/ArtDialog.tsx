@@ -1,5 +1,5 @@
 // シェイプのダイアログ: 追加と編集で同じ並び（キャプション・色）。絵は聞かない（置く絵はツールボックスで決まっている）。
-// 色は色を選ぶポップアップで、ブックのテーマの代表色か、好きな色を選ぶ。編集では、選んだ色を決める前から絵に重ねて見せる（ダイアログの下書き）。
+// 色は色を選ぶポップアップで、ページのテーマの代表色か、好きな色を選ぶ。編集では、選んだ色を決める前から絵に重ねて見せる（ダイアログの下書き）。
 // 置けない（紙からはみ出すなど）ときは閉じずに理由を出す。
 // 追加は決めた項目の値を、開いた側が渡した置き方（ShapeAddArgs の place）に渡す（置く・選ぶ・断りの文は開いた側が持つ）。編集は絵の項目を書き換える（アクション item-update）
 import { useCallback, useEffect, useId, useState } from "react"
@@ -27,7 +27,7 @@ type ArtProps = ItemProps<typeof PERSON.item.id>
 // 絵を置く追加のダイアログ（どの絵を置くかは、開いた側が place に閉じ込める）
 export function AddArtDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
   const book = useBookOf()
-  const bookTheme = usePageTheme()
+  const pageTheme = usePageTheme()
   const add = (props: ArtProps) => {
     const no = args.place(props)
     if (no === null) onClose()
@@ -38,7 +38,7 @@ export function AddArtDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
       title={kit.message("Add picture")}
       submit={kit.message("Add")}
       start={{ caption: "" }}
-      bookTheme={bookTheme}
+      pageTheme={pageTheme}
       ready={book !== undefined}
       onSubmit={add}
       onClose={onClose}
@@ -49,7 +49,7 @@ export function AddArtDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
 export function EditArtDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
   const catalog = useCoreCatalog()
   const book = useBookOf()
-  const bookTheme = usePageTheme()
+  const pageTheme = usePageTheme()
   const placed = useItem(args.page, args.item)
   const start = placed?.props as ArtProps | undefined
   const { previewDialog } = useActions()
@@ -78,7 +78,7 @@ export function EditArtDialog({ args, onClose }: DialogProps<{ page: string; ite
       title={kit.message("Edit picture")}
       submit={kit.message("OK")}
       start={start}
-      bookTheme={bookTheme}
+      pageTheme={pageTheme}
       ready
       onSubmit={update}
       onPreview={preview}
@@ -91,7 +91,7 @@ function ArtDialog({
   title,
   submit,
   start,
-  bookTheme,
+  pageTheme,
   ready,
   onSubmit,
   onPreview,
@@ -100,7 +100,7 @@ function ArtDialog({
   title: MessageKey
   submit: MessageKey
   start: ArtProps
-  bookTheme: string | undefined // ブックのテーマの id（色の見本に使う）
+  pageTheme: string | undefined // ページのテーマの id（色の見本に使う）
   ready: boolean
   onSubmit: (props: ArtProps) => MessageKey | null // 断られたわけの文言（決められたら null）
   onPreview?: (color: ArtProps["color"] | null) => void // 色を選んだ（元の値に戻せば null。無ければ見せない）
@@ -110,8 +110,8 @@ function ArtDialog({
   const form = useId()
   const [caption, setCaption] = useState(start.caption)
   const [color, setColor] = useState(start.color)
-  // 色の見本: ブックのテーマの代表色と、絵の色
-  const swatches = useSwatches(bookTheme, ART_FILL)
+  // 色の見本: ページのテーマの代表色と、絵の色
+  const swatches = useSwatches(pageTheme, ART_FILL)
   useEffect(() => {
     onPreview?.(color !== start.color ? color : null)
   }, [color, start.color, onPreview])

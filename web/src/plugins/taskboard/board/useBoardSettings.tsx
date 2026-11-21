@@ -1,5 +1,5 @@
 // 利用者の設定 2 つ（プロジェクトの並びと、出しているタスクボード）を読み、変えるフック。変えられるか（コントロールセンターが変えさせない項目でないか）を先に問い、変えられなければ押せなくする。
-// 設定の値は窓のカレントのステージのコマンド settings-set で書く（ステージの無いコントロールセンターの画面が、窓のステージを借りる）
+// 設定の値はコマンド settings-set で書く（ステージの無いスクリーンでは、そのスクリーンで行う）
 import { useAllowed, useCommand, useUserSetting } from "../../../plugin-api/ui"
 import { PROJECT_ORDER, SHOWN_PROJECTS } from "./user-settings"
 

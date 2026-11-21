@@ -1,7 +1,7 @@
 // 箱のダイアログ: 追加と編集で同じ並び（キャプション・区切り線・本文・テーマ・色。キャプションと本文の名前の右に、左・中央・右の寄せ）。
 // キャプションの寄せの隣に、キャプションと本文の塊の縦の位置（上・真ん中・下）。押している物をもう一度押すと自動（どれも押していない）に戻す。
 // 子を持つ内包ボックスでは、真ん中は押せない（子がある間は上として描くため）。
-// テーマは「ブックのテーマ」（箱に当てない）か、ページのタイプが使えるテーマから選ぶ。色は色を選ぶポップアップで、箱の（無ければブックの）テーマの代表色か、好きな色を選ぶ。
+// テーマは「ページのテーマ」（箱に当てない）か、ページのタイプが使えるテーマから選ぶ。色は色を選ぶポップアップで、箱の（無ければページの）テーマの代表色か、好きな色を選ぶ。
 // 編集では、書いた本文と選んだ寄せ・縦の位置・テーマ・色を決める前から箱に重ねて見せる（ダイアログの下書き。確定で書き、キャンセルでは元のまま）。見出しの行の右にキャンセルと決めるボタン（キャプションのテキストFormの Enter でも決める）。
 // キャプション・区切り線・本文は base の文字の領域の入力Formのコンポーネント（CaptionField・DividerField・BodyField）。
 // 置けない（紙からはみ出す・止められたなど）ときは閉じずに理由を出す。
@@ -37,7 +37,7 @@ import { VALIGNS, type VAlign } from "./size"
 
 type BoxProps = ItemProps<typeof BOX.id>
 
-// 選んだそばから箱に見せる項目（本文・寄せ・テーマ・色。テーマの undefined はブックのテーマ、色の undefined はテーマの塗り）
+// 選んだそばから箱に見せる項目（本文・寄せ・テーマ・色。テーマの undefined はページのテーマ、色の undefined はテーマの塗り）
 type Look = Pick<BoxProps, "body" | "captionAlign" | "bodyAlign" | "vAlign" | "theme" | "color">
 
 const EMPTY: BoxProps = { caption: "", rule: true, body: "", captionAlign: "center", bodyAlign: "left" }
@@ -45,7 +45,7 @@ const EMPTY: BoxProps = { caption: "", rule: true, body: "", captionAlign: "cent
 // 追加のダイアログ: 箱か内包ボックスを、中身を決めてから置く（どちらを置くかは、開いた側が place に閉じ込める）
 export function AddBoxDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
   const book = useBookOf()
-  const bookTheme = usePageTheme()
+  const pageTheme = usePageTheme()
   const add = (props: BoxProps) => {
     const no = args.place(props)
     if (no === null) onClose()
@@ -56,7 +56,7 @@ export function AddBoxDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
       title={kit.message("Add box")}
       submit={kit.message("Add")}
       start={EMPTY}
-      bookTheme={bookTheme}
+      pageTheme={pageTheme}
       ready={book !== undefined}
       onSubmit={add}
       onClose={onClose}
@@ -67,7 +67,7 @@ export function AddBoxDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
 export function EditBoxDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
   const catalog = useCoreCatalog()
   const book = useBookOf()
-  const bookTheme = usePageTheme()
+  const pageTheme = usePageTheme()
   // 編集するのは箱か内包ボックス（項目は同じ）
   const box = useItem(args.page, args.item, BOX.id)
   const nestBox = useItem(args.page, args.item, NEST_BOX.id)
@@ -81,7 +81,7 @@ export function EditBoxDialog({ args, onClose }: DialogProps<{ page: string; ite
   )
   if (!book || !start) return null
   const update = (props: BoxProps) => {
-    // 「ブックのテーマ」・色の「なし」に戻したら、箱のテーマ・色の項目を消す
+    // 「ページのテーマ」・色の「なし」に戻したら、箱のテーマ・色の項目を消す
     const done = perform(
       "@matomezu/paper:item-update",
       {
@@ -105,7 +105,7 @@ export function EditBoxDialog({ args, onClose }: DialogProps<{ page: string; ite
       submit={kit.message("OK")}
       start={start}
       hasChildren={hasChildren}
-      bookTheme={bookTheme}
+      pageTheme={pageTheme}
       ready
       onSubmit={update}
       onPreview={preview}
@@ -118,7 +118,7 @@ function BoxDialog({
   title,
   submit,
   start,
-  bookTheme,
+  pageTheme,
   ready,
   onSubmit,
   onPreview,
@@ -128,7 +128,7 @@ function BoxDialog({
   title: MessageKey
   submit: MessageKey
   start: BoxProps
-  bookTheme: string | undefined // ブックのテーマの id（色の見本に使う）
+  pageTheme: string | undefined // ページのテーマの id（色の見本に使う）
   ready: boolean
   onSubmit: (props: BoxProps) => MessageKey | null // 断られたわけの文言（決められたら null）
   onPreview?: (look: Look | null) => void // 本文・寄せ・テーマ・色を変えた（元の値に戻せば null。無ければ見せない）
@@ -147,12 +147,12 @@ function BoxDialog({
   const { body, captionAlign, bodyAlign } = text
   const [vAlign, setVAlign] = useState(start.vAlign)
   const themes = usePageThemes() // ページのタイプが使えるテーマ
-  // 始めのテーマ（使えないテーマが残っていれば「ブックのテーマ」から始める。データのテーマは変えない限り残す）
+  // 始めのテーマ（使えないテーマが残っていれば「ページのテーマ」から始める。データのテーマは変えない限り残す）
   const startTheme = themes.some(th => th.id === start.theme) ? (start.theme ?? "") : ""
   const [theme, setTheme] = useState(startTheme)
   const [color, setColor] = useState(start.color)
-  // 色の見本: 箱の（無ければブックの）テーマの代表色と塗り
-  const looks = theme || bookTheme
+  // 色の見本: 箱の（無ければページの）テーマの代表色と塗り
+  const looks = theme || pageTheme
   const swatches = useSwatches(looks, BOX_FILL)
   const changed =
     body !== start.body ||

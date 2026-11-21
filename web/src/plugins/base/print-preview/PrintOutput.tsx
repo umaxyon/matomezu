@@ -1,6 +1,6 @@
 // 刷る物: 印刷プレビューで並べた印刷区画を、倍率 1 で、印刷区画 1 つを紙 1 枚に描く（印刷プレビューのビューが、刷れる間だけ置く）。
 // 画面では見えず、刷るときだけこれを出す（画面を隠すのも PrintOutput.module.css）。紙は印刷区画の大きさの名前付きの @page で、余白 0（print-pages.ts）。
-// ステージの中は倍率とずらしと切り取りが掛かり改ページが効かないので、body の直下に描き、ブックのテーマの値を包み直す
+// ステージの中は倍率とずらしと切り取りが掛かり改ページが効かないので、body の直下に描き、ページのテーマの値を包み直す
 import { createPortal } from "react-dom"
 import type { Book, Page } from "../../../core/schema/book"
 import { usePageLookStyle } from "../book-look/use-page-look-style"

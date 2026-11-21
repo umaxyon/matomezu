@@ -156,7 +156,7 @@ let lastAdded: readonly Plugin[] = []
   records,
 ) => parentsOf(assembled, subject, records)
 
-// 常駐と core が種類で引く役（参加者・ワークルーム・郵便）ごとの、対象の定義の id（役を名乗る定義が無ければ入れない）
+// 常駐と core が種類で引く役（参加者・ワークルーム。core/def/subject.ts の SUBJECT_ROLE_FIELDS）ごとの、対象の定義の id（役を名乗る定義が無ければ入れない）
 ;(globalThis as { matomezuSubjectRoles?: () => string }).matomezuSubjectRoles = () => subjectRolesOf(assembled)
 
 // 残したレコードを今の機能台帳で確かめ、効かないレコード（種類が無い W024・形が合わない W025。形のほかの確かめを書いた種類はその warning。郵便なら、郵便の種類が無い W022・形が合わない W023）の warning の 1 行ずつを返す（常駐がログに書く）

@@ -59,7 +59,7 @@ export const DataPropsSchema = z.strictObject({
     .describe(
       "Width in pixels of the column the body wraps in, as in a box: never narrower than the caption; without it, the body fills the item's inside",
     ),
-  theme: z.string().min(1).optional(), // データに当てるテーマの id（無ければブックのテーマ）
+  theme: z.string().min(1).optional(), // データに当てるテーマの id（無ければページのテーマ）
   view: z
     .enum(DATA_VIEWS)
     .default("table")

@@ -1,4 +1,4 @@
-// マークダウンのブックのテーマキー: 描いた文書が受ける物（base の MARKDOWN_DOCUMENT_TOKENS）に、ブックの画面（ペインを並べる枠・印刷区画）だけが使う物を足す。
+// マークダウンのページのタイプのテーマキー: 描いた文書が受ける物（base の MARKDOWN_DOCUMENT_TOKENS）に、ページの画面（ペインを並べる枠・印刷区画）だけが使う物を足す。
 // 宣言はこのプラグインの物（id は @matomezu/markdown:…）で、既定はどのテーマも上書きしないときの見た目
 import { MARKDOWN_DOCUMENT_TOKENS } from "../../base"
 

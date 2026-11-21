@@ -1,4 +1,4 @@
-/* ミニマップの枠。中の色はブックのテーマの値 */
+/* ミニマップの枠。中の色はページのテーマの値 */
 .minimap {
   box-sizing: border-box;
   display: inline-block;

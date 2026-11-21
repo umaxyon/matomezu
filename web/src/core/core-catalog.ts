@@ -1,4 +1,4 @@
-// core 台帳: ページのタイプ・アイテム・アクション・設定の項目・テーマ・紙の表。定義の組（CoreCatalogParts）から buildCoreCatalog で作り、作った後は変えない。
+// core 台帳: 定義の表のうち core が持つ物（core/catalog.ts の PARTS で catalog が core の物。ページのタイプ・アイテム・アクション・設定の項目・スクリーン・テーマ・紙など）。定義の組（CoreCatalogParts）から buildCoreCatalog で作り、作った後は変えない。
 // 表どうしの参照（ページのタイプが使うアイテムなど）が実在するかは checkCoreCatalog（core-catalog-check.ts）が確かめ、食い違いがあれば作らない。
 // ブックのデータの形は、ページのタイプが自分で持つフィールドに、タイプが選んだものから組み立てたフィールド（ページと、そこに置けるアイテム・設定の項目）を足して作る（buildBookSchemas）
 
