@@ -111,6 +111,38 @@ test("絞っている間だけ題の帯に押した状態のろうとが出て�
   await expect(indicator).toHaveCount(0)
 })
 
+test("パネルを開いたまま、ろうとや「検索中」の × で絞りを解くと入力の言葉も消え、言葉を消して選びが初めのままなら絞りも解ける", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  const word = `けす${Date.now()}`
+  const { hit, other } = await setup(page, word)
+  const indicator = page.locator("[data-board]").first().getByRole("button", { name: "絞り込み中（押すと解除）" })
+  const mark = page.getByRole("status").filter({ hasText: "検索中" })
+  await page.getByRole("button", { name: "横断検索" }).click()
+  const box = panel(page).getByRole("textbox", { name: "検索する言葉" })
+  // ろうとで解くと、入力の言葉も消える
+  await box.fill(word)
+  await expect(page.locator(`[data-card="${other}"]`)).toHaveCount(0)
+  await indicator.click()
+  await expect(indicator).toHaveCount(0)
+  await expect(box).toHaveValue("")
+  // 「検索中」の × で解いても、入力の言葉は消える
+  await box.fill(word)
+  await expect(mark).toContainText(word)
+  await mark.getByRole("button", { name: "絞りを解除" }).click()
+  await expect(mark).toHaveCount(0)
+  await expect(box).toHaveValue("")
+  // 言葉を消すと、ほかに選びが無いので絞りも解ける
+  await box.fill(word)
+  await expect(indicator).toHaveCount(1)
+  await box.fill("")
+  await expect(mark).toHaveCount(0)
+  await expect(indicator).toHaveCount(0)
+  await expect(page.locator(`[data-card="${other}"]`)).toBeVisible()
+  await expect(page.locator(`[data-card="${hit}"]`)).toBeVisible()
+})
+
 test("コンテンツエリアに書庫が出ていても、チケットモードで絞るとボードが出る。カードの番号（M-0050 の形）でも当たる", async ({
   page,
 }) => {

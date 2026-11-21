@@ -29,6 +29,14 @@ export function ticketIdsOf(hits: readonly WideSearchHit[], ticketKind: string):
   return [...new Set(ids)]
 }
 
+// 言葉のほかの選びが、選びの初めの状態（出しているプロジェクトだけで、タグ・優先度・ボリュームは選ばない）か
+export const isInitialChoice = (f: TicketFilter, shownIds: readonly string[]): boolean =>
+  f.tags.length === 0 &&
+  f.priorities.length === 0 &&
+  f.volumes.length === 0 &&
+  f.projects.length === shownIds.length &&
+  f.projects.every(id => shownIds.includes(id))
+
 // 絞りに合うチケットだけを残す（絞りが無いか効いていなければ、そのまま）
 export function filterTickets(tickets: readonly Ticket[], filter: TicketFilter | undefined): readonly Ticket[] {
   if (!isFiltering(filter)) return tickets

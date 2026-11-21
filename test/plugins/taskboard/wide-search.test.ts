@@ -5,6 +5,7 @@ import { ticketNumberOf } from "../../../web/src/plugins/taskboard/ticket/label"
 import {
   filterTickets,
   isFiltering,
+  isInitialChoice,
   NO_FILTER,
   NO_TAGS,
   searchTerms,
@@ -99,4 +100,13 @@ test("数字で終わる語（プレフィクスに数字が続く形も、数�
   expect(searchTerms("0164")).toEqual(["0164", "164"])
   expect(searchTerms("164")).toEqual(["164"])
   expect(searchTerms("T-0012 T-0012")).toEqual(["T-0012", "12"])
+})
+
+test("選びの初めの状態は、出しているプロジェクトだけを選び、ほかは選ばない形", () => {
+  expect(isInitialChoice({ ...NO_FILTER, projects: ["p2", "p1"] }, ["p1", "p2"])).toBe(true)
+  expect(isInitialChoice({ ...NO_FILTER, projects: ["p1"] }, ["p1", "p2"])).toBe(false)
+  expect(isInitialChoice({ ...NO_FILTER, projects: ["p1", "p3"] }, ["p1", "p2"])).toBe(false)
+  expect(isInitialChoice({ ...NO_FILTER, projects: ["p1"], tags: [NO_TAGS] }, ["p1"])).toBe(false)
+  expect(isInitialChoice({ ...NO_FILTER, projects: ["p1"], priorities: ["high"] }, ["p1"])).toBe(false)
+  expect(isInitialChoice({ ...NO_FILTER, projects: ["p1"], volumes: ["m"] }, ["p1"])).toBe(false)
 })
