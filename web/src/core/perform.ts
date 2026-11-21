@@ -104,7 +104,7 @@ export type Performed<Id extends ActionId, S = SubjectOf<Id>> =
 export const noPage = (wanted: string): NoPage => ({
   ok: false,
   reason: "no-page",
-  detail: `there is no page with the id ${wanted} (on.page is the id of a page; read_book lists a book's pages)`,
+  detail: `there is no page with the id ${wanted} (on.page is the id of a page; read_book and read_folder list pages)`,
 })
 
 // 書庫 library の、ページとフォルダの行の id

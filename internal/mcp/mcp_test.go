@@ -214,6 +214,12 @@ func TestShowTool(t *testing.T) {
 	if got, failed := text(api); !strings.HasPrefix(got, "no-book: there is no book with that id") || failed {
 		t.Fatalf("show without the book = %s %v", got, failed)
 	}
+	for reason, want := range map[string]string{"no-page": "no-page: no such page, or not a page of that book", "no-print-preview": "no-print-preview: only a book has a print preview"} {
+		api.answer = `{"ok":false,"reason":"` + reason + `"}`
+		if got, failed := text(api); got != want || failed {
+			t.Fatalf("show refused with %s = %s %v", reason, got, failed)
+		}
+	}
 }
 
 func textOf(a map[string]any) string {
