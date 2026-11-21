@@ -62,7 +62,7 @@ test("ブックとの間を出入りしたページは、ブックの側とペ�
     [testBook("b1", "ブック", [{ ...x1, title: "改" }, drawingPage("p2", { title: "2" })])],
     [p1],
   )
-  expect(brokenIn(ctxOf(), move, was, renamedIn)).toEqual({ permission: LOCK })
+  expect(brokenIn(ctxOf(), move, was, renamedIn)).toEqual({ permission: LOCK, page: "x1" })
   // 外へ出たロックしたページの名前を変える: ブックの側（movedOut）が止める
   const renamedOut = libraryWith(
     [testBook("b1", "ブック", [x1, drawingPage("p2", { title: "2" })])],
@@ -216,12 +216,17 @@ test("ロックしたブックの外のページは、動かせるが、名前�
     [TRASH, { entry: "x1" }],
     [TRASH, { entry: "lb" }],
   ] as const) {
-    expect(permittedIn(w, id, args, undefined, libraryCtx())).toEqual(denied)
-    expect(performIn(w, id, args, undefined, libraryCtx())).toEqual(denied)
+    expect(permittedIn(w, id, args, undefined, libraryCtx())).toMatchObject(denied)
+    expect(performIn(w, id, args, undefined, libraryCtx())).toMatchObject(denied)
   }
+  // 止めたブックの外のページを、断りに持つ
+  expect(permittedIn(w, RENAME, { entry: "x1", title: "新" }, undefined, libraryCtx())).toEqual({
+    ...denied,
+    page: "x1",
+  })
   // 行う前に問わないアクションでも、行った後の確かめで止まる
   expect(permittedIn(w, SNEAK, {}, undefined, libraryCtx("test:center"))).toEqual({ ok: true })
-  expect(performIn(w, SNEAK, {}, undefined, libraryCtx("test:center"))).toEqual(denied)
+  expect(performIn(w, SNEAK, {}, undefined, libraryCtx("test:center"))).toMatchObject(denied)
 })
 
 test("ロックしたブックの外のページの複製の問いを、ロックは止めない", () => {

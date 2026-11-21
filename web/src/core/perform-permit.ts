@@ -82,7 +82,11 @@ export function permits(
     for (const a of found) {
       if ("page" in a) {
         const answer = answerOf(asking(undefined, undefined, undefined, a.page))
-        if (!answer.ok) return answer
+        const id = a.page.page.id
+        if (!answer.ok)
+          return answer.reason === "denied" && Object.hasOwn((subject as Library).pages, id)
+            ? { ...answer, page: id }
+            : answer
         continue
       }
       const answer = asked(a.book, a.where)
@@ -151,8 +155,9 @@ export function allowedOnBook(catalog: CoreCatalog, book: Book, id: string, args
 // 行う前の問いの答え: 使えるか、止めた理由
 export type Permitted = { ok: true } | NotAllowed | Denied
 
-// 認可ステップ permission が止めた断り。書庫が対象のアクションでは、どのブックで止めたかを book に持つ（作るブックで止めたなら無い）
-export type Denied = { ok: false; reason: "denied"; permission: string; book?: string }
+// 認可ステップ permission が止めた断り。書庫が対象のアクションでは、どのブックで止めたかを book に、どのブックの外のページ（ブックとの間を出入りしたページも）で止めたかを page に持つ
+// （作るブック・作るページで止めたなら無い）
+export type Denied = { ok: false; reason: "denied"; permission: string; book?: string; page?: string }
 
 function answerOf(answer: Inspected<boolean>): Permitted {
   if (answer.value === true) return { ok: true }

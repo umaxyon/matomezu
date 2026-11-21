@@ -11,11 +11,11 @@ test("英語は鍵のまま、ほかの言語は表の訳を出し、{name} を�
 })
 
 test("値が { message } なら、その鍵の文言を同じ言語で出して埋める", () => {
-  const params: Params = { book: "設計メモ", reason: { message: "@matomezu/base:Locked" } }
-  expect(translate(CORE_CATALOG.messages, "ja", '@matomezu/base:{reason}: "{book}"', params)).toBe(
+  const params: Params = { name: "設計メモ", reason: { message: "@matomezu/base:Locked" } }
+  expect(translate(CORE_CATALOG.messages, "ja", '@matomezu/base:{reason}: "{name}"', params)).toBe(
     "「設計メモ」がロック中",
   )
-  expect(translate(CORE_CATALOG.messages, "en", '@matomezu/base:{reason}: "{book}"', params)).toBe('Locked: "設計メモ"')
+  expect(translate(CORE_CATALOG.messages, "en", '@matomezu/base:{reason}: "{name}"', params)).toBe('Locked: "設計メモ"')
 })
 
 test("訳の中の {name} は、英語の鍵と同じものを使う", () => {

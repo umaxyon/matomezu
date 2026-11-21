@@ -119,5 +119,8 @@ test("ロックしたブックの外のページは、元に戻すが断られ�
   await Promise.resolve()
   expect(store.state.getState().pages.o1?.title).toBe("変えた名前")
   expect(store.state.getState().history.o1?.undo).toHaveLength(1)
-  expect(store.state.getState().toasts.at(-1)).toMatchObject({ kind: "warn" })
+  expect(store.state.getState().toasts.at(-1)).toMatchObject({
+    kind: "warn",
+    detail: { params: { name: "変えた名前" } },
+  })
 })

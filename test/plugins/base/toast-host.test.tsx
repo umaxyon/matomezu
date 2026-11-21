@@ -26,8 +26,8 @@ test("トーストの原因（detail）は 2 行目に出す", () => {
       kind: "warn",
       message: "@matomezu/base:Could not undo",
       detail: {
-        message: '@matomezu/base:{reason}: "{book}"',
-        params: { book: "設計メモ", reason: { message: "@matomezu/base:Locked" } },
+        message: '@matomezu/base:{reason}: "{name}"',
+        params: { name: "設計メモ", reason: { message: "@matomezu/base:Locked" } },
       },
     })
   })
