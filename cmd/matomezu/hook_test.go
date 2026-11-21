@@ -209,3 +209,20 @@ func TestTalkedWritesTheTitleOnlyWhenTitled(t *testing.T) {
 		}
 	}
 }
+
+// 常駐が知らせで始まったターンと答えたら、利用者に見せる文は無く、AI に伝える文だけの JSON を書く（渡された文も添える）
+func TestTalkedPassesTheWokenNoteToTheAI(t *testing.T) {
+	api := func([]byte) ([]byte, error) {
+		return []byte(`{"welcomes":[],"unbound":false,"forAi":"NOT THE USER"}`), nil
+	}
+	var out bytes.Buffer
+	talked(&out, hookInput{SessionID: "S1", Prompt: "matomezu from AI \"a\": \"x\""}, "NOTE", formatHook, api)
+	var got map[string]any
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
+		t.Fatalf("not one JSON: %q", out.String())
+	}
+	special, _ := got["hookSpecificOutput"].(map[string]any)
+	if _, ok := got["systemMessage"]; ok || special["additionalContext"] != "NOT THE USER\nNOTE" {
+		t.Fatalf("output = %s", out.String())
+	}
+}
