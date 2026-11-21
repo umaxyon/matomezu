@@ -3,9 +3,9 @@ package server
 // AI の参加: AI（MCP の join）が参加を頼む口と、参加者ごとの記録（常駐だけが持つ）。
 // 参加を頼むと、参加者を作るアクションと、利用者に知らせる郵便のアクションを、この順に行う（どのアクションかは、アクションの定義が runsWhenAIJoins で名乗る）。
 // 参加者・ワークルーム・郵便はアクションの結果（レコード）が持つ。ここが持つ常駐だけが持つ参加者の記録はアクションを通さない記録で、参加者の id ごとに
-//   - 最後に呼ばれた時刻（参加の id の付いた /api/ai の呼び出しのたびに更新。前に窓に知らせてから callsAnnounceGap 以上たっていたときだけ、置き場所に書いて窓に知らせる）
+//   - 最後に呼ばれた時刻（参加者が決まった /api/ai の呼び出しのたびに更新。前に窓に知らせてから callsAnnounceGap 以上たっていたときだけ、置き場所に書いて窓に知らせる）
 //   - セッション id（join のときに MCP が添えるか、UserPromptSubmit のフックが結ぶ。置き場所に残す）と、それを結んだ所（join の MCP か、UserPromptSubmit のフックか）
-//   - 参加を伝えたかの印（置き場所に残す。伝えたのは、参加の id の付いた呼び出しへの返事のヘッダ、または UserPromptSubmit のフック）
+//   - 参加を伝えたかの印（置き場所に残す。伝えたのは、参加者が決まった呼び出しへの返事のヘッダ、または UserPromptSubmit のフック）
 //   - モデル（AI のフックが知らせる〈model.go〉か、MCP が X-Matomezu-Model ヘッダで添える〈Codex など、呼び出しがモデルを運ぶ AI〉。あとに届いた方を使う。置き場所に残し、変わったら窓に知らせる）
 //   - git のブランチ（MCP が呼び出しのたびに X-Matomezu-Branch ヘッダで添える。変わったら置き場所に書いて窓に知らせる）
 //   - AI のプログラム（Claude Code など）のプロセス id（MCP が X-Matomezu-Host ヘッダで、フックが host で添える。置き場所に残す。
@@ -17,7 +17,9 @@ package server
 // 準備中と要求中の参加の id は、MCP が名乗っても、最後に呼ばれた時刻・ブランチ・AI のプログラムのプロセス id・「参加しました」の知らせ・伝えた印を残さない（join の頼みに添えたプロセス id は、起こす知らせの宛て先として別に残す）。準備中の間は生きていない
 //
 // 参加の id は MCP が X-Matomezu-Participant ヘッダで毎回添え、「参加しました」の知らせは X-Matomezu-Notice ヘッダで 1 度だけ返す（値は URL エンコード）。
-// 参加の id を添えるときは、ブランチ（X-Matomezu-Branch。値は URL エンコードで、git が無い・リポジトリでない・ブランチに居ないなら空）も添える。
+// 呼び出しの参加者は、参加の id か、無ければ AI のプログラムが MCP を立てたときのセッション id（X-Matomezu-Host-Session）に結ばれた参加者で決まる
+// （MCP が起動し直されて参加の id を失ったとき。ai の包みが決め、participantOf で読む）。
+// 参加の id かセッション id を添えるときは、ブランチ（X-Matomezu-Branch。値は URL エンコードで、git が無い・リポジトリでない・ブランチに居ないなら空）も添える。
 // 呼び出しがモデルを運ぶ AI なら、モデル（X-Matomezu-Model。値は URL エンコード）も添える。AI のプログラムのプロセス id（X-Matomezu-Host）は join も含めていつも添える。
 //
 //	POST /api/ai/join  {"ai", "model", "env", "sessionName", "link", "sessionId", "workroom", "as", "orcaWorkspace"} 参加を頼む。{"ok", "participant"}、または弾いた理由 {"ok": false, "reason", "detail"}
@@ -25,9 +27,10 @@ package server
 // workroom は、AI が続けたい（またはその名前で始めたい）ワークルームの名前。その名前の受け入れ済みの参加者がいて、生きていれば断る（workroom-in-use）。
 // そうでなければ、名前を添えた参加の要求を郵便で出す。引き継ぐか新しく始めるかは、利用者が受け入れのダイアログで選ぶ。
 // 生きているとは、最後に呼ばれてから、利用者の設定の参加の有効時間以内（最後に呼ばれた時刻は置き場所に残るので、起動し直しても続く）。
-// 参加の id が付いているか、同じ link の頼みは、これを見ずに、いる参加者のまま答える（参加の id の持ち主は、生きていなくても続けられる）
+// 呼び出しの参加者が決まっているか、同じ link の頼みは、これを見ずに、いる参加者のまま答える（参加の id の持ち主は、生きていなくても続けられる）
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -225,7 +228,7 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 	if err != nil {
 		return Joined{}, err
 	}
-	// 参加の id が付いていて、その参加者が参加（要求）中なら、その参加者のまま答える。付いていなくても、同じ link の参加者があれば同じ
+	// 呼び出しの参加者が決まっていて、その参加者が参加（要求）中なら、その参加者のまま答える。決まっていなくても、同じ link の参加者があれば同じ
 	for _, s := range records {
 		if (req.Participant != "" && s.ID == req.Participant && s.sitting()) || (req.Link != "" && s.Link == req.Link) {
 			h.noteSession(s.ID, req.SessionID)
@@ -486,7 +489,7 @@ func (h *Hub) ParticipantLive() map[string]participantLive {
 	return out
 }
 
-// CallerSays は、参加の id の付いた /api/ai の呼び出しに、MCP が添えたもの
+// CallerSays は、参加者が決まった /api/ai の呼び出しに、MCP が添えたもの
 type CallerSays struct {
 	Branch          string // git のブランチ（空はブランチが無い）
 	BranchSent      bool   // ブランチのヘッダが付いていた（付いていなければブランチを変えない）
@@ -528,7 +531,7 @@ func (h *Hub) ParticipantCalls() map[string]string {
 	return out
 }
 
-// Called は、参加の id が付いた /api/ai の呼び出しを常駐だけが持つ参加者の記録に残し、その参加者が参加（joined）していて、まだ伝えていなければ、
+// Called は、参加者が決まった /api/ai の呼び出しを常駐だけが持つ参加者の記録に残し、その参加者が参加（joined）していて、まだ伝えていなければ、
 // 1 度だけ返す「参加しました」の知らせ（伝えたと印を付ける）を返す。参加が済んでいない（要求中か準備中）id は何も残さず、知らせも返さない。
 // 表に無い id（断られたか、外された）には、1 度だけ「参加が断られた」知らせを返す。
 // id が空なら何もしない。最後に呼ばれた時刻は、前に知らせてから callsAnnounceGap 以上たっていたときだけ窓に知らせる。
@@ -609,14 +612,70 @@ func (h *Hub) Called(id string, says CallerSays, now time.Time) string {
 	return "The user declined your request to join matomezu (or removed you). Tell the user, and do not ask again unless the user asks."
 }
 
-// ai は /api/ai の口を包む。合言葉を確かめたあと（auth）、参加の id・ブランチ・AI のプログラムのプロセス id のヘッダを読んで常駐だけが持つ参加者の記録を更新し、知らせがあれば返事のヘッダに付ける
+// ai は /api/ai の口を包む。合言葉を確かめたあと（auth）、呼び出しの参加者を決め（participantOf で読む）、ブランチ・AI のプログラムのプロセス id のヘッダを読んで
+// 常駐だけが持つ参加者の記録を更新し、知らせがあれば返事のヘッダに付ける。
+// 参加者は、参加の id のヘッダか、無ければ AI のプログラムが MCP を立てたときのセッション id のヘッダに結ばれた参加者（SessionParticipant。
+// MCP が起動し直されて、join で受けた参加の id を失ったとき）
 func (o Options) ai(h http.HandlerFunc) http.Handler {
 	return o.auth(func(w http.ResponseWriter, r *http.Request) {
-		if notice := o.Hub.Called(r.Header.Get(aiwire.ParticipantHeader), callerSays(r.Header), time.Now()); notice != "" {
+		id := r.Header.Get(aiwire.ParticipantHeader)
+		if id == "" {
+			id = o.Hub.SessionParticipant(r.Header.Get(aiwire.HostSessionHeader), r.Header.Get(aiwire.HostHeader))
+		}
+		r = r.WithContext(context.WithValue(r.Context(), participantKey{}, id))
+		if notice := o.Hub.Called(id, callerSays(r.Header), time.Now()); notice != "" {
 			w.Header().Set(aiwire.NoticeHeader, url.QueryEscape(notice))
 		}
 		h(w, r)
 	})
+}
+
+// participantKey は、ai の包みが決めた呼び出しの参加者を、request の context に置く鍵
+type participantKey struct{}
+
+// participantOf は、ai の包みが決めた呼び出しの参加の id（無ければ空）
+func participantOf(r *http.Request) string {
+	id, _ := r.Context().Value(participantKey{}).(string)
+	return id
+}
+
+// SessionParticipant は、セッション id session が結ばれた参加者の id。受け入れ済みで準備中でない参加者が、ちょうど 1 人のときだけ返す（ほかは空。
+// フックは会話に出た link の参加者のどれにも同じセッション id を結ぶので、1 人に決まらなければ選ばない）。
+// 返すときは、起こす知らせの宛て先を、この呼び出しの AI のプログラムのプロセス id host とセッション id に書き直す（起動し直した AI のプログラムは、プロセス id が変わる）
+func (h *Hub) SessionParticipant(session, host string) string {
+	if session == "" {
+		return ""
+	}
+	records, err := h.records()
+	if err != nil {
+		return ""
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	found := ""
+	for _, s := range records {
+		n := h.participantNotes[s.ID]
+		if n.SessionID != session || !s.accepted() || !n.ready() {
+			continue
+		}
+		if found != "" {
+			return ""
+		}
+		found = s.ID
+	}
+	if found == "" {
+		return ""
+	}
+	n := h.participantNotes[found]
+	if n.WakeHost != host || n.WakeSession != session {
+		n.WakeHost, n.WakeSession = host, session
+		h.participantNotes[found] = n
+		if err := h.putParticipantNotes(); err != nil {
+			fmt.Fprintln(os.Stderr, "could not save the wake target of participant", found, ":", err)
+		}
+		h.signalWakes(found)
+	}
+	return found
 }
 
 func (o Options) aiJoin(w http.ResponseWriter, r *http.Request) {
@@ -624,7 +683,7 @@ func (o Options) aiJoin(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &req) {
 		return
 	}
-	req.Participant = r.Header.Get(aiwire.ParticipantHeader)
+	req.Participant = participantOf(r)
 	req.Host = r.Header.Get(aiwire.HostHeader)
 	req.HostSession = r.Header.Get(aiwire.HostSessionHeader)
 	req.SessionPid = r.Header.Get(aiwire.SessionPidHeader)

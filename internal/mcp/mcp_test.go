@@ -220,9 +220,10 @@ func textOf(a map[string]any) string {
 	return a["result"].(map[string]any)["content"].([]any)[0].(map[string]any)["text"].(string)
 }
 
-// 参加の id を添える呼び出しには、呼び出しのたびに読んだブランチ（URL エンコード。空でも）を添え、その呼び出しの _meta の、渡された置き場所にモデルがあれば、モデルも添える（URL エンコード）。
-// 参加の id が無ければ、どちらも添えない。AI のプログラムのプロセス id と、それが MCP を立てたときのセッション id は、join も含めていつも添える（起こす知らせの宛て先）
-func TestBranchAndModelGoWithTheParticipantAndHostAlways(t *testing.T) {
+// 参加の id か、AI のプログラムが MCP を立てたときのセッション id（常駐がそれに結ばれた参加者を引く）を添える呼び出しには、呼び出しのたびに読んだブランチ（URL エンコード。空でも）を添え、
+// その呼び出しの _meta の、渡された置き場所にモデルがあれば、モデルも添える（URL エンコード）。どちらも無ければ、どちらも添えない。
+// AI のプログラムのプロセス id とセッション id は、join も含めていつも添える（起こす知らせの宛て先）
+func TestBranchAndModelGoWithTheParticipantOrSessionAndHostAlways(t *testing.T) {
 	api := &fakeAPI{answer: `{"ok":true,"participant":"p7"}`}
 	branches := []string{"feat/d110", "", ""}
 	read := 0
@@ -234,14 +235,22 @@ func TestBranchAndModelGoWithTheParticipantAndHostAlways(t *testing.T) {
 	if len(api.headers) != 3 {
 		t.Fatalf("calls = %d", len(api.headers))
 	}
-	if h := api.headers[0]; len(h) != 2 || h.Get("X-Matomezu-Host") != "4242" || h.Get("X-Matomezu-Host-Session") != "HS1" {
+	if h := api.headers[0]; h.Get("X-Matomezu-Participant") != "" || h.Get("X-Matomezu-Host-Session") != "HS1" {
 		t.Fatalf("join without a participant = %v", h)
 	}
-	for i, want := range []struct{ branch, model string }{{"feat%2Fd110", ""}, {"", "gpt+6%2Fluna"}} {
-		h := api.headers[i+1]
+	for i, want := range []struct{ branch, model string }{{"feat%2Fd110", "gpt-6"}, {"", ""}, {"", "gpt+6%2Fluna"}} {
+		h := api.headers[i]
 		if v, ok := h["X-Matomezu-Branch"]; !ok || v[0] != want.branch || h.Get("X-Matomezu-Host") != "4242" || h.Get("X-Matomezu-Model") != want.model {
-			t.Fatalf("call %d = %v", i+1, h)
+			t.Fatalf("call %d = %v", i, h)
 		}
+	}
+	bare := &fakeAPI{answer: `{"ok":true}`}
+	var out bytes.Buffer
+	if err := Serve(strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"view","arguments":{}}}`+"\n"), &out, bare, "v1", "wsl-linux", func() string { return "main" }, "4242", "", "", "", testMeta); err != nil {
+		t.Fatal(err)
+	}
+	if h := bare.headers[0]; len(h) != 1 || h.Get("X-Matomezu-Host") != "4242" {
+		t.Fatalf("a call with neither = %v", h)
 	}
 }
 

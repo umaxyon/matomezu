@@ -5,14 +5,14 @@ import { createStore } from "zustand/vanilla"
 import { USER } from "../core/actor"
 import { addressOf, keepPlace, placeAt } from "../core/address"
 import { restoreAllAnnotations, withAnnotations } from "../core/annotation"
-import { checkBooks, distinctBooks, pageById } from "../core/book"
+import { pageById, readLibrary } from "../core/book"
 import { bulkActionOf, entersLibraryHistory, localDateOf, performBulk } from "../core/bulk"
 import type { CoreCatalog } from "../core/core-catalog"
 import type { ActionContext, ActionOn } from "../core/def/action"
 import type { PluginStateDef } from "../core/def/plugin-state"
 import { fail, matomezuError, type Problem, problem } from "../core/errors"
-import { type Folder, homeAndFoldersOf, type Library, type PageRow, type TableChanges } from "../core/folders"
-import { worldTablesOf } from "../core/folders-books"
+import { type Folder, homeOver, type Library, type PageRow, type TableChanges } from "../core/folders"
+import { recordsOf } from "../core/folders-books"
 import { settledOn, withChanges } from "../core/folders-changes"
 import { outsideUnreadable, rawBooksOf } from "../core/folders-unreadable"
 import { deepFreeze } from "../core/freeze"
@@ -31,7 +31,6 @@ import type { Refused } from "../core/perform"
 import { performIn } from "../core/perform-world"
 import { restoreCounters, restoreRecords, withCounters, withRecords } from "../core/records"
 import { sameData } from "../core/same"
-import type { Book } from "../core/schema/book"
 import { keyChangesOf, langOf, restoreSettings, type Settings } from "../core/settings"
 import {
   closePicker,
@@ -54,7 +53,6 @@ import {
   stopPlacing,
   zoomTo,
 } from "../core/stage"
-import type { Warning } from "../core/warnings"
 import { NO_WIDE_SEARCH_HITS } from "../core/wide-search"
 import {
   bookScreenCurrent,
@@ -122,6 +120,8 @@ import {
   type DoneAction,
   type HostAnswer,
   initialState,
+  type LibraryLoaded,
+  type LibraryRows,
   type MatomezuInstance,
   type MatomezuState,
   type StoreOptions,
@@ -170,19 +170,22 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   // 設定の言語の項目が選んでいないときの言語
   let fallback = startLang(catalog, options.lang)
   const booksAndTrashOf = booksAndTrashMaker()
-  const saved = checkBooks(catalog, options.savedBooks ?? [])
+  // 最後に読んだ行（作ったときは残した行と books の行。知らせを受けたら、その行）。機能台帳を組み直したら読み直す
+  let rows = startRows(options)
+  // 行 rows を今の機能台帳で読んだ書庫（窓の書庫の表は、起動・知らせ・組み直しのどれも、常駐のエンジンと同じ readLibrary で読む）と、読めない物のフォルダの直下の物
+  const loadRows = (): LibraryLoaded => {
+    const read = readLibrary(catalog, rows.pages, rows.folders)
+    return {
+      library: read.library,
+      warnings: read.warnings,
+      partial: read.partial,
+      unreadableFolder: outsideUnreadable(rows.pages, rows.folders).unreadable,
+    }
+  }
   const savedSettings = restoreSettings(options.settings)
   const initial =
     options.initial ??
-    initialState(
-      booksAndTrashOf,
-      catalog,
-      [...(options.books ?? []), ...saved.books],
-      savedSettings,
-      langOf(catalog, savedSettings, fallback),
-      saved.warnings,
-      saved.partial,
-    )
+    initialState(booksAndTrashOf, catalog, loadRows(), savedSettings, langOf(catalog, savedSettings, fallback))
   const newId = options.newId ?? (() => crypto.randomUUID())
   const clock = options.now ?? (() => new Date().toISOString())
   // 状態は書き換えさせない（前の状態と変わらない所を共有しているので、その場で書き換えると前の状態まで変わる）。入れるたびに変わった所を凍らせる
@@ -203,36 +206,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   const ctx = (): Omit<ActionContext, "naming"> => {
     const now = clock()
     return { catalog, controlCenter, lang: getState().lang, newId, now, today: localDateOf(now), actor: USER }
-  }
-  // 残した・知らされたブックを確かめた値（読めたブックか、読めない warning。同じ値は確かめ直さない）
-  let checked = new WeakMap<object, { book: Book; partial: readonly Warning[] } | { warning: Warning }>()
-  const restore = (saved: readonly unknown[]): { books: Book[]; warnings: Warning[]; partial: Warning[] } => {
-    const books: Book[] = []
-    const warnings: Warning[] = []
-    const partial: Warning[] = []
-    for (const b of saved) {
-      if (typeof b !== "object" || b === null) continue
-      let hit = checked.get(b)
-      if (!hit) {
-        const done = checkBooks(catalog, [b])
-        const [book] = done.books
-        const [warning] = done.warnings
-        hit = book ? { book, partial: done.partial } : warning ? { warning } : undefined
-        if (!hit) continue
-        checked.set(b, hit)
-      }
-      if ("book" in hit) {
-        books.push(hit.book)
-        partial.push(...hit.partial)
-      } else warnings.push(hit.warning)
-    }
-    // 1 冊ずつ確かめた後に、ブックどうしで id が重ならないかを確かめる（重なるブックは読めないブックにする）
-    const distinct = distinctBooks(books)
-    return {
-      books: distinct.books,
-      warnings: [...warnings, ...distinct.warnings],
-      partial: partial.filter(p => distinct.books.some(b => b.id === p.params.book)),
-    }
   }
   // キーバインドの表（利用者の変更が変わったときだけ作り直す）
   let keyCache: { settings: Settings; table: KeyTable } | null = null
@@ -902,10 +875,11 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     state: store,
     actions,
     receive: (world, replay, change) => {
-      const found = restore(rawBooksOf(world.pages, world.folders))
+      rows = { pages: world.pages, folders: world.folders }
+      const found = loadRows()
       const now = getState()
       // 確かめた世界の表（中身の同じページ・フォルダは、今の値に寄せる。組んだブックも同じ値のままになる）
-      let tables = settledOn(worldTablesOf(found.books, homeAndFoldersOf(world.folders)), now)
+      let tables = settledOn(found.library, now)
       // よその変更を、まだ見ていない変更に足す（確かめた世界の表から比べる）
       addForeign(change, tables)
       let settings = restoreSettings(world.settings)
@@ -939,8 +913,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (sameData(counters, now.counters)) counters = now.counters
       const unreadable = sameData(found.warnings, now.unreadable) ? now.unreadable : found.warnings
       const partial = sameData(found.partial, now.partial) ? now.partial : found.partial
-      const moved = outsideUnreadable(world.pages, world.folders).unreadable
-      const unreadableFolder = sameData(moved, now.unreadableFolder) ? now.unreadableFolder : moved
+      const unreadableFolder = sameData(found.unreadableFolder, now.unreadableFolder)
+        ? now.unreadableFolder
+        : found.unreadableFolder
       // ホストが知らせた値は、無いか変わっていなければ今の値のまま
       const kept = <T>(next: T | undefined, current: T): T =>
         next === undefined || sameData(next, current) ? current : next
@@ -1087,25 +1062,12 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       defs = next
       controlCenter = next.controlCenter
       catalog = next.catalog.core
-      checked = new WeakMap()
       keyCache = null
       fallback = startLang(catalog, options.lang)
       Object.assign(instance, next, { plugins: [...plugins, ...used] })
       resetUnseen()
       const { settings } = getState()
-      const again = checkBooks(catalog, options.savedBooks ?? [])
-      setState(
-        initialState(
-          booksAndTrashOf,
-          catalog,
-          [...(options.books ?? []), ...again.books],
-          settings,
-          langOf(catalog, settings, fallback),
-          again.warnings,
-          again.partial,
-        ),
-        true,
-      )
+      setState(initialState(booksAndTrashOf, catalog, loadRows(), settings, langOf(catalog, settings, fallback)), true)
       instance.locate(at)
     },
   }
@@ -1119,4 +1081,25 @@ export const openedIn = (
 ): { book: string; page: string | null } | null => {
   const opened = stageIn(instance.state.getState().window, stage)?.opened
   return opened ? { book: opened.outermost, page: shownPageId(opened) } : null
+}
+
+// 作ったときに読む行: 残した行 saved と、books を分けた行（core/folders-books.ts の recordsOf）。
+// 書庫ホームの行が無ければ（ホストの無い窓とテスト。常駐の置き場所はいつも持つ）、どのフォルダ（ゴミ箱も）にも持たれていないブックを並べた書庫ホームの行を足す
+function startRows(options: Pick<StoreOptions, "saved" | "books">): LibraryRows {
+  const made = (options.books ?? []).map(recordsOf)
+  const pages = [...(options.saved?.pages ?? []), ...made.flatMap(r => r.pages)]
+  const folders = [...(options.saved?.folders ?? []), ...made.flatMap(r => r.folders)]
+  const roleOf = (f: unknown) => (f as { folderRole?: unknown } | null)?.folderRole
+  if (folders.some(f => roleOf(f) === "home")) return { pages, folders }
+  const held = new Set(
+    folders.flatMap(f => {
+      const lineup = (f as { lineup?: unknown } | null)?.lineup
+      return Array.isArray(lineup) ? lineup.map(r => (r as { id?: unknown } | null)?.id) : []
+    }),
+  )
+  const books = rawBooksOf(pages, folders).flatMap(b => {
+    const id = (b as { id?: unknown } | null)?.id
+    return typeof id === "string" && !held.has(id) ? [{ id }] : []
+  })
+  return { pages, folders: [...folders, homeOver(books)] }
 }

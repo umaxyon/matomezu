@@ -22,10 +22,9 @@ import {
   TRASH_ID,
   type TrashFolder,
 } from "../../web/src/core/folders"
-import { worldTablesOf } from "../../web/src/core/folders-books"
 import { treeHolds } from "../../web/src/core/folders-tree"
 import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"
-import { NAMING } from "../support"
+import { NAMING, worldTablesOf } from "../support"
 
 const b1 = testBook("b1", "一", [drawingPage("p1"), testBinder("f1", "束", SLIDE, testPage(SLIDE, "s1"))])
 const b2 = testBook("b2", "二", [drawingPage("p2")])

@@ -1,0 +1,315 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io/fs"
+	"net"
+	"net/http"
+	"os"
+	"os/exec"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/umaxyon/matomezu/internal/browser"
+	"github.com/umaxyon/matomezu/internal/engine"
+	"github.com/umaxyon/matomezu/internal/home"
+	"github.com/umaxyon/matomezu/internal/server"
+	"github.com/umaxyon/matomezu/internal/storage"
+	"github.com/umaxyon/matomezu/web"
+)
+
+// 裏で立てた常駐が待ち受けを始めるまで待つ時間
+const startWait = 10 * time.Second
+
+// 常駐の立て方（serve と start で共通）
+type serverFlags struct {
+	Addr   string   `default:"${addr}" help:"Address to listen on (127.0.0.1 only)."`
+	Web    string   `help:"Serve the screen from this folder instead of the one built in." type:"existingdir"`
+	Plugin []string `help:"Add the plugin in this developer project folder (with matomezu.json). Repeat for more." type:"existingdir"`
+}
+
+func (f serverFlags) args() []string {
+	a := []string{"--addr", f.Addr}
+	if f.Web != "" {
+		a = append(a, "--web", f.Web)
+	}
+	for _, p := range f.Plugin {
+		a = append(a, "--plugin", p)
+	}
+	return a
+}
+
+type serveCmd struct {
+	serverFlags
+}
+
+type startCmd struct {
+	serverFlags
+	Open bool `help:"Open the screen and give the browser a screen cookie."`
+}
+
+type stopCmd struct{}
+
+type openCmd struct{}
+
+func openHome() (*home.Home, error) {
+	dir, err := home.Dir()
+	if err != nil {
+		return nil, err
+	}
+	return home.Open(dir)
+}
+
+func (c *serveCmd) Run() error {
+	h, err := openHome()
+	if err != nil {
+		return err
+	}
+	lock, err := h.Lock()
+	if err != nil {
+		return err
+	}
+	defer lock.Unlock()
+
+	webFS, err := screen(c.Web)
+	if err != nil {
+		return err
+	}
+	store, err := storage.OpenSQLite(h.DataPath())
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+	eng, err := engine.New()
+	if err != nil {
+		return err
+	}
+	hub, err := server.NewHub(store, eng)
+	if err != nil {
+		return err
+	}
+	// 期限の過ぎたアノテーションを、時間で消す
+	go func() {
+		for now := range time.Tick(server.ExpireEvery) {
+			if err := hub.Expire(now); err != nil {
+				fmt.Fprintln(os.Stderr, "expire:", err)
+			}
+		}
+	}()
+	// 呼ばれないビジターを、時間で退室させる
+	go func() {
+		for now := range time.Tick(server.VisitorSweepEvery) {
+			if err := hub.LeaveIdleVisitors(now); err != nil {
+				fmt.Fprintln(os.Stderr, "visitors:", err)
+			}
+		}
+	}()
+	// 変換できないか台帳アセンブルで食い違う追加プラグインは外して立て、理由をログに残す（ほかのブックまで開けなくしない）
+	for _, dir := range c.Plugin {
+		if _, err := hub.LinkPlugin(dir); err != nil {
+			fmt.Fprintf(os.Stderr, "plugin %s is not added: %v\n", dir, err)
+		}
+	}
+	host, _, err := net.SplitHostPort(c.Addr)
+	if err != nil {
+		return err
+	}
+	if ip := net.ParseIP(host); ip == nil || !ip.IsLoopback() {
+		return fmt.Errorf("--addr must be on 127.0.0.1: %s", c.Addr)
+	}
+	ln, err := net.Listen("tcp", c.Addr)
+	if err != nil {
+		return err
+	}
+	token, err := home.NewToken()
+	if err != nil {
+		return err
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	url := "http://" + ln.Addr().String() + "/"
+	keys, err := h.ReadCookieKeys()
+	if err != nil {
+		return err
+	}
+	cookieKeys := make([]server.CookieKey, len(keys))
+	for i, k := range keys {
+		cookieKeys[i] = server.CookieKey(k)
+	}
+	saveCookieKeys := func(ks []server.CookieKey) error {
+		out := make([]home.CookieKey, len(ks))
+		for i, k := range ks {
+			out[i] = home.CookieKey(k)
+		}
+		return h.WriteCookieKeys(out)
+	}
+	srv := &http.Server{
+		Handler: server.Handler(server.Options{
+			Web: webFS, Token: token, Version: version, Stop: stop, Hub: hub,
+			URL: url, Open: browser.Open, Cookies: server.NewScreenCookies(cookieKeys, saveCookieKeys),
+		}),
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+	srv.RegisterOnShutdown(hub.CloseAll)
+	if err := h.WriteServer(home.Server{URL: url, Token: token, PID: os.Getpid(), Version: version}); err != nil {
+		return err
+	}
+	defer h.RemoveServer()
+	fmt.Println(url)
+
+	done := make(chan error, 1)
+	go func() { done <- srv.Serve(ln) }()
+	select {
+	case err := <-done:
+		return err
+	case <-ctx.Done():
+	}
+	shut, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return srv.Shutdown(shut)
+}
+
+// screen は配る画面。--web があればそのフォルダ、無ければ埋め込んだもの
+func screen(dir string) (fs.FS, error) {
+	if dir != "" {
+		return os.DirFS(dir), nil
+	}
+	if f, ok := web.Embedded(); ok {
+		return f, nil
+	}
+	return nil, errors.New("this build has no screen built in: pass --web <folder>")
+}
+
+func (c *startCmd) Run() error {
+	h, err := openHome()
+	if err != nil {
+		return err
+	}
+	s, err := ensure(h, c.serverFlags)
+	if err != nil {
+		return err
+	}
+	fmt.Println(s.URL)
+	if c.Open {
+		return openBrowser(s)
+	}
+	// 画面 cookie の無いブラウザは、この URL を開いても断られる（URL は標準出力のまま、案内は標準エラーへ）
+	fmt.Fprintln(os.Stderr, "Run matomezu start --open to give your browser access to the screen.")
+	return nil
+}
+
+// ensure は、立っている常駐のつなぎ方を返す。立っていなければ f で裏に立て、答えるまで待つ
+func ensure(h *home.Home, f serverFlags) (*home.Server, error) {
+	if s, err := running(h); err != nil || s != nil {
+		return s, err
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return nil, err
+	}
+	log, err := os.OpenFile(h.LogPath(), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		return nil, err
+	}
+	defer log.Close()
+	cmd := exec.Command(exe, append([]string{"serve"}, f.args()...)...)
+	cmd.Stdout, cmd.Stderr = log, log
+	cmd.SysProcAttr = detached()
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+	exited := make(chan error, 1)
+	go func() { exited <- cmd.Wait() }()
+
+	deadline := time.After(startWait)
+	for {
+		select {
+		case <-exited:
+			// 同時に起動した別のプロセスの常駐が先に立っていれば、それを使う
+			if s, _ := running(h); s != nil {
+				return s, nil
+			}
+			return nil, fmt.Errorf("the server stopped while starting: see %s", h.LogPath())
+		case <-deadline:
+			return nil, fmt.Errorf("the server did not start in %s: see %s", startWait, h.LogPath())
+		case <-time.After(100 * time.Millisecond):
+		}
+		if s, _ := running(h); s != nil {
+			return s, nil
+		}
+	}
+}
+
+// running は、立っていて答える常駐のつなぎ方。立っていなければ nil
+func running(h *home.Home) (*home.Server, error) {
+	up, err := h.Running()
+	if err != nil || !up {
+		return nil, err
+	}
+	s, err := h.ReadServer()
+	if err != nil || s == nil {
+		return nil, err
+	}
+	if _, err := call(s, http.MethodGet, "api/ping"); err != nil {
+		return nil, nil
+	}
+	return s, nil
+}
+
+func (c *stopCmd) Run() error {
+	h, err := openHome()
+	if err != nil {
+		return err
+	}
+	s, err := running(h)
+	if err != nil || s == nil {
+		return err
+	}
+	if _, err := call(s, http.MethodPost, "api/stop"); err != nil {
+		return err
+	}
+	for range 50 {
+		if up, err := h.Running(); err != nil || !up {
+			return err
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return errors.New("the server did not stop")
+}
+
+// Run は、cookie のコード付きでブラウザを開かせる（画面 cookie が切れたブラウザを、利用者が自分で渡し直す）。常駐が立っていなければ立てる
+func (c *openCmd) Run() error {
+	h, err := openHome()
+	if err != nil {
+		return err
+	}
+	s, err := ensure(h, serverFlags{Addr: DefaultAddr})
+	if err != nil {
+		return err
+	}
+	return openBrowser(s)
+}
+
+func openBrowser(s *home.Server) error {
+	out, _, _, err := send(s, http.MethodPost, "api/open", nil, nil)
+	if err != nil {
+		return err
+	}
+	var done struct {
+		OK     bool   `json:"ok"`
+		Reason string `json:"reason"`
+		Detail string `json:"detail"`
+	}
+	if err := json.Unmarshal(out, &done); err != nil {
+		return err
+	}
+	if !done.OK {
+		return fmt.Errorf("the browser could not be opened: %s %s", done.Reason, done.Detail)
+	}
+	return nil
+}

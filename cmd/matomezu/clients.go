@@ -65,11 +65,16 @@ type claudeMCPCmd struct{}
 
 // Run は、Claude Code の MCP を出す
 func (claudeMCPCmd) Run() error {
-	c := mcpCmd{serverFlags: serverFlags{Addr: DefaultAddr}, SessionEndsWith: sessionEndsWith(claudelaunch.SessionEndsWith)}
+	c := claudeMCP(sessionEndsWith(claudelaunch.SessionEndsWith))
 	if root := claudeDev(); root != "" {
 		c.serverFlags = devServerFlags(root)
 	}
 	return c.Run()
+}
+
+// claudeMCP は、Claude Code の MCP の mcp コマンド（endsWith は --session-ends-with の値）。Claude Code が渡すセッション id を添える
+func claudeMCP(endsWith string) mcpCmd {
+	return mcpCmd{serverFlags: serverFlags{Addr: DefaultAddr}, SessionEndsWith: endsWith, Session: os.Getenv(claudelaunch.SessionEnv)}
 }
 
 // sessionEndsWith は、mcp --session-ends-with の値: たどった AI のプログラムの名前から、その AI の事情（choose）で決める（たどれなければ、空の名前で聞く）

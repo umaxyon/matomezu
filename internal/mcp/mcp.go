@@ -73,8 +73,12 @@ func (c *conn) header() http.Header {
 	if c.hostSession != "" {
 		h.Set(aiwire.HostSessionHeader, c.hostSession)
 	}
-	if p := c.participant(); p != "" {
+	// 参加の id が無くても、セッション id を添えれば、常駐がそれに結ばれた参加者を引く（MCP が起動し直されたとき）ので、ブランチとモデルも添える
+	p := c.participant()
+	if p != "" {
 		h.Set(aiwire.ParticipantHeader, p)
+	}
+	if p != "" || c.hostSession != "" {
 		h.Set(aiwire.BranchHeader, url.QueryEscape(c.branch()))
 		if c.model != "" {
 			h.Set(aiwire.ModelHeader, url.QueryEscape(c.model))

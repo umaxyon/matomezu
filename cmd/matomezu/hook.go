@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"regexp"
 	"strings"
@@ -23,6 +24,60 @@ import (
 	claudelaunch "github.com/umaxyon/matomezu/clients/claude-code/launch"
 	"github.com/umaxyon/matomezu/internal/mcp"
 )
+
+type talkedCmd struct {
+	Context string `help:"Text the hook adds to what it tells AI (such as the output of annotations). It is printed as it is when there is nothing to say as JSON."`
+	Host    string `help:"Process id of AI's host program (such as Claude Code). The server ties a new session id of the same process to its participant (after /clear)."`
+	Format  string `default:"hook" enum:"hook,split" help:"Shape of the answer: hook (the hook's JSON that Claude Code, Codex and Gemini CLI read; --context as it is when there is nothing else to say) or split (one JSON for any AI program: message to show the user, forAi to add to what AI reads this turn, sessionTitle for the conversation; nothing when all are empty)."`
+	Woken   bool   `help:"The turn was started by a wake notice (such as matomezu deliver), not by the user talking."`
+}
+
+type modelCmd struct {
+	Host string `help:"Process id of AI's host program (such as Claude Code). The server ties a new session id of the same process to its participant (after /clear)."`
+}
+
+// Run は、AI のターンの始まりを常駐に知らせる（AI のフックが呼ぶ。フックの JSON が標準入力に来る）。
+// 常駐を立てず、立っていない・答えないときは何もしない（AI のターンを止めない。--context があればそれだけ書く）
+func (c *talkedCmd) Run() error {
+	hook := stdinHook()
+	hook.Host = c.Host
+	hook.Woken = c.Woken
+	talked(os.Stdout, hook, c.Context, c.Format, runningAPI("api/ai/talked"))
+	return nil
+}
+
+// Run は、AI のセッションのモデルを常駐に知らせる（AI のフックが呼ぶ。フックの JSON が標準入力に来る）。
+// 常駐を立てず、立っていない・答えないときは何もしない
+func (c *modelCmd) Run() error {
+	hook := stdinHook()
+	hook.Host = c.Host
+	sendModel(hook, runningAPI("api/ai/model"))
+	return nil
+}
+
+// stdinHook は、標準入力に来たフックの JSON（端末なら読まない）
+func stdinHook() hookInput {
+	if in, err := os.Stdin.Stat(); err == nil && in.Mode()&os.ModeCharDevice == 0 {
+		return readHookInput(os.Stdin)
+	}
+	return hookInput{}
+}
+
+// runningAPI は、立っている常駐の POST path を呼ぶ口（立っていなければ nil。常駐を立てない）
+func runningAPI(path string) hookAPI {
+	h, err := openHome()
+	if err != nil {
+		return nil
+	}
+	s, err := running(h)
+	if err != nil || s == nil {
+		return nil
+	}
+	return func(body []byte) ([]byte, error) {
+		out, _, _, err := send(s, http.MethodPost, path, body, nil)
+		return out, err
+	}
+}
 
 // hookInput はフックの標準入力の JSON のうち、使う所
 type hookInput struct {

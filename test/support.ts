@@ -1,6 +1,13 @@
 // テストで使う、ビルトインプラグインだけの表と store
 import { namingOf } from "../web/src/core/entries"
-import { type AnyEntryRef, type BinderFolder, HOME_ID, type Library, type PageRow } from "../web/src/core/folders"
+import {
+  type AnyEntryRef,
+  type BinderFolder,
+  HOME_ID,
+  type HomeOrFolder,
+  type Library,
+  type PageRow,
+} from "../web/src/core/folders"
 import { tablesOf } from "../web/src/core/folders-books"
 import type { AnyPage, BinderEntry, Book } from "../web/src/core/schema/book"
 import { NO_SETTINGS } from "../web/src/core/settings"
@@ -117,3 +124,46 @@ export const NAMING = namingOf(CORE_CATALOG, NO_SETTINGS)
 
 // 常駐が書庫を整えた（core/unreadable.ts の settleLibrary。足りないシステムフォルダを足し、名前の重なりに番号を付ける）あとの世界を、store に届ける（matomezu/testing と同じ物）
 export { settleIn } from "../web/src/store/settle"
+
+// 残したブック books（形を確かめる前の値。壊れた物も）を、ホストが置き場所に持つ形の行にした物（createMatomezu の saved に渡す）。
+// 並びのページとバインダは、id だけの並びの要素と、ページの行・バインダの行に分ける。並びを持たない物は、フォルダの行としてそのまま残す。書庫ホームの行は作らない（store が足す）
+export function savedRows(books: readonly unknown[]): { pages: unknown[]; folders: unknown[] } {
+  const pages: unknown[] = []
+  const folders: unknown[] = []
+  const isEntry = (e: unknown): e is { kind: unknown; id: string; lineup?: unknown } =>
+    typeof e === "object" && e !== null && typeof (e as { id?: unknown }).id === "string"
+  for (const b of books) {
+    const lineup = (b as { lineup?: unknown } | null)?.lineup
+    if (!Array.isArray(lineup)) {
+      folders.push(b)
+      continue
+    }
+    const refs = lineup.map(e => {
+      if (!isEntry(e)) return e
+      if (e.kind === "binder" && Array.isArray(e.lineup)) {
+        const { kind: _, lineup: inner, ...fields } = e
+        pages.push(...(inner as unknown[]))
+        folders.push({
+          ...fields,
+          folderRole: "binder",
+          lineup: (inner as unknown[]).map(p => (isEntry(p) ? { kind: "page", id: p.id } : p)),
+        })
+        return { kind: "binder", id: e.id }
+      }
+      if (e.kind === "page") {
+        pages.push(e)
+        return { kind: "page", id: e.id }
+      }
+      return e
+    })
+    folders.push({ ...(b as object), lineup: refs })
+  }
+  return { pages, folders }
+}
+
+// 世界の表: ブック books を分けた表に、書庫ホームとフォルダ others を足した物（テストの用意として表に直に置く）
+export function worldTablesOf(books: readonly Book[], others: readonly HomeOrFolder[]): Library {
+  const tables = tablesOf(books)
+  if (others.length === 0) return tables
+  return { pages: tables.pages, folders: { ...tables.folders, ...Object.fromEntries(others.map(f => [f.id, f])) } }
+}

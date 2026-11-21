@@ -6,8 +6,7 @@ import type { Annotations } from "../core/annotation"
 import type { ControlCenterId, MessageKey, SkinId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
 import type { ActionOn } from "../core/def/action"
-import { type BROKEN, type Folders, homeOver, type Library, type Pages } from "../core/folders"
-import { worldTablesOf } from "../core/folders-books"
+import type { BROKEN, Folders, Library, Pages } from "../core/folders"
 import type { UnreadableItem } from "../core/folders-unreadable"
 import type { History } from "../core/history"
 import type { Lang, Params } from "../core/i18n/i18n"
@@ -140,9 +139,8 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   // （並びの全部が history: false のアクションなら入れない）。
   // ホストクライアントだけが使う（アクションを通さずに世界を入れ替えるので、プラグインに渡す actions には入れない）
   receive(
-    world: {
-      pages: readonly unknown[] // 置き場所から読んだままのページとフォルダ（ブックは、ここから組んで確かめる）
-      folders: readonly unknown[]
+    world: LibraryRows & {
+      // pages と folders は、置き場所から読んだままのページとフォルダ（書庫は、ここから読んで確かめる）
       settings: unknown
       annotations?: unknown
       records?: unknown
@@ -210,32 +208,42 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   pushing(): ReadonlySet<string>
   // 鍵 key の編集ロックを lock にする（null なら外す）。base のフック useEditLock を通して使う（プラグインに渡す actions には入れない）
   setEditLock(key: string, lock: EditLock | null): void
-  // 取り込んだ追加プラグイン added を足して組み直す（前に足したものと置き換える）。状態は作ったときの初めに戻し、残したブックを新しい台帳で読み直す。
+  // 取り込んだ追加プラグイン added を足して組み直す（前に足したものと置き換える）。状態は作ったときの初めに戻し、最後に読んだ行（作ったときの行か、そのあと受けた行）を新しい台帳で読み直す。
   // 追加プラグインは並びの順に 1 つずつ試し、台帳アセンブルで食い違う物（check が投げたものも）は、そのあとを試す台帳に入れない。
   // 1 つでも食い違えば、何も当てずに（前の台帳のまま）E317 を投げる。details は食い違った物ごとの E318（並びの順。plugin は id、reason は中の error の文）
   use(added: readonly Plugin[], check?: (plugins: readonly Plugin[]) => void): void
 }
 
-const NO_UNREADABLE_ITEMS: readonly UnreadableItem[] = []
+// 置き場所から読んだままのページとフォルダの行（形を確かめる前の値）
+export interface LibraryRows {
+  pages: readonly unknown[]
+  folders: readonly unknown[]
+}
 
-// 最初の状態（ブックスクリーンは開かない）
+// 行を今の機能台帳で読んだ物: 書庫の表 library と、読めないブックの warning・読めるブックの中の問題（core/book.ts の readLibrary）と、読めない物のフォルダの直下の物
+export interface LibraryLoaded {
+  library: Library
+  warnings: readonly Warning[]
+  partial: readonly Warning[]
+  unreadableFolder: readonly UnreadableItem[]
+}
+
+// 最初の状態（ブックスクリーンは開かない）。書庫は、行を読んだ物 loaded
 export function initialState(
   booksAndTrashOf: (tables: Library) => BooksAndTrash,
   catalog: CoreCatalog,
-  books: readonly Book[],
+  loaded: LibraryLoaded,
   settings: Settings,
   lang: Lang,
-  unreadable: readonly Warning[] = [],
-  partial: readonly Warning[] = [],
 ): MatomezuState {
-  const tables = worldTablesOf(books, [homeOver(books)])
+  const tables = loaded.library
   const { books: open, trash } = booksAndTrashOf(tables)
   return {
     ...tables,
     books: open,
-    unreadable,
-    partial,
-    unreadableFolder: NO_UNREADABLE_ITEMS,
+    unreadable: loaded.warnings,
+    partial: loaded.partial,
+    unreadableFolder: loaded.unreadableFolder,
     window: newWindow(catalog),
     settings,
     annotations: {},
@@ -292,7 +300,7 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   books?: readonly Book[] // 最初に持つブック（開かない）
   autoSkin?: { light?: SkinId; dark?: SkinId } // 自動のスキン（OS の明暗に合わせる）で使うスキン。無ければ、表で最初に出てくるその明暗のスキン
   lang?: Lang | readonly string[] // 言語か、好む言語の並び（ブラウザの言語など）。インスタンスにある最初の言語を使い、無ければ英語
-  savedBooks?: readonly unknown[] // 残しておいたブック（ホストが読んだもの）。このインスタンスのブックの形に合うものだけを、books のあとに持つ
+  saved?: LibraryRows // 残しておいたページとフォルダの行（ホストが読んだもの）。books の行と合わせて、今の機能台帳で読んだ書庫を持つ
   settings?: unknown // 残しておいた設定（ホストが読んだもの）。言語の項目が選んだ言語パックは、lang より優先して使う
   initial?: MatomezuState // 最初の状態をそのまま渡す（books と lang より優先する）
   newId?: () => string // ブック・ページ・アイテムの id のもとを振る。無ければ、どの世界でも重ならない uuid
