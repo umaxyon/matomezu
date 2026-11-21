@@ -990,7 +990,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         if (kept !== now.window) commit({ window: kept })
         return
       }
-      const win = placeAt(catalog, now.books, now.window, address)
+      const win = placeAt(catalog, now.books, { pages: now.pages, folders: now.folders }, now.window, address)
       const placed = defs.catalog.store.pluginStates
       // 場所の値で、画面の場所に入れる宣言の値を丸ごと置き換える（形に合わない値・宣言の無い id・入れない宣言の id は落とし、入れない宣言の値は残す。空になったステージの組は持たない）
       const stages: Record<string, Readonly<Record<string, unknown>>> = {}

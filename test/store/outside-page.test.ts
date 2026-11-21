@@ -1,6 +1,9 @@
 // ブックの外のページを窓に出す（store の showOutsidePageStage）: 開く・そのページを変える・よその変更でゴミ箱に入ると閉じる
 
 import { expect, test } from "bun:test"
+import { stagePlacesOf } from "../../web/src/core/address"
+import { NO_OUTERMOST } from "../../web/src/core/folders-tree"
+import { shownPageId } from "../../web/src/core/stage"
 import { stageIn } from "../../web/src/core/window"
 import { NO_STAGE } from "../../web/src/store/dialogs"
 import type { AIEditTicketOutcome } from "../../web/src/store/state"
@@ -123,4 +126,36 @@ test("ロックしたブックの外のページは、元に戻すが断られ�
     kind: "warn",
     detail: { params: { name: "変えた名前" } },
   })
+})
+
+test("ブックの外のページを開いた画面の場所は、ブックを名指さずページを名指し、当てはめると同じページを開く。ブックの中へ移されていればそのブックのページを開き、開けなければそのステージを開かない", () => {
+  const store = withOutside()
+  const stage = store.actions.showOutsidePageStage("o1")
+  const address = store.address()
+  expect(stagePlacesOf(address).map(p => [p.outermost, p.page])).toContainEqual([NO_OUTERMOST, "o1"])
+  // 読み直した窓（同じ書庫）に当てはめる
+  const again = withOutside()
+  again.locate(address)
+  const opens = (s: Store) =>
+    s.state.getState().window.screens.flatMap(c => c.stages?.stages.map(t => t.opened?.outermost) ?? [])
+  expect(opens(again)).toContainEqual({ kind: "page", id: "o1" })
+  expect(opens(store)).toContainEqual({ kind: "page", id: "o1" })
+  expect(stage).not.toBe(NO_STAGE)
+  // その間にブックの中へ移されていれば、そのブックのページとして開く
+  const moved = newStore({ newId: sequence() })
+  const [book, ...rest] = Object.values(moved.state.getState().books)
+  const into = { ...book!, lineup: [...book!.lineup, drawingPage("o1", { title: "ブックの外のページ" })] }
+  moved.receive({ ...worldRows([into, ...rest]), settings: {} }, [])
+  moved.locate(address)
+  const at = moved.state.getState().window.screens.flatMap(c => c.stages?.stages ?? [])
+  expect(at.map(t => [t.opened?.outermost, shownPageId(t.opened)])).toContainEqual([
+    { kind: "book", id: book!.id },
+    "o1",
+  ])
+  // 無くなっていれば、そのステージは開かない
+  const gone = newStore({ newId: sequence() })
+  const before = gone.state.getState().window
+  gone.locate(address)
+  expect(opens(gone)).not.toContainEqual({ kind: "page", id: "o1" })
+  expect(gone.state.getState().window.screens.length).toBe(before.screens.length)
 })
