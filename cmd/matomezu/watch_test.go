@@ -20,7 +20,7 @@ import (
 func TestReadWakesPrintsOnlyWakeLines(t *testing.T) {
 	in := "event: keep\ndata: {}\n\nevent: wake\ndata: {\"text\":\"matomezu: the user accepted\"}\n\nevent: wake\ndata: {\"text\":\"\"}\n\n"
 	var out bytes.Buffer
-	p := printDeliverer{&out}
+	p := printDeliverer{out: &out}
 	if err := readWakes(strings.NewReader(in), func() bool { return true }, func(w wakeOut) { p.deliver(w) }); err != nil {
 		t.Fatal(err)
 	}

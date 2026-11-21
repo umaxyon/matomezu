@@ -68,7 +68,7 @@ func TestAcceptingWakesOnlyTheJoinedProcess(t *testing.T) {
 		t.Fatalf("accept = %s", out)
 	}
 	got := wakes(hub, mine)
-	if len(got) != 1 || !strings.Contains(got[0], "accepted") || !strings.Contains(got[0], "ひよこ") {
+	if len(got) != 1 || !strings.Contains(got[0], "joined as") || !strings.Contains(got[0], "ひよこ") {
 		t.Fatalf("wakes = %q", got)
 	}
 	if got := wakes(hub, other); len(got) != 0 {

@@ -7,7 +7,7 @@ package server
 // host（AI のプログラムのプロセス id）が添えてあれば、先に、同じプロセス id の参加者にそのセッション id を結び直す（Claude Code の /clear のあと、
 // 会話のセッション id は変わるが、MCP とフックの親の Claude Code のプロセスは変わらない。新しい会話の記録には link が無いので、記録からは結べない）。
 //
-//	POST /api/ai/talked  {"sessionId", "host", "candidates", "woken"}
+//	POST /api/ai/talked  {"sessionId", "host", "candidates", "woken", "prompt"}
 //	  candidates が無い: ターンが始まった。woken でなければ利用者トリガートークのときに行うアクションを行い、{"welcomes", "unbound"} を返す
 //	  candidates が有る: 記録から拾った uuid の形の文字列。行うアクションは行わず、link が合う参加者にセッション id を結んで、同じ形を返す
 //	welcomes は、そのセッションの、受け入れ済みで伝えていない参加者（伝えたと印を付けて返す）。unbound は、そのセッションが誰にも結ばれておらず、結ばれていない参加者がいる（記録を調べる値打ちがある）

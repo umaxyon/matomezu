@@ -252,6 +252,9 @@ export function plusPoint(rect: { x: number; y: number; w: number; h: number }, 
   return { x: rect.x + rect.w + PLUS_GAP, y: cy }
 }
 
+// 選んでいる節のキャプションをその場で書いている編集の名前（ステージの editing）
+export const CAPTION_EDIT = kit.name("caption-edit")
+
 // 足した節をその場で書いている編集の名前（ステージの editing）。終えるとき、書いたのを足した画面の履歴の段に続ける（足すのと書くのが 1 つの画面の履歴の段）
 export const ADDED_EDIT = kit.name("added-edit")
 

@@ -72,7 +72,7 @@ export function useEndWhenBlocked(active: boolean, commit: CommandId, discard: (
     if (told.current) return
     told.current = true
     discardNow.current()
-    setEditing(false)
+    setEditing("none")
     showToast({ kind: "warn", message: kit.message("Can no longer write, so the text was discarded") })
   }, [blocked, setEditing, showToast])
   return finish

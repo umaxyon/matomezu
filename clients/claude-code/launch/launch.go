@@ -19,6 +19,25 @@ const (
 	Gap       = time.Second
 )
 
+// Claude Desktop の Code タブは CLI を非対話で立て、プラグインの monitor を起動しない。そこではプラグインの mod（hooks/register.ts）が
+// matomezu claude-code watch --via mod を立て、出た 1 行ごとに $.prompt.submit でターンを始める。EntrypointEnv は Claude Code の起動のされ方の環境変数
+const (
+	EntrypointEnv     = "CLAUDE_CODE_ENTRYPOINT"
+	desktopEntrypoint = "claude-desktop"
+)
+
+// ModWakes は、起動のされ方 entrypoint の会話を mod の watch で起こすか（Desktop の会話だけ。-p・SDK は起こさず、知らせは呼び出しの返事で渡る）
+func ModWakes(entrypoint string) bool {
+	return entrypoint == desktopEntrypoint
+}
+
+// mod の watch が渡す知らせの上限。$.prompt.submit は 1 行を 1 つのターンにするので、行は切らず（常駐の知らせはどれも 1 行）、間も空けない。
+// 1 回の知らせの上限は monitor と同じ値にする。そのターンが知らせで始まったかは、常駐が渡した知らせと照らして決める（talked の prompt）
+const (
+	ModMaxLine   = 0
+	ModMaxNotice = MaxNotice
+)
+
 // SessionEndsWith は、mcp --session-ends-with の値: セッションと同じだけ生きるプロセス。matomezu が親をたどって当たったプロセス（名前 name は小文字、.exe を除いた物）が
 // Claude Code の本体なら、その会話 1 つだけを受け持つので program。確かめられるのはネイティブの版（claude）だけで、npm で入れた版（node）は node で動くほかのプログラムと
 // 見分けられないので名乗らない（空）

@@ -5,6 +5,7 @@ import type { ActionId, DialogId, ItemId, SubjectId, ToolId } from "../core/cata
 import type { PageTarget } from "../core/def/action"
 import type { Point, Size } from "../core/geom"
 import type { ArgsOf, Refused, ResultOf, TargetOf } from "../core/perform"
+import type { Editing } from "../core/stage"
 import type { CommandArgs, CommandId } from "./commands"
 import type { MenuOpens } from "./context-menus"
 import type { DialogArgs, DialogPreview } from "./dialogs"
@@ -135,8 +136,8 @@ export interface PlaceActions {
   togglePlacing(stage: string, item: ItemId, props?: Readonly<Record<string, unknown>>): void
   stopPlacing(stage: string): void
   select(stage: string, ids: readonly string[]): void // そのステージで選ぶ物（開いているページのもの）
-  // そのステージで選んでいる物を、その場で編集し始める・終える（何をするかを名前で分けるときは、その名前で始める）
-  setEditing(stage: string, editing: boolean | string): void
+  // そのステージで選んでいる物を、その場で編集し始める（何の編集かの名前。kit.name で作る）・終える（"none"）
+  setEditing(stage: string, editing: Editing): void
   // そのステージで道具のアイコンを、画面の座標 at（null なら画面が決める所）に開く（ほかのステージで開いていたものは閉じる）
   openPicker(stage: string, at: Point | null): void
   // at のスクリーン（スクリーンの id か、そのステージを並べるスクリーン）を閉じる（カレントスクリーンだったなら、1 つ前にカレントだった物がカレントになる）。

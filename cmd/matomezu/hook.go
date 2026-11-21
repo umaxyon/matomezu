@@ -89,7 +89,7 @@ type hookInput struct {
 	Prompt         string `json:"prompt"`          // 話しかけのフックの、ターンを始めた入力
 	ToolName       string `json:"tool_name"`       // ツールを使う前のフックの、使うツールの名前
 	Host           string `json:"-"`               // AI のプログラムのプロセス id（フックが --host で渡す）
-	Woken          bool   `json:"-"`               // 起こす知らせで始まったターン（フックが --woken で渡す。渡せない AI のプログラムは、その AI の事情で入力から見分ける。hookPrompt）
+	Woken          bool   `json:"-"`               // 起こす知らせで始まったターン（フックが --woken で渡す。渡せない AI のプログラムは、その AI の事情で入力から見分ける。hookPrompt。知らせをそのまま入力の道で受ける AI のプログラムは、talked に添える入力を常駐が照らす）
 	Titled         bool   `json:"-"`               // formatHook の答えに sessionTitle を書くか（それを読む AI のプログラムだけ。知らない項目のある JSON を断る AI がある）
 }
 
@@ -197,7 +197,7 @@ func talked(out io.Writer, hook hookInput, context, format string, api hookAPI) 
 // askTalked は、ターンの始まりを知らせ、結ばれていない参加者がいるなら会話の記録を後ろから調べて結ばせる。常駐の答えが読めなければ空を返す
 func askTalked(hook hookInput, api hookAPI) talkReply {
 	var reply talkReply
-	body, _ := json.Marshal(map[string]any{"sessionId": hook.SessionID, "host": hook.Host, "woken": hook.Woken})
+	body, _ := json.Marshal(map[string]any{"sessionId": hook.SessionID, "host": hook.Host, "woken": hook.Woken, "prompt": hook.Prompt})
 	out, err := api(body)
 	if err != nil || json.Unmarshal(out, &reply) != nil {
 		return talkReply{}

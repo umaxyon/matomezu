@@ -4,7 +4,7 @@
 import type { CommandContext } from "../../../plugin-api"
 import { endInPlace, type InPlaceDraft, inPlaceText } from "../../base"
 import { ENTRY_REMOVE, ENTRY_UPDATE } from "./actions"
-import { ADDED_EDIT, dirAt, fitRefusal } from "./commands"
+import { ADDED_EDIT, dirAt, fitRefusal, NAME_EDIT } from "./commands"
 import { afterRemove, editEnd, noteEnd, selectedIn } from "./edit"
 import { kit } from "./kit"
 import { PENCIL_TOOL } from "./tools"
@@ -22,14 +22,12 @@ export const DIR_EDIT_KEY_SCOPE = kit.defineKeyScope({
   commandsFrom: "stage",
 })
 
-// 説明を書いている間のその場の編集の名前（名前を書いている間は true か ADDED_EDIT）
+// 説明を書いている間のその場の編集の名前（名前を書いている間は NAME_EDIT か ADDED_EDIT）
 export const NOTE_EDIT = kit.name("note-edit")
 
-// 鉛筆で、名前か説明を書いている間か（背景編集モードの間の文字枠の書き換え（slide のもの。stage.editing は同じ true）は除く）
+// 鉛筆で、名前か説明を書いている間か
 export const writingName = (ctx: Pick<CommandContext, "stage">) =>
-  ctx.stage.tool === PENCIL_TOOL.id &&
-  ctx.stage.edits === "items" &&
-  (ctx.stage.editing === true || ctx.stage.editing === ADDED_EDIT)
+  ctx.stage.tool === PENCIL_TOOL.id && (ctx.stage.editing === NAME_EDIT || ctx.stage.editing === ADDED_EDIT)
 export const writingNote = (ctx: Pick<CommandContext, "stage">) =>
   ctx.stage.tool === PENCIL_TOOL.id && ctx.stage.editing === NOTE_EDIT
 

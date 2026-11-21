@@ -77,7 +77,6 @@ type wakeItem struct {
 	kind        string    // wakeAccepted・wakeDeclined・wakeMessage
 	line        string    // 流す 1 行
 	from        string    // AI 間メッセージの送り手のワークルーム名
-	chars       int       // AI 間メッセージの本文の字数
 	pointed     bool      // 1 回の知らせに入りきらず、通り道に「届いた」だけを渡した（本文は呼び出しの返事で渡す）
 	replyOnly   bool      // 通り道の AI のプログラムにその会話が無かった（absent）。呼び出しの返事だけで渡す
 	lentTo      int64     // 貸している通り道の番号（0 は貸していない）
@@ -263,9 +262,11 @@ func (h *Hub) nextWake(l *wakeLine, now time.Time) (WakeOut, bool) {
 	pick.lentPointer = !l.limits.fits(pick.line)
 	text := pick.line
 	if pick.lentPointer {
-		text = "matomezu: the AI in workroom " + quote(pick.from) + " sent you a message (" + strconv.Itoa(pick.chars) + " characters, too long for this notice). Call any matomezu tool to receive it."
+		text = "matomezu from AI " + quote(pick.from) + ": too long, call any matomezu tool"
 	}
-	return WakeOut{Line: l.id, ID: strconv.FormatInt(pick.seq, 10), Session: h.participantNotes[pick.participant].SessionID, Text: l.limits.shape(text)}, true
+	text = l.limits.shape(text)
+	h.rememberLent(text)
+	return WakeOut{Line: l.id, ID: strconv.FormatInt(pick.seq, 10), Session: h.participantNotes[pick.participant].SessionID, Text: text}, true
 }
 
 // AckWake は、通り道 line に貸した知らせ id の結果 result を受ける。貸した通り道からの結果だけを受け、ほかは何もしない
@@ -312,6 +313,39 @@ func (h *Hub) AckWake(line int64, id, result string, now time.Time) {
 			return
 		}
 	}
+}
+
+// lentWakesMax は、通り道に貸した知らせの文を覚えておく数
+const lentWakesMax = 64
+
+// rememberLent は、通り道に貸した知らせの文 text を覚える。古い物から忘れる。渡せたかの結果を待たずに覚える
+// （AI のプログラムがその知らせでターンを始め、そのフックが結果より先に着くことがある）（h.mu を持って呼ぶ）
+func (h *Hub) rememberLent(text string) {
+	if text == "" {
+		return
+	}
+	h.lentWakes = append(h.lentWakes, text)
+	if len(h.lentWakes) > lentWakesMax {
+		h.lentWakes = h.lentWakes[len(h.lentWakes)-lentWakesMax:]
+	}
+}
+
+// WokenBy は、ターンの入力 prompt が、通り道に貸した知らせの文そのものか（知らせをそのまま利用者の入力の道で受ける AI のプログラムのターンは、それで知らせで始まったと分かる）。
+// 当たった文は忘れる（同じ文で始まる次のターンは、利用者の入力と見る）
+func (h *Hub) WokenBy(prompt string) bool {
+	prompt = strings.TrimSpace(prompt)
+	if prompt == "" {
+		return false
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for i, text := range h.lentWakes {
+		if text == prompt {
+			h.lentWakes = append(h.lentWakes[:i:i], h.lentWakes[i+1:]...)
+			return true
+		}
+	}
+	return false
 }
 
 // takeMessages は、参加者 id の行列の AI 間メッセージの行を取り出す。通り道に貸している物は残す（結果を待つ）。
@@ -379,13 +413,13 @@ func (h *Hub) wakeOnParticipants(before map[string]bool) {
 		s, ok := now[id]
 		switch {
 		case !ok:
-			h.enqueueWake(wakeItem{participant: id, kind: wakeDeclined, line: noticeLine("matomezu: the user declined your request to join (participant " + id + "). Tell the user, and do not ask again unless the user asks.")})
+			h.enqueueWake(wakeItem{participant: id, kind: wakeDeclined, line: noticeLine("matomezu: join declined")})
 		case s.State == stateVisitor:
-			h.enqueueWake(wakeItem{participant: id, kind: wakeAccepted, line: noticeLine("matomezu: the user accepted your request to join as a visitor that only reads (participant " + id + "). The welcome comes with this turn or with your next matomezu call.")})
+			h.enqueueWake(wakeItem{participant: id, kind: wakeAccepted, line: noticeLine("matomezu: joined as a visitor (read only)")})
 		case s.State == stateJoined:
 			// 「参加しました」は、このターンの始まりのフック（talked）か、その参加者の次の呼び出しの返事の、先に来た方が 1 度だけ添える
 			// （伝えたと印を付けるので二重にならない。どちらが先かは AI のプログラムによるので、文は両方を言う）
-			h.enqueueWake(wakeItem{participant: id, kind: wakeAccepted, line: noticeLine("matomezu: the user accepted your request to join (participant " + id + ", workroom " + rooms[s.Workroom] + "). The welcome comes with this turn or with your next matomezu call.")})
+			h.enqueueWake(wakeItem{participant: id, kind: wakeAccepted, line: noticeLine("matomezu: joined as " + rooms[s.Workroom])})
 		}
 	}
 }

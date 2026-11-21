@@ -48,7 +48,7 @@ type CommandActions = Parameters<typeof FOLDER_TOGGLE.run>[1]
 
 // 鉛筆の間で、その場の編集中でない（ディレクトリ構成図のページを開いている）
 const penciling = (ctx: CommandContext) =>
-  ctx.stage.tool === PENCIL_TOOL.id && !ctx.stage.editing && dirAt(ctx) !== null
+  ctx.stage.tool === PENCIL_TOOL.id && ctx.stage.editing === "none" && dirAt(ctx) !== null
 
 // 断られたわけをトーストで知らせる
 const refused = (ctx: CommandContext, a: CommandActions, done: Parameters<typeof refusalMessage>[1]) =>
@@ -156,7 +156,7 @@ export const ENTRY_RENAME = kit.defineCommand({
     const s = selected(ctx)
     if (!s) return
     a.select([s.id])
-    a.setEditing(true)
+    a.setEditing(NAME_EDIT)
   },
   when: penciling,
 })
@@ -201,6 +201,8 @@ export const FILE_ADD = addIntoCommand("file-add", "Add file", "file")
 
 // その場の編集の名前: 選んでいるフォルダの中に足す種類を選んでいる
 export const KIND_PICK = kit.name("kind-pick")
+// その場の編集の名前: 選んでいる行の名前を書いている
+export const NAME_EDIT = kit.name("name-edit")
 // その場の編集の名前: 足した行の名前を書いている（終えるとき、書いたのを足した画面の履歴の段に続ける。足すのと書くのが 1 つの画面の履歴の段）
 export const ADDED_EDIT = kit.name("added-edit")
 

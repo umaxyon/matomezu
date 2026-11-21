@@ -4,7 +4,17 @@
 import type { CommandContext } from "../../../plugin-api"
 import { hasOpenedPage, refusalMessage, settingValue } from "../../base"
 import { NODE_ADD, NODE_REMOVE, NODE_UPDATE } from "./actions"
-import { ADDED_EDIT, type Arrow, addArgs, afterRemove, keyPlus, moveFrom, NODE_COLOR_PICK, selectedIn } from "./edit"
+import {
+  ADDED_EDIT,
+  type Arrow,
+  addArgs,
+  afterRemove,
+  CAPTION_EDIT,
+  keyPlus,
+  moveFrom,
+  NODE_COLOR_PICK,
+  selectedIn,
+} from "./edit"
 import { GROW } from "./grow"
 import { kit } from "./kit"
 import { treeRootOf } from "./node"
@@ -57,7 +67,7 @@ export const NODE_EDIT = kit.defineCommand({
     const node = selectedIn(tree.root, ctx.stage.selection)
     if (node === tree.root.id) return a.openDialog(TREE_PAGE_SETTINGS_DIALOG.id, { page: tree.page.id })
     a.select([node])
-    a.setEditing(true)
+    a.setEditing(CAPTION_EDIT)
   },
   when: editingTree,
 })
@@ -101,12 +111,12 @@ export const NODE_ADD_CHILD = addCommand(
   "node-add-child",
   "Add child",
   "child",
-  ctx => editingTree(ctx) && !ctx.stage.editing && treeAt(ctx) !== null,
+  ctx => editingTree(ctx) && ctx.stage.editing === "none" && treeAt(ctx) !== null,
 )
 
 // 根を選んでいるときは出さない
 export const NODE_ADD_SIBLING = addCommand("node-add-sibling", "Add sibling after", "after", ctx => {
-  const tree = editingTree(ctx) && !ctx.stage.editing ? treeAt(ctx) : null
+  const tree = editingTree(ctx) && ctx.stage.editing === "none" ? treeAt(ctx) : null
   return tree !== null && selectedIn(tree.root, ctx.stage.selection) !== tree.root.id
 })
 
@@ -125,7 +135,7 @@ export const NODE_DELETE = kit.defineCommand({
     if (a.perform(NODE_REMOVE.id, { node }, { page: tree.page.id }).ok) a.select([next])
   },
   when: ctx => {
-    const tree = editingTree(ctx) && !ctx.stage.editing ? treeAt(ctx) : null
+    const tree = editingTree(ctx) && ctx.stage.editing === "none" ? treeAt(ctx) : null
     return tree !== null && selectedIn(tree.root, ctx.stage.selection) !== tree.root.id
   },
 })
@@ -145,7 +155,7 @@ export const NODE_SIZE_EDIT = kit.defineCommand({
     })
   },
   when: ctx => {
-    const tree = editingTree(ctx) && !ctx.stage.editing ? treeAt(ctx) : null
+    const tree = editingTree(ctx) && ctx.stage.editing === "none" ? treeAt(ctx) : null
     return tree !== null && selectedIn(tree.root, ctx.stage.selection) !== tree.root.id
   },
 })
@@ -162,7 +172,7 @@ export const NODE_COLOR_EDIT = kit.defineCommand({
     a.select([selectedIn(tree.root, ctx.stage.selection)])
     a.setEditing(NODE_COLOR_PICK)
   },
-  when: ctx => editingTree(ctx) && !ctx.stage.editing && treeAt(ctx) !== null,
+  when: ctx => editingTree(ctx) && ctx.stage.editing === "none" && treeAt(ctx) !== null,
 })
 
 export const TREE_KEYS = [
