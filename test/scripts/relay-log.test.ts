@@ -107,7 +107,7 @@ const codexBody = {
 
 // 中継は Bun の fetch と Response で動く。このプロセスでは happy-dom がそれを差し替えているので、子のプロセスで動かす。
 // 偽の上流を AI ごとに立て、それぞれが受けた道と認証を返す
-// どの子にも入れる頭。中継が記録を n 件足したら waitAdded が解ける（決まった時間ごとに見に行かない）
+// どの子にも入れる頭。waitAdded は store.add を包み、中継が記録を n 件足したときに解ける
 const scenarioHead = `
 import { startRelay } from ${JSON.stringify(join(import.meta.dir, "../../scripts/relay-log.ts"))}
 import { openStore } from ${JSON.stringify(join(import.meta.dir, "../../scripts/relay-log/store.ts"))}
