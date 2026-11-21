@@ -236,7 +236,7 @@ func TestTalkedPassesTheWokenNoteToTheAI(t *testing.T) {
 	}
 }
 
-// セッションの名前は、伝えることが無いターンでも毎ターン書く（Titled の AI のプログラムだけ。Codex は今までどおり文のまま）。
+// セッションの名前は、伝えることが無いターンでも毎ターン書く（Titled の AI のプログラムだけ。Codex は文のまま）。
 // 名前があれば、答えを書いたあとに、起動した道具の表示名にも書く。名前が無ければ（設定が止めている・参加していない）どちらも書かない
 func TestTalkedWritesTheTitleEveryTurn(t *testing.T) {
 	titled := func([]byte) ([]byte, error) {
@@ -259,7 +259,7 @@ func TestTalkedWritesTheTitleEveryTurn(t *testing.T) {
 	if len(renamed) != 1 || renamed[0] != "/w|ひよこ M-0001 作業" {
 		t.Fatalf("renamed = %v", renamed)
 	}
-	// Codex: 答えは今までどおり文のまま。表示名には書く
+	// Codex: 答えは文のまま。表示名には書く
 	out.Reset()
 	talked(&out, hookInput{SessionID: "S1", Cwd: "/w", Rename: rename}, "NOTE", formatHook, titled)
 	if out.String() != "NOTE\n" || len(renamed) != 2 {

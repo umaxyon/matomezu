@@ -18,17 +18,23 @@ export const SESSION_RENAME = kit.defineSetting({
 
 const IDLE_TITLE = kit.message("{name} (idle)")
 
-// 利用者の設定 settings で、ワークルーム（id と名前 name）に参加しているセッションの名前（書き換えを止めていれば off）。
+// セッションに書く名前。off は、利用者の設定が書き換えを止めている（名前を書かない）
+export type SessionTitle = { kind: "title"; title: string } | { kind: "off" }
+
+// 利用者の設定 settings で、ワークルーム（id と名前 name）に参加しているセッションの名前。
 // 作業中なら名前と作業の題名、空きなら空きの印、作業を答える種類が無ければ名前だけ
 export function sessionTitleIn(
   catalog: CoreCatalog,
   settings: Settings,
   source: RecordSource,
   workroom: { id: string; name: string },
-): string | "off" {
-  if (userSetting(catalog, settings, SESSION_RENAME.id) === false) return "off"
+): SessionTitle {
+  if (userSetting(catalog, settings, SESSION_RENAME.id) === false) return { kind: "off" }
   const work = workroomWorkIn(catalog, source, workroom.id)
-  if (work === "unknown") return workroom.name
-  if (work.kind === "working") return `${workroom.name} ${work.title}`
-  return translate(catalog.messages, langOf(catalog, settings, "en"), IDLE_TITLE, { name: workroom.name })
+  if (work === "unknown") return { kind: "title", title: workroom.name }
+  if (work.kind === "working") return { kind: "title", title: `${workroom.name} ${work.title}` }
+  return {
+    kind: "title",
+    title: translate(catalog.messages, langOf(catalog, settings, "en"), IDLE_TITLE, { name: workroom.name }),
+  }
 }

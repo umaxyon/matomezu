@@ -2,10 +2,14 @@
 // 見せる側の判定（currentTicketOf・作業の様子）は、古くなったカレントワークを外す
 import { expect, test } from "bun:test"
 import { type Actor, USER } from "../../../web/src/core/actor"
+import type { CoreCatalog } from "../../../web/src/core/core-catalog"
 import { type PerformedIn, performIn, type World } from "../../../web/src/core/perform-world"
+import { sourceOf } from "../../../web/src/core/record-source"
+import type { Records } from "../../../web/src/core/records"
 import { withCounters, withRecords } from "../../../web/src/core/records"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
-import { workroomActivityOf, workroomWorkOf } from "../../../web/src/plugins/base/participant/activity"
+import { workroomActivityOf, workroomWorkIn, workroomWorkOf } from "../../../web/src/plugins/base/participant/activity"
+import { sessionTitleIn } from "../../../web/src/plugins/base/participant/session-title"
 import { CURRENT_WORK, currentTicketOf } from "../../../web/src/plugins/taskboard/current-work"
 import type { Project } from "../../../web/src/plugins/taskboard/project"
 import { TICKET, type Ticket } from "../../../web/src/plugins/taskboard/ticket"
@@ -242,4 +246,40 @@ test("ワークルームの作業: カレントチケットがあれば作業中
   const t1 = add({ name: "鳥と表示名" })
   act(ai(a), "ticket-start", {}, { record: t1 })
   expect(workroomWorkOf(CORE_CATALOG, records(), a)).toEqual({ kind: "working", title: "T-0001 鳥と表示名" })
+})
+
+test("セッションの名前: 作業中ならワークルームの名前と題名、空きなら空きの印、答える種類が無ければ名前だけ、設定が止めていれば off", () => {
+  const { act, room, add, world } = board()
+  const a = room("ひよこ")
+  const source = () => sourceOf(world().records as Records)
+  const ja = { "@matomezu/base:lang": "matomezu:ja" }
+  const title = (catalog: CoreCatalog, settings: Record<string, unknown>) =>
+    sessionTitleIn(catalog, settings, source(), { id: a, name: "ひよこ" })
+  expect(title(CORE_CATALOG, ja)).toEqual({ kind: "title", title: "ひよこ（空き）" })
+  expect(title(CORE_CATALOG, {})).toEqual({ kind: "title", title: "ひよこ (idle)" })
+  act(ai(a), "ticket-start", {}, { record: add({ name: "鳥と表示名" }) })
+  expect(title(CORE_CATALOG, ja)).toEqual({ kind: "title", title: "ひよこ T-0001 鳥と表示名" })
+  const noAnswer = { ...CORE_CATALOG, subjects: new Map() } as CoreCatalog
+  expect(title(noAnswer, ja)).toEqual({ kind: "title", title: "ひよこ" })
+  expect(title(CORE_CATALOG, { ...ja, "@matomezu/base:session-rename": false })).toEqual({ kind: "off" })
+})
+
+test("ワークルームの作業は、答える種類のうち機能台帳の並びで最初に作業中と答えた物。どれも作業中でなければ空き", () => {
+  const answer = (work: { kind: "working"; title: string } | { kind: "idle" }) => ({ workroomWork: () => work })
+  const catalog = (...subjects: object[]) =>
+    ({ ...CORE_CATALOG, subjects: new Map(subjects.map((s, i) => [`s${i}`, s])) }) as unknown as CoreCatalog
+  const source = sourceOf({} as Records)
+  expect(
+    workroomWorkIn(
+      catalog(
+        answer({ kind: "idle" }),
+        answer({ kind: "working", title: "先" }),
+        answer({ kind: "working", title: "後" }),
+      ),
+      source,
+      "w",
+    ),
+  ).toEqual({ kind: "working", title: "先" })
+  expect(workroomWorkIn(catalog(answer({ kind: "idle" }), {}), source, "w")).toEqual({ kind: "idle" })
+  expect(workroomWorkIn(catalog({}), source, "w")).toBe("unknown")
 })

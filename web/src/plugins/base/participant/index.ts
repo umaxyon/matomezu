@@ -88,7 +88,7 @@ export const ADMIN_MARK = kit.defineSubject({
 export const JOINED_MESSAGE = kit.message("Joined matomezu. Workroom name: {name}")
 export const VISITOR_JOINED_MESSAGE = kit.message("Joined matomezu as a visitor (read only)")
 
-export { SESSION_RENAME, sessionTitleIn } from "./session-name"
+export { SESSION_RENAME, sessionTitleIn } from "./session-title"
 
 // データの型（画面の見た目は、ここから読む）
 export type Participant = z.output<typeof PARTICIPANT.record>

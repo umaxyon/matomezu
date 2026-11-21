@@ -16,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/umaxyon/matomezu/internal/engine"
 	"github.com/umaxyon/matomezu/internal/storage"
 )
 
@@ -206,8 +205,8 @@ func (h *Hub) SessionTitle(sessionID string) string {
 	if name == "" {
 		return ""
 	}
-	title, err := h.engine.SessionTitle(h.settings, room, name, recordSource{h})
-	if err != nil || title == engine.SessionOff {
+	title, ok, err := h.engine.SessionTitle(h.settings, room, name, recordSource{h})
+	if err != nil || !ok {
 		return ""
 	}
 	return title

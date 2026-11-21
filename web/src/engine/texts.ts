@@ -3,6 +3,7 @@
 
 import { z } from "zod"
 import { translate } from "../core/i18n/i18n"
+import { sourceOf } from "../core/record-source"
 import { langOf, restoreSettings } from "../core/settings"
 import { WARNINGS, warning, warningText } from "../core/warnings"
 import { JOINED_MESSAGE, sessionTitleIn, VISITOR_JOINED_MESSAGE } from "../plugins/base"
@@ -28,11 +29,13 @@ export function visitorJoinedText(of: Assembled, settings: string): string {
   )
 }
 
-// engine.ts の matomezuSessionTitle の中身: ワークルーム（id と名前）に参加しているセッションの名前（書き換えを止めていれば off）。レコードはホストの読み口から引く
+// engine.ts の matomezuSessionTitle の中身: ワークルーム（id と名前）に参加しているセッションの名前（SessionTitle の JSON）。レコードはホストの読み口から引く
 export function sessionTitle(of: Assembled, settings: string, workroom: string, name: string): string {
-  const source = hostSource({})
-  if (source === null) return name
-  return sessionTitleIn(of.catalog.core, restoreSettings(JSON.parse(settings)), source, { id: workroom, name })
+  // ホストの読み口が無ければ、レコードが無い物として作る（設定が止めていれば off のまま）
+  const source = hostSource({}) ?? sourceOf({})
+  return JSON.stringify(
+    sessionTitleIn(of.catalog.core, restoreSettings(JSON.parse(settings)), source, { id: workroom, name }),
+  )
 }
 
 const WindowWarningSchema = z.object({
