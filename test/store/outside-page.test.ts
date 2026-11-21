@@ -54,3 +54,16 @@ test("よその変更で、開いている外のページがゴミ箱に入る�
   here.receive(rowsOf(there), [])
   expect(stageIn(here.state.getState().window, stage)).toBeUndefined()
 })
+
+test("開いている外のページがブックの中へ移されると、ステージは閉じず、そのブックのページとして開いた形になる", () => {
+  const here = withOutside()
+  const stage = here.actions.showOutsidePageStage("o1")
+  const [book, ...rest] = Object.values(here.state.getState().books)
+  const moved = { ...book!, lineup: [...book!.lineup, here.state.getState().pages.o1] }
+  here.receive({ ...worldRows([moved, ...rest]), settings: {} }, [])
+  expect(stageIn(here.state.getState().window, stage)?.opened).toMatchObject({
+    kind: "page",
+    outermost: { kind: "book", id: book!.id },
+    page: "o1",
+  })
+})

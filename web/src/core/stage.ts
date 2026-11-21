@@ -344,6 +344,17 @@ export function followOutsidePage(catalog: CoreCatalog, stage: Stage, page: Page
   return selectionKept(followShown(catalog, stage, o, page), page)
 }
 
+// 開いているブックの外のページが、ブック book の中へ移されたときに合わせる: 同じページを、book の物として開いた形にする（倍率・ずらす量・選択はそのまま）。
+// 外のページを開いていない・そのページが book に無ければ、同じ値を返す
+export function followIntoBook(catalog: CoreCatalog, stage: Stage, book: Book): Stage {
+  const o = stage.opened
+  if (o?.kind !== "page" || o.outermost.kind !== "page") return stage
+  const found = findPage(book, o.page)?.page
+  if (!found) return stage
+  const opened = { ...openedAt(catalog, entryOf(book), found), ...(o.area ? { area: o.area } : {}) }
+  return selectionKept({ ...stage, opened }, found)
+}
+
 // 選択から、開いているページ shown に無くなった物を外す
 function selectionKept(next: Stage, shown: Page | undefined): Stage {
   if (next.selection.length === 0) return next
