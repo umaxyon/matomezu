@@ -2,6 +2,9 @@
 import { z } from "zod"
 import { type Anchors, anchorsOf } from "../../../core/annotation"
 
+// 並びから作る関数は core の物を、プラグイン API にも出す
+export { anchorsOf }
+
 // アクションの引数の、結び付く物の id: id の並び（1 つ以上）で受け、同じ id を 1 つにまとめる（AI には id の並びとして見せる）
 export const AnchorsArg = z
   .array(z.string().min(1))

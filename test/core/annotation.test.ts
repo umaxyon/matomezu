@@ -11,6 +11,7 @@ import {
   checkAnnotations,
   prune,
   unexpired,
+  usableAnnotations,
 } from "../../web/src/core/annotation"
 import { findPage } from "../../web/src/core/book"
 import { tablesOf } from "../../web/src/core/folders-books"
@@ -71,6 +72,13 @@ test("効かないアノテーションがあっても、ほかのアノテー�
     },
   )
   expect(done).toMatchObject({ ok: true, annotations: { p: [BAD, GONE] } })
+})
+
+test("効くアノテーションは、決まりを守る物だけ（W018・W019 の物と、結び付く物の id が空の壊れた物は除く）。除く物が無ければ同じ並び", () => {
+  const broken = { ...GOOD, id: "c9", anchors: [] } as unknown as Annotation
+  expect(usableAnnotations(CORE_CATALOG, page, [GOOD, BAD, GONE, broken])).toEqual([GOOD])
+  const same = [GOOD]
+  expect(usableAnnotations(CORE_CATALOG, page, same)).toBe(same)
 })
 
 test("並びを、結び付く物の id の並び（1 つ以上）にする", () => {

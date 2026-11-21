@@ -74,6 +74,17 @@ function fits(catalog: CoreCatalog, page: ItemPage, ids: ReadonlySet<string>, a:
   return annotationAllowed(catalog, page.type, a.annotation) && a.anchors.every(id => ids.has(id))
 }
 
+// ページ page の、効くアノテーション: 決まりを守る物だけ（種類が無い物 W018・形が合わない物 W019 は残っても効かないので除く）。除く物が無ければ同じ並び
+export function usableAnnotations(
+  catalog: CoreCatalog,
+  page: ItemPage,
+  annotations: readonly Annotation[],
+): readonly Annotation[] {
+  const ids = anchorIds(page)
+  const usable = annotations.filter(a => fits(catalog, page, ids, a))
+  return usable.length === annotations.length ? annotations : usable
+}
+
 // アクションが返した並び after が決まりを守っているか: id が重ならず、前の並び before から足した・変えた物はどれも決まりを守る。
 // 前からあって変えていない物は見ない（プラグインが外れて効かなくなった物があっても、ほかは変えられる）
 export function annotationsSettle(

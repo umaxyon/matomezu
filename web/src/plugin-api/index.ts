@@ -3,7 +3,7 @@
 
 export type { Actor } from "../core/actor"
 export { isAI, isUser, isVisitor, workroomOfActor } from "../core/actor"
-export type { Annotation, PageAnnotations } from "../core/annotation"
+export type { Anchors, Annotation, PageAnnotations } from "../core/annotation"
 export type { PageInto } from "../core/book"
 export {
   addBinder,
