@@ -335,7 +335,8 @@ func (h *Hub) rememberLent(text string) {
 	}
 }
 
-// WokenBy は、ターンの入力 prompt が、通り道に貸した知らせの文そのものか（知らせをそのまま利用者の入力の道で受ける AI のプログラムのターンは、それで知らせで始まったと分かる）。
+// WokenBy は、ターンの入力 prompt が、通り道に貸した知らせの文そのものか、その幾つかを改行でつないだだけの物か（知らせをそのまま利用者の入力の道で受ける AI のプログラムのターンは、それで知らせで始まったと分かる。
+// AI が動いている間に届いた知らせは、AI のプログラムが 1 つの入力にまとめることがある）。利用者の文が混じっていれば当たらない。
 // 当たった文は忘れる（同じ文で始まる次のターンは、利用者の入力と見る）
 func (h *Hub) WokenBy(prompt string) bool {
 	prompt = strings.TrimSpace(prompt)
@@ -344,13 +345,42 @@ func (h *Hub) WokenBy(prompt string) bool {
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	used := lentCover(prompt, h.lentWakes, map[int]bool{})
+	if used == nil {
+		return false
+	}
+	kept := h.lentWakes[:0:0]
 	for i, text := range h.lentWakes {
-		if text == prompt {
-			h.lentWakes = append(h.lentWakes[:i:i], h.lentWakes[i+1:]...)
-			return true
+		if !used[i] {
+			kept = append(kept, text)
 		}
 	}
-	return false
+	h.lentWakes = kept
+	return true
+}
+
+// lentCover は、prompt を、lent の文（used の物を除き、1 つは 1 度だけ）を改行でつないだだけの物として読めるなら、使った文の位置を返す（読めなければ nil）
+func lentCover(prompt string, lent []string, used map[int]bool) map[int]bool {
+	for i, text := range lent {
+		if used[i] {
+			continue
+		}
+		rest, ok := strings.CutPrefix(prompt, text)
+		if !ok {
+			continue
+		}
+		used[i] = true
+		if rest == "" {
+			return used
+		}
+		if next, ok := strings.CutPrefix(rest, "\n"); ok {
+			if got := lentCover(next, lent, used); got != nil {
+				return got
+			}
+		}
+		delete(used, i)
+	}
+	return nil
 }
 
 // takeMessages は、参加者 id の行列の AI 間メッセージの行を取り出す。通り道に貸している物は残す（結果を待つ）。
