@@ -5,12 +5,12 @@
 import { z } from "zod"
 import type { ActionContext, RecordRead } from "../../../plugin-api"
 import { kit } from "../kit"
-import { inWorkingLane, PROJECT, type Project } from "../project"
+import { PROJECT, type Project } from "../project"
 import type { TicketLike } from "../ticket/current"
 import { TICKET, type Ticket } from "../ticket/ticket"
+import { CURRENT_WORK_ID, currentWorkSet, isCurrentFor, NO_TICKET } from "./lanes"
 
-// カレントワークが無いことを表す値
-export const NO_TICKET = "none"
+export { currentWorkSet, isCurrentFor, NO_TICKET }
 
 const CURRENT_WORK_RECORD = z.strictObject({
   id: z.string().min(1),
@@ -27,7 +27,7 @@ export const CURRENT_WORK = kit.defineSubject({
   id: "current-work",
   title: "current work",
   aiDescription:
-    "The current work of a workroom (the record's id is the workroom's id): ticket is the ticket the workroom is working on now, or none. Its current ticket is that ticket while the workroom is one of its assignees and it is in a working lane of its project. It is filled when a ticket that a workroom with no current work is assigned to comes into a working lane (or the workroom is assigned to a ticket in a working lane), changed with ticket-start, emptied with ticket-leave, and emptied when the ticket is completed or removed, or leaves the working lanes or the workroom's assignment.",
+    "The current work of a workroom (the record's id is the workroom's id): ticket is the ticket the workroom is working on now, or none. Its current ticket is that ticket while the workroom is one of its assignees and it is in a working lane of its project. It is filled when a ticket that a workroom with no current work is assigned to comes into a working lane (or the workroom is assigned to a ticket in a working lane), changed with ticket-start, emptied with ticket-leave, and emptied when the ticket is completed or removed, or leaves the working lanes (also when the working mark of its lane is taken off) or the workroom's assignment; it is filled likewise when a lane gets the working mark.",
   record: CURRENT_WORK_RECORD,
   refers: w => (w.ticket === NO_TICKET ? [] : [{ subject: TICKET.id, id: w.ticket }]),
   keys: {
@@ -38,7 +38,7 @@ export const CURRENT_WORK = kit.defineSubject({
   workroomActivity: (workroom, read) =>
     currentTicketOf(
       workroom,
-      parsed(CURRENT_WORK_RECORD, read(CURRENT_WORK_KIND, workroom)),
+      parsed(CURRENT_WORK_RECORD, read(CURRENT_WORK_ID, workroom)),
       id => parsed(TICKET.record, read(TICKET.id, id)),
       id => parsed(PROJECT.record, read(PROJECT.id, id)),
     )
@@ -46,13 +46,7 @@ export const CURRENT_WORK = kit.defineSubject({
       : "idle",
 })
 
-const CURRENT_WORK_KIND = kit.name("current-work") // 作業の様子で自分の種類を引く（定義の中から CURRENT_WORK を指さない）
-
 export type CurrentWork = z.output<typeof CURRENT_WORK.record>
-
-// チケット ticket が、ワークルーム workroom のカレントチケットになれるか: 担当に入っていて、プロジェクトの作業中のレーンにある
-export const isCurrentFor = (ticket: TicketLike, workroom: string, project: Project | undefined): boolean =>
-  project !== undefined && ticket.assignees.includes(workroom) && inWorkingLane(project, ticket.lane)
 
 // ワークルーム workroom のカレントチケット（無ければ undefined）。work はそのワークルームのカレントワーク（無ければ undefined）、ticketOf と projectOf はチケットとプロジェクトを id で引く
 export function currentTicketOf<T extends TicketLike & { id: string }>(
@@ -77,13 +71,6 @@ export const currentWorksOf = (ctx: Pick<ActionContext, "records">): CurrentWork
     const work = CURRENT_WORK.record.safeParse(r)
     return work.success ? [work.data] : []
   })
-
-// ワークルーム workroom のカレントワークを ticket（チケットの id か none）にする、others の 1 件
-export const currentWorkSet = (workroom: string, ticket: string) => ({
-  subject: CURRENT_WORK.id,
-  id: workroom,
-  record: { id: workroom, ticket },
-})
 
 // チケットが before（作る前は none）から after（消したら removed）に変わったときの、カレントワークの直し（others）。
 // project はチケットのプロジェクト、works は読んだカレントワーク。

@@ -64,7 +64,7 @@ const pickAssignees = (ctx: Records, refs: readonly string[], current: readonly 
 const DONE_LANE_REFUSAL = "the done lane is entered only with ticket-complete: complete the ticket"
 
 // 担当に新しく入ったワークルームの AI への知らせ（行う者がワークルームの AI のときだけ返せる。自分のワークルームには送らない。宛先に AI がいなければ送らないだけ）
-function assignedMessages(
+export function assignedMessages(
   actor: Actor,
   before: readonly string[],
   after: readonly string[],

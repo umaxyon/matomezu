@@ -9,6 +9,7 @@ import { kit } from "../kit"
 import { inDoneLane, inWorkingLane, type Project } from "../project"
 import { projectOf } from "../project/actions"
 import { TICKET, type Ticket } from "../ticket"
+import { assignedMessages } from "../ticket/actions"
 import { resolve } from "../ticket/resolve"
 import { CURRENT_WORK, currentWorkChanges, currentWorkSet, currentWorksOf, NO_TICKET, READS_CURRENT_WORK } from "./work"
 
@@ -61,9 +62,12 @@ export const TICKET_START = kit.defineAction({
       ...currentWorkChanges(now, next, project, works).filter(o => o.id !== room.id),
       ...(before === now.id ? [] : [currentWorkSet(room.id, now.id)]),
     ]
+    // 担当に足したワークルームへの知らせは ticket-update と同じ
+    const messages = assignedMessages(ctx.actor, now.assignees, next.assignees, next, project)
     return {
       next,
       ...(others.length > 0 ? { others } : {}),
+      ...(messages.length > 0 ? { aiMessages: messages } : {}),
       result: { workroom: room.id, previous: before, lane },
     }
   },

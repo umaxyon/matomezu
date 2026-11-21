@@ -214,3 +214,22 @@ test("ロックしたチケットでは ticket-start も ticket-leave も断る�
   user("ticket-lock", {}, { record: t2 })
   expect(act(ai(a), "ticket-start", {}, { record: t2 }).ok).toBe(false)
 })
+
+test("レーンの作業中の印を外すと、そのレーンのチケットを指すカレントワークは none。付け直すと、none のワークルームにまた入る（同じトランザクション）", () => {
+  const { user, room, project, doing, add, work, world } = board()
+  const a = room("あ")
+  const b = room("い")
+  const t1 = add({ lane: doing, assignees: [a] })
+  const lanes = () => (world().records[A("project")]?.[project] as Project).lanes
+  const marked = (on: boolean) =>
+    lanes().map(l => (l.kind === "lane" && l.id === doing ? { ...l, working: on ? true : undefined } : l))
+  expect(user("project-update", { lanes: marked(false) }, { record: project }).ok).toBe(true)
+  expect(work(a)).toBe("none")
+  // 印の無い間に担当に入っても埋まらない
+  user("ticket-update", { assignees: [a, b] }, { record: t1 })
+  expect(work(b)).toBe("none")
+  expect(user("project-update", { lanes: marked(true) }, { record: project }).ok).toBe(true)
+  expect([work(a), work(b)]).toEqual([t1, t1])
+  // 完了のレーンを選ぶ確かめも、レーンを一緒に変えるときに効く（担当のいるチケットのレーンは断る）
+  expect(user("project-update", { lanes: marked(false), doneLane: doing }, { record: project }).ok).toBe(false)
+})
