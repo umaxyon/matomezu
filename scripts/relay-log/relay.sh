@@ -30,9 +30,12 @@ relay_prepare() {
   fi
   if ! relay_health; then
     mkdir -p "$RELAY_STATE"
-    setsid nohup bun scripts/relay-log.ts serve --db "$RELAY_DB" --port "$RELAY_PORT" --view-port "$VIEW_PORT" --pid-file "$RELAY_PIDFILE" >>"$RELAY_LOG" 2>&1 &
-    # 中継は記録を開くときに事実を付け直す（取り出し方の版が変われば全部）ので、記録が多いと待ち受けまで数十秒かかる
-    for _ in $(seq 120); do relay_health && break; sleep 0.5; done
+    # -w で setsid が中継の終わりまで残るので、$! が生きている間は中継が動いている
+    setsid -w nohup bun scripts/relay-log.ts serve --db "$RELAY_DB" --port "$RELAY_PORT" --view-port "$VIEW_PORT" --pid-file "$RELAY_PIDFILE" >>"$RELAY_LOG" 2>&1 &
+    local starting=$!
+    # 中継は記録を開くときに事実を付け直す（取り出し方の版が変われば全部）ので、記録が多いと待ち受けまで数十秒かかる。
+    # 中継が待ち受ける前に終えたら（ポートが使われているなど）待たない
+    for _ in $(seq 120); do relay_health && break; kill -0 "$starting" 2>/dev/null || break; sleep 0.5; done
   fi
   if relay_health; then
     RELAY_OK=1
