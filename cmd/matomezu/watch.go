@@ -3,7 +3,8 @@ package main
 // AI を起こす知らせ（watch）: 常駐の GET /api/ai/watch につなぎ、利用者が画面で行った事のうち AI を起こす物（参加の要求が受け入れられた・断られたなど）と、
 // ほかの AI からの AI 間メッセージを AI に渡し、渡せたかを常駐に返す（POST /api/ai/watch/ack）。
 // 渡し方は 3 つ（AI の種類は見ない。どれを使うかは clients/<AI の名前> が引数で決める）:
-//   - 何も付けなければ、標準出力に書く。書けたら渡せた（Claude Code のプラグインの monitor。書いた行で AI のターンが始まる）
+//   - 何も付けなければ、標準出力に書く。書けたら渡せた（Claude Code のプラグインの monitor。書いた行で AI のターンが始まる）。
+//     --escaped を付けると、知らせ 1 つを JSON の文字列の 1 行で書く（改行を含む知らせも 1 行で渡り、常駐は改行を受ける形で流す。Claude Desktop のプラグインの mod）
 //   - -- のあとに渡すコマンドを付けると、知らせごとにそのコマンドを起動する。本文は標準入力、宛て先の会話のセッション id は環境変数 MATOMEZU_SESSION、
 //     知らせの id は MATOMEZU_WAKE_ID で渡す。終わりの値が 0 なら渡せた、3 なら宛て先の会話がその AI のプログラムに無い、ほかは失敗
 //   - --resident を付けると、渡すコマンドを 1 度だけ起動して立てたままにし、知らせごとに標準入力に 1 行の JSON {"id", "session", "text"} を書き、
@@ -37,6 +38,7 @@ type watchCmd struct {
 	MaxLine   int           `help:"The longest line the host program takes (characters). Longer lines are split. 0 for no limit."`
 	MaxNotice int           `help:"The longest notice the host program takes at once (characters, counting the line breaks). A message too long for it comes as a short notice, and its text with the next matomezu call. 0 for no limit."`
 	Gap       time.Duration `help:"How long to wait after each notice before the next (so the host program does not join them into one notice)."`
+	Escaped   bool          `help:"Print each notice as one line, a JSON string (its line breaks escaped), so a reader that takes one line per notice gets notices with line breaks whole; then a message from another AI comes with its sender and its text on separate lines."`
 	Resident  bool          `help:"Start the command after -- once and keep it running: write one JSON line {id, session, text} to its stdin for each notice, and read one JSON line {id, result} (delivered, absent or failed) from its stdout."`
 	Deliver   []string      `arg:"" optional:"" passthrough:"" help:"A command (after --) that hands each notice to the AI, instead of printing it: started for each notice with the text on stdin, the session id of the conversation in MATOMEZU_SESSION and the notice id in MATOMEZU_WAKE_ID; exit 0 when delivered, 3 when the AI's program does not have that conversation, anything else when it failed."`
 }
@@ -94,7 +96,7 @@ func (c *watchCmd) deliverer(out io.Writer) deliverer {
 	args := deliverCommand(c.Deliver)
 	switch {
 	case len(args) == 0:
-		return printDeliverer{out}
+		return printDeliverer{out: out, escaped: c.Escaped}
 	case c.Resident:
 		return &residentDeliverer{args: args}
 	default:
@@ -134,6 +136,9 @@ func (c *watchCmd) query() string {
 	}
 	if c.Gap > 0 {
 		q.Set("gap", strconv.FormatInt(c.Gap.Milliseconds(), 10))
+	}
+	if c.Escaped {
+		q.Set("breaks", "1")
 	}
 	return q.Encode()
 }
@@ -187,11 +192,19 @@ func readWakes(r io.Reader, still func() bool, on func(wakeOut)) error {
 	return scan.Err()
 }
 
-// printDeliverer は、標準出力に書いて渡す（書けたら渡せた）
-type printDeliverer struct{ out io.Writer }
+// printDeliverer は、標準出力に書いて渡す（書けたら渡せた）。escaped なら知らせ 1 つを JSON の文字列の 1 行で書く
+type printDeliverer struct {
+	out     io.Writer
+	escaped bool
+}
 
 func (p printDeliverer) deliver(w wakeOut) string {
-	if _, err := fmt.Fprintln(p.out, w.Text); err != nil {
+	text := w.Text
+	if p.escaped {
+		b, _ := json.Marshal(text)
+		text = string(b)
+	}
+	if _, err := fmt.Fprintln(p.out, text); err != nil {
 		return deliverFailed
 	}
 	return deliverDelivered

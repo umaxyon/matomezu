@@ -39,7 +39,7 @@ const foreign = (
   by: "ai" | "window" | "host" = "ai",
   act = "1",
   action = "@matomezu/paper:item-update",
-) => store.receive({ ...worldRows([book]), settings: {} }, [], { books: [book.id], by, act, actions: [action] })
+) => store.receive({ ...worldRows([book]), settings: {} }, [], { by, act, actions: [action] })
 const renamed = (book: Drawing, i: number, caption: string): Drawing =>
   ({
     ...book,
@@ -208,7 +208,6 @@ test("AI の 1 回の操作が何冊も変えたら、見えたブックの画�
   const change = (book: Drawing) => {
     world = { ...world, [book.id]: book }
     store.receive({ ...worldRows(Object.values(world)), settings: {} }, [], {
-      books: [book.id],
       by: "ai",
       act: "9",
       actions: ["@matomezu/base:book-update"],

@@ -1,11 +1,11 @@
-// 書庫が対象のアクション（ここでは、戻す・やり直すの置き直し book-revert）のあとの確かめ: 行う前から在って変わったブックにノーマライズステップをかけ、
+// 書庫が対象のアクション（ここでは、戻す・やり直すの置き直し history-revert）のあとの確かめ: 行う前から在って変わったブックにノーマライズステップをかけ、
 // ページのタイプは作ったあと変えさせない
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
 import type { Book } from "../../web/src/core/schema/book"
 import { newStore } from "../support"
 
-const REVERT = "@matomezu/base:book-revert"
+const REVERT = "@matomezu/base:history-revert"
 
 function ready() {
   const { state, actions } = newStore()
@@ -45,7 +45,7 @@ test("一覧が対象のアクションのあとにも、ノーマライズス�
   // 左の箱を無くす置き直し（ずらした量 shift は置き直さない。ノーマライズステップが詰める）
   const was = at().items.find(i => i.id === left)
   const pages = { [page]: { fields: { items: { list: [{ id: left, index: 1, patch: { absent: true, was } }] } } } }
-  expect(actions.perform(REVERT, { books: ["b1"], pages, folders: {} }).ok).toBe(true)
+  expect(actions.perform(REVERT, { outermosts: [{ kind: "book", id: "b1" }], pages, folders: {} }).ok).toBe(true)
   expect(at().shift).toEqual({ x: 1, y: 1 })
   expect(at().items.find(i => i.id === first)).toMatchObject({ x: 1223, y: 894 })
   for (const b of others) expect(state.getState().books[b.id]).toBe(b)
@@ -54,6 +54,9 @@ test("一覧が対象のアクションのあとにも、ノーマライズス�
 test("一覧が対象のアクションでも、ページのタイプは作ったあと変えられない（refused）", () => {
   const { actions, page, at } = ready()
   const pages = { [page]: { fields: { type: { set: "@matomezu/flowchart:flowchart", was: at().type } } } }
-  expect(actions.perform(REVERT, { books: ["b1"], pages, folders: {} })).toEqual({ ok: false, reason: "refused" })
+  expect(actions.perform(REVERT, { outermosts: [{ kind: "book", id: "b1" }], pages, folders: {} })).toEqual({
+    ok: false,
+    reason: "refused",
+  })
   expect(at().type).toBe("@matomezu/drawing:drawing")
 })

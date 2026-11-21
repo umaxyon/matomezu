@@ -31,11 +31,14 @@ func ModWakes(entrypoint string) bool {
 	return entrypoint == desktopEntrypoint
 }
 
-// mod の watch が渡す知らせの上限。$.prompt.submit は 1 行を 1 つのターンにするので、行は切らず（常駐の知らせはどれも 1 行）、間も空けない。
+// mod の watch が渡す知らせの上限。mod は watch の 1 行（JSON の文字列にした知らせ 1 つ。--escaped）を 1 つのターンにするので、行は切らず、間も空けない。
 // 1 回の知らせの上限は monitor と同じ値にする。そのターンが知らせで始まったかは、常駐が渡した知らせと照らして決める（talked の prompt）
+// 知らせは JSON の文字列の 1 行で受け（ModEscaped。改行を含む知らせも 1 つのターンになる）、mod が読み戻す
 const (
 	ModMaxLine   = 0
 	ModMaxNotice = MaxNotice
+	ModGap       = 0
+	ModEscaped   = true
 )
 
 // SessionEndsWith は、mcp --session-ends-with の値: セッションと同じだけ生きるプロセス。matomezu が親をたどって当たったプロセス（名前 name は小文字、.exe を除いた物）が

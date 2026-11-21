@@ -16,12 +16,12 @@ package server
 //   - 参加者が決まった /api/ai の呼び出しの返事（aiwire.NoticeHeader。join_calls.go の Called）: AI 間メッセージだけを渡す（参加の知らせは、その呼び出しが返す「参加しました」が兼ねる）
 //
 // 通り道ごとに、受け取る側が名乗った形で流す（常駐は AI の種類を知らない）: 1 行の上限（maxLine。超える行は改行で分ける）、1 回の知らせの上限（maxNotice）、
-// 知らせと知らせの間（gap。続けて流すと AI の側が 1 回の知らせにまとめ、上限を超えるため）。1 回の知らせに入りきらない AI 間メッセージは、通り道には「届いた」の短い知らせだけを流し、
+// 知らせと知らせの間（gap。続けて流すと AI の側が 1 回の知らせにまとめ、上限を超えるため）、改行を含む知らせを 1 つで受けるか（breaks。受けるなら AI 間メッセージを送り手の行と本文の行に分ける）。1 回の知らせに入りきらない AI 間メッセージは、通り道には「届いた」の短い知らせだけを流し、
 // 本文は行列に残して、その参加者の次の呼び出しの返事で渡す。
 // 流す前に、もう役目の終わった知らせは捨てる: 受け入れは参加を伝え済み（Told）なら、断りは伝え済み（goneTold）なら。参加者が受け入れ済みでなくなった AI 間メッセージも捨てる。
 // 参加の知らせの行は英語の短い文で、中身（「参加しました」）は、話しかけのフックか、その参加者の次の呼び出しの返事が添える
 //
-//	GET  /api/ai/watch?host=<プロセス id>&session=<立てたときのセッション id>（どちらか一方は要る）[&maxLine=<字>][&maxNotice=<字>][&gap=<ミリ秒>]
+//	GET  /api/ai/watch?host=<プロセス id>&session=<立てたときのセッション id>（どちらか一方は要る）[&maxLine=<字>][&maxNotice=<字>][&gap=<ミリ秒>][&breaks=1]
 //	     SSE。event: wake、data: {"line", "id", "session", "text"}（text は改行を含みうる。session は宛て先の参加者に結んだセッション id、分からなければ空）
 //	POST /api/ai/watch/ack {"line", "id", "result"}  result は delivered・absent・failed。{} を返す
 
@@ -49,6 +49,7 @@ type WakeLimits struct {
 	MaxLine   int           // 1 行の上限（字）。超える行は改行で分ける
 	MaxNotice int           // 1 回の知らせの上限（字。分けた改行も数える）
 	Gap       time.Duration // 知らせと知らせの間
+	Breaks    bool          // 改行を含む知らせを 1 つの知らせで受ける（AI 間メッセージは、送り手の行と本文の行に分けて流す）
 }
 
 // shape は、行 line を 1 行の上限で改行で分けた文
@@ -77,6 +78,7 @@ type wakeItem struct {
 	kind        string    // wakeAccepted・wakeDeclined・wakeMessage
 	line        string    // 流す 1 行
 	from        string    // AI 間メッセージの送り手のワークルーム名
+	body        string    // AI 間メッセージの本文（JSON の文字列にした物。改行を受ける通り道には、送り手の行のあとの行で流す）
 	pointed     bool      // 1 回の知らせに入りきらず、通り道に「届いた」だけを渡した（本文は呼び出しの返事で渡す）
 	replyOnly   bool      // 通り道の AI のプログラムにその会話が無かった（absent）。呼び出しの返事だけで渡す
 	lentTo      int64     // 貸している通り道の番号（0 は貸していない）
@@ -261,8 +263,11 @@ func (h *Hub) nextWake(l *wakeLine, now time.Time) (WakeOut, bool) {
 	pick.lentTo = l.id
 	pick.lentPointer = !l.limits.fits(pick.line)
 	text := pick.line
+	if l.limits.Breaks && pick.kind == wakeMessage {
+		text = messageHead(pick.from) + "\n" + pick.body
+	}
 	if pick.lentPointer {
-		text = "matomezu from AI " + quote(pick.from) + ": too long, call any matomezu tool"
+		text = messageHead(pick.from) + " too long, call any matomezu tool"
 	}
 	text = l.limits.shape(text)
 	h.rememberLent(text)
@@ -440,7 +445,7 @@ func (o Options) aiWatch(w http.ResponseWriter, r *http.Request) {
 		n, _ := strconv.Atoi(q.Get(name))
 		return max(n, 0)
 	}
-	line := o.Hub.OpenWakesWith(host, q.Get("session"), WakeLimits{MaxLine: number("maxLine"), MaxNotice: number("maxNotice"), Gap: time.Duration(number("gap")) * time.Millisecond})
+	line := o.Hub.OpenWakesWith(host, q.Get("session"), WakeLimits{MaxLine: number("maxLine"), MaxNotice: number("maxNotice"), Gap: time.Duration(number("gap")) * time.Millisecond, Breaks: q.Get("breaks") == "1"})
 	defer o.Hub.CloseWakes(line)
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")

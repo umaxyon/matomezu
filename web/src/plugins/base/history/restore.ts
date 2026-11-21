@@ -4,9 +4,10 @@
 import { z } from "zod"
 import type { Library } from "../../../core/folders"
 import { libraryOf, tablesOf } from "../../../core/folders-books"
+import { rowChanges } from "../../../core/folders-changes"
 import { type RowPatches, restoredTables } from "../../../core/folders-restore"
-import { inTrash } from "../../../core/folders-tree"
-import type { RowChange } from "../../../core/history"
+import { inTrash, outsidePageIn, type StageEntry } from "../../../core/folders-tree"
+import { changesByOutermost, type RowChange } from "../../../core/history"
 import type { Books } from "../../../core/library"
 import { type ListPatch, type Patch, patchOf } from "../../../core/patch"
 import type { Book } from "../../../core/schema/book"
@@ -39,9 +40,11 @@ export const PatchSchema: z.ZodType<Patch> = z.lazy(() => {
   ])
 }) as z.ZodType<Patch>
 
-// 置き直しの引数: 画面の履歴の段が変えた物を持つブックの id（books）と、ページとフォルダごとの置き直す値
+// 置き直しの引数: 画面の履歴の段が変えた物を持つステージエントリ（outermosts。ブックか、ブックの外のページ）と、ページとフォルダごとの置き直す値
 export const RevertArgs = z.strictObject({
-  books: z.array(z.string().min(1)).min(1),
+  outermosts: z
+    .array(z.strictObject({ kind: z.enum(["book", "page"]), id: z.string().min(1) }) satisfies z.ZodType<StageEntry>)
+    .min(1),
   pages: z.record(z.string(), PatchSchema),
   folders: z.record(z.string(), PatchSchema),
 })
@@ -80,18 +83,30 @@ export function restoredBooks(all: Books, books: readonly string[], patches: Row
   return next && onlyChanged(all, next, books) ? next : null
 }
 
-// 書庫 library のブック books を、patches で置き直した書庫（断る場合は、上の restoredBooks と同じ。books のどれかがゴミ箱かその中に在るときも断る）。
+// 書庫 library に、ステージエントリ e が名指した種類のとおりに在るか（ブックは、ゴミ箱の外のブックの行。ページは、開けるブックの外のページ）
+const standsIn = (library: Library, e: StageEntry): boolean =>
+  e.kind === "book"
+    ? library.folders[e.id]?.folderRole === "book" && !inTrash(library.folders, e.id)
+    : e.kind === "page" && outsidePageIn(library, e.id) !== undefined
+
+// 書庫 library のステージエントリ outermosts を、patches で置き直した書庫。outermosts のどれかが名指した種類のとおりに在らない（置き直したあとも）・
+// 置き直す所がほかの変更とぶつかる・置き直すと組めなくなるか、outermosts のほかの物（どのステージエントリにも入らない行も）が変わるなら null。
 // 置き直しても何も変わらなければ UNCHANGED
 export function restoredLibrary(
   library: Library,
-  books: readonly string[],
+  outermosts: readonly StageEntry[],
   patches: RowPatches,
 ): Library | typeof UNCHANGED | null {
-  const was = libraryOf(library)
-  if (!books.every(id => was[id] !== undefined && !inTrash(library.folders, id))) return null
+  if (!outermosts.every(e => standsIn(library, e))) return null
   const next = restoredTables(library, patches)
   if (next === library) return UNCHANGED
-  return next && onlyChanged(was, libraryOf(next), books) ? next : null
+  if (!next || !outermosts.every(e => standsIn(next, e))) return null
+  const changes = rowChanges(library, next)
+  const within = changesByOutermost(library, next, changes)
+  const rows = (c: { pages: object; folders: object }) => Object.keys(c.pages).length + Object.keys(c.folders).length
+  const named = outermosts.map(e => e.id)
+  const placed = Object.values(within).reduce((n, c) => n + rows(c), 0)
+  return placed === rows(changes) && Object.keys(within).every(id => named.includes(id)) ? next : null
 }
 
 // ブックの全部が was から next へ、増えも減りもせず、変わったのがブック books だけか

@@ -76,7 +76,7 @@ function pair(visible: () => boolean = () => true, now?: () => string) {
         }
     }
     const some = Object.keys(library.pages).length + Object.keys(library.folders).length > 0
-    here.receive(rowsOf(there), [], { books: ["b1"], ...change, ...(some ? { library } : {}) })
+    here.receive(rowsOf(there), [], { ...change, ...(some ? { library } : {}) })
   }
   // コントロールセンターのスクリーン（base の書庫を見せるスクリーン）
   const center = here.state.getState().window.screens.find(s => s.def === CENTER)?.id as string

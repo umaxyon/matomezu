@@ -262,7 +262,7 @@ func TestPerformChangesNothingWhenTheWriteFails(t *testing.T) {
 	}
 }
 
-// 2 冊のブックを置き直す book-revert（画面の戻す・やり直す）は 1 回の書き込み: 片方のブックを認可ステップが止めたら、どちらのブックも変わらない。
+// 2 冊のブックを置き直す history-revert（画面の戻す・やり直す）は 1 回の書き込み: 片方のブックを認可ステップが止めたら、どちらのブックも変わらない。
 // 止められなければ、2 冊とも変わり、窓への知らせは 1 つ
 func TestRevertOfTwoBooksIsOneWrite(t *testing.T) {
 	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
@@ -309,12 +309,12 @@ func TestRevertOfTwoBooksIsOneWrite(t *testing.T) {
 			}
 		}
 	}
-	revert := `{"books":["b1","b2"],"pages":{},"folders":{"b1":{"fields":{"title":{"set":"T2","was":"T"}}},"b2":{"fields":{"title":{"set":"U2","was":"U"}}}}}`
+	revert := `{"outermosts":[{"kind":"book","id":"b1"},{"kind":"book","id":"b2"}],"pages":{},"folders":{"b1":{"fields":{"title":{"set":"T2","was":"T"}}},"b2":{"fields":{"title":{"set":"U2","was":"U"}}}}}`
 	if done := do("@matomezu/base:book-lock", `{}`, &engine.On{Book: "b2"}); !done.OK {
 		t.Fatalf("lock = %+v", done)
 	}
 	drain()
-	if done := do("@matomezu/base:book-revert", revert, nil); done.OK || done.Reason != "denied" {
+	if done := do("@matomezu/base:history-revert", revert, nil); done.OK || done.Reason != "denied" {
 		t.Fatalf("revert of a locked book = %+v; want denied", done)
 	}
 	if got := titles(); got != "T U" {
@@ -327,7 +327,7 @@ func TestRevertOfTwoBooksIsOneWrite(t *testing.T) {
 		t.Fatalf("unlock = %+v", done)
 	}
 	drain()
-	if done := do("@matomezu/base:book-revert", revert, nil); !done.OK {
+	if done := do("@matomezu/base:history-revert", revert, nil); !done.OK {
 		t.Fatalf("revert = %+v", done)
 	}
 	if got := titles(); got != "T2 U2" {

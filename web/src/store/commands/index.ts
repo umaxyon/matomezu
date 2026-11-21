@@ -142,7 +142,7 @@ export function commandContext(
           stage: stageView(catalog, stage, toolOf(catalog, workspace, stageId, state.books)),
           book,
           page: (page !== null && pageIn(state.pages, page)) || NO_PAGE,
-          bookHistory: (book !== NO_BOOK && state.history[book.id]) || NO_HISTORY,
+          history: (stage.opened && state.history[stage.opened.outermost.id]) || NO_HISTORY,
           annotations: (page !== null && state.annotations[page]) || NO_ANNOTATIONS,
         },
         workspace,

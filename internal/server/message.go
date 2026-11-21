@@ -185,13 +185,18 @@ func (h *Hub) deliver(e Envelope) {
 		delete(h.seenEnvelopes, h.seenOrder[0])
 		h.seenOrder = h.seenOrder[1:]
 	}
-	h.enqueueWake(wakeItem{participant: e.To.Participant, kind: wakeMessage, line: messageLine(e), from: e.From.Workroom})
+	h.enqueueWake(wakeItem{participant: e.To.Participant, kind: wakeMessage, line: messageLine(e), from: e.From.Workroom, body: quote(e.Text)})
 }
 
 // messageLine は、届く 1 行。名前と本文は JSON の文字列にして包む（本文の改行と、本文の中の偽の知らせの行を見分けるため）。
 // 端末や会話には行が見えるので、前置きは送り手だけにする。返し方は参加の知らせと send_message の説明に任せる
 func messageLine(e Envelope) string {
-	return "matomezu from AI " + quote(e.From.Workroom) + ": " + quote(e.Text)
+	return messageHead(e.From.Workroom) + " " + quote(e.Text)
+}
+
+// messageHead は、AI 間メッセージの知らせの、送り手を名乗る頭（from は送り手のワークルーム名）
+func messageHead(from string) string {
+	return "matomezu from AI " + quote(from) + ":"
 }
 
 // quote は、文字列を JSON の文字列にする（< > & を逃がさない）

@@ -72,7 +72,7 @@ test("物を足す変更・利用者だけの変更・行えない変更・何�
     on: { page: "p1" },
   }
   expect(send([add])).toMatchObject({ ok: false, detail: expect.stringContaining("adds things") })
-  expect(send([{ action: "@matomezu/base:book-revert", args: {} }])).toMatchObject({
+  expect(send([{ action: "@matomezu/base:history-revert", args: {} }])).toMatchObject({
     ok: false,
     detail: expect.stringContaining("only actions that change a book"),
   })

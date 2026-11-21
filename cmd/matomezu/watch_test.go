@@ -29,6 +29,15 @@ func TestReadWakesPrintsOnlyWakeLines(t *testing.T) {
 	}
 }
 
+// --escaped では、知らせ 1 つを JSON の文字列の 1 行で書く（改行を含む知らせも 1 行）
+func TestEscapedPrintsOneJSONLinePerNotice(t *testing.T) {
+	var out bytes.Buffer
+	printDeliverer{out: &out, escaped: true}.deliver(wakeOut{Text: "matomezu from AI \"a\":\n\"x\""})
+	if out.String() != `"matomezu from AI \"a\":\n\"x\""`+"\n" {
+		t.Fatalf("out = %q", out.String())
+	}
+}
+
 // プロセス id のプロセスが居なければ、読むのをやめる。居るプロセス（自分）と、数でない id は居るとみなす
 func TestProcessAliveAndReadWakesStops(t *testing.T) {
 	if !server.ProcessAlive(strconv.Itoa(os.Getpid())) || !server.ProcessAlive("x") || server.ProcessAlive("999999999") {
@@ -47,6 +56,9 @@ func TestWatchQueryCarriesTheLimits(t *testing.T) {
 		t.Fatalf("query = %s", got)
 	}
 	if got := (&watchCmd{Host: "42"}).query(); got != "host=42&session=" {
+		t.Fatalf("query = %s", got)
+	}
+	if got := (&watchCmd{Host: "42", Escaped: true}).query(); got != "breaks=1&host=42&session=" {
 		t.Fatalf("query = %s", got)
 	}
 }
