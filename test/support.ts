@@ -1,6 +1,13 @@
 // テストで使う、ビルトインプラグインだけの表と store
 import { namingOf } from "../web/src/core/entries"
-import { type AnyEntryRef, type BinderFolder, HOME_ID, type Library, type PageRow } from "../web/src/core/folders"
+import {
+  type AnyEntryRef,
+  type BinderFolder,
+  HOME_ID,
+  type HomeOrFolder,
+  type Library,
+  type PageRow,
+} from "../web/src/core/folders"
 import { tablesOf } from "../web/src/core/folders-books"
 import type { AnyPage, BinderEntry, Book } from "../web/src/core/schema/book"
 import { NO_SETTINGS } from "../web/src/core/settings"
@@ -149,4 +156,11 @@ export function savedRows(books: readonly unknown[]): { pages: unknown[]; folder
     folders.push({ ...(b as object), lineup: refs })
   }
   return { pages, folders }
+}
+
+// 世界の表: ブック books を分けた表に、書庫ホームとフォルダ others を足した物（テストの用意として表に直に置く）
+export function worldTablesOf(books: readonly Book[], others: readonly HomeOrFolder[]): Library {
+  const tables = tablesOf(books)
+  if (others.length === 0) return tables
+  return { pages: tables.pages, folders: { ...tables.folders, ...Object.fromEntries(others.map(f => [f.id, f])) } }
 }

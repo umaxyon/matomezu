@@ -7,7 +7,6 @@ import type {
   EntryRef,
   Folder,
   Folders,
-  HomeOrFolder,
   Library,
   PageRef,
   PageRow,
@@ -168,11 +167,4 @@ export function withBook(library: Library, book: Book): Library {
   const folders = { ...base.folders }
   for (const f of rows.folders) folders[f.id] = kept(library.folders[f.id], f)
   return { pages, folders }
-}
-
-// 世界の表: ブック books を分けた表に、書庫ホームとフォルダ others を足した物
-export function worldTablesOf(books: readonly Book[], others: readonly HomeOrFolder[]): Library {
-  const tables = tablesOf(books)
-  if (others.length === 0) return tables
-  return { pages: tables.pages, folders: { ...tables.folders, ...Object.fromEntries(others.map(f => [f.id, f])) } }
 }

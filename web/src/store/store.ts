@@ -11,10 +11,10 @@ import type { CoreCatalog } from "../core/core-catalog"
 import type { ActionContext, ActionOn } from "../core/def/action"
 import type { PluginStateDef } from "../core/def/plugin-state"
 import { fail, matomezuError, type Problem, problem } from "../core/errors"
-import { type Folder, HOME_ID, homeOver, type Library, type PageRow, type TableChanges } from "../core/folders"
+import { type Folder, homeOver, type Library, type PageRow, type TableChanges } from "../core/folders"
 import { recordsOf } from "../core/folders-books"
 import { settledOn, withChanges } from "../core/folders-changes"
-import { outsideUnreadable } from "../core/folders-unreadable"
+import { outsideUnreadable, rawBooksOf } from "../core/folders-unreadable"
 import { deepFreeze } from "../core/freeze"
 import {
   HISTORY_LIMIT,
@@ -31,7 +31,6 @@ import type { Refused } from "../core/perform"
 import { performIn } from "../core/perform-world"
 import { restoreCounters, restoreRecords, withCounters, withRecords } from "../core/records"
 import { sameData } from "../core/same"
-import type { Book } from "../core/schema/book"
 import { keyChangesOf, langOf, restoreSettings, type Settings } from "../core/settings"
 import {
   closePicker,
@@ -177,7 +176,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   const loadRows = (): LibraryLoaded => {
     const read = readLibrary(catalog, rows.pages, rows.folders)
     return {
-      library: withHome(read.library, read.books),
+      library: read.library,
       warnings: read.warnings,
       partial: read.partial,
       unreadableFolder: outsideUnreadable(rows.pages, rows.folders).unreadable,
@@ -1082,19 +1081,23 @@ export const openedIn = (
   return opened ? { book: opened.outermost, page: shownPageId(opened) } : null
 }
 
-// 作ったときに読む行: 残した行 saved と、books を分けた行（core/folders-books.ts の recordsOf）
+// 作ったときに読む行: 残した行 saved と、books を分けた行（core/folders-books.ts の recordsOf）。
+// 書庫ホームの行が無ければ（ホストの無い窓とテスト。常駐の置き場所はいつも持つ）、どのフォルダ（ゴミ箱も）にも持たれていないブックを並べた書庫ホームの行を足す
 function startRows(options: Pick<StoreOptions, "saved" | "books">): LibraryRows {
   const made = (options.books ?? []).map(recordsOf)
-  return {
-    pages: [...(options.saved?.pages ?? []), ...made.flatMap(r => r.pages)],
-    folders: [...(options.saved?.folders ?? []), ...made.flatMap(r => r.folders)],
-  }
-}
-
-// 書庫 library に書庫ホームの行が無ければ（ホストの無い窓）、読めたブック books のうち、どのフォルダ（ゴミ箱も）にも持たれていない物を並べた書庫ホームを足した書庫
-function withHome(library: Library, books: readonly Book[]): Library {
-  if (Object.hasOwn(library.folders, HOME_ID)) return library
-  const held = new Set(Object.values(library.folders).flatMap(f => f.lineup.map(r => r.id)))
-  const home = homeOver(books.filter(b => !held.has(b.id)))
-  return { pages: library.pages, folders: { ...library.folders, [HOME_ID]: home } }
+  const pages = [...(options.saved?.pages ?? []), ...made.flatMap(r => r.pages)]
+  const folders = [...(options.saved?.folders ?? []), ...made.flatMap(r => r.folders)]
+  const roleOf = (f: unknown) => (f as { folderRole?: unknown } | null)?.folderRole
+  if (folders.some(f => roleOf(f) === "home")) return { pages, folders }
+  const held = new Set(
+    folders.flatMap(f => {
+      const lineup = (f as { lineup?: unknown } | null)?.lineup
+      return Array.isArray(lineup) ? lineup.map(r => (r as { id?: unknown } | null)?.id) : []
+    }),
+  )
+  const books = rawBooksOf(pages, folders).flatMap(b => {
+    const id = (b as { id?: unknown } | null)?.id
+    return typeof id === "string" && !held.has(id) ? [{ id }] : []
+  })
+  return { pages, folders: [...folders, homeOver(books)] }
 }
