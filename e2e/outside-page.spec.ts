@@ -78,6 +78,16 @@ test("ブックの外のページを開いたステージの下の行は、名�
   await expect(page.getByRole("img", { name: "紙" })).toHaveCount(1)
 })
 
+test.describe("ロック中のブックの外のページ", () => {
+  test.use({ outsidePages: [{ ...OUTSIDE, locked: true }] })
+
+  test("下の行の名前の左に、鍵の印が付く", async ({ page }) => {
+    await page.goto(stagesUrl([{ book: null, page: "o1" }]))
+    await expect(page.getByRole("button", { name: "ブックの外のページ" })).toBeVisible()
+    await expect(page.getByRole("img", { name: "ロック中" })).toBeVisible()
+  })
+})
+
 test.describe("マークダウンのブックの外のページ", () => {
   test.use({
     outsidePages: [
