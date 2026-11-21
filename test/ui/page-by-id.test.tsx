@@ -1,4 +1,4 @@
-// usePageById: 描いている場所のステージが開いている物の中のページを id で引く。開いている物の外のページ（ほかのブックのページ）は引けず、何も開いていなければ無い
+// usePageById・useItem: 描いている場所のステージが開いている物の中のページ（とそのアイテム）を id で引く。開いている物の外のページ（ほかのブックのページ）は引けず、何も開いていなければ無い
 
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
@@ -7,7 +7,7 @@ import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../web/src/plugins/ui"
 import { createMatomezu } from "../../web/src/store/create"
 import { PageScope, StageScope } from "../../web/src/ui/scope"
 import { MatomezuProvider } from "../../web/src/ui/store-context"
-import { usePageById } from "../../web/src/ui/view-hooks"
+import { useItem, usePageById } from "../../web/src/ui/view-hooks"
 import { drawingPage, testBook } from "../lineup"
 import { showFirstBook } from "../support"
 
@@ -71,4 +71,32 @@ test("ステージの外で見るだけに描くページの中は、置いた�
     </StageScope>,
   )
   expect(titles).toEqual(["ワイの", null])
+})
+
+test("useItem も、引けるのは開いている物の中のページのアイテムだけ（ほかのブックのページのアイテムは引けない）", () => {
+  const item = { id: "n1", item: "@matomezu/box:shape-nest-box", x: 0, y: 0, props: { caption: "箱" } }
+  const A = testBook("x", "エックス", [drawingPage("px1", { items: [item] })])
+  const B = testBook("y", "ワイ", [drawingPage("py", { items: [{ ...item, id: "n2" }] })])
+  const instance = createMatomezu({
+    plugins: BUILTIN_UI,
+    controlCenter: BUILTIN_CONTROL_CENTER,
+    books: [A, B],
+    lang: "ja",
+  })
+  const got: (string | null)[] = []
+  function Probe({ page, id }: { page: string; id: string }) {
+    got.push(useItem(page, id)?.id ?? null)
+    got.push(usePageById(page)?.id ?? null)
+    return null
+  }
+  act(() => showFirstBook(instance))
+  render(
+    <MatomezuProvider instance={instance} layout={DEFAULT_LAYOUT}>
+      <StageScope stage="s1">
+        <Probe page="px1" id="n1" />
+        <Probe page="py" id="n2" />
+      </StageScope>
+    </MatomezuProvider>,
+  )
+  expect(got).toEqual(["n1", "px1", null, null])
 })
