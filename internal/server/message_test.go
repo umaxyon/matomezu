@@ -181,7 +181,7 @@ func TestAcceptedWakeIsDroppedOnceWelcomed(t *testing.T) {
 	windowPerform(t, s.URL, "@matomezu/base:participant-accept", `{"workroom":"`+room+`"}`, joined.Participant)
 	line := hub.OpenWakesWith("100", "", WakeLimits{})
 	it, ok := hub.nextWake(line, time.Now())
-	if !ok || !strings.Contains(it.Text, "next matomezu call") {
+	if !ok || !strings.Contains(it.Text, "joined as ひよこ") {
 		t.Fatalf("wake = %q", it.Text)
 	}
 	if n := noticeOf(t, s.URL, joined.Participant); !strings.Contains(n, "ひよこ") {
@@ -213,7 +213,7 @@ func TestLongMessageFollowsTheLineLimits(t *testing.T) {
 	if withoutID(strings.ReplaceAll(got[0], "\n", "")) != `matomezu from AI "ひよこ" (reply -> send_message, id *): "`+strings.Repeat("あ", 150)+`"` {
 		t.Fatalf("first = %q", got[0])
 	}
-	if !strings.Contains(got[1], "500 characters") || strings.Contains(got[1], "い") {
+	if !strings.Contains(got[1], "too long") || strings.Contains(got[1], "い") {
 		t.Fatalf("pointer = %q", got[1])
 	}
 	if again := wakes(hub, hub.OpenWakesWith("200", "", lim)); len(again) != 0 {
@@ -313,7 +313,7 @@ func TestActionSendsAIMessage(t *testing.T) {
 		t.Fatalf("ticket-add = %s", got)
 	}
 	woke := wakes(hub, hub.OpenWakesWith("200", "", WakeLimits{}))
-	if len(woke) != 1 || !strings.Contains(woke[0], `message from AI "ひよこ"`) || !strings.Contains(woke[0], `Your workroom was assigned to the ticket`) || strings.Contains(woke[0], "as its lead") {
+	if len(woke) != 1 || !strings.Contains(woke[0], `matomezu from AI "ひよこ"`) || !strings.Contains(woke[0], `Your workroom was assigned to the ticket`) || strings.Contains(woke[0], "as its lead") {
 		t.Fatalf("wakes = %q", woke)
 	}
 }
