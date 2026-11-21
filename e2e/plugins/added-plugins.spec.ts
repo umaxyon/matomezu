@@ -2,9 +2,10 @@ import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:f
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { pagesIn } from "../books"
-import { aiAuth, BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test, urlPlace } from "../fixtures"
+import { aiAuth, BOOK_SCREEN_URL, bookScreenUrl, expect, joinedAiAuth, type Page, test, urlPlace } from "../fixtures"
 import { aiPerform } from "../helpers/ai"
 import { footerMenuTool } from "../helpers/footer-menu"
+import { openNewBookDialog } from "../helpers/new-book"
 import { enablePlugins } from "../helpers/settings"
 import { fromMenu } from "../helpers/stage-menu"
 import { storedBook, storedBooks, storedPageVersion } from "../helpers/stored"
@@ -311,8 +312,7 @@ test("新しいブックのダイアログに追加プラグインのタイプ�
   await link(page, "test/added-plugins/ex3")
   await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "画面を分割")).click()
-  await page.getByRole("button", { name: "ブック新規作成" }).locator("visible=true").click()
-  const dialog = page.getByRole("dialog", { name: "新しいブック" })
+  const dialog = await openNewBookDialog(page)
   await page.keyboard.type("星のボード")
   await page.keyboard.press("Enter")
   await expect(dialog).toBeHidden()
@@ -366,7 +366,7 @@ test("ex6 と ex7 を読ませると、ex7 の木箱が ex6 の拡張ポイン�
     result: { weight: 7 },
   })
   // 画面も ex7 の見た目を読み、置き場の木箱を描く
-  await page.goto(`/?b0=${yard.id}&p0=yard-p1`)
+  await page.goto(bookScreenUrl(yard.id, "yard-p1"))
   await expect(page.locator("[data-ex7-crate]")).toHaveCount(2)
 })
 
@@ -424,7 +424,7 @@ test("ex8 を読ませると、自分のプレゼンテーションのビュー�
     ],
   }
   expect((await page.request.put(`/api/books-for-test/${deck.id}`, { data: { book: deck, base: 0 } })).ok()).toBe(true)
-  await page.goto(`/?b0=${deck.id}&p0=p1`)
+  await page.goto(bookScreenUrl(deck.id, "p1"))
   await expect(page.locator("[data-ex8-deck] [data-ex8-card]")).toHaveText(["りんご", "みかん"])
   await (await fromMenu(page, "印刷プレビュー")).click()
   const sheets = page.locator("[data-sheet]")

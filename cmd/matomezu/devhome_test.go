@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -81,5 +82,31 @@ func TestDevRootOnlyInTheDevelopmentBuild(t *testing.T) {
 	version = "1.2.3"
 	if got := devRoot(repo); got != "" {
 		t.Errorf("released build: %q, want none", got)
+	}
+}
+
+// 配る版が、開発の常駐のあるリポジトリの中で呼ばれたら知らせる（開発の版・リポジトリの外では知らせない）
+func TestDevNotUsedNote(t *testing.T) {
+	repo := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repo, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(repo, devHomeDir), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(devBinary(repo), nil, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := devNotUsedNote(repo); got != "" {
+		t.Fatalf("development build: %q", got)
+	}
+	saved := version
+	t.Cleanup(func() { version = saved })
+	version = "1.2.3"
+	if got := devNotUsedNote(repo); !strings.Contains(got, repo) || !strings.Contains(got, "1.2.3") {
+		t.Errorf("released build in the repository: %q", got)
+	}
+	if got := devNotUsedNote(t.TempDir()); got != "" {
+		t.Errorf("outside a repository: %q", got)
 	}
 }

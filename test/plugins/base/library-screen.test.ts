@@ -28,7 +28,7 @@ test("書庫のスクリーンから選ぶ: 「画面を分割」なら空のス
   const lib = libs()[0]?.id ?? ""
   store.actions.command(lib, "@matomezu/base:library-entry-open", { entry: "b3" })
   expect(libs()).toHaveLength(0)
-  expect(stages().map(st => st.opened !== null && "outermost" in st.opened && st.opened.outermost)).toEqual([
+  expect(stages().map(st => st.opened !== null && "outermost" in st.opened && st.opened.outermost.id)).toEqual([
     "b1",
     "b3",
   ])
@@ -38,7 +38,7 @@ test("書庫のスクリーンから選ぶ: 「画面を分割」なら空のス
   expect(open().arrangementValue).toMatchObject({ screens: [expect.any(String), libs()[0]?.id] })
   store.actions.command(libs()[0]?.id ?? "", "@matomezu/base:library-entry-open", { entry: "b4" })
   expect(libs()).toHaveLength(0)
-  expect(stages().map(st => st.opened !== null && "outermost" in st.opened && st.opened.outermost)).toEqual([
+  expect(stages().map(st => st.opened !== null && "outermost" in st.opened && st.opened.outermost.id)).toEqual([
     "b1",
     "b4",
   ])

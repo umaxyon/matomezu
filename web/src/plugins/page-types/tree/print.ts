@@ -18,7 +18,7 @@ import { NODE_SHAPE } from "./shape"
 import { NODE_SIZE } from "./size"
 
 // ページ page の木を並べたもの（根の無いページは null）。setting はそのページで効いている設定の値、grow はページの増やす向き。
-// root は並べる木（書く画面の、書いている字を重ねた木など。無ければページの根）
+// root は並べる木（ビューの、書いている字を重ねた木など。無ければページの根）
 export function laidPage(
   catalog: CoreCatalog,
   page: ItemPage,
@@ -29,15 +29,15 @@ export function laidPage(
   return root ? layoutTree(root, setting(GROW), paper, setting(NODE_SIZE), setting(NODE_SHAPE), grow) : null
 }
 
-// 並べた木 laid が右・下へずれている印刷区画の数（可変ページで左（上）へ増やすとき。書く画面がステージに知らせる量と、ブックタイプの contentOrigin が返す量は、これ 1 つ）
+// 並べた木 laid が右・下へずれている印刷区画の数（可変ページで左（上）へ増やすとき。ビューがステージに知らせる量と、ページのタイプの contentOrigin が返す量は、これ 1 つ）
 export const laidOrigin = (laid: TreeLayout | null): Point => laid?.origin ?? { x: 0, y: 0 }
 
-// 可変ページで、並べた木 laid の節が入るだけ印刷区画を並べた数と広さ（spare なら、増やす向きに空きの印刷区画を足す。書く画面がステージに知らせる広さ）
+// 可変ページで、並べた木 laid の節が入るだけ印刷区画を並べた数と広さ（spare なら、増やす向きに空きの印刷区画を足す。ビューがステージに知らせる広さ）
 export const laidArea = (paper: Size, grow: GrowSides, laid: TreeLayout, spare: boolean) =>
   grownArea(paper, grow, laidExtent(laid.nodes), spare)
 
 // 印刷のときの並べ方: 可変ページなら、印刷区画の境目をまたぐ節と、それより先（右・下）の節と線を、次の印刷区画の頭（余白 MARGIN の内側）まで
-// 送る（改ページ。横と縦のそれぞれで。書く画面の並びは変えない）
+// 送る（改ページ。横と縦のそれぞれで。ビューの並びは変えない）
 export function printLaid(
   catalog: CoreCatalog,
   page: ItemPage,

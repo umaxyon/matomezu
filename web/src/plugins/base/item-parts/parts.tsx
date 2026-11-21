@@ -1,4 +1,4 @@
-// 形（箱やリストなど）の画面が共に使うもの: ダイアログのフック（開いているブック・ブックのテーマ・使えるテーマ・色の見本・寄せの選択肢）と寄せのアイコン、
+// 形（箱やリストなど）の画面が共に使うもの: ダイアログのフック（描いているページのブック・ページのテーマ・使えるテーマ・色の見本・寄せの選択肢）と寄せのアイコン、
 // 形に当てたテーマの値を CSS 変数にするフック
 
 import { type CSSProperties, useMemo } from "react"
@@ -17,7 +17,7 @@ import { themeFits, themesFor } from "../book-look/theme-types"
 import { resolveTokens } from "../book-look/tokens"
 import { shadeOf, useDarkScheme } from "../book-look/use-dark-scheme"
 import { kit } from "../kit"
-import type { Align } from "../text/fields"
+import type { Align } from "../text/text-fields"
 
 // 寄せのアイコン（左・中央・右に寄せた横線）
 const lines = (x1: number, x2: number) => (
@@ -39,10 +39,10 @@ export function useAligns() {
   return ALIGNS.map(a => ({ value: a.value, label: t(a.label), icon: ALIGN_ICONS[a.value] }))
 }
 
-// 描くページのブックの id（描いている場所。ui/scope.tsx）
-export function useBookOf(): string | undefined {
+// 描くページのステージエントリの id（描いている場所。ui/scope.tsx）
+export function useOutermostOf(): string | undefined {
   const scope = useScope()
-  return useMatomezuState(s => openedOf(s, scope)?.book)
+  return useMatomezuState(s => openedOf(s, scope)?.outermost)
 }
 
 // 描いているページのタイプが、ページと中の形に使えるテーマ（book-look/theme-types.ts。ページを描いていなければ空）
@@ -78,8 +78,8 @@ export function useSwatches(looks: string | undefined, fill: TokenDef) {
   }, [catalog, looks, fill, t, dark])
 }
 
-// 描くページのブックの中の形に当てたテーマ theme の、テーマキー defs の値の CSS 変数
-// （当てていないか、ページのタイプが使えないテーマなら undefined。ブックのテーマのまま描く。book-look/theme-types.ts）
+// 描くページの中の形に当てたテーマ theme の、テーマキー defs の値の CSS 変数
+// （当てていないか、ページのタイプが使えないテーマなら undefined。ページのテーマのまま描く。book-look/theme-types.ts）
 export function useThemeVars(theme: string | undefined, defs: readonly TokenDef[]): CSSProperties | undefined {
   const catalog = useCatalog().core
   const scope = useScope()

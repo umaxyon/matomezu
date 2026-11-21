@@ -8,7 +8,7 @@ import { shownPageId } from "../../web/src/core/stage"
 import { screenOf } from "../../web/src/core/window"
 import type { AIEditTicketOutcome } from "../../web/src/store/state"
 import { drawingPage, SLIDE, testBinder, testBook, testPage, withSlide } from "../lineup"
-import { newStore, sequence, worldRows } from "../support"
+import { newStore, worldRows } from "../support"
 
 const TEXT = "@matomezu/slide:slide-text"
 type Store = ReturnType<typeof newStore>
@@ -21,14 +21,14 @@ const pageIds = (store: Store) => pagesOf(bookOf(store)).map(p => p.id)
 const settled = () => Promise.resolve()
 
 function ready(book: Book, aiEditTicket?: (c: AIEditTicketOutcome) => void) {
-  const store = newStore({ books: [book], now: sequence(), ...(aiEditTicket ? { aiEditTicket } : {}) })
+  const store = newStore({ books: [book], ...(aiEditTicket ? { aiEditTicket } : {}) })
   store.actions.resizeStage("s1", { w: 1400, h: 1000 })
   store.receive({ ...worldRows([bookOf(store)]), settings: {} }, [])
   return store
 }
 const confirm = (store: Store) => store.receive({ ...worldRows([bookOf(store)]), settings: {} }, [])
 const foreign = (store: Store, book: Book, action: string, act = "1", by: "ai" | "host" = "ai") =>
-  store.receive({ ...worldRows([book]), settings: {} }, [], { books: [book.id], by, act, actions: [action] })
+  store.receive({ ...worldRows([book]), settings: {} }, [], { by, act, actions: [action] })
 const shown = (store: Store) => shownPageId(screenOf(store.state.getState().window).stages[0]?.opened ?? null)
 
 test("バインダからページを消した画面の履歴の段は、よそでバインダごと無くなっていたら、戻してもページは戻らない", async () => {

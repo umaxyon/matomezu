@@ -7,11 +7,23 @@
 
 import type { CoreCatalog } from "./core-catalog"
 import { arrangementValueOf } from "./def/screen-arrangement"
-import { NO_OUTERMOST } from "./folders-tree"
+import type { Library } from "./folders"
+import { NO_OUTERMOST, outermostOf, outsidePageIn } from "./folders-tree"
 import type { Point } from "./geom"
+import type { ItemPage } from "./placed"
 import { sameData } from "./same"
 import type { Book } from "./schema/book"
-import { newStage, openBinder, openBook, openPage, panBy, type Stage, shownPageId, stopStart } from "./stage"
+import {
+  newStage,
+  openBinder,
+  openBook,
+  openOutsidePage,
+  openPage,
+  panBy,
+  type Stage,
+  shownPageId,
+  stopStart,
+} from "./stage"
 import { zoomInRange } from "./viewport"
 import {
   mapScreens,
@@ -24,8 +36,8 @@ import {
 import { MAX_STAGES, MIN_SHARE, newWorkspace, type Workspace } from "./workspace"
 
 export interface StagePlace {
-  outermost: string // 開いているブックの id（何も開いていなければ NO_OUTERMOST）
-  page: string | null // 開いているページの id
+  outermost: string // 開いているブックの id（何も開いていないか、ブックの外のページを開いていれば NO_OUTERMOST）
+  page: string | null // 開いているページの id（outermost が NO_OUTERMOST なら、ブックの外のページ）
   binder: string | null // 空のバインダを開いているときの、バインダの id（ページを開いていれば null）
   zoom: number
   pan: Point
@@ -85,7 +97,7 @@ function stagesPlaceOf(ws: Workspace, states: (stage: string) => Readonly<Record
     places: ws.stages.map(s => {
       const view = s.mode.kind === "print-preview" ? s.mode.back : s
       return {
-        outermost: s.opened?.outermost ?? NO_OUTERMOST,
+        outermost: s.opened?.outermost.kind === "book" ? s.opened.outermost.id : NO_OUTERMOST,
         page: shownPageId(s.opened),
         binder: s.opened?.kind === "binder" ? s.opened.binder : null,
         zoom: view.zoom,
@@ -150,15 +162,38 @@ export function moved(a: Address, b: Address, pushes: ReadonlySet<string> = new 
   })
 }
 
-// ステージ stage に、場所 place を当てはめる（ブックを名指さない場所は何も開かず、無いページは開かず、開けたものに倍率とずらす量を戻す）
-function placed(catalog: CoreCatalog, books: Readonly<Record<string, Book>>, stage: Stage, place: StagePlace): Stage {
+// 場所 place が、書庫 library で開けるブックの外のページを名指していれば、そのページ（ブックを名指す場所・ページを名指さない場所は undefined）
+const outsidePageAt = (library: Library, place: StagePlace): ItemPage | undefined =>
+  place.outermost === NO_OUTERMOST && place.page !== null ? outsidePageIn(library, place.page) : undefined
+
+// ブックを名指さずページを名指す場所 place の、そのページが書庫 library でブックの中に在れば、そのブックを名指す場所（ブックの外のページだった物が、ブックの中へ移されたあと）。
+// ほかは place のまま
+function inBookNow(library: Library, place: StagePlace): StagePlace {
+  if (place.outermost !== NO_OUTERMOST || place.page === null) return place
+  const o = outermostOf(library, place.page)
+  return o !== NO_OUTERMOST && o.kind === "book" ? { ...place, outermost: o.id } : place
+}
+
+// ステージ stage に、場所 place を当てはめる（ブックもページも名指さない場所は何も開かず、ブックを名指さずページを名指す場所は、ブックの外のページを開く。
+// ブックの無いページは開かず、開けたものに倍率とずらす量を戻す）
+function placed(
+  catalog: CoreCatalog,
+  books: Readonly<Record<string, Book>>,
+  library: Library,
+  stage: Stage,
+  place: StagePlace,
+): Stage {
   const book = place.outermost === NO_OUTERMOST ? undefined : books[place.outermost]
+  const outside = outsidePageAt(library, place)
   // 表示領域の大きさ（URL には書かない）はステージのまま
   const fresh = { ...newStage(stage.id), view: stage.view }
-  if (!book) return fresh
-  let next = openBook(catalog, fresh, book)
-  if (place.page !== null) next = openPage(catalog, next, book, place.page)
-  else if (place.binder !== null) next = openBinder(catalog, next, book, place.binder)
+  if (!book && !outside) return fresh
+  let next = fresh
+  if (book) {
+    next = openBook(catalog, next, book)
+    if (place.page !== null) next = openPage(catalog, next, book, place.page)
+    else if (place.binder !== null) next = openBinder(catalog, next, book, place.binder)
+  } else if (outside) next = openOutsidePage(catalog, next, outside)
   // ずらす量は、ほかの操作と同じく範囲に収める（表示領域を測るまでは収めない）。初めの位置には合わせない（場所のずらす量が 0 のときも）
   const zoomed = { ...stopStart(next), zoom: zoomInRange(place.zoom) }
   return panBy(zoomed, place.pan.x - zoomed.pan.x, place.pan.y - zoomed.pan.y)
@@ -167,11 +202,12 @@ function placed(catalog: CoreCatalog, books: Readonly<Record<string, Book>>, sta
 // 窓 win に場所 address を当てはめる。場所のスクリーンを、その id のまま開く（同じ id・同じ定義のスクリーンが開いていれば、その中を使い回す。
 // 機能台帳に無い定義・形に合わない渡す値・c と番号でない id のスクリーンは開かない）。場所に無いスクリーンは閉じる（最初から開いているスクリーンと、
 // ステージを並べるスクリーンが場所に 1 枚も無ければ、今のうちいちばん最近カレントにした 1 枚を、後ろに残す）。カレントにした順は場所のとおり。
-// ステージを並べるスクリーンのステージは、左から同じ番号のものを使い回し、足りなければ足す（MAX_STAGES まで）。無いブックを名指すステージは開かず（全部がそうなら、そのスクリーンも開かない）。
+// ステージを並べるスクリーンのステージは、左から同じ番号のものを使い回し、足りなければ足す（MAX_STAGES まで）。無いブック・書庫 library で開けないブックの外のページを名指すステージは開かず（全部がそうなら、そのスクリーンも開かない）。
 // 場所にステージが無ければ、そのスクリーンのステージは今のまま。場所にスクリーンが無ければ、窓は今のまま。プラグイン状態は当てはめない（store の locate が当てはめる）
 export function placeAt(
   catalog: CoreCatalog,
   books: Readonly<Record<string, Book>>,
+  library: Library,
   win: WindowState,
   address: Address,
 ): WindowState {
@@ -190,9 +226,13 @@ export function placeAt(
       screens.push({ id: place.id, def: place.def, props: props.data })
       continue
     }
-    // 無いブックを名指すステージは開かない（開いていたブックが無くなったときと同じ）。全部がそうなら、そのスクリーンも開かない
-    const named = (place.stages?.places ?? []).slice(0, MAX_STAGES)
-    const places = named.filter(p => p.outermost === NO_OUTERMOST || books[p.outermost] !== undefined)
+    // 無いブック・開けないブックの外のページを名指すステージは開かない（開いていた物が無くなったときと同じ）。全部がそうなら、そのスクリーンも開かない
+    const named = (place.stages?.places ?? []).slice(0, MAX_STAGES).map(p => inBookNow(library, p))
+    const places = named.filter(p =>
+      p.outermost !== NO_OUTERMOST
+        ? books[p.outermost] !== undefined
+        : p.page === null || outsidePageAt(library, p) !== undefined,
+    )
     if (named.length > 0 && places.length === 0) continue
     if (places.length === 0) {
       const kept = was?.stages ?? newWorkspace(catalog, null, `s${++issued}`)
@@ -200,7 +240,7 @@ export function placeAt(
       continue
     }
     const base = was?.stages
-    const stages = places.map((p, i) => placed(catalog, books, base?.stages[i] ?? newStage(`s${++issued}`), p))
+    const stages = places.map((p, i) => placed(catalog, books, library, base?.stages[i] ?? newStage(`s${++issued}`), p))
     const wanted = named[Math.min(Math.max(0, place.stages?.current ?? 0), named.length - 1)]
     const current = stages[Math.max(0, wanted ? places.indexOf(wanted) : 0)] as Stage
     const share = Math.min(1 - MIN_SHARE, Math.max(MIN_SHARE, place.stages?.share ?? 0.5))

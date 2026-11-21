@@ -48,16 +48,23 @@ func (h *Hub) leave(id, why string) error {
 // VisitorIdle は、ビジターを退室させるまでの、呼ばれない間（最後に呼ばれてから。呼ばれていなければ受け入れてから）
 const VisitorIdle = 5 * time.Minute
 
-// VisitorSweepEvery は、呼ばれないビジターを見回る間隔
-const VisitorSweepEvery = 30 * time.Second
+// ParticipantSweepEvery は、参加者を見回る間隔（SweepParticipants）
+const ParticipantSweepEvery = 30 * time.Second
 
-// LeaveIdleVisitors は、時点 now までに VisitorIdle の間呼ばれていないビジターを、利用者として退室させる
-func (h *Hub) LeaveIdleVisitors(now time.Time) error {
+// SweepParticipants は、参加者を見回り、利用者として外す: 時点 now までに VisitorIdle の間呼ばれていないビジターと、
+// セッションが終わった要求中の参加者（知らせずに消す。答えを待つしおりを残さない）
+func (h *Hub) SweepParticipants(now time.Time) error {
 	records, err := h.records()
 	if err != nil {
 		return err
 	}
 	for _, s := range records {
+		if s.State == stateRequested && h.sessionEnded(s.ID) {
+			if err := h.leaveEnded(s.ID); err != nil {
+				return err
+			}
+			continue
+		}
 		if s.State != stateVisitor {
 			continue
 		}

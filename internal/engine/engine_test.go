@@ -322,7 +322,7 @@ func TestAICatalogDescribesPageTypesAndItemKinds(t *testing.T) {
 	for _, i := range c.Items {
 		kinds[i.ID] = i.Kind
 	}
-	if !strings.HasPrefix(types["@matomezu/drawing:drawing"], "none ") || !strings.HasPrefix(types["@matomezu/slide-book:slide"], "binder ") || !strings.Contains(types["@matomezu/drawing:drawing"], "@matomezu/box:shape-nest-box") ||
+	if !strings.HasPrefix(types["@matomezu/drawing:drawing"], "none ") || !strings.HasPrefix(types["@matomezu/slide-page:slide"], "binder ") || !strings.Contains(types["@matomezu/drawing:drawing"], "@matomezu/box:shape-nest-box") ||
 		kinds["@matomezu/box:shape-box"] != "shape" || kinds["@matomezu/line:connector-line"] != "connector" {
 		t.Fatalf("book types = %v, item kinds = %v", types, kinds)
 	}
@@ -728,11 +728,8 @@ func TestAIPageShowsOnlyTheTextsOfABackground(t *testing.T) {
 			`{"id":"s1","item":"@matomezu/slide:slide-text","x":1,"y":2,"w":300,"h":40,"props":{"text":"社外秘"}},` +
 			`{"id":"s2","item":"@matomezu/slide:slide-ellipse","x":5,"y":6,"w":100,"h":60,"props":{"fill":"#f6c177","stroke":"#286983","width":3}}]}`
 	}
-	book := func(page string) json.RawMessage {
-		return json.RawMessage(`{"id":"b1","title":"T","lineup":[` + page + `]}`)
-	}
 	drawing := pageOf("@matomezu/drawing:drawing")
-	out, err := e.AIPage(book(drawing), json.RawMessage(drawing))
+	out, err := e.AIPage(json.RawMessage(drawing))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -745,10 +742,10 @@ func TestAIPageShowsOnlyTheTextsOfABackground(t *testing.T) {
 	if err := json.Unmarshal(out, &got); err != nil || got.Slide != nil || len(got.Background.Texts) != 1 || got.Background.Texts[0] != "社外秘" {
 		t.Fatalf("AIPage = %s, %v", out, err)
 	}
-	slide := pageOf("@matomezu/slide-book:slide")
-	same, err := e.AIPage(book(slide), json.RawMessage(slide))
+	slide := pageOf("@matomezu/slide-page:slide")
+	same, err := e.AIPage(json.RawMessage(slide))
 	if err != nil || string(same) != slide {
-		t.Fatalf("AIPage of a slide book = %s, %v", same, err)
+		t.Fatalf("AIPage of a slide page = %s, %v", same, err)
 	}
 }
 

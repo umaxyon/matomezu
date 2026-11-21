@@ -1,7 +1,7 @@
 // 画面の履歴（Undo・Redo）: 利用者の 1 回の操作で変わったページとフォルダの前と後を画面の履歴の段 1 つに持つ（store が作り、戻す・やり直すのは base の history）。
-// AI とほかの窓の変更は、まだ見ていない画面の履歴の段として store が溜め、変えた物が見えたら時刻の位置に差し込む
+// AI とほかの窓の変更は、まだ見ていない画面の履歴の段として store が溜め、変えた物が見えたら、届いた順の位置に差し込む
 import type { Folder, Folders, Library, PageRow, TableChanges } from "./folders"
-import { foldersOver } from "./folders-tree"
+import { foldersOver, NO_OUTERMOST, outermostOf } from "./folders-tree"
 import { type Patch, patchOf } from "./patch"
 import { REMOVED } from "./records"
 import { sameData } from "./same"
@@ -15,12 +15,13 @@ export interface RowChange<T> {
 // 画面の履歴の段を作った物: この窓の利用者・AI・ほかの窓
 export type HistoryBy = "user" | "ai" | "window"
 
-// 画面の履歴の段: 変えたページとフォルダごとの前と後（足した物の前と、無くした物の後は "none"）。at は始めた時点（この窓の時計）。
-// books は、変えた物を持つブックの id（この段を入れる履歴。1 回の操作が、いくつかのブックを変えることがある）
+// 画面の履歴の段: 変えたページとフォルダごとの前と後（足した物の前と、無くした物の後は "none"）。seq は、この窓で段を始めた順の番号
+// （利用者の段は始めたとき、AI とほかの窓の段は届いたときに振る。マシンの時計は合わせ直しで後ろへ戻ることがあるので、並びは時計で決めない）。
+// outermosts は、この段を入れる履歴の鍵: 変えた物を持つステージエントリの id（1 回の操作が、いくつかのステージエントリを変えることがある）。書庫の段は LIBRARY_HISTORY
 export interface HistoryStep {
-  at: string
+  seq: number
   by: HistoryBy
-  books: readonly string[]
+  outermosts: readonly string[]
   pages: Readonly<Record<string, RowChange<PageRow>>>
   folders: Readonly<Record<string, RowChange<Folder>>>
 }
@@ -37,29 +38,45 @@ export function rowChangesOf(was: Library, changes: TableChanges): Pick<HistoryS
   return { pages: rows(was.pages, changes.pages), folders: rows(was.folders, changes.folders) }
 }
 
-// 画面の履歴（ブックごとと、書庫に 1 つ）: 戻せる画面の履歴の段（古い順）と、やり直せる画面の履歴の段（古い順。最後が次にやり直す物）
+// 表が was から now へ changes のとおりに変わったとき、変わった行を、その行のステージエントリの id ごとに分ける（前から在る行は was で、足した行は now で引く）。
+// どのステージエントリにも入らない行（書庫ホーム・ゴミ箱・フォルダ）は入れない
+export function changesByOutermost(was: Library, now: Library, changes: TableChanges): Record<string, TableChanges> {
+  const out: Record<string, { pages: Record<string, unknown>; folders: Record<string, unknown> }> = {}
+  const put = (table: "pages" | "folders", id: string, to: unknown) => {
+    const o = outermostOf(id in was.pages || id in was.folders ? was : now, id)
+    if (o === NO_OUTERMOST) return
+    const into = out[o.id] ?? { pages: {}, folders: {} }
+    out[o.id] = into
+    into[table][id] = to
+  }
+  for (const [id, to] of Object.entries(changes.pages)) put("pages", id, to)
+  for (const [id, to] of Object.entries(changes.folders)) put("folders", id, to)
+  return out as Record<string, TableChanges>
+}
+
+// 画面の履歴（ステージエントリごとと、書庫に 1 つ）: 戻せる画面の履歴の段（古い順）と、やり直せる画面の履歴の段（古い順。最後が次にやり直す物）
 export interface History {
   undo: readonly HistoryStep[]
   redo: readonly HistoryStep[]
 }
 export const NO_HISTORY: History = { undo: [], redo: [] }
-// 書庫の履歴の鍵（ブックごとの履歴と同じ表に、この鍵で持つ）: 書庫が対象のアクションが変えたページとフォルダの段。ブックが対象・ページが対象のアクションの段は、ブックの履歴に入る
+// 書庫の履歴の鍵（ステージエントリごとの履歴と同じ表に、この鍵で持つ）: 書庫が対象のアクションが変えたページとフォルダの段。ブックが対象・ページが対象のアクションの段は、ステージエントリの履歴に入る
 export const LIBRARY_HISTORY = "library"
-export const HISTORY_LIMIT = 100 // ブックごとに覚える画面の履歴の段の数（まだ見ていない画面の履歴の段も、ブックごとにこの数まで）
+export const HISTORY_LIMIT = 100 // ステージエントリごとに覚える画面の履歴の段の数（まだ見ていない画面の履歴の段も、ステージエントリごとにこの数まで）
 
-// 履歴 was の戻せる画面の履歴の段に、step を時刻の位置で差し込む（後ろから見て、at の大きい物の前。やり直せる画面の履歴の段は消さない）
+// 履歴 was の戻せる画面の履歴の段に、step を始めた順の位置で差し込む（後ろから見て、seq の大きい物の前。やり直せる画面の履歴の段は消さない）
 export function insertStep(was: History, step: HistoryStep): History {
   let i = was.undo.length
-  while (i > 0 && (was.undo[i - 1] as HistoryStep).at > step.at) i--
+  while (i > 0 && (was.undo[i - 1] as HistoryStep).seq > step.seq) i--
   return { ...was, undo: [...was.undo.slice(0, i), step, ...was.undo.slice(i)].slice(-HISTORY_LIMIT) }
 }
 
 // 履歴 was の、戻す・やり直すで動かした段 step を、動かす前に在った側 from へ戻した履歴（動かした先に無ければ was のまま）。
-// 戻す所は時刻の位置（戻せる側は古い順、やり直せる側は新しい順。その間にほかの段を動かしていても、並びを保つ）
+// 戻す所は始めた順の位置（戻せる側は古い順、やり直せる側は新しい順。その間にほかの段を動かしていても、並びを保つ）
 export function putBackStep(was: History, step: HistoryStep, from: "undo" | "redo"): History {
   const to = from === "undo" ? "redo" : "undo"
   if (!was[to].includes(step)) return was
-  const later = (s: HistoryStep) => (from === "undo" ? s.at > step.at : s.at < step.at)
+  const later = (s: HistoryStep) => (from === "undo" ? s.seq > step.seq : s.seq < step.seq)
   const i = was[from].findIndex(later)
   const at = i < 0 ? was[from].length : i
   return {

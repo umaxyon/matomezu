@@ -5,9 +5,9 @@ import { useMessages } from "../../../ui/i18n"
 import { Choices, controlClass, Field, rowClass, Switch } from "../dialog-host/FormParts"
 import { useAligns } from "../item-parts/parts"
 import { kit } from "../kit"
-import { type Align, BODY_MAX } from "./fields"
 import { RichBody } from "./RichBody"
 import styles from "./TextBlockFields.module.css"
+import { type Align, BODY_MAX } from "./text-fields"
 
 export interface TextDraft {
   caption: string

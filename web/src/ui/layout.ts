@@ -21,7 +21,7 @@ import type { Plugin } from "../store/plugin"
 // 置けるスロットと、描くコンポーネント。置けるスロットは、どれも同じ値（props）を渡すものだけにする。
 // スロットとメニューを開けるのはウィジェットとプレゼンテーションのビューだけで、コンポーネントの中で描くスロット（<Slot>）とメニュー（useMenu）、
 // 開く右クリックのメニュー（useContextMenu）は opens・menus・contextMenus に全部書く
-// （書いたものが、そのスロットとメニューを開ける約束）。ほかのプラグインのスロットを開けてもよい（骨組みの差し替え）
+// （書いたものが、そのスロットとメニューを開ける約束）。ほかのプラグインのスロットを開けてもよい（ステージの骨組みを別のウィジェットにするときなど）
 export interface WidgetDef<S extends SlotId = SlotId> extends WidgetExtras {
   id: string // 本当の id（「プラグインの id:名前」。kit.name で作る）
   slots: readonly S[]
@@ -122,7 +122,7 @@ function ownScreenSlots(p: Plugin): ReadonlySet<string> {
 }
 
 // place を書かないウィジェットのうち、置けるスロットが、自分のプラグインが定義したスクリーン（かスクリーンアレンジメント）1 つだけの物は、そこに置く。
-// ほかのプラグインのスクリーンを描くウィジェット（骨組みの差し替えなど）は、書かなければ置かない
+// ほかのプラグインのスクリーンを描くウィジェット（ステージの骨組みを別のウィジェットにするときなど）は、書かなければ置かない
 function screenPlace(w: AnyWidgetDef, own: ReadonlySet<string>): SlotId | undefined {
   const [slot] = w.slots
   return w.slots.length === 1 && slot !== undefined && own.has(slot) ? slot : undefined

@@ -1,4 +1,4 @@
-// ディレクトリ構成図のブック: ページごとに紙を置き、ページのフィールド root（根のフォルダ）から下の中身を、自分のプレゼンテーション（dir）で上から下へ並べて描く。紙に置けるアイテムは無い。
+// ディレクトリ構成図のページのタイプ: ページごとに紙を置き、ページのフィールド root（根のフォルダ）から下の中身を、自分のプレゼンテーション（dir）で上から下へ並べて描く。紙に置けるアイテムは無い。
 // 新しいページを作るダイアログは自分の物（根のフォルダの名前を聞く）、ページの設定のダイアログは base の物（ページ名・削除と、説明の見せ方の設定の項目）。道具は自分の組（tools.ts。鉛筆とハンド）。
 // 見た目（テーマと紙の色）と文字の色は base の設定の項目で変えられる。名前は太字と文字の色で装飾できる
 import {
@@ -9,17 +9,17 @@ import {
   PAGE_THEME,
   PAPER_IDS,
 } from "../../base"
-import { entryOf } from "./edit"
-import { DirFolderSchema, dirRootOf } from "./entry"
+import { nodeOf } from "./edit"
 import { dirFits } from "./fit"
 import { kit } from "./kit"
 import { dirMinimap } from "./minimap"
+import { DirFolderSchema, dirRootOf } from "./node"
 import { pageFieldsInput } from "./page-fields"
 import { dirPrintSheets } from "./print"
 import { DIR_TOOLS } from "./tools"
 
 // ディレクトリ構成図のキーの範囲（このプレゼンテーションで描いている間に探す）
-// 背景に置く形（ページの slide。背景編集モードで置く。スライドのアイテム）
+// 背景に置く形（ページの slide。背景編集モードで置く。描画シェイプ）
 const BACKGROUND_ITEMS = [
   "@matomezu/slide:slide-text",
   "@matomezu/slide:slide-free-line",
@@ -29,12 +29,11 @@ const BACKGROUND_ITEMS = [
 ] as const
 
 export const DIR_KEY_SCOPE = kit.defineKeyScope({ id: "dir", title: "Directory", commandsFrom: "stage" })
-export const DIR_KEYS_SCOPE = DIR_KEY_SCOPE.id
 
 // ディレクトリ構成図のプレゼンテーション: 紙の上に、根のフォルダから下の中身を並べて描く。カレントのステージがこれで描いている間は、自分のキーの範囲を探す
 export const DIR_PRESENTATION = kit.definePresentation({
   id: "dir",
-  keyScope: DIR_KEYS_SCOPE,
+  keyScope: DIR_KEY_SCOPE.id,
   minimap: dirMinimap, // ミニマップには、行を四角で、罫線を線で描く
   printSheets: dirPrintSheets, // 印刷区画は、行と説明が入るだけ
 })
@@ -44,12 +43,12 @@ export const NEW_DIR_PAGE_DIALOG = kit.defineDialog({ id: "page-new" })
 
 // ビューが開く右クリックのメニュー: 紙の画面と、行（右クリックした行を選んでから開く）（ui.tsx で core/catalog.ts に書き足す）
 export const DIR_CONTEXT = kit.name("dir-context")
-export const ENTRY_CONTEXT = kit.name("entry-context")
+export const NODE_CONTEXT = kit.name("node-context")
 
-// ノード（中身。根も）の設定のダイアログ（開いたステージのブックの、ページ page の中身 entry の名前・説明・色）
-export const ENTRY_SETTINGS_DIALOG = kit.defineDialogWith<{ page: string; entry: string }>()({
-  id: "entry-settings",
-  edits: a => [a.entry],
+// ノード（中身。根も）の設定のダイアログ（開いたステージのブックの、ページ page の中身 node の名前・説明・色）
+export const NODE_SETTINGS_DIALOG = kit.defineDialogWith<{ page: string; node: string }>()({
+  id: "node-settings",
+  edits: a => [a.node],
 })
 
 export const DIR = kit.definePageType({
@@ -66,7 +65,7 @@ export const DIR = kit.definePageType({
   // 行の名前は、ファイルやフォルダの名前（base の labelOf）
   labelOf: (page, id) => {
     const root = dirRootOf(page)
-    return (root && entryOf(root, id)?.name) ?? ""
+    return (root && nodeOf(root, id)?.name) ?? ""
   },
   paper: {
     allowed: PAPER_IDS,

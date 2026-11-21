@@ -1,5 +1,5 @@
-// ステージのビュー（ウィジェット book-view）: ステージ（core/stage.ts）を読んで、与えられた枠の中に開いたブックを、レイヤー（スロット book-layers。
-// 紙の面のレイヤー・そのタイプのビューを描くレイヤーなど）を並べた順に下から重ねて描く。ブックの中はブックのテーマの値と文字の色の値（CSS 変数）で描く。ブックの設定のダイアログの下書き（アイテムを指さないもの）があれば、ブックの項目に重ねて決める。何も開いていなければ、ステージがそれ 1 つのときだけ「書庫を開く」と「スクリーンを閉じる」のボタンを真ん中に出す。
+// ステージのビュー（ウィジェット book-view）: ステージ（core/stage.ts）を読んで、与えられた枠の中に開いた物（ブックか、ブックの外のページ）を、レイヤー（スロット book-layers。
+// 紙の面のレイヤー・そのタイプのビューを描くレイヤーなど）を並べた順に下から重ねて描く。開いているページはそのページのテーマの値と文字の色の値（CSS 変数。設定のダイアログの下書きを重ねる）で描く（book-look/use-page-look-style.tsx）。何も開いていなければ、ステージがそれ 1 つのときだけ「書庫を開く」と「スクリーンを閉じる」のボタンを真ん中に出す。
 // 紙をずらす道具（pans）の間は、ステージの中のどこでもポインタを手にする（中のアイテムのカーソルより強い。ドラッグ中は握った手）。
 // 測った大きさと、ドラッグ（ハンドの道具のとき）・ホイール（紙をずらさない道具のときは除く）で動いた量を、そのまま store の操作に渡す（ずらす量の計算はステージの側）。
 // ホイールは、ポインタの下にその向きへまだスクロールできる物（リストの行の並び・データの表など）があればその物が受け、紙はずらさない。一続きの回しは始めに決めた物が受け、
@@ -14,7 +14,7 @@ import { useMessages } from "../../../ui/i18n"
 import { Slot } from "../../../ui/Slot"
 import { useStageId } from "../../../ui/scope"
 import { useCatalog, useMatomezuState, useStoreActions } from "../../../ui/store-context"
-import { useBook, useStage } from "../../../ui/view-hooks"
+import { useStage } from "../../../ui/view-hooks"
 import { usePageLookStyle } from "../book-look/use-page-look-style"
 import { CornersProvider } from "../corner-status/corner"
 import { kit } from "../kit"
@@ -36,11 +36,15 @@ interface Drag {
   y: number
 }
 
+// 描いている場所のステージがあるときだけ描く（無ければ何も描かない）
 export const StageView = memo(function StageView() {
-  const id = useStageId() ?? ""
+  const id = useStageId()
+  return id === null ? null : <StageBody id={id} />
+})
+
+function StageBody({ id }: { id: string }) {
   const stage = useStage() // パンの量を読まない（パンのたびに描き直さない）
   const isCurrent = useMatomezuState(s => workspaceOf(s.window, id).current === id)
-  const book = useBook()
   const catalog = useCatalog().core
   const tool = stage?.tool ?? null
   const pans = stage?.pans ?? false // ドラッグで紙をずらすか（紙をずらす道具の間と、印刷プレビューの間）
@@ -128,10 +132,10 @@ export const StageView = memo(function StageView() {
       onPointerCancel={endDrag}
       onWheel={onWheel}
     >
-      {stage.opened && book ? <BookContent stage={id} previewing={inPreview} /> : <EmptyStage stage={id} />}
+      {stage.opened ? <BookContent stage={id} previewing={inPreview} /> : <EmptyStage stage={id} />}
     </section>
   )
-})
+}
 
 // 何も開いていないステージの中身: ブックスクリーンのステージがそれ 1 つなら、真ん中に「書庫を開く」と「スクリーンを閉じる」（閉じられるときだけ）を縦に並べる。
 // ステージを分けている間（「画面を分割」で足したステージ。開く物は、下に出る書庫のスクリーンで選ぶ）は何も描かない

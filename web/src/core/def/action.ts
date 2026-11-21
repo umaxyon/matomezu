@@ -1,4 +1,4 @@
-// アクションの定義: できること（動詞）。データを変える入口はアクションだけで、画面の操作も LLM の操作も同じものを通る。
+// アクションの定義: できること（動詞）。データを変える入口はアクションだけで、画面の操作も AI の操作も同じものを通る。
 // run は新しい値と結果（作ったものの id など）を返す純粋な関数。対象に合わなければ null を返して断る
 import type { z } from "zod"
 import { type Actor, isAI } from "../actor"
@@ -396,9 +396,12 @@ export interface ActionDef<
   lockedForUser?: true
   // 利用者トリガートークのときに、matomezu がアノテーションのある読めるページごとに、利用者として行う（引数は {}。アノテーションが対象のアクションだけが書ける）
   runsWhenUserTalks?: T extends "annotations" ? true : never
-  // AI が参加を頼むとき（MCP の join）に、matomezu が行う役。"make-participant" は参加者を作り（参加者の id を result の participant で返す）、
-  // "notify-user" は利用者に知らせる郵便を、利用者として送る（参加者の id などを受ける。利用者だけが行うアクション）。役ごとに 1 つのアクションだけが名乗る。どちらも対象の定義の種類が対象のアクションだけが書ける
-  runsWhenAIJoins?: T extends SubjectId ? "make-participant" | "notify-user" : never
+  // AI が参加を頼むとき（MCP の join）に、matomezu が行う役。"make-participant" は参加者を作る（参加者の id を result の participant で返す）。
+  // 1 つのアクションだけが名乗る。対象の定義の種類が対象のアクションだけが書ける
+  runsWhenAIJoins?: T extends SubjectId ? "make-participant" : never
+  // 利用者が要求中の参加者を、断りでなくキャンセルとして終える（常駐は、これで要求中の参加者が消えたら、AI に断りでなくキャンセルと知らせる。
+  // 名乗らないアクションで消えたら断り）。1 つのアクションだけが名乗る。対象の定義の種類が対象のアクションだけが書ける
+  cancelsJoinRequest?: T extends SubjectId ? true : never
   // 参加者のセッションが終わったと常駐が確かめたとき（セッションと同じだけ生きると名乗られたプロセスが居なくなったとき）に、常駐が利用者として行う（引数は {}、宛先は参加者のレコード。利用者だけが行うアクション。
   // 参加者を外して、ワークルームを空室で残す）。1 つのアクションだけが名乗る。対象の定義の種類が対象のアクションだけが書ける
   runsWhenAIEnds?: T extends SubjectId ? true : never
@@ -419,8 +422,8 @@ export interface ActionDef<
   writes?: T extends SubjectId ? readonly SubjectId[] : never
   // レコードが対象のアクションが読むだけのブックの id を、引数から答える（そのブックだけが ctx.books に入る。無ければブックを読まない）
   readsBooks?: T extends SubjectId ? BooksOfArgs<A> : never
-  args: z.ZodType<A, I> // 引数の形（LLM にもこの形で見せる）
-  // LLM に見せる引数の形を、機能台帳から組み立てる（ページのタイプが足す項目など。無ければ args）。受け付けるかは run が確かめる
+  args: z.ZodType<A, I> // 引数の形（AI にもこの形で見せる）
+  // AI に見せる引数の形を、機能台帳から組み立てる（ページのタイプが足す項目など。無ければ args）。受け付けるかは run が確かめる
   describeArgs?(catalog: CoreCatalog): z.ZodType
   // 許可スコープ（ブックが対象・ページが対象・書庫が対象・利用者の設定が対象のアクションは必ず書く。どの形かは target で決まる）。
   // ブックとページと書庫では、守るのは認可ステップが行った後に見る実際の変化（PermissionDef の keeps）

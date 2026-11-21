@@ -1,5 +1,5 @@
 // 画面の履歴: 置いた箱を Ctrl+Z で元に戻し、Ctrl+Shift+Z でやり直す。フッタメニューの元に戻す・やり直すのボタンも同じで、押してもフッタメニューは下がらない。
-// 画面に見えた AI の変更は、画面の履歴に時刻の位置で入り、新しい方から戻る
+// 画面に見えた AI の変更は、画面の履歴に届いた順の位置で入り、新しい方から戻る
 import { pageIn } from "./books"
 import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test } from "./fixtures"
 import { footerMenuTool } from "./helpers/footer-menu"
@@ -106,8 +106,11 @@ async function aiReady(page: Page) {
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
     .toHaveProperty("stage")
-  const { book, page: shown } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
-    book: string
+  const {
+    entry: { id: book },
+    page: shown,
+  } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
+    entry: { id: string }
     page: string
   }
   // AI が箱の名前を書き換える（箱は、ページに最初に置いた物）
@@ -140,8 +143,11 @@ test("見えている箱を AI が書き換えたら、Ctrl+Z はまず AI の�
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
     .toHaveProperty("stage")
-  const { book, page: shown } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
-    book: string
+  const {
+    entry: { id: book },
+    page: shown,
+  } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
+    entry: { id: string }
     page: string
   }
   await addBox(page, 200, 150, "自分")

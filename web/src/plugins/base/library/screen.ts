@@ -16,9 +16,11 @@ import {
 } from "../../../store/commands/def"
 import { NO_STAGE } from "../../../store/dialogs"
 import { kit } from "../kit"
+import { hasOpenedPage } from "../utils/opened-page"
 import { ONE_SCREEN } from "../window"
 import { applySplitFrom } from "../window/apply-split"
 import { behindOf, planClose, planExpand, SPLIT_ROWS, splitOf } from "../window/split"
+import { outsidePagePlaceOf } from "./outline"
 import { LIBRARY_APPEARANCE, LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_QUERY } from "./state"
 
 export const LIBRARY_SCREEN = kit.defineScreen({
@@ -57,6 +59,24 @@ export const LIBRARY_UNREADABLE_OPEN = kit.defineScreenCommand({
     write(library, LIBRARY_QUERY, () => undefined)
   },
   when: () => true,
+})
+
+// 開いているブックの外のページの置き場所を、書庫で開く: 書庫を開き（書庫を開くと同じ所に出す。ステージは開いたまま）、右の枠にそのページの入っているフォルダを出す
+// （検索していればやめ、選んでいる行は外す）。ステージの下の行の、置き場所の表示が呼ぶ
+export const LIBRARY_PLACE_OPEN = kit.defineCommand({
+  id: "library-place-open",
+  title: "Open the folder in the library",
+  run: (ctx, a) => {
+    const holder = hasOpenedPage(ctx) ? outsidePagePlaceOf(ctx.folders, ctx.page.id).at(-1) : undefined
+    if (holder === undefined) return
+    const library = openLibrary(ctx, a)
+    if (library === SCREEN_REFUSED) return
+    const write = updatePluginStateAtOf(a)
+    write(library, LIBRARY_FOLDER, () => holder)
+    write(library, LIBRARY_PICKED, () => undefined)
+    write(library, LIBRARY_QUERY, () => undefined)
+  },
+  when: ctx => hasOpenedPage(ctx) && outsidePagePlaceOf(ctx.folders, ctx.page.id).length > 0,
 })
 
 // 書庫のスクリーンを出して、その id を返す（出せなければ SCREEN_REFUSED）。開いていれば、新しく開かずにそれを使う

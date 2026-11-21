@@ -38,7 +38,7 @@ test("内包ボックスの中のリストの設定ダイアログの下書き�
   const parent = place({ item: NEST, at: { x: 40, y: 40 }, w: 400, h: 300 })
   const child = place({ item: LIST, at: { x: 0, y: 0 }, parent, w: 240, h: 120, props: { caption: "前" } })
   instance.actions.openDialog("s1", "@matomezu/list:list-edit" as never, { page: "p1", item: child } as never)
-  instance.actions.previewDialog({ book: "b1", item: child, props: { caption: "下書き" } })
+  instance.actions.previewDialog({ outermost: "b1", item: child, props: { caption: "下書き" } })
   let shown: ItemPage | null = null
   function Probe() {
     shown = useShownPage()

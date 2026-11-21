@@ -37,14 +37,19 @@ const NO_STAGES: Stage[] = []
 // ステージを持たずに出したダイアログの開くボタン（ブックを窓に出す 1 つ）
 const WINDOW_CHOICES: OpenChoices = { opens: ["here"], primary: "here" }
 
+// 出しているダイアログがあるときだけ描く
 export function MailDialog({ args, onClose }: DialogProps<{ mail: string }>) {
-  // 開いた場所（ステージか、ステージを持たないスクリーン）。行き先を開くステージを、ここから決める
-  const stage = useMatomezuState(s => s.dialog?.stage ?? "")
+  const stage = useMatomezuState(s => s.dialog?.stage)
+  return stage === undefined ? null : <MailDialogBody stage={stage} mail={args.mail} onClose={onClose} />
+}
+
+// stage は開いた場所（ステージか、ステージを持たないスクリーンの NO_STAGE）。行き先を開くステージを、ここから決める
+function MailDialogBody({ stage, mail: mailId, onClose }: { stage: string; mail: string; onClose: () => void }) {
   const t = useMessages(kit)
   const form = useId()
   const buttons = useRef<HTMLFormElement>(null)
   const catalog = useCoreCatalog()
-  const mail = useMailbox().find(m => m.id === args.mail) ?? null
+  const mail = useMailbox().find(m => m.id === mailId) ?? null
   const books = useMatomezuState(s => s.books)
   // ダイアログを出したステージを並べているブックスクリーンのステージ（ステージを持たずに出したなら、無い）
   const stages = useMatomezuState(s => screenOfStage(s.window, stage)?.stages.stages ?? NO_STAGES)

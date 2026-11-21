@@ -3,12 +3,15 @@
 import { expect, test } from "bun:test"
 import { USER } from "../../web/src/core/actor"
 import {
+  type Anchors,
   type Annotation,
+  anchorsOf,
   annotationBriefs,
   annotationsForAi,
   checkAnnotations,
   prune,
   unexpired,
+  usableAnnotations,
 } from "../../web/src/core/annotation"
 import { findPage } from "../../web/src/core/book"
 import { tablesOf } from "../../web/src/core/folders-books"
@@ -71,8 +74,20 @@ test("効かないアノテーションがあっても、ほかのアノテー�
   expect(done).toMatchObject({ ok: true, annotations: { p: [BAD, GONE] } })
 })
 
-test("prune は無くなった物をアンカーから外し、全部無くなった物を消す。変わらなければ同じ並び", () => {
-  const list = [GOOD, { ...GOOD, id: "c4", anchors: ["a", "x"] }, { ...GOOD, id: "c5", anchors: ["x"] }]
+test("効くアノテーションは、決まりを守る物だけ（W018・W019 の物と、結び付く物の id が空の壊れた物は除く）。除く物が無ければ同じ並び", () => {
+  const broken = { ...GOOD, id: "c9", anchors: [] } as unknown as Annotation
+  expect(usableAnnotations(CORE_CATALOG, page, [GOOD, BAD, GONE, broken])).toEqual([GOOD])
+  const same = [GOOD]
+  expect(usableAnnotations(CORE_CATALOG, page, same)).toBe(same)
+})
+
+test("並びを、結び付く物の id の並び（1 つ以上）にする", () => {
+  expect(anchorsOf(["a", "b"])).toEqual(["a", "b"])
+  expect(anchorsOf([])).toBeNull()
+})
+
+test("prune は無くなった物を結び付く物から外し、全部無くなった物を消す。変わらなければ同じ並び", () => {
+  const list: Annotation[] = [GOOD, { ...GOOD, id: "c4", anchors: ["a", "x"] }, { ...GOOD, id: "c5", anchors: ["x"] }]
   expect(prune(list, page).map(a => [a.id, a.anchors])).toEqual([
     ["c1", ["a"]],
     ["c4", ["a"]],
@@ -150,7 +165,7 @@ test("タイプの混ざるブックでは、付いているページのタイ�
     drawingPage("p1", { items: [box("a")] }),
     testPage(FLOWCHART, "p2", { title: "流れ", items: [box("b")] }),
   ])
-  const on = (id: string, anchors: string[]): Annotation => ({ ...GOOD, id, anchors })
+  const on = (id: string, anchors: Anchors): Annotation => ({ ...GOOD, id, anchors })
   const codes = (at: string, a: Annotation) =>
     checkAnnotations(catalog, mixed, findPage(mixed, at)!.page, [a]).map(w => w.code)
   expect(codes("p1", on("n1", ["a"]))).toEqual([])

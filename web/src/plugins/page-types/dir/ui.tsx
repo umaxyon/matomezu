@@ -3,12 +3,12 @@
 import { definePluginUi } from "../../../plugin-api/ui"
 import { BookIcon, BookOpenIcon, FolderIcon, FolderOpenIcon } from "../../base/ui"
 import { DIR_PLUGIN } from "."
-import { DIR, DIR_PRESENTATION, ENTRY_SETTINGS_DIALOG, NEW_DIR_PAGE_DIALOG } from "./dir"
-import { EntrySettingsDialog } from "./EntrySettingsDialog"
-import { ICON_BOOK, ICON_CLASS_DIAGRAM, ICON_DIRECTORY, ICON_FILE, ICON_FOLDER, ICON_HTML } from "./entry-icon"
+import { DIR, DIR_PRESENTATION, NEW_DIR_PAGE_DIALOG, NODE_SETTINGS_DIALOG } from "./dir"
 import { DIR_TOOL_ICONS } from "./icons"
 import { NewDirPageDialog } from "./NewDirPageDialog"
+import { NodeSettingsDialog } from "./NodeSettingsDialog"
 import { NoteSetting } from "./NoteSetting"
+import { ICON_BOOK, ICON_CLASS_DIAGRAM, ICON_DIRECTORY, ICON_FILE, ICON_FOLDER, ICON_HTML } from "./node-icon-enum"
 import { ClassDiagramIcon, DirectoryIcon, FileIcon, HtmlIcon } from "./node-icons"
 import { NOTES } from "./notes"
 import { DIR_VIEW } from "./view/ui"
@@ -27,13 +27,13 @@ export const DIR_UI = definePluginUi(DIR_PLUGIN, {
   settingViews: {
     [NOTES.id]: { control: NoteSetting },
   },
-  dialogViews: { [NEW_DIR_PAGE_DIALOG.id]: NewDirPageDialog, [ENTRY_SETTINGS_DIALOG.id]: EntrySettingsDialog },
+  dialogViews: { [NEW_DIR_PAGE_DIALOG.id]: NewDirPageDialog, [NODE_SETTINGS_DIALOG.id]: NodeSettingsDialog },
   toolIcons: DIR_TOOL_ICONS,
 })
 
 declare module "../../../core/catalog" {
   interface ContextMenuTable {
     "@matomezu/dir:dir-context": Record<string, never> // 紙の画面（何も受け取らない）
-    "@matomezu/dir:entry-context": Record<string, never> // 行（右クリックした行を選んでから開くので、何も受け取らない）
+    "@matomezu/dir:node-context": Record<string, never> // 行（右クリックした行を選んでから開くので、何も受け取らない）
   }
 }

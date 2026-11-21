@@ -67,12 +67,13 @@ func resetForTest(o Options) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			Books          []json.RawMessage `json:"books"`
+			OutsidePages   []json.RawMessage `json:"outsidePages"`
 			EnabledPlugins []string          `json:"enabledPlugins"`
 		}
 		if !readJSON(w, r, &req) {
 			return
 		}
-		if err := o.Hub.resetForTest(req.Books, req.EnabledPlugins); err != nil {
+		if err := o.Hub.resetForTest(req.Books, req.OutsidePages, req.EnabledPlugins); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -93,7 +94,7 @@ func (h *Hub) putBookForTest(id string, body json.RawMessage, base int64) (versi
 }
 
 // resetForTest は、置き場所と世界を空にしてから books を置く（置き場所のブック・開いた時刻・アノテーション・設定・レコード（郵便も）も消す。つないでいる画面と追加プラグインはそのまま。画面には知らせないので、テストは開き直す）
-func (h *Hub) resetForTest(books []json.RawMessage, enabledPlugins []string) error {
+func (h *Hub) resetForTest(books, outsidePages []json.RawMessage, enabledPlugins []string) error {
 	ids := make([]string, len(books))
 	for i, body := range books {
 		var head struct {
@@ -136,8 +137,45 @@ func (h *Hub) resetForTest(books []json.RawMessage, enabledPlugins []string) err
 			return err
 		}
 	}
+	if err := h.putOutsidePagesForTest(outsidePages); err != nil {
+		return err
+	}
 	h.settleLibrary(true)
 	return h.checkBooks(h.order)
+}
+
+// putOutsidePagesForTest は、ブックの外のページ pages（id を持つページの行）を、書庫ホームの並びの末尾に置く（窓には知らせない。ブックの外のページを作るテストの用意。h.mu を持って呼ぶ）
+func (h *Hub) putOutsidePagesForTest(pages []json.RawMessage) error {
+	if len(pages) == 0 {
+		return nil
+	}
+	var out engine.Output
+	refs := make([]json.RawMessage, len(pages))
+	for i, body := range pages {
+		var head struct {
+			ID string `json:"id"`
+		}
+		if json.Unmarshal(body, &head) != nil || head.ID == "" {
+			return errors.New("each outside page must be an object with an id")
+		}
+		refs[i] = storage.RefOf(storage.KindPage, head.ID)
+		out.Pages = append(out.Pages, engine.RowChange{ID: head.ID, Row: body})
+	}
+	home, err := h.homeWithForTest(func(lineup []json.RawMessage) []json.RawMessage { return append(lineup, refs...) })
+	if err != nil {
+		return err
+	}
+	out.Folders = append(out.Folders, engine.RowChange{ID: storage.HomeID, Row: home})
+	plan, err := h.planWrites(out, "host", "", stamp())
+	if err != nil {
+		return err
+	}
+	plan.quiet = true
+	if err := h.store.Apply(plan.batch); err != nil {
+		return err
+	}
+	h.applyWrites(plan, out, Perform{}, "host", "")
+	return nil
 }
 
 // resetRecordsForTest は、レコードと番号の表を空にする（置き場所もメモリも。窓には知らせない）。h.mu を持って呼ぶ

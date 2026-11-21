@@ -5,7 +5,7 @@
 // - マークダウン: 原文 1000・3000・5000 行のページを左右に並べて開き直すまで・ソースのペインの末尾と先頭に書く・ソースのペインをホイールでスクロールする（描いた文書が付いて行く）のを測る
 import { execSync } from "node:child_process"
 import { mkdirSync, writeFileSync } from "node:fs"
-import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test } from "../fixtures"
+import { BOOK_SCREEN_URL, bookScreenUrl, expect, joinedAiAuth, type Page, stagesUrl, test } from "../fixtures"
 import { BOX_SIZE, boxAt, dirBook, gridBook, markdownBook, PAGE, treeBook } from "./books"
 import { awaitItems, installProbe, readyAt, startRecording, stopRecording } from "./probe"
 
@@ -46,10 +46,10 @@ const results: {
 } = { drawing: [], actions: [], markdown: [] }
 
 // 開いて、図の要素が want 個そろうまでの時間（ページを開き始めてから）
-async function open(page: Page, search: string, want: number) {
+async function open(page: Page, url: string, want: number) {
   await installProbe(page)
   await awaitItems(page, want)
-  await page.goto(`/${search}`)
+  await page.goto(url)
   await expect.poll(() => readyAt(page), { timeout: 60_000 }).not.toBeNull()
   const ms = Math.round((await readyAt(page))!)
   await page.evaluate(() => document.fonts.ready)
@@ -102,8 +102,12 @@ async function connect(page: Page) {
   return { ...measured(await stopRecording(page, since)), drawnMs }
 }
 
-const one = (book: string) => `?b0=${book}&p0=${PAGE}&v0=1,0,0&c=0&r=0.5`
-const split = (book: string) => `?b0=${book}&p0=${PAGE}&v0=1,0,0&b1=${book}&p1=${PAGE}&v1=1,0,0&c=0&r=0.5`
+const one = (book: string) => bookScreenUrl(book, PAGE)
+const split = (book: string) =>
+  stagesUrl([
+    { book, page: PAGE },
+    { book, page: PAGE },
+  ])
 
 for (const n of COUNTS) {
   test(`描き方: 箱 ${n}・線 ${n - 1}`, async ({ newPage, request }) => {
@@ -239,7 +243,7 @@ for (const n of MARKDOWN_LINES) {
     const page = await newPage()
     await installProbe(page)
     // 本文のあるページはプレビューだけで開くので、左右に並べてから（並べ方が画面の場所に入る）開き直すまでを測る
-    await page.goto(`/${one(id)}`)
+    await page.goto(one(id))
     await page.getByRole("toolbar", { name: "ペイン" }).getByRole("button", { name: "左右に並べる" }).click()
     await expect(page).toHaveURL(/s0=/)
     const started = Date.now()

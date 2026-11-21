@@ -4,13 +4,17 @@ import { z } from "zod"
 import { BROKEN, MOVED_CODES } from "../core/folders"
 import { NOT_INSIDE } from "../core/unreadable"
 
-export const ShowSchema = z.object({
-  book: z.string(),
-  page: z.string().optional(),
-  stage: z.string().optional(),
-  split: z.boolean().optional(),
-  mode: z.enum(["edit", "print-preview"]).optional(),
-})
+const SHOW_AT = { stage: z.string().optional(), split: z.boolean().optional() }
+export const ShowSchema = z.discriminatedUnion("to", [
+  z.object({
+    to: z.literal("book"),
+    book: z.string(),
+    page: z.string().optional(),
+    mode: z.enum(["edit", "print-preview"]).optional(),
+    ...SHOW_AT,
+  }),
+  z.object({ to: z.literal("page"), page: z.string(), ...SHOW_AT }),
+])
 
 // POST api/screen-plugins/remove の答え
 export const SCREEN_PLUGINS_REMOVED = z.union([

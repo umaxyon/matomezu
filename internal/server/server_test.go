@@ -834,8 +834,8 @@ func TestAddingAndRemovingAPageKeepsTheEntries(t *testing.T) {
 func TestABookWithBindersIsAssembledTheSameAfterARestart(t *testing.T) {
 	const book = `{"id":"b1","title":"T","lineup":[` +
 		`{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"図","paper":"@matomezu/base:a4","orientation":"landscape"},` +
-		`{"kind":"binder","id":"f1","title":"スライド","pageType":"@matomezu/slide-book:slide","lineup":[]},` +
-		`{"kind":"binder","id":"f2","title":"空","pageType":"@matomezu/slide-book:slide","lineup":[]}]}`
+		`{"kind":"binder","id":"f1","title":"スライド","pageType":"@matomezu/slide-page:slide","lineup":[]},` +
+		`{"kind":"binder","id":"f2","title":"空","pageType":"@matomezu/slide-page:slide","lineup":[]}]}`
 	path := filepath.Join(t.TempDir(), "data.db")
 	// read は、AI に見せるブックと、画面に渡すページとフォルダ（触れた時刻の前まで）
 	read := func(s *httptest.Server) (string, string) {
@@ -855,8 +855,8 @@ func TestABookWithBindersIsAssembledTheSameAfterARestart(t *testing.T) {
 		}
 		// バインダにページを足し、版がそろわないように、ページ 1 枚とバインダを変えておく
 		for _, req := range []string{
-			`{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/slide-book:slide","title":"1","into":{"binder":"f1"}},"on":{"book":"b1"},"lang":"ja","ids":["s1"]}`,
-			`{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/slide-book:slide","title":"2","into":{"binder":"f1"}},"on":{"book":"b1"},"lang":"ja","ids":["s2"]}`,
+			`{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/slide-page:slide","title":"1","into":{"binder":"f1"}},"on":{"book":"b1"},"lang":"ja","ids":["s1"]}`,
+			`{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/slide-page:slide","title":"2","into":{"binder":"f1"}},"on":{"book":"b1"},"lang":"ja","ids":["s2"]}`,
 			`{"action":"@matomezu/base:page-update","args":{"title":"図 2"},"on":{"page":"p1"},"lang":"ja"}`,
 			`{"action":"@matomezu/base:page-remove","args":{"page":"s1"},"on":{"book":"b1"},"lang":"ja"}`,
 		} {
@@ -974,7 +974,7 @@ func TestAICannotTrashABookOnAScreen(t *testing.T) {
 	if _, got := send(t, "GET", s.URL+"/api/ai/books", "", ai); !strings.Contains(got, `"id":"b1"`) {
 		t.Fatalf("the book left: %s", got)
 	}
-	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"book":null,"stages":[{"id":"s1","book":null}]}}`, nil)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"stages":[{"id":"s1"}]}}`, nil)
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", trash, writerAI(t, s.URL)); got != `{"ok":true,"result":{}}` {
 		t.Fatalf("ai trash = %s", got)
 	}
@@ -1017,7 +1017,7 @@ func TestAIWorksOnLibraryEntries(t *testing.T) {
 	if got := do("entry-trash", `{"entry":"`+f+`"}`); got != `{"ok":false,"reason":"open-on-screen"}` {
 		t.Fatalf("ai trash of a folder holding a book on a screen = %s", got)
 	}
-	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"book":null,"stages":[{"id":"s1","book":null}]}}`, nil)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"stages":[{"id":"s1"}]}}`, nil)
 	if got := do("entry-trash", `{"entry":"`+f+`"}`); got != `{"ok":true,"result":{}}` {
 		t.Fatalf("ai trash of a folder = %s", got)
 	}
@@ -1036,7 +1036,7 @@ func TestAICannotTrashABookBehindTheControlCenter(t *testing.T) {
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	a := listen(t, s.URL)
 	next(t, a)
-	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"current":"control-center","hidden":{"book":"b1","stages":[{"id":"s1","book":"b1"}],"canSplit":true}},"focused":true}`, nil)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"current":"plain-screen","hidden":{"entry":{"kind":"book","id":"b1"},"stages":[{"id":"s1","entry":{"kind":"book","id":"b1"}}],"canSplit":true}},"focused":true}`, nil)
 	trash := `{"action":"@matomezu/base:entry-trash","args":{"entry":"b1"}}`
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", trash, ai); got != `{"ok":false,"reason":"open-on-screen"}` {
 		t.Fatalf("ai trash behind the control center = %s", got)
@@ -1058,27 +1058,27 @@ func TestTouchedIgnoresTheBookScreenBehindTheControlCenter(t *testing.T) {
 		}
 		return data.Touched
 	}
-	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"current":"control-center","hidden":{"book":"b0","stages":[{"id":"s1","book":"b0"}]}},"seq":1}`, nil)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"current":"plain-screen","hidden":{"entry":{"kind":"book","id":"b0"},"stages":[{"id":"s1","entry":{"kind":"book","id":"b0"}}]}},"seq":1}`, nil)
 	if got := touched(); got["b0"] != "" {
 		t.Fatalf("touched behind the control center = %v", got)
 	}
-	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"current":"book-screen","book":"b0","stages":[{"id":"s1","book":"b0"}]},"seq":2}`, nil)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"current":"book-screen","entry":{"kind":"book","id":"b0"},"stages":[{"id":"s1","entry":{"kind":"book","id":"b0"}}]},"seq":2}`, nil)
 	nextTouched(t, screen)
 	if got := touched(); got["b0"] == "" {
 		t.Fatalf("touched after the book screen became the current screen = %v", got)
 	}
 }
 
-// AI の view は、コントロールセンターがカレントスクリーンの間、カレントスクリーンの種類（current）と、隠れているブックスクリーンの book・page（hidden）を分けて返す。
+// AI の view は、コントロールセンターがカレントスクリーンの間、カレントスクリーンの種類（current）と、隠れているブックスクリーンの entry・page（hidden）を分けて返す。
 // show は隠れているブックスクリーンのステージを指せる
 func TestViewSeparatesTheHiddenBookScreen(t *testing.T) {
 	s := newServer(t, nil)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+drawing+`,"base":0}`, nil)
 	a := listen(t, s.URL)
 	next(t, a)
-	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"current":"control-center","hidden":{"book":"b1","page":"p1","stage":"s1","stages":[{"id":"s1","book":"b1"}],"canSplit":true}},"focused":true}`, nil)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"current":"plain-screen","hidden":{"entry":{"kind":"book","id":"b1"},"page":"p1","stage":"s1","stages":[{"id":"s1","entry":{"kind":"book","id":"b1"}}],"canSplit":true}},"focused":true}`, nil)
 	_, got := send(t, "GET", s.URL+"/api/ai/view", "", ai)
-	if got != `{"current":"control-center","hidden":{"awaiting":[],"book":"b1","canSplit":true,"page":"p1","stage":"s1","stages":[{"id":"s1","book":"b1"}]}}` {
+	if got != `{"current":"plain-screen","hidden":{"awaiting":[],"canSplit":true,"entry":{"kind":"book","id":"b1"},"page":"p1","stage":"s1","stages":[{"id":"s1","entry":{"kind":"book","id":"b1"}}]}}` {
 		t.Fatalf("view = %s", got)
 	}
 	if _, body := send(t, "POST", s.URL+"/api/ai/show", `{"book":"b1","stage":"s1"}`, writerAI(t, s.URL)); !strings.Contains(body, `"ok":true`) {
@@ -1125,13 +1125,13 @@ func TestViewIsTheLastFocusedScreens(t *testing.T) {
 	if got := ai(); got != "null" {
 		t.Fatalf("view before any report = %s", got)
 	}
-	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"book":"A"},"focused":true}`, nil)
-	send(t, "POST", s.URL+"/api/view", `{"client":"c2","view":{"book":"B"}}`, nil)
-	if got := ai(); got != `{"awaiting":[],"book":"A"}` {
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"entry":{"kind":"book","id":"A"}},"focused":true}`, nil)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c2","view":{"entry":{"kind":"book","id":"B"}}}`, nil)
+	if got := ai(); got != `{"awaiting":[],"entry":{"kind":"book","id":"A"}}` {
 		t.Fatalf("view = %s; want the focused screen's", got)
 	}
 	send(t, "POST", s.URL+"/api/view", `{"client":"c2","focused":true}`, nil)
-	if got := ai(); got != `{"awaiting":[],"book":"B"}` {
+	if got := ai(); got != `{"awaiting":[],"entry":{"kind":"book","id":"B"}}` {
 		t.Fatalf("view after c2 is focused = %s", got)
 	}
 	if code, _ := send(t, "POST", s.URL+"/api/view", `{"client":"c9"}`, nil); code != 404 {
@@ -1144,7 +1144,7 @@ func TestViewWaitsForTheLatestWindow(t *testing.T) {
 	s := newServer(t, nil)
 	a := listen(t, s.URL)
 	next(t, a)
-	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"book":"old"},"focused":true}`, nil)
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"entry":{"kind":"book","id":"old"}},"focused":true}`, nil)
 	b := listen(t, s.URL)
 	next(t, b)
 	got := make(chan string)
@@ -1154,8 +1154,8 @@ func TestViewWaitsForTheLatestWindow(t *testing.T) {
 	}()
 	time.Sleep(50 * time.Millisecond)
 	start := time.Now()
-	send(t, "POST", s.URL+"/api/view", `{"client":"c2","view":{"book":"new"}}`, nil)
-	if body := <-got; body != `{"awaiting":[],"book":"new"}` {
+	send(t, "POST", s.URL+"/api/view", `{"client":"c2","view":{"entry":{"kind":"book","id":"new"}}}`, nil)
+	if body := <-got; body != `{"awaiting":[],"entry":{"kind":"book","id":"new"}}` {
 		t.Fatalf("view = %s; want the latest window's", body)
 	}
 	if waited := time.Since(start); waited > time.Second {
@@ -1197,7 +1197,7 @@ func TestAIEntrancesNeedTheToken(t *testing.T) {
 	}
 }
 
-const window = `{"book":"b1","page":"p1","selection":[],"stage":"s1","stages":[{"id":"s1","book":"b1","page":"p1"}],"canSplit":true}`
+const window = `{"entry":{"kind":"book","id":"b1"},"page":"p1","selection":[],"stage":"s1","stages":[{"id":"s1","entry":{"kind":"book","id":"b1"},"page":"p1"}],"canSplit":true}`
 
 func TestShowGoesToTheLastFocusedWindow(t *testing.T) {
 	s := newServer(t, nil)
@@ -1215,7 +1215,7 @@ func TestShowGoesToTheLastFocusedWindow(t *testing.T) {
 	if got := show(`{"book":"b1","page":"p1","stage":"s1"}`); got != "{\"ok\":true,\"opened\":false}" {
 		t.Fatalf("show = %s", got)
 	}
-	if got := next(t, b); got != `show {"book":"b1","page":"p1","stage":"s1"}` {
+	if got := next(t, b); got != `show {"to":"book","book":"b1","page":"p1","stage":"s1"}` {
 		t.Fatalf("b = %s", got)
 	}
 	for body, reason := range map[string]string{
@@ -1261,7 +1261,7 @@ func TestShowOpensABrowserWhenNoWindowIsThere(t *testing.T) {
 	if _, got := send(t, "POST", s.URL+"/api/ai/show", `{"book":"b1","split":true}`, auth); got != "{\"ok\":true,\"opened\":true}" {
 		t.Fatalf("show = %s", got)
 	}
-	if got := next(t, <-opened); got != `show {"book":"b1","split":true}` {
+	if got := next(t, <-opened); got != `show {"to":"book","book":"b1","split":true}` {
 		t.Fatalf("the opened window got %s", got)
 	}
 }
@@ -1428,9 +1428,9 @@ func TestTouchedIsWhenABookWasOpenedOrWritten(t *testing.T) {
 			if i > 0 {
 				stages += ","
 			}
-			stages += fmt.Sprintf(`{"id":"s%d","book":"%s"}`, i+1, b)
+			stages += fmt.Sprintf(`{"id":"s%d","entry":{"kind":"book","id":"%s"}}`, i+1, b)
 		}
-		send(t, "POST", s.URL+"/api/view", fmt.Sprintf(`{"client":"c1","view":{"book":"%s","stages":[%s]},"seq":%d}`, books[0], stages, seq), nil)
+		send(t, "POST", s.URL+"/api/view", fmt.Sprintf(`{"client":"c1","view":{"entry":{"kind":"book","id":"%s"},"stages":[%s]},"seq":%d}`, books[0], stages, seq), nil)
 	}
 	touched := func() map[string]string {
 		_, body := send(t, "GET", s.URL+"/api/data", "", nil)
@@ -1678,8 +1678,7 @@ func TestChangeProposal(t *testing.T) {
 			} `json:"props"`
 		} `json:"records"`
 	}
-	// ほかは、参加の要求の郵便（joinedAI が受け入れた AI の分）
-	if json.Unmarshal([]byte(data), &world) != nil || len(world.Records[mailKind]) != 2 || world.Records[mailKind][sent.Result.Mail].Props.Snapshot == nil {
+	if json.Unmarshal([]byte(data), &world) != nil || len(world.Records[mailKind]) != 1 || world.Records[mailKind][sent.Result.Mail].Props.Snapshot == nil {
 		t.Fatalf("mail = %s", data)
 	}
 	apply := `{"action":"@matomezu/base:proposal-apply","args":{"page":"p1","changes":` + change + `,"snapshot":` + string(world.Records[mailKind][sent.Result.Mail].Props.Snapshot) + `},"on":{"book":"b1"},"lang":"ja","client":"c1","seq":1}`

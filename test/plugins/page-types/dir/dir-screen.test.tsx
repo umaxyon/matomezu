@@ -1,4 +1,4 @@
-// ディレクトリ構成図のブック（plugins/page-types/dir）: ページを作る・行と罫線を描く・▸・▾ で開け閉めする・アクション（足す・パスから・書き換え・消す・移す・並べ替え）・紙に入らなければ断る
+// ディレクトリ構成図のページ（plugins/page-types/dir）: ページを作る・行と罫線を描く・▸・▾ で開け閉めする・アクション（足す・パスから・書き換え・消す・移す・並べ替え）・紙に入らなければ断る
 
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, screen, within } from "@testing-library/react"
@@ -7,12 +7,12 @@ import { toolsIn } from "../../../../web/src/core/tools"
 import { screenOf } from "../../../../web/src/core/window"
 import { createBookIn } from "../../../../web/src/plugins/base"
 import {
-  ENTRY_ADD,
-  ENTRY_MOVE,
-  ENTRY_REMOVE,
-  ENTRY_UPDATE,
   FOLDER_CLOSE,
   FOLDER_SORT,
+  NODE_ADD,
+  NODE_MOVE,
+  NODE_REMOVE,
+  NODE_UPDATE,
   PATHS_ADD,
 } from "../../../../web/src/plugins/page-types/dir/actions"
 import { writeRich } from "../../../ui/rich-input"
@@ -25,7 +25,7 @@ function setup() {
   act(() => {
     expect(createBookIn(store, "s1", { title: "構成" })).toBe(true)
   })
-  const id = (screenOf(store.state.getState().window).stages[0]!.opened as { outermost: string }).outermost
+  const id = (screenOf(store.state.getState().window).stages[0]!.opened as { outermost: { id: string } }).outermost.id
   const book = () => store.state.getState().books[id]!
   const perform = (action: string, args: unknown, on: { book: string } | { page: string } = { book: id }) => {
     let done: ReturnType<typeof store.actions.perform> | undefined
@@ -62,7 +62,7 @@ function addProject(perform: ReturnType<typeof setup>["perform"]) {
 }
 
 const rowNames = () =>
-  [...screen.getByRole("img", { name: "紙" }).querySelectorAll("[data-entry]")].map(e => e.textContent)
+  [...screen.getByRole("img", { name: "紙" }).querySelectorAll("[data-node]")].map(e => e.textContent)
 
 test("ページタブの＋でディレクトリ構成図を選ぶとダイアログが開き、根のフォルダの名前は初めはページ名。作ると根の行が紙に描かれる", () => {
   const { book } = setup()
@@ -108,28 +108,25 @@ test("中身を足す・書き換える（根も）・消す・移す・並べ�
   const { perform, book } = setup()
   const ids = addProject(perform)
   const added = perform(
-    ENTRY_ADD.id,
-    { parent: ids.src, index: 0, entries: [{ kind: "file", name: "z.ts" }] },
+    NODE_ADD.id,
+    { parent: ids.src, index: 0, nodes: [{ kind: "file", name: "z.ts" }] },
     { page: ids.page },
   )
-  expect(added.ok && (added.result as { entries: { id: string }[] }).entries).toHaveLength(1)
+  expect(added.ok && (added.result as { nodes: { id: string }[] }).nodes).toHaveLength(1)
   expect(rowNames()).toEqual(["proj", "src", "z.ts", "a.ts", "README.md"])
   expect(perform(FOLDER_SORT.id, { folder: ids.src, order: "asc" }, { page: ids.page }).ok).toBe(true)
   expect(rowNames()).toEqual(["proj", "src", "a.ts", "z.ts", "README.md"])
   expect(
-    perform(
-      ENTRY_UPDATE.id,
-      { entry: ids.root, name: "app", icon: "@matomezu/dir:entry-icon-book" },
-      { page: ids.page },
-    ).ok,
+    perform(NODE_UPDATE.id, { node: ids.root, name: "app", icon: "@matomezu/dir:node-icon-book" }, { page: ids.page })
+      .ok,
   ).toBe(true)
-  expect(pagesOf(book())[0]).toMatchObject({ root: { name: "app", icon: "@matomezu/dir:entry-icon-book" } })
-  expect(perform(ENTRY_MOVE.id, { entry: ids.readme, parent: ids.src }, { page: ids.page }).ok).toBe(true)
+  expect(pagesOf(book())[0]).toMatchObject({ root: { name: "app", icon: "@matomezu/dir:node-icon-book" } })
+  expect(perform(NODE_MOVE.id, { node: ids.readme, parent: ids.src }, { page: ids.page }).ok).toBe(true)
   expect(rowNames()).toEqual(["app", "src", "a.ts", "z.ts", "README.md"])
-  expect(perform(ENTRY_MOVE.id, { entry: ids.src, parent: ids.a }, { page: ids.page }).ok).toBe(false)
-  expect(perform(ENTRY_REMOVE.id, { entry: ids.src }, { page: ids.page }).ok).toBe(true)
+  expect(perform(NODE_MOVE.id, { node: ids.src, parent: ids.a }, { page: ids.page }).ok).toBe(false)
+  expect(perform(NODE_REMOVE.id, { node: ids.src }, { page: ids.page }).ok).toBe(true)
   expect(rowNames()).toEqual(["app"])
-  expect(perform(ENTRY_REMOVE.id, { entry: ids.root }, { page: ids.page }).ok).toBe(false)
+  expect(perform(NODE_REMOVE.id, { node: ids.root }, { page: ids.page }).ok).toBe(false)
   const built = perform(PATHS_ADD.id, { parent: ids.root, paths: ["web/src/", "go.mod"] }, { page: ids.page })
   expect(built.ok && (built.result as { ids: string[] }).ids).toHaveLength(2)
   expect(rowNames()).toEqual(["app", "web", "src", "go.mod"])
@@ -139,15 +136,15 @@ test("行が紙に入らなくなる足し方・開き方は断る（閉じた�
   const { perform } = setup()
   const ids = addProject(perform)
   const many = Array.from({ length: 60 }, (_, i) => ({ kind: "file" as const, name: `f${i}` }))
-  expect(perform(ENTRY_ADD.id, { parent: ids.src, entries: many }, { page: ids.page }).ok).toBe(false)
+  expect(perform(NODE_ADD.id, { parent: ids.src, nodes: many }, { page: ids.page }).ok).toBe(false)
   expect(perform(FOLDER_CLOSE.id, { folder: ids.src, closed: true }, { page: ids.page }).ok).toBe(true)
-  expect(perform(ENTRY_ADD.id, { parent: ids.src, entries: many }, { page: ids.page }).ok).toBe(true)
+  expect(perform(NODE_ADD.id, { parent: ids.src, nodes: many }, { page: ids.page }).ok).toBe(true)
   expect(perform(FOLDER_CLOSE.id, { folder: ids.src, closed: false }, { page: ids.page }).ok).toBe(false)
 })
 
 const paper = () => screen.getByRole("img", { name: "紙" })
-const selectedRow = () => paper().querySelector('[data-selected="true"]')?.getAttribute("data-entry")
-const row = (id: string) => paper().querySelector(`[data-entry="${id}"]`) as HTMLElement
+const selectedRow = () => paper().querySelector('[data-selected="true"]')?.getAttribute("data-node")
+const row = (id: string) => paper().querySelector(`[data-node="${id}"]`) as HTMLElement
 const press = (key: string) => fireEvent.keyDown(window, { key })
 
 test("鉛筆では初めは根を選び、押した行・↑↓ で選ぶ行を替える。← で開いたフォルダを閉じ（ほかは親のフォルダ）、→ で閉じたフォルダを開き、Home で根に戻る。ハンドでは選んだ印を出さない", () => {
@@ -229,7 +226,7 @@ test("d と f ですぐ下に兄弟のフォルダとファイルを足して書
   writeRich(input, "lib")
   fireEvent.keyDown(input, { key: "Enter" })
   expect(rowNames()).toEqual(["proj", "src", "a.ts", "lib", "README.md"])
-  expect(paper().querySelector(`[data-entry="${selectedRow()}"]`)?.getAttribute("data-kind")).toBe("folder")
+  expect(paper().querySelector(`[data-node="${selectedRow()}"]`)?.getAttribute("data-kind")).toBe("folder")
   press("Home")
   press("f")
   input = within(paper()).getByRole("textbox", { name: "名前" })
@@ -344,7 +341,7 @@ test("フォルダを選んで Tab で、行のすぐ右に種類を選ぶ枠を
   writeRich(input, "b.ts")
   fireEvent.keyDown(input, { key: "Enter" })
   expect(rowNames()).toEqual(["proj", "src", "a.ts", "b.ts", "README.md"])
-  expect(paper().querySelectorAll('[data-entry][data-kind="file"]')).toHaveLength(3)
+  expect(paper().querySelectorAll('[data-node][data-kind="file"]')).toHaveLength(3)
   fireEvent.pointerDown(row(ids.src), { button: 0 })
   press("Tab")
   picker = within(paper()).getByRole("menu", { name: "中に足す" })
@@ -370,10 +367,10 @@ test("右クリックの並べ替えで、直下を名前の昇順・降順に�
   const { perform } = setup()
   const ids = addProject(perform)
   perform(
-    ENTRY_ADD.id,
+    NODE_ADD.id,
     {
       parent: ids.src,
-      entries: [
+      nodes: [
         { kind: "file", name: "ホゲ" },
         { kind: "file", name: "イヌ" },
       ],
@@ -392,7 +389,7 @@ test("右クリックの並べ替えで、直下を名前の昇順・降順に�
 test("紙の右クリックの「ページの設定」で、ページ名と削除のほかに、説明の表示と、その下に開く枠の前の「・・・」・左の区切り線を切り替える（確定の前から見せる。表示を切ると枠を閉じる）", () => {
   const { book, perform } = setup()
   const ids = addProject(perform)
-  perform(ENTRY_UPDATE.id, { entry: ids.a, description: "説明" }, { page: ids.page })
+  perform(NODE_UPDATE.id, { node: ids.a, description: "説明" }, { page: ids.page })
   fireEvent.contextMenu(paper())
   fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "ページの設定" }))
   const dialog = screen.getByRole("dialog", { name: "ページの設定" })
@@ -420,7 +417,7 @@ test("紙の右クリックの「ページの設定」で、ページ名と削�
 test("説明を出している間は、説明の列をダブルクリックして説明をその場で書く（説明の無い行も）。Enter で確定、Escape で取り消し、空にすると消す。ハンドと、説明を出さないページでは書けない", () => {
   const { book, perform } = setup()
   const ids = addProject(perform)
-  perform(ENTRY_UPDATE.id, { entry: ids.a, description: "説明" }, { page: ids.page })
+  perform(NODE_UPDATE.id, { node: ids.a, description: "説明" }, { page: ids.page })
   const note = (id: string) => paper().querySelector(`[data-note="${id}"]`)?.textContent
   const cell = (id: string) => paper().querySelector(`[data-note-cell="${id}"]`) as HTMLElement
   const input = () => within(paper()).getByRole("textbox", { name: "説明" })
@@ -446,19 +443,19 @@ test("説明を出している間は、説明の列をダブルクリックし�
   expect(cell(ids.a)).toBeNull()
 })
 
-test("中身のアイコンは、列挙 entry-icon の値で種類に合う物だけ付けられる（足すときの入れ子・書き換え・ページを作るときの根のどれも）。行の頭の絵は、選んだ値の絵になる", () => {
+test("中身のアイコンは、列挙 node-icon の値で種類に合う物だけ付けられる（足すときの入れ子・書き換え・ページを作るときの根のどれも）。行の頭の絵は、選んだ値の絵になる", () => {
   const { perform, book } = setup()
   const ids = addProject(perform)
-  const DRAWING = "@matomezu/drawing:entry-icon"
-  const BOOK = "@matomezu/dir:entry-icon-book"
+  const DRAWING = "@matomezu/drawing:node-icon"
+  const BOOK = "@matomezu/dir:node-icon-book"
   // 種類に合わない・値の無いアイコンは断られる
-  expect(perform(ENTRY_UPDATE.id, { entry: ids.src, icon: DRAWING }, { page: ids.page }).ok).toBe(false)
-  expect(perform(ENTRY_UPDATE.id, { entry: ids.readme, icon: BOOK }, { page: ids.page }).ok).toBe(false)
-  expect(perform(ENTRY_UPDATE.id, { entry: ids.readme, icon: "nothing" }, { page: ids.page }).ok).toBe(false)
+  expect(perform(NODE_UPDATE.id, { node: ids.src, icon: DRAWING }, { page: ids.page }).ok).toBe(false)
+  expect(perform(NODE_UPDATE.id, { node: ids.readme, icon: BOOK }, { page: ids.page }).ok).toBe(false)
+  expect(perform(NODE_UPDATE.id, { node: ids.readme, icon: "nothing" }, { page: ids.page }).ok).toBe(false)
   const nested = (icon: string) =>
     perform(
-      ENTRY_ADD.id,
-      { parent: ids.root, entries: [{ kind: "folder", name: "d", children: [{ kind: "file", name: "f", icon }] }] },
+      NODE_ADD.id,
+      { parent: ids.root, nodes: [{ kind: "folder", name: "d", children: [{ kind: "file", name: "f", icon }] }] },
       { page: ids.page },
     ).ok
   expect(nested(BOOK)).toBe(false)
@@ -468,14 +465,14 @@ test("中身のアイコンは、列挙 entry-icon の値で種類に合う物�
   expect(root(DRAWING)).toBe(false)
   expect(root(BOOK)).toBe(true)
   // 合う物は付き、行の頭の絵になる
-  expect(perform(ENTRY_UPDATE.id, { entry: ids.readme, icon: DRAWING }, { page: ids.page }).ok).toBe(true)
+  expect(perform(NODE_UPDATE.id, { node: ids.readme, icon: DRAWING }, { page: ids.page }).ok).toBe(true)
   expect(pagesOf(book())[0]).toMatchObject({
     root: { children: [{ kind: "folder" }, { icon: DRAWING }, { name: "d" }] },
   })
   const paper = screen.getByRole("img", { name: "紙" })
   expect(paper.querySelector(`[data-icon="${DRAWING}"] svg`)).not.toBeNull()
   // 値が無くなった中身は、既定の絵で描く（データは消えない）
-  expect(perform(ENTRY_UPDATE.id, { entry: ids.readme, icon: null }, { page: ids.page }).ok).toBe(true)
+  expect(perform(NODE_UPDATE.id, { node: ids.readme, icon: null }, { page: ids.page }).ok).toBe(true)
 })
 
 test("可変ページでは、名前を書いている間も、書いている字の入るだけ印刷区画を並べた広さをステージに知らせる（確定を待たない）", () => {

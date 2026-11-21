@@ -1,5 +1,6 @@
-// 参加: AI が join で参加を頼むと、参加要求の郵便が届く。郵便のダイアログで断る・受け入れるを選べる。
-// 受け入れるは、ワークルームの名前・鳥・配色を決めるダイアログを開き、決めるとコントロールセンターの参加者リストに出る。断ると何も残さず、AI の次の呼び出しで断られたと分かる
+// 参加: AI が join で参加を頼むと、参加要求のしおりが出る（郵便箱には出さない）。しおりのダイアログで断る・受け入れるを選べる。
+// 受け入れるは、ワークルームの名前・鳥・配色を決めるダイアログを開き、決めるとコントロールセンターの参加者リストに出る。断ると何も残さず、AI の次の呼び出しで断られたと分かる。
+// 受け入れのダイアログの［キャンセル］は要求を終え、AI はキャンセルされたと分かる
 import { aiAuth, BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { fromMenu } from "./helpers/stage-menu"
 
@@ -62,7 +63,7 @@ async function closeWelcome(page: Page) {
   await expect(welcome).toHaveCount(0)
 }
 
-// 画面を開き、参加要求の郵便のダイアログを開く
+// 参加要求のしおりを押し、参加要求のダイアログを開く
 async function openRequest(page: Page) {
   await page.getByRole("button", { name: REQUEST }).click()
   const dialog = page.getByRole("dialog", { name: REQUEST })
@@ -70,14 +71,14 @@ async function openRequest(page: Page) {
   return dialog
 }
 
-test("参加要求の郵便で受け入れるを押すと、名前・鳥・配色を決めるダイアログが開き、決めるとセンターの参加者リストに鳥と名前が出る", async ({
+test("参加要求のしおりで受け入れるを押すと、名前・鳥・配色を決めるダイアログが開き、決めるとセンターの参加者リストに鳥と名前が出る", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto(BOOK_SCREEN_URL)
   const made = await join(page, "e2e-link-1", "sub4_work")
   const mail = await openRequest(page)
-  await expect(mail.getByRole("button")).toHaveText(["閉じる", "断る", "受け入れる"])
+  await expect(mail.getByRole("button")).toHaveText(["断る", "受け入れる"])
   // 合言葉は画面に出さない
   await expect(mail).not.toContainText("e2e-link-1")
   await mail.getByRole("button", { name: "受け入れる" }).click()
@@ -145,13 +146,13 @@ test("セッション id を join で運ぶ AI（フックの無い AI）は、�
 })
 
 test("保留中の参加要求は参加者の一覧に出ず、一覧が空のうちは空と出る", async ({ page }) => {
-  await page.goto("/?f=center")
+  await page.goto("/")
   await expect(page.getByText("ワークルームはありません")).toBeVisible()
   await join(page, "e2e-link-2")
   await expect(page.getByText("ワークルームはありません")).toBeVisible()
 })
 
-test("断るを押すと郵便が閉じ、参加者の表から消える。AI は次の呼び出しで断られたと知る（1 度だけ）", async ({
+test("断るを押すとダイアログとしおりが消え、参加者の表から消える。AI は次の呼び出しで断られたと知る（1 度だけ）", async ({
   page,
 }) => {
   await page.goto(BOOK_SCREEN_URL)
@@ -159,6 +160,7 @@ test("断るを押すと郵便が閉じ、参加者の表から消える。AI �
   const mail = await openRequest(page)
   await mail.getByRole("button", { name: "断る" }).click()
   await expect(mail).toHaveCount(0)
+  await expect(page.getByRole("button", { name: REQUEST })).toHaveCount(0)
   await expect.poll(async () => await participants(page)).toEqual([])
   const first = await call(page, made.participant)
   expect(decodeURIComponent(first.headers()["x-matomezu-notice"] ?? "")).toContain("declined")
@@ -166,20 +168,30 @@ test("断るを押すと郵便が閉じ、参加者の表から消える。AI �
   expect(second.headers()["x-matomezu-notice"]).toBeUndefined()
 })
 
-test("受け入れ済みの参加要求の郵便には、断る・受け入れるが出ない", async ({ page }) => {
+test("参加要求のしおりは封筒で、郵便箱には出ず、受け入れるとしおりが消える", async ({ page }) => {
   await page.goto(BOOK_SCREEN_URL)
   await join(page, "e2e-link-4", "a")
+  await expect(page.getByRole("button", { name: REQUEST }).locator("svg")).toBeVisible()
+  await (await fromMenu(page, "左サイドパネルを開く")).click()
+  const panel = page.getByRole("complementary", { name: "左サイドパネル" })
+  await expect(panel.getByRole("tab", { name: /郵便箱/ })).toHaveAttribute("aria-selected", "true")
+  await expect(panel.getByRole("listitem")).toHaveCount(0)
+  await panel.getByRole("button", { name: "左サイドパネルを閉じる" }).click()
   const mail = await openRequest(page)
   await mail.getByRole("button", { name: "受け入れる" }).click()
   await page.getByRole("dialog", { name: JOINED }).getByRole("button", { name: "受け入れる" }).click()
   await closeWelcome(page)
-  await (await fromMenu(page, "左サイドパネルを開く")).click()
-  await page
-    .getByRole("complementary", { name: "左サイドパネル" })
-    .getByRole("button", { name: REQUEST })
-    .first()
-    .click()
-  await expect(page.getByRole("dialog", { name: REQUEST }).getByRole("button")).toHaveText(["閉じる"])
+  await expect(page.getByRole("button", { name: REQUEST })).toHaveCount(0)
+})
+
+test("参加要求のダイアログを Esc で閉じても、要求もしおりも残る", async ({ page }) => {
+  await page.goto(BOOK_SCREEN_URL)
+  const made = await join(page, "e2e-link-14")
+  const dialog = await openRequest(page)
+  await page.keyboard.press("Escape")
+  await expect(dialog).toHaveCount(0)
+  await expect(page.getByRole("button", { name: REQUEST })).toBeVisible()
+  expect(await participants(page)).toMatchObject([{ id: made.participant, state: "requested" }])
 })
 
 test("生きている参加者と同じ名前は、受け入れのダイアログでその場で断る", async ({ page }) => {
@@ -204,13 +216,22 @@ test("生きている参加者と同じ名前は、受け入れのダイアロ�
   await expect(dialog.getByRole("button", { name: "受け入れる" })).toBeEnabled()
 })
 
-test("キャンセルは何も変えず、参加要求は保留のまま郵便から受け入れ直せる", async ({ page }) => {
+test("受け入れのダイアログのキャンセルは要求を終え、しおりが消え、AI はキャンセルされたと知る。答えを待つ間の頼み直しは断り、キャンセルのあとの頼み直しは新しいしおりになる", async ({
+  page,
+}) => {
   await page.goto(BOOK_SCREEN_URL)
   const made = await join(page, "e2e-link-7", "x")
+  expect(await join(page, "e2e-link-7", "x")).toMatchObject({ ok: false, reason: "already-requested" })
   await openRequest(page).then(d => d.getByRole("button", { name: "受け入れる" }).click())
   await page.getByRole("dialog", { name: JOINED }).getByRole("button", { name: "キャンセル" }).click()
-  const table = await participants(page)
-  expect(table).toMatchObject([{ id: made.participant, state: "requested" }])
+  await expect(page.getByRole("button", { name: REQUEST })).toHaveCount(0)
+  await expect.poll(async () => await participants(page)).toEqual([])
+  const told = await call(page, made.participant)
+  expect(decodeURIComponent(told.headers()["x-matomezu-notice"] ?? "")).toContain("cancelled")
+  const again = await join(page, "e2e-link-7", "x")
+  expect(again.ok).toBe(true)
+  expect(again.participant).not.toBe(made.participant)
+  await expect(page.getByRole("button", { name: REQUEST })).toHaveCount(1)
 })
 
 // 受け入れの画面で名前を決めて、参加者を受け入れる
@@ -228,7 +249,7 @@ async function acceptAs(page: Page, name: string) {
 const joinedOnHost = (page: Page) =>
   expect.poll(async () => (await participants(page)).some(p => p.state === "joined")).toBe(true)
 
-// 最後の（新しい）参加要求の郵便を開き、受け入れるを押して受け入れのダイアログを開く
+// 最後の（新しい）参加要求のしおりを押し、受け入れるを押して受け入れのダイアログを開く
 async function openJoinDialog(page: Page) {
   await page.getByRole("button", { name: REQUEST }).last().click()
   await page.getByRole("dialog", { name: REQUEST }).getByRole("button", { name: "受け入れる" }).click()
@@ -299,7 +320,7 @@ test("頼まれた名前の参加要求を断ると、元の参加者はその�
   expect(table).toMatchObject([{ id: old.participant, state: "joined", workroom: "ひよこ" }])
 })
 
-test("生きている参加者のワークルームは引き継げない。断られ、郵便も出ない", async ({ page }) => {
+test("生きている参加者のワークルームは引き継げない。断られ、要求も残らない", async ({ page }) => {
   await page.goto(BOOK_SCREEN_URL)
   const old = await join(page, "e2e-link-12", "旧", "", "S-e2e-12")
   await acceptAs(page, "ひよこ")
@@ -308,8 +329,7 @@ test("生きている参加者のワークルームは引き継げない。断�
   expect(refused).toMatchObject({ ok: false, reason: "workroom-in-use" })
   const table = await participants(page)
   expect(table).toHaveLength(1)
-  const body = await (await page.request.get("/api/data")).json()
-  expect(Object.keys(body.records["@matomezu/base:mail"] ?? {})).toHaveLength(1) // 最初の郵便だけ
+  await expect(page.getByRole("button", { name: REQUEST })).toHaveCount(0)
 })
 
 test("列は、呼ばれた時刻と参加の新しい順に並び、列に触れている間は並びが止まって、離れると並び直す", async ({
@@ -367,7 +387,7 @@ test("列は、呼ばれた時刻と参加の新しい順に並び、列に触�
   await expect.poll(followsTimes).toBe("follows")
 })
 
-test("ビジター: as visitor で頼むと参加要求の郵便にそう出て、受け入れのダイアログは区分を選ばせず、受け入れると、ようこそに区分が出て、センターのビジターの節に並ぶ。ビジターはブックも変えられず、確かめて外すと消える", async ({
+test("ビジター: as visitor で頼むと参加要求のダイアログにそう出て、受け入れのダイアログは区分を選ばせず、受け入れると、ようこそに区分が出て、センターのビジターの節に並ぶ。ビジターはブックも変えられず、確かめて外すと消える", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" })
@@ -385,7 +405,7 @@ test("ビジター: as visitor で頼むと参加要求の郵便にそう出て�
     },
   })
   const made = (await res.json()) as { participant: string }
-  // 参加要求の郵便にも、ビジターとして頼んだことが出る
+  // 参加要求のダイアログにも、ビジターとして頼んだことが出る
   const mail = await openRequest(page)
   await expect(mail).toContainText("参加者区分: ビジター（読むだけ）")
   await mail.getByRole("button", { name: "受け入れる" }).click()

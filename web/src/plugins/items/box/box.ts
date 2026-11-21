@@ -24,7 +24,7 @@ export const BOX_EDIT_DIALOG = kit.defineDialogWith<ShapeEditArgs>()({ id: "box-
 export const BoxPropsSchema = z
   .strictObject({
     ...textProps("center"), // キャプション・区切り線・本文と寄せ（キャプションは中央寄せ）
-    theme: z.string().min(1).optional(), // 箱に当てるテーマの id（無ければブックのテーマ）
+    theme: z.string().min(1).optional(), // 箱に当てるテーマの id（無ければページのテーマ）
     color: ColorSchema.optional(), // 塗りの色（代表色の名前か #rrggbb。無ければテーマの塗り）
     // 本文の列の幅（無ければ箱の中いっぱい。base の文字の塊の bodyColumn）
     bodyWidth: z

@@ -4,7 +4,7 @@
 
 import { useCallback, useLayoutEffect, useMemo } from "react"
 import { USER } from "../core/actor"
-import { findPage, withSettings } from "../core/book"
+import { withSettings } from "../core/book"
 import type { ActionId, ItemId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, isInBook, isOnPage, type PageTarget, type Where } from "../core/def/action"
@@ -24,7 +24,7 @@ import {
 } from "../core/placed"
 import type { Book } from "../core/schema/book"
 import { type Settings, userSetting } from "../core/settings"
-import { openedPageById, shownPageId, stageBlocks, toPaper } from "../core/stage"
+import { askedOutermostOf, openedPageById, shownPageId, stageBlocks, toPaper } from "../core/stage"
 import { stageIn } from "../core/window"
 import type { StageView } from "../core/workspace"
 import {
@@ -60,21 +60,21 @@ export function usePage(): ItemPage | null {
   return useMatomezuState(s => pageOf(s, scope))
 }
 
-// 描くページのステージが開いている物の中の、id のページ（開いている物の外のページ・何も開いていなければ null）
+// 描くページのステージが開いている物の中の、id のページ（開いている物に無いページ・何も開いていなければ null）
 export function usePageById(id: string): ItemPage | null {
   const scope = useScope()
   return useMatomezuState(s => {
     const opened = openedOf(s, scope)
-    return opened ? openedPageById(s.books, opened, id) : null
+    return opened ? openedPageById(s.books, s.pages, opened, id) : null
   })
 }
 
-// 描くページのブックの、ページ page のアイテム item（どの深さの子の形も。無いか、id が Id のアイテムでなければ undefined）
+// 描くページのステージが開いている物の中の、ページ page のアイテム item（どの深さの子の形も。無いか、id が Id のアイテムでなければ undefined）
 export function useItem<Id extends ItemId>(page: string, item: string, id?: Id): PlacedOf<Id> | undefined {
   const scope = useScope()
   return useMatomezuState(s => {
     const opened = openedOf(s, scope)
-    const p = opened ? openedPageById(s.books, opened, page) : null
+    const p = opened ? openedPageById(s.books, s.pages, opened, page) : null
     // ページのアイテムか、どの深さの子の形も
     const found = p && (p.items?.find(i => i.id === item) ?? findShape(p, item)?.shape)
     return found && (id === undefined || found.item === id) ? (found as unknown as PlacedOf<Id>) : undefined
@@ -86,7 +86,7 @@ export function useShownBook(): Book | null {
   const book = useBook()
   const preview = useMatomezuState(s => s.dialog?.preview ?? null)
   return useMemo(() => {
-    if (!book || !preview || preview.book !== book.id || preview.item !== undefined || preview.page !== undefined)
+    if (!book || !preview || preview.outermost !== book.id || preview.item !== undefined || preview.page !== undefined)
       return book
     return withSettings(book, preview.props)
   }, [book, preview])
@@ -98,10 +98,10 @@ export function useShownBook(): Book | null {
 export function useShownPage(): ItemPage | null {
   const page = usePage()
   const scope = useScope()
-  const book = useMatomezuState(s => openedOf(s, scope)?.book)
+  const outermost = useMatomezuState(s => openedOf(s, scope)?.outermost)
   const preview = useMatomezuState(s => s.dialog?.preview ?? null)
   return useMemo(() => {
-    if (!page || !preview || preview.book !== book) return page
+    if (!page || !preview || preview.outermost !== outermost) return page
     if (preview.item === undefined)
       return preview.page === undefined || preview.page === page.id ? withSettings(page, preview.props) : page
     // ページのアイテムか、どの深さの子の形も
@@ -110,7 +110,7 @@ export function useShownPage(): ItemPage | null {
     const top = page.items?.find(i => i.id === preview.item)
     if (top) return { ...page, items: (page.items ?? []).map(i => (i === top ? shown(i) : i)) }
     return replaceShape(page, preview.item, s => shown(s) as PlacedShape) ?? page
-  }, [page, book, preview])
+  }, [page, outermost, preview])
 }
 
 // アクションを行えるか（認可ステップも見る）: 使えれば ok、認可ステップが止めたなら permission にそのステップの id（タイプなどで使えなければ null）。
@@ -132,11 +132,11 @@ export function useAllowed(action: ActionId, where?: Where | { settings: readonl
     const st = stageIn(s.window, at)
     if (st && stageBlocks(catalog, st.mode.kind, action)) return NOT_ALLOWED
     const o = st?.opened
-    const book = o ? s.books[o.outermost] : undefined
+    const asked = askedOutermostOf(s, o)
     const page = place?.page ?? shownPageId(o ?? null) ?? undefined
     const on = { ...(page ? { page } : {}), ...(ids ? { ids: ids.split("\n") } : {}) }
     const changed = settings === undefined ? {} : { settings: settings === "" ? [] : settings.split("\n") }
-    const done = inspect(catalog, { ...actionQuery(catalog, action, book, on), ...changed }, { controlCenter })
+    const done = inspect(catalog, { ...actionQuery(catalog, action, asked, on), ...changed }, { controlCenter })
     return done.value === true ? OK : (deniedBy(done) ?? NOT_ALLOWED)
   })
   return allowedOf(answer)
@@ -256,8 +256,9 @@ export function useUserSetting(id: string): unknown {
   return useMemo(() => userSetting(catalog, values, id), [catalog, values, id])
 }
 
-// 向け先のステージが開いているブックにアクションを行う関数（ブック・ページ・アノテーションが対象でないアクションは、ブックを渡さずに行う）。データを変える入口はこれだけ。
-// ページとページのアノテーションが対象のアクションは、宛先のページを on に渡す（そのブックのページだけ。そのブックに無いページなら no-page を返す）。
+// 向け先のステージが開いているステージエントリ（ブックか、ブックの外のページ）にアクションを行う関数（ブック・ページ・アノテーションが対象でないアクションは、ブックを渡さずに行う）。データを変える入口はこれだけ。
+// ページとページのアノテーションが対象のアクションは、宛先のページを on に渡す（開いているブックのページか、開いているブックの外のページだけ。ほかのページなら no-page を返す）。
+// ブックが対象のアクションは、ブックの外のページを開いたステージからは行わず、no-book を返す。
 // 向け先が無い所（ステージの外で見るだけに描くページの中）からは行わず、no-book を返す。
 // 印刷プレビューの間のステージからは、ブックを変えるアクションを行わず print-preview を返す（core/stage.ts の stageBlocks）
 export function usePerform(): <Id extends ActionId>(
@@ -269,7 +270,8 @@ export function usePerform(): <Id extends ActionId>(
   const read = useReadState()
   const { perform } = useStoreActions()
   const catalog = useCatalog().core
-  const book = useMatomezuState(s => (at === null ? undefined : stageIn(s.window, at)?.opened?.outermost))
+  const entry = useMatomezuState(s => (at === null ? undefined : stageIn(s.window, at)?.opened?.outermost.id))
+  const outside = useMatomezuState(s => at !== null && stageIn(s.window, at)?.opened?.outermost.kind !== "book")
   const mode = useMatomezuState(s => (at === null ? undefined : stageIn(s.window, at)?.mode.kind) ?? "edit")
   return useMemo(
     () =>
@@ -279,11 +281,14 @@ export function usePerform(): <Id extends ActionId>(
         if (stageBlocks(catalog, mode, action)) return { ok: false, reason: "print-preview" }
         const target = catalog.actions.get(action)?.target
         if (!isInBook(target)) return loose(action, args)
-        if (book === undefined) return { ok: false, reason: "no-book" }
-        if (!isOnPage(target)) return loose(action, args, { book })
-        const held = read().books[book]
-        return on && held && findPage(held, on.page) ? loose(action, args, on) : noPage(on?.page ?? "")
+        if (entry === undefined) return { ok: false, reason: "no-book" }
+        // ブックが対象のアクションは、ブックの外のページを開いたステージからは行えない
+        if (!isOnPage(target)) return outside ? { ok: false, reason: "no-book" } : loose(action, args, { book: entry })
+        const { books, pages } = read()
+        return on && openedPageById(books, pages, { outermost: entry }, on.page)
+          ? loose(action, args, on)
+          : noPage(on?.page ?? "")
       },
-    [perform, catalog, book, mode, at, read],
+    [perform, catalog, entry, outside, mode, at, read],
   )
 }

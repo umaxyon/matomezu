@@ -2,7 +2,7 @@
 // プロジェクトのタスクボードを出し（出ていなければ。利用者の設定に残る）、チケットカードが止まるまで待ち、スクロールして見せ、また止まるまで待ってから、鳥を出す（visiting）。
 // 鳥はチケットカードの裏から顔を出し、上の辺に乗ってすぐ飛び去る。来ている間はチケットカードに色が当たる（TicketCardView）。
 // 置き場が変わったら（measure の 1 か所）鳥をすぐ消して終える。チケットカードが見つからない・止まらないときも黙って終える
-import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { usePluginState, useRecord, useRecords, useSetPluginState, useUpdatePluginState } from "../../../plugin-api/ui"
 import { BirdWalk } from "../../base/ui"
 import { WORKROOM_SUBJECT } from "../by"
@@ -15,6 +15,7 @@ import styles from "./CardVisitView.module.css"
 import { orderedProjects, shownProjects } from "./shown"
 import { useBoardSettings } from "./useBoardSettings"
 import {
+  type CardVisit,
   nearestShift,
   type Placement,
   placementBroken,
@@ -84,17 +85,22 @@ function reveal(card: Element, root: HTMLElement, smooth: boolean) {
 
 export function CardVisitView({ root }: { root: HTMLElement | null }) {
   const visit = usePluginState(kit, CARD_VISIT)
+  return visit ? <Visiting visit={visit} root={root} /> : null
+}
+
+// 立ち寄り visit の間だけある（終われば測った物ごと捨てる）
+function Visiting({ visit, root }: { visit: CardVisit; root: HTMLElement | null }) {
   const setVisit = useSetPluginState(kit, CARD_VISIT)
   const updateVisit = useUpdatePluginState(kit, CARD_VISIT)
   const settings = useBoardSettings()
   const projects = useRecords(PROJECT.id, { where: [] })
-  const ticket = useRecord(TICKET.id, visit?.ticket ?? "-")
-  const room = useRecord(WORKROOM_SUBJECT, visit?.workroom ?? "-")
+  const ticket = useRecord(TICKET.id, visit.ticket)
+  const room = useRecord(WORKROOM_SUBJECT, visit.workroom)
   const [box, setBox] = useState<{ card: Element; at: Rect; placed: Rect } | null>(null)
   const latest = useRef({ settings, projects, ticket })
   latest.current = { settings, projects, ticket }
-  const seq = visit?.seq
-  const phase = visit?.phase
+  const seq = visit.seq
+  const phase = visit.phase
   const ready = ticket !== undefined && room !== undefined
 
   // 見に行く: タスクボードを出し、止まるのを待ち、スクロールして、また止まるのを待つ
@@ -147,11 +153,6 @@ export function CardVisitView({ root }: { root: HTMLElement | null }) {
     frameId = requestAnimationFrame(watch)
     return () => cancelAnimationFrame(frameId)
   }, [phase, box, setVisit])
-
-  // 立ち寄りが終わったら、測った物を捨てる
-  useLayoutEffect(() => {
-    if (!visit) setBox(null)
-  }, [visit])
 
   if (phase !== "visiting" || !box || !root || !room) return null
   const at = {

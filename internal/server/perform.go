@@ -64,8 +64,9 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		h.ack(p, done)
 		return done, nil
 	}
-	// 時点の無いアクション（AI やホストが頼んだ物）は、ここで時計を 1 回読んで時点と日付を決める
-	in := engine.Input{Actions: stamped(p.Actions, time.Now()), Settings: h.settings, Actor: h.actorOfHeld(p), TimeoutSec: p.TimeoutSec}
+	// 時点の無いアクション（AI やホストが頼んだ物）は、ここで時計を 1 回読んで時点と日付を決める（前に決めた時点より後）
+	h.actionNow = laterThan(h.actionNow, time.Now())
+	in := engine.Input{Actions: stamped(p.Actions, h.actionNow), Settings: h.settings, Actor: h.actorOfHeld(p), TimeoutSec: p.TimeoutSec}
 	if err := h.performInputs(&in); err != nil {
 		return Performed{}, err
 	}
@@ -84,7 +85,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 		h.ack(p, done)
 		return done, nil
 	}
-	// AI のアクションは、窓に出ているブックをゴミ箱に入れない（AI は利用者に聞く）
+	// AI のアクションは、窓に出ているステージエントリ（ブックと、ブックの外のページ）をゴミ箱に入れない（AI は利用者に聞く）
 	if p.By == "ai" && h.trashesShown(out.Trashing) {
 		done = Performed{OK: false, Reason: "open-on-screen"}
 		h.remember(p.Key, done)
@@ -97,10 +98,13 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	} else if p.Client != "" {
 		by = "window"
 	}
-	// 窓のアクションで要求中の参加者が受け入れられた・断られたら、その AI に知らせる（watch.go。受け取られるまで行列で持つ）
-	var requested map[string]bool
+	// 窓のアクションで要求中の参加者が受け入れられた・断られた・キャンセルされたら、その AI に知らせる（watch.go。受け取られるまで行列で持つ）
+	var requested, cancelled map[string]bool
 	if by == "window" {
 		requested = h.requestedParticipants()
+		if len(requested) > 0 {
+			cancelled = h.cancelledIn(p.Actions)
+		}
 	}
 	// アクションが返した AI 間メッセージは、送り手と全部の宛先に参加の確定した参加者がいるときだけ送る（いなければ、何も変えずにバルクごと断る）
 	envelopes, envelopesRefused := h.actionEnvelopes(out.AIMessages, in.Actor, time.Now())
@@ -135,7 +139,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	for _, e := range envelopes {
 		h.deliver(e)
 	}
-	h.wakeOnParticipants(requested)
+	h.wakeOnParticipants(requested, cancelled)
 	h.remember(p.Key, done)
 	h.ack(p, done)
 	return done, nil

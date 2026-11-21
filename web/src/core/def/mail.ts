@@ -1,5 +1,5 @@
 // 郵便の種類の定義: 郵便箱（利用者に 1 つ）に届く郵便の種類（base の手紙 @matomezu/base:letter など）。プラグインが種類を足す。
-// 郵便のデータは { id, mail（種類の id）, from, sentAt, to?, seenAt?, visitedAt?, props（種類ごとの形） }（core/mail.ts）。
+// 郵便のデータは { id, mail（種類の id）, from, sentAt, to?, seenAt?, visitedAt?, props（種類ごとの形） }（形は base の郵便が持つ MailSchema）。
 // core が知るのは種類ごとの形のほかの所だけで、props の形は種類が決める
 import type { z } from "zod"
 import type { MailExtras } from "../catalog"

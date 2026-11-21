@@ -27,7 +27,7 @@ import {
   useSearchHits,
   useSearchPick,
 } from "../../../base/ui"
-import { SOURCE_KEYS_SCOPE } from "../markdown"
+import { SOURCE_KEY_SCOPE } from "../markdown"
 import { blankRuns, sourceLines } from "../scroll-sync"
 import { caretMoved, followCaret, PAUSED, planWrite, type Writing, wrote } from "../source-edit"
 import { CURRENT_LINE, LINE_NUMBERS, SHOW_WHITESPACE } from "../source-look"
@@ -38,7 +38,7 @@ import { mirrorRanges, scrollToRange } from "./search-ranges"
 const NO_LOCK: readonly string[] = []
 
 type Props = {
-  book: string
+  outermost: string // ステージで開いているステージエントリの id（画面の履歴の段を続ける先）
   page: string
   text: string // ページの原文
   document: MarkdownDocument // ページの原文を読んだ物（書いている物より古いことがある。ブロックの始まりの位置だけを使う）
@@ -46,7 +46,7 @@ type Props = {
   onScroll: () => void
 }
 
-export function SourcePane({ book, page, text, document, scrollRef, onScroll }: Props) {
+export function SourcePane({ outermost, page, text, document, scrollRef, onScroll }: Props) {
   const perform = usePerform()
   const { continueStep } = useActions()
   const allowed = useAllowed("@matomezu/base:page-update", { page })
@@ -115,7 +115,7 @@ export function SourcePane({ book, page, text, document, scrollRef, onScroll }: 
     const now = Date.now()
     const plan = planWrite(base.current, next, latest.current, writing.current, now)
     if (plan.kind === "same") return false
-    if (plan.kind === "send" && plan.continues) continueStep(book)
+    if (plan.kind === "send" && plan.continues) continueStep(outermost)
     const was = base.current
     base.current = next
     const done = plan.kind === "send" ? perform("@matomezu/base:page-update", { fields: plan.fields }, { page }) : null
@@ -215,7 +215,7 @@ export function SourcePane({ book, page, text, document, scrollRef, onScroll }: 
           value={draft}
           readOnly={!allowed.ok}
           spellCheck={false}
-          data-key-scope={SOURCE_KEYS_SCOPE}
+          data-key-scope={SOURCE_KEY_SCOPE.id}
           onChange={onChange}
           onSelect={onSelect}
           onKeyDown={onKeyDown}

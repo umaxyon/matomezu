@@ -14,8 +14,8 @@ import (
 // instructions は、つないだ AI に渡す matomezu の説明
 const instructions = "matomezu shows books (such as diagrams) to the user in a browser. " +
 	"Use view to see what the user is looking at, list_books, read_folder, read_book and read_page to read, read_records for the records plugins keep (such as the task board), actions to see what can be done, and perform to do it. " +
-	"The user may put notes and marks on things in a book; view and list_books tell you which wait for your answer (awaiting), and actions describes each kind of annotation and how to answer it. " +
-	"Changes appear at once on screens showing that book; use show to put a book on the user's screen. "
+	"The user may put notes and marks on things on a page; view, list_books and read_folder tell you which wait for your answer (awaiting), and actions describes each kind of annotation and how to answer it. " +
+	"Changes appear at once on screens showing that book; use show to put a book or a page on the user's screen. "
 
 // tool は MCP 公開ツール 1 つ: 名前・説明・受ける引数の形（inputSchema）と、確かめた引数で呼ぶ所（AI に返す文と、失敗したか）と、
 // 読むだけか（ブックや画面の状態を読むだけで、何も変えない。AI のプログラムに、利用者に聞かずに使ってよいと答えてよい）
@@ -33,7 +33,7 @@ var noArgs = map[string]any{"type": "object", "properties": map[string]any{}, "a
 var tools = []tool{
 	{
 		"view",
-		"What the user is looking at now: the book, page, mode (edit, or print-preview: all its pages laid out as the sheets they print on, arranged by the book's print preview settings) and selected items of the matomezu window focused last, and awaiting, the annotations on that book (such as the user's notes and marks) that wait for your answer, each with its page. current tells the kind of the window's current screen: book-screen, or control-center (a screen with no stages, such as the control center or the library screen), which covers the book screen; then the book, page, mode, selection and awaiting of the book screen kept behind it are under hidden (the user does not see them now). A window that has no book screen open answers only current and bookScreen: \"none\". null when no window is open.",
+		"What the user is looking at now: entry (what is open on the stage, {kind, id}: kind book for a book, kind page for a page that is not in a book; left out when nothing is open), page, mode (edit, or print-preview: all its pages laid out as the sheets they print on, arranged by the book's print preview settings) and selected items of the matomezu window focused last, and awaiting, the annotations on that entry (such as the user's notes and marks) that wait for your answer, each with its page. current tells the kind of the window's current screen: book-screen, or plain-screen (a screen with no stages, such as the control center or the library screen), which covers the book screen; then the entry, page, mode, selection and awaiting of the book screen kept behind it are under hidden (the user does not see them now). A window that has no book screen open answers only current and bookScreen: \"none\". null when no window is open.",
 		noArgs,
 		reading(func(api caller, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/view") }, nil),
 		true,
@@ -49,10 +49,10 @@ var tools = []tool{
 	},
 	{
 		"read_folder",
-		"Read a folder of the library, one level deep. The library keeps books in folders under the library home, its top folder; a folder can also hold pages and binders that are in no book. " +
+		"Read a folder of the library, one level deep. The library keeps books in folders under the library home, its top folder; a folder can also hold pages and binders that are not in a book. " +
 			"It answers the folder's id, kind (home for the library home, folder for a folder), title (the library home has none), path (the folders from the library home down to this one, each with id and title) " +
-			"and lineup, its entries in order: a folder (kind folder, id, title), a book (kind book, id, title; one that cannot be read now is not answered, as in list_books), " +
-			"a page (kind page, id, title, type) or a binder of pages of one type (kind binder, id, title, pageType). " +
+			"and lineup, its entries in order: a folder (kind folder, id, title), a book (kind book, id, title, awaiting; one that cannot be read now is not answered, as in list_books), " +
+			"a page (kind page, id, title, type, awaiting) or a binder of pages of one type (kind binder, id, title, pageType). " +
 			"A system folder (such as Documents, always at the top of the library home; it cannot be moved or renamed) also has systemFolder, the id of its kind. " +
 			"While the plugin that adds that kind is off, its title is empty and it can be put in the trash; otherwise it cannot. " +
 			"Read a folder in the lineup with read_folder and a book with read_book. What is in the trash is not answered.",
@@ -88,7 +88,7 @@ var tools = []tool{
 	},
 	{
 		"read_page",
-		"Read one page (the page and the items on it), book (the id of the book that holds it), folder (the id of what holds it directly: that book, or the binder for a page in a binder), version (the page's own: it goes up each time the page changes), placed (where each shape is drawn, when the page type's presentation tells it, otherwise null: {id, x, y, w, h} with the top-left on the paper and the size as drawn, children too; use it to line shapes up, as the items' own x and y are from their parent and their w and h may be missing or smaller than drawn) and the annotations (such as the user's notes and marks) standing on things of that page. " +
+		"Read one page (the page and the items on it), entry ({kind: \"book\", id} with the id of the book that holds it, or {kind: \"page\", id} with the page's own id for a page that is not in a book), folder (the id of what holds it directly: that book, the binder for a page in a binder, or the folder of the library for a page that is not in a book), version (the page's own: it goes up each time the page changes), placed (where each shape is drawn, when the page type's presentation tells it, otherwise null: {id, x, y, w, h} with the top-left on the paper and the size as drawn, children too; use it to line shapes up, as the items' own x and y are from their parent and their w and h may be missing or smaller than drawn) and the annotations (such as the user's notes and marks) standing on things of that page. " +
 			"A page too large to be answered at once is refused (too-large): with outline, the page's items are an outline (id, item, size in characters); with item, only that item (and what is inside it), its placed and the annotations on them are answered.",
 		map[string]any{
 			"type": "object",
@@ -348,21 +348,20 @@ const performDescription = "Perform an action listed by actions, as the user wou
 var showSchema = map[string]any{
 	"type": "object",
 	"properties": map[string]any{
-		"book":  map[string]any{"type": "string", "description": "The book's id."},
-		"page":  map[string]any{"type": "string", "description": "The page to show. Without it, the book opens as usual."},
+		"book":  map[string]any{"type": "string", "description": "The book's id (give book, page or both)."},
+		"page":  map[string]any{"type": "string", "description": "The page to show: of that book; alone, a page of any book or one that is not in a book."},
 		"stage": map[string]any{"type": "string", "description": "The id of the stage to show it on (see view). Without it, the current stage."},
 		"split": map[string]any{"type": "boolean", "description": "Split that stage and show the book on the new stage at its right."},
 		"mode": map[string]any{
 			"type":        "string",
 			"enum":        []string{"edit", "print-preview"},
-			"description": "print-preview shows all its pages as the sheets they print on (a book with pages; the user only looks, nothing can be changed there). Without it, edit.",
+			"description": "print-preview shows all its pages as the sheets they print on (a book with pages; the user only looks, nothing can be changed there; books only). Without it, edit.",
 		},
 	},
-	"required":             []string{"book"},
 	"additionalProperties": false,
 }
 
-const showDescription = "Show a book on the user's screen, in the matomezu window focused last: a book screen that already shows the book becomes the current screen; otherwise the book opens in a new book screen, which becomes the current screen (a window keeps two book screens: opening a third closes the one made current longest ago, with its zoom, position and selection). With stage or split, the book opens on that stage instead, replacing what is open there. " +
+const showDescription = "Show a book, or a page that is not in a book, on the user's screen, in the matomezu window focused last: a book screen that already shows the book becomes the current screen; otherwise the book opens in a new book screen, which becomes the current screen (a window keeps two book screens: opening a third closes the one made current longest ago, with its zoom, position and selection). With stage or split, the book opens on that stage instead, replacing what is open there. " +
 	"When no window is open, a browser opens matomezu first (this can take some seconds)."
 
 // ReadOnly は、名前 name の MCP 公開ツールが読むだけか（無い名前なら false）
@@ -510,7 +509,11 @@ func show(api caller, args map[string]any) (string, bool) {
 	case done.Reason == "no-browser":
 		return "no-browser: could not open a browser (" + done.Detail + "); ask the user to open " + done.URL + " and call show again", false
 	case done.Reason == "no-book":
-		return "no-book: there is no book with that id (see list_books)", false
+		return "no-book: there is no book with that id (see list_books); give book or page", false
+	case done.Reason == "no-page":
+		return "no-page: no such page, or not a page of that book", false
+	case done.Reason == "no-print-preview":
+		return "no-print-preview: only a book has a print preview", false
 	case done.Reason == "no-window":
 		return "no-window: no matomezu window connected; ask the user to open " + done.URL + " and call show again", false
 	case done.Reason == "no-stage":
@@ -525,7 +528,7 @@ func show(api caller, args map[string]any) (string, bool) {
 func refusalText(reason, detail string) string {
 	switch {
 	case reason == "open-on-screen":
-		return "open-on-screen: the book is shown on the user's screen now, so it was not moved to the trash; ask the user in the chat"
+		return "open-on-screen: the book or page is shown on the user's screen now, so it was not moved to the trash; ask the user in the chat"
 	case reason == "being-edited":
 		return "being-edited: the user is editing what this would change or remove (such as a note open on the screen), so nothing was changed; do it again later, " +
 			"or send the change to the user if actions offer a way (an action that carries actions for the user to apply)"
@@ -542,18 +545,17 @@ func refusalText(reason, detail string) string {
 var joinSchema = map[string]any{
 	"type": "object",
 	"properties": map[string]any{
-		"model":         map[string]any{"type": "string", "minLength": 1, "description": "The model of this conversation for the approval screen. Use unknown if it cannot be determined. The client’s model metadata takes priority when present."},
-		"sessionName":   map[string]any{"type": "string", "description": "The name of this session, if it has one."},
-		"orcaWorkspace": map[string]any{"type": "string", "minLength": 1, "maxLength": 120, "description": "The display name of the current Orca workspace, if verified in this conversation’s environment. Do not send its path or internal ID."},
-		"link":          map[string]any{"type": "string", "minLength": 1, "description": "A one-time passphrase: a new uuid (8-4-4-4-12 hex digits) you make for this session. The hook that runs when the user talks finds it in this session's transcript to tie the session to you, so put it in this call as it is. Use the same link when you ask again."},
-		"workroom":      map[string]any{"type": "string", "description": "The name of the workroom you would like to continue (a workroom whose participant is not alive any more, or an empty one), or the name you would like for a new one (up to 20 characters). The user chooses on the screen. Optional."},
-		"as":            map[string]any{"type": "string", "enum": []string{"visitor"}, "description": "visitor: you ask to join only to read, as a visitor with no workroom (not together with workroom). Leave it out to join as a worker in a workroom; the user may still accept you as a visitor."},
+		"model":       map[string]any{"type": "string", "minLength": 1, "description": "The model of this conversation for the approval screen. Use unknown if it cannot be determined. The client’s model metadata takes priority when present."},
+		"sessionName": map[string]any{"type": "string", "description": "The name of this session, if it has one."},
+		"link":        map[string]any{"type": "string", "minLength": 1, "description": "A one-time passphrase: a new uuid (8-4-4-4-12 hex digits) you make for this session. The hook that runs when the user talks finds it in this session's transcript to tie the session to you, so put it in this call as it is. Use the same link when you ask again."},
+		"workroom":    map[string]any{"type": "string", "description": "The name of the workroom you would like to continue (a workroom whose participant is not alive any more, or an empty one), or the name you would like for a new one (up to 20 characters). The user chooses on the screen. Optional."},
+		"as":          map[string]any{"type": "string", "enum": []string{"visitor"}, "description": "visitor: you ask to join only to read, as a visitor with no workroom (not together with workroom). Leave it out to join as a worker in a workroom; the user may still accept you as a visitor."},
 	},
 	"required":             []string{"model", "link"},
 	"additionalProperties": false,
 }
 
-const joinDescription = "Ask to join the user's workroom as a participant. The user accepts it on the screen; until then you are requested. If the user declines, tell the user, and do not ask again unless the user asks. " +
+const joinDescription = "Ask to join the user's workroom as a participant. The user accepts it on the screen; until then you are requested, and asking again is refused (already-requested). If the user declines, tell the user, and do not ask again unless the user asks. If the user cancels, tell the user; you may ask again when the user asks. " +
 	"After the user accepts, you are not counted as a participant (your calls do not count, and no notice comes) until the hook that runs when the user talks to you tells them and you your workroom name (with matomezu's background watch, such as its Claude Code plugin, a turn starts by itself when the user accepts, and that turn's hook tells it); an AI whose calls carry the session id is counted as soon as it is accepted, and the notice comes with a later answer. Until then you can read, but every action is refused (not-allowed, reason not-joined), books and annotations too. An AI program with no such hook is counted only if its calls carry the session id; otherwise it can only read. " +
 	"A visitor (as: visitor, or accepted as one by the user) has no workroom and only reads: every action is refused (not-allowed, reason visitor), and it cannot send messages or show books. Read join_rules for the participation procedure. " +
 	"With workroom, you say which workroom you would like to continue (the name you were given when you joined before) or the name you would like for a new one: it is refused with workroom-in-use while the workroom has a participant who is alive. Otherwise the user chooses on the screen whether you take over a participant who joined before or start new."
@@ -567,8 +569,10 @@ func join(c *conn, args map[string]any) (string, bool) {
 	link, _ := args["link"].(string)
 	sessionName, _ := args["sessionName"].(string)
 	body := map[string]any{"ai": c.ai, "model": model, "env": c.env, "sessionName": sessionName, "link": link}
-	if workspace, _ := args["orcaWorkspace"].(string); workspace != "" {
-		body["orcaWorkspace"] = workspace
+	if c.adeWorkspace != nil {
+		if workspace := c.adeWorkspace(); workspace != "" {
+			body["adeWorkspace"] = workspace
+		}
 	}
 	if workroom, _ := args["workroom"].(string); workroom != "" {
 		body["workroom"] = workroom

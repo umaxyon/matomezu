@@ -6,7 +6,7 @@
 import { useRef } from "react"
 import { lineupOf } from "../../../core/book"
 import type { LineupEntry } from "../../../core/schema/book"
-import { binderOf, shownPageId, shownType } from "../../../core/stage"
+import { binderOf, openedBook, shownPageId, shownType } from "../../../core/stage"
 import { useCommand } from "../../../ui/commands"
 import { useContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
@@ -39,7 +39,7 @@ const typeOf = (e: LineupEntry): string => (e.kind === "page" ? e.type : e.pageT
 
 export function PageTabs() {
   const opened = useStageHere(st => st?.opened)
-  const book = useMatomezuState(s => (opened ? s.books[opened.outermost] : undefined))
+  const book = useMatomezuState(s => openedBook(s.books, opened))
   const openPage = useCommand(PAGE_OPEN.id)
   const openBinder = useCommand(BINDER_OPEN.id)
   const openMenu = useContextMenu(PAGE_CONTEXT)

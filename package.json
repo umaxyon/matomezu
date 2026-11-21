@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun scripts/dev.ts 5300",
+    "dev": "bun scripts/dev.ts",
     "build": "rm -rf web/dist && bun scripts/web-build.ts web/dist --production && bun scripts/fonts.ts copy web/dist/fonts",
     "typecheck": "tsc --noEmit && tsc --noEmit -p test/added-plugins/ex1 && tsc --noEmit -p test/added-plugins/ex2 && tsc --noEmit -p test/added-plugins/ex3 && tsc --noEmit -p test/added-plugins/ex4 && tsc --noEmit -p test/added-plugins/ex4/tsconfig.without-tests.json && tsc --noEmit -p test/added-plugins/ex5 && tsc --noEmit -p test/added-plugins/ex6-spec && tsc --noEmit -p test/added-plugins/ex6 && tsc --noEmit -p test/added-plugins/ex7 && tsc --noEmit -p test/added-plugins/ex8 && tsc --noEmit -p test/added-plugins/ex9 && tsc --noEmit -p test/added-plugins/ex10 && tsc --noEmit -p test/added-plugins/ex11 && tsc --noEmit -p test/added-plugins/ex12 && tsc --noEmit -p test/added-plugins/ex13 && tsc --noEmit -p test/added-plugins/ex14 && tsc --noEmit -p test/added-plugins/ex15 && tsc --noEmit -p test/type-checks/unowned-names",
     "test": "bun test",

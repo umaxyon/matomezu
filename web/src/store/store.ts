@@ -6,7 +6,7 @@ import { USER } from "../core/actor"
 import { addressOf, keepPlace, placeAt } from "../core/address"
 import { restoreAllAnnotations, withAnnotations } from "../core/annotation"
 import { pageById, readLibrary } from "../core/book"
-import { bulkActionOf, entersLibraryHistory, localDateOf, performBulk } from "../core/bulk"
+import { bulkActionOf, entersLibraryHistory, laterThan, localDateOf, performBulk } from "../core/bulk"
 import type { CoreCatalog } from "../core/core-catalog"
 import type { ActionContext, ActionOn } from "../core/def/action"
 import type { PluginStateDef } from "../core/def/plugin-state"
@@ -14,9 +14,11 @@ import { fail, matomezuError, type Problem, problem } from "../core/errors"
 import { type Folder, homeOver, type Library, type PageRow, type TableChanges } from "../core/folders"
 import { recordsOf } from "../core/folders-books"
 import { settledOn, withChanges } from "../core/folders-changes"
+import { outsidePageIn } from "../core/folders-tree"
 import { outsideUnreadable, rawBooksOf } from "../core/folders-unreadable"
 import { deepFreeze } from "../core/freeze"
 import {
+  changesByOutermost,
   HISTORY_LIMIT,
   type History,
   type HistoryStep,
@@ -37,7 +39,9 @@ import {
   closePrintPreview,
   endBackground,
   openBook,
+  openedBook,
   openedPage,
+  openOutsidePage,
   openPicker,
   openPrintPreview,
   panBy,
@@ -69,6 +73,7 @@ import {
   screenOfStage,
   setArrangement,
   shownBook,
+  shownOutsidePage,
   stageIn,
   type WindowState,
   withinLimits,
@@ -135,14 +140,14 @@ const screenAt = (win: WindowState, at: string): OpenedScreen | undefined =>
 
 // 開いている画面の履歴の段と、そのアクションバルク（同じ区切りなので 1 つで持つ）。step は閉じて画面の履歴に入れた段、refused はホストがアクションバルクを断ったこと。
 // continued は続けた画面の履歴の段（continueStep）で、prior は続ける前の画面の履歴の段（断られたらこの段に戻す。続ける前に通っていた変更は元に戻せるまま残す）。
-// books が空なら、画面の履歴に入れる変更が無い（アクションバルクだけ）。done は行ったアクションの並び、answer はホストの答え（settle で返す）
+// outermosts が空なら、画面の履歴に入れる変更が無い（アクションバルクだけ）。done は行ったアクションの並び、answer はホストの答え（settle で返す）
 interface OpenStep {
-  at: string
+  seq: number
   done: DoneAction[]
   after: (() => void)[] // このアクションバルクを送った後ろで送る、自分だけのアクションバルク（bulk: "alone"）
   answer?: Promise<HostAnswer>
   settle?: (a: HostAnswer) => void
-  books: string[]
+  outermosts: string[]
   pages: Record<string, RowChange<PageRow>>
   folders: Record<string, RowChange<Folder>>
   // 書庫が対象のアクションが変えたページとフォルダ（書庫の履歴に、別の段として入れる）と、閉じて入れたその段
@@ -187,7 +192,17 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     options.initial ??
     initialState(booksAndTrashOf, catalog, loadRows(), savedSettings, langOf(catalog, savedSettings, fallback))
   const newId = options.newId ?? (() => crypto.randomUUID())
-  const clock = options.now ?? (() => new Date().toISOString())
+  // この窓が決める時点（ctx.now）。時計が後ろへ戻っても、前に決めた時点より後にする（laterThan）
+  const readClock = options.now ?? (() => new Date().toISOString())
+  let lastNow: string | undefined
+  const clock = () => {
+    const read = readClock()
+    lastNow = lastNow === undefined ? read : laterThan(lastNow, read)
+    return lastNow
+  }
+  // 画面の履歴の段に振る、この窓で始めた順の番号（HistoryStep.seq）
+  let lastSeq = 0
+  const nextSeq = () => ++lastSeq
   // 状態は書き換えさせない（前の状態と変わらない所を共有しているので、その場で書き換えると前の状態まで変わる）。入れるたびに変わった所を凍らせる
   const store = createStore<MatomezuState>()(() => deepFreeze(initial))
   store.subscribe(deepFreeze)
@@ -228,9 +243,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     if (next !== win) commit({ window: next })
   }
   // 開いている画面の履歴の段: 同じ処理（同期の 1 回の流れ。コマンド・ダイアログの確定・ドラッグの離しなど）の中で行ったアクションを 1 つの画面の履歴の段にまとめ、処理が終わったら
-  // 画面の履歴に入れる（入れた画面の履歴の段が変えたブックの、やり直せる画面の履歴の段は消す）。コマンドを行う前にも入れる（戻すコマンドが、すぐ前の操作を見られるように）
+  // 画面の履歴に入れる（入れた画面の履歴の段が変えたステージエントリの、やり直せる画面の履歴の段は消す）。コマンドを行う前にも入れる（戻すコマンドが、すぐ前の操作を見られるように）
   let open: OpenStep | null = null
-  // ブックごとの、最後に画面の履歴に入れた画面の履歴の段（元に戻す・やり直すで動かしたら消す。continueStep で続けられるのはこれだけ）
+  // ステージエントリごとの、最後に画面の履歴に入れた画面の履歴の段（元に戻す・やり直すで動かしたら消す。continueStep で続けられるのはこれだけ）
   let lastPut: Record<string, HistoryStep> = {}
   const closeStep = () => {
     if (!open) return
@@ -260,9 +275,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   const putLibraryStep = (was: OpenStep) => {
     if (!was.library || was.refused) return
     const step: HistoryStep = {
-      at: was.at,
+      seq: was.seq,
       by: "user",
-      books: [LIBRARY_HISTORY],
+      outermosts: [LIBRARY_HISTORY],
       pages: keptRows(was.library.pages),
       folders: keptRows(was.library.folders),
     }
@@ -278,13 +293,13 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   // 閉じた段を画面の履歴に入れる
   const putStep = (was: OpenStep) => {
     putLibraryStep(was)
-    if (was.books.length === 0 && !was.continued) return
-    const { at, continued } = was
+    if (was.outermosts.length === 0 && !was.continued) return
+    const { seq, continued } = was
     const kept = keptRows
     const step: HistoryStep = {
-      at,
+      seq,
       by: "user",
-      books: was.books,
+      outermosts: was.outermosts,
       pages: kept(was.pages),
       folders: kept(was.folders),
     }
@@ -301,24 +316,23 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       return
     was.step = step
     const history = { ...getState().history }
-    for (const id of step.books)
+    for (const id of step.outermosts)
       history[id] = { undo: [...(history[id] ?? NO_HISTORY).undo, step].slice(-HISTORY_LIMIT), redo: [] }
     setState({ history })
-    lastPut = { ...lastPut, ...Object.fromEntries(step.books.map(id => [id, step])) }
+    lastPut = { ...lastPut, ...Object.fromEntries(step.outermosts.map(id => [id, step])) }
   }
   // 続ける前の画面の履歴の段 prior を、画面の履歴の最後に戻す（続けた画面の履歴の段が断られたとき）
   const putBack = (prior: HistoryStep) => {
     const history = { ...getState().history }
-    for (const id of prior.books)
+    for (const id of prior.outermosts)
       history[id] = { undo: [...(history[id] ?? NO_HISTORY).undo, prior].slice(-HISTORY_LIMIT), redo: [] }
     setState({ history })
-    lastPut = { ...lastPut, ...Object.fromEntries(prior.books.map(id => [id, prior])) }
+    lastPut = { ...lastPut, ...Object.fromEntries(prior.outermosts.map(id => [id, prior])) }
   }
   // まだ見ていない、AI とほかの窓の変更（unseen.ts。機能台帳は組み直しで差し替わるので、getter で渡す）
   const {
     checkSeen,
     dropOverwritten,
-    dropOverwrittenInLibrary,
     addForeign,
     reset: resetUnseen,
   } = createUnseenChanges({
@@ -326,13 +340,13 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     setState,
     catalog: () => catalog,
     storeCatalog: () => defs.catalog.store,
-    clock,
+    nextSeq,
     options,
   })
-  // ブック book の物を、表 was から changes のとおりに変えたことを、開いている画面の履歴の段に足す（同じ物を続けて変えたら、最初の前と最後の後を持つ）
-  const record = (book: string, was: Library, changes: TableChanges, at: string): OpenStep => {
-    const into = opened(at)
-    if (!into.books.includes(book)) into.books.push(book)
+  // ステージエントリ outermost の物を、表 was から changes のとおりに変えたことを、開いている画面の履歴の段に足す（同じ物を続けて変えたら、最初の前と最後の後を持つ）
+  const record = (outermost: string, was: Library, changes: TableChanges): OpenStep => {
+    const into = opened()
+    if (!into.outermosts.includes(outermost)) into.outermosts.push(outermost)
     const rows = rowChangesOf(was, changes)
     for (const [id, r] of Object.entries(rows.pages))
       into.pages[id] = { before: into.pages[id]?.before ?? r.before, after: r.after }
@@ -341,8 +355,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     return into
   }
   // 書庫が対象のアクションが、表 was を changes のとおりに変えたことを、開いている画面の履歴の段の、書庫の分に足す
-  const recordLibrary = (was: Library, changes: TableChanges, at: string) => {
-    const into = opened(at)
+  const recordLibrary = (was: Library, changes: TableChanges) => {
+    const into = opened()
     const mine = into.library ?? { pages: {}, folders: {} }
     into.library = mine
     const rows = rowChangesOf(was, changes)
@@ -352,8 +366,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       mine.folders[id] = { before: mine.folders[id]?.before ?? r.before, after: r.after }
   }
   // 行ったアクション sent を、開いているアクションバルクに足し、そのアクションバルクへのホストの答えを返す
-  const joinBulk = (sent: DoneAction, at: string): Promise<HostAnswer> | undefined => {
-    const bulk = opened(at)
+  const joinBulk = (sent: DoneAction): Promise<HostAnswer> | undefined => {
+    const bulk = opened()
     bulk.done.push(sent)
     if (options.observe && !bulk.answer)
       bulk.answer = new Promise<HostAnswer>(settle => {
@@ -376,9 +390,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     })
   }
   // 開いている段とアクションバルク（無ければ開き、同期の流れが終わったら閉じる）
-  const opened = (at: string): OpenStep => {
+  const opened = (): OpenStep => {
     if (!open) {
-      open = { at, done: [], after: [], books: [], pages: {}, folders: {} }
+      open = { seq: nextSeq(), done: [], after: [], outermosts: [], pages: {}, folders: {} }
       queueMicrotask(closeStep)
     }
     return open
@@ -390,7 +404,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     if (at.moved) {
       const { step: moved, from } = at.moved
       const history = { ...getState().history }
-      for (const id of moved.books) history[id] = putBackStep(history[id] ?? NO_HISTORY, moved, from)
+      for (const id of moved.outermosts) history[id] = putBackStep(history[id] ?? NO_HISTORY, moved, from)
       setState({ history })
     }
     const inLibrary = at.libraryStep
@@ -409,7 +423,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     const step = at.step
     if (!step) return
     const history = { ...getState().history }
-    for (const id of step.books) {
+    for (const id of step.outermosts) {
       const was = history[id] ?? NO_HISTORY
       history[id] = { undo: was.undo.filter(s => s !== step), redo: was.redo.filter(s => s !== step) }
     }
@@ -439,7 +453,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     })
     if (!done.ok) return done
     const sent: DoneAction = { action: id, args, ...(on ? { on } : {}), ids, lang: c.lang, now: c.now, today: c.today }
-    const answer = catalog.actions.get(id)?.bulk === "alone" ? sendAlone(sent) : joinBulk(sent, c.now)
+    const answer = catalog.actions.get(id)?.bulk === "alone" ? sendAlone(sent) : joinBulk(sent)
     const next: Partial<MatomezuState> = {}
     if (done.changes) {
       const tables = withChanges({ pages, folders }, done.changes)
@@ -450,22 +464,23 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       next.trash = both.trash
       const target = catalog.actions.get(id)?.target
       if (target === "library" || target === "settings") {
-        next.window = followLibraryIn(window, catalog, both.books, books)
+        next.window = followLibraryIn(window, catalog, { books: both.books, ...tables }, { books, pages, folders })
         // 画面の履歴に入れないアクション（戻す・やり直す・ゴミ箱から消すなど）が消した物は、その前の値を画面の履歴の段に残さないので捨てる。
         // 設定が対象のアクションが変える書庫（言語を初めて選んで付けた番号）も、常駐が書庫を整えるときと同じく、画面の履歴に入れない
-        if (target === "settings" || !entersLibraryHistory(catalog.actions.get(id))) {
+        if (target === "settings" || !entersLibraryHistory(catalog.actions.get(id)))
           dropOverwritten({ pages, folders }, tables)
-          dropOverwrittenInLibrary({ pages, folders }, tables)
-        } else recordLibrary({ pages, folders }, done.changes, c.now)
+        else recordLibrary({ pages, folders }, done.changes)
       } else {
-        // ブックかページが対象のアクションが変えるのは、開けるブック 1 冊
-        const after = Object.values(both.books).find(b => books[b.id] !== b)
-        const before = after && books[after.id]
+        // ブックかページが対象のアクションが変えるのは、開けるブック 1 冊か、ブックの外のページ 1 枚
+        const changed = Object.keys(changesByOutermost({ pages, folders }, tables, done.changes))
         const recorded = catalog.actions.get(id)?.history !== false
-        if (after && before && recorded) record(after.id, { pages, folders }, done.changes, c.now)
+        if (recorded) for (const outermost of changed) record(outermost, { pages, folders }, done.changes)
         // 画面の履歴に入れないアクション（ロックの掛け外しなど）が上書きした物は、その前の値を画面の履歴の段に残さないので捨てる
-        if (after && before && !recorded) dropOverwritten({ pages, folders }, tables)
-        if (after) next.window = mapScreens(window, ws => followBook(catalog, ws, after, before))
+        else if (changed.length > 0) dropOverwritten({ pages, folders }, tables)
+        const after = Object.values(both.books).find(b => books[b.id] !== b)
+        if (after) next.window = mapScreens(window, ws => followBook(catalog, ws, after, books[after.id]))
+        // ブックが変わらなければ、変えたのはブックの外のページ
+        else next.window = followLibraryIn(window, catalog, { books: both.books, ...tables }, { books, pages, folders })
       }
     }
     if (done.settings) {
@@ -697,6 +712,38 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (page !== undefined) actions.openPage(stage, page)
       return stage
     },
+    showOutsidePageStage: id => {
+      const { pages, folders, window } = getState()
+      const page = outsidePageIn({ pages, folders }, id)
+      if (!page) return NO_STAGE
+      const { win, stage } = shownOutsidePage(window, catalog, page)
+      if (win !== window) commit({ window: win })
+      return stage
+    },
+    openOutsidePage: (stage, id) => {
+      const { pages, folders } = getState()
+      const page = outsidePageIn({ pages, folders }, id)
+      if (!page || !inWindow(stage)) return NO_STAGE
+      withWindow(win =>
+        makeCurrent(
+          mapScreenOfStage(win, stage, ws => mapStage(focus(ws, stage), stage, s => openOutsidePage(catalog, s, page))),
+          screenOfStage(win, stage)?.id ?? "",
+        ),
+      )
+      return stage
+    },
+    openToStage: (to, stage) => {
+      if (to.to === "page")
+        return stage === NO_STAGE ? actions.showOutsidePageStage(to.page) : actions.openOutsidePage(stage, to.page)
+      const at = stage === NO_STAGE ? actions.showBookStage(to.book, to.page) : stage
+      if (at === NO_STAGE) return NO_STAGE
+      if (stage !== NO_STAGE) {
+        actions.openBook(at, to.book)
+        if (to.page !== undefined) actions.openPage(at, to.page)
+      }
+      if (to.binder !== undefined) actions.openBinder(at, to.binder)
+      return at
+    },
     showBook: (bookId, page) => actions.showBookStage(bookId, page) !== NO_STAGE,
     setScreenProps: (at, props) => {
       const screen = screenAt(getState().window, at)
@@ -754,7 +801,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     openPage: (stage, page) => {
       const { books, window } = getState()
-      const book = books[stageIn(window, stage)?.opened?.outermost ?? ""]
+      const book = openedBook(books, stageIn(window, stage)?.opened)
       // ページを開くと、そのブックスクリーンをカレントスクリーンにする
       if (book && inWindow(stage))
         withWindow(win =>
@@ -766,7 +813,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     openBinder: (stage, binder) => {
       const { books, window } = getState()
-      const book = books[stageIn(window, stage)?.opened?.outermost ?? ""]
+      const book = openedBook(books, stageIn(window, stage)?.opened)
       // バインダを開くと、そのブックスクリーンをカレントスクリーンにする
       if (book && inWindow(stage))
         withWindow(win =>
@@ -779,7 +826,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     openPageById: (stage, page) => {
       const at = pageById(getState().books, page)
       if (!at) return
-      if (stageIn(getState().window, stage)?.opened?.outermost !== at.book.id) actions.openBook(stage, at.book.id)
+      if (stageIn(getState().window, stage)?.opened?.outermost.id !== at.book.id) actions.openBook(stage, at.book.id)
       actions.openPage(stage, page)
     },
     resizeStage: (id, view) => withStageScreen(id, ws => mapStage(ws, id, s => resize(s, view))),
@@ -811,22 +858,22 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       commit({ window: next, ...(opened && contextMenu ? { contextMenu: null } : {}) })
     },
     closePicker: () => withWindow(pickersClosed),
-    continueStep: book => {
+    continueStep: outermost => {
       closeStep()
       const { history } = getState()
-      const step = history[book]?.undo.at(-1)
-      if (!step || step !== lastPut[book]) return
+      const step = history[outermost]?.undo.at(-1)
+      if (!step || step !== lastPut[outermost]) return
       const next = { ...history }
-      for (const id of step.books) {
+      for (const id of step.outermosts) {
         const was = next[id] ?? NO_HISTORY
         next[id] = { ...was, undo: was.undo.filter(s => s !== step) }
       }
       setState({ history: next })
       open = {
-        at: step.at,
+        seq: step.seq,
         done: [],
         after: [],
-        books: [...step.books],
+        outermosts: [...step.outermosts],
         pages: { ...step.pages },
         folders: { ...step.folders },
         continued: true,
@@ -834,17 +881,17 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       }
       queueMicrotask(closeStep)
     },
-    moveHistory: (book, from) => {
+    moveHistory: (outermost, from) => {
       const bulk = open
       closeStep()
       const to = from === "undo" ? "redo" : "undo"
       const { history } = getState()
-      const step = (history[book] ?? NO_HISTORY)[from].at(-1)
+      const step = (history[outermost] ?? NO_HISTORY)[from].at(-1)
       if (!step) return
       if (bulk) bulk.moved = { step, from }
-      lastPut = Object.fromEntries(Object.entries(lastPut).filter(([id]) => !step.books.includes(id)))
+      lastPut = Object.fromEntries(Object.entries(lastPut).filter(([id]) => !step.outermosts.includes(id)))
       const next = { ...history }
-      for (const id of step.books) {
+      for (const id of step.outermosts) {
         const was = next[id] ?? NO_HISTORY
         next[id] = { ...was, [from]: was[from].filter(s => s !== step), [to]: [...was[to], step] } as History
       }
@@ -852,14 +899,14 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     // moveHistory と同じく、先に開いている段を閉じて画面の履歴に入れ（同じ処理の中で行ったアクションの段も、最後の段として捨てられるように）、
     // 段が触ったブックの最後に入れた段を忘れる（元に戻す・やり直すのあとは、continueStep で前の段に足さない）
-    dropHistory: (book, from) => {
+    dropHistory: (outermost, from) => {
       closeStep()
       const { history } = getState()
-      const step = (history[book] ?? NO_HISTORY)[from].at(-1)
+      const step = (history[outermost] ?? NO_HISTORY)[from].at(-1)
       if (!step) return
-      lastPut = Object.fromEntries(Object.entries(lastPut).filter(([id]) => !step.books.includes(id)))
+      lastPut = Object.fromEntries(Object.entries(lastPut).filter(([id]) => !step.outermosts.includes(id)))
       const next = { ...history }
-      for (const id of step.books) {
+      for (const id of step.outermosts) {
         const was = next[id] ?? NO_HISTORY
         next[id] = { ...was, [from]: was[from].filter(s => s !== step) } as History
       }
@@ -928,7 +975,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         ...(tables.pages === now.pages ? {} : { pages: tables.pages }),
         ...(tables.folders === now.folders ? {} : { folders: tables.folders }),
         ...(trash === now.trash ? {} : { trash }),
-        ...(books === now.books ? {} : { books, window: followLibraryIn(now.window, catalog, books, now.books) }),
+        ...(books === now.books ? {} : { books }),
+        ...(tables.pages === now.pages && tables.folders === now.folders
+          ? {}
+          : { window: followLibraryIn(now.window, catalog, { books, ...tables }, now) }),
         ...(settings === now.settings ? {} : { settings, lang: langOf(catalog, settings, fallback) }),
         ...(annotations === now.annotations ? {} : { annotations }),
         ...(records === now.records ? {} : { records }),
@@ -965,7 +1015,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         if (kept !== now.window) commit({ window: kept })
         return
       }
-      const win = placeAt(catalog, now.books, now.window, address)
+      const win = placeAt(catalog, now.books, { pages: now.pages, folders: now.folders }, now.window, address)
       const placed = defs.catalog.store.pluginStates
       // 場所の値で、画面の場所に入れる宣言の値を丸ごと置き換える（形に合わない値・宣言の無い id・入れない宣言の id は落とし、入れない宣言の値は残す。空になったステージの組は持たない）
       const stages: Record<string, Readonly<Record<string, unknown>>> = {}
@@ -1077,7 +1127,7 @@ export const openedIn = (
   stage = "s1",
 ): { book: string; page: string | null } | null => {
   const opened = stageIn(instance.state.getState().window, stage)?.opened
-  return opened ? { book: opened.outermost, page: shownPageId(opened) } : null
+  return opened ? { book: opened.outermost.id, page: shownPageId(opened) } : null
 }
 
 // 作ったときに読む行: 残した行 saved と、books を分けた行（core/folders-books.ts の recordsOf）。

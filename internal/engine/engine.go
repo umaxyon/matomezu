@@ -55,11 +55,13 @@ type Engine struct {
 	records     func(string) string
 	joinedMsg   func(string, string) string
 	visitorMsg  func(string) string
+	workTitle   func(string, string, string) string
 	live        func(string, string, string, string) string
 	forAI       func(string) string
 	briefs      func(string) string
 	placed      func(string) string
-	aiPage      func(string, string) string
+	aiPage      func(string) string
+	pagePlaced  func(string) string
 	item        func(string, string) string
 	use         goja.Callable
 	disabledFor goja.Callable
@@ -127,6 +129,7 @@ func New() (*Engine, error) {
 		{"matomezuAiBriefs", &e.briefs},
 		{"matomezuAiPlaced", &e.placed},
 		{"matomezuAiPage", &e.aiPage},
+		{"matomezuAiPagePlaced", &e.pagePlaced},
 		{"matomezuAiItem", &e.item},
 		{"matomezuTalkActions", &e.talk},
 		{"matomezuJoinActions", &e.join},
@@ -144,6 +147,7 @@ func New() (*Engine, error) {
 		{"matomezuRecordNeeds", &e.needs},
 		{"matomezuJoinedText", &e.joinedMsg},
 		{"matomezuVisitorJoinedText", &e.visitorMsg},
+		{"matomezuWorkTitle", &e.workTitle},
 		{"matomezuUnexpired", &e.live},
 	} {
 		if err := vm.ExportTo(vm.Get(f.name), f.to); err != nil {

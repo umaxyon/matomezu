@@ -116,8 +116,9 @@ test("フォルダは中身ごとゴミ箱に入り、戻り、消える。戻�
   const sub = folder("2026", a)
   const made = book("議事録", sub)
   expect(perform("@matomezu/base:entry-trash", { entry: a }).ok).toBe(true)
+  // 時計が同じ時点を返し続けると、窓が決める時点は読むたびに 1ms 進む（4 回目のアクション）
   expect(store.state.getState().folders[TRASH_ID]?.lineup).toEqual([
-    { kind: "folder", id: a, trashed: NOW, from: [HOME_ID] },
+    { kind: "folder", id: a, trashed: "2026-11-18T01:00:00.003Z", from: [HOME_ID] },
   ])
   expect(made in store.state.getState().books).toBe(false)
   expect(store.state.getState().trash[made]?.title).toBe("議事録")

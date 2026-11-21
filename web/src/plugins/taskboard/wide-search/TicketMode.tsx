@@ -23,10 +23,12 @@ import { FilterChip } from "./FilterChip"
 import {
   filterTickets,
   isFiltering,
+  isInitialChoice,
   NO_FILTER,
   NO_TAGS,
   searchTerms,
   type TicketFilter,
+  ticketHits,
   ticketIdsOf,
   toggled,
 } from "./filter"
@@ -51,6 +53,7 @@ export function TicketMode({ term, setTerm }: WideSearchModeProps) {
     update(now => f(now ?? { ...NO_FILTER, projects: shownIds }))
   const latest = useRef(0) // 最後に頼んだ問い合わせの番号（それ以外の返りは捨てる）
   const first = useRef(true)
+  const restored = useRef<string | null>(null) // 開き直したときに、絞りから入力に戻した言葉（それで問い合わせ直すまで）
   // biome-ignore lint/correctness/useExhaustiveDependencies: 言葉が変わったときだけ探す
   useEffect(() => {
     // 開き直したとき、絞りに言葉が残っていれば入力に戻す（言葉が空のまま、残っている絞りを消さない）
@@ -58,23 +61,35 @@ export function TicketMode({ term, setTerm }: WideSearchModeProps) {
     if (first.current) {
       first.current = false
       if (term === "" && kept !== "") {
+        restored.current = kept
         setTerm(kept)
         return
       }
     }
     const words = term.trim()
     const n = ++latest.current
+    const again = words === restored.current
+    restored.current = null
     if (words === "") {
       setFailed(false)
-      update(now => (now && (now.term !== "" || now.hits !== null) ? { ...now, term: "", hits: null } : now))
+      // 言葉を消して、選びが初めの状態（出しているプロジェクトだけ）のままなら、絞りごと解く
+      update(now => {
+        if (!now || (now.term === "" && now.hits === null)) return now
+        const rest = { ...now, term: "", hits: null }
+        return isInitialChoice(rest, shownIds) ? undefined : rest
+      })
       return
     }
     const timer = setTimeout(() => {
-      void searchAll(search, words).then(
-        ids => {
+      const terms = searchTerms(words)
+      void searchAll(search, terms).then(
+        found => {
           if (n !== latest.current) return
           setFailed(false)
-          change(now => ({ ...now, term: words, hits: ids }))
+          const ids = ticketHits(found, terms, tickets, allProjects)
+          // 戻した言葉で問い合わせ直した答えは、絞りがその言葉のまま残っているときだけ入れる（その間に解かれた絞りを戻さない）
+          if (again) update(now => (now?.term === words ? { ...now, hits: ids } : now))
+          else change(now => ({ ...now, term: words, hits: ids }))
         },
         () => {
           if (n === latest.current) setFailed(true)
@@ -83,6 +98,14 @@ export function TicketMode({ term, setTerm }: WideSearchModeProps) {
     }, WAIT_MS)
     return () => clearTimeout(timer)
   }, [term])
+  // 絞りの言葉がよそで消されたら（ろうとのボタン・「検索中」の ×）、入力の言葉も消す
+  const keptTerm = filter?.term ?? ""
+  const prevKept = useRef(keptTerm)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 絞りの言葉が変わったときだけ見る
+  useEffect(() => {
+    if (prevKept.current !== "" && keptTerm === "" && term.trim() !== "") setTerm("")
+    prevKept.current = keptTerm
+  }, [keptTerm])
   const f = filter ?? { ...NO_FILTER, projects: shownIds }
   const active = isFiltering(filter)
   const matched = active ? filterTickets(tickets, f) : []
@@ -180,8 +203,7 @@ function Group({ title, sub, children }: { title: string; sub?: boolean; childre
 }
 
 // チケットとチケット履歴の両方から言葉を探し、当たったチケットの id を返す（上限で切れたら、続きも全部取る）
-async function searchAll(search: ReturnType<typeof useWideSearch>, words: string): Promise<string[]> {
-  const terms = searchTerms(words)
+async function searchAll(search: ReturnType<typeof useWideSearch>, terms: string[]): Promise<string[]> {
   const hits = []
   for (let offset: number | undefined = 0; offset !== undefined; ) {
     const answer = await search({

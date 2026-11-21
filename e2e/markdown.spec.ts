@@ -1,11 +1,11 @@
-// マークダウンのブック（@matomezu/markdown）: 紙を置かず、ソースとプレビューのペインを（選んでいなければ空のページは左右、本文のあるページはプレビューだけで）開く。上の行のボタンで並べ方を変え、見出しのドラッグで入れ替え、境目のドラッグで大きさを変え（どれも読み直しても戻る）、右クリックでページの設定を開く
+// マークダウンのページ（@matomezu/markdown）: 紙を置かず、ソースとプレビューのペインを（選んでいなければ空のページは左右、本文のあるページはプレビューだけで）開く。上の行のボタンで並べ方を変え、見出しのドラッグで入れ替え、境目のドラッグで大きさを変え（どれも読み直しても戻る）、右クリックでページの設定を開く
 import { pageIn } from "./books"
 import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test, urlStages } from "./fixtures"
 import { addFromTabs, newBook } from "./helpers/new-book"
 import { backToBook, openGeneral, openSettings, settingsDialog } from "./helpers/settings"
 import { fromMenu } from "./helpers/stage-menu"
 
-// マークダウンのブックを作り、ページを 1 つ作る
+// ブックを作り、マークダウンのページを 1 つ作る
 async function markdownBook(page: Page) {
   await page.goto(BOOK_SCREEN_URL)
   const add = await newBook(page, "メモ", "マークダウン")
@@ -279,12 +279,12 @@ test("ソースのペインで Mod+Z で戻すと、自分が書いた所だけ�
   await page.keyboard.type("# 見出し")
   await expect(field()).toHaveValue("# 見出し")
   const view = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
-    book: string
+    entry: { id: string }
     page: string
   }
   // 書いた物が常駐に届いてから、AI が書く
   const text = async () => {
-    const got = (await (await page.request.get(`/api/ai/books/${view.book}`, { headers: ai })).json()) as {
+    const got = (await (await page.request.get(`/api/ai/books/${view.entry.id}`, { headers: ai })).json()) as {
       book: { lineup: unknown[] }
     }
     return pageIn<{ text?: string }>(got.book, view.page)?.text
@@ -343,7 +343,7 @@ test("ソースに書いている間（テキストFormにフォーカスがあ�
   await page.keyboard.type("利用者")
   await expect(field).toHaveValue("利用者")
   const view = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
-    book: string
+    entry: { id: string }
     page: string
   }
   const update = async () =>

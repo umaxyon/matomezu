@@ -1,4 +1,4 @@
-// マークダウンのブックの、縮める倍率（shrink.ts）
+// マークダウンのページの、縮める倍率（shrink.ts）
 import { expect, test } from "bun:test"
 import { shrinkTo } from "../../../../web/src/plugins/page-types/markdown/shrink"
 

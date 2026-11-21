@@ -117,7 +117,7 @@ export function useScreenSplit(): ScreenSplit {
     tall,
     has: (def, props) => find(def, props) !== undefined,
     count: split.length,
-    defs: members.map(s => s?.def ?? ""),
+    defs: members.flatMap(s => (s ? [s.def] : [])),
     closeAll: () => apply({ screens: [], leaving: split }),
     openAt: ({ def, props }, index) => {
       const added = actions.openScreenId(def.id, props)

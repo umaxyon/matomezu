@@ -8,7 +8,7 @@ export const FLOWCHART = "@matomezu/flowchart:flowchart"
 export const TREE = "@matomezu/tree:tree"
 export const DIR = "@matomezu/dir:dir"
 export const MARKDOWN = "@matomezu/markdown:markdown"
-export const SLIDE = "@matomezu/slide-book:slide"
+export const SLIDE = "@matomezu/slide-page:slide"
 
 // ページの手本に書けるフィールド。アイテムは、機能台帳に無い物や一部のフィールドだけの物も置けるよう、形を問わない（読めるかはテストが確かめる）
 type PageRest<T extends PageTypeId> = Partial<Omit<PageOf<T>, "kind" | "type" | "id" | "items">> & {

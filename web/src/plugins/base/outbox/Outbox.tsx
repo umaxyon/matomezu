@@ -9,15 +9,17 @@ import type { ActionId } from "../../../core/catalog"
 import { shownPageId } from "../../../core/stage"
 import { useMessages } from "../../../ui/i18n"
 import { useLayout } from "../../../ui/store-context"
-import { useActions, useAllowed, useBook, useCoreCatalog, useStage, useUiCatalog } from "../../../ui/view-hooks"
+import { useActions, useAllowed, useCoreCatalog, useStage, useUiCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
 import { useOpenRightSidePanel } from "../right-side-panel/hooks"
 import { useRevealHere } from "../stand/reveal-request"
 import { clampChars } from "../text/text"
-import { useBookAnnotations, usePerformOrToast } from "../utils/annotation-hooks"
+import { lastAnchor } from "../utils/anchors"
+import { useOpenedAnnotations, usePerformOrToast } from "../utils/annotation-hooks"
 import rows from "../utils/PanelRows.module.css"
 import { shownTime } from "../utils/shown-time"
+import { useOpenedPages } from "../utils/useOpenedPages"
 import { Withdraw } from "../utils/Withdraw"
 import { listedOf } from "./listed"
 import styles from "./Outbox.module.css"
@@ -29,9 +31,9 @@ const ROW_CHARS = 20 // 行に出す、文の始めの字数
 export function Outbox() {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
-  const book = useBook()
-  const annotations = useBookAnnotations()
-  const pages = useMemo(() => (book ? listedPages(catalog, book, annotations) : []), [catalog, book, annotations])
+  const opened = useOpenedPages()
+  const annotations = useOpenedAnnotations()
+  const pages = useMemo(() => listedPages(catalog, opened, annotations), [catalog, opened, annotations])
   if (pages.length === 0) return <p className={rows.empty}>{t("No notes")}</p>
   const now = new Date()
   return (
@@ -55,13 +57,11 @@ function Row({ annotation: a, now }: { annotation: AiAnnotation; now: Date }) {
   const go = useGo()
   const run = usePerformOrToast(kit.message("Could not withdraw"))
   const catalog = useCoreCatalog()
-  const name = useAnchorName(a.anchors.at(-1) ?? "")
+  const name = useAnchorName(lastAnchor(a.anchors))
   const listed = listedOf(catalog, a)
   const at = listed?.def.addedAt(listed.props as never) ?? null
   const text = clampChars(listed?.def.text?.(listed.props as never) ?? name, ROW_CHARS)
   const withdraw = listed?.def.withdraw
-  // 取消のアクションを、その物の付いているページで行えなければ（認可ステップが止めたなど）、取消を押せなくする
-  const withdrawable = useAllowed((withdraw?.action ?? "") as ActionId, { page: a.page }).ok
   return (
     <li className={rows.row} data-read={!a.awaits}>
       <button type="button" className={rows.open} onClick={() => go(a, listed?.def.panel)}>
@@ -71,14 +71,31 @@ function Row({ annotation: a, now }: { annotation: AiAnnotation; now: Date }) {
         {at && <time className={rows.time}>{shownTime(at, now)}</time>}
       </button>
       {withdraw && (
-        <Withdraw
+        <RowWithdraw
           name={text}
-          allowed={withdrawable}
+          action={withdraw.action}
+          page={a.page}
           onWithdraw={() => run(withdraw.action, withdraw.args(a.id), a.page)}
         />
       )}
     </li>
   )
+}
+
+// 行の取消: 取消のアクションを、その物の付いているページで行えなければ（認可ステップが止めたなど）、押せなくする
+function RowWithdraw({
+  name,
+  action,
+  page,
+  onWithdraw,
+}: {
+  name: string
+  action: string
+  page: string
+  onWithdraw: () => void
+}) {
+  const allowed = useAllowed(action as ActionId, { page }).ok
+  return <Withdraw name={name} allowed={allowed} onWithdraw={onWithdraw} />
 }
 
 // 行の左の絵: 種類ごとに、スロット annotation-icon に置いたウィジェットのうち、その種類の物が描く（無ければ点）
@@ -100,7 +117,7 @@ function useGo(): (a: AiAnnotation, panel: string | undefined) => void {
   return (a, panel) => {
     if (a.page && shownPageId(opened ?? null) !== a.page) openPage(a.page)
     if (panel) {
-      openPanel({ widget: panel, subject: a.id, anchors: a.anchors, current: a.anchors.at(-1) ?? "" })
+      openPanel({ widget: panel, subject: a.id, anchors: a.anchors, current: lastAnchor(a.anchors) })
       return
     }
     // 付けた物が描かれたら見せる（ほかのページを開いたあとは、描かれるのを待つ）

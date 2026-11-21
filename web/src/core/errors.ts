@@ -34,6 +34,7 @@ export const ERRORS = {
   E040: "{kind} {id}: theme types must be {expected}",
   E041: "controlCenter {id}: unknown action {ref}",
   E042: "pageType {id}: slide has {ref}, which is not a shape item",
+  E067: "action {id}: cancelsJoinRequest is named by {other} too",
   E044: "action {id}: runsWhenAIJoins {role} is named by {other} too",
   E070: "action {id}: runsWhenAIEnds is named by {other} too",
   E071: "key {key} for {command}: neither its plugin nor the core has key scope {scope}",

@@ -1,4 +1,4 @@
-// フローチャートのブック（@matomezu/flowchart）の画面: 流れの向きの設定・自動で整列と、その確認のダイアログ
+// フローチャートのページ（@matomezu/flowchart）の画面: 流れの向きの設定・自動で整列と、その確認のダイアログ
 
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, screen, within } from "@testing-library/react"

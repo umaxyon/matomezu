@@ -7,12 +7,12 @@
   flex-direction: column;
 }
 /* コントロールセンターがカレントスクリーンになって滑り込み終えたら、後ろのブックスクリーンは見えなくする。戻すときはすぐ見える */
-.bookScreen[data-current="control-center"] {
+.bookScreen[data-current="plain-screen"] {
   visibility: hidden;
   transition: visibility 0s linear var(--screen-slide);
 }
 @media (prefers-reduced-motion: reduce) {
-  .bookScreen[data-current="control-center"] {
+  .bookScreen[data-current="plain-screen"] {
     transition: none;
   }
 }

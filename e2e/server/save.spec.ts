@@ -1,7 +1,7 @@
 import { drawingPage, testBook } from "../../test/lineup"
 import { SAMPLE_BOOKS } from "../../test/sample-books"
 import { pagesIn } from "../books"
-import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test, urlStages } from "../fixtures"
+import { BOOK_SCREEN_URL, bookScreenUrl, expect, joinedAiAuth, type Page, test, urlStages } from "../fixtures"
 import { aiPerform } from "../helpers/ai"
 import { addBox } from "../helpers/paper"
 import { openGeneral } from "../helpers/settings"
@@ -10,7 +10,7 @@ import { storedBook, storedBooks, storedPageVersion } from "../helpers/stored"
 // 常駐を空にして始め、テストごとに使うブックを置く
 test.use({ books: [] })
 
-// 図面のブック（A4 横のページ p1 が 1 つ）
+// 図面のページ p1（A4 横）が 1 つのブック
 const E2E_1 = { ...SAMPLE_BOOKS[0]!, id: "e2e-1" }
 
 // 常駐に置いてあるもの
@@ -94,7 +94,7 @@ test("AI の入口からは、最後にフォーカスした窓が見ている�
   await expect(page.getByRole("img", { name: "紙" })).toBeVisible()
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
-    .toMatchObject({ book: "e2e-1", page: "p1" })
+    .toMatchObject({ entry: { kind: "book", id: "e2e-1" }, page: "p1" })
   const done = await page.request.post("/api/ai/perform", {
     headers: ai,
     data: {
@@ -115,7 +115,7 @@ test("AI が show で頼むと、最後にフォーカスした窓が、分け�
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
     .toMatchObject({
-      book: "e2e-1",
+      entry: { kind: "book", id: "e2e-1" },
       canSplit: true,
     })
   const made = await page.request.post("/api/ai/perform", {
@@ -131,7 +131,7 @@ test("AI が show で頼むと、最後にフォーカスした窓が、分け�
   await expect(page.locator("[data-stage]")).toHaveCount(2)
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
-    .toMatchObject({ book: result.book, stage: "s2", canSplit: false })
+    .toMatchObject({ entry: { kind: "book", id: result.book }, stage: "s2", canSplit: false })
 })
 
 // 線のあるブック: 箱 a・b・c と、a から b（終点に矢印・キャプション）・a から c・b から c の線
@@ -167,7 +167,7 @@ test("線は箱より手前に描かれ、選択の道具で押すと選ばれ�
   await page.evaluate(() => window.dispatchEvent(new Event("focus")))
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
-    .toMatchObject({ book: "e2e-1", stage: "s1", canSplit: true })
+    .toMatchObject({ entry: { kind: "book", id: "e2e-1" }, stage: "s1", canSplit: true })
   const shown = await page.request.post("/api/ai/show", { headers: ai, data: { book: LINE_BOOK.id } })
   expect(await shown.json()).toMatchObject({ ok: true })
   const line = (id: string) => page.locator(`[data-item="${id}"]`)
@@ -208,7 +208,7 @@ test("開いているブックとページは URL に入り、読み直しても
 }) => {
   const book = { ...SAMPLE_BOOKS[1]!, id: "e2e-url" }
   await put(page, book)
-  await page.goto(`/?b0=${book.id}&p0=p1&v0=1,0,0&c=0&r=0.5`)
+  await page.goto(bookScreenUrl(book.id, "p1"))
   await expect(page.getByRole("img", { name: "紙" })).toBeVisible()
   await page.reload()
   await expect(page.getByRole("img", { name: "紙" })).toBeVisible()
@@ -226,7 +226,7 @@ test("ロック中のブックの名前とページタブに鍵が出る。鍵�
     locked: true,
     lineup: [{ ...pagesIn(E2E_1)[0]!, locked: true }],
   })
-  await page.goto("/?b0=e2e-locked")
+  await page.goto(bookScreenUrl("e2e-locked"))
   await expect(page.getByRole("img", { name: "ロック中" })).toHaveCount(2)
   const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
   await page.mouse.click(paper.x + 30, paper.y + 40, { button: "right" })

@@ -1,4 +1,4 @@
-// マークダウンのブック: プレゼンテーションはステージに紙を置かない、どのページもいつも可変ページで下へ増やす（可変ページにする・やめるは選べない）、
+// マークダウンのページ: プレゼンテーションはステージに紙を置かない、どのページもいつも可変ページで下へ増やす（可変ページにする・やめるは選べない）、
 // ペインの並べ方はステージごとのプラグイン状態で、ペインの分割のコマンドで変え、画面の場所に入れる（読み直しても戻す）
 
 import { expect, test } from "bun:test"
@@ -37,7 +37,7 @@ const markdownStore = (options: Parameters<typeof newStore>[0] = {}) => {
   const store = newStore(options)
   createBookIn(store, "s1", { title: "メモ" })
   addPageIn(store, "s1", { type: "@matomezu/markdown:markdown", title: "ページ 1" })
-  const id = screenOf(store.state.getState().window).stages[0]!.opened!.outermost
+  const id = screenOf(store.state.getState().window).stages[0]!.opened!.outermost.id
   const book = () => store.state.getState().books[id] as Book
   return { store, id, book }
 }

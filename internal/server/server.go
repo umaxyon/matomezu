@@ -29,29 +29,30 @@
 //
 // AI の入口（MCP。internal/mcp）は合言葉で通す:
 //
-//	GET  /api/ai/view        最後にフォーカスされた窓が見ているもの（{"current", "book", "page", "selection", "awaiting"}。無ければ null。awaiting は見ているブックの、AI の応えを待つアノテーション。
-//	                      コントロールセンターがカレントスクリーンの窓は {"current": "control-center", "hidden": {後ろに隠れているブックスクリーンの book, page, selection, awaiting など}}）
-//	GET  /api/ai/books  {"books": [{"id", "type", "title", "version", "awaiting"}]}（awaiting は AI の応えを待つアノテーションの数）
+//	GET  /api/ai/view        最後にフォーカスされた窓が見ているもの（{"current", "entry", "page", "selection", "awaiting"}。entry は開いているステージエントリ {"kind", "id"}（ブックか、ブックの外のページ。何も開いていなければ無い）。無ければ null。awaiting は見ているステージエントリの、AI の応えを待つアノテーション。
+//	                      ステージを並べないスクリーン（コントロールセンターなど）がカレントスクリーンの窓は {"current": "plain-screen", "hidden": {後ろに隠れているブックスクリーンの entry, page, selection, awaiting など}}）
+//	GET  /api/ai/books  {"books": [{"id", "title", "version", "warning", "awaiting"}]}（warning は機能台帳に無い物の W007 の 1 行、awaiting は AI の応えを待つアノテーションの数）
 //	GET  /api/ai/books/{id}  {"id", "book", "version", "annotations", "placed"}（?outline=1 ならページの目次。ai_outline.go）
-//	GET  /api/ai/pages/{page}  {"book", "folder", "page", "version", "annotations", "placed"}（book はそのページを持っているブックの id、folder はそのページが入っているフォルダ（ブックの直下ならブック、バインダの中ならバインダ）の id、version はそのページの版、annotations はそのページの物に立つもの。?outline=1 でページの中の物の目次、?item=id でその物だけ。ai_outline.go）
+//	GET  /api/ai/pages/{page}  {"entry", "folder", "page", "version", "annotations", "placed"}（entry はそのページのステージエントリ {"kind", "id"}（そのページを持っているブックか、ブックの外のページならそのページ）、folder はそのページが入っているフォルダ（ブックの直下ならブック、バインダの中ならバインダ、ブックの外のページなら書庫のフォルダ）の id、version はそのページの版、annotations はそのページの物に立つもの。?outline=1 でページの中の物の目次、?item=id でその物だけ。ai_outline.go）
 //	GET  /api/ai/folder[?folder=ID]  書庫ホーム（folder が無いとき）かフォルダ 1 つの {"id", "kind", "title", "path", "lineup"}（書庫ホームからの道筋と、直下のエントリを 1 段だけ。ai_folder.go）
 //	GET  /api/ai/records?kind=K[&id=ID | &ids=a&ids=b | &where.key=value&is.key=absent&limit=N&before=ID]  AI に見せる種類（対象の定義の aiBrief）のレコード（ai_records.go）。
 //	                      id はその 1 件の全文、ids は何件かの全文、どちらも無ければ一覧（索引キーで探す種類は {"kind","records","total","older"}）
-//	GET  /api/ai/awaiting    {"awaiting": [{"book", "title", "annotation", "brief"}], "undone": [{"entry", "title", "at", "lost"}], "failed": [{"book", "title", "key", "changed"}], "removed": [{"book", "title", "key", "cause"}]}
+//	GET  /api/ai/awaiting    {"awaiting": [{"entry", "title", "annotation", "brief"}], "undone": [{"entry", "title", "at", "lost"}], "failed": [{"book", "title", "key", "changed"}], "removed": [{"book", "title", "key", "cause"}]}
 //	                         AI の応えを待つアノテーションの全部と、見られる前に利用者が戻した AI の変更の全部と、失敗にした AI 編集チケット（変更提案郵便など）の全部と、
 //	                         郵便が消えたと記した AI 編集チケット（cause は上限で消えた limit か、利用者が消した user）の全部
 //	                         （undone と failed と removed は、渡したら、次の利用者トリガートークのときに消える）
-//	GET  /api/ai/watch?host=<プロセス id>&session=<立てたときのセッション id>（どちらか一方は要る）[&maxLine&maxNotice&gap]  SSE。そのプロセス id かセッション id の AI を起こす知らせ（event: wake、data: {"line", "id", "session", "text"}。参加の要求が受け入れられた・断られた、AI 間メッセージ。watch.go）
+//	GET  /api/ai/watch?host=<プロセス id>&session=<立てたときのセッション id>（どちらか一方は要る）[&maxLine&maxNotice&gap&breaks]  SSE。そのプロセス id かセッション id の AI を起こす知らせ（event: wake、data: {"line", "id", "session", "text"}。参加の要求が受け入れられた・断られた、AI 間メッセージ。watch.go）
+//	POST /api/ai/work-title {"sessionId"} そのセッションの作業名 {"workTitle"}（読むだけ。ターンの終わりのフックが読む。書かないなら空。talk_session.go の WorkTitle）
 //	POST /api/ai/watch/ack   {"line", "id", "result"} 通り道に流した知らせを渡せたか（delivered・absent・failed）。{} を返す（watch.go）
 //	POST /api/ai/talked      {"sessionId", "host", "candidates", "woken", "prompt"} AI のターンが始まった（AI のフックが知らせる）。candidates が無く woken でなければ、利用者トリガートークのときに行うアクションを、アノテーションのあるブックごとに行い、AI に渡した、見られる前に消えた AI の変更を消す。
-//	                         woken は、利用者トリガートークでなく、裏の知らせ（watch の 1 行など）で始まったターンのフック（結びつけと「参加しました」の知らせだけを行う）。prompt（ターンの入力）が通り道に貸した知らせの文そのものでも同じ。
-//	                         どちらも {"welcomes", "unbound"} を返す（セッションと参加者の結びつけと「参加しました」の知らせ。talk_session.go）
+//	                         woken は、利用者トリガートークでなく、裏の知らせ（watch の 1 行など）で始まったターンのフック（結びつけと「参加しました」の知らせだけを行う）。prompt（ターンの入力）が通り道に貸した知らせの文（幾つかを改行でつないだ物も。WokenBy）でも同じ。
+//	                         どちらも {"welcomes", "unbound", "workTitle"} を返す（セッションと参加者の結びつけと「参加しました」の知らせと、作業名。talk_session.go）。prompt が貸した知らせの文（幾つかを改行でつないだ物も。WokenBy）なら、利用者の言葉でないと AI に伝える文の forAi も返す
 //	POST /api/ai/model       {"sessionId", "model", "host"} AI のフックがセッションのモデルを知らせる（model.go）。{} を返す
 //	GET  /api/ai/settings    AI が読む利用者の設定（項目の id → 値。engine.AISettings）
 //	GET  /api/ai/catalog?ids=a&ids=b  MCP 公開ツールの actions が返す物。ids が無ければ {"version", "index", "warnings"}（一覧の版と目次。warnings は今あるときだけ）、あれば ids の物の全文 {"version", 表の名前: [全文]..., "unknown"}
 //	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "permission", "detail", "result", "notice"}（ok 以外は無ければ省く）を返す
 //	GET  /api/ai/join-rules  参加を頼む AI が読む手順。
-//	POST /api/ai/join        {"ai", "model", "env", "sessionName", "link", "sessionId"} 参加を頼む（参加者を作り、利用者に知らせる郵便を送る）。{"ok", "participant"} か弾いた理由（join.go）
+//	POST /api/ai/join        {"ai", "model", "env", "sessionName", "link", "sessionId", "workroom", "as", "adeWorkspace"} 参加を頼む（参加者を作り、利用者に知らせる郵便を送る）。{"ok", "participant"} か弾いた理由（join.go）
 //	POST /api/ai/message     {"to", "text"} AI 間メッセージを、ワークルーム to の参加者に送る（受け取られるまで常駐が持つ）。{"ok", "queued"} か断った理由（message.go）
 //	POST /api/ai/show        {"book", "page", "stage", "split"} 最後にフォーカスされた窓にブックを出す（Hub.Show）。
 //	                         窓が無ければブラウザで開き、つながるのを待ってから出す。{"ok", "opened"} か {"ok": false, "reason", "url"} を返す
@@ -164,6 +165,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("GET /api/ai/records", o.ai(o.aiRecords))
 	mux.Handle("GET /api/ai/search", o.ai(o.search(false)))
 	mux.Handle("POST /api/ai/talked", o.ai(o.aiTalked))
+	mux.Handle("POST /api/ai/work-title", o.ai(o.aiWorkTitle))
 	mux.Handle("POST /api/ai/model", o.ai(o.aiModel))
 	routesForTest(mux, o)
 	routesForDev(mux, o)
@@ -512,9 +514,9 @@ func (o Options) aiView(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("null"))
 		return
 	}
-	var book string
-	_ = json.Unmarshal(view["book"], &book)
-	list, err := o.annotationsOf(book)
+	var entry stageEntry
+	_ = json.Unmarshal(view["entry"], &entry)
+	list, err := o.annotationsOf(entry.ID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -523,13 +525,13 @@ func (o Options) aiView(w http.ResponseWriter, _ *http.Request) {
 	if _, covered := view["hidden"]; !covered {
 		view["awaiting"], _ = json.Marshal(pick(list, awaiting))
 	}
-	// コントロールセンターがカレントスクリーンの間、後ろに隠れているブックスクリーンが開いているブックの、AI の応えを待つ物も hidden に添える
+	// コントロールセンターがカレントスクリーンの間、後ろに隠れているブックスクリーンが開いているステージエントリの、AI の応えを待つ物も hidden に添える
 	if raw, ok := view["hidden"]; ok {
 		var hidden map[string]json.RawMessage
 		if json.Unmarshal(raw, &hidden) == nil && hidden != nil {
-			var hiddenBook string
-			_ = json.Unmarshal(hidden["book"], &hiddenBook)
-			hiddenList, err := o.annotationsOf(hiddenBook)
+			var hiddenEntry stageEntry
+			_ = json.Unmarshal(hidden["entry"], &hiddenEntry)
+			hiddenList, err := o.annotationsOf(hiddenEntry.ID)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return

@@ -96,7 +96,7 @@ type Hub struct {
 	participantNotes map[string]participantNote        // 参加者の id → 常駐だけが持つ参加者の記録（join.go。結ぶのは join_session.go、呼ばれたのは join_calls.go）
 	joinMu           sync.Mutex                        // 参加の頼みを 1 つずつ受ける（join.go）
 	rejoin           rejoinPasses                      // 開発用の、前もって承認した再参加（rejoin_pass.go。リリースの実行ファイルには無い）
-	goneTold         map[string]bool                   // 表に無い参加の id のうち、断られたと伝えたもの（join.go。残さない）
+	gone             map[string]goneState              // 表に無い参加の id の、断り・キャンセルの伝え方（join_calls.go・watch.go。残さない）
 	heardModels      map[string]heardModel             // セッション id → 誰にも結ばれていないうちにフックが知らせたモデル（model.go。残さない）
 	clients          map[string]*client
 	wakeLines        map[*wakeLine]struct{} // AI を起こす知らせの通り道（watch.go）
@@ -107,6 +107,7 @@ type Hub struct {
 	seenEnvelopes    map[string]bool        // 行列に入れた AI 間メッセージの封筒の id（message.go。二度入れない）
 	seenOrder        []string               // seenEnvelopes に入れた順（古い物から忘れる）
 	next             int
+	actionNow        time.Time        // 前に、時点の無いアクションに入れた時点（Perform。時計が後ろへ戻っても、これより後にする）
 	ticks            int64            // フォーカスの順を振る数
 	viewed           chan struct{}    // 窓が見ているものを知らせたら閉じて、作り直す（WaitWindow）
 	plugins          []*plugin.Bundle // 足した追加プラグイン（plugins.go）

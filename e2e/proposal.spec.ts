@@ -12,7 +12,11 @@ async function ready(page: Page): Promise<{ book: string; page: string }> {
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
     .toHaveProperty("stage")
-  return (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as { book: string; page: string }
+  const view = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
+    entry: { id: string }
+    page: string
+  }
+  return { book: view.entry.id, page: view.page }
 }
 
 test("断られた変更を変更提案郵便で送り、場所を示すで郵便を右の端に寄せて箱を見せ、反映で箱が変わる。ほかの窓で直している間は反映を断る", async ({

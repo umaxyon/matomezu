@@ -1,7 +1,7 @@
 // スクロールバーが幅を取る環境（Windows など）での見た目。ヘッドレスのブラウザは既定でスクロールバーを隠すので、隠さずに起動する
 import { BOOK_SCREEN_URL, CONTROL_CENTER_URL, expect, joinedAiAuth, test } from "./fixtures"
 import { aiPerform } from "./helpers/ai"
-import { addFromTabs } from "./helpers/new-book"
+import { addFromTabs, openNewBookDialog } from "./helpers/new-book"
 import { fromMenu } from "./helpers/stage-menu"
 
 test.use({ launchOptions: { ignoreDefaultArgs: ["--hide-scrollbars"] } })
@@ -14,8 +14,7 @@ test("分割した右のステージで中身が縦にスクロールしても�
   await (await fromMenu(page, "画面を分割")).click()
   // 右のステージに長いマークダウンのページを作る（プレビューのペインは縦にスクロールし、右端にスクロールバーが出る）
   const right = page.getByRole("region", { name: "ステージ" }).nth(1)
-  await page.getByRole("button", { name: "ブック新規作成" }).locator("visible=true").click()
-  const add = page.getByRole("dialog", { name: "新しいブック" })
+  const add = await openNewBookDialog(page)
   await page.keyboard.type("長い文書")
   await add.getByRole("button", { name: "作成" }).click()
   await addFromTabs(page.getByRole("tablist", { name: "長い文書" }), "マークダウン")
@@ -49,8 +48,11 @@ test("リストの行が収まらず縦のスクロールバーが出ても、�
   await expect
     .poll(async () => (await page.request.get("/api/ai/view", { headers: ai })).json())
     .toHaveProperty("stage")
-  const { book, page: shown } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
-    book: string
+  const {
+    entry: { id: book },
+    page: shown,
+  } = (await (await page.request.get("/api/ai/view", { headers: ai })).json()) as {
+    entry: { id: string }
     page: string
   }
   const perform = (action: string, args: object, on: object = { book }) => aiPerform(page, { action, args, on }, ai)

@@ -19,7 +19,7 @@ import { GROW } from "./grow"
 import { kit } from "./kit"
 import { treeRootOf } from "./node"
 import { EDIT_TOOL } from "./tools"
-import { NODE_SIZE_DIALOG, TREE_KEYS_SCOPE, TREE_PAGE_SETTINGS_DIALOG } from "./tree"
+import { NODE_SIZE_DIALOG, TREE_KEY_SCOPE, TREE_PAGE_SETTINGS_DIALOG } from "./tree"
 import { PAGE_UPDATE } from "./write"
 
 // 開いているページと、その根と伸びる向き（ツリーのページでなければ null）
@@ -176,19 +176,19 @@ export const NODE_COLOR_EDIT = kit.defineCommand({
 })
 
 export const TREE_KEYS = [
-  kit.defineKey({ id: "node-select-root-home", key: "Home", command: NODE_SELECT_ROOT.id, scope: TREE_KEYS_SCOPE }),
-  kit.defineKey({ id: "node-delete-delete", key: "Delete", command: NODE_DELETE.id, scope: TREE_KEYS_SCOPE }),
-  kit.defineKey({ id: "node-delete-backspace", key: "Backspace", command: NODE_DELETE.id, scope: TREE_KEYS_SCOPE }),
-  kit.defineKey({ id: "node-edit-f2", key: "F2", command: NODE_EDIT.id, scope: TREE_KEYS_SCOPE }),
-  kit.defineKey({ id: "node-add-child-tab", key: "Tab", command: NODE_ADD_CHILD.id, scope: TREE_KEYS_SCOPE }),
-  kit.defineKey({ id: "node-add-sibling-enter", key: "Enter", command: NODE_ADD_SIBLING.id, scope: TREE_KEYS_SCOPE }),
+  kit.defineKey({ id: "node-select-root-home", key: "Home", command: NODE_SELECT_ROOT.id, scope: TREE_KEY_SCOPE.id }),
+  kit.defineKey({ id: "node-delete-delete", key: "Delete", command: NODE_DELETE.id, scope: TREE_KEY_SCOPE.id }),
+  kit.defineKey({ id: "node-delete-backspace", key: "Backspace", command: NODE_DELETE.id, scope: TREE_KEY_SCOPE.id }),
+  kit.defineKey({ id: "node-edit-f2", key: "F2", command: NODE_EDIT.id, scope: TREE_KEY_SCOPE.id }),
+  kit.defineKey({ id: "node-add-child-tab", key: "Tab", command: NODE_ADD_CHILD.id, scope: TREE_KEY_SCOPE.id }),
+  kit.defineKey({ id: "node-add-sibling-enter", key: "Enter", command: NODE_ADD_SIBLING.id, scope: TREE_KEY_SCOPE.id }),
   kit.defineKey({
     id: "node-select-up",
     title: "Move selection up",
     key: "ArrowUp",
     command: NODE_SELECT_MOVE.id,
     args: { to: "up" },
-    scope: TREE_KEYS_SCOPE,
+    scope: TREE_KEY_SCOPE.id,
   }),
   kit.defineKey({
     id: "node-select-down",
@@ -196,7 +196,7 @@ export const TREE_KEYS = [
     key: "ArrowDown",
     command: NODE_SELECT_MOVE.id,
     args: { to: "down" },
-    scope: TREE_KEYS_SCOPE,
+    scope: TREE_KEY_SCOPE.id,
   }),
   kit.defineKey({
     id: "node-select-left",
@@ -204,7 +204,7 @@ export const TREE_KEYS = [
     key: "ArrowLeft",
     command: NODE_SELECT_MOVE.id,
     args: { to: "left" },
-    scope: TREE_KEYS_SCOPE,
+    scope: TREE_KEY_SCOPE.id,
   }),
   kit.defineKey({
     id: "node-select-right",
@@ -212,6 +212,6 @@ export const TREE_KEYS = [
     key: "ArrowRight",
     command: NODE_SELECT_MOVE.id,
     args: { to: "right" },
-    scope: TREE_KEYS_SCOPE,
+    scope: TREE_KEY_SCOPE.id,
   }),
 ]

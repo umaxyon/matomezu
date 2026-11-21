@@ -23,7 +23,8 @@ import {
   unreadableRowsOf,
 } from "../../../web/src/plugins/base/library/outline"
 import { foundRowsOf } from "../../../web/src/plugins/base/library/search"
-import { NAMING, newStore } from "../../support"
+import { DRAWING, drawingPage, testBinder } from "../../lineup"
+import { libraryWith, NAMING, newStore, worldRows } from "../../support"
 
 const NOW = "2026-11-18T01:00:00.000Z"
 
@@ -77,6 +78,19 @@ test("行を開くと、フォルダは中へ入り、ブックとその中の�
   expect(openTargetOf(library().folders, row("b1", "p1"))).toBe(NOT_OPENED)
 })
 
+test("ブックの外のページの行を開くと、そのページを窓に出す。ブックの外のバインダとその中のページ・ゴミ箱に入れたブックの外のページは開かない", () => {
+  const binder = testBinder("n1", "束", DRAWING, drawingPage("n1p"))
+  const { folders } = libraryWith([], [drawingPage("o1"), binder])
+  const target = (id: string, kind: "page" | "binder") => openTargetOf(folders, { id, kind, readable: true })
+  expect(target("o1", "page")).toEqual({ to: "page", page: "o1" })
+  expect(target("n1", "binder")).toBe(NOT_OPENED)
+  expect(target("n1p", "page")).toBe(NOT_OPENED)
+  const store = newStore()
+  store.receive({ ...worldRows([], [drawingPage("o1")]), settings: {} }, [])
+  expect(store.actions.perform("@matomezu/base:entry-trash", { entry: "o1" }).ok).toBe(true)
+  expect(openTargetOf(store.state.getState().folders, { id: "o1", kind: "page", readable: true })).toBe(NOT_OPENED)
+})
+
 test("ゴミ箱の中のフォルダは開けないので、開いているフォルダはゴミ箱になる", () => {
   const { library, folder, perform } = setup()
   expect(perform("@matomezu/base:entry-trash", { entry: folder }).ok).toBe(true)
@@ -97,11 +111,12 @@ test("ゴミ箱の行は、入れた時刻の新しい順に、どの種類の�
   now = "2026-11-18T02:00:00.000Z"
   expect(perform("@matomezu/base:entry-trash", { entry: inner }).ok).toBe(true)
   expect(perform("@matomezu/base:entry-trash", { entry: "b1" }).ok).toBe(true)
-  // 同じ時刻なら後から入れた物が先。元いたフォルダ（下書き）がゴミ箱に在る b2 は、その上の今も在るフォルダへ戻る
+  // 後から入れた物が先（時計が同じ時点を返し続けると、窓が決める時点は読むたびに 1ms 進む）。
+  // 元いたフォルダ（下書き）がゴミ箱に在る b2 は、その上の今も在るフォルダへ戻る
   expect(trashRowsOf(library(), NAMING).map(r => [r.kind, r.id, r.trashed, r.into])).toEqual([
-    ["book", "b1", "2026-11-18T02:00:00.000Z", HOME_ID],
+    ["book", "b1", "2026-11-18T02:00:00.001Z", HOME_ID],
     ["folder", inner, "2026-11-18T02:00:00.000Z", folder],
-    ["book", "b2", "2026-11-18T01:00:00.000Z", folder],
+    ["book", "b2", "2026-11-18T01:00:00.003Z", folder],
   ])
   expect(trashRowsOf(library(), NAMING)[1]).toMatchObject({ title: "下書き", readable: true, place: "仕事" })
 })

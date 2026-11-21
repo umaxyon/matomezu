@@ -6,11 +6,11 @@
 // フォルダを選んで Tab を押すと、中に足す種類を選び始める（その場の編集の名前 KIND_PICK。選ぶ枠はビューが出す）。キーはディレクトリ構成図のプレゼンテーションの範囲
 import type { CommandContext } from "../../../plugin-api"
 import { hasOpenedPage, refusalMessage } from "../../base"
-import { ENTRY_ADD, ENTRY_REMOVE, ENTRY_UPDATE, FOLDER_CLOSE, FOLDER_SORT } from "./actions"
-import { DIR_KEYS_SCOPE, ENTRY_SETTINGS_DIALOG } from "./dir"
-import { type AddAt, addAfter, addInto, afterRemove, entryOf, type Order, parentOf, rowFrom, selectedIn } from "./edit"
-import { dirRootOf, type Kind } from "./entry"
+import { FOLDER_CLOSE, FOLDER_SORT, NODE_ADD, NODE_REMOVE, NODE_UPDATE } from "./actions"
+import { DIR_KEY_SCOPE, NODE_SETTINGS_DIALOG } from "./dir"
+import { type AddAt, addAfter, addInto, afterRemove, nodeOf, type Order, parentOf, rowFrom, selectedIn } from "./edit"
 import { kit } from "./kit"
+import { dirRootOf, type Kind } from "./node"
 import { PENCIL_TOOL } from "./tools"
 
 // 断られたわけを知らせるトースト（認可ステップが止めたのでなければ、断られるのは紙に入らないとき）
@@ -34,7 +34,7 @@ export const FOLDER_TOGGLE = kit.defineCommand({
   title: "Open or close folder",
   run: (ctx, a, args: { folder: string }) => {
     const dir = dirAt(ctx)
-    const folder = dir && entryOf(dir.root, args.folder)
+    const folder = dir && nodeOf(dir.root, args.folder)
     if (!dir || folder?.kind !== "folder") return
     const closed = folder.closed !== true
     const done = a.perform(FOLDER_CLOSE.id, { folder: folder.id, closed }, { page: dir.page.id })
@@ -55,7 +55,7 @@ const refused = (ctx: CommandContext, a: CommandActions, done: Parameters<typeof
   a.showToast(fitRefusal(ctx.catalog, done))
 
 // 足す所 at に、名前の空の kind を 1 つ足して選び、その場で名前を書き始める（閉じたフォルダの中なら先に開く。開けない・足せなければトーストで知らせる）
-export function addEntry(ctx: CommandContext, a: CommandActions, at: AddAt, kind: Kind): void {
+export function addNode(ctx: CommandContext, a: CommandActions, at: AddAt, kind: Kind): void {
   const dir = dirAt(ctx)
   if (!dir) return
   const on = { page: dir.page.id }
@@ -67,15 +67,15 @@ export function addEntry(ctx: CommandContext, a: CommandActions, at: AddAt, kind
     }
   }
   const done = a.perform(
-    ENTRY_ADD.id,
+    NODE_ADD.id,
     {
       parent: at.parent,
       ...(at.index === undefined ? {} : { index: at.index }),
-      entries: [{ kind, name: "" }],
+      nodes: [{ kind, name: "" }],
     },
     on,
   )
-  const added = done.ok ? done.result?.entries[0]?.id : undefined
+  const added = done.ok ? done.result?.nodes[0]?.id : undefined
   if (!added) {
     refused(ctx, a, done.ok ? { reason: "refused" } : done)
     return
@@ -90,8 +90,8 @@ const selected = (ctx: CommandContext) => {
   return dir ? { ...dir, id: selectedIn(dir.root, ctx.stage.selection) } : null
 }
 
-export const ENTRY_SELECT_MOVE = kit.defineCommand({
-  id: "entry-select-move",
+export const NODE_SELECT_MOVE = kit.defineCommand({
+  id: "node-select-move",
   title: "Move selection",
   run: (ctx, a, args: { to: "up" | "down" }) => {
     const s = selected(ctx)
@@ -101,15 +101,15 @@ export const ENTRY_SELECT_MOVE = kit.defineCommand({
 })
 
 // 開いた中身のあるフォルダなら閉じ、ほかは親のフォルダを選ぶ（根ではそのまま）。閉じるアクションを行うので、ロックなどで止められていれば押せない
-export const ENTRY_LEFT = kit.defineCommand({
-  id: "entry-close-or-parent",
+export const NODE_LEFT = kit.defineCommand({
+  id: "node-close-or-parent",
   performs: [FOLDER_CLOSE.id],
   permissionScope: "opened-page",
   title: "Close or select parent",
   run: (ctx, a) => {
     const s = selected(ctx)
     if (!s) return
-    const e = entryOf(s.root, s.id)
+    const e = nodeOf(s.root, s.id)
     if (e?.kind === "folder" && !e.closed && (e.children?.length ?? 0) > 0)
       a.perform(FOLDER_CLOSE.id, { folder: s.id, closed: true }, { page: s.page.id })
     else a.select([parentOf(s.root, s.id)])
@@ -131,13 +131,13 @@ export const FOLDER_OPEN = kit.defineCommand({
   },
   when: ctx => {
     const s = penciling(ctx) ? selected(ctx) : null
-    const e = s && entryOf(s.root, s.id)
+    const e = s && nodeOf(s.root, s.id)
     return e?.kind === "folder" && e.closed === true && (e.children?.length ?? 0) > 0
   },
 })
 
-export const ENTRY_SELECT_ROOT = kit.defineCommand({
-  id: "entry-select-root",
+export const NODE_SELECT_ROOT = kit.defineCommand({
+  id: "node-select-root",
   title: "Select root",
   run: (ctx, a) => {
     const dir = dirAt(ctx)
@@ -147,9 +147,9 @@ export const ENTRY_SELECT_ROOT = kit.defineCommand({
 })
 
 // 選んでいる行（根も）の名前を、その場で書き始める
-export const ENTRY_RENAME = kit.defineCommand({
-  id: "entry-rename",
-  performs: [ENTRY_UPDATE.id],
+export const NODE_RENAME = kit.defineCommand({
+  id: "node-rename",
+  performs: [NODE_UPDATE.id],
   permissionScope: "opened-page",
   title: "Rename",
   run: (ctx, a) => {
@@ -165,13 +165,13 @@ export const ENTRY_RENAME = kit.defineCommand({
 function addAfterCommand<const Id extends string>(id: Id, title: "Add folder below" | "Add file below", kind: Kind) {
   return kit.defineCommand({
     id,
-    performs: [ENTRY_ADD.id],
+    performs: [NODE_ADD.id],
     permissionScope: "opened-page",
     title,
     run: (ctx, a) => {
       const s = selected(ctx)
       const at = s && addAfter(s.root, s.id)
-      if (at) addEntry(ctx, a, at, kind)
+      if (at) addNode(ctx, a, at, kind)
     },
     when: penciling,
   })
@@ -184,13 +184,13 @@ export const FILE_ADD_BELOW = addAfterCommand("file-add-below", "Add file below"
 function addIntoCommand<const Id extends string>(id: Id, title: "Add folder" | "Add file", kind: Kind) {
   return kit.defineCommand({
     id,
-    performs: [ENTRY_ADD.id],
+    performs: [NODE_ADD.id],
     permissionScope: "opened-page",
     title,
     run: (ctx, a) => {
       const s = selected(ctx)
       const at = s && addInto(s.root, s.id)
-      if (at) addEntry(ctx, a, at, kind)
+      if (at) addNode(ctx, a, at, kind)
     },
     when: penciling,
   })
@@ -207,9 +207,9 @@ export const NAME_EDIT = kit.name("name-edit")
 export const ADDED_EDIT = kit.name("added-edit")
 
 // 選んでいるフォルダの中に足す種類を選び始める（フォルダを選んでいるときだけ出す）
-export const ENTRY_KIND_PICK = kit.defineCommand({
-  id: "entry-kind-pick",
-  performs: [ENTRY_ADD.id],
+export const NODE_KIND_PICK = kit.defineCommand({
+  id: "node-kind-pick",
+  performs: [NODE_ADD.id],
   permissionScope: "opened-page",
   title: "Add inside",
   run: (ctx, a) => {
@@ -220,19 +220,19 @@ export const ENTRY_KIND_PICK = kit.defineCommand({
   },
   when: ctx => {
     const s = penciling(ctx) ? selected(ctx) : null
-    return s !== null && entryOf(s.root, s.id)?.kind === "folder"
+    return s !== null && nodeOf(s.root, s.id)?.kind === "folder"
   },
 })
 
 // 選んでいる行（根も）のノードの設定のダイアログ（名前・説明・色）を開く
-export const ENTRY_SETTINGS = kit.defineCommand({
-  id: "entry-settings",
-  performs: [ENTRY_UPDATE.id],
+export const NODE_SETTINGS = kit.defineCommand({
+  id: "node-settings",
+  performs: [NODE_UPDATE.id],
   permissionScope: "opened-page",
   title: "Settings…",
   run: (ctx, a) => {
     const s = selected(ctx)
-    if (s) a.openDialog(ENTRY_SETTINGS_DIALOG.id, { page: s.page.id, entry: s.id })
+    if (s) a.openDialog(NODE_SETTINGS_DIALOG.id, { page: s.page.id, node: s.id })
   },
   when: penciling,
 })
@@ -250,7 +250,7 @@ function sortCommand<const Id extends string>(id: Id, title: "Sort ascending" | 
     },
     when: ctx => {
       const s = penciling(ctx) ? selected(ctx) : null
-      return s !== null && entryOf(s.root, s.id)?.kind === "folder"
+      return s !== null && nodeOf(s.root, s.id)?.kind === "folder"
     },
   })
 }
@@ -259,16 +259,16 @@ export const FOLDER_SORT_ASC = sortCommand("folder-sort-asc", "Sort ascending", 
 export const FOLDER_SORT_DESC = sortCommand("folder-sort-desc", "Sort descending", "desc")
 
 // 選んでいる行を中身ごと消し、すぐ上の行を選ぶ（根を選んでいるときは出さない）
-export const ENTRY_DELETE = kit.defineCommand({
-  id: "entry-delete",
-  performs: [ENTRY_REMOVE.id],
+export const NODE_DELETE = kit.defineCommand({
+  id: "node-delete",
+  performs: [NODE_REMOVE.id],
   permissionScope: "opened-page",
   title: "Delete",
   run: (ctx, a) => {
     const s = selected(ctx)
     const next = s && afterRemove(s.root, s.id)
     if (!s || !next) return
-    if (a.perform(ENTRY_REMOVE.id, { entry: s.id }, { page: s.page.id }).ok) a.select([next])
+    if (a.perform(NODE_REMOVE.id, { node: s.id }, { page: s.page.id }).ok) a.select([next])
   },
   when: ctx => {
     const s = penciling(ctx) ? selected(ctx) : null
@@ -278,31 +278,36 @@ export const ENTRY_DELETE = kit.defineCommand({
 
 export const DIR_KEYS = [
   kit.defineKey({
-    id: "entry-select-up",
+    id: "node-select-up",
     title: "Move selection up",
     key: "ArrowUp",
-    command: ENTRY_SELECT_MOVE.id,
+    command: NODE_SELECT_MOVE.id,
     args: { to: "up" },
-    scope: DIR_KEYS_SCOPE,
+    scope: DIR_KEY_SCOPE.id,
   }),
   kit.defineKey({
-    id: "entry-select-down",
+    id: "node-select-down",
     title: "Move selection down",
     key: "ArrowDown",
-    command: ENTRY_SELECT_MOVE.id,
+    command: NODE_SELECT_MOVE.id,
     args: { to: "down" },
-    scope: DIR_KEYS_SCOPE,
+    scope: DIR_KEY_SCOPE.id,
   }),
-  kit.defineKey({ id: "entry-close-or-parent-left", key: "ArrowLeft", command: ENTRY_LEFT.id, scope: DIR_KEYS_SCOPE }),
-  kit.defineKey({ id: "folder-open-right", key: "ArrowRight", command: FOLDER_OPEN.id, scope: DIR_KEYS_SCOPE }),
-  kit.defineKey({ id: "entry-select-root-home", key: "Home", command: ENTRY_SELECT_ROOT.id, scope: DIR_KEYS_SCOPE }),
-  kit.defineKey({ id: "entry-rename-enter", key: "Enter", command: ENTRY_RENAME.id, scope: DIR_KEYS_SCOPE }),
-  kit.defineKey({ id: "entry-rename-f2", key: "F2", command: ENTRY_RENAME.id, scope: DIR_KEYS_SCOPE }),
-  kit.defineKey({ id: "folder-add-below-d", key: "D", command: FOLDER_ADD_BELOW.id, scope: DIR_KEYS_SCOPE }),
-  kit.defineKey({ id: "file-add-below-f", key: "F", command: FILE_ADD_BELOW.id, scope: DIR_KEYS_SCOPE }),
-  kit.defineKey({ id: "folder-add-shift-d", key: "Shift+D", command: FOLDER_ADD.id, scope: DIR_KEYS_SCOPE }),
-  kit.defineKey({ id: "file-add-shift-f", key: "Shift+F", command: FILE_ADD.id, scope: DIR_KEYS_SCOPE }),
-  kit.defineKey({ id: "entry-kind-pick-tab", key: "Tab", command: ENTRY_KIND_PICK.id, scope: DIR_KEYS_SCOPE }),
-  kit.defineKey({ id: "entry-delete-delete", key: "Delete", command: ENTRY_DELETE.id, scope: DIR_KEYS_SCOPE }),
-  kit.defineKey({ id: "entry-delete-backspace", key: "Backspace", command: ENTRY_DELETE.id, scope: DIR_KEYS_SCOPE }),
+  kit.defineKey({
+    id: "node-close-or-parent-left",
+    key: "ArrowLeft",
+    command: NODE_LEFT.id,
+    scope: DIR_KEY_SCOPE.id,
+  }),
+  kit.defineKey({ id: "folder-open-right", key: "ArrowRight", command: FOLDER_OPEN.id, scope: DIR_KEY_SCOPE.id }),
+  kit.defineKey({ id: "node-select-root-home", key: "Home", command: NODE_SELECT_ROOT.id, scope: DIR_KEY_SCOPE.id }),
+  kit.defineKey({ id: "node-rename-enter", key: "Enter", command: NODE_RENAME.id, scope: DIR_KEY_SCOPE.id }),
+  kit.defineKey({ id: "node-rename-f2", key: "F2", command: NODE_RENAME.id, scope: DIR_KEY_SCOPE.id }),
+  kit.defineKey({ id: "folder-add-below-d", key: "D", command: FOLDER_ADD_BELOW.id, scope: DIR_KEY_SCOPE.id }),
+  kit.defineKey({ id: "file-add-below-f", key: "F", command: FILE_ADD_BELOW.id, scope: DIR_KEY_SCOPE.id }),
+  kit.defineKey({ id: "folder-add-shift-d", key: "Shift+D", command: FOLDER_ADD.id, scope: DIR_KEY_SCOPE.id }),
+  kit.defineKey({ id: "file-add-shift-f", key: "Shift+F", command: FILE_ADD.id, scope: DIR_KEY_SCOPE.id }),
+  kit.defineKey({ id: "node-kind-pick-tab", key: "Tab", command: NODE_KIND_PICK.id, scope: DIR_KEY_SCOPE.id }),
+  kit.defineKey({ id: "node-delete-delete", key: "Delete", command: NODE_DELETE.id, scope: DIR_KEY_SCOPE.id }),
+  kit.defineKey({ id: "node-delete-backspace", key: "Backspace", command: NODE_DELETE.id, scope: DIR_KEY_SCOPE.id }),
 ]

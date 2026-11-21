@@ -8,7 +8,7 @@ import { useRef, useState } from "react"
 import { findBinder, pagesIn } from "../../../core/book"
 import type { Size } from "../../../core/geom"
 import type { Book, Page } from "../../../core/schema/book"
-import { binderOf, shownPageId } from "../../../core/stage"
+import { binderOf, openedBook, shownPageId } from "../../../core/stage"
 import { useCommand } from "../../../ui/commands"
 import { useContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
@@ -74,7 +74,7 @@ function ThumbnailFrame({
 
 export function PageList() {
   const opened = useStageHere(st => st?.opened)
-  const book = useMatomezuState(s => (opened ? s.books[opened.outermost] : undefined))
+  const book = useMatomezuState(s => openedBook(s.books, opened))
   const openPage = useCommand(PAGE_OPEN.id)
   const addAfter = useCommand(PAGE_ADD_AFTER.id)
   const addInto = useAddPage()
@@ -82,7 +82,8 @@ export function PageList() {
   const openMenu = useContextMenu(PAGE_LIST_CONTEXT)
   const t = useMessages(kit)
   const list = useRef<HTMLDivElement | null>(null)
-  const binder = book && opened ? findBinder(book, binderOf(book, opened) ?? "") : undefined
+  const binderId = book && opened ? binderOf(book, opened) : null
+  const binder = book && binderId !== null ? findBinder(book, binderId) : undefined
   const pages = book && binder ? pagesIn(book, binder.id) : []
   const drag = useTabDrag(
     list,

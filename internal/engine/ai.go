@@ -18,9 +18,9 @@ func (e *Engine) AIPlaced(book json.RawMessage) (out json.RawMessage, err error)
 	return json.RawMessage(e.placed(string(book))), nil
 }
 
-// AIPage は、AI に見せるページ（read_page の page）を返す。背景を持つタイプのページは、背景の形（slide）の図形の情報を見せず、背景の文字だけを background に入れる。
-// ほかのページと、読めないブックのページは、渡したまま返す
-func (e *Engine) AIPage(book, page json.RawMessage) (out json.RawMessage, err error) {
+// AIPagePlaced は、ページ 1 枚（ブックの中のページでも、ブックの外のページでも）の、形の描いた位置と大きさ（{id, x, y, w, h} の並び。紙の上の左上から）を返す。
+// プレゼンテーションが答えないページ・読めないページなら null（JSON の null）
+func (e *Engine) AIPagePlaced(page json.RawMessage) (out json.RawMessage, err error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	defer func() {
@@ -28,7 +28,20 @@ func (e *Engine) AIPage(book, page json.RawMessage) (out json.RawMessage, err er
 			err = fmt.Errorf("engine: %v", r)
 		}
 	}()
-	return json.RawMessage(e.aiPage(string(book), string(page))), nil
+	return json.RawMessage(e.pagePlaced(string(page))), nil
+}
+
+// AIPage は、AI に見せるページ（read_page の page）を返す。背景を持つタイプのページは、背景の形（slide）の図形の情報を見せず、背景の文字だけを background に入れる。
+// ほかのページと、読めないページは、渡したまま返す
+func (e *Engine) AIPage(page json.RawMessage) (out json.RawMessage, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	return json.RawMessage(e.aiPage(string(page))), nil
 }
 
 // WarningLines は、窓が見つけて送ってきた warning（{code, plugin, params} の並び）を、warning の表の 1 行ずつにする。

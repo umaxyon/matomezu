@@ -2,7 +2,7 @@
 // 四角をドラッグすると、ステージの見る所がついて動く。四角の外を押すと、そこが真ん中に来るように飛んでから、そのままドラッグできる
 // （紙をずらさない道具の間に押すと、組の紙をずらす道具に替えてから動かす。組にそれが無ければ動かさない）。
 // ミニマップの上でホイールを回すと、回した量をコマンド zoom-wheel に渡して、表示領域の真ん中を動かさずに拡大縮小する（ページはスクロールさせない）。
-// 紙の色と絵の色はブックのテーマの値で描く。className は枠の見た目を替える（無ければ浮かぶ枠）
+// 紙の色と絵の色はページのテーマの値で描く。className は枠の見た目を替える（無ければ浮かぶ枠）
 import { memo, type PointerEvent, useMemo, useRef } from "react"
 import type { Point } from "../../../core/geom"
 import { areaOf } from "../../../core/stage"
@@ -11,7 +11,7 @@ import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useStageHere } from "../../../ui/scope"
 import { useCatalog } from "../../../ui/store-context"
-import { useActions, useShownBook, useShownPage, useStage } from "../../../ui/view-hooks"
+import { useActions, useShownPage, useStage } from "../../../ui/view-hooks"
 import { usePageThemeVars } from "../book-look/use-page-theme-vars"
 import { kit } from "../kit"
 import { TOOL_SET } from "../tool-picker"
@@ -26,8 +26,7 @@ export function MinimapView({ width, height, className }: { width: number; heigh
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const stage = useStageHere(st => st)
-  const book = useShownBook() // 紙と同じく、ダイアログの下書きを重ねたブックとページで描く
-  const page = useShownPage()
+  const page = useShownPage() // 紙と同じく、ダイアログの下書きを重ねたページで描く
   const held = keepsPan(catalog, useStage()?.tool ?? null)
   const { panStageBy, focusStage } = useActions()
   const toolSet = useCommand(TOOL_SET.id)
@@ -37,12 +36,12 @@ export function MinimapView({ width, height, className }: { width: number; heigh
   const vars = usePageThemeVars()
   const drawn = useDrawnTable()
   const marks = useMemo(
-    () => (book && page ? minimapMarks(catalog, page, item => drawnOn(drawn, item, page.id)) : []),
-    [catalog, book, page, drawn],
+    () => (page ? minimapMarks(catalog, page, item => drawnOn(drawn, item, page.id)) : []),
+    [catalog, page, drawn],
   )
   const attachWheel = useZoomWheel()
   const paper = stage ? areaOf(stage) : null
-  if (!stage || !book || !paper) return null
+  if (!stage || !page || !paper) return null
   const scale = fitScale(paper, width, height)
   const seen = stage.view ? seenRect(paper, stage.view, stage.pan, stage.zoom) : null
 

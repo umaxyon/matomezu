@@ -5,10 +5,10 @@ export const PENCIL_TOOL = kit.defineTool({
   id: "pencil",
   title: "Pencil",
   performs: [
-    kit.name("entry-add"),
-    kit.name("entry-update"),
-    kit.name("entry-remove"),
-    kit.name("entry-move"),
+    kit.name("node-add"),
+    kit.name("node-update"),
+    kit.name("node-remove"),
+    kit.name("node-move"),
     kit.name("folder-sort"),
   ],
 })

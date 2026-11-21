@@ -47,7 +47,7 @@
 .left[data-max="true"] {
   transform: translateX(calc(-100% - var(--gap)));
 }
-.stage {
+.content {
   position: absolute;
   top: 0;
   right: 0;
@@ -58,7 +58,7 @@
   overflow: hidden;
   transition: left var(--motion) ease;
 }
-.stage[data-max="true"] {
+.content[data-max="true"] {
   left: 0;
 }
 .projectScreen {

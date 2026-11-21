@@ -1,6 +1,5 @@
 // ツリーのビュー（プレゼンテーション tree）: プレゼンテーションのビューのレイヤー（book-content）が描く。紙の枠（PaperFrame。紙の面は下のレイヤーが描く）の中に、開いたページの根から伸びる木を描く
 // （節の位置と線は layout.ts が伸びる向きから決める）。
-// ページが無ければ、真ん中にページを作るボタン（コマンド page-new）を出す。
 // 画面のどこを右クリックしても、ツリーのメニュー（tree-context）を開く。編集の道具の間に節を右クリックすると、その節を選んで節のメニュー（node-context）を開く。
 // 編集の道具の間は、選んでいる節（無ければ根）に印を付け、ほかを少し暗くし、押した節を選ぶ。選んでいる節がいつもビューの真ん中に来るように紙をずらす
 // （編集の道具では 125%、ほかの道具では 100% に。選ぶ節が替わると紙の動きをなめらかにする）。
@@ -24,7 +23,6 @@ import {
   usePerform,
   usePluginState,
   useSetPluginState,
-  useShownBook,
   useShownPage,
   useStage,
   useStageArea,
@@ -139,7 +137,6 @@ const Tree = memo(function Tree({
 }) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
-  const book = useShownBook()
   const page = useShownPage()
   const perform = usePerform()
   const { select, setEditing, panStageBy, zoomStage, showToast, openDialog } = useActions()
@@ -180,10 +177,10 @@ const Tree = memo(function Tree({
   const shape = settingValue(catalog, page ?? null, NODE_SHAPE)
   const lineShape = settingValue(catalog, page ?? null, LINE_SHAPE)
   // ページの増やす向き（可変ページでなければ undefined）
-  const growing = book && page ? growOf(catalog, page) : undefined
+  const growing = page ? growOf(catalog, page) : undefined
   // 印刷と同じ並べ方（print.ts の laidPage）で、書いている字を重ねた木を並べる
   const laid =
-    book && page && shown
+    page && shown
       ? laidPage(catalog, page, { setting: pageContext(catalog, page).setting, grow: growing }, shown)
       : null
   // 可変ページなら、節の外枠が入るだけ並べた印刷区画に空きを足した広さと、木全体をずらした印刷区画の数を、ステージに知らせる
@@ -194,7 +191,7 @@ const Tree = memo(function Tree({
   const focused = useFocus(stage, page?.id)
   useToolZoom(usingEdit, focused, zoomStage)
   useCentered(stage, usingEdit && focused && !drag.state ? at : undefined, view, panStageBy)
-  if (!book || !page || !root || !laid || !selected) return null
+  if (!page || !root || !laid || !selected) return null
   const tree = root
   const pageId = page.id
 

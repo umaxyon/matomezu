@@ -1,7 +1,7 @@
 // 形のアイテムのビュー: 形の輪郭（outline.ts）を SVG で描き、キャプションを 1 行（収まらなければ … で切る）で真ん中に置く。
 // 輪郭とキャプションの空きは size.ts の shapeLayout が決め、ビューはそのとおりに描く。寄せは captionAlign。
 // 回せる形は、向き（turned）が横向きなら、輪郭を反時計回りに 90 度回し、キャプションも回して縦に置く。
-// 形はブックのテーマの形のテーマキーで描く。色（color）があれば、塗りと文字のテーマキーをその色で上書きする（paint.ts）
+// 形はページのテーマの形のテーマキーで描く。色（color）があれば、塗りと文字のテーマキーをその色で上書きする（paint.ts）
 import type { CSSProperties } from "react"
 import type { ItemProps } from "../../../plugin-api"
 import type { ItemViewProps } from "../../../plugin-api/ui"

@@ -8,7 +8,7 @@
 import type { Point } from "../../../plugin-api"
 import { clampRich, parseRich, type RichLine, richWidth, TEXT_LOOK, wrapRich } from "../../base"
 import { rowsOf } from "./edit"
-import type { DirFolder, Kind } from "./entry"
+import type { DirFolder, Kind } from "./node"
 import { NOTE_DEFAULT, type NoteLook } from "./notes"
 
 export const MARGIN = 24 // 紙の辺と、いちばん外の行の間
@@ -75,28 +75,28 @@ export function layoutDir(
   variable = false,
 ): DirLayout {
   const rows = rowsOf(root)
-  const laid = rows.map(({ entry, depth }, i): LaidRow => {
+  const laid = rows.map(({ node, depth }, i): LaidRow => {
     const x = iconX(depth)
     const y = MARGIN + i * ROW
-    const [line] = parseRich(entry.name.replace(/\n/g, " "))
-    const folder = entry.kind === "folder" ? entry : null
+    const [line] = parseRich(node.name.replace(/\n/g, " "))
+    const folder = node.kind === "folder" ? node : null
     return {
-      id: entry.id,
-      kind: entry.kind,
-      name: entry.name,
+      id: node.id,
+      kind: node.kind,
+      name: node.name,
       line: line ?? [],
-      ...(entry.icon ? { icon: entry.icon } : {}),
+      ...(node.icon ? { icon: node.icon } : {}),
       closed: folder?.closed === true,
       hasKids: (folder?.children?.length ?? 0) > 0,
       x,
       y,
-      w: ICON + NAME_GAP + nameWidth(entry.name),
+      w: ICON + NAME_GAP + nameWidth(node.name),
       h: ROW,
       toggle: folder ? { x: x - INDENT + ICON / 2, y: y + ROW / 2 } : null,
       note: null,
     }
   })
-  const at = new Map(rows.map((r, i) => [r.entry.id, i]))
+  const at = new Map(rows.map((r, i) => [r.node.id, i]))
   const lines: DirLayout["lines"] = []
   for (const [i, r] of rows.entries()) {
     const row = laid[i]
@@ -105,7 +105,7 @@ export function layoutDir(
       const from = { x: row.x - INDENT + ICON / 2, y: row.y + ROW / 2 }
       lines.push({ from, to: { x: row.x - TICK_GAP, y: from.y } })
     }
-    const kids = r.entry.kind === "folder" && !r.entry.closed ? (r.entry.children ?? []) : []
+    const kids = r.node.kind === "folder" && !r.node.closed ? (r.node.children ?? []) : []
     const last = kids.at(-1)
     const end = last ? laid[at.get(last.id) ?? -1] : undefined
     if (end) {
@@ -115,7 +115,7 @@ export function layoutDir(
   }
   const fits = variable || laid.every(r => r.x + r.w <= paper.w - MARGIN && r.y + r.h <= paper.h - MARGIN)
   const texts = rows.map(r => {
-    const text = r.entry.description?.replace(/\n/g, " ")
+    const text = r.node.description?.replace(/\n/g, " ")
     return text ? (look.dots ? DOTS + text : text) : null
   })
   const notes = !look.shown ? null : variable ? wideNotes(laid, texts) : notesOf(laid, paper.w)

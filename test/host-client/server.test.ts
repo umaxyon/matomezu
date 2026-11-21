@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test"
+import type { Annotation } from "../../web/src/core/annotation"
 import { pagesOf } from "../../web/src/core/book"
 import { BROKEN, HOME_ID, TRASH_ID } from "../../web/src/core/folders"
 import { recordsOf } from "../../web/src/core/folders-books"
@@ -11,7 +12,7 @@ import { openClient } from "../../web/src/host-client/open"
 import { type Events, NoServer, serverClient } from "../../web/src/host-client/server"
 import { drawingPage, testBook } from "../lineup"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { newStore, showCenter } from "../support"
+import { newStore, showCenter, worldRows } from "../support"
 
 // 常駐が読まれたときに返すページとフォルダ: ブック books を分けた物（版は versions の id ごと。無ければ 1）
 const dataOf = (books: readonly Book[], versions: Readonly<Record<string, number>> = {}) => ({
@@ -626,7 +627,7 @@ test("changed に載った設定で設定を入れ替える", async () => {
 
 test("アノテーションの知らせで、そのページのアノテーションを入れ替える（空の並びなら無くす）", async () => {
   const { store, emit } = await connected()
-  const list = [{ id: "c1", annotation: "@matomezu/base:note", anchors: ["x"], props: {} }]
+  const list: Annotation[] = [{ id: "c1", annotation: "@matomezu/base:note", anchors: ["x"], props: {} }]
   emit("annotations", { page: "p1", annotations: list })
   expect(store.state.getState().annotations).toEqual({ p1: list })
   emit("annotations", { page: "p1", annotations: [] })
@@ -751,12 +752,12 @@ test("窓が見ているものと、窓がフォーカスされたことを、�
   const s = await connected()
   const view = (selection: string[]) => ({
     current: "book-screen",
-    book: "b1",
+    entry: { kind: "book", id: "b1" },
     page: "p1",
     mode: "edit",
     selection,
     stage: "s1",
-    stages: [{ id: "s1", book: "b1", page: "p1", mode: "edit" }],
+    stages: [{ id: "s1", entry: { kind: "book", id: "b1" }, page: "p1", mode: "edit" }],
     canSplit: true,
   })
   expect(s.sent).toEqual([
@@ -790,14 +791,14 @@ test("分けた窓は、ステージごとに見ているものを知らせ、�
   s.store.actions.split("s1")
   expect(s.sent.at(-1)?.view).toEqual({
     current: "book-screen",
-    book: "b1",
+    entry: { kind: "book", id: "b1" },
     page: "p1",
     mode: "edit",
     selection: [],
     stage: "s1",
     stages: [
-      { id: "s1", book: "b1", page: "p1", mode: "edit" },
-      { id: "s2", book: null, page: null, mode: "edit" },
+      { id: "s1", entry: { kind: "book", id: "b1" }, page: "p1", mode: "edit" },
+      { id: "s2", page: null, mode: "edit" },
     ],
     canSplit: false,
   })
@@ -806,26 +807,55 @@ test("分けた窓は、ステージごとに見ているものを知らせ、�
 test("show が届いたら、言われたステージでブックを開き、カレントにする", async () => {
   const s = await connected()
   s.store.actions.split("s1")
-  s.emit("show", { book: "b1", stage: "s2" })
+  s.emit("show", { to: "book", book: "b1", stage: "s2" })
   const ws = screenOf(s.store.state.getState().window)
   expect(ws.current).toBe("s2")
-  expect(ws.stages.map(st => st.opened?.outermost ?? null)).toEqual(["b1", "b1"])
+  expect(ws.stages.map(st => st.opened?.outermost.id ?? null)).toEqual(["b1", "b1"])
 })
 
 test("show の mode が print-preview なら、印刷プレビューで開く", async () => {
   const s = await connected()
-  s.emit("show", { book: "b1", mode: "print-preview" })
+  s.emit("show", { to: "book", book: "b1", mode: "print-preview" })
   expect(screenOf(s.store.state.getState().window).stages[0]?.mode.kind).toBe("print-preview")
   expect(s.sent.at(-1)?.view).toMatchObject({ mode: "print-preview" })
 })
 
 test("show の split は、そのステージを分けて右にできたステージに開く", async () => {
   const s = await connected()
-  s.emit("show", { book: "b1", split: true })
+  s.emit("show", { to: "book", book: "b1", split: true })
   const ws = screenOf(s.store.state.getState().window)
   expect(ws.stages.map(st => st.id)).toEqual(["s1", "s2"])
   expect(ws.current).toBe("s2")
-  expect(ws.stages[1]?.opened?.outermost).toBe("b1")
+  expect(ws.stages[1]?.opened?.outermost.id).toBe("b1")
+})
+
+test("show の to が page なら、ブックの外のページを出す（窓に・言われたステージに・分けて右に）。常駐に知らせる view の entry はそのページ", async () => {
+  const rows = worldRows([SAMPLE_BOOKS[0]!], [drawingPage("h1", { title: "外" })])
+  const versioned = <T extends { id: string }>(list: readonly unknown[], key: "page" | "folder") =>
+    (list as T[]).map(row => ({ id: row.id, [key]: row, version: 1 }))
+  const s = await connected(
+    fakeServer({ pages: versioned(rows.pages, "page"), folders: versioned(rows.folders, "folder"), settings: null }),
+  )
+  const outermosts = () =>
+    s.store.state
+      .getState()
+      .window.screens.flatMap(sc => ("stages" in sc ? (sc.stages?.stages ?? []) : []))
+      .map(st => st.opened?.outermost ?? null)
+  s.emit("show", { to: "page", page: "h1" })
+  expect(outermosts()).toContainEqual({ kind: "page", id: "h1" })
+  expect(s.sent.at(-1)?.view).toMatchObject({ entry: { kind: "page", id: "h1" }, page: "h1" })
+  const stage = (s.sent.at(-1) as { view: { stage: string } }).view.stage
+  s.emit("show", { to: "book", book: "b1", stage })
+  expect(s.sent.at(-1)?.view).toMatchObject({ entry: { kind: "book", id: "b1" } })
+  s.emit("show", { to: "page", page: "h1", stage })
+  expect(s.sent.at(-1)?.view).toMatchObject({ entry: { kind: "page", id: "h1" }, stage })
+  s.emit("show", { to: "page", page: "h1", split: true })
+  const { view } = s.sent.at(-1) as { view: { stage: string; stages: { id: string; entry?: unknown }[] } }
+  expect(view.stage).not.toBe(stage)
+  expect(view.stages.map(st => st.entry)).toEqual([
+    { kind: "page", id: "h1" },
+    { kind: "page", id: "h1" },
+  ])
 })
 
 test("画面が見つけた warning は、つながりの id を添えて常駐に知らせ、つなぎ直すたびに知らせ直す", async () => {
@@ -953,14 +983,14 @@ test("コントロールセンターがカレントスクリーンの間は、�
   const s = await connected()
   showCenter(s.store)
   expect(s.sent.at(-1)?.view).toEqual({
-    current: "control-center",
+    current: "plain-screen",
     hidden: {
-      book: "b1",
+      entry: { kind: "book", id: "b1" },
       page: "p1",
       mode: "edit",
       selection: [],
       stage: "s1",
-      stages: [{ id: "s1", book: "b1", page: "p1", mode: "edit" }],
+      stages: [{ id: "s1", entry: { kind: "book", id: "b1" }, page: "p1", mode: "edit" }],
       canSplit: true,
     },
   })

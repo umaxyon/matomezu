@@ -32,7 +32,7 @@ test.describe("必ず", () => {
     await page.goto(BOOK_SCREEN_URL)
     await (await fromMenu(page, "印刷プレビュー")).click()
     await expect(page.locator("[data-sheet]")).toHaveCount(4)
-    await expect(page.locator("[data-sheet]").nth(3).locator("svg").first()).toBeVisible() // 右下の区画の背景の楕円
+    await expect(page.locator("[data-sheet]").nth(3).locator("svg").first()).toBeVisible() // 右下の印刷区画の背景の楕円
   })
 })
 

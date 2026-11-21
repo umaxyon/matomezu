@@ -2,13 +2,13 @@
 
 import { useMemo } from "react"
 import { useShallow } from "zustand/react/shallow"
-import { type Annotation, type Annotations, unexpired } from "../../../core/annotation"
-import { pagesOf } from "../../../core/book"
+import { type Annotation, type Annotations, unexpired, usableAnnotations } from "../../../core/annotation"
 import type { MessageKey } from "../../../core/i18n/i18n"
 import { useMatomezuState } from "../../../ui/store-context"
-import { useActions, useBook, useCoreCatalog, usePage, usePerform } from "../../../ui/view-hooks"
+import { useActions, useCoreCatalog, usePage, usePerform } from "../../../ui/view-hooks"
 import { refusalMessage } from "./refusal"
 import { useNow } from "./useNow"
+import { useOpenedPages } from "./useOpenedPages"
 
 const NONE: readonly Annotation[] = []
 
@@ -18,38 +18,43 @@ const EXPIRY_CHECK_MS = 60_000
 // 今の時点（ISO の時刻）。期限を見直す間隔ごとに進む
 const useNowIso = (): string => new Date(useNow(EXPIRY_CHECK_MS)).toISOString()
 
-// 描いているページの、全部のアノテーション。期限の過ぎた物は、常駐が消すまでの間も出さない（この窓で利用者が直している物は出す）
+// 描いているページの、効くアノテーション（usableAnnotations）。期限の過ぎた物は、常駐が消すまでの間も出さない（この窓で利用者が直している物は出す）
 export function useAnnotationsIn(): readonly Annotation[] {
   const catalog = useCoreCatalog()
-  const page = usePage()?.id ?? null
+  const shown = usePage()
+  const page = shown?.id ?? null
   const all = useMatomezuState(s => (page && s.annotations[page]) || NONE)
   const settings = useMatomezuState(s => s.settings)
   const locked = useMatomezuState(
     useShallow(s => Object.values(s.editLocks).flatMap(l => ("within" in l && l.within === page ? l.ids : []))),
   )
   const now = useNowIso()
-  return useMemo(() => unexpired(catalog, all, settings, now, new Set(locked)), [catalog, all, settings, now, locked])
+  const usable = useMemo(() => (shown ? usableAnnotations(catalog, shown, all) : NONE), [catalog, shown, all])
+  return useMemo(
+    () => unexpired(catalog, usable, settings, now, new Set(locked)),
+    [catalog, usable, settings, now, locked],
+  )
 }
 
-// 描いている場所のブックの、ページごとのアノテーション（ページの id → 並び。1 つも無いページは持たない）。期限の過ぎた物は、常駐が消すまでの間も出さない（この窓で利用者が直している物は出す）
-export function useBookAnnotations(): Annotations {
+// 描いている場所のステージで開いている物（ブックか、ブックの外のページ）の、ページごとの効くアノテーション（ページの id → 並び。1 つも無いページは持たない）。期限の過ぎた物は、常駐が消すまでの間も出さない（この窓で利用者が直している物は出す）
+export function useOpenedAnnotations(): Annotations {
   const catalog = useCoreCatalog()
-  const book = useBook()
+  const pages = useOpenedPages()
   const all = useMatomezuState(s => s.annotations)
   const settings = useMatomezuState(s => s.settings)
   const locks = useMatomezuState(s => s.editLocks)
   const now = useNowIso()
   return useMemo(() => {
     const out: Record<string, readonly Annotation[]> = {}
-    for (const p of book ? pagesOf(book) : []) {
+    for (const p of pages) {
       const list = all[p.id]
       if (!list) continue
       const locked = Object.values(locks).flatMap(l => ("within" in l && l.within === p.id ? l.ids : []))
-      const live = unexpired(catalog, list, settings, now, new Set(locked))
+      const live = unexpired(catalog, usableAnnotations(catalog, p, list), settings, now, new Set(locked))
       if (live.length > 0) out[p.id] = live
     }
     return out
-  }, [catalog, book, all, settings, now, locks])
+  }, [catalog, pages, all, settings, now, locks])
 }
 
 // 描いているページの、種類 annotation のアノテーション
@@ -70,11 +75,13 @@ export function usePerformOrToast(
   ) => { ok: boolean; result?: unknown }
   const catalog = useCoreCatalog()
   const { showToast } = useActions()
-  const drawn = usePage()?.id ?? ""
+  const drawn = usePage()?.id
   return (action, args, page) => {
-    const done = perform(action, args, { page: page ?? drawn })
-    if (done.ok) return (done.result as object | undefined) ?? {}
-    showToast({ kind: "warn", message: refusalMessage(catalog, done as never, refused) })
+    const on = page ?? drawn
+    // 宛先のページが無ければ行わず、断りの理由の無い断りと同じに知らせる
+    const done = on === undefined ? null : perform(action, args, { page: on })
+    if (done?.ok) return (done.result as object | undefined) ?? {}
+    showToast({ kind: "warn", message: done ? refusalMessage(catalog, done as never, refused) : refused })
     return false
   }
 }

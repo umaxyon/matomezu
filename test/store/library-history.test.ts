@@ -109,7 +109,7 @@ test("ブックが対象のアクションと同じ処理の中で行っても�
   expect(Object.keys(history().undo[0]!.folders)).not.toContain("b1")
   const inBook = store.state.getState().history.b1
   expect(inBook?.undo).toHaveLength(1)
-  expect(inBook?.undo[0]?.books).toEqual(["b1"])
+  expect(inBook?.undo[0]?.outermosts).toEqual(["b1"])
   expect(Object.keys(inBook!.undo[0]!.folders)).toEqual(["b1"])
 })
 
@@ -357,7 +357,9 @@ test("置き直しは、ロックの印を外せない（外せるのは、掛�
     reason: "denied",
     permission: "@matomezu/base:lock",
   })
-  expect(perform("@matomezu/base:book-revert", { books: [book], ...unlock })).toMatchObject({
+  expect(
+    perform("@matomezu/base:history-revert", { outermosts: [{ kind: "book", id: book }], ...unlock }),
+  ).toMatchObject({
     ok: false,
     reason: "denied",
   })

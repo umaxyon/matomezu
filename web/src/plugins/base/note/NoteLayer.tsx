@@ -13,6 +13,7 @@
 // 表示で吹き出しに戻し、消すで伝言を消す（タッチでは出さず、右サイドパネルのボタンを使う。既読のチェックには出さない。変えられないときと、角の絵を押せない間は出さない）。
 // 吹き出しの色はスキンの bubble だけで、物や伝言の様子では変えない。右サイドパネルが伝言を出している間は、付ける先に鳥を出す（NoteBirds）
 import type { MouseEvent, ReactNode } from "react"
+import type { Anchors } from "../../../core/annotation"
 import { useMessages } from "../../../ui/i18n"
 import { useReadStageHere } from "../../../ui/scope"
 import { useActions, useAllowed } from "../../../ui/view-hooks"
@@ -31,6 +32,7 @@ import { StandAt, useStandAway, useStandFacing } from "../stand/anchors"
 import { StandPointer } from "../stand/StandPointer"
 import { facingY } from "../stand/stand-place"
 import { clampChars } from "../text/text"
+import { lastAnchor } from "../utils/anchors"
 import { useAnnotationsOf, usePerformOrToast } from "../utils/annotation-hooks"
 import { modPressed } from "../utils/ui"
 import { NOTE, NOTE_REMOVE, NOTE_UPDATE, type NoteProps } from "."
@@ -62,14 +64,14 @@ export function NoteLayer() {
 // 伝言の吹き出し・絵・チェックを押したとき: 選択に従う中身を出している間は、物を押したのと同じに選ぶ（Mod なら足す・外す）。
 // 右サイドパネルがほかの物を出している間は閉じるだけ。そうでなければ、伝言 note（付けた先 anchors、吹き出しの物は最後）で開く。
 // busy は、右サイドパネルが、新しく書いている伝言でもこの伝言でもない物を出しているか（角の絵とチェックは、その間は薄くして押せない）
-function useOpenNote(note: string, anchors: readonly string[]) {
+function useOpenNote(note: string, anchors: Anchors) {
   const openPanel = useOpenRightSidePanel()
   const closePanel = useCloseRightSidePanel()
   const shown = useRightSidePanel()
   const follows = useFollowsSelection()
   const readStage = useReadStageHere()
   const { select } = useActions()
-  const anchor = anchors.at(-1) ?? ""
+  const anchor = lastAnchor(anchors)
   const busy = !!shown && shown.subject !== note && shown.subject !== NEW_NOTE
   // 物を押したときと同じく、焦点はスタンドに残さない（スタンドはキーを外へ渡さず、Esc で閉じられなくなる）
   const pick = (e: MouseEvent<HTMLButtonElement>) => {
@@ -88,14 +90,14 @@ function useOpenNote(note: string, anchors: readonly string[]) {
 
 interface NoteViewProps {
   id: string
-  anchors: readonly string[]
+  anchors: Anchors
   props: NoteProps
 }
 
 // AI が読んだ伝言: 物の右上の角に、緑の丸のチェック。物が見える所の外にある間は、縁に緑の丸のチェックのマークポインタ
 function ReadNote({ id, anchors, props }: NoteViewProps) {
   const t = useMessages(kit)
-  const anchor = anchors.at(-1) ?? ""
+  const anchor = lastAnchor(anchors)
   const { open, busy } = useOpenNote(id, anchors)
   return (
     <AtCorner
@@ -164,7 +166,7 @@ function ReadPointer({ anchor, center }: { anchor: string; center: { x: number; 
 // 吹き出しを出す、読まれていない伝言（物の右。入らなければ範囲の右の端で止める）
 function BubbleStand({ id, anchors, props }: NoteViewProps) {
   const t = useMessages(kit)
-  const anchor = anchors.at(-1) ?? ""
+  const anchor = lastAnchor(anchors)
   const { open } = useOpenNote(id, anchors)
   const asks = useNoteAsks(id, "hide")
   return (
@@ -181,7 +183,7 @@ function BubbleStand({ id, anchors, props }: NoteViewProps) {
 // たたんだ、読まれていない伝言: 物の右上の角に伝言の絵
 function FoldedNote({ id, anchors, props }: NoteViewProps) {
   const t = useMessages(kit)
-  const anchor = anchors.at(-1) ?? ""
+  const anchor = lastAnchor(anchors)
   const { open, busy } = useOpenNote(id, anchors)
   const asks = useNoteAsks(id, "showOrRemove")
   return (

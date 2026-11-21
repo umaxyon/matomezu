@@ -6,12 +6,14 @@
 // 右クリックのメニューのコマンド note-new（押した物に伝言を書き始める）と、右サイドパネルで書いた伝言を送るコマンド note-send（Mod+Enter）もここ
 import { z } from "zod"
 import type { Annotation } from "../../../core/annotation"
-import { type CommandContext, NO_BOOK, NO_PAGE } from "../../../store/commands/def"
+import { type CommandContext, NO_PAGE } from "../../../store/commands/def"
 import { anchorsFor } from "../context-menu/anchor-targets"
 import { kit } from "../kit"
 import { openRightSidePanelIn, RIGHT_SIDE_PANEL_STATE, type RightSidePanelOpen } from "../right-side-panel/state"
+import { AnchorsArg } from "../utils/anchors"
 import { freshId } from "../utils/ids"
 import { type InPlaceDraft, inPlaceText } from "../utils/in-place"
+import { hasOpenedPage } from "../utils/opened-page"
 import { refusalMessage } from "../utils/refusal"
 import { expiryFrom, NOTE_EXPIRY } from "./expiry"
 import { NEW_NOTE, NOTE_PANEL_ID } from "./panel-id"
@@ -87,7 +89,7 @@ export const NOTE_ADD = kit.defineAction({
   target: "annotations",
   userOnly: true,
   args: z.strictObject({
-    anchors: z.array(z.string().min(1)).min(1),
+    anchors: AnchorsArg,
     text: TEXT,
     bubble: z.boolean().optional(),
   }),
@@ -97,7 +99,7 @@ export const NOTE_ADD = kit.defineAction({
       annotations.map(a => a.id),
     )
     const props: NoteProps = { text: args.text, bubble: args.bubble ?? true, addedAt: ctx.now }
-    const note: Annotation = { id, annotation: NOTE.id, anchors: [...new Set(args.anchors)], props }
+    const note: Annotation = { id, annotation: NOTE.id, anchors: args.anchors, props }
     return { next: { page, annotations: [...annotations, note] }, result: { note: id } }
   },
 })
@@ -113,12 +115,12 @@ export const NOTE_UPDATE = kit.defineAction({
   args: z.strictObject({
     note: z.string().min(1),
     text: TEXT.optional(),
-    anchors: z.array(z.string().min(1)).min(1).optional(),
+    anchors: AnchorsArg.optional(),
     bubble: z.boolean().optional(),
   }),
   run: ({ page, annotations }, { note, anchors, ...change }) => {
     const found = findNote(annotations, note)
-    const moved = anchors ? [...new Set(anchors)] : found?.anchors
+    const moved = anchors ?? found?.anchors
     const sameAnchors =
       !!found && !!moved && moved.length === found.anchors.length && moved.every((id, i) => found.anchors[i] === id)
     const next = changeNote(annotations, note, p => {
@@ -202,7 +204,7 @@ export const NOTE_NEW = kit.defineCommand({
       anchors: anchorsFor(anchor, ctx.stage.selection),
       current: anchor,
     }),
-  when: ctx => ctx.book !== NO_BOOK,
+  when: hasOpenedPage,
 })
 
 // 右サイドパネルで書いている伝言の文（target は伝言の id。新しく書く伝言なら NEW_NOTE）。無ければ、伝言の今の文のまま。

@@ -1,7 +1,7 @@
 // 描いている場所: ビューのまわりに置く、描くページと、操作の向け先の組。提供はこの 1 つだけで、ページと向け先は必ず一緒に置く
 // （ステージの外で見るだけに描くページを置くと、外のステージの向け先は必ず消える。別々に置けないので、食い違わない）。
 //   ステージ: 描くページはそのステージが開いている物、向け先はそのステージ（StageScope）
-//   ステージの外で見るだけに描くページ: 描くページは渡されたブックのページ、向け先は無し（PageScope。ページ一覧のサムネイル・スクラップの中・印刷プレビューの区画）
+//   ステージの外で見るだけに描くページ: 描くページは渡されたブックのページ、向け先は無し（PageScope。ページ一覧のサムネイル・スクラップの中・印刷プレビューの印刷区画）
 //   スクリーン: 描くページは無く、向け先はそのスクリーン（ステージを持たないスクリーンから開いたダイアログなど。ActsOnScope）
 //   何も置いていない所: 描いているスクリーン（ui/screen-context.tsx）が向け先。スクリーンの外（窓の根）なら窓
 // フック（ui/view-hooks.ts など）は、読む物を描くページから、操作を向け先から引く。向け先が無い所からは、何も行えない。
@@ -102,19 +102,19 @@ export function useAt(): string | null {
   return actsOn.kind === "screen" ? actsOn.screen : actsOn.kind === "window" ? NO_STAGE : null
 }
 
-// 描くページの、ブックの id とページの id（描くページが無ければ null。ページを開いていなければ page は null）
-export function openedOf(s: MatomezuState, scope: Scope): { book: string; page: string | null } | null {
+// 描くページの、ステージエントリの id とページの id（描くページが無ければ null。ページを開いていなければ page は null）
+export function openedOf(s: MatomezuState, scope: Scope): { outermost: string; page: string | null } | null {
   const ref = scope.page
   if (!ref) return null
-  if (ref.from === "page") return { book: ref.book, page: ref.page }
+  if (ref.from === "page") return { outermost: ref.book, page: ref.page }
   const opened = stageIn(s.window, ref.stage)?.opened
-  return opened ? { book: opened.outermost, page: shownPageId(opened) } : null
+  return opened ? { outermost: opened.outermost.id, page: shownPageId(opened) } : null
 }
 
 // 描くページのブック（無ければ null）
 export function bookOf(s: MatomezuState, scope: Scope): Book | null {
   const o = openedOf(s, scope)
-  return o ? (s.books[o.book] ?? null) : null
+  return o ? (s.books[o.outermost] ?? null) : null
 }
 
 // 描くページ（ページを開いていなければ null）

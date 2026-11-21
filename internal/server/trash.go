@@ -17,7 +17,7 @@ func (h *Hub) inTrash(id string) bool {
 	return slices.Contains(h.foldersAbove(id), storage.TrashID)
 }
 
-// trashesShown は、新しくゴミ箱に入るブック ids が、どこかの窓に出ているか（h.mu を持って呼ぶ）
+// trashesShown は、新しくゴミ箱に入るステージエントリ（ブックか、ブックの外のページ）ids が、どこかの窓に出ているか（h.mu を持って呼ぶ）
 func (h *Hub) trashesShown(ids []string) bool {
 	for _, id := range ids {
 		for _, c := range h.clients {

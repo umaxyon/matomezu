@@ -6,8 +6,8 @@ import { useActions } from "../../../plugin-api/ui"
 import { TOPIC_BODY } from "../ticket-history"
 import { TICKET_HISTORY_ADD } from "../ticket-history/actions"
 
-// 開いているチケット ticket（無ければ undefined）の、離れたときに足す関数 markEdited（本文を直したと知らせる）を返す
-export function useBodyUpdateLine(ticket: string | undefined): () => void {
+// 開いているチケット ticket の、離れたときに足す関数 markEdited（本文を直したと知らせる）を返す
+export function useBodyUpdateLine(ticket: string): () => void {
   const { perform } = useActions()
   const act = useRef(perform)
   act.current = perform
@@ -15,7 +15,7 @@ export function useBodyUpdateLine(ticket: string | undefined): () => void {
   useEffect(() => {
     edited.current = false
     return () => {
-      if (ticket && edited.current) act.current(TICKET_HISTORY_ADD.id, { ticket, topic: TOPIC_BODY.id, text: "" })
+      if (edited.current) act.current(TICKET_HISTORY_ADD.id, { ticket, topic: TOPIC_BODY.id, text: "" })
       edited.current = false
     }
   }, [ticket])

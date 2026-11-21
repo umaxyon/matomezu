@@ -8,10 +8,11 @@
 //      join の合言葉（link）はここで作り、開発の常駐に前もって承認させておく（画面で受け入れずに入る。開発用の口 /api/dev/rejoin-pass）
 //   4. join が参加者 id を返したら、手が空くのを待って、もう一言送る。セッションと参加者を結ぶのは利用者が話しかけたときのフックなので、
 //      join の頼みが最後の発話のままだと結ばれず、画面で準備中のまま残る
-// サブは Orca にエージェントとして見えない（claude-relay.sh で起動するため）ので、Orca の端末に打ち込んで進める
+// サブは Orca にエージェントとして見えない（claude-relay.sh で起動するため）ので、Orca の端末に打ち込んで進める。
+// 端末は、そのワークルームに参加している claude のプロセスから探す（workroomOf・terminalOf）
 import { execFile, execFileSync } from "node:child_process"
 import { randomUUID } from "node:crypto"
-import { readdirSync, readFileSync, readlinkSync, statSync } from "node:fs"
+import { existsSync, readdirSync, readFileSync, readlinkSync, statSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { promisify } from "node:util"
@@ -29,12 +30,6 @@ export function parseTarget(arg: string): Target {
   // subN だけは subN_work の略として読む（main_manager などはそのまま）
   const workroom = /^sub\d+$/.test(name) ? `${name}_work` : name
   return model ? { workroom, model } : { workroom }
-}
-
-// Orca が返す \\wsl.localhost\<ディストリ>\home\... を WSL のパスに直す
-export function wslPath(orcaPath: string): string {
-  const m = /^\\\\wsl(?:\.localhost|\$)\\[^\\]+(\\.*)$/.exec(orcaPath)
-  return m?.[1] ? m[1].replaceAll("\\", "/") : orcaPath
 }
 
 // Claude Code が会話の記録を置くフォルダ（作業フォルダの英数字以外を - にした名前）
@@ -108,6 +103,42 @@ export function joinedSince(jsonl: string, since: number): boolean {
   )
 }
 
+// 会話の記録から、参加しているワークルームの名前を読む。利用者が話しかけたときのフックが足した知らせ（英語か日本語）の最後の物、
+// 無ければ参加者 id を返した最後の join に渡した workroom。ツールの入力や答えに出てくる同じ文（ファイルの中身など）は読まない
+const JOINED = /(?:oined matomezu\. Workroom name|matomezu に参加しました。ワークルーム名): (\S+)/
+
+type Attachment = { type?: string; attachment?: { type?: string; content?: unknown } }
+
+export function workroomOf(jsonl: string): string | undefined {
+  const told = jsonl.split("\n").flatMap(line => {
+    if (!line.includes("hook_additional_context")) return []
+    try {
+      const a = (JSON.parse(line) as Attachment).attachment
+      if (a?.type !== "hook_additional_context" || !Array.isArray(a.content)) return []
+      return a.content.flatMap(c => (typeof c === "string" ? [JOINED.exec(c)?.[1]].filter(w => w !== undefined) : []))
+    } catch {
+      return []
+    }
+  })
+  if (told.length > 0) return told.at(-1)
+  const all = entries(jsonl)
+  const asked = new Map<string, string>()
+  for (const e of all)
+    for (const b of blocks(e)) {
+      const workroom = (b as { input?: { workroom?: unknown } }).input?.workroom
+      if (b.type === "tool_use" && b.id && /matomezu__join$/.test(b.name ?? "") && typeof workroom === "string")
+        asked.set(b.id, workroom)
+    }
+  const joined = all.flatMap(e =>
+    blocks(e).flatMap(b =>
+      b.type === "tool_result" && asked.has(b.tool_use_id ?? "") && /"participant"/.test(resultText(b.content))
+        ? [asked.get(b.tool_use_id ?? "") as string]
+        : [],
+    ),
+  )
+  return joined.at(-1)
+}
+
 export type Readiness = "ready" | "not-ready" | "no-answer"
 
 export function readiness(text: string | undefined): Readiness {
@@ -161,50 +192,66 @@ async function orca(args: string[], timeoutMs = 60_000): Promise<unknown> {
   return parsed.result
 }
 
-type Terminal = { handle: string; title: string; worktreePath: string }
-type Layout = { root?: unknown }
+type Sub = { pid: number; handle: string; cwd: string }
 
-function tabTitles(node: unknown, out: Map<string, string>): void {
-  if (!node || typeof node !== "object") return
-  const n = node as {
-    tabs?: { title?: string; panes?: unknown }[]
-    children?: unknown[]
-    handle?: string
-    type?: string
+// claude のプロセスの環境変数から、それが動いている Orca の端末（Orca が端末ごとに渡す ORCA_TERMINAL_HANDLE）
+function terminalOf(pid: number): string | undefined {
+  try {
+    const env = readFileSync(`/proc/${pid}/environ`, "utf8").split("\0")
+    return env.find(e => e.startsWith("ORCA_TERMINAL_HANDLE="))?.slice("ORCA_TERMINAL_HANDLE=".length) || undefined
+  } catch {
+    return undefined
   }
-  for (const tab of n.tabs ?? []) collectHandles(tab.panes, tab.title ?? "", out)
-  for (const c of n.children ?? []) tabTitles(c, out)
 }
 
-function collectHandles(node: unknown, title: string, out: Map<string, string>): void {
-  if (!node || typeof node !== "object") return
-  const n = node as { type?: string; handle?: string; children?: unknown[] }
-  if (n.type === "terminal" && n.handle) out.set(n.handle, title)
-  for (const c of n.children ?? []) collectHandles(c, title, out)
+// claude のプロセスの会話の記録。Claude Code が ~/.claude/sessions/<pid>.json に書く sessionId から決める
+// （公式の口ではないので、ここだけで読む。無ければ作業フォルダの最新の記録）
+function transcriptOf(pid: number, cwd: string): string | undefined {
+  try {
+    const { sessionId } = JSON.parse(readFileSync(join(homedir(), ".claude", "sessions", `${pid}.json`), "utf8")) as {
+      sessionId?: string
+    }
+    const file = sessionId ? join(projectDir(cwd), `${sessionId}.jsonl`) : undefined
+    if (file && existsSync(file)) return file
+  } catch {}
+  return latestTranscript(cwd)
 }
 
-async function findTerminal(workroom: string): Promise<Terminal> {
-  const r = (await orca(["terminal", "list", "--include-visual-layouts"])) as {
-    terminals: Terminal[]
-    visualLayouts?: Layout[]
-  }
-  const tabOf = new Map<string, string>()
-  for (const l of r.visualLayouts ?? []) tabTitles(l.root, tabOf)
-  const byTab = r.terminals.filter(t => tabOf.get(t.handle) === workroom)
-  const found = byTab.length > 0 ? byTab : r.terminals.filter(t => t.title === workroom)
+function allClaudePids(): number[] {
+  return readdirSync("/proc").flatMap(d => {
+    if (!/^\d+$/.test(d)) return []
+    try {
+      return readFileSync(`/proc/${d}/comm`, "utf8").trim() === "claude" ? [Number(d)] : []
+    } catch {
+      return []
+    }
+  })
+}
+
+// ワークルーム workroom に参加している、Orca の端末で動く claude
+function findSub(workroom: string): Sub {
+  const found = allClaudePids().flatMap(pid => {
+    const handle = terminalOf(pid)
+    if (!handle) return []
+    try {
+      const cwd = readlinkSync(`/proc/${pid}/cwd`)
+      const transcript = transcriptOf(pid, cwd)
+      return transcript && workroomOf(readFileSync(transcript, "utf8")) === workroom ? [{ pid, handle, cwd }] : []
+    } catch {
+      return []
+    }
+  })
   const [only, ...rest] = found
-  if (!only || rest.length > 0) throw new Error(`タブ ${workroom} の端末が ${found.length} 個`)
+  if (!only || rest.length > 0) throw new Error(`${workroom} に参加している Orca の端末の claude が ${found.length} 個`)
   return only
 }
 
 function claudePids(cwd: string): number[] {
-  return readdirSync("/proc").flatMap(d => {
-    if (!/^\d+$/.test(d)) return []
+  return allClaudePids().filter(pid => {
     try {
-      if (readFileSync(`/proc/${d}/comm`, "utf8").trim() !== "claude") return []
-      return readlinkSync(`/proc/${d}/cwd`) === cwd ? [Number(d)] : []
+      return readlinkSync(`/proc/${pid}/cwd`) === cwd
     } catch {
-      return []
+      return false
     }
   })
 }
@@ -247,9 +294,10 @@ async function waitIdle(handle: string, timeoutMs: number): Promise<void> {
 
 async function restart(target: Target, opts: { dryRun: boolean; timeoutMs: number }): Promise<void> {
   const log = (s: string) => console.log(`[${target.workroom}] ${s}`)
-  const term = await findTerminal(target.workroom)
-  const cwd = wslPath(term.worktreePath)
-  const transcript = latestTranscript(cwd)
+  const sub = findSub(target.workroom)
+  const term = { handle: sub.handle }
+  const cwd = sub.cwd
+  const transcript = transcriptOf(sub.pid, cwd)
   const model = target.model ?? (transcript ? lastModel(readFileSync(transcript, "utf8")) : undefined)
   if (!model) throw new Error("モデルが分からない（sub:モデル で指定する）")
   const pids = claudePids(cwd)

@@ -4,7 +4,7 @@
 import type { CommandContext } from "../../../plugin-api"
 import { hasOpenedPage } from "../../base"
 import { kit } from "./kit"
-import { MARKDOWN_PRESENTATION, SOURCE_KEYS_SCOPE } from "./markdown"
+import { MARKDOWN_PRESENTATION, SOURCE_KEY_SCOPE } from "./markdown"
 import {
   type ChosenLayout,
   chosenWith,
@@ -67,43 +67,43 @@ export const PANE_SHOW_RENDERED = kit.defineCommand({
 export const PANE_LAYOUT_COMMANDS = [PANE_SHOW_SOURCE, PANE_SPLIT_ROW, PANE_SPLIT_COLUMN, PANE_SHOW_RENDERED] as const
 
 export const SOURCE_KEYS = [
-  kit.defineKey({ id: "source-undo-mod-z", key: "Mod+Z", command: "@matomezu/base:undo", scope: SOURCE_KEYS_SCOPE }),
+  kit.defineKey({ id: "source-undo-mod-z", key: "Mod+Z", command: "@matomezu/base:undo", scope: SOURCE_KEY_SCOPE.id }),
   kit.defineKey({
     id: "source-redo-mod-shift-z",
     key: "Mod+Shift+Z",
     command: "@matomezu/base:redo",
-    scope: SOURCE_KEYS_SCOPE,
+    scope: SOURCE_KEY_SCOPE.id,
   }),
-  kit.defineKey({ id: "source-redo-mod-y", key: "Mod+Y", command: "@matomezu/base:redo", scope: SOURCE_KEYS_SCOPE }),
+  kit.defineKey({ id: "source-redo-mod-y", key: "Mod+Y", command: "@matomezu/base:redo", scope: SOURCE_KEY_SCOPE.id }),
   // 書いている途中でも base の検索を開き、次・前へ移る（テキストFormの中のキーは、この範囲だけで引くため）
   kit.defineKey({
     id: "source-search-mod-f",
     key: "Mod+F",
     command: "@matomezu/base:search-open",
-    scope: SOURCE_KEYS_SCOPE,
+    scope: SOURCE_KEY_SCOPE.id,
   }),
   kit.defineKey({
     id: "source-search-book-mod-shift-f",
     key: "Mod+Shift+F",
     command: "@matomezu/base:search-open-book",
-    scope: SOURCE_KEYS_SCOPE,
+    scope: SOURCE_KEY_SCOPE.id,
   }),
   kit.defineKey({
     id: "source-search-replace-mod-alt-f",
     key: "Mod+Alt+F",
     command: "@matomezu/base:search-open-replace",
-    scope: SOURCE_KEYS_SCOPE,
+    scope: SOURCE_KEY_SCOPE.id,
   }),
   kit.defineKey({
     id: "source-search-next-f3",
     key: "F3",
     command: "@matomezu/base:search-next",
-    scope: SOURCE_KEYS_SCOPE,
+    scope: SOURCE_KEY_SCOPE.id,
   }),
   kit.defineKey({
     id: "source-search-previous-shift-f3",
     key: "Shift+F3",
     command: "@matomezu/base:search-previous",
-    scope: SOURCE_KEYS_SCOPE,
+    scope: SOURCE_KEY_SCOPE.id,
   }),
 ]

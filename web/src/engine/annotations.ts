@@ -2,22 +2,35 @@
 // 台帳アセンブルの結果（Assembled）は、呼ぶたびに引数で受ける
 
 import { annotationBriefs, annotationsForAi, checkAnnotations, restoreAnnotations, unexpired } from "../core/annotation"
-import { pagesOf, restoreBooks } from "../core/book"
+import { pagesOf, readablePage, restoreBooks } from "../core/book"
+import type { CoreCatalog } from "../core/core-catalog"
 import { splitId } from "../core/names"
+import type { ItemPage } from "../core/placed"
 import { restoreSettings } from "../core/settings"
 import { warningText } from "../core/warnings"
 import type { Assembled } from "../store/plugin"
 
-// ブックと、そのページごとのアノテーション（ページの id → 並び）の組（常駐が渡す）
-interface AnnotatedBook {
-  book: unknown
-  annotations: Readonly<Record<string, unknown>>
+// ステージエントリ（ブックか、ブックの外のページ）と、そのページごとのアノテーション（ページの id → 並び）の組（常駐が渡す）
+type Annotated = { annotations: Readonly<Record<string, unknown>> } & (
+  | { kind: "book"; book: unknown }
+  | { kind: "page"; page: unknown }
+)
+
+// 組 p のステージエントリのページ（ブックなら並びの全部、ブックの外のページならその 1 枚）。読めなければ null
+function pagesOfAnnotated(catalog: CoreCatalog, p: Annotated): readonly ItemPage[] | null {
+  if (p.kind === "book") {
+    const [book] = restoreBooks(catalog, [p.book])
+    return book ? pagesOf(book) : null
+  }
+  const page = typeof p.page === "object" && p.page !== null ? readablePage(catalog, p.page) : undefined
+  return page ? [page as ItemPage] : null
 }
 
 // engine.ts の matomezuCheckAnnotations の中身
 export function checkAnnotationLines(of: Assembled, pairs: string): string {
   const catalog = of.catalog.core
-  const lines = (JSON.parse(pairs) as AnnotatedBook[]).flatMap(p => {
+  const lines = (JSON.parse(pairs) as Annotated[]).flatMap(p => {
+    if (p.kind !== "book") return []
     const [book] = restoreBooks(catalog, [p.book])
     return book
       ? pagesOf(book).flatMap(page =>
@@ -31,10 +44,10 @@ export function checkAnnotationLines(of: Assembled, pairs: string): string {
 // engine.ts の matomezuAiAnnotations の中身
 export function aiAnnotationsOf(of: Assembled, pairs: string): string {
   const catalog = of.catalog.core
-  const out = (JSON.parse(pairs) as AnnotatedBook[]).map(p => {
-    const [book] = restoreBooks(catalog, [p.book])
-    return book
-      ? pagesOf(book).flatMap(page => annotationsForAi(catalog, page, restoreAnnotations(p.annotations[page.id])))
+  const out = (JSON.parse(pairs) as Annotated[]).map(p => {
+    const pages = pagesOfAnnotated(catalog, p)
+    return pages
+      ? pages.flatMap(page => annotationsForAi(catalog, page, restoreAnnotations(p.annotations[page.id])))
       : Object.entries(p.annotations).flatMap(([page, list]) =>
           restoreAnnotations(list).map(a => ({ ...a, page, awaits: false })),
         )
@@ -45,15 +58,14 @@ export function aiAnnotationsOf(of: Assembled, pairs: string): string {
 // engine.ts の matomezuAiBriefs の中身
 export function aiBriefsOf(of: Assembled, pairs: string): string {
   const catalog = of.catalog.core
-  const out = (JSON.parse(pairs) as AnnotatedBook[]).map(p => {
-    const [book] = restoreBooks(catalog, [p.book])
-    return Object.fromEntries(
-      (book ? pagesOf(book) : []).map(page => [
+  const out = (JSON.parse(pairs) as Annotated[]).map(p =>
+    Object.fromEntries(
+      (pagesOfAnnotated(catalog, p) ?? []).map(page => [
         page.id,
         annotationBriefs(catalog, page, restoreAnnotations(p.annotations[page.id])),
       ]),
-    )
-  })
+    ),
+  )
   return JSON.stringify(out)
 }
 

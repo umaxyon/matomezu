@@ -91,6 +91,9 @@ type hookInput struct {
 	Host           string `json:"-"`               // AI のプログラムのプロセス id（フックが --host で渡す）
 	Woken          bool   `json:"-"`               // 起こす知らせで始まったターン（フックが --woken で渡す。渡せない AI のプログラムは、その AI の事情で入力から見分ける。hookPrompt。知らせをそのまま入力の道で受ける AI のプログラムは、talked に添える入力を常駐が照らす）
 	Titled         bool   `json:"-"`               // formatHook の答えに sessionTitle を書くか（それを読む AI のプログラムだけ。知らない項目のある JSON を断る AI がある）
+	Cwd            string `json:"cwd"`             // AI のセッションのフォルダ
+	// Rename は、作業名を ADE のワークスペースの表示名にも書く（dir は AI のセッションのフォルダ。答えを書いたあとに呼ぶ。nil なら書かない）
+	Rename func(dir, name string) `json:"-"`
 }
 
 // eventName は、フックの出力に書くイベント名（入力のイベント名。無ければ UserPromptSubmit）
@@ -128,7 +131,9 @@ type talkReply struct {
 		Message  string `json:"message"`
 		ForAI    string `json:"forAi"`
 	} `json:"welcomes"`
-	Unbound bool `json:"unbound"`
+	Unbound   bool   `json:"unbound"`
+	ForAI     string `json:"forAi"`     // 知らせで始まったターンなら、AI に伝える文
+	WorkTitle string `json:"workTitle"` // 作業名（セッション名に書く。書かないなら空）
 }
 
 const (
@@ -150,25 +155,28 @@ const (
 type talkedSplit struct {
 	Message      string `json:"message,omitempty"`      // 利用者に見せる文
 	ForAI        string `json:"forAi,omitempty"`        // AI に足す文（このターンの AI への入力に添える）
-	SessionTitle string `json:"sessionTitle,omitempty"` // 会話の題名（参加者が 1 人なら、そのワークルームの名前）
+	SessionTitle string `json:"sessionTitle,omitempty"` // 会話の題名（常駐が決めた作業名）
 }
 
 // talked はターンの始まりを常駐に知らせ、out に答えの形 format（formatHook か formatSplit）で書く。context は、フックが AI に添える文（annotations の出力など）。
-// formatHook では、伝えることがあるときは 1 つの JSON を書き、無ければ context だけをそのまま書く（フックの出力は JSON か文のどちらか 1 つ）
+// formatHook では、伝えることがあるときは 1 つの JSON を書き（利用者に見せる文が無ければ systemMessage は書かない）、無ければ context だけをそのまま書く（フックの出力は JSON か文のどちらか 1 つ）
 func talked(out io.Writer, hook hookInput, context, format string, api hookAPI) {
 	var reply talkReply
 	if api != nil {
 		reply = askTalked(hook, api)
 	}
 	var say, ai []string
+	if reply.ForAI != "" {
+		ai = append(ai, reply.ForAI)
+	}
 	for _, w := range reply.Welcomes {
 		say = append(say, w.Message)
 		ai = append(ai, w.ForAI)
 	}
-	// 参加者が 1 人なら、その名前をセッション名にする（元のセッション名は常駐の参加者が持っている）
-	title := ""
-	if len(reply.Welcomes) == 1 {
-		title = reply.Welcomes[0].Workroom
+	// セッション名に書く作業名は常駐が決める（結ばれた参加者が 1 人で、利用者の設定が書き換えを止めていないときだけ。元のセッション名は常駐の参加者が持っている）
+	title := reply.WorkTitle
+	if title != "" && hook.Rename != nil {
+		defer hook.Rename(hook.Cwd, title)
 	}
 	forAI := strings.TrimSpace(strings.Join(append(ai, context), "\n"))
 	if format == formatSplit {
@@ -178,7 +186,7 @@ func talked(out io.Writer, hook hookInput, context, format string, api hookAPI) 
 		}
 		return
 	}
-	if len(reply.Welcomes) == 0 {
+	if len(reply.Welcomes) == 0 && reply.ForAI == "" && (title == "" || !hook.Titled) {
 		if strings.TrimSpace(context) != "" {
 			fmt.Fprintln(out, strings.TrimRight(context, "\n"))
 		}
@@ -188,10 +196,11 @@ func talked(out io.Writer, hook hookInput, context, format string, api hookAPI) 
 	if title != "" && hook.Titled {
 		special["sessionTitle"] = title
 	}
-	_ = json.NewEncoder(out).Encode(map[string]any{
-		"systemMessage":      strings.Join(say, "\n"),
-		"hookSpecificOutput": special,
-	})
+	answer := map[string]any{"hookSpecificOutput": special}
+	if len(say) > 0 {
+		answer["systemMessage"] = strings.Join(say, "\n")
+	}
+	_ = json.NewEncoder(out).Encode(answer)
 }
 
 // askTalked は、ターンの始まりを知らせ、結ばれていない参加者がいるなら会話の記録を後ろから調べて結ばせる。常駐の答えが読めなければ空を返す
@@ -246,6 +255,9 @@ func askTalked(hook hookInput, api hookAPI) talkReply {
 		}
 		reply.Unbound = next.Unbound
 		reply.Welcomes = append(reply.Welcomes, next.Welcomes...)
+		if next.WorkTitle != "" { // 結べたら、作業名も決まる
+			reply.WorkTitle = next.WorkTitle
+		}
 	}
 	return reply
 }
@@ -266,4 +278,20 @@ func permission(out io.Writer, hook hookInput) {
 	if name, ok := claudelaunch.MatomezuTool(hook.ToolName); ok && mcp.ReadOnly(name) {
 		claudelaunch.AllowTool(out, "matomezu tool that only reads")
 	}
+}
+
+// workTitle は、ターンの終わりのフック: 常駐に作業名を訊き、ADE のワークスペースの表示名に書く（何も出さない。常駐が立っていない・名前が無ければ何もしない）
+func workTitle(hook hookInput, api hookAPI) {
+	if api == nil || hook.SessionID == "" || hook.Rename == nil {
+		return
+	}
+	body, _ := json.Marshal(map[string]any{"sessionId": hook.SessionID})
+	out, err := api(body)
+	var reply struct {
+		WorkTitle string `json:"workTitle"`
+	}
+	if err != nil || json.Unmarshal(out, &reply) != nil || reply.WorkTitle == "" {
+		return
+	}
+	hook.Rename(hook.Cwd, reply.WorkTitle)
 }

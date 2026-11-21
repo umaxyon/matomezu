@@ -3,7 +3,7 @@
 import { pageType } from "../../../core/core-catalog"
 import { slideIsBackground } from "../../../core/def/page-type"
 import { editingBackground as isEditing } from "../../../core/stage"
-import type { CommandActions, CommandContext } from "../../../store/commands/def"
+import { type CommandActions, type CommandContext, NO_BOOK } from "../../../store/commands/def"
 import { kit } from "../kit"
 import { PAGE_UPDATE } from "../pages/page-update"
 import { BACKGROUND_PRINT, type BackgroundPrint } from "../print-preview/settings"
@@ -75,5 +75,6 @@ export const BACKGROUND_PRINT_SET = kit.defineCommand({
     if (!hasOpenedPage(ctx)) return
     a.perform(PAGE_UPDATE.id, { settings: { [BACKGROUND_PRINT.id]: mode } }, { page: ctx.page.id })
   },
-  when: editingBackground,
+  // ブックの外のページには印刷が無いので、出さない
+  when: ctx => editingBackground(ctx) && ctx.book !== NO_BOOK,
 })

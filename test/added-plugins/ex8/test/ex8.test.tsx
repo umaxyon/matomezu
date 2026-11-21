@@ -50,7 +50,7 @@ test("単語帳を開くと、カードのプレゼンテーションのビュ�
   expect([...document.querySelectorAll("[data-ex8-card]")].map(c => c.textContent)).toEqual(["りんご", "みかん"])
 })
 
-test("自分で足したテーマタイプのテーマ（黒板）は、それを使う単語帳のブックでだけ使え、図面のブックでは使えない", () => {
+test("自分で足したテーマタイプのテーマ（黒板）は、それを使う単語帳のページでだけ使え、図面のページでは使えない", () => {
   const instance = createMatomezu({
     plugins: [...BUILTIN_UI, EX8_UI],
     controlCenter: BUILTIN_CONTROL_CENTER,

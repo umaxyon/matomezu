@@ -99,7 +99,7 @@
   align-items: center;
   gap: 4px;
 }
-/* 当たりを光らせる色（CSS Custom Highlight API。名前は highlights.tsx。色はブックの中身の明暗に合わせて、ブックのテーマの強調の色を薄くした物） */
+/* 当たりを光らせる色（CSS Custom Highlight API。名前は highlights.tsx。色はページの中身の明暗に合わせて、ページのテーマの強調の色を薄くした物） */
 :global(::highlight(matomezu-search)) {
   background-color: color-mix(in srgb, var(--theme-accent, #f2c94c) 32%, transparent);
 }

@@ -1,5 +1,5 @@
 // 画面の履歴: 利用者が画面で行ったアクションを、同じ処理の中のものは 1 つの画面の履歴の段にまとめて、ブックごとに覚える。元に戻す（undo）は画面の履歴の段が変えた所を前の値に、
-// やり直す（redo）は後の値に置き直す（book-revert を同じ道で送る）。ロックの掛け外しは覚えない。新しい画面の履歴の段を入れると、そのブックのやり直せる画面の履歴の段は消える
+// やり直す（redo）は後の値に置き直す（history-revert を同じ道で送る）。ロックの掛け外しは覚えない。新しい画面の履歴の段を入れると、そのブックのやり直せる画面の履歴の段は消える
 
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
@@ -104,8 +104,8 @@ test("ロック中のページを変えた画面の履歴の段は、元に戻�
     kind: "warn",
     message: "@matomezu/base:Could not undo",
     detail: {
-      message: '@matomezu/base:{reason}: "{book}"',
-      params: { book: bookOf(store, "b1").title, reason: { message: "@matomezu/base:Locked" } },
+      message: '@matomezu/base:{reason}: "{name}"',
+      params: { name: bookOf(store, "b1").title, reason: { message: "@matomezu/base:Locked" } },
     },
   })
   expect(historyOf(store)).toMatchObject({ undo: [{}], redo: [] })
@@ -261,7 +261,7 @@ test("いくつものブックを変えた画面の履歴の段にも、どち�
   placeIn("b1", 200)
   await settled()
   expect(historyOf(store)?.undo).toHaveLength(1)
-  expect(historyOf(store, "b2")!.undo[0]!.books).toEqual(["b1", "b2"])
+  expect(historyOf(store, "b2")!.undo[0]!.outermosts).toEqual(["b1", "b2"])
 })
 
 test("いくつものブックを変えた画面の履歴の段は、どれかのブックが断られたら、どのブックも置き直さず、断ったブックの名前をトーストに出し、画面の履歴の段は残る", async () => {
@@ -275,15 +275,15 @@ test("いくつものブックを変えた画面の履歴の段は、どれか�
   placeIn("b1")
   placeIn("b2")
   await settled()
-  expect(historyOf(store)!.undo[0]!.books).toEqual(["b1", "b2"])
+  expect(historyOf(store)!.undo[0]!.outermosts).toEqual(["b1", "b2"])
   store.actions.perform("@matomezu/base:page-lock", {}, { page: "b2-p1" })
   expect(store.actions.command("s1", "@matomezu/base:undo")).toBe(true)
   expect(store.state.getState().toasts.at(-1)).toMatchObject({
     kind: "warn",
     message: "@matomezu/base:Could not undo",
     detail: {
-      message: '@matomezu/base:{reason}: "{book}"',
-      params: { book: bookOf(store, "b2").title, reason: { message: "@matomezu/base:Locked" } },
+      message: '@matomezu/base:{reason}: "{name}"',
+      params: { name: bookOf(store, "b2").title, reason: { message: "@matomezu/base:Locked" } },
     },
   })
   expect(itemsOf(store)).toHaveLength(1)
@@ -303,7 +303,8 @@ test("いくつものブックを変えた画面の履歴の段は、どれか�
             title: "keep",
             aiDescription: "b2 is not put back",
             denies: () => false,
-            keeps: c => c.kind !== "folder" || !(c.action.id === "@matomezu/base:book-revert" && c.before?.id === "b2"),
+            keeps: c =>
+              c.kind !== "folder" || !(c.action.id === "@matomezu/base:history-revert" && c.before?.id === "b2"),
           }),
         ],
       }),
@@ -327,7 +328,7 @@ test("いくつものブックを変えた画面の履歴の段は、どれか�
   placeIn("b2")
   await settled()
   const history = () => store.state.getState().history.b1
-  expect(history()!.undo[0]!.books).toEqual(["b1", "b2"])
+  expect(history()!.undo[0]!.outermosts).toEqual(["b1", "b2"])
   expect(isEnabled(store, store.state.getState(), "s1", "@matomezu/base:undo")).toBe(true)
   expect(store.actions.command("s1", "@matomezu/base:undo")).toBe(true)
   expect(store.state.getState().toasts.at(-1)).toMatchObject({ kind: "warn" })

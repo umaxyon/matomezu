@@ -1,4 +1,4 @@
-// ツリーのブック（@matomezu/tree）: 自分のダイアログでページを作り（ページ名・伸びる向き・根のキャプション）、根から伸びる木を紙に描く
+// ツリーのページ（@matomezu/tree）: 自分のダイアログでページを作り（ページ名・伸びる向き・根のキャプション）、根から伸びる木を紙に描く
 
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, screen, within } from "@testing-library/react"
@@ -33,7 +33,7 @@ function setup(plugins: readonly AnyPluginUi[] = BUILTIN_UI) {
   act(() => {
     expect(createBookIn(store, "s1", { title: "木" })).toBe(true)
   })
-  const id = (screenOf(store.state.getState().window).stages[0]!.opened as { outermost: string }).outermost
+  const id = (screenOf(store.state.getState().window).stages[0]!.opened as { outermost: { id: string } }).outermost.id
   const book = () => store.state.getState().books[id]!
   return { store, id, book }
 }

@@ -31,12 +31,12 @@ export function BookSettingsDialog({ onClose }: DialogProps) {
   // 認可ステップが止めていれば項目を押せない（ロックが止めているなら、鍵で外す方にすれば押せる）
   const update = useAllowed(BOOK_UPDATE.id)
   const blocked = !update.ok && update.permission !== null && !(update.permission === LOCK.id && !locked)
-  const settings = useSettingControls(book, "book", null)
+  const settings = useSettingControls({ of: "outermost", book })
   const id = book?.id
   const changed = Object.keys(settings.patch).length > 0
   const problems = usePageProblems(book ? withSettings(book, settings.patch) : undefined)
   useEffect(() => {
-    previewDialog(changed && id ? { book: id, props: settings.patch } : null)
+    previewDialog(changed && id ? { outermost: id, props: settings.patch } : null)
   }, [changed, id, settings.patch, previewDialog])
   if (!book) return null
   const ready = title.trim() !== "" && problems.length === 0

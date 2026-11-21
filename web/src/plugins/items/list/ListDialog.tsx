@@ -27,7 +27,7 @@ import {
   SelectButton,
   Switch,
   SwitchPanel,
-  useBookOf,
+  useOutermostOf,
   usePageTheme,
   usePageThemes,
   useSwatches,
@@ -62,8 +62,8 @@ const EMPTY: ListProps = {
 }
 
 export function AddListDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
-  const book = useBookOf()
-  const bookTheme = usePageTheme()
+  const outermost = useOutermostOf()
+  const pageTheme = usePageTheme()
   const add = (props: ListProps) => {
     const no = args.place(props)
     if (no === null) onClose()
@@ -75,8 +75,8 @@ export function AddListDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
       submit={kit.message("Add")}
       start={EMPTY}
       checked={false}
-      bookTheme={bookTheme}
-      ready={book !== undefined}
+      pageTheme={pageTheme}
+      ready={outermost !== undefined}
       onSubmit={add}
       onClose={onClose}
     />
@@ -85,27 +85,27 @@ export function AddListDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
 
 export function EditListDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
   const catalog = useCoreCatalog()
-  const book = useBookOf()
-  const bookTheme = usePageTheme()
+  const outermost = useOutermostOf()
+  const pageTheme = usePageTheme()
   const found = useItem(args.page, args.item, LIST.id)
   const { previewDialog } = useActions()
   const perform = usePerform()
   // 行の高さの下書き（rowLines）は、行の行数を書き換えた行の並びとして見せる（項目の下書きを当てたリストで数える）
   const preview = useCallback(
     (look: Look | null, rowLines?: RowsLines) => {
-      if (!look || !book || !found) return previewDialog(null)
+      if (!look || !outermost || !found) return previewDialog(null)
       const content =
         rowLines === undefined
           ? undefined
           : { children: withRowLines({ ...found, props: { ...found.props, ...look } }, rowLines).children }
-      previewDialog({ book, item: args.item, props: look, ...(content ? { content } : {}) })
+      previewDialog({ outermost, item: args.item, props: look, ...(content ? { content } : {}) })
     },
-    [book, args.item, found, previewDialog],
+    [outermost, args.item, found, previewDialog],
   )
-  if (!book || !found) return null
+  if (!outermost || !found) return null
   const rows: readonly ListRow[] = found.children ?? []
   const update = (props: ListProps, rowLines?: RowsLines) => {
-    // 「ブックのテーマ」・色の「なし」に戻したら、リストのテーマ・色の項目を消す
+    // 「ページのテーマ」・色の「なし」に戻したら、リストのテーマ・色の項目を消す
     const done = perform(
       "@matomezu/paper:item-update",
       {
@@ -131,7 +131,7 @@ export function EditListDialog({ args, onClose }: DialogProps<{ page: string; it
       start={found.props}
       checked={rows.some(r => r.props.checked === true)}
       hasRows={rows.length > 0}
-      bookTheme={bookTheme}
+      pageTheme={pageTheme}
       ready
       onSubmit={update}
       onPreview={preview}
@@ -146,7 +146,7 @@ function ListDialog({
   start,
   checked,
   hasRows = false,
-  bookTheme,
+  pageTheme,
   ready,
   onSubmit,
   onPreview,
@@ -157,7 +157,7 @@ function ListDialog({
   start: ListProps
   checked: boolean // チェックの入った行があるか（チェックリストを切るときに確かめる）
   hasRows?: boolean // 行があるか（あれば「行の高さ」を出す）
-  bookTheme: string | undefined
+  pageTheme: string | undefined
   ready: boolean
   onSubmit: (props: ListProps, rowLines?: RowsLines) => MessageKey | null // 断られたわけの文言（決められたら null）
   onPreview?: (look: Look | null, rowLines?: RowsLines) => void // テーマ・色・チェックリスト・行の色分け・行の高さを選んだ（元の値に戻せば null）
@@ -168,7 +168,7 @@ function ListDialog({
   const [head, setHead] = useState({ caption: start.caption, captionAlign: start.captionAlign }) // キャプションと寄せ
   const { caption, captionAlign } = head
   const themes = usePageThemes() // ページのタイプが使えるテーマ
-  // 始めのテーマ（使えないテーマが残っていれば「ブックのテーマ」から始める。データのテーマは変えない限り残す）
+  // 始めのテーマ（使えないテーマが残っていれば「ページのテーマ」から始める。データのテーマは変えない限り残す）
   const startTheme = themes.some(th => th.id === start.theme) ? (start.theme ?? "") : ""
   const [theme, setTheme] = useState(startTheme)
   const [color, setColor] = useState(start.color)
@@ -180,7 +180,7 @@ function ListDialog({
   const [refused, setRefused] = useState<MessageKey | null>(null) // 断られたわけの文言
   const [rowLines, setRowLines] = useState<RowsLines | undefined>(undefined)
   const [pick, setPick] = useState<number | "max">("max")
-  const swatches = useSwatches(theme || bookTheme, LIST_FILL)
+  const swatches = useSwatches(theme || pageTheme, LIST_FILL)
   const changed =
     captionAlign !== start.captionAlign ||
     theme !== startTheme ||

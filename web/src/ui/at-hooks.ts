@@ -33,9 +33,7 @@ export function useStageAt(stage: string | null): StageView | null {
         : null
     }),
   )
-  const tool = useMatomezuState(s =>
-    stage === null ? null : toolOf(catalog, workspaceOf(s.window, stage), stage, s.books),
-  )
+  const tool = useMatomezuState(s => (stage === null ? null : toolOf(catalog, workspaceOf(s.window, stage), stage, s)))
   return useMemo(() => (found ? stageView(catalog, found, tool) : null), [catalog, found, tool])
 }
 

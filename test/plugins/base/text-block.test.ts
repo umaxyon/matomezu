@@ -10,9 +10,9 @@ import {
   textBlock,
   textBlockHeight,
 } from "../../../web/src/plugins/base/text/block"
-import { TEXT_LOOK as L } from "../../../web/src/plugins/base/text/fields"
 import { plainOf } from "../../../web/src/plugins/base/text/rich"
 import { textWidth } from "../../../web/src/plugins/base/text/text"
+import { TEXT_LOOK as L } from "../../../web/src/plugins/base/text/text-fields"
 
 const INNER = 144 // 中の幅
 const LEAST = 50 // 本文の列の一番狭い幅

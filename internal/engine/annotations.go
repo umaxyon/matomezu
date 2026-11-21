@@ -7,7 +7,7 @@ import (
 
 // CheckAnnotations はブックのアノテーションを今の機能台帳で確かめ、効かないもの（種類が無い・形が合わない）の warning の 1 行ずつを返す（データには手を付けない）。
 // pairs はブックとそのアノテーションの並び
-func (e *Engine) CheckAnnotations(pairs []AnnotatedBook) (out []string, err error) {
+func (e *Engine) CheckAnnotations(pairs []Annotated) (out []string, err error) {
 	b, err := json.Marshal(pairs)
 	if err != nil {
 		return nil, err
@@ -87,9 +87,9 @@ func (e *Engine) AnnotationsUnexpired(list, settings json.RawMessage, now string
 	return got.Annotations, got.Changed, nil
 }
 
-// AIAnnotations は、ブックとそのページごとのアノテーションの組ごとに、AI に見せる並び（アノテーションに、付いているページ page と、
+// AIAnnotations は、ステージエントリ（ブックか、ブックの外のページ）とそのページごとのアノテーションの組ごとに、AI に見せる並び（アノテーションに、付いているページ page と、
 // AI の応えを待っているか awaits を添えたもの。ブックのページの順）を返す。並びは pairs と同じ順
-func (e *Engine) AIAnnotations(pairs []AnnotatedBook) (out []json.RawMessage, err error) {
+func (e *Engine) AIAnnotations(pairs []Annotated) (out []json.RawMessage, err error) {
 	b, err := json.Marshal(pairs)
 	if err != nil {
 		return nil, err
@@ -107,9 +107,9 @@ func (e *Engine) AIAnnotations(pairs []AnnotatedBook) (out []json.RawMessage, er
 	return out, nil
 }
 
-// AIBriefs は、ブックとそのページごとのアノテーションの組ごとに、待っている物を AI に知らせる 1 行（ページの id → アノテーションの id → 1 行。
+// AIBriefs は、ステージエントリ（ブックか、ブックの外のページ）とそのページごとのアノテーションの組ごとに、待っている物を AI に知らせる 1 行（ページの id → アノテーションの id → 1 行。
 // 種類が 1 行を持たない物・形の合わない物は入れない）を返す。並びは pairs と同じ順
-func (e *Engine) AIBriefs(pairs []AnnotatedBook) (out []map[string]map[string]string, err error) {
+func (e *Engine) AIBriefs(pairs []Annotated) (out []map[string]map[string]string, err error) {
 	b, err := json.Marshal(pairs)
 	if err != nil {
 		return nil, err
@@ -127,8 +127,21 @@ func (e *Engine) AIBriefs(pairs []AnnotatedBook) (out []map[string]map[string]st
 	return out, nil
 }
 
-// AnnotatedBook はブックと、そのページごとのアノテーション（ページの id → 並び。CheckAnnotations・AIAnnotations・AIBriefs に渡す）
-type AnnotatedBook struct {
-	Book        json.RawMessage            `json:"book"`
+// Annotated はステージエントリ（ブックか、ブックの外のページ）と、そのページごとのアノテーション（ページの id → 並び。CheckAnnotations・AIAnnotations・AIBriefs に渡す）。
+// Kind が book なら Book にブックの本文、page なら Page にそのページを入れる（AnnotatedBook・AnnotatedPage で作る）
+type Annotated struct {
+	Kind        string                     `json:"kind"`
+	Book        json.RawMessage            `json:"book,omitempty"`
+	Page        json.RawMessage            `json:"page,omitempty"`
 	Annotations map[string]json.RawMessage `json:"annotations"`
+}
+
+// AnnotatedBook は、ブック（本文 book）と、そのページごとのアノテーションの組
+func AnnotatedBook(book json.RawMessage, annotations map[string]json.RawMessage) Annotated {
+	return Annotated{Kind: "book", Book: book, Annotations: annotations}
+}
+
+// AnnotatedPage は、ブックの外のページ page と、そのページのアノテーション（ページの id → 並び）の組
+func AnnotatedPage(page json.RawMessage, annotations map[string]json.RawMessage) Annotated {
+	return Annotated{Kind: "page", Page: page, Annotations: annotations}
 }

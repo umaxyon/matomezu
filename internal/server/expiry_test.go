@@ -7,6 +7,22 @@ import (
 	"github.com/umaxyon/matomezu/internal/engine"
 )
 
+// 続けて決める時点は、時計が後ろへ戻っても同じ時点でも、前の時点の 1ms 後になり、時計が前の時点を越えたら時計のまま（ミリ秒まで）
+func TestLaterThanNeverGoesBack(t *testing.T) {
+	last := time.Date(2026, 11, 18, 1, 0, 10, 0, time.UTC)
+	ms := time.Millisecond
+	for _, c := range []struct{ now, want time.Time }{
+		{last.Add(-1600 * ms), last.Add(ms)},
+		{last, last.Add(ms)},
+		{last.Add(500 * time.Microsecond), last.Add(ms)},
+		{last.Add(2*ms + 300*time.Microsecond), last.Add(2 * ms)},
+	} {
+		if got := laterThan(last, c.now); !got.Equal(c.want) {
+			t.Fatalf("laterThan(%v, %v) = %v, want %v", last, c.now, got, c.want)
+		}
+	}
+}
+
 // 時点の無いアクション（AI やホストが頼んだ物）には、ホストが同じ時点から時点と利用者の暦の日付を入れる。画面が決めた時点と日付はそのまま
 func TestStampedGivesNowAndTodayFromOneInstant(t *testing.T) {
 	was := time.Local

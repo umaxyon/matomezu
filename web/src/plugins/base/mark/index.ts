@@ -3,12 +3,13 @@
 // AI が読んだかは readAt で持ち、読まれていないマークは AI の応えを待つ物に数える（フックが知らせる）。会話で用が済んだら AI が外す
 // 右クリックのメニューのコマンド mark-new（押した物のそばに種類を選ぶスタンドを出す）もここ
 import { z } from "zod"
-import type { Annotation } from "../../../core/annotation"
-import { NO_BOOK } from "../../../store/commands/def"
+import { type Annotation, anchorsOf } from "../../../core/annotation"
 import { BIRD_TITLES, type Bird } from "../birds"
 import { startAnchorTarget } from "../context-menu/anchor-targets"
 import { kit } from "../kit"
+import { AnchorsArg } from "../utils/anchors"
 import { freshId } from "../utils/ids"
+import { hasOpenedPage } from "../utils/opened-page"
 import { MARK_PICKER } from "./states"
 
 // マークの種類。title は画面で見せる名前（文言の鍵）、ai は AI に伝える呼び方（利用者が旗の色や鳥の色・名前で呼ぶので、どれも書く）
@@ -58,14 +59,14 @@ export const MARK_ADD = kit.defineAction({
   title: "Add mark",
   target: "annotations",
   userOnly: true,
-  args: z.strictObject({ anchors: z.array(z.string().min(1)).min(1), kind: z.enum(KINDS) }),
+  args: z.strictObject({ anchors: AnchorsArg, kind: z.enum(KINDS) }),
   run: ({ page, annotations }, args, ctx) => {
-    const anchors = [...new Set(args.anchors)]
+    const anchors = args.anchors
     // 付ける物から、ほかのマークを外す（付く物が無くなったマークは消す）
     const kept = annotations.flatMap(a => {
       if (!isMark(a) || !a.anchors.some(id => anchors.includes(id))) return [a]
-      const rest = a.anchors.filter(id => !anchors.includes(id))
-      return rest.length > 0 ? [{ ...a, anchors: rest }] : []
+      const rest = anchorsOf(a.anchors.filter(id => !anchors.includes(id)))
+      return rest ? [{ ...a, anchors: rest }] : []
     })
     const id = freshId(
       ctx.newId,
@@ -114,5 +115,5 @@ export const MARK_NEW = kit.defineCommand({
   title: "Show to AI",
   performs: [MARK_ADD.id],
   run: startAnchorTarget(MARK_PICKER),
-  when: ctx => ctx.book !== NO_BOOK,
+  when: hasOpenedPage,
 })

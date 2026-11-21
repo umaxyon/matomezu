@@ -15,10 +15,11 @@ import {
 } from "../../../plugin-api/ui"
 import { LockToggle, useRecordEditLock } from "../../base/ui"
 import { WORKROOM_SUBJECT } from "../by"
+import { useWorkingOn } from "../current-ticket/useCurrentTickets"
 import { BookIcon } from "../icons"
 import { kit } from "../kit"
 import { PROJECT } from "../project"
-import { PRIORITIES, TICKET, VOLUMES } from "../ticket"
+import { PRIORITIES, TICKET, type Ticket, VOLUMES } from "../ticket"
 import { TICKET_LOCK, TICKET_UNLOCK, TICKET_UPDATE } from "../ticket/actions"
 import { assigneesOf } from "../ticket/assignees"
 import { ticketLabel } from "../ticket/label"
@@ -38,25 +39,8 @@ import { type HistoryRow, historyRows, whenOf } from "./view"
 
 export function TicketScreen() {
   const t = useMessages(kit)
-  const me = useScreen(TICKET_SCREEN)
-  const id = me.props.ticket
+  const id = useScreen(TICKET_SCREEN).props.ticket
   const ticket = useRecord(TICKET.id, id)
-  const project = useRecord(PROJECT.id, ticket?.project ?? "")
-  const lines = useRecords(HISTORY.id, { where: [] })
-  const workrooms = useRecords(WORKROOM_SUBJECT, { where: [] })
-  const workroomNames = useMemo(() => Object.fromEntries(workrooms.map(w => [w.id, w.name])), [workrooms])
-  const { perform } = useActions()
-  // 画面の状態は、開いたスクリーン 1 枚ごと（閉じると消えるので、開くたびに初めに戻る）
-  const [now, update] = [usePluginState(kit, TICKET_SCREEN_STATE), useUpdatePluginState(kit, TICKET_SCREEN_STATE)]
-  const view = viewOf(now, id)
-  const set = (patch: Partial<TicketScreenState>) => update(cur => ({ ...viewOf(cur, id), ...patch }))
-  const [editing, setEditing] = useState(false) // 名前の入力か本文の編集にフォーカスがある間
-  useRecordEditLock(TICKET.id, editing ? [id] : [])
-  const allowed = useAllowedOn(TICKET_UPDATE.id, {}, { record: id })
-  const locked = ticket?.locked === true
-  const canEdit = allowed.ok && !locked
-  const markBodyEdited = useBodyUpdateLine(ticket ? id : undefined)
-
   if (!ticket)
     return (
       <section className={styles.screen} aria-label={t("ticket screen")}>
@@ -68,6 +52,29 @@ export function TicketScreen() {
         </div>
       </section>
     )
+  return <TicketBody ticket={ticket} />
+}
+
+// あるチケット ticket の画面
+function TicketBody({ ticket }: { ticket: Ticket }) {
+  const t = useMessages(kit)
+  const id = ticket.id
+  const project = useRecord(PROJECT.id, ticket.project)
+  const lines = useRecords(HISTORY.id, { where: [] })
+  const workrooms = useRecords(WORKROOM_SUBJECT, { where: [] })
+  const workroomNames = useMemo(() => Object.fromEntries(workrooms.map(w => [w.id, w.name])), [workrooms])
+  const { perform } = useActions()
+  // 画面の状態は、開いたスクリーン 1 枚ごと（閉じると消えるので、開くたびに初めに戻る）
+  const [now, update] = [usePluginState(kit, TICKET_SCREEN_STATE), useUpdatePluginState(kit, TICKET_SCREEN_STATE)]
+  const view = viewOf(now, id)
+  const set = (patch: Partial<TicketScreenState>) => update(cur => ({ ...viewOf(cur, id), ...patch }))
+  const [editing, setEditing] = useState(false) // 名前の入力か本文の編集にフォーカスがある間
+  useRecordEditLock(TICKET.id, editing ? [id] : [])
+  const allowed = useAllowedOn(TICKET_UPDATE.id, {}, { record: id })
+  const locked = ticket.locked === true
+  const canEdit = allowed.ok && !locked
+  const markBodyEdited = useBodyUpdateLine(id)
+  const working = useWorkingOn(ticket)
 
   const edit = (patch: {
     name?: string
@@ -108,7 +115,7 @@ export function TicketScreen() {
             <div className={styles.assignees}>
               <span className={styles.factName}>{t("Assignees")}</span>
               <span className={styles.assigneeList}>
-                {assignees.length > 0 ? <AssigneeBirds workrooms={assignees} /> : t("No assignees")}
+                {assignees.length > 0 ? <AssigneeBirds workrooms={assignees} working={working} /> : t("No assignees")}
               </span>
             </div>
             <div className={styles.steps}>

@@ -16,17 +16,6 @@ export {
 } from "./block"
 export { TEXT_COLORS } from "./colors"
 export {
-  AlignSchema,
-  BODY_MAX,
-  bodyText,
-  captionTextWidth,
-  PLACE_LINES,
-  TEXT_LOOK,
-  textNew,
-  textPatch,
-  textProps,
-} from "./fields"
-export {
   clampRich,
   parseRich,
   plainOf,
@@ -46,3 +35,14 @@ export {
   textColorVars,
   USER_TEXT_COLORS,
 } from "./text-colors"
+export {
+  AlignSchema,
+  BODY_MAX,
+  bodyText,
+  captionTextWidth,
+  PLACE_LINES,
+  TEXT_LOOK,
+  textNew,
+  textPatch,
+  textProps,
+} from "./text-fields"

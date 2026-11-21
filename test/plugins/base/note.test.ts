@@ -60,6 +60,13 @@ test("伝言を付けると、ブックとは別に持ち、id を返す。吹�
   expect(store.actions.perform(ADD, { anchors: [a], text: " \n " }, ON).ok).toBe(false)
 })
 
+test("同じ物を重ねて渡しても、付ける先は 1 つにまとめる。付ける先が空なら付けない", () => {
+  const { store, a, b, notes } = ready()
+  expect(store.actions.perform(ADD, { anchors: [a, b, a], text: "見て" }, ON).ok).toBe(true)
+  expect(notes().map(n => n.anchors)).toEqual([[a, b]])
+  expect(store.actions.perform(ADD, { anchors: [], text: "見て" }, ON).ok).toBe(false)
+})
+
 test("ブックに無い物や、ページそのものには伝言を付けられない", () => {
   const { store, page, notes } = ready()
   for (const anchors of [["nothing"], [page]])

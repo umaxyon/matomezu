@@ -44,7 +44,7 @@ import { LIBRARY_REVERT, libraryRevertArgs } from "./revert"
 import { unreadableShownIn } from "./show-unreadable"
 import { LIBRARY_COLUMNS, LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_UNFOLDED } from "./state"
 
-// 書庫の履歴の最後の段を、from の向きに置き直す（ブックの画面の履歴の restore と同じ決まり。plugins/base/history/index.ts）
+// 書庫の履歴の最後の段を、from の向きに置き直す（ステージエントリの画面の履歴の restore と同じ決まり。plugins/base/history/index.ts）
 function restore(ctx: ScreenCommandContext, a: CommandActions, from: "undo" | "redo"): void {
   const to = from === "undo" ? "before" : "after"
   const steps = [...ctx.libraryHistory[from]].reverse()
@@ -150,7 +150,7 @@ function opening(ctx: ScreenCommandContext, named?: Named): Exclude<OpenTarget, 
   return target === NOT_OPENED ? undefined : target
 }
 
-// 開く: フォルダは右の枠で中へ入り、ブック・ページ・バインダは窓に出す（書庫の画面の行を 2 回押す・Enter・右クリックのメニューの「開く」の、ただ 1 つの道）。
+// 開く: フォルダは右の枠で中へ入り、ブック・ページ・バインダ・ブックの外のページは窓に出す（書庫の画面の行を 2 回押す・Enter・右クリックのメニューの「開く」の、ただ 1 つの道）。
 // 右クリックのメニューでは、受け取った物がフォルダでなく開けるときだけ出す。名指して呼ぶときは when が引数を受けないので、メニューの外ではいつも出す
 export const LIBRARY_ENTRY_OPEN = kit.defineScreenCommand({
   id: "library-entry-open",

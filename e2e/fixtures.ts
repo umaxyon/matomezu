@@ -51,19 +51,28 @@ export type HostOptions = { hostArgs: string[] }
 export type TestOptions = { enabledPlugins: readonly string[] }
 
 // 開いた直後（URL が無いとき）はコントロールセンターがカレントスクリーンになる。ブックスクリーンから始めるテストは BOOK_SCREEN_URL、コントロールセンターから始めるテストは CONTROL_CENTER_URL を開く
-export const BOOK_SCREEN_URL = "/?f=book"
+// （BOOK_SCREEN_URL は startingAtFirstBook が置き換える印で、matomezu の場所ではない）
+export const BOOK_SCREEN_URL = "/?e2e=first-book"
 
-// ブック book（無ければ、何も開かないステージ）を開いたブックスクリーンがカレントスクリーンになっている場所の URL（コントロールセンター c1 の後ろに、ブックスクリーン c2）
-export const bookScreenUrl = (book: string | null): string =>
+// ステージごとにブック book（null は何も開かないステージ）のページ page（無ければ開かない）を開き、カレントのステージを current にしたブックスクリーンが
+// カレントスクリーンになっている場所の URL（コントロールセンター c1 の後ろに、ブックスクリーン c2）
+export const stagesUrl = (stages: readonly { book: string | null; page?: string }[], current = 0): string =>
   `/?sc=${encodeURIComponent(
     JSON.stringify({
       s: [
         { i: "c1", d: "@matomezu/control-center:screen" },
-        { i: "c2", d: "@matomezu/base:book-screen", g: { l: [{ b: book, v: [1, 0, 0] }], c: 0, r: 0.5 } },
+        {
+          i: "c2",
+          d: "@matomezu/base:book-screen",
+          g: { l: stages.map(({ book, page }) => ({ b: book, p: page, v: [1, 0, 0] })), c: current, r: 0.5 },
+        },
       ],
       o: ["c1", "c2"],
     }),
   )}`
+
+// ブック book（無ければ、何も開かないステージ）のページ page（無ければ開かない）を開いたブックスクリーンがカレントスクリーンになっている場所の URL
+export const bookScreenUrl = (book: string | null, page?: string): string => stagesUrl([{ book, page }])
 
 // page.goto(BOOK_SCREEN_URL) を、そのとき常駐に在る最初のブックを開いたブックスクリーンの URL へ行かせる（窓はブックスクリーン 0 枚で始まるため）
 export function startingAtFirstBook<P extends Page>(page: P): P {
@@ -75,7 +84,7 @@ export function startingAtFirstBook<P extends Page>(page: P): P {
   }) as Page["goto"]
   return page
 }
-export const CONTROL_CENTER_URL = "/?f=center"
+export const CONTROL_CENTER_URL = "/"
 
 // URL に書かれた画面の場所（host-client/location.ts の sc の値。無ければ null）
 export interface UrlPlace {
@@ -121,6 +130,7 @@ const giveCookie = async (host: Host, context: BrowserContext) => {
 export const test = base.extend<
   {
     books: readonly object[]
+    outsidePages: readonly object[]
     enabledPlugins: readonly string[]
     reset: undefined
     withCookie: undefined
@@ -136,14 +146,10 @@ export const test = base.extend<
     async ({ hostArgs }, use, info) => {
       const home = homeOf(info.workerIndex)
       rmSync(home, { recursive: true, force: true })
-      const serve = spawn(
-        resolve("e2e/.matomezu"),
-        ["serve", "--addr", "127.0.0.1:0", "--web", "e2e/.dist", ...hostArgs],
-        {
-          env: { ...process.env, MATOMEZU_HOME: home },
-          stdio: ["ignore", "ignore", "inherit"],
-        },
-      )
+      const serve = spawn(resolve("e2e/.matomezu"), ["serve", "--port", "0", "--web", "e2e/.dist", ...hostArgs], {
+        env: { ...process.env, MATOMEZU_HOME: home },
+        stdio: ["ignore", "ignore", "inherit"],
+      })
       // 立てた serve が自分のフォルダに書いたつなぎ方を待つ（pid で、ほかの常駐の物でないと確かめる）
       // 画面の入口は画面 cookie を持つブラウザにしか答えないので、合言葉の入口（/api/ping）で確かめる
       const answering = async (url: string, token: string) =>
@@ -168,6 +174,8 @@ export const test = base.extend<
   baseURL: async ({ host }, use) => use(host.url),
   // テストが始まるときに常駐に置くブック
   books: [SAMPLE_BOOKS, { option: true }],
+  // テストが始まるときに常駐の書庫ホームに置く、ブックの外のページ
+  outsidePages: [[], { option: true }],
   // テストごとのブラウザ（context）を、常駐の画面 cookie を持たせる
   withCookie: [
     async ({ host, context }, use) => {
@@ -186,11 +194,11 @@ export const test = base.extend<
   },
   page: async ({ page }, use) => use(startingAtFirstBook(page)),
   reset: [
-    async ({ host, books, enabledPlugins }, use) => {
+    async ({ host, books, outsidePages, enabledPlugins }, use) => {
       const done = await fetch(`${host.url}/api/reset-for-test`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ books, enabledPlugins }),
+        body: JSON.stringify({ books, outsidePages, enabledPlugins }),
       })
       if (!done.ok) throw new Error(`reset-for-test: ${done.status} ${await done.text()}`)
       await use(undefined)

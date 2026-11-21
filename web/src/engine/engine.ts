@@ -14,7 +14,7 @@ import { MODULES, UI_NAMES } from "../plugin-modules"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../plugins"
 import { assemble, type Plugin, warningsOf, withoutParts } from "../store/plugin"
 import { aiCatalog } from "./ai-catalog"
-import { itemForAi, pageForAi, placedForAi } from "./ai-page"
+import { itemForAi, pageForAi, pagePlacedForAi, placedForAi } from "./ai-page"
 import { aiAnnotationsOf, aiBriefsOf, annotationsWithout, checkAnnotationLines, unexpiredOf } from "./annotations"
 import { type Input, perform } from "./host-perform"
 import {
@@ -37,7 +37,7 @@ import {
   subjectRolesOf,
   unlistedOf,
 } from "./records"
-import { joinedText, visitorJoinedText, windowWarningLines } from "./texts"
+import { joinedText, visitorJoinedText, windowWarningLines, workTitle } from "./texts"
 
 ;(globalThis as { __matomezuModules?: unknown }).__matomezuModules = MODULES
 
@@ -156,29 +156,32 @@ let lastAdded: readonly Plugin[] = []
   records,
 ) => parentsOf(assembled, subject, records)
 
-// 常駐と core が種類で引く役（参加者・ワークルーム・郵便）ごとの、対象の定義の id（役を名乗る定義が無ければ入れない）
+// 常駐と core が種類で引く役（参加者・ワークルーム。core/def/subject.ts の SUBJECT_ROLE_FIELDS）ごとの、対象の定義の id（役を名乗る定義が無ければ入れない）
 ;(globalThis as { matomezuSubjectRoles?: () => string }).matomezuSubjectRoles = () => subjectRolesOf(assembled)
 
 // 残したレコードを今の機能台帳で確かめ、効かないレコード（種類が無い W024・形が合わない W025。形のほかの確かめを書いた種類はその warning。郵便なら、郵便の種類が無い W022・形が合わない W023）の warning の 1 行ずつを返す（常駐がログに書く）
 ;(globalThis as { matomezuCheckRecords?: (records: string) => string }).matomezuCheckRecords = records =>
   JSON.stringify(checkRecords(assembled.catalog.core, restoreRecords(JSON.parse(records))).map(warningText))
 
-// ブックとそのページごとのアノテーションの組ごとに、AI に見せる並び（annotationsForAi。付いているページと、AI の応えを待っているか。ブックのページの順）を返す。
+// ステージエントリ（ブックか、ブックの外のページ）とそのページごとのアノテーションの組ごとに、AI に見せる並び（annotationsForAi。付いているページと、AI の応えを待っているか。ブックのページの順）を返す。
 // 読めないブックのアノテーションは、待たないものとして返す
 ;(globalThis as { matomezuAiAnnotations?: (pairs: string) => string }).matomezuAiAnnotations = pairs =>
   aiAnnotationsOf(assembled, pairs)
 
-// ブックとそのページごとのアノテーションの組ごとに、待っている物を AI に知らせる 1 行（annotationBriefs。ページの id → アノテーションの id → 1 行）を返す。読めないブックは空
+// ステージエントリとそのページごとのアノテーションの組ごとに、待っている物を AI に知らせる 1 行（annotationBriefs。ページの id → アノテーションの id → 1 行）を返す。読めないブックは空
 ;(globalThis as { matomezuAiBriefs?: (pairs: string) => string }).matomezuAiBriefs = pairs =>
   aiBriefsOf(assembled, pairs)
 
 // ブックのページごとの、形の描いた位置と大きさ（base の aiPlacedOf。AI の read_page に添える）。読めないブックか、プレゼンテーションが答えなければ null
 ;(globalThis as { matomezuAiPlaced?: (book: string) => string }).matomezuAiPlaced = book => placedForAi(assembled, book)
 
+// ページ 1 枚（ブックの中のページでも、ブックの外のページでも）の、形の描いた位置と大きさ（base の aiPlacedOfPage。AI の read_page に添える）。読めないページか、プレゼンテーションが答えなければ null
+;(globalThis as { matomezuAiPagePlaced?: (page: string) => string }).matomezuAiPagePlaced = page =>
+  pagePlacedForAi(assembled, page)
+
 // AI に見せるページ（read_page の page）: 背景を持つタイプのページの slide（背景の形）は、図形の情報（位置・大きさ・形の種類など）を見せず、
 // 背景があることと、背景の形が持つ名前（形の定義の labelOf。文字枠なら書いた文字。重ねの順）だけを background に入れる。背景を持たないタイプと、背景の無いページはそのまま返す
-;(globalThis as { matomezuAiPage?: (book: string, page: string) => string }).matomezuAiPage = (book, page) =>
-  pageForAi(assembled, book, page)
+;(globalThis as { matomezuAiPage?: (page: string) => string }).matomezuAiPage = page => pageForAi(assembled, page)
 
 // ページ page（JSON）の中の、どの深さの形も、つなぐものも、id で探した物と、その物と子の形の id の全部（AI の read_page の item）。無ければ null
 ;(globalThis as { matomezuAiItem?: (page: string, id: string) => string }).matomezuAiItem = (page, id) =>
@@ -192,7 +195,7 @@ let lastAdded: readonly Plugin[] = []
 ;(globalThis as { matomezuTalkActions?: () => string }).matomezuTalkActions = () =>
   JSON.stringify(talkActions(assembled.catalog.core))
 
-// AI が参加を頼むときに行うアクション（runsWhenAIJoins）の id（役 participant と notice。役が揃わなければ null。常駐が MCP の join で行う）
+// AI が参加を頼むときに行うアクション（runsWhenAIJoins）と、要求をキャンセルとして終えるアクション（cancelsJoinRequest。無くてもよい）の id（参加者を作るアクションが無ければ null。常駐が MCP の join と、窓のアクションの知らせで使う）
 ;(globalThis as { matomezuJoinActions?: () => string }).matomezuJoinActions = () =>
   JSON.stringify(joinActions(assembled.catalog.core))
 
@@ -211,6 +214,12 @@ let lastAdded: readonly Plugin[] = []
   settings,
   workroom,
 ) => joinedText(assembled, settings, workroom)
+
+// ワークルーム（id と名前）に参加している AI のセッションの作業名（利用者の設定が書くのを止めていれば off。常駐が、話しかけとターンの終わりのフックに答える）
+// 作業はレコードから決まるので、常駐が読み口を置いている間に呼ぶ
+;(
+  globalThis as { matomezuWorkTitle?: (settings: string, workroom: string, name: string) => string }
+).matomezuWorkTitle = (settings, workroom, name) => workTitle(assembled, settings, workroom, name)
 
 // ビジターとして参加したことを利用者に伝える文（利用者の言語。matomezuJoinedText と同じく、フックの systemMessage に使う）
 ;(globalThis as { matomezuVisitorJoinedText?: (settings: string) => string }).matomezuVisitorJoinedText = settings =>

@@ -1,4 +1,4 @@
-// スライドのアイテムの重なり順（右クリックのメニューとキー）・複数選択・線の端点
+// 描画シェイプの重なり順（右クリックのメニューとキー）・複数選択・線の端点
 import { SLIDE, testBinder, testBook, testPage, withSlide } from "../test/lineup"
 import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { onPaper, paper } from "./helpers/paper"

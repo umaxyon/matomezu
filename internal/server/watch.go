@@ -16,12 +16,12 @@ package server
 //   - 参加者が決まった /api/ai の呼び出しの返事（aiwire.NoticeHeader。join_calls.go の Called）: AI 間メッセージだけを渡す（参加の知らせは、その呼び出しが返す「参加しました」が兼ねる）
 //
 // 通り道ごとに、受け取る側が名乗った形で流す（常駐は AI の種類を知らない）: 1 行の上限（maxLine。超える行は改行で分ける）、1 回の知らせの上限（maxNotice）、
-// 知らせと知らせの間（gap。続けて流すと AI の側が 1 回の知らせにまとめ、上限を超えるため）。1 回の知らせに入りきらない AI 間メッセージは、通り道には「届いた」の短い知らせだけを流し、
+// 知らせと知らせの間（gap。続けて流すと AI の側が 1 回の知らせにまとめ、上限を超えるため）、改行を含む知らせを 1 つで受けるか（breaks。受けるなら AI 間メッセージを送り手の行と本文の行に分ける）。1 回の知らせに入りきらない AI 間メッセージは、通り道には「届いた」の短い知らせだけを流し、
 // 本文は行列に残して、その参加者の次の呼び出しの返事で渡す。
-// 流す前に、もう役目の終わった知らせは捨てる: 受け入れは参加を伝え済み（Told）なら、断りは伝え済み（goneTold）なら。参加者が受け入れ済みでなくなった AI 間メッセージも捨てる。
+// 流す前に、もう役目の終わった知らせは捨てる: 受け入れは参加を伝え済み（Told）なら、断り・キャンセルは伝え済み（gone が goneTold）なら。参加者が受け入れ済みでなくなった AI 間メッセージも捨てる。
 // 参加の知らせの行は英語の短い文で、中身（「参加しました」）は、話しかけのフックか、その参加者の次の呼び出しの返事が添える
 //
-//	GET  /api/ai/watch?host=<プロセス id>&session=<立てたときのセッション id>（どちらか一方は要る）[&maxLine=<字>][&maxNotice=<字>][&gap=<ミリ秒>]
+//	GET  /api/ai/watch?host=<プロセス id>&session=<立てたときのセッション id>（どちらか一方は要る）[&maxLine=<字>][&maxNotice=<字>][&gap=<ミリ秒>][&breaks=1]
 //	     SSE。event: wake、data: {"line", "id", "session", "text"}（text は改行を含みうる。session は宛て先の参加者に結んだセッション id、分からなければ空）
 //	POST /api/ai/watch/ack {"line", "id", "result"}  result は delivered・absent・failed。{} を返す
 
@@ -32,6 +32,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/umaxyon/matomezu/internal/engine"
 )
 
 // wakeLine は、AI のプログラム 1 つの、起こす知らせの通り道。行列に入った合図を ready で受ける
@@ -49,6 +51,7 @@ type WakeLimits struct {
 	MaxLine   int           // 1 行の上限（字）。超える行は改行で分ける
 	MaxNotice int           // 1 回の知らせの上限（字。分けた改行も数える）
 	Gap       time.Duration // 知らせと知らせの間
+	Breaks    bool          // 改行を含む知らせを 1 つの知らせで受ける（AI 間メッセージは、送り手の行と本文の行に分けて流す）
 }
 
 // shape は、行 line を 1 行の上限で改行で分けた文
@@ -74,9 +77,10 @@ func (lim WakeLimits) fits(line string) bool {
 type wakeItem struct {
 	seq         int64     // 行列の中で見分ける番号
 	participant string    // 宛て先の参加者の id
-	kind        string    // wakeAccepted・wakeDeclined・wakeMessage
+	kind        string    // wakeAccepted・wakeDeclined・wakeCancelled・wakeMessage
 	line        string    // 流す 1 行
 	from        string    // AI 間メッセージの送り手のワークルーム名
+	body        string    // AI 間メッセージの本文（JSON の文字列にした物。改行を受ける通り道には、送り手の行のあとの行で流す）
 	pointed     bool      // 1 回の知らせに入りきらず、通り道に「届いた」だけを渡した（本文は呼び出しの返事で渡す）
 	replyOnly   bool      // 通り道の AI のプログラムにその会話が無かった（absent）。呼び出しの返事だけで渡す
 	lentTo      int64     // 貸している通り道の番号（0 は貸していない）
@@ -93,9 +97,18 @@ type WakeOut struct {
 }
 
 const (
-	wakeAccepted = "accepted" // 参加の要求が受け入れられた
-	wakeDeclined = "declined" // 参加の要求が断られた
-	wakeMessage  = "message"  // AI 間メッセージ
+	wakeAccepted  = "accepted"  // 参加の要求が受け入れられた
+	wakeDeclined  = "declined"  // 参加の要求が断られた
+	wakeCancelled = "cancelled" // 参加の要求を利用者がキャンセルした
+	wakeMessage   = "message"   // AI 間メッセージ
+)
+
+// goneState は、表に無い参加の id を、断り・キャンセルとしてどう伝えるか（無ければ断り）
+type goneState string
+
+const (
+	goneCancelled goneState = "cancelled" // 利用者が要求をキャンセルした（まだ呼び出しの返事で伝えていない）
+	goneTold      goneState = "told"      // 断り・キャンセルを呼び出しの返事で伝えた
 )
 
 // 貸した知らせの結果（POST /api/ai/watch/ack の result）
@@ -195,8 +208,8 @@ func (h *Hub) stale(it wakeItem, joined map[string]bool) bool {
 	switch it.kind {
 	case wakeAccepted:
 		return h.participantNotes[it.participant].Told
-	case wakeDeclined:
-		return h.goneTold[it.participant]
+	case wakeDeclined, wakeCancelled:
+		return h.gone[it.participant] == goneTold
 	default:
 		return !joined[it.participant]
 	}
@@ -261,8 +274,11 @@ func (h *Hub) nextWake(l *wakeLine, now time.Time) (WakeOut, bool) {
 	pick.lentTo = l.id
 	pick.lentPointer = !l.limits.fits(pick.line)
 	text := pick.line
+	if l.limits.Breaks && pick.kind == wakeMessage {
+		text = messageHead(pick.from) + "\n" + pick.body
+	}
 	if pick.lentPointer {
-		text = "matomezu from AI " + quote(pick.from) + ": too long, call any matomezu tool"
+		text = messageHead(pick.from) + " too long, call any matomezu tool"
 	}
 	text = l.limits.shape(text)
 	h.rememberLent(text)
@@ -330,7 +346,8 @@ func (h *Hub) rememberLent(text string) {
 	}
 }
 
-// WokenBy は、ターンの入力 prompt が、通り道に貸した知らせの文そのものか（知らせをそのまま利用者の入力の道で受ける AI のプログラムのターンは、それで知らせで始まったと分かる）。
+// WokenBy は、ターンの入力 prompt が、通り道に貸した知らせの文そのものか、その幾つかを改行でつないだだけの物か（知らせをそのまま利用者の入力の道で受ける AI のプログラムのターンは、それで知らせで始まったと分かる。
+// AI が動いている間に届いた知らせは、AI のプログラムが 1 つの入力にまとめることがある）。利用者の文が混じっていれば当たらない。
 // 当たった文は忘れる（同じ文で始まる次のターンは、利用者の入力と見る）
 func (h *Hub) WokenBy(prompt string) bool {
 	prompt = strings.TrimSpace(prompt)
@@ -339,13 +356,42 @@ func (h *Hub) WokenBy(prompt string) bool {
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	used := lentCover(prompt, h.lentWakes, map[int]bool{})
+	if used == nil {
+		return false
+	}
+	kept := h.lentWakes[:0:0]
 	for i, text := range h.lentWakes {
-		if text == prompt {
-			h.lentWakes = append(h.lentWakes[:i:i], h.lentWakes[i+1:]...)
-			return true
+		if !used[i] {
+			kept = append(kept, text)
 		}
 	}
-	return false
+	h.lentWakes = kept
+	return true
+}
+
+// lentCover は、prompt を、lent の文（used の物を除き、1 つは 1 度だけ）を改行でつないだだけの物として読めるなら、使った文の位置を返す（読めなければ nil）
+func lentCover(prompt string, lent []string, used map[int]bool) map[int]bool {
+	for i, text := range lent {
+		if used[i] {
+			continue
+		}
+		rest, ok := strings.CutPrefix(prompt, text)
+		if !ok {
+			continue
+		}
+		used[i] = true
+		if rest == "" {
+			return used
+		}
+		if next, ok := strings.CutPrefix(rest, "\n"); ok {
+			if got := lentCover(next, lent, used); got != nil {
+				return got
+			}
+		}
+		delete(used, i)
+	}
+	return nil
 }
 
 // takeMessages は、参加者 id の行列の AI 間メッセージの行を取り出す。通り道に貸している物は残す（結果を待つ）。
@@ -390,8 +436,26 @@ func (h *Hub) requestedParticipants() map[string]bool {
 	return out
 }
 
-// wakeOnParticipants は、窓のアクションの前に要求中だった参加者 before のうち、受け入れられた・断られた参加者に知らせる（h.mu を持って呼ぶ）
-func (h *Hub) wakeOnParticipants(before map[string]bool) {
+// cancelledText は、利用者が参加の要求をキャンセルしたと、AI の次の呼び出しの返事で伝える文
+const cancelledText = "The user cancelled your request to join matomezu. Tell the user; you may ask again when the user asks."
+
+// cancelledIn は、バルク actions のうち、要求をキャンセルとして終えるアクション（アクションの定義が cancelsJoinRequest で名乗る物）の宛先の参加者の id（h.mu を持って呼ぶ）
+func (h *Hub) cancelledIn(actions []engine.BulkAction) map[string]bool {
+	ids, err := h.engine.JoinActions()
+	if err != nil || ids == nil || ids.Cancel == "" {
+		return nil
+	}
+	out := map[string]bool{}
+	for _, a := range actions {
+		if a.Action == ids.Cancel && a.On != nil && a.On.Record != "" {
+			out[a.On.Record] = true
+		}
+	}
+	return out
+}
+
+// wakeOnParticipants は、窓のアクションの前に要求中だった参加者 before のうち、受け入れられた・断られた・キャンセルされた（cancelled）参加者に知らせる（h.mu を持って呼ぶ）
+func (h *Hub) wakeOnParticipants(before, cancelled map[string]bool) {
 	if len(before) == 0 {
 		return
 	}
@@ -412,6 +476,12 @@ func (h *Hub) wakeOnParticipants(before map[string]bool) {
 	for id := range before {
 		s, ok := now[id]
 		switch {
+		case !ok && cancelled[id]:
+			if h.gone == nil {
+				h.gone = map[string]goneState{}
+			}
+			h.gone[id] = goneCancelled
+			h.enqueueWake(wakeItem{participant: id, kind: wakeCancelled, line: noticeLine("matomezu: join cancelled")})
 		case !ok:
 			h.enqueueWake(wakeItem{participant: id, kind: wakeDeclined, line: noticeLine("matomezu: join declined")})
 		case s.State == stateVisitor:
@@ -440,7 +510,7 @@ func (o Options) aiWatch(w http.ResponseWriter, r *http.Request) {
 		n, _ := strconv.Atoi(q.Get(name))
 		return max(n, 0)
 	}
-	line := o.Hub.OpenWakesWith(host, q.Get("session"), WakeLimits{MaxLine: number("maxLine"), MaxNotice: number("maxNotice"), Gap: time.Duration(number("gap")) * time.Millisecond})
+	line := o.Hub.OpenWakesWith(host, q.Get("session"), WakeLimits{MaxLine: number("maxLine"), MaxNotice: number("maxNotice"), Gap: time.Duration(number("gap")) * time.Millisecond, Breaks: q.Get("breaks") == "1"})
 	defer o.Hub.CloseWakes(line)
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")

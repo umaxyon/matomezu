@@ -16,10 +16,10 @@ import (
 // checkAnnotations は全部のアノテーションを今のプラグインで確かめ、効かないもの（種類が無い・形が合わない）の warning の一覧を直す。
 // 新しい warning は常駐のログに書く（h.mu を持って呼ぶ）
 func (h *Hub) checkAnnotations() error {
-	pairs := []engine.AnnotatedBook{}
+	pairs := []engine.Annotated{}
 	for _, id := range h.order {
 		if lists := h.annotationsIn(id); len(lists) > 0 {
-			pairs = append(pairs, engine.AnnotatedBook{Book: h.books[id].body, Annotations: lists})
+			pairs = append(pairs, engine.AnnotatedBook(h.books[id].body, lists))
 		}
 	}
 	lines := []string{}

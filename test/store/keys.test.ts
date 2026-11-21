@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import type { MatomezuError } from "../../web/src/core/errors"
 import { defineMessages } from "../../web/src/core/i18n/messages"
-import { NO_KEY_CHANGES, readKeyChanges } from "../../web/src/core/keys"
+import { NO_KEY_CHANGES } from "../../web/src/core/keys"
 import { warningText } from "../../web/src/core/warnings"
 import { BUILTIN } from "../../web/src/plugins"
 import { defineCommand, defineScreenCommand } from "../../web/src/store/commands/def"
@@ -213,7 +213,7 @@ test("追加プラグインの既定のキーバインドがビルトインの�
   ])
 })
 
-test("既定の割り当ては id で機能台帳に並び、同じ id は error。頭が自分のプラグインの id でない id も error", () => {
+test("既定のキーバインドは id で機能台帳に並び、同じ id は error。頭が自分のプラグインの id でない id も error", () => {
   const own = defineCommand({ id: "k:own", title: "@matomezu/drawing:Drawing", run: () => {}, when: () => true })
   const plugin = (keys: unknown) => definePlugin({ id: "k", commands: [own], keys: keys as never })
   const make = (keys: unknown) => () => createMatomezu({ plugins: [...BUILTIN, plugin(keys)], partial: true })
@@ -237,14 +237,6 @@ test("キーの範囲は定義（KeyScopeDef）で機能台帳に並び、題名
   expect(thrown(make([scope, scope]))).toEqual(["E001"])
   expect(thrown(make([{ id: "k:panel", title: "k:Panel" }]))).toEqual(["E074"])
   expect(Object.keys(BASE_KEY_SCOPES)).toEqual(["global", "stage", "dialog", "menu", "picker", "screen"])
-})
-
-test("利用者の変更に残った前の範囲の名前 control-center は、screen として読む", () => {
-  const former = { key: "Escape", command: "a:leave", scope: "control-center" }
-  expect(readKeyChanges({ added: [former], removed: [former] })).toEqual({
-    added: [{ ...former, scope: "screen" }],
-    removed: [{ ...former, scope: "screen" }],
-  })
 })
 
 test("ステージを持たないスクリーンがカレントなら、キーはそのスクリーンに向く（ブックスクリーンが後ろにあっても）", () => {

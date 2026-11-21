@@ -2,10 +2,10 @@
 // テーマと紙の色の設定の項目、新しいページとページの設定のダイアログは base の物を使う
 import { defineBuiltin } from "../../../plugin-api/builtin"
 import { PANE_LAYOUT_COMMANDS, SOURCE_KEYS } from "./commands"
-import { MARKDOWN_ENTRY_ICON } from "./entry-icon"
 import { GITHUB_LIKE } from "./github-like"
 import { kit } from "./kit"
 import { MARKDOWN, MARKDOWN_PRESENTATION, SOURCE_KEY_SCOPE } from "./markdown"
+import { MARKDOWN_NODE_ICON } from "./node-icon"
 import { MARKDOWN_STATES, type PANE_LAYOUT_STATE, type PANE_OPENING_STATE } from "./panes"
 import type { SCROLL_STATE } from "./scroll-memory"
 import { type CURRENT_LINE, type LINE_NUMBERS, type SHOW_WHITESPACE, SOURCE_LOOK_SETTINGS } from "./source-look"
@@ -14,7 +14,7 @@ import { TAB_KEY } from "./tab-key"
 export const MARKDOWN_PLUGIN = defineBuiltin(
   kit.plugin({
     pageTypes: [MARKDOWN],
-    enumValues: [MARKDOWN_ENTRY_ICON],
+    enumValues: [MARKDOWN_NODE_ICON],
     presentations: [MARKDOWN_PRESENTATION],
     commands: [...PANE_LAYOUT_COMMANDS],
     keys: SOURCE_KEYS,
@@ -27,7 +27,7 @@ export const MARKDOWN_PLUGIN = defineBuiltin(
 
 declare module "../../../core/catalog" {
   interface EnumValueTable {
-    "@matomezu/markdown:entry-icon": typeof MARKDOWN_ENTRY_ICON
+    "@matomezu/markdown:node-icon": typeof MARKDOWN_NODE_ICON
   }
   interface PageTypeTable {
     "@matomezu/markdown:markdown": typeof MARKDOWN

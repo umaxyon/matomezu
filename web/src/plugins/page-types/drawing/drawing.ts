@@ -1,4 +1,4 @@
-// 図面のブック: ページを持ち、ページごとに紙を置き、紙の上にアイテム（形と、形どうしを結ぶ線）を置く。見た目（テーマと紙の色）と文字の色は base の設定の項目で変えられる
+// 図面のページのタイプ: ページを持ち、ページごとに紙を置き、紙の上にアイテム（形と、形どうしを結ぶ線）を置く。見た目（テーマと紙の色）と文字の色は base の設定の項目で変えられる
 import {
   BACKGROUND_PRINT,
   DIAGRAM_THEME_TYPE,
@@ -33,7 +33,7 @@ const ITEMS = [
   "@matomezu/line:connector-line",
 ] as const
 
-// 背景に置く形（ページの slide。背景編集モードで置く。スライドのアイテム）
+// 背景に置く形（ページの slide。背景編集モードで置く。描画シェイプ）
 const BACKGROUND_ITEMS = [
   "@matomezu/slide:slide-text",
   "@matomezu/slide:slide-free-line",
@@ -65,7 +65,7 @@ export const DRAWING = kit.definePageType({
   presentation: "@matomezu/paper:paper",
   tokens: [],
   tools: "@matomezu/paper:paper",
-  // テーマ・紙の色・線の既定の通り方（ページは線の既定の通り方を持たなければブックの既定を継ぐ）
+  // ページの設定の項目: テーマ・紙の色・線の既定の通り方・文字の色・背景の印刷（ページが値を持たなければ項目の既定）
   printCrossing: "ask", // 形は利用者が手で置くので、印刷区画をまたいだ形は印刷プレビューの前に直してもらう
   settings: [PAGE_THEME.id, PAGE_PAPER_COLOR.id, "@matomezu/line:line-route", PAGE_TEXT_COLORS.id, BACKGROUND_PRINT.id],
 })

@@ -11,7 +11,7 @@ import { binnedBetween } from "../core/entries"
 import { type Library, NO_CHANGES, pageIn } from "../core/folders"
 import { bookOf, libraryOf } from "../core/folders-books"
 import { createdOn, withChanges } from "../core/folders-changes"
-import { bookIdOf } from "../core/folders-tree"
+import { atOutsidePagePlace, bookIdOf } from "../core/folders-tree"
 import { detectLang } from "../core/i18n/i18n"
 import { changedIn } from "../core/ids"
 import type { PerformedIn, World } from "../core/perform-world"
@@ -49,7 +49,7 @@ export interface Input {
 }
 
 // 返すもの。aiEditTickets はレコードが対象のアクションが返した AI 編集チケットの変え方の並び、pages と folders は変わった・足した・無くなったページとフォルダ（無くなった物は removed）、
-// created はそのうち新しく足した物の id（常駐が、世界のどこにも無い id かを確かめる）、books は変わったブックの id（変わったページ・フォルダを持つブック。無くなったブックと、ゴミ箱に出入りしたブックも）、trashing は新しくゴミ箱に入るブックの id、annotations はアノテーションが変わったページの id → 新しい並び（空なら全部無くなった）、
+// created はそのうち新しく足した物の id（常駐が、世界のどこにも無い id かを確かめる）、books は変わったブックの id（変わったページ・フォルダを持つブック。無くなったブックと、ゴミ箱に出入りしたブックも）、trashing は新しくゴミ箱に入るステージエントリ（ブックと、ブックの外のページ）の id、annotations はアノテーションが変わったページの id → 新しい並び（空なら全部無くなった）、
 // records は変わったレコードの並び（1 つのトランザクションで書く）、counters は進めた番号（種類の id → 区切り → 次の番号。進めた区切りだけ）。
 // AI のアクションと lockedForUser のアクションが、受けた watched の物（ページの中の物・そのページのアノテーション・ページそのもの、ブックのバインダ・ブックそのもの）か watchedRecords のレコードを変えるか消すなら、何も変えずに being-edited で断る。
 // 断ったら、detail に AI への説明（MCP 公開ツールが理由に添えて AI に返す）。認可ステップが止めたら（denied）、permission にそのステップの id
@@ -92,7 +92,7 @@ const AI_REFUSALS: Record<Exclude<PerformedIn, { ok: true }>["reason"], string> 
   refused: "the action's rules refuse it (for example the page or item does not exist); read_page to check",
   denied: "a permission step stopped it",
   "no-book": "there is no book with that id (see list_books)",
-  "no-page": "there is no page with that id (on.page is the id of a page; read_book lists a book's pages)",
+  "no-page": "there is no page with that id (on.page is the id of a page; read_book and read_folder list pages)",
   "no-record": "there is no record with that id (on.record is the id of a record of the action's subject)",
 }
 
@@ -180,7 +180,9 @@ export function perform(of: Assembled, input: Input): Output {
   // フォルダの行が変わらなければ、置き場所は変わらない
   const moved = Object.keys(done.changes?.folders ?? {}).length > 0
   const binned = moved ? binnedBetween(tables, after) : { trashed: [], restored: [] }
-  const trashing = binned.trashed.filter(id => id in next)
+  const trashingBooks = binned.trashed.filter(id => id in next)
+  // ゴミ箱に入った、ブックの外のページ（入る前の置き場所で見る。中に持つフォルダごと入ったときも）
+  const trashingPages = binned.trashed.filter(id => atOutsidePagePlace(tables.folders, id))
   const restoring = binned.restored.filter(id => id in next)
   const notice = shiftNotice(books, changed, tables, after)
   const changes = done.changes ?? NO_CHANGES
@@ -190,8 +192,8 @@ export function perform(of: Assembled, input: Input): Output {
     pages: rowChanges(changes.pages),
     folders: rowChanges(changes.folders),
     created: createdOn(tables, changes),
-    books: [...new Set([...changed.map(b => b.id), ...removed, ...trashing, ...restoring])],
-    trashing,
+    books: [...new Set([...changed.map(b => b.id), ...removed, ...trashingBooks, ...restoring])],
+    trashing: [...trashingBooks, ...trashingPages],
     ...(done.library ? { library: done.library } : {}),
     ...(done.settings ? { settings: done.settings } : {}),
     ...(done.annotations ? { annotations: done.annotations } : {}),

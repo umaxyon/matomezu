@@ -14,11 +14,11 @@ import {
   NODE_SIZE_EDIT,
   TREE_KEYS,
 } from "./commands"
-import { TREE_ENTRY_ICON } from "./entry-icon"
 import { GROW } from "./grow"
 import { TREE_DRAFT, TREE_EDIT_CANCEL, TREE_EDIT_COMMIT, TREE_EDIT_KEY_SCOPE, TREE_EDIT_KEYS } from "./in-place"
 import { kit } from "./kit"
 import { LINE_SHAPE } from "./line-shape"
+import { TREE_NODE_ICON } from "./node-icon"
 import { NODE_SHAPE } from "./shape"
 import { NODE_SIZE } from "./size"
 import { type TREE_FOCUS_RELEASED_STATE, TREE_STATES } from "./states"
@@ -35,7 +35,7 @@ import {
 export const TREE_PLUGIN = defineBuiltin(
   kit.plugin({
     pageTypes: [TREE],
-    enumValues: [TREE_ENTRY_ICON],
+    enumValues: [TREE_NODE_ICON],
     pluginStates: [...TREE_STATES, TREE_DRAFT],
     presentations: [TREE_PRESENTATION],
     settings: [GROW, NODE_SIZE, NODE_SHAPE, LINE_SHAPE],
@@ -62,7 +62,7 @@ export const TREE_PLUGIN = defineBuiltin(
 
 declare module "../../../core/catalog" {
   interface EnumValueTable {
-    "@matomezu/tree:entry-icon": typeof TREE_ENTRY_ICON
+    "@matomezu/tree:node-icon": typeof TREE_NODE_ICON
   }
   interface PageTypeTable {
     "@matomezu/tree:tree": typeof TREE

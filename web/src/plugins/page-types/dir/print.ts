@@ -1,6 +1,6 @@
 // ディレクトリ構成図のページの印刷: 行と説明を並べ（layout.ts。ビューと同じ並べ方と座標）、可変ページなら行と説明が入るだけ並べた印刷区画の数と、
 // 行と説明が載る印刷区画を返す（プレゼンテーションの printSheets）。罫線は行から決まるので数えない。
-// 印刷では、印刷区画の下の境目をまたぐ行と、それより下を次の印刷区画の頭まで送る（改ページ。printLaid。書く画面の並びは変えない）
+// 印刷では、印刷区画の下の境目をまたぐ行と、それより下を次の印刷区画の頭まで送る（改ページ。printLaid。ステージに描く並びは変えない）
 import type { CoreCatalog, ItemPage, Point, Rect, Size } from "../../../plugin-api"
 import {
   breakShift,
@@ -12,12 +12,12 @@ import {
   type SettingReader,
   type SheetPurpose,
 } from "../../base"
-import { type DirFolder, dirRootOf } from "./entry"
 import { type DirLayout, laidBottom, laidRight, layoutDir, MARGIN } from "./layout"
+import { type DirFolder, dirRootOf } from "./node"
 import { NOTES } from "./notes"
 
 // ページ page の行と説明を並べたもの（根の無いページは null）。setting はそのページで効いている設定の値、grow はページの増やす向き。
-// root は並べる根（書く画面が、書いている字を重ねた根を渡す。無ければページの根）
+// root は並べる根（ビューが、書いている字を重ねた根を渡す。無ければページの根）
 export function laidPage(
   catalog: CoreCatalog,
   page: ItemPage,
@@ -28,7 +28,7 @@ export function laidPage(
   return root ? layoutDir(root, paper, setting(NOTES), grow !== undefined) : null
 }
 
-// 可変ページで、並べた行と説明 laid が入るだけ印刷区画を並べた数と広さ（spare なら、増やす向きに空きの印刷区画を足す。書く画面がステージに知らせる広さ）
+// 可変ページで、並べた行と説明 laid が入るだけ印刷区画を並べた数と広さ（spare なら、増やす向きに空きの印刷区画を足す。ビューがステージに知らせる広さ）
 export const laidArea = (paper: Size, grow: GrowSides, laid: DirLayout, spare: boolean) =>
   grownArea(paper, grow, laidExtentOf(laid), spare)
 

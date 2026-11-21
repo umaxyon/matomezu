@@ -1,5 +1,5 @@
 // プラグイン状態（定義は core/def/plugin-state.ts）の値の置き場と、画面の場所との行き来。
-// 値は pluginValues に持つ（窓の外観枠は id → 値、ステージは ステージの id → id → 値）。画面の場所に入れる宣言（address が none でない）の値は、置くときも場所から戻すときも
+// 値は pluginValues に持つ（窓の範囲は id → 値、ステージは ステージの id → id → 値）。画面の場所に入れる宣言（address が none でない）の値は、置くときも場所から戻すときも
 // 宣言の形（schema）で読み、合わない値と宣言の無い id は無いものとして落とす。入れない宣言（none）は場所に出さず、場所から来ても読まず、戻る・進むでも残す
 
 import type { PluginStateDef, PluginStateScope } from "../core/def/plugin-state"

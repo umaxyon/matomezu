@@ -34,6 +34,7 @@ test("場所を当てはめると、そのとおりにステージを開いて�
   const win = placeAt(
     catalog.core,
     state.getState().books,
+    state.getState(),
     state.getState().window,
     at(
       [
@@ -45,7 +46,7 @@ test("場所を当てはめると、そのとおりにステージを開いて�
     ),
   )
   const ws = screenOf(win)
-  expect(ws.stages.map(s => s.opened?.outermost ?? null)).toEqual(["b3", null])
+  expect(ws.stages.map(s => s.opened?.outermost.id ?? null)).toEqual(["b3", null])
   expect(ws.current).toBe(ws.stages[1]!.id)
   expect(ws.arrangement.share).toBe(0.85)
   // ステージの番号は使い回さず、足したステージには新しい番号
@@ -63,9 +64,10 @@ test("無いブックを名指すステージは開かない。全部がそう�
     pan: { x: 0, y: 0 },
     states: {},
   })
-  const on = (address: Address) => placeAt(catalog.core, state.getState().books, state.getState().window, address)
+  const on = (address: Address) =>
+    placeAt(catalog.core, state.getState().books, state.getState(), state.getState().window, address)
   const one = on(at([place("gone"), place("b3")], 0))
-  expect(screenOf(one).stages.map(s => s.opened?.outermost)).toEqual(["b3"])
+  expect(screenOf(one).stages.map(s => s.opened?.outermost.id)).toEqual(["b3"])
   expect(recentBookScreen(on(at([place("gone")])))).toBeUndefined()
 })
 
@@ -77,6 +79,7 @@ test("場所の倍率は、範囲に収める（URL から 0・負・極端な�
       placeAt(
         catalog.core,
         state.getState().books,
+        state.getState(),
         state.getState().window,
         at([{ outermost: "b1", page: "p1", binder: null, zoom, pan: { x: 0, y: 0 }, states: {} }], 0, 0.5),
       ),
@@ -117,12 +120,12 @@ test("場所のスクリーンを、その id のまま開き、場所に無い�
     { id: "c7", def: CENTER, props: { extra: 1 }, states: {} },
   ]
   const address = { ...base, screens: [...base.screens, ...more], order: ["c1", "c2", "c5"] }
-  const win = placeAt(catalog.core, state.getState().books, state.getState().window, address)
+  const win = placeAt(catalog.core, state.getState().books, state.getState(), state.getState().window, address)
   expect(win.screens.map(s => s.id)).toEqual(["c1", "c2", "c5"])
   expect(win.order).toEqual(["c1", "c2", "c5"])
   expect(win.issuedScreens).toBe(5)
   // 場所に無くなったスクリーンは閉じる（最初から開いているスクリーンとブックスクリーンは、場所に無くても残る）
-  const back = placeAt(catalog.core, state.getState().books, win, {
+  const back = placeAt(catalog.core, state.getState().books, state.getState(), win, {
     ...base,
     screens: [base.screens[1]!],
     order: ["c2"],
@@ -138,6 +141,7 @@ test("場所を当てはめたステージは、ずらす量が 0 でも、あ�
     placeAt(
       catalog.core,
       state.getState().books,
+      state.getState(),
       state.getState().window,
       at([{ outermost: "b1", page: "p1", binder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} }], 0, 0.5),
     ),
@@ -170,11 +174,14 @@ test("場所はスクリーンアレンジメントの値を持つ。当ては�
     arrangement: "@matomezu/base:split-rows",
     arrangementValue: { screens: ["c1", "c2"], behind: [] },
   }
-  const win = placeAt(catalog.core, state.getState().books, state.getState().window, split)
+  const win = placeAt(catalog.core, state.getState().books, state.getState(), state.getState().window, split)
   expect(win.arrangement).toBe("@matomezu/base:split-rows")
   expect(win.arrangementValue).toEqual({ screens: ["c1", "c2"], behind: [] })
   expect(addressOf(win).arrangementValue).toEqual({ screens: ["c1", "c2"], behind: [] })
-  const wrong = placeAt(catalog.core, state.getState().books, win, { ...split, arrangementValue: { screens: 3 } })
+  const wrong = placeAt(catalog.core, state.getState().books, state.getState(), win, {
+    ...split,
+    arrangementValue: { screens: 3 },
+  })
   expect(wrong.arrangementValue).toEqual({ screens: [], behind: [] })
   expect(moved(split, { ...split, arrangementValue: { screens: ["c2", "c1"], behind: [] } })).toBe(true)
   expect(moved(split, { ...split, arrangementValue: { screens: ["c1", "c2"], behind: [] } })).toBe(false)

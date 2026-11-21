@@ -8,9 +8,13 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -27,13 +31,16 @@ const startWait = 10 * time.Second
 
 // 常駐の立て方（serve と start で共通）
 type serverFlags struct {
-	Addr   string   `default:"${addr}" help:"Address to listen on (127.0.0.1 only)."`
+	Port   *int     `help:"Port to listen on at 127.0.0.1. The vault keeps it for the next start (0 picks a free port and is not kept). Without it: the kept port, else 7230 (5300 for a development vault)."`
 	Web    string   `help:"Serve the screen from this folder instead of the one built in." type:"existingdir"`
 	Plugin []string `help:"Add the plugin in this developer project folder (with matomezu.json). Repeat for more." type:"existingdir"`
 }
 
 func (f serverFlags) args() []string {
-	a := []string{"--addr", f.Addr}
+	var a []string
+	if f.Port != nil {
+		a = append(a, "--port", strconv.Itoa(*f.Port))
+	}
 	if f.Web != "" {
 		a = append(a, "--web", f.Web)
 	}
@@ -65,6 +72,7 @@ func openHome() (*home.Home, error) {
 }
 
 func (c *serveCmd) Run() error {
+	c.serverFlags = devHere(c.serverFlags)
 	h, err := openHome()
 	if err != nil {
 		return err
@@ -100,11 +108,11 @@ func (c *serveCmd) Run() error {
 			}
 		}
 	}()
-	// 呼ばれないビジターを、時間で退室させる
+	// 呼ばれないビジターを時間で退室させ、セッションが終わった要求を消す
 	go func() {
-		for now := range time.Tick(server.VisitorSweepEvery) {
-			if err := hub.LeaveIdleVisitors(now); err != nil {
-				fmt.Fprintln(os.Stderr, "visitors:", err)
+		for now := range time.Tick(server.ParticipantSweepEvery) {
+			if err := hub.SweepParticipants(now); err != nil {
+				fmt.Fprintln(os.Stderr, "participants:", err)
 			}
 		}
 	}()
@@ -114,15 +122,18 @@ func (c *serveCmd) Run() error {
 			fmt.Fprintf(os.Stderr, "plugin %s is not added: %v\n", dir, err)
 		}
 	}
-	host, _, err := net.SplitHostPort(c.Addr)
+	port, err := listenPort(h, c.Port)
 	if err != nil {
 		return err
 	}
-	if ip := net.ParseIP(host); ip == nil || !ip.IsLoopback() {
-		return fmt.Errorf("--addr must be on 127.0.0.1: %s", c.Addr)
+	ln, err := net.Listen("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)))
+	if errors.Is(err, errAddrInUse) {
+		return fmt.Errorf("port %d is in use (by another program or the server of another vault): choose another with --port", port)
 	}
-	ln, err := net.Listen("tcp", c.Addr)
 	if err != nil {
+		return err
+	}
+	if err := keepPort(h, c.Port); err != nil {
 		return err
 	}
 	token, err := home.NewToken()
@@ -186,26 +197,32 @@ func screen(dir string) (fs.FS, error) {
 }
 
 func (c *startCmd) Run() error {
+	f := devHere(c.serverFlags)
 	h, err := openHome()
 	if err != nil {
 		return err
 	}
-	s, err := ensure(h, c.serverFlags)
+	s, err := ensure(h, f)
 	if err != nil {
 		return err
 	}
 	fmt.Println(s.URL)
+	fmt.Fprintln(os.Stderr, "vault:", h.Dir)
 	if c.Open {
 		return openBrowser(s)
 	}
 	// 画面 cookie の無いブラウザは、この URL を開いても断られる（URL は標準出力のまま、案内は標準エラーへ）
-	fmt.Fprintln(os.Stderr, "Run matomezu start --open to give your browser access to the screen.")
+	fmt.Fprintln(os.Stderr, "Run matomezu open to give your browser access to the screen.")
 	return nil
 }
 
-// ensure は、立っている常駐のつなぎ方を返す。立っていなければ f で裏に立て、答えるまで待つ
+// ensure は、立っている常駐のつなぎ方を返す。立っていなければ f で裏に立て、答えるまで待つ。
+// f がポートを選んでいて、立っている常駐が別のポートで待っていれば断る（止めて立て直すと、開いている画面と AI のつながりが切れる）
 func ensure(h *home.Home, f serverFlags) (*home.Server, error) {
 	if s, err := running(h); err != nil || s != nil {
+		if err == nil && f.Port != nil && *f.Port != 0 && serverPort(s) != *f.Port {
+			return nil, fmt.Errorf("the server of %s is running at %s: stop it first (matomezu stop) to use port %d", h.Dir, s.URL, *f.Port)
+		}
 		return s, err
 	}
 	exe, err := os.Executable()
@@ -217,6 +234,11 @@ func ensure(h *home.Home, f serverFlags) (*home.Server, error) {
 		return nil, err
 	}
 	defer log.Close()
+	info, err := log.Stat()
+	if err != nil {
+		return nil, err
+	}
+	from := info.Size()
 	cmd := exec.Command(exe, append([]string{"serve"}, f.args()...)...)
 	cmd.Stdout, cmd.Stderr = log, log
 	cmd.SysProcAttr = detached()
@@ -234,6 +256,9 @@ func ensure(h *home.Home, f serverFlags) (*home.Server, error) {
 			if s, _ := running(h); s != nil {
 				return s, nil
 			}
+			if why := lastLogLine(h.LogPath(), from); why != "" {
+				return nil, fmt.Errorf("the server stopped while starting: %s (log: %s)", why, h.LogPath())
+			}
 			return nil, fmt.Errorf("the server stopped while starting: see %s", h.LogPath())
 		case <-deadline:
 			return nil, fmt.Errorf("the server did not start in %s: see %s", startWait, h.LogPath())
@@ -243,6 +268,49 @@ func ensure(h *home.Home, f serverFlags) (*home.Server, error) {
 			return s, nil
 		}
 	}
+}
+
+// listenPort は、常駐が待つポート: 選んだ物 chosen（nil は選んでいない）、無ければ保管庫が覚えた物、無ければ既定（開発の保管庫 .dev-home は devPort、ほかは DefaultPort）
+func listenPort(h *home.Home, chosen *int) (int, error) {
+	if chosen != nil {
+		return *chosen, nil
+	}
+	kept, err := h.ReadPort()
+	if err != nil || kept != 0 {
+		return kept, err
+	}
+	if filepath.Base(h.Dir) == devHomeDir {
+		return devPort, nil
+	}
+	return DefaultPort, nil
+}
+
+// keepPort は、待ち受けを始めた常駐のポートを、利用者が選んだ物 chosen なら保管庫に覚える（選んでいない・0 は覚えない）
+func keepPort(h *home.Home, chosen *int) error {
+	if chosen == nil || *chosen == 0 {
+		return nil
+	}
+	return h.WritePort(*chosen)
+}
+
+// serverPort は、立っている常駐 s が待つポート（読めなければ 0）
+func serverPort(s *home.Server) int {
+	u, err := url.Parse(s.URL)
+	if err != nil {
+		return 0
+	}
+	port, _ := strconv.Atoi(u.Port())
+	return port
+}
+
+// lastLogLine は、ファイル path の from バイト目より後ろに書かれた、空でない最後の行（頭の「error: 」は外す。読めなければ空）
+func lastLogLine(path string, from int64) string {
+	b, err := os.ReadFile(path)
+	if err != nil || int64(len(b)) < from {
+		return ""
+	}
+	lines := strings.Split(strings.TrimSpace(string(b[from:])), "\n")
+	return strings.TrimPrefix(strings.TrimSpace(lines[len(lines)-1]), "error: ")
 }
 
 // running は、立っていて答える常駐のつなぎ方。立っていなければ nil
@@ -262,14 +330,20 @@ func running(h *home.Home) (*home.Server, error) {
 }
 
 func (c *stopCmd) Run() error {
+	useDevHere()
 	h, err := openHome()
 	if err != nil {
 		return err
 	}
 	s, err := running(h)
-	if err != nil || s == nil {
+	if err != nil {
 		return err
 	}
+	if s == nil {
+		fmt.Fprintln(os.Stderr, "no server is running for", h.Dir)
+		return nil
+	}
+	fmt.Fprintln(os.Stderr, "stopping the server of", h.Dir)
 	if _, err := call(s, http.MethodPost, "api/stop"); err != nil {
 		return err
 	}
@@ -284,14 +358,16 @@ func (c *stopCmd) Run() error {
 
 // Run は、cookie のコード付きでブラウザを開かせる（画面 cookie が切れたブラウザを、利用者が自分で渡し直す）。常駐が立っていなければ立てる
 func (c *openCmd) Run() error {
+	f := devHere(serverFlags{})
 	h, err := openHome()
 	if err != nil {
 		return err
 	}
-	s, err := ensure(h, serverFlags{Addr: DefaultAddr})
+	s, err := ensure(h, f)
 	if err != nil {
 		return err
 	}
+	fmt.Fprintln(os.Stderr, "vault:", h.Dir)
 	return openBrowser(s)
 }
 
