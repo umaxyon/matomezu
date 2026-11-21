@@ -7,6 +7,7 @@ import {
   type SettingControlProps,
   useItem,
   useMessages,
+  usePageById,
   usePerform,
 } from "matomezu/ui"
 import { useState } from "react"
@@ -60,16 +61,18 @@ export function AddDiamondDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
   )
 }
 
-// 今の答えのボタンを押された見た目にする（useItem で開いた判断のひし形を読む）
+// 今の答えのボタンを押された見た目にする（useItem で開いた判断のひし形を読む）。どのページの判断かを、usePageById で引いたページの名前で添える
 export function EditDiamondDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
   const t = useMessages(kit)
   const diamond = useItem(args.page, args.item, DIAMOND.id)
+  const page = usePageById(args.page)
   const perform = usePerform()
   const answer = (value: "yes" | "no") => {
     if (perform(ANSWER.id, { item: args.item, answer: value }, { page: args.page }).ok) onClose()
   }
   return (
     <Dialog title={t("editDecision")} onClose={onClose}>
+      <p data-ex2-page>{page?.title}</p>
       <p>{diamond?.props.caption}</p>
       <button type="button" aria-pressed={diamond?.props.answer === "yes"} onClick={() => answer("yes")}>
         {t("yes")}

@@ -32,12 +32,12 @@ import {
   type ShapeScene,
   TokenScope,
   useActions,
-  useBook,
   useCommand,
   useContextMenu,
   useCoreCatalog,
   useMessages,
   usePage,
+  usePageById,
   useShownPage,
   useStage,
   useStageArea,
@@ -266,10 +266,11 @@ function PageItems({
 }) {
   const catalog = useCoreCatalog()
   const ui = useUiCatalog()
-  const book = useBook()
+  // 描くページが、開いている物の中のページか（何も開いていなければ false）
+  const opened = usePageById(page.id) !== null
   const followed = useFollowsSelection()
   // 可変ページなら、形を置ける広さ（空きの印刷区画を含む。base の roomOf）をステージの広さとして知らせる
-  const room = useMemo(() => (book && growOf(catalog, page) ? roomOf(catalog, page) : null), [catalog, book, page])
+  const room = useMemo(() => (opened && growOf(catalog, page) ? roomOf(catalog, page) : null), [catalog, opened, page])
   useStageArea(room)
   // ページに置けるつなぐもののビュー
   const connectors = allowedItems(catalog, page).flatMap(id => {
@@ -308,8 +309,7 @@ function PageItems({
     if (followed) return
     const items = shapesIn(page, press.drag)
     // 動かせないとき（認可ステップが止めるなど、コマンドを押せない。親の違う形が混じっている）は選ぶだけ
-    const movable =
-      (reparenting ? reparent.enabled : move.enabled) && book !== null && movableTogether(catalog, page, items)
+    const movable = (reparenting ? reparent.enabled : move.enabled) && opened && movableTogether(catalog, page, items)
     if (!movable && press.release === null) return
     e.currentTarget.setPointerCapture(e.pointerId)
     drag.current = {
@@ -336,7 +336,7 @@ function PageItems({
       const at = localOf(e)
       const point = at && toPaperAt(at)
       setTarget(point ? dropTarget(catalog, page, d.items[0] as string, point) : null)
-    } else if (d.items.length === 1 && book) {
+    } else if (d.items.length === 1 && opened) {
       const id = d.items[0] as string
       d.came = trackDrag(catalog, page, id, d.prev, by, d.came)
       // 入れ替えが起きたら覚える（このドラッグの終わりまで）
@@ -366,7 +366,7 @@ function PageItems({
   const d = drag.current
   const dragged = shift && d ? d.items : []
   const plan =
-    shift && book && d?.items.length === 1 && !d.reparent
+    shift && opened && d?.items.length === 1 && !d.reparent
       ? dragging(catalog, page, d.items[0] as string, shift, d.came)
       : null
   // ドラッグ中にずらして描く量（紙の上）
