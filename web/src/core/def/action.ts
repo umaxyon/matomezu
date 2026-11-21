@@ -396,9 +396,12 @@ export interface ActionDef<
   lockedForUser?: true
   // 利用者トリガートークのときに、matomezu がアノテーションのある読めるページごとに、利用者として行う（引数は {}。アノテーションが対象のアクションだけが書ける）
   runsWhenUserTalks?: T extends "annotations" ? true : never
-  // AI が参加を頼むとき（MCP の join）に、matomezu が行う役。"make-participant" は参加者を作り（参加者の id を result の participant で返す）、
-  // "notify-user" は利用者に知らせる郵便を、利用者として送る（参加者の id などを受ける。利用者だけが行うアクション）。役ごとに 1 つのアクションだけが名乗る。どちらも対象の定義の種類が対象のアクションだけが書ける
-  runsWhenAIJoins?: T extends SubjectId ? "make-participant" | "notify-user" : never
+  // AI が参加を頼むとき（MCP の join）に、matomezu が行う役。"make-participant" は参加者を作る（参加者の id を result の participant で返す）。
+  // 1 つのアクションだけが名乗る。対象の定義の種類が対象のアクションだけが書ける
+  runsWhenAIJoins?: T extends SubjectId ? "make-participant" : never
+  // 利用者が要求中の参加者を、断りでなくキャンセルとして終える（常駐は、これで要求中の参加者が消えたら、AI に断りでなくキャンセルと知らせる。
+  // 名乗らないアクションで消えたら断り）。1 つのアクションだけが名乗る。対象の定義の種類が対象のアクションだけが書ける
+  cancelsJoinRequest?: T extends SubjectId ? true : never
   // 参加者のセッションが終わったと常駐が確かめたとき（セッションと同じだけ生きると名乗られたプロセスが居なくなったとき）に、常駐が利用者として行う（引数は {}、宛先は参加者のレコード。利用者だけが行うアクション。
   // 参加者を外して、ワークルームを空室で残す）。1 つのアクションだけが名乗る。対象の定義の種類が対象のアクションだけが書ける
   runsWhenAIEnds?: T extends SubjectId ? true : never

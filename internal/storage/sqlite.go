@@ -210,6 +210,8 @@ var migrations = []string{
 			ORDER BY j.key))
 	WHERE json_valid(body) AND json_type(body) = 'array';
 	DELETE FROM ai_edit_tickets WHERE json_valid(body) AND json_type(body) = 'array' AND json_array_length(body) = 0;`,
+	// 参加の要求の郵便（種類 join-request）を消す（要求は郵便にせず、要求中の参加者をしおりに出すため）
+	`DELETE FROM records WHERE subject = '@matomezu/base:mail' AND json_valid(body) AND json_extract(body, '$.mail') = '@matomezu/base:join-request';`,
 }
 
 // goMigrations は、SQL だけでは書けない移し替え（JSON の中をたどる物）。鍵は migrations の番号（0 から）で、その SQL を行ったあと、同じトランザクションの中で行う

@@ -2,6 +2,7 @@
 import { BIRDS_MESSAGES } from "./birds/messages"
 import { BOOK_LOOK_MESSAGES } from "./book-look/messages"
 import { BOOK_NEW_MESSAGES } from "./book-new/messages"
+import { BOOKMARK_MESSAGES } from "./bookmarks/messages"
 import { MENU_MESSAGES } from "./context-menu/messages"
 import { CORNER_MESSAGES } from "./corner-status/messages"
 import { DIALOG_MESSAGES } from "./dialog-host/messages"
@@ -60,6 +61,7 @@ export const BASE_MESSAGES = joinMessages(
   RIGHT_SIDE_PANEL_MESSAGES,
   LEFT_SIDE_PANEL_MESSAGES,
   MAIL_MESSAGES,
+  BOOKMARK_MESSAGES,
   SCRAP_MESSAGES,
   WIDE_SEARCH_MESSAGES,
   PARTICIPANT_MESSAGES,

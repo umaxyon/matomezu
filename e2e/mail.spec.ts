@@ -130,34 +130,42 @@ test("2 画面なら「左に開く」「右に開く」で、Enter はダイア
   await expect(stages.nth(1).locator("[data-mail-bird]")).toBeVisible()
 })
 
-test("未読が 3 通まではしおりを 1 通に 1 つずつ、4 通になると 1 つにまとめて数を付け、押すと郵便箱が開く。郵便箱の行を押すとダイアログが開き、取消は確かめてから消す", async ({
+test("しおりは古い順に 5 つまで並べ、残りは「ほか n 件」にまとめ、押すと郵便箱が開く。片づけば次が出る。郵便箱の行を押すとダイアログが開き、取消は確かめてから消す", async ({
   page,
 }) => {
   await ready(page)
-  for (const n of [1, 2, 3])
+  for (const n of [1, 2, 3, 4, 5])
     await aiPerform(page, {
       action: "@matomezu/base:mail-send",
       args: { from: "a", title: `題${n}` },
     })
-  for (const n of [1, 2, 3]) await expect(page.getByRole("button", { name: `題${n}` })).toBeVisible()
-  await aiPerform(page, { action: "@matomezu/base:mail-send", args: { from: "a", title: "題4" } })
-  const many = page.getByRole("button", { name: "未読の郵便 4 通" })
+  for (const n of [1, 2, 3, 4, 5]) await expect(page.getByRole("button", { name: `題${n}` })).toBeVisible()
+  await expect(page.getByRole("button", { name: /^ほか/ })).toHaveCount(0)
+  await aiPerform(page, { action: "@matomezu/base:mail-send", args: { from: "a", title: "題6" } })
+  const many = page.getByRole("button", { name: "ほか 1 件" })
   await expect(many).toBeVisible()
-  await expect(page.getByRole("button", { name: "題1" })).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "題6" })).toHaveCount(0)
+  // 1 通を見て片づけると、次の 1 通が出る
+  await page.getByRole("button", { name: "題1" }).click()
+  await page.keyboard.press("Escape")
+  await expect(page.getByRole("button", { name: "題6" })).toBeVisible()
+  await expect(many).toHaveCount(0)
+  await aiPerform(page, { action: "@matomezu/base:mail-send", args: { from: "a", title: "題7" } })
+  await expect(many).toBeVisible()
   await many.click()
   await expect(leftPanel(page).getByRole("tab", { name: /郵便箱/ })).toHaveAttribute("aria-selected", "true")
   const rows = leftPanel(page).getByRole("listitem")
-  await expect(rows).toHaveCount(4)
+  await expect(rows).toHaveCount(7)
   // 新しい順。行を押すとダイアログが開く
-  await expect(rows.first()).toContainText("題4")
+  await expect(rows.first()).toContainText("題7")
   await rows.first().getByRole("button").first().click()
-  await expect(page.getByRole("dialog", { name: "題4" })).toBeVisible()
+  await expect(page.getByRole("dialog", { name: "題7" })).toBeVisible()
   await page.keyboard.press("Escape")
-  await expect(page.getByRole("dialog", { name: "題4" })).toHaveCount(0)
+  await expect(page.getByRole("dialog", { name: "題7" })).toHaveCount(0)
   // ダイアログを閉じても、郵便箱は開いたまま
   await leftPanel(page).getByRole("button", { name: "題1を取り消す" }).click()
   await leftPanel(page).getByRole("group", { name: "取り消しますか？" }).getByRole("button", { name: "取消" }).click()
-  await expect(rows).toHaveCount(3)
+  await expect(rows).toHaveCount(6)
 })
 
 test("参加済みの送り手の鳥を郵便ごとに表示し、受信や退室でもしおりの色を保つ", async ({ page }) => {
@@ -172,16 +180,18 @@ test("参加済みの送り手の鳥を郵便ごとに表示し、受信や退�
   })
   const { participant } = (await joined.json()) as { participant: string }
   expect(participant).toBeTruthy()
+  // 参加要求のしおりは封筒で、ダイアログを閉じても残り、受け入れると消える
   const request = page.getByRole("button", { name: "AI エージェントから参加要求が届きました" })
   await expect(request.locator("svg")).toBeVisible()
   await request.click()
-  await expect(request).toHaveCount(0)
   await page.keyboard.press("Escape")
+  await expect(request).toBeVisible()
   await userAction(
     "@matomezu/base:participant-accept",
     { newWorkroom: { name: "郵便を送る部屋", bird: "inko", palette: "orange" } },
     { record: participant },
   )
+  await expect(request).toHaveCount(0)
   const ai = { ...aiAuth(), "X-Matomezu-Participant": participant }
   const send = async (title: string) => {
     const response = await page.request.post("/api/ai/perform", {

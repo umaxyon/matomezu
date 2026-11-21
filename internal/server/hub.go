@@ -96,7 +96,8 @@ type Hub struct {
 	participantNotes map[string]participantNote        // 参加者の id → 常駐だけが持つ参加者の記録（join.go。結ぶのは join_session.go、呼ばれたのは join_calls.go）
 	joinMu           sync.Mutex                        // 参加の頼みを 1 つずつ受ける（join.go）
 	rejoin           rejoinPasses                      // 開発用の、前もって承認した再参加（rejoin_pass.go。リリースの実行ファイルには無い）
-	goneTold         map[string]bool                   // 表に無い参加の id のうち、断られたと伝えたもの（join.go。残さない）
+	goneTold         map[string]bool                   // 表に無い参加の id のうち、断られた（キャンセルされた）と伝えたもの（join_calls.go。残さない）
+	goneCancelled    map[string]bool                   // 表に無い参加の id のうち、利用者が要求をキャンセルしたもの（断りと伝える文が違う。watch.go。残さない）
 	heardModels      map[string]heardModel             // セッション id → 誰にも結ばれていないうちにフックが知らせたモデル（model.go。残さない）
 	clients          map[string]*client
 	wakeLines        map[*wakeLine]struct{} // AI を起こす知らせの通り道（watch.go）

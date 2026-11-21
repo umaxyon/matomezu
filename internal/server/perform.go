@@ -98,10 +98,13 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	} else if p.Client != "" {
 		by = "window"
 	}
-	// 窓のアクションで要求中の参加者が受け入れられた・断られたら、その AI に知らせる（watch.go。受け取られるまで行列で持つ）
-	var requested map[string]bool
+	// 窓のアクションで要求中の参加者が受け入れられた・断られた・キャンセルされたら、その AI に知らせる（watch.go。受け取られるまで行列で持つ）
+	var requested, cancelled map[string]bool
 	if by == "window" {
 		requested = h.requestedParticipants()
+		if len(requested) > 0 {
+			cancelled = h.cancelledIn(p.Actions)
+		}
 	}
 	// アクションが返した AI 間メッセージは、送り手と全部の宛先に参加の確定した参加者がいるときだけ送る（いなければ、何も変えずにバルクごと断る）
 	envelopes, envelopesRefused := h.actionEnvelopes(out.AIMessages, in.Actor, time.Now())
@@ -136,7 +139,7 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	for _, e := range envelopes {
 		h.deliver(e)
 	}
-	h.wakeOnParticipants(requested)
+	h.wakeOnParticipants(requested, cancelled)
 	h.remember(p.Key, done)
 	h.ack(p, done)
 	return done, nil

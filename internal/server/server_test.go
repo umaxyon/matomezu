@@ -1678,8 +1678,7 @@ func TestChangeProposal(t *testing.T) {
 			} `json:"props"`
 		} `json:"records"`
 	}
-	// ほかは、参加の要求の郵便（joinedAI が受け入れた AI の分）
-	if json.Unmarshal([]byte(data), &world) != nil || len(world.Records[mailKind]) != 2 || world.Records[mailKind][sent.Result.Mail].Props.Snapshot == nil {
+	if json.Unmarshal([]byte(data), &world) != nil || len(world.Records[mailKind]) != 1 || world.Records[mailKind][sent.Result.Mail].Props.Snapshot == nil {
 		t.Fatalf("mail = %s", data)
 	}
 	apply := `{"action":"@matomezu/base:proposal-apply","args":{"page":"p1","changes":` + change + `,"snapshot":` + string(world.Records[mailKind][sent.Result.Mail].Props.Snapshot) + `},"on":{"book":"b1"},"lang":"ja","client":"c1","seq":1}`

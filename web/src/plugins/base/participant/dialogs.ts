@@ -1,3 +1,6 @@
+// 参加要求のダイアログ（要求の中身と、断る・受け入れる。しおりから開く）の id。参加者の id を受け取る
+export const JOIN_REQUEST_DIALOG = kit.defineDialogWith<{ participant: string }>()({ id: "join-request" })
+
 // 参加要求を受け入れるダイアログ（ワークルームの名前・鳥・配色を決める）の id。参加者の id を受け取る
 import { kit } from "../kit"
 

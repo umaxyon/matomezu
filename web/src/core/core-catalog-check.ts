@@ -131,13 +131,19 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     if (other !== undefined) problems.push(problem("E037", { id: d.id, role: d.role, other }))
     roles.set(d.role, d.id)
   }
-  // AI が参加を頼むときの役（runsWhenAIJoins）も、1 つの役は 1 つのアクションだけが名乗る
-  const joinRoles = new Map<string, string>()
+  // AI が参加を頼むときの役（runsWhenAIJoins）も、1 つのアクションだけが名乗る
+  let joiner: string | undefined
   for (const a of parts.actions) {
     if (!a.runsWhenAIJoins) continue
-    const other = joinRoles.get(a.runsWhenAIJoins)
-    if (other !== undefined) problems.push(problem("E044", { id: a.id, role: a.runsWhenAIJoins, other }))
-    joinRoles.set(a.runsWhenAIJoins, a.id)
+    if (joiner !== undefined) problems.push(problem("E044", { id: a.id, role: a.runsWhenAIJoins, other: joiner }))
+    joiner ??= a.id
+  }
+  // 要求をキャンセルとして終える役（cancelsJoinRequest）も、1 つのアクションだけが名乗る
+  let canceller: string | undefined
+  for (const a of parts.actions) {
+    if (!a.cancelsJoinRequest) continue
+    if (canceller !== undefined) problems.push(problem("E067", { id: a.id, other: canceller }))
+    canceller ??= a.id
   }
   // 参加者のセッションが終わったときの役（runsWhenAIEnds）も、1 つのアクションだけが名乗る
   let ender: string | undefined

@@ -4,7 +4,8 @@
 // 受け入れ済みでワークルームを持たないビジター（visitor。読むことだけができる）。
 // 管理者の印は全体に 1 つ（id は "admin"。ワークルームの id か "none"）。アクションは READS_ADMIN と READS_WORKROOM_KEYS で読み、adminWorkroom・isAdminActor で引く。
 // 指す先のワークルームが無ければ「無い」として読む。書き換えるのは、管理者がいないときにワーカーを受け入れる participant-accept だけ。
-// 要求する participant-request は AI も行え、ほかは利用者だけ。participant-accept は、入るワークルームを作る・いる参加者を外す・捨てるワークルームを消す・
+// 要求する participant-request は AI も行え、ほかは利用者だけ。要求中の参加者は、受け入れる participant-accept・断る participant-decline・キャンセルする participant-cancel で終わる
+// （断りとキャンセルは AI への知らせが違う。キャンセルは、言われたら頼み直してよい）。participant-accept は、入るワークルームを作る・いる参加者を外す・捨てるワークルームを消す・
 // 管理者がいなければ入れたワークルームを管理者にする、まで 1 つのアクションで行う（ビジターとして受け入れるときは、ワークルームに触らない）。
 // workroom-remove も、いる参加者を一緒に外す。外す参加者は id で渡し、渡した参加者がそのワークルームにいるときだけ外す（生きているかは、ダイアログが見る）
 import { z } from "zod"
@@ -21,6 +22,13 @@ export const WORKROOM_NAME_MAX = 20 // ワークルームの名前の長さの�
 
 // 受け入れていない要求の、いちばん多い数。超えたら、要求を断る
 export const PARTICIPANTS_LIMIT = 100
+
+// Orca の作業場所の表示名（AI が確かめて添えた物）
+const ORCA_WORKSPACE = z
+  .string()
+  .trim()
+  .min(1)
+  .refine(name => [...name].length <= 120)
 
 export const WORKROOM = kit.defineSubject({
   id: "workroom",
@@ -58,13 +66,15 @@ export const PARTICIPANT = kit.defineSubject({
       link: z.string().min(1), // 使い捨ての合言葉（画面には出さない。同じ link の要求は 1 人にまとまる）
       wantedName: z.string().trim().min(1).max(WORKROOM_NAME_MAX).optional(), // 要求中が入りたいワークルームの名前
       as: z.enum(["visitor"]).optional(), // 要求中が頼んだ参加者区分（visitor はビジターとしての参加。省けば受け入れるときに選ぶ）
+      orcaWorkspace: ORCA_WORKSPACE.optional(), // 要求中が添えた Orca の作業場所の表示名（受け入れるときに見せる）
       workroom: z.string().min(1).optional(), // 入っているワークルームの id（joined だけ）
       requestedAt: z.string(),
       joinedAt: z.string().optional(), // 受け入れた時点（joined と visitor だけ）
     })
     .refine(p => {
       if (p.state === "requested") return p.workroom === undefined && p.joinedAt === undefined
-      const accepted = p.joinedAt !== undefined && p.wantedName === undefined && p.as === undefined
+      const accepted =
+        p.joinedAt !== undefined && p.wantedName === undefined && p.as === undefined && p.orcaWorkspace === undefined
       return accepted && (p.state === "joined" ? p.workroom !== undefined : p.workroom === undefined)
     }),
   refers: p => (p.workroom === undefined ? [] : [{ subject: WORKROOM.id, id: p.workroom }]),
@@ -98,7 +108,7 @@ const NAME = z.string().trim().min(1).max(WORKROOM_NAME_MAX)
 export const PARTICIPANT_REQUEST = kit.defineAction({
   id: "participant-request",
   aiDescription:
-    "Ask to join the user's workroom as a participant. ai (your AI name, such as claude or codex), model, env (the environment name) and link (a one-time passphrase uuid you made for this session) are required; sessionName (the name of the original session) is optional; wantedName (a workroom name to start with, up to 20 characters) is optional; as: visitor asks to join only to read (a visitor has no workroom, so it is refused together with wantedName). The participant waits as requested until the user accepts it on the screen. Refused when a participant has the link already, or when too many requests wait. Returns the participant's id.",
+    "Ask to join the user's workroom as a participant. ai (your AI name, such as claude or codex), model, env (the environment name) and link (a one-time passphrase uuid you made for this session) are required; sessionName (the name of the original session) is optional; orcaWorkspace (the display name of the Orca workspace, up to 120 characters) is optional; wantedName (a workroom name to start with, up to 20 characters) is optional; as: visitor asks to join only to read (a visitor has no workroom, so it is refused together with wantedName). The participant waits as requested until the user accepts it on the screen. Refused when a participant has the link already, or when too many requests wait. Returns the participant's id.",
   title: "Request to participate",
   target: PARTICIPANT.id,
   // 同じ合言葉の参加者と、要求中の参加者の、索引キーだけ
@@ -113,6 +123,7 @@ export const PARTICIPANT_REQUEST = kit.defineAction({
     env: z.string().trim().min(1).max(80),
     sessionName: z.string().trim().max(120).optional(),
     link: z.string().trim().min(1).max(80),
+    orcaWorkspace: ORCA_WORKSPACE.optional(),
     wantedName: NAME.optional(),
     as: z.enum(["visitor"]).optional(),
   }),
@@ -134,6 +145,7 @@ export const PARTICIPANT_REQUEST = kit.defineAction({
       link: args.link,
       ...(args.wantedName ? { wantedName: args.wantedName } : {}),
       ...(args.as ? { as: args.as } : {}),
+      ...(args.orcaWorkspace ? { orcaWorkspace: args.orcaWorkspace } : {}),
       requestedAt: ctx.now,
     }
     return { next: requested, result: { participant: requested.id } }
@@ -203,7 +215,7 @@ export const PARTICIPANT_ACCEPT = kit.defineAction({
   ]),
   run: (now, args, ctx) => {
     if (now === "none" || now.state !== "requested") return null
-    const { wantedName: _, as: asked, ...rest } = now
+    const { wantedName: _, as: asked, orcaWorkspace: _o, ...rest } = now
     if ("as" in args) return { next: { ...rest, state: "visitor", joinedAt: ctx.now }, result: { workroom: "none" } }
     if (asked === "visitor") return { declined: "the participant asked to join as a visitor: accept it as a visitor" }
     const joined = (workroom: string): Participant => ({ ...rest, state: "joined", workroom, joinedAt: ctx.now })
@@ -261,16 +273,28 @@ export const PARTICIPANT_DECLINE = kit.defineAction({
   run: now => (now === "none" || now.state !== "requested" ? null : { next: "removed", result: {} }),
 })
 
+export const PARTICIPANT_CANCEL = kit.defineAction({
+  id: "participant-cancel",
+  aiDescription:
+    "Cancel the requested participant named by on.record and remove it (only the user). Unlike declining, the AI is told it may ask again when the user asks. Refused unless it is requested.",
+  title: "Cancel a join request",
+  target: PARTICIPANT.id,
+  userOnly: true,
+  cancelsJoinRequest: true,
+  args: z.strictObject({}),
+  run: now => (now === "none" || now.state !== "requested" ? null : { next: "removed", result: {} }),
+})
+
 export const PARTICIPANT_REMOVE = kit.defineAction({
   id: "participant-remove",
   aiDescription:
-    "Remove the accepted participant named by on.record (only the user): a joined one leaves its workroom (the workroom stays, empty), a visitor leaves.",
+    "Remove the participant named by on.record (only the user): a joined one leaves its workroom (the workroom stays, empty), a visitor leaves, and a requested one is dropped (matomezu does this when the session of an AI ended).",
   title: "Remove a participant",
   target: PARTICIPANT.id,
   userOnly: true,
   runsWhenAIEnds: true,
   args: z.strictObject({}),
-  run: now => (now === "none" || now.state === "requested" ? null : { next: "removed", result: {} }),
+  run: now => (now === "none" ? null : { next: "removed", result: {} }),
 })
 
 export const WORKROOM_ADD = kit.defineAction({
@@ -383,6 +407,6 @@ export function isAdminActor(actor: Actor, ctx: Pick<ActionContext, "records" | 
 }
 
 export { PARTICIPANT_ALIVE } from "./alive"
-export { PARTICIPANT_JOIN_DIALOG, PARTICIPANT_WELCOME_DIALOG } from "./dialogs"
+export { JOIN_REQUEST_DIALOG, PARTICIPANT_JOIN_DIALOG, PARTICIPANT_WELCOME_DIALOG } from "./dialogs"
 export type { ParticipantCategory, VisitorRow, WorkroomRow, WorkroomState } from "./rows"
 export { participantCategory, visitorName } from "./rows"

@@ -153,6 +153,9 @@ func (h *Hub) Called(id string, says CallerSays, now time.Time) string {
 		h.goneTold = map[string]bool{}
 	}
 	h.goneTold[id] = true
+	if h.goneCancelled[id] {
+		return cancelledText
+	}
 	return "The user declined your request to join matomezu (or removed you). Tell the user, and do not ask again unless the user asks."
 }
 

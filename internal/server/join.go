@@ -1,8 +1,10 @@
 package server
 
 // AI の参加: AI（MCP の join）が参加を頼む口と、参加者ごとの記録（常駐だけが持つ）。
-// 参加を頼むと、参加者を作るアクションと、利用者に知らせる郵便のアクションを、この順に行う（どのアクションかは、アクションの定義が runsWhenAIJoins で名乗る）。
-// 参加者・ワークルーム・郵便はアクションの結果（レコード）が持つ。ここが持つ常駐だけが持つ参加者の記録はアクションを通さない記録で、参加者の id ごとに
+// 参加を頼むと、参加者を作るアクションを行う（どのアクションかは、アクションの定義が runsWhenAIJoins で名乗る）。利用者は、要求中の参加者を画面のしおりで見る。
+// 同じ AI（参加の id・link・ai と env と sessionName が同じ）の要求が答えを待っている間は、頼み直しを断る（already-requested）。ただし、その要求のセッションが終わっていれば、
+// 知らせずに要求を消して（セッションが終わったときに行うアクション。runsWhenAIEnds）、新しい要求を受ける。
+// 参加者・ワークルームはアクションの結果（レコード）が持つ。ここが持つ常駐だけが持つ参加者の記録はアクションを通さない記録で、参加者の id ごとに
 //   - 最後に呼ばれた時刻（参加者が決まった /api/ai の呼び出しのたびに更新。前に窓に知らせてから callsAnnounceGap 以上たっていたときだけ、置き場所に書いて窓に知らせる）
 //   - セッション id（join のときに MCP が添えるか、UserPromptSubmit のフックが結ぶ。置き場所に残す）と、それを結んだ所（join の MCP か、UserPromptSubmit のフックか）
 //   - 参加を伝えたかの印（置き場所に残す。伝えたのは、参加者が決まった呼び出しへの返事のヘッダ、または UserPromptSubmit のフック）
@@ -25,9 +27,9 @@ package server
 //	POST /api/ai/join  {"ai", "model", "env", "sessionName", "link", "sessionId", "workroom", "as", "orcaWorkspace"} 参加を頼む。{"ok", "participant"}、または弾いた理由 {"ok": false, "reason", "detail"}
 //
 // workroom は、AI が続けたい（またはその名前で始めたい）ワークルームの名前。その名前の受け入れ済みの参加者がいて、生きていれば断る（workroom-in-use）。
-// そうでなければ、名前を添えた参加の要求を郵便で出す。引き継ぐか新しく始めるかは、利用者が受け入れのダイアログで選ぶ。
+// そうでなければ、名前を添えた参加の要求を出す。引き継ぐか新しく始めるかは、利用者が受け入れのダイアログで選ぶ。
 // 生きているとは、最後に呼ばれてから、利用者の設定の参加の有効時間以内（最後に呼ばれた時刻は置き場所に残るので、起動し直しても続く）。
-// 呼び出しの参加者が決まっているか、同じ link の頼みは、これを見ずに、いる参加者のまま答える（参加の id の持ち主は、生きていなくても続けられる）
+// 呼び出しの参加者が決まっているか、同じ link の頼みは、これを見ずに、受け入れ済みの参加者のまま答える（参加の id の持ち主は、生きていなくても続けられる）
 
 import (
 	"encoding/json"
@@ -203,7 +205,7 @@ func (h *Hub) putParticipantNotes() error {
 	return h.store.PutParticipantNotes(user, body)
 }
 
-// AIJoin は AI の参加の頼みを受ける。同じ link か参加の id の参加者が既にあれば、郵便は送り直さず、その参加者のまま答える
+// AIJoin は AI の参加の頼みを受ける。同じ link か参加の id の受け入れ済みの参加者が既にあれば、その参加者のまま答える。要求中なら断る（セッションが終わっていれば消して受ける）
 func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 	workspace := strings.TrimSpace(req.OrcaWorkspace)
 	if utf8.RuneCountInString(workspace) > 120 {
@@ -222,15 +224,23 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 	if err != nil {
 		return Joined{}, err
 	}
-	// 呼び出しの参加者が決まっていて、その参加者が参加（要求）中なら、その参加者のまま答える。決まっていなくても、同じ link の参加者があれば同じ
+	left := false // セッションの終わった参加者を退室させた（要求中の参加者を消したときも）
+	// 呼び出しの参加者が決まっていて、その参加者が受け入れ済みなら、その参加者のまま答える。決まっていなくても、同じ link の参加者があれば同じ。要求中なら断る
 	for _, s := range records {
 		if (req.Participant != "" && s.ID == req.Participant && s.sitting()) || (req.Link != "" && s.Link == req.Link) {
+			if s.State == stateRequested {
+				waiting, err := h.stillRequested(s)
+				if err != nil || waiting {
+					return alreadyRequested(s), err
+				}
+				left = true
+				continue
+			}
 			h.noteSession(s.ID, req.SessionID)
 			h.noteJoinHost(s.ID, req)
 			return Joined{OK: true, Participant: s.ID}, h.settleNotes()
 		}
 	}
-	left := false       // 部屋を見回るあいだに、セッションの終わった参加者を退室させた
 	continuing := false // 頼まれた名前の部屋に、生きていない参加者がいる（利用者が画面で引き継ぐかを選ぶ。同じセッション名でも「参加済み」にしない）
 	roomID := ""        // 頼まれた名前の部屋の id（無ければ空）
 	occupant := ""      // 頼まれた名前の部屋にいる、生きていない参加者の id
@@ -281,14 +291,23 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 	}
 	if !continuing && req.Participant == "" && req.SessionName != "" {
 		for _, s := range records {
-			if s.sitting() && s.AI == req.AI && s.Env == req.Env && s.SessionName == req.SessionName {
+			if !s.sitting() || s.AI != req.AI || s.Env != req.Env || s.SessionName != req.SessionName {
+				continue
+			}
+			if s.State != stateRequested {
 				return alreadyJoined(s), nil
+			}
+			if waiting, err := h.stillRequested(s); err != nil || waiting {
+				return alreadyRequested(s), err
 			}
 		}
 	}
 	args := map[string]any{"ai": req.AI, "model": req.Model, "env": req.Env, "link": req.Link}
 	if req.SessionName != "" {
 		args["sessionName"] = req.SessionName
+	}
+	if workspace != "" {
+		args["orcaWorkspace"] = workspace
 	}
 	if req.Workroom != "" {
 		args["wantedName"] = req.Workroom
@@ -306,26 +325,6 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 	if err := json.Unmarshal(made.Result, &result); err != nil {
 		return Joined{}, err
 	}
-	// 利用者に知らせる郵便の引数（頼んだ名前は workroom）
-	delete(args, "link")
-	delete(args, "wantedName")
-	if workspace != "" {
-		args["orcaWorkspace"] = workspace
-	}
-	if req.Workroom != "" {
-		args["workroom"] = req.Workroom
-	}
-	args["from"] = req.AI
-	args["participant"] = result.Participant
-	// 利用者に知らせる郵便は利用者だけが行うアクション。AI の参加の頼みを受けたここ（ホスト）が、利用者として送る
-	nb, err := json.Marshal(args)
-	if err != nil {
-		return Joined{}, err
-	}
-	told, err := h.Perform(performOne(ids.Notice, nb, nil))
-	if err != nil || !told.OK {
-		return refused(told), err
-	}
 	h.noteSession(result.Participant, req.SessionID)
 	h.noteJoinHost(result.Participant, req)
 	return Joined{OK: true, Participant: result.Participant}, h.settleNotes()
@@ -338,6 +337,18 @@ func (h *Hub) alive(id string, now time.Time) (bool, error) {
 	called := h.participantNotes[id].Called
 	h.mu.Unlock()
 	return h.engine.ParticipantAlive(settings, called, now)
+}
+
+// stillRequested は、要求中の参加者 s が答えを待っているか。そのセッションが終わっていれば、知らせずに消して false（セッションが終わったときに行うアクションで消す）
+func (h *Hub) stillRequested(s participantRecord) (bool, error) {
+	if !h.sessionEnded(s.ID) {
+		return true, nil
+	}
+	return false, h.leaveEnded(s.ID)
+}
+
+func alreadyRequested(s participantRecord) Joined {
+	return Joined{Reason: "already-requested", Detail: "your request to join (participant " + s.ID + ") is waiting for the user's answer on the matomezu screen; do not ask again, ask the user to answer it"}
 }
 
 func alreadyJoined(s participantRecord) Joined {

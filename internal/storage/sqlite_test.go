@@ -384,7 +384,8 @@ func TestProjectFieldsAreRemoved(t *testing.T) {
 		t.Fatalf("books' folders = %v", books)
 	}
 	mails := recordsOfKind(t, s, mailSubject)
-	if len(mails) != 2 || mails["m1"] != `{"id":"m1","mail":"@matomezu/base:join-request","props":{"a":1},"order":1}` || mails["m2"] != `{"id":"m2","mail":"@x/other","props":{"projects":["keep"]},"order":2}` {
+	// 参加の要求の郵便（m1）は、のちの足し方で消える
+	if len(mails) != 1 || mails["m2"] != `{"id":"m2","mail":"@x/other","props":{"projects":["keep"]},"order":2}` {
 		t.Fatalf("mail = %v", mails)
 	}
 }
@@ -496,7 +497,8 @@ func TestLongWorkroomNamesAreShortened(t *testing.T) {
 		t.Fatalf("workroom names = %v", rooms)
 	}
 	mails := recordsOfKind(t, s, mailSubject)
-	if mails["m1"] != `{"id":"m1","mail":"@matomezu/base:join-request","props":{"workroom":"abcdefghij klmnopqrs"},"order":1}` || mails["m3"] != `{"id":"m3","mail":"@x/other","props":{"workroom":"abcdefghij klmnopqrstuvwxyz"},"order":2}` || mails["m2"] != `{"id":"m2","props":{"a":1},"order":3}` {
+	// 参加の要求の郵便（m1）は、名前を切り詰めたあと、のちの足し方で消える
+	if _, ok := mails["m1"]; ok || mails["m3"] != `{"id":"m3","mail":"@x/other","props":{"workroom":"abcdefghij klmnopqrstuvwxyz"},"order":2}` || mails["m2"] != `{"id":"m2","props":{"a":1},"order":3}` {
 		t.Fatalf("mail = %v", mails)
 	}
 }
@@ -1056,7 +1058,7 @@ func TestLostBundledByBookIsDropped(t *testing.T) {
 			{"act":"a2","lost":[{"book":"b1","lost":[{"at":"title","value":"AI"}]}],"at":"t2","told":true},
 			{"act":"a3","unseen":["b2"],"lost":[{"book":"b1","lost":[]}],"at":"t3","told":true},
 			{"key":"m1","book":"b1","at":"t4","failed":true,"told":true}]', 'x')`,
-		fmt.Sprintf(`PRAGMA user_version = %d`, len(migrations)-1),
+		fmt.Sprintf(`PRAGMA user_version = %d`, len(migrations)-2),
 	} {
 		if _, err := first.(*sqliteStorage).db.Exec(q); err != nil {
 			t.Fatal(err)
@@ -1070,5 +1072,29 @@ func TestLostBundledByBookIsDropped(t *testing.T) {
 	want := `[{"act":"a1","unseen":["p1"],"at":"t1"},{"act":"a3","unseen":["b2"],"at":"t3"},{"key":"m1","book":"b1","at":"t4","failed":true,"told":true}]`
 	if string(got) != want {
 		t.Fatalf("tickets = %s; want %s", got, want)
+	}
+}
+
+// 参加の要求の郵便（種類 join-request）は消す。ほかの郵便はそのまま
+func TestJoinRequestMailIsDropped(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	first := open(t, path)
+	for _, q := range []string{
+		`INSERT INTO records (subject, id, body, version, updated_at) VALUES
+			('@matomezu/base:mail', 'm1', '{"id":"m1","mail":"@matomezu/base:join-request","props":{},"order":1}', 1, 'x'),
+			('@matomezu/base:mail', 'm2', '{"id":"m2","mail":"@matomezu/base:letter","props":{},"order":2}', 1, 'x')`,
+		fmt.Sprintf(`PRAGMA user_version = %d`, len(migrations)-1),
+	} {
+		if _, err := first.(*sqliteStorage).db.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	first.(*sqliteStorage).db.Close()
+	s := open(t, path)
+	if got, err := s.Record("@matomezu/base:mail", "m1"); err != nil || got != nil {
+		t.Fatalf("join request mail = %v, %v; want gone", got, err)
+	}
+	if got, err := s.Record("@matomezu/base:mail", "m2"); err != nil || got == nil {
+		t.Fatalf("letter = %v, %v; want kept", got, err)
 	}
 }
