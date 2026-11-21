@@ -206,11 +206,11 @@ export function createUnseenChanges(deps: {
         options.aiEditTicket?.({ entry: u.book, act: u.act, places: u.places, outcome: "lost", lost })
       return lost.length === 0
     })
-    // 物 id のステージエントリ（ブックか、ブックの外のバインダに入っていないページ。ほかは undefined）
+    // 物 id のステージエントリの id（無ければ undefined）
     const entryOf = (id: string) => {
       const o = outermostOf(was, id)
       if (o === NO_OUTERMOST) return undefined
-      return o.kind === "book" ? o.book : o.kind === "page" ? o.page : undefined
+      return o.kind === "book" ? o.book : o.kind === "page" ? o.page : o.binder
     }
     unseenInLibrary = unseenInLibrary.filter(u => {
       const lost = lostIn(u.step, was, now)

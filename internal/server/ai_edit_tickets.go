@@ -2,12 +2,12 @@ package server
 
 // AI 編集チケット: AI のアクションがページかフォルダを変えるたびに、1 回のアクションに 1 つ開く（変えたページとフォルダのうち、まだどの窓でも見られていない物の id を持つ）。
 // 窓で見えた物は外し、全部見えたら消す。見られる前に窓の利用者の戻す・やり直すで消えたら、消えた所と AI の値を添えて「見られる前に消えた」にする
-// （ステージエントリごと: ブックか、ブックの外の、バインダに入っていないページ）。その物は、AI のフックが聞いたとき
+// （ステージエントリごと）。その物は、AI のフックが聞いたとき
 // （GET /api/ai/awaiting の undone）に渡し、次の利用者トリガートークで消す。全部で aiEditTicketsMax まで（古い物から捨てる）。
 // アクションが返した変え方（engine.AIEditTicketChange。変更提案郵便を送った・反映した・消したなど）でも、アクションの対象の種類 Subject と Key とブックで見分ける AI 編集チケットを
 // 作る・閉じる・失敗にする・郵便が消えたと記す。失敗した物と郵便が消えたと記した物は、AI のフックが聞いたとき（GET /api/ai/awaiting の failed と removed）に渡し、
 // 次の利用者トリガートークで消す。Key で見分ける物は、上限でも捨てない（閉じる・失敗にする・消えたと記すまで残す）。
-// 並びは全部で 1 つ（古い順）で、ブックかブックの外のページを消すと、その物の分も一緒に消す。
+// 並びは全部で 1 つ（古い順）で、ブックか、ブックの外のページ・バインダを消すと、その物の分も一緒に消す。
 //
 //	POST /api/ai-edit-tickets   {"act", "places", "outcome": "seen" | "lost", "entry", "lost"} 窓が、AI の変更（act は changed の知らせの印）のうち、
 //	                            ページとフォルダ places を見た・見られる前に消えた（消えたときだけ、変えた物のステージエントリ entry と、消えた所と AI の値 lost
@@ -19,11 +19,12 @@ import (
 	"slices"
 
 	"github.com/umaxyon/matomezu/internal/engine"
+	"github.com/umaxyon/matomezu/internal/storage"
 )
 
 const aiEditTicketsMax = 100
 
-// LostIn は、見られる前に消えた AI の変更の、ステージエントリ 1 つの分（Entry はブックか、ブックの外のページの id。Lost は、窓が知らせた消えた所と AI の値）
+// LostIn は、見られる前に消えた AI の変更の、ステージエントリ 1 つの分（Entry はその id。Lost は、窓が知らせた消えた所と AI の値）
 type LostIn struct {
 	Entry string          `json:"entry"`
 	Lost  json.RawMessage `json:"lost"`
@@ -90,7 +91,7 @@ func recordedTickets(list []AIEditTicket, act string, at string, unseen []string
 	return list
 }
 
-// prunedTickets は、消すブック books（その中のページとフォルダの id と、消すブックの外のページの id は gone）の分を AI 編集チケットの並び list から外す:
+// prunedTickets は、消すブック books（その中のページとフォルダの id と、消すブックの外のページ・バインダの id は gone）の分を AI 編集チケットの並び list から外す:
 // Key で見分ける物はそのブックの物を消し、Act の物は、まだ見られていない物の id と、見られる前に消えた分から、消す物の分を外す（何も残らない物は消す）。変えなければ false
 func prunedTickets(list []AIEditTicket, books, gone map[string]bool) ([]AIEditTicket, bool) {
 	out := make([]AIEditTicket, 0, len(list))
@@ -182,16 +183,22 @@ func (h *Hub) titleOfTold(id string) (string, bool) {
 	return head.Title, true
 }
 
-// titleOfStageEntry は、AI に渡す物のステージエントリ id（ブックか、ブックの外の、バインダに入っていないページ）の名前
-// （置いていない物とゴミ箱の中の物は渡さないので false。h.mu を持って呼ぶ）
+// titleOfStageEntry は、AI に渡す物のステージエントリ id（ブックか、書庫ホームかフォルダの直下のページ・バインダ）の名前
+// （置いていない物と、AI に見せない物は渡さないので false。h.mu を持って呼ぶ）
 func (h *Hub) titleOfStageEntry(id string) (string, bool) {
 	if title, ok := h.titleOfTold(id); ok {
 		return title, true
 	}
-	if h.entryNotInBook(id) != id {
+	if h.entryNotInBook(id) == id {
+		title, _, _ := rowHead(h.pages[id].body)
+		return title, true
+	}
+	binder, ok := h.folders[id]
+	holder, held := h.folders[h.places[id]]
+	if !ok || binder.role != storage.RoleBinder || !held || !holder.isOpen() || h.outOfSight(id) {
 		return "", false
 	}
-	title, _, _ := rowHead(h.pages[id].body)
+	title, _, _ := rowHead(binder.body)
 	return title, true
 }
 
@@ -211,7 +218,7 @@ func (h *Hub) tell(each func(t AIEditTicket) bool) error {
 	return h.putTickets(list)
 }
 
-// UndoneAIEditTicket は、見られる前に消えた AI の変更の、ステージエントリ 1 つの分（AI に渡す形。Entry はブックか、ブックの外のページの id）
+// UndoneAIEditTicket は、見られる前に消えた AI の変更の、ステージエントリ 1 つの分（AI に渡す形。Entry はその id）
 type UndoneAIEditTicket struct {
 	Entry string          `json:"entry"`
 	Title string          `json:"title"`

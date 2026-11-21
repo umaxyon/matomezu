@@ -107,9 +107,9 @@ func TestAIEditTicketsUndoneBeforeSeen(t *testing.T) {
 	if code, _ := send(t, "POST", s2.URL+"/api/ai-edit-tickets", `{"entry":"b1","act":"x","outcome":"other"}`, nil); code != 400 {
 		t.Fatalf("bad outcome = %d", code)
 	}
-	// 消えたの知らせは、消えた物を持つブックが要る
+	// 消えたの知らせは、消えた物のステージエントリが要る
 	if code, _ := send(t, "POST", s2.URL+"/api/ai-edit-tickets", `{"act":"x","places":["b1"],"outcome":"lost","lost":[{"at":"title","value":"AI"}]}`, nil); code != 400 {
-		t.Fatalf("lost without a book = %d", code)
+		t.Fatalf("lost without an entry = %d", code)
 	}
 	// 消えた所と値が空でも受ける（消えたのがブックの外のフォルダだけで、その AI の変更を段ごと捨てたとき）
 	if code, body := send(t, "POST", s2.URL+"/api/ai-edit-tickets", `{"entry":"b1","act":"x","places":["b1"],"outcome":"lost","lost":[]}`, nil); code >= 300 {
@@ -140,7 +140,7 @@ func TestATicketStaysUntilAllItChangedIsSettled(t *testing.T) {
 		body, _ := json.Marshal(map[string]any{"entry": book, "act": "two", "places": places, "outcome": outcome, "lost": []any{map[string]any{"entry": "b1", "at": "title", "value": "AI"}}})
 		send(t, "POST", s.URL+"/api/ai-edit-tickets", string(body), nil)
 	}
-	// 見えたの知らせは、ブックを言わなくてよい（書庫の画面で見えた物も、同じ知らせで閉じる）
+	// 見えたの知らせは、ステージエントリを言わなくてよい（書庫の画面で見えた物も、同じ知らせで閉じる）
 	settle("", "seen", "b1", "p1")
 	if list := tickets(hub); len(list) != 1 || !slices.Equal(list[0].Unseen, []string{"b2"}) {
 		t.Fatalf("tickets after one book was seen = %+v; want the other book still unseen", list)
@@ -283,5 +283,19 @@ func TestLostOfAPageOutsideBooksIsToldByThePage(t *testing.T) {
 	purge("g1")
 	if list := tickets(hub); len(list) != 0 {
 		t.Fatalf("tickets after purging g1 = %+v; want none", list)
+	}
+	// ブックの外のバインダも、ステージエントリ: その名前で渡り、バインダを完全に消すと、バインダと中のページの分も消える
+	hub.mu.Lock()
+	err = hub.putTickets([]AIEditTicket{{Act: "z", Unseen: []string{"n1", "n1a"}, Lost: []LostIn{{Entry: "n1", Lost: json.RawMessage(`[]`)}}, At: "t"}})
+	hub.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, got := send(t, "GET", s.URL+"/api/ai/awaiting", "", ai); !strings.Contains(got, `"undone":[{"entry":"n1","title":"N1","at":"t","lost":[]}]`) {
+		t.Fatalf("awaiting of a binder outside books = %s", got)
+	}
+	purge("n1")
+	if list := tickets(hub); len(list) != 0 {
+		t.Fatalf("tickets after purging the binder n1 = %+v; want none", list)
 	}
 }

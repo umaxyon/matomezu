@@ -10,7 +10,7 @@ import { applyPatch, patchOf } from "../../web/src/core/patch"
 import { LIBRARY_FOLDER, LIBRARY_UNFOLDED } from "../../web/src/plugins/base/library/state"
 import { definePlugin } from "../../web/src/store/plugin"
 import type { AIEditTicketOutcome } from "../../web/src/store/state"
-import { drawingPage } from "../lineup"
+import { drawingPage, SLIDE, testBinder, testPage } from "../lineup"
 import { newStore, sequence, worldRows } from "../support"
 
 type Store = ReturnType<typeof newStore>
@@ -421,6 +421,31 @@ test("ブックの外のページの AI の変更が、見られる前に完全�
       places: ["o1"],
       outcome: "lost",
       lost: [{ entry: "o1", at: "title", value: "AI の名前" }],
+    },
+  ])
+})
+
+test("ブックの外のバインダの中のページの AI の変更が、見られる前にバインダごと完全に消されたら、そのバインダの分として知らせる", async () => {
+  const { here, there, told, foreign } = pair()
+  const binder = testBinder("n1", "外のバインダ", SLIDE, testPage(SLIDE, "n1a", { title: "中のページ" }))
+  const world = { ...worldRows(Object.values(here.state.getState().books), [binder]), settings: {} }
+  here.receive(world, [])
+  there.receive(world, [])
+  await foreign(
+    { by: "ai", act: "6", actions: [RENAME] },
+    { run: () => void there.actions.perform(RENAME, { entry: "n1a", title: "AI の名前" }), library: true },
+  )
+  here.actions.perform(TRASH, { entry: "n1" })
+  await settled()
+  here.actions.perform(PURGE, { entries: ["n1"] })
+  await settled()
+  expect(told).toEqual([
+    {
+      entry: "n1",
+      act: "6",
+      places: ["n1a"],
+      outcome: "lost",
+      lost: [{ entry: "n1a", at: "title", value: "AI の名前" }],
     },
   ])
 })
