@@ -30,7 +30,7 @@ function setup() {
     const step = steps(book).undo.at(-1)
     if (!step) return { ok: false as const }
     const done = perform("@matomezu/base:book-revert", {
-      books: [...step.books],
+      books: [...step.outermosts],
       pages: patchesToward(step.pages, "before"),
       folders: patchesToward(step.folders, "before"),
     })

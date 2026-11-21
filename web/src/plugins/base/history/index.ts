@@ -122,7 +122,7 @@ function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"):
   if (!opened) return
   const to = from === "undo" ? "before" : "after"
   const argsOf = (step: HistoryStep) => ({
-    books: [...step.books],
+    books: [...step.outermosts],
     pages: patchesToward(step.pages, to),
     folders: patchesToward(step.folders, to),
   })

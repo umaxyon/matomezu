@@ -261,7 +261,7 @@ test("いくつものブックを変えた画面の履歴の段にも、どち�
   placeIn("b1", 200)
   await settled()
   expect(historyOf(store)?.undo).toHaveLength(1)
-  expect(historyOf(store, "b2")!.undo[0]!.books).toEqual(["b1", "b2"])
+  expect(historyOf(store, "b2")!.undo[0]!.outermosts).toEqual(["b1", "b2"])
 })
 
 test("いくつものブックを変えた画面の履歴の段は、どれかのブックが断られたら、どのブックも置き直さず、断ったブックの名前をトーストに出し、画面の履歴の段は残る", async () => {
@@ -275,7 +275,7 @@ test("いくつものブックを変えた画面の履歴の段は、どれか�
   placeIn("b1")
   placeIn("b2")
   await settled()
-  expect(historyOf(store)!.undo[0]!.books).toEqual(["b1", "b2"])
+  expect(historyOf(store)!.undo[0]!.outermosts).toEqual(["b1", "b2"])
   store.actions.perform("@matomezu/base:page-lock", {}, { page: "b2-p1" })
   expect(store.actions.command("s1", "@matomezu/base:undo")).toBe(true)
   expect(store.state.getState().toasts.at(-1)).toMatchObject({
@@ -327,7 +327,7 @@ test("いくつものブックを変えた画面の履歴の段は、どれか�
   placeIn("b2")
   await settled()
   const history = () => store.state.getState().history.b1
-  expect(history()!.undo[0]!.books).toEqual(["b1", "b2"])
+  expect(history()!.undo[0]!.outermosts).toEqual(["b1", "b2"])
   expect(isEnabled(store, store.state.getState(), "s1", "@matomezu/base:undo")).toBe(true)
   expect(store.actions.command("s1", "@matomezu/base:undo")).toBe(true)
   expect(store.state.getState().toasts.at(-1)).toMatchObject({ kind: "warn" })

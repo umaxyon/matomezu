@@ -140,7 +140,7 @@ export function MarkdownView() {
               {pane === "source" ? (
                 <SourcePane
                   key={page.id}
-                  book={book.id}
+                  outermost={book.id}
                   page={page.id}
                   text={text}
                   document={document}
