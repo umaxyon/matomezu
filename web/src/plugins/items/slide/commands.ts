@@ -142,7 +142,7 @@ export const SLIDE_TEXT_CANCEL = kit.defineCommand({
   run: (ctx, a) => {
     const item = editedOnSlide(ctx)
     if (!hasOpenedPage(ctx) || item === null) return
-    if (ctx.stage.editing === ADDED_EDIT && ctx.book !== "none") a.continueStep(ctx.book.id)
+    if (ctx.stage.editing === ADDED_EDIT && ctx.stage.opened) a.continueStep(ctx.stage.opened.outermost.id)
     a.setEditing("none")
     const shape = slideOf(ctx.page).find(s => s.id === item)
     if (shape && (shapeProps(shape).text ?? "") === "" && a.perform(REMOVE, { item }, { page: ctx.page.id }).ok)

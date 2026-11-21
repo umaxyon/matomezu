@@ -4,7 +4,6 @@
 // 変えたら今の当たりを選び直す（計算は search.ts）。次・前・置換・閉じるはコマンド（index.ts）。入力Formは検索のキーの範囲を名乗る
 
 import { type PointerEvent, useEffect, useRef } from "react"
-import { pagesOf } from "../../../core/book"
 import type { Point } from "../../../core/geom"
 import { shownPageId } from "../../../core/stage"
 import { recentBookScreen } from "../../../core/window"
@@ -18,6 +17,7 @@ import { useBook, useCoreCatalog, usePage, useStage } from "../../../ui/view-hoo
 import { controlClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { DRAG_START } from "../utils/drag"
+import { useOpenedPages } from "../utils/useOpenedPages"
 import {
   SEARCH_CLOSE,
   SEARCH_KEY_SCOPE,
@@ -54,6 +54,7 @@ function SearchDialog({ stage }: { stage: string }) {
   const catalog = useCoreCatalog()
   const book = useBook()
   const page = usePage()
+  const within = useOpenedPages()
   const opened = shownPageId(useStage()?.opened ?? null)
   const search = searchHere(usePluginState(kit, SEARCH_STATE), book !== null)
   const at = usePluginState(kit, SEARCH_AT_STATE)
@@ -78,8 +79,7 @@ function SearchDialog({ stage }: { stage: string }) {
   }, [openedN, focus])
   const s = searchableOf(catalog, page)
   if (!search || s === "none" || !page) return null
-  // 探せるページの全部: 開いているブックのページ。ブックの外のページを開いていれば、そのページだけ
-  const within = book ? pagesOf(book) : [page]
+  // 探せるページの全部: 開いている物のページの全部
   const counted = searchCount(catalog, within, search, opened)
   const bad = counted.kind === "bad-pattern"
   const count =

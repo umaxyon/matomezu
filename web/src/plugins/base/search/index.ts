@@ -1,12 +1,7 @@
-// 検索: 探せるブック（プレゼンテーションがフィールド search を持つ）で、検索ダイアログを開き、当たりの次・前へ移り、置き換える。
-// 開いている間の検索は base のプラグイン状態（state.ts）。ダイアログは SearchDialog.tsx、探す計算は search.ts・find.ts
-
-import { pagesOf } from "../../../core/book"
-import type { Page } from "../../../core/schema/book"
 import { type CommandActions, type CommandContext, NO_BOOK } from "../../../store/commands/def"
 import { kit } from "../kit"
 import { PAGE_UPDATE } from "../pages/page-update"
-import { hasOpenedPage } from "../utils/opened-page"
+import { hasOpenedPage, openedPagesOf } from "../utils/opened-page"
 import { hitsIn, replaceAllArgs, replaceOneStep, searchableOf, stepHit } from "./search"
 import { NEW_SEARCH, SEARCH_PICK_STATE, SEARCH_STATE, type SearchOpen, type SearchSpot, searchHere } from "./state"
 
@@ -15,9 +10,8 @@ const hereId = (ctx: CommandContext): string | null => (hasOpenedPage(ctx) ? ctx
 // 開いているページが探せるか
 const searchable = (ctx: CommandContext) =>
   searchableOf(ctx.catalog, hasOpenedPage(ctx) ? ctx.page : undefined) !== "none"
-// 探せるページの全部: 開いているブックのページ。ブックの外のページを開いていれば、そのページだけ
-const within = (ctx: CommandContext): readonly Page[] =>
-  ctx.book !== NO_BOOK ? pagesOf(ctx.book) : hasOpenedPage(ctx) ? [ctx.page] : []
+// 探せるページの全部: 開いている物のページの全部
+const within = openedPagesOf
 // ステージに覚えた検索を、今開いている物で読んだ値（state.ts の searchHere）
 const searchOf = (ctx: CommandContext) => searchHere(ctx.pluginState(SEARCH_STATE), ctx.book !== NO_BOOK)
 // 検索ダイアログを開いているか

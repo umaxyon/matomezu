@@ -1,6 +1,9 @@
 // ブックの外のページ（書庫ホームに直に置いたページ）を、ステージで開く
 import { BOOK_SCREEN_DEF, BOOK_SCREEN_URL, expect, stagesUrl, test, urlCurrentScreen, urlStages } from "./fixtures"
 import { aiPerform } from "./helpers/ai"
+import { writeNote } from "./helpers/note"
+import { leftPanel, openOutbox } from "./helpers/outbox"
+import { addBox, items } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
 
 const OUTSIDE = {
@@ -76,6 +79,24 @@ test("ブックの外のページを開いたステージの下の行は、名�
   ])
   await expect(page.getByRole("list", { name: "2026-11-21 の中身" })).toBeVisible()
   await expect(page.getByRole("img", { name: "紙" })).toHaveCount(1)
+})
+
+test("ブックの外のページの物に付けた伝言とマークは、送信トレイに並び、マークは付けた物の名前を出す", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await page.goto(stagesUrl([{ book: null, page: "o1" }]))
+  await addBox(page, 200, 150, "一")
+  await addBox(page, 500, 150, "二")
+  await writeNote(page, items(page).filter({ hasText: "一" }), "一つ目を見て")
+  await items(page).filter({ hasText: "二" }).click({ button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "AIに示す" }).click()
+  await page.getByRole("group", { name: "マークを付ける" }).getByRole("button", { name: "インコ" }).click()
+  await openOutbox(page)
+  const rows = leftPanel(page).getByRole("listitem")
+  await expect(rows).toHaveCount(2)
+  await expect(rows.nth(0)).toContainText("二")
+  await expect(rows.nth(1)).toContainText("一つ目を見て")
 })
 
 test.describe("ロック中のブックの外のページ", () => {

@@ -403,7 +403,7 @@ function SlidePageView({
                 edit={{
                   editing: editing === shape.id,
                   onCommit: (text, grown) => {
-                    if (stage.editing === ADDED_EDIT && book) continueStep(book.id)
+                    if (stage.editing === ADDED_EDIT && stage.opened) continueStep(stage.opened.outermost.id)
                     setEditing("none")
                     // 何も書かずに終えた文字枠は、何も言わずに消す（置いた直後なら、置いたことごと無かったことになる）
                     if (text === "") {
