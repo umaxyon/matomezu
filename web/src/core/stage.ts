@@ -28,10 +28,8 @@ import { clampPan, contentSize, paperOrigin } from "./viewport"
 // ページが入っているバインダは持たない（ブックから引く。core/book.ts の findPage）
 export type Opened = OpenedNone | OpenedBinder | OpenedPage
 interface OpenedBook {
-  outermost: OpenedEntry
+  outermost: StageEntry // 開いているステージエントリ
 }
-// ステージが開けるステージエントリ: ブックか、ブックの外のページ
-export type OpenedEntry = StageEntry & { kind: "book" | "page" }
 export interface OpenedNone extends OpenedBook {
   kind: "none"
 }

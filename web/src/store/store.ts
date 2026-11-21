@@ -241,7 +241,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   // 開いている画面の履歴の段: 同じ処理（同期の 1 回の流れ。コマンド・ダイアログの確定・ドラッグの離しなど）の中で行ったアクションを 1 つの画面の履歴の段にまとめ、処理が終わったら
   // 画面の履歴に入れる（入れた画面の履歴の段が変えたブックの、やり直せる画面の履歴の段は消す）。コマンドを行う前にも入れる（戻すコマンドが、すぐ前の操作を見られるように）
   let open: OpenStep | null = null
-  // ステージエントリごとの、最後に画面の履歴に入れた画面の履歴の段（元に戻す・やり直すで動かしたら消す。continueStep で続けられるのはこれだけ）
+  // ブックごとの、最後に画面の履歴に入れた画面の履歴の段（元に戻す・やり直すで動かしたら消す。continueStep で続けられるのはこれだけ）
   let lastPut: Record<string, HistoryStep> = {}
   const closeStep = () => {
     if (!open) return
@@ -860,7 +860,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       setState({ history: next })
     },
     // moveHistory と同じく、先に開いている段を閉じて画面の履歴に入れ（同じ処理の中で行ったアクションの段も、最後の段として捨てられるように）、
-    // 段が触ったステージエントリの最後に入れた段を忘れる（元に戻す・やり直すのあとは、continueStep で前の段に足さない）
+    // 段が触ったブックの最後に入れた段を忘れる（元に戻す・やり直すのあとは、continueStep で前の段に足さない）
     dropHistory: (outermost, from) => {
       closeStep()
       const { history } = getState()

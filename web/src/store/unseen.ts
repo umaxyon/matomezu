@@ -51,7 +51,7 @@ export function createUnseenChanges(deps: {
 }): UnseenChanges {
   const { getState, setState, nextSeq, options } = deps
   // まだ見ていない、AI とほかの窓の変更（古い順。ブックごとに 1 つの画面の履歴の段で、見えたらそのブックの画面の履歴に入る）。act は常駐が 1 回の perform に振った印。
-  // step の、ページとフォルダの行の前と後から、見えたか・消えたかを決める。outermost は変えた物のステージエントリの id、
+  // step の、ページとフォルダの行の前と後から、見えたか・消えたかを決める。outermost は変えたブックの id、
   // places は変えた・足した・無くしたページとフォルダの id（常駐に、見えた・消えたと知らせる範囲）
   type Unseen = {
     step: HistoryStep
