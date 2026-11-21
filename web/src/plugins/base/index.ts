@@ -94,8 +94,6 @@ import {
   MAIL,
   type MAIL_BIRD_VISIT,
   MAIL_DIALOG,
-  MAIL_JOIN_REQUEST,
-  MAIL_JOIN_REQUEST_SEND,
   MAIL_LETTER,
   MAIL_PROPOSAL,
   MAIL_REMOVE,
@@ -171,9 +169,11 @@ import {
 import {
   ADMIN_MARK,
   ADMIN_SET,
+  JOIN_REQUEST_DIALOG,
   PARTICIPANT,
   PARTICIPANT_ACCEPT,
   PARTICIPANT_ALIVE,
+  PARTICIPANT_CANCEL,
   PARTICIPANT_DECLINE,
   PARTICIPANT_JOIN_DIALOG,
   PARTICIPANT_REMOVE,
@@ -496,12 +496,12 @@ export const BASE = defineBuiltin(
       PARTICIPANT_REQUEST,
       PARTICIPANT_ACCEPT,
       PARTICIPANT_DECLINE,
+      PARTICIPANT_CANCEL,
       PARTICIPANT_REMOVE,
       WORKROOM_ADD,
       WORKROOM_UPDATE,
       WORKROOM_REMOVE,
       ADMIN_SET,
-      MAIL_JOIN_REQUEST_SEND,
     ],
     settings: [
       PAGE_THEME,
@@ -535,7 +535,7 @@ export const BASE = defineBuiltin(
     permissions: [LOCK],
     annotations: [NOTE, MARK],
     systemFolders: [DOCUMENTS],
-    mails: [MAIL_LETTER, MAIL_JOIN_REQUEST, MAIL_PROPOSAL],
+    mails: [MAIL_LETTER, MAIL_PROPOSAL],
     subjects: [WORKROOM, PARTICIPANT, ADMIN_MARK, MAIL, SCRAP],
     screens: [BOOK_SCREEN_DEF, LIBRARY_SCREEN],
     screenArrangements: [ONE_SCREEN, SPLIT_ROWS],
@@ -637,6 +637,7 @@ export const BASE = defineBuiltin(
       LIBRARY_RENAME_DIALOG,
       SETTINGS_DIALOG,
       MAIL_DIALOG,
+      JOIN_REQUEST_DIALOG,
       PARTICIPANT_JOIN_DIALOG,
       PARTICIPANT_WELCOME_DIALOG,
     ],
@@ -771,12 +772,12 @@ declare module "../../core/catalog" {
     "@matomezu/base:participant-request": typeof PARTICIPANT_REQUEST
     "@matomezu/base:participant-accept": typeof PARTICIPANT_ACCEPT
     "@matomezu/base:participant-decline": typeof PARTICIPANT_DECLINE
+    "@matomezu/base:participant-cancel": typeof PARTICIPANT_CANCEL
     "@matomezu/base:participant-remove": typeof PARTICIPANT_REMOVE
     "@matomezu/base:workroom-add": typeof WORKROOM_ADD
     "@matomezu/base:workroom-update": typeof WORKROOM_UPDATE
     "@matomezu/base:workroom-remove": typeof WORKROOM_REMOVE
     "@matomezu/base:admin-set": typeof ADMIN_SET
-    "@matomezu/base:mail-join-request": typeof MAIL_JOIN_REQUEST_SEND
   }
   interface ThemeTable {
     "@matomezu/base:standard": typeof STANDARD
@@ -811,7 +812,6 @@ declare module "../../core/catalog" {
   }
   interface MailTable {
     "@matomezu/base:letter": typeof MAIL_LETTER
-    "@matomezu/base:join-request": typeof MAIL_JOIN_REQUEST
     "@matomezu/base:proposal": typeof MAIL_PROPOSAL
   }
   interface ToolTable {
@@ -962,6 +962,7 @@ declare module "../../core/catalog" {
   }
   interface DialogTable {
     "@matomezu/base:mail": typeof MAIL_DIALOG
+    "@matomezu/base:join-request": typeof JOIN_REQUEST_DIALOG
     "@matomezu/base:participant-join": typeof PARTICIPANT_JOIN_DIALOG
     "@matomezu/base:participant-welcome": typeof PARTICIPANT_WELCOME_DIALOG
     "@matomezu/base:book-new": typeof NEW_BOOK_DIALOG

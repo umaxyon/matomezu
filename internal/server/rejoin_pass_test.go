@@ -18,14 +18,14 @@ func passFor(t *testing.T, url, room, link string) {
 	}
 }
 
-// 前もって承認した合言葉で部屋の続きを頼むと、画面を通さずに受け入れ、前の参加者を外す。要求の郵便は出ない。承認は 1 回で消える
+// 前もって承認した合言葉で部屋の続きを頼むと、画面を通さずに受け入れ、前の参加者を外す。承認は 1 回で消える
 func TestJoinWithARejoinPassIsAcceptedWithoutTheScreen(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L1", "work", `,"sessionId":"S1"`), nil)
 	var first Joined
 	_ = json.Unmarshal([]byte(got), &first)
 	acceptRoom(t, s.URL, first.Participant, "ひよこ")
-	before, mails := table(t, s.URL)
+	before := table(t, s.URL)
 
 	passFor(t, s.URL, "ひよこ", "L2")
 	asked, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L2", "work", `,"workroom":"ひよこ","sessionId":"S2"`), nil)
@@ -33,9 +33,9 @@ func TestJoinWithARejoinPassIsAcceptedWithoutTheScreen(t *testing.T) {
 	if json.Unmarshal([]byte(asked), &second) != nil || !second.OK || second.Participant == first.Participant {
 		t.Fatalf("join = %s", asked)
 	}
-	rows, after := table(t, s.URL)
-	if len(rows) != 1 || rows[0].ID != second.Participant || rows[0].State != "joined" || rows[0].Workroom != before[0].Workroom || len(after) != len(mails) {
-		t.Fatalf("participants = %+v, mails %d → %d", rows, len(mails), len(after))
+	rows := table(t, s.URL)
+	if len(rows) != 1 || rows[0].ID != second.Participant || rows[0].State != "joined" || rows[0].Workroom != before[0].Workroom {
+		t.Fatalf("participants = %+v", rows)
 	}
 	// 受け入れたので、次の呼び出しで「参加しました」が伝わる
 	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{aiwire.ParticipantHeader: second.Participant}); h.Get(aiwire.NoticeHeader) == "" {
@@ -63,8 +63,8 @@ func TestJoinWithoutAMatchingRejoinPassGoesThroughTheScreen(t *testing.T) {
 	if !strings.Contains(other, `"ok":true`) {
 		t.Fatalf("join = %s", other)
 	}
-	if rows, mails := table(t, s.URL); len(rows) != 2 || rows[1].State != "requested" || len(mails) != 2 {
-		t.Fatalf("participants = %+v, mails = %d", rows, len(mails))
+	if rows := table(t, s.URL); len(rows) != 2 || rows[1].State != "requested" {
+		t.Fatalf("participants = %+v", rows)
 	}
 }
 

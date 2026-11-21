@@ -117,12 +117,12 @@ test("コントロールセンターの間でも、しおりから開くとブ�
   await expect(page.getByRole("img", { name: "紙" })).toBeVisible()
 })
 
-test("コントロールセンターの間でも、しおりが 4 通以上のときの郵便箱の入口を押すと、ブックスクリーンがカレントスクリーンになって左サイドパネルが開く", async ({
+test("コントロールセンターの間でも、しおりの「ほか n 件」を押すと、ブックスクリーンがカレントスクリーンになって左サイドパネルが開く", async ({
   page,
 }) => {
   await startOnCenter(page)
-  for (const n of [1, 2, 3, 4]) await send(page, { title: `手紙 ${n}` })
-  await page.getByRole("button", { name: "未読の郵便 4 通" }).click()
+  for (const n of [1, 2, 3, 4, 5, 6]) await send(page, { title: `手紙 ${n}` })
+  await page.getByRole("button", { name: "ほか 1 件" }).click()
   await expect(center(page)).toBeHidden()
   await expect(page.getByRole("complementary", { name: "左サイドパネル" })).toBeVisible()
 })

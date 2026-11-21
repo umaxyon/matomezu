@@ -384,7 +384,8 @@ func TestProjectFieldsAreRemoved(t *testing.T) {
 		t.Fatalf("books' folders = %v", books)
 	}
 	mails := recordsOfKind(t, s, mailSubject)
-	if len(mails) != 2 || mails["m1"] != `{"id":"m1","mail":"@matomezu/base:join-request","props":{"a":1},"order":1}` || mails["m2"] != `{"id":"m2","mail":"@x/other","props":{"projects":["keep"]},"order":2}` {
+	// 参加の要求の郵便（m1）は、のちの足し方で消える
+	if len(mails) != 1 || mails["m2"] != `{"id":"m2","mail":"@x/other","props":{"projects":["keep"]},"order":2}` {
 		t.Fatalf("mail = %v", mails)
 	}
 }
@@ -496,7 +497,8 @@ func TestLongWorkroomNamesAreShortened(t *testing.T) {
 		t.Fatalf("workroom names = %v", rooms)
 	}
 	mails := recordsOfKind(t, s, mailSubject)
-	if mails["m1"] != `{"id":"m1","mail":"@matomezu/base:join-request","props":{"workroom":"abcdefghij klmnopqrs"},"order":1}` || mails["m3"] != `{"id":"m3","mail":"@x/other","props":{"workroom":"abcdefghij klmnopqrstuvwxyz"},"order":2}` || mails["m2"] != `{"id":"m2","props":{"a":1},"order":3}` {
+	// 参加の要求の郵便（m1）は、名前を切り詰めたあと、のちの足し方で消える
+	if _, ok := mails["m1"]; ok || mails["m3"] != `{"id":"m3","mail":"@x/other","props":{"workroom":"abcdefghij klmnopqrstuvwxyz"},"order":2}` || mails["m2"] != `{"id":"m2","props":{"a":1},"order":3}` {
 		t.Fatalf("mail = %v", mails)
 	}
 }

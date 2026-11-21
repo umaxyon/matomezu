@@ -6,10 +6,10 @@ import (
 	"time"
 )
 
-// JoinActions は、AI が参加を頼むときに行うアクションの id（参加者を作る Participant と、利用者に知らせる Notice）
+// JoinActions は、AI が参加を頼むときに行うアクションの id（参加者を作る Participant）と、要求をキャンセルとして終えるアクションの id（Cancel。無ければ空）
 type JoinActions struct {
 	Participant string `json:"participant"`
-	Notice      string `json:"notice"`
+	Cancel      string `json:"cancel,omitempty"`
 }
 
 // JoinActions は、AI が参加を頼むときに行うアクション。アクションの定義が役を名乗る（Go はアクションの id を知らない）

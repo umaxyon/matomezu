@@ -69,4 +69,14 @@ export const PARTICIPANT_MESSAGES = defineMessages({
   },
   "Discard and start new": { en: "Discard and start new", ja: "前のを破棄して新しく始める" },
   Back: { en: "Back", ja: "戻る" },
+  "A join request arrived from an AI agent": {
+    en: "A join request arrived from an AI agent",
+    ja: "AI エージェントから参加要求が届きました",
+  },
+  AI: { en: "AI", ja: "AI" },
+  Model: { en: "Model", ja: "モデル" },
+  Environment: { en: "Environment", ja: "環境" },
+  "Orca workspace": { en: "Orca workspace", ja: "Orca ワークスペース" },
+  Session: { en: "Session", ja: "セッション" },
+  "Cancel a join request": { en: "Cancel a join request", ja: "参加要求をキャンセルする" },
 })

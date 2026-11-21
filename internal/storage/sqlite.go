@@ -212,6 +212,8 @@ var migrations = []string{
 	DELETE FROM ai_edit_tickets WHERE json_valid(body) AND json_type(body) = 'array' AND json_array_length(body) = 0;`,
 	// 名前を変えた id（プラグイン slide-book は slide-page、ディレクトリ構成図の中身 entry は node）を、本文の中の値で変える（Go の移し替え。migrate_renamed_ids.go）
 	`SELECT 1;`,
+	// 参加の要求の郵便（種類 join-request）を消す（要求は郵便にせず、要求中の参加者をしおりに出すため。Go の移し替え。migrate_join_request_mail.go）
+	`SELECT 1;`,
 }
 
 // goMigrations は、SQL だけでは書けない移し替え（JSON の中をたどる物）。鍵は migrations の番号（0 から）で、その SQL を行ったあと、同じトランザクションの中で行う
@@ -227,6 +229,7 @@ var goMigrations = map[int]func(tx *sql.Tx) error{
 	29: addTicketVolume,
 	30: addUnreadableFolder,
 	32: renameIDs,
+	33: dropJoinRequestMail,
 }
 
 type sqliteStorage struct {

@@ -1,12 +1,13 @@
 // 郵便箱を読み、郵便を開くフック
 import { useCallback } from "react"
 import { useShallow } from "zustand/react/shallow"
-import { currentScreen, recentBookScreen, stageIn } from "../../../core/window"
+import { recentBookScreen, stageIn } from "../../../core/window"
 import { NO_STAGE } from "../../../store/dialogs"
 import { useStageId } from "../../../ui/scope"
 import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
 import { useLeftSidePanelShowsAt, useToggleLeftSidePanelAt } from "../left-side-panel/hooks"
 import { useRequestReveal } from "../stand/reveal-request"
+import { useOpenDialogInRecentStage } from "../utils/open-dialog-in-recent-stage"
 import { mailboxOf } from "."
 import { useSetBirdVisitAt } from "./bird-visit"
 import { MAIL_DIALOG } from "./dialogs"
@@ -21,16 +22,8 @@ export const useUnreadMail = (): number => useMailbox().filter(m => !m.seenAt).l
 
 // いちばん最近カレントにしたブックスクリーンのカレントのステージで（ブックスクリーンが無ければ、カレントスクリーンから、ステージを持たずに）、郵便 id のダイアログを開く関数（カレントスクリーンは替えない）
 export function useOpenMail(): (id: string) => void {
-  const { openDialog } = useStoreActions()
-  const read = useReadState()
-  return useCallback(
-    id => {
-      // ブックスクリーンが無ければ、カレントスクリーンから出す（ダイアログはステージを持たない）
-      const win = read().window
-      openDialog(recentBookScreen(win)?.stages.current ?? currentScreen(win).id, MAIL_DIALOG.id, { mail: id })
-    },
-    [openDialog, read],
-  )
+  const open = useOpenDialogInRecentStage()
+  return useCallback(id => open(MAIL_DIALOG.id, { mail: id }), [open])
 }
 
 // 郵便箱の左サイドパネル（郵便箱と、送信トレイ）を開閉する。open は、今その組を開いているか。

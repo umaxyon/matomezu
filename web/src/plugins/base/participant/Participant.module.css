@@ -141,3 +141,10 @@
 .welcomeFacts dd {
   margin: 0;
 }
+
+/* 参加要求のダイアログ: 要求の中身 */
+.request {
+  margin: 0 0 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

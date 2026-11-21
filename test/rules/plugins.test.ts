@@ -215,6 +215,8 @@ const FRAMES = [
   "stage/StageView.tsx",
   "stage/index.ts",
   "tool-picker/ToolPickerView.tsx",
+  "utils/arrival-marquee.tsx",
+  "utils/open-dialog-in-recent-stage.tsx",
   "stand/reveal-request.tsx",
   "window/ScreensView.tsx",
   "window/WindowView.tsx",

@@ -111,6 +111,7 @@ describe("UI マッピング", () => {
       "E211 layout no-stages: slot @matomezu/base:footer-menu-book-tools is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:right-side-panel is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:mail-actions is not opened by any placed widget",
+      "E211 layout no-stages: slot @matomezu/base:bookmarks is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:wide-search-modes is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:wide-search-openers is not opened by any placed widget",
       "E211 layout no-stages: slot @matomezu/base:annotation-icon is not opened by any placed widget",
@@ -140,7 +141,7 @@ describe("UI マッピング", () => {
       slots: {
         ...DEFAULT_LAYOUT.slots,
         "@matomezu/base:book-screen": ["w:workspace"],
-        root: ["@matomezu/base:window", "@matomezu/base:dialog-host"],
+        root: ["@matomezu/base:window", "@matomezu/base:dialog-host", "@matomezu/base:bookmark-host"],
       },
     }
     // 右サイドパネルを開けない骨組みなら、その中身を書いた UI マッピングは error
