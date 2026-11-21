@@ -376,6 +376,7 @@ test("matomezu/ui が出す名前", () => {
     "useOpenLeftSidePanel",
     "useOpenRightSidePanel",
     "usePage",
+    "usePageById",
     "usePageProblems",
     "usePageTheme",
     "usePageThemes",

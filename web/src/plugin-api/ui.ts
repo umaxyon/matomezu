@@ -54,6 +54,7 @@ export {
   useItem,
   useLatestPan,
   usePage,
+  usePageById,
   usePerform,
   useSettings,
   useShownBook,
