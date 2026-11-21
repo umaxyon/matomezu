@@ -167,13 +167,13 @@ test("文を変えると未読に戻る。吹き出しだけを変えても既�
   expect(props().readAt).toBeUndefined()
 })
 
-test("ブックを消すと、そのブックの伝言も消える", () => {
+test("ブックをゴミ箱に入れると、そのブックの伝言も消える（戻しても戻らない）", () => {
   const { store, a, notes } = ready()
   store.actions.perform(ADD, { anchors: [a], text: "x" }, ON)
   expect(store.actions.perform("@matomezu/base:entry-trash", { entry: "b1" }).ok).toBe(true)
-  expect(notes()).toHaveLength(1)
-  expect(store.actions.perform("@matomezu/base:entry-purge", { entries: ["b1"] }).ok).toBe(true)
-  expect(store.state.getState().annotations).toEqual({})
+  expect(notes()).toHaveLength(0)
+  expect(store.actions.perform("@matomezu/base:entry-restore", { entry: "b1" }).ok).toBe(true)
+  expect(notes()).toHaveLength(0)
 })
 
 test("AI は伝言を付け・変え・消せない（利用者だけ）が、読んだと知らせられる", () => {
