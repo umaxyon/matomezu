@@ -7,10 +7,16 @@ test.use({ viewport: { width: 1280, height: 720 } })
 
 const NOW = "2026-11-12T00:00:00.000Z"
 const TICKET = "@matomezu/taskboard:ticket"
+// チケット ticket のチケットスクリーンがカレントスクリーンになっている場所の URL（後ろにブックスクリーン c2 とコントロールセンター c1）
 const open = (ticket: string) =>
-  `${CONTROL_CENTER_URL}&w=${encodeURIComponent(
+  `/?sc=${encodeURIComponent(
     JSON.stringify({
-      "@matomezu/base:open-screen": { screen: "@matomezu/taskboard:ticket-screen", props: { ticket } },
+      s: [
+        { i: "c1", d: "@matomezu/control-center:screen" },
+        { i: "c2", d: "@matomezu/base:book-screen", g: { l: [{ b: null, v: [1, 0, 0] }], c: 0, r: 0.5 } },
+        { i: "c3", d: "@matomezu/taskboard:ticket-screen", p: { ticket } },
+      ],
+      o: ["c2", "c1", "c3"],
     }),
   )}`
 
