@@ -1,5 +1,5 @@
 // アノテーション: ページの中の物に結び付き、ページのデータとは別に残る物（種類は core/def/annotation.ts）。ページごとに並びで持つ。
-// 結び付く物（アンカー）は、そのページの中の id を持つ物（ページそのものは含まない。ほかのページの物には結び付かない）。アンカーの物が全部無くなったアノテーションは残らない。
+// 結び付く物は、そのページの中の id を持つ物（ページそのものは含まない。ほかのページの物には結び付かない）。結び付く物が全部無くなったアノテーションは残らない。
 // 種類の期限（expiresAt）の過ぎたアノテーションも残らない（消すのは常駐で、画面はそれまで出さない）
 import { z } from "zod"
 import { briefLine } from "./brief"
@@ -14,10 +14,19 @@ import { type Warning, warning } from "./warnings"
 export const AnnotationSchema = z.object({
   id: z.string().min(1),
   annotation: z.string().min(1), // 種類の id
-  anchors: z.array(z.string().min(1)).min(1), // 結び付く物の id
+  anchors: z.tuple([z.string().min(1)], z.string().min(1)), // 結び付く物の id（1 つ以上）
   props: z.unknown(), // 種類ごとの形（種類の props で確かめる）
 })
 export type Annotation = z.output<typeof AnnotationSchema>
+
+// 結び付く物の id の並び（1 つ以上）
+export type Anchors = Annotation["anchors"]
+
+// 並び ids を、結び付く物の id の並びにする（1 つも無ければ null）
+export function anchorsOf(ids: readonly string[]): Anchors | null {
+  const [first, ...rest] = ids
+  return first === undefined ? null : [first, ...rest]
+}
 
 // アクションの対象 annotations が受けて返すもの: ページ（読むだけで、アクションは変えない）と、そのアノテーションの並び
 export interface PageAnnotations {
@@ -32,22 +41,23 @@ export type Annotations = Readonly<Record<string, readonly Annotation[]>>
 export const restoreAnnotations = (saved: unknown): readonly Annotation[] =>
   Array.isArray(saved) ? (saved as Annotation[]) : []
 
-// ページの中の、アンカーにできる物の id
+// ページの中の、結び付けられる物の id
 export function anchorIds({ id: _page, ...content }: ItemPage): ReadonlySet<string> {
   return new Set(idsIn(content))
 }
 
-// ページ page に無い物の id をアンカーから外し、アンカーが全部無くなったアノテーションを消す（変わらなければ同じ並び）
+// ページ page に無い物の id を結び付く物から外し、結び付く物が全部無くなったアノテーションを消す（変わらなければ同じ並び）
 export function prune(annotations: readonly Annotation[], page: ItemPage): readonly Annotation[] {
   if (annotations.length === 0) return annotations
   const ids = anchorIds(page)
   let changed = false
   const next = annotations.flatMap(a => {
     if (!Array.isArray(a.anchors)) return [a]
-    const anchors = a.anchors.filter(id => ids.has(id))
-    if (anchors.length === a.anchors.length) return [a]
+    const kept = a.anchors.filter(id => ids.has(id))
+    if (kept.length === a.anchors.length) return [a]
     changed = true
-    return anchors.length > 0 ? [{ ...a, anchors }] : []
+    const anchors = anchorsOf(kept)
+    return anchors ? [{ ...a, anchors }] : []
   })
   return changed ? next : annotations
 }
@@ -56,12 +66,23 @@ export function prune(annotations: readonly Annotation[], page: ItemPage): reado
 const annotationAllowed = (catalog: CoreCatalog, type: string, id: string): boolean =>
   catalog.annotations.has(id) && !(pageType(catalog, type).annotations?.without?.includes(id as never) ?? false)
 
-// 1 つのアノテーションが決まりを守っているか: 形が合い、種類の形に合い、アンカーがどれもページ page の中（ids はその中の物の id）にあり、そのページのタイプが種類を使える
+// 1 つのアノテーションが決まりを守っているか: 形が合い、種類の形に合い、結び付く物がどれもページ page の中（ids はその中の物の id）にあり、そのページのタイプが種類を使える
 function fits(catalog: CoreCatalog, page: ItemPage, ids: ReadonlySet<string>, a: Annotation): boolean {
   if (!AnnotationSchema.safeParse(a).success) return false
   const def = catalog.annotations.get(a.annotation)
   if (!def?.props.safeParse(a.props).success) return false
   return annotationAllowed(catalog, page.type, a.annotation) && a.anchors.every(id => ids.has(id))
+}
+
+// ページ page の、効くアノテーション: 決まりを守る物だけ（種類が無い物 W018・形が合わない物 W019 は残っても効かないので除く）。除く物が無ければ同じ並び
+export function usableAnnotations(
+  catalog: CoreCatalog,
+  page: ItemPage,
+  annotations: readonly Annotation[],
+): readonly Annotation[] {
+  const ids = anchorIds(page)
+  const usable = annotations.filter(a => fits(catalog, page, ids, a))
+  return usable.length === annotations.length ? annotations : usable
 }
 
 // アクションが返した並び after が決まりを守っているか: id が重ならず、前の並び before から足した・変えた物はどれも決まりを守る。

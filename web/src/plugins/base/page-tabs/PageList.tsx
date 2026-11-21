@@ -82,7 +82,8 @@ export function PageList() {
   const openMenu = useContextMenu(PAGE_LIST_CONTEXT)
   const t = useMessages(kit)
   const list = useRef<HTMLDivElement | null>(null)
-  const binder = book && opened ? findBinder(book, binderOf(book, opened) ?? "") : undefined
+  const binderId = book && opened ? binderOf(book, opened) : null
+  const binder = book && binderId !== null ? findBinder(book, binderId) : undefined
   const pages = book && binder ? pagesIn(book, binder.id) : []
   const drag = useTabDrag(
     list,

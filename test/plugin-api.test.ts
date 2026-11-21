@@ -21,6 +21,7 @@ const names = (m: object) => Object.keys(m).sort()
 test("matomezu が出す名前", () => {
   expect(names(api)).toEqual([
     "AlignSchema",
+    "AnchorsArg",
     "BACKGROUND_PRINT",
     "BODY_MAX",
     "CHILD_AREA",
@@ -62,6 +63,7 @@ test("matomezu が出す名前", () => {
     "allRectsOf",
     "allowedItems",
     "amongSelected",
+    "anchorsOf",
     "apart",
     "areaOf",
     "binderOf",
@@ -124,6 +126,7 @@ test("matomezu が出す名前", () => {
     "itemSize",
     "joinMessages",
     "keepApart",
+    "lastAnchor",
     "lineupOf",
     "minSize",
     "moveEntry",

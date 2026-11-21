@@ -21,6 +21,7 @@ import { useAnchorName } from "../label/anchor-name"
 import { Ask, useRemoveAsk } from "../stand/Ask"
 import { Stand, StandAt } from "../stand/anchors"
 import { StandPointer } from "../stand/StandPointer"
+import { lastAnchor } from "../utils/anchors"
 import { useAnnotationsOf, usePerformOrToast } from "../utils/annotation-hooks"
 import { MARK, MARK_ADD, MARK_KINDS, MARK_REMOVE, type MarkKind, type MarkProps } from "."
 import styles from "./MarkLayer.module.css"
@@ -38,7 +39,7 @@ export function MarkLayer() {
         <MarkStand
           key={m.id}
           id={m.id}
-          anchor={m.anchors.at(-1) ?? ""}
+          anchor={lastAnchor(m.anchors)}
           kind={(m.props as MarkProps).kind}
           addedAt={(m.props as MarkProps).addedAt}
         />
@@ -176,7 +177,7 @@ function PickerStand({ picker }: { picker: AnchorTargets }) {
     if (e.key === "Escape") end()
   }
   return (
-    <Stand anchor={picker.anchors.at(-1) ?? ""} side="right" label={t("Add mark")}>
+    <Stand anchor={lastAnchor(picker.anchors)} side="right" label={t("Add mark")}>
       {/* biome-ignore lint/a11y/noStaticElementInteractions: Esc で閉じるだけ（選ぶのは中のボタン） */}
       <div ref={ref} className={styles.picker} onKeyDown={onKeyDown}>
         {MARK_KINDS.map(k => (

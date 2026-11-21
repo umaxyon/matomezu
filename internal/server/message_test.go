@@ -358,3 +358,39 @@ func TestWokenByADeliveredNotice(t *testing.T) {
 		t.Fatal("the same text again is the user's")
 	}
 }
+
+// ターンの入力が貸した知らせの文そのものなら、利用者の言葉でないと伝える文を返す（フックの woken が付いていても。当てた文は使い切る）。
+// 知らせでない入力には、フックの woken が付いていても（monitor や裏の実行の終わりの task-notification）返さない
+func TestTalkedTellsTheAIAWokenTurnIsNotTheUsers(t *testing.T) {
+	s, hub := joinWorld(t, joinStore(t))
+	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
+	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
+	noticeOf(t, s.URL, b)
+	l := hub.OpenWakesWith("200", "", WakeLimits{})
+	lend := func(text string) string {
+		sendMessage(t, s.URL, a, "すずめ", text)
+		out, ok := hub.nextWake(l, time.Now())
+		if !ok {
+			t.Fatal("no wake")
+		}
+		hub.AckWake(l.id, out.ID, WakeDelivered, time.Now())
+		prompt, _ := json.Marshal(out.Text)
+		return string(prompt)
+	}
+	one, two := lend("one"), lend("two")
+	for _, c := range []struct {
+		body string
+		note bool
+	}{
+		{`{"sessionId":"SB","host":"200","prompt":` + one + `}`, true},
+		{`{"sessionId":"SB","host":"200","woken":true,"prompt":` + two + `}`, true},
+		{`{"sessionId":"SB","host":"200","prompt":` + two + `}`, false},
+		{`{"sessionId":"SB","host":"200","woken":true,"prompt":"<task-notification>done</task-notification>"}`, false},
+		{`{"sessionId":"SB","host":"200","prompt":"こんにちは"}`, false},
+	} {
+		got, _ := call(t, "POST", s.URL+"/api/ai/talked", c.body, nil)
+		if strings.Contains(got, wokenText) != c.note {
+			t.Errorf("%s: %s", c.body, got)
+		}
+	}
+}

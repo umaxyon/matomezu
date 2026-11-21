@@ -8,6 +8,7 @@
 // 原文を読み直すのは、書くのを待たせないよう、画面とは別の処理の流れで読む（base の useMarkdownDocument）。ペインが紙より狭いときだけ、紙の幅のまま縮めて収める。両方のペインを並べている間は、ソースのペインをスクロールすると、描いた文書のペインがブロックごとに付いて行く（scroll-sync.ts）。
 // ページが無ければ、真ん中にページを作るボタン（コマンド page-new）を出す
 import { type MouseEvent, type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react"
+import type { Book, ItemPage } from "../../../../plugin-api"
 import {
   useBook,
   useCommand,
@@ -61,12 +62,17 @@ import { usePaneSwap } from "./usePaneSwap"
 
 const TITLES = { source: "Source", rendered: "Preview" } as const
 
+// 描いているページとブックがあるときだけ描く
 export function MarkdownView() {
-  const t = useMessages(kit)
-  const catalog = useCoreCatalog()
   const page = useShownPage()
   const book = useBook()
-  const shownPage = page ? paneInputOf(page) : null
+  return page && book ? <MarkdownPage page={page} book={book} /> : null
+}
+
+function MarkdownPage({ page, book }: { page: ItemPage; book: Book }) {
+  const t = useMessages(kit)
+  const catalog = useCoreCatalog()
+  const shownPage = paneInputOf(page)
   const chosen = usePluginState(kit, PANE_LAYOUT_STATE)
   const opening = usePluginState(kit, PANE_OPENING_STATE)
   const layout = paneLayoutOf(chosen, opening, shownPage)
@@ -79,21 +85,19 @@ export function MarkdownView() {
   const panes = useRef<HTMLDivElement>(null)
   const source = useRef<HTMLDivElement>(null)
   const rendered = useRef<HTMLDivElement>(null)
-  const text = page && "text" in page && typeof page.text === "string" ? page.text : ""
-  const document = useMarkdownDocument(text, page?.id ?? "")
+  const text = "text" in page && typeof page.text === "string" ? page.text : ""
+  const document = useMarkdownDocument(text, page.id)
   // ページを開いたとき（替えたとき）に決めた並べ方を書く（本文を打っても決め直さない）
-  const openedId = shownPage?.id
-  const openedText = shownPage?.text
+  const openedId = shownPage.id
+  const openedText = shownPage.text
   // biome-ignore lint/correctness/useExhaustiveDependencies: 本文は開いたとき（ページが替わったとき）だけ読む
   useEffect(() => {
-    if (openedId === undefined) return
-    const next = openingFor(opening, { id: openedId, text: openedText ?? "" })
+    const next = openingFor(opening, { id: openedId, text: openedText })
     if (next) setOpening(next)
   }, [openedId])
   const scrolls = usePluginState(kit, SCROLL_STATE)
   const setScrolls = useSetPluginState(kit, SCROLL_STATE)
-  const memory = useScrollMemory(page?.id, scrolls, next => setScrolls(next), source, rendered)
-  if (!page || !book) return null
+  const memory = useScrollMemory(page.id, scrolls, next => setScrolls(next), source, rendered)
   const width = paperSize(catalog, page).w
   // ソースのペインのスクロールに、描いた文書のペインを付いて行かせる（片方だけ見せている間は、描いた文書のペインが無い）
   const follow = () => {
@@ -239,7 +243,7 @@ function Rendered({
 // 戻したことで起きるソースのスクロールには、描いた文書のペインを付いて行かせない（restoring。別々に覚えた位置を戻すため）。ページを替えるときは、前のページの位置を先に覚える
 const SAVE_AFTER_MS = 300
 function useScrollMemory(
-  page: string | undefined,
+  page: string,
   scrolls: Scrolls | undefined,
   save: (next: Scrolls) => void,
   source: RefObject<HTMLDivElement | null>,
@@ -260,7 +264,6 @@ function useScrollMemory(
   }
   // biome-ignore lint/correctness/useExhaustiveDependencies: ページが替わったときだけ戻す（フックの中身は ref で読む）
   useLayoutEffect(() => {
-    if (page === undefined) return
     for (const name of PANES) {
       const el = pane[name].current
       if (!el) continue
@@ -273,7 +276,6 @@ function useScrollMemory(
   }, [page])
   return {
     moved(name: Pane) {
-      if (page === undefined) return
       const el = pane[name].current
       if (!el) return
       moving.current = {

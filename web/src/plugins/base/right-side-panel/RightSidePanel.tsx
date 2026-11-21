@@ -36,7 +36,8 @@ export function RightSidePanel() {
   const placed: readonly string[] = useLayout().slots[RIGHT_SIDE_PANEL] ?? []
   const found = useOpenedRightSidePanel()
   const opened = found && placed.includes(found.open.widget) ? found : null
-  const widget = useUiCatalog().widgets.get(opened?.open.widget ?? "")
+  const widgets = useUiCatalog().widgets
+  const widget = opened ? widgets.get(opened.open.widget) : undefined
   const width = opened ? `min(${widget?.rightSidePanel?.width ?? WIDTH}px, 100vw)` : 0
   const ref = useRef<HTMLElement>(null)
   const close = useCloseRightSidePanelAt()

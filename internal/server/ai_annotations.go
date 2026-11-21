@@ -259,7 +259,7 @@ func (o Options) aiAwaiting(w http.ResponseWriter, _ *http.Request) {
 }
 
 // aiTalked は、AI のターンの始まりを受ける（AI のフックが知らせる。{"sessionId", "host", "candidates", "woken", "prompt"}）。
-// ターンの入力 prompt が通り道に貸した知らせの文そのものなら woken と同じ。candidates が無く woken でなければ利用者トリガートークのときに行うアクションを行い、有れば会話のセッションの結びつけだけを行う（talk_session.go）
+// ターンの入力 prompt が通り道に貸した知らせの文そのものなら woken と同じ。candidates が無く woken でなければ利用者トリガートークのときに行うアクションを行い、入力が貸した知らせの文そのものなら、利用者の言葉でないと伝える文（wokenText）を添える。有れば会話のセッションの結びつけだけを行う（talk_session.go）
 func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		SessionID  string   `json:"sessionId"`
@@ -271,16 +271,23 @@ func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 	if r.ContentLength != 0 && !readJSON(w, r, &req) {
 		return
 	}
-	if len(req.Candidates) == 0 && !req.Woken && !o.Hub.WokenBy(req.Prompt) {
-		if err := o.Hub.Talked(time.Now()); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+	lent := false
+	if len(req.Candidates) == 0 {
+		lent = o.Hub.WokenBy(req.Prompt)
+		if !req.Woken && !lent {
+			if err := o.Hub.Talked(time.Now()); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 		}
 	}
 	done, err := o.Hub.TalkedBy(req.SessionID, req.Host, req.Candidates)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+	if lent {
+		done.ForAI = wokenText
 	}
 	writeJSON(w, done)
 }

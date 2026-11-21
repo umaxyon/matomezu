@@ -89,8 +89,13 @@ function useExtent(id: string): { known: boolean; size: string | null } {
   return { known, size }
 }
 
+// 描いている場所のステージがあるときだけ描く（無ければ何も描かない）
 export function PrintPreviewView() {
-  const id = useStageId() ?? ""
+  const id = useStageId()
+  return id === null ? null : <PrintPreviewBody id={id} />
+}
+
+function PrintPreviewBody({ id }: { id: string }) {
   const stage = useStage() // パンの量を読まない（ずらす量は useStagePan だけが読む）
   const t = useMessages(kit)
   const catalog = useCatalog().core
