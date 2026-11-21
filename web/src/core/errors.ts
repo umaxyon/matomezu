@@ -90,6 +90,7 @@ export const ERRORS = {
   E129: "setting {id}: printPreview is only for a setting a book holds (holder outermost)",
   E130: "subject {id}: the state of role participants takes exactly {states}",
   E131: "paper {paper}: there is no paper in the catalog to draw it with",
+  E132: "system folders {first} and {second} have the same title {title} in {lang}",
 
   E201: "MatomezuProvider is missing",
   E202: "#root is missing",

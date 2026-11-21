@@ -42,4 +42,4 @@ export {
   LIBRARY_UNFOLDED,
   UNREADABLE_NOTICE_CLOSED,
 } from "./state"
-export { DOCUMENTS, SYSTEM_FOLDER_ADD } from "./system-folders"
+export { DOCUMENTS } from "./system-folders"

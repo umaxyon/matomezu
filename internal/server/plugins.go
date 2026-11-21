@@ -28,7 +28,6 @@ func (h *Hub) LinkPlugin(dir string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer h.afterCatalogChange()
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	next := slices.Clone(h.plugins)
@@ -49,7 +48,6 @@ func (h *Hub) LinkPlugin(dir string) (string, error) {
 var errNoPlugin = errors.New("no plugin")
 
 func (h *Hub) UnlinkPlugin(id string) error {
-	defer h.afterCatalogChange()
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	next := slices.DeleteFunc(slices.Clone(h.plugins), func(p *plugin.Bundle) bool { return p.Manifest.ID == id })
@@ -121,7 +119,6 @@ func (h *Hub) usePlugins(next []*plugin.Bundle, by string) error {
 	if err := h.checkBooks(h.order); err != nil {
 		fmt.Fprintln(os.Stderr, "engine: could not check the books:", err)
 	}
-	h.catalogChanged = true
 	h.pluginsVersion++
 	told := map[string]any{"version": h.pluginsVersion}
 	if len(moved) > 0 {
@@ -179,4 +176,14 @@ func (h *Hub) settingsForPlugins() json.RawMessage {
 		return json.RawMessage(`{}`)
 	}
 	return h.settings
+}
+
+// loadSystemFolderTitles は、今の機能台帳のシステムフォルダの名前（英語）を読み直す（h.mu を持って呼ぶか、起動の途中で呼ぶ）
+func (h *Hub) loadSystemFolderTitles() {
+	titles, err := h.engine.SystemFolderTitles()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "engine: could not read the titles of the system folders:", err)
+		return
+	}
+	h.systemFolderTitles = titles
 }

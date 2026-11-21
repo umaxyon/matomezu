@@ -71,7 +71,6 @@ import {
   LIBRARY_UNREADABLE_OPEN,
   PAGE_CREATE,
   SHOW_UNREADABLE_FOLDER,
-  SYSTEM_FOLDER_ADD,
   TRASH_EMPTY,
   UNREADABLE_NOTICE_CLOSED,
 } from "./library"
@@ -463,7 +462,6 @@ export const BASE = defineBuiltin(
       BOOK_UNLOCK,
       BOOK_CREATE,
       FOLDER_CREATE,
-      SYSTEM_FOLDER_ADD,
       ENTRY_MOVE,
       ENTRY_MOVE_OVER,
       ENTRY_RENAME,
@@ -738,7 +736,6 @@ declare module "../../core/catalog" {
     "@matomezu/base:book-lock": typeof BOOK_LOCK
     "@matomezu/base:book-unlock": typeof BOOK_UNLOCK
     "@matomezu/base:folder-create": typeof FOLDER_CREATE
-    "@matomezu/base:system-folder-add": typeof SYSTEM_FOLDER_ADD
     "@matomezu/base:entry-move": typeof ENTRY_MOVE
     "@matomezu/base:entry-move-over": typeof ENTRY_MOVE_OVER
     "@matomezu/base:entry-rename": typeof ENTRY_RENAME

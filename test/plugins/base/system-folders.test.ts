@@ -1,9 +1,9 @@
-// システムフォルダ: system-folder-add が足りない行を書庫ホームの先頭に足し、名前の当たる物に番号を付ける。
+// システムフォルダ: 書庫を整える core の関数（withSystemFolders・withFreeTitles。常駐の settleLibrary が呼ぶ）が足りない行を書庫ホームの先頭に足し、名前の当たる物に番号を付ける。
 // システムフォルダの決まり（印を変えない・定義が在る間はゴミ箱に入れない・先頭に固定・名前は設定の言語で引く）は、perform を通して確かめる
 import { expect, test } from "bun:test"
 import { USER } from "../../../web/src/core/actor"
 import type { ActionContext } from "../../../web/src/core/def/action"
-import { namingOf, systemFoldersInPlace } from "../../../web/src/core/entries"
+import { namingOf, withFreeTitles, withSystemFolders } from "../../../web/src/core/entries"
 import { type Folder, HOME_ID, type Library, TRASH_ID } from "../../../web/src/core/folders"
 import { withChanges } from "../../../web/src/core/folders-changes"
 import { systemFolderOf } from "../../../web/src/core/folders-tree"
@@ -11,18 +11,13 @@ import { type PerformedIn, performIn, type World } from "../../../web/src/core/p
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { draggable, droppable, moveClashOf } from "../../../web/src/plugins/base/library/drop"
 import { replaceBlockedOf, restorePlanOf } from "../../../web/src/plugins/base/library/entries"
-import {
-  DOCUMENTS as DOCUMENTS_DEF,
-  SYSTEM_FOLDER_ADD,
-  withSystemFolders,
-} from "../../../web/src/plugins/base/library/system-folders"
+import { DOCUMENTS as DOCUMENTS_DEF } from "../../../web/src/plugins/base/library/system-folders"
 import { worldOf } from "../../../web/src/store/world"
-import { CORE_CATALOG, newStore, sequence } from "../../support"
+import { CORE_CATALOG, newStore, sequence, settleIn } from "../../support"
 
 const NOW = "2026-11-19T01:00:00.000Z"
 const DOCUMENTS = DOCUMENTS_DEF.id
 const GONE = "@x/gone:folder" // 定義が機能台帳に無いシステムフォルダ（プラグインを外した間）
-const SYSTEM_FOLDER_ADD_NAME = SYSTEM_FOLDER_ADD.id.slice("@matomezu/base:".length)
 const JA = { "@matomezu/base:lang": "matomezu:ja" }
 const EN = { "@matomezu/base:lang": "matomezu:en" }
 
@@ -49,12 +44,18 @@ const withRows = (world: World, ...rows: Folder[]): World => ({
   folders: { ...world.folders, ...Object.fromEntries(rows.map(r => [r.id, r])) },
 })
 const homeOf = (l: Library) => l.folders[HOME_ID]?.lineup ?? []
+// 常駐が書庫を整えたあとの世界（足りないシステムフォルダを sf1, sf2, … で足し、名前の重なりに番号を付ける。名前は世界の設定の言語で引く）
+const settledWorld = (world: World): World => {
+  const filled = withSystemFolders(world, CORE_CATALOG, sequence("sf"))
+  if (!filled) throw new Error("no home")
+  return { ...world, ...withFreeTitles(filled.next, namingOf(CORE_CATALOG, world.settings)).next }
+}
 
 // 書庫ホームにドキュメント（sf1）と、定義の無いシステムフォルダ gone と、フォルダ f を足した世界
 function prepared(settings = {}): World {
   const { state } = newStore({ now: () => NOW })
   const start = { ...worldOf(state.getState()), settings }
-  const filled = after(start, run(start, SYSTEM_FOLDER_ADD_NAME))
+  const filled = settledWorld(start)
   const home = filled.folders[HOME_ID]
   if (home?.folderRole !== "home") throw new Error("no home")
   return withRows(
@@ -68,12 +69,11 @@ function prepared(settings = {}): World {
   )
 }
 
-test("system-folder-add は、ドキュメントの行を書庫ホームの先頭に足し、もう在れば何も変えない", () => {
+test("書庫を整えると、ドキュメントの行を書庫ホームの先頭に足し、もう在れば何も足さない", () => {
   const world = prepared()
   expect(homeOf(world)[0]).toEqual({ kind: "folder", id: "sf1" })
   expect(world.folders.sf1).toEqual({ folderRole: "folder", id: "sf1", systemFolder: DOCUMENTS, lineup: [] })
-  const again = run(world, SYSTEM_FOLDER_ADD_NAME)
-  expect(again).toEqual({ ok: true, result: { added: [], renamed: [] } })
+  expect(withSystemFolders(world, CORE_CATALOG, sequence("again"))).toEqual({ next: world, added: [] })
 })
 
 test("システムフォルダの決まり: 動かす・名前を変える・定義の在る間にゴミ箱に入れる・先頭より前に置く・名前の当たる物を作るのは断る", () => {
@@ -122,27 +122,28 @@ test("名前は利用者の設定の言語で引く: 日本語ならドキュメ
   const start = worldOf(state.getState())
   const home = start.folders[HOME_ID]!
   const book = home.lineup.find(r => r.kind === "book")!.id
-  // 書庫ホームのブックの名前を「ドキュメント」にしてから、日本語で足す
+  const titleIn = (w: World) => (w.folders[book] as { title?: string }).title
+  // 書庫ホームのブックの名前を「ドキュメント」にしてから、日本語で整える
   const named = after(start, run(start, "entry-rename", { entry: book, title: "ドキュメント" }))
-  const ja = { ...named, settings: JA }
-  const done = run(ja, SYSTEM_FOLDER_ADD_NAME)
-  expect(done.ok && done.result).toEqual({
-    added: [{ folder: "sf1", systemFolder: DOCUMENTS }],
-    renamed: [{ entry: book, kind: "book", from: "ドキュメント", to: "ドキュメント 2" }],
-  })
+  expect(titleIn(settledWorld({ ...named, settings: JA }))).toBe("ドキュメント 2")
   // 英語を選んでいれば当たらない。そのあと日本語に変えるのは断る
-  const en = after({ ...named, settings: EN }, run({ ...named, settings: EN }, SYSTEM_FOLDER_ADD_NAME))
-  expect((en.folders[book] as { title?: string }).title).toBe("ドキュメント")
+  const en = settledWorld({ ...named, settings: EN })
+  expect(titleIn(en)).toBe("ドキュメント")
   const switched = run(en, "settings-set", { values: JA })
   expect(!switched.ok && "kind" in switched ? switched.kind : "ok").toBe("title-taken")
   // 当たる物の名前を変えれば、日本語にできる
   const renamed = after(en, run(en, "entry-rename", { entry: book, title: "本" }))
   expect(run(renamed, "settings-set", { values: JA }).ok).toBe(true)
+  // 言語を選んでいない所から初めて日本語を選ぶのは断らず、同じアクションで当たる物に番号を付ける
+  const unset = settledWorld(named)
+  const chosen = run(unset, "settings-set", { values: JA })
+  expect(titleIn(after(unset, chosen))).toBe("ドキュメント 2")
 })
 
 test("日本語を選んでいれば、ブックをドキュメントの名前にするのは印を添えて断り、英語の名前（Documents）にはできる", () => {
-  const { actions, state } = newStore({ now: () => NOW, settings: JA })
-  expect(actions.perform(SYSTEM_FOLDER_ADD.id, {}).ok).toBe(true)
+  const store = newStore({ now: () => NOW, settings: JA })
+  const { actions, state } = store
+  expect(settleIn(store)).toMatchObject({ added: [{ systemFolder: DOCUMENTS }] })
   const book = state.getState().folders[HOME_ID]!.lineup.find(r => r.kind === "book")!.id
   expect(actions.perform("@matomezu/base:book-update", { title: "ドキュメント" }, { book })).toMatchObject({
     ok: false,
@@ -152,13 +153,13 @@ test("日本語を選んでいれば、ブックをドキュメントの名前�
   expect(actions.perform("@matomezu/base:entry-rename", { entry: book, title: "Documents" }).ok).toBe(true)
 })
 
-test("systemFoldersInPlace は、system-folder-add が何も足さず番号も付けないときだけ合っていると言う", () => {
+test("書庫を整えるとき、足りないのは定義の在るドキュメントがゴミ箱の外に無いときだけで、番号を付けるのは名前の当たる、システムフォルダでない物だけ", () => {
   const world = prepared()
   const home = world.folders[HOME_ID]!
   const book = home.lineup.find(r => r.kind === "book")!.id
   const inHome = (w: World, ref: Library["folders"][string]["lineup"][number]): Folder =>
     ({ ...w.folders[HOME_ID]!, lineup: [...w.folders[HOME_ID]!.lineup, ref] }) as Folder
-  // 同じ名前の、別のプラグインのシステムフォルダ（system-folder-add は、システムフォルダどうしには番号を付けない）
+  // 同じ名前の、別のプラグインのシステムフォルダ（システムフォルダどうしには番号を付けない。台帳アセンブルでは E132 になる）
   const TWIN = "@x/twin:docs"
   const twins = {
     ...CORE_CATALOG,
@@ -182,21 +183,20 @@ test("systemFoldersInPlace は、system-folder-add が何も足さず番号も�
     pages: { ...world.pages, p: { ...Object.values(world.pages)[0]!, id: "p", title: "Documents" } },
   } as World
   const bookNamed = withRows(world, { ...world.folders[book]!, title: "ドキュメント" } as Folder)
-  const cases: [string, Library, typeof CORE_CATALOG, Record<string, string>, boolean][] = [
-    ["揃っていて当たらない", world, CORE_CATALOG, {}, true],
-    ["ドキュメントが無い", noDocuments, CORE_CATALOG, {}, false],
-    ["ドキュメントはゴミ箱の中だけ", onlyInTrash, CORE_CATALOG, {}, false],
-    ["定義の無いシステムフォルダが在っても、合っている", world, CORE_CATALOG, EN, true],
-    ["同じ名前のシステムフォルダどうしは、当たると見ない", withTwin, twins, {}, true],
-    ["書庫ホームのページと当たる", pageNamed, CORE_CATALOG, {}, false],
-    ["日本語なら、ブックの「ドキュメント」と当たる", bookNamed, CORE_CATALOG, JA, false],
-    ["言語を選んでいなければ（英語）、ブックの「ドキュメント」とは当たらない", bookNamed, CORE_CATALOG, {}, true],
+  const cases: [string, Library, typeof CORE_CATALOG, Record<string, string>, number, number][] = [
+    ["揃っていて当たらない", world, CORE_CATALOG, {}, 0, 0],
+    ["ドキュメントが無い", noDocuments, CORE_CATALOG, {}, 1, 0],
+    ["ドキュメントはゴミ箱の中だけ", onlyInTrash, CORE_CATALOG, {}, 1, 0],
+    ["定義の無いシステムフォルダが在っても、足さない", world, CORE_CATALOG, EN, 0, 0],
+    ["同じ名前のシステムフォルダどうしは、番号を付けない", withTwin, twins, {}, 0, 0],
+    ["書庫ホームのページと当たる", pageNamed, CORE_CATALOG, {}, 0, 1],
+    ["日本語なら、ブックの「ドキュメント」と当たる", bookNamed, CORE_CATALOG, JA, 0, 1],
+    ["言語を選んでいなければ（英語）、ブックの「ドキュメント」とは当たらない", bookNamed, CORE_CATALOG, {}, 0, 0],
   ]
-  for (const [what, library, catalog, settings, ok] of cases) {
-    const naming = namingOf(catalog, settings)
-    const done = withSystemFolders(library, catalog, naming, sequence("in"))
-    const unchanged = done !== null && done.result.added.length === 0 && done.result.renamed.length === 0
-    expect([what, systemFoldersInPlace(library, naming), unchanged]).toEqual([what, ok, ok])
+  for (const [what, library, catalog, settings, adds, numbers] of cases) {
+    const filled = withSystemFolders(library, catalog, sequence("in"))
+    const freed = filled && withFreeTitles(filled.next, namingOf(catalog, settings)).freed
+    expect([what, filled?.added.length, freed?.length]).toEqual([what, adds, numbers])
   }
 })
 
@@ -208,11 +208,10 @@ test("プラグインが戻ってシステムフォルダの名前がまた引�
     ...home,
     lineup: [...home.lineup, { kind: "folder", id: "u" }],
   } as Folder)
-  const done = run(made, SYSTEM_FOLDER_ADD_NAME)
-  expect(done.ok && done.result).toEqual({
-    added: [],
-    renamed: [{ entry: "u", kind: "folder", from: "Documents", to: "Documents 2" }],
-  })
+  expect(withSystemFolders(made, CORE_CATALOG, sequence("in"))?.added).toEqual([])
+  expect(withFreeTitles(made, namingOf(CORE_CATALOG, made.settings)).freed).toEqual([
+    { kind: "folder", id: "u", title: "Documents 2" },
+  ])
 })
 
 test("書庫の画面: システムフォルダは掴めず、書庫ホームの先頭のシステムフォルダより前へは落とせない", () => {

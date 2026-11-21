@@ -1,16 +1,26 @@
-// 書庫を整える（読めない物のフォルダへ移す・戻す）・そこから完全に消す: 置き場所から読んだままの行を受けて、書く行の変わりを返す（同じ入力なら同じ結果。2 回行っても 1 回と同じ）。
-// アクションでなく、常駐が起動したときと機能台帳が変わったときに行う。行の中身には手を付けず、変えるのは、どのフォルダの並びに入っているかだけ
-// （戻すときに名前が重なれば、名前に番号を付ける。ロック中の物にも付ける）
+// 書庫を整える（読めない物のフォルダへ移す・戻す、足りないシステムフォルダを足す、名前の重なりに番号を付ける）・読めない物のフォルダから完全に消す:
+// 置き場所から読んだままの行を受けて、書く行の変わりを返す（同じ入力なら同じ結果。2 回行っても 1 回と同じ）。
+// アクションでなく、常駐が起動したときと機能台帳が変わったときに行う。行の中身で変えるのは、どのフォルダの並びに入っているかと、番号を付けた名前だけ
+// （番号はロック中の物にも付ける）
 
 import { type UnreadableUnit, unreadableUnitsOf } from "./book"
 import type { CoreCatalog } from "./core-catalog"
-import { canHold, type EntryKind, freeTitleIn, type Naming, rowsWithin, titleOf } from "./entries"
+import {
+  canHold,
+  type EntryKind,
+  type FreedTitle,
+  type Naming,
+  rowsWithin,
+  withFreeTitles,
+  withSystemFolders,
+} from "./entries"
 import {
   type AnyEntryRef,
   BROKEN,
   FIRST,
   type Folder,
   HOME_ID,
+  type Library,
   MOVED_CODES,
   type MovedCode,
   TRASH_ID,
@@ -52,15 +62,17 @@ export interface RowWrites {
   removedFolders: readonly string[]
 }
 
-// 書庫を整えた結果: 書く行 writes と、移した物 moved（移した順）と、戻した物の id returned（戻した順）と、名前に番号を付けた物 numbered（付けた順。どれも常駐のログに書く）
+// 書庫を整えた結果: 書く行 writes と、移した物 moved（移した順）と、戻した物の id returned（戻した順）と、足したシステムフォルダ added（行の id と印。足した順）と、
+// 名前に番号を付けた物 numbered（付けた順。どれも常駐のログに書く）
 export interface Settled {
   writes: RowWrites
   moved: readonly UnreadableUnit[]
   returned: readonly string[]
-  numbered: readonly { id: string; title: string }[]
+  added: readonly { id: string; systemFolder: string }[]
+  numbered: readonly FreedTitle[]
 }
 
-// 書庫を整えるときの決まり: 名前を比べる言語 naming と、移した時刻 now と、新しい行の id を振る newId
+// 書庫を整えるときの決まり: 名前を比べる言語 naming と、移した時刻 now と、足すシステムフォルダの行の id を振る newId
 export interface SettleWith {
   naming: Naming
   now: string
@@ -68,35 +80,65 @@ export interface SettleWith {
 }
 
 // 置き場所から読んだままの行 pageRows・folderRows で、書庫を今の機能台帳に合わせて整える行の変わり: 今の機能台帳で読めない物は読めない物のフォルダへ移し、
-// そこの物で読めるようになった物は在った所へ戻す。先に戻し（並びの順に、何も戻らなくなるまで繰り返す。入れ物が先に戻り、中の物は次の回で戻る）、それから移す
-// （決まりは with）。読めない物のフォルダの行が形に合わなければ BROKEN（何も書かない）
+// そこの物で読めるようになった物は在った所へ戻す。先に戻し（並びの順に、何も戻らなくなるまで繰り返す。入れ物が先に戻り、中の物は次の回で戻る）、それから移す。
+// そのあと、足りないシステムフォルダを足し（withSystemFolders）、名前の重なりに番号を付ける（withFreeTitles。読んだデータの重なりも、戻った物・現れたシステムフォルダが当たった物も）。
+// 決まりは with。読めない物のフォルダの行が形に合わなければ BROKEN、足すシステムフォルダの id が振れなければ BROKEN（何も書かない）
 export function settleLibrary(
   catalog: CoreCatalog,
   pageRows: readonly unknown[],
   folderRows: readonly unknown[],
-  { naming, now }: SettleWith,
+  { naming, now, newId }: SettleWith,
 ): Settled | typeof BROKEN {
   const found = unreadableFolderOf(folderRows)
   if (found === BROKEN) return BROKEN
   let world = worldOf(pageRows, folderRows, found)
   const returned: string[] = []
-  const numbered: { id: string; title: string }[] = []
   let units = unitsIn(catalog, world)
   for (let progressed = true; progressed; ) {
     progressed = false
     for (const ref of world.unreadable.lineup) {
-      const back = returnedRows(catalog, world, ref, units, naming)
+      const back = returnedRows(catalog, world, ref, units)
       if (!back) continue
       world = withReturned(world, back)
       units = unitsIn(catalog, world)
       returned.push(ref.entry.id)
-      if (back.title !== undefined) numbered.push({ id: ref.entry.id, title: back.title })
       progressed = true
     }
   }
   const moved = units
   if (moved.length > 0) world = withMoved(world, moved, now)
-  return { writes: writesOf(world), moved, returned, numbered }
+  const library = libraryOf(world)
+  const filled = withSystemFolders(library, catalog, newId)
+  if (!filled) return BROKEN
+  const { next, freed } = withFreeTitles(filled.next, naming)
+  world = withLibrary(world, library, next)
+  return { writes: writesOf(world), moved, returned, added: filled.added, numbered: freed }
+}
+
+// 世界 world の書庫（rowsLibraryOf で読む。書庫ホームかゴミ箱の下に在るフォルダの行だけで、読めない物のフォルダの中の物・どこにも入っていない物は入れない）
+function libraryOf(world: World): Library {
+  const holder = holdersIn(world)
+  const rows = [...world.folders].flatMap(([id, row]) => {
+    const top = id === HOME_ID || id === TRASH_ID ? id : topOf(holder, id)
+    return top === HOME_ID || top === TRASH_ID ? [row] : []
+  })
+  return rowsLibraryOf(rows, Object.fromEntries(world.pages))
+}
+
+// 世界 world に、その書庫 was（libraryOf）から変えた書庫 next を当てた世界（変えた行だけを、変えた行に入れる）
+function withLibrary(world: World, was: Library, next: Library): World {
+  const changed = (before: Readonly<Record<string, unknown>>, now: Readonly<Record<string, unknown>>) =>
+    Object.keys(now).filter(id => before[id] !== now[id])
+  const pages = changed(was.pages, next.pages)
+  const folders = changed(was.folders, next.folders)
+  if (pages.length === 0 && folders.length === 0) return world
+  return {
+    ...world,
+    pages: new Map([...world.pages, ...pages.map(id => [id, next.pages[id]] as const)]),
+    folders: new Map([...world.folders, ...folders.map(id => [id, next.folders[id]] as const)]),
+    touchedPages: new Set([...world.touchedPages, ...pages]),
+    touchedFolders: new Set([...world.touchedFolders, ...folders]),
+  }
 }
 
 // 読めない物のフォルダの直下の物 id と、その中の物の行（完全に消す行）と、それを外した読めない物のフォルダの行。読めない物のフォルダの直下に無ければ undefined。
@@ -240,12 +282,11 @@ function writesOf(world: World): RowWrites {
   }
 }
 
-// 1 つ戻したときに変わる行（戻す先のフォルダ・名前に番号を付けた行）と、それを外した読めない物のフォルダ
+// 1 つ戻したときに変わる行（戻す先のフォルダ）と、それを外した読めない物のフォルダ
 interface Returned {
   pages: Readonly<Record<string, unknown>>
   folders: Readonly<Record<string, unknown>>
   unreadable: UnreadableFolder
-  title?: string // 名前に番号を付けたなら、付けた名前
 }
 
 // 読めない物のフォルダの物 ref を戻せるなら、戻したときに変わる行。戻す先は、在ったフォルダから上への列 from のうち、今も在って ref の種類を持てる最初のフォルダ
@@ -256,7 +297,6 @@ function returnedRows(
   world: World,
   ref: UnreadableRef,
   before: readonly UnreadableUnit[],
-  naming: Naming,
 ): Returned | undefined {
   const { kind, id } = ref.entry
   const holder = holdersIn(world)
@@ -280,13 +320,10 @@ function returnedRows(
       [to]: { ...row, lineup: [...lineup.slice(0, index), element, ...lineup.slice(index)] },
     }
     const pages: Record<string, unknown> = {}
-    const titled = to === TRASH_ID ? undefined : renamed(world, kind, id, to, folders, naming)
-    if (titled) (kind === "page" ? pages : folders)[id] = titled
     // 戻した物も、戻す先とその上の入れ物も読めない物にならず、ほかに読めない物が増えない所にだけ戻す
     const after = unitsIn(catalog, withReturned(world, { pages, folders, unreadable }))
     const around = new Set([id, to, ...aboveIn(world, to)])
-    if (after.every(u => known.has(u.element.id) && !around.has(u.element.id)))
-      return { pages, folders, unreadable, ...(titled ? { title: titled.title as string } : {}) }
+    if (after.every(u => known.has(u.element.id) && !around.has(u.element.id))) return { pages, folders, unreadable }
   }
   return undefined
 }
@@ -328,26 +365,6 @@ function afterIndex(lineup: readonly unknown[], ref: UnreadableRef, unreadable: 
     after = prev.after
   }
   return 0
-}
-
-// 物 id（種類 kind）を、フォルダ to（変えた行 folders を当てた物）に入れたとき、ほかの物と名前が重なるなら、番号を付けた名前にした行（重ならなければ undefined。
-// 番号の付け方は、書庫が対象のアクションと同じ freeTitleIn）
-function renamed(
-  world: World,
-  kind: EntryKind,
-  id: string,
-  to: string,
-  folders: Readonly<Record<string, unknown>>,
-  naming: Naming,
-): Row | undefined {
-  const library = rowsLibraryOf(
-    [...new Map([...world.folders, ...Object.entries(folders)]).values()],
-    Object.fromEntries(world.pages),
-  )
-  const free = freeTitleIn(library, kind, id, to, naming)
-  if (free === undefined || free === titleOf(library, kind, id, naming)) return undefined
-  const row = (kind === "page" ? world.pages.get(id) : world.folders.get(id)) as Row
-  return { ...row, title: free }
 }
 
 // 読めない物のフォルダ folder に物が在れば、その warning（W032。件数と、理由の番号ごとの件数を番号の順に）。無ければ undefined

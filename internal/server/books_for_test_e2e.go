@@ -119,11 +119,8 @@ func (h *Hub) resetForTest(books []json.RawMessage, enabledPlugins []string) err
 		}
 		ids[i] = head.ID
 	}
-	// 置いたあとに、起動したときと同じく、機能台帳に合わせて足す物（システムフォルダなど）を足す
-	defer h.afterCatalogChange()
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.catalogChanged = true
 	if err := h.clearBooksForTest(); err != nil {
 		return err
 	}

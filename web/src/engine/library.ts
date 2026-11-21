@@ -3,9 +3,9 @@
 
 import { checkBooks } from "../core/book"
 import type { CoreCatalog } from "../core/core-catalog"
-import { namingOf, systemFoldersInPlace } from "../core/entries"
+import { namingOf } from "../core/entries"
 import { BROKEN, UNREADABLE_ID, unreadableFolderOf } from "../core/folders"
-import { rowsHoldTree, rowsLibraryOf } from "../core/folders-tree"
+import { rowsHoldTree } from "../core/folders-tree"
 import { translate } from "../core/i18n/i18n"
 import { restoreSettings, type Settings } from "../core/settings"
 import { purgedRows, type RowWrites, settleLibrary, unreadableWarning } from "../core/unreadable"
@@ -34,13 +34,6 @@ export function checkLibraryLine(folders: string, pages: string): string {
     : warningText(warning("W030", "", {}))
 }
 
-// engine.ts の matomezuSystemFoldersInPlace の中身
-export function systemFoldersMatch(of: Assembled, folders: string, pages: string, settings: string): boolean {
-  const catalog = of.catalog.core
-  const library = rowsLibraryOf(JSON.parse(folders) as unknown[], JSON.parse(pages) as Record<string, unknown>)
-  return systemFoldersInPlace(library, namingOf(catalog, restoreSettings(JSON.parse(settings))))
-}
-
 // engine.ts の matomezuSystemFolderTitles の中身
 export function systemFolderTitlesOf(of: Assembled): string {
   const { messages, systemFolders } = of.catalog.core
@@ -62,7 +55,8 @@ export function settleLibraryOf(of: Assembled, pages: string, folders: string, s
     ...rowWrites(done.writes),
     moved: done.moved.map(u => ({ id: u.element.id, code: u.code, ...(u.type === undefined ? {} : { type: u.type }) })),
     returned: done.returned,
-    numbered: done.numbered,
+    added: done.added,
+    numbered: done.numbered.map(n => ({ id: n.id, title: n.title })),
     warning: warningLineOf(done.writes.folders[UNREADABLE_ID], JSON.parse(folders) as unknown[]),
   })
 }

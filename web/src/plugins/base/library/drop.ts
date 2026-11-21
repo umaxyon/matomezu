@@ -1,8 +1,9 @@
 // 書庫の画面のドラッグで落とす先: 落とせるか・行の間へ落とすときの位置・名前が重なるときに確かめる事を、動かすアクション（entry-move・entry-move-over）と同じ読み方で出す
-import { entriesIn, freeTitleIn, isMoveRefusal, movedEntry, type Naming, titleOf } from "../../../core/entries"
+import { entriesIn, isMoveRefusal, movedEntry, type Naming, titleOf } from "../../../core/entries"
 import type { Folders, Library } from "../../../core/folders"
 import { systemFolderOf, treeHolds } from "../../../core/folders-tree"
 import {
+  freeTitleIn,
   isNotOverwritten,
   movesInto,
   type NotOverwritten,
