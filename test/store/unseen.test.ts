@@ -53,7 +53,7 @@ const show = (store: Store) => store.actions.resizeStage("s1", { w: 1400, h: 100
 const captions = (store: Store) =>
   (pagesOf(bookOf(store))[0]?.items ?? []).map(x => (x.props as { caption?: string }).caption)
 
-test("開いているページの AI の変更は、すぐ画面の履歴に入り、時刻の新しい方から戻る（AI の変更が先に戻る）", async () => {
+test("開いているページの AI の変更は、すぐ画面の履歴に入り、届いた順の新しい方から戻る（AI の変更が先に戻る）", async () => {
   const store = ready()
   place(store, "自分")
   await settled()
