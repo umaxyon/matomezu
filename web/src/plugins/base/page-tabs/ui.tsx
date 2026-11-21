@@ -73,6 +73,6 @@ export const PAGE_CONTEXT_MENU_ROWS = {
 }
 
 export { PageProblemsView, usePageProblems } from "./PageProblems"
-export { PageSettingsFrame, type PageSettingsFrameProps } from "./PageSettingsFrame"
+export { PageSettingsDialogView, type PageSettingsDialogViewProps } from "./PageSettingsDialogView"
 export { type PaperValue, usePaperControls } from "./PaperControls"
 export { useAddPage } from "./useAddPage"

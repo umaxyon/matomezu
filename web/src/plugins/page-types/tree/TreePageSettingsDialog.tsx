@@ -1,11 +1,11 @@
-// ツリーのページの設定のダイアログ（根のダイアログを兼ねる）: base のページの設定のダイアログの枠（PageSettingsFrame。ページ名・紙と向き・ページの設定の項目〈木の伸びる向き・節の大きさなど〉・ロック・削除）に、
+// ツリーのページの設定のダイアログ（根のダイアログを兼ねる）: base のページの設定のダイアログのビュー（PageSettingsDialogView。ページ名・紙と向き・ページの設定の項目〈木の伸びる向き・節の大きさなど〉・ロック・削除）に、
 // 根のキャプション・本文・本文を紙に描くか（ページのフィールド root）を足す。確定で、根はアクション page-update の fields に書かれる。
 // 書いている根を重ねたページで、ページの問題（木が紙に入らないなど）を確かめる
 import { useState } from "react"
 import type { PageSettingsArgs } from "../../../plugin-api"
 import { type DialogProps, useMessages, usePageById } from "../../../plugin-api/ui"
 import { BODY_MAX } from "../../base"
-import { controlClass, Field, PageSettingsFrame, RichBody, rowClass, Switch } from "../../base/ui"
+import { controlClass, Field, PageSettingsDialogView, RichBody, rowClass, Switch } from "../../base/ui"
 import { kit } from "./kit"
 import { treeRootOf } from "./node"
 
@@ -19,7 +19,7 @@ export function TreePageSettingsDialog({ args, onClose }: DialogProps<PageSettin
   const { body: _body, showBody: _show, ...rest } = root
   const draftRoot = { ...rest, caption, ...(body ? { body } : {}), ...(showBody ? { showBody } : {}) }
   return (
-    <PageSettingsFrame
+    <PageSettingsDialogView
       page={args.page}
       onClose={onClose}
       fields={{ root: { caption, body: body === "" ? null : body, showBody } }}
@@ -37,6 +37,6 @@ export function TreePageSettingsDialog({ args, onClose }: DialogProps<PageSettin
         <span>{t("Show the body on the paper")}</span>
         <Switch label={t("Show the body on the paper")} checked={showBody} onChange={setShowBody} />
       </div>
-    </PageSettingsFrame>
+    </PageSettingsDialogView>
   )
 }

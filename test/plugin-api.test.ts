@@ -280,7 +280,7 @@ test("matomezu/ui が出す名前", () => {
     "MultiChoices",
     "Notice",
     "PageProblemsView",
-    "PageSettingsFrame",
+    "PageSettingsDialogView",
     "Panel",
     "PaperFrame",
     "Problem",

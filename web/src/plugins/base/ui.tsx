@@ -151,8 +151,8 @@ export { useDrawnMinimap } from "./minimap/ui"
 export { ANNOTATION_ICON, type AnnotationIconProps, defineAnnotationIcon } from "./outbox/ui"
 export {
   PageProblemsView,
-  PageSettingsFrame,
-  type PageSettingsFrameProps,
+  PageSettingsDialogView,
+  type PageSettingsDialogViewProps,
   type PaperValue,
   useAddPage,
   usePageProblems,

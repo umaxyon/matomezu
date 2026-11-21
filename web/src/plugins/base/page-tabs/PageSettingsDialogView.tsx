@@ -1,4 +1,4 @@
-// ページの設定のダイアログの枠: ページの名前と、紙・向き・伸びるか（PaperControls.tsx）と、ページのタイプが選んだページの設定の項目（値が無ければ定義の既定）。
+// ページの設定のダイアログのビュー: ページの名前と、紙・向き・可変ページか（PaperControls.tsx）と、ページのタイプが選んだページの設定の項目（値が無ければ定義の既定）。
 // base のページの設定のダイアログと、タイプが自分で持つページの設定のダイアログ（ツリーなど）が使う。タイプは、足す入力Form（children）と、
 // アクション page-update に足すフィールド（fields）と、書いている値を重ねたページ（draft。ページの問題を確かめるのに使う）を渡す。
 // 見出しの行の右にキャンセルと確定のボタン。名前が空の間は確定できない。変えた設定の項目は、選んだそばからページに重ねて見せる（ダイアログの下書き。名前は見せない）。
@@ -27,7 +27,7 @@ import { changeWithLock } from "../utils/lock"
 import { PageProblemsView } from "./PageProblems"
 import { usePagePaperControls } from "./PaperControls"
 
-export interface PageSettingsFrameProps {
+export interface PageSettingsDialogViewProps {
   page: string // 設定を変えるページの id（開いている物の中のページ）
   onClose(): void
   children?: ReactNode // タイプが足す入力Form（設定の項目の下に並ぶ）
@@ -35,7 +35,7 @@ export interface PageSettingsFrameProps {
   draft?(page: Page): Page // 書いている値を重ねたページ
 }
 
-export function PageSettingsFrame({ page: id, onClose, children, fields, draft }: PageSettingsFrameProps) {
+export function PageSettingsDialogView({ page: id, onClose, children, fields, draft }: PageSettingsDialogViewProps) {
   const t = useMessages(kit)
   const form = useId()
   const catalog = useCatalog().core
