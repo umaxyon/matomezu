@@ -2,12 +2,21 @@
 import { expect, test } from "bun:test"
 import { USER } from "../../web/src/core/actor"
 import { checkBooks, putBinder, putPage, removePage } from "../../web/src/core/book"
-import { type BinderFolder, HOME_ID, type Library, type PlainFolder, TRASH_ID } from "../../web/src/core/folders"
+import {
+  type BinderFolder,
+  HOME_ID,
+  type Library,
+  type PlainFolder,
+  type TableChanges,
+  TRASH_ID,
+} from "../../web/src/core/folders"
 import { bookOf, libraryOf, recordsOf, tablesOf } from "../../web/src/core/folders-books"
 import { changesBetween, settledOn, withChanges } from "../../web/src/core/folders-changes"
 import { bookIdOf, foldersOver, NO_OUTERMOST, outermostOf } from "../../web/src/core/folders-tree"
 import { rawBooksOf } from "../../web/src/core/folders-unreadable"
+import { changesByOutermost } from "../../web/src/core/history"
 import { performIn } from "../../web/src/core/perform-world"
+import { REMOVED } from "../../web/src/core/records"
 import type { Book } from "../../web/src/core/schema/book"
 import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { CORE_CATALOG, sequence } from "../support"
@@ -282,4 +291,22 @@ test("ステージエントリ: フォルダ・書庫ホーム・ゴミ箱・表
   expect(["d1", HOME_ID, TRASH_ID, "nothing", "n1"].map(id => outermostOf(library, id))).toEqual(
     Array(5).fill(NO_OUTERMOST),
   )
+})
+
+test("変わった行を、ステージエントリの id ごとに分ける。足した行は後の表で引き、書庫ホーム・ゴミ箱・フォルダの行は入れない", () => {
+  const was = outermostLibrary()
+  const added = drawingPage("new1", { title: "足したページ" })
+  const b1 = was.folders.b1 as Extract<Library["folders"][string], { folderRole: "book" }>
+  const grown = { ...b1, lineup: [...b1.lineup, { kind: "page" as const, id: "new1" }] }
+  const now: Library = { pages: { ...was.pages, new1: added }, folders: { ...was.folders, b1: grown } }
+  const changes: TableChanges = {
+    pages: { new1: added, x1: was.pages.x1!, y1: REMOVED, t1: was.pages.t1! },
+    folders: { b1: grown, d1: was.folders.d1!, [HOME_ID]: was.folders[HOME_ID]! },
+  }
+  expect(changesByOutermost(was, now, changes)).toEqual({
+    b1: { pages: { new1: added }, folders: { b1: grown } },
+    x1: { pages: { x1: was.pages.x1! }, folders: {} },
+    y1: { pages: { y1: REMOVED }, folders: {} },
+    g1: { pages: { t1: was.pages.t1! }, folders: {} },
+  })
 })

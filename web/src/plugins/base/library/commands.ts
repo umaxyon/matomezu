@@ -44,7 +44,7 @@ import { LIBRARY_REVERT, libraryRevertArgs } from "./revert"
 import { unreadableShownIn } from "./show-unreadable"
 import { LIBRARY_COLUMNS, LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_UNFOLDED } from "./state"
 
-// 書庫の履歴の最後の段を、from の向きに置き直す（ブックの画面の履歴の restore と同じ決まり。plugins/base/history/index.ts）
+// 書庫の履歴の最後の段を、from の向きに置き直す（ステージエントリの画面の履歴の restore と同じ決まり。plugins/base/history/index.ts）
 function restore(ctx: ScreenCommandContext, a: CommandActions, from: "undo" | "redo"): void {
   const to = from === "undo" ? "before" : "after"
   const steps = [...ctx.libraryHistory[from]].reverse()

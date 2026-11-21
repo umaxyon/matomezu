@@ -44,7 +44,6 @@ async function pair() {
     await settled()
     const after = there.state.getState().folders[box]
     here.receive(rowsOf(there), [], {
-      books: [],
       by: "ai",
       act,
       actions: ["@matomezu/base:entry-rename"],

@@ -88,7 +88,6 @@ test("書庫アピアランスとスクリーンの定義のメソッドが受�
   expect(
     codeThrown(() =>
       m.receive(rows(Object.values(m.state.getState().folders).map(f => (f === before ? after : f))), [], {
-        books: [],
         by: "ai",
         act: "1",
         actions: ["@matomezu/base:entry-rename"],

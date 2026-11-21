@@ -18,6 +18,7 @@ import { outsidePageIn } from "../core/folders-tree"
 import { outsideUnreadable, rawBooksOf } from "../core/folders-unreadable"
 import { deepFreeze } from "../core/freeze"
 import {
+  changesByOutermost,
   HISTORY_LIMIT,
   type History,
   type HistoryStep,
@@ -241,9 +242,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     if (next !== win) commit({ window: next })
   }
   // 開いている画面の履歴の段: 同じ処理（同期の 1 回の流れ。コマンド・ダイアログの確定・ドラッグの離しなど）の中で行ったアクションを 1 つの画面の履歴の段にまとめ、処理が終わったら
-  // 画面の履歴に入れる（入れた画面の履歴の段が変えたブックの、やり直せる画面の履歴の段は消す）。コマンドを行う前にも入れる（戻すコマンドが、すぐ前の操作を見られるように）
+  // 画面の履歴に入れる（入れた画面の履歴の段が変えたステージエントリの、やり直せる画面の履歴の段は消す）。コマンドを行う前にも入れる（戻すコマンドが、すぐ前の操作を見られるように）
   let open: OpenStep | null = null
-  // ブックごとの、最後に画面の履歴に入れた画面の履歴の段（元に戻す・やり直すで動かしたら消す。continueStep で続けられるのはこれだけ）
+  // ステージエントリごとの、最後に画面の履歴に入れた画面の履歴の段（元に戻す・やり直すで動かしたら消す。continueStep で続けられるのはこれだけ）
   let lastPut: Record<string, HistoryStep> = {}
   const closeStep = () => {
     if (!open) return
@@ -341,10 +342,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     nextSeq,
     options,
   })
-  // ブック book の物を、表 was から changes のとおりに変えたことを、開いている画面の履歴の段に足す（同じ物を続けて変えたら、最初の前と最後の後を持つ）
-  const record = (book: string, was: Library, changes: TableChanges): OpenStep => {
+  // ステージエントリ outermost の物を、表 was から changes のとおりに変えたことを、開いている画面の履歴の段に足す（同じ物を続けて変えたら、最初の前と最後の後を持つ）
+  const record = (outermost: string, was: Library, changes: TableChanges): OpenStep => {
     const into = opened()
-    if (!into.outermosts.includes(book)) into.outermosts.push(book)
+    if (!into.outermosts.includes(outermost)) into.outermosts.push(outermost)
     const rows = rowChangesOf(was, changes)
     for (const [id, r] of Object.entries(rows.pages))
       into.pages[id] = { before: into.pages[id]?.before ?? r.before, after: r.after }
@@ -470,13 +471,13 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         else recordLibrary({ pages, folders }, done.changes)
       } else {
         // ブックかページが対象のアクションが変えるのは、開けるブック 1 冊か、ブックの外のページ 1 枚
-        const after = Object.values(both.books).find(b => books[b.id] !== b)
-        const before = after && books[after.id]
+        const changed = Object.keys(changesByOutermost({ pages, folders }, tables, done.changes))
         const recorded = catalog.actions.get(id)?.history !== false
-        if (after && before && recorded) record(after.id, { pages, folders }, done.changes)
+        if (recorded) for (const outermost of changed) record(outermost, { pages, folders }, done.changes)
         // 画面の履歴に入れないアクション（ロックの掛け外しなど）が上書きした物は、その前の値を画面の履歴の段に残さないので捨てる
-        if (after && before && !recorded) dropOverwritten({ pages, folders }, tables)
-        if (after) next.window = mapScreens(window, ws => followBook(catalog, ws, after, before))
+        else if (changed.length > 0) dropOverwritten({ pages, folders }, tables)
+        const after = Object.values(both.books).find(b => books[b.id] !== b)
+        if (after) next.window = mapScreens(window, ws => followBook(catalog, ws, after, books[after.id]))
         // ブックが変わらなければ、変えたのはブックの外のページ
         else next.window = followLibraryIn(window, catalog, both.books, tables, books)
       }

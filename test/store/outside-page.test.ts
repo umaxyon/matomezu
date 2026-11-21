@@ -3,6 +3,7 @@
 import { expect, test } from "bun:test"
 import { stageIn } from "../../web/src/core/window"
 import { NO_STAGE } from "../../web/src/store/dialogs"
+import type { AIEditTicketOutcome } from "../../web/src/store/state"
 import { openedIn } from "../../web/src/store/store"
 import { drawingPage } from "../lineup"
 import { newStore, sequence, worldRows } from "../support"
@@ -66,4 +67,57 @@ test("開いているブックの外のページがブックの中へ移され�
     outermost: { kind: "book", id: book!.id },
     page: "o1",
   })
+})
+
+test("開いているブックの外のページへの AI の変更は、見えたら、そのページの画面の履歴に入り、見えたと知らせる", async () => {
+  const told: AIEditTicketOutcome[] = []
+  const here = newStore({ newId: sequence(), visible: () => true, aiEditTicket: c => told.push(c) })
+  const there = withOutside()
+  here.receive(rowsOf(there), [])
+  here.actions.showOutsidePageStage("o1")
+  expect(there.actions.perform("@matomezu/base:page-update", { title: "AI の名前" }, { page: "o1" }).ok).toBe(true)
+  here.receive(rowsOf(there), [], { by: "ai", act: "7", actions: ["@matomezu/base:page-update"] })
+  await Promise.resolve()
+  expect(told).toEqual([{ act: "7", places: ["o1"], outcome: "seen" }])
+  expect(here.state.getState().history.o1?.undo.map(s => [s.by, s.outermosts])).toEqual([["ai", ["o1"]]])
+})
+
+test("ブックの外のページを変えると、そのページの画面の履歴に段が入る", async () => {
+  const store = withOutside()
+  store.actions.showOutsidePageStage("o1")
+  store.actions.perform("@matomezu/base:page-update", { title: "変えた名前" }, { page: "o1" })
+  await Promise.resolve()
+  expect(store.state.getState().history.o1?.undo.map(s => [s.by, s.outermosts, Object.keys(s.pages)])).toEqual([
+    ["user", ["o1"], ["o1"]],
+  ])
+})
+
+test("ブックの外のページの変更を、元に戻し、やり直す", async () => {
+  const store = withOutside()
+  const stage = store.actions.showOutsidePageStage("o1")
+  store.actions.perform("@matomezu/base:page-update", { title: "変えた名前" }, { page: "o1" })
+  await Promise.resolve()
+  const title = () => store.state.getState().pages.o1?.title
+  expect(store.actions.command(stage, "@matomezu/base:undo")).toBe(true)
+  await Promise.resolve()
+  expect(title()).toBe("ブックの外のページ")
+  expect(store.state.getState().history.o1).toMatchObject({ undo: [], redo: [{ outermosts: ["o1"] }] })
+  expect(store.actions.command(stage, "@matomezu/base:redo")).toBe(true)
+  await Promise.resolve()
+  expect(title()).toBe("変えた名前")
+  expect(openedIn(store, stage)).toEqual({ book: "o1", page: "o1" })
+})
+
+test("ロックしたブックの外のページは、元に戻すが断られ、画面の履歴の段は残る", async () => {
+  const store = withOutside()
+  const stage = store.actions.showOutsidePageStage("o1")
+  store.actions.perform("@matomezu/base:page-update", { title: "変えた名前" }, { page: "o1" })
+  await Promise.resolve()
+  expect(store.actions.perform("@matomezu/base:page-lock", {}, { page: "o1" }).ok).toBe(true)
+  await Promise.resolve()
+  store.actions.command(stage, "@matomezu/base:undo")
+  await Promise.resolve()
+  expect(store.state.getState().pages.o1?.title).toBe("変えた名前")
+  expect(store.state.getState().history.o1?.undo).toHaveLength(1)
+  expect(store.state.getState().toasts.at(-1)).toMatchObject({ kind: "warn" })
 })
