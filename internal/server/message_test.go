@@ -340,3 +340,30 @@ func TestActionEnvelopesNoRecipient(t *testing.T) {
 		}
 	}
 }
+
+// ターンの入力が渡せた知らせの文そのものなら、知らせで始まったターン（1 度だけ）。貸しただけで渡せたと返っていない知らせと、ほかの文は当たらない
+func TestWokenByADeliveredNotice(t *testing.T) {
+	s, hub := joinWorld(t, joinStore(t))
+	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
+	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
+	noticeOf(t, s.URL, b)
+	sendMessage(t, s.URL, a, "すずめ", "one")
+	l := hub.OpenWakesWith("200", "", WakeLimits{})
+	out, ok := hub.nextWake(l, time.Now())
+	if !ok {
+		t.Fatal("no wake")
+	}
+	if hub.WokenBy(out.Text) {
+		t.Fatal("a lent notice is not delivered yet")
+	}
+	hub.AckWake(l.id, out.ID, WakeDelivered, time.Now())
+	if hub.WokenBy("one") || hub.WokenBy("") {
+		t.Fatal("another text")
+	}
+	if !hub.WokenBy("  " + out.Text + "\n") {
+		t.Fatalf("the delivered notice %q", out.Text)
+	}
+	if hub.WokenBy(out.Text) {
+		t.Fatal("the same text again is the user's")
+	}
+}

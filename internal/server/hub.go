@@ -128,6 +128,7 @@ type Hub struct {
 	wakeQueue        map[string][]wakeItem  // 参加者の id → 受け取られるまで持つ、起こす知らせの行列（watch.go）
 	wakeSeq          int64                  // 起こす知らせの番号の最後（watch.go）
 	wakeLineSeq      int64                  // 起こす知らせの通り道の番号の最後（watch.go）
+	deliveredWakes   []string               // 渡せた知らせの文の、新しい物（watch.go の WokenBy が照らす）
 	seenEnvelopes    map[string]bool        // 行列に入れた AI 間メッセージの封筒の id（message.go。二度入れない）
 	seenOrder        []string               // seenEnvelopes に入れた順（古い物から忘れる）
 	next             int

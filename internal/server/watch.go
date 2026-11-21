@@ -82,6 +82,7 @@ type wakeItem struct {
 	replyOnly   bool      // 通り道の AI のプログラムにその会話が無かった（absent）。呼び出しの返事だけで渡す
 	lentTo      int64     // 貸している通り道の番号（0 は貸していない）
 	lentPointer bool      // 貸したのが「届いた」だけの知らせか
+	lentText    string    // 貸した知らせの文（渡せたら deliveredWakes に覚える）
 	notBefore   time.Time // 失敗のあと、次に流せる時点
 }
 
@@ -265,7 +266,8 @@ func (h *Hub) nextWake(l *wakeLine, now time.Time) (WakeOut, bool) {
 	if pick.lentPointer {
 		text = "matomezu: the AI in workroom " + quote(pick.from) + " sent you a message (" + strconv.Itoa(pick.chars) + " characters, too long for this notice). Call any matomezu tool to receive it."
 	}
-	return WakeOut{Line: l.id, ID: strconv.FormatInt(pick.seq, 10), Session: h.participantNotes[pick.participant].SessionID, Text: l.limits.shape(text)}, true
+	pick.lentText = l.limits.shape(text)
+	return WakeOut{Line: l.id, ID: strconv.FormatInt(pick.seq, 10), Session: h.participantNotes[pick.participant].SessionID, Text: pick.lentText}, true
 }
 
 // AckWake は、通り道 line に貸した知らせ id の結果 result を受ける。貸した通り道からの結果だけを受け、ほかは何もしない
@@ -288,6 +290,7 @@ func (h *Hub) AckWake(line int64, id, result string, now time.Time) {
 			it.lentTo = 0
 			switch result {
 			case WakeDelivered:
+				h.rememberDelivered(it.lentText)
 				if it.lentPointer {
 					it.pointed = true
 				} else {
@@ -312,6 +315,38 @@ func (h *Hub) AckWake(line int64, id, result string, now time.Time) {
 			return
 		}
 	}
+}
+
+// deliveredWakesMax は、渡せた知らせの文を覚えておく数
+const deliveredWakesMax = 64
+
+// rememberDelivered は、渡せた知らせの文 text を覚える。古い物から忘れる（h.mu を持って呼ぶ）
+func (h *Hub) rememberDelivered(text string) {
+	if text == "" {
+		return
+	}
+	h.deliveredWakes = append(h.deliveredWakes, text)
+	if len(h.deliveredWakes) > deliveredWakesMax {
+		h.deliveredWakes = h.deliveredWakes[len(h.deliveredWakes)-deliveredWakesMax:]
+	}
+}
+
+// WokenBy は、ターンの入力 prompt が、渡せた知らせの文そのものか（知らせをそのまま利用者の入力の道で受ける AI のプログラムのターンは、それで知らせで始まったと分かる）。
+// 当たった文は忘れる（同じ文で始まる次のターンは、利用者の入力と見る）
+func (h *Hub) WokenBy(prompt string) bool {
+	prompt = strings.TrimSpace(prompt)
+	if prompt == "" {
+		return false
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for i, text := range h.deliveredWakes {
+		if text == prompt {
+			h.deliveredWakes = append(h.deliveredWakes[:i:i], h.deliveredWakes[i+1:]...)
+			return true
+		}
+	}
+	return false
 }
 
 // takeMessages は、参加者 id の行列の AI 間メッセージの行を取り出す。通り道に貸している物は残す（結果を待つ）。

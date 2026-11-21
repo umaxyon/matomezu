@@ -39,7 +39,7 @@ func selfExecutable() string {
 type claudeCodeCmd struct {
 	MCP   claudeMCPCmd   `cmd:"" name:"mcp" help:"Serve the MCP tools for Claude Code (with the development server when the project is the matomezu repository)."`
 	Hook  claudeHookCmd  `cmd:"" help:"Claude Code's hooks."`
-	Watch claudeWatchCmd `cmd:"" help:"Claude Code's monitor: print one line for each thing that should wake this session (with --via mod, the plugin's mod in Claude Desktop: one JSON line {text} for each, which the mod submits as a prompt)."`
+	Watch claudeWatchCmd `cmd:"" help:"Claude Code's monitor: print one line for each thing that should wake this session (with --via mod, for the plugin's mod in Claude Desktop, which submits each line as a prompt)."`
 }
 
 // claudeDev は、Claude Code が開いているプロジェクトが matomezu のリポジトリなら、開発の常駐を使い（起動し直すことがある）、その根を返す。
@@ -136,7 +136,7 @@ func (c claudeWatchCmd) Run() error {
 		if !claudelaunch.ModWakes(os.Getenv(claudelaunch.EntrypointEnv)) {
 			return nil
 		}
-		w.MaxLine, w.MaxNotice, w.Gap, w.InputWrap = claudelaunch.ModMaxLine, claudelaunch.ModMaxNotice, 0, claudelaunch.ModNoticeTag
+		w.MaxLine, w.MaxNotice, w.Gap = claudelaunch.ModMaxLine, claudelaunch.ModMaxNotice, 0
 	}
 	if w.Host == "" && w.Session == "" {
 		return nil

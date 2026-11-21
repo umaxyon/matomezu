@@ -29,19 +29,6 @@ func TestReadWakesPrintsOnlyWakeLines(t *testing.T) {
 	}
 }
 
-// --input-wrap では、知らせ 1 つを、名前の包みに利用者の入力でないと言う文と一緒に入れた 1 行の JSON で書く
-func TestInputWrapPrintsOneJSONLineWithTheNote(t *testing.T) {
-	var out bytes.Buffer
-	p := printDeliverer{&out, "n"}
-	if got := p.deliver(wakeOut{Text: "a\nb"}); got != deliverDelivered || strings.Count(out.String(), "\n") != 1 {
-		t.Fatalf("%s %q", got, out.String())
-	}
-	var v struct{ Text string }
-	if err := json.Unmarshal(out.Bytes(), &v); err != nil || v.Text != "<n>\n"+notInputNote+"\na\nb\n</n>" {
-		t.Fatalf("%q %v", v.Text, err)
-	}
-}
-
 // プロセス id のプロセスが居なければ、読むのをやめる。居るプロセス（自分）と、数でない id は居るとみなす
 func TestProcessAliveAndReadWakesStops(t *testing.T) {
 	if !server.ProcessAlive(strconv.Itoa(os.Getpid())) || !server.ProcessAlive("x") || server.ProcessAlive("999999999") {

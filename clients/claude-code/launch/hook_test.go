@@ -31,11 +31,8 @@ func TestAllowTool(t *testing.T) {
 	}
 }
 
-// 裏の知らせで始まったターンの入力は <task-notification> か、mod の watch の包みで始まる。利用者の入力はそうでない
+// 裏の知らせで始まったターンの入力は <task-notification> で包まれている。利用者の入力はそうでない
 func TestWoken(t *testing.T) {
-	if !Woken("<matomezu-notice>\nmatomezu: a message from sub1_work\n</matomezu-notice>") {
-		t.Error("the mod's notice should be woken")
-	}
 	if !Woken("<task-notification>\n<summary>Monitor event: \"matomezu\"</summary>\n</task-notification>") {
 		t.Error("task-notification should be woken")
 	}

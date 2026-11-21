@@ -31,14 +31,12 @@ func ModWakes(entrypoint string) bool {
 	return entrypoint == desktopEntrypoint
 }
 
-// mod の watch が渡す知らせの上限。$.prompt.submit は知らせごとに別のターンにするので、1 行は切らず、間も空けない。1 回の知らせの上限は monitor と同じ値にする
+// mod の watch が渡す知らせの上限。$.prompt.submit は 1 行を 1 つのターンにするので、行は切らず（常駐の知らせはどれも 1 行）、間も空けない。
+// 1 回の知らせの上限は monitor と同じ値にする。そのターンが知らせで始まったかは、常駐が渡した知らせと照らして決める（talked の prompt）
 const (
 	ModMaxLine   = 0
 	ModMaxNotice = MaxNotice
 )
-
-// ModNoticeTag は、mod の watch が知らせを包む名前（matomezu watch --input-wrap）。$.prompt.submit のターンは利用者の入力と同じ道で始まるので、話しかけのフックはこの包みで見分ける（Woken）
-const ModNoticeTag = "matomezu-notice"
 
 // SessionEndsWith は、mcp --session-ends-with の値: セッションと同じだけ生きるプロセス。matomezu が親をたどって当たったプロセス（名前 name は小文字、.exe を除いた物）が
 // Claude Code の本体なら、その会話 1 つだけを受け持つので program。確かめられるのはネイティブの版（claude）だけで、npm で入れた版（node）は node で動くほかのプログラムと
