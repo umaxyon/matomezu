@@ -568,15 +568,15 @@ export function toPaperDelta(stage: Pick<Stage, "zoom">, d: Point): Point {
   return { x: d.x / stage.zoom, y: d.y / stage.zoom }
 }
 
-// ステージが開いている物 opened（book は、そのステージエントリの id）の中の、id のページ: ブックならその中のページ、ブックの外のページならそのページ自身。
+// ステージが開いている物 opened（outermost は、そのステージエントリの id）の中の、id のページ: ブックならその中のページ、ブックの外のページならそのページ自身。
 // 開いている物に無いページ・無ければ null（プラグイン API の usePageById が読む）
 export function openedPageById(
   books: Readonly<Record<string, Book>>,
   pages: Pages,
-  opened: { book: string },
+  opened: { outermost: string },
   id: string,
 ): ItemPage | null {
-  const book = books[opened.book]
+  const book = books[opened.outermost]
   if (book) return findPage(book, id)?.page ?? null
-  return (opened.book === id && pageIn(pages, id)) || null
+  return (opened.outermost === id && pageIn(pages, id)) || null
 }

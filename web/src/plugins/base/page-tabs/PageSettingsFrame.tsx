@@ -16,7 +16,7 @@ import { useSettingControls } from "../book-settings/SettingControls"
 import { Confirm } from "../dialog-host/Confirm"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton, controlClass, Field, Form, rowClass } from "../dialog-host/FormParts"
-import { useBookOf } from "../item-parts/parts"
+import { useOutermostOf } from "../item-parts/parts"
 import { kit } from "../kit"
 import { LOCK, PAGE_LOCK, PAGE_UNLOCK } from "../lock"
 import { LockToggle } from "../lock/LockToggle"
@@ -40,7 +40,7 @@ export function PageSettingsFrame({ page: id, onClose, children, fields, draft }
   const form = useId()
   const catalog = useCatalog().core
   const inBook = useBook() !== null // ページがブックに入っているか（ブックの外のページなら false）
-  const outermost = useBookOf()
+  const outermost = useOutermostOf()
   const page = usePageById(id)
   const [title, setTitle] = useState(page?.title ?? "")
   const [locked, setLocked] = useState(page?.locked === true)
@@ -57,7 +57,7 @@ export function PageSettingsFrame({ page: id, onClose, children, fields, draft }
   const pageId = page?.id
   const changed = Object.keys(settings.patch).length > 0
   useEffect(() => {
-    previewDialog(changed && outermost && pageId ? { book: outermost, page: pageId, props: settings.patch } : null)
+    previewDialog(changed && outermost && pageId ? { outermost, page: pageId, props: settings.patch } : null)
   }, [changed, outermost, pageId, settings.patch, previewDialog])
   if (!page) return null
   // 選んでいる値（紙・設定の項目の下書き・タイプが書いている値）を重ねたページで、ページの問題を確かめる

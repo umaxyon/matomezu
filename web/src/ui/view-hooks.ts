@@ -86,7 +86,7 @@ export function useShownBook(): Book | null {
   const book = useBook()
   const preview = useMatomezuState(s => s.dialog?.preview ?? null)
   return useMemo(() => {
-    if (!book || !preview || preview.book !== book.id || preview.item !== undefined || preview.page !== undefined)
+    if (!book || !preview || preview.outermost !== book.id || preview.item !== undefined || preview.page !== undefined)
       return book
     return withSettings(book, preview.props)
   }, [book, preview])
@@ -98,10 +98,10 @@ export function useShownBook(): Book | null {
 export function useShownPage(): ItemPage | null {
   const page = usePage()
   const scope = useScope()
-  const book = useMatomezuState(s => openedOf(s, scope)?.book)
+  const outermost = useMatomezuState(s => openedOf(s, scope)?.outermost)
   const preview = useMatomezuState(s => s.dialog?.preview ?? null)
   return useMemo(() => {
-    if (!page || !preview || preview.book !== book) return page
+    if (!page || !preview || preview.outermost !== outermost) return page
     if (preview.item === undefined)
       return preview.page === undefined || preview.page === page.id ? withSettings(page, preview.props) : page
     // ページのアイテムか、どの深さの子の形も
@@ -110,7 +110,7 @@ export function useShownPage(): ItemPage | null {
     const top = page.items?.find(i => i.id === preview.item)
     if (top) return { ...page, items: (page.items ?? []).map(i => (i === top ? shown(i) : i)) }
     return replaceShape(page, preview.item, s => shown(s) as PlacedShape) ?? page
-  }, [page, book, preview])
+  }, [page, outermost, preview])
 }
 
 // アクションを行えるか（認可ステップも見る）: 使えれば ok、認可ステップが止めたなら permission にそのステップの id（タイプなどで使えなければ null）。
@@ -285,7 +285,7 @@ export function usePerform(): <Id extends ActionId>(
         // ブックが対象のアクションは、ブックの外のページを開いたステージからは行えない
         if (!isOnPage(target)) return outside ? { ok: false, reason: "no-book" } : loose(action, args, { book: entry })
         const { books, pages } = read()
-        return on && openedPageById(books, pages, { book: entry }, on.page)
+        return on && openedPageById(books, pages, { outermost: entry }, on.page)
           ? loose(action, args, on)
           : noPage(on?.page ?? "")
       },

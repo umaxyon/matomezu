@@ -102,19 +102,19 @@ export function useAt(): string | null {
   return actsOn.kind === "screen" ? actsOn.screen : actsOn.kind === "window" ? NO_STAGE : null
 }
 
-// 描くページの、ブックの id とページの id（描くページが無ければ null。ページを開いていなければ page は null）
-export function openedOf(s: MatomezuState, scope: Scope): { book: string; page: string | null } | null {
+// 描くページの、ステージエントリの id とページの id（描くページが無ければ null。ページを開いていなければ page は null）
+export function openedOf(s: MatomezuState, scope: Scope): { outermost: string; page: string | null } | null {
   const ref = scope.page
   if (!ref) return null
-  if (ref.from === "page") return { book: ref.book, page: ref.page }
+  if (ref.from === "page") return { outermost: ref.book, page: ref.page }
   const opened = stageIn(s.window, ref.stage)?.opened
-  return opened ? { book: opened.outermost.id, page: shownPageId(opened) } : null
+  return opened ? { outermost: opened.outermost.id, page: shownPageId(opened) } : null
 }
 
 // 描くページのブック（無ければ null）
 export function bookOf(s: MatomezuState, scope: Scope): Book | null {
   const o = openedOf(s, scope)
-  return o ? (s.books[o.book] ?? null) : null
+  return o ? (s.books[o.outermost] ?? null) : null
 }
 
 // 描くページ（ページを開いていなければ null）

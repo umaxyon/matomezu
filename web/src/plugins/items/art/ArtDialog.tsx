@@ -15,7 +15,7 @@ import {
   Form,
   Problem,
   rowClass,
-  useBookOf,
+  useOutermostOf,
   usePageTheme,
   useSwatches,
 } from "../../base/ui"
@@ -26,7 +26,7 @@ type ArtProps = ItemProps<typeof PERSON.item.id>
 
 // 絵を置く追加のダイアログ（どの絵を置くかは、開いた側が place に閉じ込める）
 export function AddArtDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
-  const book = useBookOf()
+  const outermost = useOutermostOf()
   const pageTheme = usePageTheme()
   const add = (props: ArtProps) => {
     const no = args.place(props)
@@ -39,7 +39,7 @@ export function AddArtDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
       submit={kit.message("Add")}
       start={{ caption: "" }}
       pageTheme={pageTheme}
-      ready={book !== undefined}
+      ready={outermost !== undefined}
       onSubmit={add}
       onClose={onClose}
     />
@@ -48,7 +48,7 @@ export function AddArtDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
 
 export function EditArtDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
   const catalog = useCoreCatalog()
-  const book = useBookOf()
+  const outermost = useOutermostOf()
   const pageTheme = usePageTheme()
   const placed = useItem(args.page, args.item)
   const start = placed?.props as ArtProps | undefined
@@ -56,10 +56,10 @@ export function EditArtDialog({ args, onClose }: DialogProps<{ page: string; ite
   const perform = usePerform()
   const preview = useCallback(
     (color: ArtProps["color"] | null) =>
-      previewDialog(color !== null && book ? { book, item: args.item, props: { color } } : null),
-    [book, args.item, previewDialog],
+      previewDialog(color !== null && outermost ? { outermost, item: args.item, props: { color } } : null),
+    [outermost, args.item, previewDialog],
   )
-  if (!book || !start) return null
+  if (!outermost || !start) return null
   const update = (props: ArtProps) => {
     // 色の「なし」に戻したら、絵の色の項目を消す
     const done = perform(

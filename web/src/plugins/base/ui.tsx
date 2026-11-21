@@ -121,7 +121,7 @@ export {
 export {
   ALIGN_ICONS,
   useAligns,
-  useBookOf,
+  useOutermostOf,
   usePageTheme,
   usePageThemes,
   useSwatches,

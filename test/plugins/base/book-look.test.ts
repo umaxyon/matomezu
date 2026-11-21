@@ -51,8 +51,11 @@ test("ページのテーマは、テーマの項目（無いか、表に無い�
 test("ダイアログの下書きは、アイテムを指さなければブックそのものの下書き", () => {
   const store = newStore()
   store.actions.openDialog("s1", "@matomezu/base:book-settings")
-  store.actions.previewDialog({ book: "b1", props: { [THEME]: "@matomezu/base:simple" } })
-  expect(store.state.getState().dialog?.preview).toEqual({ book: "b1", props: { [THEME]: "@matomezu/base:simple" } })
+  store.actions.previewDialog({ outermost: "b1", props: { [THEME]: "@matomezu/base:simple" } })
+  expect(store.state.getState().dialog?.preview).toEqual({
+    outermost: "b1",
+    props: { [THEME]: "@matomezu/base:simple" },
+  })
   expect("settings" in book(store)).toBe(false)
 })
 

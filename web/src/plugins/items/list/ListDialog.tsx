@@ -27,7 +27,7 @@ import {
   SelectButton,
   Switch,
   SwitchPanel,
-  useBookOf,
+  useOutermostOf,
   usePageTheme,
   usePageThemes,
   useSwatches,
@@ -62,7 +62,7 @@ const EMPTY: ListProps = {
 }
 
 export function AddListDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
-  const book = useBookOf()
+  const outermost = useOutermostOf()
   const pageTheme = usePageTheme()
   const add = (props: ListProps) => {
     const no = args.place(props)
@@ -76,7 +76,7 @@ export function AddListDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
       start={EMPTY}
       checked={false}
       pageTheme={pageTheme}
-      ready={book !== undefined}
+      ready={outermost !== undefined}
       onSubmit={add}
       onClose={onClose}
     />
@@ -85,7 +85,7 @@ export function AddListDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
 
 export function EditListDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
   const catalog = useCoreCatalog()
-  const book = useBookOf()
+  const outermost = useOutermostOf()
   const pageTheme = usePageTheme()
   const found = useItem(args.page, args.item, LIST.id)
   const { previewDialog } = useActions()
@@ -93,16 +93,16 @@ export function EditListDialog({ args, onClose }: DialogProps<{ page: string; it
   // 行の高さの下書き（rowLines）は、行の行数を書き換えた行の並びとして見せる（項目の下書きを当てたリストで数える）
   const preview = useCallback(
     (look: Look | null, rowLines?: RowsLines) => {
-      if (!look || !book || !found) return previewDialog(null)
+      if (!look || !outermost || !found) return previewDialog(null)
       const content =
         rowLines === undefined
           ? undefined
           : { children: withRowLines({ ...found, props: { ...found.props, ...look } }, rowLines).children }
-      previewDialog({ book, item: args.item, props: look, ...(content ? { content } : {}) })
+      previewDialog({ outermost, item: args.item, props: look, ...(content ? { content } : {}) })
     },
-    [book, args.item, found, previewDialog],
+    [outermost, args.item, found, previewDialog],
   )
-  if (!book || !found) return null
+  if (!outermost || !found) return null
   const rows: readonly ListRow[] = found.children ?? []
   const update = (props: ListProps, rowLines?: RowsLines) => {
     // 「ページのテーマ」・色の「なし」に戻したら、リストのテーマ・色の項目を消す

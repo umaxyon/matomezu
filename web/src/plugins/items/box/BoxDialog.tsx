@@ -25,7 +25,7 @@ import {
   Problem,
   rowClass,
   type TextDraft,
-  useBookOf,
+  useOutermostOf,
   usePageTheme,
   usePageThemes,
   useSwatches,
@@ -44,7 +44,7 @@ const EMPTY: BoxProps = { caption: "", rule: true, body: "", captionAlign: "cent
 
 // 追加のダイアログ: 箱か内包ボックスを、中身を決めてから置く（どちらを置くかは、開いた側が place に閉じ込める）
 export function AddBoxDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
-  const book = useBookOf()
+  const outermost = useOutermostOf()
   const pageTheme = usePageTheme()
   const add = (props: BoxProps) => {
     const no = args.place(props)
@@ -57,7 +57,7 @@ export function AddBoxDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
       submit={kit.message("Add")}
       start={EMPTY}
       pageTheme={pageTheme}
-      ready={book !== undefined}
+      ready={outermost !== undefined}
       onSubmit={add}
       onClose={onClose}
     />
@@ -66,7 +66,7 @@ export function AddBoxDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
 
 export function EditBoxDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
   const catalog = useCoreCatalog()
-  const book = useBookOf()
+  const outermost = useOutermostOf()
   const pageTheme = usePageTheme()
   // 編集するのは箱か内包ボックス（項目は同じ）
   const box = useItem(args.page, args.item, BOX.id)
@@ -76,10 +76,10 @@ export function EditBoxDialog({ args, onClose }: DialogProps<{ page: string; ite
   const { previewDialog } = useActions()
   const perform = usePerform()
   const preview = useCallback(
-    (look: Look | null) => previewDialog(look && book ? { book, item: args.item, props: look } : null),
-    [book, args.item, previewDialog],
+    (look: Look | null) => previewDialog(look && outermost ? { outermost, item: args.item, props: look } : null),
+    [outermost, args.item, previewDialog],
   )
-  if (!book || !start) return null
+  if (!outermost || !start) return null
   const update = (props: BoxProps) => {
     // 「ページのテーマ」・色の「なし」に戻したら、箱のテーマ・色の項目を消す
     const done = perform(

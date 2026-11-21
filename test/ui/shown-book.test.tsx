@@ -41,7 +41,7 @@ test("ブックを指す下書きは重なり、アイテムやページを指�
     </MatomezuProvider>,
   )
   const draft = (preview: object) => {
-    act(() => instance.actions.previewDialog({ book: "b1", ...preview } as never))
+    act(() => instance.actions.previewDialog({ outermost: "b1", ...preview } as never))
   }
   draft({ props: { [PAPER]: "#123456" } })
   expect(paper()).toBe("#123456")
@@ -50,6 +50,6 @@ test("ブックを指す下書きは重なり、アイテムやページを指�
   expect(paper()).toBeUndefined()
   draft({ page: "p1", props: { [PAPER]: "#123456" } })
   expect(paper()).toBeUndefined()
-  draft({ book: "other", props: { [PAPER]: "#123456" } })
+  draft({ outermost: "other", props: { [PAPER]: "#123456" } })
   expect(paper()).toBeUndefined()
 })

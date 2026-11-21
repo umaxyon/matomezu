@@ -36,7 +36,7 @@ export function BookSettingsDialog({ onClose }: DialogProps) {
   const changed = Object.keys(settings.patch).length > 0
   const problems = usePageProblems(book ? withSettings(book, settings.patch) : undefined)
   useEffect(() => {
-    previewDialog(changed && id ? { book: id, props: settings.patch } : null)
+    previewDialog(changed && id ? { outermost: id, props: settings.patch } : null)
   }, [changed, id, settings.patch, previewDialog])
   if (!book) return null
   const ready = title.trim() !== "" && problems.length === 0
