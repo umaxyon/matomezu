@@ -90,7 +90,7 @@ func TestJoinRulesAndPlace(t *testing.T) {
 	workspace := strings.Repeat("🧪", 120)
 	request := func(name string) Joined {
 		t.Helper()
-		body, err := json.Marshal(JoinRequest{AI: "codex", Model: "gpt-6", Env: "wsl-linux", Link: "L1", Place: name})
+		body, err := json.Marshal(JoinRequest{AI: "codex", Model: "gpt-6", Env: "wsl-linux", Link: "L1", AdeWorkspace: name})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -111,7 +111,7 @@ func TestJoinRulesAndPlace(t *testing.T) {
 		t.Fatalf("join = %+v", result)
 	}
 	data, _ := call(t, "GET", s.URL+"/api/data", "", nil)
-	if !strings.Contains(data, `"place":"`+workspace+`"`) ||
+	if !strings.Contains(data, `"adeWorkspace":"`+workspace+`"`) ||
 		!strings.Contains(data, `"env":"wsl-linux"`) {
 		t.Fatalf("the request is missing the environment: %s", data)
 	}
@@ -397,22 +397,22 @@ func TestTalkedBindsTheSessionByLinkAndWelcomesOnce(t *testing.T) {
 	if r := talk(`{"sessionId":"S9"}`); len(r.Welcomes) != 0 {
 		t.Fatalf("told twice = %+v", r)
 	}
-	// 受け入れたら、セッションの名前はワークルームの名前と作業から作る（作業が無ければ空き）。別のセッションには無い
-	if r.Title == "" || !strings.HasPrefix(r.Title, "ひよこ") {
-		t.Fatalf("title = %q", r.Title)
+	// 受け入れたら、作業名はワークルームの名前と作業から作る（作業が無ければ空き）。別のセッションには無い
+	if r.WorkTitle == "" || !strings.HasPrefix(r.WorkTitle, "ひよこ") {
+		t.Fatalf("title = %q", r.WorkTitle)
 	}
-	if got, _ := call(t, "POST", s.URL+"/api/ai/session-title", `{"sessionId":"S9"}`, nil); !strings.Contains(got, `"title":"`+r.Title+`"`) {
-		t.Fatalf("session-title = %s, want %q", got, r.Title)
+	if got, _ := call(t, "POST", s.URL+"/api/ai/work-title", `{"sessionId":"S9"}`, nil); !strings.Contains(got, `"workTitle":"`+r.WorkTitle+`"`) {
+		t.Fatalf("session-title = %s, want %q", got, r.WorkTitle)
 	}
-	if got, _ := call(t, "POST", s.URL+"/api/ai/session-title", `{"sessionId":"S8"}`, nil); !strings.Contains(got, `"title":""`) {
+	if got, _ := call(t, "POST", s.URL+"/api/ai/work-title", `{"sessionId":"S8"}`, nil); !strings.Contains(got, `"workTitle":""`) {
 		t.Fatalf("another session's title = %s", got)
 	}
 	// 利用者の設定が書き換えを止めたら、名前を返さない
 	if _, got := postPerform(t, s.URL, `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:session-rename":false}},"lang":"ja","now":"2026-11-08T01:01:00.000Z"}`); !strings.Contains(got, `"ok":true`) {
 		t.Fatalf("settings-set = %s", got)
 	}
-	if r := talk(`{"sessionId":"S9"}`); r.Title != "" {
-		t.Fatalf("title while off = %q", r.Title)
+	if r := talk(`{"sessionId":"S9"}`); r.WorkTitle != "" {
+		t.Fatalf("title while off = %q", r.WorkTitle)
 	}
 	if _, got := postPerform(t, s.URL, `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:session-rename":null}},"lang":"ja","now":"2026-11-08T01:02:00.000Z"}`); !strings.Contains(got, `"ok":true`) {
 		t.Fatalf("settings-set back = %s", got)

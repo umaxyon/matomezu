@@ -333,9 +333,9 @@ export {
   participantCategory,
   READS_ADMIN,
   READS_WORKROOM_KEYS,
-  sessionTitleIn,
   VISITOR_JOINED_MESSAGE,
   visitorName,
+  workTitleIn,
 } from "./participant"
 // 置く計算と文字（ほかのプラグインが使う。追加プラグインには matomezu から出す）
 export type { Axis, Edges, Frame, Gap, GrowFrom, PortArea, Ports } from "./place"

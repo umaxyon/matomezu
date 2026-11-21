@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-// 要求中の参加者の orcaWorkspace は place に名前を替え、持たない参加者は変えない
-func TestParticipantPlaces(t *testing.T) {
+// 要求中の参加者の orcaWorkspace は adeWorkspace に名前を替え、持たない参加者は変えない
+func TestParticipantAdeWorkspaces(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data.db")
 	beforeMigration(t, path, 35,
 		`INSERT INTO kinds (n, subject, spec) VALUES (1, '@matomezu/base:participant', '[]')`,
@@ -25,14 +25,14 @@ func TestParticipantPlaces(t *testing.T) {
 		return b
 	}
 	for id, want := range map[string]string{
-		"p1": `{"id":"p1","place":"5.M-0167","state":"requested"}`,
+		"p1": `{"adeWorkspace":"5.M-0167","id":"p1","state":"requested"}`,
 		"p2": `{"id":"p2","state":"joined"}`,
 	} {
 		if got := body(`SELECT body FROM rec_1 WHERE id = ?`, id); got != want {
 			t.Errorf("%s: got %s, want %s", id, got, want)
 		}
 	}
-	if got := body(`SELECT body FROM records WHERE id = ?`, "p3"); got != `{"id":"p3","place":"w"}` {
+	if got := body(`SELECT body FROM records WHERE id = ?`, "p3"); got != `{"adeWorkspace":"w","id":"p3"}` {
 		t.Errorf("p3: got %s", got)
 	}
 }

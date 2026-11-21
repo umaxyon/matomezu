@@ -12,7 +12,7 @@ export function requestLines(p: Participant, t: (key: MessageKey) => string): st
     `${t(kit.message("AI"))}: ${p.ai}`,
     `${t(kit.message("Model"))}: ${p.model}`,
     `${t(kit.message("Environment"))}: ${p.env}`,
-    ...(p.place ? [`${t(kit.message("Place"))}: ${p.place}`] : []),
+    ...(p.adeWorkspace ? [`${t(kit.message("ADE workspace"))}: ${p.adeWorkspace}`] : []),
     ...(p.sessionName ? [`${t(kit.message("Session"))}: ${p.sessionName}`] : []),
   ].join("\n")
 }

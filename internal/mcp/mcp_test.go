@@ -87,11 +87,11 @@ func talkOn(t *testing.T, api API, branch func() string, lines ...string) []map[
 	return talkAt(t, api, branch, nil, lines...)
 }
 
-// talkAt は、talkOn に、join のときに場所の名前を place で読む MCP で
-func talkAt(t *testing.T, api API, branch, place func() string, lines ...string) []map[string]any {
+// talkAt は、talkOn に、join のときに ADE のワークスペースの名前を adeWorkspace で読む MCP で
+func talkAt(t *testing.T, api API, branch, adeWorkspace func() string, lines ...string) []map[string]any {
 	t.Helper()
 	var out bytes.Buffer
-	if err := Serve(strings.NewReader(strings.Join(lines, "\n")+"\n"), &out, api, "v1", "wsl-linux", branch, place, "4242", "HS1", "", "", testMeta); err != nil {
+	if err := Serve(strings.NewReader(strings.Join(lines, "\n")+"\n"), &out, api, "v1", "wsl-linux", branch, adeWorkspace, "4242", "HS1", "", "", testMeta); err != nil {
 		t.Fatal(err)
 	}
 	var answers []map[string]any
@@ -137,7 +137,7 @@ func TestToolsDoNotDependOnTheCatalog(t *testing.T) {
 
 func TestJoinRulesAndRequest(t *testing.T) {
 	api := &fakeAPI{answer: `{"ok":true,"participant":"p7"}`}
-	// 場所の名前は AI が渡さず、MCP が読んで添える
+	// ADE のワークスペースの名前は AI が渡さず、MCP が読んで添える
 	got := talkAt(t, api, func() string { return "" }, func() string { return "5.M-0167 作業" },
 		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"join_rules","arguments":{}}}`,
 		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"join","arguments":{"model":"unknown","link":"L1"},"_meta":{"sessionId":"S1","x-turn":{"model":"gpt-6"}}}}`,
@@ -148,7 +148,7 @@ func TestJoinRulesAndRequest(t *testing.T) {
 	if !slices.Equal(api.gets, []string{"api/ai/join-rules"}) || api.sent[0] != "" {
 		t.Fatalf("join_rules calls = %v, participants = %v", api.gets, api.sent)
 	}
-	want := `api/ai/join {"ai":"unknown","env":"wsl-linux","link":"L1","model":"gpt-6","place":"5.M-0167 作業","sessionId":"S1","sessionName":""}`
+	want := `api/ai/join {"adeWorkspace":"5.M-0167 作業","ai":"unknown","env":"wsl-linux","link":"L1","model":"gpt-6","sessionId":"S1","sessionName":""}`
 	if !slices.Equal(api.posts, []string{want}) || textOf(got[1]) != `{"participant":"p7"}` {
 		t.Fatalf("join = %v, posts = %v", got[1], api.posts)
 	}

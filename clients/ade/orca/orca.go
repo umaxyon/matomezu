@@ -1,4 +1,4 @@
-// Package orca は、AI のセッションを並べて起動する道具 Orca の事情: 今の worktree の表示名を読み、書き換える。
+// Package orca は、ADE の Orca の事情: 今の worktree の表示名を読み、書き換える。
 // Orca は、その中で起動した端末に環境変数 ORCA_CLI_COMMAND（Orca の CLI のコマンド）を置く。無ければ Orca の中ではないので何もしない。
 // 表示名は worktree ごとに 1 つで、CLI の worktree の active は、CLI を呼んだフォルダで決まる（外で呼ぶと黙って効かない）
 package orca

@@ -9,7 +9,7 @@ import type { Records } from "../../../web/src/core/records"
 import { withCounters, withRecords } from "../../../web/src/core/records"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { workroomActivityOf, workroomWorkIn, workroomWorkOf } from "../../../web/src/plugins/base/participant/activity"
-import { sessionTitleIn } from "../../../web/src/plugins/base/participant/session-title"
+import { workTitleIn } from "../../../web/src/plugins/base/participant/work-title"
 import { CURRENT_WORK, currentTicketOf } from "../../../web/src/plugins/taskboard/current-work"
 import type { Project } from "../../../web/src/plugins/taskboard/project"
 import { TICKET, type Ticket } from "../../../web/src/plugins/taskboard/ticket"
@@ -248,13 +248,13 @@ test("ワークルームの作業: カレントチケットがあれば作業中
   expect(workroomWorkOf(CORE_CATALOG, records(), a)).toEqual({ kind: "working", title: "T-0001 鳥と表示名" })
 })
 
-test("セッションの名前: 作業中ならワークルームの名前と題名、空きなら空きの印、答える種類が無ければ名前だけ、設定が止めていれば off", () => {
+test("作業名: 作業中ならワークルームの名前と題名、空きなら空きの印、答える種類が無ければ名前だけ、設定が止めていれば off", () => {
   const { act, room, add, world } = board()
   const a = room("ひよこ")
   const source = () => sourceOf(world().records as Records)
   const ja = { "@matomezu/base:lang": "matomezu:ja" }
   const title = (catalog: CoreCatalog, settings: Record<string, unknown>) =>
-    sessionTitleIn(catalog, settings, source(), { id: a, name: "ひよこ" })
+    workTitleIn(catalog, settings, source(), { id: a, name: "ひよこ" })
   expect(title(CORE_CATALOG, ja)).toEqual({ kind: "title", title: "ひよこ（空き）" })
   expect(title(CORE_CATALOG, {})).toEqual({ kind: "title", title: "ひよこ (idle)" })
   act(ai(a), "ticket-start", {}, { record: add({ name: "鳥と表示名" }) })

@@ -221,11 +221,11 @@ test.each([DECLINE, CANCEL])(
 
 test("要求は Orca の作業場所の表示名を持てる（受け入れると外す）", () => {
   const { people, request, addRoom, perform } = ready()
-  const a = request({ ...WHO, place: "4.M-0168 参加要求" }).result.participant
-  expect(people()[0]).toMatchObject({ place: "4.M-0168 参加要求" })
+  const a = request({ ...WHO, adeWorkspace: "4.M-0168 参加要求" }).result.participant
+  expect(people()[0]).toMatchObject({ adeWorkspace: "4.M-0168 参加要求" })
   const room = addRoom("A").result.workroom
   expect(perform(ACCEPT, { workroom: room }, { record: a }).ok).toBe(true)
-  expect(people()[0]).not.toHaveProperty("place")
+  expect(people()[0]).not.toHaveProperty("adeWorkspace")
 })
 
 test("セッションが終わったときのアクション（participant-remove）は、要求中の参加者も消す", () => {

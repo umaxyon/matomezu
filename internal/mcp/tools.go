@@ -566,9 +566,9 @@ func join(c *conn, args map[string]any) (string, bool) {
 	link, _ := args["link"].(string)
 	sessionName, _ := args["sessionName"].(string)
 	body := map[string]any{"ai": c.ai, "model": model, "env": c.env, "sessionName": sessionName, "link": link}
-	if c.place != nil {
-		if place := c.place(); place != "" {
-			body["place"] = place
+	if c.adeWorkspace != nil {
+		if workspace := c.adeWorkspace(); workspace != "" {
+			body["adeWorkspace"] = workspace
 		}
 	}
 	if workroom, _ := args["workroom"].(string); workroom != "" {

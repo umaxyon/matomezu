@@ -9,9 +9,9 @@ import (
 // participantKind は、参加者の種類
 const participantKind = "@matomezu/base:participant"
 
-// participantPlaces は、要求中の参加者が持つ orcaWorkspace を place（AI のセッションが動いている所の名前）に名前を替える。
+// participantAdeWorkspaces は、要求中の参加者が持つ orcaWorkspace を adeWorkspace（ADE のワークスペースの名前）に名前を替える。
 // 種類の表（rec_<n>）と、伝えられる前の records の行の両方
-func participantPlaces(tx *sql.Tx) error {
+func participantAdeWorkspaces(tx *sql.Tx) error {
 	type put struct{ id, body string }
 	var puts []put
 	if err := readBodies(tx, participantKind, func(id string, body []byte) {
@@ -24,8 +24,8 @@ func participantPlaces(tx *sql.Tx) error {
 			return
 		}
 		delete(p, "orcaWorkspace")
-		if _, has := p["place"]; !has {
-			p["place"] = old
+		if _, has := p["adeWorkspace"]; !has {
+			p["adeWorkspace"] = old
 		}
 		if next, err := json.Marshal(p); err == nil {
 			puts = append(puts, put{id, string(next)})

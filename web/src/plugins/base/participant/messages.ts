@@ -3,7 +3,7 @@ import { defineMessages } from "../../../core/i18n/messages"
 
 export const PARTICIPANT_MESSAGES = defineMessages({
   "Request to participate": { en: "Request to participate", ja: "参加を要求する" },
-  "Rename sessions": { en: "Rename sessions", ja: "セッション名を書き換える" },
+  "Name sessions by work": { en: "Name sessions by work", ja: "セッション名を作業名にする" },
   "{name} (idle)": { en: "{name} (idle)", ja: "{name}（空き）" },
   "Joined matomezu. Workroom name: {name}": {
     en: "Joined matomezu. Workroom name: {name}",
@@ -78,7 +78,7 @@ export const PARTICIPANT_MESSAGES = defineMessages({
   AI: { en: "AI", ja: "AI" },
   Model: { en: "Model", ja: "モデル" },
   Environment: { en: "Environment", ja: "環境" },
-  Place: { en: "Place", ja: "場所" },
+  "ADE workspace": { en: "ADE workspace", ja: "ADE のワークスペース" },
   Session: { en: "Session", ja: "セッション" },
   "Cancel a join request": { en: "Cancel a join request", ja: "参加要求をキャンセルする" },
 })

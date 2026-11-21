@@ -8,7 +8,7 @@ package server
 // 会話のセッション id は変わるが、MCP とフックの親の Claude Code のプロセスは変わらない。新しい会話の記録には link が無いので、記録からは結べない）。
 //
 //	POST /api/ai/talked  {"sessionId", "host", "candidates", "woken", "prompt"}
-//	  candidates が無い: ターンが始まった。woken でなければ利用者トリガートークのときに行うアクションを行い、{"welcomes", "unbound", "forAi", "title"} を返す（title はセッションの名前。SessionTitle）（forAi は、prompt が通り道に貸した知らせの文（幾つかを改行でつないだ物も。WokenBy）のときだけ。wokenText）
+//	  candidates が無い: ターンが始まった。woken でなければ利用者トリガートークのときに行うアクションを行い、{"welcomes", "unbound", "forAi", "title"} を返す（title はセッションの名前。WorkTitle）（forAi は、prompt が通り道に貸した知らせの文（幾つかを改行でつないだ物も。WokenBy）のときだけ。wokenText）
 //	  candidates が有る: 記録から拾った uuid の形の文字列。行うアクションは行わず、link が合う参加者にセッション id を結んで、同じ形を返す
 //	welcomes は、そのセッションの、受け入れ済みで伝えていない参加者（伝えたと印を付けて返す）。unbound は、そのセッションが誰にも結ばれておらず、結ばれていない参加者がいる（記録を調べる値打ちがある）
 
@@ -30,10 +30,10 @@ type Welcome struct {
 
 // SessionTalk は、ターンの始まりに対する、そのセッションについての答え
 type SessionTalk struct {
-	Welcomes []Welcome `json:"welcomes"`
-	Unbound  bool      `json:"unbound"`
-	ForAI    string    `json:"forAi,omitempty"` // ターンの入力が通り道に貸した知らせの文（幾つかを改行でつないだ物も。WokenBy）なら、AI に伝える英語の文（wokenText）
-	Title    string    `json:"title,omitempty"` // セッションの名前（SessionTitle。書かないなら空）
+	Welcomes  []Welcome `json:"welcomes"`
+	Unbound   bool      `json:"unbound"`
+	ForAI     string    `json:"forAi,omitempty"`     // ターンの入力が通り道に貸した知らせの文（幾つかを改行でつないだ物も。WokenBy）なら、AI に伝える英語の文（wokenText）
+	WorkTitle string    `json:"workTitle,omitempty"` // 作業名（WorkTitle。書かないなら空）
 }
 
 // wokenText は、ターンの入力が通り道に貸した知らせの文（幾つかを改行でつないだ物も。知らせが利用者の入力の道で届いた）ときに AI に伝える文。入力だけでは利用者の言葉と見分けが付かないので、ハーネスの側から添える
@@ -168,13 +168,13 @@ func (h *Hub) TalkedBy(sessionID, host string, candidates []string) (SessionTalk
 	if told == nil {
 		told = []Welcome{}
 	}
-	return SessionTalk{Welcomes: told, Unbound: unbound, Title: h.SessionTitle(sessionID)}, nil
+	return SessionTalk{Welcomes: told, Unbound: unbound, WorkTitle: h.WorkTitle(sessionID)}, nil
 }
 
-// SessionTitle は、セッション sessionID の名前: そのセッションに結ばれた、受け入れ済みでワークルームに入っている参加者がちょうど 1 人なら、
-// そのワークルームの名前と作業から作った名前（エンジンの SessionTitle）。そうでない・利用者の設定が書き換えを止めている・作れないなら空（フックは名前を書かない。
+// WorkTitle は、セッション sessionID の作業名: そのセッションに結ばれた、受け入れ済みでワークルームに入っている参加者がちょうど 1 人なら、
+// そのワークルームの名前と作業から作った名前（エンジンの WorkTitle）。そうでない・利用者の設定が書くのを止めている・作れないなら空（フックは名前を書かない。
 // 利用者が付けたセッション名を消さないため）
-func (h *Hub) SessionTitle(sessionID string) string {
+func (h *Hub) WorkTitle(sessionID string) string {
 	if sessionID == "" {
 		return ""
 	}
@@ -205,7 +205,7 @@ func (h *Hub) SessionTitle(sessionID string) string {
 	if name == "" {
 		return ""
 	}
-	title, ok, err := h.engine.SessionTitle(h.settings, room, name, recordSource{h})
+	title, ok, err := h.engine.WorkTitle(h.settings, room, name, recordSource{h})
 	if err != nil || !ok {
 		return ""
 	}

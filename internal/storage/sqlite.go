@@ -216,7 +216,7 @@ var migrations = []string{
 	`SELECT 1;`,
 	// カレントワークのレコードの無いワークルームに、それまで画面がカレントチケットとして先頭に見せていたチケットを書く（Go の移し替え。migrate_current_work.go）
 	`SELECT 1;`,
-	// 要求中の参加者が持つ orcaWorkspace を place（AI のセッションが動いている所）に名前を替える（Go の移し替え。migrate_participant_place.go）
+	// 要求中の参加者が持つ orcaWorkspace を adeWorkspace（ADE のワークスペース）に名前を替える（Go の移し替え。migrate_participant_ade.go）
 	`SELECT 1;`,
 }
 
@@ -235,7 +235,7 @@ var goMigrations = map[int]func(tx *sql.Tx) error{
 	32: renameIDs,
 	33: dropJoinRequestMail,
 	34: fillCurrentWorks,
-	35: participantPlaces,
+	35: participantAdeWorkspaces,
 }
 
 type sqliteStorage struct {
