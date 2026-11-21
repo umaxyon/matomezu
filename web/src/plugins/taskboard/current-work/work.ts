@@ -7,6 +7,7 @@ import type { ActionContext, RecordRead } from "../../../plugin-api"
 import { kit } from "../kit"
 import { PROJECT, type Project } from "../project"
 import type { TicketLike } from "../ticket/current"
+import { ticketLabel } from "../ticket/label"
 import { TICKET, type Ticket } from "../ticket/ticket"
 import { CURRENT_WORK_ID, currentWorkSet, isCurrentFor, NO_TICKET } from "./lanes"
 
@@ -34,16 +35,21 @@ export const CURRENT_WORK = kit.defineSubject({
     ticket: { type: "text", of: w => w.ticket },
   },
   aiBrief: w => w.ticket,
-  // 参加者リストの並びを見せるためだけ: カレントチケットがあれば作業中
-  workroomActivity: (workroom, read) =>
-    currentTicketOf(
+  // 参加者リストの並びとセッション名: カレントチケットがあれば作業中で、題名はチケットの番号と名前
+  workroomWork: (workroom, read) => {
+    const current = currentTicketOf(
       workroom,
       parsed(CURRENT_WORK_RECORD, read(CURRENT_WORK_ID, workroom)),
       id => parsed(TICKET.record, read(TICKET.id, id)),
       id => parsed(PROJECT.record, read(PROJECT.id, id)),
     )
-      ? "working"
-      : "idle",
+    return current
+      ? {
+          kind: "working",
+          title: `${ticketLabel(current.project.prefix, current.ticket.number)} ${current.ticket.name}`,
+        }
+      : { kind: "idle" }
+  },
 })
 
 export type CurrentWork = z.output<typeof CURRENT_WORK.record>

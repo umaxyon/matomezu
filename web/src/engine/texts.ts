@@ -5,8 +5,9 @@ import { z } from "zod"
 import { translate } from "../core/i18n/i18n"
 import { langOf, restoreSettings } from "../core/settings"
 import { WARNINGS, warning, warningText } from "../core/warnings"
-import { JOINED_MESSAGE, VISITOR_JOINED_MESSAGE } from "../plugins/base"
+import { JOINED_MESSAGE, sessionTitleIn, VISITOR_JOINED_MESSAGE } from "../plugins/base"
 import type { Assembled } from "../store/plugin"
+import { hostSource } from "./records"
 
 // engine.ts の matomezuJoinedText の中身
 export function joinedText(of: Assembled, settings: string, workroom: string): string {
@@ -25,6 +26,13 @@ export function visitorJoinedText(of: Assembled, settings: string): string {
     langOf(of.catalog.core, restoreSettings(JSON.parse(settings)), "en"),
     VISITOR_JOINED_MESSAGE,
   )
+}
+
+// engine.ts の matomezuSessionTitle の中身: ワークルーム（id と名前）に参加しているセッションの名前（書き換えを止めていれば off）。レコードはホストの読み口から引く
+export function sessionTitle(of: Assembled, settings: string, workroom: string, name: string): string {
+  const source = hostSource({})
+  if (source === null) return name
+  return sessionTitleIn(of.catalog.core, restoreSettings(JSON.parse(settings)), source, { id: workroom, name })
 }
 
 const WindowWarningSchema = z.object({

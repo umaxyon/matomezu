@@ -87,3 +87,24 @@ func (e *Engine) ParticipantAlive(settings json.RawMessage, calledAt string, now
 	}()
 	return e.alive(string(settings), calledAt, float64(now.UnixMilli())), nil
 }
+
+// SessionOff は、利用者の設定が AI のセッション名の書き換えを止めているときに SessionTitle が返す値
+const SessionOff = "off"
+
+// SessionTitle は、ワークルーム（id と名前 name）に参加している AI のセッションの名前（利用者の設定 settings が書き換えを止めていれば SessionOff）。
+// ワークルームの作業はレコードから決まるので、レコードを引く口 src を渡す
+func (e *Engine) SessionTitle(settings json.RawMessage, workroom, name string, src Source) (title string, err error) {
+	if len(settings) == 0 {
+		settings = json.RawMessage("null")
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.source = src
+	defer func() { e.source = nil }()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	return e.sessionName(string(settings), workroom, name), nil
+}

@@ -91,6 +91,9 @@ type hookInput struct {
 	Host           string `json:"-"`               // AI のプログラムのプロセス id（フックが --host で渡す）
 	Woken          bool   `json:"-"`               // 起こす知らせで始まったターン（フックが --woken で渡す。渡せない AI のプログラムは、その AI の事情で入力から見分ける。hookPrompt。知らせをそのまま入力の道で受ける AI のプログラムは、talked に添える入力を常駐が照らす）
 	Titled         bool   `json:"-"`               // formatHook の答えに sessionTitle を書くか（それを読む AI のプログラムだけ。知らない項目のある JSON を断る AI がある）
+	Cwd            string `json:"cwd"`             // AI のセッションのフォルダ
+	// Rename は、セッションの名前を、AI を並べて起動する道具の表示名にも書く（フォルダ dir の場所。答えを書いたあとに呼ぶ。nil なら書かない）
+	Rename func(dir, name string) `json:"-"`
 }
 
 // eventName は、フックの出力に書くイベント名（入力のイベント名。無ければ UserPromptSubmit）
@@ -130,6 +133,7 @@ type talkReply struct {
 	} `json:"welcomes"`
 	Unbound bool   `json:"unbound"`
 	ForAI   string `json:"forAi"` // 知らせで始まったターンなら、AI に伝える文
+	Title   string `json:"title"` // セッションの名前（書かないなら空）
 }
 
 const (
@@ -151,7 +155,7 @@ const (
 type talkedSplit struct {
 	Message      string `json:"message,omitempty"`      // 利用者に見せる文
 	ForAI        string `json:"forAi,omitempty"`        // AI に足す文（このターンの AI への入力に添える）
-	SessionTitle string `json:"sessionTitle,omitempty"` // 会話の題名（参加者が 1 人なら、そのワークルームの名前）
+	SessionTitle string `json:"sessionTitle,omitempty"` // 会話の題名（常駐が決めたセッションの名前）
 }
 
 // talked はターンの始まりを常駐に知らせ、out に答えの形 format（formatHook か formatSplit）で書く。context は、フックが AI に添える文（annotations の出力など）。
@@ -169,10 +173,10 @@ func talked(out io.Writer, hook hookInput, context, format string, api hookAPI) 
 		say = append(say, w.Message)
 		ai = append(ai, w.ForAI)
 	}
-	// 参加者が 1 人なら、その名前をセッション名にする（元のセッション名は常駐の参加者が持っている）
-	title := ""
-	if len(reply.Welcomes) == 1 {
-		title = reply.Welcomes[0].Workroom
+	// セッションの名前は常駐が決める（結ばれた参加者が 1 人で、利用者の設定が書き換えを止めていないときだけ。元のセッション名は常駐の参加者が持っている）
+	title := reply.Title
+	if title != "" && hook.Rename != nil {
+		defer hook.Rename(hook.Cwd, title)
 	}
 	forAI := strings.TrimSpace(strings.Join(append(ai, context), "\n"))
 	if format == formatSplit {
@@ -182,7 +186,7 @@ func talked(out io.Writer, hook hookInput, context, format string, api hookAPI) 
 		}
 		return
 	}
-	if len(reply.Welcomes) == 0 && reply.ForAI == "" {
+	if len(reply.Welcomes) == 0 && reply.ForAI == "" && (title == "" || !hook.Titled) {
 		if strings.TrimSpace(context) != "" {
 			fmt.Fprintln(out, strings.TrimRight(context, "\n"))
 		}
@@ -251,6 +255,9 @@ func askTalked(hook hookInput, api hookAPI) talkReply {
 		}
 		reply.Unbound = next.Unbound
 		reply.Welcomes = append(reply.Welcomes, next.Welcomes...)
+		if next.Title != "" { // 結べたら、セッションの名前も決まる
+			reply.Title = next.Title
+		}
 	}
 	return reply
 }
@@ -271,4 +278,20 @@ func permission(out io.Writer, hook hookInput) {
 	if name, ok := claudelaunch.MatomezuTool(hook.ToolName); ok && mcp.ReadOnly(name) {
 		claudelaunch.AllowTool(out, "matomezu tool that only reads")
 	}
+}
+
+// sessionTitle は、ターンの終わりのフック: 常駐にセッションの名前を訊き、AI を並べて起動する道具の表示名に書く（何も出さない。常駐が立っていない・名前が無ければ何もしない）
+func sessionTitle(hook hookInput, api hookAPI) {
+	if api == nil || hook.SessionID == "" || hook.Rename == nil {
+		return
+	}
+	body, _ := json.Marshal(map[string]any{"sessionId": hook.SessionID})
+	out, err := api(body)
+	var reply struct {
+		Title string `json:"title"`
+	}
+	if err != nil || json.Unmarshal(out, &reply) != nil || reply.Title == "" {
+		return
+	}
+	hook.Rename(hook.Cwd, reply.Title)
 }

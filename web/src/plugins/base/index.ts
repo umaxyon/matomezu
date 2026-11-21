@@ -178,6 +178,7 @@ import {
   PARTICIPANT_REMOVE,
   PARTICIPANT_REQUEST,
   PARTICIPANT_WELCOME_DIALOG,
+  SESSION_RENAME,
   WORKROOM,
   WORKROOM_ADD,
   WORKROOM_REMOVE,
@@ -332,6 +333,8 @@ export {
   participantCategory,
   READS_ADMIN,
   READS_WORKROOM_KEYS,
+  SESSION_RENAME,
+  sessionTitleIn,
   VISITOR_JOINED_MESSAGE,
   visitorName,
 } from "./participant"
@@ -521,6 +524,7 @@ export const BASE = defineBuiltin(
       TOOL_PICKER_HOLD,
       NOTE_EXPIRY,
       PARTICIPANT_ALIVE,
+      SESSION_RENAME,
       CORNER_STATUS_ORDER,
       ENABLED_PLUGINS,
       SOFT_BREAK,
@@ -710,6 +714,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:tool-picker-hold": typeof TOOL_PICKER_HOLD
     "@matomezu/base:note-expiry": typeof NOTE_EXPIRY
     "@matomezu/base:participant-alive": typeof PARTICIPANT_ALIVE
+    "@matomezu/base:session-rename": typeof SESSION_RENAME
     "@matomezu/base:soft-break": typeof SOFT_BREAK
     "@matomezu/base:corner-status-order": typeof CORNER_STATUS_ORDER
     "@matomezu/base:enabled-plugins": typeof ENABLED_PLUGINS

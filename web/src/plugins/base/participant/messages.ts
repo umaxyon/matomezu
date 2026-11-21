@@ -3,6 +3,8 @@ import { defineMessages } from "../../../core/i18n/messages"
 
 export const PARTICIPANT_MESSAGES = defineMessages({
   "Request to participate": { en: "Request to participate", ja: "参加を要求する" },
+  "Rename sessions": { en: "Rename sessions", ja: "セッション名を書き換える" },
+  "{name} (idle)": { en: "{name} (idle)", ja: "{name}（空き）" },
   "Joined matomezu. Workroom name: {name}": {
     en: "Joined matomezu. Workroom name: {name}",
     ja: "matomezu に参加しました。ワークルーム名: {name}",

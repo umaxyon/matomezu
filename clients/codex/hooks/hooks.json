@@ -21,6 +21,17 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if command -v matomezu >/dev/null 2>&1; then exec matomezu codex hook stop; else echo '{\"systemMessage\":\"matomezu was not found. Install it again (npm i -g matomezu) or remove this plugin (codex plugin remove matomezu@matomezu).\"}'; fi",
+            "commandWindows": "if (Get-Command matomezu -ErrorAction SilentlyContinue) { matomezu codex hook stop } else { '{\"systemMessage\":\"matomezu was not found. Install it again (npm i -g matomezu) or remove this plugin (codex plugin remove matomezu@matomezu).\"}' }"
+          }
+        ]
+      }
     ]
   }
 }

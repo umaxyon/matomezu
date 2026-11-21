@@ -5,7 +5,7 @@ import { type Actor, USER } from "../../../web/src/core/actor"
 import { type PerformedIn, performIn, type World } from "../../../web/src/core/perform-world"
 import { withCounters, withRecords } from "../../../web/src/core/records"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
-import { workroomActivityOf } from "../../../web/src/plugins/base/participant/activity"
+import { workroomActivityOf, workroomWorkOf } from "../../../web/src/plugins/base/participant/activity"
 import { CURRENT_WORK, currentTicketOf } from "../../../web/src/plugins/taskboard/current-work"
 import type { Project } from "../../../web/src/plugins/taskboard/project"
 import { TICKET, type Ticket } from "../../../web/src/plugins/taskboard/ticket"
@@ -220,7 +220,7 @@ test("レーンの作業中の印を外すと、そのレーンのチケット�
   const a = room("あ")
   const b = room("い")
   const t1 = add({ lane: doing, assignees: [a] })
-  const lanes = () => (world().records[A("project")]?.[project] as Project).lanes
+  const lanes = () => (world().records[A("project")]?.[project] as Project | undefined)?.lanes ?? []
   const marked = (on: boolean) =>
     lanes().map(l => (l.kind === "lane" && l.id === doing ? { ...l, working: on ? true : undefined } : l))
   expect(user("project-update", { lanes: marked(false) }, { record: project }).ok).toBe(true)
@@ -232,4 +232,14 @@ test("レーンの作業中の印を外すと、そのレーンのチケット�
   expect([work(a), work(b)]).toEqual([t1, t1])
   // 完了のレーンを選ぶ確かめも、レーンを一緒に変えるときに効く（担当のいるチケットのレーンは断る）
   expect(user("project-update", { lanes: marked(false), doneLane: doing }, { record: project }).ok).toBe(false)
+})
+
+test("ワークルームの作業: カレントチケットがあれば作業中で、題名はチケットの番号と名前。無ければ空き", () => {
+  const { act, room, add, world } = board()
+  const a = room("あ")
+  const records = () => world().records as Record<string, Record<string, unknown>>
+  expect(workroomWorkOf(CORE_CATALOG, records(), a)).toEqual({ kind: "idle" })
+  const t1 = add({ name: "鳥と表示名" })
+  act(ai(a), "ticket-start", {}, { record: t1 })
+  expect(workroomWorkOf(CORE_CATALOG, records(), a)).toEqual({ kind: "working", title: "T-0001 鳥と表示名" })
 })

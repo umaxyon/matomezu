@@ -95,6 +95,16 @@ type claudeHookCmd struct {
 	Prompt     claudePromptCmd     `cmd:"" help:"UserPromptSubmit: tell matomezu the user talked, and add the notes that wait for AI."`
 	Model      claudeModelCmd      `cmd:"" help:"SessionStart and PostModelSwitch: tell matomezu the session's model."`
 	Permission claudePermissionCmd `cmd:"" help:"PreToolUse: let the matomezu tools that only read be used without asking."`
+	Stop       claudeStopCmd       `cmd:"" help:"Stop: write the session's name to the display name of the tool that launched this session, if any (prints nothing)."`
+}
+
+type claudeStopCmd struct{}
+
+// Run は、ターンの終わりに、セッションの名前を起動した道具の表示名に書く
+func (claudeStopCmd) Run() error {
+	claudeDev()
+	hookStop()
+	return nil
 }
 
 type claudePromptCmd struct{}
@@ -182,6 +192,16 @@ func (codexMCPCmd) Run() error {
 type codexHookCmd struct {
 	Prompt codexPromptCmd `cmd:"" help:"UserPromptSubmit: tell matomezu the user talked, and add the notes that wait for AI."`
 	Model  codexModelCmd  `cmd:"" help:"SessionStart: tell matomezu the session's model."`
+	Stop   codexStopCmd   `cmd:"" help:"Stop: write the session's name to the display name of the tool that launched this session, if any (prints nothing)."`
+}
+
+type codexStopCmd struct{}
+
+// Run は、ターンの終わりに、セッションの名前を起動した道具の表示名に書く
+func (codexStopCmd) Run() error {
+	codexDev()
+	hookStop()
+	return nil
 }
 
 type codexPromptCmd struct{}
@@ -228,7 +248,15 @@ func hookPrompt(host string, titled bool, woken func(prompt string) bool) {
 	hook.Host = host
 	hook.Titled = titled
 	hook.Woken = hook.Woken || (woken != nil && woken(hook.Prompt))
+	hook.Rename = renamePlace
 	talked(os.Stdout, hook, notes.String(), formatHook, runningAPI("api/ai/talked"))
+}
+
+// hookStop は、ターンの終わりのフック: セッションの名前を、AI を並べて起動する道具の表示名に書く（何も出さない）
+func hookStop() {
+	hook := stdinHook()
+	hook.Rename = renamePlace
+	sessionTitle(hook, runningAPI("api/ai/session-title"))
 }
 
 // hookModel は、モデルのフック: セッションのモデルを常駐に知らせる（host は AI のプログラムのプロセス id、分からなければ空）

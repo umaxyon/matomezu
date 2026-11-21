@@ -364,6 +364,26 @@ func TestTalkedBindsTheSessionByLinkAndWelcomesOnce(t *testing.T) {
 	if r := talk(`{"sessionId":"S9"}`); len(r.Welcomes) != 0 {
 		t.Fatalf("told twice = %+v", r)
 	}
+	// 受け入れたら、セッションの名前はワークルームの名前と作業から作る（作業が無ければ空き）。別のセッションには無い
+	if r.Title == "" || !strings.HasPrefix(r.Title, "ひよこ") {
+		t.Fatalf("title = %q", r.Title)
+	}
+	if got, _ := call(t, "POST", s.URL+"/api/ai/session-title", `{"sessionId":"S9"}`, nil); !strings.Contains(got, `"title":"`+r.Title+`"`) {
+		t.Fatalf("session-title = %s, want %q", got, r.Title)
+	}
+	if got, _ := call(t, "POST", s.URL+"/api/ai/session-title", `{"sessionId":"S8"}`, nil); !strings.Contains(got, `"title":""`) {
+		t.Fatalf("another session's title = %s", got)
+	}
+	// 利用者の設定が書き換えを止めたら、名前を返さない
+	if _, got := postPerform(t, s.URL, `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:session-rename":false}},"lang":"ja","now":"2026-11-08T01:01:00.000Z"}`); !strings.Contains(got, `"ok":true`) {
+		t.Fatalf("settings-set = %s", got)
+	}
+	if r := talk(`{"sessionId":"S9"}`); r.Title != "" {
+		t.Fatalf("title while off = %q", r.Title)
+	}
+	if _, got := postPerform(t, s.URL, `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:session-rename":null}},"lang":"ja","now":"2026-11-08T01:02:00.000Z"}`); !strings.Contains(got, `"ok":true`) {
+		t.Fatalf("settings-set back = %s", got)
+	}
 	// 伝えたときが最後に呼ばれた時刻になり、準備中でなくなる。そのあとのターンの始まりは時刻を進めない
 	at := hub.ParticipantCalls()[joined.Participant]
 	if at == "" {
