@@ -62,8 +62,6 @@ export function NotePanel() {
   )
 }
 
-// 付ける先 open.anchors を、カレントを最後にした並び（吹き出しはカレントに出る）
-
 // 付ける先の名前のバッジ: カレントは色違い。押すとその物をカレントにする。名前は BADGE_CHARS 字で切り、全体はツールチップで見せる
 function Badges({ open }: { open: RightSidePanelOpen }) {
   const t = useMessages(kit)
