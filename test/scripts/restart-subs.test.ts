@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test"
 import {
+  isWorkroomTitle,
   joinedSince,
   lastAssistantText,
   lastModel,
@@ -84,4 +85,13 @@ test("join が参加者 id を返したかは、時点より後の join の答�
   expect(joinedSince([...old, ...requested].join("\n"), since)).toBe(false)
   const joined = [call("2026-11-21T10:00:05Z", "c"), result("2026-11-21T10:00:06Z", "c", '{"participant":"p2"}')]
   expect(joinedSince([...old, ...joined].join("\n"), since)).toBe(true)
+})
+
+test("端末の題名は、ワークルームの名前そのものか、そのあとに作業名が続く物", () => {
+  expect(isWorkroomTitle("sub1_work", "sub1_work")).toBe(true)
+  expect(isWorkroomTitle("sub1_work M-0169 チケット検索", "sub1_work")).toBe(true)
+  expect(isWorkroomTitle("sub1_work（空き）", "sub1_work")).toBe(true)
+  expect(isWorkroomTitle("sub1_work (idle)", "sub1_work")).toBe(true)
+  expect(isWorkroomTitle("sub1_work2", "sub1_work")).toBe(false)
+  expect(isWorkroomTitle("Terminal 1", "sub1_work")).toBe(false)
 })

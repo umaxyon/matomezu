@@ -183,6 +183,11 @@ function collectHandles(node: unknown, title: string, out: Map<string, string>):
   for (const c of n.children ?? []) collectHandles(c, title, out)
 }
 
+// 端末の題名がそのワークルームの物か。題名は作業名（「sub5_work M-0167 名前」「sub5_work（空き）」「sub5_work (idle)」）か、ワークルームの名前そのもの
+export function isWorkroomTitle(title: string, workroom: string): boolean {
+  return title === workroom || [" ", "（"].some(sep => title.startsWith(workroom + sep))
+}
+
 async function findTerminal(workroom: string): Promise<Terminal> {
   const r = (await orca(["terminal", "list", "--include-visual-layouts"])) as {
     terminals: Terminal[]
@@ -190,8 +195,8 @@ async function findTerminal(workroom: string): Promise<Terminal> {
   }
   const tabOf = new Map<string, string>()
   for (const l of r.visualLayouts ?? []) tabTitles(l.root, tabOf)
-  const byTab = r.terminals.filter(t => tabOf.get(t.handle) === workroom)
-  const found = byTab.length > 0 ? byTab : r.terminals.filter(t => t.title === workroom)
+  const byTab = r.terminals.filter(t => isWorkroomTitle(tabOf.get(t.handle) ?? "", workroom))
+  const found = byTab.length > 0 ? byTab : r.terminals.filter(t => isWorkroomTitle(t.title, workroom))
   const [only, ...rest] = found
   if (!only || rest.length > 0) throw new Error(`タブ ${workroom} の端末が ${found.length} 個`)
   return only
