@@ -128,7 +128,8 @@ type talkReply struct {
 		Message  string `json:"message"`
 		ForAI    string `json:"forAi"`
 	} `json:"welcomes"`
-	Unbound bool `json:"unbound"`
+	Unbound bool   `json:"unbound"`
+	ForAI   string `json:"forAi"` // 知らせで始まったターンなら、AI に伝える文
 }
 
 const (
@@ -154,13 +155,16 @@ type talkedSplit struct {
 }
 
 // talked はターンの始まりを常駐に知らせ、out に答えの形 format（formatHook か formatSplit）で書く。context は、フックが AI に添える文（annotations の出力など）。
-// formatHook では、伝えることがあるときは 1 つの JSON を書き、無ければ context だけをそのまま書く（フックの出力は JSON か文のどちらか 1 つ）
+// formatHook では、伝えることがあるときは 1 つの JSON を書き（利用者に見せる文が無ければ systemMessage は書かない）、無ければ context だけをそのまま書く（フックの出力は JSON か文のどちらか 1 つ）
 func talked(out io.Writer, hook hookInput, context, format string, api hookAPI) {
 	var reply talkReply
 	if api != nil {
 		reply = askTalked(hook, api)
 	}
 	var say, ai []string
+	if reply.ForAI != "" {
+		ai = append(ai, reply.ForAI)
+	}
 	for _, w := range reply.Welcomes {
 		say = append(say, w.Message)
 		ai = append(ai, w.ForAI)
@@ -178,7 +182,7 @@ func talked(out io.Writer, hook hookInput, context, format string, api hookAPI) 
 		}
 		return
 	}
-	if len(reply.Welcomes) == 0 {
+	if len(reply.Welcomes) == 0 && reply.ForAI == "" {
 		if strings.TrimSpace(context) != "" {
 			fmt.Fprintln(out, strings.TrimRight(context, "\n"))
 		}
@@ -188,10 +192,11 @@ func talked(out io.Writer, hook hookInput, context, format string, api hookAPI) 
 	if title != "" && hook.Titled {
 		special["sessionTitle"] = title
 	}
-	_ = json.NewEncoder(out).Encode(map[string]any{
-		"systemMessage":      strings.Join(say, "\n"),
-		"hookSpecificOutput": special,
-	})
+	answer := map[string]any{"hookSpecificOutput": special}
+	if len(say) > 0 {
+		answer["systemMessage"] = strings.Join(say, "\n")
+	}
+	_ = json.NewEncoder(out).Encode(answer)
 }
 
 // askTalked は、ターンの始まりを知らせ、結ばれていない参加者がいるなら会話の記録を後ろから調べて結ばせる。常駐の答えが読めなければ空を返す
