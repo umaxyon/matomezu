@@ -54,6 +54,7 @@ import {
   LIBRARY_OPEN,
   LIBRARY_PICK_MOVE,
   LIBRARY_PICKED,
+  LIBRARY_PLACE_OPEN,
   LIBRARY_QUERY,
   LIBRARY_REDO,
   LIBRARY_RENAME_DIALOG,
@@ -178,6 +179,7 @@ import {
   PARTICIPANT_REMOVE,
   PARTICIPANT_REQUEST,
   PARTICIPANT_WELCOME_DIALOG,
+  SESSION_RENAME,
   WORKROOM,
   WORKROOM_ADD,
   WORKROOM_REMOVE,
@@ -334,6 +336,7 @@ export {
   READS_WORKROOM_KEYS,
   VISITOR_JOINED_MESSAGE,
   visitorName,
+  workTitleIn,
 } from "./participant"
 // 置く計算と文字（ほかのプラグインが使う。追加プラグインには matomezu から出す）
 export type { Axis, Edges, Frame, Gap, GrowFrom, PortArea, Ports } from "./place"
@@ -521,6 +524,7 @@ export const BASE = defineBuiltin(
       TOOL_PICKER_HOLD,
       NOTE_EXPIRY,
       PARTICIPANT_ALIVE,
+      SESSION_RENAME,
       CORNER_STATUS_ORDER,
       ENABLED_PLUGINS,
       SOFT_BREAK,
@@ -601,6 +605,7 @@ export const BASE = defineBuiltin(
       LIBRARY_OPEN,
       LIBRARY_SCREEN_CLOSE,
       LIBRARY_UNREADABLE_OPEN,
+      LIBRARY_PLACE_OPEN,
       LIBRARY_SCREEN_EXPAND,
       LIBRARY_FOLDER_NEW,
       LIBRARY_ENTRY_RENAME,
@@ -711,6 +716,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:tool-picker-hold": typeof TOOL_PICKER_HOLD
     "@matomezu/base:note-expiry": typeof NOTE_EXPIRY
     "@matomezu/base:participant-alive": typeof PARTICIPANT_ALIVE
+    "@matomezu/base:session-rename": typeof SESSION_RENAME
     "@matomezu/base:soft-break": typeof SOFT_BREAK
     "@matomezu/base:corner-status-order": typeof CORNER_STATUS_ORDER
     "@matomezu/base:enabled-plugins": typeof ENABLED_PLUGINS
@@ -849,6 +855,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-open": typeof LIBRARY_OPEN
     "@matomezu/base:library-screen-close": typeof LIBRARY_SCREEN_CLOSE
     "@matomezu/base:library-unreadable-open": typeof LIBRARY_UNREADABLE_OPEN
+    "@matomezu/base:library-place-open": typeof LIBRARY_PLACE_OPEN
     "@matomezu/base:library-screen-expand": typeof LIBRARY_SCREEN_EXPAND
     "@matomezu/base:library-folder-new": typeof LIBRARY_FOLDER_NEW
     "@matomezu/base:library-entry-rename": typeof LIBRARY_ENTRY_RENAME

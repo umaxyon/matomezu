@@ -69,11 +69,10 @@ export function PrintPreviewPanel() {
           return (
             <Control
               key={id}
-              of="book"
+              of="outermost"
               label={t(def.title)}
               value={own[id]}
               inherited={def.default}
-              book={book}
               page={null}
               onChange={(v: string | undefined) => change({ [id]: v ?? null })}
             />

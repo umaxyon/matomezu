@@ -542,12 +542,11 @@ func refusalText(reason, detail string) string {
 var joinSchema = map[string]any{
 	"type": "object",
 	"properties": map[string]any{
-		"model":         map[string]any{"type": "string", "minLength": 1, "description": "The model of this conversation for the approval screen. Use unknown if it cannot be determined. The client’s model metadata takes priority when present."},
-		"sessionName":   map[string]any{"type": "string", "description": "The name of this session, if it has one."},
-		"orcaWorkspace": map[string]any{"type": "string", "minLength": 1, "maxLength": 120, "description": "The display name of the current Orca workspace, if verified in this conversation’s environment. Do not send its path or internal ID."},
-		"link":          map[string]any{"type": "string", "minLength": 1, "description": "A one-time passphrase: a new uuid (8-4-4-4-12 hex digits) you make for this session. The hook that runs when the user talks finds it in this session's transcript to tie the session to you, so put it in this call as it is. Use the same link when you ask again."},
-		"workroom":      map[string]any{"type": "string", "description": "The name of the workroom you would like to continue (a workroom whose participant is not alive any more, or an empty one), or the name you would like for a new one (up to 20 characters). The user chooses on the screen. Optional."},
-		"as":            map[string]any{"type": "string", "enum": []string{"visitor"}, "description": "visitor: you ask to join only to read, as a visitor with no workroom (not together with workroom). Leave it out to join as a worker in a workroom; the user may still accept you as a visitor."},
+		"model":       map[string]any{"type": "string", "minLength": 1, "description": "The model of this conversation for the approval screen. Use unknown if it cannot be determined. The client’s model metadata takes priority when present."},
+		"sessionName": map[string]any{"type": "string", "description": "The name of this session, if it has one."},
+		"link":        map[string]any{"type": "string", "minLength": 1, "description": "A one-time passphrase: a new uuid (8-4-4-4-12 hex digits) you make for this session. The hook that runs when the user talks finds it in this session's transcript to tie the session to you, so put it in this call as it is. Use the same link when you ask again."},
+		"workroom":    map[string]any{"type": "string", "description": "The name of the workroom you would like to continue (a workroom whose participant is not alive any more, or an empty one), or the name you would like for a new one (up to 20 characters). The user chooses on the screen. Optional."},
+		"as":          map[string]any{"type": "string", "enum": []string{"visitor"}, "description": "visitor: you ask to join only to read, as a visitor with no workroom (not together with workroom). Leave it out to join as a worker in a workroom; the user may still accept you as a visitor."},
 	},
 	"required":             []string{"model", "link"},
 	"additionalProperties": false,
@@ -567,8 +566,10 @@ func join(c *conn, args map[string]any) (string, bool) {
 	link, _ := args["link"].(string)
 	sessionName, _ := args["sessionName"].(string)
 	body := map[string]any{"ai": c.ai, "model": model, "env": c.env, "sessionName": sessionName, "link": link}
-	if workspace, _ := args["orcaWorkspace"].(string); workspace != "" {
-		body["orcaWorkspace"] = workspace
+	if c.adeWorkspace != nil {
+		if workspace := c.adeWorkspace(); workspace != "" {
+			body["adeWorkspace"] = workspace
+		}
 	}
 	if workroom, _ := args["workroom"].(string); workroom != "" {
 		body["workroom"] = workroom

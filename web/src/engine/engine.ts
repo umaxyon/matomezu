@@ -37,7 +37,7 @@ import {
   subjectRolesOf,
   unlistedOf,
 } from "./records"
-import { joinedText, visitorJoinedText, windowWarningLines } from "./texts"
+import { joinedText, visitorJoinedText, windowWarningLines, workTitle } from "./texts"
 
 ;(globalThis as { __matomezuModules?: unknown }).__matomezuModules = MODULES
 
@@ -211,6 +211,12 @@ let lastAdded: readonly Plugin[] = []
   settings,
   workroom,
 ) => joinedText(assembled, settings, workroom)
+
+// ワークルーム（id と名前）に参加している AI のセッションの作業名（利用者の設定が書くのを止めていれば off。常駐が、話しかけとターンの終わりのフックに答える）
+// 作業はレコードから決まるので、常駐が読み口を置いている間に呼ぶ
+;(
+  globalThis as { matomezuWorkTitle?: (settings: string, workroom: string, name: string) => string }
+).matomezuWorkTitle = (settings, workroom, name) => workTitle(assembled, settings, workroom, name)
 
 // ビジターとして参加したことを利用者に伝える文（利用者の言語。matomezuJoinedText と同じく、フックの systemMessage に使う）
 ;(globalThis as { matomezuVisitorJoinedText?: (settings: string) => string }).matomezuVisitorJoinedText = settings =>

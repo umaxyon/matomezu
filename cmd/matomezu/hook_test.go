@@ -28,6 +28,9 @@ func (f *fakeTalk) api(body []byte) ([]byte, error) {
 		}
 	}
 	reply := map[string]any{"welcomes": []any{}, "unbound": !f.bound}
+	if f.bound {
+		reply["workTitle"] = "ひよこ M-0001 作業"
+	}
 	if f.bound && !f.told {
 		f.told = true
 		reply["welcomes"] = []any{map[string]any{"workroom": "ひよこ", "message": "matomezu に参加しました。ワークルーム名: ひよこ", "forAi": "You joined matomezu. Workroom name: ひよこ"}}
@@ -60,7 +63,7 @@ func TestTalkedBindsTheSessionAndWelcomes(t *testing.T) {
 	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
 		t.Fatalf("not one JSON: %q", out.String())
 	}
-	if got.SystemMessage != "matomezu に参加しました。ワークルーム名: ひよこ" || got.Special.Title != "ひよこ" || got.Special.Event != "UserPromptSubmit" ||
+	if got.SystemMessage != "matomezu に参加しました。ワークルーム名: ひよこ" || got.Special.Title != "ひよこ M-0001 作業" || got.Special.Event != "UserPromptSubmit" ||
 		got.Special.Context != "You joined matomezu. Workroom name: ひよこ\nNOTE" {
 		t.Fatalf("output = %s", out.String())
 	}
@@ -130,14 +133,14 @@ func TestTalkedTellsWhetherTheTurnWasWoken(t *testing.T) {
 	}
 }
 
-// --format split: 利用者に見せる文・AI に足す文・題名を分けた 1 つの JSON。伝えることが無ければ context だけを forAi に、それも無ければ何も書かない
+// --format split: 利用者に見せる文・AI に足す文・題名を分けた 1 つの JSON。伝えることが無ければ context だけを forAi に、それも題名も無ければ何も書かない
 func TestTalkedSplitAnswer(t *testing.T) {
 	welcome := func([]byte) ([]byte, error) {
-		return []byte(`{"welcomes":[{"workroom":"ひよこ","message":"参加しました","forAi":"You joined"}],"unbound":false}`), nil
+		return []byte(`{"welcomes":[{"workroom":"ひよこ","message":"参加しました","forAi":"You joined"}],"unbound":false,"workTitle":"ひよこ（空き）"}`), nil
 	}
 	var out bytes.Buffer
 	talked(&out, hookInput{SessionID: "S1"}, "NOTE\n", formatSplit, welcome)
-	if out.String() != `{"message":"参加しました","forAi":"You joined\nNOTE","sessionTitle":"ひよこ"}`+"\n" {
+	if out.String() != `{"message":"参加しました","forAi":"You joined\nNOTE","sessionTitle":"ひよこ（空き）"}`+"\n" {
 		t.Fatalf("welcome: %q", out.String())
 	}
 	out.Reset()
@@ -146,7 +149,13 @@ func TestTalkedSplitAnswer(t *testing.T) {
 		t.Fatalf("context only: %q", out.String())
 	}
 	out.Reset()
+	// 伝えることが無くても、作業名は毎ターン書く
 	talked(&out, hookInput{SessionID: "S1"}, " \n", formatSplit, (&fakeTalk{bound: true, told: true}).api)
+	if out.String() != `{"sessionTitle":"ひよこ M-0001 作業"}`+"\n" {
+		t.Fatalf("title only: %q", out.String())
+	}
+	out.Reset()
+	talked(&out, hookInput{SessionID: "S1"}, " \n", formatSplit, func([]byte) ([]byte, error) { return []byte(`{"welcomes":[]}`), nil })
 	if out.String() != "" {
 		t.Fatalf("nothing: %q", out.String())
 	}
@@ -199,7 +208,7 @@ func TestPermissionAllowsOnlyTheToolsThatRead(t *testing.T) {
 // sessionTitle は、それを読む AI のプログラム（Titled）にだけ書く。Codex は知らない項目のある答えを捨てる
 func TestTalkedWritesTheTitleOnlyWhenTitled(t *testing.T) {
 	welcome := func([]byte) ([]byte, error) {
-		return []byte(`{"welcomes":[{"workroom":"ひよこ","message":"m","forAi":"a"}],"unbound":false}`), nil
+		return []byte(`{"welcomes":[{"workroom":"ひよこ","message":"m","forAi":"a"}],"unbound":false,"workTitle":"ひよこ（空き）"}`), nil
 	}
 	for _, titled := range []bool{true, false} {
 		var out bytes.Buffer
@@ -224,5 +233,62 @@ func TestTalkedPassesTheWokenNoteToTheAI(t *testing.T) {
 	special, _ := got["hookSpecificOutput"].(map[string]any)
 	if _, ok := got["systemMessage"]; ok || special["additionalContext"] != "NOT THE USER\nNOTE" {
 		t.Fatalf("output = %s", out.String())
+	}
+}
+
+// 作業名は、伝えることが無いターンでも毎ターン書く（Titled の AI のプログラムだけ。Codex は文のまま）。
+// 名前があれば、答えを書いたあとに、ADE のワークスペースの表示名にも書く。名前が無ければ（設定が止めている・参加していない）どちらも書かない
+func TestTalkedWritesTheTitleEveryTurn(t *testing.T) {
+	titled := func([]byte) ([]byte, error) {
+		return []byte(`{"welcomes":[],"unbound":false,"workTitle":"ひよこ M-0001 作業"}`), nil
+	}
+	untitled := func([]byte) ([]byte, error) { return []byte(`{"welcomes":[],"unbound":false}`), nil }
+	var renamed []string
+	rename := func(dir, name string) { renamed = append(renamed, dir+"|"+name) }
+	var out bytes.Buffer
+	talked(&out, hookInput{SessionID: "S1", Titled: true, Cwd: "/w", Rename: rename}, "NOTE", formatHook, titled)
+	var got struct {
+		Special struct {
+			Title   string `json:"sessionTitle"`
+			Context string `json:"additionalContext"`
+		} `json:"hookSpecificOutput"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil || got.Special.Title != "ひよこ M-0001 作業" || got.Special.Context != "NOTE" {
+		t.Fatalf("titled: %q", out.String())
+	}
+	if len(renamed) != 1 || renamed[0] != "/w|ひよこ M-0001 作業" {
+		t.Fatalf("renamed = %v", renamed)
+	}
+	// Codex: 答えは文のまま。表示名には書く
+	out.Reset()
+	talked(&out, hookInput{SessionID: "S1", Cwd: "/w", Rename: rename}, "NOTE", formatHook, titled)
+	if out.String() != "NOTE\n" || len(renamed) != 2 {
+		t.Fatalf("codex: %q, renamed = %v", out.String(), renamed)
+	}
+	// 名前が無ければ、どちらも書かない
+	out.Reset()
+	talked(&out, hookInput{SessionID: "S1", Titled: true, Cwd: "/w", Rename: rename}, "NOTE", formatHook, untitled)
+	if out.String() != "NOTE\n" || len(renamed) != 2 {
+		t.Fatalf("untitled: %q, renamed = %v", out.String(), renamed)
+	}
+}
+
+// ターンの終わりのフック: 常駐に作業名を訊き、表示名に書く。何も出さない。名前が無い・常駐が無ければ書かない
+func TestStopRenamesTheAdeWorkspace(t *testing.T) {
+	var renamed []string
+	rename := func(dir, name string) { renamed = append(renamed, dir+"|"+name) }
+	var asked map[string]any
+	api := func(body []byte) ([]byte, error) {
+		_ = json.Unmarshal(body, &asked)
+		return []byte(`{"workTitle":"ひよこ（空き）"}`), nil
+	}
+	workTitle(hookInput{SessionID: "S1", Cwd: "/w", Rename: rename}, api)
+	if asked["sessionId"] != "S1" || len(renamed) != 1 || renamed[0] != "/w|ひよこ（空き）" {
+		t.Fatalf("asked %v, renamed %v", asked, renamed)
+	}
+	workTitle(hookInput{SessionID: "S1", Cwd: "/w", Rename: rename}, func([]byte) ([]byte, error) { return []byte(`{"workTitle":""}`), nil })
+	workTitle(hookInput{SessionID: "S1", Cwd: "/w", Rename: rename}, nil)
+	if len(renamed) != 1 {
+		t.Fatalf("renamed %v", renamed)
 	}
 }

@@ -6,7 +6,16 @@
 import { useCallback, useEffect, useId, useState } from "react"
 import type { MessageKey } from "../../../plugin-api"
 import { type DialogProps, useActions, useItem, useMessages, usePerform } from "../../../plugin-api/ui"
-import { ActionButton, BodyField, CaptionField, Dialog, DividerField, Form, rowClass, useBookOf } from "../../base/ui"
+import {
+  ActionButton,
+  BodyField,
+  CaptionField,
+  Dialog,
+  DividerField,
+  Form,
+  rowClass,
+  useOutermostOf,
+} from "../../base/ui"
 import { ROW_ADD, ROW_REMOVE, ROW_UPDATE } from "./actions"
 import { kit } from "./kit"
 import { LIST, type RowProps } from "./list"
@@ -16,10 +25,10 @@ type Text = Omit<RowProps, "checked">
 const EMPTY: Text = { caption: "", rule: true, body: "", captionAlign: "left", bodyAlign: "left" }
 
 export function AddRowDialog({ args, onClose }: DialogProps<{ page: string; list: string }>) {
-  const book = useBookOf()
+  const outermost = useOutermostOf()
   const perform = usePerform()
   const add = (props: Text) => {
-    if (!book) return
+    if (!outermost) return
     if (perform(ROW_ADD.id, { list: args.list, props }, { page: args.page }).ok) onClose()
   }
   return (
@@ -27,7 +36,7 @@ export function AddRowDialog({ args, onClose }: DialogProps<{ page: string; list
       title={kit.message("Add row")}
       submit={kit.message("Add")}
       start={EMPTY}
-      ready={book !== undefined}
+      ready={outermost !== undefined}
       onSubmit={add}
       onClose={onClose}
     />
@@ -35,7 +44,7 @@ export function AddRowDialog({ args, onClose }: DialogProps<{ page: string; list
 }
 
 export function EditRowDialog({ args, onClose }: DialogProps<{ page: string; list: string; row: string }>) {
-  const book = useBookOf()
+  const outermost = useOutermostOf()
   const rows = useItem(args.page, args.list, LIST.id)?.children
   const start = rows?.find(r => r.id === args.row)?.props
   const perform = usePerform()
@@ -44,9 +53,9 @@ export function EditRowDialog({ args, onClose }: DialogProps<{ page: string; lis
   const preview = useCallback(
     (text: Text | null) =>
       previewDialog(
-        text && book && rows
+        text && outermost && rows
           ? {
-              book,
+              outermost,
               item: args.list,
               props: {},
               content: {
@@ -55,9 +64,9 @@ export function EditRowDialog({ args, onClose }: DialogProps<{ page: string; lis
             }
           : null,
       ),
-    [book, rows, args.list, args.row, previewDialog],
+    [outermost, rows, args.list, args.row, previewDialog],
   )
-  if (!book || !start) return null
+  if (!outermost || !start) return null
   const update = (props: Text) => {
     if (perform(ROW_UPDATE.id, { list: args.list, row: args.row, props }, { page: args.page }).ok) onClose()
   }

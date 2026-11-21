@@ -15,14 +15,16 @@ import {
 } from "../../web/src/core/folders"
 import { bookOf } from "../../web/src/core/folders-books"
 import { withChanges } from "../../web/src/core/folders-changes"
+import { outsideAsked } from "../../web/src/core/folders-tree"
 import { defineMessages } from "../../web/src/core/i18n/messages"
+import { actionQuery, deniedBy, inspect } from "../../web/src/core/inspect"
 import { pageChecksBetween } from "../../web/src/core/perform-checks"
 import { brokenIn, libraryAsksOf } from "../../web/src/core/perform-library"
 import { performIn, permittedIn, type World } from "../../web/src/core/perform-world"
 import type { ItemPage } from "../../web/src/core/placed"
 import type { Book } from "../../web/src/core/schema/book"
 import { pluginKit } from "../../web/src/store/kit"
-import { DRAWING, drawingPage, SLIDE, testBook, testPage } from "../lineup"
+import { DRAWING, drawingPage, MARKDOWN, SLIDE, testBook, testPage } from "../lineup"
 import { CORE_CATALOG, libraryWith, sequence } from "../support"
 
 const LOCK = "@matomezu/base:lock"
@@ -317,4 +319,20 @@ test("ブックの外のバインダの中のページも、紙と向きをほ�
   expect(performIn(w, UPDATE, { title: "改" }, { page: "y1" }, libraryCtx()).ok).toBe(true)
   // バインダに入っていないページは、向きを変えられる
   expect(performIn(pagesWorld(), UPDATE, { orientation: "portrait" }, { page: "x1" }, libraryCtx()).ok).toBe(true)
+})
+
+test("開いている物がブックの外のページなら、ページが対象のアクションをそのページそのもので問い（タイプで決まり、ロックが止める）、ブックが対象のアクションは問わない", () => {
+  const page = drawingPage("o1")
+  const ask = (action: string, on: ItemPage) =>
+    inspect(CORE_CATALOG, actionQuery(CORE_CATALOG, action, outsideAsked({}, on), { ids: ["x"] }))
+  expect(actionQuery(CORE_CATALOG, "@matomezu/base:page-update", outsideAsked({}, page), { page: "o1" })).toMatchObject(
+    {
+      page: { page, folders: [] },
+    },
+  )
+  expect(ask("@matomezu/base:page-update", page).value).toBe(true)
+  expect(deniedBy(ask("@matomezu/base:page-update", { ...page, locked: true } as ItemPage))).toBe(LOCK)
+  // マークダウンのページに、紙に置くアクションは付かない
+  expect(ask("@matomezu/paper:item-place", testPage(MARKDOWN, "m1", { title: "m" })).value).not.toBe(true)
+  expect(actionQuery(CORE_CATALOG, "@matomezu/base:book-update", outsideAsked({}, page))).not.toHaveProperty("page")
 })

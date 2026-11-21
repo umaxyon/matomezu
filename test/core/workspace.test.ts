@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test"
-import { openedPage, panBy, select, setEditing, shownPageId } from "../../web/src/core/stage"
+import { HOME_ID } from "../../web/src/core/folders"
+import type { LibraryAndBooks } from "../../web/src/core/library"
+import { openedPage, openOutsidePage, panBy, select, setEditing, shownPageId } from "../../web/src/core/stage"
 import {
   close,
   currentStage,
@@ -112,10 +114,10 @@ describe("workspace", () => {
 
   test("ブックの一覧が変わると、無くなったブックを開いていたステージは閉じる。1 つも残らなければ NO_STAGES_LEFT", () => {
     const two = split(ws, "s2")
-    const left = followLibrary(CORE_CATALOG, two, {}, EMPTY)
+    const left = followLibrary(CORE_CATALOG, two, { books: {}, ...EMPTY })
     expect(left === NO_STAGES_LEFT ? left : left.stages.map(s => s.opened)).toEqual([null])
-    expect(followLibrary(CORE_CATALOG, ws, {}, EMPTY)).toBe(NO_STAGES_LEFT)
-    expect(followLibrary(CORE_CATALOG, two, { b1: book }, EMPTY)).toBe(two)
+    expect(followLibrary(CORE_CATALOG, ws, { books: {}, ...EMPTY })).toBe(NO_STAGES_LEFT)
+    expect(followLibrary(CORE_CATALOG, two, { books: { b1: book }, ...EMPTY })).toBe(two)
   })
 
   test("境目を動かすと左の幅の割合が変わり、端には寄り切らない。分割をやめても覚えていて、真ん中に戻せる", () => {
@@ -139,8 +141,8 @@ describe("workspace", () => {
     const stage = (w: ReturnType<typeof newWorkspace>) => w.stages[0]!
 
     test("ロックで今の道具が使えなくなり組の次の道具になると、その場の編集を終える", () => {
-      expect(toolOf(CORE_CATALOG, editing, "s1", { b2: open })).not.toBe(
-        toolOf(CORE_CATALOG, editing, "s1", { b2: locked }),
+      expect(toolOf(CORE_CATALOG, editing, "s1", { books: { b2: open }, ...EMPTY })).not.toBe(
+        toolOf(CORE_CATALOG, editing, "s1", { books: { b2: locked }, ...EMPTY }),
       )
       const after = followBook(CORE_CATALOG, editing, locked, open)
       expect(stage(after).editing).toBe("none")
@@ -153,9 +155,35 @@ describe("workspace", () => {
     })
 
     test("ブックの一覧が変わったときも、道具が替われば、その場の編集を終える", () => {
-      const after = followLibrary(CORE_CATALOG, editing, { b2: locked }, EMPTY, { b2: open })
+      const after = followLibrary(
+        CORE_CATALOG,
+        editing,
+        { books: { b2: locked }, ...EMPTY },
+        { books: { b2: open }, ...EMPTY },
+      )
       expect(after).not.toBe(NO_STAGES_LEFT)
       expect(stage(after as ReturnType<typeof newWorkspace>).editing).toBe("none")
+    })
+
+    test("開いているブックの外のページがロックされて道具が替わっても、その場の編集を終える。替わらなければ続く", () => {
+      const o1 = drawingPage("o1", { items: [box] })
+      const tables = (page: typeof o1): LibraryAndBooks => ({
+        books: {},
+        pages: { o1: page },
+        folders: {
+          [HOME_ID]: { folderRole: "home", id: HOME_ID, lineup: [{ kind: "page", id: "o1" }] },
+        },
+      })
+      const opened = mapStage(newWorkspace(CORE_CATALOG, null), "s1", s => openOutsidePage(CORE_CATALOG, s, o1))
+      const outside = mapStage(setTool(CORE_CATALOG, opened, "s1", "@matomezu/paper:reparent"), "s1", s =>
+        setEditing(select(s, ["a"]), "test:edit"),
+      )
+      const follow = (page: typeof o1) => {
+        const after = followLibrary(CORE_CATALOG, outside, tables(page), tables(o1))
+        return after === NO_STAGES_LEFT ? after : stage(after).editing
+      }
+      expect(follow({ ...o1, locked: true })).toBe("none")
+      expect(follow({ ...o1, title: "改名" })).toBe("test:edit")
     })
   })
 })

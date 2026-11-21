@@ -15,6 +15,7 @@ import {
 } from "../../../plugin-api/ui"
 import { LockToggle, useRecordEditLock } from "../../base/ui"
 import { WORKROOM_SUBJECT } from "../by"
+import { useWorkingOn } from "../current-ticket/useCurrentTickets"
 import { BookIcon } from "../icons"
 import { kit } from "../kit"
 import { PROJECT } from "../project"
@@ -73,6 +74,7 @@ function TicketBody({ ticket }: { ticket: Ticket }) {
   const locked = ticket.locked === true
   const canEdit = allowed.ok && !locked
   const markBodyEdited = useBodyUpdateLine(id)
+  const working = useWorkingOn(ticket)
 
   const edit = (patch: {
     name?: string
@@ -113,7 +115,7 @@ function TicketBody({ ticket }: { ticket: Ticket }) {
             <div className={styles.assignees}>
               <span className={styles.factName}>{t("Assignees")}</span>
               <span className={styles.assigneeList}>
-                {assignees.length > 0 ? <AssigneeBirds workrooms={assignees} /> : t("No assignees")}
+                {assignees.length > 0 ? <AssigneeBirds workrooms={assignees} working={working} /> : t("No assignees")}
               </span>
             </div>
             <div className={styles.steps}>

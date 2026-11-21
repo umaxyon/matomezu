@@ -9,7 +9,7 @@ import {
   READY_MARK,
   readiness,
   rejoinPrompt,
-  wslPath,
+  workroomOf,
 } from "../../scripts/restart-subs"
 
 test("サブの名前とモデルを読む", () => {
@@ -17,11 +17,6 @@ test("サブの名前とモデルを読む", () => {
   expect(parseTarget("sub4_work")).toEqual({ workroom: "sub4_work" })
   expect(parseTarget("sub6:claude-fable-5-2")).toEqual({ workroom: "sub6_work", model: "claude-fable-5-2" })
   expect(parseTarget("main_manager")).toEqual({ workroom: "main_manager" })
-})
-
-test("Orca の WSL のパスを直す", () => {
-  expect(wslPath("\\\\wsl.localhost\\Ubuntu-24.04\\home\\u\\feat-work4")).toBe("/home/u/feat-work4")
-  expect(wslPath("/home/u/x")).toBe("/home/u/x")
 })
 
 test("会話の記録のフォルダは英数字以外を - にする", () => {
@@ -84,4 +79,51 @@ test("join が参加者 id を返したかは、時点より後の join の答�
   expect(joinedSince([...old, ...requested].join("\n"), since)).toBe(false)
   const joined = [call("2026-11-21T10:00:05Z", "c"), result("2026-11-21T10:00:06Z", "c", '{"participant":"p2"}')]
   expect(joinedSince([...old, ...joined].join("\n"), since)).toBe(true)
+})
+
+test("参加しているワークルームは、フックが足した知らせの最後の物、無ければ参加者 id を返した最後の join で読む。ツールの答えの中の同じ文は読まない", () => {
+  const told = (text: string) =>
+    JSON.stringify({
+      type: "attachment",
+      attachment: { type: "hook_additional_context", content: [`${text}\nThe user lets you exchange messages`] },
+    })
+  const call = (id: string, workroom: string) =>
+    JSON.stringify({
+      type: "assistant",
+      message: {
+        content: [{ type: "tool_use", id, name: "mcp__plugin_matomezu_matomezu__join", input: { workroom } }],
+      },
+    })
+  const result = (id: string, text: string) =>
+    JSON.stringify({
+      type: "user",
+      message: { content: [{ type: "tool_result", tool_use_id: id, content: [{ type: "text", text }] }] },
+    })
+  expect(workroomOf([call("a", "sub1_work"), result("a", '{"requested":"r1"}')].join("\n"))).toBeUndefined()
+  expect(workroomOf([call("a", "sub1_work"), result("a", '{"participant":"p1"}')].join("\n"))).toBe("sub1_work")
+  expect(
+    workroomOf(
+      [
+        told("You joined matomezu. Workroom name: sub2_work"),
+        call("a", "sub1_work"),
+        result("a", '{"participant":"p1"}'),
+      ].join("\n"),
+    ),
+  ).toBe("sub2_work")
+  expect(
+    workroomOf(
+      [
+        told("You joined matomezu. Workroom name: sub2_work"),
+        told("matomezu に参加しました。ワークルーム名: sub3_work"),
+      ].join("\n"),
+    ),
+  ).toBe("sub3_work")
+  expect(
+    workroomOf(
+      [
+        told("You joined matomezu. Workroom name: sub2_work"),
+        result("x", "Joined matomezu. Workroom name: sub9_work"),
+      ].join("\n"),
+    ),
+  ).toBe("sub2_work")
 })

@@ -47,17 +47,17 @@ test("書庫が変わると、ブックの外のページを開いたステー�
   const plain = { ...ws, stages: ws.stages.map(open) }
   const shows = { ...ws, stages: plain.stages.map(s => (s.id === "s2" ? select(s, ["gone"]) : s)) }
   const books = { b1: book }
-  expect(followLibrary(CORE_CATALOG, plain, books, library())).toBe(plain)
+  expect(followLibrary(CORE_CATALOG, plain, { books, ...library() })).toBe(plain)
   // 残っていれば開いたまま。ページに無い物は選択から外す
-  const kept = followLibrary(CORE_CATALOG, shows, books, library({ ...x1, title: "改名" }))
+  const kept = followLibrary(CORE_CATALOG, shows, { books, ...library({ ...x1, title: "改名" }) })
   expect(kept === NO_STAGES_LEFT ? kept : kept.stages.map(s => [shownPageId(s.opened), s.selection])).toEqual([
     ["p1", []],
     ["x1", []],
   ])
   for (const gone of [library(x1, true), { pages: {}, folders: library().folders }]) {
-    const left = followLibrary(CORE_CATALOG, shows, books, gone)
+    const left = followLibrary(CORE_CATALOG, shows, { books, ...gone })
     expect(left === NO_STAGES_LEFT ? left : left.stages.map(s => shownPageId(s.opened))).toEqual(["p1"])
   }
   // ブックも無くなれば、ステージは 1 つも残らない
-  expect(followLibrary(CORE_CATALOG, shows, {}, library(x1, true))).toBe(NO_STAGES_LEFT)
+  expect(followLibrary(CORE_CATALOG, shows, { books: {}, ...library(x1, true) })).toBe(NO_STAGES_LEFT)
 })

@@ -27,6 +27,8 @@ type mcpCmd struct {
 	Session string `kong:"-"`
 	// DevDir は、配る版が開発のリポジトリの中で呼ばれたかを見るフォルダ（AI が開いているプロジェクト）。空なら今いるフォルダ
 	DevDir string `kong:"-"`
+	// AdeWorkspace は、join のときに、AI が動いている ADE のワークスペースの名前を読む（clients/ade の部品を、AI のプログラムごとのコマンドが入れる。nil なら読まない）
+	AdeWorkspace func() string `kong:"-"`
 }
 
 func (c *mcpCmd) Run() error {
@@ -49,7 +51,7 @@ func (c *mcpCmd) Run() error {
 			}
 		}()
 	}
-	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version, envName(), gitBranch, host, session, sessionPid(c.SessionEndsWith, host), sessionPidSpace(c.SessionEndsWith), mcp.Meta{Session: c.MetaSession, Model: c.MetaModel}, devNotUsedNote(c.devDir()))
+	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version, envName(), gitBranch, c.AdeWorkspace, host, session, sessionPid(c.SessionEndsWith, host), sessionPidSpace(c.SessionEndsWith), mcp.Meta{Session: c.MetaSession, Model: c.MetaModel}, devNotUsedNote(c.devDir()))
 }
 
 // devDir は、配る版が開発のリポジトリの中で呼ばれたかを見るフォルダ

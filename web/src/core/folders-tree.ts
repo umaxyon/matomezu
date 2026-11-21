@@ -236,6 +236,12 @@ export function permissionFoldersOf(folders: Folders, entry: string): Folder[] {
   return open < 0 ? over : over.slice(0, open)
 }
 
+// ブックの外のページ page を、そのページそのもので問うときの相手（そのページと、認可ステップに見せるフォルダの列）
+export const outsideAsked = (folders: Folders, page: ItemPage): { page: ItemPage; folders: Folder[] } => ({
+  page,
+  folders: permissionFoldersOf(folders, page.id),
+})
+
 // ページ page を持っているブックの id（どのブックにも入っていなければ undefined）
 export const bookIdOf = (folders: Folders, page: string): string | undefined =>
   foldersOver(folders, page).find(f => f.folderRole === "book")?.id
@@ -253,21 +259,33 @@ export type Outermost = StageEntry | typeof NO_OUTERMOST
 // id の物のステージエントリ: ブックか、ブックの中の物ならそのブック。ブックの外のバインダか、その中のページならバインダ。ブックの外の、バインダに入っていないページならそのページ。
 // フォルダ・書庫ホーム・ゴミ箱・表に無い id・どのフォルダにも入っていないページは NO_OUTERMOST。ゴミ箱の中の物も、外と同じに引く（bookIdOf と同じ）
 export function outermostOf({ pages, folders }: Library, id: string): Outermost {
+  const entry = stageEntryByFolders(folders, id)
+  if (entry === NO_OUTERMOST || entry.kind === "book" || folders[id]?.folderRole === "binder") return entry
+  return Object.hasOwn(pages, id) ? entry : NO_OUTERMOST
+}
+
+// フォルダの表だけで決める、id の物のステージエントリ（id がブックでもバインダでもないとき、ページの行を持つかは見ず、ページとして引く。どのフォルダにも入っていなければ NO_OUTERMOST）
+function stageEntryByFolders(folders: Folders, id: string): Outermost {
   const row = folders[id]
   if (row?.folderRole === "book") return { kind: "book", id }
   const over = foldersOver(folders, id)
   const book = over.find(f => f.folderRole === "book")
   if (book) return { kind: "book", id: book.id }
   if (row?.folderRole === "binder") return { kind: "binder", id }
-  if (!Object.hasOwn(pages, id)) return NO_OUTERMOST
   const [near] = over
   if (!near) return NO_OUTERMOST
   return near.folderRole === "binder" ? { kind: "binder", id: near.id } : { kind: "page", id }
 }
 
+// ページ page が、ステージで開けるブックの外のページの置き場所に在るか: ブックにもバインダにも入っておらず、フォルダ（か書庫ホーム）に入っていて、ゴミ箱の中でない。
+// フォルダの表だけで決める（page がページの行を持つかは見ない。持つかも確かめるのは outsidePageIn）
+export function atOutsidePagePlace(folders: Folders, page: string): boolean {
+  const entry = stageEntryByFolders(folders, page)
+  if (entry === NO_OUTERMOST || entry.kind !== "page" || folders[page] !== undefined) return false
+  return !inTrash(folders, page)
+}
+
 // ステージで開ける、ブックの外のページ: id がページで、そのステージエントリがそのページ自身（ブックにもバインダにも入っていない）で、ゴミ箱の中でない。当たらなければ undefined
 export function outsidePageIn(library: Library, id: string): ItemPage | undefined {
-  const o = outermostOf(library, id)
-  if (o === NO_OUTERMOST || o.kind !== "page" || inTrash(library.folders, id)) return undefined
-  return pageIn(library.pages, id)
+  return atOutsidePagePlace(library.folders, id) ? pageIn(library.pages, id) : undefined
 }

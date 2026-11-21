@@ -4,12 +4,12 @@
 // 右クリックのメニューのコマンド mark-new（押した物のそばに種類を選ぶスタンドを出す）もここ
 import { z } from "zod"
 import { type Annotation, anchorsOf } from "../../../core/annotation"
-import { NO_BOOK } from "../../../store/commands/def"
 import { BIRD_TITLES, type Bird } from "../birds"
 import { startAnchorTarget } from "../context-menu/anchor-targets"
 import { kit } from "../kit"
 import { AnchorsArg } from "../utils/anchors"
 import { freshId } from "../utils/ids"
+import { hasOpenedPage } from "../utils/opened-page"
 import { MARK_PICKER } from "./states"
 
 // マークの種類。title は画面で見せる名前（文言の鍵）、ai は AI に伝える呼び方（利用者が旗の色や鳥の色・名前で呼ぶので、どれも書く）
@@ -115,5 +115,5 @@ export const MARK_NEW = kit.defineCommand({
   title: "Show to AI",
   performs: [MARK_ADD.id],
   run: startAnchorTarget(MARK_PICKER),
-  when: ctx => ctx.book !== NO_BOOK,
+  when: hasOpenedPage,
 })

@@ -3,10 +3,12 @@
 
 import { z } from "zod"
 import { translate } from "../core/i18n/i18n"
+import { sourceOf } from "../core/record-source"
 import { langOf, restoreSettings } from "../core/settings"
 import { WARNINGS, warning, warningText } from "../core/warnings"
-import { JOINED_MESSAGE, VISITOR_JOINED_MESSAGE } from "../plugins/base"
+import { JOINED_MESSAGE, VISITOR_JOINED_MESSAGE, workTitleIn } from "../plugins/base"
 import type { Assembled } from "../store/plugin"
+import { hostSource } from "./records"
 
 // engine.ts の matomezuJoinedText の中身
 export function joinedText(of: Assembled, settings: string, workroom: string): string {
@@ -24,6 +26,15 @@ export function visitorJoinedText(of: Assembled, settings: string): string {
     of.catalog.core.messages,
     langOf(of.catalog.core, restoreSettings(JSON.parse(settings)), "en"),
     VISITOR_JOINED_MESSAGE,
+  )
+}
+
+// engine.ts の matomezuWorkTitle の中身: ワークルーム（id と名前）に参加しているセッションの作業名（WorkTitle の JSON）。レコードはホストの読み口から引く
+export function workTitle(of: Assembled, settings: string, workroom: string, name: string): string {
+  // ホストの読み口が無ければ、レコードが無い物として作る（設定が止めていれば off のまま）
+  const source = hostSource({}) ?? sourceOf({})
+  return JSON.stringify(
+    workTitleIn(of.catalog.core, restoreSettings(JSON.parse(settings)), source, { id: workroom, name }),
   )
 }
 

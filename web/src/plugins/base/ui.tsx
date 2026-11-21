@@ -23,6 +23,7 @@ import {
   LibraryNewBookDialog,
   LibraryNewFolderDialog,
   LibraryRenameDialog,
+  PAGE_PLACE,
   UNREADABLE_NOTICE,
 } from "./library/ui"
 import type { MailActionsProps } from "./mail/ui"
@@ -121,7 +122,7 @@ export {
 export {
   ALIGN_ICONS,
   useAligns,
-  useBookOf,
+  useOutermostOf,
   usePageTheme,
   usePageThemes,
   useSwatches,
@@ -149,7 +150,15 @@ export {
 } from "./markdown/ui"
 export { useDrawnMinimap } from "./minimap/ui"
 export { ANNOTATION_ICON, type AnnotationIconProps, defineAnnotationIcon } from "./outbox/ui"
-export { PageProblemsView, type PaperValue, useAddPage, usePageProblems, usePaperControls } from "./page-tabs/ui"
+export {
+  PageProblemsView,
+  PageSettingsDialogView,
+  type PageSettingsDialogViewProps,
+  type PaperValue,
+  useAddPage,
+  usePageProblems,
+  usePaperControls,
+} from "./page-tabs/ui"
 export {
   BirdFaceView,
   useVisitorRows,
@@ -291,6 +300,7 @@ export const BASE_UI = definePluginUi(BASE, {
     OPEN_GUIDE,
     STARTUP_ERROR,
     UNREADABLE_NOTICE,
+    PAGE_PLACE,
     PROPOSAL_ACTIONS,
     FULL_TEXT_MODE,
     WIDE_SEARCH_TAB,
@@ -411,6 +421,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:open-guide": typeof OPEN_GUIDE
     "@matomezu/base:startup-error": typeof STARTUP_ERROR
     "@matomezu/base:unreadable-notice": typeof UNREADABLE_NOTICE
+    "@matomezu/base:page-place": typeof PAGE_PLACE
     "@matomezu/base:proposal-actions": typeof PROPOSAL_ACTIONS
     "@matomezu/base:wide-search-full-text": typeof FULL_TEXT_MODE
     "@matomezu/base:wide-search": typeof WIDE_SEARCH_TAB

@@ -260,6 +260,17 @@ func (o Options) aiAwaiting(w http.ResponseWriter, _ *http.Request) {
 
 // aiTalked は、AI のターンの始まりを受ける（AI のフックが知らせる。{"sessionId", "host", "candidates", "woken", "prompt"}）。
 // ターンの入力 prompt が通り道に貸した知らせの文（幾つかを改行でつないだ物も。WokenBy）なら woken と同じ。candidates が無く woken でなければ利用者トリガートークのときに行うアクションを行い、入力が貸した知らせの文（幾つかを改行でつないだ物も。WokenBy）なら、利用者の言葉でないと伝える文（wokenText）を添える。有れば会話のセッションの結びつけだけを行う（talk_session.go）
+// aiWorkTitle は、セッションの作業名を答える（読むだけ。ターンの終わりのフックが、ADE のワークスペースの表示名に書くのに読む）
+func (o Options) aiWorkTitle(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		SessionID string `json:"sessionId"`
+	}
+	if r.ContentLength != 0 && !readJSON(w, r, &req) {
+		return
+	}
+	writeJSON(w, map[string]string{"workTitle": o.Hub.WorkTitle(req.SessionID)})
+}
+
 func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		SessionID  string   `json:"sessionId"`

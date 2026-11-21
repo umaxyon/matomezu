@@ -1,4 +1,4 @@
-// ステージのビュー（ウィジェット book-view）: ステージ（core/stage.ts）を読んで、与えられた枠の中に開いたブックを、レイヤー（スロット book-layers。
+// ステージのビュー（ウィジェット book-view）: ステージ（core/stage.ts）を読んで、与えられた枠の中に開いた物（ブックか、ブックの外のページ）を、レイヤー（スロット book-layers。
 // 紙の面のレイヤー・そのタイプのビューを描くレイヤーなど）を並べた順に下から重ねて描く。開いているページはそのページのテーマの値と文字の色の値（CSS 変数。設定のダイアログの下書きを重ねる）で描く（book-look/use-page-look-style.tsx）。何も開いていなければ、ステージがそれ 1 つのときだけ「書庫を開く」と「スクリーンを閉じる」のボタンを真ん中に出す。
 // 紙をずらす道具（pans）の間は、ステージの中のどこでもポインタを手にする（中のアイテムのカーソルより強い。ドラッグ中は握った手）。
 // 測った大きさと、ドラッグ（ハンドの道具のとき）・ホイール（紙をずらさない道具のときは除く）で動いた量を、そのまま store の操作に渡す（ずらす量の計算はステージの側）。
@@ -14,7 +14,7 @@ import { useMessages } from "../../../ui/i18n"
 import { Slot } from "../../../ui/Slot"
 import { useStageId } from "../../../ui/scope"
 import { useCatalog, useMatomezuState, useStoreActions } from "../../../ui/store-context"
-import { useBook, useStage } from "../../../ui/view-hooks"
+import { useStage } from "../../../ui/view-hooks"
 import { usePageLookStyle } from "../book-look/use-page-look-style"
 import { CornersProvider } from "../corner-status/corner"
 import { kit } from "../kit"
@@ -45,7 +45,6 @@ export const StageView = memo(function StageView() {
 function StageBody({ id }: { id: string }) {
   const stage = useStage() // パンの量を読まない（パンのたびに描き直さない）
   const isCurrent = useMatomezuState(s => workspaceOf(s.window, id).current === id)
-  const book = useBook()
   const catalog = useCatalog().core
   const tool = stage?.tool ?? null
   const pans = stage?.pans ?? false // ドラッグで紙をずらすか（紙をずらす道具の間と、印刷プレビューの間）
@@ -133,7 +132,7 @@ function StageBody({ id }: { id: string }) {
       onPointerCancel={endDrag}
       onWheel={onWheel}
     >
-      {stage.opened && book ? <BookContent stage={id} previewing={inPreview} /> : <EmptyStage stage={id} />}
+      {stage.opened ? <BookContent stage={id} previewing={inPreview} /> : <EmptyStage stage={id} />}
     </section>
   )
 }

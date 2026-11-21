@@ -12,7 +12,7 @@ import {
   UNREADABLE_ID,
   type UnreadableRef,
 } from "../../../core/folders"
-import { foldersOver, inTrash } from "../../../core/folders-tree"
+import { atOutsidePagePlace, foldersOver, inTrash } from "../../../core/folders-tree"
 import type { UnreadableItem } from "../../../core/folders-unreadable"
 import type { MovedIfOff } from "../../../core/unreadable"
 import { restoreTargetOf } from "./entries"
@@ -233,11 +233,19 @@ export function pathTo(folders: Folders, folder: string): string[] {
   ]
 }
 
-// 行を開いたとき（2 回押し）の行き先: フォルダは中へ入る、ブックとその中のページ・バインダはブックを窓に出す。
-// ゴミ箱の中の物・読めない物・ブックの外のページとバインダは開かない（NOT_OPENED）
+// ブックの外のページ page の置き場所: 書庫ホームから、そのページの入っているフォルダまでの、フォルダの id の列（書庫ホームに直に在れば、書庫ホームだけ）。
+// ステージで開けるブックの外のページの置き場所に無ければ（core/folders-tree.ts の atOutsidePagePlace）空
+export function outsidePagePlaceOf(folders: Folders, page: string): string[] {
+  const holder = atOutsidePagePlace(folders, page) ? foldersOver(folders, page)[0] : undefined
+  return holder ? pathTo(folders, holder.id) : []
+}
+
+// 行を開いたとき（2 回押し）の行き先: フォルダは中へ入る、ブックとその中のページ・バインダはブックを窓に出す、ブックの外のページはそのページを窓に出す。
+// ゴミ箱の中の物・読めない物・ブックの外のバインダとその中のページは開かない（NOT_OPENED）
 export type OpenTarget =
   | { to: "folder"; folder: string }
   | { to: "book"; book: string; page?: string; binder?: string }
+  | { to: "page"; page: string }
   | typeof NOT_OPENED
 export const NOT_OPENED = "not-opened"
 
@@ -246,10 +254,11 @@ export function openTargetOf(folders: Folders, row: Pick<LibraryRow, "id" | "kin
   if (row.kind === "folder") return { to: "folder", folder: row.id }
   if (row.kind === "book") return { to: "book", book: row.id }
   const book = foldersOver(folders, row.id).find(f => f.folderRole === "book")
-  if (!book) return NOT_OPENED
-  return row.kind === "page"
-    ? { to: "book", book: book.id, page: row.id }
-    : { to: "book", book: book.id, binder: row.id }
+  if (book)
+    return row.kind === "page"
+      ? { to: "book", book: book.id, page: row.id }
+      : { to: "book", book: book.id, binder: row.id }
+  return row.kind === "page" && atOutsidePagePlace(folders, row.id) ? { to: "page", page: row.id } : NOT_OPENED
 }
 
 // 書庫の画面が、中身を並べて見せているフォルダ: 右の枠で開いているフォルダ opened（ゴミ箱を開いていればゴミ箱）と、ツリーで中を出しているフォルダ

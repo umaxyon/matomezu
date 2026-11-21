@@ -130,6 +130,7 @@ const giveCookie = async (host: Host, context: BrowserContext) => {
 export const test = base.extend<
   {
     books: readonly object[]
+    outsidePages: readonly object[]
     enabledPlugins: readonly string[]
     reset: undefined
     withCookie: undefined
@@ -173,6 +174,8 @@ export const test = base.extend<
   baseURL: async ({ host }, use) => use(host.url),
   // テストが始まるときに常駐に置くブック
   books: [SAMPLE_BOOKS, { option: true }],
+  // テストが始まるときに常駐の書庫ホームに置く、ブックの外のページ
+  outsidePages: [[], { option: true }],
   // テストごとのブラウザ（context）を、常駐の画面 cookie を持たせる
   withCookie: [
     async ({ host, context }, use) => {
@@ -191,11 +194,11 @@ export const test = base.extend<
   },
   page: async ({ page }, use) => use(startingAtFirstBook(page)),
   reset: [
-    async ({ host, books, enabledPlugins }, use) => {
+    async ({ host, books, outsidePages, enabledPlugins }, use) => {
       const done = await fetch(`${host.url}/api/reset-for-test`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ books, enabledPlugins }),
+        body: JSON.stringify({ books, outsidePages, enabledPlugins }),
       })
       if (!done.ok) throw new Error(`reset-for-test: ${done.status} ${await done.text()}`)
       await use(undefined)

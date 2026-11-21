@@ -9,6 +9,7 @@
     ],
     "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "matomezu claude-code hook prompt" }] }],
     "SessionStart": [{ "hooks": [{ "type": "command", "command": "matomezu claude-code hook model" }] }],
+    "Stop": [{ "hooks": [{ "type": "command", "command": "matomezu claude-code hook stop" }] }],
     "PostModelSwitch": [{ "hooks": [{ "type": "command", "command": "matomezu claude-code hook model" }] }]
   }
 }

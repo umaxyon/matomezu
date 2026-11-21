@@ -194,7 +194,7 @@ var migrations = []string{
 	`SELECT 1;`,
 	// 書庫ホームとフォルダの直下で名前が重なるエントリの、並びの後ろに在る方の名前に番号を足す（Go の移し替え。migrate_titles.go）
 	`SELECT 1;`,
-	// ワークルームの今のチケットの記録を捨てる（今のチケットは、チケットの担当とレーンから決める。Go の移し替え。migrate_current_ticket.go）
+	// ワークルームのチケットを記録していた古い種類を捨てる（Go の移し替え。migrate_current_ticket.go）
 	`SELECT 1;`,
 	// チケットに規模（volume）を、プロジェクトの cardShows に volume を足す（Go の移し替え。migrate_ticket_volume.go）
 	`SELECT 1;`,
@@ -214,6 +214,10 @@ var migrations = []string{
 	`SELECT 1;`,
 	// 参加の要求の郵便（種類 join-request）を消す（要求は郵便にせず、要求中の参加者をしおりに出すため。Go の移し替え。migrate_join_request_mail.go）
 	`SELECT 1;`,
+	// カレントワークのレコードの無いワークルームに、それまで画面がカレントチケットとして先頭に見せていたチケットを書く（Go の移し替え。migrate_current_work.go）
+	`SELECT 1;`,
+	// 要求中の参加者が持つ orcaWorkspace を adeWorkspace（ADE のワークスペース）に名前を替える（Go の移し替え。migrate_participant_ade.go）
+	`SELECT 1;`,
 }
 
 // goMigrations は、SQL だけでは書けない移し替え（JSON の中をたどる物）。鍵は migrations の番号（0 から）で、その SQL を行ったあと、同じトランザクションの中で行う
@@ -230,6 +234,8 @@ var goMigrations = map[int]func(tx *sql.Tx) error{
 	30: addUnreadableFolder,
 	32: renameIDs,
 	33: dropJoinRequestMail,
+	34: fillCurrentWorks,
+	35: participantAdeWorkspaces,
 }
 
 type sqliteStorage struct {

@@ -3,7 +3,7 @@
 // ミニマップを押すと、組の紙をずらす道具に替える
 import type { ToolId } from "../../../core/catalog"
 import type { CoreCatalog } from "../../../core/core-catalog"
-import type { Books } from "../../../core/library"
+import type { LibraryAndBooks } from "../../../core/library"
 import { toolDef, toolSetOf, toolsIn } from "../../../core/tools"
 import { usableIn, type Workspace } from "../../../core/workspace"
 import { kit } from "../kit"
@@ -26,10 +26,15 @@ export const SELECT_TOOL = kit.defineTool({ id: "select", title: "Select tool", 
 export const HAND_TOOL = kit.defineTool({ id: "hand", title: "Hand tool", pans: true })
 
 // ステージ id の道具の組の、使えない道具（回す順）
-export function unusableTools(catalog: CoreCatalog, ws: Workspace, id: string, books: Books): readonly ToolId[] {
+export function unusableTools(
+  catalog: CoreCatalog,
+  ws: Workspace,
+  id: string,
+  from: LibraryAndBooks,
+): readonly ToolId[] {
   const stage = ws.stages.find(s => s.id === id)
   const set = stage ? toolSetOf(catalog, stage) : null
   if (!stage || !set) return []
-  const usable = usableIn(catalog, stage, books)
+  const usable = usableIn(catalog, stage, from)
   return toolsIn(catalog, set).filter(tool => !usable(tool))
 }

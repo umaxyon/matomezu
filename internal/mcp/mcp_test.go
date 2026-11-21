@@ -84,8 +84,14 @@ var testMeta = Meta{Session: []string{"/x.ai~1session"}, Model: "/x-turn/model"}
 // talkOn は、git のブランチを branch で読む MCP に、頼みを 1 行ずつ送り、答えを返す
 func talkOn(t *testing.T, api API, branch func() string, lines ...string) []map[string]any {
 	t.Helper()
+	return talkAt(t, api, branch, nil, lines...)
+}
+
+// talkAt は、talkOn に、join のときに ADE のワークスペースの名前を adeWorkspace で読む MCP で
+func talkAt(t *testing.T, api API, branch, adeWorkspace func() string, lines ...string) []map[string]any {
+	t.Helper()
 	var out bytes.Buffer
-	if err := Serve(strings.NewReader(strings.Join(lines, "\n")+"\n"), &out, api, "v1", "wsl-linux", branch, "4242", "HS1", "", "", testMeta, ""); err != nil {
+	if err := Serve(strings.NewReader(strings.Join(lines, "\n")+"\n"), &out, api, "v1", "wsl-linux", branch, adeWorkspace, "4242", "HS1", "", "", testMeta, ""); err != nil {
 		t.Fatal(err)
 	}
 	var answers []map[string]any
@@ -104,7 +110,7 @@ func talkOn(t *testing.T, api API, branch func() string, lines ...string) []map[
 func TestInitializeAddsTheNoteToTheInstructions(t *testing.T) {
 	for _, note := range []string{"", "Not the development server."} {
 		var out bytes.Buffer
-		if err := Serve(strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`+"\n"), &out, &fakeAPI{}, "v1", "wsl-linux", func() string { return "" }, "4242", "", "", "", testMeta, note); err != nil {
+		if err := Serve(strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`+"\n"), &out, &fakeAPI{}, "v1", "wsl-linux", func() string { return "" }, nil, "4242", "", "", "", testMeta, note); err != nil {
 			t.Fatal(err)
 		}
 		var a struct {
@@ -152,9 +158,10 @@ func TestToolsDoNotDependOnTheCatalog(t *testing.T) {
 
 func TestJoinRulesAndRequest(t *testing.T) {
 	api := &fakeAPI{answer: `{"ok":true,"participant":"p7"}`}
-	got := talk(t, api,
+	// ADE のワークスペースの名前は AI が渡さず、MCP が読んで添える
+	got := talkAt(t, api, func() string { return "" }, func() string { return "5.M-0167 作業" },
 		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"join_rules","arguments":{}}}`,
-		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"join","arguments":{"model":"unknown","link":"L1","orcaWorkspace":"M-0143 Codex"},"_meta":{"sessionId":"S1","x-turn":{"model":"gpt-6"}}}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"join","arguments":{"model":"unknown","link":"L1"},"_meta":{"sessionId":"S1","x-turn":{"model":"gpt-6"}}}}`,
 	)
 	if textOf(got[0]) != `{"rules":"Request to join from this conversation."}` || !ReadOnly("join_rules") {
 		t.Fatalf("join_rules = %v", got[0])
@@ -162,7 +169,7 @@ func TestJoinRulesAndRequest(t *testing.T) {
 	if !slices.Equal(api.gets, []string{"api/ai/join-rules"}) || api.sent[0] != "" {
 		t.Fatalf("join_rules calls = %v, participants = %v", api.gets, api.sent)
 	}
-	want := `api/ai/join {"ai":"unknown","env":"wsl-linux","link":"L1","model":"gpt-6","orcaWorkspace":"M-0143 Codex","sessionId":"S1","sessionName":""}`
+	want := `api/ai/join {"adeWorkspace":"5.M-0167 作業","ai":"unknown","env":"wsl-linux","link":"L1","model":"gpt-6","sessionId":"S1","sessionName":""}`
 	if !slices.Equal(api.posts, []string{want}) || textOf(got[1]) != `{"participant":"p7"}` {
 		t.Fatalf("join = %v, posts = %v", got[1], api.posts)
 	}
@@ -267,7 +274,7 @@ func TestBranchAndModelGoWithTheParticipantOrSessionAndHostAlways(t *testing.T) 
 	}
 	bare := &fakeAPI{answer: `{"ok":true}`}
 	var out bytes.Buffer
-	if err := Serve(strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"view","arguments":{}}}`+"\n"), &out, bare, "v1", "wsl-linux", func() string { return "main" }, "4242", "", "", "", testMeta, ""); err != nil {
+	if err := Serve(strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"view","arguments":{}}}`+"\n"), &out, bare, "v1", "wsl-linux", func() string { return "main" }, nil, "4242", "", "", "", testMeta, ""); err != nil {
 		t.Fatal(err)
 	}
 	if h := bare.headers[0]; len(h) != 1 || h.Get("X-Matomezu-Host") != "4242" {
@@ -599,7 +606,7 @@ func TestTheSessionPidAndSpaceGoWhenSaid(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			api := &fakeAPI{answer: `{"ok":true,"participant":"p7"}`}
 			var out bytes.Buffer
-			if err := Serve(strings.NewReader(line+"\n"), &out, api, "v1", "wsl-linux", func() string { return "" }, "4242", "HS1", c.pid, c.space, Meta{}, ""); err != nil {
+			if err := Serve(strings.NewReader(line+"\n"), &out, api, "v1", "wsl-linux", func() string { return "" }, nil, "4242", "HS1", c.pid, c.space, Meta{}, ""); err != nil {
 				t.Fatal(err)
 			}
 			if h := api.headers[0]; h.Get("X-Matomezu-Session-Pid") != c.pid || h.Get("X-Matomezu-Session-Pid-Space") != c.space || h.Get("X-Matomezu-Host") != "4242" {

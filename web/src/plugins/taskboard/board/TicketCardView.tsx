@@ -4,6 +4,7 @@
 // 押すとチケットスクリーンを開く（上下に分けて見せていれば閉じる。開き方は useOpenTicket の card）。上下に分けて見せているチケットのカードは色を付ける（data-open）。
 // チケットカードには data-card（チケットの id）を付ける
 import { useMessages, usePluginState } from "../../../plugin-api/ui"
+import { useWorkingOn } from "../current-ticket/useCurrentTickets"
 import { kit } from "../kit"
 import type { CardShows, CardSize } from "../project"
 import type { Ticket } from "../ticket"
@@ -42,6 +43,7 @@ export function TicketCardView({
   assignees: readonly WorkroomRecord[]
 }) {
   const opener = useOpenTicket()
+  const working = useWorkingOn(ticket)
   const visit = usePluginState(kit, CARD_VISIT)
   const lit = visit?.phase === "visiting" && visit.ticket === ticket.id
   const show = () => opener.card(ticket.id)
@@ -73,7 +75,7 @@ export function TicketCardView({
         <>
           {assignees.length > 0 ? (
             <span className={styles.assignee}>
-              <AssigneeStack rooms={assignees} />
+              <AssigneeStack rooms={assignees} working={working} />
             </span>
           ) : null}
           <span className={styles.cardId}>{ticketLabel(prefix, ticket.number)}</span>

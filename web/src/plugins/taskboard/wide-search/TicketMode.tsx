@@ -28,6 +28,7 @@ import {
   NO_TAGS,
   searchTerms,
   type TicketFilter,
+  ticketHits,
   ticketIdsOf,
   toggled,
 } from "./filter"
@@ -80,10 +81,12 @@ export function TicketMode({ term, setTerm }: WideSearchModeProps) {
       return
     }
     const timer = setTimeout(() => {
-      void searchAll(search, words).then(
-        ids => {
+      const terms = searchTerms(words)
+      void searchAll(search, terms).then(
+        found => {
           if (n !== latest.current) return
           setFailed(false)
+          const ids = ticketHits(found, terms, tickets, allProjects)
           // 戻した言葉で問い合わせ直した答えは、絞りがその言葉のまま残っているときだけ入れる（その間に解かれた絞りを戻さない）
           if (again) update(now => (now?.term === words ? { ...now, hits: ids } : now))
           else change(now => ({ ...now, term: words, hits: ids }))
@@ -200,8 +203,7 @@ function Group({ title, sub, children }: { title: string; sub?: boolean; childre
 }
 
 // チケットとチケット履歴の両方から言葉を探し、当たったチケットの id を返す（上限で切れたら、続きも全部取る）
-async function searchAll(search: ReturnType<typeof useWideSearch>, words: string): Promise<string[]> {
-  const terms = searchTerms(words)
+async function searchAll(search: ReturnType<typeof useWideSearch>, terms: string[]): Promise<string[]> {
   const hits = []
   for (let offset: number | undefined = 0; offset !== undefined; ) {
     const answer = await search({

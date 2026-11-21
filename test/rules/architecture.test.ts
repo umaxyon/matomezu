@@ -329,7 +329,7 @@ const GO_ALLOWED: Record<string, readonly string[]> = {
   aiwire: [],
 }
 
-test("Go のパッケージは internal の下と、実行ファイルの入口（cmd/matomezu）と埋め込みの画面（web）と、AI のプログラムごとの部品（clients/<AI の名前>）だけ。web と clients は matomezu のほかのパッケージを読まず、clients を読むのは cmd/matomezu だけ", () => {
+test("Go のパッケージは internal の下と、実行ファイルの入口（cmd/matomezu）と埋め込みの画面（web）と、AI のプログラムと ADE ごとの部品（clients/<AI の名前>・clients/ade/<ADE の名前>）だけ。web と clients は matomezu のほかのパッケージを読まず、clients を読むのは cmd/matomezu だけ", () => {
   const tops = readdirSync(ROOT, { withFileTypes: true })
     .filter(e => e.isDirectory() && !e.name.startsWith(".") && !["node_modules", "internal"].includes(e.name))
     .map(e => e.name)

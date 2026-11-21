@@ -59,7 +59,7 @@ export function RightSidePanel() {
       const target = e.target instanceof Element ? e.target : null
       if (!stage || !target) return
       const s = read()
-      const tool = toolOf(catalog, workspaceOf(s.window, stage), stage, s.books)
+      const tool = toolOf(catalog, workspaceOf(s.window, stage), stage, s)
       const inside = ref.current?.contains(target) ?? false
       const st = stageIn(s.window, stage)
       const pans = !!st && stageView(catalog, st, tool).pans // 紙をずらしているか（ずらす道具の間と、印刷プレビューの間）
