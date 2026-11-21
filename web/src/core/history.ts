@@ -2,10 +2,9 @@
 // AI とほかの窓の変更は、まだ見ていない画面の履歴の段として store が溜め、変えた物が見えたら時刻の位置に差し込む
 import type { Folder, Folders, Library, PageRow, TableChanges } from "./folders"
 import { foldersOver } from "./folders-tree"
-import type { ListPatch, Patch } from "./patch"
+import { type Patch, patchOf } from "./patch"
 import { REMOVED } from "./records"
 import { sameData } from "./same"
-import type { Book } from "./schema/book"
 
 // ページ・フォルダ 1 つの、変わる前と後（無いときは "none"）
 export interface RowChange<T> {
@@ -95,8 +94,8 @@ export function foldersNear(rows: Pick<HistoryStep, "pages" | "folders">, before
   return [...near]
 }
 
-// 物が見えているかを答える関数（土台が、プレゼンテーションの seen とステージの表示領域から作る）: ブック book のページ page の物 item（最上位のアイテムか子の形）が、見える所にあるか
-export type SeenTest = (page: string, item: string, book: Book) => boolean
+// 物が見えているかを答える関数（土台が、プレゼンテーションの seen とステージの表示領域から作る）: ページの行 page の物 item（最上位のアイテムか子の形）が、見える所にあるか
+export type SeenTest = (page: PageRow, item: string) => boolean
 
 // アイテムの Patch p（id は item）が変えた物の id: そのアイテムのフィールドを変えたならそのアイテム、子の形（shapes）を変えたならその子（子の中も同じ）
 function changedIds(item: string, p: Patch): string[] {
@@ -107,36 +106,38 @@ function changedIds(item: string, p: Patch): string[] {
   return own.length + children.length > 0 ? [...own, ...children] : [item]
 }
 
-// 並びの Patch の中の、ページ page の Patch（ページ page に触れていなければ undefined）。バインダの中のページは、バインダの要素の中の並び（lineup）をたどる。
-// 中の並び（lineup）のフィールドを持つのはバインダだけ（ページは lineup という名前のフィールドを持てない。台帳アセンブルの E030）
-function patchOfPage(list: readonly ListPatch[], page: string): ListPatch | undefined {
-  for (const x of list) {
-    if (x.id === page) return x
-    const inner = "fields" in x.patch ? x.patch.fields.lineup : undefined
-    const found = inner && "list" in inner ? inner.list.find(y => y.id === page) : undefined
-    if (found) return found
-  }
-  return undefined
-}
+// フォルダの行 row の並びに入っているエントリの id（無い行は空）
+const lineupIds = (row: Folder | "none"): ReadonlySet<string> =>
+  new Set(row === "none" ? [] : row.lineup.map(r => r.id))
 
-// まだ見ていない変更（ブックを before から after にした Patch made）が、そのブックのページ page（ページを持たなければ null）を開いているステージで見えたか（どれか 1 つが見えたら全体）。
-// ブックやページのフィールドの変更は、開いていれば見えたとする。アイテムは、変えた物（子の形を変えたならその子）を seen に前と後のブックで聞き（消えた物は前の場所）、
-// seen が無ければ見えたとする
+// まだ見ていない変更（ブック 1 冊の、ページとフォルダの行の前と後 rows）が、そのブックのページ page（ページを持たなければ null）を開いているステージで見えたか（どれか 1 つが見えたら全体）。
+// ブックのフィールドの変更と、ページもバインダも変えずに並びの順だけを変えたのは、開いていれば見えたとする。ページ page が、前と後の両方に在るフォルダ（ブックかバインダ）の
+// 並びに入った・出たなら見えた。page の行の中身が変わったなら（前か後にしか無いバインダに入っていれば見ない）、アイテムのほかのフィールドの変更は見えたとし、アイテムは、
+// 変えた物（子の形を変えたならその子）を seen に後と前の行で聞き（消えた物は前の場所）、seen が無ければ見えたとする
 export function changeSeen(
-  made: Patch,
-  change: { before: Book; after: Book },
+  rows: Pick<HistoryStep, "pages" | "folders">,
   page: string | null,
   seen?: SeenTest,
 ): boolean {
-  if (page === null || !("fields" in made) || Object.keys(made.fields).some(k => k !== "lineup")) return true
-  const lineup = made.fields.lineup
-  if (!lineup || !("list" in lineup) || lineup.list.length === 0) return true
-  const q = patchOfPage(lineup.list, page)
-  if (!q) return false
-  if (!("fields" in q.patch) || Object.keys(q.patch.fields).some(k => k !== "items")) return true
-  const items = q.patch.fields.items
+  if (page === null) return true
+  const folders = Object.values(rows.folders)
+  const both = folders.flatMap(r =>
+    r.before !== "none" && r.after !== "none" ? [{ before: r.before, after: r.after }] : [],
+  )
+  const bookRows = both.filter(r => r.before.folderRole === "book")
+  if (bookRows.some(({ before: { lineup: _was, ...was }, after: { lineup: _now, ...now } }) => !sameData(was, now)))
+    return true
+  if (Object.keys(rows.pages).length === 0 && folders.length === bookRows.length) return true
+  if (both.some(r => lineupIds(r.before).has(page) !== lineupIds(r.after).has(page))) return true
+  const row = rows.pages[page]
+  if (!row || row.before === "none" || row.after === "none") return false
+  const oneSided = folders.filter(r => (r.before === "none") !== (r.after === "none"))
+  if (oneSided.some(r => lineupIds(r.before).has(page) || lineupIds(r.after).has(page))) return false
+  const made = patchOf(row.before, row.after)
+  if (!made) return false
+  if (!("fields" in made) || Object.keys(made.fields).some(k => k !== "items")) return true
+  const items = made.fields.items
   if (!items || !("list" in items) || items.list.length === 0 || !seen) return true
-  return items.list
-    .flatMap(i => changedIds(i.id, i.patch))
-    .some(id => seen(page, id, change.after) || seen(page, id, change.before))
+  const { before, after } = row
+  return items.list.flatMap(i => changedIds(i.id, i.patch)).some(id => seen(after, id) || seen(before, id))
 }

@@ -1,7 +1,6 @@
 // まだ見ていない変更（AI とほかの窓の変更のうち、この窓でまだ見えていない物）を持ち、ブックと書庫を見張って、見えたら画面の履歴に差し込む。
 // インスタンスごとに 1 つ作る（createMatomezuInstance）。組み直しで差し替わる機能台帳は、呼ぶたびに getter から読む
 
-import { findPage } from "../core/book"
 import type { CoreCatalog } from "../core/core-catalog"
 import type { PluginStateRead } from "../core/def/plugin-state"
 import { isOpenRole, type Library } from "../core/folders"
@@ -53,15 +52,13 @@ export function createUnseenChanges(deps: {
 }): UnseenChanges {
   const { getState, setState, clock, options } = deps
   // まだ見ていない、AI とほかの窓の変更（古い順。ブックごとに 1 つの画面の履歴の段で、見えたらそのブックの画面の履歴に入る）。act は常駐が 1 回の perform に振った印。
-  // book は変えたブック、before と after はその前と後（組んだ値。見えたかを、物の場所で確かめるのに使う）、
-  // made はその変えた所（前から後への Patch。見えたかと、戻されたかを見るたびに求め直さない）、
+  // step の、ページとフォルダの行の前と後から、見えたかを決める。book は変えたブック、
+  // made はそのブックの前から後への Patch（戻されたかを、ブックの中の道で見る。見るたびに求め直さない）、
   // places は変えた・足した・無くしたページとフォルダの id（常駐に、見えた・消えたと知らせる範囲）
   type Unseen = {
     step: HistoryStep
     act: string
     book: string
-    before: Book
-    after: Book
     made: Patch
     places: readonly string[]
   }
@@ -79,20 +76,13 @@ export function createUnseenChanges(deps: {
     const a = st.view && toPaper(st, { x: 0, y: 0 })
     const b = st.view && toPaper(st, { x: st.view.w, y: st.view.h })
     const shown = st.mode.kind === "edit" && a && b ? { x: a.x, y: a.y, w: b.x - a.x, h: b.y - a.y } : null
-    return (page, item, book) => {
-      const p = shown ? findPage(book, page)?.page : undefined
-      return !!p && !!shown && !!def.seen?.(deps.catalog(), p, item, shown)
-    }
+    return (page, item) => !!shown && !!def.seen?.(deps.catalog(), page, item, shown)
   }
   // 見えているブックスクリーンのステージで見えたか
   const seenIn = (u: Unseen) =>
     shownBookScreens(deps.catalog(), getState().window)
       .flatMap(s => s.stages.stages)
-      .some(
-        st =>
-          st.opened?.outermost === u.book &&
-          changeSeen(u.made, { before: u.before, after: u.after }, shownPageId(st.opened), seenTestOf(st)),
-      )
+      .some(st => st.opened?.outermost === u.book && changeSeen(u.step, shownPageId(st.opened), seenTestOf(st)))
   // まだ見ていない変更のうち、どこかのステージで見えた物を、そのブックの画面の履歴に時刻の位置で差し込む（窓が見えていない間は差し込まない）
   const checkSeen = () => {
     checkSeenInLibrary()
@@ -249,7 +239,7 @@ export function createUnseenChanges(deps: {
       ...rowChangesOf(tablesOf([before]), changes),
     }
     const places = [...Object.keys(changes.pages), ...Object.keys(changes.folders)]
-    unseen = [...unseen.filter(u => u !== over), { step, act: change.act, book: after.id, before, after, made, places }]
+    unseen = [...unseen.filter(u => u !== over), { step, act: change.act, book: after.id, made, places }]
   }
   // よその変更 change（by が host なら、画面の履歴に入れない）を、確かめた世界の表 tables と最後に知っている表から比べて、まだ見ていない変更に足し、
   // tables を最後に知っている表にする
