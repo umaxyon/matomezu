@@ -13,13 +13,13 @@ package server
 //     通り道は AI のプログラムのプロセス id（host）ごと。参加者の宛て先は、join のときに MCP が添えたプロセス id。
 //     MCP と通り道の両方が、AI のプログラムが立てたときのセッション id を添えていれば、それも合う通り道だけ（プロセス id が別の AI のプログラムに使い回されたときに届けない）。
 //     流す知らせには、宛て先の参加者に結んだセッション id を添える（渡すコマンドが、どの会話に渡すかを決める）
-//   - 参加の id の付いた /api/ai の呼び出しの返事（aiwire.NoticeHeader。join.go の Called）: AI 間メッセージだけを渡す（参加の知らせは、その呼び出しが返す「参加しました」が兼ねる）
+//   - 参加者が決まった /api/ai の呼び出しの返事（aiwire.NoticeHeader。join.go の Called）: AI 間メッセージだけを渡す（参加の知らせは、その呼び出しが返す「参加しました」が兼ねる）
 //
 // 通り道ごとに、受け取る側が名乗った形で流す（常駐は AI の種類を知らない）: 1 行の上限（maxLine。超える行は改行で分ける）、1 回の知らせの上限（maxNotice）、
 // 知らせと知らせの間（gap。続けて流すと AI の側が 1 回の知らせにまとめ、上限を超えるため）。1 回の知らせに入りきらない AI 間メッセージは、通り道には「届いた」の短い知らせだけを流し、
-// 本文は行列に残して、参加の id の付いた次の呼び出しの返事で渡す。
+// 本文は行列に残して、その参加者の次の呼び出しの返事で渡す。
 // 流す前に、もう役目の終わった知らせは捨てる: 受け入れは参加を伝え済み（Told）なら、断りは伝え済み（goneTold）なら。参加者が受け入れ済みでなくなった AI 間メッセージも捨てる。
-// 参加の知らせの行は英語の短い文で、中身（「参加しました」）は、話しかけのフックか、参加の id の付いた次の呼び出しの返事が添える
+// 参加の知らせの行は英語の短い文で、中身（「参加しました」）は、話しかけのフックか、その参加者の次の呼び出しの返事が添える
 //
 //	GET  /api/ai/watch?host=<プロセス id>&session=<立てたときのセッション id>（どちらか一方は要る）[&maxLine=<字>][&maxNotice=<字>][&gap=<ミリ秒>]
 //	     SSE。event: wake、data: {"line", "id", "session", "text"}（text は改行を含みうる。session は宛て先の参加者に結んだセッション id、分からなければ空）
@@ -383,7 +383,7 @@ func (h *Hub) wakeOnParticipants(before map[string]bool) {
 		case s.State == stateVisitor:
 			h.enqueueWake(wakeItem{participant: id, kind: wakeAccepted, line: noticeLine("matomezu: the user accepted your request to join as a visitor that only reads (participant " + id + "). The welcome comes with this turn or with your next matomezu call.")})
 		case s.State == stateJoined:
-			// 「参加しました」は、このターンの始まりのフック（talked）か、参加の id の付いた次の呼び出しの返事の、先に来た方が 1 度だけ添える
+			// 「参加しました」は、このターンの始まりのフック（talked）か、その参加者の次の呼び出しの返事の、先に来た方が 1 度だけ添える
 			// （伝えたと印を付けるので二重にならない。どちらが先かは AI のプログラムによるので、文は両方を言う）
 			h.enqueueWake(wakeItem{participant: id, kind: wakeAccepted, line: noticeLine("matomezu: the user accepted your request to join (participant " + id + ", workroom " + rooms[s.Workroom] + "). The welcome comes with this turn or with your next matomezu call.")})
 		}
