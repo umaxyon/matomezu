@@ -121,7 +121,9 @@ type watchCmd struct {
 	MaxNotice int           `help:"The longest notice the host program takes at once (characters, counting the line breaks). A message too long for it comes as a short notice, and its text with the next matomezu call. 0 for no limit."`
 	Gap       time.Duration `help:"How long to wait after each notice before the next (so the host program does not join them into one notice)."`
 	Resident  bool          `help:"Start the command after -- once and keep it running: write one JSON line {id, session, text} to its stdin for each notice, and read one JSON line {id, result} (delivered, absent or failed) from its stdout."`
-	Deliver   []string      `arg:"" optional:"" passthrough:"" help:"A command (after --) that hands each notice to the AI, instead of printing it: started for each notice with the text on stdin, the session id of the conversation in MATOMEZU_SESSION and the notice id in MATOMEZU_WAKE_ID; exit 0 when delivered, 3 when the AI's program does not have that conversation, anything else when it failed."`
+	// Line は、標準出力に書くとき、知らせ 1 つの本文から書く行を作る物（nil なら本文のまま。clients/<AI の名前> が、受け取る AI のプログラムに合わせて決める）
+	Line    func(text string) string `kong:"-"`
+	Deliver []string                 `arg:"" optional:"" passthrough:"" help:"A command (after --) that hands each notice to the AI, instead of printing it: started for each notice with the text on stdin, the session id of the conversation in MATOMEZU_SESSION and the notice id in MATOMEZU_WAKE_ID; exit 0 when delivered, 3 when the AI's program does not have that conversation, anything else when it failed."`
 }
 
 type versionCmd struct{}

@@ -84,7 +84,7 @@ func (c *watchCmd) deliverer(out io.Writer) deliverer {
 	args := deliverCommand(c.Deliver)
 	switch {
 	case len(args) == 0:
-		return printDeliverer{out}
+		return printDeliverer{out, c.Line}
 	case c.Resident:
 		return &residentDeliverer{args: args}
 	default:
@@ -177,11 +177,18 @@ func readWakes(r io.Reader, still func() bool, on func(wakeOut)) error {
 	return scan.Err()
 }
 
-// printDeliverer は、標準出力に書いて渡す（書けたら渡せた）
-type printDeliverer struct{ out io.Writer }
+// printDeliverer は、標準出力に書いて渡す（書けたら渡せた）。line があれば、本文をそれで書く行にする
+type printDeliverer struct {
+	out  io.Writer
+	line func(text string) string
+}
 
 func (p printDeliverer) deliver(w wakeOut) string {
-	if _, err := fmt.Fprintln(p.out, w.Text); err != nil {
+	text := w.Text
+	if p.line != nil {
+		text = p.line(text)
+	}
+	if _, err := fmt.Fprintln(p.out, text); err != nil {
 		return deliverFailed
 	}
 	return deliverDelivered

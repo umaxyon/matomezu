@@ -20,12 +20,21 @@ import (
 func TestReadWakesPrintsOnlyWakeLines(t *testing.T) {
 	in := "event: keep\ndata: {}\n\nevent: wake\ndata: {\"text\":\"matomezu: the user accepted\"}\n\nevent: wake\ndata: {\"text\":\"\"}\n\n"
 	var out bytes.Buffer
-	p := printDeliverer{&out}
+	p := printDeliverer{out: &out}
 	if err := readWakes(strings.NewReader(in), func() bool { return true }, func(w wakeOut) { p.deliver(w) }); err != nil {
 		t.Fatal(err)
 	}
 	if out.String() != "matomezu: the user accepted\n" {
 		t.Fatalf("out = %q", out.String())
+	}
+}
+
+// 書く行を作る物があれば、知らせの本文をそれで書く
+func TestPrintDelivererWritesTheLineMadeFromTheText(t *testing.T) {
+	var out bytes.Buffer
+	p := printDeliverer{&out, func(text string) string { return "[" + text + "]" }}
+	if got := p.deliver(wakeOut{Text: "a\nb"}); got != deliverDelivered || out.String() != "[a\nb]\n" {
+		t.Fatalf("%s %q", got, out.String())
 	}
 }
 

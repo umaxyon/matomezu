@@ -39,7 +39,7 @@ func selfExecutable() string {
 type claudeCodeCmd struct {
 	MCP   claudeMCPCmd   `cmd:"" name:"mcp" help:"Serve the MCP tools for Claude Code (with the development server when the project is the matomezu repository)."`
 	Hook  claudeHookCmd  `cmd:"" help:"Claude Code's hooks."`
-	Watch claudeWatchCmd `cmd:"" help:"Claude Code's monitor: print one line for each thing that should wake this session."`
+	Watch claudeWatchCmd `cmd:"" help:"Claude Code's monitor: print one line for each thing that should wake this session (with --via mod, the plugin's mod in Claude Desktop: one JSON line {text} for each, which the mod submits as a prompt)."`
 }
 
 // claudeDev は、Claude Code が開いているプロジェクトが matomezu のリポジトリなら、開発の常駐を使い（起動し直すことがある）、その根を返す。
@@ -123,13 +123,21 @@ func (claudePermissionCmd) Run() error {
 	return nil
 }
 
-type claudeWatchCmd struct{}
+type claudeWatchCmd struct {
+	Via string `enum:"monitor,mod" default:"monitor" help:"Who reads the lines: monitor (the plugin's monitor) or mod (the plugin's mod, which runs this only where the monitor is not started; it prints nothing outside Claude Desktop)."`
+}
 
 // Run は、このセッションへの起こす知らせを 1 行ずつ出す。宛て先は、たどった AI のプログラムと、Claude Code が立てたときのセッション id
 // （Windows では、monitor から AI のプログラムまでたどれないことがある。そのときはセッション id だけで合わせる）
-func (claudeWatchCmd) Run() error {
+func (c claudeWatchCmd) Run() error {
 	claudeDev()
 	w := watchCmd{Host: hostProcess(), Session: os.Getenv(claudelaunch.SessionEnv), MaxLine: claudelaunch.MaxLine, MaxNotice: claudelaunch.MaxNotice, Gap: claudelaunch.Gap}
+	if c.Via == "mod" {
+		if !claudelaunch.ModWakes(os.Getenv(claudelaunch.EntrypointEnv)) {
+			return nil
+		}
+		w.MaxLine, w.MaxNotice, w.Gap, w.Line = claudelaunch.ModMaxLine, claudelaunch.ModMaxNotice, 0, claudelaunch.ModLine
+	}
 	if w.Host == "" && w.Session == "" {
 		return nil
 	}

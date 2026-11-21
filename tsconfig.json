@@ -18,5 +18,5 @@
     }
   },
   "include": ["web/src", "test", "e2e", "clients", "playwright.config.ts", "playwright.perf.config.ts"],
-  "exclude": ["test/added-plugins", "test/type-checks"]
+  "exclude": ["test/added-plugins", "test/type-checks", "clients/claude-code/hooks"]
 }
