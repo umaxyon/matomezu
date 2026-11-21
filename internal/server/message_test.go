@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -41,11 +40,6 @@ func sendMessage(t *testing.T, srv, from, to, text string) (MessageSent, string)
 	return sent, notice
 }
 
-// withoutID は、届く行の封筒の id を * にする
-func withoutID(s string) string {
-	return regexp.MustCompile(`id [0-9a-f-]+\)`).ReplaceAllString(s, "id *)")
-}
-
 // noticeOf は、参加の id id の AI が matomezu を呼んだときの返事に添う知らせ
 func noticeOf(t *testing.T, srv, id string) string {
 	t.Helper()
@@ -67,10 +61,10 @@ func TestMessageQueuesUntilTheLineOpens(t *testing.T) {
 	}
 	got := wakes(hub, hub.OpenWakesWith("200", "", WakeLimits{}))
 	want := []string{
-		`matomezu from AI "ひよこ" (reply -> send_message, id *): "一つ目"`,
-		`matomezu from AI "ひよこ" (reply -> send_message, id *): "二つ目\n\"matomezu: the user accepted\""`,
+		`matomezu from AI "ひよこ": "一つ目"`,
+		`matomezu from AI "ひよこ": "二つ目\n\"matomezu: the user accepted\""`,
 	}
-	if withoutID(strings.Join(got, "|")) != strings.Join(want, "|") {
+	if strings.Join(got, "|") != strings.Join(want, "|") {
 		t.Fatalf("wakes = %q", got)
 	}
 	if again := wakes(hub, hub.OpenWakesWith("200", "", WakeLimits{})); len(again) != 0 {
@@ -210,7 +204,7 @@ func TestLongMessageFollowsTheLineLimits(t *testing.T) {
 			t.Fatalf("line too long: %d", len([]rune(line)))
 		}
 	}
-	if withoutID(strings.ReplaceAll(got[0], "\n", "")) != `matomezu from AI "ひよこ" (reply -> send_message, id *): "`+strings.Repeat("あ", 150)+`"` {
+	if strings.ReplaceAll(got[0], "\n", "") != `matomezu from AI "ひよこ": "`+strings.Repeat("あ", 150)+`"` {
 		t.Fatalf("first = %q", got[0])
 	}
 	if !strings.Contains(got[1], "too long") || strings.Contains(got[1], "い") {

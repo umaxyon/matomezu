@@ -200,7 +200,7 @@ test("セッション間のメッセージは送った側の名前と文で結�
       session: "gamma",
       messages: [
         monitorEvent(
-          `matomezu: message from AI "alpha" (not the user; reply via send_message, id 0f3c9a12): ${JSON.stringify("見て\n下さい")}`,
+          `matomezu from AI "alpha": ${JSON.stringify("見て\n下さい")}`,
         ),
       ],
     },

@@ -189,18 +189,9 @@ func (h *Hub) deliver(e Envelope) {
 }
 
 // messageLine は、届く 1 行。名前と本文は JSON の文字列にして包む（本文の改行と、本文の中の偽の知らせの行を見分けるため）。
-// 封筒の id の頭 8 字を添える（渡せたのに結果が常駐に届かなかった知らせは、もう一度渡るので、受け手が重なりに気づけるように）。
-// 端末では行の頭しか見えないので、前置きは短くして本文を早く出す。返し方の詳しい説明は send_message の説明に任せる
+// 端末や会話には行が見えるので、前置きは送り手だけにする。返し方は参加の知らせと send_message の説明に任せる
 func messageLine(e Envelope) string {
-	return "matomezu from AI " + quote(e.From.Workroom) + " (reply -> send_message, id " + shortID(e.ID) + "): " + quote(e.Text)
-}
-
-// shortID は、封筒の id の頭 8 字（重なりに気づくのに足りる長さ）
-func shortID(id string) string {
-	if len(id) <= 8 {
-		return id
-	}
-	return id[:8]
+	return "matomezu from AI " + quote(e.From.Workroom) + ": " + quote(e.Text)
 }
 
 // quote は、文字列を JSON の文字列にする（< > & を逃がさない）
