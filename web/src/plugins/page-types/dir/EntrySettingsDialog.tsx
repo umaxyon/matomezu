@@ -1,8 +1,8 @@
 // ノードの設定のダイアログ（フォルダもファイルも、根も同じ形）: 名前と説明（どちらも上に装飾のボックス）と、アイコン（フォルダは folder・book、ファイルは file とそれ以外）を選ぶ。
 // 確定でアクション entry-update を行う。断られたら、閉じずに理由を出す（認可ステップが止めたならそのステップの名前、ほかは紙に入らない）
 import { useId, useRef, useState } from "react"
-import { findPage, type MessageKey } from "../../../plugin-api"
-import { type DialogProps, useBook, useCoreCatalog, useMessages, usePerform, useT } from "../../../plugin-api/ui"
+import type { MessageKey } from "../../../plugin-api"
+import { type DialogProps, useCoreCatalog, useMessages, usePageById, usePerform, useT } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import {
   ActionButton,
@@ -27,8 +27,7 @@ export function EntrySettingsDialog({ args, onClose }: DialogProps<{ page: strin
   const t = useMessages(kit)
   const form = useId()
   const iconGroup = useId() // アイコンのラジオの組の名前
-  const book = useBook()
-  const page = book ? findPage(book, args.page)?.page : undefined
+  const page = usePageById(args.page)
   const root = dirRootOf(page)
   const entry = root ? entryOf(root, args.entry) : null
   const perform = usePerform()
@@ -38,7 +37,7 @@ export function EntrySettingsDialog({ args, onClose }: DialogProps<{ page: strin
   const catalog = useCoreCatalog()
   const tr = useT() // ほかのプラグインが足したアイコンの名前も引く
   const [refused, setRefused] = useState<MessageKey | null>(null) // 断られたわけの文言
-  if (!book || !page || !entry) return null
+  if (!page || !entry) return null
   const submit = () => {
     const done = perform(
       ENTRY_UPDATE.id,

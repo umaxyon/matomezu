@@ -4,10 +4,10 @@
 // 見出しの右の鍵でロックを切り替え、確定で page-lock・page-unlock を行う（外すのは書く前、掛けるのは書いた後）。削除のボタンは、ロック中（ページかブック）など認可ステップが page-remove を止めていれば押せない。認可ステップが page-update を止めていれば項目を押せない（ロックなら、鍵を外す方にすれば押せる）。
 // ページを削除するボタンは、上に重ねたモーダルで確かめてから page-remove を行う（中身ごと消え、戻せないため）。断られたらダイアログを開いたままにする
 import { useEffect, useId, useState } from "react"
-import { findPage, putPage, withSettings } from "../../../core/book"
+import { putPage, withSettings } from "../../../core/book"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useActions, useAllowed, useBook, usePerform } from "../../../ui/view-hooks"
+import { useActions, useAllowed, useBook, usePageById, usePerform } from "../../../ui/view-hooks"
 import { useSettingControls } from "../book-settings/SettingControls"
 import { Confirm } from "../dialog-host/Confirm"
 import { Dialog } from "../dialog-host/Dialog"
@@ -25,7 +25,7 @@ export function PageSettingsDialog({ args, onClose }: DialogProps<{ page: string
   const t = useMessages(kit)
   const form = useId()
   const book = useBook() // 確定したブック（このダイアログが下書きを出すので、下書きを重ねたブックは読まない）
-  const page = book ? findPage(book, args.page)?.page : undefined
+  const page = usePageById(args.page)
   const [title, setTitle] = useState(page?.title ?? "")
   const [locked, setLocked] = useState(page?.locked === true)
   // 認可ステップが止めていれば項目を押せない（ロックが止めているなら、鍵で外す方にすれば押せる）

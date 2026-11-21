@@ -25,7 +25,7 @@ import {
 } from "../core/placed"
 import type { Book } from "../core/schema/book"
 import { type Settings, userSetting } from "../core/settings"
-import { shownPageId, stageBlocks, toPaper } from "../core/stage"
+import { openedPageById, shownPageId, stageBlocks, toPaper } from "../core/stage"
 import { stageIn } from "../core/window"
 import type { StageView } from "../core/workspace"
 import {
@@ -59,6 +59,15 @@ export function useBook(): Book | null {
 export function usePage(): ItemPage | null {
   const scope = useScope()
   return useMatomezuState(s => pageOf(s, scope))
+}
+
+// 描くページのステージが開いている物の中の、id のページ（開いている物の外のページ・何も開いていなければ null）
+export function usePageById(id: string): ItemPage | null {
+  const scope = useScope()
+  return useMatomezuState(s => {
+    const opened = openedOf(s, scope)
+    return opened ? openedPageById(s.books, opened, id) : null
+  })
 }
 
 // 描くページのブックの、ページ page のアイテム item（どの深さの子の形も。無いか、id が Id のアイテムでなければ undefined）
