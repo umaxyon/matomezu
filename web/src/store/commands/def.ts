@@ -185,7 +185,6 @@ export function withWorkspace(
 // コマンドの文脈 ctx の、ステージの並びと道具（withWorkspace が作った文脈だけが持つ。写した文脈は持たない）
 export const workspaceOf = (ctx: CommandContext): Workspace => workspaces.get(ctx)?.workspace ?? fail("E116")
 
-// コマンドの文脈 ctx の、開けるブックの一覧（プラグイン API の文脈には出さない。base のコマンドが、開いていないブックの名前を読む）
 // 文脈 ctx のステージで開いている物のうち、アクションを使えるかを問う相手（ブックか、ブックの外のページ。どちらも開いていなければ undefined）
 export function askedIn(ctx: CommandContext): AskedOutermost | undefined {
   if (ctx.book !== NO_BOOK) return ctx.book
@@ -194,6 +193,7 @@ export function askedIn(ctx: CommandContext): AskedOutermost | undefined {
     : undefined
 }
 
+// コマンドの文脈 ctx の、開けるブックの一覧（プラグイン API の文脈には出さない。base のコマンドが、開いていないブックの名前を読む）
 export const booksOf = (ctx: CommandContext): Books => workspaces.get(ctx)?.books ?? {}
 
 // コマンドの文脈 ctx の、呼ばれたステージの中の状態（表示領域の大きさ・ずらす量など。プラグイン API の文脈には出さない。base のコマンドが読む）

@@ -2,10 +2,10 @@
 import { useMemo } from "react"
 import type { Page } from "../../../core/schema/book"
 import { useBook, usePage } from "../../../ui/view-hooks"
-import { pagesIn } from "./opened-page"
+import { openedPagesFrom } from "./opened-page"
 
 export function useOpenedPages(): readonly Page[] {
   const book = useBook()
   const page = usePage()
-  return useMemo(() => pagesIn(book, page), [book, page])
+  return useMemo(() => openedPagesFrom(book, page), [book, page])
 }

@@ -8,7 +8,7 @@ import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { defineWidget } from "../../../ui/layout"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
-import { useBook, usePage } from "../../../ui/view-hooks"
+import { usePage } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { FolderIcon } from "../utils/folder-icons"
 import { STAGE_SLOTS } from "../workspace/ui"
@@ -22,12 +22,11 @@ const NO_PLACE: readonly string[] = []
 function PagePlace() {
   const t = useMessages(kit)
   const outside = usePage()?.id
-  const inBook = useBook() !== null
   const catalog = useCatalog().core
   const nameOf = useNameOf()
   const open = useCommand(LIBRARY_PLACE_OPEN.id)
   const path = useMatomezuState(
-    useShallow(s => (inBook || outside === undefined ? NO_PLACE : outsidePagePlaceOf(s.folders, outside))),
+    useShallow(s => (outside === undefined ? NO_PLACE : outsidePagePlaceOf(s.folders, outside))),
   )
   const titles = useMatomezuState(
     useShallow(s => path.map(id => titleOf(s, "folder", id, namingOf(catalog, s.settings)) ?? NO_TITLE)),

@@ -9,9 +9,9 @@ export const hasOpenedPage = <C extends Pick<CommandContext, "page">>(ctx: C): c
   ctx.page !== NO_PAGE
 
 // ステージで開いている物のページの全部: ブック book を開いていれば、そのブックのページ。ブックの外のページ page を開いていれば、そのページだけ。何も開いていなければ空
-export const pagesIn = (book: Book | null, page: Page | null): readonly Page[] =>
+export const openedPagesFrom = (book: Book | null, page: Page | null): readonly Page[] =>
   book ? pagesOf(book) : page ? [page] : []
 
-// ctx のステージで開いている物のページの全部（pagesIn）
+// ctx のステージで開いている物のページの全部（openedPagesFrom）
 export const openedPagesOf = (ctx: Pick<CommandContext, "book" | "page">): readonly Page[] =>
-  pagesIn(ctx.book === NO_BOOK ? null : ctx.book, hasOpenedPage(ctx) ? ctx.page : null)
+  openedPagesFrom(ctx.book === NO_BOOK ? null : ctx.book, hasOpenedPage(ctx) ? ctx.page : null)
