@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import {
+  bunComplete,
   bunFailures,
   errorLines,
   fastForward,
@@ -11,6 +12,8 @@ import {
   goFailures,
   playwrightFailures,
   rebuildsFor,
+  runStep,
+  type Step,
   stack,
 } from "../../scripts/merge-queue"
 
@@ -53,7 +56,7 @@ test("ブランチに main を取り込み、マージのコミットのはじ�
   const b1 = r.branch("b1", "b1.txt", "1\n")
   const advanced = r.commit("m.txt", "m\n", "main moves")
   const s = stack(r.queue, advanced, [b1])
-  expect(s.merged).toEqual([b1])
+  expect(s.onTip).toEqual([b1])
   expect(git(r.queue, "rev-parse", `${s.tip}^1`)).toBe(b1.sha)
   expect(git(r.queue, "rev-parse", `${s.tip}^2`)).toBe(advanced)
   expect(git(r.main, "rev-parse", "b1")).toBe(b1.sha)
@@ -76,7 +79,7 @@ test("衝突したブランチは外し、ファイルを返し、取り込み�
   const base = git(r.main, "rev-parse", "HEAD")
   const s = stack(r.queue, base, [b1, b2, b3])
   expect(s.conflicts).toEqual([{ name: "b2", files: ["a.txt"] }])
-  expect(s.merged.map(c => c.name)).toEqual(["b1", "b3"])
+  expect(s.onTip.map(c => c.name)).toEqual(["b1", "b3"])
   expect(git(r.queue, "status", "--porcelain")).toBe("")
   expect(git(r.queue, "rev-parse", "HEAD")).toBe(s.tip)
 })
@@ -172,4 +175,52 @@ test("変わったファイルから作り直す物を決める", () => {
   expect(rebuildsFor(["bun.lock"], embeds)).toEqual({ ...none, install: true, web: true })
   expect(rebuildsFor(["clients/claude-code/hooks/x.sh"], embeds)).toEqual({ ...none, plugin: true })
   expect(rebuildsFor(["web/dist/index.html"], embeds)).toEqual(none)
+})
+
+test("bun test の集計と読み取った落ちが合わないか、テストの外の誤りがあれば、全部を読み取れていない", () => {
+  const one = [{ step: "unit", where: "test/b.test.ts", title: "bad" }]
+  expect(bunComplete(" 1 pass\n 1 fail\n", one)).toBe(true)
+  expect(bunComplete(" 2 fail\n 1 error\n", one)).toBe(false)
+  expect(bunComplete(" 2 fail\n", one)).toBe(false)
+})
+
+// 流すたびに数を 1 つ足し、決まった回までは落ちる偽のステップ
+function fakeStep(dir: string, failTimes: number, opts: { complete?: boolean; rerun?: boolean } = {}): Step {
+  const counter = join(dir, "count")
+  const script = `n=$(cat ${counter} 2>/dev/null || echo 0); n=$((n+1)); echo $n > ${counter}; [ $n -gt ${failTimes} ]`
+  return {
+    step: "fake",
+    cmd: ["sh", "-c", script],
+    failures: () => [{ step: "fake", where: "x", title: "t" }],
+    complete: () => opts.complete ?? true,
+    rerun: opts.rerun === false ? undefined : () => [["sh", "-c", script]],
+  }
+}
+
+function tmp() {
+  const d = mkdtempSync(join(tmpdir(), "merge-queue-step-"))
+  dirs.push(d)
+  return d
+}
+
+test("落ちたテストを流し直して通れば、通しにして揺れたとする", async () => {
+  const d = tmp()
+  const r = await runStep(fakeStep(d, 1), d, d)
+  expect(r.ok).toBe(true)
+  expect(r.flaky).toEqual([{ step: "fake", where: "x", title: "t" }])
+})
+
+test("流し直してもまた落ちれば落ちとする", async () => {
+  const d = tmp()
+  const r = await runStep(fakeStep(d, 2), d, d)
+  expect(r.ok).toBe(false)
+  expect(r.flaky).toEqual([])
+})
+
+test("流し直す手が無いか、落ちを全部は読み取れていなければ流し直さない", async () => {
+  for (const opts of [{ rerun: false }, { complete: false }]) {
+    const d = tmp()
+    const r = await runStep(fakeStep(d, 1, opts), d, d)
+    expect(r.ok).toBe(false)
+  }
 })

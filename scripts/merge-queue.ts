@@ -20,7 +20,8 @@ import { dirname, join, relative, resolve } from "node:path"
 
 export type Candidate = { name: string; sha: string }
 export type Conflict = { name: string; files: string[] }
-export type Stacked = { tip: string; merged: Candidate[]; already: Candidate[]; conflicts: Conflict[] }
+// onTip は tip に重ねた物（main に入るのは、テストが通って ff できたとき）
+export type Stacked = { tip: string; onTip: Candidate[]; already: Candidate[]; conflicts: Conflict[] }
 
 const MAX_ROUNDS = 3
 const MAX_STARTS = 3
@@ -38,7 +39,7 @@ const short = (sha: string) => sha.slice(0, 8)
 // base の上に候補を順に重ねる。queue は取り込み専用の worktree（中の変更は捨てる）
 export function stack(queue: string, base: string, candidates: Candidate[]): Stacked {
   let tip = base
-  const merged: Candidate[] = []
+  const onTip: Candidate[] = []
   const already: Candidate[] = []
   const conflicts: Conflict[] = []
   for (const c of candidates) {
@@ -48,14 +49,14 @@ export function stack(queue: string, base: string, candidates: Candidate[]): Sta
     }
     if (gitOk(queue, "merge-base", "--is-ancestor", tip, c.sha)) {
       tip = c.sha
-      merged.push(c)
+      onTip.push(c)
       continue
     }
     git(queue, "checkout", "-q", "-f", "--detach", c.sha)
     const message = `Merge ${tip === base ? "main" : "the queue"} (${short(tip)}) into ${c.name}`
     if (gitOk(queue, "merge", "--no-ff", "--no-edit", "-m", message, tip)) {
       tip = git(queue, "rev-parse", "HEAD")
-      merged.push(c)
+      onTip.push(c)
       continue
     }
     const files = git(queue, "diff", "--name-only", "--diff-filter=U").split("\n").filter(Boolean)
@@ -63,14 +64,16 @@ export function stack(queue: string, base: string, candidates: Candidate[]): Sta
     conflicts.push({ name: c.name, files })
   }
   git(queue, "checkout", "-q", "-f", "--detach", tip)
-  return { tip, merged, already, conflicts }
+  return { tip, onTip, already, conflicts }
 }
 
-// main の worktree を tip まで進める。base から動いていれば moved、追跡するファイルに未コミットがあれば dirty
-export function fastForward(main: string, base: string, tip: string): "done" | "moved" | "dirty" {
-  if (git(main, "rev-parse", "HEAD") !== base) return "moved"
+// main を checkout している worktree で main を tip まで進める。main が base から動いていれば moved、
+// 追跡するファイルに未コミットがあれば dirty、ほかの理由で進められなければ failed
+export function fastForward(main: string, base: string, tip: string): "done" | "moved" | "dirty" | "failed" {
+  if (git(main, "rev-parse", "refs/heads/main") !== base) return "moved"
   if (git(main, "status", "--porcelain", "--untracked-files=no") !== "") return "dirty"
-  return gitOk(main, "merge", "-q", "--ff-only", tip) ? "done" : "moved"
+  if (gitOk(main, "merge", "-q", "--ff-only", tip)) return "done"
+  return git(main, "rev-parse", "refs/heads/main") === base ? "failed" : "moved"
 }
 
 // ---- テストの結果を読む ----
@@ -114,10 +117,13 @@ export function goFailures(out: string): Failure[] {
       failures.push({ step: "go", where: e.Package, title: "" })
     }
   }
-  // 親のテストが落ちれば同じ所のサブテストの行は要らない
-  return failures.filter(
-    (f, i) => !failures.slice(0, i).some(g => g.where === f.where && g.title === f.title && g.title !== ""),
-  )
+  return failures
+}
+
+// bun test の集計と読み取った落ちが合い、テストの外の誤りが無いか（合わなければ流し直さない）
+export function bunComplete(out: string, failures: Failure[]): boolean {
+  const fail = /^\s*(\d+) fail$/m.exec(out)
+  return !/^\s*\d+ errors?$/m.test(out) && Number(fail?.[1] ?? -1) === failures.length
 }
 
 type PwSpec = { title: string; file: string; line: number; tests: { status: string }[] }
@@ -142,6 +148,16 @@ export function playwrightFailures(json: string): Failure[] {
   if (failures.length === 0 && (report.errors?.length ?? 0) > 0)
     failures.push({ step: "e2e", where: "", title: report.errors?.[0]?.message?.split("\n")[0] ?? "error" })
   return failures
+}
+
+// playwright の集計と読み取った落ちが合い、テストの外の誤りが無いか（合わなければ流し直さない）
+export function playwrightComplete(json: string, failures: Failure[]): boolean {
+  try {
+    const report = JSON.parse(json) as { stats?: { unexpected?: number }; errors?: unknown[] }
+    return (report.errors?.length ?? 0) === 0 && report.stats?.unexpected === failures.length
+  } catch {
+    return false
+  }
 }
 
 // lint と typecheck の出力から、誤りの行を少し
@@ -203,16 +219,19 @@ async function run(cmd: string[], cwd: string, log: string, env: Record<string, 
   }
 }
 
-type Step = {
+export type Step = {
   step: string
   cmd: string[]
   failures: (out: string, logs: string) => Failure[]
+  // 読み取った落ちが全部か（集計と合うか）。合わなければ流し直さない
+  complete?: (out: string, logs: string, failures: Failure[]) => boolean
   // 落ちたテストだけを流し直すコマンド。無ければ流し直さない
   rerun?: (failures: Failure[]) => string[][] | undefined
   env?: (logs: string) => Record<string, string>
 }
 
 const pwJson = (logs: string, step: string) => join(logs, `${step}.json`)
+const readPwJson = (logs: string) => (existsSync(pwJson(logs, "e2e")) ? readFileSync(pwJson(logs, "e2e"), "utf8") : "")
 
 // 軽い順。どれも通ったときだけ E2E を流す
 const LIGHT_STEPS: Step[] = [
@@ -222,6 +241,7 @@ const LIGHT_STEPS: Step[] = [
     step: "unit",
     cmd: ["bun", "test"],
     failures: bunFailures,
+    complete: (out, _logs, failures) => bunComplete(out, failures),
     rerun: fs =>
       fs.every(f => f.where !== "") ? [["bun", "test", ...new Set(fs.map(f => `./${f.where}`))]] : undefined,
   },
@@ -248,8 +268,8 @@ const LIGHT_STEPS: Step[] = [
 const E2E: Step = {
   step: "e2e",
   cmd: ["bunx", "playwright", "test", "--reporter=list,json"],
-  failures: (_out, logs) =>
-    playwrightFailures(existsSync(pwJson(logs, "e2e")) ? readFileSync(pwJson(logs, "e2e"), "utf8") : ""),
+  failures: (_out, logs) => playwrightFailures(readPwJson(logs)),
+  complete: (_out, logs, failures) => playwrightComplete(readPwJson(logs), failures),
   rerun: fs =>
     fs.every(f => f.where !== "")
       ? [["bunx", "playwright", "test", "--reporter=list,json", ...fs.map(f => f.where)]]
@@ -260,12 +280,14 @@ const E2E: Step = {
   }),
 }
 
-async function runStep(s: Step, queue: string, logs: string): Promise<StepResult> {
+export async function runStep(s: Step, queue: string, logs: string): Promise<StepResult> {
   const log = join(logs, `${s.step}.log`)
   const env = s.env?.(logs) ?? {}
   if ((await run(s.cmd, queue, log, env)) === 0) return { step: s.step, ok: true, failures: [], flaky: [], log }
-  const failures = s.failures(readFileSync(log, "utf8"), logs)
-  const reruns = failures.length > 0 ? s.rerun?.(failures) : undefined
+  const out = readFileSync(log, "utf8")
+  const failures = s.failures(out, logs)
+  const whole = failures.length > 0 && (s.complete?.(out, logs, failures) ?? true)
+  const reruns = whole ? s.rerun?.(failures) : undefined
   if (!reruns) return { step: s.step, ok: false, failures, flaky: [], log }
   for (const [i, cmd] of reruns.entries()) {
     const again = join(logs, `${s.step}.rerun${i}.log`)
@@ -307,14 +329,15 @@ type Attempt =
 async function attempt(o: Options, candidates: Candidate[]): Promise<Attempt> {
   let stacked: Stacked | undefined
   for (let round = 0; round < MAX_ROUNDS; round++) {
-    const base = git(o.main, "rev-parse", "HEAD")
+    const base = git(o.main, "rev-parse", "refs/heads/main")
     stacked = stack(o.queue, base, candidates)
-    if (stacked.merged.length === 0) return { kind: "nothing", stacked }
+    if (stacked.onTip.length === 0) return { kind: "nothing", stacked }
     const results = await testAll(o.queue, join(o.logs, short(stacked.tip)))
     if (!results.every(r => r.ok)) return { kind: "failed", stacked, results }
     const ff = fastForward(o.main, base, stacked.tip)
     if (ff === "dirty")
       return { kind: "stopped", reason: "main の worktree の追跡するファイルに未コミットがある", stacked }
+    if (ff === "failed") return { kind: "stopped", reason: "main を fast-forward できなかった", stacked }
     if (ff === "done") return { kind: "merged", stacked, flaky: results.flatMap(r => r.flaky) }
   }
   return { kind: "stopped", reason: `main が進み続け ${MAX_ROUNDS} 回 ff できなかった`, stacked }
@@ -355,7 +378,7 @@ async function waitFor(check: () => boolean, ms: number): Promise<boolean> {
 const sameArgs = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i])
 
 // 常駐を同じ引数・作業フォルダ・MATOMEZU_HOME で入れ替える。止めるのは pid で、起動は別のプロセス
-export async function replaceResident(main: string, addr: string): Promise<string> {
+async function replaceResident(main: string, addr: string): Promise<string> {
   const pid = listener(addr)
   const old = pid === undefined ? undefined : residentOf(pid)
   if (!old) return `常駐の入れ替えが要る（${addr} に MATOMEZU_HOME の分かる常駐が無い）`
@@ -386,7 +409,7 @@ export async function replaceResident(main: string, addr: string): Promise<strin
     if (!now || !sameArgs(now.argv, old.argv) || now.home !== old.home) continue
     const added = readFileSync(log, "utf8").slice(from)
     if (/is not added/.test(added)) return `常駐 ${now.pid} を起動した。server.log に「is not added」がある`
-    return `常駐を入れ替えた（pid ${now.pid}）`
+    return `常駐を入れ替えた（pid ${now.pid}。MCP のつなぎ直しが要る）`
   }
   return `常駐を ${MAX_STARTS} 回立て直しても同じ引数で起動しなかった`
 }
@@ -401,24 +424,52 @@ function pluginCache(main: string): string | undefined {
 // main の worktree で、from..to の差分に要る物を作り直し、したことを 1 行ずつ返す
 async function rebuild(o: Options, from: string, to: string): Promise<string[]> {
   const paths = git(o.main, "diff", "--name-only", from, to).split("\n").filter(Boolean)
-  const r = rebuildsFor(paths, embedFiles(o.main))
   const done: string[] = []
+  // 1 つが投げても、ほかと結果のまとめは続ける
+  const guard = async (name: string, f: () => Promise<boolean>) => {
+    try {
+      return await f()
+    } catch (e) {
+      done.push(`${name} に失敗（${e instanceof Error ? e.message.split("\n")[0] : String(e)}）`)
+      return false
+    }
+  }
+  let r: Rebuilds | undefined
+  await guard("作り直す物の見分け", async () => {
+    r = rebuildsFor(paths, embedFiles(o.main))
+    return true
+  })
+  if (!r) return done
+  const need = r
   const logs = join(o.logs, `rebuild-${short(to)}`)
   mkdirSync(logs, { recursive: true })
-  const step = async (name: string, cmd: string[]) => {
-    const ok = (await run(cmd, o.main, join(logs, `${name}.log`))) === 0
-    done.push(ok ? name : `${name} に失敗（${join(logs, `${name}.log`)}）`)
-    return ok
-  }
-  if (r.install && !(await step("bun install", ["bun", "install", "--frozen-lockfile"]))) return done
-  if (r.web) await step("web/dist のビルド", ["bun", "run", "build"])
-  if (r.go) done.push(await replaceResident(o.main, o.addr))
-  if (r.plugin) {
-    const cache = pluginCache(o.main)
-    if (cache)
-      await step("プラグインのキャッシュの入れ直し", ["rsync", "-a", "--delete", "clients/claude-code/", `${cache}/`])
-    else done.push("プラグインの入れ直しが要る（キャッシュが無い）")
-  }
+  const step = (name: string, cmd: string[]) =>
+    guard(name, async () => {
+      const ok = (await run(cmd, o.main, join(logs, `${name}.log`))) === 0
+      done.push(ok ? name : `${name} に失敗（${join(logs, `${name}.log`)}）`)
+      return ok
+    })
+  if (need.install && !(await step("bun install", ["bun", "install", "--frozen-lockfile"]))) return done
+  if (need.web) await step("web/dist のビルド", ["bun", "run", "build"])
+  if (need.go)
+    await guard("常駐の入れ替え", async () => {
+      done.push(await replaceResident(o.main, o.addr))
+      return true
+    })
+  if (need.plugin)
+    await guard("プラグインの入れ直し", async () => {
+      const cache = pluginCache(o.main)
+      if (cache)
+        return step("プラグインのキャッシュの入れ直し", [
+          "rsync",
+          "-a",
+          "--delete",
+          "clients/claude-code/",
+          `${cache}/`,
+        ])
+      done.push("プラグインの入れ直しが要る（キャッシュが無い）")
+      return false
+    })
   return done
 }
 
@@ -429,8 +480,12 @@ function ensureQueue(main: string, queue: string): void {
 
 const describe = (f: Failure) => `${f.step}: ${[f.where, f.title].filter(Boolean).join(" ")}`
 
+// 落ちたステップの理由。読み取れた落ちが無ければログのパス
+const whyOf = (results: StepResult[]) =>
+  results.filter(r => !r.ok).flatMap(r => (r.failures.length > 0 ? r.failures.map(describe) : [`${r.step}: ${r.log}`]))
+
 // 結果を数行に
-export function summary(
+function summary(
   merged: Candidate[],
   failed: { name: string; why: string[] }[],
   conflicts: Conflict[],
@@ -446,77 +501,6 @@ export function summary(
   if (flaky.length > 0) lines.push(`揺れた: ${flaky.map(describe).join("、")}`)
   if (rebuilt.length > 0) lines.push(`作り直し: ${rebuilt.join("、")}`)
   return lines
-}
-
-async function main(argv: string[]): Promise<number> {
-  const { options, branches } = parseArgs(argv)
-  if (branches.length === 0) {
-    console.error(
-      "bun scripts/merge-queue.ts [--main <dir>] [--queue <dir>] [--addr <host:port>] [--no-rebuild] <ブランチ>...",
-    )
-    return 2
-  }
-  const common = resolve(options.main, git(options.main, "rev-parse", "--git-common-dir"))
-  const o: Options = { ...options, logs: join(common, "merge-queue") }
-  const candidates = branches.map(name => ({ name, sha: git(o.main, "rev-parse", "--verify", `${name}^{commit}`) }))
-  ensureQueue(o.main, o.queue)
-  const start = git(o.main, "rev-parse", "HEAD")
-
-  const merged: Candidate[] = []
-  const already: Candidate[] = []
-  const conflicts: Conflict[] = []
-  const failed: { name: string; why: string[] }[] = []
-  const flaky: Failure[] = []
-  const take = (a: Attempt): boolean => {
-    if (a.stacked) {
-      already.push(...a.stacked.already)
-      conflicts.push(...a.stacked.conflicts)
-    }
-    if (a.kind === "merged") {
-      merged.push(...a.stacked.merged)
-      flaky.push(...a.flaky)
-    }
-    if (a.kind === "stopped")
-      failed.push({ name: a.stacked?.merged.map(c => c.name).join("、") ?? "", why: [a.reason] })
-    return a.kind !== "stopped"
-  }
-
-  const first = await attempt(o, candidates)
-  if (first.kind === "failed" && first.stacked.merged.length > 1) {
-    // 重ねて落ちたら 1 件ずつ。衝突したブランチは外してある
-    for (const c of first.stacked.merged) {
-      const one = await attempt(o, [c])
-      if (one.kind === "failed") failed.push({ name: c.name, why: one.results.flatMap(r => r.failures).map(describe) })
-      else if (!take(one)) break
-    }
-    if (failed.length === 0)
-      flaky.push({ step: "まとめ", where: "", title: "重ねると落ち、1 件ずつでは通った（揺れか組み合わせ）" })
-    already.push(...first.stacked.already)
-    conflicts.push(...first.stacked.conflicts)
-  } else if (first.kind === "failed") {
-    take({ kind: "nothing", stacked: first.stacked })
-    failed.push({
-      name: first.stacked.merged.map(c => c.name).join("、"),
-      why: first.results.flatMap(r => r.failures).map(describe),
-    })
-  } else take(first)
-
-  const end = git(o.main, "rev-parse", "HEAD")
-  const rebuilt = o.rebuild && end !== start ? await rebuild(o, start, end) : []
-  for (const line of summary(merged, failed, conflicts, already, flaky, rebuilt)) console.log(line)
-  return failed.length === 0 && conflicts.length === 0 ? 0 : 1
-}
-
-// ロックの中で動かし直す（スクリプトが落ちても flock が外す）
-if (import.meta.main) {
-  if (process.env.MERGE_QUEUE_LOCKED === "1") process.exit(await main(process.argv.slice(2)))
-  const { options } = parseArgs(process.argv.slice(2))
-  const lock = join(resolve(options.main, git(options.main, "rev-parse", "--git-common-dir")), "merge-queue.lock")
-  const r = spawnSync("flock", [lock, process.execPath, import.meta.path, ...process.argv.slice(2)], {
-    stdio: "inherit",
-    env: { ...process.env, MERGE_QUEUE_LOCKED: "1" },
-  })
-  process.exit(r.status ?? 1)
 }
 
 // ---- 入口 ----
@@ -539,4 +523,81 @@ function parseArgs(argv: string[]): { options: Omit<Options, "logs">; branches: 
     else if (a !== undefined) branches.push(a)
   }
   return { options: { main, queue: queue ?? join(dirname(main), "matomezu-merge-queue"), addr, rebuild }, branches }
+}
+
+async function main(argv: string[]): Promise<number> {
+  const { options, branches } = parseArgs(argv)
+  if (branches.length === 0) {
+    console.error(
+      "bun scripts/merge-queue.ts [--main <dir>] [--queue <dir>] [--addr <host:port>] [--no-rebuild] <ブランチ>...",
+    )
+    return 2
+  }
+  if (
+    spawnSync("git", ["symbolic-ref", "-q", "HEAD"], { cwd: options.main, encoding: "utf8" }).stdout.trim() !==
+    "refs/heads/main"
+  ) {
+    console.error(`${options.main} は main を checkout していない（--main で main の worktree を渡す）`)
+    return 2
+  }
+  const common = resolve(options.main, git(options.main, "rev-parse", "--git-common-dir"))
+  const o: Options = { ...options, logs: join(common, "merge-queue") }
+  const candidates = branches.map(name => ({ name, sha: git(o.main, "rev-parse", "--verify", `${name}^{commit}`) }))
+  ensureQueue(o.main, o.queue)
+  const start = git(o.main, "rev-parse", "refs/heads/main")
+
+  const merged: Candidate[] = []
+  const already: Candidate[] = []
+  const conflicts: Conflict[] = []
+  const failed: { name: string; why: string[] }[] = []
+  const flaky: Failure[] = []
+  const take = (a: Attempt): boolean => {
+    if (a.stacked) {
+      already.push(...a.stacked.already)
+      conflicts.push(...a.stacked.conflicts)
+    }
+    if (a.kind === "merged") {
+      merged.push(...a.stacked.onTip)
+      flaky.push(...a.flaky)
+    }
+    if (a.kind === "stopped") failed.push({ name: a.stacked?.onTip.map(c => c.name).join("、") ?? "", why: [a.reason] })
+    return a.kind !== "stopped"
+  }
+
+  const first = await attempt(o, candidates)
+  if (first.kind === "failed" && first.stacked.onTip.length > 1) {
+    // 重ねて落ちたら 1 件ずつ。衝突したブランチは外してある
+    for (const c of first.stacked.onTip) {
+      const one = await attempt(o, [c])
+      if (one.kind === "failed") failed.push({ name: c.name, why: whyOf(one.results) })
+      else if (!take(one)) break
+    }
+    if (failed.length === 0)
+      flaky.push({ step: "まとめ", where: "", title: "重ねると落ち、1 件ずつでは通った（揺れか組み合わせ）" })
+    already.push(...first.stacked.already)
+    conflicts.push(...first.stacked.conflicts)
+  } else if (first.kind === "failed") {
+    take({ kind: "nothing", stacked: first.stacked })
+    failed.push({
+      name: first.stacked.onTip.map(c => c.name).join("、"),
+      why: whyOf(first.results),
+    })
+  } else take(first)
+
+  const end = git(o.main, "rev-parse", "refs/heads/main")
+  const rebuilt = o.rebuild && end !== start ? await rebuild(o, start, end) : []
+  for (const line of summary(merged, failed, conflicts, already, flaky, rebuilt)) console.log(line)
+  return failed.length === 0 && conflicts.length === 0 ? 0 : 1
+}
+
+// ロックの中で動かし直す（スクリプトが落ちても flock が外す）
+if (import.meta.main) {
+  if (process.env.MERGE_QUEUE_LOCKED === "1") process.exit(await main(process.argv.slice(2)))
+  const { options } = parseArgs(process.argv.slice(2))
+  const lock = join(resolve(options.main, git(options.main, "rev-parse", "--git-common-dir")), "merge-queue.lock")
+  const r = spawnSync("flock", [lock, process.execPath, import.meta.path, ...process.argv.slice(2)], {
+    stdio: "inherit",
+    env: { ...process.env, MERGE_QUEUE_LOCKED: "1" },
+  })
+  process.exit(r.status ?? 1)
 }
