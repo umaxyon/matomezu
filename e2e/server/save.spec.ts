@@ -1,7 +1,7 @@
 import { drawingPage, testBook } from "../../test/lineup"
 import { SAMPLE_BOOKS } from "../../test/sample-books"
 import { pagesIn } from "../books"
-import { BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test, urlStages } from "../fixtures"
+import { BOOK_SCREEN_URL, bookScreenUrl, expect, joinedAiAuth, type Page, test, urlStages } from "../fixtures"
 import { aiPerform } from "../helpers/ai"
 import { addBox } from "../helpers/paper"
 import { openGeneral } from "../helpers/settings"
@@ -208,7 +208,7 @@ test("開いているブックとページは URL に入り、読み直しても
 }) => {
   const book = { ...SAMPLE_BOOKS[1]!, id: "e2e-url" }
   await put(page, book)
-  await page.goto(`/?b0=${book.id}&p0=p1&v0=1,0,0&c=0&r=0.5`)
+  await page.goto(bookScreenUrl(book.id, "p1"))
   await expect(page.getByRole("img", { name: "紙" })).toBeVisible()
   await page.reload()
   await expect(page.getByRole("img", { name: "紙" })).toBeVisible()
@@ -226,7 +226,7 @@ test("ロック中のブックの名前とページタブに鍵が出る。鍵�
     locked: true,
     lineup: [{ ...pagesIn(E2E_1)[0]!, locked: true }],
   })
-  await page.goto("/?b0=e2e-locked")
+  await page.goto(bookScreenUrl("e2e-locked"))
   await expect(page.getByRole("img", { name: "ロック中" })).toHaveCount(2)
   const paper = (await page.getByRole("img", { name: "紙" }).boundingBox())!
   await page.mouse.click(paper.x + 30, paper.y + 40, { button: "right" })

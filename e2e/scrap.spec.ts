@@ -2,7 +2,7 @@
 // スクラップトレイの 1 つを押して紙を押すと、その値のスクラップボックスが置かれ、中に元のページの箱が見える。スクラップトレイには残り、× で消える。
 // 置いたスクラップボックスをダブルクリックすると設定のダイアログが開き、枠線を切り替えられる。大きさは、四隅のつまみで比を保って変える
 import { drawingPage, MARKDOWN, TREE, testBook, testPage } from "../test/lineup"
-import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
+import { BOOK_SCREEN_URL, bookScreenUrl, expect, type Page, test } from "./fixtures"
 import { leftPanel } from "./helpers/outbox"
 import { addBox, items, onPaper, paper } from "./helpers/paper"
 
@@ -113,7 +113,7 @@ test.describe("マークダウンのページ", () => {
     page,
   }) => {
     await page.emulateMedia({ reducedMotion: "reduce" })
-    await page.goto("/?b0=scrap-md&v0=1,0,0")
+    await page.goto(bookScreenUrl("scrap-md"))
     await page.getByRole("tab", { name: "本文" }).click({ button: "right" })
     await page.getByRole("menu").getByRole("menuitem", { name: "スクラップを切り抜く" }).click()
     const cut = page.getByRole("dialog", { name: "スクラップを切り抜く" })
@@ -125,7 +125,7 @@ test.describe("マークダウンのページ", () => {
     await expect(page.getByText("スクラップトレイに入れました")).toBeVisible()
     await expect(leftPanel(page)).toHaveCount(0)
     await expect(page.locator("[data-scrap-tray-opener]")).toHaveCount(0)
-    await page.goto("/?b0=scrap-to&v0=1,0,0")
+    await page.goto(bookScreenUrl("scrap-to"))
     await openScrapTray(page)
     await leftPanel(page).locator("[data-scrap-row]").first().getByRole("button").first().click()
     const at = await onPaper(page, 300, 200)
@@ -151,7 +151,7 @@ test.describe("ツリーのページ", () => {
   })
 
   test("紙の右クリックから切り抜ける", async ({ page }) => {
-    await page.goto("/?b0=scrap-tree&v0=1,0,0")
+    await page.goto(bookScreenUrl("scrap-tree"))
     const empty = await onPaper(page, 900, 600)
     await page.mouse.click(empty.x, empty.y, { button: "right" })
     await page.getByRole("menu").getByRole("menuitem", { name: "スクラップを切り抜く" }).click()

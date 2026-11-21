@@ -1,7 +1,17 @@
 // 郵便: AI が手紙を送ると、フォーカスのある窓にマーキーが流れ、画面の上からしおりがぶら下がる。左サイドパネルを開くボタンと郵便箱のタブに未読の数が出る。
 // しおりか郵便箱の行を押すとダイアログで本文が見え（見たことになる）、下の行の「開く」などで行き先へ移る（行き先を見たことになる）。行き先の物には鳥が来て枠が光る。
 // 行き先が無ければ「行き先がありません」と「閉じる」だけ
-import { aiAuth, BOOK_SCREEN_URL, expect, joinedAiAuth, type Page, test, urlPlace, urlStages } from "./fixtures"
+import {
+  aiAuth,
+  BOOK_SCREEN_URL,
+  expect,
+  joinedAiAuth,
+  type Page,
+  stagesUrl,
+  test,
+  urlPlace,
+  urlStages,
+} from "./fixtures"
 import { aiPerform } from "./helpers/ai"
 import { addBox, items } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
@@ -103,7 +113,7 @@ test("2 画面なら「左に開く」「右に開く」で、Enter はダイア
   const book = await ready(page)
   await addBox(page, 300, 300, "二つの箱")
   const box = (await items(page).filter({ hasText: "二つの箱" }).getAttribute("data-item"))!
-  await page.goto(`/?b0=${book}&v0=1,0,0&b1=&v1=1,0,0&c=1&r=0.5`)
+  await page.goto(stagesUrl([{ book }, { book: null }], 1))
   const stages = page.locator("[data-stage]")
   await expect(stages).toHaveCount(2)
   await aiPerform(page, {

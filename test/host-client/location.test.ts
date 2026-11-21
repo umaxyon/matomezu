@@ -6,14 +6,7 @@ import { type Address, currentIn, recentStagesIn } from "../../web/src/core/addr
 import { NO_OUTERMOST } from "../../web/src/core/folders-tree"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { currentKindOf, screenOf } from "../../web/src/core/window"
-import {
-  type FormerAddress,
-  followLocation,
-  fromFormer,
-  type Place,
-  parseSearch,
-  searchOf,
-} from "../../web/src/host-client/location"
+import { followLocation, type Place, parseSearch, searchOf } from "../../web/src/host-client/location"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
@@ -84,6 +77,14 @@ const frontDefIn = (search: string) => {
   const address = written(search)
   return address.screens.find(x => x.id === currentIn(address))?.def
 }
+// ブックスクリーンをカレントスクリーンにし、そのステージ 1 つにブック book のページ page を開いた URL
+const bookUrl = (book: string, page: string) => {
+  const store = newStore()
+  showBooks(store)
+  store.actions.openBook("s1", book)
+  store.actions.openPage("s1", page)
+  return searchOf(store.address())
+}
 
 test("URL の形: 値 1 つ（sc）に、スクリーンの並び・カレントにした順と、ステージごとのブック・ページ・倍率とずらす量、場所に入れるプラグイン状態を書く。読み戻すと同じ場所", () => {
   const address: Address = {
@@ -153,62 +154,9 @@ test("URL の形: 値 1 つ（sc）に、スクリーンの並び・カレント
   })
 })
 
-test("前の形の URL（b0・p0・v0・s0…、c・r・w・f）も読み、今開いているスクリーンに重ねて今の形に直す", () => {
-  const former = parseSearch(
-    `?b0=b1&p0=p1&v0=1,0,0&b1=&v1=1.25,12.5,-3&s1={"@x/p":{"a":1}}&w={"@x/tab":"two"}&c=1&r=0.4`,
-  )
-  expect(former).toEqual({
-    former: true,
-    kind: "book-screen",
-    stages: [
-      { outermost: "b1", page: "p1", binder: null, zoom: 1, pan: { x: 0, y: 0 }, states: {} },
-      {
-        outermost: NO_OUTERMOST,
-        page: null,
-        binder: null,
-        zoom: 1.25,
-        pan: { x: 12.5, y: -3 },
-        states: { "@x/p": { a: 1 } },
-      },
-    ],
-    current: 1,
-    share: 0.4,
-    window: { "@x/tab": "two" },
-  })
-  // プラグイン状態が JSON のオブジェクトでなければ空（中身の形は store が確かめる）
-  expect(parseSearch("?b0=b1&v0=1,0,0&s0=%7Bx&w=%5B1%5D&c=0&r=0.5")).toMatchObject({
-    stages: [{ states: {} }],
-    window: {},
-  })
-  expect(parseSearch("?f=center")).toMatchObject({ kind: "control-center", stages: [] })
-  expect(parseSearch("?f=book")).toMatchObject({ kind: "book-screen", stages: [] })
-  const now: Address = {
-    screens: [
-      { id: "c1", def: "@x/home", props: {}, states: {} },
-      { id: "c2", def: "@x/books", props: {}, states: {}, stages: { places: [], current: 0, share: 0.5 } },
-    ],
-    order: ["c1", "c2"],
-    arrangement: "@x/one",
-    arrangementValue: {},
-    window: {},
-  }
-  const placed = fromFormer(former as FormerAddress, now)
-  expect(placed.screens[1]?.stages).toMatchObject({
-    current: 1,
-    share: 0.4,
-    places: [{ outermost: "b1" }, { outermost: NO_OUTERMOST }],
-  })
-  expect(placed.order).toEqual(["c1", "c2"])
-  expect(placed.window).toEqual({ "@x/tab": "two" })
-  // ステージの無い前の形は、カレントスクリーンの種類だけを替える（ステージは今のまま）
-  const center = fromFormer(parseSearch("?f=center") as FormerAddress, now)
-  expect(center.order).toEqual(["c2", "c1"])
-  expect(center.screens[1]?.stages).toEqual(now.screens[1]?.stages)
-})
-
 test("開いたときは URL の場所を当てはめる（読み直しても同じ所が開く）", () => {
   const store = newStore()
-  const f = fakePlace("?b0=b3&p0=p1&v0=1,0,0&c=0&r=0.5")
+  const f = fakePlace(bookUrl("b3", "p1"))
   followLocation(store, f.place)
   expect(screenOf(store.state.getState().window).stages[0]!.opened?.outermost.id).toBe("b3")
 })
@@ -256,7 +204,7 @@ test("URL が無い（開いた直後）なら、コントロールセンター�
   followLocation(first, fakePlace().place)
   expect(currentKindOf(first.state.getState().window)).toBe("control-center")
   const second = newStore()
-  followLocation(second, fakePlace("?b0=b3&p0=p1&v0=1,0,0&c=0&r=0.5").place)
+  followLocation(second, fakePlace(bookUrl("b3", "p1")).place)
   expect(currentKindOf(second.state.getState().window)).toBe("book-screen")
 })
 
@@ -270,7 +218,7 @@ test("カレントスクリーンは URL のカレントにした順に書く。
 
 test("カレントスクリーンを替えるのは、ブラウザの履歴に 1 つ積む。戻るとカレントスクリーンが戻り、後ろのブックスクリーンの中は残る", async () => {
   const store = newStore()
-  const f = fakePlace("?b0=b1&p0=p1&v0=1,0,0&c=0&r=0.5")
+  const f = fakePlace(bookUrl("b1", "p1"))
   followLocation(store, f.place)
   const was = screenOf(store.state.getState().window)
   showCenter(store)
@@ -305,7 +253,7 @@ test("積むと宣言したステージに結ばない値は変わるたびに�
     partial: true,
   })
   showFirstBook(store)
-  const f = fakePlace("?b0=b1&p0=p1&v0=1,0,0&c=0&r=0.5")
+  const f = fakePlace(bookUrl("b1", "p1"))
   followLocation(store, f.place)
   expect(store.pushing().has("k:tab")).toBe(true)
   expect(store.pushing().has("k:mode")).toBe(false)
