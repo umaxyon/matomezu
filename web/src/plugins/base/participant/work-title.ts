@@ -1,4 +1,4 @@
-// 作業名: 参加しているワークルームの名前と作業から作る、AI のセッション名に書く名前（例「sub5_work M-0167 名前」「sub5_work（空き）」）。
+// 作業名: 参加しているワークルームの名前と作業から作る、AI のセッション名に書く名前（例「M-0167 名前 sub5_work」「sub5_work（空き）」。一覧で後ろが切れても作業が見えるよう、作業を先に）。
 // 書くのは AI のプログラムのフックと、ADE のワークスペースの表示名（どちらもホストが行う）。利用者の設定の項目で、書くのを止められる
 import { z } from "zod"
 import type { CoreCatalog } from "../../../core/core-catalog"
@@ -22,7 +22,7 @@ const IDLE_TITLE = kit.message("{name} (idle)")
 export type WorkTitle = { kind: "title"; title: string } | { kind: "off" }
 
 // 利用者の設定 settings で、ワークルーム（id と名前 name）に参加しているセッションの作業名。
-// 作業中なら名前と作業の題名、作業が無ければ空きと添え、作業を答える種類が無ければ名前だけ
+// 作業中なら作業の題名と名前、作業が無ければ空きと添え、作業を答える種類が無ければ名前だけ
 export function workTitleIn(
   catalog: CoreCatalog,
   settings: Settings,
@@ -32,7 +32,7 @@ export function workTitleIn(
   if (userSetting(catalog, settings, SESSION_RENAME.id) === false) return { kind: "off" }
   const work = workroomWorkIn(catalog, source, workroom.id)
   if (work === "unknown") return { kind: "title", title: workroom.name }
-  if (work.kind === "working") return { kind: "title", title: `${workroom.name} ${work.title}` }
+  if (work.kind === "working") return { kind: "title", title: `${work.title} ${workroom.name}` }
   return {
     kind: "title",
     title: translate(catalog.messages, langOf(catalog, settings, "en"), IDLE_TITLE, { name: workroom.name }),

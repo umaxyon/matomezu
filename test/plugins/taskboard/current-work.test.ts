@@ -248,7 +248,7 @@ test("ワークルームの作業: カレントチケットがあれば作業中
   expect(workroomWorkOf(CORE_CATALOG, records(), a)).toEqual({ kind: "working", title: "T-0001 鳥と表示名" })
 })
 
-test("作業名: 作業中ならワークルームの名前と題名、空きなら空きの印、答える種類が無ければ名前だけ、設定が止めていれば off", () => {
+test("作業名: 作業中なら題名とワークルームの名前、空きなら空きの印、答える種類が無ければ名前だけ、設定が止めていれば off", () => {
   const { act, room, add, world } = board()
   const a = room("ひよこ")
   const source = () => sourceOf(world().records as Records)
@@ -258,7 +258,7 @@ test("作業名: 作業中ならワークルームの名前と題名、空きな
   expect(title(CORE_CATALOG, ja)).toEqual({ kind: "title", title: "ひよこ（空き）" })
   expect(title(CORE_CATALOG, {})).toEqual({ kind: "title", title: "ひよこ (idle)" })
   act(ai(a), "ticket-start", {}, { record: add({ name: "鳥と表示名" }) })
-  expect(title(CORE_CATALOG, ja)).toEqual({ kind: "title", title: "ひよこ T-0001 鳥と表示名" })
+  expect(title(CORE_CATALOG, ja)).toEqual({ kind: "title", title: "T-0001 鳥と表示名 ひよこ" })
   const noAnswer = { ...CORE_CATALOG, subjects: new Map() } as CoreCatalog
   expect(title(noAnswer, ja)).toEqual({ kind: "title", title: "ひよこ" })
   expect(title(CORE_CATALOG, { ...ja, "@matomezu/base:session-rename": false })).toEqual({ kind: "off" })
