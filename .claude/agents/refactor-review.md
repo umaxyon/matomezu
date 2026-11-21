@@ -11,7 +11,7 @@ model: opus
 
 ## 手順
 
-1. 最初に AGENT.md と、そこからたどる conventions/ の md、`.claude/shiteki-kaizen.md` を読む
+1. 最初に AGENT.md と、そこからたどる conventions/ の md、`.claude/judgment-principles.md`（判断の基準）を読む。基準の根拠の事例は、`.claude/shiteki-kaizen.md` を「事例 No.番号」で grep して読む
 2. 呼んだ側が渡した案（または保留・仮の実装の一覧）を読み、要るだけコードを読む
 3. 下の考え方で、項目ごとに意見を決める
 
