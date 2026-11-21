@@ -59,6 +59,8 @@ export {
   Notice,
   opensOf,
   PageProblemsView,
+  PageSettingsFrame,
+  type PageSettingsFrameProps,
   type PaperValue,
   type PrintMeasured,
   type PrintMeasureProps,

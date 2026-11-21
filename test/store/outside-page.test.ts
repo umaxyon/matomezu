@@ -263,15 +263,16 @@ test("ブックの外のページを開いたステージでは、マーク・�
 test("ブックの外のページの紙・向き・可変ページか・名前を変えられ、ロックを掛けて外せる", () => {
   const store = withOutside()
   const page = () => store.state.getState().pages.o1
-  const perform = (id: string, args: object) => store.actions.perform(id as never, args as never, { page: "o1" })
+  const perform = (id: "page-update" | "page-lock" | "page-unlock", args: object) =>
+    store.actions.perform(`@matomezu/base:${id}`, args as never, { page: "o1" })
   const settings = { "@matomezu/line:line-route": "elbow" }
-  expect(
-    perform("@matomezu/base:page-update", { title: "新しい名前", orientation: "portrait", grows: true, settings }),
-  ).toMatchObject({ ok: true })
+  expect(perform("page-update", { title: "新しい名前", orientation: "portrait", grows: true, settings })).toMatchObject(
+    { ok: true },
+  )
   expect(page()).toMatchObject({ title: "新しい名前", orientation: "portrait", grows: "right-down", settings })
-  expect(perform("@matomezu/base:page-lock", {}).ok).toBe(true)
-  expect(perform("@matomezu/base:page-update", { title: "止まる" }).ok).toBe(false)
-  expect(perform("@matomezu/base:page-unlock", {}).ok).toBe(true)
+  expect(perform("page-lock", {}).ok).toBe(true)
+  expect(perform("page-update", { title: "止まる" }).ok).toBe(false)
+  expect(perform("page-unlock", {}).ok).toBe(true)
   expect(page()?.locked).toBeUndefined()
-  expect(perform("@matomezu/base:page-update", { paper: "@matomezu/base:a3" })).toMatchObject({ ok: true })
+  expect(perform("page-update", { paper: "@matomezu/base:a3" })).toMatchObject({ ok: true })
 })

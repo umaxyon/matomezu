@@ -1,4 +1,4 @@
-// 設定の項目のコンポーネントの並び: ページの設定ならページのタイプが選んだ項目、ブックの設定ならブックが持つ項目（印刷プレビューのほかの組）ごとに、項目のビューのコンポーネントを出す（ビューの無い項目は出さない）。
+// 設定の項目のコンポーネントの並び: ページの設定ならページのタイプが選んだ項目（ブックの外のページでも同じ）、ブックの設定ならブックが持つ項目（印刷プレビューのほかの組）ごとに、項目のビューのコンポーネントを出す（ビューの無い項目は出さない）。
 // 変えた項目だけを、項目の id ごとの値（消すなら null）にして、アクション book-update・page-update の settings に渡す
 import { useState } from "react"
 import { withSettings } from "../../../core/book"
@@ -11,37 +11,33 @@ import { bookSettingDefs, ownSettings, settingDefs } from "."
 // 変えた項目（項目の id → 値。消すなら null）
 export type SettingsPatch = Readonly<Record<string, unknown>>
 
-// of はブックの項目かページの項目か（ページなら page が変えるページ）。only を渡せば、その id の項目だけを並べる
-export function useSettingControls(
-  book: Book | undefined,
-  of: "book" | "page",
-  page: Page | null,
-  only?: readonly string[],
-) {
+// 項目を持つ所: ページ（変えるページ）か、ステージエントリのブック
+export type SettingsAt = { of: "page"; page: Page | null } | { of: "outermost"; book: Book | undefined }
+
+// only を渡せば、その id の項目だけを並べる
+export function useSettingControls(at: SettingsAt, only?: readonly string[]) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const ui = useUiCatalog()
   const [patch, setPatch] = useState<SettingsPatch>({})
-  const defs = (
-    of === "page" ? (page ? settingDefs(catalog, page.type) : []) : book ? bookSettingDefs(catalog) : []
-  ).filter(d => !only || only.includes(d.id))
-  const at = of === "page" ? page : book
-  const draftBook = book && of === "book" ? withSettings<Book>(book, patch) : book // 変えている項目を重ねたブック
-  const draftPage = page && of === "page" ? withSettings<Page>(page, patch) : null // 変えている項目を重ねたページ
+  const holder = at.of === "page" ? at.page : at.book
+  const all =
+    at.of === "page" ? (at.page ? settingDefs(catalog, at.page.type) : []) : at.book ? bookSettingDefs(catalog) : []
+  const defs = all.filter(d => !only || only.includes(d.id))
+  const draftPage = at.of === "page" && at.page ? withSettings<Page>(at.page, patch) : null // 変えている項目を重ねたページ
   const controls = defs.flatMap(def => {
     const view = ui.settingViews.get(def.id)
-    if (!view || !book || !draftBook) return []
-    const own = ownSettings(at ?? null)[def.id]
+    if (!view) return []
+    const own = ownSettings(holder ?? null)[def.id]
     const value = def.id in patch ? (patch[def.id] ?? undefined) : own
     const Control = view.control
     return [
       <Control
         key={def.id}
-        of={of}
+        of={at.of}
         label={t(def.title)}
         value={value}
         inherited={def.default}
-        book={draftBook}
         page={draftPage}
         onChange={(v: unknown) => setPatch(p => ({ ...p, [def.id]: v === undefined ? null : v }))}
       />,

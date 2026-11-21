@@ -48,7 +48,6 @@ function NewPageForm({ book, args, onDone }: { book: Book; args: NewPageDialogAr
   )
   const paper = usePaperControls(
     book,
-    null,
     args.type,
     newBinder ? "new-binder" : args.binder === undefined ? "lineup" : { binder: args.binder },
   )

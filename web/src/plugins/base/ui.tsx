@@ -149,7 +149,15 @@ export {
 } from "./markdown/ui"
 export { useDrawnMinimap } from "./minimap/ui"
 export { ANNOTATION_ICON, type AnnotationIconProps, defineAnnotationIcon } from "./outbox/ui"
-export { PageProblemsView, type PaperValue, useAddPage, usePageProblems, usePaperControls } from "./page-tabs/ui"
+export {
+  PageProblemsView,
+  PageSettingsFrame,
+  type PageSettingsFrameProps,
+  type PaperValue,
+  useAddPage,
+  usePageProblems,
+  usePaperControls,
+} from "./page-tabs/ui"
 export {
   BirdFaceView,
   useVisitorRows,
