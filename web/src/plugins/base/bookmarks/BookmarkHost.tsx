@@ -1,6 +1,6 @@
 // しおりの置き場（ウィジェット bookmark-host。根に置く）: スロット bookmarks に置いたウィジェットが useShowBookmarks で渡したしおりを、画面の上の右寄りから、しおりのようにぶら下げる
 // （マーキーは消えるが、しおりは片づくまで残る）。並べるのは MAX_BOOKMARKS まで（allotBookmarks）。並べきれなければ横に「+n」を出し、押すと、並べきれなかった物を持つウィジェットの
-// 「残りを開く」を呼ぶ（無ければ、ほかのウィジェットの物）。置いたウィジェットのビューは何も描かない（しおりの殻・並べ方は、ここが描く）
+// 「残りを開く」を呼ぶ（無ければ、ほかのウィジェットの物）。置いたウィジェットのビューは何も描かない（しおりの帯の見た目・並べ方は、ここが描く）
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useSyncExternalStore } from "react"
 import { fail } from "../../../core/errors"
 import { useMessages } from "../../../ui/i18n"
