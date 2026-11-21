@@ -31,7 +31,7 @@ func ModWakes(entrypoint string) bool {
 	return entrypoint == desktopEntrypoint
 }
 
-// mod の watch が渡す知らせの上限。$.prompt.submit は 1 行を 1 つのターンにするので、行は切らず（常駐の知らせはどれも 1 行）、間も空けない。
+// mod の watch が渡す知らせの上限。mod は watch の 1 行（JSON の文字列にした知らせ 1 つ。--escaped）を 1 つのターンにするので、行は切らず、間も空けない。
 // 1 回の知らせの上限は monitor と同じ値にする。そのターンが知らせで始まったかは、常駐が渡した知らせと照らして決める（talked の prompt）
 const (
 	ModMaxLine   = 0
