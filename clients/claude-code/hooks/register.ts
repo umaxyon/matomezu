@@ -2,7 +2,7 @@
 // matomezu claude-code watch --via mod を会話の間だけ立て、出た 1 行（知らせ 1 つを JSON の文字列にした物）ごとに、読み戻した知らせを $.prompt.submit してターンを始める。
 // asUser で送り主を名乗る包みの文を付けない。利用者の言葉でないことは、そのターンの UserPromptSubmit のフックが添える（matomezu claude-code hook prompt）。
 // フックは常駐が貸した文と照らすので、submit からフックが着くまでに常駐が起動し直したときと、常駐に届かないときは、包みも添え書きも無い入力になる
-// どの会話を起こすか・知らせの文は matomezu が決める。ここは行を渡すだけ
+// どの会話を起こすか・知らせの文は matomezu が決める。ここは行を読み戻して渡すだけ
 import type { Register } from "claude-code"
 
 const WATCH = ["matomezu", "claude-code", "watch", "--via", "mod"]

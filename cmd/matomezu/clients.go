@@ -136,7 +136,7 @@ func (c claudeWatchCmd) Run() error {
 		if !claudelaunch.ModWakes(os.Getenv(claudelaunch.EntrypointEnv)) {
 			return nil
 		}
-		w.MaxLine, w.MaxNotice, w.Gap, w.Escaped = claudelaunch.ModMaxLine, claudelaunch.ModMaxNotice, 0, true
+		w.MaxLine, w.MaxNotice, w.Gap, w.Escaped = claudelaunch.ModMaxLine, claudelaunch.ModMaxNotice, claudelaunch.ModGap, claudelaunch.ModEscaped
 	}
 	if w.Host == "" && w.Session == "" {
 		return nil
