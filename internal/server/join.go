@@ -238,6 +238,8 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 	}
 	left := false       // 部屋を見回るあいだに、セッションの終わった参加者を退室させた
 	continuing := false // 頼まれた名前の部屋に、生きていない参加者がいる（利用者が画面で引き継ぐかを選ぶ。同じセッション名でも「参加済み」にしない）
+	roomID := ""        // 頼まれた名前の部屋の id（無ければ空）
+	occupant := ""      // 頼まれた名前の部屋にいる、生きていない参加者の id
 	// ビジターとしての頼み（As）は、ワークルームを持たないので部屋を見回らない（ワークルームと一緒に頼めば、要求のアクションが断る）
 	if req.Workroom != "" && req.As == "" {
 		rooms, err := h.workrooms()
@@ -248,6 +250,7 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 			if room.Name != req.Workroom {
 				continue
 			}
+			roomID = room.ID
 			for _, s := range records {
 				if s.State != stateJoined || s.Workroom != room.ID {
 					continue
@@ -268,6 +271,7 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 					return Joined{Reason: "workroom-in-use", Detail: "workroom " + req.Workroom + " already has a participant who is alive (a person or AI joined it recently); do not ask again, tell the user in the chat. A participant who keeps its participant id continues without joining again"}, nil
 				}
 				continuing = true
+				occupant = s.ID
 			}
 		}
 	}
@@ -276,6 +280,10 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 		if records, err = h.records(); err != nil {
 			return Joined{}, err
 		}
+	}
+	// 開発用: 前もって承認した合言葉で、その部屋の続きを頼んだら、画面を通さずに受け入れる（rejoin_pass.go）
+	if done, ok, err := h.joinByPass(req, ids, roomID, occupant); ok || err != nil {
+		return done, err
 	}
 	if !continuing && req.Participant == "" && req.SessionName != "" {
 		for _, s := range records {

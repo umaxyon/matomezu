@@ -166,6 +166,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("POST /api/ai/talked", o.ai(o.aiTalked))
 	mux.Handle("POST /api/ai/model", o.ai(o.aiModel))
 	routesForTest(mux, o)
+	routesForDev(mux, o)
 	mux.Handle("GET /api/ai/settings", o.ai(func(w http.ResponseWriter, _ *http.Request) {
 		settings, err := o.Hub.AISettings()
 		if err != nil {
