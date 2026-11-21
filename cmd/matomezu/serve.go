@@ -72,9 +72,7 @@ func openHome() (*home.Home, error) {
 }
 
 func (c *serveCmd) Run() error {
-	if root := useDevHere(); root != "" && c.Web == "" {
-		c.Web = devServerFlags(root).Web
-	}
+	c.serverFlags = devHere(c.serverFlags)
 	h, err := openHome()
 	if err != nil {
 		return err
@@ -135,10 +133,8 @@ func (c *serveCmd) Run() error {
 	if err != nil {
 		return err
 	}
-	if c.Port != nil && *c.Port != 0 {
-		if err := h.WritePort(*c.Port); err != nil {
-			return err
-		}
+	if err := keepPort(h, c.Port); err != nil {
+		return err
 	}
 	token, err := home.NewToken()
 	if err != nil {
@@ -201,14 +197,10 @@ func screen(dir string) (fs.FS, error) {
 }
 
 func (c *startCmd) Run() error {
-	root := useDevHere()
+	f := devHere(c.serverFlags)
 	h, err := openHome()
 	if err != nil {
 		return err
-	}
-	f := c.serverFlags
-	if root != "" && f.Web == "" {
-		f.Web = devServerFlags(root).Web
 	}
 	s, err := ensure(h, f)
 	if err != nil {
@@ -264,7 +256,7 @@ func ensure(h *home.Home, f serverFlags) (*home.Server, error) {
 			if s, _ := running(h); s != nil {
 				return s, nil
 			}
-			if why := lastLine(h.LogPath(), from); why != "" {
+			if why := lastLogLine(h.LogPath(), from); why != "" {
 				return nil, fmt.Errorf("the server stopped while starting: %s (log: %s)", why, h.LogPath())
 			}
 			return nil, fmt.Errorf("the server stopped while starting: see %s", h.LogPath())
@@ -293,6 +285,14 @@ func listenPort(h *home.Home, chosen *int) (int, error) {
 	return DefaultPort, nil
 }
 
+// keepPort は、待ち受けを始めた常駐のポートを、利用者が選んだ物 chosen なら保管庫に覚える（選んでいない・0 は覚えない）
+func keepPort(h *home.Home, chosen *int) error {
+	if chosen == nil || *chosen == 0 {
+		return nil
+	}
+	return h.WritePort(*chosen)
+}
+
 // serverPort は、立っている常駐 s が待つポート（読めなければ 0）
 func serverPort(s *home.Server) int {
 	u, err := url.Parse(s.URL)
@@ -303,8 +303,8 @@ func serverPort(s *home.Server) int {
 	return port
 }
 
-// lastLine は、ファイル path の from バイト目より後ろに書かれた、空でない最後の行（頭の「error: 」は外す。読めなければ空）
-func lastLine(path string, from int64) string {
+// lastLogLine は、ファイル path の from バイト目より後ろに書かれた、空でない最後の行（頭の「error: 」は外す。読めなければ空）
+func lastLogLine(path string, from int64) string {
 	b, err := os.ReadFile(path)
 	if err != nil || int64(len(b)) < from {
 		return ""
@@ -358,14 +358,10 @@ func (c *stopCmd) Run() error {
 
 // Run は、cookie のコード付きでブラウザを開かせる（画面 cookie が切れたブラウザを、利用者が自分で渡し直す）。常駐が立っていなければ立てる
 func (c *openCmd) Run() error {
-	root := useDevHere()
+	f := devHere(serverFlags{})
 	h, err := openHome()
 	if err != nil {
 		return err
-	}
-	f := serverFlags{}
-	if root != "" {
-		f = devServerFlags(root)
 	}
 	s, err := ensure(h, f)
 	if err != nil {

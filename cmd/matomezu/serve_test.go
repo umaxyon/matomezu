@@ -138,10 +138,30 @@ func TestLastLineOfThisStart(t *testing.T) {
 	if err := os.WriteFile(path, []byte(old+"starting\nerror: port 7230 is in use\n\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if got := lastLine(path, int64(len(old))); got != "port 7230 is in use" {
+	if got := lastLogLine(path, int64(len(old))); got != "port 7230 is in use" {
 		t.Errorf("got %q", got)
 	}
-	if got := lastLine(path, 1<<20); got != "" {
+	if got := lastLogLine(path, 1<<20); got != "" {
 		t.Errorf("past the end = %q", got)
+	}
+}
+
+// 覚えるのは利用者が選んだポートだけ（選んでいない・0 は覚えない）
+func TestKeepPortOnlyWhenChosen(t *testing.T) {
+	h := openTestHome(t, t.TempDir())
+	zero, chosen := 0, 5301
+	for _, p := range []*int{nil, &zero} {
+		if err := keepPort(h, p); err != nil {
+			t.Fatal(err)
+		}
+		if kept, _ := h.ReadPort(); kept != 0 {
+			t.Fatalf("kept %d", kept)
+		}
+	}
+	if err := keepPort(h, &chosen); err != nil {
+		t.Fatal(err)
+	}
+	if kept, _ := h.ReadPort(); kept != 5301 {
+		t.Errorf("kept %d, want 5301", kept)
 	}
 }

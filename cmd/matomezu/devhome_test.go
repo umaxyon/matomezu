@@ -86,7 +86,7 @@ func TestDevRootOnlyInTheDevelopmentBuild(t *testing.T) {
 }
 
 // 配る版が、開発の常駐のあるリポジトリの中で呼ばれたら知らせる（開発の版・リポジトリの外では知らせない）
-func TestDevNotUsed(t *testing.T) {
+func TestDevNotUsedNote(t *testing.T) {
 	repo := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(repo, ".git"), 0o755); err != nil {
 		t.Fatal(err)
@@ -97,16 +97,16 @@ func TestDevNotUsed(t *testing.T) {
 	if err := os.WriteFile(devBinary(repo), nil, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if got := devNotUsed(repo); got != "" {
+	if got := devNotUsedNote(repo); got != "" {
 		t.Fatalf("development build: %q", got)
 	}
 	saved := version
 	t.Cleanup(func() { version = saved })
 	version = "1.2.3"
-	if got := devNotUsed(repo); !strings.Contains(got, repo) || !strings.Contains(got, "1.2.3") {
+	if got := devNotUsedNote(repo); !strings.Contains(got, repo) || !strings.Contains(got, "1.2.3") {
 		t.Errorf("released build in the repository: %q", got)
 	}
-	if got := devNotUsed(t.TempDir()); got != "" {
+	if got := devNotUsedNote(t.TempDir()); got != "" {
 		t.Errorf("outside a repository: %q", got)
 	}
 }

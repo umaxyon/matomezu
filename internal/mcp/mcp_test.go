@@ -100,6 +100,27 @@ func talkOn(t *testing.T, api API, branch func() string, lines ...string) []map[
 	return answers
 }
 
+// note は、AI に渡す説明の後ろに足す（空なら説明だけ）
+func TestInitializeAddsTheNoteToTheInstructions(t *testing.T) {
+	for _, note := range []string{"", "Not the development server."} {
+		var out bytes.Buffer
+		if err := Serve(strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`+"\n"), &out, &fakeAPI{}, "v1", "wsl-linux", func() string { return "" }, "4242", "", "", "", testMeta, note); err != nil {
+			t.Fatal(err)
+		}
+		var a struct {
+			Result struct {
+				Instructions string `json:"instructions"`
+			} `json:"result"`
+		}
+		if err := json.Unmarshal(out.Bytes(), &a); err != nil {
+			t.Fatal(err)
+		}
+		if want := strings.TrimSpace(instructions + " " + note); a.Result.Instructions != want {
+			t.Errorf("note %q: instructions = %q", note, a.Result.Instructions)
+		}
+	}
+}
+
 func TestInitializeAnswersTheAskedVersionAndIgnoresNotifications(t *testing.T) {
 	got := talk(t, &fakeAPI{},
 		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26"}}`,

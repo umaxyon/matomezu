@@ -98,8 +98,8 @@ func gitCommonDir(dotGit string) string {
 	return filepath.Clean(c)
 }
 
-// devNotUsed は、配る版の matomezu が、開発の常駐のあるリポジトリの中（dir）で呼ばれたときの知らせ（開発の常駐でなく、利用者の保管庫を使っている）。当たらなければ空
-func devNotUsed(dir string) string {
+// devNotUsedNote は、配る版の matomezu が、開発の常駐のあるリポジトリの中（dir）で呼ばれたときの知らせ（開発の常駐でなく、利用者の保管庫を使っている）。当たらなければ空
+func devNotUsedNote(dir string) string {
 	if version == devVersion {
 		return ""
 	}
@@ -117,7 +117,7 @@ func useDevHere() string {
 		return ""
 	}
 	wd, _ := os.Getwd()
-	if note := devNotUsed(wd); note != "" {
+	if note := devNotUsedNote(wd); note != "" {
 		fmt.Fprintln(os.Stderr, note)
 	}
 	root := devRoot(wd)
@@ -125,6 +125,14 @@ func useDevHere() string {
 		useDev(root)
 	}
 	return root
+}
+
+// devHere は、手で打つ serve・start・open の常駐の立て方 f: 今いるフォルダが matomezu のリポジトリなら（useDevHere）、--web が無ければ開発の画面を配る
+func devHere(f serverFlags) serverFlags {
+	if root := useDevHere(); root != "" && f.Web == "" {
+		f.Web = devServerFlags(root).Web
+	}
+	return f
 }
 
 // useDev は、リポジトリの根 root の開発の常駐を使う: 保管庫フォルダを合わせ、自分が開発の実行ファイルでなければ、それを同じ引数で起動し直す（戻らない）。
