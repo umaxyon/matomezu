@@ -27,26 +27,26 @@ loadFonts()
 const root = document.getElementById("root")
 if (!root) fail("E202")
 const opened = await openClient()
-const { client, loaded: saved } = opened.state === "opened" ? opened : await stopWith(root, UNKNOWN_BROWSER_LAYOUT)
+const { client, loaded } = opened.state === "opened" ? opened : await stopWith(root, UNKNOWN_BROWSER_LAYOUT)
 const store = createMatomezu({
   plugins: BUILTIN_UI,
   controlCenter: BUILTIN_CONTROL_CENTER,
-  savedBooks: saved.books,
-  settings: saved.settings,
+  saved: loaded.saved,
+  settings: loaded.settings,
   lang: navigator.languages,
   observe: done => client.observe(done),
   aiEditTicket: change => client.reportAIEditTicket(change),
   visible: () => client.visible(),
   search: query => client.search(query),
-  ...(saved.unreadableNotice ? { unreadableNotice: saved.unreadableNotice } : {}),
+  ...(loaded.unreadableNotice ? { unreadableNotice: loaded.unreadableNotice } : {}),
   unreadableHost: { purge: id => client.purgeUnreadable(id), movedIfOff: ids => client.movedIfOff(ids) },
   ...browserWindowIo(),
 })
 // 取り込んだ追加プラグインは、matomezu 本体の core/catalog.ts の型に入らないので、型では確かめず、台帳アセンブルで確かめる（見た目と、置いた UI マッピングも）。
 // 読み込めないもの・台帳アセンブルで食い違うもの・UI マッピングが食い違うものが 1 つでもあれば、起動を止めて起動エラーの画面を出す
 // 利用者が有効にしていない追加プラグインは、名乗りと文言だけで組む（ホストのエンジンも同じ。設定の「プラグイン」に並べる）
-const offered = (saved.plugins as AnyPluginUi[]).map(p => (saved.disabled.includes(p.id) ? withoutUi(p) : p))
-const notAdded = pluginsNotAdded(saved.failed, () =>
+const offered = (loaded.plugins as AnyPluginUi[]).map(p => (loaded.disabled.includes(p.id) ? withoutUi(p) : p))
+const notAdded = pluginsNotAdded(loaded.failed, () =>
   store.use(offered, all => {
     shownLayout(placeAdded(DEFAULT_LAYOUT, all), all, assembleUi(all))
   }),
@@ -55,7 +55,7 @@ if (notAdded.length > 0) {
   for (const { name, reason } of notAdded) console.error(`plugin ${name} is not added:`, reason)
   client.closeEvents()
   await stopWith(root, STARTUP_ERROR_LAYOUT, {
-    settings: saved.settings,
+    settings: loaded.settings,
     startupError: pluginsNotAddedError(notAdded, ids => client.removeScreenPlugins(ids)),
   })
 }

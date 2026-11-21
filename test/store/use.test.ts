@@ -9,7 +9,7 @@ import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { definePlugin, withoutParts } from "../../web/src/store/plugin"
-import { shown } from "../support"
+import { savedRows, shown } from "../support"
 
 // 取り込んだ追加プラグインの見本: 自分のページのタイプとアクション（core/catalog.ts には書き足さない）
 const NOTE = definePageType({
@@ -51,7 +51,7 @@ const saved = {
 const openedOf = (instance: ReturnType<typeof make>) => stageIn(instance.state.getState().window, "s1")?.opened
 
 const make = () =>
-  shown(createMatomezu({ plugins: BUILTIN, controlCenter: BUILTIN_CONTROL_CENTER, savedBooks: [saved] }))
+  shown(createMatomezu({ plugins: BUILTIN, controlCenter: BUILTIN_CONTROL_CENTER, saved: savedRows([saved]) }))
 
 test("取り込んだ追加プラグインを use で足すと組み直し、作ったときに渡したブックを新しい台帳で読み直す（足す前は読めないページを持つので読めなかったブックが、読めるブックになる）", () => {
   const instance = make()

@@ -17,7 +17,6 @@
 import type { z } from "zod"
 import { fail, matomezuError, problem } from "../core/errors"
 import { BROKEN } from "../core/folders"
-import { rawBooksOf } from "../core/folders-unreadable"
 import { restoreCounters, restoreRecords, withCounters, withRecords } from "../core/records"
 import { NOT_INSIDE, PURGED, type UnreadableNotice } from "../core/unreadable"
 import type { Warning } from "../core/warnings"
@@ -480,11 +479,11 @@ export function serverClient(net: Net = browserNet): HostClient {
         else failed.push({ id: p.id, error: r?.reason })
       })
       return {
-        // 残しておいたブック（ページとフォルダから組んだ物。形は store が確かめる）
-        books: rawBooksOf(
-          [...confirmed.pages.values()].map(e => e.row),
-          [...confirmed.folders.values()].map(e => e.row),
-        ),
+        // 残しておいたページとフォルダの行（形は store が確かめる）
+        saved: {
+          pages: [...confirmed.pages.values()].map(e => e.row),
+          folders: [...confirmed.folders.values()].map(e => e.row),
+        },
         settings,
         plugins: added,
         failed,

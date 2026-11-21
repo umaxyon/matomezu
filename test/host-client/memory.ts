@@ -8,6 +8,7 @@ import { NOT_INSIDE } from "../../web/src/core/unreadable"
 import type { WideSearchAnswer, WideSearchHit, WideSearchQuery } from "../../web/src/core/wide-search"
 import type { HostClient } from "../../web/src/host-client/client"
 import type { MatomezuInstance } from "../../web/src/store/state"
+import { worldRows } from "../support"
 import { persist } from "./persist"
 
 export interface MemoryClient extends HostClient {
@@ -71,7 +72,13 @@ export function memoryClient(books: readonly Book[] = [], settings?: Settings): 
   const host: MemoryClient = {
     books: kept,
     settings,
-    load: async () => ({ books: [...kept.values()], settings: host.settings, plugins: [], failed: [], disabled: [] }),
+    load: async () => ({
+      saved: worldRows([...kept.values()]),
+      settings: host.settings,
+      plugins: [],
+      failed: [],
+      disabled: [],
+    }),
     observe: async () => ({ ok: true }), // ホストがいないので、断る物もいない
     reportWarnings: () => {}, // ホストがいないので、知らせる先が無い（warning は画面の中で見る）
     reportAIEditTicket: () => {}, // ホストがいないので、AI もいない
