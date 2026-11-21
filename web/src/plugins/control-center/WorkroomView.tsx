@@ -68,12 +68,10 @@ function Empty({ row }: { row: WorkroomRow }) {
 
 function Occupied({ row }: { row: WorkroomRow }) {
   const t = useMessages(kit)
-  const { openDialog } = useActions()
   const rooms = useWorkroomActions()
   const participant = row.participant
   const access = lastAccessOf(row)
   const canAdmin = useAllowedOn("@matomezu/base:admin-set", { workroom: row.room.id }).ok
-  const canLeave = useAllowedOn("@matomezu/base:participant-remove", {}, { record: participant?.id ?? "-" }).ok
   return (
     <div className={styles.body}>
       <div className={styles.info}>
@@ -118,22 +116,40 @@ function Occupied({ row }: { row: WorkroomRow }) {
           <dt>{t("Environment:")}</dt>
           <dd>{participant?.env}</dd>
         </dl>
-        <span className={styles.leave}>
-          <Tip text={t("Leave the workroom")} side="above">
-            <IconButton
-              className={styles.leaveButton}
-              label={t("Leave")}
-              title={undefined}
-              disabled={!canLeave}
-              onClick={() => openDialog(WORKROOM_LEAVE_DIALOG.id, { workroom: row.room.id })}
-            >
-              <LeaveIcon />
-            </IconButton>
-          </Tip>
-        </span>
+        {participant ? (
+          <LeaveButton workroom={row.room.id} participant={participant.id} />
+        ) : (
+          <LeaveIconButton workroom={row.room.id} enabled={false} />
+        )}
       </div>
       <Slot name={WORKROOM_COLUMNS} props={{ workroom: row.room.id }} />
     </div>
+  )
+}
+
+// 参加者 participant をワークルーム workroom から退室させるボタン（外せるときだけ押せる）
+function LeaveButton({ workroom, participant }: { workroom: string; participant: string }) {
+  const canLeave = useAllowedOn("@matomezu/base:participant-remove", {}, { record: participant }).ok
+  return <LeaveIconButton workroom={workroom} enabled={canLeave} />
+}
+
+function LeaveIconButton({ workroom, enabled }: { workroom: string; enabled: boolean }) {
+  const t = useMessages(kit)
+  const { openDialog } = useActions()
+  return (
+    <span className={styles.leave}>
+      <Tip text={t("Leave the workroom")} side="above">
+        <IconButton
+          className={styles.leaveButton}
+          label={t("Leave")}
+          title={undefined}
+          disabled={!enabled}
+          onClick={() => openDialog(WORKROOM_LEAVE_DIALOG.id, { workroom })}
+        >
+          <LeaveIcon />
+        </IconButton>
+      </Tip>
+    </span>
   )
 }
 
