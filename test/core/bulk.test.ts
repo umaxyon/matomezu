@@ -1,7 +1,7 @@
 // アクションバルク（core/bulk.ts の performBulk）: 順に行い、変わった物を 1 つに合わせる。どれかが断られたら何も変えない。前のアクションが書いたレコードは、あとのアクションから見える
 import { expect, test } from "bun:test"
 import { USER } from "../../web/src/core/actor"
-import { type BulkAction, bulkActionOf, localDateOf, performBulk } from "../../web/src/core/bulk"
+import { type BulkAction, bulkActionOf, laterThan, localDateOf, performBulk } from "../../web/src/core/bulk"
 import type { World } from "../../web/src/core/perform-world"
 import { sourceOf } from "../../web/src/core/record-source"
 import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
@@ -166,6 +166,13 @@ const inZone = (zone: string, fn: () => void) => {
 test("日付（ctx.today）は、時点のここの暦の日付（UTC の日付ではない）", () => {
   inZone("Asia/Tokyo", () => expect(localDateOf("2026-11-18T23:30:00.000Z")).toBe("2026-11-19"))
   inZone("America/Los_Angeles", () => expect(localDateOf("2026-11-19T03:30:00.000Z")).toBe("2026-11-18"))
+})
+
+test("続けて決める時点は、時計が後ろへ戻っても同じ時点でも、前の時点の 1ms 後になり、時計が前の時点を越えたら時計のまま", () => {
+  const last = "2026-11-18T01:00:10.000Z"
+  expect(laterThan(last, "2026-11-18T01:00:08.400Z")).toBe("2026-11-18T01:00:10.001Z")
+  expect(laterThan(last, last)).toBe("2026-11-18T01:00:10.001Z")
+  expect(laterThan(last, "2026-11-18T01:00:10.002Z")).toBe("2026-11-18T01:00:10.002Z")
 })
 
 test("送られた日付は行い直しでもそのまま使い、無ければ同じアクションの時点から決める（時点と日付は同じ時点から）", () => {

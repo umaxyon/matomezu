@@ -47,10 +47,10 @@ export function createUnseenChanges(deps: {
   setState: (next: Partial<MatomezuState>) => void
   catalog: () => CoreCatalog
   storeCatalog: () => StoreCatalog
-  clock: () => string
+  nextSeq: () => number // 画面の履歴の段に、この窓で始めた順の番号を振る（HistoryStep.seq）
   options: Pick<StoreOptions, "visible" | "aiEditTicket">
 }): UnseenChanges {
-  const { getState, setState, clock, options } = deps
+  const { getState, setState, nextSeq, options } = deps
   // まだ見ていない、AI とほかの窓の変更（古い順。ブックごとに 1 つの画面の履歴の段で、見えたらそのブックの画面の履歴に入る）。act は常駐が 1 回の perform に振った印。
   // step の、ページとフォルダの行の前と後から、見えたか・消えたかを決める。book は変えたブック、
   // places は変えた・足した・無くしたページとフォルダの id（常駐に、見えた・消えたと知らせる範囲）
@@ -81,7 +81,7 @@ export function createUnseenChanges(deps: {
     shownBookScreens(deps.catalog(), getState().window)
       .flatMap(s => s.stages.stages)
       .some(st => st.opened?.outermost === u.book && changeSeen(u.step, shownPageId(st.opened), seenTestOf(st)))
-  // まだ見ていない変更のうち、どこかのステージで見えた物を、そのブックの画面の履歴に時刻の位置で差し込む（窓が見えていない間は差し込まない）
+  // まだ見ていない変更のうち、どこかのステージで見えた物を、そのブックの画面の履歴に届いた順の位置で差し込む（窓が見えていない間は差し込まない）
   const checkSeen = () => {
     checkSeenInLibrary()
     if (unseen.length === 0 || options.visible?.() === false) return
@@ -143,7 +143,7 @@ export function createUnseenChanges(deps: {
     }
     return shown
   }
-  // まだ見ていない書庫の変更のうち、近くのフォルダを、見えているスクリーンの書庫アピアランスが見せている物を、書庫の履歴に時刻の位置で差し込む（窓が見えていない間は差し込まない）
+  // まだ見ていない書庫の変更のうち、近くのフォルダを、見えているスクリーンの書庫アピアランスが見せている物を、書庫の履歴に届いた順の位置で差し込む（窓が見えていない間は差し込まない）
   const checkSeenInLibrary = () => {
     if (unseenInLibrary.length === 0 || options.visible?.() === false) return
     const shown = foldersShownNow()
@@ -171,7 +171,7 @@ export function createUnseenChanges(deps: {
           .filter(([, r]) => !sameData(r.before, r.after)),
       ) as Record<string, RowChange<T>>
     const step: HistoryStep = {
-      at: clock(),
+      seq: nextSeq(),
       by: change.by,
       books: [LIBRARY_HISTORY],
       pages: of(rows.pages, was.pages, to.pages),
@@ -238,7 +238,7 @@ export function createUnseenChanges(deps: {
     const over = mine.length >= HISTORY_LIMIT ? mine[0] : undefined
     const changes = changesBetween([before], [after])
     const step: HistoryStep = {
-      at: clock(),
+      seq: nextSeq(),
       by: change.by,
       books: [after.id],
       ...rowChangesOf(tablesOf([before]), changes),

@@ -6,7 +6,7 @@ import { USER } from "../core/actor"
 import { addressOf, keepPlace, placeAt } from "../core/address"
 import { restoreAllAnnotations, withAnnotations } from "../core/annotation"
 import { pageById, readLibrary } from "../core/book"
-import { bulkActionOf, entersLibraryHistory, localDateOf, performBulk } from "../core/bulk"
+import { bulkActionOf, entersLibraryHistory, laterThan, localDateOf, performBulk } from "../core/bulk"
 import type { CoreCatalog } from "../core/core-catalog"
 import type { ActionContext, ActionOn } from "../core/def/action"
 import type { PluginStateDef } from "../core/def/plugin-state"
@@ -137,7 +137,7 @@ const screenAt = (win: WindowState, at: string): OpenedScreen | undefined =>
 // continued は続けた画面の履歴の段（continueStep）で、prior は続ける前の画面の履歴の段（断られたらこの段に戻す。続ける前に通っていた変更は元に戻せるまま残す）。
 // books が空なら、画面の履歴に入れる変更が無い（アクションバルクだけ）。done は行ったアクションの並び、answer はホストの答え（settle で返す）
 interface OpenStep {
-  at: string
+  seq: number
   done: DoneAction[]
   after: (() => void)[] // このアクションバルクを送った後ろで送る、自分だけのアクションバルク（bulk: "alone"）
   answer?: Promise<HostAnswer>
@@ -187,7 +187,17 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     options.initial ??
     initialState(booksAndTrashOf, catalog, loadRows(), savedSettings, langOf(catalog, savedSettings, fallback))
   const newId = options.newId ?? (() => crypto.randomUUID())
-  const clock = options.now ?? (() => new Date().toISOString())
+  // この窓が決める時点（ctx.now）。時計が後ろへ戻っても、前に決めた時点より後にする（laterThan）
+  const readClock = options.now ?? (() => new Date().toISOString())
+  let lastNow: string | undefined
+  const clock = () => {
+    const read = readClock()
+    lastNow = lastNow === undefined ? read : laterThan(lastNow, read)
+    return lastNow
+  }
+  // 画面の履歴の段に振る、この窓で始めた順の番号（HistoryStep.seq）
+  let lastSeq = 0
+  const nextSeq = () => ++lastSeq
   // 状態は書き換えさせない（前の状態と変わらない所を共有しているので、その場で書き換えると前の状態まで変わる）。入れるたびに変わった所を凍らせる
   const store = createStore<MatomezuState>()(() => deepFreeze(initial))
   store.subscribe(deepFreeze)
@@ -260,7 +270,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   const putLibraryStep = (was: OpenStep) => {
     if (!was.library || was.refused) return
     const step: HistoryStep = {
-      at: was.at,
+      seq: was.seq,
       by: "user",
       books: [LIBRARY_HISTORY],
       pages: keptRows(was.library.pages),
@@ -279,10 +289,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   const putStep = (was: OpenStep) => {
     putLibraryStep(was)
     if (was.books.length === 0 && !was.continued) return
-    const { at, continued } = was
+    const { seq, continued } = was
     const kept = keptRows
     const step: HistoryStep = {
-      at,
+      seq,
       by: "user",
       books: was.books,
       pages: kept(was.pages),
@@ -326,12 +336,12 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     setState,
     catalog: () => catalog,
     storeCatalog: () => defs.catalog.store,
-    clock,
+    nextSeq,
     options,
   })
   // ブック book の物を、表 was から changes のとおりに変えたことを、開いている画面の履歴の段に足す（同じ物を続けて変えたら、最初の前と最後の後を持つ）
-  const record = (book: string, was: Library, changes: TableChanges, at: string): OpenStep => {
-    const into = opened(at)
+  const record = (book: string, was: Library, changes: TableChanges): OpenStep => {
+    const into = opened()
     if (!into.books.includes(book)) into.books.push(book)
     const rows = rowChangesOf(was, changes)
     for (const [id, r] of Object.entries(rows.pages))
@@ -341,8 +351,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     return into
   }
   // 書庫が対象のアクションが、表 was を changes のとおりに変えたことを、開いている画面の履歴の段の、書庫の分に足す
-  const recordLibrary = (was: Library, changes: TableChanges, at: string) => {
-    const into = opened(at)
+  const recordLibrary = (was: Library, changes: TableChanges) => {
+    const into = opened()
     const mine = into.library ?? { pages: {}, folders: {} }
     into.library = mine
     const rows = rowChangesOf(was, changes)
@@ -352,8 +362,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       mine.folders[id] = { before: mine.folders[id]?.before ?? r.before, after: r.after }
   }
   // 行ったアクション sent を、開いているアクションバルクに足し、そのアクションバルクへのホストの答えを返す
-  const joinBulk = (sent: DoneAction, at: string): Promise<HostAnswer> | undefined => {
-    const bulk = opened(at)
+  const joinBulk = (sent: DoneAction): Promise<HostAnswer> | undefined => {
+    const bulk = opened()
     bulk.done.push(sent)
     if (options.observe && !bulk.answer)
       bulk.answer = new Promise<HostAnswer>(settle => {
@@ -376,9 +386,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     })
   }
   // 開いている段とアクションバルク（無ければ開き、同期の流れが終わったら閉じる）
-  const opened = (at: string): OpenStep => {
+  const opened = (): OpenStep => {
     if (!open) {
-      open = { at, done: [], after: [], books: [], pages: {}, folders: {} }
+      open = { seq: nextSeq(), done: [], after: [], books: [], pages: {}, folders: {} }
       queueMicrotask(closeStep)
     }
     return open
@@ -439,7 +449,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     })
     if (!done.ok) return done
     const sent: DoneAction = { action: id, args, ...(on ? { on } : {}), ids, lang: c.lang, now: c.now, today: c.today }
-    const answer = catalog.actions.get(id)?.bulk === "alone" ? sendAlone(sent) : joinBulk(sent, c.now)
+    const answer = catalog.actions.get(id)?.bulk === "alone" ? sendAlone(sent) : joinBulk(sent)
     const next: Partial<MatomezuState> = {}
     if (done.changes) {
       const tables = withChanges({ pages, folders }, done.changes)
@@ -456,13 +466,13 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         if (target === "settings" || !entersLibraryHistory(catalog.actions.get(id))) {
           dropOverwritten({ pages, folders }, tables)
           dropOverwrittenInLibrary({ pages, folders }, tables)
-        } else recordLibrary({ pages, folders }, done.changes, c.now)
+        } else recordLibrary({ pages, folders }, done.changes)
       } else {
         // ブックかページが対象のアクションが変えるのは、開けるブック 1 冊
         const after = Object.values(both.books).find(b => books[b.id] !== b)
         const before = after && books[after.id]
         const recorded = catalog.actions.get(id)?.history !== false
-        if (after && before && recorded) record(after.id, { pages, folders }, done.changes, c.now)
+        if (after && before && recorded) record(after.id, { pages, folders }, done.changes)
         // 画面の履歴に入れないアクション（ロックの掛け外しなど）が上書きした物は、その前の値を画面の履歴の段に残さないので捨てる
         if (after && before && !recorded) dropOverwritten({ pages, folders }, tables)
         if (after) next.window = mapScreens(window, ws => followBook(catalog, ws, after, before))
@@ -823,7 +833,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       }
       setState({ history: next })
       open = {
-        at: step.at,
+        seq: step.seq,
         done: [],
         after: [],
         books: [...step.books],

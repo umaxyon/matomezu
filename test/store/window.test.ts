@@ -25,7 +25,7 @@ import { createMatomezu } from "../../web/src/store/create"
 import { NO_STAGE } from "../../web/src/store/dialogs"
 import { pluginKit } from "../../web/src/store/kit"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { CORE_CATALOG, newStore, sequence, showBooks, showCenter, shown, worldRows } from "../support"
+import { CORE_CATALOG, newStore, showBooks, showCenter, shown, worldRows } from "../support"
 
 const CENTER = "@matomezu/base:screen-toggle"
 
@@ -130,7 +130,7 @@ test("コントロールセンターがカレントスクリーンの間は、�
 })
 
 test("コントロールセンターがカレントスクリーンの間は、後ろのブックスクリーンの変更は見えていない。戻したら見えたとして、画面の履歴に入る", () => {
-  const store = newStore({ now: sequence() })
+  const store = newStore()
   const book = store.state.getState().books.b1 as never as { title: string; id: string }
   store.receive({ ...worldRows([book]), settings: {} }, [])
   showCenter(store)

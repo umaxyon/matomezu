@@ -1,6 +1,6 @@
 import { BOOK_SCREEN_URL, expect, test } from "./fixtures"
 import { browserMenuStopped } from "./helpers/browser-menu"
-import { addFromTabs } from "./helpers/new-book"
+import { addFromTabs, openNewBookDialog } from "./helpers/new-book"
 import { openGeneral } from "./helpers/settings"
 import { lowerLibrary, splitWith } from "./helpers/split"
 import { fromMenu, menuOf } from "./helpers/stage-menu"
@@ -66,7 +66,7 @@ test("分割して下に出た書庫のスクリーンの「ブック新規作�
 }) => {
   await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "画面を分割")).click()
-  await page.getByRole("button", { name: "ブック新規作成" }).locator("visible=true").click()
+  await openNewBookDialog(page)
   await page.keyboard.type("右で作った図")
   await page.keyboard.press("Enter")
   await expect(page.getByRole("dialog", { name: "新しいブック" })).toBeHidden()
@@ -164,8 +164,7 @@ test("在るブックと同じ名前では作れず、ダイアログの中に�
 }) => {
   await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "画面を分割")).click()
-  const dialog = page.getByRole("dialog", { name: "新しいブック" })
-  await page.getByRole("button", { name: "ブック新規作成" }).locator("visible=true").click()
+  const dialog = await openNewBookDialog(page)
   await page.keyboard.type("まとめ図の構想")
   await page.keyboard.press("Enter")
   await expect(dialog.getByText("同じ名前があります")).toBeVisible()
@@ -180,8 +179,7 @@ test("下に出た書庫のスクリーンの「ブック新規作成」で作�
 }) => {
   await page.goto(BOOK_SCREEN_URL)
   await (await fromMenu(page, "画面を分割")).click()
-  await page.getByRole("button", { name: "ブック新規作成" }).locator("visible=true").click()
-  const dialog = page.getByRole("dialog", { name: "新しいブック" })
+  const dialog = await openNewBookDialog(page)
   await expect(dialog.getByRole("button", { name: "作成" })).toBeDisabled()
   await page.keyboard.type("新しい図")
   await page.keyboard.press("Enter")

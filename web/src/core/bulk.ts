@@ -25,6 +25,12 @@ export interface BulkAction {
   lang?: ActionContext["lang"]
 }
 
+// 前に決めた時点 last のあとに、時計で now と読んだときの時点（ISO 8601 の UTC）: now が last より後なら now、後でなければ last の 1ms 後。
+// マシンの時計は合わせ直しで後ろへ戻ることがあるので、同じ所で続けて決める時点が、前の時点より前や同じにならないようにする
+export function laterThan(last: string, now: string): string {
+  return Date.parse(now) > Date.parse(last) ? now : new Date(Date.parse(last) + 1).toISOString()
+}
+
 // 時点 at（ISO 8601）の、ここの暦の日付（YYYY-MM-DD。ActionContext の today）
 export function localDateOf(at: string): string {
   const d = new Date(at)
