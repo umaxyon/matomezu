@@ -259,7 +259,7 @@ func (o Options) aiAwaiting(w http.ResponseWriter, _ *http.Request) {
 }
 
 // aiTalked は、AI のターンの始まりを受ける（AI のフックが知らせる。{"sessionId", "host", "candidates", "woken", "prompt"}）。
-// ターンの入力 prompt が渡せた知らせの文そのものなら woken と同じ。candidates が無く woken でなければ利用者トリガートークのときに行うアクションを行い、有れば会話のセッションの結びつけだけを行う（talk_session.go）
+// ターンの入力 prompt が通り道に貸した知らせの文そのものなら woken と同じ。candidates が無く woken でなければ利用者トリガートークのときに行うアクションを行い、有れば会話のセッションの結びつけだけを行う（talk_session.go）
 func (o Options) aiTalked(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		SessionID  string   `json:"sessionId"`
