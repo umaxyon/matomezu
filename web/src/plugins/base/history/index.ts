@@ -164,6 +164,9 @@ function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"):
   }
 }
 
+// 開いているステージエントリの画面の履歴に、from の側の段が在るか
+const hasSteps = (ctx: CommandContext, from: "undo" | "redo"): boolean => ctx.history[from].length > 0
+
 export const UNDO = kit.defineCommand({
   id: "undo",
   title: "Undo",
@@ -171,7 +174,7 @@ export const UNDO = kit.defineCommand({
   permissionScope: "book",
   run: (ctx, a) => restore(ctx, a, "undo"),
   when: ctx => ctx.stage.opened !== null,
-  enabled: ctx => ctx.history.undo.length > 0,
+  enabled: ctx => hasSteps(ctx, "undo"),
 })
 
 export const REDO = kit.defineCommand({
@@ -181,7 +184,7 @@ export const REDO = kit.defineCommand({
   permissionScope: "book",
   run: (ctx, a) => restore(ctx, a, "redo"),
   when: ctx => ctx.stage.opened !== null,
-  enabled: ctx => ctx.history.redo.length > 0,
+  enabled: ctx => hasSteps(ctx, "redo"),
 })
 
 export const HISTORY_KEYS = [
