@@ -2,7 +2,9 @@
 // プロジェクトを作るのは、最初の 1 度は常駐が初めて起動したときに行う（project-add の引数は省いてよい）
 import { z as zod } from "zod"
 import { type Records, recordIn } from "../by"
+import { CURRENT_WORK_ID, currentWorkOnLanes } from "../current-work/lanes"
 import { kit } from "../kit"
+import type { TicketLike } from "../ticket/current"
 import {
   CARD_SHOWS,
   CARD_SIZES,
@@ -101,16 +103,25 @@ export const PROJECT_UPDATE = kit.defineAction({
   id: "project-update",
   title: "update project",
   aiDescription:
-    "Change the name, the prefix (as in project-add), the lanes, the ticket tags, the card size (cardSize: large, medium or small; each lane row has cardSize too, inherit or a size), what the cards show (cardShows: priority and volume, each true or false; a field left out stays as it is) or the done lane (doneLane: a lane of the new lanes by its id or name, or none; refused while a ticket in that lane has assignees, and when that lane is a working lane) of the project named by on.record (only the user, because the prompts of the lanes and the tags tell you how to work; refused while the project is closed). lanes and tags are the whole new lists: a row with an id keeps that lane or tag, a row without an id is new. A lane row with working: true is a working lane (any number of them). A lane or tag left out is removed; the tickets keep it and read as unsorted, or without that tag.",
+    "Change the name, the prefix (as in project-add), the lanes, the ticket tags, the card size (cardSize: large, medium or small; each lane row has cardSize too, inherit or a size), what the cards show (cardShows: priority and volume, each true or false; a field left out stays as it is) or the done lane (doneLane: a lane of the new lanes by its id or name, or none; refused while a ticket in that lane has assignees, and when that lane is a working lane) of the project named by on.record (only the user, because the prompts of the lanes and the tags tell you how to work; refused while the project is closed). lanes and tags are the whole new lists: a row with an id keeps that lane or tag, a row without an id is new. A lane row with working: true is a working lane (any number of them); changing the working marks changes the workrooms' current work as moving the tickets would (see current-work). A lane or tag left out is removed; the tickets keep it and read as unsorted, or without that tag.",
   target: PROJECT.id,
   // 完了のレーンを選ぶときは、そのレーンのチケットに担当がいないかを確かめるために、プロジェクトのチケットの索引キーを読む
   // （project は ticket を読まない向きなので、id だけを書く）
+  // レーンを変えるときは、作業中の印に合わせてカレントワークを直すために、プロジェクトのチケットと全部のカレントワークを読む
   reads: (args, _actor, on) => [
     ...(args.prefix === undefined ? [] : readsPrefix(args.prefix)),
-    ...(args.doneLane === undefined || on === undefined
+    ...(on === undefined
       ? []
-      : [{ subject: TICKET_ID, where: [{ key: "project" as const, eq: on }], keysOnly: true as const }]),
+      : args.lanes !== undefined
+        ? [
+            { subject: TICKET_ID, where: [{ key: "project" as const, eq: on }] },
+            { subject: CURRENT_WORK_ID, where: [] },
+          ]
+        : args.doneLane === undefined
+          ? []
+          : [{ subject: TICKET_ID, where: [{ key: "project" as const, eq: on }], keysOnly: true as const }]),
   ],
+  writes: [CURRENT_WORK_ID],
   userOnly: true,
   args: zod.strictObject({
     name: zod.string().trim().min(1).max(PROJECT_NAME_MAX).optional(),
@@ -140,28 +151,40 @@ export const PROJECT_UPDATE = kit.defineAction({
     if ("declined" in done) return done
     if (done.id !== (now.doneLane ?? NO_DONE_LANE) && done.id !== NO_DONE_LANE) {
       // 新しい完了のレーンにいるチケットは、担当がいれば断る
-      const inLane = Object.entries(ctx.keys?.[TICKET_ID] ?? {}).filter(([, k]) => k.lane === done.id)
-      if (inLane.some(([, k]) => Number(k.assigned ?? 0) > 0))
+      // （レーンも変えるときはチケットの中身ごと読んでいるので、そこから見る）
+      const assigned = [
+        ...Object.values(ctx.keys?.[TICKET_ID] ?? {}).map(k => ({ lane: k.lane, count: Number(k.assigned ?? 0) })),
+        ...ticketsRead(ctx).map(t => ({ lane: t.lane, count: t.assignees.length })),
+      ]
+      if (assigned.some(t => t.lane === done.id && t.count > 0))
         return { declined: "tickets in that lane have assignees: complete them with ticket-complete first" }
     }
     if (done.id !== NO_DONE_LANE && inWorkingLane({ lanes: lanes ?? now.lanes }, done.id))
       return { declined: "the done lane cannot be a working lane: take the working mark off that lane first" }
     const { doneLane: _was, ...kept } = now
+    const next: Project = {
+      ...kept,
+      ...(args.name === undefined ? {} : { name: args.name }),
+      ...(args.prefix === undefined ? {} : { prefix: args.prefix }),
+      ...(lanes === undefined ? {} : { lanes: lanes as Project["lanes"] }),
+      ...(tags === undefined ? {} : { tags: tags as Project["tags"] }),
+      ...(done.id === NO_DONE_LANE ? {} : { doneLane: done.id }),
+      ...(args.cardSize === undefined ? {} : { cardSize: args.cardSize }),
+      cardShows: { ...now.cardShows, ...args.cardShows },
+    }
     return {
-      next: {
-        ...kept,
-        ...(args.name === undefined ? {} : { name: args.name }),
-        ...(args.prefix === undefined ? {} : { prefix: args.prefix }),
-        ...(lanes === undefined ? {} : { lanes: lanes as Project["lanes"] }),
-        ...(tags === undefined ? {} : { tags: tags as Project["tags"] }),
-        ...(done.id === NO_DONE_LANE ? {} : { doneLane: done.id }),
-        ...(args.cardSize === undefined ? {} : { cardSize: args.cardSize }),
-        cardShows: { ...now.cardShows, ...args.cardShows },
-      },
+      next,
       result: {},
+      others: lanes === undefined ? [] : currentWorkOnLanes(now, next, ticketsRead(ctx), worksRead(ctx)),
     }
   },
 })
+
+// 読んだチケット・カレントワーク（形は定義が確かめた物。判定に使う項目だけを見る）
+const ticketsRead = (ctx: { records?: Readonly<Record<string, Readonly<Record<string, unknown>>>> | undefined }) =>
+  Object.values(ctx.records?.[TICKET_ID] ?? {}) as (TicketLike & { id: string })[]
+const worksRead = (ctx: { records?: Readonly<Record<string, Readonly<Record<string, unknown>>>> | undefined }) =>
+  Object.values(ctx.records?.[CURRENT_WORK_ID] ?? {}) as { id: string; ticket: string }[]
 
 export const PROJECT_CLOSE = kit.defineAction({
   id: "project-close",

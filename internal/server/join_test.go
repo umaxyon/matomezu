@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+	"time"
 
 	"github.com/umaxyon/matomezu/internal/aiwire"
 	"github.com/umaxyon/matomezu/internal/engine"
@@ -72,7 +73,8 @@ func joinBody(link, sessionName string) string {
 	return `{"ai":"claude","model":"opus","env":"wsl-linux","sessionName":"` + sessionName + `","link":"` + link + `","sessionId":"S1"}`
 }
 
-func TestJoinRulesAndOrcaWorkspaceMail(t *testing.T) {
+// 参加の手順を読んでも参加者はできない。ADE のワークスペースの名前は 120 字までで、要求中の参加者が持つ
+func TestJoinRulesAndAdeWorkspace(t *testing.T) {
 	s, _ := joinWorld(t, joinStore(t))
 	rules, _ := call(t, "GET", s.URL+"/api/ai/join-rules", "", nil)
 	var reply struct {
@@ -81,15 +83,14 @@ func TestJoinRulesAndOrcaWorkspaceMail(t *testing.T) {
 	if err := json.Unmarshal([]byte(rules), &reply); err != nil || !strings.Contains(reply.Rules, "matomezu start --open") {
 		t.Fatalf("join rules = %s", rules)
 	}
-	rows, mails := table(t, s.URL)
-	if len(rows) != 0 || len(mails) != 0 {
-		t.Fatalf("reading rules changed participants or mail")
+	if rows := table(t, s.URL); len(rows) != 0 {
+		t.Fatalf("reading rules changed participants")
 	}
 
 	workspace := strings.Repeat("🧪", 120)
 	request := func(name string) Joined {
 		t.Helper()
-		body, err := json.Marshal(JoinRequest{AI: "codex", Model: "gpt-6", Env: "wsl-linux", Link: "L1", OrcaWorkspace: name})
+		body, err := json.Marshal(JoinRequest{AI: "codex", Model: "gpt-6", Env: "wsl-linux", Link: "L1", AdeWorkspace: name})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -103,66 +104,98 @@ func TestJoinRulesAndOrcaWorkspaceMail(t *testing.T) {
 	if refused := request(workspace + "x"); refused.OK || refused.Reason != "bad-args" {
 		t.Fatalf("join with a long workspace = %+v", refused)
 	}
-	rows, mails = table(t, s.URL)
-	if len(rows) != 0 || len(mails) != 0 {
-		t.Fatalf("invalid join changed participants or mail")
+	if rows := table(t, s.URL); len(rows) != 0 {
+		t.Fatalf("invalid join changed participants")
 	}
 	if result := request(workspace); !result.OK {
 		t.Fatalf("join = %+v", result)
 	}
 	data, _ := call(t, "GET", s.URL+"/api/data", "", nil)
-	if !strings.Contains(data, `"orcaWorkspace":"`+workspace+`"`) ||
+	if !strings.Contains(data, `"adeWorkspace":"`+workspace+`"`) ||
 		!strings.Contains(data, `"env":"wsl-linux"`) {
-		t.Fatalf("join mail is missing the environment: %s", data)
+		t.Fatalf("the request is missing the environment: %s", data)
 	}
 }
 
-// 参加を頼むと参加者と郵便が 1 つずつできる。同じ link をまた送っても増えず、参加の id が付いていて参加（要求）中でも、弾かずにいる参加者のまま答える
-func TestJoinMakesOneParticipantAndOneMail(t *testing.T) {
+// 参加を頼むと要求中の参加者が 1 人できる（郵便は出さない）。答えを待つ間は、同じ link・参加の id・同じセッション名（ai と env も同じ）の頼み直しを断り（already-requested）、
+// 参加者は増えない。受け入れたあとの同じ link と参加の id は、その参加者のまま答え、同じセッション名は already-participating で断る
+func TestJoinMakesOneParticipantAndRefusesAskingAgainWhileWaiting(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
-	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L1", ""), nil)
+	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L1", "work"), nil)
 	var first Joined
 	if json.Unmarshal([]byte(got), &first) != nil || !first.OK || first.Participant == "" {
 		t.Fatalf("join = %s", got)
 	}
-	count := func() (int, int) {
-		rows, mails := table(t, s.URL)
-		for _, m := range mails {
-			if m.Props.Participant == "" {
-				t.Fatalf("mail = %+v", m)
-			}
+	if rows := table(t, s.URL); len(rows) != 1 || rows[0].State != "requested" {
+		t.Fatalf("participants = %+v", rows)
+	}
+	data, _ := call(t, "GET", s.URL+"/api/data", "", nil)
+	if strings.Contains(data, "join-request") {
+		t.Fatalf("a join request mail was sent: %s", data)
+	}
+	waiting := func(label, body string, headers map[string]string) {
+		t.Helper()
+		refused, _ := call(t, "POST", s.URL+"/api/ai/join", body, headers)
+		if !strings.Contains(refused, `"reason":"already-requested"`) || !strings.Contains(refused, first.Participant) {
+			t.Fatalf("%s = %s", label, refused)
 		}
-		return len(rows), len(mails)
+		if rows := table(t, s.URL); len(rows) != 1 {
+			t.Fatalf("after %s: participants = %+v", label, rows)
+		}
 	}
-	if p, m := count(); p != 1 || m != 1 {
-		t.Fatalf("participants = %d, mails = %d", p, m)
-	}
+	waiting("the same link", joinBody("L1", ""), nil)
+	waiting("the participant's id", joinBody("L2", ""), map[string]string{aiwire.ParticipantHeader: first.Participant})
+	waiting("the same session name", joinBody("L3", "work"), nil)
+
+	acceptRoom(t, s.URL, first.Participant, "ひよこ")
 	if again, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L1", ""), nil); again != got {
-		t.Fatalf("the same link = %s; want %s", again, got)
+		t.Fatalf("the same link after accepting = %s; want %s", again, got)
 	}
-	if p, m := count(); p != 1 || m != 1 {
-		t.Fatalf("after the same link: participants = %d, mails = %d", p, m)
-	}
-	// 参加の id が付いていれば、弾かずに同じ参加者のまま答える（参加者も郵便も増えない）
 	again, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L2", ""), map[string]string{aiwire.ParticipantHeader: first.Participant})
 	if again != `{"ok":true,"participant":"`+first.Participant+`"}` {
-		t.Fatalf("with the participant's id = %s", again)
+		t.Fatalf("with the participant's id after accepting = %s", again)
 	}
-	if p, m := count(); p != 1 || m != 1 {
-		t.Fatalf("after the participant's id: participants = %d, mails = %d", p, m)
-	}
-	// id が無いときは、ai・env・sessionName が全部同じ（sessionName が空でない）参加者があれば弾く
-	call(t, "POST", s.URL+"/api/ai/join", joinBody("L3", "work"), nil)
 	if refused, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L4", "work"), nil); !strings.Contains(refused, `"reason":"already-participating"`) {
-		t.Fatalf("with the same session name = %s", refused)
+		t.Fatalf("with the same session name after accepting = %s", refused)
 	}
-	if p, m := count(); p != 2 || m != 2 {
-		t.Fatalf("participants = %d, mails = %d", p, m)
+	if rows := table(t, s.URL); len(rows) != 1 {
+		t.Fatalf("participants = %+v", rows)
 	}
 	hub.mu.Lock()
 	defer hub.mu.Unlock()
 	if hub.participantNotes[first.Participant].SessionID != "S1" {
 		t.Fatalf("notes = %+v", hub.participantNotes)
+	}
+}
+
+// 答えを待つ要求のセッションが終わっていれば、同じ AI の頼み直し（同じセッション名か、--resume などで同じ link）は、知らせずに古い要求を消して、新しい要求として受ける
+func TestJoinDropsTheRequestOfAnEndedSession(t *testing.T) {
+	for _, c := range []struct{ name, link, sessionName string }{
+		{"the same session name", "L2", "work"},
+		{"the same link", "L1", ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			s, hub := joinWorld(t, joinStore(t))
+			ended := map[string]string{aiwire.SessionPidHeader: "999999999", aiwire.SessionPidSpaceHeader: ProcessSpace()}
+			got, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L1", "work"), ended)
+			var first Joined
+			if json.Unmarshal([]byte(got), &first) != nil || !first.OK {
+				t.Fatalf("join = %s", got)
+			}
+			again, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody(c.link, c.sessionName), nil)
+			var second Joined
+			if json.Unmarshal([]byte(again), &second) != nil || !second.OK || second.Participant == first.Participant {
+				t.Fatalf("join after the session ended = %s", again)
+			}
+			if rows := table(t, s.URL); len(rows) != 1 || rows[0].ID != second.Participant || rows[0].State != "requested" {
+				t.Fatalf("participants = %+v", rows)
+			}
+			hub.mu.Lock()
+			defer hub.mu.Unlock()
+			if len(hub.wakeQueue[first.Participant]) != 0 {
+				t.Fatalf("the dropped request was told: %+v", hub.wakeQueue[first.Participant])
+			}
+		})
 	}
 }
 
@@ -364,6 +397,26 @@ func TestTalkedBindsTheSessionByLinkAndWelcomesOnce(t *testing.T) {
 	if r := talk(`{"sessionId":"S9"}`); len(r.Welcomes) != 0 {
 		t.Fatalf("told twice = %+v", r)
 	}
+	// 受け入れたら、作業名はワークルームの名前と作業から作る（作業が無ければ空き）。別のセッションには無い
+	if r.WorkTitle == "" || !strings.HasPrefix(r.WorkTitle, "ひよこ") {
+		t.Fatalf("title = %q", r.WorkTitle)
+	}
+	if got, _ := call(t, "POST", s.URL+"/api/ai/work-title", `{"sessionId":"S9"}`, nil); !strings.Contains(got, `"workTitle":"`+r.WorkTitle+`"`) {
+		t.Fatalf("session-title = %s, want %q", got, r.WorkTitle)
+	}
+	if got, _ := call(t, "POST", s.URL+"/api/ai/work-title", `{"sessionId":"S8"}`, nil); !strings.Contains(got, `"workTitle":""`) {
+		t.Fatalf("another session's title = %s", got)
+	}
+	// 利用者の設定が書き換えを止めたら、名前を返さない
+	if _, got := postPerform(t, s.URL, `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:session-rename":false}},"lang":"ja","now":"2026-11-08T01:01:00.000Z"}`); !strings.Contains(got, `"ok":true`) {
+		t.Fatalf("settings-set = %s", got)
+	}
+	if r := talk(`{"sessionId":"S9"}`); r.WorkTitle != "" {
+		t.Fatalf("title while off = %q", r.WorkTitle)
+	}
+	if _, got := postPerform(t, s.URL, `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:session-rename":null}},"lang":"ja","now":"2026-11-08T01:02:00.000Z"}`); !strings.Contains(got, `"ok":true`) {
+		t.Fatalf("settings-set back = %s", got)
+	}
 	// 伝えたときが最後に呼ばれた時刻になり、準備中でなくなる。そのあとのターンの始まりは時刻を進めない
 	at := hub.ParticipantCalls()[joined.Participant]
 	if at == "" {
@@ -436,13 +489,8 @@ type tableRow struct {
 	Bird       string `json:"-"`          // 入っているワークルームの鳥
 }
 
-// table は /api/data の参加者（要求が届いた順）と、郵便。入っているワークルームの名前と鳥は Room・Bird に引く
-func table(t *testing.T, base string) (rows []tableRow, mails []struct {
-	Props struct {
-		Participant string `json:"participant"`
-		Workroom    string `json:"workroom"`
-	} `json:"props"`
-}) {
+// table は /api/data の参加者（要求が届いた順）。入っているワークルームの名前と鳥は Room・Bird に引く
+func table(t *testing.T, base string) (rows []tableRow) {
 	t.Helper()
 	var data struct {
 		Records map[string]map[string]json.RawMessage `json:"records"`
@@ -476,32 +524,10 @@ func table(t *testing.T, base string) (rows []tableRow, mails []struct {
 	for _, f := range found {
 		rows = append(rows, f.row)
 	}
-	// 郵便は届いた順（order）に並べる
-	type withOrder struct {
-		order int
-		raw   json.RawMessage
-	}
-	var letters []withOrder
-	for _, raw := range data.Records[mailKind] {
-		var m struct{ Order int }
-		_ = json.Unmarshal(raw, &m)
-		letters = append(letters, withOrder{m.Order, raw})
-	}
-	slices.SortFunc(letters, func(a, b withOrder) int { return a.order - b.order })
-	for _, l := range letters {
-		var m struct {
-			Props struct {
-				Participant string `json:"participant"`
-				Workroom    string `json:"workroom"`
-			} `json:"props"`
-		}
-		_ = json.Unmarshal(l.raw, &m)
-		mails = append(mails, m)
-	}
-	return rows, mails
+	return rows
 }
 
-// 名前の参加者が生きているあいだ、その名前で引き継ごうとしても断る。参加者は増えず、郵便も出ない。名前の参加者が居なければ、名前は新しい参加者の初めの値になる
+// 名前の参加者が生きているあいだ、その名前で引き継ごうとしても断る。参加者は増えない。名前の参加者が居なければ、名前は新しい参加者の初めの値になる
 func TestJoinWithAWorkroomIsRefusedWhileItsParticipantIsAlive(t *testing.T) {
 	s, _ := joinWorld(t, joinStore(t))
 	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L1", "", `,"sessionId":"S1"`), nil)
@@ -514,21 +540,21 @@ func TestJoinWithAWorkroomIsRefusedWhileItsParticipantIsAlive(t *testing.T) {
 	if !strings.Contains(refused, `"ok":false`) || !strings.Contains(refused, `"reason":"workroom-in-use"`) || !strings.Contains(refused, "already has a participant") {
 		t.Fatalf("join = %s", refused)
 	}
-	if rows, mails := table(t, s.URL); len(rows) != 1 || len(mails) != 1 {
-		t.Fatalf("participants = %v, mails = %d", rows, len(mails))
+	if rows := table(t, s.URL); len(rows) != 1 {
+		t.Fatalf("participants = %v", rows)
 	}
 	// 名前の参加者が居なければ、新しい参加者の名前の初めの値
 	fresh, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L3", "", `,"workroom":"ぴよ"`), nil)
 	if !strings.Contains(fresh, `"ok":true`) || strings.Contains(fresh, "takeover") {
 		t.Fatalf("a new name = %s", fresh)
 	}
-	rows, mails := table(t, s.URL)
-	if len(rows) != 2 || rows[1].State != "requested" || rows[1].WantedName != "ぴよ" || len(mails) != 2 || mails[1].Props.Workroom != "ぴよ" {
-		t.Fatalf("participants = %+v, mails = %+v", rows, mails)
+	rows := table(t, s.URL)
+	if len(rows) != 2 || rows[1].State != "requested" || rows[1].WantedName != "ぴよ" {
+		t.Fatalf("participants = %+v", rows)
 	}
 }
 
-// 生きていない参加者の名前で頼むと、頼まれた名前を添えた普通の参加の要求（参加者の要求と郵便）を出す。同じ AI・環境・セッション名でも断らない。
+// 生きていない参加者の名前で頼むと、頼まれた名前を添えた普通の参加の要求（要求中の参加者）を出す。同じ AI・環境・セッション名でも断らない。
 // 利用者が引き継ぐを選ぶと（participant-take-over）、要求した参加者が名前・鳥を引き継いで受け入れ済みになり、元の参加者は表から無くなる。新しい参加者には「参加しました」がまだ伝わっていない
 func TestJoinWithAWorkroomOfAQuietParticipantCanBeAcceptedByTakingOver(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
@@ -543,16 +569,16 @@ func TestJoinWithAWorkroomOfAQuietParticipantCanBeAcceptedByTakingOver(t *testin
 	if json.Unmarshal([]byte(asked), &second) != nil || !second.OK || second.Participant == first.Participant {
 		t.Fatalf("join = %s", asked)
 	}
-	rows, mails := table(t, s.URL)
-	if len(rows) != 2 || rows[1].State != "requested" || rows[1].WantedName != "ひよこ" || len(mails) != 2 || mails[1].Props.Workroom != "ひよこ" || mails[1].Props.Participant != second.Participant {
-		t.Fatalf("participants = %+v, mails = %+v", rows, mails)
+	rows := table(t, s.URL)
+	if len(rows) != 2 || rows[1].State != "requested" || rows[1].WantedName != "ひよこ" || rows[1].ID != second.Participant {
+		t.Fatalf("participants = %+v", rows)
 	}
 	// 同じ名前では、普通の受け入れでは受け入れられない（引き継ぐか、外して始める）
 	if out := acceptRoom(t, s.URL, second.Participant, "ひよこ"); !strings.Contains(out, `"ok":false`) {
 		t.Fatalf("accept with the same name = %s", out)
 	}
 	// 引き継ぎは、前の参加者を外してから、同じ部屋に受け入れる
-	oldRows, _ := table(t, s.URL)
+	oldRows := table(t, s.URL)
 	room := oldRows[0].Workroom
 	if _, out := postPerform(t, s.URL, `{"action":"@matomezu/base:participant-remove","args":{},"on":{"record":"`+first.Participant+`"},"lang":"ja","now":"2026-11-08T02:00:00.000Z"}`); !strings.Contains(out, `"ok":true`) {
 		t.Fatalf("remove = %s", out)
@@ -560,7 +586,7 @@ func TestJoinWithAWorkroomOfAQuietParticipantCanBeAcceptedByTakingOver(t *testin
 	if out := acceptIn(t, s.URL, second.Participant, room); !strings.Contains(out, `"ok":true`) {
 		t.Fatalf("take over = %s", out)
 	}
-	rows, _ = table(t, s.URL)
+	rows = table(t, s.URL)
 	if len(rows) != 1 || rows[0].ID != second.Participant || rows[0].State != "joined" || rows[0].Room != "ひよこ" || rows[0].Bird != "inko" {
 		t.Fatalf("after: %+v", rows)
 	}
@@ -650,7 +676,7 @@ func TestJoinFreesTheRoomOfAParticipantWhoseSessionEnded(t *testing.T) {
 			call(t, "GET", s.URL+"/api/ai/books", "", map[string]string{aiwire.ParticipantHeader: first.Participant}) // 呼ばれた: 生きている
 
 			second, _ := call(t, "POST", s.URL+"/api/ai/join", joinWith("L2", "", `,"workroom":"ひよこ"`), nil)
-			rows, _ := table(t, s.URL)
+			rows := table(t, s.URL)
 			if !c.frees {
 				if !strings.Contains(second, `"reason":"workroom-in-use"`) {
 					t.Fatalf("join = %s", second)
@@ -699,7 +725,7 @@ func TestJoinAfterAnEndedSessionLeftDoesNotAnswerWithIt(t *testing.T) {
 			if json.Unmarshal([]byte(second), &made) != nil || !made.OK || (made.Participant == first.Participant) != c.same {
 				t.Fatalf("join = %s", second)
 			}
-			rows, _ := table(t, s.URL)
+			rows := table(t, s.URL)
 			want := "requested"
 			if c.same {
 				want = "joined"
@@ -708,5 +734,28 @@ func TestJoinAfterAnEndedSessionLeftDoesNotAnswerWithIt(t *testing.T) {
 				t.Fatalf("participants = %+v", rows)
 			}
 		})
+	}
+}
+
+// 見回りは、セッションが終わった要求中の参加者を知らせずに消し、セッションが生きている要求は残す
+func TestSweepDropsRequestsOfEndedSessions(t *testing.T) {
+	s, hub := joinWorld(t, joinStore(t))
+	ended := map[string]string{aiwire.SessionPidHeader: "999999999", aiwire.SessionPidSpaceHeader: ProcessSpace()}
+	alive := map[string]string{aiwire.SessionPidHeader: strconv.Itoa(os.Getpid()), aiwire.SessionPidSpaceHeader: ProcessSpace()}
+	var gone, waiting Joined
+	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L1", ""), ended)
+	_ = json.Unmarshal([]byte(got), &gone)
+	got, _ = call(t, "POST", s.URL+"/api/ai/join", joinBody("L2", ""), alive)
+	_ = json.Unmarshal([]byte(got), &waiting)
+	if err := hub.SweepParticipants(time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if rows := table(t, s.URL); len(rows) != 1 || rows[0].ID != waiting.Participant {
+		t.Fatalf("participants = %+v; want only %s", rows, waiting.Participant)
+	}
+	hub.mu.Lock()
+	defer hub.mu.Unlock()
+	if len(hub.wakeQueue[gone.Participant]) != 0 {
+		t.Fatalf("the dropped request was told: %+v", hub.wakeQueue[gone.Participant])
 	}
 }

@@ -1,6 +1,7 @@
-// 郵便の見た目のウィジェット: 郵便箱（左サイドパネルのタブ）と、それを開くボタン、しおりと見張り（根に置く）、行き先の物のレイヤー（ブックのレイヤー）。郵便のダイアログ
+// 郵便の見た目のウィジェット: 郵便箱（左サイドパネルのタブ）と、それを開くボタン、しおり（スロット bookmarks に置く）と見張り（根に置く）、行き先の物のレイヤー（ブックのレイヤー）。郵便のダイアログ
 import type { ReactNode } from "react"
 import { defineWidget } from "../../../ui/layout"
+import { defineBookmarks } from "../bookmarks/ui"
 import { kit } from "../kit"
 import { LeftSidePanelOpenButton } from "../left-side-panel/OpenButton"
 import { defineLeftSidePanelTab, opensOf } from "../left-side-panel/ui"
@@ -12,8 +13,6 @@ import { MailBookmarks } from "./Bookmarks"
 import { MAIL_DIALOG } from "./dialogs"
 import { mailboxEntries } from "./entries"
 import { useUnreadMail } from "./hooks"
-import { JoinRequestActions } from "./JoinRequestActions"
-import { MAIL_JOIN_REQUEST } from "./join-request"
 import { MailboxView } from "./Mailbox"
 import { MailDialog } from "./MailDialog"
 import { MailLayer } from "./MailLayer"
@@ -52,9 +51,8 @@ export const MAILBOX_TAB = defineLeftSidePanelTab<typeof MAILBOX_TAB_ID>({
 // 郵便箱を開く側（郵便箱のボタンとしおり）が、左サイドパネルに渡すタブ（郵便箱と送信トレイ）の opens を名乗る
 export const MAILBOX_OPENS = opensOf(MAILBOX_TAB, OUTBOX)
 
-export const MAIL_BOOKMARKS = defineWidget({
+export const MAIL_BOOKMARKS = defineBookmarks({
   id: kit.name("mail-bookmarks"),
-  slots: ["root"],
   opens: MAILBOX_OPENS,
   view: MailBookmarks,
 })
@@ -70,13 +68,6 @@ export const PROPOSAL_ACTIONS = defineMailActions({
   id: kit.name("proposal-actions"),
   mail: MAIL_PROPOSAL.id,
   view: ProposalActions,
-})
-
-// 参加要求の郵便のダイアログの下の行（断る・受け入れる）
-export const JOIN_REQUEST_ACTIONS = defineMailActions({
-  id: kit.name("join-request-actions"),
-  mail: MAIL_JOIN_REQUEST.id,
-  view: JoinRequestActions,
 })
 
 // 郵便箱を開くボタン（フッタメニューに置く）: 郵便箱と、このステージの送信トレイを渡して左サイドパネルを開く

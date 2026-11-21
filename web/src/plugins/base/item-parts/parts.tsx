@@ -39,10 +39,10 @@ export function useAligns() {
   return ALIGNS.map(a => ({ value: a.value, label: t(a.label), icon: ALIGN_ICONS[a.value] }))
 }
 
-// 描くページのブックの id（描いている場所。ui/scope.tsx）
-export function useBookOf(): string | undefined {
+// 描くページのステージエントリの id（描いている場所。ui/scope.tsx）
+export function useOutermostOf(): string | undefined {
   const scope = useScope()
-  return useMatomezuState(s => openedOf(s, scope)?.book)
+  return useMatomezuState(s => openedOf(s, scope)?.outermost)
 }
 
 // 描いているページのタイプが、ページと中の形に使えるテーマ（book-look/theme-types.ts。ページを描いていなければ空）

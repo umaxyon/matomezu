@@ -1,18 +1,26 @@
-// 紙・向き・可変ページかの入力Form（ページを作るダイアログと、ページの設定のダイアログ）。選べる紙と向きはページのタイプの規定で決まり（1 つしか無ければ選べない）、
+// 紙・向き・可変ページかの入力Form（ページを作るダイアログ usePaperControls と、ページの設定のダイアログ usePagePaperControls）。選べる紙と向きはページのタイプの規定で決まり（1 つしか無ければ選べない）、
 // バインダに入るタイプ（スライド）は、そろえる相手のいる所（ページの設定と、今あるバインダに足すページ）では紙と向きを出さない（バインダの設定でまとめて変える）。
 // 可変ページかは、タイプが増やす向きの決め方を持つときだけ出す（利用者が向きを選ぶタイプなら、可変ページにすると増やす向きも選べる）。ページの設定では、変えた項目だけをアクション page-update に渡し、形が紙に入らなければ問題にする
 
 import { useState } from "react"
-import { findPage } from "../../../core/book"
 import { pageType } from "../../../core/core-catalog"
 import type { GrowChoice, Orientation } from "../../../core/def/paper"
 import type { Book, Page } from "../../../core/schema/book"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog } from "../../../ui/store-context"
+import { useBook } from "../../../ui/view-hooks"
 import { controlClass, Field, rowClass, Switch } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import type { PageProblem } from "../pages/page-problems"
-import { defaultPaper, normalizedPage, type PaperPlace, paperChoices, paperChoicesFor } from "../pages/pages"
+import {
+  defaultPaper,
+  normalizedPage,
+  type PaperOptions,
+  type PaperPlace,
+  paperChoices,
+  paperChoicesFor,
+  typePaperChoices,
+} from "../pages/pages"
 import { canGrow, growChoices, withGrows } from "../place/grow"
 import { PaperFields } from "./PaperFields"
 
@@ -31,29 +39,21 @@ export interface PaperValue {
   grows: Page["grows"]
 }
 
-// page はページの設定なら変えるページ、ページを作るなら null（タイプ type の規定の既定から始める。page があれば type はそのページのタイプ）
-export function usePaperControls(
-  book: Book | undefined,
-  page: Page | null,
+// 選んでいる紙の入力Form と、変えた項目。page は変えるページ（ページを作るなら null）、options は選べる紙と向き
+function usePaperForm(
   type: string | undefined,
-  place: PaperPlace = "lineup", // ページを作るなら、入れる所（紙をそろえる相手が決まる）
+  page: Page | null,
+  start: () => PaperValue | null,
+  options: PaperOptions | null,
+  shared: boolean, // 紙と向きを、そろえる相手に任せるか
 ) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
-  const [value, setValue] = useState<PaperValue | null>(() => {
-    if (!book || type === undefined) return null
-    const from = page ?? defaultPaper(catalog, book, type, place)
-    const choices = growChoices(catalog, type)
-    const grows = page?.grows === true && choices[0] ? choices[0] : page?.grows
-    return { paper: from.paper, orientation: from.orientation, grows }
-  })
-  if (!book || !value || type === undefined)
+  const [value, setValue] = useState<PaperValue | null>(start)
+  if (!value || !options || type === undefined)
     return { controls: null, value: null, patch: {}, draft: (p: Page) => p, problems: [] }
-  const { papers, orientations } = page
-    ? paperChoicesFor(catalog, book, page)
-    : paperChoices(catalog, book, type, place)
+  const { papers, orientations } = options
   const choices = growChoices(catalog, type)
-  const shared = pageType(catalog, type).grouping === "binder" && (page !== null || place !== "new-binder") // 紙と向きを、そろえる相手に任せるか
   const chosen = value.grows === true ? undefined : value.grows // 選んでいる増やす向き
   // 変えた項目（ページを作るなら全部）
   const patch = {
@@ -66,7 +66,7 @@ export function usePaperControls(
     withGrows({ ...p, paper: value.paper, orientation: value.orientation }, value.grows)
   const settle = (p: Page): Page | null => {
     const next = chosenPage(p)
-    return normalizedPage(catalog, findPage(book, next.id)?.page, next)
+    return normalizedPage(catalog, page ?? undefined, next)
   }
   const draft = (p: Page): Page => settle(p) ?? chosenPage(p)
   const fits = !page || Object.keys(patch).length === 0 || settle(page) !== null
@@ -115,4 +115,42 @@ export function usePaperControls(
     </>
   )
   return { controls, value, patch, draft, problems }
+}
+
+// ページを作るダイアログの紙の入力Form: ブック book の所 place（紙をそろえる相手が決まる）に足す、タイプ type のページ。タイプの規定の既定から始める
+export function usePaperControls(book: Book | undefined, type: string | undefined, place: PaperPlace = "lineup") {
+  const catalog = useCatalog().core
+  const known = book && type !== undefined
+  return usePaperForm(
+    type,
+    null,
+    () => {
+      if (!known) return null
+      const from = defaultPaper(catalog, book, type, place)
+      return { paper: from.paper, orientation: from.orientation, grows: undefined }
+    },
+    known ? paperChoices(catalog, book, type, place) : null,
+    known ? pageType(catalog, type).grouping === "binder" && place !== "new-binder" : false,
+  )
+}
+
+// ページの設定のダイアログの紙の入力Form: 今あるページ page。そろえる相手は、ページがブックに入っていればその中から引き、入っていなければ（ブックの外のページ）タイプの規定から選ぶ
+export function usePagePaperControls(page: Page | null) {
+  const catalog = useCatalog().core
+  const book = useBook() // 確定したブック
+  return usePaperForm(
+    page?.type,
+    page,
+    () => {
+      if (!page) return null
+      const first = growChoices(catalog, page.type)[0]
+      return {
+        paper: page.paper,
+        orientation: page.orientation,
+        grows: page.grows === true && first ? first : page.grows,
+      }
+    },
+    page ? (book ? paperChoicesFor(catalog, book, page) : typePaperChoices(catalog, page.type)) : null,
+    page ? pageType(catalog, page.type).grouping === "binder" : false,
+  )
 }

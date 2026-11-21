@@ -150,7 +150,7 @@ function opening(ctx: ScreenCommandContext, named?: Named): Exclude<OpenTarget, 
   return target === NOT_OPENED ? undefined : target
 }
 
-// 開く: フォルダは右の枠で中へ入り、ブック・ページ・バインダは窓に出す（書庫の画面の行を 2 回押す・Enter・右クリックのメニューの「開く」の、ただ 1 つの道）。
+// 開く: フォルダは右の枠で中へ入り、ブック・ページ・バインダ・ブックの外のページは窓に出す（書庫の画面の行を 2 回押す・Enter・右クリックのメニューの「開く」の、ただ 1 つの道）。
 // 右クリックのメニューでは、受け取った物がフォルダでなく開けるときだけ出す。名指して呼ぶときは when が引数を受けないので、メニューの外ではいつも出す
 export const LIBRARY_ENTRY_OPEN = kit.defineScreenCommand({
   id: "library-entry-open",

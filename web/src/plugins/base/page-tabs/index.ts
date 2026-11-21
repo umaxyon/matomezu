@@ -68,7 +68,7 @@ export const PAGE_LIST_CONTEXT = kit.name("page-list-context")
 // ページタブの＋が開く、ページのタイプの一覧のメニュー
 export const ADD_PAGE_MENU = kit.name("add-page-menu")
 
-// ページの設定のダイアログ。開いたステージのブックの、ページ page の設定の項目を変える
+// ページの設定のダイアログ。開いたステージが開いている物の中の、ページ page の設定の項目を変える
 export const PAGE_SETTINGS_DIALOG = kit.defineDialogWith<PageSettingsArgs>()({
   id: "page-settings",
   edits: a => [a.page],
@@ -112,17 +112,16 @@ export const BINDER_OPEN = kit.defineCommand({
   enabled: ctx => !editingBackground(ctx.stage),
 })
 
-// 開いているページの設定のダイアログを開く（base のダイアログは、ページの設定の項目が無いタイプでも、名前・紙・ロック・削除を持つ）
+// 開いているページ（ブックの外のページでも）の設定のダイアログを開く（base のダイアログは、ページの設定の項目が無いタイプでも、名前・紙・ロック・削除を持つ）
 export const PAGE_SETTINGS = kit.defineCommand({
   id: "page-settings",
   performs: [PAGE_UPDATE.id, PAGE_LOCK.id, PAGE_UNLOCK.id],
   permissionScope: "opened-page",
   title: "Page settings",
   run: (ctx, a) => {
-    if (hasOpenedPage(ctx) && ctx.book !== NO_BOOK)
-      a.openDialog(pageDialog(ctx.catalog, ctx.page.type, "settings"), { page: ctx.page.id })
+    if (hasOpenedPage(ctx)) a.openDialog(pageDialog(ctx.catalog, ctx.page.type, "settings"), { page: ctx.page.id })
   },
-  when: ctx => ctx.book !== NO_BOOK && hasOpenedPage(ctx),
+  when: hasOpenedPage,
 })
 
 // ページ page（ページ一覧で右クリックしたページなど）の設定のダイアログを開く

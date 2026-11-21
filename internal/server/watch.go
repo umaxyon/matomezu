@@ -18,7 +18,7 @@ package server
 // 通り道ごとに、受け取る側が名乗った形で流す（常駐は AI の種類を知らない）: 1 行の上限（maxLine。超える行は改行で分ける）、1 回の知らせの上限（maxNotice）、
 // 知らせと知らせの間（gap。続けて流すと AI の側が 1 回の知らせにまとめ、上限を超えるため）、改行を含む知らせを 1 つで受けるか（breaks。受けるなら AI 間メッセージを送り手の行と本文の行に分ける）。1 回の知らせに入りきらない AI 間メッセージは、通り道には「届いた」の短い知らせだけを流し、
 // 本文は行列に残して、その参加者の次の呼び出しの返事で渡す。
-// 流す前に、もう役目の終わった知らせは捨てる: 受け入れは参加を伝え済み（Told）なら、断りは伝え済み（goneTold）なら。参加者が受け入れ済みでなくなった AI 間メッセージも捨てる。
+// 流す前に、もう役目の終わった知らせは捨てる: 受け入れは参加を伝え済み（Told）なら、断り・キャンセルは伝え済み（gone が goneTold）なら。参加者が受け入れ済みでなくなった AI 間メッセージも捨てる。
 // 参加の知らせの行は英語の短い文で、中身（「参加しました」）は、話しかけのフックか、その参加者の次の呼び出しの返事が添える
 //
 //	GET  /api/ai/watch?host=<プロセス id>&session=<立てたときのセッション id>（どちらか一方は要る）[&maxLine=<字>][&maxNotice=<字>][&gap=<ミリ秒>][&breaks=1]
@@ -32,6 +32,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/umaxyon/matomezu/internal/engine"
 )
 
 // wakeLine は、AI のプログラム 1 つの、起こす知らせの通り道。行列に入った合図を ready で受ける
@@ -75,7 +77,7 @@ func (lim WakeLimits) fits(line string) bool {
 type wakeItem struct {
 	seq         int64     // 行列の中で見分ける番号
 	participant string    // 宛て先の参加者の id
-	kind        string    // wakeAccepted・wakeDeclined・wakeMessage
+	kind        string    // wakeAccepted・wakeDeclined・wakeCancelled・wakeMessage
 	line        string    // 流す 1 行
 	from        string    // AI 間メッセージの送り手のワークルーム名
 	body        string    // AI 間メッセージの本文（JSON の文字列にした物。改行を受ける通り道には、送り手の行のあとの行で流す）
@@ -95,9 +97,18 @@ type WakeOut struct {
 }
 
 const (
-	wakeAccepted = "accepted" // 参加の要求が受け入れられた
-	wakeDeclined = "declined" // 参加の要求が断られた
-	wakeMessage  = "message"  // AI 間メッセージ
+	wakeAccepted  = "accepted"  // 参加の要求が受け入れられた
+	wakeDeclined  = "declined"  // 参加の要求が断られた
+	wakeCancelled = "cancelled" // 参加の要求を利用者がキャンセルした
+	wakeMessage   = "message"   // AI 間メッセージ
+)
+
+// goneState は、表に無い参加の id を、断り・キャンセルとしてどう伝えるか（無ければ断り）
+type goneState string
+
+const (
+	goneCancelled goneState = "cancelled" // 利用者が要求をキャンセルした（まだ呼び出しの返事で伝えていない）
+	goneTold      goneState = "told"      // 断り・キャンセルを呼び出しの返事で伝えた
 )
 
 // 貸した知らせの結果（POST /api/ai/watch/ack の result）
@@ -197,8 +208,8 @@ func (h *Hub) stale(it wakeItem, joined map[string]bool) bool {
 	switch it.kind {
 	case wakeAccepted:
 		return h.participantNotes[it.participant].Told
-	case wakeDeclined:
-		return h.goneTold[it.participant]
+	case wakeDeclined, wakeCancelled:
+		return h.gone[it.participant] == goneTold
 	default:
 		return !joined[it.participant]
 	}
@@ -425,8 +436,26 @@ func (h *Hub) requestedParticipants() map[string]bool {
 	return out
 }
 
-// wakeOnParticipants は、窓のアクションの前に要求中だった参加者 before のうち、受け入れられた・断られた参加者に知らせる（h.mu を持って呼ぶ）
-func (h *Hub) wakeOnParticipants(before map[string]bool) {
+// cancelledText は、利用者が参加の要求をキャンセルしたと、AI の次の呼び出しの返事で伝える文
+const cancelledText = "The user cancelled your request to join matomezu. Tell the user; you may ask again when the user asks."
+
+// cancelledIn は、バルク actions のうち、要求をキャンセルとして終えるアクション（アクションの定義が cancelsJoinRequest で名乗る物）の宛先の参加者の id（h.mu を持って呼ぶ）
+func (h *Hub) cancelledIn(actions []engine.BulkAction) map[string]bool {
+	ids, err := h.engine.JoinActions()
+	if err != nil || ids == nil || ids.Cancel == "" {
+		return nil
+	}
+	out := map[string]bool{}
+	for _, a := range actions {
+		if a.Action == ids.Cancel && a.On != nil && a.On.Record != "" {
+			out[a.On.Record] = true
+		}
+	}
+	return out
+}
+
+// wakeOnParticipants は、窓のアクションの前に要求中だった参加者 before のうち、受け入れられた・断られた・キャンセルされた（cancelled）参加者に知らせる（h.mu を持って呼ぶ）
+func (h *Hub) wakeOnParticipants(before, cancelled map[string]bool) {
 	if len(before) == 0 {
 		return
 	}
@@ -447,6 +476,12 @@ func (h *Hub) wakeOnParticipants(before map[string]bool) {
 	for id := range before {
 		s, ok := now[id]
 		switch {
+		case !ok && cancelled[id]:
+			if h.gone == nil {
+				h.gone = map[string]goneState{}
+			}
+			h.gone[id] = goneCancelled
+			h.enqueueWake(wakeItem{participant: id, kind: wakeCancelled, line: noticeLine("matomezu: join cancelled")})
 		case !ok:
 			h.enqueueWake(wakeItem{participant: id, kind: wakeDeclined, line: noticeLine("matomezu: join declined")})
 		case s.State == stateVisitor:

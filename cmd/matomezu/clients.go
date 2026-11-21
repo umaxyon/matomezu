@@ -74,7 +74,7 @@ func (claudeMCPCmd) Run() error {
 
 // claudeMCP は、Claude Code の MCP の mcp コマンド（endsWith は --session-ends-with の値）。Claude Code が渡すセッション id を添える
 func claudeMCP(endsWith string) mcpCmd {
-	return mcpCmd{serverFlags: serverFlags{Addr: DefaultAddr}, SessionEndsWith: endsWith, Session: os.Getenv(claudelaunch.SessionEnv)}
+	return mcpCmd{serverFlags: serverFlags{Addr: DefaultAddr}, SessionEndsWith: endsWith, Session: os.Getenv(claudelaunch.SessionEnv), AdeWorkspace: adeWorkspaceName}
 }
 
 // sessionEndsWith は、mcp --session-ends-with の値: たどった AI のプログラムの名前から、その AI の事情（choose）で決める（たどれなければ、空の名前で聞く）
@@ -95,6 +95,16 @@ type claudeHookCmd struct {
 	Prompt     claudePromptCmd     `cmd:"" help:"UserPromptSubmit: tell matomezu the user talked, and add the notes that wait for AI."`
 	Model      claudeModelCmd      `cmd:"" help:"SessionStart and PostModelSwitch: tell matomezu the session's model."`
 	Permission claudePermissionCmd `cmd:"" help:"PreToolUse: let the matomezu tools that only read be used without asking."`
+	Stop       claudeStopCmd       `cmd:"" help:"Stop: write the work title to the display name of the ADE workspace this session runs in, if any (prints nothing)."`
+}
+
+type claudeStopCmd struct{}
+
+// Run は、ターンの終わりに、作業名を ADE のワークスペースの表示名に書く
+func (claudeStopCmd) Run() error {
+	claudeDev()
+	hookStop()
+	return nil
 }
 
 type claudePromptCmd struct{}
@@ -172,7 +182,7 @@ func codexSessionEndsWith(watch codexsessionend.Process) string {
 
 // Run は、Codex の MCP を出し、起こす知らせを Codex の会話に渡す watch も中で動かす
 func (codexMCPCmd) Run() error {
-	c := mcpCmd{serverFlags: serverFlags{Addr: DefaultAddr}, SessionEndsWith: codexSessionEndsWith(codexsessionend.Watch()), MetaModel: codexlaunch.MetaModel, Deliver: append([]string{selfExecutable()}, codexlaunch.DeliverArgs...)}
+	c := mcpCmd{serverFlags: serverFlags{Addr: DefaultAddr}, SessionEndsWith: codexSessionEndsWith(codexsessionend.Watch()), MetaModel: codexlaunch.MetaModel, Deliver: append([]string{selfExecutable()}, codexlaunch.DeliverArgs...), AdeWorkspace: adeWorkspaceName}
 	if root := codexDev(); root != "" {
 		c.serverFlags = devServerFlags(root)
 	}
@@ -182,6 +192,16 @@ func (codexMCPCmd) Run() error {
 type codexHookCmd struct {
 	Prompt codexPromptCmd `cmd:"" help:"UserPromptSubmit: tell matomezu the user talked, and add the notes that wait for AI."`
 	Model  codexModelCmd  `cmd:"" help:"SessionStart: tell matomezu the session's model."`
+	Stop   codexStopCmd   `cmd:"" help:"Stop: write the work title to the display name of the ADE workspace this session runs in, if any (prints nothing)."`
+}
+
+type codexStopCmd struct{}
+
+// Run は、ターンの終わりに、作業名を ADE のワークスペースの表示名に書く
+func (codexStopCmd) Run() error {
+	codexDev()
+	hookStop()
+	return nil
 }
 
 type codexPromptCmd struct{}
@@ -215,7 +235,7 @@ type opencodeMCPCmd struct {
 
 // Run は、opencode の MCP を出す
 func (c opencodeMCPCmd) Run() error {
-	m := mcpCmd{serverFlags: c.serverFlags, MetaSession: opencodelaunch.MetaSession}
+	m := mcpCmd{serverFlags: c.serverFlags, MetaSession: opencodelaunch.MetaSession, AdeWorkspace: adeWorkspaceName}
 	return m.Run()
 }
 
@@ -228,7 +248,15 @@ func hookPrompt(host string, titled bool, woken func(prompt string) bool) {
 	hook.Host = host
 	hook.Titled = titled
 	hook.Woken = hook.Woken || (woken != nil && woken(hook.Prompt))
+	hook.Rename = renameAdeWorkspace
 	talked(os.Stdout, hook, notes.String(), formatHook, runningAPI("api/ai/talked"))
+}
+
+// hookStop は、ターンの終わりのフック: 作業名を ADE のワークスペースの表示名に書く（何も出さない）
+func hookStop() {
+	hook := stdinHook()
+	hook.Rename = renameAdeWorkspace
+	workTitle(hook, runningAPI("api/ai/work-title"))
 }
 
 // hookModel は、モデルのフック: セッションのモデルを常駐に知らせる（host は AI のプログラムのプロセス id、分からなければ空）

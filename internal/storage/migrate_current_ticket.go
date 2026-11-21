@@ -5,10 +5,10 @@ import (
 	"fmt"
 )
 
-// currentTicketKind は、ワークルームの今のチケットを記録していた種類（今のチケットは、チケットの担当とレーンから決める）
+// currentTicketKind は、ワークルームのチケットを記録していた古い種類（捨てる）
 const currentTicketKind = "@matomezu/taskboard:current-ticket"
 
-// dropCurrentTickets は、今のチケットの種類のレコードを捨てる: 種類の表（rec_<n>）と kinds の行、伝えられる前の records の行
+// dropCurrentTickets は、currentTicketKind のレコードを捨てる: 種類の表（rec_<n>）と kinds の行、伝えられる前の records の行
 func dropCurrentTickets(tx *sql.Tx) error {
 	var n int
 	switch err := tx.QueryRow(`SELECT n FROM kinds WHERE subject = ?`, currentTicketKind).Scan(&n); err {

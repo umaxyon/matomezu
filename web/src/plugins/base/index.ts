@@ -54,6 +54,7 @@ import {
   LIBRARY_OPEN,
   LIBRARY_PICK_MOVE,
   LIBRARY_PICKED,
+  LIBRARY_PLACE_OPEN,
   LIBRARY_QUERY,
   LIBRARY_REDO,
   LIBRARY_RENAME_DIALOG,
@@ -93,8 +94,6 @@ import {
   MAIL,
   type MAIL_BIRD_VISIT,
   MAIL_DIALOG,
-  MAIL_JOIN_REQUEST,
-  MAIL_JOIN_REQUEST_SEND,
   MAIL_LETTER,
   MAIL_PROPOSAL,
   MAIL_REMOVE,
@@ -170,14 +169,17 @@ import {
 import {
   ADMIN_MARK,
   ADMIN_SET,
+  JOIN_REQUEST_DIALOG,
   PARTICIPANT,
   PARTICIPANT_ACCEPT,
   PARTICIPANT_ALIVE,
+  PARTICIPANT_CANCEL,
   PARTICIPANT_DECLINE,
   PARTICIPANT_JOIN_DIALOG,
   PARTICIPANT_REMOVE,
   PARTICIPANT_REQUEST,
   PARTICIPANT_WELCOME_DIALOG,
+  SESSION_RENAME,
   WORKROOM,
   WORKROOM_ADD,
   WORKROOM_REMOVE,
@@ -334,6 +336,7 @@ export {
   READS_WORKROOM_KEYS,
   VISITOR_JOINED_MESSAGE,
   visitorName,
+  workTitleIn,
 } from "./participant"
 // 置く計算と文字（ほかのプラグインが使う。追加プラグインには matomezu から出す）
 export type { Axis, Edges, Frame, Gap, GrowFrom, PortArea, Ports } from "./place"
@@ -495,12 +498,12 @@ export const BASE = defineBuiltin(
       PARTICIPANT_REQUEST,
       PARTICIPANT_ACCEPT,
       PARTICIPANT_DECLINE,
+      PARTICIPANT_CANCEL,
       PARTICIPANT_REMOVE,
       WORKROOM_ADD,
       WORKROOM_UPDATE,
       WORKROOM_REMOVE,
       ADMIN_SET,
-      MAIL_JOIN_REQUEST_SEND,
     ],
     settings: [
       PAGE_THEME,
@@ -521,6 +524,7 @@ export const BASE = defineBuiltin(
       TOOL_PICKER_HOLD,
       NOTE_EXPIRY,
       PARTICIPANT_ALIVE,
+      SESSION_RENAME,
       CORNER_STATUS_ORDER,
       ENABLED_PLUGINS,
       SOFT_BREAK,
@@ -534,7 +538,7 @@ export const BASE = defineBuiltin(
     permissions: [LOCK],
     annotations: [NOTE, MARK],
     systemFolders: [DOCUMENTS],
-    mails: [MAIL_LETTER, MAIL_JOIN_REQUEST, MAIL_PROPOSAL],
+    mails: [MAIL_LETTER, MAIL_PROPOSAL],
     subjects: [WORKROOM, PARTICIPANT, ADMIN_MARK, MAIL, SCRAP],
     screens: [BOOK_SCREEN_DEF, LIBRARY_SCREEN],
     screenArrangements: [ONE_SCREEN, SPLIT_ROWS],
@@ -601,6 +605,7 @@ export const BASE = defineBuiltin(
       LIBRARY_OPEN,
       LIBRARY_SCREEN_CLOSE,
       LIBRARY_UNREADABLE_OPEN,
+      LIBRARY_PLACE_OPEN,
       LIBRARY_SCREEN_EXPAND,
       LIBRARY_FOLDER_NEW,
       LIBRARY_ENTRY_RENAME,
@@ -635,6 +640,7 @@ export const BASE = defineBuiltin(
       LIBRARY_RENAME_DIALOG,
       SETTINGS_DIALOG,
       MAIL_DIALOG,
+      JOIN_REQUEST_DIALOG,
       PARTICIPANT_JOIN_DIALOG,
       PARTICIPANT_WELCOME_DIALOG,
     ],
@@ -710,6 +716,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:tool-picker-hold": typeof TOOL_PICKER_HOLD
     "@matomezu/base:note-expiry": typeof NOTE_EXPIRY
     "@matomezu/base:participant-alive": typeof PARTICIPANT_ALIVE
+    "@matomezu/base:session-rename": typeof SESSION_RENAME
     "@matomezu/base:soft-break": typeof SOFT_BREAK
     "@matomezu/base:corner-status-order": typeof CORNER_STATUS_ORDER
     "@matomezu/base:enabled-plugins": typeof ENABLED_PLUGINS
@@ -769,12 +776,12 @@ declare module "../../core/catalog" {
     "@matomezu/base:participant-request": typeof PARTICIPANT_REQUEST
     "@matomezu/base:participant-accept": typeof PARTICIPANT_ACCEPT
     "@matomezu/base:participant-decline": typeof PARTICIPANT_DECLINE
+    "@matomezu/base:participant-cancel": typeof PARTICIPANT_CANCEL
     "@matomezu/base:participant-remove": typeof PARTICIPANT_REMOVE
     "@matomezu/base:workroom-add": typeof WORKROOM_ADD
     "@matomezu/base:workroom-update": typeof WORKROOM_UPDATE
     "@matomezu/base:workroom-remove": typeof WORKROOM_REMOVE
     "@matomezu/base:admin-set": typeof ADMIN_SET
-    "@matomezu/base:mail-join-request": typeof MAIL_JOIN_REQUEST_SEND
   }
   interface ThemeTable {
     "@matomezu/base:standard": typeof STANDARD
@@ -809,7 +816,6 @@ declare module "../../core/catalog" {
   }
   interface MailTable {
     "@matomezu/base:letter": typeof MAIL_LETTER
-    "@matomezu/base:join-request": typeof MAIL_JOIN_REQUEST
     "@matomezu/base:proposal": typeof MAIL_PROPOSAL
   }
   interface ToolTable {
@@ -849,6 +855,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-open": typeof LIBRARY_OPEN
     "@matomezu/base:library-screen-close": typeof LIBRARY_SCREEN_CLOSE
     "@matomezu/base:library-unreadable-open": typeof LIBRARY_UNREADABLE_OPEN
+    "@matomezu/base:library-place-open": typeof LIBRARY_PLACE_OPEN
     "@matomezu/base:library-screen-expand": typeof LIBRARY_SCREEN_EXPAND
     "@matomezu/base:library-folder-new": typeof LIBRARY_FOLDER_NEW
     "@matomezu/base:library-entry-rename": typeof LIBRARY_ENTRY_RENAME
@@ -959,6 +966,7 @@ declare module "../../core/catalog" {
   }
   interface DialogTable {
     "@matomezu/base:mail": typeof MAIL_DIALOG
+    "@matomezu/base:join-request": typeof JOIN_REQUEST_DIALOG
     "@matomezu/base:participant-join": typeof PARTICIPANT_JOIN_DIALOG
     "@matomezu/base:participant-welcome": typeof PARTICIPANT_WELCOME_DIALOG
     "@matomezu/base:book-new": typeof NEW_BOOK_DIALOG

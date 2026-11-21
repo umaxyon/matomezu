@@ -3,12 +3,12 @@
 import { useMemo } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { type Annotation, type Annotations, unexpired, usableAnnotations } from "../../../core/annotation"
-import { pagesOf } from "../../../core/book"
 import type { MessageKey } from "../../../core/i18n/i18n"
 import { useMatomezuState } from "../../../ui/store-context"
-import { useActions, useBook, useCoreCatalog, usePage, usePerform } from "../../../ui/view-hooks"
+import { useActions, useCoreCatalog, usePage, usePerform } from "../../../ui/view-hooks"
 import { refusalMessage } from "./refusal"
 import { useNow } from "./useNow"
+import { useOpenedPages } from "./useOpenedPages"
 
 const NONE: readonly Annotation[] = []
 
@@ -36,17 +36,17 @@ export function useAnnotationsIn(): readonly Annotation[] {
   )
 }
 
-// 描いている場所のブックの、ページごとの効くアノテーション（ページの id → 並び。1 つも無いページは持たない）。期限の過ぎた物は、常駐が消すまでの間も出さない（この窓で利用者が直している物は出す）
-export function useBookAnnotations(): Annotations {
+// 描いている場所のステージで開いている物（ブックか、ブックの外のページ）の、ページごとの効くアノテーション（ページの id → 並び。1 つも無いページは持たない）。期限の過ぎた物は、常駐が消すまでの間も出さない（この窓で利用者が直している物は出す）
+export function useOpenedAnnotations(): Annotations {
   const catalog = useCoreCatalog()
-  const book = useBook()
+  const pages = useOpenedPages()
   const all = useMatomezuState(s => s.annotations)
   const settings = useMatomezuState(s => s.settings)
   const locks = useMatomezuState(s => s.editLocks)
   const now = useNowIso()
   return useMemo(() => {
     const out: Record<string, readonly Annotation[]> = {}
-    for (const p of book ? pagesOf(book) : []) {
+    for (const p of pages) {
       const list = all[p.id]
       if (!list) continue
       const locked = Object.values(locks).flatMap(l => ("within" in l && l.within === p.id ? l.ids : []))
@@ -54,7 +54,7 @@ export function useBookAnnotations(): Annotations {
       if (live.length > 0) out[p.id] = live
     }
     return out
-  }, [catalog, book, all, settings, now, locks])
+  }, [catalog, pages, all, settings, now, locks])
 }
 
 // 描いているページの、種類 annotation のアノテーション

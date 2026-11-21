@@ -96,9 +96,30 @@ export function inspect(
 
 // アクション action を、開いているブック book の所 where で使えるかの問い。ブック・ページ・アノテーションが対象のアクションだけ book と where を渡す
 // （ほかの対象は、コントロールセンターで決まる）
-export function actionQuery(catalog: CoreCatalog, action: string, book: Book | undefined, where?: Where): Query {
-  const onBook = book !== undefined && isInBook(catalog.actions.get(action)?.target)
-  return { kind: "action", action, actor: USER, ...(onBook ? { book, ...(where ? { where } : {}) } : {}) }
+// 開いている物がブックの外のページ（AskedOutermost の page と folders）なら、ページ・アノテーションが対象のアクションを、そのページそのもので問う
+// （所は、その中の物 ids だけ。ブックが対象のアクションは、ブックが無いので問わない）
+export function actionQuery(
+  catalog: CoreCatalog,
+  action: string,
+  on: AskedOutermost | undefined,
+  where?: Where,
+): Query {
+  const target = catalog.actions.get(action)?.target
+  const base = { kind: "action" as const, action, actor: USER }
+  if (on === undefined || !isInBook(target)) return base
+  if (target === "book" && !("book" in on)) return base
+  return openedQuery(action, on, where)
+}
+
+// ステージで開いている物（ステージエントリ）のうち、問う相手になる物: ブック（book）か、ブックの外のページ（そのページ page と、認可ステップに見せるフォルダの列 folders）
+export type AskedOutermost = { book: Book } | Pick<AskedPage, "page" | "folders">
+
+// アクション action を、開いている物 on の所 where を変える物として問う（アクションの対象は見ない。ブックの外のページの所は、その中の物 ids だけ）
+export function openedQuery(action: string, on: AskedOutermost, where?: Where): Query {
+  const base = { kind: "action" as const, action, actor: USER }
+  if ("book" in on) return { ...base, book: on.book, ...(where ? { where } : {}) }
+  const page: AskedPage = { page: on.page, folders: on.folders, ...(where?.ids ? { where: { ids: where.ids } } : {}) }
+  return { ...base, page }
 }
 
 const decide = <V>(steps: Step<V>[]): Inspected<V> => {

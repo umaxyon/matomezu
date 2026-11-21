@@ -41,6 +41,7 @@ import {
   openBook,
   openedBook,
   openedPage,
+  openOutsidePage,
   openPicker,
   openPrintPreview,
   panBy,
@@ -463,7 +464,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       next.trash = both.trash
       const target = catalog.actions.get(id)?.target
       if (target === "library" || target === "settings") {
-        next.window = followLibraryIn(window, catalog, both.books, tables, books)
+        next.window = followLibraryIn(window, catalog, { books: both.books, ...tables }, { books, pages, folders })
         // 画面の履歴に入れないアクション（戻す・やり直す・ゴミ箱から消すなど）が消した物は、その前の値を画面の履歴の段に残さないので捨てる。
         // 設定が対象のアクションが変える書庫（言語を初めて選んで付けた番号）も、常駐が書庫を整えるときと同じく、画面の履歴に入れない
         if (target === "settings" || !entersLibraryHistory(catalog.actions.get(id)))
@@ -479,7 +480,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         const after = Object.values(both.books).find(b => books[b.id] !== b)
         if (after) next.window = mapScreens(window, ws => followBook(catalog, ws, after, books[after.id]))
         // ブックが変わらなければ、変えたのはブックの外のページ
-        else next.window = followLibraryIn(window, catalog, both.books, tables, books)
+        else next.window = followLibraryIn(window, catalog, { books: both.books, ...tables }, { books, pages, folders })
       }
     }
     if (done.settings) {
@@ -719,6 +720,18 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (win !== window) commit({ window: win })
       return stage
     },
+    openOutsidePage: (stage, id) => {
+      const { pages, folders } = getState()
+      const page = outsidePageIn({ pages, folders }, id)
+      if (!page || !inWindow(stage)) return NO_STAGE
+      withWindow(win =>
+        makeCurrent(
+          mapScreenOfStage(win, stage, ws => mapStage(focus(ws, stage), stage, s => openOutsidePage(catalog, s, page))),
+          screenOfStage(win, stage)?.id ?? "",
+        ),
+      )
+      return stage
+    },
     showBook: (bookId, page) => actions.showBookStage(bookId, page) !== NO_STAGE,
     setScreenProps: (at, props) => {
       const screen = screenAt(getState().window, at)
@@ -953,7 +966,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         ...(books === now.books ? {} : { books }),
         ...(tables.pages === now.pages && tables.folders === now.folders
           ? {}
-          : { window: followLibraryIn(now.window, catalog, books, tables, now.books) }),
+          : { window: followLibraryIn(now.window, catalog, { books, ...tables }, now) }),
         ...(settings === now.settings ? {} : { settings, lang: langOf(catalog, settings, fallback) }),
         ...(annotations === now.annotations ? {} : { annotations }),
         ...(records === now.records ? {} : { records }),
@@ -990,7 +1003,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         if (kept !== now.window) commit({ window: kept })
         return
       }
-      const win = placeAt(catalog, now.books, now.window, address)
+      const win = placeAt(catalog, now.books, { pages: now.pages, folders: now.folders }, now.window, address)
       const placed = defs.catalog.store.pluginStates
       // 場所の値で、画面の場所に入れる宣言の値を丸ごと置き換える（形に合わない値・宣言の無い id・入れない宣言の id は落とし、入れない宣言の値は残す。空になったステージの組は持たない）
       const stages: Record<string, Readonly<Record<string, unknown>>> = {}

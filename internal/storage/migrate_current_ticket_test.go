@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// 今のチケットの種類のレコードは、種類の表・kinds の行・伝えられる前の records の行ごと捨て、ほかの種類は残す
+// 古い current-ticket の種類のレコードは、種類の表・kinds の行・伝えられる前の records の行ごと捨て、ほかの種類は残す
 func TestCurrentTicketsAreDropped(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data.db")
 	beforeMigration(t, path, 28,

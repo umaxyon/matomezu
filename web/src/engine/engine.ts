@@ -37,7 +37,7 @@ import {
   subjectRolesOf,
   unlistedOf,
 } from "./records"
-import { joinedText, visitorJoinedText, windowWarningLines } from "./texts"
+import { joinedText, visitorJoinedText, windowWarningLines, workTitle } from "./texts"
 
 ;(globalThis as { __matomezuModules?: unknown }).__matomezuModules = MODULES
 
@@ -192,7 +192,7 @@ let lastAdded: readonly Plugin[] = []
 ;(globalThis as { matomezuTalkActions?: () => string }).matomezuTalkActions = () =>
   JSON.stringify(talkActions(assembled.catalog.core))
 
-// AI が参加を頼むときに行うアクション（runsWhenAIJoins）の id（役 participant と notice。役が揃わなければ null。常駐が MCP の join で行う）
+// AI が参加を頼むときに行うアクション（runsWhenAIJoins）と、要求をキャンセルとして終えるアクション（cancelsJoinRequest。無くてもよい）の id（参加者を作るアクションが無ければ null。常駐が MCP の join と、窓のアクションの知らせで使う）
 ;(globalThis as { matomezuJoinActions?: () => string }).matomezuJoinActions = () =>
   JSON.stringify(joinActions(assembled.catalog.core))
 
@@ -211,6 +211,12 @@ let lastAdded: readonly Plugin[] = []
   settings,
   workroom,
 ) => joinedText(assembled, settings, workroom)
+
+// ワークルーム（id と名前）に参加している AI のセッションの作業名（利用者の設定が書くのを止めていれば off。常駐が、話しかけとターンの終わりのフックに答える）
+// 作業はレコードから決まるので、常駐が読み口を置いている間に呼ぶ
+;(
+  globalThis as { matomezuWorkTitle?: (settings: string, workroom: string, name: string) => string }
+).matomezuWorkTitle = (settings, workroom, name) => workTitle(assembled, settings, workroom, name)
 
 // ビジターとして参加したことを利用者に伝える文（利用者の言語。matomezuJoinedText と同じく、フックの systemMessage に使う）
 ;(globalThis as { matomezuVisitorJoinedText?: (settings: string) => string }).matomezuVisitorJoinedText = settings =>

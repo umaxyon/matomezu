@@ -8,10 +8,12 @@ import { ANY_PAGE_TYPE, type ArgsOfType, type Where } from "../../core/def/actio
 import type { PluginStateDef, PluginStateRead } from "../../core/def/plugin-state"
 import { fail } from "../../core/errors"
 import type { Folders } from "../../core/folders"
+import { outsideAsked } from "../../core/folders-tree"
 import type { UnreadableItem } from "../../core/folders-unreadable"
 import type { Point } from "../../core/geom"
 import type { History } from "../../core/history"
 import type { MessageKey } from "../../core/i18n/i18n"
+import type { AskedOutermost } from "../../core/inspect"
 import type { Books } from "../../core/library"
 import type { ArgsOf } from "../../core/perform"
 import type { ItemPage } from "../../core/placed"
@@ -182,6 +184,14 @@ export function withWorkspace(
 
 // コマンドの文脈 ctx の、ステージの並びと道具（withWorkspace が作った文脈だけが持つ。写した文脈は持たない）
 export const workspaceOf = (ctx: CommandContext): Workspace => workspaces.get(ctx)?.workspace ?? fail("E116")
+
+// 文脈 ctx のステージで開いている物のうち、アクションを使えるかを問う相手（ブックか、ブックの外のページ。どちらも開いていなければ undefined）
+export function askedIn(ctx: CommandContext): AskedOutermost | undefined {
+  if (ctx.book !== NO_BOOK) return { book: ctx.book }
+  return ctx.stage.opened?.outermost.kind === "page" && ctx.page !== NO_PAGE
+    ? outsideAsked(ctx.folders, ctx.page)
+    : undefined
+}
 
 // コマンドの文脈 ctx の、開けるブックの一覧（プラグイン API の文脈には出さない。base のコマンドが、開いていないブックの名前を読む）
 export const booksOf = (ctx: CommandContext): Books => workspaces.get(ctx)?.books ?? {}

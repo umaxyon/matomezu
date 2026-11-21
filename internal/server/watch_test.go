@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -93,6 +94,33 @@ func TestDecliningWakesAndOnlyWindowActionsWake(t *testing.T) {
 	got := wakes(hub, w)
 	if len(got) != 1 || !strings.Contains(got[0], "declined") {
 		t.Fatalf("wakes = %q", got)
+	}
+}
+
+// 窓でキャンセルすると、断りでなく「キャンセルされた」が届き、次の呼び出しにも同じ文を 1 度だけ返す
+func TestCancellingWakesAsCancelled(t *testing.T) {
+	s, hub := joinWorld(t, joinStore(t))
+	w := hub.OpenWakesWith("100", "", WakeLimits{})
+	participant := joinFrom(t, s.URL, "L1", "100")
+	if out := windowPerform(t, s.URL, "@matomezu/base:participant-cancel", `{}`, participant); !strings.Contains(out, `"ok":true`) {
+		t.Fatalf("cancel = %s", out)
+	}
+	got := wakes(hub, w)
+	if len(got) != 1 || !strings.Contains(got[0], "join cancelled") || strings.Contains(got[0], "declined") {
+		t.Fatalf("wakes = %q", got)
+	}
+	id := map[string]string{aiwire.ParticipantHeader: participant}
+	_, h := call(t, "GET", s.URL+"/api/ai/books", "", id)
+	if text, _ := url.QueryUnescape(h.Get(aiwire.NoticeHeader)); !strings.Contains(text, "cancelled your request") {
+		t.Fatalf("notice = %q", text)
+	}
+	if _, h := call(t, "GET", s.URL+"/api/ai/books", "", id); h.Get(aiwire.NoticeHeader) != "" {
+		t.Fatalf("told twice: %q", h.Get(aiwire.NoticeHeader))
+	}
+	// キャンセルのあとは、同じ link で頼み直せる（新しい要求）
+	again := joinFrom(t, s.URL, "L1", "100")
+	if again == participant {
+		t.Fatalf("asking again returned the cancelled id")
 	}
 }
 

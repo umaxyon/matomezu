@@ -1,4 +1,4 @@
-/* しおり: 画面の上の右寄りに並べてぶら下げる細い帯に、郵便の絵（下の端は燕尾の切り込み） */
+/* しおり: 画面の上の右寄りに並べてぶら下げる細い帯に、名乗ったウィジェットが渡す絵（下の端は燕尾の切り込み） */
 .bookmarks {
   position: fixed;
   top: 0;
@@ -34,10 +34,10 @@
 .bookmark:hover {
   transform: translateY(4px);
 }
-.bookmark[data-tone="1"] {
+.bookmark[data-tone="success"] {
   --tone: var(--skin-success);
 }
-.bookmark[data-tone="2"] {
+.bookmark[data-tone="warn"] {
   --tone: var(--skin-warn);
 }
 .bookmark svg {

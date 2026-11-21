@@ -4,20 +4,20 @@
 // 変えたら今の当たりを選び直す（計算は search.ts）。次・前・置換・閉じるはコマンド（index.ts）。入力Formは検索のキーの範囲を名乗る
 
 import { type PointerEvent, useEffect, useRef } from "react"
-import { findPage } from "../../../core/book"
 import type { Point } from "../../../core/geom"
 import { shownPageId } from "../../../core/stage"
 import { recentBookScreen } from "../../../core/window"
 import { pluginValueOf } from "../../../store/plugin-state"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
-import { usePluginState, useReadPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
+import { usePluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
 import { StageScope } from "../../../ui/scope"
 import { useMatomezuState } from "../../../ui/store-context"
-import { useBook, useCoreCatalog, useStage } from "../../../ui/view-hooks"
+import { useBook, useCoreCatalog, usePage, useStage } from "../../../ui/view-hooks"
 import { controlClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import { DRAG_START } from "../utils/drag"
+import { useOpenedPages } from "../utils/useOpenedPages"
 import {
   SEARCH_CLOSE,
   SEARCH_KEY_SCOPE,
@@ -29,6 +29,7 @@ import {
 import styles from "./SearchDialog.module.css"
 import { changedSearch, searchableOf, searchCount } from "./search"
 import { SEARCH_AT_STATE, SEARCH_STATE, type SearchOpen } from "./state"
+import { useReadSearchHere, useSearchHere } from "./useSearchHere"
 
 // 開いたことの無いときの、窓の右上からの位置
 const FIRST_AT = { right: 24, top: 64 }
@@ -53,10 +54,12 @@ function SearchDialog({ stage }: { stage: string }) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
   const book = useBook()
+  const page = usePage()
+  const within = useOpenedPages()
   const opened = shownPageId(useStage()?.opened ?? null)
-  const search = usePluginState(kit, SEARCH_STATE)
+  const search = useSearchHere()
   const at = usePluginState(kit, SEARCH_AT_STATE)
-  const readSearch = useReadPluginState(kit, SEARCH_STATE)
+  const readSearch = useReadSearchHere()
   const setSearch = useSetPluginState(kit, SEARCH_STATE)
   const setAt = useSetPluginState(kit, SEARCH_AT_STATE)
   const next = useCommand(SEARCH_NEXT.id)
@@ -75,9 +78,10 @@ function SearchDialog({ stage }: { stage: string }) {
     el?.focus()
     el?.select()
   }, [openedN, focus])
-  const s = searchableOf(catalog, book && opened !== null ? findPage(book, opened)?.page : undefined)
-  if (!search || s === "none" || !book) return null
-  const counted = searchCount(catalog, book, search, opened)
+  const s = searchableOf(catalog, page)
+  if (!search || s === "none" || !page) return null
+  // 探せるページの全部: 開いている物のページの全部
+  const counted = searchCount(catalog, within, search, opened)
   const bad = counted.kind === "bad-pattern"
   const count =
     counted.kind === "bad-pattern"
@@ -95,7 +99,7 @@ function SearchDialog({ stage }: { stage: string }) {
   // 検索を change で変える（探す字か切り替えが変われば、今の当たりを選び直す。search.ts の changedSearch）
   const update = (change: Partial<SearchOpen>) => {
     const was = readSearch()
-    if (was) setSearch(changedSearch(catalog, book, was, change, opened))
+    if (was) setSearch(changedSearch(catalog, within, was, change, opened))
   }
   const query = (change: Partial<SearchOpen["query"]>) => update({ query: { ...search.query, ...change } })
 
@@ -179,7 +183,7 @@ function SearchDialog({ stage }: { stage: string }) {
       </div>
       <div className={styles.row} role="radiogroup" aria-label={t("Scope")}>
         <span className={styles.label}>{t("Scope")}</span>
-        {(["page", "book"] as const).map(scope => (
+        {(book ? (["page", "book"] as const) : (["page"] as const)).map(scope => (
           <label key={scope} className={styles.check}>
             <input
               type="radio"

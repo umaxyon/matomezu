@@ -11,8 +11,10 @@ import type { CoreCatalog, PageTypeId } from "./core-catalog"
 import { isInBook } from "./def/action"
 import { type EditList, slideIsBackground } from "./def/page-type"
 import { type Pages, pageIn } from "./folders"
-import type { StageEntry } from "./folders-tree"
+import { outsideAsked, outsidePageIn, type StageEntry } from "./folders-tree"
 import type { Point, Size } from "./geom"
+import type { AskedOutermost } from "./inspect"
+import type { LibraryAndBooks } from "./library"
 import { type PaperChoice, type ResolvedPaper, resolvePaper } from "./paper"
 import type { ItemPage } from "./placed"
 import { sameData } from "./same"
@@ -255,6 +257,14 @@ export const openedBook = (
   books: Readonly<Record<string, Book>>,
   opened: Opened | null | undefined,
 ): Book | undefined => (opened?.outermost.kind === "book" ? books[opened.outermost.id] : undefined)
+
+// ステージで開いている物 opened のうち、アクションを使えるかを問う相手（ブックか、ブックの外のページ。何も開いていない・もう無ければ undefined）
+export function askedOutermostOf(from: LibraryAndBooks, opened: Opened | null | undefined): AskedOutermost | undefined {
+  const book = openedBook(from.books, opened)
+  if (book) return { book }
+  const page = opened?.outermost.kind === "page" ? outsidePageIn(from, opened.outermost.id) : undefined
+  return page && outsideAsked(from.folders, page)
+}
 
 const entryOf = (book: Pick<Book, "id">): StageEntry => ({ kind: "book", id: book.id })
 
@@ -558,15 +568,15 @@ export function toPaperDelta(stage: Pick<Stage, "zoom">, d: Point): Point {
   return { x: d.x / stage.zoom, y: d.y / stage.zoom }
 }
 
-// ステージが開いている物 opened（book は、そのステージエントリの id）の中の、id のページ: ブックならその中のページ、ブックの外のページならそのページ自身。
+// ステージが開いている物 opened（outermost は、そのステージエントリの id）の中の、id のページ: ブックならその中のページ、ブックの外のページならそのページ自身。
 // 開いている物に無いページ・無ければ null（プラグイン API の usePageById が読む）
 export function openedPageById(
   books: Readonly<Record<string, Book>>,
   pages: Pages,
-  opened: { book: string },
+  opened: { outermost: string },
   id: string,
 ): ItemPage | null {
-  const book = books[opened.book]
+  const book = books[opened.outermost]
   if (book) return findPage(book, id)?.page ?? null
-  return (opened.book === id && pageIn(pages, id)) || null
+  return (opened.outermost === id && pageIn(pages, id)) || null
 }

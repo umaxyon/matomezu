@@ -240,6 +240,7 @@ test("matomezu/ui が出す名前", () => {
     "ANNOTATION_ICON",
     "ActionButton",
     "AtCorner",
+    "BOOKMARKS",
     "BOOK_SCREEN",
     "Band",
     "BirdFaceView",
@@ -280,6 +281,7 @@ test("matomezu/ui が出す名前", () => {
     "MultiChoices",
     "Notice",
     "PageProblemsView",
+    "PageSettingsDialogView",
     "Panel",
     "PaperFrame",
     "Problem",
@@ -318,6 +320,7 @@ test("matomezu/ui が出す名前", () => {
     "belowOf",
     "controlClass",
     "defineAnnotationIcon",
+    "defineBookmarks",
     "defineCornerStatus",
     "defineLayout",
     "defineLeftSidePanelTab",
@@ -349,7 +352,6 @@ test("matomezu/ui が出す名前", () => {
     "useAtCornerBubble",
     "useBodyGrips",
     "useBook",
-    "useBookOf",
     "useBrowserBack",
     "useCloseLeftSidePanel",
     "useCloseRightSidePanel",
@@ -378,6 +380,7 @@ test("matomezu/ui が出す名前", () => {
     "useMessages",
     "useOpenLeftSidePanel",
     "useOpenRightSidePanel",
+    "useOutermostOf",
     "usePage",
     "usePageById",
     "usePageProblems",
@@ -410,6 +413,7 @@ test("matomezu/ui が出す名前", () => {
     "useSettingControls",
     "useSettings",
     "useShapeMarks",
+    "useShowBookmarks",
     "useShowControlCenter",
     "useShownBook",
     "useShownPage",
@@ -471,7 +475,7 @@ test("コマンドに見せるステージは、プラグインに見せるス�
   const store = newStore()
   const state = store.state.getState()
   const stage = screenOf(state.window).stages.find(s => s.id === "s1")!
-  const tool = toolOf(store.catalog.core, screenOf(state.window), "s1", state.books)
+  const tool = toolOf(store.catalog.core, screenOf(state.window), "s1", state)
   expect(commandContext(store.catalog.core, null, state, "s1", "@matomezu/base:stage-split")?.stage).toEqual(
     stageView(store.catalog.core, stage, tool),
   )
@@ -596,6 +600,7 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
   expect(names(given)).toEqual(names(got).filter(n => n !== "updatePluginState"))
   expect(names(store.actions).filter(n => !names(given).includes(n))).toEqual([
     "makeScreenCurrent",
+    "openOutsidePage",
     "openScreenId",
     "showBookStage",
     "showOutsidePageStage",
@@ -608,6 +613,6 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
 test("base の入口が出す名前は、どれもプラグイン API からも出る（ビルトインと追加プラグインが同じ名前を使えるように。base のプラグインそのものは除く）", () => {
   const shown = new Set([...names(api), ...names(ui)])
   // base のプラグインそのものと、ホストのエンジンだけが読む名前（プラグイン API には出さない）
-  const own = ["BASE", "BASE_UI", "JOINED_MESSAGE", "VISITOR_JOINED_MESSAGE"]
+  const own = ["BASE", "BASE_UI", "JOINED_MESSAGE", "VISITOR_JOINED_MESSAGE", "workTitleIn"]
   expect([...names(plugin), ...names(pluginUi)].filter(n => !own.includes(n) && !shown.has(n))).toEqual([])
 })

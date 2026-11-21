@@ -96,7 +96,7 @@ function overLimit(mailbox: readonly MailKeys[]): readonly string[] {
   return mailbox.flatMap(m => (drop.has(m.id) ? [m.id] : []))
 }
 
-// 郵便を 1 通足すアクション（mail-send・proposal-send・mail-join-request）が返す物: 足す郵便（id と届いた順の番号を振る）と、上限を守るために消す古い郵便と、
+// 郵便を 1 通足すアクション（mail-send・proposal-send）が返す物: 足す郵便（id と届いた順の番号を振る）と、上限を守るために消す古い郵便と、
 // 消す郵便の種類が答えた AI 編集チケットの変え方（removed.ts。足す郵便のアクションが返す aiEditTickets に入れる）。
 // 今ある郵便は、索引キーだけを ctx.keys から読み（アクションの reads に READS_MAILBOX_KEYS を書く）、消す郵便だけ中身を ctx.record で読む。番号を受け取れなければ null
 export function mailAdded(

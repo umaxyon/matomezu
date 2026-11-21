@@ -45,7 +45,7 @@ func TestAIMailQuery(t *testing.T) {
 	}
 	_, list := send(t, "GET", s.URL+mailRecords+"&limit=2", "", ai)
 	if strings.Contains(list, `"props"`) || !strings.Contains(list, `"brief":"三"`) || !strings.Contains(list, `"brief":"二"`) || strings.Contains(list, `"brief":"一"`) ||
-		!strings.Contains(list, `"total":4`) || !strings.Contains(list, `"older":2`) {
+		!strings.Contains(list, `"total":3`) || !strings.Contains(list, `"older":1`) {
 		t.Fatalf("list = %s", list)
 	}
 	id := list[strings.LastIndex(list, `"id":"`)+6:]
@@ -65,7 +65,7 @@ func TestAIMailQuery(t *testing.T) {
 	}
 	// 利用者が開いていない郵便だけ（見た時点が無い）と、届いた順の番号で 1 通
 	postPerform(t, s.URL, `{"action":"@matomezu/base:mail-seen","args":{},"on":{"record":"`+id+`"},"lang":"ja","now":"2026-11-06T00:00:00.000Z"}`)
-	if _, unseen := send(t, "GET", s.URL+mailRecords+"&is.seenAt=absent", "", ai); strings.Contains(unseen, `"brief":"二"`) || !strings.Contains(unseen, `"brief":"三"`) || !strings.Contains(unseen, `"total":3`) {
+	if _, unseen := send(t, "GET", s.URL+mailRecords+"&is.seenAt=absent", "", ai); strings.Contains(unseen, `"brief":"二"`) || !strings.Contains(unseen, `"brief":"三"`) || !strings.Contains(unseen, `"total":2`) {
 		t.Fatalf("unseen = %s", unseen)
 	}
 	if _, seen := send(t, "GET", s.URL+mailRecords+"&is.seenAt=present", "", ai); !strings.Contains(seen, `"brief":"二"`) || !strings.Contains(seen, `"total":1`) {

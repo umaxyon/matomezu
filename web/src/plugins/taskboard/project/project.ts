@@ -59,7 +59,7 @@ const LANE = z.strictObject({
   name: z.string().trim().min(1).max(LANE_NAME_MAX),
   prompt: z.string(), // AI がそのレーンでチケットをどう扱うかの指示
   cardSize: z.enum([INHERIT_CARD_SIZE, ...CARD_SIZES]), // このレーンのチケットカードの大きさ（inherit はプロジェクトの大きさ）
-  working: z.literal(true).optional(), // 作業中の印（このレーンにあるチケットは、担当のワークルームそれぞれの今のチケット。いくつのレーンにも付けられ、完了のレーンには付けない）
+  working: z.literal(true).optional(), // 作業中の印（このレーンにあるチケットだけが、担当のワークルームのカレントチケットになれる。いくつのレーンにも付けられ、完了のレーンには付けない）
 })
 const UNSORTED_ROW = z.strictObject({ kind: z.literal("unsorted"), shown: z.boolean() })
 const TAG = z.strictObject({
@@ -90,7 +90,7 @@ export const PROJECT = kit.defineSubject({
   id: "project",
   title: "project",
   aiDescription:
-    "A project: one task board. It has a name, the prefix of its ticket numbers (such as T-), closed (no ticket can be added to a closed project, and the project cannot be changed but reopened), the lanes in order (each with a prompt that tells you how to handle the tickets in the lane, and working: true on the lanes the user marked as working lanes, any number of them; a ticket in a working lane is the current ticket of the workroom that leads it, its first assignee; unsorted is a row of the lanes too), doneLane (the id of the lane where completed tickets are; absent when there is none; never a working lane; a ticket gets there only through ticket-complete: the prompt of the done lane tells when a ticket is done, and then you complete it with ticket-complete), the ticket tags (each with a prompt that tells you how to handle the tickets with the tag) and cardSize (large, medium or small: how big the ticket cards are drawn on the board; each lane has a cardSize too, where inherit takes the project's) and cardShows (what the ticket cards show besides the number and the name: priority, whether the card shows the ticket's priority, and volume, whether it shows the ticket's volume).",
+    "A project: one task board. It has a name, the prefix of its ticket numbers (such as T-), closed (no ticket can be added to a closed project, and the project cannot be changed but reopened), the lanes in order (each with a prompt that tells you how to handle the tickets in the lane, and working: true on the lanes the user marked as working lanes, any number of them; only a ticket in a working lane can be the current ticket of its assignees' workrooms (see current-work); unsorted is a row of the lanes too), doneLane (the id of the lane where completed tickets are; absent when there is none; never a working lane; a ticket gets there only through ticket-complete: the prompt of the done lane tells when a ticket is done, and then you complete it with ticket-complete), the ticket tags (each with a prompt that tells you how to handle the tickets with the tag) and cardSize (large, medium or small: how big the ticket cards are drawn on the board; each lane has a cardSize too, where inherit takes the project's) and cardShows (what the ticket cards show besides the number and the name: priority, whether the card shows the ticket's priority, and volume, whether it shows the ticket's volume).",
   record: z
     .strictObject({
       id: z.string().min(1),

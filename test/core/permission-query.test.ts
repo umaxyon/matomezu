@@ -26,7 +26,7 @@ const inBinder = drawingPage("s1", { title: "中" })
 const book = testBook("b1", "本", [drawingPage("p1"), testBinder("f1", "束", DRAWING, inBinder)])
 const asked = (action: string, where?: Parameters<typeof actionQuery>[3]) => {
   seen.length = 0
-  inspect(catalog, actionQuery(catalog, action, book, where), ctx as never)
+  inspect(catalog, actionQuery(catalog, action, { book }, where), ctx as never)
   return seen[0]
 }
 

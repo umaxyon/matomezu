@@ -23,7 +23,8 @@ import {
   unreadableRowsOf,
 } from "../../../web/src/plugins/base/library/outline"
 import { foundRowsOf } from "../../../web/src/plugins/base/library/search"
-import { NAMING, newStore } from "../../support"
+import { DRAWING, drawingPage, testBinder } from "../../lineup"
+import { libraryWith, NAMING, newStore, worldRows } from "../../support"
 
 const NOW = "2026-11-18T01:00:00.000Z"
 
@@ -75,6 +76,19 @@ test("行を開くと、フォルダは中へ入り、ブックとその中の�
   expect(pathTo(library().folders, "b1")).toEqual([TRASH_ID, "b1"])
   expect(openTargetOf(library().folders, row(TRASH_ID, "b1"))).toBe(NOT_OPENED)
   expect(openTargetOf(library().folders, row("b1", "p1"))).toBe(NOT_OPENED)
+})
+
+test("ブックの外のページの行を開くと、そのページを窓に出す。ブックの外のバインダとその中のページ・ゴミ箱に入れたブックの外のページは開かない", () => {
+  const binder = testBinder("n1", "束", DRAWING, drawingPage("n1p"))
+  const { folders } = libraryWith([], [drawingPage("o1"), binder])
+  const target = (id: string, kind: "page" | "binder") => openTargetOf(folders, { id, kind, readable: true })
+  expect(target("o1", "page")).toEqual({ to: "page", page: "o1" })
+  expect(target("n1", "binder")).toBe(NOT_OPENED)
+  expect(target("n1p", "page")).toBe(NOT_OPENED)
+  const store = newStore()
+  store.receive({ ...worldRows([], [drawingPage("o1")]), settings: {} }, [])
+  expect(store.actions.perform("@matomezu/base:entry-trash", { entry: "o1" }).ok).toBe(true)
+  expect(openTargetOf(store.state.getState().folders, { id: "o1", kind: "page", readable: true })).toBe(NOT_OPENED)
 })
 
 test("ゴミ箱の中のフォルダは開けないので、開いているフォルダはゴミ箱になる", () => {

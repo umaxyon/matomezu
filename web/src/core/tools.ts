@@ -6,8 +6,7 @@ import type { ToolId } from "./catalog"
 import { type CoreCatalog, pageType } from "./core-catalog"
 import type { ToolDef, ToolSetDef } from "./def/tool"
 import { fail } from "./errors"
-import { actionQuery, deniedBy, inspect } from "./inspect"
-import type { Book } from "./schema/book"
+import { type AskedOutermost, actionQuery, deniedBy, inspect } from "./inspect"
 import { openedPage, type Stage } from "./stage"
 
 // 組ごとの今の道具（替えたことの無い組は持たず、組の初めの道具を使う）。鍵は組の id、値は道具の id
@@ -34,12 +33,18 @@ export function toolIn(catalog: CoreCatalog, tools: Tools, set: string): ToolId 
   return order.find(id => id === tools[set]) ?? order[0] ?? fail("E114", { id: set })
 }
 
-// 道具を、ブック book のページ page で使えるか: 行うアクションが無いか、どれかを認可ステップが止めない（ブックが無ければ使える）
-export function toolUsable(catalog: CoreCatalog, tool: string, book: Book | null, page: string | null): boolean {
+// 道具を、開いている物 on（ブックか、ブックの外のページ。core/stage.ts の askedOutermostOf）のページ page で使えるか:
+// 行うアクションが無いか、どれかを認可ステップが止めない（何も開いていなければ使える）
+export function toolUsable(
+  catalog: CoreCatalog,
+  tool: string,
+  on: AskedOutermost | null,
+  page: string | null,
+): boolean {
   const performs = toolDef(catalog, tool).performs ?? []
-  if (!book || performs.length === 0) return true
+  if (!on || performs.length === 0) return true
   return performs.some(
-    action => deniedBy(inspect(catalog, actionQuery(catalog, action, book, page ? { page } : undefined))) === null,
+    action => deniedBy(inspect(catalog, actionQuery(catalog, action, on, page ? { page } : undefined))) === null,
   )
 }
 

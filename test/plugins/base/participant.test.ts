@@ -1,17 +1,14 @@
 // 参加者・ワークルーム・管理者の印（base の対象の定義。レコード）: 要求は AI も行え、受け入れる・外す・部屋を作る・消すは利用者だけ。
-// 部屋の名前は重ならず、部屋に入る参加者は 1 人で、人のいる部屋は消せない。参加要求の郵便（mail-join-request）は、別の種類（郵便のレコード）として届く
+// 部屋の名前は重ならず、部屋に入る参加者は 1 人で、人のいる部屋は消せない。要求は受け入れ・断り・キャンセルで終わる
 
 import { expect, test } from "bun:test"
 import { z } from "zod"
 import { AI, USER } from "../../../web/src/core/actor"
 import { checkCoreCatalog } from "../../../web/src/core/core-catalog-check"
-import { translate } from "../../../web/src/core/i18n/i18n"
 import { joinActions } from "../../../web/src/core/participant"
 import { performIn } from "../../../web/src/core/perform-world"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
-import { mailboxOf } from "../../../web/src/plugins/base/mail"
-import type { Mail } from "../../../web/src/plugins/base/mail/mail"
-import { type MailT, shownOf } from "../../../web/src/plugins/base/mail/shown"
+import { PARTICIPANT_CANCEL } from "../../../web/src/plugins/base/participant"
 import { BUILTIN_PARTS, CORE_CATALOG, newStore } from "../../support"
 
 const PARTICIPANT = "@matomezu/base:participant"
@@ -24,7 +21,7 @@ const ROOM_ADD = "@matomezu/base:workroom-add"
 const ROOM_UPDATE = "@matomezu/base:workroom-update"
 const ROOM_REMOVE = "@matomezu/base:workroom-remove"
 const ADMIN_SET = "@matomezu/base:admin-set"
-const JOIN_MAIL = "@matomezu/base:mail-join-request"
+const CANCEL = PARTICIPANT_CANCEL.id
 
 const WHO = { ai: "claude", model: "opus", env: "wsl", sessionName: "D92", link: "L1" }
 
@@ -86,22 +83,7 @@ test("受け入れると、部屋を指して受け入れた時点を書く（�
   expect(perform(ACCEPT, { workroom: room }, { record: second }).ok).toBe(false)
 })
 
-test("断ると要求のレコードが消える。受け入れた参加者と、無い参加者は断れない。外すと部屋は空室で残る", () => {
-  const { people, rooms, request, addRoom, perform } = ready()
-  const a = request().result.participant
-  expect(perform(DECLINE, {}, { record: a }).ok).toBe(true)
-  expect(people()).toHaveLength(0)
-  expect(perform(DECLINE, {}, { record: a })).toMatchObject({ ok: false, reason: "no-record" })
-  const b = request({ ...WHO, link: "L2" }).result.participant
-  const room = addRoom("A").result.workroom
-  perform(ACCEPT, { workroom: room }, { record: b })
-  expect(perform(DECLINE, {}, { record: b }).ok).toBe(false)
-  expect(perform(REMOVE, {}, { record: b }).ok).toBe(true)
-  expect(people()).toHaveLength(0)
-  expect(rooms().map(r => r.id)).toEqual([room])
-})
-
-test("AI は要求できるが、受け入れる・外す・部屋を作る・消す・管理者を決めるはできない（利用者だけ）", () => {
+test("AI は要求できるが、受け入れる・断る・キャンセルする・外す・部屋を作る・消す・管理者を決めるはできない（利用者だけ）", () => {
   const { store, request, addRoom } = ready()
   const id = request().result.participant
   const room = addRoom("A").result.workroom
@@ -129,6 +111,7 @@ test("AI は要求できるが、受け入れる・外す・部屋を作る・�
   for (const [action, args, on] of [
     [ACCEPT, { workroom: room }, { record: id }],
     [DECLINE, {}, { record: id }],
+    [CANCEL, {}, { record: id }],
     [REMOVE, {}, { record: id }],
     [ROOM_ADD, { name: "B", bird: "inko" }, undefined],
     [ROOM_REMOVE, {}, { record: room }],
@@ -202,59 +185,54 @@ test("管理者の印は 1 件（id は admin）。部屋か none を指し、�
   expect(perform(ADMIN_SET, { workroom: "none" }, { record: "admin" }).ok).toBe(true)
 })
 
-test("参加要求の郵便は郵便箱に届き、本文に ai・model・env・セッション名を持つ（送るたびに 1 通届く。同じ参加者の郵便があるかは見ない）", () => {
-  const { store, perform } = ready()
-  const args = {
-    from: "claude",
-    participant: "p1",
-    ai: "claude",
-    model: "opus",
-    env: "wsl",
-    sessionName: "D92",
-  }
-  const done = perform(JOIN_MAIL, args) as { ok: boolean; result: { mail: string } }
-  expect(done.ok).toBe(true)
-  const mails = (): readonly Mail[] => mailboxOf(store.state.getState().records)
-  expect(mails()).toEqual([
-    {
-      id: done.result.mail,
-      mail: "@matomezu/base:join-request",
-      from: "claude",
-      sentAt: expect.any(String),
-      props: { participant: "p1", ai: "claude", model: "opus", env: "wsl", sessionName: "D92" },
-      order: 1,
-    },
-  ])
-  const ja: MailT = (key, params) => translate(CORE_CATALOG.messages, "ja", key, params)
-  expect(shownOf(CORE_CATALOG, mails()[0]!, ja)).toMatchObject({
-    title: "AI エージェントから参加要求が届きました",
-    body: "AI: claude\nモデル: opus\n環境: wsl\nセッション: D92",
-  })
-  expect(perform(JOIN_MAIL, { ...args, participant: "p2" }).ok).toBe(true)
-  expect(mails()).toHaveLength(2)
+test("AI が参加を頼むときに行うアクションと、要求をキャンセルとして終えるアクションは、定義が役を名乗る", () => {
+  expect(joinActions(CORE_CATALOG)).toEqual({ participant: REQUEST, cancel: CANCEL })
 })
 
-test("AI が参加を頼むときに行うアクションは、定義が役を名乗る", () => {
-  expect(joinActions(CORE_CATALOG)).toEqual({ participant: REQUEST, notice: JOIN_MAIL })
+test("要求をキャンセルとして終える役（cancelsJoinRequest）は、1 つのアクションだけが名乗る（2 つ目は E067）。名乗る物が無ければ、参加を頼むアクションだけを返す", () => {
+  const canceller = BUILTIN_PARTS.actions.find(a => a.cancelsJoinRequest)
+  if (!canceller) throw new Error("cancelsJoinRequest が無い")
+  const codes = checkCoreCatalog({
+    ...BUILTIN_PARTS,
+    actions: [...BUILTIN_PARTS.actions, { ...canceller, id: "@ex/j:canceller" }],
+  }).map(p => p.code)
+  expect(codes).toContain("E067")
+  const withoutCancel = { ...CORE_CATALOG, actions: new Map([...CORE_CATALOG.actions].filter(([id]) => id !== CANCEL)) }
+  expect(joinActions(withoutCancel)).toEqual({ participant: REQUEST })
 })
 
-test("参加要求の郵便は、頼まれたワークルームの名前を本文に出す", () => {
-  const { store, perform } = ready()
-  const args = {
-    from: "claude",
-    participant: "p1",
-    ai: "claude",
-    model: "opus",
-    env: "wsl",
-    workroom: "ひよこ",
-  }
-  expect(perform(JOIN_MAIL, args).ok).toBe(true)
-  const ja: MailT = (key, params) => translate(CORE_CATALOG.messages, "ja", key, params)
-  const [mail] = mailboxOf(store.state.getState().records)
-  expect(shownOf(CORE_CATALOG, mail!, ja)).toMatchObject({
-    title: "AI エージェントから参加要求が届きました",
-    body: "ワークルーム名: ひよこ\nAI: claude\nモデル: opus\n環境: wsl",
-  })
+test.each([DECLINE, CANCEL])(
+  "%s は要求のレコードを消す（痕跡は残さない）。受け入れた参加者と、無い参加者には行えない。外すと部屋は空室で残る",
+  action => {
+    const { people, rooms, request, addRoom, perform } = ready()
+    const a = request().result.participant
+    expect(perform(action, {}, { record: a }).ok).toBe(true)
+    expect(people()).toHaveLength(0)
+    expect(perform(action, {}, { record: a })).toMatchObject({ ok: false, reason: "no-record" })
+    const b = request({ ...WHO, link: "L2" }).result.participant
+    const room = addRoom("A").result.workroom
+    perform(ACCEPT, { workroom: room }, { record: b })
+    expect(perform(action, {}, { record: b }).ok).toBe(false)
+    expect(perform(REMOVE, {}, { record: b }).ok).toBe(true)
+    expect(people()).toHaveLength(0)
+    expect(rooms().map(r => r.id)).toEqual([room])
+  },
+)
+
+test("要求は ADE のワークスペースの名前を持てる（受け入れると外す）", () => {
+  const { people, request, addRoom, perform } = ready()
+  const a = request({ ...WHO, adeWorkspace: "4.M-0168 参加要求" }).result.participant
+  expect(people()[0]).toMatchObject({ adeWorkspace: "4.M-0168 参加要求" })
+  const room = addRoom("A").result.workroom
+  expect(perform(ACCEPT, { workroom: room }, { record: a }).ok).toBe(true)
+  expect(people()[0]).not.toHaveProperty("adeWorkspace")
+})
+
+test("セッションが終わったときのアクション（participant-remove）は、要求中の参加者も消す", () => {
+  const { people, request, perform } = ready()
+  const a = request().result.participant
+  expect(perform(REMOVE, {}, { record: a }).ok).toBe(true)
+  expect(people()).toHaveLength(0)
 })
 
 test("AI が参加を頼むときの役（runsWhenAIJoins）は、1 つの役を 1 つのアクションだけが名乗る（2 つ目は E044）", () => {

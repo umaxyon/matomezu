@@ -25,13 +25,13 @@ export function inPlaceText(
 // その場の編集を終える: continues（足した物を続けて書いていた）なら、先に足した操作の画面の履歴の段を続け（end の変更も同じ段に入れる）、
 // end を行ってから、書いている字を消して、その場の編集をやめる
 export function endInPlace(
-  ctx: Pick<CommandContext, "book">,
+  ctx: Pick<CommandContext, "stage">,
   a: Pick<CommandActions, "continueStep" | "updatePluginState" | "setEditing">,
   state: InPlaceDraftState,
   continues: boolean,
   end: () => void,
 ): void {
-  if (continues && ctx.book !== "none") a.continueStep(ctx.book.id)
+  if (continues && ctx.stage.opened) a.continueStep(ctx.stage.opened.outermost.id)
   end()
   a.updatePluginState(state, () => undefined)
   a.setEditing("none")
