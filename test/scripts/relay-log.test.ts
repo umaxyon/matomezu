@@ -107,9 +107,18 @@ const codexBody = {
 
 // 中継は Bun の fetch と Response で動く。このプロセスでは happy-dom がそれを差し替えているので、子のプロセスで動かす。
 // 偽の上流を AI ごとに立て、それぞれが受けた道と認証を返す
-const scenario = `
+// どの子にも入れる頭。waitAdded は store.add を包み、中継が記録を n 件足したときに解ける
+const scenarioHead = `
 import { startRelay } from ${JSON.stringify(join(import.meta.dir, "../../scripts/relay-log.ts"))}
 import { openStore } from ${JSON.stringify(join(import.meta.dir, "../../scripts/relay-log/store.ts"))}
+const waitAdded = (store, n) => new Promise(resolve => {
+  const add = store.add
+  let count = 0
+  store.add = (...a) => { const r = add(...a); if (++count === n) resolve(); return r }
+})
+`
+
+const scenario = `${scenarioHead}
 const [db, claudeBody, codexBody, claudeSse, codexSse] = process.argv.slice(1)
 const seen = { claude: [], codex: [] }
 const fake = (name, sse) => Bun.serve({ port: 0, hostname: "127.0.0.1", fetch(req) {
@@ -118,6 +127,7 @@ const fake = (name, sse) => Bun.serve({ port: 0, hostname: "127.0.0.1", fetch(re
 } })
 const up = { claude: fake("claude", claudeSse), codex: fake("codex", codexSse) }
 const store = openStore(db)
+const added = waitAdded(store, 2)
 const relay = startRelay({ port: 0, store, upstream: {
   claude: "http://127.0.0.1:" + up.claude.port, codex: "http://127.0.0.1:" + up.codex.port + "/backend",
 } })
@@ -131,8 +141,8 @@ const texts = [
   await post("/codex/s/sub2_work/responses", codexBody, "Bearer secret-codex"),
   await (await fetch(base + "/codex/models")).text(),
 ]
-let entries = []
-for (let i = 0; i < 200 && entries.length < 2; i++) { await Bun.sleep(10); entries = store.entries() }
+await added
+const entries = store.entries()
 const stored = entries.map(e => store.body(e.id))
 console.log(JSON.stringify({ health, texts, seen, entries, stored, replies: entries.map(e => store.reply(e.id)) }))
 relay.stop(true); up.claude.stop(true); up.codex.stop(true)
@@ -184,19 +194,16 @@ test("中継は AI ごとの上流へ渡して返答をそのまま返し、AI �
 })
 
 // 上流が最初のかけらを返したところで、呼び手が接続を切る（Claude Code の中断）
-const abortScenario = `
-import { startRelay } from ${JSON.stringify(join(import.meta.dir, "../../scripts/relay-log.ts"))}
-import { openStore } from ${JSON.stringify(join(import.meta.dir, "../../scripts/relay-log/store.ts"))}
+const abortScenario = `${scenarioHead}
 const [db, body] = process.argv.slice(1)
 const upstream = Bun.serve({ port: 0, hostname: "127.0.0.1", idleTimeout: 0, fetch() {
   const stream = new ReadableStream({ async start(c) {
     c.enqueue(new TextEncoder().encode('event: message_start\\ndata: {"type":"message_start","message":{"usage":{"input_tokens":5}}}\\n\\n'))
-    await Bun.sleep(5000)
-    c.close()
   } })
   return new Response(stream, { headers: { "content-type": "text/event-stream" } })
 } })
 const store = openStore(db)
+const added = waitAdded(store, 1)
 const relay = startRelay({ port: 0, store, upstream: { claude: "http://127.0.0.1:" + upstream.port } })
 const ac = new AbortController()
 const res = await fetch("http://127.0.0.1:" + relay.port + "/v1/messages", {
@@ -205,8 +212,8 @@ const res = await fetch("http://127.0.0.1:" + relay.port + "/v1/messages", {
 const reader = res.body.getReader()
 await reader.read()
 ac.abort()
-let entries = []
-for (let i = 0; i < 200 && !entries.length; i++) { await Bun.sleep(10); entries = store.entries() }
+await added
+const entries = store.entries()
 const health = await (await fetch("http://127.0.0.1:" + relay.port + "/__relay/health")).text()
 console.log(JSON.stringify({ health, entries }))
 relay.stop(true); upstream.stop(true)
@@ -232,19 +239,16 @@ test("呼び手が返答の途中で接続を切っても中継は落ちず、�
 })
 
 // Codex は response.completed を受けると、上流が閉じる前に接続を切る。content-type が SSE でなくても本文の頭で SSE と読む
-const endScenario = `
-import { startRelay } from ${JSON.stringify(join(import.meta.dir, "../../scripts/relay-log.ts"))}
-import { openStore } from ${JSON.stringify(join(import.meta.dir, "../../scripts/relay-log/store.ts"))}
+const endScenario = `${scenarioHead}
 const [db, body] = process.argv.slice(1)
 const upstream = Bun.serve({ port: 0, hostname: "127.0.0.1", idleTimeout: 0, fetch() {
   const stream = new ReadableStream({ async start(c) {
     c.enqueue(new TextEncoder().encode('event: response.completed\\ndata: {"type":"response.completed","response":{"usage":{"input_tokens":9,"output_tokens":1}}}\\n\\n'))
-    await Bun.sleep(5000)
-    c.close()
   } })
   return new Response(stream, { headers: { "content-type": "application/octet-stream" } })
 } })
 const store = openStore(db)
+const added = waitAdded(store, 1)
 const relay = startRelay({ port: 0, store, upstream: { codex: "http://127.0.0.1:" + upstream.port } })
 const ac = new AbortController()
 const res = await fetch("http://127.0.0.1:" + relay.port + "/codex/responses", {
@@ -253,8 +257,8 @@ const res = await fetch("http://127.0.0.1:" + relay.port + "/codex/responses", {
 const reader = res.body.getReader()
 await reader.read()
 ac.abort()
-let entries = []
-for (let i = 0; i < 200 && !entries.length; i++) { await Bun.sleep(10); entries = store.entries() }
+await added
+const entries = store.entries()
 console.log(JSON.stringify({ entries }))
 relay.stop(true); upstream.stop(true)
 process.exit(0)
