@@ -52,7 +52,7 @@ const hasTag = (chosen: readonly string[], tags: readonly string[]) =>
 export const toggled = (chosen: readonly string[], value: string): readonly string[] =>
   chosen.includes(value) ? chosen.filter(v => v !== value) : [...chosen, value]
 
-// 入力を空白で分けた語（どれかに当たれば横断検索の当たり）。番号の見せ方（M-0050 など）の語は、その数字（50）も一緒に探す（元の語は残す）
+// 入力を空白で分けた語（どれかに当たれば横断検索の当たり）。数字で終わる語（M-0050・0050 など）は、その番号（50）も一緒に探す（元の語は残す）
 export function searchTerms(input: string): string[] {
   const words = input.split(/\s+/).filter(w => w !== "")
   const numbers = words.flatMap(w => ticketNumberOf(w) ?? [])

@@ -86,14 +86,17 @@ test("選びは、押すと入り、もう一度押すと外れる", () => {
   expect(toggled(["a", "b"], "a")).toEqual(["b"])
 })
 
-test("番号の見せ方（プレフィクスに数字が続く形）の語は、先頭の 0 を除いた数字も一緒に探し、元の語は残す", () => {
+test("数字で終わる語（プレフィクスに数字が続く形も、数字だけも）は、先頭の 0 を除いた数字も一緒に探し、元の語は残す", () => {
   expect(ticketNumberOf("M-0050")).toBe("50")
   expect(ticketNumberOf("T-0012")).toBe("12")
   expect(ticketNumberOf("M-10000")).toBe("10000")
   expect(ticketNumberOf("login")).toBeUndefined()
-  expect(ticketNumberOf("2026")).toBeUndefined()
+  expect(ticketNumberOf("2026")).toBe("2026")
+  expect(ticketNumberOf("0164")).toBe("164")
   expect(ticketNumberOf("M-0000")).toBeUndefined()
   expect(searchTerms("M-0050 login")).toEqual(["M-0050", "login", "50"])
   expect(searchTerms("  ログイン  ")).toEqual(["ログイン"])
+  expect(searchTerms("0164")).toEqual(["0164", "164"])
+  expect(searchTerms("164")).toEqual(["164"])
   expect(searchTerms("T-0012 T-0012")).toEqual(["T-0012", "12"])
 })
