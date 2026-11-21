@@ -1,6 +1,7 @@
 // スライドのブック（@matomezu/slide-book）: ページの slide に置いたアイテム（文字枠・自由な線・直線・楕円）を、書いた位置と大きさ・角度で重ねの順に描く。紙の外にはみ出た部分は切る
 import { SLIDE, testBinder, testBook, testPage, withSlide } from "../test/lineup"
 import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
+import { aiPerform } from "./helpers/ai"
 import { footerMenuTool } from "./helpers/footer-menu"
 import { onPaper, paper } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
@@ -349,8 +350,70 @@ test.describe("スライドの操作", () => {
     await page.mouse.click(1, 1) // 何も書かずに外を押す
     await expect(page.locator("[data-item]")).toHaveCount(0)
     await expect(page.locator("[role=status]")).toHaveCount(0)
+  })
+
+  test("書き直しの途中で Escape を押すと、書いた字と広げた枠を捨てて元の字と大きさに戻る。そのあと書かずに外を押しても、枠は変わらない", async ({
+    page,
+  }) => {
+    await page.goto(BOOK_SCREEN_URL)
     await putTextAt(page, 200, 200)
-    await page.keyboard.press("Escape") // やめても残さない
+    await page.keyboard.type("ab")
+    await page.mouse.click(1, 1)
+    const item = page.locator("[data-item]").first()
+    await expect(item).toHaveText("ab")
+    const before = (await item.boundingBox())!
+    await item.dblclick()
+    await expect(page.locator("textarea")).toBeFocused()
+    await page.keyboard.type("0123456789")
+    await expect.poll(async () => (await item.boundingBox())!.width).toBeGreaterThan(before.width + 50)
+    await page.keyboard.press("Escape")
+    await expect(page.locator("textarea")).toHaveCount(0)
+    await expect(item).toHaveText("ab")
+    await expect.poll(async () => (await item.boundingBox())!.width).toBeCloseTo(before.width, 0)
+    // 書き直しを始めて、何も書かずに外を押す
+    await item.dblclick()
+    await expect(page.locator("textarea")).toBeFocused()
+    await page.mouse.click(1, 1)
+    await expect(page.locator("textarea")).toHaveCount(0)
+    await expect(item).toHaveText("ab")
+    expect((await item.boundingBox())!.width).toBeCloseTo(before.width, 0)
+    // 元に戻すと、置いて書いた 1 段が戻る（Escape も、書かずに終えたのも、履歴に残らない）
+    await page.keyboard.press("ControlOrMeta+z")
+    await expect(page.locator("[data-item]")).toHaveCount(0)
+  })
+
+  test("書き直しの途中でブックがロックされると、書いた字を捨てて書き直しを終え、トーストで 1 回知らせる", async ({
+    page,
+  }) => {
+    await page.goto(BOOK_SCREEN_URL)
+    await putTextAt(page, 200, 200)
+    await page.keyboard.type("ab")
+    await page.mouse.click(1, 1)
+    const item = page.locator("[data-item]").first()
+    await expect(item).toHaveText("ab")
+    await item.dblclick()
+    await expect(page.locator("textarea")).toBeFocused()
+    await page.keyboard.type("cd")
+    expect(
+      await aiPerform(page, { action: "@matomezu/base:book-lock", args: {}, on: { book: EMPTY.id } }),
+    ).toMatchObject({
+      ok: true,
+    })
+    await expect(page.locator("textarea")).toHaveCount(0)
+    await expect(item).toHaveText("ab")
+    await expect(page.getByRole("alert")).toHaveCount(1)
+    await expect(page.getByRole("alert")).toContainText("書けなくなったので、書いた字を捨てました")
+  })
+
+  test("置いたばかりの文字枠で字を書いてから Escape を押すと、文字枠ごと消え、元に戻す履歴に残らない", async ({
+    page,
+  }) => {
+    await page.goto(BOOK_SCREEN_URL)
+    await putTextAt(page, 200, 200)
+    await page.keyboard.type("ab")
+    await page.keyboard.press("Escape")
+    await expect(page.locator("[data-item]")).toHaveCount(0)
+    await page.keyboard.press("ControlOrMeta+z")
     await expect(page.locator("[data-item]")).toHaveCount(0)
   })
 

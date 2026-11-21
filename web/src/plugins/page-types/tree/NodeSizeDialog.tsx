@@ -1,8 +1,8 @@
 // 節の大きさのダイアログ: 子の節の大きさの選び方を、先頭の「ページを継承（ページで効いている選び方）」か、伸びる・N 字で折り返す・N 字で固定から選ぶ。
 // 確定でアクション node-update を行う（継承は size を消す）。断られたら、閉じずに理由を出す（認可ステップが止めたならそのステップの名前、ほかは紙に入らない）
 import { useId, useState } from "react"
-import { findPage, type MessageKey } from "../../../plugin-api"
-import { type DialogProps, useBook, useCoreCatalog, useMessages, usePerform } from "../../../plugin-api/ui"
+import type { MessageKey } from "../../../plugin-api"
+import { type DialogProps, useCoreCatalog, useMessages, usePageById, usePerform } from "../../../plugin-api/ui"
 import { refusalMessage, settingValue } from "../../base"
 import { ActionButton, Dialog, Form, Problem, rowClass } from "../../base/ui"
 import { NODE_UPDATE } from "./actions"
@@ -16,14 +16,13 @@ export function NodeSizeDialog({ args, onClose }: DialogProps<{ page: string; no
   const t = useMessages(kit)
   const form = useId()
   const catalog = useCoreCatalog()
-  const book = useBook()
-  const page = book ? findPage(book, args.page)?.page : undefined
+  const page = usePageById(args.page)
   const root = treeRootOf(page)
   const node = root ? nodeOf(root, args.node) : null
   const perform = usePerform()
   const [size, setSize] = useState<NodeSize | undefined>(node?.size)
   const [refused, setRefused] = useState<MessageKey | null>(null) // 断られたわけの文言
-  if (!book || !page || !node) return null
+  if (!page || !node) return null
   const inherited = settingValue(catalog, page, NODE_SIZE)
   const submit = () => {
     const done = perform(NODE_UPDATE.id, { node: node.id, size: size ?? null }, { page: page.id })

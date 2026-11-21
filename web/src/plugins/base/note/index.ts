@@ -3,14 +3,16 @@
 // AI が読んだかは readAt（AI が読んだ時点）で持ち、利用者が文か付ける先を変えると未読に戻る。
 // 読まれたあと、利用者トリガートークがあると会話の時点 talkedAt を持ち、そこから伝言期限（利用者の設定 note-expiry）が過ぎると消える。
 // ロック中のブックにも付けられる（ロックはアノテーションを止めない）
-// 右クリックのメニューのコマンド note-new（押した物に伝言を書き始める）もここ
+// 右クリックのメニューのコマンド note-new（押した物に伝言を書き始める）と、右サイドパネルで書いた伝言を送るコマンド note-send（Mod+Enter）もここ
 import { z } from "zod"
 import type { Annotation } from "../../../core/annotation"
-import { NO_BOOK } from "../../../store/commands/def"
+import { type CommandContext, NO_BOOK, NO_PAGE } from "../../../store/commands/def"
 import { anchorsFor } from "../context-menu/anchor-targets"
 import { kit } from "../kit"
-import { openRightSidePanelIn } from "../right-side-panel/state"
+import { openRightSidePanelIn, RIGHT_SIDE_PANEL_STATE, type RightSidePanelOpen } from "../right-side-panel/state"
 import { freshId } from "../utils/ids"
+import { type InPlaceDraft, inPlaceText } from "../utils/in-place"
+import { refusalMessage } from "../utils/refusal"
 import { expiryFrom, NOTE_EXPIRY } from "./expiry"
 import { NEW_NOTE, NOTE_PANEL_ID } from "./panel-id"
 
@@ -202,3 +204,72 @@ export const NOTE_NEW = kit.defineCommand({
     }),
   when: ctx => ctx.book !== NO_BOOK,
 })
+
+// 右サイドパネルで書いている伝言の文（target は伝言の id。新しく書く伝言なら NEW_NOTE）。無ければ、伝言の今の文のまま。
+// 書くのはパネルのテキストForm で、パネルの中身が外れたら消す（閉じたときと、外で文が変わって書き始め直すとき）
+export const NOTE_DRAFT = kit.definePluginStateOf<InPlaceDraft>()({ id: "note-draft", scope: "stage" })
+
+// 付ける先の並び: カレントを最後にする（吹き出しはカレントに出る）
+export const orderedAnchors = (open: RightSidePanelOpen): string[] =>
+  open.anchors.includes(open.current)
+    ? [...open.anchors.filter(id => id !== open.current), open.current]
+    : [...open.anchors]
+
+// 右サイドパネルの伝言 open で、文 text を送るときに行うアクションと引数（送れなければ null）。note は付けた伝言（新しく書く伝言なら無し）。
+// 新しく書く伝言は、文が書けていて付ける先があれば付ける。付けた伝言は、付ける先があり、文が変わったか付ける先が動いたら、変わった物だけを送る
+export function noteSendOf(
+  open: RightSidePanelOpen,
+  text: string,
+  note: Annotation | undefined,
+):
+  | { action: typeof NOTE_ADD.id; args: { anchors: string[]; text: string } }
+  | { action: typeof NOTE_UPDATE.id; args: { note: string; text?: string; anchors?: string[] } }
+  | null {
+  const next = orderedAnchors(open)
+  const written = NoteTextSchema.safeParse(text).success
+  if (next.length === 0) return null
+  if (!note) return open.subject === NEW_NOTE && written ? { action: NOTE_ADD.id, args: { anchors: next, text } } : null
+  const textChanged = written && text !== (note.props as NoteProps).text
+  const moved = next.length !== note.anchors.length || next.some((a, i) => note.anchors[i] !== a)
+  if (!textChanged && !moved) return null
+  return {
+    action: NOTE_UPDATE.id,
+    args: { note: note.id, ...(textChanged ? { text } : {}), ...(moved ? { anchors: next } : {}) },
+  }
+}
+
+// ctx のステージの右サイドパネルで書いている伝言を、送るときの物（伝言を出していないか、送れなければ null）
+function sendIn(ctx: CommandContext) {
+  const open = ctx.pluginState(RIGHT_SIDE_PANEL_STATE)
+  if (!open || open.widget !== NOTE_PANEL_ID) return null
+  const note = ctx.annotations.find(a => a.id === open.subject && a.annotation === NOTE.id)
+  if (!note && open.subject !== NEW_NOTE) return null
+  const text = inPlaceText(ctx, NOTE_DRAFT, open.subject) ?? (note ? (note.props as NoteProps).text : "")
+  return noteSendOf(open, text, note)
+}
+
+// 右サイドパネルで書いている伝言を送る（新しく書く伝言は付け、付けた伝言は再送する）。送れたら閉じ、断られたらトーストで知らせる
+export const NOTE_SEND = kit.defineCommand({
+  id: "note-send",
+  title: "Send",
+  performs: [NOTE_ADD.id, NOTE_UPDATE.id],
+  run: (ctx, a) => {
+    const send = sendIn(ctx)
+    if (!send || ctx.page === NO_PAGE) return
+    const done = a.perform(send.action, send.args as never, { page: ctx.page.id })
+    if (!done.ok) {
+      a.showToast({ kind: "warn", message: refusalMessage(ctx.catalog, done, kit.message("The note was refused")) })
+      return
+    }
+    a.updatePluginState(NOTE_DRAFT, () => undefined)
+    a.updatePluginState(RIGHT_SIDE_PANEL_STATE, () => undefined)
+  },
+  when: ctx => sendIn(ctx) !== null,
+})
+
+// 伝言のテキストForm が名乗る範囲（送るキーをここに置く）
+export const NOTE_TEXT_KEY_SCOPE = kit.defineKeyScope({ id: "note-text", title: "Note text", commandsFrom: "stage" })
+
+export const NOTE_KEYS = [
+  kit.defineKey({ id: "note-send-mod-enter", key: "Mod+Enter", command: NOTE_SEND.id, scope: NOTE_TEXT_KEY_SCOPE.id }),
+]

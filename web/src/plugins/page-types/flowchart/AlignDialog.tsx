@@ -3,8 +3,8 @@
 // （最初はオフ。置いたときのままを保つ）。
 // 断られたら、閉じずに理由を出す（認可ステップが止めたならそのステップの名前、ほかは紙に収まらない）
 import { useId, useState } from "react"
-import { findPage, type MessageKey } from "../../../plugin-api"
-import { type DialogProps, useBook, useCoreCatalog, useMessages, usePerform } from "../../../plugin-api/ui"
+import type { MessageKey } from "../../../plugin-api"
+import { type DialogProps, useCoreCatalog, useMessages, usePageById, usePerform } from "../../../plugin-api/ui"
 import { refusalMessage } from "../../base"
 import { ActionButton, Dialog, Form, Problem, rowClass, Switch } from "../../base/ui"
 import { adaptedTitles, PAGE_ALIGN } from "./actions"
@@ -14,12 +14,11 @@ export function AlignDialog({ args, onClose }: DialogProps<{ page: string }>) {
   const t = useMessages(kit)
   const form = useId()
   const catalog = useCoreCatalog()
-  const book = useBook()
-  const page = book ? findPage(book, args.page)?.page : undefined
+  const page = usePageById(args.page)
   const perform = usePerform()
   const [adapt, setAdapt] = useState(false)
   const [refused, setRefused] = useState<MessageKey | null>(null) // 断られたわけの文言
-  if (!book || !page) return null
+  if (!page) return null
   const titles = [...new Set(adaptedTitles(catalog, page).map(k => t(k)))]
   const adaptable = titles.length > 0
   const label = t("Fit {shapes} to the page and align", { shapes: titles.join(t("List separator")) })

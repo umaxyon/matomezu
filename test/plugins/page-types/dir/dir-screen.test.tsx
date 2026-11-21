@@ -335,7 +335,10 @@ test("フォルダを選んで Tab で、行のすぐ右に種類を選ぶ枠を
   expect(document.activeElement).toBe(within(picker).getByRole("menuitem", { name: "フォルダ" }))
   fireEvent.keyDown(document.activeElement!, { key: "ArrowDown" })
   expect(document.activeElement).toBe(within(picker).getByRole("menuitem", { name: "ファイル" }))
+  // ボタンの Enter は押す動きに任せる（キーバインドは効かない）。押す動きはブラウザがするので、ここでは押したことにする
   fireEvent.keyDown(document.activeElement!, { key: "Enter" })
+  expect(within(paper()).getByRole("menu", { name: "中に足す" })).toBe(picker)
+  fireEvent.click(document.activeElement!)
   expect(within(paper()).queryByRole("menu")).toBeNull()
   const input = within(paper()).getByRole("textbox", { name: "名前" })
   writeRich(input, "b.ts")
