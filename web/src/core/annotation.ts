@@ -1,5 +1,5 @@
 // アノテーション: ページの中の物に結び付き、ページのデータとは別に残る物（種類は core/def/annotation.ts）。ページごとに並びで持つ。
-// 結び付く物（アンカー）は、そのページの中の id を持つ物（ページそのものは含まない。ほかのページの物には結び付かない）。アンカーの物が全部無くなったアノテーションは残らない。
+// 結び付く物は、そのページの中の id を持つ物（ページそのものは含まない。ほかのページの物には結び付かない）。結び付く物が全部無くなったアノテーションは残らない。
 // 種類の期限（expiresAt）の過ぎたアノテーションも残らない（消すのは常駐で、画面はそれまで出さない）
 import { z } from "zod"
 import { briefLine } from "./brief"
@@ -41,12 +41,12 @@ export type Annotations = Readonly<Record<string, readonly Annotation[]>>
 export const restoreAnnotations = (saved: unknown): readonly Annotation[] =>
   Array.isArray(saved) ? (saved as Annotation[]) : []
 
-// ページの中の、アンカーにできる物の id
+// ページの中の、結び付けられる物の id
 export function anchorIds({ id: _page, ...content }: ItemPage): ReadonlySet<string> {
   return new Set(idsIn(content))
 }
 
-// ページ page に無い物の id をアンカーから外し、アンカーが全部無くなったアノテーションを消す（変わらなければ同じ並び）
+// ページ page に無い物の id を結び付く物から外し、結び付く物が全部無くなったアノテーションを消す（変わらなければ同じ並び）
 export function prune(annotations: readonly Annotation[], page: ItemPage): readonly Annotation[] {
   if (annotations.length === 0) return annotations
   const ids = anchorIds(page)
@@ -66,7 +66,7 @@ export function prune(annotations: readonly Annotation[], page: ItemPage): reado
 const annotationAllowed = (catalog: CoreCatalog, type: string, id: string): boolean =>
   catalog.annotations.has(id) && !(pageType(catalog, type).annotations?.without?.includes(id as never) ?? false)
 
-// 1 つのアノテーションが決まりを守っているか: 形が合い、種類の形に合い、アンカーがどれもページ page の中（ids はその中の物の id）にあり、そのページのタイプが種類を使える
+// 1 つのアノテーションが決まりを守っているか: 形が合い、種類の形に合い、結び付く物がどれもページ page の中（ids はその中の物の id）にあり、そのページのタイプが種類を使える
 function fits(catalog: CoreCatalog, page: ItemPage, ids: ReadonlySet<string>, a: Annotation): boolean {
   if (!AnnotationSchema.safeParse(a).success) return false
   const def = catalog.annotations.get(a.annotation)
