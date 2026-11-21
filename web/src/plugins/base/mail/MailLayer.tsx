@@ -19,7 +19,7 @@ export function MailLayer() {
   const clear = useClearBirdVisit()
   const opened = useStageHere(st => st?.opened ?? null)
   const here =
-    !!visit && opened?.outermost === visit.book && (visit.page === null || shownPageId(opened) === visit.page)
+    !!visit && opened?.outermost.id === visit.book && (visit.page === null || shownPageId(opened) === visit.page)
   useEffect(() => {
     if (visit && !here) clear()
   }, [visit, here, clear])

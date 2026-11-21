@@ -58,7 +58,7 @@ function useVisited() {
         if (!m.to || m.visitedAt) continue
         const stages = shown
           .flatMap(x => x.stages.stages)
-          .flatMap(st => (st.opened ? [{ id: st.id, book: st.opened.outermost, page: shownPageId(st.opened) }] : []))
+          .flatMap(st => (st.opened ? [{ id: st.id, book: st.opened.outermost.id, page: shownPageId(st.opened) }] : []))
         if (placeShown(m, stages, onScreen)) perform(MAIL_VISITED.id, {}, { record: m.id })
       }
     }

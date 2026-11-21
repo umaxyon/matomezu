@@ -66,7 +66,7 @@ describe("stage", () => {
     expect(next).toMatchObject({
       opened: {
         type: "@matomezu/drawing:drawing",
-        outermost: "b1",
+        outermost: { kind: "book", id: "b1" },
         page: "p2",
         paper: { status: "known", size: { w: 559, h: 794 } },
       },
@@ -112,7 +112,7 @@ describe("stage", () => {
     expect(opened.opened).toEqual({
       kind: "page",
       type: "@matomezu/drawing:drawing",
-      outermost: "b9",
+      outermost: { kind: "book", id: "b9" },
       page: "p4",
       paper: { status: "known", size: { w: 1123, h: 794 } },
     })
@@ -121,7 +121,7 @@ describe("stage", () => {
 
   test("ページの無いブックを開くと、ページも紙も開かず、ずらせない", () => {
     const opened = openBook(CORE_CATALOG, resize(stage, small), testBook("b0", "見本", []))
-    expect(opened.opened).toEqual({ kind: "none", outermost: "b0" })
+    expect(opened.opened).toEqual({ kind: "none", outermost: { kind: "book", id: "b0" } })
     expect(placement(opened)).toBeNull()
     expect(panBy(opened, -10, -10)).toBe(opened)
   })
@@ -265,7 +265,7 @@ describe("バインダ（スライド）を開く", () => {
     expect(shownPageId(openBinder(CORE_CATALOG, opened, book, "f1").opened ?? null)).toBe("s1")
     expect(openBinder(CORE_CATALOG, opened, book, "f2").opened).toEqual({
       kind: "binder",
-      outermost: "b1",
+      outermost: { kind: "book", id: "b1" },
       binder: "f2",
       type: SLIDE,
     })

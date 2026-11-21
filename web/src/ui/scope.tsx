@@ -108,7 +108,7 @@ export function openedOf(s: MatomezuState, scope: Scope): { book: string; page: 
   if (!ref) return null
   if (ref.from === "page") return { book: ref.book, page: ref.page }
   const opened = stageIn(s.window, ref.stage)?.opened
-  return opened ? { book: opened.outermost, page: shownPageId(opened) } : null
+  return opened ? { book: opened.outermost.id, page: shownPageId(opened) } : null
 }
 
 // 描くページのブック（無ければ null）

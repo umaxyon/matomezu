@@ -15,6 +15,7 @@ import {
   newStage,
   openBinder,
   openBook,
+  openedBook,
   openPage,
   type Placing,
   type Stage,
@@ -129,7 +130,7 @@ export function toolOf(catalog: CoreCatalog, ws: Workspace, id: string, books: B
 
 // ステージで道具を使えるか（開いているブックのページで、行うアクションのどれかを認可ステップが止めない）
 export function usableIn(catalog: CoreCatalog, stage: Stage, books: Books): (tool: string) => boolean {
-  const book = stage.opened ? (books[stage.opened.outermost] ?? null) : null
+  const book = openedBook(books, stage.opened) ?? null
   return tool => toolUsable(catalog, tool, book, shownPageId(stage.opened))
 }
 
@@ -178,7 +179,7 @@ export function showBinder(catalog: CoreCatalog, ws: Workspace, stage: string, b
 // 今の道具が替わった（認可ステップが今の道具を止め、組の次の使える道具になったときも）なら、その場の編集を終える
 function followIn(catalog: CoreCatalog, ws: Workspace, stage: Stage, book: Book, before?: Book): Stage {
   const next = followStage(catalog, stage, book, before)
-  if (next.editing === "none" || !before || next.opened?.outermost !== book.id) return next
+  if (next.editing === "none" || !before || next.opened?.outermost.id !== book.id) return next
   const was = toolOf(catalog, { ...ws, stages: [stage] }, stage.id, { [book.id]: before })
   const now = toolOf(catalog, { ...ws, stages: [next] }, next.id, { [book.id]: book })
   return was === now ? next : setEditing(next, "none")
@@ -200,12 +201,12 @@ export function followLibrary(
   books: Readonly<Record<string, Book>>,
   before?: Readonly<Record<string, Book>>,
 ): Workspace | typeof NO_STAGES_LEFT {
-  const gone = ws.stages.filter(s => s.opened && !books[s.opened.outermost]).map(s => s.id)
+  const gone = ws.stages.filter(s => s.opened && !openedBook(books, s.opened)).map(s => s.id)
   if (gone.length === ws.stages.length) return NO_STAGES_LEFT
   const left = gone.reduce(close, ws)
   const stages = left.stages.map(s => {
-    const book = s.opened ? books[s.opened.outermost] : undefined
-    return s.opened && book ? followIn(catalog, left, s, book, before?.[s.opened.outermost]) : s
+    const book = openedBook(books, s.opened)
+    return s.opened && book ? followIn(catalog, left, s, book, before?.[s.opened.outermost.id]) : s
   })
   return stages.every((s, i) => s === left.stages[i]) ? left : { ...left, stages }
 }
