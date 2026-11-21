@@ -2,6 +2,7 @@ import { expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
 import { BROKEN, HOME_ID, TRASH_ID } from "../../web/src/core/folders"
 import { recordsOf } from "../../web/src/core/folders-books"
+import { rawBooksOf } from "../../web/src/core/folders-unreadable"
 import type { Book } from "../../web/src/core/schema/book"
 import { NOT_INSIDE, PURGED } from "../../web/src/core/unreadable"
 import { screenOf } from "../../web/src/core/window"
@@ -189,7 +190,7 @@ async function connected(server = fakeServer()) {
   const loading = server.host.load()
   server.emit("hello", { client: "c1" })
   const saved = await loading
-  const store = newStore({ books: [], savedBooks: saved.books, observe: bulk => server.host.observe(bulk) })
+  const store = newStore({ books: [], saved: saved.saved, observe: bulk => server.host.observe(bulk) })
   const stop = server.host.connect(store)
   return { ...server, store, stop }
 }
@@ -250,8 +251,10 @@ test("読むと、置いてあるブックと設定を返す", async () => {
   const s = fakeServer({ ...dataOf([SAMPLE_BOOKS[0]!]), settings: { lang: "en" } })
   const loading = s.host.load()
   s.emit("hello", { client: "c1" })
-  expect(await loading).toEqual({
-    books: [SAMPLE_BOOKS[0]],
+  const loaded = await loading
+  expect(rawBooksOf(loaded.saved.pages, loaded.saved.folders)).toEqual([SAMPLE_BOOKS[0]])
+  expect({ ...loaded, saved: undefined }).toEqual({
+    saved: undefined,
     settings: { lang: "en" },
     plugins: [],
     failed: [],
@@ -698,7 +701,8 @@ test("読んでいる間に届いた新しい版の知らせは、読んだ古�
   // ページだけが版 3 に進み、ブックのフォルダは読んだ版のまま
   listeners.get("changed")?.(JSON.stringify(pageChangedOf(b1With("new"), "p1", 3)))
   answer(new Response(JSON.stringify({ ...dataOf([b1With("old")], { p1: 2 }), settings: null })))
-  expect((await loading).books).toEqual([b1With("new")])
+  const { saved } = await loading
+  expect(rawBooksOf(saved.pages, saved.folders)).toEqual([b1With("new")])
 })
 
 test("読んでいる間に届いたレコード・番号・設定・アノテーションの知らせは、読んだ世界の上に当て直し、消さない", async () => {
@@ -737,7 +741,7 @@ test("読んでいる間に届いたレコード・番号・設定・アノテ�
   answer(new Response(JSON.stringify({ ...dataOf([b1With()]), settings: null, records: {}, counters: {} })))
   const saved = await loading
   expect(saved.settings).toEqual({ a: 1 })
-  const store = newStore({ books: [], savedBooks: saved.books, observe: bulk => host.observe(bulk) })
+  const store = newStore({ books: [], saved: saved.saved, observe: bulk => host.observe(bulk) })
   host.connect(store)
   expect(Object.keys(store.state.getState().records[ROOM] ?? {})).toEqual(["r1"])
   expect(store.state.getState().counters).toEqual({ [ROOM]: { room: 2 } })

@@ -1,0 +1,80 @@
+package server
+
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+
+	"github.com/umaxyon/matomezu/internal/aiwire"
+)
+
+// sendWith は、ヘッダ header の呼び出しとして AI 間メッセージを送り、返事を返す
+func sendWith(t *testing.T, srv string, header map[string]string, to string) MessageSent {
+	t.Helper()
+	got, _ := call(t, "POST", srv+"/api/ai/message", `{"to":"`+to+`","text":"hi"}`, header)
+	var sent MessageSent
+	if err := json.Unmarshal([]byte(got), &sent); err != nil {
+		t.Fatalf("message = %s", got)
+	}
+	return sent
+}
+
+// 参加の id のヘッダが無い呼び出しは、セッション id のヘッダに結ばれた参加者がちょうど 1 人のときだけ、その参加者になる（MCP が起動し直されて参加の id を失ったとき）
+func TestCallWithoutParticipantIsTheParticipantOfItsSession(t *testing.T) {
+	s, _ := joinWorld(t, joinStore(t))
+	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
+	b := joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
+	joinedIn(t, s.URL, "LC", "300", "SC", "からす")
+	joinedIn(t, s.URL, "LD", "400", "SC", "かもめ")
+	got, _ := call(t, "POST", s.URL+"/api/ai/join", `{"ai":"codex","model":"gpt","env":"wsl-linux","link":"LE","sessionId":"SE"}`, nil)
+	if !strings.Contains(got, `"participant"`) {
+		t.Fatalf("join = %s", got)
+	}
+	for _, c := range []struct {
+		name   string
+		header map[string]string
+		to     string
+		reason string
+	}{
+		{"bound", map[string]string{aiwire.HostSessionHeader: "SA"}, "すずめ", ""},
+		{"bound, to itself", map[string]string{aiwire.HostSessionHeader: "SA"}, "ひよこ", "to-self"},
+		{"not bound", map[string]string{aiwire.HostSessionHeader: "SX"}, "すずめ", "not-joined"},
+		{"bound to a requested participant", map[string]string{aiwire.HostSessionHeader: "SE"}, "すずめ", "not-joined"},
+		{"bound to two", map[string]string{aiwire.HostSessionHeader: "SC"}, "すずめ", "not-joined"},
+		{"the participant header comes first", map[string]string{aiwire.ParticipantHeader: b, aiwire.HostSessionHeader: "SA"}, "ひよこ", ""},
+	} {
+		sent := sendWith(t, s.URL, c.header, c.to)
+		if sent.OK != (c.reason == "") || sent.Reason != c.reason {
+			t.Fatalf("%s: %+v", c.name, sent)
+		}
+	}
+	if _, out := postPerform(t, s.URL, `{"action":"@matomezu/base:participant-remove","args":{},"on":{"record":"`+a+`"},"lang":"ja","now":"2026-11-08T02:00:00.000Z"}`); !strings.Contains(out, `"ok":true`) {
+		t.Fatalf("remove = %s", out)
+	}
+	if sent := sendWith(t, s.URL, map[string]string{aiwire.HostSessionHeader: "SA"}, "すずめ"); sent.Reason != "not-joined" {
+		t.Fatalf("removed: %+v", sent)
+	}
+}
+
+// セッション id で参加者になった呼び出しは、起こす知らせの宛て先を、その呼び出しの AI のプログラムのプロセス id に書き直す（起動し直すとプロセス id が変わる）
+func TestSessionParticipantMovesItsWakeTarget(t *testing.T) {
+	s, hub := joinWorld(t, joinStore(t))
+	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
+	joinedIn(t, s.URL, "LB", "200", "SB", "すずめ")
+	call(t, "GET", s.URL+"/api/ai/settings", "", map[string]string{aiwire.HostSessionHeader: "SB", aiwire.HostHeader: "201"})
+	sendMessage(t, s.URL, a, "すずめ", "hello")
+	if got := wakes(hub, hub.OpenWakesWith("201", "", WakeLimits{})); len(got) != 1 || !strings.Contains(got[0], `"hello"`) {
+		t.Fatalf("wakes = %q", got)
+	}
+}
+
+// MCP が起動し直されたあと（参加の id を持たない）の join は、セッション id に結ばれた参加者のまま答える
+func TestJoinAfterTheMCPRestartedAnswersWithTheSessionParticipant(t *testing.T) {
+	s, _ := joinWorld(t, joinStore(t))
+	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
+	got, _ := call(t, "POST", s.URL+"/api/ai/join", `{"ai":"claude","model":"opus","env":"wsl-linux","link":"LZ"}`, map[string]string{aiwire.HostSessionHeader: "SA", aiwire.HostHeader: "101"})
+	var joined Joined
+	if json.Unmarshal([]byte(got), &joined) != nil || joined.Participant != a {
+		t.Fatalf("join = %s, want %s", got, a)
+	}
+}

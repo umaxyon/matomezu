@@ -5,7 +5,7 @@
 import { expect, test } from "bun:test"
 import { trashedEntry } from "../../../web/src/core/entries"
 import { homeOver, type Library, type TableChanges } from "../../../web/src/core/folders"
-import { bookOf, tablesOf, worldTablesOf } from "../../../web/src/core/folders-books"
+import { bookOf, tablesOf } from "../../../web/src/core/folders-books"
 import { changesBetween } from "../../../web/src/core/folders-changes"
 import { type RowPatches, restoredTables } from "../../../web/src/core/folders-restore"
 import type { RowChange } from "../../../web/src/core/history"
@@ -19,6 +19,7 @@ import {
   restoredLibrary,
   restoredPages,
 } from "../../../web/src/plugins/base/history/restore"
+import { worldTablesOf } from "../../support"
 
 const item = (id: string, caption = id) => ({ id, item: "x", x: 0, y: 0, props: { caption } })
 const book = (fields: Record<string, unknown>, lineup: unknown[], id = "b") =>

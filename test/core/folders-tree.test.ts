@@ -16,7 +16,7 @@ import {
   type TrashFolder,
   UNREADABLE_ID,
 } from "../../web/src/core/folders"
-import { bookOf, libraryOf, withBook, withoutBook, worldTablesOf } from "../../web/src/core/folders-books"
+import { bookOf, libraryOf, withBook, withoutBook } from "../../web/src/core/folders-books"
 import { placedChanges, rowChanges, withChanges } from "../../web/src/core/folders-changes"
 import { restoredTables } from "../../web/src/core/folders-restore"
 import { bookIdOf, foldersOver, rowsHoldTree as rowsHold, treeHolds } from "../../web/src/core/folders-tree"
@@ -26,7 +26,7 @@ import { REMOVED } from "../../web/src/core/records"
 import type { Book } from "../../web/src/core/schema/book"
 import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { drawingPage, MARKDOWN, SLIDE, testBinder, testBook, testPage } from "../lineup"
-import { CORE_CATALOG, sequence } from "../support"
+import { CORE_CATALOG, sequence, worldTablesOf } from "../support"
 
 const b1 = testBook("b1", "一", [drawingPage("p1"), testBinder("f1", "束", SLIDE, testPage(SLIDE, "s1"))])
 const b2 = testBook("b2", "二", [drawingPage("p2")])

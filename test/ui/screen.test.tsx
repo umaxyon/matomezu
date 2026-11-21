@@ -14,7 +14,7 @@ import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { WindowRoot } from "../../web/src/ui/WindowRoot"
 import { drawingPage, MARKDOWN, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { showFirstBook } from "../support"
+import { savedRows, showFirstBook } from "../support"
 
 const SKIN = "@matomezu/base:skin"
 
@@ -423,7 +423,7 @@ test("読めないブックは読み込まない（データには手を付け�
   // 並びに同じ名前のページが 2 つあるブックは、並びの決まりを守らない（W006）
   const twins = testBook("x3", "双子", [drawingPage("q2", { title: "同じ" }), drawingPage("q3", { title: "同じ" })])
   const broken = { id: "x2", title: "壊れた図面", lineup: "?" }
-  const store = renderBooksScreen({ savedBooks: [gone, twins, broken] })
+  const store = renderBooksScreen({ saved: savedRows([gone, twins, broken]) })
   expect(store.state.getState().books.x1).toBeUndefined()
   expect(store.state.getState().books.x3).toBeUndefined()
   expect(store.state.getState().unreadable.map(w => [w.code, w.params.book])).toEqual([
@@ -437,7 +437,7 @@ test("一部のプラグインが無いブックは開け、知らない形は�
   const book = testBook("u1", "星の残る図", [
     drawingPage("p1", { title: "P", items: [{ id: "s", item: "@foo/stars:star", x: 40, y: 40, props: {} }] }),
   ])
-  const store = renderBooksScreen({ books: [], savedBooks: [book] })
+  const store = renderBooksScreen({ books: [], saved: savedRows([book]) })
   act(() => store.actions.openBook("s1", "u1"))
   const star = document.querySelector<HTMLElement>('[data-item="s"]')!
   expect(star.style.width).toBe("64px")
@@ -467,7 +467,7 @@ test("内包ボックスの子は親の中に描き、子に付いた線も描�
       ],
     }),
   ])
-  const store = renderBooksScreen({ books: [], savedBooks: [book] })
+  const store = renderBooksScreen({ books: [], saved: savedRows([book]) })
   act(() => store.actions.openBook("s1", "n1"))
   const item = (id: string) => document.querySelector<HTMLElement>(`[data-item="${id}"]`)!
   expect(item("a").contains(item("b"))).toBe(true)
@@ -499,7 +499,7 @@ test("本文のある箱を選ぶと本文の列の端につまみが出て（�
   const book = testBook("w1", "幅", [
     drawingPage("p1", { title: "P", items: [box("c", 40, "center"), box("l", 400, "left")] }),
   ])
-  const store = renderBooksScreen({ books: [], savedBooks: [book] })
+  const store = renderBooksScreen({ books: [], saved: savedRows([book]) })
   act(() => store.actions.openBook("s1", "w1"))
   const item = (id: string) => document.querySelector<HTMLElement>(`[data-item="${id}"]`)!
   const grips = (id: string) =>
