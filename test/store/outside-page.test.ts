@@ -246,3 +246,16 @@ test("開いているブックの外のページの置き場所を書庫で開�
   expect(pluginValueOf(pluginValues, library, LIBRARY_FOLDER)).toBe(folder)
   expect(openedIn(store, stage)).toEqual({ book: "o1", page: "o1" })
 })
+
+test("ブックの外のページを開いたステージでは、マーク・伝言・スクラップの切り抜きを出し、「新しいブック」は出さない", () => {
+  const store = withOutside()
+  const shown = (stage: string, id: string) =>
+    isShown(store, store.state.getState(), stage, `@matomezu/base:${id}` as never)
+  const stage = store.actions.showOutsidePageStage("o1")
+  expect(["mark-new", "note-new", "scrap-cut", "book-new"].map(id => shown(stage, id))).toEqual([
+    true,
+    true,
+    true,
+    false,
+  ])
+})

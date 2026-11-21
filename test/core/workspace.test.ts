@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test"
-import { openedPage, panBy, select, setEditing, shownPageId } from "../../web/src/core/stage"
+import { HOME_ID } from "../../web/src/core/folders"
+import type { LibraryAndBooks } from "../../web/src/core/library"
+import { openedPage, openOutsidePage, panBy, select, setEditing, shownPageId } from "../../web/src/core/stage"
 import {
   close,
   currentStage,
@@ -161,6 +163,27 @@ describe("workspace", () => {
       )
       expect(after).not.toBe(NO_STAGES_LEFT)
       expect(stage(after as ReturnType<typeof newWorkspace>).editing).toBe("none")
+    })
+
+    test("開いているブックの外のページがロックされて道具が替わっても、その場の編集を終える。替わらなければ続く", () => {
+      const o1 = drawingPage("o1", { items: [box] })
+      const tables = (page: typeof o1): LibraryAndBooks => ({
+        books: {},
+        pages: { o1: page },
+        folders: {
+          [HOME_ID]: { folderRole: "home", id: HOME_ID, lineup: [{ kind: "page", id: "o1" }] },
+        },
+      })
+      const opened = mapStage(newWorkspace(CORE_CATALOG, null), "s1", s => openOutsidePage(CORE_CATALOG, s, o1))
+      const outside = mapStage(setTool(CORE_CATALOG, opened, "s1", "@matomezu/paper:reparent"), "s1", s =>
+        setEditing(select(s, ["a"]), "test:edit"),
+      )
+      const follow = (page: typeof o1) => {
+        const after = followLibrary(CORE_CATALOG, outside, tables(page), tables(o1))
+        return after === NO_STAGES_LEFT ? after : stage(after).editing
+      }
+      expect(follow({ ...o1, locked: true })).toBe("none")
+      expect(follow({ ...o1, title: "改名" })).toBe("test:edit")
     })
   })
 })
