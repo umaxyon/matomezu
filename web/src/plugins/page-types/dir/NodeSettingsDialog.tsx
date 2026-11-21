@@ -1,5 +1,5 @@
 // ノードの設定のダイアログ（フォルダもファイルも、根も同じ形）: 名前と説明（どちらも上に装飾のボックス）と、アイコン（フォルダは folder・book、ファイルは file とそれ以外）を選ぶ。
-// 確定でアクション entry-update を行う。断られたら、閉じずに理由を出す（認可ステップが止めたならそのステップの名前、ほかは紙に入らない）
+// 確定でアクション node-update を行う。断られたら、閉じずに理由を出す（認可ステップが止めたならそのステップの名前、ほかは紙に入らない）
 import { useId, useRef, useState } from "react"
 import type { MessageKey } from "../../../plugin-api"
 import { type DialogProps, useCoreCatalog, useMessages, usePageById, usePerform, useT } from "../../../plugin-api/ui"
@@ -15,38 +15,38 @@ import {
   RichInput,
   type RichInputHandle,
 } from "../../base/ui"
-import { ENTRY_UPDATE } from "./actions"
-import styles from "./EntrySettingsDialog.module.css"
-import { entryOf } from "./edit"
-import { dirRootOf } from "./entry"
-import { DEFAULT_ICON, iconsFor } from "./entry-icon"
+import { NODE_UPDATE } from "./actions"
+import { nodeOf } from "./edit"
 import { kit } from "./kit"
+import styles from "./NodeSettingsDialog.module.css"
+import { dirRootOf } from "./node"
 import { NodeIcon } from "./node-icon"
+import { DEFAULT_ICON, iconsFor } from "./node-icon-enum"
 
-export function EntrySettingsDialog({ args, onClose }: DialogProps<{ page: string; entry: string }>) {
+export function NodeSettingsDialog({ args, onClose }: DialogProps<{ page: string; node: string }>) {
   const t = useMessages(kit)
   const form = useId()
   const iconGroup = useId() // アイコンのラジオの組の名前
   const page = usePageById(args.page)
   const root = dirRootOf(page)
-  const entry = root ? entryOf(root, args.entry) : null
+  const node = root ? nodeOf(root, args.node) : null
   const perform = usePerform()
-  const [name, setName] = useState(entry?.name ?? "")
-  const [description, setDescription] = useState(entry?.description ?? "")
-  const [icon, setIcon] = useState<string | undefined>(entry?.icon)
+  const [name, setName] = useState(node?.name ?? "")
+  const [description, setDescription] = useState(node?.description ?? "")
+  const [icon, setIcon] = useState<string | undefined>(node?.icon)
   const catalog = useCoreCatalog()
   const tr = useT() // ほかのプラグインが足したアイコンの名前も引く
   const [refused, setRefused] = useState<MessageKey | null>(null) // 断られたわけの文言
-  if (!page || !entry) return null
+  if (!page || !node) return null
   const submit = () => {
     const done = perform(
-      ENTRY_UPDATE.id,
+      NODE_UPDATE.id,
       {
-        entry: entry.id,
+        node: node.id,
         name,
         description: description.trim() === "" ? null : description,
         // 変えていないアイコンは送らない（足したプラグインが無効で値が無くても、名前などは直せる）
-        ...(icon === entry.icon ? {} : { icon: icon ?? null }),
+        ...(icon === node.icon ? {} : { icon: icon ?? null }),
       },
       { page: page.id },
     )
@@ -76,8 +76,8 @@ export function EntrySettingsDialog({ args, onClose }: DialogProps<{ page: strin
         <Field label={t("Icon")}>
           {() => (
             <fieldset className={styles.icons} aria-label={t("Icon")}>
-              {iconsFor(catalog, entry.kind)
-                .sort((x, y) => Number(y.id === DEFAULT_ICON[entry.kind]) - Number(x.id === DEFAULT_ICON[entry.kind]))
+              {iconsFor(catalog, node.kind)
+                .sort((x, y) => Number(y.id === DEFAULT_ICON[node.kind]) - Number(x.id === DEFAULT_ICON[node.kind]))
                 .map(value => (
                   <label key={value.id} className={styles.icon} title={tr(value.title)}>
                     <input
@@ -85,10 +85,10 @@ export function EntrySettingsDialog({ args, onClose }: DialogProps<{ page: strin
                       className={styles.radio}
                       name={iconGroup}
                       aria-label={tr(value.title)}
-                      checked={(icon ?? DEFAULT_ICON[entry.kind]) === value.id}
-                      onChange={() => setIcon(value.id === DEFAULT_ICON[entry.kind] ? undefined : value.id)}
+                      checked={(icon ?? DEFAULT_ICON[node.kind]) === value.id}
+                      onChange={() => setIcon(value.id === DEFAULT_ICON[node.kind] ? undefined : value.id)}
                     />
-                    <NodeIcon kind={entry.kind} icon={value.id} open={false} size={18} />
+                    <NodeIcon kind={node.kind} icon={value.id} open={false} size={18} />
                   </label>
                 ))}
             </fieldset>

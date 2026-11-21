@@ -18,7 +18,7 @@ func drawingPage(id, title string) storage.RowWrite {
 
 // slidePage は、バインダに入れるスライドのタイプのページの行（id と名前だけが違う）
 func slidePage(id, title string) storage.RowWrite {
-	return storage.RowWrite{ID: id, Body: json.RawMessage(`{"kind":"page","id":"` + id + `","type":"@matomezu/slide-book:slide","title":"` + title + `","paper":"@matomezu/base:a4","orientation":"landscape"}`)}
+	return storage.RowWrite{ID: id, Body: json.RawMessage(`{"kind":"page","id":"` + id + `","type":"@matomezu/slide-page:slide","title":"` + title + `","paper":"@matomezu/base:a4","orientation":"landscape"}`)}
 }
 
 // entriesStore は、libraryStore の nested の置き場所（書庫ホーム > d1 > ブック b1 とフォルダ d2 > ブック b2）に、ブックに入っていないページとバインダを足した置き場所:
@@ -44,7 +44,7 @@ func entriesStore(t *testing.T) storage.Storage {
 			}
 			refs += ref("page", p)
 		}
-		return storage.RowWrite{ID: id, Body: json.RawMessage(`{"folderRole":"binder","id":"` + id + `","title":"` + title + `","pageType":"@matomezu/slide-book:slide","lineup":[` + refs + `]}`)}
+		return storage.RowWrite{ID: id, Body: json.RawMessage(`{"folderRole":"binder","id":"` + id + `","title":"` + title + `","pageType":"@matomezu/slide-page:slide","lineup":[` + refs + `]}`)}
 	}
 	if err := store.Apply(storage.Batch{
 		Pages: []storage.RowWrite{
@@ -178,7 +178,7 @@ func TestTheAIReadsAFolderOneLevelDeep(t *testing.T) {
 		"/api/ai/folder": home,
 		"/api/ai/folder?folder=" + storage.HomeID: home,
 		"/api/ai/folder?folder=d1": `{"id":"d1","kind":"folder","title":"D1","path":[{"id":"library-home"},{"id":"d1","title":"D1"}],"lineup":[` +
-			`{"kind":"book","id":"b1","title":"T"},{"kind":"folder","id":"d2","title":"D2"},{"kind":"binder","id":"n1","title":"N1","pageType":"@matomezu/slide-book:slide"}]}`,
+			`{"kind":"book","id":"b1","title":"T"},{"kind":"folder","id":"d2","title":"D2"},{"kind":"binder","id":"n1","title":"N1","pageType":"@matomezu/slide-page:slide"}]}`,
 		"/api/ai/folder?folder=d2": `{"id":"d2","kind":"folder","title":"D2","path":[{"id":"library-home"},{"id":"d1","title":"D1"},{"id":"d2","title":"D2"}],"lineup":[` +
 			`{"kind":"book","id":"b2","title":"S"},{"kind":"page","id":"g1","title":"G1","type":"@matomezu/drawing:drawing"}]}`,
 	} {

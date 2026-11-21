@@ -1,6 +1,6 @@
 // ディレクトリ構成図の印刷区画 1 つのビュー（印刷プレビューと印刷。プレゼンテーションのビューの定義の printSheet）: ページの行と罫線と説明を、ステージに描くのと同じ並べ方
 // （print.ts の printLaid。可変ページでは境目をまたぐ行を次の印刷区画へ送る）で、見るだけで、ページの原点で描く。
-// 入力を受けず、開け閉めのボタンや選んだ印、e2e や操作が探す印（data-entry など）も付けない
+// 入力を受けず、開け閉めのボタンや選んだ印、e2e や操作が探す印（data-node など）も付けない
 import { useCoreCatalog } from "../../../../plugin-api/ui"
 import { growOf, pageContext } from "../../../base"
 import { type PrintSheetProps, RichText } from "../../../base/ui"

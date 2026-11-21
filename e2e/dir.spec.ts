@@ -4,7 +4,7 @@ import { imeCompose } from "./helpers/ime"
 import { newBook } from "./helpers/new-book"
 import { paper } from "./helpers/paper"
 
-const rows = (page: Page) => paper(page).locator("[data-entry]")
+const rows = (page: Page) => paper(page).locator("[data-node]")
 const row = (page: Page, name: string) => rows(page).filter({ hasText: new RegExp(`^${name}$`) })
 
 // ブックを作り、根のフォルダ proj だけのディレクトリ構成図のページを作る
@@ -106,13 +106,13 @@ test("ページタブの頭にページのタイプのアイコンが付き、�
   await expect(file.getByRole("radio", { name: "ブック" })).toHaveCount(0)
   await file.getByRole("radio", { name: "図面" }).check({ force: true })
   await file.getByRole("button", { name: "確定" }).click()
-  await expect(row(page, "a.ts").locator("[data-icon]")).toHaveAttribute("data-icon", "@matomezu/drawing:entry-icon")
+  await expect(row(page, "a.ts").locator("[data-icon]")).toHaveAttribute("data-icon", "@matomezu/drawing:node-icon")
   // フォルダ（根）: folder と book の 2 つだけ
   const folder = await settings("proj")
   await expect(folder.getByRole("radio")).toHaveCount(2)
   await folder.getByRole("radio", { name: "ブック" }).check({ force: true })
   await folder.getByRole("button", { name: "確定" }).click()
-  await expect(row(page, "proj").locator("[data-icon]")).toHaveAttribute("data-icon", "@matomezu/dir:entry-icon-book")
+  await expect(row(page, "proj").locator("[data-icon]")).toHaveAttribute("data-icon", "@matomezu/dir:node-icon-book")
 })
 
 test("選んだ行の横の＋は、乗せたらすぐ吹き出しが出て、動きの名前とショートカットキーを示す。Shift+D・Shift+F はそのキーで、＋と同じ足し方（フォルダの行は中に足す）", async ({

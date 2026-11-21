@@ -3,7 +3,7 @@
 // 説明は、行の右にそろえた列に 1 行で描く（列の位置・… で切るか・出さないか・前の「・・・」・紙を縦に分ける区切り線は、ページの設定の項目から layout.ts が決める）。選んでいる行の説明にも、行と同じ印を付ける。
 // フォルダには開け閉めの印（▸・▾）を出し、押すとコマンド folder-toggle で開け閉めする（鉛筆でもハンドでも。アクションが止められていれば押せない形で描く）。
 // 画面のどこを右クリックしても、ディレクトリ構成図のメニュー（dir-context）を開く。
-// 鉛筆の間は、選んでいる行（無ければ根）に印を付け、押した行を選ぶ。行を右クリックすると、その行を選んで行のメニュー（entry-context）を開く。
+// 鉛筆の間は、選んでいる行（無ければ根）に印を付け、押した行を選ぶ。行を右クリックすると、その行を選んで行のメニュー（node-context）を開く。
 // 選んでいる行の右には＋（フォルダとファイル。フォルダの行は中の末尾に、ファイルの行はすぐ下に足す。コマンド folder-add・file-add）を出す。
 // ダブルクリック（と Enter・F2 のコマンド）で、名前をその場で書き始める。書いている字で行の幅を決め直し、装飾を見たまま書く入力Form（base の RichInput）と、そのすぐ上に装飾のボックス（base の RichBar）を出す。
 // Enter か入力Formの外を押すと確定、Escape で取り消す（確定と取り消しは in-place.ts のコマンド。入力Formは base の useInPlaceInput で、書いている字は DIR_DRAFT・DIR_NOTE_DRAFT に置く）。名前の空の中身が空のまま終わったら消す。書き換えが紙に入らず断られたら、トーストで知らせる。
@@ -42,12 +42,11 @@ import {
   useInPlaceInput,
   usePaperDrag,
 } from "../../../base/ui"
-import { ENTRY_MOVE, ENTRY_UPDATE } from "../actions"
+import { NODE_MOVE, NODE_UPDATE } from "../actions"
 import { FILE_ADD, FOLDER_ADD, FOLDER_TOGGLE, fitRefusal, KIND_PICK, NAME_EDIT } from "../commands"
-import { DIR_CONTEXT, ENTRY_CONTEXT } from "../dir"
+import { DIR_CONTEXT, NODE_CONTEXT } from "../dir"
 import { dropAt, subtreeIds } from "../drag"
-import { changeEntry, entryOf, selectedIn } from "../edit"
-import { dirRootOf } from "../entry"
+import { changeNode, nodeOf, selectedIn } from "../edit"
 import {
   DIR_DRAFT,
   DIR_EDIT_COMMIT,
@@ -59,6 +58,7 @@ import {
 } from "../in-place"
 import { kit } from "../kit"
 import { editorWidth, ICON, type LaidRow, nameLeft } from "../layout"
+import { dirRootOf } from "../node"
 import { NodeIcon } from "../node-icon"
 import { FileIcon } from "../node-icons"
 import { laidArea, laidPage } from "../print"
@@ -113,13 +113,13 @@ const Rows = memo(function Rows({
   const toggle = useCommand(FOLDER_TOGGLE.id)
   const addFolder = useCommand(FOLDER_ADD.id)
   const addFile = useCommand(FILE_ADD.id)
-  const openEntryMenu = useContextMenu(ENTRY_CONTEXT)
+  const openNodeMenu = useContextMenu(NODE_CONTEXT)
   const editor = useRef<RichInputHandle>(null)
   const drag = usePaperDrag(stage, area)
-  const renamable = useAllowed(ENTRY_UPDATE.id, page ? { page: page.id } : undefined).ok // 名前・説明を書き始められるか
+  const renamable = useAllowed(NODE_UPDATE.id, page ? { page: page.id } : undefined).ok // 名前・説明を書き始められるか
   // 選択に従う右サイドパネル（書いている伝言など）を出している間は、押しても動かさない
   const follows = useFollowsSelection()
-  const movable = useAllowed(ENTRY_MOVE.id, page ? { page: page.id } : undefined).ok && !follows // ドラッグで動かし始められるか
+  const movable = useAllowed(NODE_MOVE.id, page ? { page: page.id } : undefined).ok && !follows // ドラッグで動かし始められるか
   const root = dirRootOf(page)
   const usingPencil = stage.tool === PENCIL_TOOL.id
   const selected = root ? selectedIn(root, stage.selection) : undefined
@@ -132,7 +132,7 @@ const Rows = memo(function Rows({
   const text = nameInput.text
   // 書いている字を重ねた根
   const shown =
-    root && text !== null && selected !== undefined ? (changeEntry(root, selected, { name: text }) ?? root) : root
+    root && text !== null && selected !== undefined ? (changeNode(root, selected, { name: text }) ?? root) : root
   const growing = book && page ? growOf(catalog, page) : undefined // ページの増やす向き（可変ページでなければ undefined）
   // 印刷と同じ並べ方（print.ts の laidPage）で、書いている字を重ねた根を 1 度だけ並べる
   const laid =
@@ -147,10 +147,10 @@ const Rows = memo(function Rows({
   const at = rows.find(r => r.id === selected)
   const noting = writingNote({ stage }) && notes !== null
   const noteText = noting ? noteInput.text : null
-  const description = entryOf(dir, selected)?.description ?? ""
+  const description = nodeOf(dir, selected)?.description ?? ""
   // ドラッグで動かしている行（押しただけでまだ動かしていなければ null）と、落とす先
   const dragging = drag.state?.moved ? drag.state : null
-  const moving = dragging ? subtreeIds(entryOf(dir, dragging.id) ?? { id: dragging.id, kind: "file", name: "" }) : null
+  const moving = dragging ? subtreeIds(nodeOf(dir, dragging.id) ?? { id: dragging.id, kind: "file", name: "" }) : null
   const drop = dragging ? dropAt(dir, rows, dragging.id, dragging.at) : null
   const ghost = dragging && rows.find(r => r.id === dragging.id)
   const pageId = page.id
@@ -160,11 +160,11 @@ const Rows = memo(function Rows({
     nameInput.settle()
     noteInput.settle()
   }
-  drag.onDrop.current = (entry, point) => {
-    const target = dropAt(dir, rows, entry, point)
+  drag.onDrop.current = (node, point) => {
+    const target = dropAt(dir, rows, node, point)
     if (!target) return
     const { mark: _mark, ...where } = target
-    const moved = perform(ENTRY_MOVE.id, { entry, ...where }, { page: pageId })
+    const moved = perform(NODE_MOVE.id, { node, ...where }, { page: pageId })
     if (!moved.ok) showToast(fitRefusal(catalog, moved))
   }
   return (
@@ -185,7 +185,7 @@ const Rows = memo(function Rows({
           toggle={toggle}
           selected={usingPencil && r.id === selected}
           dragged={moving?.has(r.id) === true}
-          dropInto={drop?.mark.kind === "into" && drop.mark.entry === r.id}
+          dropInto={drop?.mark.kind === "into" && drop.mark.node === r.id}
           onPointerDown={e => {
             if (e.button !== 0 || !usingPencil) return
             settle()
@@ -201,7 +201,7 @@ const Rows = memo(function Rows({
             if (!usingPencil) return
             settle()
             select([r.id])
-            openEntryMenu(e, {})
+            openNodeMenu(e, {})
           }}
         />
       ))}
@@ -441,7 +441,7 @@ function Row({
       <div
         ref={anchor(r.id)}
         className={styles.row}
-        data-entry={r.id}
+        data-node={r.id}
         data-kind={r.kind}
         data-selected={selected}
         data-dragging={dragged}

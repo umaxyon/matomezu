@@ -3,9 +3,9 @@ import { definePluginUi } from "../../../plugin-api/ui"
 import { SOFT_BREAK } from "../../base"
 import { defineSettingsCategory } from "../../base/ui"
 import { MARKDOWN_PLUGIN } from "."
-import { MARKDOWN_ENTRY_ICON } from "./entry-icon"
 import { kit } from "./kit"
 import { MARKDOWN, MARKDOWN_PRESENTATION } from "./markdown"
+import { MARKDOWN_NODE_ICON } from "./node-icon"
 import { SOURCE_LOOK_SETTINGS } from "./source-look"
 import { TAB_KEY } from "./tab-key"
 import { MarkdownIcon } from "./type-icon"
@@ -20,7 +20,7 @@ export const MARKDOWN_SETTINGS_CATEGORY = defineSettingsCategory({
 
 export const MARKDOWN_UI = definePluginUi(MARKDOWN_PLUGIN, {
   pageTypeIcons: { [MARKDOWN.id]: <MarkdownIcon /> },
-  enumValueIcons: { [MARKDOWN_ENTRY_ICON.id]: <MarkdownIcon /> },
+  enumValueIcons: { [MARKDOWN_NODE_ICON.id]: <MarkdownIcon /> },
   presentationViews: { [MARKDOWN_PRESENTATION.id]: MARKDOWN_VIEW },
   userSettingViews: { [TAB_KEY.id]: { control: TabKeySetting } },
   commandIcons: PANE_LAYOUT_ICONS,

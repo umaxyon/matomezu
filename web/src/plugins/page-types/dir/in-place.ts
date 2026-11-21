@@ -3,7 +3,7 @@
 // 名前を書き終えたとき、することは edit.ts の editEnd（空なら消す・名前を変える）、説明は noteEnd が決める。書き換えが紙に入らず断られたら、トーストで知らせる
 import type { CommandContext } from "../../../plugin-api"
 import { endInPlace, type InPlaceDraft, inPlaceText } from "../../base"
-import { ENTRY_REMOVE, ENTRY_UPDATE } from "./actions"
+import { NODE_REMOVE, NODE_UPDATE } from "./actions"
 import { ADDED_EDIT, dirAt, fitRefusal, NAME_EDIT } from "./commands"
 import { afterRemove, editEnd, noteEnd, selectedIn } from "./edit"
 import { kit } from "./kit"
@@ -44,7 +44,7 @@ function endEdit(ctx: CommandContext, a: Actions, commit: boolean): void {
     endInPlace(ctx, a, DIR_NOTE_DRAFT, false, () => {
       const next = commit ? noteEnd(dir.root, selected, text) : undefined
       if (next === undefined) return
-      const done = a.perform(ENTRY_UPDATE.id, { entry: selected, description: next }, on)
+      const done = a.perform(NODE_UPDATE.id, { node: selected, description: next }, on)
       if (!done.ok) a.showToast(fitRefusal(ctx.catalog, done))
     })
     return
@@ -54,10 +54,10 @@ function endEdit(ctx: CommandContext, a: Actions, commit: boolean): void {
     const todo = editEnd(dir.root, selected, text)
     if (todo.kind === "remove") {
       const next = afterRemove(dir.root, selected)
-      if (a.perform(ENTRY_REMOVE.id, { entry: selected }, on).ok && next) a.select([next])
+      if (a.perform(NODE_REMOVE.id, { node: selected }, on).ok && next) a.select([next])
     }
     if (todo.kind === "rename") {
-      const done = a.perform(ENTRY_UPDATE.id, { entry: selected, name: todo.name }, on)
+      const done = a.perform(NODE_UPDATE.id, { node: selected, name: todo.name }, on)
       if (!done.ok) a.showToast(fitRefusal(ctx.catalog, done)) // 書けない字は書かず、元の名前のまま
     }
   })
@@ -67,8 +67,8 @@ const editing = (ctx: CommandContext) => (writingName(ctx) || writingNote(ctx)) 
 
 // 書いている名前か説明を確定する
 export const DIR_EDIT_COMMIT = kit.defineCommand({
-  id: "entry-edit-commit",
-  performs: [ENTRY_UPDATE.id, ENTRY_REMOVE.id],
+  id: "node-edit-commit",
+  performs: [NODE_UPDATE.id, NODE_REMOVE.id],
   permissionScope: "opened-page",
   title: "OK",
   run: (ctx, a) => endEdit(ctx, a, true),
@@ -77,8 +77,8 @@ export const DIR_EDIT_COMMIT = kit.defineCommand({
 
 // 書いている名前か説明を取り消す（足したばかりの名前の空の中身は消す。消すのを認可ステップが止めていても押せ、そのときは消さずに字を捨てて終える）
 export const DIR_EDIT_CANCEL = kit.defineCommand({
-  id: "entry-edit-cancel",
-  performs: [ENTRY_REMOVE.id],
+  id: "node-edit-cancel",
+  performs: [NODE_REMOVE.id],
   permissionScope: "opened-page",
   denied: "runs",
   title: "Cancel",
@@ -88,13 +88,13 @@ export const DIR_EDIT_CANCEL = kit.defineCommand({
 
 export const DIR_EDIT_KEYS = [
   kit.defineKey({
-    id: "entry-edit-commit-enter",
+    id: "node-edit-commit-enter",
     key: "Enter",
     command: DIR_EDIT_COMMIT.id,
     scope: DIR_EDIT_KEY_SCOPE.id,
   }),
   kit.defineKey({
-    id: "entry-edit-cancel-escape",
+    id: "node-edit-cancel-escape",
     key: "Escape",
     command: DIR_EDIT_CANCEL.id,
     scope: DIR_EDIT_KEY_SCOPE.id,

@@ -95,10 +95,10 @@ test("AI に見せるページの settings の形は、項目を選んだタイ�
       "@matomezu/base:background-print",
     ],
     "settings of @matomezu/markdown:markdown pages": ["@matomezu/base:page-theme", "@matomezu/base:page-paper-color"],
-    "settings of @matomezu/slide-book:slide pages": [
+    "settings of @matomezu/slide-page:slide pages": [
       "@matomezu/base:page-theme",
       "@matomezu/base:page-paper-color",
-      "@matomezu/slide-book:slide-print",
+      "@matomezu/slide-page:slide-print",
     ],
     "settings of @matomezu/tree:tree pages": [
       "@matomezu/base:page-theme",

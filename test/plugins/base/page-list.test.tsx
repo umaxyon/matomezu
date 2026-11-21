@@ -36,7 +36,7 @@ function open(type: string) {
   let binder: string | undefined
   const add = (title: string) =>
     act(() => {
-      const slide = type === "@matomezu/slide-book:slide"
+      const slide = type === "@matomezu/slide-page:slide"
       const into = !slide ? {} : binder === undefined ? { into: { newBinder: "スライド" } } : { into: { binder } }
       const done = (instance.actions as unknown as Perform).perform(
         "@matomezu/base:page-add",
@@ -52,7 +52,7 @@ function open(type: string) {
 
 describe("ページ一覧", () => {
   test("スライドのバインダを開いている間は出て、ページタブにはバインダが 1 つのタブで出る。押したページを開く", () => {
-    open("@matomezu/slide-book:slide")
+    open("@matomezu/slide-page:slide")
     expect(document.querySelector("[data-page-list]")).not.toBeNull()
     expect(screen.getAllByRole("tab").map(t => t.textContent)).toEqual(["スライド"])
     const pages = () => screen.getAllByRole("button", { name: /一枚目|二枚目/ })

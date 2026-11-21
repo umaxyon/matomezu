@@ -1,4 +1,4 @@
-// スライドのページ（@matomezu/slide-book）: ページの slide に置いたアイテム（文字枠・自由な線・直線・楕円）を、書いた位置と大きさ・角度で重ねの順に描く。紙の外にはみ出た部分は切る
+// スライドのページ（@matomezu/slide-page）: ページの slide に置いたアイテム（文字枠・自由な線・直線・楕円）を、書いた位置と大きさ・角度で重ねの順に描く。紙の外にはみ出た部分は切る
 import { SLIDE, testBinder, testBook, testPage, withSlide } from "../test/lineup"
 import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { aiPerform } from "./helpers/ai"
@@ -557,7 +557,7 @@ test.describe("スライドの印刷の設定", () => {
       "b1-slides",
       "スライド",
       SLIDE,
-      withSlide(testPage(SLIDE, "p1", { title: "1", settings: { "@matomezu/slide-book:slide-print": "always" } }), []),
+      withSlide(testPage(SLIDE, "p1", { title: "1", settings: { "@matomezu/slide-page:slide-print": "always" } }), []),
     ),
   ])
   test.use({ books: [EMPTY] })
