@@ -11,7 +11,7 @@ package server
 //
 //	POST /api/ai-edit-tickets   {"act", "places", "outcome": "seen" | "lost", "entry", "lost"} 窓が、AI の変更（act は changed の知らせの印）のうち、
 //	                            ページとフォルダ places を見た・見られる前に消えた（消えたときだけ、変えた物のステージエントリ entry と、消えた所と AI の値 lost
-//	                            [{"entry", "at", …}]。lost の entry はページかフォルダの id、at はその行の中の道。消えたのがステージエントリの外の物だけなら、lost は空の並び）
+//	                            [{"entry", "at", …}]。lost の entry はページ・ブック・バインダの id、at はその行の中の道。消えたのがステージエントリの外の物だけなら、lost は空の並び）
 
 import (
 	"encoding/json"
@@ -170,8 +170,8 @@ func (h *Hub) SettleAIEditTicket(act, entry string, places []string, lost json.R
 	return h.putTickets(list)
 }
 
-// titleOfTold は、AI に渡す物のブック id の名前（置いていないブックとゴミ箱の中のブックの物は渡さないので false。h.mu を持って呼ぶ）
-func (h *Hub) titleOfTold(id string) (string, bool) {
+// titleOfToldBook は、AI に渡す物のブック id の名前（置いていないブックとゴミ箱の中のブックの物は渡さないので false。h.mu を持って呼ぶ）
+func (h *Hub) titleOfToldBook(id string) (string, bool) {
 	e, ok := h.books[id]
 	if !ok || h.outOfSight(id) {
 		return "", false
@@ -183,23 +183,24 @@ func (h *Hub) titleOfTold(id string) (string, bool) {
 	return head.Title, true
 }
 
-// titleOfStageEntry は、AI に渡す物のステージエントリ id（ブックか、書庫ホームかフォルダの直下のページ・バインダ）の名前
-// （置いていない物と、AI に見せない物は渡さないので false。h.mu を持って呼ぶ）
+// titleOfStageEntry は、見られる前に消えた分を記したステージエントリ id（ブックか、ブックの外のページ・バインダ）の、AI に渡す名前。記したあとでブックやバインダへ
+// 移されていても、その物の名前を引く（置いていない物と、AI に見せない物は渡さないので false。h.mu を持って呼ぶ）
 func (h *Hub) titleOfStageEntry(id string) (string, bool) {
-	if title, ok := h.titleOfTold(id); ok {
+	if title, ok := h.titleOfToldBook(id); ok {
 		return title, true
 	}
-	if h.entryNotInBook(id) == id {
-		title, _, _ := rowHead(h.pages[id].body)
-		return title, true
-	}
-	binder, ok := h.folders[id]
-	holder, held := h.folders[h.places[id]]
-	if !ok || binder.role != storage.RoleBinder || !held || !holder.isOpen() || h.outOfSight(id) {
+	if h.outOfSight(id) {
 		return "", false
 	}
-	title, _, _ := rowHead(binder.body)
-	return title, true
+	if page, ok := h.pages[id]; ok {
+		title, _, _ := rowHead(page.body)
+		return title, true
+	}
+	if binder, ok := h.folders[id]; ok && binder.role == storage.RoleBinder {
+		title, _, _ := rowHead(binder.body)
+		return title, true
+	}
+	return "", false
 }
 
 // tell は、AI 編集チケットの並びの古い順に each を呼び、渡した（true を返した）物に、AI に渡した印を付けて書く（h.mu を持って呼ぶ）
@@ -264,7 +265,7 @@ func (h *Hub) TellFailed() ([]FailedAIEditTicket, error) {
 	defer h.mu.Unlock()
 	out := []FailedAIEditTicket{}
 	err := h.tell(func(t AIEditTicket) bool {
-		title, ok := h.titleOfTold(t.Book)
+		title, ok := h.titleOfToldBook(t.Book)
 		if !t.Failed || !ok {
 			return false
 		}
@@ -291,7 +292,7 @@ func (h *Hub) TellRemoved() ([]RemovedAIEditTicket, error) {
 	defer h.mu.Unlock()
 	out := []RemovedAIEditTicket{}
 	err := h.tell(func(t AIEditTicket) bool {
-		title, ok := h.titleOfTold(t.Book)
+		title, ok := h.titleOfToldBook(t.Book)
 		if t.Removed == "" || !ok {
 			return false
 		}

@@ -298,4 +298,14 @@ func TestLostOfAPageOutsideBooksIsToldByThePage(t *testing.T) {
 	if list := tickets(hub); len(list) != 0 {
 		t.Fatalf("tickets after purging the binder n1 = %+v; want none", list)
 	}
+	// 消えたと記したあとで、そのページがブックの中に在っても（移されても）、そのページの名前で渡る
+	hub.mu.Lock()
+	err = hub.putTickets([]AIEditTicket{{Act: "w", Lost: []LostIn{{Entry: "p1", Lost: json.RawMessage(`[]`)}}, At: "t"}})
+	hub.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, got := send(t, "GET", s.URL+"/api/ai/awaiting", "", ai); !strings.Contains(got, `"undone":[{"entry":"p1","title":"`) {
+		t.Fatalf("awaiting of a page now inside a book = %s", got)
+	}
 }
