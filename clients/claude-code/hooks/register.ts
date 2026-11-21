@@ -1,6 +1,7 @@
 // matomezu の Claude Code プラグインの mod: プラグインの monitor が起動されない会話（Claude Desktop の Code タブ）で、起こす知らせを渡す。
 // matomezu claude-code watch --via mod を会話の間だけ立て、出た 1 行ごとに $.prompt.submit でターンを始める。
-// asUser で送り主を名乗る包みの文を付けない。利用者の言葉でないことは、そのターンの UserPromptSubmit のフックが添える（matomezu claude-code hook prompt）
+// asUser で送り主を名乗る包みの文を付けない。利用者の言葉でないことは、そのターンの UserPromptSubmit のフックが添える（matomezu claude-code hook prompt）。
+// フックは常駐が貸した文と照らすので、submit からフックが着くまでに常駐が起動し直したときと、常駐に届かないときは、包みも添え書きも無い入力になる
 // どの会話を起こすか・知らせの文は matomezu が決める。ここは行を渡すだけ
 import type { Register } from "claude-code"
 
