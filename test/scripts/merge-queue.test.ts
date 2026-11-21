@@ -1,16 +1,18 @@
 import { afterEach, expect, test } from "bun:test"
 import { execFileSync } from "node:child_process"
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 import {
   bunComplete,
   bunFailures,
   errorLines,
   fastForward,
+  GENERATED,
   git,
   goFailures,
   playwrightFailures,
+  type Regenerate,
   rebuildsFor,
   runStep,
   type Step,
@@ -35,6 +37,7 @@ function repo() {
   ] as const)
     git(main, "config", k, v)
   const commit = (file: string, text: string, message: string) => {
+    mkdirSync(dirname(join(main, file)), { recursive: true })
     writeFileSync(join(main, file), text)
     git(main, "add", file)
     git(main, "commit", "-q", "-m", message)
@@ -51,11 +54,26 @@ function repo() {
   return { main, queue, commit, branch }
 }
 
+// 作り直しの手。呼ばれたら calls に積み、ok なら GENERATED に決まった中身を書く
+function fakeRegenerate(ok: boolean) {
+  const calls: string[] = []
+  const regenerate: Regenerate = queue => {
+    calls.push(queue)
+    if (ok) writeFileSync(join(queue, GENERATED.path), "rebuilt\n")
+    return { ok, log: "/logs/regenerate.log" }
+  }
+  return { calls, regenerate }
+}
+// GENERATED に触れない重ねでは呼ばれない
+const never: Regenerate = () => {
+  throw new Error("作り直しは呼ばれないはず")
+}
+
 test("ブランチに main を取り込み、マージのコミットのはじめの親はブランチ。ブランチの ref は動かない", () => {
   const r = repo()
   const b1 = r.branch("b1", "b1.txt", "1\n")
   const advanced = r.commit("m.txt", "m\n", "main moves")
-  const s = stack(r.queue, advanced, [b1])
+  const s = stack(r.queue, advanced, [b1], never)
   expect(s.onTip).toEqual([b1])
   expect(git(r.queue, "rev-parse", `${s.tip}^1`)).toBe(b1.sha)
   expect(git(r.queue, "rev-parse", `${s.tip}^2`)).toBe(advanced)
@@ -66,7 +84,7 @@ test("main を含むブランチはそのまま重ね、main に入っている�
   const r = repo()
   const base = git(r.main, "rev-parse", "HEAD")
   const b1 = r.branch("b1", "b1.txt", "1\n")
-  const s = stack(r.queue, base, [b1, { name: "main", sha: base }])
+  const s = stack(r.queue, base, [b1, { name: "main", sha: base }], never)
   expect(s.tip).toBe(b1.sha)
   expect(s.already).toEqual([{ name: "main", sha: base }])
 })
@@ -77,23 +95,89 @@ test("衝突したブランチは外し、ファイルを返し、取り込み�
   const b2 = r.branch("b2", "a.txt", "two\n")
   const b3 = r.branch("b3", "c.txt", "3\n")
   const base = git(r.main, "rev-parse", "HEAD")
-  const s = stack(r.queue, base, [b1, b2, b3])
+  const s = stack(r.queue, base, [b1, b2, b3], never)
   expect(s.conflicts).toEqual([{ name: "b2", files: ["a.txt"] }])
   expect(s.onTip.map(c => c.name)).toEqual(["b1", "b3"])
   expect(git(r.queue, "status", "--porcelain")).toBe("")
   expect(git(r.queue, "rev-parse", "HEAD")).toBe(s.tip)
 })
 
+// main と b1 が GENERATED を変えた一時のリポジトリ。lines は各行の中身（行が違えば、きれいにマージできる）
+function generatedOnBoth(mainLines: string[], branchLines: string[]) {
+  const r = repo()
+  r.commit(GENERATED.path, "x\n1\n2\n3\nz\n", "generated")
+  const b1 = r.branch("b1", GENERATED.path, `${branchLines.join("\n")}\n`)
+  const base = r.commit(GENERATED.path, `${mainLines.join("\n")}\n`, "main generated")
+  return { r, b1, base }
+}
+
+test("衝突したのが GENERATED だけなら作り直して重ね、マージのコミットはいつもの形", () => {
+  const { r, b1, base } = generatedOnBoth(["m", "1", "2", "3", "z"], ["b", "1", "2", "3", "z"])
+  const f = fakeRegenerate(true)
+  const s = stack(r.queue, base, [b1], f.regenerate)
+  expect(f.calls).toEqual([r.queue])
+  expect(s.onTip).toEqual([b1])
+  expect(s.regenerated).toEqual([b1])
+  expect(s.conflicts).toEqual([])
+  expect(git(r.queue, "rev-parse", `${s.tip}^1`)).toBe(b1.sha)
+  expect(git(r.queue, "rev-parse", `${s.tip}^2`)).toBe(base)
+  expect(git(r.queue, "log", "-1", "--format=%B", s.tip)).toBe(`Merge main (${base.slice(0, 8)}) into b1`)
+  expect(readFileSync(join(r.queue, GENERATED.path), "utf8")).toBe("rebuilt\n")
+  expect(git(r.queue, "status", "--porcelain")).toBe("")
+})
+
+test("GENERATED とほかのファイルが衝突したら作り直さずに外す", () => {
+  const r = repo()
+  r.commit(GENERATED.path, "x\n", "generated")
+  git(r.main, "checkout", "-q", "-b", "b1", "main")
+  r.commit(GENERATED.path, "b\n", "b1 generated")
+  const b1 = { name: "b1", sha: r.commit("a.txt", "b\n", "b1 a") }
+  git(r.main, "checkout", "-q", "main")
+  r.commit(GENERATED.path, "m\n", "main generated")
+  const base = r.commit("a.txt", "m\n", "main a")
+  const f = fakeRegenerate(true)
+  const s = stack(r.queue, base, [b1], f.regenerate)
+  expect(f.calls).toEqual([])
+  expect(s.conflicts).toEqual([{ name: "b1", files: ["a.txt", GENERATED.path] }])
+  expect(s.tip).toBe(base)
+})
+
+test("作り直せなければ外してログを返し、取り込み専用の worktree はきれいなまま", () => {
+  const { r, b1, base } = generatedOnBoth(["m", "1", "2", "3", "z"], ["b", "1", "2", "3", "z"])
+  const s = stack(r.queue, base, [b1], fakeRegenerate(false).regenerate)
+  expect(s.conflicts).toEqual([{ name: "b1", files: [GENERATED.path], why: "/logs/regenerate.log" }])
+  expect(s.onTip).toEqual([])
+  expect(git(r.queue, "status", "--porcelain")).toBe("")
+  expect(git(r.queue, "rev-parse", "HEAD")).toBe(base)
+})
+
+test("両側が GENERATED を変えてきれいにマージできても作り直し、片側だけなら作り直さない", () => {
+  const { r, b1, base } = generatedOnBoth(["m", "1", "2", "3", "z"], ["x", "1", "2", "3", "b"])
+  const f = fakeRegenerate(true)
+  const s = stack(r.queue, base, [b1], f.regenerate)
+  expect(f.calls).toEqual([r.queue])
+  expect(s.regenerated).toEqual([b1])
+  expect(git(r.queue, "show", `${s.tip}:${GENERATED.path}`)).toBe("rebuilt")
+  expect(git(r.queue, "rev-list", "--count", `${b1.sha}..${s.tip}`)).toBe("2")
+  expect(git(r.queue, "rev-parse", `${s.tip}^1`)).toBe(b1.sha)
+  expect(git(r.queue, "log", "-1", "--format=%B", s.tip)).toBe(`Merge main (${base.slice(0, 8)}) into b1`)
+
+  const b2 = r.branch("b2", "b2.txt", "2\n")
+  const only = fakeRegenerate(true)
+  expect(stack(r.queue, base, [b2], only.regenerate).regenerated).toEqual([])
+  expect(only.calls).toEqual([])
+})
+
 test("main が重ねたあとに進んでいれば ff せず moved、追跡するファイルに未コミットがあれば dirty", () => {
   const r = repo()
   const b1 = r.branch("b1", "b1.txt", "1\n")
   const base = git(r.main, "rev-parse", "HEAD")
-  const s = stack(r.queue, base, [b1])
+  const s = stack(r.queue, base, [b1], never)
   r.commit("m.txt", "m\n", "main moves")
   expect(fastForward(r.main, base, s.tip)).toBe("moved")
 
   const now = git(r.main, "rev-parse", "HEAD")
-  const again = stack(r.queue, now, [b1])
+  const again = stack(r.queue, now, [b1], never)
   writeFileSync(join(r.main, "a.txt"), "edited\n")
   expect(fastForward(r.main, now, again.tip)).toBe("dirty")
   git(r.main, "checkout", "-q", "--", "a.txt")
