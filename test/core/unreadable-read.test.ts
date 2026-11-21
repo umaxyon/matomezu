@@ -79,7 +79,7 @@ describe("置き場所の行を読む（readLibrary）", () => {
     expect(run("b2").ok).toBe(true)
   })
 
-  test("ブックの外の読めないページと、読めないページを持つブックの外のバインダは表に入らず、warning に理由ごとに 1 つ出る", () => {
+  test("ブックの外の読めないページと、読めないページを持つブックの外のバインダは表に入らない", () => {
     const rows = worldRows(
       [],
       [
@@ -91,6 +91,5 @@ describe("置き場所の行を読む（readLibrary）", () => {
     const read = readLibrary(CORE_CATALOG, rows.pages, rows.folders)
     expect(Object.keys(read.library.pages).sort()).toEqual(["x2"])
     expect(Object.keys(read.library.folders)).not.toContain("f1")
-    expect(read.outsideWarnings.map(n => [n.code, n.params.pages, n.params.type])).toEqual([["W027", "2", UNKNOWN]])
   })
 })

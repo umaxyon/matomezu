@@ -19,8 +19,8 @@ import { aiAnnotationsOf, aiBriefsOf, annotationsWithout, checkAnnotationLines, 
 import { type Input, perform } from "./host-perform"
 import {
   checkBookLines,
-  checkOutsidePageLines,
   checkLibraryLine,
+  checkOutsidePageLines,
   movedIfOffOf,
   purgedRowsOf,
   settleFailedLine,

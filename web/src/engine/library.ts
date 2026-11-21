@@ -31,7 +31,9 @@ export function checkBookLines(of: Assembled, books: string): string {
 
 // engine.ts の matomezuCheckOutsidePages の中身
 export function checkOutsidePageLines(of: Assembled, pages: string): string {
-  return JSON.stringify(checkOutsidePages(of.catalog.core, JSON.parse(pages) as unknown[]).map(n => entryLine(n, false)))
+  return JSON.stringify(
+    checkOutsidePages(of.catalog.core, JSON.parse(pages) as unknown[]).map(n => entryLine(n, false)),
+  )
 }
 
 // engine.ts の matomezuCheckLibrary の中身
