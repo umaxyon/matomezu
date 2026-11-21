@@ -63,11 +63,13 @@ test("見せる前に閉じたら、閉じて幅を動かしている間は開�
 
 test("閉じたら、変えていなければ開く前の見え方に戻す。変えたか、ほかのブックかページを開いているか、別のステージで開いていれば戻さない", () => {
   const restore = { ...openedRestore(undefined, OPEN, PANNED), shown: HOME }
-  const on = { opened: { kind: "page", outermost: "b1", page: "p1" } as never }
+  const on = { opened: { kind: "page", outermost: { kind: "book", id: "b1" }, page: "p1" } as never }
   expect(restoreTo(restore, on)).toEqual(PANNED)
   expect(restoreTo(restore, on, true)).toBeNull()
   expect(restoreTo({ ...restore, moved: true }, on)).toBeNull()
-  expect(restoreTo(restore, { opened: { kind: "page", outermost: "b1", page: "p2" } as never })).toBeNull()
+  expect(
+    restoreTo(restore, { opened: { kind: "page", outermost: { kind: "book", id: "b1" }, page: "p2" } as never }),
+  ).toBeNull()
   expect(restoreTo(restore, { opened: null })).toBeNull()
 })
 

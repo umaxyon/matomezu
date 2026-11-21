@@ -33,7 +33,7 @@ function setup(plugins: readonly AnyPluginUi[] = BUILTIN_UI) {
   act(() => {
     expect(createBookIn(store, "s1", { title: "木" })).toBe(true)
   })
-  const id = (screenOf(store.state.getState().window).stages[0]!.opened as { outermost: string }).outermost
+  const id = (screenOf(store.state.getState().window).stages[0]!.opened as { outermost: { id: string } }).outermost.id
   const book = () => store.state.getState().books[id]!
   return { store, id, book }
 }

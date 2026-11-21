@@ -37,6 +37,7 @@ import {
   closePrintPreview,
   endBackground,
   openBook,
+  openedBook,
   openedPage,
   openPicker,
   openPrintPreview,
@@ -762,7 +763,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     openPage: (stage, page) => {
       const { books, window } = getState()
-      const book = books[stageIn(window, stage)?.opened?.outermost ?? ""]
+      const book = openedBook(books, stageIn(window, stage)?.opened)
       // ページを開くと、そのブックスクリーンをカレントスクリーンにする
       if (book && inWindow(stage))
         withWindow(win =>
@@ -774,7 +775,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     },
     openBinder: (stage, binder) => {
       const { books, window } = getState()
-      const book = books[stageIn(window, stage)?.opened?.outermost ?? ""]
+      const book = openedBook(books, stageIn(window, stage)?.opened)
       // バインダを開くと、そのブックスクリーンをカレントスクリーンにする
       if (book && inWindow(stage))
         withWindow(win =>
@@ -787,7 +788,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     openPageById: (stage, page) => {
       const at = pageById(getState().books, page)
       if (!at) return
-      if (stageIn(getState().window, stage)?.opened?.outermost !== at.book.id) actions.openBook(stage, at.book.id)
+      if (stageIn(getState().window, stage)?.opened?.outermost.id !== at.book.id) actions.openBook(stage, at.book.id)
       actions.openPage(stage, page)
     },
     resizeStage: (id, view) => withStageScreen(id, ws => mapStage(ws, id, s => resize(s, view))),
@@ -1085,7 +1086,7 @@ export const openedIn = (
   stage = "s1",
 ): { book: string; page: string | null } | null => {
   const opened = stageIn(instance.state.getState().window, stage)?.opened
-  return opened ? { book: opened.outermost, page: shownPageId(opened) } : null
+  return opened ? { book: opened.outermost.id, page: shownPageId(opened) } : null
 }
 
 // 作ったときに読む行: 残した行 saved と、books を分けた行（core/folders-books.ts の recordsOf）。

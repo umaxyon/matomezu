@@ -79,7 +79,7 @@ export function createUnseenChanges(deps: {
   const seenIn = (u: Unseen) =>
     shownBookScreens(deps.catalog(), getState().window)
       .flatMap(s => s.stages.stages)
-      .some(st => st.opened?.outermost === u.book && changeSeen(u.step, shownPageId(st.opened), seenTestOf(st)))
+      .some(st => st.opened?.outermost.id === u.book && changeSeen(u.step, shownPageId(st.opened), seenTestOf(st)))
   // まだ見ていない変更のうち、どこかのステージで見えた物を、そのブックの画面の履歴に届いた順の位置で差し込む（窓が見えていない間は差し込まない）
   const checkSeen = () => {
     checkSeenInLibrary()

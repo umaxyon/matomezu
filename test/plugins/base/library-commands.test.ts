@@ -264,7 +264,7 @@ test("落とした物を動かす: フォルダの位置へ・ゴミ箱へ。何
 test("開く: 2 回押す・Enter・メニューの「開く」の 1 つの道。名指さなければ選んでいる行、{at: tree} ならツリーで今いる行。フォルダは中へ入る", () => {
   const { store, center, folder, run, at, set } = setup()
   const opened = () => store.state.getState().window.screens.flatMap(s => s.stages?.stages.map(st => st.opened) ?? [])
-  const shows = (book: string) => opened().some(o => o !== null && "outermost" in o && o.outermost === book)
+  const shows = (book: string) => opened().some(o => o !== null && "outermost" in o && o.outermost.id === book)
   const a = folder("あ")
   // 何も選んでいなければ、何もしない
   run("library-entry-open")
