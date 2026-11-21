@@ -1,4 +1,5 @@
 import { BOOK_SCREEN_URL, expect, test } from "./fixtures"
+import { footerMenu } from "./helpers/footer-menu"
 import { addFromTabs } from "./helpers/new-book"
 import { addBodyBox, addBox, onPaper } from "./helpers/paper"
 
@@ -166,15 +167,32 @@ test("上下左右へ増やす可変ページを開くと、左上の空きの�
   await page.mouse.move(empty.x, empty.y)
   await page.mouse.wheel(-3000, -3000)
   await expect.poll(async () => (await at()).x).toBeGreaterThan(before.x + 100)
+  // 「初めの位置に戻す」はフッタメニューにある。紙の上へ動かすと下がるので、下の行に乗せて上げ直す
+  await footerMenu(page)
   await page.getByRole("button", { name: "初めの位置に戻す" }).click()
   await expect
     .poll(async () => Math.abs((await at()).x - before.x) + Math.abs((await at()).y - before.y))
     .toBeLessThan(1)
   // 左上の端へずらして読み直すと、URL の位置（左上の端）のまま
   await page.mouse.move(empty.x, empty.y)
+  // ずらす量は、しばらく待ってまとめて URL に書く。ホイールを回したあとに URL を書き換えた回数を数える
+  await page.evaluate(() => {
+    const w = window as unknown as { urlWrites: number }
+    w.urlWrites = 0
+    addEventListener("wheel", () => (w.urlWrites = 0), { capture: true })
+    const replace = history.replaceState.bind(history)
+    history.replaceState = (...a: Parameters<History["replaceState"]>) => {
+      w.urlWrites++
+      replace(...a)
+    }
+  })
   await page.mouse.wheel(-3000, -3000)
   await expect.poll(async () => (await at()).x).toBeGreaterThan(before.x + 100)
   const corner = await at()
+  // ずらした位置が URL に書かれてから読み直す
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { urlWrites: number }).urlWrites))
+    .toBeGreaterThan(0)
   await page.reload()
   await expect(box).toBeVisible()
   await expect
