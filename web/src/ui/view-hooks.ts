@@ -8,6 +8,7 @@ import { withSettings } from "../core/book"
 import type { ActionId, ItemId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, isInBook, isOnPage, type PageTarget, type Where } from "../core/def/action"
+import { outsideAsked, outsidePageIn } from "../core/folders-tree"
 import type { Point, Size } from "../core/geom"
 import type { Lang } from "../core/i18n/i18n"
 import { actionQuery, deniedBy, inspect } from "../core/inspect"
@@ -132,7 +133,8 @@ export function useAllowed(action: ActionId, where?: Where | { settings: readonl
     const st = stageIn(s.window, at)
     if (st && stageBlocks(catalog, st.mode.kind, action)) return NOT_ALLOWED
     const o = st?.opened
-    const book = openedBook(s.books, o)
+    const outside = o?.outermost.kind === "page" ? outsidePageIn(s, o.outermost.id) : undefined
+    const book = openedBook(s.books, o) ?? (outside && outsideAsked(s.folders, outside))
     const page = place?.page ?? shownPageId(o ?? null) ?? undefined
     const on = { ...(page ? { page } : {}), ...(ids ? { ids: ids.split("\n") } : {}) }
     const changed = settings === undefined ? {} : { settings: settings === "" ? [] : settings.split("\n") }

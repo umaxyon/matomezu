@@ -40,3 +40,29 @@ test.describe("マークダウンのブックの外のページ", () => {
     await expect(dialog.getByRole("radio")).toHaveCount(1)
   })
 })
+
+test.describe("マークダウンのブックの外のページの置換", () => {
+  test.use({
+    outsidePages: [{ ...OUTSIDE, id: "m1", type: "@matomezu/markdown:markdown", title: "外のメモ", text: "猫と猫" }],
+  })
+
+  test("ソースに打て、全部置換と元に戻すが効く", async ({ page }) => {
+    await page.goto(stagesUrl([{ book: null, page: "m1" }]))
+    await page.getByRole("toolbar", { name: "ペイン" }).getByRole("button", { name: "左右に並べる" }).click()
+    const source = page.getByRole("region", { name: "ソース" }).getByRole("textbox")
+    await source.click()
+    await page.keyboard.press("ControlOrMeta+End")
+    await page.keyboard.insertText("と犬")
+    await expect(page.getByRole("region", { name: "プレビュー" })).toContainText("猫と猫と犬")
+    await page.keyboard.press("ControlOrMeta+Alt+f")
+    const dialog = page.getByRole("dialog", { name: "検索ダイアログ" })
+    await dialog.getByLabel("探す").fill("猫")
+    await dialog.getByLabel("置換").fill("鳥")
+    await dialog.getByRole("button", { name: "全部置換" }).click()
+    await expect(page.getByRole("region", { name: "プレビュー" })).toContainText("鳥と鳥と犬")
+    await page.keyboard.press("Escape")
+    await page.getByRole("region", { name: "プレビュー" }).click()
+    await page.keyboard.press("ControlOrMeta+z")
+    await expect(page.getByRole("region", { name: "プレビュー" })).toContainText("猫と猫と犬")
+  })
+})

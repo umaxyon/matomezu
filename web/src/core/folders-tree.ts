@@ -236,6 +236,12 @@ export function permissionFoldersOf(folders: Folders, entry: string): Folder[] {
   return open < 0 ? over : over.slice(0, open)
 }
 
+// ブックの外のページ page を、そのページそのもので問うときの相手（そのページと、認可ステップに見せるフォルダの列）
+export const outsideAsked = (folders: Folders, page: ItemPage): { page: ItemPage; folders: Folder[] } => ({
+  page,
+  folders: permissionFoldersOf(folders, page.id),
+})
+
 // ページ page を持っているブックの id（どのブックにも入っていなければ undefined）
 export const bookIdOf = (folders: Folders, page: string): string | undefined =>
   foldersOver(folders, page).find(f => f.folderRole === "book")?.id

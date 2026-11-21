@@ -5,6 +5,7 @@ import { stagePlacesOf } from "../../web/src/core/address"
 import { NO_OUTERMOST } from "../../web/src/core/folders-tree"
 import { shownPageId } from "../../web/src/core/stage"
 import { stageIn } from "../../web/src/core/window"
+import { isEnabled, isShown } from "../../web/src/store/commands"
 import { NO_STAGE } from "../../web/src/store/dialogs"
 import type { AIEditTicketOutcome } from "../../web/src/store/state"
 import { openedIn } from "../../web/src/store/store"
@@ -111,21 +112,17 @@ test("ブックの外のページの変更を、元に戻し、やり直す", as
   expect(openedIn(store, stage)).toEqual({ book: "o1", page: "o1" })
 })
 
-test("ロックしたブックの外のページは、元に戻すが断られ、画面の履歴の段は残る", async () => {
+test("ロックしたブックの外のページは、元に戻すを呼んでも行われず、画面の履歴の段は残る", async () => {
   const store = withOutside()
   const stage = store.actions.showOutsidePageStage("o1")
   store.actions.perform("@matomezu/base:page-update", { title: "変えた名前" }, { page: "o1" })
   await Promise.resolve()
   expect(store.actions.perform("@matomezu/base:page-lock", {}, { page: "o1" }).ok).toBe(true)
   await Promise.resolve()
-  store.actions.command(stage, "@matomezu/base:undo")
+  expect(store.actions.command(stage, "@matomezu/base:undo")).toBe(false)
   await Promise.resolve()
   expect(store.state.getState().pages.o1?.title).toBe("変えた名前")
   expect(store.state.getState().history.o1?.undo).toHaveLength(1)
-  expect(store.state.getState().toasts.at(-1)).toMatchObject({
-    kind: "warn",
-    detail: { params: { name: "変えた名前" } },
-  })
 })
 
 test("ブックの外のページを開いた画面の場所は、ブックを名指さずページを名指し、当てはめると同じページを開く。ブックの中へ移されていればそのブックのページを開き、開けなければそのステージを開かない", () => {
@@ -158,4 +155,20 @@ test("ブックの外のページを開いた画面の場所は、ブックを�
   gone.locate(address)
   expect(opens(gone)).not.toContainEqual({ kind: "page", id: "o1" })
   expect(gone.state.getState().window.screens.length).toBe(before.screens.length)
+})
+
+test("ブックの外のページでも、元に戻すは変更が在れば押せ、ロックすると押せない（出たまま）", async () => {
+  const store = withOutside()
+  const stage = store.actions.showOutsidePageStage("o1")
+  const undo = () => ({
+    shown: isShown(store, store.state.getState(), stage, "@matomezu/base:undo"),
+    enabled: isEnabled(store, store.state.getState(), stage, "@matomezu/base:undo"),
+  })
+  expect(undo()).toEqual({ shown: true, enabled: false })
+  store.actions.perform("@matomezu/base:page-update", { title: "変えた名前" }, { page: "o1" })
+  await Promise.resolve()
+  expect(undo()).toEqual({ shown: true, enabled: true })
+  store.actions.perform("@matomezu/base:page-lock", {}, { page: "o1" })
+  await Promise.resolve()
+  expect(undo()).toEqual({ shown: true, enabled: false })
 })
