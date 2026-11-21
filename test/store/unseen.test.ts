@@ -271,3 +271,16 @@ test("見られる前の AI の変更を、画面の履歴に入れない利用�
   store.checkSeen()
   expect(historyOf(store)).toBeUndefined()
 })
+
+test("AI が足したページを、見る前に利用者がロックしても、消えたとしない（開けば、画面の履歴に入る）", async () => {
+  const told: AIEditTicketOutcome[] = []
+  const store = ready(sequence(), c => told.push(c))
+  const now = bookOf(store)
+  const first = pagesOf(now)[0]!
+  foreign(store, { ...now, lineup: [...now.lineup, { ...first, id: "p-ai", title: "AI" }] } as Book, "ai", "4")
+  expect(store.actions.perform("@matomezu/base:page-lock", {}, { page: "p-ai" })).toMatchObject({ ok: true })
+  await settled()
+  expect(told).toEqual([])
+  store.actions.openPage("s1", "p-ai")
+  expect(told).toEqual([{ act: "4", places: ["p-ai", "b1"], outcome: "seen" }])
+})

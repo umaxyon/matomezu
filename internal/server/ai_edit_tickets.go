@@ -3,7 +3,7 @@ package server
 // AI 編集チケット: AI のアクションがページかフォルダを変えるたびに、1 回のアクションに 1 つ開く（変えたページとフォルダのうち、まだどの窓でも見られていない物の id を持つ）。
 // 窓で見えた物は外し、全部見えたら消す。見られる前に窓の利用者の戻す・やり直すで消えたら、消えた所と AI の値を添えて「見られる前に消えた」にする
 // （ステージエントリごと）。その物は、AI のフックが聞いたとき
-// （GET /api/ai/awaiting の undone）に渡し、次の利用者トリガートークで消す。全部で aiEditTicketsMax まで（古い物から捨てる）。
+// （GET /api/ai/awaiting の undone）に渡し、次の利用者トリガートークで消す（まだ見られていない物が残っていれば、それは残す）。全部で aiEditTicketsMax まで（古い物から捨てる）。
 // アクションが返した変え方（engine.AIEditTicketChange。変更提案郵便を送った・反映した・消したなど）でも、アクションの対象の種類 Subject と Key とブックで見分ける AI 編集チケットを
 // 作る・閉じる・失敗にする・郵便が消えたと記す。失敗した物と郵便が消えたと記した物は、AI のフックが聞いたとき（GET /api/ai/awaiting の failed と removed）に渡し、
 // 次の利用者トリガートークで消す。Key で見分ける物は、上限でも捨てない（閉じる・失敗にする・消えたと記すまで残す）。
@@ -305,11 +305,20 @@ func (h *Hub) TellRemoved() ([]RemovedAIEditTicket, error) {
 	return out, nil
 }
 
-// forgetToldAIEditTickets は、AI に渡した、見られる前に消えた AI の変更と、失敗にした・消えたと記した AI 編集チケットを消す（利用者トリガートークのとき。h.mu を持って呼ぶ）
+// forgetToldAIEditTickets は、AI に渡した、見られる前に消えた AI の変更と、失敗にした・消えたと記した AI 編集チケットを消す（利用者トリガートークのとき。h.mu を持って呼ぶ）。
+// Act の物に、まだ見られていない物が残っていれば、渡した消えた分だけを外して残す（残りが見えるか消えるまで待つ）
 func (h *Hub) forgetToldAIEditTickets() error {
-	kept := slices.DeleteFunc(slices.Clone(h.aiEditTickets), func(c AIEditTicket) bool { return c.Told })
-	if len(kept) == len(h.aiEditTickets) {
+	if !slices.ContainsFunc(h.aiEditTickets, func(t AIEditTicket) bool { return t.Told }) {
 		return nil
+	}
+	kept := make([]AIEditTicket, 0, len(h.aiEditTickets))
+	for _, t := range h.aiEditTickets {
+		if !t.Told {
+			kept = append(kept, t)
+		} else if t.Key == "" && len(t.Unseen) > 0 {
+			t.Lost, t.Told = nil, false
+			kept = append(kept, t)
+		}
 	}
 	return h.putTickets(kept)
 }
