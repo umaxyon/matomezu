@@ -55,8 +55,8 @@ test("機能台帳に無いアイテムを持つブックの外のページは�
   expect("x3" in done.library.pages).toBe(false)
   const warnings = checkOutsidePages(CORE_CATALOG, outside)
   expect(warnings.map(w => [w.code, w.plugin, w.params])).toEqual([
-    ["W007", "@foo/stamps", { page: "x1", of: "page x1", title: "一", missing: "@foo/stamps:stamp" }],
-    ["W007", "@foo/stamps", { page: "x2", of: "page x2", title: "二", missing: "@foo/stamps:seal, @foo/stamps:mark" }],
+    ["W007", "@foo/stamps", { kind: "page", id: "x1", title: "一", missing: "@foo/stamps:stamp" }],
+    ["W007", "@foo/stamps", { kind: "page", id: "x2", title: "二", missing: "@foo/stamps:seal, @foo/stamps:mark" }],
   ])
   expect(warnings.map(warningText)).toEqual([
     "W007 @foo/stamps: page x1 (一): it has @foo/stamps:stamp, not in the catalog (kept as they are)",

@@ -194,6 +194,7 @@ func rowNotice(field string, put rowPut) map[string]any {
 func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act string) {
 	// 木が変わりうる書き込み（ページかフォルダの行が増えた・消えた、書庫ホーム・ゴミ箱・フォルダの行を書いた）のあとは、木の決まりを確かめ直す
 	tree := false
+	was := h.inSight()
 	pages := make([]map[string]any, 0, len(plan.pages))
 	for _, put := range plan.pages {
 		_, known := h.pages[put.id]
@@ -251,7 +252,7 @@ func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act
 			h.checkBook(id, e.body)
 		}
 	}
-	h.checkWrittenOutsidePages(plan)
+	h.checkWritten(plan, was)
 	if plan.tickets != nil {
 		h.aiEditTickets = *plan.tickets
 	}
@@ -292,31 +293,56 @@ func (h *Hub) changedEvent(pages, folders, records []map[string]any, annotations
 	return event
 }
 
-// checkWrittenOutsidePages は、書いた物 plan に関わるブックの外のページ（書いたページと、書いたフォルダの直下に在るページ）を確かめ直し、消えたページの warning を外す
+// inSight は、ゴミ箱の中でも読めない物でもないブックと、ブックの外のページ（pagesNotInBooks）の id の集まり（h.mu を持って呼ぶ）
+func (h *Hub) inSight() map[string]bool {
+	out := map[string]bool{}
+	for _, id := range h.order {
+		if !h.outOfSight(id) {
+			out[id] = true
+		}
+	}
+	for _, id := range h.pagesNotInBooks() {
+		out[id] = true
+	}
+	return out
+}
+
+// checkWritten は、書いた物 plan のあとの warning を直す: 書いたブックの外のページと、行う前 was（inSight）に無く今はブックの外のページである物を確かめ直し、
+// ゴミ箱や読めない物のフォルダから出た物（was に無いブックとブックの外のページ）にアノテーションが在れば、アノテーションを確かめ直す
 // （確かめられなければ、ログに書いて一覧はそのまま。h.mu を持って呼ぶ）
-func (h *Hub) checkWrittenOutsidePages(plan *writePlan) {
+func (h *Hub) checkWritten(plan *writePlan, was map[string]bool) {
 	if len(plan.pages) == 0 && len(plan.folders) == 0 {
 		return
 	}
 	ids := []string{}
 	for _, put := range plan.pages {
-		if put.removed {
-			delete(h.bookWarnings, put.id)
-		} else {
+		if !put.removed {
 			ids = append(ids, put.id)
 		}
 	}
-	written := map[string]bool{}
-	for _, put := range plan.folders {
-		written[put.id] = true
-	}
-	for _, id := range h.pagesNotInBooks() {
-		if written[h.places[id]] && !slices.Contains(ids, id) {
+	back := false
+	for id := range h.inSight() {
+		if was[id] {
+			continue
+		}
+		if _, book := h.books[id]; book {
+			back = back || len(h.annotationsIn(id)) > 0
+			continue
+		}
+		_, noted := h.annotations[id]
+		back = back || noted
+		if !slices.Contains(ids, id) {
 			ids = append(ids, id)
 		}
 	}
+	slices.Sort(ids)
 	if err := h.checkOutsidePages(ids); err != nil {
 		fmt.Fprintln(os.Stderr, "engine: could not check the pages:", err)
+	}
+	if back {
+		if err := h.checkAnnotations(); err != nil {
+			fmt.Fprintln(os.Stderr, "engine: could not check the annotations:", err)
+		}
 	}
 }
 

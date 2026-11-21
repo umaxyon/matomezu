@@ -7,7 +7,7 @@ export const WARNINGS = {
   W003: "command {command}: performs {action}, which is not in the catalog",
   W005: "book {book} ({title}): it does not fit the shape of a book",
   W006: "book {book} ({title}): it breaks the rules of its lineup or of a page type",
-  W007: "{of} ({title}): it has {missing}, not in the catalog (kept as they are)",
+  W007: "{kind} {id} ({title}): it has {missing}, not in the catalog (kept as they are)",
   W008: "key {key} in {scope} for {command}: a builtin plugin's key is there (not used)",
   W010: "layout {layout}: {kind} {id} is skipped, as its plugin is not there",
   W012: "tool {tool}: performs {action}, which is not in the catalog",

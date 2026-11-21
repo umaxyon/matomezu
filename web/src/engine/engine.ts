@@ -97,7 +97,7 @@ let lastAdded: readonly Plugin[] = []
 ;(globalThis as { matomezuCheckBooks?: (books: string) => string }).matomezuCheckBooks = books =>
   checkBookLines(assembled, books)
 
-// ブックの外のページを今の機能台帳で確かめ、読めるが機能台帳に無い物を持つページ（W007）の id・番号・warning の 1 行を返す（常駐が一覧に持つ。形は matomezuCheckBooks と同じ）
+// ブックの外のページを今の機能台帳で確かめ、読めるが機能台帳に無い物を持つページ（W007）の id → warning の 1 行を返す（常駐が一覧に持つ）
 ;(globalThis as { matomezuCheckOutsidePages?: (pages: string) => string }).matomezuCheckOutsidePages = pages =>
   checkOutsidePageLines(assembled, pages)
 

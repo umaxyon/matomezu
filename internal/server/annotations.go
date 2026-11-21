@@ -9,6 +9,7 @@ import (
 	"os"
 	"slices"
 
+	"github.com/umaxyon/matomezu/internal/engine"
 	"github.com/umaxyon/matomezu/internal/storage"
 )
 
@@ -89,5 +90,33 @@ func (h *Hub) holdAnnotations(page string, body json.RawMessage) json.RawMessage
 		return json.RawMessage("[]")
 	}
 	h.annotations[page] = body
+	if len(h.annotationWarnings[page]) > 0 {
+		h.recheckAnnotationsOf(page)
+	}
 	return body
+}
+
+// recheckAnnotationsOf は、ページ page のアノテーションだけを確かめ直し、その warning を入れ替える（効かない物が消えたら、その行を外す。
+// 確かめられなければ、ログに書いて一覧はそのまま。h.mu を持って呼ぶ）
+func (h *Hub) recheckAnnotationsOf(page string) {
+	lists := map[string]json.RawMessage{page: h.annotations[page]}
+	var pair engine.Annotated
+	if book := h.bookOfPage(page); book != "" {
+		pair = engine.AnnotatedBook(h.books[book].body, lists)
+	} else if h.entryNotInBook(page) == page {
+		pair = engine.AnnotatedPage(h.pages[page].body, lists)
+	} else {
+		delete(h.annotationWarnings, page)
+		return
+	}
+	found, err := h.engine.CheckAnnotations([]engine.Annotated{pair})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "engine: could not check the annotations:", err)
+		return
+	}
+	if lines := found[page]; len(lines) > 0 {
+		h.annotationWarnings[page] = lines
+	} else {
+		delete(h.annotationWarnings, page)
+	}
 }

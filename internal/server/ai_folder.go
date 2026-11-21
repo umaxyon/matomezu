@@ -148,11 +148,14 @@ func (o Options) aiFolder(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	warnings := o.Hub.BookWarnings()
+	books, pages := o.Hub.BookWarnings(), o.Hub.OutsidePageWarnings()
 	for i, e := range f.Lineup {
 		f.Lineup[i].Awaits = len(pick(annotations[e.ID], awaiting))
-		if e.Kind == storage.KindBook || e.Kind == storage.KindPage {
-			f.Lineup[i].Warning = warnings[e.ID].Warning
+		switch e.Kind {
+		case storage.KindBook:
+			f.Lineup[i].Warning = books[e.ID].Warning
+		case storage.KindPage:
+			f.Lineup[i].Warning = pages[e.ID]
 		}
 	}
 	writeJSON(w, f)

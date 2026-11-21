@@ -55,7 +55,8 @@ export function checkBooks(
       partial.push(
         ...missingWarnings(missingIn(catalog, [read.book], pagesOf(read.book)), {
           ...params,
-          of: `book ${params.book}`,
+          kind: "book",
+          id: params.book,
         }),
       )
     }
@@ -308,7 +309,7 @@ export function checkOutsidePages(catalog: CoreCatalog, saved: readonly unknown[
   return saved.flatMap(p => {
     const page = typeof p === "object" && p !== null ? (readablePage(catalog, p) as ItemPage | undefined) : undefined
     if (!page) return []
-    const params = { page: page.id, of: `page ${page.id}`, title: page.title }
+    const params = { kind: "page", id: page.id, title: page.title }
     return missingWarnings(missingIn(catalog, [], [page]), params)
   })
 }

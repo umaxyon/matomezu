@@ -5,30 +5,32 @@ import (
 	"fmt"
 )
 
-// BookWarning は warning のあるステージエントリ（ブックか、ブックの外のページ）: その id・warning の番号・warning の 1 行と、ブックごと読めないか（エンジンが決める。
+// BookWarning は warning のあるブック: ブックの id・warning の番号・warning の 1 行と、ブックごと読めないか（エンジンが決める。
 // ブックごと読めない W005 形に合わない・W006 決まりを守らない・読めないページを持つ W027〜W029、読めるが機能台帳に無い物を持つ W007 など。1 冊に 1 つ）
 type BookWarning struct {
-	Entry      string `json:"entry"`
+	Book       string `json:"book"`
 	Code       string `json:"code"`
 	Warning    string `json:"warning"`
 	Unreadable bool   `json:"unreadable"`
 }
 
 // CheckBooks はブックを今の機能台帳で確かめ、warning のあるものを返す（データには手を付けない）
-func (e *Engine) CheckBooks(books []json.RawMessage) ([]BookWarning, error) {
-	return e.entryWarnings(books, func(s string) string { return e.check(s) })
+func (e *Engine) CheckBooks(books []json.RawMessage) (out []BookWarning, err error) {
+	err = e.checked(books, func(s string) string { return e.check(s) }, &out)
+	return out, err
 }
 
-// CheckOutsidePages はブックの外のページを今の機能台帳で確かめ、読めるが機能台帳に無い物を持つページの warning（W007）を返す（データには手を付けない）
-func (e *Engine) CheckOutsidePages(pages []json.RawMessage) ([]BookWarning, error) {
-	return e.entryWarnings(pages, func(s string) string { return e.checkOutside(s) })
+// CheckOutsidePages はブックの外のページを今の機能台帳で確かめ、読めるが機能台帳に無い物を持つページの id → warning（W007）の 1 行を返す（データには手を付けない）
+func (e *Engine) CheckOutsidePages(pages []json.RawMessage) (out map[string]string, err error) {
+	err = e.checked(pages, func(s string) string { return e.checkOutside(s) }, &out)
+	return out, err
 }
 
-// entryWarnings は、本文の並び bodies をエンジンの確かめ check に渡し、warning のあるステージエントリを返す
-func (e *Engine) entryWarnings(bodies []json.RawMessage, check func(string) string) (out []BookWarning, err error) {
+// checked は、本文の並び bodies をエンジンの確かめ check に渡し、答えを out に読む
+func (e *Engine) checked(bodies []json.RawMessage, check func(string) string, out any) (err error) {
 	b, err := json.Marshal(bodies)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -37,10 +39,7 @@ func (e *Engine) entryWarnings(bodies []json.RawMessage, check func(string) stri
 			err = fmt.Errorf("engine: %v", r)
 		}
 	}()
-	if err := json.Unmarshal([]byte(check(string(b))), &out); err != nil {
-		return nil, err
-	}
-	return out, nil
+	return json.Unmarshal([]byte(check(string(b))), out)
 }
 
 // CheckLibrary は、フォルダの行の全部（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダ）とページの行の id の全部 pages が木の決まりを守るかを確かめ、破れていれば warning（W030）の 1 行を、守っていれば空の文字列を返す

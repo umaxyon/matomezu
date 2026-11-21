@@ -16,24 +16,21 @@ import { type RowChange, rowChanges } from "./wire"
 declare const crypto: { randomUUID(): string }
 
 // engine.ts の matomezuCheckBooks の中身
-// warning 1 つを、常駐が持つ形にする: entry は warning の付くステージエントリ（ブックか、ブックの外のページ）の id
-const entryLine = (n: Warning, unreadable: boolean) => ({
-  entry: n.params.book ?? n.params.page ?? "",
-  code: n.code,
-  warning: warningText(n),
-  unreadable,
-})
-
 export function checkBookLines(of: Assembled, books: string): string {
   const read = checkBooks(of.catalog.core, JSON.parse(books) as unknown[])
-  return JSON.stringify([...read.warnings.map(n => entryLine(n, true)), ...read.partial.map(n => entryLine(n, false))])
+  const line = (n: Warning, unreadable: boolean) => ({
+    book: n.params.book ?? "",
+    code: n.code,
+    warning: warningText(n),
+    unreadable,
+  })
+  return JSON.stringify([...read.warnings.map(n => line(n, true)), ...read.partial.map(n => line(n, false))])
 }
 
-// engine.ts の matomezuCheckOutsidePages の中身
+// engine.ts の matomezuCheckOutsidePages の中身。答えは、warning の有るページの id → その 1 行
 export function checkOutsidePageLines(of: Assembled, pages: string): string {
-  return JSON.stringify(
-    checkOutsidePages(of.catalog.core, JSON.parse(pages) as unknown[]).map(n => entryLine(n, false)),
-  )
+  const found = checkOutsidePages(of.catalog.core, JSON.parse(pages) as unknown[])
+  return JSON.stringify(Object.fromEntries(found.map(n => [n.params.id ?? "", warningText(n)])))
 }
 
 // engine.ts の matomezuCheckLibrary の中身
