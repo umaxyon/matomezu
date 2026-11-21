@@ -145,7 +145,7 @@ test("セッション id を join で運ぶ AI（フックの無い AI）は、�
 })
 
 test("保留中の参加要求は参加者の一覧に出ず、一覧が空のうちは空と出る", async ({ page }) => {
-  await page.goto("/?f=center")
+  await page.goto("/")
   await expect(page.getByText("ワークルームはありません")).toBeVisible()
   await join(page, "e2e-link-2")
   await expect(page.getByText("ワークルームはありません")).toBeVisible()

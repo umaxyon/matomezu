@@ -94,13 +94,8 @@ export function seenInText(key: string, field: "line" | "multi"): boolean {
   return key === "Escape" || (key === "Enter" && field === "line")
 }
 
-// 範囲 screen の前の名前
-const FORMER_SCREEN_SCOPE = "control-center"
-
-// 設定の値 value から読んだ利用者の変更（形に合わなければ変更なし）。前の範囲の名前で残っている行は、今の名前で読む
+// 設定の値 value から読んだ利用者の変更（形に合わなければ変更なし）
 export function readKeyChanges(value: unknown): KeyChanges {
   const parsed = KeyChangesSchema.safeParse(value)
-  if (!parsed.success) return NO_KEY_CHANGES
-  const renamed = (b: KeyBinding): KeyBinding => (b.scope === FORMER_SCREEN_SCOPE ? { ...b, scope: "screen" } : b)
-  return { added: parsed.data.added.map(renamed), removed: parsed.data.removed.map(renamed) }
+  return parsed.success ? parsed.data : NO_KEY_CHANGES
 }
