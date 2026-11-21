@@ -36,8 +36,13 @@ interface Drag {
   y: number
 }
 
+// 描いている場所のステージがあるときだけ描く（無ければ何も描かない）
 export const StageView = memo(function StageView() {
-  const id = useStageId() ?? ""
+  const id = useStageId()
+  return id === null ? null : <StageOf id={id} />
+})
+
+function StageOf({ id }: { id: string }) {
   const stage = useStage() // パンの量を読まない（パンのたびに描き直さない）
   const isCurrent = useMatomezuState(s => workspaceOf(s.window, id).current === id)
   const book = useBook()
@@ -131,7 +136,7 @@ export const StageView = memo(function StageView() {
       {stage.opened && book ? <BookContent stage={id} previewing={inPreview} /> : <EmptyStage stage={id} />}
     </section>
   )
-})
+}
 
 // 何も開いていないステージの中身: ブックスクリーンのステージがそれ 1 つなら、真ん中に「書庫を開く」と「スクリーンを閉じる」（閉じられるときだけ）を縦に並べる。
 // ステージを分けている間（「画面を分割」で足したステージ。開く物は、下に出る書庫のスクリーンで選ぶ）は何も描かない

@@ -1,6 +1,7 @@
 // テーマの値（base の book-look/tokens.ts の resolveTokens が決める、明暗ごとの色 Shades）を CSS 変数にする。変数の名前は tokenVarName（core/def/theme.ts）。
 // 明暗で違う色は light-dark() にし、ブックの中身の明暗は利用者の OS の明暗に合わせる（color-scheme: light dark。スキンの明暗には従わない）
 import { type CSSProperties, createElement, type ReactNode, useMemo } from "react"
+import type { CoreCatalog } from "../core/core-catalog"
 import { ownTokenVarName, tokenVarName } from "../core/def/theme"
 import { splitId } from "../core/names"
 import type { Shades } from "../core/theme"
@@ -30,15 +31,18 @@ export function ownTokenVars(tokens: Iterable<string>, owner: string): CSSProper
 // プラグインの見た目を描く所（紙のアイテムの枠・つなぐもののビューなど）が、その要素の style に置く
 export function useTokenScope(def: string): CSSProperties {
   const catalog = useCatalog().core
-  return useMemo(() => {
-    const owner = splitId(def).owner
-    if (owner === null) return {}
-    const declared = [
-      ...[...catalog.pageTypes.values(), ...catalog.items.values()].flatMap(d => d.tokens.map(t => t.id)),
-      ...catalog.tokens.keys(),
-    ]
-    return ownTokenVars(declared, owner)
-  }, [catalog, def])
+  return useMemo(() => tokenScopeOf(catalog, def), [catalog, def])
+}
+
+// useTokenScope の値を、機能台帳 catalog から求める（フックの外で、定義があるときだけ求める所が使う）
+export function tokenScopeOf(catalog: CoreCatalog, def: string): CSSProperties {
+  const owner = splitId(def).owner
+  if (owner === null) return {}
+  const declared = [
+    ...[...catalog.pageTypes.values(), ...catalog.items.values()].flatMap(d => d.tokens.map(t => t.id)),
+    ...catalog.tokens.keys(),
+  ]
+  return ownTokenVars(declared, owner)
 }
 
 // 定義 def のプラグインのテーマキーを --<名前> で読める範囲（箱を作らない要素で包む）。紙が、つなぐもののビューと重ねるコンポーネントを包むのに使う

@@ -7,6 +7,7 @@
 // 付けた物の上の辺が見える所（画面と、物を囲む Revealable〈リストの行の並びなど〉の重なり）の外に出たら、鳥はマークポインタ（鳥の顔の丸い絵）に替わって
 // 見える所の縁（囲む物が画面の外なら画面の縁）を歩き、びっくりマークは縁に寄って薄くなる。どちらも押すと、囲む物の中のスクロールと紙をずらして付けた物を見せる
 import { type KeyboardEvent, useEffect, useRef, useState } from "react"
+import { lastAnchor } from "../../../core/annotation"
 import { useMessages } from "../../../ui/i18n"
 import { useReadPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
 import type { Bird } from "../birds"
@@ -38,7 +39,7 @@ export function MarkLayer() {
         <MarkStand
           key={m.id}
           id={m.id}
-          anchor={m.anchors.at(-1) ?? ""}
+          anchor={lastAnchor(m.anchors)}
           kind={(m.props as MarkProps).kind}
           addedAt={(m.props as MarkProps).addedAt}
         />
@@ -176,7 +177,7 @@ function PickerStand({ picker }: { picker: AnchorTargets }) {
     if (e.key === "Escape") end()
   }
   return (
-    <Stand anchor={picker.anchors.at(-1) ?? ""} side="right" label={t("Add mark")}>
+    <Stand anchor={lastAnchor(picker.anchors)} side="right" label={t("Add mark")}>
       {/* biome-ignore lint/a11y/noStaticElementInteractions: Esc で閉じるだけ（選ぶのは中のボタン） */}
       <div ref={ref} className={styles.picker} onKeyDown={onKeyDown}>
         {MARK_KINDS.map(k => (

@@ -1,16 +1,17 @@
 // 右クリックで押した物から始める、付ける先を持つプラグイン状態（伝言の下書き・マークの種類を選ぶスタンド）: 種類ごとに宣言を作る（anchorTargetState。ステージごと、画面の場所には入れない）。
 // ブックのデータには入れない。始めるのは UI マッピングの anchorMenu に置くコマンドで（startAnchorTarget）、終えるのはその種類のレイヤー
+import { type Anchors, anchorsEndingWith } from "../../../core/annotation"
 import type { PluginStateDef } from "../../../core/def/plugin-state"
 import type { CommandActions, CommandContext } from "../../../store/commands/def"
 import { kit } from "../kit"
 
 export interface AnchorTargets {
-  anchors: readonly string[] // 付ける先（出す物は最後の物のそばに出す）
+  anchors: Anchors // 付ける先（出す物は最後の物のそばに出す）
 }
 
 // 付ける先: 押した物が選んでいる物のうちなら、選んでいる物の全部（押した物を最後にして、出す物は押した物のそばに出す）、でなければ押した物だけ
-export function anchorsFor(clicked: string, selection: readonly string[]): readonly string[] {
-  return selection.includes(clicked) ? [...selection.filter(s => s !== clicked), clicked] : [clicked]
+export function anchorsFor(clicked: string, selection: readonly string[]): Anchors {
+  return anchorsEndingWith(selection.includes(clicked) ? selection.filter(s => s !== clicked) : [], clicked)
 }
 
 // id（kebab-case）の、付ける先を持つステージのプラグイン状態の宣言（付ける先を持たないときは値が無い）

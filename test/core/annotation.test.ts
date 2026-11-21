@@ -1,12 +1,17 @@
 // アノテーション（core/annotation.ts）: 種類が無い・形が合わない物は、その 1 つだけ効かず warning になり、ほかのアノテーションは変えられる
 
 import { expect, test } from "bun:test"
+import { z } from "zod"
 import { USER } from "../../web/src/core/actor"
 import {
+  type Anchors,
+  AnchorsArg,
   type Annotation,
+  anchorsEndingWith,
   annotationBriefs,
   annotationsForAi,
   checkAnnotations,
+  lastAnchor,
   prune,
   unexpired,
 } from "../../web/src/core/annotation"
@@ -71,8 +76,21 @@ test("効かないアノテーションがあっても、ほかのアノテー�
   expect(done).toMatchObject({ ok: true, annotations: { p: [BAD, GONE] } })
 })
 
+test("アクションの引数のアンカーは、id の並び（1 つ以上）で受けて同じ id をまとめ、AI には並びとして見せる", () => {
+  expect(AnchorsArg.parse(["a", "b", "a"])).toEqual(["a", "b"])
+  expect(AnchorsArg.safeParse([]).success).toBe(false)
+  expect(z.toJSONSchema(AnchorsArg, { io: "input" })).toMatchObject({ type: "array", minItems: 1 })
+  expect(z.toJSONSchema(AnchorsArg, { io: "input" })).not.toHaveProperty("prefixItems")
+})
+
+test("アンカーの最後の物と、並びの後ろに足したアンカー", () => {
+  expect(lastAnchor(["a", "b"])).toBe("b")
+  expect(anchorsEndingWith([], "x")).toEqual(["x"])
+  expect(anchorsEndingWith(["a", "b"], "x")).toEqual(["a", "b", "x"])
+})
+
 test("prune は無くなった物をアンカーから外し、全部無くなった物を消す。変わらなければ同じ並び", () => {
-  const list = [GOOD, { ...GOOD, id: "c4", anchors: ["a", "x"] }, { ...GOOD, id: "c5", anchors: ["x"] }]
+  const list: Annotation[] = [GOOD, { ...GOOD, id: "c4", anchors: ["a", "x"] }, { ...GOOD, id: "c5", anchors: ["x"] }]
   expect(prune(list, page).map(a => [a.id, a.anchors])).toEqual([
     ["c1", ["a"]],
     ["c4", ["a"]],
@@ -150,7 +168,7 @@ test("タイプの混ざるブックでは、付いているページのタイ�
     drawingPage("p1", { items: [box("a")] }),
     testPage(FLOWCHART, "p2", { title: "流れ", items: [box("b")] }),
   ])
-  const on = (id: string, anchors: string[]): Annotation => ({ ...GOOD, id, anchors })
+  const on = (id: string, anchors: Anchors): Annotation => ({ ...GOOD, id, anchors })
   const codes = (at: string, a: Annotation) =>
     checkAnnotations(catalog, mixed, findPage(mixed, at)!.page, [a]).map(w => w.code)
   expect(codes("p1", on("n1", ["a"]))).toEqual([])

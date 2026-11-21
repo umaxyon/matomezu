@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test"
+import type { Annotation } from "../../web/src/core/annotation"
 import { pagesOf } from "../../web/src/core/book"
 import { BROKEN, HOME_ID, TRASH_ID } from "../../web/src/core/folders"
 import { recordsOf } from "../../web/src/core/folders-books"
@@ -626,7 +627,7 @@ test("changed に載った設定で設定を入れ替える", async () => {
 
 test("アノテーションの知らせで、そのページのアノテーションを入れ替える（空の並びなら無くす）", async () => {
   const { store, emit } = await connected()
-  const list = [{ id: "c1", annotation: "@matomezu/base:note", anchors: ["x"], props: {} }]
+  const list: Annotation[] = [{ id: "c1", annotation: "@matomezu/base:note", anchors: ["x"], props: {} }]
   emit("annotations", { page: "p1", annotations: list })
   expect(store.state.getState().annotations).toEqual({ p1: list })
   emit("annotations", { page: "p1", annotations: [] })

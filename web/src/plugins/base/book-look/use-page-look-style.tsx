@@ -2,7 +2,8 @@
 // ページのタイプのプラグインのテーマキー（--<名前>）。テーマはページごとなので、ページを描く所ごとに置く:
 // ステージは開いているページ、ステージの外で見るだけに描くページ（印刷の区画・サムネイル・スクラップ）は、そのページ（PageLook で包む）
 import { type CSSProperties, type ReactNode, useMemo } from "react"
-import { useTokenScope } from "../../../ui/theme-vars"
+import { useCatalog } from "../../../ui/store-context"
+import { tokenScopeOf } from "../../../ui/theme-vars"
 import { useShownPage } from "../../../ui/view-hooks"
 import { textColorVars } from "../text"
 import { useTextColors } from "../text/use-text-colors"
@@ -13,10 +14,14 @@ export function usePageLookStyle(): CSSProperties {
   const theme = usePageThemeVars()
   const colors = useTextColors()
   const type = useShownPage()?.type
-  const tokens = useTokenScope(type ?? "")
+  const catalog = useCatalog().core
   return useMemo(
-    () => ({ ...(colors ? { ...theme, ...textColorVars(colors) } : {}), ...(type ? tokens : {}) }) as CSSProperties,
-    [theme, colors, tokens, type],
+    () =>
+      ({
+        ...(colors ? { ...theme, ...textColorVars(colors) } : {}),
+        ...(type === undefined ? {} : tokenScopeOf(catalog, type)),
+      }) as CSSProperties,
+    [theme, colors, catalog, type],
   )
 }
 

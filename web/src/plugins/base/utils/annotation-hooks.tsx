@@ -70,11 +70,13 @@ export function usePerformOrToast(
   ) => { ok: boolean; result?: unknown }
   const catalog = useCoreCatalog()
   const { showToast } = useActions()
-  const drawn = usePage()?.id ?? ""
+  const drawn = usePage()?.id
   return (action, args, page) => {
-    const done = perform(action, args, { page: page ?? drawn })
-    if (done.ok) return (done.result as object | undefined) ?? {}
-    showToast({ kind: "warn", message: refusalMessage(catalog, done as never, refused) })
+    const on = page ?? drawn
+    // 宛先のページが無ければ行わず、断りの理由の無い断りと同じに知らせる
+    const done = on === undefined ? null : perform(action, args, { page: on })
+    if (done?.ok) return (done.result as object | undefined) ?? {}
+    showToast({ kind: "warn", message: done ? refusalMessage(catalog, done as never, refused) : refused })
     return false
   }
 }

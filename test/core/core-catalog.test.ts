@@ -182,7 +182,9 @@ describe("機能台帳", () => {
   test("ブックの形・アイテムの項目・アクションの引数は、JSON Schema に書き出せる（LLM に見せる形）", () => {
     expect(z.toJSONSchema(CORE_CATALOG.bookSchema)).toBeTruthy()
     const shown = BUILTIN_PARTS.actions.map(a => a.describeArgs?.(CORE_CATALOG) ?? a.args) // MCP 公開ツールの actions が返す物と同じ形
-    for (const def of [...BUILTIN_PARTS.items.map(i => i.props), ...shown]) expect(z.toJSONSchema(def)).toBeTruthy()
+    // 引数は受ける形で書き出す（ai-catalog.ts と同じ。受けたあとに形を変える引数もある）
+    for (const def of [...BUILTIN_PARTS.items.map(i => i.props), ...shown])
+      expect(z.toJSONSchema(def, { io: "input", unrepresentable: "any" })).toBeTruthy()
   })
 
   test("ページのデータは、そのページのタイプの形で検査する", () => {
