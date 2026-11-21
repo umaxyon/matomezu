@@ -1,17 +1,7 @@
 // ブック（core/schema/book.ts の Book）は、ブックのフォルダと、その下のバインダ・ページの中身をまとめた、読む用の値。ここの関数が表から組み、変えた結果を表への書き込みに分ける
 // （組むのと分けるのは、ここだけ。同じページが 2 つの値に入らないよう、持つのは表の方）
 
-import type {
-  BinderFolder,
-  BookFolder,
-  EntryRef,
-  Folder,
-  Folders,
-  Library,
-  PageRef,
-  PageRow,
-  Pages,
-} from "./folders"
+import type { BinderFolder, BookFolder, EntryRef, Folder, Folders, Library, PageRef, PageRow, Pages } from "./folders"
 import { sameData } from "./same"
 import type { BinderEntry, Book, LineupEntry } from "./schema/book"
 
