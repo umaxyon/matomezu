@@ -75,6 +75,9 @@ export interface Placing {
   props?: Readonly<Record<string, unknown>>
 }
 
+// その場の編集の名前: 編集していなければ "none"、しているなら何の編集かをプラグインが kit.name で付けた名前（<プラグインの id>:<名前>）
+export type Editing = "none" | `${string}:${string}`
+
 export interface Stage {
   id: string
   opened: Opened | null // 何も開いていなければ null
@@ -86,9 +89,8 @@ export interface Stage {
   edits: EditList
   placing: Placing | null // 置こうとしている物（ツールボックスなどで選んだもの。置くか取り消すまで）
   selection: readonly string[] // 選んでいる物の id（開いているページのアイテムや、ページのフィールドの中の物）
-  // 選んでいる物を、今その場で編集中か（選びが替わる・開くものが変わる・道具を替えると終わる）。
-  // 何をしているかをプラグインが名前で分けるときは、その名前（種類を選ぶなど。true は名前を分けない編集）
-  editing: boolean | string
+  // 選んでいる物を、今その場で何として編集しているか（選びが替わる・開くものが変わる・道具を替えると終わる）。編集していなければ "none"
+  editing: Editing
   // 開いている道具のアイコン（at は出す所の画面の座標。null なら画面が決める）
   picker: { at: Point | null } | null
   // 初めの位置で表示領域の左上に置く紙の点（中身の載った印刷区画の左上。ビューが知らせる。開くたびに捨て、知らせるまでは null で紙の左上）
@@ -121,7 +123,7 @@ export function newStage(id: string, opened: Opened | null = null): Stage {
     edits: "items",
     placing: null,
     selection: NONE,
-    editing: false,
+    editing: "none",
     picker: null,
     start: null,
     starting: false,
@@ -130,8 +132,9 @@ export function newStage(id: string, opened: Opened | null = null): Stage {
 
 // 開くものが変わったときに、置こうとしているアイテムと選択を捨て（その場の編集も終える）、道具のアイコンを閉じる
 function leave(stage: Stage): Stage {
-  if (stage.placing === null && stage.selection.length === 0 && stage.picker === null && !stage.editing) return stage
-  return { ...stage, placing: null, selection: NONE, editing: false, picker: null }
+  if (stage.placing === null && stage.selection.length === 0 && stage.picker === null && stage.editing === "none")
+    return stage
+  return { ...stage, placing: null, selection: NONE, editing: "none", picker: null }
 }
 
 // ステージに出す紙の大きさ（ページを開いていないか、プレゼンテーションが紙を置かないなら null）
@@ -319,7 +322,7 @@ export function followBook(catalog: CoreCatalog, stage: Stage, book: Book, befor
   const ids = shown ? anchorIds(shown) : new Set<string>()
   const kept = next.selection.filter(id => ids.has(id))
   if (kept.length === next.selection.length) return next
-  return kept.length === 0 ? { ...next, selection: NONE, editing: false } : { ...next, selection: kept }
+  return kept.length === 0 ? { ...next, selection: NONE, editing: "none" } : { ...next, selection: kept }
 }
 
 function followOpened(catalog: CoreCatalog, stage: Stage, book: Book, before?: Book): Stage {
@@ -483,13 +486,13 @@ export function closePicker(stage: Stage): Stage {
 export function select(stage: Stage, ids: readonly string[]): Stage {
   if (previewing(stage)) return stage
   const same = ids.length === stage.selection.length && ids.every((id, i) => stage.selection[i] === id)
-  return same ? stage : { ...stage, selection: ids.length === 0 ? NONE : [...ids], editing: false }
+  return same ? stage : { ...stage, selection: ids.length === 0 ? NONE : [...ids], editing: "none" }
 }
 
 // 選んでいる物を、その場で編集し始める・終える（何も選んでいなければ始めない）
-export function setEditing(stage: Stage, editing: boolean | string): Stage {
+export function setEditing(stage: Stage, editing: Editing): Stage {
   if (previewing(stage)) return stage
-  const next = stage.selection.length > 0 ? editing : false
+  const next = stage.selection.length > 0 ? editing : "none"
   return next === stage.editing ? stage : { ...stage, editing: next }
 }
 

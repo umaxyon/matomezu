@@ -141,7 +141,7 @@ export function setTool(catalog: CoreCatalog, ws: Workspace, id: string, tool: s
   if (!set || !hasTool(catalog, set, tool)) return ws
   const same = toolIn(catalog, ws.tools, set) === tool
   const stages = ws.stages.map(s =>
-    toolSetOf(catalog, s) !== set ? s : same ? stopPlacing(s) : setEditing(stopPlacing(s), false),
+    toolSetOf(catalog, s) !== set ? s : same ? stopPlacing(s) : setEditing(stopPlacing(s), "none"),
   )
   if (same && stages.every((s, i) => s === ws.stages[i])) return ws
   return { ...ws, stages, tools: { ...ws.tools, [set]: tool } }
@@ -178,10 +178,10 @@ export function showBinder(catalog: CoreCatalog, ws: Workspace, stage: string, b
 // 今の道具が替わった（認可ステップが今の道具を止め、組の次の使える道具になったときも）なら、その場の編集を終える
 function followIn(catalog: CoreCatalog, ws: Workspace, stage: Stage, book: Book, before?: Book): Stage {
   const next = followStage(catalog, stage, book, before)
-  if (!next.editing || !before || next.opened?.outermost !== book.id) return next
+  if (next.editing === "none" || !before || next.opened?.outermost !== book.id) return next
   const was = toolOf(catalog, { ...ws, stages: [stage] }, stage.id, { [book.id]: before })
   const now = toolOf(catalog, { ...ws, stages: [next] }, next.id, { [book.id]: book })
-  return was === now ? next : setEditing(next, false)
+  return was === now ? next : setEditing(next, "none")
 }
 
 // ブックが変わったとき、そのブックを開いている全部のステージを合わせる（followIn。before は変わる前のブック）

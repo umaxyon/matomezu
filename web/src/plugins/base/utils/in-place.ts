@@ -34,5 +34,5 @@ export function endInPlace(
   if (continues && ctx.book !== "none") a.continueStep(ctx.book.id)
   end()
   a.updatePluginState(state, () => undefined)
-  a.setEditing(false)
+  a.setEditing("none")
 }

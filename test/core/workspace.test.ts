@@ -132,7 +132,7 @@ describe("workspace", () => {
     const locked = { ...open, locked: true as const }
     // 付け替えの道具（行うアクションがあり、ロックで止められる）で、箱をその場で編集している
     const reparenting = setTool(CORE_CATALOG, newWorkspace(CORE_CATALOG, open), "s1", "@matomezu/paper:reparent")
-    const editing = mapStage(reparenting, "s1", s => setEditing(select(s, ["a"]), true))
+    const editing = mapStage(reparenting, "s1", s => setEditing(select(s, ["a"]), "test:edit"))
     const stage = (w: ReturnType<typeof newWorkspace>) => w.stages[0]!
 
     test("ロックで今の道具が使えなくなり組の次の道具になると、その場の編集を終える", () => {
@@ -140,19 +140,19 @@ describe("workspace", () => {
         toolOf(CORE_CATALOG, editing, "s1", { b2: locked }),
       )
       const after = followBook(CORE_CATALOG, editing, locked, open)
-      expect(stage(after).editing).toBe(false)
+      expect(stage(after).editing).toBe("none")
       expect(stage(after).selection).toEqual(["a"])
     })
 
     test("道具が替わらなければ、その場の編集は続く", () => {
       const renamed = { ...open, title: "箱 2" }
-      expect(stage(followBook(CORE_CATALOG, editing, renamed, open)).editing).toBe(true)
+      expect(stage(followBook(CORE_CATALOG, editing, renamed, open)).editing).toBe("test:edit")
     })
 
     test("ブックの一覧が変わったときも、道具が替われば、その場の編集を終える", () => {
       const after = followLibrary(CORE_CATALOG, editing, { b2: locked }, { b2: open })
       expect(after).not.toBe(NO_STAGES_LEFT)
-      expect(stage(after as ReturnType<typeof newWorkspace>).editing).toBe(false)
+      expect(stage(after as ReturnType<typeof newWorkspace>).editing).toBe("none")
     })
   })
 })

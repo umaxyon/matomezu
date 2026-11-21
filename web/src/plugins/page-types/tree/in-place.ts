@@ -6,7 +6,7 @@ import type { CommandContext } from "../../../plugin-api"
 import { endInPlace, type InPlaceDraft, inPlaceText, refusalMessage } from "../../base"
 import { NODE_REMOVE, NODE_UPDATE } from "./actions"
 import { treeAt } from "./commands"
-import { ADDED_EDIT, afterRemove, editEnd, selectedIn } from "./edit"
+import { ADDED_EDIT, afterRemove, CAPTION_EDIT, editEnd, selectedIn } from "./edit"
 import { kit } from "./kit"
 import { EDIT_TOOL } from "./tools"
 import { nodeWrite, PAGE_UPDATE } from "./write"
@@ -21,11 +21,9 @@ export const TREE_EDIT_KEY_SCOPE = kit.defineKeyScope({
   commandsFrom: "stage",
 })
 
-// 編集の道具で、キャプションを書いている間か（背景編集モードの間の文字枠の書き換え（slide のもの。stage.editing は同じ true）は除く）
+// 編集の道具で、キャプションを書いている間か
 export const writingCaption = (ctx: Pick<CommandContext, "stage">) =>
-  ctx.stage.tool === EDIT_TOOL.id &&
-  ctx.stage.edits === "items" &&
-  (ctx.stage.editing === true || ctx.stage.editing === ADDED_EDIT)
+  ctx.stage.tool === EDIT_TOOL.id && (ctx.stage.editing === CAPTION_EDIT || ctx.stage.editing === ADDED_EDIT)
 
 type Actions = Parameters<typeof TREE_EDIT_COMMIT.run>[1]
 

@@ -55,7 +55,7 @@ import {
   spanOf,
   squaredEnd,
 } from "../rect"
-import { ADDED_EDIT, SLIDE_ITEM_CONTEXT, SLIDE_KEY_SCOPE } from "../scope"
+import { ADDED_EDIT, SLIDE_ITEM_CONTEXT, SLIDE_KEY_SCOPE, TEXT_EDIT } from "../scope"
 import { FREE_LINE, linePointsOf, movedLineProps, STRAIGHT_LINE, squarable, TEXT_FRAME } from "../slide"
 import { useSlideItemView } from "./item-view"
 import { GRIPS, GroupSelection, type SelectedItem, Selection } from "./Selection"
@@ -148,7 +148,7 @@ function SlidePageView({
   const selected = chosen.length === 1 && stage.selection.length === 1 ? chosen[0] : undefined
   const placing =
     operable && stage.placing !== null && placeable.includes(stage.placing.item) ? stage.placing.item : null
-  const editing = stage.editing === true || stage.editing === ADDED_EDIT ? (selected?.id ?? null) : null // 文字を書き換えているアイテム（選んでいる 1 つ）
+  const editing = stage.editing === TEXT_EDIT || stage.editing === ADDED_EDIT ? (selected?.id ?? null) : null // 文字を書き換えているアイテム（選んでいる 1 つ）
   const minOf = (item: string): number => minSizeOf(catalog, item)
 
   // 置いたばかりの文字枠が選ばれたら、そのまま文字を書く
@@ -364,7 +364,7 @@ function SlidePageView({
     const shape = el && shapes.find(s => s.id === el.dataset.item)
     if (shape?.item === TEXT && set.enabled && !followed) {
       select([shape.id])
-      setEditing(true)
+      setEditing(TEXT_EDIT)
     }
   }
 
@@ -404,7 +404,7 @@ function SlidePageView({
                   editing: editing === shape.id,
                   onCommit: (text, grown) => {
                     if (stage.editing === ADDED_EDIT && book) continueStep(book.id)
-                    setEditing(false)
+                    setEditing("none")
                     // 何も書かずに終えた文字枠は、何も言わずに消す（置いた直後なら、置いたことごと無かったことになる）
                     if (text === "") {
                       remove.run()

@@ -1,4 +1,4 @@
-// その場の編集の編集ロック（ウィジェット edit-lock。根に置き、何も描かない）: ステージがその場の編集をしている間（stage.editing が false でない間。
+// その場の編集の編集ロック（ウィジェット edit-lock。根に置き、何も描かない）: ステージがその場の編集をしている間（stage.editing が "none" でない間。
 // 書いている・色や種類を選んでいる）、そのステージで開いているページの、選んでいる物に編集ロックを掛ける（その場の編集で何を直しているかは選択で決まる）
 
 import { useShallow } from "zustand/react/shallow"
@@ -14,7 +14,7 @@ function EditLock() {
   return (
     <>
       {stages.map(s => (
-        <StageEditLock key={s.id} page={shownPageId(s.opened)} ids={s.editing === false ? NONE : s.selection} />
+        <StageEditLock key={s.id} page={shownPageId(s.opened)} ids={s.editing === "none" ? NONE : s.selection} />
       ))}
     </>
   )

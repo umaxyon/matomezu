@@ -11,6 +11,7 @@ import { BUILTIN_CONTROL_CENTER } from "../../../../web/src/plugins"
 import { addPageIn, createBookIn } from "../../../../web/src/plugins/base"
 import { fieldsArgs } from "../../../../web/src/plugins/base/pages/page-fields"
 import { keepsPan } from "../../../../web/src/plugins/base/tool-switch/tools"
+import { CAPTION_EDIT } from "../../../../web/src/plugins/page-types/tree/edit"
 import { layoutTree } from "../../../../web/src/plugins/page-types/tree/layout"
 import { BUILTIN_UI } from "../../../../web/src/plugins/ui"
 import { createMatomezu } from "../../../../web/src/store/create"
@@ -501,11 +502,11 @@ test("その場の編集は、同じ道具を選び直しても続き、道具�
     },
   )
   fireEvent.keyDown(window, { key: "F2" })
-  expect(editing()).toBe(true)
+  expect(editing()).toBe(CAPTION_EDIT)
   act(() => store.actions.setTool("s1", "@matomezu/tree:edit"))
-  expect(editing()).toBe(true)
+  expect(editing()).toBe(CAPTION_EDIT)
   act(() => store.actions.setTool("s1", "@matomezu/base:hand"))
-  expect(editing()).toBe(false)
+  expect(editing()).toBe("none")
 })
 
 test("Delete（Backspace）と節の右クリックのメニューの「削除」で、選んでいる節を子孫ごと消し、前の兄弟（無ければ親）を選ぶ。根は消せず、書いている間の Backspace は字を消すだけ", () => {
