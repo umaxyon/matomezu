@@ -513,8 +513,7 @@ export function toPaperDelta(stage: Pick<Stage, "zoom">, d: Point): Point {
   return { x: d.x / stage.zoom, y: d.y / stage.zoom }
 }
 
-// ステージが開いている物 opened（ブック book）の中の、id のページ（無ければ null）。ステージで開いた物の中からページを id で引くのは、ここだけ
-// （書庫のどのページでも引く口にはしない。開いた物の外のページは引けない）
+// ステージが開いている物 opened（ブック book）の中の、id のページ（開いた物の外のページ・無ければ null。プラグイン API の usePageById が読む）
 export function openedPageById(
   books: Readonly<Record<string, Book>>,
   opened: { book: string },
