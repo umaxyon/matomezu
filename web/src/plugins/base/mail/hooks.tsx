@@ -59,7 +59,7 @@ export function useShowMailPlaceAt(): (target: string, mail: Mail) => void {
       const to = mail.to
       if (!to) return
       actions.showStage(target)
-      if (stageIn(read().window, target)?.opened?.outermost !== to.book) actions.openBook(target, to.book)
+      if (stageIn(read().window, target)?.opened?.outermost.id !== to.book) actions.openBook(target, to.book)
       if (to.page) actions.openPage(target, to.page)
       if (to.ids && to.ids.length > 0) {
         reveal(target, to.ids)

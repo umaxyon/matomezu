@@ -24,7 +24,7 @@ import {
 } from "../core/placed"
 import type { Book } from "../core/schema/book"
 import { type Settings, userSetting } from "../core/settings"
-import { openedPageById, shownPageId, stageBlocks, toPaper } from "../core/stage"
+import { openedBook, openedPageById, shownPageId, stageBlocks, toPaper } from "../core/stage"
 import { stageIn } from "../core/window"
 import type { StageView } from "../core/workspace"
 import {
@@ -132,7 +132,7 @@ export function useAllowed(action: ActionId, where?: Where | { settings: readonl
     const st = stageIn(s.window, at)
     if (st && stageBlocks(catalog, st.mode.kind, action)) return NOT_ALLOWED
     const o = st?.opened
-    const book = o ? s.books[o.outermost] : undefined
+    const book = openedBook(s.books, o)
     const page = place?.page ?? shownPageId(o ?? null) ?? undefined
     const on = { ...(page ? { page } : {}), ...(ids ? { ids: ids.split("\n") } : {}) }
     const changed = settings === undefined ? {} : { settings: settings === "" ? [] : settings.split("\n") }
@@ -269,7 +269,7 @@ export function usePerform(): <Id extends ActionId>(
   const read = useReadState()
   const { perform } = useStoreActions()
   const catalog = useCatalog().core
-  const book = useMatomezuState(s => (at === null ? undefined : stageIn(s.window, at)?.opened?.outermost))
+  const book = useMatomezuState(s => (at === null ? undefined : stageIn(s.window, at)?.opened?.outermost.id))
   const mode = useMatomezuState(s => (at === null ? undefined : stageIn(s.window, at)?.mode.kind) ?? "edit")
   return useMemo(
     () =>

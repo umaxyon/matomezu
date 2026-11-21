@@ -37,7 +37,7 @@ test("分けたステージは何も開いておらず、ブックを開くと�
   const ws = screenOf(state.getState().window)
   expect(ws.stages[1]!.opened).toMatchObject({
     type: "@matomezu/drawing:drawing",
-    outermost: "b3",
+    outermost: { kind: "book", id: "b3" },
     page: "b3-p1",
     paper: { status: "known" },
   })
@@ -61,7 +61,7 @@ test("ブックを作ると、振った id で一覧に入り、そのステー�
   expect(createBookIn({ state, actions }, "s2", { title: "新しい図" })).toBe(true)
   const s = state.getState()
   expect(s.books.made).toEqual({ id: "made", title: "新しい図", lineup: [] })
-  expect(screenOf(s.window).stages[1]!.opened).toEqual({ kind: "none", outermost: "made" })
+  expect(screenOf(s.window).stages[1]!.opened).toEqual({ kind: "none", outermost: { kind: "book", id: "made" } })
   expect(screenOf(s.window).current).toBe("s2")
   addPageIn({ state, actions }, "s2", {
     type: "@matomezu/drawing:drawing",

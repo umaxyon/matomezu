@@ -111,7 +111,7 @@ test("線を置けないタイプが line-connect を足していても、線を
   })
   showFirstBook(instance)
   expect(createBookIn(instance, "s1", { title: "B" })).toBe(true)
-  const id = screenOf(instance.state.getState().window).stages[0]!.opened!.outermost
+  const id = screenOf(instance.state.getState().window).stages[0]!.opened!.outermost.id
   expect(
     instance.actions.perform("@matomezu/base:page-add", { type: "boards:board", title: "P" }, { book: id }).ok,
   ).toBe(true)

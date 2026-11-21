@@ -122,7 +122,7 @@ function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"):
   if (!opened) return
   const to = from === "undo" ? "before" : "after"
   const argsOf = (step: HistoryStep) => ({
-    books: [...step.books],
+    books: [...step.outermosts],
     pages: patchesToward(step.pages, to),
     folders: patchesToward(step.folders, to),
   })
@@ -130,22 +130,22 @@ function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"):
   const steps = [...ctx.bookHistory[from]].reverse()
   for (const [i, step] of steps.entries()) {
     const args = argsOf(step)
-    const page = pageToOpen(booksOf(ctx), step, to, opened.outermost, args)
+    const page = pageToOpen(booksOf(ctx), step, to, opened.outermost.id, args)
     const result = changes(args) ? a.perform(HISTORY_RESTORE.id, args) : undefined
     if (result && !result.ok && !isRevertUnchanged(result)) {
       const book = result.reason === "denied" && result.book ? booksOf(ctx)[result.book] : undefined
-      notRestored(ctx, a, opened.outermost, from, result, {
+      notRestored(ctx, a, opened.outermost.id, from, result, {
         book: book?.title,
         clash: kit.message("Clashes with other changes"),
       })
       if (result.reason === "refused")
-        dropClashing(a, opened.outermost, from, steps.slice(i + 1), s => {
+        dropClashing(a, opened.outermost.id, from, steps.slice(i + 1), s => {
           const next = argsOf(s)
           return changes(next) ? tryPerformOf(a)(HISTORY_RESTORE.id, next) : undefined
         })
       return
     }
-    a.moveHistory(opened.outermost, from)
+    a.moveHistory(opened.outermost.id, from)
     if (!result?.ok) continue
     if (page && page !== shownPageId(opened)) a.openPage(page)
     return

@@ -17,11 +17,11 @@ export type HistoryBy = "user" | "ai" | "window"
 
 // 画面の履歴の段: 変えたページとフォルダごとの前と後（足した物の前と、無くした物の後は "none"）。seq は、この窓で段を始めた順の番号
 // （利用者の段は始めたとき、AI とほかの窓の段は届いたときに振る。マシンの時計は合わせ直しで後ろへ戻ることがあるので、並びは時計で決めない）。
-// books は、変えた物を持つブックの id（この段を入れる履歴。1 回の操作が、いくつかのブックを変えることがある）
+// outermosts は、この段を入れる履歴の鍵: 変えた物を持つブックの id（1 回の操作が、いくつかのブックを変えることがある）。書庫の段は LIBRARY_HISTORY
 export interface HistoryStep {
   seq: number
   by: HistoryBy
-  books: readonly string[]
+  outermosts: readonly string[]
   pages: Readonly<Record<string, RowChange<PageRow>>>
   folders: Readonly<Record<string, RowChange<Folder>>>
 }

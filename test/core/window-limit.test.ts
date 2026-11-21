@@ -9,7 +9,10 @@ const showing = (id: string, ...books: string[]): BookScreen =>
     def: "book",
     props: {},
     stages: {
-      stages: books.map((book, i) => ({ id: `${id}-s${i}`, opened: { kind: "page", outermost: book, page: "p" } })),
+      stages: books.map((book, i) => ({
+        id: `${id}-s${i}`,
+        opened: { kind: "page", outermost: { kind: "book", id: book }, page: "p" },
+      })),
     },
   }) as unknown as BookScreen
 

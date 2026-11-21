@@ -73,16 +73,16 @@ export interface WindowActions {
   requestPrint(): void // 画面を刷ってほしいと頼む（刷るのはホストクライアント。刷る物は画面が印刷のときだけ出す）
   requestBack(): void // ブラウザの履歴を 1 つ戻してほしいと頼む（戻すのはホストクライアント。戻る先が無い canGoBack が false のときは、頼んでも何も起きない）
   closePicker(): void
-  // ブック book の画面の履歴（book が LIBRARY_HISTORY なら、書庫の履歴）の、戻せる（from が undo）かやり直せる（redo）最後の画面の履歴の段を、反対の側へ移す。それが変えたほかのブックの画面の履歴でも移す。
+  // ブック outermost の画面の履歴（outermost が LIBRARY_HISTORY なら、書庫の履歴）の、戻せる（from が undo）かやり直せる（redo）最後の画面の履歴の段を、反対の側へ移す。それが変えたほかのブックの画面の履歴でも移す。
   // 画面の履歴の段を戻す・やり直すアクションを行えたあとに呼ぶ
-  moveHistory(book: string, from: "undo" | "redo"): void
-  // ブック book の画面の履歴（book が LIBRARY_HISTORY なら、書庫の履歴）の、戻せる（from が undo）かやり直せる（redo）最後の画面の履歴の段を捨てる。それが変えたほかのブックの画面の履歴からも捨てる。
+  moveHistory(outermost: string, from: "undo" | "redo"): void
+  // ブック outermost の画面の履歴（outermost が LIBRARY_HISTORY なら、書庫の履歴）の、戻せる（from が undo）かやり直せる（redo）最後の画面の履歴の段を捨てる。それが変えたほかのブックの画面の履歴からも捨てる。
   // 画面の履歴の段を戻す・やり直すアクションが断られ、その段をもう置き直せないときに呼ぶ
-  dropHistory(book: string, from: "undo" | "redo"): void
-  // 同じ処理の中でこのあと行うアクションを、ブック book の最後の画面の履歴の段に足す（足して始めたその場の編集を確定するとき。足すのと書くのを 1 つの画面の履歴の段にする）。
+  dropHistory(outermost: string, from: "undo" | "redo"): void
+  // 同じ処理の中でこのあと行うアクションを、ブック outermost の最後の画面の履歴の段に足す（足して始めたその場の編集を確定するとき。足すのと書くのを 1 つの画面の履歴の段にする）。
   // 足すのは、そのブックに最後に入れた画面の履歴の段が、そのブックの最後の物のときだけ（元に戻す・やり直すのあとは足さずに、別の画面の履歴の段になる）。
   // 足したあと何も変わらなければ（足した物を書かずに消したなど）、その画面の履歴の段ごと無くなる
-  continueStep(book: string): void
+  continueStep(outermost: string): void
 }
 
 // 画面の操作のうち、ほかのスクリーン・ステージを id で名指す物と、開いた 1 枚の id を返す開き方。プラグイン API には出さない（土台と base の決まったファイルが、素の操作として使う）

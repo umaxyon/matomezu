@@ -51,12 +51,12 @@ export function createUnseenChanges(deps: {
 }): UnseenChanges {
   const { getState, setState, nextSeq, options } = deps
   // まだ見ていない、AI とほかの窓の変更（古い順。ブックごとに 1 つの画面の履歴の段で、見えたらそのブックの画面の履歴に入る）。act は常駐が 1 回の perform に振った印。
-  // step の、ページとフォルダの行の前と後から、見えたか・消えたかを決める。book は変えたブック、
+  // step の、ページとフォルダの行の前と後から、見えたか・消えたかを決める。outermost は変えたブックの id、
   // places は変えた・足した・無くしたページとフォルダの id（常駐に、見えた・消えたと知らせる範囲）
   type Unseen = {
     step: HistoryStep
     act: string
-    book: string
+    outermost: string
     places: readonly string[]
   }
   let unseen: Unseen[] = []
@@ -79,7 +79,7 @@ export function createUnseenChanges(deps: {
   const seenIn = (u: Unseen) =>
     shownBookScreens(deps.catalog(), getState().window)
       .flatMap(s => s.stages.stages)
-      .some(st => st.opened?.outermost === u.book && changeSeen(u.step, shownPageId(st.opened), seenTestOf(st)))
+      .some(st => st.opened?.outermost.id === u.outermost && changeSeen(u.step, shownPageId(st.opened), seenTestOf(st)))
   // まだ見ていない変更のうち、どこかのステージで見えた物を、そのブックの画面の履歴に届いた順の位置で差し込む（窓が見えていない間は差し込まない）
   const checkSeen = () => {
     checkSeenInLibrary()
@@ -88,8 +88,8 @@ export function createUnseenChanges(deps: {
     if (now.length === 0) return
     unseen = unseen.filter(u => !now.includes(u))
     const history = { ...getState().history }
-    for (const { step, act, book, places } of now) {
-      history[book] = insertStep(history[book] ?? NO_HISTORY, step)
+    for (const { step, act, outermost, places } of now) {
+      history[outermost] = insertStep(history[outermost] ?? NO_HISTORY, step)
       if (step.by === "ai") options.aiEditTicket?.({ act, places, outcome: "seen" })
     }
     setState({ history })
@@ -172,7 +172,7 @@ export function createUnseenChanges(deps: {
     const step: HistoryStep = {
       seq: nextSeq(),
       by: change.by,
-      books: [LIBRARY_HISTORY],
+      outermosts: [LIBRARY_HISTORY],
       pages: of(rows.pages, was.pages, to.pages),
       folders: of(rows.folders, was.folders, to.folders),
     }
@@ -209,14 +209,13 @@ export function createUnseenChanges(deps: {
     unseen = unseen.filter(u => {
       const lost = lostIn(u.step, was, now)
       if (lost.length > 0 && u.step.by === "ai")
-        options.aiEditTicket?.({ entry: u.book, act: u.act, places: u.places, outcome: "lost", lost })
+        options.aiEditTicket?.({ entry: u.outermost, act: u.act, places: u.places, outcome: "lost", lost })
       return lost.length === 0
     })
     // 物 id のステージエントリの id（無ければ undefined）
     const entryOf = (id: string) => {
       const o = outermostOf(was, id)
-      if (o === NO_OUTERMOST) return undefined
-      return o.kind === "book" ? o.book : o.kind === "page" ? o.page : o.binder
+      return o === NO_OUTERMOST ? undefined : o.id
     }
     unseenInLibrary = unseenInLibrary.filter(u => {
       const lost = lostIn(u.step, was, now)
@@ -235,17 +234,17 @@ export function createUnseenChanges(deps: {
   // よその変更 change（ブックを、確かめた世界で before から after にした）を、まだ見ていない変更に足す（ブックごとに HISTORY_LIMIT まで。古い物から捨てる）
   const addUnseen = (change: { by: "ai" | "window"; act: string }, before: Book, after: Book) => {
     if (!patchOf(before, after)) return
-    const mine = unseen.filter(u => u.book === after.id)
+    const mine = unseen.filter(u => u.outermost === after.id)
     const over = mine.length >= HISTORY_LIMIT ? mine[0] : undefined
     const changes = changesBetween([before], [after])
     const step: HistoryStep = {
       seq: nextSeq(),
       by: change.by,
-      books: [after.id],
+      outermosts: [after.id],
       ...rowChangesOf(tablesOf([before]), changes),
     }
     const places = [...Object.keys(changes.pages), ...Object.keys(changes.folders)]
-    unseen = [...unseen.filter(u => u !== over), { step, act: change.act, book: after.id, places }]
+    unseen = [...unseen.filter(u => u !== over), { step, act: change.act, outermost: after.id, places }]
   }
   // よその変更 change（by が host なら、画面の履歴に入れない）を、確かめた世界の表 tables と最後に知っている表から比べて、まだ見ていない変更に足し、
   // tables を最後に知っている表にする

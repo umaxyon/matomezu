@@ -23,7 +23,7 @@ describe("コントロールセンター", () => {
 
   test("最初に開くのは、渡したブックの最初の 1 冊", () => {
     const instance = newStore()
-    expect(screenOf(instance.state.getState().window).stages[0]!.opened?.outermost).toBe(SAMPLE_BOOKS[0]!.id)
+    expect(screenOf(instance.state.getState().window).stages[0]!.opened?.outermost.id).toBe(SAMPLE_BOOKS[0]!.id)
     expect(createBookIn(instance, "s1", { title: "新しい図" })).toBe(true)
   })
 

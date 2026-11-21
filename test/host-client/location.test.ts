@@ -210,7 +210,7 @@ test("開いたときは URL の場所を当てはめる（読み直しても同
   const store = newStore()
   const f = fakePlace("?b0=b3&p0=p1&v0=1,0,0&c=0&r=0.5")
   followLocation(store, f.place)
-  expect(screenOf(store.state.getState().window).stages[0]!.opened?.outermost).toBe("b3")
+  expect(screenOf(store.state.getState().window).stages[0]!.opened?.outermost.id).toBe("b3")
 })
 
 // 同じ同期の処理が終わるのを待つ
@@ -234,7 +234,7 @@ test("ブック・ページの移動と分割はブラウザの履歴に積み�
   // 戻る: 1 つ前の場所（b2 を開いた 1 つのステージ）
   f.back(f.pushed[0]!)
   const ws = screenOf(store.state.getState().window)
-  expect(ws.stages.map(s => s.opened?.outermost)).toEqual(["b2"])
+  expect(ws.stages.map(s => s.opened?.outermost.id)).toEqual(["b2"])
   expect(f.pushed).toHaveLength(2)
 })
 

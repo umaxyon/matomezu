@@ -12,7 +12,7 @@ import { LIBRARY_HISTORY, NO_HISTORY } from "../../core/history"
 import { actionQuery, inspect, type Query, withoutPermissions } from "../../core/inspect"
 import { splitId } from "../../core/names"
 import { permittedIn } from "../../core/perform-world"
-import { shownPageId, stageBlocks } from "../../core/stage"
+import { openedBook, shownPageId, stageBlocks } from "../../core/stage"
 import {
   currentScreen,
   currentStageOf,
@@ -130,7 +130,7 @@ export function commandContext(
 ): CommandContext | null {
   const stage = stageIn(state.window, stageId)
   if (!stage) return null
-  const book = (stage.opened && state.books[stage.opened.outermost]) || NO_BOOK
+  const book = openedBook(state.books, stage.opened) ?? NO_BOOK
   const page = shownPageId(stage.opened)
   const workspace = workspaceOf(state.window, stageId)
   const screen = screenOfStage(state.window, stageId) ?? currentScreen(state.window)

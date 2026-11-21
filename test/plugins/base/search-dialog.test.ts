@@ -21,7 +21,7 @@ function markdownStore(texts: readonly string[]) {
       title: `p${i + 1}`,
       fields: { text },
     })
-  const id = screenOf(store.state.getState().window).stages[0]!.opened!.outermost
+  const id = screenOf(store.state.getState().window).stages[0]!.opened!.outermost.id
   const book = () => store.state.getState().books[id] as Book
   const pages = () => pagesOf(book()).map(p => p.id)
   const search = () => pluginValueOf(store.state.getState().pluginValues, "s1", SEARCH_STATE)

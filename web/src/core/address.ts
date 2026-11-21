@@ -85,7 +85,7 @@ function stagesPlaceOf(ws: Workspace, states: (stage: string) => Readonly<Record
     places: ws.stages.map(s => {
       const view = s.mode.kind === "print-preview" ? s.mode.back : s
       return {
-        outermost: s.opened?.outermost ?? NO_OUTERMOST,
+        outermost: s.opened?.outermost.id ?? NO_OUTERMOST,
         page: shownPageId(s.opened),
         binder: s.opened?.kind === "binder" ? s.opened.binder : null,
         zoom: view.zoom,

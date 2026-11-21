@@ -809,7 +809,7 @@ test("show が届いたら、言われたステージでブックを開き、カ
   s.emit("show", { book: "b1", stage: "s2" })
   const ws = screenOf(s.store.state.getState().window)
   expect(ws.current).toBe("s2")
-  expect(ws.stages.map(st => st.opened?.outermost ?? null)).toEqual(["b1", "b1"])
+  expect(ws.stages.map(st => st.opened?.outermost.id ?? null)).toEqual(["b1", "b1"])
 })
 
 test("show の mode が print-preview なら、印刷プレビューで開く", async () => {
@@ -825,7 +825,7 @@ test("show の split は、そのステージを分けて右にできたステ�
   const ws = screenOf(s.store.state.getState().window)
   expect(ws.stages.map(st => st.id)).toEqual(["s1", "s2"])
   expect(ws.current).toBe("s2")
-  expect(ws.stages[1]?.opened?.outermost).toBe("b1")
+  expect(ws.stages[1]?.opened?.outermost.id).toBe("b1")
 })
 
 test("画面が見つけた warning は、つながりの id を添えて常駐に知らせ、つなぎ直すたびに知らせ直す", async () => {

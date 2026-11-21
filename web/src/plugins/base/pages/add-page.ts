@@ -9,7 +9,7 @@ export function addPageIn(
   stage: string,
   args: ArgsOf<typeof PAGE_ADD.id>,
 ): boolean {
-  const book = stageIn(instance.state.getState().window, stage)?.opened?.outermost
+  const book = stageIn(instance.state.getState().window, stage)?.opened?.outermost.id
   if (book === undefined) return false
   const done = instance.actions.perform(PAGE_ADD.id, args, { book })
   if (!done.ok) return false
