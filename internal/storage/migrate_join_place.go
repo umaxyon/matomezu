@@ -11,7 +11,6 @@ import (
 const joinRequestMail = "@matomezu/base:join-request"
 
 // joinRequestPlaces は、参加要求の郵便が持つ Orca のワークスペースの名前（props.orcaWorkspace）を、AI のセッションが動いている場所（props.place）に名前を替える
-// （場所は AI が伝えず、MCP が AI を起動するプログラムに訊くようになったため）
 func joinRequestPlaces(tx *sql.Tx) error {
 	type table struct{ name, where, and string }
 	tables := []table{{"records", ` WHERE subject = '` + mailKind + `'`, ` AND subject = '` + mailKind + `'`}}

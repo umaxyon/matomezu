@@ -12,7 +12,7 @@ import (
 // currentWorkKind は、ワークルームごとのカレントワーク（今やっているチケットの id か none）の種類
 const currentWorkKind = "@matomezu/taskboard:current-work"
 
-// fillCurrentWorks は、カレントワークのレコードの無いワークルームに、それまで画面がそのワークルームの今のチケットとして先頭に見せていたチケットを書く:
+// fillCurrentWorks は、カレントワークのレコードの無いワークルームに、それまで画面がそのワークルームのチケットとして先頭に見せていたチケットを書く:
 // 担当に入っていて、プロジェクトの作業中のレーンにあるチケットのうち、更新の新しい順・プロジェクト・番号の順で先頭の物（無ければ書かない）。
 // 種類の表（rec_<n>）があればそこへ、無ければ伝えられる前の records の行に入れる（種類を伝えたときに表へ移り、索引キーも入る）
 func fillCurrentWorks(tx *sql.Tx) error {

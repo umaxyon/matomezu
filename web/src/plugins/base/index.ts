@@ -333,7 +333,6 @@ export {
   participantCategory,
   READS_ADMIN,
   READS_WORKROOM_KEYS,
-  SESSION_RENAME,
   sessionTitleIn,
   VISITOR_JOINED_MESSAGE,
   visitorName,

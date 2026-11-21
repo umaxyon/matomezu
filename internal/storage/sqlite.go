@@ -194,7 +194,7 @@ var migrations = []string{
 	`SELECT 1;`,
 	// 書庫ホームとフォルダの直下で名前が重なるエントリの、並びの後ろに在る方の名前に番号を足す（Go の移し替え。migrate_titles.go）
 	`SELECT 1;`,
-	// ワークルームの今のチケットの記録を捨てる（今のチケットは、チケットの担当とレーンから決める。Go の移し替え。migrate_current_ticket.go）
+	// ワークルームのチケットを記録していた古い種類を捨てる（Go の移し替え。migrate_current_ticket.go）
 	`SELECT 1;`,
 	// チケットに規模（volume）を、プロジェクトの cardShows に volume を足す（Go の移し替え。migrate_ticket_volume.go）
 	`SELECT 1;`,
