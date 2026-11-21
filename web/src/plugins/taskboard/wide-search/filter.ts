@@ -1,8 +1,9 @@
 // チケットの絞り（横断検索のチケットモードが決め、タスクボードが従う。見た目でない。窓のプラグイン状態に持つ）:
 // 言葉に当たったチケットの id の集合（言葉が無ければ null）と、プロジェクト・タグ・優先度・チケットボリュームの選び（空なら絞らない）
 import type { WideSearchHit } from "../../../plugin-api"
+import { prefixKey } from "../project"
 import type { Ticket } from "../ticket"
-import { ticketNumberOf } from "../ticket/label"
+import { ticketLabelParts } from "../ticket/label"
 
 export interface TicketFilter {
   term: string // 入力の言葉（空なら言葉では絞らない）
@@ -60,9 +61,24 @@ const hasTag = (chosen: readonly string[], tags: readonly string[]) =>
 export const toggled = (chosen: readonly string[], value: string): readonly string[] =>
   chosen.includes(value) ? chosen.filter(v => v !== value) : [...chosen, value]
 
-// 入力を空白で分けた語（どれかに当たれば横断検索の当たり）。数字で終わる語（M-0050・0050 など）は、その番号（50）も一緒に探す（元の語は残す）
+// 入力を空白で分けた語（どれかに当たれば横断検索の当たり。重ならない）
 export function searchTerms(input: string): string[] {
-  const words = input.split(/\s+/).filter(w => w !== "")
-  const numbers = words.flatMap(w => ticketNumberOf(w) ?? [])
-  return [...new Set([...words, ...numbers])]
+  return [...new Set(input.split(/\s+/).filter(w => w !== ""))]
+}
+
+// 語のどれかが番号の見せ方（M-0050・0050 など）として指すチケットの id。番号はぴったり同じ物だけで、頭があればそのプロジェクトのプレフィクスとも合う物（大文字小文字は見ない）。
+// 番号は本文の字としては探さない（23 で「手順23」に当てない）。prefixOf はプロジェクトの id からそのプレフィクス
+export function numberedTicketIds(
+  terms: readonly string[],
+  tickets: readonly Ticket[],
+  prefixOf: (project: string) => string,
+): string[] {
+  const wanted = terms.flatMap(w => ticketLabelParts(w) ?? [])
+  return tickets
+    .filter(t =>
+      wanted.some(
+        w => w.number === t.number && (w.prefix === "" || prefixKey(w.prefix) === prefixKey(prefixOf(t.project))),
+      ),
+    )
+    .map(t => t.id)
 }

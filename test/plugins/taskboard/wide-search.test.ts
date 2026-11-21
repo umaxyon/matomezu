@@ -1,13 +1,14 @@
 // 横断検索のチケットの絞り（taskboard/wide-search/filter.ts）: 横断検索の当たりのチケットの id の集合と、プロジェクト・タグ・優先度の選びの掛け合わせ
 import { expect, test } from "bun:test"
 import type { Ticket } from "../../../web/src/plugins/taskboard/ticket"
-import { ticketNumberOf } from "../../../web/src/plugins/taskboard/ticket/label"
+import { ticketLabelParts } from "../../../web/src/plugins/taskboard/ticket/label"
 import {
   filterTickets,
   isFiltering,
   isInitialChoice,
   NO_FILTER,
   NO_TAGS,
+  numberedTicketIds,
   searchTerms,
   ticketIdsOf,
   toggled,
@@ -87,19 +88,34 @@ test("選びは、押すと入り、もう一度押すと外れる", () => {
   expect(toggled(["a", "b"], "a")).toEqual(["b"])
 })
 
-test("数字で終わる語（プレフィクスに数字が続く形も、数字だけも）は、先頭の 0 を除いた数字も一緒に探し、元の語は残す", () => {
-  expect(ticketNumberOf("M-0050")).toBe("50")
-  expect(ticketNumberOf("T-0012")).toBe("12")
-  expect(ticketNumberOf("M-10000")).toBe("10000")
-  expect(ticketNumberOf("login")).toBeUndefined()
-  expect(ticketNumberOf("2026")).toBe("2026")
-  expect(ticketNumberOf("0164")).toBe("164")
-  expect(ticketNumberOf("M-0000")).toBeUndefined()
-  expect(searchTerms("M-0050 login")).toEqual(["M-0050", "login", "50"])
+test("数字で終わる語（プレフィクスに数字が続く形も、数字だけも）は、頭と番号に分ける", () => {
+  expect(ticketLabelParts("M-0050")).toEqual({ prefix: "M-", number: 50 })
+  expect(ticketLabelParts("M-10000")).toEqual({ prefix: "M-", number: 10000 })
+  expect(ticketLabelParts("0164")).toEqual({ prefix: "", number: 164 })
+  expect(ticketLabelParts("2026")).toEqual({ prefix: "", number: 2026 })
+  expect(ticketLabelParts("login")).toBeUndefined()
+  expect(ticketLabelParts("M-0000")).toBeUndefined()
+})
+
+test("横断検索に送る語は、打った語そのもの（番号は字として足さない）", () => {
+  expect(searchTerms("M-0050 login")).toEqual(["M-0050", "login"])
   expect(searchTerms("  ログイン  ")).toEqual(["ログイン"])
-  expect(searchTerms("0164")).toEqual(["0164", "164"])
-  expect(searchTerms("164")).toEqual(["164"])
-  expect(searchTerms("T-0012 T-0012")).toEqual(["T-0012", "12"])
+  expect(searchTerms("T-0012 T-0012")).toEqual(["T-0012"])
+})
+
+test("番号の見せ方の語は、番号がぴったり同じで、頭があればプレフィクスも合うチケットに当たる", () => {
+  const list = [
+    ticket("m23", { number: 23 }),
+    ticket("m230", { number: 230 }),
+    ticket("m1023", { number: 1023 }),
+    ticket("t23", { project: "p2", number: 23 }),
+  ]
+  const prefixOf = (p: string) => (p === "p1" ? "M-" : "T-")
+  expect(numberedTicketIds(["M-0023"], list, prefixOf)).toEqual(["m23"])
+  expect(numberedTicketIds(["m-23"], list, prefixOf)).toEqual(["m23"])
+  expect(numberedTicketIds(["0023"], list, prefixOf)).toEqual(["m23", "t23"])
+  expect(numberedTicketIds(["X-0023", "手順"], list, prefixOf)).toEqual([])
+  expect(numberedTicketIds(["T-0023", "M-0230"], list, prefixOf)).toEqual(["m230", "t23"])
 })
 
 test("選びの初めの状態は、出しているプロジェクトだけを選び、ほかは選ばない形", () => {
