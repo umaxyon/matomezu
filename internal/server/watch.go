@@ -77,7 +77,6 @@ type wakeItem struct {
 	kind        string    // wakeAccepted・wakeDeclined・wakeMessage
 	line        string    // 流す 1 行
 	from        string    // AI 間メッセージの送り手のワークルーム名
-	chars       int       // AI 間メッセージの本文の字数
 	pointed     bool      // 1 回の知らせに入りきらず、通り道に「届いた」だけを渡した（本文は呼び出しの返事で渡す）
 	replyOnly   bool      // 通り道の AI のプログラムにその会話が無かった（absent）。呼び出しの返事だけで渡す
 	lentTo      int64     // 貸している通り道の番号（0 は貸していない）
@@ -263,7 +262,7 @@ func (h *Hub) nextWake(l *wakeLine, now time.Time) (WakeOut, bool) {
 	pick.lentPointer = !l.limits.fits(pick.line)
 	text := pick.line
 	if pick.lentPointer {
-		text = "matomezu: the AI in workroom " + quote(pick.from) + " sent you a message (" + strconv.Itoa(pick.chars) + " characters, too long for this notice). Call any matomezu tool to receive it."
+		text = "matomezu from AI " + quote(pick.from) + ": too long, call any matomezu tool"
 	}
 	text = l.limits.shape(text)
 	h.rememberLent(text)
@@ -414,13 +413,13 @@ func (h *Hub) wakeOnParticipants(before map[string]bool) {
 		s, ok := now[id]
 		switch {
 		case !ok:
-			h.enqueueWake(wakeItem{participant: id, kind: wakeDeclined, line: noticeLine("matomezu: the user declined your request to join (participant " + id + "). Tell the user, and do not ask again unless the user asks.")})
+			h.enqueueWake(wakeItem{participant: id, kind: wakeDeclined, line: noticeLine("matomezu: join declined")})
 		case s.State == stateVisitor:
-			h.enqueueWake(wakeItem{participant: id, kind: wakeAccepted, line: noticeLine("matomezu: the user accepted your request to join as a visitor that only reads (participant " + id + "). The welcome comes with this turn or with your next matomezu call.")})
+			h.enqueueWake(wakeItem{participant: id, kind: wakeAccepted, line: noticeLine("matomezu: joined as a visitor (read only)")})
 		case s.State == stateJoined:
 			// 「参加しました」は、このターンの始まりのフック（talked）か、その参加者の次の呼び出しの返事の、先に来た方が 1 度だけ添える
 			// （伝えたと印を付けるので二重にならない。どちらが先かは AI のプログラムによるので、文は両方を言う）
-			h.enqueueWake(wakeItem{participant: id, kind: wakeAccepted, line: noticeLine("matomezu: the user accepted your request to join (participant " + id + ", workroom " + rooms[s.Workroom] + "). The welcome comes with this turn or with your next matomezu call.")})
+			h.enqueueWake(wakeItem{participant: id, kind: wakeAccepted, line: noticeLine("matomezu: joined as " + rooms[s.Workroom])})
 		}
 	}
 }
