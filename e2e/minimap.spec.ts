@@ -150,10 +150,20 @@ test("拡大縮小はなめらかに移り、途中でもポインタの下の�
   const p = (await paper(page).boundingBox())!
   const at = { x: p.x + 300, y: p.y + 200 }
   await page.mouse.move(at.x, at.y)
+  // 移りが始まったら、すぐ止める（見つけるまでに 200ms が過ぎて、移り終わらないように）
+  await paper(page).evaluate(el =>
+    el.addEventListener(
+      "transitionrun",
+      () => {
+        for (const a of el.getAnimations()) a.pause()
+      },
+      { once: true },
+    ),
+  )
   await page.keyboard.down("Control")
   await page.mouse.wheel(0, -100)
   await page.keyboard.up("Control")
-  // 移りの途中（200ms の半ば）で止めて見る
+  // 移りの途中（200ms の半ば）で見る
   const transitions = () => paper(page).evaluate(el => el.getAnimations().length)
   await expect.poll(transitions).toBeGreaterThan(0)
   await paper(page).evaluate(el => {
