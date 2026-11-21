@@ -1,7 +1,7 @@
 // ブックと書庫の確かめと整え: 残したブック・フォルダの行の確かめ・システムフォルダ・読めない物のフォルダへの出し入れと完全に消す行。
 // 台帳アセンブルの結果（Assembled）は、呼ぶたびに引数で受ける
 
-import { checkBooks } from "../core/book"
+import { checkBooks, checkOutsidePages } from "../core/book"
 import type { CoreCatalog } from "../core/core-catalog"
 import { namingOf } from "../core/entries"
 import { BROKEN, UNREADABLE_ID, unreadableFolderOf } from "../core/folders"
@@ -16,15 +16,22 @@ import { type RowChange, rowChanges } from "./wire"
 declare const crypto: { randomUUID(): string }
 
 // engine.ts の matomezuCheckBooks の中身
+// warning 1 つを、常駐が持つ形にする: entry は warning の付くステージエントリ（ブックか、ブックの外のページ）の id
+const entryLine = (n: Warning, unreadable: boolean) => ({
+  entry: n.params.book ?? n.params.page ?? "",
+  code: n.code,
+  warning: warningText(n),
+  unreadable,
+})
+
 export function checkBookLines(of: Assembled, books: string): string {
   const read = checkBooks(of.catalog.core, JSON.parse(books) as unknown[])
-  const line = (n: Warning, unreadable: boolean) => ({
-    book: n.params.book ?? "",
-    code: n.code,
-    warning: warningText(n),
-    unreadable,
-  })
-  return JSON.stringify([...read.warnings.map(n => line(n, true)), ...read.partial.map(n => line(n, false))])
+  return JSON.stringify([...read.warnings.map(n => entryLine(n, true)), ...read.partial.map(n => entryLine(n, false))])
+}
+
+// engine.ts の matomezuCheckOutsidePages の中身
+export function checkOutsidePageLines(of: Assembled, pages: string): string {
+  return JSON.stringify(checkOutsidePages(of.catalog.core, JSON.parse(pages) as unknown[]).map(n => entryLine(n, false)))
 }
 
 // engine.ts の matomezuCheckLibrary の中身

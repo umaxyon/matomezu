@@ -22,53 +22,54 @@ var source string
 
 // Engine は読み込んだホストのエンジン（engine.js）
 type Engine struct {
-	mu          sync.Mutex
-	vm          *goja.Runtime
-	source      Source // 行っている間だけある、レコードを引く口（PerformWith）
-	kinds       func() string
-	aiRows      func(string, string) string
-	keysOf      func(string, string) string
-	searchOf    func(string, string) string
-	parentsOf   func(string, string) string
-	unlisted    func(string, string) string
-	perform     func(string) string
-	readAI      func() string
-	check       func(string) string
-	checkTree   func(string, string) string
-	lines       func(string) string
-	settings    func(string) string
-	notes       func(string) string
-	without     func(string, string) string
-	talk        func() string
-	join        func() string
-	end         func() string
-	alive       func(string, string, float64) bool
-	needs       func(string, string) string
-	roles       func() string
-	aiRecords   func(string, string, string, string) string
-	once        func() string
-	sysFolders  func() string
-	settle      func(string, string, string, string) string
-	movedIfOff  func(string, string, string, string, string) string
-	settleFail  func(string) string
-	purge       func(string, string, string) string
-	records     func(string) string
-	joinedMsg   func(string, string) string
-	visitorMsg  func(string) string
-	workTitle   func(string, string, string) string
-	live        func(string, string, string, string) string
-	forAI       func(string) string
-	briefs      func(string) string
-	placed      func(string) string
-	aiPage      func(string) string
-	pagePlaced  func(string) string
-	item        func(string, string) string
-	use         goja.Callable
-	disabledFor goja.Callable
-	disabled    []string
-	aiCatalog   json.RawMessage
-	modules     plugin.Modules
-	warnings    []string
+	mu           sync.Mutex
+	vm           *goja.Runtime
+	source       Source // 行っている間だけある、レコードを引く口（PerformWith）
+	kinds        func() string
+	aiRows       func(string, string) string
+	keysOf       func(string, string) string
+	searchOf     func(string, string) string
+	parentsOf    func(string, string) string
+	unlisted     func(string, string) string
+	perform      func(string) string
+	readAI       func() string
+	check        func(string) string
+	checkOutside func(string) string
+	checkTree    func(string, string) string
+	lines        func(string) string
+	settings     func(string) string
+	notes        func(string) string
+	without      func(string, string) string
+	talk         func() string
+	join         func() string
+	end          func() string
+	alive        func(string, string, float64) bool
+	needs        func(string, string) string
+	roles        func() string
+	aiRecords    func(string, string, string, string) string
+	once         func() string
+	sysFolders   func() string
+	settle       func(string, string, string, string) string
+	movedIfOff   func(string, string, string, string, string) string
+	settleFail   func(string) string
+	purge        func(string, string, string) string
+	records      func(string) string
+	joinedMsg    func(string, string) string
+	visitorMsg   func(string) string
+	workTitle    func(string, string, string) string
+	live         func(string, string, string, string) string
+	forAI        func(string) string
+	briefs       func(string) string
+	placed       func(string) string
+	aiPage       func(string) string
+	pagePlaced   func(string) string
+	item         func(string, string) string
+	use          goja.Callable
+	disabledFor  goja.Callable
+	disabled     []string
+	aiCatalog    json.RawMessage
+	modules      plugin.Modules
+	warnings     []string
 }
 
 // New はホストのエンジン（engine.js）を読み込む
@@ -120,6 +121,7 @@ func New() (*Engine, error) {
 		{"matomezuPerform", &e.perform},
 		{"matomezuAiCatalog", &e.readAI},
 		{"matomezuCheckBooks", &e.check},
+		{"matomezuCheckOutsidePages", &e.checkOutside},
 		{"matomezuCheckLibrary", &e.checkTree},
 		{"matomezuWarningLines", &e.lines},
 		{"matomezuReadSettings", &e.settings},

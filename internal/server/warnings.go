@@ -61,6 +61,11 @@ func (h *Hub) Warnings() []string {
 			out = append(out, n.Warning)
 		}
 	}
+	for _, id := range h.pagesNotInBooks() {
+		if n, ok := h.bookWarnings[id]; ok {
+			out = append(out, n.Warning)
+		}
+	}
 	out = append(out, h.annotationWarningLines()...)
 	out = append(out, h.recordWarningLines()...)
 	ids := make([]string, 0, len(h.windowWarnings))
@@ -109,7 +114,7 @@ func (h *Hub) recordWarnings(ids []string, found []engine.BookWarning) {
 		delete(h.bookWarnings, id)
 	}
 	for _, n := range found {
-		h.bookWarnings[n.Book] = n
+		h.bookWarnings[n.Entry] = n
 		if !before[n.Warning] {
 			fmt.Fprintln(os.Stderr, "warning:", n.Warning)
 			before[n.Warning] = true

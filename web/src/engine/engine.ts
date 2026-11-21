@@ -19,6 +19,7 @@ import { aiAnnotationsOf, aiBriefsOf, annotationsWithout, checkAnnotationLines, 
 import { type Input, perform } from "./host-perform"
 import {
   checkBookLines,
+  checkOutsidePageLines,
   checkLibraryLine,
   movedIfOffOf,
   purgedRowsOf,
@@ -95,6 +96,10 @@ let lastAdded: readonly Plugin[] = []
 // id・番号・warning の 1 行と、ブックごと読めないか（unreadable）を返す（常駐が一覧に持つ）
 ;(globalThis as { matomezuCheckBooks?: (books: string) => string }).matomezuCheckBooks = books =>
   checkBookLines(assembled, books)
+
+// ブックの外のページを今の機能台帳で確かめ、読めるが機能台帳に無い物を持つページ（W007）の id・番号・warning の 1 行を返す（常駐が一覧に持つ。形は matomezuCheckBooks と同じ）
+;(globalThis as { matomezuCheckOutsidePages?: (pages: string) => string }).matomezuCheckOutsidePages = pages =>
+  checkOutsidePageLines(assembled, pages)
 
 // 残したフォルダの行の全部（書庫ホーム・フォルダ・ブック・バインダ）とページの行の id の全部が木の決まりを守るかを確かめ、破れていれば warning（W030）の 1 行を、守っていれば空の文字列を返す
 // （常駐が一覧に持つ。データには手を付けない）

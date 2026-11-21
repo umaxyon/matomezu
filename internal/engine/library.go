@@ -5,18 +5,28 @@ import (
 	"fmt"
 )
 
-// BookWarning は warning のあるブック: ブックの id・warning の番号・warning の 1 行と、ブックごと読めないか（エンジンが決める。
+// BookWarning は warning のあるステージエントリ（ブックか、ブックの外のページ）: その id・warning の番号・warning の 1 行と、ブックごと読めないか（エンジンが決める。
 // ブックごと読めない W005 形に合わない・W006 決まりを守らない・読めないページを持つ W027〜W029、読めるが機能台帳に無い物を持つ W007 など。1 冊に 1 つ）
 type BookWarning struct {
-	Book       string `json:"book"`
+	Entry      string `json:"entry"`
 	Code       string `json:"code"`
 	Warning    string `json:"warning"`
 	Unreadable bool   `json:"unreadable"`
 }
 
 // CheckBooks はブックを今の機能台帳で確かめ、warning のあるものを返す（データには手を付けない）
-func (e *Engine) CheckBooks(books []json.RawMessage) (out []BookWarning, err error) {
-	b, err := json.Marshal(books)
+func (e *Engine) CheckBooks(books []json.RawMessage) ([]BookWarning, error) {
+	return e.entryWarnings(books, func(s string) string { return e.check(s) })
+}
+
+// CheckOutsidePages はブックの外のページを今の機能台帳で確かめ、読めるが機能台帳に無い物を持つページの warning（W007）を返す（データには手を付けない）
+func (e *Engine) CheckOutsidePages(pages []json.RawMessage) ([]BookWarning, error) {
+	return e.entryWarnings(pages, func(s string) string { return e.checkOutside(s) })
+}
+
+// entryWarnings は、本文の並び bodies をエンジンの確かめ check に渡し、warning のあるステージエントリを返す
+func (e *Engine) entryWarnings(bodies []json.RawMessage, check func(string) string) (out []BookWarning, err error) {
+	b, err := json.Marshal(bodies)
 	if err != nil {
 		return nil, err
 	}
@@ -27,7 +37,7 @@ func (e *Engine) CheckBooks(books []json.RawMessage) (out []BookWarning, err err
 			err = fmt.Errorf("engine: %v", r)
 		}
 	}()
-	if err := json.Unmarshal([]byte(e.check(string(b))), &out); err != nil {
+	if err := json.Unmarshal([]byte(check(string(b))), &out); err != nil {
 		return nil, err
 	}
 	return out, nil

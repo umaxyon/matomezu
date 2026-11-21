@@ -113,7 +113,7 @@ type Hub struct {
 	plugins          []*plugin.Bundle // 足した追加プラグイン（plugins.go）
 	pluginsVersion   int64            // 追加プラグインが変わるたびに進む
 	disabled         []string         // 利用者が有効にしていない追加プラグインの id（エンジンが無効で組んだ物）
-	// warning のあるブックの id → そのブックの warning（ブックごと読めない W005・W006・読めないページを持つ W027〜W029・一部に無い物がある W007）。読めるかは今のプラグインで決まる値なので DB には残さず、
+	// warning のあるステージエントリ（ブックか、ブックの外のページ。ブックの外のページは W007 だけ）の id → その warning。ブックは（ブックごと読めない W005・W006・読めないページを持つ W027〜W029・一部に無い物がある W007）。読めるかは今のプラグインで決まる値なので DB には残さず、
 	// 起動したときとプラグインが変わったときに全部、ブックを書いたときにその 1 冊を確かめ直す
 	bookWarnings map[string]engine.BookWarning
 	// 効かないアノテーション（種類が無い W018・形が合わない W019）の warning の、付いているページの id → 1 行ずつ。起動したときとプラグインが変わったときに確かめ直し、
@@ -191,7 +191,7 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	// 書庫を整える（読めない物を移す・戻す、足りないシステムフォルダを足す、名前の重なりに番号を付ける）。初めての起動のアクションは、整えた書庫で行う
 	h.settleLibrary(true)
 	h.runOnceActions()
-	if err := h.checkBooks(h.order); err != nil {
+	if err := h.checkEntries(); err != nil {
 		return nil, err
 	}
 	h.checkLibrary()
@@ -202,6 +202,42 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 		return nil, err
 	}
 	return h, nil
+}
+
+// checkEntries は、全部のブックとブックの外のページを今のプラグインで確かめ直す（h.mu を持って呼ぶ）
+func (h *Hub) checkEntries() error {
+	if err := h.checkBooks(h.order); err != nil {
+		return err
+	}
+	return h.checkOutsidePages(h.pagesNotInBooks())
+}
+
+// checkOutsidePages は、ids のうちブックの外のページ（pagesNotInBooks）を今のプラグインで確かめ、warning のあるページの一覧を直す（読めるが機能台帳に無い物を持つ W007。新しい warning は常駐のログに書く）。
+// ブックの外のページでなくなったページ（ブックへ入った・バインダへ入った・ゴミ箱に入った・読めない物になった）の warning は外す（h.mu を持って呼ぶ）
+func (h *Hub) checkOutsidePages(ids []string) error {
+	outside := map[string]bool{}
+	for _, id := range h.pagesNotInBooks() {
+		outside[id] = true
+	}
+	for id := range h.bookWarnings {
+		if _, page := h.pages[id]; page && !outside[id] {
+			delete(h.bookWarnings, id)
+		}
+	}
+	ids = slices.DeleteFunc(slices.Clone(ids), func(id string) bool { return !outside[id] })
+	if len(ids) == 0 {
+		return nil
+	}
+	bodies := make([]json.RawMessage, 0, len(ids))
+	for _, id := range ids {
+		bodies = append(bodies, h.pages[id].body)
+	}
+	found, err := h.engine.CheckOutsidePages(bodies)
+	if err != nil {
+		return err
+	}
+	h.recordWarnings(ids, found)
+	return nil
 }
 
 // checkBooks は ids のブックを今のプラグインで確かめ、warning のあるブックの一覧を直す。新しい warning は常駐のログに書く。

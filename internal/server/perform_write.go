@@ -251,6 +251,7 @@ func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act
 			h.checkBook(id, e.body)
 		}
 	}
+	h.checkWrittenOutsidePages(plan)
 	if plan.tickets != nil {
 		h.aiEditTickets = *plan.tickets
 	}
@@ -289,6 +290,34 @@ func (h *Hub) changedEvent(pages, folders, records []map[string]any, annotations
 		event["counters"] = out.Counters
 	}
 	return event
+}
+
+// checkWrittenOutsidePages は、書いた物 plan に関わるブックの外のページ（書いたページと、書いたフォルダの直下に在るページ）を確かめ直し、消えたページの warning を外す
+// （確かめられなければ、ログに書いて一覧はそのまま。h.mu を持って呼ぶ）
+func (h *Hub) checkWrittenOutsidePages(plan *writePlan) {
+	if len(plan.pages) == 0 && len(plan.folders) == 0 {
+		return
+	}
+	ids := []string{}
+	for _, put := range plan.pages {
+		if put.removed {
+			delete(h.bookWarnings, put.id)
+		} else {
+			ids = append(ids, put.id)
+		}
+	}
+	written := map[string]bool{}
+	for _, put := range plan.folders {
+		written[put.id] = true
+	}
+	for _, id := range h.pagesNotInBooks() {
+		if written[h.places[id]] && !slices.Contains(ids, id) {
+			ids = append(ids, id)
+		}
+	}
+	if err := h.checkOutsidePages(ids); err != nil {
+		fmt.Fprintln(os.Stderr, "engine: could not check the pages:", err)
+	}
 }
 
 // checkBook は、書いたブック id（組んだ本文 body）を今のプラグインで確かめ、warning の一覧を直す（確かめられなければ、ログに書いて一覧はそのまま。h.mu を持って呼ぶ）

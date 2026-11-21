@@ -52,7 +52,9 @@ export function checkBooks(
     else if (read.inner.length > 0) warnings.push(...unreadableWarnings(read.inner, params).slice(0, 1))
     else {
       books.push(read.book)
-      partial.push(...missingWarnings(missingIn(catalog, [read.book], pagesOf(read.book)), params))
+      partial.push(
+        ...missingWarnings(missingIn(catalog, [read.book], pagesOf(read.book)), { ...params, of: `book ${params.book}` }),
+      )
     }
   }
   return { books, warnings, partial }
@@ -299,6 +301,16 @@ function missingIn(catalog: CoreCatalog, holders: readonly object[], pages: read
 function missingWarnings(missing: readonly string[], params: Readonly<Record<string, string>>): Warning[] {
   const [first] = missing
   return first ? [warning("W007", splitId(first).owner ?? "", { ...params, missing: missing.join(", ") })] : []
+}
+
+// ブックの外のページ saved（置き場所から読んだまま）のうち、読めるが、機能台帳に無いアイテムや設定の項目を持つページの warning W007（ページごとに 1 つ。読めないページには出さない）
+export function checkOutsidePages(catalog: CoreCatalog, saved: readonly unknown[]): Warning[] {
+  return saved.flatMap(p => {
+    const page = typeof p === "object" && p !== null ? (readablePage(catalog, p) as ItemPage | undefined) : undefined
+    if (!page) return []
+    const params = { page: page.id, of: `page ${page.id}`, title: page.title }
+    return missingWarnings(missingIn(catalog, [], [page]), params)
+  })
 }
 
 // 残しておいたブックのうち、読めるものだけ（checkBooks の books）

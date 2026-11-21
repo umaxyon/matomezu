@@ -286,3 +286,40 @@ func TestAnnotationWarningsOfAPageOutsideBooks(t *testing.T) {
 		t.Fatalf("annotations of g1 after the trash = %s", kept)
 	}
 }
+
+// 読めるが機能台帳に無い物を持つブックの外のページは、ページごとに warning（W007）になり、read_folder のその行に付く。
+// 名前を変えると行が直り、ブックへ入れる・ゴミ箱に入れると外れる
+func TestAPageOutsideBooksWithMissingThingsIsWarned(t *testing.T) {
+	store := entriesStore(t)
+	strange := strings.Replace(outsideH1, `"items":[`, `"items":[{"id":"z","item":"@foo/stars:star","x":0,"y":0,"w":10,"h":10},`, 1)
+	if strange == outsideH1 {
+		t.Fatal("outsideH1 has no items to add to")
+	}
+	if err := store.Apply(storage.Batch{Pages: []storage.RowWrite{{ID: "h1", Base: storedPage(t, store, "h1").Version, Body: json.RawMessage(strange)}}}); err != nil {
+		t.Fatal(err)
+	}
+	s, hub := newServerOn(t, Options{}, store)
+	line := func(title string) string {
+		return "W007 @foo/stars: page h1 (" + title + "): it has @foo/stars:star, not in the catalog (kept as they are)"
+	}
+	if got := hub.Warnings(); !slices.Contains(got, line("H1")) {
+		t.Fatalf("warnings = %s", strings.Join(got, "\n"))
+	}
+	if _, got := send(t, "GET", s.URL+"/api/ai/folder", "", ai); !strings.Contains(got, `"id":"h1","title":"H1","type":"@matomezu/drawing:drawing","warning":"`+line("H1")+`"`) {
+		t.Fatalf("read_folder = %s", got)
+	}
+	do := func(action, args string) {
+		t.Helper()
+		if done, err := hub.Perform(Perform{Actions: []engine.BulkAction{{Action: action, Args: json.RawMessage(args)}}}); err != nil || !done.OK {
+			t.Fatalf("%s = %+v, %v", action, done, err)
+		}
+	}
+	do("@matomezu/base:entry-rename", `{"entry":"h1","title":"改"}`)
+	if got := hub.Warnings(); !slices.Contains(got, line("改")) || slices.Contains(got, line("H1")) {
+		t.Fatalf("warnings after the rename = %s", strings.Join(got, "\n"))
+	}
+	do("@matomezu/base:entry-trash", `{"entry":"h1"}`)
+	if got := strings.Join(hub.Warnings(), "\n"); strings.Contains(got, "page h1") {
+		t.Fatalf("warnings after the trash = %s", got)
+	}
+}

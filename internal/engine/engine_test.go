@@ -560,9 +560,9 @@ func TestCheckBooksSaysWhetherABookIsUnreadable(t *testing.T) {
 		got[n.Code] = n
 	}
 	want := map[string]BookWarning{
-		"W027": {Book: "x1", Code: "W027", Unreadable: true},
-		"W007": {Book: "y1", Code: "W007"},
-		"W005": {Book: "z1", Code: "W005", Unreadable: true},
+		"W027": {Entry: "x1", Code: "W027", Unreadable: true},
+		"W007": {Entry: "y1", Code: "W007"},
+		"W005": {Entry: "z1", Code: "W005", Unreadable: true},
 	}
 	if len(got) != len(want) {
 		t.Fatalf("CheckBooks = %+v", found)
