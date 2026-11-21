@@ -87,7 +87,7 @@ func (e *Engine) AnnotationsUnexpired(list, settings json.RawMessage, now string
 	return got.Annotations, got.Changed, nil
 }
 
-// AIAnnotations は、ブックとそのページごとのアノテーションの組ごとに、AI に見せる並び（アノテーションに、付いているページ page と、
+// AIAnnotations は、ステージエントリ（ブックか、ブックの外のページ）とそのページごとのアノテーションの組ごとに、AI に見せる並び（アノテーションに、付いているページ page と、
 // AI の応えを待っているか awaits を添えたもの。ブックのページの順）を返す。並びは pairs と同じ順
 func (e *Engine) AIAnnotations(pairs []Annotated) (out []json.RawMessage, err error) {
 	b, err := json.Marshal(pairs)
@@ -107,7 +107,7 @@ func (e *Engine) AIAnnotations(pairs []Annotated) (out []json.RawMessage, err er
 	return out, nil
 }
 
-// AIBriefs は、ブックとそのページごとのアノテーションの組ごとに、待っている物を AI に知らせる 1 行（ページの id → アノテーションの id → 1 行。
+// AIBriefs は、ステージエントリ（ブックか、ブックの外のページ）とそのページごとのアノテーションの組ごとに、待っている物を AI に知らせる 1 行（ページの id → アノテーションの id → 1 行。
 // 種類が 1 行を持たない物・形の合わない物は入れない）を返す。並びは pairs と同じ順
 func (e *Engine) AIBriefs(pairs []Annotated) (out []map[string]map[string]string, err error) {
 	b, err := json.Marshal(pairs)

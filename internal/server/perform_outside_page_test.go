@@ -69,7 +69,7 @@ func outsidePageStore(t *testing.T) storage.Storage {
 }
 
 // AI の読む口は、ブックの外のページも読める: read_page はそのページをステージエントリとして、入っている書庫のフォルダ・アノテーション・形の描いた位置と大きさを答え（目次・物 1 つも）、
-// 答え待ちの一覧（フック）はブックの後ろにそのページの分を並べる。バインダの中のページ・ゴミ箱の中のページは無い物として断る
+// AI の応えを待つ物の一覧（フック）はブックの後ろにそのページの分を並べる。バインダの中のページ・ゴミ箱の中のページは無い物として断る
 func TestTheAIReadsAPageOutsideBooks(t *testing.T) {
 	s, _ := newServerOn(t, Options{}, outsidePageStore(t))
 	const waiting = `{"id":"c-h1","annotation":"@matomezu/base:note","anchors":["a"],"props":{"text":"x","bubble":true,"addedAt":"2026-11-02T00:00:00.000Z"},"page":"h1","awaits":true}`

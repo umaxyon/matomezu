@@ -121,7 +121,7 @@ func writeUndone(w io.Writer, undone []undoneTicket) {
 		return
 	}
 	fmt.Fprintf(w, "matomezu: %d change(s) you made were undone by the user before they saw them. "+
-		"Do not redo them on your own; ask the user if they are still needed. Each line is a book, or a page or binder outside any book, with the time you changed it, then lost: what was put back and the values you had written "+
+		"Do not redo them on your own; ask the user if they are still needed. Each line is a book, or a page or binder that is not in a book, with the time you changed it, then lost: what was put back and the values you had written "+
 		"(in lost, entry is the id of the page, book or binder, and at is the place inside it).\n", len(undone))
 	for _, u := range undone {
 		fmt.Fprintf(w, "- %q (%s) at %s: %s\n", u.Title, u.Entry, u.At, u.Lost)

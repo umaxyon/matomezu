@@ -49,7 +49,7 @@ var tools = []tool{
 	},
 	{
 		"read_folder",
-		"Read a folder of the library, one level deep. The library keeps books in folders under the library home, its top folder; a folder can also hold pages and binders that are in no book. " +
+		"Read a folder of the library, one level deep. The library keeps books in folders under the library home, its top folder; a folder can also hold pages and binders that are not in a book. " +
 			"It answers the folder's id, kind (home for the library home, folder for a folder), title (the library home has none), path (the folders from the library home down to this one, each with id and title) " +
 			"and lineup, its entries in order: a folder (kind folder, id, title), a book (kind book, id, title; one that cannot be read now is not answered, as in list_books), " +
 			"a page (kind page, id, title, type) or a binder of pages of one type (kind binder, id, title, pageType). " +
