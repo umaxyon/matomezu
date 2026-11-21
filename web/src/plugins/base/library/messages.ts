@@ -74,6 +74,8 @@ export const LIBRARY_MESSAGES = defineMessages({
   "{reason}: {count}": { en: "{reason}: {count}", ja: "{reason}　{count} 件" },
   "{count} more": { en: "{count} more", ja: "ほか {count} 件" },
   View: { en: "View", ja: "見る" },
+  "Open the folder in the library": { en: "Open the folder in the library", ja: "書庫でフォルダを開く" },
+  "Place: {path}": { en: "Place: {path}", ja: "置き場所: {path}" },
   "Open the unreadable folder": { en: "Open the unreadable folder", ja: "読めない物のフォルダを開く" },
   "Nothing is unreadable": { en: "Nothing is unreadable", ja: "読めない物はありません" },
   "Its shape does not fit": { en: "Its shape does not fit", ja: "形が合いません" },

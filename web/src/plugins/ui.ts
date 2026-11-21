@@ -83,7 +83,11 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:background-band",
     ],
     "@matomezu/base:sheet-layers": ["@matomezu/slide:slide-sheet", "@matomezu/base:sheet-content"],
-    "@matomezu/base:stage-bottom": ["@matomezu/base:book-name", "@matomezu/base:page-tabs"],
+    "@matomezu/base:stage-bottom": [
+      "@matomezu/base:book-name",
+      "@matomezu/base:page-place",
+      "@matomezu/base:page-tabs",
+    ],
     "@matomezu/base:stage-corner": ["@matomezu/base:close-button"],
     "@matomezu/base:footer-menu-map": ["@matomezu/base:footer-menu-minimap"],
     "@matomezu/base:footer-menu-history": ["@matomezu/base:history-buttons"],

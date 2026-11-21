@@ -7,7 +7,7 @@ import type { EditList } from "../../../core/def/page-type"
 import { problem } from "../../../core/errors"
 import { findShape } from "../../../core/placed"
 import { sameData } from "../../../core/same"
-import { type CommandContext, NO_BOOK } from "../../../store/commands/def"
+import type { CommandContext } from "../../../store/commands/def"
 import { kit } from "../kit"
 import { placeableIn } from "../toolbox/toolbox"
 import { hasOpenedPage } from "../utils/opened-page"
@@ -57,7 +57,7 @@ export const SCRAP_CUT_COMMAND = kit.defineCommand({
     const page = target.page ?? (hasOpenedPage(ctx) ? ctx.page.id : undefined)
     if (page) a.openDialog(SCRAP_CUT_DIALOG.id, { page })
   },
-  when: ctx => ctx.book !== NO_BOOK && hasOpenedPage(ctx),
+  when: hasOpenedPage,
 })
 
 // 右クリックした形 item が、スクラップフレームなら、その項目のスクラップ（違えば null）

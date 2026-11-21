@@ -1,13 +1,14 @@
 // 物の名前（base/label/labels.ts の anchorLabel と、定義の labelOf）: id を持つ物（いちばん内側の形 → つなぐもの → ページ）の定義から引き、空なら種類の名前。装飾は外す
 
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../../web/src/core/book"
 import type { Book } from "../../../web/src/core/schema/book"
 import { anchorLabel } from "../../../web/src/plugins/base/label/labels"
 import { DIR, drawingPage, TREE, testBook, testPage } from "../../lineup"
 import { CORE_CATALOG } from "../../support"
 
 const drawing = (items: readonly object[]): Book => testBook("b1", "見本", [drawingPage("p1", { title: "1", items })])
-const label = (book: Book, id: string) => anchorLabel(CORE_CATALOG, book, id)
+const label = (book: Book, id: string) => anchorLabel(CORE_CATALOG, pagesOf(book), id)
 
 test("箱はキャプション、無ければ本文の最初の行。どちらも無ければ種類の名前。装飾は外す", () => {
   const book = drawing([

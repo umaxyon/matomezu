@@ -28,7 +28,7 @@ import {
   pairClass,
   rowClass,
   Section,
-  useBookOf,
+  useOutermostOf,
 } from "../../base/ui"
 import { LINE_UPDATE } from "./actions"
 import { alignedEndsOf } from "./drawn"
@@ -66,7 +66,7 @@ export function EditLineDialog({ args, onClose }: DialogProps<{ page: string; it
   const t = useMessages(kit)
   const form = useId()
   const catalog = useCoreCatalog()
-  const book = useBookOf()
+  const outermost = useOutermostOf()
   const page = usePageById(args.page) ?? undefined
   const line = useItem(args.page, args.item, LINE.id)
   const { previewDialog } = useActions()
@@ -86,8 +86,8 @@ export function EditLineDialog({ args, onClose }: DialogProps<{ page: string; it
     startHead !== (line?.props.startHead ?? "") ||
     endHead !== (line?.props.endHead ?? "")
   const preview = useCallback(
-    (look: Look | null) => previewDialog(look && book ? { book, item: args.item, props: look } : null),
-    [book, args.item, previewDialog],
+    (look: Look | null) => previewDialog(look && outermost ? { outermost, item: args.item, props: look } : null),
+    [outermost, args.item, previewDialog],
   )
   useEffect(() => {
     preview(
@@ -101,7 +101,7 @@ export function EditLineDialog({ args, onClose }: DialogProps<{ page: string; it
         : null,
     )
   }, [changed, route, dash, startHead, endHead, preview])
-  if (!book || !page || !line) return null
+  if (!outermost || !page || !line) return null
   const self = line.from === line.to
   // キャプションの候補: ページのタイプが、始点のアイテムに決めたもの
   const fromItem = findShape(page, line.from)?.shape.item

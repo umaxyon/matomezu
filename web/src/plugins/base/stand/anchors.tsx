@@ -20,10 +20,11 @@ import {
 } from "react"
 import { createPortal } from "react-dom"
 import type { Point, Rect, Size } from "../../../core/geom"
-import { useActions, useBook, useStage, useStagePan } from "../../../ui/view-hooks"
+import { useActions, useStage, useStagePan } from "../../../ui/view-hooks"
 import { glidePan } from "../utils/glide-pan"
 import { KEEP_INSIDE } from "../utils/keep-inside"
 import { stageElement } from "../utils/stage-element"
+import { useOpenedPages } from "../utils/useOpenedPages"
 import { ZOOM_MS } from "../utils/useZoomMotion"
 import styles from "./anchors.module.css"
 import { useClearRevealRequest, useRevealRequest } from "./reveal-request"
@@ -373,10 +374,10 @@ function useAnchorRect(ctx: StandContext | null, ids: readonly string[], clipped
     )
   }, [ctx, ids, clipped])
   const [measured, setMeasured] = useState<Measured | null>(null)
-  // 開いているブックのデータ（物の位置や大きさが変わる）
-  const book = useBook()
-  // パン・倍率・アンカー・ブックのデータが替わったとき、紙が動き終えるまで（なめらかに移す間も）コマごとに測る
-  // biome-ignore lint/correctness/useExhaustiveDependencies: パン・倍率・アンカーの表・ブックのデータ・スクロールが変わるたびに測り直す
+  // 開いている物（ブックか、ブックの外のページ）のデータ（物の位置や大きさが変わる）
+  const pages = useOpenedPages()
+  // パン・倍率・アンカー・開いている物のデータが替わったとき、紙が動き終えるまで（なめらかに移す間も）コマごとに測る
+  // biome-ignore lint/correctness/useExhaustiveDependencies: パン・倍率・アンカーの表・開いている物のデータ・スクロールが変わるたびに測り直す
   useLayoutEffect(() => {
     let frame = 0
     const until = performance.now() + ZOOM_MS + 50
@@ -386,7 +387,7 @@ function useAnchorRect(ctx: StandContext | null, ids: readonly string[], clipped
     }
     step()
     return () => cancelAnimationFrame(frame)
-  }, [measure, pan, stage?.zoom, version, tick, book])
+  }, [measure, pan, stage?.zoom, version, tick, pages])
   // 中のスクロール（リストなど）と、表示領域の大きさの変化
   useEffect(() => {
     const again = () => setTick(n => n + 1)

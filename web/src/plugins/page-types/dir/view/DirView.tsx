@@ -23,7 +23,6 @@ import {
   useCoreCatalog,
   useMessages,
   usePerform,
-  useShownBook,
   useShownPage,
   useStage,
   useStageArea,
@@ -106,7 +105,6 @@ const Rows = memo(function Rows({
 }) {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
-  const book = useShownBook()
   const page = useShownPage()
   const perform = usePerform()
   const { select, setEditing, showToast } = useActions()
@@ -133,10 +131,10 @@ const Rows = memo(function Rows({
   // 書いている字を重ねた根
   const shown =
     root && text !== null && selected !== undefined ? (changeNode(root, selected, { name: text }) ?? root) : root
-  const growing = book && page ? growOf(catalog, page) : undefined // ページの増やす向き（可変ページでなければ undefined）
+  const growing = page ? growOf(catalog, page) : undefined // ページの増やす向き（可変ページでなければ undefined）
   // 印刷と同じ並べ方（print.ts の laidPage）で、書いている字を重ねた根を 1 度だけ並べる
   const laid =
-    book && page && shown
+    page && shown
       ? laidPage(catalog, page, { setting: pageContext(catalog, page).setting, grow: growing }, shown)
       : null
   // 可変ページなら、行と説明が入るだけ右と下へ並べた印刷区画に空きを足した広さを、ステージに知らせる

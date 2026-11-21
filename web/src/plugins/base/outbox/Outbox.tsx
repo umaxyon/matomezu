@@ -9,16 +9,17 @@ import type { ActionId } from "../../../core/catalog"
 import { shownPageId } from "../../../core/stage"
 import { useMessages } from "../../../ui/i18n"
 import { useLayout } from "../../../ui/store-context"
-import { useActions, useAllowed, useBook, useCoreCatalog, useStage, useUiCatalog } from "../../../ui/view-hooks"
+import { useActions, useAllowed, useCoreCatalog, useStage, useUiCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
 import { useOpenRightSidePanel } from "../right-side-panel/hooks"
 import { useRevealHere } from "../stand/reveal-request"
 import { clampChars } from "../text/text"
 import { lastAnchor } from "../utils/anchors"
-import { useBookAnnotations, usePerformOrToast } from "../utils/annotation-hooks"
+import { useOpenedAnnotations, usePerformOrToast } from "../utils/annotation-hooks"
 import rows from "../utils/PanelRows.module.css"
 import { shownTime } from "../utils/shown-time"
+import { useOpenedPages } from "../utils/useOpenedPages"
 import { Withdraw } from "../utils/Withdraw"
 import { listedOf } from "./listed"
 import styles from "./Outbox.module.css"
@@ -30,9 +31,9 @@ const ROW_CHARS = 20 // 行に出す、文の始めの字数
 export function Outbox() {
   const t = useMessages(kit)
   const catalog = useCoreCatalog()
-  const book = useBook()
-  const annotations = useBookAnnotations()
-  const pages = useMemo(() => (book ? listedPages(catalog, book, annotations) : []), [catalog, book, annotations])
+  const opened = useOpenedPages()
+  const annotations = useOpenedAnnotations()
+  const pages = useMemo(() => listedPages(catalog, opened, annotations), [catalog, opened, annotations])
   if (pages.length === 0) return <p className={rows.empty}>{t("No notes")}</p>
   const now = new Date()
   return (

@@ -1,11 +1,24 @@
 // ブックの外のページを窓に出す（store の showOutsidePageStage）: 開く・そのページを変える・よその変更でゴミ箱に入ると閉じる
 
 import { expect, test } from "bun:test"
+import { stagePlacesOf } from "../../web/src/core/address"
+import { HOME_ID } from "../../web/src/core/folders"
+import { NO_OUTERMOST } from "../../web/src/core/folders-tree"
+import { askedOutermostOf, shownPageId } from "../../web/src/core/stage"
+import { toolUsable } from "../../web/src/core/tools"
 import { stageIn } from "../../web/src/core/window"
+import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
+import { outsidePagePlaceOf } from "../../web/src/plugins/base/library/outline"
+import { LIBRARY_SCREEN } from "../../web/src/plugins/base/library/screen"
+import { LIBRARY_FOLDER } from "../../web/src/plugins/base/library/state"
+import { addPageIn } from "../../web/src/plugins/base/pages/add-page"
+import { SEARCH_STATE } from "../../web/src/plugins/base/search/state"
+import { isEnabled, isShown } from "../../web/src/store/commands"
 import { NO_STAGE } from "../../web/src/store/dialogs"
+import { pluginValueOf } from "../../web/src/store/plugin-state"
 import type { AIEditTicketOutcome } from "../../web/src/store/state"
 import { openedIn } from "../../web/src/store/store"
-import { drawingPage } from "../lineup"
+import { drawingPage, MARKDOWN, testPage } from "../lineup"
 import { newStore, sequence, worldRows } from "../support"
 
 type Store = ReturnType<typeof newStore>
@@ -108,19 +121,167 @@ test("ブックの外のページの変更を、元に戻し、やり直す", as
   expect(openedIn(store, stage)).toEqual({ book: "o1", page: "o1" })
 })
 
-test("ロックしたブックの外のページは、元に戻すが断られ、画面の履歴の段は残る", async () => {
+test("ロックしたブックの外のページは、元に戻すを呼んでも行われず、画面の履歴の段は残る", async () => {
   const store = withOutside()
   const stage = store.actions.showOutsidePageStage("o1")
   store.actions.perform("@matomezu/base:page-update", { title: "変えた名前" }, { page: "o1" })
   await Promise.resolve()
   expect(store.actions.perform("@matomezu/base:page-lock", {}, { page: "o1" }).ok).toBe(true)
   await Promise.resolve()
-  store.actions.command(stage, "@matomezu/base:undo")
+  expect(store.actions.command(stage, "@matomezu/base:undo")).toBe(false)
   await Promise.resolve()
   expect(store.state.getState().pages.o1?.title).toBe("変えた名前")
   expect(store.state.getState().history.o1?.undo).toHaveLength(1)
-  expect(store.state.getState().toasts.at(-1)).toMatchObject({
-    kind: "warn",
-    detail: { params: { name: "変えた名前" } },
+})
+
+test("ブックの外のページを開いた画面の場所は、ブックを名指さずページを名指し、当てはめると同じページを開く。ブックの中へ移されていればそのブックのページを開き、開けなければそのステージを開かない", () => {
+  const store = withOutside()
+  const stage = store.actions.showOutsidePageStage("o1")
+  const address = store.address()
+  expect(stagePlacesOf(address).map(p => [p.outermost, p.page])).toContainEqual([NO_OUTERMOST, "o1"])
+  // 読み直した窓（同じ書庫）に当てはめる
+  const again = withOutside()
+  again.locate(address)
+  const opens = (s: Store) =>
+    s.state.getState().window.screens.flatMap(c => c.stages?.stages.map(t => t.opened?.outermost) ?? [])
+  expect(opens(again)).toContainEqual({ kind: "page", id: "o1" })
+  expect(opens(store)).toContainEqual({ kind: "page", id: "o1" })
+  expect(stage).not.toBe(NO_STAGE)
+  // その間にブックの中へ移されていれば、そのブックのページとして開く
+  const moved = newStore({ newId: sequence() })
+  const [book, ...rest] = Object.values(moved.state.getState().books)
+  const into = { ...book!, lineup: [...book!.lineup, drawingPage("o1", { title: "ブックの外のページ" })] }
+  moved.receive({ ...worldRows([into, ...rest]), settings: {} }, [])
+  moved.locate(address)
+  const at = moved.state.getState().window.screens.flatMap(c => c.stages?.stages ?? [])
+  expect(at.map(t => [t.opened?.outermost, shownPageId(t.opened)])).toContainEqual([
+    { kind: "book", id: book!.id },
+    "o1",
+  ])
+  // 無くなっていれば、そのステージは開かない
+  const gone = newStore({ newId: sequence() })
+  const before = gone.state.getState().window
+  gone.locate(address)
+  expect(opens(gone)).not.toContainEqual({ kind: "page", id: "o1" })
+  expect(gone.state.getState().window.screens.length).toBe(before.screens.length)
+})
+
+test("ブックの外のページでも、元に戻すは変更が在れば押せ、ロックすると押せない（出たまま）", async () => {
+  const store = withOutside()
+  const stage = store.actions.showOutsidePageStage("o1")
+  const undo = () => ({
+    shown: isShown(store, store.state.getState(), stage, "@matomezu/base:undo"),
+    enabled: isEnabled(store, store.state.getState(), stage, "@matomezu/base:undo"),
   })
+  expect(undo()).toEqual({ shown: true, enabled: false })
+  store.actions.perform("@matomezu/base:page-update", { title: "変えた名前" }, { page: "o1" })
+  await Promise.resolve()
+  expect(undo()).toEqual({ shown: true, enabled: true })
+  store.actions.perform("@matomezu/base:page-lock", {}, { page: "o1" })
+  await Promise.resolve()
+  expect(undo()).toEqual({ shown: true, enabled: false })
+})
+
+test("ロックしたブックの外のページでは、行うアクションを止められる道具は使えない", async () => {
+  const store = withOutside()
+  const stage = store.actions.showOutsidePageStage("o1")
+  const usable = () => {
+    const state = store.state.getState()
+    const opened = stageIn(state.window, stage)?.opened
+    return toolUsable(store.catalog.core, "@matomezu/paper:reparent", askedOutermostOf(state, opened) ?? null, "o1")
+  }
+  expect(usable()).toBe(true)
+  store.actions.perform("@matomezu/base:page-lock", {}, { page: "o1" })
+  await Promise.resolve()
+  expect(usable()).toBe(false)
+})
+
+test("ブックを開いているステージに、ブックの外のページを開ける。開けるブックの外のページでない・窓に無いステージなら何もしない", () => {
+  const store = withOutside()
+  const stage = "s1"
+  const before = store.state.getState().window
+  const inBook = Object.values(store.state.getState().books)[0]!.lineup[0]!.id
+  expect(store.actions.openOutsidePage(stage, inBook)).toBe(NO_STAGE)
+  expect(store.actions.openOutsidePage("nothing", "o1")).toBe(NO_STAGE)
+  expect(store.state.getState().window).toBe(before)
+  expect(store.actions.openOutsidePage(stage, "o1")).toBe(stage)
+  expect(openedIn(store, stage)).toEqual({ book: "o1", page: "o1" })
+})
+
+test("ブックの全部を探していたステージにブックの外のページを開くと、検索の範囲は「このページ」として働く", () => {
+  const store = newStore({ newId: sequence() })
+  createBookIn(store, "s1", { title: "メモ" })
+  addPageIn(store, "s1", { type: MARKDOWN, title: "p1", fields: { text: "猫" } })
+  const books = Object.values(store.state.getState().books)
+  store.receive({ ...worldRows(books, [testPage(MARKDOWN, "m1", { title: "外", text: "猫と猫" })]), settings: {} }, [])
+  const search = () => pluginValueOf(store.state.getState().pluginValues, "s1", SEARCH_STATE)!
+  store.actions.command("s1", "@matomezu/base:search-open-book")
+  store.setPluginState("@matomezu/base:search", "s1", {
+    ...search(),
+    query: { ...search().query, text: "猫" },
+    replacement: "犬",
+  })
+  expect(store.actions.openOutsidePage("s1", "m1")).toBe("s1")
+  expect(search().scope).toBe("book")
+  expect(isEnabled(store, store.state.getState(), "s1", "@matomezu/base:search-replace-all")).toBe(true)
+  expect(store.actions.command("s1", "@matomezu/base:search-replace-all")).toBe(true)
+  expect(store.state.getState().pages.m1).toMatchObject({ text: "犬と犬" })
+  // 置き換えの入力Formを出す（範囲はそのまま）と、覚える範囲もこのページになる
+  store.actions.command("s1", "@matomezu/base:search-open-replace")
+  expect(search().scope).toBe("page")
+})
+
+test("開いているブックの外のページの置き場所を書庫で開くと、ステージは開いたまま、書庫のスクリーンがそのページの入っているフォルダを出す。ブックを開いているステージでは出さない", () => {
+  const store = withOutside()
+  expect(isShown(store, store.state.getState(), "s1", "@matomezu/base:library-place-open")).toBe(false)
+  const made = store.actions.perform("@matomezu/base:folder-create", { title: "企画" })
+  const folder = (made as { result: { folder: string } }).result.folder
+  expect(store.actions.perform("@matomezu/base:entry-move", { entry: "o1", into: folder }).ok).toBe(true)
+  expect(outsidePagePlaceOf(store.state.getState().folders, "o1")).toEqual([HOME_ID, folder])
+  expect(outsidePagePlaceOf(store.state.getState().folders, "nothing")).toEqual([])
+  const stage = store.actions.showOutsidePageStage("o1")
+  expect(store.actions.command(stage, "@matomezu/base:library-place-open")).toBe(true)
+  const { window, pluginValues } = store.state.getState()
+  const library = window.screens.find(s => s.def === LIBRARY_SCREEN.id)?.id as string
+  expect(pluginValueOf(pluginValues, library, LIBRARY_FOLDER)).toBe(folder)
+  expect(openedIn(store, stage)).toEqual({ book: "o1", page: "o1" })
+})
+
+test("ブックの外のページを開いたステージでは、マーク・伝言・スクラップの切り抜きを出し、「新しいブック」は出さない", () => {
+  const store = withOutside()
+  const shown = (stage: string, id: string) =>
+    isShown(store, store.state.getState(), stage, `@matomezu/base:${id}` as never)
+  const stage = store.actions.showOutsidePageStage("o1")
+  expect(["mark-new", "note-new", "scrap-cut", "book-new"].map(id => shown(stage, id))).toEqual([
+    true,
+    true,
+    true,
+    false,
+  ])
+})
+
+test("ブックの外のページの紙・向き・可変ページか・名前を変えられ、ロックを掛けて外せる", () => {
+  const store = withOutside()
+  const page = () => store.state.getState().pages.o1
+  const perform = (id: "page-update" | "page-lock" | "page-unlock", args: object) =>
+    store.actions.perform(`@matomezu/base:${id}`, args as never, { page: "o1" })
+  const settings = { "@matomezu/line:line-route": "elbow" }
+  expect(perform("page-update", { title: "新しい名前", orientation: "portrait", grows: true, settings })).toMatchObject(
+    { ok: true },
+  )
+  expect(page()).toMatchObject({ title: "新しい名前", orientation: "portrait", grows: "right-down", settings })
+  expect(perform("page-lock", {}).ok).toBe(true)
+  expect(perform("page-update", { title: "止まる" }).ok).toBe(false)
+  expect(perform("page-unlock", {}).ok).toBe(true)
+  expect(page()?.locked).toBeUndefined()
+  expect(perform("page-update", { paper: "@matomezu/base:a3" })).toMatchObject({ ok: true })
+})
+
+test("ロックしたブックの外のページでも、ページの設定は出て押せる（ロックを外す道）", () => {
+  const store = withOutside()
+  const stage = store.actions.showOutsidePageStage("o1")
+  expect(store.actions.perform("@matomezu/base:page-lock", {}, { page: "o1" }).ok).toBe(true)
+  const state = store.state.getState()
+  expect(isShown(store, state, stage, "@matomezu/base:page-settings")).toBe(true)
+  expect(isEnabled(store, state, stage, "@matomezu/base:page-settings")).toBe(true)
 })

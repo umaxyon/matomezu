@@ -25,7 +25,7 @@ import {
   Problem,
   rowClass,
   Switch,
-  useBookOf,
+  useOutermostOf,
   usePageTheme,
   useSwatches,
 } from "../../base/ui"
@@ -43,7 +43,7 @@ const EMPTY: ShapeProps = { caption: "", captionAlign: "center" }
 // 形 item を置く追加のダイアログ。回せる形（turnable）は、ページのタイプが渡す指定（ShapeOptions の turned）で最初の向きを選ぶ
 export function addShapeDialog(item: string, turnable = false) {
   return function AddShapeDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
-    const book = useBookOf()
+    const outermost = useOutermostOf()
     const pageTheme = usePageTheme()
     const catalog = useCoreCatalog()
     const page = usePageById(args.page)
@@ -59,7 +59,7 @@ export function addShapeDialog(item: string, turnable = false) {
         submit={kit.message("Add")}
         start={turnable ? { ...EMPTY, turned } : EMPTY}
         pageTheme={pageTheme}
-        ready={book !== undefined}
+        ready={outermost !== undefined}
         onSubmit={add}
         onClose={onClose}
       />
@@ -69,7 +69,7 @@ export function addShapeDialog(item: string, turnable = false) {
 
 export function EditShapeDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
   const catalog = useCoreCatalog()
-  const book = useBookOf()
+  const outermost = useOutermostOf()
   const pageTheme = usePageTheme()
   const placed = useItem(args.page, args.item)
   // 回せる形は、向きの切り替えを出す（向きを書いていないデータは縦向き）
@@ -78,10 +78,10 @@ export function EditShapeDialog({ args, onClose }: DialogProps<{ page: string; i
   const { previewDialog } = useActions()
   const perform = usePerform()
   const preview = useCallback(
-    (look: Look | null) => previewDialog(look && book ? { book, item: args.item, props: look } : null),
-    [book, args.item, previewDialog],
+    (look: Look | null) => previewDialog(look && outermost ? { outermost, item: args.item, props: look } : null),
+    [outermost, args.item, previewDialog],
   )
-  if (!book || !start) return null
+  if (!outermost || !start) return null
   const update = (props: ShapeProps) => {
     // 色の「なし」に戻したら、形の色の項目を消す
     const done = perform(

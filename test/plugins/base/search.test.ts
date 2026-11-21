@@ -1,5 +1,6 @@
 // 原文の中を探す（base/search/find.ts・search.ts）: 当たり・置き換え・次と前・数・今の当たりの選び直し
 import { expect, test } from "bun:test"
+import { pagesOf } from "../../../web/src/core/book"
 import { findAll, replaceAll, replaceOne, type SearchQuery } from "../../../web/src/plugins/base/search/find"
 import { changedSearch, replaceOneStep, searchCount, stepHit } from "../../../web/src/plugins/base/search/search"
 import type { SearchOpen } from "../../../web/src/plugins/base/search/state"
@@ -89,19 +90,27 @@ test("次・前はページをまたいで進み・戻り、ブックの端で�
 
 test("探す字を変えると、今の当たりの頭から先の最初の当たりを選び直す。数は今の当たりの番号とページ", () => {
   const b = book(["ab ab", "ab"])
-  const changed = changedSearch(CORE_CATALOG, b, open({ page: "p1", start: 3, end: 5 }), { query: q("ab") }, "p1")
+  const changed = changedSearch(
+    CORE_CATALOG,
+    pagesOf(b),
+    open({ page: "p1", start: 3, end: 5 }),
+    { query: q("ab") },
+    "p1",
+  )
   expect(changed.current).toEqual({ page: "p1", start: 3, end: 5 })
-  expect(searchCount(CORE_CATALOG, b, changed, "p1")).toEqual({
+  expect(searchCount(CORE_CATALOG, pagesOf(b), changed, "p1")).toEqual({
     kind: "count",
     at: 2,
     all: 3,
     pages: { at: 1, all: 2 },
   })
   // 当たりでなくなった今の当たりは数えない
-  expect(searchCount(CORE_CATALOG, b, { ...changed, current: { page: "p1", start: 1, end: 3 } }, "p1")).toMatchObject({
+  expect(
+    searchCount(CORE_CATALOG, pagesOf(b), { ...changed, current: { page: "p1", start: 1, end: 3 } }, "p1"),
+  ).toMatchObject({
     at: 0,
   })
-  expect(searchCount(CORE_CATALOG, b, { ...changed, query: q("(", { regex: true }) }, "p1")).toEqual({
+  expect(searchCount(CORE_CATALOG, pagesOf(b), { ...changed, query: q("(", { regex: true }) }, "p1")).toEqual({
     kind: "bad-pattern",
   })
 })
@@ -110,7 +119,7 @@ test("1 つ置換のあとの次の当たりは、長さの違う置き換えで
   const b = book(["cat cat cat"])
   const step = replaceOneStep(
     CORE_CATALOG,
-    b,
+    pagesOf(b),
     open({ page: "p1", start: 0, end: 3 }, { query: q("cat"), replacement: "x", scope: "page" }),
     "p1",
   )
@@ -119,11 +128,11 @@ test("1 つ置換のあとの次の当たりは、長さの違う置き換えで
   // 置き換えた字が探す字を含んでも、その中は探さない
   const grow = replaceOneStep(
     CORE_CATALOG,
-    book(["a a"]),
+    pagesOf(book(["a a"])),
     open({ page: "p1", start: 0, end: 1 }, { query: q("a"), replacement: "aa", scope: "page" }),
     "p1",
   )
   expect(grow.next).toEqual({ page: "p1", start: 3, end: 4 })
-  const none = replaceOneStep(CORE_CATALOG, b, open("none", { query: q("cat"), scope: "page" }), "p1")
+  const none = replaceOneStep(CORE_CATALOG, pagesOf(b), open("none", { query: q("cat"), scope: "page" }), "p1")
   expect(none).toEqual({ args: "none", next: { page: "p1", start: 0, end: 3 } })
 })

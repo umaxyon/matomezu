@@ -186,12 +186,12 @@ test("箱にテーマを当てられる。表に無いテーマと、ページ�
 test("ダイアログの下書きは開いているダイアログが持ち、閉じると消える。データは変えない", () => {
   const store = ready()
   place(store, { caption: "見出し" })
-  store.actions.previewDialog({ book: "b1", item: "n1", props: { theme: "@matomezu/base:sticky" } })
+  store.actions.previewDialog({ outermost: "b1", item: "n1", props: { theme: "@matomezu/base:sticky" } })
   expect(store.state.getState().dialog).toBeNull()
   store.actions.openDialog("s1", "@matomezu/box:box-edit", { page: "p1", item: "n1" })
-  store.actions.previewDialog({ book: "b1", item: "n1", props: { theme: "@matomezu/base:sticky" } })
+  store.actions.previewDialog({ outermost: "b1", item: "n1", props: { theme: "@matomezu/base:sticky" } })
   expect(store.state.getState().dialog?.preview).toEqual({
-    book: "b1",
+    outermost: "b1",
     item: "n1",
     props: { theme: "@matomezu/base:sticky" },
   })

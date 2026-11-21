@@ -1,5 +1,5 @@
-// ブックの名前のボタン（ウィジェット book-name）: ステージのブックの名前を出す。
-// ロック中のブックは名前の左に鍵を出す（印だけ。外すのはブックの設定のダイアログ）。
+// ブックの名前のボタン（ウィジェット book-name）: ステージのブックの名前（ブックの外のページを開いていれば、そのページの名前）を出す。
+// ロック中のブック（ブックの外のページを開いていれば、ロック中のそのページ）は名前の左に鍵を出す（印だけ。外すのはブック・ページの設定のダイアログ）。
 // 乗せるか押すと、下の行の真上に、行の幅いっぱいのフッタメニューが下から上がり、離れると下がる。下の行に置かれていれば、下の行のどこに乗せても出し、
 // 下の行から離れると下がる（フッタメニューは下の行の中に描くので、フッタメニューに乗っている間も下の行に乗っている）。
 // フッタメニューには、左から地図・履歴・基本・ブックの道具の 4 つのスロット（footer-menu.ts の FOOTER_MENU_SLOTS）を、仕切りの線で分けて並べる（何も描かれないスロットは詰める）。
@@ -9,7 +9,7 @@ import { workspaceOf } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import { Slot } from "../../../ui/Slot"
 import { useStageHere } from "../../../ui/scope"
-import { useBook } from "../../../ui/view-hooks"
+import { useBook, usePage } from "../../../ui/view-hooks"
 import { FOOTER_MENU_SLOTS } from "../footer-menu/footer-menu"
 import { FooterMenuContext } from "../footer-menu/footer-menu-context"
 import { kit } from "../kit"
@@ -22,6 +22,7 @@ const LEAVE_MS = 250
 
 export function BookName() {
   const book = useBook() ?? undefined
+  const page = usePage() // ブックの外のページを開いていれば、名前はそのページの名前
   const current = useStageHere((st, s) => st !== null && workspaceOf(s.window, st.id).current === st.id)
   const t = useMessages(kit)
   const [open, setOpen] = useState(false)
@@ -54,7 +55,8 @@ export function BookName() {
     else toggles.current.hide()
   }, [bottom])
   const own = bottom === null ? { onMouseEnter: show, onMouseLeave: hide } : {}
-  const title = book ? book.title : ""
+  const title = book ? book.title : (page?.title ?? "")
+  const locked = (book ?? page)?.locked === true
   return (
     <>
       <div className={styles.name} {...own}>
@@ -62,7 +64,7 @@ export function BookName() {
           type="button"
           className={styles.trigger}
           data-current={current}
-          data-locked={book?.locked === true}
+          data-locked={locked}
           aria-label={title || t("Book menu")}
           aria-haspopup="menu"
           aria-expanded={open}
@@ -71,7 +73,7 @@ export function BookName() {
         >
           {title}
         </button>
-        {book?.locked && (
+        {locked && (
           <span className={styles.lock} role="img" aria-label={t("Locked")}>
             <LockIcon />
           </span>

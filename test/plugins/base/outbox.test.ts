@@ -2,6 +2,7 @@
 
 import { expect, test } from "bun:test"
 import type { Annotation } from "../../../web/src/core/annotation"
+import { pagesOf } from "../../../web/src/core/book"
 import { defineLeftSidePanelTab, opensOf, tabEntry } from "../../../web/src/plugins/base/left-side-panel/ui"
 import { newlyRead } from "../../../web/src/plugins/base/note/ReadNotice"
 import { listedPages } from "../../../web/src/plugins/base/outbox/rows"
@@ -23,7 +24,7 @@ const note = (id: string, anchor: string, addedAt: string): Annotation => ({
 })
 
 test("ページの順にまとめ、ページの中は付けた時点の新しい順に並べる", () => {
-  const listed = listedPages(CORE_CATALOG, book, {
+  const listed = listedPages(CORE_CATALOG, pagesOf(book), {
     p2: [note("n1", "c", "2026-11-05T01:00:00.000Z")],
     p1: [note("n2", "a", "2026-11-05T02:00:00.000Z"), note("n3", "b", "2026-11-05T03:00:00.000Z")],
   })

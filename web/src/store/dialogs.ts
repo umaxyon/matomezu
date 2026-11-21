@@ -66,11 +66,11 @@ export interface OpenedDialog {
   preview: DialogPreview | null // 選んだ値を、決める前に重ねて見せる下書き（このダイアログを閉じれば消える）
 }
 
-// ダイアログの下書き: ブック book のアイテム item の項目に props を重ねて描く（データは変えない。この窓の中だけ）。
+// ダイアログの下書き: ステージエントリ outermost（ブックか、ブックの外のページ）のアイテム item の項目に props を重ねて描く（データは変えない。この窓の中だけ）。
 // item が無く page があればそのページの、どちらも無ければブックの、設定の項目の変更が props（項目の id → 値。null は消す）
 // content があれば、アイテムの中身のフィールド（フィールドの名前 → 値。リストの行など）をそれに替えて描く
 export interface DialogPreview {
-  book: string
+  outermost: string
   item?: string
   page?: string
   props: Readonly<Record<string, unknown>>

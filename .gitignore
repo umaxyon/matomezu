@@ -26,3 +26,4 @@ node_modules/
 
 # 手元の作業の出力（コミットしない。scripts/relay-log.ts の記録など）
 /tmp/
+/test-results/
