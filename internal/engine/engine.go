@@ -59,7 +59,8 @@ type Engine struct {
 	forAI       func(string) string
 	briefs      func(string) string
 	placed      func(string) string
-	aiPage      func(string, string) string
+	aiPage      func(string) string
+	pagePlaced  func(string) string
 	item        func(string, string) string
 	use         goja.Callable
 	disabledFor goja.Callable
@@ -127,6 +128,7 @@ func New() (*Engine, error) {
 		{"matomezuAiBriefs", &e.briefs},
 		{"matomezuAiPlaced", &e.placed},
 		{"matomezuAiPage", &e.aiPage},
+		{"matomezuAiPagePlaced", &e.pagePlaced},
 		{"matomezuAiItem", &e.item},
 		{"matomezuTalkActions", &e.talk},
 		{"matomezuJoinActions", &e.join},

@@ -200,9 +200,9 @@ func TestTheAIReadsAFolderOneLevelDeep(t *testing.T) {
 func TestReadPageTellsTheFolderOfThePage(t *testing.T) {
 	s, _ := newServerOn(t, Options{}, entriesStore(t))
 	for path, want := range map[string]string{
-		"/api/ai/pages/p1":           `{"annotations":[],"book":"b1","folder":"b1",`,
-		"/api/ai/pages/p1?outline=1": `{"annotations":[],"book":"b1","folder":"b1",`,
-		"/api/ai/pages/s1":           `{"annotations":[],"book":"b2","folder":"f1",`,
+		"/api/ai/pages/p1":           `{"annotations":[],"entry":{"kind":"book","id":"b1"},"folder":"b1",`,
+		"/api/ai/pages/p1?outline=1": `{"annotations":[],"entry":{"kind":"book","id":"b1"},"folder":"b1",`,
+		"/api/ai/pages/s1":           `{"annotations":[],"entry":{"kind":"book","id":"b2"},"folder":"f1",`,
 	} {
 		if code, body := send(t, "GET", s.URL+path, "", ai); code != 200 || !strings.HasPrefix(body, want) {
 			t.Fatalf("%s = %d %s; want it to begin with %s", path, code, body, want)

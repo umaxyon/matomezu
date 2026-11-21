@@ -315,7 +315,7 @@ func TestAPageComesBackWhenItsPluginIsAddedAgain(t *testing.T) {
 		defer h.mu.Unlock()
 		return slices.Clone(h.folders["f1"].entries)
 	}
-	if _, body := get(t, s.URL+"/api/ai/pages/p1", "secret"); !strings.Contains(body, `"book":"f1"`) || !slices.Equal(lineup(), []string{"p0", "p1", "p2"}) {
+	if _, body := get(t, s.URL+"/api/ai/pages/p1", "secret"); !strings.Contains(body, `"entry":{"kind":"book","id":"f1"}`) || !slices.Equal(lineup(), []string{"p0", "p1", "p2"}) {
 		t.Fatalf("read_page p1 = %s, f1 %v", body, lineup())
 	}
 	original := rowOf(h, "p1")
@@ -339,7 +339,7 @@ func TestAPageComesBackWhenItsPluginIsAddedAgain(t *testing.T) {
 	if got := unreadableRefs(t, h); len(got) != 0 || !slices.Equal(lineup(), []string{"p0", "p1", "p2"}) || !bytes.Equal(rowOf(h, "p1"), original) {
 		t.Fatalf("after adding ex2 again: unreadable %v, f1 %v, p1 %s", got, lineup(), rowOf(h, "p1"))
 	}
-	if _, body := get(t, s.URL+"/api/ai/pages/p1", "secret"); !strings.Contains(body, `"book":"f1"`) {
+	if _, body := get(t, s.URL+"/api/ai/pages/p1", "secret"); !strings.Contains(body, `"entry":{"kind":"book","id":"f1"}`) {
 		t.Fatalf("read_page p1 after adding ex2 again = %s", body)
 	}
 }

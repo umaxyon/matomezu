@@ -97,7 +97,7 @@ func TestAIReadsAnnotations(t *testing.T) {
 	if _, got := send(t, "GET", s.URL+"/api/ai/books/b1", "", ai); !strings.Contains(got, `"annotations":[`+waiting+`]`) {
 		t.Fatalf("read_book = %s", got)
 	}
-	if _, got := send(t, "GET", s.URL+"/api/ai/pages/p1", "", ai); !strings.HasPrefix(got, `{"annotations":[`+waiting+`],"book":"b1","folder":"b1","page":{"kind":"page","id":"p1"`) {
+	if _, got := send(t, "GET", s.URL+"/api/ai/pages/p1", "", ai); !strings.HasPrefix(got, `{"annotations":[`+waiting+`],"entry":{"kind":"book","id":"b1"},"folder":"b1","page":{"kind":"page","id":"p1"`) {
 		t.Fatalf("read_page = %s", got)
 	}
 	// 形の描いた位置と大きさ（placed）も添える
@@ -113,7 +113,7 @@ func TestAIReadsAnnotations(t *testing.T) {
 	if _, got := send(t, "GET", s.URL+"/api/ai/books", "", ai); !strings.Contains(got, `"version":1,"awaiting":1}`) {
 		t.Fatalf("list_books = %s", got)
 	}
-	if _, got := send(t, "GET", s.URL+"/api/ai/awaiting", "", ai); got != `{"awaiting":[{"book":"b1","title":"T","annotation":`+waiting+`,"brief":"x"}],"failed":[],"removed":[],"undone":[]}` {
+	if _, got := send(t, "GET", s.URL+"/api/ai/awaiting", "", ai); got != `{"awaiting":[{"entry":{"kind":"book","id":"b1"},"title":"T","annotation":`+waiting+`,"brief":"x"}],"failed":[],"removed":[],"undone":[]}` {
 		t.Fatalf("awaiting = %s", got)
 	}
 	send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:note-read","args":{"note":"c1"},"on":{"page":"p1"}}`, writerAI(t, s.URL))

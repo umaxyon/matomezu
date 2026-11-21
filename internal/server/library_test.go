@@ -69,7 +69,7 @@ func TestBooksInFoldersLookTheSameToTheAI(t *testing.T) {
 		t.Fatalf("the answers differ:\n%s\n---\n%s", strings.Join(flat, "\n"), strings.Join(nested, "\n"))
 	}
 	if !strings.Contains(flat[0], `"id":"b1"`) || !strings.Contains(flat[0], `"id":"b2"`) || strings.Contains(flat[0], storage.HomeID) ||
-		!strings.Contains(flat[4], `"book":"b2"`) || !strings.Contains(flat[5], `"book":"b2"`) || !strings.Contains(flat[5], `"page":"s1"`) || !strings.HasPrefix(flat[6], "/api/ai/books/"+storage.HomeID+" 4") {
+		!strings.Contains(flat[4], `"entry":{"kind":"book","id":"b2"}`) || !strings.Contains(flat[5], `"book":"b2"`) || !strings.Contains(flat[5], `"page":"s1"`) || !strings.HasPrefix(flat[6], "/api/ai/books/"+storage.HomeID+" 4") {
 		t.Fatalf("answers = %s", strings.Join(flat, "\n"))
 	}
 }

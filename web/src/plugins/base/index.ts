@@ -342,6 +342,7 @@ export {
   type AiPlaced,
   adaptPage,
   aiPlacedOf,
+  aiPlacedOfPage,
   alignPadding,
   allRectsOf,
   apart,

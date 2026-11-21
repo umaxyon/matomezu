@@ -151,6 +151,12 @@ function wholeBook(catalog: CoreCatalog, saved: unknown): Book | null {
 // ページ 1 枚 page が、機能台帳のそのタイプのページの形に合い、タイプの決まりと、つなぐものの定義の決まりを守っているか（ブックに入っていないページの確かめ）
 export const pageSettles = (catalog: CoreCatalog, page: object): boolean => pageCheck(catalog, page) === "readable"
 
+// 残したページ 1 枚 page を、そのタイプのページの形で読んだページ（ブックに入っていないページを読む。読めなければ undefined）
+export function readablePage(catalog: CoreCatalog, page: object): AnyPage | undefined {
+  const read = pageRead(catalog, page)
+  return typeof read === "string" ? undefined : read
+}
+
 function pageCheck(catalog: CoreCatalog, page: object): UnreadableCode | "readable" {
   const read = pageRead(catalog, page)
   return typeof read === "string" ? read : "readable"

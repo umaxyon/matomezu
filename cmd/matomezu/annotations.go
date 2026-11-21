@@ -12,13 +12,19 @@ type annotationsCmd struct{}
 
 // awaitingItem は、常駐の api/ai/awaiting が返す、AI の応えを待つアノテーション 1 つ（brief は種類の aiBrief の 1 行。無ければ空）
 type awaitingItem struct {
-	Book       string          `json:"book"`
+	Entry      awaitingEntry   `json:"entry"`
 	Title      string          `json:"title"`
 	Annotation json.RawMessage `json:"annotation"`
 	Brief      string          `json:"brief"`
 }
 
-// writeAwaiting は、待つアノテーションを、ブックごとの見出しと、その下に 1 件 1 行（ページ・種類の id・アノテーションの id・1 行）で書く。
+// awaitingEntry は、待つアノテーションの付いたステージエントリ（Kind は book か、ブックの外のページの page）
+type awaitingEntry struct {
+	Kind string `json:"kind"`
+	ID   string `json:"id"`
+}
+
+// writeAwaiting は、待つアノテーションを、ステージエントリ（ブックか、ブックの外のページ）ごとの見出しと、その下に 1 件 1 行（ページ・種類の id・アノテーションの id・1 行）で書く。
 // 中身の全文は書かない（AI が read_page で読む）。待つ物が無ければ何も書かない
 func writeAwaiting(out io.Writer, awaiting []awaitingItem) {
 	if len(awaiting) == 0 {
@@ -26,11 +32,15 @@ func writeAwaiting(out io.Writer, awaiting []awaitingItem) {
 	}
 	fmt.Fprintf(out, "matomezu: %d annotation(s), such as the user's notes and marks, wait for your answer. "+
 		"Answer each as its kind says (see actions), with on.page set to the page of its line. A line is only what tells them apart: read_page shows what it stands on and the whole text of one that ends with … and its length.\n", len(awaiting))
-	last := ""
+	last := awaitingEntry{}
 	for _, a := range awaiting {
-		if a.Book != last {
-			fmt.Fprintf(out, "- book %q (%s)\n", a.Title, a.Book)
-			last = a.Book
+		if a.Entry != last {
+			if a.Entry.Kind == "page" {
+				fmt.Fprintf(out, "- page %q (%s), in no book\n", a.Title, a.Entry.ID)
+			} else {
+				fmt.Fprintf(out, "- book %q (%s)\n", a.Title, a.Entry.ID)
+			}
+			last = a.Entry
 		}
 		var head struct {
 			ID         string  `json:"id"`

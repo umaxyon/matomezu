@@ -29,12 +29,13 @@ declare module "../../../core/catalog" {
 export const itemAiPlaced = (catalog: CoreCatalog, page: ItemPage): AiPlaced[] =>
   [...allRectsOf(catalog, page)].map(([id, r]) => ({ id, x: r.x, y: r.y, w: r.w, h: r.h }))
 
-// ブック book のページごとの、描いた位置と大きさ（ページの id ごと。ページのタイプのプレゼンテーションが aiPlaced を持たないページは null）
+// ページ page の形の、描いた位置と大きさ（ページのタイプのプレゼンテーションが aiPlaced を持たなければ null）
+export function aiPlacedOfPage(catalog: CoreCatalog, page: ItemPage): readonly AiPlaced[] | null {
+  const aiPlaced = catalog.presentations.get(pageType(catalog, page.type).presentation)?.aiPlaced
+  return aiPlaced ? aiPlaced(catalog, page) : null
+}
+
+// ブック book のページごとの、描いた位置と大きさ（ページの id ごと。aiPlacedOfPage）
 export function aiPlacedOf(catalog: CoreCatalog, book: Book): Record<string, readonly AiPlaced[] | null> {
-  return Object.fromEntries(
-    pagesOf(book).map(p => {
-      const aiPlaced = catalog.presentations.get(pageType(catalog, p.type).presentation)?.aiPlaced
-      return [p.id, aiPlaced ? aiPlaced(catalog, p) : null]
-    }),
-  )
+  return Object.fromEntries(pagesOf(book).map(p => [p.id, aiPlacedOfPage(catalog, p)]))
 }
