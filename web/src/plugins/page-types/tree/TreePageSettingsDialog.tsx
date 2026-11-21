@@ -6,8 +6,16 @@
 // 見出しの右の鍵でロックを切り替え、確定で page-lock・page-unlock を行う（外すのは書く前、掛けるのは書いた後）。削除のボタンは、認可ステップが page-remove を止めていれば
 // 押せない。認可ステップが page-update を止めていれば項目を押せない（ロックなら、鍵を外す方にすれば押せる）
 import { useEffect, useId, useState } from "react"
-import { findPage, type PageSettingsArgs, putPage, withSettings } from "../../../plugin-api"
-import { type DialogProps, useActions, useAllowed, useBook, useMessages, usePerform } from "../../../plugin-api/ui"
+import { type PageSettingsArgs, putPage, withSettings } from "../../../plugin-api"
+import {
+  type DialogProps,
+  useActions,
+  useAllowed,
+  useBook,
+  useMessages,
+  usePageById,
+  usePerform,
+} from "../../../plugin-api/ui"
 import { BODY_MAX, changeWithLock } from "../../base"
 import {
   ActionButton,
@@ -32,7 +40,7 @@ export function TreePageSettingsDialog({ args, onClose }: DialogProps<PageSettin
   const t = useMessages(kit)
   const form = useId()
   const book = useBook()
-  const page = book ? findPage(book, args.page)?.page : undefined
+  const page = usePageById(args.page)
   const root = treeRootOf(page)
   const perform = usePerform()
   const { previewDialog } = useActions()

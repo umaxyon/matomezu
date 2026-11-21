@@ -2,11 +2,10 @@
 import { expect, test } from "bun:test"
 import { entriesIn } from "../../../web/src/core/entries"
 import { HOME_ID, type HomeFolder, type Library, type PlainFolder } from "../../../web/src/core/folders"
-import { worldTablesOf } from "../../../web/src/core/folders-books"
 import { type Drop, draggable, droppable, indexBefore, moveClashOf } from "../../../web/src/plugins/base/library/drop"
 import { movesInto } from "../../../web/src/plugins/base/library/entries"
 import { DRAWING, drawingPage, testBinder, testBook } from "../../lineup"
-import { NAMING, newStore } from "../../support"
+import { NAMING, newStore, worldTablesOf } from "../../support"
 
 function setup() {
   const store = newStore()

@@ -10,6 +10,7 @@ import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../../web/src/plugins/ui"
 import { createMatomezu } from "../../../web/src/store/create"
 import { MatomezuProvider } from "../../../web/src/ui/store-context"
 import { type DRAWING, drawingPage, testBook } from "../../lineup"
+import { savedRows } from "../../support"
 
 afterEach(cleanup)
 
@@ -45,7 +46,7 @@ function setup(extra: readonly object[] = []) {
     plugins: BUILTIN_UI,
     controlCenter: BUILTIN_CONTROL_CENTER,
     books: [],
-    savedBooks: [X, Y, ...extra],
+    saved: savedRows([X, Y, ...extra]),
     lang: "ja",
   })
   instance.actions.resizeStage("s1", { w: 1400, h: 1000 })

@@ -1,5 +1,6 @@
 // 紙と、紙に置いた物を扱う e2e の補助
 import { expect, type Locator, type Page } from "@playwright/test"
+import { BODY } from "../text-widths"
 import { footerMenuTool } from "./footer-menu"
 
 export const paper = (page: Page) => page.getByRole("img", { name: "紙" })
@@ -47,4 +48,16 @@ export async function addBox(page: Page, x: number, y: number, caption = "") {
   const at = await onPaper(page, x, y)
   await page.mouse.click(at.x, at.y)
   await confirmBox(page, caption)
+}
+
+// 本文を入れた箱を置き、選んだままにする
+export async function addBodyBox(page: Page) {
+  await (await footerMenuTool(page, "箱")).click()
+  const at = await onPaper(page, 120, 120)
+  await page.mouse.click(at.x, at.y)
+  const dialog = page.getByRole("dialog", { name: "ボックスの追加" })
+  await dialog.getByLabel("キャプション", { exact: true }).fill("見出し")
+  await dialog.getByLabel("本文", { exact: true }).fill(BODY)
+  await dialog.getByRole("button", { name: "追加" }).click()
+  await expect(dialog).toBeHidden()
 }

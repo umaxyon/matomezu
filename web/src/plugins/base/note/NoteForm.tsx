@@ -1,13 +1,12 @@
 // 伝言を書く所の部品（右サイドパネルで使う）: 文のテキストForm
-import { type KeyboardEvent, useEffect, useLayoutEffect, useRef } from "react"
+import { useEffect, useLayoutEffect, useRef } from "react"
+import { NOTE_TEXT_KEY_SCOPE } from "."
 import styles from "./NoteForm.module.css"
 
-// 文のテキストForm: 幅は置いた所の幅で折り返し、4 行の高さから、書いた分だけ下へ伸びる。Ctrl（Mac は Cmd）+Enter で送り、Esc で onEscape を呼ぶ
+// 文のテキストForm: 幅は置いた所の幅で折り返し、4 行の高さから、書いた分だけ下へ伸びる。名乗る範囲 NOTE_TEXT_KEY_SCOPE の Mod+Enter で送る（コマンド note-send）
 export function GrowingText({
   value,
   onChange,
-  onSubmit,
-  onEscape,
   placeholder,
   label,
   autoFocus,
@@ -15,8 +14,6 @@ export function GrowingText({
 }: {
   value: string
   onChange: (v: string) => void
-  onSubmit: () => void
-  onEscape?: () => void
   placeholder: string
   label: string
   autoFocus?: boolean
@@ -43,13 +40,6 @@ export function GrowingText({
     tryFocus()
     return () => cancelAnimationFrame(frame)
   }, [autoFocus])
-  const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.nativeEvent.isComposing) return
-    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-      e.preventDefault()
-      onSubmit()
-    } else if (e.key === "Escape") onEscape?.()
-  }
   return (
     <textarea
       ref={ref}
@@ -60,7 +50,7 @@ export function GrowingText({
       placeholder={placeholder}
       aria-label={label}
       onChange={e => onChange(e.target.value)}
-      onKeyDown={onKeyDown}
+      data-key-scope={NOTE_TEXT_KEY_SCOPE.id}
     />
   )
 }

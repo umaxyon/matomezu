@@ -5,14 +5,14 @@
 // キャプションで間隔が広がって押した形が紙に収まらなければ、閉じずに理由を出す
 
 import { useCallback, useEffect, useId, useState } from "react"
-import { findPage, findShape, type MessageKey } from "../../../plugin-api"
+import { findShape, type MessageKey } from "../../../plugin-api"
 import {
   type DialogProps,
   useActions,
-  useBook,
   useCoreCatalog,
   useItem,
   useMessages,
+  usePageById,
   usePerform,
 } from "../../../plugin-api/ui"
 import { portAreasOf, refusalMessage } from "../../base"
@@ -67,8 +67,7 @@ export function EditLineDialog({ args, onClose }: DialogProps<{ page: string; it
   const form = useId()
   const catalog = useCoreCatalog()
   const book = useBookOf()
-  const drawing = useBook()
-  const page = (drawing && (drawing ? findPage(drawing, args.page)?.page : undefined)) || undefined
+  const page = usePageById(args.page) ?? undefined
   const line = useItem(args.page, args.item, LINE.id)
   const { previewDialog } = useActions()
   const perform = usePerform()

@@ -10,6 +10,6 @@ export { RichText } from "./RichText"
 export { BodyField, CaptionField, DividerField, type TextDraft } from "./TextBlockFields"
 export { TextBlockView } from "./TextBlockView"
 export { useBodyGrips } from "./useBodyGrips"
-export { useInPlaceInput } from "./useInPlaceInput"
+export { useEndWhenBlocked, useInPlaceInput } from "./useInPlaceInput"
 
 export const TEXT_SETTING_VIEWS = { [PAGE_TEXT_COLORS.id]: { control: TextColorsSetting } }

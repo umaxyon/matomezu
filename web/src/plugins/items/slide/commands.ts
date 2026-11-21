@@ -6,7 +6,8 @@ import { hasOpenedPage } from "../../base"
 import { SLIDE_MOVE, SLIDE_PLACE, SLIDE_REMOVE, SLIDE_REORDER, SLIDE_RESIZE, SLIDE_UPDATE } from "./actions"
 import { kit } from "./kit"
 import { type Order, orderSteps } from "./order"
-import { SLIDE_KEY_SCOPE } from "./scope"
+import { shapeProps } from "./rect"
+import { ADDED_EDIT, SLIDE_KEY_SCOPE, SLIDE_TEXT_KEY_SCOPE } from "./scope"
 
 const PLACE = SLIDE_PLACE.id
 const MOVE = SLIDE_MOVE.id
@@ -123,6 +124,33 @@ export const SLIDE_DELETE = kit.defineCommand({
   when: ctx => hasOpenedPage(ctx) && selectedOnSlide(ctx).length > 0,
 })
 
+// 文字を書き換えているアイテム（選んでいる 1 つが slide のアイテムで、書き換えの間。ツリーのキャプションの書き換えも stage.editing は true なので、選んだ物で分ける）
+function editedOnSlide(ctx: Ctx): string | null {
+  if (ctx.stage.editing !== true && ctx.stage.editing !== ADDED_EDIT) return null
+  const chosen = selectedOnSlide(ctx)
+  return chosen.length === 1 && ctx.stage.selection.length === 1 ? (chosen[0] ?? null) : null
+}
+
+// 文字の書き換えをやめる（書いた字は捨てる）。文字が空のままの文字枠（置いた直後）は残さず、置いたばかりなら置いた操作と画面の履歴の 1 段にする。
+// 消すのを認可ステップが止めていても押せ、そのときは消さずに書き換えだけをやめる
+export const SLIDE_TEXT_CANCEL = kit.defineCommand({
+  id: "slide-text-cancel",
+  performs: [REMOVE],
+  permissionScope: "opened-page",
+  denied: "runs",
+  title: "Cancel",
+  run: (ctx, a) => {
+    const item = editedOnSlide(ctx)
+    if (!hasOpenedPage(ctx) || item === null) return
+    if (ctx.stage.editing === ADDED_EDIT && ctx.book !== "none") a.continueStep(ctx.book.id)
+    a.setEditing(false)
+    const shape = slideOf(ctx.page).find(s => s.id === item)
+    if (shape && (shapeProps(shape).text ?? "") === "" && a.perform(REMOVE, { item }, { page: ctx.page.id }).ok)
+      a.select([])
+  },
+  when: ctx => hasOpenedPage(ctx) && editedOnSlide(ctx) !== null,
+})
+
 // 選んでいるアイテムの重ねの順を to へ動かす（選んだ物どうしの前後は保つ。画面の履歴は 1 段）
 function reorder(ctx: Ctx, a: Actions, to: Order): void {
   if (!hasOpenedPage(ctx)) return
@@ -171,6 +199,12 @@ export const SLIDE_TO_BACK = kit.defineCommand({
 })
 
 export const SLIDE_KEYS = [
+  kit.defineKey({
+    id: "slide-text-cancel-escape",
+    key: "Escape",
+    command: SLIDE_TEXT_CANCEL.id,
+    scope: SLIDE_TEXT_KEY_SCOPE.id,
+  }),
   kit.defineKey({ id: "slide-delete-delete", key: "Delete", command: SLIDE_DELETE.id, scope: SLIDE_KEY_SCOPE.id }),
   kit.defineKey({
     id: "slide-delete-backspace",

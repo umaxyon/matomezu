@@ -113,7 +113,7 @@ test("自分のアクションで判断に答える。判断のひし形でな�
   })
 })
 
-test("追加のダイアログで置き、編集のダイアログで答える（追加は開いた側が渡した置き方に項目の値を渡し、編集は usePerform でアクションを行い、useItem で今の答えを読む）", () => {
+test("追加のダイアログで置き、編集のダイアログで答える（追加は開いた側が渡した置き方に項目の値を渡し、編集は usePerform でアクションを行い、useItem で今の答えを、usePageById でページの名前を読む）", () => {
   const instance = make()
   const { page } = flow(instance)
   // 置き方は開いた側（紙）が渡す。ここでは渡された項目の値で、そのまま置く
@@ -135,6 +135,7 @@ test("追加のダイアログで置き、編集のダイアログで答える�
   const item = page().items![0]!
   expect(item.props).toMatchObject({ caption: "続ける？" })
   act(() => instance.actions.openDialog("s1", "ex2:diamond-edit", { page: page().id, item: item.id }))
+  expect(document.querySelector("[data-ex2-page]")?.textContent).toBe("p1")
   expect(screen.getByRole("button", { name: "いいえ" }).getAttribute("aria-pressed")).toBe("false")
   fireEvent.click(screen.getByRole("button", { name: "いいえ" }))
   expect(page().items![0]!.props).toMatchObject({ answer: "no" })

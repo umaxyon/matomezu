@@ -113,11 +113,14 @@ export function distinctBooks(books: readonly Book[]): { books: Book[]; warnings
 // 残したページ 1 枚（形を確かめる前）を今の機能台帳で読んだ物の覚え: 読めたら読んだページ、読めなければその理由の warning の番号
 // （同じ値は覚えておき、読めるかの確かめとタイプの決まりの確かめを繰り返さない）
 const pageChecks = new WeakMap<CoreCatalog, WeakMap<object, AnyPage | UnreadableCode>>()
-function pageChecksOf(catalog: CoreCatalog): WeakMap<object, AnyPage | UnreadableCode> {
-  let kept = pageChecks.get(catalog)
+const pageChecksOf = (catalog: CoreCatalog) => keptFor(pageChecks, catalog)
+
+// 機能台帳 catalog の覚え（無ければ作る。機能台帳を組み直すと、新しい台帳の覚えになる）
+function keptFor<T>(all: WeakMap<CoreCatalog, WeakMap<object, T>>, catalog: CoreCatalog): WeakMap<object, T> {
+  let kept = all.get(catalog)
   if (!kept) {
     kept = new WeakMap()
-    pageChecks.set(catalog, kept)
+    all.set(catalog, kept)
   }
   return kept
 }
@@ -226,8 +229,20 @@ function judgeBinder(catalog: CoreCatalog, raw: Readonly<Record<string, unknown>
 // 残したブック 1 冊 raw（並びにページとバインダの中身ごと持つ形。形を確かめる前）を今の機能台帳で読んだ物。読めるかの判定は、画面もホストもこれ 1 つで決める。
 // ブックごと読めなければ、その訳: 読めない物を除いてもブックの形に合わない・行の無い物を指したまま組まれている W005／並びの決まりを守らない W006。
 // 読めれば、読めない物を除いたブックと、中の読めない物（ページ・バインダ。外側の 1 つだけ。バインダごと読めないバインダの中のページは数えない）
+// 同じ値は覚えておき、確かめ直さない（窓は知らせを受けるたびに書庫を読み直すが、変わらないブックの行は同じ値のまま）
 export type BookRead = { code: MovedCode } | { book: Book; inner: readonly Lost[] }
+const bookChecks = new WeakMap<CoreCatalog, WeakMap<object, BookRead>>()
 export function judgeBook(catalog: CoreCatalog, raw: unknown): BookRead {
+  if (typeof raw !== "object" || raw === null) return readBook(catalog, raw)
+  const kept = keptFor(bookChecks, catalog)
+  const hit = kept.get(raw)
+  if (hit) return hit
+  const made = readBook(catalog, raw)
+  kept.set(raw, made)
+  return made
+}
+
+function readBook(catalog: CoreCatalog, raw: unknown): BookRead {
   // 読めない物の無いブックは、ブックの形で 1 回確かめるだけで済ませる（ページごとには確かめ直さない）
   const whole = wholeBook(catalog, raw)
   if (whole && lineupHolds(catalog, whole)) return { book: whole, inner: [] }

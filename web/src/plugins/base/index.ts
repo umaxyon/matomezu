@@ -123,12 +123,16 @@ import {
   NOTE,
   NOTE_ADD,
   type NOTE_BIRDS,
+  NOTE_DRAFT,
   NOTE_EXPIRY,
+  NOTE_KEYS,
   NOTE_NEW,
   NOTE_READ,
   NOTE_REMOVE,
+  NOTE_SEND,
   NOTE_STATES,
   NOTE_TALKED,
+  NOTE_TEXT_KEY_SCOPE,
   NOTE_UPDATE,
 } from "./note"
 // 拡張ポイントに書き足したフィールド listed の型（outbox/listed.ts の declare module）
@@ -610,6 +614,7 @@ export const BASE = defineBuiltin(
       LIBRARY_TREE_UNFOLD_OR_NEXT,
       LIBRARY_PICK_MOVE,
       NOTE_NEW,
+      NOTE_SEND,
       MARK_NEW,
       RIGHT_SIDE_PANEL_CLOSE,
       LEFT_SIDE_PANEL_CLOSE,
@@ -655,6 +660,7 @@ export const BASE = defineBuiltin(
       ...MINIMAP_STATES,
       ...MAIL_STATES,
       ...NOTE_STATES,
+      NOTE_DRAFT,
       ...MARK_STATES,
       ...CONTEXT_MENU_STATES,
       WIDE_SEARCH_MODE,
@@ -663,6 +669,7 @@ export const BASE = defineBuiltin(
       RIGHT_SIDE_PANEL_KEY_SCOPE,
       LEFT_SIDE_PANEL_KEY_SCOPE,
       SEARCH_KEY_SCOPE,
+      NOTE_TEXT_KEY_SCOPE,
       LIBRARY_KEY_SCOPE,
       LIBRARY_TREE_KEY_SCOPE,
       LIBRARY_CONTENTS_KEY_SCOPE,
@@ -682,6 +689,7 @@ export const BASE = defineBuiltin(
       ...SPLIT_KEYS,
       ...PRINT_KEYS,
       ...SEARCH_KEYS,
+      ...NOTE_KEYS,
     ],
   }),
 )
@@ -897,6 +905,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:settings-set": typeof SETTINGS_SET_COMMAND
     "@matomezu/base:settings-open": typeof SETTINGS_OPEN
     "@matomezu/base:note-new": typeof NOTE_NEW
+    "@matomezu/base:note-send": typeof NOTE_SEND
     "@matomezu/base:mark-new": typeof MARK_NEW
     "@matomezu/base:right-side-panel-close": typeof RIGHT_SIDE_PANEL_CLOSE
     "@matomezu/base:search-open": typeof SEARCH_OPEN
@@ -914,6 +923,7 @@ declare module "../../core/catalog" {
   }
   interface PluginStateTable {
     "@matomezu/base:search": typeof SEARCH_STATE
+    "@matomezu/base:note-draft": typeof NOTE_DRAFT
     "@matomezu/base:search-at": typeof SEARCH_AT_STATE
     "@matomezu/base:search-pick": typeof SEARCH_PICK_STATE
     "@matomezu/base:wide-search-mode": typeof WIDE_SEARCH_MODE
@@ -944,6 +954,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:right-side-panel": typeof RIGHT_SIDE_PANEL_KEY_SCOPE // 右サイドパネルの中にフォーカスがある間のキー
     "@matomezu/base:left-side-panel": typeof LEFT_SIDE_PANEL_KEY_SCOPE // 左サイドパネルの中にフォーカスがある間のキー
     "@matomezu/base:search": typeof SEARCH_KEY_SCOPE // 検索ダイアログの入力Formの中のキー
+    "@matomezu/base:note-text": typeof NOTE_TEXT_KEY_SCOPE // 右サイドパネルの伝言のテキストFormの中のキー
     "@matomezu/base:library-tree": typeof LIBRARY_TREE_KEY_SCOPE // 書庫の画面のツリーの中にフォーカスがある間のキー
     "@matomezu/base:library-contents": typeof LIBRARY_CONTENTS_KEY_SCOPE // 書庫の画面の右の枠の中身の中にフォーカスがある間のキー
     "@matomezu/base:library-found": typeof LIBRARY_FOUND_KEY_SCOPE // 書庫の画面の検索の結果の中にフォーカスがある間のキー
