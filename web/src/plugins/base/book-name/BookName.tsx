@@ -9,7 +9,7 @@ import { workspaceOf } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import { Slot } from "../../../ui/Slot"
 import { useStageHere } from "../../../ui/scope"
-import { useBook } from "../../../ui/view-hooks"
+import { useBook, usePage } from "../../../ui/view-hooks"
 import { FOOTER_MENU_SLOTS } from "../footer-menu/footer-menu"
 import { FooterMenuContext } from "../footer-menu/footer-menu-context"
 import { kit } from "../kit"
@@ -22,6 +22,7 @@ const LEAVE_MS = 250
 
 export function BookName() {
   const book = useBook() ?? undefined
+  const page = usePage() // ブックの外のページを開いていれば、名前はそのページの名前
   const current = useStageHere((st, s) => st !== null && workspaceOf(s.window, st.id).current === st.id)
   const t = useMessages(kit)
   const [open, setOpen] = useState(false)
@@ -54,7 +55,7 @@ export function BookName() {
     else toggles.current.hide()
   }, [bottom])
   const own = bottom === null ? { onMouseEnter: show, onMouseLeave: hide } : {}
-  const title = book ? book.title : ""
+  const title = book ? book.title : (page?.title ?? "")
   return (
     <>
       <div className={styles.name} {...own}>
