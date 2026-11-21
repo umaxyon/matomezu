@@ -178,3 +178,39 @@ test("見せる側の判定: 作業中の印を外したレーンのチケット
   expect(current()).toBeUndefined()
   expect(workroomActivityOf(CORE_CATALOG, records(), a)).toBe("idle")
 })
+
+test("ticket-start は、完了のチケットと、作業中のレーンが無いプロジェクトのチケットでは断る", () => {
+  const { act, user, room, project, add, world } = board()
+  const a = room("あ")
+  const done = add()
+  user("ticket-complete", {}, { record: done })
+  expect(act(ai(a), "ticket-start", {}, { record: done }).ok).toBe(false)
+  const p = world().records[A("project")]?.[project] as Project
+  user(
+    "project-update",
+    { lanes: p.lanes.map(l => (l.kind === "lane" ? { ...l, working: undefined } : l)) },
+    { record: project },
+  )
+  expect(act(ai(a), "ticket-start", {}, { record: add() }).ok).toBe(false)
+})
+
+test("今カレントにしているチケットに ticket-start をしても、何も書かない", () => {
+  const { act, room, doing, add } = board()
+  const a = room("あ")
+  const t1 = add({ lane: doing, assignees: [a] })
+  const again = act(ai(a), "ticket-start", {}, { record: t1 }) as Done & { records?: readonly unknown[] }
+  expect(again.ok).toBe(true)
+  expect(again.records ?? []).toEqual([])
+})
+
+test("ロックしたチケットでは ticket-start も ticket-leave も断る（チケットのアクションとして同じ扱い）", () => {
+  const { act, user, room, doing, add, work } = board()
+  const a = room("あ")
+  const t1 = add({ lane: doing, assignees: [a] })
+  user("ticket-lock", {}, { record: t1 })
+  expect(act(ai(a), "ticket-leave", {}, { record: t1 }).ok).toBe(false)
+  expect(work(a)).toBe(t1)
+  const t2 = add()
+  user("ticket-lock", {}, { record: t2 })
+  expect(act(ai(a), "ticket-start", {}, { record: t2 }).ok).toBe(false)
+})

@@ -12,33 +12,41 @@ import { TICKET, type Ticket } from "../ticket/ticket"
 // カレントワークが無いことを表す値
 export const NO_TICKET = "none"
 
+const CURRENT_WORK_RECORD = z.strictObject({
+  id: z.string().min(1),
+  ticket: z.string().min(1), // チケットの id か none
+})
+
+// 形 schema に合えばその値、合わなければ undefined
+const parsed = <T>(schema: z.ZodType<T>, value: unknown): T | undefined => {
+  const r = schema.safeParse(value)
+  return r.success ? r.data : undefined
+}
+
 export const CURRENT_WORK = kit.defineSubject({
   id: "current-work",
   title: "current work",
   aiDescription:
     "The current work of a workroom (the record's id is the workroom's id): ticket is the ticket the workroom is working on now, or none. Its current ticket is that ticket while the workroom is one of its assignees and it is in a working lane of its project. It is filled when a ticket that a workroom with no current work is assigned to comes into a working lane (or the workroom is assigned to a ticket in a working lane), changed with ticket-start, emptied with ticket-leave, and emptied when the ticket is completed or removed, or leaves the working lanes or the workroom's assignment.",
-  record: z.strictObject({
-    id: z.string().min(1),
-    ticket: z.string().min(1), // チケットの id か none
-  }),
+  record: CURRENT_WORK_RECORD,
   refers: w => (w.ticket === NO_TICKET ? [] : [{ subject: TICKET.id, id: w.ticket }]),
   keys: {
     ticket: { type: "text", of: w => w.ticket },
   },
   aiBrief: w => w.ticket,
   // 参加者リストの並びを見せるためだけ: カレントチケットがあれば作業中
-  workroomActivity: (workroom, read) => {
-    const work = CURRENT_WORK_RECORD.safeParse(read(CURRENT_WORK_KIND, workroom))
-    if (!work.success || work.data.ticket === NO_TICKET) return "idle"
-    const ticket = TICKET.record.safeParse(read(TICKET.id, work.data.ticket))
-    if (!ticket.success) return "idle"
-    const project = PROJECT.record.safeParse(read(PROJECT.id, ticket.data.project))
-    return project.success && isCurrentFor(ticket.data, workroom, project.data) ? "working" : "idle"
-  },
+  workroomActivity: (workroom, read) =>
+    currentTicketOf(
+      workroom,
+      parsed(CURRENT_WORK_RECORD, read(CURRENT_WORK_KIND, workroom)),
+      id => parsed(TICKET.record, read(TICKET.id, id)),
+      id => parsed(PROJECT.record, read(PROJECT.id, id)),
+    )
+      ? "working"
+      : "idle",
 })
 
 const CURRENT_WORK_KIND = kit.name("current-work") // 作業の様子で自分の種類を引く（定義の中から CURRENT_WORK を指さない）
-const CURRENT_WORK_RECORD = z.strictObject({ id: z.string(), ticket: z.string() })
 
 export type CurrentWork = z.output<typeof CURRENT_WORK.record>
 
