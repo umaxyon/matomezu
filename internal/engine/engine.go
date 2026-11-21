@@ -47,9 +47,7 @@ type Engine struct {
 	roles       func() string
 	aiRecords   func(string, string, string, string) string
 	once        func() string
-	catalogActs func() string
 	sysFolders  func() string
-	sysInPlace  func(string, string, string) bool
 	settle      func(string, string, string, string) string
 	movedIfOff  func(string, string, string, string, string) string
 	settleFail  func(string) string
@@ -136,9 +134,7 @@ func New() (*Engine, error) {
 		{"matomezuParticipantAlive", &e.alive},
 		{"matomezuCheckRecords", &e.records},
 		{"matomezuRunOnceActions", &e.once},
-		{"matomezuCatalogActions", &e.catalogActs},
 		{"matomezuSystemFolderTitles", &e.sysFolders},
-		{"matomezuSystemFoldersInPlace", &e.sysInPlace},
 		{"matomezuSettleLibrary", &e.settle},
 		{"matomezuSettleFailed", &e.settleFail},
 		{"matomezuMovedIfOff", &e.movedIfOff},

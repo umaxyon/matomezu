@@ -215,7 +215,7 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
     // 行う前から在るページのタイプも、変えない（ページがブックの間を動いても）
     const typesKept = keepsPageTypesAcross(Object.values(was), Object.values(now))
     // 同じ入れ物の中の名前の重なりは、ブックの決まりで断る前に、名前が重なる断りにする
-    const clashes = titleClashes(subject as Library, next as Library, ctx.naming)
+    const clashes = titleClashes(next as Library, ctx.naming)
     if (clashes.length > 0) return titleTaken(next as Library, clashes, ctx.naming)
     if (!librarySettles(ctx.catalog, was, now) || !typesKept) return { ok: false, reason: "refused" }
   }

@@ -203,19 +203,6 @@ func (e *Engine) RunOnceActions() (ids []string, err error) {
 	return ids, err
 }
 
-// CatalogActions は、機能台帳に合わせてデータを足すアクション（runAndKeepsWithCatalog。常駐が、起動したとき・機能台帳が変わったとき・データを書いたあとに行う）の id の並び
-func (e *Engine) CatalogActions() (ids []string, err error) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("engine: %v", r)
-		}
-	}()
-	err = json.Unmarshal([]byte(e.catalogActs()), &ids)
-	return ids, err
-}
-
 // RecordNeeds は、アクション action が対象にする種類（レコードが対象でなければ Subject が空）と、読むだけの種類と、
 // 引数 args（perform の args の JSON。無ければ空）から答えた読むだけのブックの id を返す
 func (e *Engine) RecordNeeds(action string, args json.RawMessage) (needs RecordNeeds, err error) {

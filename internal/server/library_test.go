@@ -160,7 +160,7 @@ func TestWholeBooksGoIntoTheLibraryHome(t *testing.T) {
 	if _, _, err := hub.replaceBookForTest("b3", json.RawMessage(`{"id":"b3","title":"N","lineup":[]}`), 0); err != nil {
 		t.Fatal(err)
 	}
-	if want := `{"folderRole":"home","id":"library-home","lineup":[` + documentsRef(t, hub) + `{"kind":"folder","id":"d1"},{"id":"b3","kind":"book"}]}`; home() != want ||
+	if want := `{"folderRole":"home","id":"library-home","lineup":[` + documentsRef(t, hub) + `{"id":"d1","kind":"folder"},{"id":"b3","kind":"book"}]}`; home() != want ||
 		entries()["b3"] != storage.HomeID || hub.places["b3"] != storage.HomeID || !slices.Contains(hub.order, "b3") {
 		t.Fatalf("home after a new book = %s, entries %v", home(), entries())
 	}

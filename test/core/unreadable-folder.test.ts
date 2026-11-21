@@ -55,8 +55,10 @@ function applied(rows: Rows, done: Settled | typeof BROKEN): Rows {
   }
 }
 
+// システムフォルダの定義を持たない機能台帳 catalog（移す・戻すだけを見る。足りないシステムフォルダを足すのは「書庫を整える」のテストで見る）
+const bare = (catalog: CoreCatalog): CoreCatalog => ({ ...catalog, systemFolders: new Map() })
 const settle = (catalog: CoreCatalog, rows: Rows, now = NOW) =>
-  settleLibrary(catalog, rows.pages, rows.folders, { naming: NAMING, now, newId: () => "new" })
+  settleLibrary(bare(catalog), rows.pages, rows.folders, { naming: NAMING, now, newId: () => "new" })
 const settled = (catalog: CoreCatalog, rows: Rows, now = NOW) => applied(rows, settle(catalog, rows, now))
 const unreadableOf = (rows: Rows): UnreadableFolder =>
   rows.folders.find(f => (f as { id: string }).id === UNREADABLE_ID) as UnreadableFolder
@@ -347,22 +349,29 @@ test("入れ物が先に戻り、中の物は次の回で戻る（ブックと�
   expect(byId(back)).toEqual(byId(rows))
 })
 
-test("在ったフォルダが無ければ、その上のまだ在るフォルダへ、それも無ければ書庫ホームへ戻る。名前が重なれば番号を付ける（ロック中でも）", () => {
-  const rows = worldRows([], [{ ...md("x1", "メモ"), locked: true } as never])
+test("在ったフォルダが無ければ、その上のまだ在るフォルダへ、それも無ければ書庫ホームへ戻る。名前が重なれば、並びの後の物に番号を付ける（ロック中でも）", () => {
+  const rows = worldRows([], [md("x1", "メモ")])
   const moved = settled(NO_MARKDOWN, rows)
-  // 移っている間に、同じ名前のページが書庫ホームに増えた
+  // 移っている間に、同じ名前のロックしたページが書庫ホームに増えた
   const crowded = {
-    pages: [...moved.pages, drawingPage("x2", { title: "メモ" })],
+    pages: [...moved.pages, { ...drawingPage("x2", { title: "メモ" }), locked: true }],
     folders: moved.folders.map(f =>
       (f as { id: string }).id === HOME_ID
         ? { ...(f as object), lineup: [...(f as { lineup: object[] }).lineup, { kind: "page", id: "x2" }] }
         : f,
     ),
   }
-  expect((settle(CORE_CATALOG, crowded, LATER) as Settled).numbered).toEqual([{ id: "x1", title: "メモ 2" }])
+  // 戻った x1 は元の並びの先頭（x2 より前）なので名前を残し、後の x2 に番号が付く
+  expect((settle(CORE_CATALOG, crowded, LATER) as Settled).numbered).toEqual([
+    { kind: "page", id: "x2", title: "メモ 2" },
+  ])
   const back = settled(CORE_CATALOG, crowded, LATER)
   expect(folderOf(back, HOME_ID).lineup.map(r => r.id)).toEqual(["x1", "x2"])
-  expect(back.pages.find(p => (p as { id: string }).id === "x1")).toEqual({ ...md("x1", "メモ 2"), locked: true })
+  expect(back.pages.find(p => (p as { id: string }).id === "x1")).toEqual(md("x1", "メモ"))
+  expect(back.pages.find(p => (p as { id: string }).id === "x2")).toEqual({
+    ...drawingPage("x2", { title: "メモ 2" }),
+    locked: true,
+  })
 })
 
 test("在ったフォルダが無くなっていれば、その上のまだ在るフォルダの末尾へ戻る", () => {
@@ -424,7 +433,7 @@ test("先のブックと id が重なるブック（W006）は、ブックごと
   expect(purge?.removedFolders).toEqual(["b2"])
   expect(purge?.removedPages).toEqual(["p2"])
   expect(purgedRows(moved.pages, moved.folders, "b1")).toBeUndefined()
-  const gone = applied(moved, { writes: purge!, moved: [], returned: [], numbered: [] })
+  const gone = applied(moved, { writes: purge!, moved: [], returned: [], added: [], numbered: [] })
   expect(
     rowsHoldTree(
       gone.folders,
@@ -515,4 +524,54 @@ test("書庫から外した物と、読めない物のフォルダの直下の�
   for (const u of out.unreadable) expect(kept.has(u.id)).toBe(false)
   expect(kept.has("x2")).toBe(true)
   expect(outsideUnreadable(loose.pages, loose.folders)).toBe(out)
+})
+
+describe("書庫を整える: 足りないシステムフォルダを足し、名前の重なりに番号を付ける", () => {
+  const DOCUMENTS = "@matomezu/base:documents"
+  const full = (rows: Rows, now = NOW) =>
+    settleLibrary(CORE_CATALOG, rows.pages, rows.folders, { naming: NAMING, now, newId: () => "docs" })
+  const withHome = (rows: Rows, ...extra: { id: string; title: string }[]): Rows => ({
+    pages: rows.pages,
+    folders: [
+      ...rows.folders.map(f =>
+        (f as { id: string }).id === HOME_ID
+          ? {
+              ...(f as object),
+              lineup: [...(f as { lineup: object[] }).lineup, ...extra.map(e => ({ kind: "folder", id: e.id }))],
+            }
+          : f,
+      ),
+      ...extra.map(e => ({ folderRole: "folder", id: e.id, title: e.title, lineup: [] })),
+    ],
+  })
+
+  test("足りないシステムフォルダを書庫ホームの先頭に足し、名前の当たる物に番号を付ける。2 回目は何も書かない", () => {
+    const rows = withHome(worldRows([testBook("b1", "B", [drawingPage("p1")])]), { id: "u", title: "Documents" })
+    const done = full(rows) as Settled
+    expect(done.added).toEqual([{ id: "docs", systemFolder: DOCUMENTS }])
+    expect(done.numbered).toEqual([{ kind: "folder", id: "u", title: "Documents 2" }])
+    const after = applied(rows, done)
+    expect(folderOf(after, HOME_ID).lineup.map(r => r.id)).toEqual(["docs", "b1", "u"])
+    expect(folderOf(after, "docs") as unknown).toEqual({
+      folderRole: "folder",
+      id: "docs",
+      systemFolder: DOCUMENTS,
+      lineup: [],
+    })
+    const again = full(after, LATER) as Settled
+    expect([again.added, again.numbered, again.writes]).toEqual([
+      [],
+      [],
+      { pages: {}, folders: {}, removedPages: [], removedFolders: [] },
+    ])
+  })
+
+  test("読んだデータの重なりも、並びの後の物に番号を付ける", () => {
+    const rows = withHome(worldRows([]), { id: "u1", title: "x" }, { id: "u2", title: "x" })
+    const once = applied(rows, full(rows))
+    const done = full(once, LATER) as Settled
+    expect(done.numbered).toEqual([])
+    expect(folderOf(once, "u2")).toMatchObject({ title: "x 2" })
+    expect(folderOf(once, "u1")).toMatchObject({ title: "x" })
+  })
 })

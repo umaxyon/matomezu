@@ -11,7 +11,7 @@ import { PARTICIPANT_STATES, SUBJECT_ROLE_FIELDS } from "./def/subject"
 import { THEME_TOKENS } from "./def/theme"
 import { enumValuesOf } from "./enum"
 import { type Problem, problem } from "./errors"
-import type { Messages } from "./i18n/i18n"
+import { type Messages, translate } from "./i18n/i18n"
 import { CORE_MESSAGES, LANGUAGES, type Lang } from "./i18n/messages"
 import { splitId } from "./names"
 import { PageSchema } from "./schema/page"
@@ -203,6 +203,8 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     if (a.lockSwitch && (a.writes?.length ?? 0) > 0) problems.push(problem("E060", { id: a.id }))
   }
   for (const s of parts.subjects) if (s.aiListed && s.aiList) problems.push(problem("E061", { id: s.id }))
+  for (const s of parts.subjects) if (s.aiRow && !s.aiList) problems.push(problem("E076", { id: s.id }))
+  for (const s of parts.subjects) if (s.aiOrder && s.aiList) problems.push(problem("E077", { id: s.id }))
   for (const c of parts.controlCenters) {
     for (const id of c.actions) if (!actions.has(id)) problems.push(problem("E041", { id: c.id, ref: id }))
     for (const id of c.subjects === "all" ? [] : (c.subjects ?? []))
@@ -298,5 +300,17 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     for (const d of parts[k] as readonly { id: string; title?: unknown }[])
       if (typeof d.title === "string" && !messages.has(d.title))
         problems.push(problem("E018", { kind: PARTS[k].label, id: d.id, title: d.title }))
+  // どれかの言語で名前が同じになるシステムフォルダの定義（名前は core/entries.ts の rowTitle と同じく translate で引く。無い訳は英語）
+  const merged = mergeMessages(parts)
+  const langs = [...new Set(allLanguages(parts).map(p => p.lang))]
+  for (const lang of langs) {
+    const titled = new Map<string, string>()
+    for (const d of parts.systemFolders) {
+      const title = translate(merged, lang, d.title)
+      const first = titled.get(title)
+      if (first === undefined) titled.set(title, d.id)
+      else problems.push(problem("E132", { first, second: d.id, lang, title }))
+    }
+  }
   return problems
 }

@@ -3,7 +3,7 @@ import { type RefObject, useEffect, useRef } from "react"
 import { type EntryKind, type Naming, namingOf } from "../../../core/entries"
 import { type BROKEN, HOME_ID, type Library, TRASH_ID, UNREADABLE_ID } from "../../../core/folders"
 import { sameData } from "../../../core/same"
-import type { MovedIfOff, Purged } from "../../../core/unreadable"
+import type { MovedIfOff, Purged, UnreadableNotice } from "../../../core/unreadable"
 import type { MatomezuState } from "../../../store/state"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useInstance, useMatomezuState, useReadState } from "../../../ui/store-context"
@@ -133,3 +133,6 @@ export function useMovedIfOff(): (ids: readonly string[]) => Promise<readonly Mo
 export function usePurgeUnreadable(): (id: string) => Promise<Purged> {
   return useInstance().purgeUnreadable
 }
+
+// 窓を開く前に知らされた、読めない物のフォルダへ移った・戻った物（画面の入口がインスタンスに渡したもの。無ければ undefined）
+export const useUnreadableNotice = (): UnreadableNotice | undefined => useInstance().unreadableNotice

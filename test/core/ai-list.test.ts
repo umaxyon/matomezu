@@ -1,9 +1,10 @@
-// AI の一覧（read_records）の、種類の全部を読む道: 載せる物・載せない物（aiListed）・unlisted の 3 つの扱い・where（索引キーだけ）・数・指す先の読み・形に合わないレコード
+// AI の一覧（read_records）の、種類の全部を読む道と、一覧の書き方の確かめ: 載せる物・載せない物（aiListed）・unlisted の 3 つの扱い・where（索引キーだけ）・数・指す先の読み・形に合わないレコード
 import { expect, test } from "bun:test"
 import { z } from "zod"
 import { listAIRecords } from "../../web/src/core/ai-list"
+import { checkCoreCatalog } from "../../web/src/core/core-catalog-check"
 import type { SubjectDef } from "../../web/src/core/def/subject"
-import { CORE_CATALOG } from "../support"
+import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
 
 // 箱（done の箱に入った物は載せない）と、箱を指す物
 const box = (id: string, done: boolean) => ({ id, done })
@@ -107,4 +108,17 @@ test("形に合わないレコードは、載せる物として id だけの行�
   const all = listAIRecords(CORE_CATALOG, plain, things, {}, "hide", byId)
   expect(all.rows).toHaveLength(4)
   expect(all.unlisted).toBe(0)
+})
+
+test("aiRow は aiList を書いた種類だけが書ける（無ければ E076）。aiList は aiListed とも aiOrder とも一緒に書けない（E061・E077）", () => {
+  const rowed = BUILTIN_PARTS.subjects.find(s => s.aiRow !== undefined && s.aiList !== undefined)!
+  const codesWith = (changed: SubjectDef) =>
+    checkCoreCatalog({
+      ...BUILTIN_PARTS,
+      subjects: BUILTIN_PARTS.subjects.map(s => (s === rowed ? changed : s)),
+    } as never).map(p => p.code)
+  expect(codesWith(rowed)).toEqual([])
+  expect(codesWith({ ...rowed, aiList: undefined } as unknown as SubjectDef)).toEqual(["E076"])
+  expect(codesWith({ ...rowed, aiListed: THING.aiListed } as unknown as SubjectDef)).toEqual(["E061"])
+  expect(codesWith({ ...rowed, aiOrder: () => 0 } as unknown as SubjectDef)).toEqual(["E077"])
 })

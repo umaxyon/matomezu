@@ -24,7 +24,6 @@ import {
   purgedRowsOf,
   settleFailedLine,
   settleLibraryOf,
-  systemFoldersMatch,
   systemFolderTitlesOf,
 } from "./library"
 import {
@@ -104,13 +103,6 @@ let lastAdded: readonly Plugin[] = []
   pages,
 ) => checkLibraryLine(folders, pages)
 
-// 書庫のシステムフォルダが今の機能台帳に合っているか（core/entries.ts の systemFoldersInPlace。名前は利用者の設定 settings の言語で引く）。
-// 常駐が、データを書いたあとに、機能台帳に合わせてデータを足すアクションを行うかを決める。受けるのは、書庫ホーム・ゴミ箱・フォルダの行の全部と、
-// 書庫ホームの直下のブック・バインダの行の folders、書庫ホームの直下のページの行 pages（id → 行）
-;(
-  globalThis as { matomezuSystemFoldersInPlace?: (folders: string, pages: string, settings: string) => boolean }
-).matomezuSystemFoldersInPlace = (folders, pages, settings) => systemFoldersMatch(assembled, folders, pages, settings)
-
 // 残したアノテーションを今の機能台帳で確かめ、効かないもの（種類が無い W018・形が合わない W019）の warning の 1 行ずつを返す（常駐がログに書く）。
 // 受けるのは、ブックと、そのページごとのアノテーション（ページの id → 並び）の組。読めないブックのアノテーションは確かめない
 ;(globalThis as { matomezuCheckAnnotations?: (pairs: string) => string }).matomezuCheckAnnotations = pairs =>
@@ -119,10 +111,6 @@ let lastAdded: readonly Plugin[] = []
 // 常駐が初めて起動したときに 1 度だけ行うアクション（ActionDef の runsOnceAtStart）の id の並び
 ;(globalThis as { matomezuRunOnceActions?: () => string }).matomezuRunOnceActions = () =>
   JSON.stringify([...assembled.catalog.core.actions.values()].filter(a => a.runsOnceAtStart).map(a => a.id))
-
-// 機能台帳に合わせてデータを足すアクション（ActionDef の runAndKeepsWithCatalog。常駐が、起動したときと機能台帳が変わったときと、データを書いて書庫のシステムフォルダが機能台帳に合わなくなったときに行う）の id の並び
-;(globalThis as { matomezuCatalogActions?: () => string }).matomezuCatalogActions = () =>
-  JSON.stringify([...assembled.catalog.core.actions.values()].filter(a => a.runAndKeepsWithCatalog).map(a => a.id))
 
 // システムフォルダの定義の id → AI に見せる名前（英語の文言）。read_folder でシステムフォルダの名前に使う
 ;(globalThis as { matomezuSystemFolderTitles?: () => string }).matomezuSystemFolderTitles = () =>

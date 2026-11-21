@@ -67,6 +67,22 @@ describe("機能台帳", () => {
     expect(() => buildCoreCatalog({ ...BUILTIN_PARTS, pageTypes: [] })).toThrow("E015 core catalog has no page type")
   })
 
+  test("どれかの言語で名前が同じになるシステムフォルダの定義が 2 つ在れば error（英語で違っても、日本語で同じなら）", () => {
+    const docs = BUILTIN_PARTS.systemFolders[0]!
+    const twin = (title: string) => ({
+      ...BUILTIN_PARTS,
+      messages: [
+        ...BUILTIN_PARTS.messages,
+        { id: "test:messages", messages: { "test:Papers": { en: "Papers", ja: title } } },
+      ],
+      systemFolders: [...BUILTIN_PARTS.systemFolders, { ...docs, id: "test:papers", title: "test:Papers" as never }],
+    })
+    expect(checkCoreCatalog(twin("書類"))).toEqual([])
+    expect(checkCoreCatalog(twin("ドキュメント")).map(problemText)).toEqual([
+      `E132 system folders ${docs.id} and test:papers have the same title ドキュメント in ja`,
+    ])
+  })
+
   test("同じ鍵の同じ言語に違う訳を持つ文言と、文言の表に無い名前は error", () => {
     const conflict = {
       ...BUILTIN_PARTS,

@@ -5,9 +5,9 @@ import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { defineWidget } from "../../../ui/layout"
 import { usePluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
-import { useInstance } from "../../../ui/store-context"
 import { Confirm, Notice } from "../dialog-host/Confirm"
 import { kit } from "../kit"
+import { useUnreadableNotice } from "./hooks"
 import { NO_TYPE } from "./outline"
 import { useReasonOf } from "./reasons"
 import { LIBRARY_UNREADABLE_OPEN } from "./screen"
@@ -17,7 +17,7 @@ import { NOTICE_CLOSED, UNREADABLE_NOTICE_CLOSED } from "./state"
 const SHOWN_REASONS = 3
 
 export function UnreadableNoticeView() {
-  const notice = useInstance().unreadableNotice
+  const notice = useUnreadableNotice()
   const closed = usePluginState(kit, UNREADABLE_NOTICE_CLOSED) === NOTICE_CLOSED
   const setClosed = useSetPluginState(kit, UNREADABLE_NOTICE_CLOSED)
   const t = useMessages(kit)

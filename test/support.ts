@@ -122,6 +122,9 @@ export function worldRows(
 // 利用者の設定の無いとき（英語）の、ビルトインプラグインの名前を引く決まり
 export const NAMING = namingOf(CORE_CATALOG, NO_SETTINGS)
 
+// 常駐が書庫を整えた（core/unreadable.ts の settleLibrary。足りないシステムフォルダを足し、名前の重なりに番号を付ける）あとの世界を、store に届ける（matomezu/testing と同じ物）
+export { settleIn } from "../web/src/store/settle"
+
 // 残したブック books（形を確かめる前の値。壊れた物も）を、ホストが置き場所に持つ形の行にした物（createMatomezu の saved に渡す）。
 // 並びのページとバインダは、id だけの並びの要素と、ページの行・バインダの行に分ける。並びを持たない物は、フォルダの行としてそのまま残す。書庫ホームの行は作らない（store が足す）
 export function savedRows(books: readonly unknown[]): { pages: unknown[]; folders: unknown[] } {
