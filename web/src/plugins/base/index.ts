@@ -54,6 +54,7 @@ import {
   LIBRARY_OPEN,
   LIBRARY_PICK_MOVE,
   LIBRARY_PICKED,
+  LIBRARY_PLACE_OPEN,
   LIBRARY_QUERY,
   LIBRARY_REDO,
   LIBRARY_RENAME_DIALOG,
@@ -601,6 +602,7 @@ export const BASE = defineBuiltin(
       LIBRARY_OPEN,
       LIBRARY_SCREEN_CLOSE,
       LIBRARY_UNREADABLE_OPEN,
+      LIBRARY_PLACE_OPEN,
       LIBRARY_SCREEN_EXPAND,
       LIBRARY_FOLDER_NEW,
       LIBRARY_ENTRY_RENAME,
@@ -849,6 +851,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-open": typeof LIBRARY_OPEN
     "@matomezu/base:library-screen-close": typeof LIBRARY_SCREEN_CLOSE
     "@matomezu/base:library-unreadable-open": typeof LIBRARY_UNREADABLE_OPEN
+    "@matomezu/base:library-place-open": typeof LIBRARY_PLACE_OPEN
     "@matomezu/base:library-screen-expand": typeof LIBRARY_SCREEN_EXPAND
     "@matomezu/base:library-folder-new": typeof LIBRARY_FOLDER_NEW
     "@matomezu/base:library-entry-rename": typeof LIBRARY_ENTRY_RENAME

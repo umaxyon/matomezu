@@ -22,6 +22,7 @@ import {
   LibraryNewBookDialog,
   LibraryNewFolderDialog,
   LibraryRenameDialog,
+  PAGE_PLACE,
   UNREADABLE_NOTICE,
 } from "./library/ui"
 import type { MailActionsProps } from "./mail/ui"
@@ -287,6 +288,7 @@ export const BASE_UI = definePluginUi(BASE, {
     OPEN_GUIDE,
     STARTUP_ERROR,
     UNREADABLE_NOTICE,
+    PAGE_PLACE,
     JOIN_REQUEST_ACTIONS,
     PROPOSAL_ACTIONS,
     FULL_TEXT_MODE,
@@ -404,6 +406,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:open-guide": typeof OPEN_GUIDE
     "@matomezu/base:startup-error": typeof STARTUP_ERROR
     "@matomezu/base:unreadable-notice": typeof UNREADABLE_NOTICE
+    "@matomezu/base:page-place": typeof PAGE_PLACE
     "@matomezu/base:join-request-actions": typeof JOIN_REQUEST_ACTIONS
     "@matomezu/base:proposal-actions": typeof PROPOSAL_ACTIONS
     "@matomezu/base:wide-search-full-text": typeof FULL_TEXT_MODE

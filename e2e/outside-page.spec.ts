@@ -1,5 +1,6 @@
 // ブックの外のページ（書庫ホームに直に置いたページ）を、ステージで開く
 import { BOOK_SCREEN_DEF, BOOK_SCREEN_URL, expect, stagesUrl, test, urlCurrentScreen, urlStages } from "./fixtures"
+import { aiPerform } from "./helpers/ai"
 import { fromMenu } from "./helpers/stage-menu"
 
 const OUTSIDE = {
@@ -44,6 +45,37 @@ test("「画面を分割」で下に出た書庫のスクリーンでブック�
   await expect.poll(() => urlStages(page).map(s => s.p)).toHaveLength(2)
   expect(urlStages(page)[1]).toMatchObject({ b: null, p: "o1" })
   await expect(page.getByRole("button", { name: "ブックの外のページ" })).toBeVisible()
+})
+
+test("ブックの外のページを開いたステージの下の行は、名前の右に置き場所を出す。押すと、ステージは開いたまま、書庫がそのフォルダを開いて出る", async ({
+  page,
+}) => {
+  await page.goto(stagesUrl([{ book: null, page: "o1" }]))
+  await page.bringToFront()
+  // 書庫ホームに直に在れば、書庫
+  await expect(page.getByRole("button", { name: "置き場所: 書庫" })).toBeVisible()
+  const outer = await aiPerform(page, { action: "@matomezu/base:folder-create", args: { title: "企画" } })
+  const inner = await aiPerform(page, {
+    action: "@matomezu/base:folder-create",
+    args: { title: "2026-11-21", into: outer.result.folder },
+  })
+  expect(
+    await aiPerform(page, { action: "@matomezu/base:entry-move", args: { entry: "o1", into: inner.result.folder } }),
+  ).toMatchObject({ ok: true })
+  // フォルダの中なら、書庫ホームの下から
+  const place = page.getByRole("button", { name: "置き場所: 企画 › 2026-11-21" })
+  await expect(place).toBeVisible()
+  await place.click()
+  await expect(page.getByRole("navigation", { name: "場所" }).getByRole("button")).toHaveText([
+    "書庫",
+    "企画",
+    "2026-11-21",
+  ])
+  await expect(page.getByRole("list", { name: "2026-11-21 の中身" }).getByRole("button")).toHaveText([
+    "ブックの外のページ",
+  ])
+  await expect(page.getByRole("list", { name: "2026-11-21 の中身" })).toBeVisible()
+  await expect(page.getByRole("img", { name: "紙" })).toHaveCount(1)
 })
 
 test.describe("マークダウンのブックの外のページ", () => {

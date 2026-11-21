@@ -233,6 +233,13 @@ export function pathTo(folders: Folders, folder: string): string[] {
   ]
 }
 
+// ブックの外のページ page の置き場所: 書庫ホームから、そのページの入っているフォルダまでの、フォルダの id の列（書庫ホームに直に在れば、書庫ホームだけ）。
+// ステージで開けるブックの外のページの置き場所に無ければ（core/folders-tree.ts の atOutsidePagePlace）空
+export function outsidePagePlaceOf(folders: Folders, page: string): string[] {
+  const holder = atOutsidePagePlace(folders, page) ? foldersOver(folders, page)[0] : undefined
+  return holder ? pathTo(folders, holder.id) : []
+}
+
 // 行を開いたとき（2 回押し）の行き先: フォルダは中へ入る、ブックとその中のページ・バインダはブックを窓に出す、ブックの外のページはそのページを窓に出す。
 // ゴミ箱の中の物・読めない物・ブックの外のバインダとその中のページは開かない（NOT_OPENED）
 export type OpenTarget =

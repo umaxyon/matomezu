@@ -1,0 +1,50 @@
+/* ブックの外のページの置き場所: 名前のボタンのすぐ右の、小さい薄い字の 1 つのボタン */
+.place {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 0 6px;
+  border: 0;
+  background: transparent;
+  color: var(--skin-text-muted);
+  font: inherit;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
+}
+.place svg {
+  flex: none;
+  opacity: 0.75;
+}
+.place:focus-visible {
+  outline: 2px solid var(--skin-accent);
+  outline-offset: -2px;
+}
+/* 入っているフォルダより上の名前。入り切らなければ、これだけが縮み、頭の側を … で省く（字の向きを右からにして、省く側を頭にする。中の字の並びは bdi でそのまま） */
+.head {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl;
+}
+.mark {
+  flex: none;
+}
+/* ページの入っているフォルダの名前は縮めずに残す（これだけでも入り切らなければ、末尾を省く。18px は絵とその右の間） */
+.holder {
+  flex: none;
+  max-width: calc(100% - 18px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 乗せると下線 */
+.place:hover .head,
+.place:hover .mark,
+.place:hover .holder {
+  text-decoration: underline;
+}

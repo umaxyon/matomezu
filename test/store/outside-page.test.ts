@@ -2,11 +2,15 @@
 
 import { expect, test } from "bun:test"
 import { stagePlacesOf } from "../../web/src/core/address"
+import { HOME_ID } from "../../web/src/core/folders"
 import { NO_OUTERMOST } from "../../web/src/core/folders-tree"
 import { askedOutermostOf, shownPageId } from "../../web/src/core/stage"
 import { toolUsable } from "../../web/src/core/tools"
 import { stageIn } from "../../web/src/core/window"
 import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
+import { outsidePagePlaceOf } from "../../web/src/plugins/base/library/outline"
+import { LIBRARY_SCREEN } from "../../web/src/plugins/base/library/screen"
+import { LIBRARY_FOLDER } from "../../web/src/plugins/base/library/state"
 import { addPageIn } from "../../web/src/plugins/base/pages/add-page"
 import { SEARCH_STATE } from "../../web/src/plugins/base/search/state"
 import { isEnabled, isShown } from "../../web/src/store/commands"
@@ -225,4 +229,20 @@ test("ブックの全部を探していたステージにブックの外のペ�
   // 置き換えの入力Formを出す（範囲はそのまま）と、覚える範囲もこのページになる
   store.actions.command("s1", "@matomezu/base:search-open-replace")
   expect(search().scope).toBe("page")
+})
+
+test("開いているブックの外のページの置き場所を書庫で開くと、ステージは開いたまま、書庫のスクリーンがそのページの入っているフォルダを出す。ブックを開いているステージでは出さない", () => {
+  const store = withOutside()
+  expect(isShown(store, store.state.getState(), "s1", "@matomezu/base:library-place-open")).toBe(false)
+  const made = store.actions.perform("@matomezu/base:folder-create", { title: "企画" })
+  const folder = (made as { result: { folder: string } }).result.folder
+  expect(store.actions.perform("@matomezu/base:entry-move", { entry: "o1", into: folder }).ok).toBe(true)
+  expect(outsidePagePlaceOf(store.state.getState().folders, "o1")).toEqual([HOME_ID, folder])
+  expect(outsidePagePlaceOf(store.state.getState().folders, "nothing")).toEqual([])
+  const stage = store.actions.showOutsidePageStage("o1")
+  expect(store.actions.command(stage, "@matomezu/base:library-place-open")).toBe(true)
+  const { window, pluginValues } = store.state.getState()
+  const library = window.screens.find(s => s.def === LIBRARY_SCREEN.id)?.id as string
+  expect(pluginValueOf(pluginValues, library, LIBRARY_FOLDER)).toBe(folder)
+  expect(openedIn(store, stage)).toEqual({ book: "o1", page: "o1" })
 })
