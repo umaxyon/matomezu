@@ -201,7 +201,7 @@ export const NO_STAGES_LEFT = "no-stages-left"
 
 // 書庫が変わったとき（books はブックの一覧、library はページとフォルダの表。before は変わる前の一覧）: 開いていた物が無くなったステージは閉じ（1 つも残らなければ NO_STAGES_LEFT）、
 // 残った物には合わせる。無くなったとするのは、ブックが一覧に無い・ブックの外のページが開ける物でなくなった（core/folders-tree.ts の outsidePageIn）とき。
-// ただし、開いている外のページが一覧のブックの中へ移されたなら、閉じずに、そのブックのページとして開いた形にする
+// ブックの外のバインダを開いたステージも閉じる。ただし、開いているブックの外のページが一覧のブックの中へ移されたなら、閉じずに、そのブックのページとして開いた形にする
 export function followLibrary(
   catalog: CoreCatalog,
   ws: Workspace,
@@ -209,12 +209,12 @@ export function followLibrary(
   library: Library,
   before?: Readonly<Record<string, Book>>,
 ): Workspace | typeof NO_STAGES_LEFT {
-  // 開いている外のページ id を、中へ入れたブック（ブックの中へ移されていなければ undefined）
+  // 開いているブックの外のページ id を、中へ入れたブック（ブックの中へ移されていなければ undefined）
   const movedInto = (id: string): Book | undefined => {
     const now = outermostOf(library, id)
     return now !== NO_OUTERMOST && now.kind === "book" ? books[now.id] : undefined
   }
-  // ステージが開いている物（何も開いていなければ "none"、無くなっていれば undefined）。外のページがブックの中へ移されていれば、そのブック
+  // ステージが開いている物（何も開いていなければ "none"、無くなっていれば undefined）。ブックの外のページがブックの中へ移されていれば、そのブック
   const held = (s: Stage): Book | ItemPage | "none" | undefined => {
     if (!s.opened) return "none"
     const { kind, id } = s.opened.outermost

@@ -345,7 +345,7 @@ export function followOutsidePage(catalog: CoreCatalog, stage: Stage, page: Page
 }
 
 // 開いているブックの外のページが、ブック book の中へ移されたときに合わせる: 同じページを、book の物として開いた形にする（倍率・ずらす量・選択はそのまま）。
-// 外のページを開いていない・そのページが book に無ければ、同じ値を返す
+// ブックの外のページを開いていない・そのページが book に無ければ、同じ値を返す
 export function followIntoBook(catalog: CoreCatalog, stage: Stage, book: Book): Stage {
   const o = stage.opened
   if (o?.kind !== "page" || o.outermost.kind !== "page") return stage
@@ -559,7 +559,7 @@ export function toPaperDelta(stage: Pick<Stage, "zoom">, d: Point): Point {
 }
 
 // ステージが開いている物 opened（book は、そのステージエントリの id）の中の、id のページ: ブックならその中のページ、ブックの外のページならそのページ自身。
-// 開いた物の外のページ・無ければ null（プラグイン API の usePageById が読む）
+// 開いている物に無いページ・無ければ null（プラグイン API の usePageById が読む）
 export function openedPageById(
   books: Readonly<Record<string, Book>>,
   pages: Pages,

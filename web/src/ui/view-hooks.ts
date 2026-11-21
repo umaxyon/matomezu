@@ -60,7 +60,7 @@ export function usePage(): ItemPage | null {
   return useMatomezuState(s => pageOf(s, scope))
 }
 
-// 描くページのステージが開いている物の中の、id のページ（開いている物の外のページ・何も開いていなければ null）
+// 描くページのステージが開いている物の中の、id のページ（開いている物に無いページ・何も開いていなければ null）
 export function usePageById(id: string): ItemPage | null {
   const scope = useScope()
   return useMatomezuState(s => {
@@ -69,7 +69,7 @@ export function usePageById(id: string): ItemPage | null {
   })
 }
 
-// 描くページのブックの、ページ page のアイテム item（どの深さの子の形も。無いか、id が Id のアイテムでなければ undefined）
+// 描くページのステージが開いている物の中の、ページ page のアイテム item（どの深さの子の形も。無いか、id が Id のアイテムでなければ undefined）
 export function useItem<Id extends ItemId>(page: string, item: string, id?: Id): PlacedOf<Id> | undefined {
   const scope = useScope()
   return useMatomezuState(s => {
@@ -256,8 +256,9 @@ export function useUserSetting(id: string): unknown {
   return useMemo(() => userSetting(catalog, values, id), [catalog, values, id])
 }
 
-// 向け先のステージが開いているブックにアクションを行う関数（ブック・ページ・アノテーションが対象でないアクションは、ブックを渡さずに行う）。データを変える入口はこれだけ。
-// ページとページのアノテーションが対象のアクションは、宛先のページを on に渡す（そのブックのページだけ。そのブックに無いページなら no-page を返す）。
+// 向け先のステージが開いているステージエントリ（ブックか、ブックの外のページ）にアクションを行う関数（ブック・ページ・アノテーションが対象でないアクションは、ブックを渡さずに行う）。データを変える入口はこれだけ。
+// ページとページのアノテーションが対象のアクションは、宛先のページを on に渡す（開いているブックのページか、開いているブックの外のページだけ。ほかのページなら no-page を返す）。
+// ブックが対象のアクションは、ブックの外のページを開いたステージからは行わず、no-book を返す。
 // 向け先が無い所（ステージの外で見るだけに描くページの中）からは行わず、no-book を返す。
 // 印刷プレビューの間のステージからは、ブックを変えるアクションを行わず print-preview を返す（core/stage.ts の stageBlocks）
 export function usePerform(): <Id extends ActionId>(

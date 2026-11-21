@@ -469,7 +469,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
           dropOverwritten({ pages, folders }, tables)
         else recordLibrary({ pages, folders }, done.changes)
       } else {
-        // ブックかページが対象のアクションが変えるのは、開けるブック 1 冊
+        // ブックかページが対象のアクションが変えるのは、開けるブック 1 冊か、ブックの外のページ 1 枚
         const after = Object.values(both.books).find(b => books[b.id] !== b)
         const before = after && books[after.id]
         const recorded = catalog.actions.get(id)?.history !== false

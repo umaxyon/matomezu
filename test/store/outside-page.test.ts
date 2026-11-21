@@ -12,15 +12,15 @@ const rowsOf = (store: Store) => {
   const { pages, folders } = store.state.getState()
   return { pages: Object.values(pages), folders: Object.values(folders), settings: {} }
 }
-// 書庫ホームに外のページ o1 が在る世界から始めた store
+// 書庫ホームにブックの外のページ o1 が在る世界から始めた store
 function withOutside(): Store {
   const store = newStore({ newId: sequence() })
   const books = Object.values(store.state.getState().books)
-  store.receive({ ...worldRows(books, [drawingPage("o1", { title: "外のページ" })]), settings: {} }, [])
+  store.receive({ ...worldRows(books, [drawingPage("o1", { title: "ブックの外のページ" })]), settings: {} }, [])
   return store
 }
 
-test("外のページを窓に出すと、新しいブックスクリーンのステージで開く。もう開いていれば、そのステージ。開ける外のページでなければ何もしない", () => {
+test("ブックの外のページを窓に出すと、新しいブックスクリーンのステージで開く。もう開いていれば、そのステージ。開けるブックの外のページでなければ何もしない", () => {
   const store = withOutside()
   const stage = store.actions.showOutsidePageStage("o1")
   expect(stage).not.toBe(NO_STAGE)
@@ -37,7 +37,7 @@ test("外のページを窓に出すと、新しいブックスクリーンの�
   expect(store.state.getState().window).toBe(before)
 })
 
-test("開いている外のページを変えても、ステージはそのページを開いたまま", () => {
+test("開いているブックの外のページを変えても、ステージはそのページを開いたまま", () => {
   const store = withOutside()
   const stage = store.actions.showOutsidePageStage("o1")
   const done = store.actions.perform("@matomezu/base:page-update", { title: "変えた名前" }, { page: "o1" })
@@ -46,7 +46,7 @@ test("開いている外のページを変えても、ステージはそのペ�
   expect(openedIn(store, stage)).toEqual({ book: "o1", page: "o1" })
 })
 
-test("よその変更で、開いている外のページがゴミ箱に入ると、そのステージは閉じる", () => {
+test("よその変更で、開いているブックの外のページがゴミ箱に入ると、そのステージは閉じる", () => {
   const here = withOutside()
   const there = withOutside()
   const stage = here.actions.showOutsidePageStage("o1")
@@ -55,7 +55,7 @@ test("よその変更で、開いている外のページがゴミ箱に入る�
   expect(stageIn(here.state.getState().window, stage)).toBeUndefined()
 })
 
-test("開いている外のページがブックの中へ移されると、ステージは閉じず、そのブックのページとして開いた形になる", () => {
+test("開いているブックの外のページがブックの中へ移されると、ステージは閉じず、そのブックのページとして開いた形になる", () => {
   const here = withOutside()
   const stage = here.actions.showOutsidePageStage("o1")
   const [book, ...rest] = Object.values(here.state.getState().books)

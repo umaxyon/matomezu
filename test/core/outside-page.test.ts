@@ -7,9 +7,9 @@ import { followLibrary, NO_STAGES_LEFT, newWorkspace, split } from "../../web/sr
 import { drawingPage, testBook } from "../lineup"
 import { CORE_CATALOG } from "../support"
 
-const x1 = drawingPage("x1", { title: "外のページ" })
+const x1 = drawingPage("x1", { title: "ブックの外のページ" })
 
-// 書庫ホームに外のページ x1。trashed なら、x1 はゴミ箱の中
+// 書庫ホームにブックの外のページ x1。trashed なら、x1 はゴミ箱の中
 function library(page = x1, trashed = false): Library {
   const entry = { kind: "page" as const, id: "x1" }
   const lost = { ...entry, trashed: "2026-01-01T00:00:00.000Z", from: [HOME_ID] }
@@ -22,14 +22,14 @@ function library(page = x1, trashed = false): Library {
   }
 }
 
-test("開ける外のページは、ブックにもバインダにも入っていない、ゴミ箱の外のページ", () => {
+test("開けるブックの外のページは、ブックにもバインダにも入っていない、ゴミ箱のブックの外のページ", () => {
   expect(outsidePageIn(library(), "x1")).toBe(x1)
   expect(outsidePageIn(library(x1, true), "x1")).toBeUndefined()
   expect(outsidePageIn(library(), "nothing")).toBeUndefined()
   expect(outsidePageIn(library(), HOME_ID)).toBeUndefined()
 })
 
-test("外のページを開くと、ステージエントリはそのページ。もう開いていれば同じ値", () => {
+test("ブックの外のページを開くと、ステージエントリはそのページ。もう開いていれば同じ値", () => {
   const opened = openOutsidePage(CORE_CATALOG, newStage("s1"), x1)
   expect(opened.opened).toMatchObject({
     kind: "page",
@@ -40,7 +40,7 @@ test("外のページを開くと、ステージエントリはそのページ�
   expect(openOutsidePage(CORE_CATALOG, opened, x1)).toBe(opened)
 })
 
-test("書庫が変わると、外のページを開いたステージは、ページが残っていれば合わせ、ゴミ箱に入るか無くなれば閉じる", () => {
+test("書庫が変わると、ブックの外のページを開いたステージは、ページが残っていれば合わせ、ゴミ箱に入るか無くなれば閉じる", () => {
   const book = testBook("b1", "見本", [drawingPage("p1")])
   const ws = split(newWorkspace(CORE_CATALOG, book), "s2")
   const open = (s: (typeof ws.stages)[number]) => (s.id === "s2" ? openOutsidePage(CORE_CATALOG, s, x1) : s)
