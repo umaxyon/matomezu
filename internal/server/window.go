@@ -26,7 +26,7 @@ type client struct {
 	focused     int64               // 最後にフォーカスされた順（大きいほど新しい。つないだときも 1 つ進める）
 	viewSeq     int64               // 受けた見ているものの番号（窓が知らせるたびに増やす。古い番号の知らせは捨てる）
 	shown       []string            // いまその窓に見えているブック（touched.go。新しく見えたブックだけを「開いた」とする。コントロールセンターがカレントスクリーンの間は空）
-	held        []string            // いまその窓のブックスクリーンが開いているステージエントリ（ブックと、ブックの外のページの id。隠れている物も含む。trash.go。AI はゴミ箱に入れられない）
+	held        []string            // いまその窓のブックスクリーンが開いているステージエントリ（ブックと、ブックの外のページの id。ページとフォルダの id は世界の中で重ならないので、id だけで持つ。隠れている物も含む。trash.go。AI はゴミ箱に入れられない）
 	editLocks   map[string][]string // 利用者がその窓で直している物（ページかブックの id → その中の物の id の並び。editlock.go）
 	recordLocks map[string][]string // 利用者がその窓で直しているレコード（対象の種類の id → レコードの id の並び。editlock.go）
 }
@@ -162,15 +162,19 @@ func (h *Hub) latestPending() bool {
 }
 
 // Show の頼み。Book は出すブック、Page は出すページ（Book が有り Page が空ならブックを開いたときのページ。Page だけなら、そのページを持っているブックをそのページで、
-// どのブックにも入っていないページならブックの外のページを出す）。Stage は出すステージの id（空ならカレント）、Split なら、そのステージを分けて右にできたステージに出す。
-// To は窓に知らせるときに常駐が決める、出す物の種類（book か、ブックの外のページの page）
+// どのブックにも入っていないページならブックの外のページを出す）。Stage は出すステージの id（空ならカレント）、Split なら、そのステージを分けて右にできたステージに出す
 type Show struct {
-	To    string `json:"to,omitempty"`
 	Book  string `json:"book,omitempty"`
 	Page  string `json:"page,omitempty"`
 	Stage string `json:"stage,omitempty"`
 	Split bool   `json:"split,omitempty"`
 	Mode  string `json:"mode,omitempty"` // print-preview なら印刷プレビューで出す（ブックだけ。画面がそのまま受ける）
+}
+
+// shownTo は、窓に知らせる、出す物: 確かめた頼みに、出す物の種類 To（book か、ブックの外のページの page）を添えた形
+type shownTo struct {
+	To string `json:"to"`
+	Show
 }
 
 // Show で出せなかった理由
@@ -183,33 +187,33 @@ var (
 	ErrNoSplit        = errors.New("no-split")         // 窓がもう分けられない
 )
 
-// shownTo は、頼み s の出す物を確かめて、窓に知らせる形にする（To を決め、Page だけの頼みはそのページを持っているブックを添える。h.mu を持って呼ぶ）
-func (h *Hub) shownTo(s Show) (Show, error) {
-	s.To = "book"
+// shownOf は、頼み s の出す物を確かめて、窓に知らせる形にする（Page だけの頼みは、そのページを持っているブックを添える。h.mu を持って呼ぶ）
+func (h *Hub) shownOf(s Show) (shownTo, error) {
+	to := shownTo{To: "book", Show: s}
 	if s.Book != "" {
 		if _, ok := h.books[s.Book]; !ok || h.outOfSight(s.Book) {
-			return s, ErrNoBook
+			return to, ErrNoBook
 		}
 		if s.Page != "" && h.bookOfPage(s.Page) != s.Book {
-			return s, ErrNoPage
+			return to, ErrNoPage
 		}
-		return s, nil
+		return to, nil
 	}
 	if s.Page == "" {
-		return s, ErrNoBook
+		return to, ErrNoBook
 	}
 	if book := h.bookOfPage(s.Page); book != "" {
-		s.Book = book
-		return s, nil
+		to.Book = book
+		return to, nil
 	}
 	if h.entryNotInBook(s.Page) != s.Page {
-		return s, ErrNoPage
+		return to, ErrNoPage
 	}
 	if s.Mode == "print-preview" {
-		return s, ErrNoPrintPreview
+		return to, ErrNoPrintPreview
 	}
-	s.To, s.Mode = "page", ""
-	return s, nil
+	to.To, to.Mode = "page", ""
+	return to, nil
 }
 
 // Show は、最後にフォーカスされた窓に、ブックかブックの外のページを出すように知らせる。
@@ -217,7 +221,7 @@ func (h *Hub) shownTo(s Show) (Show, error) {
 func (h *Hub) Show(s Show) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	s, err := h.shownTo(s)
+	to, err := h.shownOf(s)
 	if err != nil {
 		return err
 	}
@@ -245,7 +249,7 @@ func (h *Hub) Show(s Show) error {
 	if s.Split && !shown.CanSplit {
 		return ErrNoSplit
 	}
-	h.send(c, "show", s)
+	h.send(c, "show", to)
 	return nil
 }
 

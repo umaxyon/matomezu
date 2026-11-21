@@ -15,15 +15,13 @@ import {
 import { NO_STAGE } from "../../../store/dialogs"
 import { LIBRARY_SCREEN, leaveLibrary, stageBeside } from "./screen"
 
-export type { OpenTo }
-
 export function openFromLibrary(ctx: ScreenCommandContext, a: CommandActions, to: OpenTo): void {
   const store = storeActionsOf(a)
   const here = calledScreenIdOf(ctx)
   const screens = screensOf(ctx)
   const value = arrangementValueIn(ctx)
   const beside = stageBeside(screens, value, here)
-  const stage = store.openToStage(to, beside === NO_STAGE ? undefined : beside)
+  const stage = store.openToStage(to, beside)
   if (stage === NO_STAGE || ctx.screen.def !== LIBRARY_SCREEN.id) return
   // 開いたステージは残す
   leaveLibrary(store, screens, value, here)

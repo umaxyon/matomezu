@@ -180,7 +180,7 @@ export function perform(of: Assembled, input: Input): Output {
   // フォルダの行が変わらなければ、置き場所は変わらない
   const moved = Object.keys(done.changes?.folders ?? {}).length > 0
   const binned = moved ? binnedBetween(tables, after) : { trashed: [], restored: [] }
-  const trashing = binned.trashed.filter(id => id in next)
+  const trashingBooks = binned.trashed.filter(id => id in next)
   // ゴミ箱に入った、ブックの外のページ（入る前の置き場所で見る。中に持つフォルダごと入ったときも）
   const trashingPages = binned.trashed.filter(id => atOutsidePagePlace(tables.folders, id))
   const restoring = binned.restored.filter(id => id in next)
@@ -192,8 +192,8 @@ export function perform(of: Assembled, input: Input): Output {
     pages: rowChanges(changes.pages),
     folders: rowChanges(changes.folders),
     created: createdOn(tables, changes),
-    books: [...new Set([...changed.map(b => b.id), ...removed, ...trashing, ...restoring])],
-    trashing: [...trashing, ...trashingPages],
+    books: [...new Set([...changed.map(b => b.id), ...removed, ...trashingBooks, ...restoring])],
+    trashing: [...trashingBooks, ...trashingPages],
     ...(done.library ? { library: done.library } : {}),
     ...(done.settings ? { settings: done.settings } : {}),
     ...(done.annotations ? { annotations: done.annotations } : {}),

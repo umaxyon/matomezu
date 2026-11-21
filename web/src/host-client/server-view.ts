@@ -74,7 +74,8 @@ export function showIn(instance: MatomezuInstance, show: z.infer<typeof ShowSche
     show.to === "page"
       ? { to: "page", page: show.page }
       : { to: "book", book: show.book, ...(show.page === undefined ? {} : { page: show.page }) }
-  const stage = show.stage === undefined && !show.split ? actions.openToStage(to) : placedStage(instance, show, to)
+  const stage =
+    show.stage === undefined && !show.split ? actions.openToStage(to, NO_STAGE) : placedStage(instance, show, to)
   if (stage === NO_STAGE) return
   if (show.to === "book" && show.mode === "print-preview" && state.getState().books[show.book])
     actions.openPrintPreview(stage)

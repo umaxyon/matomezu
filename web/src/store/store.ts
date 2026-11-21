@@ -732,7 +732,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       )
       return stage
     },
-    openToStage: (to, stage = NO_STAGE) => {
+    openToStage: (to, stage) => {
       if (to.to === "page")
         return stage === NO_STAGE ? actions.showOutsidePageStage(to.page) : actions.openOutsidePage(stage, to.page)
       const at = stage === NO_STAGE ? actions.showBookStage(to.book, to.page) : stage

@@ -33,7 +33,7 @@ var noArgs = map[string]any{"type": "object", "properties": map[string]any{}, "a
 var tools = []tool{
 	{
 		"view",
-		"What the user is looking at now: the book, page, mode (edit, or print-preview: all its pages laid out as the sheets they print on, arranged by the book's print preview settings) and selected items of the matomezu window focused last, and awaiting, the annotations on that book (such as the user's notes and marks) that wait for your answer, each with its page. current tells the kind of the window's current screen: book-screen, or plain-screen (a screen with no stages, such as the control center or the library screen), which covers the book screen; then the book, page, mode, selection and awaiting of the book screen kept behind it are under hidden (the user does not see them now). A window that has no book screen open answers only current and bookScreen: \"none\". null when no window is open.",
+		"What the user is looking at now: entry (what is open on the stage, {kind, id}: kind book for a book, kind page for a page that is not in a book; left out when nothing is open), page, mode (edit, or print-preview: all its pages laid out as the sheets they print on, arranged by the book's print preview settings) and selected items of the matomezu window focused last, and awaiting, the annotations on that entry (such as the user's notes and marks) that wait for your answer, each with its page. current tells the kind of the window's current screen: book-screen, or plain-screen (a screen with no stages, such as the control center or the library screen), which covers the book screen; then the entry, page, mode, selection and awaiting of the book screen kept behind it are under hidden (the user does not see them now). A window that has no book screen open answers only current and bookScreen: \"none\". null when no window is open.",
 		noArgs,
 		reading(func(api caller, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/view") }, nil),
 		true,
@@ -88,7 +88,7 @@ var tools = []tool{
 	},
 	{
 		"read_page",
-		"Read one page (the page and the items on it), book (the id of the book that holds it), folder (the id of what holds it directly: that book, or the binder for a page in a binder), version (the page's own: it goes up each time the page changes), placed (where each shape is drawn, when the page type's presentation tells it, otherwise null: {id, x, y, w, h} with the top-left on the paper and the size as drawn, children too; use it to line shapes up, as the items' own x and y are from their parent and their w and h may be missing or smaller than drawn) and the annotations (such as the user's notes and marks) standing on things of that page. " +
+		"Read one page (the page and the items on it), entry ({kind: \"book\", id} with the id of the book that holds it, or {kind: \"page\", id} with the page's own id for a page that is not in a book), folder (the id of what holds it directly: that book, the binder for a page in a binder, or the folder of the library for a page that is not in a book), version (the page's own: it goes up each time the page changes), placed (where each shape is drawn, when the page type's presentation tells it, otherwise null: {id, x, y, w, h} with the top-left on the paper and the size as drawn, children too; use it to line shapes up, as the items' own x and y are from their parent and their w and h may be missing or smaller than drawn) and the annotations (such as the user's notes and marks) standing on things of that page. " +
 			"A page too large to be answered at once is refused (too-large): with outline, the page's items are an outline (id, item, size in characters); with item, only that item (and what is inside it), its placed and the annotations on them are answered.",
 		map[string]any{
 			"type": "object",
@@ -524,7 +524,7 @@ func show(api caller, args map[string]any) (string, bool) {
 func refusalText(reason, detail string) string {
 	switch {
 	case reason == "open-on-screen":
-		return "open-on-screen: the book is shown on the user's screen now, so it was not moved to the trash; ask the user in the chat"
+		return "open-on-screen: the book or page is shown on the user's screen now, so it was not moved to the trash; ask the user in the chat"
 	case reason == "being-edited":
 		return "being-edited: the user is editing what this would change or remove (such as a note open on the screen), so nothing was changed; do it again later, " +
 			"or send the change to the user if actions offer a way (an action that carries actions for the user to apply)"

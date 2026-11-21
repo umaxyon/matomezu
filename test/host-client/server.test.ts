@@ -12,7 +12,7 @@ import { openClient } from "../../web/src/host-client/open"
 import { type Events, NoServer, serverClient } from "../../web/src/host-client/server"
 import { drawingPage, testBook } from "../lineup"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { newStore, showCenter } from "../support"
+import { newStore, showCenter, worldRows } from "../support"
 
 // 常駐が読まれたときに返すページとフォルダ: ブック books を分けた物（版は versions の id ごと。無ければ 1）
 const dataOf = (books: readonly Book[], versions: Readonly<Record<string, number>> = {}) => ({
@@ -827,6 +827,35 @@ test("show の split は、そのステージを分けて右にできたステ�
   expect(ws.stages.map(st => st.id)).toEqual(["s1", "s2"])
   expect(ws.current).toBe("s2")
   expect(ws.stages[1]?.opened?.outermost.id).toBe("b1")
+})
+
+test("show の to が page なら、ブックの外のページを出す（窓に・言われたステージに・分けて右に）。常駐に知らせる view の entry はそのページ", async () => {
+  const rows = worldRows([SAMPLE_BOOKS[0]!], [drawingPage("h1", { title: "外" })])
+  const versioned = <T extends { id: string }>(list: readonly unknown[], key: "page" | "folder") =>
+    (list as T[]).map(row => ({ id: row.id, [key]: row, version: 1 }))
+  const s = await connected(
+    fakeServer({ pages: versioned(rows.pages, "page"), folders: versioned(rows.folders, "folder"), settings: null }),
+  )
+  const outermosts = () =>
+    s.store.state
+      .getState()
+      .window.screens.flatMap(sc => ("stages" in sc ? (sc.stages?.stages ?? []) : []))
+      .map(st => st.opened?.outermost ?? null)
+  s.emit("show", { to: "page", page: "h1" })
+  expect(outermosts()).toContainEqual({ kind: "page", id: "h1" })
+  expect(s.sent.at(-1)?.view).toMatchObject({ entry: { kind: "page", id: "h1" }, page: "h1" })
+  const stage = (s.sent.at(-1) as { view: { stage: string } }).view.stage
+  s.emit("show", { to: "book", book: "b1", stage })
+  expect(s.sent.at(-1)?.view).toMatchObject({ entry: { kind: "book", id: "b1" } })
+  s.emit("show", { to: "page", page: "h1", stage })
+  expect(s.sent.at(-1)?.view).toMatchObject({ entry: { kind: "page", id: "h1" }, stage })
+  s.emit("show", { to: "page", page: "h1", split: true })
+  const { view } = s.sent.at(-1) as { view: { stage: string; stages: { id: string; entry?: unknown }[] } }
+  expect(view.stage).not.toBe(stage)
+  expect(view.stages.map(st => st.entry)).toEqual([
+    { kind: "page", id: "h1" },
+    { kind: "page", id: "h1" },
+  ])
 })
 
 test("画面が見つけた warning は、つながりの id を添えて常駐に知らせ、つなぎ直すたびに知らせ直す", async () => {

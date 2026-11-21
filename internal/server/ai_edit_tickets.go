@@ -219,7 +219,7 @@ func (h *Hub) tell(each func(t AIEditTicket) bool) error {
 	return h.putTickets(list)
 }
 
-// UndoneAIEditTicket は、見られる前に消えた AI の変更の、ステージエントリ 1 つの分（AI に渡す形。Entry はその id）
+// UndoneAIEditTicket は、見られる前に消えた AI の変更の、ステージエントリ 1 つの分（AI に渡す形。Entry はその id の文字列。答え待ちの一覧の entry〈{kind, id}〉とは形が違う）
 type UndoneAIEditTicket struct {
 	Entry string          `json:"entry"`
 	Title string          `json:"title"`

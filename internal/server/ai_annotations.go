@@ -50,7 +50,7 @@ func (h *Hub) PageNotInBook(id string) json.RawMessage {
 	return h.pages[id].body
 }
 
-// annotated は、ステージエントリ（ids。ブックか、ブックの外のページの id。nil なら全部: ブックの並び、続けてブックの外のページ）のうち、
+// annotated は、ステージエントリ（ids。ブックか、ブックの外のページの id。ページとフォルダの id は世界の中で重ならないので、1 つの並びで受ける。nil なら全部: ブックの並び、続けてブックの外のページ）のうち、
 // アノテーションの有る物（ゴミ箱の中・読めない物は入れない）の、エンジンに渡す組と、その id
 func (h *Hub) annotated(ids []string) ([]engine.Annotated, []string) {
 	h.mu.Lock()

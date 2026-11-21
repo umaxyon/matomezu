@@ -36,7 +36,7 @@ func writeAwaiting(out io.Writer, awaiting []awaitingItem) {
 	for _, a := range awaiting {
 		if a.Entry != last {
 			if a.Entry.Kind == "page" {
-				fmt.Fprintf(out, "- page %q (%s), in no book\n", a.Title, a.Entry.ID)
+				fmt.Fprintf(out, "- page %q (%s), not in a book\n", a.Title, a.Entry.ID)
 			} else {
 				fmt.Fprintf(out, "- book %q (%s)\n", a.Title, a.Entry.ID)
 			}

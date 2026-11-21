@@ -48,7 +48,7 @@ function purged(library: Library, ids: readonly string[]): Library | null {
 
 export const ENTRY_TRASH = kit.defineAction({
   id: "entry-trash",
-  aiDescription: `Move an entry of the library (a book, a folder with everything in it, or a page or a binder that is not in a book) to the trash: entry is its id, and it must be directly in the library home or a folder (see read_folder). It leaves the library (list_books and read_folder no longer show it); only the user can bring it back or delete it for good. Refused for a book that is locked or has a locked page, also inside the folder (denied by ${kit.name("lock")}), and when a book it holds is shown on a screen now (open-on-screen: ask the user in the chat).`,
+  aiDescription: `Move an entry of the library (a book, a folder with everything in it, or a page or a binder that is not in a book) to the trash: entry is its id, and it must be directly in the library home or a folder (see read_folder). It leaves the library (list_books and read_folder no longer show it); only the user can bring it back or delete it for good. Refused for a book that is locked or has a locked page, also inside the folder (denied by ${kit.name("lock")}), and when it, or a book or page it holds, is shown on a screen now (open-on-screen: ask the user in the chat).`,
   title: "Move to trash",
   target: "library",
   // 中身ごと動かすので、中のブックのページを含む全部を変える（ロック中のページを持つブックも止める）

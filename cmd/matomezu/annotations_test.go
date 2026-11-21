@@ -38,7 +38,7 @@ func TestWriteAwaiting(t *testing.T) {
 		`  - page p2, @matomezu/base:note c2`,
 		`- book "U" (b2)`,
 		`  - no page, @matomezu/base:note c3: "x"`,
-		`- page "O" (o1), in no book`,
+		`- page "O" (o1), not in a book`,
 		`  - page o1, @matomezu/base:note c4`,
 	}
 	if !strings.HasPrefix(lines[0], "matomezu: 4 annotation(s)") || strings.Join(lines[1:], "\n") != strings.Join(want, "\n") {
