@@ -32,6 +32,17 @@ import (
 	"github.com/umaxyon/matomezu/internal/server"
 )
 
+type watchCmd struct {
+	Host      string        `help:"Process id of AI's host program (such as Claude Code). Only the lines for the participant who joined from that process are printed. Leave it out when the program is not known: then --session alone says whose lines are printed (one of the two is needed)."`
+	Session   string        `help:"Session id the host program started with (Claude Code: CLAUDE_CODE_SESSION_ID). When both this and the one MCP sent on join are known, they must match too."`
+	MaxLine   int           `help:"The longest line the host program takes (characters). Longer lines are split. 0 for no limit."`
+	MaxNotice int           `help:"The longest notice the host program takes at once (characters, counting the line breaks). A message too long for it comes as a short notice, and its text with the next matomezu call. 0 for no limit."`
+	Gap       time.Duration `help:"How long to wait after each notice before the next (so the host program does not join them into one notice)."`
+	InputWrap string        `name:"input-wrap" help:"For a host program that takes each printed line as the user's input: print each notice as one JSON line {text}, the text wrapped in <NAME>...</NAME> with a line that tells AI it is not the user's input (the program's hook can tell such a turn by the wrap)."`
+	Resident  bool          `help:"Start the command after -- once and keep it running: write one JSON line {id, session, text} to its stdin for each notice, and read one JSON line {id, result} (delivered, absent or failed) from its stdout."`
+	Deliver   []string      `arg:"" optional:"" passthrough:"" help:"A command (after --) that hands each notice to the AI, instead of printing it: started for each notice with the text on stdin, the session id of the conversation in MATOMEZU_SESSION and the notice id in MATOMEZU_WAKE_ID; exit 0 when delivered, 3 when the AI's program does not have that conversation, anything else when it failed."`
+}
+
 // wakeOut は、常駐が通り道に流す知らせ 1 つ（server.WakeOut と同じ形）
 type wakeOut struct {
 	Line    int64  `json:"line"`
