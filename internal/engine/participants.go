@@ -87,3 +87,28 @@ func (e *Engine) ParticipantAlive(settings json.RawMessage, calledAt string, now
 	}()
 	return e.alive(string(settings), calledAt, float64(now.UnixMilli())), nil
 }
+
+// WorkTitle は、ワークルーム（id と名前 name）に参加している AI のセッションに書く名前。利用者の設定 settings が書き換えを止めていれば、書かない（ok が false）。
+// ワークルームの作業はレコードから決まるので、レコードを引く口 src を渡す
+func (e *Engine) WorkTitle(settings json.RawMessage, workroom, name string, src Source) (title string, ok bool, err error) {
+	if len(settings) == 0 {
+		settings = json.RawMessage("null")
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.source = src
+	defer func() { e.source = nil }()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("engine: %v", r)
+		}
+	}()
+	var got struct {
+		Kind  string `json:"kind"`
+		Title string `json:"title"`
+	}
+	if err := json.Unmarshal([]byte(e.workTitle(string(settings), workroom, name)), &got); err != nil {
+		return "", false, err
+	}
+	return got.Title, got.Kind == "title", nil
+}

@@ -10,8 +10,8 @@ import (
 
 var version = devVersion
 
-// DefaultAddr は常駐が待つ場所。画面の設定のうちブラウザに残すもの（localStorage）はアドレスごとに分かれるので、ポートは毎回同じにする
-const DefaultAddr = "127.0.0.1:7230"
+// DefaultPort は、利用者がポートを選んでいない保管庫の常駐が 127.0.0.1 で待つポート。画面 cookie は名前にポートを入れるので、ポートを変えたら matomezu open で渡し直す
+const DefaultPort = 7230
 
 type cli struct {
 	Serve        serveCmd        `cmd:"" help:"Run the server in the foreground."`
@@ -35,7 +35,7 @@ type cli struct {
 type versionCmd struct{}
 
 func main() {
-	ctx := kong.Parse(&cli{}, kong.Name("matomezu"), kong.Description("Diagrams you and your AI read and edit together."), kong.Vars{"addr": DefaultAddr})
+	ctx := kong.Parse(&cli{}, kong.Name("matomezu"), kong.Description("Diagrams you and your AI read and edit together."))
 	if err := ctx.Run(); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(1)

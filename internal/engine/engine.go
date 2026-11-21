@@ -55,6 +55,7 @@ type Engine struct {
 	records     func(string) string
 	joinedMsg   func(string, string) string
 	visitorMsg  func(string) string
+	workTitle   func(string, string, string) string
 	live        func(string, string, string, string) string
 	forAI       func(string) string
 	briefs      func(string) string
@@ -146,6 +147,7 @@ func New() (*Engine, error) {
 		{"matomezuRecordNeeds", &e.needs},
 		{"matomezuJoinedText", &e.joinedMsg},
 		{"matomezuVisitorJoinedText", &e.visitorMsg},
+		{"matomezuWorkTitle", &e.workTitle},
 		{"matomezuUnexpired", &e.live},
 	} {
 		if err := vm.ExportTo(vm.Get(f.name), f.to); err != nil {

@@ -3,6 +3,7 @@ import { z as zod } from "zod"
 import { type Actor, type AIMessage, workroomOfActor } from "../../../plugin-api"
 import { READS_WORKROOM_KEYS } from "../../base"
 import { byOf, type Records, readsBy, recordIn, workroomsOf } from "../by"
+import { CURRENT_WORK, currentWorkChanges, currentWorksOf, READS_CURRENT_WORK } from "../current-work/work"
 import { kit } from "../kit"
 import { inDoneLane, PROJECT, type Project, UNSORTED } from "../project"
 import { projectOf } from "../project/actions"
@@ -63,7 +64,7 @@ const pickAssignees = (ctx: Records, refs: readonly string[], current: readonly 
 const DONE_LANE_REFUSAL = "the done lane is entered only with ticket-complete: complete the ticket"
 
 // 担当に新しく入ったワークルームの AI への知らせ（行う者がワークルームの AI のときだけ返せる。自分のワークルームには送らない。宛先に AI がいなければ送らないだけ）
-function assignedMessages(
+export function assignedMessages(
   actor: Actor,
   before: readonly string[],
   after: readonly string[],
@@ -90,9 +91,10 @@ export const TICKET_ADD = kit.defineAction({
   aiDescription:
     "Add a ticket to the project (its id). name is up to 50 characters, body is markdown. lane is a lane of the project by its id or name (left out or the word unsorted: unsorted), tags are enabled tags of the project by their ids or names (left out or empty: no tag; no tag twice), assignees are the workrooms by their ids or names, in order (the first is the lead; no workroom twice), priority is lowest, low, medium (the default), high or highest, volume (how much work it is) is xs, s, m, l or xl, or none (the default: not estimated yet). The done lane of the project cannot be chosen (tickets get there with ticket-complete). A lane that is named like the word unsorted is pointed at by its id. A refusal for a name that is not there lists the names and ids to choose from. Read the prompts of the lanes and the tags of the project (read_records) and follow them. Refused when the project is closed. A workroom other than yours that becomes an assignee is told by an AI message (matomezu sends it when an AI has joined that workroom; you do not). Returns the ticket's id and number, the number with the prefix of the project as label (such as M-0001), and the lane, the tags and the assignees as the ids they were taken for.",
   target: TICKET.id,
+  writes: [CURRENT_WORK.id],
   reads: (args, actor) => [
     { subject: PROJECT.id, id: args.project },
-    ...(args.assignees?.length ? [READS_WORKROOM_KEYS] : []),
+    ...(args.assignees?.length ? [READS_WORKROOM_KEYS, READS_CURRENT_WORK] : []),
     ...readsBy(actor),
   ],
   args: zod.strictObject({
@@ -135,8 +137,10 @@ export const TICKET_ADD = kit.defineAction({
       tags: tags.ids,
     }
     const messages = assignedMessages(ctx.actor, [], ticket.assignees, ticket, project)
+    const others = currentWorkChanges("none", ticket, project, currentWorksOf(ctx))
     return {
       next: ticket,
+      ...(others.length > 0 ? { others } : {}),
       ...(messages.length > 0 ? { aiMessages: messages } : {}),
       result: {
         ticket: ticket.id,
@@ -156,8 +160,9 @@ export const TICKET_UPDATE = kit.defineAction({
   aiDescription:
     "Change the name, the body, the priority, the volume (as in ticket-add), the lane, the tags or the assignees of the ticket named by on.record. tags is the whole new list of tags (empty: no tag). assignees is the whole new list of workrooms by their ids or names, in order (the first is the lead; no workroom twice, each a workroom that is there; a workroom that was removed stays on the ticket until the list is changed). The same rules as ticket-add apply to the lane and the tags, by their ids or names; a ticket cannot be moved into the done lane here (use ticket-complete), and a ticket in the done lane takes no assignees until it is moved out (a tag that is not enabled any more, or was removed, can stay on the ticket until the list is changed). The project of a ticket does not change. The time of the last change moves only when something changed. A workroom other than yours that becomes an assignee is told by an AI message (matomezu sends it when an AI has joined that workroom; you do not).",
   target: TICKET.id,
-  // プロジェクトは、チケットが指す先なので書かない
-  reads: args => (args.assignees?.length ? [READS_WORKROOM_KEYS] : []),
+  writes: [CURRENT_WORK.id],
+  // プロジェクトは、チケットが指す先なので書かない。カレントワークは、担当やレーンが変わったときに直すので読む
+  reads: args => [...(args.assignees?.length ? [READS_WORKROOM_KEYS] : []), READS_CURRENT_WORK],
   args: zod.strictObject({
     name: zod.string().trim().min(1).max(TICKET_NAME_MAX).optional(),
     body: zod.string().optional(),
@@ -198,8 +203,10 @@ export const TICKET_UPDATE = kit.defineAction({
     )
     if (!changed) return { next: now, result: {} }
     const messages = assignedMessages(ctx.actor, now.assignees, next.assignees, next, project)
+    const others = currentWorkChanges(now, next, project, currentWorksOf(ctx))
     return {
       next: { ...next, updatedAt: ctx.now },
+      ...(others.length > 0 ? { others } : {}),
       ...(messages.length > 0 ? { aiMessages: messages } : {}),
       result: {},
     }
@@ -209,11 +216,18 @@ export const TICKET_UPDATE = kit.defineAction({
 export const TICKET_REMOVE = kit.defineAction({
   id: "ticket-remove",
   title: "remove ticket",
-  aiDescription: "Remove the ticket named by on.record (only the user). Its number is not used again.",
+  aiDescription:
+    "Remove the ticket named by on.record (only the user). Its number is not used again. The workrooms working on it have no current ticket any more.",
   target: TICKET.id,
   userOnly: true,
+  writes: [CURRENT_WORK.id],
+  reads: () => [READS_CURRENT_WORK],
   args: zod.strictObject({}),
-  run: now => (now === "none" ? null : { next: "removed", result: {} }),
+  run: (now, _args, ctx) => {
+    if (now === "none") return null
+    const others = currentWorkChanges(now, "removed", undefined, currentWorksOf(ctx))
+    return { next: "removed", ...(others.length > 0 ? { others } : {}), result: {} }
+  },
 })
 
 // チケットのロックを掛ける・外す（ロック中のチケットは、この 2 つのほかのアクションを断る。外せるのは利用者だけ）

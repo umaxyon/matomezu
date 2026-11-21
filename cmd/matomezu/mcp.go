@@ -25,6 +25,10 @@ type mcpCmd struct {
 	// Session は、AI のプログラムが立てたときのセッション id（常駐への呼び出しに添える）。claude-code mcp だけが Claude Code の環境変数から入れる
 	// （Claude Code の Bash から起こされたほかの AI もその環境変数を受け継ぐので、ほかの MCP が読むと、常駐がその Claude Code の参加者と取り違える）
 	Session string `kong:"-"`
+	// DevDir は、配る版が開発のリポジトリの中で呼ばれたかを見るフォルダ（AI が開いているプロジェクト）。空なら今いるフォルダ
+	DevDir string `kong:"-"`
+	// AdeWorkspace は、join のときに、AI が動いている ADE のワークスペースの名前を読む（clients/ade の部品を、AI のプログラムごとのコマンドが入れる。nil なら読まない）
+	AdeWorkspace func() string `kong:"-"`
 }
 
 func (c *mcpCmd) Run() error {
@@ -47,7 +51,16 @@ func (c *mcpCmd) Run() error {
 			}
 		}()
 	}
-	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version, envName(), gitBranch, host, session, sessionPid(c.SessionEndsWith, host), sessionPidSpace(c.SessionEndsWith), mcp.Meta{Session: c.MetaSession, Model: c.MetaModel})
+	return mcp.Serve(os.Stdin, os.Stdout, &httpAPI{s: s, reconnect: func() (*home.Server, error) { return ensure(h, c.serverFlags) }}, version, envName(), gitBranch, c.AdeWorkspace, host, session, sessionPid(c.SessionEndsWith, host), sessionPidSpace(c.SessionEndsWith), mcp.Meta{Session: c.MetaSession, Model: c.MetaModel}, devNotUsedNote(c.devDir()))
+}
+
+// devDir は、配る版が開発のリポジトリの中で呼ばれたかを見るフォルダ
+func (c *mcpCmd) devDir() string {
+	if c.DevDir != "" {
+		return c.DevDir
+	}
+	d, _ := os.Getwd()
+	return d
 }
 
 // sessionPid は、--session-ends-with の値 endsWith が指す、セッションと同じだけ生きるプロセスの id（空なら名乗らない）。

@@ -1,4 +1,4 @@
-// タスクボードの見せ方の決め事（taskboard/board の shown.ts・sort.ts・maximize.ts）・今のチケット（ticket/current.ts と、作業の様子の workroomActivity）・チケットの番号と担当（ticket/label.ts・assignees.ts）と、利用者の設定 2 つ（board/user-settings.ts）
+// タスクボードの見せ方の決め事（taskboard/board の shown.ts・sort.ts・maximize.ts）・カレントチケットの判定（current-work の isCurrentFor と、作業の様子の workroomActivity）・チケットの番号と担当（ticket/label.ts・assignees.ts）と、利用者の設定 2 つ（board/user-settings.ts）
 import { expect, test } from "bun:test"
 import { workroomActivityOf } from "../../../web/src/plugins/base/participant/activity"
 import { autoInputOf } from "../../../web/src/plugins/base/settings/user-settings"
@@ -13,10 +13,10 @@ import {
 } from "../../../web/src/plugins/taskboard/board/shown"
 import { DEFAULT_SORT, type SortRules, sortTickets } from "../../../web/src/plugins/taskboard/board/sort"
 import { PROJECT_ORDER, SHOWN_PROJECTS } from "../../../web/src/plugins/taskboard/board/user-settings"
+import { CURRENT_WORK, isCurrentFor } from "../../../web/src/plugins/taskboard/current-work"
 import { PROJECT, type Project } from "../../../web/src/plugins/taskboard/project"
 import { TICKET, type Ticket } from "../../../web/src/plugins/taskboard/ticket"
 import { assigneesOf } from "../../../web/src/plugins/taskboard/ticket/assignees"
-import { currentTicketsOf } from "../../../web/src/plugins/taskboard/ticket/current"
 import { ticketLabel } from "../../../web/src/plugins/taskboard/ticket/label"
 import { tagsOf } from "../../../web/src/plugins/taskboard/ticket/tags"
 import { type HistoryRecord, newestFirst } from "../../../web/src/plugins/taskboard/ticket-history"
@@ -166,37 +166,25 @@ test("タスクボードの最大化は 1 つだけ。レーンを最大化す�
   expect(maximizedAmong({ board: "a" }, ["b"])).toBeUndefined()
 })
 
-test("ワークルームの今のチケットは、担当に入っていて作業中の印のあるレーンにあるチケット。更新の新しい順、同じなら番号の順", () => {
+test("チケット履歴は新しい順", () => {
+  expect(newestFirst([line("a", "T1", "x"), line("b", "T1", "x")]).map(h => h.id)).toEqual(["b", "a"])
+})
+
+test("カレントチケットになれるのは、担当に入っていて作業中の印のあるレーンにあるチケット（担当の 2 人目でも。閉じたプロジェクトでも）", () => {
   const working = project("p1", {
     lanes: [
       { kind: "lane", id: "todo", name: "未着手", prompt: "", cardSize: "inherit" },
       { kind: "lane", id: "doing", name: "作業中", prompt: "", cardSize: "inherit", working: true },
-      { kind: "lane", id: "review", name: "レビュー", prompt: "", cardSize: "inherit", working: true },
       { kind: "unsorted", shown: false },
-      { kind: "lane", id: "done", name: "完了", prompt: "", cardSize: "inherit" },
     ],
-    doneLane: "done",
   })
   const closed = project("p2", { ...working, id: "p2", closed: true })
-  const projects = new Map([working, closed].map(p => [p.id, p]))
-  const of = (tickets: Ticket[]) => currentTicketsOf("r1", tickets, id => projects.get(id)).map(c => c.ticket.id)
-  const at = (h: number) => `2026-11-01T0${h}:00:00.000Z`
-  // 担当の 2 人目でも入る。担当でない・作業中でないレーン・未分類・プロジェクトが無いチケットは入らない
-  expect(of([ticket("T1", { lane: "doing", assignees: ["r2", "r1"] })])).toEqual(["T1"])
-  expect(of([ticket("T1", { lane: "doing", assignees: ["r2"] })])).toEqual([])
-  expect(of([ticket("T1", { lane: "todo", assignees: ["r1"] })])).toEqual([])
-  expect(of([ticket("T1", { lane: "unsorted", assignees: ["r1"] })])).toEqual([])
-  expect(of([ticket("T1", { lane: "doing", assignees: ["r1"], project: "gone" })])).toEqual([])
-  // 作業中の印のレーンはいくつでも。閉じたプロジェクトのチケットも数える
-  expect(
-    of([
-      ticket("T1", { lane: "doing", assignees: ["r1"], updatedAt: at(1) }),
-      ticket("T3", { lane: "review", assignees: ["r1"], updatedAt: at(2) }),
-      ticket("T2", { lane: "doing", assignees: ["r1"], updatedAt: at(2) }),
-      ticket("T4", { lane: "doing", assignees: ["r1"], project: "p2", updatedAt: at(0) }),
-    ]),
-  ).toEqual(["T2", "T3", "T1", "T4"])
-  expect(newestFirst([line("a", "T1", "x"), line("b", "T1", "x")]).map(h => h.id)).toEqual(["b", "a"])
+  expect(isCurrentFor(ticket("T1", { lane: "doing", assignees: ["r2", "r1"] }), "r1", working)).toBe(true)
+  expect(isCurrentFor(ticket("T1", { lane: "doing", assignees: ["r2"] }), "r1", working)).toBe(false)
+  expect(isCurrentFor(ticket("T1", { lane: "todo", assignees: ["r1"] }), "r1", working)).toBe(false)
+  expect(isCurrentFor(ticket("T1", { lane: "unsorted", assignees: ["r1"] }), "r1", working)).toBe(false)
+  expect(isCurrentFor(ticket("T1", { lane: "doing", assignees: ["r1"] }), "r1", undefined)).toBe(false)
+  expect(isCurrentFor(ticket("T1", { lane: "doing", assignees: ["r1"], project: "p2" }), "r1", closed)).toBe(true)
 })
 
 test("完了のレーンに作業中の印は付けられない（プロジェクトの形が断る）", () => {
@@ -245,7 +233,7 @@ test("レーンのチケットカードの大きさは、レーンの cardSize�
   expect(cardSizeOf(p, "gone")).toBe("large")
 })
 
-test("ワークルームの作業の様子は、担当に入っていて作業中のレーンにあるチケットがあれば作業中、無ければ空き。行の下の 1 行と同じ判定", () => {
+test("ワークルームの作業の様子は、カレントワークが指すチケットがカレントチケットなら作業中、無ければ空き。行の下の 1 行と同じ判定", () => {
   const p = project("p1", {
     lanes: [
       { kind: "lane", id: "todo", name: "未着手", prompt: "", cardSize: "inherit" },
@@ -253,12 +241,14 @@ test("ワークルームの作業の様子は、担当に入っていて作業�
       { kind: "unsorted", shown: false },
     ],
   })
-  const records = (t?: Partial<Ticket>): Record<string, Record<string, unknown>> => ({
+  const records = (t?: Partial<Ticket>, work = "t1"): Record<string, Record<string, unknown>> => ({
     [TICKET.id]: t ? { t1: ticket("t1", t) } : {},
     [PROJECT.id]: { p1: p },
+    [CURRENT_WORK.id]: { w: { id: "w", ticket: work } },
   })
   const activity = (r: ReturnType<typeof records>) => workroomActivityOf(CORE_CATALOG, r, "w")
   expect(activity(records({ lane: "doing", assignees: ["w"] }))).toBe("working")
+  expect(activity(records({ lane: "doing", assignees: ["w"] }, "none"))).toBe("idle")
   expect(activity(records())).toBe("idle")
   expect(activity(records({ lane: "todo", assignees: ["w"] }))).toBe("idle")
   expect(activity(records({ lane: "doing", assignees: ["x", "w"] }))).toBe("working")

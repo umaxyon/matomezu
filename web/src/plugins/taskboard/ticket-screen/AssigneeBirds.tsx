@@ -5,13 +5,15 @@ import { Face } from "./WriterBird"
 
 export function AssigneeBirds({
   workrooms,
+  working,
 }: {
   workrooms: readonly { id: string; name: string; bird: string; palette?: string | undefined }[]
+  working: ReadonlySet<string>
 }) {
   return (
     <>
       {workrooms.map(w => (
-        <span key={w.id} className={styles.assignee}>
+        <span key={w.id} className={styles.assignee} data-assigned-only={!working.has(w.id)}>
           <Face bird={w.bird} palette={w.palette} size={20} />
           {w.name}
         </span>

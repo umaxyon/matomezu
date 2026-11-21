@@ -1,6 +1,6 @@
 // Package home は matomezu 保管庫フォルダ（利用者ごとに 1 つ）を扱う。
 //
-// フォルダには、常駐が 1 つだけ立つための鍵（server.lock）と、立っている常駐のつなぎ方（server.json）と、画面と画面 cookie を持つブラウザの鍵のハッシュ（cookies.json）を置く。
+// フォルダには、常駐が 1 つだけ立つための鍵（server.lock）と、立っている常駐のつなぎ方（server.json）と、利用者が選んだ常駐のポート（port.json）と、画面と画面 cookie を持つブラウザの鍵のハッシュ（cookies.json）を置く。
 // 図のデータもこのフォルダに置く。
 package home
 
@@ -25,6 +25,7 @@ const EnvHome = "MATOMEZU_HOME"
 const (
 	lockName    = "server.lock"
 	serverName  = "server.json"
+	portName    = "port.json"
 	cookiesName = "cookies.json"
 )
 
@@ -133,6 +134,39 @@ func (h *Home) ReadServer() (*Server, error) {
 		return nil, fmt.Errorf("%s: %w", serverName, err)
 	}
 	return &s, nil
+}
+
+// ReadPort は、利用者が選んだ常駐のポート（port.json）。選んでいなければ 0
+func (h *Home) ReadPort() (int, error) {
+	b, err := os.ReadFile(filepath.Join(h.Dir, portName))
+	if errors.Is(err, fs.ErrNotExist) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	var p struct {
+		Port int `json:"port"`
+	}
+	if err := json.Unmarshal(b, &p); err != nil {
+		return 0, fmt.Errorf("%s: %w", portName, err)
+	}
+	return p.Port, nil
+}
+
+// WritePort は、利用者が選んだ常駐のポートを port.json に書く（このあと立てる常駐は、選び直すまでこのポートで待つ）
+func (h *Home) WritePort(port int) error {
+	b, err := json.Marshal(struct {
+		Port int `json:"port"`
+	}{port})
+	if err != nil {
+		return err
+	}
+	tmp := filepath.Join(h.Dir, portName+".tmp")
+	if err := os.WriteFile(tmp, b, 0o600); err != nil {
+		return err
+	}
+	return os.Rename(tmp, filepath.Join(h.Dir, portName))
 }
 
 // RemoveServer は server.json を消す（常駐が止まるとき）

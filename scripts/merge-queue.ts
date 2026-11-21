@@ -1,9 +1,9 @@
 // 平行作業のブランチを main へ取り込むキュー。取り込み専用の worktree でブランチに main を取り込み、全部のテストを 1 か所で流し、
 // 通れば main を fast-forward して、差分に応じて開発の常駐を作り直す
-//   bun scripts/merge-queue.ts [--main <dir>] [--queue <dir>] [--addr <host:port>] [--no-rebuild] <ブランチ>...
+//   bun scripts/merge-queue.ts [--main <dir>] [--queue <dir>] [--port <ポート>] [--no-rebuild] <ブランチ>...
 //   --main: main を checkout している worktree（既定はこのスクリプトのあるリポジトリ）
 //   --queue: 取り込み専用の worktree（既定は main の worktree の隣の matomezu-merge-queue。無ければ作る）
-//   --addr: 作り直す開発の常駐の待ち受け（既定 127.0.0.1:5300）
+//   --port: 作り直す開発の常駐の待ち受け（既定は、main の .dev-home の常駐が server.json に書いたポート）
 // 進め方
 //   1. リポジトリに 1 つのロック（flock）を取る。ff と作り直しが終わるまで持つ
 //   2. ブランチを SHA に直し、main の上に順に重ねる。マージのコミットのはじめの親はブランチ（main にはマージのコミットを作らない）。
@@ -409,6 +409,16 @@ async function attempt(o: Options, candidates: Candidate[]): Promise<Attempt> {
 
 const portOf = (addr: string) => addr.slice(addr.lastIndexOf(":") + 1)
 
+// main の開発の常駐（.dev-home）が待つポート（server.json の URL から。立っていなければ空で、入れ替えは常駐が無いと言う）
+function devPort(main: string): string {
+  try {
+    const { url } = JSON.parse(readFileSync(join(main, ".dev-home", "server.json"), "utf8")) as { url: string }
+    return new URL(url).port
+  } catch {
+    return ""
+  }
+}
+
 // 待ち受けている常駐の pid（無ければ undefined）
 function listener(addr: string): number | undefined {
   const out = spawnSync("ss", ["-ltnpH", `sport = :${portOf(addr)}`], { encoding: "utf8" }).stdout ?? ""
@@ -441,6 +451,7 @@ const sameArgs = (a: string[], b: string[]) => a.length === b.length && a.every(
 
 // 常駐を同じ引数・作業フォルダ・MATOMEZU_HOME で入れ替える。止めるのは pid で、起動は別のプロセス
 async function replaceResident(main: string, addr: string): Promise<string> {
+  if (portOf(addr) === "") return "常駐の入れ替えが要る（main の .dev-home に立っている常駐が無い）"
   const pid = listener(addr)
   const old = pid === undefined ? undefined : residentOf(pid)
   if (!old) return `常駐の入れ替えが要る（${addr} に MATOMEZU_HOME の分かる常駐が無い）`
@@ -578,25 +589,33 @@ function parseArgs(argv: string[]): { options: Omit<Options, "logs">; branches: 
   const scriptRepo = dirname(import.meta.dir)
   let main = scriptRepo
   let queue: string | undefined
-  let addr = "127.0.0.1:5300"
+  let port: string | undefined
   let rebuild = true
   const branches: string[] = []
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     if (a === "--main") main = resolve(argv[++i] ?? "")
     else if (a === "--queue") queue = resolve(argv[++i] ?? "")
-    else if (a === "--addr") addr = argv[++i] ?? addr
+    else if (a === "--port") port = argv[++i]
     else if (a === "--no-rebuild") rebuild = false
     else if (a !== undefined) branches.push(a)
   }
-  return { options: { main, queue: queue ?? join(dirname(main), "matomezu-merge-queue"), addr, rebuild }, branches }
+  return {
+    options: {
+      main,
+      queue: queue ?? join(dirname(main), "matomezu-merge-queue"),
+      addr: `127.0.0.1:${port ?? devPort(main)}`,
+      rebuild,
+    },
+    branches,
+  }
 }
 
 async function main(argv: string[]): Promise<number> {
   const { options, branches } = parseArgs(argv)
   if (branches.length === 0) {
     console.error(
-      "bun scripts/merge-queue.ts [--main <dir>] [--queue <dir>] [--addr <host:port>] [--no-rebuild] <ブランチ>...",
+      "bun scripts/merge-queue.ts [--main <dir>] [--queue <dir>] [--port <ポート>] [--no-rebuild] <ブランチ>...",
     )
     return 2
   }

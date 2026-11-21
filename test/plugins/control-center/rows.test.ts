@@ -67,7 +67,7 @@ const ready = (
 
 test("列の並びは、組の順に管理者・作業中・空き（準備中も）・空室。組の中は変化（呼ばれた時刻と参加の新しいほう）の新しい順、変化の無い行と同じ時刻は作った順", () => {
   const rows = [
-    { ...row("empty", false, "empty"), activity: "working" as const }, // 前の今のチケットが残った空室
+    { ...row("empty", false, "empty"), activity: "working" as const }, // 前のカレントチケットが残った空室
     ready("idle-old", "idle", "2026-11-14T01:00:00.000Z"),
     row("preparing", false, "prep"),
     { ...ready("boss", "idle", "2026-11-14T00:30:00.000Z"), admin: true },

@@ -23,8 +23,8 @@ export const WORKROOM_NAME_MAX = 20 // ワークルームの名前の長さの�
 // 受け入れていない要求の、いちばん多い数。超えたら、要求を断る
 export const PARTICIPANTS_LIMIT = 100
 
-// Orca の作業場所の表示名（AI が確かめて添えた物）
-const ORCA_WORKSPACE = z
+// ADE のワークスペースの名前（MCP が ADE に訊いて添えた物）
+const ADE_WORKSPACE = z
   .string()
   .trim()
   .min(1)
@@ -66,7 +66,7 @@ export const PARTICIPANT = kit.defineSubject({
       link: z.string().min(1), // 使い捨ての合言葉（画面には出さない。同じ link の要求は 1 人にまとまる）
       wantedName: z.string().trim().min(1).max(WORKROOM_NAME_MAX).optional(), // 要求中が入りたいワークルームの名前
       as: z.enum(["visitor"]).optional(), // 要求中が頼んだ参加者区分（visitor はビジターとしての参加。省けば受け入れるときに選ぶ）
-      orcaWorkspace: ORCA_WORKSPACE.optional(), // 要求中が添えた Orca の作業場所の表示名（受け入れるときに見せる）
+      adeWorkspace: ADE_WORKSPACE.optional(), // 要求中が添えた、ADE のワークスペースの名前（受け入れるときに見せる）
       workroom: z.string().min(1).optional(), // 入っているワークルームの id（joined だけ）
       requestedAt: z.string(),
       joinedAt: z.string().optional(), // 受け入れた時点（joined と visitor だけ）
@@ -74,7 +74,7 @@ export const PARTICIPANT = kit.defineSubject({
     .refine(p => {
       if (p.state === "requested") return p.workroom === undefined && p.joinedAt === undefined
       const accepted =
-        p.joinedAt !== undefined && p.wantedName === undefined && p.as === undefined && p.orcaWorkspace === undefined
+        p.joinedAt !== undefined && p.wantedName === undefined && p.as === undefined && p.adeWorkspace === undefined
       return accepted && (p.state === "joined" ? p.workroom !== undefined : p.workroom === undefined)
     }),
   refers: p => (p.workroom === undefined ? [] : [{ subject: WORKROOM.id, id: p.workroom }]),
@@ -98,6 +98,8 @@ export const ADMIN_MARK = kit.defineSubject({
 export const JOINED_MESSAGE = kit.message("Joined matomezu. Workroom name: {name}")
 export const VISITOR_JOINED_MESSAGE = kit.message("Joined matomezu as a visitor (read only)")
 
+export { SESSION_RENAME, workTitleIn } from "./work-title"
+
 // データの型（画面の見た目は、ここから読む）
 export type Participant = z.output<typeof PARTICIPANT.record>
 export type Workroom = z.output<typeof WORKROOM.record>
@@ -108,7 +110,7 @@ const NAME = z.string().trim().min(1).max(WORKROOM_NAME_MAX)
 export const PARTICIPANT_REQUEST = kit.defineAction({
   id: "participant-request",
   aiDescription:
-    "Ask to join the user's workroom as a participant. ai (your AI name, such as claude or codex), model, env (the environment name) and link (a one-time passphrase uuid you made for this session) are required; sessionName (the name of the original session) is optional; orcaWorkspace (the display name of the Orca workspace, up to 120 characters) is optional; wantedName (a workroom name to start with, up to 20 characters) is optional; as: visitor asks to join only to read (a visitor has no workroom, so it is refused together with wantedName). The participant waits as requested until the user accepts it on the screen. Refused when a participant has the link already, or when too many requests wait. Returns the participant's id.",
+    "Ask to join the user's workroom as a participant. ai (your AI name, such as claude or codex), model, env (the environment name) and link (a one-time passphrase uuid you made for this session) are required; sessionName (the name of the original session) is optional; adeWorkspace (the name of the ADE workspace the session runs in, up to 120 characters; the host fills it, so leave it out) is optional; wantedName (a workroom name to start with, up to 20 characters) is optional; as: visitor asks to join only to read (a visitor has no workroom, so it is refused together with wantedName). The participant waits as requested until the user accepts it on the screen. Refused when a participant has the link already, or when too many requests wait. Returns the participant's id.",
   title: "Request to participate",
   target: PARTICIPANT.id,
   // 同じ合言葉の参加者と、要求中の参加者の、索引キーだけ
@@ -123,7 +125,7 @@ export const PARTICIPANT_REQUEST = kit.defineAction({
     env: z.string().trim().min(1).max(80),
     sessionName: z.string().trim().max(120).optional(),
     link: z.string().trim().min(1).max(80),
-    orcaWorkspace: ORCA_WORKSPACE.optional(),
+    adeWorkspace: ADE_WORKSPACE.optional(),
     wantedName: NAME.optional(),
     as: z.enum(["visitor"]).optional(),
   }),
@@ -145,7 +147,7 @@ export const PARTICIPANT_REQUEST = kit.defineAction({
       link: args.link,
       ...(args.wantedName ? { wantedName: args.wantedName } : {}),
       ...(args.as ? { as: args.as } : {}),
-      ...(args.orcaWorkspace ? { orcaWorkspace: args.orcaWorkspace } : {}),
+      ...(args.adeWorkspace ? { adeWorkspace: args.adeWorkspace } : {}),
       requestedAt: ctx.now,
     }
     return { next: requested, result: { participant: requested.id } }
@@ -215,7 +217,7 @@ export const PARTICIPANT_ACCEPT = kit.defineAction({
   ]),
   run: (now, args, ctx) => {
     if (now === "none" || now.state !== "requested") return null
-    const { wantedName: _, as: asked, orcaWorkspace: _o, ...rest } = now
+    const { wantedName: _, as: asked, adeWorkspace: _o, ...rest } = now
     if ("as" in args) return { next: { ...rest, state: "visitor", joinedAt: ctx.now }, result: { workroom: "none" } }
     if (asked === "visitor") return { declined: "the participant asked to join as a visitor: accept it as a visitor" }
     const joined = (workroom: string): Participant => ({ ...rest, state: "joined", workroom, joinedAt: ctx.now })

@@ -24,7 +24,7 @@ package server
 // 参加の id かセッション id を添えるときは、ブランチ（X-Matomezu-Branch。値は URL エンコードで、git が無い・リポジトリでない・ブランチに居ないなら空）も添える。
 // 呼び出しがモデルを運ぶ AI なら、モデル（X-Matomezu-Model。値は URL エンコード）も添える。AI のプログラムのプロセス id（X-Matomezu-Host）は join も含めていつも添える。
 //
-//	POST /api/ai/join  {"ai", "model", "env", "sessionName", "link", "sessionId", "workroom", "as", "orcaWorkspace"} 参加を頼む。{"ok", "participant"}、または弾いた理由 {"ok": false, "reason", "detail"}
+//	POST /api/ai/join  {"ai", "model", "env", "sessionName", "link", "sessionId", "workroom", "as", "adeWorkspace"} 参加を頼む。{"ok", "participant"}、または弾いた理由 {"ok": false, "reason", "detail"}
 //
 // workroom は、AI が続けたい（またはその名前で始めたい）ワークルームの名前。その名前の受け入れ済みの参加者がいて、生きていれば断る（workroom-in-use）。
 // そうでなければ、名前を添えた参加の要求を出す。引き継ぐか新しく始めるかは、利用者が受け入れのダイアログで選ぶ。
@@ -127,8 +127,8 @@ type JoinRequest struct {
 	Link            string `json:"link"`
 	SessionID       string `json:"sessionId"`
 	Workroom        string `json:"workroom"`
-	As              string `json:"as"` // visitor なら、ビジターとしての参加（ワークルームと一緒には頼めない）
-	OrcaWorkspace   string `json:"orcaWorkspace"`
+	As              string `json:"as"`           // visitor なら、ビジターとしての参加（ワークルームと一緒には頼めない）
+	AdeWorkspace    string `json:"adeWorkspace"` // AI が動いている ADE のワークスペースの名前（MCP が clients/ade の部品に訊いて添える。分からなければ空）
 	Participant     string `json:"-"`
 	Host            string `json:"-"` // AI のプログラムのプロセス id（MCP が X-Matomezu-Host で添える。起こす知らせの宛て先。watch.go）
 	HostSession     string `json:"-"` // AI のプログラムが MCP を立てたときのセッション id（MCP が X-Matomezu-Host-Session で添える。起こす知らせの宛て先。watch.go）
@@ -207,9 +207,9 @@ func (h *Hub) putParticipantNotes() error {
 
 // AIJoin は AI の参加の頼みを受ける。同じ link か参加の id の受け入れ済みの参加者が既にあれば、その参加者のまま答える。要求中なら断る（セッションが終わっていれば消して受ける）
 func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
-	workspace := strings.TrimSpace(req.OrcaWorkspace)
+	workspace := strings.TrimSpace(req.AdeWorkspace)
 	if utf8.RuneCountInString(workspace) > 120 {
-		return Joined{Reason: "bad-args", Detail: "orcaWorkspace must have at most 120 characters"}, nil
+		return Joined{Reason: "bad-args", Detail: "adeWorkspace must have at most 120 characters"}, nil
 	}
 	ids, err := h.engine.JoinActions()
 	if err != nil {
@@ -307,7 +307,7 @@ func (h *Hub) AIJoin(req JoinRequest) (Joined, error) {
 		args["sessionName"] = req.SessionName
 	}
 	if workspace != "" {
-		args["orcaWorkspace"] = workspace
+		args["adeWorkspace"] = workspace
 	}
 	if req.Workroom != "" {
 		args["wantedName"] = req.Workroom
