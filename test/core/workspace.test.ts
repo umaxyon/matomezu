@@ -139,8 +139,8 @@ describe("workspace", () => {
     const stage = (w: ReturnType<typeof newWorkspace>) => w.stages[0]!
 
     test("ロックで今の道具が使えなくなり組の次の道具になると、その場の編集を終える", () => {
-      expect(toolOf(CORE_CATALOG, editing, "s1", { b2: open })).not.toBe(
-        toolOf(CORE_CATALOG, editing, "s1", { b2: locked }),
+      expect(toolOf(CORE_CATALOG, editing, "s1", { books: { b2: open }, ...EMPTY })).not.toBe(
+        toolOf(CORE_CATALOG, editing, "s1", { books: { b2: locked }, ...EMPTY }),
       )
       const after = followBook(CORE_CATALOG, editing, locked, open)
       expect(stage(after).editing).toBe("none")
@@ -153,7 +153,7 @@ describe("workspace", () => {
     })
 
     test("ブックの一覧が変わったときも、道具が替われば、その場の編集を終える", () => {
-      const after = followLibrary(CORE_CATALOG, editing, { b2: locked }, EMPTY, { b2: open })
+      const after = followLibrary(CORE_CATALOG, editing, { b2: locked }, EMPTY, { books: { b2: open }, ...EMPTY })
       expect(after).not.toBe(NO_STAGES_LEFT)
       expect(stage(after as ReturnType<typeof newWorkspace>).editing).toBe("none")
     })

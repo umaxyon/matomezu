@@ -463,7 +463,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       next.trash = both.trash
       const target = catalog.actions.get(id)?.target
       if (target === "library" || target === "settings") {
-        next.window = followLibraryIn(window, catalog, both.books, tables, books)
+        next.window = followLibraryIn(window, catalog, both.books, tables, { books, pages, folders })
         // 画面の履歴に入れないアクション（戻す・やり直す・ゴミ箱から消すなど）が消した物は、その前の値を画面の履歴の段に残さないので捨てる。
         // 設定が対象のアクションが変える書庫（言語を初めて選んで付けた番号）も、常駐が書庫を整えるときと同じく、画面の履歴に入れない
         if (target === "settings" || !entersLibraryHistory(catalog.actions.get(id)))
@@ -479,7 +479,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         const after = Object.values(both.books).find(b => books[b.id] !== b)
         if (after) next.window = mapScreens(window, ws => followBook(catalog, ws, after, books[after.id]))
         // ブックが変わらなければ、変えたのはブックの外のページ
-        else next.window = followLibraryIn(window, catalog, both.books, tables, books)
+        else next.window = followLibraryIn(window, catalog, both.books, tables, { books, pages, folders })
       }
     }
     if (done.settings) {
@@ -953,7 +953,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         ...(books === now.books ? {} : { books }),
         ...(tables.pages === now.pages && tables.folders === now.folders
           ? {}
-          : { window: followLibraryIn(now.window, catalog, books, tables, now.books) }),
+          : { window: followLibraryIn(now.window, catalog, books, tables, now) }),
         ...(settings === now.settings ? {} : { settings, lang: langOf(catalog, settings, fallback) }),
         ...(annotations === now.annotations ? {} : { annotations }),
         ...(records === now.records ? {} : { records }),

@@ -26,7 +26,7 @@ const page = (store: ReturnType<typeof newStore>, book = "b1", i = 0) =>
 
 // そのステージの今の道具
 const toolAt = (store: ReturnType<typeof newStore>, stage = "s1") =>
-  toolOf(store.catalog.core, screenOf(store.state.getState().window), stage, store.state.getState().books)
+  toolOf(store.catalog.core, screenOf(store.state.getState().window), stage, store.state.getState())
 
 const ready = () => sizedStore()
 

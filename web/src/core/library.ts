@@ -7,6 +7,11 @@ import type { Book } from "./schema/book"
 
 export type Books = Readonly<Record<string, Book>>
 
+// 開けるブックの一覧 books と、ページとフォルダの表（ブックの外のページは、表から引く）
+export interface LibraryAndBooks extends Library {
+  books: Books
+}
+
 // 書庫 library のブックを、開けるブックと、ゴミ箱かその中のブックに分ける
 export function splitTrash(library: Library): { books: Books; trash: Books } {
   const books: Record<string, Book> = {}

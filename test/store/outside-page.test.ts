@@ -3,7 +3,8 @@
 import { expect, test } from "bun:test"
 import { stagePlacesOf } from "../../web/src/core/address"
 import { NO_OUTERMOST } from "../../web/src/core/folders-tree"
-import { shownPageId } from "../../web/src/core/stage"
+import { askedOutermostOf, shownPageId } from "../../web/src/core/stage"
+import { toolUsable } from "../../web/src/core/tools"
 import { stageIn } from "../../web/src/core/window"
 import { isEnabled, isShown } from "../../web/src/store/commands"
 import { NO_STAGE } from "../../web/src/store/dialogs"
@@ -171,4 +172,18 @@ test("ブックの外のページでも、元に戻すは変更が在れば押�
   store.actions.perform("@matomezu/base:page-lock", {}, { page: "o1" })
   await Promise.resolve()
   expect(undo()).toEqual({ shown: true, enabled: false })
+})
+
+test("ロックしたブックの外のページでは、行うアクションを止められる道具は使えない", async () => {
+  const store = withOutside()
+  const stage = store.actions.showOutsidePageStage("o1")
+  const usable = () => {
+    const state = store.state.getState()
+    const opened = stageIn(state.window, stage)?.opened
+    return toolUsable(store.catalog.core, "@matomezu/paper:reparent", askedOutermostOf(state, opened) ?? null, "o1")
+  }
+  expect(usable()).toBe(true)
+  store.actions.perform("@matomezu/base:page-lock", {}, { page: "o1" })
+  await Promise.resolve()
+  expect(usable()).toBe(false)
 })

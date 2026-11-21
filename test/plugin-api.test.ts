@@ -471,7 +471,7 @@ test("コマンドに見せるステージは、プラグインに見せるス�
   const store = newStore()
   const state = store.state.getState()
   const stage = screenOf(state.window).stages.find(s => s.id === "s1")!
-  const tool = toolOf(store.catalog.core, screenOf(state.window), "s1", state.books)
+  const tool = toolOf(store.catalog.core, screenOf(state.window), "s1", state)
   expect(commandContext(store.catalog.core, null, state, "s1", "@matomezu/base:stage-split")?.stage).toEqual(
     stageView(store.catalog.core, stage, tool),
   )

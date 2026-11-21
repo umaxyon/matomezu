@@ -8,16 +8,8 @@ import type { PluginStateDef } from "../../core/def/plugin-state"
 import { namingOf, titleOf } from "../../core/entries"
 import { fail } from "../../core/errors"
 import { pageIn } from "../../core/folders"
-import { outsideAsked } from "../../core/folders-tree"
 import { LIBRARY_HISTORY, NO_HISTORY } from "../../core/history"
-import {
-  type AskedOutermost,
-  actionQuery,
-  inspect,
-  outsideAsk,
-  type Query,
-  withoutPermissions,
-} from "../../core/inspect"
+import { actionQuery, inspect, outsideAsk, type Query, withoutPermissions } from "../../core/inspect"
 import { splitId } from "../../core/names"
 import { permittedIn } from "../../core/perform-world"
 import { openedBook, shownPageId, stageBlocks } from "../../core/stage"
@@ -37,6 +29,7 @@ import { ownedPluginState, placeOf, pluginValueOf } from "../plugin-state"
 import type { MatomezuState } from "../state"
 import { worldOf } from "../world"
 import {
+  askedIn,
   type CalledScreen,
   type CommandContext,
   type CommandDef,
@@ -147,7 +140,7 @@ export function commandContext(
       withWorkspace(
         {
           ...screenCommandContext(catalog, controlCenter, state, stageId, command),
-          stage: stageView(catalog, stage, toolOf(catalog, workspace, stageId, state.books)),
+          stage: stageView(catalog, stage, toolOf(catalog, workspace, stageId, state)),
           book,
           page: (page !== null && pageIn(state.pages, page)) || NO_PAGE,
           history: (stage.opened && state.history[stage.opened.outermost.id]) || NO_HISTORY,
@@ -180,16 +173,8 @@ const ask = (c: Called, method: "when" | "enabled" | "active"): boolean | undefi
   (c.def[method] as ((ctx: ScreenCommandContext) => boolean) | undefined)?.(c.ctx)
 
 // コマンドが行うアクション（performs）を、どれも許可スコープの所（ブック・ページ・アノテーションが対象でなければコントロールセンター）で使えるか（認可ステップは見ない）
-// 文脈 ctx のステージで開いている物のうち、問う相手になる物（ブックか、ブックの外のページ。どちらも開いていなければ undefined）
-function askedOf(ctx: CommandContext): AskedOutermost | undefined {
-  if (ctx.book !== NO_BOOK) return ctx.book
-  return ctx.stage.opened?.outermost.kind === "page" && ctx.page !== NO_PAGE
-    ? outsideAsked(ctx.folders, ctx.page)
-    : undefined
-}
-
 function performable(c: Called, arg?: unknown): boolean {
-  const book = "stage" in c.ctx ? askedOf(c.ctx) : undefined
+  const book = "stage" in c.ctx ? askedIn(c.ctx) : undefined
   const where = whereOf(c, arg)
   return (c.def.performs ?? []).every(
     action =>
@@ -229,7 +214,7 @@ function permitted(c: Called, state: MatomezuState, arg?: unknown): boolean {
   }
   const ctx = c.ctx
   const where = whereOf(c, arg)
-  const book = askedOf(ctx)
+  const book = askedIn(ctx)
   const onOpened = (action: string): boolean =>
     c.def.permissionScope !== undefined && book !== undefined && ctx.catalog.actions.get(action)?.target === "library"
   const query = (action: string): Query =>

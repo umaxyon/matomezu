@@ -11,8 +11,10 @@ import type { CoreCatalog, PageTypeId } from "./core-catalog"
 import { isInBook } from "./def/action"
 import { type EditList, slideIsBackground } from "./def/page-type"
 import { type Pages, pageIn } from "./folders"
-import type { StageEntry } from "./folders-tree"
+import { outsideAsked, outsidePageIn, type StageEntry } from "./folders-tree"
 import type { Point, Size } from "./geom"
+import type { AskedOutermost } from "./inspect"
+import type { LibraryAndBooks } from "./library"
 import { type PaperChoice, type ResolvedPaper, resolvePaper } from "./paper"
 import type { ItemPage } from "./placed"
 import { sameData } from "./same"
@@ -255,6 +257,14 @@ export const openedBook = (
   books: Readonly<Record<string, Book>>,
   opened: Opened | null | undefined,
 ): Book | undefined => (opened?.outermost.kind === "book" ? books[opened.outermost.id] : undefined)
+
+// ステージで開いている物 opened のうち、アクションを使えるかを問う相手（ブックか、ブックの外のページ。何も開いていない・もう無ければ undefined）
+export function askedOutermostOf(from: LibraryAndBooks, opened: Opened | null | undefined): AskedOutermost | undefined {
+  const book = openedBook(from.books, opened)
+  if (book) return book
+  const page = opened?.outermost.kind === "page" ? outsidePageIn(from, opened.outermost.id) : undefined
+  return page && outsideAsked(from.folders, page)
+}
 
 const entryOf = (book: Pick<Book, "id">): StageEntry => ({ kind: "book", id: book.id })
 

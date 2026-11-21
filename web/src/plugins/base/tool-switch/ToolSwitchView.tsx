@@ -45,7 +45,7 @@ export function ToolSwitchView() {
   const tool = useStage()?.tool ?? order[0] ?? null
   // 使えない道具（斜めの線を引く）。並びを文字で比べて、変わったときだけ描き直す
   const unusable = useStageHere((st, s) =>
-    st ? unusableTools(catalog, workspaceOf(s.window, st.id), st.id, s.books).join("\n") : "",
+    st ? unusableTools(catalog, workspaceOf(s.window, st.id), st.id, s).join("\n") : "",
   ).split("\n")
   const icons = useRef<(HTMLSpanElement | null)[]>([])
   const shown = useRef<ToolId | null>(tool)

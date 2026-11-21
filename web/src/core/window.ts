@@ -9,6 +9,7 @@ import type { CoreCatalog } from "./core-catalog"
 import { arrangementValueOf, NO_ARRANGEMENT_VALUE } from "./def/screen-arrangement"
 import { fail } from "./errors"
 import type { Library } from "./folders"
+import type { LibraryAndBooks } from "./library"
 import type { ItemPage } from "./placed"
 import { sameData } from "./same"
 import type { Book } from "./schema/book"
@@ -168,14 +169,14 @@ export function closeScreen(win: WindowState, catalog: CoreCatalog, id: string):
   return { ...win, screens: win.screens.filter(s => s.id !== id), order: win.order.filter(x => x !== id) }
 }
 
-// 書庫が変わったときの窓（books はブックの一覧、library はページとフォルダの表。before は変わる前の一覧）: ブックスクリーンごとにステージを合わせ（workspace の followLibrary）、
+// 書庫が変わったときの窓（books はブックの一覧、library はページとフォルダの表。before は変わる前のそれら）: ブックスクリーンごとにステージを合わせ（workspace の followLibrary）、
 // ステージが 1 つも残らないブックスクリーンは閉じる（窓の最後の 1 枚なら、何も開いていないステージ 1 つで残す）
 export function followLibraryIn(
   win: WindowState,
   catalog: CoreCatalog,
   books: Readonly<Record<string, Book>>,
   library: Library,
-  before?: Readonly<Record<string, Book>>,
+  before?: LibraryAndBooks,
 ): WindowState {
   let next = win
   const put = (id: string, ws: Workspace): WindowState => ({

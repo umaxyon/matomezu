@@ -9,10 +9,11 @@ import type { CoreCatalog } from "./core-catalog"
 import { fail } from "./errors"
 import type { Library } from "./folders"
 import { NO_OUTERMOST, outermostOf, outsidePageIn } from "./folders-tree"
-import type { Books } from "./library"
+import type { LibraryAndBooks } from "./library"
 import type { ItemPage } from "./placed"
 import type { Book } from "./schema/book"
 import {
+  askedOutermostOf,
   closeBook,
   followIntoBook,
   followOutsidePage,
@@ -20,7 +21,6 @@ import {
   newStage,
   openBinder,
   openBook,
-  openedBook,
   openPage,
   type Placing,
   type Stage,
@@ -120,23 +120,23 @@ export function focus(ws: Workspace, id: string): Workspace {
   return { ...ws, current: id }
 }
 
-// ステージの今の道具（無いステージや、道具を使わないステージは null）。覚えている道具を、開いているブック（books のもの）のページで使えなければ、
+// ステージの今の道具（無いステージや、道具を使わないステージは null）。覚えている道具を、開いている物（from のブックか、ブックの外のページ）のページで使えなければ、
 // 組の回す順で次の使える道具（どれも使えなければ null）
-export function toolOf(catalog: CoreCatalog, ws: Workspace, id: string, books: Books): ToolId | null {
+export function toolOf(catalog: CoreCatalog, ws: Workspace, id: string, from: LibraryAndBooks): ToolId | null {
   const stage = ws.stages.find(s => s.id === id)
   const set = stage ? toolSetOf(catalog, stage) : null
   if (!stage || !set) return null
-  const usable = usableIn(catalog, stage, books)
+  const usable = usableIn(catalog, stage, from)
   const tool = toolIn(catalog, ws.tools, set)
   if (usable(tool)) return tool
   const next = nextTool(catalog, set, tool, usable)
   return usable(next) ? next : null
 }
 
-// ステージで道具を使えるか（開いているブックのページで、行うアクションのどれかを認可ステップが止めない）
-export function usableIn(catalog: CoreCatalog, stage: Stage, books: Books): (tool: string) => boolean {
-  const book = openedBook(books, stage.opened) ?? null
-  return tool => toolUsable(catalog, tool, book, shownPageId(stage.opened))
+// ステージで道具を使えるか（開いているブックかブックの外のページのページで、行うアクションのどれかを認可ステップが止めない）
+export function usableIn(catalog: CoreCatalog, stage: Stage, from: LibraryAndBooks): (tool: string) => boolean {
+  const on = askedOutermostOf(from, stage.opened) ?? null
+  return tool => toolUsable(catalog, tool, on, shownPageId(stage.opened))
 }
 
 // ステージが使う道具の組の道具を替える。同じ組を使うステージは、全部その道具になる。組に無い道具には替えない。
@@ -185,9 +185,24 @@ export function showBinder(catalog: CoreCatalog, ws: Workspace, stage: string, b
 function followIn(catalog: CoreCatalog, ws: Workspace, stage: Stage, book: Book, before?: Book): Stage {
   const next = followStage(catalog, stage, book, before)
   if (next.editing === "none" || !before || next.opened?.outermost.id !== book.id) return next
-  const was = toolOf(catalog, { ...ws, stages: [stage] }, stage.id, { [book.id]: before })
-  const now = toolOf(catalog, { ...ws, stages: [next] }, next.id, { [book.id]: book })
-  return was === now ? next : setEditing(next, "none")
+  return editEndedOnToolChange(catalog, ws, stage, next, onlyBook(before), onlyBook(book))
+}
+
+const onlyBook = (book: Book): LibraryAndBooks => ({ books: { [book.id]: book }, pages: {}, folders: {} })
+
+// ステージ stage を next に合わせたとき、今の道具が替わった（before と now で、使える道具が違う）なら、その場の編集を終えた next
+function editEndedOnToolChange(
+  catalog: CoreCatalog,
+  ws: Workspace,
+  stage: Stage,
+  next: Stage,
+  before: LibraryAndBooks,
+  now: LibraryAndBooks,
+): Stage {
+  if (next.editing === "none") return next
+  const was = toolOf(catalog, { ...ws, stages: [stage] }, stage.id, before)
+  const is = toolOf(catalog, { ...ws, stages: [next] }, next.id, now)
+  return was === is ? next : setEditing(next, "none")
 }
 
 // ブックが変わったとき、そのブックを開いている全部のステージを合わせる（followIn。before は変わる前のブック）
@@ -199,7 +214,7 @@ export function followBook(catalog: CoreCatalog, ws: Workspace, book: Book, befo
 // followLibrary の答え: 開いていたブックが全部無くなり、ステージが 1 つも残らない
 export const NO_STAGES_LEFT = "no-stages-left"
 
-// 書庫が変わったとき（books はブックの一覧、library はページとフォルダの表。before は変わる前の一覧）: 開いていた物が無くなったステージは閉じ（1 つも残らなければ NO_STAGES_LEFT）、
+// 書庫が変わったとき（books はブックの一覧、library はページとフォルダの表。before は変わる前のそれら）: 開いていた物が無くなったステージは閉じ（1 つも残らなければ NO_STAGES_LEFT）、
 // 残った物には合わせる。無くなったとするのは、ブックが一覧に無い・ブックの外のページが開ける物でなくなった（core/folders-tree.ts の outsidePageIn）とき。
 // ブックの外のバインダを開いたステージも閉じる。ただし、開いているブックの外のページが一覧のブックの中へ移されたなら、閉じずに、そのブックのページとして開いた形にする
 export function followLibrary(
@@ -207,7 +222,7 @@ export function followLibrary(
   ws: Workspace,
   books: Readonly<Record<string, Book>>,
   library: Library,
-  before?: Readonly<Record<string, Book>>,
+  before?: LibraryAndBooks,
 ): Workspace | typeof NO_STAGES_LEFT {
   // 開いているブックの外のページ id を、中へ入れたブック（ブックの中へ移されていなければ undefined）
   const movedInto = (id: string): Book | undefined => {
@@ -227,10 +242,14 @@ export function followLibrary(
   const stages = left.stages.map(s => {
     const now = held(s)
     if (now === undefined || now === "none") return s
-    if ("kind" in now) return followOutsidePage(catalog, s, now)
+    if ("kind" in now) {
+      // ブックの外のページも、今の道具が替わった（ロックされたなど）なら、その場の編集を終える
+      const next = followOutsidePage(catalog, s, now)
+      return before ? editEndedOnToolChange(catalog, left, s, next, before, { books, ...library }) : next
+    }
     return s.opened?.outermost.kind === "page"
       ? followIntoBook(catalog, s, now)
-      : followIn(catalog, left, s, now, before?.[now.id])
+      : followIn(catalog, left, s, now, before?.books[now.id])
   })
   return stages.every((s, i) => s === left.stages[i]) ? left : { ...left, stages }
 }
