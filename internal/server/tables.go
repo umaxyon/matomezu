@@ -198,10 +198,7 @@ func (h *Hub) checkLibrary() {
 		fmt.Fprintln(os.Stderr, "engine: could not check the library:", err)
 		return
 	}
-	if line != "" && line != h.libraryWarning {
-		fmt.Fprintln(os.Stderr, "warning:", line)
-	}
-	h.libraryWarning = line
+	holdLine(&h.libraryWarning, line)
 }
 
 // openIDs は、書庫ホーム・ゴミ箱・フォルダの id の全部（書庫ホームを先に、ゴミ箱を次に、ほかは id の順。h.mu を持って呼ぶ）

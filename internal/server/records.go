@@ -223,21 +223,6 @@ func (h *Hub) checkRecordsOf(keys []recordKey) error {
 	return nil
 }
 
-// recordWarningLines は、効かないレコードの warning の 1 行ずつ（種類の id、レコードの id の順。h.mu を持って呼ぶ）
-func (h *Hub) recordWarningLines() []string {
-	keys := slices.SortedFunc(maps.Keys(h.recordLines), func(a, b recordKey) int {
-		if c := compareStrings(a.subject, b.subject); c != 0 {
-			return c
-		}
-		return compareStrings(a.id, b.id)
-	})
-	out := []string{}
-	for _, k := range keys {
-		out = append(out, h.recordLines[k]...)
-	}
-	return out
-}
-
 // loadRoles は、常駐が読む種類の役（参加者・ワークルーム・郵便）ごとの、対象の定義の id を引き直す（起動したときと、プラグインが変わったとき。h.mu を持って呼ぶ）
 func (h *Hub) loadRoles() error {
 	roles, err := h.engine.SubjectRoles()
