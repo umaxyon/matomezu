@@ -20,7 +20,7 @@ const SLIDE_ITEMS = [
   "@matomezu/slide:slide-rectangle",
 ] as const
 
-export const SLIDE_BOOK = kit.definePageType({
+export const SLIDE_PAGE = kit.definePageType({
   id: "slide",
   version: 1,
   title: "Slide",

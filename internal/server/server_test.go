@@ -834,8 +834,8 @@ func TestAddingAndRemovingAPageKeepsTheEntries(t *testing.T) {
 func TestABookWithBindersIsAssembledTheSameAfterARestart(t *testing.T) {
 	const book = `{"id":"b1","title":"T","lineup":[` +
 		`{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"図","paper":"@matomezu/base:a4","orientation":"landscape"},` +
-		`{"kind":"binder","id":"f1","title":"スライド","pageType":"@matomezu/slide-book:slide","lineup":[]},` +
-		`{"kind":"binder","id":"f2","title":"空","pageType":"@matomezu/slide-book:slide","lineup":[]}]}`
+		`{"kind":"binder","id":"f1","title":"スライド","pageType":"@matomezu/slide-page:slide","lineup":[]},` +
+		`{"kind":"binder","id":"f2","title":"空","pageType":"@matomezu/slide-page:slide","lineup":[]}]}`
 	path := filepath.Join(t.TempDir(), "data.db")
 	// read は、AI に見せるブックと、画面に渡すページとフォルダ（触れた時刻の前まで）
 	read := func(s *httptest.Server) (string, string) {
@@ -855,8 +855,8 @@ func TestABookWithBindersIsAssembledTheSameAfterARestart(t *testing.T) {
 		}
 		// バインダにページを足し、版がそろわないように、ページ 1 枚とバインダを変えておく
 		for _, req := range []string{
-			`{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/slide-book:slide","title":"1","into":{"binder":"f1"}},"on":{"book":"b1"},"lang":"ja","ids":["s1"]}`,
-			`{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/slide-book:slide","title":"2","into":{"binder":"f1"}},"on":{"book":"b1"},"lang":"ja","ids":["s2"]}`,
+			`{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/slide-page:slide","title":"1","into":{"binder":"f1"}},"on":{"book":"b1"},"lang":"ja","ids":["s1"]}`,
+			`{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/slide-page:slide","title":"2","into":{"binder":"f1"}},"on":{"book":"b1"},"lang":"ja","ids":["s2"]}`,
 			`{"action":"@matomezu/base:page-update","args":{"title":"図 2"},"on":{"page":"p1"},"lang":"ja"}`,
 			`{"action":"@matomezu/base:page-remove","args":{"page":"s1"},"on":{"book":"b1"},"lang":"ja"}`,
 		} {

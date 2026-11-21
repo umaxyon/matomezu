@@ -2,13 +2,13 @@
 
 import { expect, test } from "bun:test"
 import { settingsAt } from "../../../../web/src/plugins/base/book-settings"
-import { slidePrintSheets } from "../../../../web/src/plugins/page-types/slide-book/print"
+import { slidePrintSheets } from "../../../../web/src/plugins/page-types/slide-page/print"
 import { SLIDE, testPage, withSlide } from "../../../lineup"
 import { CORE_CATALOG } from "../../../support"
 
 const TEXT = "@matomezu/slide:slide-text"
 const text = { id: "t", item: TEXT, x: 10, y: 10, w: 100, h: 40, props: { text: "a" } }
-const PRINT = "@matomezu/slide-book:slide-print"
+const PRINT = "@matomezu/slide-page:slide-print"
 
 const sheetsOf = (slide: object[], page: object = {}) => {
   const p = { ...withSlide(testPage(SLIDE, "p1", { title: "P", paper: "@matomezu/base:ratio-16x9" }), slide), ...page }

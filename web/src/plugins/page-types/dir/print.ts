@@ -12,8 +12,8 @@ import {
   type SettingReader,
   type SheetPurpose,
 } from "../../base"
-import { type DirFolder, dirRootOf } from "./entry"
 import { type DirLayout, laidBottom, laidRight, layoutDir, MARGIN } from "./layout"
+import { type DirFolder, dirRootOf } from "./node"
 import { NOTES } from "./notes"
 
 // ページ page の行と説明を並べたもの（根の無いページは null）。setting はそのページで効いている設定の値、grow はページの増やす向き。

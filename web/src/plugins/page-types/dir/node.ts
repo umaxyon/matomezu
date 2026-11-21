@@ -2,15 +2,15 @@
 // どの中身も id・種類（kind）・名前・説明（description。行の右に並べて見せる 1 行）・アイコン（icon。種類ごとに選べる絵の名前。無ければ種類の既定の絵）を持ち、
 // フォルダは閉じているか（closed）と中身を持てる。
 // 名前と説明は、base の本文の装飾（**太字**・{色:文字}）で書ける。同じフォルダに同じ名前があってもよい（id で見分ける）。
-// id は呼び出す側が書かず、アクションが振る（足すときに受ける形は NewEntrySchema）
+// id は呼び出す側が書かず、アクションが振る（足すときに受ける形は NewNodeSchema）
 import { z } from "zod"
 
 export const KINDS = ["folder", "file"] as const
 export type Kind = (typeof KINDS)[number]
 
-// 中身のアイコン: 列挙 entry-icon の値の id（entry-icon.ts）。無ければ種類の既定の絵。ある・種類に合うかは、データの形でなく、アクションが確かめる
+// 中身のアイコン: 列挙 node-icon の値の id（node-icon-enum.ts）。無ければ種類の既定の絵。ある・種類に合うかは、データの形でなく、アクションが確かめる
 const ICON_DOC =
-  "The id of a value of the enum entry-icon for this kind, drawn at the head of the row (the default icon of its kind without it)"
+  "The id of a value of the enum node-icon for this kind, drawn at the head of the row (the default icon of its kind without it)"
 const iconText = (doc: string = ICON_DOC) => z.string().min(1).describe(doc)
 
 export interface DirFile {
@@ -28,10 +28,10 @@ export interface DirFolder {
   description?: string
   icon?: string
   closed?: boolean
-  children?: DirEntry[]
+  children?: DirNode[]
 }
 
-export type DirEntry = DirFile | DirFolder
+export type DirNode = DirFile | DirFolder
 
 // 名前の形（装飾の書き方を AI に見せる）
 const nameText = () =>
@@ -74,7 +74,7 @@ export const dirRootOf = (page: object | null | undefined): DirFolder | undefine
   DirFolderSchema.safeParse(page && "root" in page ? page.root : undefined).data
 
 // 足すときに受ける中身（id は書かない。閉じているかと中身はフォルダだけ）
-export type NewEntry =
+export type NewNode =
   | { kind: "file"; name: string; description?: string; icon?: string }
   | {
       kind: "folder"
@@ -82,12 +82,12 @@ export type NewEntry =
       description?: string
       icon?: string
       closed?: boolean
-      children?: NewEntry[]
+      children?: NewNode[]
     }
 
 // 足すときに受ける中身の形。AI に見せるときは、icon の説明に選べるアイコンの一覧を入れる（describeArgs）
-export const newEntryOf = (iconDoc?: string): z.ZodType<NewEntry> => {
-  const schema: z.ZodType<NewEntry> = z.union([
+export const newNodeOf = (iconDoc?: string): z.ZodType<NewNode> => {
+  const schema: z.ZodType<NewNode> = z.union([
     z.strictObject({
       kind: z.literal("file"),
       name: nameText(),
@@ -108,17 +108,17 @@ export const newEntryOf = (iconDoc?: string): z.ZodType<NewEntry> => {
   return schema
 }
 
-export const NewEntrySchema = newEntryOf()
+export const NewNodeSchema = newNodeOf()
 
-// 受けた中身の入れ子のどれかが、アイコンを選べない（種類に合わない・値が無い）ときのわけ（無ければ null）。アイコンの検査（entry-icon.ts の iconProblem）を渡して使う
-export function newEntriesProblem(
-  entries: readonly NewEntry[],
+// 受けた中身の入れ子のどれかが、アイコンを選べない（種類に合わない・値が無い）ときのわけ（無ければ null）。アイコンの検査（node-icon-enum.ts の iconProblem）を渡して使う
+export function newNodesProblem(
+  nodes: readonly NewNode[],
   problem: (kind: Kind, icon: string) => string | null,
 ): string | null {
-  for (const e of entries) {
+  for (const e of nodes) {
     const here = e.icon === undefined ? null : problem(e.kind, e.icon)
     if (here) return here
-    const below = e.kind === "folder" ? newEntriesProblem(e.children ?? [], problem) : null
+    const below = e.kind === "folder" ? newNodesProblem(e.children ?? [], problem) : null
     if (below) return below
   }
   return null
@@ -131,28 +131,28 @@ export interface GivenId {
 }
 
 // 受けた中身に、上から順に id を振る
-export function giveIds(entries: readonly NewEntry[], makeId: () => string): { entries: DirEntry[]; ids: GivenId[] } {
-  const out = entries.map((e): { entry: DirEntry; given: GivenId } => {
+export function giveIds(nodes: readonly NewNode[], makeId: () => string): { nodes: DirNode[]; ids: GivenId[] } {
+  const out = nodes.map((e): { node: DirNode; given: GivenId } => {
     const id = makeId()
     const description = e.description ? { description: e.description } : {}
     if (e.kind === "file")
       return {
-        entry: { id, kind: "file", name: e.name, ...description, ...(e.icon ? { icon: e.icon } : {}) },
+        node: { id, kind: "file", name: e.name, ...description, ...(e.icon ? { icon: e.icon } : {}) },
         given: { id },
       }
     const kids = giveIds(e.children ?? [], makeId)
     return {
-      entry: {
+      node: {
         id,
         kind: "folder",
         name: e.name,
         ...description,
         ...(e.icon ? { icon: e.icon } : {}),
         ...(e.closed ? { closed: true } : {}),
-        ...(kids.entries.length > 0 ? { children: kids.entries } : {}),
+        ...(kids.nodes.length > 0 ? { children: kids.nodes } : {}),
       },
       given: { id, ...(kids.ids.length > 0 ? { children: kids.ids } : {}) },
     }
   })
-  return { entries: out.map(o => o.entry), ids: out.map(o => o.given) }
+  return { nodes: out.map(o => o.node), ids: out.map(o => o.given) }
 }

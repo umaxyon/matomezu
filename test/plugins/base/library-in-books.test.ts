@@ -13,7 +13,7 @@ import { SAMPLE_BOOKS } from "../../sample-books"
 import { newStore, showFirstBook } from "../../support"
 
 const DRAWING = "@matomezu/drawing:drawing"
-const SLIDE = "@matomezu/slide-book:slide"
+const SLIDE = "@matomezu/slide-page:slide"
 const taken = { ok: false, reason: "refused", kind: "title-taken" }
 const locked = { ok: false, reason: "denied", permission: "@matomezu/base:lock" }
 

@@ -8,7 +8,7 @@ import (
 // 参加の要求の郵便（種類 join-request）は、種類の表と、伝えられる前の records の行の両方から消す。ほかの郵便とほかの種類はそのまま
 func TestJoinRequestMailIsDropped(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data.db")
-	beforeMigration(t, path, 32,
+	beforeMigration(t, path, 33,
 		`INSERT INTO kinds (n, subject, spec) VALUES (1, '@matomezu/base:mail', '[]')`,
 		`CREATE TABLE rec_1 (id TEXT PRIMARY KEY, body TEXT NOT NULL, version INTEGER NOT NULL, updated_at TEXT NOT NULL)`,
 		`INSERT INTO rec_1 VALUES ('m1', '{"id":"m1","mail":"@matomezu/base:join-request"}', 1, 'x'), ('m2', '{"id":"m2","mail":"@matomezu/base:letter"}', 1, 'x')`,

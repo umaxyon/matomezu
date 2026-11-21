@@ -1,8 +1,8 @@
 // ディレクトリ構成図のページのミニマップの絵: 行を並べ（layout.ts）、罫線を線で、行を四角で描く（紙の座標。根の無いページは描かない）
 import type { CoreCatalog, ItemPage } from "../../../plugin-api"
 import { type GrowSides, type MinimapMark, paperSize } from "../../base"
-import { dirRootOf } from "./entry"
 import { layoutDir } from "./layout"
+import { dirRootOf } from "./node"
 
 export function dirMinimap(
   catalog: CoreCatalog,

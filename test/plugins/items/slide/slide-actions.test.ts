@@ -43,7 +43,7 @@ function setup() {
   // スライドのバインダに 1 枚入れたブックを作る
   createBookIn(instance, "s1", {
     title: "スライド",
-    page: { type: "@matomezu/slide-book:slide", title: "1", into: { newBinder: "スライド" } },
+    page: { type: "@matomezu/slide-page:slide", title: "1", into: { newBinder: "スライド" } },
   })
   const book = Object.keys(instance.state.getState().books).at(-1) as string
   const perform = (id: string, args: object, on: { book: string } | { page: string } = { book }) =>

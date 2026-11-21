@@ -1,14 +1,14 @@
 // スライドのページのプラグイン: スライドのページのタイプと、そのプレゼンテーション。描画シェイプとアクションは slide プラグインの物
 import { defineBuiltin } from "../../../plugin-api/builtin"
-import { SLIDE_BOOK_ENTRY_ICON } from "./entry-icon"
 import { kit } from "./kit"
+import { SLIDE_PAGE_NODE_ICON } from "./node-icon"
 import { SLIDE_PRINT } from "./print-setting"
-import { SLIDE_BOOK, SLIDE_PRESENTATION } from "./slide-book"
+import { SLIDE_PAGE, SLIDE_PRESENTATION } from "./slide-page"
 
-export const SLIDE_BOOK_PLUGIN = defineBuiltin(
+export const SLIDE_PAGE_PLUGIN = defineBuiltin(
   kit.plugin({
-    pageTypes: [SLIDE_BOOK],
-    enumValues: [SLIDE_BOOK_ENTRY_ICON],
+    pageTypes: [SLIDE_PAGE],
+    enumValues: [SLIDE_PAGE_NODE_ICON],
     presentations: [SLIDE_PRESENTATION],
     settings: [SLIDE_PRINT],
   }),
@@ -16,16 +16,16 @@ export const SLIDE_BOOK_PLUGIN = defineBuiltin(
 
 declare module "../../../core/catalog" {
   interface EnumValueTable {
-    "@matomezu/slide-book:entry-icon": typeof SLIDE_BOOK_ENTRY_ICON
+    "@matomezu/slide-page:node-icon": typeof SLIDE_PAGE_NODE_ICON
   }
   interface PageTypeTable {
-    "@matomezu/slide-book:slide": typeof SLIDE_BOOK
+    "@matomezu/slide-page:slide": typeof SLIDE_PAGE
   }
   interface SettingTable {
-    "@matomezu/slide-book:slide-print": typeof SLIDE_PRINT
+    "@matomezu/slide-page:slide-print": typeof SLIDE_PRINT
   }
   interface PresentationTable {
-    "@matomezu/slide-book:slide": typeof SLIDE_PRESENTATION
+    "@matomezu/slide-page:slide": typeof SLIDE_PRESENTATION
   }
   interface MessageTable extends Readonly<typeof kit.messages> {}
 }

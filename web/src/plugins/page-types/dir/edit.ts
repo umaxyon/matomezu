@@ -1,10 +1,10 @@
 // ディレクトリ構成図を組み立てる計算（データを書き換えず、新しい根を返す）: 中身を足す・名前と色を替える・中身ごと消す・付け替える・
 // フォルダを開け閉めする・フォルダの直下を名前で並べる・パスの並びから組み立てる
 import { parseRich, plainOf } from "../../base"
-import type { DirEntry, DirFolder } from "./entry"
+import type { DirFolder, DirNode } from "./node"
 
-// 中身を entries に替えたフォルダ（無くなれば children も消す）
-function withKids(f: DirFolder, kids: DirEntry[]): DirFolder {
+// 中身を nodes に替えたフォルダ（無くなれば children も消す）
+function withKids(f: DirFolder, kids: DirNode[]): DirFolder {
   const { children: _old, ...rest } = f
   return kids.length > 0 ? { ...rest, children: kids } : rest
 }
@@ -24,7 +24,7 @@ export function pathTo(root: DirFolder, id: string): DirFolder[] | null {
 }
 
 // 中身 id（根も。無ければ null）
-export function entryOf(root: DirFolder, id: string): DirEntry | null {
+export function nodeOf(root: DirFolder, id: string): DirNode | null {
   if (root.id === id) return root
   return (
     pathTo(root, id)
@@ -34,7 +34,7 @@ export function entryOf(root: DirFolder, id: string): DirEntry | null {
 }
 
 // 中身 id を f で替えた根（根も替えられる。無ければ null）
-function mapEntry(root: DirFolder, id: string, f: (e: DirEntry) => DirEntry | null): DirFolder | null {
+function mapNode(root: DirFolder, id: string, f: (e: DirNode) => DirNode | null): DirFolder | null {
   const walk = (folder: DirFolder): DirFolder | null => {
     if (folder.id === id) {
       const next = f(folder)
@@ -55,29 +55,24 @@ function mapEntry(root: DirFolder, id: string, f: (e: DirEntry) => DirEntry | nu
   return walk(root)
 }
 
-// フォルダ parent（根も）の中身の index の所（無ければ末尾）に entries を足した根（ファイル・無い所・index が範囲の外なら null）
-export function addEntries(
-  root: DirFolder,
-  parent: string,
-  entries: readonly DirEntry[],
-  index?: number,
-): DirFolder | null {
-  return mapEntry(root, parent, e => {
+// フォルダ parent（根も）の中身の index の所（無ければ末尾）に nodes を足した根（ファイル・無い所・index が範囲の外なら null）
+export function addNodes(root: DirFolder, parent: string, nodes: readonly DirNode[], index?: number): DirFolder | null {
+  return mapNode(root, parent, e => {
     if (e.kind !== "folder") return null
     const kids = e.children ?? []
     const at = index ?? kids.length
     if (at < 0 || at > kids.length) return null
-    return withKids(e, [...kids.slice(0, at), ...entries, ...kids.slice(at)])
+    return withKids(e, [...kids.slice(0, at), ...nodes, ...kids.slice(at)])
   })
 }
 
 // 中身 id（根も）の名前・説明・アイコンを patch で替えた根（書いた所だけ替え、説明とアイコンの null は消す。空の説明も消す。無ければ null）。アイコンが種類に合うかは、書いたあとのデータの形が確かめる
-export function changeEntry(
+export function changeNode(
   root: DirFolder,
   id: string,
   patch: { name?: string; description?: string | null; icon?: string | null },
 ): DirFolder | null {
-  return mapEntry(root, id, e => {
+  return mapNode(root, id, e => {
     const { icon: _icon, description: _description, ...rest } = e
     const icon = patch.icon === undefined ? e.icon : (patch.icon ?? undefined)
     const description = patch.description === undefined ? e.description : (patch.description ?? undefined)
@@ -86,15 +81,15 @@ export function changeEntry(
       name: patch.name ?? e.name,
       ...(description ? { description } : {}),
       ...(icon ? { icon } : {}),
-    } as DirEntry
+    } as DirNode
   })
 }
 
 // 中身 id を中身ごと消した根（根は消せない。無ければ null）
-export function removeEntry(root: DirFolder, id: string): DirFolder | null {
+export function removeNode(root: DirFolder, id: string): DirFolder | null {
   const parent = pathTo(root, id)?.at(-1)
   if (!parent) return null
-  return mapEntry(root, parent.id, e =>
+  return mapNode(root, parent.id, e =>
     e.kind === "folder"
       ? withKids(
           e,
@@ -106,16 +101,16 @@ export function removeEntry(root: DirFolder, id: string): DirFolder | null {
 
 // 中身 id を中身ごと、フォルダ parent（根も）の index の所（id を除いた並びで数える。無ければ末尾）へ移した根（付け替えと、並びの入れ替え）。
 // 根・無い中身・ファイルの中へ・自分か自分の中へ・index が範囲の外なら null
-export function moveEntry(root: DirFolder, id: string, parent: string, index?: number): DirFolder | null {
-  const entry = entryOf(root, id)
-  if (!entry || root.id === id || id === parent || pathTo(root, parent)?.some(f => f.id === id)) return null
-  const removed = removeEntry(root, id)
-  return removed && addEntries(removed, parent, [entry], index)
+export function moveNode(root: DirFolder, id: string, parent: string, index?: number): DirFolder | null {
+  const node = nodeOf(root, id)
+  if (!node || root.id === id || id === parent || pathTo(root, parent)?.some(f => f.id === id)) return null
+  const removed = removeNode(root, id)
+  return removed && addNodes(removed, parent, [node], index)
 }
 
 // フォルダ id（根も）を閉じた（closed）か開いた根（ファイル・無ければ null）
 export function setClosed(root: DirFolder, id: string, closed: boolean): DirFolder | null {
-  return mapEntry(root, id, e => {
+  return mapNode(root, id, e => {
     if (e.kind !== "folder") return null
     const { closed: _closed, ...rest } = e
     return closed ? { ...rest, closed: true } : rest
@@ -147,7 +142,7 @@ export type Order = "asc" | "desc"
 // フォルダ id（根も）の直下を名前で並べた根（フォルダが先、ファイルが後。それぞれを order の順に。中のフォルダの並びは変えない。ファイル・無ければ null）
 export function sortFolder(root: DirFolder, id: string, order: Order): DirFolder | null {
   const sign = order === "asc" ? 1 : -1
-  return mapEntry(root, id, e => {
+  return mapNode(root, id, e => {
     if (e.kind !== "folder") return null
     const kids = [...(e.children ?? [])]
     kids.sort((a, b) => (a.kind !== b.kind ? (a.kind === "folder" ? -1 : 1) : sign * compareNames(a.name, b.name)))
@@ -170,7 +165,7 @@ export function buildPaths(
   paths: readonly string[],
   makeId: () => string,
 ): { root: DirFolder; ids: string[] } | null {
-  const start = entryOf(root, parent)
+  const start = nodeOf(root, parent)
   if (start?.kind !== "folder") return null
   let next: DirFolder = root
   const ids: string[] = []
@@ -180,7 +175,7 @@ export function buildPaths(
     let at = parent
     for (const [i, name] of names.entries()) {
       const kind = i < names.length - 1 || folder ? "folder" : "file"
-      const here = entryOf(next, at)
+      const here = nodeOf(next, at)
       const same =
         here?.kind === "folder"
           ? here.children?.find(c => c.kind === kind && plainName(c.name) === plainName(name))
@@ -190,8 +185,8 @@ export function buildPaths(
         continue
       }
       const id = makeId()
-      const entry: DirEntry = kind === "folder" ? { id, kind: "folder", name } : { id, kind: "file", name }
-      const added = addEntries(next, at, [entry])
+      const node: DirNode = kind === "folder" ? { id, kind: "folder", name } : { id, kind: "file", name }
+      const added = addNodes(next, at, [node])
       if (!added) return null
       next = added
       at = id
@@ -203,15 +198,15 @@ export function buildPaths(
 
 // 並べて見せる行の 1 つ: 中身と、根からの深さ（根は 0）
 export interface Row {
-  entry: DirEntry
+  node: DirNode
   depth: number
 }
 
 // 見せる行の並び（上から。閉じたフォルダの中身は出さない）
 export function rowsOf(root: DirFolder): Row[] {
   const rows: Row[] = []
-  const walk = (e: DirEntry, depth: number) => {
-    rows.push({ entry: e, depth })
+  const walk = (e: DirNode, depth: number) => {
+    rows.push({ node: e, depth })
     if (e.kind === "folder" && !e.closed) for (const c of e.children ?? []) walk(c, depth + 1)
   }
   walk(root, 0)
@@ -230,8 +225,8 @@ export function selectedIn(root: DirFolder, selection: readonly string[]): strin
 // 行 id から上（up）か下（down）の行（端なら id のまま）
 export function rowFrom(root: DirFolder, id: string, to: "up" | "down"): string {
   const rows = rowsOf(root)
-  const i = rows.findIndex(r => r.entry.id === id)
-  return rows[to === "up" ? i - 1 : i + 1]?.entry.id ?? id
+  const i = rows.findIndex(r => r.node.id === id)
+  return rows[to === "up" ? i - 1 : i + 1]?.node.id ?? id
 }
 
 // 中身 id の親のフォルダ（根は根のまま。無い中身も id のまま）
@@ -252,7 +247,7 @@ export interface AddAt {
 
 // 行 id の＋と右クリックの「足す」の足す所: フォルダなら中の末尾（閉じていれば開く）、ファイルならすぐ下（無い中身は null）
 export function addInto(root: DirFolder, id: string): AddAt | null {
-  const e = entryOf(root, id)
+  const e = nodeOf(root, id)
   if (!e) return null
   if (e.kind === "folder") return { parent: id, ...(e.closed ? { open: id } : {}) }
   return addAfter(root, id)
@@ -267,7 +262,7 @@ export function addAfter(root: DirFolder, id: string): AddAt | null {
 }
 
 // 中身 id の名前（無ければ空）
-export const nameOf = (root: DirFolder, id: string): string => entryOf(root, id)?.name ?? ""
+export const nameOf = (root: DirFolder, id: string): string => nodeOf(root, id)?.name ?? ""
 
 // その場の編集を終えたときにすること: 書いた字 text（取り消しなら null）で、中身 id を
 // 消す（名前の空の中身が空のまま終わった。根は消さない）・名前を替える・何もしない（変わらない・今ある名前を空にした）
@@ -285,7 +280,7 @@ export function editEnd(root: DirFolder, id: string, text: string | null): EditE
 // 説明のその場の編集を中身 id の上で書いた字 text（書いていなければ null）で終えたとき、説明をどうするか:
 // 替える字・消す（null。記号だけで字の無いものも空とみなす）・何もしない（undefined。変わらない）
 export function noteEnd(root: DirFolder, id: string, text: string | null): string | null | undefined {
-  const old = entryOf(root, id)?.description
+  const old = nodeOf(root, id)?.description
   if (text === null) return undefined
   const next = plainName(text).trim() === "" ? null : text
   return next === (old ?? null) ? undefined : next

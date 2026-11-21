@@ -9,11 +9,11 @@ import {
   PAGE_THEME,
   PAPER_IDS,
 } from "../../base"
-import { entryOf } from "./edit"
-import { DirFolderSchema, dirRootOf } from "./entry"
+import { nodeOf } from "./edit"
 import { dirFits } from "./fit"
 import { kit } from "./kit"
 import { dirMinimap } from "./minimap"
+import { DirFolderSchema, dirRootOf } from "./node"
 import { pageFieldsInput } from "./page-fields"
 import { dirPrintSheets } from "./print"
 import { DIR_TOOLS } from "./tools"
@@ -43,12 +43,12 @@ export const NEW_DIR_PAGE_DIALOG = kit.defineDialog({ id: "page-new" })
 
 // ビューが開く右クリックのメニュー: 紙の画面と、行（右クリックした行を選んでから開く）（ui.tsx で core/catalog.ts に書き足す）
 export const DIR_CONTEXT = kit.name("dir-context")
-export const ENTRY_CONTEXT = kit.name("entry-context")
+export const NODE_CONTEXT = kit.name("node-context")
 
-// ノード（中身。根も）の設定のダイアログ（開いたステージのブックの、ページ page の中身 entry の名前・説明・色）
-export const ENTRY_SETTINGS_DIALOG = kit.defineDialogWith<{ page: string; entry: string }>()({
-  id: "entry-settings",
-  edits: a => [a.entry],
+// ノード（中身。根も）の設定のダイアログ（開いたステージのブックの、ページ page の中身 node の名前・説明・色）
+export const NODE_SETTINGS_DIALOG = kit.defineDialogWith<{ page: string; node: string }>()({
+  id: "node-settings",
+  edits: a => [a.node],
 })
 
 export const DIR = kit.definePageType({
@@ -65,7 +65,7 @@ export const DIR = kit.definePageType({
   // 行の名前は、ファイルやフォルダの名前（base の labelOf）
   labelOf: (page, id) => {
     const root = dirRootOf(page)
-    return (root && entryOf(root, id)?.name) ?? ""
+    return (root && nodeOf(root, id)?.name) ?? ""
   },
   paper: {
     allowed: PAPER_IDS,

@@ -18,9 +18,9 @@ import (
 const withUnreadable = `{"id":"f1","title":"Flow","lineup":[` +
 	`{"kind":"page","id":"p1","type":"@foo/stamps:board","title":"Stamps","paper":"@matomezu/base:a4","orientation":"landscape","stamps":[1,2]},` +
 	`{"kind":"page","id":"p2","type":"@matomezu/drawing:drawing","title":"P2","paper":"@matomezu/base:a4","orientation":"landscape","items":[]},` +
-	`{"kind":"binder","id":"d1","title":"D","pageType":"@matomezu/slide-book:slide","lineup":[` +
-	`{"kind":"page","id":"q1","type":"@matomezu/slide-book:slide","title":"Q1","paper":"@matomezu/base:a4","orientation":"landscape","items":"bad"},` +
-	`{"kind":"page","id":"q2","type":"@matomezu/slide-book:slide","title":"Q2","paper":"@matomezu/base:a4","orientation":"landscape","items":[]}]},` +
+	`{"kind":"binder","id":"d1","title":"D","pageType":"@matomezu/slide-page:slide","lineup":[` +
+	`{"kind":"page","id":"q1","type":"@matomezu/slide-page:slide","title":"Q1","paper":"@matomezu/base:a4","orientation":"landscape","items":"bad"},` +
+	`{"kind":"page","id":"q2","type":"@matomezu/slide-page:slide","title":"Q2","paper":"@matomezu/base:a4","orientation":"landscape","items":[]}]},` +
 	`{"kind":"page","id":"p3","type":"@matomezu/drawing:drawing","title":"P3","paper":"@matomezu/base:a4","orientation":"landscape","items":[]}]}`
 
 // serveStore は、置き場所 path を開いた常駐（起動し直しを確かめるために、同じ path で何度でも立てられる）
@@ -172,10 +172,10 @@ func TestAPurgedUnreadableBookDoesNotComeBack(t *testing.T) {
 	// b2 は b1 のページ p1 も持つ（同じ名前のページ 2 枚とバインダ）
 	v := versionsOf(t, store)
 	if err := store.Apply(storage.Batch{
-		Pages: []storage.RowWrite{{ID: "p2", Body: json.RawMessage(page("p2", "P1"))}, {ID: "q1", Body: json.RawMessage(`{"kind":"page","id":"q1","type":"@matomezu/slide-book:slide","title":"Q","paper":"@matomezu/base:a4","orientation":"landscape","items":[]}`)}},
+		Pages: []storage.RowWrite{{ID: "p2", Body: json.RawMessage(page("p2", "P1"))}, {ID: "q1", Body: json.RawMessage(`{"kind":"page","id":"q1","type":"@matomezu/slide-page:slide","title":"Q","paper":"@matomezu/base:a4","orientation":"landscape","items":[]}`)}},
 		Folders: []storage.RowWrite{
 			{ID: "b2", Body: json.RawMessage(`{"folderRole":"book","id":"b2","title":"B2","lineup":[{"kind":"page","id":"p1"},{"kind":"page","id":"p2"},{"kind":"binder","id":"d1"}]}`)},
-			{ID: "d1", Body: json.RawMessage(`{"folderRole":"binder","id":"d1","title":"D","pageType":"@matomezu/slide-book:slide","lineup":[{"kind":"page","id":"q1"}]}`)},
+			{ID: "d1", Body: json.RawMessage(`{"folderRole":"binder","id":"d1","title":"D","pageType":"@matomezu/slide-page:slide","lineup":[{"kind":"page","id":"q1"}]}`)},
 			{ID: storage.HomeID, Base: v[storage.HomeID], Body: storage.HomeBody([]json.RawMessage{storage.RefOf("book", "b1"), storage.RefOf("book", "b2")})},
 		},
 		Entries: []storage.EntryPut{{ID: "b2", Folder: storage.HomeID}, {ID: "p2", Folder: "b2"}, {ID: "d1", Folder: "b2"}, {ID: "q1", Folder: "d1"}},
