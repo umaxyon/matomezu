@@ -19,18 +19,15 @@ package server
 //	ack       {"seq", "ok", "reason"} 送った窓にだけ。そのアクションバルクを行い終えた（断ったなら ok が false）。そのバルクの changed のあとに届く
 //	show      {"book", "page", "stage", "split"} 最後にフォーカスされた窓にだけ。そのブックを出す（Show）
 //	plugins   {"version"} 追加プラグインが変わった（plugins.go）。窓は読み直す
-//	participant-calls {"participant", "at"} 参加者の最後に呼ばれた時刻（join.go。30 秒以上あいたときだけ知らせる）
-//	participant-ready {"participant"} 参加者が準備中でなくなった（フックが参加を伝えた、または join で MCP がセッション id を運んだ。join.go）
+//	participant-calls {"participant", "at"} 参加者の最後に呼ばれた時刻（join_calls.go。30 秒以上あいたときだけ知らせる）
+//	participant-ready {"participant"} 参加者が準備中でなくなった（フックが参加を伝えた、または join で MCP がセッション id を運んだ。join_session.go）
 //	participant-live {"participant", "model", "branch"} 参加者のモデルかブランチが変わった（そのときの両方。空は省く。join.go・model.go）
 //	touched   {"book", "at"} ブックに触れた時刻（開いた・変えた。touched.go）
 //	keep      {} keepAlive ごとに送る。窓は、これも含めて知らせが QUIET_MS（host-client/server.ts）届かなければ、黙って切れたとみてつなぎ直す
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"maps"
-	"os"
 	"slices"
 	"strconv"
 	"sync"
@@ -40,12 +37,6 @@ import (
 	"github.com/umaxyon/matomezu/internal/plugin"
 	"github.com/umaxyon/matomezu/internal/storage"
 )
-
-// 窓へ知らせを貯めておける数。超えた窓は切る（つなぎ直して読み直す）
-const clientBuffer = 256
-
-// 覚えておく、行ったアクションバルクの番号（key）の数。窓は答えが届かなかったバルクを同じ番号で送り直すので、同じ番号は二度行わない
-const performedKeys = 1024
 
 // entry は、組んだブック 1 冊（tables.go。本文は、並びにページとバインダの中身ごと持つ形。version はブックのフォルダの版）
 type entry struct {
@@ -86,23 +77,6 @@ func (h *Hub) BookOn(on *engine.On) string {
 	return h.bookOn(on)
 }
 
-type event struct {
-	name string
-	data []byte
-}
-
-type client struct {
-	id          string
-	ch          chan event
-	view        json.RawMessage     // 窓が知らせた、見ているもの（POST /api/view。まだ知らせが無ければ nil）
-	focused     int64               // 最後にフォーカスされた順（大きいほど新しい。つないだときも 1 つ進める）
-	viewSeq     int64               // 受けた見ているものの番号（窓が知らせるたびに増やす。古い番号の知らせは捨てる）
-	shown       []string            // いまその窓に見えているブック（touched.go。新しく見えたブックだけを「開いた」とする。コントロールセンターがカレントスクリーンの間は空）
-	held        []string            // いまその窓のブックスクリーンが開いているブック（隠れている物も含む。trash.go。AI はゴミ箱に入れられない）
-	editLocks   map[string][]string // 利用者がその窓で直している物（ページかブックの id → その中の物の id の並び。editlock.go）
-	recordLocks map[string][]string // 利用者がその窓で直しているレコード（対象の種類の id → レコードの id の並び。editlock.go）
-}
-
 // Hub は世界と窓をまとめる
 type Hub struct {
 	mu               sync.Mutex
@@ -119,7 +93,7 @@ type Hub struct {
 	recordTables     map[string]map[string]recordEntry // 対象の定義が足した種類のレコード（種類の id → id → レコード。records.go）
 	kinds            map[string]engine.Kind            // 今のプラグインのレコードの種類（種類の id → 索引キーの宣言と、AI に見せる一覧の決まり。records.go の syncKinds）
 	counters         map[string]map[string]int64       // 番号を振る種類の、区切り → 次の番号（種類の id → 区切り → 次の番号。records.go）
-	participantNotes map[string]participantNote        // 参加者の id → 常駐だけが持つ参加者の記録（join.go）
+	participantNotes map[string]participantNote        // 参加者の id → 常駐だけが持つ参加者の記録（join.go。結ぶのは join_session.go、呼ばれたのは join_calls.go）
 	joinMu           sync.Mutex                        // 参加の頼みを 1 つずつ受ける（join.go）
 	goneTold         map[string]bool                   // 表に無い参加の id のうち、断られたと伝えたもの（join.go。残さない）
 	heardModels      map[string]heardModel             // セッション id → 誰にも結ばれていないうちにフックが知らせたモデル（model.go。残さない）
@@ -227,79 +201,6 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	return h, nil
 }
 
-// checkAnnotations は全部のアノテーションを今のプラグインで確かめ、効かないもの（種類が無い・形が合わない）の warning の一覧を直す。
-// 新しい warning は常駐のログに書く（h.mu を持って呼ぶ）
-func (h *Hub) checkAnnotations() error {
-	pairs := []engine.AnnotatedBook{}
-	for _, id := range h.order {
-		if lists := h.annotationsIn(id); len(lists) > 0 {
-			pairs = append(pairs, engine.AnnotatedBook{Book: h.books[id].body, Annotations: lists})
-		}
-	}
-	lines := []string{}
-	if len(pairs) > 0 {
-		found, err := h.engine.CheckAnnotations(pairs)
-		if err != nil {
-			return err
-		}
-		lines = found
-	}
-	for _, line := range lines {
-		if !slices.Contains(h.annotationWarnings, line) {
-			fmt.Fprintln(os.Stderr, "warning:", line)
-		}
-	}
-	h.annotationWarnings = lines
-	return nil
-}
-
-// annotationsIn は、ブック book のページのうち、アノテーションの有るページの id → その並び（h.mu を持って呼ぶ）
-func (h *Hub) annotationsIn(book string) map[string]json.RawMessage {
-	out := map[string]json.RawMessage{}
-	for _, page := range h.books[book].pages {
-		if list, ok := h.annotations[page]; ok {
-			out[page] = list
-		}
-	}
-	return out
-}
-
-// putAnnotationLists は、ページごとのアノテーションの並び lists を 1 つのまとまりで書いて持ち、窓に知らせる（h.mu を持って呼ぶ）
-func (h *Hub) putAnnotationLists(lists map[string]json.RawMessage) error {
-	if len(lists) == 0 {
-		return nil
-	}
-	batch := storage.Batch{}
-	pages := slices.Sorted(maps.Keys(lists))
-	for _, page := range pages {
-		batch.Annotations = append(batch.Annotations, storage.PageBody{Page: page, Body: lists[page]})
-	}
-	if err := h.store.Apply(batch); err != nil {
-		return err
-	}
-	for _, page := range pages {
-		h.applyAnnotations(page, lists[page])
-	}
-	return nil
-}
-
-// applyAnnotations は、書き終えたページ page のアノテーションの並びを持ち、窓に知らせる（h.mu を持って呼ぶ）
-func (h *Hub) applyAnnotations(page string, body json.RawMessage) {
-	body = h.holdAnnotations(page, body)
-	h.broadcast("annotations", map[string]any{"page": page, "annotations": body})
-}
-
-// holdAnnotations は、書き終えたページ page のアノテーションの並びを持ち、窓に知らせる並びを返す（空の並びなら消して "[]"。h.mu を持って呼ぶ）
-func (h *Hub) holdAnnotations(page string, body json.RawMessage) json.RawMessage {
-	var list []json.RawMessage
-	if json.Unmarshal(body, &list) == nil && len(list) == 0 {
-		delete(h.annotations, page)
-		return json.RawMessage("[]")
-	}
-	h.annotations[page] = body
-	return body
-}
-
 // checkBooks は ids のブックを今のプラグインで確かめ、warning のあるブックの一覧を直す。新しい warning は常駐のログに書く。
 // 読めない物のフォルダに移ったブックは確かめない（1 冊ずつの warning にせず、読めない物の warning W032 にまとめる。h.mu を持って呼ぶ）
 func (h *Hub) checkBooks(ids []string) error {
@@ -321,33 +222,6 @@ func (h *Hub) bookBodies(ids []string) []json.RawMessage {
 		}
 	}
 	return bodies
-}
-
-// recordWarnings は、ブック ids を確かめた結果 found を一覧に持つ（変わった warning はログに書く。h.mu を持って呼ぶ）
-func (h *Hub) recordWarnings(ids []string, found []engine.BookWarning) {
-	before := map[string]bool{}
-	for _, id := range ids {
-		if n, ok := h.bookWarnings[id]; ok {
-			before[n.Warning] = true
-		}
-		delete(h.bookWarnings, id)
-	}
-	for _, n := range found {
-		h.bookWarnings[n.Book] = n
-		if !before[n.Warning] {
-			fmt.Fprintln(os.Stderr, "warning:", n.Warning)
-			before[n.Warning] = true
-		}
-	}
-}
-
-// BookWarnings は warning のあるブックの id → そのブックの warning（読めない物のフォルダに移ったブックは入らない）
-func (h *Hub) BookWarnings() map[string]engine.BookWarning {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	out := maps.Clone(h.bookWarnings)
-	maps.DeleteFunc(out, func(id string, _ engine.BookWarning) bool { return h.inUnreadable(id) })
-	return out
 }
 
 // Data は設定とアノテーション（ページの id → 並び）。ページとフォルダは Tables
@@ -381,425 +255,10 @@ func (h *Hub) AIBooks() []Book {
 	return books
 }
 
-// Perform の頼み: アクションバルク（Actions を順に行い、全部通るか全部断る）。Client と Seq は送った窓とその番号（窓の外からなら空）。
-// Key は窓がバルクごとに振る一意の番号（つなぎ直しても変えない）。同じ番号のバルクは二度行わない
-type Perform struct {
-	Actions []engine.BulkAction `json:"actions"`
-	Client  string              `json:"client,omitempty"`
-	Seq     int64               `json:"seq,omitempty"`
-	Key     string              `json:"key,omitempty"`
-	// TimeoutSec は、バルクを待つ秒数（省略は 5、上限 60）
-	TimeoutSec int    `json:"timeoutSec,omitempty"`
-	By         string `json:"-"` // 頼んだのが AI なら "ai"（AI の口だけが入れる。窓からは受けない）
-	// Participant は、AI の口が受け取った参加者の id（窓からは受けない）
-	Participant string `json:"-"`
-}
-
-// performOne は、アクション 1 つのバルクの頼み
-func performOne(action string, args json.RawMessage, on *engine.On) Perform {
-	return Perform{Actions: []engine.BulkAction{{Action: action, Args: args, On: on}}}
-}
-
-// ErrNoActions は、アクションが 1 つも無いバルク
-var ErrNoActions = errors.New("a perform needs at least one action")
-
-// Performed は行った結果（断ったら Detail に AI への説明。認可ステップが止めたら Permission にそのステップの id）
-type Performed struct {
-	OK         bool   `json:"ok"`
-	Reason     string `json:"reason,omitempty"`
-	Permission string `json:"permission,omitempty"`
-	Detail     string `json:"detail,omitempty"`
-	Kind       string `json:"kind,omitempty"` // 断りの種類（アクションが添えた名前か、土台の種類）
-	// 名前が重なる断り（title-taken）で、重なった相手がシステムフォルダのときの、その印（定義の id。AI に見せる名前は英語なので、利用者の言語で重なった相手が分かるように）
-	SystemFolder string          `json:"systemFolder,omitempty"`
-	Result       json.RawMessage `json:"result,omitempty"`
-	Notice       string          `json:"notice,omitempty"` // AI への知らせ（可変ページの中身をずらして位置が変わったなど）
-}
-
-// Perform はアクションバルクを行い、変わったものを 1 回で書いて知らせる。行い終えた番号（Key）がまた届いたら、行わずに前の結果を返す（ack も送る）
-func (h *Hub) Perform(p Perform) (Performed, error) {
-	if len(p.Actions) == 0 {
-		return Performed{}, ErrNoActions
-	}
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if done, ok := h.performed[p.Key]; ok && p.Key != "" {
-		h.ack(p, done)
-		return done, nil
-	}
-	// 時点の無いアクション（AI やホストが頼んだ物）は、ここで時計を 1 回読んで時点と日付を決める
-	in := engine.Input{Actions: stamped(p.Actions, time.Now()), Settings: h.settings, Actor: h.actorOfHeld(p), TimeoutSec: p.TimeoutSec}
-	if err := h.performInputs(&in); err != nil {
-		return Performed{}, err
-	}
-	in.Watched = h.watched()
-	in.WatchedRecords = h.watchedRecords()
-	out, err := h.engine.PerformWith(in, recordSource{h})
-	if err != nil {
-		return Performed{}, err
-	}
-	done := Performed{OK: out.OK, Reason: out.Reason, Permission: out.Permission, Detail: out.Detail, Kind: out.Kind, SystemFolder: out.SystemFolder, Result: out.Result, Notice: out.Notice}
-	if !out.OK {
-		if out.At != nil && *out.At >= 0 && *out.At < len(p.Actions) {
-			fmt.Fprintf(os.Stderr, "%s refused at the action %d of %d (%s): %s\n", stamp(), *out.At, len(p.Actions), p.Actions[*out.At].Action, out.Reason)
-		}
-		h.remember(p.Key, done)
-		h.ack(p, done)
-		return done, nil
-	}
-	// AI のアクションは、窓に出ているブックをゴミ箱に入れない（AI は利用者に聞く）
-	if p.By == "ai" && h.trashesShown(out.Trashing) {
-		done = Performed{OK: false, Reason: "open-on-screen"}
-		h.remember(p.Key, done)
-		h.ack(p, done)
-		return done, nil
-	}
-	by := "host"
-	if p.By == "ai" {
-		by = "ai"
-	} else if p.Client != "" {
-		by = "window"
-	}
-	// 窓のアクションで要求中の参加者が受け入れられた・断られたら、その AI に知らせる（watch.go。受け取られるまで行列で持つ）
-	var requested map[string]bool
-	if by == "window" {
-		requested = h.requestedParticipants()
-	}
-	// アクションが返した AI 間メッセージは、送り手と全部の宛先に参加の確定した参加者がいるときだけ送る（いなければ、何も変えずにバルクごと断る）
-	envelopes, envelopesRefused := h.actionEnvelopes(out.AIMessages, in.Actor, time.Now())
-	if envelopesRefused != nil {
-		h.remember(p.Key, *envelopesRefused)
-		h.ack(p, *envelopesRefused)
-		return *envelopesRefused, nil
-	}
-	act := h.actPrefix + "-" + strconv.FormatInt(h.acts+1, 10)
-	shared := h.sharedWithUnreadable()
-	out = withoutSharedRemovals(out, shared)
-	plan, err := h.planWrites(out, by, act, stamp())
-	if err != nil {
-		return Performed{}, err
-	}
-	if plan != nil {
-		keepSharedPlaces(plan, shared)
-	}
-	if plan == nil || h.touchesUnreadable(out) {
-		// 新しく足すページ・フォルダの id が、世界にもう在る（エンジンが受けたブックの外に）か、読めない物のフォルダの物の行を書き換える。何も変えずに断る
-		done = Performed{OK: false, Reason: "refused"}
-		h.remember(p.Key, done)
-		h.ack(p, done)
-		return done, nil
-	}
-	// 変わった物の全部を 1 つのまとまりで書く。書けなければ、置き場所もメモリも窓も何も変わらず、行い直せる
-	if err := h.store.Apply(plan.batch); err != nil {
-		return Performed{}, err
-	}
-	h.acts++
-	h.applyWrites(plan, out, p, by, act)
-	for _, e := range envelopes {
-		h.deliver(e)
-	}
-	h.wakeOnParticipants(requested)
-	h.remember(p.Key, done)
-	h.ack(p, done)
-	return done, nil
-}
-
-// performInputs は、バルク in.Actions を行う前に、エンジンへ渡すページ・フォルダ・アノテーション・レコード・番号の表を in に入れる（h.mu を持って呼ぶ）。
-// アクションごとに要るブック（レコードが対象なら引数から答えた読むだけのブック、宛先があればそのブック）の和と、そのアノテーションと、それらのブックから書庫の一番上までのフォルダを渡す。
-// 宛先がブックに入っていないページなら、そのページ（バインダの中なら、そのバインダと中のページの全部）と、そのアノテーションと、そこから書庫ホームまでのフォルダを渡す。
-// 一覧のアクション（宛先が無く、レコードが対象でない）か、0 番目でなく宛先が置き場所に無い（バルクの前のアクションが作ったページなど）アクションを含むなら、
-// 全部のブックと、ブックに入っていないページとバインダの全部（ゴミ箱の中の物も）と、アノテーションの全部と、書庫ホーム・ゴミ箱・フォルダの全部
-func (h *Hub) performInputs(in *engine.Input) error {
-	all := false
-	books := []string{}
-	entries := []string{} // 宛先のページがブックに入っていないときの、渡すエントリ（そのページか、それを持つバインダ）
-	named := []string{}   // 宛先がブックそのもののときの、そのブック（名前を変えうるので、隣のエントリの行も渡す）
-	// 読めない物のフォルダに移ったブックは渡さない（書庫に入らないので、名指したアクションは無い物として断られる）
-	add := func(id string) {
-		if id != "" && !slices.Contains(books, id) && !h.inUnreadable(id) {
-			books = append(books, id)
-		}
-	}
-	for i, step := range in.Actions {
-		needs, err := h.engine.RecordNeeds(step.Action, step.Args)
-		if err != nil {
-			return err
-		}
-		switch {
-		case needs.Subject != "":
-			for _, id := range needs.Books {
-				add(id)
-			}
-			h.recordInputs(in, needs, step.On)
-		case step.On == nil:
-			all = true
-		default:
-			// 宛先がページなら、そのページを持っているブック。ブックに入っていないページなら、そのページか、それを持つバインダ（entryNotInBook）。
-			// 置き場所にあるが、ゴミ箱の中に在るページ（ゴミ箱の中のブックのページも）は、何も足さない。
-			// 置き場所に無い宛先は、前のアクションが作った物でありうるので全部のブック。0 番目のアクションの宛先は前のアクションが作った物ではないので、何も足さない
-			book := h.bookOn(step.On)
-			_, known := h.pages[step.On.Page]
-			switch {
-			case book != "" && (step.On.Page != "" || h.hasBook(book)):
-				add(book)
-				if step.On.Page == "" && !slices.Contains(named, book) {
-					named = append(named, book)
-				}
-			case step.On.Page != "" && known:
-				if e := h.entryNotInBook(step.On.Page); e != "" && !slices.Contains(entries, e) {
-					entries = append(entries, e)
-				}
-			case i == 0:
-			default:
-				all = true
-			}
-		}
-	}
-	in.Annotations = map[string]json.RawMessage{}
-	if all {
-		order := slices.DeleteFunc(slices.Clone(h.order), h.inUnreadable)
-		in.Pages, in.Folders = h.rowsOf(append(order, h.entriesNotInBooks()...))
-		in.Folders = append(in.Folders, h.openRows()...)
-		for page, list := range h.annotations {
-			if !h.inUnreadable(page) {
-				in.Annotations[page] = list
-			}
-		}
-		return nil
-	}
-	needed := append(slices.Clone(books), entries...)
-	in.Pages, in.Folders = h.rowsOf(needed)
-	in.Folders = append(in.Folders, h.openRowsAbove(needed)...)
-	// 宛先がブックそのものか、ブックに入っていないページなら、同じフォルダに直に入っている隣のエントリの行も
-	// （名前の重なりを確かめるため。隣のブック・フォルダの中の行は渡さない）
-	nearPages, nearFolders := h.neighborRows(append(slices.Clone(named), entries...), needed)
-	in.Pages = append(in.Pages, nearPages...)
-	in.Folders = append(in.Folders, nearFolders...)
-	for _, id := range books {
-		maps.Copy(in.Annotations, h.annotationsIn(id))
-	}
-	for _, id := range entries {
-		pages := []string{id}
-		if binder, ok := h.folders[id]; ok {
-			pages = binder.entries
-		}
-		for _, page := range pages {
-			if list, ok := h.annotations[page]; ok {
-				in.Annotations[page] = list
-			}
-		}
-	}
-	return nil
-}
-
 // hasBook は、ブック id が置き場所にあるか（ゴミ箱の中のブックも。h.mu を持って呼ぶ）
 func (h *Hub) hasBook(id string) bool {
 	_, ok := h.books[id]
 	return ok
-}
-
-// ack は、アクションバルクを送った窓に行い終えたことを知らせる（h.mu を持って呼ぶ）
-func (h *Hub) ack(p Perform, done Performed) {
-	if c, ok := h.clients[p.Client]; ok {
-		h.send(c, "ack", map[string]any{"seq": p.Seq, "ok": done.OK, "reason": done.Reason})
-	}
-}
-
-// remember は、行い終えたアクションの番号と結果を覚える。performedKeys を超えたら古いものから忘れる（h.mu を持って呼ぶ）
-func (h *Hub) remember(key string, done Performed) {
-	if key == "" {
-		return
-	}
-	h.performed[key] = done
-	h.performedOrder = append(h.performedOrder, key)
-	if len(h.performedOrder) > performedKeys {
-		delete(h.performed, h.performedOrder[0])
-		h.performedOrder = h.performedOrder[1:]
-	}
-}
-
-// Join は窓をつなぎ、知らせの通り道を返す。最初の知らせは hello
-func (h *Hub) Join() *client {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.next++
-	h.ticks++
-	c := &client{id: fmt.Sprintf("c%d", h.next), ch: make(chan event, clientBuffer), focused: h.ticks}
-	h.clients[c.id] = c
-	fmt.Fprintln(os.Stderr, stamp(), "window", c.id, "joined")
-	h.send(c, "hello", map[string]any{"client": c.id})
-	return c
-}
-
-// Leave は窓を外す（窓が自分で閉じたか、つながりが切れた）。窓が加わる・外れる・切られるたびに、時刻と窓の id を常駐のログに書く
-func (h *Hub) Leave(c *client) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if _, ok := h.clients[c.id]; ok {
-		fmt.Fprintln(os.Stderr, stamp(), "window", c.id, "left")
-		h.drop(c)
-	}
-}
-
-// drop は窓を外す: 知らせの通り道を閉じ、その窓が知らせた warning も消す（h.mu を持って呼ぶ）
-func (h *Hub) drop(c *client) {
-	delete(h.clients, c.id)
-	delete(h.windowWarnings, c.id)
-	close(c.ch)
-}
-
-// SetView は、窓が見ているものと、利用者が直している物 editLocks（ページかブックの id → その中の物の id の並び）を覚える（seq が受けたものより古ければ覚えない）。
-// focused なら、その窓がいちばん新しくフォーカスされた窓になる
-func (h *Hub) SetView(clientID string, view json.RawMessage, editLocks, recordLocks map[string][]string, focused bool, seq int64) bool {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	c, ok := h.clients[clientID]
-	if !ok {
-		return false
-	}
-	// 知らせは届く順が入れ替わることがあるので、受けたものより古い番号の見ているものは捨てる（番号 0 は比べない）
-	stale := seq > 0 && seq <= c.viewSeq
-	if seq > c.viewSeq {
-		c.viewSeq = seq
-	}
-	if !stale {
-		c.editLocks = editLocks
-		c.recordLocks = recordLocks
-	}
-	if len(view) > 0 && !stale {
-		c.view = view
-		h.opened(c, view)
-		close(h.viewed)
-		h.viewed = make(chan struct{})
-	}
-	if focused {
-		h.ticks++
-		c.focused = h.ticks
-	}
-	return true
-}
-
-// View は、最後にフォーカスされた窓が見ているもの（つながっている窓が無い・まだ知らせが無ければ nil）
-func (h *Hub) View() json.RawMessage {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if c := h.window(); c != nil {
-		return c.view
-	}
-	return nil
-}
-
-// window は、見ているものを知らせた窓のうち、最後にフォーカスされたもの（無ければ nil。h.mu を持って呼ぶ）
-func (h *Hub) window() *client {
-	var last *client
-	for _, c := range h.clients {
-		if c.view != nil && (last == nil || c.focused > last.focused) {
-			last = c
-		}
-	}
-	return last
-}
-
-// WaitWindow は、見ているものを知らせた窓ができるまで d だけ待ち、できたか返す
-func (h *Hub) WaitWindow(d time.Duration) bool {
-	deadline := time.After(d)
-	for {
-		h.mu.Lock()
-		ok, viewed := h.window() != nil, h.viewed
-		h.mu.Unlock()
-		if ok {
-			return true
-		}
-		select {
-		case <-viewed:
-		case <-deadline:
-			return false
-		}
-	}
-}
-
-// WaitLatest は、最後にフォーカスされた窓がまだ見ているものを知らせていなければ（開いた直後など）、知らせるまで待つ。
-// 知らせが来たら起きる（くり返し見に行かない）。d は上限で、過ぎたら待たずに戻る（そのときは知らせた窓のうち最後のものが選ばれる）
-func (h *Hub) WaitLatest(d time.Duration) {
-	deadline := time.After(d)
-	for {
-		h.mu.Lock()
-		pending, viewed := h.latestPending(), h.viewed
-		h.mu.Unlock()
-		if !pending {
-			return
-		}
-		select {
-		case <-viewed:
-		case <-deadline:
-			return
-		}
-	}
-}
-
-// latestPending は、最後にフォーカスされた窓が、見ているものをまだ知らせていないか（h.mu を持って呼ぶ）
-func (h *Hub) latestPending() bool {
-	var last *client
-	for _, c := range h.clients {
-		if last == nil || c.focused > last.focused {
-			last = c
-		}
-	}
-	return last != nil && last.view == nil
-}
-
-// Show の頼み。Stage は出すステージの id（空ならカレント）、Split なら、そのステージを分けて右にできたステージに出す。
-// Page は出すページ（空ならブックを開いたときのページ）
-type Show struct {
-	Book  string `json:"book"`
-	Page  string `json:"page,omitempty"`
-	Stage string `json:"stage,omitempty"`
-	Split bool   `json:"split,omitempty"`
-	Mode  string `json:"mode,omitempty"` // print-preview なら印刷プレビューで出す（画面がそのまま受ける）
-}
-
-// Show で出せなかった理由
-var (
-	ErrNoBook   = errors.New("no-book")   // そのブックが無い
-	ErrNoWindow = errors.New("no-window") // 窓がつながっていない
-	ErrNoStage  = errors.New("no-stage")  // 窓にそのステージが無い
-	ErrNoSplit  = errors.New("no-split")  // 窓がもう分けられない
-)
-
-// Show は、最後にフォーカスされた窓に、ブックを出すように知らせる。
-// ステージと分けられるかは、その窓が知らせた見ているもの（stages・canSplit）で確かめる
-func (h *Hub) Show(s Show) error {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if _, ok := h.books[s.Book]; !ok || h.outOfSight(s.Book) {
-		return ErrNoBook
-	}
-	c := h.window()
-	if c == nil {
-		return ErrNoWindow
-	}
-	var v struct {
-		screen
-		Hidden *screen `json:"hidden"`
-	}
-	_ = json.Unmarshal(c.view, &v)
-	// コントロールセンターがカレントスクリーンの窓は、後ろに隠れているブックスクリーンのステージに出す（出すとブックスクリーンがカレントスクリーンになる）
-	shown := v.screen
-	if v.Hidden != nil {
-		shown = *v.Hidden
-	}
-	ids := make([]string, 0, len(shown.Stages))
-	for _, st := range shown.Stages {
-		ids = append(ids, st.ID)
-	}
-	if s.Stage != "" && !slices.Contains(ids, s.Stage) {
-		return ErrNoStage
-	}
-	if s.Split && !shown.CanSplit {
-		return ErrNoSplit
-	}
-	h.send(c, "show", s)
-	return nil
 }
 
 // Book は 1 冊のブック（無いかゴミ箱の中のブックなら nil）
@@ -830,42 +289,4 @@ func (h *Hub) AICatalog(ids []string) json.RawMessage {
 		return h.engine.AICatalogEntries(ids)
 	}
 	return withWarnings(h.engine.AICatalogIndex(), h.Warnings())
-}
-
-// CloseAll は全部の窓と、AI を起こす知らせの通り道を外す（常駐を止めるとき。知らせの通り道を閉じると、つながりが終わる）
-func (h *Hub) CloseAll() {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	for _, c := range h.clients {
-		h.drop(c)
-	}
-	for l := range h.wakeLines {
-		h.closeWakesLocked(l)
-	}
-}
-
-// broadcast は全部の窓に知らせる（h.mu を持って呼ぶ）
-func (h *Hub) broadcast(name string, v any) {
-	for _, c := range h.clients {
-		h.send(c, name, v)
-	}
-}
-
-// send は 1 つの窓に知らせる。貯まりきった窓は切る（h.mu を持って呼ぶ）
-func (h *Hub) send(c *client, name string, v any) {
-	data, _ := json.Marshal(v)
-	select {
-	case c.ch <- event{name, data}:
-	default:
-		fmt.Fprintln(os.Stderr, stamp(), "window", c.id, "is cut off: too many events waiting")
-		h.drop(c)
-	}
-}
-
-// actorOfHeld は、ワークルームをアクションと同じロックの中で引く。引いてからアクションを行うまでに参加者が入れ替わらない
-func (h *Hub) actorOfHeld(p Perform) *engine.Actor {
-	if p.By == "ai" {
-		return h.actorOfParticipantHeld(p.Participant)
-	}
-	return nil
 }

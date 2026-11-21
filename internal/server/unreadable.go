@@ -82,7 +82,7 @@ func (h *Hub) settleLibrary(quiet bool) (moved []MovedCount, returned int) {
 	for _, n := range done.Numbered {
 		fmt.Fprintf(os.Stderr, "the title of %s was taken in its folder; it is now %q\n", n.ID, n.Title)
 	}
-	h.holdUnreadableWarning(done.Warning)
+	holdLine(&h.unreadableWarning, done.Warning)
 	return movedCounts(done.Moved), len(done.Returned)
 }
 
@@ -135,7 +135,7 @@ func (h *Hub) purgeUnreadable(id string) (bool, error) {
 	if err := h.writeUnreadable(done.Pages, done.Folders, false); err != nil {
 		return false, err
 	}
-	h.holdUnreadableWarning(done.Warning)
+	holdLine(&h.unreadableWarning, done.Warning)
 	return true, nil
 }
 
@@ -170,32 +170,6 @@ func (h *Hub) writeUnreadable(pages, folders []engine.RowChange, quiet bool) err
 	}
 	h.applyWrites(plan, out, Perform{}, "", "")
 	return nil
-}
-
-// holdSettleFailure は、書庫を整えるのに訳 reason（"engine"・"broken"・"write"。err はその誤り、無ければ nil）で失敗した事の warning（W033）を持つ。
-// 変わったときは、常駐のログに warning と誤りを書く（h.mu を持って呼ぶか、起動の途中で呼ぶ）
-func (h *Hub) holdSettleFailure(reason string, err error) {
-	line, lineErr := h.engine.SettleFailed(reason)
-	if lineErr != nil {
-		// 文の表はエンジンの中だけに在るので、引けなければ番号と訳の鍵だけを持つ
-		fmt.Fprintln(os.Stderr, "engine: could not make the warning W033:", lineErr)
-		line = "W033 : " + reason
-	}
-	if line != h.settleWarning {
-		fmt.Fprintln(os.Stderr, "warning:", line)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "  ", err)
-		}
-	}
-	h.settleWarning = line
-}
-
-// holdUnreadableWarning は、読めない物の warning（W032 の 1 行。無ければ空）を持ち、変わったら常駐のログに書く（h.mu を持って呼ぶ）
-func (h *Hub) holdUnreadableWarning(line string) {
-	if line != "" && line != h.unreadableWarning {
-		fmt.Fprintln(os.Stderr, "warning:", line)
-	}
-	h.unreadableWarning = line
 }
 
 // sharedWithUnreadable は、読めない物のフォルダの中のフォルダ（移ったブックなど）が並びに持つのに、置き場所の表 entries ではほかのフォルダに入っている行の id → それを持つ中のフォルダの id
