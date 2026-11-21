@@ -409,7 +409,7 @@ async function replaceResident(main: string, addr: string): Promise<string> {
     if (!now || !sameArgs(now.argv, old.argv) || now.home !== old.home) continue
     const added = readFileSync(log, "utf8").slice(from)
     if (/is not added/.test(added)) return `常駐 ${now.pid} を起動した。server.log に「is not added」がある`
-    return `常駐を入れ替えた（pid ${now.pid}。MCP のつなぎ直しが要る）`
+    return `常駐を入れ替えた（pid ${now.pid}）`
   }
   return `常駐を ${MAX_STARTS} 回立て直しても同じ引数で起動しなかった`
 }
@@ -443,14 +443,16 @@ async function rebuild(o: Options, from: string, to: string): Promise<string[]> 
   const need = r
   const logs = join(o.logs, `rebuild-${short(to)}`)
   mkdirSync(logs, { recursive: true })
-  const step = (name: string, cmd: string[]) =>
+  // file はログのファイルの名前（name は出力に出す名前で、/ などを含む）
+  const step = (name: string, file: string, cmd: string[]) =>
     guard(name, async () => {
-      const ok = (await run(cmd, o.main, join(logs, `${name}.log`))) === 0
-      done.push(ok ? name : `${name} に失敗（${join(logs, `${name}.log`)}）`)
+      const log = join(logs, `${file}.log`)
+      const ok = (await run(cmd, o.main, log)) === 0
+      done.push(ok ? name : `${name} に失敗（${log}）`)
       return ok
     })
-  if (need.install && !(await step("bun install", ["bun", "install", "--frozen-lockfile"]))) return done
-  if (need.web) await step("web/dist のビルド", ["bun", "run", "build"])
+  if (need.install && !(await step("bun install", "install", ["bun", "install", "--frozen-lockfile"]))) return done
+  if (need.web) await step("web/dist のビルド", "web", ["bun", "run", "build"])
   if (need.go)
     await guard("常駐の入れ替え", async () => {
       done.push(await replaceResident(o.main, o.addr))
@@ -460,7 +462,7 @@ async function rebuild(o: Options, from: string, to: string): Promise<string[]> 
     await guard("プラグインの入れ直し", async () => {
       const cache = pluginCache(o.main)
       if (cache)
-        return step("プラグインのキャッシュの入れ直し", [
+        return step("プラグインのキャッシュの入れ直し", "plugin", [
           "rsync",
           "-a",
           "--delete",
