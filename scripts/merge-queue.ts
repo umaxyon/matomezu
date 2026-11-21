@@ -7,7 +7,8 @@
 // 進め方
 //   1. リポジトリに 1 つのロック（flock）を取る。ff と作り直しが終わるまで持つ
 //   2. ブランチを SHA に直し、main の上に順に重ねる。マージのコミットのはじめの親はブランチ（main にはマージのコミットを作らない）。
-//      衝突したブランチは外して残りで続ける。サブのブランチの ref は動かさない
+//      衝突したブランチは外して残りで続ける。サブのブランチの ref は動かさない。
+//      ソースから作る engine.js は、衝突したのがそれだけのときと、両側が変えてきれいにマージできたときに作り直して重ねる
 //   3. lint → typecheck → bun test → go test を流し、どれも通れば e2e。落ちたテストのファイルは 1 回だけ流し直し、通れば「揺れた」として通す
 //   4. 通れば main を fast-forward する。main がその間に進んでいたら、重ねる所からやり直す
 //   5. 2 件以上を重ねて落ちたら、1 件ずつ順に 2〜4 を流す（通った物は入る）
@@ -19,9 +20,22 @@ import { homedir } from "node:os"
 import { dirname, join, relative, resolve } from "node:path"
 
 export type Candidate = { name: string; sha: string }
-export type Conflict = { name: string; files: string[] }
-// onTip は tip に重ねた物（main に入るのは、テストが通って ff できたとき）
-export type Stacked = { tip: string; onTip: Candidate[]; already: Candidate[]; conflicts: Conflict[] }
+// why は作り直せなかったときのログ
+export type Conflict = { name: string; files: string[]; why?: string }
+// onTip は tip に重ねた物（main に入るのは、テストが通って ff できたとき）。regenerated はそのうち GENERATED を作り直して重ねた物
+export type Stacked = {
+  tip: string
+  onTip: Candidate[]
+  already: Candidate[]
+  conflicts: Conflict[]
+  regenerated: Candidate[]
+}
+
+// ソースから作る物。両側が変えていれば、マージした中身はどちらのソースから作った物とも違うので作り直す
+export const GENERATED = { path: "internal/engine/engine.js", script: "build:engine" }
+
+// 取り込み専用の worktree で GENERATED を作り直す。log はその出力
+export type Regenerate = (queue: string) => { ok: boolean; log: string }
 
 const MAX_ROUNDS = 3
 const MAX_STARTS = 3
@@ -36,12 +50,24 @@ function gitOk(dir: string, ...args: string[]): boolean {
 
 const short = (sha: string) => sha.slice(0, 8)
 
+// base から見て、ours と theirs の両方で path が変わっているか
+function bothChanged(queue: string, ours: string, theirs: string, path: string): boolean {
+  const base = git(queue, "merge-base", ours, theirs)
+  const changed = (side: string) => !gitOk(queue, "diff", "--quiet", base, side, "--", path)
+  return changed(ours) && changed(theirs)
+}
+
 // base の上に候補を順に重ねる。queue は取り込み専用の worktree（中の変更は捨てる）
-export function stack(queue: string, base: string, candidates: Candidate[]): Stacked {
+export function stack(queue: string, base: string, candidates: Candidate[], regenerate: Regenerate): Stacked {
   let tip = base
   const onTip: Candidate[] = []
   const already: Candidate[] = []
   const conflicts: Conflict[] = []
+  const regenerated: Candidate[] = []
+  const put = (c: Candidate) => {
+    tip = git(queue, "rev-parse", "HEAD")
+    onTip.push(c)
+  }
   for (const c of candidates) {
     if (gitOk(queue, "merge-base", "--is-ancestor", c.sha, tip)) {
       already.push(c)
@@ -54,17 +80,53 @@ export function stack(queue: string, base: string, candidates: Candidate[]): Sta
     }
     git(queue, "checkout", "-q", "-f", "--detach", c.sha)
     const message = `Merge ${tip === base ? "main" : "the queue"} (${short(tip)}) into ${c.name}`
-    if (gitOk(queue, "merge", "--no-ff", "--no-edit", "-m", message, tip)) {
-      tip = git(queue, "rev-parse", "HEAD")
-      onTip.push(c)
+    const clean = gitOk(queue, "merge", "--no-ff", "--no-edit", "-m", message, tip)
+    const files = clean ? [] : git(queue, "diff", "--name-only", "--diff-filter=U").split("\n").filter(Boolean)
+    const toRegenerate = clean
+      ? bothChanged(queue, tip, c.sha, GENERATED.path)
+      : files.length === 1 && files[0] === GENERATED.path
+    if (!toRegenerate) {
+      if (clean) put(c)
+      else {
+        git(queue, "merge", "--abort")
+        conflicts.push({ name: c.name, files })
+      }
       continue
     }
-    const files = git(queue, "diff", "--name-only", "--diff-filter=U").split("\n").filter(Boolean)
-    git(queue, "merge", "--abort")
-    conflicts.push({ name: c.name, files })
+    const r = regenerate(queue)
+    if (!r.ok) {
+      git(queue, "reset", "-q", "--hard")
+      conflicts.push({ name: c.name, files: [GENERATED.path], why: r.log })
+      continue
+    }
+    git(queue, "add", GENERATED.path)
+    // 衝突したマージを --no-edit で閉じると「# Conflicts:」が残るので、いつものメッセージを渡す
+    if (!clean) git(queue, "commit", "-q", "-m", message)
+    else if (!gitOk(queue, "diff", "--cached", "--quiet")) git(queue, "commit", "-q", "--amend", "-m", message)
+    regenerated.push(c)
+    put(c)
   }
   git(queue, "checkout", "-q", "-f", "--detach", tip)
-  return { tip, onTip, already, conflicts }
+  return { tip, onTip, already, conflicts, regenerated }
+}
+
+// GENERATED を package.json のスクリプトで作り直す。NODE_ENV は test/engine.test.ts と同じ production で組む
+export function regenerateWith(logs: string): Regenerate {
+  return queue => {
+    mkdirSync(logs, { recursive: true })
+    const log = join(logs, "regenerate.log")
+    const fd = openSync(log, "w")
+    try {
+      const out = { cwd: queue, stdio: ["ignore", fd, fd] as ("ignore" | number)[] }
+      const ok =
+        spawnSync("bun", ["install", "--frozen-lockfile"], out).status === 0 &&
+        spawnSync("bun", ["run", GENERATED.script], { ...out, env: { ...process.env, NODE_ENV: "production" } })
+          .status === 0
+      return { ok, log }
+    } finally {
+      closeSync(fd)
+    }
+  }
 }
 
 // main を checkout している worktree で main を tip まで進める。main が base から動いていれば moved、
@@ -330,7 +392,7 @@ async function attempt(o: Options, candidates: Candidate[]): Promise<Attempt> {
   let stacked: Stacked | undefined
   for (let round = 0; round < MAX_ROUNDS; round++) {
     const base = git(o.main, "rev-parse", "refs/heads/main")
-    stacked = stack(o.queue, base, candidates)
+    stacked = stack(o.queue, base, candidates, regenerateWith(join(o.logs, "regenerate")))
     if (stacked.onTip.length === 0) return { kind: "nothing", stacked }
     const results = await testAll(o.queue, join(o.logs, short(stacked.tip)))
     if (!results.every(r => r.ok)) return { kind: "failed", stacked, results }
@@ -409,7 +471,7 @@ async function replaceResident(main: string, addr: string): Promise<string> {
     if (!now || !sameArgs(now.argv, old.argv) || now.home !== old.home) continue
     const added = readFileSync(log, "utf8").slice(from)
     if (/is not added/.test(added)) return `常駐 ${now.pid} を起動した。server.log に「is not added」がある`
-    return `常駐を入れ替えた（pid ${now.pid}。MCP のつなぎ直しが要る）`
+    return `常駐を入れ替えた（pid ${now.pid}）`
   }
   return `常駐を ${MAX_STARTS} 回立て直しても同じ引数で起動しなかった`
 }
@@ -443,14 +505,16 @@ async function rebuild(o: Options, from: string, to: string): Promise<string[]> 
   const need = r
   const logs = join(o.logs, `rebuild-${short(to)}`)
   mkdirSync(logs, { recursive: true })
-  const step = (name: string, cmd: string[]) =>
+  // file はログのファイルの名前（name は出力に出す名前で、/ などを含む）
+  const step = (name: string, file: string, cmd: string[]) =>
     guard(name, async () => {
-      const ok = (await run(cmd, o.main, join(logs, `${name}.log`))) === 0
-      done.push(ok ? name : `${name} に失敗（${join(logs, `${name}.log`)}）`)
+      const log = join(logs, `${file}.log`)
+      const ok = (await run(cmd, o.main, log)) === 0
+      done.push(ok ? name : `${name} に失敗（${log}）`)
       return ok
     })
-  if (need.install && !(await step("bun install", ["bun", "install", "--frozen-lockfile"]))) return done
-  if (need.web) await step("web/dist のビルド", ["bun", "run", "build"])
+  if (need.install && !(await step("bun install", "install", ["bun", "install", "--frozen-lockfile"]))) return done
+  if (need.web) await step("web/dist のビルド", "web", ["bun", "run", "build"])
   if (need.go)
     await guard("常駐の入れ替え", async () => {
       done.push(await replaceResident(o.main, o.addr))
@@ -460,7 +524,7 @@ async function rebuild(o: Options, from: string, to: string): Promise<string[]> 
     await guard("プラグインの入れ直し", async () => {
       const cache = pluginCache(o.main)
       if (cache)
-        return step("プラグインのキャッシュの入れ直し", [
+        return step("プラグインのキャッシュの入れ直し", "plugin", [
           "rsync",
           "-a",
           "--delete",
@@ -489,6 +553,7 @@ function summary(
   merged: Candidate[],
   failed: { name: string; why: string[] }[],
   conflicts: Conflict[],
+  regenerated: Candidate[],
   already: Candidate[],
   flaky: Failure[],
   rebuilt: string[],
@@ -496,7 +561,9 @@ function summary(
   const lines: string[] = []
   if (merged.length > 0) lines.push(`入った: ${merged.map(c => `${c.name} ${short(c.sha)}`).join("、")}`)
   for (const c of already) lines.push(`入っていた: ${c.name} ${short(c.sha)}`)
-  for (const c of conflicts) lines.push(`衝突: ${c.name}（${c.files.join("、")}）`)
+  for (const c of regenerated) lines.push(`作り直して解いた: ${c.name}（${GENERATED.path}）`)
+  for (const c of conflicts)
+    lines.push(`衝突: ${c.name}（${c.files.join("、")}）`, ...(c.why ? [`  作り直せなかった: ${c.why}`] : []))
   for (const f of failed) lines.push(`落ちた: ${f.name}`, ...f.why.slice(0, 8).map(w => `  ${w}`))
   if (flaky.length > 0) lines.push(`揺れた: ${flaky.map(describe).join("、")}`)
   if (rebuilt.length > 0) lines.push(`作り直し: ${rebuilt.join("、")}`)
@@ -549,6 +616,7 @@ async function main(argv: string[]): Promise<number> {
   const merged: Candidate[] = []
   const already: Candidate[] = []
   const conflicts: Conflict[] = []
+  const regenerated: Candidate[] = []
   const failed: { name: string; why: string[] }[] = []
   const flaky: Failure[] = []
   const take = (a: Attempt): boolean => {
@@ -558,6 +626,7 @@ async function main(argv: string[]): Promise<number> {
     }
     if (a.kind === "merged") {
       merged.push(...a.stacked.onTip)
+      regenerated.push(...a.stacked.regenerated)
       flaky.push(...a.flaky)
     }
     if (a.kind === "stopped") failed.push({ name: a.stacked?.onTip.map(c => c.name).join("、") ?? "", why: [a.reason] })
@@ -586,7 +655,7 @@ async function main(argv: string[]): Promise<number> {
 
   const end = git(o.main, "rev-parse", "refs/heads/main")
   const rebuilt = o.rebuild && end !== start ? await rebuild(o, start, end) : []
-  for (const line of summary(merged, failed, conflicts, already, flaky, rebuilt)) console.log(line)
+  for (const line of summary(merged, failed, conflicts, regenerated, already, flaky, rebuilt)) console.log(line)
   return failed.length === 0 && conflicts.length === 0 ? 0 : 1
 }
 

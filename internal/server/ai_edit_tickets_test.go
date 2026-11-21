@@ -298,4 +298,47 @@ func TestLostOfAPageOutsideBooksIsToldByThePage(t *testing.T) {
 	if list := tickets(hub); len(list) != 0 {
 		t.Fatalf("tickets after purging the binder n1 = %+v; want none", list)
 	}
+	// 消えたと記したあとで、そのページがブックの中に在っても（移されても）、そのページの名前で渡る
+	hub.mu.Lock()
+	err = hub.putTickets([]AIEditTicket{{Act: "w", Lost: []LostIn{{Entry: "p1", Lost: json.RawMessage(`[]`)}}, At: "t"}})
+	hub.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, got := send(t, "GET", s.URL+"/api/ai/awaiting", "", ai); !strings.Contains(got, `"undone":[{"entry":"p1","title":"`) {
+		t.Fatalf("awaiting of a page now inside a book = %s", got)
+	}
+}
+
+// 見られる前に消えた分を AI に渡したあとも、同じ変更のまだ見られていない物は残り、それがあとで消えたら、また AI に渡る
+func TestUnseenStaysAfterItsLostWasTold(t *testing.T) {
+	hub, s := hubAt(t, filepath.Join(t.TempDir(), "data.db"))
+	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
+	send(t, "PUT", s.URL+"/api/books-for-test/b2", `{"book":{"id":"b2","title":"U","lineup":[]},"base":0}`, nil)
+	ai := map[string]string{"Authorization": "Bearer secret"}
+	hub.mu.Lock()
+	err := hub.putTickets([]AIEditTicket{{Act: "two", Unseen: []string{"b1", "b2"}, At: "t"}, {Key: "m1", Book: "b1", At: "t", Failed: true}})
+	hub.mu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	lost := func(book string) string {
+		send(t, "POST", s.URL+"/api/ai-edit-tickets", `{"entry":"`+book+`","act":"two","places":["`+book+`"],"outcome":"lost","lost":[{"entry":"`+book+`","at":"title","value":"AI"}]}`, nil)
+		_, got := send(t, "GET", s.URL+"/api/ai/awaiting", "", ai)
+		return got
+	}
+	if got := lost("b1"); !strings.Contains(got, `"undone":[{"entry":"b1",`) || !strings.Contains(got, `"failed":[{"book":"b1",`) {
+		t.Fatalf("awaiting after b1 was lost = %s", got)
+	}
+	send(t, "POST", s.URL+"/api/ai/talked", `{}`, ai)
+	if got, _ := json.Marshal(tickets(hub)); string(got) != `[{"act":"two","unseen":["b2"],"at":"t"}]` {
+		t.Fatalf("tickets after talked = %s; want b2 still unseen, and the told lost and the told failed one gone", got)
+	}
+	if got := lost("b2"); !strings.Contains(got, `"undone":[{"entry":"b2",`) {
+		t.Fatalf("awaiting after b2 was lost = %s", got)
+	}
+	send(t, "POST", s.URL+"/api/ai/talked", `{}`, ai)
+	if list := tickets(hub); len(list) != 0 {
+		t.Fatalf("tickets after the second talked = %+v", list)
+	}
 }
