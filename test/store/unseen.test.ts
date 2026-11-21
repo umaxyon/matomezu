@@ -242,7 +242,7 @@ test("AI がページの並びの順だけを変えたら、ブックを開い�
   expect(historyOf(store)?.undo.map(s => s.by)).toEqual(["user", "window"])
 })
 
-test("見られる前の AI の変更を、画面の履歴に入れない利用者の変更が上書きしたら、消えた所と AI の値を、ブックの名前で知らせる", async () => {
+test("見られる前の AI の変更を、画面の履歴に入れない利用者の変更が上書きしたら、消えた所と AI の値を、そのブックの分として知らせる", async () => {
   const told: AIEditTicketOutcome[] = []
   let visible = false
   const store = newStore({ now: sequence(), visible: () => visible, aiEditTicket: c => told.push(c) })
@@ -259,7 +259,13 @@ test("見られる前の AI の変更を、画面の履歴に入れない利用�
   expect(done.ok).toBe(true)
   await settled()
   expect(told).toEqual([
-    { book: "b1", act: "6", places: ["b1"], outcome: "lost", lost: [{ at: "settings", value: { [flow]: "row" } }] },
+    {
+      entry: "b1",
+      act: "6",
+      places: ["b1"],
+      outcome: "lost",
+      lost: [{ entry: "b1", at: "settings", value: { [flow]: "row" } }],
+    },
   ])
   visible = true
   store.checkSeen()

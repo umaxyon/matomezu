@@ -73,13 +73,8 @@ func writeAnnotations(out io.Writer) {
 	}
 	var got struct {
 		Awaiting []awaitingItem `json:"awaiting"`
-		Undone   []struct {
-			Book  string          `json:"book"`
-			Title string          `json:"title"`
-			At    string          `json:"at"`
-			Lost  json.RawMessage `json:"lost"`
-		} `json:"undone"`
-		Failed []struct {
+		Undone   []undoneTicket `json:"undone"`
+		Failed   []struct {
 			Book    string   `json:"book"`
 			Title   string   `json:"title"`
 			Key     string   `json:"key"`
@@ -91,13 +86,7 @@ func writeAnnotations(out io.Writer) {
 		return
 	}
 	writeAwaiting(out, got.Awaiting)
-	if len(got.Undone) > 0 {
-		fmt.Fprintf(out, "matomezu: %d change(s) you made were undone by the user before they saw them. "+
-			"Do not redo them on your own; ask the user if they are still needed. lost is what was put back and the values you had written.\n", len(got.Undone))
-		for _, u := range got.Undone {
-			fmt.Fprintf(out, "- book %q (%s) at %s: %s\n", u.Title, u.Book, u.At, u.Lost)
-		}
-	}
+	writeUndone(out, got.Undone)
 	if len(got.Failed) > 0 {
 		fmt.Fprintf(out, "matomezu: %d change(s) you sent for the user to apply could not be applied (what they change was changed or removed after you sent them, "+
 			"or one of the changes was refused), so nothing was changed. Read the book again and think again (change it yourself, or send a new proposal). changed is what was changed or removed.\n", len(got.Failed))
@@ -106,6 +95,27 @@ func writeAnnotations(out io.Writer) {
 		}
 	}
 	writeRemoved(out, got.Removed)
+}
+
+// undoneTicket は、見られる前に消えた AI の変更の、ステージエントリ 1 つの分（at は変えた時点、lost は消えた所と AI の値）
+type undoneTicket struct {
+	Entry string          `json:"entry"`
+	Title string          `json:"title"`
+	At    string          `json:"at"`
+	Lost  json.RawMessage `json:"lost"`
+}
+
+// writeUndone は、見られる前に利用者が戻した AI の変更を、AI 向けの文にして w に書く（無ければ何も書かない）
+func writeUndone(w io.Writer, undone []undoneTicket) {
+	if len(undone) == 0 {
+		return
+	}
+	fmt.Fprintf(w, "matomezu: %d change(s) you made were undone by the user before they saw them. "+
+		"Do not redo them on your own; ask the user if they are still needed. Each line is a book, or a page or binder outside any book, with the time you changed it, then lost: what was put back and the values you had written "+
+		"(in lost, entry is the id of the page, book or binder, and at is the place inside it).\n", len(undone))
+	for _, u := range undone {
+		fmt.Fprintf(w, "- %q (%s) at %s: %s\n", u.Title, u.Entry, u.At, u.Lost)
+	}
 }
 
 // removedTicket は、郵便が消えたと記した AI 編集チケット 1 つ（cause は上限で消えた limit か、利用者が消した user）
