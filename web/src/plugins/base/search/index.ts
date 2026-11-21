@@ -3,7 +3,15 @@ import { kit } from "../kit"
 import { PAGE_UPDATE } from "../pages/page-update"
 import { hasOpenedPage, openedPagesOf } from "../utils/opened-page"
 import { hitsIn, replaceAllArgs, replaceOneStep, searchableOf, stepHit } from "./search"
-import { NEW_SEARCH, SEARCH_PICK_STATE, SEARCH_STATE, type SearchOpen, type SearchSpot, searchHere } from "./state"
+import {
+  NEW_SEARCH,
+  SEARCH_PICK_STATE,
+  SEARCH_STATE,
+  type SearchOpen,
+  type SearchSpot,
+  searchHere,
+  searchOf,
+} from "./state"
 
 // 開いているページの id（ページを開いていなければ null）
 const hereId = (ctx: CommandContext): string | null => (hasOpenedPage(ctx) ? ctx.page.id : null)
@@ -12,8 +20,6 @@ const searchable = (ctx: CommandContext) =>
   searchableOf(ctx.catalog, hasOpenedPage(ctx) ? ctx.page : undefined) !== "none"
 // 探せるページの全部: 開いている物のページの全部
 const within = openedPagesOf
-// ステージに覚えた検索を、今開いている物で読んだ値（state.ts の searchHere）
-const searchOf = (ctx: CommandContext) => searchHere(ctx.pluginState(SEARCH_STATE), ctx.book !== NO_BOOK)
 // 検索ダイアログを開いているか
 const opened = (ctx: CommandContext) => searchable(ctx) && searchOf(ctx) !== undefined
 

@@ -4,7 +4,7 @@
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog } from "../../../ui/store-context"
-import { useBook, usePage } from "../../../ui/view-hooks"
+import { usePage } from "../../../ui/view-hooks"
 import { settingValue } from "../book-settings"
 import { kit } from "../kit"
 import { BACKGROUND_PRINT, type BackgroundPrint } from "../print-preview/settings"
@@ -56,9 +56,8 @@ export function BackgroundPrintControl() {
   const t = useMessages(kit)
   const set = useCommand(BACKGROUND_PRINT_SET.id)
   const catalog = useCatalog().core
-  const book = useBook()
   const page = usePage()
-  if (!set.shown || !book || !page) return null
+  if (!set.shown || !page) return null
   const now = settingValue(catalog, page, BACKGROUND_PRINT)
   const choices: { value: BackgroundPrint; label: string }[] = [
     { value: "auto", label: t("Background if filled") },
