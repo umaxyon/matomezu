@@ -215,8 +215,7 @@ export function createUnseenChanges(deps: {
     // 物 id のステージエントリの id（無ければ undefined）
     const entryOf = (id: string) => {
       const o = outermostOf(was, id)
-      if (o === NO_OUTERMOST) return undefined
-      return o.kind === "book" ? o.book : o.kind === "page" ? o.page : o.binder
+      return o === NO_OUTERMOST ? undefined : o.id
     }
     unseenInLibrary = unseenInLibrary.filter(u => {
       const lost = lostIn(u.step, was, now)
