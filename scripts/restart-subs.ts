@@ -6,6 +6,8 @@
 //   2. 最後の返事が READY_MARK で終わり、追跡するファイルに変更が無ければ /exit を送り、claude が終わるのを待つ
 //   3. scripts/claude-relay.sh --model <モデル> を送り、/reload-plugins と /mcp reconnect を送り、引き継ぎを読んで join するよう頼む。
 //      join の合言葉（link）はここで作り、開発の常駐に前もって承認させておく（画面で受け入れずに入る。開発用の口 /api/dev/rejoin-pass）
+//   4. join が参加者 id を返したら、手が空くのを待って、もう一言送る。セッションと参加者を結ぶのは利用者が話しかけたときのフックなので、
+//      join の頼みが最後の発話のままだと結ばれず、画面で準備中のまま残る
 // サブは Orca にエージェントとして見えない（claude-relay.sh で起動するため）ので、Orca の端末に打ち込んで進める
 import { execFile, execFileSync } from "node:child_process"
 import { randomUUID } from "node:crypto"
@@ -17,6 +19,8 @@ import { promisify } from "node:util"
 export const READY_MARK = "再起動の準備OK"
 export const NG_MARK = "再起動の準備NG"
 export const MCP_SERVER = "plugin:matomezu:matomezu"
+
+export const CONFIRM_PROMPT = "参加の確かめです。返事は短く"
 
 export type Target = { workroom: string; model?: string }
 
@@ -72,6 +76,36 @@ export function lastAssistantText(jsonl: string, since: number): string | undefi
     return text.trim() ? [text] : []
   })
   return texts.at(-1)
+}
+
+type Block = { type?: string; name?: string; id?: string; tool_use_id?: string; content?: unknown }
+
+function blocks(e: Entry): Block[] {
+  const content = e.message?.content
+  return Array.isArray(content) ? content.filter((c): c is Block => !!c && typeof c === "object") : []
+}
+
+function resultText(content: unknown): string {
+  if (typeof content === "string") return content
+  if (!Array.isArray(content)) return ""
+  return content.map(c => (c && typeof c === "object" ? ((c as { text?: string }).text ?? "") : "")).join("")
+}
+
+// since より後に呼んだ matomezu の join が、参加者 id を返したか（申し込み中でなく、受け入れられた）
+export function joinedSince(jsonl: string, since: number): boolean {
+  const all = entries(jsonl)
+  const calls = new Set(
+    all.flatMap(e =>
+      e.type === "assistant" && e.timestamp && Date.parse(e.timestamp) > since
+        ? blocks(e).flatMap(b => (b.type === "tool_use" && b.id && /matomezu__join$/.test(b.name ?? "") ? [b.id] : []))
+        : [],
+    ),
+  )
+  return all.some(e =>
+    blocks(e).some(
+      b => b.type === "tool_result" && calls.has(b.tool_use_id ?? "") && /"participant"/.test(resultText(b.content)),
+    ),
+  )
 }
 
 export type Readiness = "ready" | "not-ready" | "no-answer"
@@ -261,8 +295,16 @@ async function restart(target: Target, opts: { dryRun: boolean; timeoutMs: numbe
   }
   const link = randomUUID()
   await passRejoin(cwd, target.workroom, link)
+  const joinAskedAt = Date.now()
   await send(term.handle, rejoinPrompt(target.workroom, link))
   log("引き継ぎを読んで join するよう頼んだ（前もって承認した合言葉で）")
+  await until("join の参加者 id", 600_000, () => {
+    const now = latestTranscript(cwd)
+    return now ? joinedSince(readFileSync(now, "utf8"), joinAskedAt) : false
+  })
+  await waitIdle(term.handle, opts.timeoutMs)
+  await send(term.handle, CONFIRM_PROMPT)
+  log("参加した。セッションと結ぶため、もう一言送った")
 }
 
 if (import.meta.main) {
