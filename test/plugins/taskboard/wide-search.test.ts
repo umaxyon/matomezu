@@ -10,6 +10,7 @@ import {
   NO_TAGS,
   numberedTicketIds,
   searchTerms,
+  ticketHits,
   ticketIdsOf,
   toggled,
 } from "../../../web/src/plugins/taskboard/wide-search/filter"
@@ -110,12 +111,16 @@ test("番号の見せ方の語は、番号がぴったり同じで、頭があ�
     ticket("m1023", { number: 1023 }),
     ticket("t23", { project: "p2", number: 23 }),
   ]
-  const prefixOf = (p: string) => (p === "p1" ? "M-" : "T-")
-  expect(numberedTicketIds(["M-0023"], list, prefixOf)).toEqual(["m23"])
-  expect(numberedTicketIds(["m-23"], list, prefixOf)).toEqual(["m23"])
-  expect(numberedTicketIds(["0023"], list, prefixOf)).toEqual(["m23", "t23"])
-  expect(numberedTicketIds(["X-0023", "手順"], list, prefixOf)).toEqual([])
-  expect(numberedTicketIds(["T-0023", "M-0230"], list, prefixOf)).toEqual(["m230", "t23"])
+  const projects = [
+    { id: "p1", prefix: "M-" },
+    { id: "p2", prefix: "T-" },
+  ]
+  expect(numberedTicketIds(["M-0023"], list, projects)).toEqual(["m23"])
+  expect(numberedTicketIds(["m-23"], list, projects)).toEqual(["m23"])
+  expect(numberedTicketIds(["0023"], list, projects)).toEqual(["m23", "t23"])
+  expect(numberedTicketIds(["X-0023", "手順"], list, projects)).toEqual([])
+  expect(numberedTicketIds(["T-0023", "M-0230"], list, projects)).toEqual(["m230", "t23"])
+  expect(ticketHits(["x", "m23"], ["M-0023"], list, projects)).toEqual(["x", "m23"])
 })
 
 test("選びの初めの状態は、出しているプロジェクトだけを選び、ほかは選ばない形", () => {

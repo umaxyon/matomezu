@@ -1,7 +1,7 @@
 // チケットの絞り（横断検索のチケットモードが決め、タスクボードが従う。見た目でない。窓のプラグイン状態に持つ）:
 // 言葉に当たったチケットの id の集合（言葉が無ければ null）と、プロジェクト・タグ・優先度・チケットボリュームの選び（空なら絞らない）
 import type { WideSearchHit } from "../../../plugin-api"
-import { prefixKey } from "../project"
+import { type Project, prefixKey } from "../project"
 import type { Ticket } from "../ticket"
 import { ticketLabelParts } from "../ticket/label"
 
@@ -67,12 +67,13 @@ export function searchTerms(input: string): string[] {
 }
 
 // 語のどれかが番号の見せ方（M-0050・0050 など）として指すチケットの id。番号はぴったり同じ物だけで、頭があればそのプロジェクトのプレフィクスとも合う物（大文字小文字は見ない）。
-// 番号は本文の字としては探さない（23 で「手順23」に当てない）。prefixOf はプロジェクトの id からそのプレフィクス
+// 番号は本文の字としては探さない（23 で「手順23」に当てない）
 export function numberedTicketIds(
   terms: readonly string[],
   tickets: readonly Ticket[],
-  prefixOf: (project: string) => string,
+  projects: readonly Pick<Project, "id" | "prefix">[],
 ): string[] {
+  const prefixOf = (id: string) => projects.find(p => p.id === id)?.prefix ?? ""
   const wanted = terms.flatMap(w => ticketLabelParts(w) ?? [])
   return tickets
     .filter(t =>
@@ -82,3 +83,11 @@ export function numberedTicketIds(
     )
     .map(t => t.id)
 }
+
+// 言葉に当たったチケットの id: 横断検索の当たり found に、番号の見せ方の語が指すチケットを足す（重ならない）
+export const ticketHits = (
+  found: readonly string[],
+  terms: readonly string[],
+  tickets: readonly Ticket[],
+  projects: readonly Pick<Project, "id" | "prefix">[],
+): string[] => [...new Set([...found, ...numberedTicketIds(terms, tickets, projects)])]

@@ -26,9 +26,9 @@ import {
   isInitialChoice,
   NO_FILTER,
   NO_TAGS,
-  numberedTicketIds,
   searchTerms,
   type TicketFilter,
+  ticketHits,
   ticketIdsOf,
   toggled,
 } from "./filter"
@@ -82,12 +82,11 @@ export function TicketMode({ term, setTerm }: WideSearchModeProps) {
     }
     const timer = setTimeout(() => {
       const terms = searchTerms(words)
-      const prefixOf = (id: string) => allProjects.find(p => p.id === id)?.prefix ?? ""
       void searchAll(search, terms).then(
         found => {
           if (n !== latest.current) return
           setFailed(false)
-          const ids = [...new Set([...found, ...numberedTicketIds(terms, tickets, prefixOf)])]
+          const ids = ticketHits(found, terms, tickets, allProjects)
           // 戻した言葉で問い合わせ直した答えは、絞りがその言葉のまま残っているときだけ入れる（その間に解かれた絞りを戻さない）
           if (again) update(now => (now?.term === words ? { ...now, hits: ids } : now))
           else change(now => ({ ...now, term: words, hits: ids }))
