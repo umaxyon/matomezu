@@ -144,7 +144,6 @@ test("AI が外のページを動かした変更は、まだ見ていない書�
     by: "ai",
     act: "1",
     actions: [MOVE],
-    books: [],
     library: { pages: {}, folders },
   })
   expect(here.state.getState().folders.a?.lineup.map(r => r.id)).toEqual(["x1"])

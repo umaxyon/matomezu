@@ -52,7 +52,7 @@ export interface MatomezuState {
   trash: Readonly<Record<string, Book>> // ゴミ箱かその中のブックの id ごと
   offline: boolean // 常駐とのつながりが、しばらく切れたままか（ホストクライアントが知らせる）
   lastWindow: boolean // この窓が、最後にフォーカスされた窓か（ホストクライアントが、常駐のレコードの知らせに添えられた値で入れる）
-  // ブックの id → 画面の履歴（この画面で利用者が行ったアクションだけ。読み直すと消える）。画面の履歴の段がいくつかのブックを変えたら、その全部のブックに同じ画面の履歴の段が入る
+  // ステージエントリの id → 画面の履歴（この画面で利用者が行ったアクションだけ。読み直すと消える）。画面の履歴の段がいくつかのステージエントリを変えたら、その全部に同じ画面の履歴の段が入る
   history: Readonly<Record<string, History>>
   // プラグイン状態の宣言（core/def/plugin-state.ts）の値: ステージに結ばない物は宣言の id → 値、ステージごとの物は ステージの id → 宣言の id → 値。画面の場所に入れる宣言の値は画面の場所に入る（アクションのデータとは別で、アクションでは変えない）
   pluginValues: PluginValues
@@ -92,10 +92,9 @@ interface ToastBody {
   detail?: { message: MessageKey; params?: Params } // 2 行目に出す文言（断った原因など）
 }
 
-// この窓のでない変更（AI・ほかの窓・ホスト）の知らせ: books は変わったブック、act は常駐がその 1 回に振った印、actions は行ったアクションの id、
+// この窓のでない変更（AI・ほかの窓・ホスト）の知らせ: act は常駐がその 1 回に振った印、actions は行ったアクションの id、
 // library は、書庫の履歴に入るアクションが変えたページとフォルダごとの、前と後（置き場所の形のまま。無い側は none。無ければ持たない）
 export interface ForeignChange {
-  books: readonly string[]
   by: "ai" | "window" | "host"
   act: string
   actions: readonly string[]

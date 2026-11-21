@@ -1,5 +1,5 @@
 // 画面の履歴: 利用者が画面で行ったアクションを、同じ処理の中のものは 1 つの画面の履歴の段にまとめて、ブックごとに覚える。元に戻す（undo）は画面の履歴の段が変えた所を前の値に、
-// やり直す（redo）は後の値に置き直す（book-revert を同じ道で送る）。ロックの掛け外しは覚えない。新しい画面の履歴の段を入れると、そのブックのやり直せる画面の履歴の段は消える
+// やり直す（redo）は後の値に置き直す（history-revert を同じ道で送る）。ロックの掛け外しは覚えない。新しい画面の履歴の段を入れると、そのブックのやり直せる画面の履歴の段は消える
 
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
@@ -303,7 +303,8 @@ test("いくつものブックを変えた画面の履歴の段は、どれか�
             title: "keep",
             aiDescription: "b2 is not put back",
             denies: () => false,
-            keeps: c => c.kind !== "folder" || !(c.action.id === "@matomezu/base:book-revert" && c.before?.id === "b2"),
+            keeps: c =>
+              c.kind !== "folder" || !(c.action.id === "@matomezu/base:history-revert" && c.before?.id === "b2"),
           }),
         ],
       }),

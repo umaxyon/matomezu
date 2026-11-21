@@ -17,7 +17,7 @@ export const CONTROL_CENTER = kit.defineControlCenter({
     "@matomezu/base:entry-restore",
     "@matomezu/base:entry-purge",
     "@matomezu/base:trash-empty",
-    "@matomezu/base:book-revert",
+    "@matomezu/base:history-revert",
     "@matomezu/base:library-revert",
     "@matomezu/base:settings-set",
   ],
