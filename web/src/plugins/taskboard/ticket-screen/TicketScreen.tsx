@@ -25,6 +25,7 @@ import { ticketLabel } from "../ticket/label"
 import { tagsOf } from "../ticket/tags"
 import { HISTORY } from "../ticket-history"
 import { TICKET_SCREEN, TICKET_SCREEN_STATE, type TicketScreenState, viewOf } from "."
+import { useWorkingOn } from "../current-ticket/useCurrentTickets"
 import { AssigneeBirds } from "./AssigneeBirds"
 import { BackBar } from "./BackBar"
 import { OpenChoiceHost } from "./OpenChoice"
@@ -73,6 +74,7 @@ function TicketBody({ ticket }: { ticket: Ticket }) {
   const locked = ticket.locked === true
   const canEdit = allowed.ok && !locked
   const markBodyEdited = useBodyUpdateLine(id)
+  const working = useWorkingOn(ticket)
 
   const edit = (patch: {
     name?: string
@@ -113,7 +115,7 @@ function TicketBody({ ticket }: { ticket: Ticket }) {
             <div className={styles.assignees}>
               <span className={styles.factName}>{t("Assignees")}</span>
               <span className={styles.assigneeList}>
-                {assignees.length > 0 ? <AssigneeBirds workrooms={assignees} /> : t("No assignees")}
+                {assignees.length > 0 ? <AssigneeBirds workrooms={assignees} working={working} /> : t("No assignees")}
               </span>
             </div>
             <div className={styles.steps}>

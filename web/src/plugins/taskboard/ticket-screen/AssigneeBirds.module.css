@@ -5,3 +5,8 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+/* 当てられているだけ（このチケットをカレントチケットにしていない）のワークルームは薄く */
+.assignee[data-assigned-only="true"] {
+  opacity: 0.45;
+}

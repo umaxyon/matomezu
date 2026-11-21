@@ -1,4 +1,4 @@
-// ワークルームごとの今のチケットのウィジェット: ワークルームの枠の列と、参加者の行の 1 行
+// ワークルームごとのカレントチケットのウィジェット: ワークルームの枠の列と、参加者の行の 1 行
 import { defineWidget } from "../../../plugin-api/ui"
 import { WORKROOM_COLUMNS, WORKROOM_ROW_LINE } from "../control-center-ids"
 import { kit } from "../kit"

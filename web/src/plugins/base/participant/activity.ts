@@ -1,5 +1,5 @@
 // ワークルームの作業の様子: ワークルームが今なにかに取り組んでいるか（作業中）、取り組んでいないか（空き）。参加者リストの並びを見せるためだけの値で、ほかの動きを決めない。
-// base は自分では決めず、対象の定義に書いた workroomActivity に答えさせる（今のチケットを持つプラグインなど）。答える種類が無ければ unknown
+// base は自分では決めず、対象の定義に書いた workroomActivity に答えさせる（カレントワークを持つプラグインなど）。答える種類が無ければ unknown
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { Condition } from "../../../core/record-keys"
 import { find as findIn, sourceOf } from "../../../core/record-source"

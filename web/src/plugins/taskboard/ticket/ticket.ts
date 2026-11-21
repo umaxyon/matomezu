@@ -41,7 +41,7 @@ export const TICKET = kit.defineSubject({
   record: TICKET_RECORD,
   refers: t => [{ subject: PROJECT.id, id: t.project }],
   // プロジェクトのチケットを、レーンと担当の有無で探す（完了のレーンの確かめなど。担当の人数 assigned は、いない 0）。
-  // lead は主担当のワークルームの id（担当がいなければ値なし）。ワークルームの今のチケットは assigned で担当のいるチケットを引いて絞る
+  // lead は主担当のワークルームの id（担当がいなければ値なし）。ワークルームが当てられているチケットは assigned で担当のいるチケットを引いて絞る
   keys: {
     project: { type: "text", of: t => t.project },
     lane: { type: "text", of: t => t.lane },

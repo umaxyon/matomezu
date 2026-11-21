@@ -6,7 +6,7 @@
   position: relative;
   display: flex;
 }
-/* 重ねる: 並びの先頭を右端の前に置き、後ろの鳥を左へずらして裏に入れ、薄くする */
+/* 重ねる: 並びの先頭を右端の前に置き、後ろの鳥を左へずらして裏に入れる */
 .birds[data-stacked="true"] {
   flex-direction: row-reverse;
   gap: 0;

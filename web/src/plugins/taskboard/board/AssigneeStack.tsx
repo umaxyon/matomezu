@@ -21,7 +21,6 @@ export function AssigneeStack({ rooms, working }: { rooms: readonly WorkroomReco
         <span
           key={room.id}
           className={styles.bird}
-          data-back={stacked && i > 0}
           data-assigned-only={!working.has(room.id)}
           style={{ zIndex: shown.length - i }}
         >
