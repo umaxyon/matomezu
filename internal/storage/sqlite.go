@@ -212,9 +212,11 @@ var migrations = []string{
 	DELETE FROM ai_edit_tickets WHERE json_valid(body) AND json_type(body) = 'array' AND json_array_length(body) = 0;`,
 	// 名前を変えた id（プラグイン slide-book は slide-page、ディレクトリ構成図の中身 entry は node）を、本文の中の値で変える（Go の移し替え。migrate_renamed_ids.go）
 	`SELECT 1;`,
+	// 参加の要求の郵便（種類 join-request）を消す（要求は郵便にせず、要求中の参加者をしおりに出すため。Go の移し替え。migrate_join_request_mail.go）
+	`SELECT 1;`,
 	// カレントワークのレコードの無いワークルームに、それまで画面がカレントチケットとして先頭に見せていたチケットを書く（Go の移し替え。migrate_current_work.go）
 	`SELECT 1;`,
-	// 参加要求の郵便の orcaWorkspace を place（AI のセッションが動いている場所）に名前を替える（Go の移し替え。migrate_join_place.go）
+	// 要求中の参加者が持つ orcaWorkspace を place（AI のセッションが動いている所）に名前を替える（Go の移し替え。migrate_participant_place.go）
 	`SELECT 1;`,
 }
 
@@ -231,8 +233,9 @@ var goMigrations = map[int]func(tx *sql.Tx) error{
 	29: addTicketVolume,
 	30: addUnreadableFolder,
 	32: renameIDs,
-	33: fillCurrentWorks,
-	34: joinRequestPlaces,
+	33: dropJoinRequestMail,
+	34: fillCurrentWorks,
+	35: participantPlaces,
 }
 
 type sqliteStorage struct {

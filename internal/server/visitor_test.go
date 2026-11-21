@@ -85,13 +85,13 @@ func TestIdleVisitorsLeave(t *testing.T) {
 	if err != nil {
 		t.Fatalf("called = %q", called)
 	}
-	if err := hub.LeaveIdleVisitors(at.Add(VisitorIdle - time.Second)); err != nil {
+	if err := hub.SweepParticipants(at.Add(VisitorIdle - time.Second)); err != nil {
 		t.Fatal(err)
 	}
 	if rows := recordsOf(t, s.URL, "@matomezu/base:participant"); rows[joined.Participant] == nil {
 		t.Fatal("a visitor called just now left")
 	}
-	if err := hub.LeaveIdleVisitors(at.Add(VisitorIdle + time.Hour)); err != nil {
+	if err := hub.SweepParticipants(at.Add(VisitorIdle + time.Hour)); err != nil {
 		t.Fatal(err)
 	}
 	rows := recordsOf(t, s.URL, "@matomezu/base:participant")

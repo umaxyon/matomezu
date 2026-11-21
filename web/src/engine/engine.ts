@@ -192,7 +192,7 @@ let lastAdded: readonly Plugin[] = []
 ;(globalThis as { matomezuTalkActions?: () => string }).matomezuTalkActions = () =>
   JSON.stringify(talkActions(assembled.catalog.core))
 
-// AI が参加を頼むときに行うアクション（runsWhenAIJoins）の id（役 participant と notice。役が揃わなければ null。常駐が MCP の join で行う）
+// AI が参加を頼むときに行うアクション（runsWhenAIJoins）と、要求をキャンセルとして終えるアクション（cancelsJoinRequest。無くてもよい）の id（参加者を作るアクションが無ければ null。常駐が MCP の join と、窓のアクションの知らせで使う）
 ;(globalThis as { matomezuJoinActions?: () => string }).matomezuJoinActions = () =>
   JSON.stringify(joinActions(assembled.catalog.core))
 

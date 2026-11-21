@@ -9,7 +9,7 @@ import (
 // 作業中でないレーン・作業中のレーンの無いプロジェクトのチケットは選ばず、もうカレントワークのあるワークルームには書かない
 func TestCurrentWorksAreFilled(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "data.db")
-	beforeMigration(t, path, 33,
+	beforeMigration(t, path, 34,
 		`INSERT INTO kinds (n, subject, spec) VALUES (1, '@matomezu/taskboard:ticket', '[]')`,
 		`CREATE TABLE rec_1 (id TEXT PRIMARY KEY, body TEXT NOT NULL, version INTEGER NOT NULL, updated_at TEXT NOT NULL)`,
 		`INSERT INTO rec_1 VALUES

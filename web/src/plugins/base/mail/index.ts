@@ -106,7 +106,6 @@ export const MAIL_REMOVE = kit.defineAction({
       : { next: "removed" as const, result: {}, aiEditTickets: ticketsOnRemoved(ctx.catalog, [now], "user") },
 })
 export { MAIL_DIALOG } from "./dialogs"
-export { MAIL_JOIN_REQUEST, MAIL_JOIN_REQUEST_SEND } from "./join-request"
 export { MAIL_PROPOSAL, PROPOSAL_APPLY, PROPOSAL_SEND, PROPOSAL_SETTLE } from "./proposal"
 
 import type {} from "./shown"

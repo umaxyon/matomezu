@@ -7,6 +7,7 @@ import { BASE } from "."
 import { BOOK_LOOK_DIALOG_VIEWS, BOOK_LOOK_ICONS, BOOK_LOOK_SETTING_VIEWS } from "./book-look/ui"
 import { BOOK_NAME } from "./book-name/ui"
 import { BOOK_NEW_DIALOG_VIEWS } from "./book-new/ui"
+import { BOOKMARK_HOST, type BookmarksProps } from "./bookmarks/ui"
 import { MENU_HOST } from "./context-menu/ui"
 import type { CornerStatusProps } from "./corner-status/ui"
 import { DIALOG_HOST } from "./dialog-host/ui"
@@ -26,7 +27,6 @@ import {
 } from "./library/ui"
 import type { MailActionsProps } from "./mail/ui"
 import {
-  JOIN_REQUEST_ACTIONS,
   MAIL_BOOKMARKS,
   MAIL_DIALOG_VIEWS,
   MAIL_LAYER,
@@ -41,7 +41,7 @@ import { OPEN_GUIDE } from "./open-guide/ui"
 import type { AnnotationIconProps } from "./outbox/ui"
 import { OUTBOX } from "./outbox/ui"
 import { PAGE_CONTEXT_MENU_ROWS, PAGE_DIALOG_VIEWS, PAGE_LIST, PAGE_SETTINGS_ICONS, PAGE_TABS } from "./page-tabs/ui"
-import { PARTICIPANT_DIALOG_VIEWS } from "./participant/ui"
+import { JOIN_REQUEST_BOOKMARKS, JOIN_REQUEST_WATCH, PARTICIPANT_DIALOG_VIEWS } from "./participant/ui"
 import {
   PRINT_CHECK_PANEL,
   PRINT_PREVIEW_BUTTON,
@@ -85,6 +85,7 @@ import { WORKSPACE } from "./workspace/ui"
 import { ZOOM_ICONS } from "./zoom/ui"
 
 export { BirdWalk } from "./birds/ui"
+export { BOOKMARKS, type Bookmark, type BookmarkTone, defineBookmarks, useShowBookmarks } from "./bookmarks/ui"
 export { type CodeSpan, highlightCode } from "./code-highlight/ui"
 export {
   AtCorner,
@@ -281,13 +282,15 @@ export const BASE_UI = definePluginUi(BASE, {
     MAILBOX_TAB,
     SCRAP_TRAY_TAB,
     SCRAP_TRAY_BUTTON,
+    BOOKMARK_HOST,
     MAIL_BOOKMARKS,
     MAIL_WATCH,
+    JOIN_REQUEST_BOOKMARKS,
+    JOIN_REQUEST_WATCH,
     EDIT_LOCK,
     OPEN_GUIDE,
     STARTUP_ERROR,
     UNREADABLE_NOTICE,
-    JOIN_REQUEST_ACTIONS,
     PROPOSAL_ACTIONS,
     FULL_TEXT_MODE,
     WIDE_SEARCH_TAB,
@@ -350,6 +353,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:settings-categories": Record<string, never>
     "@matomezu/base:annotation-icon": AnnotationIconProps
     "@matomezu/base:corner-statuses": CornerStatusProps
+    "@matomezu/base:bookmarks": BookmarksProps // しおりを出す種類ごとのウィジェット（何も描かず、しおりを置き場に渡す）
   }
   interface WidgetExtras {
     // 右サイドパネルのスロットに置く中身の幅（px。開いているときの右サイドパネルの幅になる）と、
@@ -398,13 +402,15 @@ declare module "../../core/catalog" {
     "@matomezu/base:mailbox": typeof MAILBOX_TAB
     "@matomezu/base:scrap-tray": typeof SCRAP_TRAY_TAB
     "@matomezu/base:scrap-tray-button": typeof SCRAP_TRAY_BUTTON
+    "@matomezu/base:bookmark-host": typeof BOOKMARK_HOST
     "@matomezu/base:mail-bookmarks": typeof MAIL_BOOKMARKS
     "@matomezu/base:mail-watch": typeof MAIL_WATCH
+    "@matomezu/base:join-request-bookmarks": typeof JOIN_REQUEST_BOOKMARKS
+    "@matomezu/base:join-request-watch": typeof JOIN_REQUEST_WATCH
     "@matomezu/base:edit-lock": typeof EDIT_LOCK
     "@matomezu/base:open-guide": typeof OPEN_GUIDE
     "@matomezu/base:startup-error": typeof STARTUP_ERROR
     "@matomezu/base:unreadable-notice": typeof UNREADABLE_NOTICE
-    "@matomezu/base:join-request-actions": typeof JOIN_REQUEST_ACTIONS
     "@matomezu/base:proposal-actions": typeof PROPOSAL_ACTIONS
     "@matomezu/base:wide-search-full-text": typeof FULL_TEXT_MODE
     "@matomezu/base:wide-search": typeof WIDE_SEARCH_TAB

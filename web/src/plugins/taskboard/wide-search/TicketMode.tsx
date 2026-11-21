@@ -23,6 +23,7 @@ import { FilterChip } from "./FilterChip"
 import {
   filterTickets,
   isFiltering,
+  isInitialChoice,
   NO_FILTER,
   NO_TAGS,
   searchTerms,
@@ -70,7 +71,12 @@ export function TicketMode({ term, setTerm }: WideSearchModeProps) {
     restored.current = null
     if (words === "") {
       setFailed(false)
-      update(now => (now && (now.term !== "" || now.hits !== null) ? { ...now, term: "", hits: null } : now))
+      // 言葉を消して、選びが初めの状態（出しているプロジェクトだけ）のままなら、絞りごと解く
+      update(now => {
+        if (!now || (now.term === "" && now.hits === null)) return now
+        const rest = { ...now, term: "", hits: null }
+        return isInitialChoice(rest, shownIds) ? undefined : rest
+      })
       return
     }
     const timer = setTimeout(() => {
@@ -89,6 +95,14 @@ export function TicketMode({ term, setTerm }: WideSearchModeProps) {
     }, WAIT_MS)
     return () => clearTimeout(timer)
   }, [term])
+  // 絞りの言葉がよそで消されたら（ろうとのボタン・「検索中」の ×）、入力の言葉も消す
+  const keptTerm = filter?.term ?? ""
+  const prevKept = useRef(keptTerm)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 絞りの言葉が変わったときだけ見る
+  useEffect(() => {
+    if (prevKept.current !== "" && keptTerm === "" && term.trim() !== "") setTerm("")
+    prevKept.current = keptTerm
+  }, [keptTerm])
   const f = filter ?? { ...NO_FILTER, projects: shownIds }
   const active = isFiltering(filter)
   const matched = active ? filterTickets(tickets, f) : []

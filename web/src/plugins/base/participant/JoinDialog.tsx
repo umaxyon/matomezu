@@ -4,7 +4,8 @@
 // 引き継げるワークルーム（空室か、いる参加者が生きていないワークルーム）に入る（一覧から選ぶ。名前・鳥・配色はワークルームのまま）かを選ぶ（引き継げるワークルームがなければ、新しく始めるだけ）。
 // 名前の初めは AI が頼んだ名前か元のセッション名。鳥は 5 羽から 1 つ（同じ鳥を何人に当ててもよい）、配色は 20 個から 1 つ（選ばなければ、鳥の元の配色）。配色を選ぶと、5 羽ともその配色に塗り替わる。
 // 同じ名前のワークルームに、生きている参加者がいる間は決められない。名前が引き継げるワークルームと同じなら、最後に引き継ぐか、前のワークルームを消して新しく始めるかを確かめる。
-// ワークルームを作る・いる参加者を外す・前のワークルームを消す・入れるは、1 つのアクション（participant-accept）で行う。キャンセルは閉じるだけで、参加要求は保留のまま
+// ワークルームを作る・いる参加者を外す・前のワークルームを消す・入れるは、1 つのアクション（participant-accept）で行う。
+// ［キャンセル］は要求を終える（アクション participant-cancel。AI には、言われたら頼み直してよいと伝わる）。閉じる（Esc・×）だけなら要求は残る
 import { useId, useState } from "react"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
@@ -16,7 +17,7 @@ import { ActionButton, controlClass, Field, Form, Problem } from "../dialog-host
 import { kit } from "../kit"
 import { refusalMessage } from "../utils/refusal"
 import { useNow } from "../utils/useNow"
-import { PARTICIPANT_ACCEPT, WORKROOM_NAME_MAX, type Workroom } from "."
+import { PARTICIPANT_ACCEPT, PARTICIPANT_CANCEL, WORKROOM_NAME_MAX, type Workroom } from "."
 import { BirdFaceView } from "./BirdFaceView"
 import { asBird, originalPalette } from "./birds"
 import { PARTICIPANT_WELCOME_DIALOG } from "./dialogs"
@@ -98,6 +99,13 @@ function JoinForm({
   const allowedVisitor = useAllowedOn(PARTICIPANT_ACCEPT.id, { as: "visitor" }, { record: participant }).ok
   const refused = (done: Parameters<typeof refusalMessage>[1]) =>
     showToast({ kind: "warn", message: refusalMessage(catalog, done, kit.message("Could not answer the request")) })
+  const allowedCancel = useAllowedOn(PARTICIPANT_CANCEL.id, {}, { record: participant }).ok
+  // ［キャンセル］: 要求を終える（断りと違い、AI は言われたら頼み直してよい）
+  const cancel = () => {
+    const done = perform(PARTICIPANT_CANCEL.id, {}, { record: participant })
+    if (done.ok) onClose()
+    else refused(done)
+  }
   const finish = (done: ReturnType<typeof perform>) => {
     if (!done.ok) return refused(done)
     onClose()
@@ -280,7 +288,9 @@ function JoinForm({
         </>
       )}
       <div className={styles.buttons}>
-        <ActionButton onClick={onClose}>{t("Cancel")}</ActionButton>
+        <ActionButton onClick={cancel} disabled={!allowedCancel}>
+          {t("Cancel")}
+        </ActionButton>
         <ActionButton form={form} primary disabled={!ready}>
           {t("Accept")}
         </ActionButton>
