@@ -100,11 +100,11 @@ func (c *serveCmd) Run() error {
 			}
 		}
 	}()
-	// 呼ばれないビジターを、時間で退室させる
+	// 呼ばれないビジターを時間で退室させ、セッションが終わった要求を消す
 	go func() {
-		for now := range time.Tick(server.VisitorSweepEvery) {
-			if err := hub.LeaveIdleVisitors(now); err != nil {
-				fmt.Fprintln(os.Stderr, "visitors:", err)
+		for now := range time.Tick(server.ParticipantSweepEvery) {
+			if err := hub.SweepParticipants(now); err != nil {
+				fmt.Fprintln(os.Stderr, "participants:", err)
 			}
 		}
 	}()

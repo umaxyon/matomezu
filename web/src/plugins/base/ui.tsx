@@ -85,7 +85,7 @@ import { WORKSPACE } from "./workspace/ui"
 import { ZOOM_ICONS } from "./zoom/ui"
 
 export { BirdWalk } from "./birds/ui"
-export { BOOKMARKS, type Bookmark, defineBookmarks, useShowBookmarks } from "./bookmarks/ui"
+export { BOOKMARKS, type Bookmark, type BookmarkTone, defineBookmarks, useShowBookmarks } from "./bookmarks/ui"
 export { type CodeSpan, highlightCode } from "./code-highlight/ui"
 export {
   AtCorner,

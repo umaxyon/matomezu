@@ -34,10 +34,10 @@
 .bookmark:hover {
   transform: translateY(4px);
 }
-.bookmark[data-tone="1"] {
+.bookmark[data-tone="success"] {
   --tone: var(--skin-success);
 }
-.bookmark[data-tone="2"] {
+.bookmark[data-tone="warn"] {
   --tone: var(--skin-warn);
 }
 .bookmark svg {

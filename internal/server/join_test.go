@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+	"time"
 
 	"github.com/umaxyon/matomezu/internal/aiwire"
 	"github.com/umaxyon/matomezu/internal/engine"
@@ -713,5 +714,28 @@ func TestJoinAfterAnEndedSessionLeftDoesNotAnswerWithIt(t *testing.T) {
 				t.Fatalf("participants = %+v", rows)
 			}
 		})
+	}
+}
+
+// 見回りは、セッションが終わった要求中の参加者を知らせずに消し、セッションが生きている要求は残す
+func TestSweepDropsRequestsOfEndedSessions(t *testing.T) {
+	s, hub := joinWorld(t, joinStore(t))
+	ended := map[string]string{aiwire.SessionPidHeader: "999999999", aiwire.SessionPidSpaceHeader: ProcessSpace()}
+	alive := map[string]string{aiwire.SessionPidHeader: strconv.Itoa(os.Getpid()), aiwire.SessionPidSpaceHeader: ProcessSpace()}
+	var gone, waiting Joined
+	got, _ := call(t, "POST", s.URL+"/api/ai/join", joinBody("L1", ""), ended)
+	_ = json.Unmarshal([]byte(got), &gone)
+	got, _ = call(t, "POST", s.URL+"/api/ai/join", joinBody("L2", ""), alive)
+	_ = json.Unmarshal([]byte(got), &waiting)
+	if err := hub.SweepParticipants(time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if rows := table(t, s.URL); len(rows) != 1 || rows[0].ID != waiting.Participant {
+		t.Fatalf("participants = %+v; want only %s", rows, waiting.Participant)
+	}
+	hub.mu.Lock()
+	defer hub.mu.Unlock()
+	if len(hub.wakeQueue[gone.Participant]) != 0 {
+		t.Fatalf("the dropped request was told: %+v", hub.wakeQueue[gone.Participant])
 	}
 }

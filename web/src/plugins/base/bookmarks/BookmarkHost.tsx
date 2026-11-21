@@ -10,15 +10,16 @@ import { Tip } from "../utils/Tip"
 import { allotBookmarks } from "./allot"
 import styles from "./Bookmarks.module.css"
 import { BOOKMARKS } from "./slots"
+import type { BookmarkTone } from "./tones"
 
 // しおり 1 つ。at は ISO 8601 の時点（同じウィジェットの中で古い物を先に並べる）。title は指したときの文と読み上げ。face は帯に描く絵（18px 四方）。
-// tone は帯の色の番号（0〜2。色 color を渡せばそちらを使い、ink はその上の文字の色）
+// tone は帯の色の名前（無ければ accent。色 color を渡せばそちらを使い、ink はその上の文字の色）
 export interface Bookmark {
   key: string
   at: string
   title: string
   face: ReactNode
-  tone?: number
+  tone?: BookmarkTone
   color?: string
   ink?: string
   open: () => void
@@ -119,7 +120,7 @@ function Hanging({ table, order }: { table: BookmarkTable; order: readonly strin
           <button
             type="button"
             className={styles.bookmark}
-            data-tone={b.tone ?? 0}
+            data-tone={b.tone ?? "accent"}
             style={
               b.color ? ({ "--bookmark-tone": b.color, "--bookmark-ink": b.ink } as React.CSSProperties) : undefined
             }
@@ -135,7 +136,7 @@ function Hanging({ table, order }: { table: BookmarkTable; order: readonly strin
           <button
             type="button"
             className={styles.bookmark}
-            data-tone={0}
+            data-tone="accent"
             aria-label={more}
             disabled={!openRest}
             onClick={openRest}

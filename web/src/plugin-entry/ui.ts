@@ -13,6 +13,7 @@ export {
   BOOKMARKS,
   BodyField,
   type Bookmark,
+  type BookmarkTone,
   belowOf,
   CaptionField,
   type Choice,
