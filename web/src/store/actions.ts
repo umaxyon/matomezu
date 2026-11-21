@@ -91,6 +91,8 @@ export interface FrameActions {
   openScreenId(def: string, props: unknown): string
   // ブックを窓に出し、出したステージの id を返す（無いブックなら何もせず NO_STAGE）。ほかは showBook と同じ
   showBookStage(book: string, page?: string): string
+  // ブックの外のページを窓に出し、出したステージの id を返す（出し方は showBook と同じ。開ける外のページでなければ何もせず NO_STAGE）
+  showOutsidePageStage(page: string): string
   makeScreenCurrent(id: string): void // 開いているスクリーン id をカレントスクリーンにする（見せるかはスクリーンアレンジメントが決める。退いた物の中は残す）
   showStage(id: string): void // ステージ id をカレントにし、それを並べているスクリーンをカレントスクリーンにする（そのステージを見せる）
   // ステージ stage をカレントにして右に何も開いていないステージを足し、足したステージの id を返す（足せなければ NO_STAGE）。ほかは split と同じ

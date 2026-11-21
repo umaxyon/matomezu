@@ -1,0 +1,56 @@
+// ブックの外のページを窓に出す（store の showOutsidePageStage）: 開く・そのページを変える・よその変更でゴミ箱に入ると閉じる
+
+import { expect, test } from "bun:test"
+import { stageIn } from "../../web/src/core/window"
+import { NO_STAGE } from "../../web/src/store/dialogs"
+import { openedIn } from "../../web/src/store/store"
+import { drawingPage } from "../lineup"
+import { newStore, sequence, worldRows } from "../support"
+
+type Store = ReturnType<typeof newStore>
+const rowsOf = (store: Store) => {
+  const { pages, folders } = store.state.getState()
+  return { pages: Object.values(pages), folders: Object.values(folders), settings: {} }
+}
+// 書庫ホームに外のページ o1 が在る世界から始めた store
+function withOutside(): Store {
+  const store = newStore({ newId: sequence() })
+  const books = Object.values(store.state.getState().books)
+  store.receive({ ...worldRows(books, [drawingPage("o1", { title: "外のページ" })]), settings: {} }, [])
+  return store
+}
+
+test("外のページを窓に出すと、新しいブックスクリーンのステージで開く。もう開いていれば、そのステージ。開ける外のページでなければ何もしない", () => {
+  const store = withOutside()
+  const stage = store.actions.showOutsidePageStage("o1")
+  expect(stage).not.toBe(NO_STAGE)
+  expect(stageIn(store.state.getState().window, stage)?.opened).toMatchObject({
+    kind: "page",
+    outermost: { kind: "page", id: "o1" },
+    page: "o1",
+  })
+  expect(store.actions.showOutsidePageStage("o1")).toBe(stage)
+  const inBook = Object.values(store.state.getState().books)[0]!.lineup[0]!.id
+  const before = store.state.getState().window
+  expect(store.actions.showOutsidePageStage(inBook)).toBe(NO_STAGE)
+  expect(store.actions.showOutsidePageStage("nothing")).toBe(NO_STAGE)
+  expect(store.state.getState().window).toBe(before)
+})
+
+test("開いている外のページを変えても、ステージはそのページを開いたまま", () => {
+  const store = withOutside()
+  const stage = store.actions.showOutsidePageStage("o1")
+  const done = store.actions.perform("@matomezu/base:page-update", { title: "変えた名前" }, { page: "o1" })
+  expect(done.ok).toBe(true)
+  expect(store.state.getState().pages.o1).toMatchObject({ title: "変えた名前" })
+  expect(openedIn(store, stage)).toEqual({ book: "o1", page: "o1" })
+})
+
+test("よその変更で、開いている外のページがゴミ箱に入ると、そのステージは閉じる", () => {
+  const here = withOutside()
+  const there = withOutside()
+  const stage = here.actions.showOutsidePageStage("o1")
+  expect(there.actions.perform("@matomezu/base:entry-trash", { entry: "o1" }).ok).toBe(true)
+  here.receive(rowsOf(there), [])
+  expect(stageIn(here.state.getState().window, stage)).toBeUndefined()
+})

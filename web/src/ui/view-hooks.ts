@@ -4,7 +4,7 @@
 
 import { useCallback, useLayoutEffect, useMemo } from "react"
 import { USER } from "../core/actor"
-import { findPage, withSettings } from "../core/book"
+import { withSettings } from "../core/book"
 import type { ActionId, ItemId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, isInBook, isOnPage, type PageTarget, type Where } from "../core/def/action"
@@ -65,7 +65,7 @@ export function usePageById(id: string): ItemPage | null {
   const scope = useScope()
   return useMatomezuState(s => {
     const opened = openedOf(s, scope)
-    return opened ? openedPageById(s.books, opened, id) : null
+    return opened ? openedPageById(s.books, s.pages, opened, id) : null
   })
 }
 
@@ -74,7 +74,7 @@ export function useItem<Id extends ItemId>(page: string, item: string, id?: Id):
   const scope = useScope()
   return useMatomezuState(s => {
     const opened = openedOf(s, scope)
-    const p = opened ? openedPageById(s.books, opened, page) : null
+    const p = opened ? openedPageById(s.books, s.pages, opened, page) : null
     // ページのアイテムか、どの深さの子の形も
     const found = p && (p.items?.find(i => i.id === item) ?? findShape(p, item)?.shape)
     return found && (id === undefined || found.item === id) ? (found as unknown as PlacedOf<Id>) : undefined
@@ -269,7 +269,8 @@ export function usePerform(): <Id extends ActionId>(
   const read = useReadState()
   const { perform } = useStoreActions()
   const catalog = useCatalog().core
-  const book = useMatomezuState(s => (at === null ? undefined : stageIn(s.window, at)?.opened?.outermost.id))
+  const entry = useMatomezuState(s => (at === null ? undefined : stageIn(s.window, at)?.opened?.outermost.id))
+  const outside = useMatomezuState(s => at !== null && stageIn(s.window, at)?.opened?.outermost.kind !== "book")
   const mode = useMatomezuState(s => (at === null ? undefined : stageIn(s.window, at)?.mode.kind) ?? "edit")
   return useMemo(
     () =>
@@ -279,11 +280,14 @@ export function usePerform(): <Id extends ActionId>(
         if (stageBlocks(catalog, mode, action)) return { ok: false, reason: "print-preview" }
         const target = catalog.actions.get(action)?.target
         if (!isInBook(target)) return loose(action, args)
-        if (book === undefined) return { ok: false, reason: "no-book" }
-        if (!isOnPage(target)) return loose(action, args, { book })
-        const held = read().books[book]
-        return on && held && findPage(held, on.page) ? loose(action, args, on) : noPage(on?.page ?? "")
+        if (entry === undefined) return { ok: false, reason: "no-book" }
+        // ブックが対象のアクションは、ブックの外のページを開いたステージからは行えない
+        if (!isOnPage(target)) return outside ? { ok: false, reason: "no-book" } : loose(action, args, { book: entry })
+        const { books, pages } = read()
+        return on && openedPageById(books, pages, { book: entry }, on.page)
+          ? loose(action, args, on)
+          : noPage(on?.page ?? "")
       },
-    [perform, catalog, book, mode, at, read],
+    [perform, catalog, entry, outside, mode, at, read],
   )
 }

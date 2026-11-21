@@ -8,10 +8,12 @@
 import type { CoreCatalog } from "./core-catalog"
 import { arrangementValueOf, NO_ARRANGEMENT_VALUE } from "./def/screen-arrangement"
 import { fail } from "./errors"
+import type { Library } from "./folders"
 import { sameData } from "./same"
 import type { Book } from "./schema/book"
-import type { Stage } from "./stage"
-import { emptied, focus, followLibrary, NO_STAGES_LEFT, newWorkspace, type Workspace } from "./workspace"
+import type { ItemPage } from "./placed"
+import { openBook, openOutsidePage, type Stage } from "./stage"
+import { emptied, focus, followLibrary, mapStage, NO_STAGES_LEFT, newWorkspace, type Workspace } from "./workspace"
 
 // 開いているスクリーン 1 枚
 export interface OpenedScreen {
@@ -166,12 +168,13 @@ export function closeScreen(win: WindowState, catalog: CoreCatalog, id: string):
   return { ...win, screens: win.screens.filter(s => s.id !== id), order: win.order.filter(x => x !== id) }
 }
 
-// ブックの一覧が books に変わったときの窓（before は変わる前の一覧）: ブックスクリーンごとにステージを合わせ（workspace の followLibrary）、
+// 書庫が変わったときの窓（books はブックの一覧、library はページとフォルダの表。before は変わる前の一覧）: ブックスクリーンごとにステージを合わせ（workspace の followLibrary）、
 // ステージが 1 つも残らないブックスクリーンは閉じる（窓の最後の 1 枚なら、何も開いていないステージ 1 つで残す）
 export function followLibraryIn(
   win: WindowState,
   catalog: CoreCatalog,
   books: Readonly<Record<string, Book>>,
+  library: Library,
   before?: Readonly<Record<string, Book>>,
 ): WindowState {
   let next = win
@@ -181,7 +184,7 @@ export function followLibraryIn(
   })
   for (const s of win.screens) {
     if (!s.stages) continue
-    const ws = followLibrary(catalog, s.stages, books, before)
+    const ws = followLibrary(catalog, s.stages, books, library, before)
     if (ws === s.stages) continue
     if (ws !== NO_STAGES_LEFT) next = put(s.id, ws)
     else {
@@ -219,7 +222,7 @@ export function overLimit(win: Pick<WindowState, "screens" | "order">, def: stri
   return opened.slice(0, Math.max(0, opened.length - max))
 }
 
-// ブック book をステージに開いているブックスクリーン（いくつも在れば、いちばん最近カレントにした物。無ければ undefined）
+// ステージエントリ book（ブックか、ブックの外のページの id）をステージに開いているブックスクリーン（いくつも在れば、いちばん最近カレントにした物。無ければ undefined）
 export function bookScreenShowing(win: Pick<WindowState, "screens" | "order">, book: string): BookScreen | undefined {
   for (let i = win.order.length - 1; i >= 0; i--) {
     const s = win.screens.find(x => x.id === win.order[i])
@@ -231,15 +234,38 @@ export function bookScreenShowing(win: Pick<WindowState, "screens" | "order">, b
 // ブック book を窓に出した窓と、出したステージの id: book を開いているブックスクリーンが在れば、それをカレントスクリーンにする
 // （book を開いているステージをカレントに。カレントのステージが開いていれば、それ）。無ければ、新しいブックスクリーンで開き、開いたままにする枚数を超えた分を閉じる
 export function shownBook(win: WindowState, catalog: CoreCatalog, book: Book): { win: WindowState; stage: string } {
-  const showing = bookScreenShowing(win, book.id)
+  return shown(win, catalog, book.id, s => openBook(catalog, s, book))
+}
+
+// ブックの外のページ page を窓に出した窓と、出したステージの id（出し方は shownBook と同じ）
+export function shownOutsidePage(
+  win: WindowState,
+  catalog: CoreCatalog,
+  page: ItemPage,
+): { win: WindowState; stage: string } {
+  return shown(win, catalog, page.id, s => openOutsidePage(catalog, s, page))
+}
+
+// ステージエントリ entry を窓に出す（open は、何も開いていないステージにそれを開く）
+function shown(
+  win: WindowState,
+  catalog: CoreCatalog,
+  entry: string,
+  open: (s: Stage) => Stage,
+): { win: WindowState; stage: string } {
+  const showing = bookScreenShowing(win, entry)
   if (!showing) {
-    const opened = openScreen(win, catalog, stagesDefOf(catalog), {}, book)
+    const opened = openScreen(win, catalog, stagesDefOf(catalog), {})
+    const stage = opened.win.screens.find(s => s.id === opened.id)?.stages?.current ?? ""
     return {
-      win: withinLimits(opened.win, catalog),
-      stage: opened.win.screens.find(s => s.id === opened.id)?.stages?.current ?? "",
+      win: withinLimits(
+        mapScreenOfStage(opened.win, stage, ws => mapStage(ws, stage, open)),
+        catalog,
+      ),
+      stage,
     }
   }
-  const stages = showing.stages.stages.filter(st => st.opened?.outermost.id === book.id)
+  const stages = showing.stages.stages.filter(st => st.opened?.outermost.id === entry)
   const stage = (stages.find(st => st.id === showing.stages.current) ?? stages[0])?.id ?? ""
   return {
     win: makeCurrent(

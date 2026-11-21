@@ -15,11 +15,13 @@ import {
   type Library,
   namesHomeOrFolder,
   type Pages,
+  pageIn,
   TRASH_ID,
   UNREADABLE_ID,
   unreadableFolderOf,
 } from "./folders"
 import { recordsOf } from "./folders-books"
+import type { ItemPage } from "./placed"
 import type { Book } from "./schema/book"
 
 // ブックとバインダの行から、木の決まりに要る所だけを読む形
@@ -261,4 +263,11 @@ export function outermostOf({ pages, folders }: Library, id: string): Outermost 
   const [near] = over
   if (!near) return NO_OUTERMOST
   return near.folderRole === "binder" ? { kind: "binder", id: near.id } : { kind: "page", id }
+}
+
+// ステージで開ける、ブックの外のページ: id がページで、そのステージエントリがそのページ自身（ブックにもバインダにも入っていない）で、ゴミ箱の中でない。当たらなければ undefined
+export function outsidePageIn(library: Library, id: string): ItemPage | undefined {
+  const o = outermostOf(library, id)
+  if (o === NO_OUTERMOST || o.kind !== "page" || inTrash(library.folders, id)) return undefined
+  return pageIn(library.pages, id)
 }

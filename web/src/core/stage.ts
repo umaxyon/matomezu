@@ -10,6 +10,7 @@ import type { ItemId } from "./catalog"
 import type { CoreCatalog, PageTypeId } from "./core-catalog"
 import { isInBook } from "./def/action"
 import { type EditList, slideIsBackground } from "./def/page-type"
+import { type Pages, pageIn } from "./folders"
 import type { StageEntry } from "./folders-tree"
 import type { Point, Size } from "./geom"
 import { type PaperChoice, type ResolvedPaper, resolvePaper } from "./paper"
@@ -255,11 +256,13 @@ export const openedBook = (
   opened: Opened | null | undefined,
 ): Book | undefined => (opened?.outermost.kind === "book" ? books[opened.outermost.id] : undefined)
 
-// ブック book のページ page を開いた形（タイプ・紙・ずらした量はページから写す）
-export function openedAt(catalog: CoreCatalog, book: Pick<Book, "id">, page: Page): OpenedPage {
+const entryOf = (book: Pick<Book, "id">): StageEntry => ({ kind: "book", id: book.id })
+
+// ステージエントリ outermost のページ page を開いた形（タイプ・紙・ずらした量はページから写す）
+function openedAt(catalog: CoreCatalog, outermost: StageEntry, page: Page): OpenedPage {
   return {
     kind: "page",
-    outermost: { kind: "book", id: book.id },
+    outermost,
     page: page.id,
     type: page.type as PageTypeId,
     paper: stagePaper(catalog, page),
@@ -270,23 +273,29 @@ export function openedAt(catalog: CoreCatalog, book: Pick<Book, "id">, page: Pag
 // ブック book の、並びの最初を開いた形: 最初がページならそのページ、バインダならその最初のページ（空のバインダならバインダ）。並びが空なら何も開かない
 function openedFirst(catalog: CoreCatalog, book: Book): Opened {
   const [first] = lineupOf(book)
-  if (!first) return { kind: "none", outermost: { kind: "book", id: book.id } }
-  return first.kind === "page" ? openedAt(catalog, book, first) : openedIn(catalog, book, first.id)
+  if (!first) return { kind: "none", outermost: entryOf(book) }
+  return first.kind === "page" ? openedAt(catalog, entryOf(book), first) : openedIn(catalog, book, first.id)
 }
 
 // ブック book のバインダ binder を開いた形: 中の最初のページ（空なら、バインダ。バインダが無ければ何も開かない）
 function openedIn(catalog: CoreCatalog, book: Book, binder: string): Opened {
   const found = findBinder(book, binder)
-  if (!found) return { kind: "none", outermost: { kind: "book", id: book.id } }
+  if (!found) return { kind: "none", outermost: entryOf(book) }
   const [first] = found.lineup
   return first
-    ? openedAt(catalog, book, first)
-    : { kind: "binder", outermost: { kind: "book", id: book.id }, binder: found.id, type: found.pageType as PageTypeId }
+    ? openedAt(catalog, entryOf(book), first)
+    : { kind: "binder", outermost: entryOf(book), binder: found.id, type: found.pageType as PageTypeId }
 }
 
 // ブックを開く（並びの最初）。ずらす量は紙の左上に戻し（初めの位置 start が届いたらそこへ合わせる。starting）、印刷プレビューは閉じる（開く前の倍率に戻す）
 export function openBook(catalog: CoreCatalog, stage: Stage, book: Book): Stage {
   return settle(leave(opening(edited(stage), openedFirst(catalog, book))), HOME)
+}
+
+// ブックの外のページ page を開く（ずらす量と印刷プレビューは openBook と同じ）。もう開いていれば、同じ値を返す
+export function openOutsidePage(catalog: CoreCatalog, stage: Stage, page: Page): Stage {
+  const to = openedAt(catalog, { kind: "page", id: page.id }, page)
+  return sameData(to.outermost, stage.opened?.outermost) ? stage : settle(leave(opening(edited(stage), to)), HOME)
 }
 
 // 開いているブックのページを開く（開いているブックの、あるページだけ）。ずらす量は紙の左上に戻す（初めの位置が届いたらそこへ合わせる）。
@@ -297,7 +306,7 @@ export function openPage(catalog: CoreCatalog, stage: Stage, book: Book, page: s
   if (!o || o.outermost.id !== book.id || !found) return stage
   if (shownPageId(o) === page) return closePrintPreview(stage)
   if (editingBackground(stage)) return stage // 背景編集モードの間は、ページを替えない
-  const to = openedAt(catalog, book, found)
+  const to = openedAt(catalog, entryOf(book), found)
   return sameData(to, o) ? stage : settle(leave(opening(edited(stage), to)), HOME)
 }
 
@@ -324,8 +333,20 @@ export function binderOf(book: Book, opened: Opened | null): string | null {
 // そのブックを開いていなければ、同じ値を返す
 export function followBook(catalog: CoreCatalog, stage: Stage, book: Book, before?: Book): Stage {
   const next = followOpened(catalog, stage, book, before)
-  if (next.selection.length === 0 || next.opened?.outermost.id !== book.id) return next
-  const shown = findPage(book, shownPageId(next.opened) ?? "")?.page
+  if (next.opened?.outermost.id !== book.id) return next
+  return selectionKept(next, findPage(book, shownPageId(next.opened) ?? "")?.page)
+}
+
+// 開いているブックの外のページ page が変わったときに合わせる（followBook の、開いていたページが残っているときと同じ）。そのページを開いていなければ、同じ値を返す
+export function followOutsidePage(catalog: CoreCatalog, stage: Stage, page: Page): Stage {
+  const o = stage.opened
+  if (o?.kind !== "page" || o.outermost.kind !== "page" || o.outermost.id !== page.id) return stage
+  return selectionKept(followShown(catalog, stage, o, page), page)
+}
+
+// 選択から、開いているページ shown に無くなった物を外す
+function selectionKept(next: Stage, shown: Page | undefined): Stage {
+  if (next.selection.length === 0) return next
   const ids = shown ? anchorIds(shown) : new Set<string>()
   const kept = next.selection.filter(id => ids.has(id))
   if (kept.length === next.selection.length) return next
@@ -336,29 +357,32 @@ function followOpened(catalog: CoreCatalog, stage: Stage, book: Book, before?: B
   const o = stage.opened
   if (!o || o.outermost.id !== book.id) return stage
   const found = o.kind === "page" ? findPage(book, o.page)?.page : undefined
-  if (o.kind === "page" && found) {
-    const paper = stagePaper(catalog, found)
-    if (sameData(paper, o.paper)) {
-      const was = o.shift ?? HOME
-      const now = found.shift ?? HOME
-      const sheet = paperOf(stage)
-      if (was.x === now.x && was.y === now.y) return stage
-      const { shift: _, area, ...rest } = o
-      const dx = sheet ? (now.x - was.x) * sheet.w : 0
-      const dy = sheet ? (now.y - was.y) * sheet.h : 0
-      const base = area ?? sheet
-      const opened = {
-        ...rest,
-        ...shiftOf(found),
-        ...(base ? { area: { w: base.w + dx, h: base.h + dy } } : {}),
-      }
-      return settle({ ...stage, opened }, { x: stage.pan.x - dx * stage.zoom, y: stage.pan.y - dy * stage.zoom })
-    }
-    // 紙が変われば、プレゼンテーションが知らせた広さは捨てる（知らせ直すまで紙 1 枚）
-    return settle({ ...stage, opened: openedAt(catalog, book, found) }, stage.pan)
-  }
+  if (o.kind === "page" && found) return followShown(catalog, stage, o, found)
   const opened = neighbourOf(catalog, book, o, before)
   return sameData(opened, o) ? stage : settle(leave(opening(stage, opened)), HOME)
+}
+
+// 開いているページ o が found に変わったときに合わせる（タイプと紙は決め直す。紙が同じで中身をずらしたなら、パンと広さを合わせる）
+function followShown(catalog: CoreCatalog, stage: Stage, o: OpenedPage, found: Page): Stage {
+  const paper = stagePaper(catalog, found)
+  if (sameData(paper, o.paper)) {
+    const was = o.shift ?? HOME
+    const now = found.shift ?? HOME
+    const sheet = paperOf(stage)
+    if (was.x === now.x && was.y === now.y) return stage
+    const { shift: _, area, ...rest } = o
+    const dx = sheet ? (now.x - was.x) * sheet.w : 0
+    const dy = sheet ? (now.y - was.y) * sheet.h : 0
+    const base = area ?? sheet
+    const opened = {
+      ...rest,
+      ...shiftOf(found),
+      ...(base ? { area: { w: base.w + dx, h: base.h + dy } } : {}),
+    }
+    return settle({ ...stage, opened }, { x: stage.pan.x - dx * stage.zoom, y: stage.pan.y - dy * stage.zoom })
+  }
+  // 紙が変われば、プレゼンテーションが知らせた広さは捨てる（知らせ直すまで紙 1 枚）
+  return settle({ ...stage, opened: openedAt(catalog, o.outermost, found) }, stage.pan)
 }
 
 // 開いていたもの was が無くなった（か、空のバインダだった）ときに開くもの:
@@ -390,7 +414,7 @@ function neighbourOf(catalog: CoreCatalog, book: Book, was: Opened, before?: Boo
             was.page,
           )
         : undefined
-    return next ? openedAt(catalog, book, next) : openedIn(catalog, book, binder)
+    return next ? openedAt(catalog, entryOf(book), next) : openedIn(catalog, book, binder)
   }
   const next =
     was.kind === "page" && before
@@ -399,7 +423,7 @@ function neighbourOf(catalog: CoreCatalog, book: Book, was: Opened, before?: Boo
           was.page,
         )
       : undefined
-  return next ? openedAt(catalog, book, next) : openedFirst(catalog, book)
+  return next ? openedAt(catalog, entryOf(book), next) : openedFirst(catalog, book)
 }
 
 // 倍率を zoom にする。表示領域の中の点 at（無ければ真ん中）の下にある紙の点が動かないように、ずらす量を合わせる（紙が無ければ変えない）
@@ -523,12 +547,15 @@ export function toPaperDelta(stage: Pick<Stage, "zoom">, d: Point): Point {
   return { x: d.x / stage.zoom, y: d.y / stage.zoom }
 }
 
-// ステージが開いている物 opened（ブック book）の中の、id のページ（開いた物の外のページ・無ければ null。プラグイン API の usePageById が読む）
+// ステージが開いている物 opened（book は、そのステージエントリの id）の中の、id のページ: ブックならその中のページ、ブックの外のページならそのページ自身。
+// 開いた物の外のページ・無ければ null（プラグイン API の usePageById が読む）
 export function openedPageById(
   books: Readonly<Record<string, Book>>,
+  pages: Pages,
   opened: { book: string },
   id: string,
 ): ItemPage | null {
   const book = books[opened.book]
-  return (book && findPage(book, id)?.page) ?? null
+  if (book) return findPage(book, id)?.page ?? null
+  return (opened.book === id && pageIn(pages, id)) || null
 }

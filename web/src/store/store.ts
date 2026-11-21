@@ -14,6 +14,7 @@ import { fail, matomezuError, type Problem, problem } from "../core/errors"
 import { type Folder, homeOver, type Library, type PageRow, type TableChanges } from "../core/folders"
 import { recordsOf } from "../core/folders-books"
 import { settledOn, withChanges } from "../core/folders-changes"
+import { outsidePageIn } from "../core/folders-tree"
 import { outsideUnreadable, rawBooksOf } from "../core/folders-unreadable"
 import { deepFreeze } from "../core/freeze"
 import {
@@ -70,6 +71,7 @@ import {
   screenOfStage,
   setArrangement,
   shownBook,
+  shownOutsidePage,
   stageIn,
   type WindowState,
   withinLimits,
@@ -460,7 +462,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       next.trash = both.trash
       const target = catalog.actions.get(id)?.target
       if (target === "library" || target === "settings") {
-        next.window = followLibraryIn(window, catalog, both.books, books)
+        next.window = followLibraryIn(window, catalog, both.books, tables, books)
         // 画面の履歴に入れないアクション（戻す・やり直す・ゴミ箱から消すなど）が消した物は、その前の値を画面の履歴の段に残さないので捨てる。
         // 設定が対象のアクションが変える書庫（言語を初めて選んで付けた番号）も、常駐が書庫を整えるときと同じく、画面の履歴に入れない
         if (target === "settings" || !entersLibraryHistory(catalog.actions.get(id)))
@@ -475,6 +477,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         // 画面の履歴に入れないアクション（ロックの掛け外しなど）が上書きした物は、その前の値を画面の履歴の段に残さないので捨てる
         if (after && before && !recorded) dropOverwritten({ pages, folders }, tables)
         if (after) next.window = mapScreens(window, ws => followBook(catalog, ws, after, before))
+        // ブックが変わらなければ、変えたのはブックの外のページ
+        else next.window = followLibraryIn(window, catalog, both.books, tables, books)
       }
     }
     if (done.settings) {
@@ -704,6 +708,14 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       const { win, stage } = shownBook(getState().window, catalog, book)
       if (win !== getState().window) commit({ window: win })
       if (page !== undefined) actions.openPage(stage, page)
+      return stage
+    },
+    showOutsidePageStage: id => {
+      const { pages, folders, window } = getState()
+      const page = outsidePageIn({ pages, folders }, id)
+      if (!page) return NO_STAGE
+      const { win, stage } = shownOutsidePage(window, catalog, page)
+      if (win !== window) commit({ window: win })
       return stage
     },
     showBook: (bookId, page) => actions.showBookStage(bookId, page) !== NO_STAGE,
@@ -937,7 +949,10 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         ...(tables.pages === now.pages ? {} : { pages: tables.pages }),
         ...(tables.folders === now.folders ? {} : { folders: tables.folders }),
         ...(trash === now.trash ? {} : { trash }),
-        ...(books === now.books ? {} : { books, window: followLibraryIn(now.window, catalog, books, now.books) }),
+        ...(books === now.books ? {} : { books }),
+        ...(tables.pages === now.pages && tables.folders === now.folders
+          ? {}
+          : { window: followLibraryIn(now.window, catalog, books, tables, now.books) }),
         ...(settings === now.settings ? {} : { settings, lang: langOf(catalog, settings, fallback) }),
         ...(annotations === now.annotations ? {} : { annotations }),
         ...(records === now.records ? {} : { records }),

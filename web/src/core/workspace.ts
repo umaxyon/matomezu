@@ -7,11 +7,15 @@
 import type { ItemId, ToolId } from "./catalog"
 import type { CoreCatalog } from "./core-catalog"
 import { fail } from "./errors"
+import type { Library } from "./folders"
+import { outsidePageIn } from "./folders-tree"
 import type { Books } from "./library"
+import type { ItemPage } from "./placed"
 import type { Book } from "./schema/book"
 import {
   closeBook,
   followBook as followStage,
+  followOutsidePage,
   newStage,
   openBinder,
   openBook,
@@ -194,19 +198,28 @@ export function followBook(catalog: CoreCatalog, ws: Workspace, book: Book, befo
 // followLibrary の答え: 開いていたブックが全部無くなり、ステージが 1 つも残らない
 export const NO_STAGES_LEFT = "no-stages-left"
 
-// ブックの一覧が変わったとき: 無くなったブックを開いていたステージは閉じ（1 つも残らなければ NO_STAGES_LEFT）、残ったブックには合わせる（before は変わる前の一覧）
+// 書庫が変わったとき（books はブックの一覧、library はページとフォルダの表。before は変わる前の一覧）: 開いていた物が無くなったステージは閉じ（1 つも残らなければ NO_STAGES_LEFT）、
+// 残った物には合わせる。無くなったとするのは、ブックが一覧に無い・ブックの外のページが開ける物でなくなった（core/folders-tree.ts の outsidePageIn）とき
 export function followLibrary(
   catalog: CoreCatalog,
   ws: Workspace,
   books: Readonly<Record<string, Book>>,
+  library: Library,
   before?: Readonly<Record<string, Book>>,
 ): Workspace | typeof NO_STAGES_LEFT {
-  const gone = ws.stages.filter(s => s.opened && !openedBook(books, s.opened)).map(s => s.id)
+  // ステージが開いている物（何も開いていなければ "none"、無くなっていれば undefined）
+  const held = (s: Stage): Book | ItemPage | "none" | undefined => {
+    if (!s.opened) return "none"
+    const { kind, id } = s.opened.outermost
+    return kind === "book" ? books[id] : kind === "page" ? outsidePageIn(library, id) : undefined
+  }
+  const gone = ws.stages.filter(s => held(s) === undefined).map(s => s.id)
   if (gone.length === ws.stages.length) return NO_STAGES_LEFT
   const left = gone.reduce(close, ws)
   const stages = left.stages.map(s => {
-    const book = openedBook(books, s.opened)
-    return s.opened && book ? followIn(catalog, left, s, book, before?.[s.opened.outermost.id]) : s
+    const now = held(s)
+    if (now === undefined || now === "none") return s
+    return "kind" in now ? followOutsidePage(catalog, s, now) : followIn(catalog, left, s, now, before?.[now.id])
   })
   return stages.every((s, i) => s === left.stages[i]) ? left : { ...left, stages }
 }

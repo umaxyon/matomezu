@@ -13,7 +13,7 @@ import type { ShowSchema } from "./server-schemas"
 const openedOf = (stage: Stage) => {
   const opened = stage.opened
   return {
-    book: opened?.outermost.id ?? null,
+    book: opened?.outermost.kind === "book" ? opened.outermost.id : null,
     page: opened && "page" in opened ? (opened.page ?? null) : null,
     mode: stage.mode.kind,
   }

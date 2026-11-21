@@ -595,6 +595,7 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
     "makeScreenCurrent",
     "openScreenId",
     "showBookStage",
+    "showOutsidePageStage",
     "showStage",
     "splitStage",
     "tryPerform",
