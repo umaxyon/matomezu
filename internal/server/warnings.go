@@ -46,7 +46,7 @@ func (h *Hub) Warnings() []string {
 	if h.libraryWarning != "" {
 		out = append(out, h.libraryWarning)
 	}
-	// 読めない物のフォルダに移った物は、1 つずつの warning を出さず、件数の warning 1 つだけ
+	// 読めない物のフォルダに移った物は、1 つずつの warning を出さず、件数の warning 1 つだけ。ゴミ箱の中のブックの warning は出さない（戻すと出る）
 	if h.unreadableWarning != "" {
 		out = append(out, h.unreadableWarning)
 	}
@@ -54,7 +54,7 @@ func (h *Hub) Warnings() []string {
 		out = append(out, h.settleWarning)
 	}
 	for _, id := range h.order {
-		if h.inUnreadable(id) {
+		if h.inUnreadable(id) || h.inTrash(id) {
 			continue
 		}
 		if n, ok := h.bookWarnings[id]; ok {

@@ -379,3 +379,39 @@ func TestAnnotationWarningGoesWithTheAnnotation(t *testing.T) {
 		t.Fatalf("annotations of h1 = %s", kept)
 	}
 }
+
+// ゴミ箱の中のブックの warning は出さず、戻すとまた出る
+func TestWarningsOfABookInTheTrashAreNotTold(t *testing.T) {
+	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { store.Close() })
+	strange := strings.Replace(boxed, `"items":[`, `"items":[{"id":"z","item":"@foo/stars:star","x":0,"y":0,"w":10,"h":10},`, 1)
+	if strange == boxed {
+		t.Fatal("boxed has no items to add to")
+	}
+	putBook(t, store, strange)
+	eng, err := engine.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := NewHub(store, eng)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const line = "W007 @foo/stars: book b1 (T): it has @foo/stars:star, not in the catalog (kept as they are)"
+	for _, step := range []struct {
+		action string
+		want   bool
+	}{{"", true}, {"@matomezu/base:entry-trash", false}, {"@matomezu/base:entry-restore", true}} {
+		if step.action != "" {
+			if done, err := h.Perform(Perform{Actions: []engine.BulkAction{{Action: step.action, Args: json.RawMessage(`{"entry":"b1"}`)}}}); err != nil || !done.OK {
+				t.Fatalf("%s = %+v, %v", step.action, done, err)
+			}
+		}
+		if got := h.Warnings(); slices.Contains(got, line) != step.want {
+			t.Fatalf("warnings after %q = %s", step.action, strings.Join(got, "\n"))
+		}
+	}
+}
