@@ -1,11 +1,9 @@
 // 窓を開いたときのアクション（runsAtWindowStart）: settings-set が、言語を選んでいなければ窓の言語を書く引数を答え、選んであれば書かない。
-// 窓は言語を書くだけで、それに合わせて足す物（システムフォルダの名前の番号など）は、常駐が行う system-folder-add が足す
+// 初めて言語を書くときは、名前の当たる物に、同じアクションで番号を付ける（常駐が書庫を整えるときと同じ withFreeTitles）
 import { expect, test } from "bun:test"
-import { namingOf, systemFoldersInPlace } from "../../web/src/core/entries"
 import { HOME_ID } from "../../web/src/core/folders"
 import { SETTINGS_SET } from "../../web/src/plugins/base/settings"
-import { worldOf } from "../../web/src/store/world"
-import { CORE_CATALOG, newStore } from "../support"
+import { CORE_CATALOG, newStore, settleIn } from "../support"
 
 const LANG = "@matomezu/base:lang"
 const JA = { [LANG]: "matomezu:ja" }
@@ -19,20 +17,19 @@ test("窓を開くと、言語を選んでいなければ窓の言語を利用�
   expect(chosen.state.getState().settings).toEqual({ [LANG]: "matomezu:en" })
 })
 
-test("窓が初めて言語を書くのは断らず、名前の当たる利用者の物には番号を付けない（そのあと常駐が行う system-folder-add が付ける）", () => {
+test("窓が初めて言語を書くのは断らず、名前の当たる利用者の物に、同じアクションで番号を付ける（画面の履歴には入らない）", () => {
   const store = newStore({ lang: "ja" })
   const { actions, state } = store
-  expect(actions.perform("@matomezu/base:system-folder-add", {}).ok).toBe(true)
+  settleIn(store)
   const book = state.getState().folders[HOME_ID]!.lineup.find(r => r.kind === "book")!.id
   const titleOf = () => (state.getState().folders[book] as { title?: string }).title
   // 言語を選んでいない間（英語で引く）は、ドキュメントと当たらない
   expect(actions.perform("@matomezu/base:entry-rename", { entry: book, title: "ドキュメント" }).ok).toBe(true)
+  const steps = state.getState().history
   store.startWindow()
   expect(state.getState().settings).toEqual(JA)
-  expect(titleOf()).toBe("ドキュメント")
-  expect(systemFoldersInPlace(worldOf(state.getState()), namingOf(CORE_CATALOG, JA))).toBe(false)
-  expect(actions.perform("@matomezu/base:system-folder-add", {}).ok).toBe(true)
   expect(titleOf()).toBe("ドキュメント 2")
+  expect(state.getState().history).toBe(steps)
 })
 
 test("settings-set は、窓の言語の言語パックを言語の項目に、値が無いときだけ書く引数を答え、言語パックが無い言語なら行わない", () => {

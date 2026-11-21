@@ -11,6 +11,7 @@ import {
   titleClashes,
   trashedEntry,
   trashRefOf,
+  withFreeTitles,
 } from "../../web/src/core/entries"
 import {
   type Folder,
@@ -202,30 +203,67 @@ describe("同じ名前", () => {
 
   test("書庫ホームとフォルダの直下で、種類をまたいで名前が重なったフォルダを挙げる。重ならなければ挙げない", () => {
     const t = world()
-    expect(titleClashes(t, t, NAMING)).toEqual([])
+    expect(titleClashes(t, NAMING)).toEqual([])
     // フォルダ d の名前を、同じ書庫ホームの直下のフォルダ a と同じにする
-    expect(titleClashes(t, withRows(t, { ...d, title: "a" }), NAMING)).toEqual([HOME_ID])
+    expect(titleClashes(withRows(t, { ...d, title: "a" }), NAMING)).toEqual([HOME_ID])
     // ブック b1（名前「一」）と同じフォルダ a の直下のフォルダ c を、同じ名前にする
-    expect(titleClashes(t, withRows(t, { ...c, title: "一" }), NAMING)).toEqual(["a"])
+    expect(titleClashes(withRows(t, { ...c, title: "一" }), NAMING)).toEqual(["a"])
     // 別のフォルダの物とは重ならない
-    expect(titleClashes(t, withRows(t, { ...d, title: "c" }), NAMING)).toEqual([])
+    expect(titleClashes(withRows(t, { ...d, title: "c" }), NAMING)).toEqual([])
   })
 
-  test("前から重なっていて、名前の並びが変わらないフォルダは挙げない。並びが変われば挙げる", () => {
-    const kept = withRows(world(), { ...d, title: "a" })
-    expect(titleClashes(kept, kept, NAMING)).toEqual([])
-    expect(titleClashes(kept, withRows(kept, { ...c, title: "別" }), NAMING)).toEqual([])
-    const e = named("e", "a")
-    const more = withRows(kept, e, { ...home, lineup: [...home.lineup, { kind: "folder", id: "e" }] })
-    expect(titleClashes(kept, more, NAMING)).toEqual([HOME_ID])
-  })
-
-  test("ゴミ箱の直下は同じ名前を許す。ブックの中で重なれば、そのブックを挙げる", () => {
+  test("ゴミ箱の直下は同じ名前を許し、ゴミ箱の中のフォルダの直下は数える。ブックの中で重なれば、そのブックを挙げる", () => {
     const t = world()
     const at = "2026-11-18T00:00:00.000Z"
     const binned = trashedEntry(trashedEntry(withRows(t, { ...d, title: "a" }), "a", at) as Library, "d", at) as Library
-    expect(titleClashes(t, binned, NAMING)).toEqual([])
-    const inBook = moved(t, "p2", "b1")
-    expect(titleClashes(t, inBook, NAMING)).toEqual(["b1"])
+    expect(titleClashes(binned, NAMING)).toEqual([])
+    const inTrash = withRows(binned, { ...c, title: "一" })
+    expect(titleClashes(inTrash, NAMING)).toEqual(["a"])
+    expect(titleClashes(moved(t, "p2", "b1"), NAMING)).toEqual(["b1"])
+  })
+
+  describe("名前の重なりに番号を付ける（withFreeTitles）", () => {
+    const titles = (t: Library, folder: string) =>
+      t.folders[folder]?.lineup.map(r =>
+        r.kind === "page" ? t.pages[r.id]?.title : (t.folders[r.id] as { title?: string }).title,
+      )
+    const homeWith = (t: Library, ...rows: PlainFolder[]): Library =>
+      withRows(t, ...rows, {
+        ...home,
+        lineup: [...home.lineup, ...rows.map(r => ({ kind: "folder" as const, id: r.id }))],
+      })
+
+    test("並びの先の物が名前を残し、後の物に、ほかの物の名前とも重ならない番号を付ける。付けたあとは重なりが無く、2 回目は何も変えない", () => {
+      // 書庫ホーム: a・d・x「a」・y「a 2」
+      const t = homeWith(world(), named("x", "a"), named("y", "a 2"))
+      const { next, freed } = withFreeTitles(t, NAMING)
+      expect(titles(next, HOME_ID)).toEqual(["a", "d", "a 3", "a 2"])
+      expect(freed).toEqual([{ kind: "folder", id: "x", title: "a 3" }])
+      expect(titleClashes(next, NAMING)).toEqual([])
+      expect(withFreeTitles(next, NAMING)).toEqual({ next, freed: [] })
+    })
+
+    test("ブックの中・ゴミ箱の中のフォルダの直下も直し、ゴミ箱の直下は直さない。重ならなければ書庫のまま", () => {
+      const t = world()
+      expect(withFreeTitles(t, NAMING).next).toBe(t)
+      const inBook = moved(t, "p2", "b1")
+      const pages = withFreeTitles(inBook, NAMING).next
+      expect(titleClashes(pages, NAMING)).toEqual([])
+      const at = "2026-11-18T00:00:00.000Z"
+      const binned = trashedEntry(
+        trashedEntry(withRows(t, { ...d, title: "a" }), "a", at) as Library,
+        "d",
+        at,
+      ) as Library
+      const inTrash = withRows(binned, { ...c, title: "一" })
+      const fixed = withFreeTitles(inTrash, NAMING)
+      expect(fixed.freed).toEqual([{ kind: "folder", id: "c", title: "一 2" }])
+      expect(titles(fixed.next, TRASH_ID)).toEqual(["a", "a"])
+    })
+
+    test("ロックの掛かった物にも番号を付ける", () => {
+      const t = homeWith(world(), { ...named("x", "a"), locked: true } as unknown as PlainFolder)
+      expect(withFreeTitles(t, NAMING).freed).toEqual([{ kind: "folder", id: "x", title: "a 2" }])
+    })
   })
 })

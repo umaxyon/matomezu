@@ -475,10 +475,12 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       next.folders = tables.folders
       next.books = both.books
       next.trash = both.trash
-      if (catalog.actions.get(id)?.target === "library") {
+      const target = catalog.actions.get(id)?.target
+      if (target === "library" || target === "settings") {
         next.window = followLibraryIn(window, catalog, both.books, books)
-        // 画面の履歴に入れないアクション（戻す・やり直す・ゴミ箱から消すなど）が消した物は、その前の値を画面の履歴の段に残さないので捨てる
-        if (!entersLibraryHistory(catalog.actions.get(id))) {
+        // 画面の履歴に入れないアクション（戻す・やり直す・ゴミ箱から消すなど）が消した物は、その前の値を画面の履歴の段に残さないので捨てる。
+        // 設定が対象のアクションが変える書庫（言語を初めて選んで付けた番号）も、常駐が書庫を整えるときと同じく、画面の履歴に入れない
+        if (target === "settings" || !entersLibraryHistory(catalog.actions.get(id))) {
           for (const after of Object.values(both.books)) {
             const before = books[after.id]
             if (before && before !== after) dropOverwritten(before, after)

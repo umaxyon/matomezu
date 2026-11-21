@@ -114,3 +114,6 @@ export function worldRows(
 
 // 利用者の設定の無いとき（英語）の、ビルトインプラグインの名前を引く決まり
 export const NAMING = namingOf(CORE_CATALOG, NO_SETTINGS)
+
+// 常駐が書庫を整えた（core/unreadable.ts の settleLibrary。足りないシステムフォルダを足し、名前の重なりに番号を付ける）あとの世界を、store に届ける（matomezu/testing と同じ物）
+export { settleIn } from "../web/src/store/settle"

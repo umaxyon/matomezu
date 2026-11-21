@@ -10,6 +10,7 @@ import {
   placeOf,
   removedEntry,
   restoredEntry,
+  retitled,
   titledIn,
   titleOf,
   trashRefOf,
@@ -21,7 +22,6 @@ import {
   HOME_ID,
   type HomeOrFolder,
   type Library,
-  type PageRow,
 } from "../../../core/folders"
 import { foldersOver, inTrash, isKeptSystemFolder } from "../../../core/folders-tree"
 
@@ -74,28 +74,6 @@ export function movesInto(folders: Folders, entry: string, into: string): boolea
 // ゴミ箱とその中なら undefined
 export const holderForNew = (folders: Folders, opened: string): string | undefined =>
   holdsEntries(folders, opened) ? opened : foldersOver(folders, opened).find(f => holdsEntries(folders, f.id))?.id
-
-// エントリ entry（種類 kind）の名前を title にした書庫（名前を持たない物・書庫に無い物は null。同じ名前なら library のまま）
-export function retitled(
-  library: Library,
-  kind: EntryKind,
-  entry: string,
-  title: string,
-  naming: Naming,
-): Library | null {
-  const now = titleOf(library, kind, entry, naming)
-  if (now === undefined) return null
-  if (now === title) return library
-  if (kind === "page")
-    return {
-      pages: { ...library.pages, [entry]: { ...library.pages[entry], title } as PageRow },
-      folders: library.folders,
-    }
-  return {
-    pages: library.pages,
-    folders: { ...library.folders, [entry]: { ...library.folders[entry], title } as Folder },
-  }
-}
 
 // フォルダ into の直下に在るエントリ entry（種類 kind）の名前が、同じフォルダのほかの物と重なっていれば、番号を付けた名前（「名前 2」から）にした書庫。重ならなければ library のまま
 export function numbered(

@@ -6,7 +6,6 @@ import (
 	"os"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -52,12 +51,16 @@ func withoutDocuments(body string) string {
 	return body
 }
 
-// 常駐は起動したとき、書庫ホームの先頭にドキュメントの行を足し（もう在れば足さない）、AI の read_folder には英語の名前と印で見せる。
-// 名前の当たる書庫ホームの直下の物には番号を付ける。プラグインが変わったときも足りなければ足す
+// 常駐は起動したとき、書庫を整えて（settleLibrary）書庫ホームの先頭にドキュメントの行を足し（もう在れば足さない）、AI の read_folder には英語の名前と印で見せる。
+// 名前の当たる書庫ホームの直下の物には番号を付け、足した物と番号を付けた物をログに書く。プラグインが変わったときも足りなければ足す
 func TestSystemFoldersAreAddedAtStartAndWhenPluginsChange(t *testing.T) {
 	store := libraryStore(t, false)
 	putBook(t, store, `{"id":"b9","title":"Documents","lineup":[]}`)
-	_, hub := newServerOn(t, Options{}, store)
+	var hub *Hub
+	logged := stderrDuring(t, func() { _, hub = newServerOn(t, Options{}, store) })
+	if !strings.Contains(logged, "added the system folder: @matomezu/base:documents") || !strings.Contains(logged, `the title of b9 was taken in its folder; it is now "Documents 2"`) {
+		t.Fatalf("the log at start:\n%s", logged)
+	}
 	docs := documentsOf(t, hub)
 	if len(docs) != 1 || hub.folders[storage.HomeID].entries[0] != docs[0] {
 		t.Fatalf("system folders %v in home %v", docs, hub.folders[storage.HomeID].entries)
@@ -137,65 +140,29 @@ func stderrDuring(t *testing.T, do func()) string {
 	return <-got
 }
 
-// データを書いたあと、書庫のシステムフォルダが機能台帳に合わなくなっていれば、常駐が system-folder-add を行う:
-// AI が言語を初めて日本語に選ぶと、利用者の「ドキュメント」に番号が付く。合っていれば、書いたあとにバルクを行わない
-func TestSystemFoldersAreKeptAfterWrites(t *testing.T) {
+// AI が言語を初めて日本語に選ぶと、同じバルクで、利用者の「ドキュメント」に番号が付く（ロックの掛かったブックにも。そのあとに別のバルクは行わない）
+func TestChoosingTheLanguageFirstNumbersTheTitlesInTheSameBulk(t *testing.T) {
 	store := libraryStore(t, false)
 	putBook(t, store, `{"id":"b9","title":"ドキュメント","lineup":[]}`)
 	s, hub := newServerOn(t, Options{}, store)
 	ai := joinedAI(t, s)
+	if out, err := hub.Perform(performOne("@matomezu/base:book-lock", json.RawMessage(`{}`), &engine.On{Book: "b9"})); err != nil || !out.OK {
+		t.Fatalf("book-lock = %+v, %v", out, err)
+	}
 	acts := hub.acts
-	if out, err := hub.Perform(Perform{Actions: []engine.BulkAction{{Action: "@matomezu/base:book-update", Args: json.RawMessage(`{"title":"x"}`), On: &engine.On{Book: "b1"}}}}); err != nil || !out.OK {
-		t.Fatalf("book-update = %+v, %v", out, err)
-	}
-	if hub.acts != acts+1 {
-		t.Fatalf("acts after a write while the system folders are in place = %d; want %d", hub.acts, acts+1)
-	}
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:settings-set","args":{"values":{"@matomezu/base:lang":"matomezu:ja"}}}`, ai); got != `{"ok":true,"result":{}}` {
 		t.Fatalf("the AI chooses Japanese = %s", got)
 	}
 	if b := hub.Book("b9"); b == nil || !strings.Contains(string(b.Body), `"title":"ドキュメント 2"`) {
 		t.Fatalf("the book with the same title after choosing Japanese = %+v", b)
 	}
-}
-
-// ロック中のブックと名前が当たると、system-folder-add は断られる。同じ答えで断られる間は、書くたびに行い直してもログは 1 回だけ。
-// ロックを外したバルクのあとに、番号を付ける
-func TestSystemFoldersWaitForTheLockAndLogTheRefusalOnce(t *testing.T) {
-	store := libraryStore(t, false)
-	putBook(t, store, `{"id":"b9","title":"ドキュメント","lineup":[]}`)
-	_, hub := newServerOn(t, Options{}, store)
-	do := func(action, args string, on *engine.On) {
-		t.Helper()
-		if out, err := hub.Perform(Perform{Actions: []engine.BulkAction{{Action: action, Args: json.RawMessage(args), On: on}}}); err != nil || !out.OK {
-			t.Fatalf("%s = %+v, %v", action, out, err)
-		}
-	}
-	do("@matomezu/base:book-lock", `{}`, &engine.On{Book: "b9"})
-	logged := stderrDuring(t, func() {
-		do("@matomezu/base:settings-set", `{"values":{"@matomezu/base:lang":"matomezu:ja"}}`, nil)
-		// 書庫ホームの名前が当たっている間は、そこの名前は変えられないので、ほかの物を書く
-		do("@matomezu/base:settings-set", `{"values":{"@matomezu/base:skin":"@matomezu/base:dark"}}`, nil)
-		do("@matomezu/base:settings-set", `{"values":{"@matomezu/base:skin":"@matomezu/base:light"}}`, nil)
-	})
-	if n := strings.Count(logged, "system-folder-add could not run"); n != 1 {
-		t.Fatalf("the refusals logged %d times; want 1:\n%s", n, logged)
-	}
-	if n := strings.Count(logged, "refused at the action"); n != 1 {
-		t.Fatalf("the refused lines logged %d times; want 1:\n%s", n, logged)
-	}
-	if b := hub.Book("b9"); b == nil || !strings.Contains(string(b.Body), `"title":"ドキュメント"`) {
-		t.Fatalf("the locked book = %+v", b)
-	}
-	do("@matomezu/base:book-unlock", `{}`, &engine.On{Book: "b9"})
-	if b := hub.Book("b9"); b == nil || !strings.Contains(string(b.Body), `"title":"ドキュメント 2"`) {
-		t.Fatalf("the book after unlocking = %+v", b)
+	if hub.acts != acts+1 {
+		t.Fatalf("acts after choosing the language = %d; want %d", hub.acts, acts+1)
 	}
 }
 
-// 読めないブックの名前が、システムフォルダの名前と同じでも、読めない物のフォルダへ移り、書いたあとの確かめは、system-folder-add と同じく数えない
-// （行っても何も変わらない system-folder-add を、書くたびに行わない）
-func TestTheCheckAfterWritesSkipsUnreadableBooks(t *testing.T) {
+// 読めないブックの名前が、システムフォルダの名前と同じでも、読めない物のフォルダへ移り、番号は付かない（読めない物のフォルダの中は名前が重なってよい）
+func TestAnUnreadableBookWithTheSystemFolderTitleMovesWithoutANumber(t *testing.T) {
 	store := libraryStore(t, false)
 	folders, err := store.Folders()
 	if err != nil {
@@ -228,13 +195,10 @@ func TestTheCheckAfterWritesSkipsUnreadableBooks(t *testing.T) {
 	if !moved || len(documentsOf(t, hub)) != 1 {
 		t.Fatalf("the unreadable book is in the unreadable folder %v, the documents %v", moved, documentsOf(t, hub))
 	}
-	for i := range 2 {
-		acts := hub.acts
-		if out, err := hub.Perform(performOne("@matomezu/base:book-update", json.RawMessage(`{"title":"x`+strconv.Itoa(i)+`"}`), &engine.On{Book: "b1"})); err != nil || !out.OK {
-			t.Fatalf("book-update = %+v, %v", out, err)
-		}
-		if hub.acts != acts+1 {
-			t.Fatalf("acts after a write = %d; want %d", hub.acts, acts+1)
-		}
+	hub.mu.Lock()
+	body := string(hub.folders["bx"].body)
+	hub.mu.Unlock()
+	if !strings.Contains(body, `"title":"Documents"`) {
+		t.Fatalf("the unreadable book = %s", body)
 	}
 }

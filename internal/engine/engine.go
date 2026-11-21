@@ -200,9 +200,7 @@ type Engine struct {
 	roles       func() string
 	aiRecords   func(string, string, string, string) string
 	once        func() string
-	catalogActs func() string
 	sysFolders  func() string
-	sysInPlace  func(string, string, string) bool
 	settle      func(string, string, string, string) string
 	movedIfOff  func(string, string, string, string, string) string
 	settleFail  func(string) string
@@ -334,14 +332,8 @@ func New() (*Engine, error) {
 	if err := vm.ExportTo(vm.Get("matomezuRunOnceActions"), &e.once); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuRunOnceActions: %w", err)
 	}
-	if err := vm.ExportTo(vm.Get("matomezuCatalogActions"), &e.catalogActs); err != nil {
-		return nil, fmt.Errorf("engine.js has no matomezuCatalogActions: %w", err)
-	}
 	if err := vm.ExportTo(vm.Get("matomezuSystemFolderTitles"), &e.sysFolders); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuSystemFolderTitles: %w", err)
-	}
-	if err := vm.ExportTo(vm.Get("matomezuSystemFoldersInPlace"), &e.sysInPlace); err != nil {
-		return nil, fmt.Errorf("engine.js has no matomezuSystemFoldersInPlace: %w", err)
 	}
 	if err := vm.ExportTo(vm.Get("matomezuSettleLibrary"), &e.settle); err != nil {
 		return nil, fmt.Errorf("engine.js has no matomezuSettleLibrary: %w", err)
@@ -873,19 +865,6 @@ func (e *Engine) RunOnceActions() (ids []string, err error) {
 	return ids, err
 }
 
-// CatalogActions は、機能台帳に合わせてデータを足すアクション（runAndKeepsWithCatalog。常駐が、起動したとき・機能台帳が変わったとき・データを書いたあとに行う）の id の並び
-func (e *Engine) CatalogActions() (ids []string, err error) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("engine: %v", r)
-		}
-	}()
-	err = json.Unmarshal([]byte(e.catalogActs()), &ids)
-	return ids, err
-}
-
 // SystemFolderTitles は、今の機能台帳のシステムフォルダの定義の id → AI に見せる名前（英語）
 func (e *Engine) SystemFolderTitles() (titles map[string]string, err error) {
 	e.mu.Lock()
@@ -897,31 +876,6 @@ func (e *Engine) SystemFolderTitles() (titles map[string]string, err error) {
 	}()
 	err = json.Unmarshal([]byte(e.sysFolders()), &titles)
 	return titles, err
-}
-
-// SystemFoldersInPlace は、書庫のシステムフォルダが今の機能台帳に合っているか: 定義の在る印のシステムフォルダがゴミ箱の外に揃い、書庫ホームの直下のシステムフォルダの名前
-// （利用者の設定 settings の言語で引く）が、そこのほかの物と当たっていない。folders は書庫ホーム・ゴミ箱・フォルダの行の全部と、書庫ホームの直下のブック・バインダの行、
-// pages は書庫ホームの直下のページの行（id → 行）。データには手を付けない
-func (e *Engine) SystemFoldersInPlace(folders []json.RawMessage, pages map[string]json.RawMessage, settings json.RawMessage) (ok bool, err error) {
-	b, err := json.Marshal(folders)
-	if err != nil {
-		return false, err
-	}
-	p, err := json.Marshal(pages)
-	if err != nil {
-		return false, err
-	}
-	if len(settings) == 0 {
-		settings = json.RawMessage("{}")
-	}
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("engine: %v", r)
-		}
-	}()
-	return e.sysInPlace(string(b), string(p), string(settings)), nil
 }
 
 // Moved は、読めない物のフォルダへ移した物 1 つ（id と、理由の warning の番号と、無いタイプ。タイプは W027 のときだけ）
@@ -937,19 +891,27 @@ type Numbered struct {
 	Title string `json:"title"`
 }
 
-// Settled は、書庫を整えた結果: 書く行の変わり（Pages・Folders）と、移した物・戻した物の id・名前に番号を付けた物と、
-// そのあとの warning W032 の 1 行（読めない物が無ければ空）。Broken なら、読めない物のフォルダの行が形に合わず、何も書かない
+// Added は、書庫を整えて足したシステムフォルダ 1 つ: 行の id と印（定義の id）
+type Added struct {
+	ID           string `json:"id"`
+	SystemFolder string `json:"systemFolder"`
+}
+
+// Settled は、書庫を整えた結果: 書く行の変わり（Pages・Folders）と、移した物・戻した物の id・足したシステムフォルダ・名前に番号を付けた物と、
+// そのあとの warning W032 の 1 行（読めない物が無ければ空）。Broken なら、読めない物のフォルダの行が形に合わないか、足すシステムフォルダの id が振れず、何も書かない
 type Settled struct {
 	Broken   bool        `json:"broken,omitempty"`
 	Pages    []RowChange `json:"pages,omitempty"`
 	Folders  []RowChange `json:"folders,omitempty"`
 	Moved    []Moved     `json:"moved,omitempty"`
 	Returned []string    `json:"returned,omitempty"`
+	Added    []Added     `json:"added,omitempty"`
 	Numbered []Numbered  `json:"numbered,omitempty"`
 	Warning  string      `json:"warning,omitempty"`
 }
 
-// SettleLibrary は、置き場所の行の全部（pages・folders）で、書庫を今の機能台帳に合わせて整える行の変わり: 読めない物を読めない物のフォルダへ移し、読めるようになった物を在った所へ戻す
+// SettleLibrary は、置き場所の行の全部（pages・folders）で、書庫を今の機能台帳に合わせて整える行の変わり: 読めない物を読めない物のフォルダへ移し、読めるようになった物を在った所へ戻し、
+// 足りないシステムフォルダを足して、名前の重なりに番号を付ける
 // （名前は利用者の設定 settings の言語で比べる。移した時刻は now。core/unreadable.ts の settleLibrary）
 func (e *Engine) SettleLibrary(pages, folders []json.RawMessage, settings json.RawMessage, now string) (out Settled, err error) {
 	p, err := json.Marshal(append([]json.RawMessage{}, pages...))
