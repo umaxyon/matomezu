@@ -54,3 +54,7 @@ main 以外の平行作業の worktree では、Orca のワークスペースの
 
 - 作業を受けたときと終えたとき（main に取り込まれ、手すきになったとき）に書き換える
 - 書き換えは Orca の CLI（環境変数 `ORCA_CLI_COMMAND` のコマンド）で `worktree set --worktree active --display-name "<表示名>" --json`
+
+## 平行作業の worktree の起動し直し
+
+平行作業の worktree のセッションが手すきになり、その取り込みを済ませたら、main のセッション（main_manager）は聞かずに `bun scripts/restart-subs.ts` でそのセッションを起動し直す。
