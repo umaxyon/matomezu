@@ -1,4 +1,4 @@
-// スライドのブック（@matomezu/slide-book）: ページの slide に置いたアイテム（文字枠・自由な線・直線・楕円）を、書いた位置と大きさ・角度で重ねの順に描く。紙の外にはみ出た部分は切る
+// スライドのページ（@matomezu/slide-book）: ページの slide に置いたアイテム（文字枠・自由な線・直線・楕円）を、書いた位置と大きさ・角度で重ねの順に描く。紙の外にはみ出た部分は切る
 import { SLIDE, testBinder, testBook, testPage, withSlide } from "../test/lineup"
 import { BOOK_SCREEN_URL, expect, type Page, test } from "./fixtures"
 import { aiPerform } from "./helpers/ai"
@@ -82,7 +82,7 @@ const SLIDE_BOOK = testBook("b1", "スライド", [
 
 test.use({ books: [SLIDE_BOOK] })
 
-test("スライドのアイテムは書いた位置に描かれ、紙の外にはみ出た部分は切れる", async ({ page }) => {
+test("描画シェイプは書いた位置に描かれ、紙の外にはみ出た部分は切れる", async ({ page }) => {
   await page.goto(BOOK_SCREEN_URL)
   const items = page.locator("[data-item]")
   await expect(items).toHaveCount(6)
@@ -541,7 +541,7 @@ test.describe("スライドの操作", () => {
 test.describe("スライドの印刷", () => {
   test.use({ books: [SLIDE_BOOK] })
 
-  test("印刷プレビューに、スライドのアイテムが載った紙 1 枚が出る", async ({ page }) => {
+  test("印刷プレビューに、描画シェイプが載った紙 1 枚が出る", async ({ page }) => {
     await page.goto(BOOK_SCREEN_URL)
     await (await fromMenu(page, "印刷プレビュー")).click()
     await expect(page.locator("[data-print-preview]")).toBeVisible()

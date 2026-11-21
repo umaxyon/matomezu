@@ -1,4 +1,4 @@
-// スライドのブックの見た目: スライドのビュー（プレゼンテーション slide）
+// スライドのページの見た目: スライドのビュー（プレゼンテーション slide）
 import { definePluginUi } from "../../../plugin-api/ui"
 import { SLIDE_BOOK_PLUGIN } from "."
 import { SLIDE_BOOK_ENTRY_ICON } from "./entry-icon"

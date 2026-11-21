@@ -7,7 +7,7 @@
 import type { CommandContext } from "../../../plugin-api"
 import { hasOpenedPage, refusalMessage } from "../../base"
 import { ENTRY_ADD, ENTRY_REMOVE, ENTRY_UPDATE, FOLDER_CLOSE, FOLDER_SORT } from "./actions"
-import { DIR_KEYS_SCOPE, ENTRY_SETTINGS_DIALOG } from "./dir"
+import { DIR_KEY_SCOPE, ENTRY_SETTINGS_DIALOG } from "./dir"
 import { type AddAt, addAfter, addInto, afterRemove, entryOf, type Order, parentOf, rowFrom, selectedIn } from "./edit"
 import { dirRootOf, type Kind } from "./entry"
 import { kit } from "./kit"
@@ -283,7 +283,7 @@ export const DIR_KEYS = [
     key: "ArrowUp",
     command: ENTRY_SELECT_MOVE.id,
     args: { to: "up" },
-    scope: DIR_KEYS_SCOPE,
+    scope: DIR_KEY_SCOPE.id,
   }),
   kit.defineKey({
     id: "entry-select-down",
@@ -291,18 +291,23 @@ export const DIR_KEYS = [
     key: "ArrowDown",
     command: ENTRY_SELECT_MOVE.id,
     args: { to: "down" },
-    scope: DIR_KEYS_SCOPE,
+    scope: DIR_KEY_SCOPE.id,
   }),
-  kit.defineKey({ id: "entry-close-or-parent-left", key: "ArrowLeft", command: ENTRY_LEFT.id, scope: DIR_KEYS_SCOPE }),
-  kit.defineKey({ id: "folder-open-right", key: "ArrowRight", command: FOLDER_OPEN.id, scope: DIR_KEYS_SCOPE }),
-  kit.defineKey({ id: "entry-select-root-home", key: "Home", command: ENTRY_SELECT_ROOT.id, scope: DIR_KEYS_SCOPE }),
-  kit.defineKey({ id: "entry-rename-enter", key: "Enter", command: ENTRY_RENAME.id, scope: DIR_KEYS_SCOPE }),
-  kit.defineKey({ id: "entry-rename-f2", key: "F2", command: ENTRY_RENAME.id, scope: DIR_KEYS_SCOPE }),
-  kit.defineKey({ id: "folder-add-below-d", key: "D", command: FOLDER_ADD_BELOW.id, scope: DIR_KEYS_SCOPE }),
-  kit.defineKey({ id: "file-add-below-f", key: "F", command: FILE_ADD_BELOW.id, scope: DIR_KEYS_SCOPE }),
-  kit.defineKey({ id: "folder-add-shift-d", key: "Shift+D", command: FOLDER_ADD.id, scope: DIR_KEYS_SCOPE }),
-  kit.defineKey({ id: "file-add-shift-f", key: "Shift+F", command: FILE_ADD.id, scope: DIR_KEYS_SCOPE }),
-  kit.defineKey({ id: "entry-kind-pick-tab", key: "Tab", command: ENTRY_KIND_PICK.id, scope: DIR_KEYS_SCOPE }),
-  kit.defineKey({ id: "entry-delete-delete", key: "Delete", command: ENTRY_DELETE.id, scope: DIR_KEYS_SCOPE }),
-  kit.defineKey({ id: "entry-delete-backspace", key: "Backspace", command: ENTRY_DELETE.id, scope: DIR_KEYS_SCOPE }),
+  kit.defineKey({
+    id: "entry-close-or-parent-left",
+    key: "ArrowLeft",
+    command: ENTRY_LEFT.id,
+    scope: DIR_KEY_SCOPE.id,
+  }),
+  kit.defineKey({ id: "folder-open-right", key: "ArrowRight", command: FOLDER_OPEN.id, scope: DIR_KEY_SCOPE.id }),
+  kit.defineKey({ id: "entry-select-root-home", key: "Home", command: ENTRY_SELECT_ROOT.id, scope: DIR_KEY_SCOPE.id }),
+  kit.defineKey({ id: "entry-rename-enter", key: "Enter", command: ENTRY_RENAME.id, scope: DIR_KEY_SCOPE.id }),
+  kit.defineKey({ id: "entry-rename-f2", key: "F2", command: ENTRY_RENAME.id, scope: DIR_KEY_SCOPE.id }),
+  kit.defineKey({ id: "folder-add-below-d", key: "D", command: FOLDER_ADD_BELOW.id, scope: DIR_KEY_SCOPE.id }),
+  kit.defineKey({ id: "file-add-below-f", key: "F", command: FILE_ADD_BELOW.id, scope: DIR_KEY_SCOPE.id }),
+  kit.defineKey({ id: "folder-add-shift-d", key: "Shift+D", command: FOLDER_ADD.id, scope: DIR_KEY_SCOPE.id }),
+  kit.defineKey({ id: "file-add-shift-f", key: "Shift+F", command: FILE_ADD.id, scope: DIR_KEY_SCOPE.id }),
+  kit.defineKey({ id: "entry-kind-pick-tab", key: "Tab", command: ENTRY_KIND_PICK.id, scope: DIR_KEY_SCOPE.id }),
+  kit.defineKey({ id: "entry-delete-delete", key: "Delete", command: ENTRY_DELETE.id, scope: DIR_KEY_SCOPE.id }),
+  kit.defineKey({ id: "entry-delete-backspace", key: "Backspace", command: ENTRY_DELETE.id, scope: DIR_KEY_SCOPE.id }),
 ]

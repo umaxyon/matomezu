@@ -2,8 +2,9 @@
 // 本文は本文の列の幅で折り返し、高さに収まらない分は最後に出す行の終わりに … を付けて切る。本文が 1 行も出ない高さなら、区切り線も出さない。
 // 本文の列は、本文の幅（bodyWidth）を書いていればその幅（キャプションの幅と、一番狭い列の幅より狭くはしない。中の幅より広ければ中いっぱい）で、
 // 置き場所はキャプションの寄せに倣う。寸法は形の中の幅（枠と左右の余白の内側）で受け取る。画面（TextBlockView）はこの値のとおりに描く
-import { type Align, captionTextWidth, TEXT_LOOK } from "./fields"
+
 import { clampRich, type RichLine, wrapRich } from "./rich"
+import { type Align, captionTextWidth, TEXT_LOOK } from "./text-fields"
 
 const L = TEXT_LOOK
 // キャプション 1 行の高さと、区切り線とその上下の間の高さ

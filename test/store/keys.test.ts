@@ -213,7 +213,7 @@ test("追加プラグインの既定のキーバインドがビルトインの�
   ])
 })
 
-test("既定の割り当ては id で機能台帳に並び、同じ id は error。頭が自分のプラグインの id でない id も error", () => {
+test("既定のキーバインドは id で機能台帳に並び、同じ id は error。頭が自分のプラグインの id でない id も error", () => {
   const own = defineCommand({ id: "k:own", title: "@matomezu/drawing:Drawing", run: () => {}, when: () => true })
   const plugin = (keys: unknown) => definePlugin({ id: "k", commands: [own], keys: keys as never })
   const make = (keys: unknown) => () => createMatomezu({ plugins: [...BUILTIN, plugin(keys)], partial: true })

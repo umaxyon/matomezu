@@ -10,7 +10,7 @@ import { storedBook, storedBooks, storedPageVersion } from "../helpers/stored"
 // 常駐を空にして始め、テストごとに使うブックを置く
 test.use({ books: [] })
 
-// 図面のブック（A4 横のページ p1 が 1 つ）
+// 図面のページ（A4 横のページ p1 が 1 つ）
 const E2E_1 = { ...SAMPLE_BOOKS[0]!, id: "e2e-1" }
 
 // 常駐に置いてあるもの

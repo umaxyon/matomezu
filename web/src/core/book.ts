@@ -494,7 +494,7 @@ export function addBinder<B extends Book>(
   return { book: { ...book, lineup: insertAt<LineupEntry>(book.lineup, made, index) }, binder: made.id }
 }
 
-// ブックの骨組み: ブックとバインダのフィールドはそのままで、ページを id だけにした値（ブックそのものとバインダだけを、中のページの中身と分けて比べるのに使う）
+// ページを id だけにしたブック: ブックとバインダのフィールドはそのままで、ページを id だけにした値（ブックそのものとバインダだけを、中のページの中身と分けて比べるのに使う）
 export function frameOf(book: Book): unknown {
   const stub = ({ id }: { id: string }) => ({ id })
   return {

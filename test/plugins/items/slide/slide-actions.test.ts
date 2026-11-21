@@ -1,4 +1,4 @@
-// スライドのブック: ページの slide にアイテムを置く・動かす・大きさを変える・項目を変える・重ねを変える・消す（plugins/items/slide）
+// スライドのページ: ページの slide にアイテムを置く・動かす・大きさを変える・項目を変える・重ねを変える・消す（plugins/items/slide）
 
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../../../web/src/core/book"
@@ -178,7 +178,7 @@ test("続けている画面の履歴の段には、コマンド（slide-set）�
   expect(slide()[0]?.props.width).toBeUndefined()
 })
 
-test("ロック中のページでは、スライドのアイテムを動かせず消せない（土台が slide のアイテムの id を変化に入れる）", () => {
+test("ロック中のページでは、描画シェイプを動かせず消せない（土台が slide のアイテムの id を変化に入れる）", () => {
   const s = setup()
   s.perform(SLIDE_PLACE.id, { item: TEXT, at: { x: 10, y: 20 }, props: { text: "a" } }, { page: s.page })
   const item = s.slide()[0]?.id as string

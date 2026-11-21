@@ -1,4 +1,4 @@
-// ディレクトリ構成図のブック: ページごとに紙を置き、ページのフィールド root（根のフォルダ）から下の中身を、自分のプレゼンテーション（dir）で上から下へ並べて描く。紙に置けるアイテムは無い。
+// ディレクトリ構成図のページのタイプ: ページごとに紙を置き、ページのフィールド root（根のフォルダ）から下の中身を、自分のプレゼンテーション（dir）で上から下へ並べて描く。紙に置けるアイテムは無い。
 // 新しいページを作るダイアログは自分の物（根のフォルダの名前を聞く）、ページの設定のダイアログは base の物（ページ名・削除と、説明の見せ方の設定の項目）。道具は自分の組（tools.ts。鉛筆とハンド）。
 // 見た目（テーマと紙の色）と文字の色は base の設定の項目で変えられる。名前は太字と文字の色で装飾できる
 import {
@@ -19,7 +19,7 @@ import { dirPrintSheets } from "./print"
 import { DIR_TOOLS } from "./tools"
 
 // ディレクトリ構成図のキーの範囲（このプレゼンテーションで描いている間に探す）
-// 背景に置く形（ページの slide。背景編集モードで置く。スライドのアイテム）
+// 背景に置く形（ページの slide。背景編集モードで置く。描画シェイプ）
 const BACKGROUND_ITEMS = [
   "@matomezu/slide:slide-text",
   "@matomezu/slide:slide-free-line",
@@ -29,12 +29,11 @@ const BACKGROUND_ITEMS = [
 ] as const
 
 export const DIR_KEY_SCOPE = kit.defineKeyScope({ id: "dir", title: "Directory", commandsFrom: "stage" })
-export const DIR_KEYS_SCOPE = DIR_KEY_SCOPE.id
 
 // ディレクトリ構成図のプレゼンテーション: 紙の上に、根のフォルダから下の中身を並べて描く。カレントのステージがこれで描いている間は、自分のキーの範囲を探す
 export const DIR_PRESENTATION = kit.definePresentation({
   id: "dir",
-  keyScope: DIR_KEYS_SCOPE,
+  keyScope: DIR_KEY_SCOPE.id,
   minimap: dirMinimap, // ミニマップには、行を四角で、罫線を線で描く
   printSheets: dirPrintSheets, // 印刷区画は、行と説明が入るだけ
 })

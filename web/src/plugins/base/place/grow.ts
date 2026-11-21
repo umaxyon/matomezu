@@ -56,7 +56,7 @@ declare module "../../../core/catalog" {
 }
 
 // 紙の大きさ paper で区切った印刷区画を、中身の外枠 extent（紙の座標。無ければ中身が無い）が入るだけ、増やす向き sides に並べた数と、その広さ。
-// 増やさない向きは 1 つ。spare なら、右・下へ増やす向きに空きの印刷区画を 1 つずつ足す（書く画面で、そこへ置けば増える）
+// 増やさない向きは 1 つ。spare なら、右・下へ増やす向きに空きの印刷区画を 1 つずつ足す（編集の見え方で、そこへ置けば増える）
 export function grownArea(
   paper: Size,
   sides: GrowSides,

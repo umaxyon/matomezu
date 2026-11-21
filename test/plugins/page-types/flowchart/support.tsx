@@ -1,4 +1,4 @@
-// フローチャートのブックの画面のテストの手伝い
+// フローチャートのページの画面のテストの手伝い
 import { expect } from "bun:test"
 import { act } from "@testing-library/react"
 import { pagesOf } from "../../../../web/src/core/book"
@@ -7,7 +7,7 @@ import { screenOf } from "../../../../web/src/core/window"
 import { addPageIn, createBookIn } from "../../../../web/src/plugins/base"
 import { renderScreen } from "../../../ui/support"
 
-// フローチャートのブックを作り、ページを 1 つ足して開く
+// フローチャートのページを作り、ページを 1 つ足して開く
 export function flowchart() {
   const store = renderScreen()
   act(() => {

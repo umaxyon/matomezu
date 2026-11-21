@@ -1,4 +1,4 @@
-// フローチャートのブック: ページごとに紙を置き、紙の上に形（@matomezu/shape）・箱・線を置く。
+// フローチャートのページのタイプ: ページごとに紙を置き、紙の上に形（@matomezu/shape）・箱・線を置く。
 // 流れの向き（下へ・右へ）はページの設定の項目で持つ。分岐（ひし形）から出る線には、キャプションの候補 Yes / No を線に渡す。見た目（テーマと紙の色）・文字の色と線の既定の通り方も設定の項目で変えられる
 import { z } from "zod"
 import {
@@ -65,7 +65,7 @@ export const isBranch = (item: string): boolean => (BRANCH_ITEMS as readonly str
 // 流れが右へか（setting はそのページで効いている設定の値）
 const turnedRight = (setting: SettingReader): boolean => setting(FLOW_DIRECTION) === "right"
 
-// 背景に置く形（ページの slide。背景編集モードで置く。スライドのアイテム）
+// 背景に置く形（ページの slide。背景編集モードで置く。描画シェイプ）
 const BACKGROUND_ITEMS = [
   "@matomezu/slide:slide-text",
   "@matomezu/slide:slide-free-line",

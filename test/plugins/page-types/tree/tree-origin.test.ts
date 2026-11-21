@@ -1,4 +1,4 @@
-// ツリーが中身を右・下へずらした印刷区画の数: 書く画面がステージに知らせる量（print.ts の laidOrigin）と、ブックタイプの contentOrigin が返す量（ページの slide の形をずらす）は同じ
+// ツリーが中身を右・下へずらした印刷区画の数: ビューがステージに知らせる量（print.ts の laidOrigin）と、ブックタイプの contentOrigin が返す量（ページの slide の形をずらす）は同じ
 import { expect, test } from "bun:test"
 import { GROW } from "../../../../web/src/plugins/page-types/tree/grow"
 import { laidOrigin, laidPage } from "../../../../web/src/plugins/page-types/tree/print"
@@ -22,7 +22,7 @@ for (const [name, grow] of [
   ["右と下へ増やす", RIGHT_DOWN],
   ["可変ページでない", undefined],
 ] as const) {
-  test(`${name}: 書く画面が知らせる量と contentOrigin が一致する`, () => {
+  test(`${name}: ビューが知らせる量と contentOrigin が一致する`, () => {
     const setting = ((def: { id: string; fallback?: unknown }) => (def.id === GROW.id ? "center" : undefined)) as never
     const shown = laidOrigin(laidPage(CORE_CATALOG, page, { setting, grow }))
     expect(TREE.contentOrigin?.(CORE_CATALOG, page, setting, grow)).toEqual(shown)

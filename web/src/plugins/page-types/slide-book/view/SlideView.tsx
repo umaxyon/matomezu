@@ -1,4 +1,4 @@
-// スライドのビュー（プレゼンテーション slide）: 紙の枠だけを出す（押しは受けない。下のレイヤーが受ける）。スライドのアイテムを描いて操作を受けるのは、slide プラグインのレイヤー（book-layers。ブックの中身の下）
+// スライドのビュー（プレゼンテーション slide）: 紙の枠だけを出す（押しは受けない。下のレイヤーが受ける）。描画シェイプを描いて操作を受けるのは、slide プラグインのレイヤー（book-layers。ブックの中身の下）
 import { useMessages, useStage } from "../../../../plugin-api/ui"
 import { PaperFrame } from "../../../base/ui"
 import { kit } from "../kit"

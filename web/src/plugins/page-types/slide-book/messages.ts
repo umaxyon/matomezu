@@ -1,4 +1,4 @@
-// スライドのブックの文言
+// スライドのページの文言
 import { defineMessages } from "../../../plugin-api"
 
 export const SLIDE_BOOK_MESSAGES = defineMessages({
