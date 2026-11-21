@@ -6,11 +6,15 @@ import { NO_OUTERMOST } from "../../web/src/core/folders-tree"
 import { askedOutermostOf, shownPageId } from "../../web/src/core/stage"
 import { toolUsable } from "../../web/src/core/tools"
 import { stageIn } from "../../web/src/core/window"
+import { createBookIn } from "../../web/src/plugins/base/book-new/create-book"
+import { addPageIn } from "../../web/src/plugins/base/pages/add-page"
+import { SEARCH_STATE } from "../../web/src/plugins/base/search/state"
 import { isEnabled, isShown } from "../../web/src/store/commands"
 import { NO_STAGE } from "../../web/src/store/dialogs"
+import { pluginValueOf } from "../../web/src/store/plugin-state"
 import type { AIEditTicketOutcome } from "../../web/src/store/state"
 import { openedIn } from "../../web/src/store/store"
-import { drawingPage } from "../lineup"
+import { drawingPage, MARKDOWN, testPage } from "../lineup"
 import { newStore, sequence, worldRows } from "../support"
 
 type Store = ReturnType<typeof newStore>
@@ -186,4 +190,39 @@ test("ロックしたブックの外のページでは、行うアクション�
   store.actions.perform("@matomezu/base:page-lock", {}, { page: "o1" })
   await Promise.resolve()
   expect(usable()).toBe(false)
+})
+
+test("ブックを開いているステージに、ブックの外のページを開ける。開けるブックの外のページでない・窓に無いステージなら何もしない", () => {
+  const store = withOutside()
+  const stage = "s1"
+  const before = store.state.getState().window
+  const inBook = Object.values(store.state.getState().books)[0]!.lineup[0]!.id
+  expect(store.actions.openOutsidePage(stage, inBook)).toBe(NO_STAGE)
+  expect(store.actions.openOutsidePage("nothing", "o1")).toBe(NO_STAGE)
+  expect(store.state.getState().window).toBe(before)
+  expect(store.actions.openOutsidePage(stage, "o1")).toBe(stage)
+  expect(openedIn(store, stage)).toEqual({ book: "o1", page: "o1" })
+})
+
+test("ブックの全部を探していたステージにブックの外のページを開くと、検索の範囲は「このページ」として働く", () => {
+  const store = newStore({ newId: sequence() })
+  createBookIn(store, "s1", { title: "メモ" })
+  addPageIn(store, "s1", { type: MARKDOWN, title: "p1", fields: { text: "猫" } })
+  const books = Object.values(store.state.getState().books)
+  store.receive({ ...worldRows(books, [testPage(MARKDOWN, "m1", { title: "外", text: "猫と猫" })]), settings: {} }, [])
+  const search = () => pluginValueOf(store.state.getState().pluginValues, "s1", SEARCH_STATE)!
+  store.actions.command("s1", "@matomezu/base:search-open-book")
+  store.setPluginState("@matomezu/base:search", "s1", {
+    ...search(),
+    query: { ...search().query, text: "猫" },
+    replacement: "犬",
+  })
+  expect(store.actions.openOutsidePage("s1", "m1")).toBe("s1")
+  expect(search().scope).toBe("book")
+  expect(isEnabled(store, store.state.getState(), "s1", "@matomezu/base:search-replace-all")).toBe(true)
+  expect(store.actions.command("s1", "@matomezu/base:search-replace-all")).toBe(true)
+  expect(store.state.getState().pages.m1).toMatchObject({ text: "犬と犬" })
+  // 置き換えの入力Formを出す（範囲はそのまま）と、覚える範囲もこのページになる
+  store.actions.command("s1", "@matomezu/base:search-open-replace")
+  expect(search().scope).toBe("page")
 })

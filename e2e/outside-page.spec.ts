@@ -1,5 +1,6 @@
 // ブックの外のページ（書庫ホームに直に置いたページ）を、ステージで開く
-import { expect, stagesUrl, test } from "./fixtures"
+import { BOOK_SCREEN_DEF, BOOK_SCREEN_URL, expect, stagesUrl, test, urlCurrentScreen, urlStages } from "./fixtures"
+import { fromMenu } from "./helpers/stage-menu"
 
 const OUTSIDE = {
   kind: "page",
@@ -19,6 +20,30 @@ test("ブックを名指さずページを名指す場所の URL は、ブック
   const name = page.getByRole("button", { name: "ブックの外のページ" })
   await expect(name).toBeVisible()
   await expect(page.getByRole("tab")).toHaveCount(0)
+})
+
+test("書庫の画面でブックの外のページを 2 回押すと、新しいブックスクリーンで開く", async ({ page }) => {
+  await page.goto("/")
+  await page.bringToFront()
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  await page.getByRole("list", { name: "書庫 の中身" }).getByRole("button", { name: "ブックの外のページ" }).dblclick()
+  await expect.poll(() => urlCurrentScreen(page)).toBe(BOOK_SCREEN_DEF)
+  await expect.poll(() => urlStages(page).map(s => [s.b, s.p])).toEqual([[null, "o1"]])
+  await expect(page.getByRole("img", { name: "紙" })).toHaveCount(1)
+})
+
+test("「画面を分割」で下に出た書庫のスクリーンでブックの外のページを 2 回押すと、右の空のステージに開き、書庫のスクリーンは引っ込む", async ({
+  page,
+}) => {
+  await page.goto(BOOK_SCREEN_URL)
+  await page.bringToFront()
+  await (await fromMenu(page, "画面を分割")).click()
+  const library = page.getByRole("list", { name: "書庫 の中身" })
+  await library.getByRole("button", { name: "ブックの外のページ" }).dblclick()
+  await expect(library).toHaveCount(0)
+  await expect.poll(() => urlStages(page).map(s => s.p)).toHaveLength(2)
+  expect(urlStages(page)[1]).toMatchObject({ b: null, p: "o1" })
+  await expect(page.getByRole("button", { name: "ブックの外のページ" })).toBeVisible()
 })
 
 test.describe("マークダウンのブックの外のページ", () => {

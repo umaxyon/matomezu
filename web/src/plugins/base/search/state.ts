@@ -21,6 +21,11 @@ export interface SearchOpen {
   opened: number // 開くたびに進める番号（開き直したら焦点を当て直す）
 }
 
+// ステージに覚えた検索 search を、今開いている物で読んだ値: ブックを開いていなければ（inBook が false。ブックの外のページ）、範囲はいつも page。
+// ブックの全部を探していたステージにブックの外のページを開くと、覚えた範囲は book のまま残る。SEARCH_STATE を読む所は、これを通す
+export const searchHere = <S extends SearchOpen | undefined>(search: S, inBook: boolean): S =>
+  search && !inBook && search.scope === "book" ? { ...search, scope: "page" } : search
+
 export interface SearchPick extends SearchSpot {
   n: number // 閉じるたびに進める番号（ビューが前に選んだ物と見分ける）
 }

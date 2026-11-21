@@ -271,9 +271,16 @@ export function outermostOf({ pages, folders }: Library, id: string): Outermost 
   return near.folderRole === "binder" ? { kind: "binder", id: near.id } : { kind: "page", id }
 }
 
+// ページ page が、ステージで開けるブックの外のページの置き場所に在るか: ブックにもバインダにも入っておらず、フォルダ（か書庫ホーム）に入っていて、ゴミ箱の中でない。
+// フォルダの表だけで決める（page がページの行を持つかは見ない。持つかも確かめるのは outsidePageIn）
+export function atOutsidePagePlace(folders: Folders, page: string): boolean {
+  const over = foldersOver(folders, page)
+  const [near] = over
+  if (!near || near.folderRole === "binder" || folders[page] !== undefined) return false
+  return !over.some(f => f.folderRole === "book" || f.folderRole === "trash")
+}
+
 // ステージで開ける、ブックの外のページ: id がページで、そのステージエントリがそのページ自身（ブックにもバインダにも入っていない）で、ゴミ箱の中でない。当たらなければ undefined
 export function outsidePageIn(library: Library, id: string): ItemPage | undefined {
-  const o = outermostOf(library, id)
-  if (o === NO_OUTERMOST || o.kind !== "page" || inTrash(library.folders, id)) return undefined
-  return pageIn(library.pages, id)
+  return atOutsidePagePlace(library.folders, id) ? pageIn(library.pages, id) : undefined
 }

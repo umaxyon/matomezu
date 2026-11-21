@@ -596,6 +596,7 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
   expect(names(given)).toEqual(names(got).filter(n => n !== "updatePluginState"))
   expect(names(store.actions).filter(n => !names(given).includes(n))).toEqual([
     "makeScreenCurrent",
+    "openOutsidePage",
     "openScreenId",
     "showBookStage",
     "showOutsidePageStage",

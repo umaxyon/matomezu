@@ -28,7 +28,7 @@ import {
 } from "./index"
 import styles from "./SearchDialog.module.css"
 import { changedSearch, searchableOf, searchCount } from "./search"
-import { SEARCH_AT_STATE, SEARCH_STATE, type SearchOpen } from "./state"
+import { SEARCH_AT_STATE, SEARCH_STATE, type SearchOpen, searchHere } from "./state"
 
 // 開いたことの無いときの、窓の右上からの位置
 const FIRST_AT = { right: 24, top: 64 }
@@ -55,7 +55,7 @@ function SearchDialog({ stage }: { stage: string }) {
   const book = useBook()
   const page = usePage()
   const opened = shownPageId(useStage()?.opened ?? null)
-  const search = usePluginState(kit, SEARCH_STATE)
+  const search = searchHere(usePluginState(kit, SEARCH_STATE), book !== null)
   const at = usePluginState(kit, SEARCH_AT_STATE)
   const readSearch = useReadPluginState(kit, SEARCH_STATE)
   const setSearch = useSetPluginState(kit, SEARCH_STATE)
@@ -97,7 +97,7 @@ function SearchDialog({ stage }: { stage: string }) {
 
   // 検索を change で変える（探す字か切り替えが変われば、今の当たりを選び直す。search.ts の changedSearch）
   const update = (change: Partial<SearchOpen>) => {
-    const was = readSearch()
+    const was = searchHere(readSearch(), book !== null)
     if (was) setSearch(changedSearch(catalog, within, was, change, opened))
   }
   const query = (change: Partial<SearchOpen["query"]>) => update({ query: { ...search.query, ...change } })

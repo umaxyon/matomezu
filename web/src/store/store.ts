@@ -41,6 +41,7 @@ import {
   openBook,
   openedBook,
   openedPage,
+  openOutsidePage,
   openPicker,
   openPrintPreview,
   panBy,
@@ -717,6 +718,18 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (!page) return NO_STAGE
       const { win, stage } = shownOutsidePage(window, catalog, page)
       if (win !== window) commit({ window: win })
+      return stage
+    },
+    openOutsidePage: (stage, id) => {
+      const { pages, folders } = getState()
+      const page = outsidePageIn({ pages, folders }, id)
+      if (!page || !inWindow(stage)) return NO_STAGE
+      withWindow(win =>
+        makeCurrent(
+          mapScreenOfStage(win, stage, ws => mapStage(focus(ws, stage), stage, s => openOutsidePage(catalog, s, page))),
+          screenOfStage(win, stage)?.id ?? "",
+        ),
+      )
       return stage
     },
     showBook: (bookId, page) => actions.showBookStage(bookId, page) !== NO_STAGE,
