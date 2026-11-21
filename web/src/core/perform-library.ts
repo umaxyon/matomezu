@@ -122,7 +122,7 @@ export function brokenIn(
   action: ActionDef,
   was: Library,
   now: Library,
-): { permission: string; book?: string } | null {
+): { permission: string; book?: string; page?: string } | null {
   const before = libraryOf(was)
   const after = libraryOf(now)
   const binned = binnedBetween(was, now)
@@ -140,7 +140,8 @@ export function brokenIn(
   }
   for (const page of pageChecksBetween(was, now)) {
     const id = brokenPage(ctx, action, page)
-    if (id) return { permission: id }
+    const held = page.before?.id
+    if (id) return { permission: id, ...(held === undefined ? {} : { page: held }) }
   }
   return null
 }

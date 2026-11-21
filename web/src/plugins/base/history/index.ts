@@ -76,7 +76,7 @@ function pageToOpen(
 }
 
 // 画面の履歴 history（ステージエントリの id か LIBRARY_HISTORY）の戻す・やり直すが断られたら: トーストで知らせ（認可ステップが止めたなら、2 行目にその名前。
-// 止めたブックの名前 book が分かれば添える。土台かアクションが断ったなら、2 行目に clash を出す）、土台かアクションが断った（その間のほかの変更とぶつかった）なら、
+// 止めたブックかブックの外のページの名前 name が分かれば添える。土台かアクションが断ったなら、2 行目に clash を出す）、土台かアクションが断った（その間のほかの変更とぶつかった）なら、
 // その画面の履歴の段を捨てる（次はその前の段を置き直す）。認可ステップが止めた（ロック中など、待てば通る）なら、段は動かさない
 export function notRestored(
   ctx: ScreenCommandContext,
@@ -84,7 +84,7 @@ export function notRestored(
   history: string,
   from: "undo" | "redo",
   refused: { reason: string; permission?: string },
-  { book, clash }: { book?: string; clash?: MessageKey } = {},
+  { name, clash }: { name?: string; clash?: MessageKey } = {},
 ): void {
   const denied =
     refused.reason === "denied" && refused.permission ? ctx.catalog.permissions.get(refused.permission) : undefined
@@ -92,9 +92,9 @@ export function notRestored(
     kind: "warn",
     message: from === "undo" ? kit.message("Could not undo") : kit.message("Could not redo"),
     detail: denied
-      ? book === undefined
+      ? name === undefined
         ? { message: denied.title }
-        : { message: kit.message('{reason}: "{book}"'), params: { book, reason: { message: denied.title } } }
+        : { message: kit.message('{reason}: "{book}"'), params: { book: name, reason: { message: denied.title } } }
       : refused.reason === "refused"
         ? clash && { message: clash }
         : undefined,
@@ -145,9 +145,10 @@ function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"):
       opened.outermost.kind === "book" ? pageToOpen(booksOf(ctx), step, to, opened.outermost.id, args) : undefined
     const result = changes(args) ? a.perform(HISTORY_RESTORE.id, args) : undefined
     if (result && !result.ok && !isRevertUnchanged(result)) {
-      const book = result.reason === "denied" && result.book ? booksOf(ctx)[result.book] : undefined
+      const denied = result.reason === "denied" ? result : undefined
+      const book = denied?.book ? booksOf(ctx)[denied.book]?.title : undefined
       notRestored(ctx, a, opened.outermost.id, from, result, {
-        book: book?.title,
+        name: book ?? (denied?.page ? ctx.pageTitle(denied.page) : undefined),
         clash: kit.message("Clashes with other changes"),
       })
       if (result.reason === "refused")
