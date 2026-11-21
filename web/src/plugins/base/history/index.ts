@@ -127,7 +127,7 @@ function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"):
     folders: patchesToward(step.folders, to),
   })
   const changes = (args: RevertArgs) => Object.keys(args.pages).length + Object.keys(args.folders).length > 0
-  const steps = [...ctx.bookHistory[from]].reverse()
+  const steps = [...ctx.history[from]].reverse()
   for (const [i, step] of steps.entries()) {
     const args = argsOf(step)
     const page = pageToOpen(booksOf(ctx), step, to, opened.outermost.id, args)
@@ -159,7 +159,7 @@ export const UNDO = kit.defineCommand({
   permissionScope: "book",
   run: (ctx, a) => restore(ctx, a, "undo"),
   when: ctx => ctx.book !== NO_BOOK,
-  enabled: ctx => ctx.bookHistory.undo.length > 0,
+  enabled: ctx => ctx.history.undo.length > 0,
 })
 
 export const REDO = kit.defineCommand({
@@ -169,7 +169,7 @@ export const REDO = kit.defineCommand({
   permissionScope: "book",
   run: (ctx, a) => restore(ctx, a, "redo"),
   when: ctx => ctx.book !== NO_BOOK,
-  enabled: ctx => ctx.bookHistory.redo.length > 0,
+  enabled: ctx => ctx.history.redo.length > 0,
 })
 
 export const HISTORY_KEYS = [

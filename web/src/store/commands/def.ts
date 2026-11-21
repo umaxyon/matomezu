@@ -107,7 +107,7 @@ export interface CommandContext extends ScreenCommandContext {
   stage: StageView // 呼ばれた場所のステージ（読むだけ。見た目の useStage と同じ）
   book: Book | typeof NO_BOOK // そのステージで開いているブック（開いている物がブックでなければ NO_BOOK）
   page: ItemPage | typeof NO_PAGE // そのステージで開いているページ（ブックの中でも外でも。ページを開いていなければ NO_PAGE）
-  bookHistory: History // そのステージで開いているブックの、画面の履歴（ブックが無ければ空）
+  history: History // そのステージで開いているステージエントリ（ブックか、ブックの外のページ）の、画面の履歴（何も開いていなければ空）
   annotations: readonly Annotation[] // 開いているページのアノテーション（読むだけ。ページを開いていなければ空）
   toPaper(p: Point): Point | null // 表示領域の中の点（左上から）を、そのステージの今の紙の上の点に直す（紙が無ければ null）
 }
