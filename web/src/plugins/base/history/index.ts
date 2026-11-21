@@ -94,7 +94,7 @@ export function notRestored(
     detail: denied
       ? name === undefined
         ? { message: denied.title }
-        : { message: kit.message('{reason}: "{book}"'), params: { book: name, reason: { message: denied.title } } }
+        : { message: kit.message('{reason}: "{name}"'), params: { name, reason: { message: denied.title } } }
       : refused.reason === "refused"
         ? clash && { message: clash }
         : undefined,

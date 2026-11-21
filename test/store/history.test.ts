@@ -104,8 +104,8 @@ test("ロック中のページを変えた画面の履歴の段は、元に戻�
     kind: "warn",
     message: "@matomezu/base:Could not undo",
     detail: {
-      message: '@matomezu/base:{reason}: "{book}"',
-      params: { book: bookOf(store, "b1").title, reason: { message: "@matomezu/base:Locked" } },
+      message: '@matomezu/base:{reason}: "{name}"',
+      params: { name: bookOf(store, "b1").title, reason: { message: "@matomezu/base:Locked" } },
     },
   })
   expect(historyOf(store)).toMatchObject({ undo: [{}], redo: [] })
@@ -282,8 +282,8 @@ test("いくつものブックを変えた画面の履歴の段は、どれか�
     kind: "warn",
     message: "@matomezu/base:Could not undo",
     detail: {
-      message: '@matomezu/base:{reason}: "{book}"',
-      params: { book: bookOf(store, "b2").title, reason: { message: "@matomezu/base:Locked" } },
+      message: '@matomezu/base:{reason}: "{name}"',
+      params: { name: bookOf(store, "b2").title, reason: { message: "@matomezu/base:Locked" } },
     },
   })
   expect(itemsOf(store)).toHaveLength(1)
