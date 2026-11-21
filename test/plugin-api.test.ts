@@ -59,6 +59,7 @@ test("matomezu が出す名前", () => {
     "addPageIn",
     "adminWorkroom",
     "aiPlacedOf",
+    "aiPlacedOfPage",
     "alignPadding",
     "allRectsOf",
     "allowedItems",

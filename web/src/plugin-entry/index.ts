@@ -61,6 +61,7 @@ export {
   addPageIn,
   adminWorkroom,
   aiPlacedOf,
+  aiPlacedOfPage,
   alignPadding,
   allRectsOf,
   apart,
