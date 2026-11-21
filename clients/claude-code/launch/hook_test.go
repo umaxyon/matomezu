@@ -40,3 +40,10 @@ func TestWoken(t *testing.T) {
 		t.Error("a user's prompt should not be woken")
 	}
 }
+
+// mod の watch が起こすのは Claude Desktop の会話だけ（-p・SDK・ターミナルは起こさない）
+func TestModWakesOnlyDesktop(t *testing.T) {
+	if !ModWakes("claude-desktop") || ModWakes("cli") || ModWakes("sdk-ts") || ModWakes("") {
+		t.Error("only claude-desktop")
+	}
+}

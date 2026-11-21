@@ -2,7 +2,7 @@
 
 import {
   type EntryKind,
-  freeTitleIn,
+  freeTitle,
   isMoveRefusal,
   isWithin,
   type MoveRefusal,
@@ -10,8 +10,10 @@ import {
   placeOf,
   removedEntry,
   restoredEntry,
+  retitled,
   titledIn,
   titleOf,
+  titlesIn,
   trashRefOf,
 } from "../../../core/entries"
 import {
@@ -21,9 +23,22 @@ import {
   HOME_ID,
   type HomeOrFolder,
   type Library,
-  type PageRow,
 } from "../../../core/folders"
 import { foldersOver, inTrash, isKeptSystemFolder } from "../../../core/folders-tree"
+
+// フォルダ into の直下に在る（か、そこへ入れる）エントリ entry（種類 kind）の、そのフォルダのほかの物と重ならない名前（重なっていれば「名前 2」から番号を付ける。重ならなければ今の名前）。
+// 名前を持たない物・フォルダが無いときは undefined
+export function freeTitleIn(
+  library: Library,
+  kind: EntryKind,
+  entry: string,
+  into: string,
+  naming: Naming,
+): string | undefined {
+  const holder = library.folders[into]
+  const title = titleOf(library, kind, entry, naming)
+  return !holder || title === undefined ? undefined : freeTitle(title, titlesIn(library, holder, naming, entry))
+}
 
 // ゴミ箱の外のどこか（書庫ホーム・フォルダ・ブック・バインダ）に入っているエントリ entry の、入れているフォルダと並びのエントリ。
 // ゴミ箱かその中の物、どこにも入っていない物（書庫ホーム・ゴミ箱）は undefined
@@ -74,28 +89,6 @@ export function movesInto(folders: Folders, entry: string, into: string): boolea
 // ゴミ箱とその中なら undefined
 export const holderForNew = (folders: Folders, opened: string): string | undefined =>
   holdsEntries(folders, opened) ? opened : foldersOver(folders, opened).find(f => holdsEntries(folders, f.id))?.id
-
-// エントリ entry（種類 kind）の名前を title にした書庫（名前を持たない物・書庫に無い物は null。同じ名前なら library のまま）
-export function retitled(
-  library: Library,
-  kind: EntryKind,
-  entry: string,
-  title: string,
-  naming: Naming,
-): Library | null {
-  const now = titleOf(library, kind, entry, naming)
-  if (now === undefined) return null
-  if (now === title) return library
-  if (kind === "page")
-    return {
-      pages: { ...library.pages, [entry]: { ...library.pages[entry], title } as PageRow },
-      folders: library.folders,
-    }
-  return {
-    pages: library.pages,
-    folders: { ...library.folders, [entry]: { ...library.folders[entry], title } as Folder },
-  }
-}
 
 // フォルダ into の直下に在るエントリ entry（種類 kind）の名前が、同じフォルダのほかの物と重なっていれば、番号を付けた名前（「名前 2」から）にした書庫。重ならなければ library のまま
 export function numbered(

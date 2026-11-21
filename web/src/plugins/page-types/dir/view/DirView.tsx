@@ -44,7 +44,7 @@ import {
   usePaperDrag,
 } from "../../../base/ui"
 import { ENTRY_MOVE, ENTRY_UPDATE } from "../actions"
-import { FILE_ADD, FOLDER_ADD, FOLDER_TOGGLE, fitRefusal, KIND_PICK } from "../commands"
+import { FILE_ADD, FOLDER_ADD, FOLDER_TOGGLE, fitRefusal, KIND_PICK, NAME_EDIT } from "../commands"
 import { DIR_CONTEXT, ENTRY_CONTEXT } from "../dir"
 import { dropAt, subtreeIds } from "../drag"
 import { changeEntry, entryOf, selectedIn } from "../edit"
@@ -196,7 +196,7 @@ const Rows = memo(function Rows({
           onDoubleClick={() => {
             if (!usingPencil || !renamable) return
             select([r.id])
-            setEditing(true)
+            setEditing(NAME_EDIT)
           }}
           onContextMenu={e => {
             if (!usingPencil) return
@@ -301,10 +301,10 @@ const Rows = memo(function Rows({
         <KindPicker
           at={{ x: at.x + at.w + PLUS_GAP, y: at.y }}
           onPick={kind => {
-            setEditing(false)
+            setEditing("none")
             ;(kind === "folder" ? addFolder : addFile).run()
           }}
-          onCancel={() => setEditing(false)}
+          onCancel={() => setEditing("none")}
         />
       )}
       {usingPencil && !writing && !picking && !dragging && at && (

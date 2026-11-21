@@ -488,7 +488,7 @@ func TestResetForTestLeavesOnlyTheGivenBooks(t *testing.T) {
 		return `{"id":"` + id + `","folder":{"folderRole":"book","id":"` + id + `","lineup":[],"title":"` + id + `"},"version":1}`
 	}
 	// 触れた時刻（touched）は置いた時刻なので、その前までを比べる
-	want := `{"annotations":{},"counters":{},"folders":[` + folder("b2") + `,` + folder("b3") + `,{"id":"library-home","folder":{"folderRole":"home","id":"library-home","lineup":[{"kind":"book","id":"b3"},{"kind":"book","id":"b2"}]},"version":7},{"id":"library-trash","folder":{"folderRole":"trash","id":"library-trash","lineup":[]},"version":2},{"id":"library-unreadable","folder":{"folderRole":"unreadable","id":"library-unreadable","lineup":[]},"version":2}],"pages":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{},"settings":null,"touched":{`
+	want := `{"annotations":{},"counters":{},"folders":[` + folder("b2") + `,` + folder("b3") + `,{"id":"library-home","folder":{"folderRole":"home","id":"library-home","lineup":[{"id":"b3","kind":"book"},{"id":"b2","kind":"book"}]},"version":7},{"id":"library-trash","folder":{"folderRole":"trash","id":"library-trash","lineup":[]},"version":2},{"id":"library-unreadable","folder":{"folderRole":"unreadable","id":"library-unreadable","lineup":[]},"version":2}],"pages":[],"participantCalls":{},"participantLive":{},"participantReady":[],"plugins":[],"records":{},"settings":null,"touched":{`
 	if code, body := send(t, "GET", s.URL+"/api/data", "", nil); code != 200 || !strings.HasPrefix(withoutDocuments(body), want) {
 		t.Fatalf("data = %d %s", code, body)
 	}
@@ -618,7 +618,7 @@ func TestPerformTellsEveryScreen(t *testing.T) {
 	for name, lines := range map[string]<-chan string{"a": a, "b": b} {
 		got := next(t, lines)
 		// 変わったのはページ p1 だけ: pages にその 1 枚が新しい版で並び、folders は空
-		if !strings.HasPrefix(got, `changed {"act":"`) || !strings.Contains(got, `-3","actions":["@matomezu/paper:item-place"],"annotations":{},"books":["b1"],"by":"window","client":"c1","folders":[],"pages":[{"id":"p1","page":{`) ||
+		if !strings.HasPrefix(got, `changed {"act":"`) || !strings.Contains(got, `-2","actions":["@matomezu/paper:item-place"],"annotations":{},"books":["b1"],"by":"window","client":"c1","folders":[],"pages":[{"id":"p1","page":{`) ||
 			!strings.Contains(got, `"id":"k1"`) || !strings.HasSuffix(got, `},"version":2}],"records":[],"seq":7,"window":""}`) {
 			t.Fatalf("%s changed = %s", name, got)
 		}

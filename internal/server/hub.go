@@ -129,6 +129,7 @@ type Hub struct {
 	wakeQueue        map[string][]wakeItem  // 参加者の id → 受け取られるまで持つ、起こす知らせの行列（watch.go）
 	wakeSeq          int64                  // 起こす知らせの番号の最後（watch.go）
 	wakeLineSeq      int64                  // 起こす知らせの通り道の番号の最後（watch.go）
+	lentWakes        []string               // 通り道に貸した知らせの文の、新しい物（watch.go の WokenBy が照らす）
 	seenEnvelopes    map[string]bool        // 行列に入れた AI 間メッセージの封筒の id（message.go。二度入れない）
 	seenOrder        []string               // seenEnvelopes に入れた順（古い物から忘れる）
 	next             int
@@ -161,10 +162,6 @@ type Hub struct {
 	aiEditTickets  []AIEditTicket       // AI 編集チケットの全部（古い順。ai_edit_tickets.go）
 	// 今の機能台帳のシステムフォルダの定義の id → AI に見せる名前（英語。read_folder の名前。起動したときとプラグインが変わったときに読み直す）
 	systemFolderTitles map[string]string
-	// 機能台帳が変わって（プラグインが変わった・起動した・テストの用意で世界を置き直した）、機能台帳に合わせてデータを足すアクション（runAndKeepsWithCatalog）をまだ行っていない（h.mu を放したあとに行う。catalog.go）
-	catalogChanged bool
-	// 機能台帳に合わせてデータを足すアクションの id → 前に断られた答え（断った行を、同じ答えのあいだはログに書き直さない。行えたら消す。catalog.go）
-	catalogRefused map[string]string
 }
 
 // NewHub は置き場所から世界を読む
@@ -201,7 +198,7 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 			return nil, fmt.Errorf("the AI edit tickets cannot be read: %w", err)
 		}
 	}
-	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, participantNotes: notes, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}, catalogRefused: map[string]string{}, aiEditTickets: aiEditTickets, actPrefix: strconv.FormatInt(time.Now().UnixNano(), 36)}
+	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, participantNotes: notes, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}, aiEditTickets: aiEditTickets, actPrefix: strconv.FormatInt(time.Now().UnixNano(), 36)}
 	if err := h.loadTables(); err != nil {
 		return nil, err
 	}
@@ -215,12 +212,9 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 		return nil, err
 	}
 	h.loadSystemFolderTitles()
-	// 読めない物を読めない物のフォルダへ移し、読めるようになった物を戻す（機能台帳に合わせて足すアクションより先に）
+	// 書庫を整える（読めない物を移す・戻す、足りないシステムフォルダを足す、名前の重なりに番号を付ける）。初めての起動のアクションは、整えた書庫で行う
 	h.settleLibrary(true)
-	// 起動したときは、機能台帳に合わせてデータを足すアクションを 1 度行う（初めての起動のアクションが書けば、そのあとに。書かなければ、ここで）
-	h.catalogChanged = true
 	h.runOnceActions()
-	h.afterCatalogChange()
 	if err := h.checkBooks(h.order); err != nil {
 		return nil, err
 	}
@@ -428,59 +422,38 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 	if len(p.Actions) == 0 {
 		return Performed{}, ErrNoActions
 	}
-	run, err := h.performHeld(p, "")
-	// h.mu を放したあとに、利用者の設定で有効なプラグインが変わったか、データを書いて書庫が機能台帳に合わなくなったら、機能台帳に合わせてデータを足すアクションを行う（catalog.go）
-	h.keepWithCatalog(run.wrote)
-	return run.done, err
-}
-
-// performRun は performHeld の結果: 行った結果と、置き場所に書いたか、機能台帳に合わせるアクションのバルクが前と同じ答えで断られたか
-type performRun struct {
-	done     Performed
-	wrote    bool
-	repeated bool
-}
-
-// performHeld は h.mu を持ってアクションバルク p を行う（Perform の中身）。catalog は、機能台帳に合わせてデータを足すアクションのバルクなら、そのアクションの id
-// （断られた答えが前と同じなら repeated にして、断った行をログに書かない）
-func (h *Hub) performHeld(p Perform, catalog string) (performRun, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if done, ok := h.performed[p.Key]; ok && p.Key != "" {
 		h.ack(p, done)
-		return performRun{done: done}, nil
+		return done, nil
 	}
 	// 時点の無いアクション（AI やホストが頼んだ物）は、ここで時計を 1 回読んで時点と日付を決める
 	in := engine.Input{Actions: stamped(p.Actions, time.Now()), Settings: h.settings, Actor: h.actorOfHeld(p), TimeoutSec: p.TimeoutSec}
 	if err := h.performInputs(&in); err != nil {
-		return performRun{}, err
+		return Performed{}, err
 	}
 	in.Watched = h.watched()
 	in.WatchedRecords = h.watchedRecords()
 	out, err := h.engine.PerformWith(in, recordSource{h})
 	if err != nil {
-		return performRun{}, err
+		return Performed{}, err
 	}
 	done := Performed{OK: out.OK, Reason: out.Reason, Permission: out.Permission, Detail: out.Detail, Kind: out.Kind, SystemFolder: out.SystemFolder, Result: out.Result, Notice: out.Notice}
-	// 断った結果 r（機能台帳に合わせるバルクで、前と同じ答えなら repeated）
-	refused := func(r Performed) performRun {
-		return performRun{done: r, repeated: h.repeatedRefusal(catalog, r, out.At)}
-	}
 	if !out.OK {
-		run := refused(done)
-		if out.At != nil && *out.At >= 0 && *out.At < len(p.Actions) && !run.repeated {
+		if out.At != nil && *out.At >= 0 && *out.At < len(p.Actions) {
 			fmt.Fprintf(os.Stderr, "%s refused at the action %d of %d (%s): %s\n", stamp(), *out.At, len(p.Actions), p.Actions[*out.At].Action, out.Reason)
 		}
 		h.remember(p.Key, done)
 		h.ack(p, done)
-		return run, nil
+		return done, nil
 	}
 	// AI のアクションは、窓に出ているブックをゴミ箱に入れない（AI は利用者に聞く）
 	if p.By == "ai" && h.trashesShown(out.Trashing) {
 		done = Performed{OK: false, Reason: "open-on-screen"}
 		h.remember(p.Key, done)
 		h.ack(p, done)
-		return refused(done), nil
+		return done, nil
 	}
 	by := "host"
 	if p.By == "ai" {
@@ -498,14 +471,14 @@ func (h *Hub) performHeld(p Perform, catalog string) (performRun, error) {
 	if envelopesRefused != nil {
 		h.remember(p.Key, *envelopesRefused)
 		h.ack(p, *envelopesRefused)
-		return refused(*envelopesRefused), nil
+		return *envelopesRefused, nil
 	}
 	act := h.actPrefix + "-" + strconv.FormatInt(h.acts+1, 10)
 	shared := h.sharedWithUnreadable()
 	out = withoutSharedRemovals(out, shared)
 	plan, err := h.planWrites(out, by, act, stamp())
 	if err != nil {
-		return performRun{}, err
+		return Performed{}, err
 	}
 	if plan != nil {
 		keepSharedPlaces(plan, shared)
@@ -515,11 +488,11 @@ func (h *Hub) performHeld(p Perform, catalog string) (performRun, error) {
 		done = Performed{OK: false, Reason: "refused"}
 		h.remember(p.Key, done)
 		h.ack(p, done)
-		return refused(done), nil
+		return done, nil
 	}
 	// 変わった物の全部を 1 つのまとまりで書く。書けなければ、置き場所もメモリも窓も何も変わらず、行い直せる
 	if err := h.store.Apply(plan.batch); err != nil {
-		return performRun{}, err
+		return Performed{}, err
 	}
 	h.acts++
 	h.applyWrites(plan, out, p, by, act)
@@ -529,8 +502,7 @@ func (h *Hub) performHeld(p Perform, catalog string) (performRun, error) {
 	h.wakeOnParticipants(requested)
 	h.remember(p.Key, done)
 	h.ack(p, done)
-	h.repeatedRefusal(catalog, done, nil)
-	return performRun{done: done, wrote: true}, nil
+	return done, nil
 }
 
 // performInputs は、バルク in.Actions を行う前に、エンジンへ渡すページ・フォルダ・アノテーション・レコード・番号の表を in に入れる（h.mu を持って呼ぶ）。

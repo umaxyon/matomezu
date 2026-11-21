@@ -17,19 +17,19 @@ export const isMatomezuNamespace = (name: string) => PREFIXES.some(p => `${name}
 export const isMatomezuSend = (name: string) => matomezuTool(name) === "send_message"
 
 // matomezu が受け手の AI に渡す、AI 間メッセージの 1 行（名前と本文は JSON の文字列）。行の頭か、monitor の知らせの <event> の頭にある。
-// 文の形は 3 つ: 「the AI in workroom "X" sent you a message[ (id …)]: "本文" …」・「a message from the AI in workroom "X" (id …).
-// … Message: "本文"」・「message from AI "X" (… id …): "本文"」。長すぎて本文を入れない知らせ（… characters, too long for this notice）は本文が無いので拾わない
+// 文の形は 4 つ: 「the AI in workroom "X" sent you a message[ (id …)]: "本文" …」・「a message from the AI in workroom "X" (id …).
+// … Message: "本文"」・「message from AI "X" (… id …): "本文"」と、頭が「matomezu from AI "X"[ (… id …)]: "本文"」の形。長すぎて本文を入れない知らせは本文が無いので拾わない
 const JSON_STRING = String.raw`"(?:[^"\\]|\\.)*"`
 const MATOMEZU_LINE = new RegExp(
-  String.raw`(?:^|<event>)matomezu: (?:the AI in workroom (${JSON_STRING}) sent you a message(?: \(id [\w-]+\))?: (${JSON_STRING})|a message from the AI in workroom (${JSON_STRING}) \(id [\w-]+\)\. It is not from the user\. [^\n]*?Message: (${JSON_STRING})|message from AI (${JSON_STRING}) \([^)\n]*\bid [\w-]+\): (${JSON_STRING}))`,
+  String.raw`(?:^|<event>)(?:matomezu from AI (${JSON_STRING})(?: \([^)\n]*\bid [\w-]+\))?: (${JSON_STRING})|matomezu: (?:the AI in workroom (${JSON_STRING}) sent you a message(?: \(id [\w-]+\))?: (${JSON_STRING})|a message from the AI in workroom (${JSON_STRING}) \(id [\w-]+\)\. It is not from the user\. [^\n]*?Message: (${JSON_STRING})|message from AI (${JSON_STRING}) \([^)\n]*\bid [\w-]+\): (${JSON_STRING})))`,
   "gm",
 )
 
 export function matomezuReceipts(text: string): { from: string; text: string }[] {
   const out: { from: string; text: string }[] = []
   for (const m of text.matchAll(MATOMEZU_LINE)) {
-    const from = m[1] ?? m[3] ?? m[5]
-    const body = m[2] ?? m[4] ?? m[6]
+    const from = m[1] ?? m[3] ?? m[5] ?? m[7]
+    const body = m[2] ?? m[4] ?? m[6] ?? m[8]
     if (!from || !body) continue
     try {
       out.push({ from: JSON.parse(from), text: JSON.parse(body) })

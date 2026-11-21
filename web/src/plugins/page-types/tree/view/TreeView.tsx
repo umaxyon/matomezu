@@ -49,6 +49,7 @@ import { dropAt, subtreeIds } from "../drag"
 import {
   ADDED_EDIT,
   addArgs,
+  CAPTION_EDIT,
   centerShift,
   NODE_COLOR_PICK,
   nodeOf,
@@ -160,7 +161,6 @@ const Tree = memo(function Tree({
   const selected = root ? selectedIn(root, stage.selection) : null
   const swatches = useSwatches(usePageTheme(), NODE_FILL) // 節の色のスタンドに並べる色
   const picking = usingEdit && stage.editing === NODE_COLOR_PICK && selected !== null // 節の色を選んでいる
-  // 背景編集モードの間の文字枠の書き換え（slide のもの。stage.editing は同じ true）は、節の書き換えにしない
   const writing = writingCaption({ stage }) && selected !== null
   // キャプションの入力Form（書いている字は TREE_DRAFT）
   const caption = useInPlaceInput(kit, TREE_DRAFT, {
@@ -255,7 +255,7 @@ const Tree = memo(function Tree({
             if (!usingEdit) return
             select([n.id])
             if (n.id === tree.id) openDialog(TREE_PAGE_SETTINGS_DIALOG.id, { page: pageId })
-            else if (editable) setEditing(true)
+            else if (editable) setEditing(CAPTION_EDIT)
           }}
         >
           {/* 編集している節の字は描かない（下線の形の入力Formは地が透けるので、字がダブって見える） */}
@@ -387,7 +387,7 @@ function useFocus(stage: StageView, page: string | undefined): boolean {
   const background = stage.edits === "slide"
   const items = stage.edits === "items"
   const selecting = stage.selection.length > 0
-  const editing = stage.editing !== false
+  const editing = stage.editing !== "none"
   const fitRef = useRef(fit)
   fitRef.current = fit
   const was = useRef(page)

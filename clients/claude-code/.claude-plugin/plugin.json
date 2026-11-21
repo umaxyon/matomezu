@@ -1,5 +1,5 @@
 {
   "name": "matomezu",
   "version": "0.2.0",
-  "description": "matomezu for Claude Code: the MCP tools, the hooks that tell matomezu the session started, switched models or was talked to (and bring the notes that wait for AI), and a monitor that wakes Claude Code when the user does something on the screen that AI should answer (such as accepting AI's request to join)."
+  "description": "matomezu for Claude Code: the MCP tools, the hooks that tell matomezu the session started, switched models or was talked to (and bring the notes that wait for AI), and a monitor that wakes Claude Code when the user does something on the screen that AI should answer (such as accepting AI's request to join), with a mod that does it in Claude Desktop, where the monitor is not started."
 }

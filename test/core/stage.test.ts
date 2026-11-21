@@ -129,13 +129,17 @@ describe("stage", () => {
 
 test("その場で編集中（editing）は、選んでいる物があるときだけ始められ、選びが替わると終わる", () => {
   const stage = newStage("s1")
-  expect(setEditing(stage, true).editing).toBe(false) // 何も選んでいない
+  expect(setEditing(stage, "test:edit").editing).toBe("none") // 何も選んでいない
   const picked = select(stage, ["a"])
-  const editing = setEditing(picked, true)
-  expect(editing.editing).toBe(true)
-  expect(select(editing, ["a"]).editing).toBe(true) // 同じ選びなら続く
-  expect(select(editing, ["b"]).editing).toBe(false)
-  expect(setEditing(editing, false).editing).toBe(false)
+  const editing = setEditing(picked, "test:edit")
+  expect(editing.editing).toBe("test:edit")
+  expect(select(editing, ["a"]).editing).toBe("test:edit") // 同じ選びなら続く
+  expect(select(editing, ["b"]).editing).toBe("none")
+  expect(setEditing(editing, "none").editing).toBe("none")
+  // @ts-expect-error 名前は kit.name の形（<プラグインの id>:<名前>）か "none" だけ。true・false やただの文字は渡せない
+  setEditing(picked, true)
+  // @ts-expect-error ただの文字
+  setEditing(picked, "edit")
 })
 
 test("プレゼンテーションが知らせた広さ（可変ページ）は、紙の枠とずらす量の範囲に効き、紙 1 枚の大きさ（paperOf）は変えない。紙が変われば捨てる", () => {

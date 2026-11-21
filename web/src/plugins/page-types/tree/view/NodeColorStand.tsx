@@ -37,13 +37,13 @@ export function NodeColorStand({
     const done = paint(next)
     if (!done.ok)
       showToast({ kind: "warn", message: refusalMessage(catalog, done, kit.message("Does not fit on the paper")) })
-    setEditing(false)
+    setEditing("none")
   }
   // 閉じる（好きな色を選んでいれば、その色で塗る）
   const close = () => {
     const p = pending.current
     if (p && p.color !== color) choose(p.color)
-    else setEditing(false)
+    else setEditing("none")
   }
 
   // 外を押すと閉じ、Esc は選んでいた好きな色を塗らずに閉じる（好きな色のポップアップの中も、このスタンドの中）
@@ -54,7 +54,7 @@ export function NodeColorStand({
       close()
     }
     const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setEditing(false)
+      if (e.key === "Escape") setEditing("none")
     }
     document.addEventListener("pointerdown", down, true)
     window.addEventListener("keydown", key)

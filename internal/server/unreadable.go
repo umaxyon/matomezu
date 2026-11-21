@@ -48,9 +48,10 @@ func (h *Hub) allRows() (pages, folders []json.RawMessage) {
 	return pages, folders
 }
 
-// settleLibrary は、書庫を今の機能台帳に合わせて整える: 読めない物を読めない物のフォルダへ移し、読めるようになった物を在った所へ戻す（1 回の書き込みで。触れた時刻は残さない）。
+// settleLibrary は、書庫を今の機能台帳に合わせて整える: 読めない物を読めない物のフォルダへ移し、読めるようになった物を在った所へ戻し、足りないシステムフォルダを足して、
+// 名前の重なりに番号を付ける（core/unreadable.ts の settleLibrary が決める。1 回の書き込みで。触れた時刻は残さない）。
 // quiet なら窓に知らせない（起動の途中・窓が読み直す所）。そうでなければ、変えた行を changed で知らせる。
-// 移した・戻した・名前に番号を付けた物と、読めない物の warning（W032）が変わったときは、常駐のログに書く。失敗は止めず、失敗している間は warning（W033）を持つ
+// 移した・戻した物、足したシステムフォルダ、名前に番号を付けた物と、読めない物の warning（W032）が変わったときは、常駐のログに書く。失敗は止めず、失敗している間は warning（W033）を持つ
 // 返すのは、移した物を訳（番号と無いタイプ）ごとに数えた物と、戻した物の数（窓が読み直したあとに知らせるため。失敗したときは何も移っていない）
 // （h.mu を持って呼ぶか、起動の途中で呼ぶ）
 func (h *Hub) settleLibrary(quiet bool) (moved []MovedCount, returned int) {
@@ -74,6 +75,9 @@ func (h *Hub) settleLibrary(quiet bool) (moved []MovedCount, returned int) {
 	}
 	for _, id := range done.Returned {
 		fmt.Fprintln(os.Stderr, "back from the unreadable folder:", id)
+	}
+	for _, a := range done.Added {
+		fmt.Fprintln(os.Stderr, "added the system folder:", a.SystemFolder, a.ID)
 	}
 	for _, n := range done.Numbered {
 		fmt.Fprintf(os.Stderr, "the title of %s was taken in its folder; it is now %q\n", n.ID, n.Title)
@@ -135,7 +139,7 @@ func (h *Hub) purgeUnreadable(id string) (bool, error) {
 	return true, nil
 }
 
-// writeUnreadable は、読めない物を移す・戻す・消す行の変わり pages・folders を、perform と同じ書き込みで 1 回に書く（触れた時刻は残さない。quiet なら窓に知らせない）。
+// writeUnreadable は、書庫を整える（settleLibrary）・読めない物を消す行の変わり pages・folders を、perform と同じ書き込みで 1 回に書く（触れた時刻は残さない。quiet なら窓に知らせない）。
 // 変わるブック（並びを変えたブック・消すブック）は組み直して確かめ直し、消すページのアノテーションも消す（h.mu を持って呼ぶ）
 func (h *Hub) writeUnreadable(pages, folders []engine.RowChange, quiet bool) error {
 	if len(pages) == 0 && len(folders) == 0 {

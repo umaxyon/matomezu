@@ -7,7 +7,7 @@ import { SLIDE_MOVE, SLIDE_PLACE, SLIDE_REMOVE, SLIDE_REORDER, SLIDE_RESIZE, SLI
 import { kit } from "./kit"
 import { type Order, orderSteps } from "./order"
 import { shapeProps } from "./rect"
-import { ADDED_EDIT, SLIDE_KEY_SCOPE, SLIDE_TEXT_KEY_SCOPE } from "./scope"
+import { ADDED_EDIT, SLIDE_KEY_SCOPE, SLIDE_TEXT_KEY_SCOPE, TEXT_EDIT } from "./scope"
 
 const PLACE = SLIDE_PLACE.id
 const MOVE = SLIDE_MOVE.id
@@ -124,9 +124,9 @@ export const SLIDE_DELETE = kit.defineCommand({
   when: ctx => hasOpenedPage(ctx) && selectedOnSlide(ctx).length > 0,
 })
 
-// 文字を書き換えているアイテム（選んでいる 1 つが slide のアイテムで、書き換えの間。ツリーのキャプションの書き換えも stage.editing は true なので、選んだ物で分ける）
+// 文字を書き換えているアイテム（書き換えの間の、選んでいる 1 つの slide のアイテム）
 function editedOnSlide(ctx: Ctx): string | null {
-  if (ctx.stage.editing !== true && ctx.stage.editing !== ADDED_EDIT) return null
+  if (ctx.stage.editing !== TEXT_EDIT && ctx.stage.editing !== ADDED_EDIT) return null
   const chosen = selectedOnSlide(ctx)
   return chosen.length === 1 && ctx.stage.selection.length === 1 ? (chosen[0] ?? null) : null
 }
@@ -143,7 +143,7 @@ export const SLIDE_TEXT_CANCEL = kit.defineCommand({
     const item = editedOnSlide(ctx)
     if (!hasOpenedPage(ctx) || item === null) return
     if (ctx.stage.editing === ADDED_EDIT && ctx.book !== "none") a.continueStep(ctx.book.id)
-    a.setEditing(false)
+    a.setEditing("none")
     const shape = slideOf(ctx.page).find(s => s.id === item)
     if (shape && (shapeProps(shape).text ?? "") === "" && a.perform(REMOVE, { item }, { page: ctx.page.id }).ok)
       a.select([])

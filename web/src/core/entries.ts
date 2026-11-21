@@ -11,6 +11,7 @@ import {
   isOpenRole,
   isUnreadableRole,
   type Library,
+  type PageRow,
   TRASH_ID,
   type TrashFolder,
   type TrashRef,
@@ -252,20 +253,6 @@ export function titlesIn(library: Library, folder: Folder, naming: Naming, excep
   })
 }
 
-// フォルダ into の直下に在る（か、そこへ入れる）エントリ entry（種類 kind）の、そのフォルダのほかの物と重ならない名前（重なっていれば「名前 2」から番号を付ける。重ならなければ今の名前）。
-// 名前を持たない物・フォルダが無いときは undefined
-export function freeTitleIn(
-  library: Library,
-  kind: EntryKind,
-  entry: string,
-  into: string,
-  naming: Naming,
-): string | undefined {
-  const holder = library.folders[into]
-  const title = titleOf(library, kind, entry, naming)
-  return !holder || title === undefined ? undefined : freeTitle(title, titlesIn(library, holder, naming, entry))
-}
-
 // フォルダ folder の直下で、名前が title のエントリ（except のエントリは除く。無ければ undefined）
 export const titledIn = (
   library: Library,
@@ -290,18 +277,77 @@ export function clashedSystemFolder(library: Library, clashes: readonly string[]
   return undefined
 }
 
-// 書庫が was から now に変わる間に、直下の名前が変わって、同じ名前が重なった書庫ホーム・フォルダ・ブック・バインダの id（ゴミ箱の直下は、同じ名前を許す）。
-// 前から重なっていて、名前の並びが変わらないフォルダは挙げない。名前は was を naming で、now を nowNaming（言わなければ naming）で引く（言語が変わるときは、言語の前と後）
-export function titleClashes(was: Library, now: Library, naming: Naming, nowNaming: Naming = naming): string[] {
-  return Object.values(now.folders).flatMap(f => {
-    // ゴミ箱と読めない物のフォルダの中は、名前が重なってよい
-    if (f.folderRole === "trash" || isUnreadableRole(f.folderRole)) return []
-    const titles = titlesIn(now, f, nowNaming)
-    if (new Set(titles).size === titles.length) return []
-    const before = was.folders[f.id]
-    const kept = before ? titlesIn(was, before, naming) : []
-    return kept.length === titles.length && kept.every((t, i) => t === titles[i]) ? [] : [f.id]
+// フォルダ f の直下で、名前が重ならないように数えるか（ゴミ箱と読めない物のフォルダの直下は、名前が重なってよい。ゴミ箱の中のフォルダの直下は数える）。
+// 重なりを確かめる titleClashes と、重なりに番号を付ける withFreeTitles の両方が、これで決める
+export const keepsTitlesApart = (f: Folder): boolean => f.folderRole !== "trash" && !isUnreadableRole(f.folderRole)
+
+// 書庫 library で、直下に同じ名前が重なっている書庫ホーム・フォルダ・ブック・バインダの id（keepsTitlesApart の物だけ。名前は naming で引く）
+export function titleClashes(library: Library, naming: Naming): string[] {
+  return Object.values(library.folders).flatMap(f => {
+    if (!keepsTitlesApart(f)) return []
+    const titles = titlesIn(library, f, naming)
+    return new Set(titles).size === titles.length ? [] : [f.id]
   })
+}
+
+// エントリ entry（種類 kind）の名前を title にした書庫（名前を持たない物・書庫に無い物は null。同じ名前なら library のまま）。ロックは見ない
+export function retitled(
+  library: Library,
+  kind: EntryKind,
+  entry: string,
+  title: string,
+  naming: Naming,
+): Library | null {
+  const now = titleOf(library, kind, entry, naming)
+  if (now === undefined) return null
+  if (now === title) return library
+  if (kind === "page")
+    return {
+      pages: { ...library.pages, [entry]: { ...library.pages[entry], title } as PageRow },
+      folders: library.folders,
+    }
+  return {
+    pages: library.pages,
+    folders: { ...library.folders, [entry]: { ...library.folders[entry], title } as Folder },
+  }
+}
+
+// 名前に番号を付けた物 1 つ: エントリの種類と id と、付けた名前
+export interface FreedTitle {
+  kind: EntryKind
+  id: string
+  title: string
+}
+
+// 書庫 library の、直下の名前の重なりを番号で直した書庫と、番号を付けた物（付けた順。純粋。同じ入力なら同じ結果、2 回行っても 1 回と同じ）。
+// keepsTitlesApart のフォルダごとに、システムフォルダは名前を変えずに先に名前を取り、ほかは並びの先の物が名前を残して、後の物に「名前 2」から番号を付ける
+// （番号は、そのフォルダのほかの物の名前とも重ならない）。ロックの掛かった物にも付ける。名前は naming で引く
+export function withFreeTitles(library: Library, naming: Naming): { next: Library; freed: FreedTitle[] } {
+  let next = library
+  const freed: FreedTitle[] = []
+  for (const id of Object.keys(library.folders).sort()) {
+    const folder = library.folders[id]
+    if (!folder || !keepsTitlesApart(folder)) continue
+    const isSystem = (r: AnyEntryRef) => r.kind !== "page" && systemFolderOf(library.folders[r.id]) !== undefined
+    const named = (r: AnyEntryRef) => titleOf(next, r.kind, r.id, naming)
+    const kept = new Set(folder.lineup.filter(isSystem).flatMap(r => named(r) ?? []))
+    for (const r of folder.lineup) {
+      if (isSystem(r)) continue
+      const title = named(r)
+      if (title === undefined) continue
+      if (!kept.has(title)) {
+        kept.add(title)
+        continue
+      }
+      const to = freeTitle(title, [...kept, ...folder.lineup.flatMap(o => named(o) ?? [])])
+      const done = retitled(next, r.kind, r.id, to, naming)
+      if (!done) continue
+      next = done
+      kept.add(to)
+      freed.push({ kind: r.kind, id: r.id, title: to })
+    }
+  }
+  return { next, freed }
 }
 
 // 書庫 library に足りないシステムフォルダの印（機能台帳 catalog に定義が在り、ゴミ箱の外に行が無い物。印の順）
@@ -315,27 +361,25 @@ export function missingSystemFolders(library: Library, catalog: CoreCatalog): st
   return [...catalog.systemFolders.keys()].filter(mark => !outside.has(mark)).sort()
 }
 
-// 書庫ホームの直下で、システムフォルダ folder と名前が当たる、システムフォルダでないエントリ（並びの順。folder の名前が引けなければ空）
-export function sameTitledAsSystemFolder(library: Library, folder: string, naming: Naming): AnyEntryRef[] {
-  const title = titleOf(library, "folder", folder, naming)
-  const home = library.folders[HOME_ID]
-  if (title === undefined || !home) return []
-  return home.lineup.filter(
-    r =>
-      r.id !== folder &&
-      systemFolderOf(library.folders[r.id]) === undefined &&
-      titleOf(library, r.kind, r.id, naming) === title,
-  )
-}
-
-// 書庫 library のシステムフォルダが、機能台帳に合っているか: 定義の在る印のシステムフォルダがゴミ箱の外に揃い、書庫ホームの直下のシステムフォルダの名前が、
-// そこのシステムフォルダでない物と当たっていない（名前は naming で引く）。合っていなければ、足りない物を足すアクションが要る
-export function systemFoldersInPlace(library: Library, naming: Naming): boolean {
-  if (missingSystemFolders(library, naming.catalog).length > 0) return false
-  const lineup = library.folders[HOME_ID]?.lineup ?? []
-  return lineup.every(
-    r =>
-      systemFolderOf(library.folders[r.id]) === undefined ||
-      sameTitledAsSystemFolder(library, r.id, naming).length === 0,
-  )
+// 書庫 library に、足りないシステムフォルダ（missingSystemFolders）の空の行を、書庫ホームの先頭（印の順の所）に足した書庫と、足した行の id と印（足した順。純粋）。
+// 行の id は newId で振る。振った id が書庫に在れば null。書庫ホームが無ければ何も足さない。名前の重なりは直さない（withFreeTitles）
+export function withSystemFolders(
+  library: Library,
+  catalog: CoreCatalog,
+  newId: () => string,
+): { next: Library; added: { id: string; systemFolder: string }[] } | null {
+  let next = library
+  const added: { id: string; systemFolder: string }[] = []
+  for (const mark of missingSystemFolders(library, catalog)) {
+    const home = next.folders[HOME_ID]
+    if (!home) break
+    const id = newId()
+    if (id in next.folders || id in next.pages) return null
+    const at = systemFolderIndex(next.folders, mark)
+    const row = { folderRole: "folder", id, systemFolder: mark, lineup: [] } as unknown as Folder
+    const lineup = [...home.lineup.slice(0, at), { kind: "folder" as const, id }, ...home.lineup.slice(at)]
+    next = { pages: next.pages, folders: { ...next.folders, [id]: row, [HOME_ID]: { ...home, lineup } as Folder } }
+    added.push({ id, systemFolder: mark })
+  }
+  return { next, added }
 }

@@ -5,7 +5,7 @@ import { pagesOf } from "./book"
 import type { CoreCatalog } from "./core-catalog"
 import type { ActionContext, ActionDef, ActionOn, ActionTarget, AIEditTicketChange, AIMessage } from "./def/action"
 import { shownToAI } from "./def/subject"
-import { type Naming, namingOf, titleClashes } from "./entries"
+import { type Naming, namingOf, titleClashes, withFreeTitles } from "./entries"
 import type { Library, PageRow, TableChanges } from "./folders"
 import { bookOf } from "./folders-books"
 import { changesBetween, createdIn, noChanges, placedChanges, rowChanges, withChanges } from "./folders-changes"
@@ -144,7 +144,7 @@ export function performIn(
     const changes = placedChanges(world, made)
     const after = withChanges(world, changes)
     if (!treeHolds(after)) return { ok: false, reason: "refused" }
-    const clashes = titleClashes(world, after, naming)
+    const clashes = titleClashes(after, naming)
     if (clashes.length > 0) return titleTaken(after, clashes, naming)
     // 無くなったページのアノテーションは消す
     const gone = Object.entries(changes.pages)
@@ -163,13 +163,18 @@ export function performIn(
   const same = sameData(next, world.settings)
   if (same) return { ok: true, result: done.result }
   // 選んでいた言語を変えて、名前を設定の言語で引く物（システムフォルダ）の名前が、同じフォルダのほかの物と重なるなら断る（書庫の行は変えない）。
-  // 言語を選んでいない所から初めて選ぶのは、変えるのでないので断らない（重なった名前は、書いたあとに常駐が行う、機能台帳に合わせてデータを足すアクションが、番号を付けて解く。ActionDef の runAndKeepsWithCatalog）
+  // 言語を選んでいない所から初めて選ぶのは、変えるのでないので断らず、当たる物に、常駐が書庫を整えるときと同じ withFreeTitles で番号を付けて、同じバルクで書く
   const library: Library = { pages: world.pages, folders: world.folders }
   const nextNaming = namingOf(ctx.catalog, next)
-  const changes = langChosen(ctx.catalog, world.settings) && nextNaming.lang !== naming.lang
-  const clashes = changes ? titleClashes(library, library, naming, nextNaming) : []
-  if (clashes.length > 0) return languageTitleTaken(library, clashes, nextNaming)
-  return { ok: true, result: done.result, settings: next }
+  if (nextNaming.lang === naming.lang) return { ok: true, result: done.result, settings: next }
+  if (langChosen(ctx.catalog, world.settings)) {
+    const clashes = titleClashes(library, nextNaming)
+    if (clashes.length > 0) return languageTitleTaken(library, clashes, nextNaming)
+    return { ok: true, result: done.result, settings: next }
+  }
+  const freed = withFreeTitles(library, nextNaming).next
+  const changes = rowChanges(library, freed)
+  return { ok: true, result: done.result, settings: next, ...(noChanges(changes) ? {} : { changes }) }
 }
 
 // 変わり changes が新しく足すページ・フォルダの id が、世界 world にもう在るか（行う前のブック before に無かった物を足すなら、その id は世界のどこにも無いこと。
@@ -188,7 +193,7 @@ function changedBook(naming: Naming, world: World, book: Book, done: ReturnType<
   if (collides(world, [book], changes)) return { ok: false, reason: "refused" }
   if (next.title !== book.title) {
     const after = withChanges(world, changes)
-    const clashes = titleClashes(world, after, naming)
+    const clashes = titleClashes(after, naming)
     if (clashes.length > 0) return titleTaken(after, clashes, naming)
   }
   const { annotations } = world
@@ -226,7 +231,7 @@ function changedPage(naming: Naming, world: World, at: PageOutsideBook, done: Re
     return { ok: false, reason: "refused" }
   if (next.title !== at.held.title) {
     const after = withChanges(world, changes)
-    const clashes = titleClashes(world, after, naming)
+    const clashes = titleClashes(after, naming)
     if (clashes.length > 0) return titleTaken(after, clashes, naming)
   }
   const list = world.annotations[next.id]
