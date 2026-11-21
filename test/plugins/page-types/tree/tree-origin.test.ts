@@ -1,4 +1,4 @@
-// ツリーが中身を右・下へずらした印刷区画の数: ビューがステージに知らせる量（print.ts の laidOrigin）と、ブックタイプの contentOrigin が返す量（ページの slide の形をずらす）は同じ
+// ツリーが中身を右・下へずらした印刷区画の数: ビューがステージに知らせる量（print.ts の laidOrigin）と、ページのタイプの contentOrigin が返す量（ページの slide の形をずらす）は同じ
 import { expect, test } from "bun:test"
 import { GROW } from "../../../../web/src/plugins/page-types/tree/grow"
 import { laidOrigin, laidPage } from "../../../../web/src/plugins/page-types/tree/print"

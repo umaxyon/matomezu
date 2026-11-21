@@ -5,7 +5,7 @@ import { addFromTabs, newBook } from "./helpers/new-book"
 import { backToBook, openGeneral, openSettings, settingsDialog } from "./helpers/settings"
 import { fromMenu } from "./helpers/stage-menu"
 
-// マークダウンのページを作り、ページを 1 つ作る
+// ブックを作り、マークダウンのページを 1 つ作る
 async function markdownBook(page: Page) {
   await page.goto(BOOK_SCREEN_URL)
   const add = await newBook(page, "メモ", "マークダウン")

@@ -12,7 +12,7 @@ import { crossingShapes, filledSheets, sheetKey } from "./filled"
 import { BACKGROUND_PRINT, PRINT_PREVIEW_FLOW, PRINT_PREVIEW_ORDER } from "./settings"
 import { arrangeSheets, type PageSheets, type SheetLayout } from "./sheets"
 
-// ページ page の印刷区画（purpose は数える物。印刷に並べる並べ方か、編集の見え方の並べ方か）: プレゼンテーションの printSheets があればそれ、無ければ形の位置から（中身が入るだけ並べた数。base の pageArea と filledSheets。
+// ページ page の印刷区画（purpose は数える物。印刷に並べる並べ方か、ステージに描く並べ方か）: プレゼンテーションの printSheets があればそれ、無ければ形の位置から（中身が入るだけ並べた数。base の pageArea と filledSheets。
 // 載っている印刷区画を判定できないタイプは filled が null で、どの印刷区画も載っているとして扱う）
 export function sheetsOfPage(
   catalog: CoreCatalog,
@@ -97,7 +97,7 @@ export function bookSheets(catalog: CoreCatalog, book: Book, measured: MeasuredS
   })
 }
 
-// ページ page を columns 列 × rows 行に区切ったうち、編集の見え方の並べ方で何も載っていない印刷区画（ビューが暗くする。
+// ページ page を columns 列 × rows 行に区切ったうち、ステージに描く並べ方で何も載っていない印刷区画（ビューが暗くする。
 // 改ページなど印刷のときだけの並べ直しの前で数えるので、画面に見える物と合う。判定できないタイプなら空）
 export function unprintedSheets(
   catalog: CoreCatalog,
@@ -113,7 +113,7 @@ export function unprintedSheets(
   })).filter(c => !filled.has(sheetKey(c.column, c.row)))
 }
 
-// ページ page の初めの位置で、表示領域の左上に置く紙の点: 編集の見え方の並べ方で何か載っている印刷区画の、いちばん左の列と
+// ページ page の初めの位置で、表示領域の左上に置く紙の点: ステージに描く並べ方で何か載っている印刷区画の、いちばん左の列と
 // いちばん上の行の左上（unprintedSheets が暗くしない所）。載っている印刷区画を判定できないタイプ・何も載っていないページなら紙の左上
 export function startOf(catalog: CoreCatalog, page: ItemPage): Point {
   const paper = paperSize(catalog, page)

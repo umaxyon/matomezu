@@ -7,7 +7,7 @@ import { screenOf } from "../../../../web/src/core/window"
 import { addPageIn, createBookIn } from "../../../../web/src/plugins/base"
 import { renderScreen } from "../../../ui/support"
 
-// フローチャートのページを作り、ページを 1 つ足して開く
+// ブックを作り、フローチャートのページを 1 つ足して開く
 export function flowchart() {
   const store = renderScreen()
   act(() => {

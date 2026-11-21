@@ -1,4 +1,4 @@
-// ページ一覧（ステージの左の縦の列）: ページ一覧を選んだタイプ（スライドのページ）のブックにだけ出て、ページタブは出さない。押したページを開く
+// ページ一覧（ステージの左の縦の列）: ページ一覧を選んだタイプ（スライド）のページにだけ出て、ページタブは出さない。押したページを開く
 import { afterEach, describe, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"

@@ -29,7 +29,7 @@ export function laidPage(
   return root ? layoutTree(root, setting(GROW), paper, setting(NODE_SIZE), setting(NODE_SHAPE), grow) : null
 }
 
-// 並べた木 laid が右・下へずれている印刷区画の数（可変ページで左（上）へ増やすとき。ビューがステージに知らせる量と、ブックタイプの contentOrigin が返す量は、これ 1 つ）
+// 並べた木 laid が右・下へずれている印刷区画の数（可変ページで左（上）へ増やすとき。ビューがステージに知らせる量と、ページのタイプの contentOrigin が返す量は、これ 1 つ）
 export const laidOrigin = (laid: TreeLayout | null): Point => laid?.origin ?? { x: 0, y: 0 }
 
 // 可変ページで、並べた木 laid の節が入るだけ印刷区画を並べた数と広さ（spare なら、増やす向きに空きの印刷区画を足す。ビューがステージに知らせる広さ）

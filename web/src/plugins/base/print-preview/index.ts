@@ -21,7 +21,7 @@ import { printCheckOpen } from "./panel-id"
 import { PRINT_READY_STATE } from "./print-state"
 import { PRINT_PREVIEW_FLOW } from "./settings"
 
-// 印刷区画を数える物: print は印刷プレビューと印刷に並べる並べ方、screen は編集の見え方の並べ方
+// 印刷区画を数える物: print は印刷プレビューと印刷に並べる並べ方、screen はステージに描く並べ方
 export type SheetPurpose = "print" | "screen"
 
 // ページの印刷区画: 紙の大きさで区切った columns 列 × rows 行と、何かが載っている印刷区画の鍵（作るのは filled.ts の printSheetsOf）
@@ -40,7 +40,7 @@ declare module "../../../core/catalog" {
   interface PresentationExtras {
     // ページ page の印刷区画。並べ方を描くときに決めるプレゼンテーション（ツリーなど）が、ビューがステージに知らせる広さと同じ座標で返す。
     // setting はそのページで効いている設定の値、grow は増やす向き（可変ページでなければ undefined）。purpose は数える物: print は印刷プレビューと
-    // 印刷に並べる並べ方（改ページなど印刷のときだけの並べ直しのあと）、screen は編集の見え方の並べ方（何も載っていない印刷区画を暗くするのに使う）。
+    // 印刷に並べる並べ方（改ページなど印刷のときだけの並べ直しのあと）、screen はステージに描く並べ方（何も載っていない印刷区画を暗くするのに使う）。
     // 無ければ、形の位置から決める（base の pageArea と filledSheets）
     printSheets?(
       catalog: CoreCatalog,

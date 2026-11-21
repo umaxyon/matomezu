@@ -5,7 +5,7 @@
   font-weight: 600;
   color: var(--skin-text-muted);
 }
-/* 下に線を引いた小見出し（チケットスクリーンのナレッジ・チケット履歴、ワークルームの現在のタスク・履歴） */
+/* 下に線を引いた小見出し（チケットスクリーンのナレッジ・チケット履歴、ワークルームの今のチケット・チケット履歴） */
 .sectionHeading {
   padding-bottom: 2px;
   border-bottom: 1px solid var(--skin-border);

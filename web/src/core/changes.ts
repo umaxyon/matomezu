@@ -58,7 +58,7 @@ export interface LibraryPageRows {
   now: Readonly<Record<string, unknown>>
 }
 
-// 並びの形: 要素の id の順と、バインダの名前・入れるタイプ・中のページの id の順（ページの中身は入れない）
+// 並び: 要素の id の順と、バインダの名前・入れるタイプ・中のページの id の順（ページの中身は入れない）
 const skeleton = (book: Book): unknown =>
   lineupOf(book).map(e =>
     e.kind === "binder" ? { id: e.id, title: e.title, pageType: e.pageType, lineup: e.lineup.map(p => p.id) } : e.id,

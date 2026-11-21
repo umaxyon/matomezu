@@ -7,7 +7,7 @@ import { paper } from "./helpers/paper"
 const rows = (page: Page) => paper(page).locator("[data-entry]")
 const row = (page: Page, name: string) => rows(page).filter({ hasText: new RegExp(`^${name}$`) })
 
-// ディレクトリ構成図のページを作り、根のフォルダ proj だけのページを作る
+// ブックを作り、根のフォルダ proj だけのディレクトリ構成図のページを作る
 async function dirBook(page: Page) {
   await page.goto(BOOK_SCREEN_URL)
   const add = await newBook(page, "構成", "ディレクトリ構成図")

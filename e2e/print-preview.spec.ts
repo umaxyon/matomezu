@@ -94,9 +94,7 @@ test("ロック中のブックで設定を変えると、書き換えてよい�
   await expect(unlock).toHaveAttribute("aria-pressed", "true")
 })
 
-test("可変ページの何も載っていない印刷区画は、編集の見え方で薄く暗くし、印刷プレビューには並べない", async ({
-  page,
-}) => {
+test("可変ページの何も載っていない印刷区画は、ステージで薄く暗くし、印刷プレビューには並べない", async ({ page }) => {
   await page.goto(BOOK_SCREEN_URL)
   await addBox(page, 200, 200, "一")
   const empty = await onPaper(page, 900, 600)
