@@ -92,10 +92,9 @@ interface ToastBody {
   detail?: { message: MessageKey; params?: Params } // 2 行目に出す文言（断った原因など）
 }
 
-// この窓のでない変更（AI・ほかの窓・ホスト）の知らせ: books は変わったブック、act は常駐がその 1 回に振った印、actions は行ったアクションの id、
+// この窓のでない変更（AI・ほかの窓・ホスト）の知らせ: act は常駐がその 1 回に振った印、actions は行ったアクションの id、
 // library は、書庫の履歴に入るアクションが変えたページとフォルダごとの、前と後（置き場所の形のまま。無い側は none。無ければ持たない）
 export interface ForeignChange {
-  books: readonly string[]
   by: "ai" | "window" | "host"
   act: string
   actions: readonly string[]

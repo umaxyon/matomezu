@@ -1,7 +1,7 @@
 // 画面の履歴（Undo・Redo）: 利用者の 1 回の操作で変わったページとフォルダの前と後を画面の履歴の段 1 つに持つ（store が作り、戻す・やり直すのは base の history）。
 // AI とほかの窓の変更は、まだ見ていない画面の履歴の段として store が溜め、変えた物が見えたら、届いた順の位置に差し込む
 import type { Folder, Folders, Library, PageRow, TableChanges } from "./folders"
-import { foldersOver } from "./folders-tree"
+import { foldersOver, NO_OUTERMOST, outermostOf } from "./folders-tree"
 import { type Patch, patchOf } from "./patch"
 import { REMOVED } from "./records"
 import { sameData } from "./same"
@@ -36,6 +36,22 @@ export function rowChangesOf(was: Library, changes: TableChanges): Pick<HistoryS
       ]),
     )
   return { pages: rows(was.pages, changes.pages), folders: rows(was.folders, changes.folders) }
+}
+
+// 表が was から now へ changes のとおりに変わったとき、変わった行を、その行のステージエントリの id ごとに分ける（前から在る行は was で、足した行は now で引く）。
+// どのステージエントリにも入らない行（書庫ホーム・ゴミ箱・フォルダ）は入れない
+export function changesByOutermost(was: Library, now: Library, changes: TableChanges): Record<string, TableChanges> {
+  const out: Record<string, { pages: Record<string, unknown>; folders: Record<string, unknown> }> = {}
+  const put = (table: "pages" | "folders", id: string, to: unknown) => {
+    const o = outermostOf(id in was.pages || id in was.folders ? was : now, id)
+    if (o === NO_OUTERMOST) return
+    const into = out[o.id] ?? { pages: {}, folders: {} }
+    out[o.id] = into
+    into[table][id] = to
+  }
+  for (const [id, to] of Object.entries(changes.pages)) put("pages", id, to)
+  for (const [id, to] of Object.entries(changes.folders)) put("folders", id, to)
+  return out as Record<string, TableChanges>
 }
 
 // 画面の履歴（ブックごとと、書庫に 1 つ）: 戻せる画面の履歴の段（古い順）と、やり直せる画面の履歴の段（古い順。最後が次にやり直す物）

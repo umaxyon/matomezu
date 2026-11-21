@@ -385,7 +385,6 @@ export function serverClient(net: Net = browserNet): HostClient {
       show(
         foreign
           ? {
-              books: e.books,
               by: e.by as "ai" | "window" | "host",
               act,
               actions: e.actions ?? [],

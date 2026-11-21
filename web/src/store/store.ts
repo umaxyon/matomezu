@@ -18,6 +18,7 @@ import { outsidePageIn } from "../core/folders-tree"
 import { outsideUnreadable, rawBooksOf } from "../core/folders-unreadable"
 import { deepFreeze } from "../core/freeze"
 import {
+  changesByOutermost,
   HISTORY_LIMIT,
   type History,
   type HistoryStep,
@@ -341,7 +342,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     nextSeq,
     options,
   })
-  // ブック book の物を、表 was から changes のとおりに変えたことを、開いている画面の履歴の段に足す（同じ物を続けて変えたら、最初の前と最後の後を持つ）
+  // ステージエントリ book の物を、表 was から changes のとおりに変えたことを、開いている画面の履歴の段に足す（同じ物を続けて変えたら、最初の前と最後の後を持つ）
   const record = (book: string, was: Library, changes: TableChanges): OpenStep => {
     const into = opened()
     if (!into.outermosts.includes(book)) into.outermosts.push(book)
@@ -470,13 +471,13 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         else recordLibrary({ pages, folders }, done.changes)
       } else {
         // ブックかページが対象のアクションが変えるのは、開けるブック 1 冊か、ブックの外のページ 1 枚
-        const after = Object.values(both.books).find(b => books[b.id] !== b)
-        const before = after && books[after.id]
+        const changed = Object.keys(changesByOutermost({ pages, folders }, tables, done.changes))
         const recorded = catalog.actions.get(id)?.history !== false
-        if (after && before && recorded) record(after.id, { pages, folders }, done.changes)
+        if (recorded) for (const entry of changed) record(entry, { pages, folders }, done.changes)
         // 画面の履歴に入れないアクション（ロックの掛け外しなど）が上書きした物は、その前の値を画面の履歴の段に残さないので捨てる
-        if (after && before && !recorded) dropOverwritten({ pages, folders }, tables)
-        if (after) next.window = mapScreens(window, ws => followBook(catalog, ws, after, before))
+        else if (changed.length > 0) dropOverwritten({ pages, folders }, tables)
+        const after = Object.values(both.books).find(b => books[b.id] !== b)
+        if (after) next.window = mapScreens(window, ws => followBook(catalog, ws, after, books[after.id]))
         // ブックが変わらなければ、変えたのはブックの外のページ
         else next.window = followLibraryIn(window, catalog, both.books, tables, books)
       }

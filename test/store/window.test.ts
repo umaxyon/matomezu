@@ -135,7 +135,6 @@ test("コントロールセンターがカレントスクリーンの間は、�
   store.receive({ ...worldRows([book]), settings: {} }, [])
   showCenter(store)
   store.receive({ ...worldRows([{ ...book, title: "AI" }]), settings: {} }, [], {
-    books: ["b1"],
     by: "ai",
     act: "1",
     actions: ["@matomezu/base:book-update"],

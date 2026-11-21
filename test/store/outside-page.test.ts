@@ -3,6 +3,7 @@
 import { expect, test } from "bun:test"
 import { stageIn } from "../../web/src/core/window"
 import { NO_STAGE } from "../../web/src/store/dialogs"
+import type { AIEditTicketOutcome } from "../../web/src/store/state"
 import { openedIn } from "../../web/src/store/store"
 import { drawingPage } from "../lineup"
 import { newStore, sequence, worldRows } from "../support"
@@ -66,4 +67,27 @@ test("開いているブックの外のページがブックの中へ移され�
     outermost: { kind: "book", id: book!.id },
     page: "o1",
   })
+})
+
+test("開いているブックの外のページへの AI の変更は、見えたら、そのページの画面の履歴に入り、見えたと知らせる", async () => {
+  const told: AIEditTicketOutcome[] = []
+  const here = newStore({ newId: sequence(), visible: () => true, aiEditTicket: c => told.push(c) })
+  const there = withOutside()
+  here.receive(rowsOf(there), [])
+  here.actions.showOutsidePageStage("o1")
+  expect(there.actions.perform("@matomezu/base:page-update", { title: "AI の名前" }, { page: "o1" }).ok).toBe(true)
+  here.receive(rowsOf(there), [], { by: "ai", act: "7", actions: ["@matomezu/base:page-update"] })
+  await Promise.resolve()
+  expect(told).toEqual([{ act: "7", places: ["o1"], outcome: "seen" }])
+  expect(here.state.getState().history.o1?.undo.map(s => [s.by, s.outermosts])).toEqual([["ai", ["o1"]]])
+})
+
+test("ブックの外のページを変えると、そのページの画面の履歴に段が入る", async () => {
+  const store = withOutside()
+  store.actions.showOutsidePageStage("o1")
+  store.actions.perform("@matomezu/base:page-update", { title: "変えた名前" }, { page: "o1" })
+  await Promise.resolve()
+  expect(store.state.getState().history.o1?.undo.map(s => [s.by, s.outermosts, Object.keys(s.pages)])).toEqual([
+    ["user", ["o1"], ["o1"]],
+  ])
 })
