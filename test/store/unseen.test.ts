@@ -219,3 +219,49 @@ test("AI の 1 回の操作が何冊も変えたら、見えたブックの画�
   expect(historyOf(store)?.undo.map(s => s.books)).toEqual([["b1"]])
   expect(store.state.getState().history.b2).toBeUndefined()
 })
+
+test("AI がほかのページを足しただけなら、開いているページでは見えたとしない。足したページを開いたら見えた", async () => {
+  const told: AIEditTicketOutcome[] = []
+  const store = ready(sequence(), c => told.push(c))
+  const now = bookOf(store)
+  const first = pagesOf(now)[0]!
+  foreign(store, { ...now, lineup: [...now.lineup, { ...first, id: "p-ai", title: "AI" }] } as Book, "ai", "4")
+  expect(historyOf(store)).toBeUndefined()
+  store.actions.openPage("s1", "p-ai")
+  expect(historyOf(store)?.undo.map(s => s.by)).toEqual(["ai"])
+  expect(told).toEqual([{ act: "4", places: ["p-ai", "b1"], outcome: "seen" }])
+})
+
+test("AI がページの並びの順だけを変えたら、ブックを開いていればすぐ見えた", async () => {
+  const store = ready(sequence())
+  store.actions.perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", title: "2" }, { book: "b1" })
+  await settled()
+  confirm(store)
+  const now = bookOf(store)
+  foreign(store, { ...now, lineup: [...now.lineup].reverse() } as Book, "window", "8")
+  expect(historyOf(store)?.undo.map(s => s.by)).toEqual(["user", "window"])
+})
+
+test("見られる前の AI の変更を、画面の履歴に入れない利用者の変更が上書きしたら、消えた所と AI の値を、ブックの名前で知らせる", async () => {
+  const told: AIEditTicketOutcome[] = []
+  let visible = false
+  const store = newStore({ now: sequence(), visible: () => visible, aiEditTicket: c => told.push(c) })
+  store.receive({ ...worldRows([bookOf(store)]), settings: {} }, [])
+  const flow = "@matomezu/base:print-preview-flow"
+  foreign(store, { ...bookOf(store), settings: { [flow]: "row" } } as Book, "ai", "6", "@matomezu/base:book-update")
+  const done = store.actions.perform(
+    "@matomezu/base:print-preview-update",
+    { settings: { [flow]: "column" } },
+    {
+      book: "b1",
+    },
+  )
+  expect(done.ok).toBe(true)
+  await settled()
+  expect(told).toEqual([
+    { book: "b1", act: "6", places: ["b1"], outcome: "lost", lost: [{ at: "settings", value: { [flow]: "row" } }] },
+  ])
+  visible = true
+  store.checkSeen()
+  expect(historyOf(store)).toBeUndefined()
+})
