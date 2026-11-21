@@ -11,11 +11,12 @@ import {
   SLIDE_PUT,
   SLIDE_RESHAPE,
   SLIDE_SET,
+  SLIDE_TEXT_CANCEL,
   SLIDE_TO_BACK,
   SLIDE_TO_FRONT,
 } from "./commands"
 import { kit } from "./kit"
-import { SLIDE_KEY_SCOPE } from "./scope"
+import { SLIDE_KEY_SCOPE, SLIDE_TEXT_KEY_SCOPE } from "./scope"
 import {
   type ELLIPSE,
   type FREE_LINE,
@@ -37,13 +38,14 @@ export const SLIDE_PLUGIN = defineBuiltin(
       SLIDE_RESHAPE,
       SLIDE_SET,
       SLIDE_DELETE,
+      SLIDE_TEXT_CANCEL,
       SLIDE_TO_FRONT,
       SLIDE_FORWARD,
       SLIDE_BACKWARD,
       SLIDE_TO_BACK,
     ],
     keys: SLIDE_KEYS,
-    keyScopes: [SLIDE_KEY_SCOPE],
+    keyScopes: [SLIDE_KEY_SCOPE, SLIDE_TEXT_KEY_SCOPE],
   }),
 )
 
@@ -69,6 +71,7 @@ declare module "../../../core/catalog" {
     "@matomezu/slide:slide-reshape": typeof SLIDE_RESHAPE
     "@matomezu/slide:slide-set": typeof SLIDE_SET
     "@matomezu/slide:slide-delete": typeof SLIDE_DELETE
+    "@matomezu/slide:slide-text-cancel": typeof SLIDE_TEXT_CANCEL
     "@matomezu/slide:slide-to-front": typeof SLIDE_TO_FRONT
     "@matomezu/slide:slide-forward": typeof SLIDE_FORWARD
     "@matomezu/slide:slide-backward": typeof SLIDE_BACKWARD
@@ -76,6 +79,7 @@ declare module "../../../core/catalog" {
   }
   interface KeyScopeTable {
     "@matomezu/slide:slide": typeof SLIDE_KEY_SCOPE // スライドのレイヤーで操作している間のキー
+    "@matomezu/slide:in-place": typeof SLIDE_TEXT_KEY_SCOPE // 文字枠の文字を書き換えている間のキー
   }
   interface MessageTable extends Readonly<typeof kit.messages> {}
 }

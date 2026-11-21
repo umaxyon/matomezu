@@ -414,12 +414,6 @@ function SlidePageView({
                     if (text !== (shapeProps(shape).text ?? "")) set.run({ items: [shape.id], props: { text } })
                     if (grown) reshape.run({ item: shape.id, rect: roundRect(grown), scaled: false })
                   },
-                  onCancel: () => {
-                    // やめても、文字が空のままの文字枠（置いた直後）は残さない
-                    if (stage.editing === ADDED_EDIT && book) continueStep(book.id)
-                    setEditing(false)
-                    if ((shapeProps(shape).text ?? "") === "") remove.run()
-                  },
                 }}
               />
             ))}

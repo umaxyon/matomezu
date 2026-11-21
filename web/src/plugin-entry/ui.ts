@@ -110,6 +110,7 @@ export {
   useControlCenterMaximized,
   useCopyText,
   useDrawnMinimap,
+  useEndWhenBlocked,
   useFolderEntries,
   useFollowsSelection,
   useHighlightRanges,

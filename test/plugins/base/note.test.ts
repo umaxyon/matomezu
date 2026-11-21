@@ -9,7 +9,9 @@ import { pagesOf } from "../../../web/src/core/book"
 import { defineAction } from "../../../web/src/core/def/action"
 import { performIn } from "../../../web/src/core/perform-world"
 import type { Book } from "../../../web/src/core/schema/book"
+import { noteSendOf } from "../../../web/src/plugins/base/note"
 import { expiryOutlook } from "../../../web/src/plugins/base/note/expiry"
+import { NEW_NOTE } from "../../../web/src/plugins/base/note/panel-id"
 import { CORE_CATALOG, newStore } from "../../support"
 
 type Drawing = Book
@@ -265,4 +267,44 @@ test("読まれた伝言が消えるまでの見込み: 利用者トリガート
   expect(expiryOutlook(talked, "15", now)).toEqual({ kind: "left", minutes: 0 })
   // 形に合わない設定は既定（60 分）
   expect(expiryOutlook(talked, "bad", now)).toEqual({ kind: "left", minutes: 31 })
+})
+
+test("右サイドパネルで送る物: 新しい伝言は文と付ける先があれば付け、付けた伝言は変わった物だけを再送する。付ける先はカレントを最後に並べる", () => {
+  const open = (subject: string, anchors: string[], current: string) => ({
+    widget: "@matomezu/base:note-panel",
+    subject,
+    anchors,
+    current,
+    book: "b1",
+    page: "p1",
+  })
+  // 新しい伝言
+  expect(noteSendOf(open(NEW_NOTE, ["a", "b"], "a"), "見て", undefined)).toEqual({
+    action: "@matomezu/base:note-add",
+    args: { anchors: ["b", "a"], text: "見て" },
+  })
+  expect(noteSendOf(open(NEW_NOTE, ["a"], "a"), "  ", undefined)).toBeNull() // 空白だけの文
+  expect(noteSendOf(open(NEW_NOTE, [], "a"), "見て", undefined)).toBeNull() // 付ける先が無い
+  // 付けた伝言
+  const note: Annotation = {
+    id: "n1",
+    annotation: "@matomezu/base:note",
+    anchors: ["a"],
+    props: { text: "前", bubble: true, addedAt: "2026-11-21T00:00:00.000Z" },
+  }
+  expect(noteSendOf(open("n1", ["a"], "a"), "前", note)).toBeNull() // 何も変わらない
+  expect(noteSendOf(open("n1", ["a"], "a"), "後", note)).toEqual({
+    action: "@matomezu/base:note-update",
+    args: { note: "n1", text: "後" },
+  })
+  expect(noteSendOf(open("n1", ["a", "b"], "b"), "前", note)).toEqual({
+    action: "@matomezu/base:note-update",
+    args: { note: "n1", anchors: ["a", "b"] },
+  })
+  // 字が形に合わなければ、付ける先が動いた分だけ送る
+  expect(noteSendOf(open("n1", ["b"], "b"), "", note)).toEqual({
+    action: "@matomezu/base:note-update",
+    args: { note: "n1", anchors: ["b"] },
+  })
+  expect(noteSendOf(open("n1", [], "a"), "後", note)).toBeNull() // 付ける先が無い
 })
