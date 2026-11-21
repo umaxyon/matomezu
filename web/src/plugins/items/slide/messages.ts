@@ -1,4 +1,4 @@
-// スライドのアイテムの文言
+// 描画シェイプの文言
 import { defineMessages } from "../../../plugin-api"
 
 export const SLIDE_MESSAGES = defineMessages({

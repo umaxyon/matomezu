@@ -19,7 +19,7 @@ const openedOf = (stage: Stage) => {
   }
 }
 
-// 窓が見ているもの。current はカレントスクリーンの種類（ステージを並べるスクリーンなら book-screen、そうでなければ control-center）。
+// 窓が見ているもの。current はカレントスクリーンの種類（ステージを並べるスクリーンなら book-screen、そうでなければ plain-screen）。
 // book・page・mode（編集か印刷プレビューか）・selection は、いちばん最近カレントにしたブックスクリーンの、カレントのステージのもの（何も開いていなければ book は null）。
 // そのブックスクリーンが見えているスクリーンでなければ、それらを hidden に分けて添える（見えていない物として、常駐は開いたことにしない）。
 // ブックスクリーンが 1 枚も無ければ、bookScreen が NO_BOOK_SCREEN

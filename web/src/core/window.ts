@@ -26,8 +26,8 @@ export interface OpenedScreen {
 // ステージを並べるスクリーン（ブックスクリーン）
 export type BookScreen = OpenedScreen & { stages: Workspace }
 
-// AI に見せる（view の current）、カレントスクリーンの種類: ステージを並べるスクリーン（book-screen）か、そうでないスクリーン（control-center。コントロールセンターのほかのスクリーンも）
-export type CurrentKind = "control-center" | "book-screen"
+// AI に見せる（view の current）、カレントスクリーンの種類: ステージを並べるスクリーン（book-screen）か、そうでないスクリーン（plain-screen。コントロールセンター・書庫のスクリーン・チケットスクリーンなど）
+export type CurrentKind = "plain-screen" | "book-screen"
 
 export interface WindowState {
   screens: readonly OpenedScreen[] // 開いているスクリーン（開いた順。1 枚以上。ステージを並べるスクリーンは 0 枚でもよい）
@@ -283,7 +283,7 @@ export function issueStage(win: WindowState): { win: WindowState; id: string } {
 
 // AI に見せる、カレントスクリーンの種類
 export const currentKindOf = (win: Pick<WindowState, "screens" | "order">): CurrentKind =>
-  holdsStages(currentScreen(win)) ? "book-screen" : "control-center"
+  holdsStages(currentScreen(win)) ? "book-screen" : "plain-screen"
 
 // カレントスクリーンがブックスクリーン（ステージを並べるスクリーン）か。ステージのキーと、ステージでの操作が効くのは、この間
 export const bookScreenCurrent = (win: Pick<WindowState, "screens" | "order">): boolean =>

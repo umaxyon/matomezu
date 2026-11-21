@@ -15,7 +15,7 @@ const kit = pluginKit("@ex/scope", defineMessages({ add: { en: "Add", ja: "è¶³ã
 const ADD_ENTRY = kit.defineCommand({
   id: "add-entry",
   title: "add",
-  performs: ["@matomezu/dir:entry-add"],
+  performs: ["@matomezu/dir:node-add"],
   permissionScope: { page: "page" },
   run: (_ctx, _a, _arg: { page: string }) => {},
   when: () => true,

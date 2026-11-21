@@ -3,15 +3,15 @@
 // （中身の見えている開いたフォルダの下の端は、その中の先頭へ）。ファイルの行は上半分で前、下半分で後ろ。根の行は中へだけ。
 // 動かす行と、その中身の行には落とせない
 import type { Point } from "../../../plugin-api"
-import { entryOf, pathTo } from "./edit"
-import type { DirEntry, DirFolder } from "./entry"
+import { nodeOf, pathTo } from "./edit"
 import type { LaidRow } from "./layout"
+import type { DirFolder, DirNode } from "./node"
 
 export interface Drop {
   parent: string
   index?: number // 動かす中身を除いた並びの何番目（無ければ末尾）
   // 印: 中へ入るフォルダの行（into）か、行の間に入る所の線（between）
-  mark: { kind: "into"; entry: string } | { kind: "between"; from: Point; to: Point }
+  mark: { kind: "into"; node: string } | { kind: "between"; from: Point; to: Point }
 }
 
 // フォルダの行の端から、前か後ろへ入る範囲（行の高さの割合）
@@ -20,7 +20,7 @@ const EDGE = 0.25
 const LINE_PAST = 24
 
 // 中身 e と、その中身の id
-export function subtreeIds(e: DirEntry): Set<string> {
+export function subtreeIds(e: DirNode): Set<string> {
   const ids = new Set<string>([e.id])
   if (e.kind === "folder") for (const c of e.children ?? []) for (const id of subtreeIds(c)) ids.add(id)
   return ids
@@ -28,12 +28,12 @@ export function subtreeIds(e: DirEntry): Set<string> {
 
 // 根 root を並べた行 rows の上で、中身 dragged を点 at（紙の座標）に落とす先（落とせなければ null）
 export function dropAt(root: DirFolder, rows: readonly LaidRow[], dragged: string, at: Point): Drop | null {
-  const moving = entryOf(root, dragged)
+  const moving = nodeOf(root, dragged)
   if (!moving || dragged === root.id) return null
   const skip = subtreeIds(moving)
   const r = rows.find(row => at.y >= row.y && at.y < row.y + row.h)
   if (!r || skip.has(r.id)) return null
-  const e = entryOf(root, r.id)
+  const e = nodeOf(root, r.id)
   if (!e) return null
   const t = (at.y - r.y) / r.h
   const line = (y: number, x: number) => ({
@@ -42,7 +42,7 @@ export function dropAt(root: DirFolder, rows: readonly LaidRow[], dragged: strin
     to: { x: r.x + r.w + LINE_PAST, y },
   })
   if (e.kind === "folder" && (r.id === root.id || (t >= EDGE && t <= 1 - EDGE)))
-    return { parent: e.id, mark: { kind: "into", entry: e.id } }
+    return { parent: e.id, mark: { kind: "into", node: e.id } }
   const before = e.kind === "folder" ? t < EDGE : t < 0.5
   if (!before && e.kind === "folder" && !e.closed && (e.children?.length ?? 0) > 0) {
     const first = rows[rows.indexOf(r) + 1]

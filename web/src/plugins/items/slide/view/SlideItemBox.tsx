@@ -1,4 +1,4 @@
-// スライドのアイテム 1 つを描く箱: 紙の上の位置と大きさ rect に、回転 rotation（度）で置き、中身 children を描く（スライドの上と、刷る紙とで同じ形）
+// 描画シェイプ 1 つを描く箱: 紙の上の位置と大きさ rect に、回転 rotation（度）で置き、中身 children を描く（スライドの上と、刷る紙とで同じ形）
 import type { CSSProperties, ReactNode, Ref } from "react"
 import type { Rect } from "../../../../plugin-api"
 

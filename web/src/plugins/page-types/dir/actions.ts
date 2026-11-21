@@ -4,19 +4,11 @@
 import { z } from "zod"
 import type { CoreCatalog, ItemPage } from "../../../plugin-api"
 import { contentIdMaker, growOf } from "../../base"
-import { addEntries, buildPaths, changeEntry, entryOf, moveEntry, removeEntry, setClosed, sortFolder } from "./edit"
-import {
-  type DirFolder,
-  descriptionText,
-  dirRootOf,
-  giveIds,
-  NewEntrySchema,
-  newEntriesProblem,
-  newEntryOf,
-} from "./entry"
-import { iconProblem, iconsDescription } from "./entry-icon"
+import { addNodes, buildPaths, changeNode, moveNode, nodeOf, removeNode, setClosed, sortFolder } from "./edit"
 import { dirFits } from "./fit"
 import { kit } from "./kit"
+import { type DirFolder, descriptionText, dirRootOf, giveIds, NewNodeSchema, newNodeOf, newNodesProblem } from "./node"
+import { iconProblem, iconsDescription } from "./node-icon-enum"
 
 const ON_DIRS = { presentations: [kit.name("dir")] }
 
@@ -33,34 +25,34 @@ function dirOf(page: ItemPage, catalog: CoreCatalog) {
   }
 }
 
-export const ENTRY_ADD = kit.defineAction({
-  id: "entry-add",
+export const NODE_ADD = kit.defineAction({
+  id: "node-add",
   attach: ON_DIRS,
   aiDescription:
-    "Add folders and files to a directory page, in the folder parent (the root's id for its top level), at index among its contents (the end without it). entries are nested (write no ids; only folders have children and closed); every entry gets an id, returned in entries in the same nesting. Refused if the page is not a directory page, parent is not a folder in it, index is past the end, or the rows would not fit on the paper.",
-  title: "Add entries",
+    "Add folders and files to a directory page, in the folder parent (the root's id for its top level), at index among its contents (the end without it). nodes are nested (write no ids; only folders have children and closed); every node gets an id, returned in nodes in the same nesting. Refused if the page is not a directory page, parent is not a folder in it, index is past the end, or the rows would not fit on the paper.",
+  title: "Add nodes",
   target: "page",
   args: z.strictObject({
     parent: z.string().min(1),
     index: z.number().int().min(0).optional(),
-    entries: z.array(NewEntrySchema).min(1),
+    nodes: z.array(NewNodeSchema).min(1),
   }),
   describeArgs: catalog =>
     z.strictObject({
       parent: z.string().min(1),
       index: z.number().int().min(0).optional(),
-      entries: z.array(newEntryOf(iconsDescription(catalog))).min(1),
+      nodes: z.array(newNodeOf(iconsDescription(catalog))).min(1),
     }),
   permissionScope: "page",
   run: (page, args, ctx) => {
     const dir = dirOf(page, ctx.catalog)
     if (!dir) return null
-    const problem = newEntriesProblem(args.entries, (kind, icon) => iconProblem(ctx.catalog, kind, icon))
+    const problem = newNodesProblem(args.nodes, (kind, icon) => iconProblem(ctx.catalog, kind, icon))
     if (problem) return { declined: problem }
-    const given = giveIds(args.entries, contentIdMaker(page, ctx.newId))
-    const next = addEntries(dir.root, args.parent, given.entries, args.index)
+    const given = giveIds(args.nodes, contentIdMaker(page, ctx.newId))
+    const next = addNodes(dir.root, args.parent, given.nodes, args.index)
     const written = next && dir.put(next)
-    return written && { next: written, result: { entries: given.ids } }
+    return written && { next: written, result: { nodes: given.ids } }
   },
 })
 
@@ -84,22 +76,22 @@ export const PATHS_ADD = kit.defineAction({
   },
 })
 
-export const ENTRY_UPDATE = kit.defineAction({
-  id: "entry-update",
+export const NODE_UPDATE = kit.defineAction({
+  id: "node-update",
   attach: ON_DIRS,
   aiDescription:
-    "Change a folder or file of a directory page (the root too): its name, its description (null or empty removes it) and its icon (the id of a value of the enum entry-icon that fits its kind, listed in the arguments; null for the kind's default). Only what is given changes. Returns nothing. Refused for an entry not in the page or when the rows would not fit on the paper.",
-  title: "Update entry",
+    "Change a folder or file of a directory page (the root too): its name, its description (null or empty removes it) and its icon (the id of a value of the enum node-icon that fits its kind, listed in the arguments; null for the kind's default). Only what is given changes. Returns nothing. Refused for a node not in the page or when the rows would not fit on the paper.",
+  title: "Update node",
   target: "page",
   args: z.strictObject({
-    entry: z.string().min(1),
+    node: z.string().min(1),
     name: z.string().optional(),
     description: descriptionText().nullable().optional(),
     icon: z.string().min(1).nullable().optional(),
   }),
   describeArgs: catalog =>
     z.strictObject({
-      entry: z.string().min(1),
+      node: z.string().min(1),
       name: z.string().optional(),
       description: descriptionText().nullable().optional(),
       icon: z.string().min(1).nullable().optional().describe(iconsDescription(catalog)),
@@ -107,51 +99,51 @@ export const ENTRY_UPDATE = kit.defineAction({
   permissionScope: "page",
   run: (page, args, ctx) => {
     const dir = dirOf(page, ctx.catalog)
-    const target = dir && entryOf(dir.root, args.entry)
+    const target = dir && nodeOf(dir.root, args.node)
     if (target && typeof args.icon === "string") {
       const problem = iconProblem(ctx.catalog, target.kind, args.icon)
       if (problem) return { declined: problem }
     }
     const next =
-      dir && changeEntry(dir.root, args.entry, { name: args.name, description: args.description, icon: args.icon })
+      dir && changeNode(dir.root, args.node, { name: args.name, description: args.description, icon: args.icon })
     const written = next && dir?.put(next)
     return written ? { next: written, result: {} } : null
   },
 })
 
-export const ENTRY_REMOVE = kit.defineAction({
-  id: "entry-remove",
+export const NODE_REMOVE = kit.defineAction({
+  id: "node-remove",
   attach: ON_DIRS,
   aiDescription:
-    "Remove a folder or file of a directory page, with everything in it. Returns nothing. Refused for the root or an entry not in the page.",
-  title: "Remove entry",
+    "Remove a folder or file of a directory page, with everything in it. Returns nothing. Refused for the root or a node not in the page.",
+  title: "Remove node",
   target: "page",
-  args: z.strictObject({ entry: z.string().min(1) }),
+  args: z.strictObject({ node: z.string().min(1) }),
   permissionScope: "page",
   run: (page, args, ctx) => {
     const dir = dirOf(page, ctx.catalog)
-    const next = dir && removeEntry(dir.root, args.entry)
+    const next = dir && removeNode(dir.root, args.node)
     const written = next && dir?.put(next)
     return written ? { next: written, result: {} } : null
   },
 })
 
-export const ENTRY_MOVE = kit.defineAction({
-  id: "entry-move",
+export const NODE_MOVE = kit.defineAction({
+  id: "node-move",
   attach: ON_DIRS,
   aiDescription:
-    "Move a folder or file of a directory page, with everything in it, into the folder parent (the root's id for its top level) at index among its contents counted without the moved entry (the end without it). Use it to move an entry to another folder or reorder a folder's contents. Returns nothing. Refused for the root, an entry or parent not in the page, a parent that is a file or inside the moved entry, index past the end, or when the rows would not fit on the paper.",
-  title: "Move entry",
+    "Move a folder or file of a directory page, with everything in it, into the folder parent (the root's id for its top level) at index among its contents counted without the moved node (the end without it). Use it to move a node to another folder or reorder a folder's contents. Returns nothing. Refused for the root, a node or parent not in the page, a parent that is a file or inside the moved node, index past the end, or when the rows would not fit on the paper.",
+  title: "Move node",
   target: "page",
   args: z.strictObject({
-    entry: z.string().min(1),
+    node: z.string().min(1),
     parent: z.string().min(1),
     index: z.number().int().min(0).optional(),
   }),
   permissionScope: "page",
   run: (page, args, ctx) => {
     const dir = dirOf(page, ctx.catalog)
-    const next = dir && moveEntry(dir.root, args.entry, args.parent, args.index)
+    const next = dir && moveNode(dir.root, args.node, args.parent, args.index)
     const written = next && dir?.put(next)
     return written ? { next: written, result: {} } : null
   },
@@ -161,7 +153,7 @@ export const FOLDER_CLOSE = kit.defineAction({
   id: "folder-close",
   attach: ON_DIRS,
   aiDescription:
-    "Close a folder of a directory page (the root too), hiding its contents, or open it with closed false. Everyone sees it the same way. Returns nothing. Refused for a file, an entry not in the page, or when opening it would not fit on the paper.",
+    "Close a folder of a directory page (the root too), hiding its contents, or open it with closed false. Everyone sees it the same way. Returns nothing. Refused for a file, a node not in the page, or when opening it would not fit on the paper.",
   title: "Open or close folder",
   target: "page",
   args: z.strictObject({ folder: z.string().min(1), closed: z.boolean() }),
@@ -178,7 +170,7 @@ export const FOLDER_SORT = kit.defineAction({
   id: "folder-sort",
   attach: ON_DIRS,
   aiDescription:
-    "Sort the direct contents of a folder of a directory page (the root too) by name once: folders first, then files, each ascending (asc) or descending (desc). Names compare without marks and case, numbers by value. Folders inside keep their own order. Returns nothing. Refused for a file or an entry not in the page.",
+    "Sort the direct contents of a folder of a directory page (the root too) by name once: folders first, then files, each ascending (asc) or descending (desc). Names compare without marks and case, numbers by value. Folders inside keep their own order. Returns nothing. Refused for a file or a node not in the page.",
   title: "Sort folder",
   target: "page",
   args: z.strictObject({ folder: z.string().min(1), order: z.enum(["asc", "desc"]) }),

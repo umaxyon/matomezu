@@ -322,7 +322,7 @@ func TestAICatalogDescribesPageTypesAndItemKinds(t *testing.T) {
 	for _, i := range c.Items {
 		kinds[i.ID] = i.Kind
 	}
-	if !strings.HasPrefix(types["@matomezu/drawing:drawing"], "none ") || !strings.HasPrefix(types["@matomezu/slide-book:slide"], "binder ") || !strings.Contains(types["@matomezu/drawing:drawing"], "@matomezu/box:shape-nest-box") ||
+	if !strings.HasPrefix(types["@matomezu/drawing:drawing"], "none ") || !strings.HasPrefix(types["@matomezu/slide-page:slide"], "binder ") || !strings.Contains(types["@matomezu/drawing:drawing"], "@matomezu/box:shape-nest-box") ||
 		kinds["@matomezu/box:shape-box"] != "shape" || kinds["@matomezu/line:connector-line"] != "connector" {
 		t.Fatalf("book types = %v, item kinds = %v", types, kinds)
 	}
@@ -745,7 +745,7 @@ func TestAIPageShowsOnlyTheTextsOfABackground(t *testing.T) {
 	if err := json.Unmarshal(out, &got); err != nil || got.Slide != nil || len(got.Background.Texts) != 1 || got.Background.Texts[0] != "社外秘" {
 		t.Fatalf("AIPage = %s, %v", out, err)
 	}
-	slide := pageOf("@matomezu/slide-book:slide")
+	slide := pageOf("@matomezu/slide-page:slide")
 	same, err := e.AIPage(book(slide), json.RawMessage(slide))
 	if err != nil || string(same) != slide {
 		t.Fatalf("AIPage of a slide book = %s, %v", same, err)

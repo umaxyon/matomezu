@@ -2,22 +2,19 @@
 import { expect, test } from "bun:test"
 import { dropAt } from "../../../../web/src/plugins/page-types/dir/drag"
 import {
-  addEntries,
+  addNodes,
   buildPaths,
-  changeEntry,
+  changeNode,
   compareNames,
-  entryOf,
-  moveEntry,
+  moveNode,
+  nodeOf,
   noteEnd,
   pathTo,
-  removeEntry,
+  removeNode,
   rowsOf,
   setClosed,
   sortFolder,
 } from "../../../../web/src/plugins/page-types/dir/edit"
-import type { DirEntry, DirFolder } from "../../../../web/src/plugins/page-types/dir/entry"
-import { DirFolderSchema, giveIds } from "../../../../web/src/plugins/page-types/dir/entry"
-import { iconProblem } from "../../../../web/src/plugins/page-types/dir/entry-icon"
 import {
   DIVIDER_GAP,
   ICON,
@@ -29,6 +26,9 @@ import {
   NOTE_LIMIT,
   ROW,
 } from "../../../../web/src/plugins/page-types/dir/layout"
+import type { DirFolder, DirNode } from "../../../../web/src/plugins/page-types/dir/node"
+import { DirFolderSchema, giveIds } from "../../../../web/src/plugins/page-types/dir/node"
+import { iconProblem } from "../../../../web/src/plugins/page-types/dir/node-icon-enum"
 import { CORE_CATALOG } from "../../../support"
 
 // 根 r の中に フォルダ src（a.ts・ui（b.tsx））と README.md
@@ -49,67 +49,67 @@ const dir: DirFolder = {
     { id: "readme", kind: "file", name: "README.md" },
   ],
 }
-const ids = (f: DirEntry | null | undefined) => (f?.kind === "folder" ? (f.children ?? []).map(c => c.id) : [])
-const file = (id: string): DirEntry => ({ id, kind: "file", name: id })
+const ids = (f: DirNode | null | undefined) => (f?.kind === "folder" ? (f.children ?? []).map(c => c.id) : [])
+const file = (id: string): DirNode => ({ id, kind: "file", name: id })
 
 test("中身とそこまでのフォルダを根から辿れる（根も中身の 1 つ）", () => {
   expect(pathTo(dir, "r")).toEqual([])
   expect(pathTo(dir, "b")?.map(f => f.id)).toEqual(["r", "src", "ui"])
   expect(pathTo(dir, "x")).toBeNull()
-  expect(entryOf(dir, "r")?.name).toBe("proj")
-  expect(entryOf(dir, "b")?.name).toBe("b.tsx")
+  expect(nodeOf(dir, "r")?.name).toBe("proj")
+  expect(nodeOf(dir, "b")?.name).toBe("b.tsx")
 })
 
 test("フォルダの中の決めた所（無ければ末尾）に足す。ファイルの中・範囲の外には足せない", () => {
-  expect(ids(entryOf(addEntries(dir, "src", [file("n")])!, "src"))).toEqual(["a", "ui", "n"])
-  expect(ids(entryOf(addEntries(dir, "src", [file("n")], 0)!, "src"))).toEqual(["n", "a", "ui"])
-  expect(ids(addEntries(dir, "r", [file("n")], 1))).toEqual(["src", "n", "readme"])
-  expect(addEntries(dir, "a", [file("n")])).toBeNull()
-  expect(addEntries(dir, "src", [file("n")], 3)).toBeNull()
-  expect(addEntries(dir, "x", [file("n")])).toBeNull()
+  expect(ids(nodeOf(addNodes(dir, "src", [file("n")])!, "src"))).toEqual(["a", "ui", "n"])
+  expect(ids(nodeOf(addNodes(dir, "src", [file("n")], 0)!, "src"))).toEqual(["n", "a", "ui"])
+  expect(ids(addNodes(dir, "r", [file("n")], 1))).toEqual(["src", "n", "readme"])
+  expect(addNodes(dir, "a", [file("n")])).toBeNull()
+  expect(addNodes(dir, "src", [file("n")], 3)).toBeNull()
+  expect(addNodes(dir, "x", [file("n")])).toBeNull()
 })
 
 test("名前とアイコンを替える（根も）。アイコンの null は消す", () => {
-  const named = changeEntry(dir, "a", { name: "**main**.ts", icon: "@matomezu/markdown:entry-icon" })
-  expect(entryOf(named!, "a")).toEqual({
+  const named = changeNode(dir, "a", { name: "**main**.ts", icon: "@matomezu/markdown:node-icon" })
+  expect(nodeOf(named!, "a")).toEqual({
     id: "a",
     kind: "file",
     name: "**main**.ts",
-    icon: "@matomezu/markdown:entry-icon",
+    icon: "@matomezu/markdown:node-icon",
   })
-  expect(entryOf(changeEntry(named!, "a", { icon: null })!, "a")).toEqual({
+  expect(nodeOf(changeNode(named!, "a", { icon: null })!, "a")).toEqual({
     id: "a",
     kind: "file",
     name: "**main**.ts",
   })
-  expect(changeEntry(dir, "r", { name: "root" })?.name).toBe("root")
-  expect(changeEntry(dir, "x", { name: "?" })).toBeNull()
+  expect(changeNode(dir, "r", { name: "root" })?.name).toBe("root")
+  expect(changeNode(dir, "x", { name: "?" })).toBeNull()
 })
 
 test("中身ごと消す。根は消せない。空になったフォルダは中身を持たない", () => {
-  expect(ids(removeEntry(dir, "src"))).toEqual(["readme"])
-  expect(entryOf(removeEntry(dir, "b")!, "ui")).toEqual({ id: "ui", kind: "folder", name: "ui" })
-  expect(removeEntry(dir, "r")).toBeNull()
+  expect(ids(removeNode(dir, "src"))).toEqual(["readme"])
+  expect(nodeOf(removeNode(dir, "b")!, "ui")).toEqual({ id: "ui", kind: "folder", name: "ui" })
+  expect(removeNode(dir, "r")).toBeNull()
 })
 
 test("付け替えと並びの入れ替え。根・ファイルの中・自分の中へは移せない", () => {
-  expect(ids(moveEntry(dir, "readme", "r", 0))).toEqual(["readme", "src"])
-  const moved = moveEntry(dir, "b", "r")
+  expect(ids(moveNode(dir, "readme", "r", 0))).toEqual(["readme", "src"])
+  const moved = moveNode(dir, "b", "r")
   expect(ids(moved)).toEqual(["src", "readme", "b"])
-  expect(ids(entryOf(moved!, "ui"))).toEqual([])
-  expect(moveEntry(dir, "r", "src")).toBeNull()
-  expect(moveEntry(dir, "ui", "a")).toBeNull()
-  expect(moveEntry(dir, "src", "ui")).toBeNull()
-  expect(moveEntry(dir, "src", "src")).toBeNull()
+  expect(ids(nodeOf(moved!, "ui"))).toEqual([])
+  expect(moveNode(dir, "r", "src")).toBeNull()
+  expect(moveNode(dir, "ui", "a")).toBeNull()
+  expect(moveNode(dir, "src", "ui")).toBeNull()
+  expect(moveNode(dir, "src", "src")).toBeNull()
 })
 
 test("フォルダを閉じると中身の行を出さない（根も閉じられる）。ファイルは閉じられない", () => {
   const closed = setClosed(dir, "src", true)!
-  expect(rowsOf(closed).map(r => r.entry.id)).toEqual(["r", "src", "readme"])
-  expect(entryOf(setClosed(closed, "src", false)!, "src")).not.toHaveProperty("closed")
-  expect(rowsOf(setClosed(dir, "r", true)!).map(r => r.entry.id)).toEqual(["r"])
+  expect(rowsOf(closed).map(r => r.node.id)).toEqual(["r", "src", "readme"])
+  expect(nodeOf(setClosed(closed, "src", false)!, "src")).not.toHaveProperty("closed")
+  expect(rowsOf(setClosed(dir, "r", true)!).map(r => r.node.id)).toEqual(["r"])
   expect(setClosed(dir, "a", true)).toBeNull()
-  expect(rowsOf(dir).map(r => [r.entry.id, r.depth])).toEqual([
+  expect(rowsOf(dir).map(r => [r.node.id, r.depth])).toEqual([
     ["r", 0],
     ["src", 1],
     ["a", 2],
@@ -134,7 +134,7 @@ test("並べ替えは直下だけ、フォルダが先。名前は装飾の記�
   }
   const asc = sortFolder(mixed, "r", "asc")!
   expect(ids(asc)).toEqual(["a", "z", "B", "f2", "f10"])
-  expect(ids(entryOf(asc, "z"))).toEqual(["y", "x"]) // 中のフォルダはそのまま
+  expect(ids(nodeOf(asc, "z"))).toEqual(["y", "x"]) // 中のフォルダはそのまま
   expect(ids(sortFolder(mixed, "r", "desc"))).toEqual(["z", "a", "f10", "f2", "B"])
   expect(sortFolder(mixed, "B", "asc")).toBeNull()
   expect(compareNames("a", "A")).toBeGreaterThan(0) // 同じなら字の符号で（どの環境でも同じ順）
@@ -147,15 +147,15 @@ test("パスの並びから組み立てる。末尾が / ならフォルダ、�
   const built = buildPaths(dir, "r", ["src/ui/Button.tsx", "docs/", "src/a.ts", "LICENSE"], makeId)!
   expect(built.ids).toEqual(["n1", "n2", "a", "n3"])
   expect(ids(built.root)).toEqual(["src", "readme", "n2", "n3"])
-  expect(ids(entryOf(built.root, "ui"))).toEqual(["b", "n1"])
-  expect(entryOf(built.root, "n2")).toEqual({ id: "n2", kind: "folder", name: "docs" })
+  expect(ids(nodeOf(built.root, "ui"))).toEqual(["b", "n1"])
+  expect(nodeOf(built.root, "n2")).toEqual({ id: "n2", kind: "folder", name: "docs" })
   const again = buildPaths(built.root, "r", ["src/ui/Button.tsx", "docs/"], makeId)!
   expect(again.root).toEqual(built.root)
   expect(again.ids).toEqual(["n1", "n2"])
   expect(buildPaths(dir, "a", ["x"], makeId)).toBeNull()
   expect(buildPaths(dir, "r", ["/"], makeId)).toBeNull()
   // 同じ名前のファイルがあっても、フォルダとしては別に足す
-  expect(entryOf(buildPaths(dir, "r", ["README.md/"], makeId)!.root, "n4")).toMatchObject({ kind: "folder" })
+  expect(nodeOf(buildPaths(dir, "r", ["README.md/"], makeId)!.root, "n4")).toMatchObject({ kind: "folder" })
 })
 
 test("足すときに受けた入れ子に上から id を振る。閉じているかはフォルダだけ", () => {
@@ -166,18 +166,18 @@ test("足すときに受けた入れ子に上から id を振る。閉じてい�
         kind: "folder",
         name: "lib",
         closed: true,
-        children: [{ kind: "file", name: "x.ts", icon: "@matomezu/drawing:entry-icon" }],
+        children: [{ kind: "file", name: "x.ts", icon: "@matomezu/drawing:node-icon" }],
       },
     ],
     () => `g${++n}`,
   )
-  expect(given.entries).toEqual([
+  expect(given.nodes).toEqual([
     {
       id: "g1",
       kind: "folder",
       name: "lib",
       closed: true,
-      children: [{ id: "g2", kind: "file", name: "x.ts", icon: "@matomezu/drawing:entry-icon" }],
+      children: [{ id: "g2", kind: "file", name: "x.ts", icon: "@matomezu/drawing:node-icon" }],
     },
   ])
   expect(given.ids).toEqual([{ id: "g1", children: [{ id: "g2" }] }])
@@ -249,7 +249,7 @@ test("ドラッグで落とす先: フォルダの行の真ん中は中の末尾
 })
 
 test("説明は、いちばん右まで伸びた行の右から 70 空けた所にそろえて置き、紙に入らない分は … で切る。行が紙の幅の 8 割を超えたら出さない", () => {
-  const noted = changeEntry(changeEntry(dir, "a", { description: "説明です" })!, "r", {
+  const noted = changeNode(changeNode(dir, "a", { description: "説明です" })!, "r", {
     description: "長い".repeat(200),
   })!
   const laid = layoutDir(noted, { w: 794, h: 1123 })
@@ -266,11 +266,11 @@ test("説明は、いちばん右まで伸びた行の右から 70 空けた所�
   const wide = { w: Math.floor(right / NOTE_LIMIT) - 1, h: 1123 }
   expect(layoutDir(noted, wide).notes).toBeNull()
   expect(layoutDir(noted, wide).rows.every(r => r.note === null)).toBe(true)
-  expect(entryOf(changeEntry(noted, "a", { description: null })!, "a")).not.toHaveProperty("description")
+  expect(nodeOf(changeNode(noted, "a", { description: null })!, "a")).not.toHaveProperty("description")
 })
 
 test("説明の見せ方: 出さないなら列も無い。「・・・」を付けると説明の前に付く。区切り線は説明の列の左から 10 空けた所", () => {
-  const noted = changeEntry(dir, "a", { description: "説明です" })!
+  const noted = changeNode(dir, "a", { description: "説明です" })!
   const paper = { w: 794, h: 1123 }
   expect(layoutDir(noted, paper, { shown: false, dots: false, divider: true })).toMatchObject({
     notes: null,
@@ -307,12 +307,12 @@ test("説明のその場の編集を終えると、書いた字に替える。�
   expect(noteEnd(root, "b", "書いた")).toBe("書いた")
 })
 
-test("中身のアイコンは、列挙 entry-icon の値で種類に合う物だけがアクションの検査で通る（データの形は字だけ。ほかのプラグインが足した値も選べる）", () => {
-  expect(iconProblem(CORE_CATALOG, "folder", "@matomezu/dir:entry-icon-book")).toBeNull()
-  expect(iconProblem(CORE_CATALOG, "file", "@matomezu/dir:entry-icon-class-diagram")).toBeNull()
-  expect(iconProblem(CORE_CATALOG, "file", "@matomezu/drawing:entry-icon")).toBeNull()
-  expect(iconProblem(CORE_CATALOG, "folder", "@matomezu/drawing:entry-icon")).not.toBeNull()
-  expect(iconProblem(CORE_CATALOG, "file", "@matomezu/dir:entry-icon-book")).not.toBeNull()
+test("中身のアイコンは、列挙 node-icon の値で種類に合う物だけがアクションの検査で通る（データの形は字だけ。ほかのプラグインが足した値も選べる）", () => {
+  expect(iconProblem(CORE_CATALOG, "folder", "@matomezu/dir:node-icon-book")).toBeNull()
+  expect(iconProblem(CORE_CATALOG, "file", "@matomezu/dir:node-icon-class-diagram")).toBeNull()
+  expect(iconProblem(CORE_CATALOG, "file", "@matomezu/drawing:node-icon")).toBeNull()
+  expect(iconProblem(CORE_CATALOG, "folder", "@matomezu/drawing:node-icon")).not.toBeNull()
+  expect(iconProblem(CORE_CATALOG, "file", "@matomezu/dir:node-icon-book")).not.toBeNull()
   expect(iconProblem(CORE_CATALOG, "file", "nothing")).not.toBeNull()
   // データの形は、台帳にある値かを確かめない（値を足したプラグインを外してもブックが読める）
   expect(DirFolderSchema.safeParse({ id: "r", kind: "folder", name: "r", icon: "nothing" }).success).toBe(true)

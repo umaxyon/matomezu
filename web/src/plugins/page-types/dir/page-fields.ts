@@ -3,8 +3,8 @@
 import { z } from "zod"
 import type { CoreCatalog } from "../../../plugin-api"
 import { type PageFieldsWay, pageFieldsWay } from "../../base"
-import { descriptionText, giveIds, newEntriesProblem, newEntryOf } from "./entry"
-import { iconProblem, iconsDescription } from "./entry-icon"
+import { descriptionText, giveIds, newNodeOf, newNodesProblem } from "./node"
+import { iconProblem, iconsDescription } from "./node-icon-enum"
 
 // 作るときに受ける根（アイコンの検査は機能台帳から。選べない物は受けない）
 const addRoot = (catalog: CoreCatalog) =>
@@ -14,10 +14,10 @@ const addRoot = (catalog: CoreCatalog) =>
       description: descriptionText().optional(),
       icon: z.string().min(1).optional().describe(iconsDescription(catalog)),
       closed: z.boolean().optional(),
-      children: z.array(newEntryOf(iconsDescription(catalog))).optional(),
+      children: z.array(newNodeOf(iconsDescription(catalog))).optional(),
     })
     .superRefine((root, ctx) => {
-      const problem = newEntriesProblem([{ kind: "folder", ...root }], (kind, icon) => iconProblem(catalog, kind, icon))
+      const problem = newNodesProblem([{ kind: "folder", ...root }], (kind, icon) => iconProblem(catalog, kind, icon))
       if (problem) ctx.addIssue({ code: "custom", message: problem })
     })
     .describe(
@@ -29,7 +29,7 @@ export const pageFieldsInput: { add: PageFieldsWay; update: PageFieldsWay } = {
     args: catalog => z.strictObject({ root: addRoot(catalog) }),
     write: (_page, input, makeId) => {
       const given = giveIds([{ kind: "folder", ...input.root }], makeId)
-      return { fields: { root: given.entries[0] }, result: { root: given.ids[0] } }
+      return { fields: { root: given.nodes[0] }, result: { root: given.ids[0] } }
     },
   }),
   update: pageFieldsWay({ args: z.strictObject({}), write: () => ({ fields: {} }) }),

@@ -16,7 +16,7 @@ export interface OutputSheet extends SheetAt {
 }
 
 export function PrintOutput({ book, sheets }: { stage: string; book: Book; sheets: readonly OutputSheet[] }) {
-  const style = usePageLookStyle() // 外の枠は開いているページの見た目。区画の中は、区画ごとのページの見た目（SheetFrame）
+  const style = usePageLookStyle() // 外の枠は開いているページの見た目。印刷区画の中は、印刷区画ごとのページの見た目（SheetFrame）
   return createPortal(
     <div className={styles.output} style={style} data-print-output={sheets.length} aria-hidden="true">
       <style>{pageRules(sheets)}</style>

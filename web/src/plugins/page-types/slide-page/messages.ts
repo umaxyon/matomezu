@@ -1,7 +1,7 @@
-// スライドのブックの文言
+// スライドのページの文言
 import { defineMessages } from "../../../plugin-api"
 
-export const SLIDE_BOOK_MESSAGES = defineMessages({
+export const SLIDE_PAGE_MESSAGES = defineMessages({
   Paper: { en: "Paper", ja: "紙" },
   Slide: { en: "Slide", ja: "スライド" },
   "Print slides": { en: "Print slides", ja: "スライドの印刷" },

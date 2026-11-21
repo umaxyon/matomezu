@@ -1,4 +1,4 @@
-// スライドのアイテムを描く所（レイヤーのアイテム・紙・置こうとしている途中の見え方）が引く、その種類のビューと、
+// 描画シェイプを描く所（レイヤーのアイテム・紙・置こうとしている途中の見え方）が引く、その種類のビューと、
 // そのプラグインのテーマキー（--<名前>）の値。描く要素の style に tokens を置き、その中に View を描く
 import type { ComponentType, CSSProperties } from "react"
 import type { PlacedShape } from "../../../../plugin-api"

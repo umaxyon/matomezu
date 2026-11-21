@@ -1,4 +1,4 @@
-// スライドのアイテム 1 つの絵: 書いた位置と大きさに、角度（rotation）を枠の中心でかけて、アイテムのビューを描く。
+// 描画シェイプ 1 つの絵: 書いた位置と大きさに、角度（rotation）を枠の中心でかけて、アイテムのビューを描く。
 // 操作を受けるレイヤー（SlideLayer）は edit を渡す: アイテムに操作の印（data-item）とアンカーを付け、文字枠は書き換え中ならテキストForm にする。
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import type { PlacedShape, Rect } from "../../../../plugin-api"

@@ -208,7 +208,7 @@ test("箱を右クリックすると選ばれ、設定・区切り線・切り�
   await expect(items(page)).toHaveText(["一"])
 })
 
-test("キーは割り当ての表で効く: 本文のテキストFormの Enter は改行、キャプションのテキストFormの Enter で決める、メニューは Escape で閉じる", async ({
+test("キーはキーバインドの表で効く: 本文のテキストFormの Enter は改行、キャプションのテキストFormの Enter で決める、メニューは Escape で閉じる", async ({
   page,
 }) => {
   await page.goto(BOOK_SCREEN_URL)

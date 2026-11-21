@@ -112,7 +112,7 @@ export interface Placement {
   zoom: number
 }
 
-const HOME: Point = { x: 0, y: 0 }
+const ORIGIN: Point = { x: 0, y: 0 }
 const NONE: readonly string[] = []
 const EDIT: StageMode = { kind: "edit" }
 
@@ -122,7 +122,7 @@ export function newStage(id: string, opened: Opened | null = null): Stage {
     opened,
     mode: EDIT,
     zoom: 1,
-    pan: HOME,
+    pan: ORIGIN,
     view: null,
     edits: "items",
     placing: null,
@@ -180,8 +180,8 @@ export function setArea(stage: Stage, area: Size | null, origin: Point | null = 
   const sheet = paperOf(stage)
   if (!o || !sheet) return stage
   const now = o.area ?? null
-  const was = o.origin ?? HOME
-  const next = area ? (origin ?? HOME) : HOME
+  const was = o.origin ?? ORIGIN
+  const next = area ? (origin ?? ORIGIN) : ORIGIN
   const sameArea = now === area || (now && area && now.w === area.w && now.h === area.h)
   if (sameArea && was.x === next.x && was.y === next.y) return stage
   const { area: _, origin: __, ...rest } = o
@@ -204,7 +204,7 @@ export function setStart(stage: Stage, start: Point): Stage {
 
 // 倍率 zoom で、start が表示領域の左上に来るずらす量（知らせる前は紙の左上）
 function startPan(stage: Stage, zoom: number): Point {
-  const s = stage.start ?? HOME
+  const s = stage.start ?? ORIGIN
   return { x: 0 - s.x * zoom, y: 0 - s.y * zoom }
 }
 
@@ -299,13 +299,13 @@ function openedIn(catalog: CoreCatalog, book: Book, binder: string): Opened {
 
 // ブックを開く（並びの最初）。ずらす量は紙の左上に戻し（初めの位置 start が届いたらそこへ合わせる。starting）、印刷プレビューは閉じる（開く前の倍率に戻す）
 export function openBook(catalog: CoreCatalog, stage: Stage, book: Book): Stage {
-  return settle(leave(opening(edited(stage), openedFirst(catalog, book))), HOME)
+  return settle(leave(opening(edited(stage), openedFirst(catalog, book))), ORIGIN)
 }
 
 // ブックの外のページ page を開く（ずらす量と印刷プレビューは openBook と同じ）。もう開いていれば、同じ値を返す
 export function openOutsidePage(catalog: CoreCatalog, stage: Stage, page: Page): Stage {
   const to = openedAt(catalog, { kind: "page", id: page.id }, page)
-  return sameData(to.outermost, stage.opened?.outermost) ? stage : settle(leave(opening(edited(stage), to)), HOME)
+  return sameData(to.outermost, stage.opened?.outermost) ? stage : settle(leave(opening(edited(stage), to)), ORIGIN)
 }
 
 // 開いているブックのページを開く（開いているブックの、あるページだけ）。ずらす量は紙の左上に戻す（初めの位置が届いたらそこへ合わせる）。
@@ -317,7 +317,7 @@ export function openPage(catalog: CoreCatalog, stage: Stage, book: Book, page: s
   if (shownPageId(o) === page) return closePrintPreview(stage)
   if (editingBackground(stage)) return stage // 背景編集モードの間は、ページを替えない
   const to = openedAt(catalog, entryOf(book), found)
-  return sameData(to, o) ? stage : settle(leave(opening(edited(stage), to)), HOME)
+  return sameData(to, o) ? stage : settle(leave(opening(edited(stage), to)), ORIGIN)
 }
 
 // 開いているブックのバインダを開く（中の最初のページ。空ならバインダ）。そのバインダのページか、そのバインダをもう開いていれば、印刷プレビューを閉じるだけ
@@ -326,7 +326,7 @@ export function openBinder(catalog: CoreCatalog, stage: Stage, book: Book, binde
   if (!o || o.outermost.id !== book.id || !findBinder(book, binder)) return stage
   if (binderOf(book, o) === binder) return closePrintPreview(stage)
   if (editingBackground(stage)) return stage
-  return settle(leave(opening(edited(stage), openedIn(catalog, book, binder))), HOME)
+  return settle(leave(opening(edited(stage), openedIn(catalog, book, binder))), ORIGIN)
 }
 
 // 開いているものが入っているバインダの id（空のバインダを開いていればそのバインダ。バインダの外のページか、何も開いていなければ null）
@@ -380,15 +380,15 @@ function followOpened(catalog: CoreCatalog, stage: Stage, book: Book, before?: B
   const found = o.kind === "page" ? findPage(book, o.page)?.page : undefined
   if (o.kind === "page" && found) return followShown(catalog, stage, o, found)
   const opened = neighbourOf(catalog, book, o, before)
-  return sameData(opened, o) ? stage : settle(leave(opening(stage, opened)), HOME)
+  return sameData(opened, o) ? stage : settle(leave(opening(stage, opened)), ORIGIN)
 }
 
 // 開いているページ o が found に変わったときに合わせる（タイプと紙は決め直す。紙が同じで中身をずらしたなら、パンと広さを合わせる）
 function followShown(catalog: CoreCatalog, stage: Stage, o: OpenedPage, found: Page): Stage {
   const paper = stagePaper(catalog, found)
   if (sameData(paper, o.paper)) {
-    const was = o.shift ?? HOME
-    const now = found.shift ?? HOME
+    const was = o.shift ?? ORIGIN
+    const now = found.shift ?? ORIGIN
     const sheet = paperOf(stage)
     if (was.x === now.x && was.y === now.y) return stage
     const { shift: _, area, ...rest } = o
@@ -461,13 +461,13 @@ export function zoomTo(stage: Stage, zoom: number, at?: Point): Stage {
 
 // 開いたときの見え方に戻す: 倍率 1 で、start（中身の載った印刷区画の左上）を表示領域の左上に置く。印刷プレビューの間は、並べた広さの左上
 export function resetView(stage: Stage): Stage {
-  const pan = previewing(stage) ? HOME : startPan(stage, 1)
+  const pan = previewing(stage) ? ORIGIN : startPan(stage, 1)
   return stage.zoom === 1 ? moveTo(stage, pan) : moveTo({ ...stage, zoom: 1 }, pan)
 }
 
 // 何も開いていない状態にする（開いていたブックが無くなったときなど）
 export function closeBook(stage: Stage): Stage {
-  return stage.opened ? settle(leave({ ...edited(stage), opened: null, start: null, starting: false }), HOME) : stage
+  return stage.opened ? settle(leave({ ...edited(stage), opened: null, start: null, starting: false }), ORIGIN) : stage
 }
 
 // 背景編集モードの間か（ステージが、ページの slide を背景として直している間）

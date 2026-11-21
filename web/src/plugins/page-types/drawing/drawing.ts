@@ -1,4 +1,4 @@
-// 図面のブック: ページを持ち、ページごとに紙を置き、紙の上にアイテム（形と、形どうしを結ぶ線）を置く。見た目（テーマと紙の色）と文字の色は base の設定の項目で変えられる
+// 図面のページのタイプ: ページを持ち、ページごとに紙を置き、紙の上にアイテム（形と、形どうしを結ぶ線）を置く。見た目（テーマと紙の色）と文字の色は base の設定の項目で変えられる
 import {
   BACKGROUND_PRINT,
   DIAGRAM_THEME_TYPE,
@@ -33,7 +33,7 @@ const ITEMS = [
   "@matomezu/line:connector-line",
 ] as const
 
-// 背景に置く形（ページの slide。背景編集モードで置く。スライドのアイテム）
+// 背景に置く形（ページの slide。背景編集モードで置く。描画シェイプ）
 const BACKGROUND_ITEMS = [
   "@matomezu/slide:slide-text",
   "@matomezu/slide:slide-free-line",

@@ -1,4 +1,4 @@
-// スライドのページの印刷区画: 紙は 1 枚で（増えない）、スライドのアイテムが 1 つでも紙に掛かれば、その 1 枚を載っているとする（プレゼンテーションの printSheets。設定 slide-print が always なら何も無くても載り、never なら載らない）。
+// スライドのページの印刷区画: 紙は 1 枚で（増えない）、描画シェイプが 1 つでも紙に掛かれば、その 1 枚を載っているとする（プレゼンテーションの printSheets。設定 slide-print が always なら何も無くても載り、never なら載らない）。
 // 紙の外にはみ出た所は切れて刷る（ミニマップは base の置いたアイテムの絵）
 import { type CoreCatalog, type ItemPage, type Rect, slideOf } from "../../../plugin-api"
 import { type PrintSheets, paperSize, printSheetsOf, type SettingReader } from "../../base"

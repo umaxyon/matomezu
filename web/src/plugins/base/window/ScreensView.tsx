@@ -35,7 +35,7 @@ interface Row {
 
 export function ScreensView() {
   // カレントスクリーンがブックスクリーンか（CSS が data-current で、どちらを見せるかを決める）
-  const currentKind = useMatomezuState(s => bookScreenCurrent(s.window)) ? "book-screen" : "control-center"
+  const currentKind = useMatomezuState(s => bookScreenCurrent(s.window)) ? "book-screen" : "plain-screen"
   // 見せるブックスクリーン（いちばん最近カレントにした 1 枚）と、見せるステージを並べないスクリーン（同じく。無ければ none）
   const recentBook = useMatomezuState(s => recentBookScreen(s.window)?.id)
   const top = useMatomezuState(s => recentPlainScreen(s.window))
@@ -116,9 +116,9 @@ export function ScreensView() {
       })}
       <section
         className={styles.center}
-        data-current={mixed ? "control-center" : currentKind}
+        data-current={mixed ? "plain-screen" : currentKind}
         data-mixed={mixed}
-        inert={!mixed && currentKind !== "control-center"}
+        inert={!mixed && currentKind !== "plain-screen"}
       >
         <div className={styles.body}>
           {plainScreens.map(id => {

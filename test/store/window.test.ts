@@ -51,7 +51,7 @@ const withBookScreen = () => openScreen(newWindow(CORE_CATALOG), CORE_CATALOG, "
 test("窓は、最初から開いているスクリーンだけで始まる（ブックスクリーンは 0 枚）", () => {
   const win = newWindow(CORE_CATALOG)
   expect(win.screens.map(s => s.def)).toEqual(["@matomezu/control-center:screen"])
-  expect(currentKindOf(win)).toBe("control-center")
+  expect(currentKindOf(win)).toBe("plain-screen")
   expect(recentBookScreen(win)).toBeUndefined()
   const opened = withBookScreen()
   expect(currentKindOf(opened)).toBe("book-screen")
@@ -89,7 +89,7 @@ test("コントロールセンターをカレントスクリーンにしても�
   actions.zoomStage("s1", 2)
   const before = screenOf(state.getState().window)
   showCenter({ state, actions })
-  expect(currentKindOf(state.getState().window)).toBe("control-center")
+  expect(currentKindOf(state.getState().window)).toBe("plain-screen")
   expect(screenOf(state.getState().window)).toBe(before)
   showBooks({ state, actions })
   expect(currentKindOf(state.getState().window)).toBe("book-screen")
@@ -101,7 +101,7 @@ test("巣箱のコマンドは、コントロールセンターをカレント�
   const active = () => isActive(instance as never, state.getState(), "s1", CENTER)
   expect(active()).toBe(false)
   expect(actions.command("s1", CENTER)).toBe(true)
-  expect(currentKindOf(state.getState().window)).toBe("control-center")
+  expect(currentKindOf(state.getState().window)).toBe("plain-screen")
   expect(active()).toBe(true)
   expect(actions.command("s1", CENTER)).toBe(true)
   expect(currentKindOf(state.getState().window)).toBe("book-screen")
@@ -154,7 +154,7 @@ test("AI に知らせる見ているもの: ブックスクリーンがカレン
   })
   showCenter({ state, actions })
   const view = viewOf(CORE_CATALOG, state.getState())
-  expect(view).toMatchObject({ current: "control-center", hidden: { book: "b1", page: "p1", stage: "s1" } })
+  expect(view).toMatchObject({ current: "plain-screen", hidden: { book: "b1", page: "p1", stage: "s1" } })
   expect("book" in view).toBe(false)
 })
 
@@ -258,9 +258,9 @@ test("見えているスクリーンは、スクリーンアレンジメント�
   expect(win().arrangement).toBe("k:all")
   expect(shownScreens(core, win())).toEqual(win().screens.map(s => s.id))
   expect(shownBookScreens(core, win()).map(s => s.def)).toEqual(["@matomezu/base:book-screen"])
-  expect(currentKindOf(win())).toBe("control-center")
+  expect(currentKindOf(win())).toBe("plain-screen")
   // 見えているブックスクリーンは、AI に見えている物として知らせる（カレントスクリーンの種類は変わらない）
-  expect(viewOf(core, state.getState())).toMatchObject({ current: "control-center", book: "b1" })
+  expect(viewOf(core, state.getState())).toMatchObject({ current: "plain-screen", book: "b1" })
   // 機能台帳に無いアレンジメントには替えない。場所に入り、当てはめると戻る
   actions.setScreenArrangement("k:none")
   expect(win().arrangement).toBe("k:all")
@@ -322,7 +322,7 @@ test("宛先なしで作った窓は、ブックスクリーンが 0 枚。AI �
   })
   const { state } = store
   expect(state.getState().window.screens.map(s => s.def)).toEqual(["@matomezu/control-center:screen"])
-  expect(viewOf(store.catalog.core, state.getState())).toEqual({ current: "control-center", bookScreen: "none" })
+  expect(viewOf(store.catalog.core, state.getState())).toEqual({ current: "plain-screen", bookScreen: "none" })
   expect(store.actions.pressKey("Home")).toBe(false)
 })
 
@@ -383,7 +383,7 @@ test("場所を当てはめても、ブックスクリーンは 2 枚まで。�
   store.locate(one)
   store.locate(none)
   expect(bookScreens(store).length).toBe(1)
-  expect(currentKindOf(store.state.getState().window)).toBe("control-center")
+  expect(currentKindOf(store.state.getState().window)).toBe("plain-screen")
 })
 
 test("2 枚のブックスクリーンから、ブックスクリーンの無い場所へ戻ると、いちばん最近カレントにした 1 枚が残る", () => {
