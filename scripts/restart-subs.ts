@@ -4,12 +4,14 @@
 // サブごとに並行して、次の順に進める。どこかで止まったサブは、そこで止めて理由を出す
 //   1. 再起動の準備（引き継ぎを書き、未コミットを残さない）を頼み、手が空くのを待つ
 //   2. 最後の返事が READY_MARK で終わり、追跡するファイルに変更が無ければ /exit を送り、claude が終わるのを待つ
-//   3. scripts/claude-relay.sh --model <モデル> を送り、/reload-plugins と /mcp reconnect を送り、引き継ぎを読んで join するよう頼む
+//   3. scripts/claude-relay.sh --model <モデル> を送り、/reload-plugins と /mcp reconnect を送り、引き継ぎを読んで join するよう頼む。
+//      join の合言葉（link）はここで作り、開発の常駐に前もって承認させておく（画面で受け入れずに入る。開発用の口 /api/dev/rejoin-pass）
 // サブは Orca にエージェントとして見えない（claude-relay.sh で起動するため）ので、Orca の端末に打ち込んで進める
 import { execFile, execFileSync } from "node:child_process"
+import { randomUUID } from "node:crypto"
 import { readdirSync, readFileSync, readlinkSync, statSync } from "node:fs"
 import { homedir } from "node:os"
-import { join } from "node:path"
+import { dirname, join, resolve } from "node:path"
 import { promisify } from "node:util"
 
 export const READY_MARK = "再起動の準備OK"
@@ -90,8 +92,26 @@ export function preparePrompt(workroom: string): string {
   ].join("\n")
 }
 
-export function rejoinPrompt(workroom: string): string {
-  return `${workroom.replace(/_work$/, "")} の handoff よんで join（ワークルーム ${workroom}）`
+export function rejoinPrompt(workroom: string, link: string): string {
+  return `${workroom.replace(/_work$/, "")} の handoff よんで join（ワークルーム ${workroom}、link は ${link} をそのまま使う）`
+}
+
+// 開発の常駐の保管庫フォルダ（MATOMEZU_HOME か、作業フォルダ cwd のリポジトリの git の共通のフォルダの隣の .dev-home）
+function devHome(cwd: string): string {
+  if (process.env.MATOMEZU_HOME) return process.env.MATOMEZU_HOME
+  const common = execFileSync("git", ["rev-parse", "--git-common-dir"], { cwd, encoding: "utf8" }).trim()
+  return join(dirname(resolve(cwd, common)), ".dev-home")
+}
+
+// 開発の常駐に、ワークルーム workroom の続きを合言葉 link で頼んだ join を前もって承認させる
+async function passRejoin(cwd: string, workroom: string, link: string): Promise<void> {
+  const server = JSON.parse(readFileSync(join(devHome(cwd), "server.json"), "utf8")) as { url: string; token: string }
+  const res = await fetch(`${server.url}/api/dev/rejoin-pass`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${server.token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ workroom, link }),
+  })
+  if (!res.ok) throw new Error(`再参加の承認が断られた: ${res.status} ${await res.text()}`)
 }
 
 const ORCA = process.env.ORCA_CLI_COMMAND || "orca-ide"
@@ -239,8 +259,10 @@ async function restart(target: Target, opts: { dryRun: boolean; timeoutMs: numbe
     await waitIdle(term.handle, 120_000)
     log(`${cmd} を送った`)
   }
-  await send(term.handle, rejoinPrompt(target.workroom))
-  log("引き継ぎを読んで join するよう頼んだ")
+  const link = randomUUID()
+  await passRejoin(cwd, target.workroom, link)
+  await send(term.handle, rejoinPrompt(target.workroom, link))
+  log("引き継ぎを読んで join するよう頼んだ（前もって承認した合言葉で）")
 }
 
 if (import.meta.main) {

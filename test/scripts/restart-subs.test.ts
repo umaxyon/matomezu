@@ -7,6 +7,7 @@ import {
   projectDir,
   READY_MARK,
   readiness,
+  rejoinPrompt,
   wslPath,
 } from "../../scripts/restart-subs"
 
@@ -54,4 +55,10 @@ test.each([
   [undefined, "no-answer"],
 ] as const)("準備の返事 %p は %p", (text, want) => {
   expect(readiness(text)).toBe(want)
+})
+
+test("join の頼みは、前もって承認した合言葉をそのまま使わせる", () => {
+  expect(rejoinPrompt("sub4_work", "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed")).toBe(
+    "sub4 の handoff よんで join（ワークルーム sub4_work、link は 1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed をそのまま使う）",
+  )
 })
