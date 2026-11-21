@@ -10,7 +10,7 @@
 | `store` | 状態（Zustand）・コマンド・ダイアログの表・台帳アセンブル | `core`・zustand |
 | `ui` | 画面の根と、プラグインが使う画面の口。画面に出る物は置かない | `core`・`store`・React・zustand |
 | `host-client` | ホストクライアント: 画面がホスト（常駐サーバー）とブラウザ（保存・URL・履歴・クリップボード・印刷）に頼む口 | `core`・`store`・zod |
-| `engine` | ホストのエンジン: ホストの goja で、画面と同じアクションを行う入口 | `core`・`store`・`plugins`（ビルトインの一覧と、各プラグインの入口だけ）・`plugin-modules`・zod |
+| `engine` | ホストのエンジン: ホストの goja で、画面と同じアクションを行う入口 | `core`・`store`・`plugins`（ビルトインの一覧と、各プラグインの入口。表の下の「プラグインの外」の行）・`plugin-modules`・zod |
 | `plugins` | 画面に出る物と、足していく定義の全部（ビルトインプラグイン） | 下の行（プラグインのファイルと、base 以外のビルトインプラグイン） |
 | `plugin-api` | プラグイン API: 追加プラグインとビルトインプラグインが使ってよい名前を、土台から出し直すだけのクレート（`index.ts` は React なし、`ui.ts` は見た目、`builtin.ts` はビルトインだけが使うビルトインの印 `defineBuiltin`（キーバインドでビルトインを先に扱う）と、台帳アセンブルのときの確かめ（`checks`）を書く `CatalogCheckDef`・`problem`・`warning`、テーマキーに書かれた値の引き方 `writtenValues`） | `index.ts` は `core`・`store`、`ui.ts` は `ui`、`builtin.ts` は `store` |
 | `plugin-entry` | プラグイン API の入口（`index.ts` が `matomezu`、`ui.ts` が `matomezu/ui`） | `index.ts` は `plugin-api`・zod（`z` を出し直す）・`plugins/base`（base の入口の名前を、一つずつ書いて出し直す）・`plugins/base/utils`（丸ごと出し直す）、`ui.ts` は `plugin-api/ui`・`plugins/base/ui`・`plugins/base/utils/ui`（丸ごと出し直す）。どちらもビルトインプラグインの一覧（`plugins`・`plugins/ui`）を型だけ読み、ビルトインが `core/catalog.ts` に書き足した物をいつも含める |
@@ -24,6 +24,7 @@
 - プラグイン（base を含む）が画面の中で持つ状態は、プラグイン状態（`PluginStateDef`）として宣言する（ビューの中だけの一時の状態は「コードの書き方」の「データとビュー」）。範囲は、ステージ・スクリーン・窓（左サイドパネルの開閉など）のどれか。スクリーンの範囲の値は、開いた 1 枚ごとに持ち、閉じたら消える。値は土台の store の 1 か所に持ち、アクションのデータとは別で、アクションでは変えない。土台は値の中を読まない。ビューは kit と宣言を渡すフックで、コマンドは文脈の `pluginState` と run が受け取る `updatePluginState` で、スクリーンの定義と書庫アピアランスのメソッドは受け取る `read` で、自分の宣言だけを読み書きする（`useActions` の操作には入れない。持ち主は宣言の id の頭のプラグイン。ステージ・スクリーンの範囲の宣言は、呼ばれた場所のステージ・スクリーンの値。base のコマンドは、ほかのスクリーン（id で名指す）のスクリーンの範囲の自分の宣言にも値を入れられる（プラグイン API に出さない））。宣言は、値を画面の場所（URL に写る）に入れるか（`address`）を答える。入れるなら、読み直しても戻り、外から来る値を読むための形（zod）を持ち、土台は宣言の形で確かめる（合わない値と宣言の無い id は落とす）。ブラウザの履歴に積むかも宣言が答える。入れないなら、値の型だけを持ち、読み直すと消える（画面の場所を当てはめても残る）。ほかのプラグインの宣言に値を入れるのは、画面の場所に入れる宣言（`address` を持つ）に、宣言の id と値で入れる道（`useSetPluginStateById`。スクリーンの宣言は、書き先を呼んだビューのスクリーンか、スクリーンの定義の id で指す）だけ。URL やホストクライアントに自分で書かない
 - 入口（`plugin-entry`・`testing`）は外に名前を出すだけで、中のコードは入口を読まない
 - 例外は `plugin-modules`。`plugin-entry` を読んでよいのは `plugin-modules` だけで、`plugin-modules` を読んでよいのはホストのエンジン（`engine/engine.ts`）と画面の入口（`main.tsx`）だけ
+- プラグインの外（ビルトインの一覧 `plugins/index.ts`・`plugins/ui.ts`、ホストのエンジン、画面の入口、`testing`）がプラグインを読むときは、そのプラグインの入口（`index.ts`・`ui.tsx`（`ui.ts`））だけを読む（どのプラグインを読んでよいかは、表に行のある物は表の行のとおり）。中のファイルは、そのプラグインが組み直してよい所
 - 向きは 土台 → `plugin-api` → ビルトインプラグインと `plugin-entry` → `plugin-modules` の一方向。`plugin-api` はプラグインを読まない（base の物を出し直すのは `plugin-entry`）
 - プラグインのファイルは役割で見る。見た目（`.tsx` と `ui.ts`）は `ui` と、`ui` が読んでよいものを読んでよく、ほかは `core`・`store`・zod だけ
 - 表と上の行で読んでよい物（zod・React・zustand）のほかに読んでよい外のライブラリは次だけ: Markdown を読むライブラリ（mdast-util-from-markdown・mdast-util-gfm・micromark-extension-gfm と、その型の mdast）、コードを色付けするライブラリ（refractor と、その型の hast）。ライブラリごとに決めた 1 つのファイルだけが読み、その型をプラグイン API に出さない（matomezu の形に移して出す）
