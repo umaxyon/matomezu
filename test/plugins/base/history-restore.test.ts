@@ -4,13 +4,13 @@
 // 置き直すページと最上位のアイテム（restoredPages）が、認可の所（permissionScope）を決める（値の置き直しそのものは core/patch.test.ts）
 import { expect, test } from "bun:test"
 import { trashedEntry } from "../../../web/src/core/entries"
-import { homeOver, type Library, type TableChanges } from "../../../web/src/core/folders"
+import { HOME_ID, type HomeFolder, homeOver, type Library, type TableChanges } from "../../../web/src/core/folders"
 import { bookOf, tablesOf } from "../../../web/src/core/folders-books"
 import { changesBetween } from "../../../web/src/core/folders-changes"
 import { type RowPatches, restoredTables } from "../../../web/src/core/folders-restore"
 import type { RowChange } from "../../../web/src/core/history"
 import { REMOVED } from "../../../web/src/core/records"
-import type { Book } from "../../../web/src/core/schema/book"
+import type { AnyPage, Book } from "../../../web/src/core/schema/book"
 import { HISTORY_RESTORE } from "../../../web/src/plugins/base/history"
 import {
   patchesToward,
@@ -19,7 +19,7 @@ import {
   restoredLibrary,
   restoredPages,
 } from "../../../web/src/plugins/base/history/restore"
-import { worldTablesOf } from "../../support"
+import { libraryWith, worldTablesOf } from "../../support"
 
 const item = (id: string, caption = id) => ({ id, item: "x", x: 0, y: 0, props: { caption } })
 const book = (fields: Record<string, unknown>, lineup: unknown[], id = "b") =>
@@ -32,6 +32,8 @@ const page = (id: string, items: unknown[], fields: Record<string, unknown> = {}
   ...fields,
   items,
 })
+// ステージエントリのブック b
+const B = { kind: "book", id: "b" } as const
 const binder = (id: string, lineup: unknown[], title = id) => ({ kind: "binder", id, title, pageType: "t", lineup })
 
 // ブック from を to にした変わりの、ページとフォルダごとの前と後（画面の履歴の段が持つ形）
@@ -118,9 +120,9 @@ test("一覧の置き直しは、名指したブックだけを変え、ほか�
   expect(restoredBooks({ c: other }, ["b"], patches)).toBeNull()
   // 書庫の置き直しは、名指したブックがゴミ箱に在れば断る
   const library = worldTablesOf([after, other], [homeOver([after, other])])
-  expect(bookOf(restoredLibrary(library, ["b"], patches) as Library, "b")).toEqual(before)
+  expect(bookOf(restoredLibrary(library, [B], patches) as Library, "b")).toEqual(before)
   const binned = trashedEntry(library, "b", "2026-01-01T00:00:00.000Z") as Library
-  expect(restoredLibrary(binned, ["b"], patches)).toBeNull()
+  expect(restoredLibrary(binned, [B], patches)).toBeNull()
   // 名指していないブックの物を変える置き直しは断る
   expect(restoredBooks({ b: after, c: other }, ["c"], patches)).toBeNull()
 })
@@ -152,24 +154,64 @@ test("認可の所は、変えるブックが 1 冊で置き直すページが 1
   const one = book({}, [page("p", [item("a", "A")]), page("q", [item("x")])])
   const two = book({}, [page("p", [item("a", "A")]), page("q", [item("x", "X")])])
   const renamed = book({}, [{ ...page("p", [item("a")]), title: "別" }, page("q", [])])
-  const args = (to: Book, books = ["b"]): RevertArgs => ({ books, ...toward(before, to, "before") })
-  expect(scope(args(one))).toEqual({ books: [{ book: "b", where: { page: "p", items: ["a"] } }], creates: false })
-  expect(scope(args(two))).toEqual({ books: [{ book: "b", where: {} }], creates: false })
+  const args = (to: Book, books = ["b"]): RevertArgs => ({
+    outermosts: books.map(id => ({ kind: "book", id })),
+    ...toward(before, to, "before"),
+  })
+  expect(scope(args(one))).toEqual({
+    books: [{ book: "b", where: { page: "p", items: ["a"] } }],
+    entries: [],
+    creates: false,
+  })
+  expect(scope(args(two))).toEqual({ books: [{ book: "b", where: {} }], entries: [], creates: false })
   expect(scope(args(one, ["b", "c"]))).toEqual({
     books: [
       { book: "b", where: {} },
       { book: "c", where: {} },
     ],
+    entries: [],
     creates: false,
   })
   // ページの名前だけの置き直しも、そのページを認可の所にする
   expect(
     scope({
-      books: ["b"],
+      outermosts: [B],
       ...toward(before, { ...renamed, lineup: [renamed.lineup[0]!, before.lineup[1]!] }, "before"),
     }),
   ).toEqual({
     books: [{ book: "b", where: { page: "p", items: [] } }],
+    entries: [],
     creates: false,
   })
+})
+
+test("ブックの外のページを置き直す。名指していない物・どのステージエントリにも入らない行を変える置き直しと、名指した種類のとおりに在らない物は断る", () => {
+  const b = book({}, [page("p", [item("a")])])
+  const x0 = page("x", [item("a")]) as unknown as AnyPage
+  const x1 = { ...x0, title: "改名" } as AnyPage
+  const y = page("y", []) as unknown as AnyPage
+  const library = libraryWith([b], [x1, y])
+  const X = { kind: "page", id: "x" } as const
+  const back: RowPatches = { pages: patchesToward({ x: { before: x0, after: x1 } }, "before"), folders: {} }
+  const done = restoredLibrary(library, [X], back) as Library
+  expect(done.pages.x).toEqual(x0)
+  expect(done.pages.y).toBe(library.pages.y)
+  expect(restoredLibrary(done, [X], back)).toBe("unchanged")
+  // 名指した種類が違う・ブックの外のページでない・ゴミ箱の中
+  expect(restoredLibrary(library, [{ kind: "book", id: "x" }], back)).toBeNull()
+  expect(restoredLibrary(library, [{ kind: "page", id: "p" }], back)).toBeNull()
+  expect(restoredLibrary(library, [{ kind: "page", id: "b" }], back)).toBeNull()
+  const binned = trashedEntry(library, "x", "2026-01-01T00:00:00.000Z") as Library
+  expect(restoredLibrary(binned, [X], back)).toBeNull()
+  // 名指していないブックの外のページ・ブックを変える
+  expect(restoredLibrary(library, [{ kind: "page", id: "y" }], back)).toBeNull()
+  expect(restoredLibrary(library, [B], back)).toBeNull()
+  // どのステージエントリにも入らない行（書庫ホーム）も変える
+  const home = library.folders[HOME_ID] as HomeFolder
+  const turned = { ...home, lineup: [...home.lineup].reverse() }
+  const order = patchesToward({ [HOME_ID]: { before: home, after: turned } }, "after")
+  expect(restoredLibrary(library, [X], { pages: back.pages, folders: order })).toBeNull()
+  // 名指したページを無くす
+  const gone: RowPatches = { pages: patchesToward({ x: { before: x1, after: "none" } }, "after"), folders: {} }
+  expect(restoredLibrary(library, [X], gone)).toBeNull()
 })

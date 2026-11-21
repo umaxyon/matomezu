@@ -747,7 +747,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-revert": typeof LIBRARY_REVERT
     "@matomezu/base:trash-empty": typeof TRASH_EMPTY
     "@matomezu/base:settings-set": typeof SETTINGS_SET
-    "@matomezu/base:book-revert": typeof HISTORY_RESTORE
+    "@matomezu/base:history-revert": typeof HISTORY_RESTORE
     "@matomezu/base:note-add": typeof NOTE_ADD
     "@matomezu/base:note-update": typeof NOTE_UPDATE
     "@matomezu/base:note-read": typeof NOTE_READ

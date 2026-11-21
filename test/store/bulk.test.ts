@@ -44,7 +44,7 @@ test("コマンドは走る前に画面の履歴の段を閉じるので、そ�
   place(store, 40, "一")
   expect(store.actions.command("s1", "@matomezu/base:undo")).toBe(true)
   await settled()
-  expect(sent.map(b => b.map(d => d.action))).toEqual([[PLACE], ["@matomezu/base:book-revert"]])
+  expect(sent.map(b => b.map(d => d.action))).toEqual([[PLACE], ["@matomezu/base:history-revert"]])
 })
 
 test("ホストがバルクを断ったら、その画面の履歴の段は外れ、同じバルクの performConfirmed はどれも断りを受ける", async () => {
