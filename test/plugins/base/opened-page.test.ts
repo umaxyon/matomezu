@@ -5,7 +5,7 @@ import { hasOpenedPage } from "../../../web/src/plugins/base/utils/opened-page"
 import { commandContext } from "../../../web/src/store/commands"
 import { createMatomezu } from "../../../web/src/store/create"
 import { definePlugin } from "../../../web/src/store/plugin"
-import { shown } from "../../support"
+import { savedRows, shown } from "../../support"
 
 // ページを 1 枚持つブック（そのページのタイプは notes プラグインが足す。足さなければ読めないブック）
 const NOTE = definePageType({
@@ -32,7 +32,11 @@ const saved = {
 
 // プラグイン plugins を足してから最初のブックを開いたインスタンス（足さなければ、そのブックは読めないブックなので開かない）
 const make = (plugins: readonly (typeof notes)[]) => {
-  const instance = createMatomezu({ plugins: BUILTIN, controlCenter: BUILTIN_CONTROL_CENTER, savedBooks: [saved] })
+  const instance = createMatomezu({
+    plugins: BUILTIN,
+    controlCenter: BUILTIN_CONTROL_CENTER,
+    saved: savedRows([saved]),
+  })
   if (plugins.length > 0) instance.use([...plugins])
   return shown(instance)
 }

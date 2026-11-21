@@ -7,12 +7,11 @@ import { defineAction } from "../../web/src/core/def/action"
 import type { PermissionDef } from "../../web/src/core/def/permission"
 import { isMoveRefusal, restoredEntry, trashedEntry } from "../../web/src/core/entries"
 import { type Folder, HOME_ID, type HomeFolder, type Library, type PlainFolder } from "../../web/src/core/folders"
-import { worldTablesOf } from "../../web/src/core/folders-books"
 import { perform } from "../../web/src/core/perform"
 import type { AnyPage, Book } from "../../web/src/core/schema/book"
 import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { DRAWING, drawingPage, testBinder, testBook } from "../lineup"
-import { BUILTIN_PARTS, CORE_CATALOG } from "../support"
+import { BUILTIN_PARTS, CORE_CATALOG, worldTablesOf } from "../support"
 
 // どのエントリもゴミ箱に入れるアクションと、書庫ホームの行を形に合わない物に替えるアクション
 const TRASH = defineAction({

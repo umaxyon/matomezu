@@ -31,7 +31,7 @@ import {
   useStagePan,
 } from "../../web/src/ui/view-hooks"
 import { type DRAWING, drawingPage, testBook } from "../lineup"
-import { showFirstBook } from "../support"
+import { savedRows, showFirstBook } from "../support"
 
 afterEach(cleanup)
 
@@ -67,7 +67,7 @@ function setup(extra: readonly object[] = []) {
     plugins: BUILTIN_UI,
     controlCenter: BUILTIN_CONTROL_CENTER,
     books: [],
-    savedBooks: [X, Y, ...extra],
+    saved: savedRows([X, Y, ...extra]),
     lang: "ja",
   })
   showFirstBook(instance)

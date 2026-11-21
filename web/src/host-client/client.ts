@@ -4,11 +4,11 @@ import type { BROKEN } from "../core/folders"
 import type { MovedIfOff, Purged, UnreadableNotice } from "../core/unreadable"
 import type { Warning } from "../core/warnings"
 import type { WideSearchAnswer, WideSearchQuery } from "../core/wide-search"
-import type { AIEditTicketOutcome, DoneBulk, HostAnswer, MatomezuInstance } from "../store/state"
+import type { AIEditTicketOutcome, DoneBulk, HostAnswer, LibraryRows, MatomezuInstance } from "../store/state"
 
 // 起動のときに読むもの
 export interface Loaded {
-  books: readonly unknown[] // 残しておいたブック。形に合うかは store が確かめる（createMatomezu の savedBooks）
+  saved: LibraryRows // 残しておいたページとフォルダの行。形に合うかは store が確かめる（createMatomezu の saved）
   settings: unknown // 残しておいた設定（無ければ undefined）。使える項目かは store が確かめる（createMatomezu の settings）
   plugins: readonly unknown[] // ホストが足した追加プラグイン（見た目を結んだもの）。プラグインかは台帳アセンブルが確かめる
   failed: readonly { id: string; error: unknown }[] // 読み込めなかった追加プラグインと理由（ほかのプラグインとブックは読む）

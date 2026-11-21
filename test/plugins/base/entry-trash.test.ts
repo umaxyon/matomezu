@@ -113,7 +113,7 @@ test("ロック中のページを持つブックのゴミ箱入れは、行う�
 
 test("戻す・消す・空にする。ゴミ箱に無いブックは戻さず消さない。メモリのホストは残したブックを合わせる", async () => {
   const host = memoryClient([])
-  const store = newStore({ books: [], savedBooks: (await host.load()).books })
+  const store = newStore({ books: [], saved: (await host.load()).saved })
   host.connect(store)
   const made = ["一", "二", "三"].map(title => {
     createBookIn(store, "s1", { title })
