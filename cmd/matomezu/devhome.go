@@ -4,6 +4,7 @@ package main
 // AI のプラグインは PATH の matomezu を呼ぶので、それが .dev-home の実行ファイルでなければ、.dev-home の実行ファイルを同じ引数で起動し直す
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -34,7 +35,15 @@ const devVersion = "dev"
 // 開発の版（version が devVersion）のときだけ見る。配る版が開いたフォルダの .dev-home の実行ファイルを起動すると、よそのリポジトリに置かれた物が利用者の権限で動くため。
 // git を呼ばずに .git を読む（.git がファイルなら gitdir と commondir をたどる。git の無い Windows でも同じ）
 func devRoot(dir string) string {
-	if dir == "" || version != devVersion {
+	if version != devVersion {
+		return ""
+	}
+	return repoDevRoot(dir)
+}
+
+// repoDevRoot は、フォルダ dir が、開発の常駐のある matomezu のリポジトリの中なら、その根（無ければ空。版を問わない）
+func repoDevRoot(dir string) string {
+	if dir == "" {
 		return ""
 	}
 	dir, err := filepath.Abs(dir)
@@ -87,6 +96,35 @@ func gitCommonDir(dotGit string) string {
 		c = filepath.Join(gitdir, c)
 	}
 	return filepath.Clean(c)
+}
+
+// devNotUsed は、配る版の matomezu が、開発の常駐のあるリポジトリの中（dir）で呼ばれたときの知らせ（開発の常駐でなく、利用者の保管庫を使っている）。当たらなければ空
+func devNotUsed(dir string) string {
+	if version == devVersion {
+		return ""
+	}
+	root := repoDevRoot(dir)
+	if root == "" {
+		return ""
+	}
+	return fmt.Sprintf("This matomezu (version %s) is not the development build, so it uses the user's vault, not the development server of %s. To use that, put %s first on PATH.", version, root, filepath.Join(root, devHomeDir))
+}
+
+// useDevHere は、利用者が手で打つコマンド（serve・start・stop・open）の保管庫を決める: MATOMEZU_HOME が無く、今いるフォルダが matomezu のリポジトリなら、
+// その開発の常駐を使い（useDev）、根を返す（ほかは空）。配る版がリポジトリの中で呼ばれたら、そのことを標準エラーに出す
+func useDevHere() string {
+	if os.Getenv(home.EnvHome) != "" {
+		return ""
+	}
+	wd, _ := os.Getwd()
+	if note := devNotUsed(wd); note != "" {
+		fmt.Fprintln(os.Stderr, note)
+	}
+	root := devRoot(wd)
+	if root != "" {
+		useDev(root)
+	}
+	return root
 }
 
 // useDev は、リポジトリの根 root の開発の常駐を使う: 保管庫フォルダを合わせ、自分が開発の実行ファイルでなければ、それを同じ引数で起動し直す（戻らない）。

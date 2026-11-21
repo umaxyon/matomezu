@@ -85,7 +85,7 @@ var testMeta = Meta{Session: []string{"/x.ai~1session"}, Model: "/x-turn/model"}
 func talkOn(t *testing.T, api API, branch func() string, lines ...string) []map[string]any {
 	t.Helper()
 	var out bytes.Buffer
-	if err := Serve(strings.NewReader(strings.Join(lines, "\n")+"\n"), &out, api, "v1", "wsl-linux", branch, "4242", "HS1", "", "", testMeta); err != nil {
+	if err := Serve(strings.NewReader(strings.Join(lines, "\n")+"\n"), &out, api, "v1", "wsl-linux", branch, "4242", "HS1", "", "", testMeta, ""); err != nil {
 		t.Fatal(err)
 	}
 	var answers []map[string]any
@@ -246,7 +246,7 @@ func TestBranchAndModelGoWithTheParticipantOrSessionAndHostAlways(t *testing.T) 
 	}
 	bare := &fakeAPI{answer: `{"ok":true}`}
 	var out bytes.Buffer
-	if err := Serve(strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"view","arguments":{}}}`+"\n"), &out, bare, "v1", "wsl-linux", func() string { return "main" }, "4242", "", "", "", testMeta); err != nil {
+	if err := Serve(strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"view","arguments":{}}}`+"\n"), &out, bare, "v1", "wsl-linux", func() string { return "main" }, "4242", "", "", "", testMeta, ""); err != nil {
 		t.Fatal(err)
 	}
 	if h := bare.headers[0]; len(h) != 1 || h.Get("X-Matomezu-Host") != "4242" {
@@ -578,7 +578,7 @@ func TestTheSessionPidAndSpaceGoWhenSaid(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			api := &fakeAPI{answer: `{"ok":true,"participant":"p7"}`}
 			var out bytes.Buffer
-			if err := Serve(strings.NewReader(line+"\n"), &out, api, "v1", "wsl-linux", func() string { return "" }, "4242", "HS1", c.pid, c.space, Meta{}); err != nil {
+			if err := Serve(strings.NewReader(line+"\n"), &out, api, "v1", "wsl-linux", func() string { return "" }, "4242", "HS1", c.pid, c.space, Meta{}, ""); err != nil {
 				t.Fatal(err)
 			}
 			if h := api.headers[0]; h.Get("X-Matomezu-Session-Pid") != c.pid || h.Get("X-Matomezu-Session-Pid-Space") != c.space || h.Get("X-Matomezu-Host") != "4242" {

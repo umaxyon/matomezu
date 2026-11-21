@@ -15,12 +15,12 @@ import (
 	opencodelaunch "github.com/umaxyon/matomezu/clients/opencode/launch"
 )
 
-// devAddr は、開発の常駐の待ち受け（scripts/dev.ts）
-const devAddr = "127.0.0.1:5300"
+// devPort は、利用者がポートを選んでいない開発の保管庫（.dev-home）の常駐が待つポート
+const devPort = 5300
 
-// devServerFlags は、開発の常駐を使うとき（リポジトリの根 root）の常駐の立て方: 開発の画面を配る web/dist（あれば）と、開発の常駐の待ち受け
+// devServerFlags は、開発の常駐を使うとき（リポジトリの根 root）の常駐の立て方: 開発の画面を配る web/dist（あれば）
 func devServerFlags(root string) serverFlags {
-	f := serverFlags{Addr: devAddr}
+	var f serverFlags
 	if info, err := os.Stat(filepath.Join(root, "web", "dist")); err == nil && info.IsDir() {
 		f.Web = filepath.Join(root, "web", "dist")
 	}
@@ -74,7 +74,7 @@ func (claudeMCPCmd) Run() error {
 
 // claudeMCP は、Claude Code の MCP の mcp コマンド（endsWith は --session-ends-with の値）。Claude Code が渡すセッション id を添える
 func claudeMCP(endsWith string) mcpCmd {
-	return mcpCmd{serverFlags: serverFlags{Addr: DefaultAddr}, SessionEndsWith: endsWith, Session: os.Getenv(claudelaunch.SessionEnv)}
+	return mcpCmd{SessionEndsWith: endsWith, Session: os.Getenv(claudelaunch.SessionEnv), DevDir: claudeProjectDir()}
 }
 
 // sessionEndsWith は、mcp --session-ends-with の値: たどった AI のプログラムの名前から、その AI の事情（choose）で決める（たどれなければ、空の名前で聞く）
@@ -172,7 +172,7 @@ func codexSessionEndsWith(watch codexsessionend.Process) string {
 
 // Run は、Codex の MCP を出し、起こす知らせを Codex の会話に渡す watch も中で動かす
 func (codexMCPCmd) Run() error {
-	c := mcpCmd{serverFlags: serverFlags{Addr: DefaultAddr}, SessionEndsWith: codexSessionEndsWith(codexsessionend.Watch()), MetaModel: codexlaunch.MetaModel, Deliver: append([]string{selfExecutable()}, codexlaunch.DeliverArgs...)}
+	c := mcpCmd{SessionEndsWith: codexSessionEndsWith(codexsessionend.Watch()), MetaModel: codexlaunch.MetaModel, DevDir: codexlaunch.InstalledFrom(codexlaunch.Home()), Deliver: append([]string{selfExecutable()}, codexlaunch.DeliverArgs...)}
 	if root := codexDev(); root != "" {
 		c.serverFlags = devServerFlags(root)
 	}

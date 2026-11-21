@@ -145,14 +145,10 @@ export const test = base.extend<
     async ({ hostArgs }, use, info) => {
       const home = homeOf(info.workerIndex)
       rmSync(home, { recursive: true, force: true })
-      const serve = spawn(
-        resolve("e2e/.matomezu"),
-        ["serve", "--addr", "127.0.0.1:0", "--web", "e2e/.dist", ...hostArgs],
-        {
-          env: { ...process.env, MATOMEZU_HOME: home },
-          stdio: ["ignore", "ignore", "inherit"],
-        },
-      )
+      const serve = spawn(resolve("e2e/.matomezu"), ["serve", "--port", "0", "--web", "e2e/.dist", ...hostArgs], {
+        env: { ...process.env, MATOMEZU_HOME: home },
+        stdio: ["ignore", "ignore", "inherit"],
+      })
       // 立てた serve が自分のフォルダに書いたつなぎ方を待つ（pid で、ほかの常駐の物でないと確かめる）
       // 画面の入口は画面 cookie を持つブラウザにしか答えないので、合言葉の入口（/api/ping）で確かめる
       const answering = async (url: string, token: string) =>

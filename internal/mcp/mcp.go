@@ -55,6 +55,7 @@ type conn struct {
 	sessionPid   string            // セッションと同じだけ生きるプロセスの id（空は名乗らない）
 	pidSpace     string            // sessionPid が通じる範囲の印（sessionPid を名乗るとき）
 	meta         Meta              // _meta のセッション id とモデルの置き場所
+	note         string            // AI に渡す説明の後ろに足す文（空なら足さない）
 	participants map[string]string // join の返事で受けた参加の id。join の呼び出しのセッション id（無ければ空）ごと
 	sessionID    string            // いま処理している呼び出しの _meta にあったセッション id
 	model        string            // いま処理している呼び出しの _meta にあったモデル（無ければ空）
@@ -151,9 +152,9 @@ type response struct {
 // env は環境名（join で常駐に渡す）。branch は git のブランチを読む関数（参加の id と一緒に常駐に添える）、host は AI のプログラムのプロセス id、
 // hostSession は AI のプログラムが MCP を立てたときのセッション id（どちらもいつも添える。起こす知らせの宛て先）。
 // sessionPid が空でなければ、それがセッションと同じだけ生きるプロセスだと名乗り（pidSpace はその印）、居なくなったら、常駐が退室させる。
-// meta は、呼び出しの _meta のどこにセッション id とモデルがあるか
-func Serve(in io.Reader, out io.Writer, api API, version, env string, branch func() string, host, hostSession, sessionPid, pidSpace string, meta Meta) error {
-	c := &conn{api: api, version: version, ai: "unknown", env: env, branch: branch, host: host, hostSession: hostSession, sessionPid: sessionPid, pidSpace: pidSpace, meta: meta, participants: map[string]string{}}
+// meta は、呼び出しの _meta のどこにセッション id とモデルがあるか。note は、AI に渡す説明（instructions）の後ろに足す文（空なら足さない）
+func Serve(in io.Reader, out io.Writer, api API, version, env string, branch func() string, host, hostSession, sessionPid, pidSpace string, meta Meta, note string) error {
+	c := &conn{api: api, version: version, ai: "unknown", env: env, branch: branch, host: host, hostSession: hostSession, sessionPid: sessionPid, pidSpace: pidSpace, meta: meta, note: note, participants: map[string]string{}}
 	var mu sync.Mutex
 	enc := json.NewEncoder(out)
 	write := func(r response) {
@@ -202,7 +203,7 @@ func handle(req request, c *conn) (any, *rpcError) {
 			"protocolVersion": v,
 			"capabilities":    map[string]any{"tools": map[string]any{}},
 			"serverInfo":      map[string]any{"name": "matomezu", "version": c.version},
-			"instructions":    instructions,
+			"instructions":    strings.TrimSpace(instructions + " " + c.note),
 		}, nil
 	case "ping":
 		return map[string]any{}, nil

@@ -119,7 +119,7 @@ func TestDeliverCommands(t *testing.T) {
 // 渡すコマンドは、watch でも mcp でも、コマンドの行の -- のあとから受け、区切りの -- は含めない
 func TestDeliverCommandFromTheCommandLine(t *testing.T) {
 	var c cli
-	p, err := kong.New(&c, kong.Vars{"addr": DefaultAddr})
+	p, err := kong.New(&c)
 	if err != nil {
 		t.Fatal(err)
 	}

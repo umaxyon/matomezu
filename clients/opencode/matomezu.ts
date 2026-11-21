@@ -16,9 +16,6 @@ const COMMAND_TIMEOUT = 10_000
 // 使う matomezu: 実行ファイルと、開発の常駐のとき（matomezu のリポジトリ）はそのリポジトリの根と保管庫フォルダ
 export type Matomezu = { bin: string; root?: string; home?: string }
 
-// 開発の常駐の待ち受け（scripts/dev.ts が立てる常駐）
-const DEV_ADDR = "127.0.0.1:5300"
-
 export const ignore = () => {}
 
 // opencode のサーバーのプロセスに 1 つの、matomezu ごとの watch
@@ -164,12 +161,12 @@ export type McpServer = { type: "local"; command: string[]; environment?: Record
 // say は、会話 sessionID を開いている TUI に、利用者に見せる文 message を渡す
 export type Say = (sessionID: string, message: string) => Promise<unknown>
 
-// mcpServer は、matomezu m の MCP の起動のしかた。開発の常駐なら、開発の画面を配る web/dist（あれば）と開発の常駐の待ち受けを渡す。
+// mcpServer は、matomezu m の MCP の起動のしかた。開発の常駐なら、開発の画面を配る web/dist（あれば）と開発の保管庫を渡す（ポートは保管庫が決める）。
 // 起こす知らせを渡すコマンド（-- opencode deliver）は付けない: 同じプロセスの watch が渡し、MCP はフォルダごとに立つので、付けると watch が増える
 export const mcpServer = (m: Matomezu): McpServer => {
   if (m.root === undefined) return { type: "local", command: [m.bin, "opencode", "mcp"] }
   const web = join(m.root, "web", "dist")
-  const command = [m.bin, "opencode", "mcp", ...(existsSync(web) ? ["--web", web] : []), "--addr", DEV_ADDR]
+  const command = [m.bin, "opencode", "mcp", ...(existsSync(web) ? ["--web", web] : [])]
   return { type: "local", command, environment: m.home ? { MATOMEZU_HOME: m.home } : {} }
 }
 

@@ -80,7 +80,7 @@ func TestJoinRulesAndOrcaWorkspace(t *testing.T) {
 	var reply struct {
 		Rules string `json:"rules"`
 	}
-	if err := json.Unmarshal([]byte(rules), &reply); err != nil || !strings.Contains(reply.Rules, "matomezu start --open") {
+	if err := json.Unmarshal([]byte(rules), &reply); err != nil || !strings.Contains(reply.Rules, "matomezu open") {
 		t.Fatalf("join rules = %s", rules)
 	}
 	if rows := table(t, s.URL); len(rows) != 0 {
