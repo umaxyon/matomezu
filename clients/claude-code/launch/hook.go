@@ -29,8 +29,8 @@ func AllowTool(out io.Writer, reason string) {
 }
 
 // Woken は、話しかけのフックの入力 prompt が、利用者トリガートークでなく裏の知らせ（プラグインの monitor の 1 行・裏で走らせた物の終わりなど）で
-// 始まったターンの物か。Claude Code は、そのターンの入力を <task-notification> で包む（フックに --woken を渡せない）。mod の watch の知らせは ModLine の包みで始まる
+// 始まったターンの物か。Claude Code は、そのターンの入力を <task-notification> で包む（フックに --woken を渡せない）。mod の watch の知らせは ModNoticeTag の包みで始まる
 func Woken(prompt string) bool {
 	p := strings.TrimSpace(prompt)
-	return strings.HasPrefix(p, "<task-notification>") || strings.HasPrefix(p, modNoticeOpen)
+	return strings.HasPrefix(p, "<task-notification>") || strings.HasPrefix(p, "<"+ModNoticeTag+">")
 }

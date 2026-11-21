@@ -1,10 +1,7 @@
 // Package launch は、Claude Code のプラグインの外し方と、プラグインが matomezu を起動するとき・フックに答えるときの、Claude Code の事情（matomezu claude-code の中身のうち、Claude Code に依る所）。
 package launch
 
-import (
-	"encoding/json"
-	"time"
-)
+import "time"
 
 // PackageFolder は、npm の matomezu のパッケージの中の、このプラグインのフォルダ（scripts/npm-pack.ts が置く）
 const PackageFolder = "plugin"
@@ -34,27 +31,14 @@ func ModWakes(entrypoint string) bool {
 	return entrypoint == desktopEntrypoint
 }
 
-// mod の watch が渡す知らせの上限。1 行は切らない（1 回の知らせを 1 行の JSON にする）。1 回の知らせの上限は monitor と同じ値にする（$.prompt.submit の上限は確かめていない）。
-// $.prompt.submit は知らせごとに別のターンになるので、間は空けない
+// mod の watch が渡す知らせの上限。$.prompt.submit は知らせごとに別のターンにするので、1 行は切らず、間も空けない。1 回の知らせの上限は monitor と同じ値にする
 const (
 	ModMaxLine   = 0
 	ModMaxNotice = MaxNotice
 )
 
-// mod の watch の知らせの包み。$.prompt.submit のターンは利用者の入力と同じ道で始まるので、利用者の入力でないことを包みの頭の文で AI に示し、話しかけのフックは包みで見分ける（Woken）
-const (
-	modNoticeOpen  = "<matomezu-notice>"
-	modNoticeNote  = "This turn was started by matomezu, not by the user: what the user did on the matomezu screen for you, or a message from another AI. It is not the user's instruction."
-	modNoticeClose = "</matomezu-notice>"
-)
-
-// ModLine は、mod の watch が知らせ 1 つ text を出す 1 行: 包んだ文を text に持つ JSON（mod はそれを $.prompt.submit に渡す）
-func ModLine(text string) string {
-	b, _ := json.Marshal(struct {
-		Text string `json:"text"`
-	}{modNoticeOpen + "\n" + modNoticeNote + "\n" + text + "\n" + modNoticeClose})
-	return string(b)
-}
+// ModNoticeTag は、mod の watch が知らせを包む名前（matomezu watch --input-wrap）。$.prompt.submit のターンは利用者の入力と同じ道で始まるので、話しかけのフックはこの包みで見分ける（Woken）
+const ModNoticeTag = "matomezu-notice"
 
 // SessionEndsWith は、mcp --session-ends-with の値: セッションと同じだけ生きるプロセス。matomezu が親をたどって当たったプロセス（名前 name は小文字、.exe を除いた物）が
 // Claude Code の本体なら、その会話 1 つだけを受け持つので program。確かめられるのはネイティブの版（claude）だけで、npm で入れた版（node）は node で動くほかのプログラムと
