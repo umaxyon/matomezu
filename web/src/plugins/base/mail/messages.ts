@@ -27,7 +27,7 @@ export const MAIL_MESSAGES = defineMessages({
   AI: { en: "AI", ja: "AI" },
   Model: { en: "Model", ja: "モデル" },
   Environment: { en: "Environment", ja: "環境" },
-  "Orca workspace": { en: "Orca workspace", ja: "Orca ワークスペース" },
+  Place: { en: "Place", ja: "場所" },
   Session: { en: "Session", ja: "セッション" },
   "Send mail": { en: "Send mail", ja: "郵便を送る" },
   "Mark mail seen": { en: "Mark mail seen", ja: "郵便を見た" },

@@ -72,7 +72,7 @@ func joinBody(link, sessionName string) string {
 	return `{"ai":"claude","model":"opus","env":"wsl-linux","sessionName":"` + sessionName + `","link":"` + link + `","sessionId":"S1"}`
 }
 
-func TestJoinRulesAndOrcaWorkspaceMail(t *testing.T) {
+func TestJoinRulesAndPlaceMail(t *testing.T) {
 	s, _ := joinWorld(t, joinStore(t))
 	rules, _ := call(t, "GET", s.URL+"/api/ai/join-rules", "", nil)
 	var reply struct {
@@ -89,7 +89,7 @@ func TestJoinRulesAndOrcaWorkspaceMail(t *testing.T) {
 	workspace := strings.Repeat("🧪", 120)
 	request := func(name string) Joined {
 		t.Helper()
-		body, err := json.Marshal(JoinRequest{AI: "codex", Model: "gpt-6", Env: "wsl-linux", Link: "L1", OrcaWorkspace: name})
+		body, err := json.Marshal(JoinRequest{AI: "codex", Model: "gpt-6", Env: "wsl-linux", Link: "L1", Place: name})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -111,7 +111,7 @@ func TestJoinRulesAndOrcaWorkspaceMail(t *testing.T) {
 		t.Fatalf("join = %+v", result)
 	}
 	data, _ := call(t, "GET", s.URL+"/api/data", "", nil)
-	if !strings.Contains(data, `"orcaWorkspace":"`+workspace+`"`) ||
+	if !strings.Contains(data, `"place":"`+workspace+`"`) ||
 		!strings.Contains(data, `"env":"wsl-linux"`) {
 		t.Fatalf("join mail is missing the environment: %s", data)
 	}
