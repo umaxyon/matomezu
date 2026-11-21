@@ -1045,3 +1045,30 @@ func TestTicketsBecomeOneList(t *testing.T) {
 		t.Fatalf("tickets after emptying = %s, %v", got, err)
 	}
 }
+
+// 見られる前に消えた分をブックごとに束ねた AI 編集チケットは、その分を捨てる（まだ見られていない物が残れば、それだけを残す）。ほかの物は並びの順のまま
+func TestLostBundledByBookIsDropped(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "data.db")
+	first := open(t, path)
+	// 捨てる足し方の前の形に戻して、古い形の AI 編集チケットを置く
+	for _, q := range []string{
+		`INSERT INTO ai_edit_tickets (id, body, updated_at) VALUES (1, '[{"act":"a1","unseen":["p1"],"at":"t1"},
+			{"act":"a2","lost":[{"book":"b1","lost":[{"at":"title","value":"AI"}]}],"at":"t2","told":true},
+			{"act":"a3","unseen":["b2"],"lost":[{"book":"b1","lost":[]}],"at":"t3","told":true},
+			{"key":"m1","book":"b1","at":"t4","failed":true,"told":true}]', 'x')`,
+		fmt.Sprintf(`PRAGMA user_version = %d`, len(migrations)-1),
+	} {
+		if _, err := first.(*sqliteStorage).db.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	first.(*sqliteStorage).db.Close()
+	got, err := open(t, path).AIEditTickets()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `[{"act":"a1","unseen":["p1"],"at":"t1"},{"act":"a3","unseen":["b2"],"at":"t3"},{"key":"m1","book":"b1","at":"t4","failed":true,"told":true}]`
+	if string(got) != want {
+		t.Fatalf("tickets = %s; want %s", got, want)
+	}
+}

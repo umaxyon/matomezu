@@ -200,6 +200,16 @@ var migrations = []string{
 	`SELECT 1;`,
 	// 読めない物のフォルダ（フォルダの行 library-unreadable）を作る（Go の移し替え。migrate_unreadable.go）
 	`SELECT 1;`,
+	// AI 編集チケットの、見られる前に消えた分（lost。ブックごとに束ねた、どの行かを名指さない形）を捨てる（ステージエントリごとに束ね、消えた所ごとに行を名指す形にしたため）。
+	// AI に渡した印も外し、まだ見られていない物も残らない物は消す。Key で見分ける物はそのまま
+	`UPDATE ai_edit_tickets SET body = (
+		SELECT json_group_array(json(v)) FROM (
+			SELECT CASE WHEN json_type(j.value, '$.lost') IS NULL THEN j.value ELSE json_remove(j.value, '$.lost', '$.told') END AS v
+			FROM json_each(ai_edit_tickets.body) j
+			WHERE json_type(j.value, '$.lost') IS NULL OR COALESCE(json_array_length(j.value, '$.unseen'), 0) > 0
+			ORDER BY j.key))
+	WHERE json_valid(body) AND json_type(body) = 'array';
+	DELETE FROM ai_edit_tickets WHERE json_valid(body) AND json_type(body) = 'array' AND json_array_length(body) = 0;`,
 }
 
 // goMigrations は、SQL だけでは書けない移し替え（JSON の中をたどる物）。鍵は migrations の番号（0 から）で、その SQL を行ったあと、同じトランザクションの中で行う

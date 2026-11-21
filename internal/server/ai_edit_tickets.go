@@ -1,15 +1,17 @@
 package server
 
 // AI 編集チケット: AI のアクションがページかフォルダを変えるたびに、1 回のアクションに 1 つ開く（変えたページとフォルダのうち、まだどの窓でも見られていない物の id を持つ）。
-// 窓で見えた物は外し、全部見えたら消す。見られる前に窓の利用者の戻す・やり直すで消えたら、消えた所と AI の値を添えて「見られる前に消えた」にする。その物は、AI のフックが聞いたとき
+// 窓で見えた物は外し、全部見えたら消す。見られる前に窓の利用者の戻す・やり直すで消えたら、消えた所と AI の値を添えて「見られる前に消えた」にする
+// （ステージエントリごと: ブックか、ブックの外の、バインダに入っていないページ）。その物は、AI のフックが聞いたとき
 // （GET /api/ai/awaiting の undone）に渡し、次の利用者トリガートークで消す。全部で aiEditTicketsMax まで（古い物から捨てる）。
 // アクションが返した変え方（engine.AIEditTicketChange。変更提案郵便を送った・反映した・消したなど）でも、アクションの対象の種類 Subject と Key とブックで見分ける AI 編集チケットを
 // 作る・閉じる・失敗にする・郵便が消えたと記す。失敗した物と郵便が消えたと記した物は、AI のフックが聞いたとき（GET /api/ai/awaiting の failed と removed）に渡し、
 // 次の利用者トリガートークで消す。Key で見分ける物は、上限でも捨てない（閉じる・失敗にする・消えたと記すまで残す）。
-// 並びは全部で 1 つ（古い順）で、ブックを消すと、そのブックの物も一緒に消す。
+// 並びは全部で 1 つ（古い順）で、ブックかブックの外のページを消すと、その物の分も一緒に消す。
 //
-//	POST /api/ai-edit-tickets   {"act", "places", "outcome": "seen" | "lost", "book", "lost"} 窓が、AI の変更（act は changed の知らせの印）のうち、
-//	                            ページとフォルダ places を見た・見られる前に消えた（消えたときだけ、変えた物を持つブック book と、消えた所と AI の値 lost。消えたのがブックの外の物だけなら、lost は空の並び）
+//	POST /api/ai-edit-tickets   {"act", "places", "outcome": "seen" | "lost", "entry", "lost"} 窓が、AI の変更（act は changed の知らせの印）のうち、
+//	                            ページとフォルダ places を見た・見られる前に消えた（消えたときだけ、変えた物のステージエントリ entry と、消えた所と AI の値 lost
+//	                            [{"entry", "at", …}]。lost の entry はページかフォルダの id、at はその行の中の道。消えたのがステージエントリの外の物だけなら、lost は空の並び）
 
 import (
 	"encoding/json"
@@ -21,17 +23,17 @@ import (
 
 const aiEditTicketsMax = 100
 
-// LostIn は、見られる前に消えた AI の変更の、1 冊のブックの分（Lost は、窓が知らせた消えた所と AI の値）
+// LostIn は、見られる前に消えた AI の変更の、ステージエントリ 1 つの分（Entry はブックか、ブックの外のページの id。Lost は、窓が知らせた消えた所と AI の値）
 type LostIn struct {
-	Book string          `json:"book"`
-	Lost json.RawMessage `json:"lost"`
+	Entry string          `json:"entry"`
+	Lost  json.RawMessage `json:"lost"`
 }
 
 // AIEditTicket は AI 編集チケット 1 つ（AI のアクションごとの物は Act、アクションが返した変え方で作った物は Key を持つ）
 type AIEditTicket struct {
 	Act     string   `json:"act,omitempty"`     // changed の知らせの印（1 回の Perform。起動し直しても重ならない）。アクションが返した変え方で作った物は空
 	Unseen  []string `json:"unseen,omitempty"`  // Act の物の、変えたページとフォルダのうち、まだどの窓でも見られていない物の id
-	Lost    []LostIn `json:"lost,omitempty"`    // Act の物の、見られる前に消えた分（ブックごと。窓が知らせた順）
+	Lost    []LostIn `json:"lost,omitempty"`    // Act の物の、見られる前に消えた分（ステージエントリごと。窓が知らせた順）
 	Key     string   `json:"key,omitempty"`     // アクションが返した変え方で作った物の見分け（郵便の id など）
 	Subject string   `json:"subject,omitempty"` // アクションが返した変え方で作った物の、アクションの対象の種類（Key はこの種類の中で見分ける。空なら種類を問わない）
 	Book    string   `json:"book,omitempty"`    // アクションが返した変え方で作った物の、アクションが名指したブック
@@ -88,8 +90,8 @@ func recordedTickets(list []AIEditTicket, act string, at string, unseen []string
 	return list
 }
 
-// prunedTickets は、消すブック books（その中のページとフォルダの id は gone）の分を AI 編集チケットの並び list から外す: Key で見分ける物はそのブックの物を消し、
-// Act の物は、まだ見られていない物の id と、見られる前に消えた分から、そのブックの分を外す（何も残らない物は消す）。変えなければ false
+// prunedTickets は、消すブック books（その中のページとフォルダの id と、消すブックの外のページの id は gone）の分を AI 編集チケットの並び list から外す:
+// Key で見分ける物はそのブックの物を消し、Act の物は、まだ見られていない物の id と、見られる前に消えた分から、消す物の分を外す（何も残らない物は消す）。変えなければ false
 func prunedTickets(list []AIEditTicket, books, gone map[string]bool) ([]AIEditTicket, bool) {
 	out := make([]AIEditTicket, 0, len(list))
 	changed := false
@@ -103,7 +105,7 @@ func prunedTickets(list []AIEditTicket, books, gone map[string]bool) ([]AIEditTi
 			continue
 		}
 		unseen := slices.DeleteFunc(slices.Clone(t.Unseen), func(id string) bool { return gone[id] })
-		lost := slices.DeleteFunc(slices.Clone(t.Lost), func(l LostIn) bool { return books[l.Book] })
+		lost := slices.DeleteFunc(slices.Clone(t.Lost), func(l LostIn) bool { return books[l.Entry] || gone[l.Entry] })
 		if len(unseen) == len(t.Unseen) && len(lost) == len(t.Lost) {
 			out = append(out, t)
 			continue
@@ -139,9 +141,9 @@ func (h *Hub) putTickets(list []AIEditTicket) error {
 	return nil
 }
 
-// SettleAIEditTicket は、窓が AI の変更 act のうち、ブック book のページとフォルダ places を見た（lost が nil）か、見られる前に消えた（lost に消えた所と AI の値）ことを受ける。
+// SettleAIEditTicket は、窓が AI の変更 act のうち、ページとフォルダ places を見た（lost が nil）か、ステージエントリ entry の分が見られる前に消えた（lost に消えた所と AI の値）ことを受ける。
 // まだ見られていない物だけを変える（ほかの窓で見えて、もう無ければ何もしない）。全部見えて、消えた分も無ければ、AI 編集チケットを消す
-func (h *Hub) SettleAIEditTicket(act, book string, places []string, lost json.RawMessage) error {
+func (h *Hub) SettleAIEditTicket(act, entry string, places []string, lost json.RawMessage) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	list := slices.Clone(h.aiEditTickets)
@@ -157,7 +159,7 @@ func (h *Hub) SettleAIEditTicket(act, book string, places []string, lost json.Ra
 	t.Unseen = left
 	if lost != nil {
 		// 渡したあとに消えた分が増えたら、それも渡すまで残す
-		t.Lost, t.Told = append(slices.Clone(t.Lost), LostIn{Book: book, Lost: lost}), false
+		t.Lost, t.Told = append(slices.Clone(t.Lost), LostIn{Entry: entry, Lost: lost}), false
 	}
 	if len(t.Unseen) == 0 && len(t.Lost) == 0 {
 		list = slices.Delete(list, i, i+1)
@@ -180,6 +182,19 @@ func (h *Hub) titleOfTold(id string) (string, bool) {
 	return head.Title, true
 }
 
+// titleOfStageEntry は、AI に渡す物のステージエントリ id（ブックか、ブックの外の、バインダに入っていないページ）の名前
+// （置いていない物とゴミ箱の中の物は渡さないので false。h.mu を持って呼ぶ）
+func (h *Hub) titleOfStageEntry(id string) (string, bool) {
+	if title, ok := h.titleOfTold(id); ok {
+		return title, true
+	}
+	if h.entryNotInBook(id) != id {
+		return "", false
+	}
+	title, _, _ := rowHead(h.pages[id].body)
+	return title, true
+}
+
 // tell は、AI 編集チケットの並びの古い順に each を呼び、渡した（true を返した）物に、AI に渡した印を付けて書く（h.mu を持って呼ぶ）
 func (h *Hub) tell(each func(t AIEditTicket) bool) error {
 	list := slices.Clone(h.aiEditTickets)
@@ -196,15 +211,15 @@ func (h *Hub) tell(each func(t AIEditTicket) bool) error {
 	return h.putTickets(list)
 }
 
-// UndoneAIEditTicket は、見られる前に消えた AI の変更の、1 冊のブックの分（AI に渡す形）
+// UndoneAIEditTicket は、見られる前に消えた AI の変更の、ステージエントリ 1 つの分（AI に渡す形。Entry はブックか、ブックの外のページの id）
 type UndoneAIEditTicket struct {
-	Book  string          `json:"book"`
+	Entry string          `json:"entry"`
 	Title string          `json:"title"`
 	At    string          `json:"at"`
 	Lost  json.RawMessage `json:"lost"`
 }
 
-// TellUndone は、見られる前に消えた AI の変更の全部（ゴミ箱の中のブックの物は除く。変えた順）を返し、AI に渡した印を付ける
+// TellUndone は、見られる前に消えた AI の変更の全部（ゴミ箱の中の物は除く。変えた順）を返し、AI に渡した印を付ける
 func (h *Hub) TellUndone() ([]UndoneAIEditTicket, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -215,8 +230,8 @@ func (h *Hub) TellUndone() ([]UndoneAIEditTicket, error) {
 			return false
 		}
 		for _, l := range t.Lost {
-			if title, ok := h.titleOfTold(l.Book); ok {
-				out = append(out, UndoneAIEditTicket{Book: l.Book, Title: title, At: t.At, Lost: l.Lost})
+			if title, ok := h.titleOfStageEntry(l.Entry); ok {
+				out = append(out, UndoneAIEditTicket{Entry: l.Entry, Title: title, At: t.At, Lost: l.Lost})
 				given = true
 			}
 		}
@@ -294,14 +309,14 @@ func (h *Hub) forgetToldAIEditTickets() error {
 // aiEditTicket は、窓が AI の変更を見た・見られる前に消えたことを受ける
 func (o Options) aiEditTicket(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		Book    string          `json:"book"`
+		Entry   string          `json:"entry"`
 		Act     string          `json:"act"`
 		Places  []string        `json:"places"`
 		Outcome string          `json:"outcome"`
 		Lost    json.RawMessage `json:"lost"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBody)).Decode(&in); err != nil || in.Act == "" ||
-		(in.Outcome != "seen" && in.Outcome != "lost") || (in.Outcome == "lost" && (in.Book == "" || len(in.Lost) == 0)) {
+		(in.Outcome != "seen" && in.Outcome != "lost") || (in.Outcome == "lost" && (in.Entry == "" || len(in.Lost) == 0)) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
@@ -309,7 +324,7 @@ func (o Options) aiEditTicket(w http.ResponseWriter, r *http.Request) {
 	if in.Outcome == "seen" {
 		lost = nil
 	}
-	if err := o.Hub.SettleAIEditTicket(in.Act, in.Book, in.Places, lost); err != nil {
+	if err := o.Hub.SettleAIEditTicket(in.Act, in.Entry, in.Places, lost); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

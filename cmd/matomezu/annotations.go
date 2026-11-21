@@ -74,7 +74,7 @@ func writeAnnotations(out io.Writer) {
 	var got struct {
 		Awaiting []awaitingItem `json:"awaiting"`
 		Undone   []struct {
-			Book  string          `json:"book"`
+			Entry string          `json:"entry"`
 			Title string          `json:"title"`
 			At    string          `json:"at"`
 			Lost  json.RawMessage `json:"lost"`
@@ -93,9 +93,10 @@ func writeAnnotations(out io.Writer) {
 	writeAwaiting(out, got.Awaiting)
 	if len(got.Undone) > 0 {
 		fmt.Fprintf(out, "matomezu: %d change(s) you made were undone by the user before they saw them. "+
-			"Do not redo them on your own; ask the user if they are still needed. lost is what was put back and the values you had written.\n", len(got.Undone))
+			"Do not redo them on your own; ask the user if they are still needed. Each line is a book, or a page outside any book; lost is what was put back and the values you had written "+
+			"(entry is the id of the page, book or binder, at is the place inside it).\n", len(got.Undone))
 		for _, u := range got.Undone {
-			fmt.Fprintf(out, "- book %q (%s) at %s: %s\n", u.Title, u.Book, u.At, u.Lost)
+			fmt.Fprintf(out, "- %q (%s) at %s: %s\n", u.Title, u.Entry, u.At, u.Lost)
 		}
 	}
 	if len(got.Failed) > 0 {

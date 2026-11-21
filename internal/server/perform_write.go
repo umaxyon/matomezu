@@ -87,7 +87,7 @@ func (h *Hub) planWrites(out engine.Output, by, act, at string) (*writePlan, err
 		has[id] = true
 	}
 	plan.batch.RemovedBooks = plan.removed
-	// AI 編集チケット: 消すブックの分を外し、AI のアクションなら 1 つ開く（変えたページとフォルダ。消すブックの物と、書庫ホーム・ゴミ箱・フォルダは入れない）
+	// AI 編集チケット: 消すブックと、消すブックの外のページの分を外し、AI のアクションなら 1 つ開く（変えたページとフォルダ。消す物と、書庫ホーム・ゴミ箱・フォルダは入れない）
 	tickets, ticketsChanged := h.aiEditTickets, false
 	removedBooks, goneRows := map[string]bool{}, map[string]bool{}
 	for _, id := range plan.removed {
@@ -96,7 +96,12 @@ func (h *Hub) planWrites(out engine.Output, by, act, at string) (*writePlan, err
 			goneRows[row] = true
 		}
 	}
-	if len(plan.removed) > 0 {
+	for _, c := range out.Pages {
+		if c.Removed && h.bookOfEntry(c.ID) == "" {
+			goneRows[c.ID] = true
+		}
+	}
+	if len(goneRows) > 0 {
 		tickets, ticketsChanged = prunedTickets(tickets, removedBooks, goneRows)
 	}
 	if by == "ai" {

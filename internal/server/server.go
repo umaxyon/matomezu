@@ -15,7 +15,7 @@
 //	                      変わったものは /api/events で知らせる                                     … 画面から
 //	POST /api/warnings     {"client", "warnings": [{"code", "plugin", "params"}]} 窓が見つけた warning（その窓の分を入れ替える）。常駐が集めてログと、MCP 公開ツールの actions が返す物に出す
 //	POST /api/log         {"client", "lines": [{"at", "text"}]} 窓が書き残した事（つながりが切れた・読み直せなかったなど。at は窓の時刻）。常駐のログに出す  … 画面から
-//	POST /api/ai-edit-tickets  {"act", "places", "outcome", "book", "lost"} 窓が、AI の変更のうちページとフォルダ places を見た（seen）・見られる前に消えた（lost。ブック book の、消えた所と AI の値）（ai_edit_tickets.go）  … 画面から
+//	POST /api/ai-edit-tickets  {"act", "places", "outcome", "entry", "lost"} 窓が、AI の変更のうちページとフォルダ places を見た（seen）・見られる前に消えた（lost。ステージエントリ entry の、消えた所と AI の値）（ai_edit_tickets.go）  … 画面から
 //	POST /api/screen-plugins/remove {"ids"} 窓が組み込めなかった追加プラグイン ids を、並びの順に外す（POST /api/plugins/remove と同じ。止めた窓の［外して開く］）。
 //	                      もう足していない id は飛ばす（ほかの窓や AI が先に外していても、外れた状態になれば成功）。
 //	                      {"ok"} か、外せなかった所で止めて {"ok": false, "id", "reason"}（それより前の物は外れたまま）  … 画面から
@@ -37,7 +37,7 @@
 //	GET  /api/ai/folder[?folder=ID]  書庫ホーム（folder が無いとき）かフォルダ 1 つの {"id", "kind", "title", "path", "lineup"}（書庫ホームからの道筋と、直下のエントリを 1 段だけ。ai_folder.go）
 //	GET  /api/ai/records?kind=K[&id=ID | &ids=a&ids=b | &where.key=value&is.key=absent&limit=N&before=ID]  AI に見せる種類（対象の定義の aiBrief）のレコード（ai_records.go）。
 //	                      id はその 1 件の全文、ids は何件かの全文、どちらも無ければ一覧（索引キーで探す種類は {"kind","records","total","older"}）
-//	GET  /api/ai/awaiting    {"awaiting": [{"book", "title", "annotation", "brief"}], "undone": [{"book", "title", "at", "lost"}], "failed": [{"book", "title", "key", "changed"}], "removed": [{"book", "title", "key", "cause"}]}
+//	GET  /api/ai/awaiting    {"awaiting": [{"book", "title", "annotation", "brief"}], "undone": [{"entry", "title", "at", "lost"}], "failed": [{"book", "title", "key", "changed"}], "removed": [{"book", "title", "key", "cause"}]}
 //	                         AI の応えを待つアノテーションの全部と、見られる前に利用者が戻した AI の変更の全部と、失敗にした AI 編集チケット（変更提案郵便など）の全部と、
 //	                         郵便が消えたと記した AI 編集チケット（cause は上限で消えた limit か、利用者が消した user）の全部
 //	                         （undone と failed と removed は、渡したら、次の利用者トリガートークのときに消える）

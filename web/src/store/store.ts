@@ -318,7 +318,6 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
   const {
     checkSeen,
     dropOverwritten,
-    dropOverwrittenInLibrary,
     addForeign,
     reset: resetUnseen,
   } = createUnseenChanges({
@@ -453,13 +452,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         next.window = followLibraryIn(window, catalog, both.books, books)
         // 画面の履歴に入れないアクション（戻す・やり直す・ゴミ箱から消すなど）が消した物は、その前の値を画面の履歴の段に残さないので捨てる。
         // 設定が対象のアクションが変える書庫（言語を初めて選んで付けた番号）も、常駐が書庫を整えるときと同じく、画面の履歴に入れない
-        if (target === "settings" || !entersLibraryHistory(catalog.actions.get(id))) {
-          for (const after of Object.values(both.books)) {
-            const before = books[after.id]
-            if (before && before !== after) dropOverwritten(before, after)
-          }
-          dropOverwrittenInLibrary({ pages, folders }, tables)
-        } else recordLibrary({ pages, folders }, done.changes, c.now)
+        if (target === "settings" || !entersLibraryHistory(catalog.actions.get(id)))
+          dropOverwritten({ pages, folders }, tables)
+        else recordLibrary({ pages, folders }, done.changes, c.now)
       } else {
         // ブックかページが対象のアクションが変えるのは、開けるブック 1 冊
         const after = Object.values(both.books).find(b => books[b.id] !== b)
@@ -467,7 +462,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         const recorded = catalog.actions.get(id)?.history !== false
         if (after && before && recorded) record(after.id, { pages, folders }, done.changes, c.now)
         // 画面の履歴に入れないアクション（ロックの掛け外しなど）が上書きした物は、その前の値を画面の履歴の段に残さないので捨てる
-        if (after && before && !recorded) dropOverwritten(before, after)
+        if (after && before && !recorded) dropOverwritten({ pages, folders }, tables)
         if (after) next.window = mapScreens(window, ws => followBook(catalog, ws, after, before))
       }
     }

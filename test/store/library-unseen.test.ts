@@ -10,7 +10,8 @@ import { applyPatch, patchOf } from "../../web/src/core/patch"
 import { LIBRARY_FOLDER, LIBRARY_UNFOLDED } from "../../web/src/plugins/base/library/state"
 import { definePlugin } from "../../web/src/store/plugin"
 import type { AIEditTicketOutcome } from "../../web/src/store/state"
-import { newStore, sequence } from "../support"
+import { drawingPage } from "../lineup"
+import { newStore, sequence, worldRows } from "../support"
 
 type Store = ReturnType<typeof newStore>
 type Step = { run: () => void; library?: true }
@@ -265,9 +266,51 @@ test("AI の 1 回の変更が 2 冊のブックを変え、見られる前に�
   expect(told).toEqual([])
   here.actions.perform(PURGE, { entries: ["b1", "b2"] })
   await settled()
-  expect(told.filter(t => t.outcome === "lost").sort((a, b) => (a.book < b.book ? -1 : 1))).toEqual([
-    { book: "b1", act: "7", places: ["b1"], outcome: "lost", lost: [{ at: "title", value: "AI の名前 1" }] },
-    { book: "b2", act: "7", places: ["b2"], outcome: "lost", lost: [{ at: "title", value: "AI の名前 2" }] },
+  expect(told.filter(t => t.outcome === "lost").sort((a, b) => (a.entry < b.entry ? -1 : 1))).toEqual([
+    {
+      entry: "b1",
+      act: "7",
+      places: ["b1"],
+      outcome: "lost",
+      lost: [{ entry: "b1", at: "title", value: "AI の名前 1" }],
+    },
+    {
+      entry: "b2",
+      act: "7",
+      places: ["b2"],
+      outcome: "lost",
+      lost: [{ entry: "b2", at: "title", value: "AI の名前 2" }],
+    },
+  ])
+})
+
+test("AI の 1 回の変更がブックとその中のページの名前を変え、見られる前に利用者がそのブックを完全に消したら、消えた所ごとに、どの物かを添えて知らせる", async () => {
+  const { here, there, told, foreign } = pair()
+  await foreign(
+    { by: "ai", act: "7", actions: [RENAME, RENAME] },
+    {
+      run: () => {
+        there.actions.perform(RENAME, { entry: "b1", title: "AI のブック名" })
+        there.actions.perform(RENAME, { entry: "p1", title: "AI のページ名" })
+      },
+      library: true,
+    },
+  )
+  here.actions.perform(TRASH, { entry: "b1" })
+  await settled()
+  here.actions.perform(PURGE, { entries: ["b1"] })
+  await settled()
+  expect(told).toEqual([
+    {
+      entry: "b1",
+      act: "7",
+      places: ["p1", "b1"],
+      outcome: "lost",
+      lost: [
+        { entry: "p1", at: "title", value: "AI のページ名" },
+        { entry: "b1", at: "title", value: "AI のブック名" },
+      ],
+    },
   ])
 })
 
@@ -296,7 +339,7 @@ test("見られる前に利用者が消したのが、ブックの外のフォ�
   here.actions.perform(PURGE, { entries: [box] })
   await settled()
   expect(box in here.state.getState().folders).toBe(false)
-  expect(told).toEqual([{ book: "b2", act: "9", places: ["b2"], outcome: "lost", lost: [] }])
+  expect(told).toEqual([{ entry: "b2", act: "9", places: ["b2"], outcome: "lost", lost: [] }])
   show([HOME_ID])
   expect(libraryHistory(here).undo.filter(s => s.by === "ai")).toEqual([])
 })
@@ -353,4 +396,31 @@ test("書庫で足したページを、まだ見ていない AI がほかのブ�
   expect(page in here.state.getState().pages).toBe(true)
   expect(here.state.getState().folders.b2?.lineup.map(r => r.id)).toContain(page)
   expect(told.filter(t => t.outcome === "lost")).toEqual([])
+})
+
+test("ブックの外のページの AI の変更が、見られる前に完全に消されたら、そのページの分として知らせる", async () => {
+  const { here, there, told, foreign } = pair()
+  const world = {
+    ...worldRows(Object.values(here.state.getState().books), [drawingPage("o1", { title: "外のページ" })]),
+    settings: {},
+  }
+  here.receive(world, [])
+  there.receive(world, [])
+  await foreign(
+    { by: "ai", act: "5", actions: [RENAME] },
+    { run: () => void there.actions.perform(RENAME, { entry: "o1", title: "AI の名前" }), library: true },
+  )
+  here.actions.perform(TRASH, { entry: "o1" })
+  await settled()
+  here.actions.perform(PURGE, { entries: ["o1"] })
+  await settled()
+  expect(told).toEqual([
+    {
+      entry: "o1",
+      act: "5",
+      places: ["o1"],
+      outcome: "lost",
+      lost: [{ entry: "o1", at: "title", value: "AI の名前" }],
+    },
+  ])
 })

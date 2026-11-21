@@ -270,11 +270,13 @@ export function initialState(
   }
 }
 
-// まだ見ていない AI の変更（act は常駐の changed の知らせの印）のうち、ブック book の分（places は、その変更が変えた・足した・無くしたページとフォルダの id）が、
-// この窓で見えた（seen）か、見られる前に消えた（lost。消えた所と AI が書いた値）
+// まだ見ていない AI の変更（act は常駐の changed の知らせの印。places は、その変更が変えた・足した・無くしたページとフォルダの id）が、この窓で見えた（seen）か、
+// 見られる前に消えた（lost。ステージエントリ entry の分で、places はその中の物、lost は消えた所と AI が書いた値）
 export type AIEditTicketOutcome =
   | { act: string; places: readonly string[]; outcome: "seen" }
-  | { book: string; act: string; places: readonly string[]; outcome: "lost"; lost: readonly Written[] }
+  | { entry: string; act: string; places: readonly string[]; outcome: "lost"; lost: readonly LostValue[] }
+// 見られる前に消えた所と値 1 つ: entry はページかフォルダ（ブック・バインダも）の id、at はその行の中の道
+export type LostValue = { entry: string } & Written
 
 // 起動エラーの画面に出す物: 画面が起動を止めた理由の種類（kind。base の文言を引く）、原因の一覧と、直す手（ボタン）。
 // 種類ごとに、画面の入口が作って createMatomezu に渡す（起動エラーの画面のほかは描かない窓）
