@@ -65,12 +65,12 @@ export interface SubjectDef<
   aiListed?: { when(record: z.output<R>, ctx: AIRecordContext): boolean; unlisted: string }
   // 横断検索に使う文字（題 title と本文 body。どちらも無くてよい）。レコード 1 件から決まること（ほかのレコードを読まない）。書いた種類だけが、常駐の横断検索（title に当たった物は body だけに当たった物より上）に載る
   searchTexts?(record: z.output<R>): { title?: string; body?: string }
-  // 一覧（read_records）の並びの鍵（小さい順。無ければ id の順）
+  // 一覧（read_records）の並びの鍵（小さい順。無ければ id の順）。aiList とは一緒に書けない（E077）
   aiOrder?(record: z.output<R>): number
   // 一覧（read_records）の既定の並び（索引キー）と件数。書いた種類の一覧は、索引キーで探して並べ、その件数だけ中身を読む
   // （続きは before で取る。条件に書けるのは索引キーだけ）。書かなければ、種類の全部を読んで aiOrder の順に並べる
   aiList?: { order: Order<keyof Ks & string>; limit: number }
-  // 一覧（read_records）の 1 行に、id と題のほかに添えるフィールド（見分けに要る物だけ。aiList を書いた種類だけが使える）
+  // 一覧（read_records）の 1 行に、id と題のほかに添えるフィールド（見分けに要る物だけ。aiList を書いた種類だけが書ける。E076）
   aiRow?(record: z.output<R>): Readonly<Record<string, unknown>>
   // この種類を宛先か writes に書いてよい、ほかのプラグインの id の並び（持ち主が許す。書かなければ、ほかのどのプラグインにも許さない。同じプラグインのアクションは書かなくてよい）
   writableBy?: readonly string[]

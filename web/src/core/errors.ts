@@ -52,6 +52,8 @@ export const ERRORS = {
   E059: "action {id}: writes {ref}, which is numbered",
   E060: "action {id}: lockSwitch cannot have writes",
   E061: "subject {id}: aiListed and aiList cannot be given together",
+  E076: "subject {id}: aiRow needs aiList (it adds fields to the rows of that list)",
+  E077: "subject {id}: aiOrder and aiList cannot be given together (aiList orders its list)",
   E062: "pageType {id}: settings has {setting}, which is not a page setting (its holder is not page)",
   E063: 'action {id}: its permissionScope is "book" (no page named), so its attach cannot have {attach} (they depend on a page type)',
   E064: "setting {id}: a page or outermost setting needs holder (page or outermost)",

@@ -1,8 +1,8 @@
 // 「作業の進め方」の決まりを見張る: 単体のテストの置き場、e2e、テストの用意の手段
 import { describe, expect, test } from "bun:test"
-import { existsSync, readdirSync, readFileSync } from "node:fs"
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
 import { dirname, join, normalize, relative, resolve } from "node:path"
-import { CRATES, filesUnder, ROOT, SRC, sources } from "./sources"
+import { ADDED, CRATES, filesUnder, ROOT, SRC, sources } from "./sources"
 
 // 単体のテストの置き場: test の直下は全体を見張るテストだけ。test/<クレート> はそのクレート（かその置き場の手伝い）を、test/plugins/<置き場> はそのプラグインを、test/scripts は scripts のスクリプトを、test/clients/<AI の名前> はその AI ごとの部品を読む
 test("単体のテストは、確かめる物の置き場（クレート・test/plugins/<プラグイン>・test/scripts・test/clients/<AI の名前>）に置く", () => {
@@ -184,4 +184,25 @@ describe("テストの用意の手段", () => {
     })
     expect(differ).toEqual([])
   })
+})
+
+// 見本の tsconfig は plugins.test.ts が見る。ここではほかの、根の tsconfig が外すフォルダ（型の確かめ test/type-checks など）を見る
+test("根の tsconfig が外すフォルダ（見本のほか）の tsconfig は、どれも package.json の typecheck で確かめる", () => {
+  const typecheck = (JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as { scripts: { typecheck: string } })
+    .scripts.typecheck
+  const projects = [...typecheck.matchAll(/-p (\S+)/g)].map(m => m[1]!.replace(/\/tsconfig\.json$/, ""))
+  const excluded = (JSON.parse(readFileSync(join(ROOT, "tsconfig.json"), "utf8")) as { exclude: string[] }).exclude
+  const others = excluded.filter(dir => dir !== relative(ROOT, ADDED))
+  expect(others.length).toBeGreaterThan(0)
+  const configs = others.flatMap(dir =>
+    readdirSync(join(ROOT, dir))
+      .filter(name => statSync(join(ROOT, dir, name)).isDirectory())
+      .flatMap(name =>
+        readdirSync(join(ROOT, dir, name))
+          .filter(f => /^tsconfig.*\.json$/.test(f))
+          .map(f => join(dir, name, f).replace(/\/tsconfig\.json$/, "")),
+      ),
+  )
+  expect(configs.length).toBeGreaterThan(0)
+  expect(configs.filter(c => !projects.includes(c))).toEqual([])
 })
