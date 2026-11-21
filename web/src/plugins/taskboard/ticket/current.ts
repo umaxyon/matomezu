@@ -1,8 +1,5 @@
-// ワークルームの今のチケット: そのワークルームが担当の並びに入っていて、プロジェクトの作業中の印のあるレーンにあるチケット（記録は持たず、担当とレーンから決める）。
-// 担当は書いたままの assignees で見る（消したワークルームは参加者の一覧に出ない）。
-// 閉じたプロジェクトのチケットも数える。完了のレーンには作業中の印が付かないので、完了のチケットは入らない。
-// 参加者の一覧の行の下の 1 行・右の今のタスクの列・作業の様子（workroomActivity）が、この 1 つの判定を使う
-import { inWorkingLane, type Project } from "../project"
+// カレントチケットの判定（current-work の isCurrentFor・currentTicketOf）が使う、チケットの項目と、主担当
+import type { Project } from "../project"
 
 // 判定に使うチケットの項目（チケットのレコードの型は ticket の定義が、この判定を使うので、ここでは項目だけを書く）
 export interface TicketLike {
@@ -20,23 +17,3 @@ export interface CurrentTicket<T extends TicketLike = TicketLike> {
 
 // チケットの主担当のワークルームの id（担当がいなければ undefined）
 export const leadOf = (ticket: { assignees: readonly string[] }): string | undefined => ticket.assignees[0]
-
-// ワークルーム workroom の今のチケット（更新の新しい順。同じ時刻なら番号の順）。tickets はほかのワークルームのチケットが混ざってよい。projectOf はプロジェクトを id で引く
-export function currentTicketsOf<T extends TicketLike>(
-  workroom: string,
-  tickets: readonly T[],
-  projectOf: (id: string) => Project | undefined,
-): CurrentTicket<T>[] {
-  return tickets
-    .flatMap(ticket => {
-      if (!ticket.assignees.includes(workroom)) return []
-      const project = projectOf(ticket.project)
-      return project && inWorkingLane(project, ticket.lane) ? [{ ticket, project }] : []
-    })
-    .sort(
-      (a, b) =>
-        b.ticket.updatedAt.localeCompare(a.ticket.updatedAt) ||
-        a.ticket.project.localeCompare(b.ticket.project) ||
-        a.ticket.number - b.ticket.number,
-    )
-}
