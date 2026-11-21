@@ -415,3 +415,30 @@ func TestWarningsOfABookInTheTrashAreNotTold(t *testing.T) {
 		}
 	}
 }
+
+// フォルダの中のブックの warning は read_folder のその行に付き、フォルダごとゴミ箱に入れると出なくなり、戻すとまた出る
+func TestWarningOfABookInAFolder(t *testing.T) {
+	store := entriesStore(t)
+	strange := `{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[{"id":"z","item":"@foo/stars:star","x":0,"y":0,"w":10,"h":10}]}`
+	if err := store.Apply(storage.Batch{Pages: []storage.RowWrite{{ID: "p1", Base: storedPage(t, store, "p1").Version, Body: json.RawMessage(strange)}}}); err != nil {
+		t.Fatal(err)
+	}
+	s, hub := newServerOn(t, Options{}, store)
+	const line = "W007 @foo/stars: book b1 (T): it has @foo/stars:star, not in the catalog (kept as they are)"
+	if _, got := send(t, "GET", s.URL+"/api/ai/folder?folder=d1", "", ai); !strings.Contains(got, `"warning":"`+line+`"`) {
+		t.Fatalf("read_folder = %s", got)
+	}
+	for _, step := range []struct {
+		action string
+		want   bool
+	}{{"", true}, {"@matomezu/base:entry-trash", false}, {"@matomezu/base:entry-restore", true}} {
+		if step.action != "" {
+			if done, err := hub.Perform(Perform{Actions: []engine.BulkAction{{Action: step.action, Args: json.RawMessage(`{"entry":"d1"}`)}}}); err != nil || !done.OK {
+				t.Fatalf("%s = %+v, %v", step.action, done, err)
+			}
+		}
+		if got := hub.Warnings(); slices.Contains(got, line) != step.want {
+			t.Fatalf("warnings after %q = %s", step.action, strings.Join(got, "\n"))
+		}
+	}
+}
