@@ -1,7 +1,9 @@
-// まだ見ていない変更が見えたか（changeSeen）: 開いているページの変更だけを見て、アイテムは変えた物（子の形を変えたならその子）を、前と後のブックで聞く
+// まだ見ていない変更が見えたか（changeSeen）: ブック 1 冊のページとフォルダの行の前と後から、開いているページの変更だけを見て、アイテムは変えた物（子の形を変えたならその子）を、
+// 前と後のページの行で聞く
 import { expect, test } from "bun:test"
-import { changeSeen } from "../../web/src/core/history"
-import { type Patch, patchOf } from "../../web/src/core/patch"
+import { tablesOf } from "../../web/src/core/folders-books"
+import { changesBetween } from "../../web/src/core/folders-changes"
+import { changeSeen, rowChangesOf } from "../../web/src/core/history"
 import type { Book } from "../../web/src/core/schema/book"
 
 const box = (id: string, caption: string, shapes?: unknown[]) => ({
@@ -22,8 +24,11 @@ const folded = (items: unknown[], other: unknown[] = []) =>
     lineup: [page("p", other), { kind: "binder", id: "f", title: "f", pageType: "t", lineup: [page("s", items)] }],
   }) as unknown as Book
 // ブックを before から after にした変更が、ページ page を開いているステージで見えたか（物は seen に聞く。聞いた物の、前と後のどちらの値かを after で答える）
-const decided = (before: Book, after: Book, page: string | null, seen?: (id: string, after: boolean) => boolean) =>
-  changeSeen(patchOf(before, after) as Patch, { before, after }, page, seen && ((_p, id, b) => seen(id, b === after)))
+const decided = (before: Book, after: Book, page: string | null, seen?: (id: string, after: boolean) => boolean) => {
+  const rows = rowChangesOf(tablesOf([before]), changesBetween([before], [after]))
+  const late = tablesOf([after]).pages
+  return changeSeen(rows, page, seen && ((row, id) => seen(id, late[row.id] === row)))
+}
 const asked = (before: Book, after: Book, page: string | null) => {
   const ids: string[] = []
   const seen = decided(before, after, page, id => {
