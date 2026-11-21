@@ -31,7 +31,7 @@
 //
 //	GET  /api/ai/view        最後にフォーカスされた窓が見ているもの（{"current", "book", "page", "selection", "awaiting"}。無ければ null。awaiting は見ているブックの、AI の応えを待つアノテーション。
 //	                      コントロールセンターがカレントスクリーンの窓は {"current": "control-center", "hidden": {後ろに隠れているブックスクリーンの book, page, selection, awaiting など}}）
-//	GET  /api/ai/books  {"books": [{"id", "type", "title", "version", "awaiting"}]}（awaiting は AI の応えを待つアノテーションの数）
+//	GET  /api/ai/books  {"books": [{"id", "title", "version", "warning", "awaiting"}]}（warning は機能台帳に無い物の W007 の 1 行、awaiting は AI の応えを待つアノテーションの数）
 //	GET  /api/ai/books/{id}  {"id", "book", "version", "annotations", "placed"}（?outline=1 ならページの目次。ai_outline.go）
 //	GET  /api/ai/pages/{page}  {"book", "folder", "page", "version", "annotations", "placed"}（book はそのページを持っているブックの id、folder はそのページが入っているフォルダ（ブックの直下ならブック、バインダの中ならバインダ）の id、version はそのページの版、annotations はそのページの物に立つもの。?outline=1 でページの中の物の目次、?item=id でその物だけ。ai_outline.go）
 //	GET  /api/ai/folder[?folder=ID]  書庫ホーム（folder が無いとき）かフォルダ 1 つの {"id", "kind", "title", "path", "lineup"}（書庫ホームからの道筋と、直下のエントリを 1 段だけ。ai_folder.go）
@@ -51,7 +51,7 @@
 //	GET  /api/ai/catalog?ids=a&ids=b  MCP 公開ツールの actions が返す物。ids が無ければ {"version", "index", "warnings"}（一覧の版と目次。warnings は今あるときだけ）、あれば ids の物の全文 {"version", 表の名前: [全文]..., "unknown"}
 //	POST /api/ai/perform     {"action", "args", "on"} アクションを利用者の言語で行い、{"ok", "reason", "permission", "detail", "result", "notice"}（ok 以外は無ければ省く）を返す
 //	GET  /api/ai/join-rules  参加を頼む AI が読む手順。
-//	POST /api/ai/join        {"ai", "model", "env", "sessionName", "link", "sessionId"} 参加を頼む（参加者を作り、利用者に知らせる郵便を送る）。{"ok", "participant"} か弾いた理由（join.go）
+//	POST /api/ai/join        {"ai", "model", "env", "sessionName", "link", "sessionId", "workroom", "as", "orcaWorkspace"} 参加を頼む（参加者を作り、利用者に知らせる郵便を送る）。{"ok", "participant"} か弾いた理由（join.go）
 //	POST /api/ai/message     {"to", "text"} AI 間メッセージを、ワークルーム to の参加者に送る（受け取られるまで常駐が持つ）。{"ok", "queued"} か断った理由（message.go）
 //	POST /api/ai/show        {"book", "page", "stage", "split"} 最後にフォーカスされた窓にブックを出す（Hub.Show）。
 //	                         窓が無ければブラウザで開き、つながるのを待ってから出す。{"ok", "opened"} か {"ok": false, "reason", "url"} を返す

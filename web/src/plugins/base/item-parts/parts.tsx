@@ -1,4 +1,4 @@
-// 形（箱やリストなど）の画面が共に使うもの: ダイアログのフック（開いているブック・ブックのテーマ・使えるテーマ・色の見本・寄せの選択肢）と寄せのアイコン、
+// 形（箱やリストなど）の画面が共に使うもの: ダイアログのフック（描いているページのブック・ページのテーマ・使えるテーマ・色の見本・寄せの選択肢）と寄せのアイコン、
 // 形に当てたテーマの値を CSS 変数にするフック
 
 import { type CSSProperties, useMemo } from "react"
@@ -78,8 +78,8 @@ export function useSwatches(looks: string | undefined, fill: TokenDef) {
   }, [catalog, looks, fill, t, dark])
 }
 
-// 描くページのブックの中の形に当てたテーマ theme の、テーマキー defs の値の CSS 変数
-// （当てていないか、ページのタイプが使えないテーマなら undefined。ブックのテーマのまま描く。book-look/theme-types.ts）
+// 描くページの中の形に当てたテーマ theme の、テーマキー defs の値の CSS 変数
+// （当てていないか、ページのタイプが使えないテーマなら undefined。ページのテーマのまま描く。book-look/theme-types.ts）
 export function useThemeVars(theme: string | undefined, defs: readonly TokenDef[]): CSSProperties | undefined {
   const catalog = useCatalog().core
   const scope = useScope()

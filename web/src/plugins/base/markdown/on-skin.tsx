@@ -1,4 +1,4 @@
-// ブックの外で描いた文書（MarkdownDocumentView）に当てる、スキンの値で描くための CSS 変数の組: ブックのテーマが値を置かない所（コントロールセンターなど）が、文書を描く要素の style に置く。
+// ページの外で描いた文書（MarkdownDocumentView）に当てる、スキンの値で描くための CSS 変数の組: ページのテーマが値を置かない所（コントロールセンターなど）が、文書を描く要素の style に置く。
 // 色はスキンキー（--skin-text など）と、スキンの明暗ごとのコードの色（--skin-code-<種類>）から、ほかは MARKDOWN_DOCUMENT_TOKENS の既定の値で決める。使う所は、自分の見た目の上書きを重ねてよい
 import type { CSSProperties } from "react"
 import { CODE_COLORS } from "../../../core/color"

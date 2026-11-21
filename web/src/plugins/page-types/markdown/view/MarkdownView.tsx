@@ -6,7 +6,6 @@
 // 上の行・見出し・プレビューのペインの右クリックで、メニュー（pane-context。ページの設定・ブックの設定など）を開く。ソースのペインでは、文字の右クリックのままにする。
 // ソースのペインでは原文を書ける（SourcePane.tsx）。描いた文書は、ページの原文を読んで（base の parseMarkdown）、段落の中の改行 1 つを利用者の設定の項目のとおりに見せ（soft-break.ts）、ページの紙の幅で、枠を付けずに紙の色の面に描き、下へいくらでも伸びる。
 // 原文を読み直すのは、書くのを待たせないよう、画面とは別の処理の流れで読む（base の useMarkdownDocument）。ペインが紙より狭いときだけ、紙の幅のまま縮めて収める。両方のペインを並べている間は、ソースのペインをスクロールすると、描いた文書のペインがブロックごとに付いて行く（scroll-sync.ts）。
-// ページが無ければ、真ん中にページを作るボタン（コマンド page-new）を出す
 import { type MouseEvent, type RefObject, useEffect, useLayoutEffect, useRef, useState } from "react"
 import type { Book, ItemPage } from "../../../../plugin-api"
 import {

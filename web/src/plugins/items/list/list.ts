@@ -79,7 +79,7 @@ export const LIST = kit.defineShape({
     .strictObject({
       caption: z.string().default(""),
       captionAlign: AlignSchema.default("center"), // 見出しのキャプションの寄せ（箱と同じ）
-      theme: z.string().min(1).optional(), // リストに当てるテーマの id（無ければブックのテーマ）
+      theme: z.string().min(1).optional(), // リストに当てるテーマの id（無ければページのテーマ）
       color: ColorSchema.optional(), // 塗りの色（箱と同じ）
       checklist: z.boolean().default(false), // 行の左にチェックの印を出す
       zebra: z.boolean().default(false), // 1 行おきに地の色を少し変える

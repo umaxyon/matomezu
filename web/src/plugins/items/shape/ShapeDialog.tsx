@@ -1,5 +1,5 @@
 // 形のダイアログ: 追加と編集で同じ並び（キャプション・色、回せる形は 90 度回転の切り替え。キャプションの名前の右に、左・中央・右の寄せ）。形は聞かない（置く形は道具箱で決まっている）。
-// 色は色を選ぶポップアップで、ブックのテーマの代表色か、好きな色を選ぶ。
+// 色は色を選ぶポップアップで、ページのテーマの代表色か、好きな色を選ぶ。
 // 編集では、選んだ寄せ・色を決める前から形に重ねて見せる（ダイアログの下書き。確定で書き、キャンセルでは元のまま）。
 // 置けない（紙からはみ出すなど）ときは閉じずに理由を出す。
 // 追加は決めた項目の値を、開いた側が渡した置き方（ShapeAddArgs の place）に渡す（置く・選ぶ・断りの文は開いた側が持つ）。編集は形の項目を書き換える（アクション item-update）
@@ -44,7 +44,7 @@ const EMPTY: ShapeProps = { caption: "", captionAlign: "center" }
 export function addShapeDialog(item: string, turnable = false) {
   return function AddShapeDialog({ args, onClose }: DialogProps<ShapeAddArgs>) {
     const book = useBookOf()
-    const bookTheme = usePageTheme()
+    const pageTheme = usePageTheme()
     const catalog = useCoreCatalog()
     const page = usePageById(args.page)
     const turned = page ? startTurned(catalog, page, item) : false
@@ -58,7 +58,7 @@ export function addShapeDialog(item: string, turnable = false) {
         title={kit.message("Add shape")}
         submit={kit.message("Add")}
         start={turnable ? { ...EMPTY, turned } : EMPTY}
-        bookTheme={bookTheme}
+        pageTheme={pageTheme}
         ready={book !== undefined}
         onSubmit={add}
         onClose={onClose}
@@ -70,7 +70,7 @@ export function addShapeDialog(item: string, turnable = false) {
 export function EditShapeDialog({ args, onClose }: DialogProps<{ page: string; item: string }>) {
   const catalog = useCoreCatalog()
   const book = useBookOf()
-  const bookTheme = usePageTheme()
+  const pageTheme = usePageTheme()
   const placed = useItem(args.page, args.item)
   // 回せる形は、向きの切り替えを出す（向きを書いていないデータは縦向き）
   const props = placed?.props as ShapeProps | undefined
@@ -100,7 +100,7 @@ export function EditShapeDialog({ args, onClose }: DialogProps<{ page: string; i
       title={kit.message("Edit shape")}
       submit={kit.message("OK")}
       start={start}
-      bookTheme={bookTheme}
+      pageTheme={pageTheme}
       ready
       onSubmit={update}
       onPreview={preview}
@@ -113,7 +113,7 @@ function ShapeDialog({
   title,
   submit,
   start,
-  bookTheme,
+  pageTheme,
   ready,
   onSubmit,
   onPreview,
@@ -122,7 +122,7 @@ function ShapeDialog({
   title: MessageKey
   submit: MessageKey
   start: ShapeProps
-  bookTheme: string | undefined // ブックのテーマの id（色の見本に使う）
+  pageTheme: string | undefined // ページのテーマの id（色の見本に使う）
   ready: boolean
   onSubmit: (props: ShapeProps) => MessageKey | null // 断られたわけの文言（決められたら null）
   onPreview?: (look: Look | null) => void // 寄せ・色を選んだ（元の値に戻せば null。無ければ見せない）
@@ -134,8 +134,8 @@ function ShapeDialog({
   const { caption, captionAlign } = head
   const [color, setColor] = useState(start.color)
   const [turned, setTurned] = useState(start.turned)
-  // 色の見本: ブックのテーマの代表色と塗り
-  const swatches = useSwatches(bookTheme, SHAPE_FILL)
+  // 色の見本: ページのテーマの代表色と塗り
+  const swatches = useSwatches(pageTheme, SHAPE_FILL)
   const changed = captionAlign !== start.captionAlign || color !== start.color
   useEffect(() => {
     onPreview?.(changed ? { captionAlign, color } : null)
