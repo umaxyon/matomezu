@@ -14,9 +14,9 @@ import type { ItemPage } from "./placed"
 import type { Book } from "./schema/book"
 import {
   closeBook,
-  followBook as followStage,
   followIntoBook,
   followOutsidePage,
+  followBook as followStage,
   newStage,
   openBinder,
   openBook,
