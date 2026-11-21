@@ -261,7 +261,7 @@ export const openedBook = (
 // ステージで開いている物 opened のうち、アクションを使えるかを問う相手（ブックか、ブックの外のページ。何も開いていない・もう無ければ undefined）
 export function askedOutermostOf(from: LibraryAndBooks, opened: Opened | null | undefined): AskedOutermost | undefined {
   const book = openedBook(from.books, opened)
-  if (book) return book
+  if (book) return { book }
   const page = opened?.outermost.kind === "page" ? outsidePageIn(from, opened.outermost.id) : undefined
   return page && outsideAsked(from.folders, page)
 }

@@ -112,10 +112,10 @@ describe("workspace", () => {
 
   test("ブックの一覧が変わると、無くなったブックを開いていたステージは閉じる。1 つも残らなければ NO_STAGES_LEFT", () => {
     const two = split(ws, "s2")
-    const left = followLibrary(CORE_CATALOG, two, {}, EMPTY)
+    const left = followLibrary(CORE_CATALOG, two, { books: {}, ...EMPTY })
     expect(left === NO_STAGES_LEFT ? left : left.stages.map(s => s.opened)).toEqual([null])
-    expect(followLibrary(CORE_CATALOG, ws, {}, EMPTY)).toBe(NO_STAGES_LEFT)
-    expect(followLibrary(CORE_CATALOG, two, { b1: book }, EMPTY)).toBe(two)
+    expect(followLibrary(CORE_CATALOG, ws, { books: {}, ...EMPTY })).toBe(NO_STAGES_LEFT)
+    expect(followLibrary(CORE_CATALOG, two, { books: { b1: book }, ...EMPTY })).toBe(two)
   })
 
   test("境目を動かすと左の幅の割合が変わり、端には寄り切らない。分割をやめても覚えていて、真ん中に戻せる", () => {
@@ -153,7 +153,12 @@ describe("workspace", () => {
     })
 
     test("ブックの一覧が変わったときも、道具が替われば、その場の編集を終える", () => {
-      const after = followLibrary(CORE_CATALOG, editing, { b2: locked }, EMPTY, { books: { b2: open }, ...EMPTY })
+      const after = followLibrary(
+        CORE_CATALOG,
+        editing,
+        { books: { b2: locked }, ...EMPTY },
+        { books: { b2: open }, ...EMPTY },
+      )
       expect(after).not.toBe(NO_STAGES_LEFT)
       expect(stage(after as ReturnType<typeof newWorkspace>).editing).toBe("none")
     })

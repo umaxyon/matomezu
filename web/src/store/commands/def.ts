@@ -187,7 +187,7 @@ export const workspaceOf = (ctx: CommandContext): Workspace => workspaces.get(ct
 
 // 文脈 ctx のステージで開いている物のうち、アクションを使えるかを問う相手（ブックか、ブックの外のページ。どちらも開いていなければ undefined）
 export function askedIn(ctx: CommandContext): AskedOutermost | undefined {
-  if (ctx.book !== NO_BOOK) return ctx.book
+  if (ctx.book !== NO_BOOK) return { book: ctx.book }
   return ctx.stage.opened?.outermost.kind === "page" && ctx.page !== NO_PAGE
     ? outsideAsked(ctx.folders, ctx.page)
     : undefined

@@ -107,19 +107,20 @@ export function actionQuery(
   const target = catalog.actions.get(action)?.target
   const base = { kind: "action" as const, action, actor: USER }
   if (on === undefined || !isInBook(target)) return base
-  if (!("folders" in on)) return { ...base, book: on, ...(where ? { where } : {}) }
-  return target === "book" ? base : { ...base, page: outsideAsk(on, where) }
+  if (target === "book" && !("book" in on)) return base
+  return openedQuery(action, on, where)
 }
 
-// ステージで開いている物（ステージエントリ）のうち、問う相手になる物: ブックか、ブックの外のページ（そのページと、認可ステップに見せるフォルダの列）
-export type AskedOutermost = Book | Pick<AskedPage, "page" | "folders">
+// ステージで開いている物（ステージエントリ）のうち、問う相手になる物: ブック（book）か、ブックの外のページ（そのページ page と、認可ステップに見せるフォルダの列 folders）
+export type AskedOutermost = { book: Book } | Pick<AskedPage, "page" | "folders">
 
-// ブックの外のページ on の、所 where で問うときのページ
-export const outsideAsk = (on: Pick<AskedPage, "page" | "folders">, where?: Where): AskedPage => ({
-  page: on.page,
-  folders: on.folders,
-  ...(where?.ids ? { where: { ids: where.ids } } : {}),
-})
+// アクション action を、開いている物 on の所 where を変える物として問う（アクションの対象は見ない。ブックの外のページの所は、その中の物 ids だけ）
+export function openedQuery(action: string, on: AskedOutermost, where?: Where): Query {
+  const base = { kind: "action" as const, action, actor: USER }
+  if ("book" in on) return { ...base, book: on.book, ...(where ? { where } : {}) }
+  const page: AskedPage = { page: on.page, folders: on.folders, ...(where?.ids ? { where: { ids: where.ids } } : {}) }
+  return { ...base, page }
+}
 
 const decide = <V>(steps: Step<V>[]): Inspected<V> => {
   const hit = steps.find(s => s.value !== null)

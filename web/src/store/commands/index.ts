@@ -9,7 +9,7 @@ import { namingOf, titleOf } from "../../core/entries"
 import { fail } from "../../core/errors"
 import { pageIn } from "../../core/folders"
 import { LIBRARY_HISTORY, NO_HISTORY } from "../../core/history"
-import { actionQuery, inspect, outsideAsk, type Query, withoutPermissions } from "../../core/inspect"
+import { actionQuery, inspect, openedQuery, type Query, withoutPermissions } from "../../core/inspect"
 import { splitId } from "../../core/names"
 import { permittedIn } from "../../core/perform-world"
 import { openedBook, shownPageId, stageBlocks } from "../../core/stage"
@@ -174,11 +174,11 @@ const ask = (c: Called, method: "when" | "enabled" | "active"): boolean | undefi
 
 // コマンドが行うアクション（performs）を、どれも許可スコープの所（ブック・ページ・アノテーションが対象でなければコントロールセンター）で使えるか（認可ステップは見ない）
 function performable(c: Called, arg?: unknown): boolean {
-  const book = "stage" in c.ctx ? askedIn(c.ctx) : undefined
+  const on = "stage" in c.ctx ? askedIn(c.ctx) : undefined
   const where = whereOf(c, arg)
   return (c.def.performs ?? []).every(
     action =>
-      withoutPermissions(inspect(c.ctx.catalog, actionQuery(c.ctx.catalog, action, book, where), c.ctx)).value === true,
+      withoutPermissions(inspect(c.ctx.catalog, actionQuery(c.ctx.catalog, action, on, where), c.ctx)).value === true,
   )
 }
 
@@ -214,15 +214,11 @@ function permitted(c: Called, state: MatomezuState, arg?: unknown): boolean {
   }
   const ctx = c.ctx
   const where = whereOf(c, arg)
-  const book = askedIn(ctx)
+  const on = askedIn(ctx)
   const onOpened = (action: string): boolean =>
-    c.def.permissionScope !== undefined && book !== undefined && ctx.catalog.actions.get(action)?.target === "library"
+    c.def.permissionScope !== undefined && on !== undefined && ctx.catalog.actions.get(action)?.target === "library"
   const query = (action: string): Query =>
-    book && onOpened(action)
-      ? "folders" in book
-        ? { kind: "action", action, actor: USER, page: outsideAsk(book, where) }
-        : { kind: "action", action, actor: USER, book, ...(where ? { where } : {}) }
-      : actionQuery(ctx.catalog, action, book, where)
+    on && onOpened(action) ? openedQuery(action, on, where) : actionQuery(ctx.catalog, action, on, where)
   const runs = c.def.from !== "screen" && c.def.denied === "runs" // 認可ステップに止められても押せる
   return actions.some(
     action =>

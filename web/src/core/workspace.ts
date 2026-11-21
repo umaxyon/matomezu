@@ -7,7 +7,6 @@
 import type { ItemId, ToolId } from "./catalog"
 import type { CoreCatalog } from "./core-catalog"
 import { fail } from "./errors"
-import type { Library } from "./folders"
 import { NO_OUTERMOST, outermostOf, outsidePageIn } from "./folders-tree"
 import type { LibraryAndBooks } from "./library"
 import type { ItemPage } from "./placed"
@@ -214,42 +213,42 @@ export function followBook(catalog: CoreCatalog, ws: Workspace, book: Book, befo
 // followLibrary の答え: 開いていたブックが全部無くなり、ステージが 1 つも残らない
 export const NO_STAGES_LEFT = "no-stages-left"
 
-// 書庫が変わったとき（books はブックの一覧、library はページとフォルダの表。before は変わる前のそれら）: 開いていた物が無くなったステージは閉じ（1 つも残らなければ NO_STAGES_LEFT）、
+// 書庫が変わったとき（now は今の、ブックの一覧とページとフォルダの表。before は変わる前のそれら）: 開いていた物が無くなったステージは閉じ（1 つも残らなければ NO_STAGES_LEFT）、
 // 残った物には合わせる。無くなったとするのは、ブックが一覧に無い・ブックの外のページが開ける物でなくなった（core/folders-tree.ts の outsidePageIn）とき。
 // ブックの外のバインダを開いたステージも閉じる。ただし、開いているブックの外のページが一覧のブックの中へ移されたなら、閉じずに、そのブックのページとして開いた形にする
 export function followLibrary(
   catalog: CoreCatalog,
   ws: Workspace,
-  books: Readonly<Record<string, Book>>,
-  library: Library,
+  now: LibraryAndBooks,
   before?: LibraryAndBooks,
 ): Workspace | typeof NO_STAGES_LEFT {
+  const { books } = now
   // 開いているブックの外のページ id を、中へ入れたブック（ブックの中へ移されていなければ undefined）
   const movedInto = (id: string): Book | undefined => {
-    const now = outermostOf(library, id)
-    return now !== NO_OUTERMOST && now.kind === "book" ? books[now.id] : undefined
+    const entry = outermostOf(now, id)
+    return entry !== NO_OUTERMOST && entry.kind === "book" ? books[entry.id] : undefined
   }
   // ステージが開いている物（何も開いていなければ "none"、無くなっていれば undefined）。ブックの外のページがブックの中へ移されていれば、そのブック
   const held = (s: Stage): Book | ItemPage | "none" | undefined => {
     if (!s.opened) return "none"
     const { kind, id } = s.opened.outermost
     if (kind === "book") return books[id]
-    return kind === "page" ? (outsidePageIn(library, id) ?? movedInto(id)) : undefined
+    return kind === "page" ? (outsidePageIn(now, id) ?? movedInto(id)) : undefined
   }
   const gone = ws.stages.filter(s => held(s) === undefined).map(s => s.id)
   if (gone.length === ws.stages.length) return NO_STAGES_LEFT
   const left = gone.reduce(close, ws)
   const stages = left.stages.map(s => {
-    const now = held(s)
-    if (now === undefined || now === "none") return s
-    if ("kind" in now) {
+    const has = held(s)
+    if (has === undefined || has === "none") return s
+    if ("kind" in has) {
       // ブックの外のページも、今の道具が替わった（ロックされたなど）なら、その場の編集を終える
-      const next = followOutsidePage(catalog, s, now)
-      return before ? editEndedOnToolChange(catalog, left, s, next, before, { books, ...library }) : next
+      const next = followOutsidePage(catalog, s, has)
+      return before ? editEndedOnToolChange(catalog, left, s, next, before, now) : next
     }
     return s.opened?.outermost.kind === "page"
-      ? followIntoBook(catalog, s, now)
-      : followIn(catalog, left, s, now, before?.books[now.id])
+      ? followIntoBook(catalog, s, has)
+      : followIn(catalog, left, s, has, before?.books[has.id])
   })
   return stages.every((s, i) => s === left.stages[i]) ? left : { ...left, stages }
 }

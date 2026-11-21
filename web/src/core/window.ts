@@ -8,7 +8,6 @@
 import type { CoreCatalog } from "./core-catalog"
 import { arrangementValueOf, NO_ARRANGEMENT_VALUE } from "./def/screen-arrangement"
 import { fail } from "./errors"
-import type { Library } from "./folders"
 import type { LibraryAndBooks } from "./library"
 import type { ItemPage } from "./placed"
 import { sameData } from "./same"
@@ -169,13 +168,12 @@ export function closeScreen(win: WindowState, catalog: CoreCatalog, id: string):
   return { ...win, screens: win.screens.filter(s => s.id !== id), order: win.order.filter(x => x !== id) }
 }
 
-// 書庫が変わったときの窓（books はブックの一覧、library はページとフォルダの表。before は変わる前のそれら）: ブックスクリーンごとにステージを合わせ（workspace の followLibrary）、
+// 書庫が変わったときの窓（now は今の、ブックの一覧とページとフォルダの表。before は変わる前のそれら）: ブックスクリーンごとにステージを合わせ（workspace の followLibrary）、
 // ステージが 1 つも残らないブックスクリーンは閉じる（窓の最後の 1 枚なら、何も開いていないステージ 1 つで残す）
 export function followLibraryIn(
   win: WindowState,
   catalog: CoreCatalog,
-  books: Readonly<Record<string, Book>>,
-  library: Library,
+  now: LibraryAndBooks,
   before?: LibraryAndBooks,
 ): WindowState {
   let next = win
@@ -185,7 +183,7 @@ export function followLibraryIn(
   })
   for (const s of win.screens) {
     if (!s.stages) continue
-    const ws = followLibrary(catalog, s.stages, books, library, before)
+    const ws = followLibrary(catalog, s.stages, now, before)
     if (ws === s.stages) continue
     if (ws !== NO_STAGES_LEFT) next = put(s.id, ws)
     else {

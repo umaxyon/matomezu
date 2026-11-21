@@ -132,11 +132,11 @@ export function useAllowed(action: ActionId, where?: Where | { settings: readonl
     const st = stageIn(s.window, at)
     if (st && stageBlocks(catalog, st.mode.kind, action)) return NOT_ALLOWED
     const o = st?.opened
-    const book = askedOutermostOf(s, o)
+    const asked = askedOutermostOf(s, o)
     const page = place?.page ?? shownPageId(o ?? null) ?? undefined
     const on = { ...(page ? { page } : {}), ...(ids ? { ids: ids.split("\n") } : {}) }
     const changed = settings === undefined ? {} : { settings: settings === "" ? [] : settings.split("\n") }
-    const done = inspect(catalog, { ...actionQuery(catalog, action, book, on), ...changed }, { controlCenter })
+    const done = inspect(catalog, { ...actionQuery(catalog, action, asked, on), ...changed }, { controlCenter })
     return done.value === true ? OK : (deniedBy(done) ?? NOT_ALLOWED)
   })
   return allowedOf(answer)
