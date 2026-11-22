@@ -25,7 +25,7 @@ const barHeight = (i: number) => 3 + i * 1.75
 // チケットボリュームの分銅の一辺（px）: xs から xl へ 2px ずつ大きくする（none は出さない）
 const weightSize = (volume: (typeof VOLUMES)[number]) => 4 + VOLUMES.indexOf(volume) * 2
 // 分銅の下の段の名前の字の高さ（px）。SVG の字にして、ブラウザの最小の文字サイズに掛からないようにする
-const VOLUME_TEXT = 7
+const VOLUME_TEXT = 8
 
 export function TicketCardView({
   size,
