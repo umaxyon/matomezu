@@ -6,7 +6,7 @@ import type { Library } from "../../../core/folders"
 import { libraryOf, tablesOf } from "../../../core/folders-books"
 import { rowChanges } from "../../../core/folders-changes"
 import { type RowPatches, restoredTables } from "../../../core/folders-restore"
-import { inTrash, outsidePageIn, type StageEntry } from "../../../core/folders-tree"
+import { inTrash, outsideBinderIn, outsidePageIn, type StageEntry } from "../../../core/folders-tree"
 import { changesByOutermost, type RowChange } from "../../../core/history"
 import type { Books } from "../../../core/library"
 import { type ListPatch, type Patch, patchOf } from "../../../core/patch"
@@ -43,7 +43,12 @@ export const PatchSchema: z.ZodType<Patch> = z.lazy(() => {
 // 置き直しの引数: 画面の履歴の段が変えた物を持つステージエントリ（outermosts。ブックか、ブックの外のページ）と、ページとフォルダごとの置き直す値
 export const RevertArgs = z.strictObject({
   outermosts: z
-    .array(z.strictObject({ kind: z.enum(["book", "page"]), id: z.string().min(1) }) satisfies z.ZodType<StageEntry>)
+    .array(
+      z.strictObject({
+        kind: z.enum(["book", "page", "binder"]),
+        id: z.string().min(1),
+      }) satisfies z.ZodType<StageEntry>,
+    )
     .min(1),
   pages: z.record(z.string(), PatchSchema),
   folders: z.record(z.string(), PatchSchema),
@@ -83,11 +88,11 @@ export function restoredBooks(all: Books, books: readonly string[], patches: Row
   return next && onlyChanged(all, next, books) ? next : null
 }
 
-// 書庫 library に、ステージエントリ e が名指した種類のとおりに在るか（ブックは、ゴミ箱の外のブックの行。ページは、開けるブックの外のページ）
-const standsIn = (library: Library, e: StageEntry): boolean =>
-  e.kind === "book"
-    ? library.folders[e.id]?.folderRole === "book" && !inTrash(library.folders, e.id)
-    : e.kind === "page" && outsidePageIn(library, e.id) !== undefined
+// 書庫 library に、ステージエントリ e が名指した種類のとおりに在るか（ブックは、ゴミ箱の外のブックの行。ページは、開けるブックの外のページ。バインダは、開けるブックの外のバインダ）
+const standsIn = (library: Library, e: StageEntry): boolean => {
+  if (e.kind === "book") return library.folders[e.id]?.folderRole === "book" && !inTrash(library.folders, e.id)
+  return (e.kind === "page" ? outsidePageIn(library, e.id) : outsideBinderIn(library, e.id)) !== undefined
+}
 
 // 書庫 library のステージエントリ outermosts を、patches で置き直した書庫。outermosts のどれかが名指した種類のとおりに在らない（置き直したあとも）・
 // 置き直す所がほかの変更とぶつかる・置き直すと組めなくなるか、outermosts のほかの物（どのステージエントリにも入らない行も）が変わるなら null。

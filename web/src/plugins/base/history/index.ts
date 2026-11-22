@@ -5,6 +5,7 @@
 import { pagesOf } from "../../../core/book"
 import type { LibraryTargets } from "../../../core/def/action"
 import type { Folders } from "../../../core/folders"
+import { foldersOver } from "../../../core/folders-tree"
 import type { HistoryStep } from "../../../core/history"
 import type { MessageKey } from "../../../core/i18n/i18n"
 import type { Books } from "../../../core/library"
@@ -36,7 +37,7 @@ export const HISTORY_RESTORE = kit.defineAction({
   title: "Undo or redo",
   target: "library",
   // 変えるステージエントリがブック 1 冊で、置き直すページが 1 つなら、そのページとアイテムを名指す。ほかは所を言えず、ロックは行った後の keeps が止める。
-  // ブックの外のページは、そのページの全部を変えるとして問う
+  // ブックの外のページは、そのページの全部を、ブックの外のバインダは、中のページの全部を変えるとして問う
   permissionScope: (args: RevertArgs): LibraryTargets => {
     const pages = restoredPages(args.pages)
     const [page] = pages
@@ -45,7 +46,7 @@ export const HISTORY_RESTORE = kit.defineAction({
     const where = one ? { page: one.id, ...(one.items ? { items: [...one.items] } : {}) } : {}
     return {
       books: books.map(e => ({ book: e.id, where })),
-      entries: args.outermosts.filter(e => e.kind === "page").map(e => ({ entry: e.id, where: "all-pages" })),
+      entries: args.outermosts.filter(e => e.kind !== "book").map(e => ({ entry: e.id, where: "all-pages" })),
       creates: false,
     }
   },
@@ -57,9 +58,25 @@ export const HISTORY_RESTORE = kit.defineAction({
   },
 })
 
-// 画面の履歴の鍵 id のステージエントリの種類: フォルダの表 folders でブックの行ならブック、ほかはブックの外のページ（置き直しのアクションが、実体で確かめ直す）
-const kindOf = (folders: Folders, id: string): RevertArgs["outermosts"][number]["kind"] =>
-  folders[id]?.folderRole === "book" ? "book" : "page"
+// 画面の履歴の鍵 id のステージエントリの種類: フォルダの表 folders でブックの行ならブック、バインダの行ならブックの外のバインダ、ほかはブックの外のページ（置き直しのアクションが、実体で確かめ直す）
+const kindOf = (folders: Folders, id: string): RevertArgs["outermosts"][number]["kind"] => {
+  const role = folders[id]?.folderRole
+  return role === "book" || role === "binder" ? role : "page"
+}
+
+// 置き直したあと、ブックの外のバインダ binder で開いていたいページ: 画面の履歴の段が変えて残るページのうち、今そのバインダに入っているか、どこにも入っていない（置き直しで戻る）最初のページ
+function pageToOpenInBinder(
+  folders: Folders,
+  step: HistoryStep,
+  to: "before" | "after",
+  binder: string,
+): string | undefined {
+  const held = (id: string) => {
+    const [near] = foldersOver(folders, id)
+    return near === undefined || near.id === binder
+  }
+  return Object.entries(step.pages).find(([id, row]) => row[to] !== "none" && held(id))?.[0]
+}
 
 // 置き直したあと、開いていたいページ: 画面の履歴の段が変えたページのうち、ブックの全部 books を args で置き直したあとの、ブック book に入っている最初のページ
 function pageToOpen(
@@ -141,8 +158,13 @@ function restore(ctx: CommandContext, a: CommandActions, from: "undo" | "redo"):
   const steps = [...ctx.history[from]].reverse()
   for (const [i, step] of steps.entries()) {
     const args = argsOf(step)
+    const { kind, id } = opened.outermost
     const page =
-      opened.outermost.kind === "book" ? pageToOpen(booksOf(ctx), step, to, opened.outermost.id, args) : undefined
+      kind === "book"
+        ? pageToOpen(booksOf(ctx), step, to, id, args)
+        : kind === "binder"
+          ? pageToOpenInBinder(ctx.folders, step, to, id)
+          : undefined
     const result = changes(args) ? a.perform(HISTORY_RESTORE.id, args) : undefined
     if (result && !result.ok && !isRevertUnchanged(result)) {
       const denied = result.reason === "denied" ? result : undefined
