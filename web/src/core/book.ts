@@ -7,14 +7,13 @@ import {
   type AnyEntryRef,
   binderFolderOf,
   type Folder,
-  HOME_ID,
   homeAndFoldersOf,
+  isBookRole,
   isOpenRole,
-  isUnreadableRole,
+  LIBRARY_TOP_IDS,
   type Library,
   type MovedCode,
   type PageRow,
-  TRASH_ID,
   type TrashRef,
 } from "./folders"
 import { bookOf, tablesOf } from "./folders-books"
@@ -769,8 +768,7 @@ export function unreadableUnitsOf(
         else units.push(...read.inner.map(unitOf))
       } else {
         const book = folder.get(r.id)
-        if (!book || isOpenRole(book.folderRole) || book.folderRole === "binder" || isUnreadableRole(book.folderRole))
-          continue
+        if (!book || !isBookRole(book.folderRole)) continue
         if (!rowsThere(refsIn(book))) continue
         const read = judgeBook(catalog, raws.get(r.id))
         if (!("book" in read)) units.push({ element, holder: id, code: read.code })
@@ -784,8 +782,7 @@ export function unreadableUnitsOf(
       }
     }
   }
-  visit(HOME_ID)
-  visit(TRASH_ID)
+  for (const id of LIBRARY_TOP_IDS) visit(id)
   // id の重なりは、checkBooks と同じに、フォルダの行の順で先のブックを残す
   books.sort((a, b) => a.at - b.at)
   const distinct = new Set(distinctBooks(books.map(b => b.book)).books)
