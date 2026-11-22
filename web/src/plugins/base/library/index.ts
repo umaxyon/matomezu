@@ -22,9 +22,10 @@ export {
   LIBRARY_UNDO,
 } from "./commands"
 export { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG, LIBRARY_RENAME_DIALOG } from "./dialog"
-export { ENTRY_DUPLICATE, PAGE_CREATE } from "./entry-duplicate"
+export { ENTRY_DUPLICATE } from "./entry-duplicate"
 export { ENTRY_MOVE, ENTRY_MOVE_OVER, ENTRY_RENAME, FOLDER_CREATE } from "./entry-move"
 export { ENTRY_PURGE, ENTRY_RESTORE, ENTRY_TRASH, TRASH_EMPTY } from "./entry-trash"
+export { PAGE_CREATE } from "./page-create"
 export { LIBRARY_REVERT } from "./revert"
 export {
   LIBRARY_OPEN,

@@ -8,7 +8,7 @@ import { LIBRARY_HISTORY } from "../../../web/src/core/history"
 import { shownPageId } from "../../../web/src/core/stage"
 import { screenOf } from "../../../web/src/core/window"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
-import { PAGE_CREATE } from "../../../web/src/plugins/base/library/entry-duplicate"
+import { PAGE_CREATE } from "../../../web/src/plugins/base/library/page-create"
 import { libraryRevertArgs } from "../../../web/src/plugins/base/library/revert"
 import { SLIDE_PLACE } from "../../../web/src/plugins/items/slide/actions"
 import { pluginKit } from "../../../web/src/store/kit"
@@ -311,15 +311,64 @@ test("entry-duplicate: ページ・バインダを、番号付きの名前です
   expect(act("entry-duplicate", { entry: "b1" }).ok).toBe(false)
 })
 
-test("page-create: ブックにページを作る（page-add と同じ引数）。ブックでないフォルダには作らない", () => {
+test("page-create: ブックにページを作る（page-add と同じ引数）。打った名前が重なれば断る", () => {
   const { perform, lineup, titleOf, act } = setup()
   const done = perform(PAGE_CREATE.id, { folder: "b2", type: DRAWING, title: "新" })
   expect(done.ok).toBe(true)
   const page = (done.ok && (done.result as { page: string }).page) as string
   expect(lineup("b2")).toEqual(["b2-p1", page])
   expect(titleOf(page)).toBe("新")
-  expect(act("page-create", { folder: HOME_ID, type: DRAWING }).ok).toBe(false)
   expect(act("page-create", { folder: "b2", type: DRAWING, title: "新" }).ok).toBe(false)
+})
+
+test("page-create: フォルダと書庫ホームには、ブックの外のページを作る。名前を言わなければ重ならない「（無題）」、打った名前が重なれば断る。書庫の履歴で戻る", async () => {
+  const { store, state, lineup, titleOf, act } = setup()
+  const box = folderIn(act)
+  const made = (args: Record<string, unknown>) => {
+    const done = act("page-create", args)
+    if (!done.ok) throw new Error(JSON.stringify(done))
+    return done.result as { page: string; binder?: string }
+  }
+  const a = made({ folder: box, type: DRAWING, title: "図" }).page
+  expect(lineup(box)).toEqual([a])
+  expect(state().pages[a]).toMatchObject({ kind: "page", type: DRAWING, title: "図" })
+  // 名前を言わなければ、そのフォルダの中で重ならない名前
+  const b = made({ folder: box, type: DRAWING }).page
+  const c = made({ folder: box, type: DRAWING, index: 0 }).page
+  expect(lineup(box)).toEqual([c, a, b])
+  expect(titleOf(b)).not.toBe(titleOf(c))
+  expect(act("page-create", { folder: box, type: DRAWING, title: "図" })).toMatchObject(taken)
+  expect(act("page-create", { folder: box, type: DRAWING, index: 9 }).ok).toBe(false)
+  // 書庫ホームの末尾
+  const home = made({ folder: HOME_ID, type: DRAWING, title: "外の図" }).page
+  expect(lineup(HOME_ID)?.at(-1)).toBe(home)
+  // 戻すと、作ったページの行ごと消える
+  await Promise.resolve()
+  const step = (state().history[LIBRARY_HISTORY] ?? { undo: [] }).undo.at(-1)
+  expect(step && store.actions.perform("@matomezu/base:library-revert", libraryRevertArgs(step, "before")).ok).toBe(
+    true,
+  )
+  expect(lineup(HOME_ID)).not.toContain(home)
+  expect(state().pages[home]).toBeUndefined()
+})
+
+test("page-create: ブックの外では、バインダにまとまるタイプのページは、そのページだけの新しいバインダに入る。ゴミ箱の中には作らない", () => {
+  const { state, lineup, act } = setup()
+  const box = folderIn(act)
+  const done = act("page-create", { folder: box, type: SLIDE, title: "表紙", into: { newBinder: "発表" } })
+  const result = (done.ok && done.result) as { page: string; binder: string }
+  expect(done.ok).toBe(true)
+  expect(lineup(box)).toEqual([result.binder])
+  expect(state().folders[result.binder]).toMatchObject({ folderRole: "binder", title: "発表", pageType: SLIDE })
+  expect(lineup(result.binder)).toEqual([result.page])
+  // 置く先を言わない・今あるバインダを名指す形は、ブックの外では通らない
+  expect(act("page-create", { folder: box, type: SLIDE }).ok).toBe(false)
+  expect(act("page-create", { folder: box, type: SLIDE, into: { binder: result.binder } }).ok).toBe(false)
+  expect(act("page-create", { folder: box, type: SLIDE, into: { newBinder: "発表" } })).toMatchObject(taken)
+  // ブックの外のバインダは置き先にならない
+  expect(act("page-create", { folder: result.binder, type: SLIDE, into: { binder: result.binder } }).ok).toBe(false)
+  expect(act("entry-trash", { entry: box }).ok).toBe(true)
+  expect(act("page-create", { folder: box, type: DRAWING }).ok).toBe(false)
 })
 
 test("ロックしたページは、エントリとしてほかのブックへ動かせ、写せる。名前は変えられない", () => {

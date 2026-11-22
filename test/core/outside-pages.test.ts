@@ -198,14 +198,11 @@ test("ページを作る先がブックならそのブックに作るタイプ�
       [],
     ])
   }
-  // page-create の行う前の問いも、ブックの外へ作るなら空のページで問う（作る道は断る）
+  // page-create の行う前の問いも、ブックの外へ作るなら空のページで問い、フォルダ a に作る
   seen.length = 0
   permittedIn(w, PAGE_CREATE, { folder: "a", type: DRAWING }, undefined, libraryCtx())
   expect(seen.map(q => (q.kind === "page" ? [q.page.type, q.folders] : q.kind))).toEqual([[DRAWING, []]])
-  expect(performIn(w, PAGE_CREATE, { folder: "a", type: DRAWING }, undefined, libraryCtx())).toMatchObject({
-    ok: false,
-    reason: "refused",
-  })
+  expect(performIn(w, PAGE_CREATE, { folder: "a", type: DRAWING }, undefined, libraryCtx())).toMatchObject({ ok: true })
 })
 
 test("ロックしたブックの外のページは、動かせるが、名前を変えられず、ゴミ箱にも入れられない（行う前の問いで止まり、すり抜けても行った後の確かめで止まる）", () => {

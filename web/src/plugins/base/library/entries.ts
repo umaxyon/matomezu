@@ -27,6 +27,7 @@ import {
   type Library,
 } from "../../../core/folders"
 import { foldersOver, inTrash, isKeptSystemFolder } from "../../../core/folders-tree"
+import { typeAllows } from "../../../core/inspect"
 
 // フォルダ into の直下に在る（か、そこへ入れる）エントリ entry（種類 kind）の、そのフォルダのほかの物と重ならない名前（重なっていれば「名前 2」から番号を付ける。重ならなければ今の名前）。
 // 名前を持たない物・フォルダが無いときは undefined
@@ -202,4 +203,11 @@ export function overwritten(
   if (isWithin(library.folders, entry, there.id)) return "within"
   if (isKeptSystemFolder(library.folders, there.id, naming.catalog.systemFolders)) return "system-folder"
   return removedEntry(library, there.id)
+}
+
+// ページのタイプ type が、ブックが対象のアクション action を使わせるか（タイプかアクションが機能台帳に無ければ使わせない）
+export function typeLets(catalog: CoreCatalog, action: string, type: string | undefined): boolean {
+  const def = catalog.actions.get(action)
+  const t = type === undefined ? undefined : catalog.pageTypes.get(type)
+  return def !== undefined && t !== undefined && typeAllows(def, t)
 }

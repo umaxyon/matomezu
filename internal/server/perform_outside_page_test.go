@@ -378,3 +378,37 @@ func TestAICannotChangeABinderOutsideBooksTheUserIsEditing(t *testing.T) {
 		t.Fatalf("binder-update after the user finished = %s; want it done", got)
 	}
 }
+
+// AI は page-create で、書庫ホームにブックの外のページを作れる。バインダにまとまるタイプのページは、そのページだけの新しいバインダに入る。作った物は read_folder と read_page で読める
+func TestTheAICreatesAPageOutsideBooks(t *testing.T) {
+	store := outsidePageStore(t)
+	s, _ := newServerOn(t, Options{}, store)
+	writer := writerAI(t, s.URL)
+	_, drawn := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-create","args":{"folder":"library-home","type":"@matomezu/drawing:drawing","title":"AI の図"}}`, writer)
+	var made struct {
+		OK     bool `json:"ok"`
+		Result struct {
+			Page   string `json:"page"`
+			Binder string `json:"binder"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal([]byte(strings.SplitN(drawn, "\n", 2)[0]), &made); err != nil || !made.OK || made.Result.Page == "" {
+		t.Fatalf("page-create in the library home = %s", drawn)
+	}
+	if row := storedPage(t, store, made.Result.Page); !strings.Contains(string(row.Body), `"title":"AI の図"`) {
+		t.Fatalf("stored page = %s; want the new page", row.Body)
+	}
+	if _, page := send(t, "GET", s.URL+"/api/ai/pages/"+made.Result.Page, "", writer); !strings.Contains(page, `"folder":"library-home"`) {
+		t.Fatalf("read_page of the new page = %s; want it in the library home", page)
+	}
+	_, slide := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-create","args":{"folder":"library-home","type":"@matomezu/slide-page:slide","title":"表紙","into":{"newBinder":"AI の発表"}}}`, writer)
+	if err := json.Unmarshal([]byte(strings.SplitN(slide, "\n", 2)[0]), &made); err != nil || !made.OK || made.Result.Binder == "" {
+		t.Fatalf("page-create of a slide in the library home = %s", slide)
+	}
+	if _, folder := send(t, "GET", s.URL+"/api/ai/folder?folder="+made.Result.Binder, "", writer); !strings.Contains(folder, `"title":"表紙"`) {
+		t.Fatalf("read_folder of the new binder = %s; want the slide in it", folder)
+	}
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-create","args":{"folder":"library-home","type":"@matomezu/drawing:drawing","title":"AI の図"}}`, writer); !strings.Contains(got, `"ok":false`) {
+		t.Fatalf("page-create with a taken title = %s; want it refused", got)
+	}
+}

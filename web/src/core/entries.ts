@@ -22,6 +22,7 @@ import {
 import { foldersOver, inTrash, systemFolderIndex, systemFolderOf } from "./folders-tree"
 import { type Lang, translate } from "./i18n/i18n"
 import { freshPageId } from "./ids"
+import type { LineupEntry } from "./schema/book"
 import { langOf, type Settings } from "./settings"
 
 export type EntryKind = AnyEntryRef["kind"]
@@ -110,6 +111,29 @@ export function placedEntry(library: Library, ref: AnyEntryRef, into: string, in
   return withFolders(library, {
     [to.id]: { ...to, lineup: [...to.lineup.slice(0, at), placed, ...to.lineup.slice(at)] } as Folder,
   })
+}
+
+// 書庫にまだ無いページかバインダ made（バインダは中のページごと）の行を足して、フォルダ into の index 番目（言わなければ末尾）に置いた書庫。
+// 同じ id の行がもう在れば no-entry。置けない訳は placedEntry と同じ
+export function placedMade(library: Library, made: LineupEntry, into: string, index?: number): Library | MoveRefusal {
+  const rows = made.kind === "binder" ? made.lineup : [made]
+  if (made.id in library.folders || rows.some(p => p.id in library.pages || p.id in library.folders)) return "no-entry"
+  const pages = { ...library.pages, ...Object.fromEntries(rows.map(p => [p.id, p as PageRow])) }
+  if (made.kind !== "binder")
+    return placedEntry({ pages, folders: library.folders }, { kind: "page", id: made.id }, into, index)
+  const row: BinderFolder = {
+    folderRole: "binder",
+    id: made.id,
+    title: made.title,
+    pageType: made.pageType,
+    lineup: made.lineup.map(p => ({ kind: "page", id: p.id })),
+  }
+  return placedEntry(
+    { pages, folders: { ...library.folders, [row.id]: row } },
+    { kind: "binder", id: row.id },
+    into,
+    index,
+  )
 }
 
 // エントリ entry を、入れているフォルダから外して、ゴミ箱の末尾へ入れた書庫（入れた時刻 at と、元いたフォルダから上への id の列を、ゴミ箱の並びのエントリが持つ。
