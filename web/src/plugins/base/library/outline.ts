@@ -3,6 +3,7 @@ import { type EntryKind, entriesIn, type Naming, rowTitle, titleOf, trashRefsOf 
 import {
   type AnyEntryRef,
   BROKEN,
+  type Folder,
   type Folders,
   HOME_ID,
   type Library,
@@ -233,19 +234,28 @@ export function pathTo(folders: Folders, folder: string): string[] {
   ]
 }
 
-// ブックの外のページ page の置き場所: 書庫ホームから、そのページの入っているフォルダまでの、フォルダの id の列（書庫ホームに直に在れば、書庫ホームだけ）。
-// ステージで開けるブックの外のページの置き場所に無ければ（core/folders-tree.ts の atOutsidePagePlace）空
+// ブックの外のページ page を入れている、ブックの外のバインダの行（page がバインダに直に入っていて、そのバインダがブックにもゴミ箱にも入っていないとき。ほかは undefined）
+function outsideBinderOver(folders: Folders, page: string): Folder | undefined {
+  const [near, ...above] = foldersOver(folders, page)
+  if (near?.folderRole !== "binder" || folders[page] !== undefined || inTrash(folders, page)) return undefined
+  return above.some(f => f.folderRole === "book") ? undefined : near
+}
+
+// ブックの外のページ page の置き場所: 書庫ホームから、そのページ（ブックの外のバインダの中のページなら、そのバインダ）の入っているフォルダまでの、フォルダの id の列
+// （書庫ホームに直に在れば、書庫ホームだけ）。ステージで開けるブックの外のページの置き場所（core/folders-tree.ts の atOutsidePagePlace）にも、ブックの外のバインダの中にも無ければ空
 export function outsidePagePlaceOf(folders: Folders, page: string): string[] {
-  const holder = atOutsidePagePlace(folders, page) ? foldersOver(folders, page)[0] : undefined
+  const entry = atOutsidePagePlace(folders, page) ? page : outsideBinderOver(folders, page)?.id
+  const holder = entry === undefined ? undefined : foldersOver(folders, entry)[0]
   return holder ? pathTo(folders, holder.id) : []
 }
 
-// 行を開いたとき（2 回押し）の行き先: フォルダは中へ入る、ブックとその中のページ・バインダはブックを窓に出す、ブックの外のページはそのページを窓に出す。
-// ゴミ箱の中の物・読めない物・ブックの外のバインダとその中のページは開かない（NOT_OPENED）
+// 行を開いたとき（2 回押し）の行き先: フォルダは中へ入る、ブックとその中のページ・バインダはブックを窓に出す、ブックの外のページはそのページを、
+// ブックの外のバインダはそのバインダを（中のページの行なら、そのページで）窓に出す。ゴミ箱の中の物・読めない物は開かない（NOT_OPENED）
 export type OpenTarget =
   | { to: "folder"; folder: string }
   | { to: "book"; book: string; page?: string; binder?: string }
   | { to: "page"; page: string }
+  | { to: "binder"; binder: string; page?: string }
   | typeof NOT_OPENED
 export const NOT_OPENED = "not-opened"
 
@@ -258,7 +268,11 @@ export function openTargetOf(folders: Folders, row: Pick<LibraryRow, "id" | "kin
     return row.kind === "page"
       ? { to: "book", book: book.id, page: row.id }
       : { to: "book", book: book.id, binder: row.id }
-  return row.kind === "page" && atOutsidePagePlace(folders, row.id) ? { to: "page", page: row.id } : NOT_OPENED
+  if (row.kind === "binder") return { to: "binder", binder: row.id }
+  if (row.kind !== "page") return NOT_OPENED
+  if (atOutsidePagePlace(folders, row.id)) return { to: "page", page: row.id }
+  const binder = outsideBinderOver(folders, row.id)
+  return binder ? { to: "binder", binder: binder.id, page: row.id } : NOT_OPENED
 }
 
 // 書庫の画面が、中身を並べて見せているフォルダ: 右の枠で開いているフォルダ opened（ゴミ箱を開いていればゴミ箱）と、ツリーで中を出しているフォルダ

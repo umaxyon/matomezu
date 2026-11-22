@@ -33,7 +33,7 @@ var noArgs = map[string]any{"type": "object", "properties": map[string]any{}, "a
 var tools = []tool{
 	{
 		"view",
-		"What the user is looking at now: entry (what is open on the stage, {kind, id}: kind book for a book, kind page for a page that is not in a book; left out when nothing is open), page, mode (edit, or print-preview: all its pages laid out as the sheets they print on, arranged by the book's print preview settings) and selected items of the matomezu window focused last, and awaiting, the annotations on that entry (such as the user's notes and marks) that wait for your answer, each with its page. current tells the kind of the window's current screen: book-screen, or plain-screen (a screen with no stages, such as the control center or the library screen), which covers the book screen; then the entry, page, mode, selection and awaiting of the book screen kept behind it are under hidden (the user does not see them now). A window that has no book screen open answers only current and bookScreen: \"none\". null when no window is open.",
+		"What the user is looking at now: entry (what is open on the stage, {kind, id}: kind book for a book, kind page for a page that is not in a book, kind binder for a binder that is not in a book (page is the page open in it); left out when nothing is open), page, mode (edit, or print-preview: all its pages laid out as the sheets they print on, arranged by the book's print preview settings) and selected items of the matomezu window focused last, and awaiting, the annotations on that entry (such as the user's notes and marks) that wait for your answer, each with its page. current tells the kind of the window's current screen: book-screen, or plain-screen (a screen with no stages, such as the control center or the library screen), which covers the book screen; then the entry, page, mode, selection and awaiting of the book screen kept behind it are under hidden (the user does not see them now). A window that has no book screen open answers only current and bookScreen: \"none\". null when no window is open.",
 		noArgs,
 		reading(func(api caller, _ map[string]any) (json.RawMessage, error) { return api.Get("api/ai/view") }, nil),
 		true,
@@ -350,7 +350,7 @@ var showSchema = map[string]any{
 	"type": "object",
 	"properties": map[string]any{
 		"book":  map[string]any{"type": "string", "description": "The book's id (give book, page or both)."},
-		"page":  map[string]any{"type": "string", "description": "The page to show: of that book; alone, a page of any book or one that is not in a book."},
+		"page":  map[string]any{"type": "string", "description": "The page to show: of that book; alone, a page of any book or one that is not in a book (a page in a binder that is not in a book opens that binder at the page)."},
 		"stage": map[string]any{"type": "string", "description": "The id of the stage to show it on (see view). Without it, the current stage."},
 		"split": map[string]any{"type": "boolean", "description": "Split that stage and show the book on the new stage at its right."},
 		"mode": map[string]any{
