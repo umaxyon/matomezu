@@ -81,7 +81,7 @@ func (c *updateCmd) Run() error {
 			v, _, err := aiPluginFor(ai).installed(executable)
 			return err == nil && v != ""
 		},
-		opencodeHasPlugin: opencodeHasPlugin,
+		opencodeHasPlugin: opencodelaunch.Installed,
 		restartServer:     restartOlderServer,
 	}
 	return u.update(os.Getenv(packageDirEnv), version)
@@ -118,7 +118,8 @@ func (u updater) update(packageDir, from string) error {
 		}
 	}
 	if _, err := u.lookPath("opencode"); err == nil && u.opencodeHasPlugin() {
-		if err := u.run("opencode", "plugin", "add", opencodelaunch.Package+"@"+to); err != nil {
+		add := opencodelaunch.Add(to)
+		if err := u.run(add[0], add[1:]...); err != nil {
 			failures = append(failures, fmt.Errorf("the plugin for opencode: %w", err))
 		}
 	}
@@ -167,22 +168,4 @@ func restartOlderServer() error {
 	}
 	_, err = ensure(h, serverFlags{})
 	return err
-}
-
-// opencodeHasPlugin は、opencode の利用者の設定（~/.config/opencode/opencode.json か .jsonc）に matomezu のプラグインがあるか
-func opencodeHasPlugin() bool {
-	dir := os.Getenv("XDG_CONFIG_HOME")
-	if dir == "" {
-		h, err := os.UserHomeDir()
-		if err != nil {
-			return false
-		}
-		dir = filepath.Join(h, ".config")
-	}
-	for _, name := range []string{"opencode.json", "opencode.jsonc"} {
-		if b, err := os.ReadFile(filepath.Join(dir, "opencode", name)); err == nil && strings.Contains(string(b), opencodelaunch.Package) {
-			return true
-		}
-	}
-	return false
 }

@@ -19,7 +19,7 @@ export function StaleBuildDialog() {
           ? t("The data format changed")
           : t("{from} → {to}", { from: from.version, to: to.version }),
         ...(dropped > 0
-          ? [t("{count} edits did not reach the server and are lost when you reload", { count: dropped })]
+          ? [t("{count} edits did not reach the server", { count: dropped }), t("They are lost when you reload")]
           : []),
       ]}
       action={t("Reload the screen")}

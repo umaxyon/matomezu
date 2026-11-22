@@ -78,7 +78,7 @@ export const DataSchema = z.object({
     .record(z.string(), z.object({ model: z.string().optional(), branch: z.string().optional() }))
     .optional(),
 })
-// build は常駐の版とデータの形の番号（移し替えの数）。古い常駐は送らない
+// build は常駐の版とデータの形の番号（移し替えの数）。build の無い hello もある
 export const BuildSchema = z.object({ version: z.string(), dataVersion: z.number().int() })
 export const HelloSchema = z.object({ client: z.string(), build: BuildSchema.optional() })
 const Mark = { client: z.string().optional(), seq: z.number().int().optional() }

@@ -150,7 +150,6 @@ type Hub struct {
 	systemFolderTitles map[string]string
 }
 
-// NewHub は置き場所から世界を読む
 // Build は、常駐の版と、書くデータの形の番号。窓は開いたときの物と、つなぎ直したときの物を比べ、違えば読み直しを促す
 type Build struct {
 	Version     string `json:"version"`
@@ -164,6 +163,7 @@ func (h *Hub) SetBuild(b Build) {
 	h.build = &b
 }
 
+// NewHub は置き場所から世界を読む
 func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	settings, err := store.Settings(user)
 	if err != nil {
