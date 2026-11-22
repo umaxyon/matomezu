@@ -4,6 +4,7 @@
 import type { ActionId, DialogExtras, MessageKey } from "../core/catalog"
 import type { ActionAttach, ActionDef, ActionTarget, OnContainer, ScopeRequired } from "../core/def/action"
 import type { AnnotationDef } from "../core/def/annotation"
+import type { BackyardDef } from "../core/def/backyard"
 import type { ControlCenterDef } from "../core/def/control-center"
 import type { EnumDataOf, EnumDef, EnumValueDef } from "../core/def/enum"
 import type { ConnectorDataOf, ConnectorItemDef, ShapeDataOf, ShapeItemDef } from "../core/def/item"
@@ -152,6 +153,8 @@ export interface PluginKit<P extends string, M extends MessageMap> {
   defineSystemFolder<const Id extends string>(
     def: SystemFolderDef<keyof M & string> & { id: Id },
   ): Omit<SystemFolderDef, "id"> & { id: Owned<P, Id> }
+
+  defineBackyard<const Id extends string>(def: BackyardDef & { id: Id }): Omit<BackyardDef, "id"> & { id: Owned<P, Id> }
 
   defineMail<const Id extends string, Pr extends MailDef["props"]>(
     def: MailDef<Pr, keyof M & string> & { id: Id },
@@ -343,6 +346,7 @@ export function pluginKit<const P extends string, const M extends MessageMap = R
     definePermission: place,
     defineAnnotation: place,
     defineSystemFolder: place,
+    defineBackyard: place,
     defineMail: place,
     defineSubject: place,
     defineScreen: place,

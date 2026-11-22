@@ -4,6 +4,7 @@ import { describe, expect, test } from "bun:test"
 import { outsideHolds } from "../../web/src/core/book"
 import {
   binnedBetween,
+  canHold,
   carriedEntry,
   type EntryMoved,
   isMoveRefusal,
@@ -19,6 +20,7 @@ import {
   withFreeTitles,
 } from "../../web/src/core/entries"
 import {
+  backyardIdOf,
   type Folder,
   HOME_ID,
   type HomeFolder,
@@ -401,4 +403,60 @@ describe("同じ名前", () => {
       expect(withFreeTitles(t, NAMING).freed).toEqual([{ kind: "folder", id: "x", title: "a 2" }])
     })
   })
+})
+
+describe("バックヤード", () => {
+  const TICKETS = "@matomezu/base:tickets-history"
+  const YARD = backyardIdOf(TICKETS)
+  // 書庫ホーム > a（b1・c（b2））・d、バックヤード（b3）
+  const b3 = testBook("b3", "三", [drawingPage("p3")])
+  const yarded = (): Library => {
+    const t = worldTablesOf([b1, b2, b3], [home, a, c, d])
+    const yard: Folder = { folderRole: "backyard", id: YARD, backyard: TICKETS, lineup: [{ kind: "book", id: "b3" }] }
+    return { pages: t.pages, folders: { ...t.folders, [YARD]: yard } }
+  }
+
+  test("どのフォルダにも入らない一番上のフォルダで、ブックだけを持ち、木の決まりを守る", () => {
+    expect(treeHolds(yarded())).toBe(true)
+    const yard = yarded().folders[YARD] as Folder
+    expect(["book", "folder", "binder", "page"].map(k => canHold(yard, k as never))).toEqual([
+      true,
+      false,
+      false,
+      false,
+    ])
+    const inHome = yarded()
+    const homed = {
+      ...inHome.folders[HOME_ID],
+      lineup: [...(inHome.folders[HOME_ID] as HomeFolder).lineup, { kind: "folder", id: YARD }],
+    }
+    expect(treeHolds({ pages: inHome.pages, folders: { ...inHome.folders, [HOME_ID]: homed as HomeFolder } })).toBe(
+      false,
+    )
+  })
+
+  test("バックヤードの中の物・バックヤードへは、動かせず、ゴミ箱にも入れられない（持ち主のプラグインだけが出し入れする）", () => {
+    const t = yarded()
+    expect(movedEntry(t, "b3", "a")).toBe("in-backyard")
+    expect(movedEntry(t, "b1", YARD)).toBe("in-backyard")
+    expect(trashedEntry(t, "b3", "2026-11-22T00:00:00.000Z")).toBe("in-backyard")
+  })
+})
+
+test("バックヤードの直下のブックは、名前が重なってよい（番号を付けない）", () => {
+  const TICKETS = "@matomezu/base:tickets-history"
+  const YARD = backyardIdOf(TICKETS)
+  const t = worldTablesOf([b1, testBook("b4", "一", [drawingPage("p4")])], [home, a, c, d])
+  const yard: Folder = {
+    folderRole: "backyard",
+    id: YARD,
+    backyard: TICKETS,
+    lineup: [
+      { kind: "book", id: "b1" },
+      { kind: "book", id: "b4" },
+    ],
+  }
+  const lib: Library = { pages: t.pages, folders: { ...t.folders, [YARD]: yard } }
+  expect(titleClashes(lib, NAMING)).toEqual([])
+  expect(withFreeTitles(lib, NAMING).freed).toEqual([])
 })

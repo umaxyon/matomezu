@@ -10,9 +10,10 @@ import {
   homeAndFoldersOf,
   isBookRole,
   isOpenRole,
-  LIBRARY_TOP_IDS,
   type Library,
+  libraryTopIdsIn,
   type MovedCode,
+  namesHomeOrFolder,
   type PageRow,
   type TrashRef,
 } from "./folders"
@@ -765,7 +766,7 @@ export function unreadableUnitsOf(
     if (passed.has(id)) return
     passed.add(id)
     const row = folder.get(id)
-    if (!row || !isOpenRole(row.folderRole) || !Array.isArray(row.lineup)) return
+    if (!row || !namesHomeOrFolder(row) || !Array.isArray(row.lineup)) return
     for (const e of row.lineup as unknown[]) {
       const r = refOf(e, true)
       if (!r) continue
@@ -797,7 +798,7 @@ export function unreadableUnitsOf(
       }
     }
   }
-  for (const id of LIBRARY_TOP_IDS) visit(id)
+  for (const id of libraryTopIdsIn(folder)) visit(id)
   // id の重なりは、checkBooks と同じに、フォルダの行の順で先のブックを残す
   books.sort((a, b) => a.at - b.at)
   const distinct = new Set(distinctBooks(books.map(b => b.book)).books)

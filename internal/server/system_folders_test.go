@@ -41,8 +41,12 @@ func documentsRef(t *testing.T, h *Hub) string {
 // systemFolderRow は、/api/data の folders の、システムフォルダの行 1 つ（中身の無い物）
 var systemFolderRow = regexp.MustCompile(`\{"id":"([^"]+)","folder":\{"folderRole":"folder","id":"[^"]+","systemFolder":"[^"]+","lineup":\[\]\},"version":\d+\},?`)
 
-// withoutDocuments は、/api/data の答え body から、システムフォルダ（起動したときに足すドキュメント）の行と、書庫ホームの並びのそのエントリを除いた物
+// backyardRow は、/api/data の folders の、バックヤードの行 1 つ（中身の無い物）
+var backyardRow = regexp.MustCompile(`\{"id":"[^"]+","folder":\{"folderRole":"backyard","id":"[^"]+","backyard":"[^"]+","lineup":\[\]\},"version":\d+\},?`)
+
+// withoutDocuments は、/api/data の答え body から、起動したときに足す行（システムフォルダのドキュメントと、空のバックヤード）と、書庫ホームの並びのドキュメントのエントリを除いた物
 func withoutDocuments(body string) string {
+	body = backyardRow.ReplaceAllString(body, "")
 	for _, m := range systemFolderRow.FindAllStringSubmatch(body, -1) {
 		body = strings.Replace(body, m[0], "", 1)
 		ref := `{"kind":"folder","id":"` + m[1] + `"}`

@@ -72,6 +72,7 @@ import {
   LIBRARY_UNREADABLE_OPEN,
   PAGE_CREATE,
   SHOW_UNREADABLE_FOLDER,
+  TICKETS_HISTORY,
   TRASH_EMPTY,
   UNREADABLE_NOTICE_CLOSED,
 } from "./library"
@@ -542,6 +543,7 @@ export const BASE = defineBuiltin(
     permissions: [LOCK],
     annotations: [NOTE, MARK],
     systemFolders: [DOCUMENTS],
+    backyards: [TICKETS_HISTORY],
     mails: [MAIL_LETTER, MAIL_PROPOSAL],
     subjects: [WORKROOM, PARTICIPANT, ADMIN_MARK, MAIL, SCRAP],
     screens: [BOOK_SCREEN_DEF, LIBRARY_SCREEN],
@@ -803,6 +805,9 @@ declare module "../../core/catalog" {
   }
   interface SystemFolderTable {
     "@matomezu/base:documents": typeof DOCUMENTS
+  }
+  interface BackyardTable {
+    "@matomezu/base:tickets-history": typeof TICKETS_HISTORY
   }
   interface ScreenTable {
     "@matomezu/base:book-screen": typeof BOOK_SCREEN_DEF

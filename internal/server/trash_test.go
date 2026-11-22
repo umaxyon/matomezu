@@ -129,3 +129,29 @@ func TestTrashLineupPlacesItsEntries(t *testing.T) {
 		t.Fatalf("after restoring: entries %v, places %v", entries, hub.places)
 	}
 }
+
+// バックヤードの中のブックは、AI の一覧（list_books）に出ない。木の決まりは守り、ブックとしては読める
+func TestBooksInABackyardAreNotListedForTheAI(t *testing.T) {
+	store := libraryStore(t, false)
+	v := versionsOf(t, store)
+	yard := "library-backyard-@matomezu/base:tickets-history"
+	if err := store.Apply(storage.Batch{
+		Folders: []storage.RowWrite{
+			{ID: storage.HomeID, Base: v[storage.HomeID], Body: storage.HomeBody([]json.RawMessage{storage.RefOf("book", "b1")})},
+			{ID: yard, Body: json.RawMessage(`{"folderRole":"backyard","id":"` + yard + `","backyard":"@matomezu/base:tickets-history","lineup":[{"kind":"book","id":"b2"}]}`)},
+		},
+		Entries: []storage.EntryPut{{ID: "b2", Folder: yard}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	_, hub := newServerOn(t, Options{}, store)
+	if got := hub.AIBooks(); len(got) != 1 || got[0].ID != "b1" {
+		t.Fatalf("AI books = %+v", got)
+	}
+	hub.mu.Lock()
+	warning := hub.libraryWarning
+	hub.mu.Unlock()
+	if warning != "" || hub.Book("b2") == nil {
+		t.Fatalf("library warning %q, book b2 %v", warning, hub.Book("b2"))
+	}
+}
