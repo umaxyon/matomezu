@@ -93,7 +93,7 @@ function copiedOutsideBooks(library: Library, entry: string, ctx: ActionContext)
 export const ENTRY_DUPLICATE = kit.defineAction({
   id: "entry-duplicate",
   aiDescription:
-    'Duplicate a page or a binder (with its pages) in a book: entry is its id. The copy goes right after it, in the same place, named after the original with a number (such as "Plan 2"). Everything in the copy gets new ids; the lock and notes or marks are not copied. Returns the copy\'s id as entry. Refused for a book, a folder, an entry in the trash, a page type whose pages cannot be duplicated or that leaves page-duplicate (binder-duplicate for a binder) out, or a binder holding a page that cannot be duplicated or read; refused (with a reason) for a page holding an item that cannot be copied.',
+    'Duplicate a page or a binder (with its pages), in a book or not: entry is its id. The copy goes right after it, in the same place (the same book, binder or folder), named after the original with a number (such as "Plan 2"). Everything in the copy gets new ids; the lock and notes or marks are not copied. Returns the copy\'s id as entry. Refused for a book, a folder, an entry in the trash, a page type whose pages cannot be duplicated or that leaves page-duplicate (binder-duplicate for a binder) out, or a binder holding a page that cannot be duplicated or read; refused (with a reason) for a page holding an item that cannot be copied.',
   title: "Duplicate",
   target: "library",
   permissionScope: { entry: "entry", where: "copy" },

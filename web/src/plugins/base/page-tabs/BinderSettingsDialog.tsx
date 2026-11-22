@@ -18,6 +18,7 @@ import { kit } from "../kit"
 import { ENTRY_RENAME } from "../library/entry-move"
 import { BINDER_REMOVE, BINDER_UPDATE } from "../pages/binders"
 import type { BinderSettingsArgs } from "."
+import { binderSettingsSteps, NO_LINEUP, openedLineup } from "./opened-lineup"
 import { PaperFields } from "./PaperFields"
 
 export function BinderSettingsDialog({ args, onClose }: DialogProps<BinderSettingsArgs>) {
@@ -26,33 +27,35 @@ export function BinderSettingsDialog({ args, onClose }: DialogProps<BinderSettin
   const catalog = useCatalog().core
   const book = useBook()
   const outside = useOutsideBinder()
-  const lineup = book ?? (outside ? { id: outside.id, lineup: [outside] } : undefined)
-  const binder = lineup ? findBinder(lineup, args.binder) : undefined
+  const lineup = openedLineup(book, outside)
+  const binder = lineup !== NO_LINEUP ? findBinder(lineup, args.binder) : undefined
   const type = binder ? catalog.pageTypes.get(binder.pageType) : undefined
-  const first = lineup && binder ? pagesIn(lineup, binder.id)[0] : undefined
+  const first = lineup !== NO_LINEUP && binder ? pagesIn(lineup, binder.id)[0] : undefined
   const [title, setTitle] = useState(binder?.title ?? "")
   const [paper, setPaper] = useState(first?.paper ?? type?.paper.default ?? "")
   const [orientation, setOrientation] = useState<Orientation>(
     first?.orientation ?? type?.paper.orientation ?? "portrait",
   )
-  const on = lineup ? { book: lineup.id } : undefined
+  const on = lineup !== NO_LINEUP ? { book: lineup.id } : undefined
   const updatable = useAllowedOn(BINDER_UPDATE.id, { binder: args.binder }, on).ok
+  // ブックの外のバインダの名前は、書庫の entry-rename で変える
+  const renamable =
+    useAllowedOn(ENTRY_RENAME.id, { entry: args.binder, title: binder?.title ?? "" }).ok || book !== null
   const removable = useAllowedOn(BINDER_REMOVE.id, { binder: args.binder }, on).ok
   const [confirming, setConfirming] = useState(false)
   const perform = usePerform()
-  if (!lineup || !binder || !type) return null
+  if (lineup === NO_LINEUP || !binder || !type) return null
   const papers = pageType(catalog, binder.pageType).paper.allowed
   // 変えた項目（紙と向きは、中にページがあるときだけ）
-  const renamed = title !== binder.title
   const patch = {
-    ...(renamed && book ? { title } : {}),
+    ...(title !== binder.title ? { title } : {}),
     ...(first && paper !== first.paper ? { paper } : {}),
     ...(first && orientation !== first.orientation ? { orientation } : {}),
   }
   const ready = title.trim() !== ""
   const submit = () => {
-    if (renamed && !book && !perform(ENTRY_RENAME.id, { entry: binder.id, title }).ok) return
-    if (Object.keys(patch).length === 0 || perform(BINDER_UPDATE.id, { binder: binder.id, ...patch }).ok) onClose()
+    const steps = binderSettingsSteps(binder.id, patch, book === null)
+    if (steps.every(s => (perform as (id: string, args: unknown) => { ok: boolean })(s.action, s.args).ok)) onClose()
   }
   const remove = () => {
     if (perform(BINDER_REMOVE.id, { binder: binder.id }).ok) onClose()
@@ -73,7 +76,15 @@ export function BinderSettingsDialog({ args, onClose }: DialogProps<BinderSettin
     >
       <Form id={form} ready={ready} disabled={!updatable} onSubmit={submit}>
         <Field label={t("Name")}>
-          {fid => <input id={fid} className={controlClass} value={title} onChange={e => setTitle(e.target.value)} />}
+          {fid => (
+            <input
+              id={fid}
+              className={controlClass}
+              value={title}
+              disabled={!renamable}
+              onChange={e => setTitle(e.target.value)}
+            />
+          )}
         </Field>
         <PaperFields
           papers={papers}

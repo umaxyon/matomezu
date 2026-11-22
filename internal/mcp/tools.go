@@ -328,9 +328,9 @@ var performSchema = map[string]any{
 		"args":   map[string]any{"type": "object", "description": "The action's arguments, matching its args in actions."},
 		"on": map[string]any{
 			"type":        "object",
-			"description": "What the action is done on: the book, for an action whose target is book; the page, for an action whose target is page or annotations (the page's id alone; no book: for annotations, the page the annotation is on); the record, for an action whose target is a subject listed in actions (subjects). Leave on out to make a new record.",
+			"description": "What the action is done on: the book, for an action whose target is book (or a binder that is not in a book, to add, duplicate, move, remove or change the pages in it); the page, for an action whose target is page or annotations (the page's id alone; no book: for annotations, the page the annotation is on); the record, for an action whose target is a subject listed in actions (subjects). Leave on out to make a new record.",
 			"properties": map[string]any{
-				"book":   map[string]any{"type": "string", "description": "The book's id."},
+				"book":   map[string]any{"type": "string", "description": "The book's id, or the id of a binder that is not in a book (see read_folder)."},
 				"page":   map[string]any{"type": "string", "description": "The page's id (see read_book or view)."},
 				"record": map[string]any{"type": "string", "description": "The record's id."},
 			},

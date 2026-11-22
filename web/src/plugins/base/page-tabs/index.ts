@@ -6,7 +6,7 @@ import type { MessageKey } from "../../../core/catalog"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import { ANY_PAGE_TYPE } from "../../../core/def/action"
 import { binderOf, editingBackground } from "../../../core/stage"
-import { type CommandContext, lineupIn, NO_BOOK, NO_LINEUP, NO_OUTSIDE_BINDER } from "../../../store/commands/def"
+import { type CommandContext, NO_BOOK, NO_OUTSIDE_BINDER } from "../../../store/commands/def"
 import type { DialogTaking, PageSettingsArgs } from "../../../store/dialogs"
 import { kit } from "../kit"
 import { PAGE_LOCK, PAGE_UNLOCK } from "../lock"
@@ -22,6 +22,7 @@ import {
 } from "../pages"
 import { hasOpenedPage } from "../utils/opened-page"
 import { refusalMessage } from "../utils/refusal"
+import { lineupIn, NO_LINEUP, showsPageDelete } from "./opened-lineup"
 
 declare module "../../../core/catalog" {
   interface PageTypeExtras {
@@ -198,7 +199,11 @@ export const PAGE_DELETE = kit.defineCommand({
   title: "Delete page...",
   run: (_ctx, a, { page }: { page: string }) => a.openDialog(PAGE_DELETE_DIALOG.id, { page }),
   permissionScope: { page: "page" },
-  when: ctx => ctx.book !== NO_BOOK || (ctx.outsideBinder !== NO_OUTSIDE_BINDER && ctx.outsideBinder.lineup.length > 1),
+  when: ctx =>
+    showsPageDelete(
+      ctx.book === NO_BOOK ? null : ctx.book,
+      ctx.outsideBinder === NO_OUTSIDE_BINDER ? null : ctx.outsideBinder,
+    ),
 })
 
 // バインダ binder の設定のダイアログを開く

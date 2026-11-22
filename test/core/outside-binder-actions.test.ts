@@ -4,11 +4,12 @@ import { expect, test } from "bun:test"
 import { z } from "zod"
 import { USER } from "../../web/src/core/actor"
 import { readLibrary, unreadableUnitsOf } from "../../web/src/core/book"
-import { defineAction } from "../../web/src/core/def/action"
+import { defineAction, type Where } from "../../web/src/core/def/action"
 import { HOME_ID, type Library, TRASH_ID } from "../../web/src/core/folders"
 import { bookOf, withBinderEntry } from "../../web/src/core/folders-books"
 import { withChanges } from "../../web/src/core/folders-changes"
-import { outsideBinderIn } from "../../web/src/core/folders-tree"
+import { outsideAsked, outsideBinderIn } from "../../web/src/core/folders-tree"
+import { openedAnswer } from "../../web/src/core/perform-permit"
 import { performIn, permittedIn, type World } from "../../web/src/core/perform-world"
 import type { AnyPage, BinderEntry } from "../../web/src/core/schema/book"
 import { SLIDE, testBinder, testBook, testPage } from "../lineup"
@@ -240,4 +241,33 @@ test("withBinderEntry は、バインダの行の並びと中のページの行�
   ])
   expect(Object.keys(next.pages).sort()).toEqual(["s1", "s3"])
   expect(withBinderEntry(outside, was, was)).toBe(outside)
+})
+
+test("画面の問い（openedAnswer。所で問う）は、行う前の問い（permittedIn。引数で問う）と同じ答えになる", () => {
+  const locked = [slide("s1", "1"), slide("s2", "2", { locked: true }), slide("s3", "3")]
+  const { outside } = both(locked)
+  const binder = outsideBinderIn(outside, "n1") as BinderEntry
+  const opened = binder.lineup[0] as BinderEntry["lineup"][number]
+  const on = { ...outsideAsked(outside.folders, opened), binder }
+  // アクション・引数・その引数の所（コマンドの許可スコープが出す形）
+  const cases: [string, unknown, Where | undefined][] = [
+    [base("page-add"), { type: SLIDE, into: { binder: "n1" } }, { creates: SLIDE }],
+    [base("page-remove"), { page: "s1" }, { page: "s1" }],
+    [base("page-remove"), { page: "s2" }, { page: "s2" }],
+    [base("page-move"), { page: "s3", index: 0 }, { entries: ["s3"] }],
+    [base("binder-update"), { binder: "n1", orientation: "portrait" }, { entries: ["n1"] }],
+    // 何にも問わない所は、行う者だけで決まる
+    [base("page-remove"), { page: "nothing" }, { page: "nothing" }],
+    // ブックにだけ行えるアクションは、使えない
+    [base("book-update"), { title: "名前" }, {}],
+  ]
+  for (const [id, args, where] of cases) {
+    const asked = openedAnswer(CORE_CATALOG, id, on, where, { controlCenter: null })
+    const permitted = permittedIn(outside, id, args, { book: "n1" }, ctxOf())
+    expect([id, args, asked.value === true]).toEqual([id, args, permitted.ok])
+  }
+  expect(openedAnswer(CORE_CATALOG, base("page-remove"), on, { page: "s2" }, { controlCenter: null })).toMatchObject({
+    value: false,
+    decidedBy: { source: "permission", id: base("lock") },
+  })
 })

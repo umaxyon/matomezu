@@ -26,7 +26,7 @@ import { foldersOverIn } from "./folders-tree"
 import { idsIn } from "./ids"
 import type { KeyBinding } from "./keys"
 import type { ItemPage } from "./placed"
-import type { Book } from "./schema/book"
+import type { BinderEntry, Book } from "./schema/book"
 
 // ステップの出どころ
 export type Source =
@@ -112,10 +112,11 @@ export function actionQuery(
 }
 
 // ステージで開いている物（ステージエントリ）のうち、問う相手になる物: ブック（book）か、ブックの外のページ（そのページ page と、認可ステップに見せるフォルダの列 folders）
-// ブックの外のバインダを開いているなら、開いているページに、そのバインダの id と中のページの並びを within に添える（ブックが対象のアクションは、core/perform-permit.ts の openedAnswer がバインダで問う）
+// ブックの外のバインダを開いているなら、開いているページと、そのバインダ（binder。中のページごと。ブックが対象のアクションは、core/perform-permit.ts の openedAnswer がバインダで問う）
 export type AskedOutermost =
   | { book: Book }
-  | (Pick<AskedPage, "page" | "folders"> & { within?: { binder: string; pages: readonly ItemPage[] } })
+  | Pick<AskedPage, "page" | "folders">
+  | (Pick<AskedPage, "page" | "folders"> & { binder: BinderEntry })
 
 // アクション action を、開いている物 on の所 where を変える物として問う（アクションの対象は見ない。ブックの外のページの所は、その中の物 ids だけ）
 export function openedQuery(action: string, on: AskedOutermost, where?: Where): Query {

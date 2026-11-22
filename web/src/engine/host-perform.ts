@@ -91,7 +91,8 @@ const AI_REFUSALS: Record<Exclude<PerformedIn, { ok: true }>["reason"], string> 
     "the page's type (or, for an action on the whole book, the action itself; or, for the library, the settings and the records, the control center) does not allow it",
   refused: "the action's rules refuse it (for example the page or item does not exist); read_page to check",
   denied: "a permission step stopped it",
-  "no-book": "there is no book with that id (see list_books)",
+  "no-book":
+    "there is no book with that id, nor a binder that is not in a book (see list_books and read_folder); an action that needs the book itself (its name, its settings, its lock) is not done on such a binder",
   "no-page": "there is no page with that id (on.page is the id of a page; read_book and read_folder list pages)",
   "no-record": "there is no record with that id (on.record is the id of a record of the action's subject)",
 }

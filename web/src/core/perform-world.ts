@@ -128,7 +128,7 @@ export function performIn(
     const at = targetLineupIn(ctx.catalog, world, id, on)
     if (!at) return { ok: false, reason: "no-book" }
     return "binder" in at
-      ? changedLibrary(naming, world, loose(at, id, args, ctx), at.binder)
+      ? changedLibrary(naming, world, loose(at, id, args, ctx))
       : changedBook(ctx.naming, world, at, loose(at, id, args, ctx))
   }
   if (target === "annotations") {
@@ -175,8 +175,8 @@ export function performIn(
 
 // 書庫を変えるアクション（書庫が対象か、ブックの外のバインダに行った、ブックが対象のアクション）の結果 done を、変わった物だけの形にする。
 // 足したブックと無くなったブックの置き場所を書き、木の決まりと名前の重なりを確かめ、無くなったページと、ゴミ箱に入ったページ（ゴミ箱に入った物の中のページも）のアノテーションは消し、
-// ブックの外のバインダ binder（id）に行ったなら、その中の変わったページでは、無くなった物をアノテーションのアンカーから外す（名前は naming で引く）
-function changedLibrary(naming: Naming, world: World, done: ReturnType<typeof perform>, binder?: string): PerformedIn {
+// 変わったページでは、無くなった物をアノテーションのアンカーから外す（名前は naming で引く）
+function changedLibrary(naming: Naming, world: World, done: ReturnType<typeof perform>): PerformedIn {
   if (!done.ok) return done
   const library: Library = { pages: world.pages, folders: world.folders }
   const made = rowChanges(library, done.next as Library)
@@ -191,7 +191,7 @@ function changedLibrary(naming: Naming, world: World, done: ReturnType<typeof pe
     if (list.length === 0) continue
     const page = changes.pages[p]
     if (page === REMOVED || (inTrash(after.folders, p) && !inTrash(world.folders, p))) changed[p] = []
-    else if (page !== undefined && binder !== undefined && after.folders[binder]?.lineup.some(r => r.id === p)) {
+    else if (page !== undefined) {
       const kept = prune(list, page)
       if (kept !== list) changed[p] = kept
     }

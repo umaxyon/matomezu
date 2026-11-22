@@ -24,6 +24,7 @@ import { pageProblem } from "../pages/page-problems"
 import { PAGE_REMOVE } from "../pages/page-remove"
 import { PAGE_UPDATE } from "../pages/page-update"
 import { changeWithLock } from "../utils/lock"
+import { showsPageDelete } from "./opened-lineup"
 import { PageProblemsView } from "./PageProblems"
 import { usePagePaperControls } from "./PaperControls"
 
@@ -39,10 +40,7 @@ export function PageSettingsDialogView({ page: id, onClose, children, fields, dr
   const t = useMessages(kit)
   const form = useId()
   const catalog = useCatalog().core
-  const inBook = useBook() !== null
-  const binder = useOutsideBinder()
-  // 削除を出すか: ブックのページか、ブックの外のバインダの最後の 1 枚でないページ（ブックの外のページ 1 枚は、書庫で消す）
-  const deletes = inBook || (binder !== null && binder.lineup.length > 1)
+  const deletes = showsPageDelete(useBook(), useOutsideBinder())
   const outermost = useOutermostOf()
   const page = usePageById(id)
   const [title, setTitle] = useState(page?.title ?? "")

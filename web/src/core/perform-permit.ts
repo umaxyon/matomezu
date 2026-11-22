@@ -20,7 +20,8 @@ import {
   type Where,
 } from "./def/action"
 import type { Referred } from "./def/permission"
-import type { Library, PageRow } from "./folders"
+import type { Library } from "./folders"
+import { outsideBinderIn, permissionFoldersOf } from "./folders-tree"
 import {
   type AskedOutermost,
   type AskedPage,
@@ -108,13 +109,14 @@ export function permits(
   }
   if (action.target === "book" && (subject as BinderOutsideBook).book === NOT_IN_BOOK) {
     // ブックの外のバインダは、アクションが変える所を、中のページそのものに直して問う（どれかで止められれば止める。何にも問わない所なら、行う者だけで決まる）
-    const { library, binder } = subject as BinderOutsideBook
+    const { library, binder: id } = subject as BinderOutsideBook
+    const binder = outsideBinderIn(library, id)
+    if (!binder) return { ok: false, reason: "not-allowed" }
+    const folders = permissionFoldersOf(library.folders, binder.lineup[0]?.id ?? id)
     const scope = action.permissionScope as AnyPermissionScope | undefined
+    const ask = (page?: AskedPage) => asking(undefined, undefined, undefined, page)
     const answered = (where: Where | undefined) =>
-      binderAsksOf(ctx.catalog, library, binder, where).map(page => ({
-        page,
-        answer: asking(undefined, undefined, undefined, page),
-      }))
+      binderAsksOf(ctx.catalog, binder, folders, where).map(page => ({ page, answer: ask(page) }))
     // ページ 1 枚ごとに問う形は、ブックと同じく、止められなかったページを残す
     const named = args.success ? pagesScopeOf(scope, args.data) : null
     const each = named === "all" ? answered({ allPages: true }) : (named ?? []).flatMap(id => answered({ page: id }))
@@ -123,19 +125,12 @@ export function permits(
       const pages = each.filter(a => a.answer.value === true).map(a => a.page.page.id)
       return pages.length > 0 ? { ok: true, pages } : answerOf(first.answer)
     }
-    const asks = answered(placeOf(action, args))
-    // 所がどのページも決めない（引数が形に合わない・名指した物がバインダに無い）ときは、行う者だけで決め、ほかは行う側（bad-args か run）が断る
-    if (asks.length === 0) {
-      const plain = asking(undefined, undefined)
-      return plain.value === false ? answerOf(plain) : { ok: true }
-    }
-    for (const a of asks) {
-      const answer = answerOf(a.answer)
-      const id = a.page.page.id
-      if (!answer.ok)
-        return answer.reason === "denied" && Object.hasOwn(library.pages, id) ? { ...answer, page: id } : answer
-    }
-    return { ok: true }
+    const decided = binderAnswer(action, binderAsksOf(ctx.catalog, binder, folders, placeOf(action, args)), ask)
+    const answer = answerOf(decided.answer)
+    const page = decided.page?.page.id
+    return !answer.ok && answer.reason === "denied" && page !== undefined && Object.hasOwn(library.pages, page)
+      ? { ...answer, page }
+      : answer
   }
   const at = action.target === "page" || action.target === "annotations" ? (subject as PageAt) : undefined
   const book = action.target === "book" ? (subject as Book) : at && at.book !== NOT_IN_BOOK ? at.book : undefined
@@ -188,25 +183,26 @@ export function openedAnswer(
 ): Inspected<boolean> {
   const def = catalog.actions.get(action)
   const base = { ...actionQuery(catalog, action, on, where), ...extra } as Query
-  const within = on && "within" in on ? on.within : undefined
-  if (!def || def.target !== "book" || !within) return inspect(catalog, base, ctx)
-  const none: Inspected<boolean> = { value: false, decidedBy: null, steps: [] }
-  if (takesBook(def)) return none
-  const row = on && "folders" in on ? on.folders.find(f => f.id === within.binder) : undefined
-  if (!row) return none
-  const library: Library = {
-    pages: Object.fromEntries(within.pages.map(p => [p.id, p as PageRow])),
-    folders: { [row.id]: row },
-  }
-  const asks = binderAsksOf(catalog, library, within.binder, where)
-  if (asks.length === 0) {
-    return decide([
-      ...inspect(catalog, base, ctx).steps,
-      { from: { source: "action", id: def.id, field: "run" }, value: true },
-    ])
-  }
-  const answers = asks.map(page => inspect(catalog, { ...base, page } as Query, ctx))
-  return answers.find(a => a.value !== true) ?? (answers[0] as Inspected<boolean>)
+  if (!def || def.target !== "book" || !on || !("binder" in on)) return inspect(catalog, base, ctx)
+  if (takesBook(def)) return { value: false, decidedBy: null, steps: [] }
+  const ask = (page?: AskedPage) => inspect(catalog, (page ? { ...base, page } : base) as Query, ctx)
+  return binderAnswer(def, binderAsksOf(catalog, on.binder, on.folders, where), ask).answer
+}
+
+// ブックが対象のアクション action を、ブックの外のバインダの中のページ asks（binderAsksOf の問う相手）に ask で問うた答え: どれかが使えないなら、その答えとそのページ。どれも使えれば、最初のページの答え。
+// 何にも問わない所（引数が形に合わない・名指した物がバインダに無い・所がページを決めない）は、行う者だけで決め（ページ無しの ask）、止められなければ使える（ほかは、行う側の bad-args か run が断る）
+function binderAnswer(
+  action: ActionDef,
+  asks: readonly AskedPage[],
+  ask: (page?: AskedPage) => Inspected<boolean>,
+): { answer: Inspected<boolean>; page?: AskedPage } {
+  const [first] = asks
+  if (!first)
+    return {
+      answer: decide([...ask().steps, { from: { source: "action", id: action.id, field: "run" }, value: true }]),
+    }
+  const answers = asks.map(page => ({ page, answer: ask(page) }))
+  return answers.find(a => a.answer.value !== true) ?? (answers[0] as { page: AskedPage; answer: Inspected<boolean> })
 }
 
 // ブックが対象のアクション action が、引数で名指す所（引数が形に合わなければ、分からない）
