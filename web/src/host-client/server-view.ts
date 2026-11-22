@@ -1,5 +1,5 @@
 // 窓から常駐に知らせる物（窓が見ているもの viewOf・利用者が直している物 editLocksOf と recordLocksOf）と、
-// 常駐が頼んだ物（ブックか、ブックの外のページ）を窓に出すこと（showIn）。読むのは store の状態とインスタンス（viewOf は台帳も）
+// 常駐が頼んだ物（ブックか、ブックの外のページ・バインダ）を窓に出すこと（showIn）。読むのは store の状態とインスタンス（viewOf は台帳も）
 
 import type { z } from "zod"
 import type { CoreCatalog } from "../core/core-catalog"
@@ -11,7 +11,7 @@ import { NO_STAGE } from "../store/dialogs"
 import type { MatomezuInstance, MatomezuState } from "../store/state"
 import type { ShowSchema } from "./server-schemas"
 
-// ステージ stage が開いている物: entry はステージエントリ（ブックか、ブックの外のページ。何も開いていなければ無い）、page はページの id（ブックの外のページなら、そのページ）
+// ステージ stage が開いている物: entry はステージエントリ（ブックか、ブックの外のページ・バインダ。何も開いていなければ無い）、page はページの id（ブックの外のページなら、そのページ）
 const openedOf = (stage: Stage) => {
   const opened = stage.opened
   return {
@@ -66,14 +66,17 @@ function groupLocks(
   return locks
 }
 
-// 常駐が頼んだ物（ブックか、ブックの外のページ）を出す。ステージも split も言わなければ、窓に出す（もう開いていればカレントスクリーンにし、無ければ新しいブックスクリーン）。
+// 常駐が頼んだ物（ブックか、ブックの外のページ・バインダ）を出す。ステージも split も言わなければ、窓に出す（もう開いていればカレントスクリーンにし、無ければ新しいブックスクリーン）。
 // ステージを言えばそのステージに、split なら分けて右にできたステージに出す。ブックで mode が print-preview なら、印刷プレビューで出す
 export function showIn(instance: MatomezuInstance, show: z.infer<typeof ShowSchema>) {
   const { actions, state } = instance
+  const page = show.page === undefined ? {} : { page: show.page }
   const to: OpenTo =
     show.to === "page"
       ? { to: "page", page: show.page }
-      : { to: "book", book: show.book, ...(show.page === undefined ? {} : { page: show.page }) }
+      : show.to === "binder"
+        ? { to: "binder", binder: show.binder, ...page }
+        : { to: "book", book: show.book, ...page }
   const stage =
     show.stage === undefined && !show.split ? actions.openToStage(to, NO_STAGE) : placedStage(instance, show, to)
   if (stage === NO_STAGE) return

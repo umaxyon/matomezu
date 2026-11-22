@@ -24,7 +24,7 @@ type awaitingEntry struct {
 	ID   string `json:"id"`
 }
 
-// writeAwaiting は、待つアノテーションを、ステージエントリ（ブックか、ブックの外のページ）ごとの見出しと、その下に 1 件 1 行（ページ・種類の id・アノテーションの id・1 行）で書く。
+// writeAwaiting は、待つアノテーションを、ステージエントリ（ブックか、ブックの外のページ・バインダ）ごとの見出しと、その下に 1 件 1 行（ページ・種類の id・アノテーションの id・1 行）で書く。
 // 中身の全文は書かない（AI が read_page で読む）。待つ物が無ければ何も書かない
 func writeAwaiting(out io.Writer, awaiting []awaitingItem) {
 	if len(awaiting) == 0 {
@@ -35,9 +35,10 @@ func writeAwaiting(out io.Writer, awaiting []awaitingItem) {
 	last := awaitingEntry{}
 	for _, a := range awaiting {
 		if a.Entry != last {
-			if a.Entry.Kind == "page" {
-				fmt.Fprintf(out, "- page %q (%s), not in a book\n", a.Title, a.Entry.ID)
-			} else {
+			switch a.Entry.Kind {
+			case "page", "binder":
+				fmt.Fprintf(out, "- %s %q (%s), not in a book\n", a.Entry.Kind, a.Title, a.Entry.ID)
+			default:
 				fmt.Fprintf(out, "- book %q (%s)\n", a.Title, a.Entry.ID)
 			}
 			last = a.Entry

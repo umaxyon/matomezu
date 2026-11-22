@@ -14,7 +14,7 @@ import { fail, matomezuError, type Problem, problem } from "../core/errors"
 import { type Folder, homeOver, type Library, type PageRow, type TableChanges } from "../core/folders"
 import { recordsOf } from "../core/folders-books"
 import { settledOn, withChanges } from "../core/folders-changes"
-import { outsidePageIn } from "../core/folders-tree"
+import { outsideBinderIn, outsidePageIn } from "../core/folders-tree"
 import { outsideUnreadable, rawBooksOf } from "../core/folders-unreadable"
 import { deepFreeze } from "../core/freeze"
 import {
@@ -41,6 +41,7 @@ import {
   openBook,
   openedBook,
   openedPage,
+  openOutsideBinder,
   openOutsidePage,
   openPicker,
   openPrintPreview,
@@ -73,6 +74,7 @@ import {
   screenOfStage,
   setArrangement,
   shownBook,
+  shownOutsideBinder,
   shownOutsidePage,
   stageIn,
   type WindowState,
@@ -735,7 +737,33 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       )
       return stage
     },
+    showOutsideBinderStage: (id, page) => {
+      const { pages, folders, window } = getState()
+      const binder = outsideBinderIn({ pages, folders }, id)
+      if (!binder) return NO_STAGE
+      const { win, stage } = shownOutsideBinder(window, catalog, binder, page)
+      if (win !== window) commit({ window: win })
+      return stage
+    },
+    openOutsideBinder: (stage, id, page) => {
+      const { pages, folders } = getState()
+      const binder = outsideBinderIn({ pages, folders }, id)
+      if (!binder || !inWindow(stage)) return NO_STAGE
+      withWindow(win =>
+        makeCurrent(
+          mapScreenOfStage(win, stage, ws =>
+            mapStage(focus(ws, stage), stage, s => openOutsideBinder(catalog, s, binder, page)),
+          ),
+          screenOfStage(win, stage)?.id ?? "",
+        ),
+      )
+      return stage
+    },
     openToStage: (to, stage) => {
+      if (to.to === "binder")
+        return stage === NO_STAGE
+          ? actions.showOutsideBinderStage(to.binder, to.page)
+          : actions.openOutsideBinder(stage, to.binder, to.page)
       if (to.to === "page")
         return stage === NO_STAGE ? actions.showOutsidePageStage(to.page) : actions.openOutsidePage(stage, to.page)
       const at = stage === NO_STAGE ? actions.showBookStage(to.book, to.page) : stage
@@ -803,8 +831,15 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         )
     },
     openPage: (stage, page) => {
-      const { books, window } = getState()
-      const book = openedBook(books, stageIn(window, stage)?.opened)
+      const { books, window, pages, folders } = getState()
+      const at = stageIn(window, stage)?.opened
+      // ブックの外のバインダを開いたステージでは、そのバインダの中のページへ替える
+      if (at?.outermost.kind === "binder") {
+        const binder = outsideBinderIn({ pages, folders }, at.outermost.id)
+        if (binder?.lineup.some(p => p.id === page)) actions.openOutsideBinder(stage, binder.id, page)
+        return
+      }
+      const book = openedBook(books, at)
       // ページを開くと、そのブックスクリーンをカレントスクリーンにする
       if (book && inWindow(stage))
         withWindow(win =>

@@ -2,15 +2,13 @@
 // 画面の行い直し（store の receive）と常駐のエンジンが、ここの performBulk で行う（画面がその場で行うのは、アクション 1 つずつの performIn）
 
 import { type Annotations, withAnnotations } from "./annotation"
-import type { CoreCatalog } from "./core-catalog"
 import type { ActionContext, ActionOn, AIEditTicketChange, AIMessage } from "./def/action"
 import type { Folder, PageRow, TableChanges } from "./folders"
 import { withChanges } from "./folders-changes"
 import { type HistoryStep, type RowChange, rowChangesOf } from "./history"
 import { applyPatch, patchOf } from "./patch"
 import { type PerformedIn, performIn, type World } from "./perform-world"
-import { keyValuesOf } from "./record-keys"
-import { type RecordSource, sourceOf } from "./record-source"
+import { overlaid, sourceOf } from "./record-source"
 import { type Counters, REMOVED, type RecordChange, withCounters, withRecords } from "./records"
 import type { Settings } from "./settings"
 
@@ -108,6 +106,8 @@ export type PerformedBulk<R = never> =
       counters?: Counters
       aiEditTickets?: readonly BulkTicketChange[]
       aiMessages?: readonly AIMessage[]
+      // records のうち、フォローステップが応じて変えたレコード（バルクの中のどのアクションで応じたかを問わない）
+      followed?: readonly { subject: string; id: string }[]
     }
   | ((NotDone | R) & { at: number })
 
@@ -134,6 +134,7 @@ export function performBulk<R extends { ok: false } = never>(
   let counters: Counters | undefined
   const tickets: BulkTicketChange[] = []
   const messages: AIMessage[] = []
+  const followed = new Map<string, { subject: string; id: string }>()
   const libraryPages: Record<string, RowChange<PageRow>> = {}
   const libraryFolders: Record<string, RowChange<Folder>> = {}
   for (const [i, step] of steps.entries()) {
@@ -176,6 +177,7 @@ export function performBulk<R extends { ok: false } = never>(
     const subject = ctx.catalog.actions.get(step.action)?.target ?? ""
     for (const change of done.aiEditTickets ?? []) tickets.push({ subject, change })
     messages.push(...(done.aiMessages ?? []))
+    for (const c of done.followed ?? []) followed.set(`${c.subject}\n${c.id}`, c)
     now = after
   }
   // 作って消したページ・フォルダ・レコードは、前も後も無いので持たない
@@ -183,6 +185,9 @@ export function performBulk<R extends { ok: false } = never>(
     Object.fromEntries(Object.entries(rows).filter(([id, r]) => r !== REMOVED || id in had))
   const changes = { pages: kept(pages, world.pages), folders: kept(folders, world.folders) }
   const keptRecords = records.filter(c => c.record !== REMOVED || base.byId(c.subject, c.id) !== undefined)
+  const followedKept = [...followed.values()].filter(f =>
+    keptRecords.some(c => c.subject === f.subject && c.id === f.id),
+  )
   const changed = Object.keys(changes.pages).length > 0 || Object.keys(changes.folders).length > 0
   // 書庫の履歴に入るアクションが作って消した物は、前も後も無いので持たない
   const changedRows = <T>(rows: Record<string, RowChange<T>>) =>
@@ -199,36 +204,6 @@ export function performBulk<R extends { ok: false } = never>(
     ...(counters ? { counters } : {}),
     ...(tickets.length > 0 ? { aiEditTickets: tickets } : {}),
     ...(messages.length > 0 ? { aiMessages: messages } : {}),
-  }
-}
-
-// 読み口 base に、バルクの中で書いたレコード written（REMOVED は消した）を重ねた読み口
-function overlaid(
-  catalog: CoreCatalog,
-  base: RecordSource,
-  written: Readonly<Record<string, Readonly<Record<string, unknown>>>>,
-): RecordSource {
-  if (Object.keys(written).length === 0) return base
-  const mine = (subject: string) => written[subject] ?? {}
-  const live = (subject: string) => Object.fromEntries(Object.entries(mine(subject)).filter(([, r]) => r !== REMOVED))
-  const without = <T>(subject: string, rows: Readonly<Record<string, T>>) =>
-    Object.fromEntries(Object.entries(rows).filter(([id]) => !(id in mine(subject))))
-  return {
-    byId: (subject, id) => {
-      const r = mine(subject)[id]
-      return r === undefined ? base.byId(subject, id) : r === REMOVED ? undefined : r
-    },
-    candidates: (subject, where) => ({ ...without(subject, base.candidates(subject, where)), ...live(subject) }),
-    ...(base.keys
-      ? {
-          keys: (subject: string, where: Parameters<NonNullable<RecordSource["keys"]>>[1]) => {
-            const def = catalog.subjects.get(subject)
-            const own = Object.fromEntries(
-              Object.entries(live(subject)).map(([id, r]) => [id, def ? keyValuesOf(def, r) : {}]),
-            )
-            return { ...without(subject, base.keys?.(subject, where) ?? {}), ...own }
-          },
-        }
-      : {}),
+    ...(followedKept.length > 0 ? { followed: followedKept } : {}),
   }
 }

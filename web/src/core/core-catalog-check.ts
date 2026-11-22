@@ -77,9 +77,13 @@ export function coreWarnings(parts: CoreCatalogParts): Warning[] {
       .map(a => warning("W012", splitId(tool.id).owner ?? "", { tool: tool.id, action: a })),
   )
   const enums = byId(parts.enums)
+  const subjectIds = new Set(parts.subjects.map(d => d.id))
   return [
     ...tools,
     ...shadeWarnings(parts),
+    ...parts.followSteps
+      .filter(f => !subjectIds.has(f.step.watches))
+      .map(f => warning("W034", f.plugin, { plugin: f.plugin, kind: f.step.watches })),
     ...parts.enumValues
       .filter(v => !enums.has(v.enum))
       .map(v => warning("W026", splitId(v.id).owner ?? "", { id: v.id, enum: v.enum })),
@@ -208,6 +212,14 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     }
     if (a.lockSwitch && (a.writes?.length ?? 0) > 0) problems.push(problem("E060", { id: a.id }))
   }
+  // フォローステップが書く種類は、台帳にある、自分のプラグインの、番号を振らない種類。自分に返ってくる鎖は作らない
+  for (const { plugin, step } of parts.followSteps)
+    for (const ref of step.writes) {
+      if (!subjects.has(ref) || numbered.has(ref)) problems.push(problem("E079", { plugin, ref }))
+      else if (splitId(ref).owner !== plugin) problems.push(problem("E078", { plugin, ref }))
+    }
+  const loop = followLoop(parts)
+  if (loop) problems.push(problem("E080", { loop: loop.join(" -> ") }))
   for (const s of parts.subjects) if (s.aiListed && s.aiList) problems.push(problem("E061", { id: s.id }))
   for (const s of parts.subjects) if (s.aiRow && !s.aiList) problems.push(problem("E076", { id: s.id }))
   for (const s of parts.subjects) if (s.aiOrder && s.aiList) problems.push(problem("E077", { id: s.id }))
@@ -319,4 +331,55 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     }
   }
   return problems
+}
+
+// フォローステップの依る向き: ステップ i が書く種類を見るステップの並び（i が先に当たる）
+function followNext(parts: CoreCatalogParts): number[][] {
+  const steps = parts.followSteps
+  return steps.map(({ step }) => steps.flatMap((f, j) => (step.writes.includes(f.step.watches) ? [j] : [])))
+}
+
+// フォローステップの、自分に返ってくる鎖（見る種類の並び。最初と最後が同じ）。無ければ null
+function followLoop(parts: CoreCatalogParts): string[] | null {
+  const next = followNext(parts)
+  const state: ("open" | "done" | undefined)[] = []
+  const path: number[] = []
+  const visit = (i: number): number[] | null => {
+    if (state[i] === "done") return null
+    if (state[i] === "open") return [...path.slice(path.indexOf(i)), i]
+    state[i] = "open"
+    path.push(i)
+    for (const j of next[i] ?? []) {
+      const found = visit(j)
+      if (found) return found
+    }
+    path.pop()
+    state[i] = "done"
+    return null
+  }
+  for (const i of parts.followSteps.keys()) {
+    const found = visit(i)
+    if (found) return found.map(j => parts.followSteps[j]?.step.watches ?? "")
+  }
+  return null
+}
+
+// フォローステップを当てる順: 見る種類が台帳にある物だけを、ある種類を書くステップが、それを見るステップより先になるように並べる（それ以外の順は定義の並びから決まる）。
+// 輪は checkCoreCatalog が断ってから呼ぶ
+export function followOrder(parts: CoreCatalogParts): CoreCatalogParts["followSteps"] {
+  const subjects = new Set(parts.subjects.map(d => d.id))
+  const next = followNext(parts)
+  const done = new Set<number>()
+  const order: number[] = []
+  const visit = (i: number) => {
+    if (done.has(i)) return
+    done.add(i)
+    for (const j of next[i] ?? []) visit(j)
+    order.push(i)
+  }
+  for (const i of parts.followSteps.keys()) visit(i)
+  return order
+    .reverse()
+    .flatMap(i => parts.followSteps[i] ?? [])
+    .filter(f => subjects.has(f.step.watches))
 }

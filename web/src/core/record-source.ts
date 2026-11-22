@@ -5,7 +5,7 @@ import type { Actor } from "./actor"
 import type { CoreCatalog } from "./core-catalog"
 import type { ActionDef, AnyRecordRead } from "./def/action"
 import { type Condition, type KeyValues, keyValuesOf, matches, unknownKey } from "./record-keys"
-import { NO_RECORD, type Records } from "./records"
+import { NO_RECORD, REMOVED, type Records } from "./records"
 
 export interface RecordSource {
   // 種類 subject の id のレコード（無ければ undefined）
@@ -68,20 +68,32 @@ export function readFrom(
   on?: string,
   referred: readonly { subject: string; id: string }[] = [],
 ): { records: Records; keys: RecordKeys; record(subject: string, id: string): unknown } {
+  const parsed = action.args.safeParse(args)
+  const reads =
+    parsed.success && action.reads
+      ? (action.reads as (args: unknown, actor: Actor, on: string | undefined) => readonly AnyRecordRead[])(
+          parsed.data,
+          actor,
+          on,
+        )
+      : []
+  return readsFrom(catalog, source, reads, referred)
+}
+
+// 読む物の並び reads を、読み口から引いた結果（readFrom と、フォローステップの読む物が使う）。
+// records は中身ごと読む物、keys は索引キーだけ読む物、record は読む物に書いた種類と referred を id で 1 件読む（どちらでもない物と、無いレコードは none）
+export function readsFrom(
+  catalog: CoreCatalog,
+  source: RecordSource,
+  reads: readonly AnyRecordRead[],
+  referred: readonly { subject: string; id: string }[] = [],
+): { records: Records; keys: RecordKeys; record(subject: string, id: string): unknown } {
   const records: Record<string, Record<string, unknown>> = {}
   const keys: Record<string, Record<string, KeyValues>> = {}
-  // 読む物に書いた種類のレコードと、宛先のレコードが指す先を、id で 1 件読む（どちらでもない物と、無いレコードは none）
   const record = (subject: string, id: string): unknown =>
     subject in records || subject in keys || referred.some(r => r.subject === subject && r.id === id)
       ? (source.byId(subject, id) ?? NO_RECORD)
       : NO_RECORD
-  const parsed = action.args.safeParse(args)
-  if (!parsed.success || !action.reads) return { records, keys, record }
-  const reads = (action.reads as (args: unknown, actor: Actor, on: string | undefined) => readonly AnyRecordRead[])(
-    parsed.data,
-    actor,
-    on,
-  )
   // 種類 subject の入れ物（まだ無ければ作る。合う物が 1 件も無くても、読んだ種類は空の入れ物を持つ）
   const tableIn = <V>(all: Record<string, Record<string, V>>, subject: string): Record<string, V> => {
     const table = all[subject] ?? {}
@@ -105,4 +117,35 @@ export function readFrom(
     }
   }
   return { records, keys, record }
+}
+
+// 読み口 base に、書いたレコード written（種類 → id → レコードか REMOVED。REMOVED は消した）を重ねた読み口（アクションバルクの中のあとのアクションと、フォローステップが読む）
+export function overlaid(
+  catalog: CoreCatalog,
+  base: RecordSource,
+  written: Readonly<Record<string, Readonly<Record<string, unknown>>>>,
+): RecordSource {
+  if (Object.keys(written).length === 0) return base
+  const mine = (subject: string) => written[subject] ?? {}
+  const live = (subject: string) => Object.fromEntries(Object.entries(mine(subject)).filter(([, r]) => r !== REMOVED))
+  const without = <T>(subject: string, rows: Readonly<Record<string, T>>) =>
+    Object.fromEntries(Object.entries(rows).filter(([id]) => !(id in mine(subject))))
+  return {
+    byId: (subject, id) => {
+      const r = mine(subject)[id]
+      return r === undefined ? base.byId(subject, id) : r === REMOVED ? undefined : r
+    },
+    candidates: (subject, where) => ({ ...without(subject, base.candidates(subject, where)), ...live(subject) }),
+    ...(base.keys
+      ? {
+          keys: (subject: string, where: Parameters<NonNullable<RecordSource["keys"]>>[1]) => {
+            const def = catalog.subjects.get(subject)
+            const own = Object.fromEntries(
+              Object.entries(live(subject)).map(([id, r]) => [id, def ? keyValuesOf(def, r) : {}]),
+            )
+            return { ...without(subject, base.keys?.(subject, where) ?? {}), ...own }
+          },
+        }
+      : {}),
+  }
 }

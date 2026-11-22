@@ -22,7 +22,7 @@ import {
   type PlacedShape,
   replaceShape,
 } from "../core/placed"
-import type { Book } from "../core/schema/book"
+import type { BinderEntry, Book } from "../core/schema/book"
 import { type Settings, userSetting } from "../core/settings"
 import { askedOutermostOf, openedPageById, shownPageId, stageBlocks, toPaper } from "../core/stage"
 import { stageIn } from "../core/window"
@@ -38,7 +38,7 @@ import {
 import { worldOf } from "../store/world"
 import { useStageAt } from "./at-hooks"
 import type { UiCatalog } from "./plugin"
-import { bookOf, openedOf, pageOf, useAt, useScope, useStageId } from "./scope"
+import { bookOf, openedOf, outsideBinderOf, pageOf, useAt, useScope, useStageId } from "./scope"
 import {
   useCatalog,
   useControlCenter,
@@ -54,6 +54,12 @@ export function useBook(): Book | null {
   return useMatomezuState(s => bookOf(s, scope))
 }
 
+// 描くページのステージエントリが、ブックの外のバインダなら、そのバインダ（中のページごと。ブックやブックの外のページを開いている・何も開いていなければ null）
+export function useOutsideBinder(): BinderEntry | null {
+  const scope = useScope()
+  return useMatomezuState(s => outsideBinderOf(s, scope))
+}
+
 // 描くページ（ページを持たないブック・ページを開いていなければ null）
 export function usePage(): ItemPage | null {
   const scope = useScope()
@@ -65,7 +71,7 @@ export function usePageById(id: string): ItemPage | null {
   const scope = useScope()
   return useMatomezuState(s => {
     const opened = openedOf(s, scope)
-    return opened ? openedPageById(s.books, s.pages, opened, id) : null
+    return opened ? openedPageById(s, opened, id) : null
   })
 }
 
@@ -74,7 +80,7 @@ export function useItem<Id extends ItemId>(page: string, item: string, id?: Id):
   const scope = useScope()
   return useMatomezuState(s => {
     const opened = openedOf(s, scope)
-    const p = opened ? openedPageById(s.books, s.pages, opened, page) : null
+    const p = opened ? openedPageById(s, opened, page) : null
     // ページのアイテムか、どの深さの子の形も
     const found = p && (p.items?.find(i => i.id === item) ?? findShape(p, item)?.shape)
     return found && (id === undefined || found.item === id) ? (found as unknown as PlacedOf<Id>) : undefined
@@ -284,8 +290,7 @@ export function usePerform(): <Id extends ActionId>(
         if (entry === undefined) return { ok: false, reason: "no-book" }
         // ブックが対象のアクションは、ブックの外のページを開いたステージからは行えない
         if (!isOnPage(target)) return outside ? { ok: false, reason: "no-book" } : loose(action, args, { book: entry })
-        const { books, pages } = read()
-        return on && openedPageById(books, pages, { outermost: entry }, on.page)
+        return on && openedPageById(read(), { outermost: entry }, on.page)
           ? loose(action, args, on)
           : noPage(on?.page ?? "")
       },

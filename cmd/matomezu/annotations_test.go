@@ -14,8 +14,11 @@ func TestWriteAwaiting(t *testing.T) {
 	}
 	item := func(entry, title, id, page, brief string) awaitingItem {
 		kind := "book"
-		if entry == "o1" {
+		switch entry {
+		case "o1":
 			kind = "page"
+		case "n1":
+			kind = "binder"
 		}
 		p := "null"
 		if page != "" {
@@ -30,6 +33,7 @@ func TestWriteAwaiting(t *testing.T) {
 		item("b1", "T", "c2", "p2", ""),
 		item("b2", "U", "c3", "", "x"),
 		item("o1", "O", "c4", "o1", ""),
+		item("n1", "N", "c5", "n1a", ""),
 	})
 	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
 	want := []string{
@@ -40,8 +44,10 @@ func TestWriteAwaiting(t *testing.T) {
 		`  - no page, @matomezu/base:note c3: "x"`,
 		`- page "O" (o1), not in a book`,
 		`  - page o1, @matomezu/base:note c4`,
+		`- binder "N" (n1), not in a book`,
+		`  - page n1a, @matomezu/base:note c5`,
 	}
-	if !strings.HasPrefix(lines[0], "matomezu: 4 annotation(s)") || strings.Join(lines[1:], "\n") != strings.Join(want, "\n") {
+	if !strings.HasPrefix(lines[0], "matomezu: 5 annotation(s)") || strings.Join(lines[1:], "\n") != strings.Join(want, "\n") {
 		t.Fatalf("got\n%s", out.String())
 	}
 	if strings.Contains(out.String(), "long text") {

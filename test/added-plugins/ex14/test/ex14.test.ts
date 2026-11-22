@@ -10,7 +10,12 @@ const SHELF = {
   id: "ex9:shelf",
   title: "@matomezu/base:Language",
   aiDescription: "A shelf.",
-  record: z.strictObject({ id: z.string().min(1), name: z.string(), stamps: z.number().int().min(0).optional() }),
+  record: z.strictObject({
+    id: z.string().min(1),
+    name: z.string(),
+    closed: z.boolean().optional(),
+    stamps: z.number().int().min(0).optional(),
+  }),
   writableBy: ["ex14"],
 }
 const SHELF_ADD = {
@@ -24,7 +29,15 @@ const SHELF_ADD = {
     return { next: { id, name: args.name }, result: { shelf: id } }
   },
 }
-const OWNER = definePlugin({ id: "ex9", subjects: [SHELF], actions: [SHELF_ADD] } as never)
+const SHELF_CLOSE = {
+  id: "ex9:shelf-close",
+  title: "@matomezu/base:Language",
+  aiDescription: "Close the shelf.",
+  target: SHELF.id,
+  args: z.strictObject({}),
+  run: (now: unknown) => (now === "none" ? null : { next: { ...(now as object), closed: true }, result: {} }),
+}
+const OWNER = definePlugin({ id: "ex9", subjects: [SHELF], actions: [SHELF_ADD, SHELF_CLOSE] } as never)
 
 const make = () =>
   createMatomezu({
@@ -49,4 +62,26 @@ test("スタンプを押すと、スタンプが 1 件でき、同じ 1 回で�
   expect(records["ex9:shelf"]?.[id]).toMatchObject({ stamps: 2 })
   expect(perform("ex14:stamp-add", { shelf: "nothing", mark: "★" }).ok).toBe(false)
   expect(Object.keys(instance.state.getState().records["ex14:stamp"] ?? {})).toHaveLength(2)
+})
+
+test("棚が閉じられると、同じ 1 回で、その棚のスタンプに封がされる（ex9 のアクションに、ex14 のフォローステップが応じる）", () => {
+  const instance = make()
+  const perform = instance.actions.perform as unknown as (
+    id: string,
+    args: unknown,
+    on?: { record: string },
+  ) => { ok: boolean; result?: Record<string, string> }
+  const shelf = perform("ex9:shelf-add", { name: "本棚" }).result?.shelf ?? ""
+  const other = perform("ex9:shelf-add", { name: "箱" }).result?.shelf ?? ""
+  perform("ex14:stamp-add", { shelf, mark: "★" })
+  perform("ex14:stamp-add", { shelf: other, mark: "◎" })
+  expect(perform("ex9:shelf-close", {}, { record: shelf }).ok).toBe(true)
+  const stamps = Object.values(instance.state.getState().records["ex14:stamp"] ?? {}) as {
+    mark: string
+    sealed?: true
+  }[]
+  expect(stamps.map(s => [s.mark, s.sealed ?? false])).toEqual([
+    ["★", true],
+    ["◎", false],
+  ])
 })

@@ -11,7 +11,7 @@ import { binnedBetween } from "../core/entries"
 import { type Library, NO_CHANGES, pageIn } from "../core/folders"
 import { bookOf, libraryOf } from "../core/folders-books"
 import { createdOn, withChanges } from "../core/folders-changes"
-import { atOutsidePagePlace, bookIdOf } from "../core/folders-tree"
+import { atOutsideBinderPlace, atOutsidePagePlace, bookIdOf } from "../core/folders-tree"
 import { detectLang } from "../core/i18n/i18n"
 import { changedIn } from "../core/ids"
 import type { PerformedIn, World } from "../core/perform-world"
@@ -49,7 +49,7 @@ export interface Input {
 }
 
 // 返すもの。aiEditTickets はレコードが対象のアクションが返した AI 編集チケットの変え方の並び、pages と folders は変わった・足した・無くなったページとフォルダ（無くなった物は removed）、
-// created はそのうち新しく足した物の id（常駐が、世界のどこにも無い id かを確かめる）、books は変わったブックの id（変わったページ・フォルダを持つブック。無くなったブックと、ゴミ箱に出入りしたブックも）、trashing は新しくゴミ箱に入るステージエントリ（ブックと、ブックの外のページ）の id、annotations はアノテーションが変わったページの id → 新しい並び（空なら全部無くなった）、
+// created はそのうち新しく足した物の id（常駐が、世界のどこにも無い id かを確かめる）、books は変わったブックの id（変わったページ・フォルダを持つブック。無くなったブックと、ゴミ箱に出入りしたブックも）、trashing は新しくゴミ箱に入るステージエントリ（ブックと、ブックの外のページ・バインダ）の id、annotations はアノテーションが変わったページの id → 新しい並び（空なら全部無くなった）、
 // records は変わったレコードの並び（1 つのトランザクションで書く）、counters は進めた番号（種類の id → 区切り → 次の番号。進めた区切りだけ）。
 // AI のアクションと lockedForUser のアクションが、受けた watched の物（ページの中の物・そのページのアノテーション・ページそのもの、ブックのバインダ・ブックそのもの）か watchedRecords のレコードを変えるか消すなら、何も変えずに being-edited で断る。
 // 断ったら、detail に AI への説明（MCP 公開ツールが理由に添えて AI に返す）。認可ステップが止めたら（denied）、permission にそのステップの id
@@ -153,14 +153,17 @@ export function perform(of: Assembled, input: Input): Output {
   const at = new Date().toISOString()
   const steps = input.actions.map(a => bulkActionOf(a, () => crypto.randomUUID(), at, langFor(a.lang)))
   // AI のアクションと、利用者でも編集ロックで断るアクションは、利用者が直している物を変えも消しもしない（あとでやり直す）。バルクの中のアクションごとに見る。
-  // レコードが対象のアクションは、変えるレコードのどれかを直しているなら、同じように断る（作るレコードは新しい id なので、直してはいない）
+  // レコードが対象のアクションは、変えるレコードのどれかを直しているなら、同じように断る（作るレコードは新しい id なので、直してはいない）。
+  // フォローステップが応じて変えたレコードは、利用者のアクションでも断る
   const done = performBulk(
     world,
     steps,
     { catalog, controlCenter, lang: langFor(input.actions[0]?.lang), actor },
     (i, before, after, one) => {
+      const edited = (c: { subject: string; id: string }) => (input.watchedRecords?.[c.subject] ?? []).includes(c.id)
+      if ((one.followed ?? []).some(edited)) return { ok: false as const, reason: "being-edited" as const }
       if (!stopsOnEditLock(catalog.actions.get(input.actions[i]?.action ?? ""), actor)) return undefined
-      const editedRecord = (one.records ?? []).some(c => (input.watchedRecords?.[c.subject] ?? []).includes(c.id))
+      const editedRecord = (one.records ?? []).some(edited)
       return editedRecord || touchedIn(before, after, one.annotations, input.watched).length > 0
         ? { ok: false as const, reason: "being-edited" as const }
         : undefined
@@ -181,10 +184,14 @@ export function perform(of: Assembled, input: Input): Output {
   const moved = Object.keys(done.changes?.folders ?? {}).length > 0
   const binned = moved ? binnedBetween(tables, after) : { trashed: [], restored: [] }
   const trashingBooks = binned.trashed.filter(id => id in next)
-  // ゴミ箱に入った、ブックの外のページ（入る前の置き場所で見る。中に持つフォルダごと入ったときも）
-  const trashingPages = binned.trashed.filter(id => atOutsidePagePlace(tables.folders, id))
+  // ゴミ箱に入った、ブックの外のページとバインダ（入る前の置き場所で見る。中に持つフォルダごと入ったときも）
+  const trashingPages = binned.trashed.filter(
+    id => atOutsidePagePlace(tables.folders, id) || atOutsideBinderPlace(tables.folders, id),
+  )
   const restoring = binned.restored.filter(id => id in next)
-  const notice = shiftNotice(books, changed, tables, after)
+  const notice = [shiftNotice(books, changed, tables, after), followedNotice(done.followed ?? [])]
+    .filter(n => n !== null)
+    .join(" ")
   const changes = done.changes ?? NO_CHANGES
   return {
     ok: true,
@@ -263,5 +270,12 @@ function shiftNotice(
   const moved = [...inBooks, ...outside]
   return moved.length
     ? `The contents of a variable page were shifted by whole papers, so every position there changed (${moved.join("; ")}); read_page before using positions.`
+    : null
+}
+
+// フォローステップが応じて変えたレコードがあれば、AI への知らせ（アクションのほかに変わった物）
+function followedNotice(followed: readonly { subject: string; id: string }[]): string | null {
+  return followed.length
+    ? `Follow steps changed these records along with it: ${followed.map(f => `${f.subject} ${f.id}`).join(", ")}.`
     : null
 }

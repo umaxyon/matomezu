@@ -32,6 +32,7 @@ export const WARNINGS = {
   W031: "key {key} in {scope} for {command}: the key scope is not in the catalog (not used)",
   W032: "the library: {count} thing(s) cannot be read now and are kept in the unreadable folder, out of the library ({reasons}); they come back when they can be read",
   W033: "the library: the unreadable things could not be moved to or back from the unreadable folder ({reason}); while unreadable things stay in the library, actions on the library are refused",
+  W034: "follow step of plugin {plugin}: the kind it watches, {kind}, is not in the catalog (not used)",
 } as const
 
 export type WarningCode = keyof typeof WARNINGS

@@ -6,7 +6,7 @@ import type { MessageKey } from "../../../core/catalog"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import { ANY_PAGE_TYPE } from "../../../core/def/action"
 import { binderOf, editingBackground } from "../../../core/stage"
-import { NO_BOOK } from "../../../store/commands/def"
+import { NO_BOOK, NO_OUTSIDE_BINDER } from "../../../store/commands/def"
 import type { DialogTaking, PageSettingsArgs } from "../../../store/dialogs"
 import { kit } from "../kit"
 import { PAGE_LOCK, PAGE_UNLOCK } from "../lock"
@@ -99,7 +99,7 @@ export const PAGE_OPEN = kit.defineCommand({
   id: "page-open",
   title: "Open page",
   run: (_ctx, a, page: string) => a.openPage(page),
-  when: ctx => ctx.book !== NO_BOOK,
+  when: ctx => ctx.book !== NO_BOOK || ctx.outsideBinder !== NO_OUTSIDE_BINDER,
   enabled: ctx => !editingBackground(ctx.stage), // 背景編集モードの間は、ページを替えない（ページタブとページ一覧はこれを見て止まる）
 })
 

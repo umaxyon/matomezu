@@ -440,7 +440,8 @@ export type AttachFor<T extends ActionTarget> = T extends "page"
   ? { attach?: { books?: never } }
   : { attach?: { pages?: never } }
 
-// 利用者が直している物（編集ロック）を変えるか消すとき、断るアクションか: AI が頼んだアクションと、lockedForUser のアクション（ホストのエンジンが読む）
+// 利用者が直している物（編集ロック）を変えるか消すとき、断るアクションか: AI が頼んだアクションと、lockedForUser のアクション（ホストのエンジンが読む）。
+// フォローステップが応じて変えた物は、これによらず断る（engine/host-perform.ts）
 export const stopsOnEditLock = (action: Pick<ActionDef, "lockedForUser"> | undefined, actor: Actor): boolean =>
   isAI(actor) || action?.lockedForUser === true
 

@@ -2,9 +2,7 @@
 // プロジェクトを作るのは、最初の 1 度は常駐が初めて起動したときに行う（project-add の引数は省いてよい）
 import { z as zod } from "zod"
 import { type Records, recordIn } from "../by"
-import { CURRENT_WORK_ID, currentWorkOnLanes } from "../current-work/lanes"
 import { kit } from "../kit"
-import type { TicketLike } from "../ticket/current"
 import {
   CARD_SHOWS,
   CARD_SIZES,
@@ -107,21 +105,13 @@ export const PROJECT_UPDATE = kit.defineAction({
   target: PROJECT.id,
   // 完了のレーンを選ぶときは、そのレーンのチケットに担当がいないかを確かめるために、プロジェクトのチケットの索引キーを読む
   // （project は ticket を読まない向きなので、id だけを書く）
-  // レーンを変えるときは、作業中の印に合わせてカレントワークを直すために、プロジェクトのチケットと全部のカレントワークを読む
+  // （レーンの作業中の印が変わったときのカレントワークの直しは、プロジェクトの変わりに応じるフォローステップが行う）
   reads: (args, _actor, on) => [
     ...(args.prefix === undefined ? [] : readsPrefix(args.prefix)),
-    ...(on === undefined
+    ...(on === undefined || args.doneLane === undefined
       ? []
-      : args.lanes !== undefined
-        ? [
-            { subject: TICKET_ID, where: [{ key: "project" as const, eq: on }] },
-            { subject: CURRENT_WORK_ID, where: [] },
-          ]
-        : args.doneLane === undefined
-          ? []
-          : [{ subject: TICKET_ID, where: [{ key: "project" as const, eq: on }], keysOnly: true as const }]),
+      : [{ subject: TICKET_ID, where: [{ key: "project" as const, eq: on }], keysOnly: true as const }]),
   ],
-  writes: [CURRENT_WORK_ID],
   userOnly: true,
   args: zod.strictObject({
     name: zod.string().trim().min(1).max(PROJECT_NAME_MAX).optional(),
@@ -151,11 +141,10 @@ export const PROJECT_UPDATE = kit.defineAction({
     if ("declined" in done) return done
     if (done.id !== (now.doneLane ?? NO_DONE_LANE) && done.id !== NO_DONE_LANE) {
       // 新しい完了のレーンにいるチケットは、担当がいれば断る
-      // （レーンも変えるときはチケットの中身ごと読んでいるので、そこから見る）
-      const assigned = [
-        ...Object.values(ctx.keys?.[TICKET_ID] ?? {}).map(k => ({ lane: k.lane, count: Number(k.assigned ?? 0) })),
-        ...ticketsRead(ctx).map(t => ({ lane: t.lane, count: t.assignees.length })),
-      ]
+      const assigned = Object.values(ctx.keys?.[TICKET_ID] ?? {}).map(k => ({
+        lane: k.lane,
+        count: Number(k.assigned ?? 0),
+      }))
       if (assigned.some(t => t.lane === done.id && t.count > 0))
         return { declined: "tickets in that lane have assignees: complete them with ticket-complete first" }
     }
@@ -172,19 +161,9 @@ export const PROJECT_UPDATE = kit.defineAction({
       ...(args.cardSize === undefined ? {} : { cardSize: args.cardSize }),
       cardShows: { ...now.cardShows, ...args.cardShows },
     }
-    return {
-      next,
-      result: {},
-      others: lanes === undefined ? [] : currentWorkOnLanes(now, next, ticketsRead(ctx), worksRead(ctx)),
-    }
+    return { next, result: {} }
   },
 })
-
-// 読んだチケット・カレントワーク（形は定義が確かめた物。判定に使う項目だけを見る）
-const ticketsRead = (ctx: { records?: Readonly<Record<string, Readonly<Record<string, unknown>>>> | undefined }) =>
-  Object.values(ctx.records?.[TICKET_ID] ?? {}) as (TicketLike & { id: string })[]
-const worksRead = (ctx: { records?: Readonly<Record<string, Readonly<Record<string, unknown>>>> | undefined }) =>
-  Object.values(ctx.records?.[CURRENT_WORK_ID] ?? {}) as { id: string; ticket: string }[]
 
 export const PROJECT_CLOSE = kit.defineAction({
   id: "project-close",

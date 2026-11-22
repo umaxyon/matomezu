@@ -1,6 +1,7 @@
 // ex14: ほかのプラグイン（ex9）の種類のレコードを、自分のアクションが 1 トランザクションで変える追加プラグイン。
-// ex9 の棚は writableBy に ex14 を書いて許している。棚のレコードのうち、書き換える stamps だけを知っている
-import { definePlugin, z } from "matomezu"
+// ex9 の棚は writableBy に ex14 を書いて許している。棚のレコードのうち、書き換える stamps と、閉じたかの closed だけを知っている。
+// 棚が閉じられたら、その棚のスタンプに封をする（フォローステップ。ex9 のアクションと同じ 1 回で、ex9 は ex14 を知らない）
+import { definePlugin, type FollowStepDef, z } from "matomezu"
 import { kit } from "./kit"
 
 // ex9 の棚の種類（ほかのプラグインの種類は、型でなく id で指す）
@@ -10,7 +11,13 @@ export const STAMP = kit.defineSubject({
   id: "stamp",
   title: "stamp",
   aiDescription: "A stamp on a shelf of ex9: the shelf's id and a mark.",
-  record: z.strictObject({ id: z.string().min(1), shelf: z.string().min(1), mark: z.string().min(1).max(20) }),
+  record: z.strictObject({
+    id: z.string().min(1),
+    shelf: z.string().min(1),
+    mark: z.string().min(1).max(20),
+    sealed: z.literal(true).optional(), // 棚が閉じられた
+  }),
+  keys: { shelf: { type: "text", of: s => s.shelf } },
 })
 
 // 棚にスタンプを押す: スタンプを 1 件作り、同じ 1 回で、ex9 の棚の stamps を 1 増やす（どちらかだけ変わることは無い）
@@ -37,7 +44,25 @@ export const STAMP_ADD = kit.defineAction({
   },
 })
 
-export const EX14 = definePlugin(kit.plugin({ subjects: [STAMP], actions: [STAMP_ADD] }))
+// 棚が閉じられたか（ex9 の棚の型は ex14 の型に無いので、閉じたかだけを読む）
+const closedNow = (before: unknown, after: unknown): boolean =>
+  (after as { closed?: boolean }).closed === true && (before as { closed?: boolean }).closed !== true
+
+// 棚が閉じられたら、その棚のスタンプに封をする
+export const SEAL_ON_CLOSE: FollowStepDef = {
+  watches: SHELF,
+  writes: [STAMP.id],
+  reads: c => (closedNow(c.before, c.after) ? [{ subject: STAMP.id, where: [{ key: "shelf", eq: c.id }] }] : []),
+  follow: (c, ctx) =>
+    closedNow(c.before, c.after)
+      ? Object.values(ctx.records[STAMP.id] ?? {}).flatMap(r => {
+          const stamp = r as z.output<typeof STAMP.record>
+          return stamp.sealed ? [] : [{ subject: STAMP.id, id: stamp.id, record: { ...stamp, sealed: true as const } }]
+        })
+      : [],
+}
+
+export const EX14 = definePlugin(kit.plugin({ subjects: [STAMP], actions: [STAMP_ADD], followSteps: [SEAL_ON_CLOSE] }))
 
 export default EX14
 

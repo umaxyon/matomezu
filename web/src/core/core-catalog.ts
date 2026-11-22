@@ -4,11 +4,20 @@
 
 import { z } from "zod"
 import { type CorePart, type ItemId, type ItemTable, type PartDefTable, partsOf } from "./catalog"
-import { allLanguages, allMessages, byId, checkCoreCatalog, coreWarnings, mergeMessages } from "./core-catalog-check"
+import {
+  allLanguages,
+  allMessages,
+  byId,
+  checkCoreCatalog,
+  coreWarnings,
+  followOrder,
+  mergeMessages,
+} from "./core-catalog-check"
 import type { ActionDef } from "./def/action"
 import type { AnnotationDef } from "./def/annotation"
 import type { ControlCenterDef } from "./def/control-center"
 import type { EnumDef, EnumValueDef } from "./def/enum"
+import type { FollowStepDef } from "./def/follow-step"
 import type { ItemDef } from "./def/item"
 import type { MailDef } from "./def/mail"
 import type { NormalizeStepDef } from "./def/normalize-step"
@@ -71,6 +80,13 @@ export type CoreCatalogParts = { readonly [K in CorePart]: readonly PartDefTable
   languages: readonly LanguagePackDef[] // 土台の言語（LANGUAGES: 英語と日本語）は、いつも表に入る
   tokens: readonly TokenDef[] // プラグインが持つテーマキー（そのプラグインのいくつものアイテムやタイプが共に使う）
   normalizeSteps: readonly NormalizeStepDef[] // ノーマライズステップ（ビルトインプラグインが持つ。並びの順にかける）
+  followSteps: readonly PluginFollowStep[] // フォローステップと、それを持つプラグインの id
+}
+
+// フォローステップ 1 つと、それを持つプラグインの id
+export interface PluginFollowStep {
+  plugin: string
+  step: FollowStepDef
 }
 
 // 作った表。種類ごとに id で引く。pageSchemas は、ページのタイプごとに組み立てたページのデータの形。bookSchema は、ブックのデータの形（並びのページは、タイプごとの形のどれか）
@@ -85,6 +101,8 @@ export type CoreCatalog = { readonly [K in CorePart]: ReadonlyMap<string, PartDe
   warnings: readonly Warning[] // 台帳アセンブルで見つけた、止めるほどではない間違い（core/warnings.ts）
   tokens: ReadonlyMap<string, TokenDef> // プラグインが持つテーマキー（アイテムとページのタイプのテーマキーは、その定義の tokens）
   normalizeSteps: readonly NormalizeStepDef[] // ノーマライズステップ（core/def/normalize-step.ts）
+  // フォローステップ（core/def/follow-step.ts）。見る種類が台帳にある物だけを、依る順（ある種類を書くステップが、それを見るステップより先）に並べた物
+  followSteps: readonly PluginFollowStep[]
   roles: ReadonlyMap<SettingRole, SettingDef> // role → その role を持つ利用者の設定の項目（土台は role で引く）
 }
 
@@ -114,6 +132,7 @@ export function buildCoreCatalog(parts: CoreCatalogParts): CoreCatalog {
     warnings: coreWarnings(parts),
     tokens: byId(parts.tokens),
     normalizeSteps: parts.normalizeSteps,
+    followSteps: followOrder(parts),
     roles: new Map(parts.userSettings.flatMap(d => (d.role ? [[d.role, d] as const] : []))),
   }
 }

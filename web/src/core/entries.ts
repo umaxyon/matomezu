@@ -1,10 +1,12 @@
 // フォルダ（ブック・バインダを含む）の中身の並びを読む・変える計算（ここには、それだけを置く）: エントリ（ページ・バインダ・ブック・フォルダ）を、
 // フォルダに置く・別のフォルダの何番目かへ動かす・ゴミ箱に入れる・ゴミ箱から戻す・ゴミ箱から消す。プラグインは、並びを直に組み直さず、これを通す。
-// 見るのは木の形（どのフォルダが何を持てるか・自分の中へは動かせない）だけ。名前の重なり・タイプごとの決まり・ロックは、ここでは見ない
+// 動かす計算が見るのは木の形（どのフォルダが何を持てるか・自分の中へは動かせない）と、まとまるタイプのページがバインダを離れるときのバインダの出来方・消え方だけ。
+// 名前の重なりを断る事・タイプごとのほかの決まり・ロックは、ここでは見ない
 
 import type { CoreCatalog } from "./core-catalog"
 import {
   type AnyEntryRef,
+  type BinderFolder,
   type Folder,
   type Folders,
   HOME_ID,
@@ -18,6 +20,7 @@ import {
 } from "./folders"
 import { foldersOver, inTrash, systemFolderIndex, systemFolderOf } from "./folders-tree"
 import { type Lang, translate } from "./i18n/i18n"
+import { freshPageId } from "./ids"
 import { langOf, type Settings } from "./settings"
 
 export type EntryKind = AnyEntryRef["kind"]
@@ -42,7 +45,7 @@ export function canHold(holder: Folder, kind: EntryKind): boolean {
 // 動かせない訳: エントリが無い（no-entry）・先のフォルダが無い（no-folder）・先が自分かその中（into-itself）・先のフォルダが持てない種類（kind）・
 // index が末尾より先（past-end）・動かしても同じ場所（same-place）・動かす物か先が、ゴミ箱かその中（in-trash。ゴミ箱へは入れる・戻すでだけ出入りする）
 export type MoveRefusal = "no-entry" | "no-folder" | "into-itself" | "kind" | "past-end" | "same-place" | "in-trash"
-export const isMoveRefusal = (v: Library | MoveRefusal): v is MoveRefusal => typeof v === "string"
+export const isMoveRefusal = (v: Library | EntryMoved | MoveRefusal): v is MoveRefusal => typeof v === "string"
 
 // 書庫 library の、フォルダ puts を置き換えた（無ければ足した）書庫
 const withFolders = (library: Library, puts: Readonly<Record<string, Folder>>): Library => ({
@@ -173,6 +176,98 @@ export function removedEntry(library: Library, entry: string): Library | MoveRef
         : Object.fromEntries(Object.entries(library.pages).filter(([p]) => !pages.has(p))),
     folders,
   }
+}
+
+// フォルダ folder が、ブックの外のバインダ（書庫ホームかフォルダの直下のバインダ）か
+function binderOutsideBooks(folders: Folders, folder: string): boolean {
+  const over = placeOf(folders, folder)?.holder.folderRole
+  return folders[folder]?.folderRole === "binder" && (over === "home" || over === "folder")
+}
+
+// 作るバインダの印: エントリを動かすときに、そのページだけのバインダを作って入れる
+export const NEW_BINDER = "new-binder"
+
+// エントリ entry をフォルダ into へ動かすときに、into へ入る物: まとまるタイプ（grouping が binder）のページを、バインダからバインダでない所へ動かすなら、
+// そのページだけの新しいバインダ（NEW_BINDER）。ただし、ブックの外の、中がそのページだけのバインダからなら、そのバインダ。ほかは entry そのもの。
+// entry がどこにも入っていなければ undefined
+export function carriedEntry(
+  catalog: CoreCatalog,
+  { pages, folders }: Library,
+  entry: string,
+  into: string,
+): AnyEntryRef | typeof NEW_BINDER | undefined {
+  const place = placeOf(folders, entry)
+  if (!place) return undefined
+  const { holder, ref } = place
+  const to = folders[into]
+  const page = pages[entry]
+  const leaves = ref.kind === "page" && holder.folderRole === "binder" && to !== undefined && to.folderRole !== "binder"
+  if (!leaves || !page || catalog.pageTypes.get(page.type)?.grouping !== "binder") return ref
+  return binderOutsideBooks(folders, holder.id) && holder.lineup.length === 1
+    ? { kind: "binder", id: holder.id }
+    : NEW_BINDER
+}
+
+// 書庫 library で、フォルダ from がブックの外のバインダで空なら、それを行ごと消した書庫（ほかは library のまま）
+function withoutEmptied(library: Library, from: Folder): Library {
+  const now = library.folders[from.id]
+  if (now?.folderRole !== "binder" || now.lineup.length > 0 || !binderOutsideBooks(library.folders, from.id))
+    return library
+  const gone = removedEntry(library, from.id)
+  return isMoveRefusal(gone) ? library : gone
+}
+
+// エントリを動かした結果: 動かした書庫 next と、into へ入った物 carried（carriedEntry の物。作ったバインダなら、その id）と、作ったバインダの id と名前 made
+export interface EntryMoved {
+  next: Library
+  carried: AnyEntryRef
+  made?: { id: string; title: string }
+}
+
+// エントリ entry を、フォルダ into の index 番目（動かす物を除いて数える。言わなければ末尾）へ動かした書庫（movedEntry に、バインダの出来方・消え方を足した物。純粋）。
+// into へ入る物は carriedEntry が決める。新しいバインダを作るなら、その id を newId で振り（書庫のページ・フォルダの行の id と重なれば、newId で振り直す）、
+// 名前は「元のバインダの名前 - ページの名前」（片方が無題なら、もう片方の名前だけ）で、into の直下の名前と重なれば番号を付け（freeTitle）、
+// into の index 番目に置いてページを入れる。
+// ページが出て空になったブックの外のバインダは、行ごと消す（ブックの中のバインダは、空になっても残る）。動かせなければ、その訳
+export function movedWithBinders(
+  catalog: CoreCatalog,
+  library: Library,
+  entry: string,
+  into: string,
+  index: number | undefined,
+  naming: Naming,
+  newId: () => string,
+): EntryMoved | MoveRefusal {
+  const carried = carriedEntry(catalog, library, entry, into)
+  const from = placeOf(library.folders, entry)?.holder
+  if (!carried || !from) return "no-entry"
+  if (carried !== NEW_BINDER) {
+    const moved = movedEntry(library, carried.id, into, index)
+    return isMoveRefusal(moved) ? moved : { next: withoutEmptied(moved, from), carried }
+  }
+  const to = library.folders[into]
+  if (!to) return "no-folder"
+  if (from.folderRole !== "binder") return "kind"
+  if (to.folderRole === "trash" || inTrash(library.folders, entry) || inTrash(library.folders, into)) return "in-trash"
+  const id = freshPageId(newId, [...Object.keys(library.pages), ...Object.keys(library.folders)])
+  const named = [titleOf(library, "binder", from.id, naming), titleOf(library, "page", entry, naming)]
+  const title = freeTitle(named.filter(t => t !== undefined).join(" - "), titlesIn(library, to, naming))
+  const binder: BinderFolder = {
+    folderRole: "binder",
+    id,
+    title,
+    pageType: from.pageType,
+    lineup: [{ kind: "page", id: entry }],
+  }
+  const left: BinderFolder = { ...from, lineup: from.lineup.filter(r => r.id !== entry) }
+  const placed = placedEntry(
+    withFolders(library, { [from.id]: left, [id]: binder }),
+    { kind: "binder", id },
+    into,
+    index,
+  )
+  if (isMoveRefusal(placed)) return placed
+  return { next: withoutEmptied(placed, from), carried: { kind: "binder", id }, made: { id, title } }
 }
 
 // ゴミ箱の並びのエントリ（入れた時刻と、元いたフォルダの列を持つ。入れた順）

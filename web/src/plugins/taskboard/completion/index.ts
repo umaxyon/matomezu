@@ -6,7 +6,6 @@ import { z as zod } from "zod"
 import { type Actor, type AIMessage, workroomOfActor } from "../../../plugin-api"
 import { adminWorkroom, READS_ADMIN, READS_WORKROOM_KEYS } from "../../base"
 import { byOf, type Records, readsBy, workroomsOf } from "../by"
-import { CURRENT_WORK, currentWorkChanges, currentWorksOf, READS_CURRENT_WORK } from "../current-work/work"
 import { kit } from "../kit"
 import { inDoneLane, type Project } from "../project"
 import { projectOf } from "../project/actions"
@@ -39,11 +38,10 @@ export const TICKET_COMPLETE = kit.defineAction({
   aiDescription:
     "Complete the ticket named by on.record when its work is done (for example when its commits are merged and no work is left): it moves to the done lane of its project, its assignees are released (so it is nobody's current ticket any more, and the workrooms working on it have no current ticket), and a line of the topic topic-complete (with the released workrooms) is added to its history, all at once. Refused when the project has no done lane (the user chooses it in the project settings) or the ticket is in it already. Moving a ticket into the done lane in any other way is refused; to take a ticket out of the done lane again, change its lane with ticket-update, and assign workrooms again if needed. When an AI completes it, the administrator's workroom (when it is not yours) is told by an AI message (matomezu sends it when an AI has joined that workroom; you do not). Returns the done lane and the released workrooms' ids.",
   target: TICKET.id,
-  writes: [HISTORY.id, CURRENT_WORK.id],
-  // AI が行うときは、知らせる先（管理者の印と全部のワークルームの索引キー）も。カレントワークは、このチケットを指す物を none にするために読む
+  writes: [HISTORY.id],
+  // AI が行うときは、知らせる先（管理者の印と全部のワークルームの索引キー）も
   reads: (_args, actor) => [
     ...readsBy(actor),
-    READS_CURRENT_WORK,
     ...(workroomOfActor(actor) === undefined ? [] : [READS_ADMIN, READS_WORKROOM_KEYS]),
   ],
   args: zod.strictObject({}),
@@ -62,7 +60,6 @@ export const TICKET_COMPLETE = kit.defineAction({
     return {
       next,
       others: [
-        ...currentWorkChanges(now, next, project, currentWorksOf(ctx)),
         {
           subject: HISTORY.id,
           id: historyId,

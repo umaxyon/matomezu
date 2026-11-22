@@ -219,6 +219,34 @@ test("ロックしたチケットでは ticket-start も ticket-leave も断る�
   expect(act(ai(a), "ticket-start", {}, { record: t2 }).ok).toBe(false)
 })
 
+test("ロックの掛け外しには、カレントワークは応じない（古くなったカレントワークがそのチケットを指していても、ロックはチケットの locked だけを変える）", () => {
+  const { room, todo, add, world } = board()
+  const a = room("あ")
+  const t1 = add({ lane: todo, assignees: [a] })
+  // 作業中でないレーンのチケットを指す、古くなったカレントワーク
+  const w = world()
+  const stale: World = {
+    ...w,
+    records: { ...w.records, [CURRENT_WORK.id]: { ...(w.records[CURRENT_WORK.id] ?? {}), [a]: { id: a, ticket: t1 } } },
+  }
+  const done = performIn(
+    stale,
+    A("ticket-lock"),
+    {},
+    { record: t1 },
+    {
+      catalog: CORE_CATALOG,
+      controlCenter: BUILTIN_CONTROL_CENTER as never,
+      lang: "ja",
+      newId: () => "z",
+      now: "2026-11-21T00:00:00.000Z",
+      today: "2026-11-21",
+      actor: USER,
+    },
+  )
+  expect(done.ok && done.records?.map(r => r.subject)).toEqual([TICKET.id])
+})
+
 test("レーンの作業中の印を外すと、そのレーンのチケットを指すカレントワークは none。付け直すと、none のワークルームにまた入る（同じトランザクション）", () => {
   const { user, room, project, doing, add, work, world } = board()
   const a = room("あ")

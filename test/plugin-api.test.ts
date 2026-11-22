@@ -383,6 +383,7 @@ test("matomezu/ui が出す名前", () => {
     "useOpenRightSidePanel",
     "useOpenSettings",
     "useOutermostOf",
+    "useOutsideBinder",
     "usePage",
     "usePageById",
     "usePageProblems",
@@ -499,6 +500,7 @@ test("コマンドが受け取る文脈（CommandContext）のフィールド（
     "folders",
     "history",
     "libraryHistory",
+    "outsideBinder",
     "page",
     "pageTitle",
     "pluginState",
@@ -603,10 +605,12 @@ test("コマンドの run が受け取る操作（CommandActions）は、useActi
   expect(names(given)).toEqual(names(got).filter(n => n !== "updatePluginState"))
   expect(names(store.actions).filter(n => !names(given).includes(n))).toEqual([
     "makeScreenCurrent",
+    "openOutsideBinder",
     "openOutsidePage",
     "openScreenId",
     "openToStage",
     "showBookStage",
+    "showOutsideBinderStage",
     "showOutsidePageStage",
     "showStage",
     "splitStage",
