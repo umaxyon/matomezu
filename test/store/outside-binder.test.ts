@@ -1,5 +1,8 @@
 // ブックの外のバインダを窓に出す（store の showOutsideBinderStage・openOutsideBinder・openToStage）: 開く・ページを替える・中のページを変える・元に戻す・ロック
 import { expect, test } from "bun:test"
+import { stagePlacesOf } from "../../web/src/core/address"
+import { NO_OUTERMOST } from "../../web/src/core/folders-tree"
+import { shownPageId } from "../../web/src/core/stage"
 import { stageIn } from "../../web/src/core/window"
 import { NO_STAGE } from "../../web/src/store/dialogs"
 import { openedIn } from "../../web/src/store/store"
@@ -70,4 +73,23 @@ test("ブックの外のバインダの中のページを変えて元に戻せ�
   await Promise.resolve()
   expect(title()).toBe("変えた名前")
   expect(store.state.getState().history.n1?.undo.length).toBeGreaterThan(0)
+})
+
+test("ブックの外のバインダを開いた画面の場所は、ブックを名指さず開いているページを名指し、当てはめると同じバインダの同じページを開く。無くなっていればそのステージを開かない", () => {
+  const store = withBinder()
+  store.actions.showOutsideBinderStage("n1", "s2")
+  const address = store.address()
+  expect(stagePlacesOf(address).map(p => [p.outermost, p.page])).toContainEqual([NO_OUTERMOST, "s2"])
+  const opens = (s: Store) =>
+    s.state
+      .getState()
+      .window.screens.flatMap(c => c.stages?.stages.map(t => [t.opened?.outermost, shownPageId(t.opened)]) ?? [])
+  const again = withBinder()
+  again.locate(address)
+  expect(opens(again)).toContainEqual([{ kind: "binder", id: "n1" }, "s2"])
+  const gone = newStore({ newId: sequence() })
+  const before = gone.state.getState().window
+  gone.locate(address)
+  expect(opens(gone).map(([o]) => o)).not.toContainEqual({ kind: "binder", id: "n1" })
+  expect(gone.state.getState().window.screens.length).toBe(before.screens.length)
 })
