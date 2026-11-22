@@ -1,23 +1,25 @@
-// 印刷プレビュー: ステージで開いたブックの全ページの印刷区画を並べて、見るだけで見せる（ステージの見え方は core/stage.ts の StageMode）。
+// 印刷プレビュー: ステージで開いたステージエントリ（ブック・ブックの外のバインダ・ブックの外のページ 1 枚。previewed.ts）の全ページの印刷区画を並べて、見るだけで見せる（ステージの見え方は core/stage.ts の StageMode）。
 // 開くのはフッタメニューのボタン（コマンド print-preview-open）。開くと右サイドパネルに印刷プレビューの設定を出し、右サイドパネルを閉じれば印刷プレビューも閉じる
 // （閉じたときに戻す見え方は、ステージの印刷プレビューが持つ。右サイドパネルの戻しは使わない）。
 // 設定（settings.ts）を変えるのはアクション print-preview-update だけで、印刷プレビューの間も行え、画面の履歴（Undo）には入れない
 
 import { z } from "zod"
 import type { CoreCatalog } from "../../../core/core-catalog"
+import { withStageEntryRow } from "../../../core/entries"
+import { inTrash, NO_OUTERMOST, outermostOf } from "../../../core/folders-tree"
 import type { ItemPage } from "../../../core/placed"
-import type { Book } from "../../../core/schema/book"
 import type { CommandActions, CommandContext } from "../../../store/commands/def"
-import { calledStageOf, NO_BOOK } from "../../../store/commands/def"
-import { withBookSettings } from "../book-look"
+import { calledStageOf } from "../../../store/commands/def"
+import { withOutermostSettings } from "../book-look"
 import type { SettingReader } from "../book-settings"
-import { bookSettingsPatch, bookSettingValue } from "../book-settings"
+import { outermostSettingsPatch, settingValue } from "../book-settings"
 import { kit } from "../kit"
 import type { GrowSides } from "../place/grow"
 import { openRightSidePanelIn } from "../right-side-panel/state"
 import { fitSideView, moveHere } from "../zoom"
-import { hasCrossing } from "./book-sheets"
+import { hasCrossing } from "./entry-sheets"
 import { printCheckOpen } from "./panel-id"
+import { type PreviewedEntry, previewedIn } from "./previewed"
 import { PRINT_READY_STATE } from "./print-state"
 import { PRINT_PREVIEW_FLOW } from "./settings"
 
@@ -61,26 +63,35 @@ export {
 } from "./settings"
 
 const ARGS = z.strictObject({
+  entry: z.string().min(1), // ステージエントリ（ブック・ブックの外のバインダ・ブックの外のページ 1 枚）の id
   settings: z.record(z.string(), z.unknown()), // 印刷プレビューの設定の項目（printPreview。形は機能台帳で決まるので AI には describeArgs で見せる）
 })
 
-// 印刷プレビューの設定の項目を変える（渡した項目だけ。null は既定に戻す）。印刷プレビューの組に無い項目や形に合わない値は、どの項目かを添えて断る
+// ステージエントリ entry の印刷プレビューの設定の項目を変える（渡した項目だけ。null は既定に戻す）。印刷プレビューの組に無い項目や形に合わない値は、どの項目かを添えて断る。
+// ステージエントリでない物（フォルダ・ブックの中のページとバインダ・バインダの中のページ・ゴミ箱の中の物）は断る
 export const PRINT_PREVIEW_UPDATE = kit.defineAction({
   id: "print-preview-update",
   history: false,
-  inPrintPreview: "runs",
-  attach: { books: true },
   aiDescription:
-    "Change a book's print preview settings (how the print preview arranges and labels the print areas), keyed by the setting's id; the settings and their values are in args. Only what is given changes; null goes back to the default. The other settings of a book are changed by @matomezu/base:book-update (refused here). The user's undo does not take it back.",
+    "Change the print preview settings (how the print preview arranges and labels the print areas) of a book, or of a page or a binder that is not in a book: entry is its id (not in the trash), settings the values keyed by the setting's id; the settings and their values are in args. Only what is given changes; null goes back to the default. Refused for a page or a binder in a book, and for a page in a binder (they have no print preview settings). The other settings of a book are changed by @matomezu/base:book-update (refused here). The user's undo does not take it back.",
   title: "Change print preview",
-  target: "book",
-  permissionScope: "book",
+  target: "library",
+  permissionScope: { entry: "entry", where: "settings" },
   args: ARGS,
   describeArgs: catalog =>
-    z.strictObject({ settings: bookSettingsPatch(catalog, "print-preview") ?? z.strictObject({}) }),
-  run: (book, args, ctx) => {
-    const next = withBookSettings(ctx.catalog, book, args.settings, "print-preview")
-    return "declined" in next ? next : { next, result: null }
+    z.strictObject({
+      entry: z.string().min(1),
+      settings: outermostSettingsPatch(catalog, "print-preview") ?? z.strictObject({}),
+    }),
+  run: (library, args, ctx) => {
+    const entry = outermostOf(library, args.entry)
+    if (entry === NO_OUTERMOST || entry.id !== args.entry || inTrash(library.folders, args.entry))
+      return { declined: "entry is not a book, or a page or a binder that is not in a book" }
+    const held = entry.kind === "page" ? library.pages[entry.id] : library.folders[entry.id]
+    if (!held) return null
+    const next = withOutermostSettings(ctx.catalog, held, args.settings, "print-preview")
+    if ("declined" in next) return next
+    return { next: withStageEntryRow(library, entry, next), result: null }
   },
 })
 
@@ -100,29 +111,29 @@ export const PRINT_PREVIEW_FIT = kit.defineCommand({
 })
 
 // 印刷プレビューで合わせる辺（縦に並べるなら幅、横に並べるなら高さ）
-export function fitSide(catalog: CoreCatalog, book: Book | null): "width" | "height" {
-  return book && bookSettingValue(catalog, book, PRINT_PREVIEW_FLOW) === "row" ? "height" : "width"
+export function fitSide(catalog: CoreCatalog, previewed: PreviewedEntry | null): "width" | "height" {
+  return previewed && settingValue(catalog, previewed.holder, PRINT_PREVIEW_FLOW) === "row" ? "height" : "width"
 }
-const sideOf = (ctx: CommandContext) => fitSide(ctx.catalog, ctx.book === NO_BOOK ? null : ctx.book)
+const sideOf = (ctx: CommandContext) => fitSide(ctx.catalog, previewedIn(ctx))
 
-// 開いているブックを、ステージ ctx.stage で印刷プレビューで見せる。右サイドパネルは印刷プレビューのビューが開く。
+// 開いているステージエントリを、ステージ ctx.stage で印刷プレビューで見せる。右サイドパネルは印刷プレビューのビューが開く。
 // 印刷区画の境目をまたいだ形を直してもらうタイプで、またいだ形があれば、印刷プレビューは開かず、それを知らせる右サイドパネルを開く
 function openPreview(ctx: CommandContext, a: CommandActions) {
-  const book = ctx.book
-  if (book !== NO_BOOK && calledStageOf(ctx)?.opened && hasCrossing(ctx.catalog, book)) {
-    openRightSidePanelIn(ctx, a, printCheckOpen(book.id))
+  const previewed = previewedIn(ctx)
+  if (previewed && calledStageOf(ctx)?.opened && hasCrossing(ctx.catalog, previewed)) {
+    openRightSidePanelIn(ctx, a, printCheckOpen(previewed.id))
     return
   }
   a.openPrintPreview()
 }
 
-// 開いているブックを印刷プレビューで見せる（ページを持つブックを編集している間）
+// 開いているステージエントリを印刷プレビューで見せる（ステージエントリを開いて編集している間）
 
 export const PRINT_PREVIEW_OPEN = kit.defineCommand({
   id: "print-preview-open",
   title: "Print preview",
   run: (ctx, a) => openPreview(ctx, a),
-  when: ctx => ctx.book !== NO_BOOK && ctx.stage.mode === "edit",
+  when: ctx => previewedIn(ctx) !== null && ctx.stage.mode === "edit",
 })
 
 // 印刷: 印刷プレビューの間は、並べた印刷区画を刷る（印刷ダイアログ。測っている途中と、並べる物が無い間は押せない）。
@@ -134,7 +145,7 @@ export const PRINT = kit.defineCommand({
     if (ctx.stage.mode === "edit") openPreview(ctx, a)
     else if (ctx.pluginState(PRINT_READY_STATE)) a.requestPrint()
   },
-  when: ctx => ctx.book !== NO_BOOK,
+  when: ctx => previewedIn(ctx) !== null,
   enabled: ctx => ctx.stage.mode === "edit" || ctx.pluginState(PRINT_READY_STATE) === true,
 })
 

@@ -1,4 +1,4 @@
-// 印刷区画 1 つの中身: レイヤー（スロット sheet-layers）を下から重ねて描く。ブックの中身（ページのタイプのプレゼンテーションの printSheet）は、ウィジェット sheet-content が描く。
+// 印刷区画 1 つの中身: レイヤー（スロット sheet-layers）を下から重ねて描く。ページの中身（ページのタイプのプレゼンテーションの printSheet）は、ウィジェット sheet-content が描く。
 // 印刷プレビューと印刷と、ページ一覧のサムネイルが使う（描く物が同じになる）
 import { pageType } from "../../../core/core-catalog"
 import { Slot } from "../../../ui/Slot"

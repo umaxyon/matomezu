@@ -840,6 +840,11 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         if (binder?.lineup.some(p => p.id === page)) actions.openOutsideBinder(stage, binder.id, page)
         return
       }
+      // ブックの外のページ 1 枚を開いたステージでは、そのページを名指せば印刷プレビューを閉じる
+      if (at?.outermost.kind === "page") {
+        if (at.outermost.id === page) actions.closePrintPreview(stage)
+        return
+      }
       const book = openedBook(books, at)
       // ページを開くと、そのブックスクリーンをカレントスクリーンにする
       if (book && inWindow(stage))

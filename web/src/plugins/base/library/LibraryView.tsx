@@ -50,6 +50,7 @@ import {
   unfoldedOf,
 } from "./outline"
 import { usePickRows } from "./RowTable"
+import { SettingsClearConfirm } from "./SettingsClearConfirm"
 import { type FoundRow, NO_SEARCH, searchWord } from "./search"
 import { SHOW_UNREADABLE_FOLDER } from "./show-unreadable"
 import { LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_QUERY, LIBRARY_TREE_WIDTH, LIBRARY_UNFOLDED } from "./state"
@@ -153,7 +154,7 @@ export function LibraryView({ className }: { className?: string } = {}) {
   }
   const openEntryMenu = useContextMenu(LIBRARY_ENTRY_CONTEXT)
   const openFolderMenu = useContextMenu(LIBRARY_FOLDER_CONTEXT)
-  const { drag, asking, onPointerDown, answered } = useLibraryDrag(root, id => {
+  const { drag, asking, clearing, onPointerDown, answered, cleared } = useLibraryDrag(root, id => {
     const now = unfoldedOf(readUnfolded())
     if (!now.includes(id) && read().folders[id] !== undefined && id !== TRASH_ID) setUnfolded([...now, id])
   })
@@ -382,6 +383,7 @@ export function LibraryView({ className }: { className?: string } = {}) {
         )}
       </div>
       {asking && <MoveClashConfirm asking={asking} onDone={answered} />}
+      {clearing && <SettingsClearConfirm clearing={clearing} onDone={cleared} />}
     </div>
   )
 }

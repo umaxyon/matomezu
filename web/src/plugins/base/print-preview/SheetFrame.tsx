@@ -1,7 +1,7 @@
-// 印刷区画 1 つの中身: ページの原点を印刷区画の左上にずらして、印刷区画のレイヤー（スロット sheet-layers。ブックの中身は、ページのタイプの印刷区画 1 つのビュー printSheet）で描き、
+// 印刷区画 1 つの中身: ページの原点を印刷区画の左上にずらして、印刷区画のレイヤー（スロット sheet-layers。ページの中身は、ページのタイプの印刷区画 1 つのビュー printSheet）で描き、
 // 中身は、ステージの外で見るだけに描くページとして描く（描いている場所は、その印刷区画のページ。中からは何も行えない。ui/scope.tsx）。
-// 名前（ブック名とページ名。左上）と印刷区画の番号（下の真ん中）を中身の上に重ねる。印刷プレビューの画面と、刷る物の両方が使う（外の枠は使う側が置く）
-import type { Book, Page } from "../../../core/schema/book"
+// 名前（ブック名かバインダ名とページ名。左上）と印刷区画の番号（下の真ん中）を中身の上に重ねる。印刷プレビューの画面と、刷る物の両方が使う（外の枠は使う側が置く）
+import type { Page } from "../../../core/schema/book"
 import { PageScope } from "../../../ui/scope"
 import { PageLook } from "../book-look/use-page-look-style"
 import styles from "./PrintPreviewView.module.css"
@@ -18,14 +18,14 @@ export interface SheetAt {
 
 export function SheetFrame({
   zoom,
-  book,
+  entry,
   page,
   sheet,
   measured,
   labels,
 }: {
   zoom: number // 描いている倍率（画面の 1px に描く紙の大きさの比。刷るときは 1）
-  book: Book
+  entry: string // ページを持つステージエントリの id
   page: Page | undefined
   sheet: SheetAt
   measured: unknown
@@ -37,7 +37,7 @@ export function SheetFrame({
         // 印刷区画の左上が原点になるよう、ページの原点をずらす（はみ出した所は印刷区画の枠が切る）
         <div className={styles.origin} style={{ left: -sheet.column * sheet.w, top: -sheet.row * sheet.h }}>
           <Printing>
-            <PageScope outermost={book.id} page={page.id} zoom={zoom}>
+            <PageScope outermost={entry} page={page.id} zoom={zoom}>
               <PageLook>
                 <SheetLayers
                   page={page}

@@ -249,3 +249,26 @@ func TestUnreadableFolderIsAddedOnce(t *testing.T) {
 		t.Fatalf("the unreadable folder = %q; want it as it was", got)
 	}
 }
+
+// 書庫ホームの直下のバインダとページの行の本文は、ほかのフィールド（settings）も、開き直したあとまでそのまま残る
+func TestRowsNotInBooksKeepTheirSettings(t *testing.T) {
+	const (
+		binder = `{"folderRole":"binder","id":"n1","title":"N1","pageType":"@matomezu/slide-page:slide","lineup":[{"kind":"page","id":"n1a"}],"settings":{"@matomezu/base:print-preview-flow":"row"}}`
+		inner  = `{"kind":"page","id":"n1a","type":"@matomezu/slide-page:slide","title":"A"}`
+		page   = `{"kind":"page","id":"h1","type":"@matomezu/drawing:drawing","title":"H1","settings":{"@matomezu/base:print-preview-flow":"column"}}`
+	)
+	path := filepath.Join(t.TempDir(), "data.db")
+	s := open(t, path)
+	if err := s.Apply(Batch{
+		Pages:   []RowWrite{row("n1a", 0, inner), row("h1", 0, page)},
+		Folders: []RowWrite{row("n1", 0, binder), {ID: HomeID, Base: 1, Body: HomeBody([]json.RawMessage{RefOf("binder", "n1"), RefOf("page", "h1")})}},
+		Entries: []EntryPut{{"n1", HomeID}, {"h1", HomeID}, {"n1a", "n1"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+	pages, folders := stored(t, open(t, path))
+	if folders["n1"] != "1 "+binder || pages["h1"] != "1 "+page || pages["n1a"] != "1 "+inner {
+		t.Fatalf("after reopen: pages %v, folders %v", pages, folders)
+	}
+}

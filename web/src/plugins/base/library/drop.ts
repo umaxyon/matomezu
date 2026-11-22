@@ -14,6 +14,7 @@ import {
 } from "../../../core/entries"
 import type { AnyEntryRef, Folders, Library } from "../../../core/folders"
 import { systemFolderOf, treeHolds } from "../../../core/folders-tree"
+import { rowsLosingOutermostSettings } from "../../../core/perform-library"
 import {
   freeTitleIn,
   isNotOverwritten,
@@ -64,6 +65,22 @@ export function indexBefore(
   const others = entriesIn(library.folders, into).filter(r => r.id !== moving)
   const i = before === undefined ? -1 : others.findIndex(r => r.id === before)
   return i < 0 ? others.length : i
+}
+
+// entry を drop へ動かすと、ステージエントリが持つ設定の項目の値（印刷プレビューの設定など）が消えるか（動かせない移動なら false）:
+// 値を持つ物がブックかバインダの中へ入る（土台が消す。rowsLosingOutermostSettings）か、値を持つブックの外のバインダの行が無くなる（最後の 1 枚が出て、空になって消える）
+export function clearsOutermostSettings(library: Library, entry: string, drop: Drop, naming: Naming): boolean {
+  if (drop.to !== "folder") return false
+  const { catalog } = naming
+  const moved = movedWithBinders(catalog, library, entry, drop.into, drop.index, naming, dropCheckIds())
+  if (isMoveRefusal(moved)) return false
+  const lost = rowsLosingOutermostSettings(catalog, library, moved.next)
+  if (Object.keys(lost.pages).length > 0 || Object.keys(lost.folders).length > 0) return true
+  const holds = (row: { settings?: object }) =>
+    Object.keys(row.settings ?? {}).some(id => catalog.settings.get(id)?.holder === "outermost")
+  return Object.values(library.folders).some(
+    row => row.folderRole === "binder" && !moved.next.folders[row.id] && holds(row),
+  )
 }
 
 // 落とす先に同じ名前の物が在るときに、利用者に確かめる事: 落とす先へ入る物 carried（carriedEntry。名前が重なっている物）、番号を付けた名前 numbered、

@@ -2,7 +2,7 @@
 import { expect, test } from "bun:test"
 import { z } from "zod"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
-import { bookSettingDefs } from "../../../web/src/plugins/base/book-settings"
+import { outermostSettingDefs } from "../../../web/src/plugins/base/book-settings"
 import { createMatomezu } from "../../../web/src/store/create"
 import { pluginKit } from "../../../web/src/store/kit"
 import { definePlugin } from "../../../web/src/store/plugin"
@@ -33,14 +33,13 @@ const storeWith = () =>
 test("追加プラグインの printPreview の項目は印刷プレビューの組に入り、print-preview-update が変える。book-update は理由を添えて断る", () => {
   const store = storeWith()
   const catalog = store.catalog.core
-  expect(bookSettingDefs(catalog, "print-preview").map(d => d.id)).toContain(MARGIN.id)
-  expect(bookSettingDefs(catalog).map(d => d.id)).not.toContain(MARGIN.id)
+  expect(outermostSettingDefs(catalog, "print-preview").map(d => d.id)).toContain(MARGIN.id)
+  expect(outermostSettingDefs(catalog).map(d => d.id)).not.toContain(MARGIN.id)
   const settings = () => (store.state.getState().books.b1 as { settings?: object }).settings
-  const done = store.actions.perform(
-    "@matomezu/base:print-preview-update",
-    { settings: { [MARGIN.id]: "wide" } },
-    { book: "b1" },
-  )
+  const done = store.actions.perform("@matomezu/base:print-preview-update", {
+    entry: "b1",
+    settings: { [MARGIN.id]: "wide" },
+  })
   expect(done.ok).toBe(true)
   expect(settings()).toEqual({ [MARGIN.id]: "wide" })
   const refused = store.actions.perform(
@@ -54,13 +53,10 @@ test("追加プラグインの printPreview の項目は印刷プレビューの
   expect((refused as { detail?: string }).detail).toContain(`${MARGIN.id} is not a setting this action changes`)
   expect((refused as { detail?: string }).detail).toContain("print preview setting")
   // 形に合わない値も、どの項目かを添えて断る
-  const bad = store.actions.perform(
-    "@matomezu/base:print-preview-update",
-    { settings: { [MARGIN.id]: "huge" } },
-    {
-      book: "b1",
-    },
-  )
+  const bad = store.actions.perform("@matomezu/base:print-preview-update", {
+    entry: "b1",
+    settings: { [MARGIN.id]: "huge" },
+  })
   expect((bad as { detail?: string }).detail).toContain(MARGIN.id)
   expect(settings()).toEqual({ [MARGIN.id]: "wide" })
 })

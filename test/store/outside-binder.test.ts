@@ -7,7 +7,7 @@ import { stageIn } from "../../web/src/core/window"
 import { isShown } from "../../web/src/store/commands"
 import { NO_STAGE } from "../../web/src/store/dialogs"
 import { openedIn } from "../../web/src/store/store"
-import { SLIDE, testBinder, testPage } from "../lineup"
+import { drawingPage, SLIDE, testBinder, testPage } from "../lineup"
 import { newStore, sequence, worldRows } from "../support"
 
 type Store = ReturnType<typeof newStore>
@@ -231,4 +231,16 @@ test("書庫の行の右クリックのメニューは、ブックの外のバ�
   const after = state().folders[home]?.lineup.map(r => r.id) ?? []
   expect(after).toHaveLength(before.length + 1)
   expect(state().folders[after[after.indexOf("n1") + 1] ?? ""]).toMatchObject({ folderRole: "binder", title: "発表 2" })
+})
+
+test("ブックの外のページ 1 枚の印刷プレビューの間に、そのページを開く（openPage）と印刷プレビューを閉じる", () => {
+  const store = newStore({ newId: sequence() })
+  store.receive({ ...worldRows(Object.values(store.state.getState().books), [drawingPage("x1")]), settings: {} }, [])
+  const stage = store.actions.showOutsidePageStage("x1")
+  store.actions.openPrintPreview(stage)
+  expect(stageIn(store.state.getState().window, stage)?.mode.kind).toBe("print-preview")
+  store.actions.openPage(stage, "other")
+  expect(stageIn(store.state.getState().window, stage)?.mode.kind).toBe("print-preview")
+  store.actions.openPage(stage, "x1")
+  expect(stageIn(store.state.getState().window, stage)?.mode.kind).toBe("edit")
 })

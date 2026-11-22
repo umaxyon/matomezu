@@ -198,7 +198,7 @@ export { useCopyText, useMatomezuCommand, useWindowTitle } from "./window-io/ui"
 
 import type { PrintSheetProps } from "./print-preview/ui"
 
-// ページとブックの設定の項目のコンポーネントの並び（ページのタイプの設定のダイアログが使う）
+// ページの設定の項目とステージエントリが持つ設定の項目のコンポーネントの並び（ページのタイプの設定のダイアログが使う）
 export { type SettingsPatch, useSettingControls } from "./book-settings/ui"
 export type { RightSidePanelOpen } from "./right-side-panel/ui"
 export {

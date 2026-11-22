@@ -13,7 +13,7 @@ import {
   attachedTo,
   BASE_TARGETS,
   changesBookOnly,
-  isInBook,
+  isInStageEntry,
   isOnPage,
   type Where,
 } from "./def/action"
@@ -117,7 +117,7 @@ export function actionQuery(
 ): Query {
   const target = catalog.actions.get(action)?.target
   const base = { kind: "action" as const, action, actor: USER }
-  if (on === undefined || !isInBook(target)) return base
+  if (on === undefined || !isInStageEntry(target)) return base
   if (target === "book" && !("book" in on)) return base
   return openedQuery(action, on, where)
 }
@@ -362,7 +362,7 @@ function action(
               ctx,
             )
           : []
-  if (isInBook(def.target))
+  if (isInStageEntry(def.target))
     return book
       ? decide([known, userOnly, participation, ...permitted, ...placeSteps(catalog, def, book, where)])
       : page

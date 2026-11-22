@@ -66,8 +66,8 @@ export type ActionOn = { book: string } | { page: string } | { record: string }
 // 宛先のページ（on.page）を要る対象か（ページと、ページのアノテーション）
 export type PageTarget = "page" | "annotations"
 export const isOnPage = (target: ActionTarget | undefined): boolean => target === "page" || target === "annotations"
-// ブックの中の物を変える対象か（ブック・ページ・ページのアノテーション。使えるかをページのタイプと認可ステップがブックで決める）
-export const isInBook = (target: ActionTarget | undefined): boolean => target === "book" || isOnPage(target)
+// ステージエントリの中の物を変える対象か（ブック・ページ・ページのアノテーション。使えるかを、ページのタイプと認可ステップが、開いているステージエントリで決める）
+export const isInStageEntry = (target: ActionTarget | undefined): boolean => target === "book" || isOnPage(target)
 
 export interface ActionContext {
   catalog: CoreCatalog // 使う機能台帳（アクション・ページのタイプ・紙など）
@@ -269,7 +269,7 @@ export type AnySettingsScope = { settings: string } | ((args: never) => readonly
 // "all-pages" は中身ごと（ゴミ箱に入れる・消す）、"place" は置き場所だけ、"title" は名前だけ、"copy" は複製して隣に足す。どこに、どの所で問うかは、core がエントリから出す
 // （ブックならそのブックに、中身ごとなら全部のページ・置き場所だけなら置き場所・名前だけならブック自身の所で。フォルダなら中のブックの全部と、中のブックの外のページの全部に同じく
 // （名前だけ・複製だけなら、どれにも問わない）。ブックの中のページ・バインダなら、そのブックのそのエントリに、動かす・名前を変えるなら印 entriesChange を添えて。
-// ブックの外のページならそのページに、ブックの外のバインダなら中のページの全部に（名前だけ・複製だけなら問わない）、ページへの問いとして、エントリの変え方を where の entry に添えて）。
+// ブックの外のページならそのページに、ブックの外のバインダなら中のページの全部に（名前だけ・複製だけ・設定の項目の値だけなら問わない）、ページへの問いとして、エントリの変え方を where の entry に添えて）。
 // entry の動かす先のフォルダの id が入っている引数の名前を into に書けば、先がほかのブックかその中のとき、そのブックにも入るエントリとして問う。
 // 引数の名前で言えなければ、引数から変えるブックを返す関数を書く。行う前に変えるブックが分からなければ "unknown"（行った後の確かめだけで止める）
 export type LibraryScope<A = unknown> =
@@ -282,8 +282,8 @@ export type LibraryScope<A = unknown> =
   | ((args: A) => LibraryTargets)
 
 // 書庫が対象のアクションが、名指したエントリをどう変えるか
-// （"copy" は、複製して隣に足す。エントリそのものは変えない）
-export type EntryWhere = "all-pages" | "place" | "title" | "copy"
+// （"copy" は、複製して隣に足す。エントリそのものは変えない。"settings" は、ステージエントリが持つ設定の項目の値だけを変える）
+export type EntryWhere = "all-pages" | "place" | "title" | "copy" | "settings"
 
 // 書庫が対象のアクションが変える物: books は今あるブックの id と、その中の所、entries は名指したエントリと、その変え方（どのブックか、どのページに問うかは、core が出す）、
 // creates は作るブック・フォルダの種類 kind と、入れるフォルダの id into（ブックを作るなら、空のブックで問う。into を書けば、書庫のフォルダなら置き場所でも問う。書かなければ置き場所では問わない）、

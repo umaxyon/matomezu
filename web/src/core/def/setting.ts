@@ -1,8 +1,8 @@
-// 設定の項目の定義: ページかブックに持たせる 1 つの値（線の既定の通り方など）。持つ所は holder で決まる: "page" の項目は、ページのタイプが自分のページに持たせる項目として id で選ぶ。
-// "outermost" の項目は、タイプに依らず、どのブックも持てる（ブックのページを並べて刷るときの決まりなど）。
-// 値はページ（ブック）のデータの settings のフィールドに、項目の id を鍵にして入れ、どれも書かなくてよい（例: settings: { "@matomezu/line:line-route": "elbow" }）。読むときは、値があればその値、無ければ既定（default）（plugins/base/book-settings の settingValue・bookSettingValue）。ページの項目がブックの値を引き継ぐことは無い。
+// 設定の項目の定義: ページかステージエントリ（ブック・ブックの外のバインダ・ブックの外のページ 1 枚）に持たせる 1 つの値（線の既定の通り方など）。持つ所は holder で決まる: "page" の項目は、ページのタイプが自分のページに持たせる項目として id で選ぶ。
+// "outermost" の項目は、タイプに依らず、どのステージエントリも持てる（ページを並べて刷るときの決まりなど）。
+// 値は持つ物（ページ・バインダ・ブック）のデータの settings のフィールドに、項目の id を鍵にして入れ、どれも書かなくてよい（例: settings: { "@matomezu/line:line-route": "elbow" }）。読むときは、値があればその値、無ければ既定（default）（plugins/base/book-settings の settingValue）。ページの項目がステージエントリの値を引き継ぐことは無い。
 // 既定を持たない項目は、値が無ければ undefined で、読む側が決める（base のテーマはページのタイプのテーマ、紙の色はテーマの紙の色）。
-// 同じ定義で、プラグインの userSettings に入れれば利用者の設定の項目になる（holder は書かない）。値は利用者の設定（core/settings.ts）に、項目の id を鍵にして入れる。1 つの項目をページ・ブックと利用者の両方には使わない
+// 同じ定義で、プラグインの userSettings に入れれば利用者の設定の項目になる（holder は書かない）。値は利用者の設定（core/settings.ts）に、項目の id を鍵にして入れる。1 つの項目をページ・ステージエントリと利用者の両方には使わない
 import type { z } from "zod"
 import type { SettingExtras } from "../catalog"
 import type { CoreCatalog } from "../core-catalog"
@@ -24,14 +24,14 @@ export interface SettingDef<S extends z.ZodType = z.ZodType, Tt extends string =
   describe?(catalog: CoreCatalog, of: SettingOwner): z.ZodType
   userOnly?: true // 利用者の設定の項目で、利用者だけが変える（AI には断り、AI が読む設定にも出さない）
   role?: SettingRole // 土台が読む利用者の設定の項目（ビルトインプラグインの利用者の設定の項目だけが持ち、1 つの role は 1 つの項目だけ）
-  holder?: SettingHolder // 値を持つ所（ページかブック。利用者の設定の項目は書かない）
+  holder?: SettingHolder // 値を持つ所（ページかステージエントリ。利用者の設定の項目は書かない）
 }
 
-// 設定の項目の値を持つ所: ページ（タイプが選ぶ）か、ブック（どのブックも持てる）
+// 設定の項目の値を持つ所: ページ（タイプが選ぶ）か、ステージエントリ（どのステージエントリも持てる）
 export type SettingHolder = "page" | "outermost"
-// ページの設定の項目・ブックの設定の項目・利用者の設定の項目（holder で分かれる。読む関数は、合う holder の項目だけを受ける）
+// ページの設定の項目・ステージエントリが持つ設定の項目・利用者の設定の項目（holder で分かれる。読む関数は、合う holder の項目だけを受ける）
 export type PageSettingDef<S extends z.ZodType = z.ZodType> = SettingDef<S> & { holder: "page" }
-export type BookSettingDef<S extends z.ZodType = z.ZodType> = SettingDef<S> & { holder: "outermost" }
+export type OutermostSettingDef<S extends z.ZodType = z.ZodType> = SettingDef<S> & { holder: "outermost" }
 export type HeldSettingDef = SettingDef & { holder: SettingHolder }
 export type UserSettingDef = SettingDef & { holder?: never }
 

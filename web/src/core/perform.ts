@@ -332,7 +332,8 @@ function performOutsideBinder(
   if ((ran.others ?? []).length > 0) return { ok: false, reason: "refused" }
   const [now, ...rest] = (ran.next as StageLineup).lineup
   if (now?.kind !== "binder" || rest.length > 0 || now.id !== was.id) return { ok: false, reason: "refused" }
-  if (now.title !== was.title || now.pageType !== was.pageType) return { ok: false, reason: "refused" }
+  if (now.title !== was.title || now.pageType !== was.pageType || now.settings !== was.settings)
+    return { ok: false, reason: "refused" }
   const written = withBinderEntry(at.library, was, now)
   const next = normalizedLibrary(ctx.catalog, action, at.library, written)
   if (!next) return { ok: false, reason: "refused" }
@@ -381,8 +382,9 @@ function performOutsidePage(
   if (!next) return { ok: false, reason: "refused" }
   const permission = broke(next)
   if (permission) return { ok: false, reason: "denied", permission }
-  // ページのタイプは作ったあと変えない
-  if (next.type !== held.type || !pageSettles(ctx.catalog, next)) return { ok: false, reason: "refused" }
+  // ページのタイプは作ったあと変えない。ステージエントリが持つ設定の項目の値を受けるのは、バインダに入っていないページだけ
+  if (next.type !== held.type || !pageSettles(ctx.catalog, next, folders.length === 0))
+    return { ok: false, reason: "refused" }
   return { ok: true, next, result: ran.result as never }
 }
 

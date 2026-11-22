@@ -1,9 +1,18 @@
-// 書庫の画面のドラッグで落とす先（base/library/drop.ts）: 落とせるか・行の間の位置・名前が重なるときに確かめる事が、動かすアクションと合う
+// 書庫の画面のドラッグで落とす先（base/library/drop.ts）: 落とせるか・行の間の位置・名前が重なるときに確かめる事が、動かすアクションと合う。ステージエントリが持つ項目の値が消える移動か
 import { expect, test } from "bun:test"
 import { entriesIn, isMoveRefusal, movedWithBinders } from "../../../web/src/core/entries"
 import { HOME_ID, type HomeFolder, type Library, type PlainFolder } from "../../../web/src/core/folders"
-import { type Drop, draggable, droppable, indexBefore, moveClashOf } from "../../../web/src/plugins/base/library/drop"
+import type { AnyPage, BinderEntry } from "../../../web/src/core/schema/book"
+import {
+  clearsOutermostSettings,
+  type Drop,
+  draggable,
+  droppable,
+  indexBefore,
+  moveClashOf,
+} from "../../../web/src/plugins/base/library/drop"
 import { movesInto } from "../../../web/src/plugins/base/library/entries"
+import { PRINT_PREVIEW_FLOW } from "../../../web/src/plugins/base/print-preview"
 import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../../lineup"
 import { CORE_CATALOG, libraryWith, NAMING, newStore } from "../../support"
 
@@ -213,5 +222,66 @@ function slideWorld(inA: PlainFolder[] = []): Library {
       a,
       [HOME_ID]: { ...home, lineup: [...home.lineup, { kind: "folder", id: "a" }] },
     },
+  }
+}
+
+test("ステージエントリが持つ項目の値が消える移動か: ブックかバインダの中へ入る物（中へ入って消えるバインダも）が値を持つときだけ。機能台帳に無い項目だけなら消えない", () => {
+  const library = settingsWorld()
+  const rows: [string, string, Drop, boolean][] = [
+    ["値を持つ外のページをブックへ", "x1", { to: "folder", into: "b1" }, true],
+    ["値を持つ外のバインダをブックへ", "n1", { to: "folder", into: "b1" }, true],
+    [
+      "値を持つ 1 枚だけの外のバインダの、そのページをブックへ（バインダごと入る）",
+      "t1",
+      { to: "folder", into: "b1" },
+      true,
+    ],
+    [
+      "値を持つ 1 枚だけの外のバインダの、そのページをほかの外のバインダへ（元のバインダが消える）",
+      "t1",
+      { to: "folder", into: "n1" },
+      true,
+    ],
+    ["値を持つ 2 枚の外のバインダの 1 枚を、ほかの外のバインダへ", "s1", { to: "folder", into: "m1" }, false],
+    ["値を持つ外のページを、開いたフォルダへ", "x1", { to: "folder", into: "a" }, false],
+    ["値を持つ外のバインダを、開いたフォルダへ", "n1", { to: "folder", into: "a" }, false],
+    ["値を持たない外のページをブックへ", "y1", { to: "folder", into: "b1" }, false],
+    ["機能台帳に無い項目だけを持つ外のページをブックへ", "g1", { to: "folder", into: "b1" }, false],
+    ["機能台帳に無い項目だけを持つ外のバインダをブックへ", "k1", { to: "folder", into: "b1" }, false],
+    ["値を持つ外のページをゴミ箱へ", "x1", { to: "trash" }, false],
+  ]
+  // どれも落とせる移動（断られて false になるのではない）
+  for (const [name, entry, drop, clears] of rows)
+    expect([
+      name,
+      clearsOutermostSettings(library, entry, drop, NAMING),
+      droppable(CORE_CATALOG, library, entry, drop),
+    ]).toEqual([name, clears, true])
+})
+
+// 書庫ホーム > ブック b1（p1）・値を持つ外のページ x1・値を持たない外のページ y1・機能台帳に無い項目だけを持つ外のページ g1・
+// 値を持つ外のバインダ n1〈s1・s2〉・値を持つ 1 枚だけの外のバインダ m1〈t1〉・機能台帳に無い項目だけを持つ外のバインダ k1〈u1〉・フォルダ a
+function settingsWorld(): Library {
+  const held = { [PRINT_PREVIEW_FLOW.id]: "row" }
+  const gone = { "@ex/gone:margin": "wide" }
+  const slide = (id: string) => testPage(SLIDE, id, { title: id }) as AnyPage
+  const binder = (id: string, title: string, settings: object, ...pages: AnyPage[]) =>
+    ({ ...testBinder(id, title, SLIDE, ...pages), settings }) as BinderEntry
+  const world = libraryWith(
+    [testBook("b1", "一", [drawingPage("p1")])],
+    [
+      drawingPage("x1", { title: "外", settings: held } as never),
+      drawingPage("y1", { title: "素" }),
+      drawingPage("g1", { title: "無い項目", settings: gone } as never),
+      binder("n1", "束", held, slide("s1"), slide("s2")),
+      binder("m1", "一枚", held, slide("t1")),
+      binder("k1", "無い項目の束", gone, slide("u1")),
+    ],
+  )
+  const home = world.folders[HOME_ID] as HomeFolder
+  const a: PlainFolder = { folderRole: "folder", id: "a", title: "あ", lineup: [] }
+  return {
+    pages: world.pages,
+    folders: { ...world.folders, a, [HOME_ID]: { ...home, lineup: [...home.lineup, { kind: "folder", id: "a" }] } },
   }
 }

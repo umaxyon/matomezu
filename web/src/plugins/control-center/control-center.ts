@@ -12,6 +12,7 @@ export const CONTROL_CENTER = kit.defineControlCenter({
     "@matomezu/base:entry-move-over",
     "@matomezu/base:entry-rename",
     "@matomezu/base:entry-duplicate",
+    "@matomezu/base:print-preview-update",
     "@matomezu/base:page-create",
     "@matomezu/base:worker-page-add",
     "@matomezu/base:entry-trash",

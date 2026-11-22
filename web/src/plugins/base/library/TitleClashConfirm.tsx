@@ -12,6 +12,7 @@ export function TitleClashConfirm({
   name,
   numbered,
   blocked,
+  notes,
   onNumber,
   onReplace,
   onCancel,
@@ -20,6 +21,7 @@ export function TitleClashConfirm({
   name: string
   numbered: string // 番号を付けた名前
   blocked: ReplaceBlocked | null
+  notes?: readonly string[] // 続けて出す行（入れると起きる、ほかの事）
   onNumber(): void
   onReplace(): void
   onCancel(): void
@@ -46,6 +48,7 @@ export function TitleClashConfirm({
         ...(blocked
           ? [t("Cannot replace: {reason}", { reason: why(blocked) })]
           : [t("Replacing deletes what was there and everything in it"), t("(It does not go to the trash)")]),
+        ...(notes ?? []),
       ]}
       ok={t("Add a number")}
       cancel={t("Cancel")}

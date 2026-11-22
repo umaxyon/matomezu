@@ -243,7 +243,7 @@ function permitted(c: Called, state: MatomezuState, arg?: unknown): boolean {
   const runs = c.def.from !== "screen" && c.def.denied === "runs" // 認可ステップに止められても押せる
   return actions.some(
     action =>
-      !stageBlocks(ctx.catalog, ctx.stage.mode, action, onOpened(action) ? "opened-book" : "target") &&
+      !stageBlocks(ctx.catalog, ctx.stage.mode, action, onOpened(action) ? "opened-entry" : "target") &&
       (runs || answer(action).value === true),
   )
 }

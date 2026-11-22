@@ -47,7 +47,7 @@
 
 ## 見た目と差し替え
 
-- `definePluginUi` でビューを結ぶ。そのプラグインのプレゼンテーション・アイテム・ページとブックの設定の項目・ダイアログ・道具に、ビューやアイコンが無いと型の誤り。ページのタイプ・コマンド・列挙の値のアイコン（`pageTypeIcons`・`commandIcons`・`enumValueIcons`）と、利用者の設定の項目のビュー（`userSettingViews`）は書かなくてよい
+- `definePluginUi` でビューを結ぶ。そのプラグインのプレゼンテーション・アイテム・ページの設定の項目とステージエントリが持つ設定の項目・ダイアログ・道具に、ビューやアイコンが無いと型の誤り。ページのタイプ・コマンド・列挙の値のアイコン（`pageTypeIcons`・`commandIcons`・`enumValueIcons`）と、利用者の設定の項目のビュー（`userSettingViews`）は書かなくてよい
 - 利用者の設定の項目のビュー（`userSettingViews`）のうち、名前と入力Form の 1 行で描く物は、行を base の `SettingRow` で作る（名前の幅などを写さない）
 - ページの設定のダイアログを名指すタイプは、base の `PageSettingsDialogView` に自分の入力Form を足して作る（名前・紙・ロック・削除を写さない）
 - 差し替えられるのはビュー（プレゼンテーション・ダイアログ・ウィジェット）だけで、`overrides` に書く。アクションやページのタイプなど中身は差し替えない

@@ -1,7 +1,7 @@
 // ブックの外のページ（書庫ホームに直に置いたページ）を、ステージで開く
 import { BOOK_SCREEN_DEF, BOOK_SCREEN_URL, expect, stagesUrl, test, urlCurrentScreen, urlStages } from "./fixtures"
 import { aiPerform } from "./helpers/ai"
-import { writeNote } from "./helpers/note"
+import { panel, writeNote } from "./helpers/note"
 import { leftPanel, openOutbox } from "./helpers/outbox"
 import { addBox, items } from "./helpers/paper"
 import { fromMenu } from "./helpers/stage-menu"
@@ -217,4 +217,64 @@ test.describe("ディレクトリ構成図のブックの外のページ", () =>
     await page.goto(stagesUrl([{ book: null, page: "d1" }]))
     await expect(page.getByText("main.ts")).toBeVisible()
   })
+})
+
+test("ブックの外のページでも印刷プレビューを開け、変えた設定はそのページが持つ（読み直しても残る）。ブック名の項目は出さず、ロックはページのロック。印刷区画のダブルクリックで編集に戻る", async ({
+  page,
+}) => {
+  await page.goto(stagesUrl([{ book: null, page: "o1" }]))
+  await page.bringToFront()
+  await addBox(page, 200, 150, "一")
+  const open = async () => {
+    await (await fromMenu(page, "印刷プレビュー")).click()
+    await expect(panel(page)).toContainText("印刷プレビュー")
+  }
+  await open()
+  const sheet = page.locator("[data-sheet]")
+  await expect(sheet).toHaveCount(1)
+  await expect(panel(page).getByRole("switch", { name: "ブック名を入れる" })).toHaveCount(0)
+  await expect(panel(page).getByRole("button", { name: "ページをロックする" })).toBeVisible()
+  // ページ名を入れると、紙の左上はページ名だけ
+  await panel(page).getByRole("switch", { name: "ページ名を入れる" }).click()
+  await expect(sheet.locator("[data-sheet-title]")).toHaveText("ブックの外のページ")
+  await sheet.dblclick()
+  await expect(page.locator("[data-print-preview]")).toHaveCount(0)
+  await page.reload()
+  await open()
+  await expect(panel(page).getByRole("switch", { name: "ページ名を入れる" })).toBeChecked()
+  await expect(sheet.locator("[data-sheet-title]")).toHaveText("ブックの外のページ")
+})
+
+test("印刷の設定を変えてあるブックの外のページをドラッグでブックへ入れると、設定が初期値に戻ると確かめる。やめれば動かさない", async ({
+  page,
+}) => {
+  await page.goto("/")
+  await page.bringToFront()
+  const set = await aiPerform(page, {
+    action: "@matomezu/base:print-preview-update",
+    args: { entry: "o1", settings: { "@matomezu/base:print-preview-page-name": "shown" } },
+  })
+  expect(set).toMatchObject({ ok: true })
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  const home = page.getByRole("list", { name: "書庫 の中身" })
+  const outside = home.getByRole("button", { name: "ブックの外のページ" })
+  const book = home.getByRole("button", { name: "画面の構成", exact: true })
+  const drop = async () => {
+    await outside.hover()
+    const a = (await outside.boundingBox())!
+    const b = (await book.boundingBox())!
+    await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(a.x + a.width / 2 + 10, a.y + a.height / 2 + 10, { steps: 2 })
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 4 })
+    await page.mouse.up()
+  }
+  const ask = page.getByRole("alertdialog", { name: "「画面の構成」に移動します" })
+  await drop()
+  await expect(ask).toContainText("印刷の設定が初期値に戻ります")
+  await ask.getByRole("button", { name: "キャンセル" }).click()
+  await expect(outside).toBeVisible()
+  await drop()
+  await ask.getByRole("button", { name: "確定" }).click()
+  await expect(outside).toHaveCount(0)
 })

@@ -304,3 +304,65 @@ func TestASlideMovedOutOfItsBinderMakesABinder(t *testing.T) {
 		t.Fatalf("%s holds %v; want [n1a n1b]", binder, into)
 	}
 }
+
+// 常駐は、バインダ・ブック・ページの行のほかのフィールド（settings）を落とさない: ブックの中のバインダを並びのエントリに組んでも、ブックの行も、
+// ブックの外のバインダとページの行をエンジンへ渡すときも、本文のまま（エンジンが行を読めるかに依らないよう、書庫を整えずに表だけ読む）
+func TestRowsKeepTheirSettings(t *testing.T) {
+	const settings = `"settings":{"@matomezu/base:print-preview-flow":"row"}`
+	store := entriesStore(t)
+	v := versionsOf(t, store)
+	folders, err := store.Folders()
+	if err != nil {
+		t.Fatal(err)
+	}
+	with := func(body json.RawMessage) json.RawMessage {
+		return json.RawMessage(strings.TrimSuffix(string(body), "}") + "," + settings + "}")
+	}
+	batch := storage.Batch{Pages: []storage.RowWrite{{ID: "h1", Base: storedPage(t, store, "h1").Version, Body: with(drawingPage("h1", "H1").Body)}}}
+	for _, f := range folders {
+		if f.ID == "b1" || f.ID == "f1" || f.ID == "n1" {
+			batch.Folders = append(batch.Folders, storage.RowWrite{ID: f.ID, Base: v[f.ID], Body: with(f.Body)})
+		}
+	}
+	if err := store.Apply(batch); err != nil {
+		t.Fatal(err)
+	}
+	eng, err := engine.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	annotations, err := store.Annotations()
+	if err != nil {
+		t.Fatal(err)
+	}
+	hub := &Hub{store: store, engine: eng, annotations: annotations}
+	if err := hub.loadTables(); err != nil {
+		t.Fatal(err)
+	}
+	b1, b2 := string(hub.books["b1"].body), string(hub.books["b2"].body)
+	if !strings.HasPrefix(b1, `{"id":"b1",`) || strings.Count(b1, settings) != 1 {
+		t.Fatalf("book b1 = %s; want its settings", b1)
+	}
+	if !strings.Contains(b2, `{"id":"f1","kind":"binder","lineup":[`) || !strings.Contains(b2, `],"pageType":"@matomezu/slide-page:slide",`+settings+`,"title":"スライド"}`) {
+		t.Fatalf("book b2 = %s; want the binder f1 with its settings", b2)
+	}
+	in := engine.Input{Actions: []engine.BulkAction{step("@matomezu/base:book-create", `{"title":"N"}`, nil)}}
+	if err := hub.performInputs(&in); err != nil {
+		t.Fatal(err)
+	}
+	rows := map[string]string{}
+	for _, list := range [][]json.RawMessage{in.Pages, in.Folders} {
+		for i, id := range idsOf(list) {
+			rows[id] = string(list[i])
+		}
+	}
+	for _, id := range []string{"h1", "n1", "b1", "f1"} {
+		body := hub.pages[id].body
+		if f, ok := hub.folders[id]; ok {
+			body = f.body
+		}
+		if rows[id] != string(body) || !strings.Contains(rows[id], settings) {
+			t.Fatalf("the row %s to the engine = %s; want it with its settings", id, rows[id])
+		}
+	}
+}

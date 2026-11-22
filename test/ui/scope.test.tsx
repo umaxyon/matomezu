@@ -173,7 +173,7 @@ function probeOf(seen: { now: Seen | null }) {
           actions.select(["a"])
           actions.zoomStage(3)
           actions.openDialog("@matomezu/base:book-settings" as never, undefined as never)
-          setState({ book: "x", pages: {} })
+          setState({ entry: "x", pages: {} })
           setWindowState("words")
           actions.showToast({ kind: "info", message: baseKit.message("Applied") })
           fit.run()
