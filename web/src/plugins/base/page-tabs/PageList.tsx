@@ -4,7 +4,7 @@
 // （ステージの拡大縮小には従わない）。押したページをそのステージで開く（コマンド page-open）。開いているページは枠と太字の番号で示す。
 // ドラッグで並べ替える（useTabDrag の縦。アクション page-move）。ページの右クリックでメニュー（page-list-context。ここに追加・複製・削除）。
 // 一覧の下の＋は、最後にページを足す（コマンド page-add-after。空のバインダなら、そのバインダに足して開く）。ロック中のページには鍵の印を付ける。
-// ブックの外のバインダでは、押して替えるだけ（並べ替え・右クリックのメニュー・＋は出さない）
+// ブックの外のバインダのページも並べる（並べ替え・メニューの行・＋は、行えるかの問いとコマンドの when が決める）
 
 import { useRef, useState } from "react"
 import { findBinder, pagesIn } from "../../../core/book"
@@ -120,14 +120,15 @@ export function PageList() {
             onClick={() => {
               if (!drag.swallowClick()) openPage.run(p.id)
             }}
-            {...(outside ? {} : { onContextMenu: e => openMenu(e, { page: p.id }), ...drag.handlers(p.id) })}
+            onContextMenu={e => openMenu(e, { page: p.id })}
+            {...drag.handlers(p.id)}
           >
             <Thumbnail outermost={outermost} page={p} />
           </button>
         </div>
       ))}
       {drag.bar !== null && <div className={styles.dropBar} style={{ top: drag.bar }} />}
-      {!outside && (last ? addAfter.shown : adds) && (
+      {(last ? addAfter.shown : adds) && (
         <button
           type="button"
           className={styles.add}

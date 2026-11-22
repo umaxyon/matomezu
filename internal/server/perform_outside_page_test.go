@@ -235,7 +235,7 @@ func TestPagesInABinderOutsideBooksAreChecked(t *testing.T) {
 	}
 }
 
-// AI は、どこかの窓に出ているブックの外のページをゴミ箱に入れられない（open-on-screen。隠れているブックスクリーンが開いている物も、それを中に持つフォルダごとも）。出ていなければ入れられる
+// AI は、どこかの窓に出ているブックの外のページ・バインダをゴミ箱に入れられない（open-on-screen。隠れているブックスクリーンが開いている物も、それを中に持つフォルダごとも）。出ていなければ入れられる
 func TestAICannotTrashAPageOutsideBooksOnAScreen(t *testing.T) {
 	s, _ := newServerOn(t, Options{}, entriesStore(t))
 	writer := writerAI(t, s.URL)
@@ -253,6 +253,7 @@ func TestAICannotTrashAPageOutsideBooksOnAScreen(t *testing.T) {
 		{on("h1"), "h1"},
 		{`{"current":"plain-screen","hidden":` + on("h1") + `}`, "h1"},
 		{on("g1"), "d2"},
+		{`{"entry":{"kind":"binder","id":"n1"},"page":"n1a","selection":[],"stage":"s1","stages":[{"id":"s1","entry":{"kind":"binder","id":"n1"},"page":"n1a"}],"canSplit":true}`, "n1"},
 	} {
 		send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+c.view+`,"focused":true,"seq":`+string(rune('1'+i))+`}`, nil)
 		if got := trash(c.entry); got != refused {
@@ -260,7 +261,7 @@ func TestAICannotTrashAPageOutsideBooksOnAScreen(t *testing.T) {
 		}
 	}
 	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"stage":"s1","stages":[{"id":"s1"}],"canSplit":true},"focused":true,"seq":9}`, nil)
-	for _, entry := range []string{"h1", "d2"} {
+	for _, entry := range []string{"h1", "d2", "n1"} {
 		if got := trash(entry); !strings.HasPrefix(got, `{"ok":true`) {
 			t.Fatalf("ai trash of %s off the screen = %s", entry, got)
 		}

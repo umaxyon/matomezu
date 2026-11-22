@@ -20,7 +20,7 @@ import {
   UNREADABLE_ID,
   unreadableFolderOf,
 } from "./folders"
-import { binderOf, recordsOf } from "./folders-books"
+import { binderEntryOf, recordsOf } from "./folders-books"
 import type { ItemPage } from "./placed"
 import type { BinderEntry, Book } from "./schema/book"
 
@@ -294,7 +294,12 @@ export function outsidePageIn(library: Library, id: string): ItemPage | undefine
 // 中のページごと組んだエントリを返す（当たらなければ undefined）
 export function outsideBinderIn({ pages, folders }: Library, id: string): BinderEntry | undefined {
   const row = folders[id]
-  if (row?.folderRole !== "binder" || inTrash(folders, id)) return undefined
+  return row?.folderRole === "binder" && atOutsideBinderPlace(folders, id) ? binderEntryOf(pages, row) : undefined
+}
+
+// バインダ id が、ステージで開けるブックの外のバインダの置き場所に在るか: ブックに入っておらず、ゴミ箱の中でない。フォルダの表だけで決める（中のページの行が在るかは見ない）
+export function atOutsideBinderPlace(folders: Folders, id: string): boolean {
+  if (folders[id]?.folderRole !== "binder" || inTrash(folders, id)) return false
   const entry = stageEntryByFolders(folders, id)
-  return entry !== NO_OUTERMOST && entry.kind === "binder" ? binderOf(pages, row) : undefined
+  return entry !== NO_OUTERMOST && entry.kind === "binder"
 }

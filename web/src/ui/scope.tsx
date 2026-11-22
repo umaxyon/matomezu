@@ -122,7 +122,7 @@ export function bookOf(s: MatomezuState, scope: Scope): Book | null {
 }
 
 // 描くページのステージエントリが、開けるブックの外のバインダなら、そのバインダ（中のページごと。ブック・ブックの外のページ・描くページが無ければ null）
-export function binderOf(s: MatomezuState, scope: Scope): BinderEntry | null {
+export function outsideBinderOf(s: MatomezuState, scope: Scope): BinderEntry | null {
   const o = openedOf(s, scope)
   return (o && outsideBinderIn(s, o.outermost)) ?? null
 }

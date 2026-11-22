@@ -38,7 +38,7 @@ import {
 import { worldOf } from "../store/world"
 import { useStageAt } from "./at-hooks"
 import type { UiCatalog } from "./plugin"
-import { binderOf, bookOf, openedOf, pageOf, useAt, useScope, useStageId } from "./scope"
+import { bookOf, openedOf, outsideBinderOf, pageOf, useAt, useScope, useStageId } from "./scope"
 import {
   useCatalog,
   useControlCenter,
@@ -57,7 +57,7 @@ export function useBook(): Book | null {
 // 描くページのステージエントリが、ブックの外のバインダなら、そのバインダ（中のページごと。ブックやブックの外のページを開いている・何も開いていなければ null）
 export function useBinder(): BinderEntry | null {
   const scope = useScope()
-  return useMatomezuState(s => binderOf(s, scope))
+  return useMatomezuState(s => outsideBinderOf(s, scope))
 }
 
 // 描くページ（ページを持たないブック・ページを開いていなければ null）

@@ -40,7 +40,7 @@ export const PatchSchema: z.ZodType<Patch> = z.lazy(() => {
   ])
 }) as z.ZodType<Patch>
 
-// 置き直しの引数: 画面の履歴の段が変えた物を持つステージエントリ（outermosts。ブックか、ブックの外のページ）と、ページとフォルダごとの置き直す値
+// 置き直しの引数: 画面の履歴の段が変えた物を持つステージエントリ（outermosts。ブックか、ブックの外のページ・バインダ）と、ページとフォルダごとの置き直す値
 export const RevertArgs = z.strictObject({
   outermosts: z
     .array(

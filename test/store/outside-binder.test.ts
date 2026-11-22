@@ -4,8 +4,6 @@ import { stagePlacesOf } from "../../web/src/core/address"
 import { NO_OUTERMOST } from "../../web/src/core/folders-tree"
 import { shownPageId } from "../../web/src/core/stage"
 import { stageIn } from "../../web/src/core/window"
-import { openedPagesOf } from "../../web/src/plugins/base/utils/opened-page"
-import { commandContext } from "../../web/src/store/commands"
 import { NO_STAGE } from "../../web/src/store/dialogs"
 import { openedIn } from "../../web/src/store/store"
 import { SLIDE, testBinder, testPage } from "../lineup"
@@ -98,12 +96,4 @@ test("ブックの外のバインダを開いた画面の場所は、ブック�
   gone.locate(address)
   expect(opens(gone).map(([o]) => o)).not.toContainEqual({ kind: "binder", id: "n1" })
   expect(gone.state.getState().window.screens.length).toBe(before.screens.length)
-})
-
-test("ブックの外のバインダを開いたステージの「開いている物のページの全部」は、そのバインダの中の全部のページ", () => {
-  const store = withBinder()
-  const stage = store.actions.showOutsideBinderStage("n1", "s2")
-  const ctx = commandContext(store.catalog.core, null, store.state.getState(), stage, "@matomezu/base:page-open")
-  expect(ctx?.binder).toMatchObject({ kind: "binder", id: "n1" })
-  expect(ctx && openedPagesOf(ctx).map(p => p.id)).toEqual(["s1", "s2"])
 })

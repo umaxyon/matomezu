@@ -28,7 +28,7 @@ func (h *Hub) touch(id, at string) {
 
 // opened は、窓 c が知らせた見ているもの view に新しく見えたブックの、開いた時刻を残す（h.mu を持って呼ぶ）。
 // コントロールセンターがカレントスクリーンの間、後ろに隠れているブックスクリーンのブック（view の hidden）は見えていないので、開いたとしない。
-// ただし開いているステージエントリ（held）には含める。held はブックもブックの外のページも持ち、開いた時刻を残すのはブックだけ
+// ただし開いているステージエントリ（held）には含める。held はブックもブックの外のページ・バインダも持ち、開いた時刻を残すのはブックだけ
 func (h *Hub) opened(c *client, view json.RawMessage) {
 	var v struct {
 		screen
