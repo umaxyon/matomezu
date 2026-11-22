@@ -4,31 +4,28 @@
 
 import { fail } from "../../../core/errors"
 import { outsideBinderIn } from "../../../core/folders-tree"
-import type { StageLineup } from "../../../core/schema/book"
-import { type Opened, openedBook, shownPageId } from "../../../core/stage"
+import { openedBook, shownPageId } from "../../../core/stage"
 import { stageIn } from "../../../core/window"
 import { openedAt } from "../../../store/dialogs"
-import type { MatomezuState } from "../../../store/state"
 import { ActsOnScope } from "../../../ui/scope"
 import { useCatalog, useMatomezuState, useStoreActions, useUiCatalog } from "../../../ui/store-context"
+import { NO_LINEUP, openedLineup } from "../page-tabs/opened-lineup"
 import { useEditLock } from "../utils/useEditLock"
 import { locksOf } from "./locks"
 
 export function DialogHost() {
   const dialog = useMatomezuState(s => s.dialog)
+  const opened = useMatomezuState(s => (s.dialog ? stageIn(s.window, s.dialog.stage)?.opened : undefined) ?? null)
+  const book = useMatomezuState(s => openedBook(s.books, opened))
+  const binder = useMatomezuState(s => (opened && outsideBinderIn(s, opened.outermost.id)) ?? null)
   const { closeDialog } = useStoreActions()
   const ui = useUiCatalog()
   const dialogs = useCatalog().store.dialogs
-  // 掛ける編集ロック（選び直しても同じ値になるよう、文字列で持つ）
-  const locked = useMatomezuState(s => {
-    const ids = s.dialog ? (dialogs.get(s.dialog.id)?.edits?.(s.dialog.args) ?? []) : []
-    if (!s.dialog || ids.length === 0) return "[]"
-    const opened = stageIn(s.window, s.dialog.stage)?.opened ?? null
-    return JSON.stringify(locksOf(lineupOf(s, opened), shownPageId(opened), ids))
-  })
+  const def = dialog ? dialogs.get(dialog.id) : undefined
   if (!dialog) return null
   const View = ui.dialogViews.get(dialog.id) ?? fail("E109", { kind: "dialog", id: dialog.id })
-  const locks = JSON.parse(locked) as { within: string; ids: string[] }[]
+  const lineup = openedLineup(book ?? null, binder)
+  const locks = locksOf(lineup === NO_LINEUP ? null : lineup, shownPageId(opened), def?.edits?.(dialog.args) ?? [])
   return (
     <ActsOnScope at={openedAt(dialog)}>
       {locks.map(l => (
@@ -37,14 +34,6 @@ export function DialogHost() {
       <View key={`${dialog.id}:${dialog.stage}`} args={dialog.args as never} onClose={closeDialog} />
     </ActsOnScope>
   )
-}
-
-// ステージで開いている物 opened の並び: 開いているブックか、開いているブックの外のバインダ（その id と、そのバインダ 1 つだけの並び）。どちらでもなければ null
-function lineupOf(s: MatomezuState, opened: Opened | null): StageLineup | null {
-  const book = openedBook(s.books, opened)
-  if (book) return book
-  const binder = opened?.outermost.kind === "binder" ? outsideBinderIn(s, opened.outermost.id) : undefined
-  return binder ? { id: binder.id, lineup: [binder] } : null
 }
 
 function Lock({ within, ids }: { within: string; ids: readonly string[] }) {

@@ -103,8 +103,13 @@ test("ブックの外のバインダの歯車は「スライドの設定」を�
     })
   expect(await ratio()).toBe(false)
   await page.locator(`button[aria-haspopup="menu"]`, { hasText: "発表スライド" }).click()
+  // 開いている間、窓はそのバインダに編集ロックを掛けていると知らせる
+  const locked = page.waitForRequest(
+    r => r.url().endsWith("/api/view") && JSON.stringify(r.postDataJSON()?.editLocks) === '{"n1":["n1"]}',
+  )
   await page.getByRole("button", { name: "設定", exact: true }).click()
   const dialog = page.getByRole("dialog", { name: "スライドの設定" })
+  await locked
   await expect(dialog.getByLabel("名前")).toHaveValue("発表スライド")
   await expect(dialog.getByRole("button", { name: "削除" })).toHaveCount(0)
   await dialog.getByLabel("名前").fill("発表会")
