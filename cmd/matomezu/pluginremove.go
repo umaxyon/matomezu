@@ -1,7 +1,7 @@
 package main
 
 // プラグインを外す（matomezu plugin remove）: npm で matomezu を消すと、AI のプログラムに入れたプラグインと置き場所の登録が残る（npm は消すときにパッケージの処理を走らせない）。
-// 消す前にこれを打ってもらい、常駐を止め、AI のプログラムごとの CLI でプラグインを外す。matomezu 本体と保管庫フォルダ（利用者のデータ）は消さない
+// 消す前にこれを打ってもらい、常駐を止め、AI のプログラムごとの CLI でプラグインを外す。npm の入口が写した実行ファイルは消し、matomezu 本体と保管庫フォルダ（利用者のデータ）は消さない
 
 import (
 	"errors"
@@ -14,6 +14,7 @@ import (
 	claudelaunch "github.com/umaxyon/matomezu/clients/claude-code/launch"
 	codexlaunch "github.com/umaxyon/matomezu/clients/codex/launch"
 	opencodelaunch "github.com/umaxyon/matomezu/clients/opencode/launch"
+	"github.com/umaxyon/matomezu/internal/home"
 )
 
 type pluginRemoveCmd struct {
@@ -52,6 +53,12 @@ func (c *pluginRemoveCmd) removeInstalled() error {
 		return cmd.Run()
 	}}
 	err := r.remove(c.AI)
+	// 写した実行ファイル（npm の入口が版ごとに写した物）も消す。Windows では動いている物が残る
+	if dir, derr := home.BinDir(); derr == nil {
+		if rerr := os.RemoveAll(dir); rerr != nil {
+			fmt.Printf("Some copies of matomezu are in use and stay in %s. Delete the folder after closing the AI programs.\n", dir)
+		}
+	}
 	if h, herr := openHome(); herr == nil {
 		fmt.Printf("Your books stay in %s. Delete the folder yourself if you no longer need them.\n", h.Dir)
 	}

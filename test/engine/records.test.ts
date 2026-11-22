@@ -103,7 +103,7 @@ test("エンジンはブックを作ると、書庫ホームの行に置き場�
   expect(out).toMatchObject({ ok: true, books: ["newbook01"], created: ["newbook01"] })
   expect(out.folders).toContainEqual({
     id: "library-home",
-    row: { ...home, lineup: [...home.lineup, { kind: "book", id: "newbook01" }] },
+    row: { ...home, lineup: [{ kind: "book", id: "newbook01" }, ...home.lineup] },
   })
   expect(create([old])).toMatchObject({ ok: false })
 })

@@ -442,7 +442,9 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
     | { ok: true; result: unknown; next: Partial<MatomezuState>; answer: Promise<HostAnswer> | undefined }
     | Refused
     | { ok: false; reason: "no-book" | "no-record" } => {
-    const { books, pages, folders, window, annotations } = getState()
+    const { books, pages, folders, window, annotations, staleBuild } = getState()
+    if (staleBuild && staleBuild.from.dataVersion !== staleBuild.to.dataVersion)
+      return { ok: false, reason: "refused", kind: "stale-build" }
     const ids: string[] = []
     const c = ctx()
     const done = performIn(worldOf(getState()), id, args, on, {
@@ -644,7 +646,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (dialog) setState({ dialog: { ...dialog, submitted: dialog.submitted + 1 } })
     },
     pressKey: (key, scopes, reach) => {
-      const { contextMenu, dialog, window, settings } = getState()
+      const { contextMenu, dialog, window, settings, staleBuild } = getState()
+      if (staleBuild) return false // 読み込み直すのを待つ間は、どのキーも効かせない
       const table = keysFor(settings)
       // 長押しの道具のアイコンを開いているステージ（どのブックスクリーンのステージでも）
       const picker = window.screens.flatMap(x => x.stages?.stages ?? []).find(st => st.picker !== null)?.id
@@ -1113,6 +1116,17 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         if (args != null) perform(a.id, args)
       }
     },
+    setStaleBuild: staleBuild => setState({ staleBuild }),
+    setUpdateStatus: updateStatus => setState({ updateStatus }),
+    checkUpdate: async () => {
+      if (!options.updateHost) fail("E409")
+      await options.updateHost.check()
+    },
+    askUpdate: async workroom => {
+      if (!options.updateHost) fail("E409")
+      return await options.updateHost.ask(workroom)
+    },
+    reloadWindow: () => options.reloadWindow?.(),
     setOffline: offline => {
       if (getState().offline !== offline) setState({ offline })
     },

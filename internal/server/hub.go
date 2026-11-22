@@ -7,7 +7,7 @@ package server
 //
 // /api/events のイベント（data は JSON）:
 //
-//	hello     {"client"} この接続の id。窓はアクションバルクにこの id と、自分で振った順の番号 seq を添えて送る
+//	hello     {"client", "build"} この接続の id と、常駐の版とデータの形（{"version", "dataVersion"}。SetBuild の前は無い）。窓はアクションバルクにこの id と、自分で振った順の番号 seq を添えて送る
 //	changed   {"pages": [{"id", "page"（消したなら "removed": true）, "version"}], "folders": [{"id", "folder"（同じ）, "version"}], "books", "library"?, "client", "seq", "by", "act", "actions",
 //	          "settings"?, "annotations", "records": [{"subject", "id", "record"（消したなら "removed"）, "version"（消したなら 0）}], "counters"?, "window"}
 //	          1 回の Perform が変えた物の全部（何か変わったときだけ 1 つ）。pages・folders は変えた・足した・消したページとフォルダ（書庫ホームとフォルダも）、
@@ -23,6 +23,7 @@ package server
 //	participant-ready {"participant"} 参加者が準備中でなくなった（フックが参加を伝えた、または join で MCP がセッション id を運んだ。join_session.go）
 //	participant-live {"participant", "model", "branch"} 参加者のモデルかブランチが変わった（そのときの両方。空は省く。join.go・model.go）
 //	touched   {"book", "at"} ブックに触れた時刻（開いた・変えた。touched.go）
+//	update-status {"state", "version", "latest"?, "checkedAt"?, "askedAt"?} 新しい版の確かめの結果が変わった（update.go）
 //	keep      {} keepAlive ごとに送る。窓は、これも含めて知らせが QUIET_MS（host-client/server.ts）届かなければ、黙って切れたとみてつなぎ直す
 
 import (
@@ -82,6 +83,10 @@ func (h *Hub) BookOn(on *engine.On) string {
 // Hub は世界と窓をまとめる
 type Hub struct {
 	mu               sync.Mutex
+	updateMu         sync.Mutex   // 新しい版の確かめ（update・latest）の鍵。聞いている間は持たない
+	update           UpdateStatus // 新しい版の確かめの結果（update.go）
+	latest           LatestFunc   // 新しい版を聞く口（無ければ確かめない）
+	build            *Build       // 常駐の版とデータの形（hello で窓に知らせる。SetBuild）
 	store            storage.Storage
 	engine           *engine.Engine
 	pages            map[string]row       // ページの id → 本文と版（tables.go）
@@ -143,6 +148,19 @@ type Hub struct {
 	aiEditTickets  []AIEditTicket       // AI 編集チケットの全部（古い順。ai_edit_tickets.go）
 	// 今の機能台帳のシステムフォルダの定義の id → AI に見せる名前（英語。read_folder の名前。起動したときとプラグインが変わったときに読み直す）
 	systemFolderTitles map[string]string
+}
+
+// Build は、常駐の版と、書くデータの形の番号。窓は開いたときの物と、つなぎ直したときの物を比べ、違えば読み直しを促す
+type Build struct {
+	Version     string `json:"version"`
+	DataVersion int    `json:"dataVersion"`
+}
+
+// SetBuild は、hello で窓に知らせる常駐の版とデータの形を入れる
+func (h *Hub) SetBuild(b Build) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.build = &b
 }
 
 // NewHub は置き場所から世界を読む

@@ -73,6 +73,11 @@ export function disabledPluginsOf(
   return new Set(added.filter(id => !enabled.has(id)))
 }
 
+// 常駐が新しい版を自分で確かめるか: role が update-check の項目の値が true（項目が無ければ確かめない）
+export function updateCheckOn(catalog: CoreCatalog, settings: Settings): boolean {
+  return byRole(catalog, settings, "update-check") === true
+}
+
 // 参加者が時点 nowMs で生きているか: 最後に呼ばれた時刻 calledAt（無ければ呼ばれていない）から、有効時間の設定以内。画面もホスト（エンジン経由）もこれで決める
 export function isParticipantAlive(
   catalog: CoreCatalog,

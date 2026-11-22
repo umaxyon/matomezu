@@ -1,0 +1,27 @@
+.value {
+  flex: 1;
+}
+
+.value[data-newer] {
+  font-weight: 600;
+}
+
+.update {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.command {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.command code {
+  padding: 2px 6px;
+  border: 1px solid var(--skin-border);
+  border-radius: 4px;
+  font-family: monospace;
+}

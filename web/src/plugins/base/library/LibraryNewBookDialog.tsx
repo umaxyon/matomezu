@@ -18,7 +18,7 @@ export function LibraryNewBookDialog({ args, onClose }: DialogProps<{ into: stri
       <NewBookForm
         onDone={onClose}
         create={({ title }) => {
-          const done = perform(BOOK_CREATE.id, { title, into: args.into })
+          const done = perform(BOOK_CREATE.id, { title, into: args.into, at: "last" })
           if (done.ok) open({ entry: done.result.book })
           return done
         }}

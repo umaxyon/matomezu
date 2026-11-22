@@ -64,7 +64,7 @@ export const defineWidget = <const Id extends string, const S extends SlotId>(
 ): WidgetDef<S> & { id: Id } => def
 
 // そのスロットに置けるウィジェットの id（ウィジェットの slots にそのスロットがあるもの）
-type WidgetsFor<S extends SlotId> = {
+export type WidgetsFor<S extends SlotId> = {
   [W in WidgetId]: WidgetTable[W] extends { slots: readonly (infer T)[] } ? (S extends T ? W : never) : never
 }[WidgetId]
 

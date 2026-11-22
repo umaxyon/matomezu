@@ -44,6 +44,7 @@ type Engine struct {
 	join         func() string
 	end          func() string
 	alive        func(string, string, float64) bool
+	updateCheck  func(string) bool
 	needs        func(string, string) string
 	roles        func() string
 	aiRecords    func(string, string, string, string) string
@@ -137,6 +138,7 @@ func New() (*Engine, error) {
 		{"matomezuJoinActions", &e.join},
 		{"matomezuEndActions", &e.end},
 		{"matomezuParticipantAlive", &e.alive},
+		{"matomezuUpdateCheck", &e.updateCheck},
 		{"matomezuCheckRecords", &e.records},
 		{"matomezuRunOnceActions", &e.once},
 		{"matomezuSystemFolderTitles", &e.sysFolders},

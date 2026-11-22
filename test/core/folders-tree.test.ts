@@ -319,8 +319,17 @@ describe("ブックを足す・消すときの置き場所", () => {
     expect(placedChanges(tables(), NO_CHANGES)).toBe(NO_CHANGES)
   })
 
-  test("作ったブックは書庫ホームの末尾に入り、木の決まりを守る", () => {
+  test("作ったブックは書庫ホームの先頭（at が last なら末尾）に入り、木の決まりを守る", () => {
     const world = worldOf(tables())
+    const last = performIn(world, "@matomezu/base:book-create", { title: "新", at: "last" }, undefined, ctx as never)
+    if (!last.ok || !last.changes) throw new Error("no changes")
+    expect(last.changes.folders[HOME_ID]).toEqual({
+      ...home,
+      lineup: [
+        { kind: "folder", id: "old" },
+        { kind: "book", id: (last.result as { book: string }).book },
+      ],
+    })
     const done = performIn(world, "@matomezu/base:book-create", { title: "新" }, undefined, ctx as never)
     expect(done.ok).toBe(true)
     if (!done.ok || !done.changes) throw new Error("no changes")
@@ -328,8 +337,8 @@ describe("ブックを足す・消すときの置き場所", () => {
     expect(done.changes.folders[HOME_ID]).toEqual({
       ...home,
       lineup: [
-        { kind: "folder", id: "old" },
         { kind: "book", id },
+        { kind: "folder", id: "old" },
       ],
     })
     const after = withChanges(world, done.changes)

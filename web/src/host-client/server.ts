@@ -20,7 +20,7 @@ import { BROKEN } from "../core/folders"
 import { restoreCounters, restoreRecords, withCounters, withRecords } from "../core/records"
 import { NOT_INSIDE, PURGED, type UnreadableNotice } from "../core/unreadable"
 import type { Warning } from "../core/warnings"
-import type { ForeignChange, MatomezuInstance, ParticipantLive } from "../store/state"
+import type { Build, ForeignChange, MatomezuInstance, ParticipantLive, UpdateStatus } from "../store/state"
 import type { HostClient, Loaded } from "./client"
 import { createLinkWatch } from "./link-watch"
 import { WIDE_SEARCH_ANSWER, wideSearchParams } from "./search"
@@ -28,6 +28,7 @@ import { createSendQueue, RETRY_MS } from "./send-queue"
 import {
   AckSchema,
   AnnotationsSchema,
+  ASK_UPDATE_ANSWER,
   ChangedSchema,
   DataSchema,
   HelloSchema,
@@ -41,6 +42,7 @@ import {
   SCREEN_PLUGINS_REMOVED,
   ShowSchema,
   TouchedSchema,
+  UpdateStatusSchema,
 } from "./server-schemas"
 import { editLocksOf, recordLocksOf, showIn, viewOf } from "./server-view"
 
@@ -147,6 +149,7 @@ export function serverClient(net: Net = browserNet): HostClient {
   let counters: unknown = {} // 番号を振る種類の、区切りごとの次の番号
   let touched: Record<string, string> = {} // ブックの id → 触れた（開いたか書いた）時刻
   let participantCalls: Record<string, string> = {} // 参加者の id → 最後に呼ばれた時刻
+  let updateStatus: UpdateStatus | undefined // 新しい版の確かめの結果（読んだか知らされた物）
   let participantReady: string[] = [] // 準備中でない参加者の id（増えるだけ）
   let participantLive: Record<string, ParticipantLive> = {} // 参加者の id → モデルとブランチ（どちらも無い参加者は持たない）
   let plugins: { id: string; ui: string; css?: string; disabled?: boolean }[] = []
@@ -165,6 +168,8 @@ export function serverClient(net: Net = browserNet): HostClient {
   let retell: (() => void) | null = null // 見ているものを知らせ直す（connect で作る。常駐は窓の見ているものをつながりごとに持つので、つなぎ直したら知らせ直す）
   let instance: MatomezuInstance | null = null
   let events: Events | null = null
+  let build: Build | undefined // 最初につないだ常駐の版とデータの形（つなぎ直したときに比べる）
+  let formStale = false // データの形が違う常駐につながった。読み込み直すまで、データを変える頼みを送らない
   const queue = createSendQueue({
     net,
     client: () => client,
@@ -274,6 +279,10 @@ export function serverClient(net: Net = browserNet): HostClient {
       if ((participantCalls[id] ?? "") < at) participantCalls = { ...participantCalls, [id]: at }
     for (const id of data.participantReady ?? [])
       if (!participantReady.includes(id)) participantReady = [...participantReady, id]
+    if (data.update) {
+      updateStatus = data.update
+      instance?.setUpdateStatus(data.update)
+    }
     // 参加者の様子は、読んだ物で全部を入れ替える
     participantLive = {}
     for (const [id, live] of Object.entries(data.participantLive ?? {})) {
@@ -335,12 +344,30 @@ export function serverClient(net: Net = browserNet): HostClient {
     })
     on("hello", data => {
       const was = client
-      client = HelloSchema.parse(JSON.parse(data)).client
+      const hello = HelloSchema.parse(JSON.parse(data))
+      client = hello.client
       watch.opened()
       if (first) {
+        build = hello.build
         first.resolve()
         first = null
         return
+      }
+      // 常駐が別の版に替わった: 読み込み直すよう促す。データの形も違えば、まだ確かめられていないアクションを送らずに捨て、知らせも聞かない（古い画面で新しい形を読まない）
+      const now = hello.build
+      if (build && now && (build.version !== now.version || build.dataVersion !== now.dataVersion)) {
+        const formChanged = build.dataVersion !== now.dataVersion
+        const dropped = formChanged ? queue.discard() : 0
+        logLine(
+          `the server is now ${now.version} (data ${now.dataVersion}); this window has ${build.version} (data ${build.dataVersion})`,
+        )
+        instance?.setStaleBuild({ from: build, to: now, dropped })
+        if (formChanged) {
+          formStale = true
+          closeEvents()
+          show()
+          return
+        }
       }
       // つなぎ直した: 読み直した世界の上に、まだ確かめられていないアクションを出し、新しいつながりで全部送り直す（送ったものの答えは前のつながりに届くので）。
       // warning と見ているものは新しいつながりで知らせ直す
@@ -393,6 +420,10 @@ export function serverClient(net: Net = browserNet): HostClient {
           : undefined,
       )
     })
+    on("update-status", data => {
+      updateStatus = UpdateStatusSchema.parse(JSON.parse(data))
+      instance?.setUpdateStatus(updateStatus)
+    })
     on("annotations", data => {
       const e = AnnotationsSchema.parse(JSON.parse(data))
       noticed(() => {
@@ -442,6 +473,13 @@ export function serverClient(net: Net = browserNet): HostClient {
       show()
     })
   }
+  // データを変える頼み（アクションのほか）を送る。formStale の間は送らずに、届かなかったのと同じに返す
+  const sendWrite = (path: string, body: unknown) =>
+    formStale
+      ? Promise.resolve(null)
+      : net
+          .fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+          .catch(() => null)
   // 知らせのつながりを閉じ、見張りを止める
   const closeEvents = () => {
     watch.stop()
@@ -497,13 +535,7 @@ export function serverClient(net: Net = browserNet): HostClient {
     },
     closeEvents: () => closeEvents(),
     removeScreenPlugins: async ids => {
-      const res = await net
-        .fetch("api/screen-plugins/remove", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ids }),
-        })
-        .catch(() => null)
+      const res = await sendWrite("api/screen-plugins/remove", { ids })
       if (!res) return { state: "unreachable" }
       if (!res.ok) fail("E405", { status: `${res.status}` })
       const answer = SCREEN_PLUGINS_REMOVED.parse(await res.json())
@@ -511,14 +543,25 @@ export function serverClient(net: Net = browserNet): HostClient {
       net.reload()
       return { state: "removed" }
     },
-    purgeUnreadable: async id => {
+    checkUpdate: async () => {
+      const res = await net.fetch("api/update/check", { method: "POST" }).catch(() => null)
+      if (!res?.ok) fail("E410", { status: res ? `${res.status}` : "no answer" })
+      updateStatus = UpdateStatusSchema.parse(await res.json())
+      instance?.setUpdateStatus(updateStatus)
+    },
+    askUpdate: async workroom => {
       const res = await net
-        .fetch("api/unreadable/purge", {
+        .fetch("api/update/ask", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id }),
+          body: JSON.stringify({ workroom }),
         })
         .catch(() => null)
+      if (!res?.ok) fail("E411", { workroom, status: res ? `${res.status}` : "no answer" })
+      return ASK_UPDATE_ANSWER.parse(await res.json()).ok
+    },
+    purgeUnreadable: async id => {
+      const res = await sendWrite("api/unreadable/purge", { id })
       if (!res?.ok) fail("E407", { id, status: res ? `${res.status}` : "no answer" })
       return PURGE_ANSWER.parse(await res.json()).ok ? PURGED : NOT_INSIDE
     },
@@ -544,6 +587,7 @@ export function serverClient(net: Net = browserNet): HostClient {
     connect: next => {
       instance = next
       show()
+      if (updateStatus) next.setUpdateStatus(updateStatus)
       let told = ""
       let viewSeq = 0 // 知らせの番号（届く順が入れ替わっても、常駐が古い方を捨てられるように増やす）
       // 見ているものと、利用者が直している物（どちらかが変わったときと、フォーカスされたときに知らせる）

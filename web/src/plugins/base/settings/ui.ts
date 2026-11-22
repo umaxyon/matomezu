@@ -26,4 +26,5 @@ export const USER_SETTING_VIEWS = {
 export { ChoiceSetting } from "./ChoiceSetting"
 export { defineSettingsCategory, GENERAL_CATEGORY, KEYS_CATEGORY, PLUGINS_CATEGORY } from "./categories"
 export { SETTINGS_ICONS } from "./icons"
+export { useOpenSettings } from "./open-settings"
 export { SettingRow } from "./SettingRow"
