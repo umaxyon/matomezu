@@ -11,14 +11,7 @@ import type { CoreCatalog, PageTypeId } from "./core-catalog"
 import { isInBook } from "./def/action"
 import { type EditList, slideIsBackground } from "./def/page-type"
 import { type Library, pageIn } from "./folders"
-import {
-  NO_OUTERMOST,
-  outermostOf,
-  outsideAsked,
-  outsideBinderIn,
-  outsidePageIn,
-  type StageEntry,
-} from "./folders-tree"
+import { outsideAsked, outsideBinderIn, outsidePageIn, type StageEntry } from "./folders-tree"
 import type { Point, Size } from "./geom"
 import type { AskedOutermost } from "./inspect"
 import type { LibraryAndBooks } from "./library"
@@ -327,17 +320,16 @@ export function openOutsidePage(catalog: CoreCatalog, stage: Stage, page: Page):
   return sameData(to.outermost, stage.opened?.outermost) ? stage : settle(leave(opening(edited(stage), to)), ORIGIN)
 }
 
-// ブックの外のバインダ binder を開く: page のページ（無ければ・そのバインダに無ければ、最初のページ）。ずらす量と印刷プレビューは openBook と同じ。
-// そのページをもう開いていれば、同じ値を返す。背景編集モードの間は、同じバインダの中でページを替えない
+// ブックの外のバインダ binder を開く: page のページ（名指さなければ最初のページ。そのバインダに無いページなら最初のページ）。ずらす量と印刷プレビューは openBook と同じ。
+// そのバインダをもう開いていれば、名指したページへ替えるだけ（名指さない・そのページをもう開いている・背景編集モードの間は、同じ値を返す）
 export function openOutsideBinder(catalog: CoreCatalog, stage: Stage, binder: BinderEntry, page?: string): Stage {
   const found = binder.lineup.find(p => p.id === page) ?? binder.lineup[0]
   if (!found) return stage
   const o = stage.opened
-  const to = openedAt(catalog, { kind: "binder", id: binder.id }, found)
   if (o?.outermost.kind === "binder" && o.outermost.id === binder.id) {
-    if (shownPageId(o) === found.id || editingBackground(stage)) return stage
+    if (page === undefined || shownPageId(o) === found.id || editingBackground(stage)) return stage
   }
-  return settle(leave(opening(edited(stage), to)), ORIGIN)
+  return settle(leave(opening(edited(stage), openedAt(catalog, { kind: "binder", id: binder.id }, found))), ORIGIN)
 }
 
 // 開いているブックのページを開く（開いているブックの、あるページだけ）。ずらす量は紙の左上に戻す（初めの位置が届いたらそこへ合わせる）。
@@ -628,7 +620,7 @@ export function toPaperDelta(stage: Pick<Stage, "zoom">, d: Point): Point {
 export function openedPageById(from: LibraryAndBooks, opened: { outermost: string }, id: string): ItemPage | null {
   const book = from.books[opened.outermost]
   if (book) return findPage(book, id)?.page ?? null
-  const entry = outermostOf(from, id)
-  if (entry === NO_OUTERMOST || entry.kind === "book" || entry.id !== opened.outermost) return null
-  return pageIn(from.pages, id) ?? null
+  const row = from.folders[opened.outermost]
+  const held = row?.folderRole === "binder" ? row.lineup.some(r => r.id === id) : opened.outermost === id
+  return (held && pageIn(from.pages, id)) || null
 }

@@ -71,6 +71,8 @@ test("ブックの外のバインダを開くと、ステージエントリは�
   expect(openOutsideBinder(CORE_CATALOG, first, n1, "s1")).toBe(first)
   const second = openOutsideBinder(CORE_CATALOG, first, n1, "s2")
   expect(second.opened).toMatchObject({ outermost: { kind: "binder", id: "n1" }, page: "s2" })
+  // もう開いているバインダを、ページを名指さずに開いても、開いているページは替えない
+  expect(openOutsideBinder(CORE_CATALOG, second, n1)).toBe(second)
   // そのバインダに無いページを名指したら、最初のページ
   expect(shownPageId(openOutsideBinder(CORE_CATALOG, newStage("st"), n1, "nothing").opened)).toBe("s1")
 
