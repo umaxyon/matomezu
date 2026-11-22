@@ -17,6 +17,7 @@ import {
 } from "./entries"
 import {
   type AnyEntryRef,
+  type BackyardRef,
   BROKEN,
   FIRST,
   type Folder,
@@ -26,6 +27,7 @@ import {
   libraryTopIdsIn,
   MOVED_CODES,
   type MovedCode,
+  sameWorkKey,
   TOP_IDS,
   TRASH_ID,
   type TrashRef,
@@ -33,6 +35,7 @@ import {
   type UnreadableFolder,
   type UnreadableRef,
   unreadableFolderOf,
+  type WorkKey,
 } from "./folders"
 import { pinnedCount, rowsLibraryOf } from "./folders-tree"
 import { type Warning, warning } from "./warnings"
@@ -66,12 +69,14 @@ export interface RowWrites {
   removedFolders: readonly string[]
 }
 
-// 書庫を整えた結果: 書く行 writes と、移した物 moved（移した順）と、戻した物の id returned（戻した順）と、足したシステムフォルダ added（行の id と印。足した順）と、
+// 書庫を整えた結果: 書く行 writes と、移した物 moved（移した順）と、戻した物の id returned（戻した順）と、戻す先のバックヤードに同じ workKey の物が在って完全に消した物の id purged（消した順）と、
+// 足したシステムフォルダ added（行の id と印。足した順）と、
 // 名前に番号を付けた物 numbered（付けた順。どれも常駐のログに書く）
 export interface Settled {
   writes: RowWrites
   moved: readonly UnreadableUnit[]
   returned: readonly string[]
+  purged: readonly string[]
   added: readonly { id: string; systemFolder: string }[]
   numbered: readonly FreedTitle[]
 }
@@ -97,15 +102,16 @@ export function settleLibrary(
   if (found === BROKEN) return BROKEN
   let world = worldOf(pageRows, folderRows, found)
   const returned: string[] = []
+  const purged: string[] = []
   let units = unitsIn(catalog, world)
   for (let progressed = true; progressed; ) {
     progressed = false
     for (const ref of world.unreadable.lineup) {
       const back = returnedRows(catalog, world, ref, units)
       if (!back) continue
-      world = withReturned(world, back)
+      world = back === TAKEN ? withPurged(world, ref) : withReturned(world, back)
       units = unitsIn(catalog, world)
-      returned.push(ref.entry.id)
+      ;(back === TAKEN ? purged : returned).push(ref.entry.id)
       progressed = true
     }
   }
@@ -116,7 +122,7 @@ export function settleLibrary(
   if (!filled) return BROKEN
   const { next, freed } = withFreeTitles(filled.next, naming)
   world = withLibrary(world, library, next)
-  return { writes: writesOf(world), moved, returned, added: filled.added, numbered: freed }
+  return { writes: writesOf(world), moved, returned, purged, added: filled.added, numbered: freed }
 }
 
 // 世界 world の書庫（rowsLibraryOf で読む。中の物が書庫に入る一番上のフォルダ（書庫ホーム・ゴミ箱）の下に在るフォルダの行だけで、読めない物のフォルダの中の物・どこにも入っていない物は入れない）
@@ -184,6 +190,8 @@ interface World {
   unreadable: UnreadableFolder
   touchedPages: ReadonlySet<string>
   touchedFolders: ReadonlySet<string>
+  removedPages: ReadonlySet<string>
+  removedFolders: ReadonlySet<string>
 }
 
 // 置き場所から読んだままの行と読めない物のフォルダの、まだ何も変えていない世界
@@ -196,6 +204,8 @@ function worldOf(pageRows: readonly unknown[], folderRows: readonly unknown[], u
     unreadable,
     touchedPages: new Set(),
     touchedFolders: new Set(),
+    removedPages: new Set(),
+    removedFolders: new Set(),
   }
 }
 
@@ -210,6 +220,7 @@ const unitsIn = (catalog: CoreCatalog, world: World): UnreadableUnit[] =>
 // 世界 world に、1 つ戻したときに変わる行 back を当てた世界
 function withReturned(world: World, back: Returned): World {
   return {
+    ...world,
     pages: new Map([...world.pages, ...Object.entries(back.pages)]),
     folders: new Map([...world.folders, ...Object.entries(back.folders)]),
     unreadable: back.unreadable,
@@ -282,8 +293,8 @@ function writesOf(world: World): RowWrites {
   return {
     pages: pick(world.touchedPages, world.pages),
     folders: pick(world.touchedFolders, world.folders),
-    removedPages: [],
-    removedFolders: [],
+    removedPages: [...world.removedPages].sort(),
+    removedFolders: [...world.removedFolders].sort(),
   }
 }
 
@@ -297,26 +308,33 @@ interface Returned {
 // 読めない物のフォルダの物 ref を戻せるなら、戻したときに変わる行。戻す先は、在ったフォルダから上への列 from のうち、今も在って ref の種類を持てる最初のフォルダ
 // （どれも無ければ書庫ホーム）で、戻したあとに読めない物 before のほかに読めない物が出ない所。入れ物がまだ読めない物のフォルダの中なら、その回は戻さない。
 // 在ったフォルダに戻すときは、直前に並んでいた物の後ろへ（その物も読めない物のフォルダの中なら、その物の直前の物をたどる。見つからなければ末尾）。ほかの所へは末尾へ
+// バックヤードに在った物（workKey を持つ物）は、在ったバックヤードにだけ戻す。そこに同じ workKey の物がもう在れば、戻せるときに戻さず TAKEN（完全に消す）
 function returnedRows(
   catalog: CoreCatalog,
   world: World,
   ref: UnreadableRef,
   before: readonly UnreadableUnit[],
-): Returned | undefined {
+): Returned | typeof TAKEN | undefined {
   const { kind, id } = ref.entry
+  const key = "workKey" in ref.entry ? ref.entry.workKey : undefined
   const holder = holdersIn(world)
   const unreadable = { ...world.unreadable, lineup: world.unreadable.lineup.filter(r => r !== ref) }
   const known = new Set(before.map(u => u.element.id))
-  for (const to of [...new Set([...ref.from, HOME_ID])]) {
+  const places = key ? ref.from.slice(0, 1) : [...new Set([...ref.from, HOME_ID])]
+  for (const to of places) {
     if (to === UNREADABLE_ID) continue
     const row = world.folders.get(to)
     if (!isRow(row) || !Array.isArray(row.lineup)) continue
     const top = topOf(world, holder, to)
     if (top === UNREADABLE_ID) return undefined
     if (top === undefined || !canHold(row as unknown as Folder, kind)) continue
+    if (key && row.folderRole !== "backyard") continue
     const element = elementFor(ref, to)
     if (!element) continue
-    const lineup = row.lineup as readonly unknown[]
+    const kept = row.lineup as readonly unknown[]
+    const taken = (e: unknown) =>
+      key !== undefined && isRow(e) && isRow(e.workKey) && sameWorkKey(e.workKey as unknown as WorkKey, key)
+    const lineup = kept.filter(e => !taken(e))
     const at = to === ref.from[0] ? afterIndex(lineup, ref, world.unreadable) : lineup.length
     // 書庫ホームの先頭のシステムフォルダより前には入れない
     const pinned = to === HOME_ID ? pinnedCount(Object.fromEntries(world.folders) as Record<string, Folder>) : 0
@@ -328,9 +346,32 @@ function returnedRows(
     // 戻した物も、戻す先とその上の入れ物も読めない物にならず、ほかに読めない物が増えない所にだけ戻す
     const after = unitsIn(catalog, withReturned(world, { pages, folders, unreadable }))
     const around = new Set([id, to, ...aboveIn(world, to)])
-    if (after.every(u => known.has(u.element.id) && !around.has(u.element.id))) return { pages, folders, unreadable }
+    if (after.every(u => known.has(u.element.id) && !around.has(u.element.id)))
+      return lineup.length < kept.length ? TAKEN : { pages, folders, unreadable }
   }
   return undefined
+}
+
+// 戻す先に同じ workKey の物が在り、戻さずに完全に消す
+const TAKEN = "taken"
+
+// 世界 world から、読めない物のフォルダの物 ref とその中の物の行を完全に消した世界（purgedRows と同じ決まり）
+function withPurged(world: World, ref: UnreadableRef): World {
+  const writes = purgedRows([...world.pages.values()], [...world.folders.values(), world.unreadable], ref.entry.id)
+  if (!writes) return world
+  const pages = new Map(world.pages)
+  const folders = new Map(world.folders)
+  for (const id of writes.removedPages) pages.delete(id)
+  for (const id of writes.removedFolders) folders.delete(id)
+  return {
+    ...world,
+    pages,
+    folders,
+    unreadable: { ...world.unreadable, lineup: world.unreadable.lineup.filter(r => r !== ref) },
+    touchedFolders: new Set([...world.touchedFolders, UNREADABLE_ID]),
+    removedPages: new Set([...world.removedPages, ...writes.removedPages]),
+    removedFolders: new Set([...world.removedFolders, ...writes.removedFolders]),
+  }
 }
 
 // 世界 world のフォルダ id から上へたどって着く、一番上のフォルダの id（書庫ホーム・ゴミ箱・読めない物のフォルダ・バックヤード。どこにも着かなければ undefined）
@@ -348,8 +389,9 @@ function topOf(world: World, holder: ReadonlyMap<string, string>, id: string): s
 
 // 物 ref をフォルダ to に戻すときの並びのエントリ: ゴミ箱へは、ゴミ箱の並びのエントリ（ゴミ箱に居た物なら元のまま。ゴミ箱の中のフォルダに居た物なら、移した時刻を入れた時刻にし、
 // ゴミ箱より手前の列を元の列にする）。ほかへは、id だけのエントリ
-function elementFor(ref: UnreadableRef, to: string): AnyEntryRef | TrashRef | undefined {
+function elementFor(ref: UnreadableRef, to: string): AnyEntryRef | TrashRef | BackyardRef | undefined {
   const { kind, id } = ref.entry
+  if ("workKey" in ref.entry) return { kind, id, workKey: ref.entry.workKey } as BackyardRef
   if (to !== TRASH_ID) return { kind, id } as AnyEntryRef
   if ("trashed" in ref.entry) return ref.entry
   const at = ref.from.indexOf(TRASH_ID)

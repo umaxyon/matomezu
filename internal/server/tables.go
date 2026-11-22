@@ -38,7 +38,7 @@ func (f folderRow) isBook() bool { return storage.IsBookRole(f.role) }
 func (f folderRow) isOpen() bool { return storage.IsOpenRole(f.role) }
 
 // entryRef は、役 role のフォルダの lineup の要素 entry が指すエントリの kind と id（指していなければ ok が false）。
-// ゴミ箱の要素は、kind と id を読み、ほかのキー（trashed・from）は読まない。ほかの役の要素は、id だけのエントリ（kind と id だけを持つ）だけが指す
+// ゴミ箱とバックヤードの要素は、kind と id を読み、ほかのキー（trashed・from・workKey）は読まない。ほかの役の要素は、id だけのエントリ（kind と id だけを持つ）だけが指す
 // （それより多くを持つ要素は、中身ごと残っている物）
 func entryRef(role string, entry json.RawMessage) (kind, id string, ok bool) {
 	var fields map[string]json.RawMessage
@@ -52,7 +52,7 @@ func entryRef(role string, entry json.RawMessage) (kind, id string, ok bool) {
 		}
 		return "", "", false
 	}
-	if role != storage.RoleTrash && len(fields) != 2 {
+	if role != storage.RoleTrash && role != storage.RoleBackyard && len(fields) != 2 {
 		return "", "", false
 	}
 	if json.Unmarshal(fields["kind"], &kind) != nil || json.Unmarshal(fields["id"], &id) != nil || id == "" {

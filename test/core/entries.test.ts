@@ -412,7 +412,7 @@ describe("バックヤード", () => {
   const b3 = testBook("b3", "三", [drawingPage("p3")])
   const yarded = (): Library => {
     const t = worldTablesOf([b1, b2, b3], [home, a, c, d])
-    const yard: Folder = { folderRole: "backyard", id: YARD, backyard: TICKETS, lineup: [{ kind: "book", id: "b3" }] }
+    const yard: Folder = { folderRole: "backyard", id: YARD, backyard: TICKETS, lineup: [{ kind: "book", id: "b3", workKey: { subject: "t", id: "3" } }] }
     return { pages: t.pages, folders: { ...t.folders, [YARD]: yard } }
   }
 
@@ -452,8 +452,8 @@ test("バックヤードの直下のブックは、名前が重なってよい�
     id: YARD,
     backyard: TICKETS,
     lineup: [
-      { kind: "book", id: "b1" },
-      { kind: "book", id: "b4" },
+      { kind: "book", id: "b1", workKey: { subject: "t", id: "1" } },
+      { kind: "book", id: "b4", workKey: { subject: "t", id: "4" } },
     ],
   }
   const lib: Library = { pages: t.pages, folders: { ...t.folders, [YARD]: yard } }
