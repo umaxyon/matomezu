@@ -19,7 +19,7 @@ import { MAIL_SEEN, MAIL_VISITED } from "."
 import { useMailbox, useShowMailPlaceAt } from "./hooks"
 import own from "./Mail.module.css"
 import { type OpenChoice, type OpenChoices, openChoices, openStageOf } from "./open-choices"
-import { placeExists } from "./place"
+import { GONE, mailPlace } from "./place"
 import { shownOf } from "./shown"
 import { MAIL_ACTIONS, type MailActionsProps } from "./slots"
 import { MAILBOX_TAB_ID } from "./tab-id"
@@ -78,8 +78,9 @@ function MailDialogBody({ stage, mail: mailId, onClose }: { stage: string; mail:
   }, [])
   if (!mail) return null
   const shown = shownOf(catalog, mail, t)
-  const exists = placeExists(mail, books)
-  const to = exists ? mail.to : undefined
+  const place = mailPlace(mail, books)
+  const exists = place === null ? null : place !== GONE
+  const to = place === GONE ? undefined : place
   const open = (choice: OpenChoice) => {
     if (!to) return
     onClose()
