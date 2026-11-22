@@ -186,7 +186,7 @@ func TestTheAIPerformsOnAPageOutsideBooks(t *testing.T) {
 	}
 }
 
-// AI は、ブックの外のバインダの中のページ（n1 の n1a・n1b）にも、page を宛先にするアクションとアノテーションのアクションを行える
+// AI は、ブックの外のバインダの中のページ（n1 の n1a・n1b）にも、page を宛先にするアクションとアノテーションのアクションを行える（AI 編集チケットは、変えたページで開く）
 func TestTheAIPerformsOnAPageInABinderOutsideBooks(t *testing.T) {
 	store := outsidePageStore(t)
 	s, hub := newServerOn(t, Options{}, store)
@@ -205,6 +205,33 @@ func TestTheAIPerformsOnAPageInABinderOutsideBooks(t *testing.T) {
 	}
 	if got := storedAnnotations(t, store, "n1b"); !strings.Contains(got, `"id":"c-n1b"`) || !strings.Contains(got, `"readAt":"`) {
 		t.Fatalf("annotations of n1b = %s; want c-n1b read", got)
+	}
+	if list := tickets(hub); len(list) != 1 || !slices.Equal(list[0].Unseen, []string{"n1a"}) {
+		t.Fatalf("tickets = %+v; want one with n1a unseen", list)
+	}
+}
+
+// ブックの外のバインダの中のページの効かないアノテーションは、そのページの warning（W018）になる。中の読めないページは、AI の読む口に出ない
+func TestPagesInABinderOutsideBooksAreChecked(t *testing.T) {
+	store := entriesStore(t)
+	v := versionsOf(t, store)
+	if err := store.Apply(storage.Batch{
+		Pages: []storage.RowWrite{{ID: "n1c", Body: json.RawMessage(`{"kind":"page","id":"n1c","type":"@matomezu/slide-page:slide","title":"C","paper":"@matomezu/base:a4","orientation":"landscape","items":"bad"}`)}},
+		Folders: []storage.RowWrite{{ID: "n1", Base: v["n1"], Body: json.RawMessage(`{"folderRole":"binder","id":"n1","title":"N1","pageType":"@matomezu/slide-page:slide","lineup":[` +
+			string(storage.RefOf("page", "n1a")) + `,` + string(storage.RefOf("page", "n1b")) + `,` + string(storage.RefOf("page", "n1c")) + `]}`)}},
+		Entries: []storage.EntryPut{{ID: "n1c", Folder: "n1"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	s, hub := newServerOn(t, Options{}, store)
+	if got := hub.Warnings(); !slices.Contains(got, "W018 @matomezu/note: page n1b: annotation c-n1b is a @matomezu/note:note, which is not in the catalog (kept as it is, not used)") {
+		t.Fatalf("warnings = %s", strings.Join(got, "\n"))
+	}
+	if _, got := send(t, "GET", s.URL+"/api/ai/folder?folder=n1", "", ai); strings.Contains(got, "n1c") || !strings.Contains(got, `"id":"n1b"`) {
+		t.Fatalf("read_folder n1 = %s; want n1b and no n1c", got)
+	}
+	if code, body := send(t, "GET", s.URL+"/api/ai/pages/n1c", "", ai); code != 404 {
+		t.Fatalf("page n1c = %d %s; want 404", code, body)
 	}
 }
 
