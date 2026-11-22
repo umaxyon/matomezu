@@ -29,6 +29,7 @@ type cli struct {
 	PluginPath   pluginPathCmd   `cmd:"" name:"plugin-path" help:"Print the folder of matomezu's plugin for an AI program, to add it from (such as claude plugin marketplace add)."`
 	Plugin       pluginCmd       `cmd:"" help:"Manage matomezu plugins for AI clients."`
 	PluginRemove pluginRemoveCmd `cmd:"" name:"plugin-remove" help:"Before removing matomezu (npm uninstall -g matomezu): stop the server and remove matomezu's plugin from the AI programs (Claude Code, Codex and opencode). Your books are kept."`
+	Update       updateCmd       `cmd:"" help:"Update matomezu with the tool it was installed with (npm, Volta, pnpm or bun), update the plugins of the AI programs to the same version, and start the server again with the new version."`
 	Version      versionCmd      `cmd:"" help:"Print the version."`
 }
 
