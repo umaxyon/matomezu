@@ -45,7 +45,7 @@ export function UserPanel({ screen, onShow }: { screen: ContentArea; onShow: (to
       <Band spread>
         <h1 className={styles.title}>
           {newer ? (
-            <Tip text={t("An update is available")}>
+            <Tip text={t("An update is available")} align="start">
               <button
                 type="button"
                 className={styles.birdhouse}
