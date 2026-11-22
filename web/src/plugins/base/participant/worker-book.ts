@@ -42,7 +42,7 @@ function writable(input: PermissionInput, actor: Actor, entry: BackyardEntry | u
 }
 
 // ワーカーブック: tickets-history のブック（とその中のページ）を書けるのは、そのブックがワーカーブックのワークルームの AI と、利用者だけ（ほかの AI は読むだけ）。
-// アノテーションはブックの中身ではないので止めない（ほかの AI も付箋に答えられる）。行った後は、前と後のどちらの側も確かめる
+// アノテーションはブックの中身ではないので止めない（ほかの AI も伝言とマークに答えられる）。行った後は、前と後のどちらの側も確かめる
 export const WORKER_BOOK = kit.definePermission({
   id: "worker-book",
   title: "Another workroom's worker book",

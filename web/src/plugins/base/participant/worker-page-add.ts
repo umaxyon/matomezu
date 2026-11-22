@@ -5,11 +5,11 @@ import { z } from "zod"
 import { workroomOfActor } from "../../../core/actor"
 import { backyardBookOf, placedInBackyard } from "../../../core/entries"
 import { bookOf, withBook } from "../../../core/folders-books"
-import { readerIn } from "../../../core/record-source"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
 import { TICKETS_HISTORY } from "../library/backyards"
 import { describeNewPage, NEW_PAGE_ARGS, type NewPageResult, withNewPage } from "../pages/page-add"
+import { readerIn } from "./activity"
 import { workerBookOf, workerBookReadsOf } from "./worker-book"
 
 const PAGE_ARGS = NEW_PAGE_ARGS.omit({ index: true })

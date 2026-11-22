@@ -127,7 +127,7 @@ describe("アノテーションは止めない", () => {
       yardCtx(actor),
     )
 
-  test("ほかのワークルームの AI も、ワーカーブックの付箋に答えられる", () => {
+  test("ほかのワークルームの AI も、ワーカーブックの伝言に答えられる", () => {
     expect(readNote({ kind: "ai", workroom: { id: "r2" } })).toMatchObject({ ok: true })
   })
 

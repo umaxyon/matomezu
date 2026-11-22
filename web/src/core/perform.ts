@@ -275,7 +275,7 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
 }
 
 // 書庫を was から next に変えるアクション action の結果の確かめ（書庫が対象のアクションと、ブックの外のバインダに行った、ブックが対象のアクションで同じ決まりを使う）。
-// 認可ステップの守らせること・ブックと書庫ホームやフォルダの行の形・システムフォルダ・ページのタイプ・名前の重なり・ブックの外の決まりとページの形のどれかを守らなければ、その断り（守れば null）
+// 認可ステップの守らせること・ブックと書庫ホームやフォルダの行の形・システムフォルダ・バックヤード（in-backyard）・ページのタイプ・名前の重なり・ブックの外の決まりとページの形のどれかを守らなければ、その断り（守れば null）
 function libraryRefusal(ctx: ActionContext, action: ActionDef, was: Library, next: Library): Refused | null {
   const refused: Refused = { ok: false, reason: "refused" }
   const kept = brokenIn(ctx, action, was, next)

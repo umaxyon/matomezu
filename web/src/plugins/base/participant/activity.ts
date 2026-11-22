@@ -3,8 +3,24 @@
 // base は自分では決めず、対象の定義に書いた workroomWork に答えさせる（カレントワークを持つプラグインなど）。答える種類が無ければ unknown
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { WorkKey } from "../../../core/folders"
-import { narrowed, type RecordReader, type RecordSource, readerOf, sourceOf } from "../../../core/record-source"
+import { type RecordReader, type RecordSource, readerOf, sourceOf } from "../../../core/record-source"
 import type { Records } from "../../../core/records"
+import { NO_RECORD } from "../../../core/records"
+
+// アクションの ctx が持つ、宣言した種類のレコードを読む口（ctx.record・ctx.find）。無ければ、どの種類も none と空
+export const readerIn = (ctx: { record?: RecordReader["record"]; find?: RecordReader["find"] }): RecordReader => ({
+  record: ctx.record ?? (() => NO_RECORD),
+  find: ctx.find ?? (() => []),
+})
+
+// 読み口 reader を、種類 subjects だけに絞った読み口（ほかの種類は none と空）
+function narrowed(reader: RecordReader, subjects: Iterable<string>): RecordReader {
+  const allowed = new Set(subjects)
+  return {
+    record: (subject, id) => (allowed.has(subject) ? reader.record(subject, id) : NO_RECORD),
+    find: (subject, where) => (allowed.has(subject) ? reader.find(subject, where) : []),
+  }
+}
 
 // 作業中なら、取り組んでいる物の短い題名 title と、そのレコード key（種類と id）と、それを短く呼ぶ名前 label（例: チケットの番号。作業の資料のブックの名前になる）
 export type WorkroomWork = { kind: "working"; title: string; key: WorkKey; label: string } | { kind: "idle" }
