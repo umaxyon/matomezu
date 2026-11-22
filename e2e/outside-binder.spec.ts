@@ -92,3 +92,25 @@ test("ブックの外のバインダのページ一覧から切り抜くと、�
   await expect(cut).toBeHidden()
   await expect(page.getByText("スクラップトレイに入れました")).toBeVisible()
 })
+
+test("ブックの外のバインダの歯車は「スライドの設定」を開き、名前と向きを変えられる。削除は出ない", async ({ page }) => {
+  await page.goto(stagesUrl([{ book: null, page: "n1a" }]))
+  const thumb = page.locator("[data-page-list] [data-page] button").first()
+  const ratio = () =>
+    thumb.evaluate(el => {
+      const r = el.getBoundingClientRect()
+      return r.height > r.width
+    })
+  expect(await ratio()).toBe(false)
+  await page.locator(`button[aria-haspopup="menu"]`, { hasText: "発表スライド" }).click()
+  await page.getByRole("button", { name: "設定", exact: true }).click()
+  const dialog = page.getByRole("dialog", { name: "スライドの設定" })
+  await expect(dialog.getByLabel("名前")).toHaveValue("発表スライド")
+  await expect(dialog.getByRole("button", { name: "削除" })).toHaveCount(0)
+  await dialog.getByLabel("名前").fill("発表会")
+  await dialog.getByLabel("向き").selectOption("portrait")
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(dialog).toBeHidden()
+  await expect(page.locator(`button[aria-haspopup="menu"]`, { hasText: "発表会" })).toBeVisible()
+  await expect.poll(ratio).toBe(true)
+})

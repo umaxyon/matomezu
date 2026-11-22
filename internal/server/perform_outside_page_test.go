@@ -347,3 +347,34 @@ func TestShowReadsAPageAlone(t *testing.T) {
 		}
 	}
 }
+
+// 利用者がブックの外のバインダの設定を直している間（その窓が、バインダの id をバインダの中の物として知らせている）、AI がそのバインダの紙と向きを変えると being-edited で断られる。
+// 中のページを直している間は、そのページを消すと断られ、ほかのページを足すのは通る
+func TestAICannotChangeABinderOutsideBooksTheUserIsEditing(t *testing.T) {
+	store := outsidePageStore(t)
+	s, _ := newServerOn(t, Options{}, store)
+	writer := writerAI(t, s.URL)
+	a := listen(t, s.URL)
+	next(t, a)
+	perform := func(request string) string {
+		_, got := send(t, "POST", s.URL+"/api/ai/perform", request, writer)
+		return got
+	}
+	turn := `{"action":"@matomezu/base:binder-update","args":{"binder":"n1","orientation":"portrait"},"on":{"book":"n1"}}`
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"editLocks":{"n1":["n1"]},"seq":1}`, nil)
+	if got := perform(turn); got != `{"ok":false,"reason":"being-edited"}` {
+		t.Fatalf("binder-update while the binder is edited = %s; want being-edited", got)
+	}
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"editLocks":{"n1a":["n1a"]},"seq":2}`, nil)
+	if got := perform(`{"action":"@matomezu/base:page-remove","args":{"page":"n1a"},"on":{"book":"n1"}}`); got != `{"ok":false,"reason":"being-edited"}` {
+		t.Fatalf("page-remove while the page is edited = %s; want being-edited", got)
+	}
+	add := `{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/slide-page:slide","into":{"binder":"n1"},"title":"C"},"on":{"book":"n1"}}`
+	if got := perform(add); !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("page-add while another page is edited = %s; want it done", got)
+	}
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"editLocks":{},"seq":3}`, nil)
+	if got := perform(turn); !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("binder-update after the user finished = %s; want it done", got)
+	}
+}

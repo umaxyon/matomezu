@@ -23,7 +23,7 @@ import { kit } from "../kit"
 import { refusalMessage } from "../utils/refusal"
 import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG, LIBRARY_RENAME_DIALOG } from "./dialog"
 import type { Drop } from "./drop"
-import { holderForNew, holdsEntries, placedOutsideBooks, placedOutsideTrash } from "./entries"
+import { holderForNew, holdsEntries, placedInBook, placedOutsideBooks, placedOutsideTrash } from "./entries"
 import { ENTRY_DUPLICATE } from "./entry-duplicate"
 import { ENTRY_MOVE, ENTRY_MOVE_OVER, ENTRY_RENAME, FOLDER_CREATE } from "./entry-move"
 import { ENTRY_TRASH } from "./entry-trash"
@@ -110,7 +110,7 @@ function entryOf(ctx: ScreenCommandContext, named?: Named): string | undefined {
 
 // コマンドが扱う、受け取ったエントリ（フォルダを受け取ったとき（何も無い所のメニュー）は、扱わない。そのフォルダは、右クリックした物でない）のうち、
 // in が扱うと答えた物: 名前を変える物はゴミ箱の外のどこに在っても（placedOutsideTrash）、ゴミ箱に入れる物は書庫ホームかフォルダの直下に在る物（placedOutsideBooks）、
-// 写す物はゴミ箱の外のページ・バインダ（duplicates）
+// 写す物はブックの中か、書庫ホームかフォルダの直下のページ・バインダ（duplicates）
 type Handles = (folders: Folders, entry: string, catalog: CoreCatalog) => unknown
 const handled = (ctx: ScreenCommandContext, handles: Handles, named?: Named): string | undefined => {
   const to = given(ctx, named)
@@ -214,10 +214,10 @@ export const LIBRARY_ENTRY_RENAME = kit.defineScreenCommand({
   when: inMenuHandled(renames),
 })
 
-// 写す物: ゴミ箱の外のページとバインダ（ブックの中でも外でも。ブックとフォルダは写さない）
+// 写す物: ブックかバインダの中か、書庫ホームかフォルダの直下に在るページとバインダ（ブックとフォルダは写さない。読めない物のフォルダの中の物も写さない）
 const duplicates: Handles = (folders, entry) => {
-  const kind = placedOutsideTrash(folders, entry)?.ref.kind
-  return kind === "page" || kind === "binder"
+  const kind = placedOutsideBooks(folders, entry)?.ref.kind
+  return placedInBook(folders, entry) || kind === "page" || kind === "binder"
 }
 
 // 写す: ページ・バインダを、すぐ後ろに番号付きの名前で写す。断られたらトーストで知らせる
