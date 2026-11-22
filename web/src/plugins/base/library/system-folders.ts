@@ -22,7 +22,7 @@ export const WORKROOMS = kit.defineSystemFolder({
 const underWorkrooms = (over: readonly PlaceFolder[] | "none"): boolean =>
   over !== "none" && over.some(f => systemFolderOf(f) === WORKROOMS.id)
 
-// ワークルームの中: ワークルームとその下には、利用者も AI も物を入れない・作らない（中は書庫の画面が映す物だけ）
+// ワークルームの中: ワークルームのフォルダとその下には、利用者も AI も物を入れない・作らない
 export const IN_WORKROOMS = kit.definePermission({
   id: "in-workrooms",
   title: "Nothing goes in the workrooms folder",
