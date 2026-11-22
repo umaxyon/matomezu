@@ -107,7 +107,62 @@ test("上書きできない訳を出す（種類が違う）", () => {
   })
 })
 
-test("まとまらないタイプのページとバインダは、ブックと書庫ホーム・フォルダの間を落とせる（空のバインダはブックの外へ落とせない）。スライドはバインダからバインダへだけ（ドラッグも entry-move も同じ読み方）", () => {
+test("ページとバインダは、ブックと書庫ホーム・フォルダの間を落とせる（空のバインダはブックの外へ落とせない）。スライドは、紙と向きのそろうバインダと、バインダでない所へ落とせる（ドラッグも entry-move も同じ読み方）", () => {
+  const library = slideWorld()
+  const moves = (entry: string, into: string) => movesInto(CORE_CATALOG, library, entry, into)
+  const can = (entry: string, into: string) => droppable(CORE_CATALOG, library, entry, { to: "folder", into })
+  // ページ・バインダを、ブックへ入れる・ブックから出す。スライドをバインダでない所へ出す（ブックの外の 1 枚だけのバインダからなら、バインダごと）
+  for (const [entry, into] of [
+    ["loose", "b1"],
+    ["lb", "b1"],
+    ["p1", "a"],
+    ["p1", HOME_ID],
+    ["bd", "a"],
+    ["lb", "a"],
+    ["s2", "a"],
+    ["s2", "b1"],
+    ["s2", HOME_ID],
+    ["s3", "a"],
+    ["s3", "b1"],
+  ] as const) {
+    expect([entry, into, moves(entry, into), can(entry, into)]).toEqual([entry, into, true, true])
+  }
+  // 空のバインダは外へ出さない・まとまらないタイプのページはバインダへ入れない・スライドは紙と向きのそろわないバインダへ入れない・同じ場所
+  for (const [entry, into] of [
+    ["be", "a"],
+    ["be", HOME_ID],
+    ["loose", "bd"],
+    ["p1", "bd"],
+    ["s3", "lz"],
+  ] as const) {
+    expect([entry, into, moves(entry, into), can(entry, into)]).toEqual([entry, into, false, false])
+  }
+  const home = entriesIn(library.folders, HOME_ID).map(r => r.id)
+  expect(droppable(CORE_CATALOG, library, "s3", { to: "folder", into: HOME_ID, index: home.indexOf("lb") })).toBe(false)
+  // スライドをバインダからバインダへ（空になったブックの外のバインダは消える）
+  expect(can("s2", "lb")).toBe(true)
+  expect([moves("s3", "bd"), can("s3", "bd")]).toEqual([true, true])
+  // ゴミ箱へは、ブックの外の物だけ
+  expect(droppable(CORE_CATALOG, library, "s3", { to: "trash" })).toBe(false)
+})
+
+test("スライドでバインダを作る移動は、名前が重なっても確かめない（番号を付ける）。ブックの外の 1 枚だけのバインダから出すときは、バインダごとの移動と同じに確かめる", () => {
+  const library = slideWorld([
+    { folderRole: "folder", id: "c1", title: "束 - s2", lineup: [] },
+    { folderRole: "folder", id: "c2", title: "外の束", lineup: [] },
+  ])
+  expect(moveClashOf(library, "s2", { to: "folder", into: "a" }, NAMING)).toBeUndefined()
+  expect(moveClashOf(library, "s3", { to: "folder", into: "a", index: 0 }, NAMING)).toEqual({
+    numbered: "外の束 2",
+    replaces: "c2",
+    overwrite: "kind",
+    indexOver: 0,
+  })
+  expect(moveClashOf(library, "s3", { to: "folder", into: HOME_ID }, NAMING)).toBeUndefined()
+})
+
+// 書庫ホーム > ブック b1（p1・バインダ bd〈s2〉・空のバインダ be）・ページ loose・バインダ lb〈s3〉・lz〈縦の s4〉・フォルダ a（inA の物）
+function slideWorld(inA: PlainFolder[] = []): Library {
   const slide = (id: string, rest: object = {}) => testPage(SLIDE, id, { title: id, ...rest })
   const world = libraryWith(
     [
@@ -123,39 +178,20 @@ test("まとまらないタイプのページとバインダは、ブックと�
       testBinder("lz", "縦の束", SLIDE, slide("s4", { orientation: "portrait" })),
     ],
   )
-  const a: PlainFolder = { folderRole: "folder", id: "a", title: "あ", lineup: [] }
+  const a: PlainFolder = {
+    folderRole: "folder",
+    id: "a",
+    title: "あ",
+    lineup: inA.map(f => ({ kind: "folder", id: f.id })),
+  }
   const home = world.folders[HOME_ID] as HomeFolder
-  const library: Library = {
+  return {
     pages: world.pages,
-    folders: { ...world.folders, a, [HOME_ID]: { ...home, lineup: [...home.lineup, { kind: "folder", id: "a" }] } },
+    folders: {
+      ...world.folders,
+      ...Object.fromEntries(inA.map(f => [f.id, f])),
+      a,
+      [HOME_ID]: { ...home, lineup: [...home.lineup, { kind: "folder", id: "a" }] },
+    },
   }
-  const moves = (entry: string, into: string) => movesInto(CORE_CATALOG, library, entry, into)
-  const can = (entry: string, into: string) => droppable(CORE_CATALOG, library, entry, { to: "folder", into })
-  // ページ・バインダを、ブックへ入れる・ブックから出す
-  for (const [entry, into] of [
-    ["loose", "b1"],
-    ["lb", "b1"],
-    ["p1", "a"],
-    ["p1", HOME_ID],
-    ["bd", "a"],
-    ["lb", "a"],
-  ] as const) {
-    expect([entry, into, moves(entry, into), can(entry, into)]).toEqual([entry, into, true, true])
-  }
-  // 空のバインダは外へ出さない・まとまらないタイプのページはバインダへ入れない・スライドはバインダの外へ出さない
-  for (const [entry, into] of [
-    ["be", "a"],
-    ["be", HOME_ID],
-    ["loose", "bd"],
-    ["p1", "bd"],
-    ["s2", "a"],
-    ["s2", "b1"],
-    ["s2", HOME_ID],
-    ["s3", "lz"],
-  ] as const) {
-    expect([entry, into, moves(entry, into), can(entry, into)]).toEqual([entry, into, false, false])
-  }
-  // スライドはバインダからバインダへ（ブックの中のバインダは空になってよく、ブックの外のバインダは空にならない所だけ）
-  expect(can("s2", "lb")).toBe(true)
-  expect([moves("s3", "bd"), can("s3", "bd")]).toEqual([true, false])
-})
+}

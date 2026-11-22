@@ -3,7 +3,16 @@
 // 同じフォルダの中に同じ名前は置けない（土台が title-taken で断る）。entry-move の onConflict が number なら、番号を付けた名前にして入れる
 import { z } from "zod"
 import type { LibraryTargets } from "../../../core/def/action"
-import { isMoveRefusal, movedEntry, placedEntry, retitled, titleOf } from "../../../core/entries"
+import {
+  carriedEntry,
+  isMoveRefusal,
+  movedWithBinders,
+  NEW_BINDER,
+  placedEntry,
+  placeOf,
+  retitled,
+  titleOf,
+} from "../../../core/entries"
 import { HOME_ID, type PlainFolder } from "../../../core/folders"
 import { kit } from "../kit"
 import {
@@ -35,10 +44,15 @@ export const FOLDER_CREATE = kit.defineAction({
   },
 })
 
+// entry-move・entry-move-over の結果: バインダを作ったなら、その id binder と名前 title。番号を付けて動かしたなら、付けた名前 title
+type MoveResult = { binder?: string; title?: string }
+const madeResult = (made: { id: string; title: string }): MoveResult => ({ binder: made.id, title: made.title })
+const NO_RESULT: MoveResult = {}
+
 export const ENTRY_MOVE = kit.defineAction({
   id: "entry-move",
   aiDescription:
-    'Move an entry of the library to another folder, or to another position in the same folder: entry is its id (a book or a folder, with everything in it; a page or a binder in a book; or a page or a binder that is not in a book), into the id of the folder to move it to (not inside the entry itself), index the position there (counted without the entry; at the end without it). A book or a folder goes into the library home or a folder. A page or a binder, in a book or not, goes into a book (its lineup), the library home or a folder; an empty binder cannot leave its book. A page of a type kept in binders (a slide) goes only from a binder into a binder of its page type, with the same paper and orientation. Nothing in the entry changes. When the folder already has an entry with the same title, onConflict "refuse" (the default) refuses with title-taken, and "number" moves it with a number added to its title (returned as title). Only the user can replace the entry that is there (entry-move-over).',
+    'Move an entry of the library to another folder, or to another position in the same folder: entry is its id (a book or a folder, with everything in it; a page or a binder in a book; or a page or a binder that is not in a book), into the id of the folder to move it to (not inside the entry itself), index the position there (counted without the entry; at the end without it). A book or a folder goes into the library home or a folder. A page or a binder, in a book or not, goes into a book (its lineup), the library home or a folder; an empty binder cannot leave its book. A page of a type kept in binders (a slide) goes from its binder into a binder of its page type with the same paper and orientation, or into a place that is not a binder (a folder, the library home or a book): there a new binder holding only that page is made at index, returned as binder, with its title returned as title ("<binder title> - <page title>", with a number added when that title is taken); when the page is the only one in a binder that is not in a book, that binder moves instead. A binder that is not in a book is deleted when the move leaves it empty. Nothing in the entry changes. When the folder already has an entry with the same title, onConflict "refuse" (the default) refuses with title-taken, and "number" moves it with a number added to its title (returned as title). Only the user can replace the entry that is there (entry-move-over).',
   title: "Move",
   target: "library",
   permissionScope: { entry: "entry", where: "place", into: "into" },
@@ -50,15 +64,19 @@ export const ENTRY_MOVE = kit.defineAction({
   }),
   run: (library, args, ctx) => {
     const naming = ctx.naming
-    const place = placedOutsideTrash(library.folders, args.entry)
-    if (!place || !movesInto(ctx.catalog, library, args.entry, args.into)) return null
-    const moved = movedEntry(library, args.entry, args.into, args.index)
-    if (isMoveRefusal(moved)) return null
-    if (args.onConflict !== "number" || place.holder.id === args.into) return { next: moved, result: {} }
-    const next = numbered(moved, place.ref.kind, args.entry, args.into, naming)
+    if (!placedOutsideTrash(library.folders, args.entry) || !movesInto(ctx.catalog, library, args.entry, args.into))
+      return null
+    const done = movedWithBinders(ctx.catalog, library, args.entry, args.into, args.index, naming, () => ctx.newId())
+    if (isMoveRefusal(done)) return null
+    const { next: moved, carried, made } = done
+    // 作ったバインダの名前は、重なりに番号を付けてあり、いつも返す
+    if (made) return { next: moved, result: madeResult(made) }
+    if (args.onConflict !== "number" || placeOf(library.folders, carried.id)?.holder.id === args.into)
+      return { next: moved, result: NO_RESULT }
+    const next = numbered(moved, carried.kind, carried.id, args.into, naming)
     if (!next) return null
-    const title = titleOf(next, place.ref.kind, args.entry, naming)
-    return { next, result: next === moved || title === undefined ? {} : { title } }
+    const title = titleOf(next, carried.kind, carried.id, naming)
+    return { next, result: next === moved || title === undefined ? NO_RESULT : { title } }
   },
 })
 
@@ -86,19 +104,26 @@ export const ENTRY_MOVE_OVER = kit.defineAction({
     replaces: z.string().min(1).optional(), // 消えると利用者が確かめた物の id（今 同じ名前で在る物がそれと違えば断る）
   }),
   run: (library, args, ctx) => {
-    const place = placedOutsideTrash(library.folders, args.entry)
-    if (!place || place.holder.id === args.into || !movesInto(ctx.catalog, library, args.entry, args.into)) return null
-    const cleared = overwritten(
-      library,
-      place.ref.kind,
-      args.entry,
-      args.into,
-      args.replaces ?? REPLACES_NOTHING,
-      ctx.naming,
-    )
+    const { catalog, naming } = ctx
+    const newId = () => ctx.newId()
+    const replaces = args.replaces ?? REPLACES_NOTHING
+    if (!placedOutsideTrash(library.folders, args.entry) || !movesInto(catalog, library, args.entry, args.into))
+      return null
+    const carried = carriedEntry(catalog, library, args.entry, args.into)
+    if (!carried) return null
+    // 作るバインダの名前は重なりに番号を付けるので、消す物は無い（entry-move と同じ結果）
+    if (carried === NEW_BINDER) {
+      const done =
+        replaces === REPLACES_NOTHING &&
+        movedWithBinders(catalog, library, args.entry, args.into, args.index, naming, newId)
+      if (!done || isMoveRefusal(done) || !done.made) return null
+      return { next: done.next, result: madeResult(done.made) }
+    }
+    if (placeOf(library.folders, carried.id)?.holder.id === args.into) return null
+    const cleared = overwritten(library, carried.kind, carried.id, args.into, replaces, naming)
     if (isNotOverwritten(cleared)) return null
-    const next = movedEntry(cleared, args.entry, args.into, args.index)
-    return isMoveRefusal(next) ? null : { next, result: {} }
+    const done = movedWithBinders(catalog, cleared, args.entry, args.into, args.index, naming, newId)
+    return isMoveRefusal(done) ? null : { next: done.next, result: NO_RESULT }
   },
 })
 

@@ -1,11 +1,16 @@
 // フォルダの中身の並びを読む・変える計算: エントリを別のフォルダへ動かす・並べ替える・ゴミ箱に入れる・ゴミ箱から戻す、ゴミ箱に出入りした物を挙げる
 
 import { describe, expect, test } from "bun:test"
+import { outsideHolds } from "../../web/src/core/book"
 import {
   binnedBetween,
+  carriedEntry,
+  type EntryMoved,
   isMoveRefusal,
   isWithin,
   movedEntry,
+  movedWithBinders,
+  NEW_BINDER,
   placeOf,
   restoredEntry,
   titleClashes,
@@ -24,7 +29,7 @@ import {
 } from "../../web/src/core/folders"
 import { treeHolds } from "../../web/src/core/folders-tree"
 import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"
-import { NAMING, worldTablesOf } from "../support"
+import { CORE_CATALOG, libraryWith, NAMING, worldTablesOf } from "../support"
 
 const b1 = testBook("b1", "一", [drawingPage("p1"), testBinder("f1", "束", SLIDE, testPage(SLIDE, "s1"))])
 const b2 = testBook("b2", "二", [drawingPage("p2")])
@@ -119,6 +124,118 @@ describe("エントリを動かす", () => {
     expect(movedEntry(t, "f1", "f1")).toBe("into-itself")
     expect(movedEntry(moved(t, "f1", "d"), "f1", "b2")).not.toBe("kind")
     expect(movedEntry(t, "b2", "f1")).toBe("kind")
+  })
+})
+
+describe("スライドがバインダを離れる（movedWithBinders）", () => {
+  const slide = (id: string) => testPage(SLIDE, id, { title: id.toUpperCase() })
+  // 書庫ホーム > ブック bk（p1・バインダ bi「中」〈i1・i2〉・バインダ bs「単」〈j1〉）・バインダ n1「N1」〈n1a・n1b〉・n2「N2」〈n2a〉・フォルダ d（空）
+  const sample = (): Library => {
+    const lib = libraryWith(
+      [
+        testBook("bk", "本", [
+          drawingPage("p1"),
+          testBinder("bi", "中", SLIDE, slide("i1"), slide("i2")),
+          testBinder("bs", "単", SLIDE, slide("j1")),
+        ]),
+      ],
+      [testBinder("n1", "N1", SLIDE, slide("n1a"), slide("n1b")), testBinder("n2", "N2", SLIDE, slide("n2a"))],
+    )
+    const home = lib.folders[HOME_ID] as HomeFolder
+    return {
+      pages: lib.pages,
+      folders: {
+        ...lib.folders,
+        d,
+        [HOME_ID]: { ...home, lineup: [...home.lineup, { kind: "folder", id: "d" }] },
+      },
+    }
+  }
+  const ids = (l: Library, f: string) => l.folders[f]?.lineup.map(r => r.id)
+  const run = (l: Library, entry: string, into: string, index?: number, id = "nb"): EntryMoved => {
+    const done = movedWithBinders(CORE_CATALOG, l, entry, into, index, NAMING, () => id)
+    if (isMoveRefusal(done)) throw new Error(done)
+    return done
+  }
+
+  test("フォルダ・書庫ホーム・ブックの並びの index 番目に、そのページだけのバインダ「元のバインダの名前 - ページの名前」が出来る", () => {
+    const l = sample()
+    for (const [into, index] of [
+      ["d", 0],
+      [HOME_ID, 1],
+      ["bk", 1],
+    ] as const) {
+      const { next, carried, made } = run(l, "n1a", into, index)
+      expect(made).toEqual({ id: "nb", title: "N1 - N1A" })
+      expect(carried).toEqual({ kind: "binder", id: "nb" })
+      expect(ids(next, into)?.[index]).toBe("nb")
+      expect(next.folders.nb).toEqual({
+        folderRole: "binder",
+        id: "nb",
+        title: "N1 - N1A",
+        pageType: SLIDE,
+        lineup: [{ kind: "page", id: "n1a" }],
+      })
+      expect(ids(next, "n1")).toEqual(["n1b"])
+      expect(next.pages.n1a).toBe(l.pages.n1a)
+      expect(treeHolds(next) && outsideHolds(CORE_CATALOG, l, next)).toBe(true)
+    }
+    expect(carriedEntry(CORE_CATALOG, l, "n1a", "d")).toBe(NEW_BINDER)
+  })
+
+  test("入る先に同じ名前が在れば番号を付ける。同じ id を渡せば同じ結果。id が書庫にもう在れば断る", () => {
+    const l = sample()
+    const named: PlainFolder = { folderRole: "folder", id: "x", title: "N1 - N1A", lineup: [] }
+    const d2 = { ...d, lineup: [{ kind: "folder" as const, id: "x" }] }
+    const clashing: Library = { pages: l.pages, folders: { ...l.folders, x: named, d: d2 } }
+    expect(run(clashing, "n1a", "d").made?.title).toBe("N1 - N1A 2")
+    expect(run(l, "n1a", "d")).toEqual(run(l, "n1a", "d"))
+    expect(movedWithBinders(CORE_CATALOG, l, "n1a", "d", undefined, NAMING, () => "n2")).toBe("id-taken")
+    expect(movedWithBinders(CORE_CATALOG, l, "n1a", "d", undefined, NAMING, () => "p1")).toBe("id-taken")
+    expect(movedWithBinders(CORE_CATALOG, l, "n1a", "d", 5, NAMING, () => "nb")).toBe("past-end")
+  })
+
+  test("ブックの外の、中がそのページだけのバインダからは、作らずにバインダごと動く（id と名前が保たれる）", () => {
+    const l = sample()
+    expect(carriedEntry(CORE_CATALOG, l, "n2a", "d")).toEqual({ kind: "binder", id: "n2" })
+    const { next, carried, made } = run(l, "n2a", "d")
+    expect(made).toBeUndefined()
+    expect(carried).toEqual({ kind: "binder", id: "n2" })
+    expect(ids(next, "d")).toEqual(["n2"])
+    expect(next.folders.n2).toMatchObject({ title: "N2", lineup: [{ kind: "page", id: "n2a" }] })
+    expect(next.folders.nb).toBeUndefined()
+  })
+
+  test("ブックの中の、中がそのページだけのバインダから出すと、元は空で残り、バインダが出来る", () => {
+    const l = sample()
+    const { next, made } = run(l, "j1", "d")
+    expect(made).toEqual({ id: "nb", title: "単 - J1" })
+    expect(ids(next, "bs")).toEqual([])
+    expect(ids(next, "bk")).toContain("bs")
+  })
+
+  test("ほかのバインダへ移して、ブックの外の元のバインダが空になると行ごと消える。ブックの中の元は空で残る", () => {
+    const l = sample()
+    const out = run(l, "n2a", "n1", 0)
+    expect(out.carried).toEqual({ kind: "page", id: "n2a" })
+    expect(ids(out.next, "n1")).toEqual(["n2a", "n1a", "n1b"])
+    expect(out.next.folders.n2).toBeUndefined()
+    expect(ids(out.next, HOME_ID)).not.toContain("n2")
+    expect(outsideHolds(CORE_CATALOG, l, out.next)).toBe(true)
+    const inBook = run(l, "j1", "n1").next
+    expect(ids(inBook, "bs")).toEqual([])
+    expect(inBook.folders.bs).toBeDefined()
+  })
+
+  test("まとまらないタイプのページ・バインダ・ゴミ箱へは、movedEntry と同じ", () => {
+    const l = sample()
+    const plain = run(l, "p1", "d")
+    expect(plain.next).toEqual(moved(l, "p1", "d"))
+    expect(plain.carried).toEqual({ kind: "page", id: "p1" })
+    expect(run(l, "n1", "d").next).toEqual(moved(l, "n1", "d"))
+    const trash: TrashFolder = { folderRole: "trash", id: TRASH_ID, lineup: [] }
+    const binned: Library = { pages: l.pages, folders: { ...l.folders, [TRASH_ID]: trash } }
+    expect(movedWithBinders(CORE_CATALOG, binned, "n1a", TRASH_ID, undefined, NAMING, () => "nb")).toBe("in-trash")
   })
 })
 

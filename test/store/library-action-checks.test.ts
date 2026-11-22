@@ -2,6 +2,7 @@
 // ページのタイプは作ったあと変えさせない
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
+import { HOME_ID } from "../../web/src/core/folders"
 import type { Book } from "../../web/src/core/schema/book"
 import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { newStore, worldRows } from "../support"
@@ -62,7 +63,7 @@ test("一覧が対象のアクションでも、ページのタイプは作っ�
   expect(at().type).toBe("@matomezu/drawing:drawing")
 })
 
-test("一覧が対象のアクションのあとに、ブックの外のバインダが空になる・紙と向きがそろわなくなるなら断る（refused）。ブックの中のバインダは空になってよい", () => {
+test("一覧が対象のアクションのあとに、ブックの外のバインダの紙と向きがそろわなくなるなら断る（refused）。空になったブックの外のバインダは消え、ブックの中のバインダは空で残る", () => {
   const store = newStore()
   const { state, actions } = store
   const slide = (id: string, rest: object = {}) => testPage(SLIDE, id, { title: id, ...rest })
@@ -76,11 +77,13 @@ test("一覧が対象のアクションのあとに、ブックの外のバイ�
   const move = (entry: string, into: string) =>
     actions.perform("@matomezu/base:entry-move", { entry, into, onConflict: "refuse" })
   const refused = { ok: false, reason: "refused" } as const
-  expect(move("t1", "x")).toEqual(refused)
   expect(move("s1", "z")).toEqual(refused)
   expect(move("s1", "y").ok).toBe(true)
   expect(state.getState().folders.y?.lineup.map(r => r.id)).toEqual(["t1", "s1"])
-  expect(move("w1", "x").ok).toBe(true)
+  expect(move("s2", "y").ok).toBe(true)
+  expect(state.getState().folders.x).toBeUndefined()
+  expect(state.getState().folders[HOME_ID]?.lineup.map(r => r.id)).not.toContain("x")
+  expect(move("w1", "y").ok).toBe(true)
   expect(state.getState().folders.bd?.lineup).toEqual([])
 })
 

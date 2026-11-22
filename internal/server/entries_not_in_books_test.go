@@ -244,3 +244,52 @@ func TestAPageMovesBetweenABookAndTheHome(t *testing.T) {
 		t.Fatal("p1 is not in the home after moving it out of b1")
 	}
 }
+
+// 常駐を通して、スライドをバインダでない所へ動かすと、そのページだけのバインダが出来る（entry-move）: d1 の外のバインダ n1 のスライド n1a を書庫ホームへ動かすと、
+// result にバインダの id が返り、read_folder の書庫ホームに「N1 - A」のバインダの行が出て、n1 には n1b だけが残る。
+// 続けて n1b を書庫ホームへ動かすと、n1 は中がそのページだけなので、n1 がそのまま書庫ホームへ動く
+func TestASlideLeavingItsBinderMakesABinder(t *testing.T) {
+	s, hub := newServerOn(t, Options{}, entriesStore(t))
+	writer := writerAI(t, s.URL)
+	move := func(entry, into string) map[string]any {
+		t.Helper()
+		_, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:entry-move","args":{"entry":"`+entry+`","into":"`+into+`"}}`, writer)
+		var done struct {
+			OK     bool           `json:"ok"`
+			Result map[string]any `json:"result"`
+		}
+		if err := json.Unmarshal([]byte(got), &done); err != nil || !done.OK {
+			t.Fatalf("entry-move %s into %s = %s", entry, into, got)
+		}
+		return done.Result
+	}
+	folder := func(id string) string {
+		t.Helper()
+		code, body := send(t, "GET", s.URL+"/api/ai/folder?folder="+id, "", ai)
+		if code != 200 {
+			t.Fatalf("read_folder %s = %d %s", id, code, body)
+		}
+		return body
+	}
+	made := move("n1a", storage.HomeID)
+	binder, _ := made["binder"].(string)
+	if binder == "" || made["title"] != "N1 - A" {
+		t.Fatalf("result = %v", made)
+	}
+	if row := `{"kind":"binder","id":"` + binder + `","title":"N1 - A","pageType":"@matomezu/slide-page:slide"}`; !strings.Contains(folder(storage.HomeID), row) {
+		t.Fatalf("the home has no row %s: %s", row, folder(storage.HomeID))
+	}
+	hub.mu.Lock()
+	left := hub.folders["n1"].entries
+	hub.mu.Unlock()
+	if len(left) != 1 || left[0] != "n1b" {
+		t.Fatalf("n1 holds %v; want [n1b]", left)
+	}
+	if got := move("n1b", storage.HomeID); len(got) != 0 {
+		t.Fatalf("moving the only page of n1 = %v", got)
+	}
+	home := folder(storage.HomeID)
+	if !strings.Contains(home, `{"kind":"binder","id":"n1","title":"N1","pageType":"@matomezu/slide-page:slide"}`) || strings.Contains(folder("d1"), `"id":"n1"`) {
+		t.Fatalf("n1 did not move to the home: %s", home)
+	}
+}

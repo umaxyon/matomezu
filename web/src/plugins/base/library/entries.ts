@@ -74,9 +74,10 @@ export const holdsEntries = (folders: Folders, id: string): boolean => {
 }
 
 // エントリ entry を、フォルダ into へ動かす（同じフォルダの中の並べ替えも）のを、書庫が対象のアクションが扱うか: entry がゴミ箱の外に在り、into がゴミ箱の外のフォルダ・ブック・バインダで、
-// まとまるタイプ（grouping が binder）のページなら、バインダから、同じタイプで紙と向きのそろうバインダへだけ。まとまらないタイプのページなら、バインダでない所へ（ブックと書庫ホーム・フォルダの間も）。
+// まとまるタイプ（grouping が binder）のページなら、バインダから、同じタイプで紙と向きのそろうバインダへと、バインダでない所へ（そのページだけのバインダが出来る。
+// core/entries.ts の movedWithBinders）。まとまらないタイプのページなら、バインダでない所へ（ブックと書庫ホーム・フォルダの間も）。
 // バインダなら、ブックと書庫ホーム・フォルダの間も（空のバインダはブックの外へ出さない）。ブック・フォルダなら、ブックの外へだけ。
-// 持てる種類か・自分の中へでないかは、土台（core/entries.ts の movedEntry）が見る
+// 持てる種類か・自分の中へでないかは、土台（core/entries.ts の movedWithBinders）が見る
 export function movesInto(catalog: CoreCatalog, { pages, folders }: Library, entry: string, into: string): boolean {
   const place = placedOutsideTrash(folders, entry)
   const to = folders[into]
@@ -85,7 +86,9 @@ export function movesInto(catalog: CoreCatalog, { pages, folders }: Library, ent
   if (place.ref.kind === "page") {
     const page = pages[entry]
     if (!page || catalog.pageTypes.get(page.type)?.grouping !== "binder") return to.folderRole !== "binder"
-    if (from !== "binder" || to.folderRole !== "binder" || to.pageType !== page.type) return false
+    if (from !== "binder") return false
+    if (to.folderRole !== "binder") return true
+    if (to.pageType !== page.type) return false
     const lead = pages[to.lineup.find(r => r.id !== entry)?.id ?? entry]
     return lead?.paper === page.paper && lead.orientation === page.orientation
   }

@@ -282,6 +282,26 @@ test("落とした物を動かす: ブックのページをフォルダへ出し
   expect(ids("b1").at(-1)).toBe(binder)
 })
 
+test("落とした物を動かす: スライドをフォルダへ落とすと、そのページだけのバインダが出来る（名前が重なれば番号）。それを書庫ホームへ落とすと、バインダごと動く", () => {
+  const { store, folder, run, ids } = setup()
+  const a = folder("あ")
+  folder("説明 - 1", a)
+  const made = store.actions.perform(
+    "@matomezu/base:page-add",
+    { type: "@matomezu/slide-page:slide", title: "1", into: { newBinder: "説明" } } as never,
+    { book: "b1" },
+  )
+  const { page, binder } = (made.ok && made.result) as { page: string; binder: string }
+  run("library-entry-move", { entry: page, to: { to: "folder", into: a } })
+  const box = ids(a)[1] as string
+  const folders = () => store.state.getState().folders
+  expect(folders()[box]).toMatchObject({ folderRole: "binder", title: "説明 - 1 2", lineup: [{ id: page }] })
+  expect(ids(binder)).toEqual([])
+  run("library-entry-move", { entry: page, to: { to: "folder", into: HOME_ID, index: 0 } })
+  expect(ids(HOME_ID)[0]).toBe(box)
+  expect(ids(a)).not.toContain(box)
+})
+
 test("開く: 2 回押す・Enter・メニューの「開く」の 1 つの道。名指さなければ選んでいる行、{at: tree} ならツリーで今いる行。フォルダは中へ入る", () => {
   const { store, center, folder, run, at, set } = setup()
   const opened = () => store.state.getState().window.screens.flatMap(s => s.stages?.stages.map(st => st.opened) ?? [])
