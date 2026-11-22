@@ -597,16 +597,18 @@ function typesAndPaperHold(catalog: CoreCatalog, binder: Pick<BinderEntry, "page
   return sharesPaper(binder)
 }
 
-// 入れるタイプ pageType で中のページが lineup のバインダが、ページ page を入れられるか（バインダの決まりのうち名前に依らない物 typesAndPaperHold を、
-// page を入れた並びが守るか。lineup に page が在れば、それを除いて比べる。名前の重なりは見ない）
-export function binderTakes(
-  catalog: CoreCatalog,
-  binder: Pick<BinderEntry, "pageType" | "lineup">,
-  page: AnyPage,
-): boolean {
-  const lineup = [...binder.lineup.filter(p => p.id !== page.id), page]
-  return typesAndPaperHold(catalog, { pageType: binder.pageType, lineup })
+// 書庫 library のバインダ binder が、ページ page を入れられるか（バインダの決まりのうち名前に依らない物 typesAndPaperHold を、
+// page を入れた並びが守るか。中に page が在れば、それを除いて比べる。名前の重なりは見ない）。binder がバインダでなければ false
+export function binderTakes(catalog: CoreCatalog, { pages, folders }: Library, binder: string, page: AnyPage): boolean {
+  const to = folders[binder]
+  if (to?.folderRole !== "binder") return false
+  const lineup = [...to.lineup.flatMap(r => (r.id === page.id ? [] : (pages[r.id] ?? []))), page]
+  return typesAndPaperHold(catalog, { pageType: to.pageType, lineup })
 }
+
+// 書庫のバインダ binder が空か（中に 1 枚も無い。バインダでなければ false）
+export const binderIsEmpty = (folders: Library["folders"], binder: string): boolean =>
+  folders[binder]?.folderRole === "binder" && folders[binder].lineup.length === 0
 
 // ブックの外（書庫ホーム・ゴミ箱・フォルダの直下）に、バインダに入らずに置けるページか: まとまるタイプ（grouping が binder）でない
 export const pageHoldsOutside = (catalog: CoreCatalog, page: Pick<AnyPage, "type">): boolean =>
