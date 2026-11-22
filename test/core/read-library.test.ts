@@ -104,6 +104,19 @@ test("ブックの外のバインダが、中のページの行を欠く・紙�
   }
 })
 
+test("書庫ホーム・フォルダの直下のまとまるタイプのページ（スライド）と、ブックの外の空のバインダは、表に入れず、木の決まりが破れて見える", () => {
+  const cases = [
+    { name: "スライド", entry: testPage(SLIDE, "y1", { title: "y1" }), id: "y1" },
+    { name: "空のバインダ", entry: testBinder("lb", "束", SLIDE), id: "lb" },
+  ]
+  for (const c of cases) {
+    const done = read(worldRows([], [c.entry, drawingPage("x1")]))
+    const there = c.id in done.library.pages || c.id in done.library.folders
+    expect([c.name, there, done.library.pages.x1?.kind]).toEqual([c.name, false, "page"])
+    expect([c.name, treeHolds(done.library)]).toEqual([c.name, false])
+  }
+})
+
 test("同じフォルダに直に入るブックの外のページは、名前が重なっても、紙が違っても、読めるまま表に残る（名前の重なりは、変えるアクションが断る）", () => {
   const rows = worldRows(
     [testBook("b1", "外", [drawingPage("p1")])],

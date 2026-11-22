@@ -580,7 +580,7 @@ test("書庫の行をドラッグして、行の間（その位置へ）・フ�
   await expect(icon("ドラッグの箱")).toHaveCount(0)
 })
 
-test("書庫のツリーで、ブックの中のページの名前を F2 で変え、右クリックの「複製」で写し、ドラッグでブックの中の行の間とほかのブックの行の上へ動かせる", async ({
+test("書庫のツリーで、ブックの中のページの名前を F2 で変え、右クリックの「複製」で写し、ドラッグでブックの中の行の間・ほかのブックの行の上・ブックの外のフォルダの行の上へ動かせる", async ({
   page,
 }) => {
   await page.goto("/")
@@ -642,11 +642,12 @@ test("書庫のツリーで、ブックの中のページの名前を F2 で変�
   await page.mouse.up()
   await expect.poll(() => titlesIn(b)).toEqual(["丙", "乙"])
   await expect.poll(() => titlesIn(a)).toEqual(["乙 2", "甲 改"])
-  // ブックの中の行は、ブックの外（フォルダの行の上）へは落とせない
+  // ブックの外（フォルダの行の上）へ: 丙 を 中のページの所 へ出すと、ブックの外のページになる
   await dragTo(row("丙"), row("中のページの所"), 0.5)
-  await expect(tree.locator("[data-drop]")).toHaveCount(0)
+  await expect(row("中のページの所")).toHaveAttribute("data-drop", "into")
   await page.mouse.up()
-  await expect.poll(() => titlesIn(b)).toEqual(["丙", "乙"])
+  await expect.poll(() => titlesIn(b)).toEqual(["乙"])
+  await expect(row("丙")).toBeVisible()
 })
 
 test("書庫の検索は、名前に言葉を含む物を右の枠に並べる。行を押すとツリーのその行へ移り、Enter で開く。結果の枠の何も無い所を押すと結果の選んだ行が外れる。入力Formを空にすると元の表示に戻る", async ({

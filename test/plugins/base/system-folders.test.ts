@@ -218,9 +218,9 @@ test("書庫の画面: システムフォルダは掴めず、書庫ホームの
   const world = prepared()
   expect(draggable(world.folders, "sf1")).toBe(false)
   expect(draggable(world.folders, "gone")).toBe(false)
-  expect(droppable(world, "f", { to: "folder", into: HOME_ID, index: 0 })).toBe(false)
-  expect(droppable(world, "f", { to: "folder", into: HOME_ID, index: 2 })).toBe(true)
-  expect(droppable(world, "f", { to: "folder", into: "sf1" })).toBe(true)
+  expect(droppable(CORE_CATALOG, world, "f", { to: "folder", into: HOME_ID, index: 0 })).toBe(false)
+  expect(droppable(CORE_CATALOG, world, "f", { to: "folder", into: HOME_ID, index: 2 })).toBe(true)
+  expect(droppable(CORE_CATALOG, world, "f", { to: "folder", into: "sf1" })).toBe(true)
 })
 
 test("名前の当たる物がシステムフォルダなら、上書きできない訳を返し、上書きのダイアログは上書きを押せない形になる", () => {

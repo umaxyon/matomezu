@@ -5,7 +5,7 @@
 import type { z } from "zod"
 import { workroomOfActor } from "./actor"
 import { type Annotation, annotationsSettle, type PageAnnotations } from "./annotation"
-import { findPage, keepsPageTypes, keepsPageTypesAcross, pageSettles, putPage } from "./book"
+import { findPage, keepsPageTypes, keepsPageTypesAcross, outsideHolds, pageSettles, putPage } from "./book"
 import type { ActionId, ActionTable } from "./catalog"
 import { pageChangeOf } from "./changes"
 import type {
@@ -218,6 +218,7 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
     const clashes = titleClashes(next as Library, ctx.naming)
     if (clashes.length > 0) return titleTaken(next as Library, clashes, ctx.naming)
     if (!librarySettles(ctx.catalog, was, now) || !typesKept) return { ok: false, reason: "refused" }
+    if (!outsideHolds(ctx.catalog, subject as Library, next as Library)) return { ok: false, reason: "refused" }
   }
   if (action.target === "annotations") {
     const { page, annotations: next } = done.next as unknown as PageAnnotations

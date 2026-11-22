@@ -18,6 +18,17 @@ func TestDirFollowsEnv(t *testing.T) {
 	}
 }
 
+func TestDirIsDotMatomezuInHome(t *testing.T) {
+	h := t.TempDir()
+	t.Setenv(EnvHome, "")
+	t.Setenv("HOME", h)
+	t.Setenv("USERPROFILE", h)
+	got, err := Dir()
+	if want := filepath.Join(h, ".matomezu"); err != nil || got != want {
+		t.Fatalf("Dir() = %q, %v; want %q", got, err, want)
+	}
+}
+
 func TestOpenMakesPrivateDir(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "a", "matomezu")
 	if _, err := Open(dir); err != nil {

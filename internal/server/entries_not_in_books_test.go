@@ -214,3 +214,89 @@ func TestReadPageTellsTheFolderOfThePage(t *testing.T) {
 		}
 	}
 }
+
+// 常駐を通して、ページをブックと書庫ホームの間で動かせる（entry-move）: 書庫ホームのページ h1 をブック b1 へ入れると、read_book の b1 に入り、
+// read_folder の書庫ホームの行から消える。ブックのページ p1 を書庫ホームへ出すと、その逆
+func TestAPageMovesBetweenABookAndTheHome(t *testing.T) {
+	s, _ := newServerOn(t, Options{}, entriesStore(t))
+	writer := writerAI(t, s.URL)
+	move := func(entry, into string) {
+		t.Helper()
+		_, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:entry-move","args":{"entry":"`+entry+`","into":"`+into+`"}}`, writer)
+		if got != `{"ok":true,"result":{}}` {
+			t.Fatalf("entry-move %s into %s = %s", entry, into, got)
+		}
+	}
+	has := func(path, id string) bool {
+		t.Helper()
+		code, body := send(t, "GET", s.URL+path, "", ai)
+		if code != 200 {
+			t.Fatalf("%s = %d %s", path, code, body)
+		}
+		return strings.Contains(body, `"id":"`+id+`"`)
+	}
+	move("h1", "b1")
+	if !has("/api/ai/books/b1", "h1") || has("/api/ai/folder", "h1") {
+		t.Fatal("h1 is not in b1 after moving it out of the home")
+	}
+	move("p1", storage.HomeID)
+	if has("/api/ai/books/b1", "p1") || !has("/api/ai/folder", "p1") {
+		t.Fatal("p1 is not in the home after moving it out of b1")
+	}
+}
+
+// 常駐を通して、スライドをバインダでない所へ動かして作ったバインダの行と、ページが出て空になって消えたバインダの行が、常駐に残る（entry-move）:
+// d1 の外のバインダ n1 のスライド n1a を書庫ホームへ動かすと、result のバインダの行が read_folder の書庫ホームに出て、n1 には n1b だけが残る。
+// 続けて n1b をそのバインダへ動かすと、空になった n1 の行が常駐から消え、d1 の並びからも外れる
+func TestASlideMovedOutOfItsBinderMakesABinder(t *testing.T) {
+	s, hub := newServerOn(t, Options{}, entriesStore(t))
+	writer := writerAI(t, s.URL)
+	move := func(entry, into string) map[string]any {
+		t.Helper()
+		_, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:entry-move","args":{"entry":"`+entry+`","into":"`+into+`"}}`, writer)
+		var done struct {
+			OK     bool           `json:"ok"`
+			Result map[string]any `json:"result"`
+		}
+		if err := json.Unmarshal([]byte(got), &done); err != nil || !done.OK {
+			t.Fatalf("entry-move %s into %s = %s", entry, into, got)
+		}
+		return done.Result
+	}
+	folder := func(id string) string {
+		t.Helper()
+		code, body := send(t, "GET", s.URL+"/api/ai/folder?folder="+id, "", ai)
+		if code != 200 {
+			t.Fatalf("read_folder %s = %d %s", id, code, body)
+		}
+		return body
+	}
+	made := move("n1a", storage.HomeID)
+	binder, _ := made["binder"].(string)
+	title, _ := made["title"].(string)
+	if binder == "" || title == "" {
+		t.Fatalf("result = %v", made)
+	}
+	if row := `{"kind":"binder","id":"` + binder + `","title":"` + title + `","pageType":"@matomezu/slide-page:slide"}`; !strings.Contains(folder(storage.HomeID), row) {
+		t.Fatalf("the home has no row %s: %s", row, folder(storage.HomeID))
+	}
+	hub.mu.Lock()
+	left := hub.folders["n1"].entries
+	hub.mu.Unlock()
+	if len(left) != 1 || left[0] != "n1b" {
+		t.Fatalf("n1 holds %v; want [n1b]", left)
+	}
+	if got := move("n1b", binder); len(got) != 0 {
+		t.Fatalf("moving n1b into %s = %v", binder, got)
+	}
+	hub.mu.Lock()
+	_, kept := hub.folders["n1"]
+	into := hub.folders[binder].entries
+	hub.mu.Unlock()
+	if kept || strings.Contains(folder("d1"), `"id":"n1"`) {
+		t.Fatal("n1 is still kept after it was left empty")
+	}
+	if len(into) != 2 || into[0] != "n1a" || into[1] != "n1b" {
+		t.Fatalf("%s holds %v; want [n1a n1b]", binder, into)
+	}
+}

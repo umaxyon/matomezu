@@ -1,5 +1,5 @@
 // ドラッグで落とした先に同じ名前の物が在るときの確かめ: 番号を付けて動かすか・上書きして動かすか・やめるか
-import { placeOf, titleOf } from "../../../core/entries"
+import { titleOf } from "../../../core/entries"
 import { useCommand } from "../../../ui/commands"
 import { useReadState } from "../../../ui/store-context"
 import { useAllowedOn } from "../../../ui/view-hooks"
@@ -19,11 +19,11 @@ export function MoveClashConfirm({ asking, onDone }: { asking: AskingMove; onDon
   const move = useCommand(LIBRARY_ENTRY_MOVE.id).run
   const over = { entry, into, index: clash.indexOver, replaces: clash.replaces }
   const allowed = useAllowedOn(ENTRY_MOVE_OVER.id, over)
-  const kind = placeOf(read().folders, entry)?.ref.kind ?? "folder"
+  const { kind, id } = clash.carried
   return (
     <TitleClashConfirm
       folder={nameOf({ id: into, title: titleOf(read(), "folder", into, naming()) ?? NO_TITLE })}
-      name={nameOf({ id: entry, title: titleOf(read(), kind, entry, naming()) ?? NO_TITLE })}
+      name={nameOf({ id, title: titleOf(read(), kind, id, naming()) ?? NO_TITLE })}
       numbered={clash.numbered}
       blocked={replaceBlockedOf(clash, allowed)}
       onNumber={() => {

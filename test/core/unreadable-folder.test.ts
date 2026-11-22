@@ -208,6 +208,32 @@ const STAYS: { name: string; rows: () => Rows; moved: [string, string][] }[] = [
     moved: [["f1", "W029"]],
   },
   {
+    name: "書庫ホームの直下のスライド",
+    rows: () => worldRows([], [drawingPage("x1"), slide("s1")]),
+    moved: [["s1", "W029"]],
+  },
+  {
+    name: "ゴミ箱の直下のスライド",
+    rows: () => {
+      const base = worldRows([], [drawingPage("x1")])
+      return withTrash(
+        { ...base, pages: [...base.pages, slide("s1")] },
+        { kind: "page", id: "s1", trashed: NOW, from: [HOME_ID] },
+      )
+    },
+    moved: [["s1", "W029"]],
+  },
+  {
+    name: "空のバインダ（ブックの外）",
+    rows: () => worldRows([], [testBinder("f1", "束", SLIDE)]),
+    moved: [["f1", "W029"]],
+  },
+  {
+    name: "中のページが 1 枚も読めないバインダ（ブックの外。バインダごと）",
+    rows: () => worldRows([], [testBinder("f1", "束", SLIDE, { ...slide("s1"), items: "x" } as never)]),
+    moved: [["f1", "W028"]],
+  },
+  {
     name: "読めないページを持ち、ブック自体も形に合わないブック（ブックごと）",
     rows: () =>
       withFolder(
