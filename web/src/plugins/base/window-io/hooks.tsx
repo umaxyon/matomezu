@@ -8,6 +8,11 @@ export function useCopyText(): (text: string) => Promise<void> {
   return useInstance().copyText
 }
 
+// 利用者が端末で打つ matomezu の名前（Windows で npm から入れたなら matomezu.cmd。matomezu.ps1 は PowerShell の既定で止まる）
+export function useMatomezuCommand(): string {
+  return useInstance().command
+}
+
 // 描いている間、窓のタイトル（ブラウザのタブとタイトルバーに出る文字）を title にする。描かなくなったら、替える前のタイトルに戻す
 export function useWindowTitle(title: string): void {
   const instance = useInstance()

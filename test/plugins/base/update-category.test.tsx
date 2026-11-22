@@ -14,7 +14,7 @@ import { WindowRoot } from "../../../web/src/ui/WindowRoot"
 afterEach(cleanup)
 
 // 設定画面の「更新」を開く。［更新を確認］を押した数と、頼んだワークルームを数える。admin なら、管理者のワークルーム「ひよこ」に生きている AI を置く
-function renderUpdates({ admin = false, there = true } = {}) {
+function renderUpdates({ admin = false, there = true, command = undefined as string | undefined } = {}) {
   const asked: string[] = []
   let checks = 0
   const store = createMatomezu({
@@ -22,6 +22,7 @@ function renderUpdates({ admin = false, there = true } = {}) {
     books: [],
     lang: "ja",
     plugins: BUILTIN_UI,
+    ...(command ? { command } : {}),
     updateHost: {
       check: async () => {
         checks++
@@ -99,4 +100,9 @@ test("頼んだワークルームに AI がいなかったら、ボタンを消�
   const { panel } = renderUpdates({ admin: true, there: false })
   await act(async () => fireEvent.click(within(panel()).getByRole("button", { name: "管理者（ひよこ）に更新を頼む" })))
   expect(within(panel()).getByText("matomezu update")).toBeTruthy()
+})
+
+test("Windows で npm から入れた常駐なら、端末で打つコマンドを matomezu.cmd update にする（matomezu.ps1 は PowerShell の既定で止まる）", () => {
+  const { panel } = renderUpdates({ command: "matomezu.cmd" })
+  expect(within(panel()).getByText("matomezu.cmd update")).toBeTruthy()
 })

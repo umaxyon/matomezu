@@ -192,7 +192,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("POST /api/ai/join", o.ai(o.aiJoin))
 	mux.Handle("POST /api/ai/message", o.ai(o.aiMessage))
 	mux.Handle("/api/", http.NotFoundHandler())
-	mux.Handle("/", http.FileServerFS(o.Web))
+	mux.Handle("/", o.webFiles())
 	return mux
 }
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -41,5 +42,32 @@ func TestHooksShowTheNotFoundMessage(t *testing.T) {
 	}
 	if n != 6 {
 		t.Errorf("checked %d commands, want 6", n)
+	}
+}
+
+// Windows のフックは、npm が置く matomezu.ps1（PowerShell の既定の実行ポリシーで止まる）を通らず、実行ファイルの matomezu（.cmd・.exe）を呼ぶ
+func TestWindowsHooksSkipThePowerShellScript(t *testing.T) {
+	b, err := os.ReadFile("../hooks/hooks.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var f struct {
+		Hooks map[string][]struct {
+			Hooks []struct {
+				CommandWindows string `json:"commandWindows"`
+			} `json:"hooks"`
+		} `json:"hooks"`
+	}
+	if err := json.Unmarshal(b, &f); err != nil {
+		t.Fatal(err)
+	}
+	for event, groups := range f.Hooks {
+		for _, g := range groups {
+			for _, h := range g.Hooks {
+				if !strings.HasPrefix(h.CommandWindows, "$m = Get-Command matomezu -CommandType Application ") || !strings.Contains(h.CommandWindows, "& $m.Source codex hook ") {
+					t.Errorf("%s: %q may run matomezu.ps1", event, h.CommandWindows)
+				}
+			}
+		}
 	}
 }

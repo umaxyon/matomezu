@@ -112,7 +112,7 @@ func TestAskUpdateWakesTheWorkroomsAI(t *testing.T) {
 		t.Fatalf("notice = %q", n)
 	}
 	hub.AskUpdate(room, time.Now())
-	if got := wakes(hub, hub.OpenWakesWith("100", "", WakeLimits{})); len(got) != 1 || got[0] != askUpdateLine {
+	if got := wakes(hub, hub.OpenWakesWith("100", "", WakeLimits{})); len(got) != 1 || got[0] != askUpdateLine("matomezu") {
 		t.Fatalf("wakes = %q", got)
 	}
 	if ok, err := hub.AskUpdate("no-room", time.Now()); ok || err != nil {

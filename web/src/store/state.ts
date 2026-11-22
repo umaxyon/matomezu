@@ -184,6 +184,8 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   search(query: WideSearchQuery): Promise<WideSearchAnswer>
   // ブラウザのクリップボードに文字を書く。base のフック useCopyText を通して使う（プラグインに渡す actions には入れない）。書けなければ投げる
   copyText(text: string): Promise<void>
+  // 利用者が端末で打つ matomezu の名前（Windows で npm の .cmd なら matomezu.cmd）。base のフック useMatomezuCommand を通して使う（プラグインに渡す actions には入れない）
+  readonly command: string
   // 読めない物のフォルダの直下の物 id を完全に消すのをホストに頼む（アクションでなく、画面の履歴に入らない。変わった行はホストの知らせで入る）。
   // base のフックを通して使う（プラグインに渡す actions には入れない）。ホストが無いか、頼めなければ投げる
   purgeUnreadable(id: string): Promise<Purged>
@@ -349,6 +351,7 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   visible?: () => boolean // 窓が見えているか（裏のタブなどで見えていない間は、まだ見ていない変更を見えたとしない。無ければいつも見えている）
   search?: (query: WideSearchQuery) => Promise<WideSearchAnswer> // ホストの言葉の検索（横断検索）。無ければ、どの言葉にも横断検索の当たりなし
   copyText?: (text: string) => Promise<void> // ブラウザのクリップボードに文字を書く。無ければ、書けないとして投げる（E404）
+  command?: string // 利用者が端末で打つ matomezu の名前。無ければ matomezu
   // 新しい版を確かめる・ワークルームの AI に更新を頼むのをホストに頼む口。無ければ、頼むと投げる（E409）
   updateHost?: { check(): Promise<void>; ask(workroom: string): Promise<boolean> }
   // 読めない物のフォルダについてホストに頼む口（完全に消す・無効にしたら移る物を数える）。無ければ、頼むと投げる（E406）

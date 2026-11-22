@@ -375,6 +375,7 @@ test("matomezu/ui が出す名前", () => {
     "useLeftSidePanel",
     "useMailboxPanel",
     "useMarkdownDocument",
+    "useMatomezuCommand",
     "useMenu",
     "useMenuCommand",
     "useMessages",

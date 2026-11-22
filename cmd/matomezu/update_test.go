@@ -37,7 +37,7 @@ func fakeUpdater(found map[string]bool, plugins map[string]bool, opencode bool) 
 	out := &bytes.Buffer{}
 	u := &updater{
 		out: out,
-		lookPath: func(name string) (string, error) {
+		findProgram: func(name string) (string, error) {
 			if found[name] {
 				return "/bin/" + name, nil
 			}

@@ -42,7 +42,7 @@ func TestPluginRemove(t *testing.T) {
 			var ran []string
 			r := remover{
 				out: &out,
-				lookPath: func(p string) (string, error) {
+				findProgram: func(p string) (string, error) {
 					if p == c.missing {
 						return "", errors.New("not found")
 					}
