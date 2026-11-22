@@ -5,7 +5,7 @@
 
 import { z } from "zod"
 import type { CoreCatalog } from "../../../core/core-catalog"
-import { stageEntryRow, withStageEntryRow } from "../../../core/entries"
+import { withStageEntryRow } from "../../../core/entries"
 import { inTrash, NO_OUTERMOST, outermostOf } from "../../../core/folders-tree"
 import type { ItemPage } from "../../../core/placed"
 import type { CommandActions, CommandContext } from "../../../store/commands/def"
@@ -87,7 +87,7 @@ export const PRINT_PREVIEW_UPDATE = kit.defineAction({
     const entry = outermostOf(library, args.entry)
     if (entry === NO_OUTERMOST || entry.id !== args.entry || inTrash(library.folders, args.entry))
       return { declined: "entry is not a book, or a page or a binder that is not in a book" }
-    const held = stageEntryRow(library, entry)
+    const held = entry.kind === "page" ? library.pages[entry.id] : library.folders[entry.id]
     if (!held) return null
     const next = withOutermostSettings(ctx.catalog, held, args.settings, "print-preview")
     if ("declined" in next) return next

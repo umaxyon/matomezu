@@ -9,7 +9,7 @@ import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useStageHere } from "../../../ui/scope"
 import { useCatalog, useUiCatalog } from "../../../ui/store-context"
-import { useAllowed, useAllowedOn, usePerform } from "../../../ui/view-hooks"
+import { useActions, useAllowed, useAllowedOn, usePerform } from "../../../ui/view-hooks"
 import { outermostSettingDefs, ownSettings } from "../book-settings"
 import { Confirm } from "../dialog-host/Confirm"
 import { kit } from "../kit"
@@ -47,13 +47,14 @@ function PrintPreviewPanelBody({ previewed }: { previewed: PreviewedEntry }) {
   const catalog = useCatalog().core
   const ui = useUiCatalog()
   const perform = usePerform()
+  const { perform: performOther } = useActions()
   const [confirming, setConfirming] = useState<Patch | null>(null)
   // 変えられるか（ロックで止められるなら、確かめてから外して変えるので変えられる。ほかの認可ステップに止められるなら変えられない）
   const changing = useAllowedOn(PRINT_PREVIEW_UPDATE.id, { entry: previewed.id, settings: {} })
   const blocked = !changing.ok && changing.permission !== null && changing.permission !== LOCK.id
   const lock = previewed.lock
   const locked = lock !== NO_LOCK && lock.locked
-  const update = (patch: Patch) => perform(PRINT_PREVIEW_UPDATE.id, { entry: previewed.id, settings: patch })
+  const update = (patch: Patch) => performOther(PRINT_PREVIEW_UPDATE.id, { entry: previewed.id, settings: patch })
   const change = (patch: Patch) => (locked ? setConfirming(patch) : update(patch))
   const own = ownSettings(previewed.holder)
   // 紙に入れる名前の無い物には、ブック名を入れる項目を出さない

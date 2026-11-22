@@ -652,7 +652,7 @@ export const binderHoldsOutside = (catalog: CoreCatalog, binder: BinderEntry): b
   binder.lineup.length > 0 && binderHolds(catalog, binder)
 
 // 書庫 next のうち、書庫 was から変わったフォルダとページの行に関わる所が、ブックの外（書庫ホーム・ゴミ箱・フォルダの直下。ゴミ箱の中も）の決まりを守っているか:
-// 直下のページは pageHoldsOutside を、直下のバインダは binderHoldsOutside を守る（読む側の readLibrary・unreadableUnitsOf と同じ決まり）
+// 直下のページは pageHoldsOutside を、直下のバインダは binderHoldsOutside を守り、バインダの設定の項目の値は機能台帳の形に合う（読む側の readLibrary・unreadableUnitsOf と同じ決まり）
 export function outsideHolds(catalog: CoreCatalog, was: Library, next: Library): boolean {
   const { pages, folders } = next
   const outside = (id: string) => isOpenRole(folders[id]?.folderRole)
@@ -666,6 +666,7 @@ export function outsideHolds(catalog: CoreCatalog, was: Library, next: Library):
     const lineup = row.lineup.map(r => pages[r.id])
     if (lineup.some(p => p === undefined)) return false
     const { title, pageType } = row
+    if (row.settings !== undefined && !catalog.outermostSettingsSchema.safeParse(row.settings).success) return false
     return binderHoldsOutside(catalog, { kind: "binder", id, title, pageType, lineup: lineup as AnyPage[] })
   }
   for (const f of Object.values(folders)) {

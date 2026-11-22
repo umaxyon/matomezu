@@ -468,10 +468,6 @@ export function titleClashes(library: Library, naming: Naming): string[] {
   })
 }
 
-// ステージエントリ entry の行（ページの行か、ブック・バインダの行。書庫に無ければ undefined）
-export const stageEntryRow = (library: Library, entry: StageEntry): PageRow | Folder | undefined =>
-  entry.kind === "page" ? library.pages[entry.id] : library.folders[entry.id]
-
 // ステージエントリ entry の行を row に替えた書庫
 export function withStageEntryRow(library: Library, entry: StageEntry, row: PageRow | Folder): Library {
   return entry.kind === "page"

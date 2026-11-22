@@ -251,16 +251,6 @@ function withoutOutermostSettings<T extends { settings?: object }>(catalog: Core
   return (Object.keys(rest).length === 0 ? fields : { ...fields, settings: rest }) as T
 }
 
-// 書庫が was から after に変わると、ステージエントリが持つ設定の項目の値が消えるか: 値を持つ物がブックかバインダの中へ入る（rowsLosingOutermostSettings）か、
-// 値を持つブックの外のバインダの行が無くなる（最後の 1 枚が出て、空になって消える）
-export function losesOutermostSettings(catalog: CoreCatalog, was: Library, after: Library): boolean {
-  const lost = rowsLosingOutermostSettings(catalog, was, after)
-  if (Object.keys(lost.pages).length > 0 || Object.keys(lost.folders).length > 0) return true
-  return Object.values(was.folders).some(
-    row => row.folderRole === "binder" && !after.folders[row.id] && withoutOutermostSettings(catalog, row) !== row,
-  )
-}
-
 // 書庫が was から now に変わる間に、システムフォルダの決まりを守るか: 行う前から在るフォルダの行の印（systemFolder）は変わらない（付けも外しもしない）。
 // 印の付いた行を足せるのは、印の定義が機能台帳に在るときだけ。定義が機能台帳に在る印の行は、ゴミ箱の外に在れば、ゴミ箱に入れず消さない
 // （定義の無い間は、ゴミ箱に入れられる。いくつ在ってよいか・どこに在るかは、木の決まり treeHolds が見る）

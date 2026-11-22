@@ -2,7 +2,7 @@
 // ブックかバインダの中へ入った物から、書庫が対象のアクションのあとに値を消すこと（core/perform-library.ts の normalizedLibrary）
 import { expect, test } from "bun:test"
 import { USER } from "../../web/src/core/actor"
-import { readLibrary, unreadableUnitsOf } from "../../web/src/core/book"
+import { outsideHolds, readLibrary, unreadableUnitsOf } from "../../web/src/core/book"
 import { HOME_ID, type HomeFolder, type Library, NO_CHANGES, type PlainFolder } from "../../web/src/core/folders"
 import { withChanges } from "../../web/src/core/folders-changes"
 import { outsideBinderIn } from "../../web/src/core/folders-tree"
@@ -243,4 +243,17 @@ test("書庫の画面で、値を持つブックの外のページ・バイン�
     await Promise.resolve()
     expect([id, settings()]).toEqual([id, held])
   }
+})
+
+test("書庫を変えた結果の確かめ（outsideHolds）は、ブックの外のバインダの値が形に合わなければ断る", () => {
+  const n1 = testBinder("n1", "束", SLIDE, slide("s1", "1"))
+  const was = libraryWith([], [n1])
+  const written = (settings: object): Library => ({
+    ...was,
+    folders: { ...was.folders, n1: { ...was.folders.n1, settings } as Library["folders"][string] },
+  })
+  expect(outsideHolds(CORE_CATALOG, was, written(held))).toBe(true)
+  expect(outsideHolds(CORE_CATALOG, was, written({ [GONE]: 1 }))).toBe(true)
+  expect(outsideHolds(CORE_CATALOG, was, written({ [FLOW]: "diagonal" }))).toBe(false)
+  expect(outsideHolds(CORE_CATALOG, was, written({ [ROUTE]: "elbow" }))).toBe(false)
 })
