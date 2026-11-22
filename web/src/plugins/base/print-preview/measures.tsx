@@ -1,5 +1,5 @@
-// 測るプレゼンテーション（printMeasure）が知らせた、ページごとの測った結果（base が持つステージのプラグイン状態 print-measures。開いたブックごとに 1 つ）。
-// 印刷プレビューのビューが読んで並べ方（bookSheets）に渡し、印刷区画 1 つのビューに data を渡す。ほかのブックの結果は読まない
+// 測るプレゼンテーション（printMeasure）が知らせた、ページごとの測った結果（base が持つステージのプラグイン状態 print-measures。開いたステージエントリごとに 1 つ）。
+// 印刷プレビューのビューが読んで並べ方（entrySheets）に渡し、印刷区画 1 つのビューに data を渡す。ほかのステージエントリの結果は読まない
 import { useCallback } from "react"
 import { usePluginState, useReadPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
 import { kit } from "../kit"
@@ -8,26 +8,26 @@ import { PRINT_READY_STATE } from "./print-state"
 
 const NONE: Readonly<Record<string, PrintMeasured>> = {}
 
-// 描いている場所のステージで、ブック book のページを測った結果（まだ無ければ空。置き直すまで同じ表を返す）
-export function useMeasures(book: string | undefined): Readonly<Record<string, PrintMeasured>> {
+// 描いている場所のステージで、ステージエントリ entry のページを測った結果（まだ無ければ空。置き直すまで同じ表を返す）
+export function useMeasures(entry: string | undefined): Readonly<Record<string, PrintMeasured>> {
   const m = usePluginState(kit, PRINT_MEASURES)
-  return m && m.book === book ? m.pages : NONE
+  return m && m.entry === entry ? m.pages : NONE
 }
 
-// 描いている場所のステージで、ブック book のページ page を測った結果を置く関数（同じ結果なら置き直さない。ほかのブックの結果は捨てる）
-export function useReportMeasure(book: string | undefined): (page: string, m: PrintMeasured) => void {
+// 描いている場所のステージで、ステージエントリ entry のページ page を測った結果を置く関数（同じ結果なら置き直さない。ほかのステージエントリの結果は捨てる）
+export function useReportMeasure(entry: string | undefined): (page: string, m: PrintMeasured) => void {
   const read = useReadPluginState(kit, PRINT_MEASURES)
   const set = useSetPluginState(kit, PRINT_MEASURES)
   return useCallback(
     (page, m) => {
-      if (!book) return
+      if (!entry) return
       const now = read()
-      const pages = now?.book === book ? now.pages : NONE
+      const pages = now?.entry === entry ? now.pages : NONE
       const was = pages[page]
       if (was && was.rows === m.rows && JSON.stringify(was.data) === JSON.stringify(m.data)) return
-      set({ book, pages: { ...pages, [page]: m } })
+      set({ entry, pages: { ...pages, [page]: m } })
     },
-    [read, set, book],
+    [read, set, entry],
   )
 }
 

@@ -248,13 +248,10 @@ test("見られる前の AI の変更を、画面の履歴に入れない利用�
   store.receive({ ...worldRows([bookOf(store)]), settings: {} }, [])
   const flow = "@matomezu/base:print-preview-flow"
   foreign(store, { ...bookOf(store), settings: { [flow]: "row" } } as Book, "ai", "6", "@matomezu/base:book-update")
-  const done = store.actions.perform(
-    "@matomezu/base:print-preview-update",
-    { settings: { [flow]: "column" } },
-    {
-      book: "b1",
-    },
-  )
+  const done = store.actions.perform("@matomezu/base:print-preview-update", {
+    entry: "b1",
+    settings: { [flow]: "column" },
+  })
   expect(done.ok).toBe(true)
   await settled()
   expect(told).toEqual([

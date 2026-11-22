@@ -1,5 +1,5 @@
-// 印刷プレビューのビュー: ステージで開いたブックの全ページの印刷区画を、並べ方（book-sheets.ts）のとおりに紙の面で描き、
-// 中身はページのタイプの印刷区画 1 つのビュー（printSheet）で描く（無ければ白紙。設定で、ブック名・ページ名と印刷区画の番号を重ねる。SheetFrame）。何も載っていない印刷区画とページは並べず、
+// 印刷プレビューのビュー: ステージで開いたステージエントリ（previewed.ts）の全ページの印刷区画を、並べ方（entry-sheets.ts）のとおりに紙の面で描き、
+// 中身はページのタイプの印刷区画 1 つのビュー（printSheet）で描く（無ければ白紙。設定で、ブック名（バインダ名）・ページ名と印刷区画の番号を重ねる。SheetFrame）。何も載っていない印刷区画とページは並べず、
 // 並べる物が 1 つも無ければ、表示領域の真ん中に印刷できるものが無いと知らせる。
 // 並べた広さはステージに知らせ（初めは幅に合わせる）、ずらす量と倍率は編集と同じくステージが持つ。
 // 見るだけで、アンカーもスタンドも置かず、右クリックのメニューも出さない。印刷区画をダブルクリックすると、そのページの編集に戻る。
@@ -20,14 +20,14 @@ import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { PageScope, useStageId } from "../../../ui/scope"
 import { useCatalog, useMatomezuState, useReadState, useStoreActions, useUiCatalog } from "../../../ui/store-context"
-import { useBook, useStage, useStagePan } from "../../../ui/view-hooks"
-import { bookSettingValue } from "../book-settings"
+import { useStage, useStagePan } from "../../../ui/view-hooks"
+import { settingValue } from "../book-settings"
 import { kit } from "../kit"
 import { paperSize } from "../place/grow"
 import { useOpenRightSidePanelAt, useRightSidePanelAt, useSidePanelSliding } from "../right-side-panel/hooks"
 import { useZoomMotion } from "../utils/useZoomMotion"
 import { PRINT_PREVIEW_FIT } from "."
-import { bookSheets, hasCrossing } from "./book-sheets"
+import { entrySheets, hasCrossing } from "./entry-sheets"
 import { useMeasures, useReportMeasure, useSetPrintReady } from "./measures"
 import type { PrintMeasured } from "./measures-state"
 import { PrintOutput } from "./PrintOutput"
@@ -37,6 +37,7 @@ import { sheetLabels } from "./print-pages"
 import { Printing } from "./printing"
 import { SheetFrame } from "./SheetFrame"
 import { PRINT_PREVIEW_BOOK_NAME, PRINT_PREVIEW_PAGE_NAME, PRINT_PREVIEW_SHEET_NUMBERS } from "./settings"
+import { usePreviewed } from "./usePreviewed"
 
 // 印刷区画 1 つのビュー（プレゼンテーションのビューの定義の printSheet）が受け取る物: ページと、
 // そのページを紙の大きさ paper で区切った column 列目・row 行目の印刷区画（0 から）。ビューはページの中身を、ページの原点で描く
@@ -98,17 +99,17 @@ function PrintPreviewBody({ id }: { id: string }) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const views = useUiCatalog().presentationViews
-  const book = useBook()
+  const previewed = usePreviewed()
   const pan = useStagePan()
   const panel = useRightSidePanelAt(id)
   const { setPreviewArea, closePrintPreview, openPage } = useStoreActions()
   const read = useReadState()
   // 測るプレゼンテーションのページの、測った結果（ページの id → 結果。base が持つステージごとのプラグイン状態。measures.tsx）
-  const bookId = book?.id
-  const measures = useMeasures(bookId)
-  const report = useReportMeasure(bookId)
-  // ページごとの、知らせを受ける関数（同じ物を渡し続け、紙をずらしても測るだけのビューを描き直させない。ブックが替われば作り直す）
-  // biome-ignore lint/correctness/useExhaustiveDependencies: 知らせる先（ブック）が替わったら表を空にする
+  const entryId = previewed?.id
+  const measures = useMeasures(entryId)
+  const report = useReportMeasure(entryId)
+  // ページごとの、知らせを受ける関数（同じ物を渡し続け、紙をずらしても測るだけのビューを描き直させない。ステージエントリが替われば作り直す）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 知らせる先（ステージエントリ）が替わったら表を空にする
   const reporters = useMemo(() => new Map<string, (m: PrintMeasured) => void>(), [report])
   // 測るだけのビューの入れ物。描かれていない間（刷るときは画面ごと隠れる）に届いた知らせは、0 を測っているので受けない
   const measureBox = useRef<HTMLDivElement>(null)
@@ -122,7 +123,7 @@ function PrintPreviewBody({ id }: { id: string }) {
     reporters.set(page, made)
     return made
   }
-  const pages = useMemo(() => (book ? pagesOf(book) : []), [book])
+  const pages = useMemo(() => (previewed ? pagesOf(previewed) : []), [previewed])
   // 測るページ（タイプのプレゼンテーションが測るビューを持ち、紙のあるページ）と、その紙の大きさと測るビュー
   const measuring = useMemo(
     () =>
@@ -137,7 +138,10 @@ function PrintPreviewBody({ id }: { id: string }) {
     () => new Map(measuring.map(({ page }) => [page.id, measures[page.id]?.rows ?? ("pending" as const)])),
     [measuring, measures],
   )
-  const layout = useMemo(() => (book ? bookSheets(catalog, book, measured) : null), [catalog, book, measured])
+  const layout = useMemo(
+    () => (previewed ? entrySheets(catalog, previewed, measured) : null),
+    [catalog, previewed, measured],
+  )
   const zoom = stage?.zoom ?? 1
   const motion = useZoomMotion(zoom, "")
   // 並べた広さを知らせる（測っている途中と、並べる物が無い間は知らせない。途中の広さで、初めの幅に合わせるのを済ませないように）
@@ -170,7 +174,7 @@ function PrintPreviewBody({ id }: { id: string }) {
   const opened = stage?.opened ?? null
   // 印刷区画の境目をまたいだ形を直してもらうタイプで、またいだ形があれば（AI が印刷プレビューで開いた・開いている間に AI が動かした）、
   // 印刷プレビューを閉じて、それを知らせる右サイドパネルを開く（フッタメニューのボタンと同じ）
-  const crossing = useMemo(() => !!book && hasCrossing(catalog, book), [catalog, book])
+  const crossing = useMemo(() => !!previewed && hasCrossing(catalog, previewed), [catalog, previewed])
   useEffect(() => {
     if (!crossing || !opened) return
     closePrintPreview(id)
@@ -204,17 +208,17 @@ function PrintPreviewBody({ id }: { id: string }) {
     el.addEventListener("dblclick", onDoubleClick)
     return () => el.removeEventListener("dblclick", onDoubleClick)
   }, [id, openPage])
-  if (!layout || !pan || !book) return null
+  if (!layout || !pan || !previewed) return null
   const pageOf = (pageId: string) => pages.find(p => p.id === pageId)
-  // ブック名・ページ名と印刷区画の番号（設定で入れるときだけ。番号は並べた印刷区画全体の通し）
+  // ブック名（バインダ名）・ページ名と印刷区画の番号（設定で入れるときだけ。番号は並べた印刷区画全体の通し）
   const shows = {
-    sheetNumbers: bookSettingValue(catalog, book, PRINT_PREVIEW_SHEET_NUMBERS) === "shown",
-    bookName: bookSettingValue(catalog, book, PRINT_PREVIEW_BOOK_NAME) === "shown",
-    pageName: bookSettingValue(catalog, book, PRINT_PREVIEW_PAGE_NAME) === "shown",
+    sheetNumbers: settingValue(catalog, previewed.holder, PRINT_PREVIEW_SHEET_NUMBERS) === "shown",
+    bookName: settingValue(catalog, previewed.holder, PRINT_PREVIEW_BOOK_NAME) === "shown",
+    pageName: settingValue(catalog, previewed.holder, PRINT_PREVIEW_PAGE_NAME) === "shown",
   }
   const labelsOf = (s: { index: number; page: string }) =>
     sheetLabels(s.index, layout.sheets.length, shows, {
-      book: book.title,
+      book: previewed.name,
       page: pageOf(s.page)?.title ?? "",
     })
   const origin = paperOrigin(pan)
@@ -224,7 +228,7 @@ function PrintPreviewBody({ id }: { id: string }) {
       <Printing>
         {measuring.map(({ page: p, paper, Measure }) => (
           // 測るページを、ステージの外で見るだけに描くページとして描く
-          <PageScope key={p.id} outermost={book.id} page={p.id} zoom={1}>
+          <PageScope key={p.id} outermost={previewed.id} page={p.id} zoom={1}>
             <Measure page={p} paper={paper} report={reporterOf(p.id)} />
           </PageScope>
         ))}
@@ -269,7 +273,7 @@ function PrintPreviewBody({ id }: { id: string }) {
           >
             <SheetFrame
               zoom={zoom}
-              book={book}
+              entry={previewed.id}
               page={pageOf(s.page)}
               sheet={s}
               measured={measures[s.page]?.data}
@@ -281,7 +285,7 @@ function PrintPreviewBody({ id }: { id: string }) {
       {shown && ready && opened && (
         <PrintOutput
           stage={id}
-          book={book}
+          entry={previewed.id}
           sheets={layout.sheets.map(s => ({
             ...s,
             key: keyOf(s),

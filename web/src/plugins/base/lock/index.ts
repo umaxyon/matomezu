@@ -76,6 +76,7 @@ export const BOOK_UNLOCK = kit.defineAction({
 export const PAGE_LOCK = kit.defineAction({
   id: "page-lock",
   history: false,
+  inPrintPreview: "runs", // ブックの外のページ 1 枚の印刷プレビューの右サイドパネルから掛け外す
   attach: { pages: true },
   aiDescription: `Lock a page: while locked, the page and everything on it cannot be changed or removed and its book (or the page itself, when it is not in a book) cannot be moved to the trash, by the user or by AI (denied by ${kit.name("lock")}). Only the user can unlock it. Refused if the page is already locked.`,
   title: "Lock page",
@@ -91,6 +92,7 @@ export const PAGE_LOCK = kit.defineAction({
 export const PAGE_UNLOCK = kit.defineAction({
   id: "page-unlock",
   history: false,
+  inPrintPreview: "runs",
   attach: { pages: true },
   userOnly: true,
   aiDescription: "Unlock a page (only the user can).",

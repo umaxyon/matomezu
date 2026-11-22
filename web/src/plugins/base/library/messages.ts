@@ -106,6 +106,10 @@ export const LIBRARY_MESSAGES = defineMessages({
     en: "The folder it was in is in the trash",
     ja: "元いたフォルダはゴミ箱の中です",
   },
+  "Its print settings go back to the defaults": {
+    en: "Its print settings go back to the defaults",
+    ja: "印刷の設定が初期値に戻ります",
+  },
   'It will go to "{folder}"': { en: 'It will go to "{folder}"', ja: "「{folder}」に移動します" },
   '"{folder}" has "{name}"': { en: '"{folder}" has "{name}"', ja: "「{folder}」に「{name}」があります" },
   "Add a number": { en: "Add a number", ja: "番号を付ける" },

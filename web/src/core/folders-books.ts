@@ -39,6 +39,7 @@ function split(book: Book): { folders: Folder[]; pages: PageRow[] } {
           title: f.title,
           pageType: f.pageType,
           lineup: f.lineup.map(ref),
+          ...(f.settings ? { settings: f.settings } : {}),
         }
         binderKept.set(folder, { parts: f.lineup, made: f })
         return folder
@@ -95,6 +96,7 @@ export function binderEntryOf(pages: Pages, folder: BinderFolder): BinderEntry |
     title: folder.title,
     pageType: folder.pageType,
     lineup: parts as PageRow[],
+    ...(folder.settings ? { settings: folder.settings } : {}),
   }
   binderKept.set(folder, { parts, made })
   return made

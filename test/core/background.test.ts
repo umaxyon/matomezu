@@ -12,7 +12,7 @@ import {
   startBackground,
 } from "../../web/src/core/stage"
 import { minimapMarks } from "../../web/src/plugins/base/minimap/marks"
-import { sheetsOfPage } from "../../web/src/plugins/base/print-preview/book-sheets"
+import { sheetsOfPage } from "../../web/src/plugins/base/print-preview/entry-sheets"
 import { placeableIn } from "../../web/src/plugins/base/toolbox/toolbox"
 import { DRAWING, drawingPage, SLIDE, testBinder, testBook, testPage, withSlide } from "../lineup"
 import { BUILTIN_PARTS, CORE_CATALOG } from "../support"

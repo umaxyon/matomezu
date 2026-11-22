@@ -1,5 +1,5 @@
-// 印刷プレビューの見せ方の設定の項目（ブックが持つ設定の項目で printPreview を書く。変えるのは print-preview-update だけ）:
-// 印刷区画を並べる向き・可変ページの印刷区画を数える順・紙に印刷区画の番号とブック名とページ名を入れるか
+// 印刷プレビューの見せ方の設定の項目（ステージエントリが持つ設定の項目で printPreview を書く。変えるのは print-preview-update だけ）:
+// 印刷区画を並べる向き・可変ページの印刷区画を数える順・紙に印刷区画の番号とブック名（バインダ名）とページ名を入れるか
 import { z } from "zod"
 import type { CatalogCheckDef } from "../../../core/core-catalog"
 import { problem } from "../../../core/errors"
@@ -7,11 +7,11 @@ import { kit } from "../kit"
 
 declare module "../../../core/catalog" {
   interface SettingExtras {
-    printPreview?: true // 印刷プレビューの設定の項目（ブックが持つ項目だけが書く）。印刷プレビューの右サイドパネルに並べ、print-preview-update が変える（book-update と設定のダイアログには出さない）
+    printPreview?: true // 印刷プレビューの設定の項目（ステージエントリが持つ項目だけが書く）。印刷プレビューの右サイドパネルに並べ、print-preview-update が変える（book-update と設定のダイアログには出さない）
   }
 }
 
-// printPreview はブックが持つ設定の項目だけが書く（ページの項目・利用者の設定の項目には書けない。台帳アセンブルのときの確かめ）
+// printPreview はステージエントリが持つ設定の項目だけが書く（ページの項目・利用者の設定の項目には書けない。台帳アセンブルのときの確かめ）
 export const PRINT_PREVIEW_SETTING_CHECK: CatalogCheckDef = catalog =>
   [...catalog.settings.values(), ...catalog.userSettings.values()]
     .filter(d => d.printPreview && d.holder !== "outermost")

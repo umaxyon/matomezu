@@ -1,18 +1,25 @@
-// ページとブックの設定の項目。
+// ページの設定の項目と、ステージエントリ（ブック・ブックの外のバインダ・ブックの外のページ 1 枚）が持つ設定の項目。
 // 項目のコンポーネントの並び（useSettingControls。SettingControls.tsx）も、このフォルダに置く
 // ページの項目: ページのタイプが設定の定義（core/def/setting.ts。holder が "page"）を id で選び、機能台帳がページの形に settings のフィールド（項目の id → 値）を足す。
-// ブックの項目: holder が "outermost" の設定の定義で、タイプに依らず、どのブックも持てる。
-// 変える base のアクション（page-update・pages-update・book-update）は、名前などの共通の項目に加えて、項目を settings（項目の id → 値）として受け付ける。書いた項目だけを変え、null は項目を消す（既定に戻す）。
-// 変えたあとはページを整える（settleBook）。値は、値があればその値、無ければ定義の既定（settingValue・bookSettingValue）。ページの項目がブックの値を引き継ぐことは無い。
+// ステージエントリが持つ項目: holder が "outermost" の設定の定義で、タイプに依らず、どのステージエントリも持てる。ブックかバインダの中へ入った物は持たない。
+// 変える base のアクション（page-update・pages-update・book-update・print-preview-update）は、名前などの共通の項目に加えて、項目を settings（項目の id → 値）として受け付ける。書いた項目だけを変え、null は項目を消す（既定に戻す）。
+// 変えたあとはページを整える（settleBook）。値は、値があればその値、無ければ定義の既定（settingValue）。ページの項目がステージエントリの値を引き継ぐことは無い。
 // AI には、タイプごとの項目を引数の形に入れて見せる（settingsArgs）
 import { z } from "zod"
 import { pagesOf, putPage } from "../../../core/book"
 
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
-import type { BookSettingDef, DefaultedSettingDef, PageSettingDef, SettingDef } from "../../../core/def/setting"
+import type {
+  DefaultedSettingDef,
+  HeldSettingDef,
+  OutermostSettingDef,
+  PageSettingDef,
+  SettingDef,
+  SettingHolder,
+} from "../../../core/def/setting"
 import { fail } from "../../../core/errors"
 import type { ItemPage } from "../../../core/placed"
-import type { Book, Page, StageLineup } from "../../../core/schema/book"
+import type { Page, StageLineup } from "../../../core/schema/book"
 import { settingSchema } from "../../../core/settings"
 import { tidyConnectors } from "../place/placed"
 
@@ -29,10 +36,10 @@ export function settingDefs(catalog: CoreCatalog, type: string): PageSettingDef[
   )
 }
 
-// ブックが持つ設定の定義のうち、組 group の物（表の順）
-export function bookSettingDefs(catalog: CoreCatalog, group: SettingGroup = "general"): BookSettingDef[] {
+// ステージエントリが持つ設定の定義のうち、組 group の物（表の順）
+export function outermostSettingDefs(catalog: CoreCatalog, group: SettingGroup = "general"): OutermostSettingDef[] {
   return [...catalog.settings.values()].filter(
-    (d): d is BookSettingDef => d.holder === "outermost" && groupOf(d) === group,
+    (d): d is OutermostSettingDef => d.holder === "outermost" && groupOf(d) === group,
   )
 }
 
@@ -47,7 +54,7 @@ function settingsPatch(
   )
 }
 
-// ページかブックの settings のフィールド（無ければ空）
+// ページかステージエントリの settings のフィールド（無ければ空）
 export const ownSettings = (target: object | null): Readonly<Record<string, unknown>> =>
   (target as { settings?: Record<string, unknown> } | null)?.settings ?? {}
 
@@ -57,9 +64,9 @@ export function settingsPatchOf(catalog: CoreCatalog, type: string): z.ZodObject
   return defs.length > 0 ? settingsPatch(catalog, { pageType: type }, defs) : null
 }
 
-// ブックの設定の項目（組 group の物）を変えるときに渡す形（項目が無ければ null）
-export function bookSettingsPatch(catalog: CoreCatalog, group: SettingGroup = "general"): z.ZodObject | null {
-  const defs = bookSettingDefs(catalog, group)
+// ステージエントリが持つ設定の項目（組 group の物）を変えるときに渡す形（項目が無ければ null）
+export function outermostSettingsPatch(catalog: CoreCatalog, group: SettingGroup = "general"): z.ZodObject | null {
+  const defs = outermostSettingDefs(catalog, group)
   return defs.length > 0 ? settingsPatch(catalog, "outermost", defs) : null
 }
 
@@ -79,38 +86,22 @@ export interface SettingReader {
   <S extends z.ZodType>(def: PageSettingDef<S>): z.output<S> | undefined
 }
 
-// ページの設定の項目 def の値: ページの値、無ければ定義の既定（page は無くてよい。無ければ既定）。
-// ページの値は、読み込むときとアクションのあとに機能台帳のブックの形（項目の schema）で確かめてあるので、ここでは確かめ直さない
+// 設定の項目 def の値: 持つ所 holder（ページかステージエントリ。def の holder に合う物）の値、無ければ定義の既定（holder は無くてよい。無ければ既定）。
+// 持つ所の値は、読み込むときとアクションのあとに機能台帳のブックの形（項目の schema）で確かめてあるので、ここでは確かめ直さない
 // （利用者の設定は確かめずに残すので、読むときに確かめる。core/settings.ts の userSetting）
 export function settingValue<S extends z.ZodType>(
   catalog: CoreCatalog,
-  page: object | null,
-  def: DefaultedSettingDef<S> & { holder: "page" },
+  holder: object | null,
+  def: DefaultedSettingDef<S> & { holder: SettingHolder },
 ): z.output<S>
 export function settingValue<S extends z.ZodType>(
   catalog: CoreCatalog,
-  page: object | null,
-  def: PageSettingDef<S>,
+  holder: object | null,
+  def: PageSettingDef<S> | OutermostSettingDef<S>,
 ): z.output<S> | undefined
-export function settingValue(catalog: CoreCatalog, page: object | null, def: PageSettingDef): unknown {
+export function settingValue(catalog: CoreCatalog, holder: object | null, def: HeldSettingDef): unknown {
   const known = catalog.settings.get(def.id) ?? fail("E113", { id: def.id })
-  return ownSettings(page)[known.id] ?? known.default
-}
-
-// ブックの設定の項目 def の値: ブックの値、無ければ定義の既定（book は無くてよい。無ければ既定）
-export function bookSettingValue<S extends z.ZodType>(
-  catalog: CoreCatalog,
-  book: Book | null,
-  def: DefaultedSettingDef<S> & { holder: "outermost" },
-): z.output<S>
-export function bookSettingValue<S extends z.ZodType>(
-  catalog: CoreCatalog,
-  book: Book | null,
-  def: BookSettingDef<S>,
-): z.output<S> | undefined
-export function bookSettingValue(catalog: CoreCatalog, book: Book | null, def: BookSettingDef): unknown {
-  const known = catalog.settings.get(def.id) ?? fail("E113", { id: def.id })
-  return ownSettings(book)[known.id] ?? known.default
+  return ownSettings(holder)[known.id] ?? known.default
 }
 
 // ページ page で効いている設定の値を読む関数

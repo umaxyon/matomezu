@@ -7,7 +7,7 @@ import { USER } from "../core/actor"
 import { withSettings } from "../core/book"
 import type { ActionId, ItemId } from "../core/catalog"
 import type { CoreCatalog } from "../core/core-catalog"
-import { type ActionOn, isInBook, isOnPage, type PageTarget, type Where } from "../core/def/action"
+import { type ActionOn, isInStageEntry, isOnPage, type PageTarget, type Where } from "../core/def/action"
 import type { Point, Size } from "../core/geom"
 import type { Lang } from "../core/i18n/i18n"
 import { deniedBy } from "../core/inspect"
@@ -286,7 +286,7 @@ export function usePerform(): <Id extends ActionId>(
         if (at === null) return { ok: false, reason: "no-book" } // 向け先が無い所からは、何も行わない
         if (stageBlocks(catalog, mode, action)) return { ok: false, reason: "print-preview" }
         const target = catalog.actions.get(action)?.target
-        if (!isInBook(target)) return loose(action, args)
+        if (!isInStageEntry(target)) return loose(action, args)
         if (entry === undefined) return { ok: false, reason: "no-book" }
         // ブックが対象のアクションは、ブックの外のページを開いたステージからは行えない
         if (!isOnPage(target))

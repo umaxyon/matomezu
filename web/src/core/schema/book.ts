@@ -13,8 +13,8 @@ type SettingValuesOf<Ids> = {
   [K in Ids & keyof SettingTable]?: SettingTable[K] extends { schema: infer S extends z.ZodType } ? z.output<S> : never
 }
 type Selected<T> = T extends { settings: readonly (infer I)[] } ? I : never
-// ブックが持つ設定の項目（holder が "outermost" の項目）の id
-type BookSettingId = {
+// ステージエントリが持つ設定の項目（holder が "outermost" の項目）の id
+type OutermostSettingId = {
   [K in keyof SettingTable]: SettingTable[K] extends { holder: "outermost" } ? K : never
 }[keyof SettingTable]
 
@@ -28,7 +28,7 @@ export type PageData<T> = Page &
   (T extends { id: infer Id extends string } ? { type: Id } : unknown) &
   PageFields<T> & {
     items?: readonly PlacedOf<T extends { items: { allowed: readonly (infer I extends string)[] } } ? I : never>[]
-  } & SettingFields<Selected<T>>
+  } & SettingFields<Selected<T> | OutermostSettingId>
 
 // 書き足したページのタイプごとの、ページのデータの型の和（type で分かれる）。Page は、どのタイプのページも持つ土台のフィールドだけの型
 export type AnyPage = { [K in PageTypeId]: PageData<PageTypeTable[K]> }[PageTypeId]
@@ -46,7 +46,10 @@ export interface BinderEntry {
   title: string
   pageType: string // 入れるページのタイプの id
   lineup: readonly AnyPage[]
+  settings?: OutermostSettings
 }
+// ステージエントリが持つ設定の項目の値（settings のフィールドの中身）
+export type OutermostSettings = SettingValuesOf<OutermostSettingId>
 export type LineupEntry = AnyPage | BinderEntry
 
 // ステージで開く物の並び: その物の id と、並び lineup（ブックならその id と並び、ブックの外のバインダならその id と、そのバインダ 1 つだけの並び）
@@ -55,11 +58,11 @@ export type StageLineup = {
   lineup: readonly LineupEntry[]
 }
 
-// ブック（名前 title・ロック locked・並び lineup・ブックが持つ設定の項目）
+// ブック（名前 title・ロック locked・並び lineup・ステージエントリが持つ設定の項目）
 export type Book = StageLineup & {
   title: string
   locked?: true
-} & SettingFields<BookSettingId>
+} & SettingFields<OutermostSettingId>
 
 export type { Page } from "./page"
 export { PageSchema } from "./page"

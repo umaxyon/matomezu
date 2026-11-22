@@ -1,8 +1,10 @@
-// ドラッグで落とした先に同じ名前の物が在るときの確かめ: 番号を付けて動かすか・上書きして動かすか・やめるか
+// ドラッグで落とした先に同じ名前の物が在るときの確かめ: 番号を付けて動かすか・上書きして動かすか・やめるか。動かすと印刷の設定が既定に戻るなら、その行も出す
 import { titleOf } from "../../../core/entries"
 import { useCommand } from "../../../ui/commands"
+import { useMessages } from "../../../ui/i18n"
 import { useReadState } from "../../../ui/store-context"
 import { useAllowedOn } from "../../../ui/view-hooks"
+import { kit } from "../kit"
 import { LIBRARY_ENTRY_MOVE } from "./commands"
 import { replaceBlockedOf } from "./entries"
 import { ENTRY_MOVE_OVER } from "./entry-move"
@@ -12,7 +14,8 @@ import { TitleClashConfirm } from "./TitleClashConfirm"
 import type { AskingMove } from "./useLibraryDrag"
 
 export function MoveClashConfirm({ asking, onDone }: { asking: AskingMove; onDone(): void }) {
-  const { entry, into, index, clash } = asking
+  const { entry, into, index, clash, clears } = asking
+  const t = useMessages(kit)
   const read = useReadState()
   const nameOf = useNameOf()
   const naming = useReadNaming()
@@ -26,6 +29,7 @@ export function MoveClashConfirm({ asking, onDone }: { asking: AskingMove; onDon
       name={nameOf({ id, title: titleOf(read(), kind, id, naming()) ?? NO_TITLE })}
       numbered={clash.numbered}
       blocked={replaceBlockedOf(clash, allowed)}
+      notes={clears ? [t("Its print settings go back to the defaults")] : undefined}
       onNumber={() => {
         onDone()
         move({ entry, to: { to: "folder", into, index }, how: "number" })

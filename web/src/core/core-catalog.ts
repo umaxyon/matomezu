@@ -100,6 +100,7 @@ export type CoreCatalog = { readonly [K in CorePart]: ReadonlyMap<string, PartDe
   messages: Messages // 文言の組と言語パックを重ねた、文言の鍵 → 言語ごとの訳
   languages: ReadonlyMap<Lang, string> // インスタンスで選べる言語 → 名前（土台の言語が先、あとはパックの順）
   bookSchema: z.ZodType
+  outermostSettingsSchema: z.ZodType // ステージエントリが持つ設定の項目の値（settings のフィールドの中身）の形
   warnings: readonly Warning[] // 台帳アセンブルで見つけた、止めるほどではない間違い（core/warnings.ts）
   tokens: ReadonlyMap<string, TokenDef> // プラグインが持つテーマキー（アイテムとページのタイプのテーマキーは、その定義の tokens）
   normalizeSteps: readonly NormalizeStepDef[] // ノーマライズステップ（core/def/normalize-step.ts）
@@ -131,6 +132,7 @@ export function buildCoreCatalog(parts: CoreCatalogParts): CoreCatalog {
     messages: mergeMessages(parts),
     languages: new Map(allLanguages(parts).map(p => [p.lang, p.name])),
     bookSchema: buildBookSchema(parts, pageSchemas),
+    outermostSettingsSchema: outermostSettingsField(parts).settings as z.ZodType,
     warnings: coreWarnings(parts),
     tokens: byId(parts.tokens),
     normalizeSteps: parts.normalizeSteps,
@@ -156,8 +158,14 @@ function settingsField(parts: CoreCatalogParts, ids: readonly string[]): Record<
   }
 }
 
+// ステージエントリが持つ設定の項目（holder が "outermost" の項目）の全部の settings のフィールド（ブック・バインダが持つ）
+const outermostIds = (parts: CoreCatalogParts): string[] =>
+  parts.settings.filter(d => d.holder === "outermost").map(d => d.id)
+const outermostSettingsField = (parts: CoreCatalogParts): Record<string, z.ZodType> =>
+  settingsField(parts, outermostIds(parts))
+
 // タイプのページのデータの形: 土台のページのフィールド（type はそのタイプの id だけ）・タイプがページに足すフィールド（fields）・
-// タイプが選んだアイテムを置いた並び（items）・形だけの並び（slide）・ページの設定の項目（settings）
+// タイプが選んだアイテムを置いた並び（items）・形だけの並び（slide）・設定の項目（settings。タイプが選んだページの項目と、ステージエントリが持つ項目の全部）
 function buildPageSchema(parts: CoreCatalogParts, t: PageTypeDef): z.ZodObject {
   const items = byId(parts.items)
   const allowed = t.items.allowed.flatMap(id => items.get(id) ?? [])
@@ -176,12 +184,12 @@ function buildPageSchema(parts: CoreCatalogParts, t: PageTypeDef): z.ZodObject {
     ...t.fields,
     items: z.array(one ? z.union([z.discriminatedUnion("item", [one, ...more]), unknownItem]) : unknownItem).optional(),
     ...slideField(t, items),
-    ...settingsField(parts, t.settings ?? []),
+    ...settingsField(parts, [...(t.settings ?? []), ...outermostIds(parts)]),
   })
 }
 
-// ブックのデータの形: 名前 title（1 字以上）・ロック locked・並び lineup・ブックが持つ設定の項目（holder が "outermost" の項目）。
-// エントリ 1 つは、ページ（kind が "page"。タイプごとの形のどれか）か、1 つのタイプのページだけを入れるバインダ（中身も同じ並びで、入るのはページだけ）
+// ブックのデータの形: 名前 title（1 字以上）・ロック locked・並び lineup・ステージエントリが持つ設定の項目（holder が "outermost" の項目）。
+// エントリ 1 つは、ページ（kind が "page"。タイプごとの形のどれか）か、1 つのタイプのページだけを入れるバインダ（中身も同じ並びで、入るのはページだけ。ステージエントリが持つ設定の項目も持つ）
 function buildBookSchema(parts: CoreCatalogParts, pageSchemas: ReadonlyMap<string, z.ZodObject>): z.ZodType {
   const [first, ...rest] = [...pageSchemas.values()]
   if (!first) return fail("E015")
@@ -192,16 +200,14 @@ function buildBookSchema(parts: CoreCatalogParts, pageSchemas: ReadonlyMap<strin
     title: z.string().min(1),
     pageType: z.string().min(1),
     lineup: z.array(page),
+    ...outermostSettingsField(parts),
   })
   return z.strictObject({
     id: z.string().min(1),
     title: z.string().min(1),
     locked: z.literal(true).optional(),
     lineup: z.array(z.union([page, binderEntry])),
-    ...settingsField(
-      parts,
-      parts.settings.filter(d => d.holder === "outermost").map(d => d.id),
-    ),
+    ...outermostSettingsField(parts),
   })
 }
 

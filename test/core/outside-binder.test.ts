@@ -8,6 +8,7 @@ import {
   newStage,
   openedPageById,
   openOutsideBinder,
+  openPrintPreview,
   select,
   shownPageId,
 } from "../../web/src/core/stage"
@@ -73,6 +74,17 @@ test("ブックの外のバインダを開くと、ステージエントリは�
   expect(second.opened).toMatchObject({ outermost: { kind: "binder", id: "n1" }, page: "s2" })
   // もう開いているバインダを、ページを名指さずに開いても、開いているページは替えない
   expect(openOutsideBinder(CORE_CATALOG, second, n1)).toBe(second)
+  // 印刷プレビューの間に、開いているページを名指すと閉じる。ほかのページを名指すと、閉じてそのページへ替える
+  const previewing = openPrintPreview(second)
+  expect(openOutsideBinder(CORE_CATALOG, previewing, n1, "s2")).toMatchObject({
+    mode: { kind: "edit" },
+    opened: second.opened,
+  })
+  expect(openOutsideBinder(CORE_CATALOG, previewing, n1, "s3")).toMatchObject({
+    mode: { kind: "edit" },
+    opened: { page: "s3" },
+  })
+  expect(openOutsideBinder(CORE_CATALOG, previewing, n1).mode.kind).toBe("print-preview")
   // そのバインダに無いページを名指したら、最初のページ
   expect(shownPageId(openOutsideBinder(CORE_CATALOG, newStage("st"), n1, "nothing").opened)).toBe("s1")
 

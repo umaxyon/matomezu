@@ -6,7 +6,7 @@ import type { Book, Page } from "../../../core/schema/book"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
-import { bookSettingDefs, ownSettings, settingDefs } from "."
+import { outermostSettingDefs, ownSettings, settingDefs } from "."
 
 // 変えた項目（項目の id → 値。消すなら null）
 export type SettingsPatch = Readonly<Record<string, unknown>>
@@ -22,7 +22,13 @@ export function useSettingControls(at: SettingsAt, only?: readonly string[]) {
   const [patch, setPatch] = useState<SettingsPatch>({})
   const holder = at.of === "page" ? at.page : at.book
   const all =
-    at.of === "page" ? (at.page ? settingDefs(catalog, at.page.type) : []) : at.book ? bookSettingDefs(catalog) : []
+    at.of === "page"
+      ? at.page
+        ? settingDefs(catalog, at.page.type)
+        : []
+      : at.book
+        ? outermostSettingDefs(catalog)
+        : []
   const defs = all.filter(d => !only || only.includes(d.id))
   const draftPage = at.of === "page" && at.page ? withSettings<Page>(at.page, patch) : null // 変えている項目を重ねたページ
   const controls = defs.flatMap(def => {

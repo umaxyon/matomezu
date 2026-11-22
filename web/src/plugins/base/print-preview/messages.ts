@@ -32,8 +32,8 @@ export const PRINT_PREVIEW_MESSAGES = defineMessages({
   "Background if filled": { en: "If filled", ja: "中身があれば" },
   "Background always": { en: "Always", ja: "必ず" },
   "Background never": { en: "Never", ja: "出さない" },
-  "This book is locked. Change it anyway?": {
-    en: "This book is locked. Change it anyway?",
+  "It is locked. Change it anyway?": {
+    en: "It is locked. Change it anyway?",
     ja: "ロック中ですが書き換えてもいいですか？",
   },
 })

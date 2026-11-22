@@ -3,12 +3,13 @@ import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import { slideIsBackground } from "../../../core/def/page-type"
 import type { Point } from "../../../core/geom"
 import { type ItemPage, slideOf } from "../../../core/placed"
-import type { Book } from "../../../core/schema/book"
-import { bookSettingValue, settingsAt, settingValue } from "../book-settings"
+import type { StageLineup } from "../../../core/schema/book"
+import { settingsAt, settingValue } from "../book-settings"
 import { growOf, pageArea, paperSize, slideOffsetOf } from "../place/grow"
 import { placedSize } from "../place/placed"
 import type { PrintSheets, SheetPurpose } from "."
 import { crossingShapes, filledSheets, sheetKey } from "./filled"
+import type { PreviewedEntry } from "./previewed"
 import { BACKGROUND_PRINT, PRINT_PREVIEW_FLOW, PRINT_PREVIEW_ORDER } from "./settings"
 import { arrangeSheets, type PageSheets, type SheetLayout } from "./sheets"
 
@@ -54,9 +55,13 @@ function backgroundCovered<S extends Omit<PrintSheets, "filled">>(catalog: CoreC
 // 測るプレゼンテーション（プレゼンテーションのビューの printMeasure）のページだけが入る
 export type MeasuredSheets = ReadonlyMap<string, number | "pending">
 
-// ブック book の各ページの印刷区画。measured にあるページは、測った数（1 列）
-export function pageSheetsOf(catalog: CoreCatalog, book: Book, measured: MeasuredSheets = new Map()): PageSheets[] {
-  return pagesOf(book).flatMap(page => {
+// ステージエントリの並び entry の各ページの印刷区画。measured にあるページは、測った数（1 列）
+export function pageSheetsOf(
+  catalog: CoreCatalog,
+  entry: StageLineup,
+  measured: MeasuredSheets = new Map(),
+): PageSheets[] {
+  return pagesOf(entry).flatMap(page => {
     const paper = paperSize(catalog, page)
     // 測るページは測った数（測っている途中と、測って何も無ければ並べない）
     const rows = measured.get(page.id)
@@ -66,33 +71,37 @@ export function pageSheetsOf(catalog: CoreCatalog, book: Book, measured: Measure
   })
 }
 
-// ブック book の可変ページで、印刷区画の境目をまたぐ形（ページの id と、またぐ形・印刷区画より大きい形の id。どちらも無いページは入れない）。
+// ステージエントリの並び entry の可変ページで、印刷区画の境目をまたぐ形（ページの id と、またぐ形・印刷区画より大きい形の id。どちらも無いページは入れない）。
 // 調べるのは、またいだ形を直してもらうタイプ（ページのタイプの printCrossing が ask）のページだけ
-export function bookCrossings(
+export function entryCrossings(
   catalog: CoreCatalog,
-  book: Book,
+  entry: StageLineup,
 ): { page: string; crossing: readonly string[]; oversized: readonly string[] }[] {
-  return pagesOf(book).flatMap(page => {
+  return pagesOf(entry).flatMap(page => {
     if (pageType(catalog, page.type).printCrossing !== "ask" || !growOf(catalog, page)) return []
     const found = crossingShapes(catalog, page)
     return found.crossing.length + found.oversized.length > 0 ? [{ page: page.id, ...found }] : []
   })
 }
 
-// ブック book に、印刷区画の境目をまたぐ形があるか（あれば印刷プレビューを開かず、直してもらう）
-export const hasCrossing = (catalog: CoreCatalog, book: Book): boolean =>
-  bookCrossings(catalog, book).some(c => c.crossing.length > 0)
+// ステージエントリの並び entry に、印刷区画の境目をまたぐ形があるか（あれば印刷プレビューを開かず、直してもらう）
+export const hasCrossing = (catalog: CoreCatalog, entry: StageLineup): boolean =>
+  entryCrossings(catalog, entry).some(c => c.crossing.length > 0)
 
-// ブック book を、印刷プレビューの設定の項目のとおりに並べる（何も載っていない印刷区画は並べない。何も載っていないページは並べない）。
+// 印刷プレビューで開いているステージエントリ previewed を、その印刷プレビューの設定の項目のとおりに並べる（何も載っていない印刷区画は並べない。何も載っていないページは並べない）。
 // measured にあるページは測った数だけ並べる（測った印刷区画には、どれも何か載っている）
-export function bookSheets(catalog: CoreCatalog, book: Book, measured: MeasuredSheets = new Map()): SheetLayout {
-  const pages = pagesOf(book)
+export function entrySheets(
+  catalog: CoreCatalog,
+  previewed: Pick<PreviewedEntry, "id" | "lineup" | "holder">,
+  measured: MeasuredSheets = new Map(),
+): SheetLayout {
+  const pages = pagesOf(previewed)
   const filled = new Map(
     pages.filter(p => !measured.has(p.id)).map(p => [p.id, sheetsOfPage(catalog, p)?.filled ?? null]),
   )
-  return arrangeSheets(pageSheetsOf(catalog, book, measured), {
-    flow: bookSettingValue(catalog, book, PRINT_PREVIEW_FLOW),
-    order: bookSettingValue(catalog, book, PRINT_PREVIEW_ORDER),
+  return arrangeSheets(pageSheetsOf(catalog, previewed, measured), {
+    flow: settingValue(catalog, previewed.holder, PRINT_PREVIEW_FLOW),
+    order: settingValue(catalog, previewed.holder, PRINT_PREVIEW_ORDER),
     shown: (page, column, row) => measured.has(page) || (filled.get(page)?.has(sheetKey(column, row)) ?? true),
   })
 }

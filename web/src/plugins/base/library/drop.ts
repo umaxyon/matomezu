@@ -14,6 +14,7 @@ import {
 } from "../../../core/entries"
 import type { AnyEntryRef, Folders, Library } from "../../../core/folders"
 import { systemFolderOf, treeHolds } from "../../../core/folders-tree"
+import { losesOutermostSettings } from "../../../core/perform-library"
 import {
   freeTitleIn,
   isNotOverwritten,
@@ -64,6 +65,13 @@ export function indexBefore(
   const others = entriesIn(library.folders, into).filter(r => r.id !== moving)
   const i = before === undefined ? -1 : others.findIndex(r => r.id === before)
   return i < 0 ? others.length : i
+}
+
+// entry を drop へ動かすと、ステージエントリが持つ設定の項目の値（印刷プレビューの設定など）が消えるか（動かせない移動なら false）
+export function clearsOutermostSettings(library: Library, entry: string, drop: Drop, naming: Naming): boolean {
+  if (drop.to !== "folder") return false
+  const moved = movedWithBinders(naming.catalog, library, entry, drop.into, drop.index, naming, dropCheckIds())
+  return !isMoveRefusal(moved) && losesOutermostSettings(naming.catalog, library, moved.next)
 }
 
 // 落とす先に同じ名前の物が在るときに、利用者に確かめる事: 落とす先へ入る物 carried（carriedEntry。名前が重なっている物）、番号を付けた名前 numbered、

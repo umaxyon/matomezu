@@ -8,7 +8,7 @@ import { anchorIds } from "./annotation"
 import { findBinder, findPage, lineupOf, pagesOf } from "./book"
 import type { ItemId } from "./catalog"
 import type { CoreCatalog, PageTypeId } from "./core-catalog"
-import { isInBook } from "./def/action"
+import { isInStageEntry } from "./def/action"
 import { type EditList, slideIsBackground } from "./def/page-type"
 import { type Library, pageIn } from "./folders"
 import { outsideAsked, outsideBinderIn, outsidePageIn, type StageEntry } from "./folders-tree"
@@ -158,19 +158,19 @@ export function extentOf(stage: Pick<Stage, "opened" | "mode">): Size | null {
 // 印刷プレビューの間か（間は、選ぶ・置く・その場の編集・道具のアイコンを始めず、ブックを変えるアクションを止める。stageBlocks）
 export const previewing = (stage: Pick<Stage, "mode">): boolean => stage.mode.kind === "print-preview"
 
-// 見え方が mode のステージから行うと止めるアクションか: 印刷プレビューの間の、ブックが対象のアクション（印刷プレビューの間も行う印
-// inPrintPreview のあるものを除く）。止めるのはそのステージから行う物だけで、AI やほかのステージは止めない。
-// changes は、アクションが変える物の見方: "target" は対象のとおり、"opened-book" は、対象に依らず開いているブックを変える物として扱う
+// 見え方が mode のステージから行うと止めるアクションか: 印刷プレビューの間の、ステージエントリの中の物を変えるアクション（ブック・ページ・ページのアノテーションが対象の物。
+// 印刷プレビューの間も行う印 inPrintPreview のあるものを除く）。止めるのはそのステージから行う物だけで、AI やほかのステージは止めない。
+// changes は、アクションが変える物の見方: "target" は対象のとおり、"opened-entry" は、対象に依らず開いているステージエントリを変える物として扱う
 // （許可スコープを書いたコマンドが行う、一覧が対象のアクション）
 export function stageBlocks(
   catalog: CoreCatalog,
   mode: StageMode["kind"],
   action: string,
-  changes: "target" | "opened-book" = "target",
+  changes: "target" | "opened-entry" = "target",
 ): boolean {
   const def = catalog.actions.get(action)
-  const inBook = changes === "opened-book" || isInBook(def?.target)
-  return mode === "print-preview" && inBook && def?.inPrintPreview !== "runs"
+  const inEntry = changes === "opened-entry" || isInStageEntry(def?.target)
+  return mode === "print-preview" && inEntry && def?.inPrintPreview !== "runs"
 }
 
 // プレゼンテーションが描く広さを area に、描く中身をずらした量を origin にする（null なら紙 1 枚に戻し、ずらさない）。origin が変わったら、
@@ -324,13 +324,14 @@ export function openOutsidePage(catalog: CoreCatalog, stage: Stage, page: Page):
 }
 
 // ブックの外のバインダ binder を開く: page のページ（名指さなければ最初のページ。そのバインダに無いページなら最初のページ）。ずらす量と印刷プレビューは openBook と同じ。
-// そのバインダをもう開いていれば、名指したページへ替えるだけ（名指さない・そのページをもう開いている・背景編集モードの間は、同じ値を返す）
+// そのバインダをもう開いていれば、名指したページへ替えるだけ（名指さない・背景編集モードの間は、同じ値を返す。そのページをもう開いていれば、印刷プレビューを閉じるだけ）
 export function openOutsideBinder(catalog: CoreCatalog, stage: Stage, binder: BinderEntry, page?: string): Stage {
   const found = binder.lineup.find(p => p.id === page) ?? binder.lineup[0]
   if (!found) return stage
   const o = stage.opened
   if (o?.outermost.kind === "binder" && o.outermost.id === binder.id) {
-    if (page === undefined || shownPageId(o) === found.id || editingBackground(stage)) return stage
+    if (page !== undefined && shownPageId(o) === found.id) return closePrintPreview(stage)
+    if (page === undefined || editingBackground(stage)) return stage
   }
   return settle(leave(opening(edited(stage), openedAt(catalog, { kind: "binder", id: binder.id }, found))), ORIGIN)
 }
@@ -537,7 +538,7 @@ export function endBackground(stage: Stage): Stage {
   return editingBackground(stage) ? leave({ ...stage, edits: "items" }) : stage
 }
 
-// 印刷プレビューを開く（ブックを開いていて、編集の間だけ）。置こうとしているアイテム・選択・その場の編集・道具のアイコンは捨てる。
+// 印刷プレビューを開く（ステージエントリを開いていて、編集の間だけ）。置こうとしているアイテム・選択・その場の編集・道具のアイコンは捨てる。
 // 並べた広さをプレゼンテーションが知らせるまで、ずらす量は収めない
 export function openPrintPreview(stage: Stage): Stage {
   if (!stage.opened || previewing(stage)) return stage

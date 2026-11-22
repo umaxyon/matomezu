@@ -5,7 +5,7 @@
 import { z } from "zod"
 import type { ItemPage } from "./placed"
 import type { REMOVED } from "./records"
-import type { AnyPage, Book } from "./schema/book"
+import type { AnyPage, Book, OutermostSettings } from "./schema/book"
 import type { WarningCode } from "./warnings"
 
 // フォルダが持つエントリ 1 つ: ページかバインダの id
@@ -38,13 +38,14 @@ export type TrashRef = AnyEntryRef & { trashed: string; from: readonly string[] 
 
 // ブックのフォルダ: ブックのフィールド（名前・ロック・ブックが持つ設定の項目）と、エントリの id の並び
 export type BookFolder = Omit<Book, "lineup"> & { folderRole: "book"; lineup: readonly EntryRef[] }
-// バインダ: 名前と、入れるページのタイプと、ページの id の並び
+// バインダ: 名前と、入れるページのタイプと、ページの id の並びと、ステージエントリが持つ設定の項目
 export interface BinderFolder {
   folderRole: "binder"
   id: string
   title: string
   pageType: string
   lineup: readonly PageRef[]
+  settings?: OutermostSettings
 }
 // 書庫ホーム: 書庫の一番上のフォルダ。名前は持たない
 export interface HomeFolder {
@@ -234,13 +235,15 @@ export function homeAndFoldersOf(folders: readonly unknown[]): HomeOrFolder[] {
   })
 }
 
-// バインダの行の形（ブックの中でも外でも同じ: 名前・入れるページのタイプ・ページの id の並び）
+// バインダの行の形（ブックの中でも外でも同じ: 名前・入れるページのタイプ・ページの id の並び・設定の項目の値。
+// 設定の項目の値の中身は、機能台帳から作る形〈CoreCatalog の outermostSettingsSchema〉で確かめる）
 const BinderFolderSchema = z.strictObject({
   folderRole: z.literal("binder"),
   id: z.string().min(1),
   title: z.string().min(1),
   pageType: z.string().min(1),
   lineup: z.array(z.strictObject({ kind: z.literal("page"), id: z.string().min(1) })),
+  settings: z.record(z.string(), z.unknown()).optional(),
 })
 
 // 置き場所から読んだままのフォルダの行 row が、バインダの形に合えばそのバインダ（合わなければ undefined）

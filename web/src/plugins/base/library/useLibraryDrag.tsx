@@ -10,7 +10,15 @@ import { useCatalog, useReadState } from "../../../ui/store-context"
 import { useAllowed, useAllowedOn } from "../../../ui/view-hooks"
 import { DRAG_START } from "../utils"
 import { LIBRARY_ENTRY_MOVE, LIBRARY_TREE_SCOPE } from "./commands"
-import { type Drop, draggable, droppable, indexBefore, type MoveClash, moveClashOf } from "./drop"
+import {
+  clearsOutermostSettings,
+  type Drop,
+  draggable,
+  droppable,
+  indexBefore,
+  type MoveClash,
+  moveClashOf,
+} from "./drop"
 import { ENTRY_MOVE } from "./entry-move"
 import { ENTRY_TRASH } from "./entry-trash"
 import { useReadNaming } from "./hooks"
@@ -37,6 +45,13 @@ export interface AskingMove {
   into: string
   index: number | undefined
   clash: MoveClash
+  clears: boolean // 動かすと、設定の項目の値が消える
+}
+
+// 設定の項目の値が消えるので、確かめている移動
+export interface ClearingMove {
+  entry: string
+  to: Drop & { to: "folder" }
 }
 
 // ポインタの下の行 over と、そこへ entry を落とせるなら落とす所 aim
@@ -96,10 +111,14 @@ export function useLibraryDrag(root: RefObject<HTMLElement | null>, unfold: (id:
   const stop = useRef<(() => void) | null>(null)
   useEffect(() => () => stop.current?.(), [])
 
+  const [clearing, setClearing] = useState<ClearingMove | null>(null)
+  // 離した時点の書庫で、名前の重なりと、設定の項目の値が消えるかを読み直す。どちらかが在れば確かめる（両方なら、名前の重なりの確かめに値が消える事も出す）
   const drop = (entry: string, to: Drop) => {
-    // 離した時点の書庫で、名前の重なりを読み直す
+    if (to.to !== "folder") return live.current.move({ entry, to })
     const clash = moveClashOf(read(), entry, to, naming())
-    if (clash && to.to === "folder") setAsking({ entry, into: to.into, index: to.index, clash })
+    const clears = clearsOutermostSettings(read(), entry, to, naming())
+    if (clash) setAsking({ entry, into: to.into, index: to.index, clash, clears })
+    else if (clears) setClearing({ entry, to })
     else live.current.move({ entry, to })
   }
 
@@ -161,5 +180,11 @@ export function useLibraryDrag(root: RefObject<HTMLElement | null>, unfold: (id:
   }
 
   const shown = drag && !allowed && drag.aim ? { id: drag.id, aim: null } : drag
-  return { drag: shown, asking, onPointerDown, answered: () => setAsking(null) }
+  // 設定の項目の値が消える移動の確かめに答えた（go なら動かす）
+  const cleared = (go: boolean) => {
+    const moving = clearing
+    setClearing(null)
+    if (go && moving) live.current.move(moving)
+  }
+  return { drag: shown, asking, clearing, onPointerDown, answered: () => setAsking(null), cleared }
 }

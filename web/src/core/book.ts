@@ -22,7 +22,16 @@ import { outsideUnreadable, rawBooksOf, rowsById } from "./folders-unreadable"
 import { freshPageId } from "./ids"
 import { splitId } from "./names"
 import { type ItemPage, pageHolds, slideOf, walkShapes } from "./placed"
-import type { AnyPage, BinderEntry, Book, LineupEntry, Page, StageLineup, UnreadableCode } from "./schema/book"
+import type {
+  AnyPage,
+  BinderEntry,
+  Book,
+  LineupEntry,
+  OutermostSettings,
+  Page,
+  StageLineup,
+  UnreadableCode,
+} from "./schema/book"
 import { type Warning, warning } from "./warnings"
 
 // 残しておいたブックを確かめる: このインスタンスのブックの形に合うものは books に、読めないものは warning にする（judgeBook の判定。1 冊に 1 つ）。
@@ -216,6 +225,8 @@ function judgeBinder(catalog: CoreCatalog, raw: Readonly<Record<string, unknown>
   const refs = pages?.map(p => (isRecord(p) && typeof p.id === "string" ? { kind: "page", id: p.id } : p))
   const row = binderFolderOf({ ...fields, folderRole: "binder", lineup: refs })
   if (!row || !pages?.every(isRecord)) return { code: "W028" }
+  const settings = catalog.outermostSettingsSchema.safeParse(row.settings)
+  if (!settings.success) return { code: "W028" }
   if (!catalog.pageTypes.has(row.pageType)) return { code: "W027", type: row.pageType }
   const inner: Lost[] = []
   const kept: AnyPage[] = []
@@ -231,7 +242,14 @@ function judgeBinder(catalog: CoreCatalog, raw: Readonly<Record<string, unknown>
         ...(read === "W027" ? typeIn(p, "type") : {}),
       })
   }
-  const binder: BinderEntry = { kind: "binder", id: row.id, title: row.title, pageType: row.pageType, lineup: kept }
+  const binder: BinderEntry = {
+    kind: "binder",
+    id: row.id,
+    title: row.title,
+    pageType: row.pageType,
+    lineup: kept,
+    ...(row.settings ? { settings: settings.data as OutermostSettings } : {}),
+  }
   return binderHolds(catalog, binder) ? { binder, inner } : { code: "W029" }
 }
 

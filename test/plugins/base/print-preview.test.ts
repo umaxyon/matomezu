@@ -1,18 +1,19 @@
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../../web/src/core/book"
 import type { Book } from "../../../web/src/core/schema/book"
+import { stageBlocks } from "../../../web/src/core/stage"
 import { screenOf } from "../../../web/src/core/window"
 import { pageContext } from "../../../web/src/plugins/base/book-settings"
 import { growOf, paperSize } from "../../../web/src/plugins/base/place/grow"
 import { placedSize } from "../../../web/src/plugins/base/place/placed"
-import { bookCrossings, bookSheets, sheetsOfPage } from "../../../web/src/plugins/base/print-preview/book-sheets"
+import { entryCrossings, entrySheets, sheetsOfPage } from "../../../web/src/plugins/base/print-preview/entry-sheets"
 import { filledSheets, sheetsOfShape } from "../../../web/src/plugins/base/print-preview/filled"
 import { PRINT_READY_STATE } from "../../../web/src/plugins/base/print-preview/print-state"
 import { printLaid as printDir } from "../../../web/src/plugins/page-types/dir/print"
 import { printLaid as printTree } from "../../../web/src/plugins/page-types/tree/print"
 import { isEnabled, isShown } from "../../../web/src/store/commands"
 import { DIR, drawingPage, FLOWCHART, TREE, testBook, testPage } from "../../lineup"
-import { newStore } from "../../support"
+import { CORE_CATALOG, newStore } from "../../support"
 
 const BOX = "@matomezu/box:shape-nest-box"
 const settled = () => Promise.resolve()
@@ -53,11 +54,10 @@ test("印刷プレビューの設定は print-preview-update で変え、画面�
   await settled()
   const undo = () => store.state.getState().history.b1?.undo.length
   const before = undo()
-  const done = store.actions.perform(
-    "@matomezu/base:print-preview-update",
-    { settings: { "@matomezu/base:print-preview-flow": "row" } },
-    { book: "b1" },
-  )
+  const done = store.actions.perform("@matomezu/base:print-preview-update", {
+    entry: "b1",
+    settings: { "@matomezu/base:print-preview-flow": "row" },
+  })
   await settled()
   expect(done.ok).toBe(true)
   expect(bookOf(store).settings).toEqual({ "@matomezu/base:print-preview-flow": "row" })
@@ -69,6 +69,21 @@ test("印刷プレビューの設定は print-preview-update で変え、画面�
   )
   expect(refused.ok).toBe(false)
   expect(bookOf(store).settings).toEqual({ "@matomezu/base:print-preview-flow": "row" })
+})
+
+test("印刷プレビューの間のステージから行って止まるのは、ページとブックを変えるアクション。ページのロックの掛け外しと、印刷プレビューの設定の項目を変えるのは止まらない", () => {
+  const rows: [string, boolean][] = [
+    ["@matomezu/base:page-lock", false],
+    ["@matomezu/base:page-unlock", false],
+    ["@matomezu/base:print-preview-update", false],
+    ["@matomezu/paper:item-place", true],
+    ["@matomezu/base:page-update", true],
+    ["@matomezu/base:page-add", true],
+  ]
+  for (const [action, blocked] of rows) {
+    expect([action, stageBlocks(CORE_CATALOG, "print-preview", action)]).toEqual([action, blocked])
+    expect([action, stageBlocks(CORE_CATALOG, "edit", action)]).toEqual([action, false])
+  }
 })
 
 test("印刷区画に載っているか: 形は掛かっている印刷区画のどれにも載る。またいだ形は直してもらう形として挙げる。空の印刷区画は印刷プレビューに並べない", async () => {
@@ -92,8 +107,12 @@ test("印刷区画に載っているか: 形は掛かっている印刷区画の
   const w = placedSize(store.catalog.core, box("一") as never)!.w
   expect(place(paperW - w + 10, "少し").ok).toBe(true)
   expect(filled()).toEqual(["0,0", "1,0"])
-  expect(bookCrossings(store.catalog.core, book())).toEqual([{ page: "p1", crossing: [box("少し").id], oversized: [] }])
-  expect(bookSheets(store.catalog.core, book()).sheets.map(s => `${s.column},${s.row}`)).toEqual(["0,0", "1,0"])
+  expect(entryCrossings(store.catalog.core, book())).toEqual([
+    { page: "p1", crossing: [box("少し").id], oversized: [] },
+  ])
+  expect(
+    entrySheets(store.catalog.core, { ...book(), holder: book() }).sheets.map(s => `${s.column},${s.row}`),
+  ).toEqual(["0,0", "1,0"])
 })
 
 test("印刷区画に載っているか: 手で直した線の角がある印刷区画は載り、線が通り抜けるだけの印刷区画は載らない。形は掛かる印刷区画の全部に載る（端がちょうど境目なら次には掛からない）", () => {
@@ -144,7 +163,7 @@ test("ツリーのように並べ方を描くときに決めるタイプは、�
     rows: 1,
     filled: new Set(["0,0"]),
   })
-  expect(bookSheets(store.catalog.core, tree).sheets).toHaveLength(1)
+  expect(entrySheets(store.catalog.core, { ...tree, holder: tree }).sheets).toHaveLength(1)
 })
 
 test("可変ページのツリーとディレクトリ構成図で中身があふれると、printSheets はステージに描くのと同じ並べ方で増えた印刷区画を数え、中身の載る印刷区画を返す", () => {
@@ -178,7 +197,7 @@ test("印刷区画より大きい形は、またいでも直せないので、�
   )
   expect(done.ok).toBe(true)
   const id = pagesOf(book())[0]!.items![0]!.id
-  expect(bookCrossings(store.catalog.core, book())).toEqual([{ page: "p1", crossing: [], oversized: [id] }])
+  expect(entryCrossings(store.catalog.core, book())).toEqual([{ page: "p1", crossing: [], oversized: [id] }])
   expect(store.actions.command("s1", "@matomezu/base:print-preview-open")).toBe(true)
   expect(screenOf(store.state.getState().window).stages[0]!.mode.kind).toBe("print-preview")
 })
@@ -224,7 +243,7 @@ test("印刷のときの改ページ: ツリーとディレクトリ構成図の
 test("並べ方が自動のタイプ（フローチャート）は、またいだ形を調べない", () => {
   const store = newStore()
   const flow = testBook("f1", "流れ", [testPage(FLOWCHART, "p1", { title: "1", grows: true, items: [] })])
-  expect(bookCrossings(store.catalog.core, flow)).toEqual([])
+  expect(entryCrossings(store.catalog.core, flow)).toEqual([])
 })
 
 test("測るページ（measured）は測った数だけ 1 列に並べ、測っている途中と、測って 0 のページは並べない。測らないページは前のまま", () => {
@@ -237,7 +256,9 @@ test("測るページ（measured）は測った数だけ 1 列に並べ、測っ
     ["b", "pending"],
     ["c", 0],
   ])
-  const cells = bookSheets(store.catalog.core, book, measured).sheets.map(s => `${s.page}:${s.column},${s.row}`)
+  const cells = entrySheets(store.catalog.core, { ...book, holder: book }, measured).sheets.map(
+    s => `${s.page}:${s.column},${s.row}`,
+  )
   expect(cells).toEqual(["a:0,0", "a:0,1", "a:0,2", "d:0,0"])
 })
 

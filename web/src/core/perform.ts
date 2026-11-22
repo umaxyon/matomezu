@@ -332,7 +332,8 @@ function performOutsideBinder(
   if ((ran.others ?? []).length > 0) return { ok: false, reason: "refused" }
   const [now, ...rest] = (ran.next as StageLineup).lineup
   if (now?.kind !== "binder" || rest.length > 0 || now.id !== was.id) return { ok: false, reason: "refused" }
-  if (now.title !== was.title || now.pageType !== was.pageType) return { ok: false, reason: "refused" }
+  if (now.title !== was.title || now.pageType !== was.pageType || now.settings !== was.settings)
+    return { ok: false, reason: "refused" }
   const written = withBinderEntry(at.library, was, now)
   const next = normalizedLibrary(ctx.catalog, action, at.library, written)
   if (!next) return { ok: false, reason: "refused" }

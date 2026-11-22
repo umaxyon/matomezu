@@ -6,7 +6,7 @@ import { findPage, pagesOf, putPage, withSettings } from "../../../core/book"
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { Declined } from "../../../core/def/action"
 import type { Book } from "../../../core/schema/book"
-import { bookSettingsPatch, groupOf, type SettingGroup, settingsArgs, settleBook } from "../book-settings"
+import { groupOf, outermostSettingsPatch, type SettingGroup, settingsArgs, settleBook } from "../book-settings"
 import { kit } from "../kit"
 import { BOOK_LOCK, BOOK_UNLOCK } from "../lock"
 import { pageProblems } from "../pages/page-problems"
@@ -21,16 +21,16 @@ const ARGS = z.strictObject({
   settings: z.record(z.string(), z.unknown()).optional(), // ブックが持つ設定の項目（印刷プレビューの組を除く。形は機能台帳で決まるので AI には describeArgs で見せる）
 })
 
-// ブック book に、ブックが持つ設定の項目 settings（組 group の項目だけ。null は消す）を当てたブック（book-update と print-preview-update が使う）。
+// ステージエントリ holder に、ステージエントリが持つ設定の項目 settings（組 group の項目だけ。null は消す）を当てた物（book-update と print-preview-update が使う）。
 // 組に無い項目や形に合わない値があれば、どの項目かを添えて断る
-export function withBookSettings(
+export function withOutermostSettings<T extends object>(
   catalog: CoreCatalog,
-  book: Book,
+  holder: T,
   settings: unknown,
   group: SettingGroup = "general",
-): Book | Declined {
-  const parsed = (bookSettingsPatch(catalog, group) ?? z.strictObject({})).safeParse(settings)
-  if (parsed.success) return withSettings<Book>(book, parsed.data as Record<string, unknown>)
+): T | Declined {
+  const parsed = (outermostSettingsPatch(catalog, group) ?? z.strictObject({})).safeParse(settings)
+  if (parsed.success) return withSettings<T>(holder, parsed.data as Record<string, unknown>)
   const reasons = parsed.error.issues.map(issue =>
     issue.code === "unrecognized_keys"
       ? issue.keys.map(key => `${key} is not a setting this action changes${elsewhere(catalog, key, group)}`).join("; ")
@@ -39,7 +39,7 @@ export function withBookSettings(
   return { declined: reasons.join("; ") }
 }
 
-// 項目 id が、組 group でないブックの設定の項目なら、どちらの組かの添え書き
+// 項目 id が、組 group でない、ステージエントリが持つ設定の項目なら、どちらの組かの添え書き
 function elsewhere(catalog: CoreCatalog, id: string, group: SettingGroup): string {
   const def = catalog.settings.get(id)
   if (def?.holder !== "outermost" || groupOf(def) === group) return ""
@@ -57,11 +57,12 @@ export const BOOK_UPDATE = kit.defineAction({
   target: "book",
   permissionScope: "book",
   args: ARGS,
-  describeArgs: catalog => ARGS.extend({ settings: (bookSettingsPatch(catalog) ?? z.strictObject({})).optional() }),
+  describeArgs: catalog =>
+    ARGS.extend({ settings: (outermostSettingsPatch(catalog) ?? z.strictObject({})).optional() }),
   run: (book, args, ctx) => {
     const next: Book = args.title === undefined ? book : { ...book, title: args.title }
     if (args.settings === undefined) return { next, result: null }
-    const settled = withBookSettings(ctx.catalog, next, args.settings)
+    const settled = withOutermostSettings(ctx.catalog, next, args.settings)
     return "declined" in settled ? settled : { next: settled, result: null }
   },
 })

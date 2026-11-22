@@ -22,7 +22,7 @@ import {
   type TrashRef,
   type WorkKey,
 } from "./folders"
-import { foldersOver, inTrash, systemFolderIndex, systemFolderOf } from "./folders-tree"
+import { foldersOver, inTrash, type StageEntry, systemFolderIndex, systemFolderOf } from "./folders-tree"
 import { type Lang, translate } from "./i18n/i18n"
 import { freshPageId } from "./ids"
 import type { LineupEntry } from "./schema/book"
@@ -466,6 +466,17 @@ export function titleClashes(library: Library, naming: Naming): string[] {
     const titles = titlesIn(library, f, naming)
     return new Set(titles).size === titles.length ? [] : [f.id]
   })
+}
+
+// ステージエントリ entry の行（ページの行か、ブック・バインダの行。書庫に無ければ undefined）
+export const stageEntryRow = (library: Library, entry: StageEntry): PageRow | Folder | undefined =>
+  entry.kind === "page" ? library.pages[entry.id] : library.folders[entry.id]
+
+// ステージエントリ entry の行を row に替えた書庫
+export function withStageEntryRow(library: Library, entry: StageEntry, row: PageRow | Folder): Library {
+  return entry.kind === "page"
+    ? { pages: { ...library.pages, [entry.id]: row as PageRow }, folders: library.folders }
+    : { pages: library.pages, folders: { ...library.folders, [entry.id]: row as Folder } }
 }
 
 // エントリ entry（種類 kind）の名前を title にした書庫（名前を持たない物・書庫に無い物は null。同じ名前なら library のまま）。ロックは見ない

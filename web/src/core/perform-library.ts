@@ -34,7 +34,8 @@ function outsidePageAsk(library: Library, id: string, how: EntryWhere): EntryAsk
 
 // 書庫が対象のアクションが名指したエントリ entry を where のとおりに変えるとき、行う前に問う相手:
 // ブックならそのブック、フォルダなら中のブックの全部と、中のブックの外のページの全部（名前だけ・複製だけなら、どれにも問わない）、ブックの中のページ・バインダなら、そのブックのそのエントリ
-// （動かす・名前を変えるなら、その印 entriesChange を添える）、ブックの外のページならそのページ、ブックの外のバインダなら中のページの全部（名前だけ・複製だけなら問わない）。
+// （動かす・名前を変えるなら、その印 entriesChange を添える）、ブックの外のページならそのページ、ブックの外のバインダなら中のページの全部（名前だけ・複製だけ・設定の項目の値だけなら問わない）。
+// フォルダは、設定の項目の値だけなら、どれにも問わない（フォルダは設定の項目の値を持たない）。
 // ブックの外のページには、エントリの変え方をそのまま where の entry に添える。into（動かす先のフォルダ）がほかのブックかその中なら、そのブックにも、入るエントリとして問う
 function asksOfEntry(library: Library, entry: string, how: EntryWhere, into?: string): EntryAsk[] {
   const where: Where = how === "all-pages" ? { allPages: true } : how === "place" ? { place: true } : {}
@@ -57,7 +58,7 @@ function asksOfEntry(library: Library, entry: string, how: EntryWhere, into?: st
   const enters = to !== undefined && to !== from && row?.folderRole !== "book" ? [asked(to)] : []
   if (row?.folderRole === "book") return how === "copy" ? [] : [{ book: entry, where }]
   if (row && isOpenRole(row.folderRole)) {
-    if (how === "title" || how === "copy") return []
+    if (how === "title" || how === "copy" || how === "settings") return []
     const books = Object.values(library.folders).flatMap(f =>
       f.folderRole === "book" && isWithin(library.folders, f.id, entry) ? [{ book: f.id, where }] : [],
     )
@@ -70,7 +71,7 @@ function asksOfEntry(library: Library, entry: string, how: EntryWhere, into?: st
   }
   if (from !== undefined) return [asked(from), ...enters]
   if (row?.folderRole === "binder")
-    return how === "title" || how === "copy"
+    return how === "title" || how === "copy" || how === "settings"
       ? enters
       : [...row.lineup.flatMap(p => outsidePageAsk(library, p.id, how)), ...enters]
   return [...outsidePageAsk(library, entry, how), ...enters]
@@ -185,7 +186,9 @@ export function brokenIn(
           )
     if (id) return { permission: id }
   }
-  for (const page of pageChecksBetween(was, now)) {
+  // 中へ入ったページから土台が消した値は、アクションが変えた事に数えない（行う前のページも、消した姿で比べる）
+  const entered = rowsLosingOutermostSettings(ctx.catalog, was, { pages: was.pages, folders: now.folders }).pages
+  for (const page of pageChecksBetween({ pages: { ...was.pages, ...entered }, folders: was.folders }, now)) {
     const id = brokenPage(ctx, action, page)
     const held = page.before?.id
     if (id) return { permission: id, ...(held === undefined ? {} : { page: held }) }
@@ -209,7 +212,53 @@ export function normalizedLibrary(
     if (!done) return null
     if (done !== row) tidied[id] = done as PageRow
   }
-  return Object.keys(tidied).length === 0 ? after : { ...after, pages: { ...after.pages, ...tidied } }
+  const done = Object.keys(tidied).length === 0 ? after : { ...after, pages: { ...after.pages, ...tidied } }
+  const lost = rowsLosingOutermostSettings(catalog, was, done)
+  if (Object.keys(lost.pages).length === 0 && Object.keys(lost.folders).length === 0) return done
+  return { pages: { ...done.pages, ...lost.pages }, folders: { ...done.folders, ...lost.folders } }
+}
+
+// 書庫が was から after に変わる間に、ブックかバインダの中へ入って、ステージエントリが持つ設定の項目の値を失う行（並びが変わったブック・バインダの中のページと、ブックの中のバインダ。
+// 値を消した姿で返す。その値を持つのはステージエントリだけ。機能台帳に無い項目の値は残す）
+export function rowsLosingOutermostSettings(
+  catalog: CoreCatalog,
+  was: Library,
+  after: Library,
+): { pages: Record<string, PageRow>; folders: Record<string, Folder> } {
+  const pages: Record<string, PageRow> = {}
+  const folders: Record<string, Folder> = {}
+  for (const row of Object.values(after.folders)) {
+    if (row === was.folders[row.id] || (row.folderRole !== "book" && row.folderRole !== "binder")) continue
+    for (const ref of row.lineup) {
+      const page = ref.kind === "page" ? after.pages[ref.id] : undefined
+      const binder = ref.kind === "binder" ? after.folders[ref.id] : undefined
+      const pageNow = page && withoutOutermostSettings(catalog, page as PageRow & { settings?: object })
+      if (page && pageNow !== page) pages[page.id] = pageNow as PageRow
+      const binderNow = binder?.folderRole === "binder" ? withoutOutermostSettings(catalog, binder) : binder
+      if (binder && binderNow !== binder) folders[binder.id] = binderNow as Folder
+    }
+  }
+  return { pages, folders }
+}
+
+// 行 row から、ステージエントリが持つ設定の項目の値を消した行（1 つも持たなければ row のまま）
+function withoutOutermostSettings<T extends { settings?: object }>(catalog: CoreCatalog, row: T): T {
+  const own = row.settings as Readonly<Record<string, unknown>> | undefined
+  const held = (id: string) => catalog.settings.get(id)?.holder === "outermost"
+  if (!own || !Object.keys(own).some(held)) return row
+  const rest = Object.fromEntries(Object.entries(own).filter(([k]) => !held(k)))
+  const { settings: _, ...fields } = row
+  return (Object.keys(rest).length === 0 ? fields : { ...fields, settings: rest }) as T
+}
+
+// 書庫が was から after に変わると、ステージエントリが持つ設定の項目の値が消えるか: 値を持つ物がブックかバインダの中へ入る（rowsLosingOutermostSettings）か、
+// 値を持つブックの外のバインダの行が無くなる（最後の 1 枚が出て、空になって消える）
+export function losesOutermostSettings(catalog: CoreCatalog, was: Library, after: Library): boolean {
+  const lost = rowsLosingOutermostSettings(catalog, was, after)
+  if (Object.keys(lost.pages).length > 0 || Object.keys(lost.folders).length > 0) return true
+  return Object.values(was.folders).some(
+    row => row.folderRole === "binder" && !after.folders[row.id] && withoutOutermostSettings(catalog, row) !== row,
+  )
 }
 
 // 書庫が was から now に変わる間に、システムフォルダの決まりを守るか: 行う前から在るフォルダの行の印（systemFolder）は変わらない（付けも外しもしない）。

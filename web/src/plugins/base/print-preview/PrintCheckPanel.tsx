@@ -4,28 +4,28 @@
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog } from "../../../ui/store-context"
-import { useBook } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { useOpenRightSidePanel, useRightSidePanel } from "../right-side-panel/hooks"
 import { PRINT_PREVIEW_OPEN } from "."
-import { bookCrossings } from "./book-sheets"
+import { entryCrossings } from "./entry-sheets"
 import styles from "./PrintPreviewPanel.module.css"
 import { PRINT_CHECK_PANEL_ID, printCheckOpen } from "./panel-id"
 import { ShapeBadges } from "./ShapeBadges"
+import { usePreviewed } from "./usePreviewed"
 
 export function PrintCheckPanel() {
   const t = useMessages(kit)
   const catalog = useCatalog().core
-  const book = useBook()
+  const previewed = usePreviewed()
   const open = useRightSidePanel()
   const reopen = useOpenRightSidePanel()
   const preview = useCommand(PRINT_PREVIEW_OPEN.id)
-  if (!book || open?.widget !== PRINT_CHECK_PANEL_ID) return null
-  const found = bookCrossings(catalog, book)
+  if (!previewed || open?.widget !== PRINT_CHECK_PANEL_ID) return null
+  const found = entryCrossings(catalog, previewed)
   const crossing = found.flatMap(f => f.crossing.map(id => ({ page: f.page, id })))
   const oversized = found.flatMap(f => f.oversized.map(id => ({ page: f.page, id })))
   // ほかのページの形へ移ると右サイドパネルは閉じるので、開き直す
-  const keep = () => reopen(printCheckOpen(book.id))
+  const keep = () => reopen(printCheckOpen(previewed.id))
   return (
     <div className={styles.panel}>
       <div className={styles.head}>{t("Print preview")}</div>

@@ -79,7 +79,7 @@ export function showBooks(store: Pick<ReturnType<typeof newStore>, "state" | "ac
 }
 
 // ブック books と、ブックの外のページ・バインダ outside を書庫ホームの直下に置いた書庫（ホームの並びは、ブックのあとに外の物）。
-// 外の物は、テストの用意として表に直に置く（作るアクションは通さない）。バインダは、バインダの行と中のページの行に分ける
+// 外の物は、テストの用意として表に直に置く（作るアクションは通さない）。バインダは、バインダの行（設定の項目の値も）と中のページの行に分ける
 export function libraryWith(books: readonly Book[], outside: readonly (AnyPage | BinderEntry)[] = []): Library {
   const tables = tablesOf(books)
   const lineup: AnyEntryRef[] = [
@@ -96,6 +96,7 @@ export function libraryWith(books: readonly Book[], outside: readonly (AnyPage |
             title: e.title,
             pageType: e.pageType,
             lineup: e.lineup.map(p => ({ kind: "page", id: p.id })),
+            ...(e.settings ? { settings: e.settings } : {}),
           },
         ]
       : [],
