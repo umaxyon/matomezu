@@ -116,7 +116,7 @@ test("戻す・消す・空にする。ゴミ箱に無いブックは戻さず�
   const store = newStore({ books: [], saved: (await host.load()).saved })
   host.connect(store)
   const made = ["一", "二", "三"].map(title => {
-    createBookIn(store, "s1", { title })
+    createBookIn(store, "s1", { into: HOME_ID, title })
     return Object.values(store.state.getState().books).find(b => b.title === title)?.id as string
   })
   const [one, two, three] = made as [string, string, string]

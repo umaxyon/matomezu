@@ -8,6 +8,7 @@ import { buildCoreCatalog } from "../../web/src/core/core-catalog"
 import { checkCoreCatalog } from "../../web/src/core/core-catalog-check"
 import { definePageType } from "../../web/src/core/def/page-type"
 import { ERRORS, problemText } from "../../web/src/core/errors"
+import { HOME_ID } from "../../web/src/core/folders"
 import { bookOf, tablesOf } from "../../web/src/core/folders-books"
 import { translate } from "../../web/src/core/i18n/i18n"
 import type { LanguagePackDef } from "../../web/src/core/i18n/messages"
@@ -240,25 +241,27 @@ describe("アクションを行う", () => {
       ok: false,
       reason: "bad-args",
     })
-    expect(perform(library, "@matomezu/base:book-create", { title: "" }, ctx)).toEqual({
+    expect(perform(library, "@matomezu/base:book-create", { into: HOME_ID, title: "" }, ctx)).toEqual({
       ok: false,
       reason: "bad-args",
     })
   })
 
   test("ブックを作ると、振った id で一覧に入り、その id を返す。もう在る id は飛ばして、次の id を振る", () => {
-    const done = perform(library, "@matomezu/base:book-create", { title: "新しい図" }, ctx)
+    const done = perform(library, "@matomezu/base:book-create", { into: HOME_ID, title: "新しい図" }, ctx)
     expect(done).toMatchObject({ ok: true, result: { book: "new" } })
     expect(done.ok && bookOf(done.next, "new")).toEqual({ id: "new", title: "新しい図", lineup: [] })
     const ids = ["new", "new2"]
     const next = { ...ctx, newId: () => ids.shift() ?? "none" }
-    const again = done.ok ? perform(done.next, "@matomezu/base:book-create", { title: "もう一つ" }, next) : null
+    const again = done.ok
+      ? perform(done.next, "@matomezu/base:book-create", { into: HOME_ID, title: "もう一つ" }, next)
+      : null
     expect(again).toMatchObject({ ok: true, result: { book: "new2" } })
   })
 
   test("ブックの一覧と設定を変えるアクションは、コントロールセンターが許すときだけ。コントロールセンターが無ければ断る", () => {
     const homeless = { ...ctx, controlCenter: null }
-    expect(perform(tablesOf([book]), "@matomezu/base:book-create", { title: "x" }, homeless)).toEqual({
+    expect(perform(tablesOf([book]), "@matomezu/base:book-create", { into: HOME_ID, title: "x" }, homeless)).toEqual({
       ok: false,
       reason: "not-allowed",
     })
@@ -285,7 +288,9 @@ describe("アクションを行う", () => {
       ...BUILTIN_PARTS,
       controlCenters: [{ ...center, actions: center.actions.filter(a => a !== "@matomezu/base:book-create") }],
     })
-    expect(perform(tablesOf([]), "@matomezu/base:book-create", { title: "x" }, { ...ctx, catalog: narrow })).toEqual({
+    expect(
+      perform(tablesOf([]), "@matomezu/base:book-create", { into: HOME_ID, title: "x" }, { ...ctx, catalog: narrow }),
+    ).toEqual({
       ok: false,
       reason: "not-allowed",
     })

@@ -9,12 +9,11 @@ import {
   isMoveRefusal,
   movedWithBinders,
   NEW_BINDER,
-  placedEntry,
   placeOf,
   retitled,
   titleOf,
 } from "../../../core/entries"
-import { HOME_ID, type PlainFolder } from "../../../core/folders"
+import { HOME_ID } from "../../../core/folders"
 import { kit } from "../kit"
 import {
   holdsEntries,
@@ -24,6 +23,7 @@ import {
   overwritten,
   placedOutsideTrash,
   REPLACES_NOTHING,
+  withNewFolder,
 } from "./entries"
 
 export const FOLDER_CREATE = kit.defineAction({
@@ -37,11 +37,9 @@ export const FOLDER_CREATE = kit.defineAction({
   run: (library, args, ctx) => {
     const into = args.into ?? HOME_ID
     if (!holdsEntries(library.folders, into)) return null
-    const folder: PlainFolder = { folderRole: "folder", id: ctx.newId(), title: args.title, lineup: [] }
-    if (folder.id in library.folders || folder.id in library.pages) return null
-    const made = { pages: library.pages, folders: { ...library.folders, [folder.id]: folder } }
-    const next = placedEntry(made, { kind: "folder", id: folder.id }, into)
-    return isMoveRefusal(next) ? null : { next, result: { folder: folder.id } }
+    const id = ctx.newId()
+    const next = withNewFolder(library, id, args.title, into)
+    return next ? { next, result: { folder: id } } : null
   },
 })
 

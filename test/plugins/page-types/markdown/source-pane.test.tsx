@@ -4,6 +4,7 @@
 import { afterEach, expect, setSystemTime, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { pagesOf } from "../../../../web/src/core/book"
+import { HOME_ID } from "../../../../web/src/core/folders"
 import type { Book } from "../../../../web/src/core/schema/book"
 import { screenOf } from "../../../../web/src/core/window"
 import { BUILTIN_CONTROL_CENTER } from "../../../../web/src/plugins"
@@ -34,7 +35,7 @@ function setup() {
     </MatomezuProvider>,
   )
   act(() => {
-    createBookIn(store, "s1", { title: "メモ" })
+    createBookIn(store, "s1", { into: HOME_ID, title: "メモ" })
     addPageIn(store, "s1", { type: "@matomezu/markdown:markdown", title: "ページ 1" })
   })
   const id = (screenOf(store.state.getState().window).stages[0]!.opened as { outermost: { id: string } }).outermost.id

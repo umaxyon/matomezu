@@ -1,7 +1,9 @@
 // フローチャートのページの画面のテストの手伝い
+
 import { expect } from "bun:test"
 import { act } from "@testing-library/react"
 import { pagesOf } from "../../../../web/src/core/book"
+import { HOME_ID } from "../../../../web/src/core/folders"
 import type { Book } from "../../../../web/src/core/schema/book"
 import { screenOf } from "../../../../web/src/core/window"
 import { addPageIn, createBookIn } from "../../../../web/src/plugins/base"
@@ -11,7 +13,7 @@ import { renderScreen } from "../../../ui/support"
 export function flowchart() {
   const store = renderScreen()
   act(() => {
-    expect(createBookIn(store, "s1", { title: "流れ" })).toBe(true)
+    expect(createBookIn(store, "s1", { into: HOME_ID, title: "流れ" })).toBe(true)
   })
   const id = (screenOf(store.state.getState().window).stages[0]!.opened as { outermost: { id: string } }).outermost.id
   act(() => {

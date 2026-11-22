@@ -2,6 +2,7 @@
 
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../../../web/src/core/book"
+import { HOME_ID } from "../../../../web/src/core/folders"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../../../web/src/plugins"
 import { createBookIn } from "../../../../web/src/plugins/base"
 import {
@@ -42,6 +43,7 @@ function setup() {
   })
   // スライドのバインダに 1 枚入れたブックを作る
   createBookIn(instance, "s1", {
+    into: HOME_ID,
     title: "スライド",
     page: { type: "@matomezu/slide-page:slide", title: "1", into: { newBinder: "スライド" } },
   })

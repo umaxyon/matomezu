@@ -117,7 +117,7 @@ test("上書きの移動は、先の同じ名前の物を中身ごと消して�
   const { store, perform, lineup, move, made } = setup()
   const a = await made("folder-create", { title: "仕事" })
   const old = await made("book-create", { title: "議事録", into: a })
-  const fresh = await made("book-create", { title: "議事録" })
+  const fresh = await made("book-create", { into: HOME_ID, title: "議事録" })
   // 消えると確かめた物を言わない・違う物を言うと、上書きしない
   expect(perform("@matomezu/base:entry-move-over", { entry: fresh, into: a }).ok).toBe(false)
   expect(perform("@matomezu/base:entry-move-over", { entry: fresh, into: a, replaces: a }).ok).toBe(false)
@@ -148,10 +148,10 @@ test("上書きの移動は、先の同じ名前の物を中身ごと消して�
 
 test("ゴミ箱から戻すときの上書きも、在った物を消して戻し、1 回戻すと両方戻る", async () => {
   const { store, perform, lineup, move, made } = setup()
-  const old = await made("book-create", { title: "議事録" })
+  const old = await made("book-create", { into: HOME_ID, title: "議事録" })
   perform("@matomezu/base:entry-trash", { entry: old })
   await settled()
-  const fresh = await made("book-create", { title: "議事録" })
+  const fresh = await made("book-create", { into: HOME_ID, title: "議事録" })
   expect(perform("@matomezu/base:entry-restore", { entry: old, onConflict: "replace" }).ok).toBe(false)
   expect(perform("@matomezu/base:entry-restore", { entry: old, onConflict: "replace", replaces: fresh }).ok).toBe(true)
   await settled()
@@ -261,7 +261,7 @@ test("書庫のやり直す: 無かった行を置く画面の履歴の段は、
 
 test("書庫の元に戻すを認可ステップが止めたら（ロック中など）、トーストで知らせ、段は動かさない", async () => {
   const { store, perform, history, title, made } = setup()
-  const book = await made("book-create", { title: "議事録" })
+  const book = await made("book-create", { into: HOME_ID, title: "議事録" })
   perform("@matomezu/base:entry-rename", { entry: book, title: "会議" })
   await settled()
   expect(perform("@matomezu/base:book-lock", {}, { book }).ok).toBe(true)
@@ -279,7 +279,7 @@ test("書庫の元に戻すを認可ステップが止めたら（ロック中�
 
 test("無かった行を置く置き直しは、その行が在れば断り、その間のロックを外さない", async () => {
   const { store, perform, history, move, made } = setup()
-  const fresh = await made("book-create", { title: "議事録" })
+  const fresh = await made("book-create", { into: HOME_ID, title: "議事録" })
   const step = history().undo.at(-1)!
   expect(move("undo").ok).toBe(true)
   expect(move("redo").ok).toBe(true)
@@ -348,7 +348,7 @@ test("ホストがぶつかりで断った画面の履歴の段は元の側へ�
 
 test("置き直しは、ロックの印を外せない（外せるのは、掛け外しのアクションだけ）", async () => {
   const { store, perform, made } = setup()
-  const book = await made("book-create", { title: "議事録" })
+  const book = await made("book-create", { into: HOME_ID, title: "議事録" })
   expect(perform("@matomezu/base:book-lock", {}, { book }).ok).toBe(true)
   await settled()
   const unlock = { pages: {}, folders: { [book]: { fields: { locked: { absent: true as const, was: true } } } } }
@@ -395,7 +395,7 @@ test("書庫の元に戻すがぶつかったら、続けてぶつかる画面�
 
 test("書庫の元に戻すがぶつかって捨てたあと、認可ステップが止める画面の履歴の段（ロック中）に当たったら、その画面の履歴の段は残してそこで止める（トーストは 1 つ）", async () => {
   const { store, perform, history, title, made } = setup()
-  const book = await made("book-create", { title: "議事録" })
+  const book = await made("book-create", { into: HOME_ID, title: "議事録" })
   perform("@matomezu/base:entry-rename", { entry: book, title: "会議" })
   await settled()
   perform("@matomezu/base:entry-rename", { entry: "b1", title: "一" })

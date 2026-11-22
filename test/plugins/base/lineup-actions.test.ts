@@ -132,7 +132,7 @@ test("book-create の at が first（既定）なら、書庫ホームでは先�
       [HOME_ID]: { ...home, lineup: [{ kind: "folder", id: "docs" }, ...home.lineup] },
     },
   } as typeof base
-  const made = perform(library, "@matomezu/base:book-create", { title: "新しい" }, ctx())
+  const made = perform(library, "@matomezu/base:book-create", { into: HOME_ID, title: "新しい" }, ctx())
   expect(made.ok && made.next.folders[HOME_ID]?.lineup.map(r => r.id)).toEqual(["docs", "n1", "b1"])
 })
 
@@ -140,15 +140,16 @@ test("book-create は、名前だけの空のブックか、最初のページ�
   const made = perform(
     libraryWith([]),
     "@matomezu/base:book-create",
-    { title: "新しい", page: { type: DRAWING } },
+    { into: HOME_ID, title: "新しい", page: { type: DRAWING } },
     ctx(),
   )
   expect(made).toMatchObject({ ok: true, result: { book: "n1", page: { page: "n2" } } })
   expect(made.ok && pagesOf(bookOf(made.next, "n1")!).map(p => [p.id, p.type])).toEqual([["n2", DRAWING]])
   // 最初のページを作れなければ、ブックも作らない
-  expect(perform(libraryWith([]), "@matomezu/base:book-create", { title: "x", page: { type: SLIDE } }, ctx()).ok).toBe(
-    false,
-  )
+  expect(
+    perform(libraryWith([]), "@matomezu/base:book-create", { into: HOME_ID, title: "x", page: { type: SLIDE } }, ctx())
+      .ok,
+  ).toBe(false)
 })
 
 test("アクションの結果でページのタイプが替わっていたら、perform は断る", () => {

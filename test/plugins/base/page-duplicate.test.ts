@@ -2,6 +2,7 @@
 
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../../web/src/core/book"
+import { HOME_ID } from "../../../web/src/core/folders"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { createBookIn } from "../../../web/src/plugins/base"
 import { createMatomezu } from "../../../web/src/store/create"
@@ -18,7 +19,7 @@ function slideSetup(newId: () => string = sequence()) {
     controlCenter: BUILTIN_CONTROL_CENTER,
     newId,
   })
-  createBookIn(instance, "s1", { title: "スライド" })
+  createBookIn(instance, "s1", { into: HOME_ID, title: "スライド" })
   const book = Object.keys(instance.state.getState().books).at(-1) as string
   const perform = (id: string, args: object, on: { book: string } | { page: string } = { book }) =>
     (

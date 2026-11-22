@@ -14,7 +14,7 @@ import { MatomezuProvider } from "../../web/src/ui/store-context"
 import { WindowRoot } from "../../web/src/ui/WindowRoot"
 import { drawingPage, MARKDOWN, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { savedRows, showFirstBook } from "../support"
+import { savedRows, settleIn, showFirstBook } from "../support"
 
 const SKIN = "@matomezu/base:skin"
 
@@ -159,6 +159,8 @@ test("分割すると、それぞれのステージに閉じるボタンが出�
 
 test("新しいブックのダイアログでブックを作ると、そのステージでページの無いブックが開き、ページを作ると最初のタブができる", () => {
   const store = renderBooksScreen()
+  // 起動したときのホストと同じく、書庫を整える（ダイアログは置くフォルダを言わずに作るので、ドキュメントが要る）
+  act(() => void settleIn(store))
   act(() => store.actions.openDialog("s1", "@matomezu/base:book-new"))
   const dialog = screen.getByRole("dialog", { name: "新しいブック" })
   // 聞くのは名前だけ（タイプはページが持つ）
@@ -169,6 +171,11 @@ test("新しいブックのダイアログでブックを作ると、そのス�
   expect(screen.getByRole("tablist").getAttribute("aria-label")).toBe("新しい図")
   expect(screen.queryAllByRole("tab")).toHaveLength(0)
   expect(screen.queryByRole("img", { name: "紙" })).toBeNull()
+  // 作ったブックは、ドキュメントの、名前がその日の日付のフォルダに入る
+  const { folders } = store.state.getState()
+  const made = Object.values(folders).find(f => (f as { title?: string }).title === "新しい図")!
+  const holder = Object.values(folders).find(f => f.lineup.some(r => r.id === made.id))
+  expect((holder as { title?: string }).title).toMatch(/^\d{4}-\d{2}-\d{2}$/)
   // ページタブの＋はタイプの一覧を出す（ページを開いていなければ機能台帳の順）
   fireEvent.click(screen.getByRole("button", { name: "ページを足す" }))
   expect(screen.getAllByRole("menuitem").map(m => m.textContent)).toEqual([

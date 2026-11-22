@@ -205,7 +205,7 @@ func TestLibraryAndSettingsActions(t *testing.T) {
 	e := newEngine(t)
 	out, err := e.Perform(inLibrary(onBook(Input{Actions: []BulkAction{{
 		Action: "@matomezu/base:book-create",
-		Args:   json.RawMessage(`{"title":"New"}`),
+		Args:   json.RawMessage(`{"title":"New","into":"library-home"}`),
 		Lang:   "ja",
 		IDs:    []string{"nb"},
 	}}}, book), "b1"))
@@ -430,7 +430,7 @@ func TestUsesAnAddedPlugin(t *testing.T) {
 	}
 	out, err := e.Perform(inLibrary(Input{Actions: []BulkAction{{
 		Action: "@matomezu/base:book-create",
-		Args:   json.RawMessage(`{"title":"Flow","page":{"type":"ex2:flow"}}`),
+		Args:   json.RawMessage(`{"title":"Flow","into":"library-home","page":{"type":"ex2:flow"}}`),
 		Lang:   "ja",
 		IDs:    []string{"fb", "fp"},
 	}}}))

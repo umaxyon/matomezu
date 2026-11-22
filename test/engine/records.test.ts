@@ -87,7 +87,7 @@ test("エンジンはブックを作ると、書庫ホームの行に置き場�
           actions: [
             {
               action: "@matomezu/base:book-create",
-              args: { title: "新" },
+              args: { title: "新", into: "library-home" },
               ids: ["newbook01"],
               now: "2026-11-12T00:00:00.000Z",
             },

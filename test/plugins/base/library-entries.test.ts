@@ -20,7 +20,7 @@ function setup() {
     return (done.result as { folder: string }).folder
   }
   const book = (name: string, into?: string) => {
-    const done = perform("@matomezu/base:book-create", { title: name, ...(into ? { into } : {}) })
+    const done = perform("@matomezu/base:book-create", { into: HOME_ID, title: name, ...(into ? { into } : {}) })
     if (!done.ok) throw new Error(`book-create ${name}: ${JSON.stringify(done)}`)
     return (done.result as { book: string }).book
   }
@@ -53,7 +53,7 @@ test("book-create の into は、そのフォルダの先頭（at が last な�
   // into を言わなければ書庫ホームの先頭か末尾
   const top = book("一番前")
   expect(lineup(HOME_ID)?.[0]).toBe(top)
-  const tail = perform("@matomezu/base:book-create", { title: "一番後ろ", at: "last" })
+  const tail = perform("@matomezu/base:book-create", { into: HOME_ID, title: "一番後ろ", at: "last" })
   expect(lineup(HOME_ID)?.at(-1)).toBe(tail.ok ? (tail.result as { book: string }).book : "")
 })
 

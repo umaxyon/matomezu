@@ -471,7 +471,7 @@ test("まだ見ていない AI の書庫の変更は、利用者がそのブッ�
     { by: "ai", act: "3", actions: ["@matomezu/base:book-create", RENAME] },
     {
       run: () => {
-        made = there.actions.perform("@matomezu/base:book-create", { title: "AI のブック" })
+        made = there.actions.perform("@matomezu/base:book-create", { into: HOME_ID, title: "AI のブック" })
         there.actions.perform(RENAME, { entry: "b1", title: "AI の名前" })
       },
       library: true,
@@ -494,7 +494,7 @@ test("AI が作ったブックを、見られる前に利用者が完全に消�
     { by: "ai", act: "8", actions: ["@matomezu/base:book-create"] },
     {
       run: () => {
-        made = there.actions.perform("@matomezu/base:book-create", { title: "AI のブック" })
+        made = there.actions.perform("@matomezu/base:book-create", { into: HOME_ID, title: "AI のブック" })
       },
       library: true,
     },

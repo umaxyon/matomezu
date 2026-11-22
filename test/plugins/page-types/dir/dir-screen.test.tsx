@@ -3,6 +3,7 @@
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, screen, within } from "@testing-library/react"
 import { pagesOf } from "../../../../web/src/core/book"
+import { HOME_ID } from "../../../../web/src/core/folders"
 import { toolsIn } from "../../../../web/src/core/tools"
 import { screenOf } from "../../../../web/src/core/window"
 import { createBookIn } from "../../../../web/src/plugins/base"
@@ -23,7 +24,7 @@ afterEach(cleanup)
 function setup() {
   const store = renderScreen()
   act(() => {
-    expect(createBookIn(store, "s1", { title: "構成" })).toBe(true)
+    expect(createBookIn(store, "s1", { into: HOME_ID, title: "構成" })).toBe(true)
   })
   const id = (screenOf(store.state.getState().window).stages[0]!.opened as { outermost: { id: string } }).outermost.id
   const book = () => store.state.getState().books[id]!

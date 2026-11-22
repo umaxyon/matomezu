@@ -5,6 +5,7 @@ import { z } from "zod"
 import { findPage, pagesOf, putPage } from "../../../web/src/core/book"
 import { defineAction } from "../../../web/src/core/def/action"
 import { definePageType } from "../../../web/src/core/def/page-type"
+import { HOME_ID } from "../../../web/src/core/folders"
 import type { ItemPage } from "../../../web/src/core/placed"
 import type { Book } from "../../../web/src/core/schema/book"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
@@ -85,7 +86,7 @@ test("伸びられるタイプのページは、作るときもあとからも�
   })
   const perform = instance.actions.perform as (id: string, args: unknown, on: unknown) => { ok: boolean }
   const pages = () => pagesOf(instance.state.getState().books.n1!)
-  expect(createBookIn(instance, "s1", { title: "表" })).toBe(true)
+  expect(createBookIn(instance, "s1", { into: HOME_ID, title: "表" })).toBe(true)
   expect(perform("@matomezu/base:page-add", { type: "notes:sheet", title: "p", grows: true }, { book: "n1" }).ok).toBe(
     true,
   )
@@ -116,7 +117,7 @@ test("可変ページは、伸びない向き（下へだけ伸びるなら横�
     newId: sequence(),
   })
   const perform = instance.actions.perform as (id: string, args: unknown, on: unknown) => { ok: boolean }
-  expect(createBookIn(instance, "s1", { title: "巻物" })).toBe(true)
+  expect(createBookIn(instance, "s1", { into: HOME_ID, title: "巻物" })).toBe(true)
   const book = Object.keys(instance.state.getState().books)[0] as string
   const pages = () => pagesOf(instance.state.getState().books[book]!)
   expect(
@@ -220,7 +221,7 @@ test("ページの shift は可変ページを整えるステップだけが書�
     args: unknown,
     on: unknown,
   ) => { ok: boolean; reason?: string }
-  expect(createBookIn(instance, "s1", { title: "図" })).toBe(true)
+  expect(createBookIn(instance, "s1", { into: HOME_ID, title: "図" })).toBe(true)
   const book = Object.keys(instance.state.getState().books)[0] as string
   expect(perform("@matomezu/base:page-add", { type: "@matomezu/drawing:drawing", title: "p" }, { book }).ok).toBe(true)
   const page = pagesOf(instance.state.getState().books[book] as Drawing)[0]?.id
@@ -231,7 +232,7 @@ test("フローチャートの可変ページは、流れの始まりの側を�
   const store = newStore()
   const { state, actions } = store
   const before = new Set(Object.keys(state.getState().books))
-  expect(createBookIn(store, "s1", { title: "流れ" })).toBe(true)
+  expect(createBookIn(store, "s1", { into: HOME_ID, title: "流れ" })).toBe(true)
   const book = Object.keys(state.getState().books).find(id => !before.has(id)) as string
   const pageOf = () => pagesOf(state.getState().books[book]!)[0]
   expect(

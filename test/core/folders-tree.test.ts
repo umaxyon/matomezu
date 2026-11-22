@@ -321,7 +321,13 @@ describe("ブックを足す・消すときの置き場所", () => {
 
   test("作ったブックは書庫ホームの先頭（at が last なら末尾）に入り、木の決まりを守る", () => {
     const world = worldOf(tables())
-    const last = performIn(world, "@matomezu/base:book-create", { title: "新", at: "last" }, undefined, ctx as never)
+    const last = performIn(
+      world,
+      "@matomezu/base:book-create",
+      { into: HOME_ID, title: "新", at: "last" },
+      undefined,
+      ctx as never,
+    )
     if (!last.ok || !last.changes) throw new Error("no changes")
     expect(last.changes.folders[HOME_ID]).toEqual({
       ...home,
@@ -330,7 +336,7 @@ describe("ブックを足す・消すときの置き場所", () => {
         { kind: "book", id: (last.result as { book: string }).book },
       ],
     })
-    const done = performIn(world, "@matomezu/base:book-create", { title: "新" }, undefined, ctx as never)
+    const done = performIn(world, "@matomezu/base:book-create", { into: HOME_ID, title: "新" }, undefined, ctx as never)
     expect(done.ok).toBe(true)
     if (!done.ok || !done.changes) throw new Error("no changes")
     const id = (done.result as { book: string }).book
@@ -360,7 +366,7 @@ describe("ブックを足す・消すときの置き場所", () => {
 
   test("書庫ホームの無い世界では、ブックを作れない", () => {
     const world = worldOf(worldTablesOf([b1, b2], []))
-    const done = performIn(world, "@matomezu/base:book-create", { title: "新" }, undefined, ctx as never)
+    const done = performIn(world, "@matomezu/base:book-create", { into: HOME_ID, title: "新" }, undefined, ctx as never)
     expect(done).toEqual({ ok: false, reason: "refused" })
   })
 })

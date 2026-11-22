@@ -3,6 +3,7 @@
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { pagesOf } from "../../web/src/core/book"
+import { HOME_ID } from "../../web/src/core/folders"
 import { screenOf } from "../../web/src/core/window"
 import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
@@ -32,7 +33,7 @@ test("親の要素だけが範囲を名乗るテキストFormでは Mod+Z をテ
     </MatomezuProvider>,
   )
   act(() => {
-    createBookIn(store, "s1", { title: "メモ" })
+    createBookIn(store, "s1", { into: HOME_ID, title: "メモ" })
   })
   const id = screenOf(store.state.getState().window).stages[0]!.opened!.outermost.id
   act(() => {

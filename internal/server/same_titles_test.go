@@ -35,7 +35,7 @@ func TestTheAICannotRenameABookOntoATakenTitle(t *testing.T) {
 func TestATitleTakenByASystemFolderNamesItsMark(t *testing.T) {
 	s, _ := newServerOn(t, Options{}, libraryStore(t, true))
 	header := joinedAI(t, s)
-	_, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-create","args":{"title":"Documents"}}`, header)
+	_, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-create","args":{"title":"Documents","into":"library-home"}}`, header)
 	if !strings.Contains(got, `"kind":"title-taken"`) || !strings.Contains(got, `"systemFolder":"@matomezu/base:documents"`) {
 		t.Fatalf("book-create on the title of Documents = %s", got)
 	}

@@ -4,6 +4,7 @@ import { pagesOf } from "../../web/src/core/book"
 import { checkCoreCatalog } from "../../web/src/core/core-catalog-check"
 import { definePageType } from "../../web/src/core/def/page-type"
 import { type MatomezuError, problemText } from "../../web/src/core/errors"
+import { HOME_ID } from "../../web/src/core/folders"
 import { translate } from "../../web/src/core/i18n/i18n"
 import { screenOf } from "../../web/src/core/window"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
@@ -92,7 +93,9 @@ describe("インスタンスを作る", () => {
     })
     showFirstBook(instance)
     expect(instance.catalog.core.pageTypes.has("notes:note")).toBe(true)
-    expect(createBookIn(instance, "s1", { title: "メモ", page: { type: "notes:note" } as never })).toBe(true)
+    expect(createBookIn(instance, "s1", { into: HOME_ID, title: "メモ", page: { type: "notes:note" } as never })).toBe(
+      true,
+    )
     expect(screenOf(instance.state.getState().window).stages[0]!.opened).toMatchObject({
       type: "notes:note",
       outermost: { kind: "book", id: "n1" },
@@ -102,7 +105,9 @@ describe("インスタンスを作る", () => {
 
     const plain = createMatomezu({ plugins: BUILTIN })
     showFirstBook(plain)
-    expect(createBookIn(plain, "s1", { title: "メモ", page: { type: "notes:note" } as never })).toBe(false)
+    expect(createBookIn(plain, "s1", { into: HOME_ID, title: "メモ", page: { type: "notes:note" } as never })).toBe(
+      false,
+    )
     expect(thrown(() => untyped(plain.actions).command("s1", "notes:shoot"))).toMatchObject({ code: "E107" })
     expect(thrown(() => untyped(plain.actions).openDialog("s1", "notes:shot"))).toMatchObject({ code: "E108" })
   })
@@ -211,7 +216,7 @@ describe("インスタンスを作る", () => {
     })
     showFirstBook(instance)
     const perform = instance.actions.perform as (id: string, args: unknown, on: unknown) => { ok: boolean }
-    expect(createBookIn(instance, "s1", { title: "葉" })).toBe(true)
+    expect(createBookIn(instance, "s1", { into: HOME_ID, title: "葉" })).toBe(true)
     expect(untyped(instance.actions).command("s1", "@matomezu/base:page-new", { type: "notes:leaf" })).toBe(true)
     expect(instance.state.getState().dialog).toMatchObject({ id: "notes:leaf-new", stage: "s1" })
     // 要るフィールド（根）を渡さなければ、ブックのデータの形に合わず断る。タイプに無いフィールドも断る

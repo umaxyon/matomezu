@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { act, cleanup, render, screen } from "@testing-library/react"
 import { definePageType } from "../../web/src/core/def/page-type"
 import { definePresentation } from "../../web/src/core/def/presentation"
+import { HOME_ID } from "../../web/src/core/folders"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { BASE_UI, defineAnnotationIcon, defineMailActions, defineWideSearchOpener } from "../../web/src/plugins/base/ui"
@@ -77,7 +78,7 @@ describe("見た目のプラグイン", () => {
       </MatomezuProvider>,
     )
     act(() => {
-      createBookIn(instance, "s1", { title: "メモ", page: { type: "notes:note" } as never })
+      createBookIn(instance, "s1", { into: HOME_ID, title: "メモ", page: { type: "notes:note" } as never })
     })
     expect(screen.getByText("note view")).toBeTruthy()
     act(() => instance.actions.openDialog("s1", "@matomezu/base:book-new"))

@@ -1,5 +1,7 @@
 // base のページとブックを足す関数（addPageIn・createBookIn）と、設定を変えるアクション settings-set
+
 import { expect, test } from "bun:test"
+import { HOME_ID } from "../../../web/src/core/folders"
 import { shownPageId, shownType } from "../../../web/src/core/stage"
 import { screenOf } from "../../../web/src/core/window"
 import { currentStage } from "../../../web/src/core/workspace"
@@ -57,8 +59,8 @@ test("ブックを作ると、振った id で一覧に入り、そのステー�
   const ids = ["made", "first"]
   const { state, actions } = newStore({ newId: () => ids.shift() ?? "spare" })
   actions.split("s1")
-  expect(createBookIn({ state, actions }, "s2", { title: " " })).toBe(false)
-  expect(createBookIn({ state, actions }, "s2", { title: "新しい図" })).toBe(true)
+  expect(createBookIn({ state, actions }, "s2", { into: HOME_ID, title: " " })).toBe(false)
+  expect(createBookIn({ state, actions }, "s2", { into: HOME_ID, title: "新しい図" })).toBe(true)
   const s = state.getState()
   expect(s.books.made).toEqual({ id: "made", title: "新しい図", lineup: [] })
   expect(screenOf(s.window).stages[1]!.opened).toEqual({ kind: "none", outermost: { kind: "book", id: "made" } })
@@ -99,7 +101,7 @@ test("言語とスキンの設定を変える（書いた項目だけ変わり�
 
 test("ページの無いブックを 2 つのステージで開いて最初のページを作ると、どちらのステージもそのページを開く", () => {
   const { state, actions } = newStore()
-  createBookIn({ state, actions }, "s1", { title: "空" })
+  createBookIn({ state, actions }, "s1", { into: HOME_ID, title: "空" })
   actions.split("s1")
   actions.openBook("s2", "n1")
   addPageIn({ state, actions }, "s2", { type: "@matomezu/drawing:drawing", title: "最初" })

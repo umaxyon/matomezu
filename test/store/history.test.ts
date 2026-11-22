@@ -3,6 +3,7 @@
 
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
+import { HOME_ID } from "../../web/src/core/folders"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import type { Book } from "../../web/src/core/schema/book"
 import { shownPageId } from "../../web/src/core/stage"
@@ -376,7 +377,7 @@ test("名前を変えたあと、元の名前で別のブックが出来てい�
   const [placed] = historyOf(store)!.undo
   expect(store.actions.perform("@matomezu/base:book-update", { title: "変えた名前" }, { book: "b1" }).ok).toBe(true)
   await settled()
-  expect(store.actions.perform("@matomezu/base:book-create", { title: was }).ok).toBe(true)
+  expect(store.actions.perform("@matomezu/base:book-create", { into: HOME_ID, title: was }).ok).toBe(true)
   await settled()
   expect(store.actions.command("s1", "@matomezu/base:undo")).toBe(true)
   const titles = Object.values(store.state.getState().books).map(b => b.title)

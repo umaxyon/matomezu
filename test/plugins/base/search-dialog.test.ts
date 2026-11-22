@@ -2,6 +2,7 @@
 
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../../web/src/core/book"
+import { HOME_ID } from "../../../web/src/core/folders"
 import type { Book } from "../../../web/src/core/schema/book"
 import { shownPageId } from "../../../web/src/core/stage"
 import { screenOf } from "../../../web/src/core/window"
@@ -14,7 +15,7 @@ import { newStore } from "../../support"
 
 function markdownStore(texts: readonly string[]) {
   const store = newStore()
-  createBookIn(store, "s1", { title: "メモ" })
+  createBookIn(store, "s1", { into: HOME_ID, title: "メモ" })
   for (const [i, text] of texts.entries())
     addPageIn(store, "s1", {
       type: "@matomezu/markdown:markdown",
