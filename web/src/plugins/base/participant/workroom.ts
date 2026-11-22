@@ -1,5 +1,30 @@
-// ワークルームの見方。生きているかは、最後に呼ばれた時刻と今の時刻で決まる（アクションの入力に無いので、受け入れのダイアログが見て、行うアクションの選び方を決める）
+// ワークルームの定義と見方。生きているかは、最後に呼ばれた時刻と今の時刻で決まる（アクションの入力に無いので、受け入れのダイアログが見て、行うアクションの選び方を決める）
+import { z } from "zod"
+import { BIRD_IDS } from "../birds"
+import { BIRD_PALETTE_IDS } from "../birds/colors"
+import { kit } from "../kit"
 import type { Participant, Workroom } from "."
+
+export const WORKROOM_NAME_MAX = 20 // ワークルームの名前の長さの上限（字）
+
+export const WORKROOM = kit.defineSubject({
+  id: "workroom",
+  title: "workroom",
+  aiDescription:
+    "A workroom: a name (up to 20 characters, not repeated), a bird and its palette. A workroom with no participant in it is empty.",
+  role: "workrooms",
+  record: z.strictObject({
+    id: z.string().min(1),
+    name: z.string().trim().min(1).max(WORKROOM_NAME_MAX),
+    bird: z.enum(BIRD_IDS),
+    palette: z.enum(BIRD_PALETTE_IDS).optional(),
+    createdAt: z.string(),
+  }),
+  keys: {
+    name: { type: "text", of: w => w.name },
+    createdAt: { type: "text", of: w => w.createdAt },
+  },
+})
 
 type IsAlive = (calledAt: string | undefined, nowMs: number) => boolean
 

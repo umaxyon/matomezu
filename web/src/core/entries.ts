@@ -6,6 +6,7 @@
 import type { CoreCatalog } from "./core-catalog"
 import {
   type AnyEntryRef,
+  type BackyardEntry,
   type BinderFolder,
   backyardIdOf,
   type Folder,
@@ -15,9 +16,11 @@ import {
   isUnreadableRole,
   type Library,
   type PageRow,
+  sameWorkKey,
   TRASH_ID,
   type TrashFolder,
   type TrashRef,
+  type WorkKey,
 } from "./folders"
 import { foldersOver, inTrash, systemFolderIndex, systemFolderOf } from "./folders-tree"
 import { type Lang, translate } from "./i18n/i18n"
@@ -47,6 +50,16 @@ export function canHold(holder: Folder, kind: EntryKind): boolean {
 // エントリ entry が、バックヤードかその中に在るか
 export const inBackyard = (folders: Folders, entry: string): boolean =>
   folders[entry]?.folderRole === "backyard" || foldersOver(folders, entry).some(f => f.folderRole === "backyard")
+
+// ブック book がバックヤードに直に在るなら、そのバックヤードの印と、並びのエントリの workKey（無ければ undefined）
+export function backyardEntryOf(folders: Folders, book: string): BackyardEntry | undefined {
+  for (const f of Object.values(folders)) {
+    if (f.folderRole !== "backyard") continue
+    const ref = f.lineup.find(r => r.id === book)
+    if (ref) return { backyard: f.backyard, workKey: ref.workKey }
+  }
+  return undefined
+}
 
 // 動かせない訳: エントリが無い（no-entry）・先のフォルダが無い（no-folder）・先が自分かその中（into-itself）・先のフォルダが持てない種類（kind）・
 // index が末尾より先（past-end）・動かしても同じ場所（same-place）・動かす物か先が、ゴミ箱かその中（in-trash。ゴミ箱へは入れる・戻すでだけ出入りする）・
@@ -109,6 +122,30 @@ export function placedEntry(library: Library, ref: AnyEntryRef, into: string, in
   const placed = { kind: ref.kind, id: ref.id } as AnyEntryRef
   return withFolders(library, {
     [to.id]: { ...to, lineup: [...to.lineup.slice(0, at), placed, ...to.lineup.slice(at)] } as Folder,
+  })
+}
+
+// 書庫 library のバックヤード（印 backyard）の中の、workKey が key のブックの id（無ければ undefined）。持ち主は、中のブックを名前でなくこれで引く
+export function backyardBookOf(library: Library, backyard: string, key: WorkKey): string | undefined {
+  const row = library.folders[backyardIdOf(backyard)]
+  return row?.folderRole === "backyard" ? row.lineup.find(r => sameWorkKey(r.workKey, key))?.id : undefined
+}
+
+// まだどこにも入っていないブック book（withBook で行を足した物）を、バックヤード（印 backyard）の並びの末尾に workKey key で置いた書庫。
+// ブックが無いかもう入っている（no-entry）、バックヤードの行が無い（no-folder）、同じ workKey のブックがもう在る（work-key-taken）なら、その訳
+export function placedInBackyard(
+  library: Library,
+  book: string,
+  backyard: string,
+  key: WorkKey,
+): Library | "no-entry" | "no-folder" | "work-key-taken" {
+  const { folders } = library
+  if (folders[book]?.folderRole !== "book" || placeOf(folders, book)) return "no-entry"
+  const row = folders[backyardIdOf(backyard)]
+  if (row?.folderRole !== "backyard") return "no-folder"
+  if (row.lineup.some(r => sameWorkKey(r.workKey, key))) return "work-key-taken"
+  return withFolders(library, {
+    [row.id]: { ...row, lineup: [...row.lineup, { kind: "book", id: book, workKey: key }] },
   })
 }
 
@@ -312,6 +349,8 @@ export function binnedBetween(was: Library, now: Library): { trashed: string[]; 
 
 // 断りの種類: 同じフォルダの中に、同じ名前の物が在る（土台が断るので、プラグインの id の名前空間は付かない）
 export const TITLE_TAKEN = "title-taken"
+// 断りの種類: バックヤードの中の物の名前を変える・持ち主でないプラグインがバックヤードにブックを作る（土台が断るので、名前空間は付かない）
+export const IN_BACKYARD = "in-backyard"
 
 // 名前を引く決まり: 機能台帳と、名前を引く言語（システムフォルダの名前は、定義の文言をこの言語で引く）
 export interface Naming {

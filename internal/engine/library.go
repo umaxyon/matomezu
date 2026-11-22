@@ -96,7 +96,7 @@ type Added struct {
 	SystemFolder string `json:"systemFolder"`
 }
 
-// Settled は、書庫を整えた結果: 書く行の変わり（Pages・Folders）と、移した物・戻した物の id・足したシステムフォルダ・名前に番号を付けた物と、
+// Settled は、書庫を整えた結果: 書く行の変わり（Pages・Folders）と、移した物・戻した物・消した物の id・足したシステムフォルダ・名前に番号を付けた物と、
 // そのあとの warning W032 の 1 行（読めない物が無ければ空）。Broken なら、読めない物のフォルダの行が形に合わないか、足すシステムフォルダの id が振れず、何も書かない
 type Settled struct {
 	Broken   bool        `json:"broken,omitempty"`
@@ -104,6 +104,7 @@ type Settled struct {
 	Folders  []RowChange `json:"folders,omitempty"`
 	Moved    []Moved     `json:"moved,omitempty"`
 	Returned []string    `json:"returned,omitempty"`
+	Purged   []string    `json:"purged,omitempty"` // 戻す先のバックヤードに同じ workKey の物が在って、戻さずに完全に消した物
 	Added    []Added     `json:"added,omitempty"`
 	Numbered []Numbered  `json:"numbered,omitempty"`
 	Warning  string      `json:"warning,omitempty"`

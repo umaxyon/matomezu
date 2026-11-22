@@ -12,10 +12,12 @@ import type { Book } from "../../../web/src/core/schema/book"
 import { screenOf } from "../../../web/src/core/window"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { refusalMessage } from "../../../web/src/plugins/base"
+import { TICKETS_HISTORY } from "../../../web/src/plugins/base/library/backyards"
 import { LOCK } from "../../../web/src/plugins/base/lock"
 import { addPageIn } from "../../../web/src/plugins/base/pages/add-page"
 import type { CommandId } from "../../../web/src/store/commands"
 import { isEnabled } from "../../../web/src/store/commands"
+import { roomKey, yardCtx, yardWorld } from "../../backyard"
 import { DRAWING, drawingPage, testBinder, testBook } from "../../lineup"
 import { CORE_CATALOG, newStore } from "../../support"
 
@@ -91,14 +93,30 @@ test("変える所を言わないアクションは、行う前にはページ�
   expect(LOCK.denies({ kind: "folder", action, folder: before, actor: USER })).toBe(false)
   expect(LOCK.denies({ kind: "page", action, page, folders: foldersOverIn(before, "p1"), actor: USER })).toBe(true)
   const after = { ...before, lineup: [{ ...page, title: "x" }] }
-  expect(LOCK.keeps!({ kind: "folder", action, before, after, changes: changesOf(before, after), actor: USER })).toBe(
-    false,
-  )
+  expect(
+    LOCK.keeps!({
+      kind: "folder",
+      action,
+      before,
+      after,
+      changes: changesOf(before, after),
+      backyardEntry: {},
+      actor: USER,
+    }),
+  ).toBe(false)
   // ロックの印を外せるのは、利用者の、掛け外しのアクションだけ
   const unlocked = { ...before, lineup: [drawingPage("p1", { title: "1" })] }
   const unlock = CORE_CATALOG.actions.get("@matomezu/base:page-unlock")!
   const kept = (by: typeof action, actor: typeof USER | typeof AI) =>
-    LOCK.keeps!({ kind: "folder", action: by, before, after: unlocked, changes: changesOf(before, unlocked), actor })
+    LOCK.keeps!({
+      kind: "folder",
+      action: by,
+      before,
+      after: unlocked,
+      changes: changesOf(before, unlocked),
+      backyardEntry: {},
+      actor,
+    })
   expect(kept(unlock, USER)).toBe(true)
   expect(kept(unlock, AI)).toBe(false)
   expect(kept(action, USER)).toBe(false)
@@ -177,4 +195,28 @@ test("断りの文言は、認可ステップが止めたならそのステッ�
   const fallback = "@matomezu/tree:Does not fit on the paper" as MessageKey
   expect(done.ok || refusalMessage(CORE_CATALOG, done, fallback)).toBe(LOCK.title)
   expect(refusalMessage(CORE_CATALOG, { reason: "refused" }, fallback)).toBe(fallback)
+})
+
+test("バックヤードのブックとその中のページは、利用者もロックできない（ロックの掛かった物をバックヤードに入れる変わりも止める）", () => {
+  const lock = (id: string, on: { book: string } | { page: string }) =>
+    performIn(yardWorld(), `@matomezu/base:${id}`, {}, on, yardCtx(USER))
+  expect(lock("book-lock", { book: "b1" })).toMatchObject({ ok: false, permission: "@matomezu/base:lock" })
+  expect(lock("page-lock", { page: "p1" })).toMatchObject({ ok: false, permission: "@matomezu/base:lock" })
+  const action = CORE_CATALOG.actions.get("@matomezu/base:page-add")!
+  const before = testBook("b1", "r1", [drawingPage("p1")])
+  const entry = { backyard: TICKETS_HISTORY.id, workKey: roomKey("r1") }
+  const kept = (after: Book, backyardEntry: object) =>
+    LOCK.keeps!({
+      kind: "folder",
+      action,
+      before,
+      after,
+      changes: changesOf(before, after),
+      backyardEntry,
+      actor: USER,
+    })
+  const lockedPage = { ...before, lineup: [drawingPage("p1", { locked: true })] }
+  const lockedBook = { ...before, locked: true as const }
+  expect([kept(lockedPage, { after: entry }), kept(lockedBook, { after: entry })]).toEqual([false, false])
+  expect([kept(lockedPage, {}), kept(lockedBook, {})]).toEqual([true, true])
 })

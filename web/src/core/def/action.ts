@@ -91,8 +91,11 @@ export interface ActionContext {
   // レコードが対象のアクションが、索引キーだけ読むと宣言した物（reads の keysOnly。種類の id → id → 索引キーの値。中身は読まない）
   keys?: { readonly [S in SubjectId]?: Readonly<Record<string, KeyValuesOf<S>>> }
   // レコードが対象のアクションが、読む物に書いた種類（reads が答えた種類）のレコードと、宛先のレコードが指す先（対象の定義の refers）を、id で 1 件読む（無ければ none）。
-  // 読んだ索引キーから相手を決めて、その中身を読むのに使う（引数からは決まらない相手。どちらでもない物は読めず none）
+  // 読んだ索引キーから相手を決めて、その中身を読むのに使う（引数からは決まらない相手。どちらでもない物は読めず none）。
+  // 書庫が対象のアクションでは、readsSubjects に書いた種類のレコードを読む（ほかは none）
   record?(subject: string, id: string): unknown
+  // 書庫が対象のアクションが、readsSubjects に書いた種類のレコードのうち、索引キーの条件 where に合う物を読む（ほかの種類は空。ほかの対象のアクションには無い）
+  find?(subject: string, where: readonly Condition[]): readonly unknown[]
   // 番号を振る種類（対象の定義の numbered）のアクションが、区切り scope の次の番号を受け取る。常駐が決めた値で、使い回さない（ほかのアクションには無い）
   number?(scope: string): number
 }
@@ -429,6 +432,8 @@ export interface ActionDef<
   reads?: T extends SubjectId ? ReadsOfArgs<A> : never
   // レコードが対象のアクションが、宛先のほかに変える別の種類（種類の id の並び。others の subject に書けるのはこの種類だけ。引数によらない宣言なので、関数でなく並び）
   writes?: T extends SubjectId ? readonly SubjectId[] : never
+  // 書庫が対象のアクションが読むレコードの種類を、機能台帳から答える（読む id が読んだ中身で決まるので、種類ごと宣言する）。その種類だけを ctx.record と ctx.find で読める
+  readsSubjects?: T extends "library" ? (catalog: CoreCatalog) => readonly string[] : never
   // レコードが対象のアクションが読むだけのブックの id を、引数から答える（そのブックだけが ctx.books に入る。無ければブックを読まない）
   readsBooks?: T extends SubjectId ? BooksOfArgs<A> : never
   args: z.ZodType<A, I> // 引数の形（AI にもこの形で見せる）

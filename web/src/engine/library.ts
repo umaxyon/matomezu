@@ -61,6 +61,7 @@ export function settleLibraryOf(of: Assembled, pages: string, folders: string, s
     ...rowWrites(done.writes),
     moved: done.moved.map(u => ({ id: u.element.id, code: u.code, ...(u.type === undefined ? {} : { type: u.type }) })),
     returned: done.returned,
+    purged: done.purged,
     added: done.added,
     numbered: done.numbered.map(n => ({ id: n.id, title: n.title })),
     warning: warningLineOf(done.writes.folders[UNREADABLE_ID], JSON.parse(folders) as unknown[]),
