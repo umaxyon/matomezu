@@ -16,6 +16,36 @@ export interface RecordSource {
   keys?(subject: string, where: readonly Condition[]): Readonly<Record<string, KeyValues>>
 }
 
+// プラグインに渡すレコードの読み口: 種類 subject の id のレコード（無ければ none）と、種類のレコードのうち索引キーの条件 where に合う物（アクションの reads の where と同じ書き方）。
+// 読める種類は、渡す側が宣言で決める（宣言に無い種類は none と空）
+export interface RecordReader {
+  record(subject: string, id: string): unknown
+  find(subject: string, where: readonly Condition[]): readonly unknown[]
+}
+
+// 読み口 source から、種類 subjects だけを読む RecordReader（ほかの種類は none と空。source が無ければ、どの種類も none と空）
+export function readerOf(
+  catalog: CoreCatalog,
+  source: RecordSource | undefined,
+  subjects: Iterable<string>,
+): RecordReader {
+  const allowed = new Set(source ? subjects : [])
+  return {
+    record: (subject, id) => (allowed.has(subject) ? (source?.byId(subject, id) ?? NO_RECORD) : NO_RECORD),
+    find: (subject, where) =>
+      allowed.has(subject) && source ? Object.values(find(catalog, source, subject, where)).map(r => r.record) : [],
+  }
+}
+
+// 読み口 reader を、種類 subjects だけに絞った読み口（ほかの種類は none と空）
+export function narrowed(reader: RecordReader, subjects: Iterable<string>): RecordReader {
+  const allowed = new Set(subjects)
+  return {
+    record: (subject, id) => (allowed.has(subject) ? reader.record(subject, id) : NO_RECORD),
+    find: (subject, where) => (allowed.has(subject) ? reader.find(subject, where) : []),
+  }
+}
+
 // 持っているレコード records から引く読み口
 export function sourceOf(records: Records): RecordSource {
   return {

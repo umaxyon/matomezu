@@ -8,7 +8,14 @@ import { isOpenRole, type Library, type PageRow } from "./folders"
 import { libraryOf } from "./folders-books"
 import { bookIdOf, inTrash, isKeptSystemFolder, permissionFoldersOf, systemFolderOf } from "./folders-tree"
 import type { AskedPage } from "./inspect"
-import { broken, brokenPage, normalizedPage, pageChecksBetween, placeChangeOf } from "./perform-checks"
+import {
+  backyardEntriesBetween,
+  broken,
+  brokenPage,
+  normalizedPage,
+  pageChecksBetween,
+  placeChangeOf,
+} from "./perform-checks"
 import type { ItemPage } from "./placed"
 import type { Book } from "./schema/book"
 
@@ -130,12 +137,26 @@ export function brokenIn(
   const rows: LibraryPageRows = { was: pagesOutsideTrash(was), now: pagesOutsideTrash(now) }
   for (const b of Object.values(before)) {
     const place = after[b.id] ? placeChangeOf(was, now, b.id, binned) : "same"
-    const id = b === after[b.id] && place === "same" ? null : broken(ctx, action, b, after[b.id], place, rows)
+    const id =
+      b === after[b.id] && place === "same"
+        ? null
+        : broken(ctx, action, b, after[b.id], backyardEntriesBetween(was.folders, b.id, now.folders, b.id), place, rows)
     if (id) return { permission: id, book: b.id }
   }
   for (const b of Object.values(after)) {
     const made = inTrash(now.folders, b.id) ? "trashed" : "same"
-    const id = b.id in before ? null : broken(ctx, action, undefined, b, made, rows)
+    const id =
+      b.id in before
+        ? null
+        : broken(
+            ctx,
+            action,
+            undefined,
+            b,
+            backyardEntriesBetween(was.folders, undefined, now.folders, b.id),
+            made,
+            rows,
+          )
     if (id) return { permission: id }
   }
   for (const page of pageChecksBetween(was, now)) {

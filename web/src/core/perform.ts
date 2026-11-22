@@ -19,6 +19,7 @@ import type {
   OtherRecord,
   SubjectData,
 } from "./def/action"
+import type { BackyardEntries } from "./def/permission"
 import { clashedSystemFolder, type Naming, TITLE_TAKEN, titleClashes } from "./entries"
 import { type Folder, homeOrFolderHolds, isOpenRole, type Library } from "./folders"
 import { libraryOf } from "./folders-books"
@@ -36,6 +37,7 @@ import {
 } from "./perform-checks"
 import { brokenIn, normalizedLibrary, systemFoldersKept } from "./perform-library"
 import { type Denied, NOT_IN_BOOK, permits } from "./perform-permit"
+import { backyardEntryIn } from "./permission-input"
 import type { ItemPage } from "./placed"
 import { sourceIn } from "./record-source"
 import { NO_RECORD, RECORDS_MAX, REMOVED } from "./records"
@@ -188,10 +190,15 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
     const kept = brokenIn(ctx, action, subject as Library, next as Library)
     if (kept) return { ok: false, reason: "denied", ...kept }
   }
+  // ブックが対象・ページが対象のアクションは、ブックの置き場所を変えないので、前と後のバックヤードは同じ
+  const entriesOf = (book: Book): BackyardEntries => {
+    const entry = backyardEntryIn(ctx, book.id)
+    return entry ? { before: entry, after: entry } : {}
+  }
   const permission = before
-    ? broken(ctx, action, before, done.next as Book)
+    ? broken(ctx, action, before, done.next as Book, entriesOf(before))
     : action.target === "annotations"
-      ? broken(ctx, action, pair.book, pair.book)
+      ? broken(ctx, action, pair.book, pair.book, entriesOf(pair.book))
       : null
   if (permission) return { ok: false, reason: "denied", permission }
   if (before) {
@@ -278,6 +285,7 @@ function performOutside(
       folders: { before: folders, after: folders },
       change: pageChangeOf(held.id, held, after),
       place: "same",
+      backyardEntry: {},
     })
   if (action.target === "annotations") {
     const permission = broke(held)

@@ -4,6 +4,7 @@
 // 名前の重なりを断る事・タイプごとのほかの決まり・ロックは、ここでは見ない
 
 import type { CoreCatalog } from "./core-catalog"
+import type { BackyardEntry } from "./def/permission"
 import {
   type AnyEntryRef,
   type BinderFolder,
@@ -47,6 +48,16 @@ export function canHold(holder: Folder, kind: EntryKind): boolean {
 // エントリ entry が、バックヤードかその中に在るか
 export const inBackyard = (folders: Folders, entry: string): boolean =>
   folders[entry]?.folderRole === "backyard" || foldersOver(folders, entry).some(f => f.folderRole === "backyard")
+
+// ブック book がバックヤードに直に在るなら、そのバックヤードの印と、並びのエントリの workKey（無ければ undefined）
+export function backyardEntryOf(folders: Folders, book: string): BackyardEntry | undefined {
+  for (const f of Object.values(folders)) {
+    if (f.folderRole !== "backyard") continue
+    const ref = f.lineup.find(r => r.id === book)
+    if (ref) return { backyard: f.backyard, workKey: ref.workKey }
+  }
+  return undefined
+}
 
 // 動かせない訳: エントリが無い（no-entry）・先のフォルダが無い（no-folder）・先が自分かその中（into-itself）・先のフォルダが持てない種類（kind）・
 // index が末尾より先（past-end）・動かしても同じ場所（same-place）・動かす物か先が、ゴミ箱かその中（in-trash。ゴミ箱へは入れる・戻すでだけ出入りする）・

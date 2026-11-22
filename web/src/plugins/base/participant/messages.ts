@@ -81,4 +81,5 @@ export const PARTICIPANT_MESSAGES = defineMessages({
   Workspace: { en: "Workspace", ja: "ワークスペース" },
   Session: { en: "Session", ja: "セッション" },
   "Cancel a join request": { en: "Cancel a join request", ja: "参加要求をキャンセルする" },
+  "Another workroom's worker book": { en: "Another workroom's worker book", ja: "ほかのワークルームのワーカーブック" },
 })

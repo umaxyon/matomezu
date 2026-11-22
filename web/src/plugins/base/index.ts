@@ -181,6 +181,7 @@ import {
   PARTICIPANT_REQUEST,
   PARTICIPANT_WELCOME_DIALOG,
   SESSION_RENAME,
+  WORKER_BOOK,
   WORKROOM,
   WORKROOM_ADD,
   WORKROOM_REMOVE,
@@ -540,7 +541,7 @@ export const BASE = defineBuiltin(
     textColors: TEXT_COLORS,
     skins: [DARK, LIGHT, MATOMEZU_LIGHT_SKIN, MATOMEZU_DARK_SKIN],
     tools: [SELECT_TOOL, HAND_TOOL],
-    permissions: [LOCK],
+    permissions: [LOCK, WORKER_BOOK],
     annotations: [NOTE, MARK],
     systemFolders: [DOCUMENTS],
     backyards: [TICKETS_HISTORY],
@@ -798,6 +799,7 @@ declare module "../../core/catalog" {
   }
   interface PermissionTable {
     "@matomezu/base:lock": typeof LOCK
+    "@matomezu/base:worker-book": typeof WORKER_BOOK
   }
   interface AnnotationTable {
     "@matomezu/base:note": typeof NOTE

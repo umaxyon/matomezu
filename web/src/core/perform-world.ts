@@ -24,6 +24,7 @@ import {
 } from "./perform"
 import { isRecordTarget } from "./perform-checks"
 import { NOT_IN_BOOK, type PermitContext, type Permitted, permitted } from "./perform-permit"
+import { FOLDERS, type WithFolders } from "./permission-input"
 import type { ItemPage } from "./placed"
 import { type RecordSource, readFrom, SOURCE, sourceOf, type WithSource } from "./record-source"
 import { type Counters, NO_RECORD, REMOVED, type RecordChange, type Records } from "./records"
@@ -105,7 +106,7 @@ export function performIn(
 ): PerformedIn {
   // 名前を引く決まりは、どの対象のアクションにも、世界の利用者の設定から入れる
   const naming = namingOf(given.catalog, world.settings)
-  const ctx: ActionContext = { ...given, naming }
+  const ctx: ActionContext = { ...given, naming, ...inputsOf(world) }
   const target: ActionTarget | undefined = ctx.catalog.actions.get(id)?.target
   const loose = perform as (
     subject: unknown,
@@ -344,6 +345,12 @@ function booksRead(world: World, action: ActionDef, args: unknown): Books {
 }
 
 // ブックが対象のアクションの宛先のブック（on のブック。無いか、ゴミ箱のブックなら null）。performIn と permittedIn で同じ決まりを使う
+// 認可ステップが読む、世界 world のレコードの読み口と書庫のフォルダ（アクションの文脈に、core の中だけで引く鍵で持たせる）
+const inputsOf = (world: World): WithSource & WithFolders => ({
+  [SOURCE]: world.source ?? sourceOf(world.records),
+  [FOLDERS]: world.folders,
+})
+
 function bookIn(world: World, on: ActionOn | undefined): Book | null {
   const book = bookOf(world, (on && "book" in on ? on.book : undefined) ?? "")
   return book && !inTrash(world.folders, book.id) ? book : null
@@ -355,8 +362,9 @@ export function permittedIn(
   id: string,
   args: unknown,
   on: ActionOn | undefined,
-  ctx: PermitContext,
+  given: PermitContext,
 ): Permitted | Refused | { ok: false; reason: "no-book" } | ReturnType<typeof noRecord> {
+  const ctx: PermitContext = { ...given, ...inputsOf(world) }
   const target: ActionTarget | undefined = ctx.catalog.actions.get(id)?.target
   if (target === "book") {
     const book = bookIn(world, on)
