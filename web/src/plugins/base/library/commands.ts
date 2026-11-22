@@ -110,7 +110,7 @@ function entryOf(ctx: ScreenCommandContext, named?: Named): string | undefined {
 
 // コマンドが扱う、受け取ったエントリ（フォルダを受け取ったとき（何も無い所のメニュー）は、扱わない。そのフォルダは、右クリックした物でない）のうち、
 // in が扱うと答えた物: 名前を変える物はゴミ箱の外のどこに在っても（placedOutsideTrash）、ゴミ箱に入れる物は書庫ホームかフォルダの直下に在る物（placedOutsideBooks）、
-// 写す物はブックの中か、書庫ホームかフォルダの直下のページ・バインダ（duplicates）
+// 写す物はブックかバインダの中か、書庫ホームかフォルダの直下のページ・バインダ（duplicates）
 type Handles = (folders: Folders, entry: string, catalog: CoreCatalog) => unknown
 const handled = (ctx: ScreenCommandContext, handles: Handles, named?: Named): string | undefined => {
   const to = given(ctx, named)
