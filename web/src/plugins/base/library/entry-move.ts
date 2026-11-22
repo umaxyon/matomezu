@@ -3,7 +3,7 @@
 // entry-rename は、その名前を変える。folder-create は、フォルダを作る。どれも、エントリの中身は変えない。
 // 同じフォルダの中に同じ名前は置けない（土台が title-taken で断る）。entry-move の onConflict が number なら、番号を付けた名前にして入れる
 import { z } from "zod"
-import type { LibraryTargets } from "../../../core/def/action"
+import { CREATES_NOTHING, type LibraryTargets } from "../../../core/def/action"
 import {
   carriedEntry,
   isMoveRefusal,
@@ -32,7 +32,10 @@ export const FOLDER_CREATE = kit.defineAction({
     "Create a folder in the library: title is its name, into the id of the folder to put it in (the library home without it; see read_folder), at the end. Returns the new folder's id. Refused (title-taken) when that folder already has an entry with the same title.",
   title: "New folder",
   target: "library",
-  permissionScope: () => ({ books: [], creates: false }), // ブックを変えない
+  permissionScope: (args: { into?: string }): LibraryTargets => ({
+    books: [],
+    creates: [{ kind: "folder", into: args.into ?? HOME_ID }],
+  }),
   args: z.strictObject({ title: z.string().trim().min(1), into: z.string().min(1).optional() }),
   run: (library, args, ctx) => {
     const into = args.into ?? HOME_ID
@@ -96,7 +99,7 @@ export const ENTRY_MOVE_OVER = kit.defineAction({
       { entry: args.entry, where: "place", into: args.into },
       ...(args.replaces === undefined ? [] : [{ entry: args.replaces, where: "all-pages" as const }]),
     ],
-    creates: false,
+    creates: CREATES_NOTHING,
   }),
   args: z.strictObject({
     entry: z.string().min(1),

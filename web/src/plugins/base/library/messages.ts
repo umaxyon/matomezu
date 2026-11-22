@@ -6,6 +6,11 @@ export const LIBRARY_MESSAGES = defineMessages({
   "New folder": { en: "New folder", ja: "フォルダ新規作成" },
   "Create page": { en: "New page", ja: "ページ新規作成" },
   Documents: { en: "Documents", ja: "ドキュメント" },
+  Workrooms: { en: "Workrooms", ja: "ワークルーム" },
+  "Nothing goes in the workrooms folder": {
+    en: "Nothing goes in the workrooms folder",
+    ja: "ワークルームのフォルダには入れられない",
+  },
   "Add system folders": { en: "Add system folders", ja: "システムフォルダを足す" },
   Move: { en: "Move", ja: "移動" },
   "Move and replace": { en: "Move and replace", ja: "上書きして移動" },

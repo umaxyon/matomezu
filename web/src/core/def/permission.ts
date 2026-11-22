@@ -5,7 +5,7 @@
 import type { Actor } from "../actor"
 import type { PermissionExtras } from "../catalog"
 import type { CoreCatalog } from "../core-catalog"
-import type { BackyardEntry, Folder } from "../folders"
+import type { AnyEntryRef, BackyardEntry, Folder, HomeFolder, PlainFolder } from "../folders"
 import type { MessageKey } from "../i18n/i18n"
 import type { ItemPage } from "../placed"
 import type { RecordReader } from "../record-source"
@@ -74,8 +74,25 @@ export interface RecordPermissionQuery {
   actor: Actor
 }
 
+// 書庫のフォルダ（書庫ホームとフォルダ。システムフォルダも）の行。置き場所の問いと確かめに見せる
+export type PlaceFolder = HomeFolder | PlainFolder
+
+// 置き場所の問いと確かめが指すエントリ: 在る物は種類 kind と id、作る物は種類 kind と、作る印 made
+export type PlaceEntry = { kind: AnyEntryRef["kind"]; id: string } | { kind: AnyEntryRef["kind"]; made: "new" }
+
+// 置き場所で問う（行う前）: 書庫が対象のアクションが、書庫のフォルダ（書庫ホーム・フォルダ）にエントリを入れる・作るとき、入れる先 into で問う（紙にアイテムを置く事ではない）。
+// into は入れる先のフォルダと、その上の書庫のフォルダの列（近い順。書庫ホームまで）。entry は動かす・写す物か、作る物。
+// 動かす先が今の直の入れ物と同じ（同じフォルダの中で並びを変えるだけ）なら問わない。引数から入れる先が言えなければ問わない（行った後の確かめが止める）
+export interface PlacePermissionQuery {
+  kind: "place"
+  action: ActionDef
+  into: readonly PlaceFolder[]
+  entry: PlaceEntry
+  actor: Actor
+}
+
 // 認可ステップが受ける問い。core がアクションの対象から kind を決めて渡し、ステップは受け取った kind で、自分が読む物だけを扱う
-export type PermissionQuery = PagePermissionQuery | FolderPermissionQuery | RecordPermissionQuery
+export type PermissionQuery = PagePermissionQuery | FolderPermissionQuery | RecordPermissionQuery | PlacePermissionQuery
 
 // 置き場所の変化: 変わらない（same）・ゴミ箱に入った（trashed）・ゴミ箱から出た（restored）・ゴミ箱の外で、入っているフォルダ（上のどれか）が変わった（moved）
 export type PlaceChange = "same" | "trashed" | "restored" | "moved"
@@ -140,7 +157,19 @@ export interface PagePermissionCheck {
   actor: Actor
 }
 
-export type PermissionCheck = FolderPermissionCheck | PagePermissionCheck | RecordPermissionCheck
+// 置き場所の確かめ（行った後）: 直の入れ物が変わった・増えたエントリ entry ごとに、前と後の、直の入れ物と、その上の書庫のフォルダの列（近い順。PlacePermissionQuery の into と同じ）。
+// 直の入れ物が書庫のフォルダでない側（ブック・バインダ・ゴミ箱の中・バックヤード・読めない物のフォルダ・無い）は none。どちらの側も none の物は確かめない。
+// フォルダごと動かしたときの中の物は、直の入れ物が変わらないので確かめない（動かしたフォルダの列で分かる）
+export interface PlacePermissionCheck {
+  kind: "place"
+  action: ActionDef
+  entry: { kind: AnyEntryRef["kind"]; id: string }
+  before: readonly PlaceFolder[] | "none"
+  after: readonly PlaceFolder[] | "none"
+  actor: Actor
+}
+
+export type PermissionCheck = FolderPermissionCheck | PagePermissionCheck | RecordPermissionCheck | PlacePermissionCheck
 
 // 認可ステップが問いと確かめのほかに受ける物: 使う機能台帳と、readsSubjects で宣言した種類だけを読むレコードの読み口
 export interface PermissionInput {

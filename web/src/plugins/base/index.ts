@@ -35,6 +35,7 @@ import {
   ENTRY_RESTORE,
   ENTRY_TRASH,
   FOLDER_CREATE,
+  IN_WORKROOMS,
   LIBRARY_APPEARANCE,
   LIBRARY_BOOK_NEW,
   LIBRARY_COLUMNS,
@@ -77,6 +78,7 @@ import {
   TICKETS_HISTORY,
   TRASH_EMPTY,
   UNREADABLE_NOTICE_CLOSED,
+  WORKROOMS,
 } from "./library"
 import { BOOK_LOCK, BOOK_UNLOCK, LOCK, LOCKABLE_CHECK, PAGE_LOCK, PAGE_UNLOCK } from "./lock"
 import type { A3, A4, A5, LETTER, TABLOID, WIDE } from "./looks"
@@ -546,9 +548,9 @@ export const BASE = defineBuiltin(
     textColors: TEXT_COLORS,
     skins: [DARK, LIGHT, MATOMEZU_LIGHT_SKIN, MATOMEZU_DARK_SKIN],
     tools: [SELECT_TOOL, HAND_TOOL],
-    permissions: [LOCK, WORKER_BOOK],
+    permissions: [LOCK, WORKER_BOOK, IN_WORKROOMS],
     annotations: [NOTE, MARK],
-    systemFolders: [DOCUMENTS],
+    systemFolders: [DOCUMENTS, WORKROOMS],
     backyards: [TICKETS_HISTORY],
     mails: [MAIL_LETTER, MAIL_PROPOSAL],
     subjects: [WORKROOM, PARTICIPANT, ADMIN_MARK, MAIL, SCRAP],
@@ -809,6 +811,7 @@ declare module "../../core/catalog" {
   interface PermissionTable {
     "@matomezu/base:lock": typeof LOCK
     "@matomezu/base:worker-book": typeof WORKER_BOOK
+    "@matomezu/base:in-workrooms": typeof IN_WORKROOMS
   }
   interface AnnotationTable {
     "@matomezu/base:note": typeof NOTE
@@ -816,6 +819,7 @@ declare module "../../core/catalog" {
   }
   interface SystemFolderTable {
     "@matomezu/base:documents": typeof DOCUMENTS
+    "@matomezu/base:workrooms": typeof WORKROOMS
   }
   interface BackyardTable {
     "@matomezu/base:tickets-history": typeof TICKETS_HISTORY

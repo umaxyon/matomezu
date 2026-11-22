@@ -28,25 +28,25 @@ test("エントリ（entry）と作るページのタイプ（creates）は、�
 test("book・books の引数の名前から変えるブックを出し、where に all-pages を書けばブックの全部を変える。文字でない値は外す", () => {
   expect(libraryScopeOf({ book: "book" }, { book: "b1" })).toEqual({
     books: [{ book: "b1", where: {} }],
-    creates: false,
+    creates: [],
   })
   expect(libraryScopeOf({ book: "book", where: "all-pages" }, { book: "b1" })).toEqual({
     books: [{ book: "b1", where: { allPages: true } }],
-    creates: false,
+    creates: [],
   })
   expect(libraryScopeOf({ books: "books" }, { books: ["b1", 2, "b3"] })).toEqual({
     books: [
       { book: "b1", where: {} },
       { book: "b3", where: {} },
     ],
-    creates: false,
+    creates: [],
   })
-  expect(libraryScopeOf({ book: "book" }, { book: 1 })).toEqual({ books: [], creates: false })
+  expect(libraryScopeOf({ book: "book" }, { book: 1 })).toEqual({ books: [], creates: [] })
 })
 
 test("create はブックを作ると出す。関数はそのまま返し、unknown と書かないアクションは分からない（null）", () => {
-  expect(libraryScopeOf("create", { title: "x" })).toEqual({ books: [], creates: true })
-  const targets = { books: [{ book: "b9", where: {} }], creates: false }
+  expect(libraryScopeOf("create", { title: "x" })).toEqual({ books: [], creates: [{ kind: "book" }] })
+  const targets = { books: [{ book: "b9", where: {} }], creates: [] }
   expect(libraryScopeOf(() => targets, {})).toBe(targets)
   expect(libraryScopeOf("unknown", {})).toBeNull()
   expect(libraryScopeOf(undefined, {})).toBeNull()

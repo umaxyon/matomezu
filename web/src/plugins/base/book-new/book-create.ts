@@ -2,6 +2,7 @@
 // 最初のページも一緒に作れる（page。page-add と同じ引数。1 回のアクションで、ブックとページを作る）。置くフォルダは into（言わなければ書庫ホーム）の、
 // at が first なら先頭（書庫ホームではシステムフォルダの後）、last なら末尾（言わなければ先頭。新しい物が前に並ぶ。画面から作るときは last を渡して末尾に置く）
 import { z } from "zod"
+import type { LibraryTargets } from "../../../core/def/action"
 import { isMoveRefusal, placedEntry } from "../../../core/entries"
 import { TOP_FOLDERS } from "../../../core/folders"
 import { withBook } from "../../../core/folders-books"
@@ -24,7 +25,10 @@ export const BOOK_CREATE = kit.defineAction({
     "Create a book: title is its name, into the id of the folder to put it in (the library home without it; see read_folder), and at where in it: first (the default; in the library home, after its system folders) or last. A book has no type and starts with no pages; page (the same arguments as page-add) makes its first page with it, in this one call. Returns the new book's id, and page: what page-add returns for the first page (when page is given). Refused when the first page cannot be made, and (title-taken) when that folder already has an entry with the same title.",
   title: "New book",
   target: "library",
-  permissionScope: "create",
+  permissionScope: (args: { into?: string }): LibraryTargets => ({
+    books: [],
+    creates: [{ kind: "book", into: args.into ?? TOP_FOLDERS.home.id }],
+  }),
   args: ARGS,
   describeArgs: catalog => ARGS.extend({ page: describeNewPage(catalog).optional() }),
   run: (library, args, ctx) => {

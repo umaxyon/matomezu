@@ -19,7 +19,7 @@ import {
 } from "./def/action"
 import type { ControlCenterDef } from "./def/control-center"
 import type { PageTypeDef } from "./def/page-type"
-import type { PageWhere, PermissionQuery, Referred } from "./def/permission"
+import type { PageWhere, PermissionQuery, PlaceEntry, PlaceFolder, Referred } from "./def/permission"
 import type { SubjectDef } from "./def/subject"
 import type { Folder } from "./folders"
 import { foldersOverIn } from "./folders-tree"
@@ -79,7 +79,15 @@ export type Query =
     // ブックの中でなく、ページそのもので問うときのページ（ブックの外のページか、ブックの外のバインダの中のページか、作るページ）。認可ステップには kind "page" で問い、
     // ブック・ページ・アノテーションが対象のアクションを使えるかは、そのページのタイプで決める
     page?: AskedPage
+    // 書庫のフォルダに入れる・作る物で問うときの、入れる先と物。認可ステップには kind "place" で問う
+    place?: AskedPlace
   }
+
+// 置き場所で問うときの、入れる先の書庫のフォルダの列と、入れる・作る物（core/def/permission.ts の PlacePermissionQuery）
+export interface AskedPlace {
+  into: readonly PlaceFolder[]
+  entry: PlaceEntry
+}
 
 // ページそのもので問うときの、ページと、認可ステップに見せるフォルダの列と、所（core/def/permission.ts の PagePermissionQuery）
 export interface AskedPage {
@@ -332,26 +340,28 @@ function action(
     from: { source: "participation", id: def.id, because: isVisitor(q.actor) ? "visitor" : "not-joined" },
     value: !canAct(q.actor) && !joinsWithoutParticipation(def) ? false : null,
   }
-  const { book, settings, where, record, page } = q
+  const { book, settings, where, record, page, place } = q
   const permitted = book
     ? permissionSteps(catalog, permissionQuery(def, book, where, q.actor, ctx), ctx)
-    : page
-      ? permissionSteps(catalog, { kind: "page", action: def, ...page, actor: q.actor }, ctx)
-      : record && catalog.subjects.has(def.target)
-        ? permissionSteps(
-            catalog,
-            {
-              kind: "record",
-              action: def,
-              subject: def.target,
-              def: catalog.subjects.get(def.target) as SubjectDef,
-              record: record.record,
-              refs: record.refs,
-              actor: q.actor,
-            },
-            ctx,
-          )
-        : []
+    : place
+      ? permissionSteps(catalog, { kind: "place", action: def, ...place, actor: q.actor }, ctx)
+      : page
+        ? permissionSteps(catalog, { kind: "page", action: def, ...page, actor: q.actor }, ctx)
+        : record && catalog.subjects.has(def.target)
+          ? permissionSteps(
+              catalog,
+              {
+                kind: "record",
+                action: def,
+                subject: def.target,
+                def: catalog.subjects.get(def.target) as SubjectDef,
+                record: record.record,
+                refs: record.refs,
+                actor: q.actor,
+              },
+              ctx,
+            )
+          : []
   if (isInBook(def.target))
     return book
       ? decide([known, userOnly, participation, ...permitted, ...placeSteps(catalog, def, book, where)])

@@ -3,7 +3,7 @@
 // 戻すのは、カレントのステージで開いているステージエントリ（ブックか、ブックの外のページか、ブックの外のバインダ）の最後の画面の履歴の段。その画面の履歴の段がいくつかのステージエントリを変えていれば、その全部を戻す
 
 import { pagesOf } from "../../../core/book"
-import type { LibraryTargets } from "../../../core/def/action"
+import { CREATES_NOTHING, type LibraryTargets } from "../../../core/def/action"
 import type { Folders } from "../../../core/folders"
 import { foldersOver } from "../../../core/folders-tree"
 import type { HistoryStep } from "../../../core/history"
@@ -47,7 +47,7 @@ export const HISTORY_RESTORE = kit.defineAction({
     return {
       books: books.map(e => ({ book: e.id, where })),
       entries: args.outermosts.filter(e => e.kind !== "book").map(e => ({ entry: e.id, where: "all-pages" })),
-      creates: false,
+      creates: CREATES_NOTHING,
     }
   },
   args: RevertArgs,

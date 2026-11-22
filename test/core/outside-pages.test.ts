@@ -163,7 +163,10 @@ test("ブックの外のエントリは、ページへの問い（kind page）�
   const asked = (id: string, args: unknown, at: World = w) => {
     seen.length = 0
     permittedIn(at, id, args, undefined, libraryCtx())
-    return seen.map(q => (q.kind === "page" ? [q.page.id, q.folders.map(f => f.id), q.where] : [q.kind]))
+    // 置き場所の問いは core/place-permission.test.ts が見る
+    return seen
+      .filter(q => q.kind !== "place")
+      .map(q => (q.kind === "page" ? [q.page.id, q.folders.map(f => f.id), q.where] : [q.kind]))
   }
   expect(asked(RENAME, { entry: "x1", title: "新" })).toEqual([["x1", [], { entry: "title" }]])
   expect(asked(MOVE, { entry: "x1", into: "a" })).toEqual([["x1", [], { entry: "place" }]])
@@ -188,10 +191,10 @@ test("ブックの外のエントリは、ページへの問い（kind page）�
 test("ページを作る先がブックならそのブックに作るタイプで、ブックの外なら、そのタイプの空のページで問われる（folders は空）", () => {
   const w = outsideWorld()
   const asks = (into?: string) =>
-    libraryAsksOf(catalog, w, { books: [], pages: [{ creates: DRAWING, into }], creates: false })
+    libraryAsksOf(catalog, w, { books: [], pages: [{ creates: DRAWING, into }], creates: [] })
   expect(asks("b1")).toEqual([{ book: bookOf(w, "b1") as Book, where: { creates: DRAWING } }])
   for (const into of ["a", undefined]) {
-    const [ask] = asks(into)
+    const [ask] = asks(into).filter(a => !("place" in a))
     expect(ask && "page" in ask ? [ask.page.page.type, ask.page.page.kind, ask.page.folders] : ask).toEqual([
       DRAWING,
       "page",
@@ -201,7 +204,7 @@ test("ページを作る先がブックならそのブックに作るタイプ�
   // page-create の行う前の問いも、ブックの外へ作るなら空のページで問い、フォルダ a に作る
   seen.length = 0
   permittedIn(w, PAGE_CREATE, { folder: "a", type: DRAWING }, undefined, libraryCtx())
-  expect(seen.map(q => (q.kind === "page" ? [q.page.type, q.folders] : q.kind))).toEqual([[DRAWING, []]])
+  expect(seen.map(q => (q.kind === "page" ? [q.page.type, q.folders] : q.kind))).toEqual([[DRAWING, []], "place"])
   expect(performIn(w, PAGE_CREATE, { folder: "a", type: DRAWING }, undefined, libraryCtx())).toMatchObject({ ok: true })
 })
 

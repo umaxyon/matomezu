@@ -50,9 +50,11 @@ export const WORKER_BOOK = kit.definePermission({
     "the book is the worker book of another workroom's current work (or of a work no workroom has now); you can read it and answer its notes and marks, but only the AI whose current work it is, and the user, can change it",
   readsSubjects: workerBookReadsOf,
   denies: (q, input) =>
-    q.kind !== "record" && q.action.target !== "annotations" && !writable(input, q.actor, q.backyardEntry),
+    (q.kind === "page" || q.kind === "folder") &&
+    q.action.target !== "annotations" &&
+    !writable(input, q.actor, q.backyardEntry),
   keeps: (c, input) =>
-    c.kind === "record" ||
+    (c.kind !== "page" && c.kind !== "folder") ||
     c.action.target === "annotations" ||
     (writable(input, c.actor, c.backyardEntry.before) && writable(input, c.actor, c.backyardEntry.after)),
 })

@@ -48,4 +48,4 @@ export {
   LIBRARY_UNFOLDED,
   UNREADABLE_NOTICE_CLOSED,
 } from "./state"
-export { DOCUMENTS } from "./system-folders"
+export { DOCUMENTS, IN_WORKROOMS, WORKROOMS } from "./system-folders"

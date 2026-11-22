@@ -13,7 +13,7 @@ import (
 	"github.com/umaxyon/matomezu/internal/storage"
 )
 
-// documentsOf は、書庫ホームの直下のシステムフォルダ（起動したときに足すドキュメント）の行の id（並びの順）
+// documentsOf は、書庫ホームの直下のシステムフォルダ（起動したときに足す base のドキュメントとワークルーム）の行の id（並びの順）
 func documentsOf(t *testing.T, h *Hub) []string {
 	t.Helper()
 	ids := []string{}
@@ -37,6 +37,9 @@ func documentsRef(t *testing.T, h *Hub) string {
 	}
 	return refs
 }
+
+// baseSystemFolders は、base が定義するシステムフォルダの数（ドキュメントとワークルーム）
+const baseSystemFolders = 2
 
 // systemFolderRow は、/api/data の folders の、システムフォルダの行 1 つ（中身の無い物）
 var systemFolderRow = regexp.MustCompile(`\{"id":"([^"]+)","folder":\{"folderRole":"folder","id":"[^"]+","systemFolder":"[^"]+","lineup":\[\]\},"version":\d+\},?`)
@@ -66,7 +69,7 @@ func TestSystemFoldersAreAddedAtStartAndWhenPluginsChange(t *testing.T) {
 		t.Fatalf("the log at start:\n%s", logged)
 	}
 	docs := documentsOf(t, hub)
-	if len(docs) != 1 || hub.folders[storage.HomeID].entries[0] != docs[0] {
+	if len(docs) != baseSystemFolders || hub.folders[storage.HomeID].entries[0] != docs[0] {
 		t.Fatalf("system folders %v in home %v", docs, hub.folders[storage.HomeID].entries)
 	}
 	if b := hub.Book("b9"); b == nil || !strings.Contains(string(b.Body), `"title":"Documents 2"`) {
@@ -84,7 +87,7 @@ func TestSystemFoldersAreAddedAtStartAndWhenPluginsChange(t *testing.T) {
 	if now := documentsOf(t, again); !slices.Equal(now, docs) {
 		t.Fatalf("after a restart = %v; want %v", now, docs)
 	}
-	// システムフォルダを足す追加プラグインを足すと、その行を印の順の所（@matomezu/base:documents の後）に足す。外しても行は残り、名前は空になる
+	// システムフォルダを足す追加プラグインを足すと、その行を印の順の所（@matomezu/base の物の後）に足す。外しても行は残り、名前は空になる
 	dir := pluginDir(t, "a", map[string]string{
 		"index.ts": `export default { id: "a", messages: { id: "a:messages", messages: { "a:Extra": { en: "Extra" } } }, ` +
 			`systemFolders: [{ id: "a:extra", title: "a:Extra", aiDescription: "x" }] }`,
@@ -94,7 +97,7 @@ func TestSystemFoldersAreAddedAtStartAndWhenPluginsChange(t *testing.T) {
 		t.Fatal(err)
 	}
 	now := documentsOf(t, again)
-	if len(now) != 2 || now[0] != docs[0] || again.AIFolder("").Lineup[1].Title != "Extra" {
+	if len(now) != baseSystemFolders+1 || !slices.Equal(now[:baseSystemFolders], docs) || again.AIFolder("").Lineup[baseSystemFolders].Title != "Extra" {
 		t.Fatalf("after linking a plugin = %v %+v", now, again.AIFolder("").Lineup)
 	}
 	// 利用者の設定で無効にした間は、その行をゴミ箱に入れられる。有効に戻すと、ゴミ箱の外に無いので新しい行を足す（設定のアクションのあと、h.mu を放してから行う）
@@ -106,19 +109,19 @@ func TestSystemFoldersAreAddedAtStartAndWhenPluginsChange(t *testing.T) {
 		}
 	}
 	set(`[]`)
-	if out, err := again.Perform(performOne("@matomezu/base:entry-trash", json.RawMessage(`{"entry":"`+now[1]+`"}`), nil)); err != nil || !out.OK {
+	if out, err := again.Perform(performOne("@matomezu/base:entry-trash", json.RawMessage(`{"entry":"`+now[baseSystemFolders]+`"}`), nil)); err != nil || !out.OK {
 		t.Fatalf("trash the extra folder while its plugin is off = %+v, %v", out, err)
 	}
-	trashed := now[1]
+	trashed := now[baseSystemFolders]
 	set(`["a"]`)
 	now = documentsOf(t, again)
-	if len(now) != 2 || now[0] != docs[0] || now[1] == trashed || !again.inTrash(trashed) {
+	if len(now) != baseSystemFolders+1 || !slices.Equal(now[:baseSystemFolders], docs) || now[baseSystemFolders] == trashed || !again.inTrash(trashed) {
 		t.Fatalf("after turning the plugin on again = %v (trashed %s)", now, trashed)
 	}
 	if err := again.UnlinkPlugin("a"); err != nil {
 		t.Fatal(err)
 	}
-	if left := documentsOf(t, again); !slices.Equal(left, now) || again.AIFolder("").Lineup[1].Title != "" {
+	if left := documentsOf(t, again); !slices.Equal(left, now) || again.AIFolder("").Lineup[baseSystemFolders].Title != "" {
 		t.Fatalf("after unlinking = %v %+v", left, again.AIFolder("").Lineup)
 	}
 }
@@ -196,7 +199,7 @@ func TestAnUnreadableBookWithTheSystemFolderTitleMovesWithoutANumber(t *testing.
 	hub.mu.Lock()
 	moved := hub.inUnreadable("bx")
 	hub.mu.Unlock()
-	if !moved || len(documentsOf(t, hub)) != 1 {
+	if !moved || len(documentsOf(t, hub)) != baseSystemFolders {
 		t.Fatalf("the unreadable book is in the unreadable folder %v, the documents %v", moved, documentsOf(t, hub))
 	}
 	hub.mu.Lock()
