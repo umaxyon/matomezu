@@ -52,6 +52,14 @@ export const PluginsSchema = z.object({
   by: z.string().optional(),
 })
 
+// 新しい版の確かめの結果（常駐の update.go の UpdateStatus）
+export const UpdateStatusSchema = z.object({
+  state: z.enum(["unchecked", "current", "newer", "failed", "dev"]),
+  version: z.string(),
+  latest: z.string().optional(),
+  checkedAt: z.string().optional(),
+  askedAt: z.string().optional(),
+})
 export const DataSchema = z.object({
   pages: z.array(z.object({ id: z.string(), page: z.unknown(), version: z.number().int() })),
   folders: z.array(z.object({ id: z.string(), folder: z.unknown(), version: z.number().int() })),
@@ -65,6 +73,7 @@ export const DataSchema = z.object({
   touched: z.record(z.string(), z.string()).optional(),
   participantCalls: z.record(z.string(), z.string()).optional(),
   participantReady: z.array(z.string()).optional(),
+  update: UpdateStatusSchema.optional(),
   participantLive: z
     .record(z.string(), z.object({ model: z.string().optional(), branch: z.string().optional() }))
     .optional(),

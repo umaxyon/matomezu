@@ -20,7 +20,7 @@ import { BROKEN } from "../core/folders"
 import { restoreCounters, restoreRecords, withCounters, withRecords } from "../core/records"
 import { NOT_INSIDE, PURGED, type UnreadableNotice } from "../core/unreadable"
 import type { Warning } from "../core/warnings"
-import type { Build, ForeignChange, MatomezuInstance, ParticipantLive } from "../store/state"
+import type { Build, ForeignChange, MatomezuInstance, ParticipantLive, UpdateStatus } from "../store/state"
 import type { HostClient, Loaded } from "./client"
 import { createLinkWatch } from "./link-watch"
 import { WIDE_SEARCH_ANSWER, wideSearchParams } from "./search"
@@ -41,6 +41,7 @@ import {
   SCREEN_PLUGINS_REMOVED,
   ShowSchema,
   TouchedSchema,
+  UpdateStatusSchema,
 } from "./server-schemas"
 import { editLocksOf, recordLocksOf, showIn, viewOf } from "./server-view"
 
@@ -147,6 +148,7 @@ export function serverClient(net: Net = browserNet): HostClient {
   let counters: unknown = {} // 番号を振る種類の、区切りごとの次の番号
   let touched: Record<string, string> = {} // ブックの id → 触れた（開いたか書いた）時刻
   let participantCalls: Record<string, string> = {} // 参加者の id → 最後に呼ばれた時刻
+  let updateStatus: UpdateStatus | undefined // 新しい版の確かめの結果（読んだか知らされた物）
   let participantReady: string[] = [] // 準備中でない参加者の id（増えるだけ）
   let participantLive: Record<string, ParticipantLive> = {} // 参加者の id → モデルとブランチ（どちらも無い参加者は持たない）
   let plugins: { id: string; ui: string; css?: string; disabled?: boolean }[] = []
@@ -275,6 +277,10 @@ export function serverClient(net: Net = browserNet): HostClient {
       if ((participantCalls[id] ?? "") < at) participantCalls = { ...participantCalls, [id]: at }
     for (const id of data.participantReady ?? [])
       if (!participantReady.includes(id)) participantReady = [...participantReady, id]
+    if (data.update) {
+      updateStatus = data.update
+      instance?.setUpdateStatus(data.update)
+    }
     // 参加者の様子は、読んだ物で全部を入れ替える
     participantLive = {}
     for (const [id, live] of Object.entries(data.participantLive ?? {})) {
@@ -411,6 +417,10 @@ export function serverClient(net: Net = browserNet): HostClient {
           : undefined,
       )
     })
+    on("update-status", data => {
+      updateStatus = UpdateStatusSchema.parse(JSON.parse(data))
+      instance?.setUpdateStatus(updateStatus)
+    })
     on("annotations", data => {
       const e = AnnotationsSchema.parse(JSON.parse(data))
       noticed(() => {
@@ -529,6 +539,12 @@ export function serverClient(net: Net = browserNet): HostClient {
       net.reload()
       return { state: "removed" }
     },
+    checkUpdate: async () => {
+      const res = await net.fetch("api/update/check", { method: "POST" }).catch(() => null)
+      if (!res?.ok) fail("E410", { status: res ? `${res.status}` : "no answer" })
+      updateStatus = UpdateStatusSchema.parse(await res.json())
+      instance?.setUpdateStatus(updateStatus)
+    },
     purgeUnreadable: async id => {
       const res = await net
         .fetch("api/unreadable/purge", {
@@ -562,6 +578,7 @@ export function serverClient(net: Net = browserNet): HostClient {
     connect: next => {
       instance = next
       show()
+      if (updateStatus) next.setUpdateStatus(updateStatus)
       let told = ""
       let viewSeq = 0 // 知らせの番号（届く順が入れ替わっても、常駐が古い方を捨てられるように増やす）
       // 見ているものと、利用者が直している物（どちらかが変わったときと、フォーカスされたときに知らせる）

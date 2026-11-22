@@ -8,7 +8,7 @@
 import { talkActions } from "../core/annotation"
 import { endActions, joinActions } from "../core/participant"
 import { checkRecords, restoreRecords } from "../core/records"
-import { aiSettings, disabledPluginsOf, isParticipantAlive, restoreSettings } from "../core/settings"
+import { aiSettings, disabledPluginsOf, isParticipantAlive, restoreSettings, updateCheckOn } from "../core/settings"
 import { warningText } from "../core/warnings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../plugins"
@@ -213,6 +213,10 @@ let lastAdded: readonly Plugin[] = []
   globalThis as { matomezuParticipantAlive?: (settings: string, calledAt: string, nowMs: number) => boolean }
 ).matomezuParticipantAlive = (settings, calledAt, nowMs) =>
   isParticipantAlive(assembled.catalog.core, restoreSettings(JSON.parse(settings)), calledAt || undefined, nowMs)
+
+// 常駐が新しい版を自分で確かめるか（利用者の設定で決まる。常駐が、確かめる前に読む）
+;(globalThis as { matomezuUpdateCheck?: (settings: string) => boolean }).matomezuUpdateCheck = settings =>
+  updateCheckOn(assembled.catalog.core, restoreSettings(JSON.parse(settings)))
 
 // 参加を利用者に伝える文（利用者の言語。常駐が、UserPromptSubmit のフックの systemMessage に使う）
 ;(globalThis as { matomezuJoinedText?: (settings: string, workroom: string) => string }).matomezuJoinedText = (

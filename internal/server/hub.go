@@ -23,6 +23,7 @@ package server
 //	participant-ready {"participant"} 参加者が準備中でなくなった（フックが参加を伝えた、または join で MCP がセッション id を運んだ。join_session.go）
 //	participant-live {"participant", "model", "branch"} 参加者のモデルかブランチが変わった（そのときの両方。空は省く。join.go・model.go）
 //	touched   {"book", "at"} ブックに触れた時刻（開いた・変えた。touched.go）
+//	update-status {"state", "version", "latest"?, "checkedAt"?, "askedAt"?} 新しい版の確かめの結果が変わった（update.go）
 //	keep      {} keepAlive ごとに送る。窓は、これも含めて知らせが QUIET_MS（host-client/server.ts）届かなければ、黙って切れたとみてつなぎ直す
 
 import (
@@ -82,7 +83,10 @@ func (h *Hub) BookOn(on *engine.On) string {
 // Hub は世界と窓をまとめる
 type Hub struct {
 	mu               sync.Mutex
-	build            *Build // 常駐の版とデータの形（hello で窓に知らせる。SetBuild）
+	updateMu         sync.Mutex   // 新しい版の確かめ（update・latest）の鍵。聞いている間は持たない
+	update           UpdateStatus // 新しい版の確かめの結果（update.go）
+	latest           LatestFunc   // 新しい版を聞く口（無ければ確かめない）
+	build            *Build       // 常駐の版とデータの形（hello で窓に知らせる。SetBuild）
 	store            storage.Storage
 	engine           *engine.Engine
 	pages            map[string]row       // ページの id → 本文と版（tables.go）

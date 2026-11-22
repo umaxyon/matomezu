@@ -8,7 +8,9 @@ import (
 	"github.com/umaxyon/matomezu/internal/storage"
 )
 
-func TestHelloTellsTheBuild(t *testing.T) {
+// emptyHub は、空の置き場所の Hub
+func emptyHub(t *testing.T) *Hub {
+	t.Helper()
 	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
 	if err != nil {
 		t.Fatal(err)
@@ -22,6 +24,11 @@ func TestHelloTellsTheBuild(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	return h
+}
+
+func TestHelloTellsTheBuild(t *testing.T) {
+	h := emptyHub(t)
 	if e := <-h.Join().ch; e.name != "hello" || string(e.data) != `{"client":"c1"}` {
 		t.Fatalf("before SetBuild: %s %s", e.name, e.data)
 	}

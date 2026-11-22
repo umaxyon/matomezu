@@ -443,6 +443,9 @@ export {
   wrap,
   wrapRich,
 } from "./text"
+
+import { UPDATE_CHECK } from "./update"
+
 // プラグインに公開する共通の処理（utils。ビルトインプラグインもここから使う）
 export * from "./utils"
 
@@ -530,6 +533,7 @@ export const BASE = defineBuiltin(
       ENABLED_PLUGINS,
       SOFT_BREAK,
       SHOW_UNREADABLE_FOLDER,
+      UPDATE_CHECK,
     ],
     themes: [STANDARD, STICKY, SIMPLE, MATOMEZU_THEME],
     papers: PAPERS,
@@ -717,6 +721,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:tool-picker-hold": typeof TOOL_PICKER_HOLD
     "@matomezu/base:note-expiry": typeof NOTE_EXPIRY
     "@matomezu/base:participant-alive": typeof PARTICIPANT_ALIVE
+    "@matomezu/base:update-check": typeof UPDATE_CHECK
     "@matomezu/base:session-rename": typeof SESSION_RENAME
     "@matomezu/base:soft-break": typeof SOFT_BREAK
     "@matomezu/base:corner-status-order": typeof CORNER_STATUS_ORDER

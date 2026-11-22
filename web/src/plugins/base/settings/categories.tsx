@@ -11,11 +11,11 @@ import { KeysPane } from "./KeysPane"
 import { SETTINGS_CATEGORIES } from "./settings-screen"
 import { UserSettings } from "./UserSettings"
 
-// 設定カテゴリのウィジェット。settings を並べるなら view は書かない（書けば view が中身を描く）。
+// 設定カテゴリのウィジェット。settings は名指す利用者の設定の項目（「全体」に出さない）で、view を書かなければ UserSettings がそれを並べ、書けば view が中身を描く。
 // place は、追加プラグインが既定の UI マッピングに足してほしいとき（true なら末尾、before・after ならその設定カテゴリの前・後ろ）
 export const defineSettingsCategory = <const Id extends string>(
   def: { id: Id; title: MessageKey; place?: PlaceInSlot } & (
-    | { settings: readonly string[]; view?: never }
+    | { settings: readonly string[]; view?: () => ReactNode }
     | { view: () => ReactNode; settings?: never }
   ),
 ) => {

@@ -53,6 +53,7 @@ export interface MatomezuState {
   offline: boolean // 常駐とのつながりが、しばらく切れたままか（ホストクライアントが知らせる）
   // つなぎ直した常駐が、窓を開いたときと別の版か（ホストクライアントが知らせる。無ければ null）。データの形が違えば、アクションもキーも断る
   staleBuild: StaleBuild | null
+  updateStatus: UpdateStatus | null // 新しい版の確かめの結果（常駐だけが持つ。ホストクライアントが知らせる。無ければ null）
   lastWindow: boolean // この窓が、最後にフォーカスされた窓か（ホストクライアントが、常駐のレコードの知らせに添えられた値で入れる）
   // ステージエントリの id → 画面の履歴（この画面で利用者が行ったアクションだけ。読み直すと消える）。画面の履歴の段がいくつかのステージエントリを変えたら、その全部に同じ画面の履歴の段が入る
   history: Readonly<Record<string, History>>
@@ -71,6 +72,16 @@ export interface MatomezuState {
 }
 
 // 参加者 1 人の様子: AI のフックが知らせたモデルと、MCP が添えた git のブランチ（知らされていない物は持たない）
+// 新しい版の確かめの結果: state は unchecked（まだ）・current（今の版が一番新しい）・newer（新しい版 latest がある）・failed（頼んだ確かめが聞けずに終わった）・dev（開発の版なので確かめない）。
+// checkedAt は最後に聞けた時刻、askedAt は管理者に更新を頼んだ時刻（ISO 8601 の UTC）
+export interface UpdateStatus {
+  state: "unchecked" | "current" | "newer" | "failed" | "dev"
+  version: string
+  latest?: string
+  checkedAt?: string
+  askedAt?: string
+}
+
 // 常駐の版とデータの形の番号（移し替えの数）
 export interface Build {
   version: string
@@ -199,6 +210,10 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   setOffline(offline: boolean): void
   // つなぎ直した常駐が別の版か（staleBuild）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
   setStaleBuild(stale: StaleBuild): void
+  // 新しい版の確かめの結果（updateStatus）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
+  setUpdateStatus(status: UpdateStatus): void
+  // 新しい版を今確かめるのをホストに頼む（結果はホストの知らせで入る）。base のフックを通して使う。ホストが無いか、頼めなければ投げる
+  checkUpdate(): Promise<void>
   // 窓を読み込み直す（画面の場所は URL に残る）
   reloadWindow(): void
   // この窓が、最後にフォーカスされた窓か（lastWindow）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
@@ -277,6 +292,7 @@ export function initialState(
     trash,
     offline: false,
     staleBuild: null,
+    updateStatus: null,
     lastWindow: false,
     history: {},
     pluginValues: NO_PLUGIN_STATES,
@@ -332,6 +348,8 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   search?: (query: WideSearchQuery) => Promise<WideSearchAnswer> // ホストの言葉の検索（横断検索）。無ければ、どの言葉にも横断検索の当たりなし
   copyText?: (text: string) => Promise<void> // ブラウザのクリップボードに文字を書く。無ければ、書けないとして投げる（E404）
   // 読めない物のフォルダについてホストに頼む口（完全に消す・無効にしたら移る物を数える）。無ければ、頼むと投げる（E406）
+  // 新しい版の確かめをホストに頼む口。無ければ、頼むと投げる（E409）
+  updateHost?: { check(): Promise<void> }
   unreadableHost?: {
     purge(id: string): Promise<Purged>
     movedIfOff(ids: readonly string[]): Promise<readonly MovedIfOff[] | typeof BROKEN>

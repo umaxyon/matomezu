@@ -3,7 +3,7 @@
 //	/                     画面（ビルドした web/dist）。そのほかの API に当たらない道はファイルとして配る
 //	GET  /api/ping        {"version", "pid"} 立っているかの確認                                  … 要合言葉
 //	POST /api/stop        常駐を止める                                                          … 要合言葉
-//	GET  /api/data        {"pages": [{"id", "page", "version"}], "folders": [{"id", "folder", "version"}], "settings", "annotations": {ページの id: [...]}, "records": {種類: {id: レコード}}, "counters": {種類: {区切り: 次の番号}}, "plugins": [{"id", "ui", "css"}], "touched": {id: 時刻}, "participantCalls": {参加者の id: 最後に呼ばれた時刻}, "participantReady": [準備中でない参加者の id], "participantLive": {参加者の id: {"model", "branch"}}} 置いてあるブック（ゴミ箱のブックも）と設定、
+//	GET  /api/data        {"pages": [{"id", "page", "version"}], "folders": [{"id", "folder", "version"}], "settings", "annotations": {ページの id: [...]}, "records": {種類: {id: レコード}}, "counters": {種類: {区切り: 次の番号}}, "plugins": [{"id", "ui", "css"}], "touched": {id: 時刻}, "participantCalls": {参加者の id: 最後に呼ばれた時刻}, "participantReady": [準備中でない参加者の id], "participantLive": {参加者の id: {"model", "branch"}}, "update": 新しい版の確かめの結果（update.go の UpdateStatus。SetUpdateCheck の前は無い）} 置いてあるブック（ゴミ箱のブックも）と設定、
 //	                      ブックごとのアノテーション、レコード（郵便も）と番号の表、追加プラグイン（ui と css は画面が読む道。css は無ければ空）、ブックに触れた（開いたか書いた）時刻（touched.go）  … 画面から
 //	GET  /api/plugins/{n}/ui.js   追加プラグインの n 番目の、画面で import() する JS（道には ?v= で追加プラグインの版を付けて配る）  … 画面から
 //	GET  /api/plugins/{n}/ui.css  追加プラグインの n 番目の CSS                                               … 画面から
@@ -19,6 +19,7 @@
 //	POST /api/screen-plugins/remove {"ids"} 窓が組み込めなかった追加プラグイン ids を、並びの順に外す（POST /api/plugins/remove と同じ。止めた窓の［外して開く］）。
 //	                      もう足していない id は飛ばす（ほかの窓や AI が先に外していても、外れた状態になれば成功）。
 //	                      {"ok"} か、外せなかった所で止めて {"ok": false, "id", "reason"}（それより前の物は外れたまま）  … 画面から
+//	POST /api/update/check   新しい版を今確かめ、結果（UpdateStatus）を返す（全部の窓にも update-status で知らせる）
 //	POST /api/unreadable/purge {"id"} 読めない物のフォルダの直下の物 id を、中の物の行ごと完全に消す（アクションでなく、窓の履歴に入らない）。
 //	                      {"ok"} か、直下に無ければ {"ok": false, "reason": "not-inside"}（何も書かない）  … 画面から
 //	POST /api/unreadable/if-off {"ids"} 追加プラグイン ids を無効にしたら読めない物のフォルダへ移る物（書かない）。
@@ -153,6 +154,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("POST /api/ai-edit-tickets", o.screen(o.aiEditTicket))
 	mux.Handle("POST /api/screen-plugins/remove", o.screen(o.unlinkPluginsFromScreen))
 	mux.Handle("POST /api/unreadable/purge", o.screen(o.purgeUnreadable))
+	mux.Handle("POST /api/update/check", o.screen(o.checkUpdate))
 	mux.Handle("POST /api/unreadable/if-off", o.screen(o.movedIfOff))
 	mux.Handle("GET /api/ai/view", o.ai(o.aiView))
 	mux.Handle("GET /api/ai/books", o.ai(o.aiBooks))
@@ -252,7 +254,11 @@ func (o Options) data(w http.ResponseWriter, _ *http.Request) {
 		}
 	}
 	records, counters := o.Hub.Records()
-	writeJSON(w, map[string]any{"pages": pages, "folders": folders, "settings": settings, "annotations": annotations, "records": records, "counters": counters, "plugins": plugins, "touched": o.Hub.Touched(), "participantCalls": o.Hub.ParticipantCalls(), "participantReady": o.Hub.ParticipantReady(), "participantLive": o.Hub.ParticipantLive()})
+	data := map[string]any{"pages": pages, "folders": folders, "settings": settings, "annotations": annotations, "records": records, "counters": counters, "plugins": plugins, "touched": o.Hub.Touched(), "participantCalls": o.Hub.ParticipantCalls(), "participantReady": o.Hub.ParticipantReady(), "participantLive": o.Hub.ParticipantLive()}
+	if u := o.Hub.UpdateStatus(); u.State != "" {
+		data["update"] = u
+	}
+	writeJSON(w, data)
 }
 
 func (o Options) pluginFile(w http.ResponseWriter, r *http.Request) {
@@ -325,6 +331,10 @@ func (o Options) unlinkPluginsFromScreen(w http.ResponseWriter, r *http.Request)
 }
 
 // purgeUnreadable は、画面の口: 読めない物のフォルダの直下の物 id を完全に消す。直下に無ければ { ok: false, reason: "not-inside" }（何も書かない）
+func (o Options) checkUpdate(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, o.Hub.CheckUpdate(r.Context()))
+}
+
 func (o Options) purgeUnreadable(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		ID string `json:"id"`

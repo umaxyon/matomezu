@@ -38,6 +38,8 @@ export interface HostClient {
   purgeUnreadable(id: string): Promise<Purged>
   // 追加プラグイン ids を無効にしたら読めない物のフォルダへ移る物を、書かずに数えてもらう。常駐が断るか（200 でない）つながらなければ E408 を投げる
   movedIfOff(ids: readonly string[]): Promise<readonly MovedIfOff[] | typeof BROKEN>
+  // 新しい版を今確かめるのを頼む（結果は知らせでも入る）。常駐が断るか（200 でない）つながらなければ E410 を投げる
+  checkUpdate(): Promise<void>
   visible(): boolean // 窓が見えているか（裏のタブなどで見えていない間は、まだ見ていない変更を見えたとしない。createMatomezu の visible に渡す）
 }
 

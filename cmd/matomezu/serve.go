@@ -102,6 +102,18 @@ func (c *serveCmd) Run() error {
 		return err
 	}
 	hub.SetBuild(server.Build{Version: version, DataVersion: storage.DataVersion()})
+	// 新しい版を、立ったときと 1 日ごとに確かめる（利用者の設定が許せば。開発の版は確かめない）
+	if version == devVersion {
+		hub.SetUpdateCheck(version, nil)
+	} else {
+		hub.SetUpdateCheck(version, latestFor(version))
+		go func() {
+			hub.CheckUpdateIfOn(context.Background())
+			for range time.Tick(updateCheckEvery) {
+				hub.CheckUpdateIfOn(context.Background())
+			}
+		}()
+	}
 	// 期限の過ぎたアノテーションを、時間で消す
 	go func() {
 		for now := range time.Tick(server.ExpireEvery) {
