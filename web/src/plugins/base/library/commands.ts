@@ -56,7 +56,7 @@ import { unreadableShownIn } from "./show-unreadable"
 import { LIBRARY_COLUMNS, LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_UNFOLDED } from "./state"
 import { createdIn, isDeskRow, realOf } from "./workdesk-rows"
 
-// 作る物を問うときの名前（問うためだけの物。行う前の問いは run を呼ばず、名前を見ない（定義と機能台帳の「認可ステップ」））
+// 作る物を問うときの名前（名前は問いに渡らない。行う前は許可スコープから出した所で問い、run を呼ばない。作るブックは空のブックで問う。定義と機能台帳の「認可ステップ」）
 const ASKED_TITLE = "-"
 
 // 書庫の履歴の最後の段を、from の向きに置き直す（ステージエントリの画面の履歴の restore と同じ決まり。plugins/base/history/index.ts）
