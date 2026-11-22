@@ -16,9 +16,11 @@ import {
   isUnreadableRole,
   type Library,
   type PageRow,
+  sameWorkKey,
   TRASH_ID,
   type TrashFolder,
   type TrashRef,
+  type WorkKey,
 } from "./folders"
 import { foldersOver, inTrash, systemFolderIndex, systemFolderOf } from "./folders-tree"
 import { type Lang, translate } from "./i18n/i18n"
@@ -120,6 +122,30 @@ export function placedEntry(library: Library, ref: AnyEntryRef, into: string, in
   const placed = { kind: ref.kind, id: ref.id } as AnyEntryRef
   return withFolders(library, {
     [to.id]: { ...to, lineup: [...to.lineup.slice(0, at), placed, ...to.lineup.slice(at)] } as Folder,
+  })
+}
+
+// 書庫 library のバックヤード（印 backyard）の中の、workKey が key のブックの id（無ければ undefined）。持ち主は、中のブックを名前でなくこれで引く
+export function backyardBookOf(library: Library, backyard: string, key: WorkKey): string | undefined {
+  const row = library.folders[backyardIdOf(backyard)]
+  return row?.folderRole === "backyard" ? row.lineup.find(r => sameWorkKey(r.workKey, key))?.id : undefined
+}
+
+// まだどこにも入っていないブック book（withBook で行を足した物）を、バックヤード（印 backyard）の並びの末尾に workKey key で置いた書庫。
+// ブックが無いかもう入っている（no-entry）、バックヤードの行が無い（no-folder）、同じ workKey のブックがもう在る（work-key-taken）なら、その訳
+export function placedInBackyard(
+  library: Library,
+  book: string,
+  backyard: string,
+  key: WorkKey,
+): Library | "no-entry" | "no-folder" | "work-key-taken" {
+  const { folders } = library
+  if (folders[book]?.folderRole !== "book" || placeOf(folders, book)) return "no-entry"
+  const row = folders[backyardIdOf(backyard)]
+  if (row?.folderRole !== "backyard") return "no-folder"
+  if (row.lineup.some(r => sameWorkKey(r.workKey, key))) return "work-key-taken"
+  return withFolders(library, {
+    [row.id]: { ...row, lineup: [...row.lineup, { kind: "book", id: book, workKey: key }] },
   })
 }
 
