@@ -108,13 +108,14 @@ func (u updater) update(packageDir, from string) error {
 		return fmt.Errorf("matomezu version: %w", err)
 	}
 	var failures []error
-	for _, ai := range []struct{ name, program string }{{"claude", "claude"}, {"codex", "codex"}} {
-		executable, err := u.lookPath(ai.program)
-		if err != nil || !u.pluginInstalled(ai.name, executable) {
+	for _, name := range []string{"claude", "codex"} {
+		program := aiPluginFor(name).program
+		executable, err := u.lookPath(program)
+		if err != nil || !u.pluginInstalled(name, executable) {
 			continue
 		}
-		if err := u.run(self, "plugin", "install", ai.name); err != nil {
-			failures = append(failures, fmt.Errorf("the plugin for %s: %w", ai.program, err))
+		if err := u.run(self, "plugin", "install", name); err != nil {
+			failures = append(failures, fmt.Errorf("the plugin for %s: %w", program, err))
 		}
 	}
 	if _, err := u.lookPath("opencode"); err == nil && u.opencodeHasPlugin() {

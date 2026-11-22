@@ -334,7 +334,7 @@ func olderServer(running string) bool {
 	return versionLess(running, now)
 }
 
-// pruneBins は、配る版の常駐が立つときに、写した実行ファイルの古い版を消す（今入っている版・自分の版・その 1 つ前は残す）
+// pruneBins は、配る版の常駐が立つときに、写した実行ファイルの古い版を消す（今入っている版・自分の版と、それ以外で一番新しく写した版は残す）
 func pruneBins() {
 	if version == devVersion {
 		return

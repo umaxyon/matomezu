@@ -1,7 +1,6 @@
 package home
 
 // 写した実行ファイルの置き場: npm の入口（scripts/npm-pack/manifest.ts の binEntry）が、パッケージの実行ファイルを版ごとのフォルダ <置き場>/<版>/ に写して、そこから動かす。
-// Windows では動いている実行ファイルを消せないので、npm のフォルダの中のまま動かすと、AI の会話が動いている間は npm（Volta）が古い版のフォルダを消せず、版を上げられない（os error 5）。
 // 入口は、今入っている版と写した物を印（InstalledName）に書く。置き場の名前は入口の BIN_DIR・INSTALLED_NAME と同じ（テストが見張る）
 
 import (

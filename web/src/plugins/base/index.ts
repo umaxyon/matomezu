@@ -269,6 +269,7 @@ import { HAND_TOOL, SELECT_TOOL, TOOL_NEXT } from "./tool-switch"
 // 拡張ポイントに書き足したフィールド toolbox の型（toolbox.ts の declare module）
 import type {} from "./toolbox"
 import { TOOLBOX_CANCEL, TOOLBOX_KEYS } from "./toolbox"
+import { UPDATE_CHECK } from "./update"
 import { WIDE_SEARCH_MODE } from "./wide-search"
 import {
   BOOK_SCREEN_CLOSE,
@@ -443,8 +444,6 @@ export {
   wrap,
   wrapRich,
 } from "./text"
-
-import { UPDATE_CHECK } from "./update"
 
 // プラグインに公開する共通の処理（utils。ビルトインプラグインもここから使う）
 export * from "./utils"

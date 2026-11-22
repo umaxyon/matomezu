@@ -1186,6 +1186,7 @@ test("つなぎ直した常駐がデータの形も違えば、確かめられ�
   expect(s.store.state.getState().staleBuild?.dropped).toBe(1)
   expect(s.reads()).toBe(1)
   expect(s.performs().map(p => p.client)).toEqual(["c1"])
-  // 読み込み直すまで、新しいアクションは断る
+  // 読み込み直すまで、新しいアクションは断り、アクションでない書き込みの頼みも送らない
   expect(place(s.store)).toMatchObject({ ok: false, kind: "stale-build" })
+  expect(await s.host.removeScreenPlugins(["ex2"])).toEqual({ state: "unreachable" })
 })

@@ -169,6 +169,7 @@ export function serverClient(net: Net = browserNet): HostClient {
   let instance: MatomezuInstance | null = null
   let events: Events | null = null
   let build: Build | undefined // 最初につないだ常駐の版とデータの形（つなぎ直したときに比べる）
+  let formStale = false // データの形が違う常駐につながった。読み込み直すまで、データを変える頼みを送らない
   const queue = createSendQueue({
     net,
     client: () => client,
@@ -362,6 +363,7 @@ export function serverClient(net: Net = browserNet): HostClient {
         )
         instance?.setStaleBuild({ from: build, to: now, dropped })
         if (formChanged) {
+          formStale = true
           closeEvents()
           show()
           return
@@ -471,6 +473,13 @@ export function serverClient(net: Net = browserNet): HostClient {
       show()
     })
   }
+  // データを変える頼み（アクションのほか）を送る。formStale の間は送らずに、届かなかったのと同じに返す
+  const sendWrite = (path: string, body: unknown) =>
+    formStale
+      ? Promise.resolve(null)
+      : net
+          .fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+          .catch(() => null)
   // 知らせのつながりを閉じ、見張りを止める
   const closeEvents = () => {
     watch.stop()
@@ -526,13 +535,7 @@ export function serverClient(net: Net = browserNet): HostClient {
     },
     closeEvents: () => closeEvents(),
     removeScreenPlugins: async ids => {
-      const res = await net
-        .fetch("api/screen-plugins/remove", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ids }),
-        })
-        .catch(() => null)
+      const res = await sendWrite("api/screen-plugins/remove", { ids })
       if (!res) return { state: "unreachable" }
       if (!res.ok) fail("E405", { status: `${res.status}` })
       const answer = SCREEN_PLUGINS_REMOVED.parse(await res.json())
@@ -558,13 +561,7 @@ export function serverClient(net: Net = browserNet): HostClient {
       return ASK_UPDATE_ANSWER.parse(await res.json()).ok
     },
     purgeUnreadable: async id => {
-      const res = await net
-        .fetch("api/unreadable/purge", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id }),
-        })
-        .catch(() => null)
+      const res = await sendWrite("api/unreadable/purge", { id })
       if (!res?.ok) fail("E407", { id, status: res ? `${res.status}` : "no answer" })
       return PURGE_ANSWER.parse(await res.json()).ok ? PURGED : NOT_INSIDE
     },
