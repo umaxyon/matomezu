@@ -79,6 +79,7 @@ import { TOAST_HOST } from "./toast-host/ui"
 import { TOOL_PICKER_WIDGET } from "./tool-picker/ui"
 import { TOOL_ICONS, TOOL_SWITCH } from "./tool-switch/ui"
 import { TOOLBOX } from "./toolbox/ui"
+import { STALE_BUILD } from "./update/ui"
 import type { WideSearchModeProps, WideSearchOpened } from "./wide-search/ui"
 import { FULL_TEXT_MODE, WIDE_SEARCH_TAB } from "./wide-search/ui"
 import { SCREENS_WIDGET, WINDOW, WINDOW_ICONS } from "./window/ui"
@@ -267,6 +268,7 @@ export const BASE_UI = definePluginUi(BASE, {
     DIALOG_HOST,
     MENU_HOST,
     TOAST_HOST,
+    STALE_BUILD,
     TOOL_PICKER_WIDGET,
     SEARCH_DIALOG,
     BOOK_VIEW,
@@ -392,6 +394,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:dialog-host": typeof DIALOG_HOST
     "@matomezu/base:menu-host": typeof MENU_HOST
     "@matomezu/base:toast-host": typeof TOAST_HOST
+    "@matomezu/base:stale-build": typeof STALE_BUILD
     "@matomezu/base:tool-picker": typeof TOOL_PICKER_WIDGET
     "@matomezu/base:search-dialog": typeof SEARCH_DIALOG
     "@matomezu/base:book-view": typeof BOOK_VIEW

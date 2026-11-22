@@ -7,7 +7,7 @@ package server
 //
 // /api/events のイベント（data は JSON）:
 //
-//	hello     {"client", "build"} この接続の id と、常駐の版とデータの形（{"version", "form"}。SetBuild の前は無い）。窓はアクションバルクにこの id と、自分で振った順の番号 seq を添えて送る
+//	hello     {"client", "build"} この接続の id と、常駐の版とデータの形（{"version", "dataVersion"}。SetBuild の前は無い）。窓はアクションバルクにこの id と、自分で振った順の番号 seq を添えて送る
 //	changed   {"pages": [{"id", "page"（消したなら "removed": true）, "version"}], "folders": [{"id", "folder"（同じ）, "version"}], "books", "library"?, "client", "seq", "by", "act", "actions",
 //	          "settings"?, "annotations", "records": [{"subject", "id", "record"（消したなら "removed"）, "version"（消したなら 0）}], "counters"?, "window"}
 //	          1 回の Perform が変えた物の全部（何か変わったときだけ 1 つ）。pages・folders は変えた・足した・消したページとフォルダ（書庫ホームとフォルダも）、
@@ -149,8 +149,8 @@ type Hub struct {
 // NewHub は置き場所から世界を読む
 // Build は、常駐の版と、書くデータの形の番号。窓は開いたときの物と、つなぎ直したときの物を比べ、違えば読み直しを促す
 type Build struct {
-	Version string `json:"version"`
-	Form    int    `json:"form"`
+	Version     string `json:"version"`
+	DataVersion int    `json:"dataVersion"`
 }
 
 // SetBuild は、hello で窓に知らせる常駐の版とデータの形を入れる

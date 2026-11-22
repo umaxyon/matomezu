@@ -101,7 +101,7 @@ func (c *serveCmd) Run() error {
 	if err != nil {
 		return err
 	}
-	hub.SetBuild(server.Build{Version: version, Form: storage.Form()})
+	hub.SetBuild(server.Build{Version: version, DataVersion: storage.DataVersion()})
 	// 期限の過ぎたアノテーションを、時間で消す
 	go func() {
 		for now := range time.Tick(server.ExpireEvery) {

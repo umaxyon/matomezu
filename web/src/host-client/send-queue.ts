@@ -150,6 +150,15 @@ export function createSendQueue({ net, client, online, link, instance, show }: S
         pending.push({ seq, key: net.newKey(), done, sentTo: 0, tries: 0, answer })
         void pump()
       }),
+    // まだ確かめられていないアクションバルクを送らずに捨て、その数を返す（データの形が違う常駐には送らない）
+    discard: () => {
+      const dropped = pending
+      pending = []
+      retry?.()
+      retry = null
+      for (const p of dropped) p.answer({ ok: false, reason: "not-saved" })
+      return dropped.length
+    },
     settle,
     pump,
     tellAIEditTickets,

@@ -49,6 +49,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:dialog-host",
       "@matomezu/base:menu-host",
       "@matomezu/base:toast-host",
+      "@matomezu/base:stale-build",
       "@matomezu/base:note-read-notice",
       "@matomezu/base:bookmark-host",
       "@matomezu/base:mail-watch",

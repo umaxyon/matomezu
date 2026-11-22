@@ -51,6 +51,8 @@ export interface MatomezuState {
   participantLive: Readonly<Record<string, ParticipantLive>>
   trash: Readonly<Record<string, Book>> // ゴミ箱かその中のブックの id ごと
   offline: boolean // 常駐とのつながりが、しばらく切れたままか（ホストクライアントが知らせる）
+  // つなぎ直した常駐が、窓を開いたときと別の版か（ホストクライアントが知らせる。無ければ null）。データの形が違えば、アクションもキーも断る
+  staleBuild: StaleBuild | null
   lastWindow: boolean // この窓が、最後にフォーカスされた窓か（ホストクライアントが、常駐のレコードの知らせに添えられた値で入れる）
   // ステージエントリの id → 画面の履歴（この画面で利用者が行ったアクションだけ。読み直すと消える）。画面の履歴の段がいくつかのステージエントリを変えたら、その全部に同じ画面の履歴の段が入る
   history: Readonly<Record<string, History>>
@@ -69,6 +71,18 @@ export interface MatomezuState {
 }
 
 // 参加者 1 人の様子: AI のフックが知らせたモデルと、MCP が添えた git のブランチ（知らされていない物は持たない）
+// 常駐の版とデータの形の番号（移し替えの数）
+export interface Build {
+  version: string
+  dataVersion: number
+}
+// 窓を開いたときの常駐（from）と、つなぎ直したときの常駐（to）。dropped は、データの形が違うので送らずに捨てた、まだ確かめられていなかったアクションバルクの数
+export interface StaleBuild {
+  from: Build
+  to: Build
+  dropped: number
+}
+
 export interface ParticipantLive {
   readonly model?: string
   readonly branch?: string
@@ -183,6 +197,10 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   startWindow(): void
   // 常駐とのつながりが、しばらく切れたままか（offline）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
   setOffline(offline: boolean): void
+  // つなぎ直した常駐が別の版か（staleBuild）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
+  setStaleBuild(stale: StaleBuild): void
+  // 窓を読み込み直す（画面の場所は URL に残る）
+  reloadWindow(): void
   // この窓が、最後にフォーカスされた窓か（lastWindow）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
   setLastWindow(last: boolean): void
   // この窓の中に戻る先があるか（canGoBack）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
@@ -258,6 +276,7 @@ export function initialState(
     participantLive: {},
     trash,
     offline: false,
+    staleBuild: null,
     lastWindow: false,
     history: {},
     pluginValues: NO_PLUGIN_STATES,
@@ -318,6 +337,7 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
     movedIfOff(ids: readonly string[]): Promise<readonly MovedIfOff[] | typeof BROKEN>
   }
   setWindowTitle?: (title: string) => void // 窓のタイトルを替える。無ければ何もしない
+  reloadWindow?: () => void // 窓を読み込み直す。無ければ何もしない
   windowTitle?: () => string // 今の窓のタイトル。無ければ空
   startupError?: StartupError // 起動エラーの画面に出す物（起動を止めた窓だけが渡す）
   unreadableNotice?: UnreadableNotice // 窓を開く前に知らされた、読めない物のフォルダへ移った・戻った物（ホストクライアントが運んだ物）

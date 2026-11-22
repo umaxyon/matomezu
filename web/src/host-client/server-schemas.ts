@@ -69,7 +69,9 @@ export const DataSchema = z.object({
     .record(z.string(), z.object({ model: z.string().optional(), branch: z.string().optional() }))
     .optional(),
 })
-export const HelloSchema = z.object({ client: z.string() })
+// build は常駐の版とデータの形の番号（移し替えの数）。古い常駐は送らない
+export const BuildSchema = z.object({ version: z.string(), dataVersion: z.number().int() })
+export const HelloSchema = z.object({ client: z.string(), build: BuildSchema.optional() })
 const Mark = { client: z.string().optional(), seq: z.number().int().optional() }
 // 変わったページ・フォルダ 1 つ（消したなら removed が true で、中身と版は無い）
 const rowSchema = <K extends "page" | "folder">(field: K) =>

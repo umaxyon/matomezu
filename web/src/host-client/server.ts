@@ -20,7 +20,7 @@ import { BROKEN } from "../core/folders"
 import { restoreCounters, restoreRecords, withCounters, withRecords } from "../core/records"
 import { NOT_INSIDE, PURGED, type UnreadableNotice } from "../core/unreadable"
 import type { Warning } from "../core/warnings"
-import type { ForeignChange, MatomezuInstance, ParticipantLive } from "../store/state"
+import type { Build, ForeignChange, MatomezuInstance, ParticipantLive } from "../store/state"
 import type { HostClient, Loaded } from "./client"
 import { createLinkWatch } from "./link-watch"
 import { WIDE_SEARCH_ANSWER, wideSearchParams } from "./search"
@@ -165,6 +165,7 @@ export function serverClient(net: Net = browserNet): HostClient {
   let retell: (() => void) | null = null // 見ているものを知らせ直す（connect で作る。常駐は窓の見ているものをつながりごとに持つので、つなぎ直したら知らせ直す）
   let instance: MatomezuInstance | null = null
   let events: Events | null = null
+  let build: Build | undefined // 最初につないだ常駐の版とデータの形（つなぎ直したときに比べる）
   const queue = createSendQueue({
     net,
     client: () => client,
@@ -335,12 +336,29 @@ export function serverClient(net: Net = browserNet): HostClient {
     })
     on("hello", data => {
       const was = client
-      client = HelloSchema.parse(JSON.parse(data)).client
+      const hello = HelloSchema.parse(JSON.parse(data))
+      client = hello.client
       watch.opened()
       if (first) {
+        build = hello.build
         first.resolve()
         first = null
         return
+      }
+      // 常駐が別の版に替わった: 読み込み直すよう促す。データの形も違えば、まだ確かめられていないアクションを送らずに捨て、知らせも聞かない（古い画面で新しい形を読まない）
+      const now = hello.build
+      if (build && now && (build.version !== now.version || build.dataVersion !== now.dataVersion)) {
+        const formChanged = build.dataVersion !== now.dataVersion
+        const dropped = formChanged ? queue.discard() : 0
+        logLine(
+          `the server is now ${now.version} (data ${now.dataVersion}); this window has ${build.version} (data ${build.dataVersion})`,
+        )
+        instance?.setStaleBuild({ from: build, to: now, dropped })
+        if (formChanged) {
+          closeEvents()
+          show()
+          return
+        }
       }
       // つなぎ直した: 読み直した世界の上に、まだ確かめられていないアクションを出し、新しいつながりで全部送り直す（送ったものの答えは前のつながりに届くので）。
       // warning と見ているものは新しいつながりで知らせ直す

@@ -25,8 +25,8 @@ func TestHelloTellsTheBuild(t *testing.T) {
 	if e := <-h.Join().ch; e.name != "hello" || string(e.data) != `{"client":"c1"}` {
 		t.Fatalf("before SetBuild: %s %s", e.name, e.data)
 	}
-	h.SetBuild(Build{Version: "1.2.3", Form: 7})
-	if e := <-h.Join().ch; string(e.data) != `{"build":{"version":"1.2.3","form":7},"client":"c2"}` {
+	h.SetBuild(Build{Version: "1.2.3", DataVersion: 7})
+	if e := <-h.Join().ch; string(e.data) != `{"build":{"version":"1.2.3","dataVersion":7},"client":"c2"}` {
 		t.Fatalf("after SetBuild: %s", e.data)
 	}
 }
