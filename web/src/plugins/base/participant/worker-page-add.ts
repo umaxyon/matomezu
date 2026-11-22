@@ -5,7 +5,7 @@ import { z } from "zod"
 import { workroomOfActor } from "../../../core/actor"
 import { backyardBookOf, placedInBackyard } from "../../../core/entries"
 import { bookOf, withBook } from "../../../core/folders-books"
-import { NO_RECORD } from "../../../core/records"
+import { readerIn } from "../../../core/record-source"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
 import { TICKETS_HISTORY } from "../library/backyards"
@@ -29,8 +29,7 @@ export const WORKER_PAGE_ADD = kit.defineAction({
     const { workroom, ...page } = args
     const room = workroom ?? workroomOfActor(ctx.actor)
     if (room === undefined) return null
-    const read = { record: ctx.record ?? (() => NO_RECORD), find: ctx.find ?? (() => []) }
-    const { workKey, title } = workerBookOf(ctx.catalog, read, room)
+    const { workKey, title } = workerBookOf(ctx.catalog, readerIn(ctx), room)
     const found = backyardBookOf(library, TICKETS_HISTORY.id, workKey)
     const book: Book | undefined = found ? bookOf(library, found) : { id: ctx.newId(), title, lineup: [] }
     if (!book || (!found && (book.id in library.folders || book.id in library.pages))) return null

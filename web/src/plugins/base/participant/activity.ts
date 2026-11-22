@@ -3,7 +3,7 @@
 // base は自分では決めず、対象の定義に書いた workroomWork に答えさせる（カレントワークを持つプラグインなど）。答える種類が無ければ unknown
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { WorkKey } from "../../../core/folders"
-import { narrowed, type RecordReader, readerOf, sourceOf } from "../../../core/record-source"
+import { narrowed, type RecordReader, type RecordSource, readerOf, sourceOf } from "../../../core/record-source"
 import type { Records } from "../../../core/records"
 
 // 作業中なら、取り組んでいる物の短い題名 title と、そのレコード key（種類と id）と、それを短く呼ぶ名前 label（例: チケットの番号。作業の資料のブックの名前になる）
@@ -38,13 +38,20 @@ export function workroomWorkIn(catalog: CoreCatalog, read: RecordReader, workroo
   return answered ? { kind: "idle" } : "unknown"
 }
 
-// 画面が持つレコード records から、ワークルーム workroom の作業を答える（workroomWorkIn）
+// 読み口 source から、ワークルーム workroom の作業を答える（workroomWorkIn。読むのは workroomWorkReads に書いた種類だけ）
+export const workroomWorkFrom = (
+  catalog: CoreCatalog,
+  source: RecordSource | undefined,
+  workroom: string,
+): WorkroomWork | "unknown" =>
+  workroomWorkIn(catalog, readerOf(catalog, source, workroomWorkReadsOf(catalog)), workroom)
+
+// 画面が持つレコード records から、ワークルーム workroom の作業を答える
 export const workroomWorkOf = (
   catalog: CoreCatalog,
   records: Readonly<Record<string, Readonly<Record<string, unknown>> | undefined>>,
   workroom: string,
-): WorkroomWork | "unknown" =>
-  workroomWorkIn(catalog, readerOf(catalog, sourceOf(records as Records), workroomWorkReadsOf(catalog)), workroom)
+): WorkroomWork | "unknown" => workroomWorkFrom(catalog, sourceOf(records as Records), workroom)
 
 // ワークルーム workroom の作業の様子（作業中か空き。答える種類が無ければ unknown）
 export function workroomActivityOf(

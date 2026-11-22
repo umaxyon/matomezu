@@ -3,19 +3,18 @@
 
 import { type Actor, isAI, workroomOfActor } from "../../../core/actor"
 import type { CoreCatalog } from "../../../core/core-catalog"
-import type { BackyardEntry, PermissionInput } from "../../../core/def/permission"
+import type { PermissionInput } from "../../../core/def/permission"
+import type { BackyardEntry } from "../../../core/folders"
 import { sameWorkKey, type WorkKey } from "../../../core/folders"
 import type { RecordReader } from "../../../core/record-source"
 import { kit } from "../kit"
 import { TICKETS_HISTORY } from "../library/backyards"
 import { workroomWorkIn, workroomWorkReadsOf } from "./activity"
-
-// ワークルームの種類の id（定義 WORKROOM は ./index に在り、そこがこのファイルを読むので、値で読み合わないよう名前から引く）
-const WORKROOM_ID = kit.name("workroom")
+import { WORKROOM } from "./workroom"
 
 // 機能台帳 catalog で、ワーカーブックを引くのに読む種類（ワークルームの作業を答える種類が読む物と、ワークルーム）
 export const workerBookReadsOf = (catalog: CoreCatalog): readonly string[] => [
-  ...new Set([...workroomWorkReadsOf(catalog), WORKROOM_ID]),
+  ...new Set([...workroomWorkReadsOf(catalog), WORKROOM.id]),
 ]
 
 // ワークルーム workroom のワーカーブックの workKey と名前 title（ワークルームのレコードが無ければ、名前はワークルームの id）。
@@ -27,9 +26,9 @@ export function workerBookOf(
 ): { workKey: WorkKey; title: string } {
   const work = workroomWorkIn(catalog, read, workroom)
   if (work !== "unknown" && work.kind === "working") return { workKey: work.key, title: work.label }
-  const room = read.record(WORKROOM_ID, workroom) as { name?: unknown }
+  const room = read.record(WORKROOM.id, workroom) as { name?: unknown }
   return {
-    workKey: { subject: WORKROOM_ID, id: workroom },
+    workKey: { subject: WORKROOM.id, id: workroom },
     title: typeof room?.name === "string" ? room.name : workroom,
   }
 }
@@ -49,7 +48,7 @@ export const WORKER_BOOK = kit.definePermission({
   title: "Another workroom's worker book",
   aiDescription:
     "the book is the worker book of another workroom's current work (or of a work no workroom has now); you can read it, but only the AI whose current work it is, and the user, can change it",
-  reads: workerBookReadsOf,
+  readsSubjects: workerBookReadsOf,
   denies: (q, input) => q.kind !== "record" && !writable(input, q.actor, q.backyardEntry),
   keeps: (c, input) =>
     c.kind === "record" ||

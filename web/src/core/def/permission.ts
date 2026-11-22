@@ -5,7 +5,7 @@
 import type { Actor } from "../actor"
 import type { PermissionExtras } from "../catalog"
 import type { CoreCatalog } from "../core-catalog"
-import type { Folder, WorkKey } from "../folders"
+import type { BackyardEntry, Folder } from "../folders"
 import type { MessageKey } from "../i18n/i18n"
 import type { ItemPage } from "../placed"
 import type { RecordReader } from "../record-source"
@@ -46,12 +46,6 @@ export interface FolderPermissionQuery {
   where?: Where
   backyardEntry?: BackyardEntry
   actor: Actor
-}
-
-// バックヤードに直に在るブックの、バックヤードの印（定義の id）と、並びのエントリの workKey
-export interface BackyardEntry {
-  backyard: string
-  workKey: WorkKey
 }
 
 // 行う前と後の、ブック（ページなら入れているブック）のバックヤードの印と workKey（バックヤードに直に無ければ、その側は無い）
@@ -160,7 +154,7 @@ export interface PermissionDef<Tt extends string = MessageKey> extends Permissio
   aiDescription: string // AI に断ったときに返す、何がなぜ止めたかの説明（英語）
   // 問いと確かめで読むレコードの種類（機能台帳から答える。読む id が読んだ中身で決まるので、種類ごと宣言する）。denies と keeps の input の read で、この種類だけを読める
   // （そのアクションを行う時点のレコード。同じアクションバルクの前のアクションが書いた物も重ねる）。無ければ、どの種類も none と空
-  reads?(catalog: CoreCatalog): readonly string[]
+  readsSubjects?(catalog: CoreCatalog): readonly string[]
   denies(q: PermissionQuery, input: PermissionInput): boolean // 止めるか
   keeps?(c: PermissionCheck, input: PermissionInput): boolean // 結果が許しを守っているか（無ければ守っている）
   // フォローステップが応じた変わり（core/def/follow-step.ts）にも keeps（kind "record"。action はきっかけのアクション）をかける。

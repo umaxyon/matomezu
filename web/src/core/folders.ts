@@ -106,6 +106,11 @@ export interface WorkKey {
   subject: string
   id: string
 }
+// バックヤードに直に在るブックの、バックヤードの印（定義の id）と、並びのエントリの workKey
+export interface BackyardEntry {
+  backyard: string
+  workKey: WorkKey
+}
 // バックヤードの並びのエントリ 1 つ: ブックの id と、そのブックの workKey
 export type BackyardRef = BookRef & { workKey: WorkKey }
 // 2 つの workKey が同じか

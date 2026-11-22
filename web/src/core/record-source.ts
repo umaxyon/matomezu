@@ -37,6 +37,12 @@ export function readerOf(
   }
 }
 
+// アクションの ctx が持つ、宣言した種類のレコードを読む口（ctx.record・ctx.find）。無ければ、どの種類も none と空
+export const readerIn = (ctx: { record?: RecordReader["record"]; find?: RecordReader["find"] }): RecordReader => ({
+  record: ctx.record ?? (() => NO_RECORD),
+  find: ctx.find ?? (() => []),
+})
+
 // 読み口 reader を、種類 subjects だけに絞った読み口（ほかの種類は none と空）
 export function narrowed(reader: RecordReader, subjects: Iterable<string>): RecordReader {
   const allowed = new Set(subjects)

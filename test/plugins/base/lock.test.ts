@@ -12,10 +12,12 @@ import type { Book } from "../../../web/src/core/schema/book"
 import { screenOf } from "../../../web/src/core/window"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { refusalMessage } from "../../../web/src/plugins/base"
+import { TICKETS_HISTORY } from "../../../web/src/plugins/base/library/backyards"
 import { LOCK } from "../../../web/src/plugins/base/lock"
 import { addPageIn } from "../../../web/src/plugins/base/pages/add-page"
 import type { CommandId } from "../../../web/src/store/commands"
 import { isEnabled } from "../../../web/src/store/commands"
+import { roomKey, yardCtx, yardWorld } from "../../backyard"
 import { DRAWING, drawingPage, testBinder, testBook } from "../../lineup"
 import { CORE_CATALOG, newStore } from "../../support"
 
@@ -193,4 +195,28 @@ test("断りの文言は、認可ステップが止めたならそのステッ�
   const fallback = "@matomezu/tree:Does not fit on the paper" as MessageKey
   expect(done.ok || refusalMessage(CORE_CATALOG, done, fallback)).toBe(LOCK.title)
   expect(refusalMessage(CORE_CATALOG, { reason: "refused" }, fallback)).toBe(fallback)
+})
+
+test("バックヤードのブックとその中のページは、利用者もロックできない（ロックの掛かった物をバックヤードに入れる変わりも止める）", () => {
+  const lock = (id: string, on: { book: string } | { page: string }) =>
+    performIn(yardWorld(), `@matomezu/base:${id}`, {}, on, yardCtx(USER))
+  expect(lock("book-lock", { book: "b1" })).toMatchObject({ ok: false, permission: "@matomezu/base:lock" })
+  expect(lock("page-lock", { page: "p1" })).toMatchObject({ ok: false, permission: "@matomezu/base:lock" })
+  const action = CORE_CATALOG.actions.get("@matomezu/base:page-add")!
+  const before = testBook("b1", "r1", [drawingPage("p1")])
+  const entry = { backyard: TICKETS_HISTORY.id, workKey: roomKey("r1") }
+  const kept = (after: Book, backyardEntry: object) =>
+    LOCK.keeps!({
+      kind: "folder",
+      action,
+      before,
+      after,
+      changes: changesOf(before, after),
+      backyardEntry,
+      actor: USER,
+    })
+  const lockedPage = { ...before, lineup: [drawingPage("p1", { locked: true })] }
+  const lockedBook = { ...before, locked: true as const }
+  expect([kept(lockedPage, { after: entry }), kept(lockedBook, { after: entry })]).toEqual([false, false])
+  expect([kept(lockedPage, {}), kept(lockedBook, {})]).toEqual([true, true])
 })

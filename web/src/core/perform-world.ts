@@ -26,7 +26,7 @@ import { isRecordTarget } from "./perform-checks"
 import { NOT_IN_BOOK, type PermitContext, type Permitted, permitted } from "./perform-permit"
 import { FOLDERS, type WithFolders } from "./permission-input"
 import type { ItemPage } from "./placed"
-import { type RecordSource, readerOf, readFrom, SOURCE, sourceOf, type WithSource } from "./record-source"
+import { type RecordSource, readerOf, readFrom, SOURCE, sourceIn, sourceOf, type WithSource } from "./record-source"
 import { type Counters, NO_RECORD, REMOVED, type RecordChange, type Records } from "./records"
 import { sameData } from "./same"
 import type { Book } from "./schema/book"
@@ -142,7 +142,7 @@ export function performIn(
   if (target === "library") {
     const library: Library = { pages: world.pages, folders: world.folders }
     const subjects = ctx.catalog.actions.get(id)?.readsSubjects?.(ctx.catalog)
-    const read = subjects ? readerOf(ctx.catalog, world.source ?? sourceOf(world.records), subjects) : undefined
+    const read = subjects ? readerOf(ctx.catalog, sourceIn(ctx), subjects) : undefined
     const done = loose(library, id, args, read ? { ...ctx, record: read.record, find: read.find } : ctx)
     if (!done.ok) return done
     const made = rowChanges(library, done.next as Library)

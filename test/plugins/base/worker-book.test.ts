@@ -3,21 +3,16 @@
 import { describe, expect, test } from "bun:test"
 import { type Actor, AI, AI_NOT_JOINED, AI_VISITOR, USER } from "../../../web/src/core/actor"
 import type { CoreCatalog } from "../../../web/src/core/core-catalog"
-import type { ActionContext, ActionDef } from "../../../web/src/core/def/action"
-import type { BackyardEntry } from "../../../web/src/core/def/permission"
-import { backyardIdOf, HOME_ID, type Library } from "../../../web/src/core/folders"
-import { backyardBreach } from "../../../web/src/core/perform-library"
-import { performIn, type World } from "../../../web/src/core/perform-world"
+import type { ActionDef } from "../../../web/src/core/def/action"
+import { type BackyardEntry, HOME_ID } from "../../../web/src/core/folders"
+import { performIn } from "../../../web/src/core/perform-world"
 import { readerOf, sourceOf } from "../../../web/src/core/record-source"
 import type { Records } from "../../../web/src/core/records"
-import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { TICKETS_HISTORY } from "../../../web/src/plugins/base/library/backyards"
 import { WORKER_BOOK } from "../../../web/src/plugins/base/participant/worker-book"
+import { roomKey, WORKROOM, YARD, yardCtx, yardWorld } from "../../backyard"
 import { drawingPage, testBook } from "../../lineup"
-import { CORE_CATALOG, libraryWith, sequence } from "../../support"
-
-const WORKROOM = "@matomezu/base:workroom"
-const roomKey = (id: string) => ({ subject: WORKROOM, id })
+import { CORE_CATALOG } from "../../support"
 
 describe("認可ステップを直に問う", () => {
   // 種類 s が、レコード w（id はワークルーム）の ticket を作業中のチケットとして答える機能台帳
@@ -39,7 +34,7 @@ describe("認可ステップを直に問う", () => {
     ]),
   } as unknown as CoreCatalog
   const records = { w: { room: { ticket: "t1" } } } as unknown as Records
-  const input = { catalog, read: readerOf(catalog, sourceOf(records), WORKER_BOOK.reads?.(catalog) ?? []) }
+  const input = { catalog, read: readerOf(catalog, sourceOf(records), WORKER_BOOK.readsSubjects?.(catalog) ?? []) }
   const action = CORE_CATALOG.actions.get("@matomezu/base:page-add") as ActionDef
   const book = testBook("b1", "T1", [drawingPage("p1")])
   const entry = (subject: string, id: string, backyard: string = TICKETS_HISTORY.id): BackyardEntry => ({
@@ -85,44 +80,19 @@ describe("認可ステップを直に問う", () => {
   })
 
   test("読むのは、ワークルームの作業を答える種類が宣言した種類とワークルームだけ", () => {
-    expect(WORKER_BOOK.reads?.(catalog)).toEqual(["w", WORKROOM])
+    expect(WORKER_BOOK.readsSubjects?.(catalog)).toEqual(["w", WORKROOM])
   })
 })
 
 describe("行うときに core が渡す物", () => {
-  // tickets-history に、ワークルーム r1 自身のワーカーブック b1 を置いた世界（どのワークルームも空き）
-  function world(): World {
-    const library = libraryWith([testBook("b1", "r1", [drawingPage("p1")])])
-    const yard = backyardIdOf(TICKETS_HISTORY.id)
-    return {
-      pages: library.pages,
-      folders: {
-        ...library.folders,
-        [HOME_ID]: { folderRole: "home", id: HOME_ID, lineup: [] },
-        [yard]: {
-          folderRole: "backyard",
-          id: yard,
-          backyard: TICKETS_HISTORY.id,
-          lineup: [{ kind: "book", id: "b1", workKey: roomKey("r1") }],
-        },
-      },
-      settings: {},
-      annotations: {},
-      records: {},
-      counters: {},
-    }
-  }
-  const ctx = (actor: Actor): Omit<ActionContext, "naming"> => ({
-    catalog: CORE_CATALOG,
-    controlCenter: BUILTIN_CONTROL_CENTER,
-    lang: "en",
-    newId: sequence("w"),
-    now: "2026-11-22T00:00:00.000Z",
-    today: "2026-11-22",
-    actor,
-  })
   const add = (actor: Actor) =>
-    performIn(world(), "@matomezu/base:page-add", { type: "@matomezu/drawing:drawing" }, { book: "b1" }, ctx(actor))
+    performIn(
+      yardWorld(),
+      "@matomezu/base:page-add",
+      { type: "@matomezu/drawing:drawing" },
+      { book: "b1" },
+      yardCtx(actor),
+    )
 
   test("ワーカーブックのワークルームの AI と利用者はページを足せ、ほかの AI は worker-book で断られる", () => {
     expect(add({ kind: "ai", workroom: { id: "r1" } }).ok).toBe(true)
@@ -136,68 +106,35 @@ describe("行うときに core が渡す物", () => {
 })
 
 describe("ワーカーブックにページを足す（worker-page-add）", () => {
-  // tickets-history に、ワークルーム r1 自身のワーカーブック b1 を置いた世界（どのワークルームも空き）
-  function world(): World {
-    const library = libraryWith([testBook("b1", "r1", [drawingPage("p1")])])
-    const yard = backyardIdOf(TICKETS_HISTORY.id)
-    return {
-      pages: library.pages,
-      folders: {
-        ...library.folders,
-        [HOME_ID]: { folderRole: "home", id: HOME_ID, lineup: [] },
-        [yard]: {
-          folderRole: "backyard",
-          id: yard,
-          backyard: TICKETS_HISTORY.id,
-          lineup: [{ kind: "book", id: "b1", workKey: roomKey("r1") }],
-        },
-      },
-      settings: {},
-      annotations: {},
-      records: {},
-      counters: {},
-    }
-  }
-  const ctx = (actor: Actor): Omit<ActionContext, "naming"> => ({
-    catalog: CORE_CATALOG,
-    controlCenter: BUILTIN_CONTROL_CENTER,
-    lang: "en",
-    newId: sequence("w"),
-    now: "2026-11-22T00:00:00.000Z",
-    today: "2026-11-22",
-    actor,
-  })
   const ai = (room: string): Actor => ({ kind: "ai", workroom: { id: room } })
   const add = (actor: Actor, args: object = {}) =>
     performIn(
-      world(),
+      yardWorld(),
       "@matomezu/base:worker-page-add",
       { type: "@matomezu/drawing:drawing", title: "メモ", ...args },
       undefined,
-      ctx(actor),
+      yardCtx(actor),
     )
-  const yardOf = (done: ReturnType<typeof add>) =>
-    done.ok
-      ? (done.changes?.folders?.[backyardIdOf(TICKETS_HISTORY.id)] as unknown as { lineup: unknown[] })
-      : undefined
+  type Rows = Record<string, { lineup: { id: string }[] } | undefined>
+  const foldersOf = (done: ReturnType<typeof add>): Rows =>
+    done.ok ? ((done.changes?.folders ?? {}) as unknown as Rows) : {}
 
   test("ブックが在れば、その最後に足す", () => {
     const done = add(ai("r1"))
     expect(done).toMatchObject({ ok: true, result: { book: "b1" } })
     const page = (done as { result: { page: string } }).result.page
-    const b1 = (done as unknown as { changes: { folders: Record<string, { lineup: { id: string }[] }> } }).changes
-      .folders.b1
-    expect(b1?.lineup.map(r => r.id)).toEqual(["p1", page])
+    expect(foldersOf(done).b1?.lineup.map(r => r.id)).toEqual(["p1", page])
   })
 
-  test("ブックが無ければ、ワークルームの名前で作り、workKey を付けてバックヤードの最後に置く", () => {
+  test("ブックが無ければ、ワークルームの名前で作り、workKey を付けてバックヤードの最後に置く（書庫ホームには入れない）", () => {
     const done = add(ai("r2"))
     expect(done.ok).toBe(true)
     const book = (done as { result: { book: string } }).result.book
-    expect(yardOf(done)?.lineup).toEqual([
+    expect(foldersOf(done)[YARD]?.lineup as unknown[]).toEqual([
       { kind: "book", id: "b1", workKey: roomKey("r1") },
       { kind: "book", id: book, workKey: roomKey("r2") },
     ])
+    expect(foldersOf(done)[HOME_ID]).toBeUndefined()
   })
 
   test("利用者はワークルームを渡して足す。AI がほかのワークルームを渡すと worker-book で断られ、ワークルームの無い者は足せない", () => {
@@ -208,42 +145,5 @@ describe("ワーカーブックにページを足す（worker-page-add）", () =
       permission: "@matomezu/base:worker-book",
     })
     expect(add(USER).ok).toBe(false)
-  })
-
-  test("バックヤードのブックは、利用者も名前を変えられない（in-backyard）。中のページの名前は変えられる", () => {
-    const rename = (entry: string) =>
-      performIn(world(), "@matomezu/base:entry-rename", { entry, title: "別" }, undefined, ctx(USER))
-    expect(rename("b1")).toMatchObject({ ok: false, reason: "refused", kind: "in-backyard" })
-    expect(rename("p1").ok).toBe(true)
-  })
-
-  test("バックヤードに新しいブックを作れるのは、持ち主のプラグインのアクションだけ", () => {
-    const was = world()
-    const made = (world() as unknown as { folders: Record<string, unknown> }).folders
-    const yard = backyardIdOf(TICKETS_HISTORY.id)
-    const now = {
-      pages: { ...was.pages, n1: { kind: "page", id: "n1", type: "@matomezu/drawing:drawing", title: "n" } },
-      folders: {
-        ...made,
-        b9: { folderRole: "book", id: "b9", title: "九", lineup: [{ kind: "page", id: "n1" }] },
-        [yard]: {
-          ...(made[yard] as object),
-          lineup: [
-            { kind: "book", id: "b1", workKey: roomKey("r1") },
-            { kind: "book", id: "b9", workKey: roomKey("r9") },
-          ],
-        },
-      },
-    } as unknown as Library
-    const by = (id: string) => backyardBreach({ id } as ActionDef, was, now)
-    expect(by("@matomezu/base:worker-page-add")).toBeNull()
-    expect(by("@matomezu/taskboard:x")).toBe("only the plugin that owns a backyard makes books in it")
-  })
-
-  test("バックヤードのブックとその中のページは、利用者もロックできない", () => {
-    const lock = (id: string, on: { book: string } | { page: string }) =>
-      performIn(world(), `@matomezu/base:${id}`, {}, on, ctx(USER))
-    expect(lock("book-lock", { book: "b1" })).toMatchObject({ ok: false, permission: "@matomezu/base:lock" })
-    expect(lock("page-lock", { page: "p1" })).toMatchObject({ ok: false, permission: "@matomezu/base:lock" })
   })
 })

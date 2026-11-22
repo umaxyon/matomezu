@@ -4,9 +4,9 @@
 // 名前の重なりを断る事・タイプごとのほかの決まり・ロックは、ここでは見ない
 
 import type { CoreCatalog } from "./core-catalog"
-import type { BackyardEntry } from "./def/permission"
 import {
   type AnyEntryRef,
+  type BackyardEntry,
   type BinderFolder,
   backyardIdOf,
   type Folder,
