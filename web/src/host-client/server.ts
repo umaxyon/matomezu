@@ -544,7 +544,9 @@ export function serverClient(net: Net = browserNet): HostClient {
       return { state: "removed" }
     },
     checkUpdate: async () => {
-      const res = await net.fetch("api/update/check", { method: "POST" }).catch(() => null)
+      const res = await net
+        .fetch("api/update/check", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
+        .catch(() => null)
       if (!res?.ok) fail("E410", { status: res ? `${res.status}` : "no answer" })
       updateStatus = UpdateStatusSchema.parse(await res.json())
       instance?.setUpdateStatus(updateStatus)
