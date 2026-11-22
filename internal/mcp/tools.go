@@ -50,16 +50,16 @@ var tools = []tool{
 	{
 		"read_folder",
 		"Read a folder of the library, one level deep. The library keeps books in folders under the library home, its top folder; a folder can also hold pages and binders that are not in a book. " +
-			"It answers the folder's id, kind (home for the library home, folder for a folder), title (the library home has none), path (the folders from the library home down to this one, each with id and title) " +
+			"It answers the folder's id, kind (home for the library home, folder for a folder, binder for a binder that is not in a book), title (the library home has none), path (the folders from the library home down to this one, each with id and title) " +
 			"and lineup, its entries in order: a folder (kind folder, id, title), a book (kind book, id, title, awaiting; one that cannot be read now is not answered, as in list_books), " +
-			"a page (kind page, id, title, type, awaiting) or a binder of pages of one type (kind binder, id, title, pageType). " +
+			"a page (kind page, id, title, type, awaiting) or a binder of pages of one type (kind binder, id, title, pageType, awaiting: of its pages). " +
 			"A book or a page with items or settings of plugins that are not installed has warning, as in list_books. " +
 			"A system folder (such as Documents, always at the top of the library home; it cannot be moved or renamed) also has systemFolder, the id of its kind. " +
 			"While the plugin that adds that kind is off, its title is empty and it can be put in the trash; otherwise it cannot. " +
-			"Read a folder in the lineup with read_folder and a book with read_book. What is in the trash is not answered.",
+			"Read a folder or a binder in the lineup with read_folder (a binder answers pageType and its pages) and a book with read_book. What is in the trash is not answered.",
 		map[string]any{
 			"type":                 "object",
-			"properties":           map[string]any{"folder": map[string]any{"type": "string", "description": "The folder's id (from the lineup or the path of read_folder). Without it, the library home."}},
+			"properties":           map[string]any{"folder": map[string]any{"type": "string", "description": "The id of a folder, or of a binder that is not in a book (from the lineup or the path of read_folder). Without it, the library home."}},
 			"additionalProperties": false,
 		},
 		reading(func(api caller, args map[string]any) (json.RawMessage, error) {
@@ -89,7 +89,7 @@ var tools = []tool{
 	},
 	{
 		"read_page",
-		"Read one page (the page and the items on it), entry ({kind: \"book\", id} with the id of the book that holds it, or {kind: \"page\", id} with the page's own id for a page that is not in a book), folder (the id of what holds it directly: that book, the binder for a page in a binder, or the folder of the library for a page that is not in a book), version (the page's own: it goes up each time the page changes), placed (where each shape is drawn, when the page type's presentation tells it, otherwise null: {id, x, y, w, h} with the top-left on the paper and the size as drawn, children too; use it to line shapes up, as the items' own x and y are from their parent and their w and h may be missing or smaller than drawn) and the annotations (such as the user's notes and marks) standing on things of that page. " +
+		"Read one page (the page and the items on it), entry ({kind: \"book\", id} with the id of the book that holds it, {kind: \"page\", id} with the page's own id for a page that is not in a book, or {kind: \"binder\", id} with the binder's id for a page in a binder that is not in a book), folder (the id of what holds it directly: that book, the binder for a page in a binder, or the folder of the library for a page that is not in a book), version (the page's own: it goes up each time the page changes), placed (where each shape is drawn, when the page type's presentation tells it, otherwise null: {id, x, y, w, h} with the top-left on the paper and the size as drawn, children too; use it to line shapes up, as the items' own x and y are from their parent and their w and h may be missing or smaller than drawn) and the annotations (such as the user's notes and marks) standing on things of that page. " +
 			"A page too large to be answered at once is refused (too-large): with outline, the page's items are an outline (id, item, size in characters); with item, only that item (and what is inside it), its placed and the annotations on them are answered.",
 		map[string]any{
 			"type": "object",

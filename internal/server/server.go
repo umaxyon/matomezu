@@ -33,7 +33,7 @@
 //	                      ステージを並べないスクリーン（コントロールセンターなど）がカレントスクリーンの窓は {"current": "plain-screen", "hidden": {後ろに隠れているブックスクリーンの entry, page, selection, awaiting など}}）
 //	GET  /api/ai/books  {"books": [{"id", "title", "version", "warning", "awaiting"}]}（warning は機能台帳に無い物の W007 の 1 行、awaiting は AI の応えを待つアノテーションの数）
 //	GET  /api/ai/books/{id}  {"id", "book", "version", "annotations", "placed"}（?outline=1 ならページの目次。ai_outline.go）
-//	GET  /api/ai/pages/{page}  {"entry", "folder", "page", "version", "annotations", "placed"}（entry はそのページのステージエントリ {"kind", "id"}（そのページを持っているブックか、ブックの外のページならそのページ）、folder はそのページが入っているフォルダ（ブックの直下ならブック、バインダの中ならバインダ、ブックの外のページなら書庫のフォルダ）の id、version はそのページの版、annotations はそのページの物に立つもの。?outline=1 でページの中の物の目次、?item=id でその物だけ。ai_outline.go）
+//	GET  /api/ai/pages/{page}  {"entry", "folder", "page", "version", "annotations", "placed"}（entry はそのページのステージエントリ {"kind", "id"}（そのページを持っているブックか、ブックの外のページならそのページ、ブックの外のバインダの中ならそのバインダ）、folder はそのページが入っているフォルダ（ブックの直下ならブック、バインダの中ならバインダ、ブックの外のページなら書庫のフォルダ）の id、version はそのページの版、annotations はそのページの物に立つもの。?outline=1 でページの中の物の目次、?item=id でその物だけ。ai_outline.go）
 //	GET  /api/ai/folder[?folder=ID]  書庫ホーム（folder が無いとき）かフォルダ 1 つの {"id", "kind", "title", "path", "lineup"}（書庫ホームからの道筋と、直下のエントリを 1 段だけ。ai_folder.go）
 //	GET  /api/ai/records?kind=K[&id=ID | &ids=a&ids=b | &where.key=value&is.key=absent&limit=N&before=ID]  AI に見せる種類（対象の定義の aiBrief）のレコード（ai_records.go）。
 //	                      id はその 1 件の全文、ids は何件かの全文、どちらも無ければ一覧（索引キーで探す種類は {"kind","records","total","older"}）

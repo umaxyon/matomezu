@@ -218,7 +218,7 @@ func (h *Hub) checkBooksAndOutsidePages() error {
 }
 
 // checkOutsidePages は、ids のうちブックの外のページ（pagesNotInBooks）を今のプラグインで確かめ、warning のあるページの一覧を直す（読めるが機能台帳に無い物を持つ W007。新しい warning は常駐のログに書く）。
-// ブックの外のページでなくなったページ（消えた・ブックへ入った・バインダへ入った・ゴミ箱に入った・読めない物になった）の warning は外す（h.mu を持って呼ぶ）
+// ブックの外のページでなくなったページ（消えた・ブックへ入った・ゴミ箱に入った・読めない物になった）の warning は外す（h.mu を持って呼ぶ）
 func (h *Hub) checkOutsidePages(ids []string) error {
 	outside := map[string]bool{}
 	for _, id := range h.pagesNotInBooks() {

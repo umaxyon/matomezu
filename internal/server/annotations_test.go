@@ -285,7 +285,7 @@ func TestAnnotationWarningsOfAPageOutsideBooks(t *testing.T) {
 	}
 }
 
-// 読めるが機能台帳に無い物を持つブックの外のページは、ページごとに warning（W007）になり、read_folder のその行に付く。
+// 読めるが機能台帳に無い物を持つブックの外のページは、ページごとに warning（W007）になり、read_folder のその行に付く（ブックの外のバインダの中のページも、バインダを読んだ行に）。
 // 名前を変えると行が直り、ゴミ箱に入れると外れ、戻すとまた出る
 func TestAPageOutsideBooksWithMissingThingsIsWarned(t *testing.T) {
 	store := entriesStore(t)
@@ -293,15 +293,23 @@ func TestAPageOutsideBooksWithMissingThingsIsWarned(t *testing.T) {
 	if strange == outsideH1 {
 		t.Fatal("outsideH1 has no items to add to")
 	}
-	if err := store.Apply(storage.Batch{Pages: []storage.RowWrite{{ID: "h1", Base: storedPage(t, store, "h1").Version, Body: json.RawMessage(strange)}}}); err != nil {
+	slide := `{"kind":"page","id":"n1a","type":"@matomezu/slide-page:slide","title":"A","paper":"@matomezu/base:a4","orientation":"landscape","items":[{"id":"z","item":"@foo/stars:star","x":0,"y":0,"w":10,"h":10}]}`
+	if err := store.Apply(storage.Batch{Pages: []storage.RowWrite{
+		{ID: "h1", Base: storedPage(t, store, "h1").Version, Body: json.RawMessage(strange)},
+		{ID: "n1a", Base: storedPage(t, store, "n1a").Version, Body: json.RawMessage(slide)},
+	}}); err != nil {
 		t.Fatal(err)
 	}
 	s, hub := newServerOn(t, Options{}, store)
 	line := func(title string) string {
 		return "W007 @foo/stars: page h1 (" + title + "): it has @foo/stars:star, not in the catalog (kept as they are)"
 	}
-	if got := hub.Warnings(); !slices.Contains(got, line("H1")) {
+	const inBinder = "W007 @foo/stars: page n1a (A): it has @foo/stars:star, not in the catalog (kept as they are)"
+	if got := hub.Warnings(); !slices.Contains(got, line("H1")) || !slices.Contains(got, inBinder) {
 		t.Fatalf("warnings = %s", strings.Join(got, "\n"))
+	}
+	if _, got := send(t, "GET", s.URL+"/api/ai/folder?folder=n1", "", ai); !strings.Contains(got, `"id":"n1a","title":"A","type":"@matomezu/slide-page:slide","warning":"`+inBinder+`"`) {
+		t.Fatalf("read_folder n1 = %s", got)
 	}
 	if _, got := send(t, "GET", s.URL+"/api/ai/folder", "", ai); !strings.Contains(got, `"id":"h1","title":"H1","type":"@matomezu/drawing:drawing","warning":"`+line("H1")+`"`) {
 		t.Fatalf("read_folder = %s", got)

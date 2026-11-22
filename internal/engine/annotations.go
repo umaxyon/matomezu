@@ -127,12 +127,13 @@ func (e *Engine) AIBriefs(pairs []Annotated) (out []map[string]map[string]string
 	return out, nil
 }
 
-// Annotated はステージエントリ（ブックか、ブックの外のページ）と、そのページごとのアノテーション（ページの id → 並び。CheckAnnotations・AIAnnotations・AIBriefs に渡す）。
-// Kind が book なら Book にブックの本文、page なら Page にそのページを入れる（AnnotatedBook・AnnotatedPage で作る）
+// Annotated はステージエントリ（ブックか、ブックの外のページ・バインダ）と、そのページごとのアノテーション（ページの id → 並び。CheckAnnotations・AIAnnotations・AIBriefs に渡す）。
+// Kind が book なら Book にブックの本文、page なら Page にそのページ、binder なら Pages に中のページを並びの順に入れる（AnnotatedBook・AnnotatedPage・AnnotatedBinder で作る）
 type Annotated struct {
 	Kind        string                     `json:"kind"`
 	Book        json.RawMessage            `json:"book,omitempty"`
 	Page        json.RawMessage            `json:"page,omitempty"`
+	Pages       []json.RawMessage          `json:"pages,omitempty"`
 	Annotations map[string]json.RawMessage `json:"annotations"`
 }
 
@@ -144,4 +145,9 @@ func AnnotatedBook(book json.RawMessage, annotations map[string]json.RawMessage)
 // AnnotatedPage は、ブックの外のページ page と、そのページのアノテーション（ページの id → 並び）の組
 func AnnotatedPage(page json.RawMessage, annotations map[string]json.RawMessage) Annotated {
 	return Annotated{Kind: "page", Page: page, Annotations: annotations}
+}
+
+// AnnotatedBinder は、ブックの外のバインダの中のページ pages（並びの順）と、そのページごとのアノテーションの組
+func AnnotatedBinder(pages []json.RawMessage, annotations map[string]json.RawMessage) Annotated {
+	return Annotated{Kind: "binder", Pages: pages, Annotations: annotations}
 }
