@@ -82,7 +82,7 @@ test("書庫のゴミ箱に、捨てたフォルダも並ぶ。選んだ行を�
   const folder = async (title: string, into?: string) => {
     const made = await aiPerform(page, {
       action: "@matomezu/base:folder-create",
-      args: { title, ...(into ? { into } : {}) },
+      args: { title, into: into ?? "library-home" },
     })
     expect(made).toMatchObject({ ok: true })
     return made.result.folder as string
@@ -481,7 +481,10 @@ test("書庫の行をドラッグして、行の間（その位置へ）・フ�
   await page.goto("/")
   await page.bringToFront()
   const made = async (title: string, into?: string) => {
-    const done = await aiPerform(page, { action: "@matomezu/base:folder-create", args: { title, into } })
+    const done = await aiPerform(page, {
+      action: "@matomezu/base:folder-create",
+      args: { title, into: into ?? "library-home" },
+    })
     expect(done).toMatchObject({ ok: true })
     return (done.result as { folder: string }).folder
   }
