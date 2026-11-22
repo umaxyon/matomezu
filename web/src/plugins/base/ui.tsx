@@ -157,7 +157,6 @@ export {
   PageSettingsDialogView,
   type PageSettingsDialogViewProps,
   type PaperValue,
-  useAddPage,
   useNewPage,
   usePageProblems,
   usePaperControls,

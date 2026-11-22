@@ -94,8 +94,8 @@ export const PAGE_NEW = kit.defineCommand({
 })
 
 // タイプ type のページを、書庫のフォルダ folder（書庫ホーム・フォルダ・ブック・ブックの外のバインダ）に作るダイアログを開く
-export const PAGE_NEW_IN = kit.defineScreenCommand({
-  id: "page-new-in",
+export const PAGE_NEW_IN_FOLDER = kit.defineScreenCommand({
+  id: "page-new-in-folder",
   title: "New page",
   performs: [PAGE_CREATE.id], // 開いたダイアログが行う
   run: (ctx, a, args: { type: string; folder: string }) => {

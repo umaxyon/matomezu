@@ -23,7 +23,7 @@ export interface ActionChoice {
   without?: readonly ActionId[]
 }
 
-// タイプのダイアログ: ページを作るダイアログ（add。値を受けない）とページの設定のダイアログ（settings。PageSettingsArgs を受ける）の id で、タイプが自分のものにする。
+// タイプのダイアログ: ページを作るダイアログ（add。NewPageDialogArgs を受ける）とページの設定のダイアログ（settings。PageSettingsArgs を受ける）の id で、タイプが自分のものにする。
 // 無ければ、ページを受け持つプラグインの既定のダイアログを使う。受ける値が合うかは definePlugin が型で、あるかは台帳アセンブルが確かめる
 export interface PageDialogs {
   add?: string

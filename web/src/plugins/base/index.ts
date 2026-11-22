@@ -151,7 +151,7 @@ import {
   PAGE_DELETE_DIALOG,
   PAGE_DUPLICATE_COMMAND,
   PAGE_NEW,
-  PAGE_NEW_IN,
+  PAGE_NEW_IN_FOLDER,
   PAGE_OPEN,
   PAGE_SETTINGS,
   PAGE_SETTINGS_DIALOG,
@@ -329,7 +329,7 @@ export {
 // 拡張ポイントに書き足した物の型（定義を書くプラグインが使う。追加プラグインには matomezu から出す）
 export { itemMinimapMarks, type MinimapMark } from "./minimap"
 export type { PageProblem } from "./pages"
-export { addPageIn, nextPageTitle, type PageFieldsWay, pageFieldsWay } from "./pages"
+export { addPageIn, type PageFieldsWay, pageFieldsWay } from "./pages"
 export type { ParticipantCategory, VisitorRow, WorkroomRow, WorkroomState } from "./participant"
 export {
   adminWorkroom,
@@ -617,7 +617,7 @@ export const BASE = defineBuiltin(
       LIBRARY_SCREEN_EXPAND,
       LIBRARY_FOLDER_NEW,
       LIBRARY_PAGE_NEW,
-      PAGE_NEW_IN,
+      PAGE_NEW_IN_FOLDER,
       LIBRARY_ENTRY_RENAME,
       LIBRARY_ENTRY_TRASH,
       LIBRARY_ENTRY_DUPLICATE,
@@ -873,7 +873,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-screen-expand": typeof LIBRARY_SCREEN_EXPAND
     "@matomezu/base:library-folder-new": typeof LIBRARY_FOLDER_NEW
     "@matomezu/base:library-page-new": typeof LIBRARY_PAGE_NEW
-    "@matomezu/base:page-new-in": typeof PAGE_NEW_IN
+    "@matomezu/base:page-new-in-folder": typeof PAGE_NEW_IN_FOLDER
     "@matomezu/base:library-entry-rename": typeof LIBRARY_ENTRY_RENAME
     "@matomezu/base:library-entry-move": typeof LIBRARY_ENTRY_MOVE
     "@matomezu/base:library-tree-move": typeof LIBRARY_TREE_MOVE

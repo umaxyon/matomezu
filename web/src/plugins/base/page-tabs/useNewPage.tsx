@@ -15,7 +15,7 @@ import { kit } from "../kit"
 import { useReadNaming } from "../library/hooks"
 import { useCreatePage } from "../library/useCreatePage"
 import type { PAGE_ADD } from "../pages/page-add"
-import { freePageTitle, nextPageTitle, type PaperPlace } from "../pages/pages"
+import { nextPageTitle, type PaperPlace } from "../pages/pages"
 import type { NewPageDialogArgs } from "."
 import { useAddPage } from "./useAddPage"
 
@@ -57,10 +57,7 @@ export function useNewPage(args: NewPageDialogArgs): NewPage {
     lineup,
     place,
     titles: {
-      page:
-        intoFolder && place === "lineup"
-          ? freePageTitle(t, taken())
-          : nextPageTitle(lineup ?? none, t, place === "new-binder" ? [] : (inBinder ?? taken())),
+      page: nextPageTitle(lineup ?? none, t, place === "new-binder" ? [] : (inBinder ?? taken())),
       binder: freeTitle(type ? t(type.title) : "", taken()),
     },
     add: page => (folder === undefined ? addToStage(page) : create(folder, page)),

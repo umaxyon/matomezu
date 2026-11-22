@@ -103,7 +103,6 @@ export {
   type TextDraft,
   tabEntry,
   UserSettings,
-  useAddPage,
   useAligns,
   useAnchorRef,
   useAnchorShapeRef,

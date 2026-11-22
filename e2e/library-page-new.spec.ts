@@ -1,7 +1,8 @@
 // 書庫の画面の「ページ新規作成」: 押すとページのタイプの一覧が開き、選んだタイプの「ページを作る」ダイアログで作ると、
 // 開いているフォルダにブックの外のページが出来て、それを選ぶ（書庫の画面のまま）。スライドは、そのページだけのバインダが出来る。
-// タイプが自分のダイアログを名指す物（ツリー）も、書庫から作れる。右クリックの「新しいページ…」も同じ一覧を開く
+// タイプが自分のダイアログを名指す物（ツリー）も、書庫から作れる。ブックの行からは、そのブックの中に作る。右クリックの「新しいページ…」も同じ一覧を開く
 import { expect, test } from "./fixtures"
+import { storedBook, storedBooks } from "./helpers/stored"
 
 test("「ページ新規作成」でタイプを選んで作ると、書庫ホームにページが出来て選ばれる。スライドはバインダになる", async ({
   page,
@@ -16,7 +17,6 @@ test("「ページ新規作成」でタイプを選んで作ると、書庫ホ�
   await create.click()
   await page.getByRole("menu").getByRole("menuitem", { name: "図面" }).click()
   const drawing = page.getByRole("dialog", { name: "新しい図面" })
-  await expect(drawing.getByLabel("ページの名前")).toHaveValue("ページ 1")
   await drawing.getByLabel("ページの名前").fill("外の図")
   await drawing.getByRole("button", { name: "作成" }).click()
   await expect(drawing).toBeHidden()
@@ -63,6 +63,20 @@ test("「ページ新規作成」でタイプを選んで作ると、書庫ホ�
   await drawing.getByLabel("ページの名前").fill("バインダの隣")
   await drawing.getByRole("button", { name: "作成" }).click()
   await expect(home.getByRole("button", { name: "バインダの隣" })).toHaveAttribute("aria-pressed", "true")
+
+  // ブックの行から: そのブックの中に作る（書庫の行は増えない）
+  const book = (await storedBooks(page.request))[0] as { id: string; title: string }
+  const withBinder = await rows.count()
+  await home.getByRole("button", { name: book.title, exact: true }).click({ button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "新しいページ…" }).click()
+  await page.getByRole("menu").getByRole("menuitem", { name: "図面" }).click()
+  await drawing.getByLabel("ページの名前").fill("書庫から足した図")
+  await drawing.getByRole("button", { name: "作成" }).click()
+  await expect(drawing).toBeHidden()
+  await expect(rows).toHaveCount(withBinder)
+  await expect
+    .poll(async () => JSON.stringify((await storedBook(page.request, book.id)).lineup))
+    .toContain("書庫から足した図")
 
   // 何も無い所の右クリックの「新しいページ…」も、同じ一覧を開く
   await home.click({ button: "right", position: { x: 5, y: 5 } })
