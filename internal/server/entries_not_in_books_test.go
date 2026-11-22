@@ -146,7 +146,7 @@ func TestRowsNotInBooksGoToTheEngine(t *testing.T) {
 
 	pages, folders, annotated = inputs(step("@matomezu/base:book-create", `{"title":"N"}`, nil))
 	same("pages for a list action", pages, []string{"p1", "s1", "h1", "t1", "tn1", "n1a", "n1b", "g1", "dt1"})
-	same("folders for a list action", folders, []string{"b1", "b2", "f1", "tn", "n1", storage.HomeID, storage.TrashID, "d1", "d2", "dt"})
+	same("folders for a list action", folders, []string{"b1", "b2", "f1", "tn", "n1", storage.HomeID, storage.TrashID, "d1", "d2", "dt", ticketsHistoryYard})
 	same("annotations for a list action", annotated, []string{"g1", "h1", "n1b", "t1"})
 }
 

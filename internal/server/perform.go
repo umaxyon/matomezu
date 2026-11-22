@@ -149,7 +149,8 @@ func (h *Hub) Perform(p Perform) (Performed, error) {
 // アクションごとに要るブック（レコードが対象なら引数から答えた読むだけのブック、宛先があればそのブック）の和と、そのアノテーションと、それらのブックから書庫の一番上までのフォルダを渡す。
 // 宛先がブックに入っていないページなら、そのページ（バインダの中なら、そのバインダと中のページの全部）と、そのアノテーションと、そこから書庫ホームまでのフォルダを渡す。
 // 一覧のアクション（宛先が無く、レコードが対象でない）か、宛先がブックの外のバインダのアクションか、0 番目でなく宛先が置き場所に無い（バルクの前のアクションが作ったページなど）アクションを含むなら、
-// 全部のブックと、ブックに入っていないページとバインダの全部（ゴミ箱の中の物も）と、アノテーションの全部と、書庫ホーム・ゴミ箱・フォルダの全部
+// 全部のブックと、ブックに入っていないページとバインダの全部（ゴミ箱の中の物も）と、アノテーションの全部と、書庫ホーム・ゴミ箱・フォルダ・バックヤードの全部
+// （バックヤードは、バックヤードにまだ無いブックを作って置くアクションのため）
 func (h *Hub) performInputs(in *engine.Input) error {
 	all := false
 	books := []string{}
@@ -204,7 +205,7 @@ func (h *Hub) performInputs(in *engine.Input) error {
 	if all {
 		order := slices.DeleteFunc(slices.Clone(h.order), h.inUnreadable)
 		in.Pages, in.Folders = h.rowsOf(append(order, h.entriesNotInBooks()...))
-		in.Folders = append(in.Folders, h.openRows()...)
+		in.Folders = append(append(in.Folders, h.openRows()...), h.backyardRows()...)
 		for page, list := range h.annotations {
 			if !h.inUnreadable(page) {
 				in.Annotations[page] = list

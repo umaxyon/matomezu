@@ -14,6 +14,9 @@ import (
 )
 
 // documentsOf は、書庫ホームの直下のシステムフォルダ（起動したときに足す base のドキュメントとワークルーム）の行の id（並びの順）
+// ticketsHistoryYard は、base の tickets-history のバックヤードの行の id（起動したときに足す。一覧のアクションには、フォルダの全部の後ろに渡す）
+const ticketsHistoryYard = "library-backyard-@matomezu/base:tickets-history"
+
 func documentsOf(t *testing.T, h *Hub) []string {
 	t.Helper()
 	ids := []string{}

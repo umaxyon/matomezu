@@ -134,7 +134,7 @@ func TestTrashLineupPlacesItsEntries(t *testing.T) {
 func TestBooksInABackyardAreNotListedForTheAI(t *testing.T) {
 	store := libraryStore(t, false)
 	v := versionsOf(t, store)
-	yard := "library-backyard-@matomezu/base:tickets-history"
+	yard := ticketsHistoryYard
 	if err := store.Apply(storage.Batch{
 		Folders: []storage.RowWrite{
 			{ID: storage.HomeID, Base: v[storage.HomeID], Body: storage.HomeBody([]json.RawMessage{storage.RefOf("book", "b1")})},
