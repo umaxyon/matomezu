@@ -42,15 +42,17 @@ function writable(input: PermissionInput, actor: Actor, entry: BackyardEntry | u
 }
 
 // ワーカーブック: tickets-history のブック（とその中のページ）を書けるのは、そのブックがワーカーブックのワークルームの AI と、利用者だけ（ほかの AI は読むだけ）。
-// 行った後は、前と後のどちらの側も確かめる
+// アノテーションはブックの中身ではないので止めない（ほかの AI も付箋に答えられる）。行った後は、前と後のどちらの側も確かめる
 export const WORKER_BOOK = kit.definePermission({
   id: "worker-book",
   title: "Another workroom's worker book",
   aiDescription:
-    "the book is the worker book of another workroom's current work (or of a work no workroom has now); you can read it, but only the AI whose current work it is, and the user, can change it",
+    "the book is the worker book of another workroom's current work (or of a work no workroom has now); you can read it and answer its notes and marks, but only the AI whose current work it is, and the user, can change it",
   readsSubjects: workerBookReadsOf,
-  denies: (q, input) => q.kind !== "record" && !writable(input, q.actor, q.backyardEntry),
+  denies: (q, input) =>
+    q.kind !== "record" && q.action.target !== "annotations" && !writable(input, q.actor, q.backyardEntry),
   keeps: (c, input) =>
     c.kind === "record" ||
+    c.action.target === "annotations" ||
     (writable(input, c.actor, c.backyardEntry.before) && writable(input, c.actor, c.backyardEntry.after)),
 })

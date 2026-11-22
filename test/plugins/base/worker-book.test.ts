@@ -105,6 +105,56 @@ describe("行うときに core が渡す物", () => {
   })
 })
 
+describe("アノテーションは止めない", () => {
+  const note = {
+    id: "n1",
+    annotation: "@matomezu/base:note",
+    anchors: ["a"],
+    props: { text: "見て", bubble: true, addedAt: "2026-11-21T00:00:00.000Z" },
+  }
+  const world = yardWorld()
+  const box = { id: "a", item: "@matomezu/box:shape-nest-box", x: 0, y: 0, props: { caption: "a", body: "" } }
+  const readNote = (actor: Actor) =>
+    performIn(
+      {
+        ...world,
+        pages: { ...world.pages, p1: drawingPage("p1", { items: [box] }) },
+        annotations: { p1: [note] },
+      } as never,
+      "@matomezu/base:note-read",
+      { note: "n1" },
+      { page: "p1" },
+      yardCtx(actor),
+    )
+
+  test("ほかのワークルームの AI も、ワーカーブックの付箋に答えられる", () => {
+    expect(readNote({ kind: "ai", workroom: { id: "r2" } })).toMatchObject({ ok: true })
+  })
+
+  test("問いと確かめを直に問っても、アノテーションが対象のアクションは止めない", () => {
+    const action = CORE_CATALOG.actions.get("@matomezu/base:note-read") as ActionDef
+    const book = testBook("b1", "T1", [drawingPage("p1")])
+    const other: Actor = { kind: "ai", workroom: { id: "other" } }
+    const input = { catalog: CORE_CATALOG, read: readerOf(CORE_CATALOG, sourceOf({} as Records), []) }
+    const backyardEntry: BackyardEntry = { backyard: TICKETS_HISTORY.id, workKey: { subject: "t", id: "t1" } }
+    expect(WORKER_BOOK.denies({ kind: "folder", action, folder: book, actor: other, backyardEntry }, input)).toBe(false)
+    expect(
+      WORKER_BOOK.keeps?.(
+        {
+          kind: "folder",
+          action,
+          before: book,
+          after: book,
+          changes: { gone: false, place: "same", added: false, fields: [], lineup: false, pages: [] },
+          backyardEntry: { before: backyardEntry, after: backyardEntry },
+          actor: other,
+        },
+        input,
+      ),
+    ).toBe(true)
+  })
+})
+
 describe("ワーカーブックにページを足す（worker-page-add）", () => {
   const ai = (room: string): Actor => ({ kind: "ai", workroom: { id: room } })
   const add = (actor: Actor, args: object = {}) =>
