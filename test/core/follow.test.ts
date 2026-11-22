@@ -207,3 +207,19 @@ test("台帳アセンブルは、自分のでない種類・台帳に無い種�
   expect(unwatched.catalog.core.warnings.map(w => w.code)).toContain("W034")
   expect(unwatched.catalog.core.followSteps.map(f => f.plugin).filter(p => p.startsWith("@ex/"))).toEqual(["@ex/echo"])
 })
+
+test("コントロールセンターは、変える種類に応じるフォローステップが書く種類（その先も）も許していなければ、そのアクションを使わせない", () => {
+  const only = (subjects: string[]) =>
+    assemble(
+      (plugins() as Plugin[]).map(p =>
+        (p.id as string) === "@ex/card"
+          ? ({ ...p, controlCenters: [{ id: CENTER, actions: [], subjects: subjects as never }] } as never)
+          : p,
+      ),
+      CENTER,
+    ).catalog.core
+  const renameIn = (catalog: ReturnType<typeof only>) =>
+    performIn(world(), "@ex/card:card-rename", { label: "b" }, { record: "c1" }, { ...ctx, ...at, catalog })
+  expect(renameIn(only([CARD, TALLY]))).toMatchObject({ ok: false, reason: "not-allowed" })
+  expect(renameIn(only([CARD, TALLY, ECHO]))).toMatchObject({ ok: true })
+})

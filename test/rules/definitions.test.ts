@@ -45,9 +45,12 @@ test("ページのタイプの slide.allowed に書くのは描画シェイプ�
   expect(others).toEqual([])
 })
 
-test("アクションは同じ入力なら同じ結果: アクションと、アクションの中で動くページのフィールドの受け方を定義するファイルは、時刻と乱数を直に使わない（ctx.now・ctx.today と ctx.newId を使う）", () => {
+test("アクションは同じ入力なら同じ結果: アクションと、アクションの中で動くページのフィールドの受け方と、フォローステップを定義するファイルは、時刻と乱数を直に使わない（ctx.now・ctx.today と ctx.newId を使う）", () => {
   const defining = [...sources, ...added].filter(
-    f => /\bdefineAction\s*\(|\bpageFieldsInput\b|\bpageFieldsWay\b/.test(f.text) && !f.path.endsWith("def/action.ts"),
+    f =>
+      /\bdefineAction\s*\(|\bpageFieldsInput\b|\bpageFieldsWay\b|\bFollowStepDef\b/.test(f.text) &&
+      !f.path.endsWith("def/action.ts") &&
+      !f.path.endsWith("def/follow-step.ts"),
   )
   expect(defining.length).toBeGreaterThan(0)
   const bad = defining

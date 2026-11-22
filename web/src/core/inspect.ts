@@ -246,16 +246,27 @@ const joinsWithoutParticipation = (def: ActionDef): boolean => def.runsWhenAIJoi
 const allowsSubject = (center: ControlCenterDef, target: string): boolean =>
   center.subjects === "all" ? !BASE_TARGETS.includes(target) : (center.subjects?.includes(target as SubjectId) ?? false)
 
-// アクションの writes の種類が全部許されているか（コントロールセンターの actions に並べたアクションも、変える別の種類は許されていなければ使えない）
-const allowsWrites = (center: ControlCenterDef, def: ActionDef): boolean =>
-  (def.writes ?? []).every(s => allowsSubject(center, s))
+// アクションの writes の種類と、アクションが変える種類に応じるフォローステップが書く種類（その先に応じる物も）が全部許されているか
+// （コントロールセンターの actions に並べたアクションも、変える別の種類は許されていなければ使えない）
+function allowsWrites(catalog: CoreCatalog, center: ControlCenterDef, def: ActionDef): boolean {
+  const changed = new Set<string>([def.target, ...(def.writes ?? [])])
+  const writes = new Set<string>(def.writes ?? [])
+  for (const { step } of catalog.followSteps)
+    if (changed.has(step.watches))
+      for (const s of step.writes) {
+        changed.add(s)
+        writes.add(s)
+      }
+  return [...writes].every(s => allowsSubject(center, s))
+}
 
 // コントロールセンターがアクションを許すかのステップ
-const centerSteps = (def: ActionDef, center: ControlCenterDef): Step<boolean>[] => [
+const centerSteps = (catalog: CoreCatalog, def: ActionDef, center: ControlCenterDef): Step<boolean>[] => [
   {
     from: { source: "controlCenter", id: center.id, field: "actions" },
     value:
-      (center.actions.includes(def.id as ActionId) || allowsSubject(center, def.target)) && allowsWrites(center, def)
+      (center.actions.includes(def.id as ActionId) || allowsSubject(center, def.target)) &&
+      allowsWrites(catalog, center, def)
         ? true
         : null,
   },
@@ -336,7 +347,7 @@ function action(
     ...items.userOnly,
     ...permitted,
     ...items.fixed,
-    ...centerSteps(def, center),
+    ...centerSteps(catalog, def, center),
   ])
 }
 
