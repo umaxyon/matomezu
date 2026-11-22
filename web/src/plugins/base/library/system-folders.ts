@@ -10,12 +10,12 @@ export const DOCUMENTS = kit.defineSystemFolder({
   aiDescription: "The documents folder: a folder that is always at the top of the library home.",
 })
 
-// ワークルーム: 中には何も置かない。書庫の画面は、この下に参加しているワークルームごとの作業机を映して出す
+// ワークルーム: 中には何も置かない
 export const WORKROOMS = kit.defineSystemFolder({
   id: "workrooms",
   title: "Workrooms",
   aiDescription:
-    "The workrooms folder: it is always empty and nothing can be put in it. The user's library screen shows each workroom's work under it; add pages to your own with worker-page-add.",
+    "The workrooms folder: it is always empty and nothing can be put in it. Add pages to your own work with worker-page-add.",
 })
 
 // 書庫のフォルダの列 over（近い順）の、どれかがワークルームか
@@ -27,7 +27,7 @@ export const IN_WORKROOMS = kit.definePermission({
   id: "in-workrooms",
   title: "Nothing goes in the workrooms folder",
   aiDescription:
-    "nothing can be put in or made in the workrooms folder; it only shows each workroom's work on the user's screen",
+    "nothing can be put in or made in the workrooms folder",
   denies: q => q.kind === "place" && underWorkrooms(q.into),
   keeps: c => c.kind !== "place" || !underWorkrooms(c.after),
 })

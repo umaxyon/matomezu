@@ -286,7 +286,7 @@ export type LibraryScope<A = unknown> =
 export type EntryWhere = "all-pages" | "place" | "title" | "copy"
 
 // 書庫が対象のアクションが変える物: books は今あるブックの id と、その中の所、entries は名指したエントリと、その変え方（どのブックか、どのページに問うかは、core が出す）、
-// creates は作るブック・フォルダの種類 kind と、入れるフォルダの id into（ブックを作るなら、空のブックで問う。into は引数が名指すときだけで、書庫のフォルダなら置き場所でも問う）、
+// creates は作るブック・フォルダの種類 kind と、入れるフォルダの id into（ブックを作るなら、空のブックで問う。into を書けば、書庫のフォルダなら置き場所でも問う。書かなければ置き場所では問わない）、
 // pages は作るページのタイプ creates と、入れるフォルダの id into（引数が名指すときだけ。core が、ブックかその中ならそのブックに作るページのタイプで、
 // ほかなら、そのタイプの空のページで問う。書庫のフォルダなら置き場所でも問う。into を省いたときにアクションが決める先には問わない）
 export interface LibraryTargets {
