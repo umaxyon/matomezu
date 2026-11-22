@@ -213,3 +213,22 @@ test("entry-duplicate は、ブックの外のバインダを中のページご�
   expect(lineup("n1")).toEqual(["s1", "s2", made])
   expect(state().pages[made]?.type).toBe(SLIDE)
 })
+
+test("書庫の行の右クリックのメニューは、ブックの外のバインダにも複製を出し、押すとすぐ後ろに写す", async () => {
+  const store = withBinder()
+  const state = () => store.state.getState()
+  const center = state().window.screens.find(s => s.stages === undefined)?.id as string
+  store.actions.makeScreenCurrent(center)
+  const copy = "@matomezu/base:library-entry-duplicate"
+  store.actions.openContextMenu(center, "@matomezu/base:library-entry-context", { entry: "n1" }, { x: 0, y: 0 })
+  expect(isShown(store, state(), center, copy as never)).toBe(true)
+  const home = Object.values(state().folders).find(f => f.folderRole === "home")?.id as string
+  const before = state().folders[home]?.lineup.map(r => r.id) ?? []
+  expect(
+    (store.actions.command as (at: string, id: string, arg: unknown) => boolean)(center, copy, { entry: "n1" }),
+  ).toBe(true)
+  await Promise.resolve()
+  const after = state().folders[home]?.lineup.map(r => r.id) ?? []
+  expect(after).toHaveLength(before.length + 1)
+  expect(state().folders[after[after.indexOf("n1") + 1] ?? ""]).toMatchObject({ folderRole: "binder", title: "発表 2" })
+})
