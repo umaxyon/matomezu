@@ -60,10 +60,21 @@ export const withPluginVersion = (pluginJson: string, version: string) => {
   return `${JSON.stringify(j, null, 2)}\n`
 }
 
-/** 本体の入口: OS と CPU に合うパッケージの実行ファイルを探して、そのまま動かす。実行ファイルは親をたどって AI のプログラムを探すので、飛ばしてよい入口の node として自分のプロセス id を伝える。
+/** 写した実行ファイルの置き場（ホームの下。保管庫フォルダの場所 MATOMEZU_HOME には左右されない）。Go の側の home.BinDir と同じ */
+export const BIN_DIR = [".matomezu", "bin"]
+/** 置き場の中の、今入っている版の印のファイル。Go の側の home.InstalledName と同じ */
+export const INSTALLED_NAME = "installed.json"
+
+/** 本体の入口: OS と CPU に合うパッケージの実行ファイルを、版ごとの置き場（BIN_DIR/<版>/）に写して、そこから動かす。
+ * Windows では動いている実行ファイルを消せないので、npm のフォルダの中のまま動かすと、会話が動いている間は npm が古い版を消せず、版を上げられない（Volta で os error 5）。写せないときは、パッケージの物をそのまま動かす。
+ * 写した物と版を印（INSTALLED_NAME）に書き、常駐はその版で立てる。
+ * 実行ファイルは親をたどって AI のプログラムを探すので、飛ばしてよい入口の node として自分のプロセス id を伝える。
  * 本体のパッケージのフォルダ（AI のプラグインの置き場所。node の入れ方で場所が変わる）も伝える */
 export const binEntry = `#!/usr/bin/env node
 const { spawnSync } = require("node:child_process")
+const fs = require("node:fs")
+const path = require("node:path")
+const os = require("node:os")
 const pkg = \`@matomezu/cli-\${process.platform}-\${process.arch}\`
 const exe = process.platform === "win32" ? "matomezu.exe" : "matomezu"
 let bin
@@ -73,6 +84,42 @@ try {
   console.error(\`matomezu: \${pkg} is not installed (this OS or CPU is not supported, or optional dependencies were skipped)\`)
   process.exit(1)
 }
-const r = spawnSync(bin, process.argv.slice(2), { stdio: "inherit", env: { ...process.env, MATOMEZU_ENTRY_PID: String(process.pid), MATOMEZU_PACKAGE_DIR: require("node:path").join(__dirname, "..") } })
+// 一時の名前に書いてから改名する（同時に何本動いても、半分だけ書かれた物を動かさない）
+const put = (to, write) => {
+  const tmp = \`\${to}.\${process.pid}.tmp\`
+  write(tmp)
+  try {
+    fs.renameSync(tmp, to)
+  } catch (e) {
+    fs.rmSync(tmp, { force: true })
+    if (!fs.existsSync(to)) throw e
+  }
+}
+const copied = () => {
+  const version = require(path.join(__dirname, "..", "package.json")).version
+  const dir = path.join(os.homedir(), ${JSON.stringify(BIN_DIR[0])}, ${JSON.stringify(BIN_DIR[1])})
+  const to = path.join(dir, version, exe)
+  if (!fs.existsSync(to)) {
+    fs.mkdirSync(path.dirname(to), { recursive: true })
+    put(to, tmp => {
+      fs.copyFileSync(bin, tmp)
+      fs.chmodSync(tmp, 0o755)
+    })
+  }
+  const mark = path.join(dir, ${JSON.stringify(INSTALLED_NAME)})
+  const text = JSON.stringify({ version, exe: to })
+  let was = ""
+  try {
+    was = fs.readFileSync(mark, "utf8")
+  } catch {}
+  if (was !== text) put(mark, tmp => fs.writeFileSync(tmp, text))
+  return to
+}
+try {
+  bin = copied()
+} catch (e) {
+  console.error(\`matomezu: could not copy the executable out of the package, so it runs from there: \${e.message}\`)
+}
+const r = spawnSync(bin, process.argv.slice(2), { stdio: "inherit", env: { ...process.env, MATOMEZU_ENTRY_PID: String(process.pid), MATOMEZU_PACKAGE_DIR: path.join(__dirname, "..") } })
 process.exit(r.status ?? 1)
 `

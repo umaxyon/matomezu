@@ -82,6 +82,7 @@ func (c *serveCmd) Run() error {
 		return err
 	}
 	defer lock.Unlock()
+	go pruneBins()
 
 	webFS, err := screen(c.Web)
 	if err != nil {
@@ -225,7 +226,7 @@ func ensure(h *home.Home, f serverFlags) (*home.Server, error) {
 		}
 		return s, err
 	}
-	exe, err := os.Executable()
+	exe, err := serveExe()
 	if err != nil {
 		return nil, err
 	}
@@ -268,6 +269,37 @@ func ensure(h *home.Home, f serverFlags) (*home.Server, error) {
 			return s, nil
 		}
 	}
+}
+
+// serveExe は、常駐を立てる実行ファイル: 配る版は、npm の入口が書いた今入っている版の印の物（古い版の会話が立て直しても、新しい版で立つ）。
+// 印が無い・その物が無い・開発の版は、自分
+func serveExe() (string, error) {
+	if version != devVersion {
+		if dir, err := home.BinDir(); err == nil {
+			if in, _ := home.ReadInstalled(dir); in != nil {
+				if _, err := os.Stat(in.Exe); err == nil {
+					return in.Exe, nil
+				}
+			}
+		}
+	}
+	return os.Executable()
+}
+
+// pruneBins は、配る版の常駐が立つときに、写した実行ファイルの古い版を消す（今入っている版・自分の版・その 1 つ前は残す）
+func pruneBins() {
+	if version == devVersion {
+		return
+	}
+	dir, err := home.BinDir()
+	if err != nil {
+		return
+	}
+	keep := []string{version}
+	if in, _ := home.ReadInstalled(dir); in != nil {
+		keep = append(keep, in.Version)
+	}
+	home.PruneBins(dir, keep...)
 }
 
 // listenPort は、常駐が待つポート: 選んだ物 chosen（nil は選んでいない）、無ければ保管庫が覚えた物、無ければ既定（開発の保管庫 .dev-home は devPort、ほかは DefaultPort）
