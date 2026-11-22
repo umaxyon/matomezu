@@ -30,7 +30,6 @@ const (
 
 // Dir は matomezu 保管庫フォルダの場所。EnvHome があればそれ、無ければどの OS でもホームの下の .matomezu。
 // Windows で AppData の下に置かないのは、MSIX のパッケージの中（Claude Desktop の Code タブ）から起動されると、AppData の下に新しく作る物がそのパッケージだけの場所（%LOCALAPPDATA%\Packages\<パッケージ>\LocalCache）へ付け替わり、利用者が外で打つ matomezu と別の保管庫になるため（Microsoft Learn「Understanding how packaged desktop apps run on Windows」）。
-// ほかの OS も同じ場所にそろえる
 func Dir() (string, error) {
 	if d := os.Getenv(EnvHome); d != "" {
 		return filepath.Abs(d)
