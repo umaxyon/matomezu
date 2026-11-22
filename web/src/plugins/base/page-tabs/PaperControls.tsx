@@ -5,7 +5,7 @@
 import { useState } from "react"
 import { pageType } from "../../../core/core-catalog"
 import type { GrowChoice, Orientation } from "../../../core/def/paper"
-import type { Book, Page } from "../../../core/schema/book"
+import type { Page, StageLineup } from "../../../core/schema/book"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog } from "../../../ui/store-context"
 import { useBook } from "../../../ui/view-hooks"
@@ -118,7 +118,11 @@ function usePaperForm(
 }
 
 // ページを作るダイアログの紙の入力Form: ブック book の所 place（紙をそろえる相手が決まる）に足す、タイプ type のページ。タイプの規定の既定から始める
-export function usePaperControls(book: Book | undefined, type: string | undefined, place: PaperPlace = "lineup") {
+export function usePaperControls(
+  book: StageLineup | undefined,
+  type: string | undefined,
+  place: PaperPlace = "lineup",
+) {
   const catalog = useCatalog().core
   const known = book && type !== undefined
   return usePaperForm(

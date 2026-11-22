@@ -52,6 +52,7 @@ import {
   LIBRARY_NEW_BOOK_DIALOG,
   LIBRARY_NEW_FOLDER_DIALOG,
   LIBRARY_OPEN,
+  LIBRARY_PAGE_NEW,
   LIBRARY_PICK_MOVE,
   LIBRARY_PICKED,
   LIBRARY_PLACE_OPEN,
@@ -150,6 +151,7 @@ import {
   PAGE_DELETE_DIALOG,
   PAGE_DUPLICATE_COMMAND,
   PAGE_NEW,
+  PAGE_NEW_IN,
   PAGE_OPEN,
   PAGE_SETTINGS,
   PAGE_SETTINGS_DIALOG,
@@ -614,6 +616,8 @@ export const BASE = defineBuiltin(
       LIBRARY_PLACE_OPEN,
       LIBRARY_SCREEN_EXPAND,
       LIBRARY_FOLDER_NEW,
+      LIBRARY_PAGE_NEW,
+      PAGE_NEW_IN,
       LIBRARY_ENTRY_RENAME,
       LIBRARY_ENTRY_TRASH,
       LIBRARY_ENTRY_DUPLICATE,
@@ -868,6 +872,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-place-open": typeof LIBRARY_PLACE_OPEN
     "@matomezu/base:library-screen-expand": typeof LIBRARY_SCREEN_EXPAND
     "@matomezu/base:library-folder-new": typeof LIBRARY_FOLDER_NEW
+    "@matomezu/base:library-page-new": typeof LIBRARY_PAGE_NEW
+    "@matomezu/base:page-new-in": typeof PAGE_NEW_IN
     "@matomezu/base:library-entry-rename": typeof LIBRARY_ENTRY_RENAME
     "@matomezu/base:library-entry-move": typeof LIBRARY_ENTRY_MOVE
     "@matomezu/base:library-tree-move": typeof LIBRARY_TREE_MOVE

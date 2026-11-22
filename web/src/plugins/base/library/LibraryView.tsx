@@ -7,7 +7,7 @@ import { type Naming, namingOf, titleOf } from "../../../core/entries"
 import { HOME_ID, TRASH_ID, UNREADABLE_ID } from "../../../core/folders"
 import type { MatomezuState } from "../../../store/state"
 import { useCommand } from "../../../ui/commands"
-import { useContextMenu } from "../../../ui/context-menu"
+import { useButtonMenu, useContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
 import { usePluginState, useReadPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
 import { useCatalog, useMatomezuState, useReadState } from "../../../ui/store-context"
@@ -15,6 +15,7 @@ import { useActions, useUserSetting } from "../../../ui/view-hooks"
 import { ActionButton, controlClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import {
+  LIBRARY_ADD_PAGE_MENU,
   LIBRARY_CONTENTS_SCOPE,
   LIBRARY_ENTRY_CONTEXT,
   LIBRARY_ENTRY_OPEN,
@@ -24,7 +25,7 @@ import {
   LIBRARY_TREE_SCOPE,
 } from "./commands"
 import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG } from "./dialog"
-import { holderForNew } from "./entries"
+import { holderForNew, holderForNewPage } from "./entries"
 import { FoundView } from "./FoundView"
 import { HistoryButtons } from "./HistoryButtons"
 import { useKeepFocusIn, useLibraryRows, useNameOf } from "./hooks"
@@ -113,6 +114,12 @@ export function LibraryView({ className }: { className?: string } = {}) {
   )
   // 新しいブック・フォルダを作る先（開いているのがブック・バインダなら、それを入れているフォルダ。ゴミ箱なら無い）
   const into = useMatomezuState(s => holderForNew(s.folders, opened))
+  const pageInto = useMatomezuState(s => holderForNewPage(s.folders, opened))
+  const openAddPage = useButtonMenu(LIBRARY_ADD_PAGE_MENU)
+  const addPageOpened = useMatomezuState(s => s.contextMenu?.id === LIBRARY_ADD_PAGE_MENU)
+  const addPage = useRef<HTMLSpanElement>(null)
+  // 開いている間に押したら、閉じるだけにする（外を押した扱いで先に閉じるので、押し始めに開いていたかを覚える）
+  const addPageWasOpened = useRef(false)
   const { openDialog } = useActions()
   const unfolded = unfoldedOf(usePluginState(kit, LIBRARY_UNFOLDED))
   const setUnfolded = useSetPluginState(kit, LIBRARY_UNFOLDED)
@@ -161,7 +168,7 @@ export function LibraryView({ className }: { className?: string } = {}) {
   )
   const handlers: Handlers = {
     drag,
-    menu: (e, row) => openEntryMenu(e, { entry: row.id }),
+    menu: (e, row) => openEntryMenu(e, { entry: row.id, pressed: { x: e.clientX, y: e.clientY } }),
     opened,
     picked,
     shown,
@@ -293,6 +300,28 @@ export function LibraryView({ className }: { className?: string } = {}) {
                     </ActionButton>
                   </>
                 )}
+                {pageInto !== undefined && (
+                  <span
+                    ref={addPage}
+                    onPointerDown={() => {
+                      addPageWasOpened.current = addPageOpened
+                    }}
+                  >
+                    <ActionButton
+                      raised
+                      onClick={() => {
+                        const r = addPage.current?.getBoundingClientRect()
+                        if (r && !addPageWasOpened.current)
+                          openAddPage({ x: r.left, y: r.bottom + 4 }, { folder: pageInto })
+                      }}
+                    >
+                      <span className={styles.create}>
+                        <RowIcon row={{ kind: "page", type: NO_TYPE }} className={styles.icon} />
+                        {t("Create page")}
+                      </span>
+                    </ActionButton>
+                  </span>
+                )}
                 <HistoryButtons />
               </div>
             )}
@@ -301,14 +330,17 @@ export function LibraryView({ className }: { className?: string } = {}) {
             ) : opened === UNREADABLE_ID ? (
               <UnreadableView picked={picked} onPick={setPicked} />
             ) : rows.length === 0 ? (
-              <p className={styles.blank} onContextMenu={e => openFolderMenu(e, { folder: opened })}>
+              <p
+                className={styles.blank}
+                onContextMenu={e => openFolderMenu(e, { folder: opened, pressed: { x: e.clientX, y: e.clientY } })}
+              >
                 {t("Nothing inside")}
               </p>
             ) : (
               <ul
                 className={styles.contents}
                 aria-label={t("Contents of {name}", { name: here })}
-                onContextMenu={e => openFolderMenu(e, { folder: opened })}
+                onContextMenu={e => openFolderMenu(e, { folder: opened, pressed: { x: e.clientX, y: e.clientY } })}
                 // ドラッグのあとの click は、useLibraryDrag が止める
                 {...pick.list}
               >

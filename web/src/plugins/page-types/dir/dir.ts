@@ -1,6 +1,7 @@
 // ディレクトリ構成図のページのタイプ: ページごとに紙を置き、ページのフィールド root（根のフォルダ）から下の中身を、自分のプレゼンテーション（dir）で上から下へ並べて描く。紙に置けるアイテムは無い。
 // 新しいページを作るダイアログは自分の物（根のフォルダの名前を聞く）、ページの設定のダイアログは base の物（ページ名・削除と、説明の見せ方の設定の項目）。道具は自分の組（tools.ts。鉛筆とハンド）。
 // 見た目（テーマと紙の色）と文字の色は base の設定の項目で変えられる。名前は太字と文字の色で装飾できる
+import type { NewPageDialogArgs } from "../../../plugin-api"
 import {
   BACKGROUND_PRINT,
   DIAGRAM_THEME_TYPE,
@@ -39,7 +40,7 @@ export const DIR_PRESENTATION = kit.definePresentation({
 })
 
 // ディレクトリ構成図のページを作るダイアログ（ページ名・根のフォルダの名前）
-export const NEW_DIR_PAGE_DIALOG = kit.defineDialog({ id: "page-new" })
+export const NEW_DIR_PAGE_DIALOG = kit.defineDialogWith<NewPageDialogArgs>()({ id: "page-new" })
 
 // ビューが開く右クリックのメニュー: 紙の画面と、行（右クリックした行を選んでから開く）（ui.tsx で core/catalog.ts に書き足す）
 export const DIR_CONTEXT = kit.name("dir-context")

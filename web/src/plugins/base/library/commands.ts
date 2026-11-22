@@ -1,3 +1,4 @@
+import type { Point } from "../../../core/geom"
 // 書庫の画面のコマンド: 選んでいる物（右クリックのメニューからは右クリックした物、ツリーのキーからはツリーで今いる行）を開く・名前を変える・ゴミ箱に入れる、中にブック・フォルダを作る、
 // ドラッグで落とした物を動かす、矢印キーでツリーの行・右の枠の隣の行へ移る、書庫の履歴を元に戻す・やり直す（library-revert で、最後の画面の履歴の段が変えた所を置き直す）。
 // キーは、書庫の画面（LibraryView）の中に焦点がある間だけ効く（キーの範囲 library。矢印・F2・Delete は、ツリーの中 library-tree と、右の枠の中身の中 library-contents。
@@ -23,7 +24,14 @@ import { kit } from "../kit"
 import { refusalMessage } from "../utils/refusal"
 import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG, LIBRARY_RENAME_DIALOG } from "./dialog"
 import type { Drop } from "./drop"
-import { holderForNew, holdsEntries, placedInBook, placedOutsideBooks, placedOutsideTrash } from "./entries"
+import {
+  holderForNew,
+  holderForNewPage,
+  holdsEntries,
+  placedInBook,
+  placedOutsideBooks,
+  placedOutsideTrash,
+} from "./entries"
 import { ENTRY_DUPLICATE } from "./entry-duplicate"
 import { ENTRY_MOVE, ENTRY_MOVE_OVER, ENTRY_RENAME, FOLDER_CREATE } from "./entry-move"
 import { ENTRY_TRASH } from "./entry-trash"
@@ -40,6 +48,7 @@ import {
   treeRowsOf,
   unfoldedOf,
 } from "./outline"
+import { PAGE_CREATE } from "./page-create"
 import { LIBRARY_REVERT, libraryRevertArgs } from "./revert"
 import { unreadableShownIn } from "./show-unreadable"
 import { LIBRARY_COLUMNS, LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_UNFOLDED } from "./state"
@@ -84,18 +93,22 @@ export const LIBRARY_REDO = kit.defineScreenCommand({
 // 書庫の画面の右クリックのメニュー: 行（ツリーの行・右の枠のアイコン）のメニューと、右の枠の何も無い所のメニュー（受け取るのは、開いているフォルダ）
 export const LIBRARY_ENTRY_CONTEXT = kit.name("library-entry-context")
 export const LIBRARY_FOLDER_CONTEXT = kit.name("library-folder-context")
-// LibraryView が開く右クリックのメニュー（LibraryView を描くウィジェットが、contextMenus に書く）
-export const LIBRARY_CONTEXT_MENUS = [LIBRARY_ENTRY_CONTEXT, LIBRARY_FOLDER_CONTEXT] as const
+// 「ページ新規作成」を押して開く、ページのタイプの一覧のメニュー（受け取るのは、作る先のフォルダ。行はメニューが自分で出す）
+export const LIBRARY_ADD_PAGE_MENU = kit.name("library-add-page-menu")
+// LibraryView が開くメニュー（LibraryView を描くウィジェットが、contextMenus に書く）
+export const LIBRARY_CONTEXT_MENUS = [LIBRARY_ENTRY_CONTEXT, LIBRARY_FOLDER_CONTEXT, LIBRARY_ADD_PAGE_MENU] as const
+// 右クリックした物を受け取るメニュー
+const NAMING_MENUS: readonly string[] = [LIBRARY_ENTRY_CONTEXT, LIBRARY_FOLDER_CONTEXT]
 
 // コマンドが受け取る物: エントリ entry か、フォルダ folder（何も無い所のメニューから）か、ツリーで今いる行（at）。
-// 書庫の右クリックのメニューが受け取る物も、この形
-type Named = { entry: string } | { folder: string } | { at: "tree" }
+// 書庫の右クリックのメニューが受け取る物も、この形（pressed は、メニューを開いた画面の位置。続けてメニューを開くコマンドが使う）
+type Named = ({ entry: string } | { folder: string } | { at: "tree" }) & { pressed?: Point }
 
 // 名指した物 named。無ければ、開いている書庫の右クリックのメニューが受け取った物
 function given(ctx: ScreenCommandContext, named: Named | undefined): Named | undefined {
   if (named) return named
   const menu = ctx.contextMenu
-  return menu && (LIBRARY_CONTEXT_MENUS as readonly string[]).includes(menu.id) ? (menu.target as Named) : undefined
+  return menu && NAMING_MENUS.includes(menu.id) ? (menu.target as Named) : undefined
 }
 
 const openedIn = (ctx: ScreenCommandContext): string => openedFolderOf(ctx.folders, ctx.pluginState(LIBRARY_FOLDER))
@@ -188,6 +201,27 @@ export const LIBRARY_FOLDER_NEW = kit.defineScreenCommand({
     if (into !== undefined) a.openDialog(LIBRARY_NEW_FOLDER_DIALOG.id, { into })
   },
   when: ctx => holder(ctx) !== undefined,
+})
+
+// 新しいページを作る先のフォルダ: エントリを受け取ったら、それが書庫ホーム・フォルダ・ブック・ブックの外のバインダのとき、その中。
+// フォルダを受け取ったら（何も無い所のメニュー）、ボタンと同じ（holderForNewPage）
+const pageHolder = (ctx: ScreenCommandContext, named?: Named): string | undefined => {
+  const to = given(ctx, named)
+  if (to && "folder" in to) return holderForNewPage(ctx.folders, to.folder)
+  const entry = entryOf(ctx, named)
+  return entry !== undefined && holderForNewPage(ctx.folders, entry) === entry ? entry : undefined
+}
+
+// ページのタイプの一覧のメニューを、右クリックのメニューを開いた位置に開く（選んだタイプのページを作るダイアログは、メニューの行が開く）
+export const LIBRARY_PAGE_NEW = kit.defineScreenCommand({
+  id: "library-page-new",
+  title: "New page…",
+  performs: [PAGE_CREATE.id], // メニューの行が開くダイアログが行う
+  run: (ctx, a, named: Named | undefined) => {
+    const folder = pageHolder(ctx, named)
+    if (folder !== undefined) a.openContextMenu(LIBRARY_ADD_PAGE_MENU, { folder }, named?.pressed ?? { x: 0, y: 0 })
+  },
+  when: ctx => pageHolder(ctx) !== undefined,
 })
 
 export const LIBRARY_ENTRY_RENAME = kit.defineScreenCommand({

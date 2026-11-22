@@ -379,6 +379,7 @@ test("matomezu/ui が出す名前", () => {
     "useMenu",
     "useMenuCommand",
     "useMessages",
+    "useNewPage",
     "useOpenLeftSidePanel",
     "useOpenRightSidePanel",
     "useOpenSettings",

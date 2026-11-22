@@ -26,7 +26,7 @@ import {
   type HomeOrFolder,
   type Library,
 } from "../../../core/folders"
-import { foldersOver, inTrash, isKeptSystemFolder } from "../../../core/folders-tree"
+import { atOutsideBinderPlace, foldersOver, inTrash, isKeptSystemFolder } from "../../../core/folders-tree"
 import { typeAllows } from "../../../core/inspect"
 
 // フォルダ into の直下に在る（か、そこへ入れる）エントリ entry（種類 kind）の、そのフォルダのほかの物と重ならない名前（重なっていれば「名前 2」から番号を付ける。重ならなければ今の名前）。
@@ -103,6 +103,23 @@ export function movesInto(catalog: CoreCatalog, { pages, folders }: Library, ent
 // ゴミ箱とその中なら undefined
 export const holderForNew = (folders: Folders, opened: string): string | undefined =>
   holdsEntries(folders, opened) ? opened : foldersOver(folders, opened).find(f => holdsEntries(folders, f.id))?.id
+
+// 新しいページを作る先: フォルダ opened が、書庫ホーム・フォルダ・ブック・ブックの外のバインダ（どれもゴミ箱の外）なら、そこ。
+// ほか（ブックの中のバインダ）は、それを入れている一番近い、ページを作れるフォルダ。ゴミ箱とその中なら undefined
+export const holderForNewPage = (folders: Folders, opened: string): string | undefined => {
+  const takes = (id: string): boolean => {
+    const role = folders[id]?.folderRole
+    if (role === "book") return placedOutsideTrash(folders, id) !== undefined
+    return role === "binder" ? atOutsideBinderPlace(folders, id) : holdsEntries(folders, id)
+  }
+  return takes(opened) ? opened : foldersOver(folders, opened).find(f => takes(f.id))?.id
+}
+
+// 作る先 into に、タイプ type のページを作るときのフォルダ: into がブックの外のバインダで、そのバインダのタイプでなければ、バインダを入れているフォルダ。ほかは into
+export const folderForType = (folders: Folders, into: string, type: string): string | undefined => {
+  const row = folders[into]
+  return row?.folderRole === "binder" && row.pageType !== type ? holderForNew(folders, into) : into
+}
 
 // フォルダ into の直下に在るエントリ entry（種類 kind）の名前が、同じフォルダのほかの物と重なっていれば、番号を付けた名前（「名前 2」から）にした書庫。重ならなければ library のまま
 export function numbered(

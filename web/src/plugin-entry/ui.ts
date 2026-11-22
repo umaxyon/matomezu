@@ -123,6 +123,7 @@ export {
   useLeftSidePanel,
   useMailboxPanel,
   useMarkdownDocument,
+  useNewPage,
   useOpenLeftSidePanel,
   useOpenRightSidePanel,
   useOpenSettings,

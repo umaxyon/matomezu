@@ -9,7 +9,9 @@ import { useMessages } from "../../../ui/i18n"
 import type { ContextMenuRow } from "../../../ui/plugin"
 import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
-import { ADD_PAGE_MENU, PAGE_NEW } from "."
+import { folderForType, typeLets } from "../library/entries"
+import { PAGE_ADD } from "../pages/page-add"
+import { ADD_PAGE_MENU, PAGE_NEW, PAGE_NEW_IN } from "."
 import { FileIcon } from "./FileIcon"
 import styles from "./PageTabs.module.css"
 
@@ -66,5 +68,28 @@ export function useAddPageRows({ first }: { first: string | null }): readonly Co
       icon: icons.get(type) ?? <FileIcon />,
       iconLook: "picture",
     }
+  })
+}
+
+// 書庫の画面のメニュー library-add-page-menu の行: タイプごとに 1 行（そのタイプのページを、フォルダ folder に作るコマンド page-new-in）。
+// タイプがページを足すアクションを外していれば出さない。folder がブックの外のバインダなら、そのバインダのタイプのページはその中に、ほかのタイプはそれを入れているフォルダに作る
+export function useAddPageInRows({ folder }: { folder: string }): readonly ContextMenuRow[] {
+  const t = useMessages(kit)
+  const catalog = useCatalog().core
+  const icons = useUiCatalog().pageTypeIcons
+  const folders = useMatomezuState(s => s.folders)
+  return typesToAdd(catalog, null).flatMap(type => {
+    const def = catalog.pageTypes.get(type)
+    const into = folderForType(folders, folder, type)
+    if (!def || into === undefined || !typeLets(catalog, PAGE_ADD.id, type)) return []
+    return [
+      {
+        command: PAGE_NEW_IN.id,
+        args: { type, folder: into },
+        label: t(def.title),
+        icon: icons.get(type) ?? <FileIcon />,
+        iconLook: "picture" as const,
+      },
+    ]
   })
 }

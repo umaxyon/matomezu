@@ -1,68 +1,44 @@
-// ページを作るダイアログ: タイプ args.type のページの名前と紙（紙・向き・伸びるか。PaperControls.tsx）を決めて、そのステージのブックに足し（アクション page-add）、そのページを開く。
-// まとまるタイプのページは、args.binder のバインダに足す。binder が無ければ、名前を聞いて新しいバインダ（そのページ 1 枚入り）を作る
+// ページを作るダイアログ: タイプ args.type のページの名前と紙（紙・向き・伸びるか。PaperControls.tsx）を決めて、作る先（useNewPage.tsx。ステージのブックか、書庫のフォルダ）に作る。
+// まとまるタイプのページは、入れるバインダが決まっていれば、そのバインダに足す。決まっていなければ、名前を聞いて新しいバインダ（そのページ 1 枚入り）を作る
 
 import { useState } from "react"
-import { lineupOf, pagesIn } from "../../../core/book"
-import { pageType } from "../../../core/core-catalog"
-import { freeTitle } from "../../../core/entries"
-import type { Book } from "../../../core/schema/book"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
 import { useCatalog } from "../../../ui/store-context"
-import { useBook } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
 import { controlClass, Field, Form } from "../dialog-host/FormParts"
 import { kit } from "../kit"
-import { nextPageTitle } from "../pages/pages"
 import type { NewPageDialogArgs } from "."
 import { usePaperControls } from "./PaperControls"
-import { useAddPage } from "./useAddPage"
+import { type NewPage, useNewPage } from "./useNewPage"
 
 export function NewPageDialog({ args, onClose }: DialogProps<NewPageDialogArgs>) {
   const t = useMessages(kit)
-  const book = useBook() ?? undefined
-  const catalog = useCatalog().core
-  const type = catalog.pageTypes.get(args.type)
-  if (!book || !type) return null
+  const to = useNewPage(args)
+  const type = useCatalog().core.pageTypes.get(args.type)
+  if (!to.lineup || !type) return null
   return (
     <Dialog title={t("New {type}", { type: t(type.title) })} onClose={onClose}>
-      <NewPageForm book={book} args={args} onDone={onClose} />
+      <NewPageForm to={to} type={args.type} onDone={onClose} />
     </Dialog>
   )
 }
 
-function NewPageForm({ book, args, onDone }: { book: Book; args: NewPageDialogArgs; onDone: () => void }) {
+function NewPageForm({ to, type, onDone }: { to: NewPage; type: string; onDone: () => void }) {
   const t = useMessages(kit)
-  const catalog = useCatalog().core
-  const addPage = useAddPage()
-  const type = pageType(catalog, args.type)
-  // 新しいバインダを作るか（まとまるタイプで、入れるバインダを渡されていない）
-  const newBinder = type.grouping === "binder" && args.binder === undefined
-  const [title, setTitle] = useState(() =>
-    newBinder
-      ? freeTitle(
-          t(type.title),
-          lineupOf(book).map(e => e.title),
-        )
-      : nextPageTitle(book, t, args.binder === undefined ? undefined : pagesIn(book, args.binder).map(p => p.title)),
-  )
-  const paper = usePaperControls(
-    book,
-    args.type,
-    newBinder ? "new-binder" : args.binder === undefined ? "lineup" : { binder: args.binder },
-  )
-  const into = newBinder
-    ? { into: { newBinder: title } }
-    : args.binder === undefined
-      ? {}
-      : { into: { binder: args.binder } }
+  const { place, titles } = to
+  // 新しいバインダを作るか（まとまるタイプで、入れるバインダが決まっていない）
+  const newBinder = place === "new-binder"
+  const [title, setTitle] = useState(newBinder ? titles.binder : titles.page)
+  const paper = usePaperControls(to.lineup ?? undefined, type, place)
+  const into = newBinder ? { into: { newBinder: title } } : place === "lineup" ? {} : { into: place }
   return (
     <Form
       submit={t("Create")}
       ready={title.trim() !== ""}
       onSubmit={() => {
-        const named = newBinder ? { title: nextPageTitle(book, t, []) } : { title }
-        if (addPage({ type: args.type, ...named, ...paper.patch, ...into })) onDone()
+        const named = newBinder ? { title: titles.page } : { title }
+        if (to.add({ type, ...named, ...paper.patch, ...into })) onDone()
       }}
     >
       <Field label={t(newBinder ? "Name" : "Page name")}>

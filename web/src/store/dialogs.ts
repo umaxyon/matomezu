@@ -37,6 +37,14 @@ export function shapeDialogs(def: ShapeItemDef): {
   return (def.dialogs ?? {}) as { add?: DialogTaking<ShapeAddArgs>; edit?: DialogTaking<ShapeEditArgs> }
 }
 
+// ページを作るダイアログが受ける値: 作るページのタイプと、作る先。作る先は、ステージのブックなら書かず（まとまるタイプのページを今あるバインダに足すときだけ、binder にその id）、
+// 書庫のフォルダなら folder にその id（書庫ホーム・フォルダ・ブック・ブックの外のバインダ）。ダイアログは、受けた値をそのまま useNewPage に渡して作る
+export interface NewPageDialogArgs {
+  type: string
+  binder?: string
+  folder?: string
+}
+
 // ページの設定のダイアログが受ける値
 export interface PageSettingsArgs {
   page: string

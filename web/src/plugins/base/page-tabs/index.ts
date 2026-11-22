@@ -7,8 +7,9 @@ import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import { ANY_PAGE_TYPE } from "../../../core/def/action"
 import { binderOf, editingBackground } from "../../../core/stage"
 import { type CommandContext, NO_BOOK, NO_OUTSIDE_BINDER } from "../../../store/commands/def"
-import type { DialogTaking, PageSettingsArgs } from "../../../store/dialogs"
+import type { DialogTaking, NewPageDialogArgs, PageSettingsArgs } from "../../../store/dialogs"
 import { kit } from "../kit"
+import { PAGE_CREATE } from "../library/page-create"
 import { PAGE_LOCK, PAGE_UNLOCK } from "../lock"
 import {
   BINDER_DUPLICATE,
@@ -31,11 +32,7 @@ declare module "../../../core/catalog" {
   }
 }
 
-// ページを作るダイアログが受ける値: 作るページのタイプと、入れるバインダ（まとまるタイプのページを、今あるバインダに足すとき。無ければ新しいバインダを作る）
-export interface NewPageDialogArgs {
-  type: string
-  binder?: string
-}
+export type { NewPageDialogArgs }
 
 export const NEW_PAGE_DIALOG = kit.defineDialogWith<NewPageDialogArgs>()({ id: "page-new" })
 
@@ -94,6 +91,18 @@ export const PAGE_NEW = kit.defineCommand({
       a.openDialog(pageDialog(ctx.catalog, args.type, "add"), args)
   },
   when: ctx => ctx.book !== NO_BOOK,
+})
+
+// タイプ type のページを、書庫のフォルダ folder（書庫ホーム・フォルダ・ブック・ブックの外のバインダ）に作るダイアログを開く
+export const PAGE_NEW_IN = kit.defineScreenCommand({
+  id: "page-new-in",
+  title: "New page",
+  performs: [PAGE_CREATE.id], // 開いたダイアログが行う
+  run: (ctx, a, args: { type: string; folder: string }) => {
+    if (ctx.catalog.pageTypes.has(args.type)) a.openDialog(pageDialog(ctx.catalog, args.type, "add"), args)
+  },
+  performsWith: (_ctx, args) => [{ action: PAGE_CREATE.id, args }],
+  when: () => true,
 })
 
 export const PAGE_OPEN = kit.defineCommand({
