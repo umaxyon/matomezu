@@ -124,8 +124,11 @@ export function distinctBooks(books: readonly Book[]): { books: Book[]; warnings
 
 // 残したページ 1 枚（形を確かめる前）を今の機能台帳で読んだ物の覚え: 読めたら読んだページ、読めなければその理由の warning の番号
 // （同じ値は覚えておき、読めるかの確かめとタイプの決まりの確かめを繰り返さない）
+// 覚えは形ごとに分ける（同じページの値が、ブックの外のページ 1 枚としても、ブックかバインダの中のページとしても確かめられる）
 const pageChecks = new WeakMap<CoreCatalog, WeakMap<object, AnyPage | UnreadableCode>>()
-const pageChecksOf = (catalog: CoreCatalog) => keptFor(pageChecks, catalog)
+const stageEntryPageChecks = new WeakMap<CoreCatalog, WeakMap<object, AnyPage | UnreadableCode>>()
+const pageChecksOf = (catalog: CoreCatalog, stageEntry = false) =>
+  keptFor(stageEntry ? stageEntryPageChecks : pageChecks, catalog)
 
 // 機能台帳 catalog の覚え（無ければ作る。機能台帳を組み直すと、新しい台帳の覚えになる）
 function keptFor<T>(all: WeakMap<CoreCatalog, WeakMap<object, T>>, catalog: CoreCatalog): WeakMap<object, T> {
@@ -160,34 +163,33 @@ function wholeBook(catalog: CoreCatalog, saved: unknown): Book | null {
     : null
 }
 
-// ページ 1 枚 page が、機能台帳のそのタイプのページの形に合い、タイプの決まりと、つなぐものの定義の決まりを守っているか（ブックに入っていないページの確かめ）
-export const pageSettles = (catalog: CoreCatalog, page: object): boolean => pageCheck(catalog, page) === "readable"
+// ページ 1 枚 page が、機能台帳のそのタイプのページの形に合い、タイプの決まりと、つなぐものの定義の決まりを守っているか（ブックに入っていないページの確かめ）。
+// stageEntry は、ブックの外のページ 1 枚か（true なら、ステージエントリが持つ設定の項目の値も受ける形。ブックの外のバインダの中のページは false）
+export const pageSettles = (catalog: CoreCatalog, page: object, stageEntry: boolean): boolean =>
+  typeof pageRead(catalog, page, stageEntry) !== "string"
 
-// 残したページ 1 枚 page を、そのタイプのページの形で読んだページ（ブックに入っていないページを読む。読めなければ undefined）
-export function readablePage(catalog: CoreCatalog, page: object): AnyPage | undefined {
-  const read = pageRead(catalog, page)
+// 残したページ 1 枚 page を、そのタイプのページの形で読んだページ（ブックに入っていないページを読む。読めなければ undefined）。stageEntry は pageSettles と同じ
+export function readablePage(catalog: CoreCatalog, page: object, stageEntry: boolean): AnyPage | undefined {
+  const read = pageRead(catalog, page, stageEntry)
   return typeof read === "string" ? undefined : read
 }
 
-function pageCheck(catalog: CoreCatalog, page: object): UnreadableCode | "readable" {
-  const read = pageRead(catalog, page)
-  return typeof read === "string" ? read : "readable"
-}
-
-// 残したページ 1 枚（形を確かめる前）を、そのタイプのページの形で読んだページ。読めなければ、その理由の warning の番号（覚えから引く）
-function pageRead(catalog: CoreCatalog, page: object): AnyPage | UnreadableCode {
-  const kept = pageChecksOf(catalog)
+// 残したページ 1 枚（形を確かめる前）を、そのタイプのページの形で読んだページ。読めなければ、その理由の warning の番号（覚えから引く）。
+// stageEntry が true なら、ブックの外のページ 1 枚の形で読む
+function pageRead(catalog: CoreCatalog, page: object, stageEntry = false): AnyPage | UnreadableCode {
+  const kept = pageChecksOf(catalog, stageEntry)
   const hit = kept.get(page)
   if (hit) return hit
-  const made = readPage(catalog, page)
+  const made = readPage(catalog, page, stageEntry)
   kept.set(page, made)
   return made
 }
 
-function readPage(catalog: CoreCatalog, page: object): AnyPage | UnreadableCode {
+function readPage(catalog: CoreCatalog, page: object, stageEntry: boolean): AnyPage | UnreadableCode {
   const type = (page as { type?: unknown }).type
   const def = typeof type === "string" ? catalog.pageTypes.get(type) : undefined
-  const schema = typeof type === "string" ? catalog.pageSchemas.get(type) : undefined
+  const schemas = stageEntry ? catalog.stageEntryPageSchemas : catalog.pageSchemas
+  const schema = typeof type === "string" ? schemas.get(type) : undefined
   const parsed = schema?.safeParse(page)
   if (!def || !parsed) return "W027"
   if (!parsed.success) return "W028"
@@ -212,20 +214,25 @@ const typeIn = (raw: Readonly<Record<string, unknown>>, key: "type" | "pageType"
   typeof raw[key] === "string" ? { type: raw[key] as string } : {}
 
 // 残したページ 1 枚 raw（形を確かめる前）を今の機能台帳で読んだページか、読めない訳の番号（ページの種類でなければ、形に合わない W028）
-const judgePage = (catalog: CoreCatalog, raw: Readonly<Record<string, unknown>>): AnyPage | UnreadableCode =>
-  raw.kind === "page" ? pageRead(catalog, raw) : "W028"
+const judgePage = (
+  catalog: CoreCatalog,
+  raw: Readonly<Record<string, unknown>>,
+  stageEntry = false,
+): AnyPage | UnreadableCode => (raw.kind === "page" ? pageRead(catalog, raw, stageEntry) : "W028")
 
 // 残したバインダ 1 つ raw（並びのエントリの形で、中のページは中身ごと。形を確かめる前）を今の機能台帳で読んだ物。
 // バインダごと読めなければ、その訳: 形に合わない W028・入れるタイプが機能台帳に無い W027・読めるページだけでバインダの決まりを守らない W029。
-// 読めれば、読めるページだけのバインダと、中の読めないページ
+// 読めれば、読めるページだけのバインダと、中の読めないページ。stageEntry は、ブックの外のバインダか（true なら、ステージエントリが持つ設定の項目の値を受ける。
+// ブックの中のバインダは、機能台帳に在る設定の項目の値を持てば形に合わない）
 type BinderRead = { code: UnreadableCode; type?: string } | { binder: BinderEntry; inner: Lost[] }
-function judgeBinder(catalog: CoreCatalog, raw: Readonly<Record<string, unknown>>): BinderRead {
+function judgeBinder(catalog: CoreCatalog, raw: Readonly<Record<string, unknown>>, stageEntry = false): BinderRead {
   const pages = Array.isArray(raw.lineup) ? (raw.lineup as unknown[]) : undefined
   const { kind: _, ...fields } = raw
   const refs = pages?.map(p => (isRecord(p) && typeof p.id === "string" ? { kind: "page", id: p.id } : p))
   const row = binderFolderOf({ ...fields, folderRole: "binder", lineup: refs })
   if (!row || !pages?.every(isRecord)) return { code: "W028" }
-  const settings = catalog.outermostSettingsSchema.safeParse(row.settings)
+  const shape = stageEntry ? catalog.outermostSettingsSchema : catalog.innerBinderSettingsSchema
+  const settings = shape.safeParse(row.settings)
   if (!settings.success) return { code: "W028" }
   if (!catalog.pageTypes.has(row.pageType)) return { code: "W027", type: row.pageType }
   const inner: Lost[] = []
@@ -253,15 +260,15 @@ function judgeBinder(catalog: CoreCatalog, raw: Readonly<Record<string, unknown>
   return binderHolds(catalog, binder) ? { binder, inner } : { code: "W029" }
 }
 
-// ブックの外（書庫ホーム・ゴミ箱・フォルダの直下）のページ 1 枚 raw を読んだページか、読めない訳の番号: judgePage に、まとまるタイプ（grouping が binder）のページはバインダの外に置かない決まりを足した物（破れば W029）
+// ブックの外（書庫ホーム・ゴミ箱・フォルダの直下）のページ 1 枚 raw を読んだページか、読めない訳の番号: ブックの外のページ 1 枚の形で読む judgePage に、まとまるタイプ（grouping が binder）のページはバインダの外に置かない決まりを足した物（破れば W029）
 function judgeOutsidePage(catalog: CoreCatalog, raw: Readonly<Record<string, unknown>>): AnyPage | UnreadableCode {
-  const read = judgePage(catalog, raw)
+  const read = judgePage(catalog, raw, true)
   return typeof read === "string" || pageHoldsOutside(catalog, read) ? read : "W029"
 }
 
 // ブックの外のバインダ 1 つ raw を読んだ物: judgeBinder に、空でない決まり（binderHoldsOutside）を足した物。空なら W029、中のページが 1 枚も読めなければ、最初のページの訳でバインダごと読めない
 function judgeOutsideBinder(catalog: CoreCatalog, raw: Readonly<Record<string, unknown>>): BinderRead {
-  const read = judgeBinder(catalog, raw)
+  const read = judgeBinder(catalog, raw, true)
   if ("code" in read || binderHoldsOutside(catalog, read.binder)) return read
   const [first] = read.inner
   if (!first) return { code: "W029" }
@@ -337,10 +344,12 @@ function missingWarnings(missing: readonly string[], params: Readonly<Record<str
   return first ? [warning("W007", splitId(first).owner ?? "", { ...params, missing: missing.join(", ") })] : []
 }
 
-// ブックの外のページ saved（置き場所から読んだまま）のうち、読めるが、機能台帳に無いアイテムや設定の項目を持つページの warning W007（ページごとに 1 つ。読めないページには出さない）
+// ブックの外のページ saved（置き場所から読んだまま）のうち、読めるが、機能台帳に無いアイテムや設定の項目を持つページの warning W007（ページごとに 1 つ。読めないページには出さない）。
+// 置き場所を受けないので、ブックの外のページ 1 枚の形で読む（ブックの外のバインダの中のページが置き場所に合わない値を持つかは、書庫を読む所 readLibrary が決める）
 export function checkOutsidePages(catalog: CoreCatalog, saved: readonly unknown[]): Warning[] {
   return saved.flatMap(p => {
-    const page = typeof p === "object" && p !== null ? (readablePage(catalog, p) as ItemPage | undefined) : undefined
+    const page =
+      typeof p === "object" && p !== null ? (readablePage(catalog, p, true) as ItemPage | undefined) : undefined
     if (!page) return []
     const params = { kind: "page", id: page.id, title: page.title }
     return missingWarnings(missingIn(catalog, [], [page]), params)

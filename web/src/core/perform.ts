@@ -382,8 +382,9 @@ function performOutsidePage(
   if (!next) return { ok: false, reason: "refused" }
   const permission = broke(next)
   if (permission) return { ok: false, reason: "denied", permission }
-  // ページのタイプは作ったあと変えない
-  if (next.type !== held.type || !pageSettles(ctx.catalog, next)) return { ok: false, reason: "refused" }
+  // ページのタイプは作ったあと変えない。ステージエントリが持つ設定の項目の値を受けるのは、バインダに入っていないページだけ
+  if (next.type !== held.type || !pageSettles(ctx.catalog, next, folders.length === 0))
+    return { ok: false, reason: "refused" }
   return { ok: true, next, result: ran.result as never }
 }
 

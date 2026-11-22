@@ -23,7 +23,8 @@ function pagesOfAnnotated(catalog: CoreCatalog, p: Annotated): readonly ItemPage
     const [book] = restoreBooks(catalog, [p.book])
     return book ? pagesOf(book) : null
   }
-  const read = (page: unknown) => (typeof page === "object" && page !== null ? readablePage(catalog, page) : undefined)
+  const read = (page: unknown) =>
+    typeof page === "object" && page !== null ? readablePage(catalog, page, p.kind === "page") : undefined
   const pages = (p.kind === "binder" ? p.pages : [p.page]).map(read).filter(page => page !== undefined)
   return pages.length > 0 ? (pages as ItemPage[]) : null
 }

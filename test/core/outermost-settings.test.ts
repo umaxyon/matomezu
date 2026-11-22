@@ -1,8 +1,10 @@
 // ステージエントリが持つ設定の項目（holder が "outermost" の項目）の値: 持てる物の形（ページ・バインダの settings）と、
 // ブックかバインダの中へ入った物から、書庫が対象のアクションのあとに値を消すこと（core/perform-library.ts の normalizedLibrary）
 import { expect, test } from "bun:test"
+import { z } from "zod"
 import { USER } from "../../web/src/core/actor"
 import { outsideHolds, readLibrary, unreadableUnitsOf } from "../../web/src/core/book"
+import { defineAction } from "../../web/src/core/def/action"
 import { HOME_ID, type HomeFolder, type Library, NO_CHANGES, type PlainFolder } from "../../web/src/core/folders"
 import { withChanges } from "../../web/src/core/folders-changes"
 import { outsideBinderIn } from "../../web/src/core/folders-tree"
@@ -40,12 +42,36 @@ test("ページとバインダの設定の項目の値の形", () => {
       [],
     ],
     [
-      "ブックの中のページとバインダの中のページも、形としては受ける",
-      worldRows(
-        [testBook("b1", "B", [drawingPage("p1", { settings: held })])],
-        [testBinder("n1", "束", SLIDE, slide("s1", "1", { settings: held }))],
-      ),
-      [],
+      "ブックの中のページは、ステージエントリが持つ項目の値を持てば読めない（ブックは読める）",
+      worldRows([testBook("b1", "B", [drawingPage("p0"), drawingPage("p1", { settings: held })])]),
+      [["p1", "W028"]],
+    ],
+    [
+      "ブックの中のバインダは、ステージエントリが持つ項目の値を持てば読めない",
+      worldRows([
+        testBook("b1", "B", [drawingPage("p0"), withSettings(testBinder("f1", "束", SLIDE, slide("s1", "1")), held)]),
+      ]),
+      [["f1", "W028"]],
+    ],
+    [
+      "ブックの中のバインダの中のページは、ステージエントリが持つ項目の値を持てば読めない（バインダは読める）",
+      worldRows([
+        testBook("b1", "B", [
+          drawingPage("p0"),
+          testBinder("f1", "束", SLIDE, slide("s1", "1"), slide("s2", "2", { settings: held })),
+        ]),
+      ]),
+      [["s2", "W028"]],
+    ],
+    [
+      "ブックの外のバインダの中のページは、ステージエントリが持つ項目の値を持てば読めない（バインダは読める）",
+      worldRows([], [testBinder("n1", "束", SLIDE, slide("s1", "1"), slide("s2", "2", { settings: held }))]),
+      [["s2", "W028"]],
+    ],
+    [
+      "中のページがどれも読めないブックの外のバインダは、バインダごと読めない",
+      worldRows([], [testBinder("n1", "束", SLIDE, slide("s1", "1", { settings: held }))]),
+      [["n1", "W028"]],
     ],
     [
       "タイプが選んでいないページの項目を持つページは読めない",
@@ -116,14 +142,14 @@ const ctxOf = () =>
   }) as unknown as Parameters<typeof performIn>[4]
 
 // 書庫ホームの直下に、ブック b1（ページ p1）・値を持つブックの外のページ x1（ページの項目の値と、機能台帳に無い項目の値も持つ）・
-// 値を持つブックの外のバインダ n1（中に s1・s2）・値を持つ 1 枚だけのブックの外のバインダ m1（中に t1。t1 も値を持つ）・フォルダ a・c を置いた世界
+// 値を持つブックの外のバインダ n1（中に s1・s2）・値を持つ 1 枚だけのブックの外のバインダ m1（中に t1）・フォルダ a・c を置いた世界
 function worldOf(x1: object = {}): World {
   const library = libraryWith(
     [testBook("b1", "ブック", [drawingPage("p1")])],
     [
       drawingPage("x1", { title: "外", settings: { [FLOW]: "row", [ROUTE]: "elbow", [GONE]: "wide" }, ...x1 } as never),
       withSettings(testBinder("n1", "束", SLIDE, slide("s1", "1"), slide("s2", "2")), held),
-      withSettings(testBinder("m1", "一枚", SLIDE, slide("t1", "単", { settings: held })), held),
+      withSettings(testBinder("m1", "一枚", SLIDE, slide("t1", "単")), held),
     ],
   )
   const home = library.folders[HOME_ID] as HomeFolder
@@ -166,9 +192,9 @@ test("ブックかバインダの中へ入った物から、ステージエン�
     ["外のページをブックへ", [["entry-move", { entry: "x1", into: "b1" }]], "x1", { [ROUTE]: "elbow", [GONE]: "wide" }],
     ["外のバインダをブックへ", [["entry-move", { entry: "n1", into: "b1" }]], "n1", undefined],
     [
-      "1 枚だけのバインダのページを、ほかの外のバインダへ",
+      "1 枚だけのバインダのページを、ほかの外のバインダへ（空になって消えるバインダの値）",
       [["entry-move", { entry: "t1", into: "n1" }]],
-      "t1",
+      "m1",
       undefined,
     ],
     [
@@ -256,4 +282,55 @@ test("書庫を変えた結果の確かめ（outsideHolds）は、ブックの�
   expect(outsideHolds(CORE_CATALOG, was, written({ [GONE]: 1 }))).toBe(true)
   expect(outsideHolds(CORE_CATALOG, was, written({ [FLOW]: "diagonal" }))).toBe(false)
   expect(outsideHolds(CORE_CATALOG, was, written({ [ROUTE]: "elbow" }))).toBe(false)
+})
+
+test("ページ・ブックが対象のアクションが、ブックかバインダの中の物にステージエントリが持つ項目の値を書くと断られる。ブックの外のページ 1 枚は受ける", () => {
+  const HOLD = "@ex/hold:page-hold"
+  const HOLD_BINDER = "@ex/hold:binder-hold"
+  const common = { title: "@matomezu/drawing:Drawing", aiDescription: "", args: z.strictObject({}) } as const
+  const holdPage = defineAction({
+    ...common,
+    id: HOLD,
+    target: "page",
+    attach: { pages: true },
+    permissionScope: "page",
+    run: page => ({ next: { ...page, settings: held }, result: {} }),
+  })
+  const holdBinder = defineAction({
+    ...common,
+    id: HOLD_BINDER,
+    target: "book",
+    attach: { books: true },
+    permissionScope: { pages: "pages", denied: "skip" },
+    args: z.object({ pages: z.literal("all"), key: z.string() }),
+    run: (book, { key }) => ({
+      next: {
+        ...book,
+        lineup: book.lineup.map(e => (e.kind === "binder" ? { ...e, settings: { [key]: "row" } as never } : e)),
+      },
+      result: {},
+    }),
+  })
+  const catalog = {
+    ...CORE_CATALOG,
+    actions: new Map<string, unknown>([...CORE_CATALOG.actions, [HOLD, holdPage], [HOLD_BINDER, holdBinder]]),
+  } as unknown as typeof CORE_CATALOG
+  const library = libraryWith(
+    [testBook("b1", "ブック", [drawingPage("p1"), testBinder("f1", "中の束", SLIDE, slide("q1", "1"))])],
+    [drawingPage("x1", { title: "外" }), testBinder("n1", "束", SLIDE, slide("s1", "1"))],
+  )
+  const world: World = { ...library, settings: {}, annotations: {}, records: {}, counters: {} }
+  const ok = (id: string, on: object, key: string = FLOW) =>
+    performIn(world, id, id === HOLD ? {} : { pages: "all", key }, on as never, { ...ctxOf(), catalog } as never).ok
+  // 機能台帳に無い項目の値なら、ブックの中のバインダも受ける
+  expect(ok(HOLD_BINDER, { book: "b1" }, GONE)).toBe(true)
+  const rows: [string, string, object, boolean][] = [
+    ["ブックの中のページ", HOLD, { page: "p1" }, false],
+    ["ブックの中のバインダの中のページ", HOLD, { page: "q1" }, false],
+    ["ブックの外のバインダの中のページ", HOLD, { page: "s1" }, false],
+    ["ブックの外のページ 1 枚", HOLD, { page: "x1" }, true],
+    ["ブックの中のバインダ", HOLD_BINDER, { book: "b1" }, false],
+    ["ブックの外のバインダ（値は、書庫が対象のアクションが変える）", HOLD_BINDER, { book: "n1" }, false],
+  ]
+  for (const [name, id, on, done] of rows) expect([name, ok(id, on)]).toEqual([name, done])
 })

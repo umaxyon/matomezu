@@ -94,13 +94,15 @@ export interface PluginFollowStep {
 // 作った表。種類ごとに id で引く。pageSchemas は、ページのタイプごとに組み立てたページのデータの形。bookSchema は、ブックのデータの形（並びのページは、タイプごとの形のどれか）
 export type CoreCatalog = { readonly [K in CorePart]: ReadonlyMap<string, PartDefTable[K]> } & {
   parts: CoreCatalogParts
-  pageSchemas: ReadonlyMap<string, z.ZodObject>
+  pageSchemas: ReadonlyMap<string, z.ZodObject> // ブックかバインダの中のページの形（タイプの id → 形）
+  stageEntryPageSchemas: ReadonlyMap<string, z.ZodObject> // ブックの外のページ 1 枚の形（ステージエントリが持つ設定の項目の値も受ける）
   messageSets: ReadonlyMap<string, MessageSetDef> // 文言の組（土台の組を含む）
   languagePacks: ReadonlyMap<string, LanguagePackDef> // 言語パック（土台の言語を含む）
   messages: Messages // 文言の組と言語パックを重ねた、文言の鍵 → 言語ごとの訳
   languages: ReadonlyMap<Lang, string> // インスタンスで選べる言語 → 名前（土台の言語が先、あとはパックの順）
   bookSchema: z.ZodType
   outermostSettingsSchema: z.ZodType // ステージエントリが持つ設定の項目の値（settings のフィールドの中身）の形
+  innerBinderSettingsSchema: z.ZodType // ブックの中のバインダの settings のフィールドの中身の形（機能台帳に在る項目の値は持てない）
   warnings: readonly Warning[] // 台帳アセンブルで見つけた、止めるほどではない間違い（core/warnings.ts）
   tokens: ReadonlyMap<string, TokenDef> // プラグインが持つテーマキー（アイテムとページのタイプのテーマキーは、その定義の tokens）
   normalizeSteps: readonly NormalizeStepDef[] // ノーマライズステップ（core/def/normalize-step.ts）
@@ -127,12 +129,21 @@ export function buildCoreCatalog(parts: CoreCatalogParts): CoreCatalog {
     ...tables,
     parts,
     pageSchemas,
+    stageEntryPageSchemas: new Map(
+      parts.pageTypes.flatMap(t => {
+        const inner = pageSchemas.get(t.id)
+        return inner
+          ? [[t.id, inner.extend(settingsField(parts, [...(t.settings ?? []), ...outermostIds(parts)]))]]
+          : []
+      }),
+    ),
     messageSets: byId(allMessages(parts)),
     languagePacks: byId(allLanguages(parts)),
     messages: mergeMessages(parts),
     languages: new Map(allLanguages(parts).map(p => [p.lang, p.name])),
     bookSchema: buildBookSchema(parts, pageSchemas),
     outermostSettingsSchema: outermostSettingsField(parts).settings as z.ZodType,
+    innerBinderSettingsSchema: settingsField(parts, []).settings as z.ZodType,
     warnings: coreWarnings(parts),
     tokens: byId(parts.tokens),
     normalizeSteps: parts.normalizeSteps,
@@ -158,14 +169,15 @@ function settingsField(parts: CoreCatalogParts, ids: readonly string[]): Record<
   }
 }
 
-// ステージエントリが持つ設定の項目（holder が "outermost" の項目）の全部の settings のフィールド（ブック・バインダが持つ）
+// ステージエントリが持つ設定の項目（holder が "outermost" の項目）の全部の settings のフィールド（ブック・ブックの外のバインダが持つ。ブックの外のページ 1 枚は、タイプが選んだページの項目と合わせて持つ）
 const outermostIds = (parts: CoreCatalogParts): string[] =>
   parts.settings.filter(d => d.holder === "outermost").map(d => d.id)
 const outermostSettingsField = (parts: CoreCatalogParts): Record<string, z.ZodType> =>
   settingsField(parts, outermostIds(parts))
 
 // タイプのページのデータの形: 土台のページのフィールド（type はそのタイプの id だけ）・タイプがページに足すフィールド（fields）・
-// タイプが選んだアイテムを置いた並び（items）・形だけの並び（slide）・設定の項目（settings。タイプが選んだページの項目と、ステージエントリが持つ項目の全部）
+// タイプが選んだアイテムを置いた並び（items）・形だけの並び（slide）・設定の項目（settings。タイプが選んだページの項目だけ。
+// ステージエントリが持つ項目の値は、ブックかバインダの中のページは持てない）
 function buildPageSchema(parts: CoreCatalogParts, t: PageTypeDef): z.ZodObject {
   const items = byId(parts.items)
   const allowed = t.items.allowed.flatMap(id => items.get(id) ?? [])
@@ -184,12 +196,13 @@ function buildPageSchema(parts: CoreCatalogParts, t: PageTypeDef): z.ZodObject {
     ...t.fields,
     items: z.array(one ? z.union([z.discriminatedUnion("item", [one, ...more]), unknownItem]) : unknownItem).optional(),
     ...slideField(t, items),
-    ...settingsField(parts, [...(t.settings ?? []), ...outermostIds(parts)]),
+    ...settingsField(parts, t.settings ?? []),
   })
 }
 
 // ブックのデータの形: 名前 title（1 字以上）・ロック locked・並び lineup・ステージエントリが持つ設定の項目（holder が "outermost" の項目）。
-// エントリ 1 つは、ページ（kind が "page"。タイプごとの形のどれか）か、1 つのタイプのページだけを入れるバインダ（中身も同じ並びで、入るのはページだけ。ステージエントリが持つ設定の項目も持つ）
+// エントリ 1 つは、ページ（kind が "page"。タイプごとの形のどれか）か、1 つのタイプのページだけを入れるバインダ（中身も同じ並びで、入るのはページだけ。
+// ブックの中のバインダは、機能台帳に在る設定の項目の値を持てない）
 function buildBookSchema(parts: CoreCatalogParts, pageSchemas: ReadonlyMap<string, z.ZodObject>): z.ZodType {
   const [first, ...rest] = [...pageSchemas.values()]
   if (!first) return fail("E015")
@@ -200,7 +213,7 @@ function buildBookSchema(parts: CoreCatalogParts, pageSchemas: ReadonlyMap<strin
     title: z.string().min(1),
     pageType: z.string().min(1),
     lineup: z.array(page),
-    ...outermostSettingsField(parts),
+    ...settingsField(parts, []),
   })
   return z.strictObject({
     id: z.string().min(1),

@@ -23,12 +23,12 @@ type PageFields<T> = T extends { fields: infer F extends Readonly<Record<string,
   ? z.output<z.ZodObject<{ -readonly [K in keyof F]: F[K] }>>
   : unknown
 
-// タイプ T のページ（置けるのは、タイプが選んだアイテムだけ）
+// タイプ T のページ（置けるのは、タイプが選んだアイテムだけ。設定の項目の値は、タイプが選んだページの項目だけ）
 export type PageData<T> = Page &
   (T extends { id: infer Id extends string } ? { type: Id } : unknown) &
   PageFields<T> & {
     items?: readonly PlacedOf<T extends { items: { allowed: readonly (infer I extends string)[] } } ? I : never>[]
-  } & SettingFields<Selected<T> | OutermostSettingId>
+  } & SettingFields<Selected<T>>
 
 // 書き足したページのタイプごとの、ページのデータの型の和（type で分かれる）。Page は、どのタイプのページも持つ土台のフィールドだけの型
 export type AnyPage = { [K in PageTypeId]: PageData<PageTypeTable[K]> }[PageTypeId]

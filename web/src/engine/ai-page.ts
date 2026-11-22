@@ -17,7 +17,7 @@ export function placedForAi(of: Assembled, book: string): string {
 // engine.ts の matomezuAiPagePlaced の中身
 export function pagePlacedForAi(of: Assembled, page: string): string {
   const catalog = of.catalog.core
-  const read = readablePage(catalog, JSON.parse(page))
+  const read = readablePage(catalog, JSON.parse(page), true)
   return JSON.stringify(read ? aiPlacedOfPage(catalog, read as ItemPage) : null)
 }
 
@@ -27,7 +27,7 @@ export function pageForAi(of: Assembled, page: string): string {
   const body = JSON.parse(page) as { type?: string; slide?: { id: string; item: string }[] }
   const type = typeof body.type === "string" ? catalog.pageTypes.get(body.type) : undefined
   if (!type || !Array.isArray(body.slide) || body.slide.length === 0 || !slideIsBackground(type)) return page
-  if (!readablePage(catalog, body)) return page
+  if (!readablePage(catalog, body, true)) return page
   const { slide, ...rest } = body
   const texts = slide.flatMap(s => {
     const def = catalog.items.get(s.item)
