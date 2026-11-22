@@ -1,4 +1,4 @@
-// 認可ステップに渡す物のうち、問いと確かめの値のほかの物: レコードの読み口（ステップが reads で宣言した種類だけ）と、ブックのバックヤードの印と workKey。
+// 認可ステップに渡す物のうち、問いと確かめの値のほかの物: レコードの読み口（ステップが readsSubjects で宣言した種類だけ）と、ブックのバックヤードの印と workKey。
 // どちらも、アクションを行う文脈（ctx）が持つ読み口と書庫のフォルダから引く（画面の問いで文脈に無ければ、読み口は none と空、バックヤードは無い）
 import type { CoreCatalog } from "./core-catalog"
 import type { PermissionDef, PermissionInput } from "./def/permission"

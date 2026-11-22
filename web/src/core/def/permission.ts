@@ -142,7 +142,7 @@ export interface PagePermissionCheck {
 
 export type PermissionCheck = FolderPermissionCheck | PagePermissionCheck | RecordPermissionCheck
 
-// 認可ステップが問いと確かめのほかに受ける物: 使う機能台帳と、reads で宣言した種類だけを読むレコードの読み口
+// 認可ステップが問いと確かめのほかに受ける物: 使う機能台帳と、readsSubjects で宣言した種類だけを読むレコードの読み口
 export interface PermissionInput {
   catalog: CoreCatalog
   read: RecordReader

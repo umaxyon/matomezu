@@ -204,7 +204,7 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
   if (before) {
     // バックヤードに在るブックは、名前を変えない
     if (backyardEntryIn(ctx, before.id) && (done.next as Book).title !== before.title)
-      return inBackyard("a book kept out of the library's tree (such as a worker book) cannot be renamed")
+      return inBackyard("a book in a backyard cannot be renamed")
     // ページのタイプは作ったあと変えない（アクションが替えていたら断る）
     if (!settles(ctx.catalog, done.next as Book) || !keepsPageTypes(before, done.next as Book))
       return { ok: false, reason: "refused" }

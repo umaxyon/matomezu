@@ -220,7 +220,7 @@ export function backyardBreach(action: ActionDef, was: Library, now: Library): s
       }
       const after = now.folders[ref.id]
       if (before.folderRole === "book" && after?.folderRole === "book" && after.title !== before.title)
-        return "a book kept out of the library's tree (such as a worker book) cannot be renamed"
+        return "a book in a backyard cannot be renamed"
     }
   }
   return null

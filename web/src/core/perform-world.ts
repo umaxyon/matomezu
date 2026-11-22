@@ -346,13 +346,13 @@ function booksRead(world: World, action: ActionDef, args: unknown): Books {
   )
 }
 
-// ブックが対象のアクションの宛先のブック（on のブック。無いか、ゴミ箱のブックなら null）。performIn と permittedIn で同じ決まりを使う
 // 認可ステップが読む、世界 world のレコードの読み口と書庫のフォルダ（アクションの文脈に、core の中だけで引く鍵で持たせる）
 const inputsOf = (world: World): WithSource & WithFolders => ({
   [SOURCE]: world.source ?? sourceOf(world.records),
   [FOLDERS]: world.folders,
 })
 
+// ブックが対象のアクションの宛先のブック（on のブック。無いか、ゴミ箱のブックなら null）。performIn と permittedIn で同じ決まりを使う
 function bookIn(world: World, on: ActionOn | undefined): Book | null {
   const book = bookOf(world, (on && "book" in on ? on.book : undefined) ?? "")
   return book && !inTrash(world.folders, book.id) ? book : null

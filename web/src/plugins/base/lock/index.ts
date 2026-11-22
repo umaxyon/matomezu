@@ -158,7 +158,7 @@ export const LOCK = kit.definePermission({
   id: "lock",
   title: "Locked",
   aiDescription:
-    "the book or a page it would change is locked; nothing in it can be changed until it is unlocked, and only the user can unlock it, so ask the user in the chat. A book kept out of the library's tree (such as a worker book) and its pages cannot be locked at all, by the user either",
+    "the book or a page it would change is locked; nothing in it can be changed until it is unlocked, and only the user can unlock it, so ask the user in the chat. A worker book and its pages cannot be locked at all, by the user either",
   // 変える所が分からないアクションは、ページのロックでは止めない（行った後の keeps が止める）。ページを含むブックの全部を変えるなら、どれかのページがロック中で止める。
   // アノテーションは図の中身ではないので止めない
   denies: q => {

@@ -97,7 +97,6 @@ export {
   slideOf,
   walkShapes,
 } from "../core/placed"
-export type { RecordReader } from "../core/record-source"
 export type { Book } from "../core/schema/book"
 export {
   areaOf,
