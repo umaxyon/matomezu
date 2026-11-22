@@ -60,6 +60,9 @@ func (c *updateCmd) Run() error {
 	if version == devVersion {
 		return errors.New("this matomezu is a development build: update it from its repository")
 	}
+	if in, ok := installerFor(os.Getenv(packageDirEnv)); ok && in.name == "Volta" {
+		leaveVolta()
+	}
 	u := updater{
 		out:      os.Stdout,
 		lookPath: exec.LookPath,
@@ -128,6 +131,28 @@ func (u updater) update(packageDir, from string) error {
 		fmt.Fprintf(u.out, "matomezu is updated from %s to %s. AI conversations that are open keep the old version until you restart them.\n", from, to)
 	}
 	return errors.Join(failures...)
+}
+
+// voltaRecursion は、Volta が自分の起動したプログラムに付ける印。これがあると、子が打つ npm i -g を Volta が横取りせず、Volta の管理の外（node の置き場）に入る
+const voltaRecursion = "_VOLTA_TOOL_RECURSION"
+
+// leaveVolta は、Volta から起動されたこのプロセスの環境を、利用者が打ったときと同じにする: 印を外し、Volta が PATH の頭に足した node の置き場（tools/image の下）を外す
+func leaveVolta() {
+	_ = os.Unsetenv(voltaRecursion)
+	_ = os.Setenv("PATH", withoutVoltaImages(os.Getenv("PATH")))
+}
+
+// withoutVoltaImages は、PATH から Volta の tools/image の下のフォルダを外した物
+func withoutVoltaImages(path string) string {
+	var kept []string
+	for _, d := range filepath.SplitList(path) {
+		p := strings.ToLower(strings.ReplaceAll(d, `\`, "/"))
+		if strings.Contains(p, "/volta/tools/image/") || strings.Contains(p, "/.volta/tools/image/") {
+			continue
+		}
+		kept = append(kept, d)
+	}
+	return strings.Join(kept, string(os.PathListSeparator))
 }
 
 // restartOlderServer は、立っている常駐が今入っている版より古ければ、止めて今の版で立て直す（ensure が見る）

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -91,5 +92,13 @@ func TestUpdateStopsWhenItCannotTellTheInstaller(t *testing.T) {
 	}
 	if len(*ran) != 0 || !strings.Contains(out.String(), "npm install -g matomezu@latest") {
 		t.Fatalf("ran %q, out %s", *ran, out)
+	}
+}
+
+func TestWithoutVoltaImages(t *testing.T) {
+	sep := string(os.PathListSeparator)
+	in := strings.Join([]string{"/home/a/.volta/tools/image/node/20.17.0/bin", "/home/a/.volta/bin", "/usr/bin"}, sep)
+	if got, want := withoutVoltaImages(in), strings.Join([]string{"/home/a/.volta/bin", "/usr/bin"}, sep); got != want {
+		t.Fatalf("got %q; want %q", got, want)
 	}
 }
