@@ -1033,6 +1033,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       if (!options.copyText) fail("E404")
       await options.copyText(text)
     },
+    command: options.command ?? "matomezu",
     purgeUnreadable: async id => {
       if (!options.unreadableHost) fail("E406")
       return await options.unreadableHost.purge(id)

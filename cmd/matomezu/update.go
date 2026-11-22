@@ -92,7 +92,7 @@ func (u updater) update(packageDir, from string) error {
 	in, ok := installerFor(packageDir)
 	if !ok {
 		fmt.Fprintln(u.out, "matomezu could not tell how it was installed. Update it with the tool you installed it with, for example:")
-		fmt.Fprintln(u.out, "  npm install -g matomezu@latest")
+		fmt.Fprintf(u.out, "  %s install -g matomezu@latest\n", typedName("npm"))
 		return errors.New("not updated")
 	}
 	fmt.Fprintf(u.out, "Updating matomezu with %s: %s\n", in.name, strings.Join(in.cmd, " "))

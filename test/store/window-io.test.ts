@@ -1,4 +1,4 @@
-// インスタンスが受け取る、ブラウザの窓の口（クリップボードに書く・窓のタイトルを替える）
+// インスタンスが受け取る、ブラウザの窓の口（クリップボードに書く・窓のタイトルを替える・利用者が端末で打つ matomezu の名前）
 import { expect, test } from "bun:test"
 import { BUILTIN } from "../../web/src/plugins"
 import { createMatomezu } from "../../web/src/store/create"
@@ -26,4 +26,9 @@ test("setWindowTitle は渡した口にタイトルを渡し、口が無けれ�
 test("windowTitle は渡した口の今のタイトルを返し、口が無ければ空", () => {
   expect(createMatomezu({ plugins: BUILTIN, windowTitle: () => "matomezu" }).windowTitle()).toBe("matomezu")
   expect(createMatomezu({ plugins: BUILTIN }).windowTitle()).toBe("")
+})
+
+test("command は渡した、利用者が端末で打つ matomezu の名前で、渡さなければ matomezu", () => {
+  expect(createMatomezu({ plugins: BUILTIN, command: "matomezu.cmd" }).command).toBe("matomezu.cmd")
+  expect(createMatomezu({ plugins: BUILTIN }).command).toBe("matomezu")
 })

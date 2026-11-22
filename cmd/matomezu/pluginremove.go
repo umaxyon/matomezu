@@ -63,7 +63,7 @@ func (c *pluginRemoveCmd) removeInstalled() error {
 	if h, herr := openHome(); herr == nil {
 		fmt.Printf("Your books stay in %s. Delete the folder yourself if you no longer need them.\n", h.Dir)
 	}
-	fmt.Println("Close Claude Code, Claude Desktop, Codex and opencode, then remove matomezu: npm uninstall -g matomezu")
+	fmt.Printf("Close Claude Code, Claude Desktop, Codex and opencode, then remove matomezu: %s uninstall -g matomezu\n", typedName("npm"))
 	return err
 }
 
