@@ -16,6 +16,8 @@ import {
   namesHomeOrFolder,
   type Pages,
   pageIn,
+  TOP_FOLDERS,
+  TOP_IDS,
   TRASH_ID,
   UNREADABLE_ID,
   unreadableFolderOf,
@@ -121,10 +123,9 @@ export const systemFolderIndex = (folders: Folders, mark: string): number => {
 // システムフォルダは書庫ホームかゴミ箱の直下だけに在り、書庫ホームでは先頭に印の順に並ぶ（同じ印はゴミ箱の外に 1 つ）
 export function treeHolds({ pages, folders }: Library): boolean {
   if (folders[HOME_ID]?.folderRole !== "home") return false
-  const trash = folders[TRASH_ID]
-  if (trash && trash.folderRole !== "trash") return false
-  const unreadable = (folders as Readonly<Record<string, { folderRole: string }>>)[UNREADABLE_ID]
-  if (unreadable && !isUnreadableRole(unreadable.folderRole)) return false
+  const rows = folders as Readonly<Record<string, { folderRole: string }>>
+  for (const [role, { id }] of Object.entries(TOP_FOLDERS) as [string, { id: string }][])
+    if (rows[id] && rows[id].folderRole !== role) return false
   const holder = new Map<string, string>()
   for (const f of Object.values(folders)) {
     for (const r of f.lineup) {
@@ -133,8 +134,8 @@ export function treeHolds({ pages, folders }: Library): boolean {
       if (isOpenRole(f.folderRole) && !refFits(pages, folders, r)) return false
     }
   }
-  const isTop = (id: string | undefined) => id === HOME_ID || id === TRASH_ID || id === UNREADABLE_ID
-  if (holder.has(HOME_ID) || holder.has(TRASH_ID) || holder.has(UNREADABLE_ID)) return false
+  const isTop = (id: string | undefined) => id !== undefined && TOP_IDS.includes(id)
+  if (TOP_IDS.some(id => holder.has(id))) return false
   if (!Object.keys(pages).every(id => holder.has(id))) return false
   if (!systemFoldersHold(folders, holder)) return false
   return Object.values(folders).every(f => {
