@@ -17,6 +17,8 @@ test("「ページ新規作成」でタイプを選んで作ると、書庫ホ�
   await create.click()
   await page.getByRole("menu").getByRole("menuitem", { name: "図面" }).click()
   const drawing = page.getByRole("dialog", { name: "新しい図面" })
+  // 名前の案は、そのフォルダに並ぶ物の数の次の番号
+  await expect(drawing.getByLabel("ページの名前")).toHaveValue(`ページ ${(await home.getByRole("button").count()) + 1}`)
   await drawing.getByLabel("ページの名前").fill("外の図")
   await drawing.getByRole("button", { name: "作成" }).click()
   await expect(drawing).toBeHidden()
