@@ -1,4 +1,4 @@
-// その日の入れ先（base の library/today-folder.ts）: 置くフォルダを言わずに作るページ（page-create）とブック（book-create）は、
+// 日付フォルダ（base の library/today-folder.ts）: 置くフォルダを言わずに作るページ（page-create）とブック（book-create）は、
 // ドキュメントの直下の、名前がその日の日付のフォルダに入る（無ければ同じ書き込みで、ドキュメントの先頭に作る）
 import { expect, test } from "bun:test"
 import { USER } from "../../../web/src/core/actor"
@@ -55,19 +55,19 @@ const titles = (library: Library, folder: string) =>
 
 test("page-create は、フォルダを言わなければ、ドキュメントの先頭にその日の名前のフォルダを作って入れる。同じ日の次のページは同じフォルダの末尾", () => {
   const first = run(withDocuments(), "page-create", { type: DRAWING, title: "一" })
-  expect(first.result).toEqual({ page: "n1", folder: "n2" })
-  expect(first.next.folders.n2).toEqual({
+  expect(first.result).toEqual({ page: "n2", folder: "n1" })
+  expect(first.next.folders.n1).toEqual({
     folderRole: "folder",
-    id: "n2",
+    id: "n1",
     title: DAY,
-    lineup: [{ kind: "page", id: "n1" }],
+    lineup: [{ kind: "page", id: "n2" }],
   })
-  expect(ids(first.next, "docs")).toEqual(["n2"])
+  expect(ids(first.next, "docs")).toEqual(["n1"])
   expect(ids(first.next, HOME_ID)).toEqual(["docs"])
   const second = run(first.next, "page-create", { type: DRAWING, title: "二" }, ctx(DAY, sequence("m")))
-  expect(second.result).toEqual({ page: "m1", folder: "n2" })
-  expect(ids(second.next, "n2")).toEqual(["n1", "m1"])
-  expect(ids(second.next, "docs")).toEqual(["n2"])
+  expect(second.result).toEqual({ page: "m2", folder: "n1" })
+  expect(ids(second.next, "n1")).toEqual(["n2", "m2"])
+  expect(ids(second.next, "docs")).toEqual(["n1"])
   // 次の日のフォルダは、前の日の上
   const tomorrow = run(second.next, "page-create", { type: DRAWING }, ctx("2026-11-17", sequence("t")))
   expect(titles(tomorrow.next, "docs")).toEqual(["2026-11-17", DAY])
@@ -84,34 +84,35 @@ test("page-create は、フォルダを言えばそこに入れ、入れた先�
   expect(refusal(libraryWith([]), "page-create", { type: DRAWING })).toEqual({ ok: false, reason: "refused" })
 })
 
-test("その日の入れ先は名前で引く: 名前を変えた・よそへ動かした・ゴミ箱へ入れたフォルダには入れず、新しく作る", () => {
+test("日付フォルダは名前で引く: 名前を変えた・よそへ動かした・ゴミ箱へ入れたフォルダには入れず、新しく作る", () => {
   const made = run(withDocuments(), "page-create", { type: DRAWING }).next
   const again = (library: Library) => run(library, "page-create", { type: DRAWING }, ctx(DAY, sequence("m")))
-  const renamed = again(run(made, "entry-rename", { entry: "n2", title: "議事録" }).next)
-  expect(renamed.result.folder).toBe("m2")
+  const renamed = again(run(made, "entry-rename", { entry: "n1", title: "議事録" }).next)
+  expect(renamed.result.folder).toBe("m1")
   expect(titles(renamed.next, "docs")).toEqual([DAY, "議事録"])
-  const moved = again(run(made, "entry-move", { entry: "n2", into: HOME_ID }).next)
-  expect(moved.result.folder).toBe("m2")
-  expect(ids(moved.next, "docs")).toEqual(["m2"])
-  const trashed = again(run(made, "entry-trash", { entry: "n2" }).next)
-  expect(trashed.result.folder).toBe("m2")
-  expect(ids(trashed.next, "docs")).toEqual(["m2"])
+  const moved = again(run(made, "entry-move", { entry: "n1", into: HOME_ID }).next)
+  expect(moved.result.folder).toBe("m1")
+  expect(ids(moved.next, "docs")).toEqual(["m1"])
+  const trashed = again(run(made, "entry-trash", { entry: "n1" }).next)
+  expect(trashed.result.folder).toBe("m1")
+  expect(ids(trashed.next, "docs")).toEqual(["m1"])
 })
 
-test("ドキュメントに、その日の名前のフォルダでない物（ブック）が在れば、入れ先を作れずに断る", () => {
+test("ドキュメントに、その日の名前のフォルダでない物（ブック）が在れば、日付フォルダを作れずに title-taken で断る", () => {
   const library = run(withDocuments(), "book-create", { title: DAY, into: "docs" }).next
-  expect(refusal(library, "page-create", { type: DRAWING })).toMatchObject({ ok: false, reason: "refused" })
-  expect(refusal(library, "book-create", { title: "新" })).toMatchObject({ ok: false, reason: "refused" })
+  const taken = { ok: false, reason: "refused", kind: "title-taken" }
+  expect(refusal(library, "page-create", { type: DRAWING })).toMatchObject(taken)
+  expect(refusal(library, "book-create", { title: "新" })).toMatchObject(taken)
 })
 
-test("バインダにまとまるタイプ（スライド）は、そのページだけの新しいバインダごと、その日の入れ先に入る", () => {
+test("バインダにまとまるタイプ（スライド）は、そのページだけの新しいバインダごと、日付フォルダに入る", () => {
   const done = run(withDocuments(), "page-create", { type: SLIDE, into: { newBinder: "発表" } })
-  expect(done.result).toEqual({ page: "n1", binder: "n2", folder: "n3" })
-  expect(done.next.folders.n3?.lineup).toEqual([{ kind: "binder", id: "n2" }])
-  expect(done.next.folders.n2?.lineup).toEqual([{ kind: "page", id: "n1" }])
+  expect(done.result).toEqual({ page: "n2", binder: "n3", folder: "n1" })
+  expect(done.next.folders.n1?.lineup).toEqual([{ kind: "binder", id: "n3" }])
+  expect(done.next.folders.n3?.lineup).toEqual([{ kind: "page", id: "n2" }])
 })
 
-test("入れ先のフォルダの id は、在っても無くても同じ数だけ同じ順で引く（行い直しで id が変わらない）", () => {
+test("日付フォルダの id は、在っても無くても同じ数だけ同じ順で引く（行い直しで id が変わらない）", () => {
   // 引いた id の数を数える newId（書庫に在る id と当たらないよう、頭を変える）
   const counting = (prefix: string) => {
     const next = sequence(prefix)
@@ -120,20 +121,20 @@ test("入れ先のフォルダの id は、在っても無くても同じ数だ�
   }
   const [a, b, c, d] = [counting("a"), counting("b"), counting("c"), counting("d")]
   const first = run(withDocuments(), "page-create", { type: DRAWING }, ctx(DAY, a.newId))
-  expect(first.result).toEqual({ page: "a1", folder: "a2" })
-  // 入れ先が在っても、フォルダの分の id を引いて捨てる
+  expect(first.result).toEqual({ page: "a2", folder: "a1" })
+  // 日付フォルダが在っても、フォルダの分の id を引いて捨てる
   expect(run(first.next, "page-create", { type: DRAWING }, ctx(DAY, b.newId)).result).toEqual({
-    page: "b1",
-    folder: "a2",
+    page: "b2",
+    folder: "a1",
   })
   expect(b.drawn).toHaveLength(a.drawn.length)
   const book = { title: "新", page: { type: DRAWING } }
   expect(run(withDocuments(), "book-create", book, ctx(DAY, c.newId)).result).toMatchObject({ into: "c3" })
-  expect(run(first.next, "book-create", book, ctx(DAY, d.newId)).result).toMatchObject({ book: "d1", into: "a2" })
+  expect(run(first.next, "book-create", book, ctx(DAY, d.newId)).result).toMatchObject({ book: "d1", into: "a1" })
   expect(d.drawn).toHaveLength(c.drawn.length)
 })
 
-test("book-create は、into を言わなければ、その日の入れ先に作り、入れた先を into で返す。into を言えばそこに作る", () => {
+test("book-create は、into を言わなければ、日付フォルダに作り、入れた先を into で返す。into を言えばそこに作る", () => {
   const library = withDocuments(libraryWith([testBook("b1", "B1", [])]))
   const made = run(library, "book-create", { title: "新" })
   expect(made.result).toEqual({ book: "n1", into: "n2" })

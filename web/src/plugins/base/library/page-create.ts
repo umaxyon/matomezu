@@ -1,6 +1,6 @@
 // 書庫からページを作る: page-create は、ブックの中か、書庫ホーム・フォルダの直下（ブックの外）にページを作る（本体はページタブの page-add と同じ）。書庫が対象。
 // 書庫ホーム・フォルダでは、バインダにまとまるタイプのページは、そのページだけの新しいバインダに入る。ブックの外のバインダを名指せば、その中に足す。
-// 入れるフォルダを言わなければ、その日の入れ先（today-folder.ts）の末尾に入る。
+// 入れるフォルダを言わなければ、日付フォルダ（today-folder.ts）の末尾に入る。
 // 本体が同じなので、ページのタイプが page-add を外していれば（without）、これもそのタイプで断る
 import { z } from "zod"
 import { findBinder } from "../../../core/book"
@@ -12,9 +12,9 @@ import { outsideBinderIn, pinnedCount } from "../../../core/folders-tree"
 import { kit } from "../kit"
 import { describeNewPage, NEW_PAGE_ARGS, PAGE_ADD, untitledAmong, withNewPage } from "../pages/page-add"
 import { holdsEntries, placedOutsideTrash, typeLets } from "./entries"
-import { todayFolderIn, withTodayFolder } from "./today-folder"
+import { withTodayFolder } from "./today-folder"
 
-// 入れるフォルダを言わないときは、位置 index も言えない（入れ先のフォルダが、まだ無いかもしれない）
+// 入れるフォルダを言わないときは、位置 index も言えない（日付フォルダが、まだ無いかもしれない）
 const withFolder = <T extends typeof NEW_PAGE_ARGS>(args: T) =>
   args
     .extend({ folder: z.string().min(1).optional() })
@@ -71,31 +71,23 @@ export const PAGE_CREATE = kit.defineAction({
 type Args = z.output<typeof NEW_PAGE_ARGS>
 type Ctx = ActionContext
 
-// フォルダ holder（まだ無ければ undefined）に置く、ブックの外のページ（バインダにまとまるタイプなら、そのページだけの新しいバインダ）を作った物と、page-add の result。
+// フォルダ holder に置く、ブックの外のページ（バインダにまとまるタイプなら、そのページだけの新しいバインダ）を作った物と、page-add の result（作れなければ null）。
 // 名前を言わなければ、置くフォルダの名前と重ならない「（無題）」（バインダにまとまるタイプは、フォルダに並ぶのがバインダなので、ページの名前は本体に任せる）
-function madeOutside(library: Library, holder: HomeOrFolder | undefined, args: Omit<Args, "index">, ctx: Ctx) {
-  const taken = holder ? titlesIn(library, holder, ctx.naming) : []
-  const title = args.title ?? (args.into ? undefined : untitledAmong(ctx.catalog, ctx.lang, taken))
-  const done = withNewPage(
-    ctx.catalog,
-    { id: holder?.id ?? "", lineup: [] },
-    { ...args, ...(title ? { title } : {}) },
-    ctx,
-  )
+function madeOutside(library: Library, holder: HomeOrFolder, args: Omit<Args, "index">, ctx: Ctx) {
+  const title =
+    args.title ?? (args.into ? undefined : untitledAmong(ctx.catalog, ctx.lang, titlesIn(library, holder, ctx.naming)))
+  const done = withNewPage(ctx.catalog, { id: holder.id, lineup: [] }, { ...args, ...(title ? { title } : {}) }, ctx)
   const [entry] = done?.book.lineup ?? []
   return done && entry ? { entry, result: done.result } : null
 }
 
-// 入れるフォルダを言わずに作る: その日の入れ先の末尾に入れる（入れ先が無ければ、同じ書き込みで作る）。
-// 入れ先のフォルダの id は、ページの id の後に、いつも引く（入れ先がもう在っても、振る id の順が変わらない）
+// 入れるフォルダを言わずに作る: 日付フォルダの末尾に入れる（日付フォルダが無ければ、同じ書き込みで作る）。
+// 日付フォルダの id は、ページの id の前に、いつも引く（日付フォルダがもう在っても、振る id の順が変わらない）
 function createdToday(library: Library, args: Args, ctx: Ctx) {
-  const there = todayFolderIn(library, ctx.today)
-  const holder = there === undefined ? undefined : library.folders[there]
-  if (holder && holder.folderRole !== "folder") return null
-  const made = madeOutside(library, holder, args, ctx)
-  const placed = made && withTodayFolder(library, ctx.today, ctx.newId())
-  const next = placed && placedMade(placed.library, made.entry, placed.folder)
-  return !made || !placed || !next || isMoveRefusal(next)
-    ? null
-    : { next, result: { ...made.result, folder: placed.folder } }
+  const placed = withTodayFolder(library, ctx.today, ctx.newId())
+  const holder = placed?.library.folders[placed.folder]
+  if (!placed || holder?.folderRole !== "folder") return null
+  const made = madeOutside(placed.library, holder, args, ctx)
+  const next = made && placedMade(placed.library, made.entry, placed.folder)
+  return !made || !next || isMoveRefusal(next) ? null : { next, result: { ...made.result, folder: placed.folder } }
 }
