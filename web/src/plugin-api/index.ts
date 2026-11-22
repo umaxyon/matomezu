@@ -65,6 +65,7 @@ export type { LibraryAppearanceDef } from "../core/def/library-appearance"
 export type { PageTypeDef } from "../core/def/page-type"
 export { slideIsBackground } from "../core/def/page-type"
 export type { PaperDef } from "../core/def/paper"
+export type { PermissionDef, PermissionInput } from "../core/def/permission"
 export type { PluginStateDef, PluginStateRead } from "../core/def/plugin-state"
 export type { PresentationDef } from "../core/def/presentation"
 export type { SettingDef } from "../core/def/setting"
@@ -74,9 +75,9 @@ export type { SystemFolderDef } from "../core/def/system-folder"
 export type { TextColorDef } from "../core/def/text-color"
 export type { ThemeDef } from "../core/def/theme"
 export { themeVar } from "../core/def/theme"
-export { freeTitle, TITLE_TAKEN } from "../core/entries"
+export { freeTitle, IN_BACKYARD, TITLE_TAKEN } from "../core/entries"
 export { enumValuesOf } from "../core/enum"
-export type { BinderFolder, BookFolder, EntryRef, Folder } from "../core/folders"
+export type { BackyardEntry, BinderFolder, BookFolder, EntryRef, Folder, WorkKey } from "../core/folders"
 // 書庫ホームとゴミ箱の id（どのマシンでも同じ）
 export { HOME_ID, TRASH_ID } from "../core/folders"
 export type { Point, Rect, Size } from "../core/geom"
@@ -96,7 +97,7 @@ export {
   slideOf,
   walkShapes,
 } from "../core/placed"
-export type { Book } from "../core/schema/book"
+export type { Book, StageLineup } from "../core/schema/book"
 export {
   areaOf,
   binderOf,
@@ -112,7 +113,7 @@ export type { WideSearchAnswer, WideSearchHit, WideSearchQuery } from "../core/w
 export type { StageView } from "../core/workspace"
 export type { CalledScreen, CommandContext, ScreenCommandContext } from "../store/commands/def"
 export { NO_BOOK, NO_PAGE } from "../store/commands/def"
-export type { PageSettingsArgs } from "../store/dialogs"
+export type { NewPageDialogArgs, PageSettingsArgs } from "../store/dialogs"
 export { shapeDialogs } from "../store/dialogs"
 export type { OwnedMessages } from "../store/kit"
 export { pluginKit } from "../store/kit"

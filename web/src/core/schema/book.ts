@@ -49,12 +49,16 @@ export interface BinderEntry {
 }
 export type LineupEntry = AnyPage | BinderEntry
 
-// ブック（名前 title・ロック locked・並び lineup・ブックが持つ設定の項目）
-export type Book = {
+// ステージで開く物の並び: その物の id と、並び lineup（ブックならその id と並び、ブックの外のバインダならその id と、そのバインダ 1 つだけの並び）
+export type StageLineup = {
   id: string
+  lineup: readonly LineupEntry[]
+}
+
+// ブック（名前 title・ロック locked・並び lineup・ブックが持つ設定の項目）
+export type Book = StageLineup & {
   title: string
   locked?: true
-  lineup: readonly LineupEntry[]
 } & SettingFields<BookSettingId>
 
 export type { Page } from "./page"

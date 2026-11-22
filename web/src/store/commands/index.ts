@@ -10,8 +10,9 @@ import { fail } from "../../core/errors"
 import { pageIn } from "../../core/folders"
 import { outsideBinderIn } from "../../core/folders-tree"
 import { LIBRARY_HISTORY, NO_HISTORY } from "../../core/history"
-import { actionQuery, inspect, openedQuery, type Query, withoutPermissions } from "../../core/inspect"
+import { actionQuery, type Inspected, inspect, openedQuery, withoutPermissions } from "../../core/inspect"
 import { splitId } from "../../core/names"
+import { openedAnswer } from "../../core/perform-permit"
 import { permittedIn } from "../../core/perform-world"
 import { openedBook, shownPageId, stageBlocks } from "../../core/stage"
 import {
@@ -181,8 +182,7 @@ function performable(c: Called, arg?: unknown): boolean {
   const on = "stage" in c.ctx ? askedIn(c.ctx) : undefined
   const where = whereOf(c, arg)
   return (c.def.performs ?? []).every(
-    action =>
-      withoutPermissions(inspect(c.ctx.catalog, actionQuery(c.ctx.catalog, action, on, where), c.ctx)).value === true,
+    action => withoutPermissions(openedAnswer(c.ctx.catalog, action, on, where, c.ctx)).value === true,
   )
 }
 
@@ -221,13 +221,15 @@ function permitted(c: Called, state: MatomezuState, arg?: unknown): boolean {
   const on = askedIn(ctx)
   const onOpened = (action: string): boolean =>
     c.def.permissionScope !== undefined && on !== undefined && ctx.catalog.actions.get(action)?.target === "library"
-  const query = (action: string): Query =>
-    on && onOpened(action) ? openedQuery(action, on, where) : actionQuery(ctx.catalog, action, on, where)
+  const answer = (action: string): Inspected<boolean> =>
+    on && onOpened(action)
+      ? inspect(ctx.catalog, openedQuery(action, on, where), ctx)
+      : openedAnswer(ctx.catalog, action, on, where, ctx)
   const runs = c.def.from !== "screen" && c.def.denied === "runs" // 認可ステップに止められても押せる
   return actions.some(
     action =>
       !stageBlocks(ctx.catalog, ctx.stage.mode, action, onOpened(action) ? "opened-book" : "target") &&
-      (runs || inspect(ctx.catalog, query(action), ctx).value === true),
+      (runs || answer(action).value === true),
   )
 }
 

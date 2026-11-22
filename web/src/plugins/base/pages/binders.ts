@@ -17,7 +17,7 @@ import type { CoreCatalog } from "../../../core/core-catalog"
 import type { Declined } from "../../../core/def/action"
 import { ORIENTATIONS } from "../../../core/def/paper"
 import { freeTitle } from "../../../core/entries"
-import type { Book } from "../../../core/schema/book"
+import type { StageLineup } from "../../../core/schema/book"
 import { kit } from "../kit"
 import { renewedIds } from "../utils/ids"
 import { duplicateProblem, UNRENEWABLE_DECLINED } from "./page-duplicate"
@@ -54,7 +54,7 @@ export const BINDER_UPDATE = kit.defineAction({
     if (!first) return null
     const choice = { paper: paper ?? first.paper, orientation: orientation ?? first.orientation }
     if (!canPaperBinder(ctx.catalog, book, args.binder, choice)) return null
-    const next = pages.reduce<Book>((b, p) => putPage(b, { ...p, ...choice }), named)
+    const next = pages.reduce((b, p) => putPage(b, { ...p, ...choice }), named)
     if (
       pageProblems(
         ctx.catalog,
@@ -107,13 +107,13 @@ export const BINDER_DUPLICATE = kit.defineAction({
 // ブック book のバインダ binder を、中のページごと複製したブックと、写しのバインダと中のページの id（binder-duplicate と、書庫の entry-duplicate が使う）。
 // 写しは元のすぐ後ろ、名前は title（無ければ、元の名前に番号を付けた名前）。バインダが無い・複製できないページを持つ・渡した名前が重なるなら null、
 // id を振り直すと壊れる形があれば、その断り
-export function duplicatedBinder(
+export function duplicatedBinder<B extends StageLineup>(
   catalog: CoreCatalog,
-  book: Book,
+  book: B,
   binder: string,
   title: string | undefined,
   newId: () => string,
-): { book: Book; binder: string; pages: string[] } | Declined | null {
+): { book: B; binder: string; pages: string[] } | Declined | null {
   const source = findBinder(book, binder)
   if (!source) return null
   const titles = lineupOf(book).map(e => e.title)
@@ -126,7 +126,7 @@ export function duplicatedBinder(
     lineupOf(book).findIndex(e => e.id === source.id) + 1,
     newId,
   )
-  let next: Book = made.book
+  let next = made.book
   const pages: string[] = []
   for (const page of pagesIn(book, source.id)) {
     const problem = duplicateProblem(catalog, page)

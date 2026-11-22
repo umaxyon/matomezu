@@ -6,7 +6,7 @@ import { translate } from "../../../core/i18n/i18n"
 import type { RecordSource } from "../../../core/record-source"
 import { langOf, type Settings, userSetting } from "../../../core/settings"
 import { kit } from "../kit"
-import { workroomWorkIn } from "./activity"
+import { workroomWorkFrom } from "./activity"
 
 export const SESSION_RENAME = kit.defineSetting({
   id: "session-rename",
@@ -30,7 +30,7 @@ export function workTitleIn(
   workroom: { id: string; name: string },
 ): WorkTitle {
   if (userSetting(catalog, settings, SESSION_RENAME.id) === false) return { kind: "off" }
-  const work = workroomWorkIn(catalog, source, workroom.id)
+  const work = workroomWorkFrom(catalog, source, workroom.id)
   if (work === "unknown") return { kind: "title", title: workroom.name }
   if (work.kind === "working") return { kind: "title", title: `${work.title} ${workroom.name}` }
   return {

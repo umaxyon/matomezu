@@ -1,25 +1,25 @@
-// ツリーのページを作るダイアログ: ページ名（初めは base の nextPageTitle）・伸びる向き・根のキャプションを決めて、そのステージのブックに足し（base の useAddPage。アクション page-add。
-// 伸びる向きはページの設定の項目、根はページのフィールド root）、そのページを開く。伸びる向きの初めの値は設定の項目の既定の向きで、
+// ツリーのページを作るダイアログ: ページ名（初めは base の useNewPage の名前）・伸びる向き・根のキャプションを決めて、受けた作る先に作る（base の useNewPage。ステージのブックならアクション page-add で足してそのページを開き、書庫のフォルダなら page-create。
+// 伸びる向きはページの設定の項目、根はページのフィールド root）。伸びる向きの初めの値は設定の項目の既定の向きで、
 // 既定を選んでいればページに書かない。紙と紙の向きはタイプの既定
 import { useState } from "react"
-import { type DialogProps, useBook, useCoreCatalog, useMessages } from "../../../plugin-api/ui"
-import { nextPageTitle, settingValue } from "../../base"
-import { Choices, controlClass, Dialog, Field, Form, useAddPage } from "../../base/ui"
+import type { NewPageDialogArgs } from "../../../plugin-api"
+import { type DialogProps, useCoreCatalog, useMessages } from "../../../plugin-api/ui"
+import { settingValue } from "../../base"
+import { Choices, controlClass, Dialog, Field, Form, useNewPage } from "../../base/ui"
 import { useGrowOptions } from "./GrowSetting"
 import { GROW, type Grow } from "./grow"
 import { kit } from "./kit"
 import { TREE } from "./tree"
 
-export function NewTreePageDialog({ onClose }: DialogProps) {
+export function NewTreePageDialog({ args, onClose }: DialogProps<NewPageDialogArgs>) {
   const t = useMessages(kit)
-  const book = useBook()
-  const addPage = useAddPage()
+  const { lineup, titles, add: addPage } = useNewPage(args)
   const options = useGrowOptions()
   const catalog = useCoreCatalog()
-  const [title, setTitle] = useState(() => (book ? nextPageTitle(book, t) : ""))
+  const [title, setTitle] = useState(titles.page)
   const [grow, setGrow] = useState<Grow | undefined>(undefined) // undefined は既定の向き
   const [caption, setCaption] = useState("")
-  if (!book) return null
+  if (!lineup) return null
   const inherited = settingValue(catalog, null, GROW) // 書かないときの向き（設定の項目の既定）
   const create = () => {
     const added = addPage({

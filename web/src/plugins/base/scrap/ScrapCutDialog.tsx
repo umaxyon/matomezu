@@ -1,8 +1,7 @@
 // 切り抜くダイアログ（ScrapForm で範囲と倍率を決め、スクラップトレイに入れる）
 import { useState } from "react"
 import { useShallow } from "zustand/react/shallow"
-import { pageById } from "../../../core/book"
-import type { ItemPage } from "../../../core/placed"
+import { openablePage } from "../../../core/library"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
@@ -26,8 +25,8 @@ export function ScrapCutDialog({ args, onClose }: DialogProps<{ page: string }>)
   const placeable = useScrapFrame() !== null
   const start = useMatomezuState(
     useShallow(s => {
-      const at = pageById(s.books, args.page)
-      return at ? wholePage(catalog, at.page as ItemPage) : null
+      const at = openablePage(s, args.page)
+      return at ? wholePage(catalog, at.page) : null
     }),
   )
   const [value, setValue] = useState<Scrap | null>(start ? { page: args.page, area: start, scale: 1 } : null)

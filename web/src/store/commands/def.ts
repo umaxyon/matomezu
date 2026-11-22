@@ -192,9 +192,10 @@ export const workspaceOf = (ctx: CommandContext): Workspace => workspaces.get(ct
 // どちらも開いていなければ undefined）
 export function askedIn(ctx: CommandContext): AskedOutermost | undefined {
   if (ctx.book !== NO_BOOK) return { book: ctx.book }
-  return ctx.stage.opened && ctx.stage.opened.outermost.kind !== "book" && ctx.page !== NO_PAGE
-    ? outsideAsked(ctx.folders, ctx.page)
-    : undefined
+  if (!ctx.stage.opened || ctx.stage.opened.outermost.kind === "book" || ctx.page === NO_PAGE) return undefined
+  const asked = outsideAsked(ctx.folders, ctx.page)
+  const binder = ctx.outsideBinder
+  return binder === NO_OUTSIDE_BINDER ? asked : { ...asked, binder }
 }
 
 // コマンドの文脈 ctx の、開けるブックの一覧（プラグイン API の文脈には出さない。base のコマンドが、開いていないブックの名前を読む）

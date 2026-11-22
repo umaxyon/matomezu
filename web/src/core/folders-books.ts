@@ -48,6 +48,19 @@ function split(book: Book): { folders: Folder[]; pages: PageRow[] } {
   }
 }
 
+// 書庫 library のバインダ was（表から組んだエントリ）を、中のページを変えた・足した・消した・並べ替えたバインダ now に替えた書庫
+// （バインダの行は並びだけを替え、was に在って now に無いページの行は消す）。バインダの行が表に無ければ、そのまま
+export function withBinderEntry(library: Library, was: BinderEntry, now: BinderEntry): Library {
+  const row = library.folders[was.id]
+  if (row?.folderRole !== "binder" || now === was) return library
+  const kept = new Set(now.lineup.map(p => p.id))
+  const pages: Record<string, PageRow> = { ...library.pages }
+  for (const p of was.lineup) if (!kept.has(p.id)) delete pages[p.id]
+  for (const p of now.lineup) pages[p.id] = p
+  const lineup = now.lineup.map(p => ({ kind: "page" as const, id: p.id }))
+  return { pages, folders: { ...library.folders, [row.id]: { ...row, lineup } } }
+}
+
 // ブックの並び books を、ページの表とフォルダの表にした物
 export function tablesOf(books: readonly Book[]): Library {
   const pages: Record<string, PageRow> = {}

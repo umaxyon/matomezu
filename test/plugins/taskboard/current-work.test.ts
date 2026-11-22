@@ -4,12 +4,13 @@ import { expect, test } from "bun:test"
 import { type Actor, USER } from "../../../web/src/core/actor"
 import type { CoreCatalog } from "../../../web/src/core/core-catalog"
 import { type PerformedIn, performIn, type World } from "../../../web/src/core/perform-world"
-import { sourceOf } from "../../../web/src/core/record-source"
+import { readerOf, sourceOf } from "../../../web/src/core/record-source"
 import type { Records } from "../../../web/src/core/records"
 import { withCounters, withRecords } from "../../../web/src/core/records"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { workroomActivityOf, workroomWorkIn, workroomWorkOf } from "../../../web/src/plugins/base/participant/activity"
 import { workTitleIn } from "../../../web/src/plugins/base/participant/work-title"
+import { workerBookOf, workerBookReadsOf } from "../../../web/src/plugins/base/participant/worker-book"
 import { CURRENT_WORK, currentTicketOf } from "../../../web/src/plugins/taskboard/current-work"
 import type { Project } from "../../../web/src/plugins/taskboard/project"
 import { TICKET, type Ticket } from "../../../web/src/plugins/taskboard/ticket"
@@ -85,6 +86,48 @@ test("カレントワークのあるワークルームを、ほかのチケッ�
   const t2 = add({ lane: doing })
   user("ticket-update", { assignees: [a] }, { record: t2 })
   expect(work(a)).toBe(t1)
+})
+
+test("レーンを指さずに担当を新しく付けると、作業中のレーン（並びで最初）へ移り、カレントワークが none の担当のカレントチケットになる。カレントワークのある担当は入れ替わらない", () => {
+  const { user, room, doing, todo, add, work, ticketRecord } = board()
+  const a = room("あ")
+  const b = room("い")
+  const t1 = add({ assignees: [a] })
+  expect(ticketRecord(t1).lane).toBe(doing)
+  expect(work(a)).toBe(t1)
+  const t2 = add({ lane: todo })
+  user("ticket-update", { assignees: [b, a] }, { record: t2 })
+  expect(ticketRecord(t2).lane).toBe(doing)
+  expect([work(a), work(b)]).toEqual([t1, t2])
+  // レーンを指して付ければ移らない（予定として担当だけ付ける）
+  const t3 = add({ lane: todo, assignees: [b] })
+  expect(ticketRecord(t3).lane).toBe(todo)
+  const t4 = add({ lane: todo })
+  user("ticket-update", { lane: todo, assignees: [a] }, { record: t4 })
+  expect(ticketRecord(t4).lane).toBe(todo)
+  // 担当を外すだけ・並べ替えるだけでは移らない
+  user("ticket-update", { assignees: [] }, { record: t4 })
+  const t5 = add({ lane: todo })
+  user("ticket-update", { lane: todo, assignees: [a, b] }, { record: t5 })
+  user("ticket-update", { assignees: [b, a] }, { record: t5 })
+  expect(ticketRecord(t5).lane).toBe(todo)
+})
+
+test("作業中のレーンが無いプロジェクトでは、担当を付けても移らない", () => {
+  const { user, room, project, todo, add, work, ticketRecord, world } = board()
+  const a = room("あ")
+  const p = world().records[A("project")]?.[project] as Project
+  user(
+    "project-update",
+    { lanes: p.lanes.map(l => (l.kind === "lane" ? { ...l, working: undefined } : l)) },
+    { record: project },
+  )
+  const t1 = add({ assignees: [a] })
+  expect(ticketRecord(t1).lane).toBe("unsorted")
+  const t2 = add({ lane: todo })
+  user("ticket-update", { assignees: [a] }, { record: t2 })
+  expect(ticketRecord(t2).lane).toBe(todo)
+  expect(work(a)).toBe("none")
 })
 
 test("ticket-start は取り替える: 作業中のレーンへ移し、担当に足し、前のチケットは当てられているだけに戻る", () => {
@@ -266,14 +309,36 @@ test("レーンの作業中の印を外すと、そのレーンのチケット�
   expect(user("project-update", { lanes: marked(false), doneLane: doing }, { record: project }).ok).toBe(false)
 })
 
-test("ワークルームの作業: カレントチケットがあれば作業中で、題名はチケットの番号と名前。無ければ空き", () => {
+// 機能台帳 catalog でワーカーブックを引くのに読む種類だけを、records から読む読み口
+const reader = (catalog: CoreCatalog, records: Record<string, Record<string, unknown>>) =>
+  readerOf(catalog, sourceOf(records as Records), workerBookReadsOf(catalog))
+
+test("ワークルームの作業: カレントチケットがあれば作業中で、題名はチケットの番号と名前、レコードはチケット。無ければ空き。ワーカーブックは、作業中ならチケットの物、ほかはワークルームの物", () => {
   const { act, room, add, world } = board()
   const a = room("あ")
   const records = () => world().records as Record<string, Record<string, unknown>>
   expect(workroomWorkOf(CORE_CATALOG, records(), a)).toEqual({ kind: "idle" })
+  expect(workerBookOf(CORE_CATALOG, reader(CORE_CATALOG, records()), a)).toEqual({
+    workKey: { subject: "@matomezu/base:workroom", id: a },
+    title: "あ",
+  })
   const t1 = add({ name: "鳥と表示名" })
   act(ai(a), "ticket-start", {}, { record: t1 })
-  expect(workroomWorkOf(CORE_CATALOG, records(), a)).toEqual({ kind: "working", title: "T-0001 鳥と表示名" })
+  expect(workroomWorkOf(CORE_CATALOG, records(), a)).toEqual({
+    kind: "working",
+    title: "T-0001 鳥と表示名",
+    key: { subject: "@matomezu/taskboard:ticket", id: t1 },
+    label: "T-0001",
+  })
+  expect(workerBookOf(CORE_CATALOG, reader(CORE_CATALOG, records()), a)).toEqual({
+    workKey: { subject: "@matomezu/taskboard:ticket", id: t1 },
+    title: "T-0001",
+  })
+  const none = { ...CORE_CATALOG, subjects: new Map() } as CoreCatalog
+  expect(workerBookOf(none, reader(none, records()), a).workKey).toEqual({
+    subject: "@matomezu/base:workroom",
+    id: a,
+  })
 })
 
 test("作業名: 作業中なら題名とワークルームの名前、空きなら空きの印、答える種類が無ければ名前だけ、設定が止めていれば off", () => {
@@ -293,10 +358,13 @@ test("作業名: 作業中なら題名とワークルームの名前、空きな
 })
 
 test("ワークルームの作業は、答える種類のうち機能台帳の並びで最初に作業中と答えた物。どれも作業中でなければ空き", () => {
-  const answer = (work: { kind: "working"; title: string } | { kind: "idle" }) => ({ workroomWork: () => work })
+  const answer = (work: { kind: "working"; title: string } | { kind: "idle" }) => ({
+    workroomWork: () =>
+      work.kind === "working" ? { ...work, key: { subject: "s", id: work.title }, label: work.title } : work,
+  })
   const catalog = (...subjects: object[]) =>
     ({ ...CORE_CATALOG, subjects: new Map(subjects.map((s, i) => [`s${i}`, s])) }) as unknown as CoreCatalog
-  const source = sourceOf({} as Records)
+  const source = readerOf(CORE_CATALOG, sourceOf({} as Records), [])
   expect(
     workroomWorkIn(
       catalog(
@@ -307,7 +375,32 @@ test("ワークルームの作業は、答える種類のうち機能台帳の�
       source,
       "w",
     ),
-  ).toEqual({ kind: "working", title: "先" })
+  ).toEqual({ kind: "working", title: "先", key: { subject: "s", id: "先" }, label: "先" })
   expect(workroomWorkIn(catalog(answer({ kind: "idle" }), {}), source, "w")).toEqual({ kind: "idle" })
   expect(workroomWorkIn(catalog({}), source, "w")).toBe("unknown")
+})
+
+test("ワークルームの作業を答える種類は、workroomWorkReads に書いた種類だけを読める（ほかは none と空）", () => {
+  const seen: unknown[] = []
+  const catalog = {
+    ...CORE_CATALOG,
+    subjects: new Map([
+      [
+        "s",
+        {
+          workroomWorkReads: ["a"],
+          workroomWork: (
+            w: string,
+            read: { record(s: string, id: string): unknown; find(s: string, where: []): readonly unknown[] },
+          ) => {
+            seen.push(read.record("a", w), read.record("b", w), read.find("b", []))
+            return { kind: "idle" }
+          },
+        },
+      ],
+    ]),
+  } as unknown as CoreCatalog
+  const records = { a: { w: { id: "w" } }, b: { w: { id: "w" } } } as unknown as Records
+  workroomWorkIn(catalog, readerOf(catalog, sourceOf(records), ["a", "b"]), "w")
+  expect(seen).toEqual([{ id: "w" }, "none", []])
 })

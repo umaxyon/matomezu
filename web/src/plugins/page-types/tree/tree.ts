@@ -1,7 +1,7 @@
 // ツリーのページのタイプ: ページごとに紙を置き、ページのフィールド root（根）から伸びる木を、自分のプレゼンテーション（tree）で紙に描く。紙に置けるアイテムは無い。
 // 伸びる向き・節の大きさの選び方・節の形・線の形は、ページの設定の項目（grow.ts・size.ts・shape.ts・line-shape.ts）。新しいページを作るダイアログと、ページの設定のダイアログ（根のダイアログを兼ねる）は自分の物を名指す。道具は自分の組（tools.ts。編集とハンド）。
 // 見た目（テーマと紙の色）と文字の色は base の設定の項目で変えられる。根の本文は太字と文字の色で装飾できる
-import type { PageSettingsArgs } from "../../../plugin-api"
+import type { NewPageDialogArgs, PageSettingsArgs } from "../../../plugin-api"
 import {
   BACKGROUND_PRINT,
   DIAGRAM_THEME_TYPE,
@@ -47,7 +47,7 @@ export const TREE_PAGE_SETTINGS_DIALOG = kit.defineDialogWith<PageSettingsArgs>(
 })
 
 // ツリーのページを作るダイアログ（ページ名・伸びる向き・根のキャプション）
-export const NEW_TREE_PAGE_DIALOG = kit.defineDialog({ id: "page-new" })
+export const NEW_TREE_PAGE_DIALOG = kit.defineDialogWith<NewPageDialogArgs>()({ id: "page-new" })
 
 // ツリーのビューが開く右クリックのメニュー: 紙の画面（ui.tsx で core/catalog.ts に書き足す）
 export const TREE_CONTEXT = kit.name("tree-context")

@@ -21,7 +21,7 @@ import { GROW_CHOICES, ORIENTATIONS } from "../../../core/def/paper"
 import { freeTitle } from "../../../core/entries"
 import { translate } from "../../../core/i18n/i18n"
 import type { ItemPage } from "../../../core/placed"
-import type { Book } from "../../../core/schema/book"
+import type { StageLineup } from "../../../core/schema/book"
 import { settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
 import { kit } from "../kit"
 import { growsValue } from "../place/grow"
@@ -59,13 +59,17 @@ export interface NewPageResult {
   fields?: unknown
 }
 
+// 名前を言わずに作るページの名前: 今の言語 lang の「（無題）」を、名前の並び taken と重ならないようにした物
+export const untitledAmong = (catalog: CoreCatalog, lang: string, taken: readonly string[]): string =>
+  freeTitle(translate(catalog.messages, lang as never, kit.message("Untitled")), taken)
+
 // ブック book に、引数 args のページを足したブックと、足したページの id（と、フィールドの受け方の返した結果・新しく作ったバインダの id）。足せなければ null
-export function withNewPage(
+export function withNewPage<B extends StageLineup>(
   catalog: CoreCatalog,
-  book: Book,
+  book: B,
   args: NewPageArgs,
   ctx: { lang: string; newId: () => string },
-): { book: Book; result: NewPageResult } | null {
+): { book: B; result: NewPageResult } | null {
   const type = catalog.pageTypes.get(args.type)
   if (!type) return null
   // 入れる所: まとまるタイプは into が要り、まとまらないタイプは into を書けない
@@ -89,8 +93,9 @@ export function withNewPage(
   const siblings = binder ? pagesIn(book, binder.id) : args.into ? [] : lineupOf(book)
   const title =
     args.title ??
-    freeTitle(
-      translate(catalog.messages, ctx.lang as never, kit.message("Untitled")),
+    untitledAmong(
+      catalog,
+      ctx.lang,
       siblings.map(e => e.title),
     )
   const content: NewPage = { kind: "page", type: type.id, title, ...choice, ...(grows === undefined ? {} : { grows }) }

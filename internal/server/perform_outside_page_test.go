@@ -211,6 +211,42 @@ func TestTheAIPerformsOnAPageInABinderOutsideBooks(t *testing.T) {
 	}
 }
 
+// AI は、ブックの外のバインダ（書庫ホームに直に在る n1）にも、book を宛先にするアクションを行える（宛先の book にバインダの id）:
+// ページを足す・複製する・並べ替える・消すと、バインダの行と中のページの行が書かれ、AI 編集チケットが開く。ブックにだけ行えるアクションは no-book
+func TestTheAIPerformsOnABinderOutsideBooks(t *testing.T) {
+	store := outsidePageStore(t)
+	s, hub := newServerOn(t, Options{}, store)
+	writer := writerAI(t, s.URL)
+	for _, request := range []string{
+		`{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/slide-page:slide","into":{"binder":"n1"},"title":"C"},"on":{"book":"n1"}}`,
+		`{"action":"@matomezu/base:page-duplicate","args":{"page":"n1b","title":"B2"},"on":{"book":"n1"}}`,
+		`{"action":"@matomezu/base:page-move","args":{"page":"n1a","index":3},"on":{"book":"n1"}}`,
+		`{"action":"@matomezu/base:page-remove","args":{"page":"n1b"},"on":{"book":"n1"}}`,
+	} {
+		if _, got := send(t, "POST", s.URL+"/api/ai/perform", request, writer); !strings.HasPrefix(got, `{"ok":true`) {
+			t.Fatalf("perform %s = %s", request, got)
+		}
+	}
+	_, folder := send(t, "GET", s.URL+"/api/ai/folder?folder=n1", "", writer)
+	for _, want := range []string{`"title":"C"`, `"title":"B2"`} {
+		if !strings.Contains(folder, want) {
+			t.Fatalf("folder n1 = %s; want %s", folder, want)
+		}
+	}
+	if strings.Contains(folder, `"id":"n1b"`) || storedPage(t, store, "n1b").ID != "" {
+		t.Fatalf("folder n1 = %s; n1b is removed", folder)
+	}
+	if got := storedAnnotations(t, store, "n1b"); got != "" && got != "[]" {
+		t.Fatalf("annotations of n1b = %s; want none", got)
+	}
+	if list := tickets(hub); len(list) == 0 {
+		t.Fatalf("tickets = %+v; want one for the binder", list)
+	}
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-update","args":{"title":"x"},"on":{"book":"n1"}}`, writer); !strings.Contains(got, `"reason":"no-book"`) {
+		t.Fatalf("book-update on a binder = %s; want no-book", got)
+	}
+}
+
 // ブックの外のバインダの中のページの効かないアノテーションは、そのページの warning（W018）になる。中の読めないページは、AI の読む口に出ない
 func TestPagesInABinderOutsideBooksAreChecked(t *testing.T) {
 	store := entriesStore(t)
@@ -309,5 +345,70 @@ func TestShowReadsAPageAlone(t *testing.T) {
 		if _, got := send(t, "POST", s.URL+"/api/ai/show", body, auth); !strings.Contains(got, `"reason":"`+reason+`"`) {
 			t.Errorf("show %s = %s; want %s", body, got, reason)
 		}
+	}
+}
+
+// 利用者がブックの外のバインダの設定を直している間（その窓が、バインダの id をバインダの中の物として知らせている）、AI がそのバインダの紙と向きを変えると being-edited で断られる。
+// 中のページを直している間は、そのページを消すと断られ、ほかのページを足すのは通る
+func TestAICannotChangeABinderOutsideBooksTheUserIsEditing(t *testing.T) {
+	store := outsidePageStore(t)
+	s, _ := newServerOn(t, Options{}, store)
+	writer := writerAI(t, s.URL)
+	a := listen(t, s.URL)
+	next(t, a)
+	perform := func(request string) string {
+		_, got := send(t, "POST", s.URL+"/api/ai/perform", request, writer)
+		return got
+	}
+	turn := `{"action":"@matomezu/base:binder-update","args":{"binder":"n1","orientation":"portrait"},"on":{"book":"n1"}}`
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"editLocks":{"n1":["n1"]},"seq":1}`, nil)
+	if got := perform(turn); got != `{"ok":false,"reason":"being-edited"}` {
+		t.Fatalf("binder-update while the binder is edited = %s; want being-edited", got)
+	}
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"editLocks":{"n1a":["n1a"]},"seq":2}`, nil)
+	if got := perform(`{"action":"@matomezu/base:page-remove","args":{"page":"n1a"},"on":{"book":"n1"}}`); got != `{"ok":false,"reason":"being-edited"}` {
+		t.Fatalf("page-remove while the page is edited = %s; want being-edited", got)
+	}
+	add := `{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/slide-page:slide","into":{"binder":"n1"},"title":"C"},"on":{"book":"n1"}}`
+	if got := perform(add); !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("page-add while another page is edited = %s; want it done", got)
+	}
+	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+window+`,"editLocks":{},"seq":3}`, nil)
+	if got := perform(turn); !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("binder-update after the user finished = %s; want it done", got)
+	}
+}
+
+// AI は page-create で、書庫ホームにブックの外のページを作れる。バインダにまとまるタイプのページは、そのページだけの新しいバインダに入る。作った物は read_folder と read_page で読める
+func TestTheAICreatesAPageOutsideBooks(t *testing.T) {
+	store := outsidePageStore(t)
+	s, _ := newServerOn(t, Options{}, store)
+	writer := writerAI(t, s.URL)
+	_, drawn := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-create","args":{"folder":"library-home","type":"@matomezu/drawing:drawing","title":"AI の図"}}`, writer)
+	var made struct {
+		OK     bool `json:"ok"`
+		Result struct {
+			Page   string `json:"page"`
+			Binder string `json:"binder"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal([]byte(strings.SplitN(drawn, "\n", 2)[0]), &made); err != nil || !made.OK || made.Result.Page == "" {
+		t.Fatalf("page-create in the library home = %s", drawn)
+	}
+	if row := storedPage(t, store, made.Result.Page); !strings.Contains(string(row.Body), `"title":"AI の図"`) {
+		t.Fatalf("stored page = %s; want the new page", row.Body)
+	}
+	if _, page := send(t, "GET", s.URL+"/api/ai/pages/"+made.Result.Page, "", writer); !strings.Contains(page, `"folder":"library-home"`) {
+		t.Fatalf("read_page of the new page = %s; want it in the library home", page)
+	}
+	_, slide := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-create","args":{"folder":"library-home","type":"@matomezu/slide-page:slide","title":"表紙","into":{"newBinder":"AI の発表"}}}`, writer)
+	if err := json.Unmarshal([]byte(strings.SplitN(slide, "\n", 2)[0]), &made); err != nil || !made.OK || made.Result.Binder == "" {
+		t.Fatalf("page-create of a slide in the library home = %s", slide)
+	}
+	if _, folder := send(t, "GET", s.URL+"/api/ai/folder?folder="+made.Result.Binder, "", writer); !strings.Contains(folder, `"title":"表紙"`) {
+		t.Fatalf("read_folder of the new binder = %s; want the slide in it", folder)
+	}
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:page-create","args":{"folder":"library-home","type":"@matomezu/drawing:drawing","title":"AI の図"}}`, writer); !strings.Contains(got, `"ok":false`) {
+		t.Fatalf("page-create with a taken title = %s; want it refused", got)
 	}
 }

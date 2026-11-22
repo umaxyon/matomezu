@@ -1,15 +1,16 @@
 // アクションの結果を整え、形と決まりと認可ステップの守らせること（keeps）を確かめる（ページ・ブック・書庫・レコード）
 
-import { distinctBooks, findPage, holds, pagesOf, putPage } from "./book"
+import { distinctBooks, findPage, holds, pageSettles, pagesOf, putPage } from "./book"
 import { changesOf, type LibraryPageRows, pageChangeOf } from "./changes"
 import type { CoreCatalog } from "./core-catalog"
 import type { ActionContext, ActionDef } from "./def/action"
-import type { PagePermissionCheck, PlaceChange } from "./def/permission"
+import type { BackyardEntries, PagePermissionCheck, PlaceChange } from "./def/permission"
 import type { SubjectDef } from "./def/subject"
-import { binnedBetween } from "./entries"
-import type { Library } from "./folders"
+import { backyardEntryOf, binnedBetween } from "./entries"
+import type { Folders, Library } from "./folders"
 import { bookIdOf, foldersOver, inTrash, permissionFoldersOf } from "./folders-tree"
 import type { Books } from "./library"
+import { inputFor } from "./permission-input"
 import type { ItemPage } from "./placed"
 import { sourceIn } from "./record-source"
 import { NO_RECORD, REMOVED } from "./records"
@@ -61,24 +62,46 @@ export function librarySettles(catalog: CoreCatalog, before: Books, after: Books
 }
 
 // アクションの結果が、認可ステップの守らせること（keeps）を守っているか。守っていなければ、守らせたステップの id
+// backyardEntry は、前と後のブックのバックヤードの印と workKey
 export function broken(
   ctx: ActionContext,
   action: ActionDef,
   before: Book | undefined,
   after: Book | undefined,
+  backyardEntry: BackyardEntries,
   place: PlaceChange = "same",
   rows?: LibraryPageRows,
 ): string | null {
   const changes = changesOf(before, after, { place, ...(rows ? { rows } : {}) })
   for (const p of ctx.catalog.permissions.values())
-    if (p.keeps && !p.keeps({ kind: "folder", action, before, after, changes, actor: ctx.actor })) return p.id
+    if (
+      p.keeps &&
+      !p.keeps(
+        { kind: "folder", action, before, after, changes, backyardEntry, actor: ctx.actor },
+        inputFor(ctx.catalog, ctx, p),
+      )
+    )
+      return p.id
   return null
+}
+
+// 前のフォルダ was のブック from と、後のフォルダ now のブック to の、バックヤードの印と workKey（ブックが無い側は無い）
+export function backyardEntriesBetween(
+  was: Folders,
+  from: string | undefined,
+  now: Folders,
+  to: string | undefined,
+): BackyardEntries {
+  const before = from === undefined ? undefined : backyardEntryOf(was, from)
+  const after = to === undefined ? undefined : backyardEntryOf(now, to)
+  return { ...(before ? { before } : {}), ...(after ? { after } : {}) }
 }
 
 // ページの変化 page（PagePermissionCheck の、アクションと行う者を除いた物）が、認可ステップの守らせること（keeps）を守っているか。守っていなければ、守らせたステップの id
 export function brokenPage(ctx: ActionContext, action: ActionDef, page: PageCheck): string | null {
   for (const p of ctx.catalog.permissions.values())
-    if (p.keeps && !p.keeps({ kind: "page", action, ...page, actor: ctx.actor })) return p.id
+    if (p.keeps && !p.keeps({ kind: "page", action, ...page, actor: ctx.actor }, inputFor(ctx.catalog, ctx, p)))
+      return p.id
   return null
 }
 
@@ -87,6 +110,16 @@ type PageCheck = Omit<PagePermissionCheck, "kind" | "action" | "actor">
 // 書庫 library の中のページ id の居場所: ブックの中か、ブックの外か（表に無ければ undefined）
 const pagePlaceIn = (library: Library, id: string): "book" | "outside" | undefined =>
   !(id in library.pages) ? undefined : bookIdOf(library.folders, id) === undefined ? "outside" : "book"
+
+// 書庫が was から next に変わる間に、変わった・足したブックの外のページ（ゴミ箱の中も）が、どれもページの形と決まりに合い、タイプを変えていないか
+// （ブックの中のページは、ブックの確かめ librarySettles と keepsPageTypesAcross が見る）
+export function outsidePagesSettle(catalog: CoreCatalog, was: Library, next: Library): boolean {
+  return Object.entries(next.pages).every(([id, page]) => {
+    const before = was.pages[id]
+    if (before === page || pagePlaceIn(next, id) !== "outside") return true
+    return (before === undefined || before.type === page.type) && pageSettles(catalog, page)
+  })
+}
 
 // 書庫 library のページ id の、認可ステップに見せる値（ゴミ箱の中のページは無い物）
 function checkedPage(library: Library, id: string): ItemPage | undefined {
@@ -117,6 +150,12 @@ export function pageChecksBetween(was: Library, now: Library): PageCheck[] {
         },
         change: pageChangeOf(id, before, after),
         place,
+        backyardEntry: backyardEntriesBetween(
+          was.folders,
+          bookIdOf(was.folders, id),
+          now.folders,
+          bookIdOf(now.folders, id),
+        ),
       },
     ]
   })
@@ -142,16 +181,19 @@ export function brokenRecord(
     if (
       p.keeps &&
       (by === "action" || p.followed) &&
-      !p.keeps({
-        kind: "record",
-        action,
-        subject,
-        def: ctx.catalog.subjects.get(subject) as SubjectDef,
-        before,
-        after,
-        refs,
-        actor: ctx.actor,
-      })
+      !p.keeps(
+        {
+          kind: "record",
+          action,
+          subject,
+          def: ctx.catalog.subjects.get(subject) as SubjectDef,
+          before,
+          after,
+          refs,
+          actor: ctx.actor,
+        },
+        inputFor(ctx.catalog, ctx, p),
+      )
     )
       return p.id
   return null

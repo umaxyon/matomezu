@@ -45,6 +45,10 @@ export const inWorkingLane = (
   project: { lanes: readonly { kind: string; id?: string; working?: true }[] },
   lane: string,
 ): boolean => project.lanes.some(l => l.kind === "lane" && l.id === lane && l.working === true)
+// プロジェクトの作業中の印のあるレーンのうち、並びで最初の物（無ければ undefined）
+export const firstWorkingLane = (project: {
+  lanes: readonly { kind: string; id?: string; working?: true }[]
+}): string | undefined => project.lanes.find(l => l.kind === "lane" && l.working === true)?.id
 
 // チケットカードに出す物の、出す・出さない（priority は右下の優先度の印）。プロジェクトごと
 export const CARD_SHOWS = z.strictObject({ priority: z.boolean(), volume: z.boolean() })

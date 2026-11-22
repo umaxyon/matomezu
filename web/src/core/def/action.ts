@@ -12,7 +12,7 @@ import type { Books } from "../library"
 import type { ItemPage } from "../placed"
 import type { Condition, ConditionOf, KeyValuesOf } from "../record-keys"
 import type { Records } from "../records"
-import type { Book } from "../schema/book"
+import type { Book, StageLineup } from "../schema/book"
 import type { Settings } from "../settings"
 import { type PageTypeDef, placeableOf } from "./page-type"
 
@@ -91,8 +91,11 @@ export interface ActionContext {
   // レコードが対象のアクションが、索引キーだけ読むと宣言した物（reads の keysOnly。種類の id → id → 索引キーの値。中身は読まない）
   keys?: { readonly [S in SubjectId]?: Readonly<Record<string, KeyValuesOf<S>>> }
   // レコードが対象のアクションが、読む物に書いた種類（reads が答えた種類）のレコードと、宛先のレコードが指す先（対象の定義の refers）を、id で 1 件読む（無ければ none）。
-  // 読んだ索引キーから相手を決めて、その中身を読むのに使う（引数からは決まらない相手。どちらでもない物は読めず none）
+  // 読んだ索引キーから相手を決めて、その中身を読むのに使う（引数からは決まらない相手。どちらでもない物は読めず none）。
+  // 書庫が対象のアクションでは、readsSubjects に書いた種類のレコードを読む（ほかは none）
   record?(subject: string, id: string): unknown
+  // 書庫が対象のアクションが、readsSubjects に書いた種類のレコードのうち、索引キーの条件 where に合う物を読む（ほかの種類は空。ほかの対象のアクションには無い）
+  find?(subject: string, where: readonly Condition[]): readonly unknown[]
   // 番号を振る種類（対象の定義の numbered）のアクションが、区切り scope の次の番号を受け取る。常駐が決めた値で、使い回さない（ほかのアクションには無い）
   number?(scope: string): number
 }
@@ -122,8 +125,8 @@ export type OtherRecord<T extends SubjectId> =
   | { subject?: undefined; id: string; record: RecordOf<T> | "removed" }
   | { [S in SubjectId]: { subject: S; id: string; record: RecordOf<S> | "removed" } }[SubjectId]
 
-export interface Done<T extends ActionTarget, R> {
-  next: SubjectNext<T>
+export interface Done<T extends ActionTarget, R, Sc = "book", Tk = unknown> {
+  next: T extends "book" ? RunSubject<T, Sc, Tk> : SubjectNext<T>
   result: R
   // レコードが対象のアクションが、宛先のほかに変えるレコード（同じ種類か、writes に書いた種類。宛先と合わせて RECORDS_MAX 件まで。全部が通るか、全部を断る）
   others?: T extends SubjectId ? readonly OtherRecord<T>[] : never
@@ -152,8 +155,15 @@ export interface ActionAttach {
   annotations?: readonly string[]
 }
 
-// run が受け取る対象: ブックが対象ならブック、ページが対象ならページ
-export type RunSubject<T extends ActionTarget, _At> = T extends "book" ? Book : SubjectData<T>
+// run が受け取る対象: ブックが対象なら、ブック自身だけを変えるアクション（許可スコープ Sc が "book"）と、takesBook を書いたアクション（Tk が true）はブック、
+// ほかは並び（StageLineup）。ページが対象ならページ
+export type RunSubject<T extends ActionTarget, Sc, Tk = unknown> = T extends "book"
+  ? [Sc] extends ["book"]
+    ? Book
+    : [Tk] extends [true]
+      ? Book
+      : StageLineup
+  : SubjectData<T>
 
 // アクションがタイプ type のページに付くか（attach のどれかに当てはまるか）
 export function attachedTo(def: Pick<ActionDef, "attach">, type: PageTypeDef): boolean {
@@ -382,6 +392,8 @@ export interface ActionDef<
   I = unknown,
   Tt extends string = MessageKey,
   At extends ActionAttach | undefined = ActionAttach | undefined,
+  Sc = unknown,
+  Tk = unknown,
 > extends ActionExtras {
   id: string // 本当の id。名前は「対象-動き」（例: page-add）
   title: Tt
@@ -420,6 +432,8 @@ export interface ActionDef<
   reads?: T extends SubjectId ? ReadsOfArgs<A> : never
   // レコードが対象のアクションが、宛先のほかに変える別の種類（種類の id の並び。others の subject に書けるのはこの種類だけ。引数によらない宣言なので、関数でなく並び）
   writes?: T extends SubjectId ? readonly SubjectId[] : never
+  // 書庫が対象のアクションが読むレコードの種類を、機能台帳から答える（読む id が読んだ中身で決まるので、種類ごと宣言する）。その種類だけを ctx.record と ctx.find で読める
+  readsSubjects?: T extends "library" ? (catalog: CoreCatalog) => readonly string[] : never
   // レコードが対象のアクションが読むだけのブックの id を、引数から答える（そのブックだけが ctx.books に入る。無ければブックを読まない）
   readsBooks?: T extends SubjectId ? BooksOfArgs<A> : never
   args: z.ZodType<A, I> // 引数の形（AI にもこの形で見せる）
@@ -428,12 +442,19 @@ export interface ActionDef<
   // 許可スコープ（ブックが対象・ページが対象・書庫が対象・利用者の設定が対象のアクションは必ず書く。どの形かは target で決まる）。
   // ブックとページと書庫では、守るのは認可ステップが行った後に見る実際の変化（PermissionDef の keeps）
   permissionScope?: AnyPermissionScope | AnyPagePermissionScope | AnyLibraryScope | AnySettingsScope
-  run(subject: RunSubject<T, At>, args: A, ctx: ActionContext): Done<T, R> | Declined | null
+  // run がブックそのもの（名前・設定も）を受け、ブックにだけ行える（ブックの外のバインダには行えない）。ブックが対象で、許可スコープが "book" でないアクションだけが書ける
+  // （許可スコープが "book" のアクションは、書かなくても同じ）
+  takesBook?: T extends "book" ? ([Sc] extends ["book"] ? never : Tk & true) : never
+  run(subject: RunSubject<T, Sc, Tk>, args: A, ctx: ActionContext): Done<T, R, Sc, Tk> | Declined | null
 }
 
 // ブック自身だけを変えるアクションか（ブックが対象で、許可スコープが "book"）。ページを名指さないので、ページのタイプでは使えるかが決まらない
 export const changesBookOnly = (def: Pick<ActionDef, "target" | "permissionScope">): boolean =>
   def.target === "book" && def.permissionScope === "book"
+
+// run がブックそのものを受けるアクションか（ブック自身だけを変えるか、takesBook を書いた、ブックが対象のアクション）。ブックにだけ行え、ブックの外のバインダには行えない
+export const takesBook = (def: Pick<ActionDef, "target" | "permissionScope" | "takesBook">): boolean =>
+  changesBookOnly(def) || (def.target === "book" && def.takesBook === true)
 
 // タイプに依らない付く先の書き方は、対象で決まる: ページが対象のアクションは pages、ほかは books（もう一方は型の誤り）
 export type AttachFor<T extends ActionTarget> = T extends "page"
@@ -454,10 +475,12 @@ export function defineAction<
   I,
   const At extends ActionAttach | undefined = undefined,
   const Sc = unknown,
+  const Tk = unknown,
 >(
-  def: ActionDef<T, A, R, I, MessageKey, At> & { id: Id } & ScopeRequired<T, A> & {
+  def: ActionDef<T, A, R, I, MessageKey, At, Sc, Tk> & { id: Id } & ScopeRequired<T, A> & {
       permissionScope?: Sc
+      takesBook?: Tk
     } & AttachFor<T>,
-): ActionDef<T, A, R, I, MessageKey, At> & { id: Id } & OnContainer<Sc> {
+): ActionDef<T, A, R, I, MessageKey, At, Sc, Tk> & { id: Id } & OnContainer<Sc> {
   return def as never
 }

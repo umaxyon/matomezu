@@ -4,7 +4,7 @@ import { type Actor, type AIMessage, workroomOfActor } from "../../../plugin-api
 import { READS_WORKROOM_KEYS } from "../../base"
 import { byOf, type Records, readsBy, recordIn, workroomsOf } from "../by"
 import { kit } from "../kit"
-import { inDoneLane, PROJECT, type Project, UNSORTED } from "../project"
+import { firstWorkingLane, inDoneLane, inWorkingLane, PROJECT, type Project, UNSORTED } from "../project"
 import { projectOf } from "../project/actions"
 import { ticketLabel } from "./label"
 import { type Candidate, type Resolved, resolve } from "./resolve"
@@ -84,11 +84,24 @@ export function assignedMessages(
     }))
 }
 
+// レーンを指さずに担当を before から after に変えたときの、チケットのレーン（変える前は lane）。
+// 担当が新しく入ったら作業中のレーン（並びで最初）へ移す。作業中のレーン・完了のレーンにあるとき・作業中のレーンが無いときは lane のまま
+function laneForNewAssignees(
+  project: Project,
+  lane: string,
+  before: readonly string[],
+  after: readonly string[],
+): string {
+  if (!after.some(w => !before.includes(w))) return lane
+  if (inWorkingLane(project, lane) || inDoneLane(project, lane)) return lane
+  return firstWorkingLane(project) ?? lane
+}
+
 export const TICKET_ADD = kit.defineAction({
   id: "ticket-add",
   title: "add ticket",
   aiDescription:
-    "Add a ticket to the project (its id). name is up to 50 characters, body is markdown. lane is a lane of the project by its id or name (left out or the word unsorted: unsorted), tags are enabled tags of the project by their ids or names (left out or empty: no tag; no tag twice), assignees are the workrooms by their ids or names, in order (the first is the lead; no workroom twice), priority is lowest, low, medium (the default), high or highest, volume (how much work it is) is xs, s, m, l or xl, or none (the default: not estimated yet). The done lane of the project cannot be chosen (tickets get there with ticket-complete). A lane that is named like the word unsorted is pointed at by its id. A refusal for a name that is not there lists the names and ids to choose from. Read the prompts of the lanes and the tags of the project (read_records) and follow them. Refused when the project is closed. A workroom other than yours that becomes an assignee is told by an AI message (matomezu sends it when an AI has joined that workroom; you do not). Returns the ticket's id and number, the number with the prefix of the project as label (such as M-0001), and the lane, the tags and the assignees as the ids they were taken for.",
+    "Add a ticket to the project (its id). name is up to 50 characters, body is markdown. lane is a lane of the project by its id or name (left out or the word unsorted: unsorted, but the first working lane, if any, when assignees are given), tags are enabled tags of the project by their ids or names (left out or empty: no tag; no tag twice), assignees are the workrooms by their ids or names, in order (the first is the lead; no workroom twice), priority is lowest, low, medium (the default), high or highest, volume (how much work it is) is xs, s, m, l or xl, or none (the default: not estimated yet). The done lane of the project cannot be chosen (tickets get there with ticket-complete). A lane that is named like the word unsorted is pointed at by its id. A refusal for a name that is not there lists the names and ids to choose from. Read the prompts of the lanes and the tags of the project (read_records) and follow them. Refused when the project is closed. A workroom other than yours that becomes an assignee is told by an AI message (matomezu sends it when an AI has joined that workroom; you do not). Returns the ticket's id and number, the number with the prefix of the project as label (such as M-0001), and the lane, the tags and the assignees as the ids they were taken for.",
   target: TICKET.id,
   reads: (args, actor) => [
     { subject: PROJECT.id, id: args.project },
@@ -109,13 +122,14 @@ export const TICKET_ADD = kit.defineAction({
     if (now !== "none") return null
     const project = projectOf(ctx, args.project)
     if (!project) return { declined: "the project is not there" }
-    const lane = pickLane(project, args.lane ?? UNSORTED)
-    if ("declined" in lane) return lane
-    if (inDoneLane(project, lane.id)) return { declined: DONE_LANE_REFUSAL }
+    const picked = pickLane(project, args.lane ?? UNSORTED)
+    if ("declined" in picked) return picked
+    if (inDoneLane(project, picked.id)) return { declined: DONE_LANE_REFUSAL }
     const tags = pickTags(project, args.tags ?? [], [])
     if ("declined" in tags) return tags
     const assignees = pickAssignees(ctx, args.assignees ?? [], [])
     if ("declined" in assignees) return assignees
+    const lane = args.lane === undefined ? laneForNewAssignees(project, picked.id, [], assignees.ids) : picked.id
     if (!ctx.number) return null
     const createdBy = byOf(ctx.actor, ctx)
     if (!createdBy) return { declined: "the workroom of the AI is not there" }
@@ -125,7 +139,7 @@ export const TICKET_ADD = kit.defineAction({
       number: ctx.number(project.id),
       name: args.name,
       body: args.body ?? "",
-      lane: lane.id,
+      lane,
       priority: args.priority ?? PRIORITY_DEFAULT,
       volume: args.volume ?? VOLUME_DEFAULT,
       assignees: assignees.ids,
@@ -154,7 +168,7 @@ export const TICKET_UPDATE = kit.defineAction({
   id: "ticket-update",
   title: "update ticket",
   aiDescription:
-    "Change the name, the body, the priority, the volume (as in ticket-add), the lane, the tags or the assignees of the ticket named by on.record. tags is the whole new list of tags (empty: no tag). assignees is the whole new list of workrooms by their ids or names, in order (the first is the lead; no workroom twice, each a workroom that is there; a workroom that was removed stays on the ticket until the list is changed). The same rules as ticket-add apply to the lane and the tags, by their ids or names; a ticket cannot be moved into the done lane here (use ticket-complete), and a ticket in the done lane takes no assignees until it is moved out (a tag that is not enabled any more, or was removed, can stay on the ticket until the list is changed). The project of a ticket does not change. The time of the last change moves only when something changed. A workroom other than yours that becomes an assignee is told by an AI message (matomezu sends it when an AI has joined that workroom; you do not).",
+    "Change the name, the body, the priority, the volume (as in ticket-add), the lane, the tags or the assignees of the ticket named by on.record. tags is the whole new list of tags (empty: no tag). assignees is the whole new list of workrooms by their ids or names, in order (the first is the lead; no workroom twice, each a workroom that is there; a workroom that was removed stays on the ticket until the list is changed). The same rules as ticket-add apply to the lane and the tags, by their ids or names; a ticket cannot be moved into the done lane here (use ticket-complete), and a ticket in the done lane takes no assignees until it is moved out (a tag that is not enabled any more, or was removed, can stay on the ticket until the list is changed). Adding assignees without lane moves the ticket into the first working lane, if any, unless it is in one. The project of a ticket does not change. The time of the last change moves only when something changed. A workroom other than yours that becomes an assignee is told by an AI message (matomezu sends it when an AI has joined that workroom; you do not).",
   target: TICKET.id,
   // プロジェクトは、チケットが指す先なので書かない
   reads: args => (args.assignees?.length ? [READS_WORKROOM_KEYS] : []),
@@ -171,14 +185,17 @@ export const TICKET_UPDATE = kit.defineAction({
     if (now === "none") return null
     const project = projectOf(ctx, now.project)
     if (!project) return { declined: "the project of the ticket is not there" }
-    const lane = args.lane === undefined ? undefined : pickLane(project, args.lane, now.lane)
-    if (lane && "declined" in lane) return lane
-    if (lane && inDoneLane(project, lane.id) && !inDoneLane(project, now.lane)) return { declined: DONE_LANE_REFUSAL }
+    const picked = args.lane === undefined ? undefined : pickLane(project, args.lane, now.lane)
+    if (picked && "declined" in picked) return picked
+    if (picked && inDoneLane(project, picked.id) && !inDoneLane(project, now.lane))
+      return { declined: DONE_LANE_REFUSAL }
     const tags = args.tags === undefined ? undefined : pickTags(project, args.tags, now.tags)
     if (tags && "declined" in tags) return tags
     const assignees = args.assignees === undefined ? undefined : pickAssignees(ctx, args.assignees, now.assignees)
     if (assignees && "declined" in assignees) return assignees
-    if (assignees && assignees.ids.length > 0 && inDoneLane(project, lane?.id ?? now.lane))
+    const lane =
+      picked?.id ?? (assignees ? laneForNewAssignees(project, now.lane, now.assignees, assignees.ids) : undefined)
+    if (assignees && assignees.ids.length > 0 && inDoneLane(project, lane ?? now.lane))
       return {
         declined:
           "a ticket in the done lane has no assignees: take it out of the done lane first (change its lane), then assign",
@@ -190,7 +207,7 @@ export const TICKET_UPDATE = kit.defineAction({
       ...(args.body === undefined ? {} : { body: args.body }),
       ...(args.priority === undefined ? {} : { priority: args.priority }),
       ...(args.volume === undefined ? {} : { volume: args.volume }),
-      ...(lane === undefined ? {} : { lane: lane.id }),
+      ...(lane === undefined ? {} : { lane }),
       ...(tags === undefined ? {} : { tags: tags.ids }),
     }
     const changed = (Object.keys(next) as (keyof Ticket)[]).some(

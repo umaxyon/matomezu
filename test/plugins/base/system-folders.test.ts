@@ -17,6 +17,7 @@ import { CORE_CATALOG, newStore, sequence, settleIn } from "../../support"
 
 const NOW = "2026-11-19T01:00:00.000Z"
 const DOCUMENTS = DOCUMENTS_DEF.id
+const DRAWING = "@matomezu/drawing:drawing"
 const GONE = "@x/gone:folder" // 定義が機能台帳に無いシステムフォルダ（プラグインを外した間）
 const JA = { "@matomezu/base:lang": "matomezu:ja" }
 const EN = { "@matomezu/base:lang": "matomezu:en" }
@@ -93,6 +94,15 @@ test("システムフォルダの決まり: 動かす・名前を変える・定
     ["ほかの物を、システムフォルダより前に置く", world, "entry-move", { entry: "f", into: HOME_ID, index: 0 }, false],
     ["ほかの物を、システムフォルダの後に置く", world, "entry-move", { entry: "f", into: HOME_ID, index: 2 }, true],
     ["書庫ホームに、同じ名前のフォルダを作る", world, "folder-create", { title: "Documents" }, false],
+    [
+      "ページを、システムフォルダより前に作る",
+      world,
+      "page-create",
+      { folder: HOME_ID, type: DRAWING, index: 0 },
+      false,
+    ],
+    ["ページを、システムフォルダの後に作る", world, "page-create", { folder: HOME_ID, type: DRAWING, index: 2 }, true],
+    ["ドキュメントの中に、ページを作る", world, "page-create", { folder: "sf1", type: DRAWING }, true],
     ["ドキュメントの中に、フォルダを作る", world, "folder-create", { title: "a", into: "sf1" }, true],
     ["定義の無いシステムフォルダの名前は数えない", world, "folder-create", { title: "gone" }, true],
     ["定義の無いシステムフォルダは、ゴミ箱に入れられる", world, "entry-trash", { entry: "gone" }, true],

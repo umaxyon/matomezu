@@ -3,16 +3,25 @@
 import { type Annotation, type Annotations, type PageAnnotations, prune } from "./annotation"
 import { pagesOf } from "./book"
 import type { CoreCatalog } from "./core-catalog"
-import type { ActionContext, ActionDef, ActionOn, ActionTarget, AIEditTicketChange, AIMessage } from "./def/action"
+import {
+  type ActionContext,
+  type ActionDef,
+  type ActionOn,
+  type ActionTarget,
+  type AIEditTicketChange,
+  type AIMessage,
+  takesBook,
+} from "./def/action"
 import { shownToAI } from "./def/subject"
 import { type Naming, namingOf, titleClashes, withFreeTitles } from "./entries"
 import type { Library, PageRow, TableChanges } from "./folders"
 import { bookOf } from "./folders-books"
 import { changesBetween, createdIn, noChanges, placedChanges, rowChanges, withChanges } from "./folders-changes"
-import { bookIdOf, inTrash, permissionFoldersOf, treeHolds } from "./folders-tree"
+import { bookIdOf, inTrash, outsideBinderIn, permissionFoldersOf, treeHolds } from "./folders-tree"
 import { followChanges } from "./follow"
 import type { Books } from "./library"
 import {
+  type BinderOutsideBook,
   languageTitleTaken,
   type NoPage,
   noPage,
@@ -24,8 +33,9 @@ import {
 } from "./perform"
 import { isRecordTarget } from "./perform-checks"
 import { NOT_IN_BOOK, type PermitContext, type Permitted, permitted } from "./perform-permit"
+import { FOLDERS, type WithFolders } from "./permission-input"
 import type { ItemPage } from "./placed"
-import { type RecordSource, readFrom, SOURCE, sourceOf, type WithSource } from "./record-source"
+import { type RecordSource, readerOf, readFrom, SOURCE, sourceIn, sourceOf, type WithSource } from "./record-source"
 import { type Counters, NO_RECORD, REMOVED, type RecordChange, type Records } from "./records"
 import { sameData } from "./same"
 import type { Book } from "./schema/book"
@@ -94,7 +104,7 @@ function noRecord(
 }
 
 // 対象を world から選んでアクションを行う（画面の store・常駐・行い直しで同じ決まりを使う）。
-// ブックが対象なら on のブックで（ゴミ箱のブックは無いものとして断る）、ページとアノテーションが対象なら on のページを持っているブックで（ブックの外のページなら、そのページで）行い、ブックの id を変えたら断る。同じ値の設定は変わらなかったとみなす。
+// ブックが対象なら on のブックか、ブックの外のバインダで（ゴミ箱の中の物は無いものとして断る。ブックにだけ行えるアクションは、バインダを断る）、ページとアノテーションが対象なら on のページを持っているブックで（ブックの外のページなら、そのページで）行い、ブックの id を変えたら断る。同じ値の設定は変わらなかったとみなす。
 // ブックが変わったら、無くなった物をそのページのアノテーションのアンカーから外し（core/annotation.ts の prune）、無くなったページと、一覧から無くなったブックのページと、ゴミ箱に入ったページのアノテーションは消す
 export function performIn(
   world: World,
@@ -105,7 +115,7 @@ export function performIn(
 ): PerformedIn {
   // 名前を引く決まりは、どの対象のアクションにも、世界の利用者の設定から入れる
   const naming = namingOf(given.catalog, world.settings)
-  const ctx: ActionContext = { ...given, naming }
+  const ctx: ActionContext = { ...given, naming, ...inputsOf(world) }
   const target: ActionTarget | undefined = ctx.catalog.actions.get(id)?.target
   const loose = perform as (
     subject: unknown,
@@ -116,9 +126,11 @@ export function performIn(
   if (target !== undefined && isRecordTarget(ctx.catalog, target))
     return performRecord(world, target, id, args, on, ctx)
   if (target === "book") {
-    const book = bookIn(world, on as { book: string } | undefined)
-    if (!book) return { ok: false, reason: "no-book" }
-    return changedBook(ctx.naming, world, book, loose(book, id, args, ctx))
+    const at = targetLineupIn(ctx.catalog, world, id, on)
+    if (!at) return { ok: false, reason: "no-book" }
+    return "binder" in at
+      ? changedLibrary(naming, world, loose(at, id, args, ctx))
+      : changedBook(ctx.naming, world, at, loose(at, id, args, ctx))
   }
   if (target === "annotations") {
     const at = targetPageIn(world, on)
@@ -140,27 +152,13 @@ export function performIn(
   }
   if (target === "library") {
     const library: Library = { pages: world.pages, folders: world.folders }
-    const done = loose(library, id, args, ctx)
-    if (!done.ok) return done
-    const made = rowChanges(library, done.next as Library)
-    // 足したブックと無くなったブックの置き場所を書く。木の決まりを守っていた世界は、行った後も守る
-    const changes = placedChanges(world, made)
-    const after = withChanges(world, changes)
-    if (!treeHolds(after)) return { ok: false, reason: "refused" }
-    const clashes = titleClashes(after, naming)
-    if (clashes.length > 0) return titleTaken(after, clashes, naming)
-    // 無くなったページと、ゴミ箱に入ったページ（ゴミ箱に入った物の中のページも）のアノテーションは消す
-    const gone = Object.keys(world.annotations).filter(
-      p =>
-        (world.annotations[p]?.length ?? 0) > 0 &&
-        (changes.pages[p] === REMOVED || (inTrash(after.folders, p) && !inTrash(world.folders, p))),
+    const subjects = ctx.catalog.actions.get(id)?.readsSubjects?.(ctx.catalog)
+    const read = subjects ? readerOf(ctx.catalog, sourceIn(ctx), subjects) : undefined
+    return changedLibrary(
+      naming,
+      world,
+      loose(library, id, args, read ? { ...ctx, record: read.record, find: read.find } : ctx),
     )
-    return {
-      ok: true,
-      result: done.result,
-      ...(noChanges(changes) ? {} : { changes }),
-      ...(gone.length === 0 ? {} : { annotations: Object.fromEntries(gone.map(p => [p, []])) }),
-    }
   }
   const done = loose(world.settings, id, args, ctx)
   if (!done.ok) return done
@@ -180,6 +178,37 @@ export function performIn(
   const freed = withFreeTitles(library, nextNaming).next
   const changes = rowChanges(library, freed)
   return { ok: true, result: done.result, settings: next, ...(noChanges(changes) ? {} : { changes }) }
+}
+
+// 書庫を変えるアクション（書庫が対象か、ブックの外のバインダに行った、ブックが対象のアクション）の結果 done を、変わった物だけの形にする。
+// 足したブックと無くなったブックの置き場所を書き、木の決まりと名前の重なりを確かめ、無くなったページと、ゴミ箱に入ったページ（ゴミ箱に入った物の中のページも）のアノテーションは消し、
+// 変わったページでは、無くなった物をアノテーションのアンカーから外す（名前は naming で引く）
+function changedLibrary(naming: Naming, world: World, done: ReturnType<typeof perform>): PerformedIn {
+  if (!done.ok) return done
+  const library: Library = { pages: world.pages, folders: world.folders }
+  const made = rowChanges(library, done.next as Library)
+  // 木の決まりを守っていた世界は、行った後も守る
+  const changes = placedChanges(world, made)
+  const after = withChanges(world, changes)
+  if (!treeHolds(after)) return { ok: false, reason: "refused" }
+  const clashes = titleClashes(after, naming)
+  if (clashes.length > 0) return titleTaken(after, clashes, naming)
+  const changed: Record<string, readonly Annotation[]> = {}
+  for (const [p, list] of Object.entries(world.annotations)) {
+    if (list.length === 0) continue
+    const page = changes.pages[p]
+    if (page === REMOVED || (inTrash(after.folders, p) && !inTrash(world.folders, p))) changed[p] = []
+    else if (page !== undefined) {
+      const kept = prune(list, page)
+      if (kept !== list) changed[p] = kept
+    }
+  }
+  return {
+    ok: true,
+    result: done.result,
+    ...(noChanges(changes) ? {} : { changes }),
+    ...(Object.keys(changed).length === 0 ? {} : { annotations: changed }),
+  }
 }
 
 // 変わり changes が新しく足すページ・フォルダの id が、世界 world にもう在るか（行う前のブック before に無かった物を足すなら、その id は世界のどこにも無いこと。
@@ -343,10 +372,27 @@ function booksRead(world: World, action: ActionDef, args: unknown): Books {
   )
 }
 
-// ブックが対象のアクションの宛先のブック（on のブック。無いか、ゴミ箱のブックなら null）。performIn と permittedIn で同じ決まりを使う
-function bookIn(world: World, on: ActionOn | undefined): Book | null {
-  const book = bookOf(world, (on && "book" in on ? on.book : undefined) ?? "")
-  return book && !inTrash(world.folders, book.id) ? book : null
+// 認可ステップが読む、世界 world のレコードの読み口と書庫のフォルダ（アクションの文脈に、core の中だけで引く鍵で持たせる）
+const inputsOf = (world: World): WithSource & WithFolders => ({
+  [SOURCE]: world.source ?? sourceOf(world.records),
+  [FOLDERS]: world.folders,
+})
+
+// ブックが対象のアクション action（id）の宛先（on の book）: ブックか、ブックの外のバインダ（そのバインダの id と、それを持っている書庫）。
+// 無いか、ゴミ箱の中の物か、ブックの中のバインダか、ブックにだけ行えるアクション（takesBook）にバインダを名指したなら null。performIn と permittedIn で同じ決まりを使う
+function targetLineupIn(
+  catalog: CoreCatalog,
+  world: World,
+  action: string,
+  on: ActionOn | undefined,
+): Book | BinderOutsideBook | null {
+  const id = (on && "book" in on ? on.book : undefined) ?? ""
+  const book = bookOf(world, id)
+  if (book) return inTrash(world.folders, book.id) ? null : book
+  const def = catalog.actions.get(action)
+  const library: Library = { pages: world.pages, folders: world.folders }
+  if (!def || takesBook(def) || !outsideBinderIn(library, id)) return null
+  return { book: NOT_IN_BOOK, binder: id, library }
 }
 
 // world でアクション id を引数 args で行えるかを、行う前に問う（対象の選び方は performIn と同じ。run は回さない）
@@ -355,12 +401,13 @@ export function permittedIn(
   id: string,
   args: unknown,
   on: ActionOn | undefined,
-  ctx: PermitContext,
+  given: PermitContext,
 ): Permitted | Refused | { ok: false; reason: "no-book" } | ReturnType<typeof noRecord> {
+  const ctx: PermitContext = { ...given, ...inputsOf(world) }
   const target: ActionTarget | undefined = ctx.catalog.actions.get(id)?.target
   if (target === "book") {
-    const book = bookIn(world, on)
-    return book ? permitted(book, id, args, ctx) : { ok: false, reason: "no-book" }
+    const at = targetLineupIn(ctx.catalog, world, id, on)
+    return at ? permitted(at, id, args, ctx) : { ok: false, reason: "no-book" }
   }
   if (target === "page" || target === "annotations") {
     const at = targetPageIn(world, on)

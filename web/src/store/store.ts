@@ -5,7 +5,7 @@ import { createStore } from "zustand/vanilla"
 import { USER } from "../core/actor"
 import { addressOf, keepPlace, placeAt } from "../core/address"
 import { restoreAllAnnotations, withAnnotations } from "../core/annotation"
-import { pageById, readLibrary } from "../core/book"
+import { readLibrary } from "../core/book"
 import { bulkActionOf, entersLibraryHistory, laterThan, localDateOf, performBulk } from "../core/bulk"
 import type { CoreCatalog } from "../core/core-catalog"
 import type { ActionContext, ActionOn } from "../core/def/action"
@@ -29,6 +29,7 @@ import {
   rowChangesOf,
 } from "../core/history"
 import { detectLang, type Lang } from "../core/i18n/i18n"
+import { openablePage } from "../core/library"
 import type { Refused } from "../core/perform"
 import { performIn } from "../core/perform-world"
 import { restoreCounters, restoreRecords, withCounters, withRecords } from "../core/records"
@@ -862,10 +863,19 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         )
     },
     openPageById: (stage, page) => {
-      const at = pageById(getState().books, page)
+      const at = openablePage(getState(), page)
       if (!at) return
-      if (stageIn(getState().window, stage)?.opened?.outermost.id !== at.book.id) actions.openBook(stage, at.book.id)
-      actions.openPage(stage, page)
+      const { kind, id } = at.outermost
+      if (stageIn(getState().window, stage)?.opened?.outermost.id === id) actions.openPage(stage, page)
+      else
+        actions.openToStage(
+          kind === "book"
+            ? { to: "book", book: id, page }
+            : kind === "binder"
+              ? { to: "binder", binder: id, page }
+              : { to: "page", page },
+          stage,
+        )
     },
     resizeStage: (id, view) => withStageScreen(id, ws => mapStage(ws, id, s => resize(s, view))),
     setStageArea: (id, area, origin) => withStageScreen(id, ws => mapStage(ws, id, s => setArea(s, area, origin))),

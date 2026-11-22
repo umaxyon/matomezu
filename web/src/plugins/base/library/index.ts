@@ -13,6 +13,7 @@ export {
   LIBRARY_FOUND_KEY_SCOPE,
   LIBRARY_KEY_SCOPE,
   LIBRARY_KEYS,
+  LIBRARY_PAGE_NEW,
   LIBRARY_PICK_MOVE,
   LIBRARY_REDO,
   LIBRARY_TREE_FOLD_OR_PARENT,
@@ -22,9 +23,10 @@ export {
   LIBRARY_UNDO,
 } from "./commands"
 export { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG, LIBRARY_RENAME_DIALOG } from "./dialog"
-export { ENTRY_DUPLICATE, PAGE_CREATE } from "./entry-duplicate"
+export { ENTRY_DUPLICATE } from "./entry-duplicate"
 export { ENTRY_MOVE, ENTRY_MOVE_OVER, ENTRY_RENAME, FOLDER_CREATE } from "./entry-move"
 export { ENTRY_PURGE, ENTRY_RESTORE, ENTRY_TRASH, TRASH_EMPTY } from "./entry-trash"
+export { PAGE_CREATE } from "./page-create"
 export { LIBRARY_REVERT } from "./revert"
 export {
   LIBRARY_OPEN,
@@ -42,6 +44,7 @@ export {
   LIBRARY_FOLDER,
   LIBRARY_PICKED,
   LIBRARY_QUERY,
+  LIBRARY_TREE_WIDTH,
   LIBRARY_UNFOLDED,
   UNREADABLE_NOTICE_CLOSED,
 } from "./state"

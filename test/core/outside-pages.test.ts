@@ -198,14 +198,11 @@ test("ページを作る先がブックならそのブックに作るタイプ�
       [],
     ])
   }
-  // page-create の行う前の問いも、ブックの外へ作るなら空のページで問う（作る道は断る）
+  // page-create の行う前の問いも、ブックの外へ作るなら空のページで問い、フォルダ a に作る
   seen.length = 0
   permittedIn(w, PAGE_CREATE, { folder: "a", type: DRAWING }, undefined, libraryCtx())
   expect(seen.map(q => (q.kind === "page" ? [q.page.type, q.folders] : q.kind))).toEqual([[DRAWING, []]])
-  expect(performIn(w, PAGE_CREATE, { folder: "a", type: DRAWING }, undefined, libraryCtx())).toMatchObject({
-    ok: false,
-    reason: "refused",
-  })
+  expect(performIn(w, PAGE_CREATE, { folder: "a", type: DRAWING }, undefined, libraryCtx())).toMatchObject({ ok: true })
 })
 
 test("ロックしたブックの外のページは、動かせるが、名前を変えられず、ゴミ箱にも入れられない（行う前の問いで止まり、すり抜けても行った後の確かめで止まる）", () => {
@@ -357,4 +354,27 @@ test("ゴミ箱に入れた物の中のページのアノテーションは消�
   expect(gone(TRASH, { entry: "lb" })).toEqual({ y1: [] })
   expect(gone(TRASH, { entry: "b1" })).toEqual({ p1: [] })
   expect(gone(MOVE, { entry: "x1", into: "a" })).toEqual({})
+})
+
+test("書庫が対象のアクションが変えたブックの外のページでは、無くなった物をアノテーションのアンカーから外す", () => {
+  const library = libraryWith(
+    [testBook("b1", "ブック", [drawingPage("p1")])],
+    [
+      drawingPage("x1", {
+        title: "外",
+        items: [{ id: "a", item: BOX, x: 0, y: 0, props: { caption: "a", body: "" } }],
+      }),
+    ],
+  )
+  const note = (id: string, anchors: string[]) =>
+    ({ id, annotation: "@matomezu/base:note", anchors, props: { text: "x", bubble: true, addedAt: "t" } }) as never
+  const world: World = {
+    ...library,
+    settings: {},
+    annotations: { x1: [note("a1", ["a"]), note("a2", ["gone"])], p1: [note("a3", ["gone"])] },
+    records: {},
+    counters: {},
+  }
+  const done = performIn(world, SNEAK, {}, undefined, libraryCtx("test:center"))
+  expect(done.ok && done.annotations).toEqual({ x1: [note("a1", ["a"])] })
 })

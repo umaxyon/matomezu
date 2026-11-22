@@ -11,7 +11,7 @@ import { binnedBetween } from "../core/entries"
 import { type Library, NO_CHANGES, pageIn } from "../core/folders"
 import { bookOf, libraryOf } from "../core/folders-books"
 import { createdOn, withChanges } from "../core/folders-changes"
-import { atOutsideBinderPlace, atOutsidePagePlace, bookIdOf } from "../core/folders-tree"
+import { atOutsideBinderPlace, atOutsidePagePlace, bookIdOf, outsideBinderIn } from "../core/folders-tree"
 import { detectLang } from "../core/i18n/i18n"
 import { changedIn } from "../core/ids"
 import type { PerformedIn, World } from "../core/perform-world"
@@ -91,7 +91,8 @@ const AI_REFUSALS: Record<Exclude<PerformedIn, { ok: true }>["reason"], string> 
     "the page's type (or, for an action on the whole book, the action itself; or, for the library, the settings and the records, the control center) does not allow it",
   refused: "the action's rules refuse it (for example the page or item does not exist); read_page to check",
   denied: "a permission step stopped it",
-  "no-book": "there is no book with that id (see list_books)",
+  "no-book":
+    "there is no book with that id, nor a binder that is not in a book (see list_books and read_folder); an action that needs the book itself (its name, its settings, its lock) is not done on such a binder",
   "no-page": "there is no page with that id (on.page is the id of a page; read_book and read_folder list pages)",
   "no-record": "there is no record with that id (on.record is the id of a record of the action's subject)",
 }
@@ -214,7 +215,7 @@ export function perform(of: Assembled, input: Input): Output {
   }
 }
 
-// アクション 1 つが、利用者が直している物 watched（ブックの中の物・ページの中の物とそのページのアノテーション。ページはブックの中でも外でも）を変えたか消した所（before と after はそのアクションの前と後の世界、changedAnnotations はそのアクションが変えたアノテーション）
+// アクション 1 つが、利用者が直している物 watched（ブックの中の物・ブックの外のバインダ・ページの中の物とそのページのアノテーション。ページはブックの中でも外でも）を変えたか消した所（before と after はそのアクションの前と後の世界、changedAnnotations はそのアクションが変えたアノテーション）
 function touchedIn(
   before: World,
   after: World,
@@ -226,6 +227,9 @@ function touchedIn(
     // ブックの中の物（バインダ・ブックそのもの）
     const was = bookOf(before, id)
     if (was) return changedIn(was, bookOf(after, id), list)
+    // ブックの外のバインダの中の物（バインダそのもの）
+    const binder = outsideBinderIn(before, id)
+    if (binder) return changedIn(binder, outsideBinderIn(after, id), list)
     // ページの中の物と、そのページのアノテーション（ブックの中のページなら、そのページを持っているブックだけを組む）
     const holder = bookIdOf(before.folders, id)
     const held = holder ? bookOf(before, holder) : undefined

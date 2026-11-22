@@ -7,12 +7,12 @@
   color: var(--skin-text);
   outline: none;
 }
-/* 左: 検索の入力Formと、その下にツリー */
+/* 左: 検索の入力Formと、その下にツリー。幅はツリーの幅で、右に中身の最小を残せないときは縮める（ツリーの最小より狭くはしない。そのときは右が縮む） */
 .left {
   display: flex;
   flex: none;
   flex-direction: column;
-  width: 260px;
+  width: max(var(--library-tree-min-width), min(var(--library-tree-width), 100% - var(--library-content-min-width)));
   border-right: 1px solid var(--skin-border-strong);
   background: var(--skin-surface); /* 参加者リストなどの枠（Panel）と同じ色 */
 }
@@ -213,6 +213,14 @@
   flex-direction: column;
   min-width: 0;
 }
+/* ツリーと右の境目をつかむ所: 境目の線をまたぐ細い帯（幅を取らない） */
+.treeSplitter {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  width: 7px;
+  margin: 0 -4px 0 -3px;
+}
 .path {
   display: flex;
   flex: none;
@@ -230,6 +238,7 @@
   background: none;
   color: inherit;
   font: inherit;
+  text-align: left;
   cursor: pointer;
 }
 .crumb:hover {
@@ -238,10 +247,10 @@
 .crumb[aria-current="true"] {
   font-weight: 700;
 }
-/* パンくずの 1 段（区切りの › と名前）: 縦は中央 */
+/* パンくずの 1 段（区切りの › と名前）: 名前が折り返しても、› は名前の 1 行目にそろえる */
 .path > span {
   display: flex;
-  align-items: center;
+  align-items: baseline;
 }
 .sep {
   padding: 0 2px;
@@ -249,10 +258,11 @@
   font-size: 18px;
   line-height: 1;
 }
-/* パンくずの下の、作るボタンの行（下に区切りの線） */
+/* パンくずの下の、作るボタンの行（下に区切りの線）。入らなければボタンごとに折り返す */
 .tools {
   display: flex;
   flex: none;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   padding: 8px 12px;
@@ -263,6 +273,7 @@
   display: inline-flex;
   gap: 6px;
   align-items: center;
+  white-space: nowrap;
 }
 .historyButton {
   display: grid;

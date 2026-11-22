@@ -6,7 +6,7 @@ import { type Actor, isAI, workroomOfActor } from "../../../plugin-api"
 import { READS_WORKROOM_KEYS } from "../../base"
 import { type Records, workroomsOf } from "../by"
 import { kit } from "../kit"
-import { inDoneLane, inWorkingLane, type Project } from "../project"
+import { firstWorkingLane, inDoneLane, inWorkingLane } from "../project"
 import { projectOf } from "../project/actions"
 import { TICKET, type Ticket } from "../ticket"
 import { assignedMessages } from "../ticket/actions"
@@ -28,10 +28,6 @@ function workroomFor(actor: Actor, ref: string | undefined, ctx: Records): { id:
 
 // 利用者が workroom を名前で指せるように、ワークルームの索引キーも読む
 const readsFor = (actor: Actor) => [READS_CURRENT_WORK, ...(isAI(actor) ? [] : [READS_WORKROOM_KEYS])]
-
-// プロジェクトの最初の作業中のレーン（無ければ undefined）
-const firstWorkingLane = (project: Project): string | undefined =>
-  project.lanes.flatMap(l => (l.kind === "lane" && l.working === true ? [l.id] : []))[0]
 
 export const TICKET_START = kit.defineAction({
   id: "ticket-start",

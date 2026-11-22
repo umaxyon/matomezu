@@ -52,6 +52,7 @@ import {
   LIBRARY_NEW_BOOK_DIALOG,
   LIBRARY_NEW_FOLDER_DIALOG,
   LIBRARY_OPEN,
+  LIBRARY_PAGE_NEW,
   LIBRARY_PICK_MOVE,
   LIBRARY_PICKED,
   LIBRARY_PLACE_OPEN,
@@ -67,6 +68,7 @@ import {
   LIBRARY_TREE_KEY_SCOPE,
   LIBRARY_TREE_MOVE,
   LIBRARY_TREE_UNFOLD_OR_NEXT,
+  LIBRARY_TREE_WIDTH,
   LIBRARY_UNDO,
   LIBRARY_UNFOLDED,
   LIBRARY_UNREADABLE_OPEN,
@@ -150,6 +152,7 @@ import {
   PAGE_DELETE_DIALOG,
   PAGE_DUPLICATE_COMMAND,
   PAGE_NEW,
+  PAGE_NEW_IN_FOLDER,
   PAGE_OPEN,
   PAGE_SETTINGS,
   PAGE_SETTINGS_DIALOG,
@@ -181,6 +184,8 @@ import {
   PARTICIPANT_REQUEST,
   PARTICIPANT_WELCOME_DIALOG,
   SESSION_RENAME,
+  WORKER_BOOK,
+  WORKER_PAGE_ADD,
   WORKROOM,
   WORKROOM_ADD,
   WORKROOM_REMOVE,
@@ -327,7 +332,7 @@ export {
 // 拡張ポイントに書き足した物の型（定義を書くプラグインが使う。追加プラグインには matomezu から出す）
 export { itemMinimapMarks, type MinimapMark } from "./minimap"
 export type { PageProblem } from "./pages"
-export { addPageIn, nextPageTitle, type PageFieldsWay, pageFieldsWay } from "./pages"
+export { addPageIn, type PageFieldsWay, pageFieldsWay } from "./pages"
 export type { ParticipantCategory, VisitorRow, WorkroomRow, WorkroomState } from "./participant"
 export {
   adminWorkroom,
@@ -468,6 +473,7 @@ export const BASE = defineBuiltin(
       BOOK_LOCK,
       BOOK_UNLOCK,
       BOOK_CREATE,
+      WORKER_PAGE_ADD,
       FOLDER_CREATE,
       ENTRY_MOVE,
       ENTRY_MOVE_OVER,
@@ -540,7 +546,7 @@ export const BASE = defineBuiltin(
     textColors: TEXT_COLORS,
     skins: [DARK, LIGHT, MATOMEZU_LIGHT_SKIN, MATOMEZU_DARK_SKIN],
     tools: [SELECT_TOOL, HAND_TOOL],
-    permissions: [LOCK],
+    permissions: [LOCK, WORKER_BOOK],
     annotations: [NOTE, MARK],
     systemFolders: [DOCUMENTS],
     backyards: [TICKETS_HISTORY],
@@ -614,6 +620,8 @@ export const BASE = defineBuiltin(
       LIBRARY_PLACE_OPEN,
       LIBRARY_SCREEN_EXPAND,
       LIBRARY_FOLDER_NEW,
+      LIBRARY_PAGE_NEW,
+      PAGE_NEW_IN_FOLDER,
       LIBRARY_ENTRY_RENAME,
       LIBRARY_ENTRY_TRASH,
       LIBRARY_ENTRY_DUPLICATE,
@@ -662,6 +670,7 @@ export const BASE = defineBuiltin(
       LIBRARY_COLUMNS,
       LIBRARY_UNFOLDED,
       LIBRARY_QUERY,
+      LIBRARY_TREE_WIDTH,
       UNREADABLE_NOTICE_CLOSED,
       ...REVEAL_REQUEST_STATES,
       ...PRINT_PREVIEW_STATES,
@@ -734,6 +743,7 @@ declare module "../../core/catalog" {
   }
   interface ActionTable {
     "@matomezu/base:book-create": typeof BOOK_CREATE
+    "@matomezu/base:worker-page-add": typeof WORKER_PAGE_ADD
     "@matomezu/base:page-add": typeof PAGE_ADD
     "@matomezu/base:book-update": typeof BOOK_UPDATE
     "@matomezu/base:page-update": typeof PAGE_UPDATE
@@ -798,6 +808,7 @@ declare module "../../core/catalog" {
   }
   interface PermissionTable {
     "@matomezu/base:lock": typeof LOCK
+    "@matomezu/base:worker-book": typeof WORKER_BOOK
   }
   interface AnnotationTable {
     "@matomezu/base:note": typeof NOTE
@@ -868,6 +879,8 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-place-open": typeof LIBRARY_PLACE_OPEN
     "@matomezu/base:library-screen-expand": typeof LIBRARY_SCREEN_EXPAND
     "@matomezu/base:library-folder-new": typeof LIBRARY_FOLDER_NEW
+    "@matomezu/base:library-page-new": typeof LIBRARY_PAGE_NEW
+    "@matomezu/base:page-new-in-folder": typeof PAGE_NEW_IN_FOLDER
     "@matomezu/base:library-entry-rename": typeof LIBRARY_ENTRY_RENAME
     "@matomezu/base:library-entry-move": typeof LIBRARY_ENTRY_MOVE
     "@matomezu/base:library-tree-move": typeof LIBRARY_TREE_MOVE
@@ -952,6 +965,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-columns": typeof LIBRARY_COLUMNS
     "@matomezu/base:library-unfolded": typeof LIBRARY_UNFOLDED
     "@matomezu/base:library-query": typeof LIBRARY_QUERY
+    "@matomezu/base:library-tree-width": typeof LIBRARY_TREE_WIDTH
     "@matomezu/base:revealing": typeof REVEALING_STATE
     "@matomezu/base:print-ready": typeof PRINT_READY_STATE
     "@matomezu/base:print-measures": typeof PRINT_MEASURES

@@ -1,7 +1,8 @@
-// 書庫の画面のプラグイン状態（描いているスクリーン 1 枚ごと）
+// 書庫の画面のプラグイン状態（描いているスクリーン 1 枚ごと。ツリーの幅と読めない物の知らせは窓ごと）
 import { z } from "zod"
 import { kit } from "../kit"
 import { openedFolderOf, shownFoldersOf, unfoldedOf } from "./outline"
+import { TREE_MIN_WIDTH } from "./tree-width"
 
 // 開いているフォルダの id（右の枠に中身を出しているフォルダ）。画面の場所に入り、替えるたびにブラウザの履歴に積む（値が無ければ書庫ホーム）
 export const LIBRARY_FOLDER = kit.definePluginState({
@@ -25,6 +26,14 @@ export const LIBRARY_COLUMNS = kit.definePluginStateOf<number>()({ id: "library-
 export const LIBRARY_UNFOLDED = kit.definePluginStateOf<readonly string[]>()({
   id: "library-unfolded",
   scope: "screen",
+})
+
+// ツリーの幅（px。窓ごとに 1 つで、書庫を見せるどのスクリーンでも同じ幅。画面の場所に入るが履歴には積まない。値が無ければ既定の幅）
+export const LIBRARY_TREE_WIDTH = kit.definePluginState({
+  id: "library-tree-width",
+  scope: "window",
+  schema: z.number().int().min(TREE_MIN_WIDTH),
+  address: "replace",
 })
 
 // 書庫の画面（LibraryView）の書庫アピアランス: 右の枠で開いているフォルダと、ツリーで中を出しているフォルダを見せている。

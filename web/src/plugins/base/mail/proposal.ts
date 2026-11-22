@@ -223,6 +223,7 @@ export const PROPOSAL_APPLY = kit.defineAction({
     "Done by the user's screen when the user applies a change proposal mail (only the user): the carried changes, in order, all or none.",
   title: "Apply a change proposal",
   target: "book",
+  takesBook: true, // 運んだ変更には、ブックの名前や設定を変える物もある
   // 変えるページが分かればそのページと当たる物。分からなければ所は言えず、ページのロックは行った後の keeps が止める
   permissionScope: (args: z.output<typeof ApplyArgs>) =>
     args.page ? { page: args.page, ids: Object.keys(args.snapshot[args.page] ?? {}) } : {},

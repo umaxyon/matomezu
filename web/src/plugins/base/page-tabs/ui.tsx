@@ -2,6 +2,7 @@
 
 import { defineWidget } from "../../../ui/layout"
 import { kit } from "../kit"
+import { LIBRARY_ADD_PAGE_MENU } from "../library/commands"
 import { GEAR_ICON } from "../utils/gear-icon"
 import { STAGE_SIDE } from "../workspace/slots"
 import { STAGE_SLOTS } from "../workspace/ui"
@@ -19,7 +20,7 @@ import {
   PAGE_SETTINGS_DIALOG,
   PAGE_SETTINGS_OF,
 } from "."
-import { useAddPageRows } from "./AddPageMenu"
+import { useAddPageInRows, useAddPageRows } from "./AddPageMenu"
 import { BinderDeleteDialog } from "./BinderDeleteDialog"
 import { BinderSettingsDialog } from "./BinderSettingsDialog"
 import { NewPageDialog } from "./NewPageDialog"
@@ -70,9 +71,10 @@ export const PAGE_DIALOG_VIEWS = {
 // メニューが自分で出す行
 export const PAGE_CONTEXT_MENU_ROWS = {
   [ADD_PAGE_MENU]: useAddPageRows,
+  [LIBRARY_ADD_PAGE_MENU]: useAddPageInRows,
 }
 
 export { PageProblemsView, usePageProblems } from "./PageProblems"
 export { PageSettingsDialogView, type PageSettingsDialogViewProps } from "./PageSettingsDialogView"
 export { type PaperValue, usePaperControls } from "./PaperControls"
-export { useAddPage } from "./useAddPage"
+export { useNewPage } from "./useNewPage"

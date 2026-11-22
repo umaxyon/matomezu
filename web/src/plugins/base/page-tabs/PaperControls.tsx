@@ -5,7 +5,7 @@
 import { useState } from "react"
 import { pageType } from "../../../core/core-catalog"
 import type { GrowChoice, Orientation } from "../../../core/def/paper"
-import type { Book, Page } from "../../../core/schema/book"
+import type { Page, StageLineup } from "../../../core/schema/book"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog } from "../../../ui/store-context"
 import { useBook } from "../../../ui/view-hooks"
@@ -117,19 +117,23 @@ function usePaperForm(
   return { controls, value, patch, draft, problems }
 }
 
-// ページを作るダイアログの紙の入力Form: ブック book の所 place（紙をそろえる相手が決まる）に足す、タイプ type のページ。タイプの規定の既定から始める
-export function usePaperControls(book: Book | undefined, type: string | undefined, place: PaperPlace = "lineup") {
+// ページを作るダイアログの紙の入力Form: 並び lineup（ブックか、ブックの外のバインダ 1 つの並び）の所 place（紙をそろえる相手が決まる）に足す、タイプ type のページ。タイプの規定の既定から始める
+export function usePaperControls(
+  lineup: StageLineup | undefined,
+  type: string | undefined,
+  place: PaperPlace = "lineup",
+) {
   const catalog = useCatalog().core
-  const known = book && type !== undefined
+  const known = lineup && type !== undefined
   return usePaperForm(
     type,
     null,
     () => {
       if (!known) return null
-      const from = defaultPaper(catalog, book, type, place)
+      const from = defaultPaper(catalog, lineup, type, place)
       return { paper: from.paper, orientation: from.orientation, grows: undefined }
     },
-    known ? paperChoices(catalog, book, type, place) : null,
+    known ? paperChoices(catalog, lineup, type, place) : null,
     known ? pageType(catalog, type).grouping === "binder" && place !== "new-binder" : false,
   )
 }

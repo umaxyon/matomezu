@@ -4,13 +4,21 @@ import type { LibraryPageRows } from "./changes"
 import type { CoreCatalog } from "./core-catalog"
 import type { ActionContext, ActionDef, EntryWhere, LibraryTargets, Where } from "./def/action"
 import { binnedBetween, isWithin } from "./entries"
-import { isOpenRole, type Library, type PageRow } from "./folders"
+import { type Folder, isOpenRole, type Library, type PageRow } from "./folders"
 import { libraryOf } from "./folders-books"
 import { bookIdOf, inTrash, isKeptSystemFolder, permissionFoldersOf, systemFolderOf } from "./folders-tree"
 import type { AskedPage } from "./inspect"
-import { broken, brokenPage, normalizedPage, pageChecksBetween, placeChangeOf } from "./perform-checks"
+import { splitId } from "./names"
+import {
+  backyardEntriesBetween,
+  broken,
+  brokenPage,
+  normalizedPage,
+  pageChecksBetween,
+  placeChangeOf,
+} from "./perform-checks"
 import type { ItemPage } from "./placed"
-import type { Book } from "./schema/book"
+import type { BinderEntry, Book } from "./schema/book"
 
 // 書庫が対象のアクションの、行う前に問う相手: ブック book とその中の所 where か、ページそのもの（ブックの外のページか作るページ。core/inspect.ts の AskedPage）
 export type LibraryAsk = { book: Book; where: Where } | { page: AskedPage }
@@ -110,6 +118,31 @@ export function libraryAsksOf(catalog: CoreCatalog, library: Library, targets: L
   return targets.creates ? [...found, { book: NEW_BOOK, where: {} }] : found
 }
 
+// ブックが対象のアクションを、ブックの外のバインダ binder（中のページごと）に行う前に問う相手: アクションが変える所 where（許可スコープから出した所。分からなければ無い）を、
+// ページそのものに直す。丸ごと変えるページ（page）と、どのページも変える（allPages）・バインダをエントリとして名指した（entries にバインダの id）ときの中のページの全部は、そのページで問う。
+// エントリとして名指したページ（動かす・複製する。そのページの中身は変えない）は、置き場所だけを変える物として問い、作るページは、そのタイプの空のページで問う。
+// 所が無いか、名指した物がバインダの中に無ければ、何にも問わない。folders は、中のページの認可ステップに見せるフォルダの列（どのページも同じ。core/folders-tree.ts の permissionFoldersOf）
+export function binderAsksOf(
+  catalog: CoreCatalog,
+  binder: BinderEntry,
+  folders: readonly Folder[],
+  where: Where | undefined,
+): AskedPage[] {
+  if (!where) return []
+  const asked = (id: string, at?: AskedPage["where"]): AskedPage[] => {
+    const page = binder.lineup.find(p => p.id === id)
+    return page ? [{ page, folders: [...folders], ...(at ? { where: at } : {}) }] : []
+  }
+  const all = (): AskedPage[] => binder.lineup.flatMap(p => asked(p.id))
+  if (where.allPages) return all()
+  const made = where.creates === undefined ? undefined : newPageOf(catalog, where.creates)
+  return [
+    ...(where.page === undefined ? [] : asked(where.page, where.ids ? { ids: where.ids } : undefined)),
+    ...(where.entries ?? []).flatMap(e => (e === binder.id ? all() : asked(e, { entry: "place" }))),
+    ...(made ? [{ page: made, folders: [] }] : []),
+  ]
+}
+
 // 書庫 library の、ゴミ箱かその中に無いページの行
 const pagesOutsideTrash = (library: Library): Library["pages"] =>
   Object.fromEntries(Object.entries(library.pages).filter(([id]) => !inTrash(library.folders, id)))
@@ -130,12 +163,26 @@ export function brokenIn(
   const rows: LibraryPageRows = { was: pagesOutsideTrash(was), now: pagesOutsideTrash(now) }
   for (const b of Object.values(before)) {
     const place = after[b.id] ? placeChangeOf(was, now, b.id, binned) : "same"
-    const id = b === after[b.id] && place === "same" ? null : broken(ctx, action, b, after[b.id], place, rows)
+    const id =
+      b === after[b.id] && place === "same"
+        ? null
+        : broken(ctx, action, b, after[b.id], backyardEntriesBetween(was.folders, b.id, now.folders, b.id), place, rows)
     if (id) return { permission: id, book: b.id }
   }
   for (const b of Object.values(after)) {
     const made = inTrash(now.folders, b.id) ? "trashed" : "same"
-    const id = b.id in before ? null : broken(ctx, action, undefined, b, made, rows)
+    const id =
+      b.id in before
+        ? null
+        : broken(
+            ctx,
+            action,
+            undefined,
+            b,
+            backyardEntriesBetween(was.folders, undefined, now.folders, b.id),
+            made,
+            rows,
+          )
     if (id) return { permission: id }
   }
   for (const page of pageChecksBetween(was, now)) {
@@ -183,3 +230,23 @@ export function systemFoldersKept(catalog: CoreCatalog, was: Library, now: Libra
 
 // 作るブックを認可ステップに問うときの、空のブック（問うためだけの物）
 export const NEW_BOOK: Book = { id: "new-book", title: "new book", lineup: [] }
+
+// 書庫が was から now に変わる間に、バックヤードの決まりを守らない訳（守れば null）: バックヤードに在るブックは名前を変えない（持ち主は名前でなく workKey で引く）。
+// バックヤードに新しく作るブックは、そのバックヤードの持ち主のプラグインのアクションだけが作る（読めない物のフォルダから戻す物は、前から在るので作るでない）
+export function backyardBreach(action: ActionDef, was: Library, now: Library): string | null {
+  for (const row of Object.values(now.folders)) {
+    if (row.folderRole !== "backyard") continue
+    for (const ref of row.lineup) {
+      const before = was.folders[ref.id]
+      if (!before) {
+        if (splitId(row.backyard).owner !== splitId(action.id).owner)
+          return "only the plugin that owns a backyard makes books in it"
+        continue
+      }
+      const after = now.folders[ref.id]
+      if (before.folderRole === "book" && after?.folderRole === "book" && after.title !== before.title)
+        return "a book in a backyard cannot be renamed"
+    }
+  }
+  return null
+}

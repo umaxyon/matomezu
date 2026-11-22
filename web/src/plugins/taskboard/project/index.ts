@@ -8,6 +8,7 @@ export {
   type CardShows,
   type CardSize,
   DONE_LANE_CARD_SIZE,
+  firstWorkingLane,
   INHERIT_CARD_SIZE,
   inDoneLane,
   inWorkingLane,

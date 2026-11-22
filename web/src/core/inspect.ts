@@ -25,8 +25,10 @@ import type { Folder } from "./folders"
 import { foldersOverIn } from "./folders-tree"
 import { idsIn } from "./ids"
 import type { KeyBinding } from "./keys"
+import { backyardEntryIn, inputFor, type WithFolders } from "./permission-input"
 import type { ItemPage } from "./placed"
-import type { Book } from "./schema/book"
+import type { WithSource } from "./record-source"
+import type { BinderEntry, Book } from "./schema/book"
 
 // ステップの出どころ
 export type Source =
@@ -74,8 +76,8 @@ export type Query =
     actor: Actor
     // レコードが対象のアクションの宛先のレコード（作るなら none）と、そのレコードが指すほかのレコード。認可ステップは record があるときに見る
     record?: { record: unknown; refs: readonly Referred[] }
-    // ブックの中でなく、ページそのもので問うときのページ（ブックの外のページか、書庫が対象のアクションが作るページ）。認可ステップには kind "page" で問い、
-    // ページ・アノテーションが対象のアクションを使えるかは、そのページのタイプで決める
+    // ブックの中でなく、ページそのもので問うときのページ（ブックの外のページか、ブックの外のバインダの中のページか、作るページ）。認可ステップには kind "page" で問い、
+    // ブック・ページ・アノテーションが対象のアクションを使えるかは、そのページのタイプで決める
     page?: AskedPage
   }
 
@@ -86,12 +88,13 @@ export interface AskedPage {
   where?: PageWhere
 }
 
+// ctx は行う文脈（コントロールセンターと、在れば core が持たせたレコードの読み口と書庫のフォルダ。認可ステップの読み口とバックヤードに使う）
 export function inspect(
   catalog: CoreCatalog,
   query: Query,
-  ctx?: Pick<ActionContext, "controlCenter">,
+  ctx?: Pick<ActionContext, "controlCenter"> & WithSource & WithFolders,
 ): Inspected<boolean> {
-  return action(catalog, query, ctx?.controlCenter ?? null)
+  return action(catalog, query, ctx ?? { controlCenter: null })
 }
 
 // アクション action を、開いているブック book の所 where で使えるかの問い。ブック・ページ・アノテーションが対象のアクションだけ book と where を渡す
@@ -112,7 +115,11 @@ export function actionQuery(
 }
 
 // ステージで開いている物（ステージエントリ）のうち、問う相手になる物: ブック（book）か、ブックの外のページ（そのページ page と、認可ステップに見せるフォルダの列 folders）
-export type AskedOutermost = { book: Book } | Pick<AskedPage, "page" | "folders">
+// ブックの外のバインダを開いているなら、開いているページと、そのバインダ（binder。中のページごと。ブックが対象のアクションは、core/perform-permit.ts の openedAnswer がバインダで問う）
+export type AskedOutermost =
+  | { book: Book }
+  | Pick<AskedPage, "page" | "folders">
+  | (Pick<AskedPage, "page" | "folders"> & { binder: BinderEntry })
 
 // アクション action を、開いている物 on の所 where を変える物として問う（アクションの対象は見ない。ブックの外のページの所は、その中の物 ids だけ）
 export function openedQuery(action: string, on: AskedOutermost, where?: Where): Query {
@@ -122,7 +129,8 @@ export function openedQuery(action: string, on: AskedOutermost, where?: Where): 
   return { ...base, page }
 }
 
-const decide = <V>(steps: Step<V>[]): Inspected<V> => {
+// ステップの並びの答え: 最初に決めたステップの値（どれも決めなければ null）
+export const decide = <V>(steps: Step<V>[]): Inspected<V> => {
   const hit = steps.find(s => s.value !== null)
   return { value: hit?.value ?? null, decidedBy: hit?.from ?? null, steps }
 }
@@ -216,18 +224,26 @@ export const decidedByPlace = (answer: Inspected<boolean>): boolean =>
 export const typeAllows = (def: ActionDef, type: PageTypeDef): boolean => decide(typeSteps(def, type)).value === true
 
 // 認可ステップ: 表の並びで、止めるなら false（許すことはしないので、ほかは null）
-function permissionSteps(catalog: CoreCatalog, q: PermissionQuery): Step<boolean>[] {
+function permissionSteps(catalog: CoreCatalog, q: PermissionQuery, ctx: object): Step<boolean>[] {
   return [...catalog.permissions.values()].map(p => ({
     from: { source: "permission", id: p.id },
-    value: p.denies(q) ? false : null,
+    value: p.denies(q, inputFor(catalog, ctx, p)) ? false : null,
   }))
 }
 
 // 認可ステップへの行う前の問い: ページ・アノテーションが対象で、宛先のページが分かっていれば、そのページと、入れているフォルダの列で問う。
 // ほかは、ブックで問う
-function permissionQuery(def: ActionDef, book: Book, where: Where | undefined, actor: Actor): PermissionQuery {
+function permissionQuery(
+  def: ActionDef,
+  book: Book,
+  where: Where | undefined,
+  actor: Actor,
+  ctx: object,
+): PermissionQuery {
   const page = isOnPage(def.target) && where?.page !== undefined ? findPage(book, where.page)?.page : undefined
-  if (!page) return { kind: "folder", action: def, folder: book, actor, ...(where ? { where } : {}) }
+  const entry = backyardEntryIn(ctx, book.id)
+  const backyardEntry = entry ? { backyardEntry: entry } : {}
+  if (!page) return { kind: "folder", action: def, folder: book, actor, ...(where ? { where } : {}), ...backyardEntry }
   const ids = where?.ids
   return {
     kind: "page",
@@ -236,6 +252,7 @@ function permissionQuery(def: ActionDef, book: Book, where: Where | undefined, a
     folders: foldersOverIn(book, page.id),
     actor,
     ...(ids ? { where: { ids } } : {}),
+    ...backyardEntry,
   }
 }
 
@@ -298,8 +315,9 @@ function userSettingSteps(
 function action(
   catalog: CoreCatalog,
   q: Extract<Query, { kind: "action" }>,
-  controlCenter: string | null,
+  ctx: Pick<ActionContext, "controlCenter">,
 ): Inspected<boolean> {
+  const controlCenter = ctx.controlCenter
   const def: ActionDef | undefined = catalog.actions.get(q.action)
   const known: Step<boolean> = {
     from: { source: "catalog", table: "actions", id: q.action },
@@ -316,24 +334,28 @@ function action(
   }
   const { book, settings, where, record, page } = q
   const permitted = book
-    ? permissionSteps(catalog, permissionQuery(def, book, where, q.actor))
+    ? permissionSteps(catalog, permissionQuery(def, book, where, q.actor, ctx), ctx)
     : page
-      ? permissionSteps(catalog, { kind: "page", action: def, ...page, actor: q.actor })
+      ? permissionSteps(catalog, { kind: "page", action: def, ...page, actor: q.actor }, ctx)
       : record && catalog.subjects.has(def.target)
-        ? permissionSteps(catalog, {
-            kind: "record",
-            action: def,
-            subject: def.target,
-            def: catalog.subjects.get(def.target) as SubjectDef,
-            record: record.record,
-            refs: record.refs,
-            actor: q.actor,
-          })
+        ? permissionSteps(
+            catalog,
+            {
+              kind: "record",
+              action: def,
+              subject: def.target,
+              def: catalog.subjects.get(def.target) as SubjectDef,
+              record: record.record,
+              refs: record.refs,
+              actor: q.actor,
+            },
+            ctx,
+          )
         : []
   if (isInBook(def.target))
     return book
       ? decide([known, userOnly, participation, ...permitted, ...placeSteps(catalog, def, book, where)])
-      : page && def.target !== "book"
+      : page
         ? decide([known, userOnly, participation, ...permitted, ...typeSteps(def, pageType(catalog, page.page.type))])
         : decide([known, userOnly, participation])
   const center = controlCenter === null ? undefined : catalog.controlCenters.get(controlCenter)

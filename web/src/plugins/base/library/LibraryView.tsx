@@ -1,20 +1,22 @@
 // 書庫の画面: 左にツリー（書庫ホームとゴミ箱が一番上に並ぶ）、右にパンくずと、開いているフォルダの中身。
 // 1 回押すと選び（ツリーのフォルダ・ブック・バインダは、右の枠にその中身を出す）、2 回押すと開く（フォルダは中へ入り、ブックとその中のページ・バインダは窓に出す）。
 // ゴミ箱は、ツリーでは中を出さず、右の枠に捨てた物の一覧を出す（TrashView.tsx）。読めない物は、選べるだけ。開いているフォルダは画面の場所に入り、選んでいる行は入らない（state.ts）
-import { type MouseEvent, useEffect, useId, useRef, useState } from "react"
+import { type CSSProperties, type MouseEvent, useEffect, useId, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { type Naming, namingOf, titleOf } from "../../../core/entries"
 import { HOME_ID, TRASH_ID, UNREADABLE_ID } from "../../../core/folders"
 import type { MatomezuState } from "../../../store/state"
 import { useCommand } from "../../../ui/commands"
-import { useContextMenu } from "../../../ui/context-menu"
+import { useContextMenu, useToggledMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
 import { usePluginState, useReadPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
 import { useCatalog, useMatomezuState, useReadState } from "../../../ui/store-context"
 import { useActions, useUserSetting } from "../../../ui/view-hooks"
 import { ActionButton, controlClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
+import { SplitHandle } from "../utils/SplitHandle"
 import {
+  LIBRARY_ADD_PAGE_MENU,
   LIBRARY_CONTENTS_SCOPE,
   LIBRARY_ENTRY_CONTEXT,
   LIBRARY_ENTRY_OPEN,
@@ -24,7 +26,7 @@ import {
   LIBRARY_TREE_SCOPE,
 } from "./commands"
 import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG } from "./dialog"
-import { holderForNew } from "./entries"
+import { holderForNew, holderForNewPage } from "./entries"
 import { FoundView } from "./FoundView"
 import { HistoryButtons } from "./HistoryButtons"
 import { useKeepFocusIn, useLibraryRows, useNameOf } from "./hooks"
@@ -50,8 +52,9 @@ import {
 import { usePickRows } from "./RowTable"
 import { type FoundRow, NO_SEARCH, searchWord } from "./search"
 import { SHOW_UNREADABLE_FOLDER } from "./show-unreadable"
-import { LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_QUERY, LIBRARY_UNFOLDED } from "./state"
+import { LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_QUERY, LIBRARY_TREE_WIDTH, LIBRARY_UNFOLDED } from "./state"
 import { TrashView } from "./TrashView"
+import { CONTENT_MIN_WIDTH, DEFAULT_TREE_WIDTH, TREE_MIN_WIDTH, treeWidthAt } from "./tree-width"
 import { UnreadableView } from "./UnreadableView"
 import { type LibraryDrag, useLibraryDrag } from "./useLibraryDrag"
 
@@ -113,6 +116,9 @@ export function LibraryView({ className }: { className?: string } = {}) {
   )
   // 新しいブック・フォルダを作る先（開いているのがブック・バインダなら、それを入れているフォルダ。ゴミ箱なら無い）
   const into = useMatomezuState(s => holderForNew(s.folders, opened))
+  const pageInto = useMatomezuState(s => holderForNewPage(s.folders, opened))
+  const addPageMenu = useToggledMenu(LIBRARY_ADD_PAGE_MENU)
+  const addPage = useRef<HTMLSpanElement>(null)
   const { openDialog } = useActions()
   const unfolded = unfoldedOf(usePluginState(kit, LIBRARY_UNFOLDED))
   const setUnfolded = useSetPluginState(kit, LIBRARY_UNFOLDED)
@@ -128,6 +134,8 @@ export function LibraryView({ className }: { className?: string } = {}) {
   const enter = (folder: string) => arrive({ id: folder, holder: folder, holds: true })
   // 検索: 入力Formに打っている途中の言葉 typed と、「検索」を押して探している言葉 query
   const query = usePluginState(kit, LIBRARY_QUERY)
+  const treeWidth = usePluginState(kit, LIBRARY_TREE_WIDTH) ?? DEFAULT_TREE_WIDTH
+  const setTreeWidth = useSetPluginState(kit, LIBRARY_TREE_WIDTH)
   const setQuery = useSetPluginState(kit, LIBRARY_QUERY)
   const [typed, setTyped] = useState(query ?? "")
   const searchForm = useId()
@@ -161,7 +169,7 @@ export function LibraryView({ className }: { className?: string } = {}) {
   )
   const handlers: Handlers = {
     drag,
-    menu: (e, row) => openEntryMenu(e, { entry: row.id }),
+    menu: (e, row) => openEntryMenu(e, { entry: row.id, pressed: { x: e.clientX, y: e.clientY } }),
     opened,
     picked,
     shown,
@@ -205,6 +213,13 @@ export function LibraryView({ className }: { className?: string } = {}) {
       data-key-scope={LIBRARY_SCOPE}
       tabIndex={-1}
       onPointerDown={onPointerDown}
+      style={
+        {
+          "--library-tree-width": `${treeWidth}px`,
+          "--library-tree-min-width": `${TREE_MIN_WIDTH}px`,
+          "--library-content-min-width": `${CONTENT_MIN_WIDTH}px`,
+        } as CSSProperties
+      }
     >
       <div className={styles.left}>
         <search>
@@ -245,6 +260,14 @@ export function LibraryView({ className }: { className?: string } = {}) {
           </button>
         )}
       </div>
+      <SplitHandle
+        direction="row"
+        frame={root}
+        onMove={(at, length) => setTreeWidth(treeWidthAt(at, length))}
+        onReset={() => setTreeWidth(undefined)}
+        className={styles.treeSplitter}
+        data-tree-splitter
+      />
       <div className={styles.right}>
         {query !== undefined ? (
           <FoundView
@@ -293,6 +316,22 @@ export function LibraryView({ className }: { className?: string } = {}) {
                     </ActionButton>
                   </>
                 )}
+                {pageInto !== undefined && (
+                  <span ref={addPage} onPointerDown={addPageMenu.pressed}>
+                    <ActionButton
+                      raised
+                      onClick={() => {
+                        const r = addPage.current?.getBoundingClientRect()
+                        if (r) addPageMenu.open({ x: r.left, y: r.bottom + 4 }, { folder: pageInto })
+                      }}
+                    >
+                      <span className={styles.create}>
+                        <RowIcon row={{ kind: "page", type: NO_TYPE }} className={styles.icon} />
+                        {t("Create page")}
+                      </span>
+                    </ActionButton>
+                  </span>
+                )}
                 <HistoryButtons />
               </div>
             )}
@@ -301,14 +340,17 @@ export function LibraryView({ className }: { className?: string } = {}) {
             ) : opened === UNREADABLE_ID ? (
               <UnreadableView picked={picked} onPick={setPicked} />
             ) : rows.length === 0 ? (
-              <p className={styles.blank} onContextMenu={e => openFolderMenu(e, { folder: opened })}>
+              <p
+                className={styles.blank}
+                onContextMenu={e => openFolderMenu(e, { folder: opened, pressed: { x: e.clientX, y: e.clientY } })}
+              >
                 {t("Nothing inside")}
               </p>
             ) : (
               <ul
                 className={styles.contents}
                 aria-label={t("Contents of {name}", { name: here })}
-                onContextMenu={e => openFolderMenu(e, { folder: opened })}
+                onContextMenu={e => openFolderMenu(e, { folder: opened, pressed: { x: e.clientX, y: e.clientY } })}
                 // ドラッグのあとの click は、useLibraryDrag が止める
                 {...pick.list}
               >

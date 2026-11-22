@@ -213,13 +213,20 @@ export const DEFAULT_LAYOUT = defineLayout({
       "-",
       "@matomezu/base:library-book-new",
       "@matomezu/base:library-folder-new",
+      "@matomezu/base:library-page-new",
       "-",
       "@matomezu/base:library-entry-rename",
       "@matomezu/base:library-entry-duplicate",
       "-",
       "@matomezu/base:library-entry-trash",
     ],
-    "@matomezu/base:library-folder-context": ["@matomezu/base:library-book-new", "@matomezu/base:library-folder-new"],
+    "@matomezu/base:library-folder-context": [
+      "@matomezu/base:library-book-new",
+      "@matomezu/base:library-folder-new",
+      "@matomezu/base:library-page-new",
+    ],
+    // 行は、メニューが自分で並べる（ページのタイプの一覧）
+    "@matomezu/base:library-add-page-menu": [],
     // 行は、メニューが自分で並べる（ページのタイプの一覧）
     "@matomezu/base:add-page-menu": [],
     "@matomezu/base:page-context": [
