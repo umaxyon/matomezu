@@ -248,7 +248,7 @@ func TestAPageMovesBetweenABookAndTheHome(t *testing.T) {
 // 常駐を通して、スライドをバインダでない所へ動かすと、そのページだけのバインダが出来る（entry-move）: d1 の外のバインダ n1 のスライド n1a を書庫ホームへ動かすと、
 // result にバインダの id が返り、read_folder の書庫ホームに「N1 - A」のバインダの行が出て、n1 には n1b だけが残る。
 // 続けて n1b を書庫ホームへ動かすと、n1 は中がそのページだけなので、n1 がそのまま書庫ホームへ動く
-func TestASlideLeavingItsBinderMakesABinder(t *testing.T) {
+func TestASlideMovedOutOfItsBinderMakesABinder(t *testing.T) {
 	s, hub := newServerOn(t, Options{}, entriesStore(t))
 	writer := writerAI(t, s.URL)
 	move := func(entry, into string) map[string]any {

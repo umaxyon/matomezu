@@ -63,7 +63,7 @@ function aimAt(
   if (where === "into") return { over, aim: enters ? { zone, row, where, drop: inside } : null }
   const beside = entriesIn(library.folders, holder)
   const next = beside[beside.findIndex(r => r.id === row) + 1]?.id
-  const index = indexBefore(library.folders, holder, entry, where === "before" ? row : next)
+  const index = indexBefore(catalog, library, holder, entry, where === "before" ? row : next)
   const drop: Drop = { to: "folder", into: holder, index }
   return { over, aim: droppable(catalog, library, entry, drop) ? { zone, row, where, drop } : null }
 }

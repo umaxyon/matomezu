@@ -1,6 +1,6 @@
 // 書庫の画面のドラッグで落とす先（base/library/drop.ts）: 落とせるか・行の間の位置・名前が重なるときに確かめる事が、動かすアクションと合う
 import { expect, test } from "bun:test"
-import { entriesIn } from "../../../web/src/core/entries"
+import { entriesIn, isMoveRefusal, movedWithBinders } from "../../../web/src/core/entries"
 import { HOME_ID, type HomeFolder, type Library, type PlainFolder } from "../../../web/src/core/folders"
 import { type Drop, draggable, droppable, indexBefore, moveClashOf } from "../../../web/src/plugins/base/library/drop"
 import { movesInto } from "../../../web/src/plugins/base/library/entries"
@@ -39,10 +39,10 @@ test("掴めるのはゴミ箱の外の物（ブックの中のページも）�
   const home = ids(HOME_ID)
   expect(home[0]).toBe("b1")
   expect(
-    can("b1", { to: "folder", into: HOME_ID, index: indexBefore(library().folders, HOME_ID, "b1", home[1]) }),
+    can("b1", { to: "folder", into: HOME_ID, index: indexBefore(CORE_CATALOG, library(), HOME_ID, "b1", home[1]) }),
   ).toBe(false)
   expect(
-    can("b1", { to: "folder", into: HOME_ID, index: indexBefore(library().folders, HOME_ID, "b1", home[2]) }),
+    can("b1", { to: "folder", into: HOME_ID, index: indexBefore(CORE_CATALOG, library(), HOME_ID, "b1", home[2]) }),
   ).toBe(true)
 })
 
@@ -52,7 +52,7 @@ test("行の間へ落とす位置は、掴んだ物を除いて数え、その i
   const home = ids(HOME_ID)
   const [first, second, third, fourth] = home as [string, string, string, string]
   const move = (entry: string, into: string, before: string | undefined) => {
-    const index = indexBefore(library().folders, into, entry, before)
+    const index = indexBefore(CORE_CATALOG, library(), into, entry, before)
     expect(perform("@matomezu/base:entry-move", { entry, into, index }).ok).toBe(true)
   }
   // 下へ: first を fourth の前へ
@@ -82,10 +82,16 @@ test("別のフォルダに同じ名前の物が在れば、番号を付けた�
   expect(moveClashOf(library(), x, { to: "folder", into: a, index: 1 }, NAMING)).toBeUndefined()
   expect(moveClashOf(library(), mine, { to: "trash" }, NAMING)).toBeUndefined()
   // y の前（消える x の後ろ）へ: 上書きの位置は 1 つ前へずれる
-  const index = indexBefore(library().folders, a, mine, y)
+  const index = indexBefore(CORE_CATALOG, library(), a, mine, y)
   expect(index).toBe(1)
   const clash = moveClashOf(library(), mine, { to: "folder", into: a, index }, NAMING)
-  expect(clash).toEqual({ numbered: "同じ 2", replaces: x, overwrite: "ok", indexOver: 0 })
+  expect(clash).toEqual({
+    carried: { kind: "folder", id: mine },
+    numbered: "同じ 2",
+    replaces: x,
+    overwrite: "ok",
+    indexOver: 0,
+  })
   // x の前へ・末尾へ
   expect(moveClashOf(library(), mine, { to: "folder", into: a, index: 0 }, NAMING)?.indexOver).toBe(0)
   expect(moveClashOf(library(), mine, { to: "folder", into: a }, NAMING)?.indexOver).toBeUndefined()
@@ -139,6 +145,19 @@ test("ページとバインダは、ブックと書庫ホーム・フォルダ�
   }
   const home = entriesIn(library.folders, HOME_ID).map(r => r.id)
   expect(droppable(CORE_CATALOG, library, "s3", { to: "folder", into: HOME_ID, index: home.indexOf("lb") })).toBe(false)
+  // ブックの外の 1 枚だけのバインダのスライドを、同じフォルダの行の間へ: 位置は、動くバインダを除いて数える
+  const before = (row?: string) => indexBefore(CORE_CATALOG, library, HOME_ID, "s3", row)
+  expect([before("a"), before(undefined)]).toEqual([3, 4])
+  for (const index of [before("a"), before(undefined)])
+    expect(droppable(CORE_CATALOG, library, "s3", { to: "folder", into: HOME_ID, index })).toBe(true)
+  const moved = movedWithBinders(CORE_CATALOG, library, "s3", HOME_ID, before("a"), NAMING, () => "nb")
+  expect(isMoveRefusal(moved) ? moved : entriesIn(moved.next.folders, HOME_ID).map(r => r.id)).toEqual([
+    "b1",
+    "loose",
+    "lz",
+    "lb",
+    "a",
+  ])
   // スライドをバインダからバインダへ（空になったブックの外のバインダは消える）
   expect(can("s2", "lb")).toBe(true)
   expect([moves("s3", "bd"), can("s3", "bd")]).toEqual([true, true])
@@ -153,6 +172,7 @@ test("スライドでバインダを作る移動は、名前が重なっても�
   ])
   expect(moveClashOf(library, "s2", { to: "folder", into: "a" }, NAMING)).toBeUndefined()
   expect(moveClashOf(library, "s3", { to: "folder", into: "a", index: 0 }, NAMING)).toEqual({
+    carried: { kind: "binder", id: "lb" },
     numbered: "外の束 2",
     replaces: "c2",
     overwrite: "kind",

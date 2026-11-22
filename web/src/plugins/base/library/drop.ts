@@ -12,7 +12,7 @@ import {
   placeOf,
   titleOf,
 } from "../../../core/entries"
-import type { Folders, Library } from "../../../core/folders"
+import type { AnyEntryRef, Folders, Library } from "../../../core/folders"
 import { systemFolderOf, treeHolds } from "../../../core/folders-tree"
 import {
   freeTitleIn,
@@ -47,23 +47,32 @@ export function droppable(catalog: CoreCatalog, library: Library, entry: string,
   return !isMoveRefusal(moved) && treeHolds(moved.next) && outsideHolds(catalog, library, moved.next)
 }
 
-// フォルダ into の並びで、行 before の前（before が無ければ末尾）の位置を、掴んだ物 entry を除いて数えた index
-export function indexBefore(folders: Folders, into: string, entry: string, before: string | undefined): number {
-  const others = entriesIn(folders, into).filter(r => r.id !== entry)
+// フォルダ into の並びで、行 before の前（before が無ければ末尾）の位置を、掴んだ物 entry を落としたときに into へ入る物（carriedEntry）を除いて数えた index
+export function indexBefore(
+  catalog: CoreCatalog,
+  library: Library,
+  into: string,
+  entry: string,
+  before: string | undefined,
+): number {
+  const carried = carriedEntry(catalog, library, entry, into)
+  const moving = carried === undefined || carried === NEW_BINDER ? entry : carried.id
+  const others = entriesIn(library.folders, into).filter(r => r.id !== moving)
   const i = before === undefined ? -1 : others.findIndex(r => r.id === before)
   return i < 0 ? others.length : i
 }
 
-// 落とす先に同じ名前の物が在るときに、利用者に確かめる事: 番号を付けた名前 numbered、上書きすると消える物の id replaces、上書きできるか overwrite（できなければ、その訳）、
-// 上書きで動かすときの位置 indexOver（消える物を除いて数える）
+// 落とす先に同じ名前の物が在るときに、利用者に確かめる事: 落とす先へ入る物 carried（carriedEntry。名前が重なっている物）、番号を付けた名前 numbered、
+// 上書きすると消える物の id replaces、上書きできるか overwrite（できなければ、その訳）、上書きで動かすときの位置 indexOver（消える物を除いて数える）
 export interface MoveClash {
+  carried: AnyEntryRef
   numbered: string
   replaces: string
   overwrite: "ok" | NotOverwritten
   indexOver: number | undefined
 }
 
-// 重なりを見るのは、落とす先へ入る物（carriedEntry。ブックの外の、中がそのページだけのバインダからスライドを出すなら、そのバインダ）。
+// 重なりを見るのは、落とす先へ入る物（carriedEntry。ブックの外の、中がそのページだけのバインダから、まとまるタイプのページを出すなら、そのバインダ）。
 // 重ならなければ（同じフォルダの中の並べ替えも）・バインダを作る移動なら（名前に番号を付けるので確かめない）undefined
 export function moveClashOf(library: Library, entry: string, drop: Drop, naming: Naming): MoveClash | undefined {
   if (!placedOutsideTrash(library.folders, entry) || drop.to !== "folder") return undefined
@@ -76,6 +85,7 @@ export function moveClashOf(library: Library, entry: string, drop: Drop, naming:
   const over = overwritten(library, kind, id, drop.into, there.id, naming)
   const at = entriesIn(library.folders, drop.into).findIndex(r => r.id === there.id)
   return {
+    carried,
     numbered: freeTitleIn(library, kind, id, drop.into, naming) ?? titleOf(library, kind, id, naming) ?? "",
     replaces: there.id,
     overwrite: isNotOverwritten(over) ? over : "ok",

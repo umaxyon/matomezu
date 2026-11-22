@@ -1,4 +1,5 @@
 // 書庫のエントリを動かす・名前を変える・フォルダを作る: entry-move は、書庫のエントリ（ブックの中のページ・バインダも）を、別のフォルダ（か同じフォルダ）の何番目かへ動かす。
+// まとまるタイプ（grouping が binder）のページをバインダでない所へ動かすと、そのページだけのバインダの行を作り、ブックの外で空になったバインダの行を消す（core/entries.ts の movedWithBinders）。
 // entry-rename は、その名前を変える。folder-create は、フォルダを作る。どれも、エントリの中身は変えない。
 // 同じフォルダの中に同じ名前は置けない（土台が title-taken で断る）。entry-move の onConflict が number なら、番号を付けた名前にして入れる
 import { z } from "zod"
