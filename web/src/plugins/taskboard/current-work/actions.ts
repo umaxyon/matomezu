@@ -11,7 +11,7 @@ import { projectOf } from "../project/actions"
 import { TICKET, type Ticket } from "../ticket"
 import { assignedMessages } from "../ticket/actions"
 import { resolve } from "../ticket/resolve"
-import { CURRENT_WORK, currentWorkChanges, currentWorkSet, currentWorksOf, NO_TICKET, READS_CURRENT_WORK } from "./work"
+import { CURRENT_WORK, currentWorkSet, currentWorksOf, NO_TICKET, READS_CURRENT_WORK } from "./work"
 
 const WORKROOM_ARG = zod.string().min(1).optional()
 
@@ -57,11 +57,8 @@ export const TICKET_START = kit.defineAction({
     const assignees = now.assignees.includes(room.id) ? now.assignees : [...now.assignees, room.id]
     const changed = lane !== now.lane || assignees !== now.assignees
     const next: Ticket = changed ? { ...now, lane, assignees, updatedAt: ctx.now } : now
-    // ほかの担当のカレントワークの直し（作業中のレーンに入ったなど）と、このワークルームの取り替え
-    const others = [
-      ...currentWorkChanges(now, next, project, works).filter(o => o.id !== room.id),
-      ...(before === now.id ? [] : [currentWorkSet(room.id, now.id)]),
-    ]
+    // このワークルームの取り替え（ほかの担当のカレントワークは、チケットの変わりに応じるフォローステップが直す）
+    const others = before === now.id ? [] : [currentWorkSet(room.id, now.id)]
     // 担当に足したワークルームへの知らせは ticket-update と同じ
     const messages = assignedMessages(ctx.actor, now.assignees, next.assignees, next, project)
     return {
@@ -95,10 +92,7 @@ export const TICKET_LEAVE = kit.defineAction({
     const next: Ticket = unassigned
       ? { ...now, assignees: now.assignees.filter(w => w !== room.id), updatedAt: ctx.now }
       : now
-    const others = [
-      ...currentWorkChanges(now, next, projectOf(ctx, now.project), works).filter(o => o.id !== room.id),
-      ...(left ? [currentWorkSet(room.id, NO_TICKET)] : []),
-    ]
+    const others = left ? [currentWorkSet(room.id, NO_TICKET)] : []
     return {
       next,
       ...(others.length > 0 ? { others } : {}),

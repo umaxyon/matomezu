@@ -1,10 +1,10 @@
-// カレントワーク: 定義とアクション
+// カレントワーク: 定義とアクションとフォローステップ
 export { TICKET_LEAVE, TICKET_START } from "./actions"
+export { FOLLOW_PROJECT_LANES, FOLLOW_TICKETS } from "./follow"
 export {
   CURRENT_WORK,
   type CurrentWork,
   currentTicketOf,
-  currentWorkChanges,
   currentWorksOf,
   isCurrentFor,
   NO_TICKET,

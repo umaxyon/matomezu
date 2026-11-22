@@ -12,6 +12,7 @@ import {
   partsOf,
 } from "../core/catalog"
 import { buildCoreCatalog, type CatalogCheckDef, type CoreCatalog, type CoreCatalogParts } from "../core/core-catalog"
+import type { FollowStepDef } from "../core/def/follow-step"
 import type { ShapeAddArgs, ShapeEditArgs } from "../core/def/item"
 import type { LibraryAppearanceDef } from "../core/def/library-appearance"
 import type { NormalizeStepDef } from "../core/def/normalize-step"
@@ -56,6 +57,7 @@ export type PluginParts = { readonly [K in Part]?: readonly PartDefTable[K][] } 
   tokens?: readonly TokenDef[] // プラグインが持つテーマキー（そのプラグインのいくつものアイテムが共に使う。一つのアイテムだけが使うものはアイテムに書く）
   checks?: readonly CatalogCheckDef[] // 台帳アセンブルのときの確かめ（ビルトインプラグインだけ。追加プラグインは definePlugin の型と台帳アセンブル E308 で止める）
   normalizeSteps?: readonly NormalizeStepDef[] // ノーマライズステップ（core/def/normalize-step.ts。ビルトインプラグインだけ。追加プラグインは definePlugin の型と台帳アセンブル E310 で止める）
+  followSteps?: readonly FollowStepDef[] // フォローステップ（core/def/follow-step.ts。追加プラグインも持てる）
 }
 
 export type Plugin = PluginParts & {
@@ -273,6 +275,7 @@ export function assemble(
     languages: plugins.flatMap(p => p.languages ?? []),
     tokens: plugins.flatMap(p => p.tokens ?? []),
     normalizeSteps: plugins.flatMap(p => p.normalizeSteps ?? []),
+    followSteps: plugins.flatMap(p => (p.followSteps ?? []).map(step => ({ plugin: p.id, step }))),
   })
   // コマンドの名前も文言の表から引く。ビルトインプラグインの台帳アセンブルのときの確かめもかける（warning は store 台帳に残す）
   const checked = plugins.filter(isBuiltin).flatMap(p => (p.checks ?? []).flatMap(check => check(catalog)))

@@ -134,4 +134,7 @@ export interface PermissionDef<Tt extends string = MessageKey> extends Permissio
   aiDescription: string // AI に断ったときに返す、何がなぜ止めたかの説明（英語）
   denies(q: PermissionQuery): boolean // 止めるか
   keeps?(c: PermissionCheck): boolean // 結果が許しを守っているか（無ければ守っている）
+  // フォローステップが応じた変わり（core/def/follow-step.ts）にも keeps（kind "record"。action はきっかけのアクション）をかける。
+  // 無いステップは、応じた変わりを止めない
+  followed?: true
 }

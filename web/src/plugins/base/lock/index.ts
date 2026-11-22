@@ -177,6 +177,8 @@ export const LOCK = kit.definePermission({
     if (where?.entriesChange === "title") return (where.entries ?? []).some(id => findPage(folder, id)?.page.locked)
     return pageAt(folder, where)?.locked === true && !PAGE_SWITCHES.includes(action.id)
   },
+  // フォローステップが応じた変わりも、ロック中のレコードを変えるならきっかけのアクションごと止める（ロックは利用者の物なので、応じる側も越えない）
+  followed: true,
   // ロック中のブックは、ロックの掛け外しのほかは変えない。ロック中のページは、ロックの掛け外しのほかは変えず、消さず、
   // ブックごとゴミ箱にも入れない（中身を変えずに、ほかのブックへ動かすのはよい）。ロックを外せるのは利用者だけ
   keeps: c => {

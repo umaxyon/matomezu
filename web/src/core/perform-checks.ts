@@ -123,13 +123,14 @@ export function pageChecksBetween(was: Library, now: Library): PageCheck[] {
 }
 
 // レコードが対象のアクションの結果が、認可ステップの守らせること（keeps）を守っているか。前後のレコードが指すほかのレコードを、読み口から引いて渡す。
-// 守っていなければ、守らせたステップの id。引けなければ "unreadable"
+// 守っていなければ、守らせたステップの id。引けなければ "unreadable"。followed なら、フォローステップが応じた変わりで、followed を持つステップだけをかける
 export function brokenRecord(
   ctx: ActionContext,
   action: ActionDef,
   subject: string,
   before: unknown,
   after: unknown,
+  followed = false,
 ): string | "unreadable" | null {
   const reads = ctx.records ?? {}
   const source = sourceIn(ctx)
@@ -140,6 +141,7 @@ export function brokenRecord(
   for (const p of ctx.catalog.permissions.values())
     if (
       p.keeps &&
+      (!followed || p.followed) &&
       !p.keeps({
         kind: "record",
         action,

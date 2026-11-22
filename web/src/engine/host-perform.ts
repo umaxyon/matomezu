@@ -153,14 +153,17 @@ export function perform(of: Assembled, input: Input): Output {
   const at = new Date().toISOString()
   const steps = input.actions.map(a => bulkActionOf(a, () => crypto.randomUUID(), at, langFor(a.lang)))
   // AI のアクションと、利用者でも編集ロックで断るアクションは、利用者が直している物を変えも消しもしない（あとでやり直す）。バルクの中のアクションごとに見る。
-  // レコードが対象のアクションは、変えるレコードのどれかを直しているなら、同じように断る（作るレコードは新しい id なので、直してはいない）
+  // レコードが対象のアクションは、変えるレコードのどれかを直しているなら、同じように断る（作るレコードは新しい id なので、直してはいない）。
+  // フォローステップが応じて変えたレコードは、利用者のアクションでも断る
   const done = performBulk(
     world,
     steps,
     { catalog, controlCenter, lang: langFor(input.actions[0]?.lang), actor },
     (i, before, after, one) => {
+      const edited = (c: { subject: string; id: string }) => (input.watchedRecords?.[c.subject] ?? []).includes(c.id)
+      if ((one.followed ?? []).some(edited)) return { ok: false as const, reason: "being-edited" as const }
       if (!stopsOnEditLock(catalog.actions.get(input.actions[i]?.action ?? ""), actor)) return undefined
-      const editedRecord = (one.records ?? []).some(c => (input.watchedRecords?.[c.subject] ?? []).includes(c.id))
+      const editedRecord = (one.records ?? []).some(edited)
       return editedRecord || touchedIn(before, after, one.annotations, input.watched).length > 0
         ? { ok: false as const, reason: "being-edited" as const }
         : undefined
@@ -184,7 +187,9 @@ export function perform(of: Assembled, input: Input): Output {
   // ゴミ箱に入った、ブックの外のページ（入る前の置き場所で見る。中に持つフォルダごと入ったときも）
   const trashingPages = binned.trashed.filter(id => atOutsidePagePlace(tables.folders, id))
   const restoring = binned.restored.filter(id => id in next)
-  const notice = shiftNotice(books, changed, tables, after)
+  const notice = [shiftNotice(books, changed, tables, after), followedNotice(done.followed ?? [])]
+    .filter(n => n !== null)
+    .join(" ")
   const changes = done.changes ?? NO_CHANGES
   return {
     ok: true,
@@ -263,5 +268,12 @@ function shiftNotice(
   const moved = [...inBooks, ...outside]
   return moved.length
     ? `The contents of a variable page were shifted by whole papers, so every position there changed (${moved.join("; ")}); read_page before using positions.`
+    : null
+}
+
+// フォローステップが応じて変えたレコードがあれば、AI への知らせ（アクションのほかに変わった物）
+function followedNotice(followed: readonly { subject: string; id: string }[]): string | null {
+  return followed.length
+    ? `Follow steps changed these records along with it: ${followed.map(f => `${f.subject} ${f.id}`).join(", ")}.`
     : null
 }

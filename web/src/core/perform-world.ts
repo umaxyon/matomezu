@@ -10,6 +10,7 @@ import type { Library, PageRow, TableChanges } from "./folders"
 import { bookOf } from "./folders-books"
 import { changesBetween, createdIn, noChanges, placedChanges, rowChanges, withChanges } from "./folders-changes"
 import { bookIdOf, inTrash, permissionFoldersOf, treeHolds } from "./folders-tree"
+import { followChanges } from "./follow"
 import type { Books } from "./library"
 import {
   languageTitleTaken,
@@ -53,6 +54,8 @@ export type PerformedIn =
       counters?: Counters // レコードが対象のアクションが進めた番号（種類の id → 区切り → 次の番号。進めた区切りだけ）
       aiEditTickets?: readonly AIEditTicketChange[] // レコードが対象のアクションが返した、AI 編集チケットの変え方の並び（レコードと同じ 1 回の書き込みで当てる）
       aiMessages?: readonly AIMessage[] // レコードが対象のアクションが返した、送る AI 間メッセージの並び（常駐がバルクの書き込みと一緒に送る）
+      // records のうち、フォローステップが応じて変えたレコード（core/follow.ts。常駐は、行う者に関わらず、これが編集ロックに当たれば断る）
+      followed?: readonly { subject: string; id: string }[]
     }
   | Refused
   | { ok: false; reason: "no-book" }
@@ -311,11 +314,17 @@ function performRecord(
     if (o.record === REMOVED ? had === undefined : o.record === had) continue
     changes.push({ subject: kind, id: o.id, record: o.record })
   }
+  const followed = action
+    ? followChanges(ctx, action, source, changes)
+    : { ok: true as const, records: changes, followed: [] }
+  if (!followed.ok) return followed
+  const records = followed.records
   return {
     ok: true,
     result: done.result,
-    ...(changes.length > 0 ? { records: changes } : {}),
-    ...(changes.length > 0 && Object.keys(used).length > 0 ? { counters: { [target]: used } } : {}),
+    ...(records.length > 0 ? { records } : {}),
+    ...(followed.followed.length > 0 ? { followed: followed.followed } : {}),
+    ...(records.length > 0 && Object.keys(used).length > 0 ? { counters: { [target]: used } } : {}),
     ...(done.aiEditTickets ? { aiEditTickets: done.aiEditTickets } : {}),
     ...(done.aiMessages ? { aiMessages: done.aiMessages } : {}),
   }

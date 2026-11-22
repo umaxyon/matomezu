@@ -1,17 +1,63 @@
 // カレントワーク: ワークルームが今やっているチケット 1 つ、または無し（none）。ワークルームごとに 1 件のレコードで、id はワークルームの id（1 ワークルーム 1 件を形で決める）。
 // カレントチケットは、カレントワークが指すチケットのうち、そのワークルームを担当に持ち、作業中のレーンにある物（currentTicketOf の 1 つの判定）。
 // レコードが古くなっても（レーンの作業中の印を外した・ワークルームを消したなど）、読む側がこの判定で外すので、見せる物は食い違わない。
-// チケットのアクションは、変えたチケットを指すカレントワークを同じトランザクションで直す（currentWorkChanges）
+// チケットとプロジェクトが変わったら、フォローステップ（follow.ts）が、それを指すカレントワークを同じトランザクションで直す
 import { z } from "zod"
 import type { ActionContext, RecordRead } from "../../../plugin-api"
 import { kit } from "../kit"
 import { PROJECT, type Project } from "../project"
+import { inWorkingLane } from "../project/project"
 import type { TicketLike } from "../ticket/current"
 import { ticketLabel } from "../ticket/label"
 import { TICKET, type Ticket } from "../ticket/ticket"
-import { CURRENT_WORK_ID, currentWorkSet, isCurrentFor, NO_TICKET } from "./lanes"
 
-export { currentWorkSet, isCurrentFor, NO_TICKET }
+// カレントワークの種類の id（定義 CURRENT_WORK の workroomWork が、定義より先に使う）と、無いことを表す値
+export const CURRENT_WORK_ID = kit.name("current-work")
+export const NO_TICKET = "none"
+
+// チケット ticket が、ワークルーム workroom のカレントチケットになれるか: 担当に入っていて、プロジェクトの作業中のレーンにある
+export const isCurrentFor = (ticket: TicketLike, workroom: string, project: Project | undefined): boolean =>
+  project !== undefined && ticket.assignees.includes(workroom) && inWorkingLane(project, ticket.lane)
+
+// ワークルーム workroom のカレントワークを ticket（チケットの id か none）にする、others の 1 件
+export const currentWorkSet = (workroom: string, ticket: string) => ({
+  subject: CURRENT_WORK_ID,
+  id: workroom,
+  record: { id: workroom, ticket },
+})
+
+// プロジェクトが before から after に変わったとき（レーンの作業中の印を付けた・外した、レーンを消した）の、カレントワークの直し（others）。
+// tickets はそのプロジェクトのチケット、works は読んだカレントワーク。チケットの変更と同じ決まり:
+// - このプロジェクトのチケットを指すカレントワークのうち、カレントチケットでなくなった物を none にする
+// - 新しくカレントチケットになれたワークルームで、カレントワークが none（になった物も含む）の物は、そのチケットにする（更新の新しい順で先の 1 枚）
+export function currentWorkOnLanes(
+  before: Project,
+  after: Project,
+  tickets: readonly (TicketLike & { id: string })[],
+  works: readonly { id: string; ticket: string }[],
+): ReturnType<typeof currentWorkSet>[] {
+  const byId = new Map(tickets.map(t => [t.id, t]))
+  const now = new Map(works.map(w => [w.id, w.ticket]))
+  const changes = new Map<string, string>()
+  for (const w of works) {
+    const t = byId.get(w.ticket)
+    if (t && !isCurrentFor(t, w.id, after)) {
+      changes.set(w.id, NO_TICKET)
+      now.set(w.id, NO_TICKET)
+    }
+  }
+  const newest = [...tickets].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.number - b.number)
+  for (const t of newest)
+    for (const room of t.assignees) {
+      if (!isCurrentFor(t, room, after) || isCurrentFor(t, room, before)) continue
+      if ((now.get(room) ?? NO_TICKET) !== NO_TICKET) continue
+      changes.set(room, t.id)
+      now.set(room, t.id)
+    }
+  return [...changes].flatMap(([room, ticket]) =>
+    (works.find(w => w.id === room)?.ticket ?? NO_TICKET) === ticket ? [] : [currentWorkSet(room, ticket)],
+  )
+}
 
 const CURRENT_WORK_RECORD = z.strictObject({
   id: z.string().min(1),
