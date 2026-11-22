@@ -1,4 +1,6 @@
 // 書庫: ブックとフォルダの並び（エントリ）を作る・動かす・ゴミ箱へ入れるアクション、書庫のスクリーン、コマンドとキー、プラグイン状態、システムフォルダ
+
+export { TICKETS_HISTORY } from "./backyards"
 export {
   LIBRARY_BOOK_NEW,
   LIBRARY_CONTENTS_KEY_SCOPE,

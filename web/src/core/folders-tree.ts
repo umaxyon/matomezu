@@ -11,6 +11,7 @@ import {
   HOME_ID,
   homeAndFoldersOf,
   isOpenRole,
+  isTopRole,
   isUnreadableRole,
   type Library,
   namesHomeOrFolder,
@@ -117,25 +118,26 @@ export const systemFolderIndex = (folders: Folders, mark: string): number => {
   return after < 0 ? pinned.length : after
 }
 
-// 木の決まり: 書庫ホームが在る（ゴミ箱と読めない物のフォルダは、在れば 1 つ）／書庫ホーム・ゴミ箱・読めない物のフォルダはどのフォルダにも入らない／そのほかのフォルダは、ちょうど 1 つのフォルダに入り、
-// 上へたどると書庫ホームかゴミ箱か読めない物のフォルダに着く（輪にならない）／ページは、どれかのフォルダ（ブック・バインダを含む）に入る／書庫ホーム・ゴミ箱・フォルダのエントリは、
+// 木の決まり: 書庫ホームが在る（ゴミ箱と読めない物のフォルダは、在れば 1 つ）／一番上のフォルダ（書庫ホーム・ゴミ箱・読めない物のフォルダ・バックヤード）はどのフォルダにも入らない／そのほかのフォルダは、ちょうど 1 つのフォルダに入り、
+// 上へたどると一番上のフォルダに着く（輪にならない）／ページは、どれかのフォルダ（ブック・バインダを含む）に入る／書庫ホーム・ゴミ箱・フォルダ・バックヤードのエントリは、
 // 種類が合う（page は表に在るページ、binder はバインダ、folder は表に在るフォルダ、book はブック）／ブックとバインダは、ブックもフォルダも持たない（型が決める）／
 // システムフォルダは書庫ホームかゴミ箱の直下だけに在り、書庫ホームでは先頭に印の順に並ぶ（同じ印はゴミ箱の外に 1 つ）
 export function treeHolds({ pages, folders }: Library): boolean {
   if (folders[HOME_ID]?.folderRole !== "home") return false
   const rows = folders as Readonly<Record<string, { folderRole: string }>>
-  for (const [role, { id }] of Object.entries(TOP_FOLDERS) as [string, { id: string }][])
-    if (rows[id] && rows[id].folderRole !== role) return false
+  for (const [role, { id }] of Object.entries(TOP_FOLDERS) as [string, { id: string | null }][])
+    if (id !== null && rows[id] && rows[id].folderRole !== role) return false
   const holder = new Map<string, string>()
   for (const f of Object.values(folders)) {
     for (const r of f.lineup) {
       if (holder.has(r.id)) return false
       holder.set(r.id, f.id)
-      if (isOpenRole(f.folderRole) && !refFits(pages, folders, r)) return false
+      if ((isOpenRole(f.folderRole) || f.folderRole === "backyard") && !refFits(pages, folders, r)) return false
     }
   }
-  const isTop = (id: string | undefined) => id !== undefined && TOP_IDS.includes(id)
-  if (TOP_IDS.some(id => holder.has(id))) return false
+  const isTop = (id: string | undefined) =>
+    id !== undefined && (TOP_IDS.includes(id) || isTopRole(rows[id]?.folderRole))
+  if ([...holder.keys()].some(isTop)) return false
   if (!Object.keys(pages).every(id => holder.has(id))) return false
   if (!systemFoldersHold(folders, holder)) return false
   return Object.values(folders).every(f => {

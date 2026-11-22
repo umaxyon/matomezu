@@ -15,6 +15,7 @@ import {
 } from "./core-catalog-check"
 import type { ActionDef } from "./def/action"
 import type { AnnotationDef } from "./def/annotation"
+import type { BackyardDef } from "./def/backyard"
 import type { ControlCenterDef } from "./def/control-center"
 import type { EnumDef, EnumValueDef } from "./def/enum"
 import type { FollowStepDef } from "./def/follow-step"
@@ -65,6 +66,7 @@ declare module "./catalog" {
     permissions: PermissionDef
     annotations: AnnotationDef
     systemFolders: SystemFolderDef
+    backyards: BackyardDef
     mails: MailDef
     subjects: SubjectDef
     screens: ScreenDef

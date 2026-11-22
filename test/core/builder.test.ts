@@ -270,6 +270,10 @@ test("追加プラグインはコントロールセンターを持てない（E3
   )
 })
 
+test("追加プラグインはバックヤードを持てない（E319）", () => {
+  expect(() => assemble([...BUILTIN, { id: "extra", backyards: [{ id: "extra:yard" }] }])).toThrow(/E319/)
+})
+
 test("追加プラグインはノーマライズステップを持てない（E310）", () => {
   const step = { pageFields: [], normalize: (_before: unknown, after: never) => after }
   expect(() => assemble([...BUILTIN, { id: "extra", normalizeSteps: [step] }])).toThrow(/E310|only built-in/)

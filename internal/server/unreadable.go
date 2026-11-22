@@ -22,6 +22,11 @@ func (h *Hub) inUnreadable(id string) bool {
 	return slices.Contains(h.foldersAbove(id), storage.UnreadableID)
 }
 
+// unshown は、エントリ id が、書庫の画面と AI の一覧に出ない一番上のフォルダ（バックヤード）の中に在るか（h.mu を持って呼ぶ）
+func (h *Hub) unshown(id string) bool {
+	return slices.ContainsFunc(h.foldersAbove(id), func(at string) bool { return storage.IsUnshownTopRole(h.folders[at].role) })
+}
+
 // outOfSight は、エントリ id が、AI と CLI に見せない物か: ゴミ箱の中か、読めない物のフォルダの中に在るか、確かめる関数が開けないとしたブック（読めないブック）か、その中に在る（h.mu を持って呼ぶ）
 func (h *Hub) outOfSight(id string) bool {
 	if h.bookWarnings[id].Unreadable {

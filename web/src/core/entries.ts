@@ -7,6 +7,7 @@ import type { CoreCatalog } from "./core-catalog"
 import {
   type AnyEntryRef,
   type BinderFolder,
+  backyardIdOf,
   type Folder,
   type Folders,
   HOME_ID,
@@ -36,15 +37,29 @@ export function placeOf(folders: Folders, entry: string): { holder: Folder; ref:
 export const isWithin = (folders: Folders, entry: string, over: string): boolean =>
   entry === over || foldersOver(folders, entry).some(f => f.id === over)
 
-// フォルダ holder が、種類 kind のエントリを持てるか: 書庫ホーム・ゴミ箱・フォルダは 4 つとも、ブックはページとバインダ、バインダはページ
+// フォルダ holder が、種類 kind のエントリを持てるか: 書庫ホーム・ゴミ箱・フォルダは 4 つとも、バックヤードはブック、ブックはページとバインダ、バインダはページ
 export function canHold(holder: Folder, kind: EntryKind): boolean {
   if (isOpenRole(holder.folderRole)) return true
+  if (holder.folderRole === "backyard") return kind === "book"
   return kind === "page" || (kind === "binder" && holder.folderRole === "book")
 }
 
+// エントリ entry が、バックヤードかその中に在るか
+export const inBackyard = (folders: Folders, entry: string): boolean =>
+  folders[entry]?.folderRole === "backyard" || foldersOver(folders, entry).some(f => f.folderRole === "backyard")
+
 // 動かせない訳: エントリが無い（no-entry）・先のフォルダが無い（no-folder）・先が自分かその中（into-itself）・先のフォルダが持てない種類（kind）・
-// index が末尾より先（past-end）・動かしても同じ場所（same-place）・動かす物か先が、ゴミ箱かその中（in-trash。ゴミ箱へは入れる・戻すでだけ出入りする）
-export type MoveRefusal = "no-entry" | "no-folder" | "into-itself" | "kind" | "past-end" | "same-place" | "in-trash"
+// index が末尾より先（past-end）・動かしても同じ場所（same-place）・動かす物か先が、ゴミ箱かその中（in-trash。ゴミ箱へは入れる・戻すでだけ出入りする）・
+// 動かす物か先が、バックヤードかその中（in-backyard。バックヤードの物は、その持ち主のプラグインだけが出し入れする）
+export type MoveRefusal =
+  | "no-entry"
+  | "no-folder"
+  | "into-itself"
+  | "kind"
+  | "past-end"
+  | "same-place"
+  | "in-trash"
+  | "in-backyard"
 export const isMoveRefusal = (v: Library | EntryMoved | MoveRefusal): v is MoveRefusal => typeof v === "string"
 
 // 書庫 library の、フォルダ puts を置き換えた（無ければ足した）書庫
@@ -62,6 +77,7 @@ export function movedEntry(library: Library, entry: string, into: string, index?
   const to = folders[into]
   if (!to) return "no-folder"
   if (to.folderRole === "trash" || inTrash(folders, entry) || inTrash(folders, into)) return "in-trash"
+  if (inBackyard(folders, entry) || inBackyard(folders, into)) return "in-backyard"
   if (isWithin(folders, into, entry)) return "into-itself"
   if (!canHold(to, place.ref.kind)) return "kind"
   const { holder } = place
@@ -86,6 +102,7 @@ export function placedEntry(library: Library, ref: AnyEntryRef, into: string, in
   const to = folders[into]
   if (!to) return "no-folder"
   if (to.folderRole === "trash" || inTrash(folders, into)) return "in-trash"
+  if (inBackyard(folders, into)) return "in-backyard"
   if (!canHold(to, ref.kind)) return "kind"
   const at = index ?? to.lineup.length
   if (at > to.lineup.length) return "past-end"
@@ -96,12 +113,13 @@ export function placedEntry(library: Library, ref: AnyEntryRef, into: string, in
 }
 
 // エントリ entry を、入れているフォルダから外して、ゴミ箱の末尾へ入れた書庫（入れた時刻 at と、元いたフォルダから上への id の列を、ゴミ箱の並びのエントリが持つ。
-// 入れた物の行は変えない。ゴミ箱の行が無ければ作る）。エントリが無い（no-entry）か、もうゴミ箱かその中に在れば（in-trash）、その訳
+// 入れた物の行は変えない。ゴミ箱の行が無ければ作る）。エントリが無い（no-entry）か、もうゴミ箱かその中に在る（in-trash）か、バックヤードかその中に在れば（in-backyard）、その訳
 export function trashedEntry(library: Library, entry: string, at: string): Library | MoveRefusal {
   const { folders } = library
   const place = placeOf(folders, entry)
   if (!place) return "no-entry"
   if (place.holder.folderRole === "trash" || inTrash(folders, entry)) return "in-trash"
+  if (inBackyard(folders, entry)) return "in-backyard"
   const { holder } = place
   const kept = folders[TRASH_ID]
   const trash: TrashFolder = kept?.folderRole === "trash" ? kept : { folderRole: "trash", id: TRASH_ID, lineup: [] }
@@ -477,4 +495,16 @@ export function withSystemFolders(
     added.push({ id, systemFolder: mark })
   }
   return { next, added }
+}
+
+// 書庫 library に、機能台帳 catalog に定義が在って行が無いバックヤードの、空の行を足した書庫（印の順。行の id は backyardIdOf。純粋）。
+// その id の行がバックヤードでない物として在れば、足さない（木の決まりが破れて見える）
+export function withBackyards(library: Library, catalog: CoreCatalog): Library {
+  const rows: Record<string, Folder> = {}
+  for (const mark of [...catalog.backyards.keys()].sort()) {
+    const id = backyardIdOf(mark)
+    if (id in library.folders || id in library.pages) continue
+    rows[id] = { folderRole: "backyard", id, backyard: mark, lineup: [] }
+  }
+  return Object.keys(rows).length === 0 ? library : withFolders(library, rows)
 }

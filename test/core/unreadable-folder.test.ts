@@ -4,6 +4,7 @@ import { checkBooks, readLibrary, unreadableUnitsOf } from "../../web/src/core/b
 import type { CoreCatalog } from "../../web/src/core/core-catalog"
 import {
   BROKEN,
+  backyardIdOf,
   FIRST,
   type Folders,
   HOME_ID,
@@ -55,8 +56,8 @@ function applied(rows: Rows, done: Settled | typeof BROKEN): Rows {
   }
 }
 
-// システムフォルダの定義を持たない機能台帳 catalog（移す・戻すだけを見る。足りないシステムフォルダを足すのは「書庫を整える」のテストで見る）
-const bare = (catalog: CoreCatalog): CoreCatalog => ({ ...catalog, systemFolders: new Map() })
+// システムフォルダとバックヤードの定義を持たない機能台帳 catalog（移す・戻すだけを見る。足りない物を足すのは「書庫を整える」のテストで見る）
+const bare = (catalog: CoreCatalog): CoreCatalog => ({ ...catalog, systemFolders: new Map(), backyards: new Map() })
 const settle = (catalog: CoreCatalog, rows: Rows, now = NOW) =>
   settleLibrary(bare(catalog), rows.pages, rows.folders, { naming: NAMING, now, newId: () => "new" })
 const settled = (catalog: CoreCatalog, rows: Rows, now = NOW) => applied(rows, settle(catalog, rows, now))
@@ -604,6 +605,23 @@ describe("書庫を整える: 足りないシステムフォルダを足し、�
       [],
       { pages: {}, folders: {}, removedPages: [], removedFolders: [] },
     ])
+  })
+
+  test("定義が在って行の無いバックヤードを、どこにも入れない空の行で足す。2 回目は何も書かない", () => {
+    const TICKETS = "@matomezu/base:tickets-history"
+    const rows = worldRows([testBook("b1", "B", [drawingPage("p1")])])
+    const done = full(rows) as Settled
+    const id = backyardIdOf(TICKETS)
+    expect(done.writes.folders[id]).toEqual({ folderRole: "backyard", id, backyard: TICKETS, lineup: [] })
+    const after = applied(rows, done)
+    expect(
+      rowsHoldTree(
+        after.folders,
+        after.pages.map(p => (p as { id: string }).id),
+      ),
+    ).toBe(true)
+    expect(folderOf(after, HOME_ID).lineup.map(r => r.id)).not.toContain(id)
+    expect((full(after, LATER) as Settled).writes.folders).toEqual({})
   })
 
   test("読んだデータの重なりも、並びの後の物に番号を付ける", () => {
