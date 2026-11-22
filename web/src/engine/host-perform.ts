@@ -11,7 +11,7 @@ import { binnedBetween } from "../core/entries"
 import { type Library, NO_CHANGES, pageIn } from "../core/folders"
 import { bookOf, libraryOf } from "../core/folders-books"
 import { createdOn, withChanges } from "../core/folders-changes"
-import { atOutsideBinderPlace, atOutsidePagePlace, bookIdOf } from "../core/folders-tree"
+import { atOutsideBinderPlace, atOutsidePagePlace, bookIdOf, outsideBinderIn } from "../core/folders-tree"
 import { detectLang } from "../core/i18n/i18n"
 import { changedIn } from "../core/ids"
 import type { PerformedIn, World } from "../core/perform-world"
@@ -214,7 +214,7 @@ export function perform(of: Assembled, input: Input): Output {
   }
 }
 
-// アクション 1 つが、利用者が直している物 watched（ブックの中の物・ページの中の物とそのページのアノテーション。ページはブックの中でも外でも）を変えたか消した所（before と after はそのアクションの前と後の世界、changedAnnotations はそのアクションが変えたアノテーション）
+// アクション 1 つが、利用者が直している物 watched（ブックの中の物・ブックの外のバインダ・ページの中の物とそのページのアノテーション。ページはブックの中でも外でも）を変えたか消した所（before と after はそのアクションの前と後の世界、changedAnnotations はそのアクションが変えたアノテーション）
 function touchedIn(
   before: World,
   after: World,
@@ -226,6 +226,9 @@ function touchedIn(
     // ブックの中の物（バインダ・ブックそのもの）
     const was = bookOf(before, id)
     if (was) return changedIn(was, bookOf(after, id), list)
+    // ブックの外のバインダの中の物（バインダそのもの）
+    const binder = outsideBinderIn(before, id)
+    if (binder) return changedIn(binder, outsideBinderIn(after, id), list)
     // ページの中の物と、そのページのアノテーション（ブックの中のページなら、そのページを持っているブックだけを組む）
     const holder = bookIdOf(before.folders, id)
     const held = holder ? bookOf(before, holder) : undefined

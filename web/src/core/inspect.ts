@@ -125,7 +125,8 @@ export function openedQuery(action: string, on: AskedOutermost, where?: Where): 
   return { ...base, page }
 }
 
-const decide = <V>(steps: Step<V>[]): Inspected<V> => {
+// ステップの並びの答え: 最初に決めたステップの値（どれも決めなければ null）
+export const decide = <V>(steps: Step<V>[]): Inspected<V> => {
   const hit = steps.find(s => s.value !== null)
   return { value: hit?.value ?? null, decidedBy: hit?.from ?? null, steps }
 }

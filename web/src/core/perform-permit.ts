@@ -25,6 +25,7 @@ import {
   type AskedOutermost,
   type AskedPage,
   actionQuery,
+  decide,
   decidedByPlace,
   deniedBy,
   type Inspected,
@@ -199,8 +200,10 @@ export function openedAnswer(
   }
   const asks = binderAsksOf(catalog, library, within.binder, where)
   if (asks.length === 0) {
-    const plain = inspect(catalog, base, ctx)
-    return plain.value === null ? { ...plain, value: true } : plain
+    return decide([
+      ...inspect(catalog, base, ctx).steps,
+      { from: { source: "action", id: def.id, field: "run" }, value: true },
+    ])
   }
   const answers = asks.map(page => inspect(catalog, { ...base, page } as Query, ctx))
   return answers.find(a => a.value !== true) ?? (answers[0] as Inspected<boolean>)

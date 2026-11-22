@@ -4,6 +4,7 @@ import { stagePlacesOf } from "../../web/src/core/address"
 import { NO_OUTERMOST } from "../../web/src/core/folders-tree"
 import { shownPageId } from "../../web/src/core/stage"
 import { stageIn } from "../../web/src/core/window"
+import { isShown } from "../../web/src/store/commands"
 import { NO_STAGE } from "../../web/src/store/dialogs"
 import { openedIn } from "../../web/src/store/store"
 import { SLIDE, testBinder, testPage } from "../lineup"
@@ -112,6 +113,11 @@ test("ブックの外のバインダを開いたステージで、ページ一�
   const store = withBinder()
   const stage = store.actions.showOutsideBinderStage("n1", "s1")
   const lineup = () => store.state.getState().folders.n1?.lineup.map(e => e.id)
+  // 引数がまだ無い（ページ一覧の＋が出すかを問う）ときも、右クリックしたページを名指したときも出す
+  const shown = (id: string, arg?: unknown) => isShown(store, store.state.getState(), stage, id as never, arg)
+  expect(shown("@matomezu/base:page-add-after")).toBe(true)
+  expect(shown("@matomezu/base:page-add-after", { page: "s2" })).toBe(true)
+  expect(shown("@matomezu/base:page-delete", { page: "s2" })).toBe(true)
   expect(store.actions.command(stage, "@matomezu/base:page-add-after", { page: "s2" })).toBe(true)
   await Promise.resolve()
   expect(lineup()).toHaveLength(3)
@@ -152,4 +158,29 @@ test("ブックの外のバインダの中のロックしたページは、複�
   await Promise.resolve()
   expect(store.actions.command(stage, "@matomezu/base:page-delete", { page: "s1" })).toBe(false)
   expect(store.actions.perform("@matomezu/base:page-remove", { page: "s1" }, { book: "n1" }).ok).toBe(false)
+})
+
+test("ブックの外のバインダを開いたステージで、バインダの設定を開け、紙と向きを中のページ全部に付けられる。ロックしたページが在れば行えない", async () => {
+  const store = withBinder()
+  const stage = store.actions.showOutsideBinderStage("n1", "s1")
+  expect(store.actions.command(stage, "@matomezu/base:binder-settings-opened")).toBe(true)
+  const papers = () => ["s1", "s2"].map(id => store.state.getState().pages[id]?.orientation)
+  const turned = papers()[0] === "portrait" ? "landscape" : "portrait"
+  const turn = (orientation: string) =>
+    store.actions.perform("@matomezu/base:binder-update", { binder: "n1", orientation } as never, { book: "n1" })
+  expect(turn(turned).ok).toBe(true)
+  await Promise.resolve()
+  expect(papers()).toEqual([turned, turned])
+  // 名前は binder-update では変えられない（書庫の entry-rename で変える）
+  expect(
+    store.actions.perform("@matomezu/base:binder-update", { binder: "n1", title: "別の名前" }, { book: "n1" }).ok,
+  ).toBe(false)
+  expect(store.actions.perform("@matomezu/base:entry-rename", { entry: "n1", title: "別の名前" }).ok).toBe(true)
+  await Promise.resolve()
+  expect(store.state.getState().folders.n1).toMatchObject({ title: "別の名前" })
+
+  expect(store.actions.perform("@matomezu/base:page-lock", {}, { page: "s2" }).ok).toBe(true)
+  await Promise.resolve()
+  expect(turn(turned === "portrait" ? "landscape" : "portrait")).toMatchObject({ ok: false, reason: "denied" })
+  expect(papers()).toEqual([turned, turned])
 })

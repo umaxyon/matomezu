@@ -19,7 +19,7 @@ const BINDER = {
 
 test.use({ outsidePages: [BINDER] })
 
-test("書庫の画面でブックの外のバインダを 2 回押すと、1 枚目で開く。下の行はバインダの名前と置き場所で、ページ一覧を押すとスライドが替わる", async ({
+test("書庫の画面でブックの外のバインダを 2 回押すと、1 枚目で開く。下の行はバインダの名前と置き場所で、ページ一覧でスライドを並べ替え・足し・消せる", async ({
   page,
 }) => {
   await page.goto("/")
@@ -31,24 +31,40 @@ test("書庫の画面でブックの外のバインダを 2 回押すと、1 枚
   await expect(page.locator(`button[aria-haspopup="menu"]`, { hasText: "発表スライド" })).toBeVisible()
   await expect(page.getByRole("button", { name: "置き場所: 書庫" })).toBeVisible()
   await expect(page.getByRole("tab")).toHaveCount(0)
-  // ページ一覧に、＋は出さない
+  // ページ一覧の右クリックのメニューに、ブックの中と同じ行が出る
   const list = page.getByRole("navigation", { name: "ページ一覧" })
   await expect(list.getByRole("button", { name: "表紙" })).toHaveAttribute("aria-current", "page")
-  await expect(list.getByRole("button", { name: "ページを追加" })).toHaveCount(0)
-  // 右クリックのメニューは、ブックの外のページでも行える行だけ。ドラッグでは並べ替えない
   await list.getByRole("button", { name: "本題" }).click({ button: "right" })
-  await expect(page.getByRole("menuitem")).toHaveText(["スクラップを切り抜く"])
+  await expect(page.getByRole("menuitem", { name: "ここに追加" })).toBeVisible()
+  await expect(page.getByRole("menuitem", { name: "ページの設定" })).toBeVisible()
+  await expect(page.getByRole("menuitem", { name: "スクラップを切り抜く" })).toBeVisible()
+  await expect(page.getByRole("menuitem", { name: "複製" })).toBeVisible()
+  await expect(page.getByRole("menuitem", { name: "削除…" })).toBeVisible()
   await page.keyboard.press("Escape")
   await expect(page.getByRole("menu")).toHaveCount(0)
+  // ドラッグで並べ替える
   const from = await list.getByRole("button", { name: "本題" }).boundingBox()
   const to = await list.getByRole("button", { name: "表紙" }).boundingBox()
   if (!from || !to) throw new Error("no page in the list")
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
   await page.mouse.down()
   await page.mouse.move(to.x + to.width / 2, to.y + 2, { steps: 8 })
-  await expect(page.locator(`[data-carried="true"]`)).toHaveCount(0)
   await page.mouse.up()
-  await expect(list.getByRole("button").first()).toHaveAccessibleName("表紙")
+  await expect(list.locator("[data-page]").first()).toHaveAttribute("data-page", "n1b")
+  // ＋で最後に 1 枚足して開き、Ctrl+Z で戻る
+  await list.getByRole("button", { name: "ページを足す" }).click()
+  await expect(list.locator("[data-page]")).toHaveCount(3)
+  await page.keyboard.press("Control+z")
+  await expect(list.locator("[data-page]")).toHaveCount(2)
+  // 削除すると最後の 1 枚になり、その右クリックに削除は出ない
+  await list.getByRole("button", { name: "表紙" }).click({ button: "right" })
+  await page.getByRole("menuitem", { name: "削除…" }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "削除" }).click()
+  await expect(list.locator("[data-page]")).toHaveCount(1)
+  await list.getByRole("button", { name: "本題" }).click({ button: "right" })
+  await expect(page.getByRole("menuitem", { name: "複製" })).toBeVisible()
+  await expect(page.getByRole("menuitem", { name: "削除…" })).toHaveCount(0)
+  await page.keyboard.press("Escape")
   await list.getByRole("button", { name: "本題" }).click()
   await expect.poll(() => urlStages(page).map(s => [s.b, s.p])).toEqual([[null, "n1b"]])
   await expect(list.getByRole("button", { name: "本題" })).toHaveAttribute("aria-current", "page")

@@ -6,7 +6,7 @@ import type { MessageKey } from "../../../core/catalog"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import { ANY_PAGE_TYPE } from "../../../core/def/action"
 import { binderOf, editingBackground } from "../../../core/stage"
-import { lineupIn, NO_BOOK, NO_LINEUP, NO_OUTSIDE_BINDER } from "../../../store/commands/def"
+import { type CommandContext, lineupIn, NO_BOOK, NO_LINEUP, NO_OUTSIDE_BINDER } from "../../../store/commands/def"
 import type { DialogTaking, PageSettingsArgs } from "../../../store/dialogs"
 import { kit } from "../kit"
 import { PAGE_LOCK, PAGE_UNLOCK } from "../lock"
@@ -213,20 +213,26 @@ export const BINDER_SETTINGS = kit.defineCommand({
   when: ctx => ctx.book !== NO_BOOK,
 })
 
-// 開いているバインダ（開いているページが入っているバインダか、開いている空のバインダ）の設定のダイアログを開く（フッタメニューの歯車。バインダの外のページを開いていれば出さない）
+// 文脈 ctx のステージで開いているバインダの id（ブックの中の、開いているページが入っているバインダか開いている空のバインダ。ブックの外のバインダを開いていれば、そのバインダ。無ければ null）
+function openedBinderIn(ctx: CommandContext): string | null {
+  if (ctx.book !== NO_BOOK) return binderOf(ctx.book, ctx.stage.opened)
+  return ctx.outsideBinder !== NO_OUTSIDE_BINDER ? ctx.outsideBinder.id : null
+}
+
+// 開いているバインダ（開いているページが入っているバインダか、開いている空のバインダ。ブックの外のバインダを開いていれば、そのバインダ）の設定のダイアログを開く（フッタメニューの歯車。バインダの外のページを開いていれば出さない）
 export const BINDER_SETTINGS_OPENED = kit.defineCommand({
   id: "binder-settings-opened",
   performs: [BINDER_UPDATE.id, BINDER_REMOVE.id],
   permissionScope: ctx => {
-    const binder = ctx.book !== NO_BOOK ? binderOf(ctx.book, ctx.stage.opened) : null
+    const binder = openedBinderIn(ctx)
     return binder ? { entries: [binder] } : {}
   },
   title: "Settings",
   run: (ctx, a) => {
-    const binder = ctx.book !== NO_BOOK ? binderOf(ctx.book, ctx.stage.opened) : null
+    const binder = openedBinderIn(ctx)
     if (binder) a.openDialog(BINDER_SETTINGS_DIALOG.id, { binder })
   },
-  when: ctx => ctx.book !== NO_BOOK && binderOf(ctx.book, ctx.stage.opened) !== null,
+  when: ctx => openedBinderIn(ctx) !== null,
 })
 
 // バインダ binder を中のページごと複製して、できたバインダを開く
