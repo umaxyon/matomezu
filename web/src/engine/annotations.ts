@@ -27,17 +27,15 @@ function pagesOfAnnotated(catalog: CoreCatalog, p: Annotated): readonly ItemPage
 }
 
 // engine.ts の matomezuCheckAnnotations の中身
+// 答えは、warning の有るページの id → その 1 行ずつ
 export function checkAnnotationLines(of: Assembled, pairs: string): string {
   const catalog = of.catalog.core
-  const lines = (JSON.parse(pairs) as Annotated[]).flatMap(p => {
-    if (p.kind !== "book") return []
-    const [book] = restoreBooks(catalog, [p.book])
-    return book
-      ? pagesOf(book).flatMap(page =>
-          checkAnnotations(catalog, book, page, restoreAnnotations(p.annotations[page.id])).map(warningText),
-        )
-      : []
-  })
+  const lines: Record<string, string[]> = {}
+  for (const p of JSON.parse(pairs) as Annotated[])
+    for (const page of pagesOfAnnotated(catalog, p) ?? []) {
+      const found = checkAnnotations(catalog, page, restoreAnnotations(p.annotations[page.id])).map(warningText)
+      if (found.length > 0) lines[page.id] = found
+    }
   return JSON.stringify(lines)
 }
 

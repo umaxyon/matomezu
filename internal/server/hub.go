@@ -28,6 +28,8 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
+	"os"
 	"slices"
 	"strconv"
 	"sync"
@@ -116,8 +118,12 @@ type Hub struct {
 	// warning のあるブックの id → そのブックの warning（ブックごと読めない W005・W006・読めないページを持つ W027〜W029・一部に無い物がある W007）。読めるかは今のプラグインで決まる値なので DB には残さず、
 	// 起動したときとプラグインが変わったときに全部、ブックを書いたときにその 1 冊を確かめ直す
 	bookWarnings map[string]engine.BookWarning
-	// 効かないアノテーション（種類が無い W018・形が合わない W019）の warning の 1 行ずつ。起動したとき・プラグインが変わったとき・アノテーションを消したときに確かめ直す
-	annotationWarnings []string
+	// warning のあるブックの外のページの id → その warning の 1 行（読めるが機能台帳に無い物を持つ W007）。起動したときとプラグインが変わったときに全部、
+	// ページを書いたとき・ブックの外のページになったときにそのページを確かめ直し、ブックの外のページでなくなったら外す
+	pageWarnings map[string]string
+	// 効かないアノテーション（種類が無い W018・形が合わない W019）の warning の、付いているページの id → 1 行ずつ。起動したとき・プラグインが変わったとき・
+	// ゴミ箱や読めない物のフォルダから物が出たときに全部、warning の有るページのアノテーションを書いたときにそのページを確かめ直す（holdAnnotations）
+	annotationWarnings map[string][]string
 	// 書庫の木の決まりが破れているときの warning の 1 行（W030。守っていれば空。tables.go の checkLibrary）
 	libraryWarning string
 	// unreadableWarning は、読めない物のフォルダに物が在れば、その warning（W032）の 1 行（無ければ空。unreadable.go）
@@ -173,7 +179,7 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 			return nil, fmt.Errorf("the AI edit tickets cannot be read: %w", err)
 		}
 	}
-	h := &Hub{store: store, engine: eng, books: map[string]entry{}, settings: settings, annotations: annotations, participantNotes: notes, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}, aiEditTickets: aiEditTickets, actPrefix: strconv.FormatInt(time.Now().UnixNano(), 36)}
+	h := &Hub{store: store, engine: eng, books: map[string]entry{}, pageWarnings: map[string]string{}, settings: settings, annotations: annotations, participantNotes: notes, clients: map[string]*client{}, viewed: make(chan struct{}), bookWarnings: map[string]engine.BookWarning{}, windowWarnings: map[string][]string{}, touched: touched, performed: map[string]Performed{}, aiEditTickets: aiEditTickets, actPrefix: strconv.FormatInt(time.Now().UnixNano(), 36)}
 	if err := h.loadTables(); err != nil {
 		return nil, err
 	}
@@ -190,7 +196,7 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 	// 書庫を整える（読めない物を移す・戻す、足りないシステムフォルダを足す、名前の重なりに番号を付ける）。初めての起動のアクションは、整えた書庫で行う
 	h.settleLibrary(true)
 	h.runOnceActions()
-	if err := h.checkBooks(h.order); err != nil {
+	if err := h.checkBooksAndOutsidePages(); err != nil {
 		return nil, err
 	}
 	h.checkLibrary()
@@ -201,6 +207,48 @@ func NewHub(store storage.Storage, eng *engine.Engine) (*Hub, error) {
 		return nil, err
 	}
 	return h, nil
+}
+
+// checkBooksAndOutsidePages は、全部のブックとブックの外のページを今のプラグインで確かめ直す（h.mu を持って呼ぶ）
+func (h *Hub) checkBooksAndOutsidePages() error {
+	if err := h.checkBooks(h.order); err != nil {
+		return err
+	}
+	return h.checkOutsidePages(h.pagesNotInBooks())
+}
+
+// checkOutsidePages は、ids のうちブックの外のページ（pagesNotInBooks）を今のプラグインで確かめ、warning のあるページの一覧を直す（読めるが機能台帳に無い物を持つ W007。新しい warning は常駐のログに書く）。
+// ブックの外のページでなくなったページ（消えた・ブックへ入った・バインダへ入った・ゴミ箱に入った・読めない物になった）の warning は外す（h.mu を持って呼ぶ）
+func (h *Hub) checkOutsidePages(ids []string) error {
+	outside := map[string]bool{}
+	for _, id := range h.pagesNotInBooks() {
+		outside[id] = true
+	}
+	maps.DeleteFunc(h.pageWarnings, func(id string, _ string) bool { return !outside[id] })
+	ids = slices.DeleteFunc(slices.Clone(ids), func(id string) bool { return !outside[id] })
+	if len(ids) == 0 {
+		return nil
+	}
+	bodies := make([]json.RawMessage, 0, len(ids))
+	for _, id := range ids {
+		bodies = append(bodies, h.pages[id].body)
+	}
+	found, err := h.engine.CheckOutsidePages(bodies)
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		line, ok := found[id]
+		if ok && h.pageWarnings[id] != line {
+			fmt.Fprintln(os.Stderr, "warning:", line)
+		}
+		if ok {
+			h.pageWarnings[id] = line
+		} else {
+			delete(h.pageWarnings, id)
+		}
+	}
+	return nil
 }
 
 // checkBooks は ids のブックを今のプラグインで確かめ、warning のあるブックの一覧を直す。新しい warning は常駐のログに書く。

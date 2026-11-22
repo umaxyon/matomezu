@@ -139,7 +139,7 @@ const CASES: { name: string; rows: () => Rows; less: CoreCatalog; moved: [string
 // 移したあとの書庫は、その機能台帳で読めない物を持たず、読めない物のフォルダの外の行を全部、表に読む
 function readsWhole(catalog: CoreCatalog, moved: Rows) {
   const read = readLibrary(catalog, moved.pages, moved.folders)
-  expect([...read.warnings, ...read.outsideWarnings].map(w => w.code)).toEqual([])
+  expect(read.warnings.map(w => w.code)).toEqual([])
   const outside = outsideUnreadable(moved.pages, moved.folders)
   const ids = (rows: readonly unknown[]) => rows.map(r => (r as { id: string }).id).sort()
   expect(Object.keys(read.library.pages).sort()).toEqual(ids(outside.pageRows))
@@ -222,17 +222,23 @@ const STAYS: { name: string; rows: () => Rows; moved: [string, string][] }[] = [
 ]
 
 // 読めるかの判定が 1 つである事: 確かめる関数 checkBooks（画面と同じ読み方）がブックに出す訳の番号は、移す側 unreadableUnitsOf が、
-// そのブックごとか、その中から移す最初の物の番号と同じ（移す物の無いブックには、どちらも出さない）。ブックの外の物も、readLibrary の外の warning の番号と、
-// 移す側がブックの外から移す物の番号がそろう
+// そのブックごとか、その中から移す最初の物の番号と同じ（移す物の無いブックには、どちらも出さない）。ブックの外では、移す側が数える物と、
+// readLibrary が表に入れない物が同じ（書庫ホーム・ゴミ箱・フォルダが直に持つページかバインダの単位で比べる。バインダの中のページは、そのバインダ）
 function agrees(catalog: CoreCatalog, rows: Rows) {
   const folders = Object.fromEntries(rows.folders.map(f => [(f as { id: string }).id, f])) as Folders
   const bookOf = (id: string): string | undefined =>
     folders[id]?.folderRole === "book" ? id : foldersOver(folders, id).find(f => f.folderRole === "book")?.id
+  // ブックの外の id が、書庫ホーム・ゴミ箱・フォルダが直に持つどの物に入るか（バインダの中のページは、そのバインダ。どこにも入っていなければ undefined）
+  const topOf = (id: string): string | undefined => {
+    const holder = foldersOver(folders, id)[0]
+    if (!holder) return undefined
+    return holder.folderRole === "binder" ? holder.id : id
+  }
   const fromUnits = new Map<string, string>()
   const outside = new Set<string>()
   for (const u of unreadableUnitsOf(catalog, rows.pages, rows.folders)) {
     const book = bookOf(u.element.id)
-    if (book === undefined) outside.add(u.code)
+    if (book === undefined) outside.add(topOf(u.element.id) ?? u.element.id)
     else if (!fromUnits.has(book)) fromUnits.set(book, u.code)
   }
   const fromCheck = new Map<string, string>(
@@ -240,7 +246,15 @@ function agrees(catalog: CoreCatalog, rows: Rows) {
   )
   expect(fromCheck).toEqual(fromUnits)
   const read = readLibrary(catalog, rows.pages, rows.folders)
-  expect(new Set<string>(read.outsideWarnings.map(w => w.code).filter(c => c !== "W007"))).toEqual(outside)
+  const left = new Set<string>()
+  for (const row of [...rows.pages, ...rows.folders]) {
+    const id = (row as { id: string }).id
+    if (Object.hasOwn(read.library.pages, id) || Object.hasOwn(read.library.folders, id)) continue
+    if (bookOf(id) !== undefined) continue
+    const top = topOf(id)
+    if (top !== undefined) left.add(top)
+  }
+  expect(left).toEqual(outside)
 }
 
 describe("確かめる関数と移す側は、ブックに同じ訳の番号を出す", () => {

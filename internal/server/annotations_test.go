@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -150,7 +151,7 @@ func TestAICannotReadANoteTheUserIsEditing(t *testing.T) {
 }
 
 // ブックを消すと、そのブックの効かないアノテーションの warning も一覧から外れる
-func TestRemovingABookTakesItsAnnotationWarnings(t *testing.T) {
+func TestTrashingABookTakesItsAnnotationWarnings(t *testing.T) {
 	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
 	if err != nil {
 		t.Fatal(err)
@@ -171,13 +172,15 @@ func TestRemovingABookTakesItsAnnotationWarnings(t *testing.T) {
 	if got := strings.Join(h.Warnings(), "\n"); !strings.Contains(got, "W018") {
 		t.Fatalf("warnings before = %s", got)
 	}
-	for _, do := range [][2]string{{"@matomezu/base:entry-trash", `{"entry":"b1"}`}, {"@matomezu/base:entry-purge", `{"entries":["b1"]}`}} {
-		if done, err := h.Perform(Perform{Actions: []engine.BulkAction{{Action: do[0], Args: json.RawMessage(do[1])}}}); err != nil || !done.OK {
-			t.Fatalf("%s = %+v, %v", do[0], done, err)
-		}
+	// ゴミ箱に入れた時点で、そのブックのページのアノテーションは消え、warning も外れる
+	if done, err := h.Perform(Perform{Actions: []engine.BulkAction{{Action: "@matomezu/base:entry-trash", Args: json.RawMessage(`{"entry":"b1"}`)}}}); err != nil || !done.OK {
+		t.Fatalf("entry-trash = %+v, %v", done, err)
 	}
 	if got := strings.Join(h.Warnings(), "\n"); strings.Contains(got, "W018") {
-		t.Fatalf("warnings after removing the book = %s", got)
+		t.Fatalf("warnings after the trash = %s", got)
+	}
+	if kept, _ := store.Annotations(); len(kept) != 0 {
+		t.Fatalf("annotations after the trash = %v", kept)
 	}
 }
 
@@ -253,5 +256,189 @@ func TestAIPerformRefusesATimeoutOutOfRange(t *testing.T) {
 	_, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-update","args":{"title":"x"},"on":{"book":"b1"},"timeoutSec":61}`, ai)
 	if !strings.Contains(got, `"reason":"bad-args"`) || !strings.Contains(got, "timeoutSec must be 1 to 60") {
 		t.Fatalf("timeoutSec 61 = %s", got)
+	}
+}
+
+// ブックの外のページの効かないアノテーションも warning になり（文の主語はページ）、そのページをゴミ箱に入れるとアノテーションごと消えて warning も外れる
+func TestAnnotationWarningsOfAPageOutsideBooks(t *testing.T) {
+	store := outsidePageStore(t)
+	eng, err := engine.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := NewHub(store, eng)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const line = "W018 @matomezu/note: page g1: annotation c-g1 is a @matomezu/note:note, which is not in the catalog (kept as it is, not used)"
+	if got := h.Warnings(); !slices.Contains(got, line) {
+		t.Fatalf("warnings = %s; want %s", strings.Join(got, "\n"), line)
+	}
+	if done, err := h.Perform(Perform{Actions: []engine.BulkAction{{Action: "@matomezu/base:entry-trash", Args: json.RawMessage(`{"entry":"g1"}`)}}}); err != nil || !done.OK {
+		t.Fatalf("entry-trash = %+v, %v", done, err)
+	}
+	if got := h.Warnings(); slices.Contains(got, line) {
+		t.Fatalf("warnings after the trash = %s", strings.Join(got, "\n"))
+	}
+	if kept := storedAnnotations(t, store, "g1"); kept != "" && kept != "[]" {
+		t.Fatalf("annotations of g1 after the trash = %s", kept)
+	}
+}
+
+// 読めるが機能台帳に無い物を持つブックの外のページは、ページごとに warning（W007）になり、read_folder のその行に付く。
+// 名前を変えると行が直り、ゴミ箱に入れると外れ、戻すとまた出る
+func TestAPageOutsideBooksWithMissingThingsIsWarned(t *testing.T) {
+	store := entriesStore(t)
+	strange := strings.Replace(outsideH1, `"items":[`, `"items":[{"id":"z","item":"@foo/stars:star","x":0,"y":0,"w":10,"h":10},`, 1)
+	if strange == outsideH1 {
+		t.Fatal("outsideH1 has no items to add to")
+	}
+	if err := store.Apply(storage.Batch{Pages: []storage.RowWrite{{ID: "h1", Base: storedPage(t, store, "h1").Version, Body: json.RawMessage(strange)}}}); err != nil {
+		t.Fatal(err)
+	}
+	s, hub := newServerOn(t, Options{}, store)
+	line := func(title string) string {
+		return "W007 @foo/stars: page h1 (" + title + "): it has @foo/stars:star, not in the catalog (kept as they are)"
+	}
+	if got := hub.Warnings(); !slices.Contains(got, line("H1")) {
+		t.Fatalf("warnings = %s", strings.Join(got, "\n"))
+	}
+	if _, got := send(t, "GET", s.URL+"/api/ai/folder", "", ai); !strings.Contains(got, `"id":"h1","title":"H1","type":"@matomezu/drawing:drawing","warning":"`+line("H1")+`"`) {
+		t.Fatalf("read_folder = %s", got)
+	}
+	do := func(action, args string) {
+		t.Helper()
+		if done, err := hub.Perform(Perform{Actions: []engine.BulkAction{{Action: action, Args: json.RawMessage(args)}}}); err != nil || !done.OK {
+			t.Fatalf("%s = %+v, %v", action, done, err)
+		}
+	}
+	do("@matomezu/base:entry-rename", `{"entry":"h1","title":"改"}`)
+	if got := hub.Warnings(); !slices.Contains(got, line("改")) || slices.Contains(got, line("H1")) {
+		t.Fatalf("warnings after the rename = %s", strings.Join(got, "\n"))
+	}
+	do("@matomezu/base:entry-trash", `{"entry":"h1"}`)
+	if got := strings.Join(hub.Warnings(), "\n"); strings.Contains(got, "page h1") {
+		t.Fatalf("warnings after the trash = %s", got)
+	}
+	do("@matomezu/base:entry-restore", `{"entry":"h1"}`)
+	if got := hub.Warnings(); !slices.Contains(got, line("改")) {
+		t.Fatalf("warnings after the restore = %s", strings.Join(got, "\n"))
+	}
+}
+
+// ゴミ箱から戻した物の中のページは、戻した時点で確かめる: フォルダの中のブックの外のページの W007 と、ゴミ箱の中に残っていた効かないアノテーションの W018
+func TestRestoredPagesAreChecked(t *testing.T) {
+	store := entriesStore(t)
+	strange := `{"kind":"page","id":"dt1","type":"@matomezu/drawing:drawing","title":"DT1","paper":"@matomezu/base:a4","orientation":"landscape","items":[{"id":"z","item":"@foo/stars:star","x":0,"y":0,"w":10,"h":10}]}`
+	if err := store.Apply(storage.Batch{Pages: []storage.RowWrite{{ID: "dt1", Base: storedPage(t, store, "dt1").Version, Body: json.RawMessage(strange)}}}); err != nil {
+		t.Fatal(err)
+	}
+	_, hub := newServerOn(t, Options{}, store)
+	if got := strings.Join(hub.Warnings(), "\n"); strings.Contains(got, "page dt1") || strings.Contains(got, "page t1") {
+		t.Fatalf("warnings in the trash = %s", got)
+	}
+	for _, entry := range []string{"dt", "t1"} {
+		if done, err := hub.Perform(Perform{Actions: []engine.BulkAction{{Action: "@matomezu/base:entry-restore", Args: json.RawMessage(`{"entry":"` + entry + `"}`)}}}); err != nil || !done.OK {
+			t.Fatalf("entry-restore %s = %+v, %v", entry, done, err)
+		}
+	}
+	got := hub.Warnings()
+	for _, want := range []string{
+		"W007 @foo/stars: page dt1 (DT1): it has @foo/stars:star, not in the catalog (kept as they are)",
+		"W018 @matomezu/note: page t1: annotation c-t1 is a @matomezu/note:note, which is not in the catalog (kept as it is, not used)",
+	} {
+		if !slices.Contains(got, want) {
+			t.Fatalf("warnings after the restore = %s; want %s", strings.Join(got, "\n"), want)
+		}
+	}
+}
+
+// 効かないアノテーションが消え、ほかのアノテーションが残ったページの warning は、その時点で外れる
+func TestAnnotationWarningGoesWithTheAnnotation(t *testing.T) {
+	store := entriesStore(t)
+	two := strings.Replace(outsideH1, `"items":[`, `"items":[{"id":"b","x":140,"y":40,"item":"@matomezu/box:shape-nest-box","w":64,"h":64,"props":{"caption":"B","rule":true,"body":"","captionAlign":"center","bodyAlign":"left"}},`, 1)
+	list := `[{"id":"c1","annotation":"@ex/notes:sticky","anchors":["b"],"props":{}},` + outsideH1Note + `]`
+	if err := store.Apply(storage.Batch{
+		Pages:       []storage.RowWrite{{ID: "h1", Base: storedPage(t, store, "h1").Version, Body: json.RawMessage(two)}},
+		Annotations: []storage.PageBody{{Page: "h1", Body: json.RawMessage(list)}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	_, hub := newServerOn(t, Options{}, store)
+	if got := strings.Join(hub.Warnings(), "\n"); !strings.Contains(got, "page h1: annotation c1") {
+		t.Fatalf("warnings before = %s", got)
+	}
+	remove := engine.BulkAction{Action: "@matomezu/paper:item-remove", Args: json.RawMessage(`{"items":["b"]}`), On: &engine.On{Page: "h1"}}
+	if done, err := hub.Perform(Perform{Actions: []engine.BulkAction{remove}}); err != nil || !done.OK {
+		t.Fatalf("item-remove = %+v, %v", done, err)
+	}
+	if got := strings.Join(hub.Warnings(), "\n"); strings.Contains(got, "page h1: annotation") {
+		t.Fatalf("warnings after the item went = %s", got)
+	}
+	if kept := storedAnnotations(t, store, "h1"); !strings.Contains(kept, `"c-h1"`) || strings.Contains(kept, `"c1"`) {
+		t.Fatalf("annotations of h1 = %s", kept)
+	}
+}
+
+// ゴミ箱の中のブックの warning は出さず、戻すとまた出る
+func TestWarningsOfABookInTheTrashAreNotTold(t *testing.T) {
+	store, err := storage.OpenSQLite(filepath.Join(t.TempDir(), "data.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { store.Close() })
+	strange := strings.Replace(boxed, `"items":[`, `"items":[{"id":"z","item":"@foo/stars:star","x":0,"y":0,"w":10,"h":10},`, 1)
+	if strange == boxed {
+		t.Fatal("boxed has no items to add to")
+	}
+	putBook(t, store, strange)
+	eng, err := engine.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := NewHub(store, eng)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const line = "W007 @foo/stars: book b1 (T): it has @foo/stars:star, not in the catalog (kept as they are)"
+	for _, step := range []struct {
+		action string
+		want   bool
+	}{{"", true}, {"@matomezu/base:entry-trash", false}, {"@matomezu/base:entry-restore", true}} {
+		if step.action != "" {
+			if done, err := h.Perform(Perform{Actions: []engine.BulkAction{{Action: step.action, Args: json.RawMessage(`{"entry":"b1"}`)}}}); err != nil || !done.OK {
+				t.Fatalf("%s = %+v, %v", step.action, done, err)
+			}
+		}
+		if got := h.Warnings(); slices.Contains(got, line) != step.want {
+			t.Fatalf("warnings after %q = %s", step.action, strings.Join(got, "\n"))
+		}
+	}
+}
+
+// フォルダの中のブックの warning は read_folder のその行に付き、フォルダごとゴミ箱に入れると出なくなり、戻すとまた出る
+func TestWarningOfABookInAFolder(t *testing.T) {
+	store := entriesStore(t)
+	strange := `{"kind":"page","id":"p1","type":"@matomezu/drawing:drawing","title":"P","paper":"@matomezu/base:a4","orientation":"landscape","items":[{"id":"z","item":"@foo/stars:star","x":0,"y":0,"w":10,"h":10}]}`
+	if err := store.Apply(storage.Batch{Pages: []storage.RowWrite{{ID: "p1", Base: storedPage(t, store, "p1").Version, Body: json.RawMessage(strange)}}}); err != nil {
+		t.Fatal(err)
+	}
+	s, hub := newServerOn(t, Options{}, store)
+	const line = "W007 @foo/stars: book b1 (T): it has @foo/stars:star, not in the catalog (kept as they are)"
+	if _, got := send(t, "GET", s.URL+"/api/ai/folder?folder=d1", "", ai); !strings.Contains(got, `"warning":"`+line+`"`) {
+		t.Fatalf("read_folder = %s", got)
+	}
+	for _, step := range []struct {
+		action string
+		want   bool
+	}{{"", true}, {"@matomezu/base:entry-trash", false}, {"@matomezu/base:entry-restore", true}} {
+		if step.action != "" {
+			if done, err := hub.Perform(Perform{Actions: []engine.BulkAction{{Action: step.action, Args: json.RawMessage(`{"entry":"d1"}`)}}}); err != nil || !done.OK {
+				t.Fatalf("%s = %+v, %v", step.action, done, err)
+			}
+		}
+		if got := hub.Warnings(); slices.Contains(got, line) != step.want {
+			t.Fatalf("warnings after %q = %s", step.action, strings.Join(got, "\n"))
+		}
 	}
 }

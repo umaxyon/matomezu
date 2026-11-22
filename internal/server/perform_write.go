@@ -194,6 +194,7 @@ func rowNotice(field string, put rowPut) map[string]any {
 func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act string) {
 	// 木が変わりうる書き込み（ページかフォルダの行が増えた・消えた、書庫ホーム・ゴミ箱・フォルダの行を書いた）のあとは、木の決まりを確かめ直す
 	tree := false
+	was := h.inSight()
 	pages := make([]map[string]any, 0, len(plan.pages))
 	for _, put := range plan.pages {
 		_, known := h.pages[put.id]
@@ -251,6 +252,7 @@ func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act
 			h.checkBook(id, e.body)
 		}
 	}
+	h.checkWritten(plan, was)
 	if plan.tickets != nil {
 		h.aiEditTickets = *plan.tickets
 	}
@@ -259,12 +261,6 @@ func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act
 	}
 	if len(out.Settings) > 0 {
 		h.reusePluginsForSettings(p.Client)
-	}
-	// ブックを消したら、そのページのアノテーションの warning も一覧から外す
-	if len(plan.removed) > 0 {
-		if err := h.checkAnnotations(); err != nil {
-			fmt.Fprintln(os.Stderr, "engine: could not check the annotations:", err)
-		}
 	}
 }
 
@@ -295,6 +291,59 @@ func (h *Hub) changedEvent(pages, folders, records []map[string]any, annotations
 		event["counters"] = out.Counters
 	}
 	return event
+}
+
+// inSight は、ゴミ箱の中でも読めない物でもないブックと、ブックの外のページ（pagesNotInBooks）の id の集まり（h.mu を持って呼ぶ）
+func (h *Hub) inSight() map[string]bool {
+	out := map[string]bool{}
+	for _, id := range h.order {
+		if !h.outOfSight(id) {
+			out[id] = true
+		}
+	}
+	for _, id := range h.pagesNotInBooks() {
+		out[id] = true
+	}
+	return out
+}
+
+// checkWritten は、書いた物 plan のあとの warning を直す: 書いたブックの外のページと、行う前 was（inSight）に無く今はブックの外のページである物を確かめ直し、
+// ゴミ箱や読めない物のフォルダから出た物（was に無いブックとブックの外のページ）にアノテーションが在れば、アノテーションを確かめ直す
+// （確かめられなければ、ログに書いて一覧はそのまま。h.mu を持って呼ぶ）
+func (h *Hub) checkWritten(plan *writePlan, was map[string]bool) {
+	if len(plan.pages) == 0 && len(plan.folders) == 0 {
+		return
+	}
+	ids := []string{}
+	for _, put := range plan.pages {
+		if !put.removed {
+			ids = append(ids, put.id)
+		}
+	}
+	back := false
+	for id := range h.inSight() {
+		if was[id] {
+			continue
+		}
+		if _, book := h.books[id]; book {
+			back = back || len(h.annotationsIn(id)) > 0
+			continue
+		}
+		_, noted := h.annotations[id]
+		back = back || noted
+		if !slices.Contains(ids, id) {
+			ids = append(ids, id)
+		}
+	}
+	slices.Sort(ids)
+	if err := h.checkOutsidePages(ids); err != nil {
+		fmt.Fprintln(os.Stderr, "engine: could not check the pages:", err)
+	}
+	if back {
+		if err := h.checkAnnotations(); err != nil {
+			fmt.Fprintln(os.Stderr, "engine: could not check the annotations:", err)
+		}
+	}
 }
 
 // checkBook は、書いたブック id（組んだ本文 body）を今のプラグインで確かめ、warning の一覧を直す（確かめられなければ、ログに書いて一覧はそのまま。h.mu を持って呼ぶ）

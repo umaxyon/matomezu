@@ -417,6 +417,7 @@ func (h *Hub) clearBooksForTest() error {
 	h.aiEditTickets = nil
 	h.touched = map[string]string{}
 	h.bookWarnings = map[string]engine.BookWarning{}
+	h.pageWarnings = map[string]string{}
 	h.annotationWarnings = nil
 	return nil
 }

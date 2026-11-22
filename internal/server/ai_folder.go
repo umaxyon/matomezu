@@ -8,7 +8,7 @@ package server
 //	                                              システムフォルダは、どこでも "systemFolder"（定義の id）を添え、title は定義の英語の名前（定義が今の機能台帳に無ければ空）。
 //	                                              エントリは {"kind": "folder", "id", "title"}・{"kind": "book", "id", "title"}（読めないブックは出さない）・
 //	                                              {"kind": "page", "id", "title", "type"}・{"kind": "binder", "id", "title", "pageType"}。
-//	                                              ブックとページには、AI の応えを待つアノテーションが在れば、その数 "awaiting" を添える
+//	                                              ブックとページには、AI の応えを待つアノテーションが在れば、その数 "awaiting" を、読めるが機能台帳に無い物を持てば、その warning の 1 行 "warning" を添える
 
 import (
 	"encoding/json"
@@ -36,6 +36,8 @@ type folderEntry struct {
 	SystemFolder string `json:"systemFolder,omitempty"`
 	// Awaits は、ブックかページの、AI の応えを待つアノテーションの数（list_books の awaiting と同じ数え方）
 	Awaits int `json:"awaiting,omitempty"`
+	// Warning は、ブックかページの、読めるが機能台帳に無いアイテムや設定の項目（W007 の 1 行。list_books の warning と同じ）
+	Warning string `json:"warning,omitempty"`
 }
 
 // AIFolder は、AI に見せるフォルダ 1 つ（書庫ホームかフォルダ）
@@ -146,8 +148,15 @@ func (o Options) aiFolder(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	books, pages := o.Hub.BookWarnings(), o.Hub.OutsidePageWarnings()
 	for i, e := range f.Lineup {
 		f.Lineup[i].Awaits = len(pick(annotations[e.ID], awaiting))
+		switch e.Kind {
+		case storage.KindBook:
+			f.Lineup[i].Warning = books[e.ID].Warning
+		case storage.KindPage:
+			f.Lineup[i].Warning = pages[e.ID]
+		}
 	}
 	writeJSON(w, f)
 }

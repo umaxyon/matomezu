@@ -336,3 +336,25 @@ test("開いている物がブックの外のページなら、ページが対�
   expect(ask("@matomezu/paper:item-place", testPage(MARKDOWN, "m1", { title: "m" })).value).not.toBe(true)
   expect(actionQuery(CORE_CATALOG, "@matomezu/base:book-update", outsideAsked({}, page))).not.toHaveProperty("page")
 })
+
+test("ゴミ箱に入れた物の中のページのアノテーションは消える（ブックの外のページ・ブックの外のバインダの中のページ・ブックのページ）。動かすだけでは消えない", () => {
+  const base = outsideWorld()
+  const note = { id: "n1", kind: "@matomezu/base:note", anchors: [], text: "見て" }
+  const w = {
+    ...base,
+    pages: {
+      ...base.pages,
+      x1: { ...(base.pages.x1 as ItemPage), locked: false },
+      y2: { ...(base.pages.y2 as ItemPage), locked: false },
+    },
+    annotations: { p1: [note], x1: [note], y1: [note] },
+  } as unknown as World
+  const gone = (id: string, args: unknown) => {
+    const done = performIn(w, id, args, undefined, libraryCtx())
+    return done.ok ? (done.annotations ?? {}) : done
+  }
+  expect(gone(TRASH, { entry: "x1" })).toEqual({ x1: [] })
+  expect(gone(TRASH, { entry: "lb" })).toEqual({ y1: [] })
+  expect(gone(TRASH, { entry: "b1" })).toEqual({ p1: [] })
+  expect(gone(MOVE, { entry: "x1", into: "a" })).toEqual({})
+})

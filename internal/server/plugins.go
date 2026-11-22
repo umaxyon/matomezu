@@ -116,7 +116,7 @@ func (h *Hub) usePlugins(next []*plugin.Bundle, by string) error {
 	h.loadSystemFolderTitles()
 	// 読めない物を移し、読めるようになった物を戻す（窓は plugins の知らせで読み直すので、窓には知らせない）。そのあとのブックを確かめ直す
 	moved, returned := h.settleLibrary(true)
-	if err := h.checkBooks(h.order); err != nil {
+	if err := h.checkBooksAndOutsidePages(); err != nil {
 		fmt.Fprintln(os.Stderr, "engine: could not check the books:", err)
 	}
 	h.pluginsVersion++

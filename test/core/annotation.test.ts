@@ -41,9 +41,9 @@ const BAD = note("c2", { ask: "later" })
 const GONE: Annotation = { id: "c3", annotation: "@ex/notes:sticky", anchors: ["a"], props: {} }
 
 test("種類が機能台帳に無い物は W018、形が合わない物は W019 になる（データには手を付けない）", () => {
-  expect(checkAnnotations(CORE_CATALOG, book, page, [GOOD, BAD, GONE]).map(warningText)).toEqual([
-    "W019 @matomezu/base: book d (D): annotation c2 does not fit @matomezu/base:note (kept as it is, not used)",
-    "W018 @ex/notes: book d (D): annotation c3 is a @ex/notes:sticky, which is not in the catalog (kept as it is, not used)",
+  expect(checkAnnotations(CORE_CATALOG, page, [GOOD, BAD, GONE]).map(warningText)).toEqual([
+    "W019 @matomezu/base: page p: annotation c2 does not fit @matomezu/base:note (kept as it is, not used)",
+    "W018 @ex/notes: page p: annotation c3 is a @ex/notes:sticky, which is not in the catalog (kept as it is, not used)",
   ])
 })
 
@@ -167,7 +167,7 @@ test("タイプの混ざるブックでは、付いているページのタイ�
   ])
   const on = (id: string, anchors: Anchors): Annotation => ({ ...GOOD, id, anchors })
   const codes = (at: string, a: Annotation) =>
-    checkAnnotations(catalog, mixed, findPage(mixed, at)!.page, [a]).map(w => w.code)
+    checkAnnotations(catalog, findPage(mixed, at)!.page, [a]).map(w => w.code)
   expect(codes("p1", on("n1", ["a"]))).toEqual([])
   expect(codes("p2", on("n2", ["b"]))).toEqual(["W019"])
   expect(codes("p1", on("n3", ["a", "b"]))).toEqual(["W019"])

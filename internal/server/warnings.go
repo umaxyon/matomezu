@@ -46,7 +46,7 @@ func (h *Hub) Warnings() []string {
 	if h.libraryWarning != "" {
 		out = append(out, h.libraryWarning)
 	}
-	// 読めない物のフォルダに移った物は、1 つずつの warning を出さず、件数の warning 1 つだけ
+	// 読めない物のフォルダに移った物は、1 つずつの warning を出さず、件数の warning 1 つだけ。ゴミ箱の中のブックの warning は出さない（戻すと出る）
 	if h.unreadableWarning != "" {
 		out = append(out, h.unreadableWarning)
 	}
@@ -54,14 +54,19 @@ func (h *Hub) Warnings() []string {
 		out = append(out, h.settleWarning)
 	}
 	for _, id := range h.order {
-		if h.inUnreadable(id) {
+		if h.inUnreadable(id) || h.inTrash(id) {
 			continue
 		}
 		if n, ok := h.bookWarnings[id]; ok {
 			out = append(out, n.Warning)
 		}
 	}
-	out = append(out, h.annotationWarnings...)
+	for _, id := range h.pagesNotInBooks() {
+		if line, ok := h.pageWarnings[id]; ok {
+			out = append(out, line)
+		}
+	}
+	out = append(out, h.annotationWarningLines()...)
 	out = append(out, h.recordWarningLines()...)
 	ids := make([]string, 0, len(h.windowWarnings))
 	for id := range h.windowWarnings {
@@ -115,6 +120,13 @@ func (h *Hub) recordWarnings(ids []string, found []engine.BookWarning) {
 			before[n.Warning] = true
 		}
 	}
+}
+
+// OutsidePageWarnings は、warning のあるブックの外のページの id → その warning の 1 行
+func (h *Hub) OutsidePageWarnings() map[string]string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return maps.Clone(h.pageWarnings)
 }
 
 // BookWarnings は warning のあるブックの id → そのブックの warning（読めない物のフォルダに移ったブックは入らない）

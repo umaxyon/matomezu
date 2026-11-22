@@ -52,7 +52,13 @@ export function checkBooks(
     else if (read.inner.length > 0) warnings.push(...unreadableWarnings(read.inner, params).slice(0, 1))
     else {
       books.push(read.book)
-      partial.push(...missingWarnings(missingIn(catalog, [read.book], pagesOf(read.book)), params))
+      partial.push(
+        ...missingWarnings(missingIn(catalog, [read.book], pagesOf(read.book)), {
+          ...params,
+          kind: "book",
+          id: params.book,
+        }),
+      )
     }
   }
   return { books, warnings, partial }
@@ -71,12 +77,9 @@ interface Lost {
   type?: string
 }
 
-// 読めない物の warning に書く物（理由の番号と、機能台帳に無いタイプ）
-type LostEntry = Pick<Lost, "code" | "type">
-
-// 読めないページ found（ブック 1 冊の中か、ブックの外の全部）の warning: 番号ごとに 1 つ（タイプが無い W027 は、無いタイプごとに 1 つ）。
-// 何枚かを pages に持ち（1 枚ごとには出さない）、params（ブックの id と名前。ブックの外なら無し）を添える
-function unreadableWarnings(found: readonly LostEntry[], params: Readonly<Record<string, string>>): Warning[] {
+// ブック 1 冊の中の読めないページ found の warning: 番号ごとに 1 つ（タイプが無い W027 は、無いタイプごとに 1 つ）。
+// 何枚かを pages に持ち（1 枚ごとには出さない）、params（ブックの id と名前）を添える
+function unreadableWarnings(found: readonly Lost[], params: Readonly<Record<string, string>>): Warning[] {
   const groups = new Map<string, { code: UnreadableCode; type?: string; pages: number }>()
   for (const u of found) {
     const type = u.code === "W027" ? (u.type ?? NO_TYPE) : undefined
@@ -295,24 +298,32 @@ function missingIn(catalog: CoreCatalog, holders: readonly object[], pages: read
   return [...found]
 }
 
-// 機能台帳に無い物の id missing の warning W007（無ければ空。最初の物の持ち主のプラグインの warning）。params（ブックの id と名前。ブックの外なら無し）を添える
+// 機能台帳に無い物の id missing の warning W007（無ければ空。最初の物の持ち主のプラグインの warning）。params（ブックかブックの外のページの id と名前）を添える
 function missingWarnings(missing: readonly string[], params: Readonly<Record<string, string>>): Warning[] {
   const [first] = missing
   return first ? [warning("W007", splitId(first).owner ?? "", { ...params, missing: missing.join(", ") })] : []
+}
+
+// ブックの外のページ saved（置き場所から読んだまま）のうち、読めるが、機能台帳に無いアイテムや設定の項目を持つページの warning W007（ページごとに 1 つ。読めないページには出さない）
+export function checkOutsidePages(catalog: CoreCatalog, saved: readonly unknown[]): Warning[] {
+  return saved.flatMap(p => {
+    const page = typeof p === "object" && p !== null ? (readablePage(catalog, p) as ItemPage | undefined) : undefined
+    if (!page) return []
+    const params = { kind: "page", id: page.id, title: page.title }
+    return missingWarnings(missingIn(catalog, [], [page]), params)
+  })
 }
 
 // 残しておいたブックのうち、読めるものだけ（checkBooks の books）
 export const restoreBooks = (catalog: CoreCatalog, saved: readonly unknown[]): Book[] =>
   checkBooks(catalog, saved).books
 
-// 置き場所から読んだままの行を、今の機能台帳で読んだ書庫。library は書庫の表、books・warnings・partial は checkBooks と同じ（読めるブック・読めないブック・読めるブックの中の問題）、
-// outsideWarnings はブックの外の問題（読めないページの warning W027〜W029 と、機能台帳に無い物の warning W007。ブックの外の全体で、理由ごとに 1 つ。ブックの id と名前は持たない）
+// 置き場所から読んだままの行を、今の機能台帳で読んだ書庫。library は書庫の表、books・warnings・partial は checkBooks と同じ（読めるブック・読めないブック・読めるブックの中の問題）
 export interface LibraryRead {
   library: Library
   books: readonly Book[]
   warnings: readonly Warning[]
   partial: readonly Warning[]
-  outsideWarnings: readonly Warning[]
 }
 
 // 置き場所から読んだままのページの行 pageRows とフォルダの行 folderRows を、今の機能台帳で読んだ書庫の表と問題。
@@ -330,18 +341,12 @@ export function readLibrary(
   const checked = checkBooks(catalog, rawBooksOf(pageRows, folderRows))
   const tables = tablesOf(checked.books)
   const open = homeAndFoldersOf(folderRows)
-  if (open.length === 0) return { library: tables, ...checked, outsideWarnings: [] }
+  if (open.length === 0) return { library: tables, ...checked }
   const pages: Record<string, PageRow> = { ...tables.pages }
   const folders: Record<string, Folder> = { ...tables.folders }
   for (const f of open) folders[f.id] = f
   const pageRow = rowsById(pageRows)
   const folderRow = rowsById(folderRows)
-  const lost: LostEntry[] = []
-  const read: PageRow[] = []
-  const put = (row: PageRow) => {
-    pages[row.id] = row
-    read.push(row)
-  }
   for (const f of open)
     for (const r of f.lineup) {
       if (r.kind === "page") {
@@ -349,8 +354,7 @@ export function readLibrary(
         const raw = pageRow.get(r.id)
         if (!raw || Object.hasOwn(pages, r.id)) continue
         const page = judgePage(catalog, raw)
-        if (typeof page !== "string") put(page as PageRow)
-        else lost.push({ code: page, ...(page === "W027" ? typeIn(raw, "type") : {}) })
+        if (typeof page !== "string") pages[r.id] = page as PageRow
       }
       if (r.kind !== "binder" || Object.hasOwn(folders, r.id)) continue
       const row = folderRow.get(r.id)
@@ -361,16 +365,11 @@ export function readLibrary(
       if (inside.some(p => p === undefined || Object.hasOwn(pages, p.id as string))) continue
       const { folderRole: _, ...fields } = row
       const binder = judgeBinder(catalog, { ...fields, kind: "binder", lineup: inside })
-      if ("code" in binder) lost.push(binder)
-      else if (binder.inner.length > 0) lost.push(...binder.inner)
-      else {
-        folders[r.id] = binderFolderOf(row) as Folder
-        for (const p of binder.binder.lineup) put(p as PageRow)
-      }
+      if ("code" in binder || binder.inner.length > 0) continue
+      folders[r.id] = binderFolderOf(row) as Folder
+      for (const p of binder.binder.lineup) pages[p.id] = p as PageRow
     }
-  const readable = read as readonly ItemPage[]
-  const outsideWarnings = [...unreadableWarnings(lost, {}), ...missingWarnings(missingIn(catalog, [], readable), {})]
-  return { library: { pages, folders }, ...checked, outsideWarnings }
+  return { library: { pages, folders }, ...checked }
 }
 
 // ブックの並び（ページタブの順。1 つはページか、1 つのタイプのページだけを入れるバインダ）

@@ -55,6 +55,11 @@ func (h *Hub) PageNotInBook(id string) json.RawMessage {
 func (h *Hub) annotated(ids []string) ([]engine.Annotated, []string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	return h.annotatedIn(ids)
+}
+
+// annotatedIn は annotated の中身（h.mu を持って呼ぶ）
+func (h *Hub) annotatedIn(ids []string) ([]engine.Annotated, []string) {
 	var pairs []engine.Annotated
 	var kept []string
 	if ids == nil {

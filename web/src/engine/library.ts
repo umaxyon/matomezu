@@ -1,7 +1,7 @@
 // ブックと書庫の確かめと整え: 残したブック・フォルダの行の確かめ・システムフォルダ・読めない物のフォルダへの出し入れと完全に消す行。
 // 台帳アセンブルの結果（Assembled）は、呼ぶたびに引数で受ける
 
-import { checkBooks } from "../core/book"
+import { checkBooks, checkOutsidePages } from "../core/book"
 import type { CoreCatalog } from "../core/core-catalog"
 import { namingOf } from "../core/entries"
 import { BROKEN, UNREADABLE_ID, unreadableFolderOf } from "../core/folders"
@@ -25,6 +25,12 @@ export function checkBookLines(of: Assembled, books: string): string {
     unreadable,
   })
   return JSON.stringify([...read.warnings.map(n => line(n, true)), ...read.partial.map(n => line(n, false))])
+}
+
+// engine.ts の matomezuCheckOutsidePages の中身。答えは、warning の有るページの id → その 1 行
+export function checkOutsidePageLines(of: Assembled, pages: string): string {
+  const found = checkOutsidePages(of.catalog.core, JSON.parse(pages) as unknown[])
+  return JSON.stringify(Object.fromEntries(found.map(n => [n.params.id ?? "", warningText(n)])))
 }
 
 // engine.ts の matomezuCheckLibrary の中身

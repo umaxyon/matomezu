@@ -92,7 +92,7 @@ function noRecord(
 
 // 対象を world から選んでアクションを行う（画面の store・常駐・行い直しで同じ決まりを使う）。
 // ブックが対象なら on のブックで（ゴミ箱のブックは無いものとして断る）、ページとアノテーションが対象なら on のページを持っているブックで（ブックの外のページなら、そのページで）行い、ブックの id を変えたら断る。同じ値の設定は変わらなかったとみなす。
-// ブックが変わったら、無くなった物をそのページのアノテーションのアンカーから外し（core/annotation.ts の prune）、無くなったページと、一覧から無くなったブックのページのアノテーションは消す
+// ブックが変わったら、無くなった物をそのページのアノテーションのアンカーから外し（core/annotation.ts の prune）、無くなったページと、一覧から無くなったブックのページと、ゴミ箱に入ったページのアノテーションは消す
 export function performIn(
   world: World,
   id: string,
@@ -146,10 +146,12 @@ export function performIn(
     if (!treeHolds(after)) return { ok: false, reason: "refused" }
     const clashes = titleClashes(after, naming)
     if (clashes.length > 0) return titleTaken(after, clashes, naming)
-    // 無くなったページのアノテーションは消す
-    const gone = Object.entries(changes.pages)
-      .filter(([p, v]) => v === REMOVED && (world.annotations[p]?.length ?? 0) > 0)
-      .map(([p]) => p)
+    // 無くなったページと、ゴミ箱に入ったページ（ゴミ箱に入った物の中のページも）のアノテーションは消す
+    const gone = Object.keys(world.annotations).filter(
+      p =>
+        (world.annotations[p]?.length ?? 0) > 0 &&
+        (changes.pages[p] === REMOVED || (inTrash(after.folders, p) && !inTrash(world.folders, p))),
+    )
     return {
       ok: true,
       result: done.result,
