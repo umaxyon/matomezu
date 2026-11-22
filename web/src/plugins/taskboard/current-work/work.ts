@@ -81,7 +81,7 @@ export const CURRENT_WORK = kit.defineSubject({
     ticket: { type: "text", of: w => w.ticket },
   },
   aiBrief: w => w.ticket,
-  // 参加者リストの並びとセッション名: カレントチケットがあれば作業中で、題名はチケットの番号と名前
+  // 参加者リストの並びとセッション名・作業の資料のブック: カレントチケットがあれば作業中で、題名はチケットの番号と名前、レコードはチケット、短く呼ぶ名前はチケットの番号
   workroomWork: (workroom, read) => {
     const current = currentTicketOf(
       workroom,
@@ -93,6 +93,8 @@ export const CURRENT_WORK = kit.defineSubject({
       ? {
           kind: "working",
           title: `${ticketLabel(current.project.prefix, current.ticket.number)} ${current.ticket.name}`,
+          key: { subject: TICKET.id, id: current.ticket.id },
+          label: ticketLabel(current.project.prefix, current.ticket.number),
         }
       : { kind: "idle" }
   },

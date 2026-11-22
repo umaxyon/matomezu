@@ -2,16 +2,18 @@
 // 参加者リストの並びと、AI のセッション名（作業中なら題名を添える）に使う。ほかの動きを決めない。
 // base は自分では決めず、対象の定義に書いた workroomWork に答えさせる（カレントワークを持つプラグインなど）。答える種類が無ければ unknown
 import type { CoreCatalog } from "../../../core/core-catalog"
+import type { WorkKey } from "../../../core/folders"
 import type { Condition } from "../../../core/record-keys"
 import { find as findIn, type RecordSource, sourceOf } from "../../../core/record-source"
 import type { Records } from "../../../core/records"
 
-export type WorkroomWork = { kind: "working"; title: string } | { kind: "idle" }
+// 作業中なら、取り組んでいる物の短い題名 title と、そのレコード key（種類と id）と、それを短く呼ぶ名前 label（例: チケットの番号。作業の資料のブックの名前になる）
+export type WorkroomWork = { kind: "working"; title: string; key: WorkKey; label: string } | { kind: "idle" }
 export type WorkroomActivity = WorkroomWork["kind"]
 
 declare module "../../../core/catalog" {
   interface SubjectExtras {
-    // ワークルーム workroom の作業を答える（作業中なら、取り組んでいる物の短い題名。例: チケットの番号と名前）。read はレコードを種類と id で読む（無ければ none）。
+    // ワークルーム workroom の作業を答える（作業中なら、取り組んでいる物の短い題名。例: チケットの番号と名前。そのレコードと、短く呼ぶ名前も）。read はレコードを種類と id で読む（無ければ none）。
     // find は種類のレコードのうち、索引キーの条件 where に合う物を読む（アクションの reads の where と同じ書き方）
     workroomWork?(
       workroom: string,

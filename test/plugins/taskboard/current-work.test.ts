@@ -10,6 +10,7 @@ import { withCounters, withRecords } from "../../../web/src/core/records"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { workroomActivityOf, workroomWorkIn, workroomWorkOf } from "../../../web/src/plugins/base/participant/activity"
 import { workTitleIn } from "../../../web/src/plugins/base/participant/work-title"
+import { workerBookOf } from "../../../web/src/plugins/base/participant/worker-book"
 import { CURRENT_WORK, currentTicketOf } from "../../../web/src/plugins/taskboard/current-work"
 import type { Project } from "../../../web/src/plugins/taskboard/project"
 import { TICKET, type Ticket } from "../../../web/src/plugins/taskboard/ticket"
@@ -266,14 +267,32 @@ test("レーンの作業中の印を外すと、そのレーンのチケット�
   expect(user("project-update", { lanes: marked(false), doneLane: doing }, { record: project }).ok).toBe(false)
 })
 
-test("ワークルームの作業: カレントチケットがあれば作業中で、題名はチケットの番号と名前。無ければ空き", () => {
+test("ワークルームの作業: カレントチケットがあれば作業中で、題名はチケットの番号と名前、レコードはチケット。無ければ空き。ワーカーブックは、作業中ならチケットの物、ほかはワークルームの物", () => {
   const { act, room, add, world } = board()
   const a = room("あ")
   const records = () => world().records as Record<string, Record<string, unknown>>
   expect(workroomWorkOf(CORE_CATALOG, records(), a)).toEqual({ kind: "idle" })
+  expect(workerBookOf(CORE_CATALOG, sourceOf(records() as Records), a)).toEqual({
+    workKey: { subject: "@matomezu/base:workroom", id: a },
+    title: "あ",
+  })
   const t1 = add({ name: "鳥と表示名" })
   act(ai(a), "ticket-start", {}, { record: t1 })
-  expect(workroomWorkOf(CORE_CATALOG, records(), a)).toEqual({ kind: "working", title: "T-0001 鳥と表示名" })
+  expect(workroomWorkOf(CORE_CATALOG, records(), a)).toEqual({
+    kind: "working",
+    title: "T-0001 鳥と表示名",
+    key: { subject: "@matomezu/taskboard:ticket", id: t1 },
+    label: "T-0001",
+  })
+  expect(workerBookOf(CORE_CATALOG, sourceOf(records() as Records), a)).toEqual({
+    workKey: { subject: "@matomezu/taskboard:ticket", id: t1 },
+    title: "T-0001",
+  })
+  const none = { ...CORE_CATALOG, subjects: new Map() } as CoreCatalog
+  expect(workerBookOf(none, sourceOf(records() as Records), a).workKey).toEqual({
+    subject: "@matomezu/base:workroom",
+    id: a,
+  })
 })
 
 test("作業名: 作業中なら題名とワークルームの名前、空きなら空きの印、答える種類が無ければ名前だけ、設定が止めていれば off", () => {
@@ -293,7 +312,10 @@ test("作業名: 作業中なら題名とワークルームの名前、空きな
 })
 
 test("ワークルームの作業は、答える種類のうち機能台帳の並びで最初に作業中と答えた物。どれも作業中でなければ空き", () => {
-  const answer = (work: { kind: "working"; title: string } | { kind: "idle" }) => ({ workroomWork: () => work })
+  const answer = (work: { kind: "working"; title: string } | { kind: "idle" }) => ({
+    workroomWork: () =>
+      work.kind === "working" ? { ...work, key: { subject: "s", id: work.title }, label: work.title } : work,
+  })
   const catalog = (...subjects: object[]) =>
     ({ ...CORE_CATALOG, subjects: new Map(subjects.map((s, i) => [`s${i}`, s])) }) as unknown as CoreCatalog
   const source = sourceOf({} as Records)
@@ -307,7 +329,7 @@ test("ワークルームの作業は、答える種類のうち機能台帳の�
       source,
       "w",
     ),
-  ).toEqual({ kind: "working", title: "先" })
+  ).toEqual({ kind: "working", title: "先", key: { subject: "s", id: "先" }, label: "先" })
   expect(workroomWorkIn(catalog(answer({ kind: "idle" }), {}), source, "w")).toEqual({ kind: "idle" })
   expect(workroomWorkIn(catalog({}), source, "w")).toBe("unknown")
 })
