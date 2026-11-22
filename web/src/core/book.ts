@@ -18,6 +18,7 @@ import {
   type TrashRef,
 } from "./folders"
 import { bookOf, tablesOf } from "./folders-books"
+import { inTrash } from "./folders-tree"
 import { outsideUnreadable, rawBooksOf, rowsById } from "./folders-unreadable"
 import { freshPageId } from "./ids"
 import { splitId } from "./names"
@@ -235,6 +236,21 @@ function judgeBinder(catalog: CoreCatalog, raw: Readonly<Record<string, unknown>
   return binderHolds(catalog, binder) ? { binder, inner } : { code: "W029" }
 }
 
+// ブックの外（書庫ホーム・ゴミ箱・フォルダの直下）のページ 1 枚 raw を読んだページか、読めない訳の番号: judgePage に、まとまるタイプ（grouping が binder）のページはバインダの外に置かない決まりを足した物（破れば W029）
+function judgeOutsidePage(catalog: CoreCatalog, raw: Readonly<Record<string, unknown>>): AnyPage | UnreadableCode {
+  const read = judgePage(catalog, raw)
+  return typeof read === "string" || catalog.pageTypes.get(read.type)?.grouping !== "binder" ? read : "W029"
+}
+
+// ブックの外のバインダ 1 つ raw を読んだ物: judgeBinder に、空でない決まりを足した物。空なら W029、中のページが 1 枚も読めなければ、最初のページの訳でバインダごと読めない
+function judgeOutsideBinder(catalog: CoreCatalog, raw: Readonly<Record<string, unknown>>): BinderRead {
+  const read = judgeBinder(catalog, raw)
+  if ("code" in read || read.binder.lineup.length > 0) return read
+  const [first] = read.inner
+  if (!first) return { code: "W029" }
+  return { code: first.code, ...(first.type === undefined ? {} : { type: first.type }) }
+}
+
 // 残したブック 1 冊 raw（並びにページとバインダの中身ごと持つ形。形を確かめる前）を今の機能台帳で読んだ物。読めるかの判定は、画面もホストもこれ 1 つで決める。
 // ブックごと読めなければ、その訳: 読めない物を除いてもブックの形に合わない・行の無い物を指したまま組まれている W005／並びの決まりを守らない W006。
 // 読めれば、読めない物を除いたブックと、中の読めない物（ページ・バインダ。外側の 1 つだけ。バインダごと読めないバインダの中のページは数えない）
@@ -328,8 +344,8 @@ export interface LibraryRead {
 
 // 置き場所から読んだままのページの行 pageRows とフォルダの行 folderRows を、今の機能台帳で読んだ書庫の表と問題。
 // 表に入るのは、読めるブック（checkBooks。ブックの中の読み方も同じ）を分けた行と、形に合う書庫ホーム・ゴミ箱・フォルダと、それらが直に持つブックの外のページとブックの外のバインダ。
-// ブックの外のページは、そのタイプのページの形で読めるときだけ入れる（読めなければ入れず、残したデータには手を付けない）。
-// ブックの外のバインダは、形に合い、中のページの行が全部在って読め、バインダの決まりを守るときだけ、中のページごと入れる。
+// ブックの外のページは、そのタイプのページの形で読め、まとまるタイプでないときだけ入れる（読めなければ入れず、残したデータには手を付けない）。
+// ブックの外のバインダは、形に合い、中のページの行が全部在って読め、バインダの決まりを守り、空でないときだけ、中のページごと入れる。
 // 入らなかった物を指す並びは、表に無い物を指すので、木の決まりが破れて見える（書庫が対象のアクションは断られる）。
 // どのフォルダにも持たれていないページの行と、読めないブックの行と、読めない物のフォルダの行とその中の物の行は、表に入れない
 export function readLibrary(
@@ -353,7 +369,7 @@ export function readLibrary(
         // 行が無い・もう表に在る物は読まない（2 度持たれた物と行の無い物は、木の決まりが見る）
         const raw = pageRow.get(r.id)
         if (!raw || Object.hasOwn(pages, r.id)) continue
-        const page = judgePage(catalog, raw)
+        const page = judgeOutsidePage(catalog, raw)
         if (typeof page !== "string") pages[r.id] = page as PageRow
       }
       if (r.kind !== "binder" || Object.hasOwn(folders, r.id)) continue
@@ -364,7 +380,7 @@ export function readLibrary(
       )
       if (inside.some(p => p === undefined || Object.hasOwn(pages, p.id as string))) continue
       const { folderRole: _, ...fields } = row
-      const binder = judgeBinder(catalog, { ...fields, kind: "binder", lineup: inside })
+      const binder = judgeOutsideBinder(catalog, { ...fields, kind: "binder", lineup: inside })
       if ("code" in binder || binder.inner.length > 0) continue
       folders[r.id] = binderFolderOf(row) as Folder
       for (const p of binder.binder.lineup) pages[p.id] = p as PageRow
@@ -578,6 +594,50 @@ function binderHolds(catalog: CoreCatalog, binder: BinderEntry): boolean {
   return sharesPaper(binder)
 }
 
+// 書庫 next のうち、書庫 was から変わったフォルダとページの行に関わる所が、ブックの外の決まりを守っているか（ゴミ箱の中は見ない）:
+// 書庫ホーム・フォルダの直下に、まとまるタイプ（grouping が binder）のページが無い／ブックの外のバインダは、バインダの決まり（binderHolds）を守り、空でない
+export function outsideHolds(catalog: CoreCatalog, was: Library, next: Library): boolean {
+  const { pages, folders } = next
+  const outside = (id: string) => {
+    const f = folders[id]
+    return (f?.folderRole === "home" || f?.folderRole === "folder") && !inTrash(folders, id)
+  }
+  const looseOk = (id: string): boolean => {
+    const page = pages[id]
+    return page === undefined || catalog.pageTypes.get(page.type)?.grouping !== "binder"
+  }
+  const binderOk = (id: string): boolean => {
+    const row = folders[id]
+    if (row?.folderRole !== "binder") return true
+    const lineup = row.lineup.map(r => pages[r.id])
+    if (lineup.length === 0 || lineup.some(p => p === undefined)) return false
+    const { title, pageType } = row
+    return binderHolds(catalog, { kind: "binder", id, title, pageType, lineup: lineup as AnyPage[] })
+  }
+  for (const f of Object.values(folders)) {
+    if (was.folders[f.id] === f) continue
+    if (f.folderRole === "binder") {
+      const holder = placeOf(folders, f.id)?.holder.id
+      if (holder !== undefined && outside(holder) && !binderOk(f.id)) return false
+      continue
+    }
+    if (!outside(f.id)) continue
+    for (const r of f.lineup) {
+      if (r.kind === "page" && !looseOk(r.id)) return false
+      if (r.kind === "binder" && !binderOk(r.id)) return false
+    }
+  }
+  for (const [id, page] of Object.entries(pages)) {
+    if (was.pages[id] === page) continue
+    const holder = placeOf(folders, id)?.holder
+    if (holder?.folderRole === "binder") {
+      const over = placeOf(folders, holder.id)?.holder.id
+      if (over !== undefined && outside(over) && !binderOk(holder.id)) return false
+    } else if (holder !== undefined && outside(holder.id) && !looseOk(id)) return false
+  }
+  return true
+}
+
 // バインダの中のページが、紙と向きをそろえているか
 function sharesPaper(binder: BinderEntry): boolean {
   const pages = binder.lineup
@@ -679,11 +739,11 @@ export function unreadableUnitsOf(
       else if (!rowsThere([{ kind: r.kind, id: r.id }])) continue
       else if (r.kind === "page") {
         const raw = page.get(r.id) as Readonly<Record<string, unknown>>
-        const read = judgePage(catalog, raw)
+        const read = judgeOutsidePage(catalog, raw)
         if (typeof read === "string")
           units.push({ element, holder: id, code: read, ...(read === "W027" ? typeIn(raw, "type") : {}) })
       } else if (r.kind === "binder") {
-        const read = judgeBinder(catalog, binderOf(folder.get(r.id) as Readonly<Record<string, unknown>>))
+        const read = judgeOutsideBinder(catalog, binderOf(folder.get(r.id) as Readonly<Record<string, unknown>>))
         if ("code" in read) units.push({ element, holder: id, ...read })
         else units.push(...read.inner.map(unitOf))
       } else {

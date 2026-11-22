@@ -3,7 +3,8 @@
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
 import type { Book } from "../../web/src/core/schema/book"
-import { newStore } from "../support"
+import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"
+import { newStore, worldRows } from "../support"
 
 const REVERT = "@matomezu/base:history-revert"
 
@@ -59,4 +60,39 @@ test("一覧が対象のアクションでも、ページのタイプは作っ�
     reason: "refused",
   })
   expect(at().type).toBe("@matomezu/drawing:drawing")
+})
+
+test("一覧が対象のアクションのあとに、ブックの外のバインダが空になる・紙と向きがそろわなくなるなら断る（refused）。ブックの中のバインダは空になってよい", () => {
+  const store = newStore()
+  const { state, actions } = store
+  const slide = (id: string, rest: object = {}) => testPage(SLIDE, id, { title: id, ...rest })
+  const book = testBook("b1", "B", [drawingPage("p1"), testBinder("bd", "中", SLIDE, slide("w1"))])
+  const outside = [
+    testBinder("x", "x", SLIDE, slide("s1"), slide("s2")),
+    testBinder("y", "y", SLIDE, slide("t1")),
+    testBinder("z", "z", SLIDE, slide("u1", { orientation: "portrait" })),
+  ]
+  store.receive({ ...worldRows([book], outside), settings: {} }, [])
+  const move = (entry: string, into: string) =>
+    actions.perform("@matomezu/base:entry-move", { entry, into, onConflict: "refuse" })
+  const refused = { ok: false, reason: "refused" } as const
+  expect(move("t1", "x")).toEqual(refused)
+  expect(move("s1", "z")).toEqual(refused)
+  expect(move("s1", "y").ok).toBe(true)
+  expect(state.getState().folders.y?.lineup.map(r => r.id)).toEqual(["t1", "s1"])
+  expect(move("w1", "x").ok).toBe(true)
+  expect(state.getState().folders.bd?.lineup).toEqual([])
+})
+
+test("一覧が対象のアクションで、ブックの外のバインダの中のページの紙と向きがそろわなくなるなら断る（refused）", () => {
+  const store = newStore()
+  const slide = (id: string) => testPage(SLIDE, id, { title: id })
+  store.receive({ ...worldRows([], [testBinder("x", "x", SLIDE, slide("s1"), slide("s2"))]), settings: {} }, [])
+  const turned = (to: string, was: string) => ({
+    outermosts: [{ kind: "page" as const, id: "s1" }],
+    pages: { s1: { fields: { orientation: { set: to, was } } } },
+    folders: {},
+  })
+  expect(store.actions.perform(REVERT, turned("portrait", "landscape"))).toEqual({ ok: false, reason: "refused" })
+  expect(store.state.getState().pages.s1?.orientation).toBe("landscape")
 })
