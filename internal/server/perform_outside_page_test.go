@@ -235,7 +235,7 @@ func TestPagesInABinderOutsideBooksAreChecked(t *testing.T) {
 	}
 }
 
-// AI は、どこかの窓に出ているブックの外のページをゴミ箱に入れられない（open-on-screen。隠れているブックスクリーンが開いている物も、それを中に持つフォルダごとも）。出ていなければ入れられる
+// AI は、どこかの窓に出ているブックの外のページ・バインダをゴミ箱に入れられない（open-on-screen。隠れているブックスクリーンが開いている物も、それを中に持つフォルダごとも）。出ていなければ入れられる
 func TestAICannotTrashAPageOutsideBooksOnAScreen(t *testing.T) {
 	s, _ := newServerOn(t, Options{}, entriesStore(t))
 	writer := writerAI(t, s.URL)
@@ -253,6 +253,7 @@ func TestAICannotTrashAPageOutsideBooksOnAScreen(t *testing.T) {
 		{on("h1"), "h1"},
 		{`{"current":"plain-screen","hidden":` + on("h1") + `}`, "h1"},
 		{on("g1"), "d2"},
+		{`{"entry":{"kind":"binder","id":"n1"},"page":"n1a","selection":[],"stage":"s1","stages":[{"id":"s1","entry":{"kind":"binder","id":"n1"},"page":"n1a"}],"canSplit":true}`, "n1"},
 	} {
 		send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":`+c.view+`,"focused":true,"seq":`+string(rune('1'+i))+`}`, nil)
 		if got := trash(c.entry); got != refused {
@@ -260,15 +261,16 @@ func TestAICannotTrashAPageOutsideBooksOnAScreen(t *testing.T) {
 		}
 	}
 	send(t, "POST", s.URL+"/api/view", `{"client":"c1","view":{"stage":"s1","stages":[{"id":"s1"}],"canSplit":true},"focused":true,"seq":9}`, nil)
-	for _, entry := range []string{"h1", "d2"} {
+	for _, entry := range []string{"h1", "d2", "n1"} {
 		if got := trash(entry); !strings.HasPrefix(got, `{"ok":true`) {
 			t.Fatalf("ai trash of %s off the screen = %s", entry, got)
 		}
 	}
 }
 
-// show は、ページだけの頼みを読み分ける: ブックの中のページなら、そのページを持っているブックをそのページで、ブックの外のページならそのページを出す。
-// 言ったブックのページでない・無いページ・バインダの中やゴミ箱の中のページは no-page、ブックの外のページの印刷プレビューは no-print-preview、何も言わなければ no-book
+// show は、ページだけの頼みを読み分ける: ブックの中のページなら、そのページを持っているブックをそのページで、ブックの外のページならそのページを、
+// ブックの外のバインダの中のページなら、そのバインダをそのページで出す。
+// 言ったブックのページでない・無いページ・ゴミ箱の中のページは no-page、ブックの外のページ・バインダの印刷プレビューは no-print-preview、何も言わなければ no-book
 func TestShowReadsAPageAlone(t *testing.T) {
 	s, _ := newServerOn(t, Options{}, entriesStore(t))
 	auth := writerAI(t, s.URL)
@@ -279,6 +281,8 @@ func TestShowReadsAPageAlone(t *testing.T) {
 		{`{"page":"h1"}`, `show {"to":"page","page":"h1"}`},
 		{`{"page":"g1","stage":"s1"}`, `show {"to":"page","page":"g1","stage":"s1"}`},
 		{`{"page":"h1","split":true,"mode":"edit"}`, `show {"to":"page","page":"h1","split":true}`},
+		{`{"page":"n1a"}`, `show {"to":"binder","binder":"n1","page":"n1a"}`},
+		{`{"page":"n1a","stage":"s1"}`, `show {"to":"binder","binder":"n1","page":"n1a","stage":"s1"}`},
 		{`{"page":"p1"}`, `show {"to":"book","book":"b1","page":"p1"}`},
 		{`{"page":"s1","mode":"print-preview"}`, `show {"to":"book","book":"b2","page":"s1","mode":"print-preview"}`},
 		{`{"book":"b1","page":"p1"}`, `show {"to":"book","book":"b1","page":"p1"}`},
@@ -292,15 +296,15 @@ func TestShowReadsAPageAlone(t *testing.T) {
 		}
 	}
 	for body, reason := range map[string]string{
-		`{}`:                                   "no-book",
-		`{"stage":"s1"}`:                       "no-book",
-		`{"book":"b1","page":"s1"}`:            "no-page",
-		`{"book":"b1","page":"h1"}`:            "no-page",
-		`{"page":"none"}`:                      "no-page",
-		`{"page":"n1a"}`:                       "no-page",
-		`{"page":"t1"}`:                        "no-page",
-		`{"page":"h1","mode":"print-preview"}`: "no-print-preview",
-		`{"page":"h1","stage":"s9"}`:           "no-stage",
+		`{}`:                                    "no-book",
+		`{"stage":"s1"}`:                        "no-book",
+		`{"book":"b1","page":"s1"}`:             "no-page",
+		`{"book":"b1","page":"h1"}`:             "no-page",
+		`{"page":"none"}`:                       "no-page",
+		`{"page":"n1a","mode":"print-preview"}`: "no-print-preview",
+		`{"page":"t1"}`:                         "no-page",
+		`{"page":"h1","mode":"print-preview"}`:  "no-print-preview",
+		`{"page":"h1","stage":"s9"}`:            "no-stage",
 	} {
 		if _, got := send(t, "POST", s.URL+"/api/ai/show", body, auth); !strings.Contains(got, `"reason":"`+reason+`"`) {
 			t.Errorf("show %s = %s; want %s", body, got, reason)

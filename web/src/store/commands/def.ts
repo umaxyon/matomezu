@@ -17,7 +17,7 @@ import type { AskedOutermost } from "../../core/inspect"
 import type { Books } from "../../core/library"
 import type { ArgsOf } from "../../core/perform"
 import type { ItemPage } from "../../core/placed"
-import type { Book } from "../../core/schema/book"
+import type { BinderEntry, Book } from "../../core/schema/book"
 import type { Settings } from "../../core/settings"
 import { type Stage, shownPageId, toPaper } from "../../core/stage"
 import type { StageListed } from "../../core/window"
@@ -101,6 +101,8 @@ export interface ScreenCommandContext {
 
 // CommandContext の book の、開いている物がブックでないとき（何も開いていないか、ブックの外のページ）の値
 export const NO_BOOK = "none"
+// CommandContext の binder の、開いている物がブックの外のバインダでないときの値
+export const NO_OUTSIDE_BINDER = "none"
 // CommandContext の page の、ページを開いていないときの値
 export const NO_PAGE = "none"
 
@@ -108,8 +110,9 @@ export const NO_PAGE = "none"
 export interface CommandContext extends ScreenCommandContext {
   stage: StageView // 呼ばれた場所のステージ（読むだけ。見た目の useStage と同じ）
   book: Book | typeof NO_BOOK // そのステージで開いているブック（開いている物がブックでなければ NO_BOOK）
+  outsideBinder: BinderEntry | typeof NO_OUTSIDE_BINDER // そのステージで開いているブックの外のバインダ（中のページごと。開いている物がブックの外のバインダでなければ NO_OUTSIDE_BINDER）
   page: ItemPage | typeof NO_PAGE // そのステージで開いているページ（ブックの中でも外でも。ページを開いていなければ NO_PAGE）
-  history: History // そのステージで開いているステージエントリ（ブックか、ブックの外のページ）の、画面の履歴（何も開いていなければ空）
+  history: History // そのステージで開いているステージエントリ（ブックか、ブックの外のページ・バインダ）の、画面の履歴（何も開いていなければ空）
   annotations: readonly Annotation[] // 開いているページのアノテーション（読むだけ。ページを開いていなければ空）
   toPaper(p: Point): Point | null // 表示領域の中の点（左上から）を、そのステージの今の紙の上の点に直す（紙が無ければ null）
 }
@@ -185,10 +188,11 @@ export function withWorkspace(
 // コマンドの文脈 ctx の、ステージの並びと道具（withWorkspace が作った文脈だけが持つ。写した文脈は持たない）
 export const workspaceOf = (ctx: CommandContext): Workspace => workspaces.get(ctx)?.workspace ?? fail("E116")
 
-// 文脈 ctx のステージで開いている物のうち、アクションを使えるかを問う相手（ブックか、ブックの外のページ。どちらも開いていなければ undefined）
+// 文脈 ctx のステージで開いている物のうち、アクションを使えるかを問う相手（core/stage.ts の askedOutermostOf と同じ分け方: ブックか、ブックでないステージエントリなら開いているページ 1 枚。
+// どちらも開いていなければ undefined）
 export function askedIn(ctx: CommandContext): AskedOutermost | undefined {
   if (ctx.book !== NO_BOOK) return { book: ctx.book }
-  return ctx.stage.opened?.outermost.kind === "page" && ctx.page !== NO_PAGE
+  return ctx.stage.opened && ctx.stage.opened.outermost.kind !== "book" && ctx.page !== NO_PAGE
     ? outsideAsked(ctx.folders, ctx.page)
     : undefined
 }

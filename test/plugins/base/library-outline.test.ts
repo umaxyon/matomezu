@@ -12,6 +12,7 @@ import {
   NOT_UNFOLDABLE,
   openedFolderOf,
   openTargetOf,
+  outsidePagePlaceOf,
   pathTo,
   placeIdOf,
   rowsIn,
@@ -78,13 +79,14 @@ test("行を開くと、フォルダは中へ入り、ブックとその中の�
   expect(openTargetOf(library().folders, row("b1", "p1"))).toBe(NOT_OPENED)
 })
 
-test("ブックの外のページの行を開くと、そのページを窓に出す。ブックの外のバインダとその中のページ・ゴミ箱に入れたブックの外のページは開かない", () => {
+test("ブックの外のページの行を開くと、そのページを窓に出す。ブックの外のバインダの行はそのバインダを、その中のページの行はそのバインダをそのページで出す。ゴミ箱に入れたブックの外のページは開かない", () => {
   const binder = testBinder("n1", "束", DRAWING, drawingPage("n1p"))
   const { folders } = libraryWith([], [drawingPage("o1"), binder])
   const target = (id: string, kind: "page" | "binder") => openTargetOf(folders, { id, kind, readable: true })
   expect(target("o1", "page")).toEqual({ to: "page", page: "o1" })
-  expect(target("n1", "binder")).toBe(NOT_OPENED)
-  expect(target("n1p", "page")).toBe(NOT_OPENED)
+  expect(target("n1", "binder")).toEqual({ to: "binder", binder: "n1" })
+  expect(target("n1p", "page")).toEqual({ to: "binder", binder: "n1", page: "n1p" })
+  expect(outsidePagePlaceOf(folders, "n1p")).toEqual([HOME_ID])
   const store = newStore()
   store.receive({ ...worldRows([], [drawingPage("o1")]), settings: {} }, [])
   expect(store.actions.perform("@matomezu/base:entry-trash", { entry: "o1" }).ok).toBe(true)

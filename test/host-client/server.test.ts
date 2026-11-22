@@ -10,7 +10,7 @@ import { screenOf } from "../../web/src/core/window"
 import { OFFLINE_MS, QUIET_MS } from "../../web/src/host-client/link-watch"
 import { openClient } from "../../web/src/host-client/open"
 import { type Events, NoServer, serverClient } from "../../web/src/host-client/server"
-import { drawingPage, testBook } from "../lineup"
+import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { SAMPLE_BOOKS } from "../sample-books"
 import { newStore, showCenter, worldRows } from "../support"
 
@@ -827,6 +827,21 @@ test("show の split は、そのステージを分けて右にできたステ�
   expect(ws.stages.map(st => st.id)).toEqual(["s1", "s2"])
   expect(ws.current).toBe("s2")
   expect(ws.stages[1]?.opened?.outermost.id).toBe("b1")
+})
+
+test("show の to が binder なら、ブックの外のバインダを名指したページで出す。常駐に知らせる view の entry はそのバインダ", async () => {
+  const n1 = testBinder("n1", "発表", SLIDE, testPage(SLIDE, "n1a", { title: "表紙" }), testPage(SLIDE, "n1b"))
+  const rows = worldRows([SAMPLE_BOOKS[0]!], [n1])
+  const versioned = <T extends { id: string }>(list: readonly unknown[], key: "page" | "folder") =>
+    (list as T[]).map(row => ({ id: row.id, [key]: row, version: 1 }))
+  const s = await connected(
+    fakeServer({ pages: versioned(rows.pages, "page"), folders: versioned(rows.folders, "folder"), settings: null }),
+  )
+  s.emit("show", { to: "binder", binder: "n1", page: "n1b" })
+  expect(s.sent.at(-1)?.view).toMatchObject({ entry: { kind: "binder", id: "n1" }, page: "n1b" })
+  const stage = (s.sent.at(-1) as { view: { stage: string } }).view.stage
+  s.emit("show", { to: "binder", binder: "n1", page: "n1a", stage })
+  expect(s.sent.at(-1)?.view).toMatchObject({ entry: { kind: "binder", id: "n1" }, page: "n1a", stage })
 })
 
 test("show の to が page なら、ブックの外のページを出す（窓に・言われたステージに・分けて右に）。常駐に知らせる view の entry はそのページ", async () => {

@@ -31,7 +31,19 @@
     "orca-per-workspace-env": "off",
     "linear-tickets": "off",
     "orca-linear": "off",
-    "dataviz": "off"
+    "dataviz": "off",
+    "claude-api": "off",
+    "archify": "off",
+    "archify-review": "off",
+    "orca-computer-use": "off",
+    "defuddle": "off",
+    "writing-guidelines": "off",
+    "web-design-guidelines": "off",
+    "find-skills": "off",
+    "grilling": "off",
+    "grill-me": "off",
+    "orchestration": "off",
+    "orca-cli": "off"
   },
   "hooks": {
     "PreToolUse": [

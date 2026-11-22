@@ -14,6 +14,7 @@ export const ShowSchema = z.discriminatedUnion("to", [
     ...SHOW_AT,
   }),
   z.object({ to: z.literal("page"), page: z.string(), ...SHOW_AT }),
+  z.object({ to: z.literal("binder"), binder: z.string(), page: z.string().optional(), ...SHOW_AT }),
 ])
 
 // POST api/screen-plugins/remove の答え

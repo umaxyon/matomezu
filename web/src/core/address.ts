@@ -8,15 +8,16 @@
 import type { CoreCatalog } from "./core-catalog"
 import { arrangementValueOf } from "./def/screen-arrangement"
 import type { Library } from "./folders"
-import { NO_OUTERMOST, outermostOf, outsidePageIn } from "./folders-tree"
+import { NO_OUTERMOST, outermostOf, outsideBinderIn, outsidePageIn } from "./folders-tree"
 import type { Point } from "./geom"
 import type { ItemPage } from "./placed"
 import { sameData } from "./same"
-import type { Book } from "./schema/book"
+import type { BinderEntry, Book } from "./schema/book"
 import {
   newStage,
   openBinder,
   openBook,
+  openOutsideBinder,
   openOutsidePage,
   openPage,
   panBy,
@@ -36,8 +37,8 @@ import {
 import { MAX_STAGES, MIN_SHARE, newWorkspace, type Workspace } from "./workspace"
 
 export interface StagePlace {
-  outermost: string // 開いているブックの id（何も開いていないか、ブックの外のページを開いていれば NO_OUTERMOST）
-  page: string | null // 開いているページの id（outermost が NO_OUTERMOST なら、ブックの外のページ）
+  outermost: string // 開いているブックの id（何も開いていないか、ブックの外のページ・バインダを開いていれば NO_OUTERMOST）
+  page: string | null // 開いているページの id（outermost が NO_OUTERMOST なら、ブックの外のページか、ブックの外のバインダの中のページ）
   binder: string | null // 空のバインダを開いているときの、バインダの id（ページを開いていれば null）
   zoom: number
   pan: Point
@@ -162,9 +163,14 @@ export function moved(a: Address, b: Address, pushes: ReadonlySet<string> = new 
   })
 }
 
-// 場所 place が、書庫 library で開けるブックの外のページを名指していれば、そのページ（ブックを名指す場所・ページを名指さない場所は undefined）
-const outsidePageAt = (library: Library, place: StagePlace): ItemPage | undefined =>
-  place.outermost === NO_OUTERMOST && place.page !== null ? outsidePageIn(library, place.page) : undefined
+// 場所 place が、書庫 library で開けるブックの外のページか、開けるブックの外のバインダの中のページを名指していれば、そのページか、そのバインダ
+// （ブックを名指す場所・ページを名指さない場所は undefined）
+function outsideAt(library: Library, place: StagePlace): ItemPage | BinderEntry | undefined {
+  if (place.outermost !== NO_OUTERMOST || place.page === null) return undefined
+  const o = outermostOf(library, place.page)
+  if (o === NO_OUTERMOST || o.kind === "book") return undefined
+  return o.kind === "page" ? outsidePageIn(library, o.id) : outsideBinderIn(library, o.id)
+}
 
 // ブックを名指さずページを名指す場所 place の、そのページが書庫 library でブックの中に在れば、そのブックを名指す場所（ブックの外のページだった物が、ブックの中へ移されたあと）。
 // ほかは place のまま
@@ -174,7 +180,7 @@ function inBookNow(library: Library, place: StagePlace): StagePlace {
   return o !== NO_OUTERMOST && o.kind === "book" ? { ...place, outermost: o.id } : place
 }
 
-// ステージ stage に、場所 place を当てはめる（ブックもページも名指さない場所は何も開かず、ブックを名指さずページを名指す場所は、ブックの外のページを開く。
+// ステージ stage に、場所 place を当てはめる（ブックもページも名指さない場所は何も開かず、ブックを名指さずページを名指す場所は、ブックの外のページか、そのページを入れているブックの外のバインダを開く。
 // ブックの無いページは開かず、開けたものに倍率とずらす量を戻す）
 function placed(
   catalog: CoreCatalog,
@@ -184,7 +190,7 @@ function placed(
   place: StagePlace,
 ): Stage {
   const book = place.outermost === NO_OUTERMOST ? undefined : books[place.outermost]
-  const outside = outsidePageAt(library, place)
+  const outside = outsideAt(library, place)
   // 表示領域の大きさ（URL には書かない）はステージのまま
   const fresh = { ...newStage(stage.id), view: stage.view }
   if (!book && !outside) return fresh
@@ -193,7 +199,8 @@ function placed(
     next = openBook(catalog, next, book)
     if (place.page !== null) next = openPage(catalog, next, book, place.page)
     else if (place.binder !== null) next = openBinder(catalog, next, book, place.binder)
-  } else if (outside) next = openOutsidePage(catalog, next, outside)
+  } else if (outside?.kind === "page") next = openOutsidePage(catalog, next, outside)
+  else if (outside) next = openOutsideBinder(catalog, next, outside, place.page ?? undefined)
   // ずらす量は、ほかの操作と同じく範囲に収める（表示領域を測るまでは収めない）。初めの位置には合わせない（場所のずらす量が 0 のときも）
   const zoomed = { ...stopStart(next), zoom: zoomInRange(place.zoom) }
   return panBy(zoomed, place.pan.x - zoomed.pan.x, place.pan.y - zoomed.pan.y)
@@ -231,7 +238,7 @@ export function placeAt(
     const places = named.filter(p =>
       p.outermost !== NO_OUTERMOST
         ? books[p.outermost] !== undefined
-        : p.page === null || outsidePageAt(library, p) !== undefined,
+        : p.page === null || outsideAt(library, p) !== undefined,
     )
     if (named.length > 0 && places.length === 0) continue
     if (places.length === 0) {

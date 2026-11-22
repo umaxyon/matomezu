@@ -53,6 +53,7 @@ export {
   useCoreCatalog,
   useItem,
   useLatestPan,
+  useOutsideBinder,
   usePage,
   usePageById,
   usePerform,

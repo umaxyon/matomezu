@@ -7,14 +7,15 @@
 import type { ItemId, ToolId } from "./catalog"
 import type { CoreCatalog } from "./core-catalog"
 import { fail } from "./errors"
-import { NO_OUTERMOST, outermostOf, outsidePageIn } from "./folders-tree"
+import { NO_OUTERMOST, outermostOf, outsideBinderIn, outsidePageIn } from "./folders-tree"
 import type { LibraryAndBooks } from "./library"
 import type { ItemPage } from "./placed"
-import type { Book } from "./schema/book"
+import type { BinderEntry, Book } from "./schema/book"
 import {
   askedOutermostOf,
   closeBook,
-  followIntoBook,
+  followInto,
+  followOutsideBinder,
   followOutsidePage,
   followBook as followStage,
   newStage,
@@ -214,8 +215,8 @@ export function followBook(catalog: CoreCatalog, ws: Workspace, book: Book, befo
 export const NO_STAGES_LEFT = "no-stages-left"
 
 // 書庫が変わったとき（now は今の、ブックの一覧とページとフォルダの表。before は変わる前のそれら）: 開いていた物が無くなったステージは閉じ（1 つも残らなければ NO_STAGES_LEFT）、
-// 残った物には合わせる。無くなったとするのは、ブックが一覧に無い・ブックの外のページが開ける物でなくなった（core/folders-tree.ts の outsidePageIn）とき。
-// ブックの外のバインダを開いたステージも閉じる。ただし、開いているブックの外のページが一覧のブックの中へ移されたなら、閉じずに、そのブックのページとして開いた形にする
+// 残った物には合わせる。無くなったとするのは、ブックが一覧に無い・ブックの外のページやバインダが開ける物でなくなった（core/folders-tree.ts の outsidePageIn・outsideBinderIn）とき。
+// ただし、開いているページが一覧のブックの中か、ブックの外のバインダの中へ移されたなら、閉じずに、移った先のページとして開いた形にする
 export function followLibrary(
   catalog: CoreCatalog,
   ws: Workspace,
@@ -223,17 +224,19 @@ export function followLibrary(
   before?: LibraryAndBooks,
 ): Workspace | typeof NO_STAGES_LEFT {
   const { books } = now
-  // 開いているブックの外のページ id を、中へ入れたブック（ブックの中へ移されていなければ undefined）
-  const movedInto = (id: string): Book | undefined => {
-    const entry = outermostOf(now, id)
-    return entry !== NO_OUTERMOST && entry.kind === "book" ? books[entry.id] : undefined
+  // 開いていたページ id を、中へ入れたブックか、ブックの外のバインダ（どちらへも移されていなければ undefined）
+  const movedInto = (id: string | null): Book | BinderEntry | undefined => {
+    const entry = id === null ? NO_OUTERMOST : outermostOf(now, id)
+    if (entry === NO_OUTERMOST || entry.kind === "page") return undefined
+    return entry.kind === "book" ? books[entry.id] : outsideBinderIn(now, entry.id)
   }
-  // ステージが開いている物（何も開いていなければ "none"、無くなっていれば undefined）。ブックの外のページがブックの中へ移されていれば、そのブック
-  const held = (s: Stage): Book | ItemPage | "none" | undefined => {
+  // ステージが開いている物（何も開いていなければ "none"、無くなっていれば undefined）。開いていたページがよそへ移されていれば、移った先のブックかバインダ
+  const held = (s: Stage): Book | ItemPage | BinderEntry | "none" | undefined => {
     if (!s.opened) return "none"
     const { kind, id } = s.opened.outermost
     if (kind === "book") return books[id]
-    return kind === "page" ? (outsidePageIn(now, id) ?? movedInto(id)) : undefined
+    const here = kind === "page" ? outsidePageIn(now, id) : outsideBinderIn(now, id)
+    return here ?? movedInto(shownPageId(s.opened))
   }
   const gone = ws.stages.filter(s => held(s) === undefined).map(s => s.id)
   if (gone.length === ws.stages.length) return NO_STAGES_LEFT
@@ -241,14 +244,18 @@ export function followLibrary(
   const stages = left.stages.map(s => {
     const has = held(s)
     if (has === undefined || has === "none") return s
+    const at = s.opened?.outermost
     if ("kind" in has) {
-      // ブックの外のページも、今の道具が替わった（ロックされたなど）なら、その場の編集を終える
-      const next = followOutsidePage(catalog, s, has)
+      // ブックの外のページ・バインダも、今の道具が替わった（ロックされたなど）なら、その場の編集を終える
+      const next =
+        has.kind === "page"
+          ? followOutsidePage(catalog, s, has)
+          : at?.id === has.id
+            ? followOutsideBinder(catalog, s, has, before && outsideBinderIn(before, has.id))
+            : followInto(catalog, s, has)
       return before ? editEndedOnToolChange(catalog, left, s, next, before, now) : next
     }
-    return s.opened?.outermost.kind === "page"
-      ? followIntoBook(catalog, s, has)
-      : followIn(catalog, left, s, has, before?.books[has.id])
+    return at?.kind === "book" ? followIn(catalog, left, s, has, before?.books[has.id]) : followInto(catalog, s, has)
   })
   return stages.every((s, i) => s === left.stages[i]) ? left : { ...left, stages }
 }

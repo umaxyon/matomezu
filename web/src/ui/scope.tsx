@@ -9,8 +9,9 @@
 import { createContext, type ReactNode, useCallback, useContext, useMemo } from "react"
 import type { PageTypeId } from "../core/catalog"
 import { pageIn } from "../core/folders"
+import { outsideBinderIn } from "../core/folders-tree"
 import type { ItemPage } from "../core/placed"
-import type { Book } from "../core/schema/book"
+import type { BinderEntry, Book } from "../core/schema/book"
 import { type Stage, shownPageId } from "../core/stage"
 import { stageIn } from "../core/window"
 import { NO_STAGE } from "../store/dialogs"
@@ -27,7 +28,7 @@ export type ActsOn =
 
 // 描くページの在り処（中身は ui の中だけで解く。プラグイン API には出さない）:
 // ステージが開いている物か、ブック book のページ page を倍率 zoom（画面の 1px に描く紙の大きさの比）で描く物
-type PageRef = { from: "stage"; stage: string } | { from: "page"; book: string; page: string; zoom: number }
+type PageRef = { from: "stage"; stage: string } | { from: "page"; outermost: string; page: string; zoom: number }
 
 export interface Scope {
   page: PageRef | null
@@ -44,19 +45,22 @@ export function StageScope({ stage, children }: { stage: string; children: React
   return <ScopeContext.Provider value={scope}>{children}</ScopeContext.Provider>
 }
 
-// ステージの外で見るだけに描くページ: ブック book のページ page を倍率 zoom で描く。中からは何も行えない（外がステージでも、向け先は無しになる）
+// ステージの外で見るだけに描くページ: ステージエントリ outermost（ブックか、ブックの外のページ・バインダの id）のページ page を倍率 zoom で描く。中からは何も行えない（外がステージでも、向け先は無しになる）
 export function PageScope({
-  book,
+  outermost,
   page,
   zoom,
   children,
 }: {
-  book: string
+  outermost: string
   page: string
   zoom: number
   children: ReactNode
 }) {
-  const scope = useMemo<Scope>(() => ({ page: { from: "page", book, page, zoom }, actsOn: NONE }), [book, page, zoom])
+  const scope = useMemo<Scope>(
+    () => ({ page: { from: "page", outermost, page, zoom }, actsOn: NONE }),
+    [outermost, page, zoom],
+  )
   return <ScopeContext.Provider value={scope}>{children}</ScopeContext.Provider>
 }
 
@@ -106,7 +110,7 @@ export function useAt(): string | null {
 export function openedOf(s: MatomezuState, scope: Scope): { outermost: string; page: string | null } | null {
   const ref = scope.page
   if (!ref) return null
-  if (ref.from === "page") return { outermost: ref.book, page: ref.page }
+  if (ref.from === "page") return { outermost: ref.outermost, page: ref.page }
   const opened = stageIn(s.window, ref.stage)?.opened
   return opened ? { outermost: opened.outermost.id, page: shownPageId(opened) } : null
 }
@@ -115,6 +119,12 @@ export function openedOf(s: MatomezuState, scope: Scope): { outermost: string; p
 export function bookOf(s: MatomezuState, scope: Scope): Book | null {
   const o = openedOf(s, scope)
   return o ? (s.books[o.outermost] ?? null) : null
+}
+
+// 描くページのステージエントリが、開けるブックの外のバインダなら、そのバインダ（中のページごと。ブック・ブックの外のページ・描くページが無ければ null）
+export function outsideBinderOf(s: MatomezuState, scope: Scope): BinderEntry | null {
+  const o = openedOf(s, scope)
+  return (o && outsideBinderIn(s, o.outermost)) ?? null
 }
 
 // 描くページ（ページを開いていなければ null）

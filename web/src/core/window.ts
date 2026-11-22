@@ -11,8 +11,8 @@ import { fail } from "./errors"
 import type { LibraryAndBooks } from "./library"
 import type { ItemPage } from "./placed"
 import { sameData } from "./same"
-import type { Book } from "./schema/book"
-import { openBook, openOutsidePage, type Stage } from "./stage"
+import type { BinderEntry, Book } from "./schema/book"
+import { openBook, openOutsideBinder, openOutsidePage, type Stage } from "./stage"
 import { emptied, focus, followLibrary, mapStage, NO_STAGES_LEFT, newWorkspace, type Workspace } from "./workspace"
 
 // 開いているスクリーン 1 枚
@@ -243,6 +243,20 @@ export function shownOutsidePage(
   page: ItemPage,
 ): { win: WindowState; stage: string } {
   return shown(win, catalog, page.id, s => openOutsidePage(catalog, s, page))
+}
+
+// ブックの外のバインダ binder を窓に出した窓と、出したステージの id（出し方は shownBook と同じ。page を名指せば、そのページを開く）
+export function shownOutsideBinder(
+  win: WindowState,
+  catalog: CoreCatalog,
+  binder: BinderEntry,
+  page?: string,
+): { win: WindowState; stage: string } {
+  const out = shown(win, catalog, binder.id, s => openOutsideBinder(catalog, s, binder, page))
+  if (page === undefined) return out
+  // もう開いていたステージでも、名指したページへ替える
+  const open = (s: Stage) => openOutsideBinder(catalog, s, binder, page)
+  return { ...out, win: mapScreenOfStage(out.win, out.stage, ws => mapStage(ws, out.stage, open)) }
 }
 
 // ステージエントリ entry を窓に出す（open は、何も開いていないステージにそれを開く）

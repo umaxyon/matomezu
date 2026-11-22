@@ -159,7 +159,7 @@ func (h *Hub) resetForTest(books, outsidePages []json.RawMessage, enabledPlugins
 	return h.checkBooks(h.order)
 }
 
-// putOutsidePagesForTest は、ブックの外のページ pages（id を持つページの行）を、書庫ホームの並びの末尾に置く（窓には知らせない。ブックの外のページを作るテストの用意。h.mu を持って呼ぶ）
+// putOutsidePagesForTest は、ブックの外のページ pages（id を持つページの行。kind が binder の物は、中のページを lineup に持つブックの外のバインダ）を、書庫ホームの並びの末尾に置く（窓には知らせない。ブックの外のページを作るテストの用意。h.mu を持って呼ぶ）
 func (h *Hub) putOutsidePagesForTest(pages []json.RawMessage) error {
 	if len(pages) == 0 {
 		return nil
@@ -168,13 +168,40 @@ func (h *Hub) putOutsidePagesForTest(pages []json.RawMessage) error {
 	refs := make([]json.RawMessage, len(pages))
 	for i, body := range pages {
 		var head struct {
-			ID string `json:"id"`
+			Kind     string            `json:"kind"`
+			ID       string            `json:"id"`
+			Title    string            `json:"title"`
+			PageType string            `json:"pageType"`
+			Lineup   []json.RawMessage `json:"lineup"`
 		}
 		if json.Unmarshal(body, &head) != nil || head.ID == "" {
 			return errors.New("each outside page must be an object with an id")
 		}
-		refs[i] = storage.RefOf(storage.KindPage, head.ID)
-		out.Pages = append(out.Pages, engine.RowChange{ID: head.ID, Row: body})
+		if head.Kind != storage.KindBinder {
+			refs[i] = storage.RefOf(storage.KindPage, head.ID)
+			out.Pages = append(out.Pages, engine.RowChange{ID: head.ID, Row: body})
+			continue
+		}
+		// バインダは、中のページの行と、バインダの行に分けて置く
+		inside := make([]json.RawMessage, len(head.Lineup))
+		for k, page := range head.Lineup {
+			var row struct {
+				ID string `json:"id"`
+			}
+			if json.Unmarshal(page, &row) != nil || row.ID == "" {
+				return errors.New("each page in an outside binder must be an object with an id")
+			}
+			inside[k] = storage.RefOf(storage.KindPage, row.ID)
+			out.Pages = append(out.Pages, engine.RowChange{ID: row.ID, Row: page})
+		}
+		binder, err := json.Marshal(map[string]any{
+			"folderRole": storage.RoleBinder, "id": head.ID, "title": head.Title, "pageType": head.PageType, "lineup": inside,
+		})
+		if err != nil {
+			return err
+		}
+		refs[i] = storage.RefOf(storage.KindBinder, head.ID)
+		out.Folders = append(out.Folders, engine.RowChange{ID: head.ID, Row: binder})
 	}
 	home, err := h.homeWithForTest(func(lineup []json.RawMessage) []json.RawMessage { return append(lineup, refs...) })
 	if err != nil {
