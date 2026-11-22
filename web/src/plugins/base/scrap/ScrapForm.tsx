@@ -4,9 +4,8 @@
 // 指すページが無ければ、絵の代わりに No Data を出す。opens を渡せば「元のページを開く」を出し、押すとそのステージで元のページを開いてから onOpened を呼ぶ
 import { type PointerEvent, type ReactNode, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
-import { pageById } from "../../../core/book"
 import type { Point, Rect, Size } from "../../../core/geom"
-import type { ItemPage } from "../../../core/placed"
+import { openablePage } from "../../../core/library"
 import { useMessages } from "../../../ui/i18n"
 import { PageScope } from "../../../ui/scope"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
@@ -50,12 +49,12 @@ export function ScrapForm({
   const { openPageById } = useActions()
   const found = useMatomezuState(
     useShallow(s => {
-      const at = pageById(s.books, value.page)
-      return { book: at?.book ?? null, page: (at?.page as ItemPage | undefined) ?? null }
+      const at = openablePage(s, value.page)
+      return { outermost: at?.outermost.id ?? null, page: at?.page ?? null }
     }),
   )
-  const { book, page } = found
-  const area = book && page ? pageArea(catalog, page).size : undefined
+  const { outermost, page } = found
+  const area = outermost && page ? pageArea(catalog, page).size : undefined
   // 測ってから描くプレゼンテーションは、描いてみて分かった広さ（DrawnSheet が知らせる）
   const [drawn, setDrawn] = useState<Size | null>(null)
   const size = drawn ?? area
@@ -90,9 +89,9 @@ export function ScrapForm({
           className={styles.picture}
           style={size ? { width: size.w * fit, height: size.h * fit } : { width: PICTURE.w, height: PICTURE.h }}
         >
-          {book && page && size ? (
+          {outermost && page && size ? (
             <>
-              <PageScope outermost={book.id} page={page.id} zoom={fit}>
+              <PageScope outermost={outermost} page={page.id} zoom={fit}>
                 <div className={styles.scaled} style={{ transform: `scale(${fit})` }}>
                   <DrawnSheet page={page} size={size} onSize={setDrawn} />
                 </div>
@@ -127,7 +126,7 @@ export function ScrapForm({
       </div>
       <div className={styles.side}>
         {side}
-        {opens && book && (
+        {opens && outermost && (
           <button
             type="button"
             className={styles.link}

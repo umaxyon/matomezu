@@ -62,3 +62,17 @@ test("ブックを名指さずページを名指す場所の URL は、そのペ
   const list = page.getByRole("navigation", { name: "ページ一覧" })
   await expect(list.getByRole("button", { name: "本題" })).toHaveAttribute("aria-current", "page")
 })
+
+test("ブックの外のバインダのページ一覧から切り抜くと、範囲を決めるダイアログにそのスライドが見え、スクラップトレイに入る（スライドには置けないので、入れたことを知らせる）", async ({
+  page,
+}) => {
+  await page.goto(stagesUrl([{ book: null, page: "n1a" }]))
+  const list = page.getByRole("navigation", { name: "ページ一覧" })
+  await list.getByRole("button", { name: "本題" }).click({ button: "right" })
+  await page.getByRole("menuitem", { name: "スクラップを切り抜く" }).click()
+  const cut = page.getByRole("dialog", { name: "スクラップを切り抜く" })
+  await expect(cut.locator("[data-scrap-area]")).toBeVisible()
+  await cut.getByRole("button", { name: "トレイに入れる" }).click()
+  await expect(cut).toBeHidden()
+  await expect(page.getByText("スクラップトレイに入れました")).toBeVisible()
+})

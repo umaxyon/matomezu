@@ -55,6 +55,16 @@ test("ブックを開いているステージに、ブックの外のバイン�
   expect(store.actions.openToStage({ to: "binder", binder: "nothing" }, "s1")).toBe(NO_STAGE)
 })
 
+test("ページの id から開く（openPageById）と、ブックを開いているステージにも、そのページを持つブックの外のバインダを開く。もう開いていればページだけ替える", () => {
+  const store = withBinder()
+  store.actions.openPageById("s1", "s2")
+  expect(openedIn(store, "s1")).toEqual({ book: "n1", page: "s2" })
+  store.actions.openPageById("s1", "s1")
+  expect(openedIn(store, "s1")).toEqual({ book: "n1", page: "s1" })
+  store.actions.openPageById("s1", "nothing")
+  expect(openedIn(store, "s1")).toEqual({ book: "n1", page: "s1" })
+})
+
 test("ブックの外のバインダの中のページを変えて元に戻せる。変えたページがロックされたら、元に戻すは行われず画面の履歴の段は残る", async () => {
   const store = withBinder()
   const stage = store.actions.showOutsideBinderStage("n1", "s2")
