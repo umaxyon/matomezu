@@ -45,7 +45,7 @@ const TrashID = "library-trash"
 const UnreadableID = "library-unreadable"
 
 // topFolder は、書庫の一番上のフォルダ（どのフォルダにも入らず、ただ 1 つずつ在る）1 つの、役 role と決まった id と、
-// open（ページ・バインダ・ブック・フォルダの 4 つとも持てるか）と library（中の物が書庫に入るか。入らない物は世界の外）
+// open（ページ・バインダ・ブック・フォルダの 4 つとも持てるか）と library（中の物が書庫に入るか）
 type topFolder struct {
 	role, id      string
 	open, library bool

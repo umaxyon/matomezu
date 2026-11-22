@@ -97,7 +97,7 @@ export type HomeOrFolder = HomeFolder | TrashFolder | PlainFolder
 export type Folder = BookFolder | BinderFolder | HomeOrFolder
 
 // 書庫の一番上のフォルダ（どのフォルダにも入らず、ただ 1 つずつ在る）の表: 役ごとの、決まった id と、
-// open（ページ・バインダ・ブック・フォルダの 4 つとも持てるか）と library（中の物が書庫 Library に入るか。入らない物は世界の外）。
+// open（ページ・バインダ・ブック・フォルダの 4 つとも持てるか）と library（中の物が書庫 Library に入るか）。
 // 一番上の役を見る所は、役の名前を並べずにこの表から引く（Go の internal/storage/library.go の topFolders と同じ表）
 export const TOP_FOLDERS = {
   home: { id: HOME_ID, open: true, library: true },
