@@ -20,7 +20,7 @@ import type {
   SubjectData,
 } from "./def/action"
 import type { BackyardEntries } from "./def/permission"
-import { clashedSystemFolder, type Naming, TITLE_TAKEN, titleClashes } from "./entries"
+import { clashedSystemFolder, IN_BACKYARD, type Naming, TITLE_TAKEN, titleClashes } from "./entries"
 import { type Folder, homeOrFolderHolds, isOpenRole, type Library } from "./folders"
 import { libraryOf } from "./folders-books"
 import { idsIn, skipping } from "./ids"
@@ -35,7 +35,7 @@ import {
   recordSettles,
   settles,
 } from "./perform-checks"
-import { brokenIn, normalizedLibrary, systemFoldersKept } from "./perform-library"
+import { backyardBreach, brokenIn, normalizedLibrary, systemFoldersKept } from "./perform-library"
 import { type Denied, NOT_IN_BOOK, permits } from "./perform-permit"
 import { backyardEntryIn } from "./permission-input"
 import type { ItemPage } from "./placed"
@@ -202,6 +202,9 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
       : null
   if (permission) return { ok: false, reason: "denied", permission }
   if (before) {
+    // バックヤードに在るブックは、名前を変えない
+    if (backyardEntryIn(ctx, before.id) && (done.next as Book).title !== before.title)
+      return inBackyard("a book kept out of the library's tree (such as a worker book) cannot be renamed")
     // ページのタイプは作ったあと変えない（アクションが替えていたら断る）
     if (!settles(ctx.catalog, done.next as Book) || !keepsPageTypes(before, done.next as Book))
       return { ok: false, reason: "refused" }
@@ -219,6 +222,8 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
     )
     if (!shaped) return { ok: false, reason: "refused" }
     if (!systemFoldersKept(ctx.catalog, subject as Library, next as Library)) return { ok: false, reason: "refused" }
+    const breach = backyardBreach(action, subject as Library, next as Library)
+    if (breach) return inBackyard(breach)
     // 行う前から在るページのタイプも、変えない（ページがブックの間を動いても）
     const typesKept = keepsPageTypesAcross(Object.values(was), Object.values(now))
     // 同じ入れ物の中の名前の重なりは、ブックの決まりで断る前に、名前が重なる断りにする
@@ -364,3 +369,6 @@ export const languageTitleTaken = (library: Library, clashes: readonly string[],
     clashes,
     naming,
   )
+
+// バックヤードの決まりを守らない断り（detail は AI への説明に載る英語の文）
+const inBackyard = (detail: string): Refused => ({ ok: false, reason: "refused", kind: IN_BACKYARD, detail })

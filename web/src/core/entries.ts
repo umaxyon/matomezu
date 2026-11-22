@@ -349,6 +349,8 @@ export function binnedBetween(was: Library, now: Library): { trashed: string[]; 
 
 // 断りの種類: 同じフォルダの中に、同じ名前の物が在る（土台が断るので、プラグインの id の名前空間は付かない）
 export const TITLE_TAKEN = "title-taken"
+// 断りの種類: バックヤードの中の物の名前を変える・持ち主でないプラグインがバックヤードにブックを作る（土台が断るので、名前空間は付かない）
+export const IN_BACKYARD = "in-backyard"
 
 // 名前を引く決まり: 機能台帳と、名前を引く言語（システムフォルダの名前は、定義の文言をこの言語で引く）
 export interface Naming {

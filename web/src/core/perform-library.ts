@@ -8,6 +8,7 @@ import { isOpenRole, type Library, type PageRow } from "./folders"
 import { libraryOf } from "./folders-books"
 import { bookIdOf, inTrash, isKeptSystemFolder, permissionFoldersOf, systemFolderOf } from "./folders-tree"
 import type { AskedPage } from "./inspect"
+import { splitId } from "./names"
 import {
   backyardEntriesBetween,
   broken,
@@ -204,3 +205,23 @@ export function systemFoldersKept(catalog: CoreCatalog, was: Library, now: Libra
 
 // 作るブックを認可ステップに問うときの、空のブック（問うためだけの物）
 export const NEW_BOOK: Book = { id: "new-book", title: "new book", lineup: [] }
+
+// 書庫が was から now に変わる間に、バックヤードの決まりを守らない訳（守れば null）: バックヤードに在るブックは名前を変えない（持ち主は名前でなく workKey で引く）。
+// バックヤードに新しく作るブックは、そのバックヤードの持ち主のプラグインのアクションだけが作る（読めない物のフォルダから戻す物は、前から在るので作るでない）
+export function backyardBreach(action: ActionDef, was: Library, now: Library): string | null {
+  for (const row of Object.values(now.folders)) {
+    if (row.folderRole !== "backyard") continue
+    for (const ref of row.lineup) {
+      const before = was.folders[ref.id]
+      if (!before) {
+        if (splitId(row.backyard).owner !== splitId(action.id).owner)
+          return "only the plugin that owns a backyard makes books in it"
+        continue
+      }
+      const after = now.folders[ref.id]
+      if (before.folderRole === "book" && after?.folderRole === "book" && after.title !== before.title)
+        return "a book kept out of the library's tree (such as a worker book) cannot be renamed"
+    }
+  }
+  return null
+}

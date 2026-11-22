@@ -5,7 +5,8 @@ import { type Actor, AI, AI_NOT_JOINED, AI_VISITOR, USER } from "../../../web/sr
 import type { CoreCatalog } from "../../../web/src/core/core-catalog"
 import type { ActionContext, ActionDef } from "../../../web/src/core/def/action"
 import type { BackyardEntry } from "../../../web/src/core/def/permission"
-import { backyardIdOf, HOME_ID } from "../../../web/src/core/folders"
+import { backyardIdOf, HOME_ID, type Library } from "../../../web/src/core/folders"
+import { backyardBreach } from "../../../web/src/core/perform-library"
 import { performIn, type World } from "../../../web/src/core/perform-world"
 import { readerOf, sourceOf } from "../../../web/src/core/record-source"
 import type { Records } from "../../../web/src/core/records"
@@ -207,6 +208,36 @@ describe("ワーカーブックにページを足す（worker-page-add）", () =
       permission: "@matomezu/base:worker-book",
     })
     expect(add(USER).ok).toBe(false)
+  })
+
+  test("バックヤードのブックは、利用者も名前を変えられない（in-backyard）。中のページの名前は変えられる", () => {
+    const rename = (entry: string) =>
+      performIn(world(), "@matomezu/base:entry-rename", { entry, title: "別" }, undefined, ctx(USER))
+    expect(rename("b1")).toMatchObject({ ok: false, reason: "refused", kind: "in-backyard" })
+    expect(rename("p1").ok).toBe(true)
+  })
+
+  test("バックヤードに新しいブックを作れるのは、持ち主のプラグインのアクションだけ", () => {
+    const was = world()
+    const made = (world() as unknown as { folders: Record<string, unknown> }).folders
+    const yard = backyardIdOf(TICKETS_HISTORY.id)
+    const now = {
+      pages: { ...was.pages, n1: { kind: "page", id: "n1", type: "@matomezu/drawing:drawing", title: "n" } },
+      folders: {
+        ...made,
+        b9: { folderRole: "book", id: "b9", title: "九", lineup: [{ kind: "page", id: "n1" }] },
+        [yard]: {
+          ...(made[yard] as object),
+          lineup: [
+            { kind: "book", id: "b1", workKey: roomKey("r1") },
+            { kind: "book", id: "b9", workKey: roomKey("r9") },
+          ],
+        },
+      },
+    } as unknown as Library
+    const by = (id: string) => backyardBreach({ id } as ActionDef, was, now)
+    expect(by("@matomezu/base:worker-page-add")).toBeNull()
+    expect(by("@matomezu/taskboard:x")).toBe("only the plugin that owns a backyard makes books in it")
   })
 
   test("バックヤードのブックとその中のページは、利用者もロックできない", () => {
