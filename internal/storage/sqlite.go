@@ -270,6 +270,9 @@ func OpenSQLite(path string) (Storage, error) {
 	return s, nil
 }
 
+// Form は、この matomezu が書くデータの形の番号（移し替えの数）
+func Form() int { return len(migrations) }
+
 func migrate(db *sql.DB) error {
 	var have int
 	if err := db.QueryRow(`PRAGMA user_version`).Scan(&have); err != nil {

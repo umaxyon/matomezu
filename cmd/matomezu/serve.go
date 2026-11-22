@@ -101,6 +101,7 @@ func (c *serveCmd) Run() error {
 	if err != nil {
 		return err
 	}
+	hub.SetBuild(server.Build{Version: version, Form: storage.Form()})
 	// 期限の過ぎたアノテーションを、時間で消す
 	go func() {
 		for now := range time.Tick(server.ExpireEvery) {
@@ -220,7 +221,12 @@ func (c *startCmd) Run() error {
 // ensure は、立っている常駐のつなぎ方を返す。立っていなければ f で裏に立て、答えるまで待つ。
 // f がポートを選んでいて、立っている常駐が別のポートで待っていれば断る（止めて立て直すと、開いている画面と AI のつながりが切れる）
 func ensure(h *home.Home, f serverFlags) (*home.Server, error) {
-	if s, err := running(h); err != nil || s != nil {
+	if s, err := running(h); err == nil && s != nil && olderServer(s.Version) {
+		// 今入っている版より古い常駐は、止めて今の版で立て直す（古くする向きには入れ替えない）
+		if err := stopServer(h, s); err != nil {
+			return nil, err
+		}
+	} else if err != nil || s != nil {
 		if err == nil && f.Port != nil && *f.Port != 0 && serverPort(s) != *f.Port {
 			return nil, fmt.Errorf("the server of %s is running at %s: stop it first (matomezu stop) to use port %d", h.Dir, s.URL, *f.Port)
 		}
@@ -284,6 +290,29 @@ func serveExe() (string, error) {
 		}
 	}
 	return os.Executable()
+}
+
+// installedVersion は、今入っている版: 配る版は npm の入口が書いた印の版（その実行ファイルがあるとき）、無ければ自分
+func installedVersion() string {
+	if version != devVersion {
+		if dir, err := home.BinDir(); err == nil {
+			if in, _ := home.ReadInstalled(dir); in != nil {
+				if _, err := os.Stat(in.Exe); err == nil {
+					return in.Version
+				}
+			}
+		}
+	}
+	return version
+}
+
+// olderServer は、立っている常駐の版 running が、今入っている版より古いか（開発の版どうしは比べない）
+func olderServer(running string) bool {
+	now := installedVersion()
+	if now == devVersion || running == devVersion {
+		return false
+	}
+	return versionLess(running, now)
 }
 
 // pruneBins は、配る版の常駐が立つときに、写した実行ファイルの古い版を消す（今入っている版・自分の版・その 1 つ前は残す）
@@ -376,6 +405,11 @@ func (c *stopCmd) Run() error {
 		return nil
 	}
 	fmt.Fprintln(os.Stderr, "stopping the server of", h.Dir)
+	return stopServer(h, s)
+}
+
+// stopServer は、立っている常駐 s を止め、止まるまで待つ
+func stopServer(h *home.Home, s *home.Server) error {
 	if _, err := call(s, http.MethodPost, "api/stop"); err != nil {
 		return err
 	}
