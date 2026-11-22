@@ -33,6 +33,7 @@ test("matomezu が出す名前", () => {
     "EDGE_ZONE",
     "HEX",
     "HOME_ID",
+    "IN_BACKYARD",
     "LEN",
     "MARKDOWN_DOCUMENT_TOKENS",
     "MARKDOWN_PANE_MODES",

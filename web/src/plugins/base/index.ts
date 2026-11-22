@@ -68,6 +68,7 @@ import {
   LIBRARY_TREE_KEY_SCOPE,
   LIBRARY_TREE_MOVE,
   LIBRARY_TREE_UNFOLD_OR_NEXT,
+  LIBRARY_TREE_WIDTH,
   LIBRARY_UNDO,
   LIBRARY_UNFOLDED,
   LIBRARY_UNREADABLE_OPEN,
@@ -183,6 +184,8 @@ import {
   PARTICIPANT_REQUEST,
   PARTICIPANT_WELCOME_DIALOG,
   SESSION_RENAME,
+  WORKER_BOOK,
+  WORKER_PAGE_ADD,
   WORKROOM,
   WORKROOM_ADD,
   WORKROOM_REMOVE,
@@ -470,6 +473,7 @@ export const BASE = defineBuiltin(
       BOOK_LOCK,
       BOOK_UNLOCK,
       BOOK_CREATE,
+      WORKER_PAGE_ADD,
       FOLDER_CREATE,
       ENTRY_MOVE,
       ENTRY_MOVE_OVER,
@@ -542,7 +546,7 @@ export const BASE = defineBuiltin(
     textColors: TEXT_COLORS,
     skins: [DARK, LIGHT, MATOMEZU_LIGHT_SKIN, MATOMEZU_DARK_SKIN],
     tools: [SELECT_TOOL, HAND_TOOL],
-    permissions: [LOCK],
+    permissions: [LOCK, WORKER_BOOK],
     annotations: [NOTE, MARK],
     systemFolders: [DOCUMENTS],
     backyards: [TICKETS_HISTORY],
@@ -666,6 +670,7 @@ export const BASE = defineBuiltin(
       LIBRARY_COLUMNS,
       LIBRARY_UNFOLDED,
       LIBRARY_QUERY,
+      LIBRARY_TREE_WIDTH,
       UNREADABLE_NOTICE_CLOSED,
       ...REVEAL_REQUEST_STATES,
       ...PRINT_PREVIEW_STATES,
@@ -738,6 +743,7 @@ declare module "../../core/catalog" {
   }
   interface ActionTable {
     "@matomezu/base:book-create": typeof BOOK_CREATE
+    "@matomezu/base:worker-page-add": typeof WORKER_PAGE_ADD
     "@matomezu/base:page-add": typeof PAGE_ADD
     "@matomezu/base:book-update": typeof BOOK_UPDATE
     "@matomezu/base:page-update": typeof PAGE_UPDATE
@@ -802,6 +808,7 @@ declare module "../../core/catalog" {
   }
   interface PermissionTable {
     "@matomezu/base:lock": typeof LOCK
+    "@matomezu/base:worker-book": typeof WORKER_BOOK
   }
   interface AnnotationTable {
     "@matomezu/base:note": typeof NOTE
@@ -958,6 +965,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-columns": typeof LIBRARY_COLUMNS
     "@matomezu/base:library-unfolded": typeof LIBRARY_UNFOLDED
     "@matomezu/base:library-query": typeof LIBRARY_QUERY
+    "@matomezu/base:library-tree-width": typeof LIBRARY_TREE_WIDTH
     "@matomezu/base:revealing": typeof REVEALING_STATE
     "@matomezu/base:print-ready": typeof PRINT_READY_STATE
     "@matomezu/base:print-measures": typeof PRINT_MEASURES

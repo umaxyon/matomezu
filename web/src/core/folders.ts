@@ -74,7 +74,7 @@ export type MovedCode = (typeof MOVED_CODES)[number]
 // 読めない物のフォルダの並びのエントリ 1 つ: 在った所の並びのエントリそのまま entry（ゴミ箱に居た物なら TrashRef のまま）と、在ったフォルダから上への id の列 from（近い順）と、
 // 在った所で直前に並んでいた物の id after（先頭なら "none"）と、理由の番号 code と、機能台帳に無いタイプの id type（W027 で、行が文字列で持つときだけ）と、移した時刻 moved
 export interface UnreadableRef {
-  entry: AnyEntryRef | TrashRef
+  entry: AnyEntryRef | TrashRef | BackyardRef
   from: readonly string[]
   after: string
   code: MovedCode
@@ -93,13 +93,28 @@ export interface UnreadableFolder {
 export const isUnreadableRole = (role: unknown): role is "unreadable" => role === "unreadable"
 
 // バックヤード: 書庫の一番上のフォルダで、書庫の画面にも AI の一覧にも出ない（読めない物のフォルダと違い、中の物は書庫に入る）。ブックだけを持つ。
-// プラグインが定義（core/def/backyard.ts）で足し、行は印 backyard（その定義の id）を持つ。定義 1 つに行 1 つで、行の id は backyardIdOf で決まる
+// プラグインが定義（core/def/backyard.ts）で足し、行は印 backyard（その定義の id）を持つ。定義 1 つに行 1 つで、行の id は backyardIdOf で決まる。
+// 並びのエントリは、どのレコードの物か workKey を持ち、同じ並びの中で workKey は重ならない
 export interface BackyardFolder {
   folderRole: "backyard"
   id: string
   backyard: string
-  lineup: readonly BookRef[]
+  lineup: readonly BackyardRef[]
 }
+// バックヤードのブックが、どのレコードの物か: レコードの種類 subject と id（持ち主のプラグインが、ブックを名前でなくこれで引く）
+export interface WorkKey {
+  subject: string
+  id: string
+}
+// バックヤードに直に在るブックの、バックヤードの印（定義の id）と、並びのエントリの workKey
+export interface BackyardEntry {
+  backyard: string
+  workKey: WorkKey
+}
+// バックヤードの並びのエントリ 1 つ: ブックの id と、そのブックの workKey
+export type BackyardRef = BookRef & { workKey: WorkKey }
+// 2 つの workKey が同じか
+export const sameWorkKey = (a: WorkKey, b: WorkKey): boolean => a.subject === b.subject && a.id === b.id
 // 印 mark（バックヤードの定義の id）のバックヤードの行の id
 export const backyardIdOf = (mark: string): string => `library-backyard-${mark}`
 
@@ -146,9 +161,14 @@ export const isBookRole = (role: unknown): boolean => !isTopRole(role) && !isOpe
 
 const AnyEntryRefSchema = z.strictObject({ kind: z.enum(["page", "binder", "book", "folder"]), id: z.string().min(1) })
 const TrashRefSchema = AnyEntryRefSchema.extend({ trashed: z.string().min(1), from: z.array(z.string().min(1)) })
+const BackyardRefSchema = z.strictObject({
+  kind: z.literal("book"),
+  id: z.string().min(1),
+  workKey: z.strictObject({ subject: z.string().min(1), id: z.string().min(1) }),
+})
 // 読めない物のフォルダの並びの要素の形
 export const UnreadableRefSchema = z.strictObject({
-  entry: z.union([TrashRefSchema, AnyEntryRefSchema]),
+  entry: z.union([TrashRefSchema, BackyardRefSchema, AnyEntryRefSchema]),
   from: z.array(z.string().min(1)),
   after: z.string().min(1),
   code: z.enum(MOVED_CODES),
@@ -191,9 +211,10 @@ const HomeOrFolderSchema = z.union([
       folderRole: z.literal("backyard"),
       id: z.string().min(1),
       backyard: z.string().min(1),
-      lineup: z.array(z.strictObject({ kind: z.literal("book"), id: z.string().min(1) })),
+      lineup: z.array(BackyardRefSchema),
     })
-    .refine(f => f.id === backyardIdOf(f.backyard)),
+    .refine(f => f.id === backyardIdOf(f.backyard))
+    .refine(f => f.lineup.every((r, i) => f.lineup.findIndex(o => sameWorkKey(o.workKey, r.workKey)) === i)),
 ])
 
 // 書庫ホーム・ゴミ箱・フォルダ・バックヤードの行 row が、形に合うか

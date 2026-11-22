@@ -107,6 +107,15 @@ export const PAGE_UNLOCK = kit.defineAction({
 // ロック中のブックで行えるのはブックのロックの掛け外しだけ、ロック中のページに対して行えるのはそのページのロックの掛け外しだけ
 const BOOK_SWITCHES: readonly string[] = [BOOK_LOCK.id, BOOK_UNLOCK.id]
 const PAGE_SWITCHES: readonly string[] = [PAGE_LOCK.id, PAGE_UNLOCK.id]
+// ロックを掛けるアクション（バックヤードのブックとその中のページには、利用者も行えない）
+const LOCKS: readonly string[] = [BOOK_LOCK.id, PAGE_LOCK.id]
+
+// 前のブック before（無ければ新しく増えた）から後のブック after で、ブックかそのページに、新しくロックが掛かったか
+function lockedAnew(before: Book | undefined, after: Book): boolean {
+  if (after.locked && !before?.locked) return true
+  const was = new Set((before ? pagesOf(before) : []).filter(p => p.locked).map(p => p.id))
+  return pagesOf(after).some(p => p.locked && !was.has(p.id))
+}
 
 // ロック中のブックかページの変わったフィールド fields が、ロックの印だけで、印を外したのが利用者の、掛け外しのアクション switches か
 // （next は変わった後のブックかページ。置き直しのように、変える所を前もって言えないアクションも、印を外せない）
@@ -149,7 +158,7 @@ export const LOCK = kit.definePermission({
   id: "lock",
   title: "Locked",
   aiDescription:
-    "the book or a page it would change is locked; nothing in it can be changed until it is unlocked, and only the user can unlock it, so ask the user in the chat",
+    "the book or a page it would change is locked; nothing in it can be changed until it is unlocked, and only the user can unlock it, so ask the user in the chat. A worker book and its pages cannot be locked at all, by the user either",
   // 変える所が分からないアクションは、ページのロックでは止めない（行った後の keeps が止める）。ページを含むブックの全部を変えるなら、どれかのページがロック中で止める。
   // アノテーションは図の中身ではないので止めない
   denies: q => {
@@ -161,6 +170,8 @@ export const LOCK = kit.definePermission({
         !q.action.lockSwitch
       )
     if (q.action.target === "annotations") return false
+    // バックヤードのブックとその中のページは、利用者もロックできない
+    if (q.backyardEntry && LOCKS.includes(q.action.id)) return true
     if (q.kind === "page") {
       // ページを入れているブックがロック中なら、そのページのロックの掛け外しも止める
       if (q.folders.some(f => f.folderRole === "book" && f.locked)) return true
@@ -179,6 +190,7 @@ export const LOCK = kit.definePermission({
   },
   // フォローステップが応じた変わりも、ロック中のレコードを変えるならきっかけのアクションごと止める（ロックは利用者の物なので、応じる側も越えない）
   followed: true,
+  // バックヤードのブック（行った後にバックヤードに在るブック）は、ブックにもページにも新しくロックを掛けない。
   // ロック中のブックは、ロックの掛け外しのほかは変えない。ロック中のページは、ロックの掛け外しのほかは変えず、消さず、
   // ブックごとゴミ箱にも入れない（中身を変えずに、ほかのブックへ動かすのはよい）。ロックを外せるのは利用者だけ
   keeps: c => {
@@ -186,6 +198,7 @@ export const LOCK = kit.definePermission({
     if (c.kind === "page") return pageKeeps(c)
     if (c.kind !== "folder") return true
     const { before, after, changes, actor, action } = c
+    if (c.backyardEntry.after && after && lockedAnew(before, after)) return false
     if (!before) return true // 新しく増えたブックは、ロックを掛けて作ってもよい
     const locked = pagesOf(before).filter(p => p.locked)
     if (!before.locked && locked.length === 0) return true

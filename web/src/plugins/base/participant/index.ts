@@ -17,8 +17,9 @@ import { BIRD_PALETTE_IDS } from "../birds/colors"
 import { kit } from "../kit"
 import { keyRowsIn } from "../utils/key-rows"
 import { adminRoomOf } from "./rows"
+import { WORKROOM, WORKROOM_NAME_MAX } from "./workroom"
 
-export const WORKROOM_NAME_MAX = 20 // ワークルームの名前の長さの上限（字）
+export { WORKROOM, WORKROOM_NAME_MAX }
 
 // 受け入れていない要求の、いちばん多い数。超えたら、要求を断る
 export const PARTICIPANTS_LIMIT = 100
@@ -29,25 +30,6 @@ const ADE_WORKSPACE = z
   .trim()
   .min(1)
   .refine(name => [...name].length <= 120)
-
-export const WORKROOM = kit.defineSubject({
-  id: "workroom",
-  title: "workroom",
-  aiDescription:
-    "A workroom: a name (up to 20 characters, not repeated), a bird and its palette. A workroom with no participant in it is empty.",
-  role: "workrooms",
-  record: z.strictObject({
-    id: z.string().min(1),
-    name: z.string().trim().min(1).max(WORKROOM_NAME_MAX),
-    bird: z.enum(BIRD_IDS),
-    palette: z.enum(BIRD_PALETTE_IDS).optional(),
-    createdAt: z.string(),
-  }),
-  keys: {
-    name: { type: "text", of: w => w.name },
-    createdAt: { type: "text", of: w => w.createdAt },
-  },
-})
 
 export const PARTICIPANT = kit.defineSubject({
   id: "participant",
@@ -99,6 +81,8 @@ export const JOINED_MESSAGE = kit.message("Joined matomezu. Workroom name: {name
 export const VISITOR_JOINED_MESSAGE = kit.message("Joined matomezu as a visitor (read only)")
 
 export { SESSION_RENAME, workTitleIn } from "./work-title"
+export { WORKER_BOOK } from "./worker-book"
+export { WORKER_PAGE_ADD } from "./worker-page-add"
 
 // データの型（画面の見た目は、ここから読む）
 export type Participant = z.output<typeof PARTICIPANT.record>

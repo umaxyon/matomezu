@@ -4,9 +4,11 @@
 // 行う前の denies は見せ方のための判断で、守るのは行った後の keeps（行う前に分からなかった所を変えていても、実際の変化で止める）
 import type { Actor } from "../actor"
 import type { PermissionExtras } from "../catalog"
-import type { Folder } from "../folders"
+import type { CoreCatalog } from "../core-catalog"
+import type { BackyardEntry, Folder } from "../folders"
 import type { MessageKey } from "../i18n/i18n"
 import type { ItemPage } from "../placed"
+import type { RecordReader } from "../record-source"
 import type { Book } from "../schema/book"
 import type { ActionDef, EntryWhere, Where } from "./action"
 import type { SubjectDef } from "./subject"
@@ -16,12 +18,14 @@ import type { SubjectDef } from "./subject"
 // folders は、そのページを入れているフォルダの列（近い順。バインダが在ればバインダ、次にブック。ブックの外のページはバインダだけか空で、作るページは空。
 // 書庫ホーム・ゴミ箱・ほかのフォルダは入れない。フォルダの中身は id の並びで、ページの中身は入っていない）。
 // where の ids は、引数が名指す、ページの中の物の id（分からなければ無い）。entry は、書庫が対象のアクションが、そのページをエントリとしてどう変えるか（書庫の許可スコープの where）
+// backyardEntry は、そのページを入れているブックがバックヤードに直に在るときの、バックヤードの印と workKey
 export interface PagePermissionQuery {
   kind: "page"
   action: ActionDef
   page: ItemPage
   folders: readonly Folder[]
   where?: PageWhere
+  backyardEntry?: BackyardEntry
   actor: Actor // 問う者
 }
 
@@ -34,12 +38,20 @@ export interface PageWhere {
 // フォルダで問う（行う前）: ブックが対象・一覧が対象のアクションを、ブック folder に行ってよいか。folder はアクションが変えるブック（ページとバインダの中身ごと組んだ値）、
 // where はその中の所（分からなければ無い）。一覧が対象のアクションは、変えるブックごとに問う。作るブックは、空のブックで問う（その id と名前は問うためだけの物で、頼らない）。
 // ページ・アノテーションが対象のアクションも、宛先のページが分からないときは、開いているブックをこれで問う
+// backyardEntry は、そのブックがバックヤードに直に在るときの、バックヤードの印と workKey（作るブックには無い）
 export interface FolderPermissionQuery {
   kind: "folder"
   action: ActionDef
   folder: Book
   where?: Where
+  backyardEntry?: BackyardEntry
   actor: Actor
+}
+
+// 行う前と後の、ブック（ページなら入れているブック）のバックヤードの印と workKey（バックヤードに直に無ければ、その側は無い）
+export interface BackyardEntries {
+  before?: BackyardEntry
+  after?: BackyardEntry
 }
 
 // レコードが指す、ほかのレコード（対象の定義の refers が答える）と、引いたレコード（無ければ none）
@@ -95,6 +107,7 @@ export interface FolderPermissionCheck {
   before: Book | undefined
   after: Book | undefined
   changes: Changes
+  backyardEntry: BackyardEntries
   actor: Actor
 }
 
@@ -123,17 +136,27 @@ export interface PagePermissionCheck {
   folders: { before: readonly Folder[]; after: readonly Folder[] }
   change: PageChange
   place: PlaceChange
+  backyardEntry: BackyardEntries
   actor: Actor
 }
 
 export type PermissionCheck = FolderPermissionCheck | PagePermissionCheck | RecordPermissionCheck
 
+// 認可ステップが問いと確かめのほかに受ける物: 使う機能台帳と、readsSubjects で宣言した種類だけを読むレコードの読み口
+export interface PermissionInput {
+  catalog: CoreCatalog
+  read: RecordReader
+}
+
 export interface PermissionDef<Tt extends string = MessageKey> extends PermissionExtras {
   id: string
   title: Tt
   aiDescription: string // AI に断ったときに返す、何がなぜ止めたかの説明（英語）
-  denies(q: PermissionQuery): boolean // 止めるか
-  keeps?(c: PermissionCheck): boolean // 結果が許しを守っているか（無ければ守っている）
+  // 問いと確かめで読むレコードの種類（機能台帳から答える。読む id が読んだ中身で決まるので、種類ごと宣言する）。denies と keeps の input の read で、この種類だけを読める
+  // （そのアクションを行う時点のレコード。同じアクションバルクの前のアクションが書いた物も重ねる）。無ければ、どの種類も none と空
+  readsSubjects?(catalog: CoreCatalog): readonly string[]
+  denies(q: PermissionQuery, input: PermissionInput): boolean // 止めるか
+  keeps?(c: PermissionCheck, input: PermissionInput): boolean // 結果が許しを守っているか（無ければ守っている）
   // フォローステップが応じた変わり（core/def/follow-step.ts）にも keeps（kind "record"。action はきっかけのアクション）をかける。
   // 無いステップは、応じた変わりを止めない
   followed?: true

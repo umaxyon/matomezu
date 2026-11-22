@@ -474,7 +474,7 @@ test("先のブックと id が重なるブック（W006）は、ブックごと
   expect(purge?.removedFolders).toEqual(["b2"])
   expect(purge?.removedPages).toEqual(["p2"])
   expect(purgedRows(moved.pages, moved.folders, "b1")).toBeUndefined()
-  const gone = applied(moved, { writes: purge!, moved: [], returned: [], added: [], numbered: [] })
+  const gone = applied(moved, { writes: purge!, moved: [], returned: [], purged: [], added: [], numbered: [] })
   expect(
     rowsHoldTree(
       gone.folders,
@@ -565,6 +565,50 @@ test("書庫から外した物と、読めない物のフォルダの直下の�
   for (const u of out.unreadable) expect(kept.has(u.id)).toBe(false)
   expect(kept.has("x2")).toBe(true)
   expect(outsideUnreadable(loose.pages, loose.folders)).toBe(out)
+})
+
+describe("バックヤードに在った物", () => {
+  const TICKETS = "@matomezu/base:tickets-history"
+  const YARD = backyardIdOf(TICKETS)
+  const key = { subject: "s", id: "k1" }
+  // b5 はバックヤードから読めない物のフォルダへ移っていた（今は読める）。yard はバックヤードの今の並び
+  const rowsWith = (yard: object[]): Rows => {
+    const rows = worldRows([testBook("b5", "B5", [drawingPage("p5")]), testBook("b6", "B6", [drawingPage("p6")])])
+    return {
+      pages: rows.pages,
+      folders: [
+        ...rows.folders.map(f => ((f as { id: string }).id === HOME_ID ? { ...(f as object), lineup: [] } : f)),
+        { folderRole: "backyard", id: YARD, backyard: TICKETS, lineup: yard },
+        {
+          folderRole: "unreadable",
+          id: UNREADABLE_ID,
+          lineup: [
+            { entry: { kind: "book", id: "b5", workKey: key }, from: [YARD], after: FIRST, code: "W005", moved: NOW },
+          ],
+        },
+      ],
+    }
+  }
+
+  test("読めるようになると、workKey を持ったまま在ったバックヤードへ戻る", () => {
+    const rows = rowsWith([{ kind: "book", id: "b6", workKey: { subject: "s", id: "k2" } }])
+    const done = settle(CORE_CATALOG, rows) as Settled
+    expect([done.returned, done.purged]).toEqual([["b5"], []])
+    expect(folderOf(applied(rows, done), YARD).lineup as unknown).toEqual([
+      { kind: "book", id: "b5", workKey: key },
+      { kind: "book", id: "b6", workKey: { subject: "s", id: "k2" } },
+    ])
+  })
+
+  test("戻す先のバックヤードに同じ workKey の物がもう在れば、戻さずに中の物ごと完全に消す", () => {
+    const rows = rowsWith([{ kind: "book", id: "b6", workKey: key }])
+    const done = settle(CORE_CATALOG, rows) as Settled
+    expect([done.returned, done.purged]).toEqual([[], ["b5"]])
+    expect([done.writes.removedFolders, done.writes.removedPages]).toEqual([["b5"], ["p5"]])
+    const after = applied(rows, done)
+    expect(unreadableOf(after).lineup).toEqual([])
+    expect(folderOf(after, YARD).lineup.map(r => r.id)).toEqual(["b6"])
+  })
 })
 
 describe("書庫を整える: 足りないシステムフォルダを足し、名前の重なりに番号を付ける", () => {
