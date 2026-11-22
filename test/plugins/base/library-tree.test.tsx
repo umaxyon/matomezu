@@ -1,9 +1,11 @@
 // 書庫の画面のツリー: 描いた行の並びが、キーの矢印が使う並び（outline.ts の treeRowsOf）と同じ
+
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, screen, within } from "@testing-library/react"
 import { treeRowsOf } from "../../../web/src/plugins/base/library/outline"
 import { LIBRARY_TREE_WIDTH, LIBRARY_UNFOLDED } from "../../../web/src/plugins/base/library/state"
 import { DEFAULT_TREE_WIDTH } from "../../../web/src/plugins/base/library/tree-width"
+import { NO_DESKS } from "../../../web/src/plugins/base/library/workdesk-rows"
 import { pluginValueOf, WINDOW_PLACE } from "../../../web/src/store/plugin-state"
 import { SAMPLE_BOOKS } from "../../sample-books"
 import { renderScreen } from "../../ui/support"
@@ -32,7 +34,7 @@ test("ツリーに描いた行の並びは、treeRowsOf の並びと同じ（フ
   const unfolded = pluginValueOf(s.pluginValues, center, LIBRARY_UNFOLDED) ?? []
   expect(unfolded.length).toBeGreaterThan(3)
   const drawn = tree.getAllByRole("button", { hidden: true }).flatMap(b => b.dataset.libraryRow ?? [])
-  expect(drawn).toEqual(treeRowsOf(s.folders, unfolded, false).map(r => r.id))
+  expect(drawn).toEqual(treeRowsOf(s.folders, unfolded, false, NO_DESKS).map(r => r.id))
 })
 
 test("ツリーの幅は窓のプラグイン状態の値で、境目のダブルクリックで値を消して既定の幅に戻す", () => {

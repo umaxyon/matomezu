@@ -56,7 +56,7 @@ import { unreadableShownIn } from "./show-unreadable"
 import { LIBRARY_COLUMNS, LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_UNFOLDED } from "./state"
 import { createdIn, isDeskRow, realOf } from "./workdesk-rows"
 
-// 作る物を問うときの名前（問うためだけの物。認可ステップは見ない）
+// 作る物を問うときの名前（問うためだけの物。行う前の問いは run を呼ばず、名前を見ない（定義と機能台帳の「認可ステップ」））
 const ASKED_TITLE = "-"
 
 // 書庫の履歴の最後の段を、from の向きに置き直す（ステージエントリの画面の履歴の restore と同じ決まり。plugins/base/history/index.ts）
@@ -164,7 +164,7 @@ const inMenuHandled = (handles: Handles) => inMenu(ctx => handled(ctx, handles))
 
 // 新しいブック・フォルダを作る先のフォルダ: エントリを受け取ったら、それが書庫ホームかフォルダのとき、その中。
 // フォルダを受け取ったら（何も無い所のメニュー）、ボタンと同じに、それがブック・バインダなら、それを入れているフォルダ。
-// 映した節の行なら、ボタンと同じにワークルームのフォルダ（作れないので、認可ステップに止められる）
+// 作業机とその下の行なら、ボタンと同じにワークルームのフォルダ（作れないので、認可ステップに止められる）
 const holder = (ctx: ScreenCommandContext, named?: Named): string | undefined => {
   const to = given(ctx, named)
   if (to && "folder" in to) return holderForNew(ctx.folders, createdIn(ctx.folders, to.folder))
@@ -179,7 +179,7 @@ function opening(ctx: ScreenCommandContext, named?: Named): Exclude<OpenTarget, 
   const entry = to && "folder" in to ? undefined : entryOf(ctx, named)
   if (entry === undefined) return undefined
   const desks = desksIn(ctx)
-  // 映した節の行は、実の物の種類で開く（作業机・実の物が無い行は、フォルダとして）
+  // 作業机とその下の行は、実の物の種類で開く（作業机・実の物が無い行は、フォルダとして）
   const real = realOf(desks, ctx.folders, entry)
   const kind = placeOf(ctx.folders, real)?.ref.kind ?? (isDeskRow(entry) ? "folder" : undefined)
   if (kind === undefined) return undefined

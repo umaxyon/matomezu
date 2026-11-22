@@ -11,7 +11,7 @@ import { useContextMenu, useToggledMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
 import { usePluginState, useReadPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
 import { useCatalog, useMatomezuState, useReadState } from "../../../ui/store-context"
-import { useActions, useUserSetting } from "../../../ui/view-hooks"
+import { useUserSetting } from "../../../ui/view-hooks"
 import { ActionButton, controlClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
 import type { Workdesk } from "../participant/workdesks"
@@ -29,8 +29,7 @@ import {
   LIBRARY_SCOPE,
   LIBRARY_TREE_SCOPE,
 } from "./commands"
-import { LIBRARY_NEW_BOOK_DIALOG, LIBRARY_NEW_FOLDER_DIALOG } from "./dialog"
-import { holderForNew, holderForNewPage } from "./entries"
+import { holderForNewPage } from "./entries"
 import { FoundView } from "./FoundView"
 import { HistoryButtons } from "./HistoryButtons"
 import { useKeepFocusIn, useLibraryRows, useNameOf, useWorkdesks } from "./hooks"
@@ -124,15 +123,13 @@ export function LibraryView({ className }: { className?: string } = {}) {
     setPicked,
   )
   // 新しいブック・フォルダを作る先（開いているのがブック・バインダなら、それを入れているフォルダ。ゴミ箱なら無い）
-  // 映した節の中では、ワークルームのフォルダが作る先（作れないので、ボタンは押せない）
-  const into = useMatomezuState(s => holderForNew(s.folders, createdIn(s.folders, opened)))
+  // 作業机とその下では、ワークルームのフォルダが作る先（作れないので、ボタンは押せない）
   const pageInto = useMatomezuState(s => holderForNewPage(s.folders, createdIn(s.folders, opened)))
   const bookNew = useCommand(LIBRARY_BOOK_NEW.id, { folder: opened })
   const folderNew = useCommand(LIBRARY_FOLDER_NEW.id, { folder: opened })
   const pageNew = useCommand(LIBRARY_PAGE_NEW.id, { folder: opened })
   const addPageMenu = useToggledMenu(LIBRARY_ADD_PAGE_MENU)
   const addPage = useRef<HTMLSpanElement>(null)
-  const { openDialog } = useActions()
   const unfolded = unfoldedOf(usePluginState(kit, LIBRARY_UNFOLDED))
   const setUnfolded = useSetPluginState(kit, LIBRARY_UNFOLDED)
   const readUnfolded = useReadPluginState(kit, LIBRARY_UNFOLDED)
@@ -313,30 +310,20 @@ export function LibraryView({ className }: { className?: string } = {}) {
             </nav>
             {opened !== TRASH_ID && opened !== UNREADABLE_ID && (
               <div className={styles.tools}>
-                {into !== undefined && (
-                  <>
-                    <ActionButton
-                      raised
-                      disabled={!bookNew.enabled}
-                      onClick={() => openDialog(LIBRARY_NEW_BOOK_DIALOG.id, { into })}
-                    >
-                      <span className={styles.create}>
-                        <RowIcon row={{ kind: "book", type: NO_TYPE }} className={styles.icon} />
-                        {t("Create book")}
-                      </span>
-                    </ActionButton>
-                    <ActionButton
-                      raised
-                      disabled={!folderNew.enabled}
-                      onClick={() => openDialog(LIBRARY_NEW_FOLDER_DIALOG.id, { into })}
-                    >
-                      <span className={styles.create}>
-                        <RowIcon row={{ kind: "folder", type: NO_TYPE }} className={styles.icon} />
-                        {t("New folder")}
-                      </span>
-                    </ActionButton>
-                  </>
-                )}
+                {/* ブック・フォルダを作る先は、コマンドが決める（ゴミ箱の外なら、どこにも在る） */}
+                <ActionButton raised disabled={!bookNew.enabled} onClick={() => bookNew.run({ folder: opened })}>
+                  <span className={styles.create}>
+                    <RowIcon row={{ kind: "book", type: NO_TYPE }} className={styles.icon} />
+                    {t("Create book")}
+                  </span>
+                </ActionButton>
+                <ActionButton raised disabled={!folderNew.enabled} onClick={() => folderNew.run({ folder: opened })}>
+                  <span className={styles.create}>
+                    <RowIcon row={{ kind: "folder", type: NO_TYPE }} className={styles.icon} />
+                    {t("New folder")}
+                  </span>
+                </ActionButton>
+
                 {pageInto !== undefined && (
                   <span ref={addPage} onPointerDown={addPageMenu.pressed}>
                     <ActionButton
@@ -415,7 +402,7 @@ const dragMarks = (drag: LibraryDrag | null, zone: string, row: string) => ({
   "data-drop": drag?.aim?.zone === zone && drag.aim.row === row ? drag.aim.where : undefined,
 })
 
-// フォルダ id の名前（映した節の行も。名前を持たない物・無い物は NO_TITLE）
+// フォルダ id の名前（作業机とその下の行も。名前を持たない物・無い物は NO_TITLE）
 const folderTitle = (s: MatomezuState, id: string, naming: Naming, desks: readonly Workdesk[]): string =>
   (isDeskRow(id)
     ? deskTitleOf(desks, s.folders, id, real => titleOf(s, s.folders[real] ? "folder" : "page", real, naming))

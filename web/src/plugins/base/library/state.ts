@@ -37,7 +37,7 @@ export const LIBRARY_TREE_WIDTH = kit.definePluginState({
   address: "replace",
 })
 
-// 書庫の画面（LibraryView）の書庫アピアランス: 右の枠で開いているフォルダと、ツリーで中を出しているフォルダを見せている（映した節の行は、実の物）。
+// 書庫の画面（LibraryView）の書庫アピアランス: 右の枠で開いているフォルダと、ツリーで中を出しているフォルダを見せている（作業机とその下の行は、実の物）。
 // LibraryView を置くスクリーンの定義が、libraryAppearances で名指す
 export const LIBRARY_APPEARANCE = kit.defineLibraryAppearance({
   id: "library",

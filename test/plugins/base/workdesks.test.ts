@@ -1,9 +1,13 @@
 // 作業机（participant/workdesks.ts）: 今参加者がいるワークルームだけを、管理者が先・ほかは受け入れた順に並べ、ワーカーブックの実のブックを workKey で引く
 import { expect, test } from "bun:test"
-import { backyardIdOf, type Folder, type Folders } from "../../../web/src/core/folders"
+import type { PluginStateRead } from "../../../web/src/core/def/plugin-state"
+import { backyardIdOf, type Folder, type Folders, HOME_ID } from "../../../web/src/core/folders"
 import { readerOf, sourceOf } from "../../../web/src/core/record-source"
 import type { Records } from "../../../web/src/core/records"
 import { TICKETS_HISTORY } from "../../../web/src/plugins/base/library/backyards"
+import { LIBRARY_APPEARANCE, LIBRARY_FOLDER, LIBRARY_UNFOLDED } from "../../../web/src/plugins/base/library/state"
+import { WORKROOMS } from "../../../web/src/plugins/base/library/system-folders"
+import { deskBookRowId } from "../../../web/src/plugins/base/library/workdesk-rows"
 import { ADMIN_MARK, PARTICIPANT } from "../../../web/src/plugins/base/participant"
 import { workdesksOf, workdesksReadsOf } from "../../../web/src/plugins/base/participant/workdesks"
 import { WORKROOM } from "../../../web/src/plugins/base/participant/workroom"
@@ -74,4 +78,27 @@ test("ワーカーブックは workKey でバックヤードから引き、ま�
 
 test("読む種類に参加者が無ければ、作業机は無い（宣言した種類だけを読む）", () => {
   expect(desks(records(), [WORKROOM.id])).toEqual([])
+})
+
+test("書庫アピアランスは、宣言した種類のレコードから作業机を出し、作業机の下で見せているフォルダを実の id で答える", () => {
+  // 書庫ホーム > ワークルームのフォルダ wr。バックヤードに wb2
+  const library = {
+    ...folders,
+    [HOME_ID]: { folderRole: "home", id: HOME_ID, lineup: [{ kind: "folder", id: "wr" }] },
+    wr: { folderRole: "folder", id: "wr", systemFolder: WORKROOMS.id, lineup: [] },
+    wb2: { folderRole: "book", id: "wb2", title: "二", lineup: [] },
+  } as unknown as Folders
+  const shown = (opened: string, rs: Records) =>
+    LIBRARY_APPEARANCE.shownFolders(
+      library,
+      (<S>(def: { id: string }) =>
+        (def.id === LIBRARY_FOLDER.id ? opened : def.id === LIBRARY_UNFOLDED.id ? [] : undefined) as
+          | S
+          | undefined) as PluginStateRead,
+      readerOf(CORE_CATALOG, sourceOf(rs), LIBRARY_APPEARANCE.readsSubjects?.(CORE_CATALOG) ?? []),
+      CORE_CATALOG,
+    )
+  expect(shown(deskBookRowId("r2"), records())).toContain("wb2")
+  // 作業机が無ければ（参加者がいなければ）、作業机の下の行は見せていない
+  expect(shown(deskBookRowId("r2"), {} as Records)).not.toContain("wb2")
 })

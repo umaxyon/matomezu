@@ -1,5 +1,6 @@
-// 映した節（library/workdesk-rows.ts と outline.ts）: ワークルームのフォルダの下に作業机、その下にワーカーブックとその中の物を、作業机ごとの行 id で出す。
+// 作業机とその下の行（library/workdesk-rows.ts と outline.ts）: ワークルームのフォルダの下に作業机、その下にワーカーブックとその中の物を、作業机ごとの行 id で出す。
 // 行 id から実の id へ直し、古い行 id（作業机が無くなった・作業が変わった・ブックがまだ無い）は残っている一番近い上の行へ戻す
+
 import { expect, test } from "bun:test"
 import {
   backyardIdOf,
@@ -10,6 +11,7 @@ import {
   type PlainFolder,
 } from "../../../web/src/core/folders"
 import { TICKETS_HISTORY } from "../../../web/src/plugins/base/library/backyards"
+import { draggable, droppable } from "../../../web/src/plugins/base/library/drop"
 import {
   arrivedAt,
   NOT_OPENED,
@@ -22,10 +24,16 @@ import {
   treeRowsOf,
 } from "../../../web/src/plugins/base/library/outline"
 import { WORKROOMS } from "../../../web/src/plugins/base/library/system-folders"
-import { deskBookRowId, deskEntryRowId, deskRowId, realOf } from "../../../web/src/plugins/base/library/workdesk-rows"
+import {
+  deskBookRowId,
+  deskEntryRowId,
+  deskRowId,
+  NO_DESKS,
+  realOf,
+} from "../../../web/src/plugins/base/library/workdesk-rows"
 import type { Workdesk } from "../../../web/src/plugins/base/participant/workdesks"
 import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../../lineup"
-import { NAMING, worldTablesOf } from "../../support"
+import { CORE_CATALOG, NAMING, worldTablesOf } from "../../support"
 
 const YARD = backyardIdOf(TICKETS_HISTORY.id)
 // 書庫ホーム > ワークルームのフォルダ wr。バックヤードにワーカーブック wb（p1・バインダ n1（s1））と wc（p3）
@@ -88,7 +96,7 @@ test("ワークルームのフォルダの下に作業机、その下にワー�
   ])
   expect(rowsIn(l, deskEntryRowId("r1", "n1"), NAMING, DESKS).map(r => r.id)).toEqual([deskEntryRowId("r1", "s1")])
   // 作業机が無ければ、ワークルームのフォルダは空
-  expect(rowsIn(l, "wr", NAMING)).toEqual([])
+  expect(rowsIn(l, "wr", NAMING, NO_DESKS)).toEqual([])
 })
 
 test("パンくずと開く先は、実の物で決める（ブックがまだ無いワーカーブック・無くなった作業机は開かない）", () => {
@@ -125,7 +133,7 @@ test("古い行 id は、残っている一番近い上の行に戻す: 作業�
   expect(openedFolderOf(f, deskBookRowId("r9"), DESKS)).toBe("wr")
 })
 
-test("ツリーは中を出した映した節を並べ、見せているフォルダは実の id で答える。行へ移ると、作業机までの道を開く", () => {
+test("ツリーは中を出した作業机とその下を並べ、見せているフォルダは実の id で答える。行へ移ると、作業机までの道を開く", () => {
   const f = folders()
   const unfolded = [HOME_ID, "wr", deskRowId("r1"), deskBookRowId("r1")]
   expect(treeRowsOf(f, unfolded, false, DESKS).map(r => [r.id, r.holds, r.unfolded])).toEqual([
@@ -153,4 +161,28 @@ test("ツリーは中を出した映した節を並べ、見せているフォ�
     picked: deskEntryRowId("r2", "s1"),
     unfolded: [HOME_ID, "wr", deskRowId("r2"), deskBookRowId("r2"), deskEntryRowId("r2", "n1")],
   })
+})
+
+test("作業机の下の行の id は書庫の表に当たらないので、掴めず、落とす先にもならない（行の id をアクションに渡さない）", () => {
+  // 書庫ホームに、動かせるブック bx とフォルダ fx を足した書庫
+  const base = library()
+  const bx = worldTablesOf([testBook("bx", "BX", [drawingPage("px")])], [])
+  const l: Library = {
+    pages: { ...base.pages, ...bx.pages },
+    folders: {
+      ...base.folders,
+      ...bx.folders,
+      fx: { folderRole: "folder", id: "fx", title: "FX", lineup: [] } as unknown as Folder,
+      [HOME_ID]: {
+        ...home,
+        lineup: [...home.lineup, { kind: "folder", id: "fx" }, { kind: "book", id: "bx" }],
+      } as Folder,
+    },
+  }
+  expect(draggable(l.folders, "bx")).toBe(true)
+  expect(droppable(CORE_CATALOG, l, "bx", { to: "folder", into: "fx" })).toBe(true)
+  for (const id of [deskRowId("r1"), deskBookRowId("r1"), deskEntryRowId("r1", "p1")]) {
+    expect(draggable(l.folders, id)).toBe(false)
+    expect(droppable(CORE_CATALOG, l, "bx", { to: "folder", into: id })).toBe(false)
+  }
 })

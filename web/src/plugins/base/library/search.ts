@@ -1,7 +1,9 @@
 // 書庫の画面の検索: 名前に言葉 query を含む物（フォルダ・ブック・バインダ・ページ）を、書庫ホームから下へ並びの順に探す。ゴミ箱の物は出ない
+
 import { entriesIn, type Naming, titleOf } from "../../../core/entries"
 import { HOME_ID, type Library } from "../../../core/folders"
 import { type LibraryRow, NO_TITLE, rowsIn } from "./outline"
+import { NO_DESKS } from "./workdesk-rows"
 
 // 見つかった行 1 つ: 行と、それを持つフォルダ holder と、置き場所 place（書庫ホームの下から holder までのフォルダの名前。書庫ホームの直下なら空。名前の無い物は NO_TITLE）
 export interface FoundRow extends LibraryRow {
@@ -21,7 +23,8 @@ export function foundRowsOf(library: Library, query: string | undefined, naming:
   const found: FoundRow[] = []
   const under = (holder: string, place: readonly string[]) => {
     if (entriesIn(library.folders, holder).length === 0) return
-    for (const row of rowsIn(library, holder, naming)) {
+    // 作業机の下（ワーカーブック）は探さない（同じブックが 2 つの作業机に出うる）
+    for (const row of rowsIn(library, holder, naming, NO_DESKS)) {
       if (row.title.toLocaleLowerCase().includes(word)) found.push({ ...row, holder, place })
       if (row.kind !== "page") under(row.id, [...place, titleOf(library, "folder", row.id, naming) ?? NO_TITLE])
     }

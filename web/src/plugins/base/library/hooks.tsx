@@ -85,10 +85,10 @@ export interface FolderEntry {
   name: string
 }
 
-// フォルダ folder（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダ）の直下のエントリ（並びの順）。フォルダが無ければ undefined
+// フォルダ folder（書庫ホーム・ゴミ箱・フォルダ・ブック・バインダ）の直下のエントリ（並びの順。フォルダの中を問うので、作業机は出さない）。フォルダが無ければ undefined
 export function useFolderEntries(folder: string): readonly FolderEntry[] | undefined {
   const entries = useLibraryRows(folder, (s, naming) =>
-    rowsIn(s, folder, naming).map((r): FolderEntry => ({ id: r.id, kind: r.kind, name: r.title })),
+    rowsIn(s, folder, naming, NO_DESKS).map((r): FolderEntry => ({ id: r.id, kind: r.kind, name: r.title })),
   )
   return useMatomezuState(s => s.folders[folder] !== undefined) ? entries : undefined
 }
