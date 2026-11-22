@@ -132,7 +132,7 @@ func (h *Hub) Called(id string, says CallerSays, now time.Time) string {
 			}
 		}
 		// 行列の AI 間メッセージも、この返事で渡す（watch.go。通り道で先に渡った物は行列に無い）
-		notices := h.takeMessages(id)
+		notices := h.takeCallLines(id)
 		if !n.Told {
 			n.Told = true
 			h.participantNotes[id] = n

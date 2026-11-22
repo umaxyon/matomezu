@@ -5,11 +5,12 @@ import { kit } from "../kit"
 // 設定カテゴリのスロット（設定画面を開いたステージを渡す）
 export const SETTINGS_CATEGORIES = kit.name("settings-categories")
 
-export const SETTINGS_DIALOG = kit.defineDialog({ id: "settings" })
+// category は、開いたときに選んでおく設定カテゴリのウィジェットの id（無ければ先頭）
+export const SETTINGS_DIALOG = kit.defineDialogWith<{ category?: string }>()({ id: "settings" })
 
 export const SETTINGS_OPEN = kit.defineScreenCommand({
   id: "settings-open",
   title: "Open settings",
-  run: (_ctx, a) => a.openDialog(SETTINGS_DIALOG.id),
+  run: (_ctx, a) => a.openDialog(SETTINGS_DIALOG.id, {}),
   when: () => true,
 })

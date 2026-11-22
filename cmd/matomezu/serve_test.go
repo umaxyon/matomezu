@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -163,5 +164,47 @@ func TestKeepPortOnlyWhenChosen(t *testing.T) {
 	}
 	if kept, _ := h.ReadPort(); kept != 5301 {
 		t.Errorf("kept %d, want 5301", kept)
+	}
+}
+
+func TestServeExeIsTheInstalledOneForReleasedBuilds(t *testing.T) {
+	h := t.TempDir()
+	t.Setenv("HOME", h)
+	t.Setenv("USERPROFILE", h)
+	own, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(h, ".matomezu", "bin")
+	newer := filepath.Join(dir, "2.0.0", "matomezu")
+	if err := os.MkdirAll(filepath.Dir(newer), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	mark := `{"version":"2.0.0","exe":` + strconv.Quote(newer) + `}`
+	if err := os.WriteFile(filepath.Join(dir, home.InstalledName), []byte(mark), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	was := version
+	t.Cleanup(func() { version = was })
+	cases := []struct {
+		name, version string
+		exists        bool
+		want          string
+	}{
+		{"released, the installed one exists", "1.0.0", true, newer},
+		{"released, the installed one is gone", "1.0.0", false, own},
+		{"development build", devVersion, true, own},
+	}
+	for _, c := range cases {
+		_ = os.Remove(newer)
+		if c.exists {
+			if err := os.WriteFile(newer, nil, 0o700); err != nil {
+				t.Fatal(err)
+			}
+		}
+		version = c.version
+		if got, err := serveExe(); err != nil || got != c.want {
+			t.Errorf("%s: serveExe() = %q, %v; want %q", c.name, got, err, c.want)
+		}
 	}
 }

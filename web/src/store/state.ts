@@ -51,6 +51,9 @@ export interface MatomezuState {
   participantLive: Readonly<Record<string, ParticipantLive>>
   trash: Readonly<Record<string, Book>> // ゴミ箱かその中のブックの id ごと
   offline: boolean // 常駐とのつながりが、しばらく切れたままか（ホストクライアントが知らせる）
+  // つなぎ直した常駐が、窓を開いたときと別の版か（ホストクライアントが知らせる。無ければ null）。データの形が違えば、アクションもキーも断る
+  staleBuild: StaleBuild | null
+  updateStatus: UpdateStatus | null // 新しい版の確かめの結果（常駐だけが持つ。ホストクライアントが知らせる。無ければ null）
   lastWindow: boolean // この窓が、最後にフォーカスされた窓か（ホストクライアントが、常駐のレコードの知らせに添えられた値で入れる）
   // ステージエントリの id → 画面の履歴（この画面で利用者が行ったアクションだけ。読み直すと消える）。画面の履歴の段がいくつかのステージエントリを変えたら、その全部に同じ画面の履歴の段が入る
   history: Readonly<Record<string, History>>
@@ -66,6 +69,28 @@ export interface MatomezuState {
   // 窓の変わりをブラウザの履歴に積まずに書き換えてほしいと頼んだ回数（replaceHistory で増える。ホストクライアントが、
   // 増えたら、その同期の処理の中の変わりをまとめて書き換える）
   historyReplaces: number
+}
+
+// 新しい版の確かめの結果: state は unchecked（まだ）・current（今の版が一番新しい）・newer（新しい版 latest がある）・dev（開発の版なので確かめない）。
+// checkedAt は最後に聞けた時刻、askedAt は管理者に更新を頼んだ時刻（ISO 8601 の UTC）
+export interface UpdateStatus {
+  state: "unchecked" | "current" | "newer" | "dev"
+  version: string
+  latest?: string
+  checkedAt?: string
+  askedAt?: string
+}
+
+// 常駐の版とデータの形の番号（移し替えの数）
+export interface Build {
+  version: string
+  dataVersion: number
+}
+// 窓を開いたときの常駐（from）と、つなぎ直したときの常駐（to）。dropped は、データの形が違うので送らずに捨てた、まだ確かめられていなかったアクションバルクの数
+export interface StaleBuild {
+  from: Build
+  to: Build
+  dropped: number
 }
 
 // 参加者 1 人の様子: AI のフックが知らせたモデルと、MCP が添えた git のブランチ（知らされていない物は持たない）
@@ -183,6 +208,16 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   startWindow(): void
   // 常駐とのつながりが、しばらく切れたままか（offline）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
   setOffline(offline: boolean): void
+  // つなぎ直した常駐が別の版か（staleBuild）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
+  setStaleBuild(stale: StaleBuild): void
+  // 新しい版の確かめの結果（updateStatus）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
+  setUpdateStatus(status: UpdateStatus): void
+  // 新しい版を今確かめるのをホストに頼む（結果はホストの知らせで入る）。base のフックを通して使う。ホストが無いか、頼めなければ投げる
+  checkUpdate(): Promise<void>
+  // ワークルーム workroom（id）の AI に、版を上げるよう頼むのをホストに頼む。そこに参加の確定した AI がいなければ false。base のフックを通して使う。ホストが無いか、頼めなければ投げる
+  askUpdate(workroom: string): Promise<boolean>
+  // 窓を読み込み直す（画面の場所は URL に残る）
+  reloadWindow(): void
   // この窓が、最後にフォーカスされた窓か（lastWindow）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
   setLastWindow(last: boolean): void
   // この窓の中に戻る先があるか（canGoBack）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
@@ -258,6 +293,8 @@ export function initialState(
     participantLive: {},
     trash,
     offline: false,
+    staleBuild: null,
+    updateStatus: null,
     lastWindow: false,
     history: {},
     pluginValues: NO_PLUGIN_STATES,
@@ -312,12 +349,15 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   visible?: () => boolean // 窓が見えているか（裏のタブなどで見えていない間は、まだ見ていない変更を見えたとしない。無ければいつも見えている）
   search?: (query: WideSearchQuery) => Promise<WideSearchAnswer> // ホストの言葉の検索（横断検索）。無ければ、どの言葉にも横断検索の当たりなし
   copyText?: (text: string) => Promise<void> // ブラウザのクリップボードに文字を書く。無ければ、書けないとして投げる（E404）
+  // 新しい版を確かめる・ワークルームの AI に更新を頼むのをホストに頼む口。無ければ、頼むと投げる（E409）
+  updateHost?: { check(): Promise<void>; ask(workroom: string): Promise<boolean> }
   // 読めない物のフォルダについてホストに頼む口（完全に消す・無効にしたら移る物を数える）。無ければ、頼むと投げる（E406）
   unreadableHost?: {
     purge(id: string): Promise<Purged>
     movedIfOff(ids: readonly string[]): Promise<readonly MovedIfOff[] | typeof BROKEN>
   }
   setWindowTitle?: (title: string) => void // 窓のタイトルを替える。無ければ何もしない
+  reloadWindow?: () => void // 窓を読み込み直す。無ければ何もしない
   windowTitle?: () => string // 今の窓のタイトル。無ければ空
   startupError?: StartupError // 起動エラーの画面に出す物（起動を止めた窓だけが渡す）
   unreadableNotice?: UnreadableNotice // 窓を開く前に知らされた、読めない物のフォルダへ移った・戻った物（ホストクライアントが運んだ物）

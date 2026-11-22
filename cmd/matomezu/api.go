@@ -8,9 +8,11 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
+	"github.com/umaxyon/matomezu/internal/aiwire"
 	"github.com/umaxyon/matomezu/internal/home"
 	"github.com/umaxyon/matomezu/internal/mcp"
 )
@@ -22,6 +24,7 @@ type httpAPI struct {
 	mu        sync.Mutex
 	s         *home.Server
 	reconnect func() (*home.Server, error)
+	toldOther bool // 常駐の版がこの MCP と違うと、AI にもう知らせたか
 }
 
 func (a *httpAPI) Get(path string, header http.Header) (json.RawMessage, http.Header, error) {
@@ -40,16 +43,44 @@ func (a *httpAPI) do(method, path string, body []byte, header http.Header) (json
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	out, reply, stale, err := send(a.s, method, path, body, header)
-	if !stale {
-		return out, reply, err
+	if stale {
+		s, rerr := a.reconnect()
+		if rerr != nil {
+			return nil, nil, errors.Join(err, rerr)
+		}
+		a.s = s
+		out, reply, _, err = send(a.s, method, path, body, header)
 	}
-	s, rerr := a.reconnect()
-	if rerr != nil {
-		return nil, nil, errors.Join(err, rerr)
+	if err == nil && !a.toldOther {
+		if note := otherVersionNote(a.s.Version); note != "" {
+			a.toldOther = true
+			reply = withNotice(reply, note)
+		}
 	}
-	a.s = s
-	out, reply, _, err = send(a.s, method, path, body, header)
 	return out, reply, err
+}
+
+// otherVersionNote は、常駐の版 running がこの matomezu と違うときに AI に 1 度だけ添える文（開発の版どうしは比べない）
+func otherVersionNote(running string) string {
+	if running == version || running == "" || running == devVersion || version == devVersion {
+		return ""
+	}
+	return fmt.Sprintf("matomezu: the matomezu server is version %s, but the matomezu of this conversation is %s. Tell the user that restarting this conversation uses the new version.", running, version)
+}
+
+// withNotice は、常駐が返した知らせ（あれば）の後ろに text を足した返事の見出し
+func withNotice(h http.Header, text string) http.Header {
+	out := h.Clone()
+	if out == nil {
+		out = http.Header{}
+	}
+	if v := out.Get(aiwire.NoticeHeader); v != "" {
+		if was, err := url.QueryUnescape(v); err == nil {
+			text = was + "\n" + text
+		}
+	}
+	out.Set(aiwire.NoticeHeader, url.QueryEscape(text))
+	return out
 }
 
 // send は 1 度だけ呼ぶ。stale は、つなぎ方が古いかもしれない（401 か、つなげなかった）とき。

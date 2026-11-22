@@ -248,3 +248,19 @@ test("ステージを持たないスクリーンがカレントなら、キー�
   expect(store.actions.pressKey("Escape", ["@matomezu/base:library"])).toBe(true)
   expect(libraryOpen()).toBe(false)
 })
+
+test("つなぎ直した常駐が別の版の間は、どのキーも効かない", () => {
+  const store = newStore()
+  store.actions.perform(
+    "@matomezu/paper:item-place",
+    { item: "@matomezu/box:shape-nest-box", at: { x: 0, y: 0 } },
+    { page: "p1" },
+  )
+  store.setStaleBuild({
+    from: { version: "1.0.0", dataVersion: 7 },
+    to: { version: "1.0.1", dataVersion: 7 },
+    dropped: 0,
+  })
+  expect(store.actions.pressKey("Mod+Z")).toBe(false)
+  expect(store.state.getState().books.b1).toMatchObject({ lineup: [{ items: [{ id: "n1" }] }] })
+})
