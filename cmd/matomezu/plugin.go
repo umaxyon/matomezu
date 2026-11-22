@@ -30,7 +30,7 @@ type pluginInstallCmd struct {
 
 func (c *pluginInstallCmd) Run() error {
 	client := aiPluginFor(c.AI)
-	executable, err := exec.LookPath(client.program)
+	executable, err := findProgram(client.program)
 	if err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ func (p aiPlugin) installed(executable string) (string, bool, error) {
 }
 
 func (p aiPlugin) changeEnabled(enabled, required bool) error {
-	executable, err := exec.LookPath(p.program)
+	executable, err := findProgram(p.program)
 	if err != nil {
 		if !required {
 			return nil
@@ -225,6 +225,10 @@ func (p aiPlugin) installBundled(executable string) error {
 		return fmt.Errorf("%s did not report the bundled plugin version %s as installed and enabled", p.program, bundled)
 	}
 	fmt.Printf("%s: matomezu plugin %s is installed. Open a new session to load it.\n", p.program, bundled)
+	if fromDesktop(executable) {
+		// Node と matomezu を入れる前から立っている Desktop は、古い PATH のままで matomezu を見つけられない
+		fmt.Println("If Claude Desktop was running, quit it completely (from the system tray too) and start it again so that it finds matomezu.")
+	}
 	return nil
 }
 
