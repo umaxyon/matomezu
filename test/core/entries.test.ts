@@ -412,7 +412,12 @@ describe("バックヤード", () => {
   const b3 = testBook("b3", "三", [drawingPage("p3")])
   const yarded = (): Library => {
     const t = worldTablesOf([b1, b2, b3], [home, a, c, d])
-    const yard: Folder = { folderRole: "backyard", id: YARD, backyard: TICKETS, lineup: [{ kind: "book", id: "b3", workKey: { subject: "t", id: "3" } }] }
+    const yard: Folder = {
+      folderRole: "backyard",
+      id: YARD,
+      backyard: TICKETS,
+      lineup: [{ kind: "book", id: "b3", workKey: { subject: "t", id: "3" } }],
+    }
     return { pages: t.pages, folders: { ...t.folders, [YARD]: yard } }
   }
 
