@@ -123,6 +123,7 @@ export {
   useLeftSidePanel,
   useMailboxPanel,
   useMarkdownDocument,
+  useMatomezuCommand,
   useOpenLeftSidePanel,
   useOpenRightSidePanel,
   useOpenSettings,

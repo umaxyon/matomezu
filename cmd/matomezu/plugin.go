@@ -226,8 +226,7 @@ func (p aiPlugin) installBundled(executable string) error {
 	}
 	fmt.Printf("%s: matomezu plugin %s is installed. Open a new session to load it.\n", p.program, bundled)
 	if fromDesktop(executable) {
-		// Node と matomezu を入れる前から立っている Desktop は、古い PATH のままで matomezu を見つけられない
-		fmt.Println("If Claude Desktop was running, quit it completely (from the system tray too) and start it again so that it finds matomezu.")
+		fmt.Println(claudelaunch.RestartDesktopMessage)
 	}
 	return nil
 }

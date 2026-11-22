@@ -193,7 +193,7 @@ export {
   type WideSearchModeProps,
   type WideSearchOpened,
 } from "./wide-search/ui"
-export { useCopyText, useWindowTitle } from "./window-io/ui"
+export { useCopyText, useMatomezuCommand, useWindowTitle } from "./window-io/ui"
 
 import type { PrintSheetProps } from "./print-preview/ui"
 
