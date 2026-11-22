@@ -214,6 +214,8 @@ export interface MatomezuInstance<Ps extends readonly Plugin[] = readonly Plugin
   setUpdateStatus(status: UpdateStatus): void
   // 新しい版を今確かめるのをホストに頼む（結果はホストの知らせで入る）。base のフックを通して使う。ホストが無いか、頼めなければ投げる
   checkUpdate(): Promise<void>
+  // ワークルーム workroom（id）の AI に、版を上げるよう頼むのをホストに頼む。そこに参加の確定した AI がいなければ false。base のフックを通して使う。ホストが無いか、頼めなければ投げる
+  askUpdate(workroom: string): Promise<boolean>
   // 窓を読み込み直す（画面の場所は URL に残る）
   reloadWindow(): void
   // この窓が、最後にフォーカスされた窓か（lastWindow）を入れる。ホストクライアントだけが使う（プラグインに渡す actions には入れない）
@@ -349,7 +351,7 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   copyText?: (text: string) => Promise<void> // ブラウザのクリップボードに文字を書く。無ければ、書けないとして投げる（E404）
   // 読めない物のフォルダについてホストに頼む口（完全に消す・無効にしたら移る物を数える）。無ければ、頼むと投げる（E406）
   // 新しい版の確かめをホストに頼む口。無ければ、頼むと投げる（E409）
-  updateHost?: { check(): Promise<void> }
+  updateHost?: { check(): Promise<void>; ask(workroom: string): Promise<boolean> }
   unreadableHost?: {
     purge(id: string): Promise<Purged>
     movedIfOff(ids: readonly string[]): Promise<readonly MovedIfOff[] | typeof BROKEN>

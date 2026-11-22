@@ -40,6 +40,8 @@ export interface HostClient {
   movedIfOff(ids: readonly string[]): Promise<readonly MovedIfOff[] | typeof BROKEN>
   // 新しい版を今確かめるのを頼む（結果は知らせでも入る）。常駐が断るか（200 でない）つながらなければ E410 を投げる
   checkUpdate(): Promise<void>
+  // ワークルーム workroom（id）の AI に、版を上げるよう頼む（起こす知らせ）。そこに参加の確定した AI がいなければ false。常駐が断るか（200 でない）つながらなければ E411 を投げる
+  askUpdate(workroom: string): Promise<boolean>
   visible(): boolean // 窓が見えているか（裏のタブなどで見えていない間は、まだ見ていない変更を見えたとしない。createMatomezu の visible に渡す）
 }
 

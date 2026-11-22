@@ -137,6 +137,7 @@ export const ERRORS = {
   E408: "the server could not tell what would move to the unreadable folder: {status}",
   E409: "this window has no server to ask about updates",
   E410: "the server could not check for updates: {status}",
+  E411: "the server could not ask the workroom {workroom} to update: {status}",
 } as const
 
 export type ErrorCode = keyof typeof ERRORS

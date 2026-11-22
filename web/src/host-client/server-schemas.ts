@@ -116,3 +116,5 @@ export const ParticipantLiveSchema = z.object({
 })
 export const TouchedSchema = z.object({ book: z.string(), at: z.string() })
 export const AnnotationsSchema = z.object({ page: z.string(), annotations: z.unknown() })
+// 更新を頼んだ答え（ok が偽なら、そのワークルームに参加の確定した AI がいない）
+export const ASK_UPDATE_ANSWER = z.object({ ok: z.boolean() })

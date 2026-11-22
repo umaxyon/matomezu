@@ -22,5 +22,11 @@ export const UPDATE_MESSAGES = defineMessages({
   "Checking…": { en: "Checking…", ja: "確かめています…" },
   "Check for updates": { en: "Check for updates", ja: "更新を確認" },
   Update: { en: "Update", ja: "更新する" },
+  "Ask {name} (the administrator) to update": {
+    en: "Ask {name} (the administrator) to update",
+    ja: "管理者（{name}）に更新を頼む",
+  },
+  "Asked {time}": { en: "Asked {time}", ja: "頼みました {time}" },
+  "Could not ask": { en: "Could not ask", ja: "頼めませんでした" },
   "Type this in a terminal to update": { en: "Type this in a terminal to update", ja: "端末で次を打つと更新します" },
 })

@@ -13,3 +13,6 @@ export const useUpdateStatus = (): UpdateStatus | null => useMatomezuState(s => 
 
 // 新しい版を今確かめるのをホストに頼む（結果は useUpdateStatus に入る）。頼めなければ投げる
 export const useCheckUpdate = (): (() => Promise<void>) => useInstance().checkUpdate
+
+// ワークルーム（id）の AI に、版を上げるよう頼む（そこに AI がいなければ false）。頼めなければ投げる
+export const useAskUpdate = (): ((workroom: string) => Promise<boolean>) => useInstance().askUpdate

@@ -20,6 +20,7 @@
 //	                      もう足していない id は飛ばす（ほかの窓や AI が先に外していても、外れた状態になれば成功）。
 //	                      {"ok"} か、外せなかった所で止めて {"ok": false, "id", "reason"}（それより前の物は外れたまま）  … 画面から
 //	POST /api/update/check   新しい版を今確かめ、結果（UpdateStatus）を返す（全部の窓にも update-status で知らせる）
+//	POST /api/update/ask {"workroom"} ワークルーム（id）の、参加が確定した AI に、版を上げるよう頼む（起こす知らせ）。{"ok": true} か、そこに AI がいなければ {"ok": false, "reason": "no-recipient"}
 //	POST /api/unreadable/purge {"id"} 読めない物のフォルダの直下の物 id を、中の物の行ごと完全に消す（アクションでなく、窓の履歴に入らない）。
 //	                      {"ok"} か、直下に無ければ {"ok": false, "reason": "not-inside"}（何も書かない）  … 画面から
 //	POST /api/unreadable/if-off {"ids"} 追加プラグイン ids を無効にしたら読めない物のフォルダへ移る物（書かない）。
@@ -155,6 +156,7 @@ func Handler(o Options) http.Handler {
 	mux.Handle("POST /api/screen-plugins/remove", o.screen(o.unlinkPluginsFromScreen))
 	mux.Handle("POST /api/unreadable/purge", o.screen(o.purgeUnreadable))
 	mux.Handle("POST /api/update/check", o.screen(o.checkUpdate))
+	mux.Handle("POST /api/update/ask", o.screen(o.askUpdate))
 	mux.Handle("POST /api/unreadable/if-off", o.screen(o.movedIfOff))
 	mux.Handle("GET /api/ai/view", o.ai(o.aiView))
 	mux.Handle("GET /api/ai/books", o.ai(o.aiBooks))
@@ -333,6 +335,26 @@ func (o Options) unlinkPluginsFromScreen(w http.ResponseWriter, r *http.Request)
 // purgeUnreadable は、画面の口: 読めない物のフォルダの直下の物 id を完全に消す。直下に無ければ { ok: false, reason: "not-inside" }（何も書かない）
 func (o Options) checkUpdate(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, o.Hub.CheckUpdate(r.Context()))
+}
+
+func (o Options) askUpdate(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Workroom string `json:"workroom"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, maxBody)).Decode(&req); err != nil || req.Workroom == "" {
+		http.Error(w, "the body must be {\"workroom\"}", http.StatusBadRequest)
+		return
+	}
+	ok, err := o.Hub.AskUpdate(req.Workroom, time.Now())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if !ok {
+		writeJSON(w, map[string]any{"ok": false, "reason": "no-recipient"})
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true})
 }
 
 func (o Options) purgeUnreadable(w http.ResponseWriter, r *http.Request) {

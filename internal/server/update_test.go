@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
+	"time"
 )
 
 // fakeLatest は、答え latest・newer・err を返し、呼ばれた数を数える口
@@ -74,5 +76,45 @@ func TestTheServerChecksOnlyWhenTheSettingAllowsAndNotForDevBuilds(t *testing.T)
 	h.SetUpdateCheck("dev", nil)
 	if s := h.CheckUpdate(context.Background()); s.State != UpdateDev {
 		t.Fatalf("dev = %+v", s)
+	}
+}
+
+// roomOf は、参加者 participant が受け入れられたワークルームの id
+func roomOf(t *testing.T, url, participant string) string {
+	t.Helper()
+	for _, body := range recordsOf(t, url, "@matomezu/base:participant") {
+		if body["id"] == participant {
+			room, _ := body["workroom"].(string)
+			return room
+		}
+	}
+	t.Fatalf("no participant %s", participant)
+	return ""
+}
+
+// 頼んだら、そのワークルームの AI に 1 つだけ流れ（前の頼みは置き換える）、呼び出しの返事でも渡り、頼んだ時刻を知らせる。AI のいないワークルームは断る
+func TestAskUpdateWakesTheWorkroomsAI(t *testing.T) {
+	s, hub := joinWorld(t, joinStore(t))
+	hub.SetUpdateCheck("1.0.0", nil)
+	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
+	noticeOf(t, s.URL, a)
+	room := roomOf(t, s.URL, a)
+	for range 2 {
+		if ok, err := hub.AskUpdate(room, time.Now()); !ok || err != nil {
+			t.Fatalf("AskUpdate = %v, %v", ok, err)
+		}
+	}
+	if hub.UpdateStatus().AskedAt == "" {
+		t.Fatal("the time is not kept")
+	}
+	if n := noticeOf(t, s.URL, a); strings.Count(n, "matomezu update") != 1 {
+		t.Fatalf("notice = %q", n)
+	}
+	hub.AskUpdate(room, time.Now())
+	if got := wakes(hub, hub.OpenWakesWith("100", "", WakeLimits{})); len(got) != 1 || got[0] != askUpdateLine {
+		t.Fatalf("wakes = %q", got)
+	}
+	if ok, err := hub.AskUpdate("no-room", time.Now()); ok || err != nil {
+		t.Fatalf("a room without an AI = %v, %v", ok, err)
 	}
 }

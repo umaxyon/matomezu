@@ -87,6 +87,7 @@ export function memoryClient(books: readonly Book[] = [], settings?: Settings): 
     purgeUnreadable: async () => NOT_INSIDE, // 読めない物のフォルダを持たないので、消す物も無い
     movedIfOff: async () => [], // 追加プラグインを持たないので、移る物も無い
     checkUpdate: async () => {}, // 常駐を持たないので、確かめる物も無い
+    askUpdate: async () => false, // 常駐を持たないので、頼む AI もいない
     visible: () => true,
     search: async q => searchIn(connected, q),
     connect: instance => {

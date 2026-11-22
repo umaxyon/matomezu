@@ -28,6 +28,7 @@ import { createSendQueue, RETRY_MS } from "./send-queue"
 import {
   AckSchema,
   AnnotationsSchema,
+  ASK_UPDATE_ANSWER,
   ChangedSchema,
   DataSchema,
   HelloSchema,
@@ -544,6 +545,17 @@ export function serverClient(net: Net = browserNet): HostClient {
       if (!res?.ok) fail("E410", { status: res ? `${res.status}` : "no answer" })
       updateStatus = UpdateStatusSchema.parse(await res.json())
       instance?.setUpdateStatus(updateStatus)
+    },
+    askUpdate: async workroom => {
+      const res = await net
+        .fetch("api/update/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ workroom }),
+        })
+        .catch(() => null)
+      if (!res?.ok) fail("E411", { workroom, status: res ? `${res.status}` : "no answer" })
+      return ASK_UPDATE_ANSWER.parse(await res.json()).ok
     },
     purgeUnreadable: async id => {
       const res = await net
