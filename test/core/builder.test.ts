@@ -78,7 +78,7 @@ describe("組み立てたブックの形", () => {
     ])
   })
 
-  test("ページの設定の値は、ページ → 定義の既定 の順に、最初に値のある所で決まる（ブックの値には戻らない）", () => {
+  test("ページの設定の値は、ページ → 定義の既定 の順に、最初に値のある所で決まる（ステージエントリの値には戻らない）", () => {
     expect(
       settingValue(CORE_CATALOG, page([], { settings: { "@matomezu/line:line-route": "straight" } }), LINE_ROUTE),
     ).toBe("straight")
