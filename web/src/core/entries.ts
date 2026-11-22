@@ -50,7 +50,7 @@ export const inBackyard = (folders: Folders, entry: string): boolean =>
 
 // 動かせない訳: エントリが無い（no-entry）・先のフォルダが無い（no-folder）・先が自分かその中（into-itself）・先のフォルダが持てない種類（kind）・
 // index が末尾より先（past-end）・動かしても同じ場所（same-place）・動かす物か先が、ゴミ箱かその中（in-trash。ゴミ箱へは入れる・戻すでだけ出入りする）・
-// 動かす物か先が、バックヤードかその中（in-backyard。バックヤードの物は、その持ち主のプラグインだけが出し入れする）
+// 動かす物か先が、バックヤードかその中（in-backyard。書庫の口では、バックヤードに出し入れしない）
 export type MoveRefusal =
   | "no-entry"
   | "no-folder"
