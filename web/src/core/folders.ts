@@ -92,7 +92,7 @@ export interface UnreadableFolder {
 // 読めない物のフォルダの役か
 export const isUnreadableRole = (role: unknown): role is "unreadable" => role === "unreadable"
 
-// バックヤード: 書庫の一番上のフォルダで、書庫の画面にも AI の一覧にも出ない（世界の中には在る）。ブックだけを持つ。
+// バックヤード: 書庫の一番上のフォルダで、書庫の画面にも AI の一覧にも出ない（読めない物のフォルダと違い、中の物は書庫に入る）。ブックだけを持つ。
 // プラグインが定義（core/def/backyard.ts）で足し、行は印 backyard（その定義の id）を持つ。定義 1 つに行 1 つで、行の id は backyardIdOf で決まる
 export interface BackyardFolder {
   folderRole: "backyard"
