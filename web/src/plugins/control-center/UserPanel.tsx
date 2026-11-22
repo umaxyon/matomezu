@@ -1,7 +1,18 @@
-// 左の列の最上段: 題（全体設定の歯車）・あなた・郵便/書庫/プロジェクトのボタン。郵便は左サイドパネルの郵便箱を開閉し、全体設定は設定画面を開く
+// 左の列の最上段: 題（全体設定の歯車）・あなた・郵便/書庫/プロジェクトのボタン。郵便は左サイドパネルの郵便箱を開閉し、全体設定は設定画面を開く。
+// 新しい版があれば、題の左の巣箱が金色と元の色を行き来し、押すと設定画面の「更新」を開く
 import type { ReactNode } from "react"
 import { useCommand, useMessages, useUiCatalog } from "../../plugin-api/ui"
-import { Band, GearIcon, IconButton, Panel, Tip, useMailboxPanel, useWideSearchPanel } from "../base/ui"
+import {
+  Band,
+  GearIcon,
+  IconButton,
+  Panel,
+  Tip,
+  useMailboxPanel,
+  useOpenSettings,
+  useUpdateStatus,
+  useWideSearchPanel,
+} from "../base/ui"
 import type { ContentArea } from "./control-center"
 import { AvatarIcon, LibraryIcon, MailIcon, ProjectIcon, SearchIcon } from "./icons"
 import { kit } from "./kit"
@@ -9,6 +20,8 @@ import styles from "./UserPanel.module.css"
 
 // 巣箱のボタンのコマンドの id（別のプラグインの定義は id で選ぶ。絵を引くのに使う）
 const BIRDHOUSE_COMMAND = "@matomezu/base:screen-toggle"
+// 設定画面の「更新」の設定カテゴリの id
+const UPDATE_CATEGORY = "@matomezu/base:settings-update"
 
 type Tile = { label: string; icon: ReactNode; onClick: () => void; pressed: boolean }
 
@@ -19,6 +32,8 @@ export function UserPanel({ screen, onShow }: { screen: ContentArea; onShow: (to
   const settings = useCommand("@matomezu/base:settings-open")
   // 題の左の巣箱の絵（見た目だけ。チケットの帯の巣箱のボタンと同じ絵を、そのコマンドの id で引く）
   const birdhouse = useUiCatalog().commandIcons.get(BIRDHOUSE_COMMAND)
+  const newer = useUpdateStatus()?.state === "newer"
+  const openUpdates = useOpenSettings(UPDATE_CATEGORY)
   const tiles: Tile[] = [
     { label: t("Mailbox"), icon: <MailIcon />, onClick: mailbox.toggle, pressed: mailbox.open },
     { label: t("Library"), icon: <LibraryIcon />, onClick: () => onShow("library"), pressed: screen === "library" },
@@ -29,7 +44,21 @@ export function UserPanel({ screen, onShow }: { screen: ContentArea; onShow: (to
     <Panel>
       <Band spread>
         <h1 className={styles.title}>
-          <span className={styles.birdhouse}>{birdhouse}</span>
+          {newer ? (
+            <Tip text={t("An update is available")}>
+              <button
+                type="button"
+                className={styles.birdhouse}
+                data-newer=""
+                aria-label={t("An update is available")}
+                onClick={openUpdates}
+              >
+                {birdhouse}
+              </button>
+            </Tip>
+          ) : (
+            <span className={styles.birdhouse}>{birdhouse}</span>
+          )}
           {t("Control center")}
         </h1>
         <IconButton label={t("Global settings")} onClick={() => settings.run()}>

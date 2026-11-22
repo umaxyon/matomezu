@@ -216,7 +216,7 @@ export {
   useSearchHits,
   useSearchPick,
 } from "./search/ui"
-export { defineSettingsCategory, SettingRow, UserSettings } from "./settings/ui"
+export { defineSettingsCategory, SettingRow, UserSettings, useOpenSettings } from "./settings/ui"
 export {
   BodyField,
   CaptionField,
@@ -232,6 +232,7 @@ export {
   useEndWhenBlocked,
   useInPlaceInput,
 } from "./text/ui"
+export { useUpdateStatus } from "./update/ui"
 export * from "./utils/ui"
 export {
   BOOK_SCREEN,

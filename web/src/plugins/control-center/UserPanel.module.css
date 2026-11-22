@@ -12,6 +12,27 @@
   place-items: center;
   line-height: 0;
 }
+/* 新しい版があるときの巣箱: 押せる形にし、金色と元の色を 2 秒ごとに行き来する */
+.birdhouse[data-newer] {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  animation: 2s ease-in-out infinite alternate;
+  animation-name: glow;
+}
+@keyframes glow {
+  to {
+    color: var(--skin-palette-warn);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .birdhouse[data-newer] {
+    animation: none;
+    color: var(--skin-palette-warn);
+  }
+}
 .birdhouse svg {
   width: 18px;
   height: 18px;

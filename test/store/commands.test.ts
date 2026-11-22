@@ -78,13 +78,13 @@ describe("コマンドを出すかは、呼んだ場所の様子で決まる", (
   test("ダイアログは、ステージからも、ステージを持たないスクリーンからも開ける。開いたスクリーンを閉じると、ダイアログも閉じる", () => {
     const store = newStore()
     const { state, actions } = store
-    actions.openDialog("s1", "@matomezu/base:settings")
+    actions.openDialog("s1", "@matomezu/base:settings", {})
     expect(state.getState().dialog).toMatchObject({ stage: "s1", screen: "c2" })
     actions.closeDialog()
-    actions.openDialog("nope", "@matomezu/base:settings")
+    actions.openDialog("nope", "@matomezu/base:settings", {})
     expect(state.getState().dialog).toBeNull()
     const second = actions.openScreenId("@matomezu/control-center:screen", {})
-    actions.openDialog(second, "@matomezu/base:settings")
+    actions.openDialog(second, "@matomezu/base:settings", {})
     expect(state.getState().dialog).toMatchObject({ stage: "none", screen: second })
     actions.closeScreen(second)
     expect(state.getState().dialog).toBeNull()
