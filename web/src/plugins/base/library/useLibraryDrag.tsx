@@ -2,10 +2,11 @@
 // 行の間（その位置へ）・フォルダの行の上（中へ）・ゴミ箱の行（ゴミ箱へ）に落とす。4px 動かしてから始め、落とせる先でだけ aim を持つ。
 // 中をしまっているツリーの行の上で少し待つと、中を出す。Escape で取り消す。先に同じ名前の物が在れば、離したときに確かめる（asking）
 import { type PointerEvent, type RefObject, useEffect, useRef, useState } from "react"
+import type { CoreCatalog } from "../../../core/core-catalog"
 import { entriesIn } from "../../../core/entries"
 import { HOME_ID, type Library, TRASH_ID } from "../../../core/folders"
 import { useCommand } from "../../../ui/commands"
-import { useReadState } from "../../../ui/store-context"
+import { useCatalog, useReadState } from "../../../ui/store-context"
 import { useAllowed, useAllowedOn } from "../../../ui/view-hooks"
 import { DRAG_START } from "../utils"
 import { LIBRARY_ENTRY_MOVE, LIBRARY_TREE_SCOPE } from "./commands"
@@ -41,6 +42,7 @@ export interface AskingMove {
 // ポインタの下の行 over と、そこへ entry を落とせるなら落とす所 aim
 function aimAt(
   root: HTMLElement,
+  catalog: CoreCatalog,
   library: Library,
   entry: string,
   x: number,
@@ -53,7 +55,7 @@ function aimAt(
   const box = under.getBoundingClientRect()
   const along = zone === LIBRARY_TREE_SCOPE ? (y - box.top) / box.height : (x - box.left) / box.width
   const inside: Drop = row === TRASH_ID ? { to: "trash" } : { to: "folder", into: row }
-  const enters = row !== entry && droppable(library, entry, inside)
+  const enters = row !== entry && droppable(catalog, library, entry, inside)
   // 中へ入れられる行は、端の 1/4 ずつが前・後ろ。入れられない行は、半分ずつ。一番上の行（書庫ホーム・ゴミ箱）には、前も後ろも無い
   const edge = enters ? 0.25 : 0.5
   const where = holder === row ? "into" : along < edge ? "before" : along >= 1 - edge ? "after" : "into"
@@ -63,7 +65,7 @@ function aimAt(
   const next = beside[beside.findIndex(r => r.id === row) + 1]?.id
   const index = indexBefore(library.folders, holder, entry, where === "before" ? row : next)
   const drop: Drop = { to: "folder", into: holder, index }
-  return { over, aim: droppable(library, entry, drop) ? { zone, row, where, drop } : null }
+  return { over, aim: droppable(catalog, library, entry, drop) ? { zone, row, where, drop } : null }
 }
 
 const sameAim = (a: Aim | null, b: Aim | null): boolean =>
@@ -72,6 +74,7 @@ const sameAim = (a: Aim | null, b: Aim | null): boolean =>
 // root は書庫の画面の根の要素。unfold は、ツリーの行 id の中を出す（もう出していれば何もしない）
 export function useLibraryDrag(root: RefObject<HTMLElement | null>, unfold: (id: string) => void) {
   const read = useReadState()
+  const catalog = useCatalog().core
   const naming = useReadNaming()
   const move = useCommand(LIBRARY_ENTRY_MOVE.id).run
   const [drag, setDrag] = useState<LibraryDrag | null>(null)
@@ -116,7 +119,7 @@ export function useLibraryDrag(root: RefObject<HTMLElement | null>, unfold: (id:
     }
     const onMove = (m: globalThis.PointerEvent) => {
       if (!dragging && Math.hypot(m.clientX - from.x, m.clientY - from.y) < DRAG_START) return
-      const at = aimAt(el, read(), id, m.clientX, m.clientY)
+      const at = aimAt(el, catalog, read(), id, m.clientX, m.clientY)
       wait(at.over?.zone === LIBRARY_TREE_SCOPE && at.over.row !== id ? at.over.row : null)
       if (dragging && sameAim(aim, at.aim)) return
       dragging = true

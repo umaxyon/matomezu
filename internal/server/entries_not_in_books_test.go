@@ -214,3 +214,33 @@ func TestReadPageTellsTheFolderOfThePage(t *testing.T) {
 		}
 	}
 }
+
+// 常駐を通して、ページをブックと書庫ホームの間で動かせる（entry-move）: 書庫ホームのページ h1 をブック b1 へ入れると、read_book の b1 に入り、
+// read_folder の書庫ホームの行から消える。ブックのページ p1 を書庫ホームへ出すと、その逆
+func TestAPageMovesBetweenABookAndTheHome(t *testing.T) {
+	s, _ := newServerOn(t, Options{}, entriesStore(t))
+	writer := writerAI(t, s.URL)
+	move := func(entry, into string) {
+		t.Helper()
+		_, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:entry-move","args":{"entry":"`+entry+`","into":"`+into+`"}}`, writer)
+		if got != `{"ok":true,"result":{}}` {
+			t.Fatalf("entry-move %s into %s = %s", entry, into, got)
+		}
+	}
+	has := func(path, id string) bool {
+		t.Helper()
+		code, body := send(t, "GET", s.URL+path, "", ai)
+		if code != 200 {
+			t.Fatalf("%s = %d %s", path, code, body)
+		}
+		return strings.Contains(body, `"id":"`+id+`"`)
+	}
+	move("h1", "b1")
+	if !has("/api/ai/books/b1", "h1") || has("/api/ai/folder", "h1") {
+		t.Fatal("h1 is not in b1 after moving it out of the home")
+	}
+	move("p1", storage.HomeID)
+	if has("/api/ai/books/b1", "p1") || !has("/api/ai/folder", "p1") {
+		t.Fatal("p1 is not in the home after moving it out of b1")
+	}
+}

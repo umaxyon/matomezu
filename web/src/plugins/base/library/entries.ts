@@ -1,5 +1,6 @@
 // 書庫が対象のアクションが使う、エントリの読み方と変え方: ゴミ箱の外に在るエントリ・動かせる先・名前を変える・重ならない名前にする・ゴミ箱から戻す先
 
+import type { CoreCatalog } from "../../../core/core-catalog"
 import {
   type EntryKind,
   freeTitle,
@@ -73,16 +74,26 @@ export const holdsEntries = (folders: Folders, id: string): boolean => {
 }
 
 // エントリ entry を、フォルダ into へ動かす（同じフォルダの中の並べ替えも）のを、書庫が対象のアクションが扱うか: entry がゴミ箱の外に在り、into がゴミ箱の外のフォルダ・ブック・バインダで、
-// ブックの中の物（ページ・バインダ）なら、ブックかバインダの中へだけ（ブックの外へは出さない）、バインダの中のページなら、バインダの中へだけ（バインダの外へ 1 枚ずつは出さない）。
-// ブックの外の物なら、ブックの外へだけ（ブックかバインダの中へは入れない）。持てる種類か・自分の中へでないかは、土台（core/entries.ts の movedEntry）が見る
-export function movesInto(folders: Folders, entry: string, into: string): boolean {
+// まとまるタイプ（grouping が binder）のページなら、バインダから、同じタイプで紙と向きのそろうバインダへだけ。まとまらないタイプのページなら、バインダでない所へ（ブックと書庫ホーム・フォルダの間も）。
+// バインダなら、ブックと書庫ホーム・フォルダの間も（空のバインダはブックの外へ出さない）。ブック・フォルダなら、ブックの外へだけ。
+// 持てる種類か・自分の中へでないかは、土台（core/entries.ts の movedEntry）が見る
+export function movesInto(catalog: CoreCatalog, { pages, folders }: Library, entry: string, into: string): boolean {
   const place = placedOutsideTrash(folders, entry)
   const to = folders[into]
   if (!place || !to || to.folderRole === "trash" || inTrash(folders, into)) return false
-  const toBook = to.folderRole === "book" || to.folderRole === "binder"
-  if (place.holder.folderRole === "binder") return to.folderRole === "binder"
-  if (place.holder.folderRole === "book") return toBook
-  return !toBook
+  const from = place.holder.folderRole
+  if (place.ref.kind === "page") {
+    const page = pages[entry]
+    if (!page || catalog.pageTypes.get(page.type)?.grouping !== "binder") return to.folderRole !== "binder"
+    if (from !== "binder" || to.folderRole !== "binder" || to.pageType !== page.type) return false
+    const lead = pages[to.lineup.find(r => r.id !== entry)?.id ?? entry]
+    return lead?.paper === page.paper && lead.orientation === page.orientation
+  }
+  if (place.ref.kind === "binder") {
+    const leaves = from === "book" && to.folderRole !== "book"
+    return !leaves || (folders[entry]?.lineup.length ?? 0) > 0
+  }
+  return to.folderRole !== "book" && to.folderRole !== "binder"
 }
 
 // 新しいブック・フォルダを作る先: フォルダ opened がエントリを入れられれば、そこ。入れられなければ（ブック・バインダ）、それを入れている一番近い書庫ホームかフォルダ。

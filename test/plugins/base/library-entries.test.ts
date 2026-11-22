@@ -63,10 +63,11 @@ test("entry-move はブックとフォルダを別のフォルダへ動かし、
   expect(perform("@matomezu/base:entry-move", { entry: b, into: "b1" }).ok).toBe(false)
   expect(perform("@matomezu/base:entry-move", { entry: b, into: TRASH_ID }).ok).toBe(false)
   expect(perform("@matomezu/base:entry-move", { entry: HOME_ID, into: a }).ok).toBe(false)
-  // ブックの中のページは、エントリのアクションでは動かせず、ゴミ箱にも入らない（ブックを開いて行う）
+  // ブックの中のページは、ゴミ箱に直には入らない（ブックの外のページにしてから入れる）
   const page = store.state.getState().folders.b1?.lineup[0]?.id as string
-  expect(perform("@matomezu/base:entry-move", { entry: page, into: b }).ok).toBe(false)
   expect(perform("@matomezu/base:entry-trash", { entry: page }).ok).toBe(false)
+  expect(perform("@matomezu/base:entry-move", { entry: page, into: b }).ok).toBe(true)
+  expect(perform("@matomezu/base:entry-trash", { entry: page }).ok).toBe(true)
 })
 
 test("entry-move は、先に同じ名前が在れば断る。onConflict が number なら、番号を付けた名前で入れ、その名前を返す", () => {

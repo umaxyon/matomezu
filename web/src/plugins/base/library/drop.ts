@@ -1,4 +1,6 @@
 // 書庫の画面のドラッグで落とす先: 落とせるか・行の間へ落とすときの位置・名前が重なるときに確かめる事を、動かすアクション（entry-move・entry-move-over）と同じ読み方で出す
+import { outsideHolds } from "../../../core/book"
+import type { CoreCatalog } from "../../../core/core-catalog"
 import { entriesIn, isMoveRefusal, movedEntry, type Naming, titleOf } from "../../../core/entries"
 import type { Folders, Library } from "../../../core/folders"
 import { systemFolderOf, treeHolds } from "../../../core/folders-tree"
@@ -20,14 +22,15 @@ export type Drop = { to: "folder"; into: string; index?: number } | { to: "trash
 export const draggable = (folders: Folders, entry: string): boolean =>
   placedOutsideTrash(folders, entry) !== undefined && systemFolderOf(folders[entry]) === undefined
 
-// エントリ entry を drop へ落とせるか（動かしても同じ場所になる所・自分の中・持てない種類の所・ブックの中の物をブックの外へ、ブックの外の物をブックの中へは落とせない。
-// ゴミ箱へは、書庫ホームかフォルダの直下に在る物だけ。動かした書庫が木の決まり treeHolds を破る所（書庫ホームの先頭のシステムフォルダより前など）へも落とせない）
-export function droppable(library: Library, entry: string, drop: Drop): boolean {
+// エントリ entry を drop へ落とせるか（動かしても同じ場所になる所・自分の中・持てない種類の所と、動かすアクションが扱わない所 movesInto へは落とせない。
+// ゴミ箱へは、書庫ホームかフォルダの直下に在る物だけ。動かした書庫が木の決まり treeHolds とブックの外の決まり outsideHolds を破る所
+// （書庫ホームの先頭のシステムフォルダより前・ブックの外のバインダを空にする所など）へも落とせない）
+export function droppable(catalog: CoreCatalog, library: Library, entry: string, drop: Drop): boolean {
   if (!draggable(library.folders, entry)) return false
   if (drop.to === "trash") return placedOutsideBooks(library.folders, entry) !== undefined
-  if (!movesInto(library.folders, entry, drop.into)) return false
+  if (!movesInto(catalog, library, entry, drop.into)) return false
   const moved = movedEntry(library, entry, drop.into, drop.index)
-  return !isMoveRefusal(moved) && treeHolds(moved)
+  return !isMoveRefusal(moved) && treeHolds(moved) && outsideHolds(catalog, library, moved)
 }
 
 // フォルダ into の並びで、行 before の前（before が無ければ末尾）の位置を、掴んだ物 entry を除いて数えた index

@@ -1,4 +1,4 @@
-// 書庫のエントリを動かす・名前を変える・フォルダを作る: entry-move は、書庫ホームかフォルダの直下のエントリを、別のフォルダ（か同じフォルダ）の何番目かへ動かす。
+// 書庫のエントリを動かす・名前を変える・フォルダを作る: entry-move は、書庫のエントリ（ブックの中のページ・バインダも）を、別のフォルダ（か同じフォルダ）の何番目かへ動かす。
 // entry-rename は、その名前を変える。folder-create は、フォルダを作る。どれも、エントリの中身は変えない。
 // 同じフォルダの中に同じ名前は置けない（土台が title-taken で断る）。entry-move の onConflict が number なら、番号を付けた名前にして入れる
 import { z } from "zod"
@@ -38,7 +38,7 @@ export const FOLDER_CREATE = kit.defineAction({
 export const ENTRY_MOVE = kit.defineAction({
   id: "entry-move",
   aiDescription:
-    'Move an entry of the library to another folder, or to another position in the same folder: entry is its id (a book or a folder, with everything in it; a page or a binder in a book; or a page or a binder that is not in a book), into the id of the folder to move it to (not inside the entry itself), index the position there (counted without the entry; at the end without it). A book or a folder goes into the library home or a folder. A page or a binder in a book goes into a book (its lineup) or a binder of its page type, in the same book or another; it cannot leave books, and a page in a binder stays in binders. A page or a binder that is not in a book goes into the library home or a folder; it cannot enter a book. Nothing in the entry changes. When the folder already has an entry with the same title, onConflict "refuse" (the default) refuses with title-taken, and "number" moves it with a number added to its title (returned as title). Only the user can replace the entry that is there (entry-move-over).',
+    'Move an entry of the library to another folder, or to another position in the same folder: entry is its id (a book or a folder, with everything in it; a page or a binder in a book; or a page or a binder that is not in a book), into the id of the folder to move it to (not inside the entry itself), index the position there (counted without the entry; at the end without it). A book or a folder goes into the library home or a folder. A page or a binder, in a book or not, goes into a book (its lineup), the library home or a folder; an empty binder cannot leave its book. A page of a type kept in binders (a slide) goes only from a binder into a binder of its page type, with the same paper and orientation. Nothing in the entry changes. When the folder already has an entry with the same title, onConflict "refuse" (the default) refuses with title-taken, and "number" moves it with a number added to its title (returned as title). Only the user can replace the entry that is there (entry-move-over).',
   title: "Move",
   target: "library",
   permissionScope: { entry: "entry", where: "place", into: "into" },
@@ -51,7 +51,7 @@ export const ENTRY_MOVE = kit.defineAction({
   run: (library, args, ctx) => {
     const naming = ctx.naming
     const place = placedOutsideTrash(library.folders, args.entry)
-    if (!place || !movesInto(library.folders, args.entry, args.into)) return null
+    if (!place || !movesInto(ctx.catalog, library, args.entry, args.into)) return null
     const moved = movedEntry(library, args.entry, args.into, args.index)
     if (isMoveRefusal(moved)) return null
     if (args.onConflict !== "number" || place.holder.id === args.into) return { next: moved, result: {} }
@@ -87,7 +87,7 @@ export const ENTRY_MOVE_OVER = kit.defineAction({
   }),
   run: (library, args, ctx) => {
     const place = placedOutsideTrash(library.folders, args.entry)
-    if (!place || place.holder.id === args.into || !movesInto(library.folders, args.entry, args.into)) return null
+    if (!place || place.holder.id === args.into || !movesInto(ctx.catalog, library, args.entry, args.into)) return null
     const cleared = overwritten(
       library,
       place.ref.kind,

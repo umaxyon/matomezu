@@ -1,11 +1,15 @@
-// 書庫が対象のアクションで、ブックの中のページ・バインダを扱う: entry-move はブックの中で並べ替え、ブックからブックへ動かし（ブックの外へは出さない。
-// スライドのページはバインダの外へ 1 枚ずつ出さない）、entry-rename は名前を変え、entry-duplicate は番号付きの名前ですぐ後ろに写し、page-create はブックにページを作る。
-// ロックしたページは、エントリとしてほかのブックへ動かせるが、名前は変えられない。ロックしたブックの中は、出し入れも並べ替えもできない
+// 書庫が対象のアクションで、ブックの中のページ・バインダを扱う: entry-move はブックの中で並べ替え、ブックからブックへ、ブックと書庫ホーム・フォルダの間で動かし
+// （空のバインダはブックの外へ出さない。スライドのページはバインダの外へ 1 枚ずつ出さない）、entry-rename は名前を変え、entry-duplicate は番号付きの名前ですぐ後ろに写し、
+// page-create はブックにページを作る。ロックしたページは、エントリとしてほかのブックへ動かせるが、名前は変えられない。ロックしたブックの中は、出し入れも並べ替えもできない
 
 import { expect, test } from "bun:test"
 import { HOME_ID } from "../../../web/src/core/folders"
+import { LIBRARY_HISTORY } from "../../../web/src/core/history"
+import { shownPageId } from "../../../web/src/core/stage"
+import { screenOf } from "../../../web/src/core/window"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { PAGE_CREATE } from "../../../web/src/plugins/base/library/entry-duplicate"
+import { libraryRevertArgs } from "../../../web/src/plugins/base/library/revert"
 import { pluginKit } from "../../../web/src/store/kit"
 import { definePlugin } from "../../../web/src/store/plugin"
 import { createMatomezuInstance } from "../../../web/src/store/store"
@@ -34,6 +38,12 @@ function setup() {
   return { store, perform, state, lineup, titleOf, add, act }
 }
 
+// フォルダ「仕事」を書庫ホームに作った id
+function folderIn(act: ReturnType<typeof setup>["act"]): string {
+  const done = act("folder-create", { title: "仕事" })
+  return (done.ok && (done.result as { folder: string }).folder) as string
+}
+
 test("entry-move: ブックの中で並べ替え、ほかのブックの並びの index 番目へ動かす。名前が重なれば断るか番号を付ける", () => {
   const { lineup, titleOf, add, act } = setup()
   const a = add("b1", { title: "A" }).page
@@ -51,20 +61,105 @@ test("entry-move: ブックの中で並べ替え、ほかのブックの並び�
   expect(titleOf("p1")).toBe("ページ 1 2")
 })
 
-test("entry-move: ブックの中の物はブックの外へ出さない。スライドのページはバインダの外へ出さず、ほかのバインダへは動かせる", () => {
+test("entry-move: スライドのページはバインダの外（フォルダ・書庫ホーム・ブックの並び）へ出さず、ほかのバインダへは動かせる。バインダはブックからブックへ", () => {
   const { lineup, add, act } = setup()
-  const folder = act("folder-create", { title: "仕事" })
-  const into = (folder.ok && (folder.result as { folder: string }).folder) as string
-  expect(act("entry-move", { entry: "p1", into }).ok).toBe(false)
-  expect(act("entry-move", { entry: "p1", into: HOME_ID }).ok).toBe(false)
+  const into = folderIn(act)
   const s = add("b1", { type: SLIDE, title: "1", into: { newBinder: "説明" } })
   const t = add("b2", { type: SLIDE, title: "2", into: { newBinder: "説明" } })
-  expect(act("entry-move", { entry: s.page, into: "b1" }).ok).toBe(false)
+  for (const to of ["b1", into, HOME_ID]) expect(act("entry-move", { entry: s.page, into: to }).ok).toBe(false)
   expect(act("entry-move", { entry: s.page, into: t.binder }).ok).toBe(true)
   expect(lineup(t.binder as string)).toEqual([t.page, s.page])
   // バインダはブックからブックへ（名前が重なれば番号を付けて）
   expect(act("entry-move", { entry: s.binder, into: "b2", onConflict: "number" }).ok).toBe(true)
   expect(lineup("b2")?.at(-1)).toBe(s.binder)
+})
+
+test("entry-move: ブックのページをフォルダ・書庫ホームへ出し、ブックの外のページをブックへ入れる。アノテーションは付いたまま。ブックは空になってよい", () => {
+  const { store, state, lineup, act } = setup()
+  const into = folderIn(act)
+  const placed = store.actions.perform(
+    "@matomezu/paper:item-place",
+    { item: "@matomezu/box:shape-nest-box", at: { x: 40, y: 40 } },
+    { page: "p1" },
+  )
+  const item = (placed.ok && (placed.result as { item: string }).item) as string
+  expect(store.actions.perform("@matomezu/base:note-add", { anchors: [item], text: "見て" }, { page: "p1" }).ok).toBe(
+    true,
+  )
+  const notes = state().annotations
+  expect(act("entry-move", { entry: "p1", into }).ok).toBe(true)
+  expect(lineup("b1")).toEqual([])
+  expect(lineup(into)).toEqual(["p1"])
+  expect(state().annotations).toBe(notes)
+  expect(act("entry-move", { entry: "p1", into: HOME_ID, index: 0 }).ok).toBe(true)
+  expect(lineup(HOME_ID)?.[0]).toBe("p1")
+  expect(act("entry-move", { entry: "p1", into: "b1" }).ok).toBe(true)
+  expect(lineup("b1")).toEqual(["p1"])
+  expect(lineup(HOME_ID)).not.toContain("p1")
+  expect(state().annotations).toBe(notes)
+})
+
+test("entry-move: 開いているブックのページがフォルダへ出ると、ステージはブックの隣のページを開く", () => {
+  const { store, state, add, act } = setup()
+  const a = add("b1", { title: "A" }).page
+  showFirstBook(store)
+  const shown = () => screenOf(state().window).stages.map(s => shownPageId(s.opened ?? null))
+  expect(shown()).toEqual(["p1"])
+  expect(act("entry-move", { entry: "p1", into: folderIn(act) }).ok).toBe(true)
+  expect(shown()).toEqual([a])
+})
+
+test("entry-move: バインダごとブックからフォルダへ出し、ブックへ入れる。空のバインダはブックの外へ出さない", () => {
+  const { state, lineup, add, act } = setup()
+  const into = folderIn(act)
+  const s = add("b1", { type: SLIDE, title: "1", into: { newBinder: "説明" } })
+  const binder = s.binder as string
+  expect(act("entry-move", { entry: binder, into }).ok).toBe(true)
+  expect(lineup(into)).toEqual([binder])
+  expect(lineup(binder)).toEqual([s.page])
+  expect(act("entry-move", { entry: binder, into: "b2" }).ok).toBe(true)
+  expect(lineup("b2")).toEqual(["b2-p1", binder])
+  // 中を空にしたバインダは、ブックの中には在れるが、外へは出せない
+  const t = add("b1", { type: SLIDE, title: "2", into: { newBinder: "別" } })
+  expect(act("entry-move", { entry: s.page, into: t.binder }).ok).toBe(true)
+  expect(lineup(binder)).toEqual([])
+  expect(act("entry-move", { entry: binder, into }).ok).toBe(false)
+  expect(act("entry-move", { entry: binder, into: HOME_ID }).ok).toBe(false)
+  expect(state().folders[binder]).toBeDefined()
+})
+
+test("entry-move: ブックとフォルダの間で名前が重なれば断る（title-taken）か、onConflict number で番号を付ける", () => {
+  const { lineup, titleOf, act } = setup()
+  const into = folderIn(act)
+  expect(act("entry-move", { entry: "p1", into }).ok).toBe(true)
+  // b2 にも「ページ 1」が在る
+  expect(act("entry-move", { entry: "b2-p1", into })).toMatchObject(taken)
+  expect(act("entry-move", { entry: "b2-p1", into, onConflict: "number" })).toMatchObject({
+    ok: true,
+    result: { title: "ページ 1 2" },
+  })
+  expect(lineup(into)).toEqual(["p1", "b2-p1"])
+  expect(titleOf("b2-p1")).toBe("ページ 1 2")
+  expect(act("entry-move", { entry: "p1", into: "b2" }).ok).toBe(true)
+  expect(act("entry-move", { entry: "b2-p1", into: "b2" }).ok).toBe(true)
+  expect(lineup("b2")).toEqual(["p1", "b2-p1"])
+})
+
+test("entry-move: ブックとフォルダの間の移動は、書庫の元に戻す（library-revert）で戻る", async () => {
+  const { store, state, lineup, act } = setup()
+  const into = folderIn(act)
+  const undo = () => {
+    const step = (state().history[LIBRARY_HISTORY] ?? { undo: [] }).undo.at(-1)
+    const done = step ? store.actions.perform("@matomezu/base:library-revert", libraryRevertArgs(step, "before")) : null
+    if (done?.ok) store.actions.moveHistory(LIBRARY_HISTORY, "undo")
+    return done?.ok
+  }
+  await Promise.resolve()
+  expect(act("entry-move", { entry: "p1", into }).ok).toBe(true)
+  await Promise.resolve()
+  expect(undo()).toBe(true)
+  expect(lineup("b1")).toEqual(["p1"])
+  expect(lineup(into)).toEqual([])
 })
 
 test("entry-rename: ブックの中のページ・バインダの名前を変える。同じブックの中の名前と重なれば断る", () => {
@@ -121,6 +216,11 @@ test("ロックしたブックからは出さず、入れず、中を並べ替�
   expect(perform("@matomezu/base:book-lock", {}, { book: "b2" }).ok).toBe(true)
   expect(act("entry-move", { entry: a, into: "b2" })).toMatchObject({ ...locked, book: "b2" })
   expect(act("entry-move", { entry: "b2-p1", into: "b1" })).toMatchObject({ ...locked, book: "b2" })
+  // ロックしたブックとフォルダの間も
+  const into = folderIn(act)
+  expect(act("entry-move", { entry: "b2-p1", into })).toMatchObject({ ...locked, book: "b2" })
+  expect(act("entry-move", { entry: a, into }).ok).toBe(true)
+  expect(act("entry-move", { entry: a, into: "b2" })).toMatchObject({ ...locked, book: "b2" })
   expect(act("page-create", { folder: "b2", type: DRAWING, title: "新" })).toMatchObject(locked)
   expect(perform("@matomezu/base:book-lock", {}, { book: "b1" }).ok).toBe(true)
   expect(act("entry-move", { entry: a, into: "b1", index: 0 })).toMatchObject({ ...locked, book: "b1" })
