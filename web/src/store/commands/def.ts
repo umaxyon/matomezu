@@ -185,10 +185,11 @@ export function withWorkspace(
 // コマンドの文脈 ctx の、ステージの並びと道具（withWorkspace が作った文脈だけが持つ。写した文脈は持たない）
 export const workspaceOf = (ctx: CommandContext): Workspace => workspaces.get(ctx)?.workspace ?? fail("E116")
 
-// 文脈 ctx のステージで開いている物のうち、アクションを使えるかを問う相手（ブックか、ブックの外のページ。どちらも開いていなければ undefined）
+// 文脈 ctx のステージで開いている物のうち、アクションを使えるかを問う相手（core/stage.ts の askedOutermostOf と同じ分け方: ブックか、ブックでないステージエントリなら開いているページ 1 枚。
+// どちらも開いていなければ undefined）
 export function askedIn(ctx: CommandContext): AskedOutermost | undefined {
   if (ctx.book !== NO_BOOK) return { book: ctx.book }
-  return ctx.stage.opened?.outermost.kind === "page" && ctx.page !== NO_PAGE
+  return ctx.stage.opened && ctx.stage.opened.outermost.kind !== "book" && ctx.page !== NO_PAGE
     ? outsideAsked(ctx.folders, ctx.page)
     : undefined
 }

@@ -20,9 +20,9 @@ import {
   UNREADABLE_ID,
   unreadableFolderOf,
 } from "./folders"
-import { recordsOf } from "./folders-books"
+import { binderOf, recordsOf } from "./folders-books"
 import type { ItemPage } from "./placed"
-import type { Book } from "./schema/book"
+import type { BinderEntry, Book } from "./schema/book"
 
 // ブックとバインダの行から、木の決まりに要る所だけを読む形
 const LooseFolderSchema = z.looseObject({
@@ -288,4 +288,13 @@ export function atOutsidePagePlace(folders: Folders, page: string): boolean {
 // ステージで開ける、ブックの外のページ: id がページで、そのステージエントリがそのページ自身（ブックにもバインダにも入っていない）で、ゴミ箱の中でない。当たらなければ undefined
 export function outsidePageIn(library: Library, id: string): ItemPage | undefined {
   return atOutsidePagePlace(library.folders, id) ? pageIn(library.pages, id) : undefined
+}
+
+// ステージで開ける、ブックの外のバインダ: id がバインダで、そのステージエントリがそのバインダ自身（ブックに入っていない）で、ゴミ箱の中でなく、中のページが全部表に在る。
+// 中のページごと組んだエントリを返す（当たらなければ undefined）
+export function outsideBinderIn({ pages, folders }: Library, id: string): BinderEntry | undefined {
+  const row = folders[id]
+  if (row?.folderRole !== "binder" || inTrash(folders, id)) return undefined
+  const entry = stageEntryByFolders(folders, id)
+  return entry !== NO_OUTERMOST && entry.kind === "binder" ? binderOf(pages, row) : undefined
 }

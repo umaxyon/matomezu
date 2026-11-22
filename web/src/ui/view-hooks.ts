@@ -65,7 +65,7 @@ export function usePageById(id: string): ItemPage | null {
   const scope = useScope()
   return useMatomezuState(s => {
     const opened = openedOf(s, scope)
-    return opened ? openedPageById(s.books, s.pages, opened, id) : null
+    return opened ? openedPageById(s, opened, id) : null
   })
 }
 
@@ -74,7 +74,7 @@ export function useItem<Id extends ItemId>(page: string, item: string, id?: Id):
   const scope = useScope()
   return useMatomezuState(s => {
     const opened = openedOf(s, scope)
-    const p = opened ? openedPageById(s.books, s.pages, opened, page) : null
+    const p = opened ? openedPageById(s, opened, page) : null
     // ページのアイテムか、どの深さの子の形も
     const found = p && (p.items?.find(i => i.id === item) ?? findShape(p, item)?.shape)
     return found && (id === undefined || found.item === id) ? (found as unknown as PlacedOf<Id>) : undefined
@@ -284,8 +284,7 @@ export function usePerform(): <Id extends ActionId>(
         if (entry === undefined) return { ok: false, reason: "no-book" }
         // ブックが対象のアクションは、ブックの外のページを開いたステージからは行えない
         if (!isOnPage(target)) return outside ? { ok: false, reason: "no-book" } : loose(action, args, { book: entry })
-        const { books, pages } = read()
-        return on && openedPageById(books, pages, { outermost: entry }, on.page)
+        return on && openedPageById(read(), { outermost: entry }, on.page)
           ? loose(action, args, on)
           : noPage(on?.page ?? "")
       },

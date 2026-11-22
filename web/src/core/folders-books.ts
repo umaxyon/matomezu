@@ -71,7 +71,7 @@ const binderKept = new WeakMap<BinderFolder, Kept<BinderEntry>>()
 const bookKept = new WeakMap<BookFolder, Kept<Book>>()
 
 // バインダ folder を、中のページごと組んだエントリ（中のページが表に 1 枚でも無ければ undefined）
-function binderOf(pages: Pages, folder: BinderFolder): BinderEntry | undefined {
+export function binderOf(pages: Pages, folder: BinderFolder): BinderEntry | undefined {
   const parts = folder.lineup.map(r => pages[r.id])
   if (parts.some(p => p === undefined)) return undefined
   const kept = binderKept.get(folder)
