@@ -238,6 +238,7 @@
   background: none;
   color: inherit;
   font: inherit;
+  text-align: left;
   cursor: pointer;
 }
 .crumb:hover {
@@ -246,10 +247,10 @@
 .crumb[aria-current="true"] {
   font-weight: 700;
 }
-/* パンくずの 1 段（区切りの › と名前）: 縦は中央 */
+/* パンくずの 1 段（区切りの › と名前）: 名前が折り返しても、› は名前の 1 行目にそろえる */
 .path > span {
   display: flex;
-  align-items: center;
+  align-items: baseline;
 }
 .sep {
   padding: 0 2px;
@@ -257,10 +258,11 @@
   font-size: 18px;
   line-height: 1;
 }
-/* パンくずの下の、作るボタンの行（下に区切りの線） */
+/* パンくずの下の、作るボタンの行（下に区切りの線）。入らなければボタンごとに折り返す */
 .tools {
   display: flex;
   flex: none;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   padding: 8px 12px;
@@ -271,6 +273,7 @@
   display: inline-flex;
   gap: 6px;
   align-items: center;
+  white-space: nowrap;
 }
 .historyButton {
   display: grid;
