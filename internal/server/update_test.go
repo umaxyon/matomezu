@@ -93,7 +93,7 @@ func roomOf(t *testing.T, url, participant string) string {
 	return ""
 }
 
-// 頼んだら、そのワークルームの AI に 1 つだけ流れ（前の頼みは置き換える）、呼び出しの返事でも渡り、頼んだ時刻を知らせる。AI のいないワークルームは断る
+// 頼んだら、そのワークルームの AI に 1 つだけ流れ（渡せたと返っていない前の頼みがあれば足さない）、呼び出しの返事でも渡り、頼んだ時刻を知らせる。AI のいないワークルームは断る
 func TestAskUpdateWakesTheWorkroomsAI(t *testing.T) {
 	s, hub := joinWorld(t, joinStore(t))
 	hub.SetUpdateCheck("1.0.0", nil)

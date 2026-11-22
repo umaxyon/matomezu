@@ -90,7 +90,7 @@ func (h *Hub) checkUpdate(ctx context.Context) (UpdateStatus, error) {
 // askUpdateLine は、版を上げるよう頼まれた AI に流す 1 行
 const askUpdateLine = `matomezu: the user asks you to update matomezu. Run "matomezu update" in a terminal and tell the user the result.`
 
-// AskUpdate は、ワークルーム workroom（id）の、参加が確定した参加者に、版を上げるよう頼む（まだ渡していない前の頼みは置き換える）。
+// AskUpdate は、ワークルーム workroom（id）の、参加が確定した参加者に、版を上げるよう頼む（まだ渡せたと返っていない前の頼みがあれば、新しくは足さない）。
 // 参加が確定した参加者がいなければ ok は偽。頼んだら時刻を覚えて全部の窓に知らせる
 func (h *Hub) AskUpdate(workroom string, now time.Time) (ok bool, err error) {
 	h.mu.Lock()
@@ -104,10 +104,9 @@ func (h *Hub) AskUpdate(workroom string, now time.Time) (ok bool, err error) {
 		h.mu.Unlock()
 		return false, nil
 	}
-	if q := h.wakeQueue[to]; q != nil {
-		h.wakeQueue[to] = slices.DeleteFunc(q, func(it wakeItem) bool { return it.kind == wakeUpdate && it.lentTo == 0 })
+	if !slices.ContainsFunc(h.wakeQueue[to], func(it wakeItem) bool { return it.kind == wakeUpdate }) {
+		h.enqueueWake(wakeItem{participant: to, kind: wakeUpdate, line: askUpdateLine})
 	}
-	h.enqueueWake(wakeItem{participant: to, kind: wakeUpdate, line: askUpdateLine})
 	h.mu.Unlock()
 	h.updateMu.Lock()
 	h.update.AskedAt = storage.Stamp(now)
