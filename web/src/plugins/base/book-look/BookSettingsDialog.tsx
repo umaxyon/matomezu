@@ -1,12 +1,14 @@
 // ブックの設定のダイアログ: ブックの名前と、ブックが持つ設定の項目（項目のビューを並べる）。
 // 見出しの行の右にキャンセルと確定のボタン。名前が空の間は確定できない。変えた項目は、選んだそばからブックに重ねて見せる（ダイアログの下書き。名前は見せない）。
-// 確定でアクション book-update（設定の項目は settings）を書き、キャンセルでは元のまま。見出しの右の鍵でロックを切り替え、確定で book-lock・book-unlock を行う
+// 確定でアクション book-update（設定の項目は settings）を書き、キャンセルでは元のまま。見出しの右の鍵でロックを切り替え、確定で book-lock・book-unlock を行う（バックヤードのブックは鍵を出さない）
 // （外すのは書く前、掛けるのは書いた後）。選んでいる値で問題の出るページがあれば、その知らせを出して確定できない。
 // 認可ステップが book-update を止めていれば項目を押せない（ロックなら、鍵を外す方にすれば押せる）
 import { useEffect, useId, useState } from "react"
 import { withSettings } from "../../../core/book"
+import { inBackyard } from "../../../core/entries"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
+import { useMatomezuState } from "../../../ui/store-context"
 import { useActions, useAllowed, useBook, usePerform } from "../../../ui/view-hooks"
 import { useSettingControls } from "../book-settings/SettingControls"
 import { Dialog } from "../dialog-host/Dialog"
@@ -33,6 +35,8 @@ export function BookSettingsDialog({ onClose }: DialogProps) {
   const blocked = !update.ok && update.permission !== null && !(update.permission === LOCK.id && !locked)
   const settings = useSettingControls({ of: "outermost", book })
   const id = book?.id
+  // バックヤードのブック（ワーカーブックなど）は鍵を出さない
+  const yard = useMatomezuState(s => id !== undefined && inBackyard(s.folders, id))
   const changed = Object.keys(settings.patch).length > 0
   const problems = usePageProblems(book ? withSettings(book, settings.patch) : undefined)
   useEffect(() => {
@@ -57,7 +61,11 @@ export function BookSettingsDialog({ onClose }: DialogProps) {
   return (
     <Dialog
       title={t("Book settings")}
-      aside={<LockToggle locked={locked} label={t(locked ? "Unlock book" : "Lock book")} onChange={setLocked} />}
+      aside={
+        yard ? undefined : (
+          <LockToggle locked={locked} label={t(locked ? "Unlock book" : "Lock book")} onChange={setLocked} />
+        )
+      }
       onClose={onClose}
       actions={
         <>

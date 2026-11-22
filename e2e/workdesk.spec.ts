@@ -1,7 +1,8 @@
 // 書庫の画面の作業机: ワークルームのフォルダの下に、今参加者がいるワークルームの作業机（鳥の顔）、その下にワーカーブックを映す。
-// ワークルームのフォルダと映した節の中では、作るボタンは出したまま押せない。ワーカーブックを開くと、ブックの画面に出る
+// ワークルームのフォルダと映した節の中では、作るボタンは出したまま押せない。ワーカーブックを開くと、ブックの画面に出る。ワーカーブックの設定には、ロックの鍵が無い
 import { expect, test } from "./fixtures"
 import { aiPerform } from "./helpers/ai"
+import { onPaper } from "./helpers/paper"
 
 test("参加者がいるワークルームの作業机の下に、AI が足したワーカーブックが映り、開ける。中では何も作れない", async ({
   page,
@@ -30,4 +31,12 @@ test("参加者がいるワークルームの作業机の下に、AI が足し�
   await page.screenshot({ path: "test-results/workdesk-library.png" })
   await desk.getByRole("button").dblclick()
   await expect(page.getByText("作業のメモ").first()).toBeVisible()
+
+  // ワーカーブックの設定には、ロックの鍵が無い
+  const empty = await onPaper(page, 900, 600)
+  await page.mouse.click(empty.x, empty.y, { button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "ブックの設定" }).click()
+  const dialog = page.getByRole("dialog", { name: "ブックの設定" })
+  await expect(dialog.getByLabel("ブックの名前")).toHaveValue("e2e")
+  await expect(dialog.getByRole("button", { name: "ブックをロックする" })).toHaveCount(0)
 })
