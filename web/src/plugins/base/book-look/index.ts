@@ -87,7 +87,7 @@ export const PAGES_UPDATE = kit.defineAction({
   run: (book, args, ctx) => {
     if (args.pages !== "all" && args.pages.some(id => !findPage(book, id))) return null
     const targets = pagesOf(book).filter(p => args.pages === "all" || args.pages.includes(p.id))
-    let next: Book = book
+    let next = book
     const updated: string[] = []
     const skipped: string[] = []
     const permitted = new Set(ctx.permittedPages)

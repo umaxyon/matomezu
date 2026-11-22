@@ -2,7 +2,7 @@
 // ブックの並び（lineup）を読む・書くのは、ここの関数だけ（ほかは book.lineup を直に歩かない。ページとバインダの持ち方が変わっても、呼ぶ側を変えないため）
 
 import { type CoreCatalog, pageType } from "./core-catalog"
-import { isMoveRefusal, movedEntry, placeOf } from "./entries"
+import { placeOf } from "./entries"
 import {
   type AnyEntryRef,
   binderFolderOf,
@@ -16,12 +16,12 @@ import {
   type PageRow,
   type TrashRef,
 } from "./folders"
-import { bookOf, tablesOf } from "./folders-books"
+import { tablesOf } from "./folders-books"
 import { outsideUnreadable, rawBooksOf, rowsById } from "./folders-unreadable"
 import { freshPageId } from "./ids"
 import { splitId } from "./names"
 import { type ItemPage, pageHolds, slideOf, walkShapes } from "./placed"
-import type { AnyPage, BinderEntry, Book, LineupEntry, Page, UnreadableCode } from "./schema/book"
+import type { AnyPage, BinderEntry, Book, LineupEntry, Page, StageLineup, UnreadableCode } from "./schema/book"
 import { type Warning, warning } from "./warnings"
 
 // 残しておいたブックを確かめる: このインスタンスのブックの形に合うものは books に、読めないものは warning にする（judgeBook の判定。1 冊に 1 つ）。
@@ -387,18 +387,18 @@ export function readLibrary(
 }
 
 // ブックの並び（ページタブの順。1 つはページか、1 つのタイプのページだけを入れるバインダ）
-export const lineupOf = (book: Book): readonly LineupEntry[] => book.lineup
+export const lineupOf = (book: StageLineup): readonly LineupEntry[] => book.lineup
 
 // このブックが持つページを、並びの順に（バインダの中のページも、バインダの所に続けて）
-export const pagesOf = (book: Book): readonly ItemPage[] =>
+export const pagesOf = (book: StageLineup): readonly ItemPage[] =>
   book.lineup.flatMap((e): readonly ItemPage[] => (e.kind === "page" ? [e] : e.lineup))
 
 // ブックのバインダを、並びの順に
-export const bindersOf = (book: Book): readonly BinderEntry[] =>
+export const bindersOf = (book: StageLineup): readonly BinderEntry[] =>
   book.lineup.flatMap(e => (e.kind === "binder" ? [e] : []))
 
 // id のページと、それが入っているバインダ（並びに直に入っているページは binder が null。無ければ undefined）
-export function findPage(book: Book, id: string): { page: ItemPage; binder: BinderEntry | null } | undefined {
+export function findPage(book: StageLineup, id: string): { page: ItemPage; binder: BinderEntry | null } | undefined {
   for (const e of book.lineup) {
     if (e.kind === "page") {
       if (e.id === id) return { page: e, binder: null }
@@ -411,18 +411,20 @@ export function findPage(book: Book, id: string): { page: ItemPage; binder: Bind
 }
 
 // id の要素（ページかバインダ）と同じブックかバインダの並び: 並びに直に入っている要素ならブックの並び、バインダの中のページならそのバインダの並び（無ければ undefined）
-export function siblingsOf(book: Book, id: string): readonly LineupEntry[] | undefined {
+export function siblingsOf(book: StageLineup, id: string): readonly LineupEntry[] | undefined {
   if (book.lineup.some(e => e.id === id)) return book.lineup
   return bindersOf(book).find(f => f.lineup.some(p => p.id === id))?.lineup
 }
 
 // バインダ binder の中のページを、並びの順に（バインダが無ければ空）
-export const pagesIn = (book: Book, binder: string): readonly ItemPage[] => findBinder(book, binder)?.lineup ?? []
+export const pagesIn = (book: StageLineup, binder: string): readonly ItemPage[] =>
+  findBinder(book, binder)?.lineup ?? []
 
-export const findBinder = (book: Book, id: string): BinderEntry | undefined => bindersOf(book).find(f => f.id === id)
+export const findBinder = (book: StageLineup, id: string): BinderEntry | undefined =>
+  bindersOf(book).find(f => f.id === id)
 
 // 並びのページを 1 枚ずつ f で替える（バインダの中も。f が undefined を返したページは除く）
-function mapPages<B extends Book>(book: B, f: (page: AnyPage) => AnyPage | undefined): B {
+function mapPages<B extends StageLineup>(book: B, f: (page: AnyPage) => AnyPage | undefined): B {
   const lineup = book.lineup.flatMap((e): LineupEntry[] => {
     if (e.kind === "page") return [f(e)].flatMap(x => x ?? [])
     const inner = e.lineup.flatMap((p): AnyPage[] => [f(p)].flatMap(x => x ?? []))
@@ -436,7 +438,7 @@ function mapPages<B extends Book>(book: B, f: (page: AnyPage) => AnyPage | undef
 const entryOf = (page: ItemPage): AnyPage => page as AnyPage
 
 // ブック book の、同じ id のページを page に替える（場所は変えない。無ければ何も変えない）
-export function putPage<B extends Book>(book: B, page: ItemPage): B {
+export function putPage<B extends StageLineup>(book: B, page: ItemPage): B {
   return mapPages(book, e => (e.id === page.id ? entryOf(page) : e))
 }
 
@@ -455,7 +457,7 @@ export type NewBinder = Omit<BinderEntry, "id" | "kind" | "lineup">
 
 // ページ page（id を持たない中身）を into の所に足したブックと、振ったページの id（一緒にバインダを作ったなら、その id も）。名指したバインダが無ければ undefined。
 // id は newId の値そのまま（uuid）で、ブックのほかのページ・バインダと重ならない。ページの id を決めて足す口は無い（id はここで振る）
-export function addPage<B extends Book>(
+export function addPage<B extends StageLineup>(
   book: B,
   page: NewPage,
   into: NewPageInto,
@@ -488,22 +490,35 @@ export function addPage<B extends Book>(
 }
 
 // ブック book から、id が page のページを除く
-export function removePage<B extends Book>(book: B, page: string): B {
+export function removePage<B extends StageLineup>(book: B, page: string): B {
   return mapPages(book, e => (e.id === page ? undefined : e))
 }
 
-// エントリ（ページかバインダ）を、同じブックかバインダの中の index 番目（動かす物を除いて数える）へ動かす（並びに直に入っている物は並びの中、バインダの中のページはそのバインダの中。
-// index が後ろすぎれば末尾。id が無いか、動かしても同じ場所なら何も変えない）。並べ替えの中身は、書庫の並びと同じ core/entries.ts の movedEntry
-export function moveEntry<B extends Book>(book: B, id: string, index: number): B {
-  const tables = tablesOf([book])
-  const place = placeOf(tables.folders, id)
-  if (!place) return book
-  const moved = movedEntry(tables, id, place.holder.id, Math.min(index, place.holder.lineup.length - 1))
-  return isMoveRefusal(moved) ? book : ((bookOf(moved, book.id) ?? book) as B)
+// エントリ（ページかバインダ）を、同じ並びかバインダの中の index 番目（動かす物を除いて数える）へ動かす（並びに直に入っている物は並びの中、バインダの中のページはそのバインダの中。
+// index が後ろすぎれば末尾。id が無いか、動かしても同じ場所なら何も変えない）
+export function moveEntry<B extends StageLineup>(book: B, id: string, index: number): B {
+  const moved = <E extends { id: string }>(list: readonly E[]): readonly E[] => {
+    const from = list.findIndex(e => e.id === id)
+    const at = Math.min(index, list.length - 1)
+    const entry = list[from]
+    if (!entry || from === at) return list
+    const others = list.filter(e => e.id !== id)
+    return [...others.slice(0, at), entry, ...others.slice(at)]
+  }
+  const top = moved(book.lineup)
+  if (top !== book.lineup) return { ...book, lineup: top }
+  // 並びに直に在る物は、動かなくてもバインダの中を探さない（バインダの id と同じ id の並びも在る）
+  if (book.lineup.some(e => e.id === id)) return book
+  const lineup = book.lineup.map(e => {
+    if (e.kind !== "binder") return e
+    const inside = moved(e.lineup)
+    return inside === e.lineup ? e : { ...e, lineup: inside }
+  })
+  return lineup.every((e, i) => e === book.lineup[i]) ? book : { ...book, lineup }
 }
 
 // 空のバインダ binder（id を持たない）を並びの index 番目（省けば末尾）に足したブックと、振ったバインダの id（newId の値そのまま。ブックのほかの id と重ならない）
-export function addBinder<B extends Book>(
+export function addBinder<B extends StageLineup>(
   book: B,
   binder: NewBinder,
   index: number | undefined,
@@ -523,17 +538,17 @@ export function frameOf(book: Book): unknown {
 }
 
 // id のバインダを、f の返すバインダに替える（場所は変えない）
-export function putBinder<B extends Book>(book: B, id: string, f: (binder: BinderEntry) => BinderEntry): B {
+export function putBinder<B extends StageLineup>(book: B, id: string, f: (binder: BinderEntry) => BinderEntry): B {
   return { ...book, lineup: book.lineup.map(e => (e.kind === "binder" && e.id === id ? f(e) : e)) }
 }
 
 // id のバインダを、中のページごと除く
-export function removeBinder<B extends Book>(book: B, id: string): B {
+export function removeBinder<B extends StageLineup>(book: B, id: string): B {
   return { ...book, lineup: book.lineup.filter(e => !(e.kind === "binder" && e.id === id)) }
 }
 
 // ブックの中の id（ページとバインダ）。新しい id を振るときに、重ならないようにする相手
-const lineupIds = (book: Book): string[] => [...pagesOf(book).map(p => p.id), ...bindersOf(book).map(f => f.id)]
+const lineupIds = (book: StageLineup): string[] => [...pagesOf(book).map(p => p.id), ...bindersOf(book).map(f => f.id)]
 
 // タイプのページで使えるアイテム（タイプの候補。データに置ける・引けるのはこの中だけ）
 export function allowedItems(catalog: CoreCatalog, page: Pick<Page, "type">): readonly string[] {

@@ -1,6 +1,6 @@
 // アクションの結果を整え、形と決まりと認可ステップの守らせること（keeps）を確かめる（ページ・ブック・書庫・レコード）
 
-import { distinctBooks, findPage, holds, pagesOf, putPage } from "./book"
+import { distinctBooks, findPage, holds, pageSettles, pagesOf, putPage } from "./book"
 import { changesOf, type LibraryPageRows, pageChangeOf } from "./changes"
 import type { CoreCatalog } from "./core-catalog"
 import type { ActionContext, ActionDef } from "./def/action"
@@ -87,6 +87,16 @@ type PageCheck = Omit<PagePermissionCheck, "kind" | "action" | "actor">
 // 書庫 library の中のページ id の居場所: ブックの中か、ブックの外か（表に無ければ undefined）
 const pagePlaceIn = (library: Library, id: string): "book" | "outside" | undefined =>
   !(id in library.pages) ? undefined : bookIdOf(library.folders, id) === undefined ? "outside" : "book"
+
+// 書庫が was から next に変わる間に、変わった・足したブックの外のページ（ゴミ箱の中も）が、どれもページの形と決まりに合い、タイプを変えていないか
+// （ブックの中のページは、ブックの確かめ librarySettles と keepsPageTypesAcross が見る）
+export function outsidePagesSettle(catalog: CoreCatalog, was: Library, next: Library): boolean {
+  return Object.entries(next.pages).every(([id, page]) => {
+    const before = was.pages[id]
+    if (before === page || pagePlaceIn(next, id) !== "outside") return true
+    return (before === undefined || before.type === page.type) && pageSettles(catalog, page)
+  })
+}
 
 // 書庫 library のページ id の、認可ステップに見せる値（ゴミ箱の中のページは無い物）
 function checkedPage(library: Library, id: string): ItemPage | undefined {

@@ -102,9 +102,13 @@ export interface PluginKit<P extends string, M extends MessageMap> {
     I,
     const At extends ActionAttach | undefined = undefined,
     const Sc = unknown,
+    const Tk = unknown,
   >(
-    def: ActionDef<T, A, R, I, keyof M & string, At> & { id: Id } & ScopeRequired<T, A> & { permissionScope?: Sc },
-  ): Omit<ActionDef<T, A, R, I, MessageKey, At>, "id"> & { id: Owned<P, Id> } & OnContainer<Sc>
+    def: ActionDef<T, A, R, I, keyof M & string, At, Sc, Tk> & { id: Id } & ScopeRequired<T, A> & {
+        permissionScope?: Sc
+        takesBook?: Tk
+      },
+  ): Omit<ActionDef<T, A, R, I, MessageKey, At, Sc, Tk>, "id"> & { id: Owned<P, Id> } & OnContainer<Sc>
 
   // 既定を持つ項目は、読むとき（settingValue）に必ず値があると分かるように、default を持つ形で返す
   // 設定の項目。holder（"page" か "outermost"）を書いた定義はページ・ブックの項目、書かない定義は利用者の設定の項目（型に holder が残り、読む関数が合う項目だけを受ける）

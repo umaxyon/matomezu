@@ -74,8 +74,8 @@ export type Query =
     actor: Actor
     // レコードが対象のアクションの宛先のレコード（作るなら none）と、そのレコードが指すほかのレコード。認可ステップは record があるときに見る
     record?: { record: unknown; refs: readonly Referred[] }
-    // ブックの中でなく、ページそのもので問うときのページ（ブックの外のページか、書庫が対象のアクションが作るページ）。認可ステップには kind "page" で問い、
-    // ページ・アノテーションが対象のアクションを使えるかは、そのページのタイプで決める
+    // ブックの中でなく、ページそのもので問うときのページ（ブックの外のページか、ブックの外のバインダの中のページか、作るページ）。認可ステップには kind "page" で問い、
+    // ブック・ページ・アノテーションが対象のアクションを使えるかは、そのページのタイプで決める
     page?: AskedPage
   }
 
@@ -333,7 +333,7 @@ function action(
   if (isInBook(def.target))
     return book
       ? decide([known, userOnly, participation, ...permitted, ...placeSteps(catalog, def, book, where)])
-      : page && def.target !== "book"
+      : page
         ? decide([known, userOnly, participation, ...permitted, ...typeSteps(def, pageType(catalog, page.page.type))])
         : decide([known, userOnly, participation])
   const center = controlCenter === null ? undefined : catalog.controlCenters.get(controlCenter)

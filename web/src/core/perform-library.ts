@@ -110,6 +110,34 @@ export function libraryAsksOf(catalog: CoreCatalog, library: Library, targets: L
   return targets.creates ? [...found, { book: NEW_BOOK, where: {} }] : found
 }
 
+// ブックが対象のアクションを、書庫 library のブックの外のバインダ binder（id）に行う前に問う相手: アクションが変える所 where（許可スコープから出した所。分からなければ無い）を、
+// ページそのものに直す。丸ごと変えるページ（page）と、どのページも変える（allPages）・バインダをエントリとして名指した（entries にバインダの id）ときの中のページの全部は、そのページで問う。
+// エントリとして名指したページ（動かす・複製する。そのページの中身は変えない）は、置き場所だけを変える物として問い、作るページは、そのタイプの空のページで問う。
+// 所が無いか、名指した物がバインダの中に無ければ、何にも問わない
+export function binderAsksOf(
+  catalog: CoreCatalog,
+  library: Library,
+  binder: string,
+  where: Where | undefined,
+): AskedPage[] {
+  const row = library.folders[binder]
+  if (row?.folderRole !== "binder" || !where) return []
+  const inside = new Set(row.lineup.map(r => r.id))
+  const asked = (id: string, at?: AskedPage["where"]): AskedPage[] => {
+    const page = library.pages[id]
+    if (!page || !inside.has(id)) return []
+    return [{ page, folders: permissionFoldersOf(library.folders, id), ...(at ? { where: at } : {}) }]
+  }
+  const all = (): AskedPage[] => row.lineup.flatMap(r => asked(r.id))
+  if (where.allPages) return all()
+  const made = where.creates === undefined ? undefined : newPageOf(catalog, where.creates)
+  return [
+    ...(where.page === undefined ? [] : asked(where.page, where.ids ? { ids: where.ids } : undefined)),
+    ...(where.entries ?? []).flatMap(e => (e === binder ? all() : asked(e, { entry: "place" }))),
+    ...(made ? [{ page: made, folders: [] }] : []),
+  ]
+}
+
 // 書庫 library の、ゴミ箱かその中に無いページの行
 const pagesOutsideTrash = (library: Library): Library["pages"] =>
   Object.fromEntries(Object.entries(library.pages).filter(([id]) => !inTrash(library.folders, id)))

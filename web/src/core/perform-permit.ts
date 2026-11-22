@@ -21,9 +21,9 @@ import {
 import type { Referred } from "./def/permission"
 import type { Library } from "./folders"
 import { type AskedPage, decidedByPlace, deniedBy, type Inspected, inspect, withoutPermissions } from "./inspect"
-import type { NotAllowed, PageAt, Refused } from "./perform"
+import type { BinderOutsideBook, NotAllowed, PageAt, Refused } from "./perform"
 import { isRecordTarget } from "./perform-checks"
-import { libraryAsksOf, NEW_BOOK } from "./perform-library"
+import { binderAsksOf, libraryAsksOf, NEW_BOOK } from "./perform-library"
 import { sourceIn, type WithSource } from "./record-source"
 import { referredOf } from "./refs"
 import type { Book } from "./schema/book"
@@ -91,6 +91,37 @@ export function permits(
       }
       const answer = asked(a.book, a.where)
       if (!answer.ok) return answer.reason === "denied" && a.book !== NEW_BOOK ? { ...answer, book: a.book.id } : answer
+    }
+    return { ok: true }
+  }
+  if (action.target === "book" && (subject as BinderOutsideBook).book === NOT_IN_BOOK) {
+    // ブックの外のバインダは、アクションが変える所を、中のページそのものに直して問う（どれかで止められれば止める。何にも問わない所なら、行う者だけで決まる）
+    const { library, binder } = subject as BinderOutsideBook
+    const scope = action.permissionScope as AnyPermissionScope | undefined
+    const answered = (where: Where | undefined) =>
+      binderAsksOf(ctx.catalog, library, binder, where).map(page => ({
+        page,
+        answer: asking(undefined, undefined, undefined, page),
+      }))
+    // ページ 1 枚ごとに問う形は、ブックと同じく、止められなかったページを残す
+    const named = args.success ? pagesScopeOf(scope, args.data) : null
+    const each = named === "all" ? answered({ allPages: true }) : (named ?? []).flatMap(id => answered({ page: id }))
+    const [first] = each
+    if (first) {
+      const pages = each.filter(a => a.answer.value === true).map(a => a.page.page.id)
+      return pages.length > 0 ? { ok: true, pages } : answerOf(first.answer)
+    }
+    const asks = answered(placeOf(action, args))
+    // 所がどのページも決めない（引数が形に合わない・名指した物がバインダに無い）ときは、行う者だけで決め、ほかは行う側（bad-args か run）が断る
+    if (asks.length === 0) {
+      const plain = asking(undefined, undefined)
+      return plain.value === false ? answerOf(plain) : { ok: true }
+    }
+    for (const a of asks) {
+      const answer = answerOf(a.answer)
+      const id = a.page.page.id
+      if (!answer.ok)
+        return answer.reason === "denied" && Object.hasOwn(library.pages, id) ? { ...answer, page: id } : answer
     }
     return { ok: true }
   }
