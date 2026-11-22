@@ -153,6 +153,12 @@ const holder = (ctx: ScreenCommandContext, named?: Named): string | undefined =>
   return entry !== undefined && holdsEntries(ctx.folders, entry) ? entry : undefined
 }
 
+// 作るコマンドの右クリックのメニューの行を出すか: 受け取った物から作る先 into が決まるときだけ。メニューの行は、閉じてから受け取った物を名指して呼ぶ
+const inMenuHolds =
+  (into: (ctx: ScreenCommandContext) => string | undefined) =>
+  (ctx: ScreenCommandContext): boolean =>
+    given(ctx, undefined) === undefined || into(ctx) !== undefined
+
 // 開く行き先（フォルダは中へ入る。表に行の無い物・ゴミ箱の中の物は開かない）
 function opening(ctx: ScreenCommandContext, named?: Named): Exclude<OpenTarget, typeof NOT_OPENED> | undefined {
   const to = given(ctx, named)
@@ -189,7 +195,7 @@ export const LIBRARY_BOOK_NEW = kit.defineScreenCommand({
     const into = holder(ctx, named)
     if (into !== undefined) a.openDialog(LIBRARY_NEW_BOOK_DIALOG.id, { into })
   },
-  when: ctx => holder(ctx) !== undefined,
+  when: inMenuHolds(holder),
 })
 
 export const LIBRARY_FOLDER_NEW = kit.defineScreenCommand({
@@ -200,7 +206,7 @@ export const LIBRARY_FOLDER_NEW = kit.defineScreenCommand({
     const into = holder(ctx, named)
     if (into !== undefined) a.openDialog(LIBRARY_NEW_FOLDER_DIALOG.id, { into })
   },
-  when: ctx => holder(ctx) !== undefined,
+  when: inMenuHolds(holder),
 })
 
 // 新しいページを作る先のフォルダ: エントリを受け取ったら、それが書庫ホーム・フォルダ・ブック・ブックの外のバインダのとき、その中。
@@ -221,7 +227,7 @@ export const LIBRARY_PAGE_NEW = kit.defineScreenCommand({
     const folder = pageHolder(ctx, named)
     if (folder !== undefined) a.openContextMenu(LIBRARY_ADD_PAGE_MENU, { folder }, named?.pressed ?? { x: 0, y: 0 })
   },
-  when: ctx => pageHolder(ctx) !== undefined,
+  when: inMenuHolds(pageHolder),
 })
 
 export const LIBRARY_ENTRY_RENAME = kit.defineScreenCommand({

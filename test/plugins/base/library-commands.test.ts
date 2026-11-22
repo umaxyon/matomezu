@@ -3,6 +3,7 @@ import { expect, test } from "bun:test"
 import type { CommandId } from "../../../web/src/core/catalog"
 import { entriesIn } from "../../../web/src/core/entries"
 import { HOME_ID, TRASH_ID, UNREADABLE_ID } from "../../../web/src/core/folders"
+import { folderForType, holderForNewPage } from "../../../web/src/plugins/base/library/entries"
 import {
   LIBRARY_COLUMNS,
   LIBRARY_FOLDER,
@@ -412,4 +413,69 @@ test("読めない物のフォルダを開く: 書庫を開き、検索してい
   expect(pluginValueOf(values, library, LIBRARY_FOLDER)).toBe(UNREADABLE_ID)
   expect(pluginValueOf(values, library, LIBRARY_PICKED)).toBeUndefined()
   expect(pluginValueOf(values, library, LIBRARY_QUERY)).toBeUndefined()
+})
+
+test("「新しいページ…」は、受け取った物（書庫ホーム・フォルダ・ブック・ブックの外のバインダ）を作る先に、タイプの一覧のメニューを押した位置に開く。ページの行には出さない", () => {
+  const { store, center, folder, run, shown } = setup()
+  const { state, actions } = store
+  const perform = actions.perform as (id: string, args: unknown) => { ok: boolean; result?: unknown }
+  const made = (args: object) => perform("@matomezu/base:page-create", args).result as { page: string; binder?: string }
+  const menu = () => state.getState().contextMenu
+  const a = folder("あ")
+  const page = made({ folder: a, type: "@matomezu/drawing:drawing", title: "図" }).page
+  const binder = made({ folder: a, type: "@matomezu/slide-page:slide", title: "1", into: { newBinder: "発表" } })
+    .binder as string
+  const book = (perform("@matomezu/base:book-create", { title: "本", into: a }).result as { book: string }).book
+  const open = (target: object) => {
+    actions.openContextMenu(center, "@matomezu/base:library-entry-context", target, { x: 1, y: 2 })
+    const was = shown("library-page-new")
+    actions.closeContextMenu()
+    return was
+  }
+  // ページの行には出さない
+  expect(open({ entry: page })).toBe(false)
+  for (const entry of [a, binder, book]) {
+    const pressed = { x: 30, y: 40 }
+    expect(open({ entry, pressed })).toBe(true)
+    expect(run("library-page-new", { entry, pressed })).toBe(true)
+    expect(menu()).toMatchObject({ id: "@matomezu/base:library-add-page-menu", target: { folder: entry }, at: pressed })
+    actions.closeContextMenu()
+  }
+  // 何も無い所のメニューは、開いているフォルダが先（選んでいる行がページでも）
+  store.setPluginState(LIBRARY_PICKED.id, center, page)
+  expect(run("library-page-new", { folder: HOME_ID, pressed: { x: 5, y: 6 } })).toBe(true)
+  expect(menu()).toMatchObject({ target: { folder: HOME_ID }, at: { x: 5, y: 6 } })
+  actions.closeContextMenu()
+  expect(run("library-folder-new", { folder: HOME_ID })).toBe(true)
+  expect(state.getState().dialog).toMatchObject({ args: { into: HOME_ID } })
+})
+
+test("ページを作る先: ブックの中のバインダはブックへ、ゴミ箱の中は無し。ブックの外のバインダにタイプの違うページを作るときは、バインダを入れているフォルダへ", () => {
+  const { store, folder, run } = setup()
+  const { state, actions } = store
+  const perform = actions.perform as (id: string, args: unknown) => { ok: boolean; result?: unknown }
+  const a = folder("あ")
+  const slide = "@matomezu/slide-page:slide"
+  const outside = (
+    perform("@matomezu/base:page-create", { folder: a, type: slide, title: "1", into: { newBinder: "発表" } })
+      .result as { binder: string }
+  ).binder
+  const book = (perform("@matomezu/base:book-create", { title: "本", into: a }).result as { book: string }).book
+  const inBook = (
+    perform("@matomezu/base:page-create", { folder: book, type: slide, title: "1", into: { newBinder: "中" } })
+      .result as { binder: string }
+  ).binder
+  const folders = () => state.getState().folders
+  expect(holderForNewPage(folders(), HOME_ID)).toBe(HOME_ID)
+  expect(holderForNewPage(folders(), a)).toBe(a)
+  expect(holderForNewPage(folders(), book)).toBe(book)
+  expect(holderForNewPage(folders(), outside)).toBe(outside)
+  expect(holderForNewPage(folders(), inBook)).toBe(book)
+  expect(folderForType(folders(), outside, slide)).toBe(outside)
+  expect(folderForType(folders(), outside, "@matomezu/drawing:drawing")).toBe(a)
+  expect(folderForType(folders(), a, slide)).toBe(a)
+  run("library-entry-move", { entry: a, to: { to: "trash" } })
+  expect(holderForNewPage(folders(), TRASH_ID)).toBeUndefined()
+  expect(holderForNewPage(folders(), a)).toBeUndefined()
+  expect(holderForNewPage(folders(), book)).toBeUndefined()
 })

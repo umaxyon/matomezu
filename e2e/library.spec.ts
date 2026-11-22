@@ -421,6 +421,7 @@ test("書庫の行の右クリックのメニューから、名前の変更・�
   await expect(menu.getByRole("menuitem")).toHaveText([
     "新しいブック…",
     "新しいフォルダ…",
+    "新しいページ…",
     "名前の変更…F2",
     "ゴミ箱に入れるDelete",
   ])
@@ -435,16 +436,21 @@ test("書庫の行の右クリックのメニューから、名前の変更・�
   await home.getByRole("button", { name: "メニューの試しの所" }).dblclick()
   const inside = page.getByRole("list", { name: "メニューの試しの所 の中身" })
   await expect(inside.getByRole("button", { name: "メニューで作った所" })).toBeVisible()
-  // ブックの行: 開く・名前の変更・ゴミ箱。名前を変える
+  // ブックの行: 開く・中にページを作る・名前の変更・ゴミ箱。名前を変える
   await inside.getByRole("button", { name: "メニューの試しのブック" }).click({ button: "right" })
-  await expect(menu.getByRole("menuitem")).toHaveText(["開くEnter", "名前の変更…F2", "ゴミ箱に入れるDelete"])
+  await expect(menu.getByRole("menuitem")).toHaveText([
+    "開くEnter",
+    "新しいページ…",
+    "名前の変更…F2",
+    "ゴミ箱に入れるDelete",
+  ])
   await menu.getByRole("menuitem", { name: "名前の変更…" }).click()
   await page.getByRole("dialog").getByRole("textbox").fill("メニューで変えた名前")
   await page.keyboard.press("Enter")
   await expect(inside.getByRole("button", { name: "メニューで変えた名前" })).toBeVisible()
   // 何も無い所: 作るだけ
   await inside.click({ button: "right", position: { x: 400, y: 300 } })
-  await expect(menu.getByRole("menuitem")).toHaveText(["新しいブック…", "新しいフォルダ…"])
+  await expect(menu.getByRole("menuitem")).toHaveText(["新しいブック…", "新しいフォルダ…", "新しいページ…"])
   await page.keyboard.press("Escape")
   // ツリーの行からも同じメニュー。ゴミ箱に入れる
   const tree = page.getByRole("navigation", { name: "フォルダ" })
