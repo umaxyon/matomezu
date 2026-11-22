@@ -15,13 +15,14 @@ import (
 // ゴミ箱のエントリは、それに入れた時刻 trashed と、元いたフォルダから書庫ホームまでの id の列 from（近い順）も持つ（trashRef）。
 // 読めない物のフォルダのエントリは、在った所の並びのエントリ entry と、在った所の覚え（from・after・code・type・moved。core/folders.ts の UnreadableRef）を持つ。
 // 中の物の表 entries の folder は、読めない物のフォルダ。読めない物を移す・戻すのは常駐（アクションでない）。
-// ブックは、folderRole が home・trash・unreadable・folder・binder のどれでもない行（"book" と、役の無い・読めない行 = 読めないブック）。どのフォルダに入っているかでは決めない
+// ブックは、folderRole が home・trash・unreadable・backyard・folder・binder のどれでもない行（"book" と、役の無い・読めない行 = 読めないブック）。どのフォルダに入っているかでは決めない
 
 // フォルダの行の役（folderRole の値）
 const (
 	RoleHome       = "home"       // 書庫ホーム
 	RoleTrash      = "trash"      // ゴミ箱
 	RoleUnreadable = "unreadable" // 読めない物のフォルダ
+	RoleBackyard   = "backyard"   // バックヤード
 	RoleFolder     = "folder"     // フォルダ
 	RoleBinder     = "binder"     // バインダ
 	RoleBook       = "book"       // ブック
@@ -44,23 +45,29 @@ const TrashID = "library-trash"
 // UnreadableID は、読めない物のフォルダの id（決まった値）
 const UnreadableID = "library-unreadable"
 
-// topFolder は、書庫の一番上のフォルダ（どのフォルダにも入らず、ただ 1 つずつ在る）1 つの、役 role と決まった id と、
-// open（ページ・バインダ・ブック・フォルダの 4 つとも持てるか）と library（中の物が書庫に入るか）
+// topFolder は、書庫の一番上のフォルダ（どのフォルダにも入らない）の役 1 つの、役 role と決まった id（ただ 1 つ在る物。バックヤードのように定義ごとに在る物は空）と、
+// open（ページ・バインダ・ブック・フォルダの 4 つとも持てるか）と library（中の物が書庫に入るか）と shown（書庫の画面と AI の一覧に出るか）
 type topFolder struct {
-	role, id      string
-	open, library bool
+	role, id             string
+	open, library, shown bool
 }
 
 // topFolders は、一番上のフォルダの表（web/src/core/folders.ts の TOP_FOLDERS と同じ表・同じ順）。一番上の役を見る所は、役の名前を並べずにこの表から引く
 var topFolders = []topFolder{
-	{RoleHome, HomeID, true, true},
-	{RoleTrash, TrashID, true, true},
-	{RoleUnreadable, UnreadableID, false, false},
+	{RoleHome, HomeID, true, true, true},
+	{RoleTrash, TrashID, true, true, true},
+	{RoleUnreadable, UnreadableID, false, false, true},
+	{RoleBackyard, "", false, true, false},
 }
 
 // IsTopRole は、フォルダの行の役 role（folderRole の値。無い・読めないなら空）が、書庫の一番上のフォルダの役か
 func IsTopRole(role string) bool {
 	return slices.ContainsFunc(topFolders, func(t topFolder) bool { return t.role == role })
+}
+
+// IsUnshownTopRole は、役 role が、書庫の画面と AI の一覧に出ない一番上の役か（バックヤード）
+func IsUnshownTopRole(role string) bool {
+	return slices.ContainsFunc(topFolders, func(t topFolder) bool { return t.role == role && !t.shown })
 }
 
 // IsOpenRole は、役 role が、ページ・バインダ・ブック・フォルダの 4 つとも持てる役か: 4 つとも持てる一番上の役（書庫ホーム・ゴミ箱）とフォルダ

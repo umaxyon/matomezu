@@ -13,6 +13,7 @@ import { useSetBirdVisitAt } from "./bird-visit"
 import { MAIL_DIALOG } from "./dialogs"
 import { mailboxEntries } from "./entries"
 import type { Mail } from "./mail"
+import { GONE, type MailPlace, mailPlace } from "./place"
 
 // 利用者の郵便箱（郵便のレコードを届いた順に並べた物）
 export const useMailbox = (): readonly Mail[] => useMatomezuState(useShallow(s => mailboxOf(s.records)))
@@ -40,7 +41,13 @@ export function useMailboxPanel(): { open: boolean; toggle: () => void } {
 
 let visits = 0 // 行き先を開いた回の番号（bird-visit.tsx の seq）
 
-// ステージ target に、郵便 mail の行き先を開く関数: そのステージを見せ（行き先のブックがもう開いていても、ブックスクリーンをカレントスクリーンにする）、
+// 郵便 mail の行き先の今の場所（mailPlace。今は無ければ、郵便が言う場所のまま）
+const placeNow = (mail: Mail, books: Parameters<typeof mailPlace>[1]): MailPlace | undefined => {
+  const place = mailPlace(mail, books)
+  return place === GONE ? mail.to : (place ?? undefined)
+}
+
+// ステージ target に、郵便 mail の行き先（今の場所）を開く関数: そのステージを見せ（行き先のブックがもう開いていても、ブックスクリーンをカレントスクリーンにする）、
 // ブックとページを開き、行き先の物を見せて鳥を連れてくる。行き先の無い郵便なら何もしない
 export function useShowMailPlaceAt(): (target: string, mail: Mail) => void {
   const actions = useStoreActions()
@@ -49,7 +56,7 @@ export function useShowMailPlaceAt(): (target: string, mail: Mail) => void {
   const bringBird = useSetBirdVisitAt()
   return useCallback(
     (target, mail) => {
-      const to = mail.to
+      const to = placeNow(mail, read().books)
       if (!to) return
       actions.showStage(target)
       if (stageIn(read().window, target)?.opened?.outermost.id !== to.book) actions.openBook(target, to.book)
@@ -68,13 +75,15 @@ export function useShowMailPlace(): (mail: Mail) => void {
   const stage = useStageId()
   const show = useShowMailPlaceAt()
   const actions = useStoreActions()
+  const read = useReadState()
   return useCallback(
     mail => {
       if (stage !== null) return show(stage, mail)
-      if (!mail.to) return
-      const shown = actions.showBookStage(mail.to.book)
+      const to = placeNow(mail, read().books)
+      if (!to) return
+      const shown = actions.showBookStage(to.book)
       if (shown !== NO_STAGE) show(shown, mail)
     },
-    [stage, show, actions],
+    [stage, show, actions, read],
   )
 }

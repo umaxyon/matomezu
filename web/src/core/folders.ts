@@ -92,32 +92,54 @@ export interface UnreadableFolder {
 // 読めない物のフォルダの役か
 export const isUnreadableRole = (role: unknown): role is "unreadable" => role === "unreadable"
 
-// 書庫ホームかゴミ箱かフォルダ（ブックを組む値には入らず、表にだけ在る）
-export type HomeOrFolder = HomeFolder | TrashFolder | PlainFolder
+// バックヤード: 書庫の一番上のフォルダで、書庫の画面にも AI の一覧にも出ない（読めない物のフォルダと違い、中の物は書庫に入る）。ブックだけを持つ。
+// プラグインが定義（core/def/backyard.ts）で足し、行は印 backyard（その定義の id）を持つ。定義 1 つに行 1 つで、行の id は backyardIdOf で決まる
+export interface BackyardFolder {
+  folderRole: "backyard"
+  id: string
+  backyard: string
+  lineup: readonly BookRef[]
+}
+// 印 mark（バックヤードの定義の id）のバックヤードの行の id
+export const backyardIdOf = (mark: string): string => `library-backyard-${mark}`
+
+// 書庫ホームかゴミ箱かフォルダかバックヤード（ブックを組む値には入らず、表にだけ在る）
+export type HomeOrFolder = HomeFolder | TrashFolder | PlainFolder | BackyardFolder
 export type Folder = BookFolder | BinderFolder | HomeOrFolder
 
-// 書庫の一番上のフォルダ（どのフォルダにも入らず、ただ 1 つずつ在る）の表: 役ごとの、決まった id と、
-// open（ページ・バインダ・ブック・フォルダの 4 つとも持てるか）と library（中の物が書庫 Library に入るか）。
+// 書庫の一番上のフォルダ（どのフォルダにも入らない）の役の表: 役ごとの、決まった id（その役の行はただ 1 つ。null の役は行がいくつも在りうる）と、
+// open（ページ・バインダ・ブック・フォルダの 4 つとも持てるか）と library（中の物が書庫 Library に入るか）と shown（書庫の画面と AI に見せるか）。
 // 一番上の役を見る所は、役の名前を並べずにこの表から引く（Go の internal/storage/library.go の topFolders と同じ表）
 export const TOP_FOLDERS = {
-  home: { id: HOME_ID, open: true, library: true },
-  trash: { id: TRASH_ID, open: true, library: true },
-  unreadable: { id: UNREADABLE_ID, open: false, library: false },
-} as const satisfies Readonly<Record<string, { id: string; open: boolean; library: boolean }>>
+  home: { id: HOME_ID, open: true, library: true, shown: true },
+  trash: { id: TRASH_ID, open: true, library: true, shown: true },
+  unreadable: { id: UNREADABLE_ID, open: false, library: false, shown: true },
+  backyard: { id: null, open: false, library: true, shown: false },
+} as const satisfies Readonly<Record<string, { id: string | null; open: boolean; library: boolean; shown: boolean }>>
 export type TopRole = keyof typeof TOP_FOLDERS
 const topRoles = Object.keys(TOP_FOLDERS) as TopRole[]
-// 一番上のフォルダの id の全部（表の順）
-export const TOP_IDS: readonly string[] = topRoles.map(r => TOP_FOLDERS[r].id)
-// 中の物が書庫に入る一番上のフォルダの id（表の順。書庫ホームが先）
-export const LIBRARY_TOP_IDS: readonly string[] = topRoles
-  .filter(r => TOP_FOLDERS[r].library)
-  .map(r => TOP_FOLDERS[r].id)
+// 決まった id を持つ一番上のフォルダの id の全部（表の順）
+export const TOP_IDS: readonly string[] = topRoles.flatMap(r => TOP_FOLDERS[r].id ?? [])
+// フォルダの表 folders（id → 行）のうち、中の物が書庫に入る一番上のフォルダの id（表の順。書庫ホームが先。決まった id の無い役は、表の行の id の順）
+export function libraryTopIdsIn(folders: ReadonlyMap<string, unknown> | Readonly<Record<string, unknown>>): string[] {
+  const rows = folders instanceof Map ? [...folders.entries()] : Object.entries(folders)
+  return topRoles
+    .filter(r => TOP_FOLDERS[r].library)
+    .flatMap(r => {
+      const id = TOP_FOLDERS[r].id
+      if (id !== null) return [id]
+      return rows.flatMap(([at, row]) => (roleOfRow(row) === r ? [at] : [])).sort()
+    })
+}
+// フォルダの行 row の役（folderRole。無ければ undefined）
+const roleOfRow = (row: unknown): unknown =>
+  typeof row === "object" && row !== null ? (row as { folderRole?: unknown }).folderRole : undefined
 
 // 書庫の一番上のフォルダの役か
 export const isTopRole = (role: unknown): role is TopRole =>
   typeof role === "string" && Object.hasOwn(TOP_FOLDERS, role)
 // ページ・バインダ・ブック・フォルダの 4 つとも持てる役か: 4 つとも持てる一番上の役（書庫ホーム・ゴミ箱）とフォルダ（ブックにもバインダにもならない役）
-export const isOpenRole = (role: unknown): role is HomeOrFolder["folderRole"] =>
+export const isOpenRole = (role: unknown): role is Exclude<HomeOrFolder["folderRole"], "backyard"> =>
   (isTopRole(role) && TOP_FOLDERS[role].open) || role === "folder"
 // ブックの役か: 一番上の役でも、4 つとも持てる役でも、バインダでもない（形の合わない役もブックとして読み、読めないブックになる）
 export const isBookRole = (role: unknown): boolean => !isTopRole(role) && !isOpenRole(role) && role !== "binder"
@@ -164,14 +186,24 @@ const HomeOrFolderSchema = z.union([
     systemFolder: z.string().min(1),
     lineup: z.array(AnyEntryRefSchema),
   }),
+  z
+    .strictObject({
+      folderRole: z.literal("backyard"),
+      id: z.string().min(1),
+      backyard: z.string().min(1),
+      lineup: z.array(z.strictObject({ kind: z.literal("book"), id: z.string().min(1) })),
+    })
+    .refine(f => f.id === backyardIdOf(f.backyard)),
 ])
 
-// 書庫ホーム・ゴミ箱・フォルダの行 row が、形に合うか
+// 書庫ホーム・ゴミ箱・フォルダ・バックヤードの行 row が、形に合うか
 export const homeOrFolderHolds = (row: unknown): boolean => HomeOrFolderSchema.safeParse(row).success
 
-// フォルダの行が書庫ホーム・ゴミ箱・フォルダの役を名乗るか（形は確かめない）
-export const namesHomeOrFolder = (row: unknown): boolean =>
-  typeof row === "object" && row !== null && isOpenRole((row as { folderRole?: unknown }).folderRole)
+// フォルダの行が書庫ホーム・ゴミ箱・フォルダ・バックヤードの役を名乗るか（形は確かめない）
+export const namesHomeOrFolder = (row: unknown): boolean => {
+  const role = roleOfRow(row)
+  return isOpenRole(role) || role === "backyard"
+}
 
 // 置き場所から読んだままのフォルダ folders のうち、書庫ホーム・ゴミ箱・フォルダ（形に合う物だけ。合わない物は入らず、木の決まり treeHolds が破れて見える）
 export function homeAndFoldersOf(folders: readonly unknown[]): HomeOrFolder[] {

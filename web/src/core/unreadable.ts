@@ -11,6 +11,7 @@ import {
   type FreedTitle,
   type Naming,
   rowsWithin,
+  withBackyards,
   withFreeTitles,
   withSystemFolders,
 } from "./entries"
@@ -20,8 +21,9 @@ import {
   FIRST,
   type Folder,
   HOME_ID,
-  LIBRARY_TOP_IDS,
+  isTopRole,
   type Library,
+  libraryTopIdsIn,
   MOVED_CODES,
   type MovedCode,
   TOP_IDS,
@@ -83,7 +85,7 @@ export interface SettleWith {
 
 // 置き場所から読んだままの行 pageRows・folderRows で、書庫を今の機能台帳に合わせて整える行の変わり: 今の機能台帳で読めない物は読めない物のフォルダへ移し、
 // そこの物で読めるようになった物は在った所へ戻す。先に戻し（並びの順に、何も戻らなくなるまで繰り返す。入れ物が先に戻り、中の物は次の回で戻る）、それから移す。
-// そのあと、足りないシステムフォルダを足し（withSystemFolders）、名前の重なりに番号を付ける（withFreeTitles。読んだデータの重なりも、戻った物・現れたシステムフォルダが当たった物も）。
+// そのあと、足りないバックヤードとシステムフォルダを足し（withBackyards・withSystemFolders）、名前の重なりに番号を付ける（withFreeTitles。読んだデータの重なりも、戻った物・現れたシステムフォルダが当たった物も）。
 // 決まりは with。読めない物のフォルダの行が形に合わなければ BROKEN、足すシステムフォルダの id が振れなければ BROKEN（何も書かない）
 export function settleLibrary(
   catalog: CoreCatalog,
@@ -110,7 +112,7 @@ export function settleLibrary(
   const moved = units
   if (moved.length > 0) world = withMoved(world, moved, now)
   const library = libraryOf(world)
-  const filled = withSystemFolders(library, catalog, newId)
+  const filled = withSystemFolders(withBackyards(library, catalog), catalog, newId)
   if (!filled) return BROKEN
   const { next, freed } = withFreeTitles(filled.next, naming)
   world = withLibrary(world, library, next)
@@ -120,9 +122,10 @@ export function settleLibrary(
 // 世界 world の書庫（rowsLibraryOf で読む。中の物が書庫に入る一番上のフォルダ（書庫ホーム・ゴミ箱）の下に在るフォルダの行だけで、読めない物のフォルダの中の物・どこにも入っていない物は入れない）
 function libraryOf(world: World): Library {
   const holder = holdersIn(world)
+  const tops = libraryTopIdsIn(world.folders)
   const rows = [...world.folders].flatMap(([id, row]) => {
-    const top = LIBRARY_TOP_IDS.includes(id) ? id : topOf(holder, id)
-    return top !== undefined && LIBRARY_TOP_IDS.includes(top) ? [row] : []
+    const top = tops.includes(id) ? id : topOf(world, holder, id)
+    return top !== undefined && tops.includes(top) ? [row] : []
   })
   return rowsLibraryOf(rows, Object.fromEntries(world.pages))
 }
@@ -308,7 +311,7 @@ function returnedRows(
     if (to === UNREADABLE_ID) continue
     const row = world.folders.get(to)
     if (!isRow(row) || !Array.isArray(row.lineup)) continue
-    const top = topOf(holder, to)
+    const top = topOf(world, holder, to)
     if (top === UNREADABLE_ID) return undefined
     if (top === undefined || !canHold(row as unknown as Folder, kind)) continue
     const element = elementFor(ref, to)
@@ -330,12 +333,13 @@ function returnedRows(
   return undefined
 }
 
-// フォルダ id から上へたどって着く、一番上のフォルダの id（書庫ホーム・ゴミ箱・読めない物のフォルダ。どこにも着かなければ undefined）
-function topOf(holder: ReadonlyMap<string, string>, id: string): string | undefined {
+// 世界 world のフォルダ id から上へたどって着く、一番上のフォルダの id（書庫ホーム・ゴミ箱・読めない物のフォルダ・バックヤード。どこにも着かなければ undefined）
+function topOf(world: World, holder: ReadonlyMap<string, string>, id: string): string | undefined {
   const passed = new Set<string>()
   let at: string | undefined = id
   while (at !== undefined && !passed.has(at)) {
-    if (TOP_IDS.includes(at)) return at
+    if (TOP_IDS.includes(at) || isTopRole((world.folders.get(at) as { folderRole?: unknown } | undefined)?.folderRole))
+      return at
     passed.add(at)
     at = holder.get(at)
   }

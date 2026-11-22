@@ -310,13 +310,13 @@ type Book struct {
 	Version int64
 }
 
-// AIBooks は、AI の MCP 公開ツールに出すブック（ゴミ箱の中のブックを除く）を、並びの順に返す
+// AIBooks は、AI の MCP 公開ツールの一覧に出すブック（AI と CLI に見せない物と、バックヤードの中のブックを除く）を、並びの順に返す
 func (h *Hub) AIBooks() []Book {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	books := make([]Book, 0, len(h.order))
 	for _, id := range h.order {
-		if e := h.books[id]; !h.outOfSight(id) {
+		if e := h.books[id]; !h.outOfSight(id) && !h.unshown(id) {
 			books = append(books, Book{ID: id, Body: e.body, Version: e.version})
 		}
 	}

@@ -1,12 +1,20 @@
-// 郵便の行き先が今もあるか（base/mail/place.ts の placeExists）: ブック・ページ・物のどれが無くなっても無い。物は 1 つでも残っていれば有る
+// 郵便の行き先の今の場所（base/mail/place.ts の mailPlace）: ブック・ページ・物のどれが無くなっても無い（GONE）。物は 1 つでも残っていれば有る。
+// ページを指す郵便は、ページの id で今のブックを探す
 
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../../web/src/core/book"
 import type { Book } from "../../../web/src/core/schema/book"
 import { addPageIn, createBookIn } from "../../../web/src/plugins/base"
 import type { Mail } from "../../../web/src/plugins/base/mail/mail"
-import { placeExists } from "../../../web/src/plugins/base/mail/place"
+import { GONE, mailPlace } from "../../../web/src/plugins/base/mail/place"
+import { drawingPage, testBook } from "../../lineup"
 import { newStore } from "../../support"
+
+// 郵便 m の行き先が今あるか（無い郵便は null）
+const placeExists = (m: Mail, books: Readonly<Record<string, Book>>) => {
+  const place = mailPlace(m, books)
+  return place === null ? null : place !== GONE
+}
 
 function ready() {
   const store = newStore()
@@ -47,4 +55,14 @@ test("物を指しているときは、1 つでも今もあれば true、どれ�
   expect(placeExists(mail({ book: id, page, ids: [item] }), books)).toBe(true)
   expect(placeExists(mail({ book: id, page, ids: ["gone", item] }), books)).toBe(true)
   expect(placeExists(mail({ book: id, page, ids: ["gone"] }), books)).toBe(false)
+})
+
+test("ページを指す郵便は、ページが別のブックへ移っていれば、移った先のブックを行き先にする（言うブックに在れば、そのブック）", () => {
+  const b1 = testBook("b1", "前", [drawingPage("p2", { title: "2" })])
+  const b2 = testBook("b2", "後", [drawingPage("p1", { title: "1" })])
+  const books = { b1, b2 } as Readonly<Record<string, Book>>
+  expect(mailPlace(mail({ book: "b1", page: "p1" }), books)).toEqual({ book: "b2", page: "p1" })
+  expect(mailPlace(mail({ book: "b1", page: "p2" }), books)).toEqual({ book: "b1", page: "p2" })
+  expect(mailPlace(mail({ book: "gone", page: "p1" }), books)).toEqual({ book: "b2", page: "p1" })
+  expect(mailPlace(mail({ book: "b1", page: "nope" }), books)).toBe(GONE)
 })
