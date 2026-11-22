@@ -184,3 +184,32 @@ test("ブックの外のバインダを開いたステージで、バインダ�
   expect(turn(turned === "portrait" ? "landscape" : "portrait")).toMatchObject({ ok: false, reason: "denied" })
   expect(papers()).toEqual([turned, turned])
 })
+
+test("entry-duplicate は、ブックの外のバインダを中のページごと同じフォルダのすぐ後ろに写し、その中のページも、ブックの外のページ 1 枚も写す。ロックは写さない", async () => {
+  const store = withBinder()
+  const state = () => store.state.getState()
+  const lineup = (id: string) => state().folders[id]?.lineup.map(r => r.id) ?? []
+  const act = (args: { entry: string }) => store.actions.perform("@matomezu/base:entry-duplicate", args)
+  const home = Object.values(state().folders).find(f => f.folderRole === "home")?.id as string
+  expect(store.actions.perform("@matomezu/base:page-lock", {}, { page: "s1" }).ok).toBe(true)
+  await Promise.resolve()
+
+  const done = act({ entry: "n1" })
+  expect(done.ok).toBe(true)
+  await Promise.resolve()
+  const copy = (done.ok && (done.result as { entry: string }).entry) as string
+  expect(lineup(home).indexOf(copy)).toBe(lineup(home).indexOf("n1") + 1)
+  expect(state().folders[copy]).toMatchObject({ folderRole: "binder", title: "発表 2", pageType: SLIDE })
+  expect(lineup(copy)).toHaveLength(2)
+  expect(lineup(copy).some(id => lineup("n1").includes(id))).toBe(false)
+  expect(lineup(copy).map(id => state().pages[id]?.title)).toEqual(lineup("n1").map(id => state().pages[id]?.title))
+  expect(lineup(copy).map(id => state().pages[id]?.locked)).toEqual([undefined, undefined])
+
+  // バインダの中のページは、そのバインダの中のすぐ後ろに写る
+  const page = act({ entry: "s2" })
+  expect(page.ok).toBe(true)
+  await Promise.resolve()
+  const made = (page.ok && (page.result as { entry: string }).entry) as string
+  expect(lineup("n1")).toEqual(["s1", "s2", made])
+  expect(state().pages[made]?.type).toBe(SLIDE)
+})
