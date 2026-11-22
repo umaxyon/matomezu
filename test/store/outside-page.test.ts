@@ -301,3 +301,16 @@ test("開く物を名指して開く（openToStage）: ステージが NO_STAGE 
   expect(store.actions.openToStage({ to: "page", page: "o1" }, "no-such-stage")).toBe(NO_STAGE)
   expect(store.actions.openToStage({ to: "book", book: "nothing" }, NO_STAGE)).toBe(NO_STAGE)
 })
+
+test("entry-duplicate は、ブックの外のページ 1 枚を、同じフォルダのすぐ後ろに番号付きの名前で写す", async () => {
+  const store = withOutside()
+  const state = () => store.state.getState()
+  const home = Object.values(state().folders).find(f => f.folderRole === "home")
+  const done = store.actions.perform("@matomezu/base:entry-duplicate", { entry: "o1" })
+  expect(done.ok).toBe(true)
+  await Promise.resolve()
+  const copy = (done.ok && (done.result as { entry: string }).entry) as string
+  const lineup = state().folders[home?.id ?? ""]?.lineup.map(r => r.id) ?? []
+  expect(lineup.indexOf(copy)).toBe(lineup.indexOf("o1") + 1)
+  expect(state().pages[copy]).toMatchObject({ title: "ブックの外のページ 2", type: state().pages.o1?.type })
+})

@@ -6,7 +6,7 @@ import { ORIENTATIONS, type Orientation } from "../../../core/def/paper"
 import type { MessageKey, Params } from "../../../core/i18n/i18n"
 import type { PaperChoice, PaperRule } from "../../../core/paper"
 import type { ItemPage } from "../../../core/placed"
-import type { Book, Page } from "../../../core/schema/book"
+import type { Page, StageLineup } from "../../../core/schema/book"
 import { settingsAt } from "../book-settings"
 import { kit } from "../kit"
 import { extentOf, growOf, paddedFor, pageArea } from "../place/grow"
@@ -31,14 +31,14 @@ export function choosablePapers(rule: PaperRule, mates: readonly Page[]): PaperO
 export type PaperPlace = "lineup" | "new-binder" | { binder: string }
 
 // 紙と向きをそろえる相手: 同じバインダの中のページ（バインダの外のページと、これから作るバインダには、相手がいない）
-function mates(book: Book, place: PaperPlace): readonly Page[] {
+function mates(book: StageLineup, place: PaperPlace): readonly Page[] {
   return typeof place === "string" ? [] : pagesIn(book, place.binder)
 }
 
 // ブック book の所 place に足す、タイプ type の次のページに選べる紙と向き
 export function paperChoices(
   catalog: CoreCatalog,
-  book: Book,
+  book: StageLineup,
   type: string,
   place: PaperPlace = "lineup",
 ): PaperOptions {
@@ -50,7 +50,7 @@ export const typePaperChoices = (catalog: CoreCatalog, type: string): PaperOptio
   choosablePapers(paperRule(catalog, type), [])
 
 // ページ page の紙と向きを変えるときに選べるもの（そのページ自身は、そろえる相手にしない）
-export function paperChoicesFor(catalog: CoreCatalog, book: Book, page: Page): PaperOptions {
+export function paperChoicesFor(catalog: CoreCatalog, book: StageLineup, page: Page): PaperOptions {
   const binder = findPage(book, page.id)?.binder
   return choosablePapers(
     paperRule(catalog, page.type),
@@ -59,7 +59,7 @@ export function paperChoicesFor(catalog: CoreCatalog, book: Book, page: Page): P
 }
 
 // バインダ binder（id）のページの紙と向きを、まとめて choice にできるか: choice が、バインダに入るタイプの規定の紙と向きのとき
-export function canPaperBinder(catalog: CoreCatalog, book: Book, binder: string, choice: PaperChoice): boolean {
+export function canPaperBinder(catalog: CoreCatalog, book: StageLineup, binder: string, choice: PaperChoice): boolean {
   const type = findBinder(book, binder)?.pageType
   if (type === undefined) return false
   return canChoose({ papers: paperRule(catalog, type).allowed, orientations: ORIENTATIONS }, choice)
@@ -90,7 +90,7 @@ export function canChoose(options: PaperOptions, choice: PaperChoice): boolean {
 // ブック book の所 place に足す、タイプ type の次のページの紙の既定（規定の既定を選べなければ、選べるものの最初）
 export function defaultPaper(
   catalog: CoreCatalog,
-  book: Book,
+  book: StageLineup,
   type: string,
   place: PaperPlace = "lineup",
 ): PaperChoice {
@@ -104,7 +104,7 @@ export function defaultPaper(
 
 // 次のページの題名の案（t は見た目の t()。今の言語で引く）。同じブックかバインダの名前 taken（省けば、ブックの並び）と重ならない番号にする
 export function nextPageTitle(
-  book: Book,
+  book: StageLineup,
   t: (key: MessageKey, params?: Params) => string,
   taken: readonly string[] = lineupOf(book).map(e => e.title),
 ): string {

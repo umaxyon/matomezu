@@ -6,7 +6,7 @@ import type { MessageKey } from "../../../core/catalog"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import { ANY_PAGE_TYPE } from "../../../core/def/action"
 import { binderOf, editingBackground } from "../../../core/stage"
-import { NO_BOOK, NO_OUTSIDE_BINDER } from "../../../store/commands/def"
+import { type CommandContext, NO_BOOK, NO_OUTSIDE_BINDER } from "../../../store/commands/def"
 import type { DialogTaking, PageSettingsArgs } from "../../../store/dialogs"
 import { kit } from "../kit"
 import { PAGE_LOCK, PAGE_UNLOCK } from "../lock"
@@ -22,6 +22,7 @@ import {
 } from "../pages"
 import { hasOpenedPage } from "../utils/opened-page"
 import { refusalMessage } from "../utils/refusal"
+import { lineupIn, NO_LINEUP, showsPageDelete } from "./opened-lineup"
 
 declare module "../../../core/catalog" {
   interface PageTypeExtras {
@@ -131,24 +132,26 @@ export const PAGE_SETTINGS_OF = kit.defineCommand({
   permissionScope: { page: "page" },
   title: "Page settings",
   run: (ctx, a, { page }: { page: string }) => {
-    const found = ctx.book !== NO_BOOK ? findPage(ctx.book, page)?.page : undefined
+    const lineup = lineupIn(ctx)
+    const found = lineup !== NO_LINEUP ? findPage(lineup, page)?.page : undefined
     if (found) a.openDialog(pageDialog(ctx.catalog, found.type, "settings"), { page: found.id })
   },
-  when: ctx => ctx.book !== NO_BOOK,
+  when: ctx => lineupIn(ctx) !== NO_LINEUP,
 })
 
-// ページ page のすぐ後ろ（同じブックかバインダの中）に、同じタイプの新しいページを足して開く（ダイアログ無し。名前と紙はタイプの既定）
+// ページ page のすぐ後ろ（同じブックかバインダの中。ブックの外のバインダの中でも）に、同じタイプの新しいページを足して開く（ダイアログ無し。名前と紙はタイプの既定）
 export const PAGE_ADD_AFTER = kit.defineCommand({
   id: "page-add-after",
   performs: [PAGE_ADD.id],
   // 作るのは、ページ page と同じタイプのページ
-  permissionScope: (ctx, args: { page: string } | undefined) => ({
-    creates: (args && ctx.book !== NO_BOOK && findPage(ctx.book, args.page)?.page.type) || ANY_PAGE_TYPE,
-  }),
+  permissionScope: (ctx, args: { page: string } | undefined) => {
+    const lineup = lineupIn(ctx)
+    return { creates: (args && lineup !== NO_LINEUP && findPage(lineup, args.page)?.page.type) || ANY_PAGE_TYPE }
+  },
   title: "Add page here",
   run: (ctx, a, { page }: { page: string }) => {
-    const { book } = ctx
-    if (book === NO_BOOK) return
+    const book = lineupIn(ctx)
+    if (book === NO_LINEUP) return
     const at = findPage(book, page)
     if (!at) return
     const siblings = siblingsOf(book, page) ?? []
@@ -160,7 +163,7 @@ export const PAGE_ADD_AFTER = kit.defineCommand({
     )
     if (done.ok) a.openPage(done.result.page)
   },
-  when: ctx => ctx.book !== NO_BOOK,
+  when: ctx => lineupIn(ctx) !== NO_LINEUP,
 })
 
 // 複製を断られたときに知らせる文（認可ステップが止めたなら、そのステップの名前）
@@ -178,24 +181,29 @@ export const PAGE_DUPLICATE_COMMAND = kit.defineCommand({
   performs: [PAGE_DUPLICATE.id],
   title: "Duplicate",
   run: (ctx, a, { page }: { page: string }) => {
-    if (ctx.book === NO_BOOK) return
-    const done = a.perform(PAGE_DUPLICATE.id, { page }, { book: ctx.book.id })
+    const lineup = lineupIn(ctx)
+    if (lineup === NO_LINEUP) return
+    const done = a.perform(PAGE_DUPLICATE.id, { page }, { book: lineup.id })
     if (done.ok) a.openPage(done.result.page)
     else a.showToast({ kind: "warn", message: duplicateRefusal(ctx.catalog, done) })
   },
   // 画面では、ロックしたページの複製を押せなくする（アクションは、エントリとして複製する）
   permissionScope: { page: "page" },
-  when: ctx => ctx.book !== NO_BOOK,
+  when: ctx => lineupIn(ctx) !== NO_LINEUP,
 })
 
-// ページ page を消す前に確かめるダイアログを開く
+// ページ page を消す前に確かめるダイアログを開く（ブックの外のバインダは空にならないので、その最後の 1 枚には出さない）
 export const PAGE_DELETE = kit.defineCommand({
   id: "page-delete",
   performs: [PAGE_REMOVE.id],
   title: "Delete page...",
   run: (_ctx, a, { page }: { page: string }) => a.openDialog(PAGE_DELETE_DIALOG.id, { page }),
   permissionScope: { page: "page" },
-  when: ctx => ctx.book !== NO_BOOK,
+  when: ctx =>
+    showsPageDelete(
+      ctx.book === NO_BOOK ? null : ctx.book,
+      ctx.outsideBinder === NO_OUTSIDE_BINDER ? null : ctx.outsideBinder,
+    ),
 })
 
 // バインダ binder の設定のダイアログを開く
@@ -210,20 +218,26 @@ export const BINDER_SETTINGS = kit.defineCommand({
   when: ctx => ctx.book !== NO_BOOK,
 })
 
-// 開いているバインダ（開いているページが入っているバインダか、開いている空のバインダ）の設定のダイアログを開く（フッタメニューの歯車。バインダの外のページを開いていれば出さない）
+// 文脈 ctx のステージで開いているバインダの id（ブックの中の、開いているページが入っているバインダか開いている空のバインダ。ブックの外のバインダを開いていれば、そのバインダ。無ければ null）
+function openedBinderIn(ctx: CommandContext): string | null {
+  if (ctx.book !== NO_BOOK) return binderOf(ctx.book, ctx.stage.opened)
+  return ctx.outsideBinder !== NO_OUTSIDE_BINDER ? ctx.outsideBinder.id : null
+}
+
+// 開いているバインダ（開いているページが入っているバインダか、開いている空のバインダ。ブックの外のバインダを開いていれば、そのバインダ）の設定のダイアログを開く（フッタメニューの歯車。バインダの外のページを開いていれば出さない）
 export const BINDER_SETTINGS_OPENED = kit.defineCommand({
   id: "binder-settings-opened",
   performs: [BINDER_UPDATE.id, BINDER_REMOVE.id],
   permissionScope: ctx => {
-    const binder = ctx.book !== NO_BOOK ? binderOf(ctx.book, ctx.stage.opened) : null
+    const binder = openedBinderIn(ctx)
     return binder ? { entries: [binder] } : {}
   },
   title: "Settings",
   run: (ctx, a) => {
-    const binder = ctx.book !== NO_BOOK ? binderOf(ctx.book, ctx.stage.opened) : null
+    const binder = openedBinderIn(ctx)
     if (binder) a.openDialog(BINDER_SETTINGS_DIALOG.id, { binder })
   },
-  when: ctx => ctx.book !== NO_BOOK && binderOf(ctx.book, ctx.stage.opened) !== null,
+  when: ctx => openedBinderIn(ctx) !== null,
 })
 
 // バインダ binder を中のページごと複製して、できたバインダを開く

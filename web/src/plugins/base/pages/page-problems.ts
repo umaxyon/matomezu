@@ -5,7 +5,7 @@ import { pagesOf } from "../../../core/book"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import type { MessageKey } from "../../../core/i18n/i18n"
 import type { ItemPage } from "../../../core/placed"
-import type { Book } from "../../../core/schema/book"
+import type { StageLineup } from "../../../core/schema/book"
 import { type SettingReader, settingsAt } from "../book-settings"
 import { type GrowSides, growOf } from "../place/grow"
 
@@ -29,7 +29,7 @@ declare module "../../../core/catalog" {
 // ブック book のページ（pages に id を書けばそのページだけ）のうち、問題のあるものと、その問題（問題は、ページのタイプが知らせる）
 export function pageProblems(
   catalog: CoreCatalog,
-  book: Book,
+  book: StageLineup,
   pages?: readonly string[],
 ): { page: ItemPage; problem: PageProblem }[] {
   return pagesOf(book).flatMap(page => {

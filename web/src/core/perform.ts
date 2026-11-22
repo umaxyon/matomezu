@@ -8,20 +8,22 @@ import { type Annotation, annotationsSettle, type PageAnnotations } from "./anno
 import { findPage, keepsPageTypes, keepsPageTypesAcross, outsideHolds, pageSettles, putPage } from "./book"
 import type { ActionId, ActionTable } from "./catalog"
 import { pageChangeOf } from "./changes"
-import type {
-  ActionContext,
-  ActionDef,
-  ActionTarget,
-  AIEditTicketChange,
-  AIMessage,
-  Declined,
-  Done,
-  OtherRecord,
-  SubjectData,
+import {
+  type ActionContext,
+  type ActionDef,
+  type ActionTarget,
+  type AIEditTicketChange,
+  type AIMessage,
+  type Declined,
+  type Done,
+  type OtherRecord,
+  type SubjectData,
+  takesBook,
 } from "./def/action"
 import { clashedSystemFolder, type Naming, TITLE_TAKEN, titleClashes } from "./entries"
 import { type Folder, homeOrFolderHolds, isOpenRole, type Library } from "./folders"
-import { libraryOf } from "./folders-books"
+import { libraryOf, withBinderEntry } from "./folders-books"
+import { outsideBinderIn } from "./folders-tree"
 import { idsIn, skipping } from "./ids"
 import {
   broken,
@@ -31,6 +33,7 @@ import {
   librarySettles,
   normalized,
   normalizedPage,
+  outsidePagesSettle,
   recordSettles,
   settles,
 } from "./perform-checks"
@@ -39,7 +42,7 @@ import { type Denied, NOT_IN_BOOK, permits } from "./perform-permit"
 import type { ItemPage } from "./placed"
 import { sourceIn } from "./record-source"
 import { NO_RECORD, RECORDS_MAX, REMOVED } from "./records"
-import type { Book } from "./schema/book"
+import type { Book, StageLineup } from "./schema/book"
 
 type ActionOf<Id extends ActionId> = ActionTable[Id]
 export type TargetOf<Id extends ActionId> = ActionOf<Id>["target"]
@@ -58,14 +61,37 @@ export interface PageOutsideBook {
   folders: readonly Folder[]
 }
 export type PageAt = PageInBook | PageOutsideBook
+
+// ブックの外のバインダに、ブックが対象のアクションを行うときに渡す対象: そのバインダの id と、それを持っている書庫
+// （run が受けるのは、バインダの id とそのバインダ 1 つだけの並び。行った後の対象は、バインダを書き戻した書庫）
+export interface BinderOutsideBook {
+  book: typeof NOT_IN_BOOK
+  binder: string
+  library: Library
+}
 // ページのアノテーションが対象のアクションを行うときに渡す対象: 宛先のページ（ブックの中か外）と、そのページのアノテーションの並び
 // （run が受けるのは、そのページと並び）
 export type AnnotationsAt = PageAt & { annotations: readonly Annotation[] }
 export type SubjectOf<Id extends ActionId> =
-  TargetOf<Id> extends "page" ? PageAt : TargetOf<Id> extends "annotations" ? AnnotationsAt : SubjectData<TargetOf<Id>>
-// 行った後の対象（ページが対象のアクションは、ページを替えたブックか、渡した対象 S がブックの外のページなら、そのページ）
+  TargetOf<Id> extends "page"
+    ? PageAt
+    : TargetOf<Id> extends "annotations"
+      ? AnnotationsAt
+      : TargetOf<Id> extends "book"
+        ? Book | BinderOutsideBook
+        : SubjectData<TargetOf<Id>>
+// 行った後の対象（ページが対象のアクションは、ページを替えたブックか、渡した対象 S がブックの外のページなら、そのページ。
+// ブックが対象のアクションは、渡した対象 S がブックの外のバインダなら、バインダを書き戻した書庫）
 export type NextOf<Id extends ActionId, S = SubjectOf<Id>> =
-  TargetOf<Id> extends "page" ? (S extends PageOutsideBook ? ItemPage : Book) : SubjectData<TargetOf<Id>>
+  TargetOf<Id> extends "page"
+    ? S extends PageOutsideBook
+      ? ItemPage
+      : Book
+    : TargetOf<Id> extends "book"
+      ? S extends BinderOutsideBook
+        ? Library
+        : Book
+      : SubjectData<TargetOf<Id>>
 export type ArgsOf<Id extends ActionId> = z.input<ActionOf<Id>["args"]>
 export type ResultOf<Id extends ActionId> =
   ActionOf<Id> extends ActionDef<infer _T, infer _A, infer R, infer _I> ? R : never
@@ -123,8 +149,14 @@ export function runAction(
   ctx: ActionContext,
 ): Done<ActionTarget, unknown> | Declined | null {
   const run = action.run as (subject: unknown, args: unknown, ctx: ActionContext) => ReturnType<ActionDef["run"]>
-  if (action.target === "book")
-    return run(subject, args, { ...ctx, newId: skipping(ctx.newId, () => idsIn((subject as Book).lineup)) })
+  if (action.target === "book") {
+    const ran = run(subject, args, { ...ctx, newId: skipping(ctx.newId, () => idsIn((subject as StageLineup).lineup)) })
+    // 並びを受けるアクションからは、並びだけを受け取る（run が返した、並びのほかのフィールドは見ない）
+    if (!ran || "declined" in ran || takesBook(action)) return ran
+    const given = subject as StageLineup
+    const { lineup } = ran.next as StageLineup
+    return { ...ran, next: (lineup === given.lineup ? given : { ...given, lineup }) as never }
+  }
   if (action.target === "library")
     return run(subject, args, { ...ctx, newId: skipping(ctx.newId, () => rowIdsIn(subject as Library)) })
   if (action.target !== "page" && action.target !== "annotations") return run(subject, args, ctx)
@@ -153,9 +185,11 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
   if (!action) return { ok: false, reason: "unknown" }
   if (action.target === "page" || action.target === "annotations") {
     const at = subject as PageAt
-    if (at.book === NOT_IN_BOOK) return performOutside(action, at, args, ctx) as Performed<Id, S>
+    if (at.book === NOT_IN_BOOK) return performOutsidePage(action, at, args, ctx) as Performed<Id, S>
     if (!findPage(at.book, at.page)) return noPage(at.page)
   }
+  if (action.target === "book" && (subject as BinderOutsideBook).book === NOT_IN_BOOK)
+    return performOutsideBinder(action, subject as BinderOutsideBook, args, ctx) as Performed<Id, S>
   // ブックを変えるアクション（ブックが対象か、ページが対象）の、行う前のブック
   const before =
     action.target === "book" ? (subject as Book) : action.target === "page" ? (subject as PageInBook).book : undefined
@@ -181,12 +215,11 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
       : ran.next
   if (!next) return { ok: false, reason: "refused" }
   const done = { ...ran, next }
-  const nowBooks = wasBooks ? libraryOf(next as Library) : undefined
   // アノテーションのアクションはページを変えない（変えたら runAction が断る）。認可ステップの keeps は、変わらないブックで見る
   const pair = subject as unknown as AnnotationsAt & PageInBook
-  if (wasBooks && nowBooks) {
-    const kept = brokenIn(ctx, action, subject as Library, next as Library)
-    if (kept) return { ok: false, reason: "denied", ...kept }
+  if (wasBooks) {
+    const refusal = libraryRefusal(ctx, action, subject as Library, next as Library)
+    if (refusal) return refusal
   }
   const permission = before
     ? broken(ctx, action, before, done.next as Book)
@@ -198,27 +231,6 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
     // ページのタイプは作ったあと変えない（アクションが替えていたら断る）
     if (!settles(ctx.catalog, done.next as Book) || !keepsPageTypes(before, done.next as Book))
       return { ok: false, reason: "refused" }
-  }
-  if (wasBooks && nowBooks) {
-    const was = wasBooks
-    const now = nowBooks
-    // ブックのフォルダは、どれもブックに組める（並びのエントリの中身が、書庫に在る）
-    const built = Object.values((next as Library).folders).every(f => f.folderRole !== "book" || f.id in now)
-    if (!built) return { ok: false, reason: "refused" }
-    // 変わった書庫ホーム・ゴミ箱・フォルダの行は、形に合う
-    const rows = (subject as Library).folders
-    const shaped = Object.values((next as Library).folders).every(
-      f => !isOpenRole(f.folderRole) || rows[f.id] === f || homeOrFolderHolds(f),
-    )
-    if (!shaped) return { ok: false, reason: "refused" }
-    if (!systemFoldersKept(ctx.catalog, subject as Library, next as Library)) return { ok: false, reason: "refused" }
-    // 行う前から在るページのタイプも、変えない（ページがブックの間を動いても）
-    const typesKept = keepsPageTypesAcross(Object.values(was), Object.values(now))
-    // 同じ入れ物の中の名前の重なりは、ブックの決まりで断る前に、名前が重なる断りにする
-    const clashes = titleClashes(next as Library, ctx.naming)
-    if (clashes.length > 0) return titleTaken(next as Library, clashes, ctx.naming)
-    if (!librarySettles(ctx.catalog, was, now) || !typesKept) return { ok: false, reason: "refused" }
-    if (!outsideHolds(ctx.catalog, subject as Library, next as Library)) return { ok: false, reason: "refused" }
   }
   if (action.target === "annotations") {
     const { page, annotations: next } = done.next as unknown as PageAnnotations
@@ -252,10 +264,75 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
   } as Performed<Id, S>
 }
 
+// 書庫を was から next に変えるアクション action の結果の確かめ（書庫が対象のアクションと、ブックの外のバインダに行った、ブックが対象のアクションで同じ決まりを使う）。
+// 認可ステップの守らせること・ブックと書庫ホームやフォルダの行の形・システムフォルダ・ページのタイプ・名前の重なり・ブックの外の決まりとページの形のどれかを守らなければ、その断り（守れば null）
+function libraryRefusal(ctx: ActionContext, action: ActionDef, was: Library, next: Library): Refused | null {
+  const refused: Refused = { ok: false, reason: "refused" }
+  const kept = brokenIn(ctx, action, was, next)
+  if (kept) return { ok: false, reason: "denied", ...kept }
+  const before = libraryOf(was)
+  const after = libraryOf(next)
+  // ブックのフォルダは、どれもブックに組める（並びのエントリの中身が、書庫に在る）
+  if (!Object.values(next.folders).every(f => f.folderRole !== "book" || f.id in after)) return refused
+  // 変わった書庫ホーム・ゴミ箱・フォルダの行は、形に合う
+  const shaped = Object.values(next.folders).every(
+    f => !isOpenRole(f.folderRole) || was.folders[f.id] === f || homeOrFolderHolds(f),
+  )
+  if (!shaped) return refused
+  if (!systemFoldersKept(ctx.catalog, was, next)) return refused
+  // 行う前から在るページのタイプも、変えない（ページがブックの間を動いても）
+  const typesKept = keepsPageTypesAcross(Object.values(before), Object.values(after))
+  // 同じ入れ物の中の名前の重なりは、ブックの決まりで断る前に、名前が重なる断りにする
+  const clashes = titleClashes(next, ctx.naming)
+  if (clashes.length > 0) return titleTaken(next, clashes, ctx.naming)
+  if (!librarySettles(ctx.catalog, before, after) || !typesKept) return refused
+  if (!outsideHolds(ctx.catalog, was, next) || !outsidePagesSettle(ctx.catalog, was, next)) return refused
+  return null
+}
+
+// ブックの外のバインダ at に、ブックが対象のアクション action を引数 args で行う（perform の、宛先がブックの外のバインダのときの道）。
+// 使えるかと認可ステップは、アクションが変える所を中のページそのものに直して問い（core/perform-library.ts の binderAsksOf）、run にはバインダの id とそのバインダ 1 つだけの並びを渡す。
+// 返った並びが、同じバインダ 1 つだけでない（バインダを足した・消した・並びに直にページを置いた）か、バインダの名前を変えていたら断る（名前は、書庫が対象のアクションが変える）。
+// 中のページを書き戻した書庫を、書庫が対象のアクションと同じに整えて確かめる。ブックにだけ行えるアクション（takesBook）と、バインダがブックの外に無いときは断る
+function performOutsideBinder(
+  action: ActionDef,
+  at: BinderOutsideBook,
+  args: unknown,
+  ctx: ActionContext,
+): Performed<ActionId> {
+  const was = outsideBinderIn(at.library, at.binder)
+  if (!was || takesBook(action)) return { ok: false, reason: "refused" }
+  const parsed = action.args.safeParse(args)
+  const permitted = permits(ctx, action, at, parsed)
+  if (!permitted.ok) return permitted
+  if (!parsed.success) return { ok: false, reason: "bad-args" }
+  // run が振る id は、書庫のどの行の id とも、バインダの中のどの id とも重ならない
+  const newId = skipping(ctx.newId, () => rowIdsIn(at.library))
+  const given: StageLineup = { id: was.id, lineup: [was] }
+  const ran = runAction(action, given, parsed.data, {
+    ...ctx,
+    newId,
+    ...(permitted.pages ? { permittedPages: permitted.pages } : {}),
+  })
+  if (!ran) return { ok: false, reason: "refused" }
+  if ("declined" in ran)
+    return { ok: false, reason: "refused", detail: ran.declined, ...(ran.kind === undefined ? {} : { kind: ran.kind }) }
+  if ((ran.others ?? []).length > 0) return { ok: false, reason: "refused" }
+  const [now, ...rest] = (ran.next as StageLineup).lineup
+  if (now?.kind !== "binder" || rest.length > 0 || now.id !== was.id) return { ok: false, reason: "refused" }
+  if (now.title !== was.title || now.pageType !== was.pageType) return { ok: false, reason: "refused" }
+  const written = withBinderEntry(at.library, was, now)
+  const next = normalizedLibrary(ctx.catalog, action, at.library, written)
+  if (!next) return { ok: false, reason: "refused" }
+  const refusal = libraryRefusal(ctx, action, at.library, next)
+  if (refusal) return refusal
+  return { ok: true, next: next as never, result: ran.result as never }
+}
+
 // ブックの外のページ at に、ページかアノテーションが対象のアクション action を引数 args で行う（perform の、宛先がブックの外のページのときの道）。
 // 使えるかと認可ステップは、そのページそのもので問い、run が返したページをノーマライズステップで整え、認可ステップの守らせること（kind "page"）と、
 // ページの形と決まりとタイプを確かめる（アノテーションが対象なら、変わらないページで確かめ、アノテーションの決まりを見る）
-function performOutside(
+function performOutsidePage(
   action: ActionDef,
   at: PageOutsideBook | (AnnotationsAt & PageOutsideBook),
   args: unknown,

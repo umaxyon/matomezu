@@ -2,7 +2,7 @@
 import { expect, test } from "bun:test"
 import { type Folder, HOME_ID, type Library, TRASH_ID } from "../../web/src/core/folders"
 import { outsideBinderIn } from "../../web/src/core/folders-tree"
-import type { LibraryAndBooks } from "../../web/src/core/library"
+import { type LibraryAndBooks, openablePage } from "../../web/src/core/library"
 import {
   askedOutermostOf,
   newStage,
@@ -137,4 +137,27 @@ test("開いていたページがよそへ移されたら: ブックの中か別
   expect(shown(followLibrary(CORE_CATALOG, plain, { ...inBook, books: { b1: book } }, before))).toEqual([
     [{ kind: "book", id: "b1" }, "s2"],
   ])
+})
+
+test("id のページを、ステージで開ける所から引く（ブックの中・ブックの外のバインダの中・ブックの外のページ 1 枚。ゴミ箱の中と無いページは引かない）", () => {
+  const o1 = drawingPage("o1")
+  const p1 = drawingPage("p1")
+  const b1 = testBook("b1", "B1", [p1])
+  const row: Folder = { folderRole: "book", id: "b1", title: "B1", lineup: [page("p1")] }
+  const l = library(undefined, {
+    folders: [row],
+    home: [{ kind: "binder", id: "n1" }, page("o1"), { kind: "book", id: "b1" }],
+  })
+  const from: LibraryAndBooks = { ...l, pages: { ...l.pages, o1, p1 }, books: { b1 } }
+  expect(openablePage(from, "p1")).toEqual({ outermost: { kind: "book", id: "b1" }, page: p1 })
+  expect(openablePage({ ...from, books: {} }, "p1")).toBeUndefined()
+  expect(openablePage(from, "s2")).toEqual({ outermost: { kind: "binder", id: "n1" }, page: s2 })
+  expect(openablePage(from, "o1")).toEqual({ outermost: { kind: "page", id: "o1" }, page: o1 })
+  expect(openablePage(from, "nothing")).toBeUndefined()
+  const trash: Folder = {
+    folderRole: "trash",
+    id: TRASH_ID,
+    lineup: [{ kind: "binder", id: "n1", trashed: "2026-01-01T00:00:00.000Z", from: [HOME_ID] }],
+  }
+  expect(openablePage(withBooks(library(undefined, { folders: [trash], home: [] })), "s2")).toBeUndefined()
 })

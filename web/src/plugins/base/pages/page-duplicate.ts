@@ -9,7 +9,7 @@ import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import type { Declined } from "../../../core/def/action"
 import { freeTitle } from "../../../core/entries"
 import type { ItemPage } from "../../../core/placed"
-import type { Book } from "../../../core/schema/book"
+import type { StageLineup } from "../../../core/schema/book"
 import { kit } from "../kit"
 import { renewedIds, survivesRenewedIds } from "../utils/ids"
 
@@ -48,13 +48,13 @@ export const PAGE_DUPLICATE = kit.defineAction({
 
 // ブック book のページ page を複製したブックと、写しの id（page-duplicate と、書庫の entry-duplicate が使う）。写しは元のすぐ後ろ（同じブックかバインダの中）、
 // 名前は title（無ければ、元の名前に番号を付けた名前）。ページが無い・複製できないタイプ・渡した名前が重なるなら null、id を振り直すと壊れる形があれば、その断り
-export function duplicatedPage(
+export function duplicatedPage<B extends StageLineup>(
   catalog: CoreCatalog,
-  book: Book,
+  book: B,
   page: string,
   title: string | undefined,
   newId: () => string,
-): { book: Book; page: string } | Declined | null {
+): { book: B; page: string } | Declined | null {
   const at = findPage(book, page)
   if (!at) return null
   const problem = duplicateProblem(catalog, at.page)
