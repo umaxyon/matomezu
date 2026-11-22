@@ -14,6 +14,7 @@ import { actionQuery, type Inspected, inspect, openedQuery, withoutPermissions }
 import { splitId } from "../../core/names"
 import { openedAnswer } from "../../core/perform-permit"
 import { permittedIn } from "../../core/perform-world"
+import { readerOf, sourceOf } from "../../core/record-source"
 import { openedBook, shownPageId, stageBlocks } from "../../core/stage"
 import {
   currentScreen,
@@ -82,13 +83,16 @@ const openScreensOf = (win: WindowState): readonly OpenScreen[] =>
   win.order.flatMap(id => win.screens.filter(s => s.id === id).map(openScreenOf))
 
 // コマンド command を at（ステージの id か、開いているスクリーンの id。どちらでもなければ、スクリーンの外から呼んだ物としてカレントスクリーン）から
-// 呼んだときの、スクリーンから呼ぶコマンドの文脈。プラグイン状態は、コマンドを持つプラグインの宣言だけを読める
+const NO_SUBJECTS: readonly string[] = []
+
+// 呼んだときの、スクリーンから呼ぶコマンドの文脈。reads は、コマンドの定義が readsSubjects に書いた、読むレコードの種類。プラグイン状態は、コマンドを持つプラグインの宣言だけを読める
 export function screenCommandContext(
   catalog: CoreCatalog,
   controlCenter: string | null,
   state: MatomezuState,
   at: string,
   command: string,
+  reads: readonly string[] = NO_SUBJECTS,
 ): ScreenCommandContext {
   const win = state.window
   const screen = screenOfStage(win, at) ?? win.screens.find(s => s.id === at) ?? currentScreen(win)
@@ -111,6 +115,7 @@ export function screenCommandContext(
         placeOf(def.scope, { stage: at, screen: screen.id }),
         ownedPluginState(commandOwner(command), def),
       ),
+    read: readerOf(catalog, sourceOf(state.records), reads),
   }
   return withUnreadableItems(withScreenFrame(ctx, frameOf(win, screen.id)), state.unreadableFolder)
 }
@@ -168,7 +173,17 @@ type Called =
 export function called(defs: Assembled, state: MatomezuState, at: string, id: CommandId | string): Called | null {
   const def = commandDef(defs, id)
   if (def.from === "screen")
-    return { def, ctx: screenCommandContext(defs.catalog.core, defs.controlCenter, state, at, id) }
+    return {
+      def,
+      ctx: screenCommandContext(
+        defs.catalog.core,
+        defs.controlCenter,
+        state,
+        at,
+        id,
+        def.readsSubjects?.(defs.catalog.core),
+      ),
+    }
   const ctx = commandContext(defs.catalog.core, defs.controlCenter, state, at, id)
   return ctx ? { def, ctx } : null
 }
