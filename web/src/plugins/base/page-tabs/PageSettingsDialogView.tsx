@@ -11,7 +11,7 @@ import { withSettings } from "../../../core/book"
 import type { Page } from "../../../core/schema/book"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog } from "../../../ui/store-context"
-import { useActions, useAllowed, useBook, usePageById, usePerform } from "../../../ui/view-hooks"
+import { useActions, useAllowed, useBook, useOutsideBinder, usePageById, usePerform } from "../../../ui/view-hooks"
 import { useSettingControls } from "../book-settings/SettingControls"
 import { Confirm } from "../dialog-host/Confirm"
 import { Dialog } from "../dialog-host/Dialog"
@@ -39,7 +39,10 @@ export function PageSettingsDialogView({ page: id, onClose, children, fields, dr
   const t = useMessages(kit)
   const form = useId()
   const catalog = useCatalog().core
-  const inBook = useBook() !== null // ページがブックに入っているか（ブックの外のページなら false）
+  const inBook = useBook() !== null
+  const binder = useOutsideBinder()
+  // 削除を出すか: ブックのページか、ブックの外のバインダの最後の 1 枚でないページ（ブックの外のページ 1 枚は、書庫で消す）
+  const deletes = inBook || (binder !== null && binder.lineup.length > 1)
   const outermost = useOutermostOf()
   const page = usePageById(id)
   const [title, setTitle] = useState(page?.title ?? "")
@@ -111,7 +114,7 @@ export function PageSettingsDialogView({ page: id, onClose, children, fields, dr
         {settings.controls}
         {children}
         <PageProblemsView problems={problems} />
-        {inBook && (
+        {deletes && (
           <div className={rowClass}>
             <ActionButton danger disabled={!removable} onClick={() => setConfirming(true)}>
               {t("Delete page")}

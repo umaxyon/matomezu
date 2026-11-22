@@ -107,3 +107,49 @@ test("ブックの外のバインダを開いた画面の場所は、ブック�
   expect(opens(gone).map(([o]) => o)).not.toContainEqual({ kind: "binder", id: "n1" })
   expect(gone.state.getState().window.screens.length).toBe(before.screens.length)
 })
+
+test("ブックの外のバインダを開いたステージで、ページ一覧のコマンドがそのバインダの中のページを足す・複製する・並べ替える。元に戻すで戻る", async () => {
+  const store = withBinder()
+  const stage = store.actions.showOutsideBinderStage("n1", "s1")
+  const lineup = () => store.state.getState().folders.n1?.lineup.map(e => e.id)
+  expect(store.actions.command(stage, "@matomezu/base:page-add-after", { page: "s2" })).toBe(true)
+  await Promise.resolve()
+  expect(lineup()).toHaveLength(3)
+  expect(lineup()?.slice(0, 2)).toEqual(["s1", "s2"])
+  const added = lineup()?.[2] as string
+  expect(store.state.getState().pages[added]?.type).toBe(SLIDE)
+  expect(openedIn(store, stage)).toEqual({ book: "n1", page: added })
+
+  expect(store.actions.command(stage, "@matomezu/base:page-duplicate", { page: "s1" })).toBe(true)
+  await Promise.resolve()
+  expect(lineup()).toHaveLength(4)
+  expect(lineup()?.[0]).toBe("s1")
+  const copy = lineup()?.[1] as string
+  expect(store.state.getState().pages[copy]?.title).toBe("表紙 2")
+
+  expect(store.actions.perform("@matomezu/base:page-move", { page: "s2", index: 0 }, { book: "n1" }).ok).toBe(true)
+  await Promise.resolve()
+  expect(lineup()?.[0]).toBe("s2")
+
+  expect(store.actions.command(stage, "@matomezu/base:undo")).toBe(true)
+  await Promise.resolve()
+  expect(lineup()).toEqual(["s1", copy, "s2", added])
+  expect(store.actions.command(stage, "@matomezu/base:undo")).toBe(true)
+  await Promise.resolve()
+  expect(lineup()).toEqual(["s1", "s2", added])
+})
+
+test("ブックの外のバインダの中のロックしたページは、複製と削除を押せない。最後の 1 枚には削除を出さない", async () => {
+  const store = withBinder()
+  const stage = store.actions.showOutsideBinderStage("n1", "s1")
+  expect(store.actions.perform("@matomezu/base:page-lock", {}, { page: "s1" }).ok).toBe(true)
+  await Promise.resolve()
+  expect(store.actions.command(stage, "@matomezu/base:page-duplicate", { page: "s1" })).toBe(false)
+  expect(store.actions.command(stage, "@matomezu/base:page-delete", { page: "s1" })).toBe(false)
+  expect(store.actions.perform("@matomezu/base:page-remove", { page: "s2" }, { book: "n1" }).ok).toBe(true)
+  await Promise.resolve()
+  expect(store.actions.perform("@matomezu/base:page-unlock", {}, { page: "s1" }).ok).toBe(true)
+  await Promise.resolve()
+  expect(store.actions.command(stage, "@matomezu/base:page-delete", { page: "s1" })).toBe(false)
+  expect(store.actions.perform("@matomezu/base:page-remove", { page: "s1" }, { book: "n1" }).ok).toBe(false)
+})

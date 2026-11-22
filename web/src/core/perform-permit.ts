@@ -16,11 +16,22 @@ import {
   type Subjects,
   scopeOf,
   settingsScopeOf,
+  takesBook,
   type Where,
 } from "./def/action"
 import type { Referred } from "./def/permission"
-import type { Library } from "./folders"
-import { type AskedPage, decidedByPlace, deniedBy, type Inspected, inspect, withoutPermissions } from "./inspect"
+import type { Library, PageRow } from "./folders"
+import {
+  type AskedOutermost,
+  type AskedPage,
+  actionQuery,
+  decidedByPlace,
+  deniedBy,
+  type Inspected,
+  inspect,
+  type Query,
+  withoutPermissions,
+} from "./inspect"
 import type { BinderOutsideBook, NotAllowed, PageAt, Refused } from "./perform"
 import { isRecordTarget } from "./perform-checks"
 import { binderAsksOf, libraryAsksOf, NEW_BOOK } from "./perform-library"
@@ -161,6 +172,38 @@ export function permits(
   const answer = asking(book, placeOf(action, args))
   // 引数が形に合わなければ所が出せないので、所のステップ（ページのタイプと付く先）では止めない（行う側が bad-args で断る。認可ステップなどが止めるなら、そちらが先）
   return !args.success && answer.value === false && decidedByPlace(answer) ? { ok: true } : answerOf(answer)
+}
+
+// ステージで開いている物 on の所 where で、アクション action を使えるかの問いの答え（画面のコマンドと見た目が、出すか・押せるかを決める。extra は問いに足す物〈変える利用者の設定の項目など〉）。
+// ブックの外のバインダを開いていて、ブックが対象のアクションなら、perform の行う前の問い（permits）と同じ相手（バインダの中のページそのもの）に問い、どれかが使えないなら、その答え。
+// 所がどのページも決めなければ、行う者だけで決める。ブックにだけ行えるアクションは使えない。ほかは core/inspect.ts の actionQuery の問い
+export function openedAnswer(
+  catalog: CoreCatalog,
+  action: string,
+  on: AskedOutermost | undefined,
+  where: Where | undefined,
+  ctx: Pick<ActionContext, "controlCenter">,
+  extra: Partial<Query> = {},
+): Inspected<boolean> {
+  const def = catalog.actions.get(action)
+  const base = { ...actionQuery(catalog, action, on, where), ...extra } as Query
+  const within = on && "within" in on ? on.within : undefined
+  if (!def || def.target !== "book" || !within) return inspect(catalog, base, ctx)
+  const none: Inspected<boolean> = { value: false, decidedBy: null, steps: [] }
+  if (takesBook(def)) return none
+  const row = on && "folders" in on ? on.folders.find(f => f.id === within.binder) : undefined
+  if (!row) return none
+  const library: Library = {
+    pages: Object.fromEntries(within.pages.map(p => [p.id, p as PageRow])),
+    folders: { [row.id]: row },
+  }
+  const asks = binderAsksOf(catalog, library, within.binder, where)
+  if (asks.length === 0) {
+    const plain = inspect(catalog, base, ctx)
+    return plain.value === null ? { ...plain, value: true } : plain
+  }
+  const answers = asks.map(page => inspect(catalog, { ...base, page } as Query, ctx))
+  return answers.find(a => a.value !== true) ?? (answers[0] as Inspected<boolean>)
 }
 
 // ブックが対象のアクション action が、引数で名指す所（引数が形に合わなければ、分からない）

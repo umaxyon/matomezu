@@ -10,9 +10,9 @@ import type { CoreCatalog } from "../core/core-catalog"
 import { type ActionOn, isInBook, isOnPage, type PageTarget, type Where } from "../core/def/action"
 import type { Point, Size } from "../core/geom"
 import type { Lang } from "../core/i18n/i18n"
-import { actionQuery, deniedBy, inspect } from "../core/inspect"
+import { deniedBy } from "../core/inspect"
 import { type ArgsOf, noPage, type TargetOf } from "../core/perform"
-import type { Permitted } from "../core/perform-permit"
+import { openedAnswer, type Permitted } from "../core/perform-permit"
 import { permittedIn } from "../core/perform-world"
 import {
   findShape,
@@ -142,7 +142,7 @@ export function useAllowed(action: ActionId, where?: Where | { settings: readonl
     const page = place?.page ?? shownPageId(o ?? null) ?? undefined
     const on = { ...(page ? { page } : {}), ...(ids ? { ids: ids.split("\n") } : {}) }
     const changed = settings === undefined ? {} : { settings: settings === "" ? [] : settings.split("\n") }
-    const done = inspect(catalog, { ...actionQuery(catalog, action, asked, on), ...changed }, { controlCenter })
+    const done = openedAnswer(catalog, action, asked, on, { controlCenter }, changed)
     return done.value === true ? OK : (deniedBy(done) ?? NOT_ALLOWED)
   })
   return allowedOf(answer)
@@ -262,9 +262,9 @@ export function useUserSetting(id: string): unknown {
   return useMemo(() => userSetting(catalog, values, id), [catalog, values, id])
 }
 
-// 向け先のステージが開いているステージエントリ（ブックか、ブックの外のページ）にアクションを行う関数（ブック・ページ・アノテーションが対象でないアクションは、ブックを渡さずに行う）。データを変える入口はこれだけ。
+// 向け先のステージが開いているステージエントリ（ブックか、ブックの外のページ・バインダ）にアクションを行う関数（ブック・ページ・アノテーションが対象でないアクションは、ブックを渡さずに行う）。データを変える入口はこれだけ。
 // ページとページのアノテーションが対象のアクションは、宛先のページを on に渡す（開いているブックのページか、開いているブックの外のページだけ。ほかのページなら no-page を返す）。
-// ブックが対象のアクションは、ブックの外のページを開いたステージからは行わず、no-book を返す。
+// ブックが対象のアクションは、ブックかブックの外のバインダを開いたステージから、その id を宛先に行う（ブックにだけ行えるアクションをブックの外のバインダに行えば、perform が断る）。ブックの外のページを開いたステージからは行わず、no-book を返す。
 // 向け先が無い所（ステージの外で見るだけに描くページの中）からは行わず、no-book を返す。
 // 印刷プレビューの間のステージからは、ブックを変えるアクションを行わず print-preview を返す（core/stage.ts の stageBlocks）
 export function usePerform(): <Id extends ActionId>(
@@ -277,7 +277,7 @@ export function usePerform(): <Id extends ActionId>(
   const { perform } = useStoreActions()
   const catalog = useCatalog().core
   const entry = useMatomezuState(s => (at === null ? undefined : stageIn(s.window, at)?.opened?.outermost.id))
-  const outside = useMatomezuState(s => at !== null && stageIn(s.window, at)?.opened?.outermost.kind !== "book")
+  const outsidePage = useMatomezuState(s => at !== null && stageIn(s.window, at)?.opened?.outermost.kind === "page")
   const mode = useMatomezuState(s => (at === null ? undefined : stageIn(s.window, at)?.mode.kind) ?? "edit")
   return useMemo(
     () =>
@@ -289,11 +289,12 @@ export function usePerform(): <Id extends ActionId>(
         if (!isInBook(target)) return loose(action, args)
         if (entry === undefined) return { ok: false, reason: "no-book" }
         // ブックが対象のアクションは、ブックの外のページを開いたステージからは行えない
-        if (!isOnPage(target)) return outside ? { ok: false, reason: "no-book" } : loose(action, args, { book: entry })
+        if (!isOnPage(target))
+          return outsidePage ? { ok: false, reason: "no-book" } : loose(action, args, { book: entry })
         return on && openedPageById(read(), { outermost: entry }, on.page)
           ? loose(action, args, on)
           : noPage(on?.page ?? "")
       },
-    [perform, catalog, entry, outside, mode, at, read],
+    [perform, catalog, entry, outsidePage, mode, at, read],
   )
 }

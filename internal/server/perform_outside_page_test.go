@@ -211,6 +211,42 @@ func TestTheAIPerformsOnAPageInABinderOutsideBooks(t *testing.T) {
 	}
 }
 
+// AI は、ブックの外のバインダ（書庫ホームに直に在る n1）にも、book を宛先にするアクションを行える（宛先の book にバインダの id）:
+// ページを足す・複製する・並べ替える・消すと、バインダの行と中のページの行が書かれ、AI 編集チケットが開く。ブックにだけ行えるアクションは no-book
+func TestTheAIPerformsOnABinderOutsideBooks(t *testing.T) {
+	store := outsidePageStore(t)
+	s, hub := newServerOn(t, Options{}, store)
+	writer := writerAI(t, s.URL)
+	for _, request := range []string{
+		`{"action":"@matomezu/base:page-add","args":{"type":"@matomezu/slide-page:slide","into":{"binder":"n1"},"title":"C"},"on":{"book":"n1"}}`,
+		`{"action":"@matomezu/base:page-duplicate","args":{"page":"n1b","title":"B2"},"on":{"book":"n1"}}`,
+		`{"action":"@matomezu/base:page-move","args":{"page":"n1a","index":3},"on":{"book":"n1"}}`,
+		`{"action":"@matomezu/base:page-remove","args":{"page":"n1b"},"on":{"book":"n1"}}`,
+	} {
+		if _, got := send(t, "POST", s.URL+"/api/ai/perform", request, writer); !strings.HasPrefix(got, `{"ok":true`) {
+			t.Fatalf("perform %s = %s", request, got)
+		}
+	}
+	_, folder := send(t, "GET", s.URL+"/api/ai/folder?folder=n1", "", writer)
+	for _, want := range []string{`"title":"C"`, `"title":"B2"`} {
+		if !strings.Contains(folder, want) {
+			t.Fatalf("folder n1 = %s; want %s", folder, want)
+		}
+	}
+	if strings.Contains(folder, `"id":"n1b"`) || storedPage(t, store, "n1b").ID != "" {
+		t.Fatalf("folder n1 = %s; n1b is removed", folder)
+	}
+	if got := storedAnnotations(t, store, "n1b"); got != "" && got != "[]" {
+		t.Fatalf("annotations of n1b = %s; want none", got)
+	}
+	if list := tickets(hub); len(list) == 0 {
+		t.Fatalf("tickets = %+v; want one for the binder", list)
+	}
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-update","args":{"title":"x"},"on":{"book":"n1"}}`, writer); !strings.Contains(got, `"reason":"no-book"`) {
+		t.Fatalf("book-update on a binder = %s; want no-book", got)
+	}
+}
+
 // ブックの外のバインダの中のページの効かないアノテーションは、そのページの warning（W018）になる。中の読めないページは、AI の読む口に出ない
 func TestPagesInABinderOutsideBooksAreChecked(t *testing.T) {
 	store := entriesStore(t)

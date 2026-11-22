@@ -17,7 +17,7 @@ import type { AskedOutermost } from "../../core/inspect"
 import type { Books } from "../../core/library"
 import type { ArgsOf } from "../../core/perform"
 import type { ItemPage } from "../../core/placed"
-import type { BinderEntry, Book } from "../../core/schema/book"
+import type { BinderEntry, Book, StageLineup } from "../../core/schema/book"
 import type { Settings } from "../../core/settings"
 import { type Stage, shownPageId, toPaper } from "../../core/stage"
 import type { StageListed } from "../../core/window"
@@ -192,9 +192,20 @@ export const workspaceOf = (ctx: CommandContext): Workspace => workspaces.get(ct
 // どちらも開いていなければ undefined）
 export function askedIn(ctx: CommandContext): AskedOutermost | undefined {
   if (ctx.book !== NO_BOOK) return { book: ctx.book }
-  return ctx.stage.opened && ctx.stage.opened.outermost.kind !== "book" && ctx.page !== NO_PAGE
-    ? outsideAsked(ctx.folders, ctx.page)
-    : undefined
+  if (!ctx.stage.opened || ctx.stage.opened.outermost.kind === "book" || ctx.page === NO_PAGE) return undefined
+  const asked = outsideAsked(ctx.folders, ctx.page)
+  const binder = ctx.outsideBinder
+  return binder === NO_OUTSIDE_BINDER ? asked : { ...asked, within: { binder: binder.id, pages: binder.lineup } }
+}
+
+// 文脈 ctx のステージで開いている物の並びが無いときの値（ブックもブックの外のバインダも開いていない）
+export const NO_LINEUP = "none"
+
+// 文脈 ctx のステージで開いている物の並び（ブックが対象のアクションの宛先になる物）: 開いているブックか、開いているブックの外のバインダ（その id と、そのバインダ 1 つだけの並び）
+export function lineupIn(ctx: CommandContext): StageLineup | typeof NO_LINEUP {
+  if (ctx.book !== NO_BOOK) return ctx.book
+  const binder = ctx.outsideBinder
+  return binder === NO_OUTSIDE_BINDER ? NO_LINEUP : { id: binder.id, lineup: [binder] }
 }
 
 // コマンドの文脈 ctx の、開けるブックの一覧（プラグイン API の文脈には出さない。base のコマンドが、開いていないブックの名前を読む）
