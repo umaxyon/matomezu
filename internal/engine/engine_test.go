@@ -209,10 +209,10 @@ func TestLibraryAndSettingsActions(t *testing.T) {
 		Lang:   "ja",
 		IDs:    []string{"nb"},
 	}}}, book), "b1"))
-	// 新しいブックは、書庫ホームの並びの末尾に入る
+	// 新しいブックは、書庫ホームの並びの先頭に入る
 	if err != nil || !out.OK || len(out.Books) != 1 || out.Books[0] != "nb" || len(out.Pages) != 0 || len(out.Folders) != 2 || len(out.Created) != 1 || out.Created[0] != "nb" ||
 		rowOf(out.Folders, "nb") != `{"id":"nb","title":"New","folderRole":"book","lineup":[]}` ||
-		!regexp.MustCompile(`"lineup":\[\{[^}]*"b1"[^}]*\},\{[^}]*"nb"[^}]*\}\]`).MatchString(rowOf(out.Folders, "library-home")) {
+		!regexp.MustCompile(`"lineup":\[\{[^}]*"nb"[^}]*\},\{[^}]*"b1"[^}]*\}\]`).MatchString(rowOf(out.Folders, "library-home")) {
 		t.Fatalf("@matomezu/base:book-create = %+v, %v", out, err)
 	}
 	out, err = e.Perform(Input{Actions: []BulkAction{{Action: "@matomezu/base:settings-set", Args: json.RawMessage(`{"values":{"@matomezu/base:lang":"matomezu:en"}}`), Lang: "ja"}}, Settings: json.RawMessage(`{"@matomezu/base:lang":"matomezu:ja"}`)})

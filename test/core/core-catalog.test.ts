@@ -17,7 +17,7 @@ import { pageTokens, tokenDefsOf } from "../../web/src/plugins/base/book-look/lo
 import { resolveTokens } from "../../web/src/plugins/base/book-look/tokens"
 import { DRAWING, drawingPage, testBook } from "../lineup"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { BUILTIN_PARTS, CORE_CATALOG, NAMING } from "../support"
+import { BUILTIN_PARTS, CORE_CATALOG, libraryWith, NAMING } from "../support"
 
 describe("機能台帳", () => {
   test("ビルトインプラグインのテーマが上書きするテーマキーは、どれもビルトインプラグインのアイテム・タイプ・プラグインが宣言している（インスタンスに無いアイテムのテーマキーの上書きは error にせず、使わないだけ）", () => {
@@ -209,7 +209,7 @@ describe("アクションを行う", () => {
     actor: USER,
     naming: NAMING,
   }
-  const library = tablesOf([book])
+  const library = libraryWith([book])
 
   test("ブックで使えるアクションは、引数を確かめてから行い、結果を返す", () => {
     const done = perform(

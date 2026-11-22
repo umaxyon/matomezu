@@ -40,12 +40,21 @@ test("folder-create は書庫ホームか言ったフォルダの末尾にフォ
   expect(perform("@matomezu/base:folder-create", { title: "x", into: TRASH_ID }).ok).toBe(false)
 })
 
-test("book-create の into は、そのフォルダの末尾にブックを置く（書庫ホームには並ばない）", () => {
-  const { lineup, folder, book } = setup()
+test("book-create の into は、そのフォルダの先頭（at が last なら末尾）にブックを置く（書庫ホームには並ばない）", () => {
+  const { perform, lineup, folder, book } = setup()
   const a = folder("仕事")
   const made = book("議事録", a)
   expect(lineup(a)).toEqual([made])
   expect(lineup(HOME_ID)).not.toContain(made)
+  const first = book("週報", a)
+  expect(lineup(a)).toEqual([first, made])
+  const done = perform("@matomezu/base:book-create", { title: "月報", into: a, at: "last" })
+  expect(lineup(a)).toEqual([first, made, done.ok ? (done.result as { book: string }).book : ""])
+  // into を言わなければ書庫ホームの先頭か末尾
+  const top = book("一番前")
+  expect(lineup(HOME_ID)?.[0]).toBe(top)
+  const tail = perform("@matomezu/base:book-create", { title: "一番後ろ", at: "last" })
+  expect(lineup(HOME_ID)?.at(-1)).toBe(tail.ok ? (tail.result as { book: string }).book : "")
 })
 
 test("entry-move はブックとフォルダを別のフォルダへ動かし、同じフォルダの中で並べ替える。自分の中・ブックの中・ゴミ箱へは動かせない", () => {

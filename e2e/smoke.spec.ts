@@ -121,7 +121,9 @@ test("＋で開くダイアログでページを作るとタブが増え、そ�
   await expect(page.getByRole("tab", { name: "ページ 2" })).toHaveAttribute("aria-selected", "true")
 })
 
-test("ページが多くてタブが横にあふれているとき、開いたページのタブが見える所まで送られ、タブの上でホイールを回すと横にスクロールする", async ({ page }) => {
+test("ページが多くてタブが横にあふれているとき、開いたページのタブが見える所まで送られ、タブの上でホイールを回すと横にスクロールする", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 700, height: 600 })
   await page.goto(BOOK_SCREEN_URL)
   // タブは縮んで「…」になってから、横にあふれる
