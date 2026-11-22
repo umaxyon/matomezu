@@ -141,3 +141,38 @@ test("戻す・消す・空にする。ゴミ箱に無いブックは戻さず�
   expect(three in store.state.getState().books || host.books.has(three)).toBe(false)
   expect(host.books.has(one)).toBe(true)
 })
+
+test("ブックの外のバインダ・ページ・ブックと、それらを持つフォルダを、ゴミ箱に入れて戻し、消せる（ゴミ箱の中もブックの外の決まりで見る）", () => {
+  const { state, actions } = newStore({ now: () => NOW })
+  const act = (action: string, args: Record<string, unknown>) =>
+    (actions.perform as (id: string, args: unknown) => ReturnType<typeof actions.perform>)(
+      `@matomezu/base:${action}`,
+      args,
+    )
+  const lineup = (id: string) => state.getState().folders[id]?.lineup.map(r => r.id)
+  const created = act("folder-create", { title: "仕事" })
+  const into = (created.ok && (created.result as { folder: string }).folder) as string
+  const added = actions.perform(
+    "@matomezu/base:page-add",
+    { type: "@matomezu/slide-page:slide", title: "1", into: { newBinder: "説明" } } as never,
+    { book: "b1" },
+  )
+  const { page, binder } = (added.ok && added.result) as { page: string; binder: string }
+  expect(act("entry-move", { entry: binder, into: HOME_ID }).ok).toBe(true)
+  expect(act("entry-move", { entry: "p1", into: HOME_ID }).ok).toBe(true)
+  for (const entry of [binder, "p1", "b2"]) {
+    expect([entry, act("entry-trash", { entry }).ok]).toEqual([entry, true])
+    expect([entry, act("entry-restore", { entry }).ok]).toEqual([entry, true])
+  }
+  expect(lineup(binder)).toEqual([page])
+  expect(lineup(TRASH_ID)).toEqual([])
+  // 外のバインダ・ページを持つフォルダごと
+  expect(act("entry-move", { entry: binder, into }).ok).toBe(true)
+  expect(act("entry-move", { entry: "p1", into }).ok).toBe(true)
+  expect(act("entry-trash", { entry: into }).ok).toBe(true)
+  expect(act("entry-trash", { entry: "b2" }).ok).toBe(true)
+  expect(act("entry-purge", { entries: ["b2"] }).ok).toBe(true)
+  expect(act("entry-restore", { entry: into }).ok).toBe(true)
+  expect(lineup(into)).toEqual([binder, "p1"])
+  expect(state.getState().folders.b2).toBeUndefined()
+})
