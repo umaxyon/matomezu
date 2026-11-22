@@ -267,6 +267,7 @@ export function movedWithBinders(
   if (!to) return "no-folder"
   if (from.folderRole !== "binder") return "kind"
   if (to.folderRole === "trash" || inTrash(library.folders, entry) || inTrash(library.folders, into)) return "in-trash"
+  if (inBackyard(library.folders, entry) || inBackyard(library.folders, into)) return "in-backyard"
   const id = freshPageId(newId, [...Object.keys(library.pages), ...Object.keys(library.folders)])
   const named = [titleOf(library, "binder", from.id, naming), titleOf(library, "page", entry, naming)]
   const title = freeTitle(named.filter(t => t !== undefined).join(" - "), titlesIn(library, to, naming))
@@ -390,9 +391,10 @@ export function clashedSystemFolder(library: Library, clashes: readonly string[]
   return undefined
 }
 
-// フォルダ f の直下で、名前が重ならないように数えるか（ゴミ箱と読めない物のフォルダの直下は、名前が重なってよい。ゴミ箱の中のフォルダの直下は数える）。
-// 重なりを確かめる titleClashes と、重なりに番号を付ける withFreeTitles の両方が、これで決める
-export const keepsTitlesApart = (f: Folder): boolean => f.folderRole !== "trash" && !isUnreadableRole(f.folderRole)
+// フォルダ f の直下で、名前が重ならないように数えるか（ゴミ箱・読めない物のフォルダ・バックヤードの直下は、名前が重なってよい。ゴミ箱の中のフォルダの直下は数える。
+// バックヤードのブックは、持ち主のプラグインが名前でなくキーで引く）。重なりを確かめる titleClashes と、重なりに番号を付ける withFreeTitles の両方が、これで決める
+export const keepsTitlesApart = (f: Folder): boolean =>
+  f.folderRole !== "trash" && f.folderRole !== "backyard" && !isUnreadableRole(f.folderRole)
 
 // 書庫 library で、直下に同じ名前が重なっている書庫ホーム・フォルダ・ブック・バインダの id（keepsTitlesApart の物だけ。名前は naming で引く）
 export function titleClashes(library: Library, naming: Naming): string[] {

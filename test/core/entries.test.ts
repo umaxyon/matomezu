@@ -442,3 +442,21 @@ describe("バックヤード", () => {
     expect(trashedEntry(t, "b3", "2026-11-22T00:00:00.000Z")).toBe("in-backyard")
   })
 })
+
+test("バックヤードの直下のブックは、名前が重なってよい（番号を付けない）", () => {
+  const TICKETS = "@matomezu/base:tickets-history"
+  const YARD = backyardIdOf(TICKETS)
+  const t = worldTablesOf([b1, testBook("b4", "一", [drawingPage("p4")])], [home, a, c, d])
+  const yard: Folder = {
+    folderRole: "backyard",
+    id: YARD,
+    backyard: TICKETS,
+    lineup: [
+      { kind: "book", id: "b1" },
+      { kind: "book", id: "b4" },
+    ],
+  }
+  const lib: Library = { pages: t.pages, folders: { ...t.folders, [YARD]: yard } }
+  expect(titleClashes(lib, NAMING)).toEqual([])
+  expect(withFreeTitles(lib, NAMING).freed).toEqual([])
+})
