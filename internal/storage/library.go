@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"slices"
+	"strings"
 )
 
 // 書庫: フォルダの行は、書庫ホーム（folderRole が "home"）・ゴミ箱（"trash"）・読めない物のフォルダ（"unreadable"）・フォルダ（"folder"）・ブック・バインダ（"binder"）のどれか。
@@ -42,13 +44,29 @@ const TrashID = "library-trash"
 // UnreadableID は、読めない物のフォルダの id（決まった値）
 const UnreadableID = "library-unreadable"
 
-// IsTopRole は、フォルダの行の役 role（folderRole の値。無い・読めないなら空）が、書庫の一番上のフォルダ（どのフォルダにも入らない）の役か: 書庫ホーム・ゴミ箱・読めない物のフォルダ
-func IsTopRole(role string) bool {
-	return role == RoleHome || role == RoleTrash || role == RoleUnreadable
+// topFolder は、書庫の一番上のフォルダ（どのフォルダにも入らず、ただ 1 つずつ在る）1 つの、役 role と決まった id と、
+// open（ページ・バインダ・ブック・フォルダの 4 つとも持てるか）と library（中の物が書庫に入るか。入らない物は世界の外）
+type topFolder struct {
+	role, id      string
+	open, library bool
 }
 
-// IsOpenRole は、役 role が、ページ・バインダ・ブック・フォルダの 4 つとも持てる役か: 書庫ホーム・ゴミ箱・フォルダ（読めない物のフォルダは、物を入れる所でない）
-func IsOpenRole(role string) bool { return role == RoleHome || role == RoleTrash || role == RoleFolder }
+// topFolders は、一番上のフォルダの表（web/src/core/folders.ts の TOP_FOLDERS と同じ表・同じ順）。一番上の役を見る所は、役の名前を並べずにこの表から引く
+var topFolders = []topFolder{
+	{RoleHome, HomeID, true, true},
+	{RoleTrash, TrashID, true, true},
+	{RoleUnreadable, UnreadableID, false, false},
+}
+
+// IsTopRole は、フォルダの行の役 role（folderRole の値。無い・読めないなら空）が、書庫の一番上のフォルダの役か
+func IsTopRole(role string) bool {
+	return slices.ContainsFunc(topFolders, func(t topFolder) bool { return t.role == role })
+}
+
+// IsOpenRole は、役 role が、ページ・バインダ・ブック・フォルダの 4 つとも持てる役か: 4 つとも持てる一番上の役（書庫ホーム・ゴミ箱）とフォルダ
+func IsOpenRole(role string) bool {
+	return role == RoleFolder || slices.ContainsFunc(topFolders, func(t topFolder) bool { return t.role == role && t.open })
+}
 
 // IsBookRole は、役 role が、ブックの役か（一番上の役でも、4 つとも持てる役でも、バインダでもない）
 func IsBookRole(role string) bool { return !IsTopRole(role) && !IsOpenRole(role) && role != RoleBinder }
@@ -101,8 +119,21 @@ func RefOf(kind, id string) json.RawMessage { return refOf(kind, id) }
 // roleSQL は、表 folders の行の役を読む SQL の式（本文が読めない行は NULL。json_extract は読めない本文で誤りになるので、先に確かめる）
 const roleSQL = `CASE WHEN json_valid(body) THEN json_extract(body, '$.folderRole') END`
 
-// notBookSQL は、ブックでないフォルダの行の id（書庫ホーム・ゴミ箱・読めない物のフォルダ・フォルダ・バインダ。IsBookRole の逆）を選ぶ SQL
-const notBookSQL = `SELECT id FROM folders WHERE ` + roleSQL + ` IN ('` + RoleHome + `', '` + RoleTrash + `', '` + RoleUnreadable + `', '` + RoleFolder + `', '` + RoleBinder + `')`
+// notBookSQL は、ブックでないフォルダの行の id（一番上のフォルダ・フォルダ・バインダ。IsBookRole の逆）を選ぶ SQL
+var notBookSQL = `SELECT id FROM folders WHERE ` + roleSQL + ` IN (` + notBookRolesSQL() + `)`
+
+// notBookRolesSQL は、ブックでない役（一番上の役・フォルダ・バインダ）を SQL の文字の並びにした物
+func notBookRolesSQL() string {
+	roles := []string{RoleFolder, RoleBinder}
+	for _, t := range topFolders {
+		roles = append(roles, t.role)
+	}
+	quoted := make([]string, len(roles))
+	for i, r := range roles {
+		quoted[i] = "'" + r + "'"
+	}
+	return strings.Join(quoted, ", ")
+}
 
 // placeBooksInLibrary は、書庫ホームを作り、どのフォルダにも入っていないフォルダ（ブック。読めない物も）が在れば、
 // 書庫ホームの中のフォルダ「旧ブック」（作った uuid）を作って、それらを id の順に入れる（entries も）。1 つも無ければ「旧ブック」は作らない。

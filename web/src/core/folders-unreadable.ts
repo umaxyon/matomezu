@@ -1,7 +1,7 @@
 // 置き場所から読んだままの行から、読めない物のフォルダとその中の物を外し（outsideUnreadable）、残りからブックの本文を組む（rawBooksOf）。
 // 書庫を整える（読めない物のフォルダへ移す・戻す）のは core/unreadable.ts
 
-import { BROKEN, isOpenRole, isUnreadableRole, type UnreadableRef, UnreadableRefSchema } from "./folders"
+import { BROKEN, isBookRole, isUnreadableRole, type UnreadableRef, UnreadableRefSchema } from "./folders"
 import { type Kept, sameParts } from "./folders-books"
 
 // 行の並び rows の、id → 行（id を文字列で持つ物だけ）
@@ -107,8 +107,7 @@ export function rawBooksOf(allPages: readonly unknown[], allFolders: readonly un
     isObject(e) && Object.keys(e).length === 2 && typeof e.kind === "string" && typeof e.id === "string"
       ? { kind: e.kind, id: e.id }
       : undefined
-  const notBook = (f: Readonly<Record<string, unknown>>) =>
-    isOpenRole(f.folderRole) || f.folderRole === "binder" || isUnreadableRole(f.folderRole)
+  const notBook = (f: Readonly<Record<string, unknown>>) => !isBookRole(f.folderRole)
   // フォルダ f を、エントリを中身に替えて組む（binder なら、並びのエントリの形にする）
   const made = (f: Readonly<Record<string, unknown>>, as: "book" | "binder"): unknown => {
     const lineup = Array.isArray(f.lineup) ? f.lineup : undefined

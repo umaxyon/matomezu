@@ -20,9 +20,11 @@ import {
   FIRST,
   type Folder,
   HOME_ID,
+  LIBRARY_TOP_IDS,
   type Library,
   MOVED_CODES,
   type MovedCode,
+  TOP_IDS,
   TRASH_ID,
   type TrashRef,
   UNREADABLE_ID,
@@ -115,12 +117,12 @@ export function settleLibrary(
   return { writes: writesOf(world), moved, returned, added: filled.added, numbered: freed }
 }
 
-// 世界 world の書庫（rowsLibraryOf で読む。書庫ホームかゴミ箱の下に在るフォルダの行だけで、読めない物のフォルダの中の物・どこにも入っていない物は入れない）
+// 世界 world の書庫（rowsLibraryOf で読む。中の物が書庫に入る一番上のフォルダ（書庫ホーム・ゴミ箱）の下に在るフォルダの行だけで、読めない物のフォルダの中の物・どこにも入っていない物は入れない）
 function libraryOf(world: World): Library {
   const holder = holdersIn(world)
   const rows = [...world.folders].flatMap(([id, row]) => {
-    const top = id === HOME_ID || id === TRASH_ID ? id : topOf(holder, id)
-    return top === HOME_ID || top === TRASH_ID ? [row] : []
+    const top = LIBRARY_TOP_IDS.includes(id) ? id : topOf(holder, id)
+    return top !== undefined && LIBRARY_TOP_IDS.includes(top) ? [row] : []
   })
   return rowsLibraryOf(rows, Object.fromEntries(world.pages))
 }
@@ -333,7 +335,7 @@ function topOf(holder: ReadonlyMap<string, string>, id: string): string | undefi
   const passed = new Set<string>()
   let at: string | undefined = id
   while (at !== undefined && !passed.has(at)) {
-    if (at === HOME_ID || at === TRASH_ID || at === UNREADABLE_ID) return at
+    if (TOP_IDS.includes(at)) return at
     passed.add(at)
     at = holder.get(at)
   }

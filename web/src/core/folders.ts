@@ -96,10 +96,31 @@ export const isUnreadableRole = (role: unknown): role is "unreadable" => role ==
 export type HomeOrFolder = HomeFolder | TrashFolder | PlainFolder
 export type Folder = BookFolder | BinderFolder | HomeOrFolder
 
-// 書庫の一番上のフォルダ（どのフォルダにも入らない）の役か: 書庫ホームとゴミ箱
-export const isTopRole = (role: unknown): role is "home" | "trash" => role === "home" || role === "trash"
-// ページ・バインダ・ブック・フォルダの 4 つとも持てる役か: 書庫ホーム・ゴミ箱・フォルダ（ブックにもバインダにもならない役）
-export const isOpenRole = (role: unknown): role is HomeOrFolder["folderRole"] => isTopRole(role) || role === "folder"
+// 書庫の一番上のフォルダ（どのフォルダにも入らず、ただ 1 つずつ在る）の表: 役ごとの、決まった id と、
+// open（ページ・バインダ・ブック・フォルダの 4 つとも持てるか）と library（中の物が書庫 Library に入るか。入らない物は世界の外）。
+// 一番上の役を見る所は、役の名前を並べずにこの表から引く（Go の internal/storage/library.go の topFolders と同じ表）
+export const TOP_FOLDERS = {
+  home: { id: HOME_ID, open: true, library: true },
+  trash: { id: TRASH_ID, open: true, library: true },
+  unreadable: { id: UNREADABLE_ID, open: false, library: false },
+} as const satisfies Readonly<Record<string, { id: string; open: boolean; library: boolean }>>
+export type TopRole = keyof typeof TOP_FOLDERS
+const topRoles = Object.keys(TOP_FOLDERS) as TopRole[]
+// 一番上のフォルダの id の全部（表の順）
+export const TOP_IDS: readonly string[] = topRoles.map(r => TOP_FOLDERS[r].id)
+// 中の物が書庫に入る一番上のフォルダの id（表の順。書庫ホームが先）
+export const LIBRARY_TOP_IDS: readonly string[] = topRoles
+  .filter(r => TOP_FOLDERS[r].library)
+  .map(r => TOP_FOLDERS[r].id)
+
+// 書庫の一番上のフォルダの役か
+export const isTopRole = (role: unknown): role is TopRole =>
+  typeof role === "string" && Object.hasOwn(TOP_FOLDERS, role)
+// ページ・バインダ・ブック・フォルダの 4 つとも持てる役か: 4 つとも持てる一番上の役（書庫ホーム・ゴミ箱）とフォルダ（ブックにもバインダにもならない役）
+export const isOpenRole = (role: unknown): role is HomeOrFolder["folderRole"] =>
+  (isTopRole(role) && TOP_FOLDERS[role].open) || role === "folder"
+// ブックの役か: 一番上の役でも、4 つとも持てる役でも、バインダでもない（形の合わない役もブックとして読み、読めないブックになる）
+export const isBookRole = (role: unknown): boolean => !isTopRole(role) && !isOpenRole(role) && role !== "binder"
 
 const AnyEntryRefSchema = z.strictObject({ kind: z.enum(["page", "binder", "book", "folder"]), id: z.string().min(1) })
 const TrashRefSchema = AnyEntryRefSchema.extend({ trashed: z.string().min(1), from: z.array(z.string().min(1)) })
