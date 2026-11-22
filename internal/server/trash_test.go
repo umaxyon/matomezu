@@ -138,7 +138,7 @@ func TestBooksInABackyardAreNotListedForTheAI(t *testing.T) {
 	if err := store.Apply(storage.Batch{
 		Folders: []storage.RowWrite{
 			{ID: storage.HomeID, Base: v[storage.HomeID], Body: storage.HomeBody([]json.RawMessage{storage.RefOf("book", "b1")})},
-			{ID: yard, Body: json.RawMessage(`{"folderRole":"backyard","id":"` + yard + `","backyard":"@matomezu/base:tickets-history","lineup":[{"kind":"book","id":"b2"}]}`)},
+			{ID: yard, Body: json.RawMessage(`{"folderRole":"backyard","id":"` + yard + `","backyard":"@matomezu/base:tickets-history","lineup":[{"kind":"book","id":"b2","workKey":{"subject":"s","id":"k"}}]}`)},
 		},
 		Entries: []storage.EntryPut{{ID: "b2", Folder: yard}},
 	}); err != nil {

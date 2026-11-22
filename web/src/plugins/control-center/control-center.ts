@@ -13,6 +13,7 @@ export const CONTROL_CENTER = kit.defineControlCenter({
     "@matomezu/base:entry-rename",
     "@matomezu/base:entry-duplicate",
     "@matomezu/base:page-create",
+    "@matomezu/base:worker-page-add",
     "@matomezu/base:entry-trash",
     "@matomezu/base:entry-restore",
     "@matomezu/base:entry-purge",

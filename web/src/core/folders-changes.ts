@@ -19,7 +19,12 @@ export function placedChanges(tables: Library, changes: TableChanges): TableChan
   )
   if (made.length === 0 && gone.size === 0) return changes
   const after = withChanges(tables, changes).folders
-  const held = new Set(Object.values(after).flatMap(f => (isOpenRole(f.folderRole) ? f.lineup.map(r => r.id) : [])))
+  // アクションがバックヤードに置いたブックも、もう入っている（書庫ホームに足さない）
+  const held = new Set(
+    Object.values(after).flatMap(f =>
+      isOpenRole(f.folderRole) || f.folderRole === "backyard" ? f.lineup.map(r => r.id) : [],
+    ),
+  )
   const added = made.filter(id => !held.has(id))
   const puts: Record<string, Folder> = {}
   for (const f of Object.values(after)) {

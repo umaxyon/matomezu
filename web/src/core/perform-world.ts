@@ -33,8 +33,9 @@ import {
 } from "./perform"
 import { isRecordTarget } from "./perform-checks"
 import { NOT_IN_BOOK, type PermitContext, type Permitted, permitted } from "./perform-permit"
+import { FOLDERS, type WithFolders } from "./permission-input"
 import type { ItemPage } from "./placed"
-import { type RecordSource, readFrom, SOURCE, sourceOf, type WithSource } from "./record-source"
+import { type RecordSource, readerOf, readFrom, SOURCE, sourceIn, sourceOf, type WithSource } from "./record-source"
 import { type Counters, NO_RECORD, REMOVED, type RecordChange, type Records } from "./records"
 import { sameData } from "./same"
 import type { Book } from "./schema/book"
@@ -114,7 +115,7 @@ export function performIn(
 ): PerformedIn {
   // 名前を引く決まりは、どの対象のアクションにも、世界の利用者の設定から入れる
   const naming = namingOf(given.catalog, world.settings)
-  const ctx: ActionContext = { ...given, naming }
+  const ctx: ActionContext = { ...given, naming, ...inputsOf(world) }
   const target: ActionTarget | undefined = ctx.catalog.actions.get(id)?.target
   const loose = perform as (
     subject: unknown,
@@ -151,7 +152,13 @@ export function performIn(
   }
   if (target === "library") {
     const library: Library = { pages: world.pages, folders: world.folders }
-    return changedLibrary(naming, world, loose(library, id, args, ctx))
+    const subjects = ctx.catalog.actions.get(id)?.readsSubjects?.(ctx.catalog)
+    const read = subjects ? readerOf(ctx.catalog, sourceIn(ctx), subjects) : undefined
+    return changedLibrary(
+      naming,
+      world,
+      loose(library, id, args, read ? { ...ctx, record: read.record, find: read.find } : ctx),
+    )
   }
   const done = loose(world.settings, id, args, ctx)
   if (!done.ok) return done
@@ -365,6 +372,12 @@ function booksRead(world: World, action: ActionDef, args: unknown): Books {
   )
 }
 
+// 認可ステップが読む、世界 world のレコードの読み口と書庫のフォルダ（アクションの文脈に、core の中だけで引く鍵で持たせる）
+const inputsOf = (world: World): WithSource & WithFolders => ({
+  [SOURCE]: world.source ?? sourceOf(world.records),
+  [FOLDERS]: world.folders,
+})
+
 // ブックが対象のアクション action（id）の宛先（on の book）: ブックか、ブックの外のバインダ（そのバインダの id と、それを持っている書庫）。
 // 無いか、ゴミ箱の中の物か、ブックの中のバインダか、ブックにだけ行えるアクション（takesBook）にバインダを名指したなら null。performIn と permittedIn で同じ決まりを使う
 function targetLineupIn(
@@ -388,8 +401,9 @@ export function permittedIn(
   id: string,
   args: unknown,
   on: ActionOn | undefined,
-  ctx: PermitContext,
+  given: PermitContext,
 ): Permitted | Refused | { ok: false; reason: "no-book" } | ReturnType<typeof noRecord> {
+  const ctx: PermitContext = { ...given, ...inputsOf(world) }
   const target: ActionTarget | undefined = ctx.catalog.actions.get(id)?.target
   if (target === "book") {
     const at = targetLineupIn(ctx.catalog, world, id, on)

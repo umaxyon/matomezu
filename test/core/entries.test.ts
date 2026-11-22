@@ -3,6 +3,7 @@
 import { describe, expect, test } from "bun:test"
 import { outsideHolds } from "../../web/src/core/book"
 import {
+  backyardBookOf,
   binnedBetween,
   canHold,
   carriedEntry,
@@ -12,6 +13,7 @@ import {
   movedEntry,
   movedWithBinders,
   NEW_BINDER,
+  placedInBackyard,
   placeOf,
   restoredEntry,
   titleClashes,
@@ -29,6 +31,7 @@ import {
   TRASH_ID,
   type TrashFolder,
 } from "../../web/src/core/folders"
+import { withBook } from "../../web/src/core/folders-books"
 import { treeHolds } from "../../web/src/core/folders-tree"
 import { drawingPage, SLIDE, testBinder, testBook, testPage } from "../lineup"
 import { CORE_CATALOG, libraryWith, NAMING, worldTablesOf } from "../support"
@@ -412,7 +415,12 @@ describe("バックヤード", () => {
   const b3 = testBook("b3", "三", [drawingPage("p3")])
   const yarded = (): Library => {
     const t = worldTablesOf([b1, b2, b3], [home, a, c, d])
-    const yard: Folder = { folderRole: "backyard", id: YARD, backyard: TICKETS, lineup: [{ kind: "book", id: "b3" }] }
+    const yard: Folder = {
+      folderRole: "backyard",
+      id: YARD,
+      backyard: TICKETS,
+      lineup: [{ kind: "book", id: "b3", workKey: { subject: "t", id: "3" } }],
+    }
     return { pages: t.pages, folders: { ...t.folders, [YARD]: yard } }
   }
 
@@ -441,6 +449,20 @@ describe("バックヤード", () => {
     expect(movedEntry(t, "b1", YARD)).toBe("in-backyard")
     expect(trashedEntry(t, "b3", "2026-11-22T00:00:00.000Z")).toBe("in-backyard")
   })
+
+  test("中のブックは workKey で引き、新しいブックは workKey を付けて末尾に置く（同じ workKey が在れば断る）", () => {
+    const t = yarded()
+    expect(backyardBookOf(t, TICKETS, { subject: "t", id: "3" })).toBe("b3")
+    expect(backyardBookOf(t, TICKETS, { subject: "t", id: "9" })).toBeUndefined()
+    const made = withBook(t, testBook("b9", "九", [drawingPage("p9")]))
+    const placed = placedInBackyard(made, "b9", TICKETS, { subject: "t", id: "9" }) as Library
+    expect((placed.folders[YARD] as Folder).lineup.map(r => r.id)).toEqual(["b3", "b9"])
+    expect(treeHolds(placed)).toBe(true)
+    expect(backyardBookOf(placed, TICKETS, { subject: "t", id: "9" })).toBe("b9")
+    expect(placedInBackyard(made, "b9", TICKETS, { subject: "t", id: "3" })).toBe("work-key-taken")
+    expect(placedInBackyard(made, "b1", TICKETS, { subject: "t", id: "8" })).toBe("no-entry")
+    expect(placedInBackyard(made, "b9", "@x/y:none", { subject: "t", id: "8" })).toBe("no-folder")
+  })
 })
 
 test("バックヤードの直下のブックは、名前が重なってよい（番号を付けない）", () => {
@@ -452,8 +474,8 @@ test("バックヤードの直下のブックは、名前が重なってよい�
     id: YARD,
     backyard: TICKETS,
     lineup: [
-      { kind: "book", id: "b1" },
-      { kind: "book", id: "b4" },
+      { kind: "book", id: "b1", workKey: { subject: "t", id: "1" } },
+      { kind: "book", id: "b4", workKey: { subject: "t", id: "4" } },
     ],
   }
   const lib: Library = { pages: t.pages, folders: { ...t.folders, [YARD]: yard } }

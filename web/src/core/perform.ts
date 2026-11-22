@@ -20,7 +20,8 @@ import {
   type SubjectData,
   takesBook,
 } from "./def/action"
-import { clashedSystemFolder, type Naming, TITLE_TAKEN, titleClashes } from "./entries"
+import type { BackyardEntries } from "./def/permission"
+import { clashedSystemFolder, IN_BACKYARD, type Naming, TITLE_TAKEN, titleClashes } from "./entries"
 import { type Folder, homeOrFolderHolds, isOpenRole, type Library } from "./folders"
 import { libraryOf, withBinderEntry } from "./folders-books"
 import { outsideBinderIn } from "./folders-tree"
@@ -37,8 +38,9 @@ import {
   recordSettles,
   settles,
 } from "./perform-checks"
-import { brokenIn, normalizedLibrary, systemFoldersKept } from "./perform-library"
+import { backyardBreach, brokenIn, normalizedLibrary, systemFoldersKept } from "./perform-library"
 import { type Denied, NOT_IN_BOOK, permits } from "./perform-permit"
+import { backyardEntryIn } from "./permission-input"
 import type { ItemPage } from "./placed"
 import { sourceIn } from "./record-source"
 import { NO_RECORD, RECORDS_MAX, REMOVED } from "./records"
@@ -221,13 +223,21 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
     const refusal = libraryRefusal(ctx, action, subject as Library, next as Library)
     if (refusal) return refusal
   }
+  // ブックが対象・ページが対象のアクションは、ブックの置き場所を変えないので、前と後のバックヤードは同じ
+  const entriesOf = (book: Book): BackyardEntries => {
+    const entry = backyardEntryIn(ctx, book.id)
+    return entry ? { before: entry, after: entry } : {}
+  }
   const permission = before
-    ? broken(ctx, action, before, done.next as Book)
+    ? broken(ctx, action, before, done.next as Book, entriesOf(before))
     : action.target === "annotations"
-      ? broken(ctx, action, pair.book, pair.book)
+      ? broken(ctx, action, pair.book, pair.book, entriesOf(pair.book))
       : null
   if (permission) return { ok: false, reason: "denied", permission }
   if (before) {
+    // バックヤードに在るブックは、名前を変えない
+    if (backyardEntryIn(ctx, before.id) && (done.next as Book).title !== before.title)
+      return inBackyard("a book in a backyard cannot be renamed")
     // ページのタイプは作ったあと変えない（アクションが替えていたら断る）
     if (!settles(ctx.catalog, done.next as Book) || !keepsPageTypes(before, done.next as Book))
       return { ok: false, reason: "refused" }
@@ -265,7 +275,7 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
 }
 
 // 書庫を was から next に変えるアクション action の結果の確かめ（書庫が対象のアクションと、ブックの外のバインダに行った、ブックが対象のアクションで同じ決まりを使う）。
-// 認可ステップの守らせること・ブックと書庫ホームやフォルダの行の形・システムフォルダ・ページのタイプ・名前の重なり・ブックの外の決まりとページの形のどれかを守らなければ、その断り（守れば null）
+// 認可ステップの守らせること・ブックと書庫ホームやフォルダの行の形・システムフォルダ・バックヤード（in-backyard）・ページのタイプ・名前の重なり・ブックの外の決まりとページの形のどれかを守らなければ、その断り（守れば null）
 function libraryRefusal(ctx: ActionContext, action: ActionDef, was: Library, next: Library): Refused | null {
   const refused: Refused = { ok: false, reason: "refused" }
   const kept = brokenIn(ctx, action, was, next)
@@ -280,6 +290,8 @@ function libraryRefusal(ctx: ActionContext, action: ActionDef, was: Library, nex
   )
   if (!shaped) return refused
   if (!systemFoldersKept(ctx.catalog, was, next)) return refused
+  const breach = backyardBreach(action, was, next)
+  if (breach) return inBackyard(breach)
   // 行う前から在るページのタイプも、変えない（ページがブックの間を動いても）
   const typesKept = keepsPageTypesAcross(Object.values(before), Object.values(after))
   // 同じ入れ物の中の名前の重なりは、ブックの決まりで断る前に、名前が重なる断りにする
@@ -355,6 +367,7 @@ function performOutsidePage(
       folders: { before: folders, after: folders },
       change: pageChangeOf(held.id, held, after),
       place: "same",
+      backyardEntry: {},
     })
   if (action.target === "annotations") {
     const permission = broke(held)
@@ -433,3 +446,6 @@ export const languageTitleTaken = (library: Library, clashes: readonly string[],
     clashes,
     naming,
   )
+
+// バックヤードの決まりを守らない断り（detail は AI への説明に載る英語の文）
+const inBackyard = (detail: string): Refused => ({ ok: false, reason: "refused", kind: IN_BACKYARD, detail })

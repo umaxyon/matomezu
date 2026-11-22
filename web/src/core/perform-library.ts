@@ -8,7 +8,15 @@ import { type Folder, isOpenRole, type Library, type PageRow } from "./folders"
 import { libraryOf } from "./folders-books"
 import { bookIdOf, inTrash, isKeptSystemFolder, permissionFoldersOf, systemFolderOf } from "./folders-tree"
 import type { AskedPage } from "./inspect"
-import { broken, brokenPage, normalizedPage, pageChecksBetween, placeChangeOf } from "./perform-checks"
+import { splitId } from "./names"
+import {
+  backyardEntriesBetween,
+  broken,
+  brokenPage,
+  normalizedPage,
+  pageChecksBetween,
+  placeChangeOf,
+} from "./perform-checks"
 import type { ItemPage } from "./placed"
 import type { BinderEntry, Book } from "./schema/book"
 
@@ -155,12 +163,26 @@ export function brokenIn(
   const rows: LibraryPageRows = { was: pagesOutsideTrash(was), now: pagesOutsideTrash(now) }
   for (const b of Object.values(before)) {
     const place = after[b.id] ? placeChangeOf(was, now, b.id, binned) : "same"
-    const id = b === after[b.id] && place === "same" ? null : broken(ctx, action, b, after[b.id], place, rows)
+    const id =
+      b === after[b.id] && place === "same"
+        ? null
+        : broken(ctx, action, b, after[b.id], backyardEntriesBetween(was.folders, b.id, now.folders, b.id), place, rows)
     if (id) return { permission: id, book: b.id }
   }
   for (const b of Object.values(after)) {
     const made = inTrash(now.folders, b.id) ? "trashed" : "same"
-    const id = b.id in before ? null : broken(ctx, action, undefined, b, made, rows)
+    const id =
+      b.id in before
+        ? null
+        : broken(
+            ctx,
+            action,
+            undefined,
+            b,
+            backyardEntriesBetween(was.folders, undefined, now.folders, b.id),
+            made,
+            rows,
+          )
     if (id) return { permission: id }
   }
   for (const page of pageChecksBetween(was, now)) {
@@ -208,3 +230,23 @@ export function systemFoldersKept(catalog: CoreCatalog, was: Library, now: Libra
 
 // 作るブックを認可ステップに問うときの、空のブック（問うためだけの物）
 export const NEW_BOOK: Book = { id: "new-book", title: "new book", lineup: [] }
+
+// 書庫が was から now に変わる間に、バックヤードの決まりを守らない訳（守れば null）: バックヤードに在るブックは名前を変えない（持ち主は名前でなく workKey で引く）。
+// バックヤードに新しく作るブックは、そのバックヤードの持ち主のプラグインのアクションだけが作る（読めない物のフォルダから戻す物は、前から在るので作るでない）
+export function backyardBreach(action: ActionDef, was: Library, now: Library): string | null {
+  for (const row of Object.values(now.folders)) {
+    if (row.folderRole !== "backyard") continue
+    for (const ref of row.lineup) {
+      const before = was.folders[ref.id]
+      if (!before) {
+        if (splitId(row.backyard).owner !== splitId(action.id).owner)
+          return "only the plugin that owns a backyard makes books in it"
+        continue
+      }
+      const after = now.folders[ref.id]
+      if (before.folderRole === "book" && after?.folderRole === "book" && after.title !== before.title)
+        return "a book in a backyard cannot be renamed"
+    }
+  }
+  return null
+}

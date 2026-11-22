@@ -2,7 +2,9 @@ import { expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import {
+  backyardIdOf,
   HOME_ID,
+  homeOrFolderHolds,
   isBookRole,
   isOpenRole,
   isTopRole,
@@ -47,4 +49,14 @@ test("一番上のフォルダの id: 決まった id の全部と、中の物�
   expect(TOP_IDS).toEqual([HOME_ID, TRASH_ID, UNREADABLE_ID])
   const rows = { b: { folderRole: "backyard" }, a: { folderRole: "backyard" }, f: { folderRole: "folder" } }
   expect(libraryTopIdsIn(rows)).toEqual([HOME_ID, TRASH_ID, "a", "b"])
+})
+
+test("バックヤードの行: id は印から決まり、並びのエントリは workKey を持ち、workKey は重ならない", () => {
+  const mark = "@matomezu/base:tickets-history"
+  const row = (lineup: object[], id = backyardIdOf(mark)) => ({ folderRole: "backyard", id, backyard: mark, lineup })
+  const ref = (id: string, key: string) => ({ kind: "book", id, workKey: { subject: "s", id: key } })
+  expect(homeOrFolderHolds(row([ref("b1", "k1"), ref("b2", "k2")]))).toBe(true)
+  expect(homeOrFolderHolds(row([ref("b1", "k1"), ref("b2", "k1")]))).toBe(false)
+  expect(homeOrFolderHolds(row([{ kind: "book", id: "b1" }]))).toBe(false)
+  expect(homeOrFolderHolds(row([], "library-backyard-x"))).toBe(false)
 })

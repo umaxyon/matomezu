@@ -81,6 +81,9 @@ func (h *Hub) settleLibrary(quiet bool) (moved []MovedCount, returned int) {
 	for _, id := range done.Returned {
 		fmt.Fprintln(os.Stderr, "back from the unreadable folder:", id)
 	}
+	for _, id := range done.Purged {
+		fmt.Fprintln(os.Stderr, "removed from the unreadable folder (its backyard has a book of the same work key):", id)
+	}
 	for _, a := range done.Added {
 		fmt.Fprintln(os.Stderr, "added the system folder:", a.SystemFolder, a.ID)
 	}
