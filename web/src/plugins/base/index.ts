@@ -67,6 +67,7 @@ import {
   LIBRARY_TREE_KEY_SCOPE,
   LIBRARY_TREE_MOVE,
   LIBRARY_TREE_UNFOLD_OR_NEXT,
+  LIBRARY_TREE_WIDTH,
   LIBRARY_UNDO,
   LIBRARY_UNFOLDED,
   LIBRARY_UNREADABLE_OPEN,
@@ -662,6 +663,7 @@ export const BASE = defineBuiltin(
       LIBRARY_COLUMNS,
       LIBRARY_UNFOLDED,
       LIBRARY_QUERY,
+      LIBRARY_TREE_WIDTH,
       UNREADABLE_NOTICE_CLOSED,
       ...REVEAL_REQUEST_STATES,
       ...PRINT_PREVIEW_STATES,
@@ -952,6 +954,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:library-columns": typeof LIBRARY_COLUMNS
     "@matomezu/base:library-unfolded": typeof LIBRARY_UNFOLDED
     "@matomezu/base:library-query": typeof LIBRARY_QUERY
+    "@matomezu/base:library-tree-width": typeof LIBRARY_TREE_WIDTH
     "@matomezu/base:revealing": typeof REVEALING_STATE
     "@matomezu/base:print-ready": typeof PRINT_READY_STATE
     "@matomezu/base:print-measures": typeof PRINT_MEASURES

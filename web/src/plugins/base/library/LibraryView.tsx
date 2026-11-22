@@ -1,7 +1,7 @@
 // 書庫の画面: 左にツリー（書庫ホームとゴミ箱が一番上に並ぶ）、右にパンくずと、開いているフォルダの中身。
 // 1 回押すと選び（ツリーのフォルダ・ブック・バインダは、右の枠にその中身を出す）、2 回押すと開く（フォルダは中へ入り、ブックとその中のページ・バインダは窓に出す）。
 // ゴミ箱は、ツリーでは中を出さず、右の枠に捨てた物の一覧を出す（TrashView.tsx）。読めない物は、選べるだけ。開いているフォルダは画面の場所に入り、選んでいる行は入らない（state.ts）
-import { type MouseEvent, useEffect, useId, useRef, useState } from "react"
+import { type CSSProperties, type MouseEvent, useEffect, useId, useRef, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
 import { type Naming, namingOf, titleOf } from "../../../core/entries"
 import { HOME_ID, TRASH_ID, UNREADABLE_ID } from "../../../core/folders"
@@ -14,6 +14,7 @@ import { useCatalog, useMatomezuState, useReadState } from "../../../ui/store-co
 import { useActions, useUserSetting } from "../../../ui/view-hooks"
 import { ActionButton, controlClass } from "../dialog-host/FormParts"
 import { kit } from "../kit"
+import { SplitHandle } from "../utils/SplitHandle"
 import {
   LIBRARY_CONTENTS_SCOPE,
   LIBRARY_ENTRY_CONTEXT,
@@ -50,8 +51,9 @@ import {
 import { usePickRows } from "./RowTable"
 import { type FoundRow, NO_SEARCH, searchWord } from "./search"
 import { SHOW_UNREADABLE_FOLDER } from "./show-unreadable"
-import { LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_QUERY, LIBRARY_UNFOLDED } from "./state"
+import { LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_QUERY, LIBRARY_TREE_WIDTH, LIBRARY_UNFOLDED } from "./state"
 import { TrashView } from "./TrashView"
+import { CONTENT_MIN_WIDTH, DEFAULT_TREE_WIDTH, TREE_MIN_WIDTH, treeWidthAt } from "./tree-width"
 import { UnreadableView } from "./UnreadableView"
 import { type LibraryDrag, useLibraryDrag } from "./useLibraryDrag"
 
@@ -128,6 +130,8 @@ export function LibraryView({ className }: { className?: string } = {}) {
   const enter = (folder: string) => arrive({ id: folder, holder: folder, holds: true })
   // 検索: 入力Formに打っている途中の言葉 typed と、「検索」を押して探している言葉 query
   const query = usePluginState(kit, LIBRARY_QUERY)
+  const treeWidth = usePluginState(kit, LIBRARY_TREE_WIDTH) ?? DEFAULT_TREE_WIDTH
+  const setTreeWidth = useSetPluginState(kit, LIBRARY_TREE_WIDTH)
   const setQuery = useSetPluginState(kit, LIBRARY_QUERY)
   const [typed, setTyped] = useState(query ?? "")
   const searchForm = useId()
@@ -205,6 +209,13 @@ export function LibraryView({ className }: { className?: string } = {}) {
       data-key-scope={LIBRARY_SCOPE}
       tabIndex={-1}
       onPointerDown={onPointerDown}
+      style={
+        {
+          "--library-tree-width": `${treeWidth}px`,
+          "--library-tree-min-width": `${TREE_MIN_WIDTH}px`,
+          "--library-content-min-width": `${CONTENT_MIN_WIDTH}px`,
+        } as CSSProperties
+      }
     >
       <div className={styles.left}>
         <search>
@@ -245,6 +256,14 @@ export function LibraryView({ className }: { className?: string } = {}) {
           </button>
         )}
       </div>
+      <SplitHandle
+        direction="row"
+        frame={root}
+        onMove={(at, length) => setTreeWidth(treeWidthAt(at, length))}
+        onReset={() => setTreeWidth(undefined)}
+        className={styles.treeSplitter}
+        data-tree-splitter
+      />
       <div className={styles.right}>
         {query !== undefined ? (
           <FoundView
