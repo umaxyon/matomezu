@@ -182,6 +182,7 @@ import {
   PARTICIPANT_WELCOME_DIALOG,
   SESSION_RENAME,
   WORKER_BOOK,
+  WORKER_PAGE_ADD,
   WORKROOM,
   WORKROOM_ADD,
   WORKROOM_REMOVE,
@@ -469,6 +470,7 @@ export const BASE = defineBuiltin(
       BOOK_LOCK,
       BOOK_UNLOCK,
       BOOK_CREATE,
+      WORKER_PAGE_ADD,
       FOLDER_CREATE,
       ENTRY_MOVE,
       ENTRY_MOVE_OVER,
@@ -735,6 +737,7 @@ declare module "../../core/catalog" {
   }
   interface ActionTable {
     "@matomezu/base:book-create": typeof BOOK_CREATE
+    "@matomezu/base:worker-page-add": typeof WORKER_PAGE_ADD
     "@matomezu/base:page-add": typeof PAGE_ADD
     "@matomezu/base:book-update": typeof BOOK_UPDATE
     "@matomezu/base:page-update": typeof PAGE_UPDATE

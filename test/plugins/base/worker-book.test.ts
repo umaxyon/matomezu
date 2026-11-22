@@ -133,3 +133,86 @@ describe("行うときに core が渡す物", () => {
     })
   })
 })
+
+describe("ワーカーブックにページを足す（worker-page-add）", () => {
+  // tickets-history に、ワークルーム r1 自身のワーカーブック b1 を置いた世界（どのワークルームも空き）
+  function world(): World {
+    const library = libraryWith([testBook("b1", "r1", [drawingPage("p1")])])
+    const yard = backyardIdOf(TICKETS_HISTORY.id)
+    return {
+      pages: library.pages,
+      folders: {
+        ...library.folders,
+        [HOME_ID]: { folderRole: "home", id: HOME_ID, lineup: [] },
+        [yard]: {
+          folderRole: "backyard",
+          id: yard,
+          backyard: TICKETS_HISTORY.id,
+          lineup: [{ kind: "book", id: "b1", workKey: roomKey("r1") }],
+        },
+      },
+      settings: {},
+      annotations: {},
+      records: {},
+      counters: {},
+    }
+  }
+  const ctx = (actor: Actor): Omit<ActionContext, "naming"> => ({
+    catalog: CORE_CATALOG,
+    controlCenter: BUILTIN_CONTROL_CENTER,
+    lang: "en",
+    newId: sequence("w"),
+    now: "2026-11-22T00:00:00.000Z",
+    today: "2026-11-22",
+    actor,
+  })
+  const ai = (room: string): Actor => ({ kind: "ai", workroom: { id: room } })
+  const add = (actor: Actor, args: object = {}) =>
+    performIn(
+      world(),
+      "@matomezu/base:worker-page-add",
+      { type: "@matomezu/drawing:drawing", title: "メモ", ...args },
+      undefined,
+      ctx(actor),
+    )
+  const yardOf = (done: ReturnType<typeof add>) =>
+    done.ok
+      ? (done.changes?.folders?.[backyardIdOf(TICKETS_HISTORY.id)] as unknown as { lineup: unknown[] })
+      : undefined
+
+  test("ブックが在れば、その最後に足す", () => {
+    const done = add(ai("r1"))
+    expect(done).toMatchObject({ ok: true, result: { book: "b1" } })
+    const page = (done as { result: { page: string } }).result.page
+    const b1 = (done as unknown as { changes: { folders: Record<string, { lineup: { id: string }[] }> } }).changes
+      .folders.b1
+    expect(b1?.lineup.map(r => r.id)).toEqual(["p1", page])
+  })
+
+  test("ブックが無ければ、ワークルームの名前で作り、workKey を付けてバックヤードの最後に置く", () => {
+    const done = add(ai("r2"))
+    expect(done.ok).toBe(true)
+    const book = (done as { result: { book: string } }).result.book
+    expect(yardOf(done)?.lineup).toEqual([
+      { kind: "book", id: "b1", workKey: roomKey("r1") },
+      { kind: "book", id: book, workKey: roomKey("r2") },
+    ])
+  })
+
+  test("利用者はワークルームを渡して足す。AI がほかのワークルームを渡すと worker-book で断られ、ワークルームの無い者は足せない", () => {
+    expect(add(USER, { workroom: "r1" })).toMatchObject({ ok: true, result: { book: "b1" } })
+    expect(add(ai("r2"), { workroom: "r1" })).toMatchObject({
+      ok: false,
+      reason: "denied",
+      permission: "@matomezu/base:worker-book",
+    })
+    expect(add(USER).ok).toBe(false)
+  })
+
+  test("バックヤードのブックとその中のページは、利用者もロックできない", () => {
+    const lock = (id: string, on: { book: string } | { page: string }) =>
+      performIn(world(), `@matomezu/base:${id}`, {}, on, ctx(USER))
+    expect(lock("book-lock", { book: "b1" })).toMatchObject({ ok: false, permission: "@matomezu/base:lock" })
+    expect(lock("page-lock", { page: "p1" })).toMatchObject({ ok: false, permission: "@matomezu/base:lock" })
+  })
+})
