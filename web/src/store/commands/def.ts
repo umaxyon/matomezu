@@ -17,6 +17,7 @@ import type { AskedOutermost } from "../../core/inspect"
 import type { Books } from "../../core/library"
 import type { ArgsOf } from "../../core/perform"
 import type { ItemPage } from "../../core/placed"
+import type { RecordReader } from "../../core/record-source"
 import type { BinderEntry, Book } from "../../core/schema/book"
 import type { Settings } from "../../core/settings"
 import { type Stage, shownPageId, toPaper } from "../../core/stage"
@@ -97,6 +98,8 @@ export interface ScreenCommandContext {
   // コマンドを持つプラグインが宣言したプラグイン状態 def の今の値（スクリーンごとの宣言は呼ばれた場所のスクリーンの値、ステージごとの宣言は呼ばれた場所のステージの値。
   // 無ければ undefined。ほかのプラグインの宣言は E125。変えるのは run が受け取る updatePluginState）
   pluginState: PluginStateRead
+  // コマンドの定義の readsSubjects に書いた種類のレコードを読む（ほかの種類は none と空。ステージから呼ぶコマンドは、どの種類も読まない）
+  read: RecordReader
 }
 
 // CommandContext の book の、開いている物がブックでないとき（何も開いていないか、ブックの外のページ）の値
@@ -265,6 +268,8 @@ export interface StageCommandDef<A = undefined, Tt extends string = MessageKey> 
 // スクリーンから呼ぶコマンド（defineScreenCommand）。ステージを持たないスクリーンからも呼べる（ステージ・ブックは受け取らない。ブック・ページ・アノテーションが対象のアクションは行わない）
 export interface ScreenCommandDef<A = undefined, Tt extends string = MessageKey> extends CommandDefBase<A, Tt> {
   from: "screen"
+  // 文脈の read で読むレコードの種類（書かなければ、どの種類も読まない）
+  readsSubjects?(catalog: CoreCatalog): readonly string[]
   when(ctx: ScreenCommandContext): boolean
   enabled?(ctx: ScreenCommandContext): boolean
   active?(ctx: ScreenCommandContext): boolean

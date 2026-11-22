@@ -17,6 +17,7 @@ import { CORE_CATALOG, newStore, sequence, settleIn } from "../../support"
 
 const NOW = "2026-11-19T01:00:00.000Z"
 const DOCUMENTS = DOCUMENTS_DEF.id
+const WORKROOMS = "@matomezu/base:workrooms"
 const DRAWING = "@matomezu/drawing:drawing"
 const GONE = "@x/gone:folder" // 定義が機能台帳に無いシステムフォルダ（プラグインを外した間）
 const JA = { "@matomezu/base:lang": "matomezu:ja" }
@@ -52,7 +53,7 @@ const settledWorld = (world: World): World => {
   return { ...world, ...withFreeTitles(filled.next, namingOf(CORE_CATALOG, world.settings)).next }
 }
 
-// 書庫ホームにドキュメント（sf1）と、定義の無いシステムフォルダ gone と、フォルダ f を足した世界
+// 書庫ホームにドキュメント（sf1）・ワークルーム（sf2）と、定義の無いシステムフォルダ gone と、フォルダ f を足した世界
 function prepared(settings = {}): World {
   const { state } = newStore({ now: () => NOW })
   const start = { ...worldOf(state.getState()), settings }
@@ -65,7 +66,12 @@ function prepared(settings = {}): World {
     { folderRole: "folder", id: "f", title: "f", lineup: [] },
     {
       ...home,
-      lineup: [home.lineup[0]!, { kind: "folder", id: "gone" }, ...home.lineup.slice(1), { kind: "folder", id: "f" }],
+      lineup: [
+        ...home.lineup.slice(0, 2),
+        { kind: "folder", id: "gone" },
+        ...home.lineup.slice(2),
+        { kind: "folder", id: "f" },
+      ],
     },
   )
 }
@@ -92,7 +98,7 @@ test("システムフォルダの決まり: 動かす・名前を変える・定
     ["ドキュメントの名前を変える", world, "entry-rename", { entry: "sf1", title: "x" }, false],
     ["定義の在るドキュメントをゴミ箱に入れる", world, "entry-trash", { entry: "sf1" }, false],
     ["ほかの物を、システムフォルダより前に置く", world, "entry-move", { entry: "f", into: HOME_ID, index: 0 }, false],
-    ["ほかの物を、システムフォルダの後に置く", world, "entry-move", { entry: "f", into: HOME_ID, index: 2 }, true],
+    ["ほかの物を、システムフォルダの後に置く", world, "entry-move", { entry: "f", into: HOME_ID, index: 3 }, true],
     ["書庫ホームに、同じ名前のフォルダを作る", world, "folder-create", { title: "Documents", into: HOME_ID }, false],
     [
       "ページを、システムフォルダより前に作る",
@@ -101,7 +107,7 @@ test("システムフォルダの決まり: 動かす・名前を変える・定
       { folder: HOME_ID, type: DRAWING, index: 0 },
       false,
     ],
-    ["ページを、システムフォルダの後に作る", world, "page-create", { folder: HOME_ID, type: DRAWING, index: 2 }, true],
+    ["ページを、システムフォルダの後に作る", world, "page-create", { folder: HOME_ID, type: DRAWING, index: 3 }, true],
     ["ドキュメントの中に、ページを作る", world, "page-create", { folder: "sf1", type: DRAWING }, true],
     ["ドキュメントの中に、フォルダを作る", world, "folder-create", { title: "a", into: "sf1" }, true],
     ["定義の無いシステムフォルダの名前は数えない", world, "folder-create", { title: "gone", into: HOME_ID }, true],
@@ -122,9 +128,9 @@ test("システムフォルダの決まり: 動かす・名前を変える・定
   const back = after(trashedGone, run(trashedGone, "entry-restore", { entry: "gone" }))
   expect(
     homeOf(back)
-      .slice(0, 2)
+      .slice(0, 3)
       .map(r => systemFolderOf(back.folders[r.id])),
-  ).toEqual([DOCUMENTS, GONE])
+  ).toEqual([DOCUMENTS, WORKROOMS, GONE])
 })
 
 test("名前は利用者の設定の言語で引く: 日本語ならドキュメントと当たる物に番号を付け、言語を変えて当たるなら断る", () => {
@@ -153,7 +159,7 @@ test("名前は利用者の設定の言語で引く: 日本語ならドキュメ
 test("日本語を選んでいれば、ブックをドキュメントの名前にするのは印を添えて断り、英語の名前（Documents）にはできる", () => {
   const store = newStore({ now: () => NOW, settings: JA })
   const { actions, state } = store
-  expect(settleIn(store)).toMatchObject({ added: [{ systemFolder: DOCUMENTS }] })
+  expect(settleIn(store)).toMatchObject({ added: [{ systemFolder: DOCUMENTS }, { systemFolder: WORKROOMS }] })
   const book = state.getState().folders[HOME_ID]!.lineup.find(r => r.kind === "book")!.id
   expect(actions.perform("@matomezu/base:book-update", { title: "ドキュメント" }, { book })).toMatchObject({
     ok: false,
@@ -229,7 +235,7 @@ test("書庫の画面: システムフォルダは掴めず、書庫ホームの
   expect(draggable(world.folders, "sf1")).toBe(false)
   expect(draggable(world.folders, "gone")).toBe(false)
   expect(droppable(CORE_CATALOG, world, "f", { to: "folder", into: HOME_ID, index: 0 })).toBe(false)
-  expect(droppable(CORE_CATALOG, world, "f", { to: "folder", into: HOME_ID, index: 2 })).toBe(true)
+  expect(droppable(CORE_CATALOG, world, "f", { to: "folder", into: HOME_ID, index: 3 })).toBe(true)
   expect(droppable(CORE_CATALOG, world, "f", { to: "folder", into: "sf1" })).toBe(true)
 })
 

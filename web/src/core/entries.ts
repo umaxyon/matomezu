@@ -150,7 +150,7 @@ export function placedMade(library: Library, made: LineupEntry, into: string, in
 }
 
 // 書庫 library のバックヤード（印 backyard）の中の、workKey が key のブックの id（無ければ undefined）。持ち主は、中のブックを名前でなくこれで引く
-export function backyardBookOf(library: Library, backyard: string, key: WorkKey): string | undefined {
+export function backyardBookOf(library: Pick<Library, "folders">, backyard: string, key: WorkKey): string | undefined {
   const row = library.folders[backyardIdOf(backyard)]
   return row?.folderRole === "backyard" ? row.lineup.find(r => sameWorkKey(r.workKey, key))?.id : undefined
 }

@@ -171,7 +171,8 @@ export const LOCK = kit.definePermission({
         !!(q.record as { locked?: true }).locked &&
         !q.action.lockSwitch
       )
-    if (q.action.target === "annotations") return false
+    // 置き場所はロックで止めない（ロックした物も、動かせる）
+    if (q.kind === "place" || q.action.target === "annotations") return false
     // バックヤードのブックとその中のページは、利用者もロックできない
     if (q.backyardEntry && LOCKS.includes(q.action.id)) return true
     if (q.kind === "page") {

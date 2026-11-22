@@ -286,14 +286,17 @@ export type LibraryScope<A = unknown> =
 export type EntryWhere = "all-pages" | "place" | "title" | "copy" | "settings"
 
 // 書庫が対象のアクションが変える物: books は今あるブックの id と、その中の所、entries は名指したエントリと、その変え方（どのブックか、どのページに問うかは、core が出す）、
-// creates はブックを作るか、pages は作るページのタイプ creates と、入れるフォルダの id into（引数が名指すときだけ。core が、ブックかその中ならそのブックに作るページのタイプで、
-// ほかなら、そのタイプの空のページで問う。into を省いたときにアクションが決める先には問わない）
+// creates は作るブック・フォルダの種類 kind と、入れるフォルダの id into（ブックを作るなら、空のブックで問う。into を書けば、書庫のフォルダなら置き場所でも問う。書かなければ置き場所では問わない）、
+// pages は作るページのタイプ creates と、入れるフォルダの id into（引数が名指すときだけ。core が、ブックかその中ならそのブックに作るページのタイプで、
+// ほかなら、そのタイプの空のページで問う。書庫のフォルダなら置き場所でも問う。into を省いたときにアクションが決める先には問わない）
 export interface LibraryTargets {
   books: readonly { book: string; where: Where }[]
   entries?: readonly { entry: string; where: EntryWhere; into?: string }[]
-  creates: boolean
+  creates: readonly { kind: "book" | "folder"; into?: string }[]
   pages?: readonly { creates: string; into?: string }[]
 }
+// 何も作らない（LibraryTargets の creates）
+export const CREATES_NOTHING: LibraryTargets["creates"] = []
 
 // 表に並べたアクションの、書庫の許可スコープ（引数の形を問わない形）
 export type AnyLibraryScope =
@@ -323,7 +326,7 @@ export type ScopeRequired<T extends ActionTarget, A> = T extends "book"
 export function libraryScopeOf(scope: AnyLibraryScope | undefined, args: unknown): LibraryTargets | null {
   if (scope === undefined || scope === "unknown") return null
   if (typeof scope === "function") return (scope as (args: unknown) => LibraryTargets)(args)
-  if (scope === "create") return { books: [], creates: true }
+  if (scope === "create") return { books: [], creates: [{ kind: "book" }] }
   const a = args as Record<string, unknown>
   const named = (one: unknown, many: unknown): string[] =>
     (many === undefined ? [one] : Array.isArray(many) ? many : []).filter((id): id is string => typeof id === "string")
@@ -333,12 +336,12 @@ export function libraryScopeOf(scope: AnyLibraryScope | undefined, args: unknown
     return {
       books: [],
       entries: ids.map(entry => ({ entry, where: scope.where, ...(typeof into === "string" ? { into } : {}) })),
-      creates: false,
+      creates: CREATES_NOTHING,
     }
   }
   const where: Where = scope.where === "all-pages" ? { allPages: true } : {}
   const ids = "book" in scope ? named(a[scope.book], undefined) : named(undefined, a[scope.books] ?? [])
-  return { books: ids.map(book => ({ book, where })), creates: false }
+  return { books: ids.map(book => ({ book, where })), creates: CREATES_NOTHING }
 }
 
 // 許可スコープから、引数 args での所を出す

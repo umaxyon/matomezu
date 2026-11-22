@@ -167,13 +167,14 @@ func TestTheAIReadsAFolderOneLevelDeep(t *testing.T) {
 	}
 	s, hub := newServerOn(t, Options{}, store)
 	hub.mu.Lock()
-	moved, docs := hub.inUnreadable("bx"), hub.folders[storage.HomeID].entries[0]
+	moved, docs, rooms := hub.inUnreadable("bx"), hub.folders[storage.HomeID].entries[0], hub.folders[storage.HomeID].entries[1]
 	hub.mu.Unlock()
 	if !moved {
 		t.Fatal("the unreadable book bx is not in the unreadable folder")
 	}
 	home := `{"id":"library-home","kind":"home","path":[{"id":"library-home"}],"lineup":[` +
 		`{"kind":"folder","id":"` + docs + `","title":"Documents","systemFolder":"@matomezu/base:documents"},` +
+		`{"kind":"folder","id":"` + rooms + `","title":"Workrooms","systemFolder":"@matomezu/base:workrooms"},` +
 		`{"kind":"folder","id":"d1","title":"D1"},{"kind":"page","id":"h1","title":"H1","type":"@matomezu/drawing:drawing"}]}`
 	for path, want := range map[string]string{
 		"/api/ai/folder": home,

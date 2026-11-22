@@ -3,11 +3,12 @@
 import type { LibraryPageRows } from "./changes"
 import type { CoreCatalog } from "./core-catalog"
 import type { ActionContext, ActionDef, EntryWhere, LibraryTargets, Where } from "./def/action"
-import { binnedBetween, isWithin } from "./entries"
-import { type Folder, isOpenRole, type Library, type PageRow } from "./folders"
+import type { PlaceEntry, PlaceFolder, PlacePermissionCheck } from "./def/permission"
+import { binnedBetween, type EntryKind, isWithin } from "./entries"
+import { type Folder, type Folders, isOpenRole, type Library, type PageRow } from "./folders"
 import { libraryOf } from "./folders-books"
-import { bookIdOf, inTrash, isKeptSystemFolder, permissionFoldersOf, systemFolderOf } from "./folders-tree"
-import type { AskedPage } from "./inspect"
+import { bookIdOf, foldersOver, inTrash, isKeptSystemFolder, permissionFoldersOf, systemFolderOf } from "./folders-tree"
+import type { AskedPage, AskedPlace } from "./inspect"
 import { splitId } from "./names"
 import {
   backyardEntriesBetween,
@@ -17,13 +18,51 @@ import {
   pageChecksBetween,
   placeChangeOf,
 } from "./perform-checks"
+import { inputFor } from "./permission-input"
 import type { ItemPage } from "./placed"
 import type { BinderEntry, Book } from "./schema/book"
 
-// 書庫が対象のアクションの、行う前に問う相手: ブック book とその中の所 where か、ページそのもの（ブックの外のページか作るページ。core/inspect.ts の AskedPage）
-export type LibraryAsk = { book: Book; where: Where } | { page: AskedPage }
+// 書庫が対象のアクションの、行う前に問う相手: ブック book とその中の所 where か、ページそのもの（ブックの外のページか作るページ。core/inspect.ts の AskedPage）か、
+// 置き場所（書庫のフォルダに入れる・作る物。core/inspect.ts の AskedPlace）
+export type LibraryAsk = { book: Book; where: Where } | { page: AskedPage } | { place: AskedPlace }
 // エントリから出した問う相手（ブックは id）
-type EntryAsk = { book: string; where: Where } | { page: AskedPage }
+type EntryAsk = { book: string; where: Where } | { page: AskedPage } | { place: AskedPlace }
+
+// 置き場所の問いと確かめに見せる、フォルダ id とその上の書庫のフォルダの列（近い順）。id が書庫のフォルダ（書庫ホーム・フォルダ）でないか、ゴミ箱の中なら none
+export function placeFoldersOf(folders: Folders, id: string): readonly PlaceFolder[] | "none" {
+  const row = folders[id]
+  if (!isPlaceFolder(row) || inTrash(folders, id)) return "none"
+  const over = foldersOver(folders, id)
+  return over.every(isPlaceFolder) ? [row, ...over] : "none"
+}
+const isPlaceFolder = (row: Folder | undefined): row is PlaceFolder =>
+  row?.folderRole === "home" || row?.folderRole === "folder"
+
+// 書庫 folders のエントリ id の直の入れ物の id（無ければ undefined）
+const holderOf = (folders: Folders, id: string): string | undefined => foldersOver(folders, id)[0]?.id
+
+// エントリ entry を、フォルダ into に入れる・作るときの置き場所の問い（into が書庫のフォルダでなければ、問わない）
+function placeAsk(library: Library, into: string, entry: PlaceEntry): EntryAsk[] {
+  const over = placeFoldersOf(library.folders, into)
+  return over === "none" ? [] : [{ place: { into: over, entry } }]
+}
+
+// 書庫 library のエントリ id の種類（表に無ければ undefined）
+function entryKindOf(library: Library, id: string): EntryKind | undefined {
+  if (id in library.pages) return "page"
+  const role = library.folders[id]?.folderRole
+  return role === "book" ? "book" : role === "binder" ? "binder" : role === "folder" ? "folder" : undefined
+}
+
+// 名指したエントリ entry の、置き場所の問い: 動かす（place）なら動かす先 into（今の直の入れ物と同じなら問わない）、写す（copy）なら今の直の入れ物
+function entryPlaceAsks(library: Library, entry: string, how: EntryWhere, into?: string): EntryAsk[] {
+  const kind = entryKindOf(library, entry)
+  if (kind === undefined) return []
+  const holder = holderOf(library.folders, entry)
+  if (how === "copy") return holder === undefined ? [] : placeAsk(library, holder, { kind, made: "new" })
+  if (how !== "place" || into === undefined || into === holder) return []
+  return placeAsk(library, into, { kind, id: entry })
+}
 
 // 書庫 library のブックの外のページ id を、エントリの変え方 how で問う相手（表に無いページには問わない）
 function outsidePageAsk(library: Library, id: string, how: EntryWhere): EntryAsk[] {
@@ -104,19 +143,26 @@ export function libraryAsksOf(catalog: CoreCatalog, library: Library, targets: L
           : bookIdOf(library.folders, p.into)
     if (into !== undefined) return [{ book: into, where: { creates: p.creates } }]
     const made = newPageOf(catalog, p.creates)
-    return made ? [{ page: { page: made, folders: [] } }] : []
+    const placed = p.into === undefined ? [] : placeAsk(library, p.into, { kind: "page", made: "new" })
+    return made ? [{ page: { page: made, folders: [] } }, ...placed] : placed
   })
   const named: EntryAsk[] = [
     ...targets.books,
-    ...(targets.entries ?? []).flatMap(e => asksOfEntry(library, e.entry, e.where, e.into)),
+    ...(targets.entries ?? []).flatMap(e => [
+      ...asksOfEntry(library, e.entry, e.where, e.into),
+      ...entryPlaceAsks(library, e.entry, e.where, e.into),
+    ]),
     ...pages,
+    ...targets.creates.flatMap(c =>
+      c.into === undefined ? [] : placeAsk(library, c.into, { kind: c.kind, made: "new" }),
+    ),
   ]
   const found = named.flatMap((a): LibraryAsk[] => {
-    if ("page" in a) return [a]
+    if (!("book" in a)) return [a]
     const book = books[a.book]
     return book ? [{ book, where: a.where }] : []
   })
-  return targets.creates ? [...found, { book: NEW_BOOK, where: {} }] : found
+  return targets.creates.some(c => c.kind === "book") ? [...found, { book: NEW_BOOK, where: {} }] : found
 }
 
 // ブックが対象のアクションを、ブックの外のバインダ binder（中のページごと）に行う前に問う相手: アクションが変える所 where（許可スコープから出した所。分からなければ無い）を、
@@ -193,7 +239,32 @@ export function brokenIn(
     const held = page.before?.id
     if (id) return { permission: id, ...(held === undefined ? {} : { page: held }) }
   }
+  for (const c of placeChecksBetween(was, now))
+    for (const p of ctx.catalog.permissions.values())
+      if (p.keeps && !p.keeps({ kind: "place", action, ...c, actor: ctx.actor }, inputFor(ctx.catalog, ctx, p)))
+        return { permission: p.id }
   return null
+}
+
+type PlaceCheck = Omit<PlacePermissionCheck, "kind" | "action" | "actor">
+
+// 書庫が was から now に変わる間の、置き場所の確かめ（直の入れ物が変わった・増えたエントリごと。前も後も書庫のフォルダの外なら入れない）
+export function placeChecksBetween(was: Library, now: Library): PlaceCheck[] {
+  const ids = new Set([
+    ...Object.keys(was.pages),
+    ...Object.keys(now.pages),
+    ...Object.keys(was.folders),
+    ...Object.keys(now.folders),
+  ])
+  return [...ids].flatMap(id => {
+    const from = holderOf(was.folders, id)
+    const to = holderOf(now.folders, id)
+    const kind = entryKindOf(now, id) ?? entryKindOf(was, id)
+    if (from === to || kind === undefined) return []
+    const before = from === undefined ? "none" : placeFoldersOf(was.folders, from)
+    const after = to === undefined ? "none" : placeFoldersOf(now.folders, to)
+    return before === "none" && after === "none" ? [] : [{ entry: { kind, id }, before, after }]
+  })
 }
 
 // 書庫が対象のアクションが返した書庫 after の、変わったページ（ブックの中でも外でも）を 1 枚ずつ、行う前の書庫 was の同じページと比べて整えた書庫

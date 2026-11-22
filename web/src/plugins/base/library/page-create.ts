@@ -4,7 +4,7 @@
 // 本体が同じなので、ページのタイプが page-add を外していれば（without）、これもそのタイプで断る
 import { z } from "zod"
 import { findBinder } from "../../../core/book"
-import type { ActionContext } from "../../../core/def/action"
+import { type ActionContext, CREATES_NOTHING } from "../../../core/def/action"
 import { isMoveRefusal, placedMade, titlesIn } from "../../../core/entries"
 import { HOME_ID, type HomeOrFolder, type Library } from "../../../core/folders"
 import { bookOf, withBinderEntry, withBook } from "../../../core/folders-books"
@@ -31,7 +31,7 @@ export const PAGE_CREATE = kit.defineAction({
   permissionScope: (args: { folder?: string | undefined; type: string }) => ({
     books: [],
     pages: [{ creates: args.type, ...(args.folder === undefined ? {} : { into: args.folder }) }],
-    creates: false,
+    creates: CREATES_NOTHING,
   }),
   args: PAGE_CREATE_ARGS,
   describeArgs: catalog => withFolder(describeNewPage(catalog) as typeof NEW_PAGE_ARGS),

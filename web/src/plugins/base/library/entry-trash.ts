@@ -2,7 +2,7 @@
 // 戻す entry-restore（元いたフォルダへ。無ければ、その上のフォルダをたどる）、消す entry-purge と、ゴミ箱を空にする trash-empty（書庫から消す。戻せない）。
 // 戻す・消す・空にするのは利用者だけ（userOnly）。ロック中のブック・ロック中のページを持つブックは（フォルダごとでも）、認可ステップ lock が止める
 import { z } from "zod"
-import type { LibraryTargets } from "../../../core/def/action"
+import { CREATES_NOTHING, type LibraryTargets } from "../../../core/def/action"
 import {
   isMoveRefusal,
   removedEntry,
@@ -75,7 +75,7 @@ export const ENTRY_RESTORE = kit.defineAction({
       entry,
       where: "all-pages",
     })),
-    creates: false,
+    creates: CREATES_NOTHING,
   }),
   // onConflict: 戻す先に同じ名前の物が在るとき、断る（refuse）か、番号を付けた名前で戻す（number）か、在った物を中身ごと消して戻す（replace。ゴミ箱には入らない）。
   // replaces: replace のとき、消えると利用者が確かめた物の id（今 同じ名前で在る物がそれと違えば断る）

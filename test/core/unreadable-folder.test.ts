@@ -613,8 +613,16 @@ describe("バックヤードに在った物", () => {
 
 describe("書庫を整える: 足りないシステムフォルダを足し、名前の重なりに番号を付ける", () => {
   const DOCUMENTS = "@matomezu/base:documents"
-  const full = (rows: Rows, now = NOW) =>
-    settleLibrary(CORE_CATALOG, rows.pages, rows.folders, { naming: NAMING, now, newId: () => "docs" })
+  const WORKROOMS = "@matomezu/base:workrooms"
+  // 足すシステムフォルダの行の id は、印の順に docs・rooms
+  const full = (rows: Rows, now = NOW) => {
+    const ids = ["docs", "rooms"]
+    return settleLibrary(CORE_CATALOG, rows.pages, rows.folders, {
+      naming: NAMING,
+      now,
+      newId: () => ids.shift() ?? "more",
+    })
+  }
   const withHome = (rows: Rows, ...extra: { id: string; title: string }[]): Rows => ({
     pages: rows.pages,
     folders: [
@@ -633,10 +641,13 @@ describe("書庫を整える: 足りないシステムフォルダを足し、�
   test("足りないシステムフォルダを書庫ホームの先頭に足し、名前の当たる物に番号を付ける。2 回目は何も書かない", () => {
     const rows = withHome(worldRows([testBook("b1", "B", [drawingPage("p1")])]), { id: "u", title: "Documents" })
     const done = full(rows) as Settled
-    expect(done.added).toEqual([{ id: "docs", systemFolder: DOCUMENTS }])
+    expect(done.added).toEqual([
+      { id: "docs", systemFolder: DOCUMENTS },
+      { id: "rooms", systemFolder: WORKROOMS },
+    ])
     expect(done.numbered).toEqual([{ kind: "folder", id: "u", title: "Documents 2" }])
     const after = applied(rows, done)
-    expect(folderOf(after, HOME_ID).lineup.map(r => r.id)).toEqual(["docs", "b1", "u"])
+    expect(folderOf(after, HOME_ID).lineup.map(r => r.id)).toEqual(["docs", "rooms", "b1", "u"])
     expect(folderOf(after, "docs") as unknown).toEqual({
       folderRole: "folder",
       id: "docs",

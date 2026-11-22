@@ -161,16 +161,16 @@ test("認可の所は、変えるブックが 1 冊で置き直すページが 1
   expect(scope(args(one))).toEqual({
     books: [{ book: "b", where: { page: "p", items: ["a"] } }],
     entries: [],
-    creates: false,
+    creates: [],
   })
-  expect(scope(args(two))).toEqual({ books: [{ book: "b", where: {} }], entries: [], creates: false })
+  expect(scope(args(two))).toEqual({ books: [{ book: "b", where: {} }], entries: [], creates: [] })
   expect(scope(args(one, ["b", "c"]))).toEqual({
     books: [
       { book: "b", where: {} },
       { book: "c", where: {} },
     ],
     entries: [],
-    creates: false,
+    creates: [],
   })
   // ページの名前だけの置き直しも、そのページを認可の所にする
   expect(
@@ -181,7 +181,7 @@ test("認可の所は、変えるブックが 1 冊で置き直すページが 1
   ).toEqual({
     books: [{ book: "b", where: { page: "p", items: [] } }],
     entries: [],
-    creates: false,
+    creates: [],
   })
 })
 

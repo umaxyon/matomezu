@@ -2,6 +2,7 @@
 // 最初のページも一緒に作れる（page。page-add と同じ引数。1 回のアクションで、ブックとページを作る）。置くフォルダは into（言わなければ、日付フォルダ。library/date-folder.ts）の、
 // at が first なら先頭（書庫ホームではシステムフォルダの後）、last なら末尾（言わなければ先頭。新しい物が前に並ぶ。画面から作るときは last を渡して末尾に置く）
 import { z } from "zod"
+import type { LibraryTargets } from "../../../core/def/action"
 import { isMoveRefusal, placedEntry } from "../../../core/entries"
 import { TOP_FOLDERS } from "../../../core/folders"
 import { withBook } from "../../../core/folders-books"
@@ -25,7 +26,11 @@ export const BOOK_CREATE = kit.defineAction({
     "Create a book: title is its name, into the id of the folder to put it in (see read_folder; without it, the folder named today's date (YYYY-MM-DD) in the documents folder, made when missing), and at where in it: first (the default; in the library home, after its system folders) or last. A book has no type and starts with no pages; page (the same arguments as page-add) makes its first page with it, in this one call. Returns the new book's id, into (the id of the folder it was put in), and page: what page-add returns for the first page (when page is given). Refused when the first page cannot be made, and (title-taken) when that folder already has an entry with the same title.",
   title: "New book",
   target: "library",
-  permissionScope: "create",
+  permissionScope: (args: { into?: string }): LibraryTargets => ({
+    books: [],
+    // 入れるフォルダを言わなければ、置き場所では問わない（日付フォルダに入る）
+    creates: [{ kind: "book", ...(args.into === undefined ? {} : { into: args.into }) }],
+  }),
   args: ARGS,
   describeArgs: catalog => ARGS.extend({ page: describeNewPage(catalog).optional() }),
   run: (library, args, ctx) => {

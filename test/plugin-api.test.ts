@@ -505,6 +505,7 @@ test("コマンドが受け取る文脈（CommandContext）のフィールド（
     "page",
     "pageTitle",
     "pluginState",
+    "read",
     "screen",
     "settings",
     "stage",

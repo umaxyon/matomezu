@@ -25,6 +25,7 @@ import { outsideBinderIn, permissionFoldersOf } from "./folders-tree"
 import {
   type AskedOutermost,
   type AskedPage,
+  type AskedPlace,
   actionQuery,
   decide,
   decidedByPlace,
@@ -67,6 +68,7 @@ export function permits(
     where: Where | undefined,
     record?: { record: unknown; refs: readonly Referred[] },
     page?: AskedPage,
+    place?: AskedPlace,
   ) =>
     inspect(
       ctx.catalog,
@@ -78,6 +80,7 @@ export function permits(
         ...(settings ? { settings } : {}),
         ...(record ? { record } : {}),
         ...(page ? { page } : {}),
+        ...(place ? { place } : {}),
         actor: ctx.actor,
       },
       ctx,
@@ -93,6 +96,12 @@ export function permits(
     const found = targets ? libraryAsksOf(ctx.catalog, subject as Library, targets) : []
     if (found.length === 0) return asked(undefined, undefined)
     for (const a of found) {
+      if ("place" in a) {
+        // 置き場所で止めたときは、どのブック・ページで止めたかを添えない（止めたのは入れる先）
+        const answer = answerOf(asking(undefined, undefined, undefined, undefined, a.place))
+        if (!answer.ok) return answer
+        continue
+      }
       if ("page" in a) {
         const answer = answerOf(asking(undefined, undefined, undefined, a.page))
         const id = a.page.page.id

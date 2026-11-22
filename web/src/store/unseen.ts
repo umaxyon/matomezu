@@ -24,6 +24,7 @@ import {
 import type { Books } from "../core/library"
 import { splitId } from "../core/names"
 import { type Patch, patchOf, undoneIn } from "../core/patch"
+import { readerOf, sourceOf } from "../core/record-source"
 import { sameData } from "../core/same"
 import { type Stage, shownPageId, shownType, toPaper } from "../core/stage"
 import { shownBookScreens, shownScreens } from "../core/window"
@@ -118,10 +119,10 @@ export function createUnseenChanges(deps: {
     }
   }
   // 見えているスクリーンが、今見せているフォルダ: スクリーンの定義が今見せていると答えた書庫アピアランス（libraryAppearances に並べた物だけ）に、見せているフォルダを聞く。
-  // どちらも、聞かれたスクリーンの、持ち主のプラグイン状態だけを読む
+  // どちらも、聞かれたスクリーンの、持ち主のプラグイン状態だけを読む（書庫アピアランスは、readsSubjects に書いた種類のレコードも読む）
   const foldersShownNow = (): ReadonlySet<string> => {
     const catalog = deps.catalog()
-    const { window: win, pluginValues, folders } = getState()
+    const { window: win, pluginValues, folders, records } = getState()
     const shown = new Set<string>()
     const readFor =
       (owner: string | null, screen: string): PluginStateRead =>
@@ -136,7 +137,12 @@ export function createUnseenChanges(deps: {
         const display = (named as readonly string[]).includes(appearance)
           ? deps.storeCatalog().libraryAppearances.get(appearance)
           : undefined
-        for (const folder of display?.shownFolders(folders, readFor(splitId(display.id).owner, id)) ?? [])
+        const reads = display?.readsSubjects?.(catalog) ?? []
+        for (const folder of display?.shownFolders(
+          folders,
+          readFor(splitId(display.id).owner, id),
+          readerOf(catalog, sourceOf(records), reads),
+        ) ?? [])
           shown.add(folder)
       }
     }
