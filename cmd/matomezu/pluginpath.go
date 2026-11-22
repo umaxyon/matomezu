@@ -5,7 +5,6 @@ package main
 // 開発の常駐の実行ファイル（リポジトリの .dev-home）なら、リポジトリの clients/<AI の名前>
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -54,7 +53,7 @@ func pluginPath(ai, pkg, exe string) (string, error) {
 			return dir, nil
 		}
 	}
-	return "", errors.New("the plugin folder was not found (it comes with matomezu installed by npm: npm i -g matomezu)")
+	return "", fmt.Errorf("the plugin folder was not found (it comes with matomezu installed by npm: %s i -g matomezu)", typedName("npm"))
 }
 
 // isDir は、dir がフォルダか

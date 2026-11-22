@@ -34,6 +34,7 @@ import (
 	"slices"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/umaxyon/matomezu/internal/engine"
@@ -83,10 +84,11 @@ func (h *Hub) BookOn(on *engine.On) string {
 // Hub は世界と窓をまとめる
 type Hub struct {
 	mu               sync.Mutex
-	updateMu         sync.Mutex   // 新しい版の確かめ（update・latest）の鍵。聞いている間は持たない
-	update           UpdateStatus // 新しい版の確かめの結果（update.go）
-	latest           LatestFunc   // 新しい版を聞く口（無ければ確かめない）
-	build            *Build       // 常駐の版とデータの形（hello で窓に知らせる。SetBuild）
+	updateMu         sync.Mutex             // 新しい版の確かめ（update・latest）の鍵。聞いている間は持たない
+	update           UpdateStatus           // 新しい版の確かめの結果（update.go）
+	latest           LatestFunc             // 新しい版を聞く口（無ければ確かめない）
+	build            *Build                 // 常駐の版とデータの形（hello で窓に知らせる。SetBuild）
+	command          atomic.Pointer[string] // 利用者が端末で打つ matomezu の名前（command.go）
 	store            storage.Storage
 	engine           *engine.Engine
 	pages            map[string]row       // ページの id → 本文と版（tables.go）

@@ -1,6 +1,6 @@
 // 設定カテゴリ「更新」: 今の版・新しい版（無ければ「最新です」）・確かめた時刻と［更新を確認］・自動で確かめるかのスイッチ。
 // 新しい版があれば、管理者のワークルームに生きている AI がいれば［管理者（名前）に更新を頼む］（頼んだら「頼みました 時刻」）、
-// いなければ、端末で打つと更新するコマンド matomezu update を［コピー］付きで出す
+// いなければ、端末で打つと更新するコマンド matomezu update（Windows で npm から入れたなら matomezu.cmd update）を［コピー］付きで出す
 import { useEffect, useState } from "react"
 import { useMessages } from "../../../ui/i18n"
 import { ActionButton } from "../dialog-host/FormParts"
@@ -9,12 +9,11 @@ import { useIsAlive, useWorkroomRows } from "../participant/hooks"
 import { SettingRow } from "../settings/SettingRow"
 import { UserSettings } from "../settings/UserSettings"
 import { shownTime } from "../utils/shown-time"
-import { useCopyText } from "../window-io/hooks"
+import { useCopyText, useMatomezuCommand } from "../window-io/hooks"
 import { useAskUpdate, useCheckUpdate, useUpdateStatus } from "./hooks"
 import { UPDATE_CHECK } from "./setting"
 import styles from "./UpdateCategory.module.css"
 
-const COMMAND = "matomezu update"
 const COPIED_MS = 1500
 
 type Checking = "idle" | "checking" | "failed"
@@ -27,6 +26,7 @@ export function UpdateCategory() {
   const status = useUpdateStatus()
   const check = useCheckUpdate()
   const copyText = useCopyText()
+  const command = `${useMatomezuCommand()} update`
   const [checking, setChecking] = useState<Checking>("idle")
   const [copied, setCopied] = useState<Copied>("none")
   const ask = useAskUpdate()
@@ -102,10 +102,10 @@ export function UpdateCategory() {
           <div className={styles.update}>
             <span>{t("Type this in a terminal to update")}</span>
             <span className={styles.command}>
-              <code>{COMMAND}</code>
+              <code>{command}</code>
               <ActionButton
                 onClick={() =>
-                  void copyText(COMMAND).then(
+                  void copyText(command).then(
                     () => setCopied("done"),
                     () => setCopied("failed"),
                   )

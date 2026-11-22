@@ -33,9 +33,10 @@ var removers = []struct {
 
 // remover は、プラグインを外すのに使う、OS への口（テストで差し替える）
 type remover struct {
-	out      io.Writer
-	lookPath func(string) (string, error)
-	run      func(name string, args ...string) error
+	out io.Writer
+	// findProgram は、AI のプログラムの実行ファイルを探す（claude は Desktop の置き場も見る）
+	findProgram func(string) (string, error)
+	run         func(name string, args ...string) error
 }
 
 // Run は、常駐を止めてから、AI ごとにプラグインを外し、残りの手順を出す
@@ -47,7 +48,7 @@ func (c *pluginRemoveCmd) removeInstalled() error {
 	if err := (&stopCmd{}).Run(); err != nil {
 		fmt.Printf("The matomezu server could not be stopped: %v\n", err)
 	}
-	r := remover{out: os.Stdout, lookPath: exec.LookPath, run: func(name string, args ...string) error {
+	r := remover{out: os.Stdout, findProgram: findProgram, run: func(name string, args ...string) error {
 		cmd := exec.Command(name, args...)
 		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 		return cmd.Run()
@@ -62,11 +63,11 @@ func (c *pluginRemoveCmd) removeInstalled() error {
 	if h, herr := openHome(); herr == nil {
 		fmt.Printf("Your books stay in %s. Delete the folder yourself if you no longer need them.\n", h.Dir)
 	}
-	fmt.Println("Close Claude Code, Codex and opencode, then remove matomezu: npm uninstall -g matomezu")
+	fmt.Printf("Close Claude Code, Claude Desktop, Codex and opencode, then remove matomezu: %s uninstall -g matomezu\n", typedName("npm"))
 	return err
 }
 
-// remove は、名前 names の AI（空なら全部）のプラグインを外す。AI のプログラムが PATH に無い AI は飛ばし、外すのに失敗しても残りを続ける。
+// remove は、名前 names の AI（空なら全部）のプラグインを外す。AI のプログラムが見つからない AI は飛ばし、外すのに失敗しても残りを続ける。
 // 入れていないプラグインを外すと、AI の CLI によっては失敗で返る（入れたかは CLI ごとに見分け方が違うので、確かめずに打つ）
 func (r remover) remove(names []string) error {
 	want := map[string]bool{}
@@ -85,13 +86,14 @@ func (r remover) remove(names []string) error {
 			continue
 		}
 		prog := rm.cmds[0][0]
-		if _, err := r.lookPath(prog); err != nil {
+		executable, err := r.findProgram(prog)
+		if err != nil {
 			fmt.Fprintf(r.out, "%s: skipped (%s was not found)\n", rm.ai, prog)
 			continue
 		}
 		for _, c := range rm.cmds {
 			fmt.Fprintf(r.out, "%s: %s\n", rm.ai, strings.Join(c, " "))
-			if err := r.run(c[0], c[1:]...); err != nil {
+			if err := r.run(executable, c[1:]...); err != nil {
 				fmt.Fprintf(r.out, "%s: failed: %v\n", rm.ai, err)
 				failed = append(failed, strings.Join(c, " "))
 			}
