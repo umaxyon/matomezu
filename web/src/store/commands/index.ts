@@ -8,6 +8,7 @@ import type { PluginStateDef } from "../../core/def/plugin-state"
 import { namingOf, titleOf } from "../../core/entries"
 import { fail } from "../../core/errors"
 import { pageIn } from "../../core/folders"
+import { outsideBinderIn } from "../../core/folders-tree"
 import { LIBRARY_HISTORY, NO_HISTORY } from "../../core/history"
 import { actionQuery, inspect, openedQuery, type Query, withoutPermissions } from "../../core/inspect"
 import { splitId } from "../../core/names"
@@ -34,6 +35,7 @@ import {
   type CommandContext,
   type CommandDef,
   commandScopeOf,
+  NO_BINDER,
   NO_BOOK,
   NO_PAGE,
   type OpenScreen,
@@ -133,6 +135,7 @@ export function commandContext(
   if (!stage) return null
   const book = openedBook(state.books, stage.opened) ?? NO_BOOK
   const page = shownPageId(stage.opened)
+  const entry = stage.opened?.outermost
   const workspace = workspaceOf(state.window, stageId)
   const screen = screenOfStage(state.window, stageId) ?? currentScreen(state.window)
   return withUnreadableItems(
@@ -142,6 +145,7 @@ export function commandContext(
           ...screenCommandContext(catalog, controlCenter, state, stageId, command),
           stage: stageView(catalog, stage, toolOf(catalog, workspace, stageId, state)),
           book,
+          binder: (entry?.kind === "binder" && outsideBinderIn(state, entry.id)) || NO_BINDER,
           page: (page !== null && pageIn(state.pages, page)) || NO_PAGE,
           history: (stage.opened && state.history[stage.opened.outermost.id]) || NO_HISTORY,
           annotations: (page !== null && state.annotations[page]) || NO_ANNOTATIONS,

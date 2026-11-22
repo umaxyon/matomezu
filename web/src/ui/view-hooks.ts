@@ -22,7 +22,7 @@ import {
   type PlacedShape,
   replaceShape,
 } from "../core/placed"
-import type { Book } from "../core/schema/book"
+import type { BinderEntry, Book } from "../core/schema/book"
 import { type Settings, userSetting } from "../core/settings"
 import { askedOutermostOf, openedPageById, shownPageId, stageBlocks, toPaper } from "../core/stage"
 import { stageIn } from "../core/window"
@@ -38,7 +38,7 @@ import {
 import { worldOf } from "../store/world"
 import { useStageAt } from "./at-hooks"
 import type { UiCatalog } from "./plugin"
-import { bookOf, openedOf, pageOf, useAt, useScope, useStageId } from "./scope"
+import { binderOf, bookOf, openedOf, pageOf, useAt, useScope, useStageId } from "./scope"
 import {
   useCatalog,
   useControlCenter,
@@ -52,6 +52,12 @@ import {
 export function useBook(): Book | null {
   const scope = useScope()
   return useMatomezuState(s => bookOf(s, scope))
+}
+
+// 描くページのステージエントリが、ブックの外のバインダなら、そのバインダ（中のページごと。ブックやブックの外のページを開いている・何も開いていなければ null）
+export function useBinder(): BinderEntry | null {
+  const scope = useScope()
+  return useMatomezuState(s => binderOf(s, scope))
 }
 
 // 描くページ（ページを持たないブック・ページを開いていなければ null）

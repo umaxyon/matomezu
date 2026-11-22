@@ -7,7 +7,7 @@ import { pageById } from "../../../core/book"
 import { pageType } from "../../../core/core-catalog"
 import type { Size } from "../../../core/geom"
 import type { ItemPage } from "../../../core/placed"
-import type { Book, Page } from "../../../core/schema/book"
+import type { Page } from "../../../core/schema/book"
 import { useMessages } from "../../../ui/i18n"
 import { PageScope } from "../../../ui/scope"
 import { useCatalog, useMatomezuState, useUiCatalog } from "../../../ui/store-context"
@@ -59,9 +59,9 @@ export function ScrapView({ scrap, zoom = 1 }: ScrapViewProps) {
   return (
     <div className={styles.frame} data-scrap="shown" style={frame}>
       <TracedContext.Provider value={inner}>
-        <PageScope book={book.id} page={page.id} zoom={zoom * scale}>
+        <PageScope outermost={book.id} page={page.id} zoom={zoom * scale}>
           <div className={styles.moved} style={{ transform: `scale(${scale}) translate(${-at.x}px, ${-at.y}px)` }}>
-            <DrawnSheet book={book} page={page} size={size} />
+            <DrawnSheet page={page} size={size} />
           </div>
         </PageScope>
       </TracedContext.Provider>
@@ -73,13 +73,11 @@ export function ScrapView({ scrap, zoom = 1 }: ScrapViewProps) {
 // 紙のプレゼンテーションなどは、ページの広さ size を 1 つの印刷区画として描く。描く前に測るプレゼンテーション（printMeasure。マークダウンなど）は、見えない所で測ってから、
 // 測った数の印刷区画を紙の大きさで縦に並べる（広さは紙の幅 × 印刷区画の数の高さ。onSize で知らせる）
 export function DrawnSheet({
-  book,
   page,
   size,
   onSize,
   children,
 }: {
-  book: Book
   page: Page
   size: Size
   onSize?: (size: Size) => void
@@ -107,7 +105,7 @@ export function DrawnSheet({
       {Measure && paper && (
         <div className={styles.measure} aria-hidden="true">
           <Printing>
-            <Measure book={book} page={page} paper={paper} report={report} />
+            <Measure page={page} paper={paper} report={report} />
           </Printing>
         </div>
       )}
@@ -118,7 +116,6 @@ export function DrawnSheet({
             <SheetLayers
               // biome-ignore lint/suspicious/noArrayIndexKey: 印刷区画は上からの順で、並べ替えない
               key={row}
-              book={book}
               page={page}
               column={0}
               row={row}
@@ -127,7 +124,7 @@ export function DrawnSheet({
             />
           ))
         ) : (
-          <SheetLayers book={book} page={page} column={0} row={0} paper={size} />
+          <SheetLayers page={page} column={0} row={0} paper={size} />
         )}
       </Printing>
       {children}

@@ -49,6 +49,7 @@ export {
   useActions,
   useAllowed,
   useAllowedOn,
+  useBinder,
   useBook,
   useCoreCatalog,
   useItem,

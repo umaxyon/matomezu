@@ -11,7 +11,7 @@ import { type ComponentType, type CSSProperties, useEffect, useMemo, useRef } fr
 import { pagesOf } from "../../../core/book"
 import { pageType } from "../../../core/core-catalog"
 import type { Size } from "../../../core/geom"
-import type { Book, Page } from "../../../core/schema/book"
+import type { Page } from "../../../core/schema/book"
 import { extentOf as previewArea } from "../../../core/stage"
 import { paperOrigin } from "../../../core/viewport"
 import { stageIn } from "../../../core/window"
@@ -38,12 +38,11 @@ import { Printing } from "./printing"
 import { SheetFrame } from "./SheetFrame"
 import { PRINT_PREVIEW_BOOK_NAME, PRINT_PREVIEW_PAGE_NAME, PRINT_PREVIEW_SHEET_NUMBERS } from "./settings"
 
-// 印刷区画 1 つのビュー（プレゼンテーションのビューの定義の printSheet）が受け取る物: ブック・ページと、
+// 印刷区画 1 つのビュー（プレゼンテーションのビューの定義の printSheet）が受け取る物: ページと、
 // そのページを紙の大きさ paper で区切った column 列目・row 行目の印刷区画（0 から）。ビューはページの中身を、ページの原点で描く
 // （印刷区画の左上が原点になるようずらし、はみ出した所を切るのは印刷プレビュー）。描く物を、その印刷区画に載る物に絞ってよい。入力は受けない
 export interface PrintSheetProps {
   zoom: number // 描いている倍率（紙の上の 1px が画面の何 px か。画面の上で一定に描く線などに使う）
-  book: Book
   page: Page
   column: number
   row: number
@@ -51,11 +50,10 @@ export interface PrintSheetProps {
   measured?: unknown // 測るだけのビュー（printMeasure）が知らせたデータ（測るプレゼンテーションだけ）
 }
 
-// 測るだけのビュー（プレゼンテーションのビューの定義の printMeasure）が受け取る物: ブック・ページと、紙の大きさ paper、測った結果を知らせる report。
+// 測るだけのビュー（プレゼンテーションのビューの定義の printMeasure）が受け取る物: ページと、紙の大きさ paper、測った結果を知らせる report。
 // ページの中身を見えない所に描いて測り、印刷区画の数（rows。1 列に並べる）と、各印刷区画のビューに渡すデータ（data。印刷区画 1 つのビューの
 // measured に届く）を知らせる。測り直すたびに知らせてよい（同じ結果なら並べ直さない）。入力は受けない
 export interface PrintMeasureProps {
-  book: Book
   page: Page
   paper: Size
   report(measured: PrintMeasured): void
@@ -226,8 +224,8 @@ function PrintPreviewBody({ id }: { id: string }) {
       <Printing>
         {measuring.map(({ page: p, paper, Measure }) => (
           // 測るページを、ステージの外で見るだけに描くページとして描く
-          <PageScope key={p.id} book={book.id} page={p.id} zoom={1}>
-            <Measure book={book} page={p} paper={paper} report={reporterOf(p.id)} />
+          <PageScope key={p.id} outermost={book.id} page={p.id} zoom={1}>
+            <Measure page={p} paper={paper} report={reporterOf(p.id)} />
           </PageScope>
         ))}
       </Printing>

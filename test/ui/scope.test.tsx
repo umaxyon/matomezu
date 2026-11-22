@@ -89,7 +89,7 @@ function Sheet({ book }: { book: ReturnType<ReturnType<typeof setup>["bookOf"]> 
   return (
     <div data-sheet style={look}>
       <Printing>
-        <SheetLayers book={book} page={pagesOf(book)[0]!} column={0} row={0} paper={SIZE} />
+        <SheetLayers page={pagesOf(book)[0]!} column={0} row={0} paper={SIZE} />
       </Printing>
     </div>
   )
@@ -116,7 +116,7 @@ test("ステージが別のブックを開いて物を選んでいても、ス�
   const drawn = render(
     wrap(
       <StageScope stage="s1">
-        <PageScope book="x" page="px" zoom={1}>
+        <PageScope outermost="x" page="px" zoom={1}>
           <Sheet book={x} />
         </PageScope>
       </StageScope>,
@@ -203,7 +203,7 @@ test("ステージの中に置いたステージの外で見るだけに描く�
   const { container } = render(
     wrap(
       <StageScope stage="s1">
-        <PageScope book="x" page="px" zoom={0.5}>
+        <PageScope outermost="x" page="px" zoom={0.5}>
           <Probe />
         </PageScope>
       </StageScope>,

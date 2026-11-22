@@ -10,12 +10,11 @@ import { workspaceOf } from "../../../core/window"
 import { useMessages } from "../../../ui/i18n"
 import { Slot } from "../../../ui/Slot"
 import { useStageHere } from "../../../ui/scope"
-import { useBook, usePage } from "../../../ui/view-hooks"
+import { useBinder, useBook, usePage } from "../../../ui/view-hooks"
 import { FOOTER_MENU_SLOTS } from "../footer-menu/footer-menu"
 import { FooterMenuContext } from "../footer-menu/footer-menu-context"
 import { kit } from "../kit"
 import { LockIcon } from "../lock/LockIcon"
-import { useOutsideBinder } from "../utils/useOutsideBinder"
 import { useBottomHover } from "../workspace/bottom-hover"
 import styles from "./BookName.module.css"
 
@@ -24,7 +23,7 @@ const LEAVE_MS = 250
 
 export function BookName() {
   const book = useBook() ?? undefined
-  const binder = useOutsideBinder() // ブックの外のバインダを開いていれば、名前はそのバインダの名前
+  const binder = useBinder() // ブックの外のバインダを開いていれば、名前はそのバインダの名前
   const page = usePage() // ブックの外のページを開いていれば、名前はそのページの名前
   const current = useStageHere((st, s) => st !== null && workspaceOf(s.window, st.id).current === st.id)
   const t = useMessages(kit)

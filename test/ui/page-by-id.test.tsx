@@ -64,7 +64,7 @@ test("ステージの外で見るだけに描くページの中は、置いた�
   act(() => showFirstBook(instance))
   draw(
     <StageScope stage="s1">
-      <PageScope book="y" page="py" zoom={1}>
+      <PageScope outermost="y" page="py" zoom={1}>
         <Probe id="py" />
         <Probe id="px1" />
       </PageScope>

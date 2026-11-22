@@ -620,7 +620,6 @@ export function toPaperDelta(stage: Pick<Stage, "zoom">, d: Point): Point {
 export function openedPageById(from: LibraryAndBooks, opened: { outermost: string }, id: string): ItemPage | null {
   const book = from.books[opened.outermost]
   if (book) return findPage(book, id)?.page ?? null
-  const row = from.folders[opened.outermost]
-  const held = row?.folderRole === "binder" ? row.lineup.some(r => r.id === id) : opened.outermost === id
-  return (held && pageIn(from.pages, id)) || null
+  if (opened.outermost === id) return pageIn(from.pages, id) ?? null
+  return outsideBinderIn(from, opened.outermost)?.lineup.find(p => p.id === id) ?? null
 }

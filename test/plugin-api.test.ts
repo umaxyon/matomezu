@@ -351,6 +351,7 @@ test("matomezu/ui が出す名前", () => {
     "useAnchorShapeRef",
     "useArrangedScreens",
     "useAtCornerBubble",
+    "useBinder",
     "useBodyGrips",
     "useBook",
     "useBrowserBack",
@@ -489,6 +490,7 @@ test("コマンドが受け取る文脈（CommandContext）のフィールド（
   ).toEqual([
     "annotations",
     "arrangement",
+    "binder",
     "book",
     "catalog",
     "contextMenu",

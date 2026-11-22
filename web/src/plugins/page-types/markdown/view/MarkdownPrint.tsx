@@ -64,8 +64,8 @@ function wideZooms(el: HTMLElement): Map<number, number> {
 // ページの印刷区画の数だけある印刷区画のビューで、同じ物を使い回すため。base の useMarkdownDocument はビューごとに読む）。
 // 印刷するページの分だけ覚え、消さない
 const parsedPages = new Map<string, { text: string; document: MarkdownDocument }>()
-function documentOf(book: string, page: string, text: string): MarkdownDocument {
-  const key = `${book}\n${page}`
+function documentOf(page: string, text: string): MarkdownDocument {
+  const key = page
   const was = parsedPages.get(key)
   if (was?.text === text) return was.document
   const document = parseMarkdown(text)
@@ -109,9 +109,9 @@ function measureBlocks(el: HTMLElement, document: MarkdownDocument, top: number,
 
 const SHRINK_ROUNDS = 5 // 画像を縮めて測り直す回数の上限（縮めた画像は次には入るので、たいてい 1・2 回で済む）
 
-export const MarkdownMeasure = memo(function MarkdownMeasure({ book, page, paper, report }: PrintMeasureProps) {
+export const MarkdownMeasure = memo(function MarkdownMeasure({ page, paper, report }: PrintMeasureProps) {
   const text = pageText(page)
-  const document = useMemo(() => documentOf(book.id, page.id, text), [book.id, page.id, text])
+  const document = useMemo(() => documentOf(page.id, text), [page.id, text])
   const softBreak = softBreakOf(useUserSetting(SOFT_BREAK.id))
   const ref = useRef<HTMLElement>(null)
   const latest = useRef(report)
@@ -158,9 +158,9 @@ export const MarkdownMeasure = memo(function MarkdownMeasure({ book, page, paper
   )
 })
 
-export function MarkdownSheet({ book, page, row, paper, measured }: PrintSheetProps) {
+export function MarkdownSheet({ page, row, paper, measured }: PrintSheetProps) {
   const text = pageText(page)
-  const document = useMemo(() => documentOf(book.id, page.id, text), [book.id, page.id, text])
+  const document = useMemo(() => documentOf(page.id, text), [page.id, text])
   const softBreak = softBreakOf(useUserSetting(SOFT_BREAK.id)) // 測ったときと同じ設定で描く
   const data = measured as MarkdownMeasured | undefined
   const cut = data?.cuts[row]

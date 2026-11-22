@@ -37,10 +37,9 @@ export function SheetFrame({
         // 印刷区画の左上が原点になるよう、ページの原点をずらす（はみ出した所は印刷区画の枠が切る）
         <div className={styles.origin} style={{ left: -sheet.column * sheet.w, top: -sheet.row * sheet.h }}>
           <Printing>
-            <PageScope book={book.id} page={page.id} zoom={zoom}>
+            <PageScope outermost={book.id} page={page.id} zoom={zoom}>
               <PageLook>
                 <SheetLayers
-                  book={book}
                   page={page}
                   column={sheet.column}
                   row={sheet.row}

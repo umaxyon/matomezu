@@ -36,6 +36,10 @@ test("ブックの外のバインダを窓に出すと最初のページで開�
   // 開いているステージのページ一覧から替える（openPage）。そのバインダに無いページへは替えない
   store.actions.openPage(stage, "s1")
   expect(openedIn(store, stage)).toEqual({ book: "n1", page: "s1" })
+  // ページ一覧が呼ぶコマンド page-open も、ブックの外のバインダのステージで使える
+  expect(store.actions.command(stage, "@matomezu/base:page-open", "s2")).toBe(true)
+  expect(openedIn(store, stage)).toEqual({ book: "n1", page: "s2" })
+  store.actions.openPage(stage, "s1")
   store.actions.openPage(stage, "nothing")
   expect(openedIn(store, stage)).toEqual({ book: "n1", page: "s1" })
   const before = store.state.getState().window
