@@ -352,7 +352,7 @@ test("page-create: フォルダと書庫ホームには、ブックの外のペ�
   expect(state().pages[home]).toBeUndefined()
 })
 
-test("page-create: ブックの外では、バインダにまとまるタイプのページは、そのページだけの新しいバインダに入る。ゴミ箱の中には作らない", () => {
+test("page-create: ブックの外では、バインダにまとまるタイプのページは、そのページだけの新しいバインダに入り、ブックの外のバインダを名指せばその中に足す。ゴミ箱の中には作らない", () => {
   const { state, lineup, act } = setup()
   const box = folderIn(act)
   const done = act("page-create", { folder: box, type: SLIDE, title: "表紙", into: { newBinder: "発表" } })
@@ -365,8 +365,15 @@ test("page-create: ブックの外では、バインダにまとまるタイプ�
   expect(act("page-create", { folder: box, type: SLIDE }).ok).toBe(false)
   expect(act("page-create", { folder: box, type: SLIDE, into: { binder: result.binder } }).ok).toBe(false)
   expect(act("page-create", { folder: box, type: SLIDE, into: { newBinder: "発表" } })).toMatchObject(taken)
-  // ブックの外のバインダは置き先にならない
-  expect(act("page-create", { folder: result.binder, type: SLIDE, into: { binder: result.binder } }).ok).toBe(false)
+  // ブックの外のバインダを名指せば、その中に足す（ほかのタイプ・新しいバインダは断る）
+  const more = act("page-create", { folder: result.binder, type: SLIDE, title: "本題" })
+  expect(more.ok).toBe(true)
+  expect(lineup(result.binder)).toEqual([result.page, (more.ok && (more.result as { page: string }).page) as string])
+  expect(act("page-create", { folder: result.binder, type: SLIDE, title: "先頭", index: 0 }).ok).toBe(true)
+  expect(lineup(result.binder)?.[1]).toBe(result.page)
+  expect(act("page-create", { folder: result.binder, type: SLIDE, title: "本題" }).ok).toBe(false)
+  expect(act("page-create", { folder: result.binder, type: DRAWING }).ok).toBe(false)
+  expect(act("page-create", { folder: result.binder, type: SLIDE, into: { newBinder: "別" } }).ok).toBe(false)
   expect(act("entry-trash", { entry: box }).ok).toBe(true)
   expect(act("page-create", { folder: box, type: DRAWING }).ok).toBe(false)
 })
