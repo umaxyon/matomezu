@@ -284,17 +284,21 @@ test("書庫を変えた結果の確かめ（outsideHolds）は、ブックの�
   expect(outsideHolds(CORE_CATALOG, was, written({ [ROUTE]: "elbow" }))).toBe(false)
 })
 
-test("ページ・ブックが対象のアクションが、ブックかバインダの中の物にステージエントリが持つ項目の値を書くと断られる。ブックの外のページ 1 枚は受ける", () => {
+test("ページ・ブックが対象のアクションが、ステージエントリが持つ項目の値を書くと断られる（ブックかバインダの中の物は形に合わず、ブックの外のページ 1 枚とバインダの値は書庫が対象のアクションが変える）", () => {
   const HOLD = "@ex/hold:page-hold"
   const HOLD_BINDER = "@ex/hold:binder-hold"
-  const common = { title: "@matomezu/drawing:Drawing", aiDescription: "", args: z.strictObject({}) } as const
+  const common = { title: "@matomezu/drawing:Drawing", aiDescription: "" } as const
   const holdPage = defineAction({
     ...common,
     id: HOLD,
     target: "page",
     attach: { pages: true },
     permissionScope: "page",
-    run: page => ({ next: { ...page, settings: held }, result: {} }),
+    args: z.strictObject({ key: z.string() }),
+    run: (page, { key }) => ({
+      next: { ...page, settings: { ...(page as { settings?: object }).settings, [key]: "row" } as never },
+      result: {},
+    }),
   })
   const holdBinder = defineAction({
     ...common,
@@ -317,18 +321,23 @@ test("ページ・ブックが対象のアクションが、ブックかバイ�
   } as unknown as typeof CORE_CATALOG
   const library = libraryWith(
     [testBook("b1", "ブック", [drawingPage("p1"), testBinder("f1", "中の束", SLIDE, slide("q1", "1"))])],
-    [drawingPage("x1", { title: "外" }), testBinder("n1", "束", SLIDE, slide("s1", "1"))],
+    [
+      drawingPage("x1", { title: "外", settings: { [FLOW]: "column" } as never }),
+      testBinder("n1", "束", SLIDE, slide("s1", "1")),
+    ],
   )
   const world: World = { ...library, settings: {}, annotations: {}, records: {}, counters: {} }
   const ok = (id: string, on: object, key: string = FLOW) =>
-    performIn(world, id, id === HOLD ? {} : { pages: "all", key }, on as never, { ...ctxOf(), catalog } as never).ok
-  // 機能台帳に無い項目の値なら、ブックの中のバインダも受ける
+    performIn(world, id, id === HOLD ? { key } : { pages: "all", key }, on as never, { ...ctxOf(), catalog } as never)
+      .ok
+  // 機能台帳に無い項目の値なら、ブックの中のバインダも、値を持つブックの外のページ 1 枚も受ける
   expect(ok(HOLD_BINDER, { book: "b1" }, GONE)).toBe(true)
+  expect(ok(HOLD, { page: "x1" }, GONE)).toBe(true)
   const rows: [string, string, object, boolean][] = [
     ["ブックの中のページ", HOLD, { page: "p1" }, false],
     ["ブックの中のバインダの中のページ", HOLD, { page: "q1" }, false],
     ["ブックの外のバインダの中のページ", HOLD, { page: "s1" }, false],
-    ["ブックの外のページ 1 枚", HOLD, { page: "x1" }, true],
+    ["ブックの外のページ 1 枚（値は、書庫が対象のアクションが変える）", HOLD, { page: "x1" }, false],
     ["ブックの中のバインダ", HOLD_BINDER, { book: "b1" }, false],
     ["ブックの外のバインダ（値は、書庫が対象のアクションが変える）", HOLD_BINDER, { book: "n1" }, false],
   ]

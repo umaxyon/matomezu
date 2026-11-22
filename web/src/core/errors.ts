@@ -91,7 +91,7 @@ export const ERRORS = {
   E126: "this view is not drawn in a screen of {screen}",
   E127: "item {id}: scrapFrame is for a shape whose props are a scrap",
   E128: "{name} is used outside a screen arrangement (only the widget that lays out the screens names them)",
-  E129: "setting {id}: printPreview is only for a setting a book holds (holder outermost)",
+  E129: "setting {id}: printPreview is only for a setting a stage entry holds (holder outermost)",
   E130: "subject {id}: the state of role participants takes exactly {states}",
   E131: "paper {paper}: there is no paper in the catalog to draw it with",
   E132: "system folders {first} and {second} have the same title {title} in {lang}",

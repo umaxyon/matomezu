@@ -8,6 +8,7 @@ import { type Annotation, annotationsSettle, type PageAnnotations } from "./anno
 import { findPage, keepsPageTypes, keepsPageTypesAcross, outsideHolds, pageSettles, putPage } from "./book"
 import type { ActionId, ActionTable } from "./catalog"
 import { pageChangeOf } from "./changes"
+import type { CoreCatalog } from "./core-catalog"
 import {
   type ActionContext,
   type ActionDef,
@@ -382,10 +383,19 @@ function performOutsidePage(
   if (!next) return { ok: false, reason: "refused" }
   const permission = broke(next)
   if (permission) return { ok: false, reason: "denied", permission }
-  // ページのタイプは作ったあと変えない。ステージエントリが持つ設定の項目の値を受けるのは、バインダに入っていないページだけ
+  // ページのタイプは作ったあと変えない。ステージエントリが持つ設定の項目の値を受けるのは、バインダに入っていないページだけで、
+  // その値は変えない（書庫が対象のアクションが変える）
   if (next.type !== held.type || !pageSettles(ctx.catalog, next, folders.length === 0))
     return { ok: false, reason: "refused" }
+  if (!keepsOutermostSettings(ctx.catalog, held, next)) return { ok: false, reason: "refused" }
   return { ok: true, next, result: ran.result as never }
+}
+
+// ページ before と after で、ステージエントリが持つ設定の項目（holder が "outermost" の項目）の値が同じか
+function keepsOutermostSettings(catalog: CoreCatalog, before: object, after: object): boolean {
+  const valuesOf = (page: object) => (page as { settings?: Readonly<Record<string, unknown>> }).settings ?? {}
+  const [was, now] = [valuesOf(before), valuesOf(after)]
+  return [...catalog.settings.values()].every(d => d.holder !== "outermost" || was[d.id] === now[d.id])
 }
 
 // レコードが対象のアクションが変えるレコードの、種類 subject と、前 now と後 next の組（宛先の 1 件と、ほかの others）。
