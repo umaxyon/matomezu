@@ -2,9 +2,12 @@
 // 行はフォルダの行を持たないので、行の id は作業机ごとに作る（同じ実のブックが 2 つの作業机に映る事があるため）: 作業机は workdesk/<ワークルーム>、
 // ワーカーブックは workdesk/<ワークルーム>/book、その中の物は workdesk/<ワークルーム>/e/<実の id>。実の id は uuid なので、workdesk/ で始まらない。
 // 行の id から実の id へ直すのは realOf だけが行う（行の id のまま、アクションに渡さない）
+import type { CoreCatalog } from "../../../core/core-catalog"
 import type { Folders } from "../../../core/folders"
 import { foldersOver, systemFolderOf } from "../../../core/folders-tree"
-import type { Workdesk } from "../participant/workdesks"
+import { readerOf, sourceOf } from "../../../core/record-source"
+import type { Records } from "../../../core/records"
+import { type Workdesk, workdesksOf, workdesksReadsOf } from "../participant/workdesks"
 import { WORKROOMS } from "./system-folders"
 
 const PREFIX = "workdesk/"
@@ -12,6 +15,10 @@ const BOOK = "/book"
 const IN = "/e/"
 
 export const NO_DESKS: readonly Workdesk[] = []
+
+// 持っているレコード records と書庫の表 folders から出す作業机（読むのは workdesksReadsOf の種類だけ）
+export const workdesksIn = (catalog: CoreCatalog, s: { records: Records; folders: Folders }): readonly Workdesk[] =>
+  workdesksOf(catalog, readerOf(catalog, sourceOf(s.records), workdesksReadsOf(catalog)), s.folders)
 
 export const deskRowId = (room: string): string => `${PREFIX}${encodeURIComponent(room)}`
 export const deskBookRowId = (room: string): string => `${deskRowId(room)}${BOOK}`
@@ -75,4 +82,22 @@ export function deskPathOf(folders: Folders, place: DeskPlace): string[] {
     )
     .reverse()
   return [deskRowId(room), deskBookRowId(room), ...inBook.map(f => deskEntryRowId(room, f.id)), place.id]
+}
+
+// 作る先を決めるときの、開いている行 opened の代わり: 映した節の行なら、ワークルームのフォルダ（そこには作れないので、作る物は認可ステップに止められる）。ほかは opened
+export const createdIn = (folders: Folders, opened: string): string =>
+  isDeskRow(opened) ? (workroomsFolderOf(folders) ?? opened) : opened
+
+// 映した節の行の名前（パンくず）: 作業机はワークルームの名前、ワーカーブックは実のブックの名前（まだ無ければ作業の名前）。映した節の行でなければ undefined
+export function deskTitleOf(
+  desks: readonly Workdesk[],
+  folders: Folders,
+  id: string,
+  titleOfReal: (real: string) => string | undefined,
+): string | undefined {
+  const place = deskPlaceOf(desks, folders, id)
+  if (place === undefined || place === GONE) return undefined
+  if (place.at === "desk") return place.desk.title
+  if (place.at === "book") return (place.real && titleOfReal(place.real)) || place.desk.bookTitle
+  return titleOfReal(place.real)
 }

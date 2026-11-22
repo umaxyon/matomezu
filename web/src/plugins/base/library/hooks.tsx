@@ -8,22 +8,30 @@ import type { MatomezuState } from "../../../store/state"
 import { useMessages } from "../../../ui/i18n"
 import { useCatalog, useInstance, useMatomezuState, useReadState } from "../../../ui/store-context"
 import { kit } from "../kit"
+import type { Workdesk } from "../participant/workdesks"
 import { type LibraryRow, NO_TITLE, rowsIn } from "./outline"
+import { NO_DESKS, workdesksIn } from "./workdesk-rows"
 
-// 書庫の表から rowsOf で出した行（名前は、利用者の設定の言語で引く naming で引く。読めない物のフォルダの直下の物 unreadableFolder も読める）。
-// 表と設定と読めない物のフォルダが変わっても、行の中身が同じなら同じ値のまま（ページの中身が変わるたびに描き直さない）。
+// 書庫の表から rowsOf で出した行（名前は、利用者の設定の言語で引く naming で引く。読めない物のフォルダの直下の物 unreadableFolder と、作業机 desks も読める）。
+// 表と設定と読めない物のフォルダと作業机が変わっても、行の中身が同じなら同じ値のまま（ページの中身が変わるたびに描き直さない）。
 // key は、rowsOf が何の行を出すかを分ける値（フォルダの id など。変わったら出し直す）
 export function useLibraryRows<R>(
   key: string,
-  rowsOf: (library: Library & Pick<MatomezuState, "unreadableFolder">, naming: Naming) => readonly R[],
+  rowsOf: (
+    library: Library & Pick<MatomezuState, "unreadableFolder">,
+    naming: Naming,
+    desks: readonly Workdesk[],
+  ) => readonly R[],
 ): readonly R[] {
   const catalog = useCatalog().core
+  const desks = useWorkdesks()
   const kept = useRef<{
     key: string
     pages: unknown
     folders: unknown
     settings: unknown
     unreadableFolder: unknown
+    desks: unknown
     rows: readonly R[]
   } | null>(null)
   return useMatomezuState(s => {
@@ -33,10 +41,11 @@ export function useLibraryRows<R>(
       was.pages === s.pages &&
       was.folders === s.folders &&
       was.settings === s.settings &&
-      was.unreadableFolder === s.unreadableFolder
+      was.unreadableFolder === s.unreadableFolder &&
+      was.desks === desks
     )
       return was.rows
-    const next = rowsOf(s, namingOf(catalog, s.settings))
+    const next = rowsOf(s, namingOf(catalog, s.settings), desks)
     const rows = was && sameData(was.rows, next) ? was.rows : next
     kept.current = {
       key,
@@ -44,9 +53,21 @@ export function useLibraryRows<R>(
       folders: s.folders,
       settings: s.settings,
       unreadableFolder: s.unreadableFolder,
+      desks,
       rows,
     }
     return rows
+  })
+}
+
+// 作業机（ワークルームのフォルダの下に映す物。中身が同じなら同じ値のまま）
+export function useWorkdesks(): readonly Workdesk[] {
+  const catalog = useCatalog().core
+  const kept = useRef<readonly Workdesk[]>(NO_DESKS)
+  return useMatomezuState(s => {
+    const next = workdesksIn(catalog, s)
+    if (!sameData(kept.current, next)) kept.current = next
+    return kept.current
   })
 }
 

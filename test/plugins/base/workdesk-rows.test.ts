@@ -1,7 +1,14 @@
 // 映した節（library/workdesk-rows.ts と outline.ts）: ワークルームのフォルダの下に作業机、その下にワーカーブックとその中の物を、作業机ごとの行 id で出す。
 // 行 id から実の id へ直し、古い行 id（作業机が無くなった・作業が変わった・ブックがまだ無い）は残っている一番近い上の行へ戻す
 import { expect, test } from "bun:test"
-import { backyardIdOf, type Folder, HOME_ID, type HomeFolder, type Library } from "../../../web/src/core/folders"
+import {
+  backyardIdOf,
+  type Folder,
+  HOME_ID,
+  type HomeFolder,
+  type Library,
+  type PlainFolder,
+} from "../../../web/src/core/folders"
 import { TICKETS_HISTORY } from "../../../web/src/plugins/base/library/backyards"
 import {
   arrivedAt,
@@ -24,7 +31,13 @@ const YARD = backyardIdOf(TICKETS_HISTORY.id)
 // 書庫ホーム > ワークルームのフォルダ wr。バックヤードにワーカーブック wb（p1・バインダ n1（s1））と wc（p3）
 const wb = testBook("wb", "M-0133", [drawingPage("p1"), testBinder("n1", "束", SLIDE, testPage(SLIDE, "s1"))])
 const wc = testBook("wc", "M-0126", [drawingPage("p3")])
-const wr: Folder = { folderRole: "folder", id: "wr", systemFolder: WORKROOMS.id, lineup: [] } as Folder
+const wr = {
+  folderRole: "folder",
+  id: "wr",
+  title: "",
+  systemFolder: WORKROOMS.id,
+  lineup: [],
+} as unknown as PlainFolder
 const home: HomeFolder = { folderRole: "home", id: HOME_ID, lineup: [{ kind: "folder", id: "wr" }] }
 const library = (): Library => {
   const t = worldTablesOf([wb, wc], [home, wr])
