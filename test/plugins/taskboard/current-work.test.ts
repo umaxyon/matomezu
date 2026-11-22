@@ -87,6 +87,48 @@ test("カレントワークのあるワークルームを、ほかのチケッ�
   expect(work(a)).toBe(t1)
 })
 
+test("レーンを指さずに担当を新しく付けると、作業中のレーン（並びで最初）へ移り、カレントワークが none の担当のカレントチケットになる。カレントワークのある担当は入れ替わらない", () => {
+  const { user, room, doing, todo, add, work, ticketRecord } = board()
+  const a = room("あ")
+  const b = room("い")
+  const t1 = add({ assignees: [a] })
+  expect(ticketRecord(t1).lane).toBe(doing)
+  expect(work(a)).toBe(t1)
+  const t2 = add({ lane: todo })
+  user("ticket-update", { assignees: [b, a] }, { record: t2 })
+  expect(ticketRecord(t2).lane).toBe(doing)
+  expect([work(a), work(b)]).toEqual([t1, t2])
+  // レーンを指して付ければ移らない（予定として担当だけ付ける）
+  const t3 = add({ lane: todo, assignees: [b] })
+  expect(ticketRecord(t3).lane).toBe(todo)
+  const t4 = add({ lane: todo })
+  user("ticket-update", { lane: todo, assignees: [a] }, { record: t4 })
+  expect(ticketRecord(t4).lane).toBe(todo)
+  // 担当を外すだけ・並べ替えるだけでは移らない
+  user("ticket-update", { assignees: [] }, { record: t4 })
+  const t5 = add({ lane: todo })
+  user("ticket-update", { lane: todo, assignees: [a, b] }, { record: t5 })
+  user("ticket-update", { assignees: [b, a] }, { record: t5 })
+  expect(ticketRecord(t5).lane).toBe(todo)
+})
+
+test("作業中のレーンが無いプロジェクトでは、担当を付けても移らない", () => {
+  const { user, room, project, todo, add, work, ticketRecord, world } = board()
+  const a = room("あ")
+  const p = world().records[A("project")]?.[project] as Project
+  user(
+    "project-update",
+    { lanes: p.lanes.map(l => (l.kind === "lane" ? { ...l, working: undefined } : l)) },
+    { record: project },
+  )
+  const t1 = add({ assignees: [a] })
+  expect(ticketRecord(t1).lane).toBe("unsorted")
+  const t2 = add({ lane: todo })
+  user("ticket-update", { assignees: [a] }, { record: t2 })
+  expect(ticketRecord(t2).lane).toBe(todo)
+  expect(work(a)).toBe("none")
+})
+
 test("ticket-start は取り替える: 作業中のレーンへ移し、担当に足し、前のチケットは当てられているだけに戻る", () => {
   const { act, room, doing, todo, add, work, ticketRecord } = board()
   const a = room("あ")
