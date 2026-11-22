@@ -134,8 +134,6 @@ export function libraryTopIdsIn(folders: ReadonlyMap<string, unknown> | Readonly
 // フォルダの行 row の役（folderRole。無ければ undefined）
 const roleOfRow = (row: unknown): unknown =>
   typeof row === "object" && row !== null ? (row as { folderRole?: unknown }).folderRole : undefined
-// 書庫の画面と AI に見せない一番上の役か
-export const isUnshownTopRole = (role: unknown): boolean => isTopRole(role) && !TOP_FOLDERS[role].shown
 
 // 書庫の一番上のフォルダの役か
 export const isTopRole = (role: unknown): role is TopRole =>

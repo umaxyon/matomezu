@@ -52,7 +52,6 @@ export type {
   RecordRead,
 } from "../core/def/action"
 export type { AnnotationDef } from "../core/def/annotation"
-export type { BackyardDef } from "../core/def/backyard"
 export type { EnumDef, EnumValueDef } from "../core/def/enum"
 export type { FollowContext, FollowedChange, FollowedRecord, FollowStepDef } from "../core/def/follow-step"
 export type {
