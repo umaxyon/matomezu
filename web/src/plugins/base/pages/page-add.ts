@@ -21,7 +21,7 @@ import { GROW_CHOICES, ORIENTATIONS } from "../../../core/def/paper"
 import { freeTitle } from "../../../core/entries"
 import { translate } from "../../../core/i18n/i18n"
 import type { ItemPage } from "../../../core/placed"
-import type { Book } from "../../../core/schema/book"
+import type { StageLineup } from "../../../core/schema/book"
 import { settingsArgs, settingsPatchOf, settleBook } from "../book-settings"
 import { kit } from "../kit"
 import { growsValue } from "../place/grow"
@@ -60,12 +60,12 @@ export interface NewPageResult {
 }
 
 // ブック book に、引数 args のページを足したブックと、足したページの id（と、フィールドの受け方の返した結果・新しく作ったバインダの id）。足せなければ null
-export function withNewPage(
+export function withNewPage<B extends StageLineup>(
   catalog: CoreCatalog,
-  book: Book,
+  book: B,
   args: NewPageArgs,
   ctx: { lang: string; newId: () => string },
-): { book: Book; result: NewPageResult } | null {
+): { book: B; result: NewPageResult } | null {
   const type = catalog.pageTypes.get(args.type)
   if (!type) return null
   // 入れる所: まとまるタイプは into が要り、まとまらないタイプは into を書けない

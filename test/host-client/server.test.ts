@@ -1055,13 +1055,16 @@ test("準備中でない参加者の知らせは、同じ id を重ねて持た�
   expect(ready()).toEqual(["p1", "p2"])
 })
 
-// 画面だけの口 1 つを試すホストクライアント: path（既定は外す口 api/screen-plugins/remove）に answer を返し（null ならつながらない）、頼まれた本文と読み直した数を残す
+// 画面だけの口 1 つを試すホストクライアント: path（既定は外す口 api/screen-plugins/remove）に answer を返し（null ならつながらない）、頼まれた本文と読み直した数を残す。
+// 常駐と同じく、JSON の本文でない書く頼みは 415 で断る（internal/server の sameOrigin）
 function removing(answer: { status: number; body: unknown } | null, path = "api/screen-plugins/remove") {
   const sent: unknown[] = []
   let reloads = 0
   const host = serverClient({
     fetch: async (url, init) => {
       if (url !== path) throw new Error(`unexpected ${url}`)
+      if (new Headers(init?.headers).get("Content-Type") !== "application/json")
+        return new Response("", { status: 415 })
       sent.push(JSON.parse(String(init?.body)))
       if (!answer) throw new TypeError("Failed to fetch")
       return new Response(JSON.stringify(answer.body), { status: answer.status })
@@ -1189,4 +1192,11 @@ test("つなぎ直した常駐がデータの形も違えば、確かめられ�
   // 読み込み直すまで、新しいアクションは断り、アクションでない書き込みの頼みも送らない
   expect(place(s.store)).toMatchObject({ ok: false, kind: "stale-build" })
   expect(await s.host.removeScreenPlugins(["ex2"])).toEqual({ state: "unreachable" })
+})
+
+test("新しい版を確かめる頼みは JSON の本文で送り、答えの結果を返す", async () => {
+  const status = { state: "newer", version: "1.0.0", latest: "1.0.1", checkedAt: "2026-11-22T00:00:00Z" }
+  const { host, sent } = removing({ status: 200, body: status }, "api/update/check")
+  await host.checkUpdate()
+  expect(sent).toEqual([{}])
 })

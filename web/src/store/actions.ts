@@ -132,7 +132,7 @@ export interface PlaceActions {
   openBook(stage: string, book: string): void // そのステージでブックを開き（ページがあれば最初のページ）、カレントにする
   openPage(stage: string, page: string): void // そのステージで開いているブックのページを開き、カレントにして、そのブックスクリーンをカレントスクリーンにする
   openBinder(stage: string, binder: string): void // そのステージで開いているブックのバインダを開く（中の最初のページ。空ならバインダ）
-  openPageById(stage: string, page: string): void // ページ page を持つブックをそのステージで開き、そのページを開く（ページが無ければ何もしない）
+  openPageById(stage: string, page: string): void // ページ page を持つステージエントリ（ブックか、ブックの外のバインダ。ブックの外のページ 1 枚ならそのページ）をそのステージで開き、そのページを開く（開ける所に無ければ何もしない）
   resizeStage(id: string, view: Size): void // 表示領域の大きさが変わった
   // プレゼンテーションが描く広さ（可変ページ。null なら紙 1 枚）と、描く中身を右・下へずらした量（印刷区画の数。位置をデータに持たないプレゼンテーション）
   setStageArea(id: string, area: Size | null, origin?: Point | null): void

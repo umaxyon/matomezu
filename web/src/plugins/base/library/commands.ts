@@ -110,7 +110,7 @@ function entryOf(ctx: ScreenCommandContext, named?: Named): string | undefined {
 
 // コマンドが扱う、受け取ったエントリ（フォルダを受け取ったとき（何も無い所のメニュー）は、扱わない。そのフォルダは、右クリックした物でない）のうち、
 // in が扱うと答えた物: 名前を変える物はゴミ箱の外のどこに在っても（placedOutsideTrash）、ゴミ箱に入れる物は書庫ホームかフォルダの直下に在る物（placedOutsideBooks）、
-// 写す物はブックの中のページ・バインダ（placedInBook）
+// 写す物はブックかバインダの中か、書庫ホームかフォルダの直下のページ・バインダ（duplicates）
 type Handles = (folders: Folders, entry: string, catalog: CoreCatalog) => unknown
 const handled = (ctx: ScreenCommandContext, handles: Handles, named?: Named): string | undefined => {
   const to = given(ctx, named)
@@ -214,23 +214,29 @@ export const LIBRARY_ENTRY_RENAME = kit.defineScreenCommand({
   when: inMenuHandled(renames),
 })
 
-// 写す: ブックの中のページ・バインダを、すぐ後ろに番号付きの名前で写す。断られたらトーストで知らせる
+// 写す物: ブックかバインダの中か、書庫ホームかフォルダの直下に在るページとバインダ（ブックとフォルダは写さない。読めない物のフォルダの中の物も写さない）
+const duplicates: Handles = (folders, entry) => {
+  const kind = placedOutsideBooks(folders, entry)?.ref.kind
+  return placedInBook(folders, entry) || kind === "page" || kind === "binder"
+}
+
+// 写す: ページ・バインダを、すぐ後ろに番号付きの名前で写す。断られたらトーストで知らせる
 export const LIBRARY_ENTRY_DUPLICATE = kit.defineScreenCommand({
   id: "library-entry-duplicate",
   title: "Duplicate",
   performs: [ENTRY_DUPLICATE.id],
   run: (ctx, a, named: Named | undefined) => {
-    const entry = handled(ctx, placedInBook, named)
+    const entry = handled(ctx, duplicates, named)
     if (entry === undefined) return
     const done = a.perform(ENTRY_DUPLICATE.id, { entry })
     if (!done.ok)
       a.showToast({ kind: "warn", message: refusalMessage(ctx.catalog, done, kit.message("Cannot be duplicated")) })
   },
   performsWith: (ctx, named) => {
-    const entry = handled(ctx, placedInBook, named)
+    const entry = handled(ctx, duplicates, named)
     return entry === undefined ? [] : [{ action: ENTRY_DUPLICATE.id, args: { entry } }]
   },
-  when: inMenuHandled(placedInBook),
+  when: inMenuHandled(duplicates),
 })
 
 // エントリ entry をゴミ箱に入れる。断られたらトーストで知らせる。行えたら、それを選んでいれば外す

@@ -4,7 +4,7 @@ import { findPage, pagesOf, putPage } from "../../web/src/core/book"
 import { defineAction } from "../../web/src/core/def/action"
 import { definePageType } from "../../web/src/core/def/page-type"
 import type { ItemPage } from "../../web/src/core/placed"
-import type { Book } from "../../web/src/core/schema/book"
+import type { StageLineup } from "../../web/src/core/schema/book"
 import { shownPageId } from "../../web/src/core/stage"
 import { screenOf } from "../../web/src/core/window"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
@@ -33,7 +33,7 @@ const NOTE = definePageType({
 })
 const PAGE = z.strictObject({ page: z.string().min(1) })
 // ページ page を f で替えたブック（無いページなら null）
-const withPage = (book: Book, page: string, f: (p: ItemPage) => ItemPage) => {
+const withPage = <B extends StageLineup>(book: B, page: string, f: (p: ItemPage) => ItemPage) => {
   const found = findPage(book, page)?.page
   return found ? putPage(book, f(found)) : null
 }

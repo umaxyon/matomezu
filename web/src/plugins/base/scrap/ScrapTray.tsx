@@ -2,7 +2,7 @@
 // スクラップトレイを開けるのは、スクラップフレームを置けるブックを開いているステージだけ（ボタンは、そのときだけ出る。置けないブックに替わったら、開いているスクラップトレイを閉じる）。
 // スクラップトレイは切り抜いた新しい順に並べ、押すと、今のステージで置けるスクラップフレーム（scrapFrameIn）で、その値のまま置こうとする。× は確かめてから消す
 import { useEffect, useState } from "react"
-import { pageById } from "../../../core/book"
+import { openablePage } from "../../../core/library"
 import { sameData } from "../../../core/same"
 import { shownType } from "../../../core/stage"
 import { useMessages } from "../../../ui/i18n"
@@ -69,8 +69,12 @@ function Row({ id, scrap }: { id: string; scrap: Scrap }) {
   const pressed = frame !== null && placing?.item === frame && sameData(placing.props, toPlace)
   const removable = useAllowedOn(SCRAP_REMOVE.id, {}, { record: id }).ok
   const label = useMatomezuState(s => {
-    const at = pageById(s.books, scrap.page)
-    return at ? `${at.book.title} › ${at.page.title}` : t("No Data")
+    const at = openablePage(s, scrap.page)
+    if (!at) return t("No Data")
+    // ブックかブックの外のバインダの中のページは、その名前を前に付ける（ブックの外のページ 1 枚は、ページの名前だけ）
+    const row = s.folders[at.outermost.id]
+    const within = row?.folderRole === "book" || row?.folderRole === "binder" ? row.title : undefined
+    return within === undefined ? at.page.title : `${within} › ${at.page.title}`
   })
   const [asking, setAsking] = useState(false)
   const remove = () => {

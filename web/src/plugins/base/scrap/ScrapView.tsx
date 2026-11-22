@@ -3,9 +3,9 @@
 // 範囲は可変ページの中身の位置で持つ（中身を右・下へずらしたら、ずらした分だけ先を描く）
 import { createContext, type ReactNode, useCallback, useContext, useLayoutEffect, useMemo, useState } from "react"
 import { useShallow } from "zustand/react/shallow"
-import { pageById } from "../../../core/book"
 import { pageType } from "../../../core/core-catalog"
 import type { Size } from "../../../core/geom"
+import { openablePage } from "../../../core/library"
 import type { ItemPage } from "../../../core/placed"
 import type { Page } from "../../../core/schema/book"
 import { useMessages } from "../../../ui/i18n"
@@ -35,21 +35,21 @@ export function ScrapView({ scrap, zoom = 1 }: ScrapViewProps) {
   const t = useMessages(kit)
   const catalog = useCatalog().core
   const traced = useContext(TracedContext)
-  // ページの見た目と設定は、今そのページを持っているブックから引く
+  // ページの見た目と設定は、今そのページを持っているステージエントリから引く
   const found = useMatomezuState(
     useShallow(s => {
-      const at = pageById(s.books, pageId)
-      return { book: at?.book ?? null, page: (at?.page as ItemPage | undefined) ?? null }
+      const at = openablePage(s, pageId)
+      return { outermost: at?.outermost.id ?? null, page: at?.page ?? null }
     }),
   )
-  const { book, page } = found
-  const state: ScrapState = !book || !page ? "none" : traced.includes(pageId) ? "loop" : "shown"
+  const { outermost, page } = found
+  const state: ScrapState = !outermost || !page ? "none" : traced.includes(pageId) ? "loop" : "shown"
   const placed = scrapSize(scrap)
   const frame = { width: placed.w, height: placed.h }
-  const size = book && page ? pageArea(catalog, page).size : undefined
+  const size = outermost && page ? pageArea(catalog, page).size : undefined
   const paper = page ? paperSize(catalog, page) : null
   const inner = useMemo(() => [...traced, pageId], [traced, pageId])
-  if (state !== "shown" || !book || !page || !size || !paper)
+  if (state !== "shown" || !outermost || !page || !size || !paper)
     return (
       <div className={`${styles.frame} ${styles.empty}`} data-scrap={state === "loop" ? "loop" : "none"} style={frame}>
         {state === "loop" ? <LoopMark /> : t("No Data")}
@@ -59,7 +59,7 @@ export function ScrapView({ scrap, zoom = 1 }: ScrapViewProps) {
   return (
     <div className={styles.frame} data-scrap="shown" style={frame}>
       <TracedContext.Provider value={inner}>
-        <PageScope outermost={book.id} page={page.id} zoom={zoom * scale}>
+        <PageScope outermost={outermost} page={page.id} zoom={zoom * scale}>
           <div className={styles.moved} style={{ transform: `scale(${scale}) translate(${-at.x}px, ${-at.y}px)` }}>
             <DrawnSheet page={page} size={size} />
           </div>

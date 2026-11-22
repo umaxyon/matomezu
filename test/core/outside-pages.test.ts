@@ -358,3 +358,26 @@ test("ゴミ箱に入れた物の中のページのアノテーションは消�
   expect(gone(TRASH, { entry: "b1" })).toEqual({ p1: [] })
   expect(gone(MOVE, { entry: "x1", into: "a" })).toEqual({})
 })
+
+test("書庫が対象のアクションが変えたブックの外のページでは、無くなった物をアノテーションのアンカーから外す", () => {
+  const library = libraryWith(
+    [testBook("b1", "ブック", [drawingPage("p1")])],
+    [
+      drawingPage("x1", {
+        title: "外",
+        items: [{ id: "a", item: BOX, x: 0, y: 0, props: { caption: "a", body: "" } }],
+      }),
+    ],
+  )
+  const note = (id: string, anchors: string[]) =>
+    ({ id, annotation: "@matomezu/base:note", anchors, props: { text: "x", bubble: true, addedAt: "t" } }) as never
+  const world: World = {
+    ...library,
+    settings: {},
+    annotations: { x1: [note("a1", ["a"]), note("a2", ["gone"])], p1: [note("a3", ["gone"])] },
+    records: {},
+    counters: {},
+  }
+  const done = performIn(world, SNEAK, {}, undefined, libraryCtx("test:center"))
+  expect(done.ok && done.annotations).toEqual({ x1: [note("a1", ["a"])] })
+})

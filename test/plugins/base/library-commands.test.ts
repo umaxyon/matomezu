@@ -236,6 +236,11 @@ test("右クリックのメニューの行: フォルダは作る・名前の変
   expect(menu("library-folder-context", { folder: a })).toEqual([book, fold])
   expect(menu("library-folder-context", { folder: "b1" })).toEqual([book, fold])
   expect(menu("library-folder-context", { folder: TRASH_ID })).toEqual([])
+  // ゴミ箱に入れたブックの中のページには、複製を出さない
+  const perform = store.actions.perform as (id: string, args: unknown) => { ok: boolean }
+  expect(perform("@matomezu/base:entry-trash", { entry: "b2" }).ok).toBe(true)
+  const inTrash = entriesIn(store.state.getState().folders, "b2")[0]?.id as string
+  expect(menu("library-entry-context", { entry: inTrash })).not.toContain(copy)
   // ブックの中の何も無い所から作ると、ブックを入れているフォルダ（書庫ホーム）に作る
   menu("library-folder-context", { folder: "b1" })
   run("library-folder-new", { folder: "b1" })

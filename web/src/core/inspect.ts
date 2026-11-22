@@ -28,7 +28,7 @@ import type { KeyBinding } from "./keys"
 import { backyardEntryIn, inputFor, type WithFolders } from "./permission-input"
 import type { ItemPage } from "./placed"
 import type { WithSource } from "./record-source"
-import type { Book } from "./schema/book"
+import type { BinderEntry, Book } from "./schema/book"
 
 // ステップの出どころ
 export type Source =
@@ -76,8 +76,8 @@ export type Query =
     actor: Actor
     // レコードが対象のアクションの宛先のレコード（作るなら none）と、そのレコードが指すほかのレコード。認可ステップは record があるときに見る
     record?: { record: unknown; refs: readonly Referred[] }
-    // ブックの中でなく、ページそのもので問うときのページ（ブックの外のページか、書庫が対象のアクションが作るページ）。認可ステップには kind "page" で問い、
-    // ページ・アノテーションが対象のアクションを使えるかは、そのページのタイプで決める
+    // ブックの中でなく、ページそのもので問うときのページ（ブックの外のページか、ブックの外のバインダの中のページか、作るページ）。認可ステップには kind "page" で問い、
+    // ブック・ページ・アノテーションが対象のアクションを使えるかは、そのページのタイプで決める
     page?: AskedPage
   }
 
@@ -115,7 +115,11 @@ export function actionQuery(
 }
 
 // ステージで開いている物（ステージエントリ）のうち、問う相手になる物: ブック（book）か、ブックの外のページ（そのページ page と、認可ステップに見せるフォルダの列 folders）
-export type AskedOutermost = { book: Book } | Pick<AskedPage, "page" | "folders">
+// ブックの外のバインダを開いているなら、開いているページと、そのバインダ（binder。中のページごと。ブックが対象のアクションは、core/perform-permit.ts の openedAnswer がバインダで問う）
+export type AskedOutermost =
+  | { book: Book }
+  | Pick<AskedPage, "page" | "folders">
+  | (Pick<AskedPage, "page" | "folders"> & { binder: BinderEntry })
 
 // アクション action を、開いている物 on の所 where を変える物として問う（アクションの対象は見ない。ブックの外のページの所は、その中の物 ids だけ）
 export function openedQuery(action: string, on: AskedOutermost, where?: Where): Query {
@@ -125,7 +129,8 @@ export function openedQuery(action: string, on: AskedOutermost, where?: Where): 
   return { ...base, page }
 }
 
-const decide = <V>(steps: Step<V>[]): Inspected<V> => {
+// ステップの並びの答え: 最初に決めたステップの値（どれも決めなければ null）
+export const decide = <V>(steps: Step<V>[]): Inspected<V> => {
   const hit = steps.find(s => s.value !== null)
   return { value: hit?.value ?? null, decidedBy: hit?.from ?? null, steps }
 }
@@ -350,7 +355,7 @@ function action(
   if (isInBook(def.target))
     return book
       ? decide([known, userOnly, participation, ...permitted, ...placeSteps(catalog, def, book, where)])
-      : page && def.target !== "book"
+      : page
         ? decide([known, userOnly, participation, ...permitted, ...typeSteps(def, pageType(catalog, page.page.type))])
         : decide([known, userOnly, participation])
   const center = controlCenter === null ? undefined : catalog.controlCenters.get(controlCenter)

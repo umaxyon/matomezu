@@ -68,3 +68,12 @@
   border-right: 1px solid var(--skin-border);
   border-bottom: 1px solid var(--skin-border);
 }
+/* 左端をそろえる: 吹き出しを押す物の左端から右へ出し、尾も左に寄せる */
+.tip[data-align="start"] .bubble {
+  right: auto;
+  left: 0;
+}
+.tip[data-align="start"] .bubble::before {
+  right: auto;
+  left: 9px;
+}

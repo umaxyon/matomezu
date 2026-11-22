@@ -264,7 +264,10 @@ export function askedOutermostOf(from: LibraryAndBooks, opened: Opened | null | 
   const book = openedBook(from.books, opened)
   if (book) return { book }
   const page = openedOutside(from, opened)
-  return page && outsideAsked(from.folders, page)
+  if (!page) return undefined
+  const binder = opened?.outermost.kind === "binder" ? outsideBinderIn(from, opened.outermost.id) : undefined
+  const asked = outsideAsked(from.folders, page)
+  return binder ? { ...asked, binder } : asked
 }
 
 // ブックでないステージエントリ（ブックの外のページ・バインダ）を開いているときの、開いているページ（ブックを開いている・何も開いていない・もう無ければ undefined）

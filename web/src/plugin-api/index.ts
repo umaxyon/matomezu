@@ -97,7 +97,7 @@ export {
   slideOf,
   walkShapes,
 } from "../core/placed"
-export type { Book } from "../core/schema/book"
+export type { Book, StageLineup } from "../core/schema/book"
 export {
   areaOf,
   binderOf,
