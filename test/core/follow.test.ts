@@ -9,7 +9,7 @@ import type { ActionDef } from "../../web/src/core/def/action"
 import type { FollowStepDef } from "../../web/src/core/def/follow-step"
 import type { SubjectDef } from "../../web/src/core/def/subject"
 import { type PerformedIn, performIn, type World } from "../../web/src/core/perform-world"
-import { REMOVED } from "../../web/src/core/records"
+import { RECORDS_MAX, REMOVED } from "../../web/src/core/records"
 import { BUILTIN } from "../../web/src/plugins"
 import { assemble, defineBuiltin, type Plugin } from "../../web/src/store/plugin"
 
@@ -222,4 +222,45 @@ test("コントロールセンターは、変える種類に応じるフォロ�
     performIn(world(), "@ex/card:card-rename", { label: "b" }, { record: "c1" }, { ...ctx, ...at, catalog })
   expect(renameIn(only([CARD, TALLY]))).toMatchObject({ ok: false, reason: "not-allowed" })
   expect(renameIn(only([CARD, TALLY, ECHO]))).toMatchObject({ ok: true })
+})
+
+test("応じる側の返す物が決まりに外れたら、きっかけのアクションごと断る（数・書かない種類・同じ物を 2 回・作る id の食い違い）", () => {
+  const giving = (out: unknown[]) => {
+    const catalog = assemble(
+      plugins({ followSteps: [{ ...FOLLOW_CARD, writes: [TALLY as never], follow: () => out as never }] }),
+      CENTER,
+    ).catalog.core
+    const done = performIn(
+      world(),
+      "@ex/card:card-rename",
+      { label: "b" },
+      { record: "c1" },
+      { ...ctx, ...at, catalog },
+    )
+    return done.ok ? "ok" : (done as { detail: string }).detail
+  }
+  const tally = (id: string, label = "x") => ({ subject: TALLY, id, record: { id, label } })
+  expect(giving(Array.from({ length: RECORDS_MAX + 1 }, (_, i) => tally(`t${i}`)))).toContain("more than")
+  expect(giving([{ subject: ECHO, id: "e", record: { id: "e", label: "x" } }])).toContain("does not write")
+  expect(giving([tally("t"), tally("t", "y")])).toContain("twice")
+  expect(giving([{ subject: TALLY, id: "t", record: { id: "u", label: "x" } }])).toContain("another id")
+  expect(giving([tally("t")])).toBe("ok")
+})
+
+test("応じる側が、アクションの前と同じ値を作り直して返したら、変わりに載らない", () => {
+  const had = world({ [TALLY]: { "t-c1": { id: "t-c1", label: "b" }, "t-x": { id: "t-x", label: "x" } } })
+  const catalog = assemble(
+    plugins({
+      followSteps: [
+        { ...FOLLOW_CARD, follow: () => [{ subject: TALLY, id: "t-x", record: { id: "t-x", label: "x" } }] as never },
+      ],
+    }),
+    CENTER,
+  ).catalog.core
+  const done = performIn(had, "@ex/card:card-rename", { label: "b" }, { record: "c1" }, { ...ctx, ...at, catalog })
+  expect(done).toEqual({
+    ok: true,
+    result: {},
+    records: [{ subject: CARD, id: "c1", record: { id: "c1", label: "b" } }],
+  })
 })

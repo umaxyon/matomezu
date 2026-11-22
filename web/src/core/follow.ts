@@ -35,6 +35,8 @@ export function followChanges(
   }
   for (const { plugin, step } of steps) {
     const watched = [...latest.values()].filter(c => c.subject === step.watches)
+    // RECORDS_MAX は、応じる側 1 つごとに、このアクションの中で返した数を合わせて数える
+    let returned = 0
     for (const c of watched) {
       const change = {
         subject: c.subject,
@@ -60,7 +62,8 @@ export function followChanges(
         reason: "refused" as const,
         detail: `the follow step of ${plugin} (on ${step.watches}) ${why}`,
       })
-      if (out.length > RECORDS_MAX) return refused(`changes more than ${RECORDS_MAX} records`)
+      returned += out.length
+      if (returned > RECORDS_MAX) return refused(`changes more than ${RECORDS_MAX} records`)
       const seen = new Set<string>()
       for (const o of out) {
         const key = keyOf(o.subject, o.id)
@@ -83,7 +86,7 @@ export function followChanges(
           o.subject,
           source.byId(o.subject, o.id) ?? NO_RECORD,
           o.record,
-          true,
+          "follow",
         )
         if (kept === "unreadable") return refused(`changes ${o.subject} ${o.id}, which refers to what cannot be read`)
         if (kept) return { ok: false, reason: "denied", permission: kept }
@@ -92,10 +95,11 @@ export function followChanges(
       }
     }
   }
-  // アクションの前と同じ値に戻った物は、変わりから外す（作って消した物も）
+  // 応じた変わりのうち、アクションの前と同じ値に戻った物は、変わりから外す（作って消した物も。アクションの変わりはアクションのとおりに残す）
   const records = [...latest.values()].filter(c => {
+    if (!followed.has(keyOf(c.subject, c.id))) return true
     const had = source.byId(c.subject, c.id)
-    return c.record === REMOVED ? had !== undefined : c.record !== had
+    return c.record === REMOVED ? had !== undefined : !sameData(c.record, had)
   })
   return {
     ok: true,
