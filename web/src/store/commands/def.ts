@@ -102,7 +102,7 @@ export interface ScreenCommandContext {
 // CommandContext の book の、開いている物がブックでないとき（何も開いていないか、ブックの外のページ）の値
 export const NO_BOOK = "none"
 // CommandContext の binder の、開いている物がブックの外のバインダでないときの値
-export const NO_BINDER = "none"
+export const NO_OUTSIDE_BINDER = "none"
 // CommandContext の page の、ページを開いていないときの値
 export const NO_PAGE = "none"
 
@@ -110,7 +110,7 @@ export const NO_PAGE = "none"
 export interface CommandContext extends ScreenCommandContext {
   stage: StageView // 呼ばれた場所のステージ（読むだけ。見た目の useStage と同じ）
   book: Book | typeof NO_BOOK // そのステージで開いているブック（開いている物がブックでなければ NO_BOOK）
-  binder: BinderEntry | typeof NO_BINDER // そのステージで開いているブックの外のバインダ（中のページごと。開いている物がブックの外のバインダでなければ NO_BINDER）
+  outsideBinder: BinderEntry | typeof NO_OUTSIDE_BINDER // そのステージで開いているブックの外のバインダ（中のページごと。開いている物がブックの外のバインダでなければ NO_OUTSIDE_BINDER）
   page: ItemPage | typeof NO_PAGE // そのステージで開いているページ（ブックの中でも外でも。ページを開いていなければ NO_PAGE）
   history: History // そのステージで開いているステージエントリ（ブックか、ブックの外のページ・バインダ）の、画面の履歴（何も開いていなければ空）
   annotations: readonly Annotation[] // 開いているページのアノテーション（読むだけ。ページを開いていなければ空）

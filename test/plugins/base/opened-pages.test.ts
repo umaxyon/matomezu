@@ -12,6 +12,6 @@ test("ブックの外のバインダを開いたステージの「開いてい�
   store.receive({ ...worldRows(books, [n1]), settings: {} }, [])
   const stage = store.actions.showOutsideBinderStage("n1", "s2")
   const ctx = commandContext(store.catalog.core, null, store.state.getState(), stage, "@matomezu/base:page-open")
-  expect(ctx?.binder).toMatchObject({ kind: "binder", id: "n1" })
+  expect(ctx?.outsideBinder).toMatchObject({ kind: "binder", id: "n1" })
   expect(ctx && openedPagesOf(ctx).map(p => p.id)).toEqual(["s1", "s2"])
 })

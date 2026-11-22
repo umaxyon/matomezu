@@ -2,7 +2,7 @@
 import { pagesOf } from "../../../core/book"
 import type { ItemPage } from "../../../core/placed"
 import type { BinderEntry, Book, Page } from "../../../core/schema/book"
-import { type CommandContext, NO_BINDER, NO_BOOK, NO_PAGE } from "../../../store/commands/def"
+import { type CommandContext, NO_BOOK, NO_OUTSIDE_BINDER, NO_PAGE } from "../../../store/commands/def"
 
 // ctx のステージでページを開いていて、その中身が読めるか（通ったあとは ctx.page がページ）
 export const hasOpenedPage = <C extends Pick<CommandContext, "page">>(ctx: C): ctx is C & { page: ItemPage } =>
@@ -14,9 +14,9 @@ export const openedPagesFrom = (book: Book | null, binder: BinderEntry | null, p
   book ? pagesOf(book) : binder ? binder.lineup : page ? [page] : []
 
 // ctx のステージで開いている物のページの全部（openedPagesFrom）
-export const openedPagesOf = (ctx: Pick<CommandContext, "book" | "binder" | "page">): readonly Page[] =>
+export const openedPagesOf = (ctx: Pick<CommandContext, "book" | "outsideBinder" | "page">): readonly Page[] =>
   openedPagesFrom(
     ctx.book === NO_BOOK ? null : ctx.book,
-    ctx.binder === NO_BINDER ? null : ctx.binder,
+    ctx.outsideBinder === NO_OUTSIDE_BINDER ? null : ctx.outsideBinder,
     hasOpenedPage(ctx) ? ctx.page : null,
   )

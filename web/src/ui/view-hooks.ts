@@ -55,7 +55,7 @@ export function useBook(): Book | null {
 }
 
 // 描くページのステージエントリが、ブックの外のバインダなら、そのバインダ（中のページごと。ブックやブックの外のページを開いている・何も開いていなければ null）
-export function useBinder(): BinderEntry | null {
+export function useOutsideBinder(): BinderEntry | null {
   const scope = useScope()
   return useMatomezuState(s => outsideBinderOf(s, scope))
 }

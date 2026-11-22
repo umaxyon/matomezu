@@ -16,7 +16,7 @@ import { useContextMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
 import { PageScope, useStageHere } from "../../../ui/scope"
 import { useCatalog, useMatomezuState } from "../../../ui/store-context"
-import { useAllowed, useBinder } from "../../../ui/view-hooks"
+import { useAllowed, useOutsideBinder } from "../../../ui/view-hooks"
 import { usePageLookStyle } from "../book-look/use-page-look-style"
 import { kit } from "../kit"
 import { LockIcon } from "../lock/LockIcon"
@@ -82,7 +82,7 @@ export function PageList() {
   const openMenu = useContextMenu(PAGE_LIST_CONTEXT)
   const t = useMessages(kit)
   const list = useRef<HTMLDivElement | null>(null)
-  const outside = useBinder()
+  const outside = useOutsideBinder()
   const binderId = book && opened ? binderOf(book, opened) : null
   const binder = outside ?? (book && binderId !== null ? findBinder(book, binderId) : undefined)
   const pages = outside ? outside.lineup : book && binder ? pagesIn(book, binder.id) : []

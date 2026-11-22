@@ -46,6 +46,7 @@ test("書庫の画面でブックの外のバインダを 2 回押すと、1 枚
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
   await page.mouse.down()
   await page.mouse.move(to.x + to.width / 2, to.y + 2, { steps: 8 })
+  await expect(page.locator(`[data-carried="true"]`)).toHaveCount(0)
   await page.mouse.up()
   await expect(list.getByRole("button").first()).toHaveAccessibleName("表紙")
   await list.getByRole("button", { name: "本題" }).click()
