@@ -74,7 +74,7 @@ test("書庫アピアランスとスクリーンの定義のメソッドが受�
     lang: "ja",
   })
   // 見えたかを確かめるのは、まだ見ていない書庫の変更が在るときだけ。フォルダを作り、その名前を AI が変えたと知らせて、read の断りを見る
-  const made = m.actions.perform("@matomezu/base:folder-create", { title: "箱" })
+  const made = m.actions.perform("@matomezu/base:folder-create", { title: "箱", into: HOME_ID })
   const box = (made as { result: { folder: string } }).result.folder
   const rows = (folders: readonly unknown[]) => ({
     pages: Object.values(m.state.getState().pages),

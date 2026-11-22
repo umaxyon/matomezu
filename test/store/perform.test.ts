@@ -3,6 +3,7 @@ import { z } from "zod"
 import { findPage, pagesOf, putPage } from "../../web/src/core/book"
 import { defineAction } from "../../web/src/core/def/action"
 import { definePageType } from "../../web/src/core/def/page-type"
+import { HOME_ID } from "../../web/src/core/folders"
 import type { ItemPage } from "../../web/src/core/placed"
 import type { StageLineup } from "../../web/src/core/schema/book"
 import { shownPageId } from "../../web/src/core/stage"
@@ -94,7 +95,7 @@ const untyped = (a: Actions) =>
   a as unknown as { perform(id: string, args: unknown, on?: { book: string } | { page: string }): unknown }
 // メモのページを 1 枚入れたブック n1 を作る（ブックとページの id は newId の n1・n2）
 const notesBook = (instance: ReturnType<typeof createMatomezu>) => {
-  createBookIn(instance, "s1", { title: "メモ", page: { type: "notes:note", title: "メモ" } as never })
+  createBookIn(instance, "s1", { into: HOME_ID, title: "メモ", page: { type: "notes:note", title: "メモ" } as never })
 }
 const notePage = (instance: ReturnType<typeof createMatomezu>) => pagesOf(instance.state.getState().books.n1!)[0]!
 // ホストから届く、メモのページ 1 枚のブック
@@ -266,7 +267,7 @@ describe("アクションの入口", () => {
   test("ビルトインプラグインのアクションも同じ入口を通り、ブックを開いているステージを合わせる", () => {
     const ids = ["made", "first"]
     const { state, actions } = newStore({ newId: () => ids.shift() ?? "spare" })
-    createBookIn({ state, actions }, "s1", { title: "空" })
+    createBookIn({ state, actions }, "s1", { into: HOME_ID, title: "空" })
     actions.split("s1")
     actions.openBook("s2", "made")
     const done = actions.perform(

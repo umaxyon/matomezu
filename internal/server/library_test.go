@@ -195,7 +195,7 @@ func TestAIEditTicketsLeaveOutTheLibrary(t *testing.T) {
 	header := joinedAI(t, s)
 	screen := listen(t, s.URL)
 	next(t, screen) // hello
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-create","args":{"title":"N"}}`, header); !strings.HasPrefix(got, `{"ok":true`) {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-create","args":{"title":"N","into":"`+storage.HomeID+`"}}`, header); !strings.HasPrefix(got, `{"ok":true`) {
 		t.Fatalf("book-create = %s", got)
 	}
 	var changed string

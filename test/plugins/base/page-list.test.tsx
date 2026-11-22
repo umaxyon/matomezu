@@ -1,6 +1,8 @@
 // ページ一覧（ステージの左の縦の列）: ページ一覧を選んだタイプ（スライド）のページにだけ出て、ページタブは出さない。押したページを開く
+
 import { afterEach, describe, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { HOME_ID } from "../../../web/src/core/folders"
 import { BUILTIN_CONTROL_CENTER } from "../../../web/src/plugins"
 import { createBookIn } from "../../../web/src/plugins/base"
 import { BUILTIN_UI, DEFAULT_LAYOUT } from "../../../web/src/plugins/ui"
@@ -29,7 +31,7 @@ function open(type: string) {
     </MatomezuProvider>,
   )
   act(() => {
-    createBookIn(instance, "s1", { title: "ブック" })
+    createBookIn(instance, "s1", { into: HOME_ID, title: "ブック" })
   })
   const book = Object.keys(instance.state.getState().books)[0] as string
   // まとまるタイプ（スライド）は、1 枚目で「スライド」のバインダを作り、2 枚目はその中に足す

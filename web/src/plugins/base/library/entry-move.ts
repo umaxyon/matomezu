@@ -9,13 +9,12 @@ import {
   isMoveRefusal,
   movedWithBinders,
   NEW_BINDER,
-  placedEntry,
   placeOf,
   retitled,
   titleOf,
 } from "../../../core/entries"
-import { HOME_ID, type PlainFolder } from "../../../core/folders"
 import { kit } from "../kit"
+import { withDateFolder } from "./date-folder"
 import {
   holdsEntries,
   isNotOverwritten,
@@ -24,27 +23,29 @@ import {
   overwritten,
   placedOutsideTrash,
   REPLACES_NOTHING,
+  withNewFolder,
 } from "./entries"
 
 export const FOLDER_CREATE = kit.defineAction({
   id: "folder-create",
   aiDescription:
-    "Create a folder in the library: title is its name, into the id of the folder to put it in (the library home without it; see read_folder), at the end. Returns the new folder's id. Refused (title-taken) when that folder already has an entry with the same title.",
+    "Create a folder in the library: title is its name, into the id of the folder to put it in (see read_folder; without it, the folder named today's date (YYYY-MM-DD) in the documents folder, made when missing), at the end. Returns the new folder's id. Refused (title-taken) when that folder already has an entry with the same title.",
   title: "New folder",
   target: "library",
   permissionScope: (args: { into?: string }): LibraryTargets => ({
     books: [],
-    creates: [{ kind: "folder", into: args.into ?? HOME_ID }],
+    // 入れるフォルダを言わなければ、置き場所では問わない（日付フォルダに入る）
+    creates: [{ kind: "folder", ...(args.into === undefined ? {} : { into: args.into }) }],
   }),
   args: z.strictObject({ title: z.string().trim().min(1), into: z.string().min(1).optional() }),
   run: (library, args, ctx) => {
-    const into = args.into ?? HOME_ID
-    if (!holdsEntries(library.folders, into)) return null
-    const folder: PlainFolder = { folderRole: "folder", id: ctx.newId(), title: args.title, lineup: [] }
-    if (folder.id in library.folders || folder.id in library.pages) return null
-    const made = { pages: library.pages, folders: { ...library.folders, [folder.id]: folder } }
-    const next = placedEntry(made, { kind: "folder", id: folder.id }, into)
-    return isMoveRefusal(next) ? null : { next, result: { folder: folder.id } }
+    const id = ctx.newId()
+    // 日付フォルダの id は、作るフォルダの id の後に、いつも引く（日付フォルダがもう在っても、振る id の順が変わらない）
+    const placed =
+      args.into === undefined ? withDateFolder(library, ctx.today, ctx.newId()) : { library, folder: args.into }
+    if (!placed || !holdsEntries(placed.library.folders, placed.folder)) return null
+    const next = withNewFolder(placed.library, id, args.title, placed.folder)
+    return next ? { next, result: { folder: id, into: placed.folder } } : null
   },
 })
 

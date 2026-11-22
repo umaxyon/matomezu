@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test"
+import { HOME_ID } from "../../../web/src/core/folders"
 import { rawBooksOf } from "../../../web/src/core/folders-unreadable"
 import { NO_KEY_CHANGES } from "../../../web/src/core/keys"
 import type { Book } from "../../../web/src/core/schema/book"
@@ -64,7 +65,7 @@ test("メモリのホストは残したものを次に読む", async () => {
   const host = memoryClient([])
   const store = newStore({ books: [], saved: (await host.load()).saved })
   host.connect(store)
-  createBookIn(store, "s1", { title: "新しいブック" })
+  createBookIn(store, "s1", { into: HOME_ID, title: "新しいブック" })
   store.actions.perform("@matomezu/base:settings-set", { values: { [SKIN]: "@matomezu/base:dark" } }).ok
   const again = await host.load()
   expect(rawBooksOf(again.saved.pages, again.saved.folders)).toContainEqual(

@@ -764,8 +764,8 @@ func TestCreatingABookSkipsAPageIdAnotherBookHas(t *testing.T) {
 	s, hub := newServerOn(t, Options{}, store)
 	send(t, "PUT", s.URL+"/api/books-for-test/b1", `{"book":`+boxed+`,"base":0}`, nil)
 	before := hub.PageVersion("p1")
-	_, got := postPerform(t, s.URL, `{"action":"@matomezu/base:book-create","args":{"title":"U","page":{"type":"@matomezu/drawing:drawing"}},"lang":"ja","ids":["b2","p1"]}`)
-	if !strings.HasPrefix(got, `{"ok":true,"result":{"book":"b2","page":{"page":"`) || strings.Contains(got, `"page":"p1"`) {
+	_, got := postPerform(t, s.URL, `{"action":"@matomezu/base:book-create","args":{"title":"U","into":"`+storage.HomeID+`","page":{"type":"@matomezu/drawing:drawing"}},"lang":"ja","ids":["b2","p1"]}`)
+	if !strings.HasPrefix(got, `{"ok":true,"result":{"book":"b2","into":"`+storage.HomeID+`","page":{"page":"`) || strings.Contains(got, `"page":"p1"`) {
 		t.Fatalf("book-create with the id of a page of another book = %s", got)
 	}
 	if hub.PageVersion("p1") != before {
@@ -993,7 +993,7 @@ func TestAIWorksOnLibraryEntries(t *testing.T) {
 		_, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:`+action+`","args":`+args+`}`, writerAI(t, s.URL))
 		return got
 	}
-	made := do("folder-create", `{"title":"仕事"}`)
+	made := do("folder-create", `{"title":"仕事","into":"library-home"}`)
 	var out struct {
 		OK     bool `json:"ok"`
 		Result struct {
@@ -1004,7 +1004,7 @@ func TestAIWorksOnLibraryEntries(t *testing.T) {
 		t.Fatalf("folder-create = %s", made)
 	}
 	f := out.Result.Folder
-	if got := do("folder-create", `{"title":"仕事"}`); !strings.Contains(got, `"kind":"title-taken"`) {
+	if got := do("folder-create", `{"title":"仕事","into":"library-home"}`); !strings.Contains(got, `"kind":"title-taken"`) {
 		t.Fatalf("the same title = %s", got)
 	}
 	if got := do("entry-move", `{"entry":"b1","into":"`+f+`"}`); got != `{"ok":true,"result":{}}` {

@@ -15,12 +15,12 @@ function setup() {
   const lineup = (id: string) => store.state.getState().folders[id]?.lineup.map(r => r.id)
   const title = (id: string) => (store.state.getState().folders[id] as { title?: string } | undefined)?.title
   const folder = (name: string, into?: string) => {
-    const done = perform(FOLDER_CREATE.id, { title: name, ...(into ? { into } : {}) })
+    const done = perform(FOLDER_CREATE.id, { title: name, into: into ?? HOME_ID })
     if (!done.ok) throw new Error(`folder-create ${name}: ${JSON.stringify(done)}`)
     return (done.result as { folder: string }).folder
   }
   const book = (name: string, into?: string) => {
-    const done = perform("@matomezu/base:book-create", { title: name, ...(into ? { into } : {}) })
+    const done = perform("@matomezu/base:book-create", { into: HOME_ID, title: name, ...(into ? { into } : {}) })
     if (!done.ok) throw new Error(`book-create ${name}: ${JSON.stringify(done)}`)
     return (done.result as { book: string }).book
   }
@@ -33,7 +33,7 @@ test("folder-create は書庫ホームか言ったフォルダの末尾にフォ
   expect(lineup(HOME_ID)?.at(-1)).toBe(a)
   const b = folder("2026", a)
   expect(lineup(a)).toEqual([b])
-  expect(perform("@matomezu/base:folder-create", { title: "仕事" })).toMatchObject(taken)
+  expect(perform("@matomezu/base:folder-create", { title: "仕事", into: HOME_ID })).toMatchObject(taken)
   expect(folder("仕事", a)).toBeString()
   expect(perform("@matomezu/base:folder-create", { title: "x", into: "b1" }).ok).toBe(false)
   expect(perform("@matomezu/base:folder-create", { title: "x", into: "nowhere" }).ok).toBe(false)
@@ -53,7 +53,7 @@ test("book-create の into は、そのフォルダの先頭（at が last な�
   // into を言わなければ書庫ホームの先頭か末尾
   const top = book("一番前")
   expect(lineup(HOME_ID)?.[0]).toBe(top)
-  const tail = perform("@matomezu/base:book-create", { title: "一番後ろ", at: "last" })
+  const tail = perform("@matomezu/base:book-create", { into: HOME_ID, title: "一番後ろ", at: "last" })
   expect(lineup(HOME_ID)?.at(-1)).toBe(tail.ok ? (tail.result as { book: string }).book : "")
 })
 

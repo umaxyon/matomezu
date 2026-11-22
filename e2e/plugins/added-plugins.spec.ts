@@ -200,7 +200,7 @@ test("起動エラーの画面で外したプラグインのページを持つ�
   const perform = (action: string, args: object, on?: object) => aiPerform(page, { action, args, on }, ai)
   const book = await perform("@matomezu/base:book-create", { title: "ボードのブック" })
   expect((await perform("@matomezu/base:page-add", { type: "ex3:board" }, { book: book.result.book })).ok).toBe(true)
-  expect((await perform("@matomezu/base:folder-create", { title: "関係ない所" })).ok).toBe(true)
+  expect((await perform("@matomezu/base:folder-create", { title: "関係ない所", into: "library-home" })).ok).toBe(true)
   await page.goto("/")
   await page.getByRole("button", { name: "外して開く" }).click()
   await expect(page.getByRole("heading", { name: "matomezu を開けません" })).toHaveCount(0)

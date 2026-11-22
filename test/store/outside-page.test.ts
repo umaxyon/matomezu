@@ -210,7 +210,7 @@ test("ブックを開いているステージに、ブックの外のページ�
 
 test("ブックの全部を探していたステージにブックの外のページを開くと、検索の範囲は「このページ」として働く", () => {
   const store = newStore({ newId: sequence() })
-  createBookIn(store, "s1", { title: "メモ" })
+  createBookIn(store, "s1", { into: HOME_ID, title: "メモ" })
   addPageIn(store, "s1", { type: MARKDOWN, title: "p1", fields: { text: "猫" } })
   const books = Object.values(store.state.getState().books)
   store.receive({ ...worldRows(books, [testPage(MARKDOWN, "m1", { title: "外", text: "猫と猫" })]), settings: {} }, [])
@@ -234,7 +234,7 @@ test("ブックの全部を探していたステージにブックの外のペ�
 test("開いているブックの外のページの置き場所を書庫で開くと、ステージは開いたまま、書庫のスクリーンがそのページの入っているフォルダを出す。ブックを開いているステージでは出さない", () => {
   const store = withOutside()
   expect(isShown(store, store.state.getState(), "s1", "@matomezu/base:library-place-open")).toBe(false)
-  const made = store.actions.perform("@matomezu/base:folder-create", { title: "企画" })
+  const made = store.actions.perform("@matomezu/base:folder-create", { title: "企画", into: HOME_ID })
   const folder = (made as { result: { folder: string } }).result.folder
   expect(store.actions.perform("@matomezu/base:entry-move", { entry: "o1", into: folder }).ok).toBe(true)
   expect(outsidePagePlaceOf(store.state.getState().folders, "o1")).toEqual([HOME_ID, folder])

@@ -244,7 +244,7 @@ test("窓が見えていない間は、見せているフォルダの変更も�
 test("見えた変更は、届いた順の位置に入る（そのあとの利用者の段より前）", async () => {
   const { here, there, foreign, show } = pair()
   await foreign({ by: "window", act: "1", actions: [RENAME] }, renamed(there, "ほかの窓の名前"))
-  here.actions.perform("@matomezu/base:folder-create", { title: "利用者のフォルダ" })
+  here.actions.perform("@matomezu/base:folder-create", { title: "利用者のフォルダ", into: HOME_ID })
   await settled()
   show([HOME_ID])
   expect(libraryHistory(here).undo.map(s => s.by)).toEqual(["window", "user"])
@@ -331,7 +331,7 @@ test("AI の 1 回の変更がブックとその中のページの名前を変�
 test("見られる前に利用者が消したのが、ブックの外のフォルダだけでも、その段の AI が変えたブックに、消えたと知らせる（値は空）", async () => {
   const { here, there, told, foreign, show } = pair()
   // 利用者がフォルダを作る（よそも同じ所まで進める）
-  const made = here.actions.perform("@matomezu/base:folder-create", { title: "箱" })
+  const made = here.actions.perform("@matomezu/base:folder-create", { title: "箱", into: HOME_ID })
   await settled()
   const box = (made as { result: { folder: string } }).result.folder
   there.receive(rowsOf(here), [])
@@ -471,7 +471,7 @@ test("まだ見ていない AI の書庫の変更は、利用者がそのブッ�
     { by: "ai", act: "3", actions: ["@matomezu/base:book-create", RENAME] },
     {
       run: () => {
-        made = there.actions.perform("@matomezu/base:book-create", { title: "AI のブック" })
+        made = there.actions.perform("@matomezu/base:book-create", { into: HOME_ID, title: "AI のブック" })
         there.actions.perform(RENAME, { entry: "b1", title: "AI の名前" })
       },
       library: true,
@@ -494,7 +494,7 @@ test("AI が作ったブックを、見られる前に利用者が完全に消�
     { by: "ai", act: "8", actions: ["@matomezu/base:book-create"] },
     {
       run: () => {
-        made = there.actions.perform("@matomezu/base:book-create", { title: "AI のブック" })
+        made = there.actions.perform("@matomezu/base:book-create", { into: HOME_ID, title: "AI のブック" })
       },
       library: true,
     },

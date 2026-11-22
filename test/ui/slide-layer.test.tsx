@@ -5,6 +5,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { act, cleanup, render, screen } from "@testing-library/react"
 import { definePageType } from "../../web/src/core/def/page-type"
 import { definePresentation } from "../../web/src/core/def/presentation"
+import { HOME_ID } from "../../web/src/core/folders"
 import { screenOf } from "../../web/src/core/window"
 import { BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
@@ -55,7 +56,7 @@ describe("スライドのレイヤー", () => {
       </MatomezuProvider>,
     )
     act(() => {
-      createBookIn(instance, "s1", { title: "背景" })
+      createBookIn(instance, "s1", { into: HOME_ID, title: "背景" })
     })
     expect(screen.queryByText("back view")).toBeNull() // ページが無い間は、プレゼンテーションも slide のレイヤーも描かない
     expect(layer()).toBeNull()

@@ -2,6 +2,7 @@
 
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, screen, within } from "@testing-library/react"
+import { HOME_ID } from "../../../web/src/core/folders"
 import { treeRowsOf } from "../../../web/src/plugins/base/library/outline"
 import { LIBRARY_TREE_WIDTH, LIBRARY_UNFOLDED } from "../../../web/src/plugins/base/library/state"
 import { DEFAULT_TREE_WIDTH } from "../../../web/src/plugins/base/library/tree-width"
@@ -15,7 +16,7 @@ afterEach(cleanup)
 test("ツリーに描いた行の並びは、treeRowsOf の並びと同じ（フォルダ・ブック・バインダの中を出しても）", () => {
   const store = renderScreen({ books: SAMPLE_BOOKS })
   const perform = store.actions.perform as (id: string, args: unknown) => { ok: boolean; result?: unknown }
-  const folder = (title: string, into?: string) =>
+  const folder = (title: string, into: string = HOME_ID) =>
     (perform("@matomezu/base:folder-create", { title, into }).result as { folder: string }).folder
   act(() => {
     const a = folder("外")

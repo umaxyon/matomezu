@@ -3,6 +3,7 @@
 
 import { expect, test } from "bun:test"
 import { findPage, pagesOf } from "../../web/src/core/book"
+import { HOME_ID } from "../../web/src/core/folders"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { isEnabled, isShown } from "../../web/src/store/commands"
@@ -44,6 +45,7 @@ test("keeps だけを書いた認可ステップでも、そのタイプのペ�
   const was = count()
   expect(
     store.actions.perform("@matomezu/base:book-create", {
+      into: HOME_ID,
       title: "木",
       page: { type: "@matomezu/tree:tree", fields: { root: { caption: "根" } } },
     }),
@@ -55,8 +57,11 @@ test("keeps だけを書いた認可ステップでも、そのタイプのペ�
   expect(count()).toBe(was)
   expect(seen).toEqual([{ before: undefined, added: true }])
   expect(
-    store.actions.perform("@matomezu/base:book-create", { title: "図", page: { type: "@matomezu/drawing:drawing" } })
-      .ok,
+    store.actions.perform("@matomezu/base:book-create", {
+      into: HOME_ID,
+      title: "図",
+      page: { type: "@matomezu/drawing:drawing" },
+    }).ok,
   ).toBe(true)
   expect(count()).toBe(was + 1)
 })

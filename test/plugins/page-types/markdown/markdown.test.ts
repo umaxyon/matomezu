@@ -4,6 +4,7 @@
 import { expect, test } from "bun:test"
 import { stagePlacesOf, withStagePlaces } from "../../../../web/src/core/address"
 import { pagesOf } from "../../../../web/src/core/book"
+import { HOME_ID } from "../../../../web/src/core/folders"
 import type { Book } from "../../../../web/src/core/schema/book"
 import { shownPageId } from "../../../../web/src/core/stage"
 import { screenOf } from "../../../../web/src/core/window"
@@ -35,7 +36,7 @@ const settled = () => Promise.resolve()
 
 const markdownStore = (options: Parameters<typeof newStore>[0] = {}) => {
   const store = newStore(options)
-  createBookIn(store, "s1", { title: "メモ" })
+  createBookIn(store, "s1", { into: HOME_ID, title: "メモ" })
   addPageIn(store, "s1", { type: "@matomezu/markdown:markdown", title: "ページ 1" })
   const id = screenOf(store.state.getState().window).stages[0]!.opened!.outermost.id
   const book = () => store.state.getState().books[id] as Book

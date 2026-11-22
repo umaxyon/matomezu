@@ -2,6 +2,7 @@
 // たたんでいる間（描いたまま隠している間）は入らない。システムフォルダ（たなのフォルダ）は、matomezu/testing の createMatomezu が組むときに書庫を整えて、書庫ホームの先頭に足す
 import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { HOME_ID } from "matomezu"
 import {
   BUILTIN_CONTROL_CENTER,
   BUILTIN_UI,
@@ -33,7 +34,7 @@ const libraryUndo = (m: M) => m.state.getState().history.library?.undo ?? []
 async function pair() {
   const here = make()
   const there = make()
-  const made = there.actions.perform("@matomezu/base:folder-create", { title: "箱" })
+  const made = there.actions.perform("@matomezu/base:folder-create", { title: "箱", into: HOME_ID })
   await settled()
   const box = (made as { result: { folder: string } }).result.folder
   here.receive(rowsOf(there), [])

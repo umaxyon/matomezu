@@ -9,6 +9,7 @@ import {
   isWithin,
   type MoveRefusal,
   type Naming,
+  placedEntry,
   placeOf,
   removedEntry,
   restoredEntry,
@@ -25,6 +26,7 @@ import {
   HOME_ID,
   type HomeOrFolder,
   type Library,
+  type PlainFolder,
 } from "../../../core/folders"
 import { atOutsideBinderPlace, foldersOver, inTrash, isKeptSystemFolder } from "../../../core/folders-tree"
 import { typeAllows } from "../../../core/inspect"
@@ -227,4 +229,19 @@ export function typeLets(catalog: CoreCatalog, action: string, type: string | un
   const def = catalog.actions.get(action)
   const t = type === undefined ? undefined : catalog.pageTypes.get(type)
   return def !== undefined && t !== undefined && typeAllows(def, t)
+}
+
+// 書庫 library に、フォルダ into の位置 index（言わなければ末尾）へ、id と名前 title の空のフォルダを足した書庫（id がもう在る・置けなければ null）
+export function withNewFolder(
+  library: Library,
+  id: string,
+  title: string,
+  into: string,
+  index?: number,
+): Library | null {
+  if (id in library.folders || id in library.pages) return null
+  const folder: PlainFolder = { folderRole: "folder", id, title, lineup: [] }
+  const made = { pages: library.pages, folders: { ...library.folders, [folder.id]: folder } }
+  const next = placedEntry(made, { kind: "folder", id }, into, index)
+  return isMoveRefusal(next) ? null : next
 }

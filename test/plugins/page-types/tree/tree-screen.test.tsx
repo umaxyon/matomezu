@@ -4,6 +4,7 @@ import { afterEach, expect, test } from "bun:test"
 import { act, cleanup, fireEvent, screen, within } from "@testing-library/react"
 import { z } from "zod"
 import { pagesOf } from "../../../../web/src/core/book"
+import { HOME_ID } from "../../../../web/src/core/folders"
 import { defineMessages } from "../../../../web/src/core/i18n/messages"
 import { toolsIn } from "../../../../web/src/core/tools"
 import { screenOf } from "../../../../web/src/core/window"
@@ -31,7 +32,7 @@ function addTreePage() {
 function setup(plugins: readonly AnyPluginUi[] = BUILTIN_UI) {
   const store = renderScreen({ plugins })
   act(() => {
-    expect(createBookIn(store, "s1", { title: "木" })).toBe(true)
+    expect(createBookIn(store, "s1", { into: HOME_ID, title: "木" })).toBe(true)
   })
   const id = (screenOf(store.state.getState().window).stages[0]!.opened as { outermost: { id: string } }).outermost.id
   const book = () => store.state.getState().books[id]!
@@ -225,6 +226,7 @@ test("ツリーの受け方は同じ入力なら同じ結果: 同じ id のも�
     let book = ""
     act(() => {
       const made = store.actions.perform("@matomezu/base:book-create", {
+        into: HOME_ID,
         title: "木",
       })
       book = (made as { result: { book: string } }).result.book
@@ -963,6 +965,7 @@ test("book-create は、最初のページのタイプが選んだページの�
   const { store } = setup()
   const tree = (title: string, settings: Record<string, unknown>) =>
     store.actions.perform("@matomezu/base:book-create", {
+      into: HOME_ID,
       title,
       page: { type: "@matomezu/tree:tree", settings, fields: { root: { caption: "根" } } },
     })

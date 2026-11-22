@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test"
+import { HOME_ID } from "../../web/src/core/folders"
 import { shownPageId } from "../../web/src/core/stage"
 import { warningText } from "../../web/src/core/warnings"
 import { screenOf } from "../../web/src/core/window"
@@ -70,7 +71,7 @@ test("without・add・performs の間違いは warning（W001〜W003・W012）�
     "W002 notes: pageType notes:note: add names @matomezu/base:page-add, which is already attached to it",
     "W003 notes: command notes:ghost: performs notes:nothing, which is not in the catalog",
   ])
-  expect(createBookIn(instance, "s1", { title: "メモ" })).toBe(true)
+  expect(createBookIn(instance, "s1", { into: HOME_ID, title: "メモ" })).toBe(true)
   // 表に無いアクションを行うコマンドは出ない
   expect(isShown(instance, instance.state.getState(), "s1", "notes:ghost" as never)).toBe(false)
 })
@@ -110,7 +111,7 @@ test("線を置けないタイプが line-connect を足していても、線を
     controlCenter: BUILTIN_CONTROL_CENTER,
   })
   showFirstBook(instance)
-  expect(createBookIn(instance, "s1", { title: "B" })).toBe(true)
+  expect(createBookIn(instance, "s1", { into: HOME_ID, title: "B" })).toBe(true)
   const id = screenOf(instance.state.getState().window).stages[0]!.opened!.outermost.id
   expect(
     instance.actions.perform("@matomezu/base:page-add", { type: "boards:board", title: "P" }, { book: id }).ok,

@@ -41,7 +41,7 @@ function setup() {
 
 // フォルダ「仕事」を書庫ホームに作った id
 function folderIn(act: ReturnType<typeof setup>["act"]): string {
-  const done = act("folder-create", { title: "仕事" })
+  const done = act("folder-create", { title: "仕事", into: HOME_ID })
   return (done.ok && (done.result as { folder: string }).folder) as string
 }
 

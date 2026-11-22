@@ -1,7 +1,9 @@
 // タイプが使わせないアノテーションの種類（annotations.without）: 伝言とマークを外したタイプのページには付けられず、右クリックのコマンドも出さない
+
 import { expect, test } from "bun:test"
 import { pagesOf } from "../../web/src/core/book"
 import { definePageType } from "../../web/src/core/def/page-type"
+import { HOME_ID } from "../../web/src/core/folders"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createBookIn } from "../../web/src/plugins/base"
 import { isShown } from "../../web/src/store/commands"
@@ -32,7 +34,7 @@ function ready() {
     newId: () => `n${++n}`,
   })
   store.use([definePlugin({ id: "plain", pageTypes: [PLAIN] })])
-  createBookIn(store, "s1", { title: "メモ", page: { type: PLAIN.id } })
+  createBookIn(store, "s1", { into: HOME_ID, title: "メモ", page: { type: PLAIN.id } })
   const page = Object.values(store.state.getState().books).flatMap(pagesOf)[0]?.id ?? ""
   return { store, page }
 }

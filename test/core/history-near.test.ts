@@ -10,7 +10,7 @@ const RENAME = "@matomezu/base:entry-rename"
 test("近くのフォルダ: 並びの変わったフォルダはそのフォルダ、名前の変わった物・足した物は入れ物のフォルダ（中身の変化は、入れ物の上のフォルダでは見えない）", async () => {
   const there = newStore({ newId: sequence() })
   const folders = () => there.state.getState().folders
-  const made = there.actions.perform("@matomezu/base:folder-create", { title: "箱" })
+  const made = there.actions.perform("@matomezu/base:folder-create", { title: "箱", into: HOME_ID })
   await settled()
   const box = (made as { result: { folder: string } }).result.folder
   const rowsBetween = (was: ReturnType<typeof folders>, now: ReturnType<typeof folders>) => ({
