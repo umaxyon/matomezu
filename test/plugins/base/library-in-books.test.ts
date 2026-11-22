@@ -107,6 +107,16 @@ test("entry-move: スライドで作るバインダの名前が重なれば、on
   expect(lineup(binder)).toEqual([s.page])
   expect(titleOf(binder)).toBe("説明 - 1 2")
   expect(Object.keys(state().folders).length).toBe(folders)
+  // バインダごと動くときの名前の重なりは、バインダごとの移動と同じ（断るか、バインダに番号を付ける）
+  expect(act("folder-create", { title: "説明 - 1 2", into }).ok).toBe(true)
+  expect(act("entry-move", { entry: s.page, into })).toMatchObject(taken)
+  expect(act("entry-move", { entry: s.page, into, onConflict: "number" })).toEqual({
+    ok: true,
+    result: { title: "説明 - 1 2 2" },
+  })
+  expect(lineup(into)?.at(-1)).toBe(binder)
+  expect(titleOf(binder)).toBe("説明 - 1 2 2")
+  expect(titleOf(s.page)).toBe("1")
 })
 
 test("entry-move-over: スライドでバインダを作る移動は entry-move と同じ（消す物を名指せば断る）。ブックの外の 1 枚だけのバインダから出すときは、同じ名前のバインダを消してバインダごと動く", () => {
