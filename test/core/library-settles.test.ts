@@ -40,7 +40,7 @@ const changed = (library: Library): Library => ({
 })
 const holdsOutside = (library: Library) => outsideHolds(CORE_CATALOG, { pages: {}, folders: {} }, library)
 
-test("書庫ホーム・フォルダの直下に、まとまるタイプのページ（スライド）が裸で在れば断る。まとまらないタイプのページは通る", () => {
+test("書庫ホーム・フォルダの直下に、まとまるタイプのページ（スライド）がバインダに入らずに在れば断る。まとまらないタイプのページは通る", () => {
   expect(holdsOutside(libraryWith([], [drawingPage("x1")]))).toBe(true)
   expect(holdsOutside(libraryWith([], [slide("y1")]))).toBe(false)
   const inFolder = libraryWith([], [drawingPage("x1")])

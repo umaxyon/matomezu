@@ -261,6 +261,27 @@ test("落とした物を動かす: フォルダの位置へ・ゴミ箱へ。何
   expect(at().picked).toBeUndefined()
 })
 
+test("落とした物を動かす: ブックのページをフォルダへ出し、ブックへ戻す。バインダもブックとフォルダの間を動く", () => {
+  const { store, folder, run, ids } = setup()
+  const a = folder("あ")
+  const page = ids("b1")[0] as string
+  run("library-entry-move", { entry: page, to: { to: "folder", into: a } })
+  expect(ids(a)).toEqual([page])
+  expect(ids("b1")).not.toContain(page)
+  run("library-entry-move", { entry: page, to: { to: "folder", into: "b1", index: 0 } })
+  expect(ids("b1")[0]).toBe(page)
+  const made = store.actions.perform(
+    "@matomezu/base:page-add",
+    { type: "@matomezu/slide-page:slide", title: "1", into: { newBinder: "説明" } } as never,
+    { book: "b1" },
+  )
+  const binder = (made.ok && (made.result as { binder: string }).binder) as string
+  run("library-entry-move", { entry: binder, to: { to: "folder", into: a } })
+  expect(ids(a)).toEqual([binder])
+  run("library-entry-move", { entry: binder, to: { to: "folder", into: "b1" } })
+  expect(ids("b1").at(-1)).toBe(binder)
+})
+
 test("開く: 2 回押す・Enter・メニューの「開く」の 1 つの道。名指さなければ選んでいる行、{at: tree} ならツリーで今いる行。フォルダは中へ入る", () => {
   const { store, center, folder, run, at, set } = setup()
   const opened = () => store.state.getState().window.screens.flatMap(s => s.stages?.stages.map(st => st.opened) ?? [])
