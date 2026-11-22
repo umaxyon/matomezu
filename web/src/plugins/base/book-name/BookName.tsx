@@ -1,5 +1,6 @@
-// ブックの名前のボタン（ウィジェット book-name）: ステージのブックの名前（ブックの外のページを開いていれば、そのページの名前）を出す。
+// ブックの名前のボタン（ウィジェット book-name）: ステージのブックの名前（ブックの外のページを開いていれば、そのページの名前。ブックの外のバインダを開いていれば、そのバインダの名前）を出す。
 // ロック中のブック（ブックの外のページを開いていれば、ロック中のそのページ）は名前の左に鍵を出す（印だけ。外すのはブック・ページの設定のダイアログ）。
+// ブックの外のバインダはロックを持たないので、鍵を出さない（ロックしたページは、ページ一覧に鍵を出す）。
 // 乗せるか押すと、下の行の真上に、行の幅いっぱいのフッタメニューが下から上がり、離れると下がる。下の行に置かれていれば、下の行のどこに乗せても出し、
 // 下の行から離れると下がる（フッタメニューは下の行の中に描くので、フッタメニューに乗っている間も下の行に乗っている）。
 // フッタメニューには、左から地図・履歴・基本・ブックの道具の 4 つのスロット（footer-menu.ts の FOOTER_MENU_SLOTS）を、仕切りの線で分けて並べる（何も描かれないスロットは詰める）。
@@ -14,6 +15,7 @@ import { FOOTER_MENU_SLOTS } from "../footer-menu/footer-menu"
 import { FooterMenuContext } from "../footer-menu/footer-menu-context"
 import { kit } from "../kit"
 import { LockIcon } from "../lock/LockIcon"
+import { useOutsideBinder } from "../utils/useOutsideBinder"
 import { useBottomHover } from "../workspace/bottom-hover"
 import styles from "./BookName.module.css"
 
@@ -22,6 +24,7 @@ const LEAVE_MS = 250
 
 export function BookName() {
   const book = useBook() ?? undefined
+  const binder = useOutsideBinder() // ブックの外のバインダを開いていれば、名前はそのバインダの名前
   const page = usePage() // ブックの外のページを開いていれば、名前はそのページの名前
   const current = useStageHere((st, s) => st !== null && workspaceOf(s.window, st.id).current === st.id)
   const t = useMessages(kit)
@@ -55,8 +58,8 @@ export function BookName() {
     else toggles.current.hide()
   }, [bottom])
   const own = bottom === null ? { onMouseEnter: show, onMouseLeave: hide } : {}
-  const title = book ? book.title : (page?.title ?? "")
-  const locked = (book ?? page)?.locked === true
+  const title = (book ?? binder ?? page)?.title ?? ""
+  const locked = !binder && (book ?? page)?.locked === true
   return (
     <>
       <div className={styles.name} {...own}>
