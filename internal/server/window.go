@@ -171,9 +171,11 @@ type Show struct {
 	Mode  string `json:"mode,omitempty"` // print-preview なら印刷プレビューで出す（ブックだけ。画面がそのまま受ける）
 }
 
-// shownTo は、窓に知らせる、出す物: 確かめた頼みに、出す物の種類 To（book か、ブックの外のページの page）を添えた形
+// shownTo は、窓に知らせる、出す物: 確かめた頼みに、出す物の種類 To（book か、ブックの外のページの page か、ブックの外のバインダの binder）を添えた形。
+// Binder は、To が binder のときの、そのバインダの id（Page はその中の、出すページ）
 type shownTo struct {
-	To string `json:"to"`
+	To     string `json:"to"`
+	Binder string `json:"binder,omitempty"`
 	Show
 }
 
@@ -181,13 +183,13 @@ type shownTo struct {
 var (
 	ErrNoBook         = errors.New("no-book")          // そのブックが無い（ブックもページも言わなかった）
 	ErrNoPage         = errors.New("no-page")          // そのページが無い（言ったブックのページでない）
-	ErrNoPrintPreview = errors.New("no-print-preview") // ブックの外のページは印刷プレビューで出せない
+	ErrNoPrintPreview = errors.New("no-print-preview") // ブックの外のページ・バインダは印刷プレビューで出せない
 	ErrNoWindow       = errors.New("no-window")        // 窓がつながっていない
 	ErrNoStage        = errors.New("no-stage")         // 窓にそのステージが無い
 	ErrNoSplit        = errors.New("no-split")         // 窓がもう分けられない
 )
 
-// shownOf は、頼み s の出す物を確かめて、窓に知らせる形にする（Page だけの頼みは、そのページを持っているブックを添える。h.mu を持って呼ぶ）
+// shownOf は、頼み s の出す物を確かめて、窓に知らせる形にする（Page だけの頼みは、そのページを持っているブックか、ブックの外のバインダを添える。h.mu を持って呼ぶ）
 func (h *Hub) shownOf(s Show) (shownTo, error) {
 	to := shownTo{To: "book", Show: s}
 	if s.Book != "" {
@@ -206,13 +208,17 @@ func (h *Hub) shownOf(s Show) (shownTo, error) {
 		to.Book = book
 		return to, nil
 	}
-	if h.entryNotInBook(s.Page) != s.Page {
+	entry := h.entryNotInBook(s.Page)
+	if entry == "" {
 		return to, ErrNoPage
 	}
 	if s.Mode == "print-preview" {
 		return to, ErrNoPrintPreview
 	}
 	to.To, to.Mode = "page", ""
+	if entry != s.Page {
+		to.To, to.Binder = "binder", entry
+	}
 	return to, nil
 }
 

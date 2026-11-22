@@ -267,8 +267,9 @@ func TestAICannotTrashAPageOutsideBooksOnAScreen(t *testing.T) {
 	}
 }
 
-// show は、ページだけの頼みを読み分ける: ブックの中のページなら、そのページを持っているブックをそのページで、ブックの外のページならそのページを出す。
-// 言ったブックのページでない・無いページ・バインダの中やゴミ箱の中のページは no-page、ブックの外のページの印刷プレビューは no-print-preview、何も言わなければ no-book
+// show は、ページだけの頼みを読み分ける: ブックの中のページなら、そのページを持っているブックをそのページで、ブックの外のページならそのページを、
+// ブックの外のバインダの中のページなら、そのバインダをそのページで出す。
+// 言ったブックのページでない・無いページ・ゴミ箱の中のページは no-page、ブックの外のページ・バインダの印刷プレビューは no-print-preview、何も言わなければ no-book
 func TestShowReadsAPageAlone(t *testing.T) {
 	s, _ := newServerOn(t, Options{}, entriesStore(t))
 	auth := writerAI(t, s.URL)
@@ -279,6 +280,8 @@ func TestShowReadsAPageAlone(t *testing.T) {
 		{`{"page":"h1"}`, `show {"to":"page","page":"h1"}`},
 		{`{"page":"g1","stage":"s1"}`, `show {"to":"page","page":"g1","stage":"s1"}`},
 		{`{"page":"h1","split":true,"mode":"edit"}`, `show {"to":"page","page":"h1","split":true}`},
+		{`{"page":"n1a"}`, `show {"to":"binder","binder":"n1","page":"n1a"}`},
+		{`{"page":"n1a","stage":"s1"}`, `show {"to":"binder","binder":"n1","page":"n1a","stage":"s1"}`},
 		{`{"page":"p1"}`, `show {"to":"book","book":"b1","page":"p1"}`},
 		{`{"page":"s1","mode":"print-preview"}`, `show {"to":"book","book":"b2","page":"s1","mode":"print-preview"}`},
 		{`{"book":"b1","page":"p1"}`, `show {"to":"book","book":"b1","page":"p1"}`},
@@ -292,15 +295,15 @@ func TestShowReadsAPageAlone(t *testing.T) {
 		}
 	}
 	for body, reason := range map[string]string{
-		`{}`:                                   "no-book",
-		`{"stage":"s1"}`:                       "no-book",
-		`{"book":"b1","page":"s1"}`:            "no-page",
-		`{"book":"b1","page":"h1"}`:            "no-page",
-		`{"page":"none"}`:                      "no-page",
-		`{"page":"n1a"}`:                       "no-page",
-		`{"page":"t1"}`:                        "no-page",
-		`{"page":"h1","mode":"print-preview"}`: "no-print-preview",
-		`{"page":"h1","stage":"s9"}`:           "no-stage",
+		`{}`:                                    "no-book",
+		`{"stage":"s1"}`:                        "no-book",
+		`{"book":"b1","page":"s1"}`:             "no-page",
+		`{"book":"b1","page":"h1"}`:             "no-page",
+		`{"page":"none"}`:                       "no-page",
+		`{"page":"n1a","mode":"print-preview"}`: "no-print-preview",
+		`{"page":"t1"}`:                         "no-page",
+		`{"page":"h1","mode":"print-preview"}`:  "no-print-preview",
+		`{"page":"h1","stage":"s9"}`:            "no-stage",
 	} {
 		if _, got := send(t, "POST", s.URL+"/api/ai/show", body, auth); !strings.Contains(got, `"reason":"`+reason+`"`) {
 			t.Errorf("show %s = %s; want %s", body, got, reason)
