@@ -41,7 +41,6 @@ export function UpdateCategory() {
   }, [copied])
   if (!status) return null
   const dev = status.state === "dev"
-  const failed = checking === "failed" || status.state === "failed"
   const latest =
     status.state === "newer"
       ? (status.latest ?? "")
@@ -49,9 +48,7 @@ export function UpdateCategory() {
         ? t("Up to date")
         : dev
           ? t("Development build")
-          : failed
-            ? t("Could not check")
-            : t("Not checked yet")
+          : t("Not checked yet")
   const onCheck = () => {
     setChecking("checking")
     check().then(
@@ -74,6 +71,7 @@ export function UpdateCategory() {
         <ActionButton disabled={dev || checking === "checking"} onClick={onCheck}>
           {checking === "checking" ? t("Checking…") : t("Check for updates")}
         </ActionButton>
+        {checking === "failed" && <span>{t("Could not check")}</span>}
       </SettingRow>
       <UserSettings settings={[UPDATE_CHECK.id]} />
       {status.state === "newer" && admin && adminHere && (

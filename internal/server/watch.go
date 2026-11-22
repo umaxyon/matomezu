@@ -399,9 +399,9 @@ func lentCover(prompt string, lent []string, used map[int]bool) map[int]bool {
 	return nil
 }
 
-// takeMessages は、参加者 id の行列の AI 間メッセージと更新の頼みの行を取り出す。通り道に貸している物は残す（結果を待つ）。
+// takeCallLines は、参加者 id の行列から、呼び出しの返事で渡す行（AI 間メッセージと更新の頼み）を取り出す。通り道に貸している物は残す（結果を待つ）。
 // 参加の知らせは、呼び出しの返事の「参加しました」が兼ねるので捨てる（h.mu を持って呼ぶ）
-func (h *Hub) takeMessages(id string) []string {
+func (h *Hub) takeCallLines(id string) []string {
 	var lines []string
 	var kept []wakeItem
 	for _, it := range h.wakeQueue[id] {

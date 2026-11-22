@@ -71,11 +71,10 @@ export interface MatomezuState {
   historyReplaces: number
 }
 
-// 参加者 1 人の様子: AI のフックが知らせたモデルと、MCP が添えた git のブランチ（知らされていない物は持たない）
-// 新しい版の確かめの結果: state は unchecked（まだ）・current（今の版が一番新しい）・newer（新しい版 latest がある）・failed（頼んだ確かめが聞けずに終わった）・dev（開発の版なので確かめない）。
+// 新しい版の確かめの結果: state は unchecked（まだ）・current（今の版が一番新しい）・newer（新しい版 latest がある）・dev（開発の版なので確かめない）。
 // checkedAt は最後に聞けた時刻、askedAt は管理者に更新を頼んだ時刻（ISO 8601 の UTC）
 export interface UpdateStatus {
-  state: "unchecked" | "current" | "newer" | "failed" | "dev"
+  state: "unchecked" | "current" | "newer" | "dev"
   version: string
   latest?: string
   checkedAt?: string
@@ -94,6 +93,7 @@ export interface StaleBuild {
   dropped: number
 }
 
+// 参加者 1 人の様子: AI のフックが知らせたモデルと、MCP が添えた git のブランチ（知らされていない物は持たない）
 export interface ParticipantLive {
   readonly model?: string
   readonly branch?: string
@@ -349,9 +349,9 @@ export interface StoreOptions<Ps extends readonly Plugin[] = readonly Plugin[]> 
   visible?: () => boolean // 窓が見えているか（裏のタブなどで見えていない間は、まだ見ていない変更を見えたとしない。無ければいつも見えている）
   search?: (query: WideSearchQuery) => Promise<WideSearchAnswer> // ホストの言葉の検索（横断検索）。無ければ、どの言葉にも横断検索の当たりなし
   copyText?: (text: string) => Promise<void> // ブラウザのクリップボードに文字を書く。無ければ、書けないとして投げる（E404）
-  // 読めない物のフォルダについてホストに頼む口（完全に消す・無効にしたら移る物を数える）。無ければ、頼むと投げる（E406）
-  // 新しい版の確かめをホストに頼む口。無ければ、頼むと投げる（E409）
+  // 新しい版を確かめる・ワークルームの AI に更新を頼むのをホストに頼む口。無ければ、頼むと投げる（E409）
   updateHost?: { check(): Promise<void>; ask(workroom: string): Promise<boolean> }
+  // 読めない物のフォルダについてホストに頼む口（完全に消す・無効にしたら移る物を数える）。無ければ、頼むと投げる（E406）
   unreadableHost?: {
     purge(id: string): Promise<Purged>
     movedIfOff(ids: readonly string[]): Promise<readonly MovedIfOff[] | typeof BROKEN>

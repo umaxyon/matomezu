@@ -19,8 +19,8 @@
 //	POST /api/screen-plugins/remove {"ids"} 窓が組み込めなかった追加プラグイン ids を、並びの順に外す（POST /api/plugins/remove と同じ。止めた窓の［外して開く］）。
 //	                      もう足していない id は飛ばす（ほかの窓や AI が先に外していても、外れた状態になれば成功）。
 //	                      {"ok"} か、外せなかった所で止めて {"ok": false, "id", "reason"}（それより前の物は外れたまま）  … 画面から
-//	POST /api/update/check   新しい版を今確かめ、結果（UpdateStatus）を返す（全部の窓にも update-status で知らせる）
-//	POST /api/update/ask {"workroom"} ワークルーム（id）の、参加が確定した AI に、版を上げるよう頼む（起こす知らせ）。{"ok": true} か、そこに AI がいなければ {"ok": false, "reason": "no-recipient"}
+//	POST /api/update/check   新しい版を今確かめ、結果（UpdateStatus）を返す（全部の窓にも update-status で知らせる）。聞けなければ 502 で、前の結果は変えない  … 画面から
+//	POST /api/update/ask {"workroom"} ワークルーム（id）の、参加が確定した AI に、版を上げるよう頼む（起こす知らせ）。{"ok": true} か、そこに AI がいなければ {"ok": false, "reason": "no-recipient"}  … 画面から
 //	POST /api/unreadable/purge {"id"} 読めない物のフォルダの直下の物 id を、中の物の行ごと完全に消す（アクションでなく、窓の履歴に入らない）。
 //	                      {"ok"} か、直下に無ければ {"ok": false, "reason": "not-inside"}（何も書かない）  … 画面から
 //	POST /api/unreadable/if-off {"ids"} 追加プラグイン ids を無効にしたら読めない物のフォルダへ移る物（書かない）。
@@ -332,11 +332,17 @@ func (o Options) unlinkPluginsFromScreen(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, map[string]any{"ok": true})
 }
 
-// purgeUnreadable は、画面の口: 読めない物のフォルダの直下の物 id を完全に消す。直下に無ければ { ok: false, reason: "not-inside" }（何も書かない）
+// checkUpdate は、画面の口: 新しい版を今確かめ、結果を返す。聞けなければ 502（前の結果は変えない）
 func (o Options) checkUpdate(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, o.Hub.CheckUpdate(r.Context()))
+	s, err := o.Hub.CheckUpdate(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	writeJSON(w, s)
 }
 
+// askUpdate は、画面の口: ワークルームの、参加が確定した AI に版を上げるよう頼む。AI がいなければ { ok: false, reason: "no-recipient" }
 func (o Options) askUpdate(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Workroom string `json:"workroom"`
@@ -357,6 +363,7 @@ func (o Options) askUpdate(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"ok": true})
 }
 
+// purgeUnreadable は、画面の口: 読めない物のフォルダの直下の物 id を完全に消す。直下に無ければ { ok: false, reason: "not-inside" }（何も書かない）
 func (o Options) purgeUnreadable(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		ID string `json:"id"`

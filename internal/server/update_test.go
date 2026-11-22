@@ -27,7 +27,7 @@ func TestCheckUpdateTellsTheWindows(t *testing.T) {
 	}
 	w := h.Join()
 	<-w.ch // hello
-	s := h.CheckUpdate(context.Background())
+	s, _ := h.CheckUpdate(context.Background())
 	if s.State != UpdateNewer || s.Latest != "1.1.0" || s.CheckedAt == "" {
 		t.Fatalf("after = %+v", s)
 	}
@@ -38,7 +38,8 @@ func TestCheckUpdateTellsTheWindows(t *testing.T) {
 	}
 }
 
-func TestAFailedCheckShowsOnlyWhenTheUserAsked(t *testing.T) {
+// 聞けなかった確かめは、頼んだかによらず前の結果（新しい版）を残す。利用者が頼んだときだけ誤りを返す
+func TestAFailedCheckKeepsTheLastResult(t *testing.T) {
 	h := emptyHub(t)
 	ok, _ := fakeLatest("1.1.0", true, nil)
 	h.SetUpdateCheck("1.0.0", ok)
@@ -49,8 +50,8 @@ func TestAFailedCheckShowsOnlyWhenTheUserAsked(t *testing.T) {
 	if s := h.UpdateStatus(); s.State != UpdateNewer {
 		t.Fatalf("the server's own check that failed changed the state: %+v", s)
 	}
-	if s := h.CheckUpdate(context.Background()); s.State != UpdateFailed || s.Latest != "1.1.0" {
-		t.Fatalf("the user's check that failed = %+v", s)
+	if s, err := h.CheckUpdate(context.Background()); err == nil || s.State != UpdateNewer || s.Latest != "1.1.0" {
+		t.Fatalf("the user's check that failed = %+v, %v", s, err)
 	}
 }
 
@@ -74,7 +75,7 @@ func TestTheServerChecksOnlyWhenTheSettingAllowsAndNotForDevBuilds(t *testing.T)
 		t.Fatal("did not check when the user asked")
 	}
 	h.SetUpdateCheck("dev", nil)
-	if s := h.CheckUpdate(context.Background()); s.State != UpdateDev {
+	if s, _ := h.CheckUpdate(context.Background()); s.State != UpdateDev {
 		t.Fatalf("dev = %+v", s)
 	}
 }

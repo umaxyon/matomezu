@@ -17,7 +17,6 @@ const (
 	UpdateUnchecked = "unchecked" // まだ確かめていない
 	UpdateCurrent   = "current"   // 確かめた。今の版が一番新しい
 	UpdateNewer     = "newer"     // 確かめた。新しい版がある（Latest）
-	UpdateFailed    = "failed"    // 利用者が頼んだ確かめが、聞けずに終わった
 	UpdateDev       = "dev"       // 開発の版なので確かめない
 )
 
@@ -51,9 +50,9 @@ func (h *Hub) UpdateStatus() UpdateStatus {
 	return h.update
 }
 
-// CheckUpdate は、利用者が頼んだ確かめ: 新しい版を聞き、結果を覚えて知らせる。聞けなければ failed
-func (h *Hub) CheckUpdate(ctx context.Context) UpdateStatus {
-	return h.checkUpdate(ctx, true)
+// CheckUpdate は、利用者が頼んだ確かめ: 新しい版を聞き、結果を覚えて知らせる。聞けなければ誤りを返し、前の結果のまま（知らせない）
+func (h *Hub) CheckUpdate(ctx context.Context) (UpdateStatus, error) {
+	return h.checkUpdate(ctx)
 }
 
 // CheckUpdateIfOn は、常駐が自分で行う確かめ: 利用者の設定が許せば聞く。聞けなければ前の結果のまま
@@ -62,36 +61,30 @@ func (h *Hub) CheckUpdateIfOn(ctx context.Context) {
 	if on, err := h.engine.UpdateCheck(settings); err != nil || !on {
 		return
 	}
-	h.checkUpdate(ctx, false)
+	h.checkUpdate(ctx)
 }
 
-func (h *Hub) checkUpdate(ctx context.Context, asked bool) UpdateStatus {
+func (h *Hub) checkUpdate(ctx context.Context) (UpdateStatus, error) {
 	h.updateMu.Lock()
 	latest := h.latest
 	h.updateMu.Unlock()
 	if latest == nil {
-		return h.UpdateStatus()
+		return h.UpdateStatus(), nil
 	}
 	v, newer, err := latest(ctx)
+	if err != nil {
+		return h.UpdateStatus(), err
+	}
 	h.updateMu.Lock()
-	switch {
-	case err != nil && !asked:
-		h.updateMu.Unlock()
-		return h.UpdateStatus()
-	case err != nil:
-		h.update.State = UpdateFailed
-	case newer:
-		h.update.State, h.update.Latest = UpdateNewer, v
-	default:
-		h.update.State, h.update.Latest = UpdateCurrent, v
+	h.update.State, h.update.Latest = UpdateCurrent, v
+	if newer {
+		h.update.State = UpdateNewer
 	}
-	if err == nil {
-		h.update.CheckedAt = storage.Stamp(time.Now())
-	}
+	h.update.CheckedAt = storage.Stamp(time.Now())
 	s := h.update
 	h.updateMu.Unlock()
 	h.broadcast("update-status", s)
-	return s
+	return s, nil
 }
 
 // askUpdateLine は、版を上げるよう頼まれた AI に流す 1 行

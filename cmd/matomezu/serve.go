@@ -292,30 +292,37 @@ func ensure(h *home.Home, f serverFlags) (*home.Server, error) {
 // serveExe は、常駐を立てる実行ファイル: 配る版は、npm の入口が書いた今入っている版の印の物（古い版の会話が立て直しても、新しい版で立つ）。
 // 印が無い・その物が無い・開発の版は、自分
 func serveExe() (string, error) {
-	if version != devVersion {
-		if dir, err := home.BinDir(); err == nil {
-			if in, _ := home.ReadInstalled(dir); in != nil {
-				if _, err := os.Stat(in.Exe); err == nil {
-					return in.Exe, nil
-				}
-			}
-		}
+	if exe, _, ok := installed(); ok {
+		return exe, nil
 	}
 	return os.Executable()
 }
 
 // installedVersion は、今入っている版: 配る版は npm の入口が書いた印の版（その実行ファイルがあるとき）、無ければ自分
 func installedVersion() string {
-	if version != devVersion {
-		if dir, err := home.BinDir(); err == nil {
-			if in, _ := home.ReadInstalled(dir); in != nil {
-				if _, err := os.Stat(in.Exe); err == nil {
-					return in.Version
-				}
-			}
-		}
+	if _, v, ok := installed(); ok {
+		return v
 	}
 	return version
+}
+
+// installed は、配る版のとき、npm の入口が書いた印の実行ファイルと版（その実行ファイルがあるときだけ ok）
+func installed() (exe, v string, ok bool) {
+	if version == devVersion {
+		return "", "", false
+	}
+	dir, err := home.BinDir()
+	if err != nil {
+		return "", "", false
+	}
+	in, _ := home.ReadInstalled(dir)
+	if in == nil {
+		return "", "", false
+	}
+	if _, err := os.Stat(in.Exe); err != nil {
+		return "", "", false
+	}
+	return in.Exe, in.Version, true
 }
 
 // olderServer は、立っている常駐の版 running が、今入っている版より古いか（開発の版どうしは比べない）

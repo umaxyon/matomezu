@@ -54,7 +54,7 @@ export const PluginsSchema = z.object({
 
 // 新しい版の確かめの結果（常駐の update.go の UpdateStatus）
 export const UpdateStatusSchema = z.object({
-  state: z.enum(["unchecked", "current", "newer", "failed", "dev"]),
+  state: z.enum(["unchecked", "current", "newer", "dev"]),
   version: z.string(),
   latest: z.string().optional(),
   checkedAt: z.string().optional(),
