@@ -1,5 +1,5 @@
 // ブックを作る: 名前だけを決めた、ページの無いブックを、書庫に足す（ブックはタイプを持たない。タイプはページが持つ）。
-// 最初のページも一緒に作れる（page。page-add と同じ引数。1 回のアクションで、ブックとページを作る）。置くフォルダは into（言わなければ、日付フォルダ。library/today-folder.ts）の、
+// 最初のページも一緒に作れる（page。page-add と同じ引数。1 回のアクションで、ブックとページを作る）。置くフォルダは into（言わなければ、日付フォルダ。library/date-folder.ts）の、
 // at が first なら先頭（書庫ホームではシステムフォルダの後）、last なら末尾（言わなければ先頭。新しい物が前に並ぶ。画面から作るときは last を渡して末尾に置く）
 import { z } from "zod"
 import { isMoveRefusal, placedEntry } from "../../../core/entries"
@@ -8,8 +8,8 @@ import { withBook } from "../../../core/folders-books"
 import { pinnedCount } from "../../../core/folders-tree"
 import type { Book } from "../../../core/schema/book"
 import { kit } from "../kit"
+import { withDateFolder } from "../library/date-folder"
 import { holdsEntries } from "../library/entries"
-import { withTodayFolder } from "../library/today-folder"
 import { describeNewPage, NEW_PAGE_ARGS, type NewPageResult, withNewPage } from "../pages/page-add"
 
 const ARGS = z.strictObject({
@@ -35,7 +35,7 @@ export const BOOK_CREATE = kit.defineAction({
     if (args.page !== undefined && !made) return null
     // 日付フォルダの id は、ブックとページの id の後に、いつも引く（日付フォルダがもう在っても、振る id の順が変わらない）
     const placed =
-      args.into === undefined ? withTodayFolder(library, ctx.today, ctx.newId()) : { library, folder: args.into }
+      args.into === undefined ? withDateFolder(library, ctx.today, ctx.newId()) : { library, folder: args.into }
     if (!placed) return null
     const into = placed.folder
     const result: { book: string; into: string; page?: NewPageResult } = {

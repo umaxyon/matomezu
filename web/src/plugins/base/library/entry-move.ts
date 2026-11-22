@@ -13,8 +13,8 @@ import {
   retitled,
   titleOf,
 } from "../../../core/entries"
-import { HOME_ID } from "../../../core/folders"
 import { kit } from "../kit"
+import { withDateFolder } from "./date-folder"
 import {
   holdsEntries,
   isNotOverwritten,
@@ -29,17 +29,19 @@ import {
 export const FOLDER_CREATE = kit.defineAction({
   id: "folder-create",
   aiDescription:
-    "Create a folder in the library: title is its name, into the id of the folder to put it in (the library home without it; see read_folder), at the end. Returns the new folder's id. Refused (title-taken) when that folder already has an entry with the same title.",
+    "Create a folder in the library: title is its name, into the id of the folder to put it in (see read_folder; without it, the folder named today's date (YYYY-MM-DD) in the documents folder, made when missing), at the end. Returns the new folder's id. Refused (title-taken) when that folder already has an entry with the same title.",
   title: "New folder",
   target: "library",
   permissionScope: () => ({ books: [], creates: false }), // ブックを変えない
   args: z.strictObject({ title: z.string().trim().min(1), into: z.string().min(1).optional() }),
   run: (library, args, ctx) => {
-    const into = args.into ?? HOME_ID
-    if (!holdsEntries(library.folders, into)) return null
     const id = ctx.newId()
-    const next = withNewFolder(library, id, args.title, into)
-    return next ? { next, result: { folder: id } } : null
+    // 日付フォルダの id は、作るフォルダの id の後に、いつも引く（日付フォルダがもう在っても、振る id の順が変わらない）
+    const placed =
+      args.into === undefined ? withDateFolder(library, ctx.today, ctx.newId()) : { library, folder: args.into }
+    if (!placed || !holdsEntries(placed.library.folders, placed.folder)) return null
+    const next = withNewFolder(placed.library, id, args.title, placed.folder)
+    return next ? { next, result: { folder: id, into: placed.folder } } : null
   },
 })
 

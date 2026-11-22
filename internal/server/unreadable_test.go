@@ -426,7 +426,7 @@ func TestAFailedSettleIsAWarningUntilItSucceeds(t *testing.T) {
 		t.Fatalf("actions = %s", body)
 	}
 	// 読めない物が書庫に残っていなければ、失敗している間も書庫が対象のアクションは通る
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:folder-create","args":{"title":"失敗の間の所"}}`, writerAI(t, s.URL)); !strings.Contains(got, `"ok":true`) {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:folder-create","args":{"title":"失敗の間の所","into":"library-home"}}`, writerAI(t, s.URL)); !strings.Contains(got, `"ok":true`) {
 		t.Fatalf("folder-create while the settle fails = %s", got)
 	}
 	h.mu.Lock()
@@ -463,7 +463,7 @@ func TestAFailedSettleWithAnUnreadableBookLeftRefusesActionsOnTheLibrary(t *test
 		t.Fatalf("the warnings = %v", h.Warnings())
 	}
 	ai := writerAI(t, s.URL)
-	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:folder-create","args":{"title":"失敗の間の所"}}`, ai); !strings.Contains(got, `"reason":"refused"`) {
+	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:folder-create","args":{"title":"失敗の間の所","into":"library-home"}}`, ai); !strings.Contains(got, `"reason":"refused"`) {
 		t.Fatalf("folder-create = %s", got)
 	}
 	if _, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:book-lock","args":{},"on":{"book":"f1"}}`, ai); !strings.Contains(got, `"reason":"no-book"`) {

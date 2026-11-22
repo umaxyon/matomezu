@@ -57,7 +57,10 @@ test("ブックの外のページを開いたステージの下の行は、名�
   await page.bringToFront()
   // 書庫ホームに直に在れば、書庫
   await expect(page.getByRole("button", { name: "置き場所: 書庫" })).toBeVisible()
-  const outer = await aiPerform(page, { action: "@matomezu/base:folder-create", args: { title: "企画" } })
+  const outer = await aiPerform(page, {
+    action: "@matomezu/base:folder-create",
+    args: { title: "企画", into: "library-home" },
+  })
   const inner = await aiPerform(page, {
     action: "@matomezu/base:folder-create",
     args: { title: "2026-11-21", into: outer.result.folder },

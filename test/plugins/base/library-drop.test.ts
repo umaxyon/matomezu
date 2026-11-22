@@ -19,7 +19,7 @@ import { CORE_CATALOG, libraryWith, NAMING, newStore } from "../../support"
 function setup() {
   const store = newStore()
   const perform = store.actions.perform as (id: string, args: unknown) => { ok: boolean; result?: unknown }
-  const folder = (title: string, into?: string) =>
+  const folder = (title: string, into: string = HOME_ID) =>
     (perform("@matomezu/base:folder-create", { title, into }).result as { folder: string }).folder
   const library = () => store.state.getState()
   const ids = (into: string) => entriesIn(library().folders, into).map(r => r.id)

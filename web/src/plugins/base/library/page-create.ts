@@ -1,6 +1,6 @@
 // 書庫からページを作る: page-create は、ブックの中か、書庫ホーム・フォルダの直下（ブックの外）にページを作る（本体はページタブの page-add と同じ）。書庫が対象。
 // 書庫ホーム・フォルダでは、バインダにまとまるタイプのページは、そのページだけの新しいバインダに入る。ブックの外のバインダを名指せば、その中に足す。
-// 入れるフォルダを言わなければ、日付フォルダ（today-folder.ts）の末尾に入る。
+// 入れるフォルダを言わなければ、日付フォルダ（date-folder.ts）の末尾に入る。
 // 本体が同じなので、ページのタイプが page-add を外していれば（without）、これもそのタイプで断る
 import { z } from "zod"
 import { findBinder } from "../../../core/book"
@@ -11,8 +11,8 @@ import { bookOf, withBinderEntry, withBook } from "../../../core/folders-books"
 import { outsideBinderIn, pinnedCount } from "../../../core/folders-tree"
 import { kit } from "../kit"
 import { describeNewPage, NEW_PAGE_ARGS, PAGE_ADD, untitledAmong, withNewPage } from "../pages/page-add"
+import { withDateFolder } from "./date-folder"
 import { holdsEntries, placedOutsideTrash, typeLets } from "./entries"
-import { withTodayFolder } from "./today-folder"
 
 // 入れるフォルダを言わないときは、位置 index も言えない（日付フォルダが、まだ無いかもしれない）
 const withFolder = <T extends typeof NEW_PAGE_ARGS>(args: T) =>
@@ -37,7 +37,7 @@ export const PAGE_CREATE = kit.defineAction({
   describeArgs: catalog => withFolder(describeNewPage(catalog) as typeof NEW_PAGE_ARGS),
   run: (library, { folder: named, ...args }, ctx) => {
     if (!typeLets(ctx.catalog, PAGE_ADD.id, args.type)) return null
-    if (named === undefined) return createdToday(library, args, ctx)
+    if (named === undefined) return createdInDateFolder(library, args, ctx)
     const folder = named
     const holder = library.folders[folder]
     if (holder?.folderRole === "book") {
@@ -83,8 +83,8 @@ function madeOutside(library: Library, holder: HomeOrFolder, args: Omit<Args, "i
 
 // 入れるフォルダを言わずに作る: 日付フォルダの末尾に入れる（日付フォルダが無ければ、同じ書き込みで作る）。
 // 日付フォルダの id は、ページの id の前に、いつも引く（日付フォルダがもう在っても、振る id の順が変わらない）
-function createdToday(library: Library, args: Args, ctx: Ctx) {
-  const placed = withTodayFolder(library, ctx.today, ctx.newId())
+function createdInDateFolder(library: Library, args: Args, ctx: Ctx) {
+  const placed = withDateFolder(library, ctx.today, ctx.newId())
   const holder = placed?.library.folders[placed.folder]
   if (!placed || holder?.folderRole !== "folder") return null
   const made = madeOutside(placed.library, holder, args, ctx)

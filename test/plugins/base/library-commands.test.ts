@@ -21,7 +21,7 @@ function setup(now: () => string = () => "2026-11-18T01:00:00.000Z") {
   const center = state.getState().window.screens.find(s => s.stages === undefined)?.id as string
   actions.makeScreenCurrent(center)
   const perform = actions.perform as (id: string, args: unknown) => { ok: boolean; result?: unknown }
-  const folder = (title: string, into?: string) =>
+  const folder = (title: string, into: string = HOME_ID) =>
     (perform("@matomezu/base:folder-create", { title, into }).result as { folder: string }).folder
   const run = (id: string, args?: unknown) =>
     (actions.command as (at: string, id: string, ...args: unknown[]) => boolean)(

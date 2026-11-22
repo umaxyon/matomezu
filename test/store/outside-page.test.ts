@@ -234,7 +234,7 @@ test("ブックの全部を探していたステージにブックの外のペ�
 test("開いているブックの外のページの置き場所を書庫で開くと、ステージは開いたまま、書庫のスクリーンがそのページの入っているフォルダを出す。ブックを開いているステージでは出さない", () => {
   const store = withOutside()
   expect(isShown(store, store.state.getState(), "s1", "@matomezu/base:library-place-open")).toBe(false)
-  const made = store.actions.perform("@matomezu/base:folder-create", { title: "企画" })
+  const made = store.actions.perform("@matomezu/base:folder-create", { title: "企画", into: HOME_ID })
   const folder = (made as { result: { folder: string } }).result.folder
   expect(store.actions.perform("@matomezu/base:entry-move", { entry: "o1", into: folder }).ok).toBe(true)
   expect(outsidePagePlaceOf(store.state.getState().folders, "o1")).toEqual([HOME_ID, folder])

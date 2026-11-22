@@ -1,4 +1,4 @@
-// 日付フォルダ（base の library/today-folder.ts）: 置くフォルダを言わずに作るページ（page-create）とブック（book-create）は、
+// 日付フォルダ（base の library/date-folder.ts）: 置くフォルダを言わずに作るページ（page-create）・ブック（book-create）・フォルダ（folder-create）は、
 // ドキュメントの直下の、名前がその日の日付のフォルダに入る（無ければ同じ書き込みで、ドキュメントの先頭に作る）
 import { expect, test } from "bun:test"
 import { USER } from "../../../web/src/core/actor"
@@ -148,4 +148,18 @@ test("book-create は、into を言わなければ、日付フォルダに作り
   expect(home.result).toEqual({ book: "n1", into: HOME_ID })
   expect(ids(home.next, HOME_ID)).toEqual(["docs", "n1", "b1"])
   expect(refusal(libraryWith([]), "book-create", { title: "新" })).toEqual({ ok: false, reason: "refused" })
+})
+
+test("folder-create は、into を言わなければ、日付フォルダの末尾に作り、入れた先を into で返す。into を言えばそこに作る", () => {
+  const made = run(withDocuments(), "folder-create", { title: "仕事" })
+  expect(made.result).toEqual({ folder: "n1", into: "n2" })
+  expect(made.next.folders.n2).toMatchObject({ title: DAY, lineup: [{ kind: "folder", id: "n1" }] })
+  expect(ids(made.next, "docs")).toEqual(["n2"])
+  const next = run(made.next, "folder-create", { title: "次" }, ctx(DAY, sequence("m")))
+  expect(next.result).toEqual({ folder: "m1", into: "n2" })
+  expect(ids(next.next, "n2")).toEqual(["n1", "m1"])
+  const home = run(withDocuments(), "folder-create", { title: "仕事", into: HOME_ID })
+  expect(home.result).toEqual({ folder: "n1", into: HOME_ID })
+  expect(ids(home.next, HOME_ID)).toEqual(["docs", "n1"])
+  expect(refusal(libraryWith([]), "folder-create", { title: "仕事" })).toEqual({ ok: false, reason: "refused" })
 })

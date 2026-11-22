@@ -23,7 +23,7 @@ function setup() {
     return done
   }
   const made = async (action: "folder-create" | "book-create", args: { title: string; into?: string }) => {
-    const done = perform(`@matomezu/base:${action}`, args)
+    const done = perform(`@matomezu/base:${action}`, { into: HOME_ID, ...args })
     if (!done.ok) throw new Error(JSON.stringify(done))
     await settled()
     const result = done.result as { folder?: string; book?: string }
@@ -35,7 +35,7 @@ function setup() {
 test("フォルダを作る・動かす・名前を変えるは、書庫の履歴に 1 段ずつ入り、ブックの履歴には入らない。戻すと前の形に、やり直すと後の形になる", async () => {
   const { store, perform, history, lineup, title, move, made } = setup()
   const home = lineup(HOME_ID)
-  const a = await made("folder-create", { title: "仕事" })
+  const a = await made("folder-create", { title: "仕事", into: HOME_ID })
   perform("@matomezu/base:entry-move", { entry: "b1", into: a })
   await settled()
   perform("@matomezu/base:entry-rename", { entry: a, title: "しごと" })
@@ -58,7 +58,7 @@ test("フォルダを作る・動かす・名前を変えるは、書庫の履�
 
 test("ゴミ箱に入れる・戻すも戻せる。ブックを作ったのを戻すと、ブックは無くなる", async () => {
   const { store, perform, lineup, move, made } = setup()
-  const a = await made("folder-create", { title: "仕事" })
+  const a = await made("folder-create", { title: "仕事", into: HOME_ID })
   const book = await made("book-create", { title: "議事録", into: a })
   perform("@matomezu/base:entry-trash", { entry: a })
   await settled()
@@ -76,7 +76,7 @@ test("ゴミ箱に入れる・戻すも戻せる。ブックを作ったのを�
 
 test("完全に消す・ゴミ箱を空にするは、書庫の履歴に入らない", async () => {
   const { perform, history, made } = setup()
-  const a = await made("folder-create", { title: "仕事" })
+  const a = await made("folder-create", { title: "仕事", into: HOME_ID })
   perform("@matomezu/base:entry-trash", { entry: a })
   await settled()
   const steps = history().undo.length
@@ -87,10 +87,10 @@ test("完全に消す・ゴミ箱を空にするは、書庫の履歴に入ら�
 
 test("名前を戻すと同じ名前が重なるなら、断る（title-taken）。段は動かない", async () => {
   const { perform, history, title, move, made } = setup()
-  const a = await made("folder-create", { title: "仕事" })
+  const a = await made("folder-create", { title: "仕事", into: HOME_ID })
   perform("@matomezu/base:entry-rename", { entry: a, title: "しごと" })
   await settled()
-  await made("folder-create", { title: "仕事" })
+  await made("folder-create", { title: "仕事", into: HOME_ID })
   const steps = history().undo.length
   const step = history().undo.at(-2)!
   const done = perform("@matomezu/base:library-revert", libraryRevertArgs(step, "before"))
@@ -102,7 +102,7 @@ test("名前を戻すと同じ名前が重なるなら、断る（title-taken）
 
 test("ブックが対象のアクションと同じ処理の中で行っても、書庫の分は書庫の履歴に、ブックの分はブックの履歴に分かれる", async () => {
   const { store, perform, history } = setup()
-  perform("@matomezu/base:folder-create", { title: "仕事" })
+  perform("@matomezu/base:folder-create", { title: "仕事", into: HOME_ID })
   perform("@matomezu/base:book-update", { title: "改名" }, { book: "b1" })
   await settled()
   expect(history().undo).toHaveLength(1)
@@ -115,7 +115,7 @@ test("ブックが対象のアクションと同じ処理の中で行っても�
 
 test("上書きの移動は、先の同じ名前の物を中身ごと消して入れ、1 回戻すと両方戻る。種類が違う・ロックした物・動かす物を中に持つ物には上書きできない", async () => {
   const { store, perform, lineup, move, made } = setup()
-  const a = await made("folder-create", { title: "仕事" })
+  const a = await made("folder-create", { title: "仕事", into: HOME_ID })
   const old = await made("book-create", { title: "議事録", into: a })
   const fresh = await made("book-create", { into: HOME_ID, title: "議事録" })
   // 消えると確かめた物を言わない・違う物を言うと、上書きしない
@@ -131,7 +131,7 @@ test("上書きの移動は、先の同じ名前の物を中身ごと消して�
   expect(store.state.getState().books[old]?.title).toBe("議事録")
   expect(lineup(HOME_ID)).toContain(fresh)
   // 種類が違う
-  const other = await made("folder-create", { title: "別" })
+  const other = await made("folder-create", { title: "別", into: HOME_ID })
   const folder = await made("folder-create", { title: "議事録", into: other })
   expect(perform("@matomezu/base:entry-move-over", { entry: folder, into: a, replaces: old }).ok).toBe(false)
   // ロックした物
@@ -164,8 +164,8 @@ test("ゴミ箱から戻すときの上書きも、在った物を消して戻�
 
 test("何も変えない段（完全に消した物をゴミ箱に入れた段など）は飛ばし、同じ 1 回でその次の段を戻す", async () => {
   const { store, perform, history, lineup, made } = setup()
-  const kept = await made("folder-create", { title: "残す物" })
-  const gone = await made("folder-create", { title: "消す物" })
+  const kept = await made("folder-create", { title: "残す物", into: HOME_ID })
+  const gone = await made("folder-create", { title: "消す物", into: HOME_ID })
   perform("@matomezu/base:entry-trash", { entry: kept })
   await settled()
   perform("@matomezu/base:entry-trash", { entry: gone })
@@ -184,8 +184,8 @@ test("何も変えない段（完全に消した物をゴミ箱に入れた段�
 
 test("書庫の元に戻す・やり直すが、ほかの変更とぶつかって断られたら、トーストで知らせてその画面の履歴の段を捨て、続けてぶつかる前の画面の履歴の段もまとめて捨てる", async () => {
   const { store, perform, history, title, made } = setup()
-  const b = await made("folder-create", { title: "メモ" })
-  const a = await made("folder-create", { title: "仕事" })
+  const b = await made("folder-create", { title: "メモ", into: HOME_ID })
+  const a = await made("folder-create", { title: "仕事", into: HOME_ID })
   perform("@matomezu/base:entry-rename", { entry: a, title: "しごと" })
   await settled()
   perform("@matomezu/base:entry-rename", { entry: b, title: "仕事" })
@@ -208,8 +208,8 @@ test("書庫の元に戻す・やり直すが、ほかの変更とぶつかっ�
 
 test("置き直しても変わらない画面の履歴の段を飛ばした直後に、ぶつかって断られたら、飛ばした画面の履歴の段はやり直す側に、断られた画面の履歴の段と続けてぶつかる画面の履歴の段は捨てる", async () => {
   const { store, perform, history, title, made } = setup()
-  const b = await made("folder-create", { title: "メモ" })
-  const a = await made("folder-create", { title: "仕事" })
+  const b = await made("folder-create", { title: "メモ", into: HOME_ID })
+  const a = await made("folder-create", { title: "仕事", into: HOME_ID })
   perform("@matomezu/base:entry-rename", { entry: a, title: "しごと" })
   await settled()
   perform("@matomezu/base:entry-rename", { entry: b, title: "仕事" })
@@ -219,7 +219,7 @@ test("置き直しても変わらない画面の履歴の段を飛ばした直�
   // 画面の履歴に入らない置き直しで、B をまた「仕事」にする
   expect(perform("@matomezu/base:library-revert", libraryRevertArgs(renamedB, "after")).ok).toBe(true)
   await settled()
-  const c = await made("folder-create", { title: "消す物" })
+  const c = await made("folder-create", { title: "消す物", into: HOME_ID })
   const createdC = history().undo.at(-1)!
   // 画面の履歴に入らない置き直しで、C を作った段を戻しておく（その段は、置き直しても変わらない）
   expect(perform("@matomezu/base:library-revert", libraryRevertArgs(createdC, "before")).ok).toBe(true)
@@ -234,9 +234,9 @@ test("置き直しても変わらない画面の履歴の段を飛ばした直�
 
 test("同じ処理の中で行ったアクションの段は、すぐあとの dropHistory で捨てられる", async () => {
   const { store, perform, history, made } = setup()
-  await made("folder-create", { title: "一" })
+  await made("folder-create", { title: "一", into: HOME_ID })
   const [first] = history().undo
-  expect(perform("@matomezu/base:folder-create", { title: "二" }).ok).toBe(true)
+  expect(perform("@matomezu/base:folder-create", { title: "二", into: HOME_ID }).ok).toBe(true)
   store.actions.dropHistory(LIBRARY_HISTORY, "undo")
   await settled()
   expect(history().undo).toEqual([first!])
@@ -244,7 +244,7 @@ test("同じ処理の中で行ったアクションの段は、すぐあとの d
 
 test("書庫のやり直す: 無かった行を置く画面の履歴の段は、同じ中身の行がもう在れば済んでいるとして飛ばし、次の画面の履歴の段をやり直す", async () => {
   const { store, perform, history, title, move, made } = setup()
-  const a = await made("folder-create", { title: "仕事" })
+  const a = await made("folder-create", { title: "仕事", into: HOME_ID })
   perform("@matomezu/base:entry-rename", { entry: a, title: "しごと" })
   await settled()
   const [created, renamed] = history().undo
@@ -300,7 +300,7 @@ test("ホストが戻す・やり直すを断ったら、動かした段を元�
   })
   const history = () => store.state.getState().history[LIBRARY_HISTORY] ?? { undo: [], redo: [] }
   for (const title of ["一", "二"]) {
-    store.actions.perform("@matomezu/base:folder-create", { title })
+    store.actions.perform("@matomezu/base:folder-create", { title, into: HOME_ID })
     await settled()
   }
   const [first, second] = history().undo
@@ -323,7 +323,7 @@ test("ホストがぶつかりで断った画面の履歴の段は元の側へ�
       ),
   })
   const history = () => store.state.getState().history[LIBRARY_HISTORY] ?? { undo: [], redo: [] }
-  const done = store.actions.perform("@matomezu/base:folder-create", { title: "一" })
+  const done = store.actions.perform("@matomezu/base:folder-create", { title: "一", into: HOME_ID })
   await settled()
   const folder = (done as { result: { folder: string } }).result.folder
   store.actions.perform("@matomezu/base:entry-rename", { entry: folder, title: "二" })
@@ -369,7 +369,7 @@ test("置き直しは、ロックの印を外せない（外せるのは、掛�
 
 test("書庫の元に戻すがぶつかったら、続けてぶつかる画面の履歴の段もまとめて捨て（トーストは 1 つ）、置き直せる画面の履歴の段に当たったら、置き直さずにそこで止める", async () => {
   const { store, perform, history, title, made } = setup()
-  const x = await made("folder-create", { title: "外" })
+  const x = await made("folder-create", { title: "外", into: HOME_ID })
   for (const t of ["一", "二"]) {
     perform("@matomezu/base:entry-rename", { entry: "b1", title: t })
     await settled()
@@ -417,7 +417,7 @@ test("書庫のやり直すも、続けてぶつかる画面の履歴の段を�
     perform("@matomezu/base:entry-rename", { entry: "b1", title: t })
     await settled()
   }
-  const x = await made("folder-create", { title: "外" })
+  const x = await made("folder-create", { title: "外", into: HOME_ID })
   const [, , created] = history().undo
   for (let i = 0; i < 3; i++) expect(store.actions.command("s1", "@matomezu/base:library-undo")).toBe(true)
   expect(history().redo).toHaveLength(3)

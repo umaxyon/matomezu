@@ -32,7 +32,7 @@ const NOW = "2026-11-18T01:00:00.000Z"
 function setup() {
   const store = newStore({ now: () => NOW })
   const perform = store.actions.perform as (id: string, args: unknown) => { ok: boolean; result?: unknown }
-  const made = perform(FOLDER_CREATE.id, { title: "仕事" })
+  const made = perform(FOLDER_CREATE.id, { title: "仕事", into: HOME_ID })
   const folder = (made.result as { folder: string }).folder
   expect(perform("@matomezu/base:entry-move", { entry: "b2", into: folder }).ok).toBe(true)
   return { store, perform, folder, library: () => store.state.getState() }
@@ -105,7 +105,7 @@ test("ゴミ箱の行は、入れた時刻の新しい順に、どの種類の�
   const store = newStore({ now: () => now })
   const perform = store.actions.perform as (id: string, args: unknown) => { ok: boolean; result?: unknown }
   const library = () => store.state.getState()
-  const folder = (perform(FOLDER_CREATE.id, { title: "仕事" }).result as { folder: string }).folder
+  const folder = (perform(FOLDER_CREATE.id, { title: "仕事", into: HOME_ID }).result as { folder: string }).folder
   const inner = (perform(FOLDER_CREATE.id, { title: "下書き", into: folder }).result as { folder: string }).folder
   expect(perform("@matomezu/base:entry-move", { entry: "b2", into: inner }).ok).toBe(true)
   expect(trashRowsOf(library(), NAMING)).toEqual([])

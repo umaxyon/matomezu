@@ -993,7 +993,7 @@ func TestAIWorksOnLibraryEntries(t *testing.T) {
 		_, got := send(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:`+action+`","args":`+args+`}`, writerAI(t, s.URL))
 		return got
 	}
-	made := do("folder-create", `{"title":"仕事"}`)
+	made := do("folder-create", `{"title":"仕事","into":"library-home"}`)
 	var out struct {
 		OK     bool `json:"ok"`
 		Result struct {
@@ -1004,7 +1004,7 @@ func TestAIWorksOnLibraryEntries(t *testing.T) {
 		t.Fatalf("folder-create = %s", made)
 	}
 	f := out.Result.Folder
-	if got := do("folder-create", `{"title":"仕事"}`); !strings.Contains(got, `"kind":"title-taken"`) {
+	if got := do("folder-create", `{"title":"仕事","into":"library-home"}`); !strings.Contains(got, `"kind":"title-taken"`) {
 		t.Fatalf("the same title = %s", got)
 	}
 	if got := do("entry-move", `{"entry":"b1","into":"`+f+`"}`); got != `{"ok":true,"result":{}}` {

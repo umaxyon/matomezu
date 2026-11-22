@@ -1,6 +1,8 @@
 // 常駐のエンジンが、ブックの外のページ（どのブックにも入っていないページ）の行を受けたときの読み方と、編集ロック・ずらした知らせ。
 // 外のページは、テストの用意として書庫の表に直に置く（作るアクションは通さない）
+
 import { expect, test } from "bun:test"
+import { HOME_ID } from "../../web/src/core/folders"
 import "../../web/src/engine/engine"
 import type { AnyPage } from "../../web/src/core/schema/book"
 import { drawingPage, testBook } from "../lineup"
@@ -44,7 +46,9 @@ function x1(): AnyPage {
 }
 
 test("ブックの外のページが在っても、書庫が対象のアクション（フォルダを作る・ブックの名前を変える）を行え、外のページの行は書き直さない", () => {
-  const created = performOn([{ action: "@matomezu/base:folder-create", args: { title: "新" }, ids: ["f1"] }])
+  const created = performOn([
+    { action: "@matomezu/base:folder-create", args: { title: "新", into: HOME_ID }, ids: ["f1"] },
+  ])
   expect(created).toMatchObject({ ok: true, created: ["f1"], pages: [] })
   const renamed = performOn([{ action: "@matomezu/base:entry-rename", args: { entry: "b1", title: "改" } }])
   expect(renamed).toMatchObject({ ok: true, books: ["b1"], pages: [] })
@@ -91,7 +95,9 @@ test("常駐のエンジンは、ブックの外の読めないページ（読�
     ok: false,
     reason: "refused",
   })
-  expect(on({ action: "@matomezu/base:folder-create", args: { title: "新" }, ids: ["f1"] })).toMatchObject({
+  expect(
+    on({ action: "@matomezu/base:folder-create", args: { title: "新", into: HOME_ID }, ids: ["f1"] }),
+  ).toMatchObject({
     ok: false,
     reason: "refused",
   })

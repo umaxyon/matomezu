@@ -150,7 +150,7 @@ test("ブックの外のバインダ・ページ・ブックと、それらを�
       args,
     )
   const lineup = (id: string) => state.getState().folders[id]?.lineup.map(r => r.id)
-  const created = act("folder-create", { title: "仕事" })
+  const created = act("folder-create", { title: "仕事", into: HOME_ID })
   const into = (created.ok && (created.result as { folder: string }).folder) as string
   const added = actions.perform(
     "@matomezu/base:page-add",
