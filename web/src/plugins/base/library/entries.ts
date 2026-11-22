@@ -1,5 +1,6 @@
 // 書庫が対象のアクションが使う、エントリの読み方と変え方: ゴミ箱の外に在るエントリ・動かせる先・名前を変える・重ならない名前にする・ゴミ箱から戻す先
 
+import { binderTakes } from "../../../core/book"
 import type { CoreCatalog } from "../../../core/core-catalog"
 import {
   type EntryKind,
@@ -88,9 +89,8 @@ export function movesInto(catalog: CoreCatalog, { pages, folders }: Library, ent
     if (!page || catalog.pageTypes.get(page.type)?.grouping !== "binder") return to.folderRole !== "binder"
     if (from !== "binder") return false
     if (to.folderRole !== "binder") return true
-    if (to.pageType !== page.type) return false
-    const lead = pages[to.lineup.find(r => r.id !== entry)?.id ?? entry]
-    return lead?.paper === page.paper && lead.orientation === page.orientation
+    const lineup = to.lineup.flatMap(r => pages[r.id] ?? [])
+    return binderTakes(catalog, { pageType: to.pageType, lineup }, page)
   }
   if (place.ref.kind === "binder") {
     const leaves = from === "book" && to.folderRole !== "book"

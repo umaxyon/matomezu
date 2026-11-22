@@ -3,7 +3,7 @@
 // page-create はブックにページを作る。ロックしたページは、エントリとしてほかのブックへ動かせるが、名前は変えられない。ロックしたブックの中は、出し入れも並べ替えもできない
 
 import { expect, test } from "bun:test"
-import { HOME_ID } from "../../../web/src/core/folders"
+import { HOME_ID, TRASH_ID } from "../../../web/src/core/folders"
 import { LIBRARY_HISTORY } from "../../../web/src/core/history"
 import { shownPageId } from "../../../web/src/core/stage"
 import { screenOf } from "../../../web/src/core/window"
@@ -297,6 +297,30 @@ test("entry-move: スライドでバインダを作る移動・ブックの外�
   expect(lineup(into)).toEqual([s.binder as string])
   expect(lineup(s.binder as string)).toEqual([s.page])
   expect(lineup(t.binder as string)).toEqual([t.page])
+})
+
+test("entry-trash・entry-restore・entry-purge: ブックの外のバインダ・ページ・ブックと、それらを持つフォルダを、ゴミ箱に入れて戻し、消せる（ゴミ箱の中もブックの外の決まりで見る）", () => {
+  const { state, lineup, add, act } = setup()
+  const into = folderIn(act)
+  const s = add("b1", { type: SLIDE, title: "1", into: { newBinder: "説明" } })
+  const binder = s.binder as string
+  expect(act("entry-move", { entry: binder, into: HOME_ID }).ok).toBe(true)
+  expect(act("entry-move", { entry: "p1", into: HOME_ID }).ok).toBe(true)
+  for (const entry of [binder, "p1", "b2"]) {
+    expect([entry, act("entry-trash", { entry }).ok]).toEqual([entry, true])
+    expect([entry, act("entry-restore", { entry }).ok]).toEqual([entry, true])
+  }
+  expect(lineup(binder)).toEqual([s.page])
+  expect(lineup(TRASH_ID)).toEqual([])
+  // 外のバインダ・ページを持つフォルダごと
+  expect(act("entry-move", { entry: binder, into }).ok).toBe(true)
+  expect(act("entry-move", { entry: "p1", into }).ok).toBe(true)
+  expect(act("entry-trash", { entry: into }).ok).toBe(true)
+  expect(act("entry-trash", { entry: "b2" }).ok).toBe(true)
+  expect(act("entry-purge", { entries: ["b2"] }).ok).toBe(true)
+  expect(act("entry-restore", { entry: into }).ok).toBe(true)
+  expect(lineup(into)).toEqual([binder, "p1"])
+  expect(state().folders.b2).toBeUndefined()
 })
 
 test("entry-rename: ブックの中のページ・バインダの名前を変える。同じブックの中の名前と重なれば断る", () => {

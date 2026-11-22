@@ -20,6 +20,7 @@ import {
 } from "./folders"
 import { foldersOver, inTrash, systemFolderIndex, systemFolderOf } from "./folders-tree"
 import { type Lang, translate } from "./i18n/i18n"
+import { freshPageId } from "./ids"
 import { langOf, type Settings } from "./settings"
 
 export type EntryKind = AnyEntryRef["kind"]
@@ -42,18 +43,9 @@ export function canHold(holder: Folder, kind: EntryKind): boolean {
 }
 
 // 動かせない訳: エントリが無い（no-entry）・先のフォルダが無い（no-folder）・先が自分かその中（into-itself）・先のフォルダが持てない種類（kind）・
-// index が末尾より先（past-end）・動かしても同じ場所（same-place）・動かす物か先が、ゴミ箱かその中（in-trash。ゴミ箱へは入れる・戻すでだけ出入りする）・
-// 作るバインダに振った id が書庫にもう在る（id-taken）
-export type MoveRefusal =
-  | "no-entry"
-  | "no-folder"
-  | "into-itself"
-  | "kind"
-  | "past-end"
-  | "same-place"
-  | "in-trash"
-  | "id-taken"
-export const isMoveRefusal = <T extends object>(v: T | MoveRefusal): v is MoveRefusal => typeof v === "string"
+// index が末尾より先（past-end）・動かしても同じ場所（same-place）・動かす物か先が、ゴミ箱かその中（in-trash。ゴミ箱へは入れる・戻すでだけ出入りする）
+export type MoveRefusal = "no-entry" | "no-folder" | "into-itself" | "kind" | "past-end" | "same-place" | "in-trash"
+export const isMoveRefusal = (v: Library | EntryMoved | MoveRefusal): v is MoveRefusal => typeof v === "string"
 
 // 書庫 library の、フォルダ puts を置き換えた（無ければ足した）書庫
 const withFolders = (library: Library, puts: Readonly<Record<string, Folder>>): Library => ({
@@ -233,8 +225,9 @@ export interface EntryMoved {
 }
 
 // エントリ entry を、フォルダ into の index 番目（動かす物を除いて数える。言わなければ末尾）へ動かした書庫（movedEntry に、バインダの出来方・消え方を足した物。純粋）。
-// into へ入る物は carriedEntry が決める。新しいバインダを作るなら、その id を newId で振り（書庫にもう在れば id-taken）、
-// 名前は「元のバインダの名前 - ページの名前」で、into の直下の名前と重なれば番号を付け（freeTitle）、into の index 番目に置いてページを入れる。
+// into へ入る物は carriedEntry が決める。新しいバインダを作るなら、その id を newId で振り（書庫のページ・フォルダの行の id と重なれば、newId で振り直す）、
+// 名前は「元のバインダの名前 - ページの名前」（片方が無題なら、もう片方の名前だけ）で、into の直下の名前と重なれば番号を付け（freeTitle）、
+// into の index 番目に置いてページを入れる。
 // ページが出て空になったブックの外のバインダは、行ごと消す（ブックの中のバインダは、空になっても残る）。動かせなければ、その訳
 export function movedWithBinders(
   catalog: CoreCatalog,
@@ -256,9 +249,9 @@ export function movedWithBinders(
   if (!to) return "no-folder"
   if (from.folderRole !== "binder") return "kind"
   if (to.folderRole === "trash" || inTrash(library.folders, entry) || inTrash(library.folders, into)) return "in-trash"
-  const id = newId()
-  if (id in library.folders || id in library.pages) return "id-taken"
-  const title = freeTitle(`${from.title} - ${library.pages[entry]?.title ?? ""}`, titlesIn(library, to, naming))
+  const id = freshPageId(newId, [...Object.keys(library.pages), ...Object.keys(library.folders)])
+  const named = [titleOf(library, "binder", from.id, naming), titleOf(library, "page", entry, naming)]
+  const title = freeTitle(named.filter(t => t !== undefined).join(" - "), titlesIn(library, to, naming))
   const binder: BinderFolder = {
     folderRole: "binder",
     id,

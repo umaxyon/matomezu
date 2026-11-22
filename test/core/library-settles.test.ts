@@ -32,7 +32,7 @@ test("一覧が対象のアクションの結果は、変わったブックが�
   expect(librarySettles(CORE_CATALOG, before, { ...before, other: { ...book, id: "other" } })).toBe(false)
 })
 
-// ブックの外の決まり（outsideHolds）: 変わったフォルダの行に関わる所だけを、ゴミ箱の外で見る
+// ブックの外の決まり（outsideHolds）: 変わったフォルダの行に関わる所だけを、ゴミ箱の中も見る
 const slide = (id: string, rest: object = {}) => testPage(SLIDE, id, { title: id, ...rest })
 const changed = (library: Library): Library => ({
   pages: library.pages,
@@ -68,19 +68,30 @@ test("ブックの外のバインダは、バインダの決まり（入れる�
   )
 })
 
-test("ブックの外の決まりは、行う前から変わらないフォルダの行と、ゴミ箱の中では見ない", () => {
+test("ブックの外の決まりは、行う前から変わらないフォルダの行では見ない。ゴミ箱の直下とゴミ箱の中のフォルダの直下でも見る（読む側と同じ）", () => {
   const broken = libraryWith([], [slide("y1"), testBinder("lb", "束", SLIDE)])
   expect(outsideHolds(CORE_CATALOG, broken, broken)).toBe(true)
   expect(outsideHolds(CORE_CATALOG, broken, changed(broken))).toBe(false)
   const home: HomeFolder = { folderRole: "home", id: HOME_ID, lineup: [] }
-  const trash: TrashFolder = {
-    folderRole: "trash",
-    id: TRASH_ID,
-    lineup: [
-      { kind: "page", id: "y1", trashed: "2026-11-22T00:00:00.000Z", from: [HOME_ID] },
-      { kind: "binder", id: "lb", trashed: "2026-11-22T00:00:00.000Z", from: [HOME_ID] },
-    ],
+  const binned = (kind: "page" | "binder" | "folder", id: string) => ({
+    kind,
+    id,
+    trashed: "2026-11-22T00:00:00.000Z",
+    from: [HOME_ID],
+  })
+  const trashOf = (...lineup: TrashFolder["lineup"]): TrashFolder => ({ folderRole: "trash", id: TRASH_ID, lineup })
+  const trashed = (trash: TrashFolder, more: Library["folders"] = {}): Library => ({
+    pages: broken.pages,
+    folders: { ...broken.folders, ...more, [HOME_ID]: home, [TRASH_ID]: trash },
+  })
+  expect(holdsOutside(trashed(trashOf(binned("page", "y1"))))).toBe(false)
+  expect(holdsOutside(trashed(trashOf(binned("binder", "lb"))))).toBe(false)
+  const a: PlainFolder = { folderRole: "folder", id: "a", title: "あ", lineup: [{ kind: "page", id: "y1" }] }
+  expect(holdsOutside(trashed(trashOf(binned("folder", "a")), { a }))).toBe(false)
+  const good = libraryWith([], [drawingPage("x1"), testBinder("lg", "良", SLIDE, slide("y2"))])
+  const fine: Library = {
+    pages: good.pages,
+    folders: { ...good.folders, [HOME_ID]: home, [TRASH_ID]: trashOf(binned("page", "x1"), binned("binder", "lg")) },
   }
-  const trashed: Library = { pages: broken.pages, folders: { ...broken.folders, [HOME_ID]: home, [TRASH_ID]: trash } }
-  expect(holdsOutside(trashed)).toBe(true)
+  expect(holdsOutside(fine)).toBe(true)
 })

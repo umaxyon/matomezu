@@ -32,8 +32,12 @@ export type Drop = { to: "folder"; into: string; index?: number } | { to: "trash
 export const draggable = (folders: Folders, entry: string): boolean =>
   placedOutsideTrash(folders, entry) !== undefined && systemFolderOf(folders[entry]) === undefined
 
-// 落とせるかを読むときに、作るバインダに振る id（読むだけで、書庫には残さない）
-const READ_ONLY_ID = "library-drop"
+// 落とせるかを読むときに、作るバインダに振る id の頭（読むだけで、書庫には残さない）。振るのは、頭に 0 から順の番号を足した id（書庫に在る id と重なれば、次の番号）
+const DROP_CHECK_BINDER_ID = "library-drop"
+const dropCheckIds = (): (() => string) => {
+  let n = 0
+  return () => `${DROP_CHECK_BINDER_ID}-${n++}`
+}
 
 // エントリ entry を drop へ落とせるか（動かしても同じ場所になる所・自分の中・持てない種類の所と、動かすアクションが扱わない所 movesInto へは落とせない。
 // ゴミ箱へは、書庫ホームかフォルダの直下に在る物だけ。動かした書庫（entry-move と同じ movedWithBinders）が木の決まり treeHolds とブックの外の決まり outsideHolds を破る所
@@ -43,7 +47,7 @@ export function droppable(catalog: CoreCatalog, library: Library, entry: string,
   if (drop.to === "trash") return placedOutsideBooks(library.folders, entry) !== undefined
   if (!movesInto(catalog, library, entry, drop.into)) return false
   const naming = namingIn(catalog, "en")
-  const moved = movedWithBinders(catalog, library, entry, drop.into, drop.index, naming, () => READ_ONLY_ID)
+  const moved = movedWithBinders(catalog, library, entry, drop.into, drop.index, naming, dropCheckIds())
   return !isMoveRefusal(moved) && treeHolds(moved.next) && outsideHolds(catalog, library, moved.next)
 }
 

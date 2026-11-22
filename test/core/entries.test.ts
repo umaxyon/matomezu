@@ -183,16 +183,35 @@ describe("スライドがバインダを離れる（movedWithBinders）", () => 
     expect(carriedEntry(CORE_CATALOG, l, "n1a", "d")).toBe(NEW_BINDER)
   })
 
-  test("入る先に同じ名前が在れば番号を付ける。同じ id を渡せば同じ結果。id が書庫にもう在れば断る", () => {
+  test("入る先に同じ名前が在れば番号を付ける。振った id が書庫にもう在れば振り直す。同じ id の並びなら同じ結果", () => {
     const l = sample()
     const named: PlainFolder = { folderRole: "folder", id: "x", title: "N1 - N1A", lineup: [] }
     const d2 = { ...d, lineup: [{ kind: "folder" as const, id: "x" }] }
     const clashing: Library = { pages: l.pages, folders: { ...l.folders, x: named, d: d2 } }
     expect(run(clashing, "n1a", "d").made?.title).toBe("N1 - N1A 2")
-    expect(run(l, "n1a", "d")).toEqual(run(l, "n1a", "d"))
-    expect(movedWithBinders(CORE_CATALOG, l, "n1a", "d", undefined, NAMING, () => "n2")).toBe("id-taken")
-    expect(movedWithBinders(CORE_CATALOG, l, "n1a", "d", undefined, NAMING, () => "p1")).toBe("id-taken")
+    const idsOf = (...list: string[]) => {
+      let i = 0
+      return () => list[i++] ?? "rest"
+    }
+    const fresh = movedWithBinders(CORE_CATALOG, l, "n1a", "d", undefined, NAMING, idsOf("n2", "p1", "nb"))
+    expect(isMoveRefusal(fresh) ? fresh : fresh.made?.id).toBe("nb")
+    expect(fresh).toEqual(movedWithBinders(CORE_CATALOG, l, "n1a", "d", undefined, NAMING, idsOf("n2", "p1", "nb")))
+    expect(fresh).toEqual(run(l, "n1a", "d"))
     expect(movedWithBinders(CORE_CATALOG, l, "n1a", "d", 5, NAMING, () => "nb")).toBe("past-end")
+  })
+
+  test("ページが無題なら元のバインダの名前だけ、元のバインダが無題ならページの名前だけ（重なれば番号）。両方無題なら無題", () => {
+    const l = sample()
+    const untitled = (pages: readonly string[], binders: readonly string[]): Library =>
+      ({
+        pages: { ...l.pages, ...Object.fromEntries(pages.map(id => [id, { ...l.pages[id], title: "" }])) },
+        folders: { ...l.folders, ...Object.fromEntries(binders.map(id => [id, { ...l.folders[id], title: "" }])) },
+      }) as Library
+    expect(run(untitled(["n1a"], []), "n1a", "d").made?.title).toBe("N1")
+    // 書庫ホームには元のバインダ N1 が在る
+    expect(run(untitled(["n1a"], []), "n1a", HOME_ID).made?.title).toBe("N1 2")
+    expect(run(untitled([], ["n1"]), "n1a", "d").made?.title).toBe("N1A")
+    expect(run(untitled(["n1a"], ["n1"]), "n1a", "d").made?.title).toBe("")
   })
 
   test("ブックの外の、中がそのページだけのバインダからは、作らずにバインダごと動く（id と名前が保たれる）", () => {

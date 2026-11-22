@@ -18,7 +18,6 @@ import {
   type TrashRef,
 } from "./folders"
 import { bookOf, tablesOf } from "./folders-books"
-import { inTrash } from "./folders-tree"
 import { outsideUnreadable, rawBooksOf, rowsById } from "./folders-unreadable"
 import { freshPageId } from "./ids"
 import { splitId } from "./names"
@@ -239,13 +238,13 @@ function judgeBinder(catalog: CoreCatalog, raw: Readonly<Record<string, unknown>
 // ブックの外（書庫ホーム・ゴミ箱・フォルダの直下）のページ 1 枚 raw を読んだページか、読めない訳の番号: judgePage に、まとまるタイプ（grouping が binder）のページはバインダの外に置かない決まりを足した物（破れば W029）
 function judgeOutsidePage(catalog: CoreCatalog, raw: Readonly<Record<string, unknown>>): AnyPage | UnreadableCode {
   const read = judgePage(catalog, raw)
-  return typeof read === "string" || catalog.pageTypes.get(read.type)?.grouping !== "binder" ? read : "W029"
+  return typeof read === "string" || pageHoldsOutside(catalog, read) ? read : "W029"
 }
 
-// ブックの外のバインダ 1 つ raw を読んだ物: judgeBinder に、空でない決まりを足した物。空なら W029、中のページが 1 枚も読めなければ、最初のページの訳でバインダごと読めない
+// ブックの外のバインダ 1 つ raw を読んだ物: judgeBinder に、空でない決まり（binderHoldsOutside）を足した物。空なら W029、中のページが 1 枚も読めなければ、最初のページの訳でバインダごと読めない
 function judgeOutsideBinder(catalog: CoreCatalog, raw: Readonly<Record<string, unknown>>): BinderRead {
   const read = judgeBinder(catalog, raw)
-  if ("code" in read || read.binder.lineup.length > 0) return read
+  if ("code" in read || binderHoldsOutside(catalog, read.binder)) return read
   const [first] = read.inner
   if (!first) return { code: "W029" }
   return { code: first.code, ...(first.type === undefined ? {} : { type: first.type }) }
@@ -588,31 +587,51 @@ function distinctTitles(entries: readonly { title: string }[]): boolean {
 // バインダの決まり（ブックの中でも外でも同じ）を守っているか: 中の名前は重ならない／中のページは、入れるタイプのページ／入れるタイプは、まとまるタイプ
 // ／中のページは、紙と向きが同じ
 function binderHolds(catalog: CoreCatalog, binder: BinderEntry): boolean {
-  if (!distinctTitles(binder.lineup)) return false
+  return distinctTitles(binder.lineup) && typesAndPaperHold(catalog, binder)
+}
+
+// バインダの決まりのうち、名前に依らない物を守っているか: 入れるタイプは、まとまるタイプ／中のページは、入れるタイプのページ／中のページは、紙と向きが同じ
+function typesAndPaperHold(catalog: CoreCatalog, binder: Pick<BinderEntry, "pageType" | "lineup">): boolean {
   if (binder.lineup.some(p => p.type !== binder.pageType)) return false
   if (catalog.pageTypes.get(binder.pageType)?.grouping !== "binder") return false
   return sharesPaper(binder)
 }
 
-// 書庫 next のうち、書庫 was から変わったフォルダとページの行に関わる所が、ブックの外の決まりを守っているか（ゴミ箱の中は見ない）:
-// 書庫ホーム・フォルダの直下に、まとまるタイプ（grouping が binder）のページが無い／ブックの外のバインダは、バインダの決まり（binderHolds）を守り、空でない
+// 入れるタイプ pageType で中のページが lineup のバインダが、ページ page を入れられるか（バインダの決まりのうち名前に依らない物 typesAndPaperHold を、
+// page を入れた並びが守るか。lineup に page が在れば、それを除いて比べる。名前の重なりは見ない）
+export function binderTakes(
+  catalog: CoreCatalog,
+  binder: Pick<BinderEntry, "pageType" | "lineup">,
+  page: AnyPage,
+): boolean {
+  const lineup = [...binder.lineup.filter(p => p.id !== page.id), page]
+  return typesAndPaperHold(catalog, { pageType: binder.pageType, lineup })
+}
+
+// ブックの外（書庫ホーム・ゴミ箱・フォルダの直下）に、バインダに入らずに置けるページか: まとまるタイプ（grouping が binder）でない
+export const pageHoldsOutside = (catalog: CoreCatalog, page: Pick<AnyPage, "type">): boolean =>
+  catalog.pageTypes.get(page.type)?.grouping !== "binder"
+
+// ブックの外のバインダの決まりを守っているか: バインダの決まり（binderHolds）を守り、空でない
+export const binderHoldsOutside = (catalog: CoreCatalog, binder: BinderEntry): boolean =>
+  binder.lineup.length > 0 && binderHolds(catalog, binder)
+
+// 書庫 next のうち、書庫 was から変わったフォルダとページの行に関わる所が、ブックの外（書庫ホーム・ゴミ箱・フォルダの直下。ゴミ箱の中も）の決まりを守っているか:
+// 直下のページは pageHoldsOutside を、直下のバインダは binderHoldsOutside を守る（読む側の readLibrary・unreadableUnitsOf と同じ決まり）
 export function outsideHolds(catalog: CoreCatalog, was: Library, next: Library): boolean {
   const { pages, folders } = next
-  const outside = (id: string) => {
-    const f = folders[id]
-    return (f?.folderRole === "home" || f?.folderRole === "folder") && !inTrash(folders, id)
-  }
+  const outside = (id: string) => isOpenRole(folders[id]?.folderRole)
   const looseOk = (id: string): boolean => {
     const page = pages[id]
-    return page === undefined || catalog.pageTypes.get(page.type)?.grouping !== "binder"
+    return page === undefined || pageHoldsOutside(catalog, page)
   }
   const binderOk = (id: string): boolean => {
     const row = folders[id]
     if (row?.folderRole !== "binder") return true
     const lineup = row.lineup.map(r => pages[r.id])
-    if (lineup.length === 0 || lineup.some(p => p === undefined)) return false
+    if (lineup.some(p => p === undefined)) return false
     const { title, pageType } = row
-    return binderHolds(catalog, { kind: "binder", id, title, pageType, lineup: lineup as AnyPage[] })
+    return binderHoldsOutside(catalog, { kind: "binder", id, title, pageType, lineup: lineup as AnyPage[] })
   }
   for (const f of Object.values(folders)) {
     if (was.folders[f.id] === f) continue
@@ -639,7 +658,7 @@ export function outsideHolds(catalog: CoreCatalog, was: Library, next: Library):
 }
 
 // バインダの中のページが、紙と向きをそろえているか
-function sharesPaper(binder: BinderEntry): boolean {
+function sharesPaper(binder: Pick<BinderEntry, "lineup">): boolean {
   const pages = binder.lineup
   const lead = pages[0]
   return pages.every(p => p.paper === lead?.paper && p.orientation === lead.orientation)
