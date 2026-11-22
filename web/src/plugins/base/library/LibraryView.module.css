@@ -13,7 +13,7 @@
   flex: none;
   flex-direction: column;
   width: max(var(--library-tree-min-width), min(var(--library-tree-width), 100% - var(--library-content-min-width)));
-  border-right: 1px solid var(--skin-border-strong);
+  border-right: 1px solid var(--skin-border);
   background: var(--skin-surface); /* 参加者リストなどの枠（Panel）と同じ色 */
 }
 .search {
@@ -228,7 +228,7 @@
   align-items: center;
   gap: 2px;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--skin-border-strong);
+  border-bottom: 1px solid var(--skin-border);
   background: var(--skin-surface); /* 左のツリーと同じ色 */
 }
 .crumb {
@@ -266,7 +266,7 @@
   gap: 8px;
   align-items: center;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--skin-border-strong);
+  border-bottom: 1px solid var(--skin-border);
 }
 /* 作るボタンの中: 一覧の行と同じアイコンを名前の頭に並べる */
 .create {
