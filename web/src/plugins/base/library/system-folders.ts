@@ -26,8 +26,7 @@ const underWorkrooms = (over: readonly PlaceFolder[] | "none"): boolean =>
 export const IN_WORKROOMS = kit.definePermission({
   id: "in-workrooms",
   title: "Nothing goes in the workrooms folder",
-  aiDescription:
-    "nothing can be put in or made in the workrooms folder",
+  aiDescription: "nothing can be put in or made in the workrooms folder",
   denies: q => q.kind === "place" && underWorkrooms(q.into),
   keeps: c => c.kind !== "place" || !underWorkrooms(c.after),
 })

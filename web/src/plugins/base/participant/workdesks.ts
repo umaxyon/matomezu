@@ -9,8 +9,8 @@ import { TICKETS_HISTORY } from "../library/backyards"
 import { ADMIN_MARK, PARTICIPANT, type Workroom } from "."
 import { originalPalette } from "./birds"
 import { adminRoomOf } from "./rows"
-import { WORKROOM } from "./workroom"
 import { workerBookOf, workerBookReadsOf } from "./worker-book"
+import { WORKROOM } from "./workroom"
 
 // 作業机 1 つ: ワークルーム room の id・名前 title・鳥 bird と配色 palette、ワーカーブックの名前 bookTitle と、実のブックの id book（まだ無ければ undefined）
 export interface Workdesk {
