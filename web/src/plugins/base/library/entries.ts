@@ -116,7 +116,7 @@ export const holderForNewPage = (folders: Folders, opened: string): string | und
 }
 
 // 作る先 into に、タイプ type のページを作るときのフォルダ: into がブックの外のバインダで、そのバインダのタイプでなければ、バインダを入れているフォルダ。ほかは into
-export const folderForType = (folders: Folders, into: string, type: string): string | undefined => {
+export const pageFolderFor = (folders: Folders, into: string, type: string): string | undefined => {
   const row = folders[into]
   return row?.folderRole === "binder" && row.pageType !== type ? holderForNew(folders, into) : into
 }

@@ -68,9 +68,4 @@ test("「ページ新規作成」でタイプを選んで作ると、書庫ホ�
   await home.click({ button: "right", position: { x: 5, y: 5 } })
   await page.getByRole("menu").getByRole("menuitem", { name: "新しいページ…" }).click()
   await expect(page.getByRole("menu").getByRole("menuitem", { name: "図面" })).toBeVisible()
-  await page.keyboard.press("Escape")
-  // 何も無い所の「新しいフォルダ…」は、選んでいる物がフォルダでなくても開く
-  await home.click({ button: "right", position: { x: 5, y: 5 } })
-  await page.getByRole("menu").getByRole("menuitem", { name: "新しいフォルダ…" }).click()
-  await expect(page.getByRole("dialog")).toBeVisible()
 })

@@ -102,25 +102,24 @@ export function defaultPaper(
   }
 }
 
-// 書庫ホームかフォルダに作るページの題名の案（t は見た目の t()）: 「ページ 1」から数えて、そのフォルダの名前 taken と重ならない最初の番号
-export function freePageTitle(t: (key: MessageKey, params?: Params) => string, taken: readonly string[]): string {
-  for (let n = 1; ; n++) {
+// ページの題名の案（t は見た目の t()。今の言語で引く）: 番号 from から数えて、名前 taken と重ならない最初の番号
+export function freePageTitle(
+  t: (key: MessageKey, params?: Params) => string,
+  taken: readonly string[],
+  from = 1,
+): string {
+  for (let n = from; ; n++) {
     const title = t(kit.message("Page {n}"), { n })
     if (!taken.includes(title)) return title
   }
 }
 
-// 次のページの題名の案（t は見た目の t()。今の言語で引く）。同じブックかバインダの名前 taken（省けば、ブックの並び）と重ならない番号にする
-export function nextPageTitle(
+// 次のページの題名の案。同じブックかバインダの名前 taken（省けば、ブックの並び）の数の次から数える
+export const nextPageTitle = (
   book: StageLineup,
   t: (key: MessageKey, params?: Params) => string,
   taken: readonly string[] = lineupOf(book).map(e => e.title),
-): string {
-  for (let n = taken.length + 1; ; n++) {
-    const title = t(kit.message("Page {n}"), { n })
-    if (!taken.includes(title)) return title
-  }
-}
+): string => freePageTitle(t, taken, taken.length + 1)
 
 // ページ page の形が、ページの広さに収まるか（可変ページは伸びる向きには印刷区画を増やして広がるので、伸びない向きだけ紙 1 枚に収める）
 export function shapesFit(catalog: CoreCatalog, page: ItemPage): boolean {

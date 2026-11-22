@@ -117,23 +117,23 @@ function usePaperForm(
   return { controls, value, patch, draft, problems }
 }
 
-// ページを作るダイアログの紙の入力Form: ブック book の所 place（紙をそろえる相手が決まる）に足す、タイプ type のページ。タイプの規定の既定から始める
+// ページを作るダイアログの紙の入力Form: 並び lineup（ブックか、ブックの外のバインダ 1 つの並び）の所 place（紙をそろえる相手が決まる）に足す、タイプ type のページ。タイプの規定の既定から始める
 export function usePaperControls(
-  book: StageLineup | undefined,
+  lineup: StageLineup | undefined,
   type: string | undefined,
   place: PaperPlace = "lineup",
 ) {
   const catalog = useCatalog().core
-  const known = book && type !== undefined
+  const known = lineup && type !== undefined
   return usePaperForm(
     type,
     null,
     () => {
       if (!known) return null
-      const from = defaultPaper(catalog, book, type, place)
+      const from = defaultPaper(catalog, lineup, type, place)
       return { paper: from.paper, orientation: from.orientation, grows: undefined }
     },
-    known ? paperChoices(catalog, book, type, place) : null,
+    known ? paperChoices(catalog, lineup, type, place) : null,
     known ? pageType(catalog, type).grouping === "binder" && place !== "new-binder" : false,
   )
 }

@@ -1,5 +1,5 @@
-// ディレクトリ構成図のページを作るダイアログ: ページ名（初めは base の useNewPage の名前）と根のフォルダの名前を決めて、そのステージのブックに足し（base の useAddPage。アクション page-add。根はページのフィールド root）、
-// そのページを開く。根のフォルダの名前の初めの値はページ名と同じ。紙と紙の向きはタイプの既定
+// ディレクトリ構成図のページを作るダイアログ: ページ名（初めは base の useNewPage の名前）と根のフォルダの名前を決めて、受けた作る先に作る（base の useNewPage。ステージのブックならアクション page-add で足してそのページを開き、書庫のフォルダなら page-create。根はページのフィールド root）。
+// 根のフォルダの名前の初めの値はページ名と同じ。紙と紙の向きはタイプの既定
 import { useState } from "react"
 import type { NewPageDialogArgs } from "../../../plugin-api"
 import { type DialogProps, useMessages } from "../../../plugin-api/ui"

@@ -3,7 +3,7 @@ import { expect, test } from "bun:test"
 import type { CommandId } from "../../../web/src/core/catalog"
 import { entriesIn } from "../../../web/src/core/entries"
 import { HOME_ID, TRASH_ID, UNREADABLE_ID } from "../../../web/src/core/folders"
-import { folderForType, holderForNewPage } from "../../../web/src/plugins/base/library/entries"
+import { holderForNewPage, pageFolderFor } from "../../../web/src/plugins/base/library/entries"
 import {
   LIBRARY_COLUMNS,
   LIBRARY_FOLDER,
@@ -471,11 +471,12 @@ test("ページを作る先: ブックの中のバインダはブックへ、ゴ
   expect(holderForNewPage(folders(), book)).toBe(book)
   expect(holderForNewPage(folders(), outside)).toBe(outside)
   expect(holderForNewPage(folders(), inBook)).toBe(book)
-  expect(folderForType(folders(), outside, slide)).toBe(outside)
-  expect(folderForType(folders(), outside, "@matomezu/drawing:drawing")).toBe(a)
-  expect(folderForType(folders(), a, slide)).toBe(a)
+  expect(pageFolderFor(folders(), outside, slide)).toBe(outside)
+  expect(pageFolderFor(folders(), outside, "@matomezu/drawing:drawing")).toBe(a)
+  expect(pageFolderFor(folders(), a, slide)).toBe(a)
   run("library-entry-move", { entry: a, to: { to: "trash" } })
   expect(holderForNewPage(folders(), TRASH_ID)).toBeUndefined()
   expect(holderForNewPage(folders(), a)).toBeUndefined()
   expect(holderForNewPage(folders(), book)).toBeUndefined()
+  expect(holderForNewPage(folders(), outside)).toBeUndefined()
 })

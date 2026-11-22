@@ -1,6 +1,6 @@
 // 右クリックのメニュー: コンポーネントが右クリックを受けてメニューを開く口と、UI マッピングに書いたメニューの中身を読む口
 
-import type { MouseEvent } from "react"
+import { type MouseEvent, useRef } from "react"
 import { useShallow } from "zustand/react/shallow"
 import type { ContextMenuId, ContextMenuTable } from "../core/catalog"
 import type { Point } from "../core/geom"
@@ -63,6 +63,25 @@ export function useButtonMenu<M extends ContextMenuId>(
   const { openContextMenu } = useStoreActions()
   return (at, target, how) => {
     if (stage !== null) openContextMenu(stage, id, target, at, how?.opens)
+  }
+}
+
+// ボタンを押すたびに開け閉めするメニュー id の口: open はボタンの onClick で呼んで開く。開いている間に押したときは、閉じるだけにする
+// （メニューは外を押した扱いで先に閉じるので、ボタンの onPointerDown に渡す pressed が、押し始めに開いていたかを覚える）。opened は開いているか
+export function useToggledMenu<M extends ContextMenuId>(
+  id: M,
+): { opened: boolean; pressed: () => void; open: ReturnType<typeof useButtonMenu<M>> } {
+  const openMenu = useButtonMenu(id)
+  const opened = useMatomezuState(s => s.contextMenu?.id === id)
+  const wasOpened = useRef(false)
+  return {
+    opened,
+    pressed: () => {
+      wasOpened.current = opened
+    },
+    open: (...args) => {
+      if (!wasOpened.current) openMenu(...args)
+    },
   }
 }
 

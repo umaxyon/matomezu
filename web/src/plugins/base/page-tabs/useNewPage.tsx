@@ -42,15 +42,15 @@ export function useNewPage(args: NewPageDialogArgs): NewPage {
   const type = catalog.pageTypes.get(args.type)
   // 書庫ホーム・フォルダは、何も並んでいない並びで紙を選ぶ
   const empty = useMemo((): StageLineup | null => (folder === undefined ? null : { id: folder, lineup: [] }), [folder])
-  const within = folder !== undefined && held !== null && held.folderRole !== "book" && held.folderRole !== "binder"
+  const intoFolder = folder !== undefined && held !== null && held.folderRole !== "book" && held.folderRole !== "binder"
   const lineup =
-    folder === undefined ? staged : (book ?? (binder ? { id: binder.id, lineup: [binder] } : within ? empty : null))
+    folder === undefined ? staged : (book ?? (binder ? { id: binder.id, lineup: [binder] } : intoFolder ? empty : null))
   const into = folder === undefined ? args.binder : binder?.id
   const place: PaperPlace =
     into !== undefined ? { binder: into } : type?.grouping === "binder" ? "new-binder" : "lineup"
   // 作る先に並ぶ名前（書庫ホーム・フォルダはその直下のエントリ、ブックはその並び）
   const taken = (): string[] =>
-    within && held ? titlesIn(read(), held, naming()) : lineup ? lineupOf(lineup).map(e => e.title) : []
+    intoFolder && held ? titlesIn(read(), held, naming()) : lineup ? lineupOf(lineup).map(e => e.title) : []
   const inBinder = lineup && into !== undefined ? pagesIn(lineup, into).map(p => p.title) : undefined
   const none: StageLineup = { id: "", lineup: [] }
   return {
@@ -58,7 +58,7 @@ export function useNewPage(args: NewPageDialogArgs): NewPage {
     place,
     titles: {
       page:
-        within && place === "lineup"
+        intoFolder && place === "lineup"
           ? freePageTitle(t, taken())
           : nextPageTitle(lineup ?? none, t, place === "new-binder" ? [] : (inBinder ?? taken())),
       binder: freeTitle(type ? t(type.title) : "", taken()),

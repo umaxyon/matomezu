@@ -1,4 +1,3 @@
-import type { Point } from "../../../core/geom"
 // 書庫の画面のコマンド: 選んでいる物（右クリックのメニューからは右クリックした物、ツリーのキーからはツリーで今いる行）を開く・名前を変える・ゴミ箱に入れる、中にブック・フォルダを作る、
 // ドラッグで落とした物を動かす、矢印キーでツリーの行・右の枠の隣の行へ移る、書庫の履歴を元に戻す・やり直す（library-revert で、最後の画面の履歴の段が変えた所を置き直す）。
 // キーは、書庫の画面（LibraryView）の中に焦点がある間だけ効く（キーの範囲 library。矢印・F2・Delete は、ツリーの中 library-tree と、右の枠の中身の中 library-contents。
@@ -10,6 +9,7 @@ import type { CoreCatalog } from "../../../core/core-catalog"
 import { namingOf, placeOf, rowTitle } from "../../../core/entries"
 import type { Folders } from "../../../core/folders"
 import { isKeptSystemFolder, systemFolderOf } from "../../../core/folders-tree"
+import type { Point } from "../../../core/geom"
 import { LIBRARY_HISTORY } from "../../../core/history"
 import {
   type CommandActions,
@@ -138,11 +138,13 @@ const renames: Handles = (folders, entry) =>
 const trashes: Handles = (folders, entry, catalog) =>
   placedOutsideBooks(folders, entry) !== undefined && !isKeptSystemFolder(folders, entry, catalog.systemFolders)
 
-// 右クリックのメニューの行を出すか: 受け取った物を handles が扱うときだけ。キーからは、押してから扱う物を決める（ツリーのキーは、ツリーで今いる行を名指す）ので、いつも出す
-const inMenuHandled =
-  (handles: Handles) =>
+// 右クリックのメニューの行を出すか: 受け取った物から found が扱う物を見つけるときだけ。メニューの行は、閉じてから受け取った物を名指して呼び、
+// キーからは、押してから扱う物を決める（ツリーのキーは、ツリーで今いる行を名指す）ので、メニューが何も受け取っていなければ、いつも出す
+const inMenu =
+  (found: (ctx: ScreenCommandContext) => unknown) =>
   (ctx: ScreenCommandContext): boolean =>
-    given(ctx, undefined) === undefined || handled(ctx, handles) !== undefined
+    given(ctx, undefined) === undefined || found(ctx) !== undefined
+const inMenuHandled = (handles: Handles) => inMenu(ctx => handled(ctx, handles))
 
 // 新しいブック・フォルダを作る先のフォルダ: エントリを受け取ったら、それが書庫ホームかフォルダのとき、その中。
 // フォルダを受け取ったら（何も無い所のメニュー）、ボタンと同じに、それがブック・バインダなら、それを入れているフォルダ
@@ -152,12 +154,6 @@ const holder = (ctx: ScreenCommandContext, named?: Named): string | undefined =>
   const entry = entryOf(ctx, named)
   return entry !== undefined && holdsEntries(ctx.folders, entry) ? entry : undefined
 }
-
-// 作るコマンドの右クリックのメニューの行を出すか: 受け取った物から作る先 into が決まるときだけ。メニューの行は、閉じてから受け取った物を名指して呼ぶ
-const inMenuHolds =
-  (into: (ctx: ScreenCommandContext) => string | undefined) =>
-  (ctx: ScreenCommandContext): boolean =>
-    given(ctx, undefined) === undefined || into(ctx) !== undefined
 
 // 開く行き先（フォルダは中へ入る。表に行の無い物・ゴミ箱の中の物は開かない）
 function opening(ctx: ScreenCommandContext, named?: Named): Exclude<OpenTarget, typeof NOT_OPENED> | undefined {
@@ -195,7 +191,7 @@ export const LIBRARY_BOOK_NEW = kit.defineScreenCommand({
     const into = holder(ctx, named)
     if (into !== undefined) a.openDialog(LIBRARY_NEW_BOOK_DIALOG.id, { into })
   },
-  when: inMenuHolds(holder),
+  when: inMenu(holder),
 })
 
 export const LIBRARY_FOLDER_NEW = kit.defineScreenCommand({
@@ -206,7 +202,7 @@ export const LIBRARY_FOLDER_NEW = kit.defineScreenCommand({
     const into = holder(ctx, named)
     if (into !== undefined) a.openDialog(LIBRARY_NEW_FOLDER_DIALOG.id, { into })
   },
-  when: inMenuHolds(holder),
+  when: inMenu(holder),
 })
 
 // 新しいページを作る先のフォルダ: エントリを受け取ったら、それが書庫ホーム・フォルダ・ブック・ブックの外のバインダのとき、その中。
@@ -218,16 +214,16 @@ const pageHolder = (ctx: ScreenCommandContext, named?: Named): string | undefine
   return entry !== undefined && holderForNewPage(ctx.folders, entry) === entry ? entry : undefined
 }
 
-// ページのタイプの一覧のメニューを、右クリックのメニューを開いた位置に開く（選んだタイプのページを作るダイアログは、メニューの行が開く）
+// ページのタイプの一覧のメニューを、右クリックのメニューを開いた位置 pressed に開く（位置を受け取らなければ開かない。選んだタイプのページを作るダイアログは、メニューの行が開く）
 export const LIBRARY_PAGE_NEW = kit.defineScreenCommand({
   id: "library-page-new",
   title: "New page…",
   performs: [PAGE_CREATE.id], // メニューの行が開くダイアログが行う
   run: (ctx, a, named: Named | undefined) => {
     const folder = pageHolder(ctx, named)
-    if (folder !== undefined) a.openContextMenu(LIBRARY_ADD_PAGE_MENU, { folder }, named?.pressed ?? { x: 0, y: 0 })
+    if (folder !== undefined && named?.pressed) a.openContextMenu(LIBRARY_ADD_PAGE_MENU, { folder }, named.pressed)
   },
-  when: inMenuHolds(pageHolder),
+  when: inMenu(pageHolder),
 })
 
 export const LIBRARY_ENTRY_RENAME = kit.defineScreenCommand({

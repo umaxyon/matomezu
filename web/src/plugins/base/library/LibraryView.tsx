@@ -7,7 +7,7 @@ import { type Naming, namingOf, titleOf } from "../../../core/entries"
 import { HOME_ID, TRASH_ID, UNREADABLE_ID } from "../../../core/folders"
 import type { MatomezuState } from "../../../store/state"
 import { useCommand } from "../../../ui/commands"
-import { useButtonMenu, useContextMenu } from "../../../ui/context-menu"
+import { useContextMenu, useToggledMenu } from "../../../ui/context-menu"
 import { useMessages } from "../../../ui/i18n"
 import { usePluginState, useReadPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
 import { useCatalog, useMatomezuState, useReadState } from "../../../ui/store-context"
@@ -115,11 +115,8 @@ export function LibraryView({ className }: { className?: string } = {}) {
   // 新しいブック・フォルダを作る先（開いているのがブック・バインダなら、それを入れているフォルダ。ゴミ箱なら無い）
   const into = useMatomezuState(s => holderForNew(s.folders, opened))
   const pageInto = useMatomezuState(s => holderForNewPage(s.folders, opened))
-  const openAddPage = useButtonMenu(LIBRARY_ADD_PAGE_MENU)
-  const addPageOpened = useMatomezuState(s => s.contextMenu?.id === LIBRARY_ADD_PAGE_MENU)
+  const addPageMenu = useToggledMenu(LIBRARY_ADD_PAGE_MENU)
   const addPage = useRef<HTMLSpanElement>(null)
-  // 開いている間に押したら、閉じるだけにする（外を押した扱いで先に閉じるので、押し始めに開いていたかを覚える）
-  const addPageWasOpened = useRef(false)
   const { openDialog } = useActions()
   const unfolded = unfoldedOf(usePluginState(kit, LIBRARY_UNFOLDED))
   const setUnfolded = useSetPluginState(kit, LIBRARY_UNFOLDED)
@@ -301,18 +298,12 @@ export function LibraryView({ className }: { className?: string } = {}) {
                   </>
                 )}
                 {pageInto !== undefined && (
-                  <span
-                    ref={addPage}
-                    onPointerDown={() => {
-                      addPageWasOpened.current = addPageOpened
-                    }}
-                  >
+                  <span ref={addPage} onPointerDown={addPageMenu.pressed}>
                     <ActionButton
                       raised
                       onClick={() => {
                         const r = addPage.current?.getBoundingClientRect()
-                        if (r && !addPageWasOpened.current)
-                          openAddPage({ x: r.left, y: r.bottom + 4 }, { folder: pageInto })
+                        if (r) addPageMenu.open({ x: r.left, y: r.bottom + 4 }, { folder: pageInto })
                       }}
                     >
                       <span className={styles.create}>

@@ -347,8 +347,8 @@ export const BASE_UI = definePluginUi(BASE, {
 declare module "../../core/catalog" {
   interface ContextMenuTable {
     // 書庫の画面の行（右クリックしたエントリの id）と、右の枠の何も無い所（開いているフォルダの id）。pressed は、押した画面の位置
-    "@matomezu/base:library-entry-context": { entry: string; pressed?: Point }
-    "@matomezu/base:library-folder-context": { folder: string; pressed?: Point }
+    "@matomezu/base:library-entry-context": { entry: string; pressed: Point }
+    "@matomezu/base:library-folder-context": { folder: string; pressed: Point }
     "@matomezu/base:library-add-page-menu": { folder: string } // ページを作る先のフォルダの id
   }
   interface SlotTable {
