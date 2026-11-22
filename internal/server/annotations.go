@@ -13,7 +13,7 @@ import (
 	"github.com/umaxyon/matomezu/internal/storage"
 )
 
-// checkAnnotations は、ブックとブックの外のページのアノテーション（ゴミ箱の中・読めない物は除く。annotatedIn）を今のプラグインで確かめ、効かないもの（種類が無い・形が合わない）の warning の一覧を直す。
+// checkAnnotations は、ブックとブックの外のページ（バインダの中も）のアノテーション（ゴミ箱の中・読めない物は除く。annotatedIn）を今のプラグインで確かめ、効かないもの（種類が無い・形が合わない）の warning の一覧を直す。
 // 新しい warning は常駐のログに書く（h.mu を持って呼ぶ）
 func (h *Hub) checkAnnotations() error {
 	pairs, _ := h.annotatedIn(nil)
@@ -103,7 +103,7 @@ func (h *Hub) recheckAnnotationsOf(page string) {
 	var pair engine.Annotated
 	if book := h.bookOfPage(page); book != "" {
 		pair = engine.AnnotatedBook(h.books[book].body, lists)
-	} else if h.entryNotInBook(page) == page {
+	} else if h.entryNotInBook(page) != "" {
 		pair = engine.AnnotatedPage(h.pages[page].body, lists)
 	} else {
 		delete(h.annotationWarnings, page)

@@ -10,20 +10,22 @@ import { restoreSettings } from "../core/settings"
 import { warningText } from "../core/warnings"
 import type { Assembled } from "../store/plugin"
 
-// ステージエントリ（ブックか、ブックの外のページ）と、そのページごとのアノテーション（ページの id → 並び）の組（常駐が渡す）
+// ステージエントリ（ブックか、ブックの外のページ・バインダ）と、そのページごとのアノテーション（ページの id → 並び）の組（常駐が渡す）
 type Annotated = { annotations: Readonly<Record<string, unknown>> } & (
   | { kind: "book"; book: unknown }
   | { kind: "page"; page: unknown }
+  | { kind: "binder"; pages: readonly unknown[] }
 )
 
-// 組 p のステージエントリのページ（ブックなら並びの全部、ブックの外のページならその 1 枚）。読めなければ null
+// 組 p のステージエントリのページ（ブックなら並びの全部、ブックの外のページならその 1 枚、ブックの外のバインダなら中のページのうち読める物）。読めなければ null
 function pagesOfAnnotated(catalog: CoreCatalog, p: Annotated): readonly ItemPage[] | null {
   if (p.kind === "book") {
     const [book] = restoreBooks(catalog, [p.book])
     return book ? pagesOf(book) : null
   }
-  const page = typeof p.page === "object" && p.page !== null ? readablePage(catalog, p.page) : undefined
-  return page ? [page as ItemPage] : null
+  const read = (page: unknown) => (typeof page === "object" && page !== null ? readablePage(catalog, page) : undefined)
+  const pages = (p.kind === "binder" ? p.pages : [p.page]).map(read).filter(page => page !== undefined)
+  return pages.length > 0 ? (pages as ItemPage[]) : null
 }
 
 // engine.ts の matomezuCheckAnnotations の中身

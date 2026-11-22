@@ -151,7 +151,8 @@ func TestRowsNotInBooksGoToTheEngine(t *testing.T) {
 }
 
 // AI は、書庫ホームとフォルダを 1 段ずつ読める（read_folder）: 書庫ホームからの道筋と、直下のフォルダ・ブック・ページ・バインダ。読めないブックは読めない物のフォルダへ移り、出ない。
-// ゴミ箱・ゴミ箱の中のフォルダ・フォルダでない物（ブック・バインダ・ページ）・無い id は、どれも同じ 404
+// ブックの外のバインダは、その id で中のページを読める。
+// ゴミ箱・ゴミ箱の中のフォルダとバインダ・フォルダでない物（ブック・ブックの中のバインダ・ページ）・無い id は、どれも同じ 404
 func TestTheAIReadsAFolderOneLevelDeep(t *testing.T) {
 	store := entriesStore(t)
 	v := versionsOf(t, store)
@@ -181,12 +182,14 @@ func TestTheAIReadsAFolderOneLevelDeep(t *testing.T) {
 			`{"kind":"book","id":"b1","title":"T"},{"kind":"folder","id":"d2","title":"D2"},{"kind":"binder","id":"n1","title":"N1","pageType":"@matomezu/slide-page:slide"}]}`,
 		"/api/ai/folder?folder=d2": `{"id":"d2","kind":"folder","title":"D2","path":[{"id":"library-home"},{"id":"d1","title":"D1"},{"id":"d2","title":"D2"}],"lineup":[` +
 			`{"kind":"book","id":"b2","title":"S"},{"kind":"page","id":"g1","title":"G1","type":"@matomezu/drawing:drawing"}]}`,
+		"/api/ai/folder?folder=n1": `{"id":"n1","kind":"binder","title":"N1","pageType":"@matomezu/slide-page:slide","path":[{"id":"library-home"},{"id":"d1","title":"D1"},{"id":"n1","title":"N1"}],"lineup":[` +
+			`{"kind":"page","id":"n1a","title":"A","type":"@matomezu/slide-page:slide"},{"kind":"page","id":"n1b","title":"B","type":"@matomezu/slide-page:slide"}]}`,
 	} {
 		if code, body := send(t, "GET", s.URL+path, "", ai); code != 200 || body != want {
 			t.Fatalf("%s = %d %s; want %s", path, code, body, want)
 		}
 	}
-	for _, id := range []string{storage.TrashID, storage.UnreadableID, "bx", "dt", "b1", "f1", "n1", "tn", "h1", "t1", "none"} {
+	for _, id := range []string{storage.TrashID, storage.UnreadableID, "bx", "dt", "b1", "f1", "tn", "h1", "t1", "none"} {
 		if code, body := send(t, "GET", s.URL+"/api/ai/folder?folder="+id, "", ai); code != 404 || body != "no such folder" {
 			t.Fatalf("folder %s = %d %q", id, code, body)
 		}
