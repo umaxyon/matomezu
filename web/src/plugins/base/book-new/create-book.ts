@@ -8,9 +8,9 @@ import { BOOK_CREATE } from "./book-create"
 type Instance = Pick<MatomezuInstance, "state" | "actions">
 type Args = ArgsOf<typeof BOOK_CREATE.id>
 
-// ブックを作り、作れたらステージ stage で開く。アクションの結果を返す（断られたら、その断り）
+// ブックを作り（画面から作る物は、フォルダの並びの末尾に置く）、作れたらステージ stage で開く。アクションの結果を返す（断られたら、その断り）
 export function openCreatedBook(instance: Instance, stage: string, args: Args): Performed<typeof BOOK_CREATE.id> {
-  const done = instance.actions.perform(BOOK_CREATE.id, args)
+  const done = instance.actions.perform(BOOK_CREATE.id, { at: "last", ...args })
   if (done.ok) instance.actions.openBook(stage, done.result.book)
   return done
 }

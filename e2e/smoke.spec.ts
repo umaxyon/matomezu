@@ -121,7 +121,9 @@ test("＋で開くダイアログでページを作るとタブが増え、そ�
   await expect(page.getByRole("tab", { name: "ページ 2" })).toHaveAttribute("aria-selected", "true")
 })
 
-test("ページが多くてタブが横にあふれているとき、タブの上でホイールを回すと横にスクロールする", async ({ page }) => {
+test("ページが多くてタブが横にあふれているとき、開いたページのタブが見える所まで送られ、タブの上でホイールを回すと横にスクロールする", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 700, height: 600 })
   await page.goto(BOOK_SCREEN_URL)
   // タブは縮んで「…」になってから、横にあふれる
@@ -132,10 +134,16 @@ test("ページが多くてタブが横にあふれているとき、タブの�
   }
   const tabs = page.getByRole("tablist").first()
   expect(await tabs.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(true)
-  const before = await tabs.evaluate(el => el.scrollLeft)
+  // 足したページはタブを押さずに開くが、そのタブが見える所まで並びが送られている
+  const box = (await tabs.boundingBox())!
+  const last = (await tabs.getByRole("tab", { name: "ページ 25" }).boundingBox())!
+  expect(last.x).toBeGreaterThanOrEqual(box.x)
+  expect(last.x + last.width).toBeLessThanOrEqual(box.x + box.width + 1)
+  await tabs.getByRole("tab", { name: "ページ 1", exact: true }).click()
+  await expect.poll(() => tabs.evaluate(el => el.scrollLeft)).toBe(0)
   await tabs.hover()
   await page.mouse.wheel(0, 200)
-  await expect.poll(() => tabs.evaluate(el => el.scrollLeft)).toBeGreaterThan(before)
+  await expect.poll(() => tabs.evaluate(el => el.scrollLeft)).toBeGreaterThan(0)
 })
 
 test("分割して右で同じブックを開くと右にもタブがあり、右で足したページは右だけで開く", async ({ page }) => {

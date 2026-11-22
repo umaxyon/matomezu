@@ -5,9 +5,11 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
+	"github.com/umaxyon/matomezu/internal/aiwire"
 	"github.com/umaxyon/matomezu/internal/home"
 )
 
@@ -110,3 +112,28 @@ func TestReconnectFailureIsReported(t *testing.T) {
 }
 
 // 待つアノテーションは、ブックごとの見出しの下に 1 件 1 行（ページ・種類・id・1 行）で書き、中身の全文は書かない。1 行の無い物は種類と id だけ、ページの無い物は no page。待つ物が無ければ何も書かない
+
+func TestOtherServerVersionIsToldOnce(t *testing.T) {
+	was := version
+	t.Cleanup(func() { version = was })
+	version = "1.1.0"
+	var calls int
+	s := fakeServer(t, "k", http.StatusOK, &calls)
+	s.Version = "1.2.0"
+	a := &httpAPI{s: s}
+	_, h, err := a.Get("api/ai/books", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	note, _ := url.QueryUnescape(h.Get(aiwire.NoticeHeader))
+	if !strings.Contains(note, "version 1.2.0") || !strings.Contains(note, "is 1.1.0") {
+		t.Fatalf("first answer: %q", note)
+	}
+	if _, h, _ := a.Get("api/ai/books", nil); h.Get(aiwire.NoticeHeader) != "" {
+		t.Fatalf("told again: %q", h.Get(aiwire.NoticeHeader))
+	}
+	s.Version = "1.1.0"
+	if _, h, _ := (&httpAPI{s: s}).Get("api/ai/books", nil); h.Get(aiwire.NoticeHeader) != "" {
+		t.Fatal("told when the versions are the same")
+	}
+}

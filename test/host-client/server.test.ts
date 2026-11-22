@@ -1140,3 +1140,53 @@ test("closeEvents は知らせのつながりを閉じる", async () => {
   server.host.closeEvents()
   expect(server.closed()).toBe(before + 1)
 })
+
+// 版 version・データの形 dataVersion の常駐から読んで作った store
+async function connectedTo(version: string, dataVersion: number) {
+  const server = fakeServer()
+  const loading = server.host.load()
+  server.emit("hello", { client: "c1", build: { version, dataVersion } })
+  const saved = await loading
+  const store = newStore({ books: [], saved: saved.saved, observe: bulk => server.host.observe(bulk) })
+  const stop = server.host.connect(store)
+  return { ...server, store, stop }
+}
+
+test("つなぎ直した常駐が同じ版なら、古い版の知らせを出さない", async () => {
+  const s = await connectedTo("1.0.0", 7)
+  s.fail()
+  s.emit("hello", { client: "c2", build: { version: "1.0.0", dataVersion: 7 } })
+  await flush()
+  expect(s.store.state.getState().staleBuild).toBeNull()
+})
+
+test("つなぎ直した常駐が版だけ違えば、古い版の知らせを出し、確かめられていないアクションは同じ版のときと同じく送り直す", async () => {
+  const s = await connectedTo("1.0.0", 7)
+  place(s.store)
+  await flush()
+  s.fail()
+  s.emit("hello", { client: "c2", build: { version: "1.0.1", dataVersion: 7 } })
+  await flush()
+  expect(s.store.state.getState().staleBuild).toEqual({
+    from: { version: "1.0.0", dataVersion: 7 },
+    to: { version: "1.0.1", dataVersion: 7 },
+    dropped: 0,
+  })
+  expect(s.reads()).toBe(2)
+  expect(s.performs().map(p => p.client)).toEqual(["c1", "c2"])
+})
+
+test("つなぎ直した常駐がデータの形も違えば、確かめられていないアクションを送らずに捨ててその数を知らせ、読み直さない", async () => {
+  const s = await connectedTo("1.0.0", 7)
+  place(s.store)
+  await flush()
+  s.fail()
+  s.emit("hello", { client: "c2", build: { version: "1.0.1", dataVersion: 8 } })
+  await flush()
+  expect(s.store.state.getState().staleBuild?.dropped).toBe(1)
+  expect(s.reads()).toBe(1)
+  expect(s.performs().map(p => p.client)).toEqual(["c1"])
+  // 読み込み直すまで、新しいアクションは断り、アクションでない書き込みの頼みも送らない
+  expect(place(s.store)).toMatchObject({ ok: false, kind: "stale-build" })
+  expect(await s.host.removeScreenPlugins(["ex2"])).toEqual({ state: "unreachable" })
+})

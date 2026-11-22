@@ -40,7 +40,11 @@ func (h *Hub) Join() *client {
 	c := &client{id: fmt.Sprintf("c%d", h.next), ch: make(chan event, clientBuffer), focused: h.ticks}
 	h.clients[c.id] = c
 	fmt.Fprintln(os.Stderr, stamp(), "window", c.id, "joined")
-	h.send(c, "hello", map[string]any{"client": c.id})
+	hello := map[string]any{"client": c.id}
+	if h.build != nil {
+		hello["build"] = h.build
+	}
+	h.send(c, "hello", hello)
 	return c
 }
 

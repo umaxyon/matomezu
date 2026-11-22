@@ -7,7 +7,8 @@ import { useLayout, useUiCatalog } from "../../../ui/store-context"
 import { SideTabs } from "../utils/SideTabs"
 import { SETTINGS_CATEGORIES } from "./settings-screen"
 
-export function SettingsScreen() {
+// initial は、初めに選んでおく設定カテゴリのウィジェットの id（無ければ先頭）
+export function SettingsScreen({ initial }: { initial?: string } = {}) {
   const t = useT() // 題名はほかのプラグインの文言の鍵でもある
   const widgets = useUiCatalog().widgets
   const categories = (useLayout().slots[SETTINGS_CATEGORIES] ?? []).flatMap(id => {
@@ -15,7 +16,7 @@ export function SettingsScreen() {
     const View = def?.view as (() => ReactNode) | undefined
     return def?.settingsCategory && View ? [{ id, title: t(def.settingsCategory.title), View }] : []
   })
-  const [current, setCurrent] = useState<string | undefined>(undefined)
+  const [current, setCurrent] = useState<string | undefined>(initial)
   const shown = categories.find(s => s.id === current) ?? categories[0]
   return (
     <SideTabs tabs={categories} selected={shown?.id} onSelect={setCurrent}>

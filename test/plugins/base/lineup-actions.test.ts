@@ -4,7 +4,8 @@ import { describe, expect, test } from "bun:test"
 import { USER } from "../../../web/src/core/actor"
 import { findBinder, findPage, lineupOf, pagesIn, pagesOf, putPage } from "../../../web/src/core/book"
 import { checkCoreCatalog } from "../../../web/src/core/core-catalog-check"
-import { bookOf, tablesOf } from "../../../web/src/core/folders-books"
+import { HOME_ID } from "../../../web/src/core/folders"
+import { bookOf } from "../../../web/src/core/folders-books"
 import { perform } from "../../../web/src/core/perform"
 import type { ItemPage } from "../../../web/src/core/placed"
 import type { Book } from "../../../web/src/core/schema/book"
@@ -17,7 +18,7 @@ import {
 } from "../../../web/src/plugins/base/pages/binders"
 import { PAGE_ADD } from "../../../web/src/plugins/base/pages/page-add"
 import { DRAWING, drawingPage, MARKDOWN, SLIDE, testBinder, testBook, testPage, withSlide } from "../../lineup"
-import { BUILTIN_PARTS, CORE_CATALOG, NAMING, sequence } from "../../support"
+import { BUILTIN_PARTS, CORE_CATALOG, libraryWith, NAMING, sequence } from "../../support"
 
 const ctx = () => ({
   catalog: CORE_CATALOG,
@@ -119,12 +120,33 @@ describe("pages-update", () => {
   })
 })
 
+test("book-create の at が first（既定）なら、書庫ホームでは先頭に並ぶシステムフォルダの後に置く", () => {
+  const base = libraryWith([testBook("b1", "B1", [])])
+  const docs = { folderRole: "folder", id: "docs", systemFolder: "@matomezu/base:documents", lineup: [] } as const
+  const home = base.folders[HOME_ID]!
+  const library = {
+    ...base,
+    folders: {
+      ...base.folders,
+      docs,
+      [HOME_ID]: { ...home, lineup: [{ kind: "folder", id: "docs" }, ...home.lineup] },
+    },
+  } as typeof base
+  const made = perform(library, "@matomezu/base:book-create", { title: "新しい" }, ctx())
+  expect(made.ok && made.next.folders[HOME_ID]?.lineup.map(r => r.id)).toEqual(["docs", "n1", "b1"])
+})
+
 test("book-create は、名前だけの空のブックか、最初のページと一緒に作る", () => {
-  const made = perform(tablesOf([]), "@matomezu/base:book-create", { title: "新しい", page: { type: DRAWING } }, ctx())
+  const made = perform(
+    libraryWith([]),
+    "@matomezu/base:book-create",
+    { title: "新しい", page: { type: DRAWING } },
+    ctx(),
+  )
   expect(made).toMatchObject({ ok: true, result: { book: "n1", page: { page: "n2" } } })
   expect(made.ok && pagesOf(bookOf(made.next, "n1")!).map(p => [p.id, p.type])).toEqual([["n2", DRAWING]])
   // 最初のページを作れなければ、ブックも作らない
-  expect(perform(tablesOf([]), "@matomezu/base:book-create", { title: "x", page: { type: SLIDE } }, ctx()).ok).toBe(
+  expect(perform(libraryWith([]), "@matomezu/base:book-create", { title: "x", page: { type: SLIDE } }, ctx()).ok).toBe(
     false,
   )
 })

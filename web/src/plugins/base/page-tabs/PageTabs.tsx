@@ -2,8 +2,9 @@
 // 押したページをそのステージで開く（コマンド page-open）。バインダのタブを押すと、そのバインダを開く（コマンド binder-open）。＋でタイプを選んでページを作る（AddPageMenu.tsx）。
 // ロック中のページのタブには鍵の印を出す（押せない。外すのはページの設定のダイアログ）。
 // タブが横にあふれているときは、ホイールの縦の回転で横にスクロールする。
+// 選ばれたタブ（ブックかタブが替わったとき）と、並びが出たときは、選ばれたタブが見える所まで並びを送る（どの道で開いても同じ）。
 // タブはドラッグで並べ替えられる（useTabDrag。アクション page-move・binder-move）。掴んだタブは元の所で薄くなり、写しがポインタに付き、落とす所に線が出る
-import { useRef } from "react"
+import { useLayoutEffect, useRef } from "react"
 import { lineupOf } from "../../../core/book"
 import type { LineupEntry } from "../../../core/schema/book"
 import { binderOf, openedBook, shownPageId, shownType } from "../../../core/stage"
@@ -34,6 +35,17 @@ function sideways(el: HTMLElement | null): (() => void) | undefined {
   return () => el.removeEventListener("wheel", onWheel)
 }
 
+// 並びの中の選ばれたタブ（鍵の印を含む枠）がはみ出していたら、はみ出した分だけ並びを横に送る。
+// scrollIntoView は上の要素のスクロールまで動かすので使わない
+function reveal(el: HTMLElement | null): void {
+  const slot = el?.querySelector('[role="tab"][aria-selected="true"]')?.parentElement
+  if (!el || !slot) return
+  const box = el.getBoundingClientRect()
+  const tab = slot.getBoundingClientRect()
+  if (tab.left < box.left) el.scrollLeft -= box.left - tab.left
+  else if (tab.right > box.right) el.scrollLeft += Math.min(tab.right - box.right, tab.left - box.left)
+}
+
 // エントリ 1 つのタイプ（ページはそのタイプ、バインダは入れるページのタイプ）
 const typeOf = (e: LineupEntry): string => (e.kind === "page" ? e.type : e.pageType)
 
@@ -54,11 +66,14 @@ export function PageTabs() {
     "x",
     new Set(lineup.flatMap(e => (e.kind === "binder" ? [e.id] : []))),
   )
+  const shown = shownPageId(opened ?? null)
+  const binder = book ? binderOf(book, opened ?? null) : null
+  const selected = book && openPage.enabled ? `${book.id}/${binder ?? shown}` : null
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 選ばれたタブが替わったときと並びが出たときだけ送る（同じバインダの中でページを替えても、手で送った位置は戻さない）
+  useLayoutEffect(() => reveal(list.current), [selected])
   if (!book || !openPage.enabled) return <div className={styles.tabs} data-page-tabs />
   const { drag } = tabDrag
   const grabbed = drag && lineup.find(e => e.id === drag.id)
-  const shown = shownPageId(opened ?? null)
-  const binder = binderOf(book, opened ?? null)
   return (
     <div
       className={styles.tabs}

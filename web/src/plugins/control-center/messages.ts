@@ -4,6 +4,7 @@ import { defineMessages } from "../../plugin-api"
 export const CONTROL_CENTER_MESSAGES = defineMessages({
   "Control center": { en: "Control center", ja: "コントロールセンター" },
   "Global settings": { en: "Global settings", ja: "全体設定" },
+  "An update is available": { en: "An update is available", ja: "更新があります" },
   You: { en: "You", ja: "あなた" },
   Mailbox: { en: "Mailbox", ja: "郵便" },
   Library: { en: "Library", ja: "書庫" },

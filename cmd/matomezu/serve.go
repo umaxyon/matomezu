@@ -82,6 +82,7 @@ func (c *serveCmd) Run() error {
 		return err
 	}
 	defer lock.Unlock()
+	go pruneBins()
 
 	webFS, err := screen(c.Web)
 	if err != nil {
@@ -99,6 +100,19 @@ func (c *serveCmd) Run() error {
 	hub, err := server.NewHub(store, eng)
 	if err != nil {
 		return err
+	}
+	hub.SetBuild(server.Build{Version: version, DataVersion: storage.DataVersion()})
+	// 新しい版を、立ったときと 1 日ごとに確かめる（利用者の設定が許せば。開発の版は確かめない）
+	if version == devVersion {
+		hub.SetUpdateCheck(version, nil)
+	} else {
+		hub.SetUpdateCheck(version, latestFor(version))
+		go func() {
+			hub.CheckUpdateIfOn(context.Background())
+			for range time.Tick(updateCheckEvery) {
+				hub.CheckUpdateIfOn(context.Background())
+			}
+		}()
 	}
 	// 期限の過ぎたアノテーションを、時間で消す
 	go func() {
@@ -219,13 +233,18 @@ func (c *startCmd) Run() error {
 // ensure は、立っている常駐のつなぎ方を返す。立っていなければ f で裏に立て、答えるまで待つ。
 // f がポートを選んでいて、立っている常駐が別のポートで待っていれば断る（止めて立て直すと、開いている画面と AI のつながりが切れる）
 func ensure(h *home.Home, f serverFlags) (*home.Server, error) {
-	if s, err := running(h); err != nil || s != nil {
+	if s, err := running(h); err == nil && s != nil && olderServer(s.Version) {
+		// 今入っている版より古い常駐は、止めて今の版で立て直す（古くする向きには入れ替えない）
+		if err := stopServer(h, s); err != nil {
+			return nil, err
+		}
+	} else if err != nil || s != nil {
 		if err == nil && f.Port != nil && *f.Port != 0 && serverPort(s) != *f.Port {
 			return nil, fmt.Errorf("the server of %s is running at %s: stop it first (matomezu stop) to use port %d", h.Dir, s.URL, *f.Port)
 		}
 		return s, err
 	}
-	exe, err := os.Executable()
+	exe, err := serveExe()
 	if err != nil {
 		return nil, err
 	}
@@ -268,6 +287,67 @@ func ensure(h *home.Home, f serverFlags) (*home.Server, error) {
 			return s, nil
 		}
 	}
+}
+
+// serveExe は、常駐を立てる実行ファイル: 配る版は、npm の入口が書いた今入っている版の印の物（古い版の会話が立て直しても、新しい版で立つ）。
+// 印が無い・その物が無い・開発の版は、自分
+func serveExe() (string, error) {
+	if exe, _, ok := installed(); ok {
+		return exe, nil
+	}
+	return os.Executable()
+}
+
+// installedVersion は、今入っている版: 配る版は npm の入口が書いた印の版（その実行ファイルがあるとき）、無ければ自分
+func installedVersion() string {
+	if _, v, ok := installed(); ok {
+		return v
+	}
+	return version
+}
+
+// installed は、配る版のとき、npm の入口が書いた印の実行ファイルと版（その実行ファイルがあるときだけ ok）
+func installed() (exe, v string, ok bool) {
+	if version == devVersion {
+		return "", "", false
+	}
+	dir, err := home.BinDir()
+	if err != nil {
+		return "", "", false
+	}
+	in, _ := home.ReadInstalled(dir)
+	if in == nil {
+		return "", "", false
+	}
+	if _, err := os.Stat(in.Exe); err != nil {
+		return "", "", false
+	}
+	return in.Exe, in.Version, true
+}
+
+// olderServer は、立っている常駐の版 running が、今入っている版より古いか（開発の版どうしは比べない）
+func olderServer(running string) bool {
+	now := installedVersion()
+	if now == devVersion || running == devVersion {
+		return false
+	}
+	return versionLess(running, now)
+}
+
+// pruneBins は、配る版の常駐が立つときに、写した実行ファイルの古い版を消す（今入っている版・自分の版と、それ以外で一番新しく写した版は残す）
+func pruneBins() {
+	if version == devVersion {
+		return
+	}
+	dir, err := home.BinDir()
+	if err != nil {
+		return
+	}
+	keep := []string{version}
+	if in, _ := home.ReadInstalled(dir); in != nil {
+		keep = append(keep, in.Version)
+	}
+	home.PruneBins(dir, keep...)
 }
 
 // listenPort は、常駐が待つポート: 選んだ物 chosen（nil は選んでいない）、無ければ保管庫が覚えた物、無ければ既定（開発の保管庫 .dev-home は devPort、ほかは DefaultPort）
@@ -344,6 +424,11 @@ func (c *stopCmd) Run() error {
 		return nil
 	}
 	fmt.Fprintln(os.Stderr, "stopping the server of", h.Dir)
+	return stopServer(h, s)
+}
+
+// stopServer は、立っている常駐 s を止め、止まるまで待つ
+func stopServer(h *home.Home, s *home.Server) error {
 	if _, err := call(s, http.MethodPost, "api/stop"); err != nil {
 		return err
 	}
