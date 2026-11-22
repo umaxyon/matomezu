@@ -119,7 +119,7 @@ export function createUnseenChanges(deps: {
     }
   }
   // 見えているスクリーンが、今見せているフォルダ: スクリーンの定義が今見せていると答えた書庫アピアランス（libraryAppearances に並べた物だけ）に、見せているフォルダを聞く。
-  // どちらも、聞かれたスクリーンの、持ち主のプラグイン状態だけを読む
+  // どちらも、聞かれたスクリーンの、持ち主のプラグイン状態だけを読む（書庫アピアランスは、readsSubjects に書いた種類のレコードも読む）
   const foldersShownNow = (): ReadonlySet<string> => {
     const catalog = deps.catalog()
     const { window: win, pluginValues, folders, records } = getState()

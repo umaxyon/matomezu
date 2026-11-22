@@ -82,9 +82,9 @@ const openScreenOf = (s: OpenedScreen): OpenScreen => ({
 const openScreensOf = (win: WindowState): readonly OpenScreen[] =>
   win.order.flatMap(id => win.screens.filter(s => s.id === id).map(openScreenOf))
 
-// コマンド command を at（ステージの id か、開いているスクリーンの id。どちらでもなければ、スクリーンの外から呼んだ物としてカレントスクリーン）から
 const NO_SUBJECTS: readonly string[] = []
 
+// コマンド command を at（ステージの id か、開いているスクリーンの id。どちらでもなければ、スクリーンの外から呼んだ物としてカレントスクリーン）から
 // 呼んだときの、スクリーンから呼ぶコマンドの文脈。reads は、コマンドの定義が readsSubjects に書いた、読むレコードの種類。プラグイン状態は、コマンドを持つプラグインの宣言だけを読める
 export function screenCommandContext(
   catalog: CoreCatalog,
