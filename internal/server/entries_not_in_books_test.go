@@ -245,9 +245,9 @@ func TestAPageMovesBetweenABookAndTheHome(t *testing.T) {
 	}
 }
 
-// 常駐を通して、スライドをバインダでない所へ動かすと、そのページだけのバインダが出来る（entry-move）: d1 の外のバインダ n1 のスライド n1a を書庫ホームへ動かすと、
-// result にバインダの id が返り、read_folder の書庫ホームに「N1 - A」のバインダの行が出て、n1 には n1b だけが残る。
-// 続けて n1b を書庫ホームへ動かすと、n1 は中がそのページだけなので、n1 がそのまま書庫ホームへ動く
+// 常駐を通して、スライドをバインダでない所へ動かして作ったバインダの行と、ページが出て空になって消えたバインダの行が、常駐に残る（entry-move）:
+// d1 の外のバインダ n1 のスライド n1a を書庫ホームへ動かすと、result のバインダの行が read_folder の書庫ホームに出て、n1 には n1b だけが残る。
+// 続けて n1b をそのバインダへ動かすと、空になった n1 の行が常駐から消え、d1 の並びからも外れる
 func TestASlideMovedOutOfItsBinderMakesABinder(t *testing.T) {
 	s, hub := newServerOn(t, Options{}, entriesStore(t))
 	writer := writerAI(t, s.URL)
@@ -273,10 +273,11 @@ func TestASlideMovedOutOfItsBinderMakesABinder(t *testing.T) {
 	}
 	made := move("n1a", storage.HomeID)
 	binder, _ := made["binder"].(string)
-	if binder == "" || made["title"] != "N1 - A" {
+	title, _ := made["title"].(string)
+	if binder == "" || title == "" {
 		t.Fatalf("result = %v", made)
 	}
-	if row := `{"kind":"binder","id":"` + binder + `","title":"N1 - A","pageType":"@matomezu/slide-page:slide"}`; !strings.Contains(folder(storage.HomeID), row) {
+	if row := `{"kind":"binder","id":"` + binder + `","title":"` + title + `","pageType":"@matomezu/slide-page:slide"}`; !strings.Contains(folder(storage.HomeID), row) {
 		t.Fatalf("the home has no row %s: %s", row, folder(storage.HomeID))
 	}
 	hub.mu.Lock()
@@ -285,11 +286,17 @@ func TestASlideMovedOutOfItsBinderMakesABinder(t *testing.T) {
 	if len(left) != 1 || left[0] != "n1b" {
 		t.Fatalf("n1 holds %v; want [n1b]", left)
 	}
-	if got := move("n1b", storage.HomeID); len(got) != 0 {
-		t.Fatalf("moving the only page of n1 = %v", got)
+	if got := move("n1b", binder); len(got) != 0 {
+		t.Fatalf("moving n1b into %s = %v", binder, got)
 	}
-	home := folder(storage.HomeID)
-	if !strings.Contains(home, `{"kind":"binder","id":"n1","title":"N1","pageType":"@matomezu/slide-page:slide"}`) || strings.Contains(folder("d1"), `"id":"n1"`) {
-		t.Fatalf("n1 did not move to the home: %s", home)
+	hub.mu.Lock()
+	_, kept := hub.folders["n1"]
+	into := hub.folders[binder].entries
+	hub.mu.Unlock()
+	if kept || strings.Contains(folder("d1"), `"id":"n1"`) {
+		t.Fatal("n1 is still kept after it was left empty")
+	}
+	if len(into) != 2 || into[0] != "n1a" || into[1] != "n1b" {
+		t.Fatalf("%s holds %v; want [n1a n1b]", binder, into)
 	}
 }

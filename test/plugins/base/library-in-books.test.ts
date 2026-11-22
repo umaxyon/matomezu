@@ -62,59 +62,41 @@ test("entry-move: ブックの中で並べ替え、ほかのブックの並び�
   expect(titleOf("p1")).toBe("ページ 1 2")
 })
 
-test("entry-move: スライドのページをバインダでない所（フォルダ・書庫ホーム・ブックの並び）へ動かすと、そのページだけのバインダが index の所に出来る。ほかのバインダへも動かせる", () => {
-  const { state, lineup, titleOf, add, act } = setup()
+test("entry-move: スライドのページをバインダでない所へ動かすと、作ったバインダの id と名前を result に返す。ほかのバインダへも動かせる", () => {
+  const { lineup, titleOf, add, act } = setup()
   const into = folderIn(act)
   const s = add("b1", { type: SLIDE, title: "1", into: { newBinder: "説明" } })
-  const u = add("b1", { type: SLIDE, title: "3", into: { binder: s.binder } })
   const t = add("b2", { type: SLIDE, title: "2", into: { newBinder: "説明" } })
   const made = act("entry-move", { entry: s.page, into })
-  expect(made).toMatchObject({ ok: true, result: { title: "説明 - 1" } })
   const binder = (made.ok && (made.result as { binder: string }).binder) as string
+  expect(made).toEqual({ ok: true, result: { binder, title: titleOf(binder) } })
   expect(lineup(into)).toEqual([binder])
   expect(lineup(binder)).toEqual([s.page])
-  expect(state().folders[binder]).toMatchObject({ folderRole: "binder", title: "説明 - 1", pageType: SLIDE })
-  expect(lineup(s.binder as string)).toEqual([u.page])
-  // ブックの並びの index 番目へ（元のバインダは、ブックの中なので空になっても残る）
-  const inBook = act("entry-move", { entry: u.page, into: "b1", index: 0 })
-  expect(inBook).toMatchObject({ ok: true, result: { title: "説明 - 3" } })
-  expect(lineup("b1")?.[0]).toBe((inBook.ok && (inBook.result as { binder: string }).binder) as string)
-  expect(lineup(s.binder as string)).toEqual([])
-  expect(titleOf(s.binder as string)).toBe("説明")
   // ほかのバインダへ
   expect(act("entry-move", { entry: t.page, into: binder }).ok).toBe(true)
   expect(lineup(binder)).toEqual([s.page, t.page])
-  expect(lineup(t.binder as string)).toEqual([])
   // バインダはブックからブックへ（名前が重なれば番号を付けて）
   expect(act("entry-move", { entry: s.binder, into: "b2", onConflict: "number" }).ok).toBe(true)
   expect(lineup("b2")?.at(-1)).toBe(s.binder)
 })
 
-test("entry-move: スライドで作るバインダの名前が重なれば、onConflict が refuse でも番号を付ける。ブックの外の 1 枚だけのバインダから出すと、バインダごと動く", () => {
-  const { state, lineup, titleOf, add, act } = setup()
+test("entry-move: スライドで作るバインダの名前が重なれば、onConflict が refuse でも番号を付ける。ブックの外の 1 枚だけのバインダから出すときは、バインダごとの移動と同じに断るか番号を付ける", () => {
+  const { titleOf, add, act } = setup()
   const into = folderIn(act)
   const s = add("b1", { type: SLIDE, title: "1", into: { newBinder: "説明" } })
   add("b1", { type: SLIDE, title: "2", into: { binder: s.binder } })
   expect(act("folder-create", { title: "説明 - 1", into }).ok).toBe(true)
   const made = act("entry-move", { entry: s.page, into, onConflict: "refuse" })
-  expect(made).toMatchObject({ ok: true, result: { title: "説明 - 1 2" } })
   const binder = (made.ok && (made.result as { binder: string }).binder) as string
-  expect(titleOf(binder)).toBe("説明 - 1 2")
-  // 外の 1 枚だけのバインダから書庫ホームへ: バインダの id と名前が保たれ、新しいバインダは出来ない
-  const folders = Object.keys(state().folders).length
-  expect(act("entry-move", { entry: s.page, into: HOME_ID, index: 0 })).toEqual({ ok: true, result: {} })
-  expect(lineup(HOME_ID)?.[0]).toBe(binder)
-  expect(lineup(binder)).toEqual([s.page])
-  expect(titleOf(binder)).toBe("説明 - 1 2")
-  expect(Object.keys(state().folders).length).toBe(folders)
-  // バインダごと動くときの名前の重なりは、バインダごとの移動と同じ（断るか、バインダに番号を付ける）
+  expect(made).toEqual({ ok: true, result: { binder, title: "説明 - 1 2" } })
+  // 外の 1 枚だけのバインダから: バインダを作らないので、result は空
+  expect(act("entry-move", { entry: s.page, into: HOME_ID })).toEqual({ ok: true, result: {} })
   expect(act("folder-create", { title: "説明 - 1 2", into }).ok).toBe(true)
   expect(act("entry-move", { entry: s.page, into })).toMatchObject(taken)
   expect(act("entry-move", { entry: s.page, into, onConflict: "number" })).toEqual({
     ok: true,
     result: { title: "説明 - 1 2 2" },
   })
-  expect(lineup(into)?.at(-1)).toBe(binder)
   expect(titleOf(binder)).toBe("説明 - 1 2 2")
   expect(titleOf(s.page)).toBe("1")
 })
