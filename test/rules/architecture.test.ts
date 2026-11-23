@@ -388,8 +388,8 @@ test("Go の常駐の入口（server.go の mux.Handle）は、auth・ai・scree
   expect(bad).toEqual([])
 })
 
-// ホストどうしの入口は、ペアリングしたホストだけ（peer.Pinned）か、鍵を知らない相手も通すペアリングの頼み（peer.Unpinned）。Unpinned はペアリングの頼みの 1 つだけ
-test("Go のホストどうしの入口（hosts_routes.go の mux.Handle）は、peer.Pinned か peer.Unpinned で包み、Unpinned はペアリングの頼みだけ", () => {
+// ホストどうしの入口は、鍵を覚えたホストだけを通す（peer.Pinned）か、鍵を知らない相手も通す（peer.Unpinned）。Unpinned は初めてつなぐときの頼みの口 1 つだけ
+test("Go のホストどうしの入口（hosts_routes.go の mux.Handle）は、peer.Pinned か peer.Unpinned で包み、Unpinned は初めてつなぐときの頼みの口だけ", () => {
   const text = readFileSync(join(ROOT, "internal/server/hosts_routes.go"), "utf8")
   const routes = [...text.matchAll(/mux\.Handle(?:Func)?\("([^"]*)",\s*(.*)$/gm)].map(m => ({
     path: m[1]!,
