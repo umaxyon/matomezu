@@ -133,9 +133,9 @@ export function useOwnBookPages(room: string): number {
   return useMatomezuState(s => ownBookPagesOf(s.folders, room))
 }
 
-// workKey が key のワーカーブック（tickets-history の中の実のブック）と、その中のページ（まだ無ければ NO_WORKER_BOOK）。ページが足されると描き直す
 const NO_PAGES: readonly string[] = []
 
+// workKey が key のワーカーブック（tickets-history の中の実のブック）と、その中のページ（まだ無ければ NO_WORKER_BOOK）。ページが足されると描き直す
 export function useWorkerBook(key: WorkKey): FoundWorkerBook | typeof NO_WORKER_BOOK {
   // ブックとページの並びを分けて読む（並びは中身で比べる）
   const book = useMatomezuState(s => {
