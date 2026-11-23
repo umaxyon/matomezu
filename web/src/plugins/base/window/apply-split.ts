@@ -1,11 +1,11 @@
-// 上下に分けた並びの変わりを行う（useScreenSplit の applySplit と、状態を読めない base のコマンドが通る、ただ 1 つの道）と、ブックを分けて窓に出す（showBookSplit）
+// 上下に分けた並びの変わりを行う（useScreenSplit の applySplit と、base のコマンドが通る、ただ 1 つの道）と、ブックを分けて窓に出す（showBookSplit）
 import { type OpenedScreen, screenOfStage, type WindowState } from "../../../core/window"
 import type { Actions } from "../../../store/actions"
 import { NO_STAGE } from "../../../store/dialogs"
 import { ONE_SCREEN } from "./one-screen"
 import { behindOf, bookSplitWay, planOpen, SPLIT_ROWS, type SplitPlan, shownSplit } from "./split"
 
-// 並びの変わり plan を行う（useScreenSplit の applySplit の中身。状態を読めないコマンドからも呼ぶ）: screens は変わる前に開いているスクリーン、value は変わる前の上下に分ける値（分けていなければ undefined）。
+// 並びの変わり plan を行う（useScreenSplit の applySplit の中身。base のコマンドからも呼ぶ）: screens は変わる前に開いているスクリーン、value は変わる前の上下に分ける値（分けていなければ undefined）。
 // openAfter は、外れた物を閉じたあとに開いているスクリーン（渡さなければ、閉じた物がみな閉じたとみなす）
 export function applySplitFrom(
   actions: Pick<Actions, "closeScreen" | "setScreenArrangement">,
