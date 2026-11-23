@@ -245,7 +245,7 @@ for (const n of MARKDOWN_LINES) {
     // 本文のあるページはプレビューだけで開くので、左右に並べてから（並べ方が画面の場所に入る）開き直すまでを測る
     await page.goto(one(id))
     await page.getByRole("toolbar", { name: "ペイン" }).getByRole("button", { name: "左右に並べる" }).click()
-    await expect(page).toHaveURL(/s0=/)
+    await expect(page).toHaveURL(/pane-layout/)
     const started = Date.now()
     await page.reload()
     const field = page.getByRole("region", { name: "ソース" }).getByRole("textbox")
