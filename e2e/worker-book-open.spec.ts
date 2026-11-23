@@ -1,6 +1,6 @@
-// ワーカーブックを開く口: 参加者一覧の行の、本を頭に付けたチケット番号の行と、書庫のワーカーブックの行と、チケットのナレッジの作業履歴。
+// ワーカーブックを開く口: 参加者一覧の行の、本を頭に付けたチケット番号の行と、書庫のワーカーブックの行と、チケットのナレッジの作業ブック。
 // ページが無い間は押せない。番号の行はクリックで「開く／分割で開く」を出し、分割で開くとコントロールセンターの下にブックスクリーンが入る。ダブルクリックは全画面で開く。
-// 窓が低いと、番号の行のクリックで全画面で開く。書庫の行はクリックで 2 択を出す。作業履歴はクリックで右にページの一覧を出し、ダブルクリックで全画面で開く
+// 窓が低いと、番号の行のクリックで全画面で開く。書庫の行はクリックで 2 択を出す。作業ブックはクリックで右にページの一覧を出し、もう一度のクリックで閉じ、ダブルクリックで全画面で開く
 import { aiAuth, CONTROL_CENTER_URL, expect, type Page, test } from "./fixtures"
 import { aiPerform } from "./helpers/ai"
 
@@ -54,7 +54,7 @@ const ticketUrl = (ticket: string) =>
     }),
   )}`
 
-test("チケットのワーカーブックは、ページが足されると参加者一覧の番号の行と作業履歴から開ける", async ({ page }) => {
+test("チケットのワーカーブックは、ページが足されると参加者一覧の番号の行と作業ブックから開ける", async ({ page }) => {
   await page.goto(CONTROL_CENTER_URL)
   const made = await perform(page, "@matomezu/taskboard:project-add", { prefix: "W-" })
   const added = await perform(page, "@matomezu/taskboard:ticket-add", {
@@ -96,20 +96,24 @@ test("チケットのワーカーブックは、ページが足されると参�
   await settled(page)
   await page.screenshot({ path: "test-results/worker-book-split.png" })
 
-  // チケットのナレッジの作業履歴: クリックで右にページの一覧、ダブルクリックで全画面で開く
+  // チケットのナレッジの作業ブック: クリックで右にページの一覧、ダブルクリックで全画面で開く
   await page.goto(ticketUrl(ticket))
-  const history = page.locator("[data-work-history]")
+  const history = page.locator("[data-work-book]")
   await expect(history).toBeEnabled()
   await history.click()
-  const list = page.getByRole("region", { name: "作業履歴" })
+  const list = page.getByRole("region", { name: "作業ブック" })
   await expect(list.locator("[data-worker-page]")).toHaveText("作業のメモ")
   await settled(page)
   await page.screenshot({ path: "test-results/worker-book-history.png" })
   await list.locator("[data-worker-page]").click()
   await expect(page.getByRole("menuitem", { name: "開く", exact: true })).toBeVisible()
   await page.keyboard.press("Escape")
+  // 作業ブックの欄に閉じるは無く、アイコンをもう一度押すと閉じる
+  await expect(list.getByRole("button", { name: "閉じる" })).toHaveCount(0)
+  await history.click()
+  await expect(list).toHaveAttribute("data-open", "false")
   await history.dblclick()
-  await expect(page.locator("[data-work-history]")).toBeHidden()
+  await expect(page.locator("[data-work-book]")).toBeHidden()
   await expect(page.getByText("作業のメモ").first()).toBeVisible()
 })
 
