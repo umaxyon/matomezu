@@ -1,4 +1,4 @@
-// タスクボードのレーン 1 列: タイトル帯（左端に並べ方のボタン。押すと一覧。右端に最大化のボタン）と、並べ方のとおりに並べたチケットカード。
+// タスクボードのレーン 1 列: タイトル帯（左端に並べ方のボタン。押すと一覧。真ん中に名前と、プロジェクトの laneShows.count がオンなら「/ 数」。右端に最大化のボタン）と、並べ方のとおりに並べたチケットカード。
 // 最大化すると、このレーンだけでタスクボードの幅いっぱいに広がり、ほかのレーンは畳まれる。最大化・元に戻すで動いている間はチケットカードを隠し、動き終わってから、折り返す並びにして出す
 // （動いている間に折り返すと、高さが変わるたびにチケットカードが別の列へ移り直して、ちらつくため）
 import { useEffect, useRef, useState } from "react"
@@ -95,7 +95,10 @@ export function LaneView({
         >
           <SortIcon />
         </button>
-        {name}
+        <span>{name}</span>
+        {project.laneShows.count ? (
+          <span className={styles.count} data-lane-count>{` / ${tickets.length}`}</span>
+        ) : null}
         <button
           type="button"
           className={styles.max}
