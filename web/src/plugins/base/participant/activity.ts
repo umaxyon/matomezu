@@ -2,7 +2,7 @@
 // 参加者リストの並びと、AI のセッション名（作業中なら作業のレコードの名前を添える）と、ワーカーブック（作業中なら作業のレコードの物）に使う。
 // 作業のレコードの名前は、ワーカーブックの名前と書庫の検索の作業履歴にも使う
 // base は自分では決めず、対象の定義に書いた workroomWork に答えさせる（カレントワークを持つプラグインなど）。答える種類が無ければ unknown。
-// 作業のレコードの名前（番号と名前）は、そのレコードの種類の定義に書いた workName に答えさせる
+// 作業のレコードの名前（番号と名前）は、そのレコードの種類の定義に書いた workRecordName に答えさせる
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { WorkKey } from "../../../core/folders"
 import { type RecordReader, type RecordSource, readerOf, sourceOf } from "../../../core/record-source"
@@ -35,38 +35,40 @@ declare module "../../../core/catalog" {
     workroomWork?(workroom: string, read: RecordReader): WorkroomWork
     // workroomWork が読む種類（読む id が読んだ中身で決まるので、種類ごと宣言する）
     workroomWorkReads?: readonly string[]
-    // workroomWork が答える作業のレコードの種類（key の種類）。どれも completesWork と workName を持つ（台帳アセンブルが確かめる。E133）。
+    // workroomWork が答える作業のレコードの種類（key の種類）。どれも completesWork と workRecordName を持つ（台帳アセンブルが確かめる。E133）。
     // ここに無い種類を答えたら、その作業のワーカーブックは作らず、ワークルーム自身のブックを使う
     workroomWorkSubjects?: readonly string[]
     // 作業のレコード record の名前（workroomWorkSubjects に書かれた種類が書く）。読めない物があって決まらなければ undefined。
-    // read はレコードの読み口で、読めるのは workNameReads に書いた種類だけ（ほかは none と空）
-    workName?(record: unknown, read: RecordReader): WorkName | undefined
-    // workName が読む種類
-    workNameReads?: readonly string[]
+    // read はレコードの読み口で、読めるのは workRecordNameReads に書いた種類だけ（ほかは none と空）
+    workRecordName?(record: unknown, read: RecordReader): WorkRecordName | undefined
+    // workRecordName が読む種類
+    workRecordNameReads?: readonly string[]
   }
 }
 
 // 作業のレコードの名前: 短く呼ぶ名前 label（例: チケットの番号。ワーカーブックの名前になる）と、名前 name（例: チケットの名前）
-export interface WorkName {
+export interface WorkRecordName {
   label: string
   name: string
 }
 
 // 作業のレコードの名前を一続きにした題名（例「M-0177 名前」）
-export const workTitleOf = (name: WorkName): string => `${name.label} ${name.name}`
+export const workRecordTitleOf = (name: WorkRecordName): string => `${name.label} ${name.name}`
 
-// 機能台帳 catalog で、作業のレコードの名前を引くのに読む種類（workName を持つ種類と、その workNameReads）
-export const workNameReadsOf = (catalog: CoreCatalog): readonly string[] => [
-  ...new Set([...catalog.subjects.values()].flatMap(s => (s.workName ? [s.id, ...(s.workNameReads ?? [])] : []))),
+// 機能台帳 catalog で、作業のレコードの名前を引くのに読む種類（workRecordName を持つ種類と、その workRecordNameReads）
+export const workRecordNameReadsOf = (catalog: CoreCatalog): readonly string[] => [
+  ...new Set(
+    [...catalog.subjects.values()].flatMap(s => (s.workRecordName ? [s.id, ...(s.workRecordNameReads ?? [])] : [])),
+  ),
 ]
 
-// 読み口 read から、作業のレコード key の名前（種類が workName を持たない・レコードが無い・決まらなければ undefined）。
-// 種類には、その workNameReads の種類だけを読ませる
-export function workNameOf(catalog: CoreCatalog, read: RecordReader, key: WorkKey): WorkName | undefined {
+// 読み口 read から、作業のレコード key の名前（種類が workRecordName を持たない・レコードが無い・決まらなければ undefined）。
+// 種類には、その workRecordNameReads の種類だけを読ませる
+export function workRecordNameOf(catalog: CoreCatalog, read: RecordReader, key: WorkKey): WorkRecordName | undefined {
   const def = catalog.subjects.get(key.subject)
-  if (!def?.workName) return undefined
+  if (!def?.workRecordName) return undefined
   const record = read.record(key.subject, key.id)
-  return record === NO_RECORD ? undefined : def.workName(record, narrowed(read, def.workNameReads ?? []))
+  return record === NO_RECORD ? undefined : def.workRecordName(record, narrowed(read, def.workRecordNameReads ?? []))
 }
 
 // 機能台帳 catalog で、ワークルームの作業を答えるのに読む種類（どの種類の workroomWorkReads も合わせた物）

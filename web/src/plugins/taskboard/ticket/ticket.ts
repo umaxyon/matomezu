@@ -80,8 +80,8 @@ export const TICKET = kit.defineSubject({
   // 番号は、プロジェクトのプレフィクスを付けた見せ方（プロジェクトが読めなければプレフィクス無しの 4 桁）
   aiBrief: (t, ctx) => `${labelOf(t, ctx.record)} ${t.name} [${[t.lane, ...t.tags].join(", ")}]`,
   // 作業のレコードの名前: 短く呼ぶ名前は番号、名前はチケットの名前
-  workNameReads: [PROJECT.id],
-  workName: (record, read) => {
+  workRecordNameReads: [PROJECT.id],
+  workRecordName: (record, read) => {
     const t = record as TicketRecord
     return { label: labelOf(t, read.record), name: t.name }
   },

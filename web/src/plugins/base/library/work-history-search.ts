@@ -5,7 +5,7 @@ import type { CoreCatalog } from "../../../core/core-catalog"
 import { backyardBooksOf, type Naming, titleOf } from "../../../core/entries"
 import type { Library } from "../../../core/folders"
 import type { RecordReader } from "../../../core/record-source"
-import { type WorkName, workNameOf } from "../participant/activity"
+import { type WorkRecordName, workRecordNameOf } from "../participant/activity"
 import { TICKETS_HISTORY } from "./backyards"
 import { type LibraryRow, NO_TITLE, NO_TYPE, rowsIn } from "./outline"
 import { NO_DESKS } from "./workdesk-rows"
@@ -14,13 +14,13 @@ import { NO_DESKS } from "./workdesk-rows"
 // （ページの行とブックの行はその行、バインダの行は中の最初のページ。ページの無いバインダはそのバインダ）
 export interface WorkHistoryRow {
   row: LibraryRow
-  work: WorkName
+  work: WorkRecordName
   opens: LibraryRow
 }
 
 const NOTHING: readonly WorkHistoryRow[] = []
 
-// 書庫 library の作業履歴から、言葉 word（searchWord で整えた物。空なら探さない）を含む物。read は workNameReadsOf の種類を読める読み口。
+// 書庫 library の作業履歴から、言葉 word（searchWord で整えた物。空なら探さない）を含む物。read は workRecordNameReadsOf の種類を読める読み口。
 // 並びは、作業のレコードの短く呼ぶ名前の新しい順（数を数として比べた逆の順。例: M-10000 が M-9999 より先）。ブックの行の後に、その中の物を並びの順に
 export function workHistoryFoundOf(
   catalog: CoreCatalog,
@@ -32,7 +32,7 @@ export function workHistoryFoundOf(
   if (word === "") return NOTHING
   const has = (text: string) => text.toLocaleLowerCase().includes(word)
   const books = backyardBooksOf(library, TICKETS_HISTORY.id).flatMap(b => {
-    const work = workNameOf(catalog, read, b.workKey)
+    const work = workRecordNameOf(catalog, read, b.workKey)
     return work ? [{ book: b.id, work }] : []
   })
   books.sort((a, b) => b.work.label.localeCompare(a.work.label, undefined, { numeric: true }))

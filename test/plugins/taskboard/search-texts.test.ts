@@ -75,6 +75,6 @@ test("チケットの作業のレコードの名前: 短く呼ぶ名前はプレ
     updatedAt: "2026-01-01T00:00:00.000Z",
   })
   const read = (project: unknown) => ({ record: () => project, find: () => [] })
-  expect(TICKET.workName?.(ticket, read({ prefix: "M-" }))).toEqual({ label: "M-0012", name: "ログイン画面" })
-  expect(TICKET.workName?.(ticket, read("none"))).toEqual({ label: "0012", name: "ログイン画面" })
+  expect(TICKET.workRecordName?.(ticket, read({ prefix: "M-" }))).toEqual({ label: "M-0012", name: "ログイン画面" })
+  expect(TICKET.workRecordName?.(ticket, read("none"))).toEqual({ label: "0012", name: "ログイン画面" })
 })

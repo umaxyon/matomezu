@@ -9,7 +9,7 @@ import { useMessages } from "../../../ui/i18n"
 import { useResetPluginState, useSetPluginState } from "../../../ui/plugin-state-hooks"
 import { useCatalog } from "../../../ui/store-context"
 import { kit } from "../kit"
-import { workNameReadsOf, workTitleOf } from "../participant/activity"
+import { workRecordNameReadsOf, workRecordTitleOf } from "../participant/activity"
 import { LIBRARY_FOUND_SCOPE } from "./commands"
 import { outsideRow, useLibraryRows, useNameOf } from "./hooks"
 import { RowIcon } from "./icons"
@@ -46,7 +46,7 @@ export function FoundView({
   const workRows = useLibraryRows(`history:${query}`, (s, naming) =>
     workHistoryFoundOf(
       catalog,
-      readerOf(catalog, sourceOf(s.records), workNameReadsOf(catalog)),
+      readerOf(catalog, sourceOf(s.records), workRecordNameReadsOf(catalog)),
       s,
       searchWord(query),
       naming,
@@ -167,7 +167,7 @@ function WorkHistoryEntry({
           >
             <RowIcon row={row} className={styles.icon} />
             <span className={styles.label}>{isBook ? work.label : nameOf(row)}</span>
-            <span className={styles.place}>{isBook ? work.name : workTitleOf(work)}</span>
+            <span className={styles.place}>{isBook ? work.name : workRecordTitleOf(work)}</span>
           </button>
         </li>
       )}

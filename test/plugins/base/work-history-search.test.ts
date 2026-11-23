@@ -6,7 +6,7 @@ import { HOME_ID, type Library } from "../../../web/src/core/folders"
 import { readerOf, sourceOf } from "../../../web/src/core/record-source"
 import type { Records } from "../../../web/src/core/records"
 import { workHistoryFoundOf } from "../../../web/src/plugins/base/library/work-history-search"
-import { workNameReadsOf } from "../../../web/src/plugins/base/participant/activity"
+import { workRecordNameReadsOf } from "../../../web/src/plugins/base/participant/activity"
 import { roomKey, YARD } from "../../backyard"
 import { DRAWING, drawingPage, testBinder, testBook } from "../../lineup"
 import { CORE_CATALOG, libraryWith, NAMING } from "../../support"
@@ -19,8 +19,8 @@ const catalog = {
       "t",
       {
         id: "t",
-        workNameReads: ["p"],
-        workName: (r: { n: number; name: string }, read: { record(s: string, id: string): unknown }) => {
+        workRecordNameReads: ["p"],
+        workRecordName: (r: { n: number; name: string }, read: { record(s: string, id: string): unknown }) => {
           const p = read.record("p", "p1") as { prefix: string }
           return { label: `${p.prefix}${String(r.n).padStart(4, "0")}`, name: r.name }
         },
@@ -38,7 +38,7 @@ const records = {
   },
   p: { p1: { prefix: "M-" } },
 } as unknown as Records
-const read = readerOf(catalog, sourceOf(records), workNameReadsOf(catalog))
+const read = readerOf(catalog, sourceOf(records), workRecordNameReadsOf(catalog))
 
 // tickets-history に、t9 のブック b9（ページ「絵の案」と、バインダ「閉じる絵」の中のページ「動き」と、ページの無いバインダ「閉じる空き」）・
 // t12 のブック b12（ページ「閉じる」）・ワークルーム r1 自身のブック br（ページ「閉じる」）・t10000 と t9999 のブックを、作った順に置いた書庫

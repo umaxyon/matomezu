@@ -82,7 +82,7 @@ export const CURRENT_WORK = kit.defineSubject({
   aiBrief: w => w.ticket,
   workroomWorkReads: [CURRENT_WORK_ID, TICKET.id, PROJECT.id],
   workroomWorkSubjects: [TICKET.id],
-  // 参加者リストの並びとセッション名・作業の資料のブック: カレントチケットがあれば作業中で、レコードはチケット（名前はチケットの定義の workName）
+  // 参加者リストの並びとセッション名・作業の資料のブック: カレントチケットがあれば作業中で、レコードはチケット（名前はチケットの定義の workRecordName）
   workroomWork: (workroom, read) => {
     const current = currentTicketOf(
       workroom,

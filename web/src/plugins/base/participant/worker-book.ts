@@ -10,12 +10,12 @@ import { sameWorkKey, type WorkKey } from "../../../core/folders"
 import type { RecordReader } from "../../../core/record-source"
 import { kit } from "../kit"
 import { TICKETS_HISTORY } from "../library/backyards"
-import { workNameOf, workNameReadsOf, workroomWorkIn, workroomWorkReadsOf } from "./activity"
+import { workRecordNameOf, workRecordNameReadsOf, workroomWorkIn, workroomWorkReadsOf } from "./activity"
 import { WORKROOM } from "./workroom"
 
 // 機能台帳 catalog で、ワーカーブックを引くのに読む種類（ワークルームの作業を答える種類と作業のレコードの名前を引く種類が読む物と、ワークルーム）
 export const workerBookReadsOf = (catalog: CoreCatalog): readonly string[] => [
-  ...new Set([...workroomWorkReadsOf(catalog), ...workNameReadsOf(catalog), WORKROOM.id]),
+  ...new Set([...workroomWorkReadsOf(catalog), ...workRecordNameReadsOf(catalog), WORKROOM.id]),
 ]
 
 // 種類 subject の作業のレコードが、ワーカーブックを持てるか（ワークルームの作業を答える種類が workroomWorkSubjects に書き、completesWork を持つ）
@@ -32,7 +32,7 @@ export function workerBookOf(
 ): { workKey: WorkKey; title: string } {
   const work = workroomWorkIn(catalog, read, workroom)
   if (work !== "unknown" && work.kind === "working" && ownsWorkerBook(catalog, work.key.subject))
-    return { workKey: work.key, title: workNameOf(catalog, read, work.key)?.label ?? work.key.id }
+    return { workKey: work.key, title: workRecordNameOf(catalog, read, work.key)?.label ?? work.key.id }
   const room = read.record(WORKROOM.id, workroom) as { name?: unknown }
   return {
     workKey: { subject: WORKROOM.id, id: workroom },
