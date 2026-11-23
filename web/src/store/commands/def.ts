@@ -22,7 +22,7 @@ import type { RecordReader } from "../../core/record-source"
 import type { BinderEntry, Book } from "../../core/schema/book"
 import type { Settings } from "../../core/settings"
 import { NO_PAGE, NO_PAPER, NOTHING_OPENED, type Stage, shownPageId, toPaper } from "../../core/stage"
-import type { StageListed } from "../../core/window"
+import type { StageListed, WindowState } from "../../core/window"
 import type { StageView, Workspace } from "../../core/workspace"
 import type { Actions, BoundPlaceActions, ProbeActions, WindowActions } from "../actions"
 import type { NO_CONTEXT_MENU, OpenedContextMenu } from "../context-menus"
@@ -249,6 +249,11 @@ export type ResetPluginStateAt = (screen: string, def: PluginStateDef<unknown>) 
 export const givenScreenResets = new WeakMap<CommandActions, ResetPluginStateAt>()
 // コマンドが受け取った操作 a の、ほかのスクリーンの自分の宣言の値を消す操作（store がコマンドに渡した操作だけが持つ）
 export const resetPluginStateAtOf = (a: CommandActions): ResetPluginStateAt => givenScreenResets.get(a) ?? fail("E116")
+// コマンドに渡した操作ごとの、窓の今の値を読む口（プラグイン API には出さない。base のコマンドが windowNowOf で読む）
+export const givenWindowReads = new WeakMap<CommandActions, () => WindowState>()
+
+// コマンドが受け取った操作 a で、窓の今の値を読む口（操作で窓を変えた後の値も読める。store がコマンドに渡した操作だけが持つ）
+export const windowNowOf = (a: CommandActions): (() => WindowState) => givenWindowReads.get(a) ?? fail("E116")
 
 // コマンドが受け取った操作 a の、アクションを行わずに確かめる操作（store がコマンドに渡した操作だけが持つ。プラグイン API には出さない）
 export const tryPerformOf = (a: CommandActions): ProbeActions["tryPerform"] => storeActionsOf(a).tryPerform

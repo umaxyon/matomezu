@@ -16,6 +16,7 @@ export const LIBRARY_MESSAGES = defineMessages({
   "Move and replace": { en: "Move and replace", ja: "上書きして移動" },
   Rename: { en: "Rename", ja: "名前を変更" },
   Open: { en: "Open", ja: "開く" },
+  "Open split": { en: "Open split", ja: "分割で開く" },
   "Open library": { en: "Open library", ja: "書庫を開く" },
   "Close library": { en: "Close", ja: "閉じる" },
   "Expand library": { en: "Expand", ja: "広げる" },

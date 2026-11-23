@@ -145,13 +145,14 @@ export const DEFAULT_LAYOUT = defineLayout({
   },
   // 押した物にアンカーがあれば、どの右クリックのメニューにも末尾に出す
   anchorMenu: ["@matomezu/base:note-new", "@matomezu/base:mark-new"],
-  // 紙（何も無い所）の右クリックのメニューは、一番上にページ全体を収める・初めの位置に戻す・画面の分割（分割中は、右クリックしたステージを閉じる）を置き、区切り線で分ける
+  // 紙（何も無い所）の右クリックのメニューは、一番上にページ全体を収める・初めの位置に戻す・画面の分割（分割中は、右クリックしたステージを閉じる）・ブックスクリーンを閉じるを置き、区切り線で分ける
   contextMenus: {
     "@matomezu/paper:paper-context": [
       "@matomezu/base:zoom-fit",
       "@matomezu/base:zoom-reset",
       "@matomezu/base:stage-split",
       "@matomezu/base:stage-close",
+      "@matomezu/base:book-screen-close",
       "-",
       "@matomezu/paper:paper-paste-at",
       "-",
@@ -166,6 +167,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:zoom-reset",
       "@matomezu/base:stage-split",
       "@matomezu/base:stage-close",
+      "@matomezu/base:book-screen-close",
       "-",
       "@matomezu/base:scrap-cut",
       "@matomezu/base:page-settings",
@@ -183,6 +185,7 @@ export const DEFAULT_LAYOUT = defineLayout({
       "@matomezu/base:zoom-reset",
       "@matomezu/base:stage-split",
       "@matomezu/base:stage-close",
+      "@matomezu/base:book-screen-close",
       "-",
       "@matomezu/base:scrap-cut",
       "@matomezu/base:page-settings",
@@ -191,6 +194,7 @@ export const DEFAULT_LAYOUT = defineLayout({
     "@matomezu/markdown:pane-context": [
       "@matomezu/base:stage-split",
       "@matomezu/base:stage-close",
+      "@matomezu/base:book-screen-close",
       "-",
       "@matomezu/base:scrap-cut",
       "@matomezu/base:page-settings",
@@ -215,6 +219,7 @@ export const DEFAULT_LAYOUT = defineLayout({
     ],
     "@matomezu/base:library-entry-context": [
       "@matomezu/base:library-entry-open",
+      "@matomezu/base:library-entry-open-split",
       "-",
       "@matomezu/base:library-book-new",
       "@matomezu/base:library-folder-new",

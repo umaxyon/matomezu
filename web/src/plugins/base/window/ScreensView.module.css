@@ -54,9 +54,15 @@
 .bookScreen[data-over="true"] {
   z-index: 2;
 }
-/* ブックスクリーンを閉じた直後は、滑らせずに出す（閉じた物の写しが、上から右へ出ていく） */
-.center[data-instant="true"] {
+/* ブックスクリーンを閉じた直後は、滑らせずに出す（閉じた物の写しが、上から右へ出ていく）。並びに戻る物も、伸び縮みせずにその位置に出る */
+.center[data-instant="true"],
+.center[data-instant="true"] .plain {
   transition: none;
+}
+/* ほかのブックスクリーンを閉じて並びの位置が替わった物: 閉じた物が出ていき終えてから、ほかの物の上を新しい位置へ動く */
+.bookScreen[data-moves="true"] {
+  z-index: 2;
+  transition-delay: var(--screen-slide);
 }
 /* 閉じたブックスクリーンの写し: 閉じたときの位置から右へ滑り出る */
 .bookScreen[data-leaving] {

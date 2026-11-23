@@ -1,10 +1,11 @@
 // ブックスクリーンの下の行の「閉じる」（頭）と「□」（右端）: 上下に分けた並びの中では、閉じるで並びから外し、□ でこのスクリーンだけを窓いっぱいにする。
-// 窓いっぱいの間は □ を出さず、閉じるで前のスクリーンへ戻る。分割で開くブックスクリーンは、右から滑り込む
+// 窓いっぱいの間の □ は、並びに戻す・上下に分ける。閉じるで前のスクリーンへ戻る。分割で開くブックスクリーンは、右から滑り込む
 import { aiAuth, CONTROL_CENTER_URL, expect, type Page, test } from "./fixtures"
 import { aiPerform } from "./helpers/ai"
 import { track } from "./helpers/motion"
 
 const BOOK = "[data-current][data-row='true']:not([data-leaving])"
+const WHOLE_OR_ROW = "[data-over]:not([data-leaving])"
 const PLAIN = "section [data-top]"
 
 const NOW = "2026-11-23T00:00:00.000Z"
@@ -68,12 +69,25 @@ test("分割で開いたブックスクリーンの下の行に閉じると □ 
   await settled(page)
   await page.screenshot({ path: "test-results/book-screen-footer-split.png" })
 
-  // □: このスクリーンだけを窓いっぱいに（コントロールセンターは見えなくなり、□ は消える）
-  await maximize.click()
+  // □: このスクリーンだけを、その場から窓いっぱいに伸ばす（右から入り直さない）。□ は「分割に戻す」に替わる
+  const height = await page.evaluate(() => innerHeight)
+  const grow = await Promise.all([track(page, { book: WHOLE_OR_ROW }), maximize.click()])
+  expect(grow[0].every(f => f.book === null || f.book.left === 0)).toBe(true)
+  expect(grow[0].some(f => f.book && f.book.height > height * 0.55 && f.book.height < height * 0.95)).toBe(true)
   await expect(line).toBeHidden()
-  await expect(maximize).toHaveCount(0)
+  const restore = page.getByRole("button", { name: "分割に戻す" }).locator("visible=true")
+  await expect(restore).toHaveCount(1)
   await settled(page)
   await page.screenshot({ path: "test-results/book-screen-footer-full.png" })
+  // 分割に戻す: その場から縮み、コントロールセンターの段が戻る
+  const shrink = await Promise.all([track(page, { book: WHOLE_OR_ROW }), restore.click()])
+  expect(shrink[0].every(f => f.book === null || f.book.left === 0)).toBe(true)
+  expect(shrink[0].some(f => f.book && f.book.height > height * 0.55 && f.book.height < height * 0.95)).toBe(true)
+  await expect(line).toBeVisible()
+  await expect(maximize).toHaveCount(1)
+  await settled(page)
+  await maximize.click()
+  await expect(line).toBeHidden()
 
   // 閉じる: ブックスクリーンを閉じて、コントロールセンターへ戻る
   await close.click()
@@ -113,6 +127,79 @@ test("ブックスクリーンを 2 枚分割で開くと 2 段で見え、そ�
   await expect(page.getByText("あかのメモ").locator("visible=true")).toHaveCount(1)
   await settled(page)
   await page.screenshot({ path: "test-results/book-screen-footer-two.png" })
+
+  // 上の段（あか）の閉じる: 押した方だけ閉じ、もう片方は動かずに残る（替えたコントロールセンターの段が、伸び縮みせずに上に戻る）
+  // 文字で見分けた段に印を付け、その印で位置を追う（track は CSS のセレクタで探す）
+  const rowOf = async (text: string, mark: string) => {
+    await page
+      .locator("[data-over]:not([data-leaving])")
+      .filter({ hasText: text })
+      .evaluate((e, m) => {
+        e.setAttribute("data-probe", m)
+      }, mark)
+    return `[data-probe="${mark}"]:not([data-leaving])`
+  }
+  const height = await page.evaluate(() => innerHeight)
+  const [top] = await Promise.all([
+    track(page, { stays: await rowOf("あおのメモ", "stays"), plain: PLAIN }),
+    page.locator("[data-over]").filter({ hasText: "あかのメモ" }).locator("[data-footer-close]").click(),
+  ])
+  expect(new Set(top.flatMap(f => (f.stays ? [Math.round(f.stays.top)] : []))).size).toBe(1)
+  expect(top.every(f => f.plain === null || f.plain.height < height * 0.55)).toBe(true)
+  await expect(page.getByText("あかのメモ")).toHaveCount(0)
+  await expect(page.getByText("あおのメモ").locator("visible=true")).toHaveCount(1)
+  await expect(lineOf("あお")).toBeVisible()
+  await expect(close).toHaveCount(1)
+  await settled(page)
+
+  // もう一度 2 段にして、下の段（あお）の閉じる: 下が右へ出ていき終えてから、上（あか）が下の段へ降りる
+  await lineOf("あか").click()
+  await page.getByRole("menuitem", { name: "分割で開く" }).click()
+  await expect(close).toHaveCount(2)
+  await settled(page)
+  const width = await page.evaluate(() => innerWidth)
+  const [bottom] = await Promise.all([
+    track(page, { leaving: "[data-leaving]", moves: await rowOf("あかのメモ", "moves"), plain: PLAIN }),
+    page.locator("[data-over]").filter({ hasText: "あおのメモ" }).locator("[data-footer-close]").click(),
+  ])
+  for (const f of bottom) if (f.leaving && f.leaving.left < width - 10) expect(f.moves?.top).toBe(0)
+  expect(bottom.some(f => f.moves && f.moves.top > 10 && f.moves.top < height * 0.45)).toBe(true)
+  expect(bottom.every(f => f.plain === null || f.plain.height < height * 0.55)).toBe(true)
+  await expect(page.getByText("あおのメモ")).toHaveCount(0)
+  await expect(lineOf("あか")).toBeVisible()
+})
+
+test("ブックスクリーンと並んだコントロールセンターの書庫で、ブックのクリックで 2 択を出す。分割で開くと上の段に入り、開くと並びのブックスクリーンを閉じて窓いっぱいに開く", async ({
+  page,
+}) => {
+  await page.goto(CONTROL_CENTER_URL)
+  await memberWithPage(page, "あお", "あおのメモ")
+  const line = page.locator("[data-workroom]").filter({ hasText: "あお" }).locator("[data-current-line]")
+  const close = page.locator("[data-footer-close]").locator("visible=true")
+  await line.click()
+  await page.getByRole("menuitem", { name: "分割で開く" }).click()
+  await expect(close).toHaveCount(1)
+  await settled(page)
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  const library = page.getByRole("list", { name: "書庫 の中身" })
+
+  // 分割で開く: 上の段（コントロールセンター）が、開いたブックスクリーンに替わる
+  await library.getByRole("button", { name: "残課題" }).click()
+  await page.getByRole("menuitem", { name: "分割で開く" }).click()
+  await expect(close).toHaveCount(2)
+  await expect(page.getByText("あおのメモ").locator("visible=true")).toHaveCount(1)
+  await expect(line).toBeHidden()
+  await settled(page)
+
+  // 上の段を閉じて、コントロールセンターの段に戻し、こんどは開く: 並びのブックスクリーンを閉じて、窓いっぱいに開く
+  await page.locator("[data-over]").filter({ hasText: "残課題" }).locator("[data-footer-close]").click()
+  await expect(line).toBeVisible()
+  await settled(page)
+  await library.getByRole("button", { name: "残課題" }).click()
+  await page.getByRole("menuitem", { name: "開く", exact: true }).click()
+  await expect(line).toBeHidden()
+  await expect(page.getByText("あおのメモ")).toHaveCount(0)
+  await expect(close).toHaveCount(1)
 })
 
 test("分割で開くと、コントロールセンターが上に縮んでから、ブックスクリーンが右から入る。閉じると、ブックスクリーンが右へ出ていき、後ろのコントロールセンターが見える", async ({
@@ -147,4 +234,93 @@ test("分割で開くと、コントロールセンターが上に縮んでか�
   await settled(page)
   await expect(page.locator("[data-leaving]")).toHaveCount(0)
   await expect(line).toBeVisible()
+})
+
+test("下の段にだけブックスクリーンがあるとき、書庫から開くと、新しいブックスクリーンが下の段の上を右から滑り込む", async ({
+  page,
+}) => {
+  await page.goto(CONTROL_CENTER_URL)
+  await memberWithPage(page, "あお", "あおのメモ")
+  const line = page.locator("[data-workroom]").filter({ hasText: "あお" }).locator("[data-current-line]")
+  await line.click()
+  await page.getByRole("menuitem", { name: "分割で開く" }).click()
+  await settled(page)
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  const library = page.getByRole("list", { name: "書庫 の中身" })
+  await library.getByRole("button", { name: "残課題" }).click()
+  const width = await page.evaluate(() => innerWidth)
+  const [frames] = await Promise.all([
+    track(page, { book: WHOLE_OR_ROW }),
+    page.getByRole("menuitem", { name: "開く", exact: true }).click(),
+  ])
+  // 窓いっぱいの高さで、右から入る（途中の位置を通る）
+  expect(frames.some(f => f.book && f.book.top === 0 && f.book.left > 10 && f.book.left < width - 10)).toBe(true)
+  await settled(page)
+  await expect(page.getByText("あおのメモ")).toHaveCount(0)
+})
+
+test("最初から窓いっぱいに開いたブックスクリーンにも □ を「上下に分ける」で出し、押すとその場から縮んでコントロールセンターと上下に分かれる", async ({
+  page,
+}) => {
+  await page.goto(CONTROL_CENTER_URL)
+  await memberWithPage(page, "あお", "あおのメモ")
+  const line = page.locator("[data-workroom]").filter({ hasText: "あお" }).locator("[data-current-line]")
+  await line.click()
+  await page.getByRole("menuitem", { name: "開く", exact: true }).click()
+  await settled(page)
+  await expect(line).toBeHidden()
+  const rows = page.getByRole("button", { name: "上下に分ける" }).locator("visible=true")
+  await expect(rows).toHaveCount(1)
+  const height = await page.evaluate(() => innerHeight)
+  const [frames] = await Promise.all([track(page, { book: WHOLE_OR_ROW }), rows.click()])
+  expect(frames.every(f => f.book === null || f.book.left === 0)).toBe(true)
+  expect(frames.some(f => f.book && f.book.height > height * 0.55 && f.book.height < height * 0.95)).toBe(true)
+  await expect(line).toBeVisible()
+  await expect(page.getByRole("button", { name: "スクリーンを広げる" }).locator("visible=true")).toHaveCount(1)
+})
+
+test("書庫の行の右クリックのメニューの「開く」の下に「分割で開く」があり、押すと上下に分けて開く。Mod+Enter でも分割で開く", async ({
+  page,
+}) => {
+  await page.goto(CONTROL_CENTER_URL)
+  await page.getByRole("button", { name: "書庫", exact: true }).first().click()
+  const library = page.getByRole("list", { name: "書庫 の中身" })
+  const row = library.getByRole("button", { name: "残課題" })
+  await row.click({ button: "right" })
+  const items = page.getByRole("menu").getByRole("menuitem")
+  const names = await items.allTextContents()
+  expect(names[names.findIndex(n => n.startsWith("開く")) + 1]).toMatch(/^分割で開く/)
+  await page.getByRole("menuitem", { name: /^分割で開く/ }).click()
+  const close = page.locator("[data-footer-close]").locator("visible=true")
+  await expect(close).toHaveCount(1)
+  await expect(page.getByRole("button", { name: "書庫", exact: true }).first()).toBeVisible()
+  await close.click()
+  await expect(close).toHaveCount(0)
+  await settled(page)
+
+  await row.focus()
+  await page.keyboard.press("ControlOrMeta+Enter")
+  await expect(close).toHaveCount(1)
+  await expect(page.getByRole("button", { name: "書庫", exact: true }).first()).toBeVisible()
+})
+
+test("ブックスクリーンの紙の右クリックのメニューの「画面を分割」の下に「スクリーンを閉じる」があり、押すとブックスクリーンを閉じる", async ({
+  page,
+}) => {
+  await page.goto(CONTROL_CENTER_URL)
+  await memberWithPage(page, "あお", "あおのメモ")
+  const line = page.locator("[data-workroom]").filter({ hasText: "あお" }).locator("[data-current-line]")
+  await line.click()
+  await page.getByRole("menuitem", { name: "開く", exact: true }).click()
+  await settled(page)
+  await page
+    .getByRole("img", { name: "紙" })
+    .locator("visible=true")
+    .first()
+    .click({ button: "right", position: { x: 40, y: 40 } })
+  const names = await page.getByRole("menu").getByRole("menuitem").allTextContents()
+  expect(names[names.indexOf("画面を分割") + 1]).toBe("スクリーンを閉じる")
+  await page.getByRole("menuitem", { name: "スクリーンを閉じる" }).click()
+  await expect(line).toBeVisible()
+  await expect(page.getByText("あおのメモ")).toHaveCount(0)
 })

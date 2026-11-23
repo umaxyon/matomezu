@@ -1,8 +1,7 @@
 // 書庫の画面: 左にツリー（書庫ホームとゴミ箱が一番上に並ぶ）、右にパンくずと、開いているフォルダの中身。
 // 1 回押すと選び（ツリーのフォルダ・ブック・バインダは、右の枠にその中身を出す）、2 回押すと開く（フォルダは中へ入り、ブックとその中のページ・バインダは窓に出す）。
-// ブックスクリーンに開く行（ページの在るブック・ワーカーブックと、ブックの中のページ）は、1 回押すと選んで「開く／分割で開く」を出し、2 回押すと全画面で開く（ブックスクリーンと分けた並びの中では出さない）。
+// ブックスクリーンに開く行（ページの在るブック・ワーカーブックと、ブックの中のページ）は、1 回押すと選んで「開く／分割で開く」を出し、2 回押すと全画面で開く（「画面を分割」で出した書庫のスクリーンでは出さない）。
 // ゴミ箱は、ツリーでは中を出さず、右の枠に捨てた物の一覧を出す（TrashView.tsx）。読めない物は、選べるだけ。開いているフォルダは画面の場所に入り、選んでいる行は入らない（state.ts）
-
 import {
   type CSSProperties,
   type MouseEvent,
@@ -10,6 +9,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
 } from "react"
@@ -77,6 +77,7 @@ import {
 } from "./outline"
 import { usePickRows } from "./RowTable"
 import { SettingsClearConfirm } from "./SettingsClearConfirm"
+import { LIBRARY_SCREEN } from "./screen"
 import { type FoundRow, NO_SEARCH, searchWord } from "./search"
 import { SHOW_UNREADABLE_FOLDER } from "./show-unreadable"
 import { LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_QUERY, LIBRARY_TREE_WIDTH, LIBRARY_UNFOLDED } from "./state"
@@ -491,13 +492,15 @@ function ContentEntry({
   )
 }
 
-// 書庫の行 row を開くと出すブックとページ（bookOpenedFrom）。書庫の画面が、ブックスクリーンと分けた並びにいる間は、開く先が上の段に決まっているので答えない
-// （「分割で開く」と重なる）
-function useBookOpenedFrom(row: LibraryRow): BookOpened | undefined {
+// 書庫の行 row を開くと出すブックとページ（bookOpenedFrom）と、ブックスクリーンと上下に並んでいるか（beside）。
+// 「画面を分割」で出した書庫のスクリーンでは答えない（開く先が上の段の空のステージに決まっていて、「分割で開く」と重なる）
+function useBookOpenedFrom(row: LibraryRow): { opens: BookOpened; beside: boolean } | undefined {
   const desks = useWorkdesks()
   const split = useScreenSplit()
-  const besideBook = split.inSplit && split.defs.includes(BOOK_SCREEN_DEF.id)
-  return useMatomezuState(useShallow(s => (besideBook ? undefined : bookOpenedFrom(s.folders, row, desks))))
+  const beside = split.inSplit && split.defs.includes(BOOK_SCREEN_DEF.id)
+  const pending = beside && split.here.def === LIBRARY_SCREEN.id
+  const opens = useMatomezuState(useShallow(s => (pending ? undefined : bookOpenedFrom(s.folders, row, desks))))
+  return useMemo(() => (opens === undefined ? undefined : { opens, beside }), [opens, beside])
 }
 
 // 行の押し方 press（クリック・ダブルクリック・「開く／分割で開く」の吹き出し）
@@ -515,11 +518,11 @@ function RowPressOf({
   open,
   children,
 }: PressOptions & { row: LibraryRow; children: (p: RowPress) => ReactNode }) {
-  const opens = useBookOpenedFrom(row)
-  return opens === undefined ? (
+  const found = useBookOpenedFrom(row)
+  return found === undefined ? (
     <>{children({ onClick: () => click(), onDoubleClick: open, bubble: null })}</>
   ) : (
-    <BookPress opens={opens} click={click} open={open}>
+    <BookPress opens={found.opens} beside={found.beside} click={click} open={open}>
       {children}
     </BookPress>
   )
@@ -530,13 +533,19 @@ interface PressOptions {
   open: () => void
 }
 
+// ブックスクリーンと上下に並んでいる（beside）ときの全画面で開くは、並びのブックスクリーンを閉じてから、新しく窓いっぱいに出す（書庫の開くは、並びのブックスクリーンに開く）
 function BookPress({
   opens,
+  beside,
   click,
   open,
   children,
-}: PressOptions & { opens: BookOpened; children: (p: RowPress) => ReactNode }) {
-  const choice = useBookOpenChoice({ ...opens, full: open, onClick: click })
+}: PressOptions & { opens: BookOpened; beside: boolean; children: (p: RowPress) => ReactNode }) {
+  const choice = useBookOpenChoice({
+    ...opens,
+    ...(beside ? { fullClosingRows: true } : { full: open }),
+    onClick: click,
+  })
   return <>{children({ onClick: choice.onClick, onDoubleClick: undefined, bubble: choice.bubble })}</>
 }
 

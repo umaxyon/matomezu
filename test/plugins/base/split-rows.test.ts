@@ -1,5 +1,6 @@
 // スクリーンアレンジメント「上下に分ける」: 見えているスクリーンと、分けた並びの変わり（開く・閉じる・広げる）
 import { expect, test } from "bun:test"
+import { showBookSplit } from "../../../web/src/plugins/base/window/apply-split"
 import {
   behindOf,
   bookSplitWay,
@@ -118,6 +119,8 @@ test("ステージを並べるスクリーンが並びに居るとき: 閉じる
   // 計画: 残りの 1 枚がブックスクリーンなら、behind を上に戻さない
   expect(planClose(["b1", "lib"], ["c1"], "lib", ["b1"])).toEqual({ screens: [], leaving: ["lib"] })
   expect(planClose(["c1", "lib"], ["c9"], "lib", ["b1"])).toEqual({ screens: ["c9", "c1"], leaving: ["lib"] })
+  // ブックスクリーンどうしの並びで片方を閉じると、その段に開いて替えた物（behind の 1 枚）を上に戻す
+  expect(planClose(["b2", "b1"], ["c1"], "b2", ["b1", "b2"])).toEqual({ screens: ["c1", "b1"], leaving: ["b2"] })
   // 行う: ブックスクリーンを上、チケットを下に分け、ブックスクリーンを外す計画でも閉じない
   const store = newStore()
   const read = () => store.state.getState()
@@ -145,4 +148,51 @@ test("ブックスクリーンを分割で開く入れ方: 分けていなけれ
     screens: ["b", "t2"],
     leaving: ["t1"],
   })
+})
+
+test("分割で開く（showBookSplit）: 起点の下に入れ、もう並びに在れば光らせるだけ。窓が低ければ分けずに窓いっぱいに出す", () => {
+  const store = newStore()
+  const read = () => store.state.getState().window
+  showCenter(store)
+  const center = read().order[read().order.length - 1] ?? ""
+  const flashed: string[] = []
+  const open = (book: string, tall: boolean) =>
+    showBookSplit({
+      actions: store.actions,
+      readWindow: read,
+      here: center,
+      keepHere: false,
+      max: 2,
+      tall,
+      flash: screen => flashed.push(screen),
+      book,
+      page: undefined,
+    })
+  // 分けていない所から: 起点の下に入れる
+  open("b2", true)
+  const added = read().order[read().order.length - 1] ?? ""
+  expect(read().arrangementValue).toEqual({ screens: [center, added], behind: [] })
+  // もう並びに在るブック: 並べ直さず、光らせる
+  open("b2", true)
+  expect(read().arrangementValue).toEqual({ screens: [center, added], behind: [] })
+  expect(flashed).toEqual([added])
+  // 低い窓: 分けずに窓いっぱいに出す（並びは変えない）
+  const fresh = newStore()
+  showCenter(fresh)
+  const before = fresh.state.getState().window.arrangement
+  showBookSplit({
+    actions: fresh.actions,
+    readWindow: () => fresh.state.getState().window,
+    here: fresh.state.getState().window.order.at(-1) ?? "",
+    keepHere: false,
+    max: 2,
+    tall: false,
+    flash: () => {},
+    book: "b2",
+    page: undefined,
+  })
+  expect(fresh.state.getState().window.arrangement).toBe(before)
+  expect(
+    fresh.state.getState().window.screens.find(s => s.id === fresh.state.getState().window.order.at(-1))?.stages,
+  ).toBeTruthy()
 })

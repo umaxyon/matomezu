@@ -7,6 +7,8 @@ export const STAGE_MESSAGES = defineMessages({
   "Widen stage": { en: "Widen stage", ja: "ステージを広げる" },
   "Restore stage": { en: "Restore stage", ja: "ステージを戻す" },
   "Maximize screen": { en: "Maximize screen", ja: "スクリーンを広げる" },
+  "Restore split": { en: "Restore split", ja: "分割に戻す" },
+  "Split into rows": { en: "Split into rows", ja: "上下に分ける" },
   Unsplit: { en: "Unsplit", ja: "分割をやめる" },
   Stage: { en: "Stage", ja: "ステージ" },
   "Book menu": { en: "Book menu", ja: "ブックのメニュー" },

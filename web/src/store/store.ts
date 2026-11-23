@@ -109,6 +109,7 @@ import {
   givenActions,
   givenScreenResets,
   givenScreenWrites,
+  givenWindowReads,
   type ResetPluginStateAt,
   type UpdatePluginStateAt,
 } from "./commands/def"
@@ -649,6 +650,7 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
       givenActions.set(given, actions)
       givenScreenWrites.set(given, updatePluginStateAt)
       givenScreenResets.set(given, resetPluginStateAt)
+      givenWindowReads.set(given, () => getState().window)
       run(call.ctx, given, args[0] as never)
       if (pending.length > 0) {
         const now = getState().pluginValues
