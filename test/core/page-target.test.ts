@@ -2,7 +2,7 @@
 import { expect, test } from "bun:test"
 import { z } from "zod"
 import { AI, AI_NOT_JOINED, AI_VISITOR, USER } from "../../web/src/core/actor"
-import { bindersOf, findPage, foundPage, pagesOf } from "../../web/src/core/book"
+import { bindersOf, pagesOf } from "../../web/src/core/book"
 import { defineAction, NO_CONTROL_CENTER } from "../../web/src/core/def/action"
 import { NO_CHANGES, TRASH_ID } from "../../web/src/core/folders"
 import { bookOf, tablesOf } from "../../web/src/core/folders-books"
@@ -14,7 +14,7 @@ import { performIn, permittedIn } from "../../web/src/core/perform-world"
 import type { ItemPage } from "../../web/src/core/placed"
 import type { Book } from "../../web/src/core/schema/book"
 import { drawingPage, MARKDOWN, SLIDE, testBinder, testBook, testPage } from "../lineup"
-import { CORE_CATALOG, sequence } from "../support"
+import { CORE_CATALOG, pageOf, sequence } from "../support"
 
 const ADD = "test:box-add"
 const RETITLE = "test:retitle"
@@ -113,13 +113,13 @@ const world = (...books: Book[]) => ({
   records: {},
   counters: {},
 })
-const itemsOf = (b: Book, page: string) => (foundPage(findPage(b, page))?.items ?? []).map(i => i.id)
+const itemsOf = (b: Book, page: string) => (pageOf(b, page)?.items ?? []).map(i => i.id)
 
 test("run はページだけを受け、返したページがブックの同じ所へ戻る。ほかのページと並びは変わらない", () => {
   const done = act(book, "p1", RETITLE, { item: "a", caption: "新しい" })
   if (!done.ok) throw new Error(done.reason)
   const next = done.next as Book
-  expect(foundPage(findPage(next, "p1"))?.items?.[0]?.props).toEqual({ caption: "新しい", body: "" })
+  expect(pageOf(next, "p1")?.items?.[0]?.props).toEqual({ caption: "新しい", body: "" })
   expect(next.lineup[1]).toBe(book.lineup[1])
   expect(next.lineup[2]).toBe(book.lineup[2])
   // バインダの中のページも、同じ所へ戻る

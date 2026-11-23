@@ -1,7 +1,7 @@
 // ページ: ページを作る・開くコマンドと、ページを作るダイアログ（作るものはダイアログで決める）。ページの設定のダイアログと、それを開くコマンド。
 // ページを作るダイアログとページの設定のダイアログは、ページのタイプが自分のものにできる（dialogs。行うアクションは同じ page-add・page-update）
 
-import { findBinder, findPage, foundPage, NO_BINDER, NO_PAGE, siblingsOf } from "../../../core/book"
+import { findBinder, findPage, NO_BINDER, NO_PAGE, siblingsOf } from "../../../core/book"
 import type { MessageKey } from "../../../core/catalog"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import { ANY_PAGE_TYPE } from "../../../core/def/action"
@@ -142,8 +142,8 @@ export const PAGE_SETTINGS_OF = kit.defineCommand({
   title: "Page settings",
   run: (ctx, a, { page }: { page: string }) => {
     const lineup = lineupIn(ctx)
-    const found = lineup !== NO_LINEUP ? foundPage(findPage(lineup, page)) : undefined
-    if (found) a.openDialog(pageDialog(ctx.catalog, found.type, "settings"), { page: found.id })
+    const found = lineup !== NO_LINEUP ? findPage(lineup, page) : NO_PAGE
+    if (found !== NO_PAGE) a.openDialog(pageDialog(ctx.catalog, found.page.type, "settings"), { page })
   },
   when: ctx => lineupIn(ctx) !== NO_LINEUP,
 })
@@ -155,7 +155,8 @@ export const PAGE_ADD_AFTER = kit.defineCommand({
   // 作るのは、ページ page と同じタイプのページ
   permissionScope: (ctx, args: { page: string } | undefined) => {
     const lineup = lineupIn(ctx)
-    return { creates: (args && lineup !== NO_LINEUP && foundPage(findPage(lineup, args.page))?.type) || ANY_PAGE_TYPE }
+    const found = args && lineup !== NO_LINEUP ? findPage(lineup, args.page) : NO_PAGE
+    return { creates: found !== NO_PAGE ? found.page.type : ANY_PAGE_TYPE }
   },
   title: "Add page here",
   run: (ctx, a, { page }: { page: string }) => {

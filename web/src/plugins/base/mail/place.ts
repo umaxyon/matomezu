@@ -1,7 +1,7 @@
 // 郵便の行き先（ブック・ページ・物）の今の場所（開くときに探す。無ければ「行き先がありません」と出す）
 
 import { anchorIds } from "../../../core/annotation"
-import { findPage, foundPage, NO_PAGE, pagesOf } from "../../../core/book"
+import { findPage, NO_PAGE, pagesOf } from "../../../core/book"
 import type { Book } from "../../../core/schema/book"
 import type { Mail } from "./mail"
 
@@ -17,11 +17,11 @@ export function mailPlace(m: Mail, books: Readonly<Record<string, Book>>): MailP
   if (!to) return null
   const book = to.page ? bookHolding(books, to.book, to.page) : books[to.book]
   if (!book) return GONE
-  const page = to.page ? foundPage(findPage(book, to.page)) : undefined
+  const at = to.page ? findPage(book, to.page) : NO_PAGE
   const place = { ...to, book: book.id }
   if (!to.ids) return place
   // 物は、行き先のページの中で探す（ページを言わない郵便は、ブックのどのページでも）
-  const found = (page ? [page] : pagesOf(book)).some(p => {
+  const found = (at !== NO_PAGE ? [at.page] : pagesOf(book)).some(p => {
     const ids = anchorIds(p)
     return to.ids?.some(id => ids.has(id))
   })

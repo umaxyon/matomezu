@@ -1,7 +1,7 @@
 // 書庫からページ・バインダを写す: entry-duplicate は、ページ・バインダ（ブックの中でも外でも）を、すぐ後ろに複製する（本体はページタブの page-duplicate・binder-duplicate と同じ）。
 // 書庫が対象。本体が同じなので、ページのタイプが本体のアクションを外していれば（without）、これもそのタイプで断る
 import { z } from "zod"
-import { findBinder, findPage, foundPage } from "../../../core/book"
+import { findBinder, findPage, NO_PAGE } from "../../../core/book"
 import type { ActionContext, Declined } from "../../../core/def/action"
 import { freeTitle, isMoveRefusal, placedMade, titlesIn } from "../../../core/entries"
 import type { Library } from "../../../core/folders"
@@ -55,7 +55,8 @@ function copiedOutsideBooks(library: Library, entry: string, ctx: ActionContext)
       ctx.newId,
     )
     if (!done || "declined" in done) return done
-    return placed(foundPage(findPage(done.book, done.page)) as LineupEntry | undefined)
+    const at = findPage(done.book, done.page)
+    return placed(at === NO_PAGE ? undefined : (at.page as LineupEntry))
   }
   const binder = outsideBinderIn(library, entry)
   if (!binder || !typeLets(ctx.catalog, BINDER_DUPLICATE.id, binder.pageType)) return null
@@ -82,10 +83,11 @@ export const ENTRY_DUPLICATE = kit.defineAction({
         : copiedOutsideBooks(library, args.entry, ctx)
     }
     const kind = library.folders[args.entry]?.folderRole === "binder" ? "binder" : "page"
+    const page = findPage(book, args.entry)
     const allowed =
       kind === "binder"
         ? typeLets(ctx.catalog, BINDER_DUPLICATE.id, findBinder(book, args.entry)?.pageType)
-        : typeLets(ctx.catalog, PAGE_DUPLICATE.id, foundPage(findPage(book, args.entry))?.type)
+        : typeLets(ctx.catalog, PAGE_DUPLICATE.id, page === NO_PAGE ? undefined : page.page.type)
     if (!allowed) return null
     const done =
       kind === "binder"

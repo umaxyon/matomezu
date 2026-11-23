@@ -1,12 +1,12 @@
 // コピーして貼る: 選びから写しを作り（clipOf）、アクション item-paste が id を振り直して置く
 
 import { expect, test } from "bun:test"
-import { findPage, foundPage, pagesOf } from "../../../web/src/core/book"
+import { pagesOf } from "../../../web/src/core/book"
 import { connectorsOf, findShape, type ItemPage, shapesOf, walkShapes } from "../../../web/src/core/placed"
 import type { Book } from "../../../web/src/core/schema/book"
 import { screenOf } from "../../../web/src/core/window"
 import { type Clip, clipOf, nearestPaste } from "../../../web/src/plugins/paper/placing/clip"
-import { CORE_CATALOG, newStore, sizedStore } from "../../support"
+import { CORE_CATALOG, newStore, pageOf, sizedStore } from "../../support"
 
 const NEST = "@matomezu/box:shape-nest-box"
 const BOX = "@matomezu/art:shape-pc"
@@ -144,7 +144,7 @@ test("紙に収まらない場所は、収まる一番近い場所へ寄せる�
   const store = newStore()
   const a = place(store, BOX, { at: { x: 0, y: 0 } })
   const clip = clipFrom(store, [a])
-  const paged = foundPage(findPage(book(store), "p1"))!
+  const paged = pageOf(book(store), "p1")
   expect(nearestPaste(CORE_CATALOG, paged, clip, null, { x: 300, y: 300 })).toEqual({ x: 300, y: 300 })
   const near = nearestPaste(CORE_CATALOG, paged, clip, null, { x: -500, y: -500 })
   expect(near).not.toBeNull()

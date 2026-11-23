@@ -2,7 +2,7 @@
 // 行う前は、空のブックで問う
 
 import { expect, test } from "bun:test"
-import { findPage, foundPage, pagesOf } from "../../web/src/core/book"
+import { pagesOf } from "../../web/src/core/book"
 import { HOME_ID } from "../../web/src/core/folders"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
@@ -10,7 +10,7 @@ import { isEnabled, isShown } from "../../web/src/store/commands"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { showFirstBook } from "../support"
+import { pageOf, showFirstBook } from "../support"
 
 test("keeps だけを書いた認可ステップでも、そのタイプのページを入れたブックを作るのを止められる。ほかのタイプは作れる", () => {
   const kit = pluginKit("@ex/no-tree", defineMessages({ noTree: { en: "No tree", ja: "ツリーは作らない" } }))
@@ -85,9 +85,7 @@ test("認可ステップは、作るページのタイプを行う前に見ら�
             denies: q => q.kind === "folder" && q.where?.creates === MARKDOWN,
             keeps: c =>
               c.kind !== "folder" ||
-              !c.changes.pages.some(
-                p => p.change === "added" && foundPage(findPage(c.after!, p.id))?.type === MARKDOWN,
-              ),
+              !c.changes.pages.some(p => p.change === "added" && pageOf(c.after!, p.id)?.type === MARKDOWN),
           }),
         ],
       }),

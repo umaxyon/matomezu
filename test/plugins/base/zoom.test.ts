@@ -1,7 +1,6 @@
 // base の拡大縮小のコマンド（zoom-in・zoom-out・zoom-reset・zoom-fit）と、倍率の範囲
 
 import { expect, test } from "bun:test"
-import { findPage, foundPage } from "../../../web/src/core/book"
 import { MARGIN } from "../../../web/src/core/viewport"
 import { screenOf } from "../../../web/src/core/window"
 import { roomOf } from "../../../web/src/plugins/base/place/grow"
@@ -10,7 +9,7 @@ import { stepZoom, wheelZoom, ZOOM_MAX, ZOOM_MIN } from "../../../web/src/plugin
 import type { CommandId } from "../../../web/src/store/commands"
 import { isEnabled } from "../../../web/src/store/commands"
 import { drawingPage, TREE, testPage } from "../../lineup"
-import { newStore, sheetOf } from "../../support"
+import { newStore, pageOf, sheetOf } from "../../support"
 
 test("倍率は 30～180% の無段階。ボタンは 10% の倍数へ 1 つずつ動き（間なら近い向きの倍数へ）、ホイールは回した量に合わせて滑らかに変える", () => {
   expect(stepZoom(1, 1)).toBe(1.1)
@@ -100,7 +99,7 @@ test("左と上へ増やす可変ページは、開くと、空きの印刷区�
   actions.openPage("s1", "p1")
   actions.resizeStage("s1", { w: 800, h: 600 })
   const book = state.getState().books.b1!
-  const page = foundPage(findPage(book, "p1"))!
+  const page = pageOf(book, "p1")
   const sheet = sheetOf(stage())
   const start = startOf(catalog.core, page)
   expect(start).toEqual({ x: sheet.w, y: sheet.h })

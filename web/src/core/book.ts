@@ -449,7 +449,7 @@ export function findPage(
   return NO_PAGE
 }
 
-// findPage が見つけたページ（NO_PAGE なら undefined）。core の中の、無いを undefined で受ける関数に渡すときに使う（プラグイン API には出さない）
+// findPage が見つけたページ（NO_PAGE なら undefined）。core とホストのエンジンの中の、無いを undefined で受ける関数に渡すときに使う（プラグイン API には出さない。プラグインは NO_PAGE と比べる）
 export const foundPage = (found: ReturnType<typeof findPage>): ItemPage | undefined =>
   found === NO_PAGE ? undefined : found.page
 

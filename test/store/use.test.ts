@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import { z } from "zod"
-import { findPage, foundPage, putPage } from "../../web/src/core/book"
+import { putPage } from "../../web/src/core/book"
 import { defineAction } from "../../web/src/core/def/action"
 import { definePageType } from "../../web/src/core/def/page-type"
 import type { MatomezuError } from "../../web/src/core/errors"
@@ -10,7 +10,7 @@ import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
 import { createMatomezu } from "../../web/src/store/create"
 import { pluginKit } from "../../web/src/store/kit"
 import { definePlugin, withoutParts } from "../../web/src/store/plugin"
-import { savedRows, shown } from "../support"
+import { pageOf, savedRows, shown } from "../support"
 
 // 取り込んだ追加プラグインの見本: 自分のページのタイプとアクション（core/catalog.ts には書き足さない）
 const NOTE = definePageType({
@@ -34,7 +34,7 @@ const RENAME = defineAction({
   permissionScope: { page: "page" },
   args: z.strictObject({ page: z.string().min(1), title: z.string().min(1) }),
   run: (book, args) => {
-    const page = foundPage(findPage(book, args.page))
+    const page = pageOf(book, args.page)
     return page ? { next: putPage(book, { ...page, title: args.title }), result: {} } : null
   },
 })

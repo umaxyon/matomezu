@@ -2,7 +2,7 @@
 // 最初のページと一緒にブックを作る book-create、ページのタイプを替える結果を断る perform
 import { describe, expect, test } from "bun:test"
 import { USER } from "../../../web/src/core/actor"
-import { findBinder, findPage, foundPage, lineupOf, pagesIn, pagesOf, putPage } from "../../../web/src/core/book"
+import { findBinder, lineupOf, pagesIn, pagesOf, putPage } from "../../../web/src/core/book"
 import { checkCoreCatalog } from "../../../web/src/core/core-catalog-check"
 import { HOME_ID } from "../../../web/src/core/folders"
 import { bookOf } from "../../../web/src/core/folders-books"
@@ -18,7 +18,7 @@ import {
 } from "../../../web/src/plugins/base/pages/binders"
 import { PAGE_ADD } from "../../../web/src/plugins/base/pages/page-add"
 import { DRAWING, drawingPage, MARKDOWN, SLIDE, testBinder, testBook, testPage, withSlide } from "../../lineup"
-import { BUILTIN_PARTS, CORE_CATALOG, libraryWith, NAMING, sequence } from "../../support"
+import { BUILTIN_PARTS, CORE_CATALOG, libraryWith, NAMING, pageOf, sequence } from "../../support"
 
 const ctx = () => ({
   catalog: CORE_CATALOG,
@@ -44,7 +44,7 @@ describe("page-add", () => {
     const done = run(book, PAGE_ADD.id, { type: MARKDOWN, index: 1 })
     expect(done).toMatchObject({ ok: true, result: { page: "n1" } })
     expect(done.ok && lineupOf(done.next).map(e => e.id)).toEqual(["p1", "n1", "f1"])
-    expect(done.ok && foundPage(findPage(done.next, "n1"))).toMatchObject({ type: MARKDOWN, title: "（無題）" })
+    expect(done.ok && pageOf(done.next, "n1")).toMatchObject({ type: MARKDOWN, title: "（無題）" })
     // まとまらないタイプに入れる所は書けない
     expect(run(book, PAGE_ADD.id, { type: DRAWING, into: { binder: "f1" } }).ok).toBe(false)
   })
@@ -213,7 +213,7 @@ test("ブックが対象のアクションが振る id も、ブックのほか�
   ])
   const done = run(two, "@matomezu/base:page-duplicate", { page: "b2-s1" })
   expect(done).toMatchObject({ ok: true, result: { page: "n3" } })
-  const copy = done.ok ? foundPage(findPage(done.next, "n3")) : undefined
+  const copy = done.ok ? pageOf(done.next, "n3") : undefined
   expect((copy as { slide?: { id: string }[] } | undefined)?.slide?.map(i => i.id)).toEqual(["n2"])
 })
 
@@ -227,8 +227,7 @@ test("図のページも複製できる: 中の物の id を振り直し、線�
   const b = place(a.next, "@matomezu/art:shape-db")
   const line = must(runOn(b.next, "p1", "@matomezu/line:line-connect", { from: a.result.item, to: b.result.item }))
   const done = must(run(line.next, "@matomezu/base:page-duplicate", { page: "p1" }))
-  const of = (id: string) =>
-    foundPage(findPage(done.next, id)) as unknown as { title: string; items: Record<string, string>[] }
+  const of = (id: string) => pageOf(done.next, id) as unknown as { title: string; items: Record<string, string>[] }
   const [from, copy] = [of("p1"), of(done.result.page ?? "")]
   expect(copy.title).toBe(`${from.title} 2`)
   expect(copy.items.map(i => i.item)).toEqual(from.items.map(i => i.item))
@@ -249,7 +248,7 @@ test("図のページも複製できる: 中の物の id を振り直し、線�
 
 test("スライドのバインダの中は紙と向きがそろう: 足すページ・1 枚だけの変更は今の紙だけ、binder-update は全部のページに 1 回で付ける。別のバインダは別にそろう", () => {
   const A4 = "@matomezu/base:a4"
-  const paperOf = (b: Book, id: string) => foundPage(findPage(b, id))?.paper
+  const paperOf = (b: Book, id: string) => pageOf(b, id)?.paper
   // 今のバインダと違う紙のページは足せず、1 枚だけ別の紙にもできない
   expect(run(book, PAGE_ADD.id, { type: SLIDE, into: { binder: "f1" }, paper: A4 })).toEqual({
     ok: false,

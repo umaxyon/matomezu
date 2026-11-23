@@ -13,13 +13,12 @@ import {
   unexpired,
   usableAnnotations,
 } from "../../web/src/core/annotation"
-import { findPage, foundPage } from "../../web/src/core/book"
 import { NO_CONTROL_CENTER } from "../../web/src/core/def/action"
 import { tablesOf } from "../../web/src/core/folders-books"
 import { performIn } from "../../web/src/core/perform-world"
 import { warningText } from "../../web/src/core/warnings"
 import { drawingPage, FLOWCHART, testBook, testPage } from "../lineup"
-import { CORE_CATALOG } from "../support"
+import { CORE_CATALOG, pageOf } from "../support"
 
 const book = testBook("d", "D", [
   drawingPage("p", {
@@ -29,7 +28,7 @@ const book = testBook("d", "D", [
   }),
 ])
 
-const page = foundPage(findPage(book, "p"))!
+const page = pageOf(book, "p")
 
 const note = (id: string, props: unknown): Annotation => ({
   id,
@@ -167,8 +166,7 @@ test("タイプの混ざるブックでは、付いているページのタイ�
     testPage(FLOWCHART, "p2", { title: "流れ", items: [box("b")] }),
   ])
   const on = (id: string, anchors: Anchors): Annotation => ({ ...GOOD, id, anchors })
-  const codes = (at: string, a: Annotation) =>
-    checkAnnotations(catalog, foundPage(findPage(mixed, at))!, [a]).map(w => w.code)
+  const codes = (at: string, a: Annotation) => checkAnnotations(catalog, pageOf(mixed, at), [a]).map(w => w.code)
   expect(codes("p1", on("n1", ["a"]))).toEqual([])
   expect(codes("p2", on("n2", ["b"]))).toEqual(["W019"])
   expect(codes("p1", on("n3", ["a", "b"]))).toEqual(["W019"])

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { z } from "zod"
-import { findPage, foundPage, pagesOf, putPage } from "../../web/src/core/book"
+import { pagesOf, putPage } from "../../web/src/core/book"
 import { defineAction } from "../../web/src/core/def/action"
 import { definePageType } from "../../web/src/core/def/page-type"
 import { HOME_ID } from "../../web/src/core/folders"
@@ -15,7 +15,7 @@ import { createMatomezu } from "../../web/src/store/create"
 import { definePlugin } from "../../web/src/store/plugin"
 import type { DoneAction, DoneBulk } from "../../web/src/store/state"
 import { SAMPLE_BOOKS } from "../sample-books"
-import { newStore, sequence, worldRows } from "../support"
+import { newStore, pageOf, sequence, worldRows } from "../support"
 
 // 追加プラグインの見本: 自分のページのタイプと、そのタイプで使えるアクション（core/catalog.ts には書き足さない）。
 // アクションはページを名指し（許可スコープ { page }）、名指したページのタイプが add で足しているときだけ使える
@@ -35,7 +35,7 @@ const NOTE = definePageType({
 const PAGE = z.strictObject({ page: z.string().min(1) })
 // ページ page を f で替えたブック（無いページなら null）
 const withPage = <B extends StageLineup>(book: B, page: string, f: (p: ItemPage) => ItemPage) => {
-  const found = foundPage(findPage(book, page))
+  const found = pageOf(book, page)
   return found ? putPage(book, f(found)) : null
 }
 const RENAME = defineAction({
@@ -46,7 +46,7 @@ const RENAME = defineAction({
   permissionScope: { page: "page" },
   args: PAGE.extend({ title: z.string().min(1) }),
   run: (book, args) => {
-    const was = foundPage(findPage(book, args.page))?.title
+    const was = pageOf(book, args.page)?.title
     const next = withPage(book, args.page, p => ({ ...p, title: args.title }))
     return next ? { next, result: { was } } : null
   },

@@ -9,10 +9,10 @@ import {
   addPage,
   findBinder,
   findPage,
-  foundPage,
   lineupOf,
   type NewPage,
   type NewPageInto,
+  NO_PAGE,
   pagesIn,
   putPage,
   withSettings,
@@ -107,8 +107,9 @@ export function withNewPage<B extends StageLineup>(
         ? { binder: binder.id, ...indexOf(at) }
         : indexOf(at)
   const made = addPage(book, content, into, ctx.newId)
-  const fresh = made && foundPage(findPage(made.book, made.page))
-  if (!made || !fresh) return null
+  const madeAt = made ? findPage(made.book, made.page) : NO_PAGE
+  if (!made || madeAt === NO_PAGE) return null
+  const fresh = madeAt.page
   const placed = made.book
   const written = writeFields(catalog, fresh, args.fields, "add", contentIdMaker(fresh, ctx.newId))
   if (!written) return null
@@ -118,8 +119,8 @@ export function withNewPage<B extends StageLineup>(
         putPage(placed, withSettings(written.page, settings.data as Record<string, unknown>) as ItemPage),
       )
     : putPage(placed, written.page as ItemPage)
-  const added = foundPage(findPage(next, made.page))
-  if (!added || pageProblem(catalog, added)) return null
+  const after = findPage(next, made.page)
+  if (after === NO_PAGE || pageProblem(catalog, after.page)) return null
   return {
     book: next,
     result: {

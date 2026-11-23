@@ -1,7 +1,7 @@
 // 子の形のアクション: 親を渡して置く・子を動かす・変える・大きさを変える・子孫ごと消す・付け替え（紙のプラグインの item-*）
 
 import { expect, test } from "bun:test"
-import { findPage, foundPage, pagesOf } from "../../../web/src/core/book"
+import { pagesOf } from "../../../web/src/core/book"
 import { findShape, type ItemPage, walkShapes } from "../../../web/src/core/placed"
 import type { Book } from "../../../web/src/core/schema/book"
 import { screenOf } from "../../../web/src/core/window"
@@ -18,7 +18,7 @@ import {
   placeTarget,
   placingShape,
 } from "../../../web/src/plugins/paper/placing/items"
-import { CORE_CATALOG, newStore } from "../../support"
+import { CORE_CATALOG, newStore, pageOf } from "../../support"
 
 const NEST = "@matomezu/box:shape-nest-box"
 const LIST = "@matomezu/list:shape-list"
@@ -116,8 +116,7 @@ test("子は親の中で動かし、子の領域より左や上には動かさ�
   expect(run(store, "@matomezu/paper:item-move", { items: [a, b], by: { x: 1, y: 0 } }).ok).toBe(false)
 })
 
-const pageOne = (store: ReturnType<typeof newStore>) =>
-  foundPage(findPage(store.state.getState().books.b1 as Book, "p1"))!
+const pageOne = (store: ReturnType<typeof newStore>) => pageOf(store.state.getState().books.b1 as Book, "p1")
 
 test("離したとき、子の領域や紙の端の外へ出した量は、収まる一番近い所へ寄せる。斜めなら端に沿い、兄弟の手前が外でも収まる所まで", () => {
   const store = newStore()
