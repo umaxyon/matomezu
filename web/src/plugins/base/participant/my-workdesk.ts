@@ -1,23 +1,21 @@
 // 呼んだ AI の作業机（ホストのエンジンが読む。AI の read_folder と参加の文に出す）と、ワークルームのワーカーブックの実のブックを引く所（書庫の画面の作業机 workdesks.ts と同じ引き方）
 import type { CoreCatalog } from "../../../core/core-catalog"
-import { backyardBookOf, rowsWithin } from "../../../core/entries"
 import type { Folders } from "../../../core/folders"
 import { systemFolderOf } from "../../../core/folders-tree"
 import { type RecordReader, type RecordSource, readerOf } from "../../../core/record-source"
-import { TICKETS_HISTORY } from "../library/backyards"
 import { MY_WORKDESK, WORKROOMS } from "../library/system-folders"
-import { workerBookOf, workerBookReadsOf } from "./worker-book"
+import { type FoundWorkerBook, foundWorkerBookOf, NO_WORKER_BOOK, workerBookOf, workerBookReadsOf } from "./worker-book"
 import { WORKER_PAGE_ADD } from "./worker-page-add"
 
-// ワークルーム room のワーカーブックの名前 title と、実のブックの id book（まだ無ければ undefined）。read は workerBookReadsOf の種類を読める読み口
+// ワークルーム room のワーカーブックの名前 title と、在るワーカーブック found（まだ無ければ NO_WORKER_BOOK）。read は workerBookReadsOf の種類を読める読み口
 export function workerBookIn(
   catalog: CoreCatalog,
   read: RecordReader,
   folders: Folders,
   room: string,
-): { title: string; book: string | undefined } {
+): { title: string; found: FoundWorkerBook | typeof NO_WORKER_BOOK } {
   const { workKey, title } = workerBookOf(catalog, read, room)
-  return { title, book: backyardBookOf({ folders }, TICKETS_HISTORY.id, workKey) }
+  return { title, found: foundWorkerBookOf(folders, workKey) }
 }
 
 // 呼んだ AI のワークルーム room の作業机（ホストのエンジンが読む。AI の read_folder と参加の文に出す）:
@@ -32,10 +30,10 @@ export interface MyWorkdesk {
 // 常駐の読み口 source と書庫の表 folders から、ワークルーム room の MyWorkdesk
 export function myWorkdeskIn(catalog: CoreCatalog, source: RecordSource, folders: Folders, room: string): MyWorkdesk {
   const read = readerOf(catalog, source, workerBookReadsOf(catalog))
-  const { book } = workerBookIn(catalog, read, folders, room)
+  const { found } = workerBookIn(catalog, read, folders, room)
   const workrooms = Object.values(folders).find(f => systemFolderOf(f) === WORKROOMS.id)?.id
-  // ページの数は、ブックの中のページの全部（バインダの中も。ownBookPagesOf と同じ数え方）
-  const pages = book === undefined ? 0 : rowsWithin(folders, book).pages.length
+  const book = found === NO_WORKER_BOOK ? undefined : found.book
+  const pages = found === NO_WORKER_BOOK ? 0 : found.pages.length
   const where =
     book === undefined
       ? `Your worker book has no pages yet: add one with ${WORKER_PAGE_ADD.id}.`

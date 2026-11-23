@@ -4,7 +4,8 @@
 import { type Actor, isAI, workroomOfActor } from "../../../core/actor"
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { PermissionInput } from "../../../core/def/permission"
-import type { BackyardEntry } from "../../../core/folders"
+import { backyardBookOf, rowsWithin } from "../../../core/entries"
+import type { BackyardEntry, Folders } from "../../../core/folders"
 import { sameWorkKey, type WorkKey } from "../../../core/folders"
 import type { RecordReader } from "../../../core/record-source"
 import { kit } from "../kit"
@@ -37,6 +38,21 @@ export function workerBookOf(
     workKey: { subject: WORKROOM.id, id: workroom },
     title: typeof room?.name === "string" ? room.name : workroom,
   }
+}
+
+// ワーカーブックがまだ無い（初めてページを足すときに作る）
+export const NO_WORKER_BOOK = "no-worker-book"
+
+// 在るワーカーブック: 実のブックの id book と、その中のページの id pages（バインダの中も。並びの順）
+export interface FoundWorkerBook {
+  book: string
+  pages: readonly string[]
+}
+
+// 書庫の表 folders で、workKey が key のワーカーブック（tickets-history の中の実のブック）
+export function foundWorkerBookOf(folders: Folders, key: WorkKey): FoundWorkerBook | typeof NO_WORKER_BOOK {
+  const book = backyardBookOf({ folders }, TICKETS_HISTORY.id, key)
+  return book === undefined ? NO_WORKER_BOOK : { book, pages: rowsWithin(folders, book).pages }
 }
 
 // AI の行う者 actor が、バックヤードのブック entry を書けるか: tickets-history のブックなら、自分のワークルームのワーカーブック（workKey が同じ）だけ。
