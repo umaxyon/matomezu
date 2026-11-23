@@ -25,6 +25,7 @@ type HostConfig struct {
 	SavePort   func(int) error // 初めて取ったポートを覚える
 	OSHostName string          // OS のホスト名（ホスト名の設定が無いときの名前）
 	WSL        bool            // WSL で動いているか（画面が案内を出す）
+	Discover   bool            // 入口を開いているあいだ mDNS で知らせ、見つける（テストは同じ網に出さないよう切る）
 }
 
 // HostFailed は、入口を開こうとして開けなかった理由
@@ -56,18 +57,27 @@ type hostEntrance struct {
 	kick   chan struct{}
 	done   chan struct{} // CloseHostEntrance が閉じる（開け閉めの goroutine を止める）
 	closed bool          // CloseHostEntrance のあとは開かない
+	peers  *peerState    // ペアリングとペアリングしたホストの様子（pairing.go）
+	user   string        // mDNS で知らせている利用者名
 }
 
 // SetHostEntrance は、ホストどうしの入口の用意を渡し、設定に合わせて開け閉めし始める（立ったときに 1 度呼ぶ）
 func (h *Hub) SetHostEntrance(c HostConfig) {
-	e := &hostEntrance{config: c, kick: make(chan struct{}, 1), done: make(chan struct{})}
+	e := &hostEntrance{config: c, kick: make(chan struct{}, 1), done: make(chan struct{}), peers: newPeerState()}
 	e.status = HostStatus{HostID: c.Identity.HostID, Name: c.OSHostName, OSHostName: c.OSHostName, WSL: c.WSL}
 	h.entrance.Store(e)
+	// 起動し直す前の受け入れ待ちの頼みは、待っているつなぎがもう無いので消す
+	for _, r := range h.pairingRequestRecords() {
+		h.dropPairingRequest(r.ID)
+	}
+	h.followPeers(e)
 	go func() {
 		for {
 			select {
 			case <-e.kick:
 				h.applyHostEntrance(e)
+			case <-e.peers.kick:
+				h.followPeers(e)
 			case <-e.done:
 				return
 			}
@@ -106,6 +116,11 @@ func (h *Hub) CloseHostEntrance() {
 		return
 	}
 	close(e.done)
+	e.peers.mu.Lock()
+	if e.peers.cancel != nil {
+		e.peers.cancel()
+	}
+	e.peers.mu.Unlock()
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.closed = true
@@ -113,6 +128,7 @@ func (h *Hub) CloseHostEntrance() {
 		e.srv.Close()
 		e.srv = nil
 	}
+	h.stopBeacon(e)
 }
 
 // applyHostEntrance は、利用者の設定に合わせて入口を開け閉めし、様子が変われば窓に知らせる
@@ -134,19 +150,45 @@ func (h *Hub) applyHostEntrance(e *hostEntrance) {
 		name = e.config.OSHostName
 	}
 	e.status.Name = name
+	renamed := was.Name != name || e.user != s.UserName
+	e.user = s.UserName
 	switch {
 	case s.Connect && e.srv == nil:
 		e.open(h)
 	case !s.Connect && e.srv != nil:
 		e.srv.Close()
 		e.srv = nil
+		h.stopBeacon(e)
+		go h.EndPairing()
 		e.status.Open, e.status.Port, e.status.Addrs, e.status.Failed = false, 0, nil, ""
+	case s.Connect && renamed:
+		h.updateBeacon(e)
 	case !s.Connect:
 		e.status.Port, e.status.Failed = 0, ""
 	}
 	now := e.status
 	e.mu.Unlock()
 	h.tellHostStatus(was, now)
+}
+
+// RepickHostPort は、覚えたポートがほかに使われているとき、空いている番号を取り直して開き、その番号を覚える（利用者が［別のポートにする］を確かめたとき）
+func (h *Hub) RepickHostPort() error {
+	e := h.entrance.Load()
+	if e == nil {
+		return errors.New("there is no entrance for other hosts")
+	}
+	e.mu.Lock()
+	if e.closed || e.status.Failed != HostPortInUse {
+		e.mu.Unlock()
+		return errors.New("the kept port is not taken")
+	}
+	was := e.status
+	e.config.Port = 0
+	e.open(h)
+	now := e.status
+	e.mu.Unlock()
+	h.tellHostStatus(was, now)
+	return nil
 }
 
 func (h *Hub) tellHostStatus(was, now HostStatus) {
@@ -188,6 +230,7 @@ func (e *hostEntrance) open(h *Hub) {
 		h.stoppedHostEntrance(e, srv)
 	}()
 	e.status.Open, e.status.Port, e.status.Addrs, e.status.Failed = true, port, peer.ReachableAddrs(), ""
+	h.startBeacon(e, port)
 }
 
 // stoppedHostEntrance は、入口の srv が自分で止まったとき（閉じたのでなく）、開いていない様子にして窓に知らせる。つなぐを入れ直せば開き直す
@@ -199,6 +242,7 @@ func (h *Hub) stoppedHostEntrance(e *hostEntrance, srv *http.Server) {
 	}
 	was := e.status
 	e.srv = nil
+	h.stopBeacon(e)
 	e.status.Open, e.status.Addrs, e.status.Failed = false, nil, HostListen
 	now := e.status
 	e.mu.Unlock()

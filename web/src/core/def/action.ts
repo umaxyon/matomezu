@@ -1,5 +1,6 @@
 // アクションの定義: できること（動詞）。データを変える入口はアクションだけで、画面の操作も AI の操作も同じものを通る。
 // run は新しい値と結果（作ったものの id など）を返す純粋な関数。対象に合わなければ null を返して断る
+
 import type { z } from "zod"
 import { type Actor, isAI } from "../actor"
 import type { PageAnnotations } from "../annotation"
@@ -7,6 +8,7 @@ import type { ActionExtras, SubjectId, SubjectTable } from "../catalog"
 import type { CoreCatalog } from "../core-catalog"
 import type { Naming } from "../entries"
 import type { Library } from "../folders"
+import type { HostRole } from "../hosts"
 import type { Lang, MessageKey } from "../i18n/i18n"
 import type { Books } from "../library"
 import type { ItemPage } from "../placed"
@@ -424,6 +426,9 @@ export interface ActionDef<
   // 参加者のセッションが終わったと常駐が確かめたとき（セッションと同じだけ生きると名乗られたプロセスが居なくなったとき）に、常駐が利用者として行う（引数は {}、宛先は参加者のレコード。利用者だけが行うアクション。
   // 参加者を外して、ワークルームを空室で残す）。1 つのアクションだけが名乗る。対象の定義の種類が対象のアクションだけが書ける
   runsWhenAIEnds?: T extends SubjectId ? true : never
+  // ほかのホストに応じて（ペアリングの頼みが届いた・取り下げられた・受け入れの答えが届いた・相手がペアリングを解いた など）、常駐が利用者として行う役（HOST_ROLES）。
+  // 役ごとに 1 つのアクションだけが名乗る。利用者だけが行うアクション（userOnly）で、対象の定義の種類が対象のアクションだけが書ける
+  runsBetweenHosts?: T extends SubjectId ? HostRole : never
   // 常駐が初めて起動したとき（その行ったという記録がまだ無いとき）に、利用者として 1 度だけ行う（引数は {}。最初の 1 件を作るなど。行えたら記録し、
   // 利用者があとで消しても作り直さない。行えなければ記録せず、次の起動でまた行う）
   runsOnceAtStart?: true

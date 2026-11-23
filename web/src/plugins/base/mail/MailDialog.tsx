@@ -3,13 +3,14 @@
 // 行き先に物があれば倍率そのままで真ん中に見せて、鳥を連れてきて枠を光らせる（bird-visit.tsx）。郵便箱のタブが開いているときは、ダイアログと郵便箱を一緒に閉じるボタンも出す。
 // 決めるキー（Enter）は、ダイアログを出したステージで開くボタン（開いたら、そのボタンに焦点を当てる）。行き先が無い・無くなっていれば（「行き先がありません」と出す）、閉じるボタンだけを出す
 
-import { type FormEvent, type ReactNode, useEffect, useId, useRef, useState } from "react"
+import { type FormEvent, useEffect, useId, useRef, useState } from "react"
 import type { Stage } from "../../../core/stage"
 import { screenOfStage } from "../../../core/window"
 import { NO_STAGE } from "../../../store/dialogs"
 import { useMessages } from "../../../ui/i18n"
 import type { DialogProps } from "../../../ui/plugin"
-import { useLayout, useMatomezuState, useReadState, useStoreActions, useUiCatalog } from "../../../ui/store-context"
+import { NO_KIND, NO_KIND_VIEW, useKindView } from "../../../ui/Slot"
+import { useMatomezuState, useReadState, useStoreActions } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
 import { Dialog } from "../dialog-host/Dialog"
 import { ActionButton } from "../dialog-host/FormParts"
@@ -21,7 +22,7 @@ import own from "./Mail.module.css"
 import { type OpenChoice, type OpenChoices, openChoices, openStageOf } from "./open-choices"
 import { GONE, mailPlace } from "./place"
 import { shownOf } from "./shown"
-import { MAIL_ACTIONS, type MailActionsProps } from "./slots"
+import { MAIL_ACTIONS } from "./slots"
 import { MAILBOX_TAB_ID } from "./tab-id"
 
 const CHOICE_TITLES = {
@@ -62,12 +63,8 @@ function MailDialogBody({ stage, mail: mailId, onClose }: { stage: string; mail:
   const seen = !!mail?.seenAt
   const [docked, setDocked] = useState(false) // 窓の右の端に寄せているか（種類のボタンが頼む）
   // この種類のボタンのウィジェット（あれば、開くボタンの代わりにそのボタンを並べる）
-  const placed: readonly string[] = useLayout().slots[MAIL_ACTIONS] ?? []
-  const uiWidgets = useUiCatalog().widgets
-  const actionsId = mail ? placed.find(w => uiWidgets.get(w)?.forKind === mail.mail) : undefined
-  const Actions = actionsId
-    ? (uiWidgets.get(actionsId)?.view as ((props: MailActionsProps) => ReactNode) | undefined)
-    : undefined
+  const kindView = useKindView(MAIL_ACTIONS, mail ? mail.mail : NO_KIND)
+  const Actions = kindView === NO_KIND_VIEW ? undefined : kindView
   // 開いたら見たことにする
   useEffect(() => {
     if (mail && !seen) actions.perform(MAIL_SEEN.id, {}, { record: mail.id })

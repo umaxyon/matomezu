@@ -59,7 +59,8 @@ func askPairing(t *testing.T, s HostStatus) map[string]any {
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, err := peer.Client(other, s.HostID, 5*time.Second).Post("https://"+net.JoinHostPort("127.0.0.1", strconv.Itoa(s.Port))+"/peer/v1/pairing", "application/json", nil)
+	commit := `{"step":"commit","protocol":1,"name":"other","userName":"","port":1,"commit":"` + peer.CommitOf(peer.NewNonce()) + `"}`
+	res, err := peer.Client(other, s.HostID, 5*time.Second).Post("https://"+net.JoinHostPort("127.0.0.1", strconv.Itoa(s.Port))+peer.PairingPath, "application/json", strings.NewReader(commit))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +92,7 @@ func TestTheHostEntranceFollowsTheSetting(t *testing.T) {
 		t.Fatalf("open = %+v (saved %d)", s, saved)
 	}
 	body := askPairing(t, s)
-	if body["hostId"] != id.HostID || body["name"] != "Masa の Mac" || body["protocol"] != float64(peer.Protocol) {
+	if body["hostId"] != id.HostID || body["name"] != "Masa の Mac" || body["protocol"] != float64(peer.Protocol) || body["nonce"] == "" {
 		t.Fatalf("pairing body = %v", body)
 	}
 	told := false
@@ -206,5 +207,30 @@ func TestTheHostEntranceStaysClosedAfterCloseHostEntrance(t *testing.T) {
 	if c, err := net.DialTimeout("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)), time.Second); err == nil {
 		c.Close()
 		t.Fatal("the entrance opened again after CloseHostEntrance")
+	}
+}
+
+// 覚えたポートが使われているとき、利用者が選び直すと、空いている番号で開いてその番号を覚える。使われていなければ断る
+func TestRepickingTheHostPortOpensOnAFreeOne(t *testing.T) {
+	taken, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer taken.Close()
+	kept := taken.Addr().(*net.TCPAddr).Port
+	h := emptyHub(t)
+	saved := 0
+	testHost(t, h, kept, &saved)
+	setHostSettings(t, h, `{"@matomezu/network:connect-hosts":true}`)
+	waitHost(t, h, func(s HostStatus) bool { return s.Failed == HostPortInUse })
+	if err := h.RepickHostPort(); err != nil {
+		t.Fatal(err)
+	}
+	s := waitHost(t, h, func(s HostStatus) bool { return s.Open })
+	if s.Port == kept || saved != s.Port || s.Failed != "" {
+		t.Fatalf("repicked = %+v, saved %d, kept %d", s, saved, kept)
+	}
+	if err := h.RepickHostPort(); err == nil {
+		t.Fatal("repicked an open entrance")
 	}
 }

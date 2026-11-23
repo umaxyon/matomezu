@@ -1201,3 +1201,19 @@ test("新しい版を確かめる頼みは JSON の本文で送り、答えの�
   await host.checkUpdate()
   expect(sent).toEqual([{}])
 })
+
+test("ほかのホストの様子の知らせは store に入れ、頼みはその口に JSON の本文で送る", async () => {
+  const s = await connected()
+  const peers = {
+    paired: [{ hostId: "b".repeat(64), connected: true, addr: "192.168.11.20:7240", name: "win-lan" }],
+    found: [],
+    pairing: { phase: "waiting", addr: "192.168.11.20:7240", code: "482913" },
+  }
+  s.emit("host-peers", peers)
+  expect(s.store.state.getState().hostPeers).toEqual(peers as never)
+  const { host, sent } = removing({ status: 200, body: { ok: true } }, "api/hosts/pair")
+  await host.askHosts({ kind: "pair", addr: "192.168.11.20:7240", manual: true })
+  expect(sent).toEqual([{ addr: "192.168.11.20:7240", manual: true }])
+  const refused = removing({ status: 409, body: {} }, "api/hosts/port")
+  await expect(refused.host.askHosts({ kind: "repick-port" })).rejects.toThrow("E413")
+})

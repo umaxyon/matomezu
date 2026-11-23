@@ -10,7 +10,7 @@ import { useReadState, useStoreActions } from "../../../ui/store-context"
 import { useCoreCatalog } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { anchorElementIn } from "../stand/anchors"
-import { useArrivalMarquee } from "../utils/arrival-marquee"
+import { NO_MARQUEE, useArrivalMarquee } from "../utils/arrival-marquee"
 import { MAIL_VISITED, mailboxOf } from "."
 import { useMailbox } from "./hooks"
 import { shownOf } from "./shown"
@@ -25,7 +25,7 @@ export function MailWatch() {
     const last = came.filter(m => !m.seenAt).at(-1)
     return last
       ? { message: kit.message("Mail arrived: {title}"), params: { title: shownOf(catalog, last, t)?.title ?? "" } }
-      : undefined
+      : NO_MARQUEE
   })
   useVisited()
   return null

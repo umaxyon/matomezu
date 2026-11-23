@@ -11,19 +11,8 @@ import (
 
 func (h *Hub) hostsHandler() http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("POST /peer/v1/pairing", peer.Unpinned(h.pairing))
+	mux.Handle("POST /peer/v1/pairing", peer.Unpinned(h.pairing)) // peer.PairingPath
+	mux.Handle("GET /peer/v1/hello", peer.Pinned(h.isPairedHost, h.peerHello))
+	mux.Handle("POST /peer/v1/unpair", peer.Pinned(h.isPairedHost, h.peerUnpair))
 	return mux
-}
-
-// pairingHello は、ペアリングの頼みの最初の答え: 約束の版・このホストの id・ホスト名
-type pairingHello struct {
-	Protocol int    `json:"protocol"`
-	HostID   string `json:"hostId"`
-	Name     string `json:"name"`
-}
-
-// pairing は、ペアリングの頼みの口: 約束の版とこのホストを答える
-func (h *Hub) pairing(w http.ResponseWriter, _ *http.Request) {
-	s := h.HostStatus()
-	writeJSON(w, pairingHello{Protocol: peer.Protocol, HostID: s.HostID, Name: s.Name})
 }

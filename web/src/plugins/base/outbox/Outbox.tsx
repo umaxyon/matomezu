@@ -3,13 +3,13 @@
 // AI が読んだ物は薄くして「既読」。行を押すと（左サイドパネルは閉じず）、ほかのページならそのページを開いてから、種類が答えた右サイドパネルの中身で開くか（伝言）、
 // 倍率そのままで付けた物を真ん中に見せる（マークなど）。「取消」は確かめてから、種類が答えたアクションで消す
 
-import { type ReactNode, useMemo } from "react"
+import { useMemo } from "react"
 import type { AiAnnotation, Annotation } from "../../../core/annotation"
 import type { ActionId } from "../../../core/catalog"
 import { NO_STAGE, NOTHING_OPENED, shownPageId } from "../../../core/stage"
 import { useMessages } from "../../../ui/i18n"
-import { useLayout } from "../../../ui/store-context"
-import { useActions, useAllowed, useCoreCatalog, useStage, useUiCatalog } from "../../../ui/view-hooks"
+import { NO_KIND_VIEW, useKindView } from "../../../ui/Slot"
+import { useActions, useAllowed, useCoreCatalog, useStage } from "../../../ui/view-hooks"
 import { kit } from "../kit"
 import { useAnchorName } from "../label/anchor-name"
 import { useOpenRightSidePanel } from "../right-side-panel/hooks"
@@ -24,7 +24,7 @@ import { Withdraw } from "../utils/Withdraw"
 import { listedOf } from "./listed"
 import styles from "./Outbox.module.css"
 import { listedPages } from "./rows"
-import { ANNOTATION_ICON, type AnnotationIconProps } from "./slots"
+import { ANNOTATION_ICON } from "./slots"
 
 const ROW_CHARS = 20 // 行に出す、文の始めの字数
 
@@ -100,11 +100,12 @@ function RowWithdraw({
 
 // 行の左の絵: 種類ごとに、スロット annotation-icon に置いたウィジェットのうち、その種類の物が描く（無ければ点）
 function Icon({ annotation: a }: { annotation: Annotation }) {
-  const placed: readonly string[] = useLayout().slots[ANNOTATION_ICON] ?? []
-  const widgets = useUiCatalog().widgets
-  const id = placed.find(w => widgets.get(w)?.forKind === a.annotation)
-  const View = id ? (widgets.get(id)?.view as ((props: AnnotationIconProps) => ReactNode) | undefined) : undefined
-  return <span className={styles.icon}>{View ? <View annotation={a} /> : <span className={styles.dot} />}</span>
+  const View = useKindView(ANNOTATION_ICON, a.annotation)
+  return (
+    <span className={styles.icon}>
+      {View === NO_KIND_VIEW ? <span className={styles.dot} /> : <View annotation={a} />}
+    </span>
+  )
 }
 
 // 行を押したときの動き: ほかのページならそのページを開いてから、種類が右サイドパネルの中身 panel を答えていればそこで開き、

@@ -6,6 +6,7 @@
 // 計算は同じフォルダの役割ごとのファイルにあり、ここは台帳アセンブルの結果（assembled）を渡して呼ぶ。常駐が呼ぶ口（globalThis に置く matomezu で始まる関数）は、全部ここに置く
 
 import { talkActions } from "../core/annotation"
+import { hostActions } from "../core/hosts"
 import { endActions, joinActions } from "../core/participant"
 import { checkRecords, restoreRecords } from "../core/records"
 import {
@@ -16,6 +17,7 @@ import {
   isParticipantAlive,
   restoreSettings,
   updateCheckOn,
+  userNameOf,
 } from "../core/settings"
 import { warningText } from "../core/warnings"
 import { MODULES, UI_NAMES } from "../plugin-modules"
@@ -216,6 +218,10 @@ let lastAdded: readonly Plugin[] = []
 ;(globalThis as { matomezuEndActions?: () => string }).matomezuEndActions = () =>
   JSON.stringify(endActions(assembled.catalog.core))
 
+// ほかのホストに応じて常駐が利用者として行うアクション（runsBetweenHosts）の、役ごとの id（常駐が、ホストどうしの入口で使う）
+;(globalThis as { matomezuHostActions?: () => string }).matomezuHostActions = () =>
+  JSON.stringify(hostActions(assembled.catalog.core))
+
 // 参加者が時点 nowMs（ミリ秒）で生きているか（利用者の設定の参加の有効時間で決まる。常駐が、同じ名前の参加者を引き継げるかを決めるのに読む）
 ;(
   globalThis as { matomezuParticipantAlive?: (settings: string, calledAt: string, nowMs: number) => boolean }
@@ -226,12 +232,13 @@ let lastAdded: readonly Plugin[] = []
 ;(globalThis as { matomezuUpdateCheck?: (settings: string) => boolean }).matomezuUpdateCheck = settings =>
   updateCheckOn(assembled.catalog.core, restoreSettings(JSON.parse(settings)))
 
-// ほかのホストとつなぐかとホスト名（利用者の設定で決まる。常駐が、ホストどうしの入口を開け閉めする前に読む。ホスト名は無ければ空）
+// ほかのホストとつなぐか・ホスト名・利用者名（利用者の設定で決まる。常駐が、ホストどうしの入口を開け閉めする前に読む。ホスト名は無ければ空）
 ;(globalThis as { matomezuHostSettings?: (settings: string) => string }).matomezuHostSettings = settings => {
   const s = restoreSettings(JSON.parse(settings))
   return JSON.stringify({
     connect: connectHostsOn(assembled.catalog.core, s),
     name: hostNameOf(assembled.catalog.core, s) ?? "",
+    userName: userNameOf(assembled.catalog.core, s),
   })
 }
 

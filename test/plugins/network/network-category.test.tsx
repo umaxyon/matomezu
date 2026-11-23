@@ -77,3 +77,56 @@ test("WSL で動いていて、つなぐが入でポートが決まっていれ�
   expect(within(panel()).getByText("WSL では、設定するまでほかのマシンからこのホストに届きません")).toBeTruthy()
   expect(within(panel()).getByText(/-LocalPorts 41234/)).toBeTruthy()
 })
+
+test("覚えたポートが使われていれば［別のポートにする］を出し、確かめのダイアログで頼む。どちらで閉じても「ネットワーク」に戻る", async () => {
+  const asked: unknown[] = []
+  const store = createMatomezu({
+    controlCenter: CONTROL_CENTER.id,
+    books: [],
+    lang: "ja",
+    plugins: BUILTIN_UI,
+    hostsHost: {
+      ask: async r => {
+        if (r.kind === "repick-port") asked.push(r)
+      },
+    },
+  })
+  render(
+    <MatomezuProvider instance={store} layout={DEFAULT_LAYOUT}>
+      <WindowRoot />
+    </MatomezuProvider>,
+  )
+  const taken = () =>
+    act(() =>
+      store.setHostStatus({
+        hostId: HOST_ID,
+        name: "d",
+        osHostName: "d",
+        open: false,
+        port: 7240,
+        failed: "port-in-use",
+      }),
+    )
+  taken()
+  fireEvent.click(screen.getByRole("button", { name: "全体設定", hidden: true }))
+  fireEvent.click(screen.getByRole("tab", { name: "ネットワーク" }))
+  fireEvent.click(
+    within(screen.getByRole("tabpanel", { name: "ネットワーク" })).getByRole("switch", { name: "ホストとつなぐ" }),
+  )
+  taken()
+  const open = () =>
+    fireEvent.click(
+      within(screen.getByRole("tabpanel", { name: "ネットワーク" })).getByRole("button", { name: "別のポートにする" }),
+    )
+  open()
+  const dialog = () => screen.getByRole("dialog", { name: "別のポートにする" })
+  expect(within(dialog()).getByText(/ポート 7240 に足したファイアウォールの規則/)).toBeTruthy()
+  fireEvent.click(within(dialog()).getByRole("button", { name: "キャンセル" }))
+  expect(asked).toEqual([])
+  open()
+  await act(async () => {
+    fireEvent.click(within(dialog()).getByRole("button", { name: "別のポートにする" }))
+  })
+  expect(asked).toEqual([{ kind: "repick-port" }])
+  expect(screen.getByRole("tabpanel", { name: "ネットワーク" })).toBeTruthy()
+})

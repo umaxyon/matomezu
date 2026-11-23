@@ -58,6 +58,8 @@ export const ERRORS = {
   E078: "follow step of plugin {plugin}: it writes {ref}, which is not its own kind (a follow step writes only its plugin's kinds)",
   E079: "follow step of plugin {plugin}: it writes {ref}, which is not in the catalog or is numbered (a follow step cannot write a numbered kind)",
   E080: "follow steps make a loop ({loop}): a follow step cannot come back to a kind it changed",
+  E081: "action {id}: runsBetweenHosts {role} is named by {other} too",
+  E082: "action {id}: runsBetweenHosts needs userOnly (matomezu does it as the user)",
   E062: "pageType {id}: settings has {setting}, which is not a page setting (its holder is not page)",
   E063: 'action {id}: its permissionScope is "book" (no page named), so its attach cannot have {attach} (they depend on a page type)',
   E064: "setting {id}: a page or outermost setting needs holder (page or outermost)",
@@ -144,6 +146,8 @@ export const ERRORS = {
   E409: "this window has no server to ask about updates",
   E410: "the server could not check for updates: {status}",
   E411: "the server could not ask the workroom {workroom} to update: {status}",
+  E412: "this window has no server to ask about other hosts",
+  E413: "the server could not do {request} for other hosts: {status}",
 } as const
 
 export type ErrorCode = keyof typeof ERRORS

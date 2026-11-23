@@ -1,7 +1,7 @@
 // 設定カテゴリ「ネットワーク」: ホスト名とほかのホストとつなぐかの項目。つなぐが入なら、待っている所（番地ごとに［コピー］）とこのホストの鍵の印か、
-// 入口を開けなかった理由の 1 行。そのうえ WSL で動いているときは、ほかのマシンから届かせる設定の案内の 1 行と、開くと出る手引き
+// 入口を開けなかった理由の 1 行（覚えたポートが使われていれば［別のポートにする］。確かめのダイアログを開く）。そのうえ WSL で動いているときは、ほかのマシンから届かせる設定の案内の 1 行と、開くと出る手引き
 import { useEffect, useState } from "react"
-import { type UserSettingControlProps, useMessages, useSettings } from "../../plugin-api/ui"
+import { type UserSettingControlProps, useActions, useMessages, useSettings } from "../../plugin-api/ui"
 import {
   ActionButton,
   NO_HOST_STATUS,
@@ -12,6 +12,7 @@ import {
   useCopyText,
   useHostStatus,
 } from "../base/ui"
+import { PORT_REPICK_DIALOG } from "./dialogs"
 import { kit } from "./kit"
 import styles from "./NetworkCategory.module.css"
 import { CONNECT_HOSTS, HOST_NAME } from "./settings"
@@ -34,6 +35,7 @@ export function NetworkCategory() {
   const got = useHostStatus()
   const { values } = useSettings()
   const on = values[CONNECT_HOSTS.id] === true
+  const { openDialog } = useActions()
   if (!on || got === NO_HOST_STATUS) return <UserSettings settings={[HOST_NAME.id, CONNECT_HOSTS.id]} />
   const status = got
   return (
@@ -54,8 +56,9 @@ export function NetworkCategory() {
         </div>
       )}
       {status.failed === "port-in-use" && (
-        <p className={styles.note}>
+        <p className={`${styles.note} ${styles.taken}`}>
           {t("Port {port} is used by another program", { port: status.port === NO_PORT ? "" : status.port })}
+          <ActionButton onClick={() => openDialog(PORT_REPICK_DIALOG.id)}>{t("Use another port")}</ActionButton>
         </p>
       )}
       {status.failed === "listen" && <p className={styles.note}>{t("Could not open the entrance for other hosts")}</p>}

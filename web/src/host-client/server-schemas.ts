@@ -71,6 +71,40 @@ export const HostStatusSchema = z.object({
   wsl: z.boolean().optional(),
   failed: z.enum(["port-in-use", "listen"]).optional(),
 })
+export const HostPeersSchema = z.object({
+  paired: z.array(
+    z.object({
+      hostId: z.string(),
+      connected: z.boolean(),
+      lastSeen: z.string().optional(),
+      addr: z.string().optional(),
+      name: z.string().optional(),
+      userName: z.string().optional(),
+      keyMismatch: z.boolean().optional(),
+    }),
+  ),
+  found: z.array(z.object({ hostId: z.string(), name: z.string(), userName: z.string(), addr: z.string() })),
+  pairing: z
+    .object({
+      phase: z.enum([
+        "asking",
+        "waiting",
+        "accepted",
+        "declined",
+        "timed-out",
+        "unreachable",
+        "refused",
+        "key-mismatch",
+      ]),
+      addr: z.string(),
+      hostId: z.string().optional(),
+      name: z.string().optional(),
+      userName: z.string().optional(),
+      code: z.string().optional(),
+      reason: z.string().optional(),
+    })
+    .optional(),
+})
 export const DataSchema = z.object({
   pages: z.array(z.object({ id: z.string(), page: z.unknown(), version: z.number().int() })),
   folders: z.array(z.object({ id: z.string(), folder: z.unknown(), version: z.number().int() })),
@@ -86,6 +120,7 @@ export const DataSchema = z.object({
   participantReady: z.array(z.string()).optional(),
   update: UpdateStatusSchema.optional(),
   host: HostStatusSchema.optional(),
+  hostPeers: HostPeersSchema.optional(),
   participantLive: z
     .record(z.string(), z.object({ model: z.string().optional(), branch: z.string().optional() }))
     .optional(),

@@ -153,6 +153,15 @@ export function checkCoreCatalog(parts: CoreCatalogParts): Problem[] {
     if (canceller !== undefined) problems.push(problem("E067", { id: a.id, other: canceller }))
     canceller ??= a.id
   }
+  // ほかのホストに応じて常駐が行う役（runsBetweenHosts）は、役ごとに 1 つのアクションだけが名乗り、利用者だけが行うアクションに限る（AI が知らない鍵を覚えさせられないため）
+  const hostRoles = new Map<string, string>()
+  for (const a of parts.actions) {
+    if (!a.runsBetweenHosts) continue
+    const other = hostRoles.get(a.runsBetweenHosts)
+    if (other !== undefined) problems.push(problem("E081", { id: a.id, role: a.runsBetweenHosts, other }))
+    else hostRoles.set(a.runsBetweenHosts, a.id)
+    if (!a.userOnly) problems.push(problem("E082", { id: a.id }))
+  }
   // 参加者のセッションが終わったときの役（runsWhenAIEnds）も、1 つのアクションだけが名乗る
   let ender: string | undefined
   for (const a of parts.actions) {
