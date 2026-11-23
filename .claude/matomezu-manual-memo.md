@@ -53,8 +53,83 @@ npm で入れた matomezu のフォルダの下にあります。場所は `mato
 
 ### 更新する
 
+`matomezu update` で更新します。matomezu を止めてから打つ要はありません。
+
+1. `matomezu update` を打つ（Windows で npm から入れたときは `matomezu.cmd update`）
+2. 入れたときの道具（npm・Volta・pnpm・bun）で、新しい版が入る。初めに、使う道具と打つコマンドが出る（例: `Updating matomezu with npm: npm install -g matomezu@latest`）
+3. 終わりに、次のどちらかが出る
+   - `matomezu is updated from （前の版） to （新しい版）. ...`: 更新できた
+   - `matomezu （版） is the newest.`: もう新しい版だった
+4. 開いている AI の会話を起動し直す
+
+`matomezu update` が行う事:
+
+- 新しい版を入れる
+- Claude Code・Codex・opencode のうち、matomezu のプラグインを入れてある AI のプラグインを、同じ版にする
+- 動いている matomezu が古い版なら、新しい版で起動し直す
+
+- 開いている AI の会話は、起動し直すまで古い版のままです。AI は、次に matomezu を使ったときに 1 度、「会話を起動し直すと新しい版になる」と伝えます
+- 開いている画面には、「matomezu が更新されました」が出ます（下の「画面に出る知らせ」）
+
+注: 入れ方を見分けられないときは、`matomezu could not tell how it was installed. ...` と、打つコマンドの例（`npm install -g matomezu@latest`）が出て止まります。下の「手で更新する」で更新します。
+注: プラグインの更新か、matomezu の起動し直しに失敗したときは、最後に失敗した物が出ます。本体の更新は済んでいます。失敗した物は、下の「手で更新する」の 3 で更新します。
+注: 開発用のリポジトリから作った matomezu では、`this matomezu is a development build: update it from its repository` と出て止まります。
+
+#### 新しい版があると知らせる
+
+matomezu は、起動したときと 1 日に 1 回、新しい版が出ていないかを確かめます。npm が使うレジストリに聞きます。
+
+新しい版があると:
+
+- コントロールセンターの利用者パネルの帯の巣箱の絵が、金色と元の色を行き来する
+- 巣箱にポインタを乗せると、「更新があります」と出る
+- 巣箱を押すと、設定画面の「更新」が開く（下の「設定画面の「更新」」）
+
+#### 設定画面の「更新」
+
+設定画面（15 章）の左の「更新」を押すと、右に次の行が並びます。
+
+| 行 | 出る物 |
+|---|---|
+| 今の版 | 動いている matomezu の版 |
+| 新しい版 | 新しい版の番号。無ければ「最新です」。まだ確かめていなければ「まだ確かめていません」 |
+| 確かめた時刻 | 最後に確かめた時刻と、「更新を確認」のボタン |
+| 新しい版を自動で確かめる | 起動したときと 1 日に 1 回確かめるかのスイッチ。既定はオン |
+| 更新する | 新しい版があるときだけ出る（下の表） |
+
+- 「更新を確認」を押すと、すぐに確かめます。確かめている間は「確かめています…」と出ます
+- 確かめられなかったときは、ボタンの横に「確かめられませんでした」と出ます
+- スイッチを切っても、「更新を確認」では確かめられます
+
+「更新する」の行に出る物:
+
+| 管理者の AI | 出る物 |
+|---|---|
+| 管理者のワークルームに、動いている AI がいる | 「管理者（ワークルームの名前）に更新を頼む」のボタン |
+| いない | 「端末で次を打つと更新します」と、`matomezu update`（Windows で npm から入れたときは `matomezu.cmd update`）と、「コピー」のボタン |
+
+- 「管理者（ワークルームの名前）に更新を頼む」を押すと、管理者の AI が `matomezu update` を打ち、結果を伝えます。押したあとは「頼みました （時刻）」と出ます。頼めなかったときは「頼めませんでした」と出ます
+- 「コピー」を押すと、コマンドがクリップボードに入ります。しばらく字が「コピーしました」に替わります。コピーできなかったときは「コピーできません」に替わります
+
+注: 管理者は 16 章「参加者区分」にあります。
+注: 開発用のリポジトリから作った matomezu では、「新しい版」に「開発の版」と出て、「更新を確認」は押せません。
+
+#### 画面に出る知らせ
+
+matomezu が新しい版で起動し直すと、開いていた画面に「matomezu が更新されました」のダイアログが出ます。
+
+- 「（前の版） → （新しい版）」が添えられます
+- 「画面を読み込み直す」を押すと、新しい版の画面になります
+- ダイアログは閉じられません。読み込み直すまで、画面は使えません
+
+注: 届いていない操作があったときは、「届いていない操作 （数） 件」と「読み込み直すと消えます」も出ます。
+
+#### 手で更新する
+
+`matomezu update` で更新できなかったときは、手で更新します。
+
 1. `matomezu stop` で止める
-2. `npm i -g matomezu` を打つ
+2. `npm i -g matomezu` を打つ（npm のほかの道具で入れたときは、その道具で入れる）
 3. AI に入れたプラグインを、新しい版にする（下の表）
 
 | AI | プラグインを新しくする |
@@ -64,7 +139,7 @@ npm で入れた matomezu のフォルダの下にあります。場所は `mato
 | opencode | matomezu-opencode を、本体と同じ版にそろえる |
 
 注: 開発用のリポジトリからプラグインを入れている場合は、その登録元で更新します（16 章「Claude Code のプラグイン」「Codex のプラグイン」）。
-注: Windows では、動いている matomezu を上書きできません。2 が `Could not remove directory`（volta なら `Volta error: Could not remove directory`）で失敗します。そのときは、AI（Claude Code・Codex・opencode）を終え、PowerShell で `Get-Process matomezu | Stop-Process` を打って、残っている matomezu を止めます。そのあと、もう一度 2 を打ちます。
+注: Windows で、`matomezu update` か 2 が `Could not remove directory`（volta なら `Volta error: Could not remove directory`）で失敗したときは、動いている matomezu を上書きできていません。そのときは、AI（Claude Code・Codex・opencode）を終え、PowerShell で `Get-Process matomezu | Stop-Process` を打って、残っている matomezu を止めます。そのあと、失敗したコマンドをもう一度打ちます。
 
 ### プラグインの利用を一時的に止める
 
@@ -88,6 +163,7 @@ matomezu を外すときは、npm で消す前に、AI からプラグインを�
 - matomezu を止める
 - Claude Code・Codex・opencode から、matomezu のプラグインと、その置き場所の登録を外す（下の表のコマンドを順に打ちます）
 - 入っていない AI は、`skipped` と出して飛ばす
+- matomezu が自分で置いた実行ファイルの写しを消す
 - 最後に、ブック（図のデータ）を置いたフォルダの場所と、2・3 の手順を出す
 
 | AI | 外すコマンド |
@@ -102,11 +178,21 @@ matomezu を外すときは、npm で消す前に、AI からプラグインを�
 注: Windows では、AI を終えずに 3 を打つと、AI が使っている matomezu を消せず、`Could not remove directory` で失敗します。
 注: npm で消すだけでは、AI のプラグインは残ります。npm は、消すときに matomezu の後片付けをしないからです。
 注: 外すコマンドが失敗した AI には、`failed` と出ます。残りの AI は続けて外し、最後に失敗したコマンドを並べて出します。並んだコマンドは、手で打ち直します。
+注: 実行ファイルの写しが使われていて消せないときは、`Some copies of matomezu are in use and stay in （フォルダ）. ...` と出ます。AI を終えてから、そのフォルダを自分で消します。
 注: 知らない名前を添えると、`unknown AI program ... (claude-code, codex or opencode)` と出て、何も外しません。
 
 #### 先に npm で消してしまったとき
 
-上の表のコマンドを、AI ごとに手で打ちます。
+matomezu を入れ直してから、上の手順で外します。どの AI でもこの手で外せます。
+
+1. `npm i -g matomezu` を打つ
+2. `matomezu plugin remove` を打つ
+3. Claude Code・Claude Desktop・Codex・opencode を終える
+4. `npm uninstall -g matomezu` を打つ
+
+- Claude Desktop だけを入れていて、ターミナルに `claude` のコマンドが無いときは、この手で外します。`matomezu plugin remove` は、Desktop が置いた Claude Code を見つけて外します（16 章「Claude Desktop だけを入れているとき」）
+
+ターミナルに AI のコマンドがあるときは、入れ直さずに、上の表のコマンドを AI ごとに手で打っても外せます。
 
 - `claude plugin uninstall matomezu@matomezu` は、プラグインの置き場所が消えたあとでも通ります
 
@@ -284,7 +370,7 @@ matomezu を開いた直後は、コントロールセンターだけです。�
 
 利用者パネルに出る物:
 
-- 帯: 「コントロールセンター」と、歯車「全体設定」
+- 帯: 巣箱の絵・「コントロールセンター」・歯車「全体設定」
 - 「あなた」
 - 4 つのボタン: 郵便・書庫・プロジェクト・横断検索（虫メガネ）
 
@@ -295,6 +381,7 @@ matomezu を開いた直後は、コントロールセンターだけです。�
 | 書庫 | 右の領域に書庫の画面を出す |
 | プロジェクト | 右の領域にプロジェクトの画面を出す |
 | 横断検索（虫メガネ） | 左のサイドパネルに「横断検索」が開く（19 章） |
+| 巣箱の絵（新しい版があるときだけ。金色と元の色を行き来する） | 設定画面の「更新」が開く（1 章「更新する」の「新しい版があると知らせる」） |
 
 - 押されている間のボタンは、押された状態になります。郵便は、左サイドパネルの郵便箱が開いている間です
 - ボタンにポインタを乗せると、名前が出ます
@@ -3728,6 +3815,7 @@ AI は、郵便箱を次の順で読みます。
 - マークダウン（下の「マークダウンの項目」）
 - ショートカットキー（下の「ショートカットキーを変える」）
 - プラグイン（下の「プラグインの項目」）
+- 更新（1 章「更新する」の「設定画面の「更新」」）
 
 注: 入れているプラグインによって、項目は増えます。
 
@@ -3948,7 +4036,7 @@ Claude Code には、matomezu のプラグインを入れます。入れるだ�
 2. `matomezu plugin install claude` を打つ
 3. Claude Code を開く。すでに開いている会話で使うときは、その会話で `/reload-plugins` を実行する
 
-- matomezu を npm で更新したときは、プラグインも新しくします（1 章「更新する」）
+- `matomezu update` で更新すると、プラグインも同じ版になります。手で更新したときは、プラグインも新しくします（1 章「更新する」）
 - 外すときは、npm で消す前に `matomezu plugin-remove` を打ちます（1 章「外す」）
 - 入れたあとは、Claude Code から AI に「matomezu に参加して」と頼めば、参加の流れに進めます（下の「AI の参加」）
 
@@ -4069,7 +4157,7 @@ Codex にも、matomezu のプラグインを入れます。入れるだけで�
 2. `matomezu plugin install codex` を打つ
 3. Codex を起動する。すでに開いていたら、起動し直す
 
-- matomezu を npm で更新したときは、プラグインを入れ直します（1 章「更新する」）
+- `matomezu update` で更新すると、プラグインも同じ版になります。手で更新したときは、プラグインを入れ直します（1 章「更新する」）
 - 外すときは、npm で消す前に `matomezu plugin-remove` を打ちます（1 章「外す」）
 - Windows（WSL でない）でも、そのまま使えます
 
@@ -4126,7 +4214,7 @@ opencode（v2）にも、matomezu のプラグインを入れます。Ollama な
 2. `opencode plugin add matomezu-opencode` を打つ
 
 - matomezu-opencode は、matomezu の本体とは別の npm のパッケージです。版は本体と同じです
-- 本体を更新したら、matomezu-opencode も同じ版にそろえます（1 章「更新する」）
+- 本体を手で更新したら、matomezu-opencode も同じ版にそろえます。`matomezu update` は、そろえるまで行います（1 章「更新する」）
 - 外すときは、npm で本体を消す前に `matomezu plugin-remove` を打ちます（1 章「外す」）
 
 注: matomezu の MCP は、そのフォルダで最初に AI に話しかけたターンから使えます。
