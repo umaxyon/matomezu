@@ -11,6 +11,7 @@ import {
   blockBodyHeight,
   clampRich,
   type GrowSides,
+  NO_GROW,
   parseRich,
   type RichLine,
   richWidth,
@@ -248,7 +249,7 @@ export function layoutTree(
   paper: { w: number; h: number },
   size: NodeSize = DEFAULT_NODE_SIZE,
   shape: NodeShape = DEFAULT_NODE_SHAPE,
-  sides?: GrowSides,
+  sides: GrowSides | typeof NO_GROW = NO_GROW,
 ): TreeLayout {
   const look = { size, shape }
   const box = rootBox(root, size)
@@ -281,7 +282,7 @@ export function layoutTree(
     shiftInto(out, paper)
   } else branch(r, kids, grow, look, out)
   out.fits = out.nodes.every(n => n.x >= 0 && n.y >= 0 && n.x + n.w <= paper.w && n.y + n.h <= paper.h)
-  if (sides) {
+  if (sides !== NO_GROW) {
     out.origin = originOf(out, paper, sides)
     shiftBy(out, out.origin.x * paper.w, out.origin.y * paper.h)
     out.fits = true

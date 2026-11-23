@@ -109,6 +109,8 @@ export {
   MY_WORKDESK,
   minSize,
   NEST_PADDING,
+  NO_CATEGORY,
+  NO_GROW,
   NO_WORKER_BOOK,
   newClash,
   nextItemId,

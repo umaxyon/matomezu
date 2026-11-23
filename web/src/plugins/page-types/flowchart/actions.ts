@@ -16,6 +16,7 @@ import {
   extentOf,
   growOf,
   hasOpenedPage,
+  NO_GROW,
   pageContext,
   paperSize,
   placedAt,
@@ -171,7 +172,7 @@ export const PAGE_ALIGN = kit.defineAction({
       shaped,
       dir,
       pageContext(ctx.catalog, page).setting,
-      growOf(ctx.catalog, page) !== undefined,
+      growOf(ctx.catalog, page) !== NO_GROW,
     )
     if (!rects) return null
     const next = tidyPage(

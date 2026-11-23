@@ -1,18 +1,18 @@
 // ツリーのページが紙に入るか: ページの根（root を渡せばそれ）を、そのページで効いている伸びる向きで並べ、どの節も紙に収まるか（可変ページはいつも入る）
 import type { CoreCatalog, ItemPage } from "../../../plugin-api"
-import { type GrowSides, paperSize, type SettingReader } from "../../base"
+import { type GrowSides, type NO_GROW, paperSize, type SettingReader } from "../../base"
 import { GROW } from "./grow"
 import { layoutTree } from "./layout"
 import { type TreeRoot, treeRootOf } from "./node"
 import { NODE_SHAPE } from "./shape"
 import { NODE_SIZE } from "./size"
 
-// setting は、そのページで効いている設定の値を読む関数。grow はページの増やす向き（可変ページでなければ undefined）
+// setting は、そのページで効いている設定の値を読む関数。grow はページの増やす向き（可変ページでなければ NO_GROW）
 export function treeFits(
   catalog: CoreCatalog,
   page: ItemPage,
   setting: SettingReader,
-  grow: GrowSides | undefined,
+  grow: GrowSides | typeof NO_GROW,
   root?: TreeRoot,
 ): boolean {
   const found = root ?? treeRootOf(page)

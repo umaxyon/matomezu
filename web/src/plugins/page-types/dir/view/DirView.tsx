@@ -27,7 +27,7 @@ import {
   useStage,
   useStageArea,
 } from "../../../../plugin-api/ui"
-import { growOf, pageContext } from "../../../base"
+import { growOf, NO_GROW, pageContext } from "../../../base"
 import {
   FolderIcon,
   PaperFrame,
@@ -132,14 +132,14 @@ const Rows = memo(function Rows({
   // 書いている字を重ねた根
   const shown =
     root && text !== null && selected !== undefined ? (changeNode(root, selected, { name: text }) ?? root) : root
-  const growing = page ? growOf(catalog, page) : undefined // ページの増やす向き（可変ページでなければ undefined）
+  const growing = page ? growOf(catalog, page) : NO_GROW // ページの増やす向き（可変ページでなければ NO_GROW）
   // 印刷と同じ並べ方（print.ts の laidPage）で、書いている字を重ねた根を 1 度だけ並べる
   const laid =
     page && shown
       ? laidPage(catalog, page, { setting: pageContext(catalog, page).setting, grow: growing }, shown)
       : null
   // 可変ページなら、行と説明が入るだけ右と下へ並べた印刷区画に空きを足した広さを、ステージに知らせる
-  useStageArea(growing && laid ? laidArea(paper, growing, laid, true).size : NO_AREA)
+  useStageArea(growing !== NO_GROW && laid ? laidArea(paper, growing, laid, true).size : NO_AREA)
   if (!page || !root || !shown || !laid || selected === undefined) return null
   const dir = root
   const { rows, lines, notes, divider } = laid

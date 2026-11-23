@@ -8,6 +8,7 @@ import { placeableOf } from "../../web/src/core/def/page-type"
 import { warningText } from "../../web/src/core/warnings"
 import { tokenDefsOf } from "../../web/src/plugins/base/book-look/look"
 import { itemMinimapMarks } from "../../web/src/plugins/base/minimap/marks"
+import { NO_GROW } from "../../web/src/plugins/base/place/grow"
 import { filledSheets } from "../../web/src/plugins/base/print-preview/filled"
 import { toolboxOf } from "../../web/src/plugins/base/toolbox/toolbox"
 import { SLIDE, testBinder, testBook, testPage, withSlide } from "../lineup"
@@ -82,7 +83,7 @@ test("ミニマップと印刷区画の既定は、ページの slide の形も�
   const rectangle = { id: "r", item: "@matomezu/slide:slide-rectangle", x: 30, y: 40, w: 60, h: 20, props: {} }
   const p = { ...page, slide: [ellipse, line, text, rectangle] } as never
   expect(
-    itemMinimapMarks(CORE_CATALOG, p, { setting: () => undefined as never, grow: undefined, drawn: () => undefined }),
+    itemMinimapMarks(CORE_CATALOG, p, { setting: () => undefined as never, grow: NO_GROW, drawn: () => undefined }),
   ).toEqual([
     { kind: "ellipse", x: 10, y: 20, w: 100, h: 50 },
     {

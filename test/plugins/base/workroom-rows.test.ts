@@ -1,5 +1,6 @@
 // ワークルームごとの行（base/participant/rows.ts の workroomRows・adminRoomOf）と、アクションが引く管理者（adminWorkroom・isAdminActor）
 import { expect, test } from "bun:test"
+import { NO_WORKROOM } from "../../../web/src/core/actor"
 import {
   ADMIN_MARK,
   adminWorkroom,
@@ -79,9 +80,9 @@ test("アクションは、読んだ管理者の印と全部のワークルー�
     keys: { [WORKROOM.id]: { a: { name: "a" }, b: { name: "b" } } },
   })
   expect(adminWorkroom(ctx("a") as never)).toBe("a")
-  expect(adminWorkroom(ctx("none") as never)).toBeUndefined()
-  expect(adminWorkroom(ctx("gone") as never)).toBeUndefined()
-  expect(adminWorkroom(ctx() as never)).toBeUndefined()
+  expect(adminWorkroom(ctx("none") as never)).toBe(NO_WORKROOM)
+  expect(adminWorkroom(ctx("gone") as never)).toBe(NO_WORKROOM)
+  expect(adminWorkroom(ctx() as never)).toBe(NO_WORKROOM)
   // 管理者のワークルームに入っている AI だけが管理者
   expect(isAdminActor({ kind: "ai", workroom: { id: "a" } }, ctx("a") as never)).toBe(true)
   expect(isAdminActor({ kind: "ai", workroom: { id: "b" } }, ctx("a") as never)).toBe(false)

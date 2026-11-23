@@ -9,7 +9,7 @@ import { slideIsBackground } from "../../../core/def/page-type"
 import type { Rect, Size } from "../../../core/geom"
 import { byConnector, type ItemPage, type PlacedShape, shapesOf, slideOf } from "../../../core/placed"
 import { settingsAt } from "../book-settings"
-import { type GrowSides, grownArea, paperSize } from "../place/grow"
+import { type GrowSides, grownArea, NO_GROW, paperSize } from "../place/grow"
 import { placedSize, portAreasOf, rectsOf } from "../place/placed"
 import { placeableIn } from "../toolbox/toolbox"
 import type { PrintSheets } from "."
@@ -53,11 +53,11 @@ export function crossingShapes(
 export function printSheetsOf(
   paper: Size,
   rects: readonly Rect[],
-  grow: GrowSides | undefined,
+  grow: GrowSides | typeof NO_GROW,
   extent: Rect | null,
 ): PrintSheets {
   const filled = new Set(rects.flatMap(r => sheetsOfShape(r, paper).map(c => sheetKey(c.column, c.row))))
-  if (!grow) return { columns: 1, rows: 1, filled }
+  if (grow === NO_GROW) return { columns: 1, rows: 1, filled }
   const { columns, rows } = grownArea(paper, grow, extent, false)
   return { columns, rows, filled }
 }

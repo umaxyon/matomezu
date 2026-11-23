@@ -22,6 +22,7 @@ export {
   growKindOf,
   grownArea,
   growOf,
+  NO_GROW,
   paperSize,
   roomOf,
   slideOffsetOf,

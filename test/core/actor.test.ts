@@ -8,6 +8,7 @@ import {
   isAI,
   isUser,
   isVisitor,
+  NO_WORKROOM,
   USER,
   workroomOfActor,
 } from "../../web/src/core/actor"
@@ -27,7 +28,7 @@ test('外から来た印は、"ai" なら AI、無ければ利用者', () => {
 test("ビジターは as が visitor の印から来る（ワークルームの id が一緒にあっても as が勝つ）。書けず、入っているワークルームも無い", () => {
   expect(actorOfWire({ kind: "ai", as: "visitor" })).toEqual(AI_VISITOR)
   expect(actorOfWire({ kind: "ai", workroom: "w1", as: "visitor" })).toEqual(AI_VISITOR)
-  expect([canAct(AI_VISITOR), isVisitor(AI_VISITOR), workroomOfActor(AI_VISITOR)]).toEqual([false, true, undefined])
+  expect([canAct(AI_VISITOR), isVisitor(AI_VISITOR), workroomOfActor(AI_VISITOR)]).toEqual([false, true, NO_WORKROOM])
   expect([canAct(AI), isVisitor(AI), workroomOfActor(AI)]).toEqual([true, false, "room"])
-  expect([canAct(USER), isVisitor(USER), workroomOfActor(USER)]).toEqual([true, false, undefined])
+  expect([canAct(USER), isVisitor(USER), workroomOfActor(USER)]).toEqual([true, false, NO_WORKROOM])
 })

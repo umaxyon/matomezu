@@ -94,12 +94,14 @@ export function visitorRows(input: {
 }
 
 // 参加者区分: ワーカー（ワークルームに入っている。管理者もワーカー）・ビジター（ワークルームを持たない）。
-// 受け入れていない参加者は区分を持たない（undefined）。管理者かは管理者の印で決まる（adminRoomOf）
+// 受け入れていない参加者は区分を持たない（NO_CATEGORY）。管理者かは管理者の印で決まる（adminRoomOf）
 export type ParticipantCategory = "worker" | "visitor"
+// 参加者区分を持たない（受け入れていない参加者の）ときの値
+export const NO_CATEGORY = "none"
 
-export function participantCategory(p: Participant): ParticipantCategory | undefined {
+export function participantCategory(p: Participant): ParticipantCategory | typeof NO_CATEGORY {
   if (p.state === "visitor") return "visitor"
-  return p.state === "joined" ? "worker" : undefined
+  return p.state === "joined" ? "worker" : NO_CATEGORY
 }
 
 // 管理者か: 管理者の印が指すワークルームに入っているワーカー（admin は adminRoomOf が答えるワークルームの id）

@@ -50,7 +50,7 @@ import {
   useToPaper,
   useUiCatalog,
 } from "../../../plugin-api/ui"
-import { type Edges, followConnectors, growOf, minSize, onlySelected, roomOf, shownRects } from "../../base"
+import { type Edges, followConnectors, growOf, minSize, NO_GROW, onlySelected, roomOf, shownRects } from "../../base"
 import { modPressed, PaperFrame, useFollowsSelection } from "../../base/ui"
 import { kit } from "../kit"
 import { ITEM_CONTEXT, PAPER_CONTEXT } from "../paper"
@@ -281,7 +281,7 @@ function PageItems({
   const followed = useFollowsSelection()
   // 可変ページなら、形を置ける広さ（空きの印刷区画を含む。base の roomOf）をステージの広さとして知らせる
   const room = useMemo(
-    () => (opened && growOf(catalog, page) ? roomOf(catalog, page) : NO_AREA),
+    () => (opened && growOf(catalog, page) !== NO_GROW ? roomOf(catalog, page) : NO_AREA),
     [catalog, opened, page],
   )
   useStageArea(room)

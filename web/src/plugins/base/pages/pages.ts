@@ -9,7 +9,7 @@ import type { ItemPage } from "../../../core/placed"
 import type { Page, StageLineup } from "../../../core/schema/book"
 import { settingsAt } from "../book-settings"
 import { kit } from "../kit"
-import { extentOf, growOf, paddedFor, pageArea } from "../place/grow"
+import { extentOf, growOf, NO_GROW, paddedFor, pageArea } from "../place/grow"
 
 // タイプ type のページの、紙の規定
 const paperRule = (catalog: CoreCatalog, type: string): PaperRule => pageType(catalog, type).paper
@@ -74,7 +74,7 @@ export function normalizedPage<P extends ItemPage>(
   before: ItemPage | undefined,
   page: P,
 ): P | null {
-  const was = before && growOf(catalog, before)
+  const was = before ? growOf(catalog, before) : NO_GROW
   const padded = paddedFor(catalog, page, growOf(catalog, page), was)
   const papered =
     before !== undefined &&

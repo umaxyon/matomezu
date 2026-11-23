@@ -37,7 +37,7 @@ import {
   useStage,
   useStageArea,
 } from "../../../../plugin-api/ui"
-import { growOf, pageContext, refusalMessage, settingValue } from "../../../base"
+import { growOf, NO_GROW, pageContext, refusalMessage, settingValue } from "../../../base"
 import {
   PaperFrame,
   RichBar,
@@ -187,15 +187,15 @@ const Tree = memo(function Tree({
   const shown = root && selected && text !== null ? withCaption(root, selected, text) : root
   const shape = settingValue(catalog, page ?? null, NODE_SHAPE)
   const lineShape = settingValue(catalog, page ?? null, LINE_SHAPE)
-  // ページの増やす向き（可変ページでなければ undefined）
-  const growing = page ? growOf(catalog, page) : undefined
+  // ページの増やす向き（可変ページでなければ NO_GROW）
+  const growing = page ? growOf(catalog, page) : NO_GROW
   // 印刷と同じ並べ方（print.ts の laidPage）で、書いている字を重ねた木を並べる
   const laid =
     page && shown
       ? laidPage(catalog, page, { setting: pageContext(catalog, page).setting, grow: growing }, shown)
       : null
   // 可変ページなら、節の外枠が入るだけ並べた印刷区画に空きを足した広さと、木全体をずらした印刷区画の数を、ステージに知らせる
-  useStageArea(laid && growing ? laidArea(paper, growing, laid, true).size : NO_AREA, laidOrigin(laid))
+  useStageArea(laid && growing !== NO_GROW ? laidArea(paper, growing, laid, true).size : NO_AREA, laidOrigin(laid))
   const at = laid?.nodes.find(n => n.id === selected)
   // 節のフォーカス（選んでいる節を中央に置き、そのほかを暗くする）を外している間か。背景編集モードに入ると外し（ページ全体を収める）、
   // 出てもそのまま（見え方は変えない）。節を選ぶか書き換え始めるか、ページを替えると戻る

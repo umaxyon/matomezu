@@ -1,7 +1,7 @@
 // ワーカーブック: ワークルームの作業の資料のブック（tickets-history の中の 1 冊）を引く workKey と名前と、それを書ける者を決める認可ステップ。
 // 作業中なら、取り組んでいる物（workroomWork が答えるレコード。チケットなど）の物。空きか、答える種類が無ければ、ワークルーム自身の物
 
-import { type Actor, isAI, workroomOfActor } from "../../../core/actor"
+import { type Actor, isAI, NO_WORKROOM, workroomOfActor } from "../../../core/actor"
 import type { CoreCatalog } from "../../../core/core-catalog"
 import type { PermissionInput } from "../../../core/def/permission"
 import { backyardBookOf, rowsWithin } from "../../../core/entries"
@@ -60,7 +60,7 @@ export function foundWorkerBookOf(folders: Folders, key: WorkKey): FoundWorkerBo
 function writable(input: PermissionInput, actor: Actor, entry: BackyardEntry | undefined): boolean {
   if (!entry || entry.backyard !== TICKETS_HISTORY.id || !isAI(actor)) return true
   const room = workroomOfActor(actor)
-  return room !== undefined && sameWorkKey(workerBookOf(input.catalog, input.read, room).workKey, entry.workKey)
+  return room !== NO_WORKROOM && sameWorkKey(workerBookOf(input.catalog, input.read, room).workKey, entry.workKey)
 }
 
 // ワーカーブック: tickets-history のブック（とその中のページ）を書けるのは、そのブックがワーカーブックのワークルームの AI と、利用者だけ（ほかの AI は読むだけ）。

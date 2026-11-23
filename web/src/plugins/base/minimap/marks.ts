@@ -8,7 +8,7 @@ import { slideIsBackground } from "../../../core/def/page-type"
 import type { Point, Rect } from "../../../core/geom"
 import { byConnector, type ItemPage, shapesOf, slideOf } from "../../../core/placed"
 import { type SettingReader, settingsAt } from "../book-settings"
-import { type GrowSides, growOf } from "../place/grow"
+import { type GrowSides, growOf, type NO_GROW } from "../place/grow"
 import { type PortArea, placedSize, portAreasOf, rectsOf, shapeDefOf } from "../place/placed"
 
 // ミニマップに描く簡単な絵 1 つ（紙の座標）。色と線の太さはミニマップが決める。
@@ -35,11 +35,11 @@ declare module "../../../core/catalog" {
   }
 }
 
-// プレゼンテーションの minimap が受ける、ページの様子: page で効いている設定の値を読む setting、ページの増やす向き grow（可変ページでなければ undefined）、
+// プレゼンテーションの minimap が受ける、ページの様子: page で効いている設定の値を読む setting、ページの増やす向き grow（可変ページでなければ NO_GROW）、
 // 紙が描いたつなぐものの絵 drawn（種類の id ごと。無ければ undefined）
 interface MinimapOn {
   readonly setting: SettingReader
-  readonly grow: GrowSides | undefined
+  readonly grow: GrowSides | typeof NO_GROW
   readonly drawn: (item: string) => readonly MinimapMark[] | undefined
 }
 

@@ -2,7 +2,7 @@
 // ブックがまだ無ければ、同じ書き込みで作る（名前はワーカーブックの名前、並びのエントリに workKey）。空のブックは作らない。
 // どのワークルームかは、AI なら自分のワークルーム（workroom を省ける）、利用者なら workroom で渡す。書けるかは認可ステップ worker-book が決める
 import { z } from "zod"
-import { workroomOfActor } from "../../../core/actor"
+import { NO_WORKROOM, workroomOfActor } from "../../../core/actor"
 import { backyardBookOf, placedInBackyard } from "../../../core/entries"
 import { bookOf, withBook } from "../../../core/folders-books"
 import type { Book } from "../../../core/schema/book"
@@ -28,7 +28,7 @@ export const WORKER_PAGE_ADD = kit.defineAction({
   run: (library, args, ctx) => {
     const { workroom, ...page } = args
     const room = workroom ?? workroomOfActor(ctx.actor)
-    if (room === undefined) return null
+    if (room === NO_WORKROOM) return null
     const { workKey, title } = workerBookOf(ctx.catalog, readerIn(ctx), room)
     const found = backyardBookOf(library, TICKETS_HISTORY.id, workKey)
     const book: Book | undefined = found ? bookOf(library, found) : { id: ctx.newId(), title, lineup: [] }

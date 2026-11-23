@@ -11,7 +11,7 @@ import { asBird } from "./birds"
 import { useAdminRoom, useParticipantLive, useParticipants, useWorkrooms } from "./hooks"
 import { shownModel } from "./live"
 import styles from "./Participant.module.css"
-import { isAdminParticipant, type ParticipantCategory, participantCategory, visitorName } from "./rows"
+import { isAdminParticipant, NO_CATEGORY, type ParticipantCategory, participantCategory, visitorName } from "./rows"
 import { VisitorIcon } from "./VisitorIcon"
 
 const CATEGORY_TITLES = {
@@ -25,12 +25,12 @@ export function ParticipantWelcomeDialog({ args, onClose }: DialogProps<{ partic
   const room = useWorkrooms().find(r => r.id === who?.workroom)
   const admin = useAdminRoom()
   const live = useParticipantLive()
-  const category = who ? participantCategory(who) : undefined
+  const category = who ? participantCategory(who) : NO_CATEGORY
   const isAdmin = !!who && isAdminParticipant(who, admin)
   const bird = room ? asBird(room.bird) : undefined
   return (
     <Dialog title={t("Welcome")} width={360} onClose={onClose}>
-      {who && category ? (
+      {who && category !== NO_CATEGORY ? (
         <div className={styles.welcome}>
           {bird ? (
             <AdminCrown admin={isAdmin} size={56}>

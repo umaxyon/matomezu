@@ -3,7 +3,7 @@
 // その前に認可ステップ（core/def/permission.ts）が止められ、run の結果も認可ステップが守らせることを守っていなければ断る（denied）
 
 import type { z } from "zod"
-import { workroomOfActor } from "./actor"
+import { NO_WORKROOM, workroomOfActor } from "./actor"
 import { type Annotation, annotationsSettle, type PageAnnotations } from "./annotation"
 import { findPage, foundPage, keepsPageTypes, keepsTypesIn, NO_PAGE, outsideHolds, pageSettles, putPage } from "./book"
 import type { ActionId, ActionTable } from "./catalog"
@@ -250,7 +250,7 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
   const others = (ran.others ?? []) as readonly OtherRecord<never>[]
   // 送る AI 間メッセージは、レコードが対象のアクションで、行う者がワークルームに入っている AI のときだけ（送り手は行った参加者）
   const messages = isRecordTarget(ctx.catalog, action.target) ? (ran.aiMessages ?? []) : []
-  if (messages.length > 0 && workroomOfActor(ctx.actor) === undefined)
+  if (messages.length > 0 && workroomOfActor(ctx.actor) === NO_WORKROOM)
     return { ok: false, reason: "refused", detail: "only an AI in a workroom sends AI messages" }
   if (isRecordTarget(ctx.catalog, action.target)) {
     const changes = recordChanges(ctx, action, subject, done.next, others)
