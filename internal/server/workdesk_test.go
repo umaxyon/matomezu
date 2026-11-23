@@ -100,3 +100,51 @@ func TestTheAIReadsItsWorkdesk(t *testing.T) {
 		}
 	}
 }
+
+// チケットをカレントにすると、作業机はそのチケットのワーカーブックを映す（ワークルーム自身のブックは映らない。まだ無ければ空）
+func TestTheWorkdeskFollowsTheCurrentTicket(t *testing.T) {
+	s, _ := joinWorld(t, joinStore(t))
+	a := joinedIn(t, s.URL, "LA", "100", "SA", "ひよこ")
+	noticeOf(t, s.URL, a)
+	as := map[string]string{aiwire.ParticipantHeader: a}
+	add := func() string {
+		t.Helper()
+		got, _ := call(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/base:worker-page-add","args":{"type":"@matomezu/markdown:markdown","title":"memo"}}`, as)
+		var added struct {
+			OK     bool
+			Result struct{ Book string }
+		}
+		if json.Unmarshal([]byte(got), &added) != nil || !added.OK || added.Result.Book == "" {
+			t.Fatalf("worker-page-add = %s", got)
+		}
+		return added.Result.Book
+	}
+	lineup := func() []string {
+		t.Helper()
+		got, _ := call(t, "GET", s.URL+"/api/ai/folder?folder="+myWorkdeskFolder, "", as)
+		var f struct{ Lineup []struct{ ID string } }
+		if json.Unmarshal([]byte(got), &f) != nil {
+			t.Fatalf("workdesk = %s", got)
+		}
+		ids := []string{}
+		for _, e := range f.Lineup {
+			ids = append(ids, e.ID)
+		}
+		return ids
+	}
+	own := add()
+	var project string
+	for id := range recordsOf(t, s.URL, "@matomezu/taskboard:project") {
+		project = id
+	}
+	if got, _ := call(t, "POST", s.URL+"/api/ai/perform", `{"action":"@matomezu/taskboard:ticket-add","args":{"project":"`+project+`","name":"y","assignees":["ひよこ"]}}`, as); !strings.HasPrefix(got, `{"ok":true`) {
+		t.Fatalf("ticket-add = %s", got)
+	}
+	if ids := lineup(); len(ids) != 0 {
+		t.Fatalf("workdesk before the ticket's first page = %v", ids)
+	}
+	ticket := add()
+	if ids := lineup(); ticket == own || len(ids) != 1 || ids[0] != ticket {
+		t.Fatalf("workdesk = %v, want the ticket's book %s (own book %s)", ids, ticket, own)
+	}
+}

@@ -9,7 +9,9 @@ import (
 	"os"
 )
 
-type annotationsCmd struct{}
+type annotationsCmd struct {
+	Session string `help:"The id of the conversation's session: the annotations of the worker book of the AI joined from it are printed too."`
+}
 
 // awaitingItem は、常駐の api/ai/awaiting が返す、AI の応えを待つアノテーション 1 つ（brief は種類の aiBrief の 1 行。無ければ空）
 type awaitingItem struct {
@@ -65,7 +67,7 @@ func writeAwaiting(out io.Writer, awaiting []awaitingItem) {
 // Run は、AI の応えを待つアノテーションと、見られる前に利用者が戻した AI の変更を、AI に読ませる短い文で書き出す（AI のフックが、ターンの始まりに添える）。
 // 常駐を立てず、立っていない・答えない・待つ物が無いときは何も書かない（AI のターンを止めない）
 func (c *annotationsCmd) Run() error {
-	writeAnnotations(os.Stdout, "")
+	writeAnnotations(os.Stdout, c.Session)
 	return nil
 }
 

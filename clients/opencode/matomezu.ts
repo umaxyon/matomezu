@@ -188,7 +188,7 @@ type Turn = { sessionID: string; prompt: string; woken: boolean }
 
 // answerTurn は、ターンの始まり turn を matomezu m に知らせ、答えを会話に当てて（文脈の項目・題名・利用者に見せる文）、答えを返す
 const answerTurn = async (session: SessionApi, m: Matomezu, say: Say, turn: Turn, p: Processes) => {
-  const notes = await p.run(m, ["annotations"])
+  const notes = await p.run(m, ["annotations", "--session", turn.sessionID])
   // --host は渡さない: 常駐は同じプロセスの新しいセッション id を同じ会話として結び直すが、opencode は 1 つのプロセスに会話がいくつもある
   const args = ["talked", "--context", notes, "--format", "split"]
   if (turn.woken) args.push("--woken")

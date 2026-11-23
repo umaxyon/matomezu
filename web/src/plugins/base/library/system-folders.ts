@@ -17,7 +17,7 @@ export const MY_WORKDESK = "my-workdesk"
 export const WORKROOMS = kit.defineSystemFolder({
   id: "workrooms",
   title: "Workrooms",
-  aiDescription: `The workrooms folder: nothing can be put in it. Read your workdesk with read_folder with folder "${MY_WORKDESK}".`,
+  aiDescription: `The workrooms folder: nothing can be put in it. Read your workdesk with read_folder with folder "${MY_WORKDESK}", and add pages to your worker book with worker-page-add.`,
 })
 
 // 書庫のフォルダの列 over（近い順）の、どれかがワークルームか

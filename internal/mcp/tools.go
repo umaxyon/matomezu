@@ -59,7 +59,7 @@ var tools = []tool{
 			"Read a folder or a binder in the lineup with read_folder (a binder answers pageType and its pages) and a book with read_book. What is in the trash is not answered. " +
 			"With folder \"my-workdesk\", it answers your workroom's workdesk (kind workdesk, id my-workdesk, title your workroom's name): its lineup is your worker book, the book of your current work (your workroom's own while you have no current work), " +
 			"which list_books does not list; the lineup is empty until the worker book's first page is added (worker-page-add). Your worker book changes when your current work changes. " +
-			"The workrooms folder answers your workdesk in its lineup (kind workdesk, id my-workdesk). An AI that has not joined a workroom (a visitor too) is refused (not-joined).",
+			"The workrooms folder answers your workdesk in its lineup (kind workdesk, id my-workdesk). An AI that has not joined yet is refused (not-joined), and so is a visitor (visitor).",
 		map[string]any{
 			"type":                 "object",
 			"properties":           map[string]any{"folder": map[string]any{"type": "string", "description": "The id of a folder, or of a binder that is not in a book (from the lineup or the path of read_folder), or my-workdesk for your workroom's workdesk. Without it, the library home."}},
