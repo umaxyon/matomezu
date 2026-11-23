@@ -96,6 +96,10 @@ func New() (*Engine, error) {
 	}); err != nil {
 		return nil, err
 	}
+	// レコードを引く口を今渡されているか（渡されていない間の「無い」は、無いのか分からないのかを見分けられないので）
+	if err := vm.Set("matomezuHostReads", func() bool { return e.source != nil }); err != nil {
+		return nil, err
+	}
 	if err := vm.Set("matomezuHostFind", func(subject, where string, keysOnly bool) string {
 		if e.source == nil {
 			return "{}"

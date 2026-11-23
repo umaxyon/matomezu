@@ -456,7 +456,8 @@ export function createMatomezuInstance<const Ps extends readonly Plugin[]>(
         return made
       },
     })
-    if (!done.ok) return done
+    // 画面はブックを全部持つので、行を足して行い直す断り（needs-rows）は起きない。起きたら断る
+    if (!done.ok) return done.reason === "needs-rows" ? { ok: false, reason: "refused" } : done
     const sent: DoneAction = { action: id, args, ...(on ? { on } : {}), ids, lang: c.lang, now: c.now, today: c.today }
     const answer = catalog.actions.get(id)?.bulk === "alone" ? sendAlone(sent) : joinBulk(sent)
     const next: Partial<MatomezuState> = {}

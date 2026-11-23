@@ -69,7 +69,8 @@ export interface RowWrites {
   removedFolders: readonly string[]
 }
 
-// 書庫を整えた結果: 書く行 writes と、移した物 moved（移した順）と、戻した物の id returned（戻した順）と、戻す先のバックヤードに同じ workKey の物が在って完全に消した物の id purged（消した順）と、
+// 書庫を整えた結果: 書く行 writes と、移した物 moved（移した順）と、戻した物の id returned（戻した順）と、戻す先のバックヤードに同じ workKey の物が在るか
+// workKey が指すレコードが無くて完全に消した物の id purged（消した順）と、
 // 足したシステムフォルダ added（行の id と印。足した順）と、
 // 名前に番号を付けた物 numbered（付けた順。どれも常駐のログに書く）
 export interface Settled {
@@ -81,11 +82,13 @@ export interface Settled {
   numbered: readonly FreedTitle[]
 }
 
-// 書庫を整えるときの決まり: 名前を比べる言語 naming と、移した時刻 now と、足すシステムフォルダの行の id を振る newId
+// 書庫を整えるときの決まり: 名前を比べる言語 naming と、移した時刻 now と、足すシステムフォルダの行の id を振る newId と、
+// レコードが在るかを答える hasRecord（種類と id。分からなければ undefined。バックヤードに戻す物の workKey が指すレコードが無ければ、戻さずに完全に消す）
 export interface SettleWith {
   naming: Naming
   now: string
   newId: () => string
+  hasRecord?: (subject: string, id: string) => boolean | undefined
 }
 
 // 置き場所から読んだままの行 pageRows・folderRows で、書庫を今の機能台帳に合わせて整える行の変わり: 今の機能台帳で読めない物は読めない物のフォルダへ移し、
@@ -96,7 +99,7 @@ export function settleLibrary(
   catalog: CoreCatalog,
   pageRows: readonly unknown[],
   folderRows: readonly unknown[],
-  { naming, now, newId }: SettleWith,
+  { naming, now, newId, hasRecord }: SettleWith,
 ): Settled | typeof BROKEN {
   const found = unreadableFolderOf(folderRows)
   if (found === BROKEN) return BROKEN
@@ -107,7 +110,7 @@ export function settleLibrary(
   for (let progressed = true; progressed; ) {
     progressed = false
     for (const ref of world.unreadable.lineup) {
-      const back = returnedRows(catalog, world, ref, units)
+      const back = returnedRows(catalog, world, ref, units, hasRecord)
       if (!back) continue
       world = back === TAKEN ? withPurged(world, ref) : withReturned(world, back)
       units = unitsIn(catalog, world)
@@ -308,15 +311,18 @@ interface Returned {
 // 読めない物のフォルダの物 ref を戻せるなら、戻したときに変わる行。戻す先は、在ったフォルダから上への列 from のうち、今も在って ref の種類を持てる最初のフォルダ
 // （どれも無ければ書庫ホーム）で、戻したあとに読めない物 before のほかに読めない物が出ない所。入れ物がまだ読めない物のフォルダの中なら、その回は戻さない。
 // 在ったフォルダに戻すときは、直前に並んでいた物の後ろへ（その物も読めない物のフォルダの中なら、その物の直前の物をたどる。見つからなければ末尾）。ほかの所へは末尾へ
-// バックヤードに在った物（workKey を持つ物）は、在ったバックヤードにだけ戻す。そこに同じ workKey の物がもう在れば、戻せるときに戻さず TAKEN（完全に消す）
+// バックヤードに在った物（workKey を持つ物）は、在ったバックヤードにだけ戻す。そこに同じ workKey の物がもう在るか、workKey が指すレコードがもう無ければ
+// （種類が機能台帳に在り、hasRecord が無いと答えたとき）、戻せるときに戻さず TAKEN（完全に消す）
 function returnedRows(
   catalog: CoreCatalog,
   world: World,
   ref: UnreadableRef,
   before: readonly UnreadableUnit[],
+  hasRecord?: SettleWith["hasRecord"],
 ): Returned | typeof TAKEN | undefined {
   const { kind, id } = ref.entry
   const key = "workKey" in ref.entry ? ref.entry.workKey : undefined
+  const ownerGone = key !== undefined && catalog.subjects.has(key.subject) && hasRecord?.(key.subject, key.id) === false
   const holder = holdersIn(world)
   const unreadable = { ...world.unreadable, lineup: world.unreadable.lineup.filter(r => r !== ref) }
   const known = new Set(before.map(u => u.element.id))
@@ -347,12 +353,12 @@ function returnedRows(
     const after = unitsIn(catalog, withReturned(world, { pages, folders, unreadable }))
     const around = new Set([id, to, ...aboveIn(world, to)])
     if (after.every(u => known.has(u.element.id) && !around.has(u.element.id)))
-      return lineup.length < kept.length ? TAKEN : { pages, folders, unreadable }
+      return lineup.length < kept.length || ownerGone ? TAKEN : { pages, folders, unreadable }
   }
   return undefined
 }
 
-// 戻す先に同じ workKey の物が在り、戻さずに完全に消す
+// 戻す先に同じ workKey の物が在るか、workKey が指すレコードが無く、戻さずに完全に消す
 const TAKEN = "taken"
 
 // 世界 world から、読めない物のフォルダの物 ref とその中の物の行を完全に消した世界（purgedRows と同じ決まり）

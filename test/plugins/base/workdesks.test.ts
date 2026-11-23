@@ -9,7 +9,7 @@ import { LIBRARY_APPEARANCE, LIBRARY_FOLDER, LIBRARY_UNFOLDED } from "../../../w
 import { WORKROOMS } from "../../../web/src/plugins/base/library/system-folders"
 import { deskBookRowId } from "../../../web/src/plugins/base/library/workdesk-rows"
 import { ADMIN_MARK, PARTICIPANT } from "../../../web/src/plugins/base/participant"
-import { workdesksOf, workdesksReadsOf } from "../../../web/src/plugins/base/participant/workdesks"
+import { ownBookPagesOf, workdesksOf, workdesksReadsOf } from "../../../web/src/plugins/base/participant/workdesks"
 import { WORKROOM } from "../../../web/src/plugins/base/participant/workroom"
 import { CORE_CATALOG } from "../../support"
 
@@ -101,4 +101,32 @@ test("書庫アピアランスは、宣言した種類のレコードから作�
   expect(shown(deskBookRowId("r2"), records())).toContain("wb2")
   // 作業机が無ければ（参加者がいなければ）、作業机の下の行は見せていない
   expect(shown(deskBookRowId("r2"), {} as Records)).not.toContain("wb2")
+})
+
+test("ワークルーム自身のワーカーブックのページの数（バインダーの中も数える。ブックが無ければ 0）", () => {
+  const YARD = backyardIdOf(TICKETS_HISTORY.id)
+  const folders = {
+    [YARD]: {
+      folderRole: "backyard",
+      id: YARD,
+      backyard: TICKETS_HISTORY.id,
+      lineup: [
+        { kind: "book", id: "own", workKey: { subject: "@matomezu/base:workroom", id: "r1" } },
+        { kind: "book", id: "tk", workKey: { subject: "@matomezu/taskboard:ticket", id: "r1" } },
+      ],
+    },
+    own: {
+      folderRole: "book",
+      id: "own",
+      title: "own",
+      lineup: [
+        { kind: "page", id: "p1" },
+        { kind: "binder", id: "d1" },
+      ],
+    },
+    d1: { folderRole: "binder", id: "d1", title: "d", lineup: [{ kind: "page", id: "p2" }] },
+    tk: { folderRole: "book", id: "tk", title: "tk", lineup: [{ kind: "page", id: "p3" }] },
+  } as unknown as Folders
+  expect(ownBookPagesOf(folders, "r1")).toBe(2)
+  expect(ownBookPagesOf(folders, "r2")).toBe(0)
 })
