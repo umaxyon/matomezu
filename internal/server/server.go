@@ -3,7 +3,7 @@
 //	/                     画面（ビルドした web/dist）。そのほかの API に当たらない道はファイルとして配る
 //	GET  /api/ping        {"version", "pid"} 立っているかの確認                                  … 要合言葉
 //	POST /api/stop        常駐を止める                                                          … 要合言葉
-//	GET  /api/data        {"pages": [{"id", "page", "version"}], "folders": [{"id", "folder", "version"}], "settings", "annotations": {ページの id: [...]}, "records": {種類: {id: レコード}}, "counters": {種類: {区切り: 次の番号}}, "plugins": [{"id", "ui", "css"}], "touched": {id: 時刻}, "participantCalls": {参加者の id: 最後に呼ばれた時刻}, "participantReady": [準備中でない参加者の id], "participantLive": {参加者の id: {"model", "branch"}}, "update": 新しい版の確かめの結果（update.go の UpdateStatus。SetUpdateCheck の前は無い）} 置いてあるブック（ゴミ箱のブックも）と設定、
+//	GET  /api/data        {"pages": [{"id", "page", "version"}], "folders": [{"id", "folder", "version"}], "settings", "annotations": {ページの id: [...]}, "records": {種類: {id: レコード}}, "counters": {種類: {区切り: 次の番号}}, "plugins": [{"id", "ui", "css"}], "touched": {id: 時刻}, "participantCalls": {参加者の id: 最後に呼ばれた時刻}, "participantReady": [準備中でない参加者の id], "participantLive": {参加者の id: {"model", "branch"}}, "update": 新しい版の確かめの結果（update.go の UpdateStatus。SetUpdateCheck の前は無い）, "host": ホストどうしの入口の様子（hosts.go の HostStatus。SetHost の前は無い）} 置いてあるブック（ゴミ箱のブックも）と設定、
 //	                      ブックごとのアノテーション、レコード（郵便も）と番号の表、追加プラグイン（ui と css は画面が読む道。css は無ければ空）、ブックに触れた（開いたか書いた）時刻（touched.go）  … 画面から
 //	GET  /api/plugins/{n}/ui.js   追加プラグインの n 番目の、画面で import() する JS（道には ?v= で追加プラグインの版を付けて配る）  … 画面から
 //	GET  /api/plugins/{n}/ui.css  追加プラグインの n 番目の CSS                                               … 画面から
@@ -259,6 +259,9 @@ func (o Options) data(w http.ResponseWriter, _ *http.Request) {
 	data := map[string]any{"pages": pages, "folders": folders, "settings": settings, "annotations": annotations, "records": records, "counters": counters, "plugins": plugins, "touched": o.Hub.Touched(), "participantCalls": o.Hub.ParticipantCalls(), "participantReady": o.Hub.ParticipantReady(), "participantLive": o.Hub.ParticipantLive()}
 	if u := o.Hub.UpdateStatus(); u.State != "" {
 		data["update"] = u
+	}
+	if s := o.Hub.HostStatus(); s.HostID != "" {
+		data["host"] = s
 	}
 	writeJSON(w, data)
 }

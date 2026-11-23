@@ -261,6 +261,7 @@ import {
   SETTINGS_SET,
   SETTINGS_SET_COMMAND,
   SKIN,
+  USER_NAME,
 } from "./settings"
 import {
   BACKGROUND_EDIT,
@@ -550,6 +551,7 @@ export const BASE = defineBuiltin(
       SOFT_BREAK,
       SHOW_UNREADABLE_FOLDER,
       UPDATE_CHECK,
+      USER_NAME,
     ],
     themes: [STANDARD, STICKY, SIMPLE, MATOMEZU_THEME],
     papers: PAPERS,
@@ -749,6 +751,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:note-expiry": typeof NOTE_EXPIRY
     "@matomezu/base:participant-alive": typeof PARTICIPANT_ALIVE
     "@matomezu/base:update-check": typeof UPDATE_CHECK
+    "@matomezu/base:user-name": typeof USER_NAME
     "@matomezu/base:session-rename": typeof SESSION_RENAME
     "@matomezu/base:soft-break": typeof SOFT_BREAK
     "@matomezu/base:corner-status-order": typeof CORNER_STATUS_ORDER

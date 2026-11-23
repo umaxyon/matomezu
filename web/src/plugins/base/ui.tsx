@@ -59,6 +59,7 @@ import {
   PLUGINS_CATEGORY,
   SETTINGS_DIALOG_VIEWS,
   SETTINGS_ICONS,
+  USER_CATEGORY,
   USER_SETTING_VIEWS,
 } from "./settings/ui"
 import {
@@ -206,6 +207,7 @@ import type { PrintSheetProps } from "./print-preview/ui"
 
 // ページの設定の項目とステージエントリが持つ設定の項目のコンポーネントの並び（ページのタイプの設定のダイアログが使う）
 export { type SettingsPatch, useSettingControls } from "./book-settings/ui"
+export { useHostStatus } from "./host/ui"
 export type { RightSidePanelOpen } from "./right-side-panel/ui"
 export {
   RIGHT_SIDE_PANEL,
@@ -223,7 +225,15 @@ export {
   useSearchHits,
   useSearchPick,
 } from "./search/ui"
-export { defineSettingsCategory, SettingRow, UserSettings, useOpenSettings } from "./settings/ui"
+export {
+  defineSettingsCategory,
+  defineSettingsSection,
+  SettingRow,
+  TextSettingControl,
+  UserSettings,
+  useOpenSettings,
+  useUserName,
+} from "./settings/ui"
 export {
   BodyField,
   CaptionField,
@@ -335,6 +345,7 @@ export const BASE_UI = definePluginUi(BASE, {
     PAGE_TABS,
     PAGE_LIST,
     CLOSE_BUTTON,
+    USER_CATEGORY,
     GENERAL_CATEGORY,
     KEYS_CATEGORY,
     PLUGINS_CATEGORY,
@@ -378,6 +389,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:footer-menu-book-tools": Record<string, never>
     "@matomezu/base:right-side-panel": Record<string, never>
     "@matomezu/base:settings-categories": Record<string, never>
+    "@matomezu/base:settings-sections": Record<string, never>
     "@matomezu/base:annotation-icon": AnnotationIconProps
     "@matomezu/base:corner-statuses": CornerStatusProps
     "@matomezu/base:bookmarks": BookmarksProps // しおりを出す種類ごとのウィジェット（何も描かず、しおりを置き場に渡す）
@@ -391,6 +403,8 @@ declare module "../../core/catalog" {
     leftSidePanel?: { title: MessageKey; useCount?: () => number; scope: "stage" | "window" }
     // 設定カテゴリのスロットに置く物の、左の一覧に出す題名（文言の鍵）と、並べる利用者の設定の項目の id（無ければ中身はウィジェットのビューが描く）
     settingsCategory?: { title: MessageKey; settings?: readonly string[] }
+    // 設定カテゴリ「ユーザー設定」の節のスロットに置く物が並べる、利用者の設定の項目の id（「全体」に出さない）
+    settingsSection?: { settings: readonly string[] }
     // 横断検索のモードのスロットに置く物の、切り替えに出す名前（文言の鍵）
     wideSearchMode?: { title: MessageKey }
     // 横断検索の当たりの開き方のスロットに置く物の、その当たりを開く関数を返すフックと、その名前を画面の物から作る関数を返すフック（任意）。開く種類は、ウィジェットの forKind（種類の持ち主だけが書ける）で引く
@@ -465,6 +479,7 @@ declare module "../../core/catalog" {
     "@matomezu/base:page-list": typeof PAGE_LIST
     "@matomezu/base:close-button": typeof CLOSE_BUTTON
     "@matomezu/base:settings-general": typeof GENERAL_CATEGORY
+    "@matomezu/base:settings-user": typeof USER_CATEGORY
     "@matomezu/base:settings-keys": typeof KEYS_CATEGORY
     "@matomezu/base:settings-plugins": typeof PLUGINS_CATEGORY
   }

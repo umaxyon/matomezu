@@ -1,5 +1,6 @@
 // 利用者の設定の並び: settings を渡せばその項目だけを、その順に見出しなしで並べる（プラグインの設定カテゴリ）。渡さなければ、機能台帳の利用者の設定の項目のうち、
-// 設定画面のほかの設定カテゴリ（UI マッピングがスロット settings-categories に置いたウィジェットの settingsCategory.settings）が名指していない物を、プラグインごとに並べる
+// 設定画面のほかの設定カテゴリ（UI マッピングがスロット settings-categories に置いたウィジェットの settingsCategory.settings）と、
+// 設定カテゴリ「ユーザー設定」の節（スロット settings-sections のウィジェットの settingsSection.settings）が名指していない物を、プラグインごとに並べる
 // （base の項目が先で見出しなし、ほかは見出しにプラグインの id）。
 // 項目のビューがあればそれを、無ければ値の形から作った入力Form（真偽はスイッチ、選択肢はセレクトForm、数と文字はテキストForm）を出し、どちらも作れない項目は出さない。
 // 変えるとコマンド settings-set を呼ぶ。コマンドが押せないときと、アクション settings-set がその項目で使えないとき（コントロールセンターが変えさせない項目）は、灰色で押せない
@@ -10,6 +11,7 @@ import { splitId } from "../../../core/names"
 import { userSetting } from "../../../core/settings"
 import { useCommand } from "../../../ui/commands"
 import { useMessages } from "../../../ui/i18n"
+import type { UserSettingControlProps } from "../../../ui/plugin"
 import { useCatalog, useLayout, useUiCatalog } from "../../../ui/store-context"
 import { useAllowed, useSettings } from "../../../ui/view-hooks"
 import { Switch } from "../dialog-host/FormParts"
@@ -17,7 +19,7 @@ import { kit } from "../kit"
 import { SETTINGS_SET } from "./actions"
 import { SETTINGS_SET_COMMAND } from "./commands"
 import { SettingRow } from "./SettingRow"
-import { SETTINGS_CATEGORIES } from "./settings-screen"
+import { SETTINGS_CATEGORIES, SETTINGS_SECTIONS } from "./settings-screen"
 import styles from "./UserSettings.module.css"
 import { type AutoInput, autoInputOf } from "./user-settings"
 
@@ -28,9 +30,11 @@ export function UserSettings({ settings }: { settings?: readonly string[] | unde
   const { values } = useSettings()
   const set = useCommand(SETTINGS_SET_COMMAND.id)
   const widgets = useUiCatalog().widgets
-  const claimed = new Set(
-    (useLayout().slots[SETTINGS_CATEGORIES] ?? []).flatMap(id => widgets.get(id)?.settingsCategory?.settings ?? []),
-  )
+  const slots = useLayout().slots
+  const claimed = new Set([
+    ...(slots[SETTINGS_CATEGORIES] ?? []).flatMap(id => widgets.get(id)?.settingsCategory?.settings ?? []),
+    ...(slots[SETTINGS_SECTIONS] ?? []).flatMap(id => widgets.get(id)?.settingsSection?.settings ?? []),
+  ])
   const defs = settings
     ? settings.flatMap(id => catalog.userSettings.get(id) ?? [])
     : [...catalog.userSettings.values()].filter(def => !claimed.has(def.id))
@@ -148,16 +152,38 @@ function EnumSelect({
   )
 }
 
+// 文字の項目のビュー: 行に、空のときに placeholder（値が無いときに効く物）を薄く出すテキストForm（空にすると値を消す）
+export function TextSettingControl({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: UserSettingControlProps<string> & { placeholder?: string }) {
+  return (
+    <SettingRow label={label}>
+      <TextInput
+        type="text"
+        label={label}
+        value={value}
+        placeholder={placeholder}
+        onCommit={text => onChange(text.trim() === "" ? undefined : text.trim())}
+      />
+    </SettingRow>
+  )
+}
+
 // 文字と数のテキストForm: 打っている間は書き留め、離れるか Enter で変える（断られれば今の値に戻る）。空にすると既定に戻す
 function TextInput({
   type,
   label,
   value,
+  placeholder,
   onCommit,
 }: {
   type: "text" | "number"
   label: string
   value: unknown
+  placeholder?: string | undefined
   onCommit: (text: string) => void
 }) {
   const [draft, setDraft] = useState<string | null>(null)
@@ -170,6 +196,7 @@ function TextInput({
       className={styles.control}
       type={type}
       aria-label={label}
+      placeholder={placeholder}
       value={draft ?? (value === undefined ? "" : String(value))}
       onChange={e => setDraft(e.target.value)}
       onBlur={commit}

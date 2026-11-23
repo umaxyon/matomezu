@@ -24,9 +24,10 @@ export async function backToBook(page: Page) {
   await expect(page.getByRole("heading", { name: "コントロールセンター" })).toBeHidden()
 }
 
-// 設定画面を開き、「全体」の中身（tabpanel）を返す
+// 設定画面を開き、「全体」を選んで、その中身（tabpanel）を返す（設定画面は「ユーザー設定」で開く）
 export async function openGeneral(page: Page) {
   await openSettings(page)
+  await settingsDialog(page).getByRole("tab", { name: "全体" }).click()
   return settingsDialog(page).getByRole("tabpanel", { name: "全体" })
 }
 

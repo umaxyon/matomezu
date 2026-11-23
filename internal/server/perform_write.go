@@ -261,6 +261,7 @@ func (h *Hub) applyWrites(plan *writePlan, out engine.Output, p Perform, by, act
 	}
 	if len(out.Settings) > 0 {
 		h.reusePluginsForSettings(p.Client)
+		h.kickHosts()
 	}
 }
 

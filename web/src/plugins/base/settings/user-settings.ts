@@ -24,6 +24,15 @@ export const LANG = kit.defineSetting({
   describe: catalog => z.enum([...catalog.languagePacks.keys()] as [string, ...string[]]),
 })
 
+// 利用者名: コントロールセンターの「あなた」に出す名前（ほかのホストにも見せる）。無ければ「あなた」。利用者だけが変える
+export const USER_NAME = kit.defineSetting({
+  id: "user-name",
+  title: "User name",
+  schema: z.string().max(40),
+  role: "user-name",
+  userOnly: true,
+})
+
 // スキン: スキンの id か、OS の明暗に合わせる "auto"
 export const SKIN = kit.defineSetting({
   id: "skin",

@@ -62,6 +62,7 @@ function renderGeneral(plugins: readonly AnyPluginUi[] = [...BUILTIN_UI, EX], bo
     </MatomezuProvider>,
   )
   fireEvent.click(screen.getByRole("button", { name: "全体設定", hidden: true }))
+  fireEvent.click(screen.getByRole("tab", { name: "全体" }))
   const value = (id: string) => userSetting(store.catalog.core, store.state.getState().settings, `@ex/s:${id}`)
   return { store, value, general: screen.getByRole("tabpanel", { name: "全体" }) }
 }
@@ -128,6 +129,7 @@ test("コントロールセンターが変えさせない項目は、灰色で�
 test("設定画面の左の一覧は、UI マッピングが置いた設定カテゴリを並べる（全体・マークダウン・ショートカットキー・プラグイン・更新）。「マークダウン」は Tab キーとソースのペインの見た目と段落の中の改行の項目を並べ、行番号は既定で入り、段落の中の改行は既定で改行にする", () => {
   renderGeneral()
   expect(screen.getAllByRole("tab").map(t => t.textContent)).toEqual([
+    "ユーザー設定",
     "全体",
     "マークダウン",
     "ショートカットキー",
@@ -159,6 +161,7 @@ test("追加プラグインは設定カテゴリを足せる（置いてほし�
   })
   const { general } = renderGeneral([...BUILTIN_UI, definePluginUi(EX_PLUGIN, { widgets: [category] })])
   expect(screen.getAllByRole("tab").map(t => t.textContent)).toEqual([
+    "ユーザー設定",
     "全体",
     "モード",
     "マークダウン",

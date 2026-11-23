@@ -20,7 +20,7 @@ import { BROKEN } from "../core/folders"
 import { restoreCounters, restoreRecords, withCounters, withRecords } from "../core/records"
 import { NOT_INSIDE, PURGED, type UnreadableNotice } from "../core/unreadable"
 import type { Warning } from "../core/warnings"
-import type { Build, ForeignChange, MatomezuInstance, ParticipantLive, UpdateStatus } from "../store/state"
+import type { Build, ForeignChange, HostStatus, MatomezuInstance, ParticipantLive, UpdateStatus } from "../store/state"
 import type { HostClient, Loaded } from "./client"
 import { createLinkWatch } from "./link-watch"
 import { WIDE_SEARCH_ANSWER, wideSearchParams } from "./search"
@@ -32,6 +32,7 @@ import {
   ChangedSchema,
   DataSchema,
   HelloSchema,
+  HostStatusSchema,
   MOVED_IF_OFF_ANSWER,
   NoticeSchema,
   ParticipantCallSchema,
@@ -150,6 +151,7 @@ export function serverClient(net: Net = browserNet): HostClient {
   let touched: Record<string, string> = {} // ブックの id → 触れた（開いたか書いた）時刻
   let participantCalls: Record<string, string> = {} // 参加者の id → 最後に呼ばれた時刻
   let updateStatus: UpdateStatus | undefined // 新しい版の確かめの結果（読んだか知らされた物）
+  let hostStatus: HostStatus | undefined // ホストどうしの入口の様子（読んだか知らされた物）
   let participantReady: string[] = [] // 準備中でない参加者の id（増えるだけ）
   let participantLive: Record<string, ParticipantLive> = {} // 参加者の id → モデルとブランチ（どちらも無い参加者は持たない）
   let plugins: { id: string; ui: string; css?: string; disabled?: boolean }[] = []
@@ -282,6 +284,10 @@ export function serverClient(net: Net = browserNet): HostClient {
     if (data.update) {
       updateStatus = data.update
       instance?.setUpdateStatus(data.update)
+    }
+    if (data.host) {
+      hostStatus = data.host
+      instance?.setHostStatus(data.host)
     }
     // 参加者の様子は、読んだ物で全部を入れ替える
     participantLive = {}
@@ -423,6 +429,10 @@ export function serverClient(net: Net = browserNet): HostClient {
     on("update-status", data => {
       updateStatus = UpdateStatusSchema.parse(JSON.parse(data))
       instance?.setUpdateStatus(updateStatus)
+    })
+    on("host-status", data => {
+      hostStatus = HostStatusSchema.parse(JSON.parse(data))
+      instance?.setHostStatus(hostStatus)
     })
     on("annotations", data => {
       const e = AnnotationsSchema.parse(JSON.parse(data))
@@ -590,6 +600,7 @@ export function serverClient(net: Net = browserNet): HostClient {
       instance = next
       show()
       if (updateStatus) next.setUpdateStatus(updateStatus)
+      if (hostStatus) next.setHostStatus(hostStatus)
       let told = ""
       let viewSeq = 0 // 知らせの番号（届く順が入れ替わっても、常駐が古い方を捨てられるように増やす）
       // 見ているものと、利用者が直している物（どちらかが変わったときと、フォーカスされたときに知らせる）

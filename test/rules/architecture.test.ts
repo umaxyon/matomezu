@@ -322,11 +322,12 @@ const GO_ALLOWED: Record<string, readonly string[]> = {
   storage: [],
   plugin: [],
   engine: ["plugin"],
-  server: ["aiwire", "engine", "plugin", "storage"],
+  server: ["aiwire", "engine", "peer", "plugin", "storage"],
   mcp: ["aiwire"],
   home: [],
   browser: [],
   aiwire: [],
+  peer: [],
 }
 
 test("Go のパッケージは internal の下と、実行ファイルの入口（cmd/matomezu）と埋め込みの画面（web）と、AI のプログラムと ADE ごとの部品（clients/<AI の名前>・clients/ade/<ADE の名前>）だけ。web と clients は matomezu のほかのパッケージを読まず、clients を読むのは cmd/matomezu だけ", () => {
@@ -385,4 +386,16 @@ test("Go の常駐の入口（server.go の mux.Handle）は、auth・ai・scree
   const open = new Set(["GET /cookie", "/api/", "/"])
   const bad = routes.filter(r => !open.has(r.path) && !/^o\.(auth|ai|screen)\(/.test(r.handler)).map(r => r.path)
   expect(bad).toEqual([])
+})
+
+// ホストどうしの入口は、ペアリングしたホストだけ（peer.Pinned）か、鍵を知らない相手も通すペアリングの頼み（peer.Unpinned）。Unpinned はペアリングの頼みの 1 つだけ
+test("Go のホストどうしの入口（hosts_routes.go の mux.Handle）は、peer.Pinned か peer.Unpinned で包み、Unpinned はペアリングの頼みだけ", () => {
+  const text = readFileSync(join(ROOT, "internal/server/hosts_routes.go"), "utf8")
+  const routes = [...text.matchAll(/mux\.Handle(?:Func)?\("([^"]*)",\s*(.*)$/gm)].map(m => ({
+    path: m[1]!,
+    handler: m[2]!,
+  }))
+  expect(routes.length).toBeGreaterThan(0)
+  expect(routes.filter(r => !/^peer\.(Pinned|Unpinned)\(/.test(r.handler)).map(r => r.path)).toEqual([])
+  expect(routes.filter(r => /^peer\.Unpinned\(/.test(r.handler)).map(r => r.path)).toEqual(["POST /peer/v1/pairing"])
 })

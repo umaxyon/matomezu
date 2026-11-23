@@ -1,4 +1,4 @@
-// 設定画面: コントロールセンターから設定画面のダイアログを開き、左の項目（全体・ショートカットキー）を押すと右の部分が切り替わる
+// 設定画面: コントロールセンターから設定画面のダイアログを開き、左の項目（ユーザー設定・全体・ショートカットキー）を押すと右の部分が切り替わる
 import { afterEach, expect, test } from "bun:test"
 import { cleanup, fireEvent, screen, within } from "@testing-library/react"
 import { CONTROL_CENTER } from "../../../web/src/plugins/control-center"
@@ -14,11 +14,11 @@ test("コントロールセンターの「全体設定」で設定画面が開�
   fireEvent.click(screen.getByRole("button", { name: "全体設定", hidden: true }))
   const dialog = screen.getByRole("dialog", { name: "設定" })
   const tab = (name: string) => screen.getByRole("tab", { name })
-  expect(tab("全体").getAttribute("aria-selected")).toBe("true")
-  expect(screen.getByRole("tabpanel", { name: "全体" })).toBeTruthy()
+  expect(tab("ユーザー設定").getAttribute("aria-selected")).toBe("true")
+  expect(screen.getByRole("tabpanel", { name: "ユーザー設定" })).toBeTruthy()
   fireEvent.click(tab("ショートカットキー"))
   expect(tab("ショートカットキー").getAttribute("aria-selected")).toBe("true")
-  expect(tab("全体").getAttribute("aria-selected")).toBe("false")
+  expect(tab("ユーザー設定").getAttribute("aria-selected")).toBe("false")
   expect(screen.getByRole("tabpanel", { name: "ショートカットキー" })).toBeTruthy()
   fireEvent.click(screen.getByRole("button", { name: "閉じる" }))
   expect(dialog.isConnected).toBe(false)

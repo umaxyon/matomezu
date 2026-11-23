@@ -4,11 +4,12 @@ import { CORNER_STATUS_ORDER } from "../corner-status/corner-order"
 import { TextColorsSetting } from "../text/TextColorsSetting"
 import { USER_TEXT_COLORS } from "../text/text-colors"
 import { CornerStatusOrderSetting } from "./CornerStatusOrderSetting"
+import { UserNameSetting } from "./categories"
 import { EnabledPluginsSetting } from "./EnabledPluginsSetting"
 import { ENABLED_PLUGINS } from "./enabled-plugins"
 import { SettingsDialog } from "./SettingsDialog"
 import { SETTINGS_DIALOG } from "./settings-screen"
-import { LANG, SKIN } from "./user-settings"
+import { LANG, SKIN, USER_NAME } from "./user-settings"
 import { LangSetting, SkinSetting } from "./views"
 
 export { UserSettings } from "./UserSettings"
@@ -21,10 +22,20 @@ export const USER_SETTING_VIEWS = {
   [USER_TEXT_COLORS.id]: { control: TextColorsSetting },
   [CORNER_STATUS_ORDER.id]: { control: CornerStatusOrderSetting },
   [ENABLED_PLUGINS.id]: { control: EnabledPluginsSetting },
+  [USER_NAME.id]: { control: UserNameSetting },
 }
 
 export { ChoiceSetting } from "./ChoiceSetting"
-export { defineSettingsCategory, GENERAL_CATEGORY, KEYS_CATEGORY, PLUGINS_CATEGORY } from "./categories"
+export {
+  defineSettingsCategory,
+  defineSettingsSection,
+  GENERAL_CATEGORY,
+  KEYS_CATEGORY,
+  PLUGINS_CATEGORY,
+  USER_CATEGORY,
+} from "./categories"
+export { useUserName } from "./hooks"
 export { SETTINGS_ICONS } from "./icons"
 export { useOpenSettings } from "./open-settings"
 export { SettingRow } from "./SettingRow"
+export { TextSettingControl } from "./UserSettings"
