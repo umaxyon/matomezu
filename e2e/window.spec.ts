@@ -11,6 +11,7 @@ import {
   test,
   urlCurrentScreen,
 } from "./fixtures"
+import { onPaper, paper, settled } from "./helpers/paper"
 import { lowerLibrary, splitWith } from "./helpers/split"
 import { fromMenu } from "./helpers/stage-menu"
 import { storedBooks, storedTrashedAt } from "./helpers/stored"
@@ -195,4 +196,29 @@ test("ブックスクリーンが無い窓でも、郵便のダイアログは E
   await page.keyboard.press("Enter")
   await expect(page.getByRole("region", { name: "ステージ" })).toHaveCount(1)
   await expect.poll(() => urlCurrentScreen(page)).toBe(BOOK_SCREEN_DEF)
+})
+
+test("ブラウザの戻るでブックスクリーンへ戻っても、可変ページは並べた広さのまま（紙 1 枚ぶんに縮まない）", async ({
+  page,
+}) => {
+  await page.goto(BOOK_SCREEN_URL)
+  const empty = await onPaper(page, 900, 600)
+  await page.mouse.click(empty.x, empty.y, { button: "right" })
+  await page.getByRole("menu").getByRole("menuitem", { name: "ページの設定" }).click()
+  const dialog = page.getByRole("dialog", { name: "ページの設定" })
+  await dialog.getByRole("switch", { name: "可変ページにする" }).click()
+  await dialog.getByLabel("増やす向き").selectOption({ label: "上下左右" })
+  await dialog.getByRole("button", { name: "確定" }).click()
+  await expect(dialog).toBeHidden()
+  await expect(page.locator("[data-print-areas]")).toHaveAttribute("data-print-areas", "3x3")
+  await settled(page)
+  const grown = (await paper(page).boundingBox())!
+  await (await fromMenu(page, "コントロールセンター")).click()
+  await expect(center(page)).toBeVisible()
+  await page.goBack()
+  await expect(center(page)).toBeHidden()
+  await settled(page)
+  const back = (await paper(page).boundingBox())!
+  expect(Math.abs(back.width - grown.width)).toBeLessThan(2)
+  expect(Math.abs(back.height - grown.height)).toBeLessThan(2)
 })

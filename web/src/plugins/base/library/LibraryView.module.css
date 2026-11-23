@@ -32,6 +32,7 @@
   min-height: 0;
   padding: 6px;
   overflow: auto;
+  outline: none;
 }
 /* ツリーの下の「⚠ 読めない物 N 件」: 押すと読めない物のフォルダを開く */
 .unreadableNotice {
@@ -192,6 +193,8 @@
 /* 右の枠に中身を出しているフォルダ */
 .name[aria-current="true"] {
   font-weight: 700;
+  background: var(--skin-btn);
+  outline: 1px solid var(--skin-accent);
 }
 .name[aria-pressed="true"],
 .entry[aria-pressed="true"] {
@@ -317,6 +320,7 @@
   padding: 12px;
   overflow: auto;
   list-style: none;
+  outline: none;
 }
 .entry {
   display: flex;
@@ -382,6 +386,7 @@
   margin: 0;
   padding: 0;
   list-style: none;
+  outline: none;
 }
 .tableRow {
   border-radius: 6px;

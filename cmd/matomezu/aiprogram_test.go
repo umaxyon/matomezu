@@ -40,7 +40,7 @@ func finder(onPath map[string]bool, appData, localAppData string) programFinder 
 			}
 			return "", errors.New("not found")
 		},
-		desktopRoots: claudelaunch.DesktopRoots("windows", appData, localAppData),
+		desktopRoots: claudelaunch.DesktopRoots("windows", "", appData, localAppData),
 		exe:          "claude.exe",
 	}
 }
@@ -78,5 +78,26 @@ func TestFindProgramRefusesWhenClaudeIsNowhere(t *testing.T) {
 	appData, local = desktopTree(t, []string{"2.1.330"}, "")
 	if _, err := finder(nil, appData, local).find("codex"); err == nil || errors.Is(err, errNoClaude) {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+// macOS では Desktop の置き場の CLI は claude.app の中にある
+func TestFindProgramTakesTheDesktopCLIOnMac(t *testing.T) {
+	home := t.TempDir()
+	exe := claudelaunch.Exe("darwin")
+	p := filepath.Join(home, "Library", "Application Support", "Claude", "claude-code", "2.1.330", "4262a1273231", exe)
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, nil, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	f := programFinder{
+		lookPath:     func(string) (string, error) { return "", errors.New("not found") },
+		desktopRoots: claudelaunch.DesktopRoots("darwin", home, "", ""),
+		exe:          exe,
+	}
+	if got, err := f.find("claude"); err != nil || got != p {
+		t.Fatalf("find = %q, %v, want %q", got, err, p)
 	}
 }

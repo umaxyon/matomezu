@@ -1,6 +1,7 @@
 // 書庫の画面のコマンド: 選んでいる物（右クリックのメニューからは右クリックした物、ツリーのキーからはツリーで今いる行）を開く・名前を変える・ゴミ箱に入れる、中にブック・フォルダを作る、
 // ドラッグで落とした物を動かす、矢印キーでツリーの行・右の枠の隣の行へ移る、書庫の履歴を元に戻す・やり直す（library-revert で、最後の画面の履歴の段が変えた所を置き直す）。
 // キーは、書庫の画面（LibraryView）の中に焦点がある間だけ効く（キーの範囲 library。矢印・F2・Delete は、ツリーの中 library-tree と、右の枠の中身の中 library-contents。
+// 行の外（余白）に焦点がある間は、矢印だけが効く（library-tree-around・library-contents-around）。
 // F2・Delete をツリーと重ならない範囲に置くのは、ツリーで止められたキーが外の範囲へ落ちて、右の枠で選んでいる別の行に効かないように）。
 // 置き直しても何も変わらない段は、動かして飛ばし、その次の段を置き直す。断られたらトーストで知らせる。その間のほかの変更とぶつかって断られた（土台かアクションが断った）なら、
 // 2 行目にそう出し、その画面の履歴の段を捨てる（次はその前の段を置き直す）。認可ステップが止めた（ロック中など）なら、その画面の履歴の段は動かさない
@@ -53,7 +54,7 @@ import {
 import { PAGE_CREATE } from "./page-create"
 import { LIBRARY_REVERT, libraryRevertArgs } from "./revert"
 import { unreadableShownIn } from "./show-unreadable"
-import { LIBRARY_COLUMNS, LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_UNFOLDED } from "./state"
+import { LIBRARY_COLUMNS, LIBRARY_FOLDER, LIBRARY_PICKED, LIBRARY_QUERY, LIBRARY_UNFOLDED } from "./state"
 import { createdIn, isDeskRow, realOf } from "./workdesk-rows"
 
 // 作る物を問うときの名前（名前は問いに渡らない。行う前は許可スコープから出した所で問い、run を呼ばない。作るブックは空のブックで問う。定義と機能台帳の「認可ステップ」）
@@ -374,7 +375,7 @@ export const LIBRARY_ENTRY_MOVE = kit.defineScreenCommand({
   when: () => true,
 })
 
-// ツリーの行 row へ移る（開くフォルダ・選ぶ行・中を出すフォルダは、ビューが行を押したときと同じに決める）
+// ツリーの行 row へ移る（開くフォルダ・選ぶ行・中を出すフォルダは、ビューが行を押したときと同じに決める）。フォルダの中へ入るなら、検索をやめる（右の枠にその中身を出す）
 function goTo(
   ctx: ScreenCommandContext,
   a: CommandActions,
@@ -386,6 +387,7 @@ function goTo(
   if (next.folder !== openedIn(ctx)) a.updatePluginState(LIBRARY_FOLDER, () => next.folder)
   a.updatePluginState(LIBRARY_PICKED, () => next.picked)
   if (next.unfolded !== now) a.updatePluginState(LIBRARY_UNFOLDED, () => next.unfolded)
+  if (row.holds && ctx.pluginState(LIBRARY_QUERY) !== undefined) a.updatePluginState(LIBRARY_QUERY, () => undefined)
 }
 
 // 呼ばれた場所の書庫の画面のツリー: 出ている行 rows と、今いる行の位置 i（出ていなければ -1）と、中を出しているフォルダ unfolded
@@ -489,6 +491,21 @@ export const LIBRARY_CONTENTS_KEY_SCOPE = kit.defineKeyScope({
   commandsFrom: "screen",
 })
 
+// ツリー・右の枠の中身の、行の外（余白）に焦点がある間のキーの範囲（矢印キーだけ。LibraryView のその要素が名乗る）。
+// 矢印で移った行へ LibraryView が焦点を移すので、そのあとは行の範囲のキー（Enter・F2・Delete）も効く
+export const LIBRARY_TREE_AROUND_SCOPE = kit.name("library-tree-around")
+export const LIBRARY_TREE_AROUND_KEY_SCOPE = kit.defineKeyScope({
+  id: "library-tree-around",
+  title: "Library tree (outside the rows)",
+  commandsFrom: "screen",
+})
+export const LIBRARY_CONTENTS_AROUND_SCOPE = kit.name("library-contents-around")
+export const LIBRARY_CONTENTS_AROUND_KEY_SCOPE = kit.defineKeyScope({
+  id: "library-contents-around",
+  title: "Library contents (outside the rows)",
+  commandsFrom: "screen",
+})
+
 // 検索の結果の中に焦点がある間のキーの範囲（Enter。FoundView の行が名乗る）
 export const LIBRARY_FOUND_SCOPE = kit.name("library-found")
 export const LIBRARY_FOUND_KEY_SCOPE = kit.defineKeyScope({
@@ -573,6 +590,66 @@ export const LIBRARY_KEYS = [
     command: LIBRARY_PICK_MOVE.id,
     args: { to: "down" },
     scope: LIBRARY_CONTENTS_SCOPE,
+  }),
+  kit.defineKey({
+    id: "library-tree-around-up",
+    title: "Row above",
+    key: "ArrowUp",
+    command: LIBRARY_TREE_MOVE.id,
+    args: { to: "up" },
+    scope: LIBRARY_TREE_AROUND_SCOPE,
+  }),
+  kit.defineKey({
+    id: "library-tree-around-down",
+    title: "Row below",
+    key: "ArrowDown",
+    command: LIBRARY_TREE_MOVE.id,
+    args: { to: "down" },
+    scope: LIBRARY_TREE_AROUND_SCOPE,
+  }),
+  kit.defineKey({
+    id: "library-tree-around-left",
+    key: "ArrowLeft",
+    command: LIBRARY_TREE_FOLD_OR_PARENT.id,
+    scope: LIBRARY_TREE_AROUND_SCOPE,
+  }),
+  kit.defineKey({
+    id: "library-tree-around-right",
+    key: "ArrowRight",
+    command: LIBRARY_TREE_UNFOLD_OR_NEXT.id,
+    scope: LIBRARY_TREE_AROUND_SCOPE,
+  }),
+  kit.defineKey({
+    id: "library-pick-around-previous",
+    title: "Previous",
+    key: "ArrowLeft",
+    command: LIBRARY_PICK_MOVE.id,
+    args: { to: "previous" },
+    scope: LIBRARY_CONTENTS_AROUND_SCOPE,
+  }),
+  kit.defineKey({
+    id: "library-pick-around-next",
+    title: "Next",
+    key: "ArrowRight",
+    command: LIBRARY_PICK_MOVE.id,
+    args: { to: "next" },
+    scope: LIBRARY_CONTENTS_AROUND_SCOPE,
+  }),
+  kit.defineKey({
+    id: "library-pick-around-up",
+    title: "Row above",
+    key: "ArrowUp",
+    command: LIBRARY_PICK_MOVE.id,
+    args: { to: "up" },
+    scope: LIBRARY_CONTENTS_AROUND_SCOPE,
+  }),
+  kit.defineKey({
+    id: "library-pick-around-down",
+    title: "Row below",
+    key: "ArrowDown",
+    command: LIBRARY_PICK_MOVE.id,
+    args: { to: "down" },
+    scope: LIBRARY_CONTENTS_AROUND_SCOPE,
   }),
   // 行のボタンが自分で範囲を名乗るので、焦点のある行の上の Enter が効く（右の枠は選んでいる行、ツリーと検索の結果はツリーで今いる行）
   kit.defineKey({

@@ -32,7 +32,8 @@ func fromDesktop(path string) bool {
 }
 
 func desktopRoots() []string {
-	return claudelaunch.DesktopRoots(runtime.GOOS, os.Getenv("APPDATA"), os.Getenv("LOCALAPPDATA"))
+	home, _ := os.UserHomeDir()
+	return claudelaunch.DesktopRoots(runtime.GOOS, home, os.Getenv("APPDATA"), os.Getenv("LOCALAPPDATA"))
 }
 
 // programFinder は、探すのに使う OS への口（テストで差し替える）
