@@ -2,7 +2,7 @@
 // 追加プラグインとの約束なので、足す・消すときはここも直して、わざと変えたと分かるようにする
 
 import { expect, test } from "bun:test"
-import { findPage } from "../web/src/core/book"
+import { findPage, foundPage } from "../web/src/core/book"
 import { NO_CONTROL_CENTER } from "../web/src/core/def/action"
 import type { Book } from "../web/src/core/schema/book"
 import { NO_PAPER, NO_PLACING, NOTHING_OPENED, newStage, shownPageId } from "../web/src/core/stage"
@@ -563,7 +563,7 @@ test("コマンドの文脈の page は、開いているページ（ブック�
   const page = shownPageId(ctx.stage.opened)
   expect(page).not.toBe(NO_PAGE)
   expect(ctx.book).not.toBe(NO_BOOK)
-  expect(ctx.page).toBe(findPage(ctx.book as Book, page)!.page)
+  expect(ctx.page).toBe(foundPage(findPage(ctx.book as Book, page))!)
 })
 
 test("何も開いていないステージのコマンドの文脈は、開いている物・置こうとしている物・道具・book・page・ダイアログ・右クリックのメニューも none", () => {

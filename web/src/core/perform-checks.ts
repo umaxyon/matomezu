@@ -1,6 +1,6 @@
 // アクションの結果を整え、形と決まりと認可ステップの守らせること（keeps）を確かめる（ページ・ブック・書庫・レコード）
 
-import { distinctBooks, findPage, holds, pageSettles, pagesOf, putPage } from "./book"
+import { distinctBooks, findPage, foundPage, holds, pageSettles, pagesOf, putPage } from "./book"
 import { changesOf, type LibraryPageRows, pageChangeOf } from "./changes"
 import type { CoreCatalog } from "./core-catalog"
 import type { ActionContext, ActionDef } from "./def/action"
@@ -39,7 +39,7 @@ export function normalizedPage(
 export function normalized(catalog: CoreCatalog, action: ActionDef, before: Book, after: Book): Book | null {
   let next = after
   for (const page of pagesOf(after)) {
-    const done = normalizedPage(catalog, action, findPage(before, page.id)?.page, page)
+    const done = normalizedPage(catalog, action, foundPage(findPage(before, page.id)), page)
     if (!done) return null
     if (done !== page) next = putPage(next, done)
   }

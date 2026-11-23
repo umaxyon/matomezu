@@ -1,6 +1,6 @@
 // 次のページ（と、あとで変えるページ）に選べる紙と向きと、次のページの題名の案（可変ページにできるか・増やす向きの選び方は place/grow.ts）（ページを足す・消すのは土台の core/book.ts）
 
-import { findBinder, findPage, lineupOf, NO_BINDER, pagesIn } from "../../../core/book"
+import { findBinder, findPage, lineupOf, NO_BINDER, NO_PAGE, pagesIn } from "../../../core/book"
 import { type CoreCatalog, pageType } from "../../../core/core-catalog"
 import { ORIENTATIONS, type Orientation } from "../../../core/def/paper"
 import type { MessageKey, Params } from "../../../core/i18n/i18n"
@@ -51,7 +51,8 @@ export const typePaperChoices = (catalog: CoreCatalog, type: string): PaperOptio
 
 // ページ page の紙と向きを変えるときに選べるもの（そのページ自身は、そろえる相手にしない）
 export function paperChoicesFor(catalog: CoreCatalog, book: StageLineup, page: Page): PaperOptions {
-  const binder = findPage(book, page.id)?.binder ?? NO_BINDER
+  const at = findPage(book, page.id)
+  const binder = at === NO_PAGE ? NO_BINDER : at.binder
   return choosablePapers(
     paperRule(catalog, page.type),
     mates(book, binder !== NO_BINDER ? { binder: binder.id } : "lineup").filter(p => p.id !== page.id),

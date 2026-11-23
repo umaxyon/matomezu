@@ -1,7 +1,7 @@
 // base の拡大縮小のコマンド（zoom-in・zoom-out・zoom-reset・zoom-fit）と、倍率の範囲
 
 import { expect, test } from "bun:test"
-import { findPage } from "../../../web/src/core/book"
+import { findPage, foundPage } from "../../../web/src/core/book"
 import { MARGIN } from "../../../web/src/core/viewport"
 import { screenOf } from "../../../web/src/core/window"
 import { roomOf } from "../../../web/src/plugins/base/place/grow"
@@ -100,7 +100,7 @@ test("左と上へ増やす可変ページは、開くと、空きの印刷区�
   actions.openPage("s1", "p1")
   actions.resizeStage("s1", { w: 800, h: 600 })
   const book = state.getState().books.b1!
-  const page = findPage(book, "p1")!.page
+  const page = foundPage(findPage(book, "p1"))!
   const sheet = sheetOf(stage())
   const start = startOf(catalog.core, page)
   expect(start).toEqual({ x: sheet.w, y: sheet.h })

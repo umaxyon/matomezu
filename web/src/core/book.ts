@@ -428,11 +428,14 @@ export const bindersOf = (book: StageLineup): readonly BinderEntry[] =>
 // ページがバインダに入っていないときの値（findPage の binder・binderOf）
 export const NO_BINDER = "none"
 
-// id のページと、それが入っているバインダ（並びに直に入っているページは binder が NO_BINDER。無ければ undefined）
+// ページが無いときの値（開いているページが無い・ページを開いていない・id のページが無い）
+export const NO_PAGE = "none"
+
+// id のページと、それが入っているバインダ（並びに直に入っているページは binder が NO_BINDER。無ければ NO_PAGE）
 export function findPage(
   book: StageLineup,
   id: string,
-): { page: ItemPage; binder: BinderEntry | typeof NO_BINDER } | undefined {
+): { page: ItemPage; binder: BinderEntry | typeof NO_BINDER } | typeof NO_PAGE {
   for (const e of book.lineup) {
     if (e.kind === "page") {
       if (e.id === id) return { page: e, binder: NO_BINDER }
@@ -441,8 +444,12 @@ export function findPage(
       if (found) return { page: found, binder: e }
     }
   }
-  return undefined
+  return NO_PAGE
 }
+
+// findPage が見つけたページ（NO_PAGE なら undefined）。core の中の、無いを undefined で受ける関数に渡すときに使う（プラグイン API には出さない）
+export const foundPage = (found: ReturnType<typeof findPage>): ItemPage | undefined =>
+  found === NO_PAGE ? undefined : found.page
 
 // id の要素（ページかバインダ）と同じブックかバインダの並び: 並びに直に入っている要素ならブックの並び、バインダの中のページならそのバインダの並び（無ければ undefined）
 export function siblingsOf(book: StageLineup, id: string): readonly LineupEntry[] | undefined {
@@ -749,7 +756,7 @@ export function pageById(
   let found: { book: Book; page: ItemPage; binder: BinderEntry | typeof NO_BINDER } | undefined
   for (const book of Object.values(books)) {
     const at = findPage(book, id)
-    if (!at) continue
+    if (at === NO_PAGE) continue
     if (found) return undefined
     found = { book, ...at }
   }

@@ -13,7 +13,7 @@ import {
   unexpired,
   usableAnnotations,
 } from "../../web/src/core/annotation"
-import { findPage } from "../../web/src/core/book"
+import { findPage, foundPage } from "../../web/src/core/book"
 import { NO_CONTROL_CENTER } from "../../web/src/core/def/action"
 import { tablesOf } from "../../web/src/core/folders-books"
 import { performIn } from "../../web/src/core/perform-world"
@@ -29,7 +29,7 @@ const book = testBook("d", "D", [
   }),
 ])
 
-const page = findPage(book, "p")!.page
+const page = foundPage(findPage(book, "p"))!
 
 const note = (id: string, props: unknown): Annotation => ({
   id,
@@ -168,7 +168,7 @@ test("タイプの混ざるブックでは、付いているページのタイ�
   ])
   const on = (id: string, anchors: Anchors): Annotation => ({ ...GOOD, id, anchors })
   const codes = (at: string, a: Annotation) =>
-    checkAnnotations(catalog, findPage(mixed, at)!.page, [a]).map(w => w.code)
+    checkAnnotations(catalog, foundPage(findPage(mixed, at))!, [a]).map(w => w.code)
   expect(codes("p1", on("n1", ["a"]))).toEqual([])
   expect(codes("p2", on("n2", ["b"]))).toEqual(["W019"])
   expect(codes("p1", on("n3", ["a", "b"]))).toEqual(["W019"])

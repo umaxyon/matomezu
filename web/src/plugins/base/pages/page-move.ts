@@ -1,7 +1,7 @@
 // ページを動かす: アクション page-move（同じブックかバインダの中で並びを入れ替える。ページの中身は変わらない）。
 // 並びに直に入っているページはブックの並びの中、バインダの中のページはそのバインダの中で動く（ブックやバインダをまたいでは動かさない）
 import { z } from "zod"
-import { findPage, moveEntry, siblingsOf } from "../../../core/book"
+import { findPage, moveEntry, NO_PAGE, siblingsOf } from "../../../core/book"
 import { kit } from "../kit"
 
 const ARGS = z.strictObject({ page: z.string().min(1), index: z.number().int().min(0).optional() })
@@ -17,7 +17,7 @@ export const PAGE_MOVE = kit.defineAction({
   args: ARGS,
   permissionScope: { entry: "page" },
   run: (book, args) => {
-    const siblings = findPage(book, args.page) && siblingsOf(book, args.page)
+    const siblings = findPage(book, args.page) !== NO_PAGE && siblingsOf(book, args.page)
     if (!siblings) return null
     const ids = siblings.map(e => e.id)
     const from = ids.indexOf(args.page)

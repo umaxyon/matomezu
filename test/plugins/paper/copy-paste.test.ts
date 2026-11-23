@@ -1,7 +1,7 @@
 // コピーして貼る: 選びから写しを作り（clipOf）、アクション item-paste が id を振り直して置く
 
 import { expect, test } from "bun:test"
-import { findPage, pagesOf } from "../../../web/src/core/book"
+import { findPage, foundPage, pagesOf } from "../../../web/src/core/book"
 import { connectorsOf, findShape, type ItemPage, shapesOf, walkShapes } from "../../../web/src/core/placed"
 import type { Book } from "../../../web/src/core/schema/book"
 import { screenOf } from "../../../web/src/core/window"
@@ -144,7 +144,7 @@ test("紙に収まらない場所は、収まる一番近い場所へ寄せる�
   const store = newStore()
   const a = place(store, BOX, { at: { x: 0, y: 0 } })
   const clip = clipFrom(store, [a])
-  const paged = findPage(book(store), "p1")!.page
+  const paged = foundPage(findPage(book(store), "p1"))!
   expect(nearestPaste(CORE_CATALOG, paged, clip, null, { x: 300, y: 300 })).toEqual({ x: 300, y: 300 })
   const near = nearestPaste(CORE_CATALOG, paged, clip, null, { x: -500, y: -500 })
   expect(near).not.toBeNull()

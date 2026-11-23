@@ -1,6 +1,6 @@
 // ページを消す: アクション page-remove（ページの中のアイテムと線もいっしょに消える。最後の 1 枚も消せる。バインダの最後の 1 枚を消しても、バインダは残る）
 import { z } from "zod"
-import { findPage, removePage } from "../../../core/book"
+import { findPage, NO_PAGE, removePage } from "../../../core/book"
 import { kit } from "../kit"
 
 const ARGS = z.strictObject({ page: z.string().min(1) })
@@ -16,7 +16,7 @@ export const PAGE_REMOVE = kit.defineAction({
   args: ARGS,
   permissionScope: { page: "page" },
   run: (book, args) => {
-    if (!findPage(book, args.page)) return null
+    if (findPage(book, args.page) === NO_PAGE) return null
     return { next: removePage(book, args.page), result: {} }
   },
 })

@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import { z } from "zod"
-import { findPage, putPage } from "../../web/src/core/book"
+import { findPage, foundPage, putPage } from "../../web/src/core/book"
 import { defineAction } from "../../web/src/core/def/action"
 import { definePageType } from "../../web/src/core/def/page-type"
 import type { MatomezuError } from "../../web/src/core/errors"
@@ -34,7 +34,7 @@ const RENAME = defineAction({
   permissionScope: { page: "page" },
   args: z.strictObject({ page: z.string().min(1), title: z.string().min(1) }),
   run: (book, args) => {
-    const page = findPage(book, args.page)?.page
+    const page = foundPage(findPage(book, args.page))
     return page ? { next: putPage(book, { ...page, title: args.title }), result: {} } : null
   },
 })

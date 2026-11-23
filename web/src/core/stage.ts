@@ -5,7 +5,7 @@
 // 操作はデータを書き換えず、新しい値を返す（変わらなければ同じものを返す）
 
 import { anchorIds } from "./annotation"
-import { findBinder, findPage, lineupOf, NO_BINDER, pagesOf } from "./book"
+import { findBinder, findPage, foundPage, lineupOf, NO_BINDER, NO_PAGE, pagesOf } from "./book"
 import type { ItemId } from "./catalog"
 import type { CoreCatalog, PageTypeId } from "./core-catalog"
 import { isInStageEntry } from "./def/action"
@@ -55,8 +55,7 @@ export interface OpenedPage extends OpenedBook {
 export const NOTHING_OPENED = "none"
 // ステージが無いときの値（ステージを持たない所から開いたダイアログ・向け先がステージでないときなど）
 export const NO_STAGE = "none"
-// 開いているページが無い・ページを開いていないときの値
-export const NO_PAGE = "none"
+export { NO_PAGE } from "./book"
 // 開いている物にページのタイプが無い（ページも空のバインダも開いていない）ときの値
 export const NO_PAGE_TYPE = "none"
 // 紙が無い（ページを開いていないか、プレゼンテーションが紙を置かない）ときの値
@@ -384,7 +383,7 @@ export function openOutsideBinder(catalog: CoreCatalog, stage: Stage, binder: Bi
 // 印刷プレビューの間なら閉じて、そのページの編集にする（開いていたページなら、閉じるのと同じ）
 export function openPage(catalog: CoreCatalog, stage: Stage, book: Book, page: string): Stage {
   const o = stage.opened
-  const found = findPage(book, page)?.page
+  const found = foundPage(findPage(book, page))
   if (o === NOTHING_OPENED || o.outermost.id !== book.id || !found) return stage
   if (shownPageId(o) === page) return closePrintPreview(stage)
   if (editingBackground(stage)) return stage // 背景編集モードの間は、ページを替えない
@@ -406,7 +405,8 @@ export function binderOf(book: Book, opened: Opened | typeof NOTHING_OPENED): st
   if (opened === NOTHING_OPENED) return NO_BINDER
   if (opened.kind === "binder") return opened.binder
   if (opened.kind !== "page") return NO_BINDER
-  const binder = findPage(book, opened.page)?.binder ?? NO_BINDER
+  const at = findPage(book, opened.page)
+  const binder = at === NO_PAGE ? NO_BINDER : at.binder
   return binder === NO_BINDER ? NO_BINDER : binder.id
 }
 
@@ -419,7 +419,7 @@ export function binderOf(book: Book, opened: Opened | typeof NOTHING_OPENED): st
 export function followBook(catalog: CoreCatalog, stage: Stage, book: Book, before?: Book): Stage {
   const next = followOpened(catalog, stage, book, before)
   if (next.opened === NOTHING_OPENED || next.opened.outermost.id !== book.id) return next
-  return selectionKept(next, findPage(book, shownPageId(next.opened))?.page)
+  return selectionKept(next, foundPage(findPage(book, shownPageId(next.opened))))
 }
 
 // 開いているブックの外のページ page が変わったときに合わせる（followBook の、開いていたページが残っているときと同じ）。そのページを開いていなければ、同じ値を返す
@@ -455,7 +455,7 @@ export function followInto(catalog: CoreCatalog, stage: Stage, into: Book | Bind
   const o = stage.opened
   if (o === NOTHING_OPENED || o.kind !== "page" || o.outermost.kind === "book") return stage
   const binder = "kind" in into
-  const found = binder ? into.lineup.find(p => p.id === o.page) : findPage(into, o.page)?.page
+  const found = binder ? into.lineup.find(p => p.id === o.page) : foundPage(findPage(into, o.page))
   if (!found) return stage
   const outermost: StageEntry = binder ? { kind: "binder", id: into.id } : entryOf(into)
   const opened = { ...openedAt(catalog, outermost, found), ...(o.area ? { area: o.area } : {}) }
@@ -486,7 +486,7 @@ function selectionKept(next: Stage, shown: Page | undefined): Stage {
 function followOpened(catalog: CoreCatalog, stage: Stage, book: Book, before?: Book): Stage {
   const o = stage.opened
   if (o === NOTHING_OPENED || o.outermost.id !== book.id) return stage
-  const found = o.kind === "page" ? findPage(book, o.page)?.page : undefined
+  const found = o.kind === "page" ? foundPage(findPage(book, o.page)) : undefined
   if (o.kind === "page" && found) return followShown(catalog, stage, o, found)
   const opened = neighbourOf(catalog, book, o, before)
   return sameData(opened, o) ? stage : settle(leave(opening(stage, opened)), ORIGIN)
@@ -675,7 +675,7 @@ export function toPaperDelta(stage: Pick<Stage, "zoom">, d: Point): Point {
 // ブックの外のバインダならその中のページ。開いている物に無いページ・無ければ null（プラグイン API の usePageById が読む）
 export function openedPageById(from: LibraryAndBooks, opened: { outermost: string }, id: string): ItemPage | null {
   const book = from.books[opened.outermost]
-  if (book) return findPage(book, id)?.page ?? null
+  if (book) return foundPage(findPage(book, id)) ?? null
   if (opened.outermost === id) return pageIn(from.pages, id) ?? null
   return outsideBinderIn(from, opened.outermost)?.lineup.find(p => p.id === id) ?? null
 }

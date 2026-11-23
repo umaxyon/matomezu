@@ -5,7 +5,7 @@
 import type { z } from "zod"
 import { workroomOfActor } from "./actor"
 import { type Annotation, annotationsSettle, type PageAnnotations } from "./annotation"
-import { findPage, keepsPageTypes, keepsTypesIn, outsideHolds, pageSettles, putPage } from "./book"
+import { findPage, foundPage, keepsPageTypes, keepsTypesIn, NO_PAGE, outsideHolds, pageSettles, putPage } from "./book"
 import type { ActionId, ActionTable } from "./catalog"
 import { pageChangeOf } from "./changes"
 import type { CoreCatalog } from "./core-catalog"
@@ -164,7 +164,7 @@ export function runAction(
     return run(subject, args, { ...ctx, newId: skipping(ctx.newId, () => rowIdsIn(subject as Library)) })
   if (action.target !== "page" && action.target !== "annotations") return run(subject, args, ctx)
   const at = subject as PageAt
-  const page = at.book === NOT_IN_BOOK ? at.held : findPage(at.book, at.page)?.page
+  const page = at.book === NOT_IN_BOOK ? at.held : foundPage(findPage(at.book, at.page))
   if (!page) return null
   if (action.target === "annotations") {
     const ran = run({ page, annotations: (subject as AnnotationsAt).annotations }, args, ctx)
@@ -189,7 +189,7 @@ export function perform<Id extends ActionId, S extends SubjectOf<Id> = SubjectOf
   if (action.target === "page" || action.target === "annotations") {
     const at = subject as PageAt
     if (at.book === NOT_IN_BOOK) return performOutsidePage(action, at, args, ctx) as Performed<Id, S>
-    if (!findPage(at.book, at.page)) return noPage(at.page)
+    if (findPage(at.book, at.page) === NO_PAGE) return noPage(at.page)
   }
   if (action.target === "book" && (subject as BinderOutsideBook).book === NOT_IN_BOOK)
     return performOutsideBinder(action, subject as BinderOutsideBook, args, ctx) as Performed<Id, S>

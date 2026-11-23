@@ -2,7 +2,7 @@
 // 掛けるのは利用者も AI もでき、外すのは利用者だけ（userOnly）
 import { z } from "zod"
 import { isAI } from "../../../core/actor"
-import { findPage, pagesOf } from "../../../core/book"
+import { findPage, foundPage, pagesOf } from "../../../core/book"
 import type { CatalogCheckDef } from "../../../core/core-catalog"
 import type { Where } from "../../../core/def/action"
 import type { PermissionCheck } from "../../../core/def/permission"
@@ -154,7 +154,7 @@ function pageKeeps(c: Extract<PermissionCheck, { kind: "page" }>): boolean {
 
 // フォルダで問う問いの所 where が名指すページ（名指さない・そのブックに無ければ undefined）
 const pageAt = (folder: Book, where: Where | undefined) =>
-  where?.page === undefined ? undefined : findPage(folder, where.page)?.page
+  where?.page === undefined ? undefined : foundPage(findPage(folder, where.page))
 
 export const LOCK = kit.definePermission({
   id: "lock",
@@ -188,7 +188,8 @@ export const LOCK = kit.definePermission({
     if (folder.locked) return !BOOK_SWITCHES.includes(action.id)
     if (where?.allPages) return pagesOf(folder).some(p => p.locked)
     // ロックしたページは、エントリとして動かせるが、名前は変えない
-    if (where?.entriesChange === "title") return (where.entries ?? []).some(id => findPage(folder, id)?.page.locked)
+    if (where?.entriesChange === "title")
+      return (where.entries ?? []).some(id => foundPage(findPage(folder, id))?.locked)
     return pageAt(folder, where)?.locked === true && !PAGE_SWITCHES.includes(action.id)
   },
   // フォローステップが応じた変わりも、ロック中のレコードを変えるならきっかけのアクションごと止める（ロックは利用者の物なので、応じる側も越えない）

@@ -3,7 +3,7 @@
 // ステップ（steps）は見る順に並べ、最初に値のあったステップで決まる（決まった後のステップも並べる）。ステップの出どころは文ではなくデータで返す
 
 import { type Actor, canAct, isAI, isVisitor, USER } from "./actor"
-import { findBinder, findPage, pagesOf } from "./book"
+import { findBinder, findPage, foundPage, pagesOf } from "./book"
 import type { ActionId, SubjectId } from "./catalog"
 import { type CoreCatalog, pageType } from "./core-catalog"
 import {
@@ -203,7 +203,7 @@ function typesAt(
     // 表に無い物は、タイプが分からないので使えない
     return every(
       where.entries
-        .map(id => findPage(book, id)?.page.type ?? findBinder(book, id)?.pageType)
+        .map(id => foundPage(findPage(book, id))?.type ?? findBinder(book, id)?.pageType)
         .map(type => (type !== undefined && catalog.pageTypes.has(type) ? type : undefined)),
     )
   const pages = pagesOf(book)
@@ -249,7 +249,7 @@ function permissionQuery(
   actor: Actor,
   ctx: object,
 ): PermissionQuery {
-  const page = isOnPage(def.target) && where?.page !== undefined ? findPage(book, where.page)?.page : undefined
+  const page = isOnPage(def.target) && where?.page !== undefined ? foundPage(findPage(book, where.page)) : undefined
   const entry = backyardEntryIn(ctx, book.id)
   const backyardEntry = entry ? { backyardEntry: entry } : {}
   if (!page) return { kind: "folder", action: def, folder: book, actor, ...(where ? { where } : {}), ...backyardEntry }

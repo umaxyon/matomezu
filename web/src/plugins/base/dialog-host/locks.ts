@@ -14,7 +14,8 @@ export function locksOf(
   const locks = new Map<string, string[]>()
   for (const id of ids) {
     const inLineup = lineup !== NO_LINEUP
-    const within = inLineup && findPage(lineup, id) ? id : inLineup && findBinder(lineup, id) ? lineup.id : shown
+    const within =
+      inLineup && findPage(lineup, id) !== NO_PAGE ? id : inLineup && findBinder(lineup, id) ? lineup.id : shown
     if (within !== NO_PAGE) locks.set(within, [...(locks.get(within) ?? []), id])
   }
   return [...locks].map(([within, ids]) => ({ within, ids }))

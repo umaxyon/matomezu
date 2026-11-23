@@ -2,7 +2,7 @@
 // 行う前は、空のブックで問う
 
 import { expect, test } from "bun:test"
-import { findPage, pagesOf } from "../../web/src/core/book"
+import { findPage, foundPage, pagesOf } from "../../web/src/core/book"
 import { HOME_ID } from "../../web/src/core/folders"
 import { defineMessages } from "../../web/src/core/i18n/messages"
 import { BUILTIN, BUILTIN_CONTROL_CENTER } from "../../web/src/plugins"
@@ -85,7 +85,9 @@ test("認可ステップは、作るページのタイプを行う前に見ら�
             denies: q => q.kind === "folder" && q.where?.creates === MARKDOWN,
             keeps: c =>
               c.kind !== "folder" ||
-              !c.changes.pages.some(p => p.change === "added" && findPage(c.after!, p.id)?.page.type === MARKDOWN),
+              !c.changes.pages.some(
+                p => p.change === "added" && foundPage(findPage(c.after!, p.id))?.type === MARKDOWN,
+              ),
           }),
         ],
       }),
