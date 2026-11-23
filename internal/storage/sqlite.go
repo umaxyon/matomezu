@@ -96,7 +96,7 @@ var migrations = []string{
 	);`,
 	// 参加者の表をやめ、参加者・ワークルーム・管理者の印をレコードにする（対象の定義。種類の id は @matomezu/base:participant・workroom・admin-mark）。
 	// 受け入れ済みの参加者ごとに、ワークルーム（id は元の参加者の id。名前・鳥・配色は元の workroom・bird・palette）と、そこに入る参加者を作る。
-	// 要求中は部屋を持たず、望んだ名前（wantedName）に移す。参加者の表は捨てる
+	// 要求中はワークルームを持たず、望んだ名前（wantedName）に移す。参加者の表は捨てる
 	`INSERT INTO records (subject, id, body, version, updated_at)
 	SELECT '@matomezu/base:workroom', json_extract(j.value, '$.id'),
 		json_remove(json_object('id', json_extract(j.value, '$.id'), 'name', json_extract(j.value, '$.workroom'), 'bird', json_extract(j.value, '$.bird'),

@@ -37,7 +37,7 @@ export const LeaveIcon = () => (
   </LineIcon>
 )
 
-// ごみ箱（空室の部屋を削除する）
+// ごみ箱（空室のワークルームを削除する）
 export const TrashIcon = () => (
   <LineIcon size={16} stroke={1.7}>
     <path d="M4 7h16M9.5 7V4.5h5V7M6.5 7l.8 12.5h9.4L17.5 7M10 11v5M14 11v5" />

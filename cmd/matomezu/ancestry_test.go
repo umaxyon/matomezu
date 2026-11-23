@@ -58,6 +58,17 @@ func TestFindHostSkipsTheRelays(t *testing.T) {
 			entry: 13, want: 9,
 		},
 		{
+			name: "Claude Desktop の Code タブの MCP（macOS、Volta）",
+			tree: tree{
+				9:  {parent: 1, name: "disclaimer", started: 1},
+				10: {parent: 9, name: "claude", started: 2},
+				11: {parent: 10, name: "volta-shim", started: 3},
+				12: {parent: 11, name: "node", started: 4},
+				13: {parent: 12, name: "matomezu", started: 5},
+			},
+			entry: 12, want: 10,
+		},
+		{
 			name: "npm で入れた AI の本体が node（Linux）",
 			tree: tree{
 				5:  {parent: 1, name: "bash", started: 1},
