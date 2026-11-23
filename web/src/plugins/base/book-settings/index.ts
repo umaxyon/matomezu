@@ -87,22 +87,25 @@ export interface SettingReader {
   <S extends z.ZodType>(def: PageSettingDef<S>): z.output<S> | typeof NOT_SET
 }
 
-// 設定の項目 def の値: 持つ所 holder（ページかステージエントリ。def の holder に合う物）の値、無ければ定義の既定（holder は無くてよい。無ければ既定。既定も無ければ NOT_SET）。
+// 設定の項目を持つ所が無いときの値（settingValue の holder。定義の既定を読む）
+export const NO_HOLDER = "none"
+
+// 設定の項目 def の値: 持つ所 holder（ページかステージエントリ。def の holder に合う物）の値、無ければ定義の既定（holder が NO_HOLDER なら既定。既定も無ければ NOT_SET）。
 // 持つ所の値は、読み込むときとアクションのあとに機能台帳のブックの形（項目の schema）で確かめてあるので、ここでは確かめ直さない
 // （利用者の設定は確かめずに残すので、読むときに確かめる。core/settings.ts の userSetting）
 export function settingValue<S extends z.ZodType>(
   catalog: CoreCatalog,
-  holder: object | null,
+  holder: object | typeof NO_HOLDER,
   def: DefaultedSettingDef<S> & { holder: SettingHolder },
 ): z.output<S>
 export function settingValue<S extends z.ZodType>(
   catalog: CoreCatalog,
-  holder: object | null,
+  holder: object | typeof NO_HOLDER,
   def: PageSettingDef<S> | OutermostSettingDef<S>,
 ): z.output<S> | typeof NOT_SET
-export function settingValue(catalog: CoreCatalog, holder: object | null, def: HeldSettingDef): unknown {
+export function settingValue(catalog: CoreCatalog, holder: object | typeof NO_HOLDER, def: HeldSettingDef): unknown {
   const known = catalog.settings.get(def.id) ?? fail("E113", { id: def.id })
-  return ownSettings(holder)[known.id] ?? known.default ?? NOT_SET
+  return (holder === NO_HOLDER ? undefined : ownSettings(holder)[known.id]) ?? known.default ?? NOT_SET
 }
 
 // ページ page で効いている設定の値を読む関数
@@ -110,7 +113,7 @@ export function settingsAt(catalog: CoreCatalog, page: object | null): SettingRe
   function read<S extends z.ZodType>(def: DefaultedSettingDef<S> & { holder: "page" }): z.output<S>
   function read<S extends z.ZodType>(def: PageSettingDef<S>): z.output<S> | typeof NOT_SET
   function read(def: PageSettingDef): unknown {
-    return settingValue(catalog, page, def)
+    return settingValue(catalog, page ?? NO_HOLDER, def)
   }
   return read
 }

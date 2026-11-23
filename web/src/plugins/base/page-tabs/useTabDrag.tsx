@@ -4,7 +4,7 @@ import { type PointerEvent, type RefObject, useEffect, useRef, useState } from "
 import { useAllowed, usePerform } from "../../../ui/view-hooks"
 import { BINDER_MOVE } from "../pages/binders"
 import { PAGE_MOVE } from "../pages/page-move"
-import { DRAG_START, edgePanner } from "../utils"
+import { DRAG_START, edgePanner, NO_VIEW_AREA } from "../utils"
 import { dropIndex, within } from "./tab-drop"
 
 const OUTSIDE = 24 // タブの並びの外へ出たと見る px
@@ -55,7 +55,7 @@ export function useTabDrag(
     edgePanner(
       () => {
         const r = list.current?.getBoundingClientRect()
-        return r ? { x: r.left, y: r.top, w: r.width, h: r.height } : null
+        return r ? { x: r.left, y: r.top, w: r.width, h: r.height } : NO_VIEW_AREA
       },
       (dx, dy) => {
         if (list.current) {

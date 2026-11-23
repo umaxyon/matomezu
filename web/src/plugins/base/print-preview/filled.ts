@@ -9,7 +9,7 @@ import { slideIsBackground } from "../../../core/def/page-type"
 import type { Rect, Size } from "../../../core/geom"
 import { byConnector, type ItemPage, type PlacedShape, shapesOf, slideOf } from "../../../core/placed"
 import { settingsAt } from "../book-settings"
-import { type GrowSides, grownArea, NO_GROW, paperSize } from "../place/grow"
+import { type GrowSides, grownArea, type NO_EXTENT, NO_GROW, paperSize } from "../place/grow"
 import { NO_SIZE, placedSize, portAreasOf, rectsOf } from "../place/placed"
 import { placeableIn } from "../toolbox/toolbox"
 import type { PrintSheets } from "."
@@ -48,13 +48,13 @@ export function crossingShapes(
   return { crossing, oversized }
 }
 
-// 中身の四角 rects（紙の座標）を並べたページの印刷区画（プレゼンテーションの printSheets が返す形）: 可変ページ（増やす向き grow）なら、中身の外枠 extent が
+// 中身の四角 rects（紙の座標）を並べたページの印刷区画（プレゼンテーションの printSheets が返す形）: 可変ページ（増やす向き grow）なら、中身の外枠 extent（中身が無ければ NO_EXTENT）が
 // 入るだけ印刷区画を並べた数、そうでなければ 1 つ。中身の四角が載る印刷区画（形と同じ決まり。sheetsOfShape）を、載っている印刷区画にする
 export function printSheetsOf(
   paper: Size,
   rects: readonly Rect[],
   grow: GrowSides | typeof NO_GROW,
-  extent: Rect | null,
+  extent: Rect | typeof NO_EXTENT,
 ): PrintSheets {
   const filled = new Set(rects.flatMap(r => sheetsOfShape(r, paper).map(c => sheetKey(c.column, c.row))))
   if (grow === NO_GROW) return { columns: 1, rows: 1, filled }

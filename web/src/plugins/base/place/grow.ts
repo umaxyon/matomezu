@@ -55,20 +55,23 @@ declare module "../../../core/catalog" {
   }
 }
 
+// ページに何も描かない（外枠が無い）
+export const NO_EXTENT = "none"
+
 // 紙の大きさ paper で区切った印刷区画を、中身の外枠 extent（紙の座標。無ければ中身が無い）が入るだけ、増やす向き sides に並べた数と、その広さ。
 // 増やさない向きは 1 つ。spare なら、右・下へ増やす向きに空きの印刷区画を 1 つずつ足す（ステージで、そこへ置けば増える）
 export function grownArea(
   paper: Size,
   sides: GrowSides,
-  extent: Rect | null,
+  extent: Rect | typeof NO_EXTENT,
   spare = false,
 ): { columns: number; rows: number; size: Size } {
   // 端がちょうど印刷区画の境目なら、次の印刷区画は要らない（割り算の誤差で 1 つ増やさない）。左（上）へ増やすページは、
   // 左（上）の空きの印刷区画をデータに持つ（alignPadding）ので、少なくとも 2 つ
   const count = (end: number, len: number, before: boolean, after: boolean) =>
     before || after ? Math.max(before ? 2 : 1, Math.ceil(end / len - 1e-9)) + (spare && after ? 1 : 0) : 1
-  const columns = count(extent ? extent.x + extent.w : 0, paper.w, sides.left, sides.right)
-  const rows = count(extent ? extent.y + extent.h : 0, paper.h, sides.up, sides.down)
+  const columns = count(extent !== NO_EXTENT ? extent.x + extent.w : 0, paper.w, sides.left, sides.right)
+  const rows = count(extent !== NO_EXTENT ? extent.y + extent.h : 0, paper.h, sides.up, sides.down)
   return { columns, rows, size: { w: columns * paper.w, h: rows * paper.h } }
 }
 
@@ -168,7 +171,7 @@ export function pageArea(
   const grow = growOf(catalog, page)
   if (grow === NO_GROW) return { columns: 1, rows: 1, size: paper }
   const extent = extentOf(catalog, page, settingsAt(catalog, page))
-  return grownArea(paper, grow, extent === NO_EXTENT ? null : extent, spare)
+  return grownArea(paper, grow, extent, spare)
 }
 
 // ページの形を置ける広さ（ページの Frame の大きさ）: 可変ページでなければ紙 1 枚。可変ページは、形の外枠が入るだけ並べた印刷区画に、
@@ -178,19 +181,16 @@ export function roomOf(catalog: CoreCatalog, page: ItemPage): Size {
   const grow = growOf(catalog, page)
   if (grow === NO_GROW) return paper
   const rects = [...rectsOf(catalog, page).values()]
-  const extent = rects.length
+  const extent: Rect | typeof NO_EXTENT = rects.length
     ? {
         x: 0,
         y: 0,
         w: Math.max(...rects.map(r => r.x + r.w)),
         h: Math.max(...rects.map(r => r.y + r.h)),
       }
-    : null
+    : NO_EXTENT
   return grownArea(paper, grow, extent, true).size
 }
-
-// ページに何も描かない（外枠が無い）
-export const NO_EXTENT = "none"
 
 // ページの形とつなぐものを、今の位置で描いたときの外枠（つなぐものは定義の bounds で測る）。何も描かなければ NO_EXTENT。
 // setting はそのページで効いている設定の値

@@ -4,8 +4,8 @@
 import { useState } from "react"
 import type { NewPageDialogArgs } from "../../../plugin-api"
 import { type DialogProps, useCoreCatalog, useMessages } from "../../../plugin-api/ui"
-import { settingValue } from "../../base"
-import { Choices, controlClass, Dialog, Field, Form, useNewPage } from "../../base/ui"
+import { NO_HOLDER, settingValue } from "../../base"
+import { Choices, controlClass, Dialog, Field, Form, NO_LINEUP, useNewPage } from "../../base/ui"
 import { useGrowOptions } from "./GrowSetting"
 import { GROW, type Grow } from "./grow"
 import { kit } from "./kit"
@@ -19,8 +19,8 @@ export function NewTreePageDialog({ args, onClose }: DialogProps<NewPageDialogAr
   const [title, setTitle] = useState(titles.page)
   const [grow, setGrow] = useState<Grow | undefined>(undefined) // undefined は既定の向き
   const [caption, setCaption] = useState("")
-  if (!lineup) return null
-  const inherited = settingValue(catalog, null, GROW) // 書かないときの向き（設定の項目の既定）
+  if (lineup === NO_LINEUP) return null
+  const inherited = settingValue(catalog, NO_HOLDER, GROW) // 書かないときの向き（設定の項目の既定）
   const create = () => {
     const added = addPage({
       type: TREE.id,
