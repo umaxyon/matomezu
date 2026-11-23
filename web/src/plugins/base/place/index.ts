@@ -1,6 +1,6 @@
 // アイテムを置く処理: 置く・押しのける・枠・伸びの処理を集める
 
-export { type AiPlaced, aiPlacedOf, aiPlacedOfPage, itemAiPlaced } from "./ai-placed"
+export { type AiPlaced, aiPlacedOf, aiPlacedOfPage, itemAiPlaced, NO_AI_PLACED } from "./ai-placed"
 export type { Frame } from "./frame"
 export {
   CHILD_AREA,
@@ -9,6 +9,8 @@ export {
   frameAround,
   frameOf,
   freeSpotIn,
+  NO_FRAME,
+  NO_SPOT,
   placeChild,
   replaceChild,
   settleChildren,

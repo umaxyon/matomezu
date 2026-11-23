@@ -5,7 +5,7 @@ import { pagesOf } from "../../../web/src/core/book"
 import { type ItemPage, walkShapes } from "../../../web/src/core/placed"
 import type { Book } from "../../../web/src/core/schema/book"
 import { screenOf } from "../../../web/src/core/window"
-import { childOrigin, frameOf, freeSpotIn } from "../../../web/src/plugins/base/place/frame"
+import { childOrigin, type Frame, frameOf, freeSpotIn, NO_SPOT } from "../../../web/src/plugins/base/place/frame"
 import { roomOf } from "../../../web/src/plugins/base/place/grow"
 import { allRectsOf, NEST_PADDING, placedSize, portAreasOf } from "../../../web/src/plugins/base/place/placed"
 import { floorsOf, resizedBy } from "../../../web/src/plugins/base/place/size"
@@ -426,11 +426,11 @@ test("空きの格子: 子の領域では必ず見つかり（行が下へ増え
   const store = newStore()
   const a = place(store, { at: { x: 0, y: 0 }, w: 400, h: 300 })!
   for (const x of [0, 108]) place(store, { at: { x: O.x + x, y: O.y }, parent: a, w: 100, h: 60 })
-  const frame = frameOf(CORE_CATALOG, page(store), a)!
+  const frame = frameOf(CORE_CATALOG, page(store), a) as Frame
   // 兄弟 2 つと置く形で 3 つ: 列は 2、空いた目は 2 行目の左
   expect(freeSpotIn(frame, { w: 100, h: 60 })).toEqual({ x: 0, y: 68 })
-  const paper = frameOf(CORE_CATALOG, page(store), null)!
-  expect(freeSpotIn(paper, { w: paper.paper.w, h: paper.paper.h })).toBeNull()
+  const paper = frameOf(CORE_CATALOG, page(store), null) as Frame
+  expect(freeSpotIn(paper, { w: paper.paper.w, h: paper.paper.h })).toBe(NO_SPOT)
 })
 
 test("座標を渡さずに置くと、親（無ければページ）の中の空きに置き、置いた所を返す", () => {

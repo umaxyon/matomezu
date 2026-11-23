@@ -24,6 +24,8 @@ import {
   frameOf,
   freeSpotIn,
   gapOf,
+  NO_FRAME,
+  NO_SPOT,
   placeChild,
   placedAt,
   placedSize,
@@ -63,7 +65,7 @@ export function sizedTo(catalog: CoreCatalog, item: PlacedShape, size: Size): Pl
 // ドラッグ中のアイテム id の通り道を覚え直す（drag.ts の track）
 export function trackDrag(catalog: CoreCatalog, page: ItemPage, id: string, prev: Point, by: Point, came: Came): Came {
   const frame = frameAround(catalog, page, id)
-  return frame ? track(frame.rects, id, prev, by, came) : came
+  return frame !== NO_FRAME ? track(frame.rects, id, prev, by, came) : came
 }
 
 // ドラッグ中の、同じ Frame のアイテムの四角（drag.ts の dragRects。動かすアイテムと、その場で入れ替えた相手だけが動く）。
@@ -76,13 +78,14 @@ export function dragging(
   came: Came,
 ): Map<string, Rect> | null {
   const frame = frameAround(catalog, page, id)
-  return frame && toData(frame, dragRects(frame.rects, id, by, came, frame.paper, gapOf(catalog, page)))
+  if (frame === NO_FRAME) return null
+  return toData(frame, dragRects(frame.rects, id, by, came, frame.paper, gapOf(catalog, page)))
 }
 
 // ページのアイテム ids を一緒に動かせるか: どれも形で、同じ Frame の形（ページの形どうしか、同じ親の子どうし）
 export function movableTogether(catalog: CoreCatalog, page: ItemPage, ids: readonly string[]): boolean {
-  const frame = ids[0] !== undefined ? frameAround(catalog, page, ids[0]) : null
-  return frame !== null && ids.every(id => frame.rects.has(id))
+  const frame = ids[0] !== undefined ? frameAround(catalog, page, ids[0]) : NO_FRAME
+  return frame !== NO_FRAME && ids.every(id => frame.rects.has(id))
 }
 
 // ページのアイテム ids（どれも同じ Frame の形）を by だけ動かす（drag.ts。1 つなら入れ替え・向こう側へ寄せる・手前へ戻す、何個かならまとめて手前へ戻す）。
@@ -94,8 +97,8 @@ export function moveItems(
   by: Point,
   came?: Came,
 ): ItemPage | null {
-  const frame = ids[0] !== undefined ? frameAround(catalog, page, ids[0]) : null
-  if (!frame) return null
+  const frame = ids[0] !== undefined ? frameAround(catalog, page, ids[0]) : NO_FRAME
+  if (frame === NO_FRAME) return null
   // どれも同じ Frame の形（ページの形と子の形、親の違う子は一緒に動かさない）
   if (!ids.every(id => frame.rects.has(id))) return null
   const gap = gapOf(catalog, page)
@@ -125,8 +128,8 @@ export function nearestMove(
   by: Point,
   came?: Came,
 ): Point | null {
-  const frame = ids[0] !== undefined ? frameAround(catalog, page, ids[0]) : null
-  if (!frame) return null
+  const frame = ids[0] !== undefined ? frameAround(catalog, page, ids[0]) : NO_FRAME
+  if (frame === NO_FRAME) return null
   const to = clampBy(frame.rects, ids, by, frame.paper)
   return stepToward(to, { x: 0, y: 0 }, p => moveItems(catalog, page, ids, p, came) !== null)
 }
@@ -222,10 +225,10 @@ export function freeAt(
   fits: (at: Point) => boolean = () => true,
 ): Point | null {
   const frame = frameOf(catalog, page, parent)
-  if (!frame) return null
+  if (frame === NO_FRAME) return null
   const at = (spot: Point) => ({ x: spot.x + frame.origin.x, y: spot.y + frame.origin.y })
   const spot = freeSpotIn(frame, size, s => fits(at(s)))
-  return spot && at(spot)
+  return spot === NO_SPOT ? null : at(spot)
 }
 
 // 置いた形のデータとして確かめる（形の定義の項目と中身の形。表に無い形は通らない）

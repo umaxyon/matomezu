@@ -34,23 +34,26 @@ function childRects(catalog: CoreCatalog, parent: PlacedShape, origin: Point): M
   return rects
 }
 
-// ページ page の、形 parent の子の領域の Frame（null ならページの紙。可変ページは、空きの印刷区画を含めた広さ。roomOf）。無い形なら null
-export function frameOf(catalog: CoreCatalog, page: ItemPage, parent: string | null): Frame | null {
+// Frame が無い（無い形）
+export const NO_FRAME = "none"
+
+// ページ page の、形 parent の子の領域の Frame（null ならページの紙。可変ページは、空きの印刷区画を含めた広さ。roomOf）。無い形なら NO_FRAME
+export function frameOf(catalog: CoreCatalog, page: ItemPage, parent: string | null): Frame | typeof NO_FRAME {
   if (parent === null) {
     const paper = roomOf(catalog, page)
     return { parent, origin: { x: 0, y: 0 }, paper, rects: rectsOf(catalog, page) }
   }
   const found = findShape(page, parent)
-  if (found === NO_ITEM) return null
+  if (found === NO_ITEM) return NO_FRAME
   const shape = found.shape
   const origin = childOrigin(catalog, shape)
   return { parent, origin, paper: CHILD_AREA, rects: childRects(catalog, shape, origin) }
 }
 
-// ページ page で、形 id が並ぶ Frame（ページの形なら紙、子の形なら親の子の領域）。無い形なら null
-export function frameAround(catalog: CoreCatalog, page: ItemPage, id: string): Frame | null {
+// ページ page で、形 id が並ぶ Frame（ページの形なら紙、子の形なら親の子の領域）。無い形なら NO_FRAME
+export function frameAround(catalog: CoreCatalog, page: ItemPage, id: string): Frame | typeof NO_FRAME {
   const found = findShape(page, id)
-  return found !== NO_ITEM ? frameOf(catalog, page, found.parent) : null
+  return found !== NO_ITEM ? frameOf(catalog, page, found.parent) : NO_FRAME
 }
 
 // Frame の中の四角を、データの位置にしたもの（Frame の左上を足す）
@@ -100,7 +103,7 @@ export function placeChild(
 ): ItemPage | null {
   const frame = frameOf(catalog, page, parent)
   const size = placedSize(catalog, shape)
-  if (!frame || !size) return null
+  if (frame === NO_FRAME || !size) return null
   const rect = { x: Math.max(0, at.x - frame.origin.x), y: Math.max(0, at.y - frame.origin.y), ...size }
   const after = planPlace(frame.rects, shape.id, rect, frame.paper, undefined, gapOf(catalog, page))
   return after && commitChildren(catalog, page, { ...frame, parent }, after, [shape])
@@ -110,7 +113,7 @@ export function placeChild(
 export function replaceChild(catalog: CoreCatalog, page: ItemPage, next: PlacedShape): ItemPage | null {
   const frame = frameAround(catalog, page, next.id)
   const size = placedSize(catalog, next)
-  if (!frame || frame.parent === null || !size) return null
+  if (frame === NO_FRAME || frame.parent === null || !size) return null
   const rect = { x: next.x - frame.origin.x, y: next.y - frame.origin.y, ...size }
   if (!inPaper(rect, frame.paper)) return null
   const gap = gapOf(catalog, page)
@@ -119,10 +122,17 @@ export function replaceChild(catalog: CoreCatalog, page: ItemPage, next: PlacedS
   return commitChildren(catalog, page, { ...frame, parent: frame.parent }, after, [next])
 }
 
+// Frame の中に置ける空きが無い
+export const NO_SPOT = "none"
+
 // Frame の中で、大きさ size の形を置ける空き（Frame の左上から）。格子で探す: 目の大きさは、兄弟と置く形の一番大きい幅・高さに間隔（GAP）を足したもの、
 // 列の数は兄弟と置く形の数の平方根（切り上げ。限りのある Frame は入る数まで）。子の領域の左上から左→右・上→下に目を当て、兄弟に近づきすぎず、
-// fits が通す最初の目（fits は呼ぶ側の確かめ。置いてもほかの形を動かさないかなど）。子の領域は右と下へ限りが無い（親が育つ）。入る目が無ければ null
-export function freeSpotIn(frame: Frame, size: Size, fits: (at: Point) => boolean = () => true): Point | null {
+// fits が通す最初の目（fits は呼ぶ側の確かめ。置いてもほかの形を動かさないかなど）。子の領域は右と下へ限りが無い（親が育つ）。入る目が無ければ NO_SPOT
+export function freeSpotIn(
+  frame: Frame,
+  size: Size,
+  fits: (at: Point) => boolean = () => true,
+): Point | typeof NO_SPOT {
   const sibs = [...frame.rects.values()]
   const cw = Math.max(size.w, ...sibs.map(r => r.w)) + GAP
   const ch = Math.max(size.h, ...sibs.map(r => r.h)) + GAP
@@ -134,10 +144,10 @@ export function freeSpotIn(frame: Frame, size: Size, fits: (at: Point) => boolea
     const at = { x: (i % cols) * cw, y: Math.floor(i / cols) * ch }
     const rect = { ...at, ...size }
     if (!inPaper(rect, frame.paper)) {
-      if (at.y + size.h > frame.paper.h) return null
+      if (at.y + size.h > frame.paper.h) return NO_SPOT
       continue
     }
     if (!sibs.some(r => tooClose(rect, r, GAP)) && fits(at)) return at
   }
-  return null
+  return NO_SPOT
 }
